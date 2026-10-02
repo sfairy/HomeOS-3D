@@ -1,328 +1,230 @@
-/**
- * 「配置安防 / 人物与行走路线」编辑对话框，是 presence 的配置入口：三栏布局（绑定列表 /
- */
-
-type AnyObj = Record<string, any>;
-import { openPresenceFocusEditor } from "./presence-focus-editor.js";
-import { mountInteraction3d } from "../core/runtime.js";
+// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
+import { openPresenceFocusEditor } from "./presence-focus-editor";
+import { mountInteraction3d } from "../core/runtime";
 import {
   validPresenceRoute,
   snapsToPresenceStart,
   PRESENCE_TRIGGER_MODES,
-  presenceTriggerIsTimed
-} from "./presence-motion.js";
-import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character.js";
-import { capturePointer } from "../core/static-helpers.js";
-import {
-  createDomFactory,
-  randomUuid,
-  toSvgPoint as bridgedToSvgPoint
-} from "../core/static-helpers-editor.js";
-import { serializeEditorDraft } from "../core/editor-save-status.js";
-/**
- * 打开人在传感器编辑对话框。
- */
+  presenceTriggerIsTimed,
+} from "./presence-motion";
+import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character";
+import { randomUuid } from "@app/utils/random-id";
 export async function openPresenceEditor({
   component: component,
   panelDocument: panelDocument,
-  floors: floors = [] as any[],
-  entities: entities = [] as any[],
+  floors = [],
+  entities = [],
   pickers: pickers,
   onSave: onSave,
-  initialSelectedId: initialSelectedId = "",
-  editingFloorId: editingFloorId = "",
-  manageBindings: manageBindings = true,
-  onClose: onClose
-}: AnyObj) {
-  const editorDocument = window.document;
-  // 整份属性深拷贝一份草稿：编辑期间只改草稿，取消 / 报错都不会污染组件的真实 properties。
-  const draftProperties = structuredClone(component.properties || ({} as AnyObj));
+  initialSelectedId = "",
+  editingFloorId = "",
+  manageBindings = true,
+  onClose: onClose,
+}) {
+  const ownerDocument = window.document,
+    draftProperties = structuredClone(component.properties || {});
   draftProperties.security = {
     ...draftProperties.security,
-    presenceSensors: structuredClone(draftProperties.security?.presenceSensors || [])
+    presenceSensors: structuredClone(draftProperties.security?.presenceSensors || []),
   };
-  const sensorBindings = draftProperties.security.presenceSensors;
-  // 实体名称索引：左栏按钮、只读模式提示都靠它把 entityId 显示成人可读的名字。
-  const sensorNamesByEntityId = new Map<any, any>(entities.map((entity: any) => [entity.entityId, entity.name]));
-  for (const sensor of sensorBindings) {
-    // displayPages 固定 all（人物在所有页面都显示），与后端字段兼容。
-    sensor.displayPages = "all";
-    Object.assign(sensor, {
-      character: sensor.character ?? "traveler",
-      color: sensor.color ?? "cyan",
-      speed: sensor.speed ?? 0.45,
-      size: sensor.size ?? 1,
-      // 定时触发的绑定时长必须 > 0，缺失时补 30 秒；非定时触发保持 0（跟随有人状态）。
-      displayDuration: presenceTriggerIsTimed(sensor)
-        ? sensor.displayDuration > 0
-          ? sensor.displayDuration
-          : 30
-        : (sensor.displayDuration ?? 0)
-    });
-  }
-  const { el, svg, button } = createDomFactory(editorDocument);
-  const createElement = (tagName: any, initialText: any = undefined, classNames: any = undefined) =>
-    el(tagName, classNames, initialText);
-  const createSvgElement = (svgTagName: any, attributes: any = undefined) => svg(svgTagName, attributes);
-  const styleLinkElement = createElement("link");
-  styleLinkElement.rel = "stylesheet";
-  // 样式与 3D 预览的 runtime.css 是两套：这里只加载编辑器自身的样式表。
-  styleLinkElement.href =
-    "/api/v1/modules/interaction3d/presence/presence-editor.css";
-  const dialogElement = createElement("dialog", "", "i3d-editor i3d-presence-editor");
+  const presenceSensors = draftProperties.security.presenceSensors,
+    entityNameById = new Map(
+      entities.map((entityRecord) => [entityRecord.entityId, entityRecord.name]),
+    );
+  for (const sensorEntry of presenceSensors)
+    ((sensorEntry.displayPages = "all"),
+      Object.assign(sensorEntry, {
+        character: sensorEntry.character ?? "traveler",
+        color: sensorEntry.color ?? "cyan",
+        speed: sensorEntry.speed ?? 0.45,
+        size: sensorEntry.size ?? 1,
+        displayDuration: presenceTriggerIsTimed(sensorEntry)
+          ? sensorEntry.displayDuration > 0
+            ? sensorEntry.displayDuration
+            : 30
+          : (sensorEntry.displayDuration ?? 0),
+      }));
+  const createDomElement = (tagName, textValue, classNameValue) => {
+      const createdElement = ownerDocument.createElement(tagName);
+      return (
+        textValue && (createdElement.textContent = textValue),
+        classNameValue && (createdElement.className = classNameValue),
+        createdElement
+      );
+    },
+    createSvgElement = (svgTagName, svgAttributes) => {
+      const svgElement = ownerDocument.createElementNS("http://www.w3.org/2000/svg", svgTagName);
+      for (const [attributeName, attributeValue] of Object.entries(svgAttributes || {}))
+        svgElement.setAttribute(attributeName, attributeValue);
+      return svgElement;
+    },
+    stylesheetLink = createDomElement("link");
+  ((stylesheetLink.rel = "stylesheet"),
+    (stylesheetLink.href =
+      "/api/v1/modules/interaction3d/presence/presence-editor.css"));
+  const dialogElement = createDomElement("dialog", "", "i3d-editor i3d-presence-editor");
   dialogElement.setAttribute("aria-label", manageBindings ? "配置安防" : "人物与行走路线");
-  // 记下打开前的焦点，关闭时还回去，键盘用户不会丢失位置。
-  const previouslyFocusedElement = editorDocument.activeElement;
-  // 初始选中项：指定 ID → 指定楼层的第一条 → 第一条，都没有则为 null（空状态）。
+  const previouslyFocusedElement = ownerDocument.activeElement;
   let selectedSensor =
-    sensorBindings.find((sensorMatch: any) => sensorMatch.id === initialSelectedId) ||
-    sensorBindings.find((floorProbe: any) => floorProbe.floorId === editingFloorId) ||
-    sensorBindings[0] ||
-    null;
-  let isClosed = false;
-  // 「用户意图上的闭合集合」：路线还没画完 / 正在拖动时，实际几何可能暂时不合法，
-  let closedRouteSensorIds = new Set(
-    sensorBindings
-      .filter(
-        (sensorCandidate: any) =>
-          sensorCandidate.routeClosed !== false && validPresenceRoute(sensorCandidate.route)
-      )
-      .map((routeSensorId: any) => routeSensorId.id)
-  );
-  /**
-   * 生成「将要落盘」的传感器列表快照。
-   */
-  const presencePersistState = () =>
-    sensorBindings.map((sensorItem: any) => ({
-      ...sensorItem,
-      // routeClosed 只在两者同时成立时为 true：用户点了闭合，且几何确实能构成闭合路线。
-      routeClosed: closedRouteSensorIds.has(sensorItem.id) && validPresenceRoute(sensorItem.route)
-    }));
-  let savedPresenceSignature = serializeEditorDraft(presencePersistState());
-  let draggedPoint: any = null;
-  // 平面图画布的取景框（平面坐标系下的矩形），fitPlanBox 计算、renderRoutePlan 用。
-  let planBox: any = null;
-  let characterPreview: any = null;
-  // 角色预览的「角色 + 颜色」签名，变了才重建模型。
-  let previewSignature = "";
-  let animationFrameId: any = 0;
-  let lastFrameTimeMs = 0;
-  let walkDistance = 0;
-  let elapsedSeconds = 0;
-  let editorRuntime: any = null;
-  let isPreviewReady = false;
-  let viewMode = "plan";
-  let isWalkPreviewRunning = false;
-  let isHitRangeVisible = false;
-  let topViewTimer: any = 0;
-  let hoverPoint: any = null;
-  let fieldCollectors: any[] = [];
-  let isDirty = false;
-  /**
-   * 提交所有正在编辑的字段值。
-   */
-  const flushFieldCollectors = () => {
-    for (const fieldCollector of fieldCollectors) {
-      fieldCollector();
-    }
-  };
-  const statusElement = createElement("span", "", "presence-status");
-  // role=status 让读屏器朗读提示文案（保存结果、错误信息都走这里）。
+      presenceSensors.find((sensorById) => sensorById.id === initialSelectedId) ||
+      presenceSensors.find((sensorByFloor) => sensorByFloor.floorId === editingFloorId) ||
+      presenceSensors[0] ||
+      null,
+    isClosed = false,
+    closedRouteSensorIds = new Set(
+      presenceSensors
+        .filter(
+          (closedRouteSensor) =>
+            closedRouteSensor.routeClosed !== false && validPresenceRoute(closedRouteSensor.route),
+        )
+        .map((closedRouteSensorId) => closedRouteSensorId.id),
+    ),
+    dragPoint = null,
+    planViewBox,
+    characterWalker = null,
+    appliedWalkerKey = "",
+    animationFrameId = 0,
+    lastFrameTimestamp = 0,
+    walkerDistance = 0,
+    walkerElapsed = 0,
+    interaction3dHandle = null,
+    isRuntimeReady = false,
+    viewMode = "plan",
+    isPreviewingWalk = false,
+    isHitRangeVisible = false,
+    topViewTimerId = 0,
+    hoverPoint = null,
+    pendingSyncHandlers = [];
+  const flushPendingEdits = () => {
+      for (const syncHandler of pendingSyncHandlers) syncHandler();
+    },
+    statusElement = createDomElement("span", "", "presence-status");
   statusElement.setAttribute("role", "status");
-  const createButton = (buttonLabel: any, onButtonClick: any = undefined) =>
-    button(buttonLabel, onButtonClick);
-  /**
-   * 关闭编辑器并释放全部资源（幂等）。
-   */
+  const createActionButton = (buttonLabel, clickHandler) => {
+    const actionButton = createDomElement("button", buttonLabel);
+    return (
+      (actionButton.type = "button"),
+      actionButton.addEventListener("click", clickHandler),
+      actionButton
+    );
+  };
   function closeEditor() {
-    if (!isClosed) {
-      isClosed = true;
-      cancelAnimationFrame(animationFrameId);
-      routeResizeObserver.disconnect();
-      clearTimeout(topViewTimer);
-      editorRuntime?.();
-      editorDocument.removeEventListener("visibilitychange", handleVisibilityChange);
-      // 角色预览是独立的 WebGL 上下文，必须显式 dispose + forceContextLoss，
-      if (characterPreview) {
-        disposeWalker(characterPreview.root);
-        characterPreview.renderer.dispose();
-        characterPreview.renderer.forceContextLoss();
-      }
-      dialogElement.close();
-      dialogElement.remove();
-      styleLinkElement.remove();
-      // 通知宿主：这块预览已收起，其它 3D 预览可以恢复渲染。
-      editorDocument.dispatchEvent(new Event("hb-i3d-preview-scope"));
-      (previouslyFocusedElement as HTMLElement | null)?.focus?.();
-      onClose?.();
-    }
+    isClosed ||
+      ((isClosed = true),
+      cancelAnimationFrame(animationFrameId),
+      planResizeObserver.disconnect(),
+      clearTimeout(topViewTimerId),
+      interaction3dHandle?.(),
+      ownerDocument.removeEventListener("visibilitychange", startCharacterAnimation),
+      characterWalker &&
+        (disposeWalker(characterWalker.root),
+        characterWalker.renderer.dispose(),
+        characterWalker.renderer.forceContextLoss()),
+      dialogElement.close(),
+      dialogElement.remove(),
+      stylesheetLink.remove(),
+      ownerDocument.dispatchEvent(new Event("hb-i3d-preview-scope")),
+      previouslyFocusedElement?.focus?.(),
+      onClose?.());
   }
-  const saveButtonElement = createButton(
+  const applyButton = createActionButton(
     manageBindings ? "保存安防配置" : "应用人物与路线",
     async () => {
-      if (!isDirty) {
-        return;
-      }
-      // 先把正在输入的数字 / 文本提交进绑定对象，保证保存的是用户最后看到的值。
-      flushFieldCollectors();
-      // 落盘前再同步一次 routeClosed：这里是唯一真正写回该字段的地方。
-      for (const sensorItem of sensorBindings) {
-        sensorItem.routeClosed =
-          closedRouteSensorIds.has(sensorItem.id) && validPresenceRoute(sensorItem.route);
-      }
-      // 幂等短路：提交字段后签名可能与基准一致（例如用户改了又改回来），
-      isDirty = serializeEditorDraft(presencePersistState()) !== savedPresenceSignature;
-      if (!isDirty) {
-        saveButtonElement.disabled = true;
-        return;
-      }
-      saveButtonElement.disabled = true;
+      flushPendingEdits();
+      for (const saveSensorEntry of presenceSensors)
+        saveSensorEntry.routeClosed =
+          closedRouteSensorIds.has(saveSensorEntry.id) && validPresenceRoute(saveSensorEntry.route);
+      applyButton.disabled = true;
       try {
-        await onSave(structuredClone(draftProperties));
-        if (!isClosed) {
-          // 保存成功后把基准推进到当前状态，后续编辑才是"新的脏"。
-          savedPresenceSignature = serializeEditorDraft(presencePersistState());
-          isDirty = false;
-          saveButtonElement.disabled = true;
-          statusElement.textContent = manageBindings
-            ? "已应用到编辑器，请在退出后保存仪表盘"
-            : "已应用，请返回后点击「保存配置」";
-        }
+        (await onSave(structuredClone(draftProperties)),
+          isClosed || (statusElement.textContent = "已应用到编辑器，请在退出后保存仪表盘"));
       } catch (saveError) {
-        // 失败时重新启用按钮，让用户可以直接重试。
-        if (!isClosed) {
-          statusElement.textContent = (saveError as any).message || "保存失败，请重试。";
-          saveButtonElement.disabled = false;
-        }
+        isClosed || (statusElement.textContent = saveError.message || "保存失败，请重试。");
+      } finally {
+        isClosed || (applyButton.disabled = false);
       }
-    }
+    },
   );
-  saveButtonElement.className = "primary";
-  // 初始不可保存：没有任何改动。
-  saveButtonElement.disabled = true;
-  /**
-   * 重算脏标记并更新保存按钮与提示文案。
-   */
-  const markPresenceDirty = (dirtyMessage: any = undefined) => {
-    flushFieldCollectors();
-    isDirty = serializeEditorDraft(presencePersistState()) !== savedPresenceSignature;
-    saveButtonElement.disabled = !isDirty;
-    if (isDirty) {
-      if (dirtyMessage) {
-        statusElement.textContent = dirtyMessage;
-      }
-      return;
-    }
-    // 已经没有改动（改回原样）：清掉任何"已修改"提示，但不覆盖错误等信息。
-    if (
-      dirtyMessage ||
-      statusElement.textContent === "配置已修改，请保存安防配置。" ||
-      statusElement.textContent === "配置已修改，请应用人物与路线。"
-    ) {
-      statusElement.textContent = "";
-    }
-  };
-  // 用事件委托统一监听所有输入：任何控件改动都会冒泡到这里。
-  dialogElement.addEventListener("input", () => {
-    markPresenceDirty(
-      manageBindings ? "配置已修改，请保存安防配置。" : "配置已修改，请应用人物与路线。"
-    );
-  });
-  const headerElement = createElement("header");
+  ((applyButton.className = "primary"),
+    dialogElement.addEventListener("input", () => {
+      statusElement.textContent = manageBindings
+        ? "配置已修改，请保存安防配置。"
+        : "配置已修改，请应用人物与路线。";
+    }));
+  const headerElement = createDomElement("header");
   headerElement.append(
-    createElement("strong", manageBindings ? "配置安防" : "人物与行走路线"),
+    createDomElement("strong", manageBindings ? "配置安防" : "人物与行走路线"),
     statusElement,
-    saveButtonElement,
-    createButton("退出", closeEditor)
+    applyButton,
+    createActionButton("退出", closeEditor),
   );
-  const bodyElement = createElement("div", "", "presence-body");
-  const bindingsPanelElement = createElement("aside", "", "presence-bindings");
-  const controlsPanelElement = createElement("aside", "", "presence-controls");
-  const planPanelElement = createElement("div", "", "presence-plan");
-  const planTitleElement = createElement("strong", "行走路线");
-  // hintElement 是分场景变化的操作提示（吸附闭合、3D 拖动旋转等），由 renderRoutePlan 写入。
-  const hintElement = createElement("p", "", "presence-note");
-  const viewportElement = createElement("div", "", "presence-viewport");
-  // 3D 预览挂载点与 SVG 平面图层叠在同一个 viewport 里，靠 viewMode 决定显示谁。
-  const runtimeElement = createElement("div", "", "presence-plan-runtime");
-  const routeSvgElement = createSvgElement("svg", {
-    role: "img",
-    // 键盘可达（tabindex=0）：下面绑定了 pointer 事件，同时也支持点击聚焦。
-    "aria-label": "平面图行走路线",
-    tabindex: "0"
-  });
-  const pointsLayerElement = createSvgElement("g");
-  const routeLayerElement = createSvgElement("g");
-  routeSvgElement.append(pointsLayerElement, routeLayerElement);
-  const routeToolsElement = createElement("div", "", "presence-route-tools");
-  routeToolsElement.append(
-    createButton("闭合路线", () => {
-      if (selectedSensor && validPresenceRoute(selectedSensor.route)) {
-        closedRouteSensorIds.add(selectedSensor.id);
-        markPresenceDirty();
-        statusElement.textContent = "";
-        renderRoutePlan();
-      } else {
-        statusElement.textContent = "至少绘制三个不共线的点，才能闭合路线。";
-      }
+  const bodyElement = createDomElement("div", "", "presence-body"),
+    bindingsPanel = createDomElement("aside", "", "presence-bindings"),
+    controlsPanel = createDomElement("aside", "", "presence-controls"),
+    planPanel = createDomElement("div", "", "presence-plan"),
+    routeTitleElement = createDomElement("strong", "行走路线"),
+    planNoteElement = createDomElement("p", "", "presence-note"),
+    viewportElement = createDomElement("div", "", "presence-viewport"),
+    runtimeContainer = createDomElement("div", "", "presence-plan-runtime"),
+    planSvgElement = createSvgElement("svg", {
+      role: "img",
+      "aria-label": "平面图行走路线",
+      tabindex: "0",
     }),
-    createButton("撤销一点", () => {
-      if (selectedSensor) {
-        // 撤销点会破坏闭合几何，因此同时退出闭合意图。
-        closedRouteSensorIds.delete(selectedSensor.id);
-        selectedSensor.route.pop();
-        markPresenceDirty();
-        renderRoutePlan();
-        syncPreview();
-      }
+    planStaticLayer = createSvgElement("g"),
+    planRouteLayer = createSvgElement("g");
+  planSvgElement.append(planStaticLayer, planRouteLayer);
+  const routeToolbar = createDomElement("div", "", "presence-route-tools");
+  routeToolbar.append(
+    createActionButton("闭合路线", () => {
+      selectedSensor && validPresenceRoute(selectedSensor.route)
+        ? (closedRouteSensorIds.add(selectedSensor.id),
+          (statusElement.textContent = ""),
+          renderPlan())
+        : (statusElement.textContent = "至少绘制三个不共线的点，才能闭合路线。");
     }),
-    createButton("清空并重新绘制", () => {
-      if (selectedSensor) {
-        flushFieldCollectors();
-        selectedSensor.route = [];
-        selectedSensor.routeClosed = false;
-        closedRouteSensorIds.delete(selectedSensor.id);
-        hoverPoint = null;
-        draggedPoint = null;
-        isWalkPreviewRunning = false;
-        walkPreviewButton.textContent = "预览行走";
-        markPresenceDirty("路径已清空，请重新绘制。");
-        renderRoutePlan();
-        syncPreview();
-      }
-    })
+    createActionButton("撤销一点", () => {
+      selectedSensor &&
+        (closedRouteSensorIds.delete(selectedSensor.id),
+        selectedSensor.route.pop(),
+        renderPlan(),
+        syncRuntimePreview());
+    }),
+    createActionButton("清空并重新绘制", () => {
+      selectedSensor &&
+        (flushPendingEdits(),
+        (selectedSensor.route = []),
+        (selectedSensor.routeClosed = false),
+        closedRouteSensorIds.delete(selectedSensor.id),
+        (hoverPoint = null),
+        (dragPoint = null),
+        (isPreviewingWalk = false),
+        (previewWalkButton.textContent = "预览行走"),
+        (statusElement.textContent = "路径已清空，请重新绘制。"),
+        renderPlan(),
+        syncRuntimePreview());
+    }),
   );
-  const viewToolsElement = createElement("div", "", "i3d-focus-actions presence-view-tools");
-  const viewModeGroupElement = createElement("div", "", "i3d-focus-actions");
-  viewModeGroupElement.setAttribute("role", "group");
-  viewModeGroupElement.setAttribute("aria-label", "编辑视图");
-  /**
-   * 切换「平面 / 3D」编辑视图。
-   */
-  const setViewMode = (nextViewMode: any) => {
-    viewMode = nextViewMode;
-    // 平面视图下才显示 SVG 与路线工具；3D 视图靠 WebGL 预览，无需 SVG 覆盖。
-    routeSvgElement.toggleAttribute("hidden", nextViewMode !== "plan");
-    routeToolsElement.hidden = nextViewMode !== "plan";
-    draggedPoint = null;
-    hoverPoint = null;
-    planViewButton.setAttribute("aria-pressed", String(nextViewMode === "plan"));
-    threeDViewButton.setAttribute("aria-pressed", String(nextViewMode === "3d"));
-    // 预览还没就绪时不发命令：stage.js 会排队，过早发送只会白排一条。
-    if (isPreviewReady) {
-      if (nextViewMode === "plan") {
-        scheduleTopView();
-      } else {
-        editorRuntime.focusCommand("presence-3d-view").catch(showError);
-      }
-    }
-    renderRoutePlan();
-  };
-  const planViewButton = createButton("平面", () => setViewMode("plan"));
-  const threeDViewButton = createButton("3D", () => setViewMode("3d"));
-  planViewButton.setAttribute("aria-pressed", "true");
-  threeDViewButton.setAttribute("aria-pressed", "false");
-  const walkPreviewButton = createButton("预览行走", () => {
+  const viewModeToolbar = createDomElement("div", "", "i3d-focus-actions presence-view-tools"),
+    setViewMode = (nextViewMode) => {
+      ((viewMode = nextViewMode),
+        planSvgElement.toggleAttribute("hidden", nextViewMode !== "plan"),
+        (routeToolbar.hidden = nextViewMode !== "plan"),
+        (dragPoint = null),
+        (hoverPoint = null),
+        planModeButton.setAttribute("aria-pressed", String(nextViewMode === "plan")),
+        threeDModeButton.setAttribute("aria-pressed", String(nextViewMode === "3d")),
+        isRuntimeReady &&
+          (nextViewMode === "plan"
+            ? scheduleTopView()
+            : interaction3dHandle.focusCommand("presence-3d-view").catch(showError)),
+        renderPlan());
+    },
+    planModeButton = createActionButton("平面", () => setViewMode("plan")),
+    threeDModeButton = createActionButton("3D", () => setViewMode("3d"));
+  (planModeButton.setAttribute("aria-pressed", "true"),
+    threeDModeButton.setAttribute("aria-pressed", "false"));
+  const previewWalkButton = createActionButton("预览行走", () => {
     if (
       !selectedSensor ||
       !closedRouteSensorIds.has(selectedSensor.id) ||
@@ -331,400 +233,336 @@ export async function openPresenceEditor({
       statusElement.textContent = "请先绘制路径并闭合，再预览行走。";
       return;
     }
-    isWalkPreviewRunning = !isWalkPreviewRunning;
-    walkPreviewButton.textContent = isWalkPreviewRunning ? "停止预览" : "预览行走";
-    // 预览未就绪时仅切换按钮状态，syncPreview 就绪后会补发一次命令。
-    if (isPreviewReady) {
-      editorRuntime
-        .focusCommand("presence-preview-walk", "", isWalkPreviewRunning)
-        .catch(showError);
-    }
+    ((isPreviewingWalk = !isPreviewingWalk),
+      (previewWalkButton.textContent = isPreviewingWalk ? "停止预览" : "预览行走"),
+      isRuntimeReady &&
+        interaction3dHandle
+          .focusCommand("presence-preview-walk", "", isPreviewingWalk)
+          .catch(showError));
   });
-  viewModeGroupElement.append(planViewButton, threeDViewButton);
-  viewToolsElement.append(viewModeGroupElement, walkPreviewButton);
-  viewportElement.append(runtimeElement, routeSvgElement);
-  planPanelElement.append(
-    planTitleElement,
-    hintElement,
-    viewToolsElement,
-    viewportElement,
-    routeToolsElement
-  );
-  bodyElement.append(bindingsPanelElement, planPanelElement, controlsPanelElement);
-  dialogElement.append(headerElement, bodyElement);
-  await new Promise((resolveStyleLoad, rejectStyleLoad) => {
-    styleLinkElement.addEventListener("load", resolveStyleLoad, {
-      once: true
-    });
-    styleLinkElement.addEventListener(
-      "error",
-      () => rejectStyleLoad(new Error("安防样式加载失败，请重试。")),
-      {
-        once: true
-      }
-    );
-    editorDocument.head.append(styleLinkElement);
-  }).catch(styleLoadError => {
-    styleLinkElement.remove();
-    throw styleLoadError;
-  });
-  editorDocument.body.append(dialogElement);
-  // 标记预览作用域：宿主据此暂停其它 3D 预览的渲染，省下 GPU 时间给本对话框。
-  dialogElement.dataset.i3dPreviewScope = "presence";
-  /**
-   * 把错误写到状态栏（编辑器已关闭时静默）。
-   */
-  function showError(loadError: any) {
-    if (!isClosed) {
-      statusElement.textContent = loadError.message || String(loadError);
-    }
+  (viewModeToolbar.append(planModeButton, threeDModeButton, previewWalkButton),
+    viewportElement.append(runtimeContainer, planSvgElement),
+    planPanel.append(
+      routeTitleElement,
+      planNoteElement,
+      viewModeToolbar,
+      viewportElement,
+      routeToolbar,
+    ),
+    bodyElement.append(bindingsPanel, planPanel, controlsPanel),
+    dialogElement.append(headerElement, bodyElement),
+    await new Promise((resolveLoad, rejectLoad) => {
+      (stylesheetLink.addEventListener("load", resolveLoad, {
+        once: true,
+      }),
+        stylesheetLink.addEventListener(
+          "error",
+          () => rejectLoad(new Error("安防样式加载失败，请重试。")),
+          {
+            once: true,
+          },
+        ),
+        ownerDocument.head.append(stylesheetLink));
+    }).catch((styleLoadError) => {
+      throw (stylesheetLink.remove(), styleLoadError);
+    }),
+    ownerDocument.body.append(dialogElement),
+    (dialogElement.dataset.i3dPreviewScope = "presence"));
+  function showError(errorValue) {
+    isClosed || (statusElement.textContent = errorValue.message || String(errorValue));
   }
   function currentFloor() {
-    if (selectedSensor) {
-      return floors.find((floorMatch: any) => floorMatch.id === selectedSensor.floorId);
-    } else {
-      return (
-        floors.find(
-          (fallbackFloorMatch: any) =>
-            fallbackFloorMatch.id === (editingFloorId || draftProperties.floorSelection)
-        ) || floors[0]
-      );
-    }
+    return selectedSensor
+      ? floors.find((floorById) => floorById.id === selectedSensor.floorId)
+      : floors.find(
+          (floorByEditingId) =>
+            floorByEditingId.id === (editingFloorId || draftProperties.floorSelection),
+        ) || floors[0];
   }
-  /**
-   * 延时切到正交顶视图（用于平面视图）。
-   */
   function scheduleTopView() {
-    clearTimeout(topViewTimer);
-    if (!!isPreviewReady && !!currentFloor() && viewMode === "plan" && !!planBox) {
-      topViewTimer = setTimeout(() => {
-        const scheduledFloor = currentFloor();
-        if (!isClosed && isPreviewReady && viewMode === "plan" && scheduledFloor) {
-          editorRuntime
-            .focusCommand("presence-top-view", "", {
-              floorId: scheduledFloor.id,
-              // 传入平面图取景框，stage.js 据此把正交相机对齐到同一可视范围。
-              box: planBox
-            })
-            .catch(showError);
-        }
-      }, 30);
-    }
+    (clearTimeout(topViewTimerId),
+      !(!isRuntimeReady || !currentFloor() || viewMode !== "plan" || !planViewBox) &&
+        (topViewTimerId = setTimeout(() => {
+          const topViewFloor = currentFloor();
+          !isClosed &&
+            isRuntimeReady &&
+            viewMode === "plan" &&
+            topViewFloor &&
+            interaction3dHandle
+              .focusCommand("presence-top-view", "", {
+                floorId: topViewFloor.id,
+                box: planViewBox,
+              })
+              .catch(showError);
+        }, 30)));
   }
-  /**
-   * 把当前草稿同步给 3D 预览（未挂载则先挂载）：预览用裁剪过的副本而不是原始草稿 ——
-   */
-  function syncPreview() {
-    const previewFloorId = currentFloor()?.id;
-    if (!previewFloorId) {
-      return;
-    }
-    const previewProperties = {
+  function syncRuntimePreview() {
+    const activeFloorId = currentFloor()?.id;
+    if (!activeFloorId) return;
+    const runtimeProperties = {
       ...structuredClone(draftProperties),
-      floorSelection: previewFloorId,
+      floorSelection: activeFloorId,
       camera:
-        draftProperties.floorCameras?.[previewFloorId] ||
-        (draftProperties.floorSelection === previewFloorId ? draftProperties.camera : null),
+        draftProperties.floorCameras?.[activeFloorId] ||
+        (draftProperties.floorSelection === activeFloorId ? draftProperties.camera : null),
       security: {
         presenceSensors: selectedSensor
           ? [
               {
                 ...structuredClone(selectedSensor),
-                routeClosed: closedRouteSensorIds.has(selectedSensor.id)
-              }
+                routeClosed: closedRouteSensorIds.has(selectedSensor.id),
+              },
             ]
-          : []
+          : [],
       },
-      // 编辑态一律全亮 / 全彩：调暗效果会让用户误判人物颜色。
       pageDimStrength: {
         overview: 0,
-        security: 0
+        security: 0,
       },
       pageSaturation: {
         overview: 100,
-        security: 100
+        security: 100,
       },
       autoRotate: {
-        enabled: false
-      }
+        enabled: false,
+      },
     };
-    if (editorRuntime) {
-      // 已挂载时走 update：stage.js 内部做增量更新，比整块重建快得多。
-      editorRuntime.update(previewProperties);
+    if (interaction3dHandle) {
+      interaction3dHandle.update(runtimeProperties);
       return;
     }
-    editorRuntime = (mountInteraction3d as any)(runtimeElement, {
+    ((interaction3dHandle = mountInteraction3d(runtimeContainer, {
       component: {
         ...component,
-        properties: previewProperties
+        properties: runtimeProperties,
       },
       context: {
         document: panelDocument,
-        // editable=true 才允许 stage.js 接收本编辑器的 focusCommand。
-        editable: true
+        editable: true,
       },
       editing: true,
       editingModule: "security",
       onPresented: () => {
-        if (!isClosed) {
-          isPreviewReady = true;
-          // 预览就绪后才补发此前被跳过的视图 / 预览命令（见 walkPreviewButton）。
-          scheduleTopView();
-          if (isWalkPreviewRunning) {
-            editorRuntime.focusCommand("presence-preview-walk", "", true).catch(showError);
-          }
-          editorRuntime
+        isClosed ||
+          ((isRuntimeReady = true),
+          scheduleTopView(),
+          isPreviewingWalk &&
+            interaction3dHandle.focusCommand("presence-preview-walk", "", true).catch(showError),
+          interaction3dHandle
             .focusCommand("presence-show-hit-range", "", isHitRangeVisible)
-            .catch(showError);
-        }
+            .catch(showError));
       },
-      onLoadError: showError
-    });
-    // 新预览挂载后通知宿主：作用域变了，其它预览需要重新判定是否暂停渲染。
-    editorDocument.dispatchEvent(new Event("hb-i3d-preview-scope"));
+      onLoadError: showError,
+    })),
+      ownerDocument.dispatchEvent(new Event("hb-i3d-preview-scope")));
   }
-  /**
-   * 计算平面图的取景框 planBox（平面坐标系，单位是平面图像素）。
-   */
-  function fitPlanBox() {
-    const activeFloor = currentFloor();
-    const planPoints = [
-      ...(activeFloor?.plan?.walls || []).flatMap((planWall: any) => [planWall.start, planWall.end]),
-      ...(selectedSensor?.route || [])
-    ];
-    const xCoordinates = planPoints.map((planPointX: any) => planPointX.x);
-    const yCoordinates = planPoints.map((planPointY: any) => planPointY.y);
-    // 平面图像素当量缺省 100（即 100 像素 = 1 米），与 studio 侧默认一致。
-    const pixelsPerMeter = activeFloor?.plan?.pixelsPerMeter || 100;
-    const minX = planPoints.length ? Math.min(...xCoordinates) : 0;
-    const minY = planPoints.length ? Math.min(...yCoordinates) : 0;
-    const boxWidth = Math.max(
-      pixelsPerMeter,
-      planPoints.length ? Math.max(...xCoordinates) - minX : pixelsPerMeter * 10
-    );
-    const boxHeight = Math.max(
-      pixelsPerMeter,
-      planPoints.length ? Math.max(...yCoordinates) - minY : pixelsPerMeter * 8
-    );
-    const pixelMargin = Math.max(boxWidth, boxHeight) * 0.1;
-    planBox = {
-      x: minX - pixelMargin,
-      y: minY - pixelMargin,
-      w: boxWidth + pixelMargin * 2,
-      h: boxHeight + pixelMargin * 2
-    };
-    renderRoutePlan();
+  function fitPlanToContent() {
+    const fittingFloor = currentFloor(),
+      planPoints = [
+        ...(fittingFloor?.plan?.walls || []).flatMap((wallSegment) => [
+          wallSegment.start,
+          wallSegment.end,
+        ]),
+        ...(selectedSensor?.route || []),
+      ],
+      pointXs = planPoints.map((pointForX) => pointForX.x),
+      pointYs = planPoints.map((pointForY) => pointForY.y),
+      pixelsPerMeter = fittingFloor?.plan?.pixelsPerMeter || 100,
+      minContentX = planPoints.length ? Math.min(...pointXs) : 0,
+      minContentY = planPoints.length ? Math.min(...pointYs) : 0,
+      contentWidth = Math.max(
+        pixelsPerMeter,
+        planPoints.length ? Math.max(...pointXs) - minContentX : pixelsPerMeter * 10,
+      ),
+      contentHeight = Math.max(
+        pixelsPerMeter,
+        planPoints.length ? Math.max(...pointYs) - minContentY : pixelsPerMeter * 8,
+      ),
+      viewBoxPadding = Math.max(contentWidth, contentHeight) * 0.1;
+    ((planViewBox = {
+      x: minContentX - viewBoxPadding,
+      y: minContentY - viewBoxPadding,
+      w: contentWidth + viewBoxPadding * 2,
+      h: contentHeight + viewBoxPadding * 2,
+    }),
+      renderPlan());
   }
-  /**
-   * 重画 SVG 平面视图（路线、控制点、提示文案、按钮可用态）。
-   */
-  function renderRoutePlan(scheduleTopViewAfterRender: any = true) {
-    if (!planBox) {
-      return;
-    }
-    // 聚焦按钮由 presence-focus-editor.js 插入，存在与否取决于绑定是否可聚焦。
-    const focusButtonElement = controlsPanelElement.querySelector("[data-presence-focus]");
-    if (focusButtonElement) {
-      focusButtonElement.disabled =
+  function renderPlan(shouldScheduleTopView = true) {
+    if (!planViewBox) return;
+    const focusActionButton = controlsPanel.querySelector("[data-presence-focus]");
+    (focusActionButton &&
+      (focusActionButton.disabled =
         !selectedSensor ||
         !closedRouteSensorIds.has(selectedSensor.id) ||
-        !validPresenceRoute(selectedSensor.route);
-    }
-    // viewBox 直接用平面图像素坐标，SVG 缩放由浏览器处理，不必手动换算。
-    routeSvgElement.setAttribute(
-      "viewBox",
-      planBox.x + " " + planBox.y + " " + planBox.w + " " + planBox.h
-    );
-    pointsLayerElement.replaceChildren();
-    routeLayerElement.replaceChildren();
-    const renderedFloor = currentFloor();
-    walkPreviewButton.disabled =
+        !validPresenceRoute(selectedSensor.route)),
+      planSvgElement.setAttribute(
+        "viewBox",
+        planViewBox.x + " " + planViewBox.y + " " + planViewBox.w + " " + planViewBox.h,
+      ),
+      planStaticLayer.replaceChildren(),
+      planRouteLayer.replaceChildren());
+    const renderFloor = currentFloor();
+    previewWalkButton.disabled =
       !selectedSensor ||
       !closedRouteSensorIds.has(selectedSensor.id) ||
       !validPresenceRoute(selectedSensor.route);
-    for (const routeToolButton of routeToolsElement.querySelectorAll("button")) {
+    for (const routeToolButton of routeToolbar.querySelectorAll("button"))
       routeToolButton.disabled = !selectedSensor || viewMode !== "plan";
-    }
-    // 提示文案按「是否有绑定 → 是否有楼层 → 当前视图 / 闭合状态」三级降级。
-    hintElement.textContent = selectedSensor
-      ? renderedFloor
-        ? viewMode === "3d"
-          ? "拖动旋转、滚轮缩放；调整人物大小，再预览行走效果。"
-          : closedRouteSensorIds.has(selectedSensor.id)
-            ? "路线已闭合 · 可拖动圆点调整路径；切换 3D 查看人物大小。"
-            : "请绘制行走路径：依次点击至少三个点，靠近起点可吸附闭合。"
-        : "请选择有效楼层。"
-      : "添加人在传感器后，在顶视图中绘制行走路径。";
-    planTitleElement.textContent = renderedFloor
-      ? (renderedFloor.name || "楼层") + " · 行走路线"
-      : "行走路线";
-    if (scheduleTopViewAfterRender !== false) {
-      scheduleTopView();
-    }
-    if (!selectedSensor) {
+    if (
+      ((planNoteElement.textContent = selectedSensor
+        ? renderFloor
+          ? viewMode === "3d"
+            ? "拖动旋转、滚轮缩放；调整人物大小，再预览行走效果。"
+            : closedRouteSensorIds.has(selectedSensor.id)
+              ? "路线已闭合 · 可拖动圆点调整路径；切换 3D 查看人物大小。"
+              : "请绘制行走路径：依次点击至少三个点，靠近起点可吸附闭合。"
+          : "请选择有效楼层。"
+        : "添加人在传感器后，在顶视图中绘制行走路径。"),
+      (routeTitleElement.textContent = renderFloor
+        ? (renderFloor.name || "楼层") + " · 行走路线"
+        : "行走路线"),
+      shouldScheduleTopView !== false && scheduleTopView(),
+      !selectedSensor)
+    )
       return;
-    }
-    // 两个主题色，与 presence-scene.js / presence-character.js 里的取色保持一致：
     const routeColor = selectedSensor.color === "orange" ? "#eaa044" : "#52b8b1";
-    routeLayerElement.append(
-      // 闭合用 polygon（自动连首尾），未闭合用 polyline，不能一律用 polygon。
+    planRouteLayer.append(
       createSvgElement(closedRouteSensorIds.has(selectedSensor.id) ? "polygon" : "polyline", {
-        points: selectedSensor.route.map((routePoint: any) => routePoint.x + "," + routePoint.y).join(" "),
+        points: selectedSensor.route
+          .map((routePoint) => routePoint.x + "," + routePoint.y)
+          .join(" "),
         fill: closedRouteSensorIds.has(selectedSensor.id) ? routeColor + "14" : "none",
         stroke: routeColor,
         "stroke-width": 3,
         "vector-effect": "non-scaling-stroke",
         "pointer-events": "none",
-        "stroke-linejoin": "round"
-      })
+        "stroke-linejoin": "round",
+      }),
     );
-    // 圆点半径希望固定成 6~8 个"屏幕像素"，但 viewBox 会随取景框缩放，
-    const svgUnitsPerPixel = 1 / Math.max(0.0001, Math.abs(routeSvgElement.getScreenCTM()?.a || 1));
-    selectedSensor.route.forEach((point: any, pointIndex: any) => {
-      routeLayerElement.append(
-        createSvgElement("circle", {
-          cx: point.x,
-          cy: point.y,
-          // 起点画大一点（8 屏幕像素 vs 6），提示这里是可吸附的闭合点。
-          r: (pointIndex === 0 ? 8 : 6) * svgUnitsPerPixel,
-          fill: pointIndex === 0 ? routeColor : "#f7fafc",
-          stroke: routeColor,
-          "stroke-width": 2,
-          "vector-effect": "non-scaling-stroke",
-          // 命中检测靠 data-point 反查角标，拖动逻辑见 pointer 事件。
-          "data-point": pointIndex
-        })
-      );
-      const pointLabelElement = createSvgElement("text", {
-        // 序号标注贴右上角，偏移量同样按屏幕像素换算，缩放时不会压到圆点上。
-        x: point.x + svgUnitsPerPixel * 11,
-        y: point.y - svgUnitsPerPixel * 9,
-        fill: "#64748b",
-        "font-size": svgUnitsPerPixel * 11,
-        "pointer-events": "none"
-      });
-      pointLabelElement.textContent = String(pointIndex + 1);
-      routeLayerElement.append(pointLabelElement);
-    });
-    if (!closedRouteSensorIds.has(selectedSensor.id) && hoverPoint && selectedSensor.route.length) {
-      // 悬停时预览"若在这里点击会画到哪"：靠近起点则吸附，画出虚线闭合并提示可点击。
-      const snapTarget = snapsToPresenceStart(
-        selectedSensor.route,
-        hoverPoint,
-        // 吸附阈值也是屏幕像素（10px），换算成用户单位后交给纯函数判断。
-        1 / svgUnitsPerPixel
-      );
-      const closingPoint = snapTarget ? selectedSensor.route[0] : hoverPoint;
-      const lastRoutePoint = selectedSensor.route.at(-1);
-      routeLayerElement.append(
-        createSvgElement("line", {
-          x1: lastRoutePoint.x,
-          y1: lastRoutePoint.y,
-          x2: closingPoint.x,
-          y2: closingPoint.y,
-          stroke: routeColor,
-          "stroke-width": 2,
-          // 虚线表示"尚未提交"的预览线段。
-          "stroke-dasharray": "5 4",
-          "vector-effect": "non-scaling-stroke",
-          "pointer-events": "none"
-        })
-      );
-      if (snapTarget) {
-        routeLayerElement.append(
+    const svgUnitScale = 1 / Math.max(0.0001, Math.abs(planSvgElement.getScreenCTM()?.a || 1));
+    if (
+      (selectedSensor.route.forEach((planPoint, planPointIndex) => {
+        planRouteLayer.append(
           createSvgElement("circle", {
-            cx: closingPoint.x,
-            cy: closingPoint.y,
-            // 吸附光晕 16 屏幕像素，半径比普通点大一圈。
-            r: svgUnitsPerPixel * 16,
-            fill: routeColor + "33",
+            cx: planPoint.x,
+            cy: planPoint.y,
+            r: (planPointIndex === 0 ? 8 : 6) * svgUnitScale,
+            fill: planPointIndex === 0 ? routeColor : "#f7fafc",
             stroke: routeColor,
             "stroke-width": 2,
             "vector-effect": "non-scaling-stroke",
-            "pointer-events": "none"
-          })
+            "data-point": planPointIndex,
+          }),
         );
-        hintElement.textContent = "已吸附起点 · 点击即可闭合路线。";
-      }
+        const pointLabelElement = createSvgElement("text", {
+          x: planPoint.x + 11 * svgUnitScale,
+          y: planPoint.y - 9 * svgUnitScale,
+          fill: "#64748b",
+          "font-size": 11 * svgUnitScale,
+          "pointer-events": "none",
+        });
+        ((pointLabelElement.textContent = String(planPointIndex + 1)),
+          planRouteLayer.append(pointLabelElement));
+      }),
+      !closedRouteSensorIds.has(selectedSensor.id) && hoverPoint && selectedSensor.route.length)
+    ) {
+      const snappedStartPoint = snapsToPresenceStart(
+          selectedSensor.route,
+          hoverPoint,
+          1 / svgUnitScale,
+        ),
+        snapTargetPoint = snappedStartPoint ? selectedSensor.route[0] : hoverPoint,
+        lastRoutePoint = selectedSensor.route.at(-1);
+      (planRouteLayer.append(
+        createSvgElement("line", {
+          x1: lastRoutePoint.x,
+          y1: lastRoutePoint.y,
+          x2: snapTargetPoint.x,
+          y2: snapTargetPoint.y,
+          stroke: routeColor,
+          "stroke-width": 2,
+          "stroke-dasharray": "5 4",
+          "vector-effect": "non-scaling-stroke",
+          "pointer-events": "none",
+        }),
+      ),
+        snappedStartPoint &&
+          (planRouteLayer.append(
+            createSvgElement("circle", {
+              cx: snapTargetPoint.x,
+              cy: snapTargetPoint.y,
+              r: 16 * svgUnitScale,
+              fill: routeColor + "33",
+              stroke: routeColor,
+              "stroke-width": 2,
+              "vector-effect": "non-scaling-stroke",
+              "pointer-events": "none",
+            }),
+          ),
+          (planNoteElement.textContent = "已吸附起点 · 点击即可闭合路线。")));
     }
   }
-  /**
-   * 把「标签 + 控件」包成一行追加到右栏。
-   */
-  function appendField(fieldLabel: any, fieldControl: any) {
-    const fieldElement = createElement("label", "", "presence-field");
-    // 用 <label> 包住控件，点击文字即可聚焦输入框，无需手写 for/id。
-    fieldElement.append(createElement("span", fieldLabel), fieldControl);
-    controlsPanelElement.append(fieldElement);
-    return fieldControl;
+  function addFieldLabel(fieldLabel, fieldControl) {
+    const fieldLabelElement = createDomElement("label", "", "presence-field");
+    return (
+      fieldLabelElement.append(createDomElement("span", fieldLabel), fieldControl),
+      controlsPanel.append(fieldLabelElement),
+      fieldControl
+    );
   }
-  /**
-   * 添加一个数值输入行，读写 selectedSensor 上的某个属性；input 只是视图，真正写回发生在
-   */
   function addNumberField(
-    numberLabel: any,
-    propertyKey: any,
-    minValue: any,
-    maxValue: any,
-    stepSize: any,
-    displayScale: any = 1
+    fieldAriaLabel,
+    propertyKey,
+    minValue,
+    maxValue,
+    stepValue,
+    scaleFactor = 1,
   ) {
-    const numberInputElement = createElement("input");
-    Object.assign(numberInputElement, {
+    const numberInput = createDomElement("input");
+    (Object.assign(numberInput, {
       type: "number",
       min: minValue,
       max: maxValue,
-      step: stepSize,
-      value: selectedSensor[propertyKey] * displayScale
-    });
-    numberInputElement.setAttribute("aria-label", numberLabel);
-    // 捕获当前选中项：commitNumberField 可能晚于切换绑定才执行（save 前的 flush），
-    const sensorRef = selectedSensor;
-    /**
-     * 把输入框里的值规整后写回绑定对象。
-     */
-    const commitNumberField = () => {
-      const typedNumber = Number(numberInputElement.value);
-      // 空串（用户清空准备重输）时保留原值；越界则夹取到 [min, max]。
-      if (numberInputElement.value.trim() && Number.isFinite(typedNumber)) {
-        sensorRef[propertyKey] = Math.max(minValue, Math.min(maxValue, typedNumber)) / displayScale;
-      }
-      // 回写视图：把夹取 / 单位换算后的真实值展示出来，用户能看到被"纠正"的结果。
-      numberInputElement.value = sensorRef[propertyKey] * displayScale;
-    };
-    fieldCollectors.push(commitNumberField);
-    numberInputElement.addEventListener("change", () => {
-      commitNumberField();
-      // 数值直接影响 3D（人物大小、速度），改完立刻同步预览。
-      syncPreview();
-    });
-    appendField(numberLabel, numberInputElement).parentElement.classList.add(
-      "presence-number-field"
-    );
+      step: stepValue,
+      value: selectedSensor[propertyKey] * scaleFactor,
+    }),
+      numberInput.setAttribute("aria-label", fieldAriaLabel));
+    const targetSensor = selectedSensor,
+      commitNumberField = () => {
+        const numericValue = Number(numberInput.value);
+        (numberInput.value.trim() &&
+          Number.isFinite(numericValue) &&
+          (targetSensor[propertyKey] =
+            Math.max(minValue, Math.min(maxValue, numericValue)) / scaleFactor),
+          (numberInput.value = targetSensor[propertyKey] * scaleFactor));
+      };
+    (pendingSyncHandlers.push(commitNumberField),
+      numberInput.addEventListener("change", () => {
+        (commitNumberField(), syncRuntimePreview());
+      }),
+      addFieldLabel(fieldAriaLabel, numberInput).parentElement.classList.add(
+        "presence-number-field",
+      ));
   }
-  /**
-   * 重建右栏属性面板与左栏绑定列表（选中项变化、增删绑定后调用）。
-   */
-  function renderControls() {
-    flushFieldCollectors();
-    fieldCollectors = [];
-    draggedPoint = null;
-    hoverPoint = null;
-    bindingsPanelElement.replaceChildren();
-    controlsPanelElement.replaceChildren();
-    bindingsPanelElement.append(
-      createElement("strong", "人在传感器"),
-      createElement("p", "每个传感器独立设置路线和人物。", "presence-note")
-    );
-    const addSensorButton = createButton("＋ 添加人在传感器", () => {
-      // 新建绑定的默认值：与 offline 侧 presence 默认值保持一致
-      selectedSensor = {
+  function renderSensorPanel() {
+    (flushPendingEdits(),
+      (pendingSyncHandlers = []),
+      (dragPoint = null),
+      (hoverPoint = null),
+      bindingsPanel.replaceChildren(),
+      controlsPanel.replaceChildren(),
+      bindingsPanel.append(
+        createDomElement("strong", "人在传感器"),
+        createDomElement("p", "每个传感器独立设置路线和人物。", "presence-note"),
+      ));
+    const addSensorButton = createActionButton("＋ 添加人在传感器", () => {
+      ((selectedSensor = {
         id: randomUuid(),
         label: "",
         entityId: "",
         floorId:
           floors.find(
-            (defaultFloorProbe: any) => defaultFloorProbe.id === component.properties?.floorSelection
+            (addSensorFloor) => addSensorFloor.id === component.properties?.floorSelection,
           )?.id ||
           floors[0]?.id ||
           "",
@@ -735,551 +573,445 @@ export async function openPresenceEditor({
         clickToFocus: false,
         hitPadding: 8,
         character: "traveler",
-        color: "cyan"
-      };
-      sensorBindings.push(selectedSensor);
-      // 新绑定没有路线，行走预览不成立，复位按钮与视图。
-      isWalkPreviewRunning = false;
-      walkPreviewButton.textContent = "预览行走";
-      setViewMode("plan");
-      markPresenceDirty("选择人在传感器后，请在顶视图中绘制行走路径。");
-      renderControls();
+        color: "cyan",
+      }),
+        presenceSensors.push(selectedSensor),
+        (isPreviewingWalk = false),
+        (previewWalkButton.textContent = "预览行走"),
+        setViewMode("plan"),
+        (statusElement.textContent = "选择人在传感器后，请在顶视图中绘制行走路径。"),
+        renderSensorPanel());
     });
-    addSensorButton.disabled = !floors.length;
-    // 只读模式（从人物与路线面板进入）不给增删入口。
-    if (manageBindings) {
-      bindingsPanelElement.append(addSensorButton);
-    }
-    for (const listedSensor of sensorBindings) {
-      const sensorButtonElement = createButton(
+    ((addSensorButton.disabled = !floors.length),
+      manageBindings && bindingsPanel.append(addSensorButton));
+    for (const listedSensor of presenceSensors) {
+      const listedSensorButton = createActionButton(
         listedSensor.label ||
-          sensorNamesByEntityId.get(listedSensor.entityId) ||
+          entityNameById.get(listedSensor.entityId) ||
           listedSensor.entityId ||
           "未选择传感器",
         () => {
-          selectedSensor = listedSensor;
-          renderControls();
-        }
+          ((selectedSensor = listedSensor), renderSensorPanel());
+        },
       );
-      sensorButtonElement.setAttribute("aria-pressed", String(listedSensor === selectedSensor));
-      bindingsPanelElement.append(sensorButtonElement);
+      (listedSensorButton.setAttribute("aria-pressed", String(listedSensor === selectedSensor)),
+        bindingsPanel.append(listedSensorButton));
     }
     if (!selectedSensor) {
-      controlsPanelElement.append(createElement("p", "有人时走动，无人时隐藏。", "presence-note"));
-      // 空状态也要刷新平面图与预览（可能只剩地板没有路线）。
-      fitPlanBox();
-      syncPreview();
+      (controlsPanel.append(createDomElement("p", "有人时走动，无人时隐藏。", "presence-note")),
+        fitPlanToContent(),
+        syncRuntimePreview());
       return;
     }
-    const activeSensor = selectedSensor;
-    const sensorPickerButton = createButton(
-      sensorNamesByEntityId.get(activeSensor.entityId) || activeSensor.entityId || "选择人在传感器",
-      async () => {
-        try {
-          await pickers.entity({
-            trigger: sensorPickerButton,
-            current: activeSensor.entityId,
-            deviceKind: "presence",
-            onSelect: (entityId: any, pickedEntity: any) => {
-              flushFieldCollectors();
-              fieldCollectors = [];
-              activeSensor.entityId = entityId;
-              // 事件型实体（event.*）没有"持续有人"的语义，只在一瞬间触发，
-              if (entityId.startsWith("event.") && !(activeSensor.displayDuration > 0)) {
-                activeSensor.displayDuration = 30;
-              }
-              if (pickedEntity?.name) {
-                sensorNamesByEntityId.set(entityId, pickedEntity.name);
-              }
-              markPresenceDirty();
-              if (!activeSensor.route.length) {
-                statusElement.textContent = "已选择传感器，请在顶视图中绘制行走路径。";
-              }
-              renderControls();
-            }
-          });
-        } catch (pickerError) {
-          statusElement.textContent = (pickerError as any).message;
-        }
-      }
-    );
-    sensorPickerButton.setAttribute("aria-label", "选择人在传感器");
-    if (manageBindings) {
-      appendField("人在传感器", sensorPickerButton);
-    } else {
-      // 只读模式不再暴露选择器，只显示当前绑定（改名要去安防设置里改）。
-      controlsPanelElement.append(
-        createElement(
-          "p",
-          "检测设备：" +
-            (activeSensor.deviceName ||
-              sensorNamesByEntityId.get(activeSensor.entityId) ||
-              activeSensor.entityId ||
-              "未绑定") +
-            "（在安防设置中修改）",
-          "presence-note"
-        )
+    const editingSensor = selectedSensor,
+      entityPickerButton = createActionButton(
+        entityNameById.get(editingSensor.entityId) || editingSensor.entityId || "选择人在传感器",
+        async () => {
+          try {
+            await pickers.entity({
+              trigger: entityPickerButton,
+              current: editingSensor.entityId,
+              deviceKind: "presence",
+              onSelect: (selectedEntityId, selectedEntityOption) => {
+                (flushPendingEdits(),
+                  (pendingSyncHandlers = []),
+                  (editingSensor.entityId = selectedEntityId),
+                  selectedEntityId.startsWith("event.") &&
+                    !(editingSensor.displayDuration > 0) &&
+                    (editingSensor.displayDuration = 30),
+                  selectedEntityOption?.name &&
+                    entityNameById.set(selectedEntityId, selectedEntityOption.name),
+                  editingSensor.route.length ||
+                    (statusElement.textContent = "已选择传感器，请在顶视图中绘制行走路径。"),
+                  renderSensorPanel());
+              },
+            });
+          } catch (pickerError) {
+            statusElement.textContent = pickerError.message;
+          }
+        },
       );
-    }
-    const labelInputElement = createElement("input");
-    labelInputElement.value = activeSensor.label;
-    labelInputElement.maxLength = 128;
-    labelInputElement.placeholder = "可选，自定义名称";
-    labelInputElement.setAttribute("aria-label", "显示名称");
-    /**
-     * 把名称输入框的内容提交到绑定对象。
-     */
-    const commitLabelInput = () => {
-      // 截断到 128 字符：与 maxLength 双保险（粘贴超长文本时 maxLength 不生效）。
-      activeSensor.label = labelInputElement.value.slice(0, 128);
+    (entityPickerButton.setAttribute("aria-label", "选择人在传感器"),
+      manageBindings
+        ? addFieldLabel("人在传感器", entityPickerButton)
+        : controlsPanel.append(
+            createDomElement(
+              "p",
+              "检测设备：" +
+                (editingSensor.deviceName ||
+                  entityNameById.get(editingSensor.entityId) ||
+                  editingSensor.entityId ||
+                  "未绑定") +
+                "（在安防设置中修改）",
+              "presence-note",
+            ),
+          ));
+    const nameInput = createDomElement("input");
+    ((nameInput.value = editingSensor.label),
+      (nameInput.maxLength = 128),
+      (nameInput.placeholder = "可选，自定义名称"),
+      nameInput.setAttribute("aria-label", "显示名称"));
+    const commitNameInput = () => {
+      editingSensor.label = nameInput.value.slice(0, 128);
     };
-    fieldCollectors.push(commitLabelInput);
-    // input 事件即时提交：改名要马上反映在左栏与预览里。
-    labelInputElement.addEventListener("input", commitLabelInput);
-    labelInputElement.addEventListener("change", () => {
-      commitLabelInput();
-      // 直接改按钮文案而不是整体 renderControls()：后者会重建 DOM 导致输入框失焦。
-      const listedSensorButton =
-        bindingsPanelElement.querySelectorAll("button")[
-          sensorBindings.indexOf(activeSensor) + (manageBindings ? 1 : 0)
-        ];
-      if (listedSensorButton) {
-        listedSensorButton.textContent =
-          activeSensor.label ||
-          sensorNamesByEntityId.get(activeSensor.entityId) ||
-          activeSensor.entityId ||
-          "未选择传感器";
-      }
-    });
-    appendField("显示名称", labelInputElement);
-    const floorSelectElement = createElement("select");
-    floorSelectElement.setAttribute("aria-label", "路线楼层");
-    // 楼层可能被删掉：补一个占位项而不是让 select 落到第一个楼层（会造成路线莫名搬家）。
-    if (!floors.some((floorCandidate: any) => floorCandidate.id === activeSensor.floorId)) {
-      const missingFloorOption = createElement("option", "原楼层已不存在，请重新选择");
-      missingFloorOption.value = "";
-      floorSelectElement.append(missingFloorOption);
+    (pendingSyncHandlers.push(commitNameInput),
+      nameInput.addEventListener("input", commitNameInput),
+      nameInput.addEventListener("change", () => {
+        commitNameInput();
+        const sensorTabButton =
+          bindingsPanel.querySelectorAll("button")[
+            presenceSensors.indexOf(editingSensor) + (manageBindings ? 1 : 0)
+          ];
+        sensorTabButton &&
+          (sensorTabButton.textContent =
+            editingSensor.label ||
+            entityNameById.get(editingSensor.entityId) ||
+            editingSensor.entityId ||
+            "未选择传感器");
+      }),
+      addFieldLabel("显示名称", nameInput));
+    const floorSelect = createDomElement("select");
+    if (
+      (floorSelect.setAttribute("aria-label", "路线楼层"),
+      !floors.some((knownFloor) => knownFloor.id === editingSensor.floorId))
+    ) {
+      const missingFloorOption = createDomElement("option", "原楼层已不存在，请重新选择");
+      ((missingFloorOption.value = ""), floorSelect.append(missingFloorOption));
     }
-    for (const floorRecord of floors) {
-      const floorOptionElement = createElement("option", floorRecord.name || floorRecord.id);
-      floorOptionElement.value = floorRecord.id;
-      floorSelectElement.append(floorOptionElement);
-    }
-    floorSelectElement.value = activeSensor.floorId;
-    floorSelectElement.addEventListener("change", () => {
-      activeSensor.floorId = floorSelectElement.value;
-      // 换楼层的路线坐标系不通用，必须清空路线并重新绘制；modelId 也随楼层失效。
-      delete activeSensor.modelId;
-      activeSensor.route = [];
-      closedRouteSensorIds.delete(activeSensor.id);
-      markPresenceDirty();
-      renderControls();
-    });
-    appendField("路线楼层", floorSelectElement);
-    floorSelectElement.disabled = !manageBindings;
-    // 人物在所有页面都出现（displayPages 是既有字段，这里固定为 all）。
-    activeSensor.displayPages = "all";
-    controlsPanelElement.append(createElement("p", "显示页面：ALL（全部页面）", "presence-note"));
-    controlsPanelElement.append(createElement("strong", "人物方案"));
-    const designButtonsElement = createElement("div", "", "presence-designs");
-    for (const [designKey, design] of Object.entries(DESIGNS)) {
-      // DESIGNS 来自 presence-character.js，按钮文案就是方案中文名。
-      const designButtonElement = createButton(design.name, () => {
-        activeSensor.character = designKey;
-        markPresenceDirty();
-        renderControls();
-      });
-      designButtonElement.setAttribute(
-        "aria-pressed",
-        String(activeSensor.character === designKey)
+    for (const floorOptionSource of floors) {
+      const floorOption = createDomElement(
+        "option",
+        floorOptionSource.name || floorOptionSource.id,
       );
-      designButtonsElement.append(designButtonElement);
+      ((floorOption.value = floorOptionSource.id), floorSelect.append(floorOption));
     }
-    controlsPanelElement.append(designButtonsElement);
-    // 角色预览容器：WebGL canvas 由 characterPreview 反复复用（见下方 append），
-    const characterPreviewElement = createElement("div", "", "presence-character-preview");
-    characterPreviewElement.setAttribute("aria-label", "人物行走预览");
-    controlsPanelElement.append(characterPreviewElement);
-    if (characterPreview) {
-      characterPreviewElement.append(characterPreview.renderer.domElement);
+    ((floorSelect.value = editingSensor.floorId),
+      floorSelect.addEventListener("change", () => {
+        ((editingSensor.floorId = floorSelect.value),
+          delete editingSensor.modelId,
+          (editingSensor.route = []),
+          closedRouteSensorIds.delete(editingSensor.id),
+          renderSensorPanel());
+      }),
+      addFieldLabel("路线楼层", floorSelect),
+      (floorSelect.disabled = !manageBindings),
+      (editingSensor.displayPages = "all"),
+      controlsPanel.append(createDomElement("p", "显示页面：ALL（全部页面）", "presence-note")),
+      controlsPanel.append(createDomElement("strong", "人物方案")));
+    const designsContainer = createDomElement("div", "", "presence-designs");
+    for (const [designKey, design] of Object.entries(DESIGNS)) {
+      const designButton = createActionButton(design.name, () => {
+        ((editingSensor.character = designKey), renderSensorPanel());
+      });
+      (designButton.setAttribute("aria-pressed", String(editingSensor.character === designKey)),
+        designsContainer.append(designButton));
     }
-    controlsPanelElement.append(
-      createElement("p", DESIGNS[activeSensor.character]?.description || "", "presence-note")
-    );
-    const colorButtonsElement = createElement("div", "", "presence-colors");
+    controlsPanel.append(designsContainer);
+    const characterPreviewElement = createDomElement("div", "", "presence-character-preview");
+    (characterPreviewElement.setAttribute("aria-label", "人物行走预览"),
+      controlsPanel.append(characterPreviewElement),
+      characterWalker && characterPreviewElement.append(characterWalker.renderer.domElement),
+      controlsPanel.append(
+        createDomElement("p", DESIGNS[editingSensor.character]?.description || "", "presence-note"),
+      ));
+    const colorsContainer = createDomElement("div", "", "presence-colors");
     for (const [colorKey, colorLabel] of [
       ["cyan", "统一青色"],
-      ["orange", "统一橙色"]
+      ["orange", "统一橙色"],
     ]) {
-      const colorButtonElement = createButton(colorLabel, () => {
-        activeSensor.color = colorKey;
-        markPresenceDirty();
-        renderControls();
+      const colorButton = createActionButton(colorLabel, () => {
+        ((editingSensor.color = colorKey), renderSensorPanel());
       });
-      colorButtonElement.dataset.color = colorKey;
-      colorButtonElement.setAttribute("aria-pressed", String(activeSensor.color === colorKey));
-      colorButtonsElement.append(colorButtonElement);
+      ((colorButton.dataset.color = colorKey),
+        colorButton.setAttribute("aria-pressed", String(editingSensor.color === colorKey)),
+        colorsContainer.append(colorButton));
     }
-    controlsPanelElement.append(colorButtonsElement);
-    // 触发方式只在安防模式可改：人物与路线面板只管外观与路径。
-    if (manageBindings) {
-      const triggerModeSelectElement = createElement("select");
-      triggerModeSelectElement.setAttribute("aria-label", "触发方式");
-      for (const [modeValue, modeLabel] of PRESENCE_TRIGGER_MODES) {
-        const modeOptionElement = createElement("option", modeLabel);
-        modeOptionElement.value = modeValue;
-        triggerModeSelectElement.append(modeOptionElement);
+    if ((controlsPanel.append(colorsContainer), manageBindings)) {
+      const triggerModeSelect = createDomElement("select");
+      triggerModeSelect.setAttribute("aria-label", "触发方式");
+      for (const [triggerModeKey, triggerModeLabel] of PRESENCE_TRIGGER_MODES) {
+        const triggerModeOption = createDomElement("option", triggerModeLabel);
+        ((triggerModeOption.value = triggerModeKey), triggerModeSelect.append(triggerModeOption));
       }
-      // 缺省 auto：跟随传感器自身的开关 / 有人状态，无需额外规则。
-      triggerModeSelectElement.value = activeSensor.triggerMode || "auto";
-      triggerModeSelectElement.addEventListener("change", () => {
-        flushFieldCollectors();
-        fieldCollectors = [];
-        activeSensor.triggerMode = triggerModeSelectElement.value;
-        // 为每个模式补齐它需要的字段默认值（??= 不覆盖用户已填的值）。
-        if (triggerModeSelectElement.value === "equals") {
-          activeSensor.triggerValue ||= "on";
-        }
-        if (triggerModeSelectElement.value === "threshold") {
-          activeSensor.triggerThreshold ??= 0;
-        }
-        if (presenceTriggerIsTimed(activeSensor) && !(activeSensor.displayDuration > 0)) {
-          activeSensor.displayDuration = 30;
-        }
-        renderControls();
-      });
-      appendField("触发方式", triggerModeSelectElement);
-      if (activeSensor.triggerMode === "threshold") {
-        activeSensor.triggerThreshold ??= 0;
-        // 阈值是通用数值比较，范围取 ±100 万以覆盖电量、功率、照度等各种量纲。
-        addNumberField("数值大于", "triggerThreshold", -1000000, 1000000, 0.1);
-      }
-      if (activeSensor.triggerMode === "equals") {
-        const triggerValueInputElement = createElement("input");
-        triggerValueInputElement.value = activeSensor.triggerValue ?? "on";
-        triggerValueInputElement.maxLength = 128;
-        triggerValueInputElement.setAttribute("aria-label", "触发值");
-        /**
-         * 把触发值输入框的内容提交到绑定对象（空值不提交）。
-         */
+      if (
+        ((triggerModeSelect.value = editingSensor.triggerMode || "auto"),
+        triggerModeSelect.addEventListener("change", () => {
+          (flushPendingEdits(),
+            (pendingSyncHandlers = []),
+            (editingSensor.triggerMode = triggerModeSelect.value),
+            triggerModeSelect.value === "equals" && (editingSensor.triggerValue ||= "on"),
+            triggerModeSelect.value === "threshold" && (editingSensor.triggerThreshold ??= 0),
+            presenceTriggerIsTimed(editingSensor) &&
+              !(editingSensor.displayDuration > 0) &&
+              (editingSensor.displayDuration = 30),
+            renderSensorPanel());
+        }),
+        addFieldLabel("触发方式", triggerModeSelect),
+        editingSensor.triggerMode === "threshold" &&
+          ((editingSensor.triggerThreshold ??= 0),
+          addNumberField("数值大于", "triggerThreshold", -1000000, 1000000, 0.1)),
+        editingSensor.triggerMode === "equals")
+      ) {
+        const triggerValueInput = createDomElement("input");
+        ((triggerValueInput.value = editingSensor.triggerValue ?? "on"),
+          (triggerValueInput.maxLength = 128),
+          triggerValueInput.setAttribute("aria-label", "触发值"));
         const commitTriggerValue = () => {
-          if (triggerValueInputElement.value.trim()) {
-            activeSensor.triggerValue = triggerValueInputElement.value.trim().slice(0, 128);
-          }
+          triggerValueInput.value.trim() &&
+            (editingSensor.triggerValue = triggerValueInput.value.trim().slice(0, 128));
         };
-        fieldCollectors.push(commitTriggerValue);
-        triggerValueInputElement.addEventListener("input", commitTriggerValue);
-        appendField("触发值", triggerValueInputElement);
+        (pendingSyncHandlers.push(commitTriggerValue),
+          triggerValueInput.addEventListener("input", commitTriggerValue),
+          addFieldLabel("触发值", triggerValueInput));
       }
     }
-    const isTimedTrigger = presenceTriggerIsTimed(activeSensor);
-    // 定时触发的时长下限是 1 秒（0 会被解释成"跟随有人状态"）；上限 1 小时防止误填。
-    addNumberField("每次触发显示时长（秒）", "displayDuration", isTimedTrigger ? 1 : 0, 3600, 1);
-    controlsPanelElement.append(
-      createElement(
-        "p",
-        isTimedTrigger
-          ? "每次满足触发条件后显示，再次触发重新计时；到时隐藏。"
-          : "0：随有人状态显示；其他值：到时隐藏，无人立即隐藏，下次触发重新计时。",
-        "presence-note"
-      )
-    );
-    // 速度范围 0.1~2 m/s（正常步速约 0.45~1.4 m/s，慢走 0.1 够演示用），步长 0.05 便于微调。
-    addNumberField("行走速度（米/秒）", "speed", 0.1, 2, 0.05);
-    // size 存的是倍率（1 = 标准身高），displayScale=100 让界面显示成百分比，范围 25%~300%。
-    addNumberField("人物大小（%）", "size", 25, 300, 5, 100);
-    controlsPanelElement.append(
-      createElement(
-        "p",
-        (isTimedTrigger
-          ? "事件触发后沿路线走动；计时结束或离线时隐藏。"
-          : "有人时沿路线循环走动；无人或离线时隐藏。") + "路线是展示动画，不代表实际人员位置。",
-        "presence-note"
-      )
-    );
-    const clickToFocusInputElement = createElement("input");
-    clickToFocusInputElement.type = "checkbox";
-    clickToFocusInputElement.checked = activeSensor.clickToFocus === true;
-    clickToFocusInputElement.setAttribute("aria-label", "点击模型聚焦");
-    clickToFocusInputElement.addEventListener("change", () => {
-      activeSensor.clickToFocus = clickToFocusInputElement.checked;
-      // 勾选后会多出触控范围 / 聚焦视角等字段，需要重建右栏。
-      renderControls();
-    });
-    const clickToFocusFieldElement = appendField("点击模型聚焦", clickToFocusInputElement);
-    clickToFocusFieldElement.parentElement.className = "i3d-setting-toggle";
-    if (activeSensor.clickToFocus) {
-      // 触控热区默认外扩 8px（与 presence-scene.js 的 hitPadding 默认值一致）。
-      activeSensor.hitPadding ??= 8;
-      // 上限 80px：再大相邻模型的热区会互相遮挡，误点率上升。
-      addNumberField("触控范围扩展（px）", "hitPadding", 0, 80, 1);
-      const hitRangeInputElement = createElement("input");
-      hitRangeInputElement.type = "checkbox";
-      hitRangeInputElement.checked = isHitRangeVisible;
-      hitRangeInputElement.setAttribute("aria-label", "显示触控范围");
-      hitRangeInputElement.addEventListener("change", () => {
-        isHitRangeVisible = hitRangeInputElement.checked;
-        // 仅切换 3D 侧的热区可视化，未就绪时留到 onPresented 补发。
-        if (isPreviewReady) {
-          editorRuntime
-            .focusCommand("presence-show-hit-range", "", isHitRangeVisible)
-            .catch(showError);
-        }
-      });
-      appendField("显示触控范围", hitRangeInputElement).parentElement.className =
-        "i3d-setting-toggle";
-      controlsPanelElement.append(
-        createElement(
+    const isTimedTrigger = presenceTriggerIsTimed(editingSensor);
+    (addNumberField("每次触发显示时长（秒）", "displayDuration", isTimedTrigger ? 1 : 0, 3600, 1),
+      controlsPanel.append(
+        createDomElement(
           "p",
-          "在模型周围扩展点击范围，不改变人物大小。0 表示只点击模型本身。",
-          "presence-note"
-        )
-      );
-      // 「调整聚焦视角」交给 presence-focus-editor.js：它自己开一个带 3D 预览的子弹窗。
-      const focusCameraButton = createButton(
-        activeSensor.focusCamera ? "调整聚焦视角" : "设置聚焦视角",
-        () =>
+          isTimedTrigger
+            ? "每次满足触发条件后显示，再次触发重新计时；到时隐藏。"
+            : "0：随有人状态显示；其他值：到时隐藏，无人立即隐藏，下次触发重新计时。",
+          "presence-note",
+        ),
+      ),
+      addNumberField("行走速度（米/秒）", "speed", 0.1, 2, 0.05),
+      addNumberField("人物大小（%）", "size", 25, 300, 5, 100),
+      controlsPanel.append(
+        createDomElement(
+          "p",
+          (isTimedTrigger
+            ? "事件触发后沿路线走动；计时结束或离线时隐藏。"
+            : "有人时沿路线循环走动；无人或离线时隐藏。") + "路线是展示动画，不代表实际人员位置。",
+          "presence-note",
+        ),
+      ));
+    const focusToggleInput = createDomElement("input");
+    ((focusToggleInput.type = "checkbox"),
+      (focusToggleInput.checked = editingSensor.clickToFocus === true),
+      focusToggleInput.setAttribute("aria-label", "点击模型聚焦"),
+      focusToggleInput.addEventListener("change", () => {
+        ((editingSensor.clickToFocus = focusToggleInput.checked), renderSensorPanel());
+      }));
+    const focusToggleLabel = addFieldLabel("点击模型聚焦", focusToggleInput);
+    if (
+      ((focusToggleLabel.parentElement.className = "i3d-setting-toggle"),
+      editingSensor.clickToFocus)
+    ) {
+      ((editingSensor.hitPadding ??= 8),
+        addNumberField("触控范围扩展（px）", "hitPadding", 0, 80, 1));
+      const hitRangeToggleInput = createDomElement("input");
+      ((hitRangeToggleInput.type = "checkbox"),
+        (hitRangeToggleInput.checked = isHitRangeVisible),
+        hitRangeToggleInput.setAttribute("aria-label", "显示触控范围"),
+        hitRangeToggleInput.addEventListener("change", () => {
+          ((isHitRangeVisible = hitRangeToggleInput.checked),
+            isRuntimeReady &&
+              interaction3dHandle
+                .focusCommand("presence-show-hit-range", "", isHitRangeVisible)
+                .catch(showError));
+        }),
+        (addFieldLabel("显示触控范围", hitRangeToggleInput).parentElement.className =
+          "i3d-setting-toggle"),
+        controlsPanel.append(
+          createDomElement(
+            "p",
+            "在模型周围扩展点击范围，不改变人物大小。0 表示只点击模型本身。",
+            "presence-note",
+          ),
+        ),
+        controlsPanel.append(createDomElement("h4", "聚焦视角")));
+      const openFocusEditor = (previewOnly) =>
           openPresenceFocusEditor({
             component: component,
-            // 传草稿属性（而非组件属性），保证聚焦相机随本次保存一起落盘。
             properties: draftProperties,
-            item: activeSensor,
+            item: editingSensor,
             panelDocument: panelDocument,
-            onSave: focusCamera => {
-              activeSensor.focusCamera = focusCamera;
-              markPresenceDirty();
-              renderControls();
-            }
-          })
-      );
-      focusCameraButton.dataset.presenceFocus = "true";
-      // 没有合法闭合路线就无法定位镜头，禁用聚焦设置。
-      focusCameraButton.disabled =
-        !closedRouteSensorIds.has(activeSensor.id) || !validPresenceRoute(activeSensor.route);
-      controlsPanelElement.append(focusCameraButton);
-      if (activeSensor.focusCamera) {
-        // 「恢复自动聚焦」即删掉自定义聚焦：presence-scene.js 会退回默认取景。
-        controlsPanelElement.append(
-          createButton("恢复自动聚焦", () => {
-            delete activeSensor.focusCamera;
-            markPresenceDirty();
-            renderControls();
-          })
+            previewOnly: previewOnly,
+            onSave: (focusCameraOption) => {
+              ((editingSensor.focusCamera = focusCameraOption), renderSensorPanel());
+            },
+          }),
+        focusSettingsButton = createActionButton(
+          editingSensor.focusCamera ? "调整视角" : "设置视角",
+          () => openFocusEditor(false),
         );
-      }
+      ((focusSettingsButton.dataset.presenceFocus = "true"),
+        (focusSettingsButton.disabled =
+          !closedRouteSensorIds.has(editingSensor.id) || !validPresenceRoute(editingSensor.route)));
+      const focusPreviewButton = createActionButton("预览聚焦", () => openFocusEditor(true));
+      focusPreviewButton.disabled = focusSettingsButton.disabled;
+      const focusActionsContainer = createDomElement("div", "", "i3d-focus-actions");
+      (focusActionsContainer.append(focusSettingsButton, focusPreviewButton),
+        controlsPanel.append(focusActionsContainer));
+      const resetFocusButton = createActionButton("恢复自动聚焦", () => {
+        (delete editingSensor.focusCamera, renderSensorPanel());
+      });
+      ((resetFocusButton.disabled = !editingSensor.focusCamera),
+        controlsPanel.append(resetFocusButton));
     }
-    if (manageBindings) {
-      controlsPanelElement.append(
-        createButton("删除此传感器", () => {
-          sensorBindings.splice(sensorBindings.indexOf(activeSensor), 1);
-          closedRouteSensorIds.delete(activeSensor.id);
-          // 删除后回到第一条（或空状态），不能继续指向已移除的对象。
-          selectedSensor = sensorBindings[0] || null;
-          markPresenceDirty();
-          renderControls();
-        })
-      );
-    }
-    // 重建完成后统一刷新：平面图取景框随楼层 / 路线变化，预览也要跟上新的属性。
-    fitPlanBox();
-    syncPreview();
+    (manageBindings &&
+      controlsPanel.append(
+        createActionButton("删除此传感器", () => {
+          (presenceSensors.splice(presenceSensors.indexOf(editingSensor), 1),
+            closedRouteSensorIds.delete(editingSensor.id),
+            (selectedSensor = presenceSensors[0] || null),
+            renderSensorPanel());
+        }),
+      ),
+      fitPlanToContent(),
+      syncRuntimePreview());
   }
-  const toSvgPoint = (pointerEvent: any) => bridgedToSvgPoint(routeSvgElement, pointerEvent);
-  routeSvgElement.addEventListener("pointerdown", (pointerDownEvent: any) => {
-    // 只有平面视图、鼠标左键、且有合法楼层时才响应绘制。
+  const clientToSvgPoint = (pointerDownOrigin) => {
+    const svgPoint = planSvgElement.createSVGPoint();
+    return (
+      (svgPoint.x = pointerDownOrigin.clientX),
+      (svgPoint.y = pointerDownOrigin.clientY),
+      svgPoint.matrixTransform(planSvgElement.getScreenCTM().inverse())
+    );
+  };
+  (planSvgElement.addEventListener("pointerdown", (pointerDownEvent) => {
     if (
       viewMode !== "plan" ||
       pointerDownEvent.button !== 0 ||
       !selectedSensor ||
-      !floors.some((originatingFloorProbe: any) => originatingFloorProbe.id === selectedSensor.floorId)
-    ) {
+      !floors.some((pointerFloor) => pointerFloor.id === selectedSensor.floorId)
+    )
       return;
-    }
-    const pointIndexAttribute = pointerDownEvent.target.getAttribute("data-point");
-    pointerDownEvent.preventDefault();
-    // 捕获指针：拖出 SVG 边界（甚至移出窗口）也能继续收到 pointermove。
-    capturePointer(routeSvgElement, pointerDownEvent.pointerId);
-    // 优先判断"吸附闭合"：悬停靠近起点时点击即闭合，而不是新增一个重合点。
+    const dataPointIndex = pointerDownEvent.target.getAttribute("data-point");
     if (
+      (pointerDownEvent.preventDefault(),
+      planSvgElement.setPointerCapture(pointerDownEvent.pointerId),
       !closedRouteSensorIds.has(selectedSensor.id) &&
-      snapsToPresenceStart(
-        selectedSensor.route,
-        toSvgPoint(pointerDownEvent),
-        // 吸附阈值用屏幕像素（CTM.a = 用户单位→像素的缩放），保证缩放后手感一致。
-        routeSvgElement.getScreenCTM()?.a || 1
-      )
+        snapsToPresenceStart(
+          selectedSensor.route,
+          clientToSvgPoint(pointerDownEvent),
+          planSvgElement.getScreenCTM()?.a || 1,
+        ))
     ) {
-      closedRouteSensorIds.add(selectedSensor.id);
-      hoverPoint = null;
-      markPresenceDirty("路径已吸附闭合，可以切换 3D 预览大小和行走效果。");
-      renderRoutePlan();
-      syncPreview();
+      (closedRouteSensorIds.add(selectedSensor.id),
+        (hoverPoint = null),
+        (statusElement.textContent = "路径已吸附闭合，可以切换 3D 预览大小和行走效果。"),
+        renderPlan(),
+        syncRuntimePreview());
       return;
     }
-    if (pointIndexAttribute !== null) {
-      // 点到了序号 0 的起点且路线合法 → 视为"点击闭合"，与吸附闭合等价。
+    if (dataPointIndex !== null) {
       if (
-        Number(pointIndexAttribute) === 0 &&
+        Number(dataPointIndex) === 0 &&
         !closedRouteSensorIds.has(selectedSensor.id) &&
         validPresenceRoute(selectedSensor.route)
       ) {
-        closedRouteSensorIds.add(selectedSensor.id);
-        markPresenceDirty();
-        renderRoutePlan();
+        (closedRouteSensorIds.add(selectedSensor.id), renderPlan());
         return;
       }
-      draggedPoint = {
-        index: Number(pointIndexAttribute)
+      dragPoint = {
+        index: Number(dataPointIndex),
       };
-    } else if (!closedRouteSensorIds.has(selectedSensor.id) && selectedSensor.route.length < 128) {
-      // 空白处点击 = 追加一个路径点。上限 128 点与后端字段容量一致，防止存不下的超长路线。
-      const addedRoutePoint = toSvgPoint(pointerDownEvent);
-      selectedSensor.route.push({
-        x: addedRoutePoint.x,
-        y: addedRoutePoint.y
-      });
-      markPresenceDirty();
-      renderRoutePlan();
-    }
-  });
-  routeSvgElement.addEventListener("pointermove", (pointerMoveEvent: any) => {
-    if (viewMode !== "plan") {
-      return;
-    }
-    const pointerSvgPoint = toSvgPoint(pointerMoveEvent);
-    if (!draggedPoint) {
-      // 未拖拽时只做"悬停预览"（虚线 + 吸附提示）。
-      if (selectedSensor && !closedRouteSensorIds.has(selectedSensor.id)) {
-        hoverPoint = pointerSvgPoint;
-        renderRoutePlan(false);
+    } else {
+      if (!closedRouteSensorIds.has(selectedSensor.id) && selectedSensor.route.length < 128) {
+        const newRoutePoint = clientToSvgPoint(pointerDownEvent);
+        (selectedSensor.route.push({
+          x: newRoutePoint.x,
+          y: newRoutePoint.y,
+        }),
+          renderPlan());
       }
-      return;
     }
-    selectedSensor.route[draggedPoint.index] = {
-      x: pointerSvgPoint.x,
-      y: pointerSvgPoint.y
-    };
-    renderRoutePlan(false);
-  });
-  routeSvgElement.addEventListener("pointerleave", () => {
-    hoverPoint = null;
-    // 拖拽中指针离开视口不移除预览线（还在 setPointerCapture 期间，用户仍会拖回来）。
-    if (!draggedPoint) {
-      renderRoutePlan(false);
-    }
-  });
-  /**
-   * 结束（或取消）拖拽 / 绘制手势：提交脏标记并同步 3D 预览。
-   */
-  const handlePointerEnd = () => {
-    // 只有真的拖动过才标脏（点一下空白新增点的情况已在 pointerdown 标过）。
-    if (draggedPoint) {
-      markPresenceDirty();
-    }
-    draggedPoint = null;
-    syncPreview();
+  }),
+    planSvgElement.addEventListener("pointermove", (pointerMoveEvent) => {
+      if (viewMode !== "plan") return;
+      const movedRoutePoint = clientToSvgPoint(pointerMoveEvent);
+      if (!dragPoint) {
+        selectedSensor &&
+          !closedRouteSensorIds.has(selectedSensor.id) &&
+          ((hoverPoint = movedRoutePoint), renderPlan(false));
+        return;
+      }
+      ((selectedSensor.route[dragPoint.index] = {
+        x: movedRoutePoint.x,
+        y: movedRoutePoint.y,
+      }),
+        renderPlan(false));
+    }),
+    planSvgElement.addEventListener("pointerleave", () => {
+      ((hoverPoint = null), dragPoint || renderPlan(false));
+    }));
+  const finishDragging = () => {
+    ((dragPoint = null), syncRuntimePreview());
   };
-  // 三个事件都绑同一个收尾函数：pointercancel（系统手势打断）与
-  for (const eventName of ["pointerup", "pointercancel", "lostpointercapture"]) {
-    routeSvgElement.addEventListener(eventName, handlePointerEnd);
-  }
-  const routeResizeObserver = new ResizeObserver(renderRoutePlan);
-  routeResizeObserver.observe(routeSvgElement);
-  // Esc 关闭：拦住 <dialog> 的原生 cancel，走自己的 closeEditor 以释放资源。
-  dialogElement.addEventListener("cancel", (cancelEvent: any) => {
-    cancelEvent.preventDefault();
-    closeEditor();
-  });
-  /**
-   * 角色预览的渲染循环：按需重建模型 + 推进行走动画。
-   */
-  function animateCharacterPreview(timestamp: any) {
-    // 页面隐藏时不再排下一帧（handleVisibilityChange 会在恢复时重启循环）。
-    if (!isClosed && !editorDocument.hidden) {
-      if (characterPreview && selectedSensor) {
-        const previewKey = selectedSensor.character + ":" + selectedSensor.color;
-        if (previewSignature !== previewKey) {
-          disposeWalker(characterPreview.root);
-          characterPreview.root = createWalker(
-            characterPreview.THREE,
+  for (const pointerEventName of ["pointerup", "pointercancel", "lostpointercapture"])
+    planSvgElement.addEventListener(pointerEventName, finishDragging);
+  const planResizeObserver = new ResizeObserver(renderPlan);
+  (planResizeObserver.observe(planSvgElement),
+    dialogElement.addEventListener("cancel", (cancelEvent) => {
+      (cancelEvent.preventDefault(), closeEditor());
+    }));
+  function renderCharacterFrame(frameTimestamp) {
+    if (!(isClosed || ownerDocument.hidden)) {
+      if (characterWalker && selectedSensor) {
+        const walkerKey = selectedSensor.character + ":" + selectedSensor.color;
+        appliedWalkerKey !== walkerKey &&
+          (disposeWalker(characterWalker.root),
+          (characterWalker.root = createWalker(
+            characterWalker.THREE,
             selectedSensor.color === "orange" ? 15376452 : 5421233,
-            selectedSensor.character
-          );
-          characterPreview.scene.add(characterPreview.root);
-          previewSignature = previewKey;
-        }
-        const frameDeltaSeconds = lastFrameTimeMs
-          ? Math.min(0.1, (timestamp - lastFrameTimeMs) / 1000)
+            selectedSensor.character,
+          )),
+          characterWalker.scene.add(characterWalker.root),
+          (appliedWalkerKey = walkerKey));
+        const frameDeltaSeconds = lastFrameTimestamp
+          ? Math.min(0.1, (frameTimestamp - lastFrameTimestamp) / 1000)
           : 0;
-        lastFrameTimeMs = timestamp;
-        elapsedSeconds += frameDeltaSeconds;
-        // 预览里的走路位移乘了 12 倍：这是 240×160 的小窗口，按真实速度会看不出在走。
-        walkDistance += frameDeltaSeconds * selectedSensor.speed * 12;
-        // 第三个参数固定 walkAmount=1：预览始终展示"行走中"的姿态。
-        animateWalker(characterPreview.root, walkDistance, 1, elapsedSeconds);
-        characterPreview.renderer.render(characterPreview.scene, characterPreview.camera);
+        ((lastFrameTimestamp = frameTimestamp),
+          (walkerElapsed += frameDeltaSeconds),
+          (walkerDistance += frameDeltaSeconds * selectedSensor.speed * 12),
+          animateWalker(characterWalker.root, walkerDistance, 1, walkerElapsed),
+          characterWalker.renderer.render(characterWalker.scene, characterWalker.camera));
       }
-      animationFrameId = requestAnimationFrame(animateCharacterPreview);
+      animationFrameId = requestAnimationFrame(renderCharacterFrame);
     }
   }
-  /**
-   * 页面可见性变化：隐藏时停掉渲染循环，恢复时重启（并把时间基准清零防止跳帧）。
-   */
-  function handleVisibilityChange() {
-    cancelAnimationFrame(animationFrameId);
-    // 清零 lastFrameTimeMs，恢复后第一帧 delta 为 0，不会补跳一大段动画。
-    lastFrameTimeMs = 0;
-    if (!editorDocument.hidden && !isClosed) {
-      animationFrameId = requestAnimationFrame(animateCharacterPreview);
-    }
+  function startCharacterAnimation() {
+    (cancelAnimationFrame(animationFrameId),
+      (lastFrameTimestamp = 0),
+      !ownerDocument.hidden &&
+        !isClosed &&
+        (animationFrameId = requestAnimationFrame(renderCharacterFrame)));
   }
-  editorDocument.addEventListener("visibilitychange", handleVisibilityChange);
-  dialogElement.showModal();
-  renderControls();
+  (ownerDocument.addEventListener("visibilitychange", startCharacterAnimation),
+    dialogElement.showModal(),
+    renderSensorPanel());
   try {
-    // three 走动态 import：只在真正打开编辑器时才下载（约 600KB），
-    const threeModuleUrl = "/static/vendor/three/0.186.0/three.module.min.js";
-    const threeModule = await import(/* @vite-ignore */ threeModuleUrl);
-    if (isClosed) {
-      return;
-    }
-    const previewRenderer = new threeModule.WebGLRenderer({
+    const threeModule =
+      await import("/static/vendor/three/0.186.0/three.module.min.js");
+    if (isClosed) return;
+    const webglRenderer = new threeModule.WebGLRenderer({
       alpha: true,
-      antialias: true
+      antialias: true,
     });
-    // 上限 2 倍：高分屏上 3 倍会明显增加小窗口的 GPU 开销，收益却看不出来。
-    previewRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    previewRenderer.setSize(240, 160);
-    const previewScene = new threeModule.Scene();
-    // 32° 视场角 + 1.5 宽高比（=240/160），远平面 20 米足够包住宅内一层。
-    const previewCamera = new threeModule.PerspectiveCamera(32, 1.5, 0.1, 20);
-    // 相机位于 (2, 1.7, 3)：1.7 是近似人眼高度（米），看向 (0, 0.7, 0) 即角色胸口位置。
-    previewCamera.position.set(2, 1.7, 3);
-    previewCamera.lookAt(0, 0.7, 0);
-    previewScene.add(new threeModule.HemisphereLight(16777215, 7831948, 2.5));
-    // 半球光：天空 0xFFFFFF / 地面 0x77818C（冷灰蓝），强度 2.5。
-    const keyLight = new threeModule.DirectionalLight(16772824, 3);
-    // 主光 0xFFEED8（暖白，模拟室内暖色顶灯），强度 3，从左上前方 45° 打下来。
-    keyLight.position.set(3, 5, 3);
-    previewScene.add(keyLight);
-    const previewWalker = createWalker(threeModule);
-    previewScene.add(previewWalker);
-    characterPreview = {
-      THREE: threeModule,
-      renderer: previewRenderer,
-      scene: previewScene,
-      camera: previewCamera,
-      root: previewWalker
-    };
-    controlsPanelElement
-      .querySelector(".presence-character-preview")
-      ?.append(previewRenderer.domElement);
-    // 用 handleVisibilityChange 而不是直接 requestAnimationFrame：
-    handleVisibilityChange();
-    // 静默失败：three 未加载 / WebGL 不可用时，预览区域留空即可，路线编辑照常可用。
-  } catch {
-  }
+    (webglRenderer.setPixelRatio(Math.min(devicePixelRatio, 2)), webglRenderer.setSize(240, 160));
+    const threeScene = new threeModule.Scene(),
+      threeCamera = new threeModule.PerspectiveCamera(32, 1.5, 0.1, 20);
+    (threeCamera.position.set(2, 1.7, 3),
+      threeCamera.lookAt(0, 0.7, 0),
+      threeScene.add(new threeModule.HemisphereLight(16777215, 7831948, 2.5)));
+    const directionalLight = new threeModule.DirectionalLight(16772824, 3);
+    (directionalLight.position.set(3, 5, 3), threeScene.add(directionalLight));
+    const walkerRoot = createWalker(threeModule);
+    (threeScene.add(walkerRoot),
+      (characterWalker = {
+        THREE: threeModule,
+        renderer: webglRenderer,
+        scene: threeScene,
+        camera: threeCamera,
+        root: walkerRoot,
+      }),
+      controlsPanel.querySelector(".presence-character-preview")?.append(webglRenderer.domElement),
+      startCharacterAnimation());
+  } catch {}
   return {
-    close: closeEditor
+    close: closeEditor,
   };
 }

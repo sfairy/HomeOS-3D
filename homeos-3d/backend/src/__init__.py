@@ -1,2 +1,1 @@
-"""HomeOS 主应用包。
-"""
+'''HomeOS application package.'''

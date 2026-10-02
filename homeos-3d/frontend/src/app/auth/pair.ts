@@ -1,124 +1,121 @@
-/**
- * 设备配对落地页（/pair）逻辑：可手输 6 位配对码，也可由二维码链接带入。
- */
 import {
-  parsePairingLink as parseScanLink,
-  needsAppleInstallGuide as shouldShowInstallGuide
-} from "./pairing-link.js";
-import { apiFetch } from "../utils/api-fetch.js";
-
-const formCandidate = document.querySelector<HTMLFormElement>("#pair-form");
-const messageCandidate = document.querySelector<HTMLElement>("#message");
-const codeCandidate = formCandidate?.elements.namedItem("code");
-const submitCandidate = formCandidate?.querySelector<HTMLButtonElement>('button[type="submit"]');
-const titleCandidate = document.querySelector<HTMLElement>("#pair-title");
-const descriptionCandidate = document.querySelector<HTMLElement>("#pair-description");
-// scan=1 表示这次进入是扫码引导流程，才需要自动解析哈希里的配对码。
-const isScanMode = new URLSearchParams(location.search).get("scan") === "1";
-
-if (
-  !formCandidate ||
-  !messageCandidate ||
-  !(codeCandidate instanceof HTMLInputElement) ||
-  !submitCandidate ||
-  !titleCandidate ||
-  !descriptionCandidate
-) {
-  throw new Error("配对页缺少必要表单节点。");
-}
-
-const formElement: HTMLFormElement = formCandidate;
-const messageElement: HTMLElement = messageCandidate;
-const codeInput: HTMLInputElement = codeCandidate;
-const submitButton: HTMLButtonElement = submitCandidate;
-const titleElement: HTMLElement = titleCandidate;
-const descriptionElement: HTMLElement = descriptionCandidate;
-
-const applePairNote = document.querySelector<HTMLElement>("#apple-pair-note");
-shouldShowInstallGuide() && applePairNote && (applePairNote.hidden = !1);
-
-// 解析并应用地址栏 / 桥接缓存里的配对哈希。
-function applyPairingHash(): void {
-  const rawHash = window.__HA_BRIDGE_PAIRING_HASH__ || location.hash;
-  // 先清掉缓存与地址栏哈希，防止刷新或重复派发事件时重复处理。
+  parsePairingLink as parsePairingLink,
+  needsAppleInstallGuide as needsAppleInstallGuide,
+} from "./pairing-link";
+import {
+  validEmbedUrl as validEmbedUrl,
+  rememberEmbedSession as rememberEmbedSession,
+  resumeEmbedSession as resumeEmbedSession,
+  embeddedCookieAvailable as embeddedCookieAvailable,
+} from "../embed/embed-session";
+import type { DomControl } from "@app/utils/dom-control";
+const pairFormElement = document.querySelector<DomControl>("#pair-form"),
+  messageElement = document.querySelector<DomControl>("#message"),
+  codeFieldElement = pairFormElement.elements.code,
+  isScanMode = new URLSearchParams(location.search).get("scan") === "1",
+  isEmbedded =
+    new URLSearchParams(location.search).get("embed") === "1" || window.self !== window.top,
+  nextUrl = new URLSearchParams(location.search).get("next") || "",
+  projectId =
+    new URLSearchParams(location.search).get("projectId") ||
+    /^\/display\/([A-Za-z0-9_-]+)(?:\?|$)/.exec(nextUrl)?.[1];
+(!isEmbedded &&
+  needsAppleInstallGuide() &&
+  (document.querySelector<DomControl>("#apple-pair-note").hidden = false),
+  isEmbedded &&
+    ((document.querySelector<DomControl>("#pair-title").textContent = "连接 HA 仪表盘"),
+    (document.querySelector<DomControl>("#pair-description").textContent =
+      "输入这个仪表盘的配对码。建议为 HA 单独创建配对码，复用其他设备的码会替换其配对。")));
+function applyPairingLink() {
+  const pairingHash = window.__HOMEOS_PAIRING_HASH__ || location.hash;
   if (
-    (delete window.__HA_BRIDGE_PAIRING_HASH__,
+    (delete window.__HOMEOS_PAIRING_HASH__,
     location.hash && history.replaceState(null, "", location.pathname + location.search),
-    !(!isScanMode || !rawHash))
+    !(!isScanMode || !pairingHash))
   ) {
-    ((codeInput.value = ""), (messageElement.hidden = !0));
+    ((codeFieldElement.value = ""), (messageElement.hidden = true));
     try {
-      // 二维码里的链接是完整 URL，这里用当前页地址补全后交给统一解析器校验。
-      const pairingLink = parseScanLink(
-        location.origin + location.pathname + location.search + rawHash
+      const pairing = parsePairingLink(
+        location.origin + location.pathname + location.search + pairingHash,
       );
-      // 解析成功：把配对码填进输入框，再把焦点交给主操作按钮。
-      ((codeInput.value = pairingLink.code || ""),
-        (titleElement.textContent = "连接 HomeOS"),
-        (descriptionElement.textContent =
+      ((codeFieldElement.value = pairing.code),
+        // 藏掉码格时同时藏掉它的标签：新坞体把「标签」与「控件」拆成 .hos-label-row 与
+        // .hos-control 两层，只藏控件会留下一个「6 位配对码」的孤儿标签。
+        (codeFieldElement.closest(".hos-field").hidden = true),
+        (document.querySelector<DomControl>("#pair-title").textContent = "连接 HomeOS"),
+        (document.querySelector<DomControl>("#pair-description").textContent =
           "已识别配对二维码，点击连接即可打开你的面板。"),
-        (formElement.querySelector('button[type="submit"] span')!.textContent = "连接"),
-        submitButton.focus({ preventScroll: !0 }));
-    } catch (caughtError: unknown) {
-      const errorText =
-        caughtError instanceof Error ? caughtError.message : String(caughtError);
-      ((messageElement.textContent = errorText),
-        (messageElement.hidden = !1));
+        (pairFormElement.querySelector<DomControl>('button[type="submit"]').textContent = "连接"));
+    } catch (linkError) {
+      ((codeFieldElement.closest(".hos-field").hidden = false),
+        (messageElement.textContent = linkError.message),
+        (messageElement.hidden = false));
     }
   }
 }
-
-// 一次性挂上四个监听：桥接事件、初始哈希处理、配对码输入过滤、表单提交。
-(window.addEventListener("homeos-pairing-link", applyPairingHash),
-  applyPairingHash(),
-  codeInput.addEventListener("input", () => {
-    codeInput.value = codeInput.value.replace(/\D/g, "").slice(0, 6);
-  }),
-  formElement.addEventListener("submit", async submitEvent => {
-    (submitEvent.preventDefault(), (messageElement.hidden = !0));
-    // 请求期间禁用按钮，防止重复配对同一台设备。
-    submitButton.disabled = !0;
+if (
+  (window.addEventListener("homeos-pairing-link", applyPairingLink),
+  applyPairingLink(),
+  isEmbedded && nextUrl)
+) {
+  const submitButtonElement = pairFormElement.querySelector<DomControl>('button[type="submit"]');
+  ((submitButtonElement.disabled = true),
+    resumeEmbedSession(nextUrl, fetch, projectId)
+      .then((redirectUrl) => {
+        redirectUrl && window.location.replace(redirectUrl);
+      })
+      .finally(() => {
+        submitButtonElement.disabled = false;
+      }));
+}
+(codeFieldElement.addEventListener("input", () => {
+  codeFieldElement.value = codeFieldElement.value.replace(/\D/g, "").slice(0, 6);
+}),
+  pairFormElement.addEventListener("submit", async (submitEvent) => {
+    (submitEvent.preventDefault(), (messageElement.hidden = true));
+    const activeSubmitButtonElement = pairFormElement.querySelector<DomControl>('button[type="submit"]');
+    activeSubmitButtonElement.disabled = true;
     try {
-      // 非 JSON 响应按空对象处理，走统一错误文案。
-      const response = await apiFetch("/api/v1/displays/pair", {
+      const response = await fetch("/api/v1/displays/pair", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code: codeInput.value })
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            code: codeFieldElement.value,
+            ...(isEmbedded
+              ? {
+                  embedded: true,
+                  ...(projectId
+                    ? {
+                        projectId: projectId,
+                      }
+                    : {}),
+                }
+              : {}),
+          }),
         }),
-        payload = (await response.json().catch(() => ({}))) as {
-          detail?: unknown;
-          targetUrl?: unknown;
-        };
-      if (!response.ok)
-        throw new Error(
-          String(
-            payload.detail ||
-              "配对失败，请检查配对码。"
-          )
-        );
-      // 只允许跳到自己站点的 /display/xxx，防止服务端被污染后把用户带去外站。
-      const panelUrl = new URL(String(payload.targetUrl || ""), location.origin);
-      if (
-        panelUrl.origin !== location.origin ||
-        !panelUrl.pathname.startsWith("/display/") ||
-        panelUrl.pathname.length <= "/display/".length
-      )
+        payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.detail || "配对失败，请检查配对码。");
+      if (!/^\/display\/[A-Za-z0-9_-]+$/.test(payload.targetUrl || ""))
         throw new Error("服务返回的面板地址无效。");
-      codeInput.value = "";
-      const needsInstallGuide = shouldShowInstallGuide(
+      if (isEmbedded) {
+        if (!validEmbedUrl(payload.embedUrl, payload.device.projectId))
+          throw new Error("服务返回的嵌入地址无效。");
+        rememberEmbedSession(payload.embedUrl, [nextUrl, payload.targetUrl]);
+        const canUseCookie = await embeddedCookieAvailable(payload.device.projectId);
+        window.location.replace(canUseCookie ? payload.targetUrl + "?embed=1" : payload.embedUrl);
+        return;
+      }
+      codeFieldElement.value = "";
+      const shouldAddToHome = needsAppleInstallGuide(
         navigator,
-        window.matchMedia("(display-mode: standalone)").matches
+        window.matchMedia("(display-mode: standalone)").matches,
       );
-      // 需要引导添加到主屏时带上 addToHome=1，由展示页决定是否弹引导。
-      window.location.replace(
-        panelUrl.pathname + panelUrl.search + (needsInstallGuide ? "?addToHome=1" : "")
-      );
-    } catch (submitError: unknown) {
-      const errorText =
-        submitError instanceof Error ? submitError.message : String(submitError);
-      ((messageElement.textContent = errorText),
-        (messageElement.hidden = !1));
-    } finally {
-      submitButton.disabled = !1;
+      window.location.replace(payload.targetUrl + (shouldAddToHome ? "?addToHome=1" : ""));
+    } catch (submitError) {
+      ((messageElement.textContent = submitError.message),
+        (messageElement.hidden = false),
+        (activeSubmitButtonElement.disabled = false));
     }
   }));

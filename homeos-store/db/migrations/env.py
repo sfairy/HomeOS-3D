@@ -1,7 +1,10 @@
 """Alembic 环境：把商店 ORM 元数据接到迁移脚本上。
 
-与主应用的 ``homeos-3d/db/migrations/env.py`` 保持同一套约定：只支持在线模式，
+与主应用的 ``homeos-3d/migrations/env.py`` 保持同一套**运行**约定：只支持在线模式，
 迁移只在应用内执行（见 ``backend/src/core/migrations.py``），不提供 ``--sql``。
+但 import 布局两者并不一样：主应用把项目根放上 path、包名是 ``backend.src``，商店则是
+把 ``backend`` 放上 path、包名就是 ``src``。下面这段 sys.path 注入是商店这一侧的约定，
+不是从主应用照抄的模板。
 """
 from __future__ import annotations
 

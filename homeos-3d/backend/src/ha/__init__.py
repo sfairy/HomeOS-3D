@@ -1,2 +1,1 @@
-"""Home Assistant 连接器子包。
-"""
+'''Home Assistant connector services.'''

@@ -11,8 +11,8 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from ops.docker.license_keys import ensure_store_license_keys
 from ops.docker.proxy import run_with_proxy
+from ops.license_keys import ensure_store_keys, sync_store_keys
 
 
 def _check_admin_exists(data_dir: Path) -> bool:
@@ -44,7 +44,13 @@ def main() -> None:
 
     keys_dir = Path(environment["STORE_LICENSE_KEYS_DIR"]).expanduser()
     client_keys_dir = Path(environment["APP_CLIENT_KEYS_DIR"]).expanduser()
-    ensure_store_license_keys(keys_dir, client_keys_dir)
+    # 先保证商店私钥存在（生成只在商店侧），再把公钥镜像到主应用读取的共享卷。
+    ensure_store_keys(keys_dir)
+    sync_store_keys(
+        store_dir=keys_dir,
+        target_dir=client_keys_dir,
+        log=lambda message: print(f"授权公钥：{message}", flush=True),
+    )
 
     data_dir = Path(environment["STORE_DATA_DIR"]).expanduser()
     data_dir.mkdir(parents=True, exist_ok=True)

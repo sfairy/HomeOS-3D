@@ -1,57 +1,38 @@
-/**
- * 全局日志上报的启动引导（编辑器 / 面板侧）：早于业务脚本执行，把 global-log.js 接到真实接口上。
- */
-
-import { setupGlobalLog } from "./global-log.js";
-import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js";
-import { apiFetch } from "../utils/api-fetch.js";
-
-/**
- * 发送 JSON 请求并做统一的错误处理。
- */
-async function requestJson(path: any, init: any = {}) {
-  const response = await apiFetch("/api/v1" + path, {
-    cache: "no-store",
-    ...init,
-    headers: init.body
-      ? {
-          "Content-Type": "application/json",
-          ...(init.headers || {})
-        }
-      : init.headers
-  });
-  // 204 无内容；其余情况按文本读入再尝试解析，兼容非 JSON 的错误页。
-  const bodyText = response.status === 204 ? "" : await response.text();
-  let payload: any = null;
-  if (bodyText) {
+import { setupGlobalLog } from "./global-log";
+async function apiFetch(
+  path,
+  options: { body?: any; headers?: Record<string, string> } = {},
+) {
+  const response = await fetch("/api/v1" + path, {
+      cache: "no-store",
+      ...options,
+      headers: options.body
+        ? {
+            "Content-Type": "application/json",
+            ...(options.headers || {}),
+          }
+        : options.headers,
+    }),
+    responseText = response.status === 204 ? "" : await response.text();
+  let payload = null;
+  if (responseText)
     try {
-      payload = JSON.parse(bodyText);
+      payload = JSON.parse(responseText);
     } catch {
-      // 响应本身是成功的却没解析出 JSON，说明接口契约被破坏，必须报错。
-      if (response.ok) {
-        throw new Error("接口返回格式异常：" + path.split("?")[0]);
-      }
+      if (response.ok) throw new Error("接口返回格式异常：" + path.split("?")[0]);
     }
-  }
-  const authChallenge = apiAuthChallenge(response.status, payload);
-  if (authChallenge === "session-expired") {
-    window.location.assign("/login");
-    throw apiRequestError(payload, {
-      status: response.status,
-      message: "登录状态已失效。",
-      link: false
-    });
-  }
+  if (response.status === 401)
+    throw (window.location.assign("/login"), new Error("登录状态已失效。"));
   if (!response.ok) {
-    throw apiRequestError(payload, {
-      status: response.status,
-      fallback: "请求失败（HTTP " + response.status + "）",
-      link: false
-    });
+    const detail = payload?.detail;
+    throw new Error(
+      typeof detail == "string"
+        ? detail
+        : detail?.message || "请求失败（HTTP " + response.status + "）",
+    );
   }
   return payload;
 }
-
 setupGlobalLog({
-  api: requestJson
+  api: apiFetch,
 });

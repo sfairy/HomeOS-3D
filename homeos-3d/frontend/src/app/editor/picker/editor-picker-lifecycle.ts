@@ -1,50 +1,33 @@
-/**
- * 编辑器选择器的「实体列表加载」生命周期。
- */
-
-type AnyObj = Record<string, any>;
-
-/**
- * 创建选择器生命周期控制器。
- */
 export function createEditorPickerLifecycle({
   getEntitiesLoaded: getEntitiesLoaded,
   getEntityLoadPromise: getEntityLoadPromise,
   loadEntities: loadEntities,
-  reportError: reportError
-}: AnyObj) {
-  // 用 WeakSet 记录正在等待的宿主元素，元素被移除后可自然回收。
-  const busyElements = new WeakSet();
-
-  /**
-   * 实体未加载完成时挂起回调，加载完成后执行。
-   */
-  function deferUntilEntitiesLoaded(hostElement: any, onEntitiesReady: any, shouldProceed: any = () => !0) {
-    if (getEntitiesLoaded()) return !1;
-    if (busyElements.has(hostElement)) return !0;
-    // 复用进行中的请求，只有确实没有请求时才自己发起。
+  reportError: reportError,
+}) {
+  const deferredHostSet = new WeakSet();
+  function deferUntilEntitiesLoaded(hostElement, onReady, canProceed = () => true) {
+    if (getEntitiesLoaded()) return false;
+    if (deferredHostSet.has(hostElement)) return true;
     const existingPromise = getEntityLoadPromise(),
       hasExistingPromise = !!existingPromise,
       loadPromise = existingPromise || loadEntities();
     return (
-      busyElements.add(hostElement),
+      deferredHostSet.add(hostElement),
       hostElement?.setAttribute("aria-busy", "true"),
       Promise.resolve(loadPromise)
         .then(() => {
-          // 宿主可能已被卸载，或调用方的前置条件已不成立，此时放弃回调。
-          !getEntitiesLoaded() ||
-            !hostElement?.isConnected ||
-            !shouldProceed() ||
-            onEntitiesReady();
+          !getEntitiesLoaded() || !hostElement?.isConnected || !canProceed() || onReady();
         })
-        .catch(loadError => {
+        .catch((loadError) => {
           hasExistingPromise || reportError(loadError);
         })
         .finally(() => {
-          (busyElements.delete(hostElement), hostElement?.removeAttribute("aria-busy"));
+          (deferredHostSet.delete(hostElement), hostElement?.removeAttribute("aria-busy"));
         }),
-      !0
+      true
     );
   }
-  return { deferUntilEntitiesLoaded: deferUntilEntitiesLoaded };
+  return {
+    deferUntilEntitiesLoaded: deferUntilEntitiesLoaded,
+  };
 }

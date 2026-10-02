@@ -1,255 +1,450 @@
-/**
- * 3D 交互模块的外层运行时（宿主页侧，非 iframe 内）：在宿主 DOM 里建 iframe 指向 3D 舞台。
- */
-
-type AnyObj = Record<string, any>;
-import {
-  apiErrorMessage,
-  entityDomainFromId,
-  resolveStateEntry,
-  stateTextOf,
-  temperatureHumidityEntities
-} from "./static-helpers.js";
+// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
 import {
   createPopupLayoutPreview,
-  createFocusDevicePopup
-} from "./popup-preview.js";
-import { createLightStream } from "../light/light-stream.js";
-import { curtainGroupEntryId, validCurtainGroups } from "../cover/cover-groups.js";
-// 通用设备的品类表：命令闸门要按这张表展开各品类集合下的附加实体。集合名只此一份，
-import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from "../device/device-profiles.js";
-// 通用设备「牵扯到哪些实体」的口径（附加控件 + 电源 + 健康规则）只此一份实现。订阅侧要用它，
-import { deviceEntityIds } from "../device/device-status.js";
-// 3D 模块专用的后端前缀：控制命令与照射范围读写都挂在这里。
-const INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d";
-/**
- * 把 3D 交互控件挂到宿主元素上，返回运行时句柄。
- */
+  createFocusDevicePopup,
+} from "./popup-preview";
+import { createLightStream } from "../light/light-stream";
+import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from "../device/device-profiles";
+const { vacuumStatusBinding: vacuumStatusBinding } = await (import("@app/renderer/controls/vacuum-runtime")),
+  { temperatureHumidityEntities: temperatureHumidityEntities } = await (import("@app/bridge/temperature-humidity")),
+  INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d",
+  mountDiagnosticsByInstance = new Map(),
+  reportThrottleState = {
+    started: 0,
+    count: 0,
+  },
+  runtimeInstanceToken = Date.now() + "-" + Math.random().toString(36).slice(2),
+  NUMERIC_COUNT_FIELDS = [
+    "loadSequence",
+    "frameLoads",
+    "sourceRevision",
+    "floorCount",
+    "durationMs",
+    "pending",
+    "active",
+    "queued",
+    "replacementFrames",
+    "width",
+    "height",
+    "dpr",
+    "fromCategory",
+    "toCategory",
+    "geometries",
+    "textures",
+    "programs",
+    "mapPixels",
+    "mapTextures",
+  ],
+  ACCEPTED_EVENT_CODES = new Set([
+    "mount-initial",
+    "mount-repeat",
+    "category-switch-start",
+    "category-switch-applied",
+    "page-hide",
+    "page-show",
+    "gpu-lost",
+    "gpu-restored",
+  ]);
+function sanitizeCounts(rawCounts = {}) {
+  const sanitizedCounts = {};
+  for (const numericField of NUMERIC_COUNT_FIELDS)
+    typeof rawCounts?.[numericField] == "number" &&
+      Number.isFinite(rawCounts[numericField]) &&
+      (sanitizedCounts[numericField] = Math.max(0, Math.min(1000000000, rawCounts[numericField])));
+  for (const booleanField of ["replacementPending", "persisted"])
+    typeof rawCounts?.[booleanField] == "boolean" &&
+      (sanitizedCounts[booleanField] = rawCounts[booleanField]);
+  return sanitizedCounts;
+}
+function createBreadcrumbStore() {
+  const breadcrumbStorageKey = "homeos:i3d-reload-breadcrumbs:v1",
+    readStoredBreadcrumbs = () => {
+      try {
+        const storedBreadcrumbsJson = window.sessionStorage?.getItem(breadcrumbStorageKey);
+        if (!storedBreadcrumbsJson || storedBreadcrumbsJson.length > 65536) return [];
+        const parsedBreadcrumbs = JSON.parse(storedBreadcrumbsJson),
+          readAtMs = Date.now();
+        return Array.isArray(parsedBreadcrumbs)
+          ? parsedBreadcrumbs
+              .slice(-16)
+              .filter(
+                (rawBreadcrumb) =>
+                  rawBreadcrumb &&
+                  typeof rawBreadcrumb.key == "string" &&
+                  rawBreadcrumb.key.length < 180 &&
+                  typeof rawBreadcrumb.document == "string" &&
+                  rawBreadcrumb.document.length < 80 &&
+                  Array.isArray(rawBreadcrumb.events),
+              )
+              .map((rawEntry) => ({
+                key: rawEntry.key,
+                document: rawEntry.document,
+                events: rawEntry.events
+                  .slice(-8)
+                  .filter(
+                    (rawEvent) =>
+                      rawEvent &&
+                      ACCEPTED_EVENT_CODES.has(rawEvent.code) &&
+                      Number.isFinite(rawEvent.at) &&
+                      readAtMs >= rawEvent.at &&
+                      readAtMs - rawEvent.at <= 900000,
+                  )
+                  .map((rawValidEvent) => ({
+                    code: rawValidEvent.code,
+                    at: rawValidEvent.at,
+                    counts: sanitizeCounts(rawValidEvent.counts),
+                  })),
+              }))
+              .filter((rawKeptEntry) => rawKeptEntry.events.length)
+          : [];
+      } catch {
+        return [];
+      }
+    };
+  return {
+    previous(lookupKey) {
+      const matchedBreadcrumb = readStoredBreadcrumbs().find(
+        (candidateBreadcrumb) => candidateBreadcrumb.key === lookupKey,
+      );
+      return matchedBreadcrumb && matchedBreadcrumb.document !== runtimeInstanceToken
+        ? matchedBreadcrumb.events
+        : [];
+    },
+    remember(rememberKey, breadcrumbEventCode, breadcrumbEventCounts) {
+      if (ACCEPTED_EVENT_CODES.has(breadcrumbEventCode))
+        try {
+          const storedBreadcrumbs = readStoredBreadcrumbs(),
+            existingBreadcrumb = storedBreadcrumbs.find(
+              (candidateEntry) => candidateEntry.key === rememberKey,
+            ),
+            breadcrumbEvents =
+              existingBreadcrumb?.document === runtimeInstanceToken
+                ? existingBreadcrumb.events
+                : [];
+          breadcrumbEvents.push({
+            code: breadcrumbEventCode,
+            at: Date.now(),
+            counts: sanitizeCounts(breadcrumbEventCounts),
+          });
+          const remainingBreadcrumbs = storedBreadcrumbs.filter(
+            (removedEntry) => removedEntry.key !== rememberKey,
+          );
+          remainingBreadcrumbs.push({
+            key: rememberKey,
+            document: runtimeInstanceToken,
+            events: breadcrumbEvents.slice(-8),
+          });
+          const trimmedBreadcrumbs = remainingBreadcrumbs.slice(-16);
+          for (; JSON.stringify(trimmedBreadcrumbs).length > 32768;) trimmedBreadcrumbs.shift();
+          window.sessionStorage?.setItem(breadcrumbStorageKey, JSON.stringify(trimmedBreadcrumbs));
+        } catch {}
+    },
+  };
+}
+const BREADCRUMB_CODE_MESSAGES = Object.freeze({
+  "mount-initial": ["info", "3D 组件首次挂载"],
+  "mount-repeat": ["warning", "3D 组件在当前页面重新挂载"],
+  "category-switch-start": ["info", "3D 开始切换分类"],
+  "category-switch-applied": ["info", "3D 分类状态已应用"],
+  "page-hide": ["info", "3D 所在页面离开"],
+  "page-show": ["info", "3D 所在页面显示"],
+  "load-scene-change": ["info", "3D 户型切换，重新载入舞台"],
+  "load-mode-change": ["info", "3D 灯光模式切换，重新载入舞台"],
+  "load-bfcache": ["info", "3D 页面从返回缓存恢复，重新载入已释放的舞台"],
+  "iframe-load-unexpected": ["warning", "3D 子页面出现非主动载入"],
+  "stage-ready-repeat": ["warning", "3D 子页面重复初始化"],
+  "source-adopt-start": ["info", "3D 开始采纳保存的户型修改"],
+  "source-adopt-complete": ["info", "3D 已采纳保存的户型修改"],
+  "source-adopt-failed": ["warning", "3D 户型修改采纳失败，尝试恢复原场景"],
+  "gpu-lost": ["warning", "3D 图形上下文丢失"],
+  "gpu-restored": ["info", "3D 图形上下文恢复"],
+  "models-loading-resumed": ["info", "3D 已展示后再次加载模型"],
+  "models-completion-resumed": ["info", "3D 已展示后再次完成模型替换"],
+});
+function createLifecycleReporter(projectId, componentId) {
+  try {
+    const sanitizeIdSegment = (rawIdSegment) =>
+        /^[\w-]{1,80}$/.test(String(rawIdSegment || "")) ? String(rawIdSegment) : "",
+      reportContext = {
+        projectId: sanitizeIdSegment(projectId),
+        componentId: sanitizeIdSegment(componentId),
+        phase: "interaction3d-lifecycle",
+      },
+      readNowMs = () => globalThis.performance?.now?.() ?? Date.now(),
+      nowMs = readNowMs(),
+      diagnosticsKey = JSON.stringify([reportContext.projectId, reportContext.componentId]);
+    for (const [staleKey, staleDiagnostics] of mountDiagnosticsByInstance)
+      nowMs - staleDiagnostics.at > 900000 && mountDiagnosticsByInstance.delete(staleKey);
+    const mountDiagnostics = mountDiagnosticsByInstance.get(diagnosticsKey) || {
+      at: nowMs,
+      mounts: 0,
+      events: new Map(),
+    };
+    for (
+      mountDiagnostics.at = nowMs,
+        mountDiagnostics.mounts = Math.min(1000000, mountDiagnostics.mounts + 1),
+        mountDiagnosticsByInstance.delete(diagnosticsKey),
+        mountDiagnosticsByInstance.set(diagnosticsKey, mountDiagnostics);
+      mountDiagnosticsByInstance.size > 64;
+    )
+      mountDiagnosticsByInstance.delete(mountDiagnosticsByInstance.keys().next().value);
+    const mountCount = mountDiagnostics.mounts,
+      breadcrumbStore = createBreadcrumbStore(),
+      previousEvents = mountCount === 1 ? breadcrumbStore.previous(diagnosticsKey) : [],
+      reportLifecycleEvent = (lifecycleEventCode, lifecycleEventCounts = {}) => {
+        try {
+          if (!Object.prototype.hasOwnProperty.call(BREADCRUMB_CODE_MESSAGES, lifecycleEventCode))
+            return;
+          breadcrumbStore.remember(diagnosticsKey, lifecycleEventCode, lifecycleEventCounts);
+          const hostLogger = window.HomeOSLog;
+          if (typeof hostLogger?.report != "function") return;
+          const eventAtMs = readNowMs(),
+            lastReportAtMs = mountDiagnostics.events.get(lifecycleEventCode);
+          if (
+            (lastReportAtMs !== undefined && eventAtMs - lastReportAtMs < 5000) ||
+            ((eventAtMs - reportThrottleState.started >= 60000 ||
+              eventAtMs < reportThrottleState.started) &&
+              ((reportThrottleState.started = eventAtMs), (reportThrottleState.count = 0)),
+            reportThrottleState.count >= 30)
+          )
+            return;
+          (mountDiagnostics.events.set(lifecycleEventCode, eventAtMs), reportThrottleState.count++);
+          const reportPayload = {
+            build: "20260927-reload-diagnostics-v2",
+            mountCount: mountCount,
+            ...sanitizeCounts(lifecycleEventCounts),
+          };
+          lifecycleEventCode === "mount-initial" &&
+            previousEvents.length &&
+            (reportPayload.previousEvents = previousEvents);
+          const navigationType =
+            globalThis.performance?.getEntriesByType?.("navigation")?.[0]?.type;
+          ["navigate", "reload", "back_forward", "prerender"].includes(navigationType) &&
+            (reportPayload.navigation = navigationType);
+          const [reportLevel, eventMessage] = BREADCRUMB_CODE_MESSAGES[lifecycleEventCode];
+          Promise.resolve(
+            hostLogger.report(
+              reportLevel,
+              "3D 运行生命周期",
+              eventMessage,
+              {
+                ...reportContext,
+                code: lifecycleEventCode,
+              },
+              JSON.stringify(reportPayload),
+            ),
+          ).catch(() => {});
+        } catch {}
+      };
+    return (
+      reportLifecycleEvent(mountCount === 1 ? "mount-initial" : "mount-repeat"),
+      reportLifecycleEvent
+    );
+  } catch {
+    return () => {};
+  }
+}
 export function mountInteraction3d(
-  hostElement: any,
+  hostElement,
   {
     component: componentDescriptor,
     context: runtimeContext = {},
     editing: isEditing = false,
     editingModule: editingModuleKind = "light",
-    editingVacuumId: editingVacuumId = "",
+    editingSecurityKind = "",
+    editingVacuumId = "",
     rangeEditorOnly: isRangeEditorOnly = false,
-    onEdit: onEdit = (..._args: any[]) => {},
-    onReady: onReady = (..._args: any[]) => {},
+    onEdit = (_editState?: any) => {},
+    onReady = () => {},
     onStates: onStatesUpdate = null,
-    onPresented: onPresented = (..._args: any[]) => {},
-    onLoadError: onLoadError = (..._args: any[]) => {},
-    onFocusChange: onFocusChange = (..._args: any[]) => {}
-  }: AnyObj
+    onPresented = () => {},
+    onLoadError = (_error?: any) => {},
+    onFocusChange = () => {},
+  },
 ) {
   hostElement.className = "hb-interaction3d-runtime";
-  let componentProperties = structuredClone(componentDescriptor.properties || {});
-  let isDisposed = false;
-  let isAuthorized = true;
-  let selectedId = "";
-  let loadingTimeoutId: any;
-  let componentMetadata: any;
-  let isPageHidden = false;
-  let popupLayoutPreview: any = null;
-  let focusDevicePopup: any = null;
-  // 关闭聚焦设备弹窗（摄像头 / 扫地机），幂等：重复调用不会报错。
-  function disposeFocusDevicePopup() {
-    focusDevicePopup?.dispose();
+  let componentProperties = structuredClone(componentDescriptor.properties || {}),
+    isDisposed = false,
+    isAuthorized = true,
+    selectedId = "",
+    loadingTimeoutId,
+    componentMetadata,
+    isPageHidden = false;
+  const canPrewarmStage = () =>
+    runtimeContext.prewarmStage === true &&
+    !isScenePresented &&
+    !hasLoadFailed &&
+    !isPreviewSuspended;
+  let popupLayoutPreview = null,
     focusDevicePopup = null;
+  function disposeFocusDevicePopup() {
+    (focusDevicePopup?.dispose(), (focusDevicePopup = null));
   }
-  // 打开聚焦设备弹窗。目标 ID 形如 "camera:xxx" / "vacuum:xxx"，
-  function openFocusDevicePopup(popupTargetId: any) {
+  const collectVacuumEntries = () =>
+    (componentProperties.devices?.vacuums || []).map((vacuumEntry) =>
+      vacuumStatusBinding(vacuumEntry, runtimeContext.entityMetadata),
+    );
+  function openFocusDevicePopup(popupTargetId) {
     disposeFocusDevicePopup();
     const focusDeviceKind = popupTargetId?.startsWith("camera:")
-      ? "camera"
-      : popupTargetId?.startsWith("vacuum:") || editingModuleKind === "vacuum"
-        ? "vacuum"
-        : null;
-    const focusDeviceId = popupTargetId?.replace(/^(camera|vacuum):/, "");
-    const focusDeviceItem = (
-      focusDeviceKind === "camera"
-        ? componentProperties.security?.cameras
-        : focusDeviceKind === "vacuum"
-          ? componentProperties.devices?.vacuums
-          : []
-    )?.find((deviceCandidate: any) => deviceCandidate.id === focusDeviceId);
-    if (!focusDeviceItem) {
-      return;
-    }
+        ? "camera"
+        : popupTargetId?.startsWith("vacuum:") || editingModuleKind === "vacuum"
+          ? "vacuum"
+          : null,
+      focusDeviceId = popupTargetId?.replace(/^(camera|vacuum):/, ""),
+      focusDeviceItem = (
+        focusDeviceKind === "camera"
+          ? componentProperties.security?.cameras
+          : focusDeviceKind === "vacuum"
+            ? collectVacuumEntries()
+            : []
+      )?.find((deviceCandidate) => deviceCandidate.id === focusDeviceId);
+    if (!focusDeviceItem) return;
     const createdFocusPopup = createFocusDevicePopup(hostElement, {
-      kind: focusDeviceKind as any,
+      kind: focusDeviceKind,
       item: focusDeviceItem,
       getLayout: () => presentationLayout,
       getSettings: () => ({
         ...componentProperties.popupLayout,
-        opacity: componentProperties.popupOpacity
+        opacity: componentProperties.popupOpacity,
       }),
       getStates: getCurrentStates,
-      panelDocument: runtimeContext.document
+      panelDocument: runtimeContext.document,
     });
-    focusDevicePopup = createdFocusPopup;
-    createdFocusPopup.ready.catch((popupReadyError: any) => {
-      if (focusDevicePopup === createdFocusPopup) {
-        disposeFocusDevicePopup();
-        onLoadError(popupReadyError);
-      }
-    });
+    ((focusDevicePopup = createdFocusPopup),
+      createdFocusPopup.ready.catch((popupReadyError) => {
+        focusDevicePopup === createdFocusPopup &&
+          (disposeFocusDevicePopup(), onLoadError(popupReadyError));
+      }));
   }
-  // 一次性关掉所有预览浮层：设备弹窗 + 弹窗布局预览。
   function closePopupLayoutPreview() {
-    disposeFocusDevicePopup();
-    popupLayoutPreview?.dispose();
-    popupLayoutPreview = null;
+    (disposeFocusDevicePopup(), popupLayoutPreview?.dispose(), (popupLayoutPreview = null));
   }
-  // 舞台是否已回报 presented（画面真正可见）；未呈现前不做聚焦与视角编辑。
-  let isScenePresented = false;
-  let isViewEditing = false;
-  // 请求 ID 自增源（range- / view- / focus- 前缀）：回执按 ID 配对，
-  let requestIdCounter = 0;
-  // 配置代次：随之发送的 configId 让舞台能把 presented / error 对回到具体那份配置。
-  let configIdCounter = 0;
-  let defaultCamera: any;
-  let activeCamera =
-    componentProperties.floorCameras?.[componentProperties.floorSelection] ||
-    componentProperties.camera;
-  // 上次下发的配置 JSON：完全相同时不重发，只补一次布局与状态刷新，
-  let lastConfigJson = "";
-  // 预览挂起：被顶层对话框遮住时暂停状态推送与渲染，
-  let isPreviewSuspended = false;
-  let isFocusActive = false;
-  let isFocusPanelOpen = false;
-  let isStageReady = false;
-  let hasBeenConnected = false;
-  let hasLoadFailed = false;
-  // iframe 重载代次：异步回调据此判断自己等的加载是否已被新一次重载取代。
-  let reloadGeneration = 0;
-  let isRangeEditing = false;
-  // 导航位置调整态：编辑器画布里专门开的一个模式 —— 只有它开着，舞台 iframe 才收指针事件，
-  let isNavigationEditing = false;
-  const pendingEditsByRequestId = new Map<any, any>();
-  const pendingRangeRequestsByRequestId = new Map<any, any>();
-  const editSubscribersSet = new Set<any>();
-  const normalizeLightingMode = (lightingMode: any) =>
-    lightingMode === "region" ? "region" : "standard";
-  // iframe 的指针事件开关：编辑器画布里默认关掉（点击要留给画布选控件 / 拖控件），
-  function refreshStageFramePointerEvents() {
-    if (!runtimeContext.editable) {
-      stageFrameElement.style.pointerEvents = "auto";
-      return;
-    }
-    stageFrameElement.style.pointerEvents =
-      isEditing || isViewEditing || isRangeEditing || isNavigationEditing ? "auto" : "none";
-  }
-  // 建舞台 iframe。非编辑 / 非视角编辑 / 非范围编辑时把指针事件关掉：
+  let isScenePresented = false,
+    isViewEditing = false,
+    requestIdCounter = 0,
+    configIdCounter = 0,
+    defaultCamera,
+    activeCamera =
+      componentProperties.floorCameras?.[componentProperties.floorSelection] ||
+      componentProperties.camera,
+    lastConfigJson = "",
+    isPreviewSuspended = false,
+    isFocusActive = false,
+    isFocusPanelOpen = false,
+    isStageReady = false,
+    hasBeenConnected = false,
+    hasLoadFailed = false,
+    reloadGeneration = 0,
+    isRangeEditing = false;
+  const pendingEditsByRequestId = new Map(),
+    pendingRangeRequestsByRequestId = new Map(),
+    editSubscribersSet = new Set(),
+    normalizeLightingMode = (lightingMode) =>
+      lightingMode === "region" ? "region" : "standard";
   function createStageFrameElement() {
     const frameElement = document.createElement("iframe");
-    frameElement.title = "3D 交互户型";
-    frameElement.className = "i3d-frame";
-    frameElement.setAttribute("allow", "fullscreen");
-    frameElement.style.pointerEvents = "none";
-    return frameElement;
+    let frameLoadCount = 0,
+      lastContentDocument;
+    return (
+      frameElement.addEventListener("load", () => {
+        if (!(isDisposed || frameElement !== stageFrameElement)) {
+          try {
+            if (frameElement.contentWindow?.location?.href === "about:blank") return;
+            const contentDocument = frameElement.contentDocument;
+            if (contentDocument && contentDocument === lastContentDocument) return;
+            lastContentDocument = contentDocument;
+          } catch {}
+          ++frameLoadCount > 1 &&
+            reportRuntimeLifecycle("iframe-load-unexpected", {
+              frameLoads: frameLoadCount,
+              loadSequence: reloadGeneration,
+            });
+        }
+      }),
+      (frameElement.title = "3D 交互户型"),
+      (frameElement.className = "i3d-frame"),
+      frameElement.setAttribute("allow", "fullscreen"),
+      runtimeContext.editable &&
+        !isEditing &&
+        !isViewEditing &&
+        !isRangeEditing &&
+        (frameElement.style.pointerEvents = "none"),
+      frameElement
+    );
   }
   let stageFrameElement = createStageFrameElement();
-  refreshStageFramePointerEvents();
   const loadingElement = document.createElement("p");
-  loadingElement.className = "i3d-loading";
-  loadingElement.setAttribute("role", "status");
-  hostElement.replaceChildren(stageFrameElement, loadingElement);
-  const projectId = runtimeContext.document?.projectId || "";
-  // 统一发给舞台的通道：带 channel 标识，只发给同源 iframe，
-  const postToStageFrame = (outgoingMessage: any) => {
-    if (!isDisposed && stageFrameElement.contentWindow) {
-      stageFrameElement.contentWindow.postMessage(
-        {
-          channel: "hb-i3d-v1",
-          ...outgoingMessage
-        },
-        location.origin
-      );
-    }
-  };
-  // 编辑事件广播：先回调构造时的 onEdit，再分发给 addEditSubscriber 注册的订阅者。
-  function notifyEditSubscribers(editEvent: any) {
-    onEdit(editEvent);
-    for (const subscriber of [...editSubscribersSet]) {
-      subscriber(editEvent);
-    }
+  ((loadingElement.className = "i3d-loading"),
+    loadingElement.setAttribute("role", "status"),
+    hostElement.replaceChildren(stageFrameElement, loadingElement));
+  const hostProjectId = runtimeContext.document?.projectId || "",
+    reportRuntimeLifecycle = createLifecycleReporter(hostProjectId, componentDescriptor.id),
+    postToStageFrame = (frameMessage) => {
+      !isDisposed &&
+        stageFrameElement.contentWindow &&
+        stageFrameElement.contentWindow.postMessage(
+          {
+            channel: "hb-i3d-v1",
+            ...frameMessage,
+          },
+          location.origin,
+        );
+    };
+  function notifyEditSubscribers(editState) {
+    onEdit(editState);
+    for (const subscriber of [...editSubscribersSet]) subscriber(editState);
   }
-  // 更新照射范围编辑状态：即使状态没变，只要带错误信息也要广播一次，
-  function setRangeEditingState(requestedActive: any, errorMessage: any = "") {
-    const isRangeEditingActive = requestedActive === true;
-    if (isRangeEditingActive !== isRangeEditing || !!errorMessage) {
-      isRangeEditing = isRangeEditingActive;
-      hostElement.classList.toggle("is-range-editing", isRangeEditingActive);
-      refreshStageFramePointerEvents();
+  function setRangeEditingState(isActive, errorMessage = "") {
+    const nextRangeEditing = isActive === true;
+    (nextRangeEditing === isRangeEditing && !errorMessage) ||
+      ((isRangeEditing = nextRangeEditing),
+      hostElement.classList.toggle("is-range-editing", nextRangeEditing),
+      runtimeContext.editable &&
+        !isEditing &&
+        (stageFrameElement.style.pointerEvents =
+          nextRangeEditing || isViewEditing ? "auto" : "none"),
       notifyEditSubscribers({
         action: "range-editor-state",
-        active: isRangeEditingActive,
+        active: nextRangeEditing,
         ...(errorMessage
           ? {
-              error: errorMessage
+              error: errorMessage,
             }
-          : {})
-      });
-    }
+          : {}),
+      }));
   }
-  /**
-   * 更新导航位置调整态：状态真的变了才广播。
-   */
-  function setNavigationEditingState(requestedActive: any) {
-    const isNavigationEditingActive = requestedActive === true;
-    if (isNavigationEditingActive === isNavigationEditing) {
-      return;
-    }
-    isNavigationEditing = isNavigationEditingActive;
-    hostElement.classList.toggle("is-navigation-editing", isNavigationEditing);
-    refreshStageFramePointerEvents();
-    postToStageFrame({
-      type: "navigation-editing",
-      active: isNavigationEditing
-    });
-    notifyEditSubscribers({
-      action: "navigation-editing-state",
-      active: isNavigationEditing
-    });
-  }
-  let isSceneActive = false;
-  let isAwaitingPresentation = false;
-  let lastVisible: any;
-  let lastPresentedVisible: any;
-  let isPageHiddenByEvent = false;
-  let lastActivityAtMs = -Infinity;
-  const activePointerIdsSet = new Set<any>();
-  const heldKeySet = new Set<any>();
-  // 有指针按下或按键未松开，就算「用户正在操作」，空闲动画必须让位。
-  const hasHeldInput = () => activePointerIdsSet.size > 0 || heldKeySet.size > 0;
-  let isInViewport = typeof IntersectionObserver === "undefined";
-  // 弹窗遮挡检测：取最上层的、标记了 data-i3d-preview-scope 的 dialog，
+  let hasPresentedStage = false,
+    isReloadPending = false,
+    wasStageActive,
+    wasStageVisible,
+    isPageFrozen = false,
+    lastActivityAtMs = -Infinity;
+  const heldPointerIdsSet = new Set(),
+    heldKeyCodesSet = new Set(),
+    hasHeldInput = () => heldPointerIdsSet.size > 0 || heldKeyCodesSet.size > 0;
+  let isStageIntersecting = typeof IntersectionObserver > "u";
   function syncPreviewSuspension() {
-    const topmostScopedDialog = [
-      ...(document.querySelectorAll?.("dialog[data-i3d-preview-scope][open]") || [])
-    ].at(-1);
-    const isCoveredByDialog = !!topmostScopedDialog && !topmostScopedDialog.contains(hostElement);
-    if (isPreviewSuspended !== isCoveredByDialog && !isDisposed) {
-      isPreviewSuspended = isCoveredByDialog;
-      hostElement.setAttribute("data-preview-suspended", String(isCoveredByDialog));
-      clearTimeout(loadingTimeoutId);
-      if (!isCoveredByDialog) {
-        if (!isScenePresented && componentProperties.sceneId && !hasLoadFailed) {
-          scheduleLoadTimeout();
-        }
-        if (isStageReady) {
-          publishStates();
-        }
-        if (lightStream) {
-          onStatesUpdate?.(getCurrentStates());
-        }
-        focusDevicePopup?.updateStates?.();
-        vacuumDetailsPopup?.updateStates?.(getCurrentStates());
-        sendConfigUpdate();
-      }
-      refreshActivityState();
-    }
+    const topOpenPreviewDialog = [
+        ...(document.querySelectorAll?.("dialog[data-i3d-preview-scope][open]") || []),
+      ].at(-1),
+      isOtherPreviewOpen = !!(topOpenPreviewDialog && !topOpenPreviewDialog.contains(hostElement));
+    isPreviewSuspended === isOtherPreviewOpen ||
+      isDisposed ||
+      ((isPreviewSuspended = isOtherPreviewOpen),
+      hostElement.setAttribute("data-preview-suspended", String(isOtherPreviewOpen)),
+      clearTimeout(loadingTimeoutId),
+      isOtherPreviewOpen ||
+        (!isScenePresented &&
+          componentProperties.sceneId &&
+          !hasLoadFailed &&
+          scheduleLoadTimeout(),
+        isStageReady && publishStates(),
+        lightStream && onStatesUpdate?.(getCurrentStates()),
+        focusDevicePopup?.updateStates?.(),
+        vacuumPopup?.updateStates?.(getCurrentStates()),
+        sendConfigUpdate()),
+      refreshActivityState());
   }
   function isHostActuallyVisible() {
     if (
@@ -260,796 +455,907 @@ export function mountInteraction3d(
       hostElement.checkVisibility?.({
         opacityProperty: true,
         visibilityProperty: true,
-        contentVisibilityAuto: true
+        contentVisibilityAuto: true,
       }) === false
-    ) {
+    )
       return false;
-    }
     for (
-      let visibilityAncestorElement = hostElement;
-      visibilityAncestorElement;
-      visibilityAncestorElement = visibilityAncestorElement.parentElement
+      let visibilityProbeElement = hostElement;
+      visibilityProbeElement;
+      visibilityProbeElement = visibilityProbeElement.parentElement
     ) {
       if (
-        visibilityAncestorElement.hidden ||
-        visibilityAncestorElement.inert ||
-        visibilityAncestorElement.getAttribute?.("aria-hidden") === "true"
-      ) {
+        visibilityProbeElement.hidden ||
+        visibilityProbeElement.inert ||
+        visibilityProbeElement.getAttribute?.("aria-hidden") === "true"
+      )
         return false;
-      }
-      const visibilityAncestorStyle = window.getComputedStyle?.(visibilityAncestorElement);
+      const visibilityProbeStyle = window.getComputedStyle?.(visibilityProbeElement);
       if (
-        visibilityAncestorStyle &&
-        (visibilityAncestorStyle.display === "none" ||
-          visibilityAncestorStyle.visibility === "hidden" ||
-          visibilityAncestorStyle.visibility === "collapse" ||
-          Number(visibilityAncestorStyle.opacity) === 0)
-      ) {
+        visibilityProbeStyle &&
+        (visibilityProbeStyle.display === "none" ||
+          visibilityProbeStyle.visibility === "hidden" ||
+          visibilityProbeStyle.visibility === "collapse" ||
+          Number(visibilityProbeStyle.opacity) === 0)
+      )
         return false;
-      }
     }
-    const hostBoundingRect = hostElement.getBoundingClientRect();
-    const viewportWidthPx = document.documentElement?.clientWidth || window.innerWidth || Infinity;
-    const viewportHeightPx =
-      document.documentElement?.clientHeight || window.innerHeight || Infinity;
+    const hostRect = hostElement.getBoundingClientRect(),
+      viewportWidthPx = document.documentElement?.clientWidth || window.innerWidth || Infinity,
+      viewportHeightPx = document.documentElement?.clientHeight || window.innerHeight || Infinity;
     return (
-      hostBoundingRect.width > 0 &&
-      hostBoundingRect.height > 0 &&
-      (hostBoundingRect.left || 0) < viewportWidthPx &&
-      (hostBoundingRect.top || 0) < viewportHeightPx &&
-      (hostBoundingRect.right ?? (hostBoundingRect.left || 0) + hostBoundingRect.width) > 0 &&
-      (hostBoundingRect.bottom ?? (hostBoundingRect.top || 0) + hostBoundingRect.height) > 0
+      hostRect.width > 0 &&
+      hostRect.height > 0 &&
+      (hostRect.left || 0) < viewportWidthPx &&
+      (hostRect.top || 0) < viewportHeightPx &&
+      (hostRect.right ?? (hostRect.left || 0) + hostRect.width) > 0 &&
+      (hostRect.bottom ?? (hostRect.top || 0) + hostRect.height) > 0
     );
   }
-  // 汇总可见性与活动态并同步给舞台：把「宿主可见 / 呈现层可见 / 用户是否在操作」
-  function refreshActivityState(forceImmediate: any = false) {
-    if (isDisposed) {
-      return;
-    }
+  function refreshActivityState(forceRefresh = false) {
+    if (isDisposed) return;
     syncLightStreamActive();
-    const isPresentedVisible =
-      isAuthorized &&
-      !isPreviewSuspended &&
-      !isPageHiddenByEvent &&
-      !isPageHidden &&
-      document.hidden !== true &&
-      document.visibilityState !== "hidden" &&
-      isInViewport &&
-      isHostActuallyVisible();
-    const isVisible =
-      isSceneActive &&
-      isScenePresented &&
-      !isEditing &&
-      !runtimeContext.editable &&
-      !isViewEditing &&
-      isPresentedVisible;
-    if (!isVisible) {
-      activePointerIdsSet.clear();
-      heldKeySet.clear();
-    }
-    if (
-      forceImmediate ||
-      isVisible !== lastVisible ||
-      isPresentedVisible !== lastPresentedVisible
-    ) {
-      lastVisible = isVisible;
-      lastPresentedVisible = isPresentedVisible;
-      lastActivityAtMs = -Infinity;
-      postToStageFrame({
-        type: "activity-state",
-        visible: isVisible,
-        presentedVisible: isPresentedVisible
-      });
-    }
+    const isStageOnScreen =
+        isAuthorized &&
+        !isPreviewSuspended &&
+        !isPageFrozen &&
+        !isPageHidden &&
+        document.hidden !== true &&
+        document.visibilityState !== "hidden" &&
+        isStageIntersecting &&
+        isHostActuallyVisible(),
+      isPrewarmAllowed = isAuthorized && canPrewarmStage() && !isPageFrozen && !document.hidden,
+      isStageActive =
+        hasPresentedStage &&
+        isScenePresented &&
+        !isEditing &&
+        !runtimeContext.editable &&
+        !isViewEditing &&
+        isStageOnScreen;
+    (isStageActive || (heldPointerIdsSet.clear(), heldKeyCodesSet.clear()),
+      (forceRefresh ||
+        isStageActive !== wasStageActive ||
+        (isStageOnScreen || isPrewarmAllowed) !== wasStageVisible) &&
+        ((wasStageActive = isStageActive),
+        (wasStageVisible = isStageOnScreen || isPrewarmAllowed),
+        (lastActivityAtMs = -Infinity),
+        postToStageFrame({
+          type: "activity-state",
+          visible: isStageActive,
+          presentedVisible: isStageOnScreen || isPrewarmAllowed,
+        })));
   }
-  // 活动输入监听：只认 isTrusted 的事件（合成事件不算用户操作），
-  function handleActivityInputEvent(inputEvent: any) {
-    if (isDisposed || inputEvent.isTrusted === false) {
-      return;
-    }
-    const hadHeldInput = hasHeldInput();
-    if (inputEvent.type === "pointerdown") {
-      activePointerIdsSet.add(inputEvent.pointerId);
-    }
-    if (inputEvent.type === "pointerup" || inputEvent.type === "pointercancel") {
-      activePointerIdsSet.delete(inputEvent.pointerId);
-    }
-    if (inputEvent.type === "keydown") {
-      heldKeySet.add(inputEvent.code || inputEvent.key);
-    }
-    if (inputEvent.type === "keyup") {
-      heldKeySet.delete(inputEvent.code || inputEvent.key);
-    }
-    const nowMs = globalThis.performance?.now?.() ?? Date.now();
-    if (hasHeldInput() !== hadHeldInput || !(nowMs - lastActivityAtMs < 200)) {
-      refreshActivityState();
-      lastActivityAtMs = nowMs;
-      if (lastVisible) {
+  function handleActivityInput(inputEvent) {
+    if (isDisposed || inputEvent.isTrusted === false) return;
+    const hasHeldInputAtEntry = hasHeldInput();
+    (inputEvent.type === "pointerdown" && heldPointerIdsSet.add(inputEvent.pointerId),
+      (inputEvent.type === "pointerup" || inputEvent.type === "pointercancel") &&
+        heldPointerIdsSet.delete(inputEvent.pointerId),
+      inputEvent.type === "keydown" && heldKeyCodesSet.add(inputEvent.code || inputEvent.key),
+      inputEvent.type === "keyup" && heldKeyCodesSet.delete(inputEvent.code || inputEvent.key));
+    const inputAtMs = globalThis.performance?.now?.() ?? Date.now();
+    (hasHeldInput() === hasHeldInputAtEntry && inputAtMs - lastActivityAtMs < 200) ||
+      (refreshActivityState(),
+      (lastActivityAtMs = inputAtMs),
+      wasStageActive &&
         postToStageFrame({
           type: "user-activity",
-          held: hasHeldInput()
-        });
-      }
-    }
+          held: hasHeldInput(),
+        }));
   }
   function handleWindowBlur() {
-    if (isDisposed) {
-      return;
-    }
-    const hadHeldInputBeforeBlur = hasHeldInput();
-    activePointerIdsSet.clear();
-    heldKeySet.clear();
-    refreshActivityState();
-    if (hadHeldInputBeforeBlur && lastVisible) {
-      lastActivityAtMs = globalThis.performance?.now?.() ?? Date.now();
-      postToStageFrame({
-        type: "user-activity",
-        held: false
-      });
-    }
+    if (isDisposed) return;
+    const hasHeldInputOnBlur = hasHeldInput();
+    (heldPointerIdsSet.clear(),
+      heldKeyCodesSet.clear(),
+      refreshActivityState(),
+      hasHeldInputOnBlur &&
+        wasStageActive &&
+        ((lastActivityAtMs = globalThis.performance?.now?.() ?? Date.now()),
+        postToStageFrame({
+          type: "user-activity",
+          held: false,
+        })));
   }
-  // 页面进入后台（含 from bfcache 的 pagehide）：关掉预览浮层并刷新活动态。
-  function handlePageHide() {
-    closePopupLayoutPreview();
-    isPageHiddenByEvent = true;
-    refreshActivityState();
+  function handlePageHide(pageHideEvent) {
+    (reportRuntimeLifecycle("page-hide", {
+      persisted: pageHideEvent?.persisted === true,
+    }),
+      closePopupLayoutPreview(),
+      isVacuumPopupOpen && dismissFocus(true),
+      (isPageFrozen = true),
+      refreshActivityState());
   }
-  // 页面从 bfcache 恢复：iframe 里的 WebGL 上下文通常已经失效，
-  function handlePageShow(pageShowEvent: any) {
-    isPageHiddenByEvent = false;
-    if (pageShowEvent?.persisted && !isDisposed) {
-      reloadStageFrame();
-    } else {
-      refreshActivityState();
-    }
+  function handlePageShow(pageShowEvent) {
+    (reportRuntimeLifecycle("page-show", {
+      persisted: pageShowEvent?.persisted === true,
+    }),
+      (isPageFrozen = false),
+      pageShowEvent?.persisted && !isDisposed
+        ? reloadStageFrame("load-bfcache")
+        : refreshActivityState());
   }
   function handleVisibilityChange() {
-    if (document.hidden) {
-      closePopupLayoutPreview();
-    }
-    refreshActivityState();
+    (document.hidden && closePopupLayoutPreview(), refreshActivityState());
   }
-  let latestStates: AnyObj = {};
-  let lastPublishedStates: any = null;
-  let supportsStatePatches = false;
+  let latestStatesByEntityId = {},
+    lastPublishedStates = null,
+    supportsStatePatches = false;
   const lightStream =
     typeof window.WebSocket == "function"
       ? createLightStream({
-          onStates(states: any) {
-            latestStates = states;
-            if (!isPreviewSuspended) {
-              focusDevicePopup?.updateStates?.();
-              vacuumDetailsPopup?.updateStates?.(states);
-              onStatesUpdate?.(states);
-              if (isStageReady) {
-                publishStates();
-              }
-            }
+          onStates(incomingStates) {
+            ((latestStatesByEntityId = incomingStates),
+              fetchClimateCapabilities(),
+              !isPreviewSuspended &&
+                (focusDevicePopup?.updateStates?.(),
+                vacuumPopup?.updateStates?.(incomingStates),
+                onStatesUpdate?.(incomingStates),
+                isStageReady && publishStates()));
           },
-          onPatch(patch: any) {
-            latestStates = {
-              ...latestStates,
-              ...patch
-            };
-            if (!isPreviewSuspended) {
-              focusDevicePopup?.updateStates?.();
-              vacuumDetailsPopup?.updateStates?.(latestStates);
-              onStatesUpdate?.(latestStates);
-              if (isStageReady) {
-                publishStates(patch);
-              }
-            }
-          }
+          onPatch(statePatch) {
+            ((latestStatesByEntityId = {
+              ...latestStatesByEntityId,
+              ...statePatch,
+            }),
+              !isPreviewSuspended &&
+                (focusDevicePopup?.updateStates?.(),
+                vacuumPopup?.updateStates?.(latestStatesByEntityId),
+                onStatesUpdate?.(latestStatesByEntityId),
+                isStageReady && publishStates(statePatch)));
+          },
         })
       : null;
-  // 决定状态流是否激活：只有在宿主曾真正连接过、且当前可见时才开流，
   function syncLightStreamActive() {
-    if (!lightStream || isDisposed) {
-      return;
-    }
-    if (hostElement.isConnected === true) {
-      hasBeenConnected = true;
-    }
-    let isStreamActive =
+    if (!lightStream || isDisposed) return;
+    hostElement.isConnected === true && (hasBeenConnected = true);
+    let isStageVisible =
       isAuthorized &&
       !hasLoadFailed &&
       !!componentProperties.sceneId &&
-      !isPageHiddenByEvent &&
+      !isPageFrozen &&
       !isPageHidden &&
       document.hidden !== true &&
       document.visibilityState !== "hidden" &&
-      (!hasBeenConnected || hostElement.isConnected !== false);
+      !(hasBeenConnected && hostElement.isConnected === false);
     for (
       let ancestorElement = hostElement;
-      isStreamActive && ancestorElement;
+      isStageVisible && ancestorElement;
       ancestorElement = ancestorElement.parentElement
     ) {
       const ancestorStyle = window.getComputedStyle?.(ancestorElement);
-      if (
-        ancestorElement.hidden ||
+      (ancestorElement.hidden ||
         ancestorElement.inert ||
         ancestorElement.getAttribute?.("aria-hidden") === "true" ||
         ancestorStyle?.display === "none" ||
-        ["hidden", "collapse"].includes(ancestorStyle?.visibility)
-      ) {
-        isStreamActive = false;
-      }
+        ["hidden", "collapse"].includes(ancestorStyle?.visibility)) &&
+        (isStageVisible = false);
     }
-    lightStream.setActive(isStreamActive);
+    lightStream.setActive(
+      isStageVisible || (isAuthorized && canPrewarmStage() && !isPageFrozen && !document.hidden),
+    );
   }
-  // 找出窗帘的「电机反向」实体。它是集成侧暴露的开关，实体 ID 不在配置里，
   function findCurtainMotorReverseEntities() {
     const entityMetadata = runtimeContext.entityMetadata;
-    if (!entityMetadata?.get || !entityMetadata?.values) {
-      return [];
-    } else {
-      return (componentProperties.environment?.curtains || []).flatMap((curtain: any) => {
-        const curtainMetadata = entityMetadata.get(curtain.entityId);
-        if (!curtainMetadata?.deviceId) {
-          return [];
-        }
-        const motorReverseCandidates = [...entityMetadata.values()].filter(
-          (candidateMetadata: any) =>
-            candidateMetadata.deviceId === curtainMetadata.deviceId &&
-            (!curtainMetadata.platform ||
-              !candidateMetadata.platform ||
-              candidateMetadata.platform === curtainMetadata.platform) &&
-            ["switch", "select"].includes(
-              candidateMetadata.domain || entityDomainFromId(candidateMetadata.entityId)
-            ) &&
-            !candidateMetadata.disabledBy &&
-            !["disabled", "missing"].includes(candidateMetadata.status) &&
-            /motor_reverse|电机反向/i.test(
-              (candidateMetadata.entityId || "") +
-                " " +
-                (candidateMetadata.name || "") +
-                " " +
-                (candidateMetadata.translationKey || "")
-            )
-        );
-        if (motorReverseCandidates.length === 1) {
-          return [
-            {
-              entityId: motorReverseCandidates[0].entityId,
-              coverEntityId: curtain.entityId
-            }
-          ];
-        } else {
-          return [];
-        }
-      });
+    return !entityMetadata?.get || !entityMetadata?.values
+      ? []
+      : (componentProperties.environment?.curtains || []).flatMap((curtain) => {
+          const curtainMetadata = entityMetadata.get(curtain.entityId);
+          if (!curtainMetadata?.deviceId) return [];
+          const motorReverseCandidates = [...entityMetadata.values()].filter(
+            (candidateMetadata) =>
+              candidateMetadata.deviceId === curtainMetadata.deviceId &&
+              (!curtainMetadata.platform ||
+                !candidateMetadata.platform ||
+                candidateMetadata.platform === curtainMetadata.platform) &&
+              ["switch", "select"].includes(
+                candidateMetadata.domain || candidateMetadata.entityId?.split(".")[0],
+              ) &&
+              !candidateMetadata.disabledBy &&
+              !["disabled", "missing"].includes(candidateMetadata.status) &&
+              /motor_reverse|电机反向/i.test(
+                (candidateMetadata.entityId || "") +
+                  " " +
+                  (candidateMetadata.name || "") +
+                  " " +
+                  (candidateMetadata.translationKey || ""),
+              ),
+          );
+          return motorReverseCandidates.length === 1
+            ? [
+                {
+                  entityId: motorReverseCandidates[0].entityId,
+                  coverEntityId: curtain.entityId,
+                },
+              ]
+            : [];
+        });
+  }
+  let temperatureUnit = null,
+    lastCapabilityFetchAtMs = 0,
+    isFetchingCapabilities = false;
+  async function fetchClimateCapabilities() {
+    if (
+      isDisposed ||
+      !isAuthorized ||
+      !(
+        (componentProperties.environment?.waterHeaters || []).length ||
+        (componentProperties.environment?.airConditioners || []).length
+      ) ||
+      typeof fetch != "function" ||
+      isFetchingCapabilities ||
+      Date.now() - lastCapabilityFetchAtMs < 60000
+    )
+      return;
+    ((isFetchingCapabilities = true), (lastCapabilityFetchAtMs = Date.now()));
+    const capabilityAbortController = new AbortController();
+    activeRequestsSet.add(capabilityAbortController);
+    const capabilityTimeoutId = setTimeout(() => capabilityAbortController.abort(), 10000);
+    try {
+      const capabilityResponse = await fetch(
+        INTERACTION3D_API_BASE +
+          "/" +
+          ((componentProperties.environment?.airConditioners || []).length
+            ? "climate"
+            : "water-heater") +
+          "-capabilities",
+        {
+          credentials: "same-origin",
+          signal: capabilityAbortController.signal,
+        },
+      );
+      if (!capabilityResponse.ok) return;
+      const { temperatureUnit: reportedTemperatureUnit } = await capabilityResponse.json();
+      if (isDisposed) return;
+      const normalizedTemperatureUnit = ["°C", "°F", "K"].includes(reportedTemperatureUnit)
+        ? reportedTemperatureUnit
+        : null;
+      normalizedTemperatureUnit !== temperatureUnit &&
+        ((temperatureUnit = normalizedTemperatureUnit),
+        (lastPublishedStates = null),
+        publishStates());
+    } catch {
+    } finally {
+      (clearTimeout(capabilityTimeoutId),
+        activeRequestsSet.delete(capabilityAbortController),
+        (isFetchingCapabilities = false));
     }
   }
-  // 把电机反向状态合进状态表：它影响窗帘开合方向的正负解释，
-  function mergeMotorReverseStates(statesMap: any, patchStates: any = undefined) {
+  function mergeMotorReverseStates(statesMap, patchStates) {
     const mergedStates = {
-      ...(patchStates || statesMap)
+      ...(patchStates || statesMap),
     };
+    for (const [stateEntityId, rawState] of Object.entries(mergedStates)) {
+      if (!/^(water_heater|climate)\./.test(stateEntityId) || !rawState || !temperatureUnit)
+        continue;
+      const stateEntry = rawState.newState || rawState;
+      mergedStates[stateEntityId] = {
+        ...stateEntry,
+        attributes: {
+          ...stateEntry.attributes,
+          temperature_unit: temperatureUnit,
+        },
+      };
+    }
     for (const motorReversePair of findCurtainMotorReverseEntities()) {
       if (
         patchStates &&
         !(motorReversePair.entityId in patchStates) &&
         !(motorReversePair.coverEntityId in patchStates)
-      ) {
+      )
         continue;
-      }
       const coverState = statesMap[motorReversePair.coverEntityId];
-      if (!coverState) {
-        continue;
-      }
-      const motorReverseEntityState: any =
-        resolveStateEntry(statesMap[motorReversePair.entityId]);
-      const motorReverseStateText = stateTextOf(motorReverseEntityState);
-      const isMotorReverseEnabled =
-        motorReverseEntityState?.available === false
-          ? null
-          : ["on", "true", "1", "enabled", "开启", "打开", "reverse", "reversed", "反向"].includes(
-                motorReverseStateText
-              )
-            ? true
-            : ["off", "false", "0", "disabled", "关闭", "normal", "forward", "正向"].includes(
-                  motorReverseStateText
-                )
-              ? false
-              : null;
+      if (!coverState) continue;
+      const motorReverseState =
+          statesMap[motorReversePair.entityId]?.newState || statesMap[motorReversePair.entityId],
+        motorReverseText = String(motorReverseState?.state || "")
+          .trim()
+          .toLowerCase(),
+        isMotorReverseEnabled =
+          motorReverseState?.available === false
+            ? null
+            : [
+                  "on",
+                  "true",
+                  "1",
+                  "enabled",
+                  "开启",
+                  "打开",
+                  "reverse",
+                  "reversed",
+                  "反向",
+                ].includes(motorReverseText)
+              ? true
+              : ["off", "false", "0", "disabled", "关闭", "normal", "forward", "正向"].includes(
+                    motorReverseText,
+                  )
+                ? false
+                : null;
       mergedStates[motorReversePair.coverEntityId] = {
-        ...(resolveStateEntry(coverState) as AnyObj),
+        ...(coverState.newState || coverState),
         motorReverse: {
           entityId: motorReversePair.entityId,
-          enabled: isMotorReverseEnabled
-        }
+          enabled: isMotorReverseEnabled,
+        },
       };
     }
     return mergedStates;
   }
-  // 通用设备（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）与净化器的附加实体：挂在宿主的
-  const collectDeviceExtraEntities = () =>
-    collectGenericDeviceEntries().flatMap((deviceEntry: any) => deviceEntry.extraControls || []);
-  const collectPurifierExtraEntities = () =>
-    (componentProperties.environment?.airPurifiers || []).flatMap(
-      (purifierEntry: any) => purifierEntry.extraControls || []
-    );
-  // 通用设备各品类的配置条目（不是实体）：集合名只认 device-profiles.js 那一份。
-  function collectGenericDeviceEntries() {
-    return GENERIC_DEVICE_KINDS.flatMap((deviceKind: any) => {
-      const profile: any = genericDeviceProfile(deviceKind);
-      return componentProperties.devices?.[profile?.collection] || [];
-    });
-  }
-  // 通用设备牵扯到的实体全集：附加控件 + 电源 + 各条健康规则。这里直接复用舞台侧
-  const collectGenericDeviceEntities = () =>
-    collectGenericDeviceEntries().flatMap((deviceEntry: any) =>
-      deviceEntityIds(deviceEntry).map((genericEntityId: any) => ({ entityId: genericEntityId }))
-    );
-  const collectLockEntities = () =>
-    (componentProperties.security?.locks || []).flatMap((lockEntry: any) =>
+  const collectGenericDeviceEntries = () =>
+      GENERIC_DEVICE_KINDS.flatMap(
+        (deviceKind) =>
+          componentProperties.devices?.[genericDeviceProfile(deviceKind).collection] || [],
+      ),
+    collectDeviceExtraEntities = () =>
+      collectGenericDeviceEntries().flatMap(
+        (genericDeviceEntry) => genericDeviceEntry.extraControls || [],
+      ),
+    collectGenericDeviceEntities = () =>
+      collectGenericDeviceEntries().flatMap((deviceEntry) => {
+        const genericStatusRules = deviceEntry.statusRules || {},
+          genericHealthRules = Array.isArray(genericStatusRules.health)
+            ? genericStatusRules.health
+            : genericStatusRules.health
+              ? [genericStatusRules.health]
+              : [];
+        return [
+          ...(deviceEntry.extraControls || []),
+          ...[deviceEntry.batteryEntityId, deviceEntry.chargingEntityId]
+            .filter(Boolean)
+            .map((relatedEntityId) => ({
+              entityId: relatedEntityId,
+            })),
+          genericStatusRules.power,
+          ...genericHealthRules,
+        ].filter(Boolean);
+      }),
+    collectWaterHeaterEntities = () =>
+      (componentProperties.environment?.waterHeaters || []).flatMap((waterHeaterEntry) => {
+        const waterHeaterStatusRules = waterHeaterEntry.statusRules || {},
+          waterHeaterHealthRules = Array.isArray(waterHeaterStatusRules.health)
+            ? waterHeaterStatusRules.health
+            : [waterHeaterStatusRules.health];
+        return [waterHeaterStatusRules.power, ...waterHeaterHealthRules].filter(Boolean);
+      }),
+    collectEnvironmentExtraEntities = () =>
       [
-        "entityId",
-        "doorEntityId",
-        "doorEventEntityId",
-        "doorOpenEntityId",
-        "doorCloseEntityId",
-        "batteryEntityId",
-        "lowBatteryEntityId",
-        "tamperEntityId"
-      ]
-        .map((lockField: any) => ({ entityId: lockEntry[lockField] }))
-        .filter((lockEntityRef: any) => lockEntityRef.entityId)
-    );
-  // 需要跟踪状态的实体全集：窗帘反向开关、门锁、通用设备（含附加实体 / 电源 / 健康）、
-  const collectTrackedEntities = () => [
-    ...findCurtainMotorReverseEntities(),
-    ...collectLockEntities(),
-    ...collectGenericDeviceEntities(),
-    ...collectPurifierExtraEntities(),
-    ...(componentProperties.security?.cameras || []),
-    ...(componentProperties.security?.presenceSensors || []),
-    ...(componentProperties.devices?.vacuums || []),
-    ...(componentProperties.devices?.vacuums || []).flatMap((vacuum: any) =>
-      [
-        ...(vacuum.relatedEntityIds || []).map((relatedEntityId: any) => ({
-          entityId: relatedEntityId
+        ...(componentProperties.environment?.airConditioners || []),
+        ...(componentProperties.environment?.airers || []),
+        ...(componentProperties.environment?.fans || []),
+        ...(componentProperties.environment?.airPurifiers || []),
+        ...(componentProperties.environment?.waterHeaters || []),
+      ].flatMap((environmentEntry) => environmentEntry.extraControls || []),
+    collectLockEntities = () =>
+      (componentProperties.security?.locks || []).flatMap((lockEntry) =>
+        [
+          "entityId",
+          "doorEntityId",
+          "doorEventEntityId",
+          "doorOpenEntityId",
+          "doorCloseEntityId",
+          "batteryEntityId",
+          "lowBatteryEntityId",
+          "tamperEntityId",
+        ]
+          .map((entityKey) => ({
+            entityId: lockEntry[entityKey],
+          }))
+          .filter((filteredLockEntry) => filteredLockEntry.entityId),
+      ),
+    collectTrackedEntities = () => [
+      ...collectLockEntities(),
+      ...collectGenericDeviceEntities(),
+      ...collectWaterHeaterEntities(),
+      ...findCurtainMotorReverseEntities(),
+      ...collectEnvironmentExtraEntities(),
+      ...(componentProperties.security?.cameras || []),
+      ...(componentProperties.security?.presenceSensors || []),
+      ...collectVacuumEntries(),
+      ...collectVacuumEntries().flatMap((vacuumConfigEntry) =>
+        [
+          ...(vacuumConfigEntry.relatedEntityIds || []).map((vacuumRelatedEntityId) => ({
+            entityId: vacuumRelatedEntityId,
+          })),
+          vacuumConfigEntry.map,
+          ...(vacuumConfigEntry.shortcuts || []),
+        ].filter(Boolean),
+      ),
+      ...(componentProperties.lights || []),
+      ...(componentProperties.environment?.airConditioners || []),
+      ...(componentProperties.environment?.airers || []),
+      ...(componentProperties.environment?.fans || []),
+      ...(componentProperties.environment?.airPurifiers || []),
+      ...(componentProperties.environment?.waterHeaters || []),
+      ...(componentProperties.environment?.curtains || []),
+      ...temperatureHumidityEntities(componentProperties.environment?.temperatureHumidity),
+      ...(componentProperties.devices?.nas || []),
+      ...(componentProperties.devices?.speakers || []),
+      ...(componentProperties.devices?.televisions || []),
+      ...(componentProperties.devices?.televisions || [])
+        .filter((televisionEntry) => televisionEntry.powerEntityId)
+        .map((televisionWithPower) => ({
+          entityId: televisionWithPower.powerEntityId,
         })),
-        vacuum.map,
-        ...(vacuum.shortcuts || [])
-      ].filter(Boolean)
-    ),
-    ...(componentProperties.lights || []),
-    ...(componentProperties.environment?.airConditioners || []),
-    // 空气净化器：多订阅一个 fan 实体，换来净化器面板的开关 / 风速 / 模式 / 摆头都有实时状态。
-    ...(componentProperties.environment?.airPurifiers || []),
-    ...(componentProperties.environment?.curtains || []),
-    // 温湿度计：每个配置项贡献温度 / 湿度两路实体，抽取口径与前端卡片同一份实现
-    ...temperatureHumidityEntities(componentProperties.environment?.temperatureHumidity || []),
-    ...(componentProperties.devices?.nas || []),
-    ...(componentProperties.devices?.televisions || []),
-    ...(componentProperties.devices?.televisions || [])
-      .filter((television: any) => television.powerEntityId)
-      .map((televisionWithPower: any) => ({
-        entityId: televisionWithPower.powerEntityId
-      })),
-    ...(componentProperties.devices?.nas || []).flatMap((nas: any) => {
-      const nasStatusSource = nas.statusSource;
-      return (nasStatusSource?.metrics || []).filter(
-        (nasMetric: any) =>
-          !nasStatusSource.visibleMetrics ||
-          nasStatusSource.visibleMetrics.includes(nasMetric.entityId) ||
-          nasMetric.entityId === nasStatusSource.primaryEntityId
-      );
-    })
-  ];
-  // 命令闸门另需「不在绑定表顶层」的两类实体：通用设备 / 净化器的附加实体，以及门锁
-  function isKnownSelectionId(selectionId: any) {
-    if (typeof selectionId != "string" || !selectionId) {
-      return false;
-    } else if (
-      (componentProperties.lights || []).some((lightItem: any) => lightItem.id === selectionId) ||
-      (componentProperties.security?.cameras || []).some(
-        (cameraDevice: any) => selectionId === "camera:" + cameraDevice.id
-      ) ||
-      (componentProperties.security?.presenceSensors || []).some(
-        (presenceSensorDevice: any) => selectionId === "presence:" + presenceSensorDevice.id
-      ) ||
-      validCurtainGroups(componentProperties.environment).some(
-        (curtainGroupEntry: any) =>
-          selectionId === "cover:" + curtainGroupEntryId(curtainGroupEntry)
-      )
-    ) {
-      return true;
-    } else {
-      return [
-        ["climate", [
-          ...(componentProperties.environment?.airConditioners || []),
-          ...(componentProperties.environment?.airPurifiers || [])
-        ]],
-        ["cover", componentProperties.environment?.curtains],
-        ["nas", componentProperties.devices?.nas],
-        ["television", componentProperties.devices?.televisions],
-        ["vacuum", componentProperties.devices?.vacuums]
-      ].some(([moduleKey, moduleItems]) =>
-        (moduleItems || []).some(
-          (moduleItem: any) =>
-            typeof moduleItem.id == "string" &&
-            moduleItem.id &&
-            selectionId === moduleKey + ":" + moduleItem.id
-        )
-      );
-    }
-  }
-  // 取当前状态表：优先用 lightStream 的合并结果，没有流时退回到宿主注册的处理器缓存。
-  const getCurrentStates = () =>
-    lightStream
-      ? latestStates
-      : Object.fromEntries(
-          collectTrackedEntities().map((entityRef: any) => [
-            entityRef.entityId,
-            runtimeContext.states?.get(entityRef.entityId) || null
-          ])
+      ...(componentProperties.devices?.nas || []).flatMap((nasEntry) => {
+        const nasStatusSource = nasEntry.statusSource;
+        return (nasStatusSource?.metrics || []).filter(
+          (metricEntry) =>
+            !nasStatusSource.visibleMetrics ||
+            nasStatusSource.visibleMetrics.includes(metricEntry.entityId) ||
+            metricEntry.entityId === nasStatusSource.primaryEntityId,
         );
-  // 把状态推给舞台。挂起（被弹窗遮挡）或页面隐藏时不推，
-  const publishStates = (statePatch: any = null) => {
-    if (isPreviewSuspended || isPageHidden) {
-      return;
-    }
-    const currentStates = getCurrentStates();
-    if (lightStream && currentStates === lastPublishedStates) {
-      return;
-    }
-    const shouldSendPatch = !!lightStream && supportsStatePatches && statePatch !== null;
-    postToStageFrame({
-      type: "states",
-      states: mergeMotorReverseStates(currentStates, shouldSendPatch ? statePatch : null),
-      ...(shouldSendPatch
-        ? {
-            patch: true
-          }
-        : {})
-    });
-    lastPublishedStates = currentStates;
-    if (!lightStream) {
-      focusDevicePopup?.updateStates?.();
-      onStatesUpdate?.(currentStates);
-    }
-  };
-  const registeredEntityIdsSet = new Set<any>();
-  // 配置状态订阅：有 lightStream 时把「主实体 + 附加实体」一起交给它按需订阅；
+      }),
+    ];
+  function isKnownSelectionId(selectionId) {
+    return typeof selectionId != "string" || !selectionId
+      ? false
+      : (componentProperties.lights || []).some((lightEntry) => lightEntry.id === selectionId) ||
+          (componentProperties.security?.locks || []).some(
+            (lockConfigEntry) => selectionId === "lock:" + lockConfigEntry.id,
+          ) ||
+          (componentProperties.security?.cameras || []).some(
+            (cameraEntry) => selectionId === "camera:" + cameraEntry.id,
+          ) ||
+          (componentProperties.security?.presenceSensors || []).some(
+            (presenceSensorEntry) => selectionId === "presence:" + presenceSensorEntry.id,
+          ) ||
+          (componentProperties.environment?.curtainGroups || []).some(
+            (curtainGroupEntry) => selectionId === "cover:curtain-group:" + curtainGroupEntry.id,
+          )
+        ? true
+        : [
+            [
+              "climate",
+              [
+                ...(componentProperties.environment?.airConditioners || []),
+                ...(componentProperties.environment?.fans || []),
+                ...(componentProperties.environment?.airPurifiers || []),
+                ...(componentProperties.environment?.waterHeaters || []),
+              ],
+            ],
+            [
+              "cover",
+              [
+                ...(componentProperties.environment?.curtains || []),
+                ...(componentProperties.environment?.airers || []),
+              ],
+            ],
+            ...GENERIC_DEVICE_KINDS.map((genericDeviceKind) => [
+              genericDeviceKind,
+              componentProperties.devices?.[genericDeviceProfile(genericDeviceKind).collection],
+            ]),
+            ["nas", componentProperties.devices?.nas],
+            ["speaker", componentProperties.devices?.speakers],
+            ["television", componentProperties.devices?.televisions],
+            ["vacuum", componentProperties.devices?.vacuums],
+          ].some(([deviceKey, deviceConfigList]) =>
+            (deviceConfigList || []).some(
+              (deviceConfigEntry) =>
+                typeof deviceConfigEntry.id == "string" &&
+                deviceConfigEntry.id &&
+                selectionId === deviceKey + ":" + deviceConfigEntry.id,
+            ),
+          );
+  }
+  const getCurrentStates = () =>
+      lightStream
+        ? latestStatesByEntityId
+        : Object.fromEntries(
+            collectTrackedEntities().map((trackedEntry) => [
+              trackedEntry.entityId,
+              runtimeContext.states?.get(trackedEntry.entityId) || null,
+            ]),
+          ),
+    publishStates = (incomingPatch = null) => {
+      if (isPreviewSuspended || isPageHidden) return;
+      const currentStates = getCurrentStates();
+      if (lightStream && currentStates === lastPublishedStates) return;
+      const shouldSendPatch = !!lightStream && supportsStatePatches && incomingPatch !== null;
+      (postToStageFrame({
+        type: "states",
+        states: mergeMotorReverseStates(currentStates, shouldSendPatch ? incomingPatch : null),
+        ...(shouldSendPatch
+          ? {
+              patch: true,
+            }
+          : {}),
+      }),
+        (lastPublishedStates = currentStates),
+        lightStream || (focusDevicePopup?.updateStates?.(), onStatesUpdate?.(currentStates)));
+    },
+    registeredStateEntityIdsSet = new Set();
   function configureStateSubscriptions() {
     if (lightStream) {
-      lightStream.configure(
-        collectTrackedEntities().map((primaryEntity: any) => primaryEntity.entityId),
+      (lightStream.configure(
+        collectTrackedEntities().map((subscribedEntry) => subscribedEntry.entityId),
         {
           additionalEntityIds: [
-            // 门锁、通用设备（附加实体 / 电源 / 健康）、净化器附加实体、窗帘反向开关这几个
-            ...collectLockEntities().map((lockEntityRef: any) => lockEntityRef.entityId),
-            ...collectGenericDeviceEntities().map((genericEntityRef: any) => genericEntityRef.entityId),
-            ...collectPurifierExtraEntities().map((purifierExtraEntity: any) => purifierExtraEntity.entityId),
-            ...findCurtainMotorReverseEntities().map(
-              (motorReverseEntity: any) => motorReverseEntity.entityId
+            ...collectLockEntities().map((lockedEntity) => lockedEntity.entityId),
+            ...collectGenericDeviceEntities().map(
+              (genericDeviceEntity) => genericDeviceEntity.entityId,
             ),
-            ...(componentProperties.lights || []).map((lightEntity: any) => lightEntity.entityId),
+            ...collectWaterHeaterEntities().map((waterHeaterEntity) => waterHeaterEntity.entityId),
+            ...collectEnvironmentExtraEntities().map(
+              (environmentExtraEntity) => environmentExtraEntity.entityId,
+            ),
+            ...findCurtainMotorReverseEntities().map(
+              (motorReverseEntity) => motorReverseEntity.entityId,
+            ),
+            ...(componentProperties.lights || []).map((lightEntity) => lightEntity.entityId),
             ...(componentProperties.security?.presenceSensors || []).map(
-              (presenceSensorEntity: any) => presenceSensorEntity.entityId
+              (presenceSensorEntity) => presenceSensorEntity.entityId,
             ),
             ...(componentProperties.devices?.televisions || []).map(
-              (televisionEntity: any) => televisionEntity.powerEntityId
+              (televisionPowerEntity) => televisionPowerEntity.powerEntityId,
             ),
-            ...(componentProperties.devices?.vacuums || []).flatMap((vacuumEntity: any) => [
-              ...(vacuumEntity.relatedEntityIds || []),
-              ...(vacuumEntity.shortcuts || []).map((vacuumShortcut: any) => vacuumShortcut.entityId)
+            ...collectVacuumEntries().flatMap((vacuumEntityEntry) => [
+              ...(vacuumEntityEntry.relatedEntityIds || []),
+              ...(vacuumEntityEntry.shortcuts || []).map(
+                (shortcutEntity) => shortcutEntity.entityId,
+              ),
             ]),
-            // 空气净化器的主实体是 fan.*，而 fan 不在上面那条主白名单正则里：它虽然也进了
+            ...(componentProperties.environment?.airers || []).map(
+              (airerEntity) => airerEntity.entityId,
+            ),
+            ...(componentProperties.environment?.fans || []).map((fanEntity) => fanEntity.entityId),
             ...(componentProperties.environment?.airPurifiers || []).map(
-              (purifierEntity: any) => purifierEntity.entityId
-            )
-          ]
-        }
-      );
-      syncLightStreamActive();
+              (airPurifierEntity) => airPurifierEntity.entityId,
+            ),
+            ...(componentProperties.environment?.waterHeaters || []).map(
+              (waterHeaterExtraEntity) => waterHeaterExtraEntity.entityId,
+            ),
+          ],
+        },
+      ),
+        syncLightStreamActive());
       return;
     }
-    for (const trackedEntity of collectTrackedEntities()) {
-      if (trackedEntity.entityId && !registeredEntityIdsSet.has(trackedEntity.entityId)) {
-        registeredEntityIdsSet.add(trackedEntity.entityId);
-        runtimeContext.registerRuntimeStateHandler?.(trackedEntity.entityId, publishStates);
-      }
-    }
+    for (const registeredEntry of collectTrackedEntities())
+      registeredEntry.entityId &&
+        !registeredStateEntityIdsSet.has(registeredEntry.entityId) &&
+        (registeredStateEntityIdsSet.add(registeredEntry.entityId),
+        runtimeContext.registerRuntimeStateHandler?.(registeredEntry.entityId, publishStates));
   }
-  // 下发配置。用 JSON 比对做短路：内容没变时只补一次布局 / 活动态 / 状态推送。
   function sendConfigUpdate() {
-    if (!isStageReady || isDisposed || isPreviewSuspended) {
-      return;
-    }
+    if (!isStageReady || isDisposed || isPreviewSuspended) return;
+    fetchClimateCapabilities();
     const configPayload = {
-      properties: componentProperties,
-      editing: isEditing,
-      editingModule: editingModuleKind,
-      editingVacuumId: editingVacuumId,
-      rangeEditorOnly: isRangeEditorOnly,
-      viewEditing: isViewEditing,
-      // 模式本身另走 navigation-editing 轻量消息（不改配置、不重放呈现）；这里带上一份是为了
-      navigationEditing: isNavigationEditing,
-      editorCanvas: !!runtimeContext.editable && !isEditing,
-      allowRangeEditing: isAuthorized && (isEditing || !!runtimeContext.editable),
-      interactive: !isEditing && !runtimeContext.editable,
-      selectedId: selectedId
-    };
-    const configJson = JSON.stringify(configPayload);
+        properties: {
+          ...componentProperties,
+          devices: {
+            ...componentProperties.devices,
+            vacuums: collectVacuumEntries(),
+          },
+          lightingMode: normalizeLightingMode(componentProperties.lightingMode),
+        },
+        editing: isEditing,
+        editingModule: editingModuleKind,
+        editingSecurityKind: editingSecurityKind,
+        editingVacuumId: editingVacuumId,
+        rangeEditorOnly: isRangeEditorOnly,
+        viewEditing: isViewEditing,
+        editorCanvas: !!runtimeContext.editable && !isEditing,
+        allowRangeEditing: isAuthorized && (isEditing || !!runtimeContext.editable),
+        interactive: !isEditing && !runtimeContext.editable,
+        selectedId: selectedId,
+      },
+      configJson = JSON.stringify(configPayload);
     if (configJson === lastConfigJson) {
-      syncFrameLayout();
-      refreshActivityState();
-      publishStates();
+      (updatePresentationLayout(), refreshActivityState(), publishStates());
       return;
     }
-    lastConfigJson = configJson;
-    isSceneActive = false;
-    isAwaitingPresentation = true;
-    refreshActivityState(true);
-    syncFrameLayout(true);
-    postToStageFrame({
-      type: "config",
-      configId: ++configIdCounter,
-      ...configPayload,
-      states: mergeMotorReverseStates(getCurrentStates())
-    });
-    lastPublishedStates = getCurrentStates();
-    if (!isScenePresented) {
-      refreshActivityState(true);
-    }
+    ((lastConfigJson = configJson),
+      (hasPresentedStage = false),
+      (isReloadPending = true),
+      refreshActivityState(true),
+      updatePresentationLayout(true),
+      postToStageFrame({
+        type: "config",
+        configId: ++configIdCounter,
+        ...configPayload,
+        states: mergeMotorReverseStates(getCurrentStates()),
+      }),
+      (lastPublishedStates = getCurrentStates()),
+      isScenePresented || refreshActivityState(true));
   }
-  // 背景图开关只通过类名控制，交给 CSS 决定具体表现；缺省即透明，只有显式 true 才画背景。
-  function syncBackgroundVisibility() {
-    hostElement.classList.toggle(
+  function syncBackgroundHidden() {
+    (hostElement.classList.toggle(
       "is-background-hidden",
-      componentProperties.backgroundVisible !== true
-    );
-    // 材质风格挂在宿主属性上：runtime.css 里整套暖色弹窗规则都由
-    hostElement.dataset.sceneStyle =
-      componentProperties.sceneStyle === "warm-wood" ? "warm-wood" : "default";
+      componentProperties.backgroundVisible === false,
+    ),
+      (hostElement.dataset.sceneStyle =
+        componentProperties.sceneStyle === "warm-wood" ? "warm-wood" : "default"));
   }
-  function updateFocusActive(focusActive: any) {
-    if (isFocusActive !== focusActive) {
-      isFocusActive = focusActive;
-      onFocusChange(focusActive);
-    }
+  function setFocusActive(nextFocusActive) {
+    isFocusActive !== nextFocusActive &&
+      ((isFocusActive = nextFocusActive), onFocusChange(nextFocusActive));
   }
-  // 统一失败所有在途编辑请求（卸载 / 失去授权 / 重载时调用），
-  function rejectPendingEdits(reason: any) {
-    for (const pendingEditRequest of pendingEditsByRequestId.values()) {
-      clearTimeout(pendingEditRequest.timeout);
-      pendingEditRequest.reject(new Error(reason));
-    }
+  function rejectPendingEdits(editRejectReason) {
+    for (const pendingEdit of pendingEditsByRequestId.values())
+      (clearTimeout(pendingEdit.timeout), pendingEdit.reject(new Error(editRejectReason)));
     pendingEditsByRequestId.clear();
   }
-  // 同上，处理照射范围相关的在途请求。
-  function rejectPendingRangeRequests(failureReason: any) {
-    for (const pendingRangeRequest of pendingRangeRequestsByRequestId.values()) {
-      clearTimeout(pendingRangeRequest.timeout);
-      pendingRangeRequest.reject(new Error(failureReason));
-    }
+  function rejectPendingRangeRequests(rangeRejectReason) {
+    for (const pendingRangeRequest of pendingRangeRequestsByRequestId.values())
+      (clearTimeout(pendingRangeRequest.timeout),
+        pendingRangeRequest.reject(new Error(rangeRejectReason)));
     pendingRangeRequestsByRequestId.clear();
   }
-  // 退出聚焦：清空焦点目标、关掉两个详情弹窗与面板，并通知宿主。
-  function dismissFocus(immediate: any = false) {
-    activeFocusTargetId = "";
-    closeCameraPreviewPopup();
-    closeVacuumDetailsPopup();
-    isFocusPanelOpen = false;
-    updateFocusActive(false);
-    postToStageFrame({
-      type: "dismiss-focus",
-      immediate: immediate
-    });
+  function dismissFocus(immediate = false) {
+    ((isVacuumPopupOpen = false),
+      (activeCameraSelectionId = activeVacuumSelectionId = ""),
+      closeCameraPreview(),
+      closeVacuumPopup(),
+      (isFocusPanelOpen = false),
+      setFocusActive(false),
+      postToStageFrame({
+        type: "dismiss-focus",
+        immediate: immediate,
+      }));
   }
-  let cameraPreviewPopup: any = null;
-  let cameraPreviewTargetId = "";
-  let activeFocusTargetId = "";
-  // 关闭摄像头预览浮层。先摘引用再 close()：浮层的关闭回调里可能再次调用本函数，
-  const closeCameraPreviewPopup = () => {
-    const popupToClose = cameraPreviewPopup;
-    cameraPreviewPopup = null;
-    cameraPreviewTargetId = "";
-    popupToClose?.close?.();
+  let cameraPreview = null,
+    openCameraPreviewId = "",
+    activeCameraSelectionId = "";
+  const closeCameraPreview = () => {
+    const previousCameraPreview = cameraPreview;
+    ((cameraPreview = null), (openCameraPreviewId = ""), previousCameraPreview?.close?.());
   };
-  let vacuumDetailsPopup: any = null;
-  let isVacuumFollowActive = false;
-  // 关闭扫地机详情浮层；与摄像头预览同一套「先摘引用再 close」的写法，
-  const closeVacuumDetailsPopup = () => {
-    const vacuumPopupToClose = vacuumDetailsPopup;
-    vacuumDetailsPopup = null;
-    vacuumPopupToClose?.close?.();
+  let vacuumPopup = null,
+    openVacuumPopupId = "",
+    activeVacuumSelectionId = "",
+    isVacuumPopupOpen = false;
+  const closeVacuumPopup = () => {
+    const previousVacuumPopup = vacuumPopup;
+    ((vacuumPopup = null), (openVacuumPopupId = ""), previousVacuumPopup?.close?.());
   };
-  // 点击外部退出聚焦：指针落在弹窗内不算（弹窗自己处理），
-  function handleWindowPointerDown(pointerEvent: any) {
+  function handleDocumentClickAway(clickEvent) {
+    cameraPreview?.contains?.(clickEvent.target) ||
+      vacuumPopup?.contains?.(clickEvent.target) ||
+      ((isFocusActive || isFocusPanelOpen) &&
+        !hostElement.contains(clickEvent.target) &&
+        dismissFocus());
+  }
+  function handleDocumentKeyDown(keyEvent) {
+    (keyEvent.key === "Escape" && closePopupLayoutPreview(),
+      (isFocusActive || isFocusPanelOpen) && keyEvent.key === "Escape" && dismissFocus());
+  }
+  function failSceneLoad(failureMessage) {
+    ((hasLoadFailed = true),
+      (isScenePresented = false),
+      (hasPresentedStage = false),
+      (isReloadPending = false),
+      refreshActivityState(true),
+      rejectPendingRangeRequests(failureMessage || "户型画面已关闭，请重新调整照射范围。"),
+      postToStageFrame({
+        type: "range-editor",
+        open: false,
+      }),
+      setRangeEditingState(false),
+      activeRequestsSet.forEach((abortableController) => abortableController.abort()),
+      rejectPendingEdits("户型加载失败，请重新载入后调整视角。"),
+      dismissFocus(true),
+      clearTimeout(loadingTimeoutId),
+      hostElement.classList.remove("is-loading"),
+      hostElement.classList.add("is-load-error"),
+      (loadingElement.hidden = false),
+      (loadingElement.textContent = failureMessage || "3D 户型加载失败，请重新载入户型。"),
+      onLoadError(new Error(loadingElement.textContent)));
+  }
+  function reloadStageFrame(reloadReason) {
     if (
-      !cameraPreviewPopup?.contains?.(pointerEvent.target) &&
-      !vacuumDetailsPopup?.contains?.(pointerEvent.target)
+      (reloadGeneration &&
+        reportRuntimeLifecycle(reloadReason, {
+          loadSequence: reloadGeneration + 1,
+        }),
+      closePopupLayoutPreview(),
+      (isVacuumPopupOpen = false),
+      (activeCameraSelectionId = activeVacuumSelectionId = ""),
+      closeCameraPreview(),
+      closeVacuumPopup(),
+      (lastConfigJson = ""),
+      (lastLayoutJson = ""),
+      (presentationLayout = null),
+      reloadGeneration++ &&
+        (stageFrameElement.removeAttribute("src"),
+        (stageFrameElement = createStageFrameElement()),
+        hostElement.replaceChildren(stageFrameElement, loadingElement)),
+      setRangeEditingState(false),
+      activeRequestsSet.forEach((staleController) => staleController.abort()),
+      rejectPendingEdits("户型已切换，请在新户型中重新调整视角。"),
+      rejectPendingRangeRequests("户型已切换，请在新户型中重新调整照射范围。"),
+      (isFocusPanelOpen = false),
+      setFocusActive(false),
+      (hasLoadFailed = false),
+      (isScenePresented = false),
+      (isStageReady = false),
+      (hasPresentedStage = false),
+      (isReloadPending = false),
+      refreshActivityState(true),
+      clearTimeout(loadingTimeoutId),
+      hostElement.classList.remove("is-ready", "is-load-error"),
+      hostElement.classList.toggle("is-loading", !!componentProperties.sceneId),
+      hostElement.setAttribute("aria-busy", String(!!componentProperties.sceneId)),
+      syncBackgroundHidden(),
+      configureStateSubscriptions(),
+      !componentProperties.sceneId)
     ) {
-      if ((isFocusActive || isFocusPanelOpen) && !hostElement.contains(pointerEvent.target)) {
-        dismissFocus();
-      }
-    }
-  }
-  // ESC 优先关预览浮层，其次退出聚焦；顺序不能反，
-  function handleWindowKeyDown(keyEvent: any) {
-    if (keyEvent.key === "Escape") {
-      closePopupLayoutPreview();
-    }
-    if ((isFocusActive || isFocusPanelOpen) && keyEvent.key === "Escape") {
-      dismissFocus();
-    }
-  }
-  // 舞台加载失败（含 45 秒兜底超时）：复位所有「正在加载」的标志，
-  function handleStageLoadError(messageText: any) {
-    hasLoadFailed = true;
-    isScenePresented = false;
-    isSceneActive = false;
-    isAwaitingPresentation = false;
-    refreshActivityState(true);
-    rejectPendingRangeRequests(messageText || "户型画面已关闭，请重新调整照射范围。");
-    postToStageFrame({
-      type: "range-editor",
-      open: false
-    });
-    setRangeEditingState(false);
-    pendingAbortControllersSet.forEach((staleController: any) => staleController.abort());
-    rejectPendingEdits("户型加载失败，请重新载入后调整视角。");
-    dismissFocus(true);
-    clearTimeout(loadingTimeoutId);
-    hostElement.classList.remove("is-loading");
-    hostElement.classList.add("is-load-error");
-    loadingElement.hidden = false;
-    loadingElement.textContent = messageText || "3D 户型加载失败，请重新载入户型。";
-    onLoadError(new Error(loadingElement.textContent));
-  }
-  // 重建 iframe（换场景、光照模式变化、从 bfcache 恢复时调用）。
-  function reloadStageFrame() {
-    closePopupLayoutPreview();
-    isVacuumFollowActive = false;
-    activeFocusTargetId = "";
-    closeCameraPreviewPopup();
-    closeVacuumDetailsPopup();
-    lastConfigJson = "";
-    if (reloadGeneration++) {
-      stageFrameElement.removeAttribute("src");
-      stageFrameElement = createStageFrameElement();
-      hostElement.replaceChildren(stageFrameElement, loadingElement);
-      refreshStageFramePointerEvents();
-    }
-    setRangeEditingState(false);
-    // 新 iframe 里没有模式状态，这里同步复位并广播，宿主的按钮才会退回「调整导航位置」。
-    setNavigationEditingState(false);
-    pendingAbortControllersSet.forEach((replacementController: any) => replacementController.abort());
-    rejectPendingEdits("户型已切换，请在新户型中重新调整视角。");
-    rejectPendingRangeRequests("户型已切换，请在新户型中重新调整照射范围。");
-    isFocusPanelOpen = false;
-    updateFocusActive(false);
-    hasLoadFailed = false;
-    isScenePresented = false;
-    isStageReady = false;
-    isSceneActive = false;
-    isAwaitingPresentation = false;
-    refreshActivityState(true);
-    clearTimeout(loadingTimeoutId);
-    hostElement.classList.remove("is-ready", "is-load-error");
-    hostElement.classList.toggle("is-loading", !!componentProperties.sceneId);
-    hostElement.setAttribute("aria-busy", String(!!componentProperties.sceneId));
-    syncBackgroundVisibility();
-    configureStateSubscriptions();
-    if (!componentProperties.sceneId) {
-      stageFrameElement.hidden = true;
-      loadingElement.hidden = false;
-      loadingElement.textContent = "请在属性面板中配置 3D 户型";
+      ((stageFrameElement.hidden = true),
+        (loadingElement.hidden = false),
+        (loadingElement.textContent = "请在属性面板中配置 3D 户型"));
       return;
     }
-    stageFrameElement.hidden = false;
-    loadingElement.hidden = false;
-    loadingElement.textContent = "";
-    loadingElement.setAttribute("aria-label", "正在准备 3D 户型");
-    stageFrameElement.src =
-      INTERACTION3D_API_BASE +
-      "/stage.html?" +
-      new URLSearchParams({
-        sceneId: componentProperties.sceneId,
-        projectId: projectId,
-        lighting: normalizeLightingMode(componentProperties.lightingMode)
-      });
-    if (!isPreviewSuspended) {
-      scheduleLoadTimeout();
-    }
+    ((stageFrameElement.hidden = false),
+      (loadingElement.hidden = false),
+      (loadingElement.textContent = ""),
+      loadingElement.setAttribute("aria-label", "正在准备 3D 户型"));
+    const wallTrialModes = (new URLSearchParams(window.location.search).get("wall-trial") || "")
+        .split(",")
+        .filter((wallTrialMode) => ["shader", "single", "depth", "merge"].includes(wallTrialMode))
+        .join(","),
+      stageFrameUrl =
+        INTERACTION3D_API_BASE +
+        "/stage.html?" +
+        new URLSearchParams({
+          sceneId: componentProperties.sceneId,
+          projectId: hostProjectId,
+          componentId: componentDescriptor.id || "",
+          lighting: normalizeLightingMode(componentProperties.lightingMode),
+          ...(wallTrialModes
+            ? {
+                "wall-trial": wallTrialModes,
+              }
+            : {}),
+          ...(new URLSearchParams(window.location.search).get("furniture-runtime") === "compact"
+            ? {
+                "furniture-runtime": "compact",
+              }
+            : {}),
+          ...(new URLSearchParams(window.location.search).get("reflection-detail") === "low"
+            ? {
+                "reflection-detail": "low",
+              }
+            : {}),
+          ...(new URLSearchParams(window.location.search).get("performance-diagnostics") === "1"
+            ? {
+                "performance-diagnostics": "1",
+                ...(new URLSearchParams(window.location.search).get("reflection-work") ===
+                "baseline"
+                  ? {
+                      "reflection-work": "baseline",
+                    }
+                  : {}),
+              }
+            : {}),
+        });
+    ((stageFrameElement.src = stageFrameUrl), isPreviewSuspended || scheduleLoadTimeout());
   }
-  // 45 秒加载兜底：慢到这一步基本是网络或后端异常，
   function scheduleLoadTimeout() {
     loadingTimeoutId = setTimeout(
-      () => handleStageLoadError("3D 户型加载较慢，请稍候；若一直没有画面，请重新载入户型。"),
-      45000
+      () => failSceneLoad("3D 户型加载较慢，请稍候；若一直没有画面，请重新载入户型。"),
+      45000,
     );
   }
-  const pendingAbortControllersSet = new Set<any>();
-  /**
-   * 舞台消息总入口（同源 + iframe 来源 + channel 三重校验后分发）。
-   */
-  async function handleStageMessage(messageEvent: any) {
+  const activeRequestsSet = new Set();
+  async function handleStageMessage(messageEvent) {
     if (
       isDisposed ||
       messageEvent.origin !== location.origin ||
       messageEvent.source !== stageFrameElement.contentWindow ||
       messageEvent.data?.channel !== "hb-i3d-v1"
-    ) {
+    )
       return;
-    }
-    const incomingMessage = messageEvent.data;
-    if (incomingMessage.type === "vacuum-follow-state") {
-      isVacuumFollowActive = incomingMessage.active === true;
-      if (isVacuumFollowActive) {
-        closeVacuumDetailsPopup();
-      }
-    }
-    if (incomingMessage.type === "vacuum-popup-close") {
-      closeVacuumDetailsPopup();
-    }
-    if (incomingMessage.type === "camera-popup-close") {
-      closeCameraPreviewPopup();
-    }
+    const stageMessage = messageEvent.data;
     if (
-      incomingMessage.type === "camera-popup" &&
-      isAuthorized &&
-      isScenePresented &&
       !isEditing &&
       !runtimeContext.editable &&
-      activeFocusTargetId === incomingMessage.id
+      [
+        "control",
+        "vacuum-room",
+        "camera-popup",
+        "vacuum-popup",
+        "focus-state",
+        "vacuum-follow-state",
+      ].includes(stageMessage.type) &&
+      (isPageHidden ||
+        isPageFrozen ||
+        isPreviewSuspended ||
+        document.hidden ||
+        document.visibilityState === "hidden" ||
+        !isHostActuallyVisible())
+    )
+      return;
+    if (stageMessage.type === "runtime-diagnostic") {
+      [
+        "category-switch-start",
+        "category-switch-applied",
+        "source-adopt-start",
+        "source-adopt-complete",
+        "source-adopt-failed",
+        "gpu-lost",
+        "gpu-restored",
+        "models-loading-resumed",
+        "models-completion-resumed",
+      ].includes(stageMessage.code) &&
+        reportRuntimeLifecycle(stageMessage.code, {
+          ...stageMessage.counts,
+          loadSequence: reloadGeneration,
+        });
+      return;
+    }
+    if (
+      (stageMessage.type === "vacuum-follow-state" &&
+        ((isVacuumPopupOpen =
+          stageMessage.active === true &&
+          isAuthorized &&
+          isScenePresented &&
+          !isEditing &&
+          !runtimeContext.editable),
+        isVacuumPopupOpen && closeVacuumPopup(),
+        setFocusActive(isVacuumPopupOpen || !!activeCameraSelectionId)),
+      stageMessage.type === "vacuum-popup-close" && closeVacuumPopup(),
+      stageMessage.type === "camera-popup-close" && closeCameraPreview(),
+      stageMessage.type === "presentation-ui" &&
+        (popupLayoutPreview?.resize(),
+        focusDevicePopup?.resize(),
+        vacuumPopup?.updateLayout?.(),
+        cameraPreview?.updateLayout?.()),
+      stageMessage.type === "camera-popup" &&
+        isAuthorized &&
+        isScenePresented &&
+        !isEditing &&
+        !runtimeContext.editable &&
+        activeCameraSelectionId === stageMessage.id)
     ) {
-      const cameraItem = (componentProperties.security?.cameras || []).find(
-        (cameraCandidate: any) =>
-          "camera:" + cameraCandidate.id === incomingMessage.id &&
+      const cameraConfig = (componentProperties.security?.cameras || []).find(
+        (cameraCandidate) =>
+          "camera:" + cameraCandidate.id === stageMessage.id &&
           cameraCandidate.visible !== false &&
-          cameraCandidate.entityId
+          cameraCandidate.entityId,
       );
-      if (
-        cameraItem &&
+      cameraConfig &&
         runtimeContext.openCameraPreview &&
-        cameraPreviewTargetId !== incomingMessage.id
-      ) {
-        closeCameraPreviewPopup();
-        closeVacuumDetailsPopup();
-        cameraPreviewTargetId = incomingMessage.id;
-        cameraPreviewPopup = runtimeContext.openCameraPreview(
-          cameraItem,
+        openCameraPreviewId !== stageMessage.id &&
+        (closeCameraPreview(),
+        closeVacuumPopup(),
+        (openCameraPreviewId = stageMessage.id),
+        (cameraPreview = runtimeContext.openCameraPreview(
+          cameraConfig,
           () => {
-            cameraPreviewPopup = null;
-            cameraPreviewTargetId = "";
-            dismissFocus();
+            ((cameraPreview = null), (openCameraPreviewId = ""), dismissFocus());
           },
           {
             root: hostElement,
             frame: stageFrameElement,
             popupOpacity: componentProperties.popupOpacity,
             getPresentationLayout: () => presentationLayout,
-            getPopupLayout: () => componentProperties.popupLayout?.camera
-          }
-        );
-      }
+            getPopupLayout: () => componentProperties.popupLayout?.camera,
+          },
+        )));
     }
     if (
-      incomingMessage.type === "vacuum-popup" &&
-      !isVacuumFollowActive &&
+      stageMessage.type === "vacuum-popup" &&
+      !isVacuumPopupOpen &&
       isAuthorized &&
       isScenePresented &&
       !isEditing &&
-      !runtimeContext.editable
+      !runtimeContext.editable &&
+      activeVacuumSelectionId === stageMessage.id
     ) {
-      const vacuumItem = (componentProperties.devices?.vacuums || []).find(
-        (vacuumCandidate: any) =>
-          "vacuum:" + vacuumCandidate.id === incomingMessage.id &&
+      const vacuumPopupConfig = collectVacuumEntries().find(
+        (vacuumCandidate) =>
+          "vacuum:" + vacuumCandidate.id === stageMessage.id &&
           vacuumCandidate.visible !== false &&
-          vacuumCandidate.entityId
+          vacuumCandidate.entityId,
       );
-      if (vacuumItem && runtimeContext.openVacuumDetails) {
-        closeVacuumDetailsPopup();
-        const vacuumOpenResult = runtimeContext.openVacuumDetails(
-          vacuumItem,
+      vacuumPopupConfig &&
+        runtimeContext.openVacuumDetails &&
+        openVacuumPopupId !== stageMessage.id &&
+        (closeVacuumPopup(),
+        (openVacuumPopupId = stageMessage.id),
+        (vacuumPopup = runtimeContext.openVacuumDetails(
+          vacuumPopupConfig,
           () => {
-            vacuumDetailsPopup = null;
-            dismissFocus();
+            ((vacuumPopup = null), (openVacuumPopupId = ""), dismissFocus());
           },
           {
             states: getCurrentStates(),
@@ -1057,858 +1363,798 @@ export function mountInteraction3d(
             frame: stageFrameElement,
             popupOpacity: componentProperties.popupOpacity,
             getPresentationLayout: () => presentationLayout,
-            getPopupLayout: () => componentProperties.popupLayout?.general
-          }
-        );
-        // runDeviceControlMethod / openInteraction3dVacuumDetails 可能返回 Promise。
-        if (vacuumOpenResult && typeof vacuumOpenResult.then === "function") {
-          vacuumOpenResult.then((handle: any) => {
-            vacuumDetailsPopup = handle;
-          });
-        } else {
-          vacuumDetailsPopup = vacuumOpenResult;
-        }
-      }
+            getPopupLayout: () => componentProperties.popupLayout?.general,
+          },
+        )));
     }
     if (
-      incomingMessage.type === "vacuum-room" &&
+      stageMessage.type === "vacuum-room" &&
       isAuthorized &&
       isScenePresented &&
       !isEditing &&
       !runtimeContext.editable
     ) {
-      const vacuumDevice = (componentProperties.devices?.vacuums || []).find(
-        (vacuumDeviceCandidate: any) =>
-          vacuumDeviceCandidate.id === incomingMessage.vacuumId &&
-          vacuumDeviceCandidate.visible !== false &&
-          vacuumDeviceCandidate.entityId
-      );
-      const vacuumShortcutItem = vacuumDevice?.shortcuts?.find(
-        (shortcutCandidate: any) =>
-          shortcutCandidate.id === incomingMessage.shortcutId &&
-          shortcutCandidate.visible !== false &&
-          shortcutCandidate.entityId
-      );
+      const vacuumRoomConfig = collectVacuumEntries().find(
+          (vacuumRoomCandidate) =>
+            vacuumRoomCandidate.id === stageMessage.vacuumId &&
+            vacuumRoomCandidate.visible !== false &&
+            vacuumRoomCandidate.entityId,
+        ),
+        vacuumShortcutConfig = vacuumRoomConfig?.shortcuts?.find(
+          (shortcutCandidate) =>
+            shortcutCandidate.id === stageMessage.shortcutId &&
+            shortcutCandidate.visible !== false &&
+            shortcutCandidate.entityId,
+        );
       if (
-        !vacuumShortcutItem ||
-        incomingMessage.id !== "vacuum-room:" + vacuumDevice.id + ":" + vacuumShortcutItem.id
-      ) {
+        !vacuumShortcutConfig ||
+        stageMessage.id !== "vacuum-room:" + vacuumRoomConfig.id + ":" + vacuumShortcutConfig.id
+      )
         return;
-      }
       try {
-        if (!runtimeContext.runVacuumRoom) {
-          throw new Error("清扫操作入口尚未准备好，请刷新页面。");
-        }
-        await runtimeContext.runVacuumRoom(vacuumShortcutItem);
+        if (!runtimeContext.runVacuumRoom) throw new Error("清扫操作入口尚未准备好，请刷新页面。");
+        (await runtimeContext.runVacuumRoom(vacuumShortcutConfig),
+          postToStageFrame({
+            type: "vacuum-room-result",
+            id: stageMessage.id,
+          }));
+      } catch (roomError) {
         postToStageFrame({
           type: "vacuum-room-result",
-          id: incomingMessage.id
-        });
-      } catch (runRoomError: any) {
-        postToStageFrame({
-          type: "vacuum-room-result",
-          id: incomingMessage.id,
-          error: runRoomError.message
+          id: stageMessage.id,
+          error: roomError.message,
         });
       }
     }
-    if (incomingMessage.type === "focus-state" && !isEditing && !runtimeContext.editable) {
-      const canFocusSelection =
-        isAuthorized && isScenePresented && isKnownSelectionId(incomingMessage.id);
-      activeFocusTargetId =
-        canFocusSelection && incomingMessage.active === true ? incomingMessage.id : "";
-      if (cameraPreviewTargetId && cameraPreviewTargetId !== activeFocusTargetId) {
-        closeCameraPreviewPopup();
-      }
-      isFocusPanelOpen = canFocusSelection && incomingMessage.panelOpen === true;
-      updateFocusActive(canFocusSelection && incomingMessage.active === true);
+    if (stageMessage.type === "focus-state" && !isEditing && !runtimeContext.editable) {
+      const isFocusSelectionKnown =
+        isAuthorized && isScenePresented && isKnownSelectionId(stageMessage.id);
+      ((activeCameraSelectionId =
+        isFocusSelectionKnown && stageMessage.active === true ? stageMessage.id : ""),
+        (activeVacuumSelectionId =
+          isFocusSelectionKnown &&
+          (stageMessage.active === true || stageMessage.panelOpen === true) &&
+          stageMessage.id?.startsWith("vacuum:")
+            ? stageMessage.id
+            : ""),
+        openCameraPreviewId &&
+          openCameraPreviewId !== activeCameraSelectionId &&
+          closeCameraPreview(),
+        openVacuumPopupId && openVacuumPopupId !== activeVacuumSelectionId && closeVacuumPopup(),
+        (isFocusPanelOpen = isFocusSelectionKnown && stageMessage.panelOpen === true),
+        setFocusActive(
+          isVacuumPopupOpen || (isFocusSelectionKnown && stageMessage.active === true),
+        ));
     }
-    if (incomingMessage.type === "model-metadata") {
-      componentMetadata = incomingMessage.metadata;
-      onReady(componentMetadata);
-    }
-    if (incomingMessage.type === "ready") {
-      supportsStatePatches = incomingMessage.statePatches === true;
-      lastPublishedStates = null;
-      lastConfigJson = "";
-      hasLoadFailed = false;
-      isStageReady = true;
-      componentMetadata = incomingMessage.metadata;
-      defaultCamera = incomingMessage.metadata?.camera;
-      activeCamera =
-        componentProperties.floorCameras?.[componentProperties.floorSelection] ||
-        componentProperties.camera ||
-        defaultCamera;
-      sendConfigUpdate();
-      if (isPreviewSuspended) {
-        refreshActivityState(true);
-      }
-      onReady(incomingMessage.metadata);
-    }
-    if (
-      incomingMessage.type === "presented" &&
-      incomingMessage.configId === configIdCounter &&
-      isAwaitingPresentation
-    ) {
-      isAwaitingPresentation = false;
-      if (!isScenePresented) {
-        isScenePresented = true;
-        defaultCamera = incomingMessage.camera || defaultCamera;
-        activeCamera =
+    (stageMessage.type === "model-metadata" &&
+      ((componentMetadata = stageMessage.metadata), onReady(componentMetadata)),
+      stageMessage.type === "ready" &&
+        (isStageReady &&
+          reportRuntimeLifecycle("stage-ready-repeat", {
+            loadSequence: reloadGeneration,
+          }),
+        (supportsStatePatches = stageMessage.statePatches === true),
+        (lastPublishedStates = null),
+        (lastConfigJson = ""),
+        (hasLoadFailed = false),
+        (isStageReady = true),
+        (componentMetadata = stageMessage.metadata),
+        (defaultCamera = stageMessage.metadata?.camera),
+        (activeCamera =
           componentProperties.floorCameras?.[componentProperties.floorSelection] ||
           componentProperties.camera ||
-          defaultCamera;
-        clearTimeout(loadingTimeoutId);
-        hostElement.classList.remove("is-loading", "is-load-error");
-        hostElement.classList.add("is-ready");
-        hostElement.setAttribute("aria-busy", "false");
-        onPresented();
-      }
-      isSceneActive = true;
-      refreshActivityState();
-    }
-    if (incomingMessage.type === "error") {
-      handleStageLoadError(incomingMessage.message);
-    }
-    const isRangeEditingAvailable =
+          defaultCamera),
+        sendConfigUpdate(),
+        isPreviewSuspended && refreshActivityState(true),
+        onReady(stageMessage.metadata)),
+      stageMessage.type === "presented" &&
+        stageMessage.configId === configIdCounter &&
+        isReloadPending &&
+        ((isReloadPending = false),
+        isScenePresented ||
+          ((isScenePresented = true),
+          (defaultCamera = stageMessage.camera || defaultCamera),
+          (activeCamera =
+            componentProperties.floorCameras?.[componentProperties.floorSelection] ||
+            componentProperties.camera ||
+            defaultCamera),
+          clearTimeout(loadingTimeoutId),
+          hostElement.classList.remove("is-loading", "is-load-error"),
+          hostElement.classList.add("is-ready"),
+          hostElement.setAttribute("aria-busy", "false"),
+          onPresented()),
+        (hasPresentedStage = true),
+        refreshActivityState()),
+      stageMessage.type === "error" && failSceneLoad(stageMessage.message));
+    const isRangeEditorAvailable =
       isAuthorized &&
       isScenePresented &&
       (isEditing || runtimeContext.editable) &&
       normalizeLightingMode(componentProperties.lightingMode) === "region";
-    if (incomingMessage.type === "range-editor-state" && isRangeEditingAvailable) {
-      const rangeRequest = pendingRangeRequestsByRequestId.get(incomingMessage.requestId);
-      if (incomingMessage.requestId && !rangeRequest) {
-        return;
-      }
-      if (rangeRequest) {
-        clearTimeout(rangeRequest.timeout);
-        pendingRangeRequestsByRequestId.delete(incomingMessage.requestId);
-        if (incomingMessage.active === rangeRequest.open && !incomingMessage.error) {
-          rangeRequest.resolve();
-        } else {
-          rangeRequest.reject(new Error(incomingMessage.error || "照射范围编辑未能打开。"));
-        }
-      }
-      setRangeEditingState(
-        incomingMessage.active === true && !incomingMessage.error,
-        incomingMessage.error || ""
-      );
+    if (stageMessage.type === "range-editor-state" && isRangeEditorAvailable) {
+      const pendingRangeRequestEntry = pendingRangeRequestsByRequestId.get(stageMessage.requestId);
+      if (stageMessage.requestId && !pendingRangeRequestEntry) return;
+      (pendingRangeRequestEntry &&
+        (clearTimeout(pendingRangeRequestEntry.timeout),
+        pendingRangeRequestsByRequestId.delete(stageMessage.requestId),
+        stageMessage.active === pendingRangeRequestEntry.open && !stageMessage.error
+          ? pendingRangeRequestEntry.resolve()
+          : pendingRangeRequestEntry.reject(
+              new Error(stageMessage.error || "照射范围编辑未能打开。"),
+            )),
+        setRangeEditingState(
+          stageMessage.active === true && !stageMessage.error,
+          stageMessage.error || "",
+        ));
     }
     if (
-      incomingMessage.type === "range-overrides" &&
-      isRangeEditingAvailable &&
-      incomingMessage.overrides &&
-      typeof incomingMessage.overrides == "object" &&
-      !Array.isArray(incomingMessage.overrides)
+      (stageMessage.type === "range-overrides" &&
+        isRangeEditorAvailable &&
+        stageMessage.overrides &&
+        typeof stageMessage.overrides == "object" &&
+        !Array.isArray(stageMessage.overrides) &&
+        ((componentProperties.lightRegionOverrides = structuredClone(stageMessage.overrides)),
+        notifyEditSubscribers({
+          action: "light-region-overrides",
+          overrides: structuredClone(componentProperties.lightRegionOverrides),
+        })),
+      stageMessage.type === "edit" &&
+        stageMessage.action === "camera" &&
+        runtimeContext.editable &&
+        isViewEditing)
     ) {
-      componentProperties.lightRegionOverrides = structuredClone(incomingMessage.overrides);
-      notifyEditSubscribers({
-        action: "light-region-overrides",
-        overrides: structuredClone(componentProperties.lightRegionOverrides)
-      });
+      const pendingEditEntry = pendingEditsByRequestId.get(stageMessage.requestId);
+      pendingEditEntry &&
+        ((activeCamera = stageMessage.camera),
+        clearTimeout(pendingEditEntry.timeout),
+        pendingEditsByRequestId.delete(stageMessage.requestId),
+        pendingEditEntry.resolve(stageMessage.camera));
     }
-    if (
-      incomingMessage.type === "edit" &&
-      incomingMessage.action === "camera" &&
-      runtimeContext.editable &&
-      isViewEditing
-    ) {
-      const cameraEditRequest = pendingEditsByRequestId.get(incomingMessage.requestId);
-      if (cameraEditRequest) {
-        activeCamera = incomingMessage.camera;
-        clearTimeout(cameraEditRequest.timeout);
-        pendingEditsByRequestId.delete(incomingMessage.requestId);
-        cameraEditRequest.resolve(incomingMessage.camera);
-      }
-    }
-    // 编辑态之外，导航位置调整态的拖拽结果也要转发出去（那里 isEditing 为 false，是画布视图）：
-    if (
-      incomingMessage.type === "edit" &&
-      isAuthorized &&
-      isScenePresented &&
-      (isEditing || isNavigationEditing)
-    ) {
-      if (incomingMessage.action === "focus-exited") {
-        disposeFocusDevicePopup();
-      }
-      if (incomingMessage.action === "focus-camera") {
-        const focusEditRequest = pendingEditsByRequestId.get(incomingMessage.requestId);
-        if (!focusEditRequest) {
-          return;
-        }
-        if (focusEditRequest) {
-          clearTimeout(focusEditRequest.timeout);
-          pendingEditsByRequestId.delete(incomingMessage.requestId);
-          if (incomingMessage.error) {
-            focusEditRequest.reject(new Error(incomingMessage.error));
-          } else {
-            if (["edit-light-camera", "preview-light-camera"].includes(focusEditRequest.command)) {
-              openFocusDevicePopup(focusEditRequest.id);
-            }
-            if (
+    if (stageMessage.type === "edit" && isEditing && isAuthorized && isScenePresented) {
+      if (
+        (stageMessage.action === "focus-exited" && disposeFocusDevicePopup(),
+        stageMessage.action === "focus-camera")
+      ) {
+        const respondedEditEntry = pendingEditsByRequestId.get(stageMessage.requestId);
+        if (!respondedEditEntry) return;
+        respondedEditEntry &&
+          (clearTimeout(respondedEditEntry.timeout),
+          pendingEditsByRequestId.delete(stageMessage.requestId),
+          stageMessage.error
+            ? respondedEditEntry.reject(new Error(stageMessage.error))
+            : (["edit-light-camera", "preview-light-camera"].includes(respondedEditEntry.command) &&
+                openFocusDevicePopup(respondedEditEntry.id),
               ["save-light-camera", "cancel-light-camera", "edit-follow-camera"].includes(
-                focusEditRequest.command
-              )
-            ) {
-              disposeFocusDevicePopup();
-            }
-            focusEditRequest.resolve(incomingMessage);
-          }
-        }
+                respondedEditEntry.command,
+              ) && disposeFocusDevicePopup(),
+              respondedEditEntry.resolve(stageMessage)));
       }
-      notifyEditSubscribers(incomingMessage);
+      notifyEditSubscribers(stageMessage);
     }
     if (
-      incomingMessage.type === "control" &&
+      stageMessage.type === "control" &&
       isAuthorized &&
       isScenePresented &&
       !isEditing &&
       !runtimeContext.editable
     ) {
-      const controlEntityId = incomingMessage.command?.entityId;
+      const controlEntityId = stageMessage.command?.entityId;
       if (
         typeof controlEntityId != "string" ||
         !controlEntityId.trim() ||
         ![
-          // 门锁整条绑定：面板发的 entityId 是锁本体，门磁 / 电量等只读项也一起放行。
           ...(componentProperties.security?.locks || []),
           ...collectDeviceExtraEntities(),
-          ...collectPurifierExtraEntities(),
+          ...collectEnvironmentExtraEntities(),
           ...(componentProperties.lights || []),
           ...(componentProperties.environment?.airConditioners || []),
+          ...(componentProperties.environment?.airers || []),
+          ...(componentProperties.environment?.fans || []),
           ...(componentProperties.environment?.airPurifiers || []),
+          ...(componentProperties.environment?.waterHeaters || []),
           ...(componentProperties.environment?.curtains || []),
+          ...(componentProperties.devices?.speakers || []),
           ...(componentProperties.devices?.televisions || []),
-          ...(componentProperties.devices?.televisions || []).map((televisionItem: any) => ({
-            entityId: televisionItem.powerEntityId || televisionItem.entityId
-          }))
-        ].some((controlTarget: any) => controlTarget.entityId === controlEntityId)
+          ...(componentProperties.devices?.televisions || []).map((televisionConfigEntry) => ({
+            entityId: televisionConfigEntry.powerEntityId || televisionConfigEntry.entityId,
+          })),
+        ].some((controlDeviceEntry) => controlDeviceEntry.entityId === controlEntityId)
       ) {
         postToStageFrame({
           type: "control-result",
-          requestId: incomingMessage.requestId,
-          error: "此实体未绑定到当前 3D 控件，请检查设备配置。"
+          requestId: stageMessage.requestId,
+          error: "此实体未绑定到当前 3D 控件，请检查设备配置。",
         });
         return;
       }
-      const controlGeneration = reloadGeneration;
-      // 结果回传的门卫：只有期间没发生整页重载（generation 未变）、场景已呈现且仍持有授权
-      const sendControlResult = (resultPayload: any) => {
-        if (controlGeneration === reloadGeneration && isScenePresented && isAuthorized) {
-          postToStageFrame(resultPayload);
-        }
-      };
-      const controlAbortController = new AbortController();
-      pendingAbortControllersSet.add(controlAbortController);
-      // 12 秒超时并 abort：设备操作的真实耗时不长，卡这么久基本都是链路问题，
+      const reloadGenerationSnapshot = reloadGeneration,
+        postFrameMessage = (framePayload) => {
+          reloadGenerationSnapshot === reloadGeneration &&
+            isScenePresented &&
+            isAuthorized &&
+            postToStageFrame(framePayload);
+        },
+        controlAbortController = new AbortController();
+      activeRequestsSet.add(controlAbortController);
       const controlTimeoutId = setTimeout(() => controlAbortController.abort(), 12000);
       try {
         const controlResponse = await fetch(INTERACTION3D_API_BASE + "/control", {
-          method: "POST",
-          credentials: "same-origin",
-          headers: {
-            "content-type": "application/json"
-          },
-          body: JSON.stringify({
-            ...incomingMessage.command,
-            // 定位字段一律带上（不再只给空调/窗帘/电视带）：后端四个分支都要用它
-            projectId: projectId,
-            componentId: componentDescriptor.id
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "content-type": "application/json",
+            },
+            body: JSON.stringify({
+              ...stageMessage.command,
+              ...(["lock", "climate", "cover", "fan", "water_heater"].includes(
+                stageMessage.command?.domain,
+              ) ||
+              [
+                "climate-extra",
+                "airer-extra",
+                "speaker",
+                "television",
+                "fan-extra",
+                "purifier-extra",
+                "water-heater-extra",
+                "device-extra",
+              ].includes(stageMessage.command?.deviceKind)
+                ? {
+                    projectId: hostProjectId,
+                    componentId: componentDescriptor.id,
+                  }
+                : {}),
+            }),
+            signal: controlAbortController.signal,
           }),
-          signal: controlAbortController.signal
-        });
-        const responseBody = await controlResponse.json().catch(() => ({}));
-        if (!controlResponse.ok) {
-          // 文案归一交给 /static/utils/api-error.js（经 static-helpers 桥取用）。
-          throw new Error(apiErrorMessage(responseBody, "设备操作失败。"));
-        }
-        sendControlResult({
+          controlResult = await controlResponse.json().catch(() => ({}));
+        if (!controlResponse.ok)
+          throw new Error(
+            typeof controlResult.detail == "string"
+              ? controlResult.detail
+              : controlResult.detail?.message || "设备操作失败。",
+          );
+        postFrameMessage({
           type: "control-result",
-          requestId: incomingMessage.requestId
+          requestId: stageMessage.requestId,
         });
-      } catch (controlError: any) {
-        sendControlResult({
+      } catch (controlError) {
+        postFrameMessage({
           type: "control-result",
-          requestId: incomingMessage.requestId,
+          requestId: stageMessage.requestId,
           error:
             controlError.name === "AbortError"
               ? "请求超时，请检查设备状态。"
               : controlError.message,
-          timedOut: controlError.name === "AbortError"
+          timedOut: controlError.name === "AbortError",
         });
       } finally {
-        clearTimeout(controlTimeoutId);
-        pendingAbortControllersSet.delete(controlAbortController);
+        (clearTimeout(controlTimeoutId), activeRequestsSet.delete(controlAbortController));
       }
     }
   }
-  window.addEventListener("message", handleStageMessage);
-  window.addEventListener("pointerdown", handleWindowPointerDown);
-  window.addEventListener("keydown", handleWindowKeyDown);
-  const activityEventTarget =
-    typeof document.addEventListener === "function" ? document : window;
-  activityEventTarget.addEventListener("hb-i3d-preview-scope", syncPreviewSuspension);
-  const ACTIVITY_EVENT_TYPES = [
-    "pointerdown",
-    "pointermove",
-    "pointerup",
-    "pointercancel",
-    "wheel",
-    "keydown",
-    "keyup"
-  ];
-  const ACTIVITY_LISTENER_OPTIONS = {
-    capture: true,
-    passive: true
-  };
-  for (const activityEventType of ACTIVITY_EVENT_TYPES) {
-    activityEventTarget.addEventListener(
-      activityEventType,
-      handleActivityInputEvent,
-      ACTIVITY_LISTENER_OPTIONS
+  (window.addEventListener("message", handleStageMessage),
+    window.addEventListener("pointerdown", handleDocumentClickAway),
+    window.addEventListener("keydown", handleDocumentKeyDown));
+  const listenerTarget = document.addEventListener ? document : window;
+  listenerTarget.addEventListener("hb-i3d-preview-scope", syncPreviewSuspension);
+  const activityEventNames = [
+      "pointerdown",
+      "pointermove",
+      "pointerup",
+      "pointercancel",
+      "wheel",
+      "keydown",
+      "keyup",
+    ],
+    activityListenerOptions = {
+      capture: true,
+      passive: true,
+    };
+  for (const activityEventName of activityEventNames)
+    listenerTarget.addEventListener(
+      activityEventName,
+      handleActivityInput,
+      activityListenerOptions,
     );
-  }
-  activityEventTarget.addEventListener("visibilitychange", handleVisibilityChange);
-  activityEventTarget.addEventListener("transitionend", handleVisibilityChange, true);
-  activityEventTarget.addEventListener("animationend", handleVisibilityChange, true);
-  window.addEventListener("pagehide", handlePageHide);
-  window.addEventListener("pageshow", handlePageShow);
-  window.addEventListener("blur", handleWindowBlur);
+  (listenerTarget.addEventListener("visibilitychange", handleVisibilityChange),
+    listenerTarget.addEventListener("transitionend", handleVisibilityChange, true),
+    listenerTarget.addEventListener("animationend", handleVisibilityChange, true),
+    window.addEventListener("pagehide", handlePageHide),
+    window.addEventListener("pageshow", handlePageShow),
+    window.addEventListener("blur", handleWindowBlur));
   const intersectionObserver =
-    typeof IntersectionObserver === "undefined"
+    typeof IntersectionObserver > "u"
       ? null
       : new IntersectionObserver(
-          observerEntries => {
-            for (const observerEntry of observerEntries) {
-              if (observerEntry.target === hostElement) {
-                isInViewport = observerEntry.isIntersecting && observerEntry.intersectionRatio > 0;
-              }
-            }
+          (observerEntries) => {
+            for (const observerEntry of observerEntries)
+              observerEntry.target === hostElement &&
+                (isStageIntersecting =
+                  observerEntry.isIntersecting && observerEntry.intersectionRatio > 0);
             refreshActivityState();
           },
           {
-            threshold: [0, 0.001]
-          }
+            threshold: [0, 0.001],
+          },
         );
   intersectionObserver?.observe(hostElement);
-  let observedAncestorElements: any[] = [];
-  // 观察宿主的所有祖先尺寸变化：控件常被放在可折叠面板里，
-  function observeAncestors() {
-    if (isDisposed) {
-      return;
-    }
-    const nextAncestorElements: any[] = [];
-    for (
-      let walkedAncestor = hostElement;
-      walkedAncestor;
-      walkedAncestor = walkedAncestor.parentElement
-    ) {
-      nextAncestorElements.push(walkedAncestor);
-    }
-    if (
-      nextAncestorElements.length !== observedAncestorElements.length ||
-      !nextAncestorElements.every(
-        (ancestorCandidate, ancestorIndex) =>
-          ancestorCandidate === observedAncestorElements[ancestorIndex]
+  let observedAncestorList = [];
+  function observeVisibilityAncestors() {
+    if (isDisposed) return;
+    const ancestorChain = [];
+    for (let ancestorNode = hostElement; ancestorNode; ancestorNode = ancestorNode.parentElement)
+      ancestorChain.push(ancestorNode);
+    if (!(
+      ancestorChain.length === observedAncestorList.length &&
+      ancestorChain.every(
+        (ancestor, ancestorIndex) => ancestor === observedAncestorList[ancestorIndex],
       )
-    ) {
-      observedAncestorElements = nextAncestorElements;
-      ancestorMutationObserver?.disconnect();
-      for (const observedAncestor of nextAncestorElements) {
-        ancestorMutationObserver?.observe(observedAncestor, {
+    )) {
+      ((observedAncestorList = ancestorChain), mutationObserver?.disconnect());
+      for (const observedAncestor of ancestorChain)
+        mutationObserver?.observe(observedAncestor, {
           attributes: true,
           childList: true,
-          attributeFilter: ["hidden", "inert", "aria-hidden", "style", "class"]
+          attributeFilter: ["hidden", "inert", "aria-hidden", "style", "class"],
         });
-      }
     }
   }
-  const ancestorMutationObserver =
-    typeof MutationObserver === "undefined"
+  const mutationObserver =
+    typeof MutationObserver > "u"
       ? null
       : new MutationObserver(() => {
-          observeAncestors();
-          syncFrameLayout();
+          (observeVisibilityAncestors(), updatePresentationLayout());
         });
-  observeAncestors();
-  let lastLayoutJson = "";
-  let presentationLayout: any = null;
-  // 同步 iframe 尺寸：宿主还没有宽高时直接返回（此时测量必然为 0）。
-  function syncFrameLayout(forceLayout: any = false) {
+  observeVisibilityAncestors();
+  let lastLayoutJson = "",
+    presentationLayout = null;
+  function updatePresentationLayout(forceUpdate = false) {
     refreshActivityState();
-    const hostRect = hostElement.getBoundingClientRect();
-    if (!hostRect.width || !hostElement.clientWidth) {
-      return;
-    }
-    const scaleX = hostElement.clientWidth / hostRect.width;
-    const scaleY =
-      hostElement.clientHeight > 0 && hostRect.height > 0
-        ? hostElement.clientHeight / hostRect.height
-        : scaleX;
-    stageFrameElement.style.width = hostRect.width + "px";
-    stageFrameElement.style.height = hostRect.height + "px";
-    stageFrameElement.style.transform =
-      scaleX === scaleY ? "scale(" + scaleX + ")" : "scale(" + scaleX + "," + scaleY + ")";
-    const rendererCanvasElement = hostElement.closest?.(".hb-renderer-canvas");
-    const canvasRect = rendererCanvasElement?.getBoundingClientRect();
-    const layoutReferenceSize =
-      componentProperties.layoutMode === "fill"
-        ? runtimeContext.document?.canvas
-        : componentDescriptor.position;
-    const componentScale =
-      componentProperties.layoutMode === "fill"
-        ? 1
-        : Math.max(0.01, Math.min(5, Number(componentDescriptor.style?.scale) || 1));
-    const layoutWidthPx =
-      canvasRect?.width > 0 && rendererCanvasElement.clientWidth > 0
-        ? (hostRect.width * rendererCanvasElement.clientWidth) / canvasRect.width
-        : Number(layoutReferenceSize?.width) * componentScale;
-    const layoutHeightPx =
-      canvasRect?.height > 0 && rendererCanvasElement.clientHeight > 0
-        ? (hostRect.height * rendererCanvasElement.clientHeight) / canvasRect.height
-        : Number(layoutReferenceSize?.height) * componentScale;
-    const layoutMessage = {
-      type: "presentation-layout",
-      width: layoutWidthPx > 0 ? layoutWidthPx : hostRect.width,
-      height: layoutHeightPx > 0 ? layoutHeightPx : hostRect.height
-    };
-    presentationLayout = layoutMessage;
-    popupLayoutPreview?.resize();
-    focusDevicePopup?.resize();
-    vacuumDetailsPopup?.updateLayout?.();
-    cameraPreviewPopup?.updateLayout?.();
-    const layoutJson = JSON.stringify(layoutMessage);
-    if (forceLayout === true || layoutJson !== lastLayoutJson) {
-      lastLayoutJson = layoutJson;
-      postToStageFrame(layoutMessage);
-    }
+    const hostBounds = hostElement.getBoundingClientRect();
+    if (!hostBounds.width || !hostElement.clientWidth) return;
+    const scaleX = hostElement.clientWidth / hostBounds.width,
+      scaleY =
+        hostElement.clientHeight > 0 && hostBounds.height > 0
+          ? hostElement.clientHeight / hostBounds.height
+          : scaleX;
+    ((stageFrameElement.style.width = hostBounds.width + "px"),
+      (stageFrameElement.style.height = hostBounds.height + "px"),
+      (stageFrameElement.style.transform =
+        scaleX === scaleY ? "scale(" + scaleX + ")" : "scale(" + scaleX + "," + scaleY + ")"));
+    const layoutSource =
+        componentProperties.layoutMode === "fill"
+          ? runtimeContext.document?.canvas
+          : componentDescriptor.position,
+      layoutScale =
+        componentProperties.layoutMode === "fill"
+          ? 1
+          : Math.max(0.01, Math.min(5, Number(componentDescriptor.style?.scale) || 1)),
+      layoutWidth = Number(layoutSource?.width) * layoutScale,
+      layoutHeight = Number(layoutSource?.height) * layoutScale,
+      resizeContentScale = Number(runtimeContext.document?.canvas?.resizeContentScale),
+      safeContentScale =
+        Number.isFinite(resizeContentScale) && resizeContentScale > 0 ? resizeContentScale : 1,
+      layoutPayload = {
+        type: "presentation-layout",
+        width:
+          (Number.isFinite(layoutWidth) && layoutWidth > 0
+            ? layoutWidth
+            : hostElement.clientWidth || 1) / safeContentScale,
+        height:
+          (Number.isFinite(layoutHeight) && layoutHeight > 0
+            ? layoutHeight
+            : hostElement.clientHeight || 1) / safeContentScale,
+      };
+    ((presentationLayout = layoutPayload),
+      popupLayoutPreview?.resize(),
+      focusDevicePopup?.resize(),
+      vacuumPopup?.updateLayout?.(),
+      cameraPreview?.updateLayout?.());
+    const layoutJson = JSON.stringify(layoutPayload);
+    (forceUpdate === true || layoutJson !== lastLayoutJson) &&
+      ((lastLayoutJson = layoutJson), postToStageFrame(layoutPayload));
   }
-  const frameResizeObserver = new ResizeObserver(syncFrameLayout);
-  frameResizeObserver.observe(hostElement);
-  window.addEventListener("resize", syncFrameLayout);
-  syncPreviewSuspension();
-  reloadStageFrame();
-  const layoutFrameRequestId = requestAnimationFrame(syncFrameLayout);
-  // 释放一切：清定时器、断开观察者、移除所有事件监听、abort 在途请求、
-  const runtimeApi = () => {
-    if (!isDisposed) {
-      closePopupLayoutPreview();
-      isSceneActive = false;
-      refreshActivityState(true);
-      updateFocusActive(false);
-      closeCameraPreviewPopup();
-      closeVacuumDetailsPopup();
-      lightStream?.dispose();
-      editSubscribersSet.clear();
-      isRangeEditing = false;
-      hostElement.classList.remove("is-range-editing");
-      isDisposed = true;
-      clearTimeout(loadingTimeoutId);
-      cancelAnimationFrame(layoutFrameRequestId);
-      frameResizeObserver.disconnect();
-      intersectionObserver?.disconnect();
-      ancestorMutationObserver?.disconnect();
-      rejectPendingEdits("户型画面已关闭，请重新调整。");
-      rejectPendingRangeRequests("户型画面已关闭，请重新调整照射范围。");
-      window.removeEventListener("resize", syncFrameLayout);
-      window.removeEventListener("message", handleStageMessage);
-      window.removeEventListener("pointerdown", handleWindowPointerDown);
-      window.removeEventListener("keydown", handleWindowKeyDown);
-      for (const activityEventTypeToRemove of ACTIVITY_EVENT_TYPES) {
-        activityEventTarget.removeEventListener(
-          activityEventTypeToRemove,
-          handleActivityInputEvent,
-          ACTIVITY_LISTENER_OPTIONS
-        );
+  const hostResizeObserver = new ResizeObserver(updatePresentationLayout);
+  (hostResizeObserver.observe(hostElement),
+    window.addEventListener("resize", updatePresentationLayout),
+    syncPreviewSuspension(),
+    reloadStageFrame());
+  const initialLayoutFrameId = requestAnimationFrame(updatePresentationLayout),
+    runtimeHandle = () => {
+      if (!isDisposed) {
+        (closePopupLayoutPreview(),
+          (hasPresentedStage = false),
+          refreshActivityState(true),
+          setFocusActive(false),
+          closeCameraPreview(),
+          closeVacuumPopup(),
+          lightStream?.dispose(),
+          editSubscribersSet.clear(),
+          (isRangeEditing = false),
+          hostElement.classList.remove("is-range-editing"),
+          (isDisposed = true),
+          clearTimeout(loadingTimeoutId),
+          cancelAnimationFrame(initialLayoutFrameId),
+          hostResizeObserver.disconnect(),
+          intersectionObserver?.disconnect(),
+          mutationObserver?.disconnect(),
+          rejectPendingEdits("户型画面已关闭，请重新调整。"),
+          rejectPendingRangeRequests("户型画面已关闭，请重新调整照射范围。"),
+          window.removeEventListener("resize", updatePresentationLayout),
+          window.removeEventListener("message", handleStageMessage),
+          window.removeEventListener("pointerdown", handleDocumentClickAway),
+          window.removeEventListener("keydown", handleDocumentKeyDown));
+        for (const removedEventName of activityEventNames)
+          listenerTarget.removeEventListener(
+            removedEventName,
+            handleActivityInput,
+            activityListenerOptions,
+          );
+        (listenerTarget.removeEventListener("visibilitychange", handleVisibilityChange),
+          listenerTarget.removeEventListener("hb-i3d-preview-scope", syncPreviewSuspension),
+          listenerTarget.removeEventListener("transitionend", handleVisibilityChange, true),
+          listenerTarget.removeEventListener("animationend", handleVisibilityChange, true),
+          window.removeEventListener("pagehide", handlePageHide),
+          window.removeEventListener("pageshow", handlePageShow),
+          window.removeEventListener("blur", handleWindowBlur),
+          activeRequestsSet.forEach((abortedRequest) => abortedRequest.abort()),
+          stageFrameElement.removeAttribute("src"),
+          hostElement.replaceChildren());
       }
-      activityEventTarget.removeEventListener("visibilitychange", handleVisibilityChange);
-      activityEventTarget.removeEventListener("hb-i3d-preview-scope", syncPreviewSuspension);
-      activityEventTarget.removeEventListener("transitionend", handleVisibilityChange, true);
-      activityEventTarget.removeEventListener("animationend", handleVisibilityChange, true);
-      window.removeEventListener("pagehide", handlePageHide);
-      window.removeEventListener("pageshow", handlePageShow);
-      window.removeEventListener("blur", handleWindowBlur);
-      pendingAbortControllersSet.forEach((pendingController: any) => pendingController.abort());
-      stageFrameElement.removeAttribute("src");
-      hostElement.replaceChildren();
-    }
-  };
-  runtimeApi.update = (
-    nextComponentProperties: any,
-    nextSelectedId: any = selectedId,
-    editContext: any = null
-  ) => {
-    if (isDisposed) {
-      return;
-    }
-    if (
-      isEditing &&
-      editContext &&
-      [
-        "light",
-        "climate",
-        "cover",
-        "temperature-humidity",
-        "nas",
-        "television",
-        "vacuum",
-        "vacuum-shortcut",
-        // 通用设备（冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）的编辑器把 module 设成品类名。
-        ...GENERIC_DEVICE_KINDS
-      ].includes(editContext.module)
-    ) {
-      editingModuleKind = editContext.module;
-      editingVacuumId =
-        editingModuleKind === "vacuum-shortcut" ? String(editContext.vacuumId || "") : "";
-    }
-    if (
-      nextSelectedId !== selectedId ||
-      nextComponentProperties.floorSelection !== componentProperties.floorSelection
-    ) {
-      disposeFocusDevicePopup();
-    }
-    const previousSceneId = componentProperties.sceneId;
-    const previousCameraJson = JSON.stringify(componentProperties.camera);
-    const previousLightingMode = normalizeLightingMode(componentProperties.lightingMode);
-    const previousPreviewCameraJson = JSON.stringify(
-      (componentProperties.security?.cameras || []).find(
-        (previewCameraCandidate: any) => "camera:" + previewCameraCandidate.id === cameraPreviewTargetId
-      )
-    );
-    const previousFloorSelection = componentProperties.floorSelection;
-    componentProperties = structuredClone(nextComponentProperties);
-    selectedId = nextSelectedId;
-    configureStateSubscriptions();
-    syncBackgroundVisibility();
-    cameraPreviewPopup?.updateLayout?.();
-    vacuumDetailsPopup?.updateLayout?.();
-    if (
-      cameraPreviewPopup &&
-      (previousFloorSelection !== componentProperties.floorSelection ||
-        previousPreviewCameraJson !==
-          JSON.stringify(
-            (componentProperties.security?.cameras || []).find(
-              (selectedPreviewCamera: any) =>
-                "camera:" + selectedPreviewCamera.id === cameraPreviewTargetId
+    };
+  return (
+    (runtimeHandle.update = (
+      nextProperties,
+      nextSelectedId = selectedId,
+      nextEditing = null,
+      nextDescriptor = componentDescriptor,
+    ) => {
+      if (isDisposed) return;
+      ((componentDescriptor = nextDescriptor),
+        isEditing && nextEditing && nextEditing.module === "security"
+          ? ((editingModuleKind = "security"),
+            (editingSecurityKind = ["camera", "presence", "lock"].includes(nextEditing.securityKind)
+              ? nextEditing.securityKind
+              : ""),
+            (editingVacuumId = ""))
+          : isEditing &&
+            nextEditing &&
+            [
+              "light",
+              "climate",
+              "fan",
+              "purifier",
+              "water-heater",
+              "airer",
+              "cover",
+              "nas",
+              "television",
+              "speaker",
+              "vacuum",
+              "vacuum-shortcut",
+              "temperature-humidity",
+              ...GENERIC_DEVICE_KINDS,
+            ].includes(nextEditing.module) &&
+            ((editingModuleKind = nextEditing.module),
+            (editingSecurityKind = ""),
+            (editingVacuumId =
+              editingModuleKind === "vacuum-shortcut" ? String(nextEditing.vacuumId || "") : "")),
+        (nextSelectedId !== selectedId ||
+          nextProperties.floorSelection !== componentProperties.floorSelection) &&
+          disposeFocusDevicePopup());
+      const previousSceneId = componentProperties.sceneId,
+        previousCameraJson = JSON.stringify(componentProperties.camera),
+        previousLightingMode = normalizeLightingMode(componentProperties.lightingMode),
+        previousCameraPreviewJson = JSON.stringify(
+          (componentProperties.security?.cameras || []).find(
+            (previewCameraCandidate) =>
+              "camera:" + previewCameraCandidate.id === openCameraPreviewId,
+          ),
+        ),
+        previousVacuumPopupJson = JSON.stringify(
+          (componentProperties.devices?.vacuums || []).find(
+            (previewVacuumCandidate) => "vacuum:" + previewVacuumCandidate.id === openVacuumPopupId,
+          ),
+        ),
+        previousFloorSelection = componentProperties.floorSelection;
+      ((componentProperties = structuredClone(nextProperties)),
+        (selectedId = nextSelectedId),
+        configureStateSubscriptions(),
+        syncBackgroundHidden(),
+        cameraPreview?.updateLayout?.(),
+        vacuumPopup?.updateLayout?.(),
+        cameraPreview &&
+          (previousFloorSelection !== componentProperties.floorSelection ||
+            previousCameraPreviewJson !==
+              JSON.stringify(
+                (componentProperties.security?.cameras || []).find(
+                  (refreshedCameraCandidate) =>
+                    "camera:" + refreshedCameraCandidate.id === openCameraPreviewId,
+                ),
+              )) &&
+          dismissFocus(true),
+        vacuumPopup &&
+          (previousFloorSelection !== componentProperties.floorSelection ||
+            previousVacuumPopupJson !==
+              JSON.stringify(
+                (componentProperties.devices?.vacuums || []).find(
+                  (refreshedVacuumCandidate) =>
+                    "vacuum:" + refreshedVacuumCandidate.id === openVacuumPopupId,
+                ),
+              )) &&
+          dismissFocus(true),
+        isViewEditing &&
+          (previousSceneId !== componentProperties.sceneId ||
+            previousLightingMode !== normalizeLightingMode(componentProperties.lightingMode) ||
+            previousCameraJson !== JSON.stringify(componentProperties.camera)) &&
+          ((isViewEditing = false),
+          (activeCamera =
+            componentProperties.floorCameras?.[componentProperties.floorSelection] ||
+            componentProperties.camera ||
+            defaultCamera),
+          hostElement.classList.remove("is-view-editing"),
+          (stageFrameElement.style.pointerEvents = "none")),
+        previousSceneId !== componentProperties.sceneId ||
+        previousLightingMode !== normalizeLightingMode(componentProperties.lightingMode)
+          ? reloadStageFrame(
+              previousSceneId !== componentProperties.sceneId
+                ? "load-scene-change"
+                : "load-mode-change",
             )
-          ))
-    ) {
-      dismissFocus(true);
-    }
-    if (
-      isViewEditing &&
-      (previousSceneId !== componentProperties.sceneId ||
-        previousLightingMode !== normalizeLightingMode(componentProperties.lightingMode) ||
-        previousCameraJson !== JSON.stringify(componentProperties.camera))
-    ) {
-      isViewEditing = false;
-      activeCamera =
-        componentProperties.floorCameras?.[componentProperties.floorSelection] ||
-        componentProperties.camera ||
-        defaultCamera;
-      hostElement.classList.remove("is-view-editing");
-      refreshStageFramePointerEvents();
-    }
-    if (
-      previousSceneId !== componentProperties.sceneId ||
-      previousLightingMode !== normalizeLightingMode(componentProperties.lightingMode)
-    ) {
-      reloadStageFrame();
-    } else {
-      sendConfigUpdate();
-    }
-  };
-  runtimeApi.setPageVisible = (pageVisible: any) => {
-    if (!isDisposed && isPageHidden !== !pageVisible) {
-      isPageHidden = !pageVisible;
-      if (isPageHidden) {
-        closePopupLayoutPreview();
-        dismissFocus(true);
+          : sendConfigUpdate());
+    }),
+    (runtimeHandle.previewLockMotion = (lockEntityId, shouldOpen = true) =>
+      isDisposed ||
+      !isEditing ||
+      editingModuleKind !== "security" ||
+      editingSecurityKind !== "lock" ||
+      !lockEntityId
+        ? false
+        : (postToStageFrame({
+            type: "editor-command",
+            command: "preview-lock-motion",
+            id: lockEntityId,
+            value: shouldOpen === false ? "closed" : "open",
+          }),
+          true)),
+    (runtimeHandle.setPageVisible = (isVisible) => {
+      isDisposed ||
+        isPageHidden === !isVisible ||
+        ((isPageHidden = !isVisible),
+        (hostElement.inert = isPageHidden || !isAuthorized),
+        isPageHidden && (closePopupLayoutPreview(), dismissFocus(true)),
+        refreshActivityState(true),
+        isPageHidden || (updatePresentationLayout(), lightStream || publishStates()));
+    }),
+    (runtimeHandle.closePopupLayoutPreview = closePopupLayoutPreview),
+    (runtimeHandle.previewPopupLayout = (layoutKind, layoutOptions = {}) =>
+      isDisposed ||
+      !isAuthorized ||
+      !runtimeContext.editable ||
+      isPageHidden ||
+      document.hidden ||
+      isPreviewSuspended ||
+      isViewEditing ||
+      isRangeEditing ||
+      !["general", "camera"].includes(layoutKind)
+        ? false
+        : (popupLayoutPreview ||
+            (dismissFocus(true),
+            (popupLayoutPreview = createPopupLayoutPreview(
+              hostElement,
+              () => presentationLayout,
+              closePopupLayoutPreview,
+            ))),
+          popupLayoutPreview.update(layoutKind, layoutOptions),
+          true)),
+    (runtimeHandle.command = (command) =>
+      postToStageFrame({
+        type: "editor-command",
+        command: command,
+      })),
+    (runtimeHandle.subscribeEdit = (listener) =>
+      isDisposed || typeof listener != "function"
+        ? () => {}
+        : (editSubscribersSet.add(listener), () => editSubscribersSet.delete(listener))),
+    (runtimeHandle.openRangeEditor = () => {
+      if (
+        (closePopupLayoutPreview(),
+        isDisposed || !isAuthorized || !(isEditing || runtimeContext.editable))
+      )
+        return Promise.reject(new Error("请在已授权的控件编辑器中调整照射范围。"));
+      if (!isScenePresented)
+        return Promise.reject(new Error("户型还在加载，请稍候再调整照射范围。"));
+      if (normalizeLightingMode(componentProperties.lightingMode) !== "region")
+        return Promise.reject(new Error("请先选择轻量柔光模式。"));
+      if (isRangeEditing) return Promise.resolve();
+      const existingRangeRequest = pendingRangeRequestsByRequestId.values().next().value;
+      if (existingRangeRequest) return existingRangeRequest.promise;
+      isViewEditing && runtimeHandle.setViewEditing(false);
+      const rangeRequestId = "range-" + ++requestIdCounter;
+      let rangeRequestResolve, rangeRequestReject;
+      const rangeRequestPromise = new Promise((rangeResolve, rangeReject) => {
+          ((rangeRequestResolve = rangeResolve), (rangeRequestReject = rangeReject));
+        }),
+        rangeRequestTimeoutId = setTimeout(() => {
+          (pendingRangeRequestsByRequestId.delete(rangeRequestId),
+            postToStageFrame({
+              type: "range-editor",
+              open: false,
+            }),
+            setRangeEditingState(false),
+            rangeRequestReject(new Error("打开照射范围编辑超时，请重试。")));
+        }, 5000);
+      return (
+        pendingRangeRequestsByRequestId.set(rangeRequestId, {
+          resolve: rangeRequestResolve,
+          reject: rangeRequestReject,
+          timeout: rangeRequestTimeoutId,
+          promise: rangeRequestPromise,
+          open: true,
+        }),
+        postToStageFrame({
+          type: "range-editor",
+          open: true,
+          requestId: rangeRequestId,
+        }),
+        rangeRequestPromise
+      );
+    }),
+    (runtimeHandle.flushRangeEditor = () => {
+      if (isDisposed || !isAuthorized || !isScenePresented || !isRangeEditing)
+        return Promise.reject(new Error("请先打开照射范围编辑。"));
+      const flushRequestId = "range-" + ++requestIdCounter;
+      return new Promise((flushResolve, flushReject) => {
+        const flushTimeoutId = setTimeout(() => {
+          (pendingRangeRequestsByRequestId.delete(flushRequestId),
+            flushReject(new Error("读取照射范围超时，请重试。")));
+        }, 5000);
+        (pendingRangeRequestsByRequestId.set(flushRequestId, {
+          resolve: flushResolve,
+          reject: flushReject,
+          timeout: flushTimeoutId,
+          open: true,
+        }),
+          postToStageFrame({
+            type: "range-editor",
+            flush: true,
+            requestId: flushRequestId,
+          }));
+      });
+    }),
+    (runtimeHandle.closeRangeEditor = ({ flush: shouldFlush = false } = {}) => {
+      if ((rejectPendingRangeRequests("照射范围编辑已取消。"), !shouldFlush)) {
+        (postToStageFrame({
+          type: "range-editor",
+          open: false,
+        }),
+          setRangeEditingState(false));
+        return;
       }
-      refreshActivityState(true);
-      if (!isPageHidden) {
-        syncFrameLayout();
-        if (!lightStream) {
-          publishStates();
+      if (isDisposed || !isAuthorized || !isScenePresented)
+        return Promise.reject(new Error("户型画面暂不可用，请重新打开照射范围。"));
+      const closeRequestId = "range-" + ++requestIdCounter;
+      return new Promise((closeResolve, closeReject) => {
+        const closeTimeoutId = setTimeout(() => {
+          (pendingRangeRequestsByRequestId.delete(closeRequestId),
+            closeReject(new Error("读取照射范围超时，请重试。")));
+        }, 5000);
+        (pendingRangeRequestsByRequestId.set(closeRequestId, {
+          resolve: closeResolve,
+          reject: closeReject,
+          timeout: closeTimeoutId,
+          open: false,
+        }),
+          postToStageFrame({
+            type: "range-editor",
+            open: false,
+            requestId: closeRequestId,
+          }));
+      });
+    }),
+    (runtimeHandle.setAuthorized = (nextAuthorized) => {
+      const authorizedChanged = isAuthorized !== (nextAuthorized === true);
+      ((isAuthorized = nextAuthorized === true),
+        (hostElement.inert = !isAuthorized || isPageHidden),
+        refreshActivityState(),
+        isAuthorized ||
+          (closePopupLayoutPreview(),
+          runtimeHandle.closeRangeEditor(),
+          rejectPendingEdits("授权验证暂不可用，请恢复后重新调整。"),
+          dismissFocus(true),
+          activeRequestsSet.forEach((activeRequest) => activeRequest.abort())),
+        authorizedChanged && (isEditing || runtimeContext.editable) && sendConfigUpdate());
+    }),
+    Object.defineProperty(runtimeHandle, "metadata", {
+      get: () => componentMetadata,
+    }),
+    Object.defineProperty(runtimeHandle, "presentationLayout", {
+      get: () => presentationLayout,
+    }),
+    Object.defineProperty(runtimeHandle, "ready", {
+      get: () => isScenePresented && !isDisposed && isAuthorized,
+    }),
+    Object.defineProperty(runtimeHandle, "viewEditing", {
+      get: () => isViewEditing,
+    }),
+    Object.defineProperty(runtimeHandle, "viewCamera", {
+      get: () => activeCamera,
+    }),
+    Object.defineProperty(runtimeHandle, "rangeEditing", {
+      get: () => isRangeEditing && !isDisposed && isAuthorized,
+    }),
+    (runtimeHandle.setViewEditing = (nextViewEditing) => {
+      if ((nextViewEditing && closePopupLayoutPreview(), !runtimeContext.editable || isDisposed))
+        throw new Error("请在编辑器中调整户型视角。");
+      if (nextViewEditing && !isScenePresented) throw new Error("户型还在加载，请稍候再调整视角。");
+      (nextViewEditing &&
+        (isRangeEditing || pendingRangeRequestsByRequestId.size) &&
+        runtimeHandle.closeRangeEditor(),
+        (isViewEditing = nextViewEditing === true),
+        isViewEditing ||
+          (activeCamera =
+            componentProperties.floorCameras?.[componentProperties.floorSelection] ||
+            componentProperties.camera ||
+            defaultCamera),
+        hostElement.classList.toggle("is-view-editing", isViewEditing),
+        (stageFrameElement.style.pointerEvents = isViewEditing || isRangeEditing ? "auto" : "none"),
+        sendConfigUpdate());
+    }),
+    (runtimeHandle.viewCommand = (viewCommandName, viewCommandValue) =>
+      new Promise((viewResolve, viewReject) => {
+        if (!runtimeContext.editable || !isViewEditing || !isScenePresented || isDisposed) {
+          viewReject(new Error("请先进入户型视角调整。"));
+          return;
         }
-      }
-    }
-  };
-  runtimeApi.closePopupLayoutPreview = closePopupLayoutPreview;
-  runtimeApi.previewPopupLayout = (popupKind: any, previewOptions: any = {}) =>
-    isDisposed ||
-    !isAuthorized ||
-    !runtimeContext.editable ||
-    isPageHidden ||
-    document.hidden ||
-    isPreviewSuspended ||
-    isViewEditing ||
-    isRangeEditing ||
-    !["general", "camera"].includes(popupKind)
-      ? false
-      : (popupLayoutPreview ||
-          (dismissFocus(true),
-          (popupLayoutPreview = createPopupLayoutPreview(
-            hostElement,
-            () => presentationLayout,
-            closePopupLayoutPreview
-          ))),
-        popupLayoutPreview.update(popupKind, previewOptions),
-        true);
-  runtimeApi.command = (commandName: any) =>
-    postToStageFrame({
-      type: "editor-command",
-      command: commandName
-    });
-  runtimeApi.subscribeEdit = (subscriberCallback: any) =>
-    isDisposed || typeof subscriberCallback != "function"
-      ? () => {}
-      : (editSubscribersSet.add(subscriberCallback),
-        () => editSubscribersSet.delete(subscriberCallback));
-  runtimeApi.openRangeEditor = () => {
-    closePopupLayoutPreview();
-    if (isDisposed || !isAuthorized || (!isEditing && !runtimeContext.editable)) {
-      return Promise.reject(new Error("请在已授权的控件编辑器中调整照射范围。"));
-    }
-    if (!isScenePresented) {
-      return Promise.reject(new Error("户型还在加载，请稍候再调整照射范围。"));
-    }
-    if (normalizeLightingMode(componentProperties.lightingMode) !== "region") {
-      return Promise.reject(new Error("请先选择轻量柔光模式。"));
-    }
-    if (isRangeEditing) {
-      return Promise.resolve();
-    }
-    const activeRangeRequest = pendingRangeRequestsByRequestId.values().next().value;
-    if (activeRangeRequest) {
-      return activeRangeRequest.promise;
-    }
-    if (isViewEditing) {
-      runtimeApi.setViewEditing(false);
-    }
-    const rangeRequestId = "range-" + ++requestIdCounter;
-    let resolveRangeOpen;
-    let rejectRangeOpen: any;
-    const rangeOpenPromise = new Promise((resolveOpen, rejectOpen) => {
-      resolveRangeOpen = resolveOpen;
-      rejectRangeOpen = rejectOpen;
-    });
-    const rangeOpenTimeoutId = setTimeout(() => {
-      pendingRangeRequestsByRequestId.delete(rangeRequestId);
-      postToStageFrame({
-        type: "range-editor",
-        open: false
-      });
-      setRangeEditingState(false);
-      rejectRangeOpen(new Error("打开照射范围编辑超时，请重试。"));
-    }, 5000);
-    pendingRangeRequestsByRequestId.set(rangeRequestId, {
-      resolve: resolveRangeOpen,
-      reject: rejectRangeOpen,
-      timeout: rangeOpenTimeoutId,
-      promise: rangeOpenPromise,
-      open: true
-    });
-    postToStageFrame({
-      type: "range-editor",
-      open: true,
-      requestId: rangeRequestId
-    });
-    return rangeOpenPromise;
-  };
-  runtimeApi.flushRangeEditor = () => {
-    if (isDisposed || !isAuthorized || !isScenePresented || !isRangeEditing) {
-      return Promise.reject(new Error("请先打开照射范围编辑。"));
-    }
-    const flushRequestId = "range-" + ++requestIdCounter;
-    return new Promise((resolveFlush, rejectFlush) => {
-      const flushTimeoutId = setTimeout(() => {
-        pendingRangeRequestsByRequestId.delete(flushRequestId);
-        rejectFlush(new Error("读取照射范围超时，请重试。"));
-      }, 5000);
-      pendingRangeRequestsByRequestId.set(flushRequestId, {
-        resolve: resolveFlush,
-        reject: rejectFlush,
-        timeout: flushTimeoutId,
-        open: true
-      });
-      postToStageFrame({
-        type: "range-editor",
-        flush: true,
-        requestId: flushRequestId
-      });
-    });
-  };
-  runtimeApi.closeRangeEditor = ({ flush: shouldFlush = false }: AnyObj = {}) => {
-    rejectPendingRangeRequests("照射范围编辑已取消。");
-    if (!shouldFlush) {
-      postToStageFrame({
-        type: "range-editor",
-        open: false
-      });
-      setRangeEditingState(false);
-      return;
-    }
-    if (isDisposed || !isAuthorized || !isScenePresented) {
-      return Promise.reject(new Error("户型画面暂不可用，请重新打开照射范围。"));
-    }
-    const closeRequestId = "range-" + ++requestIdCounter;
-    return new Promise((resolveClose, rejectClose) => {
-      const closeTimeoutId = setTimeout(() => {
-        pendingRangeRequestsByRequestId.delete(closeRequestId);
-        rejectClose(new Error("读取照射范围超时，请重试。"));
-      }, 5000);
-      pendingRangeRequestsByRequestId.set(closeRequestId, {
-        resolve: resolveClose,
-        reject: rejectClose,
-        timeout: closeTimeoutId,
-        open: false
-      });
-      postToStageFrame({
-        type: "range-editor",
-        open: false,
-        requestId: closeRequestId
-      });
-    });
-  };
-  // 授权状态变化：未授权时把宿主置 inert，并关掉范围编辑、拒绝在途编辑请求、
-  runtimeApi.setAuthorized = (authorized: any) => {
-    const hasAuthorizationChanged = isAuthorized !== (authorized === true);
-    isAuthorized = authorized === true;
-    hostElement.inert = !isAuthorized;
-    refreshActivityState();
-    if (!isAuthorized) {
-      closePopupLayoutPreview();
-      runtimeApi.closeRangeEditor();
-      rejectPendingEdits("授权验证暂不可用，请恢复后重新调整。");
-      dismissFocus(true);
-      pendingAbortControllersSet.forEach((expiredController: any) => expiredController.abort());
-    }
-    if (hasAuthorizationChanged && (isEditing || runtimeContext.editable)) {
-      sendConfigUpdate();
-    }
-  };
-  Object.defineProperty(runtimeApi, "metadata", {
-    get: () => componentMetadata
-  });
-  Object.defineProperty(runtimeApi, "presentationLayout", {
-    get: () => presentationLayout
-  });
-  Object.defineProperty(runtimeApi, "ready", {
-    get: () => isScenePresented && !isDisposed && isAuthorized
-  });
-  Object.defineProperty(runtimeApi, "viewEditing", {
-    get: () => isViewEditing
-  });
-  Object.defineProperty(runtimeApi, "navigationEditing", {
-    get: () => isNavigationEditing
-  });
-  Object.defineProperty(runtimeApi, "viewCamera", {
-    get: () => activeCamera
-  });
-  Object.defineProperty(runtimeApi, "rangeEditing", {
-    get: () => isRangeEditing && !isDisposed && isAuthorized
-  });
-  // 进入 / 退出视角调整。前置条件不满足时直接抛中文错误，由调用方展示；
-  runtimeApi.setViewEditing = (viewEditingEnabled: any) => {
-    if (viewEditingEnabled) {
-      closePopupLayoutPreview();
-    }
-    if (!runtimeContext.editable || isDisposed) {
-      throw new Error("请在编辑器中调整户型视角。");
-    }
-    if (viewEditingEnabled && !isScenePresented) {
-      throw new Error("户型还在加载，请稍候再调整视角。");
-    }
-    if (viewEditingEnabled && (isRangeEditing || pendingRangeRequestsByRequestId.size)) {
-      runtimeApi.closeRangeEditor();
-    }
-    if (viewEditingEnabled && isNavigationEditing) {
-      // 视角调整要独占指针：两个模式同时开着，拖页签改位置会和转视角互相抢事件。
-      runtimeApi.setNavigationEditing(false);
-    }
-    isViewEditing = viewEditingEnabled === true;
-    if (!isViewEditing) {
-      activeCamera =
-        componentProperties.floorCameras?.[componentProperties.floorSelection] ||
-        componentProperties.camera ||
-        defaultCamera;
-    }
-    hostElement.classList.toggle("is-view-editing", isViewEditing);
-    refreshStageFramePointerEvents();
-    sendConfigUpdate();
-  };
-  /**
-   * 进入 / 退出「导航位置调整」：编辑器画布里的专门模式（属性面板的按钮开关）。
-   */
-  runtimeApi.setNavigationEditing = (navigationEditingEnabled: any) => {
-    const isNavigationEditingEnabled = navigationEditingEnabled === true;
-    if (isNavigationEditingEnabled && (!runtimeContext.editable || isEditing || isDisposed)) {
-      throw new Error("请在仪表盘编辑器里调整导航位置。");
-    }
-    if (isNavigationEditingEnabled && !isScenePresented) {
-      throw new Error("3D 画面还在加载，请稍候再调整导航位置。");
-    }
-    if (isNavigationEditingEnabled && (isViewEditing || isRangeEditing)) {
-      throw new Error("请先结束视角调整或照射范围编辑，再调整导航位置。");
-    }
-    setNavigationEditingState(isNavigationEditingEnabled);
-  };
-  // 视角指令：发给舞台的 editor-command 并按 requestId 等回执（5 秒超时）。
-  runtimeApi.viewCommand = (viewCommandName: any, viewCommandValue: any = undefined) =>
-    new Promise((resolveView, rejectView) => {
-      if (!runtimeContext.editable || !isViewEditing || !isScenePresented || isDisposed) {
-        rejectView(new Error("请先进入户型视角调整。"));
-        return;
-      }
-      const viewRequestId = "view-" + ++requestIdCounter;
-      const viewTimeoutId = setTimeout(() => {
-        pendingEditsByRequestId.delete(viewRequestId);
-        rejectView(new Error("读取视角超时，请重试。"));
-      }, 5000);
-      pendingEditsByRequestId.set(viewRequestId, {
-        resolve: resolveView,
-        reject: rejectView,
-        timeout: viewTimeoutId
-      });
-      postToStageFrame({
-        type: "editor-command",
-        command: viewCommandName,
-        value: viewCommandValue,
-        requestId: viewRequestId
-      });
-    });
-  runtimeApi.captureView = () => runtimeApi.viewCommand("save-camera");
-  // 聚焦视角指令：编辑态专用，同样 5 秒超时；目标默认取当前选中项。
-  runtimeApi.focusCommand = (
-    focusCommandName: any,
-    focusTargetId: any = selectedId,
-    focusCommandValue: any = undefined
-  ) =>
-    new Promise((resolveFocus, rejectFocus) => {
-      if (!isEditing || !isScenePresented || isDisposed || !isAuthorized) {
-        rejectFocus(new Error("户型还在加载，请稍候再设置聚焦视角。"));
-        return;
-      }
-      const focusRequestId = "focus-" + ++requestIdCounter;
-      const focusTimeoutId = setTimeout(() => {
-        pendingEditsByRequestId.delete(focusRequestId);
-        rejectFocus(new Error("读取聚焦视角超时，请重试。"));
-      }, 5000);
-      pendingEditsByRequestId.set(focusRequestId, {
-        resolve: resolveFocus,
-        reject: rejectFocus,
-        timeout: focusTimeoutId,
-        command: focusCommandName,
-        id: focusTargetId
-      });
-      postToStageFrame({
-        type: "editor-command",
-        command: focusCommandName,
-        id: focusTargetId,
-        value: focusCommandValue,
-        requestId: focusRequestId
-      });
-    });
-  return runtimeApi;
+        const viewRequestId = "view-" + ++requestIdCounter,
+          viewTimeoutId = setTimeout(() => {
+            (pendingEditsByRequestId.delete(viewRequestId),
+              viewReject(new Error("读取视角超时，请重试。")));
+          }, 5000);
+        (pendingEditsByRequestId.set(viewRequestId, {
+          resolve: viewResolve,
+          reject: viewReject,
+          timeout: viewTimeoutId,
+        }),
+          postToStageFrame({
+            type: "editor-command",
+            command: viewCommandName,
+            value: viewCommandValue,
+            requestId: viewRequestId,
+          }));
+      })),
+    (runtimeHandle.captureView = () => runtimeHandle.viewCommand("save-camera")),
+    (runtimeHandle.focusCommand = (
+      focusCommandName,
+      focusTargetId = selectedId,
+      focusCommandValue,
+    ) =>
+      new Promise((focusResolve, focusReject) => {
+        if (!isEditing || !isScenePresented || isDisposed || !isAuthorized) {
+          focusReject(new Error("户型还在加载，请稍候再设置聚焦视角。"));
+          return;
+        }
+        const focusRequestId = "focus-" + ++requestIdCounter,
+          focusTimeoutId = setTimeout(() => {
+            (pendingEditsByRequestId.delete(focusRequestId),
+              focusReject(new Error("读取聚焦视角超时，请重试。")));
+          }, 5000);
+        (pendingEditsByRequestId.set(focusRequestId, {
+          resolve: focusResolve,
+          reject: focusReject,
+          timeout: focusTimeoutId,
+          command: focusCommandName,
+          id: focusTargetId,
+        }),
+          postToStageFrame({
+            type: "editor-command",
+            command: focusCommandName,
+            id: focusTargetId,
+            value: focusCommandValue,
+            requestId: focusRequestId,
+          }));
+      })),
+    runtimeHandle
+  );
 }

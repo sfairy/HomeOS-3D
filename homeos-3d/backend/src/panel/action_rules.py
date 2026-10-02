@@ -1,39 +1,50 @@
-"""实体 ID 的合法性规则，以及控件动作用到的少量口径常量。
-"""
 from __future__ import annotations
-
 import re
+from typing import Any
+ENTITY_ID = re.compile('^[a-z0-9_]+\\.[a-z0-9_]+$')
+VIRTUAL_ENTITY_ID = re.compile('^virtual\\.[a-z0-9_]+\\.[a-z0-9_]+$')
+ACTION_TYPES = frozenset({
+    'toggle',
+    'navigate',
+    'more-info'})
+POPUP_SOURCES = frozenset({
+    'custom',
+    'entity',
+    'current'})
+TOGGLE_ENTITY_DOMAINS = frozenset({
+    'fan',
+    'cover',
+    'light',
+    'button',
+    'remote',
+    'script',
+    'switch',
+    'climate',
+    'automation',
+    'media_player',
+    'water_heater',
+    'input_boolean'})
 
-ENTITY_ID = re.compile(r"^[a-z0-9_]{1,200}\.[a-z0-9_]{1,200}$")
-# 渲染器自造的虚拟实体：在原生格式前多一段固定的 virtual 前缀，
-VIRTUAL_ENTITY_ID = re.compile(r"^virtual\.[a-z0-9_]{1,200}\.[a-z0-9_]{1,200}$")
-
-# more-info 弹窗的三种来源：custom 打开组合弹窗，entity 打开指定实体的原生弹窗，
-POPUP_SOURCES = frozenset({"custom", "entity", "current"})
-# 这些域下的实体「开关」语义成立，才允许把 toggle 动作挂上去；
-TOGGLE_ENTITY_DOMAINS = frozenset(
-    {
-        "fan",
-        "cover",
-        "light",
-        "button",
-        "remote",
-        "script",
-        "switch",
-        "climate",
-        "automation",
-        "media_player",
-        "water_heater",
-        "input_boolean",
-    }
-)
-
-
-def valid_ha_entity_id(value: str) -> bool:
-    """判断是否为 Home Assistant 原生实体 ID（不接受虚拟实体）。"""
+def valid_ha_entity_id(value):
     return bool(ENTITY_ID.fullmatch(value))
 
-
-def valid_entity_id(value: str) -> bool:
-    """判断是否为合法实体 ID：Home Assistant 原生 ID 或渲染器的作用域虚拟 ID。"""
+def valid_entity_id(value):
+    """Accept Home Assistant IDs and the renderer's scoped virtual IDs."""
     return valid_ha_entity_id(value) or bool(VIRTUAL_ENTITY_ID.fullmatch(value))
+
+def action_popup_source(action):
+    data = getattr(action, 'data', None)
+    if not isinstance(data, dict) and isinstance(action, dict):
+        data = action.get('data')
+    source = str((data or { }).get('popupSource') or 'current')
+    return source if source in POPUP_SOURCES else 'current'
+
+def action_needs_current_entity(action):
+    action_type = getattr(action, 'type', None)
+    if action_type is None and isinstance(action, dict):
+        action_type = action.get('type')
+    return (action_type == 'toggle' or action_type == 'more-info') and action_popup_source(action) == 'current'
+
+def entity_id_supports_toggle(entity_id):
+    normalized = str(entity_id or '')
+    return bool(VIRTUAL_ENTITY_ID.fullmatch(normalized)) or normalized.partition('.')[0] in TOGGLE_ENTITY_DOMAINS

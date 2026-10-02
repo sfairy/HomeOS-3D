@@ -1,153 +1,109 @@
-/**
- * 窗帘组合（一拖多）的配置归一：把配置里的 curtainGroups 收敛成「真正可用」的组合集合，
- */
-
-type CurtainItem = {
-  id: string;
-  floorId?: string;
+/** 窗帘实例（后端 entity + 前端 kind 的混合形态，只用到这几个字段）。 */
+export type CurtainLike = {
+  id?: string;
+  /** 窗帘形态：dream 表示梦幻帘，不参与分组。 */
   coverKind?: string;
-  entityId?: string;
-  size?: number;
-  iconSize?: number;
-  hitSize?: number;
-  clickAction?: string;
-  visible?: boolean;
-  hiddenClickable?: boolean;
-  buttonHidden?: boolean;
-  x?: unknown;
-  y?: unknown;
-  height?: unknown;
-  focusCamera?: unknown;
-  [key: string]: unknown;
-};
-
-type CurtainGroup = {
-  id: string;
-  label?: string;
+  /** 所属楼层。 */
   floorId?: string;
+  /** 对应的 HA 实体 id。 */
+  entityId?: string;
+};
+
+/** 窗帘分组（一组两台，成对控制）。 */
+export type CurtainGroupLike = {
+  id?: string;
+  /** 成对的两台窗帘 id。 */
   memberIds?: string[];
-  size?: number;
-  iconSize?: number;
-  hitSize?: number;
-  clickAction?: string;
-  panelLayout?: string;
-  visible?: boolean;
-  hiddenClickable?: boolean;
-  buttonHidden?: boolean;
-  [key: string]: unknown;
+  /** 分组所属楼层。 */
+  floorId?: string;
 };
 
-type CoverConfig = {
-  curtains?: CurtainItem[];
-  curtainGroups?: CurtainGroup[];
-  [key: string]: unknown;
+/** 分组逻辑读到的环境快照。 */
+export type CurtainEnvironmentLike = {
+  curtains?: CurtainLike[];
+  curtainGroups?: CurtainGroupLike[];
 };
 
-/**
- * 组合在舞台上的稳定条目 id。
- */
-export const curtainGroupEntryId = (group: { id: string }) => "curtain-group:" + group.id;
-
-/**
- * 从配置里筛出有效的窗帘组合。
- */
-export function validCurtainGroups(config: CoverConfig = {}) {
-  const curtainById = new Map((config.curtains || []).map(curtain => [curtain.id, curtain]));
-  const usedMemberIds = new Set<string>();
-  return (config.curtainGroups || []).filter(group => {
-    const memberIds = group.memberIds;
-    // 组合必须有自己的 id、恰好两名成员，且两名成员不是同一个配置项。
+export const curtainGroupEntryId = (curtainGroup: CurtainGroupLike) =>
+  "curtain-group:" + curtainGroup.id;
+export function validCurtainGroups(environment: CurtainEnvironmentLike = {}) {
+  const curtainsById = new Map(
+      (environment.curtains || []).map((curtain) => [curtain.id, curtain]),
+    ),
+    usedMemberIdSet = new Set<string>();
+  return (environment.curtainGroups || []).filter((candidateGroup) => {
+    const groupMemberIds = candidateGroup.memberIds;
     if (
-      !group.id ||
-      !Array.isArray(memberIds) ||
-      memberIds.length !== 2 ||
-      memberIds[0] === memberIds[1]
-    ) {
+      !candidateGroup.id ||
+      !Array.isArray(groupMemberIds) ||
+      groupMemberIds.length !== 2 ||
+      groupMemberIds[0] === groupMemberIds[1]
+    )
       return false;
-    }
-    const members = memberIds.map(memberId => curtainById.get(memberId));
-    // 只要有一名成员找不到 / 跨楼层 / 是梦幻帘 / 已被别的组合占用，或两名成员指向同一实体，
-    const first = members[0];
-    const second = members[1];
-    const invalid =
-      members.some(
-        member =>
-          !member ||
-          member.floorId !== group.floorId ||
-          member.coverKind === "dream" ||
-          usedMemberIds.has(member.id)
-      ) ||
-      !!(first?.entityId && first.entityId === second?.entityId);
-    if (invalid) {
-      return false;
-    }
-    memberIds.forEach(memberId => usedMemberIds.add(memberId));
-    return true;
+    const memberCurtains = groupMemberIds.map((candidateMemberId) =>
+      curtainsById.get(candidateMemberId),
+    );
+    return memberCurtains.some(
+      (memberCurtain) =>
+        !memberCurtain ||
+        memberCurtain.floorId !== candidateGroup.floorId ||
+        memberCurtain.coverKind === "dream" ||
+        usedMemberIdSet.has(memberCurtain.id),
+    ) ||
+      (memberCurtains[0].entityId && memberCurtains[0].entityId === memberCurtains[1].entityId)
+      ? false
+      : (groupMemberIds.forEach((acceptedMemberId) => usedMemberIdSet.add(acceptedMemberId)), true);
   });
 }
-
-/**
- * 列出可用来与指定窗帘组成新组合的候选成员。
- */
-export function curtainGroupCandidates(config: CoverConfig | null | undefined, curtainId: string) {
-  const curtain = config?.curtains?.find(candidate => candidate.id === curtainId);
-  const groupedMemberIds = new Set(
-    validCurtainGroups(config || {}).flatMap(group => group.memberIds || [])
-  );
-  if (!curtain?.floorId || curtain.coverKind === "dream" || groupedMemberIds.has(curtain.id)) {
-    return [];
-  }
-  return (config?.curtains || []).filter(
-    candidate =>
-      candidate.id !== curtain.id &&
-      candidate.floorId === curtain.floorId &&
-      candidate.coverKind !== "dream" &&
-      !groupedMemberIds.has(candidate.id) &&
-      // 第一副帘没有 entityId 时不做实体去重（成员可能是尚未绑定实体的配置项）。
-      (!curtain.entityId || candidate.entityId !== curtain.entityId)
-  );
+export function curtainGroupCandidates(curtainEnvironment: CurtainEnvironmentLike, curtainId: string) {
+  const anchorCurtain = curtainEnvironment?.curtains?.find(
+      (matchingCurtain) => matchingCurtain.id === curtainId,
+    ),
+    groupedCurtainIdSet = new Set<string>(
+      validCurtainGroups(curtainEnvironment).flatMap((existingGroup) => existingGroup.memberIds),
+    );
+  return !anchorCurtain?.floorId ||
+    anchorCurtain.coverKind === "dream" ||
+    groupedCurtainIdSet.has(anchorCurtain.id)
+    ? []
+    : curtainEnvironment.curtains.filter(
+        (candidateCurtain) =>
+          candidateCurtain.id !== anchorCurtain.id &&
+          candidateCurtain.floorId === anchorCurtain.floorId &&
+          candidateCurtain.coverKind !== "dream" &&
+          !groupedCurtainIdSet.has(candidateCurtain.id) &&
+          (!anchorCurtain.entityId || candidateCurtain.entityId !== anchorCurtain.entityId),
+      );
 }
-
-/**
- * 以一副已有窗帘为模板创建新组合。
- */
-export function createCurtainGroup(
-  config: CoverConfig,
-  firstCurtainId: string,
-  secondCurtainId: string,
-  groupId: string,
-  groupLabel: string,
-) {
-  const template = config.curtains?.find(curtain => curtain.id === firstCurtainId);
-  if (!template) {
-    throw new Error("请选择同楼层未组合、实体不同的普通窗帘。");
-  }
+export function createCurtainGroup(groupEnvironment, firstMemberId, secondMemberId, groupId) {
+  const primaryCurtain = groupEnvironment.curtains.find(
+    (selectedCurtain) => selectedCurtain.id === firstMemberId,
+  );
   if (
-    !curtainGroupCandidates(config, firstCurtainId).some(
-      candidate => candidate.id === secondCurtainId
+    !curtainGroupCandidates(groupEnvironment, firstMemberId).some(
+      (eligibleCurtain) => eligibleCurtain.id === secondMemberId,
     )
-  ) {
+  )
     throw new Error("请选择同楼层未组合、实体不同的普通窗帘。");
-  }
-  const group: CurtainGroup = {
+  const createdGroup = {
     id: groupId,
-    label: groupLabel || "双层窗帘",
-    floorId: template.floorId,
-    memberIds: [firstCurtainId, secondCurtainId],
-    size: template.size ?? 44,
-    iconSize: template.iconSize ?? 26,
-    hitSize: template.hitSize ?? Math.max(44, template.size ?? 44),
-    clickAction: template.clickAction === "panel" ? "panel" : "focus",
-    // 新组合显式带上排布方式：后端会校验 panelLayout 的取值，缺省（undefined）虽能过校验，
-    panelLayout: "horizontal",
-    visible: template.visible !== false,
-    hiddenClickable: template.hiddenClickable === true,
-    buttonHidden: template.buttonHidden === true
+    label: "双层窗帘",
+    floorId: primaryCurtain.floorId,
+    memberIds: [firstMemberId, secondMemberId],
+    size: primaryCurtain.size ?? 44,
+    iconSize: primaryCurtain.iconSize ?? 26,
+    hitSize: primaryCurtain.hitSize ?? Math.max(44, primaryCurtain.size ?? 44),
+    clickAction: ["panel", "turn-on-focus", "turn-on", "turn-on-panel"].includes(
+      primaryCurtain.clickAction,
+    )
+      ? primaryCurtain.clickAction
+      : "focus",
+    visible: primaryCurtain.visible !== false,
+    hiddenClickable: primaryCurtain.hiddenClickable === true,
+    buttonHidden: primaryCurtain.buttonHidden === true,
   };
-  for (const key of ["x", "y", "height", "focusCamera"] as const) {
-    if (template[key] !== undefined) {
-      group[key] = structuredClone(template[key]);
-    }
-  }
-  return group;
+  for (const propertyName of ["x", "y", "height", "focusCamera"])
+    primaryCurtain[propertyName] !== undefined &&
+      (createdGroup[propertyName] = structuredClone(primaryCurtain[propertyName]));
+  return createdGroup;
 }

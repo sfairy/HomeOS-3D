@@ -1,19 +1,8 @@
-/**
- * 配对链接（二维码）的解析与苹果设备引导条件判断。
- */
-import { isAppleMobile } from "../utils/apple-device.js";
-
-/**
- * 解析并严格校验配对链接；链接超长、格式不符或字段缺失时抛中文错误文案。
- */
-export function parsePairingLink(rawLink: unknown): { server: string; code: string | null } {
-  if (String(rawLink).length > 4096)
-    throw new Error(
-      "二维码内容过长，请重新生成。"
-    );
-  const parsedUrl = new URL(String(rawLink)),
+export function parsePairingLink(rawLink) {
+  if (String(rawLink).length > 4096) throw new Error("二维码内容过长，请重新生成。");
+  const parsedUrl = new URL(rawLink),
     hashParams = new URLSearchParams(parsedUrl.hash.slice(1));
-  // 校验要点：只接受 http/https 且不带用户信息（防钓鱼）；路径必须精确为
+  // type 必须是 homeos-pair。展示端（墙面板）与扫码端共用同一套配对标签。
   if (
     !["http:", "https:"].includes(parsedUrl.protocol) ||
     parsedUrl.username ||
@@ -23,34 +12,25 @@ export function parsePairingLink(rawLink: unknown): { server: string; code: stri
     [...hashParams.keys()].sort().join(",") !== "code,type,version" ||
     hashParams.get("type") !== "homeos-pair" ||
     hashParams.get("version") !== "1" ||
-    // 配对码固定 6 位数字，与后端生成规则一致。
     !/^[0-9]{6}$/.test(hashParams.get("code") || "")
   )
-    throw new Error(
-      "配对链接无效，请重新扫描编辑器中的二维码。"
-    );
-  return { server: parsedUrl.origin, code: hashParams.get("code") };
+    throw new Error("配对链接无效，请重新扫描编辑器中的二维码。");
+  return {
+    server: parsedUrl.origin,
+    code: hashParams.get("code"),
+  };
 }
-
-type NavigatorLike = {
-  userAgent?: string;
-  maxTouchPoints?: number;
-  platform?: string;
-  standalone?: boolean;
-};
-
-/**
- * 判断是否需要向用户展示「添加到主屏幕」引导。
- */
-export function needsAppleInstallGuide(
-  navigatorObject: NavigatorLike = navigator,
-  isStandalone = !1,
-): boolean {
-  // 已由 HomeOS 原生 App 打开时不再引导，UA 里带 HomeOS-Apple/Android 标记。
+export function isAppleMobile(navigatorObject = navigator) {
   return (
-    isAppleMobile(navigatorObject) &&
+    /iPhone|iPad|iPod/.test(navigatorObject.userAgent) ||
+    (navigatorObject.platform === "MacIntel" && navigatorObject.maxTouchPoints > 1)
+  );
+}
+export function needsAppleInstallGuide(navigatorSource = navigator, isStandalone = false) {
+  return (
+    isAppleMobile(navigatorSource) &&
     !isStandalone &&
-    !navigatorObject.standalone &&
-    !/HomeOS-(Apple|Android)/i.test(navigatorObject.userAgent || "")
+    !navigatorSource.standalone &&
+    !/HomeOS-(Apple|Android)/i.test(navigatorSource.userAgent)
   );
 }

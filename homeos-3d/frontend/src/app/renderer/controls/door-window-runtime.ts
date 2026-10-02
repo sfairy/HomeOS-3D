@@ -1,97 +1,82 @@
-/**
- * 门窗控件的透视变换：把属性里的 8 个角点（归一化坐标）换算成 CSS matrix3d，
- */
-
-
-// 默认不形变：四个角分别落在矩形四角。
-const DEFAULT_PERSPECTIVE_CORNERS = Object.freeze([0, 0, 1, 0, 1, 1, 0, 1]);
-const PERSPECTIVE_CORNER_BOUNDS = Object.freeze([
-  [-1.5, 2.5],
-  [-1.5, 2.5],
-  [-1.5, 2.5],
-  [-1.5, 2.5],
-  [-1.5, 2.5],
-  [-1.5, 2.5],
-  [-1.5, 2.5],
-  [-1.5, 2.5]
-]);
-/**
- * 归一化角点数组：非法输入回落到默认矩形，逐分量钳制并补齐非有限值。
- */
-export function doorWindowPerspectiveCorners(corners: any) {
+const defaultCorners = Object.freeze([0, 0, 1, 0, 1, 1, 0, 1]),
+  cornerClampRanges = Object.freeze([
+    [-1.5, 2.5],
+    [-1.5, 2.5],
+    [-1.5, 2.5],
+    [-1.5, 2.5],
+    [-1.5, 2.5],
+    [-1.5, 2.5],
+    [-1.5, 2.5],
+    [-1.5, 2.5],
+  ]);
+export function doorWindowPerspectiveCorners(cornerCoordinates) {
   return (
-    Array.isArray(corners) && corners.length === 8 ? corners : DEFAULT_PERSPECTIVE_CORNERS
-  ).map((cornerValue, cornerIndex) => {
-    const numericCornerValue = Number(cornerValue);
-    const defaultCornerValue = DEFAULT_PERSPECTIVE_CORNERS[cornerIndex];
-    const [minimumCornerValue, maximumCornerValue] = PERSPECTIVE_CORNER_BOUNDS[cornerIndex];
+    Array.isArray(cornerCoordinates) && cornerCoordinates.length === 8
+      ? cornerCoordinates
+      : defaultCorners
+  ).map((rawCoordinate, componentIndex) => {
+    const numericCoordinate = Number(rawCoordinate),
+      fallbackCoordinate = defaultCorners[componentIndex],
+      [clampMin, clampMax] = cornerClampRanges[componentIndex];
     return Math.max(
-      minimumCornerValue,
+      clampMin,
       Math.min(
-        maximumCornerValue,
-        Number.isFinite(numericCornerValue) ? numericCornerValue : defaultCornerValue
-      )
+        clampMax,
+        Number.isFinite(numericCoordinate) ? numericCoordinate : fallbackCoordinate,
+      ),
     );
   });
 }
-/**
- * 由四个角点求解透视矩阵并序列化成 CSS matrix3d。
- */
-export function doorWindowPerspectiveMatrix(width: any, height: any, cornerValues: any) {
-  const safeWidth = Math.max(1, Number(width) || 1);
-  const safeHeight = Math.max(1, Number(height) || 1);
-  const normalizedCorners = doorWindowPerspectiveCorners(cornerValues);
-  // 归一化后是 [0,1] 区间的比例值，这里按奇偶分量分别乘宽 / 高，换回像素坐标。
-  const [
-    topLeftX,
-    topLeftY,
-    topRightX,
-    topRightY,
-    bottomRightX,
-    bottomRightY,
-    bottomLeftX,
-    bottomLeftY
-  ] = normalizedCorners.map(
-    (scaledCornerValue, coordinateIndex) =>
-      scaledCornerValue * (coordinateIndex % 2 === 0 ? safeWidth : safeHeight)
-  );
-  const coefficientA = topRightX - bottomRightX;
-  const coefficientB = bottomLeftX - bottomRightX;
-  const coefficientC = topLeftX - topRightX + bottomRightX - bottomLeftX;
-  const coefficientD = topRightY - bottomRightY;
-  const coefficientE = bottomLeftY - bottomRightY;
-  const coefficientF = topLeftY - topRightY + bottomRightY - bottomLeftY;
-  const determinant = coefficientA * coefficientE - coefficientB * coefficientD;
-  if (Math.abs(determinant) < 0.000001) {
-    // 退化四边形：返回单位矩阵，保持元素可见但不变形。
+export function doorWindowPerspectiveMatrix(viewportWidth, viewportHeight, rawCorners) {
+  const sourceWidth = Math.max(1, Number(viewportWidth) || 1),
+    sourceHeight = Math.max(1, Number(viewportHeight) || 1),
+    clampedCorners = doorWindowPerspectiveCorners(rawCorners),
+    [
+      topLeftX,
+      topLeftY,
+      topRightX,
+      topRightY,
+      bottomRightX,
+      bottomRightY,
+      bottomLeftX,
+      bottomLeftY,
+    ] = clampedCorners.map(
+      (cornerComponent, cornerIndex) =>
+        cornerComponent * (cornerIndex % 2 === 0 ? sourceWidth : sourceHeight),
+    ),
+    rightEdgeDeltaX = topRightX - bottomRightX,
+    bottomEdgeDeltaX = bottomLeftX - bottomRightX,
+    perspectiveNumeratorX = topLeftX - topRightX + bottomRightX - bottomLeftX,
+    rightEdgeDeltaY = topRightY - bottomRightY,
+    bottomEdgeDeltaY = bottomLeftY - bottomRightY,
+    perspectiveNumeratorY = topLeftY - topRightY + bottomRightY - bottomLeftY,
+    perspectiveDeterminant =
+      rightEdgeDeltaX * bottomEdgeDeltaY - bottomEdgeDeltaX * rightEdgeDeltaY;
+  if (Math.abs(perspectiveDeterminant) < 0.000001)
     return "matrix3d(1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1)";
-  }
-  // 单应矩阵的 H 自由度：解出它才能把「透视产生的近大远小」写进 CSS。
-  const homographyH = (coefficientC * coefficientE - coefficientB * coefficientF) / determinant;
-  // 单应矩阵的 I 自由度，与 H 对应纵向的透视缩放。
-  const homographyI = (coefficientA * coefficientF - coefficientC * coefficientD) / determinant;
-  // 以下六个分量按列主序拼出 3×3 的线性部分：缩放与剪切各占对角与副对角。
-  const scaleX = (topRightX - topLeftX + homographyH * topRightX) / safeWidth;
-  // shearX：第二列第一行，纵向边倾斜带来的横向位移分量。
-  const shearX = (bottomLeftX - topLeftX + homographyI * bottomLeftX) / safeHeight;
-  // shearY：第一列第二行，与 shearX 对称，承担横向边的纵向位移分量。
-  const shearY = (topRightY - topLeftY + homographyH * topRightY) / safeWidth;
-  // scaleY：第二列第二行，纵向缩放，由左下角相对左上角的纵向位移决定。
-  const scaleY = (bottomLeftY - topLeftY + homographyI * bottomLeftY) / safeHeight;
-  const perspectiveX = homographyH / safeWidth;
-  const perspectiveY = homographyI / safeHeight;
-  // matrix3d 是列主序：每 4 个数一列。前两列承载缩放与剪切，第三列是深度轴（不参与变形），
+  const perspectiveXFactor =
+      (perspectiveNumeratorX * bottomEdgeDeltaY - bottomEdgeDeltaX * perspectiveNumeratorY) /
+      perspectiveDeterminant,
+    perspectiveYFactor =
+      (rightEdgeDeltaX * perspectiveNumeratorY - perspectiveNumeratorX * rightEdgeDeltaY) /
+      perspectiveDeterminant,
+    matrixScaleX = (topRightX - topLeftX + perspectiveXFactor * topRightX) / sourceWidth,
+    matrixShearY = (bottomLeftX - topLeftX + perspectiveYFactor * bottomLeftX) / sourceHeight,
+    matrixShearX = (topRightY - topLeftY + perspectiveXFactor * topRightY) / sourceWidth,
+    matrixScaleY = (bottomLeftY - topLeftY + perspectiveYFactor * bottomLeftY) / sourceHeight,
+    matrixPerspectiveX = perspectiveXFactor / sourceWidth,
+    matrixPerspectiveY = perspectiveYFactor / sourceHeight;
   return (
     "matrix3d(" +
     [
-      scaleX,
-      shearY,
+      matrixScaleX,
+      matrixShearX,
       0,
-      perspectiveX,
-      shearX,
-      scaleY,
+      matrixPerspectiveX,
+      matrixShearY,
+      matrixScaleY,
       0,
-      perspectiveY,
+      matrixPerspectiveY,
       0,
       0,
       1,
@@ -99,9 +84,11 @@ export function doorWindowPerspectiveMatrix(width: any, height: any, cornerValue
       topLeftX,
       topLeftY,
       0,
-      1
+      1,
     ]
-      .map((matrixEntry: any) => (Math.abs(matrixEntry) < 1e-8 ? 0 : Number(matrixEntry.toFixed(8))))
+      .map((matrixComponent) =>
+        Math.abs(matrixComponent) < 1e-8 ? 0 : Number(matrixComponent.toFixed(8)),
+      )
       .join(",") +
     ")"
   );

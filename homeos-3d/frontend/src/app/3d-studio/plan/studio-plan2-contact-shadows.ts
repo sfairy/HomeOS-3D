@@ -1,474 +1,676 @@
-import { isFrontendDebugMode } from "../../utils/debug-log.js";
-import { computeLayoutKey, getDepthMaterial, bakeSurfaceLevels } from "./contact-shadow-passes.js";
-import { findUserDataInAncestors } from "../scene-tree-utils.js";
-
-/**
- * 判断对象自身及其全部祖先是否都可见。
- */
-function isVisibleWithAncestors(rootObject3d: any) {
-  for (let ancestorNode = rootObject3d; ancestorNode; ancestorNode = ancestorNode.parent) {
-    if (!ancestorNode.visible) {
-      return false;
-    }
-  }
+function findUserFieldInAncestors(startObject, userFieldKey) {
+  for (let ancestorObject = startObject; ancestorObject; ancestorObject = ancestorObject.parent)
+    if (ancestorObject.userData?.[userFieldKey] !== undefined)
+      return ancestorObject.userData[userFieldKey];
+}
+function isVisibleWithAncestors(rootObject3d) {
+  for (let ancestorNode = rootObject3d; ancestorNode; ancestorNode = ancestorNode.parent)
+    if (!ancestorNode.visible) return false;
   return true;
 }
-function isContactCasterMaterial(material: any) {
-  return (
-    !!material &&
-    material.visible !== false &&
-    !!(material.opacity >= 0.98) &&
-    !(material.transmission > 0) &&
-    (!material.transparent || !!(material.alphaTest > 0))
+export function isContactCasterMaterial(candidateMaterial) {
+  return !!(
+    candidateMaterial &&
+    candidateMaterial.visible !== false &&
+    candidateMaterial.opacity >= 0.98 &&
+    !(candidateMaterial.transmission > 0) &&
+    (!candidateMaterial.transparent || candidateMaterial.alphaTest > 0)
   );
 }
+export function surfaceBakeLevels(threeModule, sourceMeshList, baseFloorY, maxLevels = 32) {
+  return computeSurfaceLevels(threeModule, sourceMeshList, baseFloorY, maxLevels).map(
+    (bakedLevel) => bakedLevel.height,
+  );
+}
+function computeSurfaceLevels(threeApi, meshList, floorY, levelLimit = 32) {
+  const map = new Map(),
+    vector = new threeApi.Vector3(),
+    vertexB = new threeApi.Vector3(),
+    vertexC = new threeApi.Vector3(),
+    edgeAB = new threeApi.Vector3(),
+    edgeAC = new threeApi.Vector3(),
+    faceNormal = new threeApi.Vector3(),
+    meshMatrix = new threeApi.Matrix4(),
+    instanceMatrix = new threeApi.Matrix4();
+  for (const mesh of meshList) {
+    const material = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    if (
+      material.length &&
+      material.every((materialEntry) => materialEntry?.userData?.plan2SurfaceContact === false)
+    )
+      continue;
+    const geometry = mesh.geometry,
+      positionAttribute = geometry?.attributes?.position;
+    if (!positionAttribute) continue;
+    const index = geometry.index,
+      count = index?.count ?? positionAttribute.count,
+      start = geometry.drawRange.start,
+      min = Math.min(count, start + geometry.drawRange.count);
+    for (let num = 0; num < (mesh.isInstancedMesh ? mesh.count : 1); num++) {
+      (meshMatrix.copy(mesh.matrixWorld),
+        mesh.isInstancedMesh &&
+          (mesh.getMatrixAt(num, instanceMatrix), meshMatrix.multiply(instanceMatrix)));
+      for (let vertexCursor = start; vertexCursor + 2 < min; vertexCursor += 3) {
+        (vector
+          .fromBufferAttribute(positionAttribute, index ? index.getX(vertexCursor) : vertexCursor)
+          .applyMatrix4(meshMatrix),
+          vertexB
+            .fromBufferAttribute(
+              positionAttribute,
+              index ? index.getX(vertexCursor + 1) : vertexCursor + 1,
+            )
+            .applyMatrix4(meshMatrix),
+          vertexC
+            .fromBufferAttribute(
+              positionAttribute,
+              index ? index.getX(vertexCursor + 2) : vertexCursor + 2,
+            )
+            .applyMatrix4(meshMatrix),
+          faceNormal.crossVectors(
+            edgeAB.subVectors(vertexB, vector),
+            edgeAC.subVectors(vertexC, vector),
+          ));
+        const triangleArea = faceNormal.length() * 0.5,
+          surfaceHeight = (vector.y + vertexB.y + vertexC.y) / 3 - floorY,
+          minSurfaceHeight = mesh.userData?.regionReceiverKind === "floor" ? 0.015 : 0.12;
+        if (
+          triangleArea < 0.004 ||
+          faceNormal.y < triangleArea * 1.9998 ||
+          surfaceHeight <= minSurfaceHeight
+        )
+          continue;
+        const round = Math.round(surfaceHeight * 100),
+          options = map.get(round) || {
+            height: 0,
+            area: 0,
+            top: -Infinity,
+          };
+        ((options.height += surfaceHeight * triangleArea),
+          (options.area += triangleArea),
+          (options.top = Math.max(
+            options.top,
+            vector.y - floorY,
+            vertexB.y - floorY,
+            vertexC.y - floorY,
+          )),
+          map.set(round, options));
+      }
+    }
+  }
+  return [...map.values()]
+    .sort((levelA, levelB) => levelB.area - levelA.area)
+    .slice(0, levelLimit)
+    .map((levelEntry) => ({
+      height: levelEntry.height / levelEntry.area,
+      top: levelEntry.top,
+    }))
+    .sort((levelLeft, levelRight) => levelLeft.height - levelRight.height);
+}
 /**
- * 扫描所有网格的三角面，归纳出「有哪些高度上存在朝上的表面」；纯 CPU，只在重建时跑。
+ * 缓存的 uniform 槽位。只用到 value：可能是 Color / Vector 这类可 clone 的值，
+ * 也可能是 Texture（靠 isTexture 判断、不能 clone），所以这里保持宽类型。
  */
+type CachedUniformLike = { value?: any };
 
-/**
- * 创建接触阴影控制器（一个渲染器一份，内部状态跨帧复用）。
- */
+/** collectSceneGroups 的收景范围过滤。 */
+type SceneGroupFilter = {
+  /** 运动态：只处理需要跟着地面一起动的组。 */
+  motion?: boolean;
+  /** 全部楼层都重建；为 true 时 affectedFloors 不再起作用。 */
+  allFloors?: boolean;
+  /** 本次只需要这些楼层；元素是楼层 id。 */
+  affectedFloors?: Set<any>;
+};
+
 export function createContactShadowController({
   THREE: THREE,
   renderer: renderer,
   getRoot: getRoot,
   canBuild: canBuild = () => true,
-  requestFrame: requestFrame = () => {}
-}: any) {
-  // 被外提到同目录的新模块（见其文件头）：惰性上下文，调用点传 contactShadowContext()。
-  const contactShadowContext = () => ({
-    settings,
-    THREE,
-    receiverBoundsCacheByGeometry,
-    isContactCasterMaterial,
-    computeGeometryKey,
-    depthMaterialsByKey,
-    placeholderTexture,
-    renderer,
-    stats,
-    trimMaterialCache,
-    blurMaterial,
-    blurScene,
-    blurCamera,
-  });
-
-  // 默认参数：都是「看起来还行」的经验值，可由外部通过 controller.settings 直接改写。
+  requestFrame: requestFrame = () => {},
+  maxCapturesPerSync: maxCapturesPerSync = Infinity,
+  deferSurfaceBake: deferSurfaceBake = false,
+  deferInitialBake: deferInitialBake = false,
+  surfaceBatchSize: surfaceBatchSize = 2,
+  surfaceBudgetMs: surfaceBudgetMs = 4,
+  now: now = () => performance.now(),
+  followMotion: followMotion = false,
+}) {
   const settings = {
-    enabled: true,
-    // 地面阴影浓度上限；0.78 是试出来的值 —— 再深会把木地板的纹理压没，再浅则家具像浮空。
-    opacity: 0.78,
-    // 地面深度图的边长（像素）。1024 足以覆盖一层的接触范围，且模糊两轮后看不出锯齿。
-    resolution: 1024,
-    // 参与接触阴影的最大高度（米）：高过 2.5m 的吊灯、吊柜对地面的接触贡献可忽略，
-    maxHeight: 2.5,
-    // 浓度随高度衰减的尺度（米）：density = exp(-height / heightFalloff)，
-    heightFalloff: 1.2,
-    // 模糊半径（米）。按世界尺寸给定、再除以地面贴图的世界宽高换算成 UV，
-    blurMeters: 0.055,
-    // 投影在屏幕空间的两个方向的偏移量：制造「光源略偏一侧」的方向感，
-    offsetX: 0.28,
-    offsetZ: -0.22,
-    surfaceEnabled: true,
-    surfaceOpacity: 0.55,
-    surfaceResolution: 256,
-    // 最多烘几级表面高度；级数越多图集越大、烘焙越慢，32 是分辨率与效果的折中。
-    maxSurfaceLevels: 32
-  };
-  // 统计量只用于性能观测与调试面板，不参与渲染决策。
-  const stats = {
-    builds: 0,
-    capturePasses: 0,
-    floors: 0,
-    casters: 0,
-    instancedCasters: 0,
-    receivers: 0,
-    surfaceCaptures: 0,
-    surfacePasses: 0,
-    cacheHits: 0,
-    cachedFloors: 0,
-    cachedLayouts: 0,
-    cachedBytes: 0,
-    disposed: false
-  };
-  // 按楼层 ID（字符串）保存每层的地面贴图、表面图集与 uniform。
-  const floorStatesById = new Map();
-  // 深度材质缓存：同一份材质参数（含 map/alphaMap/位移量与全局 settings）复用同一个
-  const depthMaterialsByKey = new Map();
-  // 几何缓存键 / 接收面包围盒：用 WeakMap，几何被回收后缓存自动失效，
-  const geometryCacheEntryByGeometry = new WeakMap();
-  const receiverBoundsCacheByGeometry = new WeakMap();
-  // 已烘焙的布局缓存（键为「楼层 ID + 内容签名」）：同样的场景内容换楼层时可直接搬用贴图。
-  const cachedLayoutsByKey = new Map();
-  // 1x1 黑色占位纹理：uniform 不能为 null，未烘焙的楼层统一指向它，
-  const placeholderTexture = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
-  placeholderTexture.needsUpdate = true;
-  let needsRebuild = true;
-  let isDisposed = false;
-  let isSuspended = false;
-  let isMotionSuspended = false;
-  let lastRootObject: any = null;
-  // 外部注入的「楼层锚点帧」提供者：返回该楼层当前的世界矩阵。
-  let frameProvider: any = null;
-  let isIncrementalUpdate = false;
-  // 是否允许「复用上一次的布局缓存」；楼层切换时置位，用完即恢复。
-  let shouldReuseLayout = false;
-  // 待重烘的楼层 ID 集合（增量更新的工作队列）。
-  const pendingFloorIds = new Set();
-  // 当前可见楼层；为 null 表示「所有楼层都可见」（整体视图）。
-  let visibleFloorId: any = null;
-  // 可见楼层过滤：整体视图下所有楼层都算可见。
-  const matchesVisibleFloor = (candidateFloorId: any) =>
-    visibleFloorId === null || candidateFloorId === visibleFloorId;
-  // 全屏模糊用的正交相机与四分之一屏（这里是 [-1,1] 的 NDC 铺满）四边形：
-  const blurScene = new THREE.Scene();
-  const blurCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  const blurMaterial = new THREE.ShaderMaterial({
-    uniforms: {
-      source: {
-        value: placeholderTexture
-      },
-      stepSize: {
-        value: new THREE.Vector2()
-      },
-      spread: {
-        value: 0
-      }
+      enabled: true,
+      opacity: 0.78,
+      resolution: 1024,
+      maxHeight: 2.5,
+      heightFalloff: 1.2,
+      blurMeters: 0.055,
+      offsetX: 0.28,
+      offsetZ: -0.22,
+      surfaceEnabled: true,
+      surfaceOpacity: 0.75,
+      surfaceResolution: 256,
+      maxSurfaceLevels: 32,
     },
-    depthTest: false,
-    depthWrite: false,
-    toneMapped: false,
-    // 顶点着色器不做任何变换：直接把 NDC 坐标写出去，四边形的 uv 透传给片元。
-    vertexShader:
-      "varying vec2 shadowUv; void main() { shadowUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }",
-    fragmentShader:
-      "uniform sampler2D source; uniform vec2 stepSize; uniform float spread; varying vec2 shadowUv;\n      void main() {\n        float center = texture2D(source, shadowUv).r;\n        float nearA = texture2D(source, shadowUv + stepSize * 1.384615).r;\n        float nearB = texture2D(source, shadowUv - stepSize * 1.384615).r;\n        float farA = texture2D(source, shadowUv + stepSize * 3.230769).r;\n        float farB = texture2D(source, shadowUv - stepSize * 3.230769).r;\n        float value = mix(center * 0.227027 + (nearA + nearB) * 0.316216 + (farA + farB) * 0.070270,\n          max(center, max(max(nearA, nearB), max(farA, farB))), spread);\n        gl_FragColor = vec4(vec3(value), 1.0);\n      }"
-  });
-  const blurQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blurMaterial);
-  blurQuad.frustumCulled = false;
-  blurScene.add(blurQuad);
-  /**
-   * 取（必要时创建）某楼层的地面阴影状态。
-   */
-  function getFloorState(floorId: any) {
-    const floorIdKey = String(floorId);
-    if (!floorStatesById.has(floorIdKey)) {
-      floorStatesById.set(floorIdKey, {
-        id: floorIdKey,
-        target: null,
-        ping: null,
-        surface: null,
-        lookup: null,
-        casters: 0,
-        instancedCasters: 0,
-        receivers: 0,
-        // uniform 名称是与地面材质着色器约定死的接口（plan2 前缀），改名必须同步改着色器。
-        uniforms: {
-          // 世界坐标 → 烘焙时刻坐标系的逆变换；烘焙后锚点移动时用它把贴图贴回原位。
-          plan2ContactTransform: {
-            value: new THREE.Matrix4()
-          },
-          // 地面深度图（RedFormat，R 通道即遮蔽浓度）。
-          plan2ContactMap: {
-            value: placeholderTexture
-          },
-          // 深度图覆盖的世界矩形：x = min.x，y = min.z，z = 宽，w = 深。
-          plan2ContactBounds: {
-            value: new THREE.Vector4(0, 0, 1, 1)
-          },
-          // 地面高度（世界 Y）：着色器据此判断某片地面是否属于本层。
-          plan2ContactY: {
-            value: 0
-          },
-          // 地面遮蔽总浓度，0 表示该层不可见 / 未烘焙 / 正在淡出。
-          plan2ContactOpacity: {
-            value: 0
-          },
-          // 表面高度图集（多级水平面拼成的大图）。
-          plan2SurfaceMap: {
-            value: placeholderTexture
-          },
-          // 表面图集覆盖的世界矩形：x = min.x，y = min.z，z = 宽，w = 深。
-          plan2SurfaceBounds: {
-            value: new THREE.Vector4()
-          },
-          // 查找表：一维纹理，按归一化高度索引，返回该高度在图集里的格子坐标。
-          plan2SurfaceLookup: {
-            value: placeholderTexture
-          },
-          // 图集布局：x = 列数，y = 查找表覆盖的最大高度（米）。
-          plan2SurfaceLayout: {
-            value: new THREE.Vector2(1, 1)
-          },
-          // 表面遮蔽总浓度，语义同 plan2ContactOpacity。
-          plan2SurfaceOpacity: {
-            value: 0
-          }
+    stats = {
+      builds: 0,
+      capturePasses: 0,
+      floors: 0,
+      casters: 0,
+      instancedCasters: 0,
+      receivers: 0,
+      surfaceCaptures: 0,
+      surfacePasses: 0,
+      testedCasters: 0,
+      culledCasters: 0,
+      cacheHits: 0,
+      cachedFloors: 0,
+      cachedBytes: 0,
+      cachedLayouts: 0,
+      disposed: false,
+    },
+    floorStatesById = new Map(),
+    depthMaterialsByKey = new Map(),
+    weakMap = new WeakMap(),
+    receiverBoundsCacheByGeometry = new WeakMap(),
+    cachedLayoutsByKey = new Map(),
+    placeholderTexture = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
+  placeholderTexture.needsUpdate = true;
+  let shouldRebuild = true,
+    isDisposed = false,
+    isSuspended = false,
+    isMotionSuspended = false,
+    value = null,
+    frameProvider = null,
+    isIncrementalUpdate = false,
+    shouldReuseLayout = false,
+    shouldRefreshMotion = true,
+    isInitialBakeDeferred = deferInitialBake === true,
+    shouldDeferSurfaceBake = deferInitialBake && deferSurfaceBake,
+    isSurfaceBakeDeferred = deferSurfaceBake === true,
+    isEntranceTransition = false,
+    isSyncEnabled = true;
+  const pendingSurfaceBakesByFloorId = new Map();
+  function disposePendingSurfaceBakes(floorIdFilter = null) {
+    for (const [surfaceBakeFloorId, surfaceBakeEntry] of pendingSurfaceBakesByFloorId)
+      if (!floorIdFilter || floorIdFilter.has(surfaceBakeFloorId))
+        try {
+          surfaceBakeEntry.iterator.return();
+        } finally {
+          (surfaceBakeEntry.dispose(), pendingSurfaceBakesByFloorId.delete(surfaceBakeFloorId));
         }
-      });
-    }
-    return floorStatesById.get(floorIdKey);
   }
-  /**
-   * 声明某些楼层需要重建。
-   */
-  function invalidate(floorIds: any = null, keepLayoutCache: any = false) {
+  const set = new Set();
+  let visibleFloorId = null;
+  const matchesVisibleFloor = (candidateFloorId) =>
+      visibleFloorId === null || candidateFloorId === visibleFloorId,
+    blurScene = new THREE.Scene(),
+    blurCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1),
+    blurMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        source: {
+          value: placeholderTexture,
+        },
+        stepSize: {
+          value: new THREE.Vector2(),
+        },
+        spread: {
+          value: 0,
+        },
+      },
+      depthTest: false,
+      depthWrite: false,
+      toneMapped: false,
+      vertexShader:
+        "varying vec2 shadowUv; void main() { shadowUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }",
+      fragmentShader:
+        "uniform sampler2D source; uniform vec2 stepSize; uniform float spread; varying vec2 shadowUv;\n      void main() {\n        float center = texture2D(source, shadowUv).r;\n        float nearA = texture2D(source, shadowUv + stepSize * 1.384615).r;\n        float nearB = texture2D(source, shadowUv - stepSize * 1.384615).r;\n        float farA = texture2D(source, shadowUv + stepSize * 3.230769).r;\n        float farB = texture2D(source, shadowUv - stepSize * 3.230769).r;\n        float value = mix(center * 0.227027 + (nearA + nearB) * 0.316216 + (farA + farB) * 0.070270,\n          max(center, max(max(nearA, nearB), max(farA, farB))), spread);\n        gl_FragColor = vec4(vec3(value), 1.0);\n      }",
+    }),
+    blurQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blurMaterial);
+  ((blurQuad.frustumCulled = false), blurScene.add(blurQuad));
+  function getFloorState(floorId) {
+    const floorIdKey = String(floorId);
+    return (
+      floorStatesById.has(floorIdKey) ||
+        floorStatesById.set(floorIdKey, {
+          id: floorIdKey,
+          target: null,
+          ping: null,
+          surface: null,
+          lookup: null,
+          casters: 0,
+          instancedCasters: 0,
+          receivers: 0,
+          uniforms: {
+            plan2ContactTransform: {
+              value: new THREE.Matrix4(),
+            },
+            plan2ContactMap: {
+              value: placeholderTexture,
+            },
+            plan2ContactBounds: {
+              value: new THREE.Vector4(0, 0, 1, 1),
+            },
+            plan2ContactY: {
+              value: 0,
+            },
+            plan2ContactOpacity: {
+              value: 0,
+            },
+            plan2SurfaceMap: {
+              value: placeholderTexture,
+            },
+            plan2SurfaceBounds: {
+              value: new THREE.Vector4(),
+            },
+            plan2SurfaceLookup: {
+              value: placeholderTexture,
+            },
+            plan2SurfaceLayout: {
+              value: new THREE.Vector2(1, 1),
+            },
+            plan2SurfaceOpacity: {
+              value: 0,
+            },
+          },
+        }),
+      floorStatesById.get(floorIdKey)
+    );
+  }
+  function invalidate(floorIds?: any, keepLayoutCache = false) {
     if (!isDisposed) {
-      if (!keepLayoutCache) {
+      if (
+        ((shouldRefreshMotion = true),
+        disposePendingSurfaceBakes(
+          floorIds == null ? null : new Set(typeof floorIds == "string" ? [floorIds] : floorIds),
+        ),
+        !keepLayoutCache)
+      ) {
         shouldReuseLayout = false;
         const targetFloorIdSet =
           floorIds == null ? null : new Set(typeof floorIds == "string" ? [floorIds] : floorIds);
-        for (const [iteratedLayoutKey, detachedState] of cachedLayoutsByKey) {
-          // 只清掉与目标楼层相关的缓存；保留其他楼层的缓存能让「来回切楼层」几乎零成本。
-          if (!targetFloorIdSet || targetFloorIdSet.has(detachedState.id)) {
-            disposeFloorState(detachedState);
-            cachedLayoutsByKey.delete(iteratedLayoutKey);
-          }
+        for (const [iteratedLayoutKey, detachedState] of cachedLayoutsByKey)
+          (!targetFloorIdSet || targetFloorIdSet.has(detachedState.id)) &&
+            (disposeFloorState(detachedState), cachedLayoutsByKey.delete(iteratedLayoutKey));
+      }
+      if (floorIds == null) ((shouldRebuild = true), set.clear());
+      else {
+        if (!shouldRebuild) {
+          const list = typeof floorIds == "string" ? [floorIds] : floorIds;
+          for (const floorIdValue of list) floorIdValue != null && set.add(String(floorIdValue));
         }
       }
-      if (floorIds == null) {
-        needsRebuild = true;
-        // 整场景重建时清空待办队列：needsRebuild 已经涵盖所有楼层。
-        pendingFloorIds.clear();
-      } else if (!needsRebuild) {
-        const floorIdList = typeof floorIds == "string" ? [floorIds] : floorIds;
-        for (const floorIdValue of floorIdList) {
-          if (floorIdValue != null) {
-            pendingFloorIds.add(String(floorIdValue));
-          }
-        }
-      }
-      if (needsRebuild || pendingFloorIds.size) {
-        requestFrame();
-      }
+      (shouldRebuild || set.size) && requestFrame();
     }
   }
-  /**
-   * 总开关：只切换 uniform 浓度，不销毁贴图。
-   */
-  function setEnabled(enabled: any) {
-    settings.enabled = !!enabled;
+  function invalidateAllFloors() {
+    if (!isDisposed) {
+      for (const clearedFloorState of floorStatesById.values())
+        disposeFloorState(clearedFloorState);
+      ((stats.floors = 0), invalidate());
+    }
+  }
+  function setEnabled(enabled) {
+    ((settings.enabled = !!enabled), (stats.floors = 0));
     for (const enabledFloor of floorStatesById.values()) {
       enabledFloor.fade = null;
-      enabledFloor.uniforms.plan2ContactOpacity.value =
-        settings.enabled &&
-        !isSuspended &&
-        !isMotionSuspended &&
-        matchesVisibleFloor(enabledFloor.id) &&
-        enabledFloor.target
+      const motionReady = isMotionSuspended
+        ? followMotion && enabledFloor.motionReady
+        : matchesVisibleFloor(enabledFloor.id);
+      ((enabledFloor.uniforms.plan2ContactOpacity.value =
+        settings.enabled && !isSuspended && motionReady && enabledFloor.target
           ? settings.opacity
-          : 0;
-      enabledFloor.uniforms.plan2SurfaceOpacity.value =
-        settings.enabled &&
-        !isSuspended &&
-        !isMotionSuspended &&
-        matchesVisibleFloor(enabledFloor.id) &&
-        settings.surfaceEnabled &&
-        enabledFloor.surface
-          ? settings.surfaceOpacity
-          : 0;
+          : 0),
+        (enabledFloor.uniforms.plan2SurfaceOpacity.value =
+          settings.enabled &&
+          !isSuspended &&
+          motionReady &&
+          settings.surfaceEnabled &&
+          enabledFloor.surface &&
+          !enabledFloor.surfacePending
+            ? settings.surfaceOpacity
+            : 0),
+        enabledFloor.target &&
+          enabledFloor.uniforms.plan2ContactOpacity.value > 0 &&
+          stats.floors++);
     }
     requestFrame();
   }
-  /**
-   * 挂起 / 恢复整个接触阴影（用于截图、导出、离屏渲染等需要干净画面的场景）。
-   */
-  function setSuspended(suspended: any) {
-    const nextSuspended = suspended === true;
-    if (nextSuspended !== isSuspended) {
-      isSuspended = nextSuspended;
-      for (const suspendedFloor of floorStatesById.values()) {
-        suspendedFloor.uniforms.plan2ContactOpacity.value = 0;
-        suspendedFloor.uniforms.plan2SurfaceOpacity.value = 0;
-      }
-      invalidate();
+  function setSuspended(suspended) {
+    const isNextSuspended = suspended === true;
+    if (isNextSuspended !== isSuspended) {
+      isSuspended = isNextSuspended;
+      for (const suspendedFloor of floorStatesById.values())
+        ((suspendedFloor.uniforms.plan2ContactOpacity.value = 0),
+          (suspendedFloor.uniforms.plan2SurfaceOpacity.value = 0));
+      ((stats.floors = 0), invalidate());
     }
   }
-  /**
-   * 进入 / 退出「运动模式」（楼层过渡、家具拖拽动画）。
-   */
-  function setMotion(motionEnabled: any) {
+  function setMotion(motionEnabled) {
     if (isMotionSuspended !== (motionEnabled === true)) {
-      isMotionSuspended = motionEnabled === true;
-      if (isMotionSuspended) {
-        for (const resumedFloor of floorStatesById.values()) {
-          resumedFloor.fade = {
-            started: performance.now(),
-            from: resumedFloor.uniforms.plan2ContactOpacity.value,
-            fromSurface: resumedFloor.uniforms.plan2SurfaceOpacity.value,
-            to: 0,
-            toSurface: 0
-          };
-        }
+      if (((isMotionSuspended = motionEnabled === true), isMotionSuspended)) {
+        for (const resumedFloor of floorStatesById.values())
+          ((resumedFloor.motionReady = false),
+            (resumedFloor.fade = followMotion
+              ? null
+              : {
+                  started: performance.now(),
+                  from: resumedFloor.uniforms.plan2ContactOpacity.value,
+                  fromSurface: resumedFloor.uniforms.plan2SurfaceOpacity.value,
+                  to: 0,
+                  toSurface: 0,
+                }));
       }
       if (!isMotionSuspended) {
-        for (const clearedFloor of floorStatesById.values()) {
-          clearedFloor.fade = null;
-        }
-        isIncrementalUpdate = true;
-        shouldReuseLayout = true;
+        for (const clearedFloor of floorStatesById.values()) clearedFloor.fade = null;
+        ((isIncrementalUpdate = true), (shouldReuseLayout = true));
       }
       invalidate(null, true);
     }
   }
-  /**
-   * 按当前锚点把烘焙时刻的贴图变换重新贴回世界坐标。
-   */
   function updateBakedTransforms() {
     for (const bakedFloorState of floorStatesById.values()) {
-      if (!bakedFloorState.bakedFrame) {
-        continue;
-      }
+      if (!bakedFloorState.bakedFrame) continue;
       bakedFloorState.anchor?.updateWorldMatrix(true, false);
-      // updateWorldMatrix(true, false)：向上刷新祖先矩阵（true）但不递归子节点（false），
       const anchorMatrix =
         frameProvider?.(bakedFloorState.id) || bakedFloorState.anchor?.matrixWorld;
-      if (anchorMatrix) {
+      anchorMatrix &&
         bakedFloorState.uniforms.plan2ContactTransform.value
           .copy(anchorMatrix)
           .invert()
           .premultiply(bakedFloorState.bakedFrame);
-      }
     }
   }
-  /**
-   * @param {boolean} [isSurfaceBake=false] 表面烘焙：表面级高度差很小，会换一组近平面 / 衰减 / 截断参数（1.5 / 0.5 / 0.8~1.5）。@throws {Error} 注入点 project_vertex 缺失（three.js 版本不兼容）时抛出。
-   */
-  
-  /**
-   * 把深度材质缓存裁到上限。
-   */
-  function trimMaterialCache() {
-    while (depthMaterialsByKey.size > 64) {
-      const oldestMaterialKey = depthMaterialsByKey.keys().next().value;
-      depthMaterialsByKey.get(oldestMaterialKey).dispose();
-      depthMaterialsByKey.delete(oldestMaterialKey);
+  function getDepthMaterial(sourceMaterial, isSurfaceBake = false) {
+    const stringify = JSON.stringify([
+      isSurfaceBake,
+      sourceMaterial.map?.uuid,
+      sourceMaterial.alphaMap?.uuid,
+      sourceMaterial.alphaTest,
+      sourceMaterial.displacementMap?.uuid,
+      sourceMaterial.displacementScale,
+      sourceMaterial.displacementBias,
+      settings.maxHeight,
+      settings.heightFalloff,
+      settings.offsetX,
+      settings.offsetZ,
+    ]);
+    if (depthMaterialsByKey.has(stringify)) {
+      const reusedMaterial = depthMaterialsByKey.get(stringify);
+      return (
+        depthMaterialsByKey.delete(stringify),
+        depthMaterialsByKey.set(stringify, reusedMaterial),
+        reusedMaterial
+      );
     }
-  }
-  /**
-   * 释放某楼层的全部 GPU 资源并复位 uniform。
-   */
-  function disposeFloorState(targetState: any) {
-    targetState.fade = null;
-    targetState.anchor = null;
-    targetState.bakedFrame = null;
-    targetState.target?.dispose();
-    targetState.ping?.dispose();
-    targetState.surface?.dispose();
-    targetState.lookup?.dispose();
-    targetState.target = null;
-    targetState.ping = null;
-    targetState.surface = null;
-    targetState.lookup = null;
-    targetState.uniforms.plan2ContactMap.value = placeholderTexture;
-    targetState.uniforms.plan2ContactOpacity.value = 0;
-    targetState.uniforms.plan2SurfaceMap.value = placeholderTexture;
-    targetState.uniforms.plan2SurfaceLookup.value = placeholderTexture;
-    targetState.uniforms.plan2SurfaceOpacity.value = 0;
-  }
-  /**
-   * 确保该楼层的主深度图与 ping-pong 缓冲尺寸正确。
-   */
-  function ensureRenderTargets(floorEntry: any, sizePx: any) {
-    if (floorEntry.target?.width !== sizePx || floorEntry.target?.height !== sizePx) {
-      disposeFloorState(floorEntry);
-      floorEntry.target = new THREE.WebGLRenderTarget(sizePx, sizePx, {
-        format: THREE.RedFormat,
-        generateMipmaps: false
-      });
-    }
-    floorEntry.ping ||= new THREE.WebGLRenderTarget(sizePx, sizePx, {
-      format: THREE.RedFormat,
-      depthBuffer: false,
-      generateMipmaps: false
+    const depthMaterial = new THREE.MeshDepthMaterial({
+      depthPacking: THREE.BasicDepthPacking,
+      side: THREE.DoubleSide,
+      map: sourceMaterial.map ?? null,
+      alphaMap: sourceMaterial.alphaMap ?? null,
+      alphaTest: sourceMaterial.alphaTest ?? 0,
+      displacementMap: sourceMaterial.displacementMap ?? null,
+      displacementScale: sourceMaterial.displacementScale ?? 1,
+      displacementBias: sourceMaterial.displacementBias ?? 0,
     });
-    return {
-      target: floorEntry.target,
-      ping: floorEntry.ping
-    };
+    return (
+      (depthMaterial.onBeforeCompile = (shader) => {
+        ((shader.uniforms.contactNear = {
+          value: 0.001,
+        }),
+          (shader.uniforms.contactFar = {
+            value: isSurfaceBake ? 1.5 : settings.maxHeight + 0.06,
+          }),
+          (shader.uniforms.contactFalloff = {
+            value: isSurfaceBake ? 0.5 : settings.heightFalloff,
+          }),
+          (shader.uniforms.contactOffset = {
+            value: new THREE.Vector2(settings.offsetX, settings.offsetZ),
+          }),
+          (shader.vertexShader = "uniform vec2 contactOffset;\n" + shader.vertexShader));
+        const text = "#include <project_vertex>";
+        if (!shader.vertexShader.includes(text)) throw new Error("接触阴影材质缺少 project_vertex");
+        ((shader.vertexShader = shader.vertexShader.replace(
+          text,
+          text +
+            "\n        // The capture looks up from 6cm below this floor. project_vertex has\n        // already applied instancing, skinning and the mesh world transform.\n        // Ground contact stays fixed; elevated surfaces reveal a short shadow\n        // beside the furniture using the same cached map and depth falloff.\n        float contactHeight = max(-mvPosition.z - " +
+            (isSurfaceBake ? "0.0" : "0.06") +
+            ", 0.0);\n        gl_Position.xy += vec2(projectionMatrix[0][0], projectionMatrix[1][1]) * contactHeight * contactOffset;",
+        )),
+          (shader.fragmentShader =
+            "uniform float contactNear, contactFar, contactFalloff;\n" + shader.fragmentShader),
+          (shader.fragmentShader = shader.fragmentShader.replace(
+            "gl_FragColor = vec4( vec3( 1.0 - fragCoordZ ), opacity );",
+            "float height = max(mix(contactNear, contactFar, fragCoordZ) - " +
+              (isSurfaceBake ? "0.0" : "0.06") +
+              ", 0.0);\n         float density = exp(-height / contactFalloff) * (1.0 - smoothstep(" +
+              (isSurfaceBake ? 0.8 : 1.8) +
+              ", " +
+              (isSurfaceBake ? 1.5 : 2.5) +
+              ", height));\n         gl_FragColor = vec4(vec3(density), 1.0);",
+          )));
+      }),
+      (depthMaterial.customProgramCacheKey = () =>
+        isSurfaceBake ? "plan2-surface-bake-v1" : "plan2-contact-depth-v2-short-shadow"),
+      depthMaterialsByKey.set(stringify, depthMaterial),
+      depthMaterial
+    );
   }
-  /**
-   * 烘焙「表面之间的接触遮蔽」：把每一级水平面各拍一张深度图，拼成一张图集。
-   */
-  
-  /**
-   * 烘焙一层楼的接触阴影贴图。相机摆位是整套方案的核心：正交相机放在地板面下方 6cm、朝正上方拍。
-   */
-  function buildContactMap(contactEntry: any, receivers: any, casters: any) {
-    const boundsBox = new THREE.Box3();
-    for (const receiverMesh of receivers) {
-      boundsBox.union(new THREE.Box3().setFromObject(receiverMesh));
+  function trimMaterialCache() {
+    for (; depthMaterialsByKey.size > 64;) {
+      const oldestMaterialKey = depthMaterialsByKey.keys().next().value;
+      (depthMaterialsByKey.get(oldestMaterialKey).dispose(),
+        depthMaterialsByKey.delete(oldestMaterialKey));
     }
-    if (boundsBox.isEmpty() || !casters.length) {
-      disposeFloorState(contactEntry);
+  }
+  function disposeFloorState(targetState) {
+    ((targetState.surfacePending = false),
+      (targetState.fade = null),
+      (targetState.anchor = null),
+      (targetState.bakedFrame = null),
+      targetState.target?.dispose(),
+      targetState.ping?.dispose(),
+      targetState.surface?.dispose(),
+      targetState.lookup?.dispose(),
+      (targetState.target = null),
+      (targetState.ping = null),
+      (targetState.surface = null),
+      (targetState.lookup = null),
+      (targetState.uniforms.plan2ContactMap.value = placeholderTexture),
+      (targetState.uniforms.plan2ContactOpacity.value = 0),
+      (targetState.uniforms.plan2SurfaceMap.value = placeholderTexture),
+      (targetState.uniforms.plan2SurfaceLookup.value = placeholderTexture),
+      (targetState.uniforms.plan2SurfaceOpacity.value = 0));
+  }
+  function ensureRenderTargets(floorEntry, sizePx) {
+    return (
+      (floorEntry.target?.width !== sizePx || floorEntry.target?.height !== sizePx) &&
+        (disposeFloorState(floorEntry),
+        (floorEntry.target = new THREE.WebGLRenderTarget(sizePx, sizePx, {
+          format: THREE.RedFormat,
+          generateMipmaps: false,
+        }))),
+      floorEntry.ping ||
+        (floorEntry.ping = new THREE.WebGLRenderTarget(sizePx, sizePx, {
+          format: THREE.RedFormat,
+          depthBuffer: false,
+          generateMipmaps: false,
+        })),
+      {
+        target: floorEntry.target,
+        ping: floorEntry.ping,
+      }
+    );
+  }
+  function* bakeSurfaceLevels(
+    surfaceEntry,
+    casterMeshes,
+    overrideByCaster,
+    renderScene,
+    casterBounds,
+    floorBaseY,
+    fallbackMaterial,
+    refreshCasterVisibility,
+  ) {
+    const $e2 = computeSurfaceLevels(THREE, casterMeshes, floorBaseY, settings.maxSurfaceLevels),
+      levelHeights = $e2.map((surfaceLevel) => surfaceLevel.height);
+    if (((surfaceEntry.uniforms.plan2SurfaceOpacity.value = 0), !levelHeights.length)) {
+      (surfaceEntry.surface?.dispose(),
+        surfaceEntry.lookup?.dispose(),
+        (surfaceEntry.surface = surfaceEntry.lookup = null),
+        (surfaceEntry.uniforms.plan2SurfaceMap.value = placeholderTexture),
+        (surfaceEntry.uniforms.plan2SurfaceLookup.value = placeholderTexture));
       return;
     }
-    const floorTopY = boundsBox.max.y;
-    boundsBox.min.x -= 0.25;
-    boundsBox.min.z -= 0.25;
-    boundsBox.max.x += 0.25;
-    boundsBox.max.z += 0.25;
-    const boundsWidth = Math.max(boundsBox.max.x - boundsBox.min.x, 0.1);
-    const boundsDepth = Math.max(boundsBox.max.z - boundsBox.min.z, 0.1);
-    const captureSizePx = Math.min(settings.resolution, renderer.capabilities.maxTextureSize);
-    const { target: contactTarget, ping: contactPingTarget } = ensureRenderTargets(
-      contactEntry,
-      captureSizePx
-    );
-    const captureCamera = new THREE.OrthographicCamera(
-      -boundsWidth / 2,
-      boundsWidth / 2,
-      boundsDepth / 2,
-      -boundsDepth / 2,
-      0.001,
-      settings.maxHeight + 0.06
-    );
-    // 相机摆在接收面中心的正下方 6cm 处（见上文的摆位说明）。
-    const centerX = (boundsBox.min.x + boundsBox.max.x) / 2;
-    // Z 向同理；centerX / centerZ 一起给出相机的水平落点。
-    const centerZ = (boundsBox.min.z + boundsBox.max.z) / 2;
-    captureCamera.position.set(centerX, floorTopY - 0.06, centerZ);
-    captureCamera.up.set(0, 0, 1);
-    captureCamera.lookAt(centerX, floorTopY + 1, centerZ);
-    captureCamera.updateMatrixWorld(true);
-    const captureScene = new THREE.Scene();
-    const depthMaterialsByCaster = new Map();
-    const clonedCasters = [];
-    const fallbackDepthMaterial = new THREE.MeshDepthMaterial();
-    // 兜底材质设成不可见：克隆体仍留在场景里（保持层级与矩阵一致），但一个像素都不写。
-    fallbackDepthMaterial.visible = false;
-    // 源材质 → 深度材质的映射：不参与接触阴影的材质统一换成 visible = false 的兜底材质。
-    const toDepthMaterial = (casterMaterialForClone: any) =>
-      isContactCasterMaterial(casterMaterialForClone)
-        ? (depthMaterialsByCaster.has(casterMaterialForClone) ||
-            depthMaterialsByCaster.set(
-              casterMaterialForClone,
-              getDepthMaterial(casterMaterialForClone, false, contactShadowContext())
-            ),
-          depthMaterialsByCaster.get(casterMaterialForClone))
-        : fallbackDepthMaterial;
-    for (const casterSource of casters) {
-      // clone(false)：不递归子节点，只复制网格自身的几何 / 材质引用。
-      const casterClone = casterSource.clone(false);
-      casterClone.material = Array.isArray(casterSource.material)
-        ? casterSource.material.map(toDepthMaterial)
-        : toDepthMaterial(casterSource.material);
-      // 直接拷贝源对象的世界矩阵并关掉自动更新：克隆体不在原层级里，
-      casterClone.matrix.copy(casterSource.matrixWorld);
-      casterClone.matrixWorld.copy(casterSource.matrixWorld);
-      casterClone.matrixAutoUpdate = false;
-      casterClone.matrixWorldAutoUpdate = true;
-      casterClone.castShadow = false;
-      casterClone.receiveShadow = false;
-      // 强制回第 0 层：光影层、辅助层等自定义图层不能被深度通道误渲染。
-      casterClone.layers.set(0);
-      // 关闭视锥剔除：包围盒是按原始层级算的，克隆后位置变了会算错。
-      casterClone.frustumCulled = false;
-      captureScene.add(casterClone);
-      clonedCasters.push(casterClone);
+    const ceil = Math.ceil(Math.sqrt(levelHeights.length)),
+      tileSizePx = Math.min(
+        settings.surfaceResolution,
+        Math.floor(renderer.capabilities.maxTextureSize / ceil),
+      ),
+      atlasSizePx = ceil * tileSizePx;
+    surfaceEntry.surface?.width !== atlasSizePx &&
+      (surfaceEntry.surface?.dispose(),
+      (surfaceEntry.surface = new THREE.WebGLRenderTarget(atlasSizePx, atlasSizePx, {
+        format: THREE.RedFormat,
+        depthBuffer: false,
+        generateMipmaps: false,
+      })));
+    const clone = casterBounds.clone();
+    clone.expandByVector(new THREE.Vector3(0.5, 0, 0.5));
+    const surfaceWidth = clone.max.x - clone.min.x,
+      surfaceDepth = clone.max.z - clone.min.z,
+      surfaceCenterX = (clone.min.x + clone.max.x) / 2,
+      surfaceCenterZ = (clone.min.z + clone.max.z) / 2,
+      bakeCamera = new THREE.OrthographicCamera(
+        -surfaceWidth / 2,
+        surfaceWidth / 2,
+        surfaceDepth / 2,
+        -surfaceDepth / 2,
+        0.001,
+        1.5,
+      );
+    bakeCamera.up.set(0, 0, 1);
+    const bakeTarget = new THREE.WebGLRenderTarget(tileSizePx, tileSizePx, {
+        format: THREE.RedFormat,
+        generateMipmaps: false,
+      }),
+      blurTarget = new THREE.WebGLRenderTarget(tileSizePx, tileSizePx, {
+        format: THREE.RedFormat,
+        depthBuffer: false,
+        generateMipmaps: false,
+      }),
+      surfaceMaterialsByCaster = new Map(),
+      toSurfaceMaterial = (surfaceSourceMaterial) =>
+        isContactCasterMaterial(surfaceSourceMaterial)
+          ? (surfaceMaterialsByCaster.has(surfaceSourceMaterial) ||
+              surfaceMaterialsByCaster.set(
+                surfaceSourceMaterial,
+                getDepthMaterial(surfaceSourceMaterial, true),
+              ),
+            surfaceMaterialsByCaster.get(surfaceSourceMaterial))
+          : fallbackMaterial;
+    try {
+      overrideByCaster.forEach((overrideMaterial, overrideIndex) => {
+        const originalMaterial = casterMeshes[overrideIndex].material;
+        overrideMaterial.material = Array.isArray(originalMaterial)
+          ? originalMaterial.map(toSurfaceMaterial)
+          : toSurfaceMaterial(originalMaterial);
+      });
+      let batchStartedAt = now(),
+        batchPassCount = 0;
+      for (let levelIndex = 0; levelIndex < levelHeights.length; levelIndex++) {
+        (bakeCamera.position.set(
+          surfaceCenterX,
+          floorBaseY + $e2[levelIndex].top + 0.003,
+          surfaceCenterZ,
+        ),
+          bakeCamera.lookAt(surfaceCenterX, bakeCamera.position.y + 1, surfaceCenterZ),
+          bakeCamera.updateMatrixWorld(true),
+          refreshCasterVisibility(bakeCamera),
+          (renderer.autoClear = true),
+          renderer.setClearColor(0, 1),
+          renderer.setRenderTarget(bakeTarget),
+          renderer.render(renderScene, bakeCamera),
+          stats.surfacePasses++);
+        const blurPass = (sourceTarget, destTarget, stepX, stepY, spread = 0) => {
+          ((blurMaterial.uniforms.source.value = sourceTarget.texture),
+            blurMaterial.uniforms.stepSize.value.set(stepX, stepY),
+            (blurMaterial.uniforms.spread.value = spread),
+            renderer.setRenderTarget(destTarget),
+            renderer.render(blurScene, blurCamera));
+        };
+        (blurPass(bakeTarget, blurTarget, 0.006 / surfaceWidth, 0, 1),
+          blurPass(blurTarget, bakeTarget, 0, 0.006 / surfaceDepth, 1),
+          blurPass(bakeTarget, blurTarget, 0.012 / surfaceWidth, 0),
+          blurPass(blurTarget, bakeTarget, 0, 0.012 / surfaceDepth),
+          surfaceEntry.surface.viewport.set(
+            (levelIndex % ceil) * tileSizePx,
+            Math.floor(levelIndex / ceil) * tileSizePx,
+            tileSizePx,
+            tileSizePx,
+          ),
+          (renderer.autoClear = false),
+          blurPass(bakeTarget, surfaceEntry.surface, 0, 0),
+          batchPassCount++,
+          (batchPassCount >=
+            (isEntranceTransition ? Math.min(2, surfaceBatchSize) : surfaceBatchSize) ||
+            now() - batchStartedAt >= surfaceBudgetMs) &&
+            levelIndex + 1 < levelHeights.length &&
+            (yield, (batchStartedAt = now()), (batchPassCount = 0)));
+      }
+      surfaceEntry.surface.viewport.set(0, 0, atlasSizePx, atlasSizePx);
+      const maxLookupHeight = levelHeights.at(-1) + 0.05,
+        lookupSize = 2048,
+        uint8Array = new Uint8Array(lookupSize * 4);
+      for (let lookupIndex = 0; lookupIndex < lookupSize; lookupIndex++) {
+        const lookupHeight = ((lookupIndex + 0.5) / lookupSize) * maxLookupHeight;
+        let nearestLevelIndex = -1,
+          nearestLevelDistance = 0.018;
+        if (
+          (levelHeights.forEach((levelHeight, heightIndex) => {
+            const abs = Math.abs(levelHeight - lookupHeight);
+            abs < nearestLevelDistance &&
+              ((nearestLevelDistance = abs), (nearestLevelIndex = heightIndex));
+          }),
+          nearestLevelIndex < 0)
+        )
+          continue;
+        const max = Math.max(
+          1,
+          Math.min(
+            65535,
+            Math.floor((($e2[nearestLevelIndex].top + 0.003) / maxLookupHeight) * 65535),
+          ),
+        );
+        ((uint8Array[lookupIndex * 4] = nearestLevelIndex % ceil),
+          (uint8Array[lookupIndex * 4 + 1] = Math.floor(nearestLevelIndex / ceil)),
+          (uint8Array[lookupIndex * 4 + 2] = max >> 8),
+          (uint8Array[lookupIndex * 4 + 3] = max & 255));
+      }
+      (surfaceEntry.lookup?.dispose(),
+        (surfaceEntry.lookup = new THREE.DataTexture(uint8Array, lookupSize, 1)),
+        (surfaceEntry.lookup.needsUpdate = true),
+        (surfaceEntry.uniforms.plan2SurfaceMap.value = surfaceEntry.surface.texture),
+        (surfaceEntry.uniforms.plan2SurfaceLookup.value = surfaceEntry.lookup),
+        surfaceEntry.uniforms.plan2SurfaceLayout.value.set(ceil, maxLookupHeight),
+        surfaceEntry.uniforms.plan2SurfaceBounds.value.set(
+          clone.min.x,
+          clone.min.z,
+          surfaceWidth,
+          surfaceDepth,
+        ),
+        (surfaceEntry.uniforms.plan2SurfaceOpacity.value = settings.enabled
+          ? settings.surfaceOpacity
+          : 0),
+        stats.surfaceCaptures++);
+    } finally {
+      (bakeTarget.dispose(),
+        blurTarget.dispose(),
+        trimMaterialCache(),
+        (blurMaterial.uniforms.source.value = placeholderTexture),
+        (blurMaterial.uniforms.spread.value = 0));
     }
-    // 快照渲染器状态：烘焙是「借用」渲染器，结束后必须逐项还原，
-    const renderState = {
+  }
+  function snapshotRenderState() {
+    return {
       target: renderer.getRenderTarget(),
       face: renderer.getActiveCubeFace(),
       mip: renderer.getActiveMipmapLevel(),
@@ -479,147 +681,293 @@ export function createContactShadowController({
       xr: renderer.xr.enabled,
       viewport: renderer.getViewport(new THREE.Vector4()),
       scissor: renderer.getScissor(new THREE.Vector4()),
-      scissorTest: renderer.getScissorTest()
+      scissorTest: renderer.getScissorTest(),
+    };
+  }
+  function restoreRenderState(renderState) {
+    (renderer.setViewport(renderState.viewport),
+      renderer.setScissor(renderState.scissor),
+      renderer.setScissorTest(renderState.scissorTest),
+      renderer.setRenderTarget(renderState.target, renderState.face, renderState.mip),
+      renderer.setClearColor(renderState.clear, renderState.alpha),
+      (renderer.autoClear = renderState.autoClear),
+      (renderer.shadowMap.enabled = renderState.shadows),
+      (renderer.xr.enabled = renderState.xr),
+      (blurMaterial.uniforms.source.value = placeholderTexture),
+      (blurMaterial.uniforms.spread.value = 0));
+  }
+  function buildContactMap(contactEntry, receivers, casters) {
+    const boundsBox = new THREE.Box3();
+    let floorTopY = Infinity;
+    for (const receiverMesh of receivers) {
+      const setFromObject = new THREE.Box3().setFromObject(receiverMesh);
+      (boundsBox.union(setFromObject),
+        setFromObject.isEmpty() || (floorTopY = Math.min(floorTopY, setFromObject.max.y)));
+    }
+    if (boundsBox.isEmpty() || !casters.length) {
+      disposeFloorState(contactEntry);
+      return;
+    }
+    ((boundsBox.min.x -= 0.25),
+      (boundsBox.min.z -= 0.25),
+      (boundsBox.max.x += 0.25),
+      (boundsBox.max.z += 0.25));
+    const boundsWidth = Math.max(boundsBox.max.x - boundsBox.min.x, 0.1),
+      boundsDepth = Math.max(boundsBox.max.z - boundsBox.min.z, 0.1),
+      captureSizePx = Math.min(settings.resolution, renderer.capabilities.maxTextureSize),
+      { target: contactTarget, ping: contactPingTarget } = ensureRenderTargets(
+        contactEntry,
+        captureSizePx,
+      ),
+      captureCamera = new THREE.OrthographicCamera(
+        -boundsWidth / 2,
+        boundsWidth / 2,
+        boundsDepth / 2,
+        -boundsDepth / 2,
+        0.001,
+        settings.maxHeight + 0.06,
+      ),
+      centerX = (boundsBox.min.x + boundsBox.max.x) / 2,
+      centerZ = (boundsBox.min.z + boundsBox.max.z) / 2;
+    (captureCamera.position.set(centerX, floorTopY - 0.06, centerZ),
+      captureCamera.up.set(0, 0, 1),
+      captureCamera.lookAt(centerX, floorTopY + 1, centerZ),
+      captureCamera.updateMatrixWorld(true));
+    const captureScene = new THREE.Scene(),
+      depthMaterialsByCaster = new Map(),
+      clonedCasters = [],
+      fallbackDepthMaterial = new THREE.MeshDepthMaterial();
+    fallbackDepthMaterial.visible = false;
+    const toDepthMaterial = (casterMaterialForClone) =>
+      isContactCasterMaterial(casterMaterialForClone)
+        ? (depthMaterialsByCaster.has(casterMaterialForClone) ||
+            depthMaterialsByCaster.set(
+              casterMaterialForClone,
+              getDepthMaterial(casterMaterialForClone),
+            ),
+          depthMaterialsByCaster.get(casterMaterialForClone))
+        : fallbackDepthMaterial;
+    for (const casterSource of casters) {
+      const clone2 = casterSource.clone(false);
+      ((clone2.material = Array.isArray(casterSource.material)
+        ? casterSource.material.map(toDepthMaterial)
+        : toDepthMaterial(casterSource.material)),
+        clone2.matrix.copy(casterSource.matrixWorld),
+        clone2.matrixWorld.copy(casterSource.matrixWorld),
+        (clone2.matrixAutoUpdate = false),
+        (clone2.matrixWorldAutoUpdate = true),
+        (clone2.castShadow = false),
+        (clone2.receiveShadow = false),
+        clone2.layers.set(0),
+        (clone2.frustumCulled = false),
+        captureScene.add(clone2),
+        clonedCasters.push(clone2));
+    }
+    const geometryBoundsByGeometry = new Map(),
+      instanceTransformMatrix = new THREE.Matrix4(),
+      transformedGeometryBox = new THREE.Box3(),
+      casterBoundsList = casters.map((casterMesh) => {
+        const materialList = Array.isArray(casterMesh.material)
+          ? casterMesh.material
+          : [casterMesh.material];
+        if (
+          casterMesh.isSkinnedMesh ||
+          casterMesh.isBatchedMesh ||
+          casterMesh.morphTexture ||
+          casterMesh.morphTargetInfluences?.length ||
+          materialList.some(
+            (materialCandidate) =>
+              materialCandidate?.isShaderMaterial || materialCandidate?.displacementMap,
+          ) ||
+          !casterMesh.geometry?.attributes.position
+        )
+          return null;
+        geometryBoundsByGeometry.has(casterMesh.geometry) ||
+          (casterMesh.geometry.computeBoundingBox(),
+          geometryBoundsByGeometry.set(casterMesh.geometry, casterMesh.geometry.boundingBox));
+        const geometryBounds = geometryBoundsByGeometry.get(casterMesh.geometry);
+        if (!geometryBounds) return null;
+        const paddedCasterBounds = new THREE.Box3();
+        if (casterMesh.isInstancedMesh) {
+          for (let instanceIndex = 0; instanceIndex < casterMesh.count; instanceIndex++)
+            (casterMesh.getMatrixAt(instanceIndex, instanceTransformMatrix),
+              instanceTransformMatrix.premultiply(casterMesh.matrixWorld),
+              paddedCasterBounds.union(
+                transformedGeometryBox.copy(geometryBounds).applyMatrix4(instanceTransformMatrix),
+              ));
+        } else paddedCasterBounds.copy(geometryBounds).applyMatrix4(casterMesh.matrixWorld);
+        const maxOffsetHeight = Math.max(settings.maxHeight + 0.06, 1.5);
+        return (
+          paddedCasterBounds?.expandByVector(
+            new THREE.Vector3(
+              Math.abs(settings.offsetX) * maxOffsetHeight + 0.0001,
+              0.0001,
+              Math.abs(settings.offsetZ) * maxOffsetHeight + 0.0001,
+            ),
+          ),
+          paddedCasterBounds &&
+          Number.isFinite(
+            paddedCasterBounds.min.x +
+              paddedCasterBounds.min.y +
+              paddedCasterBounds.min.z +
+              paddedCasterBounds.max.x +
+              paddedCasterBounds.max.y +
+              paddedCasterBounds.max.z,
+          )
+            ? paddedCasterBounds
+            : null
+        );
+      }),
+      casterFrustum = new THREE.Frustum(),
+      viewProjectionMatrix = new THREE.Matrix4(),
+      mainCaptureCamera = captureCamera,
+      applyCasterVisibility = (activeCamera) => {
+        casterFrustum.setFromProjectionMatrix(
+          viewProjectionMatrix.multiplyMatrices(
+            activeCamera.projectionMatrix,
+            activeCamera.matrixWorldInverse,
+          ),
+        );
+        for (let casterIndex = 0; casterIndex < clonedCasters.length; casterIndex++) {
+          const casterBoundsEntry = casterBoundsList[casterIndex],
+            isHiddenFloorReceiver =
+              activeCamera === mainCaptureCamera &&
+              casters[casterIndex].userData?.regionReceiverKind === "floor" &&
+              casterBoundsEntry &&
+              casterBoundsEntry.max.y <= floorTopY + 0.003;
+          ((clonedCasters[casterIndex].visible =
+            !isHiddenFloorReceiver &&
+            (!casterBoundsEntry || casterFrustum.intersectsBox(casterBoundsEntry))),
+            casterBoundsEntry &&
+              (stats.testedCasters++, clonedCasters[casterIndex].visible || stats.culledCasters++));
+        }
+      },
+      savedRenderState = snapshotRenderState();
+    let hasDeferredSurfaceBake = false;
+    const disposeCaptureResources = () => {
+      fallbackDepthMaterial.dispose();
+      for (const disposableCaster of clonedCasters)
+        (disposableCaster.isInstancedMesh || disposableCaster.isBatchedMesh) &&
+          disposableCaster.dispose();
+      captureScene.clear();
     };
     try {
-      renderer.xr.enabled = false;
-      // 深度通道只关心几何位置：关掉阴影图省掉每帧的阴影渲染，
-      renderer.shadowMap.enabled = false;
-      renderer.autoClear = true;
-      renderer.setScissorTest(false);
-      renderer.setClearColor(0, 1);
-      renderer.setRenderTarget(contactTarget);
-      renderer.render(captureScene, captureCamera);
-      stats.capturePasses += 1;
-      // 一轮「横向 + 纵向」分离式模糊；blurScale 缩放扩散半径（下方以 1 与 0.4 各跑一轮）。
-      const blurOnce = (blurScale: any) => {
-        // 分离式模糊：先按 X 方向做一遍，步长换算成 UV（世界距离 / 覆盖宽度），
-        blurMaterial.uniforms.source.value = contactTarget.texture;
-        blurMaterial.uniforms.stepSize.value.set(
-          (settings.blurMeters * blurScale) / boundsWidth,
-          0
-        );
-        renderer.setRenderTarget(contactPingTarget);
-        renderer.render(blurScene, blurCamera);
-        blurMaterial.uniforms.source.value = contactPingTarget.texture;
-        blurMaterial.uniforms.stepSize.value.set(
-          0,
-          (settings.blurMeters * blurScale) / boundsDepth
-        );
-        renderer.setRenderTarget(contactTarget);
-        renderer.render(blurScene, blurCamera);
+      ((renderer.xr.enabled = false),
+        (renderer.shadowMap.enabled = false),
+        (renderer.autoClear = true),
+        renderer.setScissorTest(false),
+        renderer.setClearColor(0, 1),
+        applyCasterVisibility(captureCamera),
+        renderer.setRenderTarget(contactTarget),
+        renderer.render(captureScene, captureCamera),
+        (stats.capturePasses += 1));
+      const blurOnce = (blurScale) => {
+        ((blurMaterial.uniforms.source.value = contactTarget.texture),
+          blurMaterial.uniforms.stepSize.value.set(
+            (settings.blurMeters * blurScale) / boundsWidth,
+            0,
+          ),
+          renderer.setRenderTarget(contactPingTarget),
+          renderer.render(blurScene, blurCamera),
+          (blurMaterial.uniforms.source.value = contactPingTarget.texture),
+          blurMaterial.uniforms.stepSize.value.set(
+            0,
+            (settings.blurMeters * blurScale) / boundsDepth,
+          ),
+          renderer.setRenderTarget(contactTarget),
+          renderer.render(blurScene, blurCamera));
       };
-      // 两轮模糊：先按标称半径铺开，再按 0.4 倍收一下边 —— 单轮大半径会留下明显的
-      blurOnce(1);
-      blurOnce(0.4);
-      if (settings.surfaceEnabled) {
-        bakeSurfaceLevels(
+      if ((blurOnce(1), blurOnce(0.4), settings.surfaceEnabled)) {
+        const surfaceBakeIterator = bakeSurfaceLevels(
           contactEntry,
           casters,
           clonedCasters,
           captureScene,
           boundsBox,
           floorTopY,
-          fallbackDepthMaterial
-        , contactShadowContext());
-      } else {
-        contactEntry.uniforms.plan2SurfaceOpacity.value = 0;
-      }
-      contactEntry.uniforms.plan2ContactMap.value = contactTarget.texture;
-      contactEntry.uniforms.plan2ContactBounds.value.set(
-        boundsBox.min.x,
-        boundsBox.min.z,
-        boundsWidth,
-        boundsDepth
-      );
-      contactEntry.uniforms.plan2ContactY.value = floorTopY;
-      contactEntry.uniforms.plan2ContactOpacity.value = settings.enabled ? settings.opacity : 0;
+          fallbackDepthMaterial,
+          applyCasterVisibility,
+        );
+        if (isSurfaceBakeDeferred || shouldDeferSurfaceBake)
+          (disposePendingSurfaceBakes(new Set([contactEntry.id])),
+            (contactEntry.surfacePending = true),
+            (contactEntry.uniforms.plan2SurfaceOpacity.value = 0),
+            pendingSurfaceBakesByFloorId.set(contactEntry.id, {
+              record: contactEntry,
+              iterator: surfaceBakeIterator,
+              dispose: disposeCaptureResources,
+            }),
+            (hasDeferredSurfaceBake = true));
+        else {
+          for (const surfaceBakeStep of surfaceBakeIterator);
+          contactEntry.surfacePending = false;
+        }
+      } else
+        ((contactEntry.surfacePending = false),
+          (contactEntry.uniforms.plan2SurfaceOpacity.value = 0));
+      ((contactEntry.uniforms.plan2ContactMap.value = contactTarget.texture),
+        contactEntry.uniforms.plan2ContactBounds.value.set(
+          boundsBox.min.x,
+          boundsBox.min.z,
+          boundsWidth,
+          boundsDepth,
+        ),
+        (contactEntry.uniforms.plan2ContactY.value = floorTopY),
+        (contactEntry.uniforms.plan2ContactOpacity.value = settings.enabled
+          ? settings.opacity
+          : 0));
     } catch (caughtError) {
-      // 烘焙中途失败就把该层资源清干净：留下半张贴图会让地面出现错误的暗块，
-      disposeFloorState(contactEntry);
-      throw caughtError;
+      throw (
+        disposePendingSurfaceBakes(new Set([contactEntry.id])),
+        disposeFloorState(contactEntry),
+        caughtError
+      );
     } finally {
-      renderer.setViewport(renderState.viewport);
-      renderer.setScissor(renderState.scissor);
-      renderer.setScissorTest(renderState.scissorTest);
-      renderer.setRenderTarget(renderState.target, renderState.face, renderState.mip);
-      renderer.setClearColor(renderState.clear, renderState.alpha);
-      renderer.autoClear = renderState.autoClear;
-      renderer.shadowMap.enabled = renderState.shadows;
-      renderer.xr.enabled = renderState.xr;
-      fallbackDepthMaterial.dispose();
-      trimMaterialCache();
-      // 克隆体自身持有的 InstancedMesh / BatchedMesh 数据是 clone 时新分配的，
-      for (const disposableCaster of clonedCasters) {
-        if (disposableCaster.isInstancedMesh) {
-          disposableCaster.dispose();
-        }
-        if (disposableCaster.isBatchedMesh) {
-          disposableCaster.dispose();
-        }
-      }
-      captureScene.clear();
-      blurMaterial.uniforms.source.value = placeholderTexture;
+      (restoreRenderState(savedRenderState),
+        hasDeferredSurfaceBake || disposeCaptureResources(),
+        trimMaterialCache());
     }
   }
-  /**
-   * 给几何算一个内容签名，供布局缓存做比对。
-   * @returns {string} 内容签名（JSON 字符串）。
-   */
-  function computeGeometryKey(bufferGeometry: any) {
+  function computeGeometryKey(bufferGeometry) {
     const attributeVersions =
-      bufferGeometry.attributes.position?.version + ":" + bufferGeometry.index?.version;
-    const cachedGeometryKey = geometryCacheEntryByGeometry.get(bufferGeometry);
+        bufferGeometry.attributes.position?.version + ":" + bufferGeometry.index?.version,
+      cachedGeometryKey = weakMap.get(bufferGeometry);
     if (
       cachedGeometryKey?.version === attributeVersions &&
       cachedGeometryKey.position === bufferGeometry.attributes.position &&
       cachedGeometryKey.index === bufferGeometry.index
-    ) {
+    )
       return cachedGeometryKey.key;
-    }
     let geometryKey;
     if (
       bufferGeometry.parameters &&
       bufferGeometry.attributes.position?.version === 0 &&
       !(bufferGeometry.index?.version > 0)
-    ) {
+    )
       try {
-        // 参数里出现循环引用 / 不可序列化值时取不到这条键，下面会退到双通道哈希分支，
         geometryKey = JSON.stringify(
           [bufferGeometry.type, bufferGeometry.parameters],
-          (jsonKey, jsonValue) => (jsonKey === "uuid" ? undefined : jsonValue)
+          (jsonKey, jsonValue) => (jsonKey === "uuid" ? undefined : jsonValue),
         );
       } catch {}
-    }
     if (!geometryKey) {
-      // 双通道哈希（两个不同的 FNV 乘数）拼出 64 位签名：单通道在几千个几何的规模下
-      const hashAttribute = (attribute: any) => {
-        if (!attribute) {
-          return null;
-        }
-        const attributeArray = attribute.array || attribute.data?.array;
-        if (!attributeArray) {
-          return [attribute.count, attribute.version];
-        }
-        const attributeBytes = new Uint8Array(
-          attributeArray.buffer,
-          attributeArray.byteOffset,
-          attributeArray.byteLength
-        );
-        let hashA = 2166136261;
-        let hashB = 3339675911;
-        for (const byte of attributeBytes) {
-          // FNV-1a 的两个经典乘数（32 位）；用 imul 保证按 32 位整数溢出回绕。
-          hashA = Math.imul(hashA ^ byte, 16777619);
-          hashB = Math.imul(hashB ^ byte, 2246822519);
-        }
+      const hashAttribute = (attribute) => {
+        if (!attribute) return null;
+        const array = attribute.array || attribute.data?.array;
+        if (!array) return [attribute.count, attribute.version];
+        const attributeBytes = new Uint8Array(array.buffer, array.byteOffset, array.byteLength);
+        let hashA = 2166136261,
+          hashB = 3339675911;
+        for (const byte of attributeBytes)
+          ((hashA = Math.imul(hashA ^ byte, 16777619)),
+            (hashB = Math.imul(hashB ^ byte, 2246822519)));
         return [
           attribute.itemSize,
           attribute.count,
           attribute.offset,
           attribute.data?.stride,
           hashA >>> 0,
-          hashB >>> 0
+          hashB >>> 0,
         ];
       };
       geometryKey = JSON.stringify([
@@ -627,26 +975,96 @@ export function createContactShadowController({
         hashAttribute(bufferGeometry.index),
         (bufferGeometry.morphAttributes.position || []).map(hashAttribute),
         bufferGeometry.groups,
-        bufferGeometry.drawRange
+        bufferGeometry.drawRange,
       ]);
     }
-    geometryCacheEntryByGeometry.set(bufferGeometry, {
-      version: attributeVersions,
-      key: geometryKey,
-      position: bufferGeometry.attributes.position,
-      index: bufferGeometry.index
-    });
-    return geometryKey;
+    return (
+      weakMap.set(bufferGeometry, {
+        version: attributeVersions,
+        key: geometryKey,
+        position: bufferGeometry.attributes.position,
+        index: bufferGeometry.index,
+      }),
+      geometryKey
+    );
   }
-  /**
-   * 计算「一组接收面 + 投影源」的内容签名，用来判断能否复用已烘焙的贴图。
-   * 所有矩阵元素都乘 10000 后取整再比较：浮点末位抖动不该被当成内容变化，这是「拖拽家具时不疯狂重烘」的关键。@returns {string} 内容签名（JSON 字符串）。
-   */
-  
-  /**
-   * 估算一份缓存状态占用的显存字节数，用于总预算控制。
-   */
-  const estimateStateBytes = (cachedFloorState: any) =>
+  function computeLayoutKey(layout, bakeFrame) {
+    const invert = bakeFrame.clone().invert(),
+      describeObjectMatrix = (object) => {
+        const multiply = invert.clone().multiply(object.matrixWorld),
+          roundMatrixElements = (matrix) =>
+            matrix.elements.map((element) => Math.round(element * 10000));
+        if (!object.isInstancedMesh) return roundMatrixElements(multiply);
+        const instanceWorldMatrix = new THREE.Matrix4(),
+          instancedMatrices = [];
+        for (let instanceCursor = 0; instanceCursor < object.count; instanceCursor++)
+          (object.getMatrixAt(instanceCursor, instanceWorldMatrix),
+            instancedMatrices.push(roundMatrixElements(instanceWorldMatrix.premultiply(multiply))));
+        return instancedMatrices;
+      },
+      normalizeEntries = (matrixEntries) =>
+        matrixEntries.map((matrixValues) => JSON.stringify(matrixValues)).sort();
+    return JSON.stringify([
+      settings,
+      normalizeEntries(
+        layout.receivers.map((receiver) => {
+          const geometry2 = receiver.geometry,
+            position = geometry2.attributes.position,
+            cachedEntry = receiverBoundsCacheByGeometry.get(geometry2);
+          (!cachedEntry ||
+            cachedEntry.position !== position ||
+            cachedEntry.version !== position?.version) &&
+            (geometry2.computeBoundingBox(),
+            receiverBoundsCacheByGeometry.set(geometry2, {
+              position: position,
+              version: position?.version,
+              box: geometry2.boundingBox?.clone(),
+            }));
+          const receiverBounds = receiverBoundsCacheByGeometry
+            .get(geometry2)
+            .box?.clone()
+            .applyMatrix4(invert.clone().multiply(receiver.matrixWorld));
+          return receiverBounds
+            ? [...receiverBounds.min.toArray(), ...receiverBounds.max.toArray()].map((boundValue) =>
+                Math.round(boundValue * 10000),
+              )
+            : null;
+        }),
+      ),
+      normalizeEntries(
+        layout.casters.map((caster) => {
+          const casterMaterialSignatures = (
+              Array.isArray(caster.material) ? caster.material : [caster.material]
+            ).map((casterMaterial) => {
+              const materialAlphaTest = casterMaterial.alphaTest || 0,
+                displacementMap = casterMaterial.displacementMap,
+                describeTexture = (texture) => (texture ? [texture.uuid, texture.version] : null);
+              return [
+                isContactCasterMaterial(casterMaterial),
+                materialAlphaTest,
+                materialAlphaTest > 0 ? describeTexture(casterMaterial.map) : null,
+                materialAlphaTest > 0 ? describeTexture(casterMaterial.alphaMap) : null,
+                describeTexture(displacementMap),
+                displacementMap ? (casterMaterial.displacementScale ?? 1) : 0,
+                displacementMap ? (casterMaterial.displacementBias ?? 0) : 0,
+              ];
+            }),
+            every = casterMaterialSignatures.every(
+              (materialSignature) =>
+                JSON.stringify(materialSignature) === JSON.stringify(casterMaterialSignatures[0]),
+            );
+          return [
+            computeGeometryKey(caster.geometry),
+            caster.isInstancedMesh ? caster.count : null,
+            caster.morphTargetInfluences,
+            describeObjectMatrix(caster),
+            every ? casterMaterialSignatures.slice(0, 1) : casterMaterialSignatures,
+          ];
+        }),
+      ),
+    ]);
+  }
+  const estimateStateBytes = (cachedFloorState) =>
     (cachedFloorState.target
       ? cachedFloorState.target.width *
         cachedFloorState.target.height *
@@ -663,22 +1081,13 @@ export function createContactShadowController({
         (cachedFloorState.surface.texture.format === THREE.RedFormat ? 1 : 4)
       : 0) +
     (cachedFloorState.lookup?.image?.data?.byteLength || 0);
-  /**
-   * 把一份烘焙结果存进布局缓存，供同一内容在不同楼层间复用。
-   */
-  function storeCachedLayout(builtEntry: any) {
-    if (!builtEntry.target || !builtEntry.contentKey) {
-      return;
-    }
-    const layoutKey = JSON.stringify([builtEntry.id, builtEntry.contentKey]);
-    const displacedEntry = cachedLayoutsByKey.get(layoutKey);
-    // 同一把键已存在说明内容一模一样但状态对象换了（比如根节点被替换）：
-    if (displacedEntry) {
-      disposeFloorState(displacedEntry);
-    }
-    builtEntry.ping?.dispose();
-    // ping 不缓存：重建时 ensureRenderTargets 会按需再建，缓存它只会平白占预算。
-    builtEntry.ping = null;
+  function storeCachedLayout(builtEntry) {
+    if (!builtEntry.target || !builtEntry.contentKey || builtEntry.surfacePending) return;
+    const layoutKey = JSON.stringify([builtEntry.id, builtEntry.contentKey]),
+      displacedEntry = cachedLayoutsByKey.get(layoutKey);
+    (displacedEntry && disposeFloorState(displacedEntry),
+      builtEntry.ping?.dispose(),
+      (builtEntry.ping = null));
     const storedEntry = {
       id: builtEntry.id,
       contentKey: builtEntry.contentKey,
@@ -688,376 +1097,441 @@ export function createContactShadowController({
       surface: builtEntry.surface,
       lookup: builtEntry.lookup,
       uniforms: Object.fromEntries(
-        Object.entries(builtEntry.uniforms as Record<string, any>).map(([uniformName, uniform]) => [
+        Object.entries(builtEntry.uniforms as Record<string, CachedUniformLike>).map(
+          ([uniformName, uniform]) => [
           uniformName,
           {
             value:
               uniform.value?.clone && !uniform.value.isTexture
                 ? uniform.value.clone()
-                : uniform.value
-          }
-        ])
-      )
+                : uniform.value,
+          },
+        ]),
+      ),
     };
-    cachedLayoutsByKey.delete(layoutKey);
-    cachedLayoutsByKey.set(layoutKey, storedEntry);
-    builtEntry.target = builtEntry.ping = builtEntry.surface = builtEntry.lookup = null;
-    builtEntry.uniforms.plan2ContactOpacity.value =
-      builtEntry.uniforms.plan2SurfaceOpacity.value = 0;
-    builtEntry.fade = null;
+    (cachedLayoutsByKey.delete(layoutKey),
+      cachedLayoutsByKey.set(layoutKey, storedEntry),
+      (builtEntry.target = builtEntry.ping = builtEntry.surface = builtEntry.lookup = null),
+      (builtEntry.uniforms.plan2ContactOpacity.value =
+        builtEntry.uniforms.plan2SurfaceOpacity.value =
+          0),
+      (builtEntry.fade = null));
   }
-  /**
-   * 尝试从布局缓存里恢复某楼层。
-   * @param {string} contentKey 目标内容签名。
-   */
-  function restoreCachedLayout(restoredEntry: any, contentKey: any) {
-    const restoreKey = JSON.stringify([restoredEntry.id, contentKey]);
-    const restoredLayout = cachedLayoutsByKey.get(restoreKey);
-    if (!restoredLayout) {
-      return false;
-    }
-    cachedLayoutsByKey.delete(restoreKey);
-    storeCachedLayout(restoredEntry);
-    for (const propertyName of [
-      "target",
-      "ping",
-      "surface",
-      "lookup",
-      "contentKey",
-      "bakedFrame"
-    ]) {
+  function restoreCachedLayout(restoredEntry, contentKey) {
+    const restoreKey = JSON.stringify([restoredEntry.id, contentKey]),
+      restoredLayout = cachedLayoutsByKey.get(restoreKey);
+    if (!restoredLayout) return false;
+    (cachedLayoutsByKey.delete(restoreKey),
+      storeCachedLayout(restoredEntry),
+      restoredEntry.surfacePending && disposeFloorState(restoredEntry));
+    for (const propertyName of ["target", "ping", "surface", "lookup", "contentKey", "bakedFrame"])
       restoredEntry[propertyName] = restoredLayout[propertyName];
-    }
-    for (const [cachedUniformName, cachedUniform] of Object.entries(restoredLayout.uniforms as Record<string, any>)) {
+    for (const [cachedUniformName, cachedUniform] of Object.entries(
+      restoredLayout.uniforms as Record<string, CachedUniformLike>,
+    ))
       restoredEntry.uniforms[cachedUniformName].value = cachedUniform.value;
-    }
-    restoredEntry.uniforms.plan2ContactOpacity.value =
-      restoredEntry.uniforms.plan2SurfaceOpacity.value = 0;
-    return true;
-  }
-  /**
-   * 按显存预算与数量上限淘汰缓存。
-   * @param {Set<string>|Map<string, *>} protectedIds 必须保留的楼层 ID 集合（本次重建涉及的楼层）。
-   */
-  function evictCaches(protectedIds: any) {
-    const evictionCandidates = [...floorStatesById.values()]
-      .filter(candidateState => candidateState.target && !protectedIds.has(candidateState.id))
-      .sort((stateA, stateB) => (stateB.lastUsed || 0) - (stateA.lastUsed || 0));
-    let retainedBytes = 0;
-    let retainedFloorCount = 0;
-    for (const evictedFloor of evictionCandidates) {
-      evictedFloor.ping?.dispose();
-      evictedFloor.ping = null;
-      const stateBytes = estimateStateBytes(evictedFloor);
-      // 33554432 = 32MB：所有楼层的接触阴影贴图合计的显存预算上限。
-      if (retainedBytes + stateBytes > 33554432) {
-        disposeFloorState(evictedFloor);
-      } else {
-        retainedBytes += stateBytes;
-        retainedFloorCount++;
-      }
-    }
-    let layoutCacheBytes = [...cachedLayoutsByKey.values()].reduce(
-      (totalBytes, cachedState) => totalBytes + estimateStateBytes(cachedState),
-      0
+    return (
+      (restoredEntry.uniforms.plan2ContactOpacity.value =
+        restoredEntry.uniforms.plan2SurfaceOpacity.value =
+          0),
+      true
     );
-    while (cachedLayoutsByKey.size > 8 || retainedBytes + layoutCacheBytes > 33554432) {
-      // Map 的迭代顺序即插入顺序，取第一个即「最久未使用」的布局缓存。
-      const evictedLayoutKey = cachedLayoutsByKey.keys().next().value;
-      const evictedLayout = cachedLayoutsByKey.get(evictedLayoutKey);
-      if (!evictedLayout) {
-        break;
-      }
-      layoutCacheBytes -= estimateStateBytes(evictedLayout);
-      disposeFloorState(evictedLayout);
-      cachedLayoutsByKey.delete(evictedLayoutKey);
-    }
-    stats.cachedFloors = retainedFloorCount;
-    stats.cachedLayouts = cachedLayoutsByKey.size;
-    stats.cachedBytes = retainedBytes + layoutCacheBytes;
   }
-  /**
-   * 每帧入口：推进淡入淡出、更新变换，并按需（增量）重建阴影。
-   */
-  function syncFloors() {
-    if (isDisposed || isSuspended) {
-      return;
+  function evictCaches(protectedIds) {
+    const sort = [...floorStatesById.values()]
+      .filter((candidateState) => candidateState.target && !protectedIds.has(candidateState.id))
+      .sort((stateA, stateB) => (stateB.lastUsed || 0) - (stateA.lastUsed || 0));
+    let retainedBytes = 0,
+      retainedFloorCount = 0;
+    for (const evictedFloor of sort) {
+      (evictedFloor.ping?.dispose(), (evictedFloor.ping = null));
+      const stateBytes = estimateStateBytes(evictedFloor);
+      retainedBytes + stateBytes > 32 * 1024 * 1024
+        ? disposeFloorState(evictedFloor)
+        : ((retainedBytes += stateBytes), retainedFloorCount++);
     }
+    let reduce = [...cachedLayoutsByKey.values()].reduce(
+      (totalBytes, cachedState) => totalBytes + estimateStateBytes(cachedState),
+      0,
+    );
+    for (; cachedLayoutsByKey.size > 8 || retainedBytes + reduce > 32 * 1024 * 1024;) {
+      const evictedLayoutKey = cachedLayoutsByKey.keys().next().value,
+        evictedLayout = cachedLayoutsByKey.get(evictedLayoutKey);
+      if (!evictedLayout) break;
+      ((reduce -= estimateStateBytes(evictedLayout)),
+        disposeFloorState(evictedLayout),
+        cachedLayoutsByKey.delete(evictedLayoutKey));
+    }
+    ((stats.cachedFloors = retainedFloorCount),
+      (stats.cachedLayouts = cachedLayoutsByKey.size),
+      (stats.cachedBytes = retainedBytes + reduce));
+  }
+  function pumpDeferredSurfaceBake() {
+    if (
+      isSurfaceBakeDeferred ||
+      !pendingSurfaceBakesByFloorId.size ||
+      isMotionSuspended ||
+      !canBuild() ||
+      !settings.enabled
+    )
+      return;
+    const [deferredFloorId, queuedSurfaceBake] = pendingSurfaceBakesByFloorId
+        .entries()
+        .next().value,
+      previousRenderState = snapshotRenderState();
+    try {
+      ((renderer.xr.enabled = false),
+        (renderer.shadowMap.enabled = false),
+        renderer.setScissorTest(false),
+        queuedSurfaceBake.iterator.next().done &&
+          ((queuedSurfaceBake.record.surfacePending = false),
+          queuedSurfaceBake.dispose(),
+          pendingSurfaceBakesByFloorId.delete(deferredFloorId)));
+    } catch (pumpError) {
+      throw (
+        disposePendingSurfaceBakes(new Set([deferredFloorId])),
+        disposeFloorState(queuedSurfaceBake.record),
+        invalidate(deferredFloorId),
+        pumpError
+      );
+    } finally {
+      restoreRenderState(previousRenderState);
+    }
+    pendingSurfaceBakesByFloorId.size && requestFrame();
+  }
+  function collectSceneGroups(
+    rootNode,
+    {
+      motion: isMotion = false,
+      allFloors: isAllFloors = true,
+      affectedFloors: affectedFloorSet,
+    }: SceneGroupFilter = {},
+  ) {
+    rootNode.updateWorldMatrix(true, true);
+    const sceneGroupsById = new Map();
+    return (
+      rootNode.traverse((sceneNode) => {
+        if (
+          !sceneNode.isMesh ||
+          !isVisibleWithAncestors(sceneNode) ||
+          (!isMotion && findUserFieldInAncestors(sceneNode, "floorTransitionLeaving"))
+        )
+          return;
+        const groupFloorId = String(
+          findUserFieldInAncestors(sceneNode, "regionFloorId") ??
+            findUserFieldInAncestors(sceneNode, "floorId") ??
+            "default",
+        );
+        if (
+          (!isMotion && !matchesVisibleFloor(groupFloorId)) ||
+          (!isAllFloors && !affectedFloorSet.has(groupFloorId))
+        )
+          return;
+        const isFloorReceiver = sceneNode.userData?.regionReceiverKind === "floor",
+          some =
+            sceneNode.castShadow &&
+            !findUserFieldInAncestors(sceneNode, "disableContactShadow") &&
+            findUserFieldInAncestors(sceneNode, "modelLayer") === "items" &&
+            (Array.isArray(sceneNode.material) ? sceneNode.material : [sceneNode.material]).some(
+              isContactCasterMaterial,
+            );
+        (!isFloorReceiver && !some) ||
+          (sceneGroupsById.has(groupFloorId) ||
+            sceneGroupsById.set(groupFloorId, {
+              receivers: [],
+              casters: [],
+            }),
+          isFloorReceiver && sceneGroupsById.get(groupFloorId).receivers.push(sceneNode),
+          some && sceneGroupsById.get(groupFloorId).casters.push(sceneNode));
+      }),
+      sceneGroupsById
+    );
+  }
+  function refreshMotionFloors(motionRootObject) {
+    const motionSceneGroups = collectSceneGroups(motionRootObject, {
+      motion: true,
+    });
+    for (const motionFloor of floorStatesById.values())
+      ((motionFloor.motionReady = false),
+        (motionFloor.fade = null),
+        (motionFloor.uniforms.plan2ContactOpacity.value =
+          motionFloor.uniforms.plan2SurfaceOpacity.value =
+            0));
+    for (const [motionFloorId, sceneGroup] of motionSceneGroups) {
+      const motionFloorState = getFloorState(motionFloorId),
+        motionAnchorObject = sceneGroup.receivers[0],
+        motionAnchorFrame = frameProvider?.(motionFloorId) || motionAnchorObject?.matrixWorld;
+      if (
+        !motionAnchorFrame ||
+        (!motionFloorState.target &&
+          ![...cachedLayoutsByKey.values()].some(
+            (cachedLayoutState) => cachedLayoutState.id === motionFloorId,
+          ))
+      )
+        continue;
+      const motionLayoutHash = computeLayoutKey(sceneGroup, motionAnchorFrame);
+      (motionFloorState.contentKey !== motionLayoutHash &&
+        restoreCachedLayout(motionFloorState, motionLayoutHash),
+        !(
+          !motionFloorState.target ||
+          motionFloorState.surfacePending ||
+          !motionFloorState.bakedFrame ||
+          motionFloorState.contentKey !== motionLayoutHash
+        ) &&
+          ((motionFloorState.anchor = motionAnchorObject),
+          (motionFloorState.motionReady = true),
+          (motionFloorState.uniforms.plan2ContactOpacity.value = settings.enabled
+            ? settings.opacity
+            : 0),
+          (motionFloorState.uniforms.plan2SurfaceOpacity.value =
+            settings.enabled && settings.surfaceEnabled && motionFloorState.surface
+              ? settings.surfaceOpacity
+              : 0)));
+    }
+    ((shouldRefreshMotion = false), evictCaches(motionSceneGroups));
+  }
+  function syncFloors() {
+    if (isDisposed || isSuspended || isInitialBakeDeferred || !isSyncEnabled) return;
+    (!shouldRebuild &&
+      !set.size &&
+      !pendingSurfaceBakesByFloorId.size &&
+      (shouldDeferSurfaceBake = false),
+      (stats.floors = 0));
     for (const fadingFloor of floorStatesById.values()) {
       if (fadingFloor.fade) {
-        // 240ms 的线性淡入淡出：够短不容易被察觉，也足够盖住「贴图刚换好」那一帧的跳变。
         const fadeProgress = Math.min(
           1,
-          Math.max(0, (performance.now() - fadingFloor.fade.started) / 240)
+          Math.max(
+            0,
+            (performance.now() - fadingFloor.fade.started) / (fadingFloor.fade.to > 0 ? 160 : 240),
+          ),
         );
-        fadingFloor.uniforms.plan2ContactOpacity.value =
-          fadingFloor.fade.from + (fadingFloor.fade.to - fadingFloor.fade.from) * fadeProgress;
-        fadingFloor.uniforms.plan2SurfaceOpacity.value =
-          fadingFloor.fade.fromSurface +
-          (fadingFloor.fade.toSurface - fadingFloor.fade.fromSurface) * fadeProgress;
-        if (fadeProgress === 1) {
-          fadingFloor.fade = null;
-        } else {
-          requestFrame();
-        }
+        ((fadingFloor.uniforms.plan2ContactOpacity.value =
+          fadingFloor.fade.from + (fadingFloor.fade.to - fadingFloor.fade.from) * fadeProgress),
+          (fadingFloor.uniforms.plan2SurfaceOpacity.value =
+            fadingFloor.fade.fromSurface +
+            (fadingFloor.fade.toSurface - fadingFloor.fade.fromSurface) * fadeProgress),
+          fadeProgress === 1 ? (fadingFloor.fade = null) : requestFrame());
       }
+      fadingFloor.target && fadingFloor.uniforms.plan2ContactOpacity.value > 0 && stats.floors++;
     }
     updateBakedTransforms();
     const rootObject = getRoot();
-    // 换根节点（打开别的文档）意味着所有几何引用都失效：缓存整体作废，
-    if (rootObject !== lastRootObject) {
-      for (const staleLayout of cachedLayoutsByKey.values()) {
-        disposeFloorState(staleLayout);
-      }
-      cachedLayoutsByKey.clear();
-      lastRootObject = rootObject;
-      shouldReuseLayout = false;
-      needsRebuild = true;
-      pendingFloorIds.clear();
+    if (rootObject !== value) {
+      disposePendingSurfaceBakes();
+      for (const staleLayout of cachedLayoutsByKey.values()) disposeFloorState(staleLayout);
+      (cachedLayoutsByKey.clear(),
+        (value = rootObject),
+        (shouldReuseLayout = false),
+        (shouldRebuild = true),
+        set.clear(),
+        (shouldRefreshMotion = true));
     }
     if (
-      (!needsRebuild && !pendingFloorIds.size) ||
-      isMotionSuspended ||
-      !canBuild() ||
-      !rootObject
+      (isMotionSuspended &&
+        followMotion &&
+        rootObject &&
+        shouldRefreshMotion &&
+        (refreshMotionFloors(rootObject),
+        updateBakedTransforms(),
+        (stats.floors = [...floorStatesById.values()].filter(
+          (stateWithVisibleTarget) =>
+            stateWithVisibleTarget.target &&
+            stateWithVisibleTarget.uniforms.plan2ContactOpacity.value > 0,
+        ).length)),
+      (!shouldRebuild && !set.size) || isMotionSuspended || !canBuild() || !rootObject)
     ) {
+      rootObject && !shouldRebuild && !set.size && pumpDeferredSurfaceBake();
       return;
     }
-    const rebuildAllFloors = needsRebuild;
-    // 先快照待办集合：遍历过程中会往 pendingFloorIds 里塞新的待办（见 deferredFloorIds），
-    const pendingFloorIdSnapshot = new Set(pendingFloorIds);
-    rootObject.updateWorldMatrix(true, true);
-    const sceneGroupsById = new Map();
-    rootObject.traverse((sceneNode: any) => {
-      // 楼层过渡中正在离场的旧楼层不参与烘焙：它在做位移 / 淡出，
-      if (
-        !sceneNode.isMesh ||
-        !isVisibleWithAncestors(sceneNode) ||
-        findUserDataInAncestors(sceneNode, "floorTransitionLeaving")
-      ) {
-        return;
-      }
-      // 楼层归属优先取 regionFloorId（区域级），退回 floorId，都没有就归到 default。
-      const groupFloorId = String(
-        findUserDataInAncestors(sceneNode, "regionFloorId") ??
-          findUserDataInAncestors(sceneNode, "floorId") ??
-          "default"
-      );
-      if (
-        !matchesVisibleFloor(groupFloorId) ||
-        (!rebuildAllFloors && !pendingFloorIdSnapshot.has(groupFloorId))
-      ) {
-        return;
-      }
-      const isFloorReceiver = sceneNode.userData?.regionReceiverKind === "floor";
-      // 投影源门槛：开了 castShadow、来自家具层（modelLayer === 'items'）、
-      const isContactCaster =
-        sceneNode.castShadow &&
-        findUserDataInAncestors(sceneNode, "modelLayer") === "items" &&
-        (Array.isArray(sceneNode.material) ? sceneNode.material : [sceneNode.material]).some(
-          isContactCasterMaterial
-        );
-      if (!!isFloorReceiver || !!isContactCaster) {
-        if (!sceneGroupsById.has(groupFloorId)) {
-          sceneGroupsById.set(groupFloorId, {
-            receivers: [],
-            casters: []
-          });
-        }
-        if (isFloorReceiver) {
-          sceneGroupsById.get(groupFloorId).receivers.push(sceneNode);
-        }
-        if (isContactCaster) {
-          sceneGroupsById.get(groupFloorId).casters.push(sceneNode);
-        }
-      }
-    });
-    for (const staleFloorState of floorStatesById.values()) {
-      if (
-        !isMotionSuspended &&
-        (rebuildAllFloors || pendingFloorIdSnapshot.has(staleFloorState.id)) &&
-        !sceneGroupsById.has(staleFloorState.id)
-      ) {
-        // 该楼层这轮没被扫描到（家具全删了 / 不再可见）。
-        if (shouldReuseLayout) {
-          staleFloorState.uniforms.plan2ContactOpacity.value = 0;
-          staleFloorState.uniforms.plan2SurfaceOpacity.value = 0;
-          staleFloorState.fade = null;
-        } else {
-          disposeFloorState(staleFloorState);
-        }
-        staleFloorState.casters = staleFloorState.instancedCasters = staleFloorState.receivers = 0;
-      }
-    }
-    const deferredFloorIds = [];
+    const rebuildAllFloors = shouldRebuild,
+      pendingFloorIdSnapshotSet = new Set(set),
+      sceneGroups = collectSceneGroups(rootObject, {
+        allFloors: rebuildAllFloors,
+        affectedFloors: pendingFloorIdSnapshotSet,
+      });
+    for (const staleFloorState of floorStatesById.values())
+      !isMotionSuspended &&
+        (rebuildAllFloors || pendingFloorIdSnapshotSet.has(staleFloorState.id)) &&
+        !sceneGroups.has(staleFloorState.id) &&
+        (shouldReuseLayout
+          ? ((staleFloorState.uniforms.plan2ContactOpacity.value = 0),
+            (staleFloorState.uniforms.plan2SurfaceOpacity.value = 0),
+            (staleFloorState.fade = null))
+          : disposeFloorState(staleFloorState),
+        (staleFloorState.casters =
+          staleFloorState.instancedCasters =
+          staleFloorState.receivers =
+            0));
+    const deferredFloorIds = [],
+      maxBuildsThisSync = isIncrementalUpdate ? 1 : Math.max(1, maxCapturesPerSync);
     let buildCount = 0;
-    for (const [groupId, group] of sceneGroupsById) {
-      const floorState = getFloorState(groupId);
-      const anchorObject = group.receivers[0] || null;
-      // 锚点优先用 frameProvider 给的楼层帧；没有接收面时退回 null，则该帧只能全量重烘。
-      const anchorFrame = frameProvider?.(groupId)?.clone() || anchorObject?.matrixWorld.clone();
-      const layoutHash = anchorFrame ? computeLayoutKey(group, anchorFrame, contactShadowContext()) : null;
-      // 内容签名变了：先把当前这份存进缓存再尝试取出目标那份（缓存命中时直接搬用贴图）。
-      if (shouldReuseLayout && layoutHash && floorState.contentKey !== layoutHash) {
-        restoreCachedLayout(floorState, layoutHash);
+    for (const [groupId, group] of sceneGroups) {
+      if (!shouldReuseLayout && buildCount >= maxBuildsThisSync) {
+        deferredFloorIds.push(groupId);
+        continue;
       }
-      // 命中条件必须同时满足：允许复用、签名一致、贴图还在、烘焙帧还在。
-      const canReuseLayout =
+      const floorState = getFloorState(groupId),
+        anchorObject = group.receivers[0] || null,
+        anchorFrame = frameProvider?.(groupId)?.clone() || anchorObject?.matrixWorld.clone(),
+        layoutHash = anchorFrame ? computeLayoutKey(group, anchorFrame) : null;
+      shouldReuseLayout &&
+        layoutHash &&
+        floorState.contentKey !== layoutHash &&
+        restoreCachedLayout(floorState, layoutHash);
+      const bakedFrame =
         shouldReuseLayout &&
         layoutHash &&
         floorState.target &&
+        !floorState.surfacePending &&
         floorState.contentKey === layoutHash &&
         floorState.bakedFrame;
-      // 增量模式下本帧已经烘过一个楼层 → 剩下的排到后续帧。
-      if (!canReuseLayout && isIncrementalUpdate && buildCount >= 1) {
+      if (!bakedFrame && buildCount >= maxBuildsThisSync) {
         deferredFloorIds.push(groupId);
         continue;
       }
       floorState.lastUsed = performance.now();
-      const previousContactOpacity = floorState.uniforms.plan2ContactOpacity.value;
-      const previousSurfaceOpacity = floorState.uniforms.plan2SurfaceOpacity.value;
-      if (canReuseLayout) {
-        stats.cacheHits++;
-        floorState.uniforms.plan2ContactOpacity.value = settings.enabled ? settings.opacity : 0;
-        floorState.uniforms.plan2SurfaceOpacity.value =
-          settings.enabled && settings.surfaceEnabled && floorState.surface
-            ? settings.surfaceOpacity
-            : 0;
-      } else {
-        buildCount++;
-        if (shouldReuseLayout) {
-          storeCachedLayout(floorState);
-        }
-        buildContactMap(floorState, group.receivers, group.casters);
-        floorState.contentKey = layoutHash;
-        floorState.bakedFrame = anchorFrame;
-        floorState.uniforms.plan2ContactTransform.value.identity();
-      }
-      if (floorState.fade) {
-        // 淡入进行中又发生了重建：把终点改成新浓度，起点保持「当前显示值」，
-        floorState.fade.to = floorState.uniforms.plan2ContactOpacity.value;
-        floorState.fade.toSurface = floorState.uniforms.plan2SurfaceOpacity.value;
-        floorState.uniforms.plan2ContactOpacity.value = previousContactOpacity;
-        floorState.uniforms.plan2SurfaceOpacity.value = previousSurfaceOpacity;
-        requestFrame();
-      } else if (
-        isIncrementalUpdate &&
-        previousContactOpacity < floorState.uniforms.plan2ContactOpacity.value
-      ) {
-        floorState.fade = {
-          started: performance.now(),
-          from: previousContactOpacity,
-          fromSurface: previousSurfaceOpacity,
-          to: floorState.uniforms.plan2ContactOpacity.value,
-          toSurface: floorState.uniforms.plan2SurfaceOpacity.value
-        };
-        floorState.uniforms.plan2ContactOpacity.value = previousContactOpacity;
-        floorState.uniforms.plan2SurfaceOpacity.value = previousSurfaceOpacity;
-        requestFrame();
-      }
-      floorState.anchor = anchorObject;
-      floorState.casters = group.casters.length;
-      floorState.receivers = group.receivers.length;
-      floorState.instancedCasters = group.casters.filter(
-        (casterObject: any) => casterObject.isInstancedMesh
-      ).length;
+      const previousContactOpacity = floorState.uniforms.plan2ContactOpacity.value,
+        previousSurfaceOpacity = floorState.uniforms.plan2SurfaceOpacity.value;
+      (bakedFrame
+        ? (stats.cacheHits++,
+          (floorState.uniforms.plan2ContactOpacity.value = settings.enabled ? settings.opacity : 0),
+          (floorState.uniforms.plan2SurfaceOpacity.value =
+            settings.enabled && settings.surfaceEnabled && floorState.surface
+              ? settings.surfaceOpacity
+              : 0))
+        : (buildCount++,
+          shouldReuseLayout && storeCachedLayout(floorState),
+          buildContactMap(floorState, group.receivers, group.casters),
+          (floorState.contentKey = layoutHash),
+          (floorState.bakedFrame = anchorFrame),
+          floorState.uniforms.plan2ContactTransform.value.identity()),
+        floorState.fade
+          ? ((floorState.fade.to = floorState.uniforms.plan2ContactOpacity.value),
+            (floorState.fade.toSurface = floorState.uniforms.plan2SurfaceOpacity.value),
+            (floorState.uniforms.plan2ContactOpacity.value = previousContactOpacity),
+            (floorState.uniforms.plan2SurfaceOpacity.value = previousSurfaceOpacity),
+            requestFrame())
+          : isIncrementalUpdate &&
+            previousContactOpacity < floorState.uniforms.plan2ContactOpacity.value &&
+            ((floorState.fade = {
+              started: performance.now(),
+              from: previousContactOpacity,
+              fromSurface: previousSurfaceOpacity,
+              to: floorState.uniforms.plan2ContactOpacity.value,
+              toSurface: floorState.uniforms.plan2SurfaceOpacity.value,
+            }),
+            (floorState.uniforms.plan2ContactOpacity.value = previousContactOpacity),
+            (floorState.uniforms.plan2SurfaceOpacity.value = previousSurfaceOpacity),
+            requestFrame()),
+        (floorState.anchor = anchorObject),
+        (floorState.casters = group.casters.length),
+        (floorState.receivers = group.receivers.length),
+        (floorState.instancedCasters = group.casters.filter(
+          (casterObject) => casterObject.isInstancedMesh,
+        ).length));
     }
-    updateBakedTransforms();
-    // 保护名单：全量重建时是本次扫描到的所有楼层；增量时是所有「还挂着接收面」的楼层
-    evictCaches(
-      rebuildAllFloors
-        ? sceneGroupsById
-        : new Map(
-            [...floorStatesById.values()]
-              .filter(stateWithReceivers => stateWithReceivers.receivers > 0)
-              .map(stateWithTarget => [stateWithTarget.id, true])
-          )
-    );
-    stats.casters = stats.instancedCasters = stats.receivers = 0;
-    for (const stateForStats of floorStatesById.values()) {
-      stats.casters += stateForStats.casters;
-      stats.instancedCasters += stateForStats.instancedCasters;
-      stats.receivers += stateForStats.receivers;
-    }
-    stats.floors = [...floorStatesById.values()].filter(
-      stateWithVisibleTarget =>
-        stateWithVisibleTarget.target &&
-        stateWithVisibleTarget.uniforms.plan2ContactOpacity.value > 0
-    ).length;
-    stats.builds += 1;
-    needsRebuild = false;
-    pendingFloorIds.clear();
-    deferredFloorIds.forEach(deferredId => pendingFloorIds.add(deferredId));
-    isIncrementalUpdate = deferredFloorIds.length > 0;
-    if (isIncrementalUpdate) {
-      requestFrame();
-    }
+    (updateBakedTransforms(),
+      evictCaches(
+        rebuildAllFloors
+          ? sceneGroups
+          : new Map(
+              [...floorStatesById.values()]
+                .filter((stateWithReceivers) => stateWithReceivers.receivers > 0)
+                .map((stateWithTarget) => [stateWithTarget.id, true]),
+            ),
+      ),
+      (stats.casters = stats.instancedCasters = stats.receivers = stats.floors = 0));
+    for (const stateForStats of floorStatesById.values())
+      ((stats.casters += stateForStats.casters),
+        (stats.instancedCasters += stateForStats.instancedCasters),
+        (stats.receivers += stateForStats.receivers),
+        stateForStats.target &&
+          stateForStats.uniforms.plan2ContactOpacity.value > 0 &&
+          stats.floors++);
+    ((stats.builds += 1),
+      (shouldRebuild = false),
+      set.clear(),
+      deferredFloorIds.forEach((deferredId) => set.add(deferredId)),
+      (isIncrementalUpdate = isIncrementalUpdate && deferredFloorIds.length > 0),
+      (deferredFloorIds.length || (!isSurfaceBakeDeferred && pendingSurfaceBakesByFloorId.size)) &&
+        requestFrame());
   }
-  /**
-   * 释放控制器持有的全部资源（幂等）。
-   */
   function disposeAll() {
     if (!isDisposed) {
-      isDisposed = true;
-      stats.disposed = true;
-      for (const disposedFloorState of floorStatesById.values()) {
+      ((isDisposed = true),
+        (stats.disposed = true),
+        (stats.floors = 0),
+        disposePendingSurfaceBakes());
+      for (const disposedFloorState of floorStatesById.values())
         disposeFloorState(disposedFloorState);
-      }
-      for (const disposedLayout of cachedLayoutsByKey.values()) {
-        disposeFloorState(disposedLayout);
-      }
-      cachedLayoutsByKey.clear();
-      pendingFloorIds.clear();
-      lastRootObject = null;
-      floorStatesById.clear();
-      for (const disposedDepthMaterial of depthMaterialsByKey.values()) {
+      for (const disposedLayout of cachedLayoutsByKey.values()) disposeFloorState(disposedLayout);
+      (cachedLayoutsByKey.clear(), set.clear(), (value = null), floorStatesById.clear());
+      for (const disposedDepthMaterial of depthMaterialsByKey.values())
         disposedDepthMaterial.dispose();
-      }
-      depthMaterialsByKey.clear();
-      placeholderTexture.dispose();
-      blurQuad.geometry.dispose();
-      blurMaterial.dispose();
+      (depthMaterialsByKey.clear(),
+        placeholderTexture.dispose(),
+        blurQuad.geometry.dispose(),
+        blurMaterial.dispose());
     }
   }
-  // 对外接口。sync 由主渲染循环每帧调用；其余方法都只是「改状态 + 标记失效」，
   const controller = {
     sync: syncFloors,
     invalidate: invalidate,
+    invalidateContext: invalidateAllFloors,
     dispose: disposeAll,
     stats: stats,
     settings: settings,
     setEnabled: setEnabled,
     setSuspended: setSuspended,
     setMotion: setMotion,
-    /**
-     * 只显示某个楼层的接触阴影（null 表示全部显示）。
-     */
-    setVisibleFloor(floorIdInput: any) {
+    prepareMotion() {
+      !isDisposed &&
+        followMotion &&
+        isMotionSuspended &&
+        ((shouldRefreshMotion = true), requestFrame());
+    },
+    prepareDuringEntrance(isEntranceActive) {
+      isDisposed ||
+        ((isEntranceTransition = true),
+        (isSyncEnabled = isEntranceActive === true),
+        isSyncEnabled &&
+          ((isInitialBakeDeferred = false),
+          (isSurfaceBakeDeferred = false),
+          (pendingSurfaceBakesByFloorId.size || shouldRebuild || set.size) && requestFrame()));
+    },
+    finishDeferredSurfaceBake() {
+      ((isEntranceTransition = false),
+        (isSyncEnabled = true),
+        (isInitialBakeDeferred = false),
+        (isSurfaceBakeDeferred = false),
+        (pendingSurfaceBakesByFloorId.size || shouldRebuild || set.size) && requestFrame());
+    },
+    hasPendingSurfaces: () => !isDisposed && pendingSurfaceBakesByFloorId.size > 0,
+    isPending: () => !isDisposed && !isInitialBakeDeferred && (shouldRebuild || set.size > 0),
+    setVisibleFloor(floorIdInput) {
       const nextVisibleFloorId = floorIdInput == null ? null : String(floorIdInput);
       if (nextVisibleFloorId !== visibleFloorId) {
-        visibleFloorId = nextVisibleFloorId;
-        for (const floorStateToHide of floorStatesById.values()) {
-          if (!isMotionSuspended && !matchesVisibleFloor(floorStateToHide.id)) {
-            floorStateToHide.fade = null;
-            floorStateToHide.uniforms.plan2ContactOpacity.value =
-              floorStateToHide.uniforms.plan2SurfaceOpacity.value = 0;
-          }
-        }
+        (!shouldRebuild && !set.size && (shouldReuseLayout = true),
+          (visibleFloorId = nextVisibleFloorId),
+          (stats.floors = 0));
+        for (const floorStateToHide of floorStatesById.values())
+          (!isMotionSuspended &&
+            !matchesVisibleFloor(floorStateToHide.id) &&
+            ((floorStateToHide.fade = null),
+            (floorStateToHide.uniforms.plan2ContactOpacity.value =
+              floorStateToHide.uniforms.plan2SurfaceOpacity.value =
+                0)),
+            floorStateToHide.target &&
+              floorStateToHide.uniforms.plan2ContactOpacity.value > 0 &&
+              stats.floors++);
         invalidate(null, true);
       }
     },
-    /**
-     * 注入楼层锚点帧提供者（返回该楼层当前世界矩阵的函数）。
-     */
-    setFrameProvider(provider: any) {
-      frameProvider = provider;
-      invalidate();
+    setFrameProvider(provider) {
+      ((frameProvider = provider), invalidate());
     },
-    // 取某楼层的 uniform 对象，供地面材质在构建时直接绑定（名字以 plan2 开头的那组）。
-    getUniforms: (floorKey: any) => getFloorState(floorKey).uniforms
+    getUniforms: (floorKey) => getFloorState(floorKey).uniforms,
   };
-  if (typeof window !== "undefined" && isFrontendDebugMode()) {
-    (window as any).__plan2Contact = controller;
-  }
-  return controller;
+  return (typeof window < "u" && (window.__plan2Contact = controller), controller);
 }

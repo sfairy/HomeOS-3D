@@ -1,197 +1,192 @@
-/**
- * 展示页主脚本（/display/<项目名>）。
- */
-
-type AnyObj = Record<string, any>;
-import { PanelRenderer } from "../renderer/core/renderer.js";
-import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js";
-import { apiFetch } from "../utils/api-fetch.js";
-import { createButtonSound } from "../shared/sound-effects.js";
-import { syncAppleDisplaySurface } from "./display-surface.js";
-import { isAppleMobile } from "../utils/apple-device.js";
-
-const displayRootElement = document.querySelector("#display-root");
-const displayShellElement = document.querySelector("#display-shell");
-// capturePreview 用于截图与缩略图，跳过启动遮罩、不写尺寸。
-const isCapturePreview = new URLSearchParams(window.location.search).get("capturePreview") === "1";
+import { PanelRenderer } from "../renderer/core/renderer";
+import { createButtonSound } from "../shared/sound-effects";
+import { syncAppleDisplaySurface } from "./display-surface";
+import type { DomControl } from "@app/utils/dom-control";
+const displayRootElement = document.querySelector<DomControl>("#display-root"),
+  displayShellElement = document.querySelector<DomControl>("#display-shell"),
+  isCapturePreview = new URLSearchParams(window.location.search).get("capturePreview") === "1";
 document.documentElement.classList.toggle("capture-preview", isCapturePreview);
-let project: any = null;
-let lastRevision: any = null;
-let lastGlobalPopupRevision: any = null;
-let panelRenderer: any = null;
+let project = null,
+  lastRevision = null,
+  lastGlobalPopupRevision = null,
+  panelRenderer = null;
 const buttonSound = createButtonSound();
-// refreshPromise / syncPromise 做单飞：同一时刻只允许一次刷新或一次目录同步。
-let refreshPromise: any = null;
-let loadedAssetsVersion: any = null;
-let entityList: any[] = [];
-let deviceList: any[] = [];
-let translationResources: AnyObj = {};
-let syncPromise: any = null;
-let lastSyncFingerprint: any = null;
-let hasTranslations = false;
-let lastCatalogFingerprint: any = null;
-// 素材版本检查节流时间戳，30 秒内不重复请求 /assets/version。
-let lastAssetsCheckAt = 0;
-let assetsVersion: any = null;
-
-
-/**
- * 把展示根节点尺寸同步成真实可视区域尺寸。
- */
+let refreshPromise = null,
+  loadedAssetsVersion = null,
+  entityRecords = [],
+  deviceRecords = [],
+  translationResources = {},
+  syncPromise = null,
+  lastSyncFingerprint = null,
+  hasTranslations = false,
+  lastCatalogFingerprint = null,
+  lastAssetsCheckAt = 0,
+  assetsVersion = null;
+const isEmbeddedFrame = window.self !== window.top;
+let visibleBounds = null;
+function isAppleMobile() {
+  const userAgent = navigator.userAgent || "";
+  return (
+    /iPad|iPhone|iPod/i.test(userAgent) ||
+    (/Macintosh/i.test(userAgent) && Number(navigator.maxTouchPoints || 0) > 1)
+  );
+}
 function syncViewportSize() {
-  const appleMobile = isAppleMobile();
+  const shouldUseScreenSize = !isEmbeddedFrame && isAppleMobile();
   let widthPx = Math.round(
-    Number(appleMobile ? window.screen?.width : window.visualViewport?.width) ||
-      Number(window.innerWidth) ||
-      Number(document.documentElement.clientWidth)
-  );
-  let heightPx = Math.round(
-    Number(appleMobile ? window.screen?.height : window.visualViewport?.height) ||
-      Number(window.innerHeight) ||
-      Number(document.documentElement.clientHeight)
-  );
-  // !== 两侧都是布尔值：判断「方向不一致」，需要交换宽高。
-  if (appleMobile && window.innerWidth >= window.innerHeight !== widthPx >= heightPx) {
-    [widthPx, heightPx] = [heightPx, widthPx];
-  }
-  if (!!widthPx && !!heightPx && displayShellElement) {
-    const shell = displayShellElement as HTMLElement;
-    shell.style.width = widthPx + "px";
-    shell.style.height = heightPx + "px";
-    if (appleMobile) {
-      document.documentElement.style.width = widthPx + "px";
-      document.documentElement.style.height = heightPx + "px";
-      document.body.style.width = widthPx + "px";
-      document.body.style.height = heightPx + "px";
-    }
-  }
+      Number(shouldUseScreenSize ? window.screen?.width : window.visualViewport?.width) ||
+        Number(window.innerWidth) ||
+        Number(document.documentElement.clientWidth),
+    ),
+    heightPx = Math.round(
+      Number(shouldUseScreenSize ? window.screen?.height : window.visualViewport?.height) ||
+        Number(window.innerHeight) ||
+        Number(document.documentElement.clientHeight),
+    );
+  (shouldUseScreenSize &&
+    window.innerWidth >= window.innerHeight !== widthPx >= heightPx &&
+    ([widthPx, heightPx] = [heightPx, widthPx]),
+    !(!widthPx || !heightPx) &&
+      (isEmbeddedFrame &&
+        visibleBounds &&
+        ((widthPx = Math.min(widthPx, visibleBounds.width)),
+        (heightPx = Math.min(heightPx, visibleBounds.height)),
+        (displayShellElement.style.left = visibleBounds.left + "px"),
+        (displayShellElement.style.top = visibleBounds.top + "px")),
+      (displayShellElement.style.width = widthPx + "px"),
+      (displayShellElement.style.height = heightPx + "px"),
+      panelRenderer?.resize(),
+      shouldUseScreenSize &&
+        ((document.documentElement.style.width = widthPx + "px"),
+        (document.documentElement.style.height = heightPx + "px"),
+        (document.body.style.width = widthPx + "px"),
+        (document.body.style.height = heightPx + "px"))));
 }
-
-// 未配对时跳转到配对页，并把当前地址带上以便配对后跳回。
 function buildPairUrl() {
-  return "/pair?next=" + encodeURIComponent("" + window.location.pathname + window.location.search);
+  return (
+    "/pair?" +
+    (window.HomeOSEmbed ||
+    window.self !== window.top ||
+    new URLSearchParams(location.search).get("embed") === "1"
+      ? "embed=1&"
+      : "") +
+    "next=" +
+    encodeURIComponent(
+      "" + (window.HomeOSEmbed?.path || window.location.pathname) + window.location.search,
+    )
+  );
 }
+/** 带业务错误码的请求错误（后端 detail.code 原样带出）。 */
+type DisplayRequestError = Error & { code?: string };
 
-/**
- * 请求展示页所需的接口。
- */
-async function apiRequest(path: any) {
-  // 追加 _=时间戳 与 no-store 双保险，绕过浏览器与中间层缓存。
-  const separator = path.includes("?") ? "&" : "?";
+async function apiRequest(path) {
+  const separator = path.includes("?") ? "&" : "?",
+    startupEntry = window.HomeOSDisplayStartup?.take(path),
+    abortController = startupEntry?.controller || new AbortController(),
+    abortTimeoutId = startupEntry ? null : window.setTimeout(() => abortController.abort(), 20000);
   try {
-    const response = await apiFetch("/api/v1" + path + separator + "_=" + Date.now(), {
-      cache: "no-store",
-      headers: {
-        "Cache-Control": "no-cache"
-      }
-    });
-    const payload =
-      response.status === 204
-        ? null
-        : await response.json().catch(() => ({}));
-    const authChallenge = apiAuthChallenge(response.status, payload);
-    if (authChallenge === "session-expired") {
-      window.location.assign(buildPairUrl());
-      return null;
-    }
-    if (authChallenge === "license-restricted") {
-      // 刷新而不是跳 /license：展示端是墙面屏，通常没人能填激活码；刷新会让后端门禁
+    const response = startupEntry
+        ? (await startupEntry.result).response
+        : await fetch("/api/v1" + path + separator + "_=" + Date.now(), {
+            cache: "no-store",
+            headers: {
+              "Cache-Control": "no-cache",
+            },
+            signal: abortController.signal,
+          }),
+      payload = startupEntry
+        ? (await startupEntry.result).payload
+        : response.status === 204
+          ? null
+          : await response.json().catch((parseError) => {
+              if (abortController.signal.aborted) throw parseError;
+              return {};
+            });
+    if (
+      response.status === 401 ||
+      (response.status === 403 && payload?.detail?.code === "DISPLAY_PROJECT_UNPAIRED")
+    )
+      return (window.location.assign(buildPairUrl()), null);
+    if (response.status === 403 && payload?.detail?.code === "LICENSE_RESTRICTED") {
       window.location.reload();
-      throw apiRequestError(payload, {
-        status: response.status,
-        message: payload?.detail?.message || "授权后台正在验证，请稍后重试。",
-        response
-      });
+      const licenseRestrictedError: DisplayRequestError = new Error(
+        payload.detail.message || "授权后台正在验证，请稍后重试。",
+      );
+      throw ((licenseRestrictedError.code = "LICENSE_RESTRICTED"), licenseRestrictedError);
     }
     if (!response.ok) {
-      throw apiRequestError(payload, {
-        status: response.status,
-        fallback: "请求失败。",
-        response
-      });
+      const errorDetail = payload?.detail,
+        requestError: DisplayRequestError = new Error(
+          typeof errorDetail == "string" ? errorDetail : errorDetail?.message || "请求失败。",
+        );
+      throw (
+        (requestError.code = errorDetail?.code || ""),
+        window.HomeOSLog?.linkError(requestError, response) || requestError
+      );
     }
     return payload;
   } catch (caughtError) {
-    if ((caughtError as any)?.name === "TimeoutError") {
-      throw caughtError;
-    }
-    // fetch 在网络层断掉时抛的是 `TypeError: Failed to fetch`，这句话会原样出现在
-    if (caughtError instanceof TypeError) {
-      throw new Error("无法连接服务器，请检查网络连接。");
-    }
-    throw caughtError;
+    throw abortController.signal.aborted
+      ? new Error("仪表盘更新请求超时，请检查网络连接。")
+      : caughtError;
+  } finally {
+    window.clearTimeout(abortTimeoutId);
   }
 }
-
-/**
- * 同步 HA 目录（实体 / 设备 / 翻译）并在必要时推给渲染层。
- */
 async function refreshCatalog() {
   return (
-    // syncPromise 单飞：并发调用共享同一次同步，结束后清空以便下次重来。
     syncPromise ||
     ((syncPromise = (async () => {
       const syncStatus = await apiRequest("/ha/sync/status");
-      if (!syncStatus) {
-        return;
-      }
-      // 指纹由同步版本号 / 上次全量同步时间 + 三类计数拼成，任一变化即视为目录变了。
+      if (!syncStatus) return;
       const fingerprint = syncStatus.configured
-        ? JSON.stringify([
-            Number.isFinite(Number(syncStatus.catalogRevision))
-              ? Number(syncStatus.catalogRevision)
-              : syncStatus.lastFullSyncAt || "",
-            Number(syncStatus.counts?.entities || 0),
-            Number(syncStatus.counts?.devices || 0),
-            Number(syncStatus.counts?.areas || 0)
-          ])
-        : "not-configured";
-      const hasCatalogChange = fingerprint !== lastSyncFingerprint;
-      const shouldRefreshTranslations =
-        !!syncStatus.configured &&
-        !!syncStatus.connected &&
-        (!hasTranslations || !!hasCatalogChange);
-      if (!!hasCatalogChange || !!shouldRefreshTranslations) {
+          ? JSON.stringify([
+              Number.isFinite(Number(syncStatus.catalogRevision))
+                ? Number(syncStatus.catalogRevision)
+                : syncStatus.lastFullSyncAt || "",
+              Number(syncStatus.counts?.entities || 0),
+              Number(syncStatus.counts?.devices || 0),
+              Number(syncStatus.counts?.areas || 0),
+            ])
+          : "not-configured",
+        hasCatalogChange = fingerprint !== lastSyncFingerprint,
+        shouldRefreshTranslations = !!(
+          syncStatus.configured &&
+          syncStatus.connected &&
+          (!hasTranslations || hasCatalogChange)
+        );
+      if (!(!hasCatalogChange && !shouldRefreshTranslations)) {
         if (!syncStatus.configured) {
-          entityList = [];
-          deviceList = [];
-          translationResources = {};
-          lastSyncFingerprint = fingerprint;
-          hasTranslations = true;
-          pushCatalogToRenderer();
+          ((entityRecords = []),
+            (deviceRecords = []),
+            (translationResources = {}),
+            (lastSyncFingerprint = fingerprint),
+            (hasTranslations = true),
+            pushCatalogToRenderer());
           return;
         }
         if (hasCatalogChange) {
-          // 实体分页拉取，每页 500 条，直到累计条数达到后端给出的总数。
-          const entityAccumulator: any[] = [];
-          let offset = 0;
-          let total = 0;
+          const entityAccumulator = [];
+          let offset = 0,
+            total = 0;
           do {
             const entityPage = await apiRequest("/ha/entities?limit=500&offset=" + offset);
-            if (!entityPage) {
-              return;
-            }
-            entityAccumulator.push(...(entityPage.items || []));
-            total = Number(entityPage.total || 0);
-            offset += Number(entityPage.limit || 500);
+            if (!entityPage) return;
+            (entityAccumulator.push(...(entityPage.items || [])),
+              (total = Number(entityPage.total || 0)),
+              (offset += Number(entityPage.limit || 500)));
           } while (entityAccumulator.length < total);
-          entityList = entityAccumulator;
-          // 设备列表拿不到不算致命错误，退化成空列表即可。
+          entityRecords = entityAccumulator;
           const deviceResponse = await apiRequest("/ha/devices").catch(() => null);
-          if (deviceResponse) {
-            deviceList = deviceResponse.items || [];
-          }
-          lastSyncFingerprint = fingerprint;
+          (deviceResponse && (deviceRecords = deviceResponse.items || []),
+            (lastSyncFingerprint = fingerprint));
         }
         if (shouldRefreshTranslations) {
           const translationResponse = await apiRequest("/ha/translations").catch(() => null);
-          if (translationResponse) {
-            translationResources = translationResponse.resources || ({} as AnyObj);
-            hasTranslations = true;
-          } else {
-            // 拉失败时标记未加载，下次轮询会再试。
-            hasTranslations = false;
-          }
+          translationResponse
+            ? ((translationResources = translationResponse.resources || {}),
+              (hasTranslations = true))
+            : (hasTranslations = false);
         }
         pushCatalogToRenderer();
       }
@@ -201,258 +196,256 @@ async function refreshCatalog() {
     syncPromise)
   );
 }
-
 function buildCatalogFingerprint() {
-  const entityRows = entityList.map((entity: any) => [
-    entity.entityId || "",
-    entity.domain || "",
-    entity.name || "",
-    entity.icon || "",
-    entity.deviceId || "",
-    entity.platform || "",
-    entity.translationKey || "",
-    entity.uniqueId || "",
-    entity.originalName || "",
-    entity.status || "",
-    entity.disabledBy || ""
-  ]);
-  const deviceRows = deviceList.map((device: any) => [
-    device.deviceId || "",
-    device.name || "",
-    device.manufacturer || "",
-    device.model || "",
-    device.status || ""
-  ]);
-  // 翻译资源按键排序后再序列化，保证键序不同不会造成假差异。
-  const translationEntries = Object.entries(translationResources).sort(
-    ([firstLocale], [secondLocale]) => firstLocale.localeCompare(secondLocale)
-  );
+  const entityRows = entityRecords.map((entity) => [
+      entity.entityId || "",
+      entity.domain || "",
+      entity.name || "",
+      entity.icon || "",
+      entity.deviceId || "",
+      entity.platform || "",
+      entity.translationKey || "",
+      entity.uniqueId || "",
+      entity.originalName || "",
+      entity.status || "",
+      entity.disabledBy || "",
+    ]),
+    deviceRows = deviceRecords.map((device) => [
+      device.deviceId || "",
+      device.name || "",
+      device.manufacturer || "",
+      device.model || "",
+      device.status || "",
+    ]),
+    translationEntries = Object.entries(translationResources).sort(
+      ([firstLocale], [secondLocale]) => firstLocale.localeCompare(secondLocale),
+    );
   return JSON.stringify([entityRows, deviceRows, translationEntries]);
 }
-
-// 目录指纹变化时才推给渲染层，减少一次全量实体下发。
 function pushCatalogToRenderer() {
-  if (!panelRenderer) {
-    return;
-  }
+  if (!panelRenderer) return;
   const catalogFingerprint = buildCatalogFingerprint();
-  if (catalogFingerprint !== lastCatalogFingerprint) {
-    lastCatalogFingerprint = catalogFingerprint;
-    panelRenderer.setEntityCatalog(entityList, translationResources, deviceList);
-  }
+  catalogFingerprint !== lastCatalogFingerprint &&
+    ((lastCatalogFingerprint = catalogFingerprint),
+    panelRenderer.setEntityCatalog(entityRecords, translationResources, deviceRecords));
 }
-
-// 地址里的项目名可能含中文与空格，解码失败时按原样返回，交给后续比较失败提示。
-function decodeDisplayPath(value: any) {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
-}
-
-/**
- * 根据 URL 解析当前展示的项目。
- */
 async function resolveProject() {
-  const pathname = window.location.pathname;
-  if (!pathname.startsWith("/display/")) {
-    throw new Error("仪表盘地址无效。");
-  }
-  // "/display/" 长度为 9，其后全部是项目名。
-  const projectName = decodeDisplayPath(pathname.slice(9)).trim();
-  if (!projectName) {
-    throw new Error("仪表盘地址无效。");
-  }
+  const pathname = window.HomeOSEmbed?.path || window.location.pathname;
+  if (pathname.startsWith("/display/"))
+    return {
+      id: decodeURIComponent(pathname.slice(9)),
+      name: "",
+    };
+  if (!pathname.startsWith("/homeos/")) throw new Error("仪表盘地址无效。");
+  const projectName = decodeURIComponent(pathname.slice("/homeos/".length)).trim();
+  if (!projectName) throw new Error("仪表盘名称不能为空。");
   const projectsResponse = await apiRequest("/projects");
-  if (!projectsResponse) {
-    return null;
-  }
-  // 展示页只能按名称寻址，因此先精确匹配；数量为 0 或 >1 都在下面分别报错。
+  if (!projectsResponse) return null;
   const projectMatches = (projectsResponse.items || []).filter(
-    (projectCandidate: any) => projectCandidate.name === projectName
+    (projectCandidate) => projectCandidate.name === projectName,
   );
-  if (!projectMatches.length) {
-    throw new Error("找不到仪表盘“" + projectName + "”。");
-  }
-  if (projectMatches.length > 1) {
+  if (!projectMatches.length) throw new Error("找不到仪表盘“" + projectName + "”。");
+  if (projectMatches.length > 1)
     throw new Error("仪表盘名称“" + projectName + "”重复，请先在编辑器中改名。");
-  }
   return projectMatches[0];
 }
-
-/**
- * 拉取草稿并按需重建 / 更新渲染器（带单飞与 revision 短路）。
- */
 async function refreshDisplay() {
-  if (project) {
+  if (project)
     return (
       refreshPromise ||
-      (refreshPromise = (async () => {
-        // 目录同步失败不影响主流程，静默忽略。
+      ((refreshPromise = (async () => {
         refreshCatalog().catch(() => null);
-        let revisionResponse = null;
-        // 素材版本可能已被别处更新（如预览），这里先按已记录的版本比对一次。
-        let hasAssetsChange = loadedAssetsVersion !== assetsVersion;
+        const assetsPromise = panelRenderer
+          ? null
+          : Promise.all([
+              apiRequest("/assets/version"),
+              apiRequest("/assets/builtin"),
+              apiRequest("/assets/user"),
+            ])
+              .then(([versionResponse, builtinResponse, userResponse]) => ({
+                versions: versionResponse,
+                builtin: builtinResponse,
+                user: userResponse,
+              }))
+              .catch((assetsError) => ({
+                error: assetsError,
+              }));
+        let revisionResponse = null,
+          hasAssetsChange = loadedAssetsVersion !== assetsVersion;
         if (panelRenderer) {
-          revisionResponse = await apiRequest(
-            "/projects/" + encodeURIComponent(project.id) + "/revision"
-          );
-          if (!revisionResponse) {
+          if (
+            ((revisionResponse = await apiRequest(
+              "/projects/" + encodeURIComponent(project.id) + "/revision",
+            )),
+            !revisionResponse)
+          )
             return;
-          }
           const now = Date.now();
           if (now - lastAssetsCheckAt >= 30000) {
             const assetsVersionResponse = await apiRequest("/assets/version");
-            if (!assetsVersionResponse) {
-              return;
-            }
-            // 版本号由内置戳与用户戳拼成，任一变化都意味着素材需要重下。
+            if (!assetsVersionResponse) return;
             const assetsKey =
               (assetsVersionResponse.builtin || "") + ":" + (assetsVersionResponse.user || "");
-            hasAssetsChange = loadedAssetsVersion !== assetsKey;
-            assetsVersion = assetsKey;
-            lastAssetsCheckAt = now;
+            ((hasAssetsChange = loadedAssetsVersion !== assetsKey),
+              (assetsVersion = assetsKey),
+              (lastAssetsCheckAt = now));
           }
           if (
-            // 三重比对都无变化则直接返回，省掉拉草稿与重渲染的开销。
             !hasAssetsChange &&
             revisionResponse.revision === lastRevision &&
             revisionResponse.globalPopupRevision === lastGlobalPopupRevision
-          ) {
+          )
             return;
-          }
         }
         const draftResponse = await apiRequest(
-          "/projects/" + encodeURIComponent(project.id) + "/draft"
+          "/projects/" + encodeURIComponent(project.id) + "/draft",
         );
-        if (!draftResponse) {
-          return;
-        }
-        (window as any).HABridgeDisplayBoot?.setDocument(draftResponse.document);
-        syncAppleDisplaySurface(draftResponse.document);
-        buttonSound.setEnabled(draftResponse.document?.soundEnabled !== false);
-        let targetAssetsVersion = assetsVersion;
-        let builtinAssets = null;
-        let userAssets = null;
-        if (!panelRenderer || hasAssetsChange || loadedAssetsVersion !== targetAssetsVersion) {
-          // 首次进入或素材变了：必要时补查一次版本，然后并发拉取内置 / 用户素材。
-          const fetchedAssetsVersion = assetsVersion ? null : await apiRequest("/assets/version");
-          targetAssetsVersion = fetchedAssetsVersion
-            ? (fetchedAssetsVersion.builtin || "") + ":" + (fetchedAssetsVersion.user || "")
-            : targetAssetsVersion;
-          assetsVersion = targetAssetsVersion;
-          lastAssetsCheckAt = Date.now();
-          [builtinAssets, userAssets] = await Promise.all([
-            apiRequest("/assets/builtin"),
-            apiRequest("/assets/user")
-          ]);
-          if (!builtinAssets || !userAssets) {
-            return;
+        if (!draftResponse) return;
+        (window.HomeOSDisplayBoot?.setDocument(draftResponse.document),
+          syncAppleDisplaySurface(draftResponse.document),
+          buttonSound.setEnabled(draftResponse.document?.soundEnabled !== false));
+        let targetAssetsVersion = assetsVersion,
+          builtinAssets = null,
+          userAssets = null;
+        if (!panelRenderer && assetsPromise) {
+          // 资源包可能是错误对象，这里按联合类型收窄后再逐项使用。
+          const assetsBundle: any = await assetsPromise;
+          if (assetsBundle.error) throw assetsBundle.error;
+          const versionsPayload = assetsBundle.versions;
+          ((targetAssetsVersion =
+            (versionsPayload?.builtin || "") + ":" + (versionsPayload?.user || "")),
+            (assetsVersion = targetAssetsVersion),
+            (lastAssetsCheckAt = Date.now()),
+            (builtinAssets = assetsBundle.builtin),
+            (userAssets = assetsBundle.user));
+        } else {
+          if (hasAssetsChange || loadedAssetsVersion !== targetAssetsVersion) {
+            const fetchedAssetsVersion = assetsVersion ? null : await apiRequest("/assets/version");
+            if (
+              ((targetAssetsVersion = fetchedAssetsVersion
+                ? (fetchedAssetsVersion.builtin || "") + ":" + (fetchedAssetsVersion.user || "")
+                : targetAssetsVersion),
+              (assetsVersion = targetAssetsVersion),
+              (lastAssetsCheckAt = Date.now()),
+              ([builtinAssets, userAssets] = await Promise.all([
+                apiRequest("/assets/builtin"),
+                apiRequest("/assets/user"),
+              ])),
+              !builtinAssets || !userAssets)
+            )
+              return;
           }
         }
         const title = project.name || draftResponse.document?.name || "HomeOS";
-        document.title = title + " · HomeOS";
-        if (!panelRenderer) {
-          // 首次创建渲染器：contain 保证整块画布可见，不裁切。
-          panelRenderer = new PanelRenderer(displayRootElement, {
-            scaleMode: "contain",
-            onRuntimeButtonPress() {
-              buttonSound.play();
-            },
-            // 运行期异常必须看得见：展示页没有控制台，不传 onError 时控件操作失败、订阅被停掉都无反馈。
-            onError(rendererError: any) {
-              (window as any).HABridgeDisplayBoot?.notice(rendererError?.message || "操作失败。");
-            },
-            // 实时推送可用性：致命关闭码（4400）后渲染层不会自动重连，画面会停在
-            onRuntimeAvailabilityChange(available: any, unavailableMessage: any) {
-              (window as any).HABridgeDisplayBoot?.setRuntimePush(available, unavailableMessage);
-            }
-          });
-          pushCatalogToRenderer();
-        }
-        if (builtinAssets && userAssets) {
-          panelRenderer.refreshBuiltinAssets([
-            ...(builtinAssets.items || []),
-            ...(userAssets.items || [])
-          ]);
-          loadedAssetsVersion = targetAssetsVersion;
-        }
         if (
-          // 只更新了素材（revision 未变）时到此为止，不必重设文档。
+          ((document.title = title + " · HomeOS"),
+          panelRenderer ||
+            ((panelRenderer = new PanelRenderer(displayRootElement, {
+              scaleMode: "contain",
+              onRuntimeButtonPress() {
+                buttonSound.play();
+              },
+            })),
+            pushCatalogToRenderer()),
+          builtinAssets &&
+            userAssets &&
+            (panelRenderer.refreshBuiltinAssets([
+              ...(builtinAssets.items || []),
+              ...(userAssets.items || []),
+            ]),
+            (loadedAssetsVersion = targetAssetsVersion)),
           lastRevision === draftResponse.revision &&
-          lastGlobalPopupRevision === draftResponse.globalPopupRevision
-        ) {
+            lastGlobalPopupRevision === draftResponse.globalPopupRevision)
+        )
           return;
-        }
-        // 保持当前页：刷新后仍停在用户正在看的那一页。
         const currentPagePath = panelRenderer.page?.path || null;
-        panelRenderer.setDocument(draftResponse.document, currentPagePath);
-        (window as any).HABridgeDisplayBoot?.ready(displayRootElement);
-        lastRevision = draftResponse.revision;
-        lastGlobalPopupRevision = draftResponse.globalPopupRevision;
+        (panelRenderer.setDocument(draftResponse.document, currentPagePath),
+          window.HomeOSDisplayBoot?.ready(displayRootElement),
+          (lastRevision = draftResponse.revision),
+          (lastGlobalPopupRevision = draftResponse.globalPopupRevision));
       })().finally(() => {
         refreshPromise = null;
-      }))
+      })),
+      refreshPromise)
     );
-  }
 }
-
-// 启动流程：先定尺寸，再解析项目，然后把项目 ID 写进日志上下文。
 async function bootstrap() {
-  syncViewportSize();
-  project = await resolveProject();
-  (window as any).HABridgeLog?.setContext({
-    projectId: project?.id || ""
-  });
-  if (project) {
-    await refreshDisplay();
-  }
+  (syncViewportSize(),
+    (project = await resolveProject()),
+    window.HomeOSLog?.setContext({
+      projectId: project?.id || "",
+    }),
+    project && (await refreshDisplay()));
 }
-
-// 页面可见且启动未失败时才刷新：失败态要保持在错误界面等用户点重试。
 function refreshIfVisible() {
-  if (document.visibilityState === "visible") {
-    if (!(window as any).HABridgeDisplayBoot?.failed) {
-      // 这一次刷新整体成功（含「revision 没变，无需重渲染」）就说明网络通了，
-      refreshDisplay().then(
-        () => (window as any).HABridgeDisplayBoot?.recovered(),
-        handleDisplayError
-      );
-    }
-  }
+  document.visibilityState === "visible" &&
+    (window.HomeOSDisplayBoot?.failed || refreshDisplay().catch(handleDisplayError));
 }
-
-// 从后台切回前台 / 网络恢复：重置素材检查节流，立即拉一次最新内容。
 function handleLifecycleResume() {
-  if (document.visibilityState === "visible") {
-    lastAssetsCheckAt = 0;
-    refreshIfVisible();
-  }
+  document.visibilityState === "visible" && ((lastAssetsCheckAt = 0), refreshIfVisible());
 }
-
-// 统一的刷新失败处理：上报日志并让启动层显示错误与重试入口。
-function handleDisplayError(error: any) {
-  (window as any).HABridgeLog?.error(error, {
-    phase: "display-refresh"
-  });
-  (window as any).HABridgeDisplayBoot?.fail(error);
+function handleDisplayError(displayError) {
+  if (
+    (window.HomeOSLog?.error(displayError, {
+      phase: "display-refresh",
+    }),
+    window.HomeOSDisplayBoot?.fail(displayError),
+    displayError?.code !== "UI_PACK_RESTRICTED")
+  )
+    return;
+  (panelRenderer?.destroy(), (panelRenderer = null), (lastRevision = null));
+  const displayErrorElement = document.createElement("p");
+  ((displayErrorElement.className = "display-error"),
+    (displayErrorElement.textContent = displayError.message),
+    displayRootElement.replaceChildren(displayErrorElement));
 }
-
-window.addEventListener("pageshow", handleLifecycleResume);
-document.addEventListener("visibilitychange", handleLifecycleResume);
-window.addEventListener("online", handleLifecycleResume);
-window.addEventListener("resize", syncViewportSize);
-window.visualViewport?.addEventListener("resize", syncViewportSize);
-// orientationchange 触发时尺寸尚未稳定，延后 100ms 再取。
-window.addEventListener("orientationchange", () => window.setTimeout(syncViewportSize, 100));
-// 10 秒轮询一次 revision，兼顾及时性与中控设备的功耗。
-window.setInterval(refreshIfVisible, 10000);
-bootstrap().catch(bootstrapError => {
-  // 启动失败时在画布位置直接给出错误文案，无需用户操作。
-  handleDisplayError(bootstrapError);
-  const bootstrapErrorElement = document.createElement("p");
-  bootstrapErrorElement.className = "display-error";
-  bootstrapErrorElement.textContent = bootstrapError.message;
-  displayRootElement?.replaceChildren(bootstrapErrorElement);
-});
+if (
+  (window.addEventListener("pageshow", handleLifecycleResume),
+  document.addEventListener("visibilitychange", handleLifecycleResume),
+  window.addEventListener("online", handleLifecycleResume),
+  window.addEventListener("resize", syncViewportSize),
+  window.visualViewport?.addEventListener("resize", syncViewportSize),
+  window.addEventListener("orientationchange", () => window.setTimeout(syncViewportSize, 100)),
+  isEmbeddedFrame && typeof IntersectionObserver == "function")
+) {
+  const viewportObserver = new IntersectionObserver(
+    (observerEntries) => {
+      const lastEntry = observerEntries[observerEntries.length - 1];
+      if (
+        !lastEntry?.isIntersecting ||
+        lastEntry.intersectionRect.width < 1 ||
+        lastEntry.intersectionRect.height < 1
+      )
+        return;
+      const intersectionRect = lastEntry.intersectionRect;
+      ((visibleBounds = {
+        width: intersectionRect.width,
+        height: intersectionRect.height,
+        left: intersectionRect.left,
+        top: intersectionRect.top,
+      }),
+        syncViewportSize());
+    },
+    {
+      threshold: Array.from(
+        {
+          length: 101,
+        },
+        (thresholdItem, thresholdIndex) => thresholdIndex / 100,
+      ),
+    },
+  );
+  (viewportObserver.observe(document.documentElement),
+    window.addEventListener("pagehide", () => viewportObserver.disconnect(), {
+      once: true,
+    }),
+    window.addEventListener("pageshow", () => viewportObserver.observe(document.documentElement)));
+}
+(window.setInterval(refreshIfVisible, 10000),
+  bootstrap().catch((bootstrapError) => {
+    if ((handleDisplayError(bootstrapError), bootstrapError?.code === "UI_PACK_RESTRICTED")) return;
+    const bootstrapErrorElement = document.createElement("p");
+    ((bootstrapErrorElement.className = "display-error"),
+      (bootstrapErrorElement.textContent = bootstrapError.message),
+      displayRootElement.replaceChildren(bootstrapErrorElement));
+  }));

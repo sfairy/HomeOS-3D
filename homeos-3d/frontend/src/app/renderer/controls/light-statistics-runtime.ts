@@ -1,144 +1,146 @@
-/**
- * 灯光统计控件的数据汇总。
- */
-
-
-import {
-  readFromMapOrRecord,
-  resolveStateEntryIn
-} from "../../utils/state-entry.js";
-import { entityDomainFromId } from "../../utils/entities.js";
-
-// 这些域的「开 / 关」语义天然成立，直接按 state 判定。
-const ON_OFF_DOMAINS_SET = new Set([
-  "light",
-  "switch",
-  "input_boolean",
-  "fan",
-  "humidifier",
-  "siren"
-]);
-const RUNNING_STATE_DOMAINS_SET = new Set(["climate", "water_heater"]);
-function resolveEntityDomain(entityDescriptor: any) {
-  const entityId =
-    typeof entityDescriptor == "string"
-      ? entityDescriptor
-      : String(entityDescriptor?.entityId || entityDescriptor?.entity_id || "");
-  // 描述里的 domain 优先（可能带空白，故 trim）；缺失时按 ID 的点号前缀取域 ——
+const onOffDomainSet = new Set(["light", "switch", "input_boolean", "fan", "humidifier", "siren"]),
+  runningStateDomainSet = new Set(["climate", "water_heater"]);
+function resolveEntityDomain(entityRef) {
+  const resolvedEntityId =
+    typeof entityRef == "string"
+      ? entityRef
+      : String(entityRef?.entityId || entityRef?.entity_id || "");
   return (
-    String(typeof entityDescriptor == "string" ? "" : entityDescriptor?.domain || "").trim() ||
-    entityDomainFromId(entityId)
-  ).toLowerCase();
+    String(typeof entityRef == "string" ? "" : entityRef?.domain || "")
+      .trim()
+      .toLowerCase() || resolvedEntityId.split(".", 1)[0].toLowerCase()
+  );
 }
-/**
- * 判断某个实体能否参与灯光统计，并给出给用户看的口径说明。
- */
-export function lightStatisticsEntitySupport(entityLike: any) {
-  const entityDomainName = resolveEntityDomain(entityLike);
-  if (entityDomainName === "virtual" || entityLike?.virtual) {
-    return {
-      supported: true,
-      message: "虚拟实体按当前显示状态统计。"
-    };
-  } else if (entityDomainName === "group") {
-    return {
-      supported: true,
-      message: "群组将作为 1 个实体统计。"
-    };
-  } else if (ON_OFF_DOMAINS_SET.has(entityDomainName)) {
-    return {
-      supported: true,
-      message: "按开启/关闭状态统计。"
-    };
-  } else if (RUNNING_STATE_DOMAINS_SET.has(entityDomainName)) {
-    return {
-      supported: true,
-      message: "按关闭/运行状态统计。"
-    };
-  } else {
-    return {
-      supported: false,
-      message: "该实体没有明确的开启/关闭状态。"
-    };
-  }
+function isBluetoothOnlineStatusSensor(sensorEntityRef) {
+  const sensorEntityId =
+    typeof sensorEntityRef == "string"
+      ? sensorEntityRef
+      : String(sensorEntityRef?.entityId || sensorEntityRef?.entity_id || "");
+  return (
+    resolveEntityDomain(sensorEntityRef) === "sensor" &&
+    /(?:^|_)bt_online_status(?:_p_\d+_\d+)?(?:_\d+)?$/i.test(
+      sensorEntityId.split(".").slice(1).join("."),
+    )
+  );
 }
-/**
- * 把单条状态归类成 on / off / abnormal 三态。
- */
-export function lightStatisticsEntityStateStatus(entityInput: any, stateLike: any) {
-  if (!lightStatisticsEntitySupport(entityInput).supported) {
-    return "abnormal";
-  }
-  const domainName = resolveEntityDomain(entityInput);
-  const normalizedState = String(stateLike?.state ?? stateLike ?? "")
-    .trim()
-    .toLowerCase();
-  if (!normalizedState || ["unknown", "unavailable"].includes(normalizedState)) {
-    return "abnormal";
-  } else if (normalizedState === "off") {
-    return "off";
-  } else if (normalizedState === "on" || RUNNING_STATE_DOMAINS_SET.has(domainName)) {
-    return "on";
-  } else {
-    return "abnormal";
-  }
+export function lightStatisticsEntitySupport(supportEntity) {
+  const entityDomain = resolveEntityDomain(supportEntity);
+  return entityDomain === "virtual" || supportEntity?.virtual
+    ? {
+        supported: true,
+        message: "虚拟实体按当前显示状态统计。",
+      }
+    : entityDomain === "group"
+      ? {
+          supported: true,
+          message: "群组将作为 1 个实体统计。",
+        }
+      : onOffDomainSet.has(entityDomain)
+        ? {
+            supported: true,
+            message: "按开启/关闭状态统计。",
+          }
+        : runningStateDomainSet.has(entityDomain)
+          ? {
+              supported: true,
+              message: "按关闭/运行状态统计。",
+            }
+          : isBluetoothOnlineStatusSensor(supportEntity)
+            ? {
+                supported: true,
+                message: "按在线/离线状态统计，在线计入数量。",
+              }
+            : {
+                supported: false,
+                message: "该实体没有明确的开启/关闭状态。",
+              };
 }
-/**
- * 汇总一批实体的开关统计。
- */
-export function lightStatisticsSummary(
-  entityIds: any,
-  liveStatesByEntityId: any = new Map<any, any>(),
-  descriptorsByEntityId: any = new Map<any, any>()
-) {
-  // 去重但保持配置顺序：统计卡片的行序应与用户在编辑器里的排布一致，因此不能用 Set 直接输出。
-  const orderedEntityIds: any[] = [];
-  const seenEntityIds = new Set<any>();
-  for (const entityIdEntry of Array.isArray(entityIds) ? entityIds : []) {
-    const normalizedEntityId = String(entityIdEntry || "").trim();
-    if (!!normalizedEntityId && !seenEntityIds.has(normalizedEntityId)) {
-      seenEntityIds.add(normalizedEntityId);
-      orderedEntityIds.push(normalizedEntityId);
-    }
-  }
-  const items = orderedEntityIds.map((currentEntityId: any) => {
-    const descriptor: any = readFromMapOrRecord(descriptorsByEntityId, currentEntityId) || {};
-    const stateChange = resolveStateEntryIn(liveStatesByEntityId, currentEntityId) as any;
-    const normalizedStateEntry = String(stateChange?.state || "")
+export function lightStatisticsEntityStateStatus(statusEntity, stateSource) {
+  if (!lightStatisticsEntitySupport(statusEntity).supported) return "abnormal";
+  const statusEntityDomain = resolveEntityDomain(statusEntity),
+    normalizedState = String(stateSource?.state ?? stateSource ?? "")
       .trim()
       .toLowerCase();
-    // 描述里补上 entityId：域解析既要认 domain 字段，也要能退回 ID 前缀。
-    const support = lightStatisticsEntitySupport({
-      ...descriptor,
-      entityId: currentEntityId
-    });
-    const status = lightStatisticsEntityStateStatus(
-      {
-        ...descriptor,
-        entityId: currentEntityId
-      },
-      stateChange
-    );
+  if (!normalizedState || ["unknown", "unavailable"].includes(normalizedState)) return "abnormal";
+  if (isBluetoothOnlineStatusSensor(statusEntity)) {
+    const sensorState = normalizedState.replace(/^设备\s*\d+\s*-\s*/, "");
+    return ["在线", "online", "on"].includes(sensorState)
+      ? "on"
+      : ["离线", "offline", "off"].includes(sensorState)
+        ? "off"
+        : "abnormal";
+  }
+  return normalizedState === "off"
+    ? "off"
+    : normalizedState === "on" || runningStateDomainSet.has(statusEntityDomain)
+      ? "on"
+      : "abnormal";
+}
+function readLookupEntry(lookupStore, lookupKey) {
+  return typeof lookupStore?.get == "function"
+    ? lookupStore.get(lookupKey) || null
+    : (lookupStore && typeof lookupStore == "object" && lookupStore[lookupKey]) || null;
+}
+function readEntityState(stateStore, stateKey) {
+  const rawStateEntry =
+    typeof stateStore?.get == "function" ? stateStore.get(stateKey) : stateStore?.[stateKey];
+  return rawStateEntry &&
+    typeof rawStateEntry == "object" &&
+    Object.prototype.hasOwnProperty.call(rawStateEntry, "newState")
+    ? rawStateEntry.newState || null
+    : rawStateEntry || null;
+}
+export function lightStatisticsSummary(
+  entityIds,
+  stateByEntityId = new Map(),
+  metadataByEntityId = new Map(),
+) {
+  const uniqueEntityIds = [],
+    seenEntityIdSet = new Set();
+  for (const rawEntityId of Array.isArray(entityIds) ? entityIds : []) {
+    const candidateEntityId = String(rawEntityId || "").trim();
+    !candidateEntityId ||
+      seenEntityIdSet.has(candidateEntityId) ||
+      (seenEntityIdSet.add(candidateEntityId), uniqueEntityIds.push(candidateEntityId));
+  }
+  const entitySummaries = uniqueEntityIds.map((entityId) => {
+    const metadataEntry = readLookupEntry(metadataByEntityId, entityId) || {},
+      stateEntry = readEntityState(stateByEntityId, entityId),
+      stateText = String(stateEntry?.state || "")
+        .trim()
+        .toLowerCase(),
+      supportResult = lightStatisticsEntitySupport({
+        ...metadataEntry,
+        entityId: entityId,
+      }),
+      stateStatus = lightStatisticsEntityStateStatus(
+        {
+          ...metadataEntry,
+          entityId: entityId,
+        },
+        stateEntry,
+      );
     return {
-      entityId: currentEntityId,
-      // 展示名优先级：HA 的 friendly_name → 本地描述名 → 原始名 → 实体 ID 兜底。
+      entityId: entityId,
       label: String(
-        stateChange?.attributes?.friendly_name ||
-          descriptor.name ||
-          descriptor.originalName ||
-          currentEntityId
+        stateEntry?.attributes?.friendly_name ||
+          metadataEntry.name ||
+          metadataEntry.originalName ||
+          entityId,
       ),
-      state: normalizedStateEntry,
-      // 本可统计、但当前读数不可信的实体，文案与「压根不支持统计」区分开。
-      status: status,
-      message: status === "abnormal" && support.supported ? "当前状态无法判断" : support.message
+      state: stateText,
+      status: stateStatus,
+      message:
+        stateStatus === "abnormal" && supportResult.supported
+          ? "当前状态无法判断"
+          : supportResult.message,
     };
   });
   return {
-    total: items.length,
-    on: items.filter((item: any) => item.status === "on").length,
-    off: items.filter((entry: any) => entry.status === "off").length,
-    abnormal: items.filter((candidate: any) => candidate.status === "abnormal").length,
-    items: items
+    total: entitySummaries.length,
+    on: entitySummaries.filter((onEntry) => onEntry.status === "on").length,
+    off: entitySummaries.filter((offEntry) => offEntry.status === "off").length,
+    abnormal: entitySummaries.filter((abnormalEntry) => abnormalEntry.status === "abnormal").length,
+    items: entitySummaries,
   };
 }

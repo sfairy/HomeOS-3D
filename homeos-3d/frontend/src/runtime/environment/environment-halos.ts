@@ -1,373 +1,328 @@
-/**
- * 模型的屏幕描边与设备光晕（两种 2D 叠加层反馈）：createScreenOutlines 把选中模型轮廓投影到屏幕、
- */
-
-// 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js";
-import { modelWorldBounds } from "../core/scene-model-bounds.js";
-// 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "../core/motion-preference.js";
-import { paletteColor } from "../core/static-helpers.js";
-
-type AnyObj = Record<string, any>;
-
-
-/**
- * 模型轮廓描边的颜色（三层描边共用，靠宽度与不透明度分出内外辉光）。
- */
-const outlineStrokeColor = () => paletteColor("--hos-tool-ink-dim", "#dce2e6");
-
-/**
- * 求二维点集的凸包（Andrew 单调链算法）。
- */
-function outlineHull(hullInput: any) {
-  // 先按 x 再按 y 排序，单调链的前提。
+// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
+export function outlineHull(hullInput) {
   const sortedPoints = hullInput
-    .slice()
-    .sort((leftPoint: any, rightPoint: any) => leftPoint[0] - rightPoint[0] || leftPoint[1] - rightPoint[1]);
-  /** 叉积：> 0 表示三点左转（逆时针）。 */
-  const crossProduct = (originPoint: any, secondPoint: any, thirdPoint: any) =>
-    (secondPoint[0] - originPoint[0]) * (thirdPoint[1] - originPoint[1]) -
-    (secondPoint[1] - originPoint[1]) * (thirdPoint[0] - originPoint[0]);
-  /**
-   * 走一条链（下半边或上半边）。
-   */
-  const buildHullSide = (sortedInput: any) => {
-    const stack = [];
-    for (const stackPoint of sortedInput) {
-      while (stack.length > 1 && crossProduct(stack.at(-2), stack.at(-1), stackPoint) <= 0) {
-        stack.pop();
+      .slice()
+      .sort(
+        (leftPoint, rightPoint) => leftPoint[0] - rightPoint[0] || leftPoint[1] - rightPoint[1],
+      ),
+    crossProduct = (originPoint, secondPoint, thirdPoint) =>
+      (secondPoint[0] - originPoint[0]) * (thirdPoint[1] - originPoint[1]) -
+      (secondPoint[1] - originPoint[1]) * (thirdPoint[0] - originPoint[0]),
+    buildHullSide = (sortedInput) => {
+      const stack = [];
+      for (const stackPoint of sortedInput) {
+        for (; stack.length > 1 && crossProduct(stack.at(-2), stack.at(-1), stackPoint) <= 0;)
+          stack.pop();
+        stack.push(stackPoint);
       }
-      stack.push(stackPoint);
-    }
-    return stack;
-  };
-  // 两条链各去掉最后一个点（它与另一条链的第一个点重合）。
+      return stack;
+    };
   return [
     ...buildHullSide(sortedPoints).slice(0, -1),
-    ...buildHullSide(sortedPoints.reverse()).slice(0, -1)
+    ...buildHullSide(sortedPoints.reverse()).slice(0, -1),
   ];
 }
-/**
- * 创建模型轮廓描边（SVG 覆盖层）。
- */
 export function createScreenOutlines({
   THREE: three,
-  container: container,
+  container: containerElement,
   camera: camera,
   getCamera: getCamera,
-  getObjectCamera: getObjectCamera
-}: AnyObj) {
-  const svgElement = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  const coreOutlineElement = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  const outerGlowElement = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  const innerGlowElement = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  svgElement.setAttribute("class", "i3d-model-outlines");
-  // 描边是纯装饰，对读屏器隐藏。
-  svgElement.setAttribute("aria-hidden", "true");
-  // 三层描边叠加出「外发光 + 内发光 + 实线」的观感；
-  const outlineColor = outlineStrokeColor();
+  getObjectCamera: getObjectCamera,
+  color: outlineColor = "#d5dedb",
+  pulse: isPulseEnabled = true,
+  editorSelection: isEditorSelection = false,
+}) {
+  const svgElement = document.createElementNS("http://www.w3.org/2000/svg", "svg"),
+    solidOutlineElement = document.createElementNS("http://www.w3.org/2000/svg", "path"),
+    outerGlowElement = document.createElementNS("http://www.w3.org/2000/svg", "path"),
+    innerGlowElement = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  (svgElement.setAttribute("class", "i3d-model-outlines"),
+    svgElement.setAttribute("aria-hidden", "true"));
   for (const [outlinePathElement, outlineWidth, outlineOpacity] of [
     [outerGlowElement, 10, 0.14],
     [innerGlowElement, 6, 0.22],
-    [coreOutlineElement, 2.6, 0.48]
-  ] as [SVGPathElement, number, number][]) {
-    outlinePathElement.setAttribute("fill", "none");
-    outlinePathElement.setAttribute("stroke", outlineColor);
-    outlinePathElement.setAttribute("stroke-width", String(outlineWidth));
-    outlinePathElement.setAttribute("stroke-opacity", String(outlineOpacity));
-    outlinePathElement.setAttribute("stroke-linejoin", "round");
-    outlinePathElement.setAttribute("stroke-linecap", "round");
-  }
-  // 用 CSS 模糊代替额外的描边层，成本更低。
-  outerGlowElement.style.filter = "blur(2px)";
-  innerGlowElement.style.filter = "blur(.8px)";
-  // 追加顺序决定绘制顺序：先发光、后实线，实线压在最上层。
-  svgElement.append(outerGlowElement);
-  svgElement.append(innerGlowElement);
-  svgElement.append(coreOutlineElement);
-  container.append(svgElement);
-  let cachedModelRoot: any = null;
-  let cachedSceneRevision: any = null;
-  let cachedModelKey = "";
-  let outlineModels: any = [];
-  let isOutlineActive = false;
-  let cachedRenderKey = "";
-  let resumeAtTimestamp = 0;
-  let cachedCameraKey = "";
-  let pointsByModel = new WeakMap();
-  // 呼吸脉冲：三个描边层同步做 1 → 0.3 → 1 的透明度过山车。
+    [solidOutlineElement, 2.6, 0.48],
+  ])
+    (outlinePathElement.setAttribute("fill", "none"),
+      outlinePathElement.setAttribute("stroke", outlineColor),
+      outlinePathElement.setAttribute("stroke-width", String(outlineWidth)),
+      outlinePathElement.setAttribute("stroke-opacity", String(outlineOpacity)),
+      outlinePathElement.setAttribute("stroke-linejoin", "round"),
+      outlinePathElement.setAttribute("stroke-linecap", "round"));
+  ((outerGlowElement.style.filter = "blur(2px)"),
+    (innerGlowElement.style.filter = "blur(.8px)"),
+    svgElement.append(outerGlowElement),
+    svgElement.append(innerGlowElement),
+    svgElement.append(solidOutlineElement),
+    containerElement.append(svgElement));
+  let cachedModelRoot,
+    cachedSceneRevision,
+    cachedModelKey = "",
+    outlineModels = [],
+    isOutlineActive = false,
+    isOutlineAvailable = true,
+    isDisposed = false,
+    cachedRenderKey = "",
+    resumeAtTimestamp = 0,
+    cachedCameraKey = "",
+    pointsByModel = new WeakMap();
   const pulseAnimations =
-    prefersReducedMotionNow()
+    globalThis.window?.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true ||
+    !isPulseEnabled
       ? []
-      : [outerGlowElement, innerGlowElement, coreOutlineElement]
-          .map((animatedElement: any) =>
+      : [outerGlowElement, innerGlowElement, solidOutlineElement]
+          .map((animatedElement) =>
             animatedElement.animate?.(
               [
                 {
-                  opacity: 1
+                  opacity: 1,
                 },
                 {
-                  opacity: 0.3
+                  opacity: 0.3,
                 },
                 {
-                  opacity: 1
-                }
+                  opacity: 1,
+                },
               ],
               {
-                // 2.2 秒一轮、ease-in-out：足够慢，不会分散注意力。
                 duration: 2200,
                 iterations: Infinity,
-                easing: "ease-in-out"
-              }
-            )
+                easing: "ease-in-out",
+              },
+            ),
           )
           .filter(Boolean);
   let isPulsing = false;
-  // 动画先暂停：只有真正显示描边时才播放。
-  pulseAnimations.forEach((pulseAnimation: any) => pulseAnimation.pause());
-  /** 切换呼吸脉冲；重新播放时把时间归零，保证每次都是从最亮开始。 */
-  function setPulseActive(shouldPulse: any) {
+  pulseAnimations.forEach((pulseAnimation) => pulseAnimation.pause());
+  function setPulseActive(shouldPulse) {
     if (isPulsing !== shouldPulse) {
       isPulsing = shouldPulse;
-      for (const animationInstance of pulseAnimations) {
-        if (shouldPulse) {
-          animationInstance.currentTime = 0;
-          animationInstance.play();
-        } else {
-          animationInstance.pause();
-        }
-      }
+      for (const animationInstance of pulseAnimations)
+        shouldPulse
+          ? ((animationInstance.currentTime = 0), animationInstance.play())
+          : animationInstance.pause();
     }
   }
-  // 27 个方向（-1/0/1 的三元组合，去掉零向量）。
-  const directionVectors: any[] = [];
-  for (const xIndex of [-1, 0, 1]) {
-    for (const yIndex of [-1, 0, 1]) {
-      for (const zIndex of [-1, 0, 1]) {
-        if (xIndex || yIndex || zIndex) {
+  const buildModelKey = (modelRef) => JSON.stringify([modelRef.floorId, modelRef.modelId]),
+    directionVectors = [];
+  for (const xIndex of [-1, 0, 1])
+    for (const yIndex of [-1, 0, 1])
+      for (const zIndex of [-1, 0, 1])
+        (xIndex || yIndex || zIndex) &&
           directionVectors.push(new three.Vector3(xIndex, yIndex, zIndex));
-        }
-      }
-    }
-  }
-  /**
-   * 求模型在世界坐标下的轮廓极值点。
-   */
-  function computeSilhouettePoints(modelRoot: any) {
+  function computeSilhouettePoints(modelRoot) {
     const extremePoints = directionVectors.map(() => ({
-      score: -Infinity,
-      point: null
-    }));
-    const scratchVector = new three.Vector3();
-    // 递归遍历网格顶点，按每个方向向量取投影极值，得到世界坐标下的轮廓散点。
-    function walkMeshes(object3d: any, parentMatrix: any) {
-      // 跳过环境效果、扫地机的移动组、隐藏子树，以及嵌套的独立模型
+        score: -Infinity,
+        point: null,
+      })),
+      scratchVector = new three.Vector3();
+    function walkMeshes(object3d, parentMatrix) {
       if (
         object3d.userData?.environmentEffect ||
         object3d === modelRoot.userData?.vacuumMobileRoot ||
         (object3d !== modelRoot && object3d.visible === false) ||
+        (object3d !== modelRoot && object3d.userData?.fanPart === "yaw") ||
         (object3d !== modelRoot && object3d.userData?.environmentModelId != null)
-      ) {
+      )
         return;
-      }
       const positionAttribute = object3d.isMesh && object3d.geometry?.attributes?.position;
       if (positionAttribute) {
-        // 逐顶点扫描：顶点数在环境模型上都是几千级别，可接受。
-        for (let vertexIndex = 0; vertexIndex < positionAttribute.count; vertexIndex++) {
-          scratchVector
+        for (let vertexIndex = 0; vertexIndex < positionAttribute.count; vertexIndex++)
+          (scratchVector
             .fromBufferAttribute(positionAttribute, vertexIndex)
-            .applyMatrix4(parentMatrix);
-          directionVectors.forEach((direction, directionIndex: any) => {
-            const projectionDot = scratchVector.dot(direction);
-            if (projectionDot > extremePoints[directionIndex].score) {
-              extremePoints[directionIndex] = {
-                score: projectionDot,
-                point: scratchVector.clone()
-              };
-            }
-          });
-        }
+            .applyMatrix4(parentMatrix),
+            directionVectors.forEach((direction, directionIndex) => {
+              const projectionDot = scratchVector.dot(direction);
+              projectionDot > extremePoints[directionIndex].score &&
+                (extremePoints[directionIndex] = {
+                  score: projectionDot,
+                  point: scratchVector.clone(),
+                });
+            }));
       }
-      for (const childObject of object3d.children || []) {
-        if (childObject.matrixAutoUpdate) {
-          childObject.updateMatrix();
-        }
-        walkMeshes(
-          childObject,
-          new three.Matrix4().multiplyMatrices(parentMatrix, childObject.matrix)
-        );
-      }
+      for (const childObject of object3d.children || [])
+        (childObject.matrixAutoUpdate && childObject.updateMatrix(),
+          walkMeshes(
+            childObject,
+            new three.Matrix4().multiplyMatrices(parentMatrix, childObject.matrix),
+          ));
     }
-    walkMeshes(modelRoot, new three.Matrix4());
-    // 没有任何顶点命中的方向直接丢掉（空模型）。
-    return extremePoints
-      .filter((candidatePoint: any) => candidatePoint.point)
-      .map((extremePoint: any) => extremePoint.point);
-  }
-  /**
-   * 同步需要描边的模型列表。
-   */
-  function syncOutlines(syncModelRoot: any, sceneRevision: any, modelList: any, shouldShowOutlines: any) {
-    isOutlineActive = shouldShowOutlines;
-    // resumeAtTimestamp 是相机交互后的冷却期，冷却中即使要求显示也先不显示。
-    const shouldShow = shouldShowOutlines && performance.now() >= resumeAtTimestamp;
-    svgElement.style.opacity = shouldShow ? "1" : "0";
-    setPulseActive(shouldShow);
-    const modelKeyList = JSON.stringify(
-      modelList.map((modelRef: any) => sceneModelKey(modelRef.floorId, modelRef.modelId))
+    return (
+      walkMeshes(modelRoot, new three.Matrix4()),
+      extremePoints
+        .filter((candidatePoint) => candidatePoint.point)
+        .map((extremePoint) => extremePoint.point)
     );
-    // 根节点、修订号、模型列表都没变：不需要重新索引场景。
+  }
+  function syncOutlines(syncModelRoot, sceneRevision, modelList, shouldShowOutlines) {
+    if (isDisposed) return;
+    isOutlineActive = shouldShowOutlines;
+    const shouldShow =
+      shouldShowOutlines && isOutlineAvailable && performance.now() >= resumeAtTimestamp;
+    ((svgElement.style.opacity = shouldShow ? "1" : "0"), setPulseActive(shouldShow));
+    const modelKeySignature = JSON.stringify(modelList.map(buildModelKey));
     if (
       cachedModelRoot === syncModelRoot &&
       cachedSceneRevision === sceneRevision &&
-      cachedModelKey === modelKeyList
-    ) {
+      cachedModelKey === modelKeySignature
+    )
       return;
-    }
-    if (cachedModelRoot !== syncModelRoot || cachedSceneRevision !== sceneRevision) {
-      // 场景换了，缓存的极值点全部作废（几何体可能已被替换）。
-      pointsByModel = new WeakMap();
-    }
-    cachedModelRoot = syncModelRoot;
-    cachedSceneRevision = sceneRevision;
-    cachedModelKey = modelKeyList;
-    // 模型列表变了，投影结果必然失效。
-    cachedRenderKey = "";
+    ((cachedModelRoot !== syncModelRoot || cachedSceneRevision !== sceneRevision) &&
+      (pointsByModel = new WeakMap()),
+      (cachedModelRoot = syncModelRoot),
+      (cachedSceneRevision = sceneRevision),
+      (cachedModelKey = modelKeySignature),
+      (cachedRenderKey = ""));
     const modelsByKey = new Map();
-    cachedModelRoot?.traverse((traversedObject: any) => {
+    (cachedModelRoot?.traverse((traversedObject) => {
+      if (isEditorSelection) {
+        const editorModelId =
+            traversedObject.userData?.editorModelId ?? traversedObject.userData?.environmentModelId,
+          editorFloorId =
+            traversedObject.userData?.editorFloorId ?? traversedObject.userData?.environmentFloorId;
+        editorModelId != null &&
+          modelsByKey.set(
+            buildModelKey({
+              floorId: editorFloorId,
+              modelId: editorModelId,
+            }),
+            traversedObject,
+          );
+        return;
+      }
       if (
         ![
+          "door",
+          "airer",
+          "fan",
+          "storagewaterheater",
+          "gaswaterheater",
+          "airpurifier",
           "wallac",
           "floorac",
           "airoutlet",
-          "airpurifier",
           "curtain",
-          "freshair",
-          "thermostat",
-          "humidifier",
-          "dehumidifier",
           "nas",
+          "fridge",
+          "freezer",
+          "dishwasher",
+          "washer",
+          "dryer",
+          "plant",
+          "speaker",
           "tv",
           "robotvacuum",
           "camera",
           "presence",
-          "doorbell",
-          "heater",
-          "ceilingac",
-          "ceilingfan",
-          "vacuumcleaner",
-          "floorwasher"
         ].includes(traversedObject.userData?.environmentModelType)
-      ) {
+      )
         return;
-      }
-      // 楼层 ID 允许向上继承。
       let floorId = traversedObject.userData.environmentFloorId;
       for (
         let ancestor = traversedObject.parent;
         floorId == null && ancestor;
         ancestor = ancestor.parent
-      ) {
+      )
         floorId = ancestor.userData.environmentFloorId;
-      }
       modelsByKey.set(
-        sceneModelKey(floorId, traversedObject.userData.environmentModelId),
-        traversedObject
+        buildModelKey({
+          floorId: floorId,
+          modelId: traversedObject.userData.environmentModelId,
+        }),
+        traversedObject,
       );
-    });
-    outlineModels = modelList.flatMap((outlineModelRef: any) => {
-      const outlineModelObject = modelsByKey.get(
-        sceneModelKey(outlineModelRef.floorId, outlineModelRef.modelId)
-      );
-      if (outlineModelObject) {
-        return [outlineModelObject];
-      } else {
-        return [];
-      }
-    });
+    }),
+      (outlineModels = modelList.flatMap((outlineModelRef) => {
+        const outlineModelObject = modelsByKey.get(buildModelKey(outlineModelRef));
+        return outlineModelObject ? [outlineModelObject] : [];
+      })));
   }
-  /**
-   * 取一个模型真正需要描边的根节点。
-   */
-  function collectOutlineRoots(sceneModelRoot: any) {
+  function collectOutlineRoots(sceneModelRoot) {
+    if (sceneModelRoot.userData.environmentModelType === "fan") {
+      const fanParts = [];
+      return (
+        sceneModelRoot.traverse((fanPartObject) => {
+          fanPartObject.userData?.fanPart === "yaw" && fanParts.push(fanPartObject);
+        }),
+        [sceneModelRoot, ...fanParts]
+      );
+    }
     if (sceneModelRoot.userData.environmentModelType === "curtain") {
-      const curtainPanels: any[] = [];
-      sceneModelRoot.traverse((panel: any) => {
-        if (panel.userData?.curtainMotionPanel) {
-          curtainPanels.push(panel);
-        }
-      });
-      if (curtainPanels.length) {
+      const curtainPanels = [];
+      if (
+        (sceneModelRoot.traverse((panel) => {
+          panel.userData?.curtainMotionPanel && curtainPanels.push(panel);
+        }),
+        curtainPanels.length)
+      )
         return curtainPanels;
-      }
     }
-    if (sceneModelRoot.userData.vacuumMobileRoot) {
-      return [sceneModelRoot, sceneModelRoot.userData.vacuumMobileRoot];
-    } else {
-      return [sceneModelRoot];
-    }
+    return sceneModelRoot.userData.vacuumMobileRoot
+      ? [sceneModelRoot, sceneModelRoot.userData.vacuumMobileRoot]
+      : [sceneModelRoot];
   }
-  /**
-   * 取（或重算）某个模型的轮廓极值点。
-   */
-  function resolveSilhouettePoints(targetModel: any) {
-    const geometry = targetModel.geometry;
-    const vacuumMobileRoot = targetModel.userData?.vacuumMobileRoot;
+  function resolveSilhouettePoints(targetModel) {
+    const geometry = targetModel.geometry,
+      vacuumMobileRoot = targetModel.userData?.vacuumMobileRoot,
+      outlineRevision = targetModel.userData?.environmentOutlineRevision;
+    if (isEditorSelection && targetModel.userData?.environmentModelType === "door")
+      return computeSilhouettePoints(targetModel);
     const cachedEntry = pointsByModel.get(targetModel);
     if (
       cachedEntry &&
       cachedEntry.geometry === geometry &&
-      cachedEntry.mobile === vacuumMobileRoot
-    ) {
+      cachedEntry.mobile === vacuumMobileRoot &&
+      cachedEntry.pose === outlineRevision
+    )
       return cachedEntry.points;
-    }
     const silhouettePoints = computeSilhouettePoints(targetModel);
-    pointsByModel.set(targetModel, {
-      geometry: geometry,
-      mobile: vacuumMobileRoot,
-      points: silhouettePoints
-    });
-    return silhouettePoints;
+    return (
+      pointsByModel.set(targetModel, {
+        geometry: geometry,
+        mobile: vacuumMobileRoot,
+        pose: outlineRevision,
+        points: silhouettePoints,
+      }),
+      silhouettePoints
+    );
   }
-  /** 把所有描边模型投影到屏幕，重算一次 SVG 路径。 */
   function renderOutlines() {
-    if (!isOutlineActive || performance.now() < resumeAtTimestamp) {
+    if (
+      isDisposed ||
+      !isOutlineActive ||
+      !isOutlineAvailable ||
+      performance.now() < resumeAtTimestamp
+    )
       return;
-    }
-    // 显示时带上 0.18s 的淡入；pause 时会临时关掉过渡以获得即时隐藏。
-    svgElement.style.transition = "opacity .18s linear";
-    svgElement.style.opacity = "1";
-    setPulseActive(true);
+    ((svgElement.style.transition = "opacity .18s linear"),
+      (svgElement.style.opacity = "1"),
+      setPulseActive(true));
     const activeCamera = getCamera?.() || camera;
     activeCamera.updateMatrixWorld();
-    const widthPx = container.clientWidth;
-    const heightPx = container.clientHeight;
-    const outlineEntries = outlineModels
-      .flatMap(collectOutlineRoots)
-      .filter((outlineRoot: any) => {
-        // 祖先链上有隐藏节点就跳过（隐藏楼层不该出现描边）。
-        for (
-          let visibleAncestor = outlineRoot;
-          visibleAncestor;
-          visibleAncestor = visibleAncestor.parent
-        ) {
-          if (visibleAncestor.visible === false) {
-            return false;
-          }
-        }
-        return true;
-      })
-      .map((outlineModel: any) => ({
-        model: outlineModel,
-        points: resolveSilhouettePoints(outlineModel)
-      }));
-    for (const outlineEntry of outlineEntries) {
-      outlineEntry.model.updateWorldMatrix(true, false);
-      // 某些模型（如电视）有专用相机，描边必须与它实际渲染的视角一致。
-      outlineEntry.camera = getObjectCamera?.(outlineEntry.model) || activeCamera;
-    }
-    // 渲染键覆盖相机、画布尺寸与每个模型的矩阵：都没变就完全跳过投影计算。
+    const widthPx = containerElement.clientWidth,
+      heightPx = containerElement.clientHeight,
+      outlineEntries = outlineModels
+        .filter(
+          (outlineCandidate) =>
+            isEditorSelection || !outlineCandidate.userData?.environmentOutlineMoving,
+        )
+        .flatMap(collectOutlineRoots)
+        .filter((outlineRoot) => {
+          for (
+            let visibleAncestor = outlineRoot;
+            visibleAncestor;
+            visibleAncestor = visibleAncestor.parent
+          )
+            if (visibleAncestor.visible === false) return false;
+          return true;
+        })
+        .map((outlineModel) => ({
+          model: outlineModel,
+          points: resolveSilhouettePoints(outlineModel),
+        }));
+    for (const outlineEntry of outlineEntries)
+      (outlineEntry.model.updateWorldMatrix(true, false),
+        (outlineEntry.camera = getObjectCamera?.(outlineEntry.model) || activeCamera));
     const renderKey =
       widthPx +
       ":" +
@@ -379,384 +334,349 @@ export function createScreenOutlines({
       ":" +
       outlineEntries
         .map(
-          (entryForKey: any) =>
+          (entryForKey) =>
+            (isEditorSelection && entryForKey.model.userData?.environmentModelType === "door"
+              ? entryForKey.points.map((silhouettePoint) => silhouettePoint.toArray()).join(",")
+              : "") +
+            ":" +
+            (entryForKey.model.userData?.environmentOutlineRevision ?? "") +
+            ":" +
             entryForKey.model.uuid +
             ":" +
             (entryForKey.model.geometry?.uuid || "") +
             ":" +
             entryForKey.model.matrixWorld.elements +
             ":" +
-            entryForKey.camera.projectionMatrix.elements
+            entryForKey.camera.projectionMatrix.elements,
         )
         .join("|");
-    if (renderKey === cachedRenderKey) {
-      return;
-    }
-    cachedRenderKey = renderKey;
-    svgElement.setAttribute("viewBox", "0 0 " + widthPx + " " + heightPx);
-    const projectedVector = new three.Vector3();
-    const outlinePathData = outlineEntries
-      .map((outlineData: any) => {
-        // 世界坐标 → 裁剪空间 → 像素：注意 NDC 的 y 轴向上而屏幕坐标向下。
-        const projectedPoints = outlineData.points.map((screenPoint: any) => {
-          projectedVector
-            .copy(screenPoint)
-            .applyMatrix4(outlineData.model.matrixWorld)
-            .project(outlineData.camera);
-          return [
-            ((projectedVector.x + 1) * widthPx) / 2,
-            ((1 - projectedVector.y) * heightPx) / 2,
-            projectedVector.z
-          ];
-        });
-        // 有任何一个点跑出裁剪范围（在相机背后或被裁掉）就整体放弃这个模型：
-        if (
-          projectedPoints.some((projectedPoint: any) => projectedPoint[2] < -1 || projectedPoint[2] > 1)
-        ) {
-          return "";
-        }
-        const hullPoints = outlineHull(projectedPoints);
-        if (hullPoints.length > 2) {
-          // 保留一位小数：足够精确又能显著缩短 path 字符串。
-          return (
-            "M" +
-            hullPoints
-              .map((hullPoint: any) => hullPoint[0].toFixed(1) + "," + hullPoint[1].toFixed(1))
-              .join("L") +
-            "Z"
+    if (renderKey === cachedRenderKey) return;
+    ((cachedRenderKey = renderKey),
+      svgElement.setAttribute("viewBox", "0 0 " + widthPx + " " + heightPx));
+    const projectedVector = new three.Vector3(),
+      outlinePathString = outlineEntries
+        .map((outlineRecord) => {
+          const projectedPoints = outlineRecord.points.map(
+            (screenPoint) => (
+              projectedVector
+                .copy(screenPoint)
+                .applyMatrix4(outlineRecord.model.matrixWorld)
+                .project(outlineRecord.camera),
+              [
+                ((projectedVector.x + 1) * widthPx) / 2,
+                ((1 - projectedVector.y) * heightPx) / 2,
+                projectedVector.z,
+              ]
+            ),
           );
-        } else {
-          return "";
-        }
-      })
-      .join("");
-    // 三层共用同一份路径数据，只靠 stroke 参数区分。
-    for (const pathElement of [outerGlowElement, innerGlowElement, coreOutlineElement]) {
-      pathElement.setAttribute("d", outlinePathData);
-    }
+          if (
+            projectedPoints.some(
+              (projectedPoint) => projectedPoint[2] < -1 || projectedPoint[2] > 1,
+            )
+          )
+            return "";
+          const hullPoints = outlineHull(projectedPoints);
+          return hullPoints.length > 2
+            ? "M" +
+                hullPoints
+                  .map((hullPoint) => hullPoint[0].toFixed(1) + "," + hullPoint[1].toFixed(1))
+                  .join("L") +
+                "Z"
+            : "";
+        })
+        .join("");
+    for (const pathElement of [outerGlowElement, innerGlowElement, solidOutlineElement])
+      pathElement.setAttribute("d", outlinePathString);
   }
   function pauseOutlines() {
-    setPulseActive(false);
-    // 120ms 冷却：相机连续移动期间不必每帧重算投影。
-    resumeAtTimestamp = performance.now() + 120;
-    // 暂停要求即时隐藏，因此临时禁用过渡。
-    svgElement.style.transition = "none";
-    svgElement.style.opacity = "0";
+    isEditorSelection ||
+      (setPulseActive(false),
+      (resumeAtTimestamp = performance.now() + 120),
+      (svgElement.style.transition = "none"),
+      (svgElement.style.opacity = "0"));
   }
   return {
     sync: syncOutlines,
     update: renderOutlines,
     pause: pauseOutlines,
-    /** 相机是否移动过；移动过则先暂停描边。 */
+    setAvailable(isAvailable) {
+      isDisposed ||
+        isOutlineAvailable === !!isAvailable ||
+        ((isOutlineAvailable = !!isAvailable),
+        setPulseActive(false),
+        (svgElement.style.opacity = "0"),
+        isOutlineAvailable && (cachedRenderKey = ""));
+    },
     cameraChanged() {
-      if (!isOutlineActive) {
-        return false;
-      }
-      const cameraRef = getCamera?.() || camera;
-      // 相机键同时包含视图矩阵与投影矩阵：缩放 / 变焦也会被感知到。
-      const cameraKey = cameraRef.matrixWorld.elements + ":" + cameraRef.projectionMatrix.elements;
-      if (cameraKey === cachedCameraKey) {
-        return false;
-      } else {
-        cachedCameraKey = cameraKey;
-        pauseOutlines();
-        return true;
-      }
+      if (isDisposed || !isOutlineActive || !isOutlineAvailable) return false;
+      const cameraRef = getCamera?.() || camera,
+        cameraKey = cameraRef.matrixWorld.elements + ":" + cameraRef.projectionMatrix.elements;
+      return cameraKey === cachedCameraKey
+        ? false
+        : ((cachedCameraKey = cameraKey), pauseOutlines(), true);
     },
     nextDelay() {
-      if (isOutlineActive && performance.now() < resumeAtTimestamp) {
-        return Math.max(1, resumeAtTimestamp - performance.now());
-      } else {
-        return Infinity;
-      }
+      return !isDisposed &&
+        isOutlineAvailable &&
+        isOutlineActive &&
+        performance.now() < resumeAtTimestamp
+        ? Math.max(1, resumeAtTimestamp - performance.now())
+        : Infinity;
     },
     dispose() {
-      pulseAnimations.forEach((animation: any) => animation.cancel());
-      svgElement.remove();
-      outlineModels = [];
-    }
+      ((isDisposed = true),
+        (isOutlineActive = false),
+        pulseAnimations.forEach((animation) => animation.cancel()),
+        svgElement.remove(),
+        (outlineModels = []));
+    },
   };
 }
-/**
- * 创建设备光晕（贴片发光）。
- * @param {number} options.modeAmount 光晕总强度（0 时完全不可见）。
- */
-export function createEnvironmentHalos({ THREE: threeNamespace, modeAmount: modeAmount }: AnyObj) {
+export function createEnvironmentHalos({ THREE: haloThree, modeAmount: modeAmount }) {
   const halosById = new Map();
-  let cachedHaloRoot: any = null;
-  let cachedHaloRevision: any = null;
-  let cachedHalosKey: any = null;
-  let isHaloActive = false;
-  // 光晕定位键直接用共享实现：本文件原先还留着一份逐字节相同的本地定义，
-  const planeGeometry = new threeNamespace.PlaneGeometry(1, 1);
-  /** 释放一片光晕（几何体是共享的，只销毁材质）。 */
-  function disposeHalo(haloRecord: any) {
-    haloRecord.mesh.removeFromParent();
-    haloRecord.mesh.material.dispose();
+  let cachedHaloRoot,
+    cachedHaloRevision,
+    cachedHalosKey,
+    isHaloActive = false;
+  const buildFloorModelKey = (keyFloorId, keyModelId) =>
+      JSON.stringify([String(keyFloorId ?? ""), String(keyModelId ?? "")]),
+    planeGeometry = new haloThree.PlaneGeometry(1, 1);
+  function computeModelBounds(boundsModel) {
+    const boundsBox = new haloThree.Box3();
+    function walkBounds(boundsObject, boundsMatrix) {
+      if (
+        !(boundsObject.userData?.environmentEffect || boundsObject.userData?.curtainMotionRig) &&
+        !(boundsObject !== boundsModel && boundsObject.userData?.environmentModelId != null)
+      ) {
+        boundsObject.isMesh &&
+          boundsObject.geometry?.attributes?.position &&
+          (boundsObject.geometry.boundingBox || boundsObject.geometry.computeBoundingBox(),
+          boundsBox.union(boundsObject.geometry.boundingBox.clone().applyMatrix4(boundsMatrix)));
+        for (const boundsChild of boundsObject.children || [])
+          (boundsChild.matrixAutoUpdate && boundsChild.updateMatrix(),
+            walkBounds(
+              boundsChild,
+              new haloThree.Matrix4().multiplyMatrices(boundsMatrix, boundsChild.matrix),
+            ));
+      }
+    }
+    return (
+      walkBounds(boundsModel, new haloThree.Matrix4()),
+      boundsBox.isEmpty() ? null : boundsBox
+    );
   }
-  /**
-   * 同步光晕列表。
-   */
-  function syncHalos(haloModelRoot: any, haloItems: any, haloSceneRevision: any, modelMap: any) {
+  function disposeHalo(haloRecord) {
+    (haloRecord.mesh.removeFromParent(), haloRecord.mesh.material.dispose());
+  }
+  function syncHalos(haloModelRoot, haloItems, haloSceneRevision, modelMap) {
     const haloKey = JSON.stringify(
-      haloItems.map((haloItem: any) => [
+      haloItems.map((haloItem) => [
         haloItem.id,
         haloItem.floorId,
         haloItem.modelId,
         haloItem.visible,
-        haloItem.deviceKind
-      ])
+        haloItem.deviceKind,
+      ]),
     );
     if (
       cachedHaloRoot === haloModelRoot &&
       cachedHaloRevision === haloSceneRevision &&
       cachedHalosKey === haloKey
-    ) {
+    )
       return;
-    }
-    cachedHaloRoot = haloModelRoot;
-    cachedHaloRevision = haloSceneRevision;
-    cachedHalosKey = haloKey;
+    ((cachedHaloRoot = haloModelRoot),
+      (cachedHaloRevision = haloSceneRevision),
+      (cachedHalosKey = haloKey));
     const resolvedModelByKey = modelMap || new Map();
-    if (!modelMap && haloItems.length) {
-      cachedHaloRoot?.traverse((object3dEntry: any) => {
-        if (object3dEntry.userData?.environmentModelId == null) {
-          return;
-        }
+    !modelMap &&
+      haloItems.length &&
+      cachedHaloRoot?.traverse((object3dEntry) => {
+        if (object3dEntry.userData?.environmentModelId == null) return;
         let haloFloorId = object3dEntry.userData.environmentFloorId;
         for (
           let haloAncestor = object3dEntry.parent;
           haloFloorId == null && haloAncestor;
           haloAncestor = haloAncestor.parent
-        ) {
+        )
           haloFloorId = haloAncestor.userData.environmentFloorId;
-        }
         resolvedModelByKey.set(
-          sceneModelKey(haloFloorId, object3dEntry.userData.environmentModelId),
-          object3dEntry
+          buildFloorModelKey(haloFloorId, object3dEntry.userData.environmentModelId),
+          object3dEntry,
         );
       });
-    }
-    const visibleHaloIds = new Set();
+    const visibleHaloIdSet = new Set();
     for (const syncHaloItem of haloItems) {
-      if (syncHaloItem.visible === false) {
-        continue;
-      }
+      if (syncHaloItem.visible === false) continue;
       const haloModel = resolvedModelByKey.get(
-        sceneModelKey(syncHaloItem.floorId, syncHaloItem.modelId)
+        buildFloorModelKey(syncHaloItem.floorId, syncHaloItem.modelId),
       );
-      if (!haloModel) {
+      if (
+        !haloModel ||
+        ["smallcar", "fan", "airpurifier", "floorac", "airer"].includes(
+          haloModel.userData?.environmentModelType,
+        )
+      )
         continue;
-      }
-      const modelBounds: any = modelWorldBounds(haloModel, threeNamespace);
-      if (!modelBounds) {
-        continue;
-      }
-      const modelSize = modelBounds.getSize(new threeNamespace.Vector3());
-      const modelCenter = modelBounds.getCenter(new threeNamespace.Vector3());
-      // 风口是竖向安装的（沿 Z 更长），光晕要跟着转 90°。
-      const isVerticalHalo =
-        haloModel.userData.environmentModelType === "airoutlet" && modelSize.z > modelSize.x;
-      const haloWidth = isVerticalHalo ? modelSize.z : modelSize.x;
-      const haloHeight = modelSize.y;
-      if (!(haloWidth > 0) || !(haloHeight > 0)) {
-        continue;
-      }
-      visibleHaloIds.add(syncHaloItem.id);
+      const modelBounds = computeModelBounds(haloModel);
+      if (!modelBounds) continue;
+      const modelSize = modelBounds.getSize(new haloThree.Vector3()),
+        modelCenter = modelBounds.getCenter(new haloThree.Vector3()),
+        isVerticalHalo =
+          haloModel.userData.environmentModelType === "airoutlet" && modelSize.z > modelSize.x,
+        haloWidth = isVerticalHalo ? modelSize.z : modelSize.x,
+        haloHeight = modelSize.y;
+      if (!(haloWidth > 0 && haloHeight > 0)) continue;
+      visibleHaloIdSet.add(syncHaloItem.id);
       let halo = halosById.get(syncHaloItem.id);
-      if (halo && halo.model !== haloModel) {
-        // 模型被重建：旧网格挂在废弃节点上，重建光晕。
-        disposeHalo(halo);
-        halosById.delete(syncHaloItem.id);
-        halo = null;
+      if (
+        (halo &&
+          halo.model !== haloModel &&
+          (disposeHalo(halo), halosById.delete(syncHaloItem.id), (halo = null)),
+        !halo)
+      ) {
+        const haloMaterial = new haloThree.ShaderMaterial({
+            uniforms: {
+              haloMode: modeAmount,
+              haloColor: {
+                value: new haloThree.Color(0, 0, 0),
+              },
+              haloSize: {
+                value: new haloThree.Vector2(),
+              },
+              haloFeather: {
+                value: 0,
+              },
+              haloRects: {
+                value: Array.from(
+                  {
+                    length: 3,
+                  },
+                  () => new haloThree.Vector4(),
+                ),
+              },
+              haloRectCount: {
+                value: 1,
+              },
+            },
+            vertexShader:
+              "varying vec2 vHaloUv; void main(){ vHaloUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }",
+            fragmentShader:
+              "varying vec2 vHaloUv;\n            uniform float haloMode, haloFeather;\n            uniform vec2 haloSize;\n            uniform vec3 haloColor;\n            uniform vec4 haloRects[3];\n            uniform int haloRectCount;\n            void main() {\n              vec2 p = (vHaloUv - 0.5) * (haloSize + vec2(haloFeather * 2.0));\n              float d = 10000.0;\n              for (int i = 0; i < 3; i++) {\n                if (i >= haloRectCount) break;\n                vec4 rect = haloRects[i];\n                float radius = min(rect.z, rect.w) * 0.18;\n                vec2 q = abs(p - rect.xy) - rect.zw + vec2(radius);\n                d = min(d, length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius);\n              }\n              float outer = 1.0 - smoothstep(0.0, haloFeather, max(d, 0.0));\n              float alpha = outer * outer * haloMode * 0.025;\n              if (alpha < 0.001) discard;\n              gl_FragColor = vec4(haloColor, alpha);\n              #include <colorspace_fragment>\n            }",
+            transparent: true,
+            blending: haloThree.AdditiveBlending,
+            depthTest: true,
+            depthWrite: false,
+            side: haloThree.DoubleSide,
+            forceSinglePass: true,
+            toneMapped: false,
+          }),
+          haloMesh = new haloThree.Mesh(planeGeometry, haloMaterial);
+        ((haloMesh.name = "environment-halo-" + syncHaloItem.id),
+          Object.assign(haloMesh.userData, {
+            environmentEffect: true,
+            environmentHalo: true,
+            externalModelSharedGeometry: true,
+            externalModelSharedMaterial: true,
+          }),
+          (haloMesh.raycast = () => {}),
+          (haloMesh.visible = false),
+          haloModel.add(haloMesh),
+          (halo = {
+            model: haloModel,
+            mesh: haloMesh,
+          }),
+          halosById.set(syncHaloItem.id, halo));
       }
-      if (!halo) {
-        const haloMaterial = new threeNamespace.ShaderMaterial({
-          uniforms: {
-            // 总强度由外部配置（modeAmount），为 0 时整体不可见。
-            haloMode: modeAmount,
-            haloColor: {
-              value: new threeNamespace.Color(0, 0, 0)
-            },
-            haloSize: {
-              value: new threeNamespace.Vector2()
-            },
-            haloFeather: {
-              value: 0
-            },
-            // 最多 3 个圆角矩形（窗帘按帘布分别给光，其余设备只用第 0 个）。
-            haloRects: {
-              value: Array.from(
-                {
-                  length: 3
-                },
-                () => new threeNamespace.Vector4()
-              )
-            },
-            haloRectCount: {
-              value: 1
-            }
-          },
-          vertexShader:
-            "varying vec2 vHaloUv; void main(){ vHaloUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }",
-          // 片元着色器：对最多 3 个圆角矩形求 SDF 并取最小值，
-          fragmentShader:
-            "varying vec2 vHaloUv;\n            uniform float haloMode, haloFeather;\n            uniform vec2 haloSize;\n            uniform vec3 haloColor;\n            uniform vec4 haloRects[3];\n            uniform int haloRectCount;\n            void main() {\n              vec2 p = (vHaloUv - 0.5) * (haloSize + vec2(haloFeather * 2.0));\n              float d = 10000.0;\n              for (int i = 0; i < 3; i++) {\n                if (i >= haloRectCount) break;\n                vec4 rect = haloRects[i];\n                float radius = min(rect.z, rect.w) * 0.18;\n                vec2 q = abs(p - rect.xy) - rect.zw + vec2(radius);\n                d = min(d, length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius);\n              }\n              float outer = 1.0 - smoothstep(0.0, haloFeather, max(d, 0.0));\n              float alpha = outer * outer * haloMode * 0.025;\n              if (alpha < 0.001) discard;\n              gl_FragColor = vec4(haloColor, alpha);\n              #include <colorspace_fragment>\n            }",
-          transparent: true,
-          // 加性混合：光晕只会让画面变亮，不会遮挡模型本身。
-          blending: threeNamespace.AdditiveBlending,
-          depthTest: true,
-          depthWrite: false,
-          side: threeNamespace.DoubleSide,
-          forceSinglePass: true,
-          toneMapped: false
-        });
-        const haloMesh = new threeNamespace.Mesh(planeGeometry, haloMaterial);
-        haloMesh.name = "environment-halo-" + syncHaloItem.id;
-        Object.assign(haloMesh.userData, {
-          environmentEffect: true,
-          environmentHalo: true,
-          // 几何体与材质都是共享 / 自建的轻量资源，清理时只摘节点即可。
-          externalModelSharedGeometry: true,
-          externalModelSharedMaterial: true
-        });
-        haloMesh.raycast = () => {};
-        // 初始隐藏：等 setColor 给了非黑色之后才显示。
-        haloMesh.visible = false;
-        haloModel.add(haloMesh);
-        halo = {
-          model: haloModel,
-          mesh: haloMesh
-        };
-        halosById.set(syncHaloItem.id, halo);
-      }
-      // 羽化宽度取短边的 15%，并夹在 2.5–7cm：太小会看到硬边，太大会糊成一片。
       const haloFeather = Math.max(0.025, Math.min(0.07, Math.min(haloWidth, haloHeight) * 0.15));
-      halo.mesh.material.uniforms.haloSize.value.set(haloWidth, haloHeight);
-      halo.mesh.material.uniforms.haloFeather.value = haloFeather;
-      halo.mesh.scale.set(haloWidth + haloFeather * 2, haloHeight + haloFeather * 2, 1);
-      halo.mesh.position.copy(modelCenter);
-      halo.mesh.rotation.y = isVerticalHalo ? Math.PI / 2 : 0;
-      if (isVerticalHalo) {
-        halo.mesh.position.x = modelBounds.max.x + 0.006;
-      } else {
-        halo.mesh.position.z = modelBounds.max.z + 0.006;
-      }
-      halo.mesh.updateMatrix();
-      halo.center = modelCenter;
-      halo.bounds = modelBounds;
-      halo.width = haloWidth;
-      halo.height = haloHeight;
-      halo.panels = [];
-      if (haloModel.userData.environmentModelType === "curtain") {
-        haloModel.traverse((curtainPanel: any) => {
-          if (curtainPanel.userData.curtainMotionPanel) {
-            halo.panels.push(curtainPanel);
-          }
-        });
-      }
-      halo.pose = null;
-      updateHaloPanels(halo);
+      (halo.mesh.material.uniforms.haloSize.value.set(haloWidth, haloHeight),
+        (halo.mesh.material.uniforms.haloFeather.value = haloFeather),
+        halo.mesh.scale.set(haloWidth + haloFeather * 2, haloHeight + haloFeather * 2, 1),
+        halo.mesh.position.copy(modelCenter),
+        (halo.mesh.rotation.y = isVerticalHalo ? Math.PI / 2 : 0),
+        isVerticalHalo
+          ? (halo.mesh.position.x = modelBounds.max.x + 0.006)
+          : (halo.mesh.position.z = modelBounds.max.z + 0.006),
+        halo.mesh.updateMatrix(),
+        (halo.center = modelCenter),
+        (halo.bounds = modelBounds),
+        (halo.width = haloWidth),
+        (halo.height = haloHeight),
+        (halo.panels = []),
+        haloModel.userData.environmentModelType === "curtain" &&
+          haloModel.traverse((curtainPanel) => {
+            curtainPanel.userData.curtainMotionPanel && halo.panels.push(curtainPanel);
+          }),
+        (halo.pose = null),
+        updateHaloPanels(halo));
     }
-    for (const [staleHaloId, staleHalo] of halosById) {
-      if (!visibleHaloIds.has(staleHaloId)) {
-        disposeHalo(staleHalo);
-        halosById.delete(staleHaloId);
-      }
-    }
+    for (const [staleHaloId, staleHalo] of halosById)
+      visibleHaloIdSet.has(staleHaloId) || (disposeHalo(staleHalo), halosById.delete(staleHaloId));
   }
-  /**
-   * 更新窗帘光晕的矩形列表，让光只落在实际可见的帘布上。
-   */
-  function updateHaloPanels(targetHalo: any) {
-    // 姿态键：帘布的可见性与横向缩放（开合程度）；不变则无需重算。
+  function updateHaloPanels(targetHalo) {
     const panelPoseKey = targetHalo.panels
-      .map((panelRef: any) => panelRef.visible + ":" + panelRef.scale.x)
+      .map((panelRef) => panelRef.visible + ":" + panelRef.scale.x)
       .join("|");
-    if (panelPoseKey === targetHalo.pose) {
-      return;
-    }
+    if (panelPoseKey === targetHalo.pose) return;
     targetHalo.pose = panelPoseKey;
-    const uniforms = targetHalo.mesh.material.uniforms;
-    const haloRects = uniforms.haloRects.value;
-    const visiblePanels = targetHalo.panels.filter((visiblePanel: any) => visiblePanel.visible);
+    const uniforms = targetHalo.mesh.material.uniforms,
+      haloRects = uniforms.haloRects.value,
+      visiblePanels = targetHalo.panels.filter((visiblePanel) => visiblePanel.visible);
     if (!visiblePanels.length) {
-      uniforms.haloRectCount.value = 1;
-      haloRects[0].set(0, 0, targetHalo.width / 2, targetHalo.height / 2);
+      ((uniforms.haloRectCount.value = 1),
+        haloRects[0].set(0, 0, targetHalo.width / 2, targetHalo.height / 2));
       return;
     }
     let rectIndex = 0;
     for (const panelNode of visiblePanels.slice(0, 2)) {
-      // 从帘布到模型根节点的矩阵链：自顶向下乘，得到帘布相对模型的变换。
       const panelAncestry = [];
       for (
         let panelAncestor = panelNode;
         panelAncestor && panelAncestor !== targetHalo.model;
         panelAncestor = panelAncestor.parent
-      ) {
+      )
         panelAncestry.unshift(panelAncestor);
-      }
-      const panelMatrix = new threeNamespace.Matrix4();
-      for (const ancestryNode of panelAncestry) {
-        if (ancestryNode.matrixAutoUpdate) {
-          ancestryNode.updateMatrix();
-        }
-        panelMatrix.multiply(ancestryNode.matrix);
-      }
-      if (!panelNode.geometry.boundingBox) {
-        panelNode.geometry.computeBoundingBox();
-      }
-      const panelBounds = panelNode.geometry.boundingBox.clone().applyMatrix4(panelMatrix);
-      const panelCenter = panelBounds.getCenter(new threeNamespace.Vector3());
-      const panelSize = panelBounds.getSize(new threeNamespace.Vector3());
-      // 矩形参数是「相对光晕中心的偏移 + 半宽半高」（着色器里以中心为原点）。
+      const panelMatrix = new haloThree.Matrix4();
+      for (const ancestryNode of panelAncestry)
+        (ancestryNode.matrixAutoUpdate && ancestryNode.updateMatrix(),
+          panelMatrix.multiply(ancestryNode.matrix));
+      panelNode.geometry.boundingBox || panelNode.geometry.computeBoundingBox();
+      const panelBounds = panelNode.geometry.boundingBox.clone().applyMatrix4(panelMatrix),
+        panelCenter = panelBounds.getCenter(new haloThree.Vector3()),
+        panelSize = panelBounds.getSize(new haloThree.Vector3());
       haloRects[rectIndex++].set(
         panelCenter.x - targetHalo.center.x,
         panelCenter.y - targetHalo.center.y,
         panelSize.x / 2,
-        panelSize.y / 2
+        panelSize.y / 2,
       );
     }
     uniforms.haloRectCount.value = rectIndex;
   }
-  /** 每帧更新（目前只有窗帘需要跟随时变形的帘布）。 */
   function updateHalos() {
     if (isHaloActive) {
-      for (const updatedHalo of halosById.values()) {
-        if (updatedHalo.panels.length) {
-          updateHaloPanels(updatedHalo);
-        }
-      }
+      for (const updatedHalo of halosById.values())
+        updatedHalo.panels.length && updateHaloPanels(updatedHalo);
     }
   }
-  /**
-   * 设置某片光晕的颜色。
-   */
-  function setHaloColor(itemId: any, color: any) {
+  function setHaloColor(itemId, color) {
     const colorHalo = halosById.get(itemId);
-    if (colorHalo) {
-      colorHalo.mesh.material.uniforms.haloColor.value.copy(color);
-      // 全黑表示「无状态」（设备关闭）：此时连节点都不必渲染。
-      colorHalo.mesh.visible = isHaloActive && color.r + color.g + color.b > 0;
-    }
+    colorHalo &&
+      (colorHalo.mesh.material.uniforms.haloColor.value.copy(color),
+      (colorHalo.mesh.visible = isHaloActive && color.r + color.g + color.b > 0));
   }
-  /** 批量开关光晕；关闭时同步隐藏所有节点。 */
-  function setHalosVisible(shouldShowHalos: any) {
+  function setHalosVisible(shouldShowHalos) {
     isHaloActive = shouldShowHalos;
     for (const visibilityHalo of halosById.values()) {
       const haloColor = visibilityHalo.mesh.material.uniforms.haloColor.value;
       visibilityHalo.mesh.visible = isHaloActive && haloColor.r + haloColor.g + haloColor.b > 0;
     }
   }
-  /** 清空全部光晕并复位缓存键。 */
   function clearHalos() {
-    for (const clearedHalo of halosById.values()) {
-      disposeHalo(clearedHalo);
-    }
-    halosById.clear();
-    cachedHaloRoot = null;
-    cachedHaloRevision = undefined;
-    cachedHalosKey = undefined;
+    for (const clearedHalo of halosById.values()) disposeHalo(clearedHalo);
+    (halosById.clear(),
+      (cachedHaloRoot = null),
+      (cachedHaloRevision = undefined),
+      (cachedHalosKey = undefined));
   }
   return {
     sync: syncHalos,
@@ -765,9 +685,7 @@ export function createEnvironmentHalos({ THREE: threeNamespace, modeAmount: mode
     clear: clearHalos,
     update: updateHalos,
     dispose() {
-      clearHalos();
-      // 共享平面几何体在这里统一销毁。
-      planeGeometry.dispose();
-    }
+      (clearHalos(), planeGeometry.dispose());
+    },
   };
 }

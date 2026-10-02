@@ -1,105 +1,67 @@
-/**
- * 折线图几何与数值格式化。
- */
-
-
-/**
- * 把时间序列映射到给定绘图区的坐标。
- */
 export function lineChartGeometry(
-  series: any,
-  originX: any = 0,
-  originY: any = 5,
-  plotWidth: any = 100,
-  plotHeight: any = 59
+  samples,
+  originX = 0,
+  originY = 5,
+  chartWidth = 100,
+  chartHeight = 59,
 ) {
-  // 空序列没有极值也没有时间锚点，强行展开只会得到 Infinity/NaN（series[0] 直接是 undefined）：
-  // 交回 null 由调用方走「暂无数据」分支；两个现有调用点在调用前均已判空。
-  if (!Array.isArray(series) || series.length === 0) {
-    return null;
-  }
-  const dataMin = Math.min(...series.map((datapoint: any) => datapoint.value));
-  const dataMax = Math.max(...series.map((seriesPoint: any) => seriesPoint.value));
-  const valueSpan = dataMax - dataMin;
-  const valueMagnitude = Math.max(Math.abs(dataMin), Math.abs(dataMax), 0.001);
-  // 上下各留一点空间，曲线不至于贴边；恒定序列（span 为 0）靠 magnitude 那一项撑出留白。
-  const valuePadding = Math.max(0.0001, valueSpan * 0.12, valueMagnitude * 0.02);
-  const minimum = dataMin - valuePadding;
-  const maximum = dataMax + valuePadding;
-  // span 再次兜底，保证后面做分母时不会出现 0 或负数。
-  const span = Math.max(0.000001, maximum - minimum);
-  const firstTime = series[0].timestamp;
-  // 所有点时间戳相同时 lastTime 会等于 firstTime，+1 是为了让时间轴分母非零。
-  const lastTime = Math.max(firstTime + 1, series.at(-1).timestamp);
-  const points = series.map((point: any) => ({
-    ...point,
-    x: originX + ((point.timestamp - firstTime) / (lastTime - firstTime)) * plotWidth,
-    y: originY + ((maximum - point.value) / span) * plotHeight
-  }));
+  const minValue = Math.min(...samples.map((minSample) => minSample.value)),
+    maxValue = Math.max(...samples.map((maxSample) => maxSample.value)),
+    valueRange = maxValue - minValue,
+    maxAbsValue = Math.max(Math.abs(minValue), Math.abs(maxValue), 0.001),
+    padding = Math.max(0.0001, valueRange * 0.12, maxAbsValue * 0.02),
+    axisMin = minValue - padding,
+    axisMax = maxValue + padding,
+    axisSpan = Math.max(0.000001, axisMax - axisMin),
+    firstTimestamp = samples[0].timestamp,
+    lastTimestamp = Math.max(firstTimestamp + 1, samples.at(-1).timestamp),
+    chartPoints = samples.map((sample) => ({
+      ...sample,
+      x:
+        originX +
+        ((sample.timestamp - firstTimestamp) / (lastTimestamp - firstTimestamp)) * chartWidth,
+      y: originY + ((axisMax - sample.value) / axisSpan) * chartHeight,
+    }));
   return {
-    dataMin: dataMin,
-    dataMax: dataMax,
-    minimum: minimum,
-    maximum: maximum,
-    span: span,
-    firstTime: firstTime,
-    lastTime: lastTime,
-    points: points
+    dataMin: minValue,
+    dataMax: maxValue,
+    minimum: axisMin,
+    maximum: axisMax,
+    span: axisSpan,
+    firstTime: firstTimestamp,
+    lastTime: lastTimestamp,
+    points: chartPoints,
   };
 }
-/**
- * 归一化精度设置：只接受 0~4 的整数，其余（含 auto、空值、越界、非整数）一律回落到 auto。
- */
-function normalizedStatePrecision(precisionOption: any) {
-  if (precisionOption == null || precisionOption === "" || precisionOption === "auto") {
+export function normalizedStatePrecision(precisionSetting) {
+  if (precisionSetting == null || precisionSetting === "" || precisionSetting === "auto")
     return "auto";
-  }
-  const parsedPrecision = Number(precisionOption);
-  if (Number.isInteger(parsedPrecision) && parsedPrecision >= 0 && parsedPrecision <= 4) {
-    return parsedPrecision;
-  } else {
-    return "auto";
-  }
+  const precisionNumber = Number(precisionSetting);
+  return Number.isInteger(precisionNumber) && precisionNumber >= 0 && precisionNumber <= 4
+    ? precisionNumber
+    : "auto";
 }
-/**
- * 按量级自动挑选小数位：>=100 取整、>=10 一位、>=1 两位、>=0.01 三位、更小四位。
- */
-function automaticNumericPrecision(inputValue: any) {
-  const magnitude = Math.abs(Number(inputValue));
-  if (!Number.isFinite(magnitude) || magnitude === 0 || magnitude >= 100) {
-    return 0;
-  } else if (magnitude >= 10) {
-    return 1;
-  } else if (magnitude >= 1) {
-    return 2;
-  } else if (magnitude >= 0.01) {
-    return 3;
-  } else {
-    return 4;
-  }
+export function automaticNumericPrecision(magnitudeInput) {
+  const magnitude = Math.abs(Number(magnitudeInput));
+  return !Number.isFinite(magnitude) || magnitude === 0 || magnitude >= 100
+    ? 0
+    : magnitude >= 10
+      ? 1
+      : magnitude >= 1
+        ? 2
+        : magnitude >= 0.01
+          ? 3
+          : 4;
 }
-/**
- * 按精度设置格式化数值。
- */
-export function formatNumericValue(value: any, precisionSetting: any = "auto") {
-  const numericValue = Number(value);
-  if (!Number.isFinite(numericValue)) {
-    return "--";
-  }
-  const resolvedPrecision = normalizedStatePrecision(precisionSetting);
-  const precisionDigits =
-    resolvedPrecision === "auto" ? automaticNumericPrecision(numericValue) : resolvedPrecision;
-  const formattedValue = numericValue.toFixed(precisionDigits);
-  if (resolvedPrecision === "auto") {
-    // 自动模式下再转一次数字，把 "12.30" 这类尾零抹掉。
-    return String(Number(formattedValue));
-  } else {
-    return formattedValue;
-  }
+export function formatNumericValue(numericValue, precisionRequest = "auto") {
+  const rawValue = Number(numericValue);
+  if (!Number.isFinite(rawValue)) return "--";
+  const normalizedPrecision = normalizedStatePrecision(precisionRequest),
+    effectivePrecision =
+      normalizedPrecision === "auto" ? automaticNumericPrecision(rawValue) : normalizedPrecision,
+    formattedNumber = rawValue.toFixed(effectivePrecision);
+  return normalizedPrecision === "auto" ? String(Number(formattedNumber)) : formattedNumber;
 }
-/**
- * 把图表数值格式化成标签文案。
- */
-export function formatLineChartValue(chartValue: any, precision: any = "auto") {
-  return formatNumericValue(chartValue, precision);
+export function formatLineChartValue(sampleValue, precisionOption = "auto") {
+  return formatNumericValue(sampleValue, precisionOption);
 }

@@ -1,7 +1,7 @@
 {
-  "name": "homeos-3d",
+  "name": "homeos-3d-067-ts",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.6.7",
   "type": "module",
   "packageManager": "bun@1.4.2",
   "engines": {
@@ -13,7 +13,11 @@
     "build:app": "vite build --config frontend/vite.config.ts",
     "build:runtime": "vite build --config frontend/vite.runtime.config.ts",
     "build": "bun run build:app && bun run build:runtime",
-    "typecheck": "tsc -p tsconfig.json --pretty false"
+    "typecheck": "tsc -p tsconfig.json --pretty false",
+    "verify:material": "bun tools/verify_model_material_roles.ts",
+    "verify:parity": "python3 tools/verify_parity.py",
+    "verify:smoke": ".venv/bin/python tools/smoke_pages.py",
+    "verify": "bun run typecheck && bun run verify:material && bun run build && bun run verify:parity && bun run verify:smoke"
   },
   "devDependencies": {
     "@types/node": "^26.6.2",

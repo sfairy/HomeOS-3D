@@ -33,7 +33,7 @@ const OBFUSCATOR_OPTIONS = {
   numbersToExpressions: true,
   renameGlobals: false,
   renameProperties: false,
-  reservedNames: ["^ha_bridge_", "^homeos", "^THREE$", "^Hls$", "^jQuery$", "^\\$"],
+  reservedNames: ["^homeos", "^THREE$", "^Hls$", "^jQuery$", "^\\$"],
   reservedStrings: [],
   seed: 0x486f6d65,
   selfDefending: false,

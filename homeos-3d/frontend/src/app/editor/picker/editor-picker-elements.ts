@@ -1,12 +1,3 @@
-/**
- * 编辑器选择器的 DOM 元素工厂。
- */
-
-type AnyObj = Record<string, any>;
-
-/**
- * 创建选择器元素工厂。
- */
 export function createEditorPickerElements({
   entityKindLabel: entityKindLabel,
   entityPickerPrimaryName: entityPickerPrimaryName,
@@ -15,12 +6,9 @@ export function createEditorPickerElements({
   assetDisplayName: assetDisplayName,
   assetPreviewUrl: assetPreviewUrl,
   bindEditorIconNameTooltip: bindEditorIconNameTooltip,
-  mdiIconUrl: mdiIconUrl
-}: AnyObj) {
-  /**
-   * 创建图标选择器的「清除」选项。
-   */
-  function createIconPickerClearOption(isClearSelected: any, clearOptionLabel: any, clearDatasetKey: any) {
+  mdiIconUrl: mdiIconUrl,
+}) {
+  function createIconPickerClearOption(isClearSelected, clearOptionLabel, clearDatasetKey) {
     const clearOptionElement = document.createElement("button");
     return (
       (clearOptionElement.type = "button"),
@@ -30,11 +18,7 @@ export function createEditorPickerElements({
       clearOptionElement
     );
   }
-
-  /**
-   * 创建一个图标选项（用 mask-image 渲染 MDI 图标）。
-   */
-  function createIconPickerOption(icon: any, selectedIconName: any, iconDatasetKey: any) {
+  function createIconPickerOption(icon, selectedIconName, iconDatasetKey) {
     const iconOptionElement = document.createElement("button");
     ((iconOptionElement.type = "button"),
       (iconOptionElement.className = `navigation-icon-option${icon.name === selectedIconName ? " selected" : ""}`),
@@ -42,7 +26,6 @@ export function createEditorPickerElements({
       iconOptionElement.setAttribute("aria-label", icon.name),
       (iconOptionElement.dataset.iconName = icon.name));
     const iconMaskElement = document.createElement("i");
-    // 同时设置标准与 webkit 前缀属性，兼容 Safari。
     return (
       iconMaskElement.setAttribute("aria-hidden", "true"),
       (iconMaskElement.style.maskImage = `url("${icon.previewUrl}")`),
@@ -52,14 +35,7 @@ export function createEditorPickerElements({
       iconOptionElement
     );
   }
-
-  /**
-   * 创建「当前图标」展示块。
-   */
-  function createEditorPickerCurrentIcon(
-    iconName: any,
-    emptyIconLabel: any = "未使用图标"
-  ) {
+  function createEditorPickerCurrentIcon(iconName, emptyIconLabel = "未使用图标") {
     const trimmedIconName = String(iconName || "").trim(),
       currentIconElement = document.createElement("span");
     ((currentIconElement.className = "editor-paged-picker-current-icon"),
@@ -79,11 +55,7 @@ export function createEditorPickerElements({
       currentIconElement
     );
   }
-
-  /**
-   * 创建一个实体选项行（域标签 + 名称 + 实体 ID）。
-   */
-  function createEditorEntityPickerOption(entity: any, selectedEntityId: any) {
+  function createEditorEntityPickerOption(entity, selectedEntityId) {
     const entityOptionElement = document.createElement("button");
     ((entityOptionElement.type = "button"),
       (entityOptionElement.className = `inspector-entity-option${entity.entityId === selectedEntityId ? " selected" : ""}`),
@@ -91,7 +63,7 @@ export function createEditorPickerElements({
       entityOptionElement.setAttribute("role", "option"),
       entityOptionElement.setAttribute(
         "aria-selected",
-        String(entity.entityId === selectedEntityId)
+        String(entity.entityId === selectedEntityId),
       ));
     const entityContentElement = document.createElement("span");
     ((entityContentElement.className = "inspector-entity-option-content"),
@@ -115,11 +87,7 @@ export function createEditorPickerElements({
       entityOptionElement
     );
   }
-
-  /**
-   * 创建「清除选择」按钮。
-   */
-  function editorPickerClearOption(clearLabel: any, isClearOptionSelected: any = !1) {
+  function editorPickerClearOption(clearLabel, isClearOptionSelected = false) {
     const clearButtonElement = document.createElement("button");
     return (
       (clearButtonElement.type = "button"),
@@ -129,26 +97,14 @@ export function createEditorPickerElements({
       clearButtonElement
     );
   }
-
-  /**
-   * 创建动作选择器里的「不使用实体」按钮。
-   */
-  function editorPickerClearAction(
-    clearActionLabel = "不使用实体",
-    isClearActionSelected = !1
-  ) {
+  function editorPickerClearAction(clearActionLabel = "不使用实体", isClearActionSelected = false) {
     const clearActionElement = editorPickerClearOption(clearActionLabel, isClearActionSelected);
-    // 复用清除按钮的类名与 dataset，只换外层样式类以适配动作选择器。
     return (
       (clearActionElement.className = "editor-paged-picker-selected-action"),
       clearActionElement
     );
   }
-
-  /**
-   * 创建动作选择器里的实体按钮。
-   */
-  function editorPickerEntityAction(actionEntity: any, isEntityActionSelected: any = !1) {
+  function editorPickerEntityAction(actionEntity, isEntityActionSelected = false) {
     const entityActionElement = document.createElement("button");
     return (
       (entityActionElement.type = "button"),
@@ -159,14 +115,7 @@ export function createEditorPickerElements({
       entityActionElement
     );
   }
-
-  /**
-   * 创建「当前实体」展示块。
-   */
-  function createEditorPickerCurrentEntity(
-    selectedEntity: any,
-    emptyEntityLabel: any = "未选择实体"
-  ) {
+  function createEditorPickerCurrentEntity(selectedEntity, emptyEntityLabel = "未选择实体") {
     const currentEntityElement = document.createElement("span");
     currentEntityElement.className = "editor-paged-picker-current-entity";
     const currentEntityNameElement = document.createElement("span");
@@ -181,23 +130,14 @@ export function createEditorPickerElements({
         : ((currentEntityNameElement.textContent = emptyEntityLabel),
           (currentEntityIdElement.textContent = "")),
       currentEntityElement.append(currentEntityNameElement),
-      // 没有实体 ID 时连 ID 行一起隐藏，保持展示块紧凑。
       currentEntityIdElement.textContent && currentEntityElement.append(currentEntityIdElement),
       currentEntityElement
     );
   }
-
-  /**
-   * 创建「当前素材」展示块（缩略图 + 名称）。
-   */
-  function createEditorPickerCurrentAsset(
-    asset: any,
-    emptyAssetLabel: any = "未使用图片"
-  ) {
+  function createEditorPickerCurrentAsset(asset, emptyAssetLabel = "未使用图片") {
     const currentAssetElement = document.createElement("span");
     currentAssetElement.className = "editor-paged-picker-current-asset";
     const assetImageElement = document.createElement("img");
-    // 纯装饰图，alt 留空让读屏跳过。
     assetImageElement.alt = "";
     const assetNameElement = document.createElement("span");
     return (
@@ -205,10 +145,9 @@ export function createEditorPickerElements({
       asset
         ? ((assetImageElement.src = assetPreviewUrl(asset)),
           (assetNameElement.textContent = assetDisplayName(asset) || emptyAssetLabel),
-          // 名称可能重复，title 里补上文件名 / 相对路径以便区分。
           (currentAssetElement.title =
             asset.name || asset.relativePath || asset.assetId || emptyAssetLabel))
-        : ((assetImageElement.hidden = !0), (assetNameElement.textContent = emptyAssetLabel)),
+        : ((assetImageElement.hidden = true), (assetNameElement.textContent = emptyAssetLabel)),
       currentAssetElement.append(assetImageElement, assetNameElement),
       currentAssetElement
     );
@@ -222,6 +161,6 @@ export function createEditorPickerElements({
     editorPickerClearAction: editorPickerClearAction,
     editorPickerEntityAction: editorPickerEntityAction,
     createEditorPickerCurrentEntity: createEditorPickerCurrentEntity,
-    createEditorPickerCurrentAsset: createEditorPickerCurrentAsset
+    createEditorPickerCurrentAsset: createEditorPickerCurrentAsset,
   });
 }

@@ -1,15 +1,17 @@
-/**
- * 工作室模型库的程序化表面贴图：3D 工作室「挂画墙」的装饰画与「背景墙」的饰面材质都在线生成，
- */
+// 工作室模型库的程序化表面贴图：3D 工作室「壁画」的装饰画、以及「背景墙」的饰面材质都在线生成。
+//
+// 迁移自 homeos-3d 的 frontend/src/app/3d-studio/materials/studio-surface-textures.ts。
+// 本模块只依赖调用方传入的 THREE 命名空间（与场景同一份），不直接 import three：
+// 0.6.7 的 three 走 /static/vendor/three/0.186.0，路径由主模块决定。
 
-// 挂画墙可选的艺术风格。
+// 壁画可选的艺术风格。
 const MURAL_ART_STYLES = Object.freeze([
   "bauhaus",
   "colorfield",
   "linework",
   "blocks",
   "ink",
-  "terrazzo"
+  "terrazzo",
 ]);
 
 // 背景墙可选饰面：大理石、木饰面、格栅、石材、清水混凝土、织物、金属。
@@ -20,12 +22,10 @@ const FEATURE_WALL_STYLES = Object.freeze([
   "stone",
   "concrete",
   "fabric",
-  "metal"
+  "metal",
 ]);
 
-/**
- * 各饰面对应的材质参数：让同一种饰面在 3D 里除了贴图之外，粗糙度与金属度也各不相同。
- */
+// 各饰面对应的材质参数：让同一种饰面在 3D 里除了贴图之外，粗糙度与金属度也各不相同。
 export const FEATURE_WALL_STYLE_MATERIAL = Object.freeze({
   marble: { color: 0xf7f7f5, roughness: 0.34, metalness: 0.03 },
   wood: { color: 0x9a6f42, roughness: 0.72, metalness: 0.02 },
@@ -33,53 +33,43 @@ export const FEATURE_WALL_STYLE_MATERIAL = Object.freeze({
   stone: { color: 0xcec8bd, roughness: 0.46, metalness: 0.02 },
   concrete: { color: 0xb4b1ab, roughness: 0.94, metalness: 0 },
   fabric: { color: 0xc9c0b2, roughness: 0.98, metalness: 0 },
-  metal: { color: 0x9ba0a6, roughness: 0.38, metalness: 0.28 }
+  metal: { color: 0x9ba0a6, roughness: 0.38, metalness: 0.28 },
 });
 
 // 用 Set 做白名单查询：归一化函数会被频繁调用，线性查找没必要。
 const muralArtStyleSet = new Set(MURAL_ART_STYLES);
 const featureWallStyleSet = new Set(FEATURE_WALL_STYLES);
 
-/**
- * 归一化挂画风格，非法值回落到第一个风格。
- */
-export function normalizeMuralArtStyle(styleValue: any) {
+// 归一化壁画风格，非法值回落到第一个风格。
+export function normalizeMuralArtStyle(styleValue) {
   return muralArtStyleSet.has(styleValue) ? styleValue : MURAL_ART_STYLES[0];
 }
 
-/**
- * 归一化背景墙饰面风格，非法值回落到第一个风格。
- */
-export function normalizeFeatureWallStyle(styleValue: any) {
+// 归一化背景墙饰面风格，非法值回落到第一个风格。
+export function normalizeFeatureWallStyle(styleValue) {
   return featureWallStyleSet.has(styleValue) ? styleValue : FEATURE_WALL_STYLES[0];
 }
 
-/**
- * 确定性伪随机数源。
- */
-function seededRandomSource(seed: any) {
+// 确定性伪随机数源：同一风格每次绘制得到同一张图。
+function seededRandomSource(seed) {
   let randomSeed = seed >>> 0;
   return () => {
-    // 常数取自 Numerical Recipes 的 LCG（乘 1664525、加 1013904223），
+    // 常数取自 Numerical Recipes 的 LCG（乘 1664525、加 1013904223）。
     randomSeed = (randomSeed * 1664525 + 1013904223) >>> 0;
     return randomSeed / 4294967296;
   };
 }
 
-/**
- * 按系数调整颜色明度。
- */
-function shadeColor(hexColor: any, factor: any) {
+// 按系数调整颜色明度。
+function shadeColor(hexColor, factor) {
   const red = Math.min(255, Math.max(0, Math.round(((hexColor >> 16) & 255) * factor)));
   const green = Math.min(255, Math.max(0, Math.round(((hexColor >> 8) & 255) * factor)));
   const blue = Math.min(255, Math.max(0, Math.round((hexColor & 255) * factor)));
   return "rgb(" + red + ", " + green + ", " + blue + ")";
 }
 
-/**
- * 用二次曲线平滑地串起一串采样点并描边。
- */
-function strokeSmoothPath(canvasCtx: any, points: any) {
+// 用二次曲线平滑地串起一串采样点并描边。
+function strokeSmoothPath(canvasCtx, points) {
   if (points.length < 2) {
     return;
   }
@@ -88,7 +78,6 @@ function strokeSmoothPath(canvasCtx: any, points: any) {
   for (let index = 1; index < points.length - 1; index += 1) {
     // 相邻两点的中点作为二次贝塞尔的锚点：曲线终点落在中点，才能自然接上下一段。
     const midX = (points[index].x + points[index + 1].x) / 2;
-    // 锚点的纵向分量。
     const midY = (points[index].y + points[index + 1].y) / 2;
     canvasCtx.quadraticCurveTo(points[index].x, points[index].y, midX, midY);
   }
@@ -97,10 +86,8 @@ function strokeSmoothPath(canvasCtx: any, points: any) {
   canvasCtx.stroke();
 }
 
-/**
- * 包豪斯风格挂画：几何色块 + 一条手绘曲线 + 右侧刻度短线。
- */
-function paintMuralBauhaus(canvasCtx: any, width: any, height: any) {
+// 包豪斯风格壁画：几何色块 + 一条手绘曲线 + 右侧刻度短线。
+function paintMuralBauhaus(canvasCtx, width, height) {
   const muralBase = canvasCtx.createLinearGradient(0, 0, width, height);
   muralBase.addColorStop(0, "#f5f0e6");
   muralBase.addColorStop(0.55, "#ead9c6");
@@ -133,14 +120,7 @@ function paintMuralBauhaus(canvasCtx: any, width: any, height: any) {
   canvasCtx.lineWidth = height * 0.022;
   canvasCtx.beginPath();
   canvasCtx.moveTo(width * 0.09, height * 0.83);
-  canvasCtx.bezierCurveTo(
-    width * 0.34,
-    height * 0.61,
-    width * 0.56,
-    height * 0.99,
-    width * 0.91,
-    height * 0.71
-  );
+  canvasCtx.bezierCurveTo(width * 0.34, height * 0.61, width * 0.56, height * 0.99, width * 0.91, height * 0.71);
   canvasCtx.stroke();
   canvasCtx.strokeStyle = "rgba(43, 47, 56, .36)";
   canvasCtx.lineWidth = 2;
@@ -157,10 +137,8 @@ function paintMuralBauhaus(canvasCtx: any, width: any, height: any) {
   }
 }
 
-/**
- * 色域风格挂画：几块大面积的半透明圆角色块叠在竖向浅色条带上。
- */
-function paintMuralColorField(canvasCtx: any, width: any, height: any) {
+// 色域风格壁画：几块大面积的半透明圆角色块叠在竖向浅色条带上。
+function paintMuralColorField(canvasCtx, width, height) {
   const colorFieldRandom = seededRandomSource(74123);
   const muralBase = canvasCtx.createLinearGradient(0, 0, 0, height);
   muralBase.addColorStop(0, "#f7f3ec");
@@ -171,7 +149,7 @@ function paintMuralColorField(canvasCtx: any, width: any, height: any) {
     { x: 0.12, y: 0.26, w: 0.46, h: 0.54, color: "rgba(72, 122, 148, .5)" },
     { x: 0.44, y: 0.14, w: 0.4, h: 0.46, color: "rgba(213, 156, 88, .5)" },
     { x: 0.56, y: 0.47, w: 0.36, h: 0.44, color: "rgba(184, 101, 94, .44)" },
-    { x: 0.24, y: 0.58, w: 0.36, h: 0.3, color: "rgba(120, 133, 97, .4)" }
+    { x: 0.24, y: 0.58, w: 0.36, h: 0.3, color: "rgba(120, 133, 97, .4)" },
   ];
   for (const colorField of colorFields) {
     const fieldRadius = Math.min(width, height) * (0.05 + colorFieldRandom() * 0.09);
@@ -182,7 +160,7 @@ function paintMuralColorField(canvasCtx: any, width: any, height: any) {
       height * colorField.y,
       width * colorField.w,
       height * colorField.h,
-      fieldRadius
+      fieldRadius,
     );
     canvasCtx.fill();
   }
@@ -195,10 +173,8 @@ function paintMuralColorField(canvasCtx: any, width: any, height: any) {
   canvasCtx.strokeRect(width * 0.07, height * 0.09, width * 0.86, height * 0.82);
 }
 
-/**
- * 线条风格挂画：46 条随机长度与透明度的斜线，加一段深蓝圆弧与红点、一条水平参考线。
- */
-function paintMuralLinework(canvasCtx: any, width: any, height: any) {
+// 线条风格壁画：46 条随机长度与透明度的斜线，加一段深蓝圆弧与红点、一条水平参考线。
+function paintMuralLinework(canvasCtx, width, height) {
   const lineworkRandom = seededRandomSource(90211);
   canvasCtx.fillStyle = "#f6f3ec";
   canvasCtx.fillRect(0, 0, width, height);
@@ -232,10 +208,8 @@ function paintMuralLinework(canvasCtx: any, width: any, height: any) {
   canvasCtx.stroke();
 }
 
-/**
- * 色块风格挂画：四列自下而上堆叠的矩形色块，列间留竖向浅色缝。
- */
-function paintMuralBlocks(canvasCtx: any, width: any, height: any) {
+// 色块风格壁画：四列自下而上堆叠的矩形色块，列间留竖向浅色缝。
+function paintMuralBlocks(canvasCtx, width, height) {
   const blocksRandom = seededRandomSource(31577);
   canvasCtx.fillStyle = "#f2ece1";
   canvasCtx.fillRect(0, 0, width, height);
@@ -247,7 +221,7 @@ function paintMuralBlocks(canvasCtx: any, width: any, height: any) {
     "#8f9c74",
     "#3d4550",
     "#d9a3a0",
-    "#5d7f92"
+    "#5d7f92",
   ];
   for (let column = 0; column < blockColumns.length; column += 1) {
     let blockCursor = 0.07;
@@ -259,7 +233,7 @@ function paintMuralBlocks(canvasCtx: any, width: any, height: any) {
         width * blockColumns[column],
         height * blockCursor,
         width * columnWidth,
-        height * Math.min(blockHeight, 0.93 - blockCursor)
+        height * Math.min(blockHeight, 0.93 - blockCursor),
       );
       blockCursor += blockHeight + 0.015;
     }
@@ -272,10 +246,8 @@ function paintMuralBlocks(canvasCtx: any, width: any, height: any) {
   canvasCtx.fillRect(width * 0.52, height * 0.44, width * 0.06, height * 0.14);
 }
 
-/**
- * 水墨风格挂画：14 团径向渐变的墨晕 + 一条黑色笔触 + 一道红色横笔与朱点。
- */
-function paintMuralInk(canvasCtx: any, width: any, height: any) {
+// 水墨风格壁画：14 团径向渐变的墨晕 + 一条黑色笔触 + 一道红色横笔与朱点。
+function paintMuralInk(canvasCtx, width, height) {
   const inkRandom = seededRandomSource(60413);
   canvasCtx.fillStyle = "#f7f2e8";
   canvasCtx.fillRect(0, 0, width, height);
@@ -289,25 +261,15 @@ function paintMuralInk(canvasCtx: any, width: any, height: any) {
       0,
       washCenterX,
       washCenterY,
-      washRadius
+      washRadius,
     );
     const washTone = Math.floor(40 + inkRandom() * 60);
     washGradient.addColorStop(
       0,
-      "rgba(" +
-        washTone +
-        ", " +
-        (washTone + 6) +
-        ", " +
-        (washTone + 14) +
-        ", " +
-        (0.1 + inkRandom() * 0.2).toFixed(2) +
-        ")"
+      "rgba(" + washTone + ", " + (washTone + 6) + ", " + (washTone + 14) + ", " +
+        (0.1 + inkRandom() * 0.2).toFixed(2) + ")",
     );
-    washGradient.addColorStop(
-      1,
-      "rgba(" + washTone + ", " + (washTone + 6) + ", " + (washTone + 14) + ", 0)"
-    );
+    washGradient.addColorStop(1, "rgba(" + washTone + ", " + (washTone + 6) + ", " + (washTone + 14) + ", 0)");
     canvasCtx.fillStyle = washGradient;
     canvasCtx.beginPath();
     canvasCtx.arc(washCenterX, washCenterY, washRadius, 0, Math.PI * 2);
@@ -318,14 +280,7 @@ function paintMuralInk(canvasCtx: any, width: any, height: any) {
   canvasCtx.lineWidth = height * 0.018;
   canvasCtx.beginPath();
   canvasCtx.moveTo(width * 0.1, height * 0.68);
-  canvasCtx.bezierCurveTo(
-    width * 0.32,
-    height * 0.42,
-    width * 0.52,
-    height * 0.78,
-    width * 0.78,
-    height * 0.44
-  );
+  canvasCtx.bezierCurveTo(width * 0.32, height * 0.42, width * 0.52, height * 0.78, width * 0.78, height * 0.44);
   canvasCtx.stroke();
   canvasCtx.strokeStyle = "rgba(178, 64, 46, .92)";
   canvasCtx.lineWidth = height * 0.03;
@@ -339,10 +294,8 @@ function paintMuralInk(canvasCtx: any, width: any, height: any) {
   canvasCtx.fill();
 }
 
-/**
- * 水磨石风格挂画：340 颗随机旋转的多边形石粒，叠两段粗圆弧与一块浅色遮盖圆。
- */
-function paintMuralTerrazzo(canvasCtx: any, width: any, height: any) {
+// 水磨石风格壁画：340 颗随机旋转的多边形石粒，叠两段粗圆弧与一块浅色遮盖圆。
+function paintMuralTerrazzo(canvasCtx, width, height) {
   const terrazzoRandom = seededRandomSource(52019);
   canvasCtx.fillStyle = "#f3eee4";
   canvasCtx.fillRect(0, 0, width, height);
@@ -354,7 +307,7 @@ function paintMuralTerrazzo(canvasCtx: any, width: any, height: any) {
     "#3d4550",
     "#d9a3a0",
     "#5d7f92",
-    "#b9a88f"
+    "#b9a88f",
   ];
   for (let chip = 0; chip < 340; chip += 1) {
     const chipCenterX = terrazzoRandom() * width;
@@ -396,21 +349,19 @@ const muralPainters = Object.freeze({
   linework: paintMuralLinework,
   blocks: paintMuralBlocks,
   ink: paintMuralInk,
-  terrazzo: paintMuralTerrazzo
+  terrazzo: paintMuralTerrazzo,
 });
 
 // 贴图按风格缓存：Canvas 绘制开销不小，同一风格全场景只生成一次。
 const muralArtTextures = new Map();
 
-/**
- * 生成（或取回缓存的）挂画贴图。
- */
-export function createMuralArtTexture(threeApi: any, styleValue: any, maxAnisotropy: any = 1) {
+// 生成（或取回缓存的）壁画贴图。
+export function createMuralArtTexture(threeApi, styleValue, maxAnisotropy = 1) {
   const muralStyle = normalizeMuralArtStyle(styleValue);
   if (muralArtTextures.has(muralStyle)) {
     return muralArtTextures.get(muralStyle);
   }
-  // 768×512 是挂画在两米宽墙面上仍够清晰的折中尺寸，再大对内存不划算。
+  // 768×512 是壁画在两米宽墙面上仍够清晰的折中尺寸，再大对内存不划算。
   const canvasElement = document.createElement("canvas");
   canvasElement.width = 768;
   canvasElement.height = 512;
@@ -418,7 +369,7 @@ export function createMuralArtTexture(threeApi: any, styleValue: any, maxAnisotr
   if (!canvasCtx) {
     return null;
   }
-  (muralPainters as Record<string, any>)[muralStyle](canvasCtx, canvasElement.width, canvasElement.height);
+  muralPainters[muralStyle](canvasCtx, canvasElement.width, canvasElement.height);
   const texture = new threeApi.CanvasTexture(canvasElement);
   texture.colorSpace = threeApi.SRGBColorSpace;
   // 各向异性上限取 8：足以让斜视角度下的纹路不糊，又不会在小设备上耗费过多采样。
@@ -428,16 +379,14 @@ export function createMuralArtTexture(threeApi: any, styleValue: any, maxAnisotr
   return texture;
 }
 
-/**
- * 大理石的两个色号。**画法只有一套**（同一个随机结构、同一组云斑与纹路数量），色号只换调色：
- */
+// 大理石的两个色号。**画法只有一套**（同一个随机结构、同一组云斑与纹路数量），色号只换调色。
 const MARBLE_TONES = Object.freeze({
   white: Object.freeze({
     seed: 88117,
     baseStops: Object.freeze([
       [0, "#ffffff"],
       [0.5, "#fbfbfa"],
-      [1, "#f2f2f0"]
+      [1, "#f2f2f0"],
     ]),
     cloudLightTone: "255, 255, 255",
     cloudLightAlpha: Object.freeze([0.08, 0.18]),
@@ -452,15 +401,15 @@ const MARBLE_TONES = Object.freeze({
     speckLightTone: "255, 255, 255",
     speckLightAlpha: ".5",
     speckDarkTone: "24, 25, 28",
-    speckDarkAlpha: ".3"
+    speckDarkAlpha: ".3",
   }),
-  // 黑金大理石（黑底白纹）：实物参考里黑石座就是这一支 —— 近黑的底上飘着灰白纹路，
+  // 黑金大理石（黑底白纹）：实物参考里黑石座就是这一支 —— 近黑的底上飘着灰白纹路。
   dark: Object.freeze({
     seed: 20260924,
     baseStops: Object.freeze([
       [0, "#14161a"],
       [0.5, "#1b1e23"],
-      [1, "#0d0f12"]
+      [1, "#0d0f12"],
     ]),
     cloudLightTone: "122, 130, 142",
     cloudLightAlpha: Object.freeze([0.05, 0.1]),
@@ -475,15 +424,12 @@ const MARBLE_TONES = Object.freeze({
     speckLightTone: "235, 240, 246",
     speckLightAlpha: ".34",
     speckDarkTone: "6, 7, 9",
-    speckDarkAlpha: ".42"
-  })
+    speckDarkAlpha: ".42",
+  }),
 });
 
-/**
- * 抛光大理岩：底色渐变 + 柔和的云斑 + 9 条粗主纹 + 46 条细纹 + 明暗噪点。
- * @param {object} tone MARBLE_TONES 里的一档。
- */
-function paintMarbleSlab(canvasCtx: any, width: any, height: any, tone: any) {
+// 抛光大理岩：底色渐变 + 柔和的云斑 + 9 条粗主纹 + 46 条细纹 + 明暗噪点。
+function paintMarbleSlab(canvasCtx, width, height, tone) {
   const marbleRandom = seededRandomSource(tone.seed);
   const surfaceBase = canvasCtx.createLinearGradient(0, 0, width, height);
   for (const [stopOffset, stopColor] of tone.baseStops) {
@@ -500,23 +446,11 @@ function paintMarbleSlab(canvasCtx: any, width: any, height: any, tone: any) {
     // 偏亮 / 偏暗两路各自一对「基准 + 浮动」，与 tone 里的两对区间一一对应。
     const cloudAlphaRange = cloudLighter ? tone.cloudLightAlpha : tone.cloudDarkAlpha;
     const cloudAlpha = cloudAlphaRange[0] + marbleRandom() * cloudAlphaRange[1];
-    const cloudGradient = canvasCtx.createRadialGradient(
-      cloudX,
-      cloudY,
-      0,
-      cloudX,
-      cloudY,
-      cloudRadius
-    );
+    const cloudGradient = canvasCtx.createRadialGradient(cloudX, cloudY, 0, cloudX, cloudY, cloudRadius);
     cloudGradient.addColorStop(0, "rgba(" + cloudTone + ", " + cloudAlpha.toFixed(2) + ")");
     cloudGradient.addColorStop(1, "rgba(" + cloudTone + ", 0)");
     canvasCtx.fillStyle = cloudGradient;
-    canvasCtx.fillRect(
-      cloudX - cloudRadius,
-      cloudY - cloudRadius,
-      cloudRadius * 2,
-      cloudRadius * 2
-    );
+    canvasCtx.fillRect(cloudX - cloudRadius, cloudY - cloudRadius, cloudRadius * 2, cloudRadius * 2);
   }
   canvasCtx.lineCap = "round";
   // 粗主纹是抛光大理石最典型的对比特征，宽度与透明度随随机数变化。
@@ -531,11 +465,8 @@ function paintMarbleSlab(canvasCtx: any, width: any, height: any, tone: any) {
       veinPoints.push({ x: veinX, y: veinY });
     }
     canvasCtx.strokeStyle =
-      "rgba(" +
-      tone.mainVeinTone +
-      ", " +
-      (tone.mainVeinAlpha[0] + marbleRandom() * tone.mainVeinAlpha[1]).toFixed(2) +
-      ")";
+      "rgba(" + tone.mainVeinTone + ", " +
+      (tone.mainVeinAlpha[0] + marbleRandom() * tone.mainVeinAlpha[1]).toFixed(2) + ")";
     canvasCtx.lineWidth = tone.mainVeinWidth[0] + marbleRandom() * tone.mainVeinWidth[1];
     strokeSmoothPath(canvasCtx, veinPoints);
   }
@@ -552,11 +483,8 @@ function paintMarbleSlab(canvasCtx: any, width: any, height: any, tone: any) {
       finePoints.push({ x: fineX, y: fineY });
     }
     canvasCtx.strokeStyle =
-      "rgba(" +
-      tone.fineVeinTone +
-      ", " +
-      (tone.fineVeinAlpha[0] + marbleRandom() * tone.fineVeinAlpha[1]).toFixed(2) +
-      ")";
+      "rgba(" + tone.fineVeinTone + ", " +
+      (tone.fineVeinAlpha[0] + marbleRandom() * tone.fineVeinAlpha[1]).toFixed(2) + ")";
     canvasCtx.lineWidth = tone.fineVeinWidth[0] + marbleRandom() * tone.fineVeinWidth[1];
     strokeSmoothPath(canvasCtx, finePoints);
   }
@@ -570,17 +498,13 @@ function paintMarbleSlab(canvasCtx: any, width: any, height: any, tone: any) {
   }
 }
 
-/**
- * 大理石饰面：白色色号（与石材板共用同一套画法，见 MARBLE_TONES）。
- */
-function paintFeatureWallMarble(canvasCtx: any, width: any, height: any) {
+// 大理石饰面：白色色号（与石材板共用同一套画法，见 MARBLE_TONES）。
+function paintFeatureWallMarble(canvasCtx, width, height) {
   paintMarbleSlab(canvasCtx, width, height, MARBLE_TONES.white);
 }
 
-/**
- * 木饰面：四块竖向拼板，每块带横向渐变的底色、120 条木纹与若干年轮节疤。
- */
-function paintFeatureWallWood(canvasCtx: any, width: any, height: any) {
+// 木饰面：四块竖向拼板，每块带横向渐变的底色、120 条木纹与若干年轮节疤。
+function paintFeatureWallWood(canvasCtx, width, height) {
   const woodRandom = seededRandomSource(45119);
   const grainPalette = [0xa4713f, 0x8c5c31, 0xb98a54];
   const plankCount = 4;
@@ -589,18 +513,9 @@ function paintFeatureWallWood(canvasCtx: any, width: any, height: any) {
     const plankX = plank * plankWidth;
     const plankTone = 0.86 + woodRandom() * 0.3;
     const plankGradient = canvasCtx.createLinearGradient(plankX, 0, plankX + plankWidth, 0);
-    plankGradient.addColorStop(
-      0,
-      shadeColor(grainPalette[plank % grainPalette.length], plankTone * 0.92)
-    );
-    plankGradient.addColorStop(
-      0.45,
-      shadeColor(grainPalette[plank % grainPalette.length], plankTone * 1.08)
-    );
-    plankGradient.addColorStop(
-      1,
-      shadeColor(grainPalette[plank % grainPalette.length], plankTone * 0.88)
-    );
+    plankGradient.addColorStop(0, shadeColor(grainPalette[plank % grainPalette.length], plankTone * 0.92));
+    plankGradient.addColorStop(0.45, shadeColor(grainPalette[plank % grainPalette.length], plankTone * 1.08));
+    plankGradient.addColorStop(1, shadeColor(grainPalette[plank % grainPalette.length], plankTone * 0.88));
     canvasCtx.fillStyle = plankGradient;
     canvasCtx.fillRect(plankX, 0, plankWidth, height);
     canvasCtx.lineCap = "round";
@@ -632,15 +547,7 @@ function paintFeatureWallWood(canvasCtx: any, width: any, height: any) {
         canvasCtx.strokeStyle = "rgba(58, 34, 15, " + (0.1 + ring * 0.05).toFixed(2) + ")";
         canvasCtx.lineWidth = 1.1;
         canvasCtx.beginPath();
-        canvasCtx.ellipse(
-          knotX,
-          knotY,
-          knotRadius * ring * 0.5,
-          knotRadius * ring * 0.82,
-          0,
-          0,
-          Math.PI * 2
-        );
+        canvasCtx.ellipse(knotX, knotY, knotRadius * ring * 0.5, knotRadius * ring * 0.82, 0, 0, Math.PI * 2);
         canvasCtx.stroke();
       }
     }
@@ -651,10 +558,8 @@ function paintFeatureWallWood(canvasCtx: any, width: any, height: any) {
   canvasCtx.fillRect(width - 2.4, 0, 2.4, height);
 }
 
-/**
- * 木格栅饰面：深色凹槽底 + 等距竖条，竖条中间有一条高光细线。
- */
-function paintFeatureWallSlat(canvasCtx: any, width: any, height: any) {
+// 木格栅饰面：深色凹槽底 + 等距竖条，竖条中间有一条高光细线。
+function paintFeatureWallSlat(canvasCtx, width, height) {
   const slatRandom = seededRandomSource(70841);
   const slatCount = Math.max(12, Math.round(width / 34));
   const slatPitch = width / slatCount;
@@ -688,10 +593,8 @@ function paintFeatureWallSlat(canvasCtx: any, width: any, height: any) {
   canvasCtx.fillRect(0, 0, width, height);
 }
 
-/**
- * 石材墙面：3×2 块板材，每块在基准色上做明度浮动，并叠加云斑、细纹与白色噪点。
- */
-function paintFeatureWallStone(canvasCtx: any, width: any, height: any) {
+// 石材墙面：3×2 块板材，每块在基准色上做明度浮动，并叠加云斑、细纹与白色噪点。
+function paintFeatureWallStone(canvasCtx, width, height) {
   const stoneRandom = seededRandomSource(25309);
   const slabColumns = 3;
   const slabRows = 2;
@@ -713,26 +616,11 @@ function paintFeatureWallStone(canvasCtx: any, width: any, height: any) {
         const mottleRadius = Math.min(slabWidth, slabHeight) * (0.1 + stoneRandom() * 0.4);
         const mottleDark = stoneRandom() > 0.5;
         const mottleTone = mottleDark ? "150, 144, 133" : "246, 243, 236";
-        const mottleGradient = canvasCtx.createRadialGradient(
-          mottleX,
-          mottleY,
-          0,
-          mottleX,
-          mottleY,
-          mottleRadius
-        );
-        mottleGradient.addColorStop(
-          0,
-          "rgba(" + mottleTone + ", " + (0.08 + stoneRandom() * 0.2).toFixed(2) + ")"
-        );
+        const mottleGradient = canvasCtx.createRadialGradient(mottleX, mottleY, 0, mottleX, mottleY, mottleRadius);
+        mottleGradient.addColorStop(0, "rgba(" + mottleTone + ", " + (0.08 + stoneRandom() * 0.2).toFixed(2) + ")");
         mottleGradient.addColorStop(1, "rgba(" + mottleTone + ", 0)");
         canvasCtx.fillStyle = mottleGradient;
-        canvasCtx.fillRect(
-          mottleX - mottleRadius,
-          mottleY - mottleRadius,
-          mottleRadius * 2,
-          mottleRadius * 2
-        );
+        canvasCtx.fillRect(mottleX - mottleRadius, mottleY - mottleRadius, mottleRadius * 2, mottleRadius * 2);
       }
       canvasCtx.lineCap = "round";
       for (let vein = 0; vein < 3; vein += 1) {
@@ -745,8 +633,7 @@ function paintFeatureWallStone(canvasCtx: any, width: any, height: any) {
           veinY += (stoneRandom() - 0.4) * slabHeight * 0.4;
           veinPoints.push({ x: veinX, y: veinY });
         }
-        canvasCtx.strokeStyle =
-          "rgba(126, 120, 110, " + (0.1 + stoneRandom() * 0.22).toFixed(2) + ")";
+        canvasCtx.strokeStyle = "rgba(126, 120, 110, " + (0.1 + stoneRandom() * 0.22).toFixed(2) + ")";
         canvasCtx.lineWidth = 0.8 + stoneRandom() * 2.2;
         strokeSmoothPath(canvasCtx, veinPoints);
       }
@@ -758,10 +645,8 @@ function paintFeatureWallStone(canvasCtx: any, width: any, height: any) {
   }
 }
 
-/**
- * 清水混凝土饰面：中性灰底 + 34 团云斑 + 16 道抹刀弧痕 + 两层噪点。
- */
-function paintFeatureWallConcrete(canvasCtx: any, width: any, height: any) {
+// 清水混凝土饰面：中性灰底 + 34 团云斑 + 16 道抹刀弧痕 + 两层噪点。
+function paintFeatureWallConcrete(canvasCtx, width, height) {
   const concreteRandom = seededRandomSource(13627);
   const surfaceBase = canvasCtx.createLinearGradient(0, 0, width, height);
   surfaceBase.addColorStop(0, "#bcb9b3");
@@ -775,33 +660,17 @@ function paintFeatureWallConcrete(canvasCtx: any, width: any, height: any) {
     const cloudRadius = Math.min(width, height) * (0.1 + concreteRandom() * 0.4);
     const cloudLighter = concreteRandom() > 0.5;
     const cloudTone = cloudLighter ? "226, 224, 219" : "138, 136, 131";
-    const cloudGradient = canvasCtx.createRadialGradient(
-      cloudX,
-      cloudY,
-      0,
-      cloudX,
-      cloudY,
-      cloudRadius
-    );
-    cloudGradient.addColorStop(
-      0,
-      "rgba(" + cloudTone + ", " + (0.1 + concreteRandom() * 0.22).toFixed(2) + ")"
-    );
+    const cloudGradient = canvasCtx.createRadialGradient(cloudX, cloudY, 0, cloudX, cloudY, cloudRadius);
+    cloudGradient.addColorStop(0, "rgba(" + cloudTone + ", " + (0.1 + concreteRandom() * 0.22).toFixed(2) + ")");
     cloudGradient.addColorStop(1, "rgba(" + cloudTone + ", 0)");
     canvasCtx.fillStyle = cloudGradient;
-    canvasCtx.fillRect(
-      cloudX - cloudRadius,
-      cloudY - cloudRadius,
-      cloudRadius * 2,
-      cloudRadius * 2
-    );
+    canvasCtx.fillRect(cloudX - cloudRadius, cloudY - cloudRadius, cloudRadius * 2, cloudRadius * 2);
   }
   for (let trowel = 0; trowel < 16; trowel += 1) {
     const trowelX = concreteRandom() * width;
     const trowelY = concreteRandom() * height;
     const trowelRadius = Math.min(width, height) * (0.18 + concreteRandom() * 0.34);
-    canvasCtx.strokeStyle =
-      "rgba(240, 238, 233, " + (0.05 + concreteRandom() * 0.12).toFixed(2) + ")";
+    canvasCtx.strokeStyle = "rgba(240, 238, 233, " + (0.05 + concreteRandom() * 0.12).toFixed(2) + ")";
     canvasCtx.lineWidth = 6 + concreteRandom() * 22;
     canvasCtx.beginPath();
     canvasCtx.arc(
@@ -809,7 +678,7 @@ function paintFeatureWallConcrete(canvasCtx: any, width: any, height: any) {
       trowelY,
       trowelRadius,
       Math.PI * (0.7 + concreteRandom() * 0.6),
-      Math.PI * (1.3 + concreteRandom() * 0.7)
+      Math.PI * (1.3 + concreteRandom() * 0.7),
     );
     canvasCtx.stroke();
   }
@@ -823,10 +692,8 @@ function paintFeatureWallConcrete(canvasCtx: any, width: any, height: any) {
   }
 }
 
-/**
- * 织物饰面：底色 + 22 团柔斑 + 3 像素间距的经纬织纹 + 90 道横向竹节纱。
- */
-function paintFeatureWallFabric(canvasCtx: any, width: any, height: any) {
+// 织物饰面：底色 + 22 团柔斑 + 3 像素间距的经纬织纹 + 90 道横向竹节纱。
+function paintFeatureWallFabric(canvasCtx, width, height) {
   const fabricRandom = seededRandomSource(38971);
   canvasCtx.fillStyle = shadeColor(0xc9c0b2, 1);
   canvasCtx.fillRect(0, 0, width, height);
@@ -835,26 +702,11 @@ function paintFeatureWallFabric(canvasCtx: any, width: any, height: any) {
     const blotchY = fabricRandom() * height;
     const blotchRadius = Math.min(width, height) * (0.12 + fabricRandom() * 0.38);
     const blotchLighter = fabricRandom() > 0.5;
-    const blotchGradient = canvasCtx.createRadialGradient(
-      blotchX,
-      blotchY,
-      0,
-      blotchX,
-      blotchY,
-      blotchRadius
-    );
-    blotchGradient.addColorStop(
-      0,
-      blotchLighter ? "rgba(238, 232, 220, .22)" : "rgba(150, 140, 124, .18)"
-    );
+    const blotchGradient = canvasCtx.createRadialGradient(blotchX, blotchY, 0, blotchX, blotchY, blotchRadius);
+    blotchGradient.addColorStop(0, blotchLighter ? "rgba(238, 232, 220, .22)" : "rgba(150, 140, 124, .18)");
     blotchGradient.addColorStop(1, "rgba(0, 0, 0, 0)");
     canvasCtx.fillStyle = blotchGradient;
-    canvasCtx.fillRect(
-      blotchX - blotchRadius,
-      blotchY - blotchRadius,
-      blotchRadius * 2,
-      blotchRadius * 2
-    );
+    canvasCtx.fillRect(blotchX - blotchRadius, blotchY - blotchRadius, blotchRadius * 2, blotchRadius * 2);
   }
   const weavePitch = 3;
   for (let column = 0; column < width; column += weavePitch) {
@@ -876,10 +728,8 @@ function paintFeatureWallFabric(canvasCtx: any, width: any, height: any) {
   }
 }
 
-/**
- * 金属饰面：多段竖向灰度渐变模拟反射 + 900 道拉丝 + 12 道高光条。
- */
-function paintFeatureWallMetal(canvasCtx: any, width: any, height: any) {
+// 金属饰面：多段竖向灰度渐变模拟反射 + 900 道拉丝 + 12 道高光条。
+function paintFeatureWallMetal(canvasCtx, width, height) {
   const metalRandom = seededRandomSource(19237);
   const surfaceBase = canvasCtx.createLinearGradient(0, 0, 0, height);
   surfaceBase.addColorStop(0, "#8f959c");
@@ -901,17 +751,9 @@ function paintFeatureWallMetal(canvasCtx: any, width: any, height: any) {
   }
   for (let streak = 0; streak < 12; streak += 1) {
     const streakY = metalRandom() * height;
-    const streakGradient = canvasCtx.createLinearGradient(
-      0,
-      streakY - height * 0.05,
-      0,
-      streakY + height * 0.05
-    );
+    const streakGradient = canvasCtx.createLinearGradient(0, streakY - height * 0.05, 0, streakY + height * 0.05);
     streakGradient.addColorStop(0, "rgba(255, 255, 255, 0)");
-    streakGradient.addColorStop(
-      0.5,
-      "rgba(255, 255, 255, " + (0.06 + metalRandom() * 0.12).toFixed(2) + ")"
-    );
+    streakGradient.addColorStop(0.5, "rgba(255, 255, 255, " + (0.06 + metalRandom() * 0.12).toFixed(2) + ")");
     streakGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
     canvasCtx.fillStyle = streakGradient;
     canvasCtx.fillRect(0, streakY - height * 0.05, width, height * 0.1);
@@ -926,16 +768,14 @@ const featureWallPainters = Object.freeze({
   stone: paintFeatureWallStone,
   concrete: paintFeatureWallConcrete,
   fabric: paintFeatureWallFabric,
-  metal: paintFeatureWallMetal
+  metal: paintFeatureWallMetal,
 });
 
 // 背景墙饰面贴图同样按风格缓存。
 const featureWallTextures = new Map();
 
-/**
- * 生成（或取回缓存的）背景墙饰面贴图。
- */
-export function createFeatureWallTexture(threeApi: any, styleValue: any, maxAnisotropy: any = 1) {
+// 生成（或取回缓存的）背景墙饰面贴图。
+export function createFeatureWallTexture(threeApi, styleValue, maxAnisotropy = 1) {
   const wallStyle = normalizeFeatureWallStyle(styleValue);
   if (featureWallTextures.has(wallStyle)) {
     return featureWallTextures.get(wallStyle);
@@ -948,7 +788,7 @@ export function createFeatureWallTexture(threeApi: any, styleValue: any, maxAnis
   if (!canvasCtx) {
     return null;
   }
-  (featureWallPainters as Record<string, any>)[wallStyle](canvasCtx, canvasElement.width, canvasElement.height);
+  featureWallPainters[wallStyle](canvasCtx, canvasElement.width, canvasElement.height);
   const texture = new threeApi.CanvasTexture(canvasElement);
   texture.colorSpace = threeApi.SRGBColorSpace;
   texture.anisotropy = Math.min(maxAnisotropy || 1, 8);
@@ -957,29 +797,22 @@ export function createFeatureWallTexture(threeApi: any, styleValue: any, maxAnis
   return texture;
 }
 
-/**
- * 石材板整图的色号表：**整块石材**（茶几的上下两块石板、餐桌台面）走这里，
- */
+// 石材板整图的色号表：**整块石材**（茶几的上下两块石板、餐桌台面）走这里。
 const STONE_SLAB_TONES = Object.freeze({
   marble: MARBLE_TONES.white,
-  "marble-dark": MARBLE_TONES.dark
+  "marble-dark": MARBLE_TONES.dark,
 });
 
 const stoneSlabTextures = new Map();
 
-/**
- * 生成（或取回缓存的）石材板整图。
- * @param {object} threeApi THREE 命名空间（必须与场景同一份）。
- * @param {string} flavor 色号：marble（白）/ marble-dark（黑金）。
- * @param {number} [maxAnisotropy] 各向异性上限。
- * @returns {object|null} 取不到时返回 null（调用方退化成纯色，不影响其余部件）。
- */
-export function createStoneSlabTexture(threeApi: any, flavor: any, maxAnisotropy: any = 1) {
+// 生成（或取回缓存的）石材板整图。
+// flavor：marble（白）/ marble-dark（黑金）。取不到时返回 null（调用方退化成纯色）。
+export function createStoneSlabTexture(threeApi, flavor, maxAnisotropy = 1) {
   if (flavor === "marble") {
     // 与背景墙共用同一份缓存实例；调用方负责 clone 后再改平铺方式。
     return createFeatureWallTexture(threeApi, "marble", maxAnisotropy);
   }
-  const tone = (STONE_SLAB_TONES as Record<string, any>)[flavor];
+  const tone = STONE_SLAB_TONES[flavor];
   if (!tone || typeof document === "undefined" || typeof threeApi?.CanvasTexture !== "function") {
     return null;
   }

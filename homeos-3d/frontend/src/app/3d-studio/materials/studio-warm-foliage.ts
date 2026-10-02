@@ -1,170 +1,111 @@
-/**
- * 「暖阳原木」主题下的树叶放大。
- */
-
-type AttributeLike = {
-  count: number;
-  getX: (index: number) => number;
-  getY: (index: number) => number;
-  getZ: (index: number) => number;
-  setXYZ?: (index: number, x: number, y: number, z: number) => void;
-  needsUpdate?: boolean;
-};
-
-type GeometryGroup = {
-  start: number;
-  count: number;
-  materialIndex: number;
-};
-
-type GeometryLike = {
-  attributes: { position?: AttributeLike };
-  index?: AttributeLike | null;
-  groups: GeometryGroup[];
-  clone: () => GeometryLike;
-  computeVertexNormals: () => void;
-  computeBoundingBox: () => void;
-  computeBoundingSphere: () => void;
-  userData: Record<string, unknown>;
-};
-
-type MaterialLike = {
-  name?: string;
-};
-
-/**
- * 按连通分量放大树叶几何：在 foliage 分组内建并查集，把共享顶点与「位置相同但被拆开」的顶点并到同一簇
- */
-export function enlargeWarmLeaves(
-  geometry: GeometryLike,
-  materials: MaterialLike[],
-  scale = 1.85
-): GeometryLike {
-  const positionAttribute = geometry.attributes.position;
-  if (!positionAttribute) {
-    return geometry;
-  }
-  const indexAttribute = geometry.index;
-  const geometryGroups = geometry.groups.length
-    ? geometry.groups
-    : [
-        {
-          start: 0,
-          count: indexAttribute?.count ?? positionAttribute.count,
-          materialIndex: 0
-        }
-      ];
-  // 并查集：值指向父节点，根节点指向自己。
-  const parentByVertex = new Map<number, number>();
-  const findRoot = (vertexIndex: number) => {
-    let root = vertexIndex;
-    while (parentByVertex.get(root) !== root) {
-      root = parentByVertex.get(root)!;
-    }
-    // 路径压缩：把沿途节点直接挂到根上。
-    while (vertexIndex !== root) {
-      const previousParent = parentByVertex.get(vertexIndex)!;
-      parentByVertex.set(vertexIndex, root);
-      vertexIndex = previousParent;
-    }
-    return root;
-  };
-  const unionRoots = (firstVertex: number, secondVertex: number) => {
-    parentByVertex.set(findRoot(firstVertex), findRoot(secondVertex));
-  };
-  // 位置键 → 第一个见到的顶点下标，用于把拆开的同名顶点并回同一簇。
-  const firstVertexByPosition = new Map<string, number>();
-  for (const group of geometryGroups) {
-    if (/foliage/i.test(materials[group.materialIndex]?.name ?? "")) {
+export function enlargeWarmLeaves(sourceGeometry, materials, enlargeFactor = 1.85) {
+  const positionAttribute = sourceGeometry.attributes.position;
+  if (!positionAttribute) return sourceGeometry;
+  const indexAttribute = sourceGeometry.index,
+    geometryGroups = sourceGeometry.groups.length
+      ? sourceGeometry.groups
+      : [
+          {
+            start: 0,
+            count: indexAttribute?.count ?? positionAttribute.count,
+            materialIndex: 0,
+          },
+        ],
+    parentVertexMap = new Map(),
+    resolveRootIndex = (vertexIndex) => {
+      let currentRootIndex = vertexIndex;
+      for (; parentVertexMap.get(currentRootIndex) !== currentRootIndex;)
+        currentRootIndex = parentVertexMap.get(currentRootIndex);
+      for (; vertexIndex !== currentRootIndex;) {
+        const parentVertexIndex = parentVertexMap.get(vertexIndex);
+        (parentVertexMap.set(vertexIndex, currentRootIndex), (vertexIndex = parentVertexIndex));
+      }
+      return currentRootIndex;
+    },
+    unionVertices = (firstVertexIndex, secondVertexIndex) => {
+      parentVertexMap.set(resolveRootIndex(firstVertexIndex), resolveRootIndex(secondVertexIndex));
+    },
+    vertexIndexByPositionKey = new Map();
+  for (const geometryGroup of geometryGroups)
+    if (/foliage/i.test(materials[geometryGroup.materialIndex]?.name ?? ""))
       for (
-        let triangleOffset = group.start;
-        triangleOffset < group.start + group.count;
-        triangleOffset += 3
+        let triangleStartIndex = geometryGroup.start;
+        triangleStartIndex < geometryGroup.start + geometryGroup.count;
+        triangleStartIndex += 3
       ) {
-        const triangleVertices: number[] = [];
-        for (let cornerIndex = 0; cornerIndex < 3; cornerIndex++) {
-          const vertexIndex = indexAttribute
-            ? indexAttribute.getX(triangleOffset + cornerIndex)
-            : triangleOffset + cornerIndex;
-          // 首次见到该顶点才登记为独立集合，并按位置做一次同位置合并。
-          if (!parentByVertex.has(vertexIndex)) {
-            parentByVertex.set(vertexIndex, vertexIndex);
+        const triangleVertexIndices = [];
+        for (let triangleCornerIndex = 0; triangleCornerIndex < 3; triangleCornerIndex++) {
+          const cornerVertexIndex = indexAttribute
+            ? indexAttribute.getX(triangleStartIndex + triangleCornerIndex)
+            : triangleStartIndex + triangleCornerIndex;
+          if (!parentVertexMap.has(cornerVertexIndex)) {
+            parentVertexMap.set(cornerVertexIndex, cornerVertexIndex);
             const positionKey = [
-              positionAttribute.getX(vertexIndex),
-              positionAttribute.getY(vertexIndex),
-              positionAttribute.getZ(vertexIndex)
+              positionAttribute.getX(cornerVertexIndex),
+              positionAttribute.getY(cornerVertexIndex),
+              positionAttribute.getZ(cornerVertexIndex),
             ]
-              .map(coordinate => Math.round(coordinate * 10000))
+              .map((coordinateComponent) => Math.round(coordinateComponent * 10000))
               .join(",");
-            if (firstVertexByPosition.has(positionKey)) {
-              unionRoots(vertexIndex, firstVertexByPosition.get(positionKey)!);
-            } else {
-              firstVertexByPosition.set(positionKey, vertexIndex);
-            }
+            vertexIndexByPositionKey.has(positionKey)
+              ? unionVertices(cornerVertexIndex, vertexIndexByPositionKey.get(positionKey))
+              : vertexIndexByPositionKey.set(positionKey, cornerVertexIndex);
           }
-          triangleVertices.push(vertexIndex);
+          triangleVertexIndices.push(cornerVertexIndex);
         }
-        // 三角形三边相连：一条边的两端同簇，整片叶子才会是一个分量。
-        unionRoots(triangleVertices[0], triangleVertices[1]);
-        unionRoots(triangleVertices[1], triangleVertices[2]);
+        (unionVertices(triangleVertexIndices[0], triangleVertexIndices[1]),
+          unionVertices(triangleVertexIndices[1], triangleVertexIndices[2]));
       }
-    }
+  if (!parentVertexMap.size) return sourceGeometry;
+  const vertexIndicesByRoot = new Map();
+  for (const sourceVertexIndex of parentVertexMap.keys()) {
+    const rootVertexIndex = resolveRootIndex(sourceVertexIndex);
+    (vertexIndicesByRoot.has(rootVertexIndex) || vertexIndicesByRoot.set(rootVertexIndex, []),
+      vertexIndicesByRoot.get(rootVertexIndex).push(sourceVertexIndex));
   }
-  // 一个 foliage 顶点都没碰到：这个模型没有树叶，直接退回原几何。
-  if (!parentByVertex.size) {
-    return geometry;
-  }
-  // 按根分组。遍历顺序即 parentByVertex 的插入顺序，簇序号依赖它，
-  const verticesByRoot = new Map<number, number[]>();
-  for (const vertexIndex of parentByVertex.keys()) {
-    const root = findRoot(vertexIndex);
-    if (!verticesByRoot.has(root)) {
-      verticesByRoot.set(root, []);
-    }
-    verticesByRoot.get(root)!.push(vertexIndex);
-  }
-  const enlargedGeometry = geometry.clone();
-  const enlargedPosition = enlargedGeometry.attributes.position!;
-  let clusterIndex = 0;
-  for (const clusterVertices of verticesByRoot.values()) {
-    // 先求这一簇的包围盒，再取中心作为缩放与旋转的基准点。
-    const clusterMin = [Infinity, Infinity, Infinity];
-    const clusterMax = [-Infinity, -Infinity, -Infinity];
-    for (const vertexIndex of clusterVertices) {
-      const vertexPosition = [
-        positionAttribute.getX(vertexIndex),
-        positionAttribute.getY(vertexIndex),
-        positionAttribute.getZ(vertexIndex)
+  const enlargedGeometry = sourceGeometry.clone(),
+    enlargedPositionAttribute = enlargedGeometry.attributes.position;
+  let groupCounter = 0;
+  for (const groupVertexIndices of vertexIndicesByRoot.values()) {
+    const minBounds = [Infinity, Infinity, Infinity],
+      maxBounds = [-Infinity, -Infinity, -Infinity];
+    for (const memberVertexIndex of groupVertexIndices) {
+      const vertexCoordinates = [
+        positionAttribute.getX(memberVertexIndex),
+        positionAttribute.getY(memberVertexIndex),
+        positionAttribute.getZ(memberVertexIndex),
       ];
-      for (let axisIndex = 0; axisIndex < 3; axisIndex++) {
-        clusterMin[axisIndex] = Math.min(clusterMin[axisIndex], vertexPosition[axisIndex]);
-        clusterMax[axisIndex] = Math.max(clusterMax[axisIndex], vertexPosition[axisIndex]);
-      }
+      for (let axisIndex = 0; axisIndex < 3; axisIndex++)
+        ((minBounds[axisIndex] = Math.min(minBounds[axisIndex], vertexCoordinates[axisIndex])),
+          (maxBounds[axisIndex] = Math.max(maxBounds[axisIndex], vertexCoordinates[axisIndex])));
     }
-    const clusterCenter = clusterMin.map(
-      (minimumValue, axisIndex) => (minimumValue + clusterMax[axisIndex]) * 0.5
-    );
-    // 相邻三簇分别转 -60° / 0° / +60°：整棵树不会呈现统一的朝向，看起来更自然。
-    const clusterRotation = ((clusterIndex++ % 3) - 1) * Math.PI / 3;
-    const rotationCos = Math.cos(clusterRotation);
-    const rotationSin = Math.sin(clusterRotation);
-    for (const vertexIndex of clusterVertices) {
-      // 先在 xz 平面上把相对坐标放大，再按上面的角度旋转回簇中心周边；
-      const offsetX = (positionAttribute.getX(vertexIndex) - clusterCenter[0]) * scale;
-      const offsetZ = (positionAttribute.getZ(vertexIndex) - clusterCenter[2]) * scale;
-      enlargedPosition.setXYZ!(
-        vertexIndex,
-        clusterCenter[0] + offsetX * rotationCos - offsetZ * rotationSin,
-        clusterCenter[1] + (positionAttribute.getY(vertexIndex) - clusterCenter[1]) * scale,
-        clusterCenter[2] + offsetX * rotationSin + offsetZ * rotationCos
+    const groupCenter = minBounds.map(
+        (minBoundCoordinate, boundAxisIndex) =>
+          (minBoundCoordinate + maxBounds[boundAxisIndex]) * 0.5,
+      ),
+      rotationAngle = (((groupCounter++ % 3) - 1) * Math.PI) / 3,
+      rotationCos = Math.cos(rotationAngle),
+      rotationSin = Math.sin(rotationAngle);
+    for (const targetVertexIndex of groupVertexIndices) {
+      const centerOffsetX =
+          (positionAttribute.getX(targetVertexIndex) - groupCenter[0]) * enlargeFactor,
+        centerOffsetZ =
+          (positionAttribute.getZ(targetVertexIndex) - groupCenter[2]) * enlargeFactor;
+      enlargedPositionAttribute.setXYZ(
+        targetVertexIndex,
+        groupCenter[0] + centerOffsetX * rotationCos - centerOffsetZ * rotationSin,
+        groupCenter[1] +
+          (positionAttribute.getY(targetVertexIndex) - groupCenter[1]) * enlargeFactor,
+        groupCenter[2] + centerOffsetX * rotationSin + centerOffsetZ * rotationCos,
       );
     }
   }
-  enlargedPosition.needsUpdate = true;
-  enlargedGeometry.computeVertexNormals();
-  enlargedGeometry.computeBoundingBox();
-  enlargedGeometry.computeBoundingSphere();
-  // 簇数留给上层做调试 / 统计，也便于确认放大确实生效。
-  enlargedGeometry.userData.warmLeafCount = verticesByRoot.size;
-  return enlargedGeometry;
+  return (
+    (enlargedPositionAttribute.needsUpdate = true),
+    enlargedGeometry.computeVertexNormals(),
+    enlargedGeometry.computeBoundingBox(),
+    enlargedGeometry.computeBoundingSphere(),
+    (enlargedGeometry.userData.warmLeafCount = vertexIndicesByRoot.size),
+    enlargedGeometry
+  );
 }

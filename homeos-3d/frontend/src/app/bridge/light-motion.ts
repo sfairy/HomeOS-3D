@@ -1,220 +1,172 @@
-/**
- * 灯光状态映射与过渡动画的纯计算层。
- */
-
-// 数值夹取与换算统一走 utils/numbers.js（唯一实现）：clampNumber 保证写进渲染层的值永远在
-import { clampNumber, finiteNumberOr } from "../utils/numbers.js";
-// 色温换算（含唯一的公式与单通道夹取）也共用 utils/colors.js，别在这里再写一份系数。
-import { kelvinToRgbHex } from "../utils/colors.js";
-
-type LightChannelState = {
-  intensity?: unknown;
-  color?: unknown;
-};
-
-type LightEntry = {
-  brightness?: unknown;
-  kelvin?: unknown;
-  effectRange?: {
-    brightnessMin?: unknown;
-    brightnessMax?: unknown;
-    temperatureMin?: unknown;
-    temperatureMax?: unknown;
-  };
-  minimum?: unknown;
-  maximum?: unknown;
-  brightnessSupported?: unknown;
-  temperatureSupported?: unknown;
-  effectDefaults?: {
-    brightness?: unknown;
-    kelvin?: unknown;
-  };
-  [key: string]: unknown;
-};
-
-type TransitionOptions = {
-  immediate?: unknown;
-  preview?: unknown;
-  temperatureChanged?: unknown;
-};
-
-type NormalizedLightState = {
-  intensity: number;
-  color: number[];
-};
-
-type LightTransition = {
-  from: NormalizedLightState;
-  to: NormalizedLightState;
-  started: number;
-  duration: number;
-};
-
-const normalizeLightState = (lightState: LightChannelState | null | undefined): NormalizedLightState => ({
-  intensity: Math.max(0, finiteNumberOr(lightState?.intensity, 0)),
-  color: [0, 1, 2].map(channelIndex =>
-    clampNumber(
-      finiteNumberOr(
-        Array.isArray(lightState?.color) ? lightState.color[channelIndex] : undefined,
-        1
-      ),
-      0,
-      1
-    )
-  )
-});
-/**
- * 区间归一：两端各自夹进 bounds，再保证下限不大于上限；顺序颠倒在这里被静默纠正，
- */
-function normalizeRange(
-  minValue: unknown,
-  maxValue: unknown,
-  fallbackRange: [number, number],
-  bounds: [number, number]
-): [number, number] {
-  const clampedMin = clampNumber(finiteNumberOr(minValue, fallbackRange[0]), bounds[0], bounds[1]);
-  const clampedMax = clampNumber(finiteNumberOr(maxValue, fallbackRange[1]), bounds[0], bounds[1]);
+import { hsToRgbColor } from "../renderer/controls/light-runtime";
+const clampNumber = (value, minimum, maximum) => Math.max(minimum, Math.min(maximum, value)),
+  finiteNumberOr = (candidateValue, fallbackValue) =>
+    Number.isFinite(candidateValue) ? candidateValue : fallbackValue,
+  normalizeLightState = (lightState) => ({
+    intensity: Math.max(0, finiteNumberOr(lightState?.intensity, 0)),
+    color: [0, 1, 2].map((channelIndex) =>
+      clampNumber(finiteNumberOr(lightState?.color?.[channelIndex], 1), 0, 1),
+    ),
+  });
+function normalizeRange(minValue, maxValue, fallbackRange, bounds) {
+  const clampedMin = clampNumber(finiteNumberOr(minValue, fallbackRange[0]), bounds[0], bounds[1]),
+    clampedMax = clampNumber(finiteNumberOr(maxValue, fallbackRange[1]), bounds[0], bounds[1]);
   return [Math.min(clampedMin, clampedMax), Math.max(clampedMin, clampedMax)];
 }
 /**
- * 把灯光实体的原始状态映射成「效果区间内」的亮度与色温。
+ * 灯光效果映射的结果：colorRgb 只在灯具支持彩色时才补上，所以是可选字段。
+ * 值一律按 any 处理：它们来自未定型的外部灯光条目，后面会直接参与算术与钳制。
  */
-export function mapLightEffectState(lightEntry: LightEntry | null | undefined) {
-  const mappedState: { brightness?: number; kelvin?: number } = {
-    brightness: Number.isFinite(lightEntry?.brightness)
-      ? Number(lightEntry?.brightness)
-      : undefined,
-    kelvin: Number.isFinite(lightEntry?.kelvin) ? Number(lightEntry?.kelvin) : undefined
+type MappedLightState = {
+  brightness: any;
+  kelvin: any;
+  colorRgb?: any;
+};
+export function mapLightEffectState(lightEntry) {
+  const mappedState: MappedLightState = {
+    brightness: lightEntry?.brightness,
+    kelvin: lightEntry?.kelvin,
   };
+  let brightnessScale = 1;
+  if (lightEntry?.colorMode === "white") mappedState.colorRgb = [255, 255, 255];
+  else {
+    if (
+      lightEntry?.colorSupported &&
+      !["color_temp", "white", "onoff", "brightness", "unknown"].includes(lightEntry.colorMode)
+    ) {
+      const rawRgbChannels =
+        lightEntry.colorRgb ||
+        (Array.isArray(lightEntry.colorHs) ? hsToRgbColor(lightEntry.colorHs) : null);
+      if (rawRgbChannels) {
+        const maxChannelRatio = Math.max(...rawRgbChannels) / 255;
+        ((brightnessScale =
+          !lightEntry.colorMode || ["rgb", "rgbw", "rgbww"].includes(lightEntry.colorMode)
+            ? maxChannelRatio
+            : 1),
+          (mappedState.colorRgb = rawRgbChannels.map((channelValue) =>
+            maxChannelRatio ? Math.round(channelValue / maxChannelRatio) : 0,
+          )));
+      }
+    }
+  }
   const effectRange = lightEntry?.effectRange;
-  // 实体没上报亮度就保持 undefined：兜底是上层的职责，这里不擅自编造数值。
   if (Number.isFinite(mappedState.brightness)) {
-    const brightnessPercent = clampNumber(mappedState.brightness as number, 0, 100);
-    // 效果区间默认 1~100；绝对范围是 0~150 —— 组件允许把亮度效果预设到 150%。
-    const [brightnessMin, brightnessMax] = normalizeRange(
-      effectRange?.brightnessMin,
-      effectRange?.brightnessMax,
-      [1, 100],
-      [0, 150]
-    );
-    // 0 必须保持 0（关灯语义）；其余把 1~100 的百分比线性铺到效果区间上，
+    const brightnessPercent = clampNumber(mappedState.brightness, 0, 100),
+      [brightnessMin, brightnessMax] = normalizeRange(
+        effectRange?.brightnessMin,
+        effectRange?.brightnessMax,
+        [1, 100],
+        [0, 150],
+      );
     mappedState.brightness =
       brightnessPercent === 0
         ? 0
         : brightnessMin +
           ((brightnessMax - brightnessMin) * (clampNumber(brightnessPercent, 1, 100) - 1)) / 99;
   }
-  // 色温只有在「实体给了 kelvin」且「效果区间至少有一端可用」时才映射，
   if (
     Number.isFinite(mappedState.kelvin) &&
-    (Number.isFinite(effectRange?.temperatureMin as number) ||
-      Number.isFinite(effectRange?.temperatureMax as number))
+    (Number.isFinite(effectRange?.temperatureMin) || Number.isFinite(effectRange?.temperatureMax))
   ) {
-    // 实体自身的 minimum / maximum 是它的物理量程，缺省 2000~6500 是常见家用灯的范围。
     const kelvinRange = normalizeRange(
-      lightEntry?.minimum,
-      lightEntry?.maximum,
-      [2000, 6500],
-      [1000, 20000]
-    );
-    const [temperatureMin, temperatureMax] = normalizeRange(
-      effectRange?.temperatureMin,
-      effectRange?.temperatureMax,
-      kelvinRange,
-      [1000, 20000]
-    );
-    // 先把实际色温归一成 0~1 的比例，再映射进效果区间：两侧量程不同也不会跳变；
-    const kelvinRatio =
-      kelvinRange[1] > kelvinRange[0]
-        ? clampNumber(
-            ((mappedState.kelvin as number) - kelvinRange[0]) /
-              (kelvinRange[1] - kelvinRange[0]),
-            0,
-            1
-          )
-        : 0;
+        lightEntry.minimum,
+        lightEntry.maximum,
+        [2000, 6500],
+        [1000, 20000],
+      ),
+      [temperatureMin, temperatureMax] = normalizeRange(
+        effectRange.temperatureMin,
+        effectRange.temperatureMax,
+        kelvinRange,
+        [1000, 20000],
+      ),
+      kelvinRatio =
+        kelvinRange[1] > kelvinRange[0]
+          ? clampNumber(
+              (mappedState.kelvin - kelvinRange[0]) / (kelvinRange[1] - kelvinRange[0]),
+              0,
+              1,
+            )
+          : 0;
     mappedState.kelvin = temperatureMin + (temperatureMax - temperatureMin) * kelvinRatio;
   }
-  if (
+  return (
     lightEntry?.brightnessSupported === false &&
-    Number.isFinite(lightEntry.effectDefaults?.brightness as number)
-  ) {
-    // 效果默认值同样按 150% 上限取值：与编辑器的输入上限保持一致。
-    mappedState.brightness = clampNumber(Number(lightEntry.effectDefaults?.brightness), 0, 150);
-  }
-  if (
+      Number.isFinite(lightEntry.effectDefaults?.brightness) &&
+      (mappedState.brightness = clampNumber(lightEntry.effectDefaults.brightness, 0, 150)),
     lightEntry?.temperatureSupported === false &&
-    Number.isFinite(lightEntry.effectDefaults?.kelvin as number)
-  ) {
-    mappedState.kelvin = clampNumber(Number(lightEntry.effectDefaults?.kelvin), 1000, 20000);
-  }
-  return mappedState;
+      Number.isFinite(lightEntry.effectDefaults?.kelvin) &&
+      (mappedState.kelvin = clampNumber(lightEntry.effectDefaults.kelvin, 1000, 20000)),
+    Number.isFinite(mappedState.brightness) && (mappedState.brightness *= brightnessScale),
+    mappedState
+  );
 }
-/**
- * 色温（K）换算成 0xRRGGBB（灯具发光色），公式与单通道收尾的唯一实现在 utils/colors.js。
- */
-export function lightEffectColorHex(kelvin: unknown) {
-  return kelvinToRgbHex(kelvin, { minKelvin: 1000, maxKelvin: 20000, fallbackKelvin: 3000 });
+export function lightEffectColorHex(kelvin, rgbChannels = null) {
+  if (Array.isArray(rgbChannels) && rgbChannels.length === 3 && rgbChannels.every(Number.isFinite))
+    return rgbChannels.reduce(
+      (packedHex, rgbChannel) => (packedHex << 8) | Math.round(clampNumber(rgbChannel, 0, 255)),
+      0,
+    );
+  const scaledKelvin = clampNumber(finiteNumberOr(kelvin, 3000), 1000, 20000) / 100,
+    redChannel =
+      scaledKelvin <= 66 ? 255 : 329.698727446 * Math.pow(scaledKelvin - 60, -0.1332047592),
+    greenChannel =
+      scaledKelvin <= 66
+        ? 99.4708025861 * Math.log(scaledKelvin) - 161.1195681661
+        : 288.1221695283 * Math.pow(scaledKelvin - 60, -0.0755148492),
+    blueChannel =
+      scaledKelvin >= 66
+        ? 255
+        : scaledKelvin <= 19
+          ? 0
+          : 138.5177312231 * Math.log(scaledKelvin - 10) - 305.0447927307,
+    clampChannel = (channel) => Math.round(clampNumber(channel, 0, 255));
+  return (
+    (clampChannel(redChannel) << 16) | (clampChannel(greenChannel) << 8) | clampChannel(blueChannel)
+  );
 }
-/**
- * 决定本次灯光变化的过渡时长：开关切换用组件配置的淡入淡出（夹在 0~10 秒，默认 0.3 秒）；
- */
+// options 的三个开关都来自 UI 侧（立即生效 / 预览 / 只改了色温）；缺省时按普通切换处理。
 export function lightTransitionDurationMs(
-  wasOn: unknown,
-  isOn: unknown,
-  fadeDurationSeconds: unknown,
-  options: TransitionOptions = {}
+  wasOn,
+  isOn,
+  fadeDurationSeconds,
+  options: { immediate?: boolean; preview?: boolean; temperatureChanged?: boolean } = {},
 ) {
-  // 立即生效优先于一切：初始同步时做动画，会让画面从错误状态缓慢爬回正确值。
-  if (options.immediate) {
-    return 0;
-  } else if (wasOn !== isOn) {
-    return clampNumber(finiteNumberOr(fadeDurationSeconds, 0.3), 0, 10) * 1000;
-  } else if (options.preview) {
-    // 预览面板里的开关要「跟手」，90ms 是能看出过渡又不觉得迟钝的下限；
-    return options.temperatureChanged ? 180 : 90;
-  } else {
-    // 调节亮度 / 色温：220ms 让拖动滑块时的光影变化连续，同时不至于滞后于手指。
-    return 220;
-  }
+  return options.immediate
+    ? 0
+    : wasOn !== isOn
+      ? clampNumber(finiteNumberOr(fadeDurationSeconds, 0.3), 0, 10) * 1000
+      : options.preview
+        ? options.temperatureChanged
+          ? 180
+          : 90
+        : 220;
 }
-/**
- * 构造一次灯光过渡描述。
- */
-export function createLightTransition(
-  fromState: LightChannelState | null | undefined,
-  toState: LightChannelState | null | undefined,
-  startedAtMs: unknown,
-  durationMs: unknown
-): LightTransition {
+export function createLightTransition(fromState, toState, startedAtMs, durationMs) {
   return {
     from: normalizeLightState(fromState),
     to: normalizeLightState(toState),
     started: finiteNumberOr(startedAtMs, 0),
-    duration: Math.max(0, finiteNumberOr(durationMs, 0))
+    duration: Math.max(0, finiteNumberOr(durationMs, 0)),
   };
 }
-/**
- * 按时间采样一次过渡结果。
- */
-export function sampleLightTransition(transition: LightTransition, nowMs: unknown) {
+export function sampleLightTransition(transition, nowMs) {
   const progress = transition.duration
-    ? clampNumber(
-        (finiteNumberOr(nowMs, transition.started) - transition.started) / transition.duration,
-        0,
-        1
-      )
-    : 1;
-  // 三次 smoothstep：进度本身已夹在 0~1，因此结果同样不会越界。
-  const easedProgress = progress * progress * (3 - progress * 2);
+      ? clampNumber(
+          (finiteNumberOr(nowMs, transition.started) - transition.started) / transition.duration,
+          0,
+          1,
+        )
+      : 1,
+    easedProgress = progress * progress * (3 - 2 * progress);
   return {
     intensity:
       transition.from.intensity +
       (transition.to.intensity - transition.from.intensity) * easedProgress,
     color: transition.from.color.map(
       (fromChannel, colorIndex) =>
-        fromChannel + (transition.to.color[colorIndex] - fromChannel) * easedProgress
+        fromChannel + (transition.to.color[colorIndex] - fromChannel) * easedProgress,
     ),
-    complete: progress === 1
+    complete: progress === 1,
   };
 }

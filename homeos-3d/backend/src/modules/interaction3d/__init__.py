@@ -1,2 +1,1 @@
-"""3D 交互增量包，与既有的 3D 户型图绘制（studio）互不依赖。
-"""
+'''3D interaction add-on. Separate from the existing floor-plan studio.'''

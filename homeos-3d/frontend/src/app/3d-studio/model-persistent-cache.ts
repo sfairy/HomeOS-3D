@@ -1,210 +1,239 @@
-/**
- * 3D 模型模板的 IndexedDB 持久缓存。
- */
-import { createIdbStore } from "./idb-store.js";
-import { packModelTemplate, unpackModelTemplate } from "./model-template-codec.js";
-// 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../utils/debug-log.js";
-
-/** 缓存库名。 */
-const MODEL_CACHE_DB_NAME = "homeos-3d-templates";
-/** 库版本：v2 起含 metadata 仓库。 */
-const MODEL_CACHE_DB_VERSION = 2;
-/** 主数据仓库。 */
-const TEMPLATE_STORE = "templates";
-/** 剪枝用的轻量元数据仓库（不含模板体）。 */
-const METADATA_STORE = "metadata";
-/** 条数上限 80：够覆盖一个户型的全部家具类型，再多就是别的项目残留。 */
-const MAX_TEMPLATE_COUNT = 80;
-/** 总字节上限 64MB。 */
-const MAX_TOTAL_BYTES = 64 * 1024 * 1024;
-/** 单条上限 8MB：超过就说明这个模型不适合缓存，别让它把配额吃光。 */
-const MAX_TEMPLATE_BYTES = 8 * 1024 * 1024;
-/** 默认单次操作超时 1000ms。 */
-const DEFAULT_TIMEOUT_MS = 1000;
-/** 打开数据库至少给 1500ms：首次建库还要跑 onupgradeneeded，比单条读写慢得多。 */
-const MIN_OPEN_TIMEOUT_MS = 1500;
-
-type ThreeNamespace = {
-  ObjectLoader?: unknown;
-};
-
-type ModelCacheStats = {
-  hits: number;
-  misses: number;
-  writes: number;
-  fallbacks: number;
-};
-
-type PackedTemplate = {
-  bytes: number;
-  [key: string]: unknown;
-};
-
-type TemplateRecord = {
-  key: string;
-  template: PackedTemplate;
-  bytes: number;
-  created: number;
-};
-
-/**
- * 创建模型持久缓存。
- */
+import {
+  packModelTemplate,
+  unpackModelTemplate,
+} from "./model-template-codec";
+const MODEL_CACHE_DB_NAME = "homeos-3d-templates",
+  TEMPLATE_STORE = "templates",
+  METADATA_STORE = "metadata",
+  MAX_TEMPLATE_COUNT = 80,
+  MAX_TOTAL_BYTES = 64 * 1024 * 1024,
+  MAX_TEMPLATE_BYTES = 8 * 1024 * 1024;
 export function createModelPersistentCache({
   THREE: THREE,
   env: env = globalThis,
-  timeoutMs: timeoutMs = DEFAULT_TIMEOUT_MS
+  timeoutMs: timeoutMs = 1000,
 }: {
-  THREE?: ThreeNamespace;
+  THREE?: typeof import("three");
   env?: typeof globalThis;
   timeoutMs?: number;
 } = {}) {
-  /**
-   * 「首次 restore 没等到连接」只记一次：记下之后不再为每一次 restore 白等那一小段，
-   */
-  let openAttempted = false;
-  const stats: ModelCacheStats = { hits: 0, misses: 0, writes: 0, fallbacks: 0 };
-
-  const log = (event: string) => {
-    debugLog("info", "[3D-model-cache]", JSON.stringify({ event, ...stats }));
-  };
-  const noteFallback = () => {
-    stats.fallbacks += 1;
-    log("fallback");
-  };
-
-  const store = createIdbStore({
-    env: env,
-    name: MODEL_CACHE_DB_NAME,
-    version: MODEL_CACHE_DB_VERSION,
-    timeoutMs: timeoutMs,
-    openTimeoutMs: MIN_OPEN_TIMEOUT_MS,
-    // 没有 ObjectLoader 就没有还原能力（unpackModelTemplate 要用它），此时整个缓存不参与。
-    extraAvailable: () => !!THREE?.ObjectLoader,
-    onFallback: noteFallback,
-    upgrade: request => {
-      if (!request.result.objectStoreNames.contains(TEMPLATE_STORE)) {
-        request.result.createObjectStore(TEMPLATE_STORE, { keyPath: "key" });
+  let openPromise,
+    cachedConnection,
+    hasOpenAttempted = false,
+    isDisabled = false,
+    idleQueue = Promise.resolve();
+  const stats = {
+      hits: 0,
+      misses: 0,
+      writes: 0,
+      fallbacks: 0,
+    },
+    isDiagnosticsEnabled =
+      new URLSearchParams(env.location?.search || "").get("performance-diagnostics") === "1",
+    log = (event) => {
+      isDiagnosticsEnabled &&
+        env.console?.info(
+          "[3D-model-cache]",
+          JSON.stringify({
+            event: event,
+            ...stats,
+          }),
+        );
+    };
+  function noteFallback() {
+    (stats.fallbacks++, log("fallback"));
+  }
+  function isAvailable() {
+    try {
+      return !isDisabled && !!env.indexedDB && !!THREE.ObjectLoader;
+    } catch {
+      return false;
+    }
+  }
+  function runWithTimeout(
+    task,
+    { duration: durationMs = timeoutMs, disable: disableOnTimeout = true } = {},
+  ): Promise<any> {
+    return new Promise((resolve) => {
+      let isSettled = false;
+      const settle = (result) => {
+          isSettled || ((isSettled = true), env.clearTimeout(timerId), resolve(result));
+        },
+        timerId = env.setTimeout(() => {
+          (disableOnTimeout && (isDisabled = true), noteFallback(), settle(null));
+        }, durationMs);
+      try {
+        task(settle);
+      } catch {
+        settle(null);
       }
-      if (!request.result.objectStoreNames.contains(METADATA_STORE)) {
-        request.result.createObjectStore(METADATA_STORE, { keyPath: "key" });
-      }
-    }
-  });
-
-  /**
-   * 取回并还原一份模板。命中返回 `{source, size}`，未命中 / 不可用 / 模板坏掉一律返回 null。
-   */
-  async function restore(key: string) {
-    if (!store.isAvailable() || (openAttempted && !store.current())) {
-      return null;
-    }
-    // 打开尚未完成时只等一小段（min(timeoutMs, 150)），换成加载器继续，晚到的连接留着给下一次用。
-    const handle = await store.handleWithin(Math.min(timeoutMs, 150));
-    if (!handle) {
-      // 这一次没等到连接（首次打开还没完成）：记下「试过了」，后续 restore 不再重复等这一小段。
-      openAttempted = true;
-    }
-    if (!handle || store.isDisabled()) {
-      return null;
-    }
-    const record = await store.runWithTimeout<TemplateRecord>(settle => {
-      const transaction = handle.transaction(TEMPLATE_STORE, "readonly");
-      const request = transaction.objectStore(TEMPLATE_STORE).get(key);
-      request.onsuccess = () => settle((request.result as TemplateRecord) || null);
-      request.onerror = transaction.onabort = () => settle(null);
     });
-    if (!record) {
-      stats.misses += 1;
-      log("miss");
+  }
+  function openDatabase() {
+    return isAvailable()
+      ? ((openPromise ||= runWithTimeout(
+          (resolveOpen) => {
+            const openRequest = env.indexedDB.open(MODEL_CACHE_DB_NAME, 2);
+            ((openRequest.onupgradeneeded = () => {
+              (openRequest.result.objectStoreNames.contains(TEMPLATE_STORE) ||
+                openRequest.result.createObjectStore(TEMPLATE_STORE, {
+                  keyPath: "key",
+                }),
+                openRequest.result.objectStoreNames.contains(METADATA_STORE) ||
+                  openRequest.result.createObjectStore(METADATA_STORE, {
+                    keyPath: "key",
+                  }));
+            }),
+              (openRequest.onerror = openRequest.onblocked =
+                () => {
+                  ((isDisabled = true), noteFallback(), resolveOpen(null));
+                }),
+              (openRequest.onsuccess = () => {
+                const connection = openRequest.result;
+                if (isDisabled) {
+                  (connection.close(), resolveOpen(null));
+                  return;
+                }
+                ((connection.onversionchange = () => {
+                  ((isDisabled = true), connection.close());
+                }),
+                  (cachedConnection = connection),
+                  resolveOpen(connection));
+              }));
+          },
+          {
+            duration: Math.max(timeoutMs, 1500),
+          },
+        )),
+        openPromise)
+      : Promise.resolve(null);
+  }
+  async function restore(restoreKey) {
+    if (!isAvailable() || (hasOpenAttempted && !cachedConnection)) return null;
+    const restoreConnection =
+      cachedConnection ||
+      (await runWithTimeout(
+        (settleConnection) => {
+          openDatabase().then(settleConnection);
+        },
+        {
+          disable: false,
+          duration: Math.min(timeoutMs, 150),
+        },
+      ));
+    if ((restoreConnection || (hasOpenAttempted = true), !restoreConnection || isDisabled))
       return null;
-    }
+    const record = await runWithTimeout((settleRead) => {
+      const readTransaction = restoreConnection.transaction(TEMPLATE_STORE, "readonly"),
+        request = readTransaction.objectStore(TEMPLATE_STORE).get(restoreKey);
+      ((request.onsuccess = () => settleRead(request.result)),
+        (request.onerror = readTransaction.onabort = () => settleRead(null)));
+    });
+    if (!record) return (stats.misses++, log("miss"), null);
     try {
       const restored = unpackModelTemplate(THREE, record.template);
-      stats.hits += 1;
-      log("hit");
-      return restored;
+      return (stats.hits++, log("hit"), restored);
     } catch {
       noteFallback();
       try {
-        const cleanup = handle.transaction([TEMPLATE_STORE, METADATA_STORE], "readwrite");
-        cleanup.onerror = () => {};
-        cleanup.objectStore(TEMPLATE_STORE).delete(key);
-        cleanup.objectStore(METADATA_STORE).delete(key);
-      } catch {
-        // 清理失败无所谓，下一次 restore 会再试一遍。
-      }
+        const cleanup = restoreConnection.transaction(
+          [TEMPLATE_STORE, METADATA_STORE],
+          "readwrite",
+        );
+        ((cleanup.onerror = () => {}),
+          cleanup.objectStore(TEMPLATE_STORE).delete(restoreKey),
+          cleanup.objectStore(METADATA_STORE).delete(restoreKey));
+      } catch {}
       return null;
     }
   }
-
-  /** 写入一份模板并做 LRU 剪枝（条数 80 / 总量 64MB，按 created 从旧到新删）。 */
-  async function saveTemplate(key: string, modelDefinition: unknown) {
-    // 与 restore 同口径：优先用已经拿到的连接。open() 的 Promise 只结算一次，首次 open 一旦
-    const handle = store.current() || (await store.open());
-    if (!handle || store.isDisabled()) {
-      return;
-    }
-    let template: PackedTemplate;
+  async function saveTemplate(saveKey, modelDefinition) {
+    const saveConnection = await openDatabase();
+    if (!saveConnection || isDisabled) return;
+    let template;
     try {
-      template = packModelTemplate(THREE, modelDefinition as { source: unknown; size: unknown }) as PackedTemplate;
+      template = packModelTemplate(THREE, modelDefinition);
     } catch {
-      // 非静态模板（贴图 / 动画 / morph / 蒙皮）本来就进不了缓存：这不是故障，只是不缓存。
       noteFallback();
       return;
     }
-    if (template.bytes > MAX_TEMPLATE_BYTES) {
-      return;
-    }
-    const stored = await store.runWithTimeout<boolean>(settle => {
-      const transaction = handle.transaction([TEMPLATE_STORE, METADATA_STORE], "readwrite");
-      const templateStore = transaction.objectStore(TEMPLATE_STORE);
-      const metadataStore = transaction.objectStore(METADATA_STORE);
-      transaction.oncomplete = () => settle(true);
-      transaction.onabort = transaction.onerror = () => settle(false);
-      templateStore.put({ key, template, bytes: template.bytes, created: Date.now() });
-      metadataStore.put({ key, bytes: template.bytes, created: Date.now() });
-      // 剪枝读的是 metadata（轻量仓库）：命中/未命中只看体积与时间，不必把模板体拉进内存。
-      store.prune({
-        source: metadataStore,
-        remove: pruneKey => {
-          templateStore.delete(pruneKey);
-          metadataStore.delete(pruneKey);
-        },
-        maxCount: MAX_TEMPLATE_COUNT,
-        maxTotalBytes: MAX_TOTAL_BYTES
-      });
-    });
-    if (stored) {
-      stats.writes += 1;
-      log("stored");
-    } else {
-      // 写失败只影响这一次写入（配额满 / 事务被中止）：不把实例标记成 disabled ——
-      noteFallback();
-    }
+    if (template.bytes > MAX_TEMPLATE_BYTES) return;
+    (await runWithTimeout((settleWrite) => {
+      const writeTransaction = saveConnection.transaction(
+          [TEMPLATE_STORE, METADATA_STORE],
+          "readwrite",
+        ),
+        templateStore = writeTransaction.objectStore(TEMPLATE_STORE),
+        metadataStore = writeTransaction.objectStore(METADATA_STORE);
+      ((writeTransaction.oncomplete = () => settleWrite(true)),
+        (writeTransaction.onabort = writeTransaction.onerror = () => settleWrite(false)),
+        templateStore.put({
+          key: saveKey,
+          template: template,
+          bytes: template.bytes,
+          created: Date.now(),
+        }),
+        metadataStore.put({
+          key: saveKey,
+          bytes: template.bytes,
+          created: Date.now(),
+        }));
+      const getAllRequest = metadataStore.getAll();
+      getAllRequest.onsuccess = () => {
+        const metadataRecords = getAllRequest.result;
+        metadataRecords.sort((left, right) => left.created - right.created);
+        let totalBytes = metadataRecords.reduce(
+            (accumulatedBytes, metadataRecord) => accumulatedBytes + (metadataRecord.bytes || 0),
+            0,
+          ),
+          recordCount = metadataRecords.length;
+        for (const metadataEntry of metadataRecords) {
+          if (recordCount <= MAX_TEMPLATE_COUNT && totalBytes <= MAX_TOTAL_BYTES) break;
+          (templateStore.delete(metadataEntry.key),
+            metadataStore.delete(metadataEntry.key),
+            recordCount--,
+            (totalBytes -= metadataEntry.bytes || 0));
+        }
+      };
+    }))
+      ? (stats.writes++, log("stored"))
+      : ((isDisabled = true), noteFallback());
   }
-
-  /**
-   * 安排把一份已加载模型写进缓存。空闲时执行、串行化（同一个库的多个 readwrite 事务并发会互相
-   */
-  function schedule(key: string, modelDefinition: unknown) {
-    if (!store.isAvailable()) {
-      return;
+  function schedule(scheduleKey, scheduledModel) {
+    isAvailable() &&
+      (idleQueue = idleQueue.then(
+        () =>
+          new Promise((resolveIdle) => {
+            const runSave = () => {
+              saveTemplate(scheduleKey, scheduledModel).catch(noteFallback).finally(resolveIdle);
+            };
+            env.requestIdleCallback
+              ? env.requestIdleCallback(runSave, {
+                  timeout: 3000,
+                })
+              : env.setTimeout(runSave, 250);
+          }),
+      ));
+  }
+  return (
+    log(isAvailable() ? "enabled" : "unavailable"),
+    isAvailable() && openDatabase(),
+    env.addEventListener?.(
+      "pagehide",
+      () => {
+        ((isDisabled = true), cachedConnection?.close());
+      },
+      {
+        once: true,
+      },
+    ),
+    {
+      restore: restore,
+      schedule: schedule,
+      stats: () => ({
+        ...stats,
+      }),
+      whenIdle: () => idleQueue,
     }
-    store.scheduleIdle(() => saveTemplate(key, modelDefinition));
-  }
-
-  log(store.isAvailable() ? "enabled" : "unavailable");
-  if (store.isAvailable()) {
-    // 提前打开：首次加载时 restore 就能立刻拿到连接，省掉一次 open 的往返。
-    store.open();
-  }
-
-  return {
-    restore,
-    schedule,
-    stats: () => ({ ...stats }),
-    whenIdle: () => store.whenIdle()
-  };
+  );
 }

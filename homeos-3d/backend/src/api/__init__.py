@@ -1,2 +1,1 @@
-"""HomeOS 的 API 路由包。
-"""
+'''HomeOS API routers.'''

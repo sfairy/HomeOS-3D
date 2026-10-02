@@ -1,54 +1,40 @@
-/**
- * 编辑器选择器的实体检索与控件类型名称。
- */
-
-type AnyObj = Record<string, any>;
-
-/**
- * 创建选择器查询函数集合。
- */
 export function createEditorPickerQueries({
   entityPickerConfig: entityPickerConfig,
   pickerEntitiesForComponentType: pickerEntitiesForComponentType,
   entityPickerText: entityPickerText,
-  entityDomainResolver: entityDomainResolver
-}: AnyObj) {
-  /**
-   * 过滤并排序某控件类型的可选实体。
-   */
-  function editorEntityMatches(componentType: any, searchText: any) {
+  entityDomain: entityDomain,
+}) {
+  function matchEntities(componentType, queryText) {
     const pickerConfig = entityPickerConfig(componentType),
-      normalizedQuery = String(searchText || "")
+      normalizedQuery = String(queryText || "")
         .trim()
         .toLocaleLowerCase("zh-CN");
     return pickerEntitiesForComponentType(componentType)
-      .map((entity: any, entityIndex: any) => ({ entity: entity, index: entityIndex }))
+      .map((entity, index) => ({
+        entity: entity,
+        index: index,
+      }))
       .filter(
-        ({ entity: filterEntity }: AnyObj) =>
-          !filterEntity.virtual &&
+        ({ entity: filteredEntity }) =>
+          !filteredEntity.virtual &&
           (!normalizedQuery ||
-            // 展示名与实体域都参与匹配，用户输入 light 也能搜到对应灯。
-            `${entityPickerText(filterEntity)} ${entityDomainResolver(filterEntity)}`
+            `${entityPickerText(filteredEntity)} ${entityDomain(filteredEntity)}`
               .toLocaleLowerCase("zh-CN")
-              .includes(normalizedQuery))
+              .includes(normalizedQuery)),
       )
-      .sort((leftEntity: any, rightEntity: any) => {
-        // 虚拟实体排在最后；其余按推荐分降序，同分保持原下标顺序。
-        const recommendationRank = (rankedEntity: any) =>
-          rankedEntity?.virtual ? 100 : Number(pickerConfig.recommended(rankedEntity));
+      .sort((comparedEntity, comparedIndex) => {
+        const rankOf = (option) =>
+          option?.virtual ? 100 : Number(pickerConfig.recommended(option));
         return (
-          recommendationRank(rightEntity.entity) - recommendationRank(leftEntity.entity) ||
-          leftEntity.index - rightEntity.index
+          rankOf(comparedIndex.entity) - rankOf(comparedEntity.entity) ||
+          comparedEntity.index - comparedIndex.index
         );
       })
-      .map(({ entity: sortedEntity }: AnyObj) => sortedEntity);
+      .map(({ entity: sortedEntity }) => sortedEntity);
   }
-
-  /**
-   * 取控件类型的中文显示名。
-   */
-  function editorPickerComponentTypeLabel(pickerComponentType: any) {
-    const labels: Record<string, string> = {
+  function labelForComponentType(labelType) {
+    return (
+      {
         image: "图片",
         weather: "天气",
         "line-chart": "折线图",
@@ -61,12 +47,13 @@ export function createEditorPickerQueries({
         "vacuum-map": "扫地机地图",
         camera: "摄像头",
         "air-conditioner": "空调",
-        "navigation-button": "导航按钮"
-      };
-    return labels[pickerComponentType] || "控件";
+        "navigation-button": "导航按钮",
+        "scene-mode": "情景模式",
+      }[labelType] || "控件"
+    );
   }
   return Object.freeze({
-    editorEntityMatches: editorEntityMatches,
-    editorPickerComponentTypeLabel: editorPickerComponentTypeLabel
+    editorEntityMatches: matchEntities,
+    editorPickerComponentTypeLabel: labelForComponentType,
   });
 }

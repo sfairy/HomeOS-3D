@@ -1,184 +1,152 @@
-/**
- * 导出预设的归一化与摘要文案：把后端读回、可能缺字段或被手改过的预设清洗后再用。
- */
-import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js";
-
-// 最多 8 个预设槽；上限与导出面板的按钮禁用条件绑定。
-export const MAX_EXPORT_PRESET_COUNT = 8;
-
-// 允许出现在导出列表里的固定文件键：渲染图与平面图两类基础产物。
-const VALID_SELECTED_FILE_KEYS = new Set([
+export const DEFAULT_EXPORT_PRESET_COUNT = 4,
+  MAX_EXPORT_PRESET_COUNT = 8;
+const allowedFileKindSet = new Set([
   "background",
   "backgroundWithPlan",
   "televisionOn",
   "vehicleCharging",
   "floorPlan",
   "dataLights",
-  "dataScene"
+  "dataScene",
 ]);
-
-type Vector3Source = {
-  x?: unknown;
-  y?: unknown;
-  z?: unknown;
+type PointCoordinates = {
+  x: number;
+  y: number;
+  z: number;
 };
-
-/**
- * 归一化一个三维向量（相机位置 / 注视点）。
- */
-function normalizeVector3(source: Vector3Source | null | undefined, defaults: { x?: number; y?: number; z?: number } = {}) {
+function toFiniteNumber(candidateNumber, fallbackNumber = 0) {
+  const numericValue = Number(candidateNumber);
+  return Number.isFinite(numericValue) ? numericValue : fallbackNumber;
+}
+function clamp(inputNumber, minValue, maxValue) {
+  return Math.max(minValue, Math.min(maxValue, inputNumber));
+}
+// defaultPoint 允许只给部分轴：缺省轴按 0 兜底（调用方有时只想覆盖 y）。
+function resolvePoint(sourcePoint, defaultPoint: Partial<PointCoordinates> = {}) {
   return {
-    x: coercedFiniteNumberOr(source?.x, defaults.x),
-    y: coercedFiniteNumberOr(source?.y, defaults.y),
-    z: coercedFiniteNumberOr(source?.z, defaults.z)
+    x: toFiniteNumber(sourcePoint?.x, defaultPoint.x ?? 0),
+    y: toFiniteNumber(sourcePoint?.y, defaultPoint.y ?? 0),
+    z: toFiniteNumber(sourcePoint?.z, defaultPoint.z ?? 0),
   };
 }
-
-function normalizeSelectedFiles(files: unknown): string[] {
-  if (Array.isArray(files)) {
-    return [
-      ...new Set(
-        files
-          .map(entry => String(entry || ""))
-          .filter(
-            fileKey =>
-              VALID_SELECTED_FILE_KEYS.has(fileKey) ||
-              /^(?:group|screen|vehicle):[A-Za-z0-9_.:-]{1,180}$/.test(fileKey)
-          )
-      )
-    ].slice(0, 128);
-  } else {
-    return [];
-  }
+function normalizeSelectedFiles(sourceFiles) {
+  return Array.isArray(sourceFiles)
+    ? [
+        ...new Set(
+          sourceFiles
+            .map((fileCandidate) => String(fileCandidate || ""))
+            .filter(
+              (fileToken) =>
+                allowedFileKindSet.has(fileToken) ||
+                /^(?:group|screen|vehicle):[A-Za-z0-9_.:-]{1,180}$/.test(fileToken),
+            ),
+        ),
+      ].slice(0, 128)
+    : [];
 }
-
-/**
- * 归一化预设里的相机设置。
- */
-function normalizePresetCamera(camera: Record<string, unknown> | null | undefined) {
-  // 只认这两个字面量，其余一律回落到默认值，防止非法枚举流到取景逻辑里。
-  const cameraMode = camera?.mode === "perspective" ? "perspective" : "orthographic";
-  const cameraView = camera?.view === "top" ? "top" : "free";
-  return {
-    mode: cameraMode,
-    view: cameraView,
-    // 顶视图旋转吸附到 90° 的整数倍并归一到 [0, 360)，保证预设间可稳定比较。
-    topRotation:
-      (((Math.round(coercedFiniteNumberOr(camera?.topRotation, 0) / 90) * 90) % 360) + 360) % 360,
-    position: normalizeVector3(camera?.position as Vector3Source | undefined, {
-      x: 7,
-      y: 7,
-      z: 7
-    }),
-    target: normalizeVector3(camera?.target as Vector3Source | undefined, {
-      x: 0,
-      y: 0.6,
-      z: 0
-    }),
-    // 视口高度 0.1~1000 米；相机距离较远时可到数百米，下限留出近景剖面视图。
-    visibleHeight: clampNumber(coercedFiniteNumberOr(camera?.visibleHeight, 10), 0.1, 1000),
-    // 视场角 5°~120°，超出这个范围会产生透视畸变或近似正交。
-    fov: clampNumber(coercedFiniteNumberOr(camera?.fov, 36), 5, 120),
-    focalLength:
-      cameraMode === "perspective"
-        ? clampNumber(coercedFiniteNumberOr(camera?.focalLength, 50), 18, 120)
-        : null
-  };
-}
-
-/**
- * 归一化单个导出预设。
- */
-export function normalizeExportPreset(rawPreset: unknown) {
-  if (!rawPreset || typeof rawPreset != "object") {
-    return null;
-  }
-  const preset = rawPreset as Record<string, unknown>;
-  // 默认 1852×1293 对应 2 倍 DPI 的常见大屏比例；宽高都限制在 320~4096 像素。
-  const normalizedWidth = Math.round(clampNumber(coercedFiniteNumberOr(preset.width, 1852), 320, 4096));
-  const normalizedHeight = Math.round(
-    clampNumber(coercedFiniteNumberOr(preset.height, 1293), 320, 4096)
+// frameSize 是可选字段：只有调用方显式给了正数才写进 preset，否则整个键都不存在
+// （下游用 Number.isFinite 判断有没有，序列化后的 preset 也因此保持稳定）。
+function normalizeCameraConfig(sourceCamera) {
+  const cameraMode = sourceCamera?.mode === "perspective" ? "perspective" : "orthographic",
+    cameraView = sourceCamera?.view === "top" ? "top" : "free",
+    cameraConfig: {
+      mode: string;
+      view: string;
+      topRotation: number;
+      position: PointCoordinates;
+      target: PointCoordinates;
+      visibleHeight: number;
+      fov: number;
+      focalLength: number | null;
+      frameSize?: number;
+    } = {
+      mode: cameraMode,
+      view: cameraView,
+      topRotation:
+        (((Math.round(toFiniteNumber(sourceCamera?.topRotation, 0) / 90) * 90) % 360) + 360) % 360,
+      position: resolvePoint(sourceCamera?.position, {
+        x: 7,
+        y: 7,
+        z: 7,
+      }),
+      target: resolvePoint(sourceCamera?.target, {
+        x: 0,
+        y: 0.6,
+        z: 0,
+      }),
+      visibleHeight: clamp(toFiniteNumber(sourceCamera?.visibleHeight, 10), 0.1, 1000),
+      fov: clamp(toFiniteNumber(sourceCamera?.fov, 36), 5, 120),
+      focalLength:
+        cameraMode === "perspective"
+          ? clamp(toFiniteNumber(sourceCamera?.focalLength, 50), 18, 120)
+          : null,
+    };
+  return (
+    Number.isFinite(Number(sourceCamera?.frameSize)) &&
+      Number(sourceCamera.frameSize) > 0 &&
+      (cameraConfig.frameSize = clamp(toFiniteNumber(sourceCamera.frameSize, 10), 0.1, 1000)),
+    cameraConfig
   );
+}
+export function normalizeExportPreset(sourcePreset) {
+  if (!sourcePreset || typeof sourcePreset != "object") return null;
+  const widthPx = Math.round(clamp(toFiniteNumber(sourcePreset.width, 1852), 320, 4096)),
+    heightPx = Math.round(clamp(toFiniteNumber(sourcePreset.height, 1293), 320, 4096));
   return {
     version: 1,
-    name: String(preset.name || "")
+    name: String(sourcePreset.name || "")
       .trim()
       .slice(0, 24),
-    width: normalizedWidth,
-    height: normalizedHeight,
-    // 锁定比例默认开启，只有显式传 false 才关闭。
-    lockRatio: preset.lockRatio !== false,
-    // floorMode 只有 all（全楼合并）与 floor（单层）两种取值。
-    floorMode: preset.floorMode === "all" ? "all" : "floor",
-    floorId: String(preset.floorId || "").slice(0, 180),
-    floorGap: clampNumber(coercedFiniteNumberOr(preset.floorGap, 3), 0, 20),
-    camera: normalizePresetCamera(preset.camera as Record<string, unknown> | undefined),
-    folderName: String(preset.folderName || "").slice(0, 60),
-    selectedFiles: normalizeSelectedFiles(preset.selectedFiles)
+    width: widthPx,
+    height: heightPx,
+    lockRatio: sourcePreset.lockRatio !== false,
+    floorMode: sourcePreset.floorMode === "all" ? "all" : "floor",
+    floorId: String(sourcePreset.floorId || "").slice(0, 180),
+    floorGap: clamp(toFiniteNumber(sourcePreset.floorGap, 3), 0, 20),
+    camera: normalizeCameraConfig(sourcePreset.camera),
+    folderName: String(sourcePreset.folderName || "").slice(0, 60),
+    selectedFiles: normalizeSelectedFiles(sourcePreset.selectedFiles),
   };
 }
-
-/**
- * 归一化整个预设槽数组。
- */
-export function normalizeExportPresetSlots(slots: unknown) {
-  const slotList = Array.isArray(slots) ? slots : [];
-  const slotCount = Array.isArray(slots) ? Math.max(1, Math.min(8, slotList.length || 1)) : 4;
+export function normalizeExportPresetSlots(sourceSlots) {
+  const slotCandidates = Array.isArray(sourceSlots) ? sourceSlots : [],
+    slotCount = Array.isArray(sourceSlots)
+      ? Math.max(1, Math.min(8, slotCandidates.length || 1))
+      : 4;
   return Array.from(
     {
-      length: slotCount
+      length: slotCount,
     },
-    (_slotEntry, slotIndex) => normalizeExportPreset(slotList[slotIndex])
+    (slotEntry, slotIndex) => normalizeExportPreset(slotCandidates[slotIndex]),
   );
 }
-
-/**
- * 归一化当前选中的预设槽下标。
- */
-export function normalizeActiveExportPresetSlot(activeSlotIndex: unknown, requestedSlotCount = 4): number {
-  const slotNumber = Number(activeSlotIndex);
-  const maxSlotNumber = Math.max(1, Math.min(8, Number(requestedSlotCount) || 4));
-  if (Number.isInteger(slotNumber) && slotNumber >= 0 && slotNumber < maxSlotNumber) {
-    return slotNumber;
-  } else {
-    return 0;
-  }
+export function normalizeActiveExportPresetSlot(activeSlotInput, totalSlotCount = 4) {
+  const activeSlotIndex = Number(activeSlotInput),
+    boundedSlotCount = Math.max(1, Math.min(8, Number(totalSlotCount) || 4));
+  return Number.isInteger(activeSlotIndex) &&
+    activeSlotIndex >= 0 &&
+    activeSlotIndex < boundedSlotCount
+    ? activeSlotIndex
+    : 0;
 }
-
-/**
- * 判断导出预设是否为空。
- */
-export function exportPresetIsEmpty(preset: unknown, presetFeatureEnabled = false): boolean {
-  return !normalizeExportPreset(preset) && !presetFeatureEnabled;
+export function exportPresetIsEmpty(candidatePreset, hasPendingValue = false) {
+  return !normalizeExportPreset(candidatePreset) && !hasPendingValue;
 }
-
-/**
- * 生成槽位摘要：「1852×1293 · 一层 · 透视」。
- */
-export function exportPresetSummary(
-  preset: unknown,
-  floorNamesById: Map<string, string> | Record<string, string> = new Map()
-): string {
-  const normalizedPreset = normalizeExportPreset(preset);
-  if (!normalizedPreset) {
-    return "未设置";
-  }
-  const lookup =
-    floorNamesById instanceof Map
-      ? floorNamesById.get(normalizedPreset.floorId)
-      : (floorNamesById as Record<string, string>)[normalizedPreset.floorId];
-  const presetFloorLabel =
-    normalizedPreset.floorMode === "all"
-      ? "全楼合并"
-      : lookup || "楼层已变更";
-  const presetCameraLabel = normalizedPreset.camera.mode === "perspective" ? "透视" : "正交";
+export function exportPresetSummary(presetCandidate, floorNameByFloorId = new Map()) {
+  const normalizedPreset = normalizeExportPreset(presetCandidate);
+  if (!normalizedPreset) return "未设置";
+  const floorLabel =
+      normalizedPreset.floorMode === "all"
+        ? "全楼合并"
+        : floorNameByFloorId.get(normalizedPreset.floorId) || "楼层已变更",
+    cameraModeLabel = normalizedPreset.camera.mode === "perspective" ? "透视" : "正交";
   return (
     normalizedPreset.width +
     "×" +
     normalizedPreset.height +
     " · " +
-    presetFloorLabel +
+    floorLabel +
     " · " +
-    presetCameraLabel
+    cameraModeLabel
   );
 }

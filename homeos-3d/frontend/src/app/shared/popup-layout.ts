@@ -1,160 +1,107 @@
-/**
- * 弹窗布局排版：把弹窗模块按网格排布并算出整体尺寸。
- */
-
-const MIN_POPUP_COLUMNS = 2;
-const MAX_POPUP_COLUMNS = 4;
-const DEFAULT_POPUP_COLUMNS = 3;
-const POPUP_COLUMN_WIDTH_PX = 420;
-const POPUP_ROW_HEIGHT_PX = 470;
-const POPUP_GRID_GAP_PX = 14;
-const POPUP_CELL_PADDING_PX = 28;
-const POPUP_HEADER_HEIGHT_PX = 88;
-
-/**
- * 归一弹窗列数。
- */
-export function popupLayoutColumns(options: any) {
+const MIN_POPUP_COLUMNS = 2,
+  MAX_POPUP_COLUMNS = 4,
+  DEFAULT_POPUP_COLUMNS = 3,
+  POPUP_COLUMN_WIDTH_PX = 420,
+  POPUP_ROW_HEIGHT_PX = 470,
+  POPUP_GRID_GAP_PX = 14,
+  POPUP_CELL_PADDING_PX = 28,
+  POPUP_HEADER_HEIGHT_PX = 88;
+export function popupLayoutColumns(options) {
   const columns = Number(options?.columns);
-  if (columns >= MIN_POPUP_COLUMNS && columns <= MAX_POPUP_COLUMNS) {
-    return columns;
-  } else {
-    return DEFAULT_POPUP_COLUMNS;
-  }
+  return columns >= 2 && columns <= 4 ? columns : 3;
 }
-
-/**
- * 计算模块占用的列数。
- */
-function popupModuleColumnSpan(moduleSpec: any) {
-  const type = typeof moduleSpec == "string" ? moduleSpec : moduleSpec?.type;
-  const deviceType =
-    typeof moduleSpec == "object"
-      ? moduleSpec?.deviceType || moduleSpec?.properties?.deviceType
-      : "";
-  // 电动床与空调类模块内容较宽，固定占 2 列。
-  if (
-    type === "electric-bed" ||
-    deviceType === "electric-bed" ||
+export function popupModuleColumnSpan(moduleSpec) {
+  const moduleType = typeof moduleSpec == "string" ? moduleSpec : moduleSpec?.type,
+    moduleDeviceType =
+      typeof moduleSpec == "object"
+        ? moduleSpec?.deviceType || moduleSpec?.properties?.deviceType
+        : "";
+  return moduleType === "electric-bed" ||
+    moduleDeviceType === "electric-bed" ||
     ["climate", "air-purifier", "water-heater", "media-player", "camera", "line-chart"].includes(
-      type
+      moduleType,
     )
-  ) {
-    return 2;
-  } else {
-    return 1;
-  }
+    ? 2
+    : 1;
 }
-
-/**
- * 计算模块占用的行数。
- */
-function popupModuleRowSpan(_rowModuleSpec: any) {
+export function popupModuleRowSpan(rowModuleSpec) {
+  const rowModuleType = typeof rowModuleSpec == "string" ? rowModuleSpec : rowModuleSpec?.type,
+    rowModuleDeviceType =
+      typeof rowModuleSpec == "object"
+        ? rowModuleSpec?.deviceType || rowModuleSpec?.properties?.deviceType
+        : "";
   return 1;
 }
-
-/**
- * 按先后顺序为模块寻找空位（首次适配）。
- */
-function placeModules(modules: any, columnLimit: any) {
-  const placements: any[] = [];
-  // occupied[row][column] 标记已占用的格子，二维数组按需增长。
-  const occupied: any[] = [];
+function placeModules(modules, columnLimit) {
+  const placements = [],
+    occupied = [];
   for (const module of modules || []) {
-    const columnSpan = popupModuleColumnSpan(module);
-    const rowSpan = popupModuleRowSpan(module);
-    // 单模块比整行还宽，无法排版。
-    if (columnSpan > columnLimit) {
-      return null;
-    }
-    let placement: any = null;
-    // 行数上限取「模块数 * 2 + 1」，保证最坏情况下也有尝试空间。
+    const columnSpan = popupModuleColumnSpan(module),
+      rowSpan = popupModuleRowSpan(module);
+    if (columnSpan > columnLimit) return null;
+    let placement = null;
     const maxRows = Math.max(4, (modules?.length || 0) * 2 + 1);
-    for (let row = 0; row < maxRows && !placement; row += 1) {
-      for (let column = 0; column <= columnLimit - columnSpan; column += 1) {
-        // 检查 rowSpan × columnSpan 的矩形区域是否全部为空。
+    for (let row = 0; row < maxRows && !placement; row += 1)
+      for (let column = 0; column <= columnLimit - columnSpan; column += 1)
         if (
           Array.from(
             {
-              length: rowSpan
+              length: rowSpan,
             },
-            (_unusedRowIndex, rowOffset) =>
+            (unusedRowIndex, rowOffset) =>
               Array.from(
                 {
-                  length: columnSpan
+                  length: columnSpan,
                 },
-                (_unusedColumnIndex, columnOffset) =>
-                  !occupied[row + rowOffset]?.[column + columnOffset]
-              ).every(Boolean)
+                (unusedColumnIndex, columnOffset) =>
+                  !occupied[row + rowOffset]?.[column + columnOffset],
+              ).every(Boolean),
           ).every(Boolean)
         ) {
           placement = {
             x: column,
             y: row,
             width: columnSpan,
-            height: rowSpan
+            height: rowSpan,
           };
           for (let rowIndex = 0; rowIndex < rowSpan; rowIndex += 1) {
-            occupied[row + rowIndex] ||= [];
-            for (let columnIndex = 0; columnIndex < columnSpan; columnIndex += 1) {
+            occupied[row + rowIndex] || (occupied[row + rowIndex] = []);
+            for (let columnIndex = 0; columnIndex < columnSpan; columnIndex += 1)
               occupied[row + rowIndex][column + columnIndex] = true;
-            }
           }
           break;
         }
-      }
-    }
-    if (!placement) {
-      return null;
-    }
+    if (!placement) return null;
     placements.push(placement);
   }
   return placements;
 }
-
-/**
- * 打包弹窗模块布局。
- */
-export function packPopupModules(moduleList: any, columnTotal: any) {
-  const columnCount = popupLayoutColumns(columnTotal);
-  // placeModules 返回 null 说明某个模块放不下，此时按空布局兜底。
-  const packedPlacements = placeModules(moduleList, columnCount) || [];
-  const rowCount = Math.max(
-    1,
-    packedPlacements.reduce(
-      (maxRow, packedPlacement) => Math.max(maxRow, packedPlacement.y + packedPlacement.height),
-      0
-    )
-  );
+export function packPopupModules(moduleList, columnTotal) {
+  const columnCount = popupLayoutColumns(columnTotal),
+    packedPlacements = placeModules(moduleList, columnCount) || [],
+    rowCount = Math.max(
+      1,
+      packedPlacements.reduce(
+        (maxRow, packedPlacement) => Math.max(maxRow, packedPlacement.y + packedPlacement.height),
+        0,
+      ),
+    );
   return {
-    // rows 对外截到 3，让 UI 按最大行高绘制；是否溢出由 fits 表达。
     rows: Math.min(rowCount, 3),
     columns: columnCount,
     placements: packedPlacements,
-    fits: rowCount <= 3
+    fits: rowCount <= 3,
   };
 }
-
-/**
- * 计算弹窗布局的像素尺寸。
- */
-export function popupLayoutMetrics(moduleSpecs: any, layoutOptions: any) {
-  const layout = packPopupModules(moduleSpecs, layoutOptions);
-  // 左右各一份内边距（合计两份）；列 / 行间距都是 (数量 - 1) 份间距。
-  const gridWidth =
-    POPUP_CELL_PADDING_PX * 2 +
-    layout.columns * POPUP_COLUMN_WIDTH_PX +
-    (layout.columns - 1) * POPUP_GRID_GAP_PX;
-  const gridHeight =
-    POPUP_CELL_PADDING_PX * 2 +
-    layout.rows * POPUP_ROW_HEIGHT_PX +
-    (layout.rows - 1) * POPUP_GRID_GAP_PX;
+export function popupLayoutMetrics(moduleSpecs, layoutOptions) {
+  const layout = packPopupModules(moduleSpecs, layoutOptions),
+    gridWidth = 56 + layout.columns * 420 + (layout.columns - 1) * 14,
+    gridHeight = 56 + layout.rows * 470 + (layout.rows - 1) * 14;
   return {
     ...layout,
     gridWidth: gridWidth,
     gridHeight: gridHeight,
     popupWidth: gridWidth,
-    // 弹窗总高要加上标题栏。
-    popupHeight: POPUP_HEADER_HEIGHT_PX + gridHeight
+    popupHeight: 88 + gridHeight,
   };
 }

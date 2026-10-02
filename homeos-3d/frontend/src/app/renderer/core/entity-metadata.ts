@@ -1,9 +1,4 @@
-
-
-/**
- * 判断元数据是否指向一个真实可用、且未被停用的实体。
- */
-export function entityMetadataIsAvailable(metadata: any) {
+export function entityMetadataIsAvailable(metadata) {
   return (
     !!metadata?.entityId &&
     !metadata.disabledBy &&

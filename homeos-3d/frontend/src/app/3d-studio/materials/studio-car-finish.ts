@@ -1,356 +1,211 @@
-/**
- * 小汽车（上游第三方车模 `models/vehicle/car.glb`）的整件车漆着色器与法线修订。
- */
-
-/** 图集里车灯灯罩的多边形（700×700 像素坐标）：前三枚前大灯、后三枚尾灯。 */
-const CAR_LAMP_LENSES = {
-  front: [
-    [
-      [208, 193],
-      [238, 197],
-      [257, 208],
-      [215, 208]
+export const CAR_LAMP_LENSES = {
+    front: [
+      [
+        [208, 193],
+        [238, 197],
+        [257, 208],
+        [215, 208],
+      ],
+      [
+        [376, 208],
+        [404, 195],
+        [421, 193],
+        [416, 207],
+      ],
+      [
+        [90, 373],
+        [117, 360],
+        [141, 357],
+        [123, 373],
+      ],
     ],
-    [
-      [376, 208],
-      [404, 195],
-      [421, 193],
-      [416, 207]
+    rear: [
+      [
+        [461, 188],
+        [470, 181],
+        [482, 181],
+        [482, 192],
+      ],
+      [
+        [630, 181],
+        [655, 181],
+        [675, 189],
+        [654, 192],
+      ],
+      [
+        [626, 350],
+        [639, 343],
+        [657, 341],
+        [655, 351],
+      ],
     ],
-    [
-      [90, 373],
-      [117, 360],
-      [141, 357],
-      [123, 373]
-    ]
-  ],
-  rear: [
-    [
-      [461, 188],
-      [470, 181],
-      [482, 181],
-      [482, 192]
-    ],
-    [
-      [630, 181],
-      [655, 181],
-      [675, 189],
-      [654, 192]
-    ],
-    [
-      [626, 350],
-      [639, 343],
-      [657, 341],
-      [655, 351]
-    ]
-  ]
-};
-
-/** 图集里车窗玻璃岛的区域（`[x0, y0, x1, y1]`，同一套 700×700 像素坐标）。 */
-const CAR_GLASS_ATLAS_REGIONS = [
-  [0.3, 0.655, 0.96, 0.975],
-  [0.38, 0.395, 0.81, 0.49]
-];
-
-/** 图集边长（像素）。上面两张表的坐标都相对它换算成 UV。 */
-const CAR_ATLAS_SIZE_PX = 700;
-
-/** UV 字面量的有效位：图集坐标要落成 GLSL 里的浮点常量，位数多了只是拉长着色器源码。 */
-const ATLAS_UV_DECIMALS = 7;
-
-/** 像素坐标 → GLSL 的 `vec2` 字面量（UV 空间）。 */
-function atlasUvLiteral(pixelPoint: any) {
-  return (
-    "vec2(" +
-    (pixelPoint[0] / CAR_ATLAS_SIZE_PX).toFixed(ATLAS_UV_DECIMALS) +
-    ", " +
-    (pixelPoint[1] / CAR_ATLAS_SIZE_PX).toFixed(ATLAS_UV_DECIMALS) +
-    ")"
-  );
-}
-
-/** 多边形的有向面积（鞋带公式）：用来统一绕向，见 lensPolygonMask。 */
-function polygonSignedArea(pixelPoints: any) {
-  return pixelPoints.reduce((area: any, point: any, index: any) => {
-    const nextPoint = pixelPoints[(index + 1) % pixelPoints.length];
-    return area + point[0] * nextPoint[1] - nextPoint[0] * point[1];
-  }, 0);
-}
-
-/**
- * 一枚灯罩的「在多边形以内」判据：逐边求有向距离再相乘，全部为正才落在多边形内。
- */
-function lensPolygonMask(pixelPoints: any) {
-  const orientedPoints =
-    polygonSignedArea(pixelPoints) > 0 ? pixelPoints : [...pixelPoints].reverse();
-  return orientedPoints
-    .map(
-      (point: any, index: any) =>
-        "hbCarLensEdge(carUv, " +
-        atlasUvLiteral(point) +
-        ", " +
-        atlasUvLiteral(orientedPoints[(index + 1) % orientedPoints.length]) +
-        ")"
-    )
-    .join(" * ");
-}
-
-/** 某一侧三枚灯罩的 GLSL 表达式（各枚相乘的判据再相加）。 */
-function lampLensExpression(lampSide: any) {
-  return CAR_LAMP_LENSES[lampSide as keyof typeof CAR_LAMP_LENSES]
-    .map((pixelPoints: any) => "(" + lensPolygonMask(pixelPoints) + ")")
-    .join(" + ");
-}
-
-/** 玻璃岛区域的 GLSL 表达式：落在任一矩形内即为 1（`step` 的乘积就是矩形判据）。 */
-function glassIslandExpression() {
-  return CAR_GLASS_ATLAS_REGIONS.map(
-    ([minX, minY, maxX, maxY]) =>
-      "(step(" +
-      minX +
-      ", glassUv.x) * step(glassUv.x, " +
-      maxX +
-      ") * step(" +
-      minY +
-      ", glassUv.y) * step(glassUv.y, " +
-      maxY +
-      "))"
-  ).join(" + ");
-}
-
-/**
- * 玻璃：贴图集里的玻璃岛压暗 + 冷色反光。
- */
-function carGlassFragmentChunk() {
-  return `
-      float hbCarGlass = 0.0;
-      #ifdef USE_MAP
-        vec2 glassUv = fract(vMapUv);
-        float glassIsland = clamp(${glassIslandExpression()}, 0.0, 1.0);
-        float glassValue = dot(sampledDiffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-        hbCarGlass = glassIsland * smoothstep(0.88, 1.05, vHbCarHeight)
-          * (1.0 - smoothstep(0.055, 0.13, glassValue));
-        // Preserve the windscreen, split sunroof and rear-window seals, and the
-        // outer glazing edges. Only soften photographed bands inside the panes.
-        // Side-window pillars keep the atlas detail as well.
-        float glassSeams = max(1.0 - smoothstep(0.007, 0.019, abs(glassUv.x - 0.505)),
-          max(1.0 - smoothstep(0.002, 0.006, abs(glassUv.x - 0.635)),
-              1.0 - smoothstep(0.007, 0.020, abs(glassUv.x - 0.792))));
-        float paneInterior = smoothstep(0.704, 0.74, glassUv.y)
-          * (1.0 - smoothstep(0.907, 0.943, glassUv.y)) * (1.0 - glassSeams);
-        vec3 glassAtlas = sampledDiffuseColor.rgb * 0.7 + vec3(0.012, 0.014, 0.017);
-        vec3 paneColor = mix(vec3(0.026, 0.031, 0.038), sampledDiffuseColor.rgb, 0.15);
-        diffuseColor.rgb = mix(diffuseColor.rgb,
-          diffuse * mix(glassAtlas, paneColor, paneInterior), hbCarGlass);
-      #endif`;
-}
-
-/**
- * 珍珠白漆面（暖阳原木档）：把图集里的亮面刷成暖白。
- */
-function carPearlPaintChunk() {
-  return `
-      #ifdef USE_MAP
-        // Keep atlas seams and shadow detail; exclude dark glazing, rubber and trim.
-        float pearlLuma = dot(sampledDiffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-        float pearlPaint = smoothstep(0.20, 0.48, pearlLuma) * (1.0 - hbCarGlass);
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.94, 0.925, 0.89) * (0.68 + 0.32 * pearlLuma), pearlPaint);
-      #endif`;
-}
-
-/**
- * 车身反光与车灯：接在 `opaque_fragment` 之前，直接往 outgoingLight 上叠。
- */
-function carReflectionChunk(pearlWhite: any) {
-  return `
-      float carDark = 1.0 - smoothstep(0.035, 0.16, dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)));
-      float carUpper = smoothstep(0.68, 1.02, vHbCarHeight);
-      vec3 carView = normalize(vViewPosition);
-      vec3 carReflection = inverseTransformDirection(reflect(-carView, normal), viewMatrix);
-      float carSky = smoothstep(-0.15, 0.85, carReflection.y);
-      float carSoftbox = pow(max(dot(carReflection, normalize(vec3(-0.35, 0.8, 0.48))), 0.0), 12.0);
-      float carFresnel = pow(1.0 - max(dot(normal, carView), 0.0), 4.0);
-      ${
-        pearlWhite
-          ? `#ifdef USE_MAP
-        // Retain most of the real lighting/shadow contrast on pearl paint.
-        // Strong fixed fill previously flattened the body into a uniform white.
-        vec3 pearlNormal = inverseTransformDirection(normal, viewMatrix);
-        float pearlFill = 0.64 + 0.20 * max(pearlNormal.y, 0.0)
-          + 0.12 * max(dot(pearlNormal, normalize(vec3(-0.4, 0.85, 0.32))), 0.0);
-        outgoingLight = mix(outgoingLight, diffuseColor.rgb * pearlFill, pearlPaint * 0.45);
-      #endif`
-          : ""
-      }
-      outgoingLight += carDark * carUpper * vec3(0.68, 0.79, 0.94)
-        * (0.012 + 0.025 * carSky + 0.07 * carSoftbox + 0.035 * carFresnel);
-      // Keep the sheen restrained so it cannot wash out the glazing seams.
-      outgoingLight += hbCarGlass * vec3(0.76, 0.84, 0.94)
-        * (0.008 + 0.014 * carSky + 0.02 * carSoftbox);
-      #ifdef USE_MAP
-        vec2 carUv = fract(vMapUv);
-        float carFrontLamp = clamp(${lampLensExpression("front")}, 0.0, 1.0)
-          * (1.0 - smoothstep(-1.95, -1.85, vHbCarLength));
-        float carRearLamp = clamp(${lampLensExpression("rear")}, 0.0, 1.0)
-          * smoothstep(1.85, 1.95, vHbCarLength);
-        outgoingLight += carFrontLamp * vec3(2.0, 2.3, 2.6)
-          + carRearLamp * vec3(0.84, 0.036, 0.018);
-      #endif`;
-}
-
-const CAR_FINISH_CACHE_KEY = "hb-car-finish-v8-pearl-shadow";
-
-/**
- * 按位置合并重合顶点后重算法线，修掉「按平面烘焙」带来的硬棱线。
- */
-function smoothCarSurfaceNormals(THREE: any, inputGeometry: any) {
-  const positionAttribute = inputGeometry?.attributes?.position;
-  const normalAttribute = inputGeometry?.attributes?.normal;
-  if (
-    !positionAttribute ||
-    !normalAttribute ||
-    positionAttribute.count !== normalAttribute.count
-  ) {
+  },
+  CAR_GLASS_ATLAS_REGIONS = [
+    [0.3, 0.655, 0.96, 0.975],
+    [0.38, 0.395, 0.81, 0.49],
+  ];
+const formatAtlasUvLiteral = (pixelPoint) =>
+    "vec2(" + (pixelPoint[0] / 700).toFixed(7) + ", " + (pixelPoint[1] / 700).toFixed(7) + ")",
+  buildLensPolygonMask = (polygonPoints) => {
+    const orientedPoints =
+      polygonPoints.reduce((signedArea, polygonPoint, pointIndex) => {
+        const nextPoint = polygonPoints[(pointIndex + 1) % polygonPoints.length];
+        return signedArea + polygonPoint[0] * nextPoint[1] - nextPoint[0] * polygonPoint[1];
+      }, 0) > 0
+        ? polygonPoints
+        : [...polygonPoints].reverse();
+    return orientedPoints
+      .map(
+        (edgePoint, edgeIndex) =>
+          "hbCarLensEdge(carUv, " +
+          formatAtlasUvLiteral(edgePoint) +
+          ", " +
+          formatAtlasUvLiteral(orientedPoints[(edgeIndex + 1) % orientedPoints.length]) +
+          ")",
+      )
+      .join(" * ");
+  },
+  buildLampLensExpression = (lampSide) =>
+    CAR_LAMP_LENSES[lampSide]
+      .map(buildLensPolygonMask)
+      .map((lensPoints) => "(" + lensPoints + ")")
+      .join(" + ");
+export function smoothCarSurfaceNormals(three, inputGeometry) {
+  const positionAttribute = inputGeometry?.attributes?.position,
+    normalAttribute = inputGeometry?.attributes?.normal;
+  if (!positionAttribute || !normalAttribute || positionAttribute.count !== normalAttribute.count)
     return inputGeometry;
-  }
-  const verticesByPosition = new Map();
-  const areaByVertex = new Float64Array(positionAttribute.count);
-  const firstVertex = new THREE.Vector3();
-  const secondVertex = new THREE.Vector3();
-  const thirdVertex = new THREE.Vector3();
-  const edgeNormal = new THREE.Vector3();
-  const geometryIndex = inputGeometry.index;
-  const triangleVertexCount = geometryIndex?.count ?? positionAttribute.count;
-  for (let index = 0; index + 2 < triangleVertexCount; index += 3) {
-    const triangleVertices = [0, 1, 2].map(triangleCorner =>
-      geometryIndex ? geometryIndex.getX(index + triangleCorner) : index + triangleCorner
+  const verticesByPosition = new Map(),
+    vertexAreaSum = new Float64Array(positionAttribute.count),
+    firstVertex = new three.Vector3(),
+    secondVertex = new three.Vector3(),
+    thirdVertex = new three.Vector3(),
+    edgeNormal = new three.Vector3(),
+    geometryIndex = inputGeometry.index,
+    triangleVertexCount = geometryIndex?.count ?? positionAttribute.count;
+  for (
+    let triangleStartIndex = 0;
+    triangleStartIndex + 2 < triangleVertexCount;
+    triangleStartIndex += 3
+  ) {
+    const triangleVertices = [0, 1, 2].map((triangleCorner) =>
+      geometryIndex
+        ? geometryIndex.getX(triangleStartIndex + triangleCorner)
+        : triangleStartIndex + triangleCorner,
     );
-    firstVertex.fromBufferAttribute(positionAttribute, triangleVertices[0]);
-    secondVertex.fromBufferAttribute(positionAttribute, triangleVertices[1]);
-    thirdVertex.fromBufferAttribute(positionAttribute, triangleVertices[2]);
+    (firstVertex.fromBufferAttribute(positionAttribute, triangleVertices[0]),
+      secondVertex.fromBufferAttribute(positionAttribute, triangleVertices[1]),
+      thirdVertex.fromBufferAttribute(positionAttribute, triangleVertices[2]));
     const triangleArea = edgeNormal
       .subVectors(secondVertex, firstVertex)
       .cross(thirdVertex.sub(firstVertex))
       .length();
-    for (const vertexIndex of triangleVertices) {
-      areaByVertex[vertexIndex] += triangleArea;
-    }
+    for (const triangleVertexIndex of triangleVertices)
+      vertexAreaSum[triangleVertexIndex] += triangleArea;
   }
-  for (let vertexIndex = 0; vertexIndex < positionAttribute.count; vertexIndex += 1) {
+  for (let vertexIndex = 0; vertexIndex < positionAttribute.count; vertexIndex++) {
     const positionKey = [
       positionAttribute.getX(vertexIndex),
       positionAttribute.getY(vertexIndex),
-      positionAttribute.getZ(vertexIndex)
+      positionAttribute.getZ(vertexIndex),
     ]
-      .map(coordinate => Math.round(coordinate * 10000))
+      .map((coordinate) => Math.round(coordinate * 10000))
       .join("/");
-    if (!verticesByPosition.has(positionKey)) {
-      verticesByPosition.set(positionKey, []);
-    }
-    verticesByPosition.get(positionKey).push(vertexIndex);
+    (verticesByPosition.has(positionKey) || verticesByPosition.set(positionKey, []),
+      verticesByPosition.get(positionKey).push(vertexIndex));
   }
-  const smoothedGeometry = inputGeometry.clone();
-  const smoothedNormals = normalAttribute.clone();
-  const blendedNormal = new THREE.Vector3();
-  const neighborNormal = new THREE.Vector3();
-  const normalMergeCosine = Math.cos(THREE.MathUtils.degToRad(50));
-  for (const coincidentVertices of verticesByPosition.values()) {
-    for (const vertexIndex of coincidentVertices) {
-      firstVertex.fromBufferAttribute(normalAttribute, vertexIndex).normalize();
-      blendedNormal.set(0, 0, 0);
-      for (const neighborIndex of coincidentVertices) {
-        neighborNormal.fromBufferAttribute(normalAttribute, neighborIndex).normalize();
-        if (firstVertex.dot(neighborNormal) >= normalMergeCosine) {
-          blendedNormal.addScaledVector(neighborNormal, areaByVertex[neighborIndex]);
-        }
-      }
-      if (blendedNormal.lengthSq() > 1e-16) {
-        blendedNormal.normalize();
+  const smoothedGeometry = inputGeometry.clone(),
+    smoothedNormals = normalAttribute.clone(),
+    blendedNormal = new three.Vector3(),
+    normalMergeCosine = Math.cos(three.MathUtils.degToRad(50));
+  for (const coincidentVertices of verticesByPosition.values())
+    for (const candidateVertexIndex of coincidentVertices) {
+      (firstVertex.fromBufferAttribute(normalAttribute, candidateVertexIndex).normalize(),
+        blendedNormal.set(0, 0, 0));
+      for (const neighborVertexIndex of coincidentVertices)
+        (secondVertex.fromBufferAttribute(normalAttribute, neighborVertexIndex).normalize(),
+          firstVertex.dot(secondVertex) >= normalMergeCosine &&
+            blendedNormal.addScaledVector(secondVertex, vertexAreaSum[neighborVertexIndex]));
+      blendedNormal.lengthSq() > 1e-16 &&
+        (blendedNormal.normalize(),
         smoothedNormals.setXYZ(
-          vertexIndex,
+          candidateVertexIndex,
           blendedNormal.x,
           blendedNormal.y,
-          blendedNormal.z
-        );
-      }
+          blendedNormal.z,
+        ));
     }
-  }
-  smoothedGeometry.setAttribute("normal", smoothedNormals);
-  smoothedNormals.needsUpdate = true;
-  return smoothedGeometry;
+  return (
+    smoothedGeometry.setAttribute("normal", smoothedNormals),
+    (smoothedNormals.needsUpdate = true),
+    smoothedGeometry
+  );
 }
-
-/**
- * 给整棵模型树做一遍上面的法线平滑：按「源几何 → 平滑后的几何」去重，同一份几何只算一次，
- */
-export function smoothCarSceneSurface(THREE: any, scene: any) {
-  const smoothedBySourceGeometry = new Map();
-  scene.traverse?.((carMesh: any) => {
-    if (!carMesh.isMesh) {
-      return;
-    }
-    const sourceGeometry = carMesh.geometry;
-    if (!smoothedBySourceGeometry.has(sourceGeometry)) {
-      smoothedBySourceGeometry.set(
-        sourceGeometry,
-        smoothCarSurfaceNormals(THREE, sourceGeometry)
-      );
-    }
-    carMesh.geometry = smoothedBySourceGeometry.get(sourceGeometry);
-  });
-  for (const [sourceGeometry, smoothedGeometry] of smoothedBySourceGeometry) {
-    if (sourceGeometry !== smoothedGeometry) {
-      sourceGeometry.dispose();
-    }
-  }
-}
-
-/**
- * 给小车材质套上车漆 / 玻璃 / 车灯那层着色器（只对这台贴图集车模成立）。
- */
-export function applyCarFinish(material: any, { pearlWhite = false }: any = {}) {
-  if (!material?.isMeshStandardMaterial || material.userData.hbCarFinish) {
-    return material;
-  }
-  const previousOnBeforeCompile = material.onBeforeCompile;
-  const previousProgramCacheKey = material.customProgramCacheKey?.call(material) || "";
-  material.onBeforeCompile = function (shader: any, renderer: any) {
-    previousOnBeforeCompile?.call(this, shader, renderer);
-    shader.vertexShader =
-      "varying float vHbCarHeight;\nvarying float vHbCarLength;\n" + shader.vertexShader;
-    shader.vertexShader = shader.vertexShader.replace(
-      "#include <begin_vertex>",
-      "#include <begin_vertex>\nvHbCarHeight = position.z;\nvHbCarLength = position.y;"
-    );
-    shader.fragmentShader =
-      "#define HB_CAR_GLASS_FINISH\n" +
-      "varying float vHbCarHeight;\n" +
-      "varying float vHbCarLength;\n" +
-      "float hbCarLensEdge(vec2 uv, vec2 a, vec2 b) {\n" +
-      "  vec2 edge = b - a, offset = uv - a;\n" +
-      "  float distance = (edge.x * offset.y - edge.y * offset.x) / length(edge);\n" +
-      "  return smoothstep(-0.0005, 0.001, distance);\n" +
-      "}\n" +
-      shader.fragmentShader;
-    shader.fragmentShader = shader.fragmentShader.replace(
-      "#include <color_fragment>",
-      "#include <color_fragment>" + carGlassFragmentChunk()
-    );
-    if (pearlWhite) {
-      shader.fragmentShader = shader.fragmentShader.replace(
-        "#include <roughnessmap_fragment>",
-        carPearlPaintChunk() + "\n      #include <roughnessmap_fragment>"
-      );
-    }
-    shader.fragmentShader = shader.fragmentShader.replace(
-      "#include <opaque_fragment>",
-      carReflectionChunk(pearlWhite) + "\n      #include <opaque_fragment>"
-    );
-  };
-  material.customProgramCacheKey = () =>
-    previousProgramCacheKey + "|" + CAR_FINISH_CACHE_KEY + "|pearl-" + Number(pearlWhite);
-  material.userData.hbCarFinish = true;
-  // 车漆是整件一层着色器：表面烘焙（plan2）会在它上面再叠一层接触阴影，
-  material.userData.plan2SurfaceContact = false;
-  return material;
+const sceneLightUniform = {
+  value: 0.85,
+};
+export function applyCarFinish(material, { pearlWhite: isPearlWhite = false } = {}) {
+  if (!material?.isMeshStandardMaterial || material.userData.hbCarFinish) return material;
+  const previousOnBeforeCompile = material.onBeforeCompile,
+    previousProgramCacheKey = material.customProgramCacheKey?.call(material) || "";
+  return (
+    (material.onBeforeCompile = function (shader, renderer) {
+      (previousOnBeforeCompile?.call(this, shader, renderer),
+        (shader.uniforms.hbCarSceneLight = sceneLightUniform),
+        (shader.vertexShader =
+          "varying float vHbCarHeight;\nvarying float vHbCarLength;\n" + shader.vertexShader),
+        (shader.vertexShader = shader.vertexShader.replace(
+          "#include <begin_vertex>",
+          "#include <begin_vertex>\nvHbCarHeight = position.z;\nvHbCarLength = position.y;",
+        )),
+        (shader.fragmentShader =
+          "#define HB_CAR_GLASS_FINISH\n      uniform float hbCarSceneLight;\n      varying float vHbCarHeight;\n      varying float vHbCarLength;\n      vec3 hbCarRoofTex(sampler2D atlas, vec2 uv) {\n        vec3 center = mix(texture2D(atlas, vec2(uv.x, 0.770)).rgb,\n          texture2D(atlas, vec2(uv.x, 0.895)).rgb,\n          smoothstep(0.770, 0.895, uv.y));\n        float band = smoothstep(0.765, 0.795, uv.y)\n          * (1.0 - smoothstep(0.875, 0.902, uv.y));\n        return mix(texture2D(atlas, uv).rgb, center, band);\n      }\n      float hbCarLensEdge(vec2 uv, vec2 a, vec2 b) {\n        vec2 edge = b - a, offset = uv - a;\n        float distance = (edge.x * offset.y - edge.y * offset.x) / length(edge);\n        return smoothstep(-0.0005, 0.001, distance);\n      }\n      " +
+          shader.fragmentShader),
+        (shader.fragmentShader = shader.fragmentShader.replace(
+          "#include <color_fragment>",
+          "\n      #include <color_fragment>\n      float hbCarGlass = 0.0;\n      float hbRoofInterior = 0.0;\n      #ifdef USE_MAP\n        vec2 glassUv = fract(vMapUv);\n        float glassIsland = clamp(" +
+            CAR_GLASS_ATLAS_REGIONS.map(
+              ([minX, minY, maxX, maxY]) =>
+                "(step(" +
+                minX +
+                ", glassUv.x) * step(glassUv.x, " +
+                maxX +
+                ") * step(" +
+                minY +
+                ", glassUv.y) * step(glassUv.y, " +
+                maxY +
+                "))",
+            ).join(" + ") +
+            ", 0.0, 1.0);\n        float glassValue = dot(sampledDiffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));\n        hbCarGlass = glassIsland * smoothstep(0.72, 0.92, vHbCarHeight)\n          * (1.0 - smoothstep(0.12, 0.30, glassValue));\n        // The atlas has a photographed exposure step across its lateral\n        // center (v ~= .82), which becomes the longitudinal stripe on the car.\n        // Reconstruct only that band from the neighboring rows at the same u:\n        // the real front/roof/rear boundaries and frame details remain in u.\n        float paneInterior = smoothstep(0.700, 0.718, glassUv.y)\n          * (1.0 - smoothstep(0.930, 0.945, glassUv.y));\n        hbRoofInterior = paneInterior * hbCarGlass;\n        vec3 glassAtlas = sampledDiffuseColor.rgb * 0.85;\n        vec3 upperRow = texture2D(map, vec2(glassUv.x, 0.770)).rgb;\n        vec3 lowerRow = texture2D(map, vec2(glassUv.x, 0.895)).rgb;\n        vec3 restoredBand = mix(upperRow, lowerRow, smoothstep(0.770, 0.895, glassUv.y));\n        float stripeBand = smoothstep(0.765, 0.795, glassUv.y)\n          * (1.0 - smoothstep(0.875, 0.902, glassUv.y));\n        vec3 roofAtlas = mix(sampledDiffuseColor.rgb, restoredBand, stripeBand);\n        // Remove the photographed double crease above the windscreen locally.\n        // Sample both sides with the same center-stripe correction so this\n        // repair cannot bring back the old longitudinal exposure boundary.\n        vec3 frontClean = mix(texture2D(map, vec2(0.460, glassUv.y)).rgb,\n          mix(texture2D(map, vec2(0.460, 0.770)).rgb,\n              texture2D(map, vec2(0.460, 0.895)).rgb,\n              smoothstep(0.770, 0.895, glassUv.y)), stripeBand);\n        vec3 roofClean = mix(texture2D(map, vec2(0.565, glassUv.y)).rgb,\n          mix(texture2D(map, vec2(0.565, 0.770)).rgb,\n              texture2D(map, vec2(0.565, 0.895)).rgb,\n              smoothstep(0.770, 0.895, glassUv.y)), stripeBand);\n        float creaseRepair = smoothstep(0.460, 0.483, glassUv.x)\n          * (1.0 - smoothstep(0.535, 0.565, glassUv.x));\n        roofAtlas = mix(roofAtlas, mix(frontClean, roofClean,\n          smoothstep(0.460, 0.565, glassUv.x)), creaseRepair);\n        // Transfer the existing rear roof joint's local texture contrast,\n        // including its soft bevel, instead of drawing a flat dark stroke.\n        // Normalize against neighboring glass to retain the front pane tone.\n        float sealAcross = clamp((glassUv.y - 0.823) / 0.123, -1.0, 1.0);\n        float sealU = 0.493 + 0.017 * sealAcross * sealAcross;\n        float sealOffset = glassUv.x - sealU;\n        float jointU = 0.635 + sealOffset;\n        vec3 jointTexel = hbCarRoofTex(map, vec2(jointU, glassUv.y));\n        vec3 jointBase = mix(hbCarRoofTex(map, vec2(0.610, glassUv.y)),\n          hbCarRoofTex(map, vec2(0.660, glassUv.y)),\n          clamp((jointU - 0.610) / 0.050, 0.0, 1.0));\n        vec3 jointRelief = clamp(jointTexel / max(jointBase, vec3(0.001)),\n          vec3(0.40), vec3(1.50));\n        float jointBlend = 1.0 - smoothstep(0.018, 0.025, abs(sealOffset));\n        roofAtlas *= mix(vec3(1.0), jointRelief, jointBlend);\n        diffuseColor.rgb = mix(diffuseColor.rgb, diffuse * glassAtlas, hbCarGlass);\n        diffuseColor.rgb = mix(diffuseColor.rgb, diffuse * roofAtlas, hbRoofInterior);\n      #endif",
+        )),
+        (shader.fragmentShader = shader.fragmentShader.replace(
+          "#include <roughnessmap_fragment>",
+          "\n      #include <roughnessmap_fragment>\n      roughnessFactor = mix(roughnessFactor, 0.32, hbCarGlass * (1.0 - hbRoofInterior));",
+        )),
+        isPearlWhite &&
+          (shader.fragmentShader = shader.fragmentShader.replace(
+            "#include <roughnessmap_fragment>",
+            "\n      #ifdef USE_MAP\n        // Keep atlas seams and shadow detail; exclude dark glazing, rubber and trim.\n        float pearlLuma = dot(sampledDiffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));\n        float pearlPaint = smoothstep(0.20, 0.48, pearlLuma) * (1.0 - hbCarGlass);\n        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.94, 0.925, 0.89) * (0.68 + 0.32 * pearlLuma), pearlPaint);\n      #endif\n      #include <roughnessmap_fragment>",
+          )),
+        (shader.fragmentShader = shader.fragmentShader.replace(
+          "#include <opaque_fragment>",
+          "\n      float carDark = 1.0 - smoothstep(0.035, 0.16, dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)));\n      float carUpper = smoothstep(0.68, 1.02, vHbCarHeight);\n      vec3 carView = normalize(vViewPosition);\n      vec3 carReflection = inverseTransformDirection(reflect(-carView, normal), viewMatrix);\n      float carSky = smoothstep(-0.15, 0.85, carReflection.y);\n      float carSoftbox = pow(max(dot(carReflection, normalize(vec3(-0.35, 0.8, 0.48))), 0.0), 12.0);\n      float carFresnel = pow(1.0 - max(dot(normal, carView), 0.0), 4.0);\n      " +
+            (isPearlWhite
+              ? "\n      #ifdef USE_MAP\n        // Retain most of the real lighting/shadow contrast on pearl paint.\n        // Strong fixed fill previously flattened the body into a uniform white.\n        vec3 pearlNormal = inverseTransformDirection(normal, viewMatrix);\n        float pearlFill = 0.64 + 0.20 * max(pearlNormal.y, 0.0)\n          + 0.12 * max(dot(pearlNormal, normalize(vec3(-0.4, 0.85, 0.32))), 0.0);\n        outgoingLight = mix(outgoingLight, diffuseColor.rgb * pearlFill, pearlPaint * 0.45);\n      #endif"
+              : "") +
+            "\n      // A continuous reflection across the roof avoids a black center with\n      // pale edge strips. The scene switch dims this environment approximation.\n      float roofReflection = mix(1.0, 0.85,\n        step(0.655, fract(vMapUv.y)) * hbCarGlass);\n      outgoingLight += carDark * carUpper * vec3(0.68, 0.79, 0.94)\n        * (0.012 + 0.025 * carSky + 0.07 * carSoftbox + 0.035 * carFresnel)\n        * roofReflection * hbCarSceneLight;\n      // Keep the sheen restrained so it cannot wash out the glazing seams.\n      outgoingLight += hbCarGlass * vec3(0.76, 0.84, 0.94)\n        * (0.008 + 0.014 * carSky + 0.02 * carSoftbox)\n        * roofReflection * hbCarSceneLight;\n      #ifdef USE_MAP\n        vec2 carUv = fract(vMapUv);\n        float carFrontLamp = clamp(" +
+            buildLampLensExpression("front") +
+            ", 0.0, 1.0)\n          * (1.0 - smoothstep(-1.95, -1.85, vHbCarLength));\n        float carRearLamp = clamp(" +
+            buildLampLensExpression("rear") +
+            ", 0.0, 1.0)\n          * smoothstep(1.85, 1.95, vHbCarLength);\n        outgoingLight += carFrontLamp * vec3(2.0, 2.3, 2.6)\n          + carRearLamp * vec3(0.84, 0.036, 0.018);\n      #endif\n      #include <opaque_fragment>",
+        )));
+    }),
+    (material.customProgramCacheKey = () =>
+      previousProgramCacheKey +
+      "|hb-car-finish-v10-matched-roof-joint|pearl-" +
+      Number(isPearlWhite)),
+    (material.userData.hbCarFinish = true),
+    (material.userData.plan2SurfaceContact = false),
+    material
+  );
 }

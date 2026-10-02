@@ -1,171 +1,243 @@
-/**
- * 温湿度控件的公共助手（/static/ 共享层）。
- */
-
-import type { PropertyBag } from "../types/document.js";
-
-type Point2 = { x?: unknown; y?: unknown; [key: string]: unknown };
-type PlanLike = {
-  walls?: Array<{ start?: Point2; end?: Point2; [key: string]: unknown }>;
-  items?: Point2[];
-  [key: string]: unknown;
-};
-type FloorLevel = {
-  plan?: PlanLike;
-  scene?: PlanLike;
-  [key: string]: unknown;
-};
-type EntityLike = PropertyBag & {
-  entityId?: string;
-  disabledBy?: unknown;
-  disabled_by?: unknown;
-  enabled?: unknown;
-  status?: unknown;
-  deviceClass?: unknown;
-  device_class?: unknown;
-  attributes?: PropertyBag;
-  unitOfMeasurement?: unknown;
-  unit_of_measurement?: unknown;
-  name?: unknown;
-};
-type StateLike = {
-  newState?: PropertyBag & { state?: unknown; available?: unknown; attributes?: PropertyBag };
-  state?: unknown;
-  available?: unknown;
-  attributes?: PropertyBag;
-  [key: string]: unknown;
-};
-
-/**
- * 把一条温湿度配置归一成白名单字段。
- */
-export function normalizeTemperatureHumidity(item: PropertyBag) {
+export const ENVIRONMENT_METRICS = [
+    {
+      key: "temperature",
+      label: "温度",
+      icon: "thermometer",
+      classes: ["temperature"],
+      names: /(?:^|[_. ])(?:temperature|temp)(?:_|$)|温度/i,
+    },
+    {
+      key: "humidity",
+      label: "湿度",
+      icon: "water-percent",
+      classes: ["humidity"],
+      names: /(?:^|[_. ])(?:humidity|relative_humidity)(?:_|$)|湿度/i,
+    },
+    {
+      key: "formaldehyde",
+      label: "甲醛",
+      icon: "molecule",
+      classes: ["formaldehyde"],
+      names: /(?:^|[_. ])(?:formaldehyde|hcho)(?:_|$)|甲醛/i,
+    },
+    {
+      key: "pm25",
+      label: "PM2.5",
+      icon: "blur",
+      classes: ["pm25"],
+      names: /(?:^|[_. ])pm_?2[._]?5(?:_|$| )/i,
+    },
+    {
+      key: "pm10",
+      label: "PM10",
+      icon: "grain",
+      classes: ["pm10"],
+      names: /(?:^|[_. ])pm_?10(?:_|$| )/i,
+    },
+    {
+      key: "co2",
+      label: "CO₂",
+      icon: "molecule-co2",
+      classes: ["carbon_dioxide"],
+      names: /(?:^|[_. ])(?:co2|co₂|carbon_dioxide)(?:_|$)|二氧化碳/i,
+    },
+    {
+      key: "tvoc",
+      label: "TVOC",
+      icon: "flask-outline",
+      classes: ["volatile_organic_compounds", "volatile_organic_compounds_parts"],
+      names: /(?:^|[_. ])(?:tvoc|voc|volatile_organic_compounds)(?:_|$)|挥发性有机物/i,
+    },
+    {
+      key: "aqi",
+      label: "AQI",
+      icon: "air-filter",
+      classes: ["aqi"],
+      names: /(?:^|[_. ])aqi(?:_|$)|空气质量指数/i,
+    },
+    {
+      key: "illuminance",
+      label: "光照",
+      icon: "white-balance-sunny",
+      classes: ["illuminance"],
+      names: /(?:^|[_. ])(?:illuminance|illumi|lux)(?:_|$)|光照|照度/i,
+    },
+  ],
+  ENVIRONMENT_BATTERY = {
+    key: "battery",
+    label: "电量",
+    icon: "battery",
+    classes: ["battery"],
+    names: /(?:^|[_. ])(?:battery|battery_level)(?:_|$)|电量|电池/i,
+  },
+  ENVIRONMENT_SENSORS = [...ENVIRONMENT_METRICS, ENVIRONMENT_BATTERY];
+const layoutSignatureByElement = new WeakMap();
+export function layoutEnvironmentReadings(hostElement, requestedColumnCount = 0) {
+  if (!hostElement.isConnected) return;
+  const selector = hostElement.querySelector(".i3d-temperature-humidity-values"),
+    filter = [...selector.children].filter((visibleCellElement) => !visibleCellElement.hidden),
+    contains = hostElement.classList.contains("is-metric-names-hidden"),
+    num =
+      Number.isInteger(requestedColumnCount) &&
+      requestedColumnCount >= 1 &&
+      requestedColumnCount <= 4
+        ? requestedColumnCount
+        : 0,
+    join = [
+      hostElement.style.width,
+      hostElement.style.fontSize,
+      contains,
+      num,
+      ...filter.map((signatureCellElement) => signatureCellElement.textContent),
+    ].join("|");
+  if (layoutSignatureByElement.get(hostElement) === join) return;
+  (selector.classList.remove("is-meter-narrow"),
+    selector.classList.remove("is-meter-stacked"),
+    selector.classList.add("is-meter-measuring"));
+  const defaultView = hostElement.ownerDocument.defaultView,
+    gridColumnGapPx = parseFloat(defaultView.getComputedStyle(selector).columnGap) || 0,
+    list = [0, 0, 0, 0];
+  let maxCellColumnGapPx = 0;
+  filter.forEach((metricCellElement) => {
+    ((maxCellColumnGapPx = Math.max(
+      maxCellColumnGapPx,
+      parseFloat(defaultView.getComputedStyle(metricCellElement).columnGap) || 0,
+    )),
+      [...metricCellElement.children].forEach((cellChildElement, childIndex) => {
+        cellChildElement.hidden ||
+          (list[childIndex] = Math.max(list[childIndex] || 0, cellChildElement.offsetWidth));
+      }));
+  });
+  const clientWidth = selector.clientWidth,
+    max = Math.max(
+      1,
+      list.reduce((accumulatedWidth, columnWidth) => accumulatedWidth + columnWidth, 0) +
+        (contains ? 2 : 3) * maxCellColumnGapPx,
+    ),
+    columnCount = Math.max(
+      1,
+      Math.min(
+        filter.length,
+        num || Math.floor((clientWidth + gridColumnGapPx) / (max + gridColumnGapPx)),
+      ),
+    ),
+    cellWidthPx = Math.max(1, (clientWidth - (columnCount - 1) * gridColumnGapPx) / columnCount);
+  (selector.style.setProperty("--meter-unit-width", list[3] + "px"),
+    selector.style.setProperty("--meter-cell-width", cellWidthPx + "px"),
+    (selector.style.gridTemplateColumns = "repeat(" + columnCount + ", minmax(0, 1fr))"),
+    selector.classList.remove("is-meter-measuring"),
+    selector.classList.toggle("is-meter-narrow", max > cellWidthPx),
+    selector.classList.toggle(
+      "is-meter-stacked",
+      max > cellWidthPx && cellWidthPx < list[0] * 2 + maxCellColumnGapPx * 2,
+    ),
+    clientWidth > 0 && layoutSignatureByElement.set(hostElement, join));
+}
+export function normalizeTemperatureHumidity(rawConfig) {
+  const allowedFieldNames = [
+    "id",
+    "floorId",
+    "label",
+    ...ENVIRONMENT_SENSORS.map(({ key: metricKey }) => metricKey + "EntityId"),
+    "x",
+    "y",
+    "height",
+    "size",
+    "iconSize",
+    "hitSize",
+    "visible",
+    "opacity",
+    "showMetricNames",
+    "columns",
+  ];
   return Object.fromEntries(
-    [
-      "id",
-      "floorId",
-      "label",
-      "temperatureEntityId",
-      "humidityEntityId",
-      "x",
-      "y",
-      "height",
-      "size",
-      "iconSize",
-      "hitSize",
-      "visible"
-    ]
-      .filter(key => Object.hasOwn(item, key))
-      .map(key => [key, item[key]])
+    allowedFieldNames
+      .filter((fieldName) => Object.hasOwn(rawConfig, fieldName))
+      .map((retainedFieldName) => [retainedFieldName, rawConfig[retainedFieldName]]),
   );
 }
-
-/**
- * 楼层里温湿度标记的缺省中心点。
- */
-export function temperatureHumidityFloorCenter(level: FloorLevel | null | undefined) {
-  const plan = level?.plan || level?.scene || {};
-  let points: Point2[] = (plan.walls || [])
-    .flatMap(wall => [wall.start, wall.end])
-    .filter(
-      (point): point is Point2 =>
-        !!point && Number.isFinite(point?.x as number) && Number.isFinite(point?.y as number)
-    );
-  if (!points.length) {
-    points = (plan.items || []).filter(
-      item => Number.isFinite(item.x as number) && Number.isFinite(item.y as number)
-    );
-  }
-  const centerOf = (axis: "x" | "y") =>
-    points.length
+export function temperatureHumidityFloorCenter(floor) {
+  const options = floor?.plan || floor?.scene || {};
+  let floorPlanPoints = (options.walls || [])
+    .flatMap((wall) => [wall.start, wall.end])
+    .filter((point) => Number.isFinite(point?.x) && Number.isFinite(point?.y));
+  floorPlanPoints.length ||
+    (floorPlanPoints = (options.items || []).filter(
+      (floorItem) => Number.isFinite(floorItem.x) && Number.isFinite(floorItem.y),
+    ));
+  const resolveAxisCenter = (axisName) =>
+    floorPlanPoints.length
       ? Math.round(
-          ((Math.min(...points.map(p => Number(p[axis]))) +
-            Math.max(...points.map(p => Number(p[axis])))) *
-            50) /
-            100
-        )
+          (Math.min(...floorPlanPoints.map((minCandidatePoint) => minCandidatePoint[axisName])) +
+            Math.max(...floorPlanPoints.map((maxCandidatePoint) => maxCandidatePoint[axisName]))) *
+            50,
+        ) / 100
       : 0;
-  return { x: centerOf("x"), y: centerOf("y") };
-}
-
-/**
- * 把一帧实体状态折算成可展示的读数。
- * @param {object} state 实体状态对象，或 { newState } 包装。
- */
-export function temperatureHumidityReading(state: StateLike | null | undefined) {
-  const liveState = state?.newState || state;
-  const rawValue = liveState?.state;
-  const available =
-    liveState?.available !== false &&
-    ["string", "number"].includes(typeof rawValue) &&
-    String(rawValue).trim() !== "" &&
-    Number.isFinite(Number(rawValue));
   return {
-    available,
-    value: available ? String(rawValue) : "—",
-    unit: available ? String(liveState?.attributes?.unit_of_measurement || "") : ""
+    x: resolveAxisCenter("x"),
+    y: resolveAxisCenter("y"),
   };
 }
-
-/**
- * 从温湿度配置列表里抽出需要订阅的实体 ID。
- */
-export function temperatureHumidityEntities(items: PropertyBag[] = []) {
-  return items.flatMap(item =>
-    [item.temperatureEntityId, item.humidityEntityId]
+export function temperatureHumidityReading(readingState) {
+  const entityState = readingState?.newState || readingState,
+    stateValue = entityState?.state,
+    finite =
+      entityState?.available !== false &&
+      ["string", "number"].includes(typeof stateValue) &&
+      String(stateValue).trim() !== "" &&
+      Number.isFinite(Number(stateValue));
+  return {
+    available: finite,
+    value: finite ? String(stateValue) : "—",
+    unit: finite ? String(entityState.attributes?.unit_of_measurement || "") : "",
+  };
+}
+export function temperatureHumidityEntities(widgetConfigs = []) {
+  return widgetConfigs.flatMap((widgetConfig) =>
+    ENVIRONMENT_SENSORS.map(
+      ({ key: sensorMetricKey }) => widgetConfig[sensorMetricKey + "EntityId"],
+    )
       .filter(Boolean)
-      .map(entityId => ({ entityId: String(entityId) }))
+      .map((entityId) => ({
+        entityId: entityId,
+      })),
   );
 }
-
-/**
- * 判断一个实体该不该出现在温湿度选择项里；kind 为 'temperature' 或 'humidity'。
- * @param {object} entity 实体注册项。
- * @param {string} kind 'temperature' | 'humidity'。
- * @param {object} state 实体状态对象，或 { newState } 包装。
- */
-export function matchesTemperatureHumidityEntity(
-  entity: EntityLike,
-  kind: string,
-  state: StateLike | null | undefined
-) {
+export function matchesTemperatureHumidityEntity(entityConfig, targetMetricKey, matchState) {
   if (
-    !/^sensor\.[a-z0-9_]+$/.test(entity.entityId || "") ||
-    entity.disabledBy != null ||
-    entity.disabled_by != null ||
-    entity.enabled === false ||
-    ["missing", "disabled"].includes(String(entity.status))
-  ) {
+    !/^sensor\.[a-z0-9_]+$/.test(entityConfig.entityId || "") ||
+    entityConfig.disabledBy != null ||
+    entityConfig.disabled_by != null ||
+    entityConfig.enabled === false ||
+    ["missing", "disabled"].includes(entityConfig.status)
+  )
     return false;
-  }
-  const liveAttributes = (state?.newState || state)?.attributes || {};
-  const deviceClass =
-    liveAttributes.device_class ||
-    entity.deviceClass ||
-    entity.device_class ||
-    entity.attributes?.device_class;
-  if (deviceClass) {
-    return deviceClass === kind;
-  }
-  const unit =
-    liveAttributes.unit_of_measurement ||
-    entity.unitOfMeasurement ||
-    entity.unit_of_measurement ||
-    entity.attributes?.unit_of_measurement ||
+  const stateAttributes = (matchState?.newState || matchState)?.attributes || {},
+    device_class =
+      stateAttributes.device_class ||
+      entityConfig.deviceClass ||
+      entityConfig.device_class ||
+      entityConfig.attributes?.device_class,
+    matchedMetric = ENVIRONMENT_SENSORS.find(
+      (candidateMetric) => candidateMetric.key === targetMetricKey,
+    );
+  if (!matchedMetric) return false;
+  if (device_class) return matchedMetric.classes.includes(device_class);
+  const text =
+    stateAttributes.unit_of_measurement ||
+    entityConfig.unitOfMeasurement ||
+    entityConfig.unit_of_measurement ||
+    entityConfig.attributes?.unit_of_measurement ||
     "";
-  if (["°C", "°F", "℃", "℉", "K"].includes(String(unit))) {
-    return kind === "temperature";
-  }
-  const normalizedId = String(entity.entityId || "").toLowerCase();
-  if (/(?:^|[_.])(?:battery|filter|life|progress)(?:_|$)/.test(normalizedId)) {
-    return false;
-  }
-  if (/(?:^|[_.])(?:humidity|relative_humidity)(?:_|$)/.test(normalizedId)) {
-    return kind === "humidity";
-  }
-  if (/(?:^|[_.])(?:temperature|temp)(?:_|$)/.test(normalizedId)) {
-    return kind === "temperature";
-  }
-  const bareName = String(entity.name || "").replace(/温湿度(?:计|传感器)?/g, "");
-  return kind === "temperature" ? /温度/.test(bareName) : /湿度/.test(bareName);
+  if (["°C", "°F", "℃", "℉", "K"].includes(text)) return targetMetricKey === "temperature";
+  if (["lx", "lux"].includes(text)) return targetMetricKey === "illuminance";
+  const lowerCase = entityConfig.entityId.toLowerCase();
+  if (/(?:^|[_.])(?:filter|life|progress)(?:_|$)/.test(lowerCase)) return false;
+  const nameMatchedMetric = ENVIRONMENT_SENSORS.find((metric) => metric.names.test(lowerCase));
+  if (nameMatchedMetric) return nameMatchedMetric.key === targetMetricKey;
+  const replace = String(entityConfig.name || "").replace(/温湿度(?:计|传感器)?/g, "");
+  return (
+    matchedMetric.names.test(replace) ||
+    matchedMetric.names.test(replace.replace(/[\u4e00-\u9fff]/g, " "))
+  );
 }

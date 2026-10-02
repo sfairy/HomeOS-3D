@@ -1,57 +1,46 @@
 /**
- * 请求超时与外部取消的统一包装。
+ * 给一次请求加超时与外部取消。
+ * @param timeoutMs 超时毫秒数
+ * @param request 实际发起请求的函数，收到内部 AbortSignal
+ * @param externalSignal 外部取消信号（可选；也可由调用方把自己的 signal 传进来）
  */
-
-export async function withRequestTimeout<T>(
+export async function withRequestTimeout(
   timeoutMs: number,
-  runWithSignal: (signal: AbortSignal) => Promise<T>,
-  externalSignal?: AbortSignal | null,
-): Promise<T> {
-  const requestAbortController = new AbortController();
-  let abortReason: unknown;
-  const abortWithReason = (reason: unknown) => {
-    if (!requestAbortController.signal.aborted) {
-      abortReason = reason;
-      requestAbortController.abort(reason);
-    }
-  };
-  // 外部 signal 的 reason 未必是 Error（可能是字符串），因此缺省时补一个
-  const abortFromExternalSignal = () =>
-    abortWithReason(
-      externalSignal?.reason ||
-        Object.assign(new Error("Request aborted"), {
-          name: "AbortError"
-        })
-    );
-  // 进入函数时就已被取消：立刻失败，不必白白发起一次注定被丢弃的请求。
-  if (externalSignal?.aborted) {
-    abortFromExternalSignal();
-    throw abortReason;
-  }
-  externalSignal?.addEventListener("abort", abortFromExternalSignal, {
-    once: true
+  request: (signal: AbortSignal) => Promise<any>,
+  externalSignal?: AbortSignal,
+): Promise<any> {
+  const controller = new AbortController();
+  let abortReason;
+  const abortWith = (reason) => {
+      controller.signal.aborted || ((abortReason = reason), controller.abort(reason));
+    },
+    abortFromSignal = () =>
+      abortWith(
+        externalSignal.reason ||
+          Object.assign(new Error("Request aborted"), {
+            name: "AbortError",
+          }),
+      );
+  if (externalSignal?.aborted) throw (abortFromSignal(), abortReason);
+  externalSignal?.addEventListener("abort", abortFromSignal, {
+    once: true,
   });
-  const timeoutHandle = setTimeout(
+  const timerId = setTimeout(
     () =>
-      abortWithReason(
+      abortWith(
         Object.assign(new Error("Request timed out"), {
-          name: "TimeoutError"
-        })
+          name: "TimeoutError",
+        }),
       ),
-    timeoutMs
+    timeoutMs,
   );
   try {
-    const result = await runWithSignal(requestAbortController.signal);
-    // 请求虽成功返回，但期间已被中断（超时与响应几乎同时到达的竞态），
-    if (requestAbortController.signal.aborted) {
-      throw abortReason;
-    }
+    const result = await request(controller.signal);
+    if (controller.signal.aborted) throw abortReason;
     return result;
-  } catch (caughtError) {
-    throw requestAbortController.signal.aborted ? abortReason : caughtError;
+  } catch (requestError) {
+    throw controller.signal.aborted ? abortReason : requestError;
   } finally {
-    // 定时器与监听器都必须无条件回收：成功、超时、业务报错三条路径都会走到这里。
-    clearTimeout(timeoutHandle);
-    externalSignal?.removeEventListener("abort", abortFromExternalSignal);
+    (clearTimeout(timerId), externalSignal?.removeEventListener("abort", abortFromSignal));
   }
 }

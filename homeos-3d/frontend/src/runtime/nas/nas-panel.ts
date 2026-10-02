@@ -1,307 +1,180 @@
-/**
- * NAS 状态面板（3D 场景与详情弹窗共用的信息卡）。
- */
-
-// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
-import {
-  readFromMapOrRecord,
-  resolveStateEntry,
-  stateTextOf
-} from "../core/static-helpers.js";
-// DOM 工厂（元素 / 按钮 / replaceChildren 兜底）的唯一实现同样经桥取用。
-import { createDomFactory } from "../core/static-helpers.js";
-
-type NasMetric = {
-  entityId: string;
-  label: string;
-  kind?: string;
-  group?: string;
-  [key: string]: unknown;
-};
-
-type NasStatusSource = {
-  name?: string;
-  groupOrder?: string[];
-  metrics?: NasMetric[];
-  visibleMetrics?: string[];
-  [key: string]: unknown;
-};
-
-type NasItem = {
-  label?: string;
-  statusSource?: NasStatusSource;
-  [key: string]: unknown;
-};
-
-type StateObject = {
-  state?: unknown;
-  available?: boolean;
-  attributes?: { unit_of_measurement?: unknown; [key: string]: unknown };
-  updatedAt?: unknown;
-  last_updated?: unknown;
-  [key: string]: unknown;
-};
-
-type CreateElement = (tag: string, className?: string, text?: string) => HTMLElement;
-
-type MetricCard = {
-  metric: NasMetric;
-  value: HTMLElement;
-  bar: HTMLElement;
-  card: HTMLElement;
-};
-
-/**
- * 计算要展示的分组及其中文名。
- */
-export function nasGroups(statusSource?: NasStatusSource | null) {
-  const GROUP_LABELS: Record<string, string> = {
+export function nasGroups(nasConfig) {
+  const groupLabels = {
     system: "系统",
     storage: "存储",
     network: "网络",
-    health: "健康"
+    health: "健康",
   };
-  // 先把配置里的顺序与内置顺序合并去重，再过滤掉不认识的分组名 ——
-  return [...new Set([...(statusSource?.groupOrder || []), ...Object.keys(GROUP_LABELS)])]
-    .filter(candidateGroup => Object.hasOwn(GROUP_LABELS, candidateGroup))
-    .map(groupName => [groupName, GROUP_LABELS[groupName]] as [string, string]);
+  return [...new Set([...(nasConfig?.groupOrder || []), ...Object.keys(groupLabels)])]
+    .filter((defaultGroupKey) => Object.hasOwn(groupLabels, defaultGroupKey))
+    .map((groupKey) => [groupKey, groupLabels[groupKey]]);
 }
-/**
- * 按指标类型格式化数值。
- */
-export function nasMetricValue(metric: NasMetric, state: unknown) {
-  const stateObject = (resolveStateEntry(state, {}) || {}) as StateObject;
-  // 原样文本用于展示（时间戳、数值、未识别枚举都直接透传），小写文本只用于判定。
-  const stateValue = String(stateObject.state ?? "").trim();
-  const stateKey = stateTextOf(stateObject);
-  // 统一的「无数据」出口：用长破折号而不是空串，让卡片保持稳定高度与可读性。
+export function nasMetricValue(metric, stateUpdate) {
+  const entityState = stateUpdate?.newState || stateUpdate || {},
+    stateValue = String(entityState.state ?? "").trim();
   if (
-    stateObject.available === false ||
-    ["", "unknown", "unavailable", "none"].includes(stateKey)
-  ) {
+    entityState.available === false ||
+    ["", "unknown", "unavailable", "none"].includes(stateValue.toLowerCase())
+  )
     return {
       text: "—",
-      available: false
+      available: false,
     };
-  }
-  if (metric.kind === "problem") {
-    // problem 表示「有告警」类二元传感器：on 是异常，off 才是正常。
-    if (["on", "off"].includes(stateValue)) {
-      return {
-        text: stateValue === "on" ? "有告警" : "正常",
-        available: true,
-        warning: stateValue === "on"
-      };
-    } else {
-      return {
-        text: stateValue,
-        available: true
-      };
-    }
-  }
+  if (metric.kind === "problem")
+    return ["on", "off"].includes(stateValue)
+      ? {
+          text: stateValue === "on" ? "有告警" : "正常",
+          available: true,
+          warning: stateValue === "on",
+        }
+      : {
+          text: stateValue,
+          available: true,
+        };
   if (metric.kind === "timestamp") {
-    // 时间戳往往同时有数值与文本两种形态；能解析就本地化，解析不了就原样显示。
-    const parsedTimestamp = Date.parse(stateValue);
+    const timestampMs = Date.parse(stateValue);
     return {
-      text: Number.isFinite(parsedTimestamp)
-        ? new Date(parsedTimestamp).toLocaleString("zh-CN", {
-            hour12: false
+      text: Number.isFinite(timestampMs)
+        ? new Date(timestampMs).toLocaleString("zh-CN", {
+            hour12: false,
           })
         : stateValue,
-      available: true
-    };
-  }
-  if (metric.kind === "status") {
-    // status 是一组枚举文案：先查中文映射，查不到就原样透传（后端可能新增取值）。
-    const statusLabels: Record<string, string> = {
-      normal: "正常",
-      healthy: "健康",
-      good: "良好",
-      ok: "正常",
-      warning: "警告",
-      critical: "严重",
-      crashed: "故障",
-      degraded: "降级"
-    };
-    return {
-      text: statusLabels[stateKey] || stateValue,
       available: true,
-      warning: /warning|critical|crashed|degraded|fail/i.test(stateValue)
     };
   }
-  // 默认按数值处理：带上实体声明的单位，最多保留一位小数（容量 / 温度类足够）。
-  const numericValue = Number(stateValue);
-  const unit = String(stateObject.attributes?.unit_of_measurement || "");
+  if (metric.kind === "status")
+    return {
+      text:
+        {
+          normal: "正常",
+          healthy: "健康",
+          good: "良好",
+          ok: "正常",
+          warning: "警告",
+          critical: "严重",
+          crashed: "故障",
+          degraded: "降级",
+        }[stateValue.toLowerCase()] || stateValue,
+      available: true,
+      warning: /warning|critical|crashed|degraded|fail/i.test(stateValue),
+    };
+  const numericValue = Number(stateValue),
+    unitOfMeasurement = String(entityState.attributes?.unit_of_measurement || "");
   return {
     text: Number.isFinite(numericValue)
       ? "" +
         new Intl.NumberFormat("zh-CN", {
-          maximumFractionDigits: 1
+          maximumFractionDigits: 1,
         }).format(numericValue) +
-        (unit ? " " + unit : "")
+        (unitOfMeasurement ? " " + unitOfMeasurement : "")
       : stateValue,
     available: true,
-    // 只有百分比单位才给进度条：其它单位的数值没有「占满」的语义。
     percent:
-      Number.isFinite(numericValue) && unit === "%"
+      Number.isFinite(numericValue) && unitOfMeasurement === "%"
         ? Math.max(0, Math.min(100, numericValue))
-        : null
+        : null,
   };
 }
-const NAS_VISUAL_PARTS = [
-  "ground",
-  "body",
-  "bay is-bay-left",
-  "bay is-bay-right",
-  "grill",
-  "light"
-];
-
-/**
- * 建 NAS 图形：与「通用设备」弹窗里那台机器同一套视觉语言（同样的金属配方 + 落地影 + 状态灯），
- */
-function createNasVisual(createElement: CreateElement) {
-  const element = createElement("div", "i3d-nas-visual");
-  // 装饰性插画：不进无障碍树、不吃指针事件。面板里标题行与指标卡已经承担全部语义，
-  element.setAttribute("aria-hidden", "true");
-  for (const partName of NAS_VISUAL_PARTS) {
-    element.append(createElement("i", "i3d-nas-visual-" + partName));
-  }
-  return {
-    element,
-    /**
-     * 状态只落在那一颗状态灯上（配色与设备图形的四态同源）：任一指标告警 → 琥珀；
-     */
-    update({ warning, available }: { warning: boolean; available: boolean }) {
-      element.classList.toggle("is-status-warning", warning);
-      element.classList.toggle("is-status-normal", !warning && available);
-      element.classList.toggle("is-status-unknown", !warning && !available);
-    }
-  };
-}
-
-/**
- * 创建 NAS 面板控制器。
- */
-export function createNasPanel({ element: hostElement }: { element?: HTMLElement | null } = {}) {
-  const { el: createElement } = createDomFactory(
-    hostElement?.ownerDocument || globalThis.document
-  ) as { el: CreateElement };
-  const rootElement = createElement("div", "i3d-nas-panel");
-  const headingElement = createElement("div", "i3d-nas-heading");
-  const titleElement = createElement("h3", "");
-  const statusElement = createElement("p", "i3d-nas-status");
-  const metricsElement = createElement("div", "i3d-nas-metrics");
-  const metaElement = createElement("p", "i3d-nas-meta");
-  const visual = createNasVisual(createElement);
-  headingElement.append(titleElement, metaElement);
-  // 图形与空调 / 通用设备面板同位置：标题之后、内容之前，单独占一行居中。
-  rootElement.append(headingElement, visual.element, statusElement, metricsElement);
-  rootElement.hidden = true;
-  // 结构签名：指标列表与分组不变时复用已有 DOM，只改数值 —— 高频状态推送下这很关键。
-  let layoutSignature = "";
-  let metricCards: MetricCard[] = [];
-  // 释放标记。dispose() 只把根节点从文档里摘掉，若之后还有 update() 进来，
-  let isDisposed = false;
-  /**
-   * 刷新面板内容。
-   */
-  function update({ item, states = {} }: { item: NasItem; states?: unknown }) {
-    // 释放后一律忽略：见上面 isDisposed 的说明。
-    if (isDisposed) {
-      return;
-    }
-    const sourceConfig = item.statusSource;
-    // visibleMetrics 是白名单；未配置时表示「全部显示」。
-    const visibleMetricIds = sourceConfig?.visibleMetrics && new Set(sourceConfig.visibleMetrics);
-    const metrics = (sourceConfig?.metrics || []).filter(
-      (configuredMetric: NasMetric) =>
-        !visibleMetricIds || visibleMetricIds.has(configuredMetric.entityId)
-    );
-    const groups = nasGroups(sourceConfig);
-    const nextSignature = JSON.stringify([metrics, groups]);
-    titleElement.textContent = item.label || sourceConfig?.name || "NAS";
-    titleElement.title = titleElement.textContent;
-    if (layoutSignature !== nextSignature) {
-      layoutSignature = nextSignature;
-      metricsElement.replaceChildren();
-      metricCards = [];
-      for (const [groupKey, groupLabel] of groups) {
-        const groupMetrics = metrics.filter(metricEntry => metricEntry.group === groupKey);
-        if (!groupMetrics.length) {
-          continue;
-        }
-        const groupElement = createElement("section", "i3d-nas-group");
-        const gridElement = createElement("div", "i3d-nas-grid");
-        groupElement.append(createElement("h4", "", groupLabel), gridElement);
-        for (const metricConfig of groupMetrics) {
-          const cardElement = createElement("div", "i3d-nas-metric");
-          const valueElement = createElement("strong", "");
-          const barElement = createElement("i", "i3d-nas-bar");
-          cardElement.classList.toggle("is-wide", metricConfig.kind === "timestamp");
-          cardElement.title = metricConfig.entityId;
-          cardElement.append(
-            createElement("span", "", metricConfig.label),
-            valueElement,
-            barElement
-          );
-          gridElement.append(cardElement);
-          // 缓存引用，后续每次 update 直接改 textContent / style，不再查询 DOM。
-          metricCards.push({
-            metric: metricConfig,
-            value: valueElement,
-            bar: barElement,
-            card: cardElement
-          });
-        }
-        metricsElement.append(groupElement);
-      }
-    }
-    let latestUpdateMs = 0;
-    // 图形那颗状态灯要的是「这台 NAS 整体怎么样」：任一指标告警算告警，
-    let hasWarning = false;
-    let hasReading = false;
-    for (const metricCard of metricCards) {
-      // 状态源既可能是 Map 也可能是普通对象，取值口径见 utils/state-entry.js。
-      const metricState = readFromMapOrRecord(states, metricCard.metric.entityId) as StateObject | null;
-      const display = nasMetricValue(metricCard.metric, metricState);
-      metricCard.card.title = metricCard.metric.label + "：" + display.text;
-      metricCard.value.textContent = display.text;
-      metricCard.card.classList.toggle("is-warning", !!display.warning);
-      metricCard.card.classList.toggle("is-unavailable", !display.available);
-      hasWarning = hasWarning || !!display.warning;
-      hasReading = hasReading || display.available;
-      metricCard.bar.hidden = display.percent == null;
-      metricCard.bar.style.width = (display.percent ?? 0) + "%";
-      // 取所有指标里最新的更新时间，作为面板右下角「状态更新于 …」的依据。
-      const updatedAt = Date.parse(
-        String(metricState?.updatedAt || metricState?.last_updated || "")
+export function createNasPanel() {
+  const createStyledElement = (tagName, className, textContent = "") => {
+      const createdElement = document.createElement(tagName);
+      return (
+        (createdElement.className = className),
+        (createdElement.textContent = textContent),
+        createdElement
       );
-      if (Number.isFinite(updatedAt)) {
-        latestUpdateMs = Math.max(latestUpdateMs, updatedAt);
+    },
+    panelElement = createStyledElement("div", "i3d-nas-panel"),
+    headingElement = createStyledElement("div", "i3d-nas-heading"),
+    titleElement = createStyledElement("h3", ""),
+    statusElement = createStyledElement("p", "i3d-nas-status"),
+    metricsElement = createStyledElement("div", "i3d-nas-metrics"),
+    metaElement = createStyledElement("p", "i3d-nas-meta");
+  (headingElement.append(titleElement, metaElement),
+    panelElement.append(headingElement, statusElement, metricsElement),
+    (panelElement.hidden = true));
+  let renderedSignature = "",
+    metricRows = [];
+  function updateNasPanel({ item: nasComponent, states: statesByEntityId = {} }) {
+    const statusSource = nasComponent.statusSource,
+      visibleMetricIdSet = statusSource?.visibleMetrics && new Set(statusSource.visibleMetrics),
+      visibleMetrics = (statusSource?.metrics || []).filter(
+        (metricConfig) => !visibleMetricIdSet || visibleMetricIdSet.has(metricConfig.entityId),
+      ),
+      groupEntries = nasGroups(statusSource),
+      metricsSignature = JSON.stringify([visibleMetrics, groupEntries]);
+    if (
+      ((titleElement.textContent = nasComponent.label || statusSource?.name || "NAS"),
+      (titleElement.title = titleElement.textContent),
+      renderedSignature !== metricsSignature)
+    ) {
+      ((renderedSignature = metricsSignature), metricsElement.replaceChildren(), (metricRows = []));
+      for (const [metricGroupKey, groupLabel] of groupEntries) {
+        const groupMetrics = visibleMetrics.filter(
+          (groupMetric) => groupMetric.group === metricGroupKey,
+        );
+        if (!groupMetrics.length) continue;
+        const groupSection = createStyledElement("section", "i3d-nas-group"),
+          groupGrid = createStyledElement("div", "i3d-nas-grid");
+        groupSection.append(createStyledElement("h4", "", groupLabel), groupGrid);
+        for (const metricDefinition of groupMetrics) {
+          const metricCard = createStyledElement("div", "i3d-nas-metric"),
+            metricValueElement = createStyledElement("strong", ""),
+            metricBar = createStyledElement("i", "i3d-nas-bar");
+          (metricCard.classList.toggle("is-wide", metricDefinition.kind === "timestamp"),
+            (metricCard.title = metricDefinition.entityId),
+            metricCard.append(
+              createStyledElement("span", "", metricDefinition.label),
+              metricValueElement,
+              metricBar,
+            ),
+            groupGrid.append(metricCard),
+            metricRows.push({
+              metric: metricDefinition,
+              value: metricValueElement,
+              bar: metricBar,
+              card: metricCard,
+            }));
+        }
+        metricsElement.append(groupSection);
       }
     }
-    visual.update({ warning: hasWarning, available: hasReading });
-    statusElement.hidden = metricCards.length > 0;
-    statusElement.textContent = sourceConfig
-      ? sourceConfig.metrics?.length
-        ? "未选择显示内容"
-        : "已关联 NAS，暂无状态指标。请启用指标并同步目录后重新匹配数据来源。"
-      : "请在“配置设备”中选择 NAS 数据来源。";
-    metaElement.textContent =
-      "状态更新于 " +
-      (latestUpdateMs
-        ? new Date(latestUpdateMs).toLocaleTimeString("zh-CN", {
-            hour12: false
-          })
-        : "—");
+    let latestTimestampMs = 0;
+    for (const metricRow of metricRows) {
+      const stateEntry =
+          statesByEntityId instanceof Map
+            ? statesByEntityId.get(metricRow.metric.entityId)
+            : statesByEntityId[metricRow.metric.entityId],
+        metricResult = nasMetricValue(metricRow.metric, stateEntry);
+      ((metricRow.card.title = metricRow.metric.label + "：" + metricResult.text),
+        (metricRow.value.textContent = metricResult.text),
+        metricRow.card.classList.toggle("is-warning", !!metricResult.warning),
+        metricRow.card.classList.toggle("is-unavailable", !metricResult.available),
+        (metricRow.bar.hidden = metricResult.percent == null),
+        (metricRow.bar.style.width = (metricResult.percent ?? 0) + "%"));
+      const stateTimestampMs = Date.parse(stateEntry?.updatedAt || stateEntry?.last_updated || "");
+      Number.isFinite(stateTimestampMs) &&
+        (latestTimestampMs = Math.max(latestTimestampMs, stateTimestampMs));
+    }
+    ((statusElement.hidden = metricRows.length > 0),
+      (statusElement.textContent = statusSource
+        ? statusSource.metrics?.length
+          ? "未选择显示内容"
+          : "已关联 NAS，暂无状态指标。请启用指标并同步目录后重新匹配数据来源。"
+        : "请在“配置设备”中选择 NAS 数据来源。"),
+      (metaElement.textContent =
+        "状态更新于 " +
+        (latestTimestampMs
+          ? new Date(latestTimestampMs).toLocaleTimeString("zh-CN", {
+              hour12: false,
+            })
+          : "—")));
   }
   return {
-    root: rootElement,
-    update: update,
+    root: panelElement,
+    update: updateNasPanel,
     dispose() {
-      isDisposed = true;
-      rootElement.remove();
-    }
+      panelElement.remove();
+    },
   };
 }

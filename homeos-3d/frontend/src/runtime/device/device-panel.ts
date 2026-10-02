@@ -1,195 +1,79 @@
-/**
- * 通用设备详情弹窗（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）。
- */
-
-import { createPurifierExtras } from "../climate/purifier-extras.js";
-import { deviceStatus } from "./device-status.js";
-import { genericDeviceProfile } from "./device-profiles.js";
-
-type DeviceStatusView = {
-  visible?: boolean;
-  available?: boolean;
-  on?: boolean;
-  status?: string;
-  color?: string;
-};
-
-type DeviceItem = {
-  label?: string;
-  deviceName?: string;
-  deviceLabel?: string;
-  deviceKind?: string;
-  extraControls?: Array<{ entityId?: string; [key: string]: unknown }>;
-  statusRules?: {
-    power?: { entityId?: string; active?: string; inactive?: string };
-    health?:
-      | { entityId?: string; active?: string; inactive?: string }
-      | Array<{ entityId?: string; active?: string; inactive?: string }>;
-  };
-  [key: string]: unknown;
-};
-
-type DeviceControl = Record<string, unknown>;
-
-type DevicePanelOptions = {
-  onControl: (control: DeviceControl) => unknown;
-  onLayout?: (layout: unknown) => void;
-};
-
-type DevicePanelUpdate = {
-  item?: DeviceItem | null;
-  states?: Map<string, unknown> | Record<string, unknown>;
-  error?: string;
-  editing?: boolean;
-  busy?: boolean;
-};
-
-// 状态灯四态的中文说法。status 为 "none"（没配任何规则）时查不到，落到空串。
-const STATUS_LABELS: Record<string, string> = {
-  normal: "正常",
-  warning: "异常",
-  off: "已关闭",
-  unknown: "状态未知"
-};
-
-// 设备图形的部件清单。顺序即 DOM 顺序（先画的在下层）：落地阴影 → 机身 → 门盖 → 把手 →
-const VISUAL_PARTS = [
-  "ground",
-  "body",
-  "door",
-  "handle",
-  "console",
-  "window",
-  "light",
-  "pot",
-  "foliage"
-] as const;
-// 叶片是唯一有内部结构的部件（一片叶子一个节点），其余部件都是单个元素靠伪元素补细节。
-const FOLIAGE_LEAF_COUNT = 5;
-
-/**
- * 建设备图形：一棵所有品类共用的部件树。
- */
-function createDeviceVisual() {
-  const element = document.createElement("div");
-  element.className = "i3d-device-visual";
-  // 装饰性插画：不进无障碍树、不吃指针事件。面板里已经有标题行与卡片承担全部语义与操作，
-  element.setAttribute("aria-hidden", "true");
-  const parts: Record<string, HTMLElement> = {};
-  for (const part of VISUAL_PARTS) {
-    const node = document.createElement("i");
-    node.className = "i3d-device-visual-" + part;
-    if (part === "foliage") {
-      for (let leafIndex = 0; leafIndex < FOLIAGE_LEAF_COUNT; leafIndex += 1) {
-        node.append(document.createElement("i"));
-      }
-    }
-    parts[part] = node;
-    element.append(node);
-  }
-  let currentKind = "";
-  let currentSignature = "";
-  return {
-    element,
-    update(deviceKind: unknown, status: DeviceStatusView) {
-      const kind = typeof deviceKind === "string" ? deviceKind : "";
-      const signature = [kind, status.status, status.available, status.on].join("|");
-      if (signature === currentSignature) {
-        return;
-      }
-      currentSignature = signature;
-      if (kind !== currentKind) {
-        currentKind = kind;
-        element.className = "i3d-device-visual" + (kind ? " is-" + kind : "");
-      }
-      element.classList.toggle("is-on", !!status.on);
-      element.classList.toggle("is-unavailable", !status.available);
-      for (const statusName of ["normal", "warning", "off", "unknown", "none"]) {
-        element.classList.toggle("is-status-" + statusName, status.status === statusName);
-      }
-    }
-  };
-}
-
-/**
- * @param onControl 卡片上的操作回调，会带上 `deviceKind: "device-extra"`
- * @param onLayout  卡片拖动 / 改尺寸后的布局变更回调（与空气净化器共用同一套布局偏好存储）
- */
-export function createDevicePanel({ onControl, onLayout = () => {} }: DevicePanelOptions) {
-  const root = document.createElement("div");
-  root.className = "i3d-climate-panel i3d-nas-panel i3d-device-panel";
-  root.hidden = true;
-
-  const heading = document.createElement("h3");
-  const statusElement = document.createElement("p");
-  const extraGrid = document.createElement("div");
-  const emptyHint = document.createElement("p");
-  const errorElement = document.createElement("p");
-  extraGrid.className = "i3d-climate-groups i3d-extra-grid";
-  emptyHint.textContent = "请在设备配置中选择弹窗内容。";
-
-  const headingWrap = document.createElement("div");
-  headingWrap.className = "i3d-climate-heading i3d-nas-heading";
-  const headingText = document.createElement("div");
-  headingText.className = "i3d-climate-heading-text";
-  errorElement.hidden = true;
-  headingText.append(heading, statusElement);
-  headingWrap.append(headingText, errorElement);
-
-  // 设备图形单独占一行、居中，插在标题行与卡片网格之间 —— 与空调 / 净化器 / 电视面板同一套
-  const visual = createDeviceVisual();
-
-  root.append(headingWrap, visual.element, extraGrid, emptyHint);
-
-  // errorElement 除了与空调 / 窗帘面板的 DOM 结构一致，也真的会用上：模型被移除时
-  let lastItem: DeviceItem = {};
-
-  /** 面板标题：配置优先，最后才退回品类名。卡片标题去前缀也以它为准。 */
-  function titleForItem(item: DeviceItem = {}) {
-    return (
-      item.label ||
-      item.deviceName ||
-      item.deviceLabel ||
-      genericDeviceProfile(item.deviceKind)?.label ||
-      "设备"
-    );
-  }
-
-  // titlePrefix：把卡片标题里重复的「设备名 + 分隔符」前缀去掉（friendly_name 惯例会把
-  const extras = createPurifierExtras({
-    element: extraGrid,
-    onLayout: ((layout: unknown) => onLayout(layout)) as () => void,
-    onControl: (control: DeviceControl) => onControl({ ...control, deviceKind: "device-extra" }),
-    titlePrefixProvider: () => titleForItem(lastItem)
+import { createPurifierExtras } from "../climate/purifier-extras";
+import { carState } from "../vehicle/car-state";
+import { deviceStatus } from "./device-status";
+import { genericDeviceProfile } from "./device-profiles";
+export function createDevicePanel({ onControl: onControl, onLayout: onLayout = () => {} }) {
+  const rootElement = document.createElement("div");
+  ((rootElement.className = "i3d-climate-panel i3d-nas-panel i3d-device-panel"),
+    (rootElement.hidden = true));
+  const titleElement = document.createElement("h3"),
+    statusElement = document.createElement("p"),
+    extraGridElement = document.createElement("div"),
+    hintElement = document.createElement("p"),
+    badgeElement = document.createElement("p");
+  ((extraGridElement.className = "i3d-climate-groups i3d-extra-grid"),
+    (hintElement.textContent = "请在设备配置中选择弹窗内容。"));
+  const headingElement = document.createElement("div");
+  headingElement.className = "i3d-climate-heading i3d-nas-heading";
+  const headingTextElement = document.createElement("div");
+  ((headingTextElement.className = "i3d-climate-heading-text"),
+    (badgeElement.hidden = true),
+    headingTextElement.append(titleElement, statusElement),
+    headingElement.append(headingTextElement, badgeElement));
+  const bodyElement = document.createElement("div");
+  ((bodyElement.className = "i3d-popup-body"),
+    bodyElement.append(extraGridElement, hintElement),
+    rootElement.append(headingElement, bodyElement));
+  const purifierExtras = createPurifierExtras({
+    element: extraGridElement,
+    onLayout: onLayout,
+    onControl: (controlEvent) =>
+      onControl({
+        ...controlEvent,
+        deviceKind: "device-extra",
+      }),
   });
-
   return {
-    root,
-    update({ item, states, error = "", editing = false, busy = false }: DevicePanelUpdate) {
-      lastItem = item || {};
-      const title = titleForItem(lastItem);
-      heading.textContent = title;
-      heading.title = title;
-      const status = deviceStatus(lastItem, states as Map<string, never> | Record<string, never>);
-      statusElement.hidden = !status.visible;
-      statusElement.textContent = STATUS_LABELS[status.status] || "";
-      // 走 CSS 变量而不是直接写颜色：主题可以覆盖 --i3d-device-status-* 而不必改 JS。
-      statusElement.style.color = status.color
-        ? "var(--i3d-device-status-" + status.status + "," + status.color + ")"
-        : "";
-      errorElement.textContent = error;
-      errorElement.hidden = !error;
-      // 配了附加控件就不再显示「请选择弹窗内容」的引导语。
-      emptyHint.hidden = !!lastItem.extraControls?.length;
-      // 设备图形：品类缺失（理论上不会发生，绑定收集侧必填 deviceKind）时整块不占位。
-      visual.element.hidden = !lastItem.deviceKind;
-      visual.update(lastItem.deviceKind, status);
-      // editing / busy 原样转给卡片网格：编辑预览态下它才渲染拖拽 / 改尺寸手柄、允许拖拽
-      extras.update({ item: lastItem, states, editing: !!(editing || busy) });
+    root: rootElement,
+    update(incomingState) {
+      titleElement.textContent =
+        incomingState.item.label ||
+        incomingState.item.deviceName ||
+        incomingState.item.deviceLabel ||
+        genericDeviceProfile(incomingState.item.deviceKind)?.label ||
+        "设备";
+      const status = deviceStatus(incomingState.item, incomingState.states);
+      if (
+        ((statusElement.hidden = !status.visible),
+        (statusElement.textContent =
+          {
+            normal: "正常",
+            warning: "异常",
+            off: "已关闭",
+            unknown: "状态未知",
+          }[status.status] || ""),
+        (statusElement.style.color = status.color
+          ? "var(--i3d-device-status-" + status.status + "," + status.color + ")"
+          : ""),
+        (badgeElement.textContent = ""),
+        (hintElement.hidden = !!incomingState.item.extraControls?.length),
+        incomingState.item.deviceKind === "smallcar")
+      ) {
+        const carStatus = carState(incomingState.item, incomingState.states);
+        ((statusElement.hidden = false),
+          (statusElement.textContent = "电量 " + carStatus.batteryText + " · " + carStatus.status),
+          (hintElement.hidden = true),
+          purifierExtras.update({
+            ...incomingState,
+            item: {
+              ...incomingState.item,
+              extraControls: [],
+            },
+          }));
+      } else purifierExtras.update(incomingState);
     },
     dispose() {
-      extras.dispose();
-      root.remove();
-    }
+      (purifierExtras.dispose(), rootElement.remove());
+    },
   };
 }

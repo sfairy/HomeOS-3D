@@ -1,52 +1,39 @@
-/**
- * 面板按钮点击音效。
- */
-
-const SOUND_ENABLED_STORAGE_KEY = "homeos-dashboard-sound-enabled",
-  BUTTON_CLICK_SOUND_URL = "/static/audio/button-click.mp3";
-
-function isSoundEnabled() {
+const ENABLED_STORAGE_KEY = "homeos-dashboard-sound-enabled",
+  CLICK_SOUND_URL = "/static/audio/button-click.mp3";
+function readEnabledSetting() {
   try {
-    const storedValue = window.localStorage.getItem(SOUND_ENABLED_STORAGE_KEY);
-    return storedValue === null ? !0 : storedValue !== "0";
+    const storedValue = window.localStorage.getItem(ENABLED_STORAGE_KEY);
+    return storedValue === null ? true : storedValue !== "0";
   } catch {
-    return !0;
+    return true;
   }
 }
-
-/**
- * 创建按钮音效控制器。
- */
 export function createButtonSound() {
-  let enabled = isSoundEnabled();
-  // 无 Audio 构造器（老环境 / SSR）时置 null，后续调用自动降级为静默。
-  const audioTemplate = typeof Audio == "function" ? new Audio(BUTTON_CLICK_SOUND_URL) : null;
+  let soundEnabled = readEnabledSetting();
+  const audioElement = typeof Audio == "function" ? new Audio(CLICK_SOUND_URL) : null;
   return (
-    audioTemplate && ((audioTemplate.preload = "auto"), (audioTemplate.volume = 0.42)),
+    audioElement && ((audioElement.preload = "auto"), (audioElement.volume = 0.42)),
     {
       isEnabled() {
-        return enabled;
+        return soundEnabled;
       },
-      setEnabled(enabledValue: any) {
-        enabled = !!enabledValue;
+      setEnabled(nextEnabledValue) {
+        soundEnabled = !!nextEnabledValue;
         try {
-          // 写失败（无痕模式）不影响内存中的开关状态。
-          window.localStorage.setItem(SOUND_ENABLED_STORAGE_KEY, enabled ? "1" : "0");
+          window.localStorage.setItem(ENABLED_STORAGE_KEY, soundEnabled ? "1" : "0");
         } catch {}
-        return enabled;
+        return soundEnabled;
       },
       toggle() {
-        return this.setEnabled(!enabled);
+        return this.setEnabled(!soundEnabled);
       },
       play() {
-        if (!enabled || !audioTemplate) return;
-        // 克隆节点而非复用同一个 Audio：并发点击时各自的 currentTime 互不干扰；
-        const audioClone = audioTemplate.cloneNode(!0) as HTMLAudioElement;
-        ((audioClone.volume = audioTemplate.volume),
-          (audioClone.currentTime = 0),
-          // 自动播放策略会挡下第一次 play()：点不到就算了，不该冒出未处理的拒绝。
-          audioClone.play().catch(() => {}));
-      }
+        if (!soundEnabled || !audioElement) return;
+        const audioClip = audioElement.cloneNode(true) as HTMLAudioElement;
+        ((audioClip.volume = audioElement.volume),
+          (audioClip.currentTime = 0),
+          audioClip.play().catch(() => {}));
+      },
     }
   );
 }

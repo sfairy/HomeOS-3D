@@ -1,33 +1,20 @@
-/**
- * 楼层堆叠总览（exploded view）：把多个楼层在同一画面里按层竖向错开叠加显示，便于一眼看完整栋布置。
- */
-
-/**
- * 从节点向上回溯，找出它所属的楼层 id。
- */
-function overviewFloorId(node: any) {
+export function overviewFloorId(node) {
   for (let currentNode = node; currentNode; currentNode = currentNode.parent) {
     const resolvedFloorId =
       currentNode.userData?.floorId ||
       currentNode.userData?.regionFloorId ||
       currentNode.userData?.environmentFloorId ||
       currentNode.userData?.lightFloorId;
-    if (resolvedFloorId) {
-      return String(resolvedFloorId);
-    }
+    if (resolvedFloorId) return String(resolvedFloorId);
   }
   return "";
 }
-
-/**
- * 构造「把世界沿 Y 轴下移 stackedHeight，再整体在屏幕上平移」的投影矩阵。
- */
-function stackProjection(
-  THREE: any,
-  camera: any,
-  stackedHeight: any,
-  projectionOffsetY: any,
-  targetMatrix: any = new THREE.Matrix4()
+export function stackProjection(
+  THREE,
+  camera,
+  stackedHeight,
+  projectionOffsetY,
+  targetMatrix = new THREE.Matrix4(),
 ) {
   const translationMatrix = new THREE.Matrix4().makeTranslation(0, projectionOffsetY, 0);
   return targetMatrix
@@ -37,322 +24,285 @@ function stackProjection(
     .multiply(new THREE.Matrix4().makeTranslation(0, -stackedHeight, 0))
     .multiply(camera.matrixWorld);
 }
-
-/**
- * 创建楼层堆叠总览控制器。
- */
 export function createOverviewStack({
   THREE: three,
   renderer: renderer,
   scene: scene,
   getCamera: getCamera,
-  getLayout: getLayout
-}: any) {
-  // 保存原方法：所有覆写最终都要转发回它们，dispose 时也要还原。
-  const originalRenderBufferDirect = renderer.renderBufferDirect;
-  const originalRender = renderer.render;
-  // 每个楼层一份 {camera, reflection, height}；相机是克隆出来的，投影矩阵被单独改写。
-  const stackByFloorId = new Map();
-  // 堆叠期间需要临时关掉视锥剔除（投影被改过，three.js 的剔除判定会出错），
-  const savedFrustumCulled = new Map();
-  let stackedLayerCamera: any = null;
-  let lastLayoutSignature = "";
-  let layout: any = null;
-  let renderRevision = 0;
-  let syncedRevision = -1;
-  let lastBounds: any = null;
-  let maxBoundHeight = 0;
-  // 缓存上一次同步时用到的投影 / 视图矩阵，用来判断「相机没动，无需重算」。
-  const lastProjectionMatrix = new three.Matrix4();
-  const lastWorldInverse = new three.Matrix4();
-  const scratchViewPosition = new three.Vector3();
-  const scratchMatrix4 = new three.Matrix4();
-  const stats = {
-    active: false,
-    floorCount: 0,
-    preparations: 0
-  };
-
-  /**
-   * 取当前生效的堆叠布局；不满足生效条件时返回 null。
-   */
+  getLayout: getLayout,
+}) {
+  const originalRenderBufferDirect = renderer.renderBufferDirect,
+    originalRender = renderer.render,
+    stackByFloorId = new Map(),
+    frustumCulledByNode = new Map();
+  let stackedLayerCamera = null,
+    lastLayoutSignature = "",
+    layout = null,
+    renderRevision = 0,
+    syncedRevision = -1,
+    lastBounds = null,
+    maxBoundHeight = 0;
+  const lastProjectionMatrix = new three.Matrix4(),
+    lastWorldInverse = new three.Matrix4(),
+    scratchViewPosition = new three.Vector3(),
+    scratchMatrix = new three.Matrix4(),
+    stats = {
+      active: false,
+      floorCount: 0,
+      preparations: 0,
+    };
+  let entryProgress = 1,
+    entryScale = 1;
+  const entryOffsetByFloorId = new Map(),
+    entryCameraByFloorId = new Map(),
+    entryOffsetMatrix = new three.Matrix4();
   function getActiveLayout() {
     const currentLayout = getLayout();
-    // 少于两层没有「堆叠」的意义；amount 为 0 表示错位倍率被关掉。
-    if (!currentLayout.enabled || currentLayout.floors.length < 2 || currentLayout.amount <= 0) {
+    if (!currentLayout.enabled || currentLayout.floors.length < 2 || currentLayout.amount <= 0)
       return null;
-    }
-    // 用序列化签名判断布局是否变化：楼层标高或间距一变，所有层相机都要重算。
     const layoutSignature = JSON.stringify([
       currentLayout.gap,
       currentLayout.amount,
       currentLayout.center,
-      currentLayout.floors.map((floor: any) => [floor.id, floor.elevation])
+      currentLayout.floors.map((floor) => [floor.id, floor.elevation]),
     ]);
-    if (layoutSignature !== lastLayoutSignature) {
-      lastLayoutSignature = layoutSignature;
-      // 置为 -1 强制下一次同步重新计算（与 renderRevision 一定不相等）。
-      syncedRevision = -1;
-    }
-    layout = currentLayout;
-    return currentLayout;
+    return (
+      layoutSignature !== lastLayoutSignature &&
+        ((lastLayoutSignature = layoutSignature), (syncedRevision = -1)),
+      (layout = currentLayout),
+      currentLayout
+    );
   }
-
-  /**
-   * 还原堆叠期间被改动的视锥剔除开关。
-   */
   function restoreFrustumCulled() {
-    for (const [culledNode, frustumCulled] of savedFrustumCulled) {
+    for (const [culledNode, frustumCulled] of frustumCulledByNode)
       culledNode.frustumCulled = frustumCulled;
-    }
-    savedFrustumCulled.clear();
+    frustumCulledByNode.clear();
   }
-
-  /**
-   * 按当前布局刷新各楼层的层相机与镜像相机。
-   */
-  function syncFloorCameras(renderCamera: any) {
-    // 帧号与矩阵都没变时直接返回：这是每帧都会走的路径，提前退出很关键。
+  function syncFloorCameras(renderCamera) {
     if (
       !layout ||
       (syncedRevision === renderRevision &&
         lastProjectionMatrix.equals(renderCamera.projectionMatrix) &&
         lastWorldInverse.equals(renderCamera.matrixWorldInverse))
-    ) {
+    )
       return;
-    }
-    lastProjectionMatrix.copy(renderCamera.projectionMatrix);
-    lastWorldInverse.copy(renderCamera.matrixWorldInverse);
-    syncedRevision = renderRevision;
-    // 按标高升序排列：堆叠顺序即楼层高低顺序，与列表顺序无关。
+    (lastProjectionMatrix.copy(renderCamera.projectionMatrix),
+      lastWorldInverse.copy(renderCamera.matrixWorldInverse),
+      (syncedRevision = renderRevision));
     const sortedFloors = [...layout.floors].sort(
-      (floorA, floorB) => floorA.elevation - floorB.elevation
+      (floorA, floorB) => floorA.elevation - floorB.elevation,
     );
-    // 楼层包围盒变化时才重算最高点，它决定堆叠中心的高度。
     if (lastBounds !== layout.bounds) {
-      lastBounds = layout.bounds;
-      maxBoundHeight = 0;
-      for (const boundsList of layout.bounds?.values() || []) {
-        for (const boundsBox of boundsList) {
-          maxBoundHeight = Math.max(maxBoundHeight, boundsBox[1]);
-        }
-      }
+      ((lastBounds = layout.bounds), (maxBoundHeight = 0));
+      for (const boundsList of layout.bounds?.values() || [])
+        for (const boundsBox of boundsList) maxBoundHeight = Math.max(maxBoundHeight, boundsBox[1]);
     }
-    // 堆叠中心取「平面中心 + 包围盒高度的一半」；顶面中心再上移半个堆叠总高，
-    const stackCenter = new three.Vector3(layout.center[0], maxBoundHeight / 2, layout.center[2]);
-    const topCenter = stackCenter.clone();
-    topCenter.y += (sortedFloors.at(-1).elevation - sortedFloors[0].elevation) / 2;
-    scratchViewPosition.copy(topCenter).applyMatrix4(renderCamera.matrixWorldInverse);
-    const projectionElements = renderCamera.projectionMatrix.elements;
-    // 取投影矩阵第 4 行对视图空间点的作用，得到该点的 w 分量（即视图空间深度）。
-    const projectedDepth =
-      projectionElements[3] * scratchViewPosition.x +
-      projectionElements[7] * scratchViewPosition.y +
-      projectionElements[11] * scratchViewPosition.z +
-      projectionElements[15];
-    // 投影矩阵的 [5] 是纵向缩放；两者相除把「世界米」换算成「裁剪空间单位」，
-    const verticalScale = projectionElements[5] / Math.max(Math.abs(projectedDepth), 0.001);
-    const activeFloorIds = new Set();
+    const stackCenter = new three.Vector3(layout.center[0], maxBoundHeight / 2, layout.center[2]),
+      topCenter = stackCenter.clone();
+    ((topCenter.y += (sortedFloors.at(-1).elevation - sortedFloors[0].elevation) / 2),
+      scratchViewPosition.copy(topCenter).applyMatrix4(renderCamera.matrixWorldInverse));
+    const projectionElements = renderCamera.projectionMatrix.elements,
+      projectedDepth =
+        projectionElements[3] * scratchViewPosition.x +
+        projectionElements[7] * scratchViewPosition.y +
+        projectionElements[11] * scratchViewPosition.z +
+        projectionElements[15],
+      verticalScale = projectionElements[5] / Math.max(Math.abs(projectedDepth), 0.001),
+      activeFloorIdSet = new Set();
     for (const [floorIndex, floorEntry] of sortedFloors.entries()) {
-      activeFloorIds.add(floorEntry.id);
+      activeFloorIdSet.add(floorEntry.id);
       let stackRecord = stackByFloorId.get(floorEntry.id);
-      if (!stackRecord || stackRecord.camera.type !== renderCamera.type) {
-        stackRecord = {
+      ((!stackRecord || stackRecord.camera.type !== renderCamera.type) &&
+        ((stackRecord = {
           camera: renderCamera.clone(false),
-          reflection: renderCamera.clone(false)
-        };
-        stackByFloorId.set(floorEntry.id, stackRecord);
-      }
-      // 高度按「层序号 × 间距 × 倍率」累计，而不是用真实标高 —— 总览模式要的是规律排布。
-      stackRecord.height = floorIndex * layout.gap * layout.amount;
-      stackRecord.camera.copy(renderCamera, false);
-      stackProjection(
-        three,
-        renderCamera,
-        stackRecord.height,
-        0,
-        stackRecord.camera.projectionMatrix
-      );
-      stackRecord.camera.projectionMatrixInverse.copy(stackRecord.camera.projectionMatrix).invert();
-      // 镜像相机：直接把世界位置抬高该层堆叠高度，用于地面反射的取景。
-      stackRecord.reflection.copy(renderCamera, false);
-      stackRecord.reflection.position.y += stackRecord.height;
-      stackRecord.reflection.updateMatrixWorld(true);
+          reflection: renderCamera.clone(false),
+        }),
+        stackByFloorId.set(floorEntry.id, stackRecord)),
+        (stackRecord.height = floorIndex * layout.gap * layout.amount),
+        stackRecord.camera.copy(renderCamera, false),
+        stackProjection(
+          three,
+          renderCamera,
+          stackRecord.height,
+          0,
+          stackRecord.camera.projectionMatrix,
+        ),
+        stackRecord.camera.projectionMatrixInverse
+          .copy(stackRecord.camera.projectionMatrix)
+          .invert(),
+        stackRecord.reflection.copy(renderCamera, false),
+        (stackRecord.reflection.position.y += stackRecord.height),
+        stackRecord.reflection.updateMatrixWorld(true));
     }
-    // 每层的屏幕纵向错位量（裁剪空间），middleIndex 让整个堆叠以中心对齐。
-    const layerOffset = Math.max(0, layout.gap) * Math.abs(verticalScale);
-    // 堆叠最中间那一层的序号：用它把各层对称分布在中心上下，视觉重心不偏。
-    const middleIndex = (sortedFloors.length - 1) / 2;
-    const baseScreenPosition = stackCenter.project(renderCamera);
-    const topScreenPosition = topCenter.project(renderCamera);
-    // 顶面相对底面在裁剪空间的横向位移，乘以倍率即整个堆叠的倾斜错位量。
-    const screenOffsetX = (topScreenPosition.x - baseScreenPosition.x) * layout.amount;
-    // 纵向分量同理：两者一起把堆叠沿视线方向斜切拉开，形成层叠效果。
-    const screenOffsetY = (topScreenPosition.y - baseScreenPosition.y) * layout.amount;
+    const layerOffset = Math.max(0, layout.gap) * Math.abs(verticalScale),
+      middleIndex = (sortedFloors.length - 1) / 2,
+      baseScreenPosition = stackCenter.project(renderCamera),
+      topScreenPosition = topCenter.project(renderCamera),
+      screenOffsetX = (topScreenPosition.x - baseScreenPosition.x) * layout.amount,
+      screenOffsetY = (topScreenPosition.y - baseScreenPosition.y) * layout.amount;
     for (const [layerIndex, layerFloor] of sortedFloors.entries()) {
-      const layerRecord = stackByFloorId.get(layerFloor.id);
-      // 层与层之间的间距直接乘 amount：倍率同时影响「拉开多少」与「错位多少」。
-      const layerOffsetY = (layerIndex - middleIndex) * layerOffset * layout.amount;
-      // 在投影矩阵最前面再左乘一次屏幕平移，即完成该层的最终定位。
-      layerRecord.camera.projectionMatrix.premultiply(
-        scratchMatrix4.makeTranslation(screenOffsetX, screenOffsetY + layerOffsetY, 0)
-      );
-      layerRecord.camera.projectionMatrixInverse.copy(layerRecord.camera.projectionMatrix).invert();
+      const layerRecord = stackByFloorId.get(layerFloor.id),
+        layerOffsetY = (layerIndex - middleIndex) * layerOffset * layout.amount;
+      (layerRecord.camera.projectionMatrix.premultiply(
+        scratchMatrix.makeTranslation(screenOffsetX, screenOffsetY + layerOffsetY, 0),
+      ),
+        layerRecord.camera.projectionMatrixInverse
+          .copy(layerRecord.camera.projectionMatrix)
+          .invert());
     }
-    for (const staleFloorId of stackByFloorId.keys()) {
-      if (!activeFloorIds.has(staleFloorId)) {
-        stackByFloorId.delete(staleFloorId);
-      }
-    }
-    stats.preparations++;
-    stats.floorCount = stackByFloorId.size;
+    for (const staleFloorId of stackByFloorId.keys())
+      activeFloorIdSet.has(staleFloorId) || stackByFloorId.delete(staleFloorId);
+    (stats.preparations++, (stats.floorCount = stackByFloorId.size));
   }
-
-  /**
-   * 取某楼层对应的层相机。
-   */
-  function cameraForFloor(floorId: any, sourceCamera: any = getCamera()) {
-    if (getActiveLayout()) {
-      // 层相机的世界矩阵取自基准相机，克隆后不再自动更新，此处手动刷新一次。
-      sourceCamera.updateWorldMatrix(true, false);
-      syncFloorCameras(sourceCamera);
-      return stackByFloorId.get(floorId)?.camera || sourceCamera;
-    } else {
-      return sourceCamera;
-    }
+  function cameraForFloor(floorId, sourceCamera = getCamera()) {
+    return getActiveLayout()
+      ? (sourceCamera.updateWorldMatrix(true, false),
+        syncFloorCameras(sourceCamera),
+        stackByFloorId.get(floorId)?.camera || sourceCamera)
+      : sourceCamera;
   }
-  renderer.render = function (this: any, renderScene: any, layerCamera: any, ...renderRest: any) {
-    // 上层显式要求跳过（例如渲染到离屏纹理）时直接透传。
-    if (renderer.userData?.suppressOverviewStack) {
-      return originalRender.call(this, renderScene, layerCamera, ...renderRest);
-    }
-    const previousLayerCamera = stackedLayerCamera;
-    // 只接管「主场景 + 主相机」这一次渲染，其它调用（阴影贴图、后处理）原样转发。
-    const isStackedLayer = renderScene === scene && layerCamera === getCamera();
-    const originalOnBeforeRender = scene.onBeforeRender;
-    let stackedOnBeforeRender;
-    if (isStackedLayer) {
-      stats.active = !!getActiveLayout();
-      // 每次主场景渲染视为一个新帧，用于让层相机的同步缓存失效检查生效。
-      renderRevision++;
-      if (stats.active) {
-        stackedOnBeforeRender = function (this: any, ...hookArgs: any) {
-          originalOnBeforeRender?.apply(this, hookArgs);
-          // three.js 在 onBeforeRender 之后才做剔除，因此这里改 frustumCulled 才有效。
-          if (hookArgs[2] === layerCamera) {
-            syncFloorCameras(layerCamera);
-            scene.traverse((childNode: any) => {
-              // 属于某个楼层的可见对象一律关掉剔除：它们的投影被整体平移过，
-              if (
-                (!!childNode.isMesh ||
-                  !!childNode.isLine ||
-                  !!childNode.isPoints ||
-                  !!childNode.isSprite) &&
-                !!overviewFloorId(childNode)
-              ) {
-                if (!savedFrustumCulled.has(childNode)) {
-                  savedFrustumCulled.set(childNode, childNode.frustumCulled);
-                }
-                childNode.frustumCulled = false;
-              }
-            });
-          }
-        };
-        scene.onBeforeRender = stackedOnBeforeRender;
-      } else {
-        // 退出总览模式时把上一帧留下的剔除开关还原。
-        restoreFrustumCulled();
-      }
-    }
-    stackedLayerCamera = isStackedLayer && stats.active ? layerCamera : null;
-    try {
-      return originalRender.call(this, renderScene, layerCamera, ...renderRest);
-    } finally {
-      stackedLayerCamera = previousLayerCamera;
+  return (
+    (renderer.render = function (renderScene, layerCamera, ...renderRest) {
+      const previousLayerCamera = stackedLayerCamera,
+        isStackedLayer = renderScene === scene && layerCamera === getCamera(),
+        originalOnBeforeRender = scene.onBeforeRender;
+      let stackedOnBeforeRender;
       if (isStackedLayer) {
-        if (scene.onBeforeRender === stackedOnBeforeRender) {
-          scene.onBeforeRender = originalOnBeforeRender;
+        if (entryProgress < 1) {
+          const entryLayoutSnapshot = getLayout(),
+            entrySortedFloors = [...entryLayoutSnapshot.floors].sort(
+              (entryFloorA, entryFloorB) => entryFloorA.elevation - entryFloorB.elevation,
+            ),
+            isEntryStacked = entryLayoutSnapshot.amount > 0 && entrySortedFloors.length > 1;
+          ((entryScale = isEntryStacked ? 1 : 0.96 + 0.04 * entryProgress),
+            entryOffsetByFloorId.clear(),
+            entrySortedFloors.forEach((entryFloor, entryFloorIndex) =>
+              entryOffsetByFloorId.set(
+                String(entryFloor.id),
+                isEntryStacked
+                  ? (entryFloorIndex - (entrySortedFloors.length - 1) / 2) *
+                      0.035 *
+                      (1 - entryProgress)
+                  : 0,
+              ),
+            ));
         }
-        restoreFrustumCulled();
+        ((stats.active = !!getActiveLayout()),
+          renderRevision++,
+          stats.active
+            ? ((stackedOnBeforeRender = function (...hookArgs) {
+                (originalOnBeforeRender?.apply(this, hookArgs),
+                  hookArgs[2] === layerCamera &&
+                    (syncFloorCameras(layerCamera),
+                    scene.traverse((childNode) => {
+                      !(
+                        childNode.isMesh ||
+                        childNode.isLine ||
+                        childNode.isPoints ||
+                        childNode.isSprite
+                      ) ||
+                        !overviewFloorId(childNode) ||
+                        (frustumCulledByNode.has(childNode) ||
+                          frustumCulledByNode.set(childNode, childNode.frustumCulled),
+                        (childNode.frustumCulled = false));
+                    })));
+              }),
+              (scene.onBeforeRender = stackedOnBeforeRender))
+            : restoreFrustumCulled());
       }
-    }
-  };
-  renderer.renderBufferDirect = function (this: any, 
-    drawCamera: any,
-    drawScene: any,
-    geometry: any,
-    material: any,
-    object: any,
-    group: any) {
-    // 阴影 / 深度通道可能传入已释放或缺失的材质，three.js 会去读
-    if (!material || !geometry) {
-      return;
-    }
-    if (
-      !renderer.userData?.suppressOverviewStack &&
-      stackedLayerCamera === drawCamera &&
-      drawScene === scene
-    ) {
-      syncFloorCameras(drawCamera);
-      // 逐对象换成它所属楼层的层相机 —— 这是堆叠效果真正生效的地方。
-      drawCamera = stackByFloorId.get(overviewFloorId(object))?.camera || drawCamera;
-    }
-    return originalRenderBufferDirect.call(
-      this,
+      stackedLayerCamera = isStackedLayer ? layerCamera : null;
+      try {
+        return originalRender.call(this, renderScene, layerCamera, ...renderRest);
+      } finally {
+        ((stackedLayerCamera = previousLayerCamera),
+          isStackedLayer &&
+            (scene.onBeforeRender === stackedOnBeforeRender &&
+              (scene.onBeforeRender = originalOnBeforeRender),
+            restoreFrustumCulled()));
+      }
+    }),
+    (renderer.renderBufferDirect = function (
       drawCamera,
       drawScene,
       geometry,
       material,
       object,
-      group
-    );
-  };
-  return {
-    stats: stats,
-    cameraForFloor: cameraForFloor,
-    rayForFloor(rayFloorId: any, pointer: any, ray: any) {
-      const activeCamera = getCamera();
-      const targetCamera = cameraForFloor(rayFloorId, activeCamera);
-      if (targetCamera === activeCamera) {
-        ray.setFromCamera(pointer, activeCamera);
-        return ray;
+      group,
+    ) {
+      if (
+        stackedLayerCamera === drawCamera &&
+        drawScene === scene &&
+        (stats.active &&
+          (syncFloorCameras(drawCamera),
+          (drawCamera = stackByFloorId.get(overviewFloorId(object))?.camera || drawCamera)),
+        entryProgress < 1 && overviewFloorId(object))
+      ) {
+        const objectFloorId = overviewFloorId(object);
+        let entryCameraRecord = entryCameraByFloorId.get(objectFloorId);
+        ((!entryCameraRecord || entryCameraRecord.camera.type !== drawCamera.type) &&
+          ((entryCameraRecord = {
+            camera: drawCamera.clone(false),
+            frame: -1,
+          }),
+          entryCameraByFloorId.set(objectFloorId, entryCameraRecord)),
+          entryCameraRecord.frame !== renderRevision &&
+            (entryCameraRecord.camera.copy(drawCamera, false),
+            (entryCameraRecord.frame = renderRevision),
+            entryOffsetMatrix.makeScale(entryScale, entryScale, 1),
+            (entryOffsetMatrix.elements[13] = entryOffsetByFloorId.get(objectFloorId) || 0),
+            entryCameraRecord.camera.projectionMatrix.premultiply(entryOffsetMatrix),
+            entryCameraRecord.camera.projectionMatrixInverse
+              .copy(entryCameraRecord.camera.projectionMatrix)
+              .invert()),
+          (drawCamera = entryCameraRecord.camera));
       }
-      // 层相机的投影矩阵被平移过，setFromCamera 无法直接使用；
-      const nearPoint = new three.Vector3(pointer.x, pointer.y, -1).unproject(targetCamera);
-      const rayDirection = new three.Vector3(pointer.x, pointer.y, 1)
-        .unproject(targetCamera)
-        .sub(nearPoint)
-        .normalize();
-      ray.set(nearPoint, rayDirection);
-      // 记下使用的相机，供上层做后续的距离 / 平面换算。
-      ray.camera = targetCamera;
-      return ray;
-    },
-    reflectionCamera(baseCamera: any, objectRoot: any) {
-      // 非主相机或未启用总览时，反射沿用原相机。
-      if (baseCamera !== getCamera() || !getActiveLayout()) {
-        return baseCamera;
-      } else {
-        syncFloorCameras(baseCamera);
-        // 镜像相机是「抬高该层堆叠高度」的克隆，保证反射与该层画面在屏幕上对齐。
-        return stackByFloorId.get(overviewFloorId(objectRoot))?.reflection || baseCamera;
-      }
-    },
-    presentationPoint(projectFloorId: any, point: any) {
-      const referenceCamera = getCamera();
-      const floorCamera = cameraForFloor(projectFloorId, referenceCamera);
-      if (floorCamera === referenceCamera) {
-        return point;
-      } else {
-        // 先在层相机下投影，再用主相机反投影：把「内容生成时的位置」换算成
-        return point.project(floorCamera).unproject(referenceCamera);
-      }
-    },
-    dispose() {
-      restoreFrustumCulled();
-      stackByFloorId.clear();
-      renderer.render = originalRender;
-      renderer.renderBufferDirect = originalRenderBufferDirect;
+      return originalRenderBufferDirect.call(
+        this,
+        drawCamera,
+        drawScene,
+        geometry,
+        material,
+        object,
+        group,
+      );
+    }),
+    {
+      stats: stats,
+      cameraForFloor: cameraForFloor,
+      setEntryProgress(progressValue) {
+        ((entryProgress = Math.max(0, Math.min(1, progressValue))),
+          entryProgress === 1 && entryCameraByFloorId.clear());
+      },
+      rayForFloor(rayFloorId, pointer, ray) {
+        const activeCamera = getCamera(),
+          targetCamera = cameraForFloor(rayFloorId, activeCamera);
+        if (targetCamera === activeCamera) return (ray.setFromCamera(pointer, activeCamera), ray);
+        const nearPoint = new three.Vector3(pointer.x, pointer.y, -1).unproject(targetCamera),
+          rayDirection = new three.Vector3(pointer.x, pointer.y, 1)
+            .unproject(targetCamera)
+            .sub(nearPoint)
+            .normalize();
+        return (ray.set(nearPoint, rayDirection), (ray.camera = targetCamera), ray);
+      },
+      reflectionCamera(baseCamera, objectRoot) {
+        return baseCamera !== getCamera() || !getActiveLayout()
+          ? baseCamera
+          : (syncFloorCameras(baseCamera),
+            stackByFloorId.get(overviewFloorId(objectRoot))?.reflection || baseCamera);
+      },
+      presentationPoint(projectFloorId, point) {
+        const referenceCamera = getCamera(),
+          floorCamera = cameraForFloor(projectFloorId, referenceCamera);
+        return floorCamera === referenceCamera
+          ? point
+          : point.project(floorCamera).unproject(referenceCamera);
+      },
+      dispose() {
+        (restoreFrustumCulled(),
+          stackByFloorId.clear(),
+          (renderer.render = originalRender),
+          (renderer.renderBufferDirect = originalRenderBufferDirect));
+      },
     }
-  };
+  );
 }

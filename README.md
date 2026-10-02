@@ -9,11 +9,11 @@
 ```text
 HomeOS/
 ├── homeos-3d/                 # 主应用（独立项目）
-│   ├── backend/src/           # 后端（Python 包名 src）
+│   ├── backend/src/           # 后端（import 根是项目根，包名 backend.src）
 │   ├── frontend/              # 前端源码（pages / src / public）
 │   ├── dist/                  # bun run build 产物（构建进镜像，运行期不挂载）
 │   ├── data/                  # 运行时（不入库；APP_DATA_DIR）
-│   ├── db/ alembic.ini
+│   ├── migrations/ alembic.ini
 │   └── package.json
 ├── homeos-store/              # 授权商店（独立项目）
 │   ├── backend/src/           # 后端（Python 包名 src）
@@ -98,6 +98,15 @@ python3 ops/start.py --backend-only
 ```bash
 bun run --cwd homeos-3d dev:runtime
 ```
+
+### 断点调试（保留热重载）
+
+调试**不会**关掉后端的 `--reload` / `STORE_RELOAD`，改完代码重载出来的新进程照样能命中断点：
+
+- **Cursor / VS Code**：`Run and Debug` 选 **HomeOS 全栈（断点 + 热重载）** 或 **HomeOS 仅后端**（`.vscode/launch.json`，已配好 `subProcess`）。首次 F5 会自动建 `.venv-store` 并装依赖（`.vscode/tasks.json`）。
+- **终端 + attach**：先在终端 `python3 ops/start.py --debug`（`8803` / `8804` 挂 debugpy），再用 launch.json 里的 `attach` 配置连上去。
+
+原理：debugpy 会 patch `multiprocessing` 与 `subprocess`，而两个后端的重载子进程正是从这两处拉起来的，所以它们会自动连回同一个调试会话。
 
 端口被占用时脚本会直接退出；关掉旧终端，或 `pkill -f ops/start.py` 后再启。若已单独跑着 `bun run dev:store`，先停掉再一键启动。
 
@@ -196,6 +205,7 @@ cp .env.example .env
 | `APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES` | `127.0.0.1,::1` | 内置反代在容器回环上，**保持默认**；不要填 `*` 或 docker 网段 |
 | `UVICORN_FORWARDED_ALLOW_IPS` | `127.0.0.1,::1` | 同上，**不要填 `*`** |
 | `APP_BASE_URL` / `STORE_BASE_URL` | 空 | 局域网 IP 不固定时留空，应用按请求 `Host` 判断同源；需要固定地址时才填 |
+| `APP_STORE_URL` | `https://pay.homeos.cn` | 商店的**浏览器入口**，登录页「忘记密码」与授权对话框「前往商店」按它跳转。自托管填客户端能访问的商店地址（`http://<商店IP>:8802` 或反代域名）；注意它和出站用的 `APP_LICENSE_SERVER_URL` 不是一回事 |
 | `APP_PUBLISH_PORT` / `APP_PROXY_PUBLISH_PORT` | `8801` / `8803` | 主应用宿主发布端口 |
 | `STORE_PUBLISH_PORT` / `STORE_PROXY_PUBLISH_PORT` | `8802` / `8804` | 商店宿主发布端口 |
 | `HOMEOS_VERSION` | 仓库 `package.json` 的 `version` | 镜像 tag；等价于 `--version`。优先级：`--version` > 真实环境变量 > `.env` > `package.json`。`deploy.sh` 会把解析结果写回 `.env`（连同 `HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE`）**钉住版本**，让中心与各客户机不会漂到 `latest` |

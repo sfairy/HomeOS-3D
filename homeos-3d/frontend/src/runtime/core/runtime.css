@@ -1,7 +1,4 @@
-/*
- * 3D 交互控件的外层样式（宿主页侧）。
- */
-@import "/static/bridge/controls.css";
+@import "/static/modules/interaction3d/controls.css?v=20260909-switches-v1";
 .hb-interaction3d-runtime {
   position: relative;
   width: 100%;
@@ -9,17 +6,10 @@
   overflow: hidden;
   background: transparent;
   color: #eee8dd;
-  /* 尺寸容器：3D 控件从小挂件到整屏背景尺寸跨度极大，加载 / 失败文案要按控件
-     把自身压成零高，也不会改动子元素的百分比定位。 */
-  container-type: size;
 }
 .hb-interaction3d-runtime.is-background-hidden {
   background: transparent;
 }
-/* ===== 舞台 iframe 与加载态 ===== */
-
-/* iframe 尺寸由 JS 按 16:9 算好，缩放原点固定在左上角（transform-origin: 0 0），
-   因此这里不要改成 center，否则与 JS 的定位计算会不一致。 */
 .hb-interaction3d-runtime .i3d-frame {
   position: absolute;
   inset: 0;
@@ -31,18 +21,8 @@
 }
 .hb-interaction3d-runtime.is-ready .i3d-frame {
   opacity: 1;
-  animation: i3d-scene-enter 0.48s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  transition: opacity 0.48s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
-@keyframes i3d-scene-enter {
-  0% {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-/* 加载占位：骨架屏 + 转圈。is-loading / is-ready 由 runtime.js 切换，
-   超时（45 秒）后同样会走到这里显示失败提示。 */
 .hb-interaction3d-runtime .i3d-loading {
   position: absolute;
   inset: 0;
@@ -51,13 +31,8 @@
   padding: 20px;
   place-items: center;
   background: transparent;
-  color: var(--hos-tool-text-dim);
-  /* 字号跟着控件尺寸走：小挂件落到 16px 下限（与旧的 14px 观感接近），
-     避免「很宽但很矮」的组件里字把画面撑爆。 */
-  font-family: sans-serif;
-  font-size: clamp(16px, min(2.4cqw, 6cqh), 40px);
-  line-height: 1.7;
-  letter-spacing: 0.02em;
+  color: #a8afb7;
+  font: 14px/1.8 sans-serif;
   text-align: center;
   transition:
     opacity 0.28s ease,
@@ -73,10 +48,9 @@
 }
 .hb-interaction3d-runtime.is-loading .i3d-loading:after {
   content: "";
-  /* 用 em 跟着上面的字号一起放大：16px 时约 20px × 2px，与旧尺寸一致。 */
-  width: 1.28em;
-  height: 1.28em;
-  border: 0.13em solid #c5ac7926;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #c5ac7926;
   border-top-color: #c5ac7980;
   border-radius: 50%;
   opacity: 0;
@@ -105,15 +79,9 @@
     opacity: 1;
   }
 }
-/* [hidden] 显式覆盖 display：本表大量使用 flex / grid，
-   否则 [hidden] 会被这些 display 值盖掉。 */
 .hb-interaction3d-runtime [hidden] {
   display: none;
 }
-/* ===== 配置编辑器弹窗 ===== */
-
-/* 弹窗尺寸按视口比例给，保证在常见桌面上不出现内部滚动；
-   ::backdrop 只做压暗，不做模糊，避免与 3D 画面争夺性能。 */
 .i3d-editor {
   width: min(1600px, calc(100vw - 32px));
   height: calc(100vh - 32px);
@@ -167,13 +135,69 @@
   opacity: 0.45;
   cursor: default;
 }
+.i3d-editor .i3d-extra-chooser summary {
+  cursor: pointer;
+  padding: 8px 0;
+}
+.i3d-editor .i3d-extra-entity-list {
+  max-height: 320px;
+  overflow: auto;
+  margin-top: 8px;
+}
+.i3d-editor .i3d-extra-chooser .i3d-extra-entity-row {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 9px 6px;
+  margin: 0;
+  border-bottom: 1px solid var(--line, #303840);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.i3d-editor .i3d-extra-entity-row:hover {
+  background: var(--field, #171d22);
+}
+.i3d-editor .i3d-extra-entity-row:has(input:checked) {
+  background: color-mix(in srgb, var(--accent, #f2a20d) 9%, transparent);
+}
+.i3d-editor .i3d-extra-entity-row:has(input:disabled) {
+  opacity: 0.55;
+}
+.i3d-editor .i3d-extra-entity-row input[type="checkbox"] {
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  min-height: 16px;
+  padding: 0;
+  margin: 0;
+  accent-color: var(--accent, #f2a20d);
+}
+.i3d-editor .i3d-extra-entity-row span {
+  min-width: 0;
+  overflow: hidden;
+}
+.i3d-editor .i3d-extra-entity-row strong,
+.i3d-editor .i3d-extra-entity-row small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.6;
+}
+.i3d-editor .i3d-extra-entity-row strong {
+  color: var(--text, #e8ecef);
+  font-weight: 500;
+}
+.i3d-editor .i3d-extra-entity-row small {
+  color: var(--muted, #9ba8b3);
+}
 .i3d-editor button:focus-visible,
 .i3d-editor input:focus-visible,
 .i3d-editor select:focus-visible {
-  outline: 2px solid var(--accent, var(--hos-accent, #ffc46a));
+  outline: 2px solid var(--accent, #f2a20d);
   outline-offset: 2px;
 }
-/* 左预览（16:9 舞台）右面板的两栏布局。 */
 .i3d-editor .i3d-editor-body {
   flex: 1;
   min-height: 0;
@@ -236,7 +260,7 @@
   padding: 0 8px;
   color: var(--text, #e8ecef);
   background: var(--field, #171d22);
-  border: 1px solid var(--hos-tool-line);
+  border: 1px solid #37414a;
   border-radius: 4px;
   font: inherit;
   font-size: 11px;
@@ -259,7 +283,7 @@
   border-radius: 0;
 }
 .i3d-editor .inspector-number-stepper:first-child {
-  border-bottom: 1px solid var(--hos-tool-line);
+  border-bottom: 1px solid #343e46;
 }
 .i3d-editor .custom-select-button {
   min-height: 32px;
@@ -270,7 +294,7 @@
   height: 15px;
   padding: 0;
   margin: 0;
-  accent-color: var(--accent, var(--hos-accent, #ffc46a));
+  accent-color: var(--accent, #f2a20d);
 }
 .i3d-editor .i3d-toggle {
   display: flex;
@@ -283,7 +307,7 @@
   margin: 0;
   padding: 0;
   border: 0;
-  accent-color: var(--accent, var(--hos-accent, #ffc46a));
+  accent-color: var(--accent, #f2a20d);
 }
 .i3d-editor .i3d-note {
   margin: 8px 0 12px;
@@ -291,9 +315,16 @@
   font-size: 11px;
   line-height: 1.6;
 }
+.i3d-editor .i3d-car-charging-settings summary {
+  cursor: pointer;
+  font-size: 11px;
+}
+.i3d-editor .i3d-car-raw-state {
+  overflow-wrap: anywhere;
+}
 .i3d-editor .i3d-error {
   margin: 10px 0 0;
-  color: var(--hos-err);
+  color: #e69c93;
   white-space: pre-wrap;
   font-size: 11px;
 }
@@ -306,6 +337,50 @@
   border-top: 1px solid var(--line, #303840);
   color: var(--text, #e8ecef);
   font-size: 11px;
+}
+.i3d-editor aside .i3d-security-grid {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.i3d-editor aside .i3d-lock-motion-grid,
+.i3d-editor aside .i3d-lock-appearance-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.i3d-editor aside .i3d-lock-appearance-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  grid-column: 1 / -1;
+  align-items: end;
+}
+.i3d-editor aside .i3d-lock-appearance-row > label {
+  min-width: 0;
+  margin: 0;
+}
+.i3d-editor aside .i3d-lock-appearance-row .i3d-lock-label-toggle {
+  grid-column: auto;
+}
+.i3d-editor aside .i3d-lock-label-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  grid-column: 1 / -1;
+  margin: 0;
+  min-height: 28px;
+}
+.i3d-editor aside .i3d-lock-entity-picker {
+  width: 100%;
+  min-height: 38px;
+  margin-top: 2px;
+  padding: 8px 12px;
+  border: 1px solid #ffffff18;
+  border-radius: 8px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .i3d-editor .i3d-light-heading {
   display: flex;
@@ -335,7 +410,6 @@
 .i3d-editor .i3d-light-add > button {
   width: 100%;
 }
-/* 选择器按钮：显示当前选中项的图标与名字，右侧箭头表示可点击。 */
 .i3d-editor .i3d-picker-button {
   display: flex;
   align-items: center;
@@ -347,7 +421,7 @@
   text-align: left;
   color: var(--text, #e8ecef);
   background: var(--field, #171d22);
-  border: 1px solid var(--hos-tool-line);
+  border: 1px solid #37414a;
   border-radius: 4px;
 }
 .i3d-editor .i3d-picker-button span {
@@ -381,7 +455,6 @@
   border-color: #e69c9355;
   background: transparent;
 }
-/* 尺寸字段：输入框 + 右侧单位输出，宽度固定以免多行字段不对齐。 */
 .i3d-editor .i3d-size-field {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -402,8 +475,6 @@
 .i3d-editor .i3d-size-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
-/* 聚焦视角操作组：一排互斥按钮，用 aria-pressed 表达当前模式，
-   因此选中态样式挂在 [aria-pressed="true"] 上。 */
 .i3d-focus-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -415,36 +486,10 @@
   min-height: 30px;
   padding: 4px;
 }
-.i3d-focus-actions[role="group"] {
-  gap: 3px;
-  padding: 3px;
-  border: 1px solid var(--hos-tool-line);
-  border-radius: 4px;
-  background: var(--field, #171d22);
-}
-.i3d-focus-actions[role="group"] button {
-  border: 0;
-  border-radius: 3px;
-  color: var(--hos-tool-hint);
-  background: transparent;
-}
-.i3d-focus-actions[role="group"] button:hover:not(:disabled) {
-  color: var(--hos-tool-ink-dim);
-  background: #ffffff0b;
-}
-.i3d-focus-actions button[aria-pressed="true"],
-.i3d-focus-actions[role="group"] button[aria-pressed="true"] {
-  border-color: rgba(var(--hos-accent-rgb, 255, 196, 106), 0.48);
-  color: var(--hos-ink, #f1f7fb);
-  background: rgba(var(--hos-accent-rgb, 255, 196, 106), 0.16);
-  box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb, 255, 196, 106), 0.48);
-}
-/* 主按钮（保存 / 确定）：整个编辑器里只允许出现一个强调色。 */
-.i3d-editor button.primary {
-  border-color: var(--hos-accent-deep);
-  color: var(--hos-on-bright);
-  background: var(--hos-grad-accent);
-  font-weight: 700;
+.i3d-focus-actions button[aria-pressed="true"] {
+  border-color: var(--accent, #f2a20d);
+  color: var(--accent-bright, #f5bd53);
+  background: var(--accent-soft, #f2a20d18);
 }
 .i3d-focus-settings .i3d-focus-reset {
   width: 100%;
@@ -488,10 +533,6 @@
   color: var(--muted, #89949d);
   background: transparent;
 }
-/* ===== 外观（整体光照）编辑器 ===== */
-
-/* 它不是模态弹窗：以浮动面板形式挂在控件旁边，位置由 JS 算，
-   因此这里用 absolute 且不依赖 ::backdrop。 */
 .i3d-editor.i3d-appearance-editor {
   width: min(360px, calc(100vw - 16px));
   height: max-content;
@@ -522,7 +563,6 @@
   border-radius: 5px;
   font-size: 11px;
 }
-/* 外观面板内容：分组 + 两列栅格，每行一个参数滑杆。 */
 .i3d-appearance-body {
   min-height: 0;
   overflow: auto;
@@ -559,7 +599,6 @@
   border-radius: 5px;
   font-size: 11px;
 }
-/* 楼层亮度：滑杆与数字输入联动，两者共享同一行布局。 */
 .i3d-floor-brightness {
   display: flex;
   align-items: center;
@@ -571,7 +610,7 @@
   width: 0;
   min-width: 64px;
   padding: 0;
-  accent-color: var(--accent, var(--hos-accent, #ffc46a));
+  accent-color: var(--accent, #4d99ff);
 }
 .i3d-floor-brightness input[type="number"] {
   width: 100%;
@@ -626,8 +665,11 @@
     padding: 12px;
   }
 }
-/* 「隐藏但可点击」开关：用伪元素画自绘复选框，
-   原生 input 只保留可聚焦与无障碍语义。 */
+@media (max-width: 360px) {
+  .i3d-editor aside .i3d-lock-motion-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .i3d-editor .i3d-hidden-clickable-setting {
   display: flex;
   align-items: center;
@@ -644,9 +686,9 @@
   height: 14px;
   margin: 0;
   padding: 0;
-  border: 1px solid var(--hos-tool-line-strong);
+  border: 1px solid #4b5760;
   border-radius: 99px;
-  background: var(--hos-tool-surface-raised);
+  background: #283139;
   box-shadow: none;
   appearance: none;
   -webkit-appearance: none;
@@ -673,7 +715,7 @@
   background: var(--accent);
 }
 .i3d-editor .i3d-hidden-clickable-setting input:checked:before {
-  background: var(--hos-ink, #f1f7fb);
+  background: #fff4dc;
   transform: translate(12px);
 }
 .i3d-editor .i3d-hidden-clickable-setting input:focus-visible {
@@ -687,7 +729,6 @@
 .i3d-editor .i3d-hidden-clickable-setting input:disabled {
   cursor: default;
 }
-/* 按钮显示方式（显示 / 隐藏可点 / 隐藏不可点）的单选行。 */
 .i3d-editor .i3d-button-visibility-row {
   display: flex;
   align-items: center;
@@ -712,10 +753,6 @@
     transition: none;
   }
 }
-/* ===== 照射范围对话框 ===== */
-
-/* 它是范围编辑器的外层壳：内部嵌的是舞台页面里的 .plan2-range-editor，
-   所以这里只管壳的尺寸与状态行。 */
 .i3d-range-dialog .i3d-range-dialog-body {
   flex: 1;
   min-height: 0;
@@ -731,21 +768,21 @@
   font-size: 12px;
 }
 .i3d-range-dialog .i3d-range-status.is-error {
-  color: var(--hos-err);
+  color: #e69c93;
 }
 .i3d-range-dialog > header button {
   min-height: 36px;
   padding: 6px 12px;
-  border: 1px solid var(--hos-tool-control-line);
+  border: 1px solid #536472;
   border-radius: 6px;
   background: var(--field, #24313b);
   color: var(--text, #e8ecef);
   cursor: pointer;
 }
 .i3d-range-dialog > header button.primary {
-  background: var(--hos-grad-accent);
-  color: var(--hos-on-bright);
-  border-color: var(--hos-accent-deep);
+  background: #dba45a;
+  color: #181c23;
+  border-color: #dba45a;
 }
 @media (max-width: 600px) {
   .i3d-range-dialog {
@@ -771,7 +808,6 @@
   font-size: 24px;
   line-height: 1;
 }
-/* 批量应用弹窗：表头与表体共用栅格，保证多列对齐。 */
 .i3d-light-batch h4 {
   display: flex;
   justify-content: space-between;
@@ -790,8 +826,6 @@
 .i3d-batch-dialog [hidden] {
   display: none !important;
 }
-/* 添加模型弹窗：模型按楼层分组，选中即写入草稿；
-   与配置编辑器共用一套弹窗外观。 */
 .i3d-add-dialog {
   width: min(440px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
@@ -819,7 +853,7 @@
   width: 100%;
   height: 34px;
   font: inherit;
-  border: 1px solid var(--hos-tool-line);
+  border: 1px solid #37414a;
   border-radius: 4px;
   padding: 0 8px;
   color: var(--text, #e8ecef);
@@ -833,7 +867,7 @@
 }
 .i3d-add-dialog .i3d-error {
   margin: 0;
-  color: var(--hos-err);
+  color: #e69c93;
   font-size: 11px;
 }
 .i3d-add-dialog .i3d-error:empty {
@@ -843,7 +877,6 @@
   opacity: 0.45;
   cursor: default;
 }
-/* NAS 显示内容弹窗：分组 + 勾选 + 上下排序按钮。 */
 .i3d-nas-fields {
   max-height: min(50dvh, 440px);
   overflow: auto;
@@ -895,13 +928,9 @@
   width: 16px;
   height: 16px;
   margin: 0;
-  accent-color: var(--hos-accent);
+  accent-color: #d6b573;
   flex: none;
 }
-/* ===== 扫地机地图编辑器 ===== */
-
-/* 左侧地图 SVG、右侧参数面板；地图上的房间与边线用 data-drag 标记可拖拽，
-   光标样式挂在属性选择器上，JS 只需维护属性。 */
 .i3d-vacuum-map-editor {
   width: min(1100px, 96vw);
   height: min(790px, 94dvh);
@@ -910,8 +939,8 @@
   padding: 0;
   border: 1px solid #485269;
   border-radius: 16px;
-  background: var(--hos-tool-surface-soft);
-  color: var(--hos-tool-ink);
+  background: #182131;
+  color: #edf1f8;
   overflow: hidden;
 }
 .i3d-vacuum-map-editor::backdrop {
@@ -922,7 +951,7 @@
   align-items: center;
   gap: 12px;
   padding: 14px 18px;
-  border-bottom: 1px solid var(--hos-tool-line-mid);
+  border-bottom: 1px solid #394457;
 }
 .i3d-vacuum-map-editor > header strong {
   flex: 1;
@@ -939,9 +968,8 @@
 .i3d-vacuum-plan {
   min-width: 0;
   min-height: 0;
-  background: var(--hos-tool-surface);
+  background: #101824;
 }
-/* 地图 SVG 的绘制顺序与穿透规则：房间块在下、边线与手柄在上。 */
 .i3d-vacuum-plan svg {
   width: 100%;
   height: 100%;
@@ -972,29 +1000,26 @@
   min-height: 32px;
   background: #263348;
   color: inherit;
-  border: 1px solid var(--hos-tool-control-line);
+  border: 1px solid #526078;
   border-radius: 7px;
   padding: 5px 9px;
   font: inherit;
   max-width: 100%;
 }
 .i3d-vacuum-map-editor .primary {
-  background: var(--hos-grad-accent);
-  border-color: var(--hos-accent-deep);
-  color: var(--hos-on-bright);
+  background: #3868c4;
 }
 .i3d-vacuum-map-editor .i3d-note {
   font-size: 12px;
   line-height: 1.6;
   color: #b8c6da;
 }
-/* 房间列表：每行一个房间，名称可改、顺序可调。 */
 .i3d-vacuum-room-list > div {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   padding: 8px 0;
-  border-bottom: 1px solid var(--hos-tool-line-mid);
+  border-bottom: 1px solid #394457;
 }
 .i3d-vacuum-room-list input:not([type="checkbox"]) {
   width: 100%;
@@ -1084,14 +1109,14 @@
 .i3d-vacuum-map-editor input,
 .i3d-vacuum-map-editor select {
   background: var(--field, #171d22);
-  border-color: var(--hos-tool-line);
+  border-color: #37414a;
   border-radius: 4px;
   font-size: 12px;
 }
 .i3d-vacuum-map-editor .primary {
-  color: var(--accent, var(--hos-accent, #ffc46a));
-  border-color: var(--accent, var(--hos-accent, #ffc46a));
-  background: var(--accent-soft, rgba(var(--hos-accent-rgb, 255, 196, 106), 0.13));
+  color: var(--accent, #f2a20d);
+  border-color: var(--accent, #f2a20d);
+  background: var(--accent-soft, #f2a20d18);
 }
 .i3d-vacuum-map-editor .inspector-number-control {
   flex: 0 0 110px;
@@ -1116,15 +1141,15 @@
   padding: 0;
   border: 0;
   border-radius: 0;
-  background: var(--hos-tool-surface-soft);
-  color: var(--hos-tool-hint);
+  background: #1b2228;
+  color: #78848c;
 }
 .i3d-vacuum-map-editor .inspector-number-stepper:first-child {
-  border-bottom: 1px solid var(--hos-tool-line);
+  border-bottom: 1px solid #343e46;
 }
 .i3d-vacuum-map-editor .inspector-number-stepper:hover {
-  color: var(--accent, var(--hos-accent, #ffc46a));
-  background: var(--hos-tool-surface-raised);
+  color: var(--accent, #f2a20d);
+  background: #28323a;
 }
 .i3d-vacuum-map-editor input[type="checkbox"] {
   width: 15px;
@@ -1132,10 +1157,10 @@
   min-height: 15px;
   margin: 0;
   padding: 0;
-  accent-color: var(--accent, var(--hos-accent, #ffc46a));
+  accent-color: var(--accent, #f2a20d);
 }
 .i3d-vacuum-map-editor :is(button, input, select):focus-visible {
-  outline: 2px solid var(--accent, var(--hos-accent, #ffc46a));
+  outline: 2px solid var(--accent, #f2a20d);
   outline-offset: 2px;
 }
 .i3d-vacuum-map-editor .custom-select-button {
@@ -1151,7 +1176,6 @@
 .i3d-vacuum-view-tools button {
   pointer-events: auto;
 }
-/* 坐标输入组：X / Y（以及高度）成对出现，两列等宽。 */
 .i3d-editor .i3d-coordinate-grid {
   align-items: end;
 }
@@ -1167,7 +1191,7 @@
 }
 .i3d-add-dialog input:focus-visible,
 .i3d-add-dialog select:focus-visible {
-  outline: 2px solid var(--accent, var(--hos-accent, #ffc46a));
+  outline: 2px solid var(--accent, #f2a20d);
   outline-offset: 2px;
 }
 .i3d-add-dialog .dialog-actions {
@@ -1194,7 +1218,6 @@
   border: 1px solid var(--line, #303840);
   border-radius: 6px;
 }
-/* 安防折叠块：summary 自带展开箭头，这里只统一间距与触控高度。 */
 .i3d-security-disclosure > summary {
   cursor: pointer;
   padding: 9px 10px;
@@ -1249,7 +1272,6 @@
 .i3d-security-model-list > label > span:first-child {
   display: none;
 }
-/* 模型列表里的折叠项：同一楼层一个分组，列出可绑定的模型。 */
 .i3d-security-model-list > .i3d-security-disclosure {
   grid-column: 1 / -1;
   margin-bottom: 0;
@@ -1267,10 +1289,6 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-/* ===== 统一设置面板（配置编辑器右侧） ===== */
-
-/* 这里是配置编辑器面板的主样式：分区、行、列表行三级结构，
-   所有模块类型（灯光 / 空调 / 窗帘 / 设备）共用同一套栅格。 */
 .i3d-unified-settings .i3d-config-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1327,19 +1345,6 @@
   padding: 9px 0;
   font-weight: 600;
 }
-/* 组合成员操作（「组合另一扇窗帘」「解除组合」这类）：纵向铺满，
-   按钮文案较长时允许折行，不用省撑破面板宽度。 */
-.i3d-unified-settings .i3d-group-member-actions {
-  display: grid;
-  gap: 8px;
-}
-.i3d-unified-settings .i3d-group-member-actions > button {
-  width: 100%;
-  min-width: 0;
-  min-height: 32px;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
 .i3d-unified-settings .i3d-config-section,
 .i3d-unified-settings .i3d-config-section label,
 .i3d-unified-settings .i3d-config-section button {
@@ -1390,10 +1395,58 @@
 .i3d-unified-settings .i3d-config-row > label:only-child {
   grid-column: 1 / -1;
 }
-/* ===== 弹窗布局预览 ===== */
-
-/* 预览层整体挂在一个不可交互的覆盖层上，指针事件全部穿透，
-   避免预览挡住了下方的真实弹窗。 */
+.i3d-unified-settings .i3d-status-settings {
+  display: grid;
+  gap: 8px;
+}
+.i3d-unified-settings .i3d-status-settings > .i3d-note {
+  margin: 0 0 2px;
+}
+.i3d-unified-settings .i3d-status-label {
+  margin: 4px 0 0;
+  color: var(--text, #e8ecef);
+  font-size: 11px;
+  font-weight: 600;
+}
+.i3d-unified-settings .i3d-status-rule {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 30px;
+  gap: 6px;
+  align-items: center;
+}
+.i3d-unified-settings .i3d-status-rule.is-empty {
+  grid-template-columns: minmax(0, 1fr);
+}
+.i3d-unified-settings .i3d-status-rule > .i3d-picker-button {
+  min-width: 0;
+}
+.i3d-unified-settings .i3d-status-rule > select {
+  min-width: 0;
+}
+.i3d-unified-settings .i3d-status-rule > button:not(.i3d-picker-button) {
+  min-height: 32px;
+  padding: 0 6px;
+}
+.i3d-unified-settings .i3d-status-remove {
+  color: #e69c93;
+  border-color: #e69c9355;
+  background: transparent;
+}
+.i3d-unified-settings .i3d-status-add {
+  width: 100%;
+  min-height: 30px;
+}
+.i3d-unified-settings .i3d-group-member-actions {
+  display: grid;
+  gap: 8px;
+}
+.i3d-unified-settings .i3d-group-member-actions > button {
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .i3d-popup-preview-layer {
   position: absolute;
   inset: 0;
@@ -1408,7 +1461,7 @@
   border: 1px solid #53667a;
   border-radius: 14px;
   background: #19222df0;
-  color: var(--hos-tool-ink);
+  color: #edf3fa;
   box-shadow: 0 10px 36px #0005;
   font:
     13px/1.5 system-ui,
@@ -1454,7 +1507,7 @@
 }
 .i3d-popup-preview-name {
   margin: 0;
-  color: var(--hos-tool-ink-dim);
+  color: #d3deeb;
   font-size: 14px;
 }
 .i3d-popup-preview-track {
@@ -1491,7 +1544,6 @@
   background: radial-gradient(ellipse at 30% 20%, #344760, #172332 75%);
 }
 .i3d-focus-popup-preview,
-/* 聚焦设备弹窗的宿主：跟随被聚焦设备定位，内容由 popup-preview 生成。 */
 .i3d-focus-popup-host {
   position: absolute;
   inset: 0;
@@ -1510,17 +1562,18 @@
   opacity: 1;
   cursor: default;
 }
-/* ===== 暖阳原木主题覆盖（sceneStyle = warm-wood） =====
- */
-.hb-interaction3d-runtime[data-scene-style="warm-wood"] :is(.i3d-popup-preview, dialog.i3d-vacuum-details) {
+.hb-interaction3d-runtime[data-scene-style="warm-wood"]
+  :is(.i3d-popup-preview, dialog.i3d-vacuum-details) {
   color: #493f34;
   border-color: #bca98c;
   background: linear-gradient(
     145deg,
-    rgba(255, 253, 247, var(--i3d-panel-opacity, .74)),
-    rgba(243, 237, 225, var(--i3d-panel-opacity, .74))
+    rgba(255, 253, 247, var(--i3d-panel-opacity, 0.74)),
+    rgba(243, 237, 225, var(--i3d-panel-opacity, 0.74))
   );
-  box-shadow: 0 12px 32px #4334212b, inset 0 1px #fff9;
+  box-shadow:
+    0 12px 32px #4334212b,
+    inset 0 1px #fff9;
 }
 .hb-interaction3d-runtime[data-scene-style="warm-wood"]
   :is(
@@ -1545,11 +1598,7 @@
   color: #716657;
 }
 .hb-interaction3d-runtime[data-scene-style="warm-wood"]
-  :is(
-    .hb-vacuum-details-stats>div,
-    .hb-vacuum-details-option-group,
-    .i3d-popup-preview-actions
-  ) {
+  :is(.hb-vacuum-details-stats > div, .hb-vacuum-details-option-group, .i3d-popup-preview-actions) {
   border-color: #bca98c66;
   background: #ede4d550;
 }
@@ -1566,10 +1615,7 @@
   box-shadow: none;
 }
 .hb-interaction3d-runtime[data-scene-style="warm-wood"]
-  :is(
-    .hb-vacuum-details-actions button.active,
-    .hb-vacuum-details-options button.active
-  ) {
+  :is(.hb-vacuum-details-actions button.active, .hb-vacuum-details-options button.active) {
   color: #67471e;
   border-color: #a48351;
   background: #e6d5b8;
@@ -1582,4 +1628,129 @@
 }
 .hb-interaction3d-runtime[data-scene-style="warm-wood"] .i3d-popup-preview-track:after {
   background: #ae8c59;
+}
+.i3d-popup-preview {
+  padding: 20px;
+  border-radius: 24px;
+  border-color: rgba(160, 170, 178, calc(var(--i3d-panel-opacity, 0.74) * 0.325));
+  background: linear-gradient(
+    145deg,
+    rgba(41, 43, 48, calc(var(--i3d-panel-opacity, 0.74) * 0.95)),
+    rgba(25, 31, 39, calc(var(--i3d-panel-opacity, 0.74) * 1.027))
+  );
+  box-shadow:
+    -10px 14px 34px #0005,
+    inset 0 1px #ffffff0a;
+  backdrop-filter: blur(18px);
+  font:
+    14px/1.5 PingFang SC,
+    sans-serif;
+}
+.i3d-popup-preview-heading {
+  height: 42px;
+  padding: 0;
+  gap: 8px;
+  border: 0;
+}
+.i3d-popup-preview-heading strong {
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.i3d-popup-preview-body {
+  height: calc(100% - 42px);
+  padding: 0;
+  gap: 16px;
+}
+.i3d-popup-preview-name {
+  margin: 0;
+  font-size: 11px;
+  line-height: 14px;
+  color: #7e898f;
+}
+.i3d-popup-preview-track {
+  height: 14px;
+  box-sizing: border-box;
+  border: 4px solid #252a2d;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #8cb7ca 50%, #3a444b 50%);
+  box-shadow:
+    0 0 0 2px #6f849240,
+    inset 0 2px 7px #000c;
+}
+.i3d-popup-preview-track:after {
+  top: 50%;
+  width: 32px;
+  height: 32px;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(145deg, #8ea8b4, #4a5a62);
+  box-shadow: 0 5px 7px #0009;
+}
+.i3d-popup-preview-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.i3d-popup-preview-actions span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  border: 1px solid #8397a25c;
+  border-radius: 14px;
+  color: #c4d2d9;
+  background: linear-gradient(145deg, #36424ac2, #192026b8);
+  font-size: 12px;
+  font-weight: 600;
+}
+.i3d-popup-preview[data-kind="camera"] {
+  padding: 12px;
+}
+.i3d-popup-preview[data-kind="camera"] .i3d-popup-preview-heading {
+  height: 58px;
+}
+.i3d-popup-preview[data-kind="camera"] .i3d-popup-preview-body {
+  height: calc(100% - 58px);
+}
+.hb-interaction3d-runtime[data-scene-style="warm-wood"] .i3d-popup-preview-track {
+  border-color: #ece2d2;
+  background: linear-gradient(90deg, #ae8c59 50%, #ded4c3 50%);
+  box-shadow:
+    0 0 0 1px #b6a78f,
+    inset 0 1px 3px #6a513322;
+}
+.hb-interaction3d-runtime[data-scene-style="warm-wood"] .i3d-popup-preview-track:after {
+  background: linear-gradient(145deg, #fdf8ed, #d5be98);
+  box-shadow: 0 2px 3px #6e542444;
+}
+.hb-interaction3d-runtime[data-scene-style="warm-wood"] .i3d-popup-preview-actions {
+  background: none;
+}
+.hb-interaction3d-runtime[data-scene-style="warm-wood"] .i3d-popup-preview-actions span {
+  color: #554632;
+  border-color: #bca98c;
+  background: #f6f0e5;
+}
+.i3d-device-change-dialog > .dialog-heading {
+  padding: 24px 24px 0;
+  border-bottom: 0;
+  background: transparent;
+}
+.i3d-device-change-dialog > .dialog-heading h2 {
+  margin: 0;
+}
+.i3d-device-change-dialog > .i3d-add-dialog-body {
+  padding: 12px 24px 24px;
+  line-height: 1.6;
+}
+.i3d-device-change-dialog > .dialog-actions {
+  padding: 0 24px 24px;
+  gap: 12px;
 }

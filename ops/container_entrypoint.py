@@ -10,6 +10,26 @@ from pathlib import Path
 RUN_AS_USER = "homeos"
 
 
+def sync_license_keys(environment: MutableMapping[str, str]) -> None:
+    # [补充说明] 降权前先同步授权公钥，并把指纹注入环境变量。
+    #
+    # 顺序原因有二：镜像要写 keys/（需要写权限，降权后可能写不动）；指纹必须赶在主应用
+    # 读配置之前进环境，否则它只会看到随包分发的旧指纹。
+    #
+    # 失败不阻断启动：公钥缺失 / 指纹不符由主应用的信任锚自检给出可定位的报错，
+    # 在这里再拦一次只会把同一件事说两遍。
+    try:
+        from ops.license_keys import sync_store_keys
+    except Exception as error:  # 打包遗漏 ops/license_keys.py 时不该连容器都起不来
+        print(f"授权公钥：未加载同步模块（{error}），跳过。", file=sys.stderr, flush=True)
+        return
+    try:
+        # 直接传主应用的 os.environ：同步函数就地把路径与指纹写进去，exec 后自然生效。
+        sync_store_keys(environment=environment)
+    except Exception as error:
+        print(f"授权公钥：同步失败（{error}），交由主应用启动自检处理。", file=sys.stderr, flush=True)
+
+
 def storage_directories(environment: Mapping[str, str]) -> tuple[Path, ...]:
     """需要校正属主的可写目录。
     """
@@ -99,6 +119,9 @@ def main(arguments: Sequence[str] | None = None) -> None:
     command = list(arguments if arguments is not None else sys.argv[1:])
     if not command:
         raise SystemExit("HomeOS container command is missing.")
+    # 公钥同步必须排在降权之前：镜像要写 keys/，降权后就未必写得动了；
+    # 指纹也要赶在主应用读配置之前进环境。
+    sync_license_keys(os.environ)
     initialize_permissions(os.environ)
     os.execvp(command[0], command)
 

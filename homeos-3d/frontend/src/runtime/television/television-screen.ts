@@ -1,369 +1,240 @@
-/**
- * 电视屏幕的画面渲染。
- */
-
-import { televisionState } from "./television-state.js";
-// 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js：这里原先建键用裸值、
-import { sceneModelKey } from "../core/scene-model-key.js";
-// 程序化海报绘制；缓存戳需与 static 资源版本保持一致。
-const { drawTelevisionPoster: drawTelevisionPoster } = await (import("@app/3d-studio/materials/studio-television-poster.js"));
-// 熄屏玻璃渐变；冷暖两档色标都在该模块里，暖阳原木主题下传 warm=true。
-const { drawTelevisionGlass: drawTelevisionGlass } = await (import("@app/3d-studio/materials/studio-television-glass.js"));
-
-type Object3D = {
-  userData: Record<string, unknown>;
-  visible: boolean;
-  material: unknown;
-  geometry: { addEventListener: (type: string, listener: () => void) => void; removeEventListener?: (type: string, listener: () => void) => void };
-  traverse: (callback: (object: Object3D) => void) => void;
-};
-
-type MaterialLike = {
-  dispose: () => void;
-  color: { r: number; setRGB: (r: number, g: number, b: number) => void };
-};
-
-type TextureLike = {
-  dispose: () => void;
-  needsUpdate: boolean;
-  colorSpace?: unknown;
-};
-
-type ThreeLib = {
-  CanvasTexture: new (canvas: HTMLCanvasElement) => TextureLike;
-  MeshBasicMaterial: new (params: Record<string, unknown>) => MaterialLike;
-  SRGBColorSpace: unknown;
-};
-
-type TvBinding = {
-  visible?: boolean;
-  entityId?: string;
-  powerEntityId?: string;
-  floorId?: unknown;
-  modelId?: unknown;
-  [key: string]: unknown;
-};
-
-type DeviceState = {
-  on?: boolean;
-  status?: unknown;
-  title?: unknown;
-  app?: unknown;
-  name?: unknown;
-  artwork?: string;
-};
-
-type ScreenEntry = {
-  removed?: boolean;
-  floorId?: unknown;
-  screen: Object3D;
-  original: unknown;
-  materials: unknown;
-  material: MaterialLike;
-  canvas: HTMLCanvasElement;
-  context: CanvasRenderingContext2D;
-  texture: TextureLike;
-  glows: Array<[Object3D, boolean]>;
-  generation: number;
-  artwork: string;
-  signature: string;
-  image: HTMLImageElement | null;
-  state?: DeviceState;
-  onGeometryDispose?: () => void;
-};
-
-const drawPoster = drawTelevisionPoster as (
-  canvas: HTMLCanvasElement,
-  context: CanvasRenderingContext2D
-) => void;
-const drawGlass = drawTelevisionGlass as (
-  canvas: HTMLCanvasElement,
-  context: CanvasRenderingContext2D,
-  warm?: boolean
-) => void;
-
-/**
- * 创建电视屏幕控制器。
- */
+const { drawTelevisionGlass: drawGlass } = await (import("@app/3d-studio/materials/studio-television-glass"));
+import { televisionState } from "./television-state";
+function drawPoster(posterCanvas, canvasPainter, posterState) {
+  (canvasPainter.save(),
+    (canvasPainter.fillStyle = "#07111d"),
+    canvasPainter.fillRect(0, 0, posterCanvas.width, posterCanvas.height),
+    (canvasPainter.fillStyle = "#f4f8fb"),
+    (canvasPainter.font = "500 26px sans-serif"),
+    (canvasPainter.textAlign = "center"),
+    (canvasPainter.textBaseline = "middle"));
+  const statusText = posterState.playing
+    ? "正在播放中"
+    : !posterState.idle && posterState.state === "paused"
+      ? "已暂停"
+      : !posterState.idle && posterState.state === "buffering"
+        ? "正在缓冲"
+        : "暂未播放";
+  (canvasPainter.fillText(statusText, posterCanvas.width / 2, posterCanvas.height / 2),
+    canvasPainter.restore());
+}
 export function createTelevisionScreens({
   THREE: THREE,
-  requestFrame: requestFrame = () => {}
+  requestFrame: requestFrame = () => {},
 }: {
-  THREE: ThreeLib;
-  requestFrame?: (floorIds?: unknown[]) => void;
-}) {
-  let syncedRoot: Object3D | null | undefined;
-  let syncedRevision: unknown;
-  let screensByLocation = new Map<string, ScreenEntry>();
-  let modelsByLocation = new Map<string, Object3D>();
-  let isDisposed = false;
-  /**
-   * 释放一块屏幕：还原原材质与原生发光网格，销毁贴图与材质。
-   */
-  function releaseScreen(targetEntry: ScreenEntry) {
-    // removed 标记保证幂等：几何体 dispose 事件与主动释放可能先后到达。
+  THREE?: any;
+  requestFrame?: (floorIds: any[]) => void;
+} = {}) {
+  let syncedRoot,
+    syncedRevision,
+    screensByLocation = new Map(),
+    modelsByLocation = new Map(),
+    isDisposed = false;
+  const sceneModelKey = (locationSource) =>
+    JSON.stringify([locationSource.floorId, locationSource.modelId]);
+  function releaseScreen(targetEntry) {
     if (!targetEntry.removed) {
-      targetEntry.removed = true;
-      if (targetEntry.onGeometryDispose) {
-        targetEntry.screen.geometry.removeEventListener?.("dispose", targetEntry.onGeometryDispose);
-      }
-      // 自增 generation：让在途的封面加载回调失效。
-      targetEntry.generation++;
-      // 只有材质仍是我们替换上去的那份时才还原，防止覆盖别人的改动。
-      if (targetEntry.screen.material === targetEntry.materials) {
-        targetEntry.screen.material = targetEntry.original;
-      }
-      for (const [glow, wasVisible] of targetEntry.glows) {
-        glow.visible = wasVisible;
-      }
-      targetEntry.texture.dispose();
-      targetEntry.material.dispose();
+      ((targetEntry.removed = true),
+        targetEntry.screen.geometry.removeEventListener("dispose", targetEntry.onGeometryDispose),
+        targetEntry.generation++,
+        targetEntry.screen.material === targetEntry.materials &&
+          (targetEntry.screen.material = targetEntry.original));
+      for (const [glow, wasVisible] of targetEntry.glows) glow.visible = wasVisible;
+      (targetEntry.texture.dispose(), targetEntry.material.dispose());
     }
   }
-  /**
-   * 把当前状态画到画布上并标记贴图需要更新。
-   */
-  function renderScreen(entry: ScreenEntry) {
-    if (isDisposed) {
-      return;
-    }
-    const { canvas: canvas, context: context, state: state, image: image } = entry;
-    // 先铺一层近黑底色：封面按等比缩放居中，空出来的部分就是「黑边」。
-    context.fillStyle = "#050609";
-    if (state?.on) {
-      context.fillRect(0, 0, canvas.width, canvas.height);
-    } else {
-      // 关机状态画一层深灰渐变（暖阳原木主题换暖色档），比纯黑更有体积感，也能看出屏幕边界。
-      drawGlass(canvas, context, entry.screen.userData?.sceneStyle === "warm-wood");
-    }
-    if (state?.on && image) {
-      // 等比缩放（contain）而不是拉伸：封面比例各异，拉伸会明显变形。
+  function renderScreen(entry) {
+    if (isDisposed) return;
+    const { canvas: canvas, context: screenPainter, state: state, image: image } = entry;
+    if (
+      ((screenPainter.fillStyle = "#050609"),
+      state.on
+        ? screenPainter.fillRect(0, 0, canvas.width, canvas.height)
+        : drawGlass(canvas, screenPainter, entry.screen.userData?.sceneStyle === "warm-wood"),
+      state.on && image)
+    ) {
       const fitScale = Math.min(
-        canvas.width / image.naturalWidth,
-        canvas.height / image.naturalHeight
-      );
-      const drawWidth = image.naturalWidth * fitScale;
-      const drawHeight = image.naturalHeight * fitScale;
-      context.drawImage(
+          canvas.width / image.naturalWidth,
+          canvas.height / image.naturalHeight,
+        ),
+        drawWidth = image.naturalWidth * fitScale,
+        drawHeight = image.naturalHeight * fitScale;
+      screenPainter.drawImage(
         image,
         (canvas.width - drawWidth) / 2,
         (canvas.height - drawHeight) / 2,
         drawWidth,
-        drawHeight
+        drawHeight,
       );
-    } else if (state?.on) {
-      // 开机但没有封面：用程序化海报占位。
-      drawPoster(canvas, context);
-    }
-    entry.texture.needsUpdate = true;
-    // 屏幕内容变化会影响该楼层的缓存，因此带上楼层 ID 请求重绘。
-    requestFrame([entry.floorId]);
+    } else state.on && drawPoster(canvas, screenPainter, state);
+    ((entry.texture.needsUpdate = true), requestFrame([entry.floorId]));
   }
   return {
-    /**
-     * 按最新绑定与状态同步所有电视屏幕。
-     */
     sync({
       root: root,
       revision: revision,
       bindings: bindings = [],
       states: states = {},
       focusedModel: focusedModel = "",
-      dimStrength: dimStrength = 70
-    }: {
-      root?: Object3D | null;
-      revision?: unknown;
-      bindings?: TvBinding[];
-      states?: unknown;
-      focusedModel?: string;
-      dimStrength?: number;
+      dimStrength: dimStrength = 70,
     }) {
-      if (isDisposed) {
-        return;
-      }
-      // 场景重建（根节点或修订号变化）时才重新扫一遍电视模型。
-      if (syncedRoot !== root || syncedRevision !== revision) {
-        syncedRoot = root;
-        syncedRevision = revision;
-        modelsByLocation = new Map();
-        syncedRoot?.traverse(sceneObject => {
-          if (sceneObject.userData?.environmentModelType === "tv") {
+      if (isDisposed) return;
+      (syncedRoot !== root || syncedRevision !== revision) &&
+        ((syncedRoot = root),
+        (syncedRevision = revision),
+        (modelsByLocation = new Map()),
+        syncedRoot?.traverse((sceneObject) => {
+          sceneObject.userData?.environmentModelType === "tv" &&
             modelsByLocation.set(
-              sceneModelKey(
+              JSON.stringify([
                 sceneObject.userData.environmentFloorId,
-                sceneObject.userData.environmentModelId
-              ),
-              sceneObject
+                sceneObject.userData.environmentModelId,
+              ]),
+              sceneObject,
             );
-          }
+        }));
+      const activeLocationSet = new Set(),
+        bindingsByLocation = new Map();
+      for (const [modelLocation, locatedModel] of modelsByLocation)
+        bindingsByLocation.set(modelLocation, {
+          floorId: locatedModel.userData.environmentFloorId,
+          modelId: locatedModel.userData.environmentModelId,
         });
-      }
-      const activeLocations = new Set<string>();
-      for (const binding of bindings) {
-        // 隐藏的、或既没绑播放器也没绑电源的电视直接跳过。
-        if (binding.visible === false || (!binding.entityId && !binding.powerEntityId)) {
+      for (const [screenLocation, existingScreenEntry] of screensByLocation)
+        bindingsByLocation.has(screenLocation) ||
+          bindingsByLocation.set(screenLocation, {
+            floorId: existingScreenEntry.floorId,
+            modelId: existingScreenEntry.modelId,
+          });
+      for (const binding of bindings)
+        binding.visible !== false && bindingsByLocation.set(sceneModelKey(binding), binding);
+      for (const bindingEntry of bindingsByLocation.values()) {
+        const location = sceneModelKey(bindingEntry),
+          model = modelsByLocation.get(location);
+        if ((activeLocationSet.add(location), !model)) continue;
+        let screenMesh;
+        if (
+          (model.traverse((candidate) => {
+            candidate.userData?.televisionScreen && (screenMesh = candidate);
+          }),
+          !screenMesh)
+        )
           continue;
-        }
-        const location = sceneModelKey(binding.floorId, binding.modelId);
-        const model = modelsByLocation.get(location);
-        activeLocations.add(location);
-        if (!model) {
-          continue;
-        }
-        let screenMesh: Object3D | undefined;
-        model.traverse(candidate => {
-          if (candidate.userData?.televisionScreen) {
-            screenMesh = candidate;
-          }
-        });
-        if (!screenMesh) {
-          continue;
-        }
-        activeLocations.add(location);
+        activeLocationSet.add(location);
         let screenEntry = screensByLocation.get(location);
-        if (screenEntry && screenEntry.screen !== screenMesh) {
-          // 屏幕网格被重建过：释放旧记录，重新建一份。
-          releaseScreen(screenEntry);
-          screensByLocation.delete(location);
-          screenEntry = undefined;
-        }
-        if (!screenEntry) {
-          // 512×288 正好是 16:9，够看清封面文字又不会太占显存。
+        if (
+          (screenEntry &&
+            screenEntry.screen !== screenMesh &&
+            (releaseScreen(screenEntry), screensByLocation.delete(location), (screenEntry = null)),
+          !screenEntry)
+        ) {
           const canvasElement = document.createElement("canvas");
-          canvasElement.width = 512;
-          canvasElement.height = 288;
-          const canvasContext = canvasElement.getContext("2d");
-          if (!canvasContext) {
-            continue;
-          }
+          ((canvasElement.width = 512), (canvasElement.height = 288));
+          const posterPainter = canvasElement.getContext("2d");
+          if (!posterPainter) continue;
           const texture = new THREE.CanvasTexture(canvasElement);
           texture.colorSpace = THREE.SRGBColorSpace;
           const material = new THREE.MeshBasicMaterial({
-            map: texture,
-            toneMapped: false,
-            // polygonOffset 往镜头方向偏移，防止屏幕与模型自带的屏幕面 z-fighting。
-            polygonOffset: true,
-            polygonOffsetFactor: -2,
-            polygonOffsetUnits: -2
-          });
-          const originalMaterial = screenMesh.material;
-          // BoxGeometry 的材质顺序是 [+x, -x, +y, -y, +z, -z]，
-          const materials = Array.from(
-            {
-              length: 6
-            },
-            (_element, index) =>
-              index === 4
-                ? material
-                : Array.isArray(originalMaterial)
-                  ? originalMaterial[index]
-                  : originalMaterial
-          );
-          // 模型自带的发光面（televisionGlow）会被真实画面替代，先隐藏并记住原状态。
-          const glows: Array<[Object3D, boolean]> = [];
-          model.traverse(childObject => {
-            if (childObject.userData?.televisionGlow) {
-              glows.push([childObject, childObject.visible]);
-              childObject.visible = false;
-            }
-          });
-          screenEntry = {
-            floorId: binding.floorId,
-            screen: screenMesh,
-            original: originalMaterial,
-            materials: materials,
-            material: material,
-            canvas: canvasElement,
-            context: canvasContext,
-            texture: texture,
-            glows: glows,
-            generation: 0,
-            artwork: "",
-            signature: "",
-            image: null
-          };
+              map: texture,
+              toneMapped: false,
+              polygonOffset: true,
+              polygonOffsetFactor: -2,
+              polygonOffsetUnits: -2,
+            }),
+            originalMaterial = screenMesh.material,
+            materials = Array.from(
+              {
+                length: 6,
+              },
+              (_element, index) =>
+                index === 4
+                  ? material
+                  : Array.isArray(originalMaterial)
+                    ? originalMaterial[index]
+                    : originalMaterial,
+            ),
+            glows = [];
+          (model.traverse((childObject) => {
+            childObject.userData?.televisionGlow &&
+              (glows.push([childObject, childObject.visible]), (childObject.visible = false));
+          }),
+            (screenEntry = {
+              floorId: bindingEntry.floorId,
+              modelId: bindingEntry.modelId,
+              screen: screenMesh,
+              original: originalMaterial,
+              materials: materials,
+              material: material,
+              canvas: canvasElement,
+              context: posterPainter,
+              texture: texture,
+              glows: glows,
+              generation: 0,
+              artwork: "",
+              signature: "",
+              image: null,
+            }));
           const createdEntry = screenEntry;
-          screenEntry.onGeometryDispose = () => {
-            releaseScreen(createdEntry);
-            if (screensByLocation.get(location) === createdEntry) {
-              screensByLocation.delete(location);
-            }
-          };
-          screenMesh.geometry.addEventListener("dispose", screenEntry.onGeometryDispose);
-          screenMesh.material = materials;
-          screensByLocation.set(location, screenEntry);
+          ((screenEntry.onGeometryDispose = () => {
+            (releaseScreen(createdEntry),
+              screensByLocation.get(location) === createdEntry &&
+                screensByLocation.delete(location));
+          }),
+            screenMesh.geometry.addEventListener("dispose", screenEntry.onGeometryDispose),
+            (screenMesh.material = materials),
+            screensByLocation.set(location, screenEntry));
         }
-        const deviceState = televisionState(binding, states);
-        const signature = JSON.stringify([
-          deviceState.on,
-          deviceState.status,
-          deviceState.title,
-          deviceState.app,
-          deviceState.name,
-          deviceState.artwork
-        ]);
+        const deviceState = televisionState(bindingEntry, states),
+          signature = JSON.stringify([
+            deviceState.on,
+            deviceState.status,
+            deviceState.title,
+            deviceState.app,
+            deviceState.name,
+            deviceState.artwork,
+          ]);
         screenEntry.state = deviceState;
-        // 聚焦了其它电视时，本屏调暗（最低 0.1）；没聚焦任何电视时全部保持原亮度。
         const colorLevel =
           focusedModel && focusedModel !== location ? Math.max(0.1, 1 - dimStrength / 100) : 1;
-        if (screenEntry.material.color.r !== colorLevel) {
-          screenEntry.material.color.setRGB(colorLevel, colorLevel, colorLevel);
-          requestFrame([screenEntry.floorId]);
-        }
-        if (screenEntry.signature !== signature) {
-          screenEntry.signature = signature;
-          if (screenEntry.artwork !== deviceState.artwork) {
-            // 封面地址变了：先把旧图清掉，再用自增的 generation 标记这次加载。
-            screenEntry.artwork = deviceState.artwork || "";
-            screenEntry.image = null;
+        if (
+          (screenEntry.material.color.r !== colorLevel &&
+            (screenEntry.material.color.setRGB(colorLevel, colorLevel, colorLevel),
+            requestFrame([screenEntry.floorId])),
+          screenEntry.signature !== signature)
+        ) {
+          if (((screenEntry.signature = signature), screenEntry.artwork !== deviceState.artwork)) {
+            ((screenEntry.artwork = deviceState.artwork), (screenEntry.image = null));
             const generation = ++screenEntry.generation;
             if (deviceState.artwork) {
               const loadedImage = new Image();
-              loadedImage.onload = () => {
-                // 三重校验：未销毁、仍是最新一次加载、记录还在表里。
-                if (
-                  !isDisposed &&
+              ((loadedImage.onload = () => {
+                !isDisposed &&
                   generation === screenEntry.generation &&
-                  screensByLocation.get(location) === screenEntry
-                ) {
-                  screenEntry.image = loadedImage;
-                  renderScreen(screenEntry);
-                }
-              };
-              loadedImage.onerror = () => {
-                // 加载失败同样要重绘：此时会退化成程序化海报。
-                if (
+                  screensByLocation.get(location) === screenEntry &&
+                  ((screenEntry.image = loadedImage), renderScreen(screenEntry));
+              }),
+                (loadedImage.onerror = () => {
                   !isDisposed &&
-                  generation === screenEntry.generation &&
-                  screensByLocation.get(location) === screenEntry
-                ) {
-                  screenEntry.image = null;
-                  renderScreen(screenEntry);
-                }
-              };
-              loadedImage.src = deviceState.artwork;
+                    generation === screenEntry.generation &&
+                    screensByLocation.get(location) === screenEntry &&
+                    ((screenEntry.image = null), renderScreen(screenEntry));
+                }),
+                (loadedImage.src = deviceState.artwork));
             }
           }
           renderScreen(screenEntry);
         }
       }
-      for (const [staleLocation, staleEntry] of screensByLocation) {
-        // 绑定被删除或电视被隐藏：释放屏幕并请求该楼层重绘（还原成模型原样）。
-        if (!activeLocations.has(staleLocation)) {
-          releaseScreen(staleEntry);
-          screensByLocation.delete(staleLocation);
-          requestFrame([staleEntry.floorId]);
-        }
-      }
+      for (const [staleLocation, staleEntry] of screensByLocation)
+        activeLocationSet.has(staleLocation) ||
+          (releaseScreen(staleEntry),
+          screensByLocation.delete(staleLocation),
+          requestFrame([staleEntry.floorId]));
     },
     dispose() {
       isDisposed = true;
-      for (const disposedEntry of screensByLocation.values()) {
-        releaseScreen(disposedEntry);
-      }
-      screensByLocation.clear();
-      modelsByLocation.clear();
-      syncedRoot = null;
-    }
+      for (const disposedEntry of screensByLocation.values()) releaseScreen(disposedEntry);
+      (screensByLocation.clear(), modelsByLocation.clear(), (syncedRoot = null));
+    },
   };
 }

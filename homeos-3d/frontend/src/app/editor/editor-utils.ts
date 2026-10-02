@@ -1,32 +1,13 @@
-/**
- * 编辑器通用小工具：ID / 颜色 / 数值格式化。
- */
-
-type AnyObj = Record<string, any>;
-import { randomUuid } from "../utils/random-id.js";
-import { clampNumber } from "../utils/numbers.js";
-import { hexToRgbOrNull } from "../utils/colors.js";
-
-/**
- * 深拷贝一个值。
- */
-export function clone(value: any) {
-  return structuredClone(value);
+import { randomUuid } from "../utils/random-id";
+export function clone(sourceValue) {
+  return structuredClone(sourceValue);
 }
-
-/**
- * 生成「前缀 + 随机 UUID」形式的 ID。
- */
-export function newId(idPrefix: any) {
+export function newId(idPrefix) {
   return idPrefix + "-" + randomUuid();
 }
-
-/**
- * 把文本转成 URL 片段：去音标、转小写、非字母数字压成连字符。
- */
-export function slugify(text: any) {
+export function slugify(sourceText) {
   return (
-    String(text || "")
+    String(sourceText || "")
       .normalize("NFKD")
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
@@ -34,113 +15,92 @@ export function slugify(text: any) {
       .slice(0, 72) || "page-" + randomUuid().slice(0, 8)
   );
 }
-
-/**
- * HEX 转 RGB；非法输入兜底黑色 —— 编辑器要用它把颜色画出来，拿到 `undefined` 会直接崩在渲染里。
- */
-export function hexToRgb(hexColorInput: any) {
-  return hexToRgbOrNull(hexColorInput) || { r: 0, g: 0, b: 0 };
+export function normalizedHexColor(colorInput) {
+  const trimmedColor = String(colorInput || "").trim(),
+    hashPrefixedColor = trimmedColor.startsWith("#") ? trimmedColor : "#" + trimmedColor;
+  return /^#[\da-f]{6}$/i.test(hashPrefixedColor)
+    ? hashPrefixedColor.toLowerCase()
+    : /^#[\da-f]{3}$/i.test(hashPrefixedColor)
+      ? (
+          "#" + [...hashPrefixedColor.slice(1)].map((hexDigit) => hexDigit.repeat(2)).join("")
+        ).toLowerCase()
+      : "";
 }
-
-/**
- * RGB 转 HEX。
- */
-export function rgbToHex(red: any, green: any, blue: any) {
-  // 单通道转两位小写十六进制；越界与非法输入先夹到 0~255，padStart 保证 0 也输出两位。
-  const channelToHex = (channelValue: any) =>
-    Math.round(clampNumber(Number(channelValue) || 0, 0, 255))
+export function hexToRgb(hexColor) {
+  const validHexColor = normalizedHexColor(hexColor) || "#000000";
+  return {
+    r: Number.parseInt(validHexColor.slice(1, 3), 16),
+    g: Number.parseInt(validHexColor.slice(3, 5), 16),
+    b: Number.parseInt(validHexColor.slice(5, 7), 16),
+  };
+}
+export function rgbToHex(redChannel, greenChannel, blueChannel) {
+  const channelToHex = (channelNumber) =>
+    Math.round(clampNumber(Number(channelNumber) || 0, 0, 255))
       .toString(16)
       .padStart(2, "0");
-  return "#" + channelToHex(red) + channelToHex(green) + channelToHex(blue);
+  return "#" + channelToHex(redChannel) + channelToHex(greenChannel) + channelToHex(blueChannel);
 }
-
-/**
- * RGB 转 HSV。
- */
-export function rgbToHsv({ r: redValue, g: greenValue, b: blueValue }: AnyObj) {
-  const redRatio = redValue / 255;
-  const greenRatio = greenValue / 255;
-  const blueRatio = blueValue / 255;
-  const maxChannel = Math.max(redRatio, greenRatio, blueRatio);
-  const minChannel = Math.min(redRatio, greenRatio, blueRatio);
-  const channelDelta = maxChannel - minChannel;
-  let hueDegrees = 0;
-  // channelDelta 为 0 说明是灰色，色相保持 0。
-  if (channelDelta) {
-    if (maxChannel === redRatio) {
-      hueDegrees = (((greenRatio - blueRatio) / channelDelta) % 6) * 60;
-    } else if (maxChannel === greenRatio) {
-      hueDegrees = ((blueRatio - redRatio) / channelDelta + 2) * 60;
-    } else {
-      hueDegrees = ((redRatio - greenRatio) / channelDelta + 4) * 60;
+export function rgbToHsv({ r: redComponent, g: greenComponent, b: blueComponent }) {
+  const normalizedRed = redComponent / 255,
+    normalizedGreen = greenComponent / 255,
+    normalizedBlue = blueComponent / 255,
+    maxChannel = Math.max(normalizedRed, normalizedGreen, normalizedBlue),
+    minChannel = Math.min(normalizedRed, normalizedGreen, normalizedBlue),
+    channelRange = maxChannel - minChannel;
+  let hueDeg = 0;
+  return (
+    channelRange &&
+      (maxChannel === normalizedRed
+        ? (hueDeg = 60 * (((normalizedGreen - normalizedBlue) / channelRange) % 6))
+        : maxChannel === normalizedGreen
+          ? (hueDeg = 60 * ((normalizedBlue - normalizedRed) / channelRange + 2))
+          : (hueDeg = 60 * ((normalizedRed - normalizedGreen) / channelRange + 4))),
+    hueDeg < 0 && (hueDeg += 360),
+    {
+      h: hueDeg,
+      s: maxChannel ? channelRange / maxChannel : 0,
+      v: maxChannel,
     }
-  }
-  // 上面按 %6 得到的色相可能为负，统一折回 0~360。
-  if (hueDegrees < 0) {
-    hueDegrees += 360;
-  }
+  );
+}
+export function hsvToRgb(hueInput, saturationInput, brightnessInput) {
+  const normalizedHue = ((Number(hueInput) % 360) + 360) % 360,
+    saturationRatio = clampNumber(Number(saturationInput), 0, 1),
+    brightnessRatio = clampNumber(Number(brightnessInput), 0, 1),
+    chroma = brightnessRatio * saturationRatio,
+    hueSector = normalizedHue / 60,
+    intermediateChannel = chroma * (1 - Math.abs((hueSector % 2) - 1)),
+    baseRgbComponents =
+      hueSector < 1
+        ? [chroma, intermediateChannel, 0]
+        : hueSector < 2
+          ? [intermediateChannel, chroma, 0]
+          : hueSector < 3
+            ? [0, chroma, intermediateChannel]
+            : hueSector < 4
+              ? [0, intermediateChannel, chroma]
+              : hueSector < 5
+                ? [intermediateChannel, 0, chroma]
+                : [chroma, 0, intermediateChannel],
+    brightnessOffset = brightnessRatio - chroma;
   return {
-    h: hueDegrees,
-    s: maxChannel ? channelDelta / maxChannel : 0,
-    v: maxChannel
+    r: (baseRgbComponents[0] + brightnessOffset) * 255,
+    g: (baseRgbComponents[1] + brightnessOffset) * 255,
+    b: (baseRgbComponents[2] + brightnessOffset) * 255,
   };
 }
-
-/**
- * HSV 转 RGB。
- */
-export function hsvToRgb(hue: any, saturation: any, brightness: any) {
-  const normalizedHue = ((Number(hue) % 360) + 360) % 360;
-  const normalizedSaturation = clampNumber(Number(saturation), 0, 1);
-  const normalizedBrightness = clampNumber(Number(brightness), 0, 1);
-  const chroma = normalizedBrightness * normalizedSaturation;
-  const hueSector = normalizedHue / 60;
-  const secondChannel = chroma * (1 - Math.abs((hueSector % 2) - 1));
-  // 把色相划成 6 个 60° 扇区，分别给出三分量的相对值。
-  const primaryChannels =
-    hueSector < 1
-      ? [chroma, secondChannel, 0]
-      : hueSector < 2
-        ? [secondChannel, chroma, 0]
-        : hueSector < 3
-          ? [0, chroma, secondChannel]
-          : hueSector < 4
-            ? [0, secondChannel, chroma]
-            : hueSector < 5
-              ? [secondChannel, 0, chroma]
-              : [chroma, 0, secondChannel];
-  const matchValue = normalizedBrightness - chroma;
-  return {
-    r: (primaryChannels[0] + matchValue) * 255,
-    g: (primaryChannels[1] + matchValue) * 255,
-    b: (primaryChannels[2] + matchValue) * 255
-  };
+export function roundField(numericField) {
+  return Number.isFinite(numericField) ? String(Math.round(numericField * 100) / 100) : "0";
 }
-
-/**
- * 把数值格式化成面板显示用的两位小数字符串。
- */
-export function roundField(fieldValue: any) {
-  if (Number.isFinite(fieldValue)) {
-    return String(Math.round(fieldValue * 100) / 100);
-  } else {
-    return "0";
-  }
+export function clampNumber(sourceNumber, lowerBound, upperBound) {
+  return Math.max(lowerBound, Math.min(upperBound, sourceNumber));
 }
-
-/**
- * 归一字体粗细：面板与后端有 1~900 与 0~1 两套写法，这里统一输出 0~1 供滑杆使用。
- */
-export function normalizedFontWeight(weight: any, fallbackWeight: any = 0.4) {
-  const numericWeight = Number(weight);
-  if (Number.isFinite(numericWeight)) {
-    if (numericWeight > 1) {
-      // 899 是 900 与 1 的差；把 1~900 线性映射到 0~1。
-      return clampNumber((numericWeight - 1) / 899, 0, 1);
-    } else {
-      return clampNumber(numericWeight, 0, 1);
-    }
-  } else {
-    return fallbackWeight;
-  }
+export function normalizedFontWeight(fontWeightInput, fallbackWeight = 0.4) {
+  const numericWeight = Number(fontWeightInput);
+  return Number.isFinite(numericWeight)
+    ? numericWeight > 1
+      ? clampNumber((numericWeight - 1) / 899, 0, 1)
+      : clampNumber(numericWeight, 0, 1)
+    : fallbackWeight;
 }

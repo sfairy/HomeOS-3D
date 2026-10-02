@@ -1,165 +1,390 @@
-import { normalizeGroundReflection } from "../../bridge/reflection-settings.js";
-import { createReflectionCulling } from "./studio-reflection-culling.js";
-import { resolveFloorId, isFloorTransitionLeaving, isVisibleWithin } from "./reflection-scene-queries.js";
-import { createRefractionMaterialResolver } from "./refraction-materials.js";
 /**
- * 创建地面反射控制器（一个渲染器一份）。
- * @param {function(object): void} options.syncLighting 用给定相机同步区域灯 —— 反射通道需要按镜像相机重新算一次光照，否则反射里的房间亮度会和主画面不一致。 @param {function(): string} [options.getStateKey] 外部状态签名（文档版本、环境开关等），变化即视为需要重拍。
- * @param {boolean} [options.floorLighting] 是否按楼层分别烘焙光照（true 时楼层之间的光照签名分开计算，false 时视为全局一致）。
+ * 地面反射控制器（一个渲染器一份）：把「当前能看到的平面」当成镜子，用镜像相机把它反过来的画面
+ * 渲进一张渲染目标，再用地面的 overlay 网格把它贴回地面。
+ *
+ * 一次捕获的完整链路：镜像相机 + 斜切近平面裁剪（裁掉镜面以下的内容）
+ *   → 剔除器剔掉不可能出现在倒影里的网格 → 材质替换（去折射、可选高度淡出）
+ *   → 渲进 map（可选再做一趟双向高斯模糊）→ overlay 以 strength 叠加到地面。
+ *
+ * 与渲染无关的部分外提成模块：场景树查询见 reflection-scene-queries，折射材质克隆见 refraction-materials。
  */
+import {
+  GROUND_REFLECTION_FADE_HEIGHT,
+  groundReflectionQuality,
+  normalizeGroundReflection,
+} from "../../bridge/reflection-settings";
+import { createReflectionCulling } from "./studio-reflection-culling";
+import {
+  isFloorTransitionLeaving,
+  isVisibleWithin,
+  readOwnFloorId,
+  resolveFloorId,
+} from "./reflection-scene-queries";
+import { createRefractionMaterialResolver } from "./refraction-materials";
+
 export function createGroundReflections({
-  THREE: THREE,
+  THREE: three,
   renderer: renderer,
   scene: scene,
   getRoot: getRoot,
   syncLighting: syncLighting,
-  getFloorCamera: getFloorCamera = (fallbackCamera: any) => fallbackCamera,
+  // 默认实现忽略楼层，直接返回传入的相机。第二个参数是楼层 ID —— 外部会传，
+  // 因此形参必须声明出来（studio-app 那边会用 overviewStack 的按楼层相机覆盖它）。
+  getFloorCamera: getFloorCamera = (fallbackCamera, floorId) => fallbackCamera,
   getStateKey: getStateKey = () => "",
-  getSceneRevision: getSceneRevision = () => "",
+  getSceneRevision: getSceneRevision = null,
   floorLighting: floorLighting = false,
+  detail: detail = null,
+  // 几何简化（detail）允许生效的清晰度上限（像素宽），null＝按清晰度档自动决定（见
+  // GROUND_REFLECTION_QUALITY）：0 表示从不简化，Infinity 表示始终简化。
+  detailMaxResolution: detailMaxResolution = null,
+  passes: passes = null,
   cull: cull = true,
-  blur: blur = true,
-  requestFrame: requestFrame = () => {}
-}: any) {
-  // 反射参数来自全局归一化函数（模式 / 分辨率 / 强度），fps 是本模块额外加的节流上限。
-  const settings: any = {
-    ...normalizeGroundReflection(),
-    // 30fps：反射每帧要额外渲染一遍全场景，按 30fps 上限可以省掉一半开销，
-    fps: 30
-  };
-  // 可见性剔除器（studio-reflection-culling.js）：把不可能出现在镜像画面里的网格
-  const culling = createReflectionCulling(THREE);
-  const stats: any = {
-    captures: 0,
-    renders: 0,
-    lastMs: 0,
-    totalMs: 0,
-    allocations: 0,
-    reuses: 0,
-    cachedRecords: 0,
-    cachedBytes: 0,
-    inCapture: false
-  };
-  const { getRefractionFreeMaterials, disposeMaterialClones } = createRefractionMaterialResolver();
-  // 源相机 → 镜像相机：相机对象在每帧被复用，clone 一次即可。
-  const reflectionCameraBySource = new WeakMap();
-  const scratchWorldPosition = new THREE.Vector3();
-  const scratchWorldNormal = new THREE.Vector3();
-  const scratchLookTarget = new THREE.Vector3();
-  const scratchPlane = new THREE.Plane();
-  const scratchPlaneVector = new THREE.Vector4();
-  const scratchSignVector = new THREE.Vector4();
-  const scratchProjectionMatrix = new THREE.Matrix4();
-  // recordList：本帧生效的记录（一块地面一条）；recordsBySource 保留已失效但仍可复用的记录。
-  let recordList: any[] = [];
-  let currentRoot: any = null;
-  // 记录根节点的第一个子节点：场景增删顶层节点时用它快速判断「结构可能变了」。
-  let rootFirstChild: any = null;
-  let needsUpdate = true;
-  let lastRenderTimeMs = -Infinity;
-  let lastCameraSignature = "";
-  let lastLightingSignature = "";
-  let isDisposed = false;
-  let changeRevisionCount = 0;
-  let lastSceneRevision: any;
-  let isSuspended = false;
-  let pendingResume = false;
-  let resumeStartedAtMs: any = null;
-  let suspendStartedAtMs: any = null;
-  // 240ms 的淡入淡出时长：与区域灯 / 接触阴影的过渡时长保持一致。
-  const FADE_DURATION_MS = 240;
-  let throttleTimer: any = null;
-  let outsideFloorId: any = null;
-  let visibleFloorId: any = null;
-  let usageCounter = 0;
-  // 源网格 → 记录。用 Map 而非 WeakMap：需要在 trimRecordCache 里遍历回收。
-  const recordsBySource = new Map();
-  const floorChangeCounts = new Map();
-  // 32MB 缓存预算，与接触阴影模块的口径一致，保证低端设备也不会被反射吃光显存。
-  const CACHE_BYTE_BUDGET = 33554432;
-  let heightByFloorId = new Map();
-  let lightsByFloorId = new Map();
+  // blur：倒影贴图再走一趟双向高斯。null（默认）＝按清晰度档自动决定：低分辨率开（压闪烁），
+  // 高分辨率关（保清晰）。显式传 true / false 可强制覆盖。
+  blur: blur = null,
+  // fadeHeight：> 0 时启用「离镜面高度淡出」——超过该高度的内容在倒影里渐隐，同时剔除器用同一阈值
+  // 把整盒都在该高度之上的网格直接剔掉。默认取 GROUND_REFLECTION_FADE_HEIGHT（0＝不截断，对齐 0.6.5）。
+  fadeHeight: fadeHeight = GROUND_REFLECTION_FADE_HEIGHT,
+  // 恢复反射时的逐帧捕获上限：Infinity 一次性拍完，1 则一面镜子一面镜子地出，避免卡帧。
+  maxResumeCapturesPerFrame: maxResumeCapturesPerFrame = Infinity,
+  requestFrame: requestFrame = () => {},
+}) {
+  const settings = {
+      ...normalizeGroundReflection(),
+      fps: 30,
+    },
+    culling = createReflectionCulling(three, fadeHeight),
+    stats = {
+      captures: 0,
+      renders: 0,
+      lastMs: 0,
+      totalMs: 0,
+      allocations: 0,
+      reuses: 0,
+      cachedRecords: 0,
+      cachedBytes: 0,
+      inCapture: false,
+      // 下面几项是后加的诊断计数，只在 ?performance-diagnostics=1 里读；这里显式声明初值，
+      // 免得「先赋值后读取」在类型上变成 any / undefined。
+      candidateBuilds: 0,
+      programPreparations: 0,
+      lastDrawCalls: 0,
+      lastTriangles: 0,
+      culling: null as unknown,
+    },
+    // 材质替换的三件套：无折射克隆（模块内缓存）、倒影淡出克隆、以及给淡出着色器用的共享 uniform。
+    { getRefractionFreeMaterial, cloneReflectionMaterial, disposeMaterialClones } =
+      createRefractionMaterialResolver({
+        // 非折射材质也要过一遍倒影通道的材质替换（passes 会换掉光照写法），所以按 source 兜一圈。
+        material: (sourceMaterial) => passes?.material(sourceMaterial) || sourceMaterial,
+      }),
+    fadeRecordByMaterial = new Map(),
+    reflectionUniforms = {
+      groundReflectionPlane: {
+        value: new three.Vector4(0, 1, 0, 0),
+      },
+      groundReflectionViewToWorld: {
+        value: new three.Matrix4(),
+      },
+      groundReflectionFadeHeight: {
+        value: fadeHeight,
+      },
+    },
+    fadeArrayByInput = new WeakMap(),
+    reflectionCameraBySource = new WeakMap(),
+    scratchWorldPosition = new three.Vector3(),
+    scratchWorldNormal = new three.Vector3(),
+    scratchLookTarget = new three.Vector3(),
+    scratchPlane = new three.Plane(),
+    scratchPlaneVector = new three.Vector4(),
+    scratchSignVector = new three.Vector4(),
+    scratchProjectionMatrix = new three.Matrix4();
+  /**
+   * 取「捕获这一帧该用哪个材质」：先去掉折射，再按需要叠一层高度淡出。
+   *
+   * 高度淡出用「克隆 + onBeforeCompile 注入」而不是改原材质：同一材质在主画面里还要正常渲染，
+   * 只有反射通道这一帧需要它变透明，所以克隆体的着色器生命周期必须和源材质绑在一起（见 release）。
+   */
+  function resolveFadeMaterial(baseMaterial) {
+    const refractionFreeMaterialNode = getRefractionFreeMaterial(baseMaterial);
+    if (
+      !(fadeHeight > 0) ||
+      !refractionFreeMaterialNode ||
+      refractionFreeMaterialNode.isShaderMaterial
+    )
+      return refractionFreeMaterialNode;
+    let fadeRecord = fadeRecordByMaterial.get(refractionFreeMaterialNode);
+    // 源材质版本变了（改了颜色 / 贴图）就把克隆体原地 copy 一次，而不是重建：重建会让已经在
+    // GPU 上编译好的程序作废，反射通道每帧换一堆材质时这个开销比 copy 大得多。
+    if (
+      (fadeRecord &&
+        fadeRecord.version !== refractionFreeMaterialNode.version &&
+        (fadeRecord.copy.copy(refractionFreeMaterialNode),
+        (fadeRecord.copy.needsUpdate = true),
+        (fadeRecord.version = refractionFreeMaterialNode.version)),
+      !fadeRecord)
+    ) {
+      const fadedClone = cloneReflectionMaterial(refractionFreeMaterialNode);
+      // 顶点阶段把「离地高度」插值到片元（mvPosition 在 project_vertex 之后才有值）；
+      // 片元阶段按高度淡出，淡到 0 直接 discard。
+      // 注意：这就是 0.6.7 里让高楼 / 吊灯倒影整体消失的开关，只在 fadeHeight > 0 时才会走到这里。
+      ((fadedClone.onBeforeCompile = function (shader, webglRenderer) {
+        (refractionFreeMaterialNode.onBeforeCompile.call(this, shader, webglRenderer),
+          Object.assign(shader.uniforms, reflectionUniforms),
+          (shader.vertexShader =
+            "uniform vec4 groundReflectionPlane;\nuniform mat4 groundReflectionViewToWorld;\nvarying float vGroundReflectionHeight;\n" +
+            shader.vertexShader),
+          (shader.vertexShader = shader.vertexShader.replace(
+            "#include <project_vertex>",
+            "#include <project_vertex>\n          vGroundReflectionHeight = dot(groundReflectionPlane, groundReflectionViewToWorld * mvPosition);",
+          )),
+          (shader.fragmentShader =
+            "uniform float groundReflectionFadeHeight;\nvarying float vGroundReflectionHeight;\n" +
+            shader.fragmentShader),
+          (shader.fragmentShader = shader.fragmentShader.replace(
+            "#include <dithering_fragment>",
+            "#include <dithering_fragment>\n          float groundReflectionFade = 1.0 - smoothstep(0.0, groundReflectionFadeHeight, max(0.0, vGroundReflectionHeight));\n          if (groundReflectionFade <= 0.001) discard;\n          gl_FragColor.a *= groundReflectionFade;\n          " +
+              (!refractionFreeMaterialNode.transparent ||
+              refractionFreeMaterialNode.premultipliedAlpha
+                ? "gl_FragColor.rgb *= groundReflectionFade;"
+                : ""),
+          )));
+      }),
+        (fadedClone.customProgramCacheKey = () =>
+          refractionFreeMaterialNode.customProgramCacheKey() + "|reflection-root-fade-v1"),
+        (fadeRecord = {
+          copy: fadedClone,
+          version: refractionFreeMaterialNode.version,
+          release() {
+            (refractionFreeMaterialNode.removeEventListener("dispose", fadeRecord.release),
+              fadeRecordByMaterial.delete(refractionFreeMaterialNode),
+              fadedClone.dispose());
+          },
+        }),
+        refractionFreeMaterialNode.addEventListener("dispose", fadeRecord.release),
+        fadeRecordByMaterial.set(refractionFreeMaterialNode, fadeRecord));
+    }
+    const resolvedMaterial = fadeRecord.copy;
+    for (const colorProperty of ["color", "emissive"])
+      resolvedMaterial[colorProperty] &&
+        refractionFreeMaterialNode[colorProperty] &&
+        resolvedMaterial[colorProperty].copy(refractionFreeMaterialNode[colorProperty]);
+    for (const materialProperty of [
+      "opacity",
+      "emissiveIntensity",
+      "roughness",
+      "metalness",
+      "map",
+      "alphaMap",
+      "lightMap",
+      "lightMapIntensity",
+      "aoMap",
+      "aoMapIntensity",
+      "visible",
+    ])
+      materialProperty in refractionFreeMaterialNode &&
+        (resolvedMaterial[materialProperty] = refractionFreeMaterialNode[materialProperty]);
+    return (passes?.aliasMaterial?.(baseMaterial, resolvedMaterial), resolvedMaterial);
+  }
+  function resolveFadeMaterials(materialInput) {
+    if (!Array.isArray(materialInput)) return resolveFadeMaterial(materialInput);
+    let arrayRecord = fadeArrayByInput.get(materialInput);
+    (arrayRecord ||
+      ((arrayRecord = {
+        next: [],
+      }),
+      fadeArrayByInput.set(materialInput, arrayRecord)),
+      (arrayRecord.next.length = materialInput.length));
+    let hasMaterialChanged = false;
+    for (let materialIndex = 0; materialIndex < materialInput.length; materialIndex++)
+      ((arrayRecord.next[materialIndex] = resolveFadeMaterial(materialInput[materialIndex])),
+        (hasMaterialChanged ||= arrayRecord.next[materialIndex] !== materialInput[materialIndex]));
+    return hasMaterialChanged ? arrayRecord.next : materialInput;
+  }
+  let activeRecords = [],
+    currentRoot = null,
+    rootFirstChild = null,
+    shouldRefresh = true,
+    lastRenderTimeMs = -Infinity,
+    lastCameraSignature = "",
+    lastLightingSignature = "",
+    isDisposed = false,
+    lastReceiverSignature = "",
+    receiverMeshes = [],
+    changeRevisionCount = 0,
+    lastSceneRevision,
+    isSuspended = false,
+    isResumePending = false,
+    resumeStartedAtMs = null,
+    suspendStartedAtMs = null;
+  // 清晰度档只在两处影响开销策略：倒影贴图要不要再模糊一趟，以及能不能用简化几何。
+  // 都做成「跟着 settings.resolution 现算」而不是构造时定死，这样用户在设置里切清晰度后立刻生效。
+  // fadeHeight 不在这里：它由 createReflectionCulling 在构造时捕获，切档不会重算（默认是常量 0）。
+  const qualityPreset = () => groundReflectionQuality(settings.resolution),
+    usesReflectionBlur = () => blur ?? qualityPreset().blur,
+    isDetailEnabled = () =>
+      !!detail &&
+      settings.resolution <= (detailMaxResolution ?? qualityPreset().detailMaxResolution);
+  const resumeFadeDurationMs = 160;
+  let presentationGain = 1,
+    throttleTimer = null,
+    outsideFloorId = null,
+    visibleFloorId = null,
+    usageCounter = 0,
+    resumeRecordSet = null;
+  const recordsBySource = new Map(),
+    floorChangeCountByFloorId = new Map(),
+    cacheByteBudget = 32 * 1024 * 1024;
+  let heightByFloorId = new Map(),
+    lightsByFloorId = new Map(),
+    nodeEntries = [],
+    cachedTreeRoot = null,
+    cachedTreeFirstChild = null,
+    cachedTreeRevision;
+  function rebuildNodeEntries(treeRoot, treeRevision) {
+    if (
+      getSceneRevision &&
+      cachedTreeRoot === treeRoot &&
+      cachedTreeFirstChild === treeRoot.children[0] &&
+      cachedTreeRevision === treeRevision
+    )
+      return;
+    ((nodeEntries = []),
+      (cachedTreeRoot = treeRoot),
+      (cachedTreeFirstChild = treeRoot.children[0]),
+      (cachedTreeRevision = treeRevision));
+    const collectNodeEntry = (treeNode, parentEntryIndex = -1) => {
+      if (treeNode.userData.reflectionOverlay) return;
+      const selfIndex = nodeEntries.length,
+        sceneEntry = {
+          object: treeNode,
+          parent: parentEntryIndex,
+          end: 0,
+          id: "",
+        };
+      nodeEntries.push(sceneEntry);
+      for (const traversedChild of treeNode.children) collectNodeEntry(traversedChild, selfIndex);
+      sceneEntry.end = nodeEntries.length;
+    };
+    (collectNodeEntry(treeRoot), (stats.candidateBuilds = (stats.candidateBuilds || 0) + 1));
+  }
+  const traversalGroup = new three.Group();
+  traversalGroup.traverse = (visitNode) => scene.traverseVisible(visitNode);
+  function tryPrepareProgram(programRecord, compileCamera) {
+    if (!renderer.compile || !renderer.extensions?.has("KHR_parallel_shader_compile")) return true;
+    const glInstance = renderer.getContext();
+    if (glInstance.isContextLost()) return false;
+    let programWork = programRecord.programWork;
+    if (
+      !programWork ||
+      programWork.context !== glInstance ||
+      programWork.revision !== lastSceneRevision
+    )
+      return (
+        renderer.compile(traversalGroup, compileCamera, scene),
+        (programWork = programRecord.programWork =
+          {
+            context: glInstance,
+            revision: lastSceneRevision,
+            programs: [...renderer.info.programs],
+            deadline: performance.now() + 4500,
+            done: false,
+          }),
+        (stats.programPreparations = (stats.programPreparations || 0) + 1),
+        false
+      );
+    if (programWork.done) return true;
+    const programSet = new Set(renderer.info.programs),
+      isLiveProgram = (program) =>
+        programSet.has(program) && program.program && glInstance.isProgram(program.program);
+    return (
+      (programWork.done =
+        performance.now() >= programWork.deadline ||
+        programWork.programs.some((recordedProgram) => !isLiveProgram(recordedProgram)) ||
+        programWork.programs.every((pendingProgram) => pendingProgram.isReady())),
+      programWork.done && (programWork.programs = []),
+      programWork.done
+    );
+  }
   const objectIdByObject = new WeakMap();
   let objectIdSequence = 0;
-  /**
-   * 取对象的稳定自增 ID。
-   */
-  function getObjectId(targetObject: any) {
-    if (targetObject) {
-      if (!objectIdByObject.has(targetObject)) {
-        objectIdByObject.set(targetObject, ++objectIdSequence);
-      }
-      return objectIdByObject.get(targetObject);
-    } else {
-      return 0;
-    }
+  function getObjectId(targetObject) {
+    return targetObject
+      ? (objectIdByObject.has(targetObject) ||
+          objectIdByObject.set(targetObject, ++objectIdSequence),
+        objectIdByObject.get(targetObject))
+      : 0;
   }
-
-  /**
-   * 生成网格几何的内容签名，用于判断记录是否需要重建。
-   * @returns {string} 以 `|` 连接的签名串。
-   */
-    function geometrySignature(mesh: any) {
-    const geometry = mesh.geometry;
+  // 给几何体做一份「内容指纹」：它一变，反射通道就得重拍。这里逐个 attribute 记录
+  // 对象身份 + 版本号 + 顶点数，够用且便宜（不读 GPU、不哈希顶点数据）。
+  function geometrySignature(mesh) {
+    const meshGeometry = mesh.geometry;
     return [
-      geometry.uuid,
-      getObjectId(geometry.index),
-      geometry.index?.version,
-      ...Object.entries(geometry.attributes as Record<string, any>).flatMap(([attributeName, attribute]) => [
-        attributeName,
-        getObjectId(attribute),
-        attribute.version,
-        attribute.data?.version,
-        attribute.count
-      ]),
-      geometry.drawRange.start,
-      geometry.drawRange.count
+      meshGeometry.uuid,
+      getObjectId(meshGeometry.index),
+      meshGeometry.index?.version,
+      ...Object.entries(meshGeometry.attributes).flatMap(([attributeName, attribute]) => {
+        // THREE.BufferAttribute / InterleavedBufferAttribute：版本号在属性上，
+        // data.version 只有交错缓冲才有，所以分开取证。
+        const signatureAttribute = attribute as {
+          version?: number;
+          data?: { version?: number };
+          count?: number;
+        };
+        return [
+          attributeName,
+          getObjectId(signatureAttribute),
+          signatureAttribute.version,
+          signatureAttribute.data?.version,
+          signatureAttribute.count,
+        ];
+      }),
+      meshGeometry.drawRange.start,
+      meshGeometry.drawRange.count,
     ].join("|");
   }
-    /**
-   * 释放一条记录持有的全部 GPU / 事件资源。
-   */
-  function disposeRecord(recordToDispose: any) {
-    recordToDispose.geometry.removeEventListener("dispose", recordToDispose.onSourceDispose);
-    recordToDispose.overlay.removeFromParent();
-    recordToDispose.overlay.geometry.dispose();
-    recordToDispose.overlay.material.dispose();
-    recordToDispose.map.dispose();
-    recordToDispose.scratch?.dispose();
-    recordsBySource.delete(recordToDispose.source);
+  function isEligibleReceiver(candidateObject) {
+    for (let walkedNode = candidateObject; walkedNode; walkedNode = walkedNode.parent)
+      if (walkedNode.userData.courtyardSurface || walkedNode.userData.courtyardFoundation)
+        return false;
+    return (
+      candidateObject.userData.backgroundThemeHidden !== true ||
+      candidateObject.userData.groundReflectionReceiver === true
+    );
   }
-  /**
-   * 裁掉不再使用的记录缓存（LRU + 字节预算）。
-   */
+  function disposeRecord(recordToDispose) {
+    (recordToDispose.geometry.removeEventListener("dispose", recordToDispose.onSourceDispose),
+      recordToDispose.overlay.removeFromParent(),
+      recordToDispose.overlay.geometry.dispose(),
+      recordToDispose.overlay.material.dispose(),
+      recordToDispose.map.dispose(),
+      recordToDispose.scratch?.dispose(),
+      recordsBySource.delete(recordToDispose.source));
+  }
   function trimRecordCache() {
-    const activeRecords = new Set(recordList);
-    const reclaimCandidates = [...recordsBySource.values()]
-      .filter(candidateRecord => !activeRecords.has(candidateRecord))
-      .sort((recordA, recordB) => recordB.used - recordA.used);
-    let totalBytes = 0;
-    let keptCount = 0;
+    const activeRecordSet = new Set(activeRecords),
+      reclaimCandidates = [...recordsBySource.values()]
+        .filter((candidateRecord) => !activeRecordSet.has(candidateRecord))
+        .sort((recordA, recordB) => recordB.used - recordA.used);
+    let totalBytes = 0,
+      keptCount = 0;
     for (const candidate of reclaimCandidates) {
       const candidateBytes =
         candidate.map.width *
         candidate.map.height *
-        ((1 + candidate.map.samples) * 12 + (candidate.scratch ? 8 : 0));
-      if (candidate.dead || keptCount >= 4 || totalBytes + candidateBytes > CACHE_BYTE_BUDGET) {
+        (12 * (1 + candidate.map.samples) + (candidate.scratch ? 8 : 0));
+      if (candidate.dead || keptCount >= 4 || totalBytes + candidateBytes > cacheByteBudget) {
         disposeRecord(candidate);
         continue;
       }
-      totalBytes += candidateBytes;
-      keptCount++;
+      ((totalBytes += candidateBytes), keptCount++);
     }
-    stats.cachedRecords = keptCount;
-    stats.cachedBytes = totalBytes;
+    ((stats.cachedRecords = keptCount), (stats.cachedBytes = totalBytes));
   }
-  /**
-   * 生成一组灯的光照签名，用于判断反射是否需要重拍。
-   * @returns {string} 签名串。
-   */
-  function buildLightingSignature(lights: any) {
+  function buildLightingSignature(lights) {
     return lights
-      .map((light: any) =>
+      .map((light) =>
         [
           light.uuid,
           isVisibleWithin(light),
@@ -172,309 +397,280 @@ export function createGroundReflections({
           light.angle,
           light.penumbra,
           ...light.matrixWorld.elements,
-          ...(light.target?.matrixWorld.elements || [])
-        ].join(",")
+          ...(light.target?.matrixWorld.elements || []),
+        ].join(","),
       )
       .join(";");
   }
-  /**
-   * 计算单条记录的状态键：它关心的所有「会影响反射内容」的外部因素。
-   * @param {Map<string, string>} floorLightingSignatures 按楼层索引的光照签名。
-   */
-  function recordStateKey(targetRecord: any, floorLightingSignatures: any) {
-    const effectiveFloorId =
-      visibleFloorId ?? (targetRecord.kind === "outside" ? outsideFloorId : null);
+  function recordStateKey(stateRecord) {
+    return (
+      visibleFloorId ??
+      (stateRecord.kind === "outside" && outsideFloorId !== null
+        ? outsideFloorId
+        : resolveFloorId(stateRecord.source) || null)
+    );
+  }
+  function recordLightingSignature(targetRecord, signatureByFloor) {
+    const recordFloorId = recordStateKey(targetRecord);
     return [...heightByFloorId]
       .filter(
-        ([floorKey, floorHeight]) =>
-          (effectiveFloorId === null || !floorKey || floorKey === effectiveFloorId) &&
-          (!floorLighting || !floorKey || floorHeight >= targetRecord.height - 0.1)
+        ([entryFloorKey]) =>
+          !floorLighting ||
+          recordFloorId === null ||
+          !entryFloorKey ||
+          entryFloorKey === recordFloorId,
       )
-      .map(([mapFloorKey]) => floorLightingSignatures.get(mapFloorKey))
+      .map(([lookupFloorKey]) => signatureByFloor.get(lookupFloorKey))
       .join("|");
   }
-  // 可见楼层过滤：visibleFloorId 为 null 表示「全部可见」。
-  const isOnVisibleFloor = (object: any) =>
-    visibleFloorId === null || resolveFloorId(object) === visibleFloorId;
-  /**
-   * 判断「室外背景」面是否属于当前选定的室外楼层。
-   */
-  function isOnOutsideFloor(outsideSource: any) {
-    if (outsideFloorId === null) {
-      return true;
-    }
+  const isOnVisibleFloor = (targetNode) =>
+    visibleFloorId === null || resolveFloorId(targetNode) === visibleFloorId;
+  function isOnOutsideFloor(outsideSource) {
+    if (outsideFloorId === null) return true;
     for (let outsideNode = outsideSource; outsideNode; outsideNode = outsideNode.parent) {
       const ancestorFloorId = outsideNode.userData?.floorId || outsideNode.userData?.regionFloorId;
-      if (ancestorFloorId) {
-        return ancestorFloorId === outsideFloorId;
-      }
+      if (ancestorFloorId) return ancestorFloorId === outsideFloorId;
     }
     return false;
   }
-  // 反射贴图要做一遍柔性模糊（可选）：镜像画面里的高频细节在低分辨率下容易闪烁，
-  const blurScene = new THREE.Scene();
-  const blurCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  const blurMaterial = new THREE.ShaderMaterial({
-    depthTest: false,
-    depthWrite: false,
-    uniforms: {
-      source: {
-        value: null
+  const blurScene = new three.Scene(),
+    blurCamera = new three.OrthographicCamera(-1, 1, 1, -1, 0, 1),
+    blurMaterial = new three.ShaderMaterial({
+      depthTest: false,
+      depthWrite: false,
+      uniforms: {
+        source: {
+          value: null,
+        },
+        step: {
+          value: new three.Vector2(),
+        },
       },
-      step: {
-        value: new THREE.Vector2()
-      }
-    },
-    vertexShader: "varying vec2 vUv; void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}",
-    fragmentShader:
-      "uniform sampler2D source; uniform vec2 step; varying vec2 vUv;\n      void main(){ gl_FragColor=texture2D(source,vUv)*.227027;\n      gl_FragColor+=(texture2D(source,vUv+step*1.384615)+texture2D(source,vUv-step*1.384615))*.316216;\n      gl_FragColor+=(texture2D(source,vUv+step*3.230769)+texture2D(source,vUv-step*3.230769))*.070270; }"
-  });
-  const blurMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blurMaterial);
+      vertexShader: "varying vec2 vUv; void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}",
+      fragmentShader:
+        "uniform sampler2D source; uniform vec2 step; varying vec2 vUv;\n      void main(){ gl_FragColor=texture2D(source,vUv)*.227027;\n      gl_FragColor+=(texture2D(source,vUv+step*1.384615)+texture2D(source,vUv-step*1.384615))*.316216;\n      gl_FragColor+=(texture2D(source,vUv+step*3.230769)+texture2D(source,vUv-step*3.230769))*.070270; }",
+    }),
+    blurMesh = new three.Mesh(new three.PlaneGeometry(2, 2), blurMaterial);
   blurScene.add(blurMesh);
-  const createReflectionTarget = (resolutionPx: any, forBlurPass: any = false) =>
-    new THREE.WebGLRenderTarget(resolutionPx, resolutionPx, {
-      type: THREE.HalfFloatType,
+  const createReflectionTarget = (resolutionPx, forBlurPass = false) =>
+    new three.WebGLRenderTarget(resolutionPx, resolutionPx, {
+      type: three.HalfFloatType,
       depthBuffer: !forBlurPass,
-      samples: forBlurPass ? 0 : Math.min(2, renderer.capabilities.maxSamples)
+      samples: forBlurPass ? 0 : Math.min(2, renderer.capabilities.maxSamples),
     });
-  /**
-   * 释放全部记录（含仍可复用的缓存记录）。
-   */
   function disposeAllRecords() {
-    for (const existingRecord of [...recordsBySource.values()]) {
-      disposeRecord(existingRecord);
-    }
-    recordList = [];
-    stats.cachedRecords = stats.cachedBytes = 0;
+    resumeRecordSet = null;
+    for (const storedRecord of [...recordsBySource.values()]) disposeRecord(storedRecord);
+    ((activeRecords = []), (receiverMeshes = []), (stats.cachedRecords = stats.cachedBytes = 0));
   }
-  /**
-   * 重建记录列表：扫描场景，为每块地面（以及室外背景）准备 overlay 与渲染目标。
-   */
-  function rebuildRecords(sceneRevision: any) {
+  function rebuildRecords(sceneRevision) {
     const resolvedRoot = getRoot();
     if (!resolvedRoot) {
-      disposeAllRecords();
-      currentRoot = rootFirstChild = null;
+      (disposeAllRecords(),
+        (currentRoot = rootFirstChild = cachedTreeRoot = null),
+        (nodeEntries = []));
       return;
     }
+    (rebuildNodeEntries(resolvedRoot, sceneRevision),
+      (!getSceneRevision ||
+        lastSceneRevision !== sceneRevision ||
+        currentRoot !== resolvedRoot ||
+        rootFirstChild !== resolvedRoot.children[0]) &&
+        ((receiverMeshes = []),
+        resolvedRoot.traverse((traversedReceiver) => {
+          traversedReceiver.isMesh &&
+            !traversedReceiver.userData.floorPlanGroundShadow &&
+            traversedReceiver.userData.batchedWallContactShadowCount == null &&
+            (traversedReceiver.userData.regionReceiverKind === "floor" ||
+              traversedReceiver.userData.exportRole === "background") &&
+            receiverMeshes.push(traversedReceiver);
+        })));
+    const receiverSignature = receiverMeshes
+      .map(
+        (receiverEntry) => receiverEntry.uuid + ":" + (isEligibleReceiver(receiverEntry) ? 1 : 0),
+      )
+      .join("|");
     if (
       lastSceneRevision === sceneRevision &&
       currentRoot === resolvedRoot &&
       rootFirstChild === resolvedRoot.children[0] &&
-      recordList.every(knownRecord => knownRecord.source.parent && !knownRecord.dead)
-    ) {
+      receiverSignature === lastReceiverSignature &&
+      activeRecords.every(
+        (knownRecord) =>
+          knownRecord.source.parent && !knownRecord.dead && isEligibleReceiver(knownRecord.source),
+      )
+    )
       return;
-    }
-    for (const staleRecord of recordList) {
-      // 先把旧 overlay 摘下来再重建：留在场景里会被当作反射内容拍到，
-      staleRecord.overlay.visible = false;
-      staleRecord.overlay.removeFromParent();
-    }
-    recordList = [];
-    lastSceneRevision = sceneRevision;
-    currentRoot = resolvedRoot;
-    rootFirstChild = resolvedRoot.children[0];
-    currentRoot.updateWorldMatrix(true, true);
-    heightByFloorId = new Map();
-    lightsByFloorId = new Map();
-    const heightBox = new THREE.Box3();
-    currentRoot.traverse((traversedNode: any) => {
-      // 自身的 overlay / 环境特效网格不参与：它们是渲染产物，不是房屋内容。
-      if (traversedNode.userData?.reflectionOverlay || traversedNode.userData?.environmentEffect) {
+    for (const staleRecord of activeRecords)
+      ((staleRecord.overlay.visible = false), staleRecord.overlay.removeFromParent());
+    ((activeRecords = []),
+      (lastSceneRevision = sceneRevision),
+      (currentRoot = resolvedRoot),
+      (rootFirstChild = resolvedRoot.children[0]),
+      (lastReceiverSignature = receiverSignature),
+      currentRoot.updateWorldMatrix(true, true),
+      (heightByFloorId = new Map()),
+      (lightsByFloorId = new Map()));
+    const heightBox = new three.Box3();
+    currentRoot.traverse((traversedNode) => {
+      if (traversedNode.userData?.reflectionOverlay || traversedNode.userData?.environmentEffect)
         return;
-      }
-      const nodeFloorId = resolveFloorId(traversedNode);
-      if (traversedNode.isLight) {
-        if (!lightsByFloorId.has(nodeFloorId)) {
-          lightsByFloorId.set(nodeFloorId, []);
-        }
-        lightsByFloorId.get(nodeFloorId).push(traversedNode);
-      }
-      if (!traversedNode.isMesh || !traversedNode.geometry) {
+      const traversedFloorId = resolveFloorId(traversedNode);
+      if (
+        (traversedNode.isLight &&
+          (lightsByFloorId.has(traversedFloorId) || lightsByFloorId.set(traversedFloorId, []),
+          lightsByFloorId.get(traversedFloorId).push(traversedNode)),
+        !traversedNode.isMesh || !traversedNode.geometry)
+      )
         return;
-      }
-      if (!traversedNode.geometry.boundingBox) {
-        traversedNode.geometry.computeBoundingBox();
-      }
-      if (traversedNode.isInstancedMesh) {
-        traversedNode.computeBoundingBox();
-      }
+      (traversedNode.geometry.boundingBox || traversedNode.geometry.computeBoundingBox(),
+        traversedNode.isInstancedMesh && traversedNode.computeBoundingBox());
       const localBounds = traversedNode.isInstancedMesh
-        ? traversedNode.boundingBox
-        : traversedNode.geometry.boundingBox;
-      // 蒙皮 / 形变网格的包围盒算不准（顶点在 GPU 上变），直接给 Infinity：
-      const topWorldY =
-        traversedNode.isSkinnedMesh || traversedNode.morphTargetInfluences?.length
-          ? Infinity
-          : localBounds
-            ? heightBox.copy(localBounds).applyMatrix4(traversedNode.matrixWorld).max.y
-            : Infinity;
+          ? traversedNode.boundingBox
+          : traversedNode.geometry.boundingBox,
+        topWorldY =
+          traversedNode.isSkinnedMesh || traversedNode.morphTargetInfluences?.length
+            ? Infinity
+            : localBounds
+              ? heightBox.copy(localBounds).applyMatrix4(traversedNode.matrixWorld).max.y
+              : Infinity;
       heightByFloorId.set(
-        nodeFloorId,
-        Math.max(heightByFloorId.get(nodeFloorId) ?? -Infinity, topWorldY)
+        traversedFloorId,
+        Math.max(heightByFloorId.get(traversedFloorId) ?? -Infinity, topWorldY),
       );
     });
-    const receiverMeshes: any[] = [];
-    currentRoot.traverse((receiverNode: any) => {
-      if (
-        receiverNode.isMesh &&
-        (receiverNode.userData.regionReceiverKind === "floor" ||
-          receiverNode.userData.exportRole === "background")
-      ) {
-        receiverMeshes.push(receiverNode);
-      }
-    });
-    for (const sourceMesh of receiverMeshes) {
+    const eligibleReceivers = receiverMeshes.filter(isEligibleReceiver);
+    for (const sourceMesh of eligibleReceivers) {
       const receiverKind = sourceMesh.userData.exportRole === "background" ? "outside" : "inside";
-      // 三重过滤：楼层过渡中的旧楼层不拍、非当前楼层不拍、
       if (
         isFloorTransitionLeaving(sourceMesh) ||
         !isOnVisibleFloor(sourceMesh) ||
         (settings.mode !== "all" && receiverKind !== settings.mode) ||
         (receiverKind === "outside" && !isOnOutsideFloor(sourceMesh))
-      ) {
+      )
         continue;
-      }
-      const sourceBounds = new THREE.Box3().setFromObject(sourceMesh);
-      const sourceHeight = sourceBounds.max.y;
-      const sourceKey = geometrySignature(sourceMesh);
+      const sourceBounds = new three.Box3().setFromObject(sourceMesh),
+        sourceHeight = sourceBounds.max.y,
+        sourceKey = geometrySignature(sourceMesh);
       let record = recordsBySource.get(sourceMesh);
-      if (record && (record.dead || record.key !== sourceKey)) {
-        disposeRecord(record);
-        record = null;
-      }
-      if (record) {
-        record.height = sourceHeight;
-        record.used = ++usageCounter;
-        record.hasCapture = false;
-        record.overlay.position.copy(sourceMesh.position);
-        record.overlay.quaternion.copy(sourceMesh.quaternion);
-        record.overlay.scale.copy(sourceMesh.scale);
-        sourceMesh.parent.add(record.overlay);
-        recordList.push(record);
-        stats.reuses++;
+      if (
+        (record &&
+          (record.dead || record.key !== sourceKey) &&
+          (disposeRecord(record), (record = null)),
+        record)
+      ) {
+        ((record.height = sourceHeight),
+          (record.used = ++usageCounter),
+          (record.hasCapture = false),
+          record.overlay.position.copy(sourceMesh.position),
+          record.overlay.quaternion.copy(sourceMesh.quaternion),
+          record.overlay.scale.copy(sourceMesh.scale),
+          sourceMesh.parent.add(record.overlay),
+          activeRecords.push(record),
+          stats.reuses++);
         continue;
       }
-      const reflectionTarget = createReflectionTarget(settings.resolution);
-      const blurTarget = blur ? createReflectionTarget(settings.resolution, true) : null;
-      const reflectionMatrix = new THREE.Matrix4();
-      // overlay 材质：透明叠加，关闭深度写入（它只是一个贴在原地面上的薄片，
-      const reflectionMaterial = new THREE.ShaderMaterial({
-        transparent: true,
-        depthWrite: false,
-        polygonOffset: true,
-        polygonOffsetFactor: -1,
-        polygonOffsetUnits: -2,
-        uniforms: {
-          reflection: {
-            value: reflectionTarget.texture
+      const reflectionTarget = createReflectionTarget(settings.resolution),
+        blurTarget = usesReflectionBlur() ? createReflectionTarget(settings.resolution, true) : null,
+        reflectionMatrix = new three.Matrix4(),
+        reflectionMaterial = new three.ShaderMaterial({
+          transparent: true,
+          depthWrite: false,
+          polygonOffset: true,
+          polygonOffsetFactor: -1,
+          polygonOffsetUnits: -2,
+          uniforms: {
+            reflection: {
+              value: reflectionTarget.texture,
+            },
+            reflectionMatrix: {
+              value: reflectionMatrix,
+            },
+            strength: {
+              value: settings.strength,
+            },
           },
-          reflectionMatrix: {
-            value: reflectionMatrix
-          },
-          strength: {
-            value: settings.strength
-          }
-        },
-        vertexShader:
-          "uniform mat4 reflectionMatrix; varying vec4 reflected; varying float up;\n          void main(){vec4 world=modelMatrix*vec4(position,1.);reflected=reflectionMatrix*world;\n          up=normalize(mat3(modelMatrix)*normal).y;gl_Position=projectionMatrix*viewMatrix*world;}",
-        fragmentShader:
-          "uniform sampler2D reflection; uniform float strength; varying vec4 reflected; varying float up;\n          void main(){if(up<.9||reflected.w<=0.)discard;vec2 uv=reflected.xy/reflected.w;\n          if(any(lessThan(uv,vec2(0.)))||any(greaterThan(uv,vec2(1.))))discard;\n          vec4 value=texture2D(reflection,uv);gl_FragColor=vec4(value.rgb/max(value.a,.001),clamp(value.a*strength,0.,.7));\n          #include <tonemapping_fragment>\n          #include <colorspace_fragment>\n          }"
-      });
-      const overlayMesh = new THREE.Mesh(sourceMesh.geometry.clone(), reflectionMaterial);
-      overlayMesh.position.copy(sourceMesh.position);
-      overlayMesh.quaternion.copy(sourceMesh.quaternion);
-      overlayMesh.scale.copy(sourceMesh.scale);
-      // renderOrder = 1：必须在地面之后绘制，才能正确做透明混合。
-      overlayMesh.renderOrder = 1;
-      overlayMesh.userData.environmentEffect = true;
-      overlayMesh.userData.reflectionOverlay = true;
-      // 这三个标记告诉资源管理系统「几何 / 材质 / 贴图是共享的，不要跟着 overlay
-      overlayMesh.userData.externalModelSharedGeometry =
-        overlayMesh.userData.externalModelSharedMaterial =
-        overlayMesh.userData.externalModelSharedTextures =
-          true;
-      record = {
-        source: sourceMesh,
-        geometry: sourceMesh.geometry,
-        kind: receiverKind,
-        height: sourceHeight,
-        overlay: overlayMesh,
-        map: reflectionTarget,
-        scratch: blurTarget,
-        matrix: reflectionMatrix,
-        key: sourceKey,
-        used: ++usageCounter,
-        state: "",
-        dead: false,
-        hasCapture: false
-      };
-      record.onSourceDispose = () => {
-        // 源几何被销毁 → 这条记录再也无法渲染，标记为 dead 交给 trimRecordCache 回收，
-        record.dead = true;
-        overlayMesh.visible = false;
-      };
-      sourceMesh.geometry.addEventListener("dispose", record.onSourceDispose);
-      recordsBySource.set(sourceMesh, record);
-      stats.allocations++;
-      sourceMesh.parent.add(overlayMesh);
-      recordList.push(record);
+          vertexShader:
+            "uniform mat4 reflectionMatrix; varying vec4 reflected; varying float up;\n          void main(){vec4 world=modelMatrix*vec4(position,1.);reflected=reflectionMatrix*world;\n          up=normalize(mat3(modelMatrix)*normal).y;gl_Position=projectionMatrix*viewMatrix*world;}",
+          fragmentShader:
+            "uniform sampler2D reflection; uniform float strength; varying vec4 reflected; varying float up;\n          void main(){if(up<.9||reflected.w<=0.)discard;vec2 uv=reflected.xy/reflected.w;\n          if(any(lessThan(uv,vec2(0.)))||any(greaterThan(uv,vec2(1.))))discard;\n          vec4 value=texture2D(reflection,uv);gl_FragColor=vec4(value.rgb/max(value.a,.001),clamp(value.a*strength,0.,.7));\n          #include <tonemapping_fragment>\n          #include <colorspace_fragment>\n          }",
+        }),
+        overlayMesh = new three.Mesh(sourceMesh.geometry.clone(), reflectionMaterial);
+      (overlayMesh.position.copy(sourceMesh.position),
+        overlayMesh.quaternion.copy(sourceMesh.quaternion),
+        overlayMesh.scale.copy(sourceMesh.scale),
+        (overlayMesh.renderOrder = 1),
+        (overlayMesh.userData.environmentEffect = true),
+        (overlayMesh.userData.reflectionOverlay = true),
+        (overlayMesh.userData.externalModelSharedGeometry =
+          overlayMesh.userData.externalModelSharedMaterial =
+          overlayMesh.userData.externalModelSharedTextures =
+            true),
+        (record = {
+          source: sourceMesh,
+          geometry: sourceMesh.geometry,
+          kind: receiverKind,
+          height: sourceHeight,
+          overlay: overlayMesh,
+          map: reflectionTarget,
+          scratch: blurTarget,
+          matrix: reflectionMatrix,
+          key: sourceKey,
+          used: ++usageCounter,
+          state: "",
+          dead: false,
+          hasCapture: false,
+        }),
+        (record.onSourceDispose = () => {
+          ((record.dead = true), (overlayMesh.visible = false));
+        }),
+        sourceMesh.geometry.addEventListener("dispose", record.onSourceDispose),
+        recordsBySource.set(sourceMesh, record),
+        stats.allocations++,
+        sourceMesh.parent.add(overlayMesh),
+        activeRecords.push(record));
     }
-    trimRecordCache();
-    // 结构变了，下一次 render 必须重新捕获（哪怕相机与光照都没变）。
-    needsUpdate = true;
+    (isDetailEnabled() && detail.prepare(currentRoot),
+      passes?.prepare(currentRoot),
+      trimRecordCache(),
+      (shouldRefresh = true));
   }
-  /**
-   * 判断某条记录的反射这一帧是否应该显示。
-   */
-  function shouldShowRecord(recordToCheck: any) {
+  function shouldShowRecord(recordToCheck) {
     return (
       isOnVisibleFloor(recordToCheck.source) &&
       (settings.mode === "all" || settings.mode === recordToCheck.kind) &&
       (recordToCheck.kind !== "outside" || isOnOutsideFloor(recordToCheck.source))
     );
   }
-  /**
-   * 应用新的反射设置（来自设置面板）。三档处理：
-   */
-  function configure(nextSettings: any) {
-    const normalizedSettings: any = normalizeGroundReflection(nextSettings);
+  function configure(nextSettings) {
+    const normalizedSettings = normalizeGroundReflection(nextSettings);
     if (
       normalizedSettings.mode === settings.mode &&
       normalizedSettings.resolution === settings.resolution &&
       normalizedSettings.strength === settings.strength
-    ) {
+    )
       return false;
-    }
-    const resolutionChanged = settings.resolution !== normalizedSettings.resolution;
-    const modeChanged = settings.mode !== normalizedSettings.mode;
-    Object.assign(settings, normalizedSettings);
-    if (
-      resolutionChanged ||
-      normalizedSettings.mode === "off" ||
-      normalizedSettings.strength === 0
-    ) {
-      disposeAllRecords();
-      rootFirstChild = null;
-    }
-    if (modeChanged) {
-      rootFirstChild = null;
-    }
-    needsUpdate ||= resolutionChanged || modeChanged;
-    requestFrame();
-    return true;
+    const hasResolutionChanged = settings.resolution !== normalizedSettings.resolution,
+      hasModeChanged = settings.mode !== normalizedSettings.mode;
+    return (
+      Object.assign(settings, normalizedSettings),
+      (hasResolutionChanged ||
+        normalizedSettings.mode === "off" ||
+        normalizedSettings.strength === 0) &&
+        (disposeAllRecords(), (rootFirstChild = null)),
+      hasModeChanged && (rootFirstChild = null),
+      (shouldRefresh ||= hasResolutionChanged || hasModeChanged),
+      requestFrame(),
+      true
+    );
   }
-  /**
-   * 计算镜像相机与「世界坐标 → 反射贴图 UV」的纹理矩阵。
-   */
-  function updateReflectionCamera(sourceCamera: any, mirrorPlane: any, textureMatrix: any) {
+  function updateReflectionCamera(sourceCamera, mirrorPlane, textureMatrix) {
     let reflectionCamera = reflectionCameraBySource.get(sourceCamera);
-    if (!reflectionCamera) {
-      reflectionCamera = sourceCamera.clone(false);
-      reflectionCameraBySource.set(sourceCamera, reflectionCamera);
-    }
-    reflectionCamera.layers.mask = sourceCamera.layers.mask;
-    for (const propertyName of [
+    (reflectionCamera ||
+      ((reflectionCamera = sourceCamera.clone(false)),
+      reflectionCameraBySource.set(sourceCamera, reflectionCamera)),
+      (reflectionCamera.layers.mask = sourceCamera.layers.mask));
+    for (const cameraProperty of [
       "near",
       "far",
       "zoom",
@@ -487,92 +683,78 @@ export function createGroundReflections({
       "right",
       "top",
       "bottom",
-      "coordinateSystem"
-    ]) {
-      if (propertyName in sourceCamera) {
-        reflectionCamera[propertyName] = sourceCamera[propertyName];
-      }
-    }
+      "coordinateSystem",
+    ])
+      cameraProperty in sourceCamera &&
+        (reflectionCamera[cameraProperty] = sourceCamera[cameraProperty]);
     const cameraWorldPosition = scratchWorldPosition.setFromMatrixPosition(
-      sourceCamera.matrixWorld
-    );
-    const cameraForward = scratchWorldNormal
-      .setFromMatrixColumn(sourceCamera.matrixWorld, 2)
-      .negate()
-      .normalize();
-    // 距离乘 -2：沿法线走两倍距离即到达镜面对称点。
-    cameraWorldPosition.addScaledVector(
+        sourceCamera.matrixWorld,
+      ),
+      cameraForward = scratchWorldNormal
+        .setFromMatrixColumn(sourceCamera.matrixWorld, 2)
+        .negate()
+        .normalize();
+    (cameraWorldPosition.addScaledVector(
       mirrorPlane.normal,
-      mirrorPlane.distanceToPoint(cameraWorldPosition) * -2
-    );
-    cameraForward.reflect(mirrorPlane.normal);
-    reflectionCamera.position.copy(cameraWorldPosition);
-    reflectionCamera.up
-      .setFromMatrixColumn(sourceCamera.matrixWorld, 1)
-      .normalize()
-      .reflect(mirrorPlane.normal);
-    reflectionCamera.lookAt(scratchLookTarget.copy(cameraWorldPosition).add(cameraForward));
-    reflectionCamera.updateMatrixWorld(true);
-    reflectionCamera.projectionMatrix.copy(sourceCamera.projectionMatrix);
-    // 镜像会翻转手性：把投影矩阵的 x 轴平移项与 x 轴缩放项取负，
-    reflectionCamera.projectionMatrix.elements[8] *= -1;
-    reflectionCamera.projectionMatrix.elements[12] *= -1;
-    textureMatrix
-      // 这个 4x4 矩阵把 NDC（[-1,1]）映射到 UV（[0,1]）：x/y 缩放 0.5、平移 0.5，
-      .set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1)
-      .multiply(reflectionCamera.projectionMatrix)
-      .multiply(reflectionCamera.matrixWorldInverse);
-    // 下面是「斜切近平面裁剪」（Oblique Near-Plane Clipping）的标准推导：
+      -2 * mirrorPlane.distanceToPoint(cameraWorldPosition),
+    ),
+      cameraForward.reflect(mirrorPlane.normal),
+      reflectionCamera.position.copy(cameraWorldPosition),
+      reflectionCamera.up
+        .setFromMatrixColumn(sourceCamera.matrixWorld, 1)
+        .normalize()
+        .reflect(mirrorPlane.normal),
+      reflectionCamera.lookAt(scratchLookTarget.copy(cameraWorldPosition).add(cameraForward)),
+      reflectionCamera.updateMatrixWorld(true),
+      reflectionCamera.projectionMatrix.copy(sourceCamera.projectionMatrix),
+      (reflectionCamera.projectionMatrix.elements[8] *= -1),
+      (reflectionCamera.projectionMatrix.elements[12] *= -1),
+      textureMatrix
+        .set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1)
+        .multiply(reflectionCamera.projectionMatrix)
+        .multiply(reflectionCamera.matrixWorldInverse));
     const planeInCameraSpace = scratchPlane
-      .copy(mirrorPlane)
-      .applyMatrix4(reflectionCamera.matrixWorldInverse);
-    const clipPlaneVector = scratchPlaneVector.set(
-      planeInCameraSpace.normal.x,
-      planeInCameraSpace.normal.y,
-      planeInCameraSpace.normal.z,
-      planeInCameraSpace.constant
+        .copy(mirrorPlane)
+        .applyMatrix4(reflectionCamera.matrixWorldInverse),
+      clipPlaneVector = scratchPlaneVector.set(
+        planeInCameraSpace.normal.x,
+        planeInCameraSpace.normal.y,
+        planeInCameraSpace.normal.z,
+        planeInCameraSpace.constant,
+      ),
+      projectionElements = reflectionCamera.projectionMatrix.elements,
+      signVector = scratchSignVector
+        .set(Math.sign(clipPlaneVector.x), Math.sign(clipPlaneVector.y), 1, 1)
+        .applyMatrix4(scratchProjectionMatrix.copy(reflectionCamera.projectionMatrix).invert());
+    return (
+      clipPlaneVector.multiplyScalar(2 / clipPlaneVector.dot(signVector)),
+      (projectionElements[2] = clipPlaneVector.x - projectionElements[3]),
+      (projectionElements[6] = clipPlaneVector.y - projectionElements[7]),
+      (projectionElements[10] = clipPlaneVector.z - projectionElements[11]),
+      (projectionElements[14] = clipPlaneVector.w - projectionElements[15]),
+      reflectionCamera.projectionMatrixInverse.copy(reflectionCamera.projectionMatrix).invert(),
+      reflectionCamera
     );
-    const projectionElements = reflectionCamera.projectionMatrix.elements;
-    const signVector = scratchSignVector
-      .set(Math.sign(clipPlaneVector.x), Math.sign(clipPlaneVector.y), 1, 1)
-      .applyMatrix4(scratchProjectionMatrix.copy(reflectionCamera.projectionMatrix).invert());
-    // 用「极点方向」的投影结果把平面方程归一化，保证裁剪发生在正确的深度处；
-    clipPlaneVector.multiplyScalar(2 / clipPlaneVector.dot(signVector));
-    projectionElements[2] = clipPlaneVector.x - projectionElements[3];
-    projectionElements[6] = clipPlaneVector.y - projectionElements[7];
-    projectionElements[10] = clipPlaneVector.z - projectionElements[11];
-    projectionElements[14] = clipPlaneVector.w - projectionElements[15];
-    reflectionCamera.projectionMatrixInverse.copy(reflectionCamera.projectionMatrix).invert();
-    return reflectionCamera;
   }
-  /**
-   * 主入口：按需重拍所有脏记录的地面反射。
-   */
-  function render(camera: any, { worldMatricesCurrent: worldMatricesCurrent = false }: any = {}) {
-    if (isDisposed || stats.inCapture || !camera) {
-      return;
-    }
+  function render(camera, { worldMatricesCurrent: worldMatricesCurrent = false } = {}) {
+    if (isDisposed || stats.inCapture || !camera) return;
     if (isSuspended) {
-      // 挂起期间不重拍，但可以继续把已有反射淡出：直接抹掉会让地面反射「啪」地消失。
-      if (suspendStartedAtMs === null) {
-        return;
-      }
+      if (suspendStartedAtMs === null) return;
       const fadeOutProgress = Math.min(
         1,
-        Math.max(0, (performance.now() - suspendStartedAtMs) / FADE_DURATION_MS)
+        Math.max(0, (performance.now() - suspendStartedAtMs) / 240),
       );
-      for (const fadingRecord of recordList) {
+      for (const fadingRecord of activeRecords) {
         let isUnderRoot = false;
         for (
           let ancestorNode = fadingRecord.source;
           ancestorNode;
           ancestorNode = ancestorNode.parent
-        ) {
+        )
           if (ancestorNode === getRoot()) {
             isUnderRoot = true;
             break;
           }
-        }
         if (
           fadeOutProgress === 1 ||
           !isUnderRoot ||
@@ -580,496 +762,532 @@ export function createGroundReflections({
           !fadingRecord.hasCapture ||
           !fadingRecord.fadeOutStrength
         ) {
-          fadingRecord.overlay.visible = false;
-          fadingRecord.overlay.removeFromParent();
+          ((fadingRecord.overlay.visible = false), fadingRecord.overlay.removeFromParent());
           continue;
         }
-        fadingRecord.source.updateWorldMatrix(true, false);
-        // 淡出期间地面可能还在动（楼层过渡），用「淡出时的矩阵 × 淡出时的帧矩阵 ×
-        fadingRecord.matrix
-          .copy(fadingRecord.fadeOutMatrix)
-          .multiply(fadingRecord.fadeOutFrame)
-          .multiply(new THREE.Matrix4().copy(fadingRecord.source.matrixWorld).invert());
-        fadingRecord.overlay.position.copy(fadingRecord.source.position);
-        fadingRecord.overlay.quaternion.copy(fadingRecord.source.quaternion);
-        fadingRecord.overlay.scale.copy(fadingRecord.source.scale);
-        if (fadingRecord.overlay.parent !== fadingRecord.source.parent) {
-          fadingRecord.source.parent.add(fadingRecord.overlay);
-        }
-        fadingRecord.overlay.updateWorldMatrix(true, false);
-        fadingRecord.overlay.material.uniforms.strength.value =
-          fadingRecord.fadeOutStrength * (1 - fadeOutProgress);
-        fadingRecord.overlay.visible = isVisibleWithin(
-          fadingRecord.kind === "outside" ? fadingRecord.source.parent : fadingRecord.source
-        );
+        (fadingRecord.source.updateWorldMatrix(true, false),
+          fadingRecord.matrix
+            .copy(fadingRecord.fadeOutMatrix)
+            .multiply(fadingRecord.fadeOutFrame)
+            .multiply(new three.Matrix4().copy(fadingRecord.source.matrixWorld).invert()),
+          fadingRecord.overlay.position.copy(fadingRecord.source.position),
+          fadingRecord.overlay.quaternion.copy(fadingRecord.source.quaternion),
+          fadingRecord.overlay.scale.copy(fadingRecord.source.scale),
+          fadingRecord.overlay.parent !== fadingRecord.source.parent &&
+            fadingRecord.source.parent.add(fadingRecord.overlay),
+          fadingRecord.overlay.updateWorldMatrix(true, false),
+          (fadingRecord.overlay.material.uniforms.strength.value =
+            fadingRecord.fadeOutStrength * (1 - fadeOutProgress)),
+          (fadingRecord.overlay.visible = isVisibleWithin(
+            fadingRecord.kind === "outside" ? fadingRecord.source.parent : fadingRecord.source,
+          )));
       }
-      if (fadeOutProgress < 1) {
-        requestFrame();
-      } else {
-        suspendStartedAtMs = null;
-      }
+      fadeOutProgress < 1 ? requestFrame() : (suspendStartedAtMs = null);
       return;
     }
-    // 逗号表达式：先按需更新世界矩阵（store 的 worldMatricesCurrent 为 true 时跳过），
     if (
       settings.mode === "off" ||
       settings.strength === 0 ||
       (worldMatricesCurrent ||
         (scene.matrixWorldAutoUpdate && scene.updateMatrixWorld(),
         camera.updateWorldMatrix(true, false)),
-      rebuildRecords(getSceneRevision()),
+      rebuildRecords(getSceneRevision?.()),
       !currentRoot)
-    ) {
+    )
       return;
-    }
-    const resumeProgress = pendingResume
+    const resumeProgress = isResumePending
       ? 0
       : resumeStartedAtMs === null
         ? 1
-        : Math.min(1, (performance.now() - resumeStartedAtMs) / FADE_DURATION_MS);
-    if (resumeProgress < 1) {
-      requestFrame();
-    } else {
-      resumeStartedAtMs = null;
-    }
-    for (const activeRecord of recordList) {
-      // 地面网格的世界矩阵变了才重算镜面：镜面法线取几何「最薄轴」作为平面法线，
+        : Math.min(1, (performance.now() - resumeStartedAtMs) / resumeFadeDurationMs);
+    resumeProgress < 1 ? requestFrame() : (resumeStartedAtMs = null);
+    for (const activeRecord of activeRecords) {
       if (!activeRecord.sourceFrame?.equals(activeRecord.source.matrixWorld)) {
-        activeRecord.sourceFrame = (activeRecord.sourceFrame || new THREE.Matrix4()).copy(
-          activeRecord.source.matrixWorld
-        );
-        if (!activeRecord.source.geometry.boundingBox) {
-          activeRecord.source.geometry.computeBoundingBox();
-        }
-        const geometryBounds = activeRecord.source.geometry.boundingBox;
-        const geometrySize = geometryBounds.getSize(new THREE.Vector3());
-        const thinAxis =
-          geometrySize.x <= geometrySize.y && geometrySize.x <= geometrySize.z
-            ? "x"
-            : geometrySize.y <= geometrySize.z
-              ? "y"
-              : "z";
-        const planeNormal = new THREE.Vector3();
-        planeNormal[thinAxis] = 1;
-        // 用正规矩阵变换法线（而不是直接用世界矩阵）：非等比缩放下，
-        planeNormal
-          .applyMatrix3(new THREE.Matrix3().getNormalMatrix(activeRecord.sourceFrame))
-          .normalize();
-        const planeCenter = geometryBounds.getCenter(new THREE.Vector3());
-        planeCenter[thinAxis] =
-          planeNormal.y < 0 ? geometryBounds.min[thinAxis] : geometryBounds.max[thinAxis];
-        if (planeNormal.y < 0) {
-          planeNormal.negate();
-        }
-        activeRecord.plane = (
-          activeRecord.plane || new THREE.Plane()
-        ).setFromNormalAndCoplanarPoint(
-          planeNormal,
-          planeCenter.applyMatrix4(activeRecord.sourceFrame)
-        );
-        activeRecord.height = new THREE.Box3()
-          .copy(geometryBounds)
-          .applyMatrix4(activeRecord.sourceFrame).max.y;
-        needsUpdate = true;
+        ((activeRecord.sourceFrame = (activeRecord.sourceFrame || new three.Matrix4()).copy(
+          activeRecord.source.matrixWorld,
+        )),
+          activeRecord.source.geometry.boundingBox ||
+            activeRecord.source.geometry.computeBoundingBox());
+        const geometryBounds = activeRecord.source.geometry.boundingBox,
+          geometrySize = geometryBounds.getSize(new three.Vector3()),
+          thinAxis =
+            geometrySize.x <= geometrySize.y && geometrySize.x <= geometrySize.z
+              ? "x"
+              : geometrySize.y <= geometrySize.z
+                ? "y"
+                : "z",
+          planeNormal = new three.Vector3();
+        ((planeNormal[thinAxis] = 1),
+          planeNormal
+            .applyMatrix3(new three.Matrix3().getNormalMatrix(activeRecord.sourceFrame))
+            .normalize());
+        const planeCenter = geometryBounds.getCenter(new three.Vector3());
+        ((planeCenter[thinAxis] =
+          planeNormal.y < 0 ? geometryBounds.min[thinAxis] : geometryBounds.max[thinAxis]),
+          planeNormal.y < 0 && planeNormal.negate(),
+          (activeRecord.plane = (
+            activeRecord.plane || new three.Plane()
+          ).setFromNormalAndCoplanarPoint(
+            planeNormal,
+            planeCenter.applyMatrix4(activeRecord.sourceFrame),
+          )),
+          (activeRecord.height = new three.Box3()
+            .copy(geometryBounds)
+            .applyMatrix4(activeRecord.sourceFrame).max.y),
+          (shouldRefresh = true));
       }
-      // eligible 判定：楼层过渡中的旧楼层不算、可见性（室外背景看父节点）为真、
-      activeRecord.eligible =
+      ((activeRecord.eligible =
         !isFloorTransitionLeaving(activeRecord.source) &&
-        // 室外背景面挂在父节点下（父节点才是可见性开关），室内面看自身。
         isVisibleWithin(
-          activeRecord.kind === "outside" ? activeRecord.source.parent : activeRecord.source
+          activeRecord.kind === "outside" ? activeRecord.source.parent : activeRecord.source,
         ) &&
         shouldShowRecord(activeRecord) &&
         activeRecord.plane.distanceToPoint(getFloorCamera(camera, activeRecord.source).position) >
-          0;
-      activeRecord.overlay.visible = activeRecord.eligible && activeRecord.hasCapture;
-      activeRecord.overlay.material.uniforms.strength.value = settings.strength * resumeProgress;
+          0),
+        (activeRecord.overlay.visible = activeRecord.eligible && activeRecord.hasCapture),
+        (activeRecord.presentationBaseStrength = settings.strength * resumeProgress),
+        (activeRecord.overlay.material.uniforms.strength.value =
+          activeRecord.presentationBaseStrength * presentationGain));
     }
-    if (settings.mode === "off" || !recordList.length) {
-      return;
-    }
-    const frameStartMs = performance.now();
-    // 相机签名 = 世界矩阵 + 投影矩阵的全部元素：两者任一变化（位移、旋转、缩放、
-    const cameraSignature =
-      camera.matrixWorld.elements.join(",") + camera.projectionMatrix.elements.join(",");
-    const cameraChanged = cameraSignature !== lastCameraSignature;
-    const currentResolution = settings.resolution;
-    for (const resizedRecord of recordList) {
-      // 设置面板改了分辨率时原地缩放已有贴图，比释放重建便宜（GL 会复用纹理对象）。
-      if (resizedRecord.map.width !== currentResolution) {
-        resizedRecord.map.setSize(currentResolution, currentResolution);
-        resizedRecord.scratch?.setSize(currentResolution, currentResolution);
-        needsUpdate = true;
-      }
-    }
-    // getStateKey：文档版本 / 环境开关 / 光照缓存等外部因素；
+    // 这里不再判 mode === "off"：函数开头已经因为该模式提前 return 了。
+    if (!activeRecords.length) return;
+    const frameStartMs = performance.now(),
+      cameraSignature =
+        camera.matrixWorld.elements.join(",") + camera.projectionMatrix.elements.join(","),
+      hasCameraChanged = cameraSignature !== lastCameraSignature,
+      currentResolution = settings.resolution;
+    for (const resizedRecord of activeRecords)
+      resizedRecord.map.width !== currentResolution &&
+        (resizedRecord.map.setSize(currentResolution, currentResolution),
+        resizedRecord.scratch?.setSize(currentResolution, currentResolution),
+        (shouldRefresh = true));
     const lightingSignature =
-      getStateKey() +
-      "|" +
-      changeRevisionCount +
-      "|" +
-      buildLightingSignature(lightsByFloorId.get("") || []) +
-      "|" +
-      (floorLighting ? "" : buildLightingSignature([...lightsByFloorId.values()].flat()));
-    const stateChanged =
-      needsUpdate || cameraChanged || lightingSignature !== lastLightingSignature;
-    const lightingSignatureByFloor = new Map(
-      [...heightByFloorId.keys()].map(signatureFloorKey => [
-        signatureFloorKey,
-        signatureFloorKey +
-          ":" +
-          (floorChangeCounts.get(signatureFloorKey) || 0) +
-          ":" +
-          (floorLighting
-            ? buildLightingSignature(lightsByFloorId.get(signatureFloorKey) || [])
-            : "")
-      ])
-    );
-    const stateKeyByRecord = new Map();
-    const dirtyRecords = recordList.filter(eligibleRecord => {
-      if (!eligibleRecord.eligible) {
-        return false;
-      }
-      // 脏 = 全局状态变了（needsUpdate / 相机 / 光照），或这条记录自己的状态键变了。
-      const stateKey = recordStateKey(eligibleRecord, lightingSignatureByFloor);
-      stateKeyByRecord.set(eligibleRecord, stateKey);
-      return stateChanged || eligibleRecord.state !== stateKey;
+        getStateKey() +
+        "|" +
+        changeRevisionCount +
+        "|" +
+        buildLightingSignature(lightsByFloorId.get("") || []) +
+        "|" +
+        (floorLighting ? "" : buildLightingSignature([...lightsByFloorId.values()].flat())),
+      stateChanged =
+        shouldRefresh || hasCameraChanged || lightingSignature !== lastLightingSignature,
+      lightingSignatureByFloor = new Map(
+        [...heightByFloorId.keys()].map((perFloorKey) => [
+          perFloorKey,
+          perFloorKey +
+            ":" +
+            (floorChangeCountByFloorId.get(perFloorKey) || 0) +
+            ":" +
+            (floorLighting ? buildLightingSignature(lightsByFloorId.get(perFloorKey) || []) : ""),
+        ]),
+      ),
+      stateKeyByRecord = new Map();
+    let dirtyRecords = activeRecords.filter((eligibleRecord) => {
+      if (!eligibleRecord.eligible) return false;
+      const stateKey = recordLightingSignature(eligibleRecord, lightingSignatureByFloor);
+      return (
+        stateKeyByRecord.set(eligibleRecord, stateKey),
+        stateChanged || eligibleRecord.state !== stateKey
+      );
     });
-    if (!dirtyRecords.length) {
+    if (
+      (resumeRecordSet &&
+        (dirtyRecords = dirtyRecords
+          .filter((deferredRecord) => !resumeRecordSet.has(deferredRecord))
+          .slice(0, Math.max(1, maxResumeCapturesPerFrame))),
+      !dirtyRecords.length)
+    )
       return;
-    }
-    if (!needsUpdate && !cameraChanged && frameStartMs - lastRenderTimeMs < 1000 / settings.fps) {
-      // 帧率节流：不是简单地 return，而是排一个定时器在「额度用完」时再请求一帧 ——
-      if (throttleTimer === null) {
-        throttleTimer = setTimeout(
+    if (
+      !shouldRefresh &&
+      !hasCameraChanged &&
+      frameStartMs - lastRenderTimeMs < 1000 / settings.fps
+    ) {
+      throttleTimer === null &&
+        (throttleTimer = setTimeout(
           () => {
-            throttleTimer = null;
-            requestFrame();
+            ((throttleTimer = null), requestFrame());
           },
-          1000 / settings.fps - (frameStartMs - lastRenderTimeMs)
-        );
-      }
+          1000 / settings.fps - (frameStartMs - lastRenderTimeMs),
+        ));
       return;
     }
     const rendererState = {
-      // 快照渲染器 / 场景状态：反射通道要改渲染目标、清屏色、背景、阴影自动更新、
-      target: renderer.getRenderTarget(),
-      cubeFace: renderer.getActiveCubeFace(),
-      mipmap: renderer.getActiveMipmapLevel(),
-      xr: renderer.xr.enabled,
-      shadow: renderer.shadowMap.autoUpdate,
-      alpha: renderer.getClearAlpha(),
-      color: renderer.getClearColor(new THREE.Color()),
-      background: scene.background,
-      viewport: renderer.getViewport(new THREE.Vector4()),
-      scissor: renderer.getScissor(new THREE.Vector4()),
-      scissorTest: renderer.getScissorTest(),
-      autoClear: renderer.autoClear,
-      matrixWorldAutoUpdate: scene.matrixWorldAutoUpdate
-    };
-    const hiddenObjects: any[] = [];
-    const materialRestores: any[] = [];
-    const geometryRestores: any[] = [];
-    const wallMeshes: any[] = [];
-    // 室内反射（allInside）时墙体不该出现在反射里：从室内看地面，墙上不该有镜像。
-    const allInside = dirtyRecords.every(checkedRecord => checkedRecord.kind === "inside");
+        target: renderer.getRenderTarget(),
+        cubeFace: renderer.getActiveCubeFace(),
+        mipmap: renderer.getActiveMipmapLevel(),
+        xr: renderer.xr.enabled,
+        shadow: renderer.shadowMap.autoUpdate,
+        alpha: renderer.getClearAlpha(),
+        color: renderer.getClearColor(new three.Color()),
+        background: scene.background,
+        viewport: renderer.getViewport(new three.Vector4()),
+        scissor: renderer.getScissor(new three.Vector4()),
+        scissorTest: renderer.getScissorTest(),
+        autoClear: renderer.autoClear,
+        matrixWorldAutoUpdate: scene.matrixWorldAutoUpdate,
+      },
+      visibilityRestores = [],
+      materialRestores = [],
+      geometryRestores = [],
+      wallMeshes = [],
+      floorNodeEntries = [],
+      allInside = dirtyRecords.every((allInsideRecord) => allInsideRecord.kind === "inside");
+    let isCaptureDeferred = false,
+      hasCaptured = false;
     culling.reset();
     const captureStartMs = performance.now();
-    stats.inCapture = true;
-    stats.lastDrawCalls = stats.lastTriangles = 0;
+    ((stats.inCapture = true), (stats.lastDrawCalls = stats.lastTriangles = 0));
     try {
-      // 反射通道的单节点预处理：按楼层 / 离场状态决定是否把该节点（及其子树）
-      const prepareNode = (candidateNode: any) => {
-        if (!candidateNode.visible) {
-          return;
-        }
-        // 反射通道的「剔除清单」：非当前楼层的内容、正在离场的旧楼层、
-        if (
+      const prepareNode = (candidateNode, nodeId, ancestorId) => {
+          if (!candidateNode.visible) return false;
+          if (
+            (candidateNode !== currentRoot &&
+              visibleFloorId !== null &&
+              nodeId &&
+              nodeId !== visibleFloorId) ||
+            candidateNode.userData.floorTransitionLeaving ||
+            candidateNode.name === "interaction3d-curtain-shadow-refresh" ||
+            candidateNode.userData.reflectionOverlay ||
+            ["background", "grid", "outline"].includes(candidateNode.userData.exportRole) ||
+            candidateNode.userData.regionReceiverKind === "floor" ||
+            candidateNode.userData.environmentEffect ||
+            candidateNode.userData.presenceId != null ||
+            (allInside && candidateNode.userData.reflectionRole === "wall")
+          )
+            return (
+              visibilityRestores.push([candidateNode, candidateNode.visible]),
+              (candidateNode.visible = false),
+              false
+            );
           (candidateNode !== currentRoot &&
-            visibleFloorId !== null &&
-            resolveFloorId(candidateNode) &&
-            resolveFloorId(candidateNode) !== visibleFloorId) ||
-          candidateNode.userData.floorTransitionLeaving ||
-          candidateNode.name === "interaction3d-curtain-shadow-refresh" ||
-          candidateNode.userData.reflectionOverlay ||
-          ["background", "grid", "outline"].includes(candidateNode.userData.exportRole) ||
-          candidateNode.userData.regionReceiverKind === "floor" ||
-          candidateNode.userData.environmentEffect ||
-          (allInside && candidateNode.userData.reflectionRole === "wall")
-        ) {
-          hiddenObjects.push([candidateNode, candidateNode.visible]);
-          candidateNode.visible = false;
-          return;
-        }
-        if (candidateNode.userData.reflectionRole === "wall") {
-          wallMeshes.push(candidateNode);
-        }
-        if (cull) {
-          // 第二个参数是「是否按楼层分别剔除」：floorLighting 开启时剔除器要考虑
-          culling.add(candidateNode, !floorLighting);
-        }
-        if (candidateNode.isMesh && candidateNode.material) {
-          const originalMaterial = candidateNode.material;
-          const materialForRender = getRefractionFreeMaterials(originalMaterial);
-          if (materialForRender !== originalMaterial) {
-            materialRestores.push([candidateNode, originalMaterial]);
-            candidateNode.material = materialForRender;
+            nodeId &&
+            nodeId !== ancestorId &&
+            floorNodeEntries.push({
+              object: candidateNode,
+              id: nodeId,
+            }),
+            candidateNode.userData.reflectionRole === "wall" && wallMeshes.push(candidateNode),
+            cull && culling.add(candidateNode, !floorLighting, nodeId));
+          const detailGeometry = isDetailEnabled() ? detail.get(candidateNode) : null;
+          if (
+            (detailGeometry &&
+              (geometryRestores.push([candidateNode, candidateNode.geometry]),
+              (candidateNode.geometry = detailGeometry)),
+            candidateNode.isMesh && candidateNode.material)
+          ) {
+            const originalMaterial = candidateNode.material,
+              materialForRender = resolveFadeMaterials(originalMaterial);
+            materialForRender !== originalMaterial &&
+              (materialRestores.push([candidateNode, originalMaterial]),
+              (candidateNode.material = materialForRender));
           }
-        }
-        for (const childNode of candidateNode.children) {
-          prepareNode(childNode);
-        }
-      };
-      prepareNode(scene);
-      // 关掉场景的世界矩阵自动更新：下面会临时隐藏 / 换几何 / 换材质，
-      scene.matrixWorldAutoUpdate = false;
-      renderer.xr.enabled = false;
-      // 阴影图不重算：反射用的阴影与主画面完全相同，重算一遍纯属浪费。
-      renderer.shadowMap.autoUpdate = false;
-      renderer.autoClear = true;
-      scene.background = null;
-      renderer.setClearColor(0, 0);
-      renderer.setScissorTest(false);
+          return true;
+        },
+        prepareFloorNodes = (subtreeRoot, enclosingFloorId = "", fallbackFloorId = "") => {
+          if (subtreeRoot === currentRoot) {
+            for (const hideRecord of activeRecords)
+              hideRecord.overlay.visible &&
+                (visibilityRestores.push([hideRecord.overlay, true]),
+                (hideRecord.overlay.visible = false));
+            for (let entryIndex = 0; entryIndex < nodeEntries.length;) {
+              const nodeEntry = nodeEntries[entryIndex],
+                parentEntry = nodeEntries[nodeEntry.parent];
+              nodeEntry.id = String(
+                readOwnFloorId(nodeEntry.object) ||
+                  (parentEntry ? parentEntry.id : fallbackFloorId),
+              );
+              const parentFloorId = parentEntry
+                ? parentEntry.object === currentRoot
+                  ? ""
+                  : parentEntry.id
+                : enclosingFloorId;
+              entryIndex = prepareNode(nodeEntry.object, nodeEntry.id, parentFloorId)
+                ? entryIndex + 1
+                : nodeEntry.end;
+            }
+            return;
+          }
+          const nodeFloorId = String(readOwnFloorId(subtreeRoot) || fallbackFloorId);
+          if (prepareNode(subtreeRoot, nodeFloorId, enclosingFloorId)) {
+            for (const childNode of subtreeRoot.children)
+              prepareFloorNodes(childNode, nodeFloorId, nodeFloorId);
+          }
+        };
+      let isScenePrepared = false;
+      ((scene.matrixWorldAutoUpdate = false),
+        (renderer.xr.enabled = false),
+        (renderer.shadowMap.autoUpdate = false),
+        (renderer.autoClear = true),
+        (scene.background = null),
+        renderer.setClearColor(0, 0),
+        renderer.setScissorTest(false));
       for (const captureRecord of dirtyRecords) {
         captureRecord.hasCapture = false;
         const capturedCamera = updateReflectionCamera(
           getFloorCamera(camera, captureRecord.source),
           captureRecord.plane,
-          captureRecord.matrix
+          captureRecord.matrix,
         );
-        syncLighting(capturedCamera);
+        if (
+          (reflectionUniforms.groundReflectionPlane.value.set(
+            captureRecord.plane.normal.x,
+            captureRecord.plane.normal.y,
+            captureRecord.plane.normal.z,
+            captureRecord.plane.constant,
+          ),
+          reflectionUniforms.groundReflectionViewToWorld.value.copy(capturedCamera.matrixWorld),
+          cull && !culling.prepare(captureRecord, capturedCamera))
+        ) {
+          ((captureRecord.state = stateKeyByRecord.get(captureRecord)),
+            (captureRecord.preparedPose = cameraSignature),
+            (captureRecord.preparedStateKey = lightingSignature),
+            resumeRecordSet?.add(captureRecord));
+          continue;
+        }
+        isScenePrepared || (prepareFloorNodes(scene), (isScenePrepared = true));
         const temporarilyHidden = [];
         try {
-          // 剔除器决定这次反射能否整帧跳过（比如整块镜子都在视锥外）。
-          if (cull && !culling.begin(captureRecord, capturedCamera)) {
-            captureRecord.state = stateKeyByRecord.get(captureRecord);
-            continue;
-          }
-          if (captureRecord.kind === "outside" && outsideFloorId !== null) {
-            scene.traverse((sceneNode: any) => {
-              const traversedFloorId = resolveFloorId(sceneNode);
-              if (
-                sceneNode !== currentRoot &&
-                sceneNode.visible &&
-                traversedFloorId &&
-                traversedFloorId !== outsideFloorId
-              ) {
-                temporarilyHidden.push(sceneNode);
-                sceneNode.visible = false;
-              }
-            });
+          const requiredFloorId = recordStateKey(captureRecord);
+          if ((cull && culling.apply(requiredFloorId), requiredFloorId !== null)) {
+            for (const { object: boundaryNode, id: boundaryFloorId } of floorNodeEntries)
+              boundaryNode.visible &&
+                boundaryFloorId !== requiredFloorId &&
+                (temporarilyHidden.push(boundaryNode), (boundaryNode.visible = false));
           }
           if (captureRecord.kind === "inside") {
-            // 室内反射隐藏全部墙体：斜切近平面已经裁掉了镜面以下的部分，
-            for (const wallMesh of wallMeshes) {
-              if (wallMesh.visible) {
-                temporarilyHidden.push(wallMesh);
-                wallMesh.visible = false;
-              }
-            }
+            for (const wallNode of wallMeshes)
+              wallNode.visible && (temporarilyHidden.push(wallNode), (wallNode.visible = false));
           }
-          renderer.setRenderTarget(captureRecord.map);
-          renderer.clear();
-          renderer.render(scene, capturedCamera);
-          stats.renders++;
-          stats.lastDrawCalls += renderer.info?.render.calls || 0;
-          stats.lastTriangles += renderer.info?.render.triangles || 0;
+          if (
+            (passes?.begin(scene, capturedCamera, currentResolution, requiredFloorId),
+            syncLighting(capturedCamera),
+            renderer.setRenderTarget(captureRecord.map),
+            !tryPrepareProgram(captureRecord, capturedCamera))
+          ) {
+            isCaptureDeferred = true;
+            continue;
+          }
+          (renderer.clear(),
+            renderer.render(scene, capturedCamera),
+            stats.renders++,
+            (stats.lastDrawCalls += renderer.info?.render.calls || 0),
+            (stats.lastTriangles += renderer.info?.render.triangles || 0));
         } finally {
-          // 无论这次捕获成功与否（剔除器可能在渲染途中抛错），都要还原剔除与可见性，
-          culling.restore();
-          for (const restoredObject of temporarilyHidden) {
-            restoredObject.visible = true;
-          }
+          (passes?.restore(), culling.restore());
+          for (const restoredNode of temporarilyHidden) restoredNode.visible = true;
         }
         if (captureRecord.scratch) {
-          // 两趟分离式模糊：第一趟按水平方向（step.y = 0），第二趟按垂直方向
           for (const [blurSource, blurDestination, sourceScale, destinationScale] of [
             [captureRecord.map, captureRecord.scratch, 1, 0],
-            [captureRecord.scratch, captureRecord.map, 0, 1]
-          ]) {
-            blurMaterial.uniforms.source.value = blurSource.texture;
-            blurMaterial.uniforms.step.value.set(
-              (sourceScale * 2) / 512,
-              (destinationScale * 2) / 512
-            );
-            renderer.setRenderTarget(blurDestination);
-            renderer.clear();
-            renderer.render(blurScene, blurCamera);
-          }
+            [captureRecord.scratch, captureRecord.map, 0, 1],
+          ])
+            ((blurMaterial.uniforms.source.value = blurSource.texture),
+              blurMaterial.uniforms.step.value.set(
+                (sourceScale * 2) / 512,
+                (destinationScale * 2) / 512,
+              ),
+              renderer.setRenderTarget(blurDestination),
+              renderer.clear(),
+              renderer.render(blurScene, blurCamera));
         }
-        stats.captures++;
-        captureRecord.hasCapture = true;
-        captureRecord.state = stateKeyByRecord.get(captureRecord);
+        (stats.captures++,
+          (captureRecord.hasCapture = true),
+          (hasCaptured = true),
+          (captureRecord.capturedPose = captureRecord.preparedPose = cameraSignature),
+          (captureRecord.capturedStateKey = captureRecord.preparedStateKey = lightingSignature),
+          resumeRecordSet?.add(captureRecord),
+          (captureRecord.state = stateKeyByRecord.get(captureRecord)));
       }
-      if (pendingResume) {
-        // 挂起期间攒下的「恢复」请求：到这里才开始淡入（前面一直按 0 强度渲染）。
-        pendingResume = false;
-        resumeStartedAtMs = performance.now();
-        requestFrame();
-      }
-      needsUpdate = false;
-      lastRenderTimeMs = frameStartMs;
-      lastCameraSignature = cameraSignature;
-      lastLightingSignature = lightingSignature;
+      isResumePending &&
+        hasCaptured &&
+        ((isResumePending = false), (resumeStartedAtMs = performance.now()), requestFrame());
+      const hasPendingCaptures =
+        resumeRecordSet &&
+        activeRecords.some(
+          (uncapturedRecord) => uncapturedRecord.eligible && !resumeRecordSet.has(uncapturedRecord),
+        );
+      ((shouldRefresh =
+        isCaptureDeferred ||
+        !!hasPendingCaptures ||
+        activeRecords.some(
+          (changedPoseRecord) =>
+            changedPoseRecord.eligible &&
+            changedPoseRecord.hasCapture &&
+            (changedPoseRecord.capturedPose !== cameraSignature ||
+              changedPoseRecord.capturedStateKey !== lightingSignature),
+        )),
+        hasPendingCaptures || (resumeRecordSet = null),
+        shouldRefresh && requestFrame(),
+        (lastRenderTimeMs = frameStartMs),
+        (lastCameraSignature = cameraSignature),
+        (lastLightingSignature = lightingSignature));
     } finally {
-      // 还原顺序与设置顺序大致相反：先恢复场景本身，再恢复渲染器状态，
-      scene.matrixWorldAutoUpdate = rendererState.matrixWorldAutoUpdate;
-      culling.restore();
-      stats.culling = {
-        ...culling.stats
-      };
-      for (const [restoredMesh, savedGeometry] of geometryRestores) {
-        restoredMesh.geometry = savedGeometry;
-      }
-      for (const [visibilityObject, previousVisible] of hiddenObjects) {
+      ((scene.matrixWorldAutoUpdate = rendererState.matrixWorldAutoUpdate),
+        passes?.restore(),
+        culling.restore(),
+        (stats.culling = {
+          ...culling.stats,
+        }));
+      for (const [geometryMesh, savedGeometry] of geometryRestores)
+        geometryMesh.geometry = savedGeometry;
+      for (const [visibilityObject, previousVisible] of visibilityRestores)
         visibilityObject.visible = previousVisible;
-      }
-      for (const [materialMesh, savedMaterial] of materialRestores) {
+      for (const [materialMesh, savedMaterial] of materialRestores)
         materialMesh.material = savedMaterial;
-      }
-      for (const restoredRecord of recordList) {
-        restoredRecord.overlay.visible = restoredRecord.eligible && restoredRecord.hasCapture;
-      }
-      scene.background = rendererState.background;
-      renderer.setClearColor(rendererState.color, rendererState.alpha);
-      renderer.setRenderTarget(rendererState.target, rendererState.cubeFace, rendererState.mipmap);
-      renderer.setViewport(rendererState.viewport);
-      renderer.setScissor(rendererState.scissor);
-      renderer.setScissorTest(rendererState.scissorTest);
-      renderer.xr.enabled = rendererState.xr;
-      renderer.shadowMap.autoUpdate = rendererState.shadow;
-      renderer.autoClear = rendererState.autoClear;
-      syncLighting(camera);
-      stats.inCapture = false;
-      stats.lastMs = performance.now() - captureStartMs;
-      stats.totalMs += stats.lastMs;
+      for (const restoredRecord of activeRecords)
+        restoredRecord.overlay.visible =
+          restoredRecord.eligible &&
+          restoredRecord.hasCapture &&
+          restoredRecord.capturedPose === cameraSignature;
+      ((scene.background = rendererState.background),
+        renderer.setClearColor(rendererState.color, rendererState.alpha),
+        renderer.setViewport(rendererState.viewport),
+        renderer.setScissor(rendererState.scissor),
+        renderer.setScissorTest(rendererState.scissorTest),
+        renderer.setRenderTarget(
+          rendererState.target,
+          rendererState.cubeFace,
+          rendererState.mipmap,
+        ),
+        (renderer.xr.enabled = rendererState.xr),
+        (renderer.shadowMap.autoUpdate = rendererState.shadow),
+        (renderer.autoClear = rendererState.autoClear),
+        syncLighting(camera),
+        (stats.inCapture = false),
+        (stats.lastMs = performance.now() - captureStartMs),
+        (stats.totalMs += stats.lastMs));
     }
   }
-  // 对外接口。render 由 studio-app 在主渲染之前调用；其余方法都是「改状态 + 标记
   return {
     settings: settings,
     stats: stats,
     render: render,
     configure: configure,
-    /**
-     * 设置只显示哪一层的地面反射（null 表示全部）。
-     */
-    setVisibleFloor(nextFloorId: any) {
+    setVisibleFloor(nextFloorId) {
       const normalizedFloorId = nextFloorId == null ? null : String(nextFloorId);
       if (normalizedFloorId !== visibleFloorId) {
         visibleFloorId = normalizedFloorId;
-        for (const floorRecord of recordList) {
-          if (!isOnVisibleFloor(floorRecord.source)) {
-            floorRecord.overlay.visible = false;
-            floorRecord.overlay.removeFromParent();
-          }
-        }
-        rootFirstChild = null;
-        needsUpdate = true;
-        requestFrame();
+        for (const floorRecord of activeRecords)
+          isOnVisibleFloor(floorRecord.source) ||
+            ((floorRecord.overlay.visible = false), floorRecord.overlay.removeFromParent());
+        ((rootFirstChild = null), (shouldRefresh = true), requestFrame());
       }
     },
-    /**
-     * 设置「室外背景」面所属的楼层（null 表示不限制）。
-     */
-    setOutsideFloor(nextOutsideFloorId: any) {
+    setOutsideFloor(nextOutsideFloorId) {
       const normalizedOutsideFloorId =
         nextOutsideFloorId == null ? null : String(nextOutsideFloorId);
       if (normalizedOutsideFloorId !== outsideFloorId) {
         outsideFloorId = normalizedOutsideFloorId;
-        for (const outsideRecord of recordList) {
-          if (outsideRecord.kind === "outside" && !isOnOutsideFloor(outsideRecord.source)) {
-            outsideRecord.overlay.visible = false;
-          }
-        }
-        rootFirstChild = null;
-        needsUpdate = true;
+        for (const outsideRecord of activeRecords)
+          outsideRecord.kind === "outside" &&
+            !isOnOutsideFloor(outsideRecord.source) &&
+            (outsideRecord.overlay.visible = false);
+        ((rootFirstChild = null), (shouldRefresh = true), requestFrame());
+      }
+    },
+    setPresentationGain(requestedGain) {
+      const normalizedGain = Math.min(
+        1,
+        Math.max(0, Number.isFinite(requestedGain) ? requestedGain : 1),
+      );
+      if (!(isDisposed || normalizedGain === presentationGain)) {
+        presentationGain = normalizedGain;
+        for (const strengthRecord of activeRecords)
+          strengthRecord.overlay.material.uniforms.strength.value =
+            (strengthRecord.presentationBaseStrength ?? settings.strength) * normalizedGain;
         requestFrame();
       }
     },
-    /**
-     * 挂起 / 恢复反射（楼层特效暂停、演示模式时用）。
-     * @param {{fade?: boolean}} [options] fade = true 时走 240ms 淡出，否则立即隐藏。
-     */
-    setSuspended(suspended: any, { fade: fade = false }: any = {}) {
-      const nextSuspended = suspended === true;
-      if (isSuspended === nextSuspended) {
-        // 幂等调用：但重复挂起时仍要把 overlay 摘干净（可能有新记录刚被创建出来），
-        if (nextSuspended) {
-          for (const hiddenRecord of recordList) {
-            hiddenRecord.overlay.visible = false;
-            hiddenRecord.overlay.removeFromParent();
-          }
+    isPrepared: () =>
+      isDisposed ||
+      isSuspended ||
+      settings.mode === "off" ||
+      settings.strength === 0 ||
+      (!shouldRefresh &&
+        activeRecords.every(
+          (checkedRecord) =>
+            !checkedRecord.eligible ||
+            (checkedRecord.preparedPose === lastCameraSignature &&
+              checkedRecord.preparedStateKey === lastLightingSignature),
+        )),
+    setSuspended(suspended, { fade: fade = false, fadeIn: fadeIn = true } = {}) {
+      const shouldSuspend = suspended === true;
+      if (isSuspended === shouldSuspend) {
+        if (shouldSuspend) {
+          for (const hiddenRecord of activeRecords)
+            ((hiddenRecord.overlay.visible = false), hiddenRecord.overlay.removeFromParent());
         }
-        if (nextSuspended && !fade) {
-          suspendStartedAtMs = null;
-        }
+        shouldSuspend && !fade && (suspendStartedAtMs = null);
         return;
       }
-      isSuspended = nextSuspended;
-      resumeStartedAtMs = null;
-      pendingResume = !isSuspended;
-      suspendStartedAtMs = isSuspended && fade ? performance.now() : null;
-      for (const suspendRecord of recordList) {
-        if (isSuspended && fade) {
-          suspendRecord.fadeOutStrength = suspendRecord.overlay.visible
+      ((isSuspended = shouldSuspend),
+        (resumeStartedAtMs = null),
+        (isResumePending = !isSuspended && fadeIn),
+        (resumeRecordSet =
+          !isSuspended && Number.isFinite(maxResumeCapturesPerFrame) ? new Set() : null),
+        (suspendStartedAtMs = isSuspended && fade ? performance.now() : null));
+      for (const suspendRecord of activeRecords)
+        (isSuspended &&
+          fade &&
+          ((suspendRecord.fadeOutStrength = suspendRecord.overlay.visible
             ? suspendRecord.overlay.material.uniforms.strength.value
-            : 0;
-          suspendRecord.fadeOutMatrix = suspendRecord.matrix.clone();
-          suspendRecord.source.updateWorldMatrix(true, false);
-          suspendRecord.fadeOutFrame = suspendRecord.source.matrixWorld.clone();
-        }
-        suspendRecord.overlay.visible = false;
-        suspendRecord.overlay.removeFromParent();
-      }
-      needsUpdate = true;
-      if (!isSuspended) {
-        rootFirstChild = null;
-      }
-      requestFrame();
+            : 0),
+          (suspendRecord.fadeOutMatrix = suspendRecord.matrix.clone()),
+          suspendRecord.source.updateWorldMatrix(true, false),
+          (suspendRecord.fadeOutFrame = suspendRecord.source.matrixWorld.clone())),
+          (suspendRecord.overlay.visible = false),
+          suspendRecord.overlay.removeFromParent());
+      ((shouldRefresh = true), isSuspended || (rootFirstChild = null), requestFrame());
     },
-    // 只读访问记录列表（调试 / 统计用）；返回的是内部数组本身，调用方不要修改。
     get records() {
-      return recordList;
+      return activeRecords;
     },
-    /**
-     * 手动标记「需要重拍」（例如外部改了 toneMappingExposure 这类没进签名的状态）。
-     */
     invalidate() {
-      needsUpdate = true;
+      shouldRefresh = true;
     },
-    /**
-     * 声明某些楼层的内容发生了变化，需要重拍反射。
-     */
-    changed(changedFloorIds: any = null) {
-      if (changedFloorIds == null) {
-        changeRevisionCount++;
-      } else {
+    invalidateContext() {
+      if (!isDisposed) {
+        (clearTimeout(throttleTimer), (throttleTimer = null));
+        for (const cachedRecord of recordsBySource.values())
+          ((cachedRecord.hasCapture = false),
+            (cachedRecord.state = null),
+            (cachedRecord.overlay.visible = false),
+            (cachedRecord.programWork = null));
+        ((resumeRecordSet =
+          !isSuspended && Number.isFinite(maxResumeCapturesPerFrame) ? new Set() : null),
+          (suspendStartedAtMs = null),
+          (shouldRefresh = true),
+          (lastRenderTimeMs = -Infinity),
+          requestFrame());
+      }
+    },
+    changed(changedFloorIds = null) {
+      if (changedFloorIds == null) changeRevisionCount++;
+      else
         for (const changedFloorId of new Set(changedFloorIds)) {
           if (!changedFloorId || !heightByFloorId.has(String(changedFloorId))) {
             changeRevisionCount++;
             continue;
           }
-          floorChangeCounts.set(
+          floorChangeCountByFloorId.set(
             String(changedFloorId),
-            (floorChangeCounts.get(String(changedFloorId)) || 0) + 1
+            (floorChangeCountByFloorId.get(String(changedFloorId)) || 0) + 1,
           );
         }
-      }
     },
-    /**
-     * 释放控制器持有的全部资源。幂等。
-     */
     dispose() {
-      isDisposed = true;
-      clearTimeout(throttleTimer);
-      disposeAllRecords();
-      blurMesh.geometry.dispose();
-      blurMaterial.dispose();
+      ((isDisposed = true), (nodeEntries = []), (cachedTreeRoot = null));
+      for (const fadedRecord of [...fadeRecordByMaterial.values()]) fadedRecord.release();
+      (passes?.dispose(),
+        detail?.dispose(),
+        clearTimeout(throttleTimer),
+        disposeAllRecords(),
+        blurMesh.geometry.dispose(),
+        blurMaterial.dispose());
+      // 折射克隆由 resolver 的内部缓存托管：这里一次性释放，避免逐个 WeakMap 反查。
       disposeMaterialClones();
-      floorChangeCounts.clear();
-      heightByFloorId.clear();
-      lightsByFloorId.clear();
-    }
+      (floorChangeCountByFloorId.clear(), heightByFloorId.clear(), lightsByFloorId.clear());
+    },
   };
 }

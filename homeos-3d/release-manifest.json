@@ -1,0 +1,39 @@
+{
+  "artifacts": {
+    "alembic_runtime": {
+      "files": 21,
+      "sha256": "9ce7f67d381d97f216062ba9f77d510d8bad03bea05524bff3cd0034b479870d"
+    },
+    "backend": {
+      "files": 69,
+      "sha256": "0bd9ca7c29a6abd09ff43ebfad07c18652a76d2039312071db7e009196443346"
+    },
+    "frontend": {
+      "files": 8150,
+      "sha256": "0c199f3cb808045a8ac63090325999bcb06574921af2acc334d9285a8b2b9698"
+    },
+    "image": {
+      "files": 65,
+      "sha256": "64400634785ba57984d96a35e713545a1017dda842b3f6790940c11a1523fa74"
+    },
+    "keys": {
+      "files": 2,
+      "sha256": "e49c95142588cc1db35b3db14d6a900bf1f13ea2b00a3b60267abe0e0479c7c1"
+    },
+    "migrations": {
+      "files": 21,
+      "sha256": "403c27f2caf7cade5da4ca5acd7e157718f509f445ab5bec48fe647130cf671b"
+    }
+  },
+  "customerFingerprintSha256": "1c332cd11682bcc51255b498d1ec0b977d475db58cc7409b8f390c2fcf3500a5",
+  "files": {
+    "VERSION": "a44c09a63563688578d3d87354e992d7ce974922707d70d563fbf884ac571c5f",
+    "alembic.ini": "20b40e325f79c624b08d7467e454420d2d867e7ebbe0aacb18a41f8eebf1abea",
+    "sbom.cdx.json": "12fdff08c92ec4a5ab5bec76c253c3763bdb54709bf3ca23b487a4105504c24d"
+  },
+  "product": "homeos",
+  "releaseBatch": "2026-09-a",
+  "releaseId": "c4804759843c9dcd4aa1cb6b7e3456d0",
+  "schemaVersion": 1,
+  "version": "0.6.7"
+}

@@ -1,13 +1,10 @@
-/**
- * 门锁实体状态折算（运行时侧的薄转出口）。
- */
-export {
-  LOCK_ENTITY_FIELDS,
-  doorModels,
+const lockStateRuntime = await (import("@app/bridge/lock-state-runtime"));
+export const {
+  lockState,
   doorOpenState,
+  doorModels,
   entryDoorModels,
   identifyLockEntities,
   lockEntityRole,
-  lockHinge,
-  lockState
-} from "../core/static-helpers.js";
+  LOCK_ENTITY_FIELDS,
+} = lockStateRuntime;

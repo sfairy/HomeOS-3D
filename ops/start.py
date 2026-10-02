@@ -7,10 +7,12 @@
 
 改 ``frontend/src/runtime`` 时另开：``bun run --cwd homeos-3d dev:runtime``
 仅后端：``python3 ops/start.py --backend-only``
+调试启动：``python3 ops/start.py --debug`` —— 热重载照旧，另开 debugpy 端口给 IDE attach
+只装 Python 环境：``python3 ops/start.py --prepare``
 """
 from __future__ import annotations
 
-import hashlib
+import json
 import os
 import signal
 import socket
@@ -18,6 +20,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import NamedTuple
 
 # 本脚本住在 ops/ 下，脚本目录不再是仓库根：直接 python ops/start.py 时 sys.path[0]
 ROOT = Path(__file__).resolve().parents[1]
@@ -33,7 +36,7 @@ for _path in (str(STORE_BACKEND), str(ROOT)):
 
 from src.core.env import load_dotenv
 
-from ops.docker.license_keys import ensure_store_license_keys
+from ops.license_keys import ensure_store_keys, sync_store_keys
 
 IS_WINDOWS = sys.platform == 'win32'
 
@@ -45,6 +48,11 @@ VITE_STORE_PORT = '8806'
 #: 本脚本要拉起的两个服务端口及其中文名：预检报错与启动提示共用同一份，
 BACKEND_PORTS = ((APP_PORT, '主应用 API'), (STORE_PORT, '授权商店 API'))
 FRONTEND_PORTS = ((VITE_3D_PORT, '主应用 Vite'), (VITE_STORE_PORT, '授权商店 Vite'))
+#: ``--debug`` 时给两个后端各挂一个 debugpy 监听端口，IDE 用 attach 连这里。
+#: 不能复用 8801/8802 —— 那是 uvicorn 自己要 bind 的 HTTP 端口，debugpy 得另占一个口。
+DEBUG_APP_PORT = '8803'
+DEBUG_STORE_PORT = '8804'
+DEBUG_PORTS = ((DEBUG_APP_PORT, '主应用调试器'), (DEBUG_STORE_PORT, '授权商店调试器'))
 #: 默认只绑回环。这是**本地开发**脚本，而它默认打开的两个联调后门（见下方 LOOPBACK 说明）
 HOST = '127.0.0.1'
 #: ``--lan`` 时绑到所有网卡，让同网段的平板 / 墙面板 / 另一台机器都能访问。
@@ -52,7 +60,10 @@ LAN_HOST = '0.0.0.0'
 #: 命令行开关。
 LAN_FLAG = '--lan'
 BACKEND_ONLY_FLAG = '--backend-only'
-KNOWN_FLAGS = frozenset({LAN_FLAG, BACKEND_ONLY_FLAG})
+DEBUG_FLAG = '--debug'
+PREPARE_FLAG = '--prepare'
+#: ``--prepare`` 是「只建环境、不起服务」，在解析 run options 之前就被截走。
+KNOWN_FLAGS = frozenset({LAN_FLAG, BACKEND_ONLY_FLAG, DEBUG_FLAG, PREPARE_FLAG})
 #: 绑定到这些地址时才算「只有本机能访问」。
 LOOPBACK_BIND_HOSTS = frozenset({'127.0.0.1', '::1', 'localhost'})
 
@@ -68,46 +79,70 @@ STORE_REQUIREMENTS = STORE_BACKEND / 'src' / 'requirements.txt'
 APP_SRC = APP_BACKEND / 'src'
 
 CLIENT_KEYS_DIR = ROOT / 'keys'
-LICENSE_PUBLIC_KEY = CLIENT_KEYS_DIR / 'license-public.pem'
-LICENSE_TRANSPORT_PUBLIC_KEY = CLIENT_KEYS_DIR / 'license-transport-public.pem'
 
 
 def bun_bin() -> str:
     return 'bun.exe' if IS_WINDOWS else 'bun'
 
 
-def ensure_venv() -> str:
-    """返回用于启动两个服务的 Python 解释器。"""
-    if VENV_PYTHON.is_file():
-        return str(VENV_PYTHON)
-    subprocess.check_call([sys.executable, '-m', 'venv', str(VENV_DIR)])
+def install_requirements() -> None:
     # 主应用与商店各自声明依赖；共享 venv 时两边都装，避免隐式只跟商店走。
     subprocess.check_call([
         str(VENV_PYTHON), '-m', 'pip', 'install',
         '-r', str(APP_REQUIREMENTS),
         '-r', str(STORE_REQUIREMENTS),
     ])
+
+
+def venv_dependencies_ready() -> bool:
+    """venv 目录在、依赖却可能是空的：编辑器 / ``python -m venv`` 会建出裸环境。"""
+    probe = subprocess.run(
+        [str(VENV_PYTHON), '-c', 'import uvicorn, watchfiles'],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    return probe.returncode == 0
+
+
+def ensure_venv() -> str:
+    """返回用于启动两个服务的 Python 解释器。"""
+    if VENV_PYTHON.is_file():
+        if venv_dependencies_ready():
+            return str(VENV_PYTHON)
+        # 只有 venv 壳子什么也起不来；在这里补装，好过让子进程甩一句 ImportError。
+        print('共享 venv 缺少依赖，正在补装…', flush=True)
+        install_requirements()
+        return str(VENV_PYTHON)
+    subprocess.check_call([sys.executable, '-m', 'venv', str(VENV_DIR)])
+    install_requirements()
     return str(VENV_PYTHON)
+
+
+def ensure_debugpy(python: str) -> None:
+    """``--debug`` 用：确保共享 venv 里装了 debugpy。
+
+    故意不写进 requirements.txt —— 它只服务本地调试：线上镜像由 uvicorn 直接起服务，
+    代码里没有任何 ``import debugpy``，塞进去只是白多一个包和一份 SBOM 升级面。
+    """
+    probe = subprocess.run(
+        [python, '-c', 'import debugpy'],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if probe.returncode == 0:
+        return
+    print('--debug 需要 debugpy，正在装入共享 venv…', flush=True)
+    subprocess.check_call([python, '-m', 'pip', 'install', 'debugpy'])
 
 
 def ensure_license_keys() -> dict[str, str]:
     """确保本地授权密钥存在并镜像公钥，返回主应用需要的环境变量覆盖项。
     """
     keys_dir = HOMEOS_STORE / 'keys' / 'local'
-    source = keys_dir / 'license-transport-public.pem'
-    need_mirror = not LICENSE_TRANSPORT_PUBLIC_KEY.is_file() or (
-        source.is_file()
-        and LICENSE_TRANSPORT_PUBLIC_KEY.read_bytes() != source.read_bytes()
-    )
-    if not source.is_file() or need_mirror:
-        ensure_store_license_keys(keys_dir, CLIENT_KEYS_DIR)
-    overrides = {}
-    for env_name, key_path in (
-        ('APP_LICENSE_PUBLIC_KEY_SHA256', LICENSE_PUBLIC_KEY),
-        ('APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256', LICENSE_TRANSPORT_PUBLIC_KEY),
-    ):
-        overrides[env_name] = hashlib.sha256(key_path.read_bytes()).hexdigest()
-    return overrides
+    ensure_store_keys(keys_dir)
+    return sync_store_keys(store_dir=keys_dir, target_dir=CLIENT_KEYS_DIR)
 
 
 def spawn(
@@ -149,17 +184,29 @@ def primary_lan_address() -> str:
     return '' if address in LOOPBACK_BIND_HOSTS else address
 
 
-def resolve_run_options(arguments: list[str]) -> tuple[str, bool]:
-    """把命令行参数解析成「绑哪个地址」与是否只起后端。
+class RunOptions(NamedTuple):
+    """三个开关各自独立：``--lan`` 管绑定地址，``--backend-only`` 管要不要 Vite，
+    ``--debug`` 管后端要不要多挂一个 debugpy 监听端口。
+    """
+
+    host: str
+    backend_only: bool
+    debug: bool
+
+
+def resolve_run_options(arguments: list[str]) -> RunOptions:
+    """把命令行参数解析成「绑哪个地址」「是否只起后端」「是否挂调试器」。
     """
     unknown = [item for item in arguments if item not in KNOWN_FLAGS]
     if unknown:
         # 必须喊出来：把 ``--lan`` 打成 ``--Lang`` 会被静默忽略，结果退回只绑回环，
         print(f'⚠ 忽略了无法识别的参数：{" ".join(unknown)}')
         print(f'  本脚本只认 {" / ".join(sorted(KNOWN_FLAGS))}。')
-    host = LAN_HOST if LAN_FLAG in arguments else HOST
-    backend_only = BACKEND_ONLY_FLAG in arguments
-    return host, backend_only
+    return RunOptions(
+        host=LAN_HOST if LAN_FLAG in arguments else HOST,
+        backend_only=BACKEND_ONLY_FLAG in arguments,
+        debug=DEBUG_FLAG in arguments,
+    )
 
 
 def is_port_listening(port: str) -> bool:
@@ -174,12 +221,16 @@ def is_port_listening(port: str) -> bool:
         probe.close()
 
 
-def ensure_ports_available(*, frontend: bool) -> None:
+def ensure_ports_available(*, frontend: bool, debug: bool) -> None:
     """启动前预检服务端口；已被占用时立刻中止，不拉起任何子进程。
     """
     ports = list(BACKEND_PORTS)
     if frontend:
         ports.extend(FRONTEND_PORTS)
+    if debug:
+        # 调试端口不预检的话，debugpy 会在子进程里才报「address already in use」，
+        # 那时四个进程已经起来了，报错混在日志里反而更难查。
+        ports.extend(DEBUG_PORTS)
     occupied = [(port, name) for port, name in ports if is_port_listening(port)]
     if not occupied:
         return
@@ -192,14 +243,48 @@ def ensure_ports_available(*, frontend: bool) -> None:
     raise SystemExit(1)
 
 
+def anonymous_whitelist_complete() -> bool:
+    """匿名静态资源白名单是否覆盖了 frontend/public 里真实存在的种子条目。
+
+    只看 ``assets/*.js`` 存在是不够的：一次中途失败的构建（Vite 清空 outDir 时抛
+    ENOTEMPTY）会留下「构建产物在、frontend/public 的拷贝没铺」的半成品 dist。
+    此时 dist/public-static.json 里图标与 manifest 会被 vite 插件按「产物不存在」
+    整批筛掉，未登录页请求 favicon / webmanifest 就变成 401/403。这里按种子清单
+    反查一遍：凡是在 frontend/public 里真实存在的匿名条目，都必须出现在生成的清单里。
+    """
+    try:
+        seed = json.loads((HOMEOS_3D / 'frontend' / 'public-static.seed.json').read_text(encoding = 'utf-8'))
+        manifest = json.loads((HOMEOS_3D / 'dist' / 'public-static.json').read_text(encoding = 'utf-8'))
+    except (OSError, json.JSONDecodeError):
+        return False
+    generated = set()
+    for entry in manifest.get('files', []) or []:
+        path = entry if isinstance(entry, str) else entry.get('path') if isinstance(entry, dict) else None
+        if isinstance(path, str):
+            generated.add(path)
+    public_root = HOMEOS_3D / 'frontend' / 'public'
+    for item in seed.get('files', []) or []:
+        path = item if isinstance(item, str) else item.get('path') if isinstance(item, dict) else None
+        if not isinstance(path, str) or not path.startswith('/static/'):
+            continue
+        # 带哈希的构建产物不在 public/ 里，只核对「公共目录里真实存在」的种子条目。
+        if not (public_root / path.lstrip('/')).exists():
+            continue
+        if path not in generated:
+            return False
+    return True
+
+
 def ensure_frontend_build() -> None:
     """若缺少 Vite 构建产物则跑一次 ``bun run build:vite``（开发用，不混淆）。
     """
     # assets 只证明 app/store 主包在；runtime manifest 另算 —— 缺它时 3D 模块会 500。
+    # 白名单完整性另算 —— 见 anonymous_whitelist_complete。
     ready = (
         (HOMEOS_3D / 'dist' / 'static' / 'assets').is_dir()
         and any((HOMEOS_3D / 'dist' / 'static' / 'assets').glob('*.js'))
         and (HOMEOS_3D / 'dist' / 'modules' / 'runtime' / 'manifest.json').is_file()
+        and anonymous_whitelist_complete()
         and (HOMEOS_STORE / 'dist' / 'static' / 'assets').is_dir()
         and any((HOMEOS_STORE / 'dist' / 'static' / 'assets').glob('*.js'))
     )
@@ -218,11 +303,36 @@ def vite_dev_command(config_rel: str, host: str) -> list[str]:
     return command
 
 
+def debugpy_prefix(python: str, debug_port: str) -> list[str]:
+    """把真正的启动命令包进 debugpy 的监听模式（IDE 随后 attach 到这个端口）。
+
+    这里是「断点」与「热重载」能同时成立的关键：debugpy 的 ``--listen`` 默认就带
+    ``subProcess=True``（见 debugpy.server.cli 里的 ``options.config``），它会 patch
+    ``multiprocessing``；而主应用的 uvicorn ``--reload`` 与商店的 ``STORE_RELOAD`` 恰恰是用
+    ``multiprocessing`` 的 spawn 去拉重载子进程（uvicorn/_subprocess.py）。子进程因此会自己
+    连回同一个调试会话 —— 改完代码重载出来的进程里，断点照样命中。
+
+    这也是**不能**把 ``--reload`` 摘掉的原因：摘掉虽然能调试，却把热重载弄丢了。
+
+    ``-Xfrozen_modules=off`` 是 Python 3.11+ 的必需项：解释器默认用冻结的 stdlib 模块，
+    debugpy 会因此漏掉断点（启动日志里那句 "It seems that frozen modules are being used"）。
+    IDE 的 launch 配置会自动带这个参数，我们走命令行就得自己加。
+    """
+    return [python, '-Xfrozen_modules=off', '-m', 'debugpy', '--listen', debug_port]
+
+
 def main() -> None:
-    host, backend_only = resolve_run_options(sys.argv[1:])
+    if PREPARE_FLAG in sys.argv[1:]:
+        # 只建环境、不起任何服务：给 IDE 的 preLaunchTask 用 —— 调试器得先拿到解释器路径
+        # 才能启动 ops/start.py，而首次 clone 时 .venv-store 还不存在（见 .vscode/tasks.json）。
+        print(f'Python 环境就绪：{ensure_venv()}', flush=True)
+        return
+    options = resolve_run_options(sys.argv[1:])
     # 预检必须在拉起任何子进程之前（见 ensure_ports_available 的说明）。
-    ensure_ports_available(frontend=not backend_only)
+    ensure_ports_available(frontend=not options.backend_only, debug=options.debug)
     python = ensure_venv()
+    if options.debug:
+        ensure_debugpy(python)
     ensure_frontend_build()
     # 本地密钥指纹覆盖：把主应用的指纹校验对准本地生成的密钥，
     license_overrides = ensure_license_keys()
@@ -241,14 +351,17 @@ def main() -> None:
 
     app_environment = base_environment.copy()
     app_environment['APP_DATA_DIR'] = str(HOMEOS_3D / 'data')
-    # 后端包在 homeos-3d/backend（src）；cwd 用项目根以便读 dist/
-    app_environment['PYTHONPATH'] = str(APP_BACKEND)
+    # 后端包是 homeos-3d/backend/src，导入名因此是 backend.src.*（见 migrations/env.py 与
+    # tools/smoke_pages.py）。PYTHONPATH 必须挂项目根而不是 backend/：挂 backend/ 只能让
+    # ``src.*`` 解析，而迁移脚本里的 ``backend.src.*`` 会另起一棵模块树，同一份 database.py
+    # 被导入两次 → 两个 Base、两个模型类。
+    app_environment['PYTHONPATH'] = str(HOMEOS_3D)
     app_environment.update(license_overrides)
 
     store_environment = base_environment.copy()
     store_environment['STORE_DATA_DIR'] = str(HOMEOS_STORE / 'data')
     store_environment['STORE_LICENSE_KEYS_DIR'] = str(HOMEOS_STORE / 'keys' / 'local')
-    store_environment['STORE_HOST'] = host
+    store_environment['STORE_HOST'] = options.host
     store_environment['STORE_PORT'] = STORE_PORT
     store_environment['PYTHONPATH'] = str(STORE_BACKEND)
     store_environment.setdefault('STORE_RELOAD', '1')
@@ -259,44 +372,44 @@ def main() -> None:
     # （后台「站点配置 → 支付渠道」填沙箱 APPID / 密钥，或写进 .env）。
     # 未配置渠道时下单会 503 —— 这是刻意的：宁可下不了单，也不要「点一下就发码」。
 
+    store_command = [python, '-m', 'src.run']
     # 主应用的重载范围必须收窄到 backend/src/
+    app_command = [
+        python,
+        '-m',
+        'uvicorn',
+        'backend.src.main:app',
+        '--host',
+        options.host,
+        '--port',
+        APP_PORT,
+        '--reload',
+        '--reload-dir',
+        str(APP_SRC),
+    ]
+    if options.debug:
+        # 两个后端各挂自己的一路 debugpy 监听；--reload / STORE_RELOAD 一律保留，
+        # 重载出来的子进程会自动连回（见 debugpy_prefix 的说明）。
+        store_command = debugpy_prefix(python, DEBUG_STORE_PORT) + store_command
+        app_command = debugpy_prefix(python, DEBUG_APP_PORT) + app_command
+
     processes = [
-        spawn(
-            [python, '-m', 'src.run'],
-            store_environment,
-            cwd=HOMEOS_STORE,
-        ),
-        spawn(
-            [
-                python,
-                '-m',
-                'uvicorn',
-                'src.main:app',
-                '--host',
-                host,
-                '--port',
-                APP_PORT,
-                '--reload',
-                '--reload-dir',
-                str(APP_SRC),
-            ],
-            app_environment,
-            cwd=HOMEOS_3D,
-        ),
+        spawn(store_command, store_environment, cwd=HOMEOS_STORE),
+        spawn(app_command, app_environment, cwd=HOMEOS_3D),
     ]
 
-    if not backend_only:
+    if not options.backend_only:
         frontend_env = base_environment.copy()
         # 只起页面 HMR。runtime 走 dist（首次缺产物时 build:vite 已生成）；
         # 不要在这里挂 vite build --watch，否则终端会被 chunk 列表刷屏。
         processes.extend([
             spawn(
-                vite_dev_command('frontend/vite.config.ts', host),
+                vite_dev_command('frontend/vite.config.ts', options.host),
                 frontend_env,
                 cwd=HOMEOS_3D,
             ),
             spawn(
-                vite_dev_command('frontend/vite.config.ts', host),
+                vite_dev_command('frontend/vite.config.ts', options.host),
                 frontend_env,
                 cwd=HOMEOS_STORE,
             ),
@@ -312,22 +425,31 @@ def main() -> None:
         signal.signal(signal.SIGTERM, stop)
 
     # 全部 flush=True：这几行是「复制哪个地址去别的设备」的唯一出处，而后台运行时 stdout 是
-    mode = 'backend-only' if backend_only else 'dev'
+    if options.debug:
+        mode = 'debug'
+    elif options.backend_only:
+        mode = 'backend-only'
+    else:
+        mode = 'dev'
     print(f'HomeOS 本地启动（{mode}）', flush=True)
-    if not backend_only:
+    if not options.backend_only:
         print(f'前端 HMR  主应用   http://{HOST}:{VITE_3D_PORT}/', flush=True)
         print(f'          授权商店 http://{HOST}:{VITE_STORE_PORT}/', flush=True)
     print(f'后端 API  主应用   http://{HOST}:{APP_PORT}/setup', flush=True)
     print(f'          授权商店 http://{HOST}:{STORE_PORT}/', flush=True)
-    if not backend_only:
+    if options.debug:
+        # 这两个口是给 IDE attach 用的；attach 后改代码，重载出的子进程会连回同一会话。
+        print(f'调试器    主应用   {DEBUG_APP_PORT}（IDE attach，热重载保留）', flush=True)
+        print(f'          授权商店 {DEBUG_STORE_PORT}（IDE attach，热重载保留）', flush=True)
+    if not options.backend_only:
         print('改页面走 HMR 地址。改 runtime 另开：bun run --cwd homeos-3d dev:runtime', flush=True)
-    if host not in LOOPBACK_BIND_HOSTS:
+    if options.host not in LOOPBACK_BIND_HOSTS:
         # 不要在这条分支里再重复打印回环地址：--lan 下运维要复制给对方设备的是局域网地址，
         lan_address = primary_lan_address()
         print(flush=True)
-        print(f'已绑定 {host}，同网段设备用下面的地址访问（Host 与 Origin 会随之校验，无需额外配置）：', flush=True)
+        print(f'已绑定 {options.host}，同网段设备用下面的地址访问（Host 与 Origin 会随之校验，无需额外配置）：', flush=True)
         if lan_address:
-            if not backend_only:
+            if not options.backend_only:
                 print(f'局域网 HMR  主应用   http://{lan_address}:{VITE_3D_PORT}/', flush=True)
                 print(f'            授权商店 http://{lan_address}:{VITE_STORE_PORT}/', flush=True)
             print(f'局域网 API  主应用   http://{lan_address}:{APP_PORT}/', flush=True)
@@ -336,7 +458,7 @@ def main() -> None:
             print(
                 f'  （没探到局域网地址，请自行查看本机 IP；'
                 f'端口 {APP_PORT}/{STORE_PORT}'
-                + (f'/{VITE_3D_PORT}/{VITE_STORE_PORT}' if not backend_only else '')
+                + (f'/{VITE_3D_PORT}/{VITE_STORE_PORT}' if not options.backend_only else '')
                 + '）',
                 flush=True,
             )

@@ -1,40 +1,23 @@
-/**
- * 户型图自动导图：导出分辨率换算。
- */
-
-
-// 导出尺寸的上下限：最小边不低于 320px（再小会糊），最大边不超过 4096（超过没有收益且拖慢渲染）。
-const MIN_EXPORT_EDGE = 320;
-const MAX_EXPORT_EDGE = 4096;
-// 画布尺寸缺失时的兜底（与仪表盘默认画布一致），保证换算永远有确定的输入。
-const DEFAULT_CANVAS_WIDTH = 2778;
-const DEFAULT_CANVAS_HEIGHT = 1940;
-
-/** 取出正数；非法值（NaN / 0 / 负数 / 字符串）一律退回 fallback。 */
-function positiveNumber(value: any, fallback: any) {
-  const number = Number(value);
-  return Number.isFinite(number) && number > 0 ? number : fallback;
-}
-
-/**
- * 算出自动导图底图的导出分辨率。
- */
-export function floorplanAutoDiagramExportResolution(componentBox: any = {}, canvasBox: any = {}) {
-  const canvasWidth = positiveNumber(canvasBox.width, DEFAULT_CANVAS_WIDTH);
-  const canvasHeight = positiveNumber(canvasBox.height, DEFAULT_CANVAS_HEIGHT);
-  const componentWidth = positiveNumber(componentBox.width, canvasWidth);
-  const componentHeight = positiveNumber(componentBox.height, canvasHeight);
-
-  // 面积比开方即线性缩放比：按面积对齐而不是按宽度对齐，宽高比差异大时才不会把控件拉变形。
-  const areaScale = Math.sqrt((canvasWidth * canvasHeight) / (componentWidth * componentHeight));
-  // 缩放比的可用区间：让短边≥320、长边≤4096。下限按 max、上限按 min，
-  const minimumScale = Math.max(MIN_EXPORT_EDGE / componentWidth, MIN_EXPORT_EDGE / componentHeight);
-  const maximumScale = Math.min(MAX_EXPORT_EDGE / componentWidth, MAX_EXPORT_EDGE / componentHeight);
-  // 区间为空（控件极端狭长）时取上限：宁可尺寸偏小，也不要突破 4096 的渲染上限。
-  const scale = minimumScale <= maximumScale ? Math.max(minimumScale, Math.min(maximumScale, areaScale)) : maximumScale;
-
+const numberOrFallback = (candidate, fallback) => {
+  const parsed = Number(candidate);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+// target / reference 是「画布尺寸」这类只有 width / height 的普通对象，允许缺省。
+type DiagramPixelSize = { width?: unknown; height?: unknown };
+export function floorplanAutoDiagramExportResolution(
+  target: DiagramPixelSize = {},
+  reference: DiagramPixelSize = {},
+) {
+  const referenceWidth = numberOrFallback(reference.width, 2778),
+    referenceHeight = numberOrFallback(reference.height, 1940),
+    targetWidth = numberOrFallback(target.width, referenceWidth),
+    targetHeight = numberOrFallback(target.height, referenceHeight),
+    areaRatio = Math.sqrt((referenceWidth * referenceHeight) / (targetWidth * targetHeight)),
+    minScale = Math.max(320 / targetWidth, 320 / targetHeight),
+    maxScale = Math.min(4096 / targetWidth, 4096 / targetHeight),
+    scale = minScale <= maxScale ? Math.max(minScale, Math.min(maxScale, areaRatio)) : maxScale;
   return {
-    width: Math.max(1, Math.round(componentWidth * scale)),
-    height: Math.max(1, Math.round(componentHeight * scale))
+    width: Math.max(1, Math.round(targetWidth * scale)),
+    height: Math.max(1, Math.round(targetHeight * scale)),
   };
 }

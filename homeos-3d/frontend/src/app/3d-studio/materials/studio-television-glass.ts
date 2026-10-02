@@ -1,77 +1,45 @@
-/**
- * 电视屏幕玻璃质感的两种画法：熄屏渐变与暖色玻璃材质。
- */
-
-type CanvasSize = {
-  width: number;
-  height: number;
-};
-
-type ThreeLike = {
-  MeshBasicMaterial: new (params?: Record<string, unknown>) => {
-    onBeforeCompile: (shader: {
-      uniforms: Record<string, { value: unknown }>;
-      vertexShader: string;
-      fragmentShader: string;
-    }) => void;
-    customProgramCacheKey: () => string;
-  };
-  Color: new (color: string) => unknown;
-};
-
-/**
- * 在 2D 上下文上画熄屏玻璃渐变。
- */
-export function drawTelevisionGlass(
-  canvasSize: CanvasSize,
-  context: CanvasRenderingContext2D,
-  warm = false
-): void {
-  const glassGradient = context.createLinearGradient(
+export function drawTelevisionGlass(canvasElement, painter, isLit = false) {
+  const glassGradient = painter.createLinearGradient(
     0,
     0,
-    canvasSize.width * 0.35,
-    canvasSize.height
+    canvasElement.width * 0.35,
+    canvasElement.height,
   );
-  glassGradient.addColorStop(0, warm ? "#505b62" : "#2a2c2f");
-  glassGradient.addColorStop(0.45, warm ? "#343d45" : "#222427");
-  glassGradient.addColorStop(1, warm ? "#242b31" : "#181a1d");
-  context.fillStyle = glassGradient;
-  context.fillRect(0, 0, canvasSize.width, canvasSize.height);
+  (glassGradient.addColorStop(0, isLit ? "#505b62" : "#2a2c2f"),
+    glassGradient.addColorStop(0.45, isLit ? "#343d45" : "#222427"),
+    glassGradient.addColorStop(1, isLit ? "#242b31" : "#181a1d"),
+    (painter.fillStyle = glassGradient),
+    painter.fillRect(0, 0, canvasElement.width, canvasElement.height));
 }
-
-/**
- * 创建暖阳原木主题下的电视玻璃材质。
- */
-export function createWarmTelevisionGlass(three: ThreeLike) {
+export function createWarmTelevisionGlass(three) {
   const glassMaterial = new three.MeshBasicMaterial({
-    color: 16777215,
-    toneMapped: false
-  });
-  const glassLow = new three.Color("#242b31");
-  const glassHigh = new three.Color("#505b62");
-  glassMaterial.onBeforeCompile = compiledShader => {
-    // 两个色标走 uniform 而不是硬编码进字符串：这里传的是 Color 实例，
-    compiledShader.uniforms.tvGlassLow = {
-      value: glassLow
-    };
-    compiledShader.uniforms.tvGlassHigh = {
-      value: glassHigh
-    };
-    compiledShader.vertexShader = compiledShader.vertexShader
-      .replace("#include <common>", "#include <common>\nvarying vec2 tvGlassUv;")
-      .replace("#include <begin_vertex>", "#include <begin_vertex>\ntvGlassUv = uv;");
-    compiledShader.fragmentShader = compiledShader.fragmentShader
-      .replace(
-        "#include <common>",
-        "#include <common>\nvarying vec2 tvGlassUv; uniform vec3 tvGlassLow; uniform vec3 tvGlassHigh;"
-      )
-      .replace(
-        "#include <color_fragment>",
-        "#include <color_fragment>\ndiffuseColor.rgb = mix(tvGlassLow, tvGlassHigh, smoothstep(0.0, 1.35, tvGlassUv.y + (1.0-tvGlassUv.x)*.35));"
-      );
-  };
-  // 缓存键固定字符串：这一套注入与材质参数无关，所有实例共用同一份编译结果。
-  glassMaterial.customProgramCacheKey = () => "warm-tv-glass-v1";
-  return glassMaterial;
+      color: 16777215,
+      toneMapped: false,
+    }),
+    lowColor = new three.Color("#242b31"),
+    highColor = new three.Color("#505b62");
+  return (
+    (glassMaterial.onBeforeCompile = (shader) => {
+      ((shader.uniforms.tvGlassLow = {
+        value: lowColor,
+      }),
+        (shader.uniforms.tvGlassHigh = {
+          value: highColor,
+        }),
+        (shader.vertexShader = shader.vertexShader
+          .replace("#include <common>", "#include <common>\nvarying vec2 tvGlassUv;")
+          .replace("#include <begin_vertex>", "#include <begin_vertex>\ntvGlassUv = uv;")),
+        (shader.fragmentShader = shader.fragmentShader
+          .replace(
+            "#include <common>",
+            "#include <common>\nvarying vec2 tvGlassUv; uniform vec3 tvGlassLow; uniform vec3 tvGlassHigh;",
+          )
+          .replace(
+            "#include <color_fragment>",
+            "#include <color_fragment>\ndiffuseColor.rgb = mix(tvGlassLow, tvGlassHigh, smoothstep(0.0, 1.35, tvGlassUv.y + (1.0-tvGlassUv.x)*.35));",
+          )));
+    }),
+    (glassMaterial.customProgramCacheKey = () => "warm-tv-glass-v1"),
+    glassMaterial
+  );
 }

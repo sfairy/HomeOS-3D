@@ -1,150 +1,113 @@
-/**
- * 展示页的配对二维码弹窗。
- */
-import qrcode from "/static/vendor/qrcode-generator/qrcode.js";
-
-type DisplayPairing = {
-  name?: string;
-  code?: unknown;
-  enabled?: unknown;
-  [key: string]: unknown;
-};
-
-/**
- * 校验服务地址与配对码，拼出二维码内容。
- */
-function pairingQrPayload(serverUrl: unknown, code: unknown) {
-  const serverUrlObject = new URL(String(serverUrl).trim());
-  // 只接受「裸 origin」形式：不允许用户信息、查询串、哈希与非根路径，
+import qrcodeGenerator from "/static/vendor/qrcode-generator/qrcode.js";
+export function pairingQrPayload(serviceUrl, pairCode) {
+  const parsedUrl = new URL(String(serviceUrl).trim());
   if (
-    !["http:", "https:"].includes(serverUrlObject.protocol) ||
-    serverUrlObject.username ||
-    serverUrlObject.password ||
-    serverUrlObject.search ||
-    serverUrlObject.hash ||
-    (serverUrlObject.pathname !== "/" && serverUrlObject.pathname !== "")
+    !["http:", "https:"].includes(parsedUrl.protocol) ||
+    parsedUrl.username ||
+    parsedUrl.password ||
+    parsedUrl.search ||
+    parsedUrl.hash ||
+    (parsedUrl.pathname !== "/" && parsedUrl.pathname !== "")
   )
-    throw new Error(
-      "请填写 HomeOS 服务地址，例如 http://192.168.1.20:18080，不包含页面路径。"
-    );
-  if (!/^\d{6}$/.test(String(code)))
-    throw new Error("需要有效的 6 位配对码。");
-  // 手机扫到 localhost 只会指向手机自己，必须挡掉这类地址。
+    throw new Error("请填写 HomeOS 服务地址，例如 http://192.168.1.20:18080，不包含页面路径。");
+  if (!/^\d{6}$/.test(String(pairCode))) throw new Error("需要有效的 6 位配对码。");
   if (
-    ["localhost", "127.0.0.1", "0.0.0.0", "[::1]", "[::]"].includes(serverUrlObject.hostname) ||
-    serverUrlObject.hostname.endsWith(".localhost") ||
-    serverUrlObject.hostname.startsWith("127.")
+    ["localhost", "127.0.0.1", "0.0.0.0", "[::1]", "[::]"].includes(parsedUrl.hostname) ||
+    parsedUrl.hostname.endsWith(".localhost") ||
+    parsedUrl.hostname.startsWith("127.")
   )
-    throw new Error(
-      "手机无法连接电脑的本机地址，请改为手机可访问的局域网 IP 或域名。"
-    );
-  // origin 已含协议与端口；哈希字段顺序写成 type/version/code，与解析端只做集合比较无关。
-  return `${serverUrlObject.origin}/pair?scan=1#type=homeos-pair&version=1&code=${String(code)}`;
+    throw new Error("手机无法连接电脑的本机地址，请改为手机可访问的局域网 IP 或域名。");
+  return `${parsedUrl.origin}/pair?scan=1#type=homeos-pair&version=1&code=${String(pairCode)}`;
 }
-
-/**
- * 把配对链接渲染成内联 SVG 二维码。
- */
-function pairingQrSvg(payload: string) {
-  // 默认按 Latin-1 编码，中文域名 / 参数会乱码，必须显式切到 UTF-8。
-  qrcode.stringToBytes = qrcode.stringToBytesFuncs["UTF-8"];
-  // 纠错等级 "M"（约 15%）兼顾容错与二维码尺寸；scalable 让 SVG 自适应弹窗宽度。
-  const qrCode = qrcode(0, "M");
+export function pairingQrSvg(payload) {
+  qrcodeGenerator.stringToBytes = qrcodeGenerator.stringToBytesFuncs["UTF-8"];
+  const qrCode = qrcodeGenerator(0, "M");
   return (
     qrCode.addData(payload),
     qrCode.make(),
-    qrCode.createSvgTag({ cellSize: 5, margin: 20, scalable: !0 })
+    qrCode.createSvgTag({
+      cellSize: 5,
+      margin: 20,
+      scalable: true,
+    })
   );
 }
-
-/**
- * 打开配对二维码弹窗。
- */
-export function showDisplayPairingQr(pairing: DisplayPairing) {
+export function showDisplayPairingQr(display) {
   const dialogElement = document.createElement("dialog");
   dialogElement.className = "display-pairing-qr-dialog";
   const titleElement = document.createElement("h2");
   titleElement.textContent = "HomeOS 扫码配对";
   const descriptionElement = document.createElement("p");
-  descriptionElement.textContent = `扫描下方二维码，连接“${pairing.name}”。安卓 App 或手机相机均可扫码。`;
-  const downloadLink = document.createElement("a");
-  ((downloadLink.className = "display-pairing-qr-download"),
-    (downloadLink.href = "https://wiki.habridge.cn/downloads/HaBridge.apk"),
-    (downloadLink.target = "_blank"),
-    (downloadLink.rel = "noopener noreferrer"),
-    (downloadLink.textContent = "下载安卓 App（Wiki）"));
-  const noteElement = document.createElement("div");
-  noteElement.className = "display-pairing-qr-note";
-  const noteTitle = document.createElement("strong");
-  noteTitle.textContent = "iPhone / iPad 使用引导";
-  const stepsList = document.createElement("ol");
-  // iOS 不支持安装 PWA 的提示，只能给出添加到主屏的手动步骤。
+  descriptionElement.textContent = `\u626B\u63CF\u4E0B\u65B9\u4E8C\u7EF4\u7801\uFF0C\u8FDE\u63A5\u201C${display.name}\u201D\u3002\u5B89\u5353 App \u6216\u624B\u673A\u76F8\u673A\u5747\u53EF\u626B\u7801\u3002`;
+  const downloadLinkElement = document.createElement("a");
+  ((downloadLinkElement.className = "display-pairing-qr-download"),
+    (downloadLinkElement.href = "https://wiki.homeos.cn/downloads/HomeOS.apk"),
+    (downloadLinkElement.target = "_blank"),
+    (downloadLinkElement.rel = "noopener noreferrer"),
+    (downloadLinkElement.textContent = "下载安卓 App（Wiki）"));
+  const noteBoxElement = document.createElement("div");
+  noteBoxElement.className = "display-pairing-qr-note";
+  const noteHeadingElement = document.createElement("strong");
+  noteHeadingElement.textContent = "iPhone / iPad 使用引导";
+  const stepsListElement = document.createElement("ol");
   for (const stepText of [
     "手机相机扫码，打开页面后点击“连接”。",
-    "Chrome 或 Safari：分享 → 添加到主屏幕 → 添加。"
+    "Chrome 或 Safari：分享 → 添加到主屏幕 → 添加。",
   ]) {
-    const stepItem = document.createElement("li");
-    ((stepItem.textContent = stepText), stepsList.append(stepItem));
+    const stepItemElement = document.createElement("li");
+    ((stepItemElement.textContent = stepText), stepsListElement.append(stepItemElement));
   }
-  const footnoteElement = document.createElement("p");
-  ((footnoteElement.textContent =
-    "添加后像 App 一样，点击桌面图标全屏打开，面板功能与 App 相同。"),
-    noteElement.append(noteTitle, stepsList, footnoteElement));
-  const addressLabel = document.createElement("label");
-  addressLabel.textContent = "手机可访问的连接地址";
+  const noteTextElement = document.createElement("p");
+  ((noteTextElement.textContent = "添加后像 App 一样，点击桌面图标全屏打开，面板功能与 App 相同。"),
+    noteBoxElement.append(noteHeadingElement, stepsListElement, noteTextElement));
+  const addressLabelElement = document.createElement("label");
+  addressLabelElement.textContent = "手机可访问的连接地址";
   const addressInput = document.createElement("input");
-  // 默认填当前 origin，用户改网段时可直接改这里重新生成二维码。
   ((addressInput.type = "url"),
     (addressInput.autocomplete = "off"),
-    (addressInput.spellcheck = !1),
+    (addressInput.spellcheck = false),
     (addressInput.value = window.location.origin),
-    addressInput.setAttribute(
-      "aria-label",
-      "手机可访问的连接地址"
-    ),
-    addressLabel.append(addressInput));
-  const graphicElement = document.createElement("div");
-  ((graphicElement.className = "display-pairing-qr-graphic"),
-    graphicElement.setAttribute("role", "img"),
-    graphicElement.setAttribute("aria-label", "HomeOS 配对二维码"));
-  const statusNote = document.createElement("p");
-  statusNote.className = "display-pairing-qr-note";
-  const closeButton = document.createElement("button");
-  ((closeButton.type = "button"),
-    (closeButton.textContent = "关闭"),
-    closeButton.addEventListener("click", () => dialogElement.close()));
+    addressInput.setAttribute("aria-label", "手机可访问的连接地址"),
+    addressLabelElement.append(addressInput));
+  const qrGraphicElement = document.createElement("div");
+  ((qrGraphicElement.className = "display-pairing-qr-graphic"),
+    qrGraphicElement.setAttribute("role", "img"),
+    qrGraphicElement.setAttribute("aria-label", "HomeOS 配对二维码"));
+  const statusNoteElement = document.createElement("p");
+  statusNoteElement.className = "display-pairing-qr-note";
+  const closeButtonElement = document.createElement("button");
+  ((closeButtonElement.type = "button"),
+    (closeButtonElement.textContent = "关闭"),
+    closeButtonElement.addEventListener("click", () => dialogElement.close()));
   const renderQr = () => {
     try {
-      if (!pairing.enabled)
-        throw new Error(
-          "此配对码已停用，请先启用。"
-        );
-      ((graphicElement.innerHTML = pairingQrSvg(
-        pairingQrPayload(addressInput.value, pairing.code)
+      if (!display.enabled) throw new Error("此配对码已停用，请先启用。");
+      ((qrGraphicElement.innerHTML = pairingQrSvg(
+        pairingQrPayload(addressInput.value, display.code),
       )),
-        (graphicElement.hidden = !1),
-        (statusNote.textContent =
-          "请仅将二维码提供给需要配对的设备。"));
-    } catch (caughtError) {
-      (graphicElement.replaceChildren(),
-        (graphicElement.hidden = !0),
-        (statusNote.textContent =
-          caughtError instanceof Error ? caughtError.message : String(caughtError)));
+        (qrGraphicElement.hidden = false),
+        (statusNoteElement.textContent = "请仅将二维码提供给需要配对的设备。"));
+    } catch (renderError) {
+      (qrGraphicElement.replaceChildren(),
+        (qrGraphicElement.hidden = true),
+        (statusNoteElement.textContent = renderError.message));
     }
   };
   (addressInput.addEventListener("input", renderQr),
     dialogElement.append(
       titleElement,
       descriptionElement,
-      addressLabel,
-      graphicElement,
-      statusNote,
-      downloadLink,
-      noteElement,
-      closeButton
+      addressLabelElement,
+      qrGraphicElement,
+      statusNoteElement,
+      downloadLinkElement,
+      noteBoxElement,
+      closeButtonElement,
     ),
     document.body.append(dialogElement),
-    dialogElement.addEventListener("close", () => dialogElement.remove(), { once: !0 }),
+    dialogElement.addEventListener("close", () => dialogElement.remove(), {
+      once: true,
+    }),
     renderQr(),
     dialogElement.showModal());
 }

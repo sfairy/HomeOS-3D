@@ -1,430 +1,332 @@
-
-import { prefersReducedMotionNow } from "./motion-preference.js";
-
-type StageOptionsLike = {
-  THREE: any;
-  scene?: any;
-  camera?: any;
-  renderer?: any;
-  [key: string]: any;
+export const BACKGROUND_THEMES = [
+    ["grid", "经典网格"],
+    ["dots", "微光星尘"],
+  ],
+  normalizeBackgroundTheme = (themeName) =>
+    themeName === "dots" || themeName === "contours" ? "dots" : "grid";
+const groundThemeUniformDeclarations =
+    "\nvarying vec2 vHbGround;\nuniform float hbGroundTheme;\nuniform float hbGroundSpan;\nuniform float hbGroundCoverage;\nuniform float hbGroundFallback;\nuniform vec2 hbGroundCenter;\nuniform vec3 hbGroundDeep;\nuniform float hbGroundActivity;\nuniform vec3 hbGroundPulse;\nuniform vec3 hbGroundInk;\nuniform vec3 hbGroundAccent;\n",
+  groundThemeShaderSource =
+    "\nif (hbGroundTheme > 0.5) {\ndiffuseColor.a = (hbGroundFallback >= 0.0 ? hbGroundFallback : diffuseColor.a) / hbGroundCoverage;\nvec2 bgP = vHbGround - hbGroundCenter;\nvec2 bgUV = bgP / hbGroundSpan;\nfloat bgR2 = dot(bgUV, bgUV);\nfloat bgHalo = exp(-bgR2 * 0.55);\nfloat bgCore = exp(-bgR2 * 2.4);\nfloat bgFade = 1.0 - smoothstep(2.2, 4.2, length(bgUV));\nfloat bgAge = hbGroundPulse.z;\n// A broad, quiet response; never a sharp concentric ring.\nvec2 bgTouch = (vHbGround - hbGroundPulse.xy) / (hbGroundSpan * 0.38);\nfloat bgFeedback = exp(-dot(bgTouch, bgTouch) * 0.6)\n  * max(0.0, 1.0 - bgAge / 1.25);\nvec3 bgBase = mix(diffuseColor.rgb * 0.34, hbGroundDeep, 0.84);\nbgBase *= mix(1.0, 0.62, smoothstep(0.65, 2.8, length(bgUV)));\nvec3 bgLight = hbGroundInk * bgHalo * 0.085 + hbGroundAccent * bgCore * 0.014;\n  // Uneven, widely separated motes. Fixed world size and pixel coverage keep\n  // far points from turning into a dense, equally bright dotted wallpaper.\n  vec2 bgCellP = bgUV / 0.44;\n  vec2 bgCell = floor(bgCellP);\n  float bgSeed = fract(sin(dot(bgCell, vec2(127.1, 311.7))) * 43758.5453);\n  float bgSeed2 = fract(sin(dot(bgCell, vec2(269.5, 183.3))) * 43758.5453);\n  vec2 bgOffset = vec2(bgSeed, bgSeed2) * 0.64 + 0.18;\n  float bgDistance = length(fract(bgCellP) - bgOffset);\n  float bgAA = max(length(fwidth(bgCellP)), 0.0001);\n  float bgRadius = mix(0.004, 0.012, bgSeed2);\n  float bgPoint = (1.0 - smoothstep(bgRadius, bgRadius + bgAA * 0.75, bgDistance))\n    * min(1.0, bgRadius / bgAA) * step(0.66, bgSeed);\n  float bgVeil = (0.2 + 0.8 * exp(-bgR2 * 0.22)) * bgFade;\n  bgLight += hbGroundAccent * bgPoint * bgVeil * (0.32 + hbGroundActivity * 0.06);\ndiffuseColor.rgb = bgBase + bgLight * (1.0 + hbGroundActivity * 0.12)\n  + hbGroundAccent * bgFeedback * bgFade * 0.009;\n}\n";
+export function createBackgroundTheme(
+  sceneHost,
+  onThemeChanged = () => {},
+  clock = () => performance.now(),
+) {
+  const { THREE: three } = sceneHost,
+    recordsByMesh = new Map(),
+    hiddenGridMeshSet = new Set<any>(),
+    uniformsByMaterial = new WeakMap(),
+    raycaster = new three.Raycaster(),
+    pointerNdc = new three.Vector2(),
+    inkColor = new three.Color("#6b8199"),
+    accentColor = new three.Color("#b5cbd8"),
+    deepColor = new three.Color("#182431"),
+    shouldReduceMotion =
+      globalThis.window?.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
+  let currentTheme = "grid",
+    isSyncEnabled = true,
+    isDisposed = false,
+    isActive = false,
+    lastInteractionMs = -Infinity,
+    lastHitMs = -Infinity,
+    hoveredMesh = null,
+    primaryMesh = null;
+  const pulsePosition = new three.Vector2(),
+    blendPropertyNames = [
+      "blending",
+      "blendEquation",
+      "blendSrc",
+      "blendDst",
+      "blendEquationAlpha",
+      "blendSrcAlpha",
+      "blendDstAlpha",
+    ],
+    isBackgroundVisible = (testedMesh) =>
+      !(
+        testedMesh.userData.floorBackgroundHidden && !testedMesh.userData.backgroundThemeKeepVisible
+      );
+  function restoreMeshRecord(meshRecord) {
+    const {
+      material: meshMaterial,
+      beforeCompile: savedBeforeCompile,
+      programKey: savedProgramKey,
+    } = meshRecord;
+    ((meshRecord.uniforms.hbGroundTheme.value = 0),
+      delete meshRecord.object.userData.backgroundThemeKeepVisible);
+    for (const blendName of blendPropertyNames)
+      meshMaterial[blendName] = meshRecord.blend[blendName];
+    (meshMaterial.onBeforeCompile === meshRecord.compile &&
+      (meshMaterial.onBeforeCompile = savedBeforeCompile),
+      meshMaterial.customProgramCacheKey === meshRecord.key &&
+        (meshMaterial.customProgramCacheKey = savedProgramKey),
+      (meshMaterial.needsUpdate = true));
+  }
+/**
+ * 地面主题注入记录：保存材质原始状态，并挂上改写过的
+ * onBeforeCompile / customProgramCacheKey。compile / key 在构造完后才补上。
+ */
+type GroundThemeRecord = {
+  object: any;
+  material: any;
+  /** 材质原本的 onBeforeCompile（先调用它再叠加主题代码）。 */
+  beforeCompile: any;
+  /** 材质原本的 customProgramCacheKey。 */
+  programKey: any;
+  /** 混合属性名 → 原始值（用于恢复）。 */
+  blend: Record<string, any>;
+  /** 注入的 uniform（可被复用）。 */
+  uniforms: Record<string, { value: any }>;
+  compile?: (shader: any, renderer: any) => void;
+  key?: () => string;
 };
 
-
-// 「减少动态效果」偏好的唯一判定。
-/**
- * 归一化主题名。
- */
-const normalizeBackgroundTheme = (themeName: unknown) =>
-  themeName === "dots" || themeName === "contours" ? "dots" : "grid";
-// 注入到顶点 / 片元着色器的代码片段。
-const GROUND_THEME_UNIFORM_CHUNK =
-  "\nvarying vec2 vHbGround;\nuniform float hbGroundTheme;\nuniform float hbGroundSpan;\nuniform float hbGroundCoverage;\nuniform float hbGroundFallback;\nuniform vec2 hbGroundCenter;\nuniform vec3 hbGroundDeep;\nuniform float hbGroundActivity;\nuniform vec3 hbGroundPulse;\nuniform vec3 hbGroundInk;\nuniform vec3 hbGroundAccent;\n";
-const GROUND_THEME_FRAGMENT_CHUNK =
-  "\nif (hbGroundTheme > 0.5) {\ndiffuseColor.a = (hbGroundFallback >= 0.0 ? hbGroundFallback : diffuseColor.a) / hbGroundCoverage;\nvec2 bgP = vHbGround - hbGroundCenter;\nvec2 bgUV = bgP / hbGroundSpan;\nfloat bgR2 = dot(bgUV, bgUV);\nfloat bgHalo = exp(-bgR2 * 0.55);\nfloat bgCore = exp(-bgR2 * 2.4);\nfloat bgFade = 1.0 - smoothstep(2.2, 4.2, length(bgUV));\nfloat bgAge = hbGroundPulse.z;\n// A broad, quiet response; never a sharp concentric ring.\nvec2 bgTouch = (vHbGround - hbGroundPulse.xy) / (hbGroundSpan * 0.38);\nfloat bgFeedback = exp(-dot(bgTouch, bgTouch) * 0.6)\n  * max(0.0, 1.0 - bgAge / 1.25);\nvec3 bgBase = mix(diffuseColor.rgb * 0.34, hbGroundDeep, 0.84);\nbgBase *= mix(1.0, 0.62, smoothstep(0.65, 2.8, length(bgUV)));\nvec3 bgLight = hbGroundInk * bgHalo * 0.085 + hbGroundAccent * bgCore * 0.014;\n  // Uneven, widely separated motes. Fixed world size and pixel coverage keep\n  // far points from turning into a dense, equally bright dotted wallpaper.\n  vec2 bgCellP = bgUV / 0.44;\n  vec2 bgCell = floor(bgCellP);\n  float bgSeed = fract(sin(dot(bgCell, vec2(127.1, 311.7))) * 43758.5453);\n  float bgSeed2 = fract(sin(dot(bgCell, vec2(269.5, 183.3))) * 43758.5453);\n  vec2 bgOffset = vec2(bgSeed, bgSeed2) * 0.64 + 0.18;\n  float bgDistance = length(fract(bgCellP) - bgOffset);\n  float bgAA = max(length(fwidth(bgCellP)), 0.0001);\n  float bgRadius = mix(0.004, 0.012, bgSeed2);\n  float bgPoint = (1.0 - smoothstep(bgRadius, bgRadius + bgAA * 0.75, bgDistance))\n    * min(1.0, bgRadius / bgAA) * step(0.66, bgSeed);\n  float bgVeil = (0.2 + 0.8 * exp(-bgR2 * 0.22)) * bgFade;\n  bgLight += hbGroundAccent * bgPoint * bgVeil * (0.32 + hbGroundActivity * 0.06);\ndiffuseColor.rgb = bgBase + bgLight * (1.0 + hbGroundActivity * 0.12)\n  + hbGroundAccent * bgFeedback * bgFade * 0.009;\n}\n";
-/**
- * 创建背景主题控制器。
- */
-export function createBackgroundTheme(
-  stageOptions: StageOptionsLike,
-  requestFrame: (...args: any[]) => void = () => {},
-  now: () => number = () => performance.now()
-) {
-  const { THREE: THREE } = stageOptions;
-  // 被注入着色器的地面对象 → 注入记录（材质、uniform、原始回调与混合参数）。
-  const entriesByObject = new Map<any, any>();
-  // exportRole === "grid" 的网格对象：只在「经典网格」主题下可见。
-  const gridObjects = new Set<any>();
-  const raycaster = new THREE.Raycaster();
-  const pointerNdc = new THREE.Vector2();
-  // 星尘的配色：墨蓝做底色光晕、浅青做点缀、深蓝做渐变基底。
-  const inkColor = new THREE.Color("#6b8199");
-  const accentColor = new THREE.Color("#b5cbd8");
-  const deepColor = new THREE.Color("#182431");
-  // 用户要求「减少动态效果」时完全关掉星尘的交互反馈（既不扫描也不重绘）。
-  const prefersReducedMotion = prefersReducedMotionNow();
-  let activeTheme = "grid";
-  let isSyncEnabled = true;
-  let isDisposed = false;
-  let isAnimating = false;
-  let lastInteractionMs = -Infinity;
-  let lastPulseMs = -Infinity;
-  let pulsingObject: any = null;
-  let lastOpaqueObject: any = null;
-  const pulseNdc = new THREE.Vector2();
-  // 会被本模块改写的混合参数：注入后要改成预乘 alpha 的合成方式，销毁时必须还原。
-  const BLEND_PROPERTY_KEYS = [
-    "blending",
-    "blendEquation",
-    "blendSrc",
-    "blendDst",
-    "blendEquationAlpha",
-    "blendSrcAlpha",
-    "blendDstAlpha"
-  ];
-  /**
-   * 该对象是否应当保持可见：楼层背景隐藏逻辑（floorBackgroundHidden）会藏起远处楼层地面，
-   */
-  const shouldRemainVisible = (candidateObject: any) =>
-    !candidateObject.userData.floorBackgroundHidden ||
-    !!candidateObject.userData.backgroundThemeKeepVisible;
-  /** 还原一次注入：关掉主题分支、恢复混合参数与着色器回调。 */
-  function restoreMaterial(entry: any) {
-    const {
-      material: entryMaterial,
-      beforeCompile: originalBeforeCompile,
-      programKey: originalProgramKey
-    } = entry;
-    entry.uniforms.hbGroundTheme.value = 0;
-    delete entry.object.userData.backgroundThemeKeepVisible;
-    for (const blendProperty of BLEND_PROPERTY_KEYS) {
-      entryMaterial[blendProperty] = entry.blend[blendProperty];
-    }
-    if (entryMaterial.onBeforeCompile === entry.compile) {
-      entryMaterial.onBeforeCompile = originalBeforeCompile;
-    }
-    if (entryMaterial.customProgramCacheKey === entry.key) {
-      entryMaterial.customProgramCacheKey = originalProgramKey;
-    }
-    entryMaterial.needsUpdate = true;
-  }
-  /**
-   * 给一块地面材质注入星尘着色代码。
-   */
-  function applyGroundTheme(meshObject: any) {
-    const meshMaterial = meshObject.material;
-    // 只处理 Basic 材质且几何体声明了宽度的网格：其它材质没有 color_fragment 注入点。
-    if (!meshMaterial?.isMeshBasicMaterial || !meshObject.geometry?.parameters?.width) {
-      return;
-    }
-    const groundThemeEntry: any = {
-      object: meshObject,
-      material: meshMaterial,
-      beforeCompile: meshMaterial.onBeforeCompile,
-      programKey: meshMaterial.customProgramCacheKey,
-      blend: Object.fromEntries(
-        BLEND_PROPERTY_KEYS.map(blendPropertyKey => [
-          blendPropertyKey,
-          meshMaterial[blendPropertyKey]
-        ])
-      ),
-      uniforms: {
-        // 主题开关：1 表示走星尘分支，0 表示保持原样。
-        hbGroundTheme: {
-          value: activeTheme === "dots" ? 1 : 0
+  function buildMeshRecord(targetMesh) {
+    const targetMaterial = targetMesh.material;
+    if (!targetMaterial?.isMeshBasicMaterial || !targetMesh.geometry?.parameters?.width) return;
+    const themeRecord: GroundThemeRecord = {
+        object: targetMesh,
+        material: targetMaterial,
+        beforeCompile: targetMaterial.onBeforeCompile,
+        programKey: targetMaterial.customProgramCacheKey,
+        blend: Object.fromEntries(
+          blendPropertyNames.map((blendKey) => [blendKey, targetMaterial[blendKey]]),
+        ),
+        uniforms: {
+          hbGroundTheme: {
+            value: currentTheme === "dots" ? 1 : 0,
+          },
+          hbGroundCoverage: {
+            value: 1,
+          },
+          hbGroundFallback: {
+            value: -1,
+          },
+          hbGroundSpan: {
+            value: Math.max(6, (targetMesh.geometry.parameters.width / 16) * 0.7),
+          },
+          hbGroundCenter: {
+            value: new three.Vector2(),
+          },
+          hbGroundDeep: {
+            value: deepColor,
+          },
+          hbGroundActivity: {
+            value: 0,
+          },
+          hbGroundPulse: {
+            value: new three.Vector3(0, 0, 2),
+          },
+          hbGroundInk: {
+            value: inkColor,
+          },
+          hbGroundAccent: {
+            value: accentColor,
+          },
         },
-        hbGroundCoverage: {
-          value: 1
-        },
-        // 兜底透明度：负数表示不使用兜底（-1 是「未设置」的哨兵值）。
-        hbGroundFallback: {
-          value: -1
-        },
-        // 星尘的空间尺度取地面宽度的 1/16 再乘 0.7，最小 6：让颗粒密度与场景尺寸匹配。
-        hbGroundSpan: {
-          value: Math.max(6, (meshObject.geometry.parameters.width / 16) * 0.7)
-        },
-        hbGroundCenter: {
-          value: new THREE.Vector2()
-        },
-        hbGroundDeep: {
-          value: deepColor
-        },
-        hbGroundActivity: {
-          value: 0
-        },
-        // z 分量存的是脉冲年龄（秒），2 表示「无脉冲」（超过 1.25 秒的判定阈值）。
-        hbGroundPulse: {
-          value: new THREE.Vector3(0, 0, 2)
-        },
-        hbGroundInk: {
-          value: inkColor
-        },
-        hbGroundAccent: {
-          value: accentColor
-        }
-      }
-    };
-    const baseProgramKey = groundThemeEntry.programKey
-      .call(meshMaterial)
+      },
+      existingUniforms = uniformsByMaterial.get(targetMaterial);
+    (existingUniforms
+      ? (themeRecord.uniforms = existingUniforms)
+      : uniformsByMaterial.set(targetMaterial, themeRecord.uniforms),
+      (themeRecord.uniforms.hbGroundTheme.value = currentTheme === "dots" ? 1 : 0),
+      (themeRecord.uniforms.hbGroundCoverage.value = 1),
+      (themeRecord.uniforms.hbGroundFallback.value = -1));
+    const cleanedProgramKey = themeRecord.programKey
+      .call(targetMaterial)
       .replace(/:hb-ground-theme-v[0-9]+/g, "");
-    groundThemeEntry.compile = function (shader: any, renderer: any) {
-      // 先跑原来的注入逻辑，再叠加本模块的改动，保证与其它效果共存。
-      groundThemeEntry.beforeCompile.call(this, shader, renderer);
-      Object.assign(shader.uniforms, groundThemeEntry.uniforms);
-      // 幂等保护：同一份 shader 被重复编译时不重复插入。
-      if (!shader.fragmentShader.includes("uniform float hbGroundTheme;")) {
-        shader.vertexShader = shader.vertexShader
-          .replace("#include <common>", "#include <common>\nvarying vec2 vHbGround;")
-          .replace(
-            "#include <begin_vertex>",
-            "#include <begin_vertex>\nvHbGround = vec2(position.x, -position.y);"
-          );
-        shader.fragmentShader = shader.fragmentShader
-          .replace("#include <common>", "#include <common>\n" + GROUND_THEME_UNIFORM_CHUNK)
-          .replace(
-            "#include <color_fragment>",
-            "#include <color_fragment>\n" + GROUND_THEME_FRAGMENT_CHUNK
-          );
-      }
-    };
-    groundThemeEntry.key = () => baseProgramKey + ":hb-ground-theme-v5";
-    meshMaterial.onBeforeCompile = groundThemeEntry.compile;
-    meshMaterial.customProgramCacheKey = groundThemeEntry.key;
-    meshMaterial.needsUpdate = true;
-    entriesByObject.set(meshObject, groundThemeEntry);
+    ((themeRecord.compile = function (shader, renderer) {
+      (themeRecord.beforeCompile.call(this, shader, renderer),
+        Object.assign(shader.uniforms, themeRecord.uniforms),
+        !shader.fragmentShader.includes("uniform float hbGroundTheme;") &&
+          ((shader.vertexShader = shader.vertexShader
+            .replace("#include <common>", "#include <common>\nvarying vec2 vHbGround;")
+            .replace(
+              "#include <begin_vertex>",
+              "#include <begin_vertex>\nvHbGround = vec2(position.x, -position.y);",
+            )),
+          (shader.fragmentShader = shader.fragmentShader
+            .replace("#include <common>", "#include <common>\n" + groundThemeUniformDeclarations)
+            .replace(
+              "#include <color_fragment>",
+              "#include <color_fragment>\n" + groundThemeShaderSource,
+            ))));
+    }),
+      (themeRecord.key = () => cleanedProgramKey + ":hb-ground-theme-v5"),
+      (targetMaterial.onBeforeCompile = themeRecord.compile),
+      (targetMaterial.customProgramCacheKey = themeRecord.key),
+      (targetMaterial.needsUpdate = true),
+      recordsByMesh.set(targetMesh, themeRecord));
   }
-  /** 复位所有交互状态（活动强度、脉冲、动画循环）。 */
-  function resetInteraction() {
-    lastInteractionMs = lastPulseMs = -Infinity;
-    pulsingObject = null;
-    for (const entryToReset of entriesByObject.values()) {
-      entryToReset.uniforms.hbGroundActivity.value = 0;
-      entryToReset.uniforms.hbGroundPulse.value.z = 2;
-    }
-    if (isAnimating) {
-      isAnimating = false;
-      stageOptions.backgroundFrame?.(false);
-    }
+  function resetActivity() {
+    ((lastInteractionMs = lastHitMs = -Infinity), (hoveredMesh = null));
+    for (const animatedRecord of recordsByMesh.values())
+      ((animatedRecord.uniforms.hbGroundActivity.value = 0),
+        (animatedRecord.uniforms.hbGroundPulse.value.z = 2));
+    isActive && ((isActive = false), sceneHost.backgroundFrame?.(false));
   }
   return {
     get theme() {
-      return activeTheme;
+      return currentTheme;
     },
     get active() {
-      return isAnimating;
+      return isActive;
     },
     get materialCount() {
-      return entriesByObject.size;
+      return recordsByMesh.size;
     },
-    /**
-     * 切换主题。
-     */    configure(configuredTheme: any) {
-      const normalizedTheme = normalizeBackgroundTheme(configuredTheme);
-      if (isDisposed || normalizedTheme === activeTheme) {
-        return false;
-      }
-      // 切主题前先清掉交互状态：脉冲位置属于旧主题的坐标系，留着会有一帧错位。
-      resetInteraction();
-      activeTheme = normalizedTheme;
-      for (const themeEntry of entriesByObject.values()) {
-        themeEntry.uniforms.hbGroundTheme.value = normalizedTheme === "dots" ? 1 : 0;
-      }
-      requestFrame();
-      return true;
+    configure(requestedTheme) {
+      const normalizedTheme = normalizeBackgroundTheme(requestedTheme);
+      if (isDisposed || normalizedTheme === currentTheme) return false;
+      (resetActivity(), (currentTheme = normalizedTheme));
+      for (const syncedRecord of recordsByMesh.values())
+        syncedRecord.uniforms.hbGroundTheme.value = normalizedTheme === "dots" ? 1 : 0;
+      return (onThemeChanged(), true);
     },
-    /**
-     * 同步场景对象。
-     */    sync(sceneObjects: any, isBackgroundEnabled: any) {
-      if (isDisposed) {
-        return;
-      }
-      isSyncEnabled = isBackgroundEnabled !== false;
-      if (!isSyncEnabled) {
-        resetInteraction();
-      }
-      const themedObjects = new Set();
-      for (const themedObject of sceneObjects) {
-        if (themedObject.userData.exportRole === "grid") {
-          // 网格对象只在网格主题下显示：星尘主题用着色器自带的点阵替代它。
-          themedObject.userData.backgroundThemeHidden = activeTheme !== "grid";
-          gridObjects.add(themedObject);
-        } else if (themedObject.userData.exportRole === "background" && activeTheme !== "grid") {
-          themedObjects.add(themedObject);
-          const staleMaterialEntry = entriesByObject.get(themedObject);
-          // 材质被换过（例如主题重载）：旧注入已失效，还原后重新注入。
-          if (staleMaterialEntry && staleMaterialEntry.material !== themedObject.material) {
-            restoreMaterial(staleMaterialEntry);
-            entriesByObject.delete(themedObject);
-          }
-          if (!entriesByObject.has(themedObject)) {
-            applyGroundTheme(themedObject);
-          }
-          const entryForObject = entriesByObject.get(themedObject);
-          // 把「轨道中心」换算到地面局部坐标，星尘的亮心里外层次始终围绕户型中心。
-          const orbitCenter = stageOptions.getOrbitCenter?.();
-          if (entryForObject && orbitCenter?.length === 3 && orbitCenter.every(Number.isFinite)) {
-            themedObject.updateWorldMatrix(true, false);
-            const localOrbitCenter = themedObject.worldToLocal(new THREE.Vector3(...orbitCenter));
-            entryForObject.uniforms.hbGroundCenter.value.set(
-              localOrbitCenter.x,
-              -localOrbitCenter.y
-            );
+    sync(syncedMeshes, enabled) {
+      if (isDisposed) return;
+      ((isSyncEnabled = enabled !== false), isSyncEnabled || resetActivity());
+      const keptMeshSet = new Set();
+      for (const syncedMesh of syncedMeshes)
+        if (syncedMesh.userData.exportRole === "grid")
+          ((syncedMesh.userData.backgroundThemeHidden = currentTheme !== "grid"),
+            hiddenGridMeshSet.add(syncedMesh));
+        else {
+          if (syncedMesh.userData.exportRole === "background" && currentTheme !== "grid") {
+            keptMeshSet.add(syncedMesh);
+            const staleRecord = recordsByMesh.get(syncedMesh);
+            (staleRecord &&
+              staleRecord.material !== syncedMesh.material &&
+              (restoreMeshRecord(staleRecord), recordsByMesh.delete(syncedMesh)),
+              recordsByMesh.has(syncedMesh) || buildMeshRecord(syncedMesh));
+            const activeRecord = recordsByMesh.get(syncedMesh),
+              orbitCenter = sceneHost.getOrbitCenter?.();
+            if (activeRecord && orbitCenter?.length === 3 && orbitCenter.every(Number.isFinite)) {
+              syncedMesh.updateWorldMatrix(true, false);
+              const localCenter = syncedMesh.worldToLocal(new three.Vector3(...orbitCenter));
+              activeRecord.uniforms.hbGroundCenter.value.set(localCenter.x, -localCenter.y);
+            }
           }
         }
-      }
-      for (const [trackedObject, trackedEntry] of entriesByObject) {
-        // 对象已不再需要主题、或材质被替换：还原并移出跟踪表。
-        if (!themedObjects.has(trackedObject) || trackedEntry.material !== trackedObject.material) {
-          restoreMaterial(trackedEntry);
-          entriesByObject.delete(trackedObject);
-        }
-      }
-      for (const staleGridObject of gridObjects) {
-        if (!sceneObjects.includes(staleGridObject)) {
-          delete staleGridObject.userData.backgroundThemeHidden;
-          gridObjects.delete(staleGridObject);
-        }
-      }
-      for (const resetEntry of entriesByObject.values()) {
-        // 每轮重新判定兜底层，先假定都不需要保持可见。
-        delete resetEntry.object.userData.backgroundThemeKeepVisible;
-        resetEntry.uniforms.hbGroundFallback.value = -1;
-      }
-      const visibleEntries = [...entriesByObject.values()].filter(visibleEntry =>
-        shouldRemainVisible(visibleEntry.object)
+      for (const [mapKeyMesh, mapValueRecord] of recordsByMesh)
+        (!keptMeshSet.has(mapKeyMesh) || mapValueRecord.material !== mapKeyMesh.material) &&
+          (restoreMeshRecord(mapValueRecord), recordsByMesh.delete(mapKeyMesh));
+      for (const removedGridMesh of hiddenGridMeshSet)
+        syncedMeshes.includes(removedGridMesh) ||
+          (delete removedGridMesh.userData.backgroundThemeHidden,
+          hiddenGridMeshSet.delete(removedGridMesh));
+      for (const clearedRecord of recordsByMesh.values())
+        (delete clearedRecord.object.userData.backgroundThemeKeepVisible,
+          (clearedRecord.uniforms.hbGroundFallback.value = -1));
+      const visibleRecords = [...recordsByMesh.values()].filter((candidateRecord) =>
+        isBackgroundVisible(candidateRecord.object),
       );
-      let totalOpacity = visibleEntries.reduce(
-        (opacityAccumulator, contributingEntry) =>
-          opacityAccumulator + contributingEntry.material.opacity,
-        0
+      let totalOpacity = visibleRecords.reduce(
+        (opacitySum, summedRecord) => opacitySum + summedRecord.material.opacity,
+        0,
       );
-      // 兜底不透明层：当所有可见地面的不透明度加起来不到 1 时（多层叠加被隐藏），
-      const previousFallbackEntry = entriesByObject.get(lastOpaqueObject);
-      const fallbackEntry =
-        previousFallbackEntry?.material.transparent &&
-        !visibleEntries.includes(previousFallbackEntry) &&
-        previousFallbackEntry.material.opacity > 0
-          ? previousFallbackEntry
-          : [...entriesByObject.values()]
-              .filter(
-                transparentEntry =>
-                  transparentEntry.material.transparent &&
-                  !visibleEntries.includes(transparentEntry)
-              )
-              .sort(
-                (firstEntry, secondEntry) =>
-                  secondEntry.material.opacity - firstEntry.material.opacity
-              )[0];
-      if (
-        fallbackEntry?.material.transparent &&
-        !visibleEntries.includes(fallbackEntry) &&
-        totalOpacity < 1
-      ) {
-        fallbackEntry.object.userData.backgroundThemeKeepVisible = true;
-        // 差值直接交给着色器作为该层的 alpha，从而把总覆盖率补到 1。
-        fallbackEntry.uniforms.hbGroundFallback.value = 1 - totalOpacity;
-        totalOpacity = 1;
-      } else if (visibleEntries.length === 1 && visibleEntries[0].material.opacity > 0.999) {
-        // 只有一层且基本不透明：它天然就是兜底层，记下来供下次优先复用。
-        lastOpaqueObject = visibleEntries[0].object;
-      }
-      totalOpacity = Math.max(1, totalOpacity);
-      for (const blendTargetEntry of entriesByObject.values()) {
-        const { material: targetMaterial, uniforms: targetUniforms } = blendTargetEntry;
-        // 半透明层按总覆盖度归一化 alpha；不透明层保持 1。
-        targetUniforms.hbGroundCoverage.value = targetMaterial.transparent ? totalOpacity : 1;
-        if (targetMaterial.transparent) {
-          // 改用预乘 alpha 的自定义混合：多层半透明地面叠加时不会出现「越叠越亮」，
-          targetMaterial.blending = THREE.CustomBlending;
-          targetMaterial.blendEquation = targetMaterial.blendEquationAlpha = THREE.AddEquation;
-          targetMaterial.blendSrc = targetMaterial.premultipliedAlpha
-            ? THREE.OneFactor
-            : THREE.SrcAlphaFactor;
-          targetMaterial.blendDst =
-            targetMaterial.blendSrcAlpha =
-            targetMaterial.blendDstAlpha =
-              THREE.OneFactor;
-        }
+      const primaryRecord = recordsByMesh.get(primaryMesh),
+        fallbackRecord =
+          primaryRecord?.material.transparent &&
+          !visibleRecords.includes(primaryRecord) &&
+          primaryRecord.material.opacity > 0
+            ? primaryRecord
+            : [...recordsByMesh.values()]
+                .filter(
+                  (transparentCandidate) =>
+                    transparentCandidate.material.transparent &&
+                    !visibleRecords.includes(transparentCandidate),
+                )
+                .sort((recordA, recordB) => recordB.material.opacity - recordA.material.opacity)[0];
+      (fallbackRecord?.material.transparent &&
+      !visibleRecords.includes(fallbackRecord) &&
+      totalOpacity < 1
+        ? ((fallbackRecord.object.userData.backgroundThemeKeepVisible = true),
+          (fallbackRecord.uniforms.hbGroundFallback.value = 1 - totalOpacity),
+          (totalOpacity = 1))
+        : visibleRecords.length === 1 &&
+          visibleRecords[0].material.opacity > 0.999 &&
+          (primaryMesh = visibleRecords[0].object),
+        (totalOpacity = Math.max(1, totalOpacity)));
+      for (const blendedRecord of recordsByMesh.values()) {
+        const { material: blendedMaterial, uniforms: blendedUniforms } = blendedRecord;
+        ((blendedUniforms.hbGroundCoverage.value = blendedMaterial.transparent ? totalOpacity : 1),
+          blendedMaterial.transparent &&
+            ((blendedMaterial.blending = three.CustomBlending),
+            (blendedMaterial.blendEquation = blendedMaterial.blendEquationAlpha =
+              three.AddEquation),
+            (blendedMaterial.blendSrc = blendedMaterial.premultipliedAlpha
+              ? three.OneFactor
+              : three.SrcAlphaFactor),
+            (blendedMaterial.blendDst =
+              blendedMaterial.blendSrcAlpha =
+              blendedMaterial.blendDstAlpha =
+                three.OneFactor)));
       }
     },
-    /**
-     * 处理一次指针交互。
-     */    interact(pointerEvent: any, shouldRaycast: any = false) {
-      // 网格主题没有交互反馈；减少动态效果时不打扰用户；没有地面时无事可做。
+    interact(pointerEvent, shouldPick = false) {
       if (
         isDisposed ||
         !isSyncEnabled ||
-        activeTheme === "grid" ||
-        prefersReducedMotion ||
-        !entriesByObject.size
-      ) {
+        currentTheme === "grid" ||
+        shouldReduceMotion ||
+        !recordsByMesh.size
+      )
         return;
-      }
-      const interactionTimestampMs = now();
-      lastInteractionMs = interactionTimestampMs;
-      if (shouldRaycast) {
-        const canvasRect = stageOptions.canvas.getBoundingClientRect();
+      const interactionTimeMs = clock();
+      if (((lastInteractionMs = interactionTimeMs), shouldPick)) {
+        const canvasRect = sceneHost.canvas.getBoundingClientRect();
         if (canvasRect.width && canvasRect.height) {
-          // 屏幕坐标 → 归一化设备坐标（NDC）：注意 Y 轴方向相反。
-          pointerNdc.set(
+          (pointerNdc.set(
             ((pointerEvent.clientX - canvasRect.left) / canvasRect.width) * 2 - 1,
-            1 - ((pointerEvent.clientY - canvasRect.top) / canvasRect.height) * 2
-          );
-          raycaster.setFromCamera(pointerNdc, stageOptions.camera);
-          // 只对「祖先链全部可见」的地面做拾取：被隐藏楼层的地面不该接收点击脉冲。
-          const raycastTargets = [...entriesByObject.keys()].filter(candidateMeshObject => {
-            for (
-              let visibilityAncestor = candidateMeshObject;
-              visibilityAncestor;
-              visibilityAncestor = visibilityAncestor.parent
-            ) {
-              if (!visibilityAncestor.visible) {
-                return false;
-              }
-            }
-            candidateMeshObject.updateWorldMatrix(true, false);
-            return true;
-          });
-          const firstHit = raycaster.intersectObjects(raycastTargets, false)[0];
-          if (firstHit) {
-            // 命中点转到地面局部坐标，并按 same 约定取 -y；脉冲只作用在命中的那一块地面上。
-            const localHitPoint = firstHit.object.worldToLocal(firstHit.point);
-            pulseNdc.set(localHitPoint.x, -localHitPoint.y);
-            pulsingObject = firstHit.object;
-            lastPulseMs = interactionTimestampMs;
+            1 - ((pointerEvent.clientY - canvasRect.top) / canvasRect.height) * 2,
+          ),
+            raycaster.setFromCamera(pointerNdc, sceneHost.camera));
+          const candidateMeshes = [...recordsByMesh.keys()].filter((candidateMesh) => {
+              for (let ancestor = candidateMesh; ancestor; ancestor = ancestor.parent)
+                if (!ancestor.visible) return false;
+              return (candidateMesh.updateWorldMatrix(true, false), true);
+            }),
+            nearestHit = raycaster.intersectObjects(candidateMeshes, false)[0];
+          if (nearestHit) {
+            const localHitPoint = nearestHit.object.worldToLocal(nearestHit.point);
+            (pulsePosition.set(localHitPoint.x, -localHitPoint.y),
+              (hoveredMesh = nearestHit.object),
+              (lastHitMs = interactionTimeMs));
           }
         }
       }
-      requestFrame();
+      onThemeChanged();
     },
-    /**
-     * 推进交互衰减。
-     */    tick(frameTimestampMs: any) {
-      if (isDisposed || !isSyncEnabled || activeTheme === "grid" || prefersReducedMotion) {
-        resetInteraction();
-        return Infinity;
-      }
-      // 活动强度在 400ms 内线性衰减到 0（驱动 uniform 的呼吸亮度）。
-      const interactionStrength = Math.max(0, 1 - (frameTimestampMs - lastInteractionMs) / 400);
-      // 脉冲年龄封顶 2 秒（着色器里用 2 表示「无脉冲」），1.25 秒后不再需要逐帧刷新。
-      const pulseAgeSeconds = Math.min(2, Math.max(0, (frameTimestampMs - lastPulseMs) / 1000));
-      const isInteractionActive = interactionStrength > 0 || pulseAgeSeconds < 1.25;
-      if (!isInteractionActive && !isAnimating) {
-        return Infinity;
-      }
-      for (const [uniformTargetObject, uniformTargetEntry] of entriesByObject) {
-        uniformTargetEntry.uniforms.hbGroundActivity.value = interactionStrength;
-        uniformTargetEntry.uniforms.hbGroundPulse.value.set(
-          pulseNdc.x,
-          pulseNdc.y,
-          // 只有被命中的那块地面拿到真实年龄，其余地面固定为 2（即不显示脉冲）。
-          uniformTargetObject === pulsingObject ? pulseAgeSeconds : 2
-        );
-      }
-      isAnimating = isInteractionActive;
-      // 通知舞台本帧存在背景动画（用于决定是否需要持续渲染）。
-      stageOptions.backgroundFrame?.(isInteractionActive);
-      if (isInteractionActive) {
-        return 1000 / 30;
-      } else {
-        return Infinity;
-      }
+    tick(nowMs) {
+      if (isDisposed || !isSyncEnabled || currentTheme === "grid" || shouldReduceMotion)
+        return (resetActivity(), Infinity);
+      const interactionStrength = Math.max(0, 1 - (nowMs - lastInteractionMs) / 400),
+        hitAge = Math.min(2, Math.max(0, (nowMs - lastHitMs) / 1000)),
+        shouldAnimate = interactionStrength > 0 || hitAge < 1.25;
+      if (!shouldAnimate && !isActive) return Infinity;
+      for (const [animatedMesh, animatedEntry] of recordsByMesh)
+        ((animatedEntry.uniforms.hbGroundActivity.value = interactionStrength),
+          animatedEntry.uniforms.hbGroundPulse.value.set(
+            pulsePosition.x,
+            pulsePosition.y,
+            animatedMesh === hoveredMesh ? hitAge : 2,
+          ));
+      return (
+        (isActive = shouldAnimate),
+        sceneHost.backgroundFrame?.(shouldAnimate),
+        shouldAnimate ? 1000 / 30 : Infinity
+      );
     },
-    /** 暂停：清空交互状态但保留注入。 */
     suspend() {
-      resetInteraction();
+      resetActivity();
     },
     dispose() {
-      resetInteraction();
-      isDisposed = true;
-      for (const disposeEntry of entriesByObject.values()) {
-        restoreMaterial(disposeEntry);
-      }
-      for (const hiddenGridObject of gridObjects) {
-        delete hiddenGridObject.userData.backgroundThemeHidden;
-      }
-      entriesByObject.clear();
-      gridObjects.clear();
-    }
+      (resetActivity(), (isDisposed = true));
+      for (const restoredEntry of recordsByMesh.values()) restoreMeshRecord(restoredEntry);
+      for (const clearedGridMesh of hiddenGridMeshSet)
+        delete clearedGridMesh.userData.backgroundThemeHidden;
+      (recordsByMesh.clear(), hiddenGridMeshSet.clear());
+    },
   };
 }

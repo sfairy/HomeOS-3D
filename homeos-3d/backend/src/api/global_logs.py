@@ -1,28 +1,34 @@
-"""全局日志接口：查询、导出、清空，以及前端与未登录页面的日志上报。
-"""
+# [补充说明] 全局日志接口：查询、导出、清空，以及前端与未登录页面的日志上报。
+#
+# 日志本体存在 app.state.global_log 里（带落盘的环形缓冲），本模块只负责门禁、分页与导出
+# 格式。两条上报通道信任级别不同：/logs/events 走 CurrentViewer，必须是管理员或已配对的中控
+# 设备；/logs/public-events 允许未登录页面上报，因此额外做同源校验、只放行 warning / error，
+# 并单独走一套更严格的限流阈值。
 from __future__ import annotations
 
+import json
 import threading
 import time
+from collections import OrderedDict, deque
 from datetime import datetime
 from typing import Annotated
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
-from ..core.canonical_json import canonical_json
-from ..observability.global_log import event_context, safe_context
-from ..security.dependencies import CurrentUser, CurrentViewer, DatabaseSession, authenticated_viewer
-from ..security.http_security import resolve_client_ip, same_origin_request
-from ..security.sliding_window import KeyedWindows, SlidingWindow
+from ..dependencies import CurrentUser, CurrentViewer, DatabaseSession, authenticated_viewer
+from ..global_log import event_context, safe_context
 
 router = APIRouter(prefix='/logs', tags=['global-logs'])
 
 
 class ClientLogEvent(BaseModel):
-    """客户端上报的一条日志事件。
-    """
+    # [补充说明] 客户端上报的一条日志事件。
+    #
+    # extra='forbid' 是刻意的：上报字段固定成这几个，多传键直接 422，
+    # 避免前端顺手塞入未脱敏的额外字段绕过下面的白名单过滤。
 
     model_config = ConfigDict(extra='forbid')
     level: str = Field(default='info', pattern='^(info|success|warning|error)$')
@@ -54,6 +60,7 @@ CLIENT_CONTEXT_KEYS = {
     'componentId',
 }
 # 未登录也能上报日志的固定页面路径；带参数的子路径（/display/*、/3d-studio/*）
+# 由下面的 startswith 分支单独放行。
 PUBLIC_PAGES = {
     '/',
     '/pair',
@@ -64,69 +71,64 @@ PUBLIC_PAGES = {
     '/3d-studio',
 }
 
-#: 公开通道的事件在落库前统一加这个来源标记：文本来自外部上报，必须与系统自身记录一眼可分。
-PUBLIC_EVENT_MARKER = '[公开上报] '
-#: 公开通道的长度上限：比已认证通道紧得多。正文短到「够定位异常」即可，
-PUBLIC_EVENT_MESSAGE_LIMIT = 300
-PUBLIC_EVENT_DETAILS_LIMIT = 1200
-
-#: 客户端日志上报的配额表。三个数各自防的是不同的事，改动前先看 ClientLogLimiter 的类说明：
-ANONYMOUS_CLIENT_LOG_PER_MINUTE = 30
-AUTHENTICATED_CLIENT_LOG_PER_MINUTE = 120
-CLIENT_LOG_GLOBAL_PER_MINUTE = 600
-CLIENT_LOG_WINDOW_SECONDS = 60
-CLIENT_LOG_MAX_PEERS = 512
-#: 超限时给客户端的 ``Retry-After``：整个窗口的长度、而不是「本条还差多久」—— 客户端拿到
-CLIENT_LOG_RETRY_AFTER_SECONDS = CLIENT_LOG_WINDOW_SECONDS
-
 
 class ClientLogLimiter:
-    """客户端日志上报的双层限流器。
-    """
+    'Bound anonymous reporting without growing one entry per arbitrary IP.'
+
+    # 目标是「限制匿名上报」又不让每个任意 IP 都在内存里留下常驻记录：每个 peer 只保留一个
+    # 60 秒滑动窗口，peer 数量封顶并按 LRU 淘汰，另加一个全局窗口兜住「不停换 IP 刷日志」。
+    # 匿名通道每分钟 30 条、已认证 120 条、全局 600 条；peer 表上限 512 防止伪造 IP 撑爆内存。
+    # 这里没有封禁表，超限只是这次不记，所以淘汰可以简单地按最近使用来。
 
     def __init__(self) -> None:
-        """按配额表建两张窗口表：按 peer 的（有键上限）与全局的（无键上限）。"""
+        # [补充说明] 按配额表建两张窗口表：按 peer 的（有键上限）与全局的（无键上限）。
         self._lock = threading.Lock()
         # 键即 peer 地址，键空间由外部决定，必须有上限。
-        self._clients = KeyedWindows(CLIENT_LOG_WINDOW_SECONDS, max_keys=CLIENT_LOG_MAX_PEERS)
+        self._clients = OrderedDict()
         # 全局窗口只有一个键，不需要键上限。
-        self._global = SlidingWindow()
+        self._all = deque()
 
     def allow(self, peer: str, *, anonymous: bool) -> bool:
-        """判断本次上报是否放行；匿名通道阈值更低。"""
+        # [补充说明] 判断本次上报是否放行；匿名通道阈值更低。
         now = time.monotonic()
-        quota = (
-            ANONYMOUS_CLIENT_LOG_PER_MINUTE if anonymous else AUTHENTICATED_CLIENT_LOG_PER_MINUTE
-        )
         with self._lock:
+            # 取不到就得建：pop 出来再放回去，顺便把这个 peer 挪到 LRU 的队尾。
+            bucket = self._clients.pop(peer, deque())
+            self._clients[peer] = bucket
+            while len(self._clients) > 512:
+                self._clients.popitem(last=False)
             # 两张窗口都要先裁剪：全局那一档看的也是「最近 60 秒」。
-            self._global.prune(CLIENT_LOG_WINDOW_SECONDS, now)
-            if self._clients.count(peer, now) >= quota or len(self._global) >= CLIENT_LOG_GLOBAL_PER_MINUTE:
+            for queue in (bucket, self._all):
+                while queue and queue[0] <= now - 60:
+                    queue.popleft()
+            if len(bucket) >= (30 if anonymous else 120) or len(self._all) >= 600:
                 return False
-            self._clients.record(peer, now)
-            self._global.append(now)
+            bucket.append(now)
+            self._all.append(now)
             return True
 
 
 def _limit_client_log(request: Request, *, anonymous: bool) -> None:
-    """对上报做限流，超限抛 429 并带 Retry-After。
-    """
+    # [补充说明] 对上报做限流，超限抛 429 并带 Retry-After。
+    #
+    # 限流器挂在全局日志对象上（复用日志对象已有的锁）：状态随日志对象一起存活，不必为
+    # 日志模块单独维护一个全局单例，也不会额外引入一把锁。
     store = request.app.state.global_log
-    limiter = store.shared_auxiliary('client_log_limiter', ClientLogLimiter)
-    address = resolve_client_ip(request)
-    peer = address.ip or 'unknown'
+    with store._lock:
+        if not hasattr(store, 'client_limiter'):
+            store.client_limiter = ClientLogLimiter()
+        limiter = store.client_limiter
+    # 取不到地址时归到同一个桶。
+    peer = request.client.host if request.client else 'unknown'
     if not limiter.allow(peer, anonymous=anonymous):
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail='日志上报过于频繁，请稍后重试。', headers={'Retry-After': str(CLIENT_LOG_RETRY_AFTER_SECONDS)})
+        raise HTTPException(status_code=429, detail='日志上报过于频繁，请稍后重试。', headers={'Retry-After': '60'})
 
 
-def _append_client_event(payload: ClientLogEvent, request: Request, viewer=None, *, public: bool = False) -> None:
-    """把一条客户端事件整理成日志条目写入全局日志。
-    """
-    message = payload.message
-    details = payload.details
-    if public:
-        message = PUBLIC_EVENT_MARKER + message[:PUBLIC_EVENT_MESSAGE_LIMIT]
-        details = details[:PUBLIC_EVENT_DETAILS_LIMIT] if details else None
+def _append_client_event(payload: ClientLogEvent, request: Request, viewer=None) -> None:
+    # [补充说明] 把一条客户端事件整理成日志条目写入全局日志。
+    #
+    # 身份三选一决定 source 与 actor：管理员沿用上报自带的 source、中控设备标注设备与项目、
+    # 未登录页面统一记为「未登录页面 / 未登录」。上下文先按白名单过滤键，再交给 safe_context 遮盖。
     context = safe_context({
         key: value
         for key, value in payload.context.items()
@@ -154,9 +156,9 @@ def _append_client_event(payload: ClientLogEvent, request: Request, viewer=None,
             payload.level,
             source,
             payload.category,
-            message,
+            payload.message,
             context=context,
-            details=details,
+            details=payload.details,
             client_timestamp=payload.clientTimestamp.isoformat() if payload.clientTimestamp else None,
         )
     finally:
@@ -164,15 +166,11 @@ def _append_client_event(payload: ClientLogEvent, request: Request, viewer=None,
 
 
 @router.get('/export', response_class=PlainTextResponse)
-def export_global_logs(
-    request: Request,
-    _user: CurrentUser,
-    level: str | None = Query(None, pattern='^(info|success|warning|error)$'),
-    category: str | None = Query(None, max_length=64),
-    search: str | None = Query(None, max_length=128),
-) -> PlainTextResponse:
-    """把全局日志导出成纯文本附件（需已登录）。
-    """
+def export_global_logs(request: Request, _user: CurrentUser, level: str | None = Query(None, pattern='^(info|success|warning|error)$'), category: str | None = Query(None, max_length=64), search: str | None = Query(None, max_length=128)) -> PlainTextResponse:
+    # [补充说明] 把全局日志导出成纯文本附件（需已登录）。
+    #
+    # 查询参数: level / category / search，语义与列表接口一致。每行一条记录，字段用 ' | ' 拼接；
+    # 除消息本体外还带上重复次数、最近发生时间与客户端时间，方便排查前端偶发问题。
     # list_events 是最新在前，这里再倒序，让导出文件按时间正序排列，更像一条时间线。
     items = list(reversed(request.app.state.global_log.list_events(limit=None, level=level, category=category, search=search)))
     # 级别转中文标签；未知级别回落到「信息」，与前端筛选下拉的用词一致。
@@ -181,7 +179,7 @@ def export_global_logs(
         ' | '.join(
             (
                 str(item.get('timestamp') or ''),
-                str(level_labels.get(str(item.get('level') or ''), '信息')),
+                level_labels.get(str(item.get('level') or ''), '信息'),
                 str(item.get('source') or '系统后台'),
                 str(item.get('category') or '系统'),
                 str(item.get('message') or ''),
@@ -189,7 +187,7 @@ def export_global_logs(
                 f"最近发生={item.get('lastTimestamp') or item.get('timestamp') or ''}",
                 f"客户端发生时间={item.get('clientTimestamp') or ''}",
                 f"客户端最近发生={item.get('lastClientTimestamp') or item.get('clientTimestamp') or ''}",
-                canonical_json(item.get('context') or {}),
+                json.dumps(item.get('context') or {}, ensure_ascii=False, separators=(',', ':')),
                 str(item.get('details') or ''),
             )
         )
@@ -199,27 +197,23 @@ def export_global_logs(
 
 
 @router.get('')
-def list_global_logs(
-    request: Request,
-    _user: CurrentUser,
-    level: str | None = Query(None, pattern='^(info|success|warning|error)$'),
-    category: str | None = Query(None, max_length=64),
-    search: str | None = Query(None, max_length=128),
-    limit: int = Query(500, ge=1, le=2000),
-    offset: int = Query(0, ge=0, le=1000000),
-) -> dict:
-    """分页查询全局日志（需已登录）。
-    """
+def list_global_logs(request: Request, _user: CurrentUser, level: str | None = Query(None, pattern='^(info|success|warning|error)$'), category: str | None = Query(None, max_length=64), search: str | None = Query(None, max_length=128), limit: int = Query(500, ge=1, le=2000), offset: int = Query(0, ge=0, le=1000000)) -> dict:
+    # [补充说明] 分页查询全局日志（需已登录）。
+    #
+    # 查询参数: level / category / search 过滤，limit（默认 500，上限 2000）与 offset 分页。
+    # 返回 items、total、categories、hasMore / nextOffset 以及 retentionDays 与 storage。
     # 先取过滤后的全量再在内存里切片：日志本就在内存中，这样 total、hasMore 与当前页结果
-    store = request.app.state.global_log
-    snapshot = store.events_snapshot()
-    matching = store.list_events(level=level, category=category, search=search, limit=None, events=snapshot)
+    # 天然同源。
+    matching = request.app.state.global_log.list_events(level=level, category=category, search=search, limit=None)
     items = matching[offset:offset + limit]
+    # 分类清单取未过滤的全量日志，否则一旦按 level 筛选，下拉框里的分类会缺项。
+    all_items = request.app.state.global_log.list_events(limit=None)
     categories = sorted({
         str(item.get('category') or '')
-        for item in snapshot
+        for item in all_items
         if item.get('category')
     })
+    store = request.app.state.global_log
     return {
         'items': items,
         'categories': categories,
@@ -234,8 +228,10 @@ def list_global_logs(
 
 @router.post('/events', status_code=status.HTTP_204_NO_CONTENT)
 def create_client_log_event(payload: ClientLogEvent, request: Request, viewer: CurrentViewer) -> Response:
-    """接收已认证页面 / 设备上报的日志事件（需已认证）。
-    """
+    # [补充说明] 接收已认证页面 / 设备上报的日志事件（需已认证）。
+    #
+    # 门禁：CurrentViewer（管理员或已配对中控设备），匿名标志为 False，
+    # 走更宽松的限流阈值。成功固定返回 204 无正文。
     _limit_client_log(request, anonymous=False)
     _append_client_event(payload, request, viewer)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -243,19 +239,22 @@ def create_client_log_event(payload: ClientLogEvent, request: Request, viewer: C
 
 @router.post('/public-events', status_code=status.HTTP_204_NO_CONTENT)
 def create_public_client_log_event(payload: ClientLogEvent, request: Request, response: Response, database: DatabaseSession) -> Response:
-    """接收未登录页面上报的日志事件（无需登录，但必须同源）。
-    """
-    # 同源校验：与 CSRF 中间件（main.py）共用同一份判据。
-    if not same_origin_request(request):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='日志只允许同源页面上报。')
-    _limit_client_log(request, anonymous=True)
-    # 未登录页面只允许上报异常：正常信息没有上报价值，也堵住刷日志的水位。直接 204 丢掉
-    if payload.level not in frozenset({'error', 'warning'}):
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    # [补充说明] 接收未登录页面上报的日志事件（无需登录，但必须同源）。
+    #
+    # 门禁顺序：同源校验 → 只收 warning / error → 页面路径必须在 PUBLIC_PAGES 或其子路径内
+    # → 匿名限流 → 尝试解析身份（解析不到就按匿名记录，未登录页面上报本来就是这个接口的常态）。
+    # 同源校验：Origin 的 scheme 必须是 http/https，且 host 与请求的 Host 头一致。
+    origin = urlsplit(request.headers.get('origin', ''))
+    if origin.scheme not in {'http', 'https'} or origin.netloc.casefold() != request.headers.get('host', '').casefold():
+        raise HTTPException(status_code=403, detail='日志只允许同源页面上报。')
+    # 未登录页面只允许上报异常：正常信息没有上报价值，也堵住刷日志的水位。
+    if payload.level not in {'error', 'warning'}:
+        raise HTTPException(status_code=422, detail='未登录页面只能上报异常。')
     # 先剥掉查询串与哈希、再去尾部斜杠，防止用 ?x 之类的小把戏绕过页面白名单。
     page = str(payload.context.get('page') or '').split('?', 1)[0].split('#', 1)[0].rstrip('/') or '/'
-    if page not in PUBLIC_PAGES and not page.startswith(('/display/', '/3d-studio/')):
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    if page not in PUBLIC_PAGES and not page.startswith(('/display/', '/homeos/', '/3d-studio/')):
+        raise HTTPException(status_code=422, detail='不支持的页面。')
+    _limit_client_log(request, anonymous=True)
     try:
         viewer = authenticated_viewer(request, response, database)
     except HTTPException as error:
@@ -263,15 +262,16 @@ def create_public_client_log_event(payload: ClientLogEvent, request: Request, re
         if error.status_code != 401:
             raise
         viewer = None
-    # public=True：这条来自「无需登录」的通道，落库前加来源标记并收窄长度。
-    _append_client_event(payload, request, viewer, public=True)
+    _append_client_event(payload, request, viewer)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.delete('', status_code=status.HTTP_204_NO_CONTENT)
 def clear_global_logs(request: Request, user: CurrentUser) -> Response:
-    """清空全部全局日志（需已登录）。
-    """
+    # [补充说明] 清空全部全局日志（需已登录）。
+    #
+    # 清空后立刻补记一条「由谁清空」，避免日志出现无从解释的空白。
     request.app.state.global_log.clear()
+    # 补记的这一条落在清空之后，所以它能留下来，成为唯一的清理痕迹。
     request.app.state.global_log.append('info', '系统后台', '系统', f'全局日志已由 {user.username} 清空')
     return Response(status_code=status.HTTP_204_NO_CONTENT)

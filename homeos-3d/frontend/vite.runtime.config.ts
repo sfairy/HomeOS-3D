@@ -8,9 +8,13 @@ import { quietLogger } from "./vite-quiet-logger.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = __dirname;
 const projectRoot = path.resolve(frontendRoot, "..");
-const runtimeSrc = path.join(frontendRoot, "src/runtime");
+const runtimeSrc = path.join(frontendRoot, "src", "runtime");
 const outDir = path.join(projectRoot, "dist", "modules", "runtime");
 
+/**
+ * 运行时模块：整个 src/runtime/** 都是入口（按需经 /api/v1/modules/interaction3d/*
+ * 单独下发），因此每条 .ts 都作为一个 entry 产出到 dist/modules/runtime/<相对路径>.js。
+ */
 function discoverRuntimeEntries(): Record<string, string> {
   const entries: Record<string, string> = {};
   const stack = [runtimeSrc];
@@ -46,6 +50,10 @@ function walkCss(dir: string): string[] {
   return out;
 }
 
+/**
+ * 生成 dist/modules/runtime/manifest.json：后端 get_resource 不再维护硬编码白名单，
+ * 而是按这份清单放行（可参考 homeos-3d/backend/src/modules/interaction3d/api.py）。
+ */
 function manifestPlugin(): Plugin {
   return {
     name: "homeos-runtime-manifest",
@@ -103,9 +111,9 @@ function manifestPlugin(): Plugin {
             files,
           },
           null,
-          2,
+          2
         ) + "\n",
-        "utf8",
+        "utf8"
       );
     },
   };
@@ -144,7 +152,7 @@ export default defineConfig({
     sourcemap: false,
     minify: true,
     // 模块经 /api/v1/modules/interaction3d/* 下发；默认 base=/ 会把
-    // modulepreload 写成 /chunks/*.js，浏览器会打到主站根路径 404。
+    // modulepreload 写成 /assets/*.js，浏览器会打到主站根路径 404。
     // 关掉 preload 后只走相对 import（../chunks/…），解析正确。
     modulePreload: false,
     rollupOptions: {

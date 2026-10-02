@@ -1,1 +1,0 @@
-'''HA Bridge application package.'''

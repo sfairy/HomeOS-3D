@@ -1,162 +1,136 @@
+import { percentageBarSeries } from "../../shared/percentage-bar-model";
+import { selectedRelatedEntityIds } from "../../shared/related-entities";
+import { isVirtualEntityId } from "../../shared/virtual-entities";
 /**
- * 运行时文档的遍历与实体依赖收集。
+ * 运行期组件的最小可用形状：只描述本文件真正读到的字段，
+ * 具体页面组件的完整定义在别处（这里刻意保持宽松）。
  */
+export type RuntimeComponentLike = {
+  /** 组件实例 id（视图事件按它派发）。 */
+  id?: string;
+  type?: string;
+  /** 数据绑定：绑定名 → { entityId, ... }。 */
+  bindings?: Record<string, any>;
+  /** 动作配置：动作名 → { type, data }。 */
+  actions?: Record<string, any>;
+  /** 组件属性（设备清单、实体列表等）。 */
+  properties?: any;
+  /** 子组件。 */
+  children?: RuntimeComponentLike[];
+};
 
-
-import { selectedRelatedEntityIds } from "../../shared/related-entities.js";
-import { isVirtualEntityId } from "../../shared/virtual-entities.js";
-// 状态条目归一与小写状态文本（变更对象 / 状态对象两种形态）走 `utils/state-entry.js`。
-import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js";
-export function lineChartRuntimeStateNeedsHydration(stateOrChange: any) {
-  const stateObject = resolveStateEntry(stateOrChange) as any;
-  if (!stateObject) {
-    return true;
-  }
-  const normalizedState = stateTextOf(stateObject);
+export function lineChartRuntimeStateNeedsHydration(runtimeState) {
+  const resolvedState = runtimeState?.newState || runtimeState;
+  if (!resolvedState) return true;
+  const normalizedState = String(resolvedState.state ?? "")
+    .trim()
+    .toLowerCase();
   return (
     normalizedState === "" || normalizedState === "unknown" || normalizedState === "unavailable"
   );
 }
-export function collectEntityIds(components: any, entityIdSet: any = new Set<any>()) {
+export function collectEntityIds(
+  components: RuntimeComponentLike[] | null,
+  entityIdSet: Set<string> = new Set<string>(),
+) {
   for (const component of components || []) {
-    for (const binding of Object.values(component.bindings || {}) as any[]) {
-      if (binding?.entityId && !isVirtualEntityId(binding.entityId)) {
+    for (const binding of Object.values(component.bindings || {}))
+      binding?.entityId &&
+        !isVirtualEntityId(binding.entityId) &&
         entityIdSet.add(binding.entityId);
-      }
+    if (component.type === "interaction3d") {
+      for (const vacuumDevice of component.properties?.devices?.vacuums || [])
+        for (const vacuumEntityId of [
+          vacuumDevice.entityId,
+          vacuumDevice.map?.entityId,
+          ...(vacuumDevice.relatedEntityIds || []),
+          ...(vacuumDevice.shortcuts || []).map((shortcut) => shortcut.entityId),
+        ])
+          vacuumEntityId && !isVirtualEntityId(vacuumEntityId) && entityIdSet.add(vacuumEntityId);
     }
     if (component.type === "interaction3d") {
-      for (const vacuum of component.properties?.devices?.vacuums || []) {
-        for (const entityIdCandidate of [
-          vacuum.entityId,
-          vacuum.map?.entityId,
-          ...(vacuum.relatedEntityIds || []),
-          ...(vacuum.shortcuts || []).map((shortcut: any) => shortcut.entityId)
-        ]) {
-          if (entityIdCandidate && !isVirtualEntityId(entityIdCandidate)) {
-            entityIdSet.add(entityIdCandidate);
-          }
-        }
-      }
-    }
-    if (component.type === "interaction3d") {
-      for (const presenceSensor of component.properties?.security?.presenceSensors || []) {
-        if (presenceSensor.entityId && !isVirtualEntityId(presenceSensor.entityId)) {
+      for (const presenceSensor of component.properties?.security?.presenceSensors || [])
+        presenceSensor.entityId &&
+          !isVirtualEntityId(presenceSensor.entityId) &&
           entityIdSet.add(presenceSensor.entityId);
-        }
-      }
-    }
-    if (component.type === "interaction3d") {
-      // 门锁绑定和「人体感应的分区传感器」是同一类：实体不在 `bindings` 里，而在
-      for (const lockEntry of component.properties?.security?.locks || []) {
-        for (const lockEntityField of [
-          "entityId",
-          "doorEntityId",
-          "doorEventEntityId",
-          "doorOpenEntityId",
-          "doorCloseEntityId",
-          "batteryEntityId",
-          "lowBatteryEntityId",
-          "tamperEntityId"
-        ]) {
-          const lockEntityId = lockEntry?.[lockEntityField];
-          if (lockEntityId && !isVirtualEntityId(lockEntityId)) {
-            entityIdSet.add(lockEntityId);
-          }
-        }
-      }
     }
     if (component.type === "light-statistics") {
-      for (const configuredEntityId of Array.isArray(component.properties?.entityIds)
+      for (const statisticsEntityId of Array.isArray(component.properties?.entityIds)
         ? component.properties.entityIds
-        : []) {
-        if (configuredEntityId && !isVirtualEntityId(configuredEntityId)) {
-          entityIdSet.add(String(configuredEntityId));
-        }
-      }
+        : [])
+        statisticsEntityId &&
+          !isVirtualEntityId(statisticsEntityId) &&
+          entityIdSet.add(String(statisticsEntityId));
     }
-    if (component.type === "weather") {
-      // 天气控件总能拿到太阳实体：用户未绑定时的缺省值就是 HA 内置的 sun.sun。
-      entityIdSet.add(component.bindings?.sun?.entityId || "sun.sun");
+    if (component.type === "percentage-bar") {
+      for (const { entityId: seriesEntityId } of percentageBarSeries(component))
+        seriesEntityId &&
+          !isVirtualEntityId(seriesEntityId) &&
+          entityIdSet.add(String(seriesEntityId));
     }
-    for (const action of Object.values(component.actions || {}) as any[]) {
-      if (
-        action?.type === "more-info" &&
-        action.data?.popupSource === "entity" &&
-        action.data?.entityId &&
-        !isVirtualEntityId(action.data.entityId)
-      ) {
-        entityIdSet.add(action.data.entityId);
-      }
-    }
-    for (const relatedEntityId of selectedRelatedEntityIds(component) || []) {
+    component.type === "weather" && entityIdSet.add(component.bindings?.sun?.entityId || "sun.sun");
+    for (const actionConfig of Object.values(component.actions || {}))
+      actionConfig?.type === "more-info" &&
+        actionConfig.data?.popupSource === "entity" &&
+        actionConfig.data?.entityId &&
+        !isVirtualEntityId(actionConfig.data.entityId) &&
+        entityIdSet.add(actionConfig.data.entityId);
+    for (const relatedEntityId of (selectedRelatedEntityIds(component) || []) as string[])
       entityIdSet.add(relatedEntityId);
-    }
-    // 子组件与兄弟组件一样可能带绑定，必须继续下钻。
     collectEntityIds(component.children, entityIdSet);
   }
   return entityIdSet;
 }
-/**
- * 递归收集满足条件的组件。
- */
-export function collectComponents(inputComponents: any, predicate: any, matches: any = []) {
-  for (const currentComponent of inputComponents || []) {
-    if (predicate(currentComponent)) {
-      matches.push(currentComponent);
-    }
-    collectComponents(currentComponent.children, predicate, matches);
-  }
-  return matches;
+export function collectComponents(
+  componentList: RuntimeComponentLike[] | null,
+  matchesComponent: (component: RuntimeComponentLike) => boolean,
+  matchedComponents: RuntimeComponentLike[] = [],
+) {
+  for (const childComponent of componentList || [])
+    (matchesComponent(childComponent) && matchedComponents.push(childComponent),
+      collectComponents(childComponent.children, matchesComponent, matchedComponents));
+  return matchedComponents;
 }
-/**
- * 找出与指定实体绑定的折线图组件。
- */
-function matchingLineChartComponent(documentModel: any, page: any, entityId: any) {
-  // 判定组件是否为「绑定了目标实体」的折线图：类型与 entityId 都要匹配。它是纯判定
-  const isLineChartForEntity = (candidateComponent: any) =>
-    candidateComponent.type === "line-chart" &&
-    candidateComponent.bindings?.entity?.entityId === entityId;
-  const directMatch = collectComponents(page?.components || [], isLineChartForEntity)[0];
-  if (directMatch) {
-    return directMatch;
-  }
+export function matchingLineChartComponent(runtimeDocument, activePage, targetEntityId) {
+  const matchesTargetComponent = (candidateComponent) =>
+      candidateComponent.type === "line-chart" &&
+      candidateComponent.bindings?.entity?.entityId === targetEntityId,
+    matchedPageComponent = collectComponents(
+      activePage?.components || [],
+      matchesTargetComponent,
+    )[0];
+  if (matchedPageComponent) return matchedPageComponent;
   const sharedComponentsById = new Map(
-    (documentModel?.sharedComponents || []).map((sharedComponent: any) => [
-      sharedComponent.id,
-      sharedComponent
-    ])
+      (runtimeDocument?.sharedComponents || []).map((sharedComponent) => [
+        sharedComponent.id,
+        sharedComponent,
+      ]),
+    ),
+    sharedComponentList = (activePage?.sharedComponentIds || [])
+      .map((sharedComponentId) => sharedComponentsById.get(sharedComponentId))
+      .filter(Boolean),
+    matchedSharedComponent = collectComponents(sharedComponentList, matchesTargetComponent)[0];
+  if (matchedSharedComponent) return matchedSharedComponent;
+  for (const otherPage of runtimeDocument?.pages || []) {
+    if (otherPage === activePage) continue;
+    const matchedOtherPageComponent = collectComponents(
+      otherPage.components || [],
+      matchesTargetComponent,
+    )[0];
+    if (matchedOtherPageComponent) return matchedOtherPageComponent;
+  }
+  return (
+    collectComponents(runtimeDocument?.sharedComponents || [], matchesTargetComponent)[0] || null
   );
-  // 取出当前页真正挂载的共享组件；sharedComponentIds 里可能有已删除的悬空 ID，用 filter 剔除。
-  const sharedComponents = (page?.sharedComponentIds || [])
-    .map((sharedComponentId: any) => sharedComponentsById.get(sharedComponentId))
-    .filter(Boolean);
-  const sharedMatch = collectComponents(sharedComponents, isLineChartForEntity)[0];
-  if (sharedMatch) {
-    return sharedMatch;
-  }
-  for (const candidatePage of documentModel?.pages || []) {
-    if (candidatePage === page) {
-      continue;
-    }
-    const pageMatch = collectComponents(candidatePage.components || [], isLineChartForEntity)[0];
-    if (pageMatch) {
-      return pageMatch;
-    }
-  }
-  return collectComponents(documentModel?.sharedComponents || [], isLineChartForEntity)[0] || null;
 }
-/**
- * 生成折线图的属性：以别处同名图表的属性为底，再被显式覆盖项压过。
- */
 export function syncedLineChartProperties(
-  documentSnapshot: any,
-  currentPage: any,
-  targetEntityId: any,
-  overrides: any = {}
+  sourceDocument,
+  sourcePage,
+  sourceEntityId,
+  propertyOverrides = {},
 ) {
   return {
-    ...(matchingLineChartComponent(documentSnapshot, currentPage, targetEntityId)?.properties ||
-      {}),
-    ...(overrides || {})
+    ...(matchingLineChartComponent(sourceDocument, sourcePage, sourceEntityId)?.properties || {}),
+    ...(propertyOverrides || {}),
   };
 }

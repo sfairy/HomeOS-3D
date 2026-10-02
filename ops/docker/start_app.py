@@ -16,18 +16,15 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.security.http_security import (  # 必须晚于 sys.path 注入
-    forwarded_allow_ips_warning,
-)
-
 from ops.docker.bootstrap_keys import (
     FIRST_FETCH_WAIT_SECONDS,
     PUBLIC_KEY_MARKER,
     derive_key_id,
     ensure_client_keys,
 )
-from ops.docker.license_keys import apply_client_key_env
+from ops.docker.http_security import forwarded_allow_ips_warning
 from ops.docker.proxy import run_with_proxy
+from ops.license_keys import apply_client_key_env
 
 #: 默认只信任回环：容器里没有反向代理时，TCP 对端就是客户端本人，任何人都伪造不了
 DEFAULT_FORWARDED_ALLOW_IPS = '127.0.0.1,::1'
@@ -139,7 +136,7 @@ def main() -> None:
                 sys.executable,
                 "-m",
                 "uvicorn",
-                "src.main:app",
+                "backend.src.main:app",
                 "--host",
                 "0.0.0.0",
                 "--port",

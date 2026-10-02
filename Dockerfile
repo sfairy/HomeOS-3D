@@ -73,14 +73,20 @@ RUN apt-get update \
 
 COPY ops/docker/compile_python.py /tmp/compile_python.py
 COPY ops/container_entrypoint.py ./ops/
+COPY ops/license_keys.py ./ops/
 COPY ops/docker ./ops/docker
 COPY package.json /tmp/package.json
 COPY homeos-3d/alembic.ini ./alembic.ini
-COPY homeos-3d/backend/src ./src
+COPY homeos-3d/backend/src ./backend/src
 COPY --from=frontend-tools /work/homeos-3d/dist ./dist
-COPY homeos-3d/db ./db
+# migrations/ 里的迁移脚本必须原样保留（compile_python.py 的 KEEP_SOURCE_PREFIXES 已含它）：
+# alembic 是**读源码文件**来执行的，编译成 .so 之后它反而找不到脚本。
+# 位置与导入名都不是随意定的：/app/alembic.ini 的 script_location=migrations，而
+# migrations/env.py 按 backend.src.* 导入（见 backend/src/main.py 与 tools/smoke_pages.py），
+# 所以后端必须落在 /app/backend/src，PYTHONPATH=/app 才能同时解析 backend.src.* 与 ops.*。
+COPY homeos-3d/migrations ./migrations
 # /app/image：内置素材目录（settings.built_in_assets_dir），默认空，可另行挂载增删。
-# src/_version.py 随后与其它源码一起被编译成 .so，运行期由 config.py 读取。
+# backend/src/_version.py 随后与其它源码一起被编译成 .so，运行期由 config.py 读取。
 RUN mkdir -p /app/image \
     && rm -f /app/ops/docker/compile_python.py /app/ops/docker/obfuscate_javascript.mjs \
     && version="${HOMEOS_VERSION}" \
@@ -88,19 +94,21 @@ RUN mkdir -p /app/image \
          version="$(sed -n 's/^  "version":[[:space:]]*"\([^"]*\)".*/\1/p' /tmp/package.json | head -n 1)"; \
        fi \
     && [ -n "$version" ] || { echo "无法确定版本号：package.json 缺 version 且未传 --build-arg HOMEOS_VERSION" >&2; exit 1; } \
-    && printf '__version__ = "%s"\n' "$version" > /app/src/_version.py \
+    && printf '__version__ = "%s"\n' "$version" > /app/backend/src/_version.py \
     && echo "主应用构建版本：$version" \
     && python /tmp/compile_python.py /app \
     && rm -f /tmp/compile_python.py \
-    && test -f /app/src/main.*.so \
-    && test -f /app/src/__init__.*.so \
-    && test -f /app/src/_version.*.so \
+    && test -f /app/alembic.ini \
+    && test -f /app/backend/src/main.*.so \
+    && test -f /app/backend/src/__init__.*.so \
+    && test -f /app/backend/src/_version.*.so \
     && test -f /app/ops/container_entrypoint.*.so \
+    && test -f /app/ops/license_keys.*.so \
     && test -f /app/ops/docker/start_app.*.so \
-    && test -f /app/db/migrations/env.py \
-    && test ! -f /app/src/main.py \
+    && test -f /app/migrations/env.py \
+    && test ! -f /app/backend/src/main.py \
     && test ! -f /app/ops/container_entrypoint.py \
-    && test -z "$(find /app/src /app/ops/docker \( -name '*.py' -o -name '*.pyc' \) -print -quit)"
+    && test -z "$(find /app/backend/src /app/ops/docker \( -name '*.py' -o -name '*.pyc' \) -print -quit)"
 
 
 FROM base AS store-build
@@ -115,6 +123,7 @@ RUN apt-get update \
 
 COPY ops/docker/compile_python.py /tmp/compile_python.py
 COPY ops/container_entrypoint.py ./ops/
+COPY ops/license_keys.py ./ops/
 COPY ops/docker ./ops/docker
 COPY package.json /tmp/package.json
 COPY homeos-store/alembic.ini ./alembic.ini
@@ -141,6 +150,7 @@ RUN rm -f /app/ops/docker/compile_python.py /app/ops/docker/obfuscate_javascript
     && test -f /app/src/__init__.*.so \
     && test -f /app/src/_version.*.so \
     && test -f /app/ops/container_entrypoint.*.so \
+    && test -f /app/ops/license_keys.*.so \
     && test -f /app/ops/docker/start_store.*.so \
     && test -f /app/alembic.ini \
     && test -f /app/db/migrations/env.py \

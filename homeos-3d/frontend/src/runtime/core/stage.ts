@@ -1,1702 +1,1169 @@
-import {
-  applyMdiMask,
-  capturePointer,
-  resolveStateEntry,
-  temperatureHumidityReading
-} from "./static-helpers.js";
-// 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "./motion-preference.js";
-// 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "./scene-model-key.js";
-const { popupPlacement: computePopupPlacement } = await (import("@app/bridge/popup-placement.js"));
-import {
-  createPresenceScene,
-  createPresenceWaves
-} from "../presence/presence-scene.js";
-import { createSceneBackground } from "./scene-background.js";
-import { floorNavigationChoices } from "./floor-navigation.js";
-import {
-  createVacuumMotion,
-  vacuumQuip,
-  createVacuumFollowCamera,
-  vacuumBirdCamera,
-  vacuumFollowPose
-} from "../vacuum/vacuum-motion.js";
-import {
-  createVacuumMaps,
-  vacuumStatusPresentation,
-  vacuumBindingsForMap
-} from "../vacuum/vacuum-map.js";
-import { televisionState } from "../television/television-state.js";
-import { createTelevisionPanel } from "../television/television-panel.js";
-import { createTelevisionScreens } from "../television/television-screen.js";
-import { createNasPanel } from "../nas/nas-panel.js";
-import { createNasStatus, nasDeviceState } from "../nas/nas-status.js";
-import { createCameraStatus, cameraOnline } from "../camera/camera-status.js";
-import {
-  coverState,
-  coverIconIsOn,
-  coverCanAdjustBlades
-} from "../cover/cover-state.js";
-import { createCoverFeedback } from "../cover/cover-feedback.js";
-import { createCoverPanel } from "../cover/cover-panel.js";
-// 窗帘组合（一拖多）：组面板把成员各自转发成一块普通窗帘子面板，与单副帘面板同一套外观。
-import { createCoverGroupPanel } from "../cover/cover-group-panel.js";
-import { createCurtainMotion } from "../cover/curtain-motion.js";
-// 门锁：面板（状态 + 电量 + 密码 + 上锁/解锁/释放锁舌）、门外动画（把 doorOpen 翻成门的姿态）、
-import { createLockPanel } from "../security/lock-panel.js";
-import { createLockMotion } from "../security/lock-motion.js";
-import { doorModels, lockHinge, lockState } from "../security/lock-state.js";
-import { createEnvironmentAirflow } from "../environment/environment-airflow.js";
-import { createScreenOutlines } from "../environment/environment-halos.js";
-import { mountRegionRangeEditor } from "../light/light-range-editor.js";
-import { climateState, createClimateModeHistory } from "../climate/climate-state.js";
-import { createClimatePanel } from "../climate/climate-panel.js";
-import { createDevicePanel } from "../device/device-panel.js";
-// 通用设备状态灯的状态口径：statusRules 折算成四态与配色，与设备弹窗 / 编辑器同源
-import { deviceStatus } from "../device/device-status.js";
-import {
-  GENERIC_DEVICE_KINDS,
-  isGenericDeviceKind,
-  genericDeviceProfile
-} from "../device/device-profiles.js";
-import {
-  createEnvironmentScene,
-  pageDimming,
-  pageModelBindings
-} from "../environment/environment-scene.js";
-import { startSceneSync } from "./scene-sync.js";
-import {
-  lightCommand,
-  createLightPreview,
-  createLightStateCache,
-  lightRenderState
-} from "../light/light-state.js";
-import {
-  createDampedCameraMotion,
-  automaticLightCamera,
-  automaticAirConditionerCamera
-} from "../camera/camera-motion.js";
-import {
-  resolvePageBehavior,
-  createIdleRotation,
-  createIdleIconVisibility,
-  createIdleFocusExit
-} from "./idle-rotation.js";
-import { createStageMetadata } from "./stage/config-metadata.js";
-import { createBindingCollectors } from "./stage/binding-collectors.js";
-import { createStageGeometry } from "./stage/geometry.js";
-import { createDomAndHostBridge } from "./stage/dom-host.js";
-import { createLightStateReaders } from "./stage/light-state.js";
-import { createRequestSettlement } from "./stage/request-settlement.js";
-import { createCoverPresentation } from "./stage/cover-presentation.js";
-import { createPresenceHitBoxes } from "./stage/presence-hitboxes.js";
-import { createMarkerLayer } from "./stage/marker-layer.js";
-import { createInputActivity } from "./stage/input-activity.js";
-import { createCameraTransition } from "./stage/camera-transition.js";
-import { createHostMessageHandler } from "./stage/host-messages.js";
-// 页签清单与「模块 → 所属页签」的归一：单一出处，改这里（别再就地抄一份映射）。
-import { MODULE_TABS, moduleTabOf } from "./stage/module-tabs.js";
-
-/**
- * 舞台宿主注入依赖：THREE / DOM / 相机 / 帧循环 / 场景联动钩子。
- * 未列出的字段以 unknown 收口，调用处再收窄。
- */
-type StageSceneDocument = {
-  floors?: StageFloor[];
-  projectId?: string;
-  [key: string]: unknown;
-};
-
-type StageFloor = {
-  id?: string | number;
-  scene?: { items?: StageSceneItem[]; lightGroups?: unknown[]; [key: string]: unknown };
-  [key: string]: unknown;
-};
-
-type StageSceneItem = {
-  id?: string | number;
-  name?: string;
-  lightGroupId?: string;
-  [key: string]: unknown;
-};
-
-/** 舞台配置来自宿主 JSON，字段随模块扩展；用宽松索引，调用处按需收窄。 */
-type StageConfig = {
-  lights?: any[];
-  environment?: any;
-  devices?: any;
-  security?: any;
-  floorSelection?: any;
-  sceneId?: any;
-  camera?: any;
-  navigation?: any;
-  [key: string]: any;
-};
-
-type StageBinding = {
-  id?: string;
-  floorId?: string;
-  entityId?: string;
-  deviceKind?: string;
-  modelId?: string;
-  [key: string]: any;
-};
-
-/** three.js 命名空间在舞台侧只用到少量构造器；其余按需收窄。 */
-type StageThree = {
-  Vector3: new (...args: any[]) => any;
-  Quaternion: new (...args: any[]) => any;
-  [key: string]: any;
-};
-
-/**
- * 舞台宿主注入依赖。方法在真实宿主上始终齐备；索引签名收口扩展字段。
- */
-type StageHostOptions = {
-  THREE: StageThree;
-  container: HTMLElement;
-  canvas: HTMLCanvasElement;
-  document?: StageSceneDocument | null;
-  camera?: any;
-  controls?: any;
-  modelRoot?: any;
-  sceneRevision?: any;
-  environmentRevision?: any;
-  floorTransitionActive?: boolean;
-  regionLighting?: any;
-  groundReflections?: any;
-  requestRender: () => void;
-  setBackgroundTheme: (theme: any) => void;
-  setCurtainSync: (sync: any) => void;
-  setTelevisionSync: (sync: any) => void;
-  setEnvironmentScene: (scene: any) => void;
-  setEnvironmentAirflow: (airflow: any) => void;
-  setEnvironmentActive: (active: any) => void;
-  setFloor: (floorId: any) => void;
-  setFocusViewport: (inset: any) => void;
-  setOrbitPivot: (pivot: any) => void;
-  invalidateReflections: (ids?: any) => void;
-  cameraState: (absolute?: boolean) => any;
-  applyCameraPose: (pose: any, absolute?: boolean) => void;
-  beginCameraMotion: (mode?: any) => void;
-  endCameraMotion: () => void;
-  getCameraMotionState: () => any;
-  getOrbitCenter: () => any;
-  orbitCameraPose: (...args: any[]) => any;
-  restoreCamera: (...args: any[]) => void;
-  floorDefaultCamera: (...args: any[]) => any;
-  presentationCamera: (request?: any) => any;
-  transitionFloor: (...args: any[]) => any;
-  advanceFloorTransition: (...args: any[]) => any;
-  finishFloorTransition: (...args: any[]) => void;
-  environmentModelPose: (...args: any[]) => any;
-  pickEnvironmentModel: (...args: any[]) => any;
-  curtainFrame: (frame: any) => void;
-  onCameraChange: (listener: any) => any;
-  createFrameLoop: (tick: any) => { wake: () => void; dispose?: () => void; [key: string]: any };
-  readSceneUpdate: (...args: any[]) => any;
-  [key: string]: any;
-};
-
-
-const DEFAULT_MARKER_ICON_SVG =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 15c0-2-3-3-3-7a7 7 0 0 1 14 0c0 4-3 5-3 7l-1 3H9l-1-3Z"/><path d="M9 21h6M9 15h6"/></svg>';
-const LIGHT_PRESETS = [
+// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
+import { bathHeaterState as bathHeaterState2 } from "../bath-heater/bath-heater";
+import { purifierState as purifierState2 } from "../purifier/purifier-state";
+import { createAirerMotion as createAirerMotion2 } from "../airer/airer-motion";
+import { createFanMotion as createFanMotion2 } from "../fan/fan-motion";
+import { carState as carState2 } from "../vehicle/car-state";
+import { updateCarCard as updateCarCard2 } from "../vehicle/car-card";
+import { createCarCharging as createCarCharging2 } from "../vehicle/car-charging";
+import { speakerState as speakerState2 } from "../speaker/speaker-state";
+import { createSpeakerPanel as createSpeakerPanel2 } from "../speaker/speaker-panel";
+import { createSpeakerRings as createSpeakerRings2 } from "../speaker/speaker-ring";
+const [
+  { backgroundOpacity: labelBackgroundOpacity },
+  { withPageAppearancePreset: applyPageAppearancePreset },
+  { withRegionLightingPreset: applyRegionLightingPreset },
+  { withFixedLightEffects: applyFixedLightEffects },
   {
-    label: "柔和",
-    brightness: 25,
-    temperaturePercent: 10
+    temperatureHumidityReading: readTemperatureHumidity,
+    temperatureHumidityEntities: temperatureHumidityEntities,
+    ENVIRONMENT_METRICS: environmentMetricNames,
+    layoutEnvironmentReadings: layoutEnvironmentReadings,
   },
-  {
-    label: "日常",
-    brightness: 60,
-    temperaturePercent: 50
-  },
-  {
-    label: "明亮",
-    brightness: 100,
-    temperaturePercent: 100
-  }
-];
-/**
- * 楼层过渡「末段可接管」的进度阈值。阻尼收敛的进度按 e^(-rt) 逼近 1，楼层 owner 的停稳判定
- */
-const FLOOR_TAIL_DRAG_MIN_PROGRESS = 0.999;
-const MODULE_TAB_WIDTH = 56;
-const MODULE_TAB_HEIGHT = 32;
-const MODULE_TAB_STRIDE = MODULE_TAB_WIDTH + 2;
-const MODULE_TAB_TRACK_PADDING = 3;
-const MODULE_TAB_TRACK_HEIGHT = MODULE_TAB_HEIGHT + MODULE_TAB_TRACK_PADDING * 2 + 2;
-const NAVIGATION_DRAG_THRESHOLD = 4;
-/**
- * 算出当前配置下真正可用的模块页签。
- */
-function configuredModuleKinds(rawConfig: StageConfig = {}) {
+  { popupPlacement: computePopupPlacement },
+  { createMarkerTouch: createMarkerTouch, nearestMarkerTarget: nearestMarkerTarget },
+] = await Promise.all([
+  import("./label-appearance"),
+  import("@app/bridge/page-appearance-presets"),
+  import("@app/bridge/region-lighting-presets"),
+  import("@app/bridge/light-effect-policy"),
+  import("@app/bridge/temperature-humidity"),
+  import("@app/bridge/popup-placement"),
+  import("./marker-input"),
+]);
+import {
+  createPresenceScene as createPresenceScene2,
+  createPresenceWaves as createPresenceWaves2,
+} from "../presence/presence-scene";
+import { createLockPanel as createLockPanel2 } from "../security/lock-panel";
+import { createLockMotion as createLockMotion2 } from "../security/lock-motion";
+import {
+  doorModels as doorModels2,
+  lockState as lockState2,
+} from "../security/lock-state";
+import { createSceneBackground as createSceneBackground2 } from "./scene-background";
+import { floorNavigationChoices as floorNavigationChoices2 } from "./floor-navigation";
+import {
+  createVacuumMotion as createVacuumMotion2,
+  vacuumQuip as vacuumQuip2,
+  createVacuumFollowCamera as createVacuumFollowCamera2,
+  vacuumBirdCamera as vacuumBirdCamera2,
+  vacuumFollowPose as vacuumFollowPose2,
+} from "../vacuum/vacuum-motion";
+import {
+  createVacuumMaps as createVacuumMaps2,
+  vacuumStatusPresentation as vacuumStatusPresentation2,
+  vacuumBindingsForMap as vacuumBindingsForMap2,
+} from "../vacuum/vacuum-map";
+import {
+  televisionState as televisionState2,
+  televisionPower as televisionPower2,
+} from "../television/television-state";
+import { createTelevisionPanel as createTelevisionPanel2 } from "../television/television-panel";
+import { createTelevisionScreens as createTelevisionScreens2 } from "../television/television-screen";
+import { createDevicePanel as createDevicePanel2 } from "../device/device-panel";
+import { deviceStatus as deviceStatus2 } from "../device/device-status";
+import {
+  GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2,
+  genericDeviceProfile as genericDeviceProfile2,
+  isGenericDeviceKind as isGenericDeviceKind2,
+  genericDeviceMetadata as genericDeviceMetadata2,
+} from "../device/device-profiles";
+import { createNasPanel as createNasPanel2 } from "../nas/nas-panel";
+import {
+  createNasStatus as createNasStatus2,
+  nasDeviceState as nasDeviceState2,
+} from "../nas/nas-status";
+import {
+  createCameraStatus as createCameraStatus2,
+  cameraOnline as cameraOnline2,
+} from "../camera/camera-status";
+import {
+  coverState as coverState2,
+  coverControl as coverControl2,
+  coverIconIsOn as coverIconIsOn2,
+  coverCanAdjustBlades as coverCanAdjustBlades2,
+} from "../cover/cover-state";
+import { createCoverFeedback as createCoverFeedback2 } from "../cover/cover-feedback";
+import { createCoverPanel as createCoverPanel2 } from "../cover/cover-panel";
+import { createCoverGroupPanel as createCoverGroupPanel2 } from "../cover/cover-group-panel";
+import {
+  validCurtainGroups as validCurtainGroups2,
+  curtainGroupEntryId as curtainGroupEntryId2,
+} from "../cover/cover-groups";
+import { createCurtainMotion as createCurtainMotion2 } from "../cover/curtain-motion";
+import { createEnvironmentAirflow as createEnvironmentAirflow2 } from "../environment/environment-airflow";
+import { createScreenOutlines as createScreenOutlines2 } from "../environment/environment-halos";
+import { mountRegionRangeEditor as mountRegionRangeEditor2 } from "../editor/light-range-editor";
+import {
+  climateState as climateState2,
+  createClimateModeHistory as createClimateModeHistory2,
+} from "../climate/climate-state";
+import { createClimatePanel as createClimatePanel2 } from "../climate/climate-panel";
+import {
+  createEnvironmentScene as createEnvironmentScene2,
+  pageDimming as pageDimming2,
+  pageModelBindings as pageModelBindings2,
+} from "../environment/environment-scene";
+import { startSceneSync as startSceneSync2 } from "./scene-sync";
+import {
+  createStateUpdatePlan as createStateUpdatePlan2,
+  lightBindingsForUpdate as lightBindingsForUpdate2,
+} from "./state-update-plan";
+import {
+  createLightColorPicker as createLightColorPicker2,
+  createLightModeMenu as createLightModeMenu2,
+} from "../light/light-color-picker";
+import {
+  hsToRgbColor as hsToRgbColor2,
+  lightCommand as lightCommand2,
+  createLightPreview as createLightPreview2,
+  createLightStateCache as createLightStateCache2,
+  lightRenderState as lightRenderState2,
+} from "../light/light-state";
+import {
+  createDampedCameraMotion as createDampedCameraMotion2,
+  automaticLightCamera as automaticLightCamera2,
+  automaticAirConditionerCamera as automaticAirConditionerCamera2,
+} from "../camera/camera-motion";
+import {
+  resolvePageBehavior as resolvePageBehavior2,
+  createIdleRotation as createIdleRotation2,
+  createIdleIconVisibility as createIdleIconVisibility2,
+  createIdleFocusExit as createIdleFocusExit2,
+} from "./idle-rotation";
+const lampIconSvgMarkup =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 15c0-2-3-3-3-7a7 7 0 0 1 14 0c0 4-3 5-3 7l-1 3H9l-1-3Z"/><path d="M9 21h6M9 15h6"/></svg>',
+  lightPresetEntries = [
+    {
+      label: "柔和",
+      brightness: 25,
+      temperaturePercent: 10,
+    },
+    {
+      label: "日常",
+      brightness: 60,
+      temperaturePercent: 50,
+    },
+    {
+      label: "明亮",
+      brightness: 100,
+      temperaturePercent: 100,
+    },
+  ];
+export function configuredModuleKinds(moduleConfigSource = {}) {
   return [
-    // 总览 始终提供：它聚合当前楼层上所有已配置模块的标记，
+    // 总览 始终提供：它聚合当前楼层上所有已配置模块的标记，不依赖任何设备配置。
     "overview",
     "light",
-    ...(rawConfig.environment?.airConditioners?.length ||
-    rawConfig.environment?.airPurifiers?.length ||
-    rawConfig.environment?.curtains?.length
+    ...(moduleConfigSource.environment?.airConditioners?.length ||
+    moduleConfigSource.environment?.fans?.length ||
+    moduleConfigSource.environment?.airPurifiers?.length ||
+    moduleConfigSource.environment?.curtains?.length ||
+    moduleConfigSource.environment?.temperatureHumidity?.length
       ? ["environment"]
       : []),
-    ...(rawConfig.environment?.temperatureHumidity?.length ? ["temperature-humidity"] : []),
-    ...(rawConfig.devices?.nas?.length ||
-    rawConfig.devices?.televisions?.length ||
-    // 通用设备也住在「设备」页签下：只配了一台冰箱、没配 NAS / 电视时，
-    GENERIC_DEVICE_KINDS.some((genericKind: any) => {
-      const collection = genericDeviceProfile(genericKind)?.collection;
-      return !!(collection && rawConfig.devices?.[collection]?.length);
-    })
+    ...(GENERIC_DEVICE_KINDS2.some(
+      (metricsDeviceKindName) =>
+        moduleConfigSource.devices?.[genericDeviceProfile2(metricsDeviceKindName).collection]
+          ?.length,
+    ) ||
+    moduleConfigSource.environment?.airers?.length ||
+    moduleConfigSource.environment?.waterHeaters?.length ||
+    moduleConfigSource.devices?.nas?.length ||
+    moduleConfigSource.devices?.speakers?.length ||
+    moduleConfigSource.devices?.televisions?.length
       ? ["devices"]
       : []),
-    ...(rawConfig.devices?.vacuums?.length ? ["vacuum"] : []),
-    ...(rawConfig.security?.cameras?.length || rawConfig.security?.presenceSensors?.length
+    ...(moduleConfigSource.devices?.vacuums?.length ? ["vacuum"] : []),
+    ...(moduleConfigSource.security?.locks?.length ||
+    moduleConfigSource.security?.cameras?.length ||
+    moduleConfigSource.security?.presenceSensors?.length
       ? ["security"]
-      : [])
+      : []),
   ];
 }
-/**
- * 快照门控同步器：舞台里有一串同形状的同步函数（窗帘 / 摄像头状态 / NAS / 电视屏 /
- * @param {() => object} readInputs 读取当前输入，返回的键即快照键（每次都要给出同样的键）。
- * @param {(inputs: object) => void} apply 判定变化后执行的同步逻辑，入参即本次输入。
- * @returns {() => void} 可反复调用的同步函数（宿主每帧调用也只在输入变化时才做重活）。
- */
-function createSnapshotSyncer(readInputs: () => Record<string, any>, apply: (inputs: Record<string, any>) => void) {
-  let previousInputs: any = null;
-  return function syncSnapshot() {
-    const inputs = readInputs();
-    if (previousInputs && snapshotInputsEqual(previousInputs, inputs)) {
-      return;
-    }
-    previousInputs = inputs;
-    apply(inputs);
-  };
-}
-/** 逐键引用相等 + 键数一致，供 createSnapshotSyncer 判等。 */
-function snapshotInputsEqual(previousInputs: Record<string, any>, inputs: Record<string, any>) {
-  const inputKeys = Object.keys(inputs);
-  if (inputKeys.length !== Object.keys(previousInputs).length) {
-    return false;
-  }
-  return inputKeys.every((inputKey: any) => Object.is(previousInputs[inputKey], inputs[inputKey]));
-}
-/**
- * 挂载 3D 舞台：注册宿主消息、渲染循环与全部子系统（窗帘 / 扫地机 / 电视 / NAS / 摄像头 / 环境）。
- * @param {object} stageOptions 宿主注入的依赖与回调（THREE、container、canvas、document、相机、帧循环工厂、联动钩子）。
- */
-export function mountStage(stageOptions: StageHostOptions) {
-  const THREE = stageOptions.THREE;
-  const containerElement = stageOptions.container;
-  const canvasElement = stageOptions.canvas;
-  const stageDocument = () => stageOptions.document || { floors: [] as StageFloor[] };
-  const stageFloors = () => stageDocument().floors || [];
-
-  let config: StageConfig = {
-    lights: []
-  };
-  // 实体状态表：states 消息可整份替换或按 patch 增量合并，键是 entityId。
-  let statesByEntityId: Record<string, any> = {};
-  // 编辑态：标记可拖拽、点击走 edit 消息而不是控制命令，且强制关闭交互。
-  let isEditing = false;
-  let isViewEditing = false;
-  // 宿主是否允许交互（展示页可关掉）：false 时点击不产生任何控制命令。
-  let isInteractive = false;
-  // 编辑器选中的标记 ID（编辑态使用）。
-  let selectedId = "";
-  // 展示态聚焦的标记 ID（由舞台自行维护）。
-  let focusedId = "";
-  // 当前楼层 ID；"all" 表示全部楼层，此时所有楼层都算「当前楼层」。
-  let currentFloorId = "";
-  // 页面卸载后置位：所有异步回调（场景替换、呈现等待）据此提前退出，
-  let isDisposed = false;
-  // 编辑器内嵌的「画布视图」：非编辑态但来自编辑器 iframe，
-  let isEditorCanvas = false;
-  // 控制请求 ID 自增源：灯光 / 窗帘 / 空调 / 电视共用一条计数，
-  let requestSeq = 0;
-  let markerDragState: any = null;
-  // 导航位置调整态（仅编辑器画布）：置位后分类栏 / 楼层栏可拖动改位置，
-  let navigationEditing = false;
-  // 进入聚焦 / 切换楼层前的相机快照，退出聚焦时用它还原。
-  let savedCameraPose: any = null;
-  // 舞台画面是否已呈现（宿主确认后置位）；未呈现前不做空闲动画与定位。
-  let isPresented = false;
-  // 配置代次：每收到一条 config 自增，异步的呈现等待用它判断
-  let configRevisionCount = 0;
-  let pageBehavior = resolvePageBehavior();
-  // 总览 是落地模块：只展示房子本体，不显示设备按钮。
-  let activeModule = "overview";
-  let editingVacuumId = "";
-  let pendingFloorId = "";
-  let pendingModule = "";
-  let hasInitializedFloor = false;
-  // 楼层选择为 "all" 表示「全部楼层」：标记与相机都按整栋楼处理。
-  const isAllFloorsMode = () => currentFloorId === "all";
-  // 展示态下的「全部楼层」等价于总览页；编辑态不算，编辑器仍要显示设备标记。
-  const isOverviewMode = () => activeModule === "overview" || (!isEditing && isAllFloorsMode());
-  // 全部楼层模式下所有楼层都算「当前楼层」，其余情况按 floorId 精确匹配。
-  const isOnActiveFloor = (item: StageBinding | Record<string, any>) => currentFloorId === "all" || item.floorId === currentFloorId;
-  let focusMode = "";
-  let focusRestoreCameraPose: any = null;
-  let cameraTransition: any = null;
-  let focusViewportInset = 0;
-  let isPageVisible = false;
-  let isIdleRotating = false;
-  let hasIdleReturnPending = false;
-  let idleBasePose: any = null;
-  let frameLoop: { wake: () => void; dispose?: () => void; [key: string]: any } | null = null;
-  // 宿主是否上报过活动状态；未上报时不做页面可见性判断，默认允许渲染。
-  let hasActivityState = false;
-  let isPresentedVisible = true;
-  let isRangeEditorOpen = false;
-  let rangeEditor: any = null;
-  // 宿主是否允许范围编辑（视图编辑态或非区域布光模式下不允许），
-  let isRangeEditingAllowed = false;
-  // 范围编辑器正在等待宿主响应（保存 / 打开中），期间不接受新的请求。
-  let isRangeEditorBusy = false;
-  // 本次会话是否「只为范围编辑」而打开：宿主用它区分纯编辑会话。
-  let isRangeEditorOnly = false;
-  // 统一用它唤醒按需渲染循环。frameLoop 在函数末尾才创建，
-  const wakeFrameLoop = () => frameLoop?.wake();
-  // 背景控制器：默认主题下驱动地面星尘，暖阳原木下换成全屏暖色背景。
-  const backgroundTheme = createSceneBackground(stageOptions, wakeFrameLoop);
-  stageOptions.setBackgroundTheme?.(backgroundTheme);
-  let areIdleIconsHidden = false;
-  let isActivityHeld = false;
-  // 仍按下的指针 ID 集合：只要有内容就保持「活动中」。
-  const activePointerIds = new Set<any>();
-  // 仍按下的按键集合，与指针集合一起决定活动保持。
-  const pressedKeys = new Set<any>();
-  // 标记 DOM 索引：键是绑定 ID，renderMarkers 靠它做增删同步。
-  const markersById = new Map<string, any>();
-  // 在途灯光控制请求：键是 requestId，值含超时句柄与排队中的下一条命令。
-  const lightRequestsById = new Map<string, any>();
-  const markerPointsById = new Map<string, any>();
-  const tempProjectedPoint = new THREE.Vector3();
-  let cachedSceneDocument: any;
-  let cachedMarkerFloorId: any;
-  let idleSinceTimestamp: any = null;
-  const lightPreview = createLightPreview();
-  const lightHistoryScope = document.body?.dataset?.i3dLightHistoryScope;
-  let localStorageRef: Storage | null | undefined;
-  if (lightHistoryScope) {
+export function mountStage(mountOptions) {
+  const { THREE: three, container: element, canvas: canvasElement } = mountOptions,
+    uRLSearchParams = new URLSearchParams(location.search),
+    uiCalibrationStorageKey =
+      "homeos:i3d-ui-calibration:" +
+      (uRLSearchParams.get("projectId") || "project") +
+      ":" +
+      (uRLSearchParams.get("sceneId") || "scene") +
+      ":" +
+      (uRLSearchParams.get("componentId") || "component");
+  let value = null,
+    previousStageRect = null;
+  const hasStageRect = () => !!value,
+    noopStageCallback = () => {};
+  let options = {
+      lights: [],
+    },
+    deviceStates = {},
+    isEditing = false,
+    isAwaitingFloorViewAdjust = false,
+    isControlReady = false,
+    text = "",
+    focusedItemId = "",
+    selectedFloorId = "",
+    isControlBusy = false,
+    isNavigationVisible = false,
+    num = 0,
+    activePointerDrag = null,
+    activeCameraPose = null,
+    isStagePresented = false,
+    animationFrameRequestId = 0,
+    pageBehavior = resolvePageBehavior2(),
+    // 总览 是落地模块：只展示房子本体，不显示设备按钮。
+    activeModule = "overview",
+    selectedSecurityKind = "",
+    editingVacuumId = "",
+    pendingFloorId = "",
+    pendingModule = "",
+    hasAutoSelectedFloors = false;
+  const isOverviewOrAllFloors = () =>
+      activeModule === "overview" || (!isEditing && selectedFloorId === "all"),
+    matchesSelectedFloor = (floorBinding) =>
+      selectedFloorId === "all" || floorBinding.floorId === selectedFloorId;
+  let panelDisplayMode = "",
+    idleReturnCamera = null,
+    cameraMotionSnapshot = null,
+    focusInset = 0,
+    hasPendingStageRefresh = false,
+    isStageVisible = false,
+    isIdleRotationRunning = false,
+    isCameraRotating = false,
+    idleRotationCameraPose = null,
+    sceneBackground = null,
+    hasPresentedOnce = false,
+    isPresentedVisible = true,
+    isRangeEditorOpen = false,
+    rangeEditorHandle = null,
+    canEditLightRange = false,
+    isRangeEditorSuppressingClose = false,
+    isRangeEditorOnly = false;
+  const wakeSceneBackground = () => sceneBackground?.wake(),
+    wakeBackgroundAnimation = () => sceneBackground?.wakeAnimation(),
+    sceneBackgroundController = createSceneBackground2(mountOptions, wakeSceneBackground),
+    lockMotion = createLockMotion2(mountOptions);
+  let selectedLockEntry = null;
+  mountOptions.setBackgroundTheme?.(sceneBackgroundController);
+  let isUserActive = false,
+    isPointerHeld = false;
+  const set = new Set(),
+    lightSyncKeySet = new Set(),
+    map = new Map(),
+    lightGroupByKey = new Map(),
+    sceneCacheByKey = new Map(),
+    scratchVector = new three.Vector3();
+  let cachedDocumentSource,
+    cachedDocumentFloorId,
+    lastInteractionMs = null;
+  const vector = createLightPreview2(),
+    lightHistoryScope = document.body?.dataset?.i3dLightHistoryScope;
+  let lightHistoryStorage;
+  if (lightHistoryScope)
     try {
-      // 隐私模式 / 存储被禁用时读 localStorage 会抛异常：
-      localStorageRef = window.localStorage;
-    } catch {
-    }
-  }
-  const lightStateCache = createLightStateCache({
-    storage: localStorageRef,
-    scope: lightHistoryScope
-  });
-  // 空调的「上次使用模式」同样按 scope 隔离；复用灯光那套 storage 与 scope，
-  const climateModeHistory = createClimateModeHistory({
-    storage: localStorageRef,
-    scope: lightHistoryScope
-  });
-  function observeAllClimates() {
+      lightHistoryStorage = window.localStorage;
+    } catch {}
+  const lightStateCache = createLightStateCache2({
+      storage: lightHistoryStorage,
+      scope: lightHistoryScope,
+    }),
+    climateModeHistory = createClimateModeHistory2({
+      storage: lightHistoryStorage,
+      scope: lightHistoryScope,
+    });
+  function syncAirConditionerHistory(changedAirConditionerState = null) {
     if (!isEditing) {
-      for (const airConditionerBinding of config.environment?.airConditioners || []) {
-        climateModeHistory.observe(
-          airConditionerBinding.entityId,
-          statesByEntityId[airConditionerBinding.entityId]
-        );
-      }
+      for (const airConditionerEntry of options.environment?.airConditioners || [])
+        (!changedAirConditionerState ||
+          changedAirConditionerState.changed.has(airConditionerEntry.entityId)) &&
+          climateModeHistory.observe(
+            airConditionerEntry.entityId,
+            deviceStates[airConditionerEntry.entityId],
+          );
     }
   }
-
-
-  let lightEffectPreview: any = null;
-  let sceneProperties: StageConfig = {
-    lights: []
-  };
-  let isSceneUpdating = false;
-  // 用户是否手动调过相机：用于区分「空闲自动返回」与用户主动确定的视角，
-  let hasUserInteracted = false;
-  // 场景替换期间到达的 config 消息先挂起（只保留最新一条），
-  let queuedConfigMessage: any = null;
-  // 初值取 -Infinity：首帧就被视为「已空闲」，空闲旋转可以立刻开始。
-  let lastActivityTimestamp = -Infinity;
-
-
-
-
-
-
-
-
-
-
-  const ctx = {
-    get DEFAULT_MARKER_ICON_SVG() {
-      return DEFAULT_MARKER_ICON_SVG;
-    },
-    get THREE() {
-      return THREE;
-    },
-    get activateBinding() {
-      return activateBinding;
-    },
-    get activeModule() {
-      return activeModule;
-    },
-    set activeModule(value) {
-      activeModule = value;
-    },
-    get activePointerIds() {
-      return activePointerIds;
-    },
-    get applyLightStates() {
-      return applyLightStates;
-    },
-    get applyMdiMask() {
-      return applyMdiMask;
-    },
-    get applyPageBehavior() {
-      return applyPageBehavior;
-    },
-    get areIconsHiddenByRotation() {
-      return areIconsHiddenByRotation;
-    },
-    set areIconsHiddenByRotation(value) {
-      areIconsHiddenByRotation = value;
-    },
-    get areIdleIconsHidden() {
-      return areIdleIconsHidden;
-    },
-    get automaticAirConditionerCamera() {
-      return automaticAirConditionerCamera;
-    },
-    get automaticLightCamera() {
-      return automaticLightCamera;
-    },
-    get backgroundTheme() {
-      return backgroundTheme;
-    },
-    get beginCameraTransition() {
-      return beginCameraTransition;
-    },
-    get bladePendingByEntityId() {
-      return bladePendingByEntityId;
-    },
-    get buildMetadata() {
-      return buildMetadata;
-    },
-    get cachedMarkerFloorId() {
-      return cachedMarkerFloorId;
-    },
-    set cachedMarkerFloorId(value) {
-      cachedMarkerFloorId = value;
-    },
-    get cachedSceneDocument() {
-      return cachedSceneDocument;
-    },
-    set cachedSceneDocument(value) {
-      cachedSceneDocument = value;
-    },
-    get cameraOnline() {
-      return cameraOnline;
-    },
-    get cameraTransition() {
-      return cameraTransition;
-    },
-    set cameraTransition(value) {
-      cameraTransition = value;
-    },
-    get cancelModuleTransition() {
-      return cancelModuleTransition;
-    },
-    get canvasElement() {
-      return canvasElement;
-    },
-    get capturePointer() {
-      return capturePointer;
-    },
-    get climateRequestsById() {
-      return climateRequestsById;
-    },
-    get climateState() {
-      return climateState;
-    },
-    get collectModuleBindings() {
-      return collectModuleBindings;
-    },
-    get computePanelInsetRatio() {
-      return computePanelInsetRatio;
-    },
-    get config() {
-      return config;
-    },
-    set config(value) {
-      config = value;
-    },
-    get configRevisionCount() {
-      return configRevisionCount;
-    },
-    set configRevisionCount(value) {
-      configRevisionCount = value;
-    },
-    get configuredModuleKinds() {
-      return configuredModuleKinds;
-    },
-    get configuredModules() {
-      return configuredModules;
-    },
-    set configuredModules(value) {
-      configuredModules = value;
-    },
-    get constrainCameraPose() {
-      return constrainCameraPose;
-    },
-    get containerElement() {
-      return containerElement;
-    },
-    get controlErrorElement() {
-      return controlErrorElement;
-    },
-    get coverBindings() {
-      return coverBindings;
-    },
-    get coverFeedback() {
-      return coverFeedback;
-    },
-    get coverIconIsOn() {
-      return coverIconIsOn;
-    },
-    get coverRequestsById() {
-      return coverRequestsById;
-    },
-    get deviceRequestsById() {
-      return deviceRequestsById;
-    },
-    get coverState() {
-      return coverState;
-    },
-    get createLockMotion() {
-      return createLockMotion;
-    },
-    get createLockPanel() {
-      return createLockPanel;
-    },
-    get doorModels() {
-      return doorModels;
-    },
-    get lockState() {
-      return lockState;
-    },
-    get temperatureHumidityReading() {
-      return temperatureHumidityReading;
-    },
-    get createDampedCameraMotion() {
-      return createDampedCameraMotion;
-    },
-    get currentCameraSnapshot() {
-      return currentCameraSnapshot;
-    },
-    get currentFloorId() {
-      return currentFloorId;
-    },
-    set currentFloorId(value) {
-      currentFloorId = value;
-    },
-    get curtainMotion() {
-      return curtainMotion;
-    },
-    get dreamCoverFeedback() {
-      return dreamCoverFeedback;
-    },
-    get editingVacuumId() {
-      return editingVacuumId;
-    },
-    set editingVacuumId(value) {
-      editingVacuumId = value;
-    },
-    get exitFocus() {
-      return exitFocus;
-    },
-    get findBinding() {
-      return findBinding;
-    },
-    get findFocusedBinding() {
-      return findFocusedBinding;
-    },
-    get floorNavigationChoices() {
-      return floorNavigationChoices;
-    },
-    get focusBinding() {
-      return focusBinding;
-    },
-    get focusMode() {
-      return focusMode;
-    },
-    set focusMode(value) {
-      focusMode = value;
-    },
-    get focusRestoreCameraPose() {
-      return focusRestoreCameraPose;
-    },
-    set focusRestoreCameraPose(value) {
-      focusRestoreCameraPose = value;
-    },
-    get focusViewportInset() {
-      return focusViewportInset;
-    },
-    set focusViewportInset(value) {
-      focusViewportInset = value;
-    },
-    get focusedId() {
-      return focusedId;
-    },
-    set focusedId(value) {
-      focusedId = value;
-    },
-    get followButton() {
-      return followButton;
-    },
-    get followCameraPose() {
-      return followCameraPose;
-    },
-    set followCameraPose(value) {
-      followCameraPose = value;
-    },
-    get followedVacuumId() {
-      return followedVacuumId;
-    },
-    set followedVacuumId(value) {
-      followedVacuumId = value;
-    },
-    get frameLoop() {
-      return frameLoop;
-    },
-    get hasActivityState() {
-      return hasActivityState;
-    },
-    set hasActivityState(value) {
-      hasActivityState = value;
-    },
-    get hasIdleReturnPending() {
-      return hasIdleReturnPending;
-    },
-    get hasInitializedFloor() {
-      return hasInitializedFloor;
-    },
-    set hasInitializedFloor(value) {
-      hasInitializedFloor = value;
-    },
-    get hasUserInteracted() {
-      return hasUserInteracted;
-    },
-    set hasUserInteracted(value) {
-      hasUserInteracted = value;
-    },
-    get idleFocusExit() {
-      return idleFocusExit;
-    },
-    get idleIconHideDeadline() {
-      return idleIconHideDeadline;
-    },
-    set idleIconHideDeadline(value) {
-      idleIconHideDeadline = value;
-    },
-    get idleIconVisibility() {
-      return idleIconVisibility;
-    },
-    get idleRotation() {
-      return idleRotation;
-    },
-    get idleSinceTimestamp() {
-      return idleSinceTimestamp;
-    },
-    set idleSinceTimestamp(value) {
-      idleSinceTimestamp = value;
-    },
-    get isActivityHeld() {
-      return isActivityHeld;
-    },
-    set isActivityHeld(value) {
-      isActivityHeld = value;
-    },
-    get isDisposed() {
-      return isDisposed;
-    },
-    get isEditing() {
-      return isEditing;
-    },
-    set isEditing(value) {
-      isEditing = value;
-    },
-    get isEditorCanvas() {
-      return isEditorCanvas;
-    },
-    set isEditorCanvas(value) {
-      isEditorCanvas = value;
-    },
-    get isFocusableDevice() {
-      return isFocusableDevice;
-    },
-    get isIdleRotating() {
-      return isIdleRotating;
-    },
-    get isInteractive() {
-      return isInteractive;
-    },
-    set isInteractive(value) {
-      isInteractive = value;
-    },
-    get isOnActiveFloor() {
-      return isOnActiveFloor;
-    },
-    get isOverviewMode() {
-      return isOverviewMode;
-    },
-    get isPageVisible() {
-      return isPageVisible;
-    },
-    set isPageVisible(value) {
-      isPageVisible = value;
-    },
-    get isPresenceHitRangeVisible() {
-      return isPresenceHitRangeVisible;
-    },
-    set isPresenceHitRangeVisible(value) {
-      isPresenceHitRangeVisible = value;
-    },
-    get isPresencePreviewWalk() {
-      return isPresencePreviewWalk;
-    },
-    set isPresencePreviewWalk(value) {
-      isPresencePreviewWalk = value;
-    },
-    get isPresented() {
-      return isPresented;
-    },
-    set isPresented(value) {
-      isPresented = value;
-    },
-    get isPresentedVisible() {
-      return isPresentedVisible;
-    },
-    set isPresentedVisible(value) {
-      isPresentedVisible = value;
-    },
-    get isRangeEditingAllowed() {
-      return isRangeEditingAllowed;
-    },
-    set isRangeEditingAllowed(value) {
-      isRangeEditingAllowed = value;
-    },
-    get isRangeEditorBusy() {
-      return isRangeEditorBusy;
-    },
-    set isRangeEditorBusy(value) {
-      isRangeEditorBusy = value;
-    },
-    get isRangeEditorOnly() {
-      return isRangeEditorOnly;
-    },
-    set isRangeEditorOnly(value) {
-      isRangeEditorOnly = value;
-    },
-    get isRangeEditorOpen() {
-      return isRangeEditorOpen;
-    },
-    get isSceneUpdating() {
-      return isSceneUpdating;
-    },
-    set isSceneUpdating(value) {
-      isSceneUpdating = value;
-    },
-    get isViewEditing() {
-      return isViewEditing;
-    },
-    set isViewEditing(value) {
-      isViewEditing = value;
-    },
-    get lastActivityTimestamp() {
-      return lastActivityTimestamp;
-    },
-    set lastActivityTimestamp(value) {
-      lastActivityTimestamp = value;
-    },
-    get layoutPresenceHitBoxes() {
-      return layoutPresenceHitBoxes;
-    },
-    get layoutStage() {
-      return layoutStage;
-    },
-    get lightEffectPreview() {
-      return lightEffectPreview;
-    },
-    set lightEffectPreview(value) {
-      lightEffectPreview = value;
-    },
-    get lightPanelElement() {
-      return lightPanelElement;
-    },
-    get lightPreview() {
-      return lightPreview;
-    },
-    get lightRenderState() {
-      return lightRenderState;
-    },
-    get lightRequestsById() {
-      return lightRequestsById;
-    },
-    get lightStateCache() {
-      return lightStateCache;
-    },
-    get makeElement() {
-      return makeElement;
-    },
-    get markerDragState() {
-      return markerDragState;
-    },
-    set markerDragState(value) {
-      markerDragState = value;
-    },
-    get markerLayoutSignature() {
-      return markerLayoutSignature;
-    },
-    set markerLayoutSignature(value) {
-      markerLayoutSignature = value;
-    },
-    get markerPointsById() {
-      return markerPointsById;
-    },
-    get markersById() {
-      return markersById;
-    },
-    get markersElement() {
-      return markersElement;
-    },
-    get maybeOpenDevicePopup() {
-      return maybeOpenDevicePopup;
-    },
-    get moduleEmptyElement() {
-      return moduleEmptyElement;
-    },
-    get moduleTransition() {
-      return moduleTransition;
-    },
-    get moveFocusInto() {
-      return moveFocusInto;
-    },
-    get navigationEditing() {
-      return navigationEditing;
-    },
-    set navigationEditing(value) {
-      navigationEditing = value;
-    },
-    get nasDeviceState() {
-      return nasDeviceState;
-    },
-    get normalizeSceneConfig() {
-      return normalizeSceneConfig;
-    },
-    get observeAllClimates() {
-      return observeAllClimates;
-    },
-    get openRangeEditor() {
-      return openRangeEditor;
-    },
-    get pageBehavior() {
-      return pageBehavior;
-    },
-    set pageBehavior(value) {
-      pageBehavior = value;
-    },
-    get pendingFloorId() {
-      return pendingFloorId;
-    },
-    set pendingFloorId(value) {
-      pendingFloorId = value;
-    },
-    get pendingModule() {
-      return pendingModule;
-    },
-    set pendingModule(value) {
-      pendingModule = value;
-    },
-    get pointerToFloorPoint() {
-      return pointerToFloorPoint;
-    },
-    get postToHost() {
-      return postToHost;
-    },
-    get preFollowCameraState() {
-      return preFollowCameraState;
-    },
-    set preFollowCameraState(value) {
-      preFollowCameraState = value;
-    },
-    get prefersReducedMotionNow() {
-      return prefersReducedMotionNow;
-    },
-    get presenceHitBoxesById() {
-      return presenceHitBoxesById;
-    },
-    get presenceHitLayerElement() {
-      return presenceHitLayerElement;
-    },
-    get presenceScene() {
-      return presenceScene;
-    },
-    get presentationLayout() {
-      return presentationLayout;
-    },
-    set presentationLayout(value) {
-      presentationLayout = value;
-    },
-    get pressedKeys() {
-      return pressedKeys;
-    },
-    get queuedConfigMessage() {
-      return queuedConfigMessage;
-    },
-    set queuedConfigMessage(value) {
-      queuedConfigMessage = value;
-    },
-    get rangeEditor() {
-      return rangeEditor;
-    },
-    get readLightState() {
-      return readLightState;
-    },
-    get renderLightPanel() {
-      return renderLightPanel;
-    },
-    get renderMarkers() {
-      return renderMarkers;
-    },
-    get renderStage() {
-      return renderStage;
-    },
-    get resolveCurtainGeometry() {
-      return resolveCurtainGeometry;
-    },
-    get resolveLightState() {
-      return resolveLightState;
-    },
-    get resolvePageBehavior() {
-      return resolvePageBehavior;
-    },
-    get resolveStateEntry() {
-      return resolveStateEntry;
-    },
-    get savedCameraPose() {
-      return savedCameraPose;
-    },
-    set savedCameraPose(value) {
-      savedCameraPose = value;
-    },
-    get sceneModelKey() {
-      return sceneModelKey;
-    },
-    get sceneProperties() {
-      return sceneProperties;
-    },
-    set sceneProperties(value) {
-      sceneProperties = value;
-    },
-    get screenOutlines() {
-      return screenOutlines;
-    },
-    get selectedId() {
-      return selectedId;
-    },
-    set selectedId(value) {
-      selectedId = value;
-    },
-    get sendLightCommand() {
-      return sendLightCommand;
-    },
-    get settleClimateRequest() {
-      return settleClimateRequest;
-    },
-    get settleCoverRequest() {
-      return settleCoverRequest;
-    },
-    get settleDeviceRequest() {
-      return settleDeviceRequest;
-    },
-    get settleLightCommand() {
-      return settleLightCommand;
-    },
-    get settleTelevisionRequest() {
-      return settleTelevisionRequest;
-    },
-    get stageOptions() {
-      return stageOptions;
-    },
-    get statesByEntityId() {
-      return statesByEntityId;
-    },
-    set statesByEntityId(value) {
-      statesByEntityId = value;
-    },
-    get stopVacuumFollow() {
-      return stopVacuumFollow;
-    },
-    get syncCameraInteraction() {
-      return syncCameraInteraction;
-    },
-    get syncCoverFeedback() {
-      return syncCoverFeedback;
-    },
-    get syncPresenceScene() {
-      return syncPresenceScene;
-    },
-    get syncVacuumMaps() {
-      return syncVacuumMaps;
-    },
-    get televisionRequestsById() {
-      return televisionRequestsById;
-    },
-    get televisionState() {
-      return televisionState;
-    },
-    get tempProjectedPoint() {
-      return tempProjectedPoint;
-    },
-    get toolbarElement() {
-      return toolbarElement;
-    },
-    get transformCameraPose() {
-      return transformCameraPose;
-    },
-    get updateActivityHolds() {
-      return updateActivityHolds;
-    },
-    get updateIdleControllers() {
-      return updateIdleControllers;
-    },
-    get updateMarkerPositions() {
-      return updateMarkerPositions;
-    },
-    get updateMarkerVisibility() {
-      return updateMarkerVisibility;
-    },
-    get updatePanelChrome() {
-      return updatePanelChrome;
-    },
-    get vacuumBirdCamera() {
-      return vacuumBirdCamera;
-    },
-    get vacuumFollowCamera() {
-      return vacuumFollowCamera;
-    },
-    get vacuumFollowPose() {
-      return vacuumFollowPose;
-    },
-    get vacuumMotion() {
-      return vacuumMotion;
-    },
-    get vacuumQuip() {
-      return vacuumQuip;
-    },
-    get vacuumRoomTimersById() {
-      return vacuumRoomTimersById;
-    },
-    get vacuumStatusPresentation() {
-      return vacuumStatusPresentation;
-    },
-    get vacuumWorkingLayerElement() {
-      return vacuumWorkingLayerElement;
-    },
-    get wakeFrameLoop() {
-      return wakeFrameLoop;
+  const resolveDeviceState = (resolvedEntityId) =>
+    lightStateCache.resolve(resolvedEntityId || "", deviceStates[resolvedEntityId]);
+  let lightEditPreview = null,
+    baseStageConfig = {
+      lights: [],
+    },
+    isCameraMoving = false,
+    hasIdleIconActivity = false,
+    pendingEditorAction = null,
+    furthestFloorOrder = -Infinity;
+  const transformFloorCamera = (
+      transformedFloorCameraPose,
+      floorSelectionId = options.floorSelection,
+      isImmediateCamera = false,
+    ) =>
+      mountOptions.transformCamera?.(
+        transformedFloorCameraPose,
+        floorSelectionId,
+        isImmediateCamera,
+      ) ?? transformedFloorCameraPose,
+    applyDefaultCamera = () =>
+      transformFloorCamera(mountOptions.cameraState(true), options.floorSelection, true);
+  function buildFloorCameraConfig(rawFloorConfig) {
+    const as2 = applyPageAppearancePreset(structuredClone(rawFloorConfig));
+    if (
+      ((as2.camera = transformFloorCamera(
+        as2.floorCameras?.[as2.floorSelection] || as2.camera,
+        as2.floorSelection,
+      )),
+      (as2.lights = (as2.lights || []).map((configLightEntry) => ({
+        ...configLightEntry,
+        ...(configLightEntry.focusCamera
+          ? {
+              focusCamera: transformFloorCamera(configLightEntry.focusCamera, as2.floorSelection),
+            }
+          : {}),
+      }))),
+      as2.security?.cameras &&
+        (as2.security.cameras = (as2.security.cameras || []).map((configCameraEntry) => ({
+          ...configCameraEntry,
+          ...(configCameraEntry.focusCamera
+            ? {
+                focusCamera: transformFloorCamera(
+                  configCameraEntry.focusCamera,
+                  as2.floorSelection,
+                ),
+              }
+            : {}),
+        }))),
+      as2.security?.presenceSensors &&
+        (as2.security.presenceSensors = as2.security.presenceSensors.map((configPresenceEntry) => ({
+          ...configPresenceEntry,
+          ...(configPresenceEntry.focusCamera
+            ? {
+                focusCamera: transformFloorCamera(
+                  configPresenceEntry.focusCamera,
+                  as2.floorSelection,
+                ),
+              }
+            : {}),
+        }))),
+      as2.environment)
+    ) {
+      for (const environmentGroupName of [
+        "airConditioners",
+        "airers",
+        "fans",
+        "airPurifiers",
+        "waterHeaters",
+        "curtains",
+        "curtainGroups",
+        "temperatureHumidity",
+      ])
+        as2.environment[environmentGroupName] = (as2.environment[environmentGroupName] || []).map(
+          (environmentGroupEntry) => ({
+            ...environmentGroupEntry,
+            ...(environmentGroupEntry.focusCamera
+              ? {
+                  focusCamera: transformFloorCamera(
+                    environmentGroupEntry.focusCamera,
+                    as2.floorSelection,
+                  ),
+                }
+              : {}),
+          }),
+        );
     }
-  };
-  const { buildMetadata, normalizeSceneConfig } = createStageMetadata(ctx as any);
-  const {
-    collectAllDeviceBindings,
-    collectCameraBindings,
-    collectClimateBindings,
-    collectCurtainBindings,
-    collectLockBindings,
-    collectModuleBindings,
-    collectNasBindings,
-    collectPresenceBindings,
-    collectPreviewCovers,
-    collectTelevisionBindings,
-    collectVacuumBindings,
-    resolveModuleBindings
-  } = createBindingCollectors(ctx as any);
-  const {
-    cameraPosesEqual,
-    constrainCameraPose,
-    currentCameraSnapshot,
-    isFocusableDevice,
-    pointerToFloorPoint,
-    resolveCurtainGeometry,
-    transformCameraPose
-  } = createStageGeometry(ctx as any);
-  const { makeElement: makeElementStrict, postToHost } = createDomAndHostBridge(ctx as any);
-  const makeElement = ((tagName: any, className?: any, textContent?: any) =>
-    makeElementStrict(tagName, className, textContent)) as (...args: any[]) => any;
-  const { applyLightStates, readLightState, resolveLightState } = createLightStateReaders(ctx as any);
-  const {
-    settleClimateRequest,
-    settleCoverRequest,
-    settleDeviceRequest,
-    settleLightCommand,
-    settleTelevisionRequest
-  } = createRequestSettlement(ctx as any);
-  const {
-    nextCoverDelayMs,
-    pruneBladePreviews,
-    resolveCoverPresentation,
-    syncCoverFeedback
-  } = createCoverPresentation(ctx as any);
-  const { layoutPresenceHitBoxes } = createPresenceHitBoxes(ctx as any);
-  const {
-    cancelMarkerDrag,
-    renderMarkers,
-    scheduleMarkerPositionUpdate,
-    updateMarkerPositions,
-    updateMarkerVisibility
-  } = createMarkerLayer(ctx as any);
-  const {
-    applyPageBehavior,
-    clearInputState,
-    trackUserInput,
-    updateActivityHolds,
-    updateIdleControllers
-  } = createInputActivity(ctx as any);
-  const {
-    advanceCameraTransition,
-    beginCameraTransition,
-    focusBinding,
-    stopVacuumFollow,
-    syncCameraInteraction,
-    updateVacuumFollow
-  } = createCameraTransition(ctx as any);
-  const { applySceneUpdate, handleHostMessage } = createHostMessageHandler(ctx as any);
-
-  const markersElement = makeElement("div", "i3d-markers");
-  const vacuumWorkingLayerElement = makeElement("div", "i3d-vacuum-working-layer");
-  let idleIconHideDeadline = 0;
-  let lastCameraQuaternionKey = "";
-  let areIconsHiddenByRotation = false;
-  let lastFrameTimestamp = 0;
-  let lastVacuumQuipSlot = -1;
-  let followedVacuumId = "";
-  let preFollowCameraState: any = null;
-  let followCameraPose: any = null;
-  const previousCameraQuaternion = new THREE.Quaternion();
-  let previousFrameTimestamp: any = null;
-  const presentationElement = makeElement("div", "i3d-presentation");
-  let presentationLayout: any = null;
-  let presentationScaleX = 1;
-  const focusVignetteElement = makeElement("div", "i3d-focus-vignette");
+    for (const deviceGroupName of [
+      "nas",
+      "speakers",
+      "televisions",
+      "vacuums",
+      ...GENERIC_DEVICE_KINDS2.map(
+        (profileDeviceKindName) => genericDeviceProfile2(profileDeviceKindName).collection,
+      ),
+    ])
+      as2.devices?.[deviceGroupName] &&
+        (as2.devices[deviceGroupName] = as2.devices[deviceGroupName].map((configDeviceEntry) => ({
+          ...configDeviceEntry,
+          ...(configDeviceEntry.focusCamera
+            ? {
+                focusCamera: transformFloorCamera(
+                  configDeviceEntry.focusCamera,
+                  as2.floorSelection,
+                ),
+              }
+            : {}),
+        })));
+    if (as2.devices?.vacuums) {
+      for (const configVacuumEntry of as2.devices.vacuums)
+        configVacuumEntry.followCamera &&
+          (configVacuumEntry.followCamera = transformFloorCamera(
+            configVacuumEntry.followCamera,
+            as2.floorSelection,
+          ));
+    }
+    return as2;
+  }
+  const postHostMessage = (hostMessage) =>
+      window.parent.postMessage(
+        {
+          channel: "hb-i3d-v1",
+          ...hostMessage,
+        },
+        location.origin,
+      ),
+    createStageElement = (elementTagName, elementClassName, elementTextContent) => {
+      const createdElement = document.createElement(elementTagName);
+      return (
+        (createdElement.className = elementClassName || ""),
+        elementTextContent && (createdElement.textContent = elementTextContent),
+        createdElement
+      );
+    };
+  let startupProgress = mountOptions.onStartupEffectsProgress ? 0 : 1;
+  const markerLayerElement = createStageElement("div", "i3d-markers"),
+    vacuumWorkingLayerElement = createStageElement("div", "i3d-vacuum-working-layer");
+  let idleIconDelayUntilMs = 0,
+    cameraQuaternionKey = "",
+    isIdleIconHidden = false,
+    lastIdleFrameMs = 0,
+    lastIdleFloorId = -1,
+    followVacuumId = "",
+    followReturnCamera = null,
+    followCameraPose = null;
+  const scratchQuaternion = new three.Quaternion();
+  let lastQuaternionMs = null;
+  const presentationLayerElement = createStageElement("div", "i3d-presentation");
+  let mediaViewportSize = null,
+    containerViewportSize = null,
+    mediaScale = 1;
+  const focusVignetteElement = createStageElement("div", "i3d-focus-vignette");
   focusVignetteElement.setAttribute("aria-hidden", "true");
-  const toolbarElement = makeElement("nav", "i3d-toolbar");
-  const navigationElement = makeElement("div", "i3d-navigation");
-  const floorTabsElement = makeElement("nav", "i3d-floor-tabs");
+  const toolbarElement = createStageElement("nav", "i3d-toolbar"),
+    navigationLayerElement = createStageElement("div", "i3d-navigation"),
+    floorTabsElement = createStageElement("nav", "i3d-floor-tabs");
   floorTabsElement.setAttribute("aria-label", "选择楼层");
   let floorTabsSignature = "";
-  const moduleTabsElement = makeElement("nav", "i3d-module-tabs");
+  const moduleTabsElement = createStageElement("nav", "i3d-module-tabs");
   moduleTabsElement.setAttribute("aria-label", "3D 控制模块");
-  let modulePanelOpenState: any = null;
-  let modulePanelAnimation: any = null;
-  const moduleTabsByModule = new Map<string, any>();
-  let configuredModules = configuredModuleKinds(config);
-  // 页签清单在 stage/module-tabs.js：顺序与文案都在那里，本文件不再就地写一份。
-  for (const [moduleKey, moduleLabel] of MODULE_TABS) {
-    const moduleTabButton = makeElement("button", "", moduleLabel);
-    moduleTabButton.type = "button";
-    moduleTabButton.dataset.module = moduleKey;
-    moduleTabButton.style.setProperty("--i3d-tab-index", String(moduleTabsByModule.size));
-    moduleTabButton.addEventListener("click", () => {
-      // 调整导航位置时拖完整条轨道会紧跟一个 click，别让它顺手切了模块（见 bindNavigationDrag）。
-      if (moduleTabsElement.dataset.dragged === "true") {
-        moduleTabsElement.dataset.dragged = "";
-        return;
-      }
-      selectModule(moduleKey);
-    });
-    moduleTabsElement.append(moduleTabButton);
-    moduleTabsByModule.set(moduleKey, moduleTabButton);
+  let isModuleTabsHidden = null,
+    moduleTabsAnimation = null;
+  const moduleTabsByKind = new Map();
+  let configuredModuleKinds2 = configuredModuleKinds(options);
+  for (const [moduleKind, moduleLabel] of [
+    ["overview", "总览"],
+    ["light", "灯光"],
+    ["environment", "环境"],
+    ["devices", "设备"],
+    ["vacuum", "扫地机"],
+    ["security", "安防"],
+  ]) {
+    const moduleTabButton = createStageElement("button", "", moduleLabel);
+    ((moduleTabButton.type = "button"),
+      (moduleTabButton.dataset.module = moduleKind),
+      moduleTabButton.style.setProperty("--i3d-tab-index", String(moduleTabsByKind.size)),
+      moduleTabButton.addEventListener("click", () => selectModule(moduleKind)),
+      moduleTabsElement.append(moduleTabButton),
+      moduleTabsByKind.set(moduleKind, moduleTabButton));
   }
-  const moduleEmptyElement = makeElement("p", "i3d-module-empty");
-  moduleEmptyElement.setAttribute("role", "status");
-  moduleEmptyElement.hidden = true;
-  // 编辑态的「正在配置：…」提示条。画布上的轮廓只圈得出位置、圈不出名字：同一柜面上并排
-  const editorSelectionElement = makeElement("p", "i3d-editor-selection");
-  editorSelectionElement.setAttribute("role", "status");
-  editorSelectionElement.hidden = true;
-  const resetViewButton = makeElement("button", "", "恢复视角");
-  resetViewButton.type = "button";
-  resetViewButton.hidden = true;
-  toolbarElement.append(resetViewButton);
-  const lightPanelElement = makeElement("section", "i3d-light-panel");
-  lightPanelElement.setAttribute("aria-label", "灯光控制");
-  lightPanelElement.setAttribute("inert", "");
-  const lightPanelHeader = makeElement("header");
-  const lightHeadingText = makeElement("div", "i3d-light-heading-text");
-  const lightHeadingLabel = makeElement("strong", "", "灯光");
-  const lightStatusElement = makeElement("p", "i3d-device-status");
-  lightHeadingText.append(lightHeadingLabel, lightStatusElement);
-  const powerButton = makeElement("button", "i3d-power");
+  const moduleEmptyElement = createStageElement("p", "i3d-module-empty");
+  (moduleEmptyElement.setAttribute("role", "status"), (moduleEmptyElement.hidden = true));
+  const restoreViewButton = createStageElement("button", "", "恢复视角");
+  ((restoreViewButton.type = "button"),
+    (restoreViewButton.hidden = true),
+    toolbarElement.append(restoreViewButton));
+  const lightPanelSection = createStageElement("section", "i3d-light-panel");
+  (lightPanelSection.setAttribute("aria-label", "灯光控制"),
+    lightPanelSection.setAttribute("inert", ""));
+  const lightPanelHeader = createStageElement("header"),
+    lightHeadingElement = createStageElement("div", "i3d-light-heading-text"),
+    lightTitleElement = createStageElement("strong", "", "灯光"),
+    deviceStatusElement = createStageElement("p", "i3d-device-status");
+  lightHeadingElement.append(lightTitleElement, deviceStatusElement);
+  const powerButton = createStageElement("button", "i3d-power");
   powerButton.type = "button";
-  const lampDrawingElement = makeElement("span", "i3d-lamp-drawing");
+  const lampDrawingElement = createStageElement("span", "i3d-lamp-drawing");
   lampDrawingElement.setAttribute("aria-hidden", "true");
-  const lampAuraElement = makeElement("span", "i3d-lamp-aura");
-  const lampBodyElement = makeElement("span", "i3d-lamp-body");
-  for (const lampPartName of ["cord", "shade", "bulb", "filament"]) {
-    lampBodyElement.append(makeElement("i", "i3d-lamp-" + lampPartName));
-  }
-  lampDrawingElement.append(lampAuraElement, lampBodyElement);
-  powerButton.append(lampDrawingElement);
-  lightPanelHeader.append(lightHeadingText, powerButton);
-  const lightControlsElement = makeElement("div", "i3d-light-controls");
-  /**
-   * 建一根灯光滑杆（亮度 / 色温）。
-   */
-  function createSliderControl(labelText: any, sliderName: any, minValue: any, maxValue: any) {
-    const sliderLabelElement = makeElement("label", "i3d-slider i3d-" + sliderName);
-    const sliderLabelTextElement = makeElement("span", "", labelText);
-    const sliderOutputElement = makeElement("output");
-    const sliderInputElement = makeElement("input");
-    sliderInputElement.name = "i3d-light-" + sliderName;
-    sliderInputElement.type = "range";
-    sliderInputElement.min = minValue;
-    sliderInputElement.max = maxValue;
-    sliderInputElement.step = sliderName === "temperature" ? "10" : "1";
-    sliderInputElement.setAttribute("aria-label", labelText);
-    const sliderHeadingElement = makeElement("div", "i3d-slider-heading");
-    sliderHeadingElement.append(sliderLabelTextElement, sliderOutputElement);
-    const sliderLegendElement = makeElement("span", "i3d-slider-legend");
-    sliderLegendElement.append(
-      makeElement("small", "", sliderName === "temperature" ? "暖色" : "暗"),
-      makeElement("small", "", sliderName === "temperature" ? "冷色" : "亮")
-    );
-    sliderLabelElement.append(sliderHeadingElement, sliderInputElement, sliderLegendElement);
-    sliderInputElement.addEventListener("input", () => {
-      sliderOutputElement.value =
-        "" + sliderInputElement.value + (sliderName === "temperature" ? " K" : "%");
-      const activeLightBinding = findFocusedBinding();
-      if (
-        !!activeLightBinding &&
-        !isEditing &&
-        !!readLightState(activeLightBinding.entityId).available
-      ) {
-        lightPreview.set(activeLightBinding.entityId, sliderName, Number(sliderInputElement.value));
-        wakeFrameLoop();
-        renderLightPanel();
-        applyLightStates({
-          preview: true
-        });
-      }
+  const lampAuraElement = createStageElement("span", "i3d-lamp-aura"),
+    lampBodyElement = createStageElement("span", "i3d-lamp-body");
+  for (const lampPartName of ["cord", "shade", "bulb", "filament"])
+    lampBodyElement.append(createStageElement("i", "i3d-lamp-" + lampPartName));
+  (lampDrawingElement.append(lampAuraElement, lampBodyElement),
+    powerButton.append(lampDrawingElement),
+    lightPanelHeader.append(lightHeadingElement, powerButton));
+  const lightModeMenu = createLightModeMenu2((menuMode) => {
+    const menuLightEntry = getFocusedEntry();
+    if (!menuLightEntry) return;
+    const menuLightRenderState = resolveLightState(menuLightEntry);
+    (lightColorPicker.cancel(),
+      runLightCommand(
+        menuMode,
+        menuMode === "color"
+          ? menuLightRenderState.colorHs || [0, 0]
+          : menuMode === "temperature"
+            ? menuLightRenderState.kelvin || menuLightRenderState.minimum
+            : true,
+      ));
+  });
+  lightHeadingElement.append(lightModeMenu.root);
+  const lightControlsElement = createStageElement("div", "i3d-light-controls"),
+    lightColorPicker = createLightColorPicker2({
+      onPreview(previewColor) {
+        const previewLightEntry = getFocusedEntry();
+        if (!previewLightEntry || isEditing || !resolveLightState(previewLightEntry).available)
+          return null;
+        const colorValue = vector.set(previewLightEntry.entityId, "color", previewColor);
+        return (
+          wakeSceneBackground(),
+          applyLightStates({
+            preview: true,
+          }),
+          updateLampButton(resolveLightState(previewLightEntry)),
+          colorValue
+        );
+      },
+      onCommit: (committedColor) => void runLightCommand("color", committedColor),
+      onCancel(cancelEntityId, cancelReason) {
+        (vector.reject(cancelEntityId, cancelReason),
+          applyLightStates({
+            preview: true,
+          }),
+          updateDevicePanel());
+      },
     });
-    sliderInputElement.addEventListener(
-      "change",
-      () => void runLightCommand(sliderName, Number(sliderInputElement.value))
-    );
-    lightControlsElement.append(sliderLabelElement);
-    return {
-      root: sliderLabelElement,
-      input: sliderInputElement,
-      value: sliderOutputElement
-    };
-  }
-  const temperatureControl = createSliderControl("色温", "temperature", "2000", "6500");
-  const brightnessControl = createSliderControl("亮度", "brightness", "1", "100");
-  const presetGroupElement = makeElement("div", "i3d-light-presets");
-  presetGroupElement.setAttribute("role", "group");
-  presetGroupElement.setAttribute("aria-label", "灯光预设");
-  const presetEntries = LIGHT_PRESETS.map((preset: any) => {
-    const presetButton = makeElement("button", "i3d-light-preset");
-    presetButton.type = "button";
-    const presetDetail = makeElement("small", "", preset.brightness + "%");
-    presetButton.append(makeElement("strong", "", preset.label), presetDetail);
-    presetButton.addEventListener("click", () => void runLightCommand("preset", preset));
-    presetGroupElement.append(presetButton);
-    return {
-      ...preset,
-      button: presetButton,
-      detail: presetDetail
-    };
-  });
-  lightControlsElement.append(presetGroupElement);
-  const controlErrorElement = makeElement("p", "i3d-control-error");
-  controlErrorElement.setAttribute("role", "status");
-  const climateRequestsById = new Map<string, any>();
-  const climatePanel = createClimatePanel({
-    // 面板开关机时用它换回「上次使用的模式」（HA 关机后不再上报原模式）。
-    modeHistory: climateModeHistory,
-    // 净化器「附加功能」卡片拖动排序 / 改尺寸后的布局回传。上游同口径：只有编辑态才回报
-    onLayout: (extraControls: any) => {
-      const layoutBinding = findFocusedBinding();
-      if (!isEditing || activeModule !== "climate" || !layoutBinding) {
-        return;
-      }
-      postToHost({
-        type: "edit",
-        action: "purifier-layout",
-        id: layoutBinding.id,
-        extraControls
-      });
-    },
-    onControl: (climateCommand: any) =>
-      new Promise((resolveClimate, rejectClimate) => {
-        const climateBinding = collectClimateBindings().find(
-          (climateDevice: any) =>
-            isOnActiveFloor(climateDevice) &&
-            climateDevice.modelAvailable &&
-            // 净化器的「附加功能」实体（开关 / 模式 / 滤芯寿命…）不属于控件的绑定实体本身，
-            (climateCommand.deviceKind === "purifier-extra"
-              ? (climateDevice.extraControls || []).some(
-                  (extraControl: any) => extraControl.entityId === climateCommand.entityId
-                )
-              : climateDevice.entityId === climateCommand.entityId)
-        );
-        if (
-          !isInteractive ||
+  lightControlsElement.append(lightColorPicker.root);
+  function buildSliderControl(sliderLabelText, sliderKey, sliderMin, sliderMax) {
+    const sliderFieldLabel = createStageElement("label", "i3d-slider i3d-" + sliderKey),
+      sliderNameElement = createStageElement("span", "", sliderLabelText),
+      sliderOutputElement = createStageElement("output"),
+      rangeInput = createStageElement("input");
+    ((rangeInput.name = "i3d-light-" + sliderKey),
+      (rangeInput.type = "range"),
+      (rangeInput.min = sliderMin),
+      (rangeInput.max = sliderMax),
+      (rangeInput.step = sliderKey === "temperature" ? "10" : "1"),
+      rangeInput.setAttribute("aria-label", sliderLabelText));
+    const sliderHeadingElement = createStageElement("div", "i3d-slider-heading");
+    sliderHeadingElement.append(sliderNameElement, sliderOutputElement);
+    const sliderLegendElement = createStageElement("span", "i3d-slider-legend");
+    return (
+      sliderLegendElement.append(
+        createStageElement("small", "", sliderKey === "temperature" ? "暖色" : "暗"),
+        createStageElement("small", "", sliderKey === "temperature" ? "冷色" : "亮"),
+      ),
+      sliderFieldLabel.append(sliderHeadingElement, rangeInput, sliderLegendElement),
+      rangeInput.addEventListener("input", () => {
+        sliderOutputElement.value =
+          "" + rangeInput.value + (sliderKey === "temperature" ? " K" : "%");
+        const interactiveLightEntry = getFocusedEntry();
+        !interactiveLightEntry ||
           isEditing ||
-          isDisposed ||
-          activeModule !== "environment" ||
-          !climateBinding?.modelId ||
-          !climateBinding.modelAvailable
-        ) {
-          rejectClimate(new Error("当前空调不可控制。"));
-          return;
-        }
-        const climateRequestId = "climate-" + ++requestSeq;
-        const climateTimeoutId = setTimeout(
-          () => settleClimateRequest(climateRequestId, "请求超时，请检查设备状态。"),
-          14000
-        );
-        climateRequestsById.set(climateRequestId, {
-          resolve: resolveClimate,
-          reject: rejectClimate,
-          timeout: climateTimeoutId
-        });
-        postToHost({
-          type: "control",
-          requestId: climateRequestId,
-          command: climateCommand
-        });
-      })
+          !resolveLightState(interactiveLightEntry).available ||
+          (vector.set(interactiveLightEntry.entityId, sliderKey, Number(rangeInput.value)),
+          wakeSceneBackground(),
+          updateDevicePanel(),
+          applyLightStates({
+            preview: true,
+          }));
+      }),
+      rangeInput.addEventListener(
+        "change",
+        () => void runLightCommand(sliderKey, Number(rangeInput.value)),
+      ),
+      lightControlsElement.append(sliderFieldLabel),
+      {
+        root: sliderFieldLabel,
+        input: rangeInput,
+        value: sliderOutputElement,
+      }
+    );
+  }
+  const temperatureSlider = buildSliderControl("色温", "temperature", "2000", "6500"),
+    brightnessSlider = buildSliderControl("亮度", "brightness", "1", "100"),
+    lightPresetsElement = createStageElement("div", "i3d-light-presets");
+  (lightPresetsElement.setAttribute("role", "group"),
+    lightPresetsElement.setAttribute("aria-label", "灯光预设"));
+  const lightPresetRecords = lightPresetEntries.map((presetEntry) => {
+    const lightPresetButton = createStageElement("button", "i3d-light-preset");
+    lightPresetButton.type = "button";
+    const presetBrightnessLabel = createStageElement("small", "", presetEntry.brightness + "%");
+    return (
+      lightPresetButton.append(
+        createStageElement("strong", "", presetEntry.label),
+        presetBrightnessLabel,
+      ),
+      lightPresetButton.addEventListener(
+        "click",
+        () => void runLightCommand("preset", presetEntry),
+      ),
+      lightPresetsElement.append(lightPresetButton),
+      {
+        ...presetEntry,
+        button: lightPresetButton,
+        detail: presetBrightnessLabel,
+      }
+    );
   });
-
-
-  const bladePendingByEntityId = new Map<string, any>();
-  const coverRequestsById = new Map<string, any>();
-  let coverStorage: any;
-  if (lightHistoryScope) {
+  lightControlsElement.append(lightPresetsElement);
+  const controlErrorElement = createStageElement("p", "i3d-control-error");
+  controlErrorElement.setAttribute("role", "status");
+  const pendingControlRequestsByRequestId = new Map(),
+    buildBindingCommand = (commandBinding, commandDevice, isExtraCommand = false) => ({
+      ...commandBinding,
+      bindingId: isExtraCommand
+        ? commandDevice.id.slice(commandDevice.deviceKind.length + 1)
+        : commandDevice.id,
+      bindingFloorId: commandDevice.floorId,
+      bindingModelId: commandDevice.modelId,
+    }),
+    climatePanel = createClimatePanel2({
+      modeHistory: climateModeHistory,
+      onLayout: (climateLayout) => {
+        isEditing &&
+          ["climate", "fan", "purifier", "water-heater"].includes(activeModule) &&
+          getFocusedEntry() &&
+          postHostMessage({
+            type: "edit",
+            action: "purifier-layout",
+            id: getFocusedEntry().id,
+            extraControls: climateLayout,
+          });
+      },
+      onControl: (climateControl, climateDeviceState) =>
+        new Promise((climateResolve, climateReject) => {
+          const climateBinding = collectClimateBindings().find(
+              (climateCandidate) =>
+                climateDeviceState &&
+                (climateCandidate.id === climateDeviceState.id ||
+                  "climate:" + climateCandidate.id === climateDeviceState.id) &&
+                climateCandidate.floorId === climateDeviceState.floorId &&
+                climateCandidate.modelId === climateDeviceState.modelId,
+            ),
+            extraControlKind = climateBinding?.pedestalFan
+              ? "fan-extra"
+              : climateBinding?.waterHeater
+                ? "water-heater-extra"
+                : climateBinding?.climateType === "bath-heater"
+                  ? "climate-extra"
+                  : climateBinding?.airPurifier || climateBinding?.entityId?.startsWith("fan.")
+                    ? "purifier-extra"
+                    : "climate-extra",
+            isExtraControlMatch = climateControl.deviceKind?.endsWith("-extra")
+              ? climateControl.deviceKind === extraControlKind &&
+                climateBinding?.extraControls?.some(
+                  (matchedExtraControl) => matchedExtraControl.entityId === climateControl.entityId,
+                )
+              : climateBinding?.entityId === climateControl.entityId &&
+                !!climateBinding?.pedestalFan == (climateControl.deviceKind === "fan");
+          if (
+            !isControlReady ||
+            isEditing ||
+            isControlBusy ||
+            !isExtraControlMatch ||
+            !matchesSelectedFloor(climateBinding || {}) ||
+            climateBinding?.visible === false ||
+            activeModule !== (climateBinding?.waterHeater ? "devices" : "environment") ||
+            !climateBinding?.modelId ||
+            !climateBinding.modelAvailable
+          ) {
+            climateReject(new Error("当前设备不可控制。"));
+            return;
+          }
+          const climateRequestId = "climate-" + ++num,
+            climateRequestTimeoutId = setTimeout(
+              () => settleClimateRequest(climateRequestId, "请求超时，请检查设备状态。"),
+              14000,
+            );
+          (pendingControlRequestsByRequestId.set(climateRequestId, {
+            resolve: climateResolve,
+            reject: climateReject,
+            timeout: climateRequestTimeoutId,
+          }),
+            postHostMessage({
+              type: "control",
+              requestId: climateRequestId,
+              command:
+                climateBinding.climateType === "bath-heater"
+                  ? buildBindingCommand(
+                      {
+                        ...climateControl,
+                        deviceKind: climateControl.deviceKind?.endsWith("-extra")
+                          ? "climate-extra"
+                          : "bath-heater",
+                      },
+                      climateBinding,
+                    )
+                  : climateControl.deviceKind?.endsWith("-extra")
+                    ? buildBindingCommand(climateControl, climateBinding)
+                    : climateControl,
+            }));
+        }),
+    });
+  function settleClimateRequest(climateSettledRequestId, climateSettleErrorMessage) {
+    const pendingClimateRequest = pendingControlRequestsByRequestId.get(climateSettledRequestId);
+    pendingClimateRequest &&
+      (clearTimeout(pendingClimateRequest.timeout),
+      pendingControlRequestsByRequestId.delete(climateSettledRequestId),
+      climateSettleErrorMessage
+        ? pendingClimateRequest.reject(new Error(climateSettleErrorMessage))
+        : pendingClimateRequest.resolve());
+  }
+  const tiltPreviewByCoverKey = new Map(),
+    computeCoverKey = (coverKeyBinding) =>
+      JSON.stringify([
+        coverKeyBinding.entityId,
+        coverKeyBinding.coverKind === "dream" ? "dream" : "rail",
+      ]),
+    findCoverBinding = (coverLookupEntityId, coverLookupBinding) =>
+      collectCoverBindings().find(
+        (coverLookupCandidate) =>
+          coverLookupCandidate.entityId === coverLookupEntityId &&
+          (!coverLookupBinding?.id ||
+            coverLookupCandidate.id === coverLookupBinding.id ||
+            "cover:" + coverLookupCandidate.id === coverLookupBinding.id),
+      );
+  let coverFeedbackStorage;
+  if (lightHistoryScope)
     try {
-      // 同 localStorage：会话存储被禁用时放弃封面状态的续算（storage 传 null 即关闭该能力）。
-      coverStorage = window.sessionStorage;
-    } catch {
-      // 见上：coverStorage 保持 undefined，翻板的续算与持久化整体关闭，
+      coverFeedbackStorage = window.sessionStorage;
+    } catch {}
+  const coverControlRequestsByRequestId = new Map(),
+    coverFeedback = createCoverFeedback2({
+      commandPreview: true,
+      storage: coverFeedbackStorage,
+      scope: lightHistoryScope,
+    }),
+    dreamTiltFeedback = createCoverFeedback2({
+      commandPreview: true,
+      travelTime: 2400,
+    });
+  function pruneTiltPreviews() {
+    for (const [coverFeedbackKey, coverFeedbackState] of tiltPreviewByCoverKey) {
+      const primaryFeedbackState = coverFeedback.read(coverFeedbackKey),
+        tiltFeedbackState = dreamTiltFeedback.read(coverFeedbackKey);
+      if (!primaryFeedbackState?.available || !tiltFeedbackState?.available) {
+        tiltPreviewByCoverKey.delete(coverFeedbackKey);
+        continue;
+      }
+      if (
+        primaryFeedbackState.positionReported &&
+        primaryFeedbackState.raw.attributes.current_position !== coverFeedbackState.reported
+      ) {
+        tiltPreviewByCoverKey.delete(coverFeedbackKey);
+        continue;
+      }
+      Math.abs((tiltFeedbackState.position ?? -100) - 50) > 0.01 ||
+        (tiltPreviewByCoverKey.delete(coverFeedbackKey),
+        coverFeedback.startPreview(coverFeedbackKey, coverFeedbackState.requestId));
     }
   }
-  const coverFeedback = createCoverFeedback({
-    commandPreview: true,
-    storage: coverStorage,
-    scope: lightHistoryScope
-  });
-  const dreamCoverFeedback = createCoverFeedback({
-    commandPreview: true,
-    travelTime: 2400
-  });
-
-
-
-
-
-
-  // 窗帘面板的预览 / 控制回调只按 entityId 反查普通窗帘绑定，与「是不是组合」无关：
-  const coverPanelPreview = (coverEntityId: any, bladePosition: any) => {
-      const panelCoverBinding = collectCurtainBindings().find(
-        (panelDevice: any) => panelDevice.entityId === coverEntityId
-      );
-      if (
-        bladePosition !== null &&
-        panelCoverBinding?.coverKind === "dream" &&
-        !coverCanAdjustBlades(
-          coverState(
-            panelCoverBinding.entityId,
-            statesByEntityId[panelCoverBinding.entityId],
-            panelCoverBinding
-          ) as any,
-          resolveCoverPresentation(panelCoverBinding)
-        )
-      ) {
-        return resolveCoverPresentation(panelCoverBinding);
-      } else {
-        if (bladePosition === null) {
-          dreamCoverFeedback.preview(coverEntityId, null);
-          coverFeedback.preview(coverEntityId, null);
-        } else {
-          (panelCoverBinding?.coverKind === "dream" ? dreamCoverFeedback : coverFeedback).preview(
-            coverEntityId,
-            bladePosition
+  const nextCoverFeedbackDelay = () =>
+    Math.min(coverFeedback.nextDelay(), dreamTiltFeedback.nextDelay());
+  function readCoverFeedback(
+    feedbackBinding,
+    initialCoverState = coverState2(
+      feedbackBinding.entityId,
+      deviceStates[feedbackBinding.entityId],
+      feedbackBinding,
+    ),
+  ) {
+    if (feedbackBinding.airer) return airerMotion.read(feedbackBinding, initialCoverState);
+    const baseCoverFeedback = coverFeedback.read(
+      computeCoverKey(feedbackBinding),
+      initialCoverState,
+    );
+    if (feedbackBinding.coverKind !== "dream") return baseCoverFeedback;
+    const tiltCoverFeedback = dreamTiltFeedback.read(computeCoverKey(feedbackBinding)),
+      hasDreamTiltPreview = tiltPreviewByCoverKey.has(computeCoverKey(feedbackBinding));
+    return {
+      ...baseCoverFeedback,
+      ...(hasDreamTiltPreview
+        ? {
+            state: "opening",
+            opening: true,
+            closing: false,
+            moving: true,
+            closedConfirmed: false,
+          }
+        : {}),
+      tiltPosition: tiltCoverFeedback?.position ?? initialCoverState.tiltPosition,
+      tiltTarget: tiltCoverFeedback?.targetPosition ?? null,
+      error: tiltCoverFeedback?.error || baseCoverFeedback?.error || "",
+    };
+  }
+  const coverPanelOptions = {
+      onPreview: (previewDeviceBinding, previewPosition, previewTargetBinding) => {
+        const previewCoverBinding = findCoverBinding(previewDeviceBinding, previewTargetBinding);
+        if (!previewCoverBinding) return;
+        if (previewCoverBinding.airer) return readCoverFeedback(previewCoverBinding);
+        const previewCoverKey = computeCoverKey(previewCoverBinding);
+        return (
+          (previewPosition !== null &&
+            previewCoverBinding?.coverKind === "dream" &&
+            !coverCanAdjustBlades2(
+              coverState2(
+                previewCoverBinding.entityId,
+                deviceStates[previewCoverBinding.entityId],
+                previewCoverBinding,
+              ),
+              readCoverFeedback(previewCoverBinding),
+            )) ||
+            (previewPosition === null
+              ? (dreamTiltFeedback.preview(previewCoverKey, null),
+                coverFeedback.preview(previewCoverKey, null))
+              : (previewCoverBinding.coverKind === "dream"
+                  ? dreamTiltFeedback
+                  : coverFeedback
+                ).preview(previewCoverKey, previewPosition),
+            syncCoverIconStates(),
+            wakeSceneBackground()),
+          readCoverFeedback(previewCoverBinding)
+        );
+      },
+      onControl: (coverControlRequest, coverControlBinding) =>
+        new Promise((coverResolve, coverReject) => {
+          const coverActionBinding = findCoverBinding(
+            coverControlRequest.entityId,
+            coverControlBinding,
           );
-        }
-        syncCoverFeedback();
-        wakeFrameLoop();
-        if (panelCoverBinding) {
-          return resolveCoverPresentation(panelCoverBinding);
-        } else {
-          return coverFeedback.read(coverEntityId, undefined);
-        }
-      }
-  };
-  const coverPanelControl = (coverCommand: any) =>
-    new Promise((resolveCover, rejectCover) => {
-        const controlCoverBinding = collectCurtainBindings().find(
-          (controlDevice: any) =>
-            isOnActiveFloor(controlDevice) &&
-            controlDevice.entityId === coverCommand.entityId &&
-            controlDevice.modelAvailable
-        );
-        if (
-          !isInteractive ||
-          isEditing ||
-          isDisposed ||
-          activeModule !== "environment" ||
-          !controlCoverBinding?.modelId
-        ) {
-          rejectCover(new Error("当前窗帘不可控制。"));
-          return;
-        }
-        const coverRequestId = "cover-" + ++requestSeq;
-        const coverTimeoutId = setTimeout(
-          () => settleCoverRequest(coverRequestId, "请求超时，请检查设备状态。"),
-          14000
-        );
-        syncCurtains();
-        const usesBladeAxis =
-          controlCoverBinding.coverKind === "dream" &&
-          ["set_cover_position", "set_cover_tilt_position"].includes(coverCommand.service);
-        if (
-          usesBladeAxis &&
-          !coverCanAdjustBlades(
-            coverState(
-              controlCoverBinding.entityId,
-              statesByEntityId[controlCoverBinding.entityId],
-              controlCoverBinding
-            ) as any,
-            resolveCoverPresentation(controlCoverBinding)
-          )
-        ) {
-          clearTimeout(coverTimeoutId);
-          rejectCover(new Error("只有确认整体完全关闭且停止后，才能调整叶片。"));
-          return;
-        }
-        let shouldDeferCover = false;
-        if (!usesBladeAxis && controlCoverBinding.coverKind === "dream") {
-          bladePendingByEntityId.delete(controlCoverBinding.entityId);
-          const resolvedCoverPresentation = resolveCoverPresentation(controlCoverBinding);
-          shouldDeferCover =
-            coverCommand.service === "open_cover" &&
-            (resolvedCoverPresentation as any).tiltPosition !== null &&
-            Math.abs((resolvedCoverPresentation as any).tiltPosition - 50) > 0.01;
-          if (shouldDeferCover) {
-            bladePendingByEntityId.set(controlCoverBinding.entityId, {
+          if (
+            !isControlReady ||
+            isEditing ||
+            isControlBusy ||
+            activeModule !== (coverActionBinding?.airer ? "devices" : "environment") ||
+            !coverActionBinding?.modelId ||
+            !coverActionBinding.modelAvailable ||
+            !matchesSelectedFloor(coverActionBinding)
+          ) {
+            coverReject(
+              new Error(coverActionBinding?.airer ? "当前晾衣架不可控制。" : "当前窗帘不可控制。"),
+            );
+            return;
+          }
+          if (coverActionBinding.airer) {
+            const airerRequestId = "airer-" + ++num,
+              airerRequestTimeoutId = setTimeout(
+                () => settleMediaRequest(airerRequestId, "请求超时，请检查设备状态。"),
+                14000,
+              );
+            (mediaControlRequestsByRequestId.set(airerRequestId, {
+              resolve: coverResolve,
+              reject: coverReject,
+              timeout: airerRequestTimeoutId,
+            }),
+              postHostMessage({
+                type: "control",
+                requestId: airerRequestId,
+                command: {
+                  ...coverControlRequest,
+                  deviceKind: "airer",
+                },
+              }));
+            return;
+          }
+          const coverEntryKey = computeCoverKey(coverActionBinding),
+            tiltCommand = {
+              ...coverControlRequest,
+              entityId: coverEntryKey,
+            },
+            coverRequestId = "cover-" + ++num,
+            coverRequestTimeoutId = setTimeout(
+              () => failCoverRequest(coverRequestId, "请求超时，请检查设备状态。"),
+              14000,
+            );
+          rebuildCurtainMotion();
+          const includes =
+            coverActionBinding.coverKind === "dream" &&
+            ["set_cover_position", "set_cover_tilt_position"].includes(coverControlRequest.service);
+          if (
+            includes &&
+            !coverCanAdjustBlades2(
+              coverState2(
+                coverActionBinding.entityId,
+                deviceStates[coverActionBinding.entityId],
+                coverActionBinding,
+              ),
+              readCoverFeedback(coverActionBinding),
+            )
+          ) {
+            (clearTimeout(coverRequestTimeoutId),
+              coverReject(new Error("只有确认整体完全关闭且停止后，才能调整叶片。")));
+            return;
+          }
+          let isDreamTiltPreview = false;
+          if (!includes && coverActionBinding.coverKind === "dream") {
+            tiltPreviewByCoverKey.delete(coverEntryKey);
+            const coverBindingState = readCoverFeedback(coverActionBinding);
+            ((isDreamTiltPreview =
+              coverControlRequest.service === "open_cover" &&
+              coverBindingState.tiltPosition !== null &&
+              Math.abs(coverBindingState.tiltPosition - 50) > 0.01),
+              isDreamTiltPreview &&
+                tiltPreviewByCoverKey.set(coverEntryKey, {
+                  requestId: coverRequestId,
+                  reported: coverBindingState.raw.attributes.current_position,
+                }),
+              coverControlRequest.service === "stop_cover"
+                ? dreamTiltFeedback.begin(tiltCommand, coverRequestId)
+                : dreamTiltFeedback.begin(
+                    {
+                      ...tiltCommand,
+                      service: "set_cover_position",
+                      data: {
+                        position: 50,
+                      },
+                    },
+                    coverRequestId,
+                  ));
+          }
+          const activeCoverFeedback = includes ? dreamTiltFeedback : coverFeedback;
+          (activeCoverFeedback.begin(
+            includes
+              ? {
+                  ...tiltCommand,
+                  service: "set_cover_position",
+                  data: {
+                    position:
+                      coverControlRequest.data.tilt_position ?? coverControlRequest.data.position,
+                  },
+                }
+              : tiltCommand,
+            coverRequestId,
+            {
+              defer: isDreamTiltPreview,
+            },
+          ),
+            syncCoverIconStates(),
+            coverControlRequestsByRequestId.set(coverRequestId, {
+              resolve: coverResolve,
+              reject: coverReject,
+              timeout: coverRequestTimeoutId,
+              key: coverEntryKey,
+              feedback: activeCoverFeedback,
+            }),
+            postHostMessage({
+              type: "control",
               requestId: coverRequestId,
-              reported: (resolvedCoverPresentation as any).raw.attributes.current_position
-            });
-          }
-          if (coverCommand.service === "stop_cover") {
-            dreamCoverFeedback.begin(
-              {
-                ...coverCommand
-              },
-              coverRequestId
-            );
-          } else {
-            dreamCoverFeedback.begin(
-              {
-                ...coverCommand,
-                service: "set_cover_position",
-                data: {
-                  position: 50
-                }
-              },
-              coverRequestId
-            );
-          }
-        }
-        const coverFeedbackTarget = usesBladeAxis ? dreamCoverFeedback : coverFeedback;
-        coverFeedbackTarget.begin(
-          usesBladeAxis
-            ? {
-                ...coverCommand,
-                service: "set_cover_position",
-                data: {
-                  position: coverCommand.data.tilt_position ?? coverCommand.data.position
-                }
-              }
-            : coverCommand,
-          coverRequestId,
-          {
-            defer: shouldDeferCover
-          }
-        );
-        syncCoverFeedback();
-        coverRequestsById.set(coverRequestId, {
-          resolve: resolveCover,
-          reject: rejectCover,
-          timeout: coverTimeoutId,
-          entityId: coverCommand.entityId,
-          feedback: coverFeedbackTarget
-        });
-        postToHost({
-          type: "control",
-          requestId: coverRequestId,
-          command: coverCommand
-        });
-        renderMarkers();
-        wakeFrameLoop();
-      });
-  const coverPanel = createCoverPanel({
-    onPreview: coverPanelPreview as any,
-    onControl: coverPanelControl as any
-  });
-  // 窗帘组合面板：把每名成员转发成一块普通窗帘子面板，命令 / 预览沿用上面同一对回调。
-  const coverGroupPanel = createCoverGroupPanel({
-    onPreview: coverPanelPreview as any,
-    onControl: coverPanelControl as any
-  });
-
-
-  const televisionRequestsById = new Map<string, any>();
-  // 通用设备附加实体的在途请求：与电视 / 空调各自一张表，超时与失败互不牵连。
-  const deviceRequestsById = new Map<string, any>();
-  const nasPanel = createNasPanel();
-  const televisionPanel = createTelevisionPanel({
-    onControl: televisionCommand =>
-      new Promise((resolveTelevision, rejectTelevision) => {
-        const televisionDevice = findFocusedBinding();
-        if (
-          !isInteractive ||
-          isEditing ||
-          isDisposed ||
-          activeModule !== "devices" ||
-          televisionDevice?.deviceKind !== "television" ||
-          !televisionDevice.modelAvailable ||
-          ((["turn_on", "turn_off"].includes((televisionCommand as any).service) &&
-            televisionDevice.powerEntityId) ||
-            televisionDevice.entityId) !== (televisionCommand as any).entityId
-        ) {
-          rejectTelevision(new Error("当前电视不可控制。"));
-          return;
-        }
-        const televisionRequestId = "television-" + ++requestSeq;
-        const televisionTimeoutId = setTimeout(
-          () => settleTelevisionRequest(televisionRequestId, "请求超时，请检查设备状态。"),
-          14000
-        );
-        televisionRequestsById.set(televisionRequestId, {
-          resolve: resolveTelevision,
-          reject: rejectTelevision,
-          timeout: televisionTimeoutId
-        });
-        postToHost({
-          type: "control",
-          requestId: televisionRequestId,
-          command: televisionCommand
-        });
-      })
-  });
-
-
-  // 通用设备弹窗（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）：与空气净化器共用「附加功能卡片网格」。
-  const devicePanel = createDevicePanel({
-    onLayout: extraControls => {
-      const layoutBinding = findFocusedBinding();
-      // 同净化器那处：编辑通用设备时 activeModule 是品类名（fridge / plant / …），
-      if (
-        !isEditing ||
-        !(activeModule === "devices" || isGenericDeviceKind(activeModule)) ||
-        !layoutBinding
-      ) {
-        return;
-      }
-      postToHost({
-        type: "edit",
-        action: "device-layout",
-        id: layoutBinding.id,
-        extraControls
-      });
+              command: coverControlRequest,
+            }),
+            syncMarkers(),
+            wakeSceneBackground());
+        }),
     },
-    onControl: deviceCommand =>
-      new Promise((resolveDevice, rejectDevice) => {
-        const deviceBinding = findFocusedBinding();
+    coverPanel = createCoverPanel2({
+      ...coverPanelOptions,
+      onLayout: (coverLayout) => {
+        isEditing &&
+          activeModule === "airer" &&
+          getFocusedEntry() &&
+          postHostMessage({
+            type: "edit",
+            action: "purifier-layout",
+            id: getFocusedEntry().id,
+            extraControls: coverLayout,
+          });
+      },
+      onExtraControl: (coverExtraControl) =>
+        new Promise((coverExtraResolve, coverExtraReject) => {
+          const extraControlEntry = getFocusedEntry();
+          if (
+            !isControlReady ||
+            isEditing ||
+            isControlBusy ||
+            activeModule !== "devices" ||
+            !extraControlEntry?.airer ||
+            !extraControlEntry.modelAvailable ||
+            !matchesSelectedFloor(extraControlEntry) ||
+            !(extraControlEntry.extraControls || []).some(
+              (extraControlCandidate) =>
+                extraControlCandidate.entityId === coverExtraControl.entityId,
+            )
+          ) {
+            coverExtraReject(new Error("当前晾衣架不可控制。"));
+            return;
+          }
+          const airerExtraRequestId = "airer-extra-" + ++num,
+            airerExtraRequestTimeoutId = setTimeout(
+              () => settleMediaRequest(airerExtraRequestId, "请求超时，请检查设备状态。"),
+              14000,
+            );
+          (mediaControlRequestsByRequestId.set(airerExtraRequestId, {
+            resolve: coverExtraResolve,
+            reject: coverExtraReject,
+            timeout: airerExtraRequestTimeoutId,
+          }),
+            postHostMessage({
+              type: "control",
+              requestId: airerExtraRequestId,
+              command: buildBindingCommand(
+                {
+                  ...coverExtraControl,
+                  deviceKind: "airer-extra",
+                },
+                extraControlEntry,
+                true,
+              ),
+            }));
+        }),
+    }),
+    coverGroupPanel = createCoverGroupPanel2(coverPanelOptions);
+  function failCoverRequest(coverFailedRequestId, coverFailedErrorMessage) {
+    const coverRequestEntry = coverControlRequestsByRequestId.get(coverFailedRequestId);
+    coverRequestEntry &&
+      (clearTimeout(coverRequestEntry.timeout),
+      coverControlRequestsByRequestId.delete(coverFailedRequestId),
+      coverFailedErrorMessage
+        ? (tiltPreviewByCoverKey.get(coverRequestEntry.key)?.requestId === coverFailedRequestId &&
+            tiltPreviewByCoverKey.delete(coverRequestEntry.key),
+          dreamTiltFeedback.fail(
+            coverRequestEntry.key,
+            coverFailedRequestId,
+            coverFailedErrorMessage,
+          ),
+          coverRequestEntry.feedback.fail(
+            coverRequestEntry.key,
+            coverFailedRequestId,
+            coverFailedErrorMessage,
+          ),
+          syncCoverIconStates(),
+          updateDevicePanel(),
+          wakeSceneBackground(),
+          coverRequestEntry.reject(new Error(coverFailedErrorMessage)))
+        : coverRequestEntry.resolve());
+  }
+  const mediaControlRequestsByRequestId = new Map(),
+    controlMediaDevice = (mediaCommand, mediaTargetEntry = getFocusedEntry()) =>
+      new Promise((mediaResolve, mediaReject) => {
         if (
-          !isInteractive ||
+          !isControlReady ||
           isEditing ||
-          isDisposed ||
+          isControlBusy ||
           activeModule !== "devices" ||
-          !isGenericDeviceKind(deviceBinding?.deviceKind) ||
-          !deviceBinding.modelAvailable ||
-          !(deviceBinding.extraControls || []).some(
-            (deviceExtra: any) => deviceExtra.entityId === deviceCommand.entityId
-          )
+          !["television", "speaker"].includes(mediaTargetEntry?.deviceKind) ||
+          mediaCommand.deviceKind !== mediaTargetEntry.deviceKind ||
+          !mediaTargetEntry.modelAvailable ||
+          !matchesSelectedFloor(mediaTargetEntry) ||
+          ((["turn_on", "turn_off"].includes(mediaCommand.service) &&
+            mediaTargetEntry.powerEntityId) ||
+            mediaTargetEntry.entityId) !== mediaCommand.entityId
         ) {
-          rejectDevice(new Error("当前设备不可控制。"));
+          mediaReject(new Error("当前媒体设备不可控制。"));
           return;
         }
-        const deviceRequestId = "device-" + ++requestSeq;
-        const deviceTimeoutId = setTimeout(
-          () => settleDeviceRequest(deviceRequestId, "请求超时，请检查设备状态。"),
-          14000
-        );
-        deviceRequestsById.set(deviceRequestId, {
-          resolve: resolveDevice,
-          reject: rejectDevice,
-          timeout: deviceTimeoutId
-        });
-        postToHost({
-          type: "control",
-          requestId: deviceRequestId,
-          command: deviceCommand
-        });
-      })
-  });
-
-  // 门锁弹窗：门锁本体状态 + 门磁开合 + 电量 + 密码 + 上锁 / 解锁 / 释放锁舌。
-  const lockPanel = createLockPanel({
-    onControl: lockCommand =>
-      new Promise((resolveLock, rejectLock) => {
-        const lockBinding = findFocusedBinding();
+        const mediaRequestId = "television-" + ++num,
+          mediaRequestTimeoutId = setTimeout(
+            () => settleMediaRequest(mediaRequestId, "请求超时，请检查设备状态。"),
+            14000,
+          );
+        (mediaControlRequestsByRequestId.set(mediaRequestId, {
+          resolve: mediaResolve,
+          reject: mediaReject,
+          timeout: mediaRequestTimeoutId,
+          entityId: mediaCommand.entityId,
+        }),
+          postHostMessage({
+            type: "control",
+            requestId: mediaRequestId,
+            command: mediaCommand,
+          }));
+      }),
+    speakerPanel = createSpeakerPanel2({
+      onControl: controlMediaDevice,
+    }),
+    nasPanel = createNasPanel2(),
+    televisionPanel = createTelevisionPanel2({
+      onControl: controlMediaDevice,
+    }),
+    devicePanel = createDevicePanel2({
+      onLayout: (genericDeviceLayout) => {
+        isEditing &&
+          isGenericDeviceKind2(activeModule) &&
+          getFocusedEntry() &&
+          postHostMessage({
+            type: "edit",
+            action: "device-layout",
+            id: getFocusedEntry().id,
+            extraControls: genericDeviceLayout,
+          });
+      },
+      onControl: (genericDeviceControl) =>
+        new Promise((genericDeviceResolve, genericDeviceReject) => {
+          const genericDeviceEntry = getFocusedEntry();
+          if (
+            !isControlReady ||
+            isEditing ||
+            isControlBusy ||
+            activeModule !== "devices" ||
+            !isGenericDeviceKind2(genericDeviceEntry?.deviceKind) ||
+            !genericDeviceEntry.modelAvailable ||
+            !(genericDeviceEntry.extraControls || []).some(
+              (genericDeviceExtraControl) =>
+                genericDeviceExtraControl.entityId === genericDeviceControl.entityId,
+            )
+          ) {
+            genericDeviceReject(new Error("当前设备不可控制。"));
+            return;
+          }
+          const deviceRequestId = "device-" + ++num,
+            deviceRequestTimeoutId = setTimeout(
+              () => settleMediaRequest(deviceRequestId, "请求超时，请检查设备状态。"),
+              14000,
+            );
+          (mediaControlRequestsByRequestId.set(deviceRequestId, {
+            resolve: genericDeviceResolve,
+            reject: genericDeviceReject,
+            timeout: deviceRequestTimeoutId,
+          }),
+            postHostMessage({
+              type: "control",
+              requestId: deviceRequestId,
+              command: buildBindingCommand(genericDeviceControl, genericDeviceEntry, true),
+            }));
+        }),
+    });
+  function settleMediaRequest(mediaSettledRequestId, mediaSettleErrorMessage) {
+    const mediaRequestEntry = mediaControlRequestsByRequestId.get(mediaSettledRequestId);
+    mediaRequestEntry &&
+      (clearTimeout(mediaRequestEntry.timeout),
+      mediaControlRequestsByRequestId.delete(mediaSettledRequestId),
+      mediaSettleErrorMessage
+        ? mediaRequestEntry.reject(new Error(mediaSettleErrorMessage))
+        : mediaRequestEntry.resolve());
+  }
+  const lockPanel = createLockPanel2({
+    onControl: (lockControl) =>
+      new Promise((lockResolve, lockReject) => {
+        const lockEntry = getFocusedEntry();
         if (
-          !isInteractive ||
+          !isControlReady ||
           isEditing ||
-          isDisposed ||
+          isControlBusy ||
           activeModule !== "security" ||
-          lockBinding?.deviceKind !== "lock" ||
-          !lockBinding.modelAvailable ||
-          lockCommand.entityId !== lockBinding.entityId
+          lockEntry?.deviceKind !== "lock" ||
+          !lockEntry.modelAvailable ||
+          lockControl.entityId !== lockEntry.entityId
         ) {
-          rejectLock(new Error("当前门锁不可控制。"));
+          lockReject(new Error("当前门锁不可控制。"));
           return;
         }
-        const lockRequestId = "lock-" + ++requestSeq;
-        const lockTimeoutId = setTimeout(
-          () => settleDeviceRequest(lockRequestId, "请求超时，请检查门锁状态。"),
-          14000
-        );
-        deviceRequestsById.set(lockRequestId, {
-          resolve: resolveLock,
-          reject: rejectLock,
-          timeout: lockTimeoutId
-        });
-        postToHost({
-          type: "control",
-          requestId: lockRequestId,
-          command: lockCommand
-        });
-      })
+        const lockRequestId = "lock-" + ++num,
+          lockRequestTimeoutId = setTimeout(
+            () => settleMediaRequest(lockRequestId, "请求超时，请检查门锁状态。"),
+            14000,
+          );
+        (mediaControlRequestsByRequestId.set(lockRequestId, {
+          resolve: lockResolve,
+          reject: lockReject,
+          timeout: lockRequestTimeoutId,
+        }),
+          postHostMessage({
+            type: "control",
+            requestId: lockRequestId,
+            command: lockControl,
+          }));
+      }),
   });
-
-  lightPanelElement.append(
+  lightPanelSection.append(
     lightPanelHeader,
     lightControlsElement,
     controlErrorElement,
@@ -1705,2828 +1172,6342 @@ export function mountStage(stageOptions: StageHostOptions) {
     coverGroupPanel.root,
     nasPanel.root,
     televisionPanel.root,
+    speakerPanel.root,
     devicePanel.root,
-    lockPanel.root
+    lockPanel.root,
   );
-
-  /**
-   * 非灯光面板的登记表。
-   */
-  const panelRegistry = [
-    {
-      match: (binding: any) => isGenericDeviceKind(binding.deviceKind),
-      root: devicePanel.root,
-      // 标签按品类走：「冰箱控制」「洗衣机控制」…，比统一的「设备控制」好认。
-      label: (binding: any) =>
-        (binding.deviceLabel || genericDeviceProfile(binding.deviceKind)?.label || "设备") +
-        "控制",
-      // 通用设备有自己的一套竖直上限（见 device-panel.css）：面板里那台机器（冰箱 190px）
-      hostClass: "is-device-panel",
-      deferWhenFocusOnly: true,
-      show: (binding: any) => {
-        // 面板没打开时不画：附加功能卡片的 update() 要重建整片网格。
-        if (!lightPanelElement.classList.contains("is-open")) {
-          return;
-        }
-        devicePanel.root.hidden = false;
-        devicePanel.update({
-          item: binding,
-          states: statesByEntityId,
-          // 与 climatePanel 同口径：编辑预览态要一并传下去，卡片网格靠它切到
-          editing: isEditing,
-          // 户型图里把那台设备的模型删掉后，卡片不能停在上一次的状态上装没事：
-          error: binding.modelAvailable ? "" : "设备模型已移除，请重新配置。"
+  const curtainMotion = createCurtainMotion2({
+    THREE: three,
+    requestRender: () => wakeBackgroundAnimation(),
+  });
+  let curtainSyncSnapshot = null,
+    list = [],
+    trackedCoverBindings = [];
+  function syncCoverIconStates() {
+    for (const trackedCoverBinding of trackedCoverBindings) {
+      const trackedCoverState = readCoverFeedback(trackedCoverBinding);
+      trackedCoverBinding.airer ||
+        curtainMotion.setState(trackedCoverBinding.id, trackedCoverState, {
+          immediate: true,
         });
-      }
-    },
-    {
-      match: (binding: any) => binding.deviceKind === "nas",
-      root: nasPanel.root,
-      label: "NAS 状态",
-      hostClass: "is-nas-panel",
-      // NAS 绑定的 clickAction 缺省就是 focus（见 binding-collectors），
-      deferWhenFocusOnly: true,
-      show: (binding: any) => {
-        nasPanel.root.hidden = false;
-        nasPanel.update({
-          item: binding,
-          states: statesByEntityId
-        });
-      }
-    },
-    {
-      match: (binding: any) => binding.deviceKind === "television",
-      root: televisionPanel.root,
-      label: "电视状态",
-      hostClass: "is-television-panel",
-      deferWhenFocusOnly: true,
-      show: (binding: any) => {
-        // update() 要重算每一路信号源，面板没打开时不画：这时候没人看得见这份内容。
-        if (!lightPanelElement.classList.contains("is-open")) {
-          return;
-        }
-        televisionPanel.root.hidden = false;
-        if (isEditing || binding.clickAction !== "focus") {
-          televisionPanel.update({
-            item: binding,
-            states: statesByEntityId,
-            editing: isEditing || !isInteractive
-          });
-        }
-      }
-    },
-    {
-      match: (binding: any) => binding.deviceKind === "lock",
-      root: lockPanel.root,
-      label: (binding: any) => binding.label || "门锁控制",
-      hostClass: "is-lock-panel",
-      deferWhenFocusOnly: true,
-      // 让位时作废本地状态：门密码只允许用于一次操作，不能留在输入框里等下一次打开。
-      hide: () => lockPanel.hide(),
-      show: (binding: any) => {
-        lockPanel.root.hidden = false;
-        lockPanel.update({
-          item: binding,
-          states: statesByEntityId,
-          editing: isEditing
-        });
-      }
-    },
-    {
-      match: (binding: any) => binding.isCurtainGroup === true,
-      root: coverGroupPanel.root,
-      label: (binding: any) => binding.label || "双层窗帘",
-      hostClass: "is-cover-group-panel",
-      // 竖排 / 并排由组合的 panelLayout 决定：类名挂在容器上（不是面板根），与 hostClass 同一层，
-      hide: () => lightPanelElement.classList.remove("is-cover-group-vertical"),
-      show: (binding: any) => {
-        coverGroupPanel.root.hidden = false;
-        lightPanelElement.classList.toggle(
-          "is-cover-group-vertical",
-          binding.panelLayout === "vertical"
+      const coverIconElement = map.get("cover:" + trackedCoverBinding.id);
+      coverIconElement &&
+        coverIconElement.classList.toggle(
+          "is-on",
+          coverIconIsOn2(trackedCoverBinding, trackedCoverState),
         );
-        // 组合的视图模型按**成员 id**（普通窗帘的裸 id）分发状态 / 展示态 / 错误：
-        const memberStates: Record<string, any> = {};
-        const memberPresentations: Record<string, any> = {};
-        const memberErrors: Record<string, any> = {};
-        for (const memberItem of binding.memberItems || []) {
-          const memberState = coverState(
-            memberItem.entityId,
-            statesByEntityId[memberItem.entityId],
-            memberItem
-          );
-          if (!memberItem.modelAvailable) {
-            memberState.available = false;
-          }
-          const memberPresentation = resolveCoverPresentation(memberItem, memberState as any);
-          memberStates[memberItem.id] = memberState;
-          memberPresentations[memberItem.id] = memberPresentation;
-          memberErrors[memberItem.id] = memberItem.modelAvailable
-            ? memberPresentation.error || ""
-            : "窗帘模型已移除，请重新配置。";
-        }
-        coverGroupPanel.update({
-          item: binding,
-          states: memberStates,
-          presentations: memberPresentations,
-          editing: isEditing,
-          errors: memberErrors
-        });
-      }
-    },
-    {
-      match: (binding: any) => binding.deviceKind === "cover" && binding.isCurtainGroup !== true,
-      root: coverPanel.root,
-      label: "窗帘控制",
-      hostClass: "is-cover-panel",
-      show: (binding: any) => {
-        coverPanel.root.hidden = false;
-        const coverStateValue = coverState(
-          binding.entityId,
-          statesByEntityId[binding.entityId],
-          binding
-        );
-        if (!binding.modelAvailable) {
-          coverStateValue.available = false;
-        }
-        const coverPanelPresentation = resolveCoverPresentation(binding, coverStateValue as any);
-        coverPanel.update({
-          item: binding,
-          state: coverStateValue,
-          presentation: coverPanelPresentation,
-          editing: isEditing,
-          error: binding.modelAvailable
-            ? coverPanelPresentation.error || ""
-            : "窗帘模型已移除，请重新配置。"
-        });
-      }
-    },
-    {
-      match: (binding: any) => !!binding.modelId,
-      root: climatePanel.root,
-      label: "空调控制",
-      hostClass: "is-climate-panel",
-      show: (binding: any) => {
-        climatePanel.root.hidden = false;
-        const climateStateValue = climateState(
-          binding.entityId,
-          statesByEntityId[binding.entityId]
-        );
-        if (!binding.modelAvailable) {
-          climateStateValue.available = false;
-        }
-        climatePanel.update({
-          item: binding,
-          state: climateStateValue,
-          // 附加功能卡片要读实时状态（开关态、下拉候选、数值范围），而 climateState 只覆盖
-          states: statesByEntityId,
-          editing: isEditing,
-          error: binding.modelAvailable ? "" : "空调模型已移除，请重新配置。"
-        });
-      }
     }
-  ];
-  const curtainMotion = createCurtainMotion({
-    THREE: THREE as any,
-    requestRender: () => wakeFrameLoop()
-  });
-  let curtainFloorIds: any[] = [];
-  let coverBindings: any[] = [];
-  // 门动画：与窗帘动画同源的一类「把状态翻成网格姿态」的东西，但门的可动骨架来自
-  const lockMotion = createLockMotion({
-    modelRoot: stageOptions.modelRoot,
-    requestRender: () => {
-      stageOptions.requestRender?.();
-      wakeFrameLoop();
-    },
-    invalidateReflections: ((invalidatedModelIds: any) =>
-      stageOptions.invalidateReflections?.(invalidatedModelIds)) as any
-  });
-  // 参与门动画的门锁绑定（含实体、开角、时长、开向）。逐帧 tick 只读这份缓存：绑定归一其实
-  let lockDoorModelsList: any[] = [];
-  // 上一帧门是否还在动。tick 的返回值在 renderFrame 中段产生，而「下一帧要不要立刻排」
-  let lockMotionActive = false;
-
-
-  /**
-   * 重建窗帘绑定，并把状态同步给动画、反馈缓存与宿主。
-   */
-  const syncCurtains = createSnapshotSyncer(
-    () => ({
-      config,
-      states: statesByEntityId,
-      root: stageOptions.modelRoot,
-      revision: stageOptions.sceneRevision,
-      source: (stageOptions.document as any)
-    }),
-    ({ root, revision }) => {
-      const curtainBindings = [...collectCurtainBindings(), ...collectPreviewCovers()];
-      coverBindings = curtainBindings;
-      curtainFloorIds = [
-        ...new Set(
-          curtainBindings.map((curtainFloorEntry: any) => curtainFloorEntry.floorId).filter(Boolean)
-        )
-      ];
-      curtainMotion.setBindings(root, curtainBindings, revision);
-      coverFeedback.retain(
-        curtainBindings.map((retainedCurtainEntry: any) => retainedCurtainEntry.entityId)
+    for (const curtainGroupBinding of buildCurtainGroups()) {
+      const coverGroupElement = map.get(
+        isEditing
+          ? curtainGroupBinding.id
+          : curtainGroupBinding.isCurtainGroup
+            ? "cover:" + curtainGroupBinding.id
+            : "cover:" + curtainGroupBinding.id,
       );
-      const dreamCurtainEntityIds = curtainBindings
-        .filter((dreamCurtainEntry: any) => dreamCurtainEntry.coverKind === "dream")
-        .map((dreamCurtainIdEntry: any) => dreamCurtainIdEntry.entityId);
-      dreamCoverFeedback.retain(dreamCurtainEntityIds);
-      for (const bladeEntityId of bladePendingByEntityId.keys()) {
-        if (!dreamCurtainEntityIds.includes(bladeEntityId)) {
-          bladePendingByEntityId.delete(bladeEntityId);
-        }
-      }
-      for (const curtainSyncBinding of curtainBindings) {
-        const curtainCoverState = coverState(
-          curtainSyncBinding.entityId,
-          statesByEntityId[curtainSyncBinding.entityId],
-          curtainSyncBinding
-        );
-        if (curtainSyncBinding.coverKind === "dream") {
-          dreamCoverFeedback.sync(curtainSyncBinding.entityId, {
-            ...curtainCoverState,
-            dream: false,
-            overallFeedbackAvailable: true,
-            axis: "blade",
-            state: "open",
-            position: curtainCoverState.tiltPosition,
-            opening: false,
-            closing: false,
-            moving: false
-          });
-        }
-        coverFeedback.sync(curtainSyncBinding.entityId, curtainCoverState);
-      }
-      syncCoverFeedback();
-      stageOptions.curtainFrame?.({
+      coverGroupElement &&
+        curtainGroupBinding.memberItems.forEach((groupMemberBinding, groupMemberIndex) => {
+          const memberCoverElement = coverGroupElement.children[groupMemberIndex],
+            memberCoverState = readCoverFeedback(groupMemberBinding);
+          (memberCoverElement?.classList.toggle(
+            "is-on",
+            groupMemberBinding.modelAvailable &&
+              coverIconIsOn2(groupMemberBinding, memberCoverState),
+          ),
+            memberCoverElement?.classList.toggle(
+              "is-offline",
+              !isEditing &&
+                (!groupMemberBinding.entityId ||
+                  !groupMemberBinding.modelAvailable ||
+                  !memberCoverState?.available),
+            ));
+        });
+    }
+  }
+  function rebuildCurtainMotion() {
+    const modelRoot = mountOptions.modelRoot,
+      sceneRevision = mountOptions.sceneRevision,
+      document2 = mountOptions.document;
+    if (
+      curtainSyncSnapshot?.config === options &&
+      curtainSyncSnapshot.states === deviceStates &&
+      curtainSyncSnapshot.root === modelRoot &&
+      curtainSyncSnapshot.revision === sceneRevision &&
+      curtainSyncSnapshot.source === document2
+    ) {
+      syncCoverIconStates();
+      return;
+    }
+    curtainSyncSnapshot = {
+      config: options,
+      states: deviceStates,
+      root: modelRoot,
+      revision: sceneRevision,
+      source: document2,
+    };
+    const coverBindings = [...collectCoverBindings(), ...collectPreviewCovers()];
+    ((trackedCoverBindings = coverBindings),
+      (list = [
+        ...new Set(coverBindings.map((coverBinding) => coverBinding.floorId).filter(Boolean)),
+      ]),
+      curtainMotion.setBindings(
+        modelRoot,
+        coverBindings.filter((airerFilterBinding) => !airerFilterBinding.airer),
+        sceneRevision,
+      ),
+      coverFeedback.retain(coverBindings.map(computeCoverKey)));
+    const dreamCoverKeys = coverBindings
+      .filter((dreamBinding) => dreamBinding.coverKind === "dream")
+      .map(computeCoverKey);
+    dreamTiltFeedback.retain(dreamCoverKeys);
+    for (const staleCoverKey of tiltPreviewByCoverKey.keys())
+      dreamCoverKeys.includes(staleCoverKey) || tiltPreviewByCoverKey.delete(staleCoverKey);
+    for (const coverBindingForSync of coverBindings) {
+      const coverStateSnapshot = coverState2(
+        coverBindingForSync.entityId,
+        deviceStates[coverBindingForSync.entityId],
+        coverBindingForSync,
+      );
+      (coverBindingForSync.coverKind === "dream" &&
+        dreamTiltFeedback.sync(computeCoverKey(coverBindingForSync), {
+          ...coverStateSnapshot,
+          dream: false,
+          overallFeedbackAvailable: true,
+          axis: "blade",
+          state: "open",
+          position: coverStateSnapshot.tiltPosition,
+          opening: false,
+          closing: false,
+          moving: false,
+        }),
+        coverFeedback.sync(computeCoverKey(coverBindingForSync), coverStateSnapshot));
+    }
+    (pruneTiltPreviews(),
+      syncCoverIconStates(),
+      mountOptions.curtainFrame?.({
         key: curtainMotion.poseKey(),
         structure: curtainMotion.structureKey(),
-        floorIds: curtainFloorIds,
-        moving: curtainMotion.isMoving() || nextCoverDelayMs() <= 1000 / 30
-      });
-    }
-  );
-  stageOptions.setCurtainSync?.(syncCurtains);
-
-  /**
-   * 重算「参与门动画的门锁绑定」清单，供门动画逐帧使用。
-   */
-  const syncLocks = createSnapshotSyncer(
-    () => ({
-      config,
-      root: stageOptions.modelRoot,
-      revision: stageOptions.sceneRevision,
-      source: (stageOptions.document as any)
+        floorIds: list,
+        moving:
+          startupProgress > 0 &&
+          (curtainMotion.isMoving() || nextCoverFeedbackDelay() <= 1000 / 30),
+      }));
+  }
+  mountOptions.setCurtainSync?.(rebuildCurtainMotion);
+  const nasStatus = createNasStatus2({
+      THREE: three,
+      requestFrame: () => {
+        (mountOptions.requestRender?.(), wakeBackgroundAnimation());
+      },
     }),
-    () => {
-      // modelId 统一成 door:<id>：场景侧一律按这个前缀打标，而老配置可能没写前缀、
-      const lockFloors = (stageFloors() as any) || [];
-      lockDoorModelsList = (config.security?.locks || []).map((securityLockEntry: any) => {
-        const rawModelId = String(securityLockEntry.modelId || "").replace(/^(?:door:)+/, "");
-        const lockFloor = lockFloors.find(
-          (floorCandidate: any) => floorCandidate.id === securityLockEntry.floorId
+    entries = Object.fromEntries(
+      GENERIC_DEVICE_KINDS2.map((waterHeaterKindName) => [
+        waterHeaterKindName,
+        createNasStatus2({
+          THREE: three,
+          modelType: genericDeviceProfile2(waterHeaterKindName).modelType,
+          readState: deviceStatus2,
+          requestFrame: () => {
+            (mountOptions.requestRender?.(), wakeBackgroundAnimation());
+          },
+        }),
+      ]),
+    ),
+    waterHeaterStatusByModelType = Object.fromEntries(
+      ["storagewaterheater", "gaswaterheater"].map((waterHeaterModelType) => [
+        waterHeaterModelType,
+        createNasStatus2({
+          THREE: three,
+          modelType: waterHeaterModelType,
+          readState: deviceStatus2,
+          requestFrame: () => {
+            (mountOptions.requestRender?.(), wakeBackgroundAnimation());
+          },
+        }),
+      ]),
+    );
+  let nasSyncSnapshot;
+  const cameraStatus = createCameraStatus2({
+    THREE: three,
+    requestFrame: () => mountOptions.requestRender?.(),
+  });
+  let cameraSyncSnapshot;
+  function syncCameraOverlay() {
+    if (startupProgress === 0) return;
+    const modelRoot2 = mountOptions.modelRoot,
+      sceneRevision2 = mountOptions.sceneRevision,
+      isCameraOverlayEnabled = !isAwaitingFloorViewAdjust && !isRangeEditorOpen,
+      cameraBrightnessScale = activeModule === "security" && selectedFloorId !== "all" ? 1 : 0.55;
+    if (
+      cameraSyncSnapshot?.root === modelRoot2 &&
+      cameraSyncSnapshot.revision === sceneRevision2 &&
+      cameraSyncSnapshot.config === options &&
+      cameraSyncSnapshot.states === deviceStates &&
+      cameraSyncSnapshot.enabled === isCameraOverlayEnabled &&
+      cameraSyncSnapshot.brightness === cameraBrightnessScale
+    )
+      return;
+    cameraSyncSnapshot = {
+      root: modelRoot2,
+      revision: sceneRevision2,
+      config: options,
+      states: deviceStates,
+      enabled: isCameraOverlayEnabled,
+      brightness: cameraBrightnessScale,
+    };
+    const cameraSceneBindings = (options.security?.cameras || []).map((cameraSceneBinding) => {
+      const cameraSceneModel = mountOptions.document.floors
+        .find((cameraFloor) => cameraFloor.id === cameraSceneBinding.floorId)
+        ?.scene.items.find(
+          (cameraSceneEntry) =>
+            cameraSceneEntry.id === cameraSceneBinding.modelId &&
+            cameraSceneEntry.type === "camera",
         );
-        return {
-          ...securityLockEntry,
-          modelId: rawModelId ? "door:" + rawModelId : "",
-          hinge: lockHinge(securityLockEntry, lockFloor)
-        };
-      });
-    }
-  );
-  const nasStatus = createNasStatus({
-    THREE: THREE as any,
-    requestFrame: () => {
-      stageOptions.requestRender?.();
-      wakeFrameLoop();
-    }
-  });
-  // 通用设备（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）状态灯：每个品类一盏，复用 NAS 那套平面灯，
-  const genericDeviceStatusLights = new Map(
-    GENERIC_DEVICE_KINDS.map((deviceKind: any) => [
-      deviceKind,
-      createNasStatus({
-        THREE: THREE as any,
-        // 按品类传各自的 modelType：平面灯据此在场景里认领同类型模型，并决定走四态还是 NAS 内置绿。
-        modelType: genericDeviceProfile(deviceKind)?.modelType,
-        // 与设备弹窗读同一份 deviceStatus，两处显示不会各说各话。
-        readState: deviceStatus as any,
-        requestFrame: () => {
-          stageOptions.requestRender?.();
-          wakeFrameLoop();
-        }
-      })
-    ])
-  );
-  const cameraStatus = createCameraStatus({
-    THREE: THREE as any,
-    requestFrame: () => stageOptions.requestRender?.()
-  });
-  // 摄像头状态同步：安防模块且非「全部楼层」时才全亮（1），其余压暗到 0.55，
-  const syncCameraStatus = createSnapshotSyncer(
-    () => {
-      const isEnabled = !isViewEditing && !isRangeEditorOpen;
-      const brightness = activeModule === "security" && currentFloorId !== "all" ? 1 : 0.55;
       return {
-        config,
-        states: statesByEntityId,
-        root: stageOptions.modelRoot,
-        revision: stageOptions.sceneRevision,
-        enabled: isEnabled,
-        brightness
+        ...cameraSceneBinding,
+        width: cameraSceneModel?.width || 0.2,
+        height: cameraSceneModel?.height || 0.3,
+        depth: cameraSceneModel?.depth || 0.2,
       };
-    },
-    ({ root, revision, states, enabled, brightness }) => {
-      // 摄像头状态灯的挂载尺寸取自场景模型；模型缺失（刚删模型、跨楼层切换中）时
-      const cameraBindings = (config.security?.cameras || []).map((cameraBindingEntry: any) => {
-        const cameraSceneItem = (stageFloors() as any)
-          .find((cameraStatusFloor: any) => cameraStatusFloor.id === cameraBindingEntry.floorId)
-          ?.scene.items.find(
-            (cameraSceneItemMatch: any) =>
-              cameraSceneItemMatch.id === cameraBindingEntry.modelId &&
-              cameraSceneItemMatch.type === "camera"
-          );
-        return {
-          ...cameraBindingEntry,
-          width: cameraSceneItem?.width || 0.2,
-          height: cameraSceneItem?.height || 0.3,
-          depth: cameraSceneItem?.depth || 0.2
-        };
-      });
-      cameraStatus.sync({
-        root,
-        revision,
-        bindings: cameraBindings,
-        states,
-        enabled,
-        brightness
-      });
-    }
-  );
-  // NAS 状态同步：全部楼层时模型缩到 0.75；设备相关模块下全亮，其余压暗到 0.6。
-  const syncNasStatus = createSnapshotSyncer(
-    () => ({
-      config,
-      states: statesByEntityId,
-      root: stageOptions.modelRoot,
-      revision: stageOptions.sceneRevision,
-      enabled: !isViewEditing && !isRangeEditorOpen,
-      sizeScale: currentFloorId === "all" ? 0.75 : 1,
-      brightness:
-        currentFloorId !== "all" && ["devices", "nas", "television"].includes(activeModule)
+    });
+    cameraStatus.sync({
+      root: modelRoot2,
+      revision: sceneRevision2,
+      bindings: cameraSceneBindings,
+      states: deviceStates,
+      enabled: isCameraOverlayEnabled,
+      brightness: cameraBrightnessScale,
+    });
+  }
+  function syncNasOverlay() {
+    if (startupProgress === 0) return;
+    const isNasOverlayEnabled = !isAwaitingFloorViewAdjust && !isRangeEditorOpen,
+      modelRoot3 = mountOptions.modelRoot,
+      sceneRevision3 = mountOptions.sceneRevision,
+      nasSizeScale = selectedFloorId === "all" ? 0.75 : 1,
+      nasBrightnessScale =
+        selectedFloorId !== "all" &&
+        (["devices", "nas", "television", "speaker", "water-heater"].includes(activeModule) ||
+          isGenericDeviceKind2(activeModule))
           ? 1
-          : 0.6
-    }),
-    ({ root, revision, states, enabled, sizeScale, brightness }) => {
-      nasStatus.sync({
-        root,
-        revision,
-        bindings: collectNasBindings(),
-        states,
-        enabled,
-        sizeScale,
-        brightness
-      });
-    }
-  );
-  // 通用设备状态灯同步：快照口径与 syncNasStatus 对齐（全部楼层缩到 0.75，非当前楼层压暗到 0.6），
-  const syncGenericDeviceStatus = createSnapshotSyncer(
-    () => ({
-      config,
-      states: statesByEntityId,
-      root: stageOptions.modelRoot,
-      revision: stageOptions.sceneRevision,
-      enabled: !isViewEditing && !isRangeEditorOpen,
-      sizeScale: currentFloorId === "all" ? 0.75 : 1,
-      brightness:
-        currentFloorId !== "all" &&
-        (["devices", "nas", "television"].includes(activeModule) ||
-          isGenericDeviceKind(activeModule))
-          ? 1
-          : 0.6
-    }),
-    ({ root, revision, states, enabled, sizeScale, brightness }) => {
-      const genericDeviceBindingsByKind = new Map(
-        GENERIC_DEVICE_KINDS.map((deviceKind: any) => [deviceKind, [] as any[]])
-      );
-      for (const genericDeviceBinding of collectAllDeviceBindings()) {
-        // 只有 deviceKind 本身就是品类名（fridge / washer…）的才是通用设备；
-        if (isGenericDeviceKind(genericDeviceBinding.deviceKind)) {
-          genericDeviceBindingsByKind
-            .get(genericDeviceBinding.deviceKind)!
-            .push(genericDeviceBinding);
-        }
-      }
-      for (const [deviceKind, genericDeviceStatusLight] of genericDeviceStatusLights) {
-        genericDeviceStatusLight.sync({
-          root,
-          revision,
-          bindings: genericDeviceBindingsByKind.get(deviceKind),
-          states,
-          enabled,
-          sizeScale,
-          brightness
+          : 0.6;
+    if (!(
+      nasSyncSnapshot?.root === modelRoot3 &&
+      nasSyncSnapshot.revision === sceneRevision3 &&
+      nasSyncSnapshot.config === options &&
+      nasSyncSnapshot.states === deviceStates &&
+      nasSyncSnapshot.enabled === isNasOverlayEnabled &&
+      nasSyncSnapshot.sizeScale === nasSizeScale &&
+      nasSyncSnapshot.brightness === nasBrightnessScale
+    )) {
+      ((nasSyncSnapshot = {
+        root: modelRoot3,
+        revision: sceneRevision3,
+        config: options,
+        states: deviceStates,
+        enabled: isNasOverlayEnabled,
+        sizeScale: nasSizeScale,
+        brightness: nasBrightnessScale,
+      }),
+        nasStatus.sync({
+          root: modelRoot3,
+          revision: sceneRevision3,
+          bindings: collectNasBindings(),
+          states: deviceStates,
+          enabled: isNasOverlayEnabled,
+          sizeScale: nasSizeScale,
+          brightness: nasBrightnessScale,
+        }));
+      for (const waterHeaterStatus of Object.values(waterHeaterStatusByModelType))
+        waterHeaterStatus.sync({
+          root: modelRoot3,
+          revision: sceneRevision3,
+          bindings: options.environment?.waterHeaters || [],
+          states: deviceStates,
+          enabled: isNasOverlayEnabled,
+          sizeScale: nasSizeScale,
+          brightness: nasBrightnessScale,
         });
-      }
+      for (const statusGenericDeviceKind of GENERIC_DEVICE_KINDS2)
+        entries[statusGenericDeviceKind].sync({
+          root: modelRoot3,
+          revision: sceneRevision3,
+          bindings: collectGenericDeviceBindings(statusGenericDeviceKind),
+          states: deviceStates,
+          enabled: isNasOverlayEnabled,
+          sizeScale: nasSizeScale,
+          brightness: nasBrightnessScale,
+        });
     }
-  );
-  const televisionScreens = createTelevisionScreens({
-    THREE: THREE as any,
-    requestFrame: invalidatedModelIds => {
-      stageOptions.requestRender?.();
-      stageOptions.invalidateReflections?.(invalidatedModelIds);
-      wakeFrameLoop();
-    }
-  });
-  const syncTelevisionScreens = createSnapshotSyncer(
-    () => ({
-      config,
-      states: statesByEntityId,
-      root: stageOptions.modelRoot,
-      revision: stageOptions.sceneRevision,
-      focused:
-        activeModule !== "light" && !isViewEditing && !isRangeEditorOpen
-          ? isEditing
-            ? selectedId
-            : focusedId
-          : "",
-      module: activeModule
+  }
+  const televisionScreens = createTelevisionScreens2({
+      THREE: three,
+      requestFrame: (televisionModelRoot) => {
+        (mountOptions.requestRender?.(),
+          mountOptions.invalidateReflections?.(televisionModelRoot),
+          wakeBackgroundAnimation());
+      },
     }),
-    ({ root, revision, states }) => {
-      televisionScreens.sync({
-        root,
-        revision,
-        bindings: collectTelevisionBindings(),
-        states,
-        focusedModel: "",
-        dimStrength: 0
-      });
-    }
+    airerMotion = createAirerMotion2({
+      requestFrame: () => {
+        (mountOptions.requestRender?.(), wakeBackgroundAnimation());
+      },
+    }),
+    fanMotion = createFanMotion2({
+      requestFrame: () => {
+        (mountOptions.requestRender?.(), wakeBackgroundAnimation());
+      },
+    }),
+    carCharging = createCarCharging2({
+      requestFrame: () => {
+        (mountOptions.requestRender?.(), wakeBackgroundAnimation());
+      },
+    });
+  let hasStartupProgressListener = false;
+  const startupEffectsUnsubscribe = mountOptions.onStartupEffectsProgress?.(
+    (startupProgressValue) => {
+      const isStartupBeforeFirstFrame = startupProgress === 0;
+      ((startupProgress = startupProgressValue),
+        carCharging.setPresentationGain(startupProgressValue),
+        (markerLayerElement.style.opacity = vacuumWorkingLayerElement.style.opacity =
+          String(startupProgressValue)),
+        presentationLayerElement.classList.toggle(
+          "i3d-startup-effects-pending",
+          startupProgressValue === 0,
+        ),
+        hasStartupProgressListener &&
+          isStartupBeforeFirstFrame &&
+          startupProgressValue > 0 &&
+          ((lastIdleFrameMs = 0), syncLockMotion(), syncMarkers(), wakeSceneBackground()));
+    },
   );
-  const environmentScene = createEnvironmentScene({
-    THREE: THREE as any,
-    requestFrame: (invalidatedIds: any) => {
-      stageOptions.requestRender?.();
-      stageOptions.invalidateReflections?.(invalidatedIds);
-      wakeFrameLoop();
-    }
-  });
-  stageOptions.setTelevisionSync?.(syncTelevisionScreens);
-  stageOptions.setEnvironmentScene?.(environmentScene);
-  const environmentAirflow = createEnvironmentAirflow({
-    THREE: THREE as any,
+  hasStartupProgressListener = true;
+  const speakerRings = createSpeakerRings2({
     requestFrame: () => {
-      stageOptions.requestRender?.();
-      wakeFrameLoop();
-    }
+      (mountOptions.requestRender?.(), wakeBackgroundAnimation());
+    },
   });
-  stageOptions.setEnvironmentAirflow?.(environmentAirflow);
-  const viewHelpElement = makeElement(
+  let televisionSyncSnapshot, environmentSyncSnapshot;
+  function syncEnvironmentLayers() {
+    if (startupProgress === 0) return;
+    const modelRoot4 = mountOptions.modelRoot,
+      sceneRevision4 = mountOptions.sceneRevision,
+      environmentRevision = mountOptions.environmentRevision ?? sceneRevision4,
+      document3 = mountOptions.document;
+    (!environmentSyncSnapshot ||
+      environmentSyncSnapshot.root !== modelRoot4 ||
+      environmentSyncSnapshot.revision !== sceneRevision4 ||
+      environmentSyncSnapshot.environmentRevision !== environmentRevision ||
+      environmentSyncSnapshot.source !== document3 ||
+      environmentSyncSnapshot.config !== options ||
+      environmentSyncSnapshot.states !== deviceStates) &&
+      (speakerRings.sync({
+        root: modelRoot4,
+        revision: sceneRevision4,
+        bindings: collectSpeakerBindings(),
+        states: deviceStates,
+      }),
+      carCharging.sync({
+        root: modelRoot4,
+        revision: environmentRevision,
+        retainedRoots: mountOptions.retainedModelRoots || [],
+        bindings: options.devices?.cars || [],
+        states: deviceStates,
+      }),
+      airerMotion.sync({
+        root: modelRoot4,
+        revision: environmentRevision,
+        bindings: collectCoverBindings().filter((airerSyncBinding) => airerSyncBinding.airer),
+        states: deviceStates,
+      }),
+      fanMotion.sync({
+        root: modelRoot4,
+        revision: environmentRevision,
+        bindings: options.environment?.fans || [],
+        states: deviceStates,
+      }),
+      (environmentSyncSnapshot = {
+        root: modelRoot4,
+        revision: sceneRevision4,
+        environmentRevision: environmentRevision,
+        source: document3,
+        config: options,
+        states: deviceStates,
+      }));
+    const focusedModelKey =
+      activeModule !== "light" && !isAwaitingFloorViewAdjust && !isRangeEditorOpen
+        ? isEditing
+          ? text
+          : focusedItemId
+        : "";
+    (televisionSyncSnapshot?.root === modelRoot4 &&
+      televisionSyncSnapshot.revision === sceneRevision4 &&
+      televisionSyncSnapshot.config === options &&
+      televisionSyncSnapshot.states === deviceStates &&
+      televisionSyncSnapshot.focused === focusedModelKey &&
+      televisionSyncSnapshot.module === activeModule) ||
+      ((televisionSyncSnapshot = {
+        root: modelRoot4,
+        revision: sceneRevision4,
+        config: options,
+        states: deviceStates,
+        focused: focusedModelKey,
+        module: activeModule,
+      }),
+      televisionScreens.sync({
+        root: modelRoot4,
+        revision: sceneRevision4,
+        bindings: collectTelevisionBindings(),
+        states: deviceStates,
+        focusedModel: "",
+        dimStrength: 0,
+      }));
+  }
+  const environmentScene = createEnvironmentScene2({
+    THREE: three,
+    prepareMaterials: () => mountOptions.prepareEnvironmentMaterials?.(),
+    requestFrame: (environmentModelRoot) => {
+      (mountOptions.requestRender?.(),
+        mountOptions.invalidateReflections?.(environmentModelRoot),
+        wakeBackgroundAnimation());
+    },
+  });
+  (mountOptions.setTelevisionSync?.(syncEnvironmentLayers),
+    mountOptions.setEnvironmentScene?.(environmentScene));
+  const environmentAirflow = createEnvironmentAirflow2({
+    THREE: three,
+    camera: mountOptions.camera,
+    requestFrame: () => {
+      (mountOptions.requestRender?.(), wakeBackgroundAnimation());
+    },
+  });
+  mountOptions.setEnvironmentAirflow?.(environmentAirflow);
+  const viewHelpElement = createStageElement(
     "p",
     "i3d-view-help",
-    "拖动旋转 · 右键平移 · 滚轮缩放。调整完成后固定视角。"
+    "拖动旋转 · 右键平移 · 滚轮缩放。调整完成后固定视角。",
   );
-  viewHelpElement.hidden = true;
-  navigationElement.append(moduleTabsElement);
-  presentationElement.append(
-    markersElement,
-    vacuumWorkingLayerElement,
-    navigationElement,
-    floorTabsElement,
-    moduleEmptyElement,
-    editorSelectionElement,
-    lightPanelElement,
-    viewHelpElement
-  );
-  navigationElement.append(toolbarElement);
-  containerElement.append(focusVignetteElement, presentationElement);
-  const screenOutlines = createScreenOutlines({
-    THREE: THREE as any,
-    container: containerElement,
-    getCamera: () => stageOptions.camera,
-    getObjectCamera: (cameraRequest: any) =>
-      stageOptions.presentationCamera?.(cameraRequest) || stageOptions.camera
-  });
-
-
-
-
-
-
-
-
-  const followButton = makeElement("button", "", "跟随漫游");
-  followButton.type = "button";
-  followButton.hidden = true;
-  followButton.title = "以鸟瞰视角跟随扫地机";
-  toolbarElement.append(followButton);
-
-
-  followButton.addEventListener("click", () => {
-    if (followedVacuumId) {
+  ((viewHelpElement.hidden = true),
+    navigationLayerElement.append(moduleTabsElement),
+    presentationLayerElement.append(
+      markerLayerElement,
+      vacuumWorkingLayerElement,
+      navigationLayerElement,
+      floorTabsElement,
+      moduleEmptyElement,
+      lightPanelSection,
+      viewHelpElement,
+    ),
+    navigationLayerElement.append(toolbarElement),
+    element.append(focusVignetteElement, presentationLayerElement));
+  const screenOutlines = createScreenOutlines2({
+      THREE: three,
+      container: presentationLayerElement,
+      getCamera: () => mountOptions.camera,
+      getObjectCamera: (screenOutlineObject) =>
+        mountOptions.presentationCamera?.(screenOutlineObject) || mountOptions.camera,
+    }),
+    editorSelectionOutlines = createScreenOutlines2({
+      THREE: three,
+      container: presentationLayerElement,
+      getCamera: () => mountOptions.camera,
+      getObjectCamera: (editorOutlineObject) =>
+        mountOptions.presentationCamera?.(editorOutlineObject) || mountOptions.camera,
+      color: "#ffbb45",
+      pulse: false,
+      editorSelection: true,
+    }),
+    editorSelectionElement = createStageElement("div", "i3d-editor-selection");
+  (editorSelectionElement.setAttribute("role", "status"),
+    (editorSelectionElement.hidden = true),
+    presentationLayerElement.append(editorSelectionElement));
+  function updateEditorSelection() {
+    const editorSelectionEntry = isEditing
+      ? currentModuleBindings().find(
+          (editorTargetEntry) =>
+            editorTargetEntry.id === text || editorTargetEntry.entryId === text,
+        )
+      : null;
+    editorSelectionElement.hidden = !isEditing;
+    const deviceKindLabels = {
+        light: "灯光",
+        climate: "空调/浴霸",
+        fan: "电风扇",
+        purifier: "空气净化器",
+        "water-heater": "热水器",
+        airer: "晾衣架",
+        cover: "窗帘",
+        nas: "NAS",
+        speaker: "智能音响",
+        television: "电视",
+        vacuum: "扫地机",
+        "vacuum-shortcut": "快捷按钮",
+        "temperature-humidity": "环境标签",
+        lock: "门",
+        camera: "摄像头",
+        presence: "人体传感器",
+      },
+      editorSelectionKind = activeModule === "security" ? selectedSecurityKind : activeModule,
+      editorSelectionFloor = mountOptions.document.floors.find(
+        (editorSelectionFloorModel) =>
+          editorSelectionFloorModel.id === editorSelectionEntry?.floorId,
+      ),
+      editorSelectionModels = editorSelectionEntry
+        ? activeModule === "light"
+          ? (editorSelectionFloor?.scene?.items || [])
+              .filter(
+                (editorLightItem) => editorLightItem.lightGroupId === editorSelectionEntry.groupId,
+              )
+              .map((editorModelItem) => ({
+                floorId: editorSelectionFloor.id,
+                modelId: editorModelItem.id,
+              }))
+          : expandGroupMembers([editorSelectionEntry]).filter(
+              (editorModelCandidate) => editorModelCandidate.modelId,
+            )
+        : [];
+    ((editorSelectionElement.textContent = editorSelectionEntry
+      ? "正在配置：" +
+        (deviceKindLabels[editorSelectionKind] ||
+          genericDeviceProfile2(editorSelectionKind)?.label ||
+          "设备") +
+        " · " +
+        (editorSelectionEntry.label ||
+          editorSelectionEntry.deviceName ||
+          editorSelectionEntry.entityId ||
+          "未命名") +
+        (editorSelectionFloor?.name ? " · " + editorSelectionFloor.name : "") +
+        (editorSelectionModels.length > 1 ? " · " + editorSelectionModels.length + " 个模型" : "")
+      : "请选择要配置的对象"),
+      editorSelectionOutlines.sync(
+        mountOptions.modelRoot,
+        mountOptions.environmentRevision ?? mountOptions.sceneRevision,
+        editorSelectionModels,
+        !!(
+          isEditing &&
+          editorSelectionEntry &&
+          editorSelectionEntry.deviceKind !== "smallcar" &&
+          !mountOptions.floorTransitionActive
+        ),
+      ),
+      editorSelectionOutlines.update());
+  }
+  function collectClimateBindings() {
+    return [
+      ...(options.environment?.airConditioners || []),
+      ...(options.environment?.fans || []),
+      ...(options.environment?.airPurifiers || []),
+      ...(options.environment?.waterHeaters || []),
+    ].map((climateSourceEntry) => {
+      const climateModel = mountOptions.document.floors
+        .find((climateFloor) => climateFloor.id === climateSourceEntry.floorId)
+        ?.scene.items.find(
+          (climateSceneItem) =>
+            climateSceneItem.id === climateSourceEntry.modelId &&
+            (options.environment?.waterHeaters?.includes(climateSourceEntry)
+              ? ["storagewaterheater", "gaswaterheater"]
+              : options.environment?.fans?.includes(climateSourceEntry)
+                ? ["fan"]
+                : options.environment?.airPurifiers?.includes(climateSourceEntry)
+                  ? ["airpurifier"]
+                  : ["wallac", "floorac", "airoutlet"]
+            ).includes(climateSceneItem.type),
+        );
+      return {
+        ...climateSourceEntry,
+        pedestalFan: (options.environment?.fans || []).includes(climateSourceEntry),
+        waterHeater: (options.environment?.waterHeaters || []).includes(climateSourceEntry),
+        airPurifier: (options.environment?.airPurifiers || []).includes(climateSourceEntry),
+        deviceKind: "climate",
+        x: Number.isFinite(climateSourceEntry.x) ? climateSourceEntry.x : (climateModel?.x ?? 0),
+        y: Number.isFinite(climateSourceEntry.y) ? climateSourceEntry.y : (climateModel?.y ?? 0),
+        height: Number.isFinite(climateSourceEntry.height)
+          ? climateSourceEntry.height
+          : climateModel
+            ? (Number(climateModel.elevation) || 0) + (Number(climateModel.height) || 0.28) / 2
+            : 0,
+        modelAvailable: !!climateModel,
+        icon:
+          climateSourceEntry.icon ||
+          (options.environment?.waterHeaters?.includes(climateSourceEntry)
+            ? "mdi:water-boiler"
+            : options.environment?.fans?.includes(climateSourceEntry)
+              ? "mdi:fan"
+              : options.environment?.airPurifiers?.includes(climateSourceEntry)
+                ? "mdi:air-purifier"
+                : "mdi:air-conditioner"),
+      };
+    });
+  }
+  function coverGeometryOverrides(coverModelSource, coverOverrides = {}) {
+    return {
+      curtainWidth: Number(coverModelSource?.width) || 1.8,
+      curtainPosition: coverModelSource?.curtainPosition || "split",
+      curtainTrack: coverModelSource?.curtainTrack || "straight",
+      curtainCorner: coverModelSource?.curtainCorner,
+      curtainLeftLength: coverModelSource?.curtainLeftLength,
+      curtainRightLength: coverModelSource?.curtainRightLength,
+      curtainMeet: coverModelSource?.curtainMeet,
+      curtainFabric:
+        coverOverrides.curtainFabricOverride === true
+          ? coverOverrides.curtainFabric === "sheer"
+            ? "sheer"
+            : "cloth"
+          : coverModelSource?.curtainFabric || coverOverrides.curtainFabric || "cloth",
+      coverKind:
+        coverOverrides.coverKindOverride === true
+          ? ["dream", "roller"].includes(coverOverrides.coverKind)
+            ? coverOverrides.coverKind
+            : "standard"
+          : coverModelSource?.curtainForm === "roller"
+            ? "roller"
+            : ["dream", "roller"].includes(coverOverrides.coverKind)
+              ? coverOverrides.coverKind
+              : "standard",
+      unboundPosition: Number.isFinite(coverOverrides.unboundPosition)
+        ? coverOverrides.unboundPosition
+        : Number(coverModelSource?.curtainPreview) || 0,
+    };
+  }
+  function collectCoverBindings() {
+    return [...(options.environment?.curtains || []), ...(options.environment?.airers || [])].map(
+      (coverSourceEntry) => {
+        const isAirer = (options.environment?.airers || []).includes(coverSourceEntry),
+          coverModel = mountOptions.document.floors
+            .find((coverFloor) => coverFloor.id === coverSourceEntry.floorId)
+            ?.scene.items.find(
+              (coverSceneItem) =>
+                coverSceneItem.id === coverSourceEntry.modelId &&
+                coverSceneItem.type === (isAirer ? "airer" : "curtain"),
+            );
+        return {
+          ...coverSourceEntry,
+          airer: isAirer,
+          deviceKind: "cover",
+          x: Number.isFinite(coverSourceEntry.x) ? coverSourceEntry.x : (coverModel?.x ?? 0),
+          y: Number.isFinite(coverSourceEntry.y) ? coverSourceEntry.y : (coverModel?.y ?? 0),
+          height: Number.isFinite(coverSourceEntry.height)
+            ? coverSourceEntry.height
+            : coverModel
+              ? (Number(coverModel.elevation) || 0) + (Number(coverModel.height) || 2.4) / 2
+              : 0,
+          ...coverGeometryOverrides(coverModel, coverSourceEntry),
+          ...(isAirer
+            ? {
+                coverKind: "airer",
+                unboundPosition: coverModel?.airerPreview ?? 55,
+                height:
+                  coverSourceEntry.height ??
+                  (Number(coverModel?.elevation) || 2.7) -
+                    (Number(coverModel?.airerExtension) || 1.2) / 2,
+              }
+            : {}),
+          modelAvailable: !!coverModel,
+          icon: coverSourceEntry.icon || (isAirer ? "mdi:hanger" : "mdi:curtains"),
+        };
+      },
+    );
+  }
+  function buildCurtainGroups() {
+    const sourceCoverBindings = collectCoverBindings();
+    return validCurtainGroups2(options.environment)
+      .map((curtainGroupSource) => {
+        const filter = (curtainGroupSource.memberIds || [])
+            .map((curtainGroupMemberId) =>
+              sourceCoverBindings.find(
+                (curtainGroupMember) => curtainGroupMember.id === curtainGroupMemberId,
+              ),
+            )
+            .filter(Boolean),
+          representativeMember =
+            filter.find((groupMember) => groupMember.modelAvailable) || filter[0];
+        return representativeMember
+          ? {
+              ...curtainGroupSource,
+              id: curtainGroupEntryId2(curtainGroupSource),
+              deviceKind: "cover",
+              entityId: "",
+              modelId: representativeMember.modelId,
+              memberItems: filter,
+              groupId: curtainGroupSource.id,
+              x: Number.isFinite(curtainGroupSource.x)
+                ? curtainGroupSource.x
+                : representativeMember.x,
+              y: Number.isFinite(curtainGroupSource.y)
+                ? curtainGroupSource.y
+                : representativeMember.y,
+              height: Number.isFinite(curtainGroupSource.height)
+                ? curtainGroupSource.height
+                : representativeMember.height,
+              modelAvailable: true,
+              isCurtainGroup: true,
+              icon: "",
+              clickAction: curtainGroupSource.clickAction || "focus",
+            }
+          : null;
+      })
+      .filter(Boolean);
+  }
+  function collectGroupedCovers() {
+    const groupMemberIdSet = new Set(
+      validCurtainGroups2(options.environment).flatMap(
+        (groupMemberIdList) => groupMemberIdList.memberIds,
+      ),
+    );
+    return [
+      ...buildCurtainGroups(),
+      ...collectCoverBindings().filter(
+        (groupedCoverEntry) => !groupMemberIdSet.has(groupedCoverEntry.id),
+      ),
+    ];
+  }
+  function expandGroupMembers(groupEntryList) {
+    return groupEntryList.flatMap((groupEntry) =>
+      groupEntry.isCurtainGroup
+        ? groupEntry.memberItems.map((groupMemberEntry) => ({
+            ...groupMemberEntry,
+            id: groupEntry.id + ":member:" + groupMemberEntry.id,
+            entryId: groupEntry.id,
+            visible: groupEntry.visible,
+            buttonHidden: groupEntry.buttonHidden,
+            hiddenClickable: groupEntry.hiddenClickable,
+          }))
+        : [groupEntry],
+    );
+  }
+  function computeGroupBounds(boundsGroup) {
+    const memberPoseList = boundsGroup.memberItems
+      .filter((poseMember) => poseMember.modelAvailable)
+      .map((poseMemberModel) =>
+        mountOptions.environmentModelPose?.(poseMemberModel.floorId, poseMemberModel.modelId),
+      )
+      .filter(Boolean);
+    if (!memberPoseList.length) return null;
+    const boundingBox = new three.Box3();
+    for (const memberPose of memberPoseList) {
+      const array = new three.Vector3().fromArray(memberPose.center),
+        array2 = new three.Vector3().fromArray(memberPose.size || [1, 1, 1]);
+      boundingBox.union(new three.Box3().setFromCenterAndSize(array, array2));
+    }
+    return {
+      center: boundingBox.getCenter(new three.Vector3()).toArray(),
+      size: boundingBox.getSize(new three.Vector3()).toArray(),
+      forward: memberPoseList[0].forward,
+    };
+  }
+  function collectGenericDeviceBindings(collectDeviceKind) {
+    const deviceProfile = genericDeviceProfile2(collectDeviceKind);
+    return deviceProfile
+      ? (options.devices?.[deviceProfile.collection] || []).map((profileDeviceEntry) => {
+          const deviceModel = mountOptions.document.floors
+            .find((profileDeviceFloor) => profileDeviceFloor.id === profileDeviceEntry.floorId)
+            ?.scene.items.find(
+              (profileDeviceSceneItem) =>
+                profileDeviceSceneItem.id === profileDeviceEntry.modelId &&
+                (deviceProfile.modelTypes || [deviceProfile.modelType]).includes(
+                  profileDeviceSceneItem.type,
+                ),
+            );
+          return {
+            ...profileDeviceEntry,
+            clickAction: profileDeviceEntry.clickAction || "focus-panel",
+            deviceKind: collectDeviceKind,
+            deviceLabel: deviceProfile.label,
+            x:
+              collectDeviceKind === "smallcar"
+                ? (deviceModel?.x ?? 0) + (profileDeviceEntry.x ?? 0)
+                : Number.isFinite(profileDeviceEntry.x)
+                  ? profileDeviceEntry.x
+                  : (deviceModel?.x ?? 0),
+            y:
+              collectDeviceKind === "smallcar"
+                ? (deviceModel?.y ?? 0) + (profileDeviceEntry.y ?? 0)
+                : Number.isFinite(profileDeviceEntry.y)
+                  ? profileDeviceEntry.y
+                  : (deviceModel?.y ?? 0),
+            height: Number.isFinite(profileDeviceEntry.height)
+              ? profileDeviceEntry.height
+              : (Number(deviceModel?.elevation) || 0) +
+                (Number(deviceModel?.height) || deviceProfile.height) *
+                  (collectDeviceKind === "smallcar" ? 1 : 0.5) +
+                (collectDeviceKind === "smallcar" ? 0.25 : 0),
+            modelAvailable: !!deviceModel,
+            icon: profileDeviceEntry.icon || deviceProfile.icon,
+          };
+        })
+      : [];
+  }
+  function collectNasBindings() {
+    return (options.devices?.nas || []).map((nasSourceEntry) => {
+      const nasModel = mountOptions.document.floors
+        .find((nasFloor) => nasFloor.id === nasSourceEntry.floorId)
+        ?.scene.items.find(
+          (nasSceneItem) =>
+            nasSceneItem.id === nasSourceEntry.modelId && nasSceneItem.type === "nas",
+        );
+      return {
+        ...nasSourceEntry,
+        clickAction: nasSourceEntry.clickAction || "focus",
+        deviceKind: "nas",
+        x: Number.isFinite(nasSourceEntry.x) ? nasSourceEntry.x : (nasModel?.x ?? 0),
+        y: Number.isFinite(nasSourceEntry.y) ? nasSourceEntry.y : (nasModel?.y ?? 0),
+        height: Number.isFinite(nasSourceEntry.height)
+          ? nasSourceEntry.height
+          : (Number(nasModel?.elevation) || 0) + (Number(nasModel?.height) || 0.34) / 2,
+        modelAvailable: !!nasModel,
+        icon: nasSourceEntry.icon || "mdi:nas",
+      };
+    });
+  }
+  const followToggleButton = createStageElement("button", "", "跟随漫游");
+  ((followToggleButton.type = "button"),
+    (followToggleButton.hidden = true),
+    (followToggleButton.title = "以鸟瞰视角跟随扫地机"),
+    toolbarElement.append(followToggleButton));
+  function stopVacuumFollow(shouldRestoreCamera = true) {
+    if (!followVacuumId) return;
+    const returnCameraSnapshot = followReturnCamera;
+    ((followVacuumId = ""),
+      (followReturnCamera = null),
+      (followCameraPose = null),
+      vacuumFollowCamera.reset(),
+      postHostMessage({
+        type: "vacuum-follow-state",
+        active: false,
+      }),
+      (followToggleButton.textContent = "跟随漫游"),
+      followToggleButton.setAttribute("aria-pressed", "false"),
+      mountOptions.endCameraMotion(),
+      shouldRestoreCamera &&
+        returnCameraSnapshot &&
+        startCameraMotion(
+          returnCameraSnapshot,
+          false,
+          false,
+          () => mountOptions.restoreCamera(returnCameraSnapshot),
+          "follow-return",
+        ),
+      syncFocusHidden(),
+      syncCameraInteraction(),
+      syncAvailability());
+  }
+  followToggleButton.addEventListener("click", () => {
+    if (followVacuumId) {
       stopVacuumFollow();
       return;
     }
-    if (stageOptions.floorTransitionActive || cameraTransition?.owner === "floor") {
-      return;
-    }
-    // 可跟随的只有「在当前楼层」且「已被跟踪（有动画轨迹）」的扫地机；
-    const trackedVacuums = (config.devices?.vacuums || []).filter(
-      (trackableVacuumEntry: any) =>
-        isOnActiveFloor(trackableVacuumEntry) && vacuumMotion.hasTracking(trackableVacuumEntry.id)
-    );
-    const followTargetVacuum =
-      trackedVacuums.find((vacuumCandidate: any) => "vacuum:" + vacuumCandidate.id === focusedId) ||
-      trackedVacuums.find(
-        (activeVacuumCandidate: any) =>
-          vacuumStatusPresentation(activeVacuumCandidate, statesByEntityId).active
-      ) ||
-      trackedVacuums[0];
-    if (!followTargetVacuum) {
-      return;
-    }
-    const followStartCameraState = structuredClone(stageOptions.cameraState(true));
-    postToHost({
+    if (mountOptions.floorTransitionActive || cameraMotionSnapshot?.owner === "floor") return;
+    const followableVacuums = (options.devices?.vacuums || []).filter(
+        (followableVacuum) =>
+          matchesSelectedFloor(followableVacuum) && vacuumMotion.hasTracking(followableVacuum.id),
+      ),
+      followVacuum =
+        followableVacuums.find(
+          (followCandidateVacuum) => "vacuum:" + followCandidateVacuum.id === focusedItemId,
+        ) ||
+        followableVacuums.find(
+          (activeFollowVacuum) =>
+            vacuumStatusPresentation2(activeFollowVacuum, deviceStates).active,
+        ) ||
+        followableVacuums[0];
+    if (!followVacuum) return;
+    const structuredClone2 = structuredClone(mountOptions.cameraState(true));
+    (postHostMessage({
       type: "vacuum-follow-state",
-      active: true
-    });
-    postToHost({
-      type: "vacuum-popup-close"
-    });
-    exitFocus({
-      immediate: true
-    });
-    cameraTransition = null;
-    stageOptions.endCameraMotion();
-    preFollowCameraState = followStartCameraState;
-    followedVacuumId = followTargetVacuum.id;
-    followCameraPose = structuredClone(
-      followTargetVacuum.followCamera ||
-        vacuumBirdCamera(
-          config.camera || followStartCameraState,
-          stageOptions.environmentModelPose(followTargetVacuum.floorId, followTargetVacuum.modelId)
-            ?.center || followStartCameraState.target
-        )
-    );
-    stageOptions.setFocusViewport(0);
-    stageOptions.beginCameraMotion(followCameraPose.mode);
-    followButton.textContent = "退出跟随";
-    followButton.setAttribute("aria-pressed", "true");
-    syncCameraInteraction();
-    updateIdleControllers();
-    wakeFrameLoop();
+      active: true,
+    }),
+      postHostMessage({
+        type: "vacuum-popup-close",
+      }),
+      exitFocusMode({
+        immediate: true,
+      }),
+      (cameraMotionSnapshot = null),
+      mountOptions.endCameraMotion(),
+      (followReturnCamera = structuredClone2),
+      (followVacuumId = followVacuum.id),
+      (followCameraPose = structuredClone(
+        followVacuum.followCamera ||
+          vacuumBirdCamera2(
+            options.camera || structuredClone2,
+            mountOptions.environmentModelPose(followVacuum.floorId, followVacuum.modelId)?.center ||
+              structuredClone2.target,
+          ),
+      )),
+      mountOptions.setFocusViewport(0),
+      mountOptions.beginCameraMotion(followCameraPose.mode),
+      (followToggleButton.textContent = "退出跟随"),
+      followToggleButton.setAttribute("aria-pressed", "true"),
+      syncFocusHidden(),
+      syncCameraInteraction(),
+      syncAvailability(),
+      wakeSceneBackground());
   });
-  const vacuumFollowCamera = createVacuumFollowCamera(THREE as any);
-
-
-
-
-  const vacuumMaps = createVacuumMaps(stageOptions, () => {
-    stageOptions.requestRender?.();
-    wakeFrameLoop();
-  });
-  const vacuumMotion = createVacuumMotion(stageOptions, wakeFrameLoop);
-  const presenceScene = createPresenceScene(stageOptions, wakeFrameLoop, () => performance.now());
-  const presenceWaves = createPresenceWaves(stageOptions);
-  let isPresencePreviewWalk = false;
-  let isPresenceHitRangeVisible = false;
-  const presenceHitLayerElement = makeElement("div", "i3d-presence-hit-layer");
-  presenceHitLayerElement.setAttribute("aria-hidden", "true");
-  containerElement.append(presenceHitLayerElement);
-  const presenceHitBoxesById = new Map<string, any>();
-
-
-  // 人体存在场景的开关条件：已呈现、非编辑器画布，且（非编辑态或正处于安防模块）。
-  const syncPresenceScene = createSnapshotSyncer(
-    () => {
-      const isEnabled =
-        isPresented &&
-        !isEditorCanvas &&
+  const vacuumFollowCamera = createVacuumFollowCamera2(three);
+  function revealFollowCamera(followVacuumKey) {
+    if (!followVacuumId) return;
+    const worldPosition = vacuumMotion.worldPosition(followVacuumId),
+      followVacuumBinding = (options.devices?.vacuums || []).find(
+        (followVacuumMatch) => followVacuumMatch.id === followVacuumId,
+      );
+    if (!worldPosition || !followVacuumBinding) {
+      stopVacuumFollow();
+      return;
+    }
+    const vacuumCenter = mountOptions.environmentModelPose(
+        followVacuumBinding.floorId,
+        followVacuumBinding.modelId,
+      )?.center,
+      add = (vacuumCenter ? new three.Vector3(...vacuumCenter) : worldPosition.clone()).add(
+        new three.Vector3(0, 0.05, 0),
+      ),
+      followPose = vacuumFollowPose2(followCameraPose, add.toArray()),
+      followTargetVector = new three.Vector3(...followPose.position);
+    (vacuumFollowCamera.reveal(mountOptions, followVacuumBinding, add, followTargetVector),
+      mountOptions.setFocusViewport(0),
+      mountOptions.applyCameraPose(followPose));
+  }
+  const isPanelDeviceKind = (panelDeviceEntry) =>
+      ["lock", "nas", "television", "speaker", "vacuum", "presence", "camera"].includes(
+        panelDeviceEntry?.deviceKind,
+      ) || isGenericDeviceKind2(panelDeviceEntry?.deviceKind),
+    vacuumMaps = createVacuumMaps2(mountOptions, () => {
+      (mountOptions.requestRender?.(), wakeBackgroundAnimation());
+    }),
+    vacuumMotion = createVacuumMotion2(mountOptions, wakeSceneBackground),
+    presenceScene = createPresenceScene2(mountOptions, wakeSceneBackground),
+    presenceWaves = createPresenceWaves2(mountOptions, wakeBackgroundAnimation);
+  let presenceSyncSignature = null,
+    isPresencePressed = false,
+    isPresenceEditing = false;
+  const presenceHitLayerElement = createStageElement("div", "i3d-presence-hit-layer");
+  (presenceHitLayerElement.setAttribute("aria-hidden", "true"),
+    presentationLayerElement.append(presenceHitLayerElement));
+  const presenceHitBoxesByRectId = new Map();
+  function layoutPresenceHitBoxes() {
+    if ((!isEditing || !isPresenceEditing) && !presenceHitBoxesByRectId.size) return;
+    const hitRects =
+        isEditing && isPresenceEditing
+          ? presenceScene.hitRects(
+              mountOptions.camera,
+              canvasElement,
+              selectedSecurityKind === "presence" ? options.security?.presenceSensors || [] : [],
+              mediaViewportSize,
+            )
+          : [],
+      activeHitRectIdSet = new Set(hitRects.map((hitRectEntry) => hitRectEntry.id)),
+      boundingClientRect = element.getBoundingClientRect(),
+      presenceHitScaleX = mediaViewportSize
+        ? boundingClientRect.width / mediaViewportSize.width
+        : 1,
+      presenceHitScaleY = mediaViewportSize
+        ? boundingClientRect.height / mediaViewportSize.height
+        : 1;
+    if (presenceHitScaleX > 0 && presenceHitScaleY > 0) {
+      for (const [staleHitRectId, staleHitBoxElement] of presenceHitBoxesByRectId)
+        activeHitRectIdSet.has(staleHitRectId) ||
+          (staleHitBoxElement.remove(), presenceHitBoxesByRectId.delete(staleHitRectId));
+      for (const layoutHitRect of hitRects) {
+        let hitBoxElement = presenceHitBoxesByRectId.get(layoutHitRect.id);
+        (hitBoxElement ||
+          ((hitBoxElement = createStageElement("div", "i3d-presence-hit-box")),
+          presenceHitBoxesByRectId.set(layoutHitRect.id, hitBoxElement),
+          presenceHitLayerElement.append(hitBoxElement)),
+          Object.assign(hitBoxElement.style, {
+            left:
+              (layoutHitRect.left - boundingClientRect.left) / presenceHitScaleX -
+              layoutHitRect.padding +
+              "px",
+            top:
+              (layoutHitRect.top - boundingClientRect.top) / presenceHitScaleY -
+              layoutHitRect.padding +
+              "px",
+            width: layoutHitRect.width / presenceHitScaleX + layoutHitRect.padding * 2 + "px",
+            height: layoutHitRect.height / presenceHitScaleY + layoutHitRect.padding * 2 + "px",
+            borderRadius: layoutHitRect.padding + "px",
+          }));
+      }
+    }
+  }
+  function syncPresenceScene() {
+    if (startupProgress === 0) return;
+    const isPresenceVisualsEnabled =
+        isStagePresented &&
+        (!isNavigationVisible || (isEditing && activeModule === "security")) &&
         (!isEditing || activeModule === "security") &&
-        !isViewEditing &&
+        !isAwaitingFloorViewAdjust &&
         !isRangeEditorOpen &&
         isPresentedVisible &&
         !document.hidden &&
-        !stageOptions.floorTransitionActive &&
-        cameraTransition?.owner !== "floor";
-      return {
-        config,
-        states: statesByEntityId,
-        revision: stageOptions.sceneRevision,
-        floorId: currentFloorId,
-        enabled: isEnabled,
-        preview: isPresencePreviewWalk,
-        module: activeModule
-      };
-    },
-    ({ config: presenceConfig, states, enabled }) => {
+        !mountOptions.floorTransitionActive &&
+        cameraMotionSnapshot?.owner !== "floor",
+      presenceBindingList =
+        isEditing && activeModule !== "security" && selectedSecurityKind !== "presence"
+          ? []
+          : options.security?.presenceSensors || [],
+      presenceSyncSignatureParts = [
+        options,
+        deviceStates,
+        mountOptions.sceneRevision,
+        selectedFloorId,
+        isPresenceVisualsEnabled,
+        isPresencePressed,
+        activeModule,
+        selectedSecurityKind,
+      ];
+    (presenceSyncSignature &&
+      presenceSyncSignatureParts.every(
+        (presenceSignatureValue, presenceSignatureIndex) =>
+          presenceSignatureValue === presenceSyncSignature[presenceSignatureIndex],
+      )) ||
+      ((presenceSyncSignature = presenceSyncSignatureParts),
       presenceScene.sync(
-        presenceConfig.security?.presenceSensors || [],
-        states,
-        enabled,
-        currentFloorId,
+        presenceBindingList,
+        deviceStates,
+        isPresenceVisualsEnabled,
+        selectedFloorId,
         isEditing,
-        isPresencePreviewWalk,
-        activeModule
-      );
-    }
-  );
-  // 单台扫地机地图的开关条件：已呈现且不在编辑 / 视图调整中、页面可见。
-  const syncVacuumMap = createSnapshotSyncer(
-    () => ({
-      config,
-      states: statesByEntityId,
-      revision: stageOptions.sceneRevision,
-      enabled:
-        isPresented && !isEditing && !isViewEditing && isPresentedVisible && !document.hidden
-    }),
-    ({ states, enabled }) => {
-      vacuumMotion.sync(
-        vacuumBindingsForMap(config.devices?.vacuums || [], states),
-        states,
-        enabled
-      );
-    }
-  );
-  // 房间清扫请求的超时表：请求期间对应按钮保持禁用，
-  const vacuumRoomTimersById = new Map<string, any>();
-  // 扫地机地图整体只在其专属模块、且非视图编辑 / 范围编辑时开启。
-  const syncVacuumMaps = createSnapshotSyncer(
-    () => {
-      const isEnabled =
-        activeModule === "vacuum" &&
-        !isViewEditing &&
-        !isRangeEditorOpen &&
-        !stageOptions.floorTransitionActive &&
-        cameraTransition?.owner !== "floor" &&
+        isPresencePressed,
+        activeModule,
+      ));
+  }
+  let vacuumSyncSignature = null;
+  function syncVacuumMotion() {
+    if (startupProgress === 0) return;
+    const isVacuumSyncEnabled =
+        isStagePresented &&
+        !isEditing &&
+        !isAwaitingFloorViewAdjust &&
         isPresentedVisible &&
-        !document.hidden;
-      return {
-        config,
-        states: statesByEntityId,
-        revision: stageOptions.sceneRevision,
-        floorId: currentFloorId,
-        enabled: isEnabled
-      };
-    },
-    ({ states, enabled }) => {
+        !document.hidden,
+      vacuumSyncSignatureParts = [
+        options,
+        deviceStates,
+        mountOptions.sceneRevision,
+        isVacuumSyncEnabled,
+      ];
+    (vacuumSyncSignature &&
+      vacuumSyncSignatureParts.every(
+        (vacuumSignatureValue, vacuumSignatureIndex) =>
+          vacuumSignatureValue === vacuumSyncSignature[vacuumSignatureIndex],
+      )) ||
+      ((vacuumSyncSignature = vacuumSyncSignatureParts),
+      vacuumMotion.sync(
+        vacuumBindingsForMap2(options.devices?.vacuums || [], deviceStates),
+        deviceStates,
+        isVacuumSyncEnabled,
+      ));
+  }
+  const vacuumOverlayByKey = new Map();
+  let vacuumMapSignature = null;
+  function syncVacuumMap() {
+    const isVacuumMapVisible =
+        activeModule === "vacuum" &&
+        !isAwaitingFloorViewAdjust &&
+        !isRangeEditorOpen &&
+        !mountOptions.floorTransitionActive &&
+        cameraMotionSnapshot?.owner !== "floor" &&
+        isPresentedVisible &&
+        !document.hidden,
+      vacuumMapSignatureParts = [
+        options,
+        deviceStates,
+        mountOptions.sceneRevision,
+        selectedFloorId,
+        isVacuumMapVisible,
+      ];
+    (vacuumMapSignature &&
+      vacuumMapSignatureParts.every(
+        (vacuumMapSignatureValue, vacuumMapSignatureIndex) =>
+          vacuumMapSignatureValue === vacuumMapSignature[vacuumMapSignatureIndex],
+      )) ||
+      ((vacuumMapSignature = vacuumMapSignatureParts),
       vacuumMaps.sync(
-        vacuumBindingsForMap(collectVacuumBindings(), states),
-        enabled,
-        currentFloorId,
-        states
+        vacuumBindingsForMap2(collectVacuumBindings(), deviceStates),
+        isVacuumMapVisible,
+        selectedFloorId,
+        deviceStates,
+      ));
+  }
+  document.addEventListener("visibilitychange", syncVacuumMap);
+  function collectVacuumBindings() {
+    return (options.devices?.vacuums || []).map((vacuumSourceEntry) => {
+      const vacuumModel = mountOptions.document.floors
+          .find((vacuumFloor) => vacuumFloor.id === vacuumSourceEntry.floorId)
+          ?.scene.items.find(
+            (vacuumSceneItem) =>
+              vacuumSceneItem.id === vacuumSourceEntry.modelId &&
+              vacuumSceneItem.type === "robotvacuum",
+          ),
+        vacuumMapOffset = (!isEditing && vacuumMotion.offset(vacuumSourceEntry.id)) || {
+          x: 0,
+          y: 0,
+        };
+      return {
+        ...vacuumSourceEntry,
+        deviceKind: "vacuum",
+        clickAction: vacuumSourceEntry.clickAction || "focus-panel",
+        x:
+          (Number.isFinite(vacuumSourceEntry.x) ? vacuumSourceEntry.x : (vacuumModel?.x ?? 0)) +
+          vacuumMapOffset.x,
+        y:
+          (Number.isFinite(vacuumSourceEntry.y) ? vacuumSourceEntry.y : (vacuumModel?.y ?? 0)) +
+          vacuumMapOffset.y,
+        height: Number.isFinite(vacuumSourceEntry.height)
+          ? vacuumSourceEntry.height
+          : (Number(vacuumModel?.elevation) || 0) + (Number(vacuumModel?.height) || 0.85) + 0.25,
+        modelAvailable: !!vacuumModel,
+        icon: vacuumSourceEntry.icon || "mdi:robot-vacuum",
+      };
+    });
+  }
+  function collectVacuumShortcuts() {
+    return collectVacuumBindings()
+      .filter(
+        (vacuumShortcutEntry) =>
+          vacuumShortcutEntry.visible !== false &&
+          (isEditing || vacuumShortcutEntry.entityId) &&
+          (isEditing ||
+            (!vacuumStatusPresentation2(vacuumShortcutEntry, deviceStates).active &&
+              !vacuumStatusPresentation2(vacuumShortcutEntry, deviceStates).paused)),
+      )
+      .flatMap((vacuumShortcutSource) =>
+        (vacuumShortcutSource.shortcuts || [])
+          .filter((vacuumShortcut) => isEditing || vacuumShortcut.entityId)
+          .map((vacuumShortcutRoom) => ({
+            ...vacuumShortcutRoom,
+            id: "vacuum-room:" + vacuumShortcutSource.id + ":" + vacuumShortcutRoom.id,
+            vacuumId: vacuumShortcutSource.id,
+            shortcutId: vacuumShortcutRoom.id,
+            floorId: vacuumShortcutSource.floorId,
+            height: vacuumShortcutRoom.height ?? 0.08,
+            deviceKind: "vacuum-room",
+            modelAvailable: vacuumShortcutSource.modelAvailable,
+            icon: vacuumShortcutRoom.icon || "mdi:broom",
+            size: vacuumShortcutRoom.size ?? 44,
+            iconSize: vacuumShortcutRoom.iconSize ?? 26,
+            hitSize: vacuumShortcutRoom.hitSize ?? 44,
+          })),
       );
-    }
-  );
-  document.addEventListener("visibilitychange", syncVacuumMaps);
-
-
-
-
-  // 决定是否顺带弹出设备原生弹窗（摄像头 / 扫地机）：仅在非编辑、可交互且
-  function maybeOpenDevicePopup(popupBinding: any) {
+  }
+  function handleMarkerActivate(markerEntry) {
     if (
       !isEditing &&
-      isInteractive &&
-      popupBinding.deviceKind === "camera" &&
-      popupBinding.entityId &&
-      focusedId === popupBinding.id &&
-      focusMode !== "edit"
+      isControlReady &&
+      markerEntry.deviceKind === "camera" &&
+      markerEntry.entityId &&
+      focusedItemId === markerEntry.id &&
+      panelDisplayMode !== "edit"
     ) {
-      postToHost({
+      postHostMessage({
         type: "camera-popup",
-        id: popupBinding.id
+        id: markerEntry.id,
       });
       return;
     }
-    if (
-      !followedVacuumId &&
+    !followVacuumId &&
       !isEditing &&
-      isInteractive &&
-      popupBinding.deviceKind === "vacuum" &&
-      popupBinding.entityId &&
-      (focusMode === "panel" || popupBinding.clickAction !== "focus") &&
-      focusedId === popupBinding.id
-    ) {
-      postToHost({
+      isControlReady &&
+      markerEntry.deviceKind === "vacuum" &&
+      markerEntry.entityId &&
+      (panelDisplayMode === "panel" || markerEntry.clickAction !== "focus") &&
+      focusedItemId === markerEntry.id &&
+      postHostMessage({
         type: "vacuum-popup",
-        id: popupBinding.id
+        id: markerEntry.id,
       });
-    }
   }
-
-
-
-
-
-
-
-
-
-
-
-
-  /**
-   * 让分类栏 / 楼层栏可以被拖动改位置 —— 只在「导航位置调整态」生效
-   * @param {HTMLElement} dragElement 接收指针的元素：分类栏整条轨道 / 楼层栏整列。
-   * @param {"categories"|"floors"} navigationKey 写回配置里的哪一条导航。
-   * @param {[number, number]} fallbackPosition 配置缺省时的兜底中心点百分比，与布局取法一致。
-   */
-  function bindNavigationDrag(dragElement: any, navigationKey: any, fallbackPosition: any) {
-    // 一次拖动一个状态对象；为 null 说明当前没在拖。
-    let navigationDrag: any = null;
-    // 读当前生效的中心点百分比：缺省或越界回落兜底位置，夹取口径与布局一致。
-    const readOffsetPercent = (axisName: any) => {
-      const configuredPercent = config.navigation?.[navigationKey]?.[axisName];
-      return Number.isFinite(configuredPercent)
-        ? Math.max(0, Math.min(100, configuredPercent))
-        : fallbackPosition[axisName === "x" ? 0 : 1];
-    };
-    // 只覆盖这一条导航的 x / y，同级的 scale、followOffset 等字段原样保留。
-    const writeOffsetPercent = (percentX: any, percentY: any) => {
-      config = {
-        ...config,
-        navigation: {
-          ...(config.navigation || {}),
-          [navigationKey]: {
-            ...(config.navigation?.[navigationKey] || {}),
-            x: Math.round(percentX * 100) / 100,
-            y: Math.round(percentY * 100) / 100
-          }
-        }
+  function collectSpeakerBindings() {
+    return (options.devices?.speakers || []).map((speakerSourceEntry) => {
+      const speakerModel = mountOptions.document.floors
+        .find((speakerFloor) => speakerFloor.id === speakerSourceEntry.floorId)
+        ?.scene.items.find(
+          (speakerSceneItem) =>
+            speakerSceneItem.id === speakerSourceEntry.modelId &&
+            speakerSceneItem.type === "speaker",
+        );
+      return {
+        ...speakerSourceEntry,
+        clickAction: speakerSourceEntry.clickAction || "focus-panel",
+        deviceKind: "speaker",
+        x: Number.isFinite(speakerSourceEntry.x) ? speakerSourceEntry.x : (speakerModel?.x ?? 0),
+        y: Number.isFinite(speakerSourceEntry.y) ? speakerSourceEntry.y : (speakerModel?.y ?? 0),
+        height: Number.isFinite(speakerSourceEntry.height)
+          ? speakerSourceEntry.height
+          : (Number(speakerModel?.elevation) || 0) + (Number(speakerModel?.height) || 0.2336) / 2,
+        modelAvailable: !!speakerModel,
+        icon: speakerSourceEntry.icon || "mdi:speaker",
       };
-    };
-    const stopNavigationDrag = () => {
-      if (!navigationDrag) {
-        return;
-      }
-      navigationDrag = null;
-      dragElement.classList.remove("is-navigation-dragging");
-    };
-    dragElement.addEventListener("pointerdown", (dragStartEvent: any) => {
-      if (
-        !navigationEditing ||
-        dragStartEvent.button !== 0 ||
-        dragStartEvent.isPrimary === false
-      ) {
-        return;
-      }
-      // 同 id 的按下还在拖动中才忽略；上一次拖动的 pointerup 若没送达（元素被替换等），
-      if (navigationDrag?.pointerId === dragStartEvent.pointerId) {
-        return;
-      }
-      const containerRect = containerElement.getBoundingClientRect();
-      if (!(containerRect.width > 0) || !(containerRect.height > 0)) {
-        return;
-      }
-      // 上一次拖动若在页签外松手，click 不会到来，标记会一直留着吃掉后面的点击：这里先清一次。
-      dragElement.dataset.dragged = "";
-      dragStartEvent.preventDefault();
-      // 拦在这里：画布自己的 pointerdown 会记下指针并驱动背景视差，拖页签时不需要它。
-      dragStartEvent.stopPropagation();
-      navigationDrag = {
-        pointerId: dragStartEvent.pointerId,
-        clientX: dragStartEvent.clientX,
-        clientY: dragStartEvent.clientY,
-        startPercentX: readOffsetPercent("x"),
-        startPercentY: readOffsetPercent("y"),
-        percentPerClientPxX: 100 / containerRect.width,
-        percentPerClientPxY: 100 / containerRect.height,
-        moved: false
+    });
+  }
+  function collectTelevisionBindings() {
+    return (options.devices?.televisions || []).map((televisionSourceEntry) => {
+      const televisionModel = mountOptions.document.floors
+        .find((televisionFloor) => televisionFloor.id === televisionSourceEntry.floorId)
+        ?.scene.items.find(
+          (televisionSceneItem) =>
+            televisionSceneItem.id === televisionSourceEntry.modelId &&
+            televisionSceneItem.type === "tv",
+        );
+      return {
+        ...televisionSourceEntry,
+        clickAction: televisionSourceEntry.clickAction || "focus-panel",
+        deviceKind: "television",
+        x: Number.isFinite(televisionSourceEntry.x)
+          ? televisionSourceEntry.x
+          : (televisionModel?.x ?? 0),
+        y: Number.isFinite(televisionSourceEntry.y)
+          ? televisionSourceEntry.y
+          : (televisionModel?.y ?? 0),
+        height: Number.isFinite(televisionSourceEntry.height)
+          ? televisionSourceEntry.height
+          : (Number(televisionModel?.elevation) || 0) +
+            (Number(televisionModel?.height) || 0.92) * 0.62,
+        modelAvailable: !!televisionModel,
+        icon: televisionSourceEntry.icon || "mdi:television",
       };
-      capturePointer(dragElement, dragStartEvent.pointerId);
-      dragElement.classList.add("is-navigation-dragging");
-    });
-    dragElement.addEventListener("pointermove", (dragMoveEvent: any) => {
-      if (!navigationDrag || navigationDrag.pointerId !== dragMoveEvent.pointerId) {
-        return;
-      }
-      const movedClientX = dragMoveEvent.clientX - navigationDrag.clientX;
-      const movedClientY = dragMoveEvent.clientY - navigationDrag.clientY;
-      if (!navigationDrag.moved && Math.hypot(movedClientX, movedClientY) < NAVIGATION_DRAG_THRESHOLD) {
-        return;
-      }
-      navigationDrag.moved = true;
-      // 用「按下时的中心点 + 总位移」算绝对值，而不是逐帧累加：中途被夹取后再拖回来，
-      const nextPercentX = Math.max(
-        0,
-        Math.min(100, navigationDrag.startPercentX + movedClientX * navigationDrag.percentPerClientPxX)
-      );
-      const nextPercentY = Math.max(
-        0,
-        Math.min(100, navigationDrag.startPercentY + movedClientY * navigationDrag.percentPerClientPxY)
-      );
-      if (nextPercentX === readOffsetPercent("x") && nextPercentY === readOffsetPercent("y")) {
-        return;
-      }
-      writeOffsetPercent(nextPercentX, nextPercentY);
-      scheduleLayoutStage();
-    });
-    dragElement.addEventListener("pointerup", (dragEndEvent: any) => {
-      if (!navigationDrag || navigationDrag.pointerId !== dragEndEvent.pointerId) {
-        return;
-      }
-      const finishedDrag = navigationDrag;
-      stopNavigationDrag();
-      if (!finishedDrag.moved) {
-        // 没超过阈值：当作点选页签，不写位置，点击仍由页签自己的 click 处理。
-        return;
-      }
-      // 这次拖拽的尾巴会紧跟一个 click，用标记吃掉它，免得顺手切了模块 / 楼层。
-      dragElement.dataset.dragged = "true";
-      postToHost({
-        type: "edit",
-        action: "navigation-position",
-        target: navigationKey,
-        x: readOffsetPercent("x"),
-        y: readOffsetPercent("y")
-      });
-    });
-    // 指针被系统收走（来电、手势接管）时的回滚：本地预览过的新位置退回按下时的值，
-    dragElement.addEventListener("pointercancel", () => {
-      if (!navigationDrag) {
-        return;
-      }
-      const cancelledDrag = navigationDrag;
-      stopNavigationDrag();
-      if (cancelledDrag.moved) {
-        writeOffsetPercent(cancelledDrag.startPercentX, cancelledDrag.startPercentY);
-        scheduleLayoutStage();
-      }
     });
   }
-  // 分类栏绑在内层轨道（moduleTabsElement）而不是外层 .i3d-navigation：外层是
-  bindNavigationDrag(moduleTabsElement, "categories", [50, 94]);
-  bindNavigationDrag(floorTabsElement, "floors", [96, 50]);
-  // 渲染楼层页签：编辑 / 视图编辑 / 范围编辑时整块隐藏；只有一个楼层时不显示页签。
-  function renderFloorTabs() {
-    navigationElement.hidden = !isEditorCanvas && (isEditing || isViewEditing || isRangeEditorOpen);
-    floorTabsElement.hidden =
-      isEditing || isViewEditing || isRangeEditorOpen || (stageFloors() as any).length < 2;
-    const floorChoices = floorNavigationChoices((stageFloors() as any), config.floorNumbers);
-    const outsideFloorId =
-      currentFloorId === "all"
-        ? floorChoices.filter(([floorId]) => floorId !== "all").at(-1)?.[0] || ""
-        : null;
-    stageOptions.groundReflections?.setOutsideFloor?.(outsideFloorId);
-    stageOptions.groundReflections?.setVisibleFloor?.(null);
-    const floorTabsJson = JSON.stringify(floorChoices);
-    if (floorTabsJson !== floorTabsSignature) {
-      floorTabsSignature = floorTabsJson;
-      floorTabsElement.replaceChildren();
-      for (const [floorTabId, floorTabLabel, floorTabTitle] of floorChoices) {
-        const floorTabButton = makeElement("button", "", floorTabLabel);
-        floorTabButton.type = "button";
-        floorTabButton.dataset.floor = floorTabId;
-        floorTabButton.title = floorTabTitle;
-        floorTabButton.setAttribute("aria-label", floorTabTitle);
-        floorTabButton.addEventListener("click", () => {
-          // 同上：拖完楼层栏紧跟的 click 只用来清标记。
-          if (floorTabsElement.dataset.dragged === "true") {
-            floorTabsElement.dataset.dragged = "";
-            return;
-          }
-          selectFloor(floorTabId);
-        });
-        floorTabsElement.append(floorTabButton);
+  function collectPreviewCovers() {
+    const boundCoverKeySet = new Set(
+      collectCoverBindings().map((boundCoverBinding) =>
+        JSON.stringify([boundCoverBinding.floorId, boundCoverBinding.modelId]),
+      ),
+    );
+    return mountOptions.document.floors.flatMap((previewFloor) =>
+      (previewFloor.scene?.items || [])
+        .filter(
+          (previewSceneItem) =>
+            previewSceneItem.type === "curtain" &&
+            !boundCoverKeySet.has(JSON.stringify([previewFloor.id, previewSceneItem.id])),
+        )
+        .map((previewCurtainItem) => ({
+          id: "preview-cover:" + JSON.stringify([previewFloor.id, previewCurtainItem.id]),
+          floorId: previewFloor.id,
+          modelId: previewCurtainItem.id,
+          entityId: "",
+          deviceKind: "cover",
+          ...coverGeometryOverrides(previewCurtainItem),
+          modelAvailable: true,
+          previewOnly: true,
+        })),
+    );
+  }
+  function collectModuleBindings() {
+    const temperatureHumidityBindings = (options.environment?.temperatureHumidity || []).map(
+      (temperatureHumidityEntry) => ({
+        ...temperatureHumidityEntry,
+        deviceKind: "temperature-humidity",
+      }),
+    );
+    return isOverviewOrAllFloors()
+      ? []
+      : activeModule === "security"
+        ? collectSecurityBindings()
+        : activeModule === "vacuum-shortcut"
+          ? collectVacuumShortcuts().filter(
+              (vacuumShortcutBinding) => vacuumShortcutBinding.vacuumId === editingVacuumId,
+            )
+          : isGenericDeviceKind2(activeModule)
+            ? collectGenericDeviceBindings(activeModule)
+            : activeModule === "nas"
+              ? collectNasBindings()
+              : activeModule === "vacuum"
+                ? collectVacuumBindings()
+                    .filter((visibleVacuumBinding) => isEditing || visibleVacuumBinding.entityId)
+                    .map((vacuumModuleBinding) => ({
+                      ...vacuumModuleBinding,
+                      id: isEditing ? vacuumModuleBinding.id : "vacuum:" + vacuumModuleBinding.id,
+                    }))
+                : activeModule === "speaker"
+                  ? collectSpeakerBindings()
+                  : activeModule === "television"
+                    ? collectTelevisionBindings()
+                    : activeModule === "devices"
+                      ? [
+                          ...collectCoverBindings().filter(
+                            (airerModuleBinding) => airerModuleBinding.airer,
+                          ),
+                          ...collectClimateBindings().filter(
+                            (waterHeaterModuleBinding) => waterHeaterModuleBinding.waterHeater,
+                          ),
+                          ...collectNasBindings(),
+                          ...collectSpeakerBindings(),
+                          ...collectTelevisionBindings(),
+                          ...GENERIC_DEVICE_KINDS2.flatMap((genericModuleDeviceKind) =>
+                            collectGenericDeviceBindings(genericModuleDeviceKind),
+                          ),
+                        ].map((genericModuleBinding) => ({
+                          ...genericModuleBinding,
+                          id: genericModuleBinding.deviceKind + ":" + genericModuleBinding.id,
+                        }))
+                      : activeModule === "airer"
+                        ? collectCoverBindings().filter(
+                            (airerFilteredBinding) => airerFilteredBinding.airer,
+                          )
+                        : activeModule === "cover"
+                          ? collectGroupedCovers().filter(
+                              (coverFilteredBinding) => !coverFilteredBinding.airer,
+                            )
+                          : activeModule === "climate"
+                            ? collectClimateBindings().filter((climateFilteredBinding) =>
+                                (options.environment?.airConditioners || []).some(
+                                  (climateFilterSource) =>
+                                    climateFilterSource.id === climateFilteredBinding.id,
+                                ),
+                              )
+                            : activeModule === "water-heater"
+                              ? collectClimateBindings().filter((waterHeaterFilteredBinding) =>
+                                  (options.environment?.waterHeaters || []).some(
+                                    (waterHeaterFilterSource) =>
+                                      waterHeaterFilterSource.id === waterHeaterFilteredBinding.id,
+                                  ),
+                                )
+                              : activeModule === "fan"
+                                ? collectClimateBindings().filter(
+                                    (fanFilteredBinding) => fanFilteredBinding.pedestalFan,
+                                  )
+                                : activeModule === "purifier"
+                                  ? collectClimateBindings().filter((purifierFilteredBinding) =>
+                                      (options.environment?.airPurifiers || []).some(
+                                        (purifierFilterSource) =>
+                                          purifierFilterSource.id === purifierFilteredBinding.id,
+                                      ),
+                                    )
+                                  : activeModule === "temperature-humidity"
+                                    ? temperatureHumidityBindings
+                                    : [
+                                        ...collectClimateBindings().filter(
+                                          (fallbackClimateBinding) =>
+                                            !fallbackClimateBinding.waterHeater,
+                                        ),
+                                        ...collectGroupedCovers().filter(
+                                          (fallbackCoverBinding) => !fallbackCoverBinding.airer,
+                                        ),
+                                        ...temperatureHumidityBindings,
+                                      ].map((fallbackModuleBinding) => ({
+                                        ...fallbackModuleBinding,
+                                        id:
+                                          fallbackModuleBinding.deviceKind +
+                                          ":" +
+                                          fallbackModuleBinding.id,
+                                      }));
+  }
+  const currentModuleBindings = () =>
+    (activeModule === "security"
+      ? collectSecurityBindings()
+      : activeModule === "light"
+        ? options.lights || []
+        : [
+            ...collectModuleBindings(),
+            ...(activeModule === "vacuum" && !isEditing ? collectVacuumShortcuts() : []),
+          ]
+    ).filter(matchesSelectedFloor);
+  function syncFloorTabs() {
+    ((navigationLayerElement.hidden =
+      !isNavigationVisible && (isEditing || isAwaitingFloorViewAdjust || isRangeEditorOpen)),
+      (floorTabsElement.hidden =
+        isEditing ||
+        isAwaitingFloorViewAdjust ||
+        isRangeEditorOpen ||
+        mountOptions.document.floors.length < 2));
+    const floorChoices = floorNavigationChoices2(
+        mountOptions.document.floors,
+        options.floorNumbers,
+      ),
+      outsideFloorId =
+        selectedFloorId === "all"
+          ? floorChoices.filter(([floorChoiceId]) => floorChoiceId !== "all").at(-1)?.[0] || ""
+          : null;
+    (mountOptions.groundReflections?.setOutsideFloor?.(outsideFloorId),
+      mountOptions.groundReflections?.setVisibleFloor?.(null));
+    const stringify = JSON.stringify(floorChoices);
+    if (stringify !== floorTabsSignature) {
+      ((floorTabsSignature = stringify), floorTabsElement.replaceChildren());
+      for (const [floorChoiceKey, floorChoiceLabel, floorChoiceTitle] of floorChoices) {
+        const floorTabButton = createStageElement("button", "", floorChoiceLabel);
+        ((floorTabButton.type = "button"),
+          (floorTabButton.dataset.floor = floorChoiceKey),
+          (floorTabButton.title = floorChoiceTitle),
+          floorTabButton.setAttribute("aria-label", floorChoiceTitle),
+          floorTabButton.addEventListener("click", () => selectFloor(floorChoiceKey)),
+          floorTabsElement.append(floorTabButton));
       }
     }
-    for (const floorTab of floorTabsElement.children) {
-      floorTab.setAttribute("aria-pressed", String(floorTab.dataset.floor === currentFloorId));
-    }
+    for (const floorTabElement of floorTabsElement.children)
+      floorTabElement.setAttribute(
+        "aria-pressed",
+        String(floorTabElement.dataset.floor === selectedFloorId),
+      );
   }
-  /**
-   * 切换楼层：更新楼层状态、相机与标记，并把选择结果回报宿主。
-   */
-  function selectFloor(targetFloorId: any) {
+  function selectFloor(targetFloorId) {
     if (
       isEditing ||
-      isViewEditing ||
+      isAwaitingFloorViewAdjust ||
       isRangeEditorOpen ||
-      isSceneUpdating ||
-      targetFloorId === currentFloorId ||
+      isCameraMoving ||
+      targetFloorId === selectedFloorId ||
       (targetFloorId !== "all" &&
-        !(stageFloors() as any).some(
-          (selectedFloorEntry: any) => selectedFloorEntry.id === targetFloorId
-        ))
-    ) {
+        !mountOptions.document.floors.some((existingFloor) => existingFloor.id === targetFloorId))
+    )
       return;
-    }
-    stopVacuumFollow(false);
-    exitFocus({
-      immediate: true,
-      preserveCamera: true
-    });
-    cancelMarkerDrag();
-    const previousCameraStateBeforeFloor = stageOptions.cameraState(true);
-    const fromPivot = stageOptions.getOrbitCenter?.();
-    const cameraMotionState = stageOptions.getCameraMotionState?.();
-    pendingFloorId = targetFloorId;
-    animateModuleSwap(() => {
-      currentFloorId = targetFloorId;
-      const toPivot = stageOptions.transitionFloor
-        ? stageOptions.transitionFloor(targetFloorId)
-        : (stageOptions.setFloor(targetFloorId), stageOptions.getOrbitCenter?.());
-      const floorCameraPose = transformCameraPose(
-        sceneProperties.floorCameras?.[targetFloorId] ||
-          (targetFloorId === sceneProperties.floorSelection ? sceneProperties.camera : null),
-        targetFloorId
-      );
-      const nextFloorCameraPose =
-        floorCameraPose ||
-        stageOptions.floorDefaultCamera?.(targetFloorId) ||
-        stageOptions.cameraState();
-      savedCameraPose = floorCameraPose || nextFloorCameraPose;
-      config = normalizeSceneConfig({
-        ...sceneProperties,
-        floorSelection: targetFloorId
-      });
-      config.camera = savedCameraPose;
-      // 离开「全部楼层」时保持选中「总览」：它本身也是一个合法的单层模块。
-      if (targetFloorId === "all") {
-        activeModule = "overview";
-        pendingModule = "";
-      } else if (pendingModule) {
-        activeModule = pendingModule;
-        pendingModule = "";
-      }
-      stageOptions.restoreCamera(previousCameraStateBeforeFloor, cameraMotionState);
-      beginCameraTransition(
-        nextFloorCameraPose,
-        false,
-        false,
-        () => {
-          stageOptions.finishFloorTransition?.();
-          applyLightStates();
-          renderStage();
-          syncVacuumMaps();
-          updateMarkerVisibility();
-        },
-        "floor",
-        {
-          fromPivot: fromPivot,
-          toPivot: toPivot
-        }
-      );
-      markerPointsById.clear();
-      applyLightStates({
-        immediate: true
-      });
-      renderMarkers();
-      updatePanelChrome();
-      updateIdleControllers();
-    });
+    (stopVacuumFollow(false),
+      exitFocusMode({
+        immediate: true,
+        preserveCamera: true,
+      }),
+      cancelMarkerDrag());
+    const cameraState = mountOptions.cameraState(true),
+      orbitCenter = mountOptions.getOrbitCenter?.(),
+      cameraMotionState = mountOptions.getCameraMotionState?.();
+    ((pendingFloorId = targetFloorId),
+      runModuleSwitchAnimation(() => {
+        (syncLockMotion(), (selectedFloorId = targetFloorId));
+        const transitionFloor = mountOptions.transitionFloor
+            ? mountOptions.transitionFloor(targetFloorId)
+            : (mountOptions.setFloor(targetFloorId), mountOptions.getOrbitCenter?.()),
+          floorCameraPose = transformFloorCamera(
+            baseStageConfig.floorCameras?.[targetFloorId] ||
+              (targetFloorId === baseStageConfig.floorSelection ? baseStageConfig.camera : null),
+            targetFloorId,
+          ),
+          cameraState2 =
+            floorCameraPose ||
+            mountOptions.floorDefaultCamera?.(targetFloorId) ||
+            mountOptions.cameraState();
+        ((activeCameraPose = floorCameraPose || cameraState2),
+          (options = buildFloorCameraConfig({
+            ...baseStageConfig,
+            floorSelection: targetFloorId,
+          })),
+          (options.camera = activeCameraPose),
+          targetFloorId === "all"
+            ? ((activeModule = "overview"), (pendingModule = ""))
+            : pendingModule && ((activeModule = pendingModule), (pendingModule = "")),
+          syncLockMotion(),
+          syncNasOverlay(),
+          mountOptions.restoreCamera(cameraState, cameraMotionState),
+          startCameraMotion(
+            cameraState2,
+            false,
+            false,
+            () => {
+              (mountOptions.finishFloorTransition?.(),
+                syncLockMotion(),
+                applyLightStates(),
+                refreshStageUi(),
+                syncVacuumMap(),
+                syncStageVisibility());
+            },
+            "floor",
+            {
+              fromPivot: orbitCenter,
+              toPivot: transitionFloor,
+            },
+          ),
+          sceneCacheByKey.clear(),
+          applyLightStates({
+            immediate: true,
+          }),
+          syncMarkers(),
+          syncPanelChrome(),
+          syncAvailability());
+      }));
   }
-  /**
-   * 打开灯光范围编辑器，并把开关 / 出错状态回报宿主。
-   */
-  function openRangeEditor(rangeRequestId: any) {
-    // 状态回报的统一出口：requestId 只在宿主主动下发了请求时才回带，
-    const reportRangeEditorState = (isActive: any, rangeError: any = "") =>
-      postToHost({
-        type: "range-editor-state",
-        active: isActive,
-        ...(rangeRequestId
-          ? {
-              requestId: rangeRequestId
-            }
-          : {}),
-        ...(rangeError
-          ? {
-              error: rangeError
-            }
-          : {})
-      });
-    const unavailableReason = isRangeEditingAllowed
-      ? stageOptions.regionLighting
-        ? isPresented
-          ? isSceneUpdating
-            ? "户型正在同步，请稍候再调整照射范围。"
-            : isViewEditing
-              ? "请先完成户型视角调整，再编辑照射范围。"
-              : ""
-          : "户型还在加载，请稍候再调整照射范围。"
-        : "请先选择轻量柔光模式。"
-      : "请在已授权的控件编辑器中调整照射范围。";
-    if (unavailableReason) {
-      reportRangeEditorState(false, unavailableReason);
+  function syncLockMotion() {
+    const lockMotionPlan = buildLockMotionInput();
+    mountOptions.setLockMoving?.(lockMotion.sync(lockMotionPlan.bindings, lockMotionPlan.states));
+  }
+  function openRangeEditor(rangeEditorRequestId) {
+    const postRangeEditorState = (isEditorActiveState, rangeEditorErrorMessage = "") =>
+        postHostMessage({
+          type: "range-editor-state",
+          active: isEditorActiveState,
+          ...(rangeEditorRequestId
+            ? {
+                requestId: rangeEditorRequestId,
+              }
+            : {}),
+          ...(rangeEditorErrorMessage
+            ? {
+                error: rangeEditorErrorMessage,
+              }
+            : {}),
+        }),
+      rangeEditorBlockReason = canEditLightRange
+        ? mountOptions.regionLighting
+          ? isStagePresented
+            ? isCameraMoving
+              ? "户型正在同步，请稍候再调整照射范围。"
+              : isAwaitingFloorViewAdjust
+                ? "请先完成户型视角调整，再编辑照射范围。"
+                : ""
+            : "户型还在加载，请稍候再调整照射范围。"
+          : "请先选择轻量柔光模式。"
+        : "请在已授权的控件编辑器中调整照射范围。";
+    if (rangeEditorBlockReason) {
+      postRangeEditorState(false, rangeEditorBlockReason);
       return;
     }
     if (isRangeEditorOpen) {
-      reportRangeEditorState(true);
+      postRangeEditorState(true);
       return;
     }
-    exitFocus({
-      immediate: true
-    });
-    isRangeEditorOpen = true;
-    isRangeEditorBusy = true;
-    updateIdleControllers();
-    syncCameraInteraction();
-    renderStage();
-    presentationElement.style.display = "none";
-    presentationElement.setAttribute("inert", "");
-    focusVignetteElement.style.display = "none";
+    (exitFocusMode({
+      immediate: true,
+    }),
+      (isRangeEditorOpen = true),
+      (isRangeEditorSuppressingClose = true),
+      syncAvailability(),
+      syncCameraInteraction(),
+      refreshStageUi(),
+      (presentationLayerElement.style.display = "none"),
+      presentationLayerElement.setAttribute("inert", ""),
+      (focusVignetteElement.style.display = "none"));
     try {
-      rangeEditor ||= mountRegionRangeEditor(stageOptions, {
-        getConfig: () => config,
+      ((rangeEditorHandle ||= mountRegionRangeEditor2(mountOptions, {
+        getConfig: () => options,
         standalone: isRangeEditorOnly,
-        wake: wakeFrameLoop,
-        onChange(lightRegionOverrides: any) {
-          if (isRangeEditingAllowed) {
-            config.lightRegionOverrides = structuredClone(lightRegionOverrides);
-            sceneProperties.lightRegionOverrides = structuredClone(lightRegionOverrides);
-            postToHost({
+        wake: wakeSceneBackground,
+        onChange(rangeOverrides) {
+          canEditLightRange &&
+            ((options.lightRegionOverrides = structuredClone(rangeOverrides)),
+            (baseStageConfig.lightRegionOverrides = structuredClone(rangeOverrides)),
+            postHostMessage({
               type: "range-overrides",
-              overrides: lightRegionOverrides
-            });
-          }
+              overrides: rangeOverrides,
+            }));
         },
         onClose() {
-          isRangeEditorOpen = false;
-          presentationElement.style.display = "";
-          presentationElement.removeAttribute("inert");
-          focusVignetteElement.style.display = "";
-          applyLightStates({
-            immediate: true
-          });
-          syncCameraInteraction();
-          renderStage();
-          updatePanelChrome();
-          updateMarkerPositions(true);
-          updateIdleControllers();
-          if (!isRangeEditorBusy) {
-            postToHost({
-              type: "range-editor-state",
-              active: false
-            });
-          }
-        }
-      });
-      rangeEditor.open();
-      reportRangeEditorState(true);
+          ((isRangeEditorOpen = false),
+            (presentationLayerElement.style.display = ""),
+            presentationLayerElement.removeAttribute("inert"),
+            (focusVignetteElement.style.display = ""),
+            applyLightStates({
+              immediate: true,
+            }),
+            syncCameraInteraction(),
+            refreshStageUi(),
+            syncPanelChrome(),
+            renderMarkerPositions(true),
+            syncAvailability(),
+            isRangeEditorSuppressingClose ||
+              postHostMessage({
+                type: "range-editor-state",
+                active: false,
+              }));
+        },
+      })),
+        rangeEditorHandle.open(),
+        postRangeEditorState(true));
     } catch (rangeEditorError) {
-      rangeEditor?.close();
-      isRangeEditorOpen = false;
-      presentationElement.style.display = "";
-      presentationElement.removeAttribute("inert");
-      focusVignetteElement.style.display = "";
-      syncCameraInteraction();
-      renderStage();
-      updateIdleControllers();
-      reportRangeEditorState(false, (rangeEditorError as any).message || "范围编辑暂时不可用");
+      (rangeEditorHandle?.close(),
+        (isRangeEditorOpen = false),
+        (presentationLayerElement.style.display = ""),
+        presentationLayerElement.removeAttribute("inert"),
+        (focusVignetteElement.style.display = ""),
+        syncCameraInteraction(),
+        refreshStageUi(),
+        syncAvailability(),
+        postRangeEditorState(false, rangeEditorError.message || "范围编辑暂时不可用"));
     } finally {
-      isRangeEditorBusy = false;
+      isRangeEditorSuppressingClose = false;
     }
   }
-
-
-
-
-  // 按标记 ID 反查绑定：先查当前模块的集合，再兜底查门锁、摄像头与人体传感器 ——
-  const findBinding = (lookupId: any) =>
-    collectModuleBindings().find((bindingMatch: any) => bindingMatch.id === lookupId) ||
-    collectLockBindings().find((lockMatch: any) => lockMatch.id === lookupId) ||
-    collectCameraBindings().find((cameraMatch: any) => cameraMatch.id === lookupId) ||
-    collectPresenceBindings().find((presenceMatch: any) => presenceMatch.id === lookupId);
-  // 「正在配置：」提示条里那半句品类名。键是 deviceKind；通用设备的 deviceKind 直接就是
-  const EDITOR_SELECTION_KIND_LABELS = {
-    light: "灯光",
-    climate: "空调",
-    cover: "窗帘",
-    nas: "NAS",
-    television: "电视",
-    vacuum: "扫地机",
-    "vacuum-room": "快捷按钮",
-    "temperature-humidity": "温湿度计",
-    lock: "门",
-    camera: "摄像头",
-    presence: "人体传感器"
-  };
-  /**
-   * 编辑态提示条文案。没选中时说「请选择要配置的对象」而不是整条藏起来 —— 空着比消失更能
-   */
-  function renderEditorSelection(selectedBinding: any, highlightedModelCount: any) {
-    editorSelectionElement.hidden = !isEditing;
-    if (!isEditing) {
-      editorSelectionElement.textContent = "";
-      return;
-    }
-    if (!selectedBinding) {
-      editorSelectionElement.textContent = "请选择要配置的对象";
-      return;
-    }
-    const kindLabel =
-      (EDITOR_SELECTION_KIND_LABELS as any)[selectedBinding.deviceKind] ||
-      genericDeviceProfile(selectedBinding.deviceKind)?.label ||
-      "设备";
-    const nameLabel =
-      selectedBinding.label || selectedBinding.deviceLabel || selectedBinding.entityId || "未命名";
-    const selectedFloorName = (stageFloors() as any).find(
-      (floorEntry: any) => floorEntry.id === selectedBinding.floorId
-    )?.name;
-    editorSelectionElement.textContent =
-      "正在配置：" +
-      kindLabel +
-      " · " +
-      nameLabel +
-      (selectedFloorName ? " · " + selectedFloorName : "") +
-      (highlightedModelCount > 1 ? " · " + highlightedModelCount + " 个模型" : "");
-  }
-  /**
-   * 舞台的总重绘入口：把当前配置、状态与交互态一次性铺到 DOM 与 3D 上。
-   */
-  function renderStage() {
-    applyPageBehavior();
-    syncPresenceScene();
-    presenceWaves.sync({
-      bindings: (config.security?.presenceSensors || [])
-        .filter(
-          (presenceSensorFilterEntry: any) =>
-            !isEditing || "presence:" + presenceSensorFilterEntry.id === selectedId
-        )
-        .map((presenceSensorRecord: any) => {
-          const presenceSceneItemRecord = (stageFloors() as any)
-            .find((presenceFloor: any) => presenceFloor.id === presenceSensorRecord.floorId)
-            ?.scene.items.find(
-              (presenceSceneItemCandidate: any) =>
-                presenceSceneItemCandidate.id === presenceSensorRecord.modelId
-            );
+  const lockBindings = () =>
+      (options.security?.locks || [])
+        .map((lockSourceEntry) => {
+          const lockFloor = mountOptions.document.floors.find(
+              (lockFloorModel) => lockFloorModel.id === lockSourceEntry.floorId,
+            ),
+            lockDoorModel =
+              lockFloor &&
+              doorModels2(lockFloor).find(
+                (lockDoor) => lockDoor.modelId === lockSourceEntry.modelId,
+              );
           return {
-            ...presenceSensorRecord,
-            width: presenceSceneItemRecord?.width,
-            height: presenceSceneItemRecord?.height,
-            depth: presenceSceneItemRecord?.depth
+            ...lockSourceEntry,
+            hinge: lockSourceEntry.hinge || lockDoorModel?.hinge || "left",
+            id: "lock:" + lockSourceEntry.id,
+            deviceKind: "lock",
+            clickAction: "focus-panel",
+            icon: lockSourceEntry.icon || "mdi:door-closed",
+            modelAvailable: !!lockDoorModel,
+            x: Number.isFinite(lockSourceEntry.x) ? lockSourceEntry.x : (lockDoorModel?.x ?? 0),
+            y: Number.isFinite(lockSourceEntry.y) ? lockSourceEntry.y : (lockDoorModel?.y ?? 0),
+            height: Number.isFinite(lockSourceEntry.height)
+              ? lockSourceEntry.height
+              : (lockDoorModel?.height ?? 2.2) * 0.5,
           };
-        }),
-      states: statesByEntityId,
-      floorId: currentFloorId,
-      preview: isEditing,
-      enabled:
-        activeModule === "security" &&
-        !focusedId &&
-        !focusMode &&
-        !isViewEditing &&
-        !isRangeEditorOpen &&
-        !stageOptions.floorTransitionActive &&
-        cameraTransition?.owner !== "floor"
-    });
-    syncVacuumMaps();
-    const isFloorTransitioning =
-      stageOptions.floorTransitionActive || cameraTransition?.owner === "floor";
-    environmentScene.setRoot(
-      stageOptions.modelRoot,
-      stageOptions.environmentRevision ?? stageOptions.sceneRevision
-    );
-    if (!isFloorTransitioning || cameraTransition?.presentationRevealed) {
-      if (!isFloorTransitioning) {
-        syncCurtains();
-        syncNasStatus();
-        syncGenericDeviceStatus();
-        syncCameraStatus();
-        syncTelevisionScreens();
-        syncVacuumMap();
-      }
-      const focusableModuleBindings = resolveModuleBindings().filter(isOnActiveFloor);
-      // 编辑态 = 当前模块绑定 + 预览窗帘（场景里有模型但未绑定实体的窗帘），
-      const sceneBindings = (
-        isEditing
-          ? [
-              ...focusableModuleBindings,
-              ...(["climate", "devices", "nas", "television", "vacuum"].includes(activeModule)
-                ? []
-                : collectPreviewCovers())
-            ]
-          : collectAllDeviceBindings().concat(collectPreviewCovers())
-      ).filter((visibleBinding: any) => visibleBinding.modelAvailable && isOnActiveFloor(visibleBinding));
-      const pageDimmingState = pageDimming(
-        config,
-        activeModule,
-        !!focusedId && focusMode !== "panel"
-      );
-      const isEnvironmentActive = !isViewEditing && !isRangeEditorOpen && pageDimmingState.enabled;
-      const pageBindings = pageModelBindings(
-        (stageFloors() as any),
-        sceneBindings,
-        pageDimmingState.page,
-        currentFloorId
-      );
-      // 编辑态被高亮的模型集合：屏幕轮廓圈的是它，提示条的「N 个模型」数的也是它 ——
-      const highlightedBindings = pageBindings.filter(
-        (pageBinding: any) => !selectedId || pageBinding.id === selectedId
-      );
-      screenOutlines.sync(
-        stageOptions.modelRoot,
-        stageOptions.environmentRevision ?? stageOptions.sceneRevision,
-        highlightedBindings,
-        !focusedId &&
-          !isViewEditing &&
-          !isRangeEditorOpen &&
-          currentFloorId !== "all" &&
-          ["environment", "devices", "vacuum", "security"].includes(pageDimmingState.page)
-      );
-      renderEditorSelection(
-        isEditing && selectedId ? findBinding(selectedId) : null,
-        highlightedBindings.length
-      );
-      environmentAirflow.setRoot(stageOptions.modelRoot, stageOptions.sceneRevision);
-      environmentScene.setMode({
-        enabled: isEnvironmentActive,
-        saturation: pageDimmingState.saturation,
-        dimStrength: isEnvironmentActive ? pageDimmingState.strength : 0,
-        bindings: pageBindings,
-        animateBindings: !isEditing && !isViewEditing,
-        states: statesByEntityId,
-        focusedId: focusedId,
-        selectedId: isEditing ? selectedId : ""
-      });
-      environmentAirflow.setState({
-        enabled: !isViewEditing && !isRangeEditorOpen,
-        bindings: sceneBindings.filter(
-          (climateBindingEntry: any) => climateBindingEntry.deviceKind === "climate"
+        })
+        .filter(
+          (lockFilterEntry) =>
+            isEditing ||
+            lockFilterEntry.doorEntityId ||
+            lockFilterEntry.doorEventEntityId ||
+            lockFilterEntry.doorOpenEntityId ||
+            lockFilterEntry.doorCloseEntityId ||
+            lockFilterEntry.batteryEntityId ||
+            lockFilterEntry.entityId,
         ),
-        states: statesByEntityId,
-        focusedId: focusedId,
-        overview: !focusedId || focusMode === "panel"
+    labelModeOf = (labelModeEntry) =>
+      labelModeEntry.labelMode === "hidden" ||
+      labelModeEntry.labelMode === "open" ||
+      labelModeEntry.labelMode === "always"
+        ? labelModeEntry.labelMode
+        : labelModeEntry.labelHidden === true
+          ? "hidden"
+          : "always",
+    isLockLabelShown = (lockLabelEntry, lockLabelState) =>
+      lockLabelEntry.deviceKind !== "lock" ||
+      labelModeOf(lockLabelEntry) === "always" ||
+      (labelModeOf(lockLabelEntry) === "open" && lockLabelState?.doorOpen === true),
+    securityCameraBindings = () =>
+      (options.security?.cameras || []).map((securityCameraSourceEntry) => {
+        const securityCameraModel = mountOptions.document.floors
+          .find(
+            (securityCameraFloor) => securityCameraFloor.id === securityCameraSourceEntry.floorId,
+          )
+          ?.scene.items.find(
+            (securityCameraSceneItem) =>
+              securityCameraSceneItem.id === securityCameraSourceEntry.modelId &&
+              securityCameraSceneItem.type === "camera",
+          );
+        return {
+          ...securityCameraSourceEntry,
+          buttonHidden: false,
+          hiddenClickable: false,
+          id: "camera:" + securityCameraSourceEntry.id,
+          deviceKind: "camera",
+          clickAction: "focus",
+          modelAvailable: !!securityCameraModel,
+          icon: securityCameraSourceEntry.icon || "mdi:cctv",
+          x: Number.isFinite(securityCameraSourceEntry.x)
+            ? securityCameraSourceEntry.x
+            : (securityCameraModel?.x ?? 0),
+          y: Number.isFinite(securityCameraSourceEntry.y)
+            ? securityCameraSourceEntry.y
+            : (securityCameraModel?.y ?? 0),
+          height: Number.isFinite(securityCameraSourceEntry.height)
+            ? securityCameraSourceEntry.height
+            : (Number(securityCameraModel?.elevation) || 0) +
+              (Number(securityCameraModel?.height) || 0.3) / 2,
+        };
+      }),
+    presenceBindings = () =>
+      (options.security?.presenceSensors || []).map((presenceSourceEntry) => {
+        const presenceModel = mountOptions.document.floors
+          .find((presenceFloor) => presenceFloor.id === presenceSourceEntry.floorId)
+          ?.scene.items.find(
+            (presenceSensorSceneItem) =>
+              presenceSensorSceneItem.id === presenceSourceEntry.modelId &&
+              presenceSensorSceneItem.type === "presence",
+          );
+        return {
+          ...presenceSourceEntry,
+          modelAvailable: presenceSourceEntry.modelId ? !!presenceModel : undefined,
+          id: "presence:" + presenceSourceEntry.id,
+          deviceKind: "presence",
+          clickAction: "focus",
+          icon: "mdi:motion-sensor",
+          size: presenceSourceEntry.modelId ? 36 : presenceSourceEntry.size,
+          x: presenceModel?.x ?? presenceSourceEntry.route?.[0]?.x ?? 0,
+          y: presenceModel?.y ?? presenceSourceEntry.route?.[0]?.y ?? 0,
+          height: presenceModel
+            ? (Number(presenceModel.elevation) || 0) + (Number(presenceModel.height) || 0.2) / 2
+            : (presenceSourceEntry.size ?? 1) * 0.7,
+        };
       });
-      stageOptions.setEnvironmentActive?.(isEnvironmentActive || environmentScene.isActive);
-    }
-    const overviewBindings = resolveModuleBindings().filter(isOnActiveFloor);
-    renderFloorTabs();
-    const isAllFloors = currentFloorId === "all";
-    toggleModulePanel(!isEditorCanvas && (isEditing || isViewEditing || isRangeEditorOpen || isAllFloors));
-    // 选中态落在哪个页签上：模块 → 页签的归一在 stage/module-tabs.js（与页签清单同源）。
-    const activeTabModule = moduleTabOf(activeModule);
-    moduleTabsElement.classList.toggle("is-all-floors", isAllFloors);
-    moduleTabsElement.style.setProperty("--i3d-tab-count", String(configuredModules.length));
-    moduleTabsElement.style.setProperty(
-      "--i3d-selected-tab",
-      String(Math.max(0, configuredModules.indexOf(activeTabModule)))
+  function collectSecurityBindings() {
+    const securityBindingEntries = [
+      ...lockBindings(),
+      ...securityCameraBindings(),
+      ...presenceBindings().filter(
+        (securityBinding) => (isEditing && securityBinding.modelId) || !isEditing,
+      ),
+    ];
+    return isEditing && selectedSecurityKind
+      ? securityBindingEntries.filter(
+          (filteredSecurityBinding) => filteredSecurityBinding.deviceKind === selectedSecurityKind,
+        )
+      : securityBindingEntries;
+  }
+  function buildLockMotionInput() {
+    const lockBindingList = options.security?.locks || [];
+    if (isEditing && !selectedLockEntry)
+      return {
+        bindings: [],
+        states: {},
+      };
+    if (!isEditing || selectedSecurityKind !== "lock" || !selectedLockEntry?.id)
+      return {
+        bindings: lockBindingList,
+        states: deviceStates,
+      };
+    const replace = selectedLockEntry.id.replace(/^lock:/, ""),
+      selectedLockBinding = lockBindingList.find((matchedLock) => matchedLock.id === replace);
+    if (!selectedLockBinding)
+      return {
+        bindings: lockBindingList,
+        states: deviceStates,
+      };
+    const lockPreviewEntityId = selectedLockBinding.doorEntityId || "__hb_lock_motion_preview__",
+      lockPreviewEntry = {
+        ...selectedLockBinding,
+        doorEntityId: lockPreviewEntityId,
+      };
+    return {
+      bindings: lockBindingList.map((lockPreviewBinding) =>
+        lockPreviewBinding === selectedLockBinding ? lockPreviewEntry : lockPreviewBinding,
+      ),
+      states: {
+        ...deviceStates,
+        [lockPreviewEntityId]: {
+          state: selectedLockEntry.open ? "open" : "closed",
+          available: true,
+        },
+      },
+    };
+  }
+  const findBindingById = (bindingLookupId) =>
+    currentModuleBindings().find((moduleBinding) => moduleBinding.id === bindingLookupId) ||
+    lockBindings().find((lockLookupBinding) => lockLookupBinding.id === bindingLookupId) ||
+    securityCameraBindings().find(
+      (cameraLookupBinding) => cameraLookupBinding.id === bindingLookupId,
+    ) ||
+    presenceBindings().find(
+      (presenceLookupBinding) => presenceLookupBinding.id === bindingLookupId,
     );
-    for (const [panelModuleKey, panelTabButton] of moduleTabsByModule) {
-      const tabIndex = configuredModules.indexOf(panelModuleKey);
-      const isTabDisabled = isAllFloors || tabIndex < 0;
-      if (isTabDisabled) {
-        moveFocusInto(panelTabButton);
+  function refreshStageUi() {
+    (updateEditorSelection(),
+      configureIdleBehaviors(),
+      syncPresenceScene(),
+      presenceWaves.sync({
+        bindings: (options.security?.presenceSensors || [])
+          .filter((presenceSyncEntry) => !isEditing || "presence:" + presenceSyncEntry.id === text)
+          .map((presenceSyncSensor) => {
+            const presenceLayerItem = mountOptions.document.floors
+              .find((presenceSyncFloor) => presenceSyncFloor.id === presenceSyncSensor.floorId)
+              ?.scene.items.find(
+                (presenceSyncItem) => presenceSyncItem.id === presenceSyncSensor.modelId,
+              );
+            return {
+              ...presenceSyncSensor,
+              width: presenceLayerItem?.width,
+              height: presenceLayerItem?.height,
+              depth: presenceLayerItem?.depth,
+            };
+          }),
+        states: deviceStates,
+        floorId: selectedFloorId,
+        preview: isEditing,
+        enabled:
+          startupProgress > 0 &&
+          activeModule === "security" &&
+          !focusedItemId &&
+          !panelDisplayMode &&
+          !isAwaitingFloorViewAdjust &&
+          !isRangeEditorOpen &&
+          !mountOptions.floorTransitionActive &&
+          cameraMotionSnapshot?.owner !== "floor",
+      }),
+      syncVacuumMap());
+    const floorTransitionActive =
+      mountOptions.floorTransitionActive || cameraMotionSnapshot?.owner === "floor";
+    if (
+      (carCharging.sync({
+        root: mountOptions.modelRoot,
+        revision: mountOptions.environmentRevision ?? mountOptions.sceneRevision,
+        retainedRoots: mountOptions.retainedModelRoots || [],
+        bindings: options.devices?.cars || [],
+        states: deviceStates,
+      }),
+      environmentScene.setRoot(
+        mountOptions.modelRoot,
+        mountOptions.environmentRevision ?? mountOptions.sceneRevision,
+      ),
+      !floorTransitionActive || cameraMotionSnapshot?.presentationRevealed)
+    ) {
+      floorTransitionActive ||
+        (rebuildCurtainMotion(),
+        syncNasOverlay(),
+        syncCameraOverlay(),
+        syncEnvironmentLayers(),
+        syncVacuumMotion());
+      const navigationBindings = collectModuleBindings().filter(matchesSelectedFloor),
+        modelBindings = expandGroupMembers(
+          isEditing
+            ? [
+                ...navigationBindings,
+                ...([
+                  "climate",
+                  "water-heater",
+                  "devices",
+                  "nas",
+                  "television",
+                  "speaker",
+                  "vacuum",
+                  ...GENERIC_DEVICE_KINDS2,
+                ].includes(activeModule)
+                  ? []
+                  : collectPreviewCovers()),
+              ]
+            : [
+                ...collectClimateBindings(),
+                ...collectGroupedCovers(),
+                ...collectNasBindings(),
+                ...collectSpeakerBindings(),
+                ...collectTelevisionBindings(),
+                ...GENERIC_DEVICE_KINDS2.flatMap((deviceKindForBinding) =>
+                  collectGenericDeviceBindings(deviceKindForBinding),
+                ),
+                ...collectVacuumBindings(),
+                ...lockBindings(),
+                ...securityCameraBindings(),
+                ...presenceBindings(),
+              ]
+                .map((stageBinding) => ({
+                  ...stageBinding,
+                  id: ["lock", "camera", "presence"].includes(stageBinding.deviceKind)
+                    ? stageBinding.id
+                    : stageBinding.deviceKind + ":" + stageBinding.id,
+                }))
+                .concat(collectPreviewCovers()),
+        ).filter(
+          (availableStageBinding) =>
+            availableStageBinding.modelAvailable && matchesSelectedFloor(availableStageBinding),
+        ),
+        pageDimming = pageDimming2(
+          options,
+          activeModule,
+          !!focusedItemId && panelDisplayMode !== "panel",
+        ),
+        enabled = !isAwaitingFloorViewAdjust && !isRangeEditorOpen && pageDimming.enabled,
+        isTemperatureHumidityPreview = isEditing && activeModule === "temperature-humidity",
+        sceneBindings = isTemperatureHumidityPreview
+          ? []
+          : pageModelBindings2(
+              mountOptions.document.floors,
+              modelBindings,
+              pageDimming.page,
+              selectedFloorId,
+            );
+      if (isEditing && !isTemperatureHumidityPreview && text) {
+        for (const sceneBinding of modelBindings)
+          (sceneBinding.id === text || sceneBinding.entryId === text) &&
+            !sceneBindings.some(
+              (sceneBindingMatch) =>
+                sceneBindingMatch.floorId === sceneBinding.floorId &&
+                sceneBindingMatch.modelId === sceneBinding.modelId,
+            ) &&
+            sceneBindings.push({
+              ...sceneBinding,
+              visible: true,
+            });
       }
-      panelTabButton.hidden = moduleTabsElement.hidden || tabIndex < 0;
-      panelTabButton.disabled = isTabDisabled;
-      panelTabButton.style.setProperty("--i3d-tab-index", String(Math.max(0, tabIndex)));
-      panelTabButton.setAttribute("aria-pressed", String(panelModuleKey === activeTabModule));
+      (screenOutlines.sync(
+        mountOptions.modelRoot,
+        mountOptions.environmentRevision ?? mountOptions.sceneRevision,
+        sceneBindings.filter(
+          (sceneBindingFilter) =>
+            sceneBindingFilter.deviceKind !== "smallcar" &&
+            (!text || sceneBindingFilter.id === text || sceneBindingFilter.entryId === text),
+        ),
+        !isEditing &&
+          !focusedItemId &&
+          !isAwaitingFloorViewAdjust &&
+          !isRangeEditorOpen &&
+          selectedFloorId !== "all" &&
+          ["environment", "devices", "vacuum", "security"].includes(pageDimming.page),
+      ),
+        environmentAirflow.setRoot(mountOptions.modelRoot, mountOptions.sceneRevision),
+        environmentScene.setMode({
+          enabled: enabled,
+          saturation: pageDimming.saturation,
+          dimStrength: enabled ? pageDimming.strength : 0,
+          bindings: sceneBindings,
+          animateBindings: !isEditing && !isAwaitingFloorViewAdjust,
+          states: deviceStates,
+          focusedId: focusedItemId,
+          selectedId: isEditing ? text : "",
+        }),
+        environmentAirflow.setState({
+          enabled:
+            startupProgress > 0 &&
+            !isAwaitingFloorViewAdjust &&
+            !isRangeEditorOpen &&
+            !isTemperatureHumidityPreview,
+          bindings: modelBindings.filter(
+            (climateEnvironmentBinding) =>
+              climateEnvironmentBinding.deviceKind === "climate" &&
+              !climateEnvironmentBinding.waterHeater,
+          ),
+          states: deviceStates,
+          focusedId: focusedItemId,
+          overview: !focusedItemId || panelDisplayMode === "panel",
+        }),
+        mountOptions.setEnvironmentActive?.(enabled || environmentScene.isActive));
     }
-    moduleEmptyElement.hidden =
-      isAllFloors ||
+    const fallbackBindings = collectModuleBindings().filter(matchesSelectedFloor);
+    syncFloorTabs();
+    const isAllFloorsSelected = selectedFloorId === "all";
+    toggleModuleTabs(
+      !isNavigationVisible &&
+        (isEditing || isAwaitingFloorViewAdjust || isRangeEditorOpen || isAllFloorsSelected),
+    );
+    const normalizedModule = ["water-heater", "airer"].includes(activeModule)
+      ? "devices"
+      : ["overview", "security", "light", "devices", "vacuum"].includes(activeModule)
+        ? activeModule
+        : "environment";
+    (moduleTabsElement.classList.toggle("is-all-floors", isAllFloorsSelected),
+      moduleTabsElement.style.setProperty("--i3d-tab-count", String(configuredModuleKinds2.length)),
+      moduleTabsElement.style.setProperty(
+        "--i3d-selected-tab",
+        String(Math.max(0, configuredModuleKinds2.indexOf(normalizedModule))),
+      ));
+    for (const [tabModuleKind, moduleTabElement] of moduleTabsByKind) {
+      const indexOf = configuredModuleKinds2.indexOf(tabModuleKind),
+        isModuleTabDisabled = isAllFloorsSelected || indexOf < 0;
+      (isModuleTabDisabled && restoreFocusWithin(moduleTabElement),
+        (moduleTabElement.hidden = moduleTabsElement.hidden || indexOf < 0),
+        (moduleTabElement.disabled = isModuleTabDisabled),
+        moduleTabElement.style.setProperty("--i3d-tab-index", String(Math.max(0, indexOf))),
+        moduleTabElement.setAttribute("aria-pressed", String(tabModuleKind === normalizedModule)));
+    }
+    ((moduleEmptyElement.hidden =
+      isAllFloorsSelected ||
       moduleTabsElement.hidden ||
       (!pendingModule &&
         (activeModule === "security"
-          ? [...(config.security?.presenceSensors || []), ...(config.security?.cameras || [])].some(
-              isOnActiveFloor
-            )
+          ? [
+              ...(options.security?.locks || []),
+              ...(options.security?.presenceSensors || []),
+              ...(options.security?.cameras || []),
+            ].some(matchesSelectedFloor)
           : activeModule === "overview" ||
             activeModule === "light" ||
-            overviewBindings.length > 0));
-    moduleEmptyElement.textContent = pendingModule
-      ? "请选择楼层，再使用" + (moduleTabsByModule.get(pendingModule)?.textContent || "控制") + "。"
-      : activeModule === "security"
-        ? "尚未配置安防相关设备"
-        : activeModule === "vacuum"
-          ? "尚未配置扫地机相关设备"
-          : activeModule === "devices"
-            ? "尚未配置相关设备"
-            : "尚未配置环境相关设备";
+            fallbackBindings.length > 0))),
+      (moduleEmptyElement.textContent = pendingModule
+        ? "请选择楼层，再使用" + (moduleTabsByKind.get(pendingModule)?.textContent || "控制") + "。"
+        : activeModule === "security"
+          ? "尚未配置安防相关设备"
+          : activeModule === "vacuum"
+            ? "尚未配置扫地机相关设备"
+            : activeModule === "devices"
+              ? "尚未配置相关设备"
+              : "尚未配置环境相关设备"));
   }
-  // 展开 / 收起模块面板（灯光、空调、窗帘、NAS、电视共用一个容器）。
-  function toggleModulePanel(isHidden: any) {
-    if (modulePanelOpenState === isHidden) {
-      return;
-    }
-    const wasUninitialized = modulePanelOpenState === null;
-    const computedTabsStyle =
-      !moduleTabsElement.hidden &&
-      moduleTabsElement.animate &&
-      typeof getComputedStyle == "function"
-        ? getComputedStyle(moduleTabsElement)
-        : null;
-    const baseFrame = {
-      clipPath: moduleTabsElement.hidden
-        ? "inset(0 100% 0 0 round 12px)"
-        : computedTabsStyle?.clipPath && computedTabsStyle.clipPath !== "none"
-          ? computedTabsStyle.clipPath
-          : "inset(0 0% 0 0 round 12px)",
-      opacity: moduleTabsElement.hidden ? 0 : Number(computedTabsStyle?.opacity ?? 1),
-      transform: moduleTabsElement.hidden
-        ? "translateX(-6px)"
-        : computedTabsStyle?.transform || "none"
-    };
-    modulePanelAnimation?.cancel();
-    modulePanelAnimation = null;
-    modulePanelOpenState = isHidden;
-    moduleTabsElement.inert = isHidden;
-    moduleTabsElement.setAttribute("aria-hidden", String(isHidden));
-    if (isHidden) {
-      moveFocusInto(moduleTabsElement);
-    }
+  function toggleModuleTabs(shouldHideTabs) {
+    if (isModuleTabsHidden === shouldHideTabs) return;
+    const isModuleTabsInitial = isModuleTabsHidden === null,
+      computedStyle =
+        !moduleTabsElement.hidden &&
+        moduleTabsElement.animate &&
+        typeof getComputedStyle == "function"
+          ? getComputedStyle(moduleTabsElement)
+          : null,
+      moduleTabsBaseKeyframe = {
+        clipPath: moduleTabsElement.hidden
+          ? "inset(0 100% 0 0 round 12px)"
+          : computedStyle?.clipPath && computedStyle.clipPath !== "none"
+            ? computedStyle.clipPath
+            : "inset(0 0% 0 0 round 12px)",
+        opacity: moduleTabsElement.hidden ? 0 : Number(computedStyle?.opacity ?? 1),
+        transform: moduleTabsElement.hidden
+          ? "translateX(-6px)"
+          : computedStyle?.transform || "none",
+      };
     if (
-      wasUninitialized ||
-      !moduleTabsElement.animate ||
-      prefersReducedMotionNow()
+      (moduleTabsAnimation?.cancel(),
+      (moduleTabsAnimation = null),
+      (isModuleTabsHidden = shouldHideTabs),
+      (moduleTabsElement.inert = shouldHideTabs),
+      moduleTabsElement.setAttribute("aria-hidden", String(shouldHideTabs)),
+      shouldHideTabs && restoreFocusWithin(moduleTabsElement),
+      isModuleTabsInitial ||
+        !moduleTabsElement.animate ||
+        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)
     ) {
-      moduleTabsElement.hidden = isHidden;
+      moduleTabsElement.hidden = shouldHideTabs;
       return;
     }
     moduleTabsElement.hidden = false;
-    const panelKeyframes = isHidden
-      ? [
-          baseFrame,
-          {
-            clipPath: "inset(0 100% 0 0 round 12px)",
-            opacity: 0,
-            transform: "translateX(-4px)"
-          }
-        ]
-      : [
-          baseFrame,
-          {
-            clipPath: "inset(0 0% 0 0 round 12px)",
-            opacity: 1,
-            transform: "translateX(2px)",
-            offset: 0.8
-          },
-          {
-            clipPath: "inset(0 0% 0 0 round 12px)",
-            opacity: 1,
-            transform: "translateX(0)"
-          }
-        ];
-    const panelAnimation = moduleTabsElement.animate(panelKeyframes, {
-      duration: isHidden ? 380 : 480,
-      easing: "cubic-bezier(.2,.7,.2,1)",
-      fill: "both"
-    });
-    modulePanelAnimation = panelAnimation;
-    panelAnimation.onfinish = () => {
-      if (modulePanelAnimation === panelAnimation) {
-        modulePanelAnimation = null;
-        moduleTabsElement.hidden = isHidden;
-        for (const [hiddenModuleKey, hiddenTabButton] of moduleTabsByModule) {
-          hiddenTabButton.hidden = isHidden || !configuredModules.includes(hiddenModuleKey);
+    const moduleTabsKeyframes = shouldHideTabs
+        ? [
+            moduleTabsBaseKeyframe,
+            {
+              clipPath: "inset(0 100% 0 0 round 12px)",
+              opacity: 0,
+              transform: "translateX(-4px)",
+            },
+          ]
+        : [
+            moduleTabsBaseKeyframe,
+            {
+              clipPath: "inset(0 0% 0 0 round 12px)",
+              opacity: 1,
+              transform: "translateX(2px)",
+              offset: 0.8,
+            },
+            {
+              clipPath: "inset(0 0% 0 0 round 12px)",
+              opacity: 1,
+              transform: "translateX(0)",
+            },
+          ],
+      animate = moduleTabsElement.animate(moduleTabsKeyframes, {
+        duration: shouldHideTabs ? 380 : 480,
+        easing: "cubic-bezier(.2,.7,.2,1)",
+        fill: "both",
+      });
+    ((moduleTabsAnimation = animate),
+      (animate.onfinish = () => {
+        if (moduleTabsAnimation === animate) {
+          ((moduleTabsAnimation = null), (moduleTabsElement.hidden = shouldHideTabs));
+          for (const [finishedModuleKind, finishedModuleTabElement] of moduleTabsByKind)
+            finishedModuleTabElement.hidden =
+              shouldHideTabs || !configuredModuleKinds2.includes(finishedModuleKind);
+          animate.cancel();
         }
-        panelAnimation.cancel();
-      }
-    };
+      }));
   }
-  let moduleTransition: any = null;
-  function cancelModuleTransition() {
-    const activeTransition = moduleTransition;
-    moduleTransition = null;
-    if (activeTransition) {
-      activeTransition.out?.cancel();
-      activeTransition.in?.cancel();
-      activeTransition.ghost.remove();
-      markersElement.removeAttribute("inert");
+  let outgoingGhostAnimation = null;
+  function cancelGhostAnimation() {
+    const ghostAnimation = outgoingGhostAnimation;
+    if (((outgoingGhostAnimation = null), !!ghostAnimation)) {
+      for (const ghostAnimationEntry of ghostAnimation.animations) ghostAnimationEntry.cancel();
+      (ghostAnimation.ghost.remove(), markerLayerElement.removeAttribute("inert"));
     }
   }
-  // 模块切换动画：把旧标记复制成幽灵元素淡出，再应用新模块的更新。
-  function animateModuleSwap(applyModuleUpdate: any) {
-    const computedMarkersStyle = markersElement.animate ? getComputedStyle(markersElement) : null;
-    const initialOpacity = computedMarkersStyle ? Number(computedMarkersStyle.opacity) : 1;
-    const initialTransform = computedMarkersStyle?.transform || "none";
-    cancelModuleTransition();
+  function runModuleSwitchAnimation(switchContent) {
+    const previousOpacityList = markerLayerElement.animate
+      ? [...markerLayerElement.children].map((opacityChild) =>
+          Number(getComputedStyle(opacityChild).opacity),
+        )
+      : [];
     if (
-      !markersElement.animate ||
-      prefersReducedMotionNow()
+      (cancelGhostAnimation(),
+      !markerLayerElement.animate ||
+        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)
     ) {
-      applyModuleUpdate();
+      switchContent();
       return;
     }
-    const outgoingMarkers = collectModuleBindings()
-      .map((markerIndexBinding: any) => ({
-        ...markerIndexBinding,
-        index: [...markersElement.children].indexOf(markersById.get(markerIndexBinding.id))
-      }))
-      .filter((positionedOutgoingBinding: any) => positionedOutgoingBinding.index >= 0);
-    const ghostElement = markersElement.cloneNode(true);
-    ghostElement.setAttribute("aria-hidden", "true");
-    ghostElement.setAttribute("inert", "");
-    ghostElement.classList.add("i3d-module-outgoing");
-    ghostElement.style.pointerEvents = "none";
-    for (const ghostButton of ghostElement.querySelectorAll("button")) {
-      ghostButton.style.pointerEvents = "none";
-      ghostButton.removeAttribute("id");
-    }
-    markersElement.parentNode.append(ghostElement);
-    applyModuleUpdate();
-    markersElement.setAttribute("inert", "");
-    const transitionState: any = (moduleTransition = {
-      ghost: ghostElement,
-      outgoing: outgoingMarkers.map((outgoingBinding: any) => ({
-        ...outgoingBinding,
-        node: ghostElement.children[outgoingBinding.index]
-      }))
+    const childIndexByNode = new Map(
+        [...markerLayerElement.children].map((indexedChild, indexedChildIndex) => [
+          indexedChild,
+          indexedChildIndex,
+        ]),
+      ),
+      outgoingEntries = currentModuleBindings()
+        .map((outgoingBinding) => ({
+          ...outgoingBinding,
+          index: childIndexByNode.get(map.get(outgoingBinding.id)) ?? -1,
+        }))
+        .filter((outgoingEntry) => outgoingEntry.index >= 0),
+      cloneNode = markerLayerElement.cloneNode(true);
+    (cloneNode.setAttribute("aria-hidden", "true"),
+      cloneNode.setAttribute("inert", ""),
+      cloneNode.classList.add("i3d-module-outgoing"),
+      (cloneNode.style.pointerEvents = "none"));
+    for (const ghostButton of cloneNode.querySelectorAll("button"))
+      ((ghostButton.style.pointerEvents = "none"), ghostButton.removeAttribute("id"));
+    (markerLayerElement.parentNode.append(cloneNode),
+      switchContent(),
+      markerLayerElement.setAttribute("inert", ""));
+    const ghostAnimationState = (outgoingGhostAnimation = {
+      ghost: cloneNode,
+      animations: [],
+      outgoing: outgoingEntries.map((ghostOutgoingEntry) => ({
+        ...ghostOutgoingEntry,
+        node: cloneNode.children[ghostOutgoingEntry.index],
+      })),
     });
-    transitionState.out = ghostElement.animate(
-      [
-        {
-          opacity: initialOpacity,
-          transform: initialTransform
-        },
-        {
-          opacity: 0,
-          transform: initialTransform
+    for (const [ghostChildIndex, ghostChildElement] of [...cloneNode.children].entries())
+      ghostChildElement.hidden ||
+        ghostAnimationState.animations.push(
+          ghostChildElement.animate(
+            [
+              {
+                opacity: previousOpacityList[ghostChildIndex] ?? 1,
+              },
+              {
+                opacity: 0,
+              },
+            ],
+            {
+              duration: 240,
+              easing: "linear",
+              fill: "both",
+            },
+          ),
+        );
+    if (!markerLayerElement.classList.contains("is-concealed")) {
+      for (const stageChildElement of markerLayerElement.children)
+        if (!stageChildElement.hidden) {
+          const childOpacity = Number(getComputedStyle(stageChildElement).opacity);
+          ghostAnimationState.animations.push(
+            stageChildElement.animate(
+              [
+                {
+                  opacity: 0,
+                },
+                {
+                  opacity: childOpacity,
+                },
+              ],
+              {
+                duration: 240,
+                easing: "linear",
+                fill: "backwards",
+              },
+            ),
+          );
         }
-      ],
-      {
-        duration: 240,
-        easing: "linear",
-        fill: "forwards"
-      }
-    );
-    if (!markersElement.classList.contains("is-concealed")) {
-      transitionState.in = markersElement.animate(
-        [
-          {
-            opacity: 0
-          },
-          {
-            opacity: 1
-          }
-        ],
-        {
-          duration: 240,
-          easing: "linear",
-          fill: "backwards"
-        }
-      );
     }
-    Promise.all([transitionState.out.finished, transitionState.in?.finished])
+    Promise.all(
+      ghostAnimationState.animations.map((ghostAnimationHandle) => ghostAnimationHandle.finished),
+    )
       .then(() => {
-        if (moduleTransition === transitionState) {
-          ghostElement.remove();
-          moduleTransition = null;
-          updateMarkerVisibility();
-        }
+        outgoingGhostAnimation === ghostAnimationState &&
+          (cancelGhostAnimation(), syncStageVisibility());
       })
       .catch(() => {});
   }
-  function selectModule(targetModule: any) {
-    if (
-      !isEditing &&
-      !isViewEditing &&
-      !isRangeEditorOpen &&
-      !isSceneUpdating &&
-      !!configuredModules.includes(targetModule) &&
-      currentFloorId !== "all"
-    ) {
-      pendingModule = "";
-      if (targetModule === activeModule) {
-        renderStage();
-        return;
-      }
-      if (followedVacuumId) {
-        stopVacuumFollow();
-      }
-      exitFocus();
-      animateModuleSwap(() => {
-        activeModule = targetModule;
-        idleRotation.activity();
-        idleIconVisibility.activity();
-        idleFocusExit.activity();
-        markerPointsById.clear();
-        renderStage();
-        renderMarkers();
+  function reportModuleSwitch(lifecycleEventName, fromModuleName, toModuleName) {
+    try {
+      const moduleOrderEntries = [
+        "overview",
+        "light",
+        "environment",
+        "devices",
+        "vacuum",
+        "security",
+      ];
+      mountOptions.reportLifecycle?.(lifecycleEventName, {
+        fromCategory: moduleOrderEntries.indexOf(fromModuleName),
+        toCategory: moduleOrderEntries.indexOf(toModuleName),
+        ...vacuumMaps.diagnostics?.(),
       });
-    }
+    } catch {}
   }
-  // 运行态焦点：编辑态用 selectedId，这里只解析展示态的 focusedId。
-  const findFocusedBinding = () => findBinding(focusedId);
-
-
-
-
-
-
-
-
-  // 算出面板对取景的遮挡比例：摄像头与通用弹窗两套布局不同，
-  const computePanelInsetRatio = () => {
-    const insetBinding = findFocusedBinding();
-    const popupLayoutSettings =
-      config.popupLayout?.[insetBinding?.deviceKind === "camera" ? "camera" : "general"];
+  function selectModule(targetModule) {
     if (
-      (Number.isFinite(popupLayoutSettings?.x) && popupLayoutSettings.x < 75) ||
-      (!isEditing && isFocusableDevice(insetBinding) && insetBinding?.clickAction === "focus")
-    ) {
+      isEditing ||
+      isAwaitingFloorViewAdjust ||
+      isRangeEditorOpen ||
+      isCameraMoving ||
+      !configuredModuleKinds2.includes(targetModule) ||
+      selectedFloorId === "all"
+    )
+      return;
+    if (((pendingModule = ""), targetModule === activeModule)) {
+      refreshStageUi();
+      return;
+    }
+    const previousModule = activeModule;
+    (reportModuleSwitch("category-switch-start", previousModule, targetModule),
+      followVacuumId && stopVacuumFollow(),
+      exitFocusMode(),
+      runModuleSwitchAnimation(() => {
+        ((activeModule = targetModule),
+          idleRotationControl.activity(),
+          idleIconVisibilityControl.activity(),
+          idleFocusExitControl.activity(),
+          sceneCacheByKey.clear(),
+          refreshStageUi(),
+          syncMarkers(),
+          reportModuleSwitch("category-switch-applied", previousModule, targetModule));
+      }));
+  }
+  const getFocusedEntry = () => findBindingById(focusedItemId),
+    readLightState = (lightEntityId) =>
+      vector.state(lightEntityId, resolveDeviceState(lightEntityId));
+  function resolveLightState(lightEntry) {
+    const lightState = readLightState(lightEntry?.entityId),
+      deviceState = resolveDeviceState(lightEntry?.entityId);
+    if (!lightEntry?.entityId?.startsWith("light.")) return lightState;
+    const lightStateView =
+      deviceState.capabilitiesKnown ||
+      lightState.brightnessSupported ||
+      lightState.temperatureSupported
+        ? {
+            ...lightState,
+          }
+        : {
+            ...lightState,
+            brightnessSupported: true,
+            temperatureSupported: true,
+            brightness: lightState.on ? (lightState.brightness ?? 100) : 0,
+            kelvin: lightState.kelvin ?? 3500,
+          };
+    return (
+      !lightStateView.on && lightStateView.brightnessSupported && (lightStateView.brightness = 0),
+      lightStateView
+    );
+  }
+  function previewEditedLight(editedLightBinding) {
+    const editedLightState = readLightState(editedLightBinding.entityId);
+    return (
+      isEditing &&
+        lightEditPreview?.id === editedLightBinding.id &&
+        ((editedLightState.on = true),
+        (editedLightState.available = true),
+        lightEditPreview.kind !== "defaults" &&
+          (editedLightState.brightness = lightEditPreview.kind === "brightnessMin" ? 1 : 100),
+        lightEditPreview.kind.startsWith("brightness") &&
+          (editedLightState.brightnessSupported = true),
+        lightEditPreview.kind.startsWith("temperature") &&
+          ((editedLightState.temperatureSupported = true),
+          (editedLightState.kelvin = lightEditPreview.kind.endsWith("Min")
+            ? editedLightState.minimum
+            : editedLightState.maximum))),
+      editedLightState
+    );
+  }
+  function applyLightStates(lightStateOptions, lightStatePatch = null) {
+    const isEditorActive = isEditing || isAwaitingFloorViewAdjust,
+      editedLightEntityId =
+        isEditorActive && !isAwaitingFloorViewAdjust && panelDisplayMode !== "edit"
+          ? lightEditPreview?.id
+          : null;
+    if (
+      (mountOptions.setEditorEffects?.(isEditorActive, !!editedLightEntityId),
+      (mountOptions.floorTransitionActive || cameraMotionSnapshot?.owner === "floor") &&
+        !mountOptions.floorEffectsFollow)
+    )
+      return;
+    const isPartialLightPatch =
+        !isEditorActive && lightStatePatch && mountOptions.lightStatePatchReady === true,
+      lightBindingList = (options.lights || []).filter((lightBinding) => lightBinding.entityId),
+      targetLightBindings = isPartialLightPatch
+        ? lightBindingsForUpdate2(lightBindingList, lightStatePatch)
+        : lightBindingList;
+    mountOptions.setLightStates(
+      targetLightBindings.map((targetLightBinding) => {
+        const targetLightStateView = previewEditedLight(targetLightBinding);
+        return {
+          ...applyFixedLightEffects(targetLightBinding),
+          ...(isEditing && lightEditPreview?.id === targetLightBinding.id
+            ? targetLightStateView
+            : lightRenderState2(targetLightStateView)),
+          ...(isEditorActive && targetLightBinding.id !== editedLightEntityId
+            ? {
+                on: false,
+              }
+            : {}),
+        };
+      }),
+      isEditorActive
+        ? {
+            ...lightStateOptions,
+            editor: true,
+            immediate: true,
+          }
+        : isPartialLightPatch
+          ? {
+              ...lightStateOptions,
+              partial: true,
+            }
+          : lightStateOptions,
+    );
+  }
+  function syncCameraInteraction() {
+    if (isRangeEditorOpen && rangeEditorHandle?.syncCameraInteraction) {
+      rangeEditorHandle.syncCameraInteraction();
+      return;
+    }
+    if (isRangeEditorOpen || followVacuumId) {
+      mountOptions.setCameraInteraction({
+        enabled: false,
+        panEnabled: false,
+        zoomEnabled: false,
+      });
+      return;
+    }
+    const cameraInteractionConfig = {
+        ...options.camera,
+        ...resolvePageBehavior2(options, activeModule).interaction,
+      },
+      isFreeCameraMode =
+        isAwaitingFloorViewAdjust ||
+        panelDisplayMode === "edit" ||
+        (isEditing && !panelDisplayMode && !cameraMotionSnapshot),
+      editedEntry = panelDisplayMode === "edit" ? getFocusedEntry() : null,
+      anchor =
+        editedEntry &&
+        (editedEntry.isCurtainGroup
+          ? computeGroupBounds(editedEntry)
+          : editedEntry.deviceKind === "presence"
+            ? presenceScene.anchor(editedEntry.id.slice(9))
+            : editedEntry.modelId
+              ? mountOptions.environmentModelPose?.(editedEntry.floorId, editedEntry.modelId)
+              : null),
+      editFocusPoint = editedEntry
+        ? anchor?.center ||
+          mountOptions
+            .worldPoint(editedEntry.floorId, editedEntry.x, editedEntry.y, editedEntry.height)
+            ?.toArray()
+        : null;
+    mountOptions.setCameraInteraction({
+      enabled:
+        !activePointerDrag &&
+        (isFreeCameraMode ||
+          (isControlReady &&
+            (!panelDisplayMode || panelDisplayMode === "panel") &&
+            !cameraMotionSnapshot &&
+            !isIdleRotationRunning)),
+      rotationMode: isFreeCameraMode ? "free" : cameraInteractionConfig.rotationMode,
+      panEnabled: isFreeCameraMode,
+      zoomEnabled: isFreeCameraMode,
+      focusEditing: panelDisplayMode === "edit",
+      focusPoint: editFocusPoint,
+    });
+  }
+  let presentationUiSignatureCache = "";
+  const computeFocusInset = () => {
+    const insetFocusedEntry = getFocusedEntry(),
+      popupPlacementConfig =
+        options.popupLayout?.[insetFocusedEntry?.deviceKind === "camera" ? "camera" : "general"];
+    if (
+      (Number.isFinite(popupPlacementConfig?.x) && popupPlacementConfig.x < 75) ||
+      (!isEditing &&
+        isPanelDeviceKind(insetFocusedEntry) &&
+        insetFocusedEntry?.clickAction === "focus")
+    )
       return 0;
-    } else {
-      return Math.min(
-        0.7,
-        (lightPanelElement.getBoundingClientRect().width + presentationScaleX * 24) /
-          Math.max(containerElement.clientWidth, 1)
-      );
-    }
+    const clientWidth = mediaViewportSize?.width || element.clientWidth,
+      lightPanelScale =
+        lightPanelSection.getBoundingClientRect().width / Math.max(mediaScale, 0.0001);
+    return Math.min(0.7, (lightPanelScale + 24) / Math.max(clientWidth, 1));
   };
-  // 舞台布局：容器尺寸变化（ResizeObserver）时重排演示层与各面板，并刷新标记位置。
-  function layoutStage() {
-    const containerRect = containerElement.getBoundingClientRect();
-    const layoutWidth = presentationLayout?.width || containerRect.width;
-    const layoutHeight = presentationLayout?.height || containerRect.height;
-    if (
-      !(layoutWidth > 0) ||
-      !(layoutHeight > 0) ||
-      !(containerRect.width > 0) ||
-      !(containerRect.height > 0)
-    ) {
+  function syncLayoutMetrics() {
+    const stageBoundingRect = element.getBoundingClientRect(),
+      width2 = mediaViewportSize?.width || stageBoundingRect.width,
+      height = mediaViewportSize?.height || stageBoundingRect.height;
+    if (!(width2 > 0 && height > 0 && stageBoundingRect.width > 0 && stageBoundingRect.height > 0))
       return;
-    }
-    presentationScaleX = containerRect.width / layoutWidth;
-    const navigationWidth = configuredModules.length * MODULE_TAB_STRIDE + MODULE_TAB_TRACK_PADDING * 2;
-    const navigationSettings = config.navigation || {};
-    // 宿主可给导航 / 楼层页签设缩放，允许范围 0.5~2（超出会被夹住），缺省为 1；
-    const scaleSetting = (navigationEntry: any) =>
-      Number.isFinite(navigationEntry?.scale)
-        ? Math.max(0.5, Math.min(2, navigationEntry.scale))
-        : 1;
-    const navigationScale = Math.min(
-      scaleSetting(navigationSettings.categories) * 2,
-      (layoutWidth - 24) / navigationWidth,
-      (layoutHeight - 24) / (navigationElement.offsetHeight || MODULE_TAB_TRACK_HEIGHT)
-    );
-    const floorScale = Math.min(
-      scaleSetting(navigationSettings.floors) * 2,
-      (layoutHeight - 24) / (floorTabsElement.scrollHeight || 240),
-      (layoutWidth - 24) / (floorTabsElement.offsetWidth || 80)
-    );
-    presentationElement.style.setProperty("--i3d-navigation-scale", String(navigationScale));
-    presentationElement.style.setProperty("--i3d-floor-scale", String(floorScale));
-    // 操作提示条的反算系数：演示层被缩小多少倍，提示条就放大多少倍，屏幕上保持设计字号
-    presentationElement.style.setProperty(
-      "--i3d-help-scale",
-      String(Math.min(4, Math.max(1, 1 / Math.max(presentationScaleX, 0.01))))
-    );
-    // 按宿主给的偏移摆放导航元素；偏移支持百分比与像素两种写法，
-    const placeNavigationElement = (
-      elementToPlace: any,
-      offsetSettings: any,
-      fallbackPosition: any,
-      layoutScale: any,
-      fallbackWidth: any,
-      fallbackHeight: any
-    ) => {
-      const scaledWidth =
-        (elementToPlace === navigationElement
-          ? navigationWidth
-          : elementToPlace.offsetWidth || fallbackWidth) * layoutScale;
-      // 元素尺寸要乘同一份布局缩放，下方才能按「12px 安全边距」把中心点夹回可视区。
-      const scaledHeight = (elementToPlace.offsetHeight || fallbackHeight) * layoutScale;
-      // 宿主下发的偏移可能越界（负数或 >100）且允许缺省，这里夹到 0~100，
-      const offsetPercent = (axisName: any, fallbackPercent: any) =>
-        Number.isFinite(offsetSettings?.[axisName])
-          ? Math.max(0, Math.min(100, offsetSettings[axisName]))
-          : fallbackPercent;
-      const placedLeftPx = Math.max(
-        12 + scaledWidth / 2,
-        Math.min(
-          layoutWidth - 12 - scaledWidth / 2,
-          (layoutWidth * offsetPercent("x", fallbackPosition[0])) / 100
-        )
-      );
-      const placedTopPx = Math.max(
-        12 + scaledHeight / 2,
-        Math.min(
-          layoutHeight - 12 - scaledHeight / 2,
-          (layoutHeight * offsetPercent("y", fallbackPosition[1])) / 100
-        )
-      );
-      elementToPlace.style.left = placedLeftPx + "px";
-      elementToPlace.style.top = placedTopPx + "px";
-      return placedTopPx - scaledHeight / 2;
-    };
-    const navigationTop = placeNavigationElement(
-      navigationElement,
-      navigationSettings.categories,
-      [50, 94],
-      navigationScale,
-      420,
-      36
-    );
-    const followOffset = Number.isFinite(navigationSettings.followOffset)
-      ? Math.max(0, Math.min(300, navigationSettings.followOffset))
-      : 16;
-    // 工具栏与导航共用同一份缩放，才能比较出「换行堆叠到导航上方」还是「贴边」；
-    const toolbarHeight = (toolbarElement.offsetHeight || 30) * navigationScale;
-    const shouldStackToolbar = navigationTop >= toolbarHeight + 12;
-    toolbarElement.style.bottom = shouldStackToolbar
-      ? "calc(100% + " +
-        Math.min(followOffset, navigationTop - toolbarHeight - 12) / navigationScale +
-        "px)"
-      : "auto";
-    toolbarElement.style.top = shouldStackToolbar ? "auto" : "calc(100% + 8px)";
-    placeNavigationElement(
-      floorTabsElement,
-      navigationSettings.floors,
-      [96, 50],
-      floorScale,
-      80,
-      120
-    );
-    const panelDefaultTop = Math.max(12, Math.min(layoutHeight * 0.56 - 400, layoutHeight - 812));
-    presentationElement.style.setProperty(
-      "--i3d-navigation-bottom",
-      Math.max(12, navigationTop - navigationScale * 50) + "px"
-    );
-    const popupLayoutResult = computePopupPlacement({
-      width: layoutWidth,
-      height: layoutHeight,
-      panelWidth: lightPanelElement.offsetWidth || 360,
-      panelHeight: lightPanelElement.offsetHeight || 400,
-      defaultTop: panelDefaultTop,
-      defaultScale: Math.min(
-        2,
-        (layoutWidth - 32) / (lightPanelElement.offsetWidth || 360),
-        Math.max(
-          0.5,
-          (layoutHeight - panelDefaultTop - 100) / (lightPanelElement.offsetHeight || 400)
-        )
+    ((containerViewportSize = {
+      width: stageBoundingRect.width,
+      height: stageBoundingRect.height,
+    }),
+      (mediaScale = stageBoundingRect.width / width2));
+    const stageScaleY = stageBoundingRect.height / height,
+      hasMediaViewport = !!mediaViewportSize,
+      isTouchScalingEnabled = typeof mountOptions < "u" && hasMediaViewport,
+      width3 = isTouchScalingEnabled ? width2 : stageBoundingRect.width,
+      height2 = isTouchScalingEnabled ? height : stageBoundingRect.height,
+      uiScaleX = hasMediaViewport ? mediaScale : 1,
+      uiScaleY = hasMediaViewport ? stageScaleY : 1;
+    ((value = hasMediaViewport
+      ? {
+          x: uiScaleX,
+          y: uiScaleY,
+          width: width2,
+          height: height,
+        }
+      : null),
+      (previousStageRect = value));
+    const moduleTabStride = configuredModuleKinds2.length * 50 + 6,
+      navigationConfig = options.navigation || {},
+      normalizeNavigationScale = (navigationScaleConfig) =>
+        Number.isFinite(navigationScaleConfig?.scale)
+          ? Math.max(0.5, Math.min(10, navigationScaleConfig.scale))
+          : 1,
+      categoryScaleFactor = 2 * normalizeNavigationScale(navigationConfig.categories),
+      floorScaleFactor = 2 * normalizeNavigationScale(navigationConfig.floors),
+      navigationLayerHeight = navigationLayerElement.offsetHeight || 36,
+      floorTabsWidth = floorTabsElement.offsetWidth || 80,
+      floorTabsHeight = floorTabsElement.offsetHeight || 120,
+      toolbarHeight = toolbarElement.offsetHeight || 30,
+      lightPanelWidth = lightPanelSection.offsetWidth || 360,
+      lightPanelHeight = lightPanelSection.offsetHeight || 400,
+      speakerPanelReservedHeight = speakerPanel.root.hidden
+        ? lightPanelHeight
+        : lightPanelHeight +
+          Math.max(
+            0,
+            parseFloat(getComputedStyle(speakerPanel.root).maxHeight) -
+              speakerPanel.root.offsetHeight,
+          );
+    (presentationLayerElement.style.setProperty("--i3d-presentation-width", width3 + "px"),
+      presentationLayerElement.style.setProperty("--i3d-presentation-height", height2 + "px"),
+      presentationLayerElement.style.setProperty("--i3d-touch-hit-width", 44 / uiScaleX + "px"),
+      presentationLayerElement.style.setProperty("--i3d-touch-hit-height", 44 / uiScaleY + "px"),
+      presentationLayerElement.style.setProperty("--i3d-media-canvas-width", width2 + "px"),
+      presentationLayerElement.style.setProperty("--i3d-media-canvas-height", height + "px"),
+      presentationLayerElement.style.setProperty("--i3d-media-scale-x", String(uiScaleX)),
+      presentationLayerElement.style.setProperty("--i3d-media-scale-y", String(uiScaleY)),
+      presentationLayerElement.style.setProperty(
+        "--i3d-navigation-scale",
+        String(categoryScaleFactor),
       ),
-      settings: config.popupLayout?.general
+      presentationLayerElement.style.setProperty("--i3d-floor-scale", String(floorScaleFactor)),
+      // 操作提示条（.i3d-view-help）与配置对象提示（.i3d-editor-selection）不参与面板的
+      // 放大系数，若不反算，就会跟着演示层的缩放假 s 一起变小（屏幕字号 = 设计字号 ×
+      // 自身系数 × s）。这里按演示层缩小的倍数反算，屏幕上保持设计字号，并夹在 1~4 之间。
+      presentationLayerElement.style.setProperty(
+        "--i3d-help-scale",
+        String(Math.min(4, Math.max(1, 1 / Math.max(mediaScale, 0.01)))),
+      ));
+    const placeNavigationGroup = (
+        navigationTargetElement,
+        placementConfig,
+        placementPercentPair,
+        placementCenterScale,
+        placementSpanPx,
+        placementItemPx,
+      ) => {
+        const groupSpanX = placementSpanPx * placementCenterScale,
+          groupSpanY = placementItemPx * placementCenterScale,
+          clampPercent = (percentCoordinateKey, percentFallback) =>
+            Number.isFinite(placementConfig?.[percentCoordinateKey])
+              ? Math.max(0, Math.min(100, placementConfig[percentCoordinateKey]))
+              : percentFallback,
+          max = Math.max(
+            12 + groupSpanX / 2,
+            Math.min(
+              width3 - 12 - groupSpanX / 2,
+              (width3 * clampPercent("x", placementPercentPair[0])) / 100,
+            ),
+          ),
+          navigationTopPosition = Math.max(
+            12 + groupSpanY / 2,
+            Math.min(
+              height2 - 12 - groupSpanY / 2,
+              (height2 * clampPercent("y", placementPercentPair[1])) / 100,
+            ),
+          );
+        return (
+          (navigationTargetElement.style.left = max + "px"),
+          (navigationTargetElement.style.top = navigationTopPosition + "px"),
+          navigationTopPosition - groupSpanY / 2
+        );
+      },
+      navigationBottomOffset = placeNavigationGroup(
+        navigationLayerElement,
+        navigationConfig.categories,
+        [50, 94],
+        categoryScaleFactor,
+        moduleTabStride,
+        navigationLayerHeight,
+      ),
+      followOffsetClamp = Number.isFinite(navigationConfig.followOffset)
+        ? Math.max(0, Math.min(300, navigationConfig.followOffset))
+        : 16,
+      toolbarThreshold = toolbarHeight * categoryScaleFactor,
+      isToolbarAboveNavigation = navigationBottomOffset >= toolbarThreshold + 12;
+    ((toolbarElement.style.bottom = isToolbarAboveNavigation
+      ? "calc(100% + " +
+        Math.min(followOffsetClamp, navigationBottomOffset - toolbarThreshold - 12) /
+          categoryScaleFactor +
+        "px)"
+      : "auto"),
+      (toolbarElement.style.top = isToolbarAboveNavigation ? "auto" : "calc(100% + 8px)"),
+      placeNavigationGroup(
+        floorTabsElement,
+        navigationConfig.floors,
+        [96, 50],
+        floorScaleFactor,
+        floorTabsWidth,
+        floorTabsHeight,
+      ));
+    const popupDefaultTop = Math.max(12, Math.min(height * 0.56 - 400, height - 812));
+    presentationLayerElement.style.setProperty(
+      "--i3d-navigation-bottom",
+      Math.max(12, navigationBottomOffset - 50 * categoryScaleFactor) + "px",
+    );
+    const us2 = computePopupPlacement({
+      width: width3,
+      height: height2,
+      panelWidth: lightPanelWidth,
+      panelHeight: speakerPanelReservedHeight,
+      defaultTop: popupDefaultTop,
+      defaultScale: 2,
+      settings: options.popupLayout?.general,
     });
-    lightPanelElement.style.setProperty("--i3d-control-top", popupLayoutResult.top + "px");
-    lightPanelElement.style.setProperty("--i3d-control-scale", String(popupLayoutResult.scale));
-    lightPanelElement.style.right = popupLayoutResult.right + "px";
-    Object.assign(presentationElement.style, {
-      width: layoutWidth + "px",
-      height: layoutHeight + "px",
-      transform: "scale(" + presentationScaleX + "," + containerRect.height / layoutHeight + ")"
+    (lightPanelSection.style.setProperty("--i3d-control-top", us2.top + "px"),
+      lightPanelSection.style.setProperty("--i3d-control-scale", String(us2.scale)),
+      (lightPanelSection.style.right = us2.right + "px"),
+      Object.assign(presentationLayerElement.style, {
+        width: width3 + "px",
+        height: height2 + "px",
+        transform: isTouchScalingEnabled ? "scale(" + mediaScale + "," + stageScaleY + ")" : "none",
+      }));
+    const presentationUiSignature = JSON.stringify({
+      fixedUi: hasMediaViewport,
+      width: width3,
+      height: height2,
+      uiScaleX: uiScaleX,
+      uiScaleY: uiScaleY,
     });
-    if (cameraTransition?.focused) {
-      cameraTransition.targetInset = computePanelInsetRatio();
-    }
-    if (focusMode && focusMode !== "panel" && !cameraTransition) {
-      focusViewportInset = computePanelInsetRatio();
-      stageOptions.setFocusViewport(focusViewportInset);
-    }
-    updateMarkerPositions(true);
+    (typeof presentationUiSignatureCache < "u" &&
+      presentationUiSignature !== presentationUiSignatureCache &&
+      ((presentationUiSignatureCache = presentationUiSignature),
+      postHostMessage({
+        type: "presentation-ui",
+        fixedUi: hasMediaViewport,
+        width: width3,
+        height: height2,
+        uiScaleX: uiScaleX,
+        uiScaleY: uiScaleY,
+        sourceWidth: width2,
+        sourceHeight: height,
+      })),
+      cameraMotionSnapshot?.focused && (cameraMotionSnapshot.targetInset = computeFocusInset()),
+      panelDisplayMode &&
+        panelDisplayMode !== "panel" &&
+        !cameraMotionSnapshot &&
+        ((focusInset = computeFocusInset()), mountOptions.setFocusViewport(focusInset)),
+      renderMarkerPositions(true));
   }
-  // layoutStage 会写回它自己观察的样式（缩放变量、偏移、尺寸），在 ResizeObserver
-  let pendingLayoutFrameId = 0;
-  function scheduleLayoutStage() {
-    if (pendingLayoutFrameId) {
-      return;
-    }
-    pendingLayoutFrameId = requestAnimationFrame(() => {
-      pendingLayoutFrameId = 0;
-      layoutStage();
-    });
-  }
-  function moveFocusInto(targetElement: any, focusElement: any = canvasElement) {
+  function restoreFocusWithin(focusScopeElement, focusTargetElement = canvasElement) {
     const activeElement = document.activeElement;
-    if (!!activeElement && !!targetElement.contains(activeElement)) {
-      focusElement.setAttribute("tabindex", "-1");
-      focusElement.focus({
-        preventScroll: true
-      });
-      if (targetElement.contains(document.activeElement) && focusElement !== canvasElement) {
-        canvasElement.setAttribute("tabindex", "-1");
+    !activeElement ||
+      !focusScopeElement.contains(activeElement) ||
+      (focusTargetElement.setAttribute("tabindex", "-1"),
+      focusTargetElement.focus({
+        preventScroll: true,
+      }),
+      focusScopeElement.contains(document.activeElement) &&
+        focusTargetElement !== canvasElement &&
+        (canvasElement.setAttribute("tabindex", "-1"),
         canvasElement.focus({
-          preventScroll: true
-        });
-      }
-      if (targetElement.contains(document.activeElement)) {
-        activeElement;
-      }
+          preventScroll: true,
+        })),
+      focusScopeElement.contains(document.activeElement) && activeElement.blur());
+  }
+  function syncStageVisibility() {
+    const isFloorMotionUnrevealed =
+        cameraMotionSnapshot?.owner === "floor" && !cameraMotionSnapshot.markersRevealed,
+      stageMarkerItems = currentModuleBindings(),
+      stageMarkersByIdMap = new Map(
+        stageMarkerItems.map((stageMarkerEntry) => [stageMarkerEntry.id, stageMarkerEntry]),
+      ),
+      some =
+        !isEditing &&
+        !isAwaitingFloorViewAdjust &&
+        stageMarkerItems.some(
+          (visibilityMarker) =>
+            visibilityMarker.visible !== false &&
+            visibilityMarker.buttonHidden !== true &&
+            visibilityMarker.hiddenClickable === true,
+        ),
+      isStageConcealed =
+        isFloorMotionUnrevealed ||
+        hasPendingStageRefresh ||
+        hasIdleIconActivity ||
+        isIdleIconHidden ||
+        (isUserActive && !some) ||
+        (isCameraRotating && pageBehavior.hideIconsWhileRotating === true) ||
+        !!(panelDisplayMode && !["edit", "panel"].includes(panelDisplayMode));
+    for (const [stageMarkerId, stageMarkerElement] of map) {
+      const stageMarkerItem =
+          stageMarkersByIdMap.get(stageMarkerId) || findBindingById(stageMarkerId),
+        isStageButtonHidden = !isEditing && stageMarkerItem?.buttonHidden === true,
+        isStageHiddenClickable =
+          !isEditing &&
+          !isAwaitingFloorViewAdjust &&
+          !isStageButtonHidden &&
+          stageMarkerItem?.hiddenClickable === true;
+      stageMarkerElement.disabled =
+        cameraMotionSnapshot?.owner === "floor" ||
+        isStageButtonHidden ||
+        (!isEditing && (isOverviewOrAllFloors() || stageMarkerItem?.overviewQuip === true));
+      const active =
+          !isEditing &&
+          (stageMarkerItem?.passiveSensor ||
+            (stageMarkerItem?.deviceKind === "vacuum" &&
+              vacuumStatusPresentation2(stageMarkerItem, deviceStates).active)),
+        stageMarkerHostElement = active ? vacuumWorkingLayerElement : markerLayerElement;
+      stageMarkerElement.parentElement !== stageMarkerHostElement &&
+        stageMarkerHostElement.append(stageMarkerElement);
+      const isStageMarkerIdleHidden =
+        (isFloorMotionUnrevealed && active) ||
+        (!active &&
+          (isUserActive || isIdleIconHidden) &&
+          !isStageHiddenClickable &&
+          !isEditing &&
+          !isAwaitingFloorViewAdjust);
+      (stageMarkerElement.classList.toggle("is-hidden-clickable", isStageHiddenClickable),
+        stageMarkerElement.classList.toggle("is-idle-hidden", isStageMarkerIdleHidden),
+        isStageMarkerIdleHidden ||
+        isStageButtonHidden ||
+        (!isEditing && (isOverviewOrAllFloors() || stageMarkerItem?.overviewQuip === true))
+          ? (restoreFocusWithin(stageMarkerElement), stageMarkerElement.setAttribute("inert", ""))
+          : stageMarkerElement.removeAttribute("inert"),
+        (stageMarkerElement.title = isStageHiddenClickable
+          ? ""
+          : stageMarkerElement.getAttribute("aria-label") || ""));
+    }
+    (isStageConcealed
+      ? (restoreFocusWithin(
+          markerLayerElement,
+          lightPanelSection.classList.contains("is-open") ? lightPanelSection : canvasElement,
+        ),
+        markerLayerElement.setAttribute("inert", ""))
+      : outgoingGhostAnimation
+        ? markerLayerElement.setAttribute("inert", "")
+        : markerLayerElement.removeAttribute("inert"),
+      markerLayerElement.removeAttribute("aria-hidden"),
+      isStageConcealed && lastInteractionMs === null
+        ? (lastInteractionMs = performance.now())
+        : isStageConcealed || (lastInteractionMs = null),
+      markerLayerElement.classList.toggle("is-floor-concealed", isFloorMotionUnrevealed),
+      markerLayerElement.classList.toggle("is-concealed", isStageConcealed));
+  }
+  function syncFocusHidden() {
+    (moduleTabsElement.classList.toggle("is-follow-hidden", !!followVacuumId),
+      (moduleTabsElement.inert = !!(followVacuumId || isModuleTabsHidden)),
+      moduleTabsElement.setAttribute(
+        "aria-hidden",
+        String(!!(followVacuumId || isModuleTabsHidden)),
+      ));
+    const isFocusHidden =
+      hasPendingStageRefresh ||
+      !!(focusedItemId && panelDisplayMode && panelDisplayMode !== "panel");
+    for (const focusTabElement of [navigationLayerElement, floorTabsElement]) {
+      const isTabFocusHidden =
+        (isFocusHidden || (!!followVacuumId && focusTabElement === floorTabsElement)) &&
+        !(isNavigationVisible && focusTabElement === navigationLayerElement);
+      (focusTabElement.classList.toggle("is-focus-hidden", isTabFocusHidden),
+        (focusTabElement.inert = isTabFocusHidden),
+        focusTabElement.setAttribute("aria-hidden", String(isTabFocusHidden)));
     }
   }
-
-
-  // 聚焦且非面板模式时隐藏导航与楼层页签并置 inert，防止键盘点到已藏起的按钮。
-  function updatePanelChrome() {
-    const isFocusHidden = !!focusedId && !!focusMode && focusMode !== "panel";
-    for (const chromeElement of [navigationElement, floorTabsElement]) {
-      const chromeIsFocusHidden = isFocusHidden && (!isEditorCanvas || chromeElement !== navigationElement);
-      chromeElement.classList.toggle("is-focus-hidden", chromeIsFocusHidden);
-      chromeElement.inert = chromeIsFocusHidden;
-      chromeElement.setAttribute("aria-hidden", String(chromeIsFocusHidden));
-    }
-    // 导航位置调整态：可拖标记挂在真正接收指针的两条上（分类栏内层轨道 / 楼层栏），
-    moduleTabsElement.classList.toggle("is-navigation-draggable", navigationEditing);
-    floorTabsElement.classList.toggle("is-navigation-draggable", navigationEditing);
-    const panelOpacity = Number.isFinite(config.popupOpacity)
-      ? Math.max(0, Math.min(100, config.popupOpacity))
+  function exitFollowMode() {
+    hasPendingStageRefresh &&
+      ((hasPendingStageRefresh = false),
+      syncStageVisibility(),
+      renderMarkerPositions(true),
+      syncFocusHidden());
+  }
+  function syncPanelChrome() {
+    syncFocusHidden();
+    const panelOpacityPercent = Number.isFinite(options.popupOpacity)
+      ? Math.max(0, Math.min(100, options.popupOpacity))
       : 74;
-    lightPanelElement.style.setProperty("--i3d-panel-opacity", String(panelOpacity / 100));
-    const vignetteStrength = Number.isFinite(config.focusVignetteStrength)
-      ? Math.max(0, Math.min(60, config.focusVignetteStrength))
+    lightPanelSection.style.setProperty("--i3d-panel-opacity", String(panelOpacityPercent / 100));
+    const focusVignettePercent = Number.isFinite(options.focusVignetteStrength)
+      ? Math.max(0, Math.min(60, options.focusVignetteStrength))
       : 14;
-    focusVignetteElement.style.setProperty(
+    (focusVignetteElement.style.setProperty(
       "--i3d-vignette-opacity",
-      String(vignetteStrength / 100)
-    );
-    focusVignetteElement.hidden = isViewEditing || focusMode === "edit" || focusMode === "panel";
-    focusVignetteElement.classList.toggle(
-      "is-active",
-      vignetteStrength > 0 && !!focusedId && !!focusMode && !focusVignetteElement.hidden
-    );
-    viewHelpElement.hidden = !isViewEditing && focusMode !== "edit" && (!isEditing || !!focusMode);
-    viewHelpElement.textContent =
-      focusMode === "edit"
-        ? "拖动旋转 · 右键平移 · 滚轮缩放。调整完成后保存" +
-          (findFocusedBinding()?.deviceKind === "camera"
-            ? "摄像头"
-            : findFocusedBinding()?.deviceKind === "presence"
-              ? "传感器"
-              : activeModule === "vacuum"
-                ? "扫地机"
-                : activeModule === "television"
-                  ? "电视"
-                  : activeModule === "nas"
-                    ? "NAS"
-                    : activeModule === "cover"
-                      ? "窗帘"
-                      : activeModule === "climate"
-                        ? "空调"
-                        : activeModule === "temperature-humidity"
-                          ? "温湿度计"
-                          : "此灯") +
-          "视角。"
-        : isEditing && !isViewEditing
-          ? "拖动空白处旋转 · 右键平移 · 滚轮缩放。临时查看不改变已保存视角。"
-          : "拖动旋转 · 右键平移 · 滚轮缩放。调整完成后固定视角。";
-    markersElement.classList.toggle("is-view-editing", isViewEditing || focusMode === "edit");
-    lightPanelElement.classList.toggle("is-preview", isEditing);
-    renderStage();
-    updateMarkerVisibility();
+      String(focusVignettePercent / 100),
+    ),
+      (focusVignetteElement.hidden =
+        isAwaitingFloorViewAdjust || panelDisplayMode === "edit" || panelDisplayMode === "panel"),
+      focusVignetteElement.classList.toggle(
+        "is-active",
+        focusVignettePercent > 0 &&
+          !!focusedItemId &&
+          !!panelDisplayMode &&
+          !focusVignetteElement.hidden,
+      ),
+      (viewHelpElement.hidden =
+        !isAwaitingFloorViewAdjust &&
+        panelDisplayMode !== "edit" &&
+        !(isEditing && !panelDisplayMode)),
+      (viewHelpElement.textContent =
+        panelDisplayMode === "edit"
+          ? "拖动旋转 · 右键平移 · 滚轮缩放。调整完成后保存视角。"
+          : isEditing && !isAwaitingFloorViewAdjust
+            ? "拖动空白处旋转 · 右键平移 · 滚轮缩放。临时查看不改变已保存视角。"
+            : "拖动旋转 · 右键平移 · 滚轮缩放。调整完成后固定视角。"),
+      markerLayerElement.classList.toggle(
+        "is-view-editing",
+        isAwaitingFloorViewAdjust || panelDisplayMode === "edit",
+      ),
+      lightPanelSection.classList.toggle("is-preview", isEditing),
+      refreshStageUi(),
+      syncStageVisibility());
   }
-
-
-
-
-
-
-
-
-  const idleRotation = createIdleRotation({
-    returnToBase(onReturned) {
-      hasIdleReturnPending = true;
-      idleBasePose = structuredClone(
-        pageBehavior.autoRotate.returnToDefault === true
-          ? constrainCameraPose(config.camera || savedCameraPose || stageOptions.cameraState())
-          : stageOptions.cameraState(true)
+  function advanceCameraMotion(frameTimestampInput) {
+    if (!cameraMotionSnapshot) return;
+    const now = performance.now(),
+      sampledFrameTimestamp = now - frameTimestampInput > 50 ? now : frameTimestampInput,
+      clampedFrameTimestamp = Math.max(
+        sampledFrameTimestamp,
+        cameraMotionSnapshot.lastFrame ?? cameraMotionSnapshot.started,
       );
-      const hadFocus = !!focusedId || !!focusMode;
-      focusedId = "";
-      focusMode = "";
-      focusRestoreCameraPose = null;
-      moveFocusInto(lightPanelElement);
-      lightPanelElement.classList.remove("is-open");
-      lightPanelElement.setAttribute("inert", "");
-      updatePanelChrome();
-      if (hadFocus) {
-        postToHost({
-          type: "focus-state",
-          active: false
-        });
-      }
-      stageOptions.setOrbitPivot(null);
-      if (
-        !cameraTransition &&
-        !focusViewportInset &&
-        cameraPosesEqual(stageOptions.cameraState(), idleBasePose)
-      ) {
-        onReturned();
-      } else {
-        beginCameraTransition(idleBasePose, false, false, onReturned, "idle");
-      }
-    },
-    start() {
-      isIdleRotating = true;
-      stageOptions.beginCameraMotion(idleBasePose.mode);
-      syncCameraInteraction();
-    },
-    rotate(rotationStep) {
-      stageOptions.applyCameraPose(stageOptions.orbitCameraPose(idleBasePose, rotationStep));
-    },
-    stop() {
-      const isIdleTransition = cameraTransition?.owner === "idle";
-      const wasRotating = isIdleRotating;
-      isIdleRotating = false;
-      hasIdleReturnPending = false;
-      areIconsHiddenByRotation = false;
-      idleIconHideDeadline = 0;
-      lastCameraQuaternionKey = stageOptions.camera.quaternion?.toArray?.().join(",") || "";
-      updateMarkerVisibility();
-      if (isIdleTransition) {
-        cameraTransition = null;
-      }
-      if (isIdleTransition || wasRotating) {
-        stageOptions.endCameraMotion();
-      }
-      syncCameraInteraction();
-    }
-  });
-  const idleIconVisibility = createIdleIconVisibility({
-    onChange(iconsHidden) {
-      areIdleIconsHidden = iconsHidden;
-      updateMarkerVisibility();
-    }
-  });
-  const idleFocusExit = createIdleFocusExit({
-    onExit: () => exitFocus()
-  });
-
-
-
-
-
-
-
-
-  const TRACKED_INPUT_EVENTS = [
+    (cameraMotionSnapshot.firstFrame &&
+      ((cameraMotionSnapshot.lastFrame = clampedFrameTimestamp),
+      (cameraMotionSnapshot.firstFrame = false)),
+      (cameraMotionSnapshot.elapsed += Math.min(
+        50,
+        Math.max(
+          0,
+          clampedFrameTimestamp - (cameraMotionSnapshot.lastFrame ?? clampedFrameTimestamp),
+        ),
+      )),
+      (cameraMotionSnapshot.lastFrame = clampedFrameTimestamp));
+    const trackedCameraMotion = cameraMotionSnapshot,
+      elapsed = cameraMotionSnapshot.elapsed,
+      progress = cameraMotionSnapshot.transition.progress(elapsed);
+    ((cameraMotionSnapshot.amount = progress),
+      (focusInset =
+        cameraMotionSnapshot.inset +
+        (cameraMotionSnapshot.targetInset - cameraMotionSnapshot.inset) * progress));
+    const sample = cameraMotionSnapshot.transition.sample(elapsed);
+    (cameraMotionSnapshot.owner === "floor" &&
+      mountOptions.advanceFloorTransition?.(progress, sample),
+      mountOptions.applyCameraFrame
+        ? mountOptions.applyCameraFrame(sample, progress, focusInset)
+        : (mountOptions.applyCameraPose(sample, progress),
+          mountOptions.setFocusViewport(focusInset)),
+      cameraMotionSnapshot.owner === "floor" &&
+        progress >= 0.9 &&
+        !cameraMotionSnapshot.presentationRevealed &&
+        ((cameraMotionSnapshot.presentationRevealed = true), refreshStageUi()),
+      cameraMotionSnapshot.owner === "floor" &&
+        progress >= 0.9 &&
+        !cameraMotionSnapshot.markersRevealed &&
+        ((cameraMotionSnapshot.markersRevealed = true),
+        syncStageVisibility(),
+        renderMarkerPositions(true)),
+      cameraMotionSnapshot.owner === "focus" &&
+        !cameraMotionSnapshot.focused &&
+        progress >= 0.99 &&
+        exitFollowMode(),
+      cameraMotionSnapshot.transition.settled(elapsed) &&
+        cameraMotionSnapshot === trackedCameraMotion &&
+        ((cameraMotionSnapshot = null),
+        mountOptions.endCameraMotion(),
+        syncCameraInteraction(),
+        trackedCameraMotion.done?.(),
+        syncAvailability()));
+  }
+  function normalizeCameraPose(rawCameraPose) {
+    if (!rawCameraPose) return rawCameraPose;
+    if (rawCameraPose.view !== "top")
+      return mountOptions.constrainCameraPose({
+        ...rawCameraPose,
+        up: [0, 1, 0],
+      });
+    const poseTargetVector = new three.Vector3(...rawCameraPose.target),
+      poseCameraDistance = Math.max(
+        new three.Vector3(...rawCameraPose.position).distanceTo(poseTargetVector),
+        0.001,
+      ),
+      degToRad = three.MathUtils.degToRad(rawCameraPose.topRotation || 0),
+      poseUpVector = new three.Vector3(
+        ...(rawCameraPose.up || [Math.sin(degToRad), 0, -Math.cos(degToRad)]),
+      );
+    return (
+      (poseUpVector.y = 0),
+      poseUpVector.lengthSq() < 1e-12 &&
+        poseUpVector.set(Math.sin(degToRad), 0, -Math.cos(degToRad)),
+      mountOptions.constrainCameraPose({
+        ...rawCameraPose,
+        position: [poseTargetVector.x, poseTargetVector.y + poseCameraDistance, poseTargetVector.z],
+        up: poseUpVector.normalize().toArray(),
+      })
+    );
+  }
+  function startCameraMotion(
+    targetCameraPose,
+    isFocused,
+    isImmediateMotion = false,
+    doneCallback,
+    motionOwner = "focus",
+    floorFrame = null,
+  ) {
+    const normalizedCameraPose =
+        motionOwner === "follow-return" ? targetCameraPose : normalizeCameraPose(targetCameraPose),
+      beginCameraMotion = mountOptions.beginCameraMotion(
+        normalizedCameraPose.mode,
+        normalizedCameraPose,
+        motionOwner,
+      );
+    motionOwner === "floor" &&
+      mountOptions.setFloorSlideCameras?.(beginCameraMotion, normalizedCameraPose);
+    const isReducedMotion =
+      isImmediateMotion || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    ((cameraMotionSnapshot = {
+      from: beginCameraMotion,
+      to: structuredClone(normalizedCameraPose),
+      inset: focusInset,
+      targetInset: isFocused ? computeFocusInset() : 0,
+      transition: createDampedCameraMotion2(three, beginCameraMotion, normalizedCameraPose, {
+        immediate: isReducedMotion,
+        owner: motionOwner,
+        floorFrame: floorFrame,
+      }),
+      focused: isFocused,
+      owner: motionOwner,
+      started: performance.now(),
+      elapsed: 0,
+      done: doneCallback,
+    }),
+      (motionOwner !== "focus" || isFocused) && exitFollowMode(),
+      syncAvailability(),
+      syncCameraInteraction(),
+      advanceCameraMotion(cameraMotionSnapshot.started),
+      cameraMotionSnapshot && (cameraMotionSnapshot.firstFrame = true),
+      wakeSceneBackground());
+  }
+  function isSameCameraPose(cameraPoseA, cameraPoseB) {
+    return (
+      cameraPoseA.mode === cameraPoseB.mode &&
+      Math.abs(cameraPoseA.zoom - cameraPoseB.zoom) < 0.000001 &&
+      ["position", "target", "up"].every((poseVectorFieldKey) =>
+        (cameraPoseA[poseVectorFieldKey] || [0, 1, 0]).every(
+          (poseComponentValue, poseComponentIndex) =>
+            Math.abs(
+              poseComponentValue -
+                (cameraPoseB[poseVectorFieldKey] || [0, 1, 0])[poseComponentIndex],
+            ) < 0.000001,
+        ),
+      ) &&
+      ["frameSize", "focalLength"].every(
+        (poseScalarFieldKey) =>
+          Math.abs(
+            (cameraPoseA[poseScalarFieldKey] || 0) - (cameraPoseB[poseScalarFieldKey] || 0),
+          ) < 0.000001,
+      )
+    );
+  }
+  const idleRotationControl = createIdleRotation2({
+      returnToBase(returnCallback) {
+        ((isCameraRotating = true),
+          (idleRotationCameraPose = structuredClone(
+            pageBehavior.autoRotate.returnToDefault === true
+              ? normalizeCameraPose(
+                  options.camera || activeCameraPose || mountOptions.cameraState(),
+                )
+              : mountOptions.cameraState(true),
+          )));
+        const hasActiveFocus = !!(focusedItemId || panelDisplayMode);
+        ((focusedItemId = ""),
+          (panelDisplayMode = ""),
+          (idleReturnCamera = null),
+          (hasPendingStageRefresh = false),
+          restoreFocusWithin(lightPanelSection),
+          lightPanelSection.classList.remove("is-open"),
+          lightPanelSection.setAttribute("inert", ""),
+          syncPanelChrome(),
+          hasActiveFocus &&
+            postHostMessage({
+              type: "focus-state",
+              active: false,
+            }),
+          mountOptions.setOrbitPivot(null),
+          !cameraMotionSnapshot &&
+          !focusInset &&
+          isSameCameraPose(mountOptions.cameraState(), idleRotationCameraPose)
+            ? returnCallback()
+            : startCameraMotion(idleRotationCameraPose, false, false, returnCallback, "idle"));
+      },
+      start() {
+        ((isIdleRotationRunning = true),
+          mountOptions.beginCameraMotion(idleRotationCameraPose.mode),
+          syncCameraInteraction());
+      },
+      rotate(rotationDelta) {
+        mountOptions.applyCameraPose(
+          mountOptions.orbitCameraPose(idleRotationCameraPose, rotationDelta),
+        );
+      },
+      stop() {
+        const isIdleMotionOwned = cameraMotionSnapshot?.owner === "idle",
+          isIdleRotationStopping = isIdleRotationRunning;
+        ((isIdleRotationRunning = false),
+          (isCameraRotating = false),
+          (isIdleIconHidden = false),
+          (idleIconDelayUntilMs = 0),
+          (cameraQuaternionKey = mountOptions.camera.quaternion?.toArray?.().join(",") || ""),
+          syncStageVisibility(),
+          isIdleMotionOwned && (cameraMotionSnapshot = null),
+          (isIdleMotionOwned || isIdleRotationStopping) && mountOptions.endCameraMotion(),
+          syncCameraInteraction());
+      },
+    }),
+    idleIconVisibilityControl = createIdleIconVisibility2({
+      onChange(isIconVisible) {
+        ((isUserActive = isIconVisible), syncStageVisibility());
+      },
+    }),
+    idleFocusExitControl = createIdleFocusExit2({
+      onExit: () => exitFocusMode(),
+    });
+  function configureIdleBehaviors() {
+    ((pageBehavior = resolvePageBehavior2(options, activeModule)),
+      idleRotationControl.configure(pageBehavior.autoRotate),
+      idleIconVisibilityControl.configure(pageBehavior.idleHideIcons),
+      idleFocusExitControl.configure(pageBehavior.idleExitFocus),
+      syncCameraInteraction(),
+      pageBehavior.hideIconsWhileRotating ||
+        ((isIdleIconHidden = false), (idleIconDelayUntilMs = 0)));
+  }
+  function syncAvailability() {
+    const isIdleRotationAvailable =
+      isStagePresented &&
+      isStageVisible &&
+      isControlReady &&
+      !isEditing &&
+      !isAwaitingFloorViewAdjust &&
+      !isRangeEditorOpen &&
+      !document.hidden &&
+      !isControlBusy;
+    (isIdleRotationAvailable || clearActivityState(),
+      idleRotationControl.setAvailable(
+        isIdleRotationAvailable &&
+          !followVacuumId &&
+          !focusedItemId &&
+          !panelDisplayMode &&
+          !(cameraMotionSnapshot && cameraMotionSnapshot.owner !== "idle"),
+      ),
+      idleFocusExitControl.setAvailable(
+        isIdleRotationAvailable &&
+          !!focusedItemId &&
+          ["runtime", "panel"].includes(panelDisplayMode) &&
+          !cameraMotionSnapshot,
+      ),
+      idleIconVisibilityControl.setAvailable(isIdleRotationAvailable));
+    const isFrameLoopAvailable =
+      !isControlBusy && !document.hidden && (!hasPresentedOnce || isPresentedVisible);
+    (sceneBackground?.setAvailable(isFrameLoopAvailable),
+      screenOutlines.setAvailable(isFrameLoopAvailable),
+      editorSelectionOutlines.setAvailable(isFrameLoopAvailable),
+      document.body?.classList.toggle("is-render-suspended", !isFrameLoopAvailable),
+      (document.hidden || !isPresentedVisible) && sceneBackgroundController.suspend(),
+      wakeSceneBackground());
+  }
+  function syncIdleHold() {
+    const isIdleHeld = isPointerHeld || set.size > 0 || lightSyncKeySet.size > 0;
+    (idleRotationControl.hold(isIdleHeld),
+      idleIconVisibilityControl.hold(isIdleHeld),
+      idleFocusExitControl.hold(isIdleHeld),
+      wakeSceneBackground());
+  }
+  function handleActivityInput(inputEvent) {
+    (followVacuumId && inputEvent.key === "Escape" && stopVacuumFollow(),
+      (furthestFloorOrder = performance.now()),
+      (hasIdleIconActivity = false),
+      syncStageVisibility(),
+      inputEvent.type === "pointerdown" && set.add(inputEvent.pointerId),
+      (inputEvent.type === "pointerup" || inputEvent.type === "pointercancel") &&
+        set.delete(inputEvent.pointerId),
+      inputEvent.type === "keydown" && lightSyncKeySet.add(inputEvent.code || inputEvent.key),
+      inputEvent.type === "keyup" && lightSyncKeySet.delete(inputEvent.code || inputEvent.key),
+      syncIdleHold());
+  }
+  const activityEventNames = [
     "pointerdown",
     "pointermove",
     "pointerup",
     "pointercancel",
     "wheel",
     "keydown",
-    "keyup"
+    "keyup",
   ];
-  for (const trackedEventName of TRACKED_INPUT_EVENTS) {
-    window.addEventListener(trackedEventName, trackUserInput, {
+  for (const activityEventName of activityEventNames)
+    window.addEventListener(activityEventName, handleActivityInput, {
       capture: true,
-      passive: true
+      passive: true,
     });
+  function clearActivityState() {
+    (set.clear(), lightSyncKeySet.clear(), (isPointerHeld = false), syncIdleHold());
   }
-
-
-  window.addEventListener("blur", clearInputState);
-  if (document.addEventListener) {
-    document.addEventListener("visibilitychange", updateIdleControllers);
+  window.addEventListener("blur", clearActivityState);
+  function handleVisibilityChange() {
+    (document.hidden &&
+      focusExitPointer &&
+      releaseFocusExit({
+        pointerId: focusExitPointer.pointerId,
+      }),
+      syncAvailability());
   }
-  /**
-   * 退出聚焦状态：恢复导航栏、相机与面板，并通知宿主。
-   */
-  function exitFocus(exitOptions: any = {}) {
-    if (findFocusedBinding()?.deviceKind === "vacuum") {
-      postToHost({
-        type: "vacuum-popup-close"
-      });
-    }
-    if (findFocusedBinding()?.deviceKind === "camera") {
-      postToHost({
-        type: "camera-popup-close"
-      });
-    }
-    televisionPanel.hide();
-    if (!focusedId && !focusMode && (!focusRestoreCameraPose || exitOptions.immediate !== true)) {
+  document.addEventListener &&
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+  function exitFocusMode(exitOptions = {}) {
+    if (
+      (climatePanel.cancelPending?.(),
+      lightModeMenu.close(),
+      lightColorPicker.cancel(),
+      coverPanel.deactivate(),
+      typeof coverGroupPanel < "u" && coverGroupPanel.deactivate(),
+      getFocusedEntry()?.deviceKind === "vacuum" &&
+        postHostMessage({
+          type: "vacuum-popup-close",
+        }),
+      getFocusedEntry()?.deviceKind === "camera" &&
+        postHostMessage({
+          type: "camera-popup-close",
+        }),
+      televisionPanel.hide(),
+      speakerPanel.hide(),
+      !focusedItemId && !panelDisplayMode && (!idleReturnCamera || exitOptions.immediate !== true))
+    )
+      return;
+    const hasLightEffectPreview = !!lightEditPreview;
+    lightEditPreview = null;
+    const hasEditFocus = !!(panelDisplayMode && isEditing);
+    ((hasPendingStageRefresh = !!(
+      idleReturnCamera &&
+      !isEditing &&
+      panelDisplayMode !== "panel" &&
+      exitOptions.immediate !== true &&
+      !exitOptions.preserveCamera
+    )),
+      (focusedItemId = ""),
+      (panelDisplayMode = ""),
+      restoreFocusWithin(lightPanelSection),
+      lightPanelSection.classList.remove("is-open"),
+      lightPanelSection.setAttribute("inert", ""),
+      syncPanelChrome(),
+      postHostMessage({
+        type: "focus-state",
+        active: false,
+      }),
+      exitOptions.preserveCamera
+        ? ((cameraMotionSnapshot = null),
+          (idleReturnCamera = null),
+          mountOptions.setOrbitPivot(null))
+        : idleReturnCamera &&
+          startCameraMotion(idleReturnCamera, false, exitOptions.immediate === true, () => {
+            ((idleReturnCamera = null), mountOptions.setOrbitPivot(null));
+          }),
+      syncAvailability(),
+      hasEditFocus &&
+        postHostMessage({
+          type: "edit",
+          action: "focus-exited",
+        }),
+      hasLightEffectPreview && applyLightStates(),
+      syncCameraInteraction());
+  }
+  function focusMarkerById(targetMarkerId, focusMode = "runtime", isImmediate = false) {
+    const targetMarkerItem = findBindingById(targetMarkerId);
+    if (
+      !targetMarkerItem ||
+      targetMarkerItem.modelAvailable === false ||
+      (focusedItemId !== targetMarkerId && (lightModeMenu.close(), lightColorPicker.cancel()),
+      targetMarkerItem.deviceKind === "lock")
+    )
+      return;
+    if (
+      (lightEditPreview && ((lightEditPreview = null), applyLightStates()),
+      focusedItemId === targetMarkerId && panelDisplayMode === focusMode && focusMode === "runtime")
+    ) {
+      exitFocusMode();
       return;
     }
-    const hadLightPreview = !!lightEffectPreview;
-    lightEffectPreview = null;
-    const wasEditingFocus = !!focusMode && !!isEditing;
-    focusedId = "";
-    focusMode = "";
-    moveFocusInto(lightPanelElement);
-    lightPanelElement.classList.remove("is-open");
-    lightPanelElement.setAttribute("inert", "");
-    updatePanelChrome();
-    postToHost({
-      type: "focus-state",
-      active: false
-    });
-    if (exitOptions.preserveCamera) {
-      cameraTransition = null;
-      focusRestoreCameraPose = null;
-      stageOptions.setOrbitPivot(null);
-    } else if (focusRestoreCameraPose) {
-      beginCameraTransition(focusRestoreCameraPose, false, exitOptions.immediate === true, () => {
-        focusRestoreCameraPose = null;
-        stageOptions.setOrbitPivot(null);
-      });
+    if (
+      !isEditing &&
+      ["runtime", "panel"].includes(focusMode) &&
+      (!isControlReady || isOverviewOrAllFloors())
+    )
+      return;
+    if ((idleFocusExitControl.activity(), focusMode === "panel")) {
+      ((idleReturnCamera || cameraMotionSnapshot) &&
+        exitFocusMode({
+          immediate: true,
+        }),
+        (focusedItemId = targetMarkerId),
+        (panelDisplayMode = "panel"),
+        (controlErrorElement.textContent = ""),
+        lightPanelSection.removeAttribute("inert"),
+        lightPanelSection.classList.add("is-open"),
+        syncPanelChrome(),
+        updateDevicePanel(),
+        syncCameraInteraction(),
+        syncAvailability(),
+        postHostMessage({
+          type: "focus-state",
+          active: false,
+          panelOpen: true,
+          id: targetMarkerId,
+        }),
+        handleMarkerActivate(targetMarkerItem));
+      return;
     }
-    updateIdleControllers();
-    if (wasEditingFocus) {
-      postToHost({
-        type: "edit",
-        action: "focus-exited"
-      });
-    }
-    if (hadLightPreview) {
-      applyLightStates();
-    }
-    syncCameraInteraction();
+    idleReturnCamera ||= mountOptions.cameraState(true);
+    const anchor2 = targetMarkerItem.isCurtainGroup
+        ? computeGroupBounds(targetMarkerItem)
+        : targetMarkerItem.deviceKind === "presence"
+          ? presenceScene.anchor(targetMarkerItem.id.slice(9))
+          : targetMarkerItem.modelId
+            ? mountOptions.environmentModelPose?.(
+                targetMarkerItem.floorId,
+                targetMarkerItem.modelId,
+              )
+            : null,
+      focusWorldPoint =
+        anchor2?.center ||
+        mountOptions
+          .worldPoint(
+            targetMarkerItem.floorId,
+            targetMarkerItem.x,
+            targetMarkerItem.y,
+            targetMarkerItem.height,
+          )
+          ?.toArray();
+    if (!focusWorldPoint) return;
+    ((focusedItemId = targetMarkerId),
+      (panelDisplayMode = focusMode),
+      (controlErrorElement.textContent = ""),
+      isEditing || !isPanelDeviceKind(targetMarkerItem) || targetMarkerItem.clickAction !== "focus"
+        ? (lightPanelSection.removeAttribute("inert"), lightPanelSection.classList.add("is-open"))
+        : (lightPanelSection.setAttribute("inert", ""),
+          lightPanelSection.classList.remove("is-open")),
+      mountOptions.setOrbitPivot(null),
+      syncPanelChrome(),
+      updateDevicePanel());
+    const camera = options.camera || activeCameraPose || idleReturnCamera,
+      focusCamera =
+        targetMarkerItem.focusCamera ||
+        (targetMarkerItem.modelId
+          ? automaticAirConditionerCamera2(
+              three,
+              {
+                ...camera,
+                viewportAspect: canvasElement.clientWidth / Math.max(1, canvasElement.clientHeight),
+              },
+              focusWorldPoint,
+              anchor2?.forward,
+              anchor2?.size,
+              targetMarkerItem.deviceKind === "nas"
+                ? {
+                    minimumFrameSize: 0.7,
+                    minimumDistance: 0.6,
+                  }
+                : {},
+            )
+          : automaticLightCamera2(three, camera, focusWorldPoint));
+    (isEditing ||
+      postHostMessage({
+        type: "focus-state",
+        active: true,
+        id: targetMarkerId,
+      }),
+      startCameraMotion(focusCamera, true, isImmediate, () => {}),
+      (targetMarkerItem.deviceKind === "camera" || targetMarkerItem.deviceKind === "vacuum") &&
+        handleMarkerActivate(targetMarkerItem));
   }
-
-
-  resetViewButton.addEventListener("click", () => {
-    if (focusMode || focusRestoreCameraPose || cameraTransition) {
-      exitFocus();
-    } else {
-      stageOptions.restoreCamera(constrainCameraPose(config.camera || savedCameraPose));
-    }
-  });
-  powerButton.addEventListener("click", () => {
-    const powerBinding = findFocusedBinding();
-    if (powerBinding) {
-      runLightCommand("power", !resolveLightState(powerBinding.entityId).on);
-    }
-  });
-  // 画总开关的亮度观感：把 1~100 的亮度映射成灯丝与光晕的视觉参数
-  function renderPowerButton(powerLightState: any) {
+  (restoreViewButton.addEventListener("click", () => {
+    panelDisplayMode || idleReturnCamera || cameraMotionSnapshot
+      ? exitFocusMode()
+      : mountOptions.restoreCamera(normalizeCameraPose(options.camera || activeCameraPose));
+  }),
+    powerButton.addEventListener("click", () => {
+      const clickedLightItem = getFocusedEntry();
+      clickedLightItem && runLightCommand("power", !readLightState(clickedLightItem.entityId).on);
+    }));
+  function updateLampButton(mountOptionsLightState) {
     const brightnessPercent = Math.max(
-      1,
-      Math.min(
-        100,
-        Number(powerLightState.brightness) || (powerLightState.brightnessSupported ? 1 : 100)
-      )
-    );
-    const temperatureRatio =
-      (Math.max(2000, Math.min(6500, Number(powerLightState.kelvin) || 3000)) - 2000) / 4500;
-    const WARM_LAMP_RGB = [255, 132, 42];
-    const COOL_LAMP_RGB = [172, 225, 255];
-    const lampRgb = WARM_LAMP_RGB.map((channelValue, channelIndex) =>
-      Math.round(channelValue + (COOL_LAMP_RGB[channelIndex] - channelValue) * temperatureRatio)
-    );
-    powerButton.classList.toggle("is-on", powerLightState.on);
-    powerButton.setAttribute("aria-pressed", String(powerLightState.on));
-    powerButton.setAttribute(
-      "aria-label",
-      "" +
-        (findFocusedBinding()?.label || powerLightState.name) +
-        (powerLightState.available
-          ? powerLightState.on
-            ? "已开启，点击关闭"
-            : "已关闭，点击开启"
-          : "当前不可用")
-    );
-    powerButton.style.setProperty("--i3d-lamp-color", "rgb(" + lampRgb.join(",") + ")");
-    powerButton.style.setProperty(
-      "--i3d-lamp-opacity",
-      powerLightState.on && brightnessPercent > 0
-        ? String(0.08 + (brightnessPercent / 100) * 0.92)
-        : "0"
-    );
-    powerButton.style.setProperty(
-      "--i3d-lamp-scale",
-      String(0.62 + (brightnessPercent / 100) * 1.05)
-    );
+        1,
+        Math.min(
+          100,
+          Number(mountOptionsLightState.brightness) ||
+            (mountOptionsLightState.brightnessSupported ? 1 : 100),
+        ),
+      ),
+      kelvinRatio =
+        (Math.max(2000, Math.min(6500, Number(mountOptionsLightState.kelvin) || 3000)) - 2000) /
+        4500,
+      warmColorRgb = [255, 132, 42],
+      coolColorRgb = [172, 225, 255],
+      lampColorRgb =
+        mountOptionsLightState.colorMode === "white"
+          ? [255, 255, 255]
+          : mountOptionsLightState.colorSupported &&
+              !["color_temp", "onoff", "brightness", "unknown"].includes(
+                mountOptionsLightState.colorMode,
+              ) &&
+              mountOptionsLightState.colorHs
+            ? mountOptionsLightState.colorRgb || hsToRgbColor2(mountOptionsLightState.colorHs)
+            : warmColorRgb.map((warmChannelBase, colorChannelIndex) =>
+                Math.round(
+                  warmChannelBase +
+                    (coolColorRgb[colorChannelIndex] - warmChannelBase) * kelvinRatio,
+                ),
+              );
+    (powerButton.classList.toggle("is-on", mountOptionsLightState.on),
+      powerButton.setAttribute("aria-pressed", String(mountOptionsLightState.on)),
+      powerButton.setAttribute(
+        "aria-label",
+        "" +
+          (getFocusedEntry()?.label || mountOptionsLightState.name) +
+          (mountOptionsLightState.available
+            ? mountOptionsLightState.on
+              ? "已开启，点击关闭"
+              : "已关闭，点击开启"
+            : "当前不可用"),
+      ),
+      powerButton.style.setProperty("--i3d-lamp-color", "rgb(" + lampColorRgb.join(",") + ")"),
+      powerButton.style.setProperty(
+        "--i3d-lamp-opacity",
+        mountOptionsLightState.on && brightnessPercent > 0
+          ? String(0.08 + (brightnessPercent / 100) * 0.92)
+          : "0",
+      ),
+      powerButton.style.setProperty(
+        "--i3d-lamp-scale",
+        String(0.62 + (brightnessPercent / 100) * 1.05),
+      ));
   }
-  /**
-   * 重绘灯光面板：标题状态、总开关、滑杆与预设。
-   */
-  function renderLightPanel() {
-    const panelBinding = findFocusedBinding();
-    if (["vacuum", "presence", "camera"].includes(panelBinding?.deviceKind)) {
-      lightPanelElement.classList.remove("is-open");
-      lightPanelElement.setAttribute("inert", "");
+  function updateDevicePanel() {
+    lightPanelSection.classList.toggle("is-airer-panel", !!getFocusedEntry()?.airer);
+    const panelItem = getFocusedEntry();
+    if (!(panelItem?.deviceKind === "lock")) lockPanel.hide();
+    else {
+      lockPanel.root.hidden = false;
+      for (const panelRootElement of [
+        lightPanelHeader,
+        lightControlsElement,
+        controlErrorElement,
+        climatePanel.root,
+        coverPanel.root,
+        coverGroupPanel.root,
+        nasPanel.root,
+        televisionPanel.root,
+        speakerPanel.root,
+        devicePanel.root,
+      ])
+        panelRootElement.hidden = true;
+      (lightPanelSection.classList.remove(
+        "is-cover-panel",
+        "is-climate-panel",
+        "is-nas-panel",
+        "is-television-panel",
+        "has-light-controls",
+      ),
+        lightPanelSection.setAttribute("aria-label", "门"),
+        lockPanel.update({
+          item: panelItem,
+          states: deviceStates,
+          editing: isEditing || !isControlReady || !panelItem.modelAvailable,
+        }));
       return;
     }
-    const panelEntry = panelBinding
-      ? panelRegistry.find((entry: any) => entry.match(panelBinding))
-      : null;
-    for (const entry of panelRegistry) {
-      const isActivePanel = entry === panelEntry;
-      lightPanelElement.classList.toggle(entry.hostClass, isActivePanel);
-      if (isActivePanel) {
-        entry.show(panelBinding);
-      } else {
-        entry.hide?.();
-        entry.root.hidden = true;
-      }
-    }
-    // 非灯光面板接管这一块：标题栏、灯光控件与错误行都收起来；灯光面板反之。
-    lightPanelHeader.hidden =
-      lightControlsElement.hidden =
-      controlErrorElement.hidden =
-        Boolean(panelEntry);
-    const panelLabel = panelEntry
-      ? typeof panelEntry.label === "function"
-        ? panelEntry.label(panelBinding)
-        : panelEntry.label
-      : "灯光控制";
-    lightPanelElement.setAttribute("aria-label", panelLabel);
-    if (panelEntry) {
-      lightPanelElement.classList.remove("has-light-controls", "has-error");
-      // 「点击只聚焦」的绑定不自动展开：用户点它只是为了对焦视角。
-      if (panelEntry.deferWhenFocusOnly && panelBinding.clickAction === "focus" && !isEditing) {
-        lightPanelElement.classList.remove("is-open");
-        lightPanelElement.setAttribute("inert", "");
-      }
+    const isCurtainGroupKind = panelItem?.isCurtainGroup === true;
+    if (
+      (typeof coverGroupPanel < "u" && (coverGroupPanel.root.hidden = !isCurtainGroupKind),
+      lightPanelSection.classList.toggle("is-cover-group-panel", isCurtainGroupKind),
+      lightPanelSection.classList.toggle(
+        "is-cover-group-vertical",
+        isCurtainGroupKind && panelItem.panelLayout === "vertical",
+      ),
+      !isCurtainGroupKind && typeof coverGroupPanel < "u" && coverGroupPanel.deactivate(),
+      ["vacuum", "presence", "camera"].includes(panelItem?.deviceKind))
+    ) {
+      (lightPanelSection.classList.remove("is-open"), lightPanelSection.setAttribute("inert", ""));
       return;
     }
-    if (!panelBinding) {
-      return exitFocus();
+    const isGenericDevice = isGenericDeviceKind2(panelItem?.deviceKind);
+    typeof devicePanel < "u" && (devicePanel.root.hidden = !isGenericDevice);
+    const isSpeakerDevice = panelItem?.deviceKind === "speaker";
+    !isSpeakerDevice || !lightPanelSection.classList.contains("is-open")
+      ? speakerPanel.hide()
+      : (speakerPanel.root.hidden = false);
+    const isNasDevice = panelItem?.deviceKind === "nas",
+      isTelevisionDevice = panelItem?.deviceKind === "television";
+    if (
+      (!isTelevisionDevice || !lightPanelSection.classList.contains("is-open")
+        ? televisionPanel.hide()
+        : (televisionPanel.root.hidden = false),
+      (nasPanel.root.hidden = !isNasDevice),
+      lightPanelSection.classList.toggle("is-nas-panel", isNasDevice),
+      lightPanelSection.classList.toggle(
+        "is-television-panel",
+        isTelevisionDevice || isSpeakerDevice,
+      ),
+      isNasDevice || isTelevisionDevice || isSpeakerDevice || isGenericDevice)
+    ) {
+      (lightPanelSection.classList.remove(
+        "is-cover-panel",
+        "is-climate-panel",
+        "has-light-controls",
+        "has-error",
+      ),
+        lightPanelSection.classList.toggle("is-climate-panel", isGenericDevice),
+        lightPanelSection.setAttribute(
+          "aria-label",
+          isGenericDevice
+            ? (panelItem.deviceLabel ||
+                genericDeviceProfile2(panelItem.deviceKind)?.label ||
+                "设备") + "控制"
+            : isSpeakerDevice
+              ? "智能音响控制"
+              : isTelevisionDevice
+                ? "电视状态"
+                : "NAS 状态",
+        ),
+        panelItem.clickAction === "focus" &&
+          !isEditing &&
+          (lightPanelSection.classList.remove("is-open"),
+          lightPanelSection.setAttribute("inert", "")),
+        (climatePanel.root.hidden =
+          coverPanel.root.hidden =
+          lightPanelHeader.hidden =
+          lightControlsElement.hidden =
+          controlErrorElement.hidden =
+            true),
+        isSpeakerDevice
+          ? (isEditing || panelItem.clickAction !== "focus") &&
+            lightPanelSection.classList.contains("is-open") &&
+            speakerPanel.update({
+              item: panelItem,
+              states: deviceStates,
+              editing: isEditing || !isControlReady || !panelItem.modelAvailable,
+            })
+          : isTelevisionDevice
+            ? (isEditing || panelItem.clickAction !== "focus") &&
+              lightPanelSection.classList.contains("is-open") &&
+              televisionPanel.update({
+                item: panelItem,
+                states: deviceStates,
+                editing: isEditing || !isControlReady,
+              })
+            : isGenericDevice && typeof devicePanel < "u"
+              ? devicePanel.update({
+                  item: panelItem,
+                  states: deviceStates,
+                  editing: isEditing || !isControlReady || !panelItem.modelAvailable,
+                })
+              : nasPanel.update({
+                  item: panelItem,
+                  states: deviceStates,
+                }));
+      return;
     }
-    const panelLightState = resolveLightState(panelBinding.entityId);
-    lightHeadingLabel.textContent = panelBinding.label || panelLightState.name;
-    lightStatusElement.textContent = panelBinding.entityId
-      ? panelLightState.available
-        ? panelLightState.on
-          ? "已开启"
-          : "已关闭"
-        : "设备不可用"
-      : "尚未绑定设备";
-    lightHeadingLabel.title = lightHeadingLabel.textContent;
-    controlErrorElement.title = controlErrorElement.textContent;
-    renderPowerButton(panelLightState);
-    lightStatusElement.classList.toggle("is-on", panelLightState.available && panelLightState.on);
-    const isCommandPending = [...lightRequestsById.values()].some(
-      (pendingCommand: any) => pendingCommand.entityId === panelBinding.entityId
-    );
-    lightPanelElement.classList.toggle(
-      "is-command-pending",
-      isCommandPending && panelLightState.available && !isEditing
-    );
-    lightPanelElement.setAttribute("aria-busy", String(isCommandPending));
-    const hasLightControls =
-      panelLightState.brightnessSupported || panelLightState.temperatureSupported;
-    lightPanelElement.classList.toggle("has-light-controls", hasLightControls);
-    lightPanelElement.classList.toggle("has-error", !!controlErrorElement.textContent);
-    if (isEditing || !panelLightState.available || !panelLightState.on) {
-      moveFocusInto(lightControlsElement, lightPanelElement);
-    }
-    if (hasLightControls) {
-      lightControlsElement.removeAttribute("inert");
-    } else {
-      moveFocusInto(lightControlsElement, lightPanelElement);
-      lightControlsElement.setAttribute("inert", "");
-    }
-    lightControlsElement.removeAttribute("aria-hidden");
-    powerButton.disabled = isEditing || !panelLightState.available;
-    brightnessControl.input.min = 1;
-    brightnessControl.input.max = 100;
-    temperatureControl.input.min = (panelLightState.minimum as number);
-    temperatureControl.input.max = (panelLightState.maximum as number);
-    for (const [sliderControl, isSupported, currentSliderValue, unitSuffix] of [
-      [brightnessControl, panelLightState.brightnessSupported, (panelLightState.brightness as number), "%"],
-      [temperatureControl, panelLightState.temperatureSupported, (panelLightState.kelvin as number), " K"]
-    ]) {
-      (sliderControl as any).root.hidden = !isSupported;
-      (sliderControl as any).input.disabled = isEditing || !panelLightState.available || !panelLightState.on;
-      if (document.activeElement !== (sliderControl as any).input) {
-        (sliderControl as any).input.value =
-          currentSliderValue ??
-          (sliderControl === brightnessControl ? 100 : (panelLightState.minimum as number));
-        (sliderControl as any).value.value =
-          currentSliderValue === null ? "—" : "" + currentSliderValue + unitSuffix;
-      }
-    }
-    presetGroupElement.hidden =
-      !panelLightState.brightnessSupported && !panelLightState.temperatureSupported;
-    for (const presetEntry of presetEntries) {
-      const presetKelvin = Math.round(
-        (panelLightState.minimum as number) +
-          (((panelLightState.maximum as number) - (panelLightState.minimum as number)) * presetEntry.temperaturePercent) /
-            100
-      );
-      const isPresetActive =
-        panelLightState.on &&
-        (!panelLightState.brightnessSupported ||
-          Math.abs((panelLightState.brightness as number) - presetEntry.brightness) <= 4) &&
-        (!panelLightState.temperatureSupported ||
-          Math.abs((panelLightState.kelvin as number) - presetKelvin) <=
-            Math.max(50, ((panelLightState.maximum as number) - (panelLightState.minimum as number)) * 0.06));
-      presetEntry.button.disabled =
-        isEditing || !panelLightState.available || !panelLightState.on || presetGroupElement.hidden;
-      presetEntry.button.classList.toggle("is-active", isPresetActive);
-      presetEntry.button.setAttribute("aria-pressed", String(isPresetActive));
-      presetEntry.detail.textContent = panelLightState.brightnessSupported
-        ? presetEntry.brightness + "%"
-        : "开启";
-    }
-  }
-  // 下发灯光命令：登记预览令牌并挂 14 秒超时（与后端 / HA 的响应时间对齐），
-  function sendLightCommand(commandRequest: any, commandPreviewToken: any) {
-    const lightRequestId = String(++requestSeq);
-    const commandEntityId = commandRequest.entityId;
-    lightPreview.retain(commandEntityId, commandPreviewToken);
-    const lightTimeoutId = setTimeout(
-      () => settleLightCommand(lightRequestId, "请求超时，请检查设备状态。", true),
-      14000
-    );
-    lightRequestsById.set(lightRequestId, {
-      entityId: commandEntityId,
-      command: commandRequest,
-      previewToken: commandPreviewToken,
-      timeout: lightTimeoutId,
-      next: null
-    });
-    postToHost({
-      type: "control",
-      requestId: lightRequestId,
-      command: commandRequest
-    });
-  }
-  // 同一实体已有在途请求时排队：合并中间值只保留最新一条，
-  function queueLightCommand(queuedCommandRequest: any, queuedPreviewToken: any) {
-    const existingRequest = [...lightRequestsById.values()].find(
-      (existingRequestEntry: any) => existingRequestEntry.entityId === queuedCommandRequest.entityId
-    );
-    if (!existingRequest) {
-      return sendLightCommand(queuedCommandRequest, queuedPreviewToken);
-    }
-    const previousCommand = existingRequest.next?.command || existingRequest.command;
-    if (previousCommand.service === "turn_on" && queuedCommandRequest.service === "turn_on") {
-      const mergedCommandData = {
-        ...previousCommand.data
-      };
+    const isCoverDevice = panelItem?.deviceKind === "cover",
+      isClimateDevice = !!panelItem?.modelId && !isCoverDevice;
+    if (
+      ((climatePanel.root.hidden = !isClimateDevice),
+      (coverPanel.root.hidden = !isCoverDevice || isCurtainGroupKind),
+      typeof coverGroupPanel < "u" && (coverGroupPanel.root.hidden = !isCurtainGroupKind),
+      (lightPanelHeader.hidden =
+        lightControlsElement.hidden =
+        controlErrorElement.hidden =
+          isClimateDevice || isCoverDevice),
+      lightPanelSection.classList.toggle("is-cover-panel", isCoverDevice),
+      lightPanelSection.classList.toggle("is-climate-panel", isClimateDevice),
+      lightPanelSection.setAttribute(
+        "aria-label",
+        isCoverDevice
+          ? panelItem.airer
+            ? "晾衣架控制"
+            : "窗帘控制"
+          : isClimateDevice
+            ? panelItem.waterHeater
+              ? "热水器控制"
+              : panelItem.pedestalFan
+                ? "电风扇控制"
+                : panelItem.airPurifier
+                  ? "空气净化器控制"
+                  : "空调控制"
+            : "灯光控制",
+      ),
+      !panelItem)
+    )
+      return exitFocusMode();
+    if (isCoverDevice) {
       if (
-        "brightness" in queuedCommandRequest.data ||
-        "brightness_pct" in queuedCommandRequest.data
+        (lightPanelSection.classList.remove("has-light-controls", "has-error"), isCurtainGroupKind)
       ) {
-        delete mergedCommandData.brightness;
-        delete mergedCommandData.brightness_pct;
-      }
-      queuedCommandRequest = {
-        ...queuedCommandRequest,
-        data: {
-          ...mergedCommandData,
-          ...queuedCommandRequest.data
-        }
-      };
-    }
-    existingRequest.next = {
-      command: queuedCommandRequest,
-      previewToken: queuedPreviewToken
-    };
-    lightPreview.hold(queuedCommandRequest.entityId, queuedPreviewToken);
-  }
-
-
-  /**
-   * 执行一次灯光操作（开关、亮度、色温、预设），必要时补一条开灯命令。
-   */
-  async function runLightCommand(service: any, serviceValue: any, targetBinding: any = findFocusedBinding()) {
-    if (!!targetBinding && !isEditing && !isDisposed) {
-      try {
-        const lightStateSnapshot = readLightState(targetBinding.entityId);
-        let lightCommandPayload: any;
-        let previewValue = serviceValue;
-        if (service === "preset") {
-          if (!LIGHT_PRESETS.includes(serviceValue)) {
-            throw new Error("灯光预设无效。");
-          }
-          const serviceParams: any[] = [];
-          previewValue = {};
-          if (lightStateSnapshot.brightnessSupported) {
-            serviceParams.push(["brightness", serviceValue.brightness]);
-            previewValue.brightness = serviceValue.brightness;
-          }
-          if (lightStateSnapshot.temperatureSupported) {
-            previewValue.kelvin = Math.round(
-              (lightStateSnapshot.minimum as number) +
-                (((lightStateSnapshot.maximum as number) - (lightStateSnapshot.minimum as number)) *
-                  serviceValue.temperaturePercent) /
-                  100
-            );
-            serviceParams.push(["temperature", previewValue.kelvin]);
-          }
-          if (!serviceParams.length) {
-            throw new Error("此设备不支持灯光预设。");
-          }
-          const generatedCommands = serviceParams.map(([serviceKey, serviceParamValue]) =>
-            lightCommand(targetBinding.entityId, serviceKey, serviceParamValue, lightStateSnapshot)
+        const coverStatesById = Object.fromEntries(
+            panelItem.memberItems.map((coverMemberEntry) => [
+              coverMemberEntry.id,
+              coverState2(
+                coverMemberEntry.entityId,
+                deviceStates[coverMemberEntry.entityId],
+                coverMemberEntry,
+              ),
+            ]),
+          ),
+          coverPresentationsById = Object.fromEntries(
+            panelItem.memberItems.map((presentationMemberEntry) => [
+              presentationMemberEntry.id,
+              readCoverFeedback(
+                presentationMemberEntry,
+                coverStatesById[presentationMemberEntry.id],
+              ),
+            ]),
           );
-          lightCommandPayload = {
-            ...generatedCommands[0],
+        typeof coverGroupPanel < "u" &&
+          coverGroupPanel.update({
+            item: panelItem,
+            states: coverStatesById,
+            presentations: coverPresentationsById,
+            editing: isEditing || !isControlReady,
+            errors: Object.fromEntries(
+              panelItem.memberItems.map((errorMemberEntry) => [
+                errorMemberEntry.id,
+                errorMemberEntry.modelAvailable
+                  ? coverPresentationsById[errorMemberEntry.id]?.error || ""
+                  : "窗帘模型已移除，请重新配置。",
+              ]),
+            ),
+          });
+      } else {
+        const coverState = coverState2(
+          panelItem.entityId,
+          deviceStates[panelItem.entityId],
+          panelItem,
+        );
+        panelItem.modelAvailable || (coverState.available = false);
+        const coverPresentation = readCoverFeedback(panelItem, coverState);
+        coverPanel.update({
+          item: panelItem,
+          state: coverState,
+          states: deviceStates,
+          presentation: coverPresentation,
+          editing: isEditing || !isControlReady,
+          error: panelItem.modelAvailable
+            ? coverPresentation.error || ""
+            : "窗帘模型已移除，请重新配置。",
+        });
+      }
+      return;
+    }
+    if (isClimateDevice) {
+      lightPanelSection.classList.remove("has-light-controls", "has-error");
+      const climateState = climateState2(panelItem.entityId, deviceStates[panelItem.entityId]);
+      (panelItem.modelAvailable || (climateState.available = false),
+        climatePanel.update({
+          item: panelItem,
+          state: climateState,
+          states: deviceStates,
+          editing: isEditing || !isControlReady || !panelItem.modelAvailable,
+          error: panelItem.modelAvailable ? "" : "设备模型已移除，请重新配置。",
+        }));
+      return;
+    }
+    const panelLightState = resolveLightState(panelItem);
+    ((lightTitleElement.textContent = panelItem.label || panelLightState.name),
+      (deviceStatusElement.textContent = panelItem.entityId
+        ? panelLightState.available
+          ? panelLightState.on
+            ? "已开启"
+            : "已关闭"
+          : "设备不可用"
+        : "尚未绑定设备"),
+      (lightTitleElement.title = lightTitleElement.textContent),
+      (controlErrorElement.title = controlErrorElement.textContent),
+      updateLampButton(panelLightState),
+      deviceStatusElement.classList.toggle(
+        "is-on",
+        panelLightState.available && panelLightState.on,
+      ));
+    const some2 = [...lightGroupByKey.values()].some(
+      (pendingLightCommand) => pendingLightCommand.entityId === panelItem.entityId,
+    );
+    (lightPanelSection.classList.toggle(
+      "is-command-pending",
+      some2 && panelLightState.available && !isEditing,
+    ),
+      lightPanelSection.setAttribute("aria-busy", String(some2)));
+    const colorSupported =
+        panelLightState.brightnessSupported ||
+        panelLightState.temperatureSupported ||
+        panelLightState.colorSupported,
+      colorModeName =
+        panelLightState.colorMode === "white"
+          ? "white"
+          : panelLightState.colorMode === "color_temp" && panelLightState.temperatureSupported
+            ? "temperature"
+            : panelLightState.colorSupported
+              ? "color"
+              : "temperature",
+      lightModeOptions = {
+        color: panelLightState.colorSupported,
+        temperature: panelLightState.temperatureSupported,
+        white: panelLightState.colorModes?.includes("white"),
+      };
+    (lightModeMenu.update({
+      modes: lightModeOptions,
+      value: colorModeName,
+      disabled: isEditing || !panelLightState.available,
+      entity: panelItem.entityId,
+    }),
+      lightColorPicker.update({
+        entityId: panelItem.entityId,
+        hs: panelLightState.colorHs,
+        visible: panelLightState.colorSupported && colorModeName === "color",
+        enabled: !isEditing && panelLightState.available,
+      }),
+      lightPanelSection.classList.toggle("has-light-controls", colorSupported),
+      lightPanelSection.classList.toggle(
+        "has-color-controls",
+        panelLightState.colorSupported && colorModeName === "color",
+      ),
+      lightPanelSection.classList.toggle("has-error", !!controlErrorElement.textContent),
+      (isEditing || !panelLightState.available || !panelLightState.on) &&
+        restoreFocusWithin(lightControlsElement, lightPanelSection),
+      colorSupported
+        ? lightControlsElement.removeAttribute("inert")
+        : (restoreFocusWithin(lightControlsElement, lightPanelSection),
+          lightControlsElement.setAttribute("inert", "")),
+      lightControlsElement.removeAttribute("aria-hidden"),
+      (powerButton.disabled = isEditing || !panelLightState.available),
+      (brightnessSlider.input.min = 0),
+      (brightnessSlider.input.max = 100),
+      (temperatureSlider.input.min = panelLightState.minimum),
+      (temperatureSlider.input.max = panelLightState.maximum));
+    for (const [lightSliderControl, isSliderEnabled, sliderValue, sliderUnitSuffix] of [
+      [brightnessSlider, panelLightState.brightnessSupported, panelLightState.brightness, "%"],
+      [
+        temperatureSlider,
+        panelLightState.temperatureSupported && colorModeName === "temperature",
+        panelLightState.kelvin,
+        " K",
+      ],
+    ])
+      ((lightSliderControl.root.hidden = !isSliderEnabled),
+        (lightSliderControl.input.disabled = isEditing || !panelLightState.available),
+        lightSliderControl === brightnessSlider &&
+          !panelLightState.on &&
+          isSliderEnabled &&
+          (lightSliderControl.input.value = "0"),
+        document.activeElement !== lightSliderControl.input &&
+          ((lightSliderControl.input.value =
+            sliderValue ??
+            (lightSliderControl === brightnessSlider ? 100 : panelLightState.minimum)),
+          (lightSliderControl.value.value =
+            sliderValue === null ? "—" : "" + sliderValue + sliderUnitSuffix)));
+    lightPresetsElement.hidden =
+      panelLightState.colorSupported ||
+      (!panelLightState.brightnessSupported && !panelLightState.temperatureSupported);
+    for (const lightPreset of lightPresetRecords) {
+      const round = Math.round(
+          panelLightState.minimum +
+            ((panelLightState.maximum - panelLightState.minimum) * lightPreset.temperaturePercent) /
+              100,
+        ),
+        isPresetActive =
+          panelLightState.on &&
+          (!panelLightState.brightnessSupported ||
+            Math.abs(panelLightState.brightness - lightPreset.brightness) <= 4) &&
+          (!panelLightState.temperatureSupported ||
+            Math.abs(panelLightState.kelvin - round) <=
+              Math.max(50, (panelLightState.maximum - panelLightState.minimum) * 0.06));
+      ((lightPreset.button.disabled =
+        isEditing || !panelLightState.available || lightPresetsElement.hidden),
+        lightPreset.button.classList.toggle("is-active", isPresetActive),
+        lightPreset.button.setAttribute("aria-pressed", String(isPresetActive)),
+        (lightPreset.detail.textContent = panelLightState.brightnessSupported
+          ? lightPreset.brightness + "%"
+          : "开启"));
+    }
+  }
+  function dispatchControlCommand(controlCommand, previewToken) {
+    const requestId = String(++num),
+      entityId2 = controlCommand.entityId;
+    vector.retain(entityId2, previewToken);
+    const commandTimeoutHandle = setTimeout(
+      () => settleControlCommand(requestId, "请求超时，请检查设备状态。", true),
+      14000,
+    );
+    (lightGroupByKey.set(requestId, {
+      entityId: entityId2,
+      command: controlCommand,
+      previewToken: previewToken,
+      timeout: commandTimeoutHandle,
+      next: null,
+    }),
+      postHostMessage({
+        type: "control",
+        requestId: requestId,
+        command: controlCommand,
+      }));
+  }
+  function enqueueControlCommand(nextCommand, nextPreviewToken) {
+    const existingCommandEntry = [...lightGroupByKey.values()].find(
+      (matchedEntry) => matchedEntry.entityId === nextCommand.entityId,
+    );
+    if (!existingCommandEntry) return dispatchControlCommand(nextCommand, nextPreviewToken);
+    const command = existingCommandEntry.next?.command || existingCommandEntry.command;
+    if (command.service === "turn_on" && nextCommand.service === "turn_on") {
+      const retainedCommandFields = {
+        ...command.data,
+      };
+      (("brightness" in nextCommand.data || "brightness_pct" in nextCommand.data) &&
+        (delete retainedCommandFields.brightness, delete retainedCommandFields.brightness_pct),
+        ["hs_color", "rgb_color", "color_temp_kelvin", "white"].some(
+          (colorFieldName) => colorFieldName in nextCommand.data,
+        ) &&
+          (delete retainedCommandFields.hs_color,
+          delete retainedCommandFields.rgb_color,
+          delete retainedCommandFields.color_temp_kelvin,
+          delete retainedCommandFields.white),
+        (nextCommand = {
+          ...nextCommand,
+          data: {
+            ...retainedCommandFields,
+            ...nextCommand.data,
+          },
+        }));
+    }
+    ((existingCommandEntry.next = {
+      command: nextCommand,
+      previewToken: nextPreviewToken,
+    }),
+      vector.hold(nextCommand.entityId, nextPreviewToken));
+  }
+  function settleControlCommand(settledRequestId, errorMessage = "", isTimedOut = false) {
+    const settledEntry = lightGroupByKey.get(settledRequestId);
+    if (!settledEntry) return;
+    (clearTimeout(settledEntry.timeout), lightGroupByKey.delete(settledRequestId));
+    const next = settledEntry.next,
+      available =
+        next &&
+        !isTimedOut &&
+        !isControlBusy &&
+        !isEditing &&
+        isControlReady &&
+        activeModule === "light" &&
+        selectedFloorId !== "all" &&
+        (options.lights || []).some(
+          (boundLightItem) =>
+            matchesSelectedFloor(boundLightItem) &&
+            boundLightItem.entityId === settledEntry.entityId,
+        ) &&
+        resolveDeviceState(settledEntry.entityId).available;
+    (errorMessage
+      ? vector.reject(settledEntry.entityId, settledEntry.previewToken)
+      : vector.acknowledge(settledEntry.entityId, settledEntry.previewToken),
+      available
+        ? dispatchControlCommand(next.command, next.previewToken)
+        : next && vector.reject(settledEntry.entityId, next.previewToken),
+      getFocusedEntry()?.entityId === settledEntry.entityId &&
+        (controlErrorElement.textContent = available ? "" : errorMessage),
+      syncMarkers());
+  }
+  async function runLightCommand(serviceName, serviceValue, commandTargetItem = getFocusedEntry()) {
+    if (!(!commandTargetItem || isEditing || isControlBusy))
+      try {
+        const commandLightState = resolveLightState(commandTargetItem);
+        let commandPayload,
+          commandValue = serviceValue;
+        if (serviceName === "preset") {
+          if (!lightPresetEntries.includes(serviceValue)) throw new Error("灯光预设无效。");
+          const presetFieldPairs = [];
+          if (
+            ((commandValue = {}),
+            commandLightState.brightnessSupported &&
+              (presetFieldPairs.push(["brightness", serviceValue.brightness]),
+              (commandValue.brightness = serviceValue.brightness)),
+            commandLightState.temperatureSupported &&
+              ((commandValue.kelvin = Math.round(
+                commandLightState.minimum +
+                  ((commandLightState.maximum - commandLightState.minimum) *
+                    serviceValue.temperaturePercent) /
+                    100,
+              )),
+              presetFieldPairs.push(["temperature", commandValue.kelvin])),
+            !presetFieldPairs.length)
+          )
+            throw new Error("此设备不支持灯光预设。");
+          const presetFieldCommands = presetFieldPairs.map(([presetFieldName, presetFieldValue]) =>
+            lightCommand2(
+              commandTargetItem.entityId,
+              presetFieldName,
+              presetFieldValue,
+              commandLightState,
+            ),
+          );
+          ((commandPayload = {
+            ...presetFieldCommands[0],
             data: Object.assign(
               {},
-              ...generatedCommands.map((generatedCommand: any) => generatedCommand.data)
-            )
-          };
-          if (lightStateSnapshot.brightnessSupported && serviceValue.brightness < 100) {
-            delete lightCommandPayload.data.brightness;
-            lightCommandPayload.data.brightness_pct = serviceValue.brightness;
-          }
-        } else {
-          lightCommandPayload = lightCommand(
-            targetBinding.entityId,
-            service,
+              ...presetFieldCommands.map((presetFieldCommand) => presetFieldCommand.data),
+            ),
+          }),
+            commandLightState.brightnessSupported &&
+              serviceValue.brightness < 100 &&
+              (delete commandPayload.data.brightness,
+              (commandPayload.data.brightness_pct = serviceValue.brightness)));
+        } else
+          commandPayload = lightCommand2(
+            commandTargetItem.entityId,
+            serviceName,
             serviceValue,
-            lightStateSnapshot
+            commandLightState,
           );
-        }
-        const previewToken = lightPreview.set(targetBinding.entityId, service, previewValue, true);
-        applyLightStates({
-          preview: service !== "power"
-        });
-        queueLightCommand(lightCommandPayload, previewToken);
-        controlErrorElement.textContent = "";
-        renderMarkers();
+        const previewTokenFromSet = vector.set(
+          commandTargetItem.entityId,
+          serviceName,
+          commandValue,
+          true,
+        );
+        (applyLightStates({
+          preview: serviceName !== "power",
+        }),
+          enqueueControlCommand(commandPayload, previewTokenFromSet),
+          (controlErrorElement.textContent = ""),
+          syncMarkers());
       } catch (lightCommandError) {
-        controlErrorElement.textContent = (lightCommandError as any).message;
-        renderLightPanel();
+        ((controlErrorElement.textContent = lightCommandError.message), updateDevicePanel());
       }
-    }
   }
-  /**
-   * 点击标记的总入口：按绑定类型分发到聚焦、窗帘 / 扫地机面板、房间快捷入口等。
-   */
-  function activateBinding(activationBindingId: any, fromPointer: any = false) {
-    if (!isEditing && isOverviewMode()) {
-      return;
-    }
-    const activationBinding = findBinding(activationBindingId);
+  function activateMarker(activatedMarkerId, isShortcut = false) {
+    if (!isEditing && isOverviewOrAllFloors()) return;
+    const activatedMarkerItem = findBindingById(activatedMarkerId);
     if (
-      !activationBinding ||
-      activationBinding.modelAvailable === false ||
-      (!isEditing && (activationBinding.overviewQuip || activationBinding.passiveSensor)) ||
-      (followedVacuumId && !isEditing)
-    ) {
+      !activatedMarkerItem ||
+      activatedMarkerItem.modelAvailable === false ||
+      (!isEditing && (activatedMarkerItem.overviewQuip || activatedMarkerItem.passiveSensor)) ||
+      (followVacuumId && !isEditing) ||
+      (!isEditing &&
+        ["temperature-humidity", "smallcar"].includes(activatedMarkerItem.deviceKind)) ||
+      (!isEditing && activatedMarkerItem.deviceKind === "lock")
+    )
       return;
-    }
-    const clickAction = activationBinding.clickAction || "focus";
+    const markerClickAction = activatedMarkerItem.clickAction || "focus";
     if (isEditing) {
-      selectedId = activationBindingId;
-      postToHost({
-        type: "edit",
-        action: "select",
-        id: activationBindingId
-      });
-      renderMarkers();
+      ((text = activatedMarkerId),
+        postHostMessage({
+          type: "edit",
+          action: "select",
+          id: activatedMarkerId,
+        }),
+        syncMarkers());
       return;
     }
-    if (activationBinding.deviceKind === "camera") {
-      if (isInteractive && activationBinding.entityId) {
-        focusBinding(activationBindingId);
-      }
+    if (activatedMarkerItem.deviceKind === "camera") {
+      isControlReady && activatedMarkerItem.entityId && focusMarkerById(activatedMarkerId);
       return;
     }
-    if (activationBinding.deviceKind === "vacuum-room") {
+    if (activatedMarkerItem.deviceKind === "vacuum-room") {
       if (
-        !isInteractive ||
-        !activationBinding.entityId ||
-        vacuumRoomTimersById.has(activationBindingId)
-      ) {
+        !isControlReady ||
+        !activatedMarkerItem.entityId ||
+        vacuumOverlayByKey.has(activatedMarkerId)
+      )
         return;
-      }
-      const roomRequestTimeoutId = setTimeout(() => {
-        vacuumRoomTimersById.delete(activationBindingId);
-        const roomMarkerElement = markersById.get(activationBindingId);
-        if (roomMarkerElement) {
-          roomMarkerElement.disabled = false;
-          roomMarkerElement.title = "请求超时，请检查设备状态";
-        }
+      const roomTimeoutHandle = setTimeout(() => {
+        vacuumOverlayByKey.delete(activatedMarkerId);
+        const roomMarkerElement = map.get(activatedMarkerId);
+        roomMarkerElement &&
+          ((roomMarkerElement.disabled = false),
+          (roomMarkerElement.title = "请求超时，请检查设备状态"));
       }, 14000);
-      vacuumRoomTimersById.set(activationBindingId, roomRequestTimeoutId);
-      if (markersById.get(activationBindingId)) {
-        markersById.get(activationBindingId).disabled = true;
-      }
-      postToHost({
-        type: "vacuum-room",
-        id: activationBindingId,
-        vacuumId: activationBinding.vacuumId,
-        shortcutId: activationBinding.shortcutId
-      });
+      (vacuumOverlayByKey.set(activatedMarkerId, roomTimeoutHandle),
+        map.get(activatedMarkerId) && (map.get(activatedMarkerId).disabled = true),
+        postHostMessage({
+          type: "vacuum-room",
+          id: activatedMarkerId,
+          vacuumId: activatedMarkerItem.vacuumId,
+          shortcutId: activatedMarkerItem.shortcutId,
+        }));
       return;
     }
-    if (isFocusableDevice(activationBinding)) {
-      const openPanel =
-        fromPointer &&
-        activationBinding.deviceKind === "vacuum" &&
-        vacuumStatusPresentation(activationBinding, statesByEntityId).active;
-      focusBinding(
-        activationBindingId,
-        openPanel || activationBinding.clickAction === "panel" ? "panel" : "runtime"
+    const isTurnOnAction = ["turn-on", "turn-on-focus", "turn-on-panel"].includes(
+        markerClickAction,
+      ),
+      openPanelOrRuntime = () => {
+        const targetFocusMode = markerClickAction === "turn-on-panel" ? "panel" : "runtime";
+        (focusedItemId === activatedMarkerId && panelDisplayMode === targetFocusMode) ||
+          focusMarkerById(activatedMarkerId, targetFocusMode);
+      },
+      reportMarkerError = (markerError) => {
+        if (isControlBusy) return;
+        const roomMarkerElementRef = map.get(activatedMarkerId);
+        (roomMarkerElementRef && (roomMarkerElementRef.title = markerError.message),
+          focusedItemId === activatedMarkerId &&
+            ((controlErrorElement.textContent = markerError.message), updateDevicePanel()));
+      };
+    if (activatedMarkerItem.deviceKind === "television" && isTurnOnAction) {
+      if (!isControlReady) return;
+      const televisionPowerState = televisionPower2(activatedMarkerItem, deviceStates);
+      if (
+        (markerClickAction !== "turn-on" && !televisionPowerState.on && openPanelOrRuntime(),
+        !televisionPowerState.available ||
+          !televisionPowerState.supported ||
+          [...mediaControlRequestsByRequestId.values()].some(
+            (powerCommandEntry) => powerCommandEntry.entityId === televisionPowerState.entityId,
+          ))
+      )
+        return;
+      controlMediaDevice(televisionPowerState.command, activatedMarkerItem).catch(
+        reportMarkerError,
       );
       return;
     }
-    if (activationBinding.deviceKind === "cover") {
-      focusBinding(activationBindingId, clickAction === "panel" ? "panel" : "runtime");
+    if (isPanelDeviceKind(activatedMarkerItem)) {
+      const active2 =
+        isShortcut &&
+        activatedMarkerItem.deviceKind === "vacuum" &&
+        vacuumStatusPresentation2(activatedMarkerItem, deviceStates).active;
+      focusMarkerById(
+        activatedMarkerId,
+        active2 || activatedMarkerItem.clickAction === "panel" ? "panel" : "runtime",
+      );
       return;
     }
-    if (activationBinding.modelId) {
-      if (clickAction === "turn-on") {
-        climatePanel.update({
-          item: activationBinding,
-          state: climateState(
-            activationBinding.entityId,
-            statesByEntityId[activationBinding.entityId]
+    if (activatedMarkerItem.deviceKind === "cover") {
+      if (isTurnOnAction) {
+        if (!isControlReady) return;
+        const coverEntryList = (
+            activatedMarkerItem.isCurtainGroup
+              ? activatedMarkerItem.memberItems
+              : [activatedMarkerItem]
+          )
+            .filter((coverFilterItem) => coverFilterItem.modelAvailable !== false)
+            .map((coverMapItem) => ({
+              item: coverMapItem,
+              state: readCoverFeedback(coverMapItem),
+            }))
+            .filter(({ state: availableCoverState }) => availableCoverState.available),
+          some3 = coverEntryList.some(({ state: movingCoverState }) => movingCoverState.moving),
+          some4 = coverEntryList.some(
+            ({ state: openCoverState }) =>
+              openCoverState.on || openCoverState.position > 0 || openCoverState.state === "open",
           ),
-          // 与面板登记表里的分支一致：附加功能卡片需要整张状态表才能显示兄弟实体。
-          states: statesByEntityId,
-          editing: isEditing
-        });
-        climatePanel.power?.({
-          toggle: true
-        });
+          coverServiceName = some3 ? "stop_cover" : some4 ? "close_cover" : "open_cover";
+        markerClickAction !== "turn-on" && !some3 && !some4 && openPanelOrRuntime();
+        const commandedEntityIdSet = new Set();
+        for (const { item: coverCommandItem, state: coverCommandState } of coverEntryList)
+          if (!(
+            (coverServiceName === "open_cover" && !coverCommandState.closedConfirmed) ||
+            (some3 && !coverCommandState.moving) ||
+            commandedEntityIdSet.has(coverCommandItem.entityId)
+          ))
+            try {
+              const coverControlCommand = coverControl2(coverCommandState, coverServiceName);
+              (commandedEntityIdSet.add(coverCommandItem.entityId),
+                coverPanelOptions
+                  .onControl(coverControlCommand, coverCommandItem)
+                  .catch(reportMarkerError));
+            } catch (coverCommandError) {
+              reportMarkerError(coverCommandError);
+            }
         return;
       }
-      focusBinding(activationBindingId, clickAction === "turn-on-panel" ? "panel" : "runtime");
-      if (clickAction !== "focus" && focusedId === activationBindingId) {
-        climatePanel.power?.({
-          toggle: false
-        });
-      }
+      focusMarkerById(activatedMarkerId, markerClickAction === "panel" ? "panel" : "runtime");
       return;
     }
-    const activationLightState = resolveLightState(activationBinding.entityId);
-    if (clickAction === "turn-on") {
-      if (activationLightState.available) {
-        runLightCommand("power", !activationLightState.on, activationBinding);
+    if (activatedMarkerItem.modelId) {
+      const markerClimateState = climateState2(
+        activatedMarkerItem.entityId,
+        deviceStates[activatedMarkerItem.entityId],
+      );
+      if (
+        (activatedMarkerItem.climateType === "bath-heater" ||
+          activatedMarkerItem.airPurifier ||
+          activatedMarkerItem.waterHeater) &&
+        !activatedMarkerItem.entityId
+      ) {
+        focusMarkerById(
+          activatedMarkerId,
+          markerClickAction === "turn-on-panel" ? "panel" : "runtime",
+        );
+        return;
       }
+      const isFocusTurnOn = ["turn-on-focus", "turn-on-panel"].includes(markerClickAction);
+      if (
+        markerClickAction === "turn-on" ||
+        (isFocusTurnOn && markerClimateState.available && markerClimateState.on)
+      ) {
+        (climatePanel.update({
+          item: activatedMarkerItem,
+          state: markerClimateState,
+          states: deviceStates,
+          editing: isEditing || !isControlReady || !activatedMarkerItem.modelAvailable,
+        }),
+          climatePanel.power?.({
+            toggle: true,
+          }));
+        return;
+      }
+      ((markerClickAction === "turn-on-focus" &&
+        focusedItemId === activatedMarkerId &&
+        panelDisplayMode === "runtime") ||
+        focusMarkerById(
+          activatedMarkerId,
+          markerClickAction === "turn-on-panel" ? "panel" : "runtime",
+        ),
+        markerClickAction !== "focus" &&
+          focusedItemId === activatedMarkerId &&
+          climatePanel.power?.({
+            toggle: false,
+          }));
       return;
     }
-    if (clickAction === "turn-on-panel") {
-      focusBinding(activationBindingId, "panel");
-      if (activationLightState.available && !activationLightState.on) {
-        runLightCommand("power", true, activationBinding);
-      }
+    const markerLightState = readLightState(activatedMarkerItem.entityId);
+    if (markerClickAction === "turn-on") {
+      markerLightState.available &&
+        runLightCommand("power", !markerLightState.on, activatedMarkerItem);
       return;
     }
-    focusBinding(activationBindingId);
     if (
-      focusedId === activationBindingId &&
-      focusMode === "runtime" &&
-      clickAction === "turn-on-focus" &&
-      activationLightState.available &&
-      !activationLightState.on
+      ["turn-on-focus", "turn-on-panel"].includes(markerClickAction) &&
+      markerLightState.available &&
+      markerLightState.on
     ) {
-      runLightCommand("power", true);
+      runLightCommand("power", false, activatedMarkerItem);
+      return;
+    }
+    if (markerClickAction === "turn-on-panel") {
+      (focusMarkerById(activatedMarkerId, "panel"),
+        markerLightState.available &&
+          !markerLightState.on &&
+          runLightCommand("power", true, activatedMarkerItem));
+      return;
+    }
+    ((markerClickAction === "turn-on-focus" &&
+      focusedItemId === activatedMarkerId &&
+      panelDisplayMode === "runtime") ||
+      focusMarkerById(activatedMarkerId),
+      focusedItemId === activatedMarkerId &&
+        panelDisplayMode === "runtime" &&
+        markerClickAction === "turn-on-focus" &&
+        markerLightState.available &&
+        !markerLightState.on &&
+        runLightCommand("power", true));
+  }
+  let lastRenderSignature = "";
+  function renderMarkerPositions(isForced = false) {
+    if (isRangeEditorOpen || isCameraMoving || isControlBusy) return;
+    ((mountOptions.floorTransitionActive || cameraMotionSnapshot) && screenOutlines.pause(),
+      screenOutlines.update(),
+      editorSelectionOutlines.update());
+    const isConcealGraceElapsed =
+      lastInteractionMs !== null && performance.now() - lastInteractionMs >= 240;
+    if (isConcealGraceElapsed && !vacuumWorkingLayerElement.childElementCount) {
+      lastRenderSignature = "";
+      return;
+    }
+    (mountOptions.camera.updateMatrixWorld(),
+      (cachedDocumentSource !== mountOptions.document ||
+        cachedDocumentFloorId !== selectedFloorId) &&
+        (sceneCacheByKey.clear(),
+        (cachedDocumentSource = mountOptions.document),
+        (cachedDocumentFloorId = selectedFloorId)));
+    const renderCanvasRect = containerViewportSize || element.getBoundingClientRect(),
+      width4 = (hasStageRect() && mediaViewportSize?.width) || renderCanvasRect.width,
+      height3 = (hasStageRect() && mediaViewportSize?.height) || renderCanvasRect.height;
+    if (outgoingGhostAnimation && mountOptions.presentationPoint)
+      for (const outgoingMarker of outgoingGhostAnimation.outgoing) {
+        if (!outgoingMarker.node) continue;
+        const presentationPoint = mountOptions.presentationPoint(
+          outgoingMarker.floorId,
+          outgoingMarker.x,
+          outgoingMarker.y,
+          outgoingMarker.height,
+        );
+        if (!presentationPoint) {
+          outgoingMarker.node.hidden = true;
+          continue;
+        }
+        const project = presentationPoint.project(mountOptions.camera);
+        ((outgoingMarker.node.hidden =
+          project.z < -1 ||
+          project.z > 1 ||
+          Math.abs(project.x) > 1.05 ||
+          Math.abs(project.y) > 1.05),
+          (outgoingMarker.node.style.left = ((project.x + 1) * width4) / 2 + "px"),
+          (outgoingMarker.node.style.top = ((1 - project.y) * height3) / 2 + "px"));
+      }
+    const isUniformOverviewStack =
+        selectedFloorId === "all" && mountOptions.document.uniformOverviewStack === true,
+      renderSignature =
+        width4 +
+        ":" +
+        height3 +
+        ":" +
+        isUniformOverviewStack +
+        ":" +
+        mountOptions.camera.matrixWorld.elements +
+        ":" +
+        mountOptions.camera.projectionMatrix.elements;
+    if (!(
+      isForced !== true &&
+      !mountOptions.floorTransitionActive &&
+      renderSignature === lastRenderSignature
+    )) {
+      lastRenderSignature = renderSignature;
+      for (const layoutMarkerItem of currentModuleBindings()) {
+        const layoutMarkerSnapshot =
+            activePointerDrag?.id === layoutMarkerItem.id
+              ? {
+                  ...layoutMarkerItem,
+                  ...activePointerDrag.point,
+                }
+              : layoutMarkerItem,
+          layoutMarkerId = layoutMarkerSnapshot.id,
+          layoutMarkerElement = map.get(layoutMarkerId);
+        if (
+          !layoutMarkerElement ||
+          (isConcealGraceElapsed && layoutMarkerElement.parentElement === markerLayerElement)
+        )
+          continue;
+        const isMarkerVisible =
+          (isEditing || layoutMarkerSnapshot.deviceKind !== "presence") &&
+          (isEditing || layoutMarkerSnapshot.visible !== false) &&
+          (isEditing || layoutMarkerSnapshot.buttonHidden !== true) &&
+          layoutMarkerSnapshot.modelAvailable !== false &&
+          (selectedFloorId === "all" || layoutMarkerSnapshot.floorId === selectedFloorId);
+        let cachedWorldPoint = sceneCacheByKey.get(layoutMarkerId);
+        isMarkerVisible &&
+          (!cachedWorldPoint ||
+            cachedWorldPoint.floorId !== layoutMarkerSnapshot.floorId ||
+            cachedWorldPoint.x !== layoutMarkerSnapshot.x ||
+            cachedWorldPoint.y !== layoutMarkerSnapshot.y ||
+            cachedWorldPoint.height !== layoutMarkerSnapshot.height) &&
+          ((cachedWorldPoint = {
+            floorId: layoutMarkerSnapshot.floorId,
+            x: layoutMarkerSnapshot.x,
+            y: layoutMarkerSnapshot.y,
+            height: layoutMarkerSnapshot.height,
+            point: mountOptions.worldPoint(
+              layoutMarkerSnapshot.floorId,
+              layoutMarkerSnapshot.x,
+              layoutMarkerSnapshot.y,
+              layoutMarkerSnapshot.height,
+            ),
+          }),
+          sceneCacheByKey.set(layoutMarkerId, cachedWorldPoint));
+        const presentationPoint2 =
+          isMarkerVisible &&
+          ((mountOptions.floorTransitionActive || isUniformOverviewStack) &&
+          mountOptions.presentationPoint
+            ? mountOptions.presentationPoint(
+                layoutMarkerSnapshot.floorId,
+                layoutMarkerSnapshot.x,
+                layoutMarkerSnapshot.y,
+                layoutMarkerSnapshot.height,
+              )
+            : cachedWorldPoint?.point);
+        if (!presentationPoint2) {
+          layoutMarkerElement.hidden = true;
+          continue;
+        }
+        const project2 = scratchVector.copy(presentationPoint2).project(mountOptions.camera);
+        ((layoutMarkerElement.hidden =
+          project2.z < -1 ||
+          project2.z > 1 ||
+          Math.abs(project2.x) > 1.05 ||
+          Math.abs(project2.y) > 1.05),
+          (layoutMarkerElement.style.left = ((project2.x + 1) * width4) / 2 + "px"),
+          (layoutMarkerElement.style.top = ((1 - project2.y) * height3) / 2 + "px"));
+      }
     }
   }
-  // 标记布局签名：坐标与可见性都没变时跳过 DOM 写入 ——
-  let markerLayoutSignature = "";
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  let canvasPointerState: any;
-  canvasElement.addEventListener("pointerdown", (canvasPointerDownEvent: any) => {
-    canvasPointerState =
-      (canvasPointerDownEvent.button == null || canvasPointerDownEvent.button === 0) &&
-      canvasPointerDownEvent.isPrimary !== false
-        ? {
-            x: canvasPointerDownEvent.clientX,
-            y: canvasPointerDownEvent.clientY,
-            id: canvasPointerDownEvent.pointerId,
-            moved: false
+  function pickMarkerAtPoint(pickPointerEvent, fallbackMarkerId) {
+    if (isEditing) return fallbackMarkerId;
+    const hitCandidates = [];
+    for (const [candidateMarkerId, candidateMarkerElement] of map) {
+      if (
+        candidateMarkerElement.hidden ||
+        candidateMarkerElement.disabled ||
+        candidateMarkerElement.closest("[inert]")
+      )
+        continue;
+      const computedStyle2 = getComputedStyle(candidateMarkerElement);
+      if (computedStyle2.pointerEvents === "none" || computedStyle2.visibility === "hidden")
+        continue;
+      const candidateMarkerRect = candidateMarkerElement.getBoundingClientRect();
+      candidateMarkerRect.width > 0 &&
+        candidateMarkerRect.height > 0 &&
+        hitCandidates.push({
+          id: candidateMarkerId,
+          rect: candidateMarkerRect,
+          width:
+            ((parseFloat(candidateMarkerElement.style.width) ||
+              candidateMarkerElement.offsetWidth) *
+              candidateMarkerRect.width) /
+            candidateMarkerElement.offsetWidth,
+          height:
+            ((parseFloat(candidateMarkerElement.style.height) ||
+              candidateMarkerElement.offsetHeight) *
+              candidateMarkerRect.height) /
+            candidateMarkerElement.offsetHeight,
+        });
+    }
+    return (
+      nearestMarkerTarget(hitCandidates, pickPointerEvent.clientX, pickPointerEvent.clientY) ||
+      fallbackMarkerId
+    );
+  }
+  function syncMarkers(markerChange = null) {
+    if (isCameraMoving) return;
+    (wakeSceneBackground(), markerLayerElement.classList.toggle("is-editing", isEditing));
+    const syncMarkerItems = currentModuleBindings().filter(
+        (filteredMarkerItem) => isEditing || filteredMarkerItem.deviceKind !== "presence",
+      ),
+      visibleMarkerIdSet = new Set(
+        syncMarkerItems.map((visibleMarkerItem) => visibleMarkerItem.id),
+      );
+    let hasMarkerChange = false;
+    for (const [existingMarkerId, existingMarkerElement] of map)
+      visibleMarkerIdSet.has(existingMarkerId) ||
+        (existingMarkerElement.remove(),
+        map.delete(existingMarkerId),
+        sceneCacheByKey.delete(existingMarkerId),
+        (hasMarkerChange = true));
+    for (const syncMarkerItem of syncMarkerItems) {
+      let syncMarkerElement = map.get(syncMarkerItem.id);
+      if (syncMarkerElement && markerChange && !markerChange.affects(syncMarkerItem)) continue;
+      if (((hasMarkerChange = true), !syncMarkerElement)) {
+        ((syncMarkerElement = createStageElement(
+          syncMarkerItem.passiveSensor ||
+            ["temperature-humidity", "smallcar", "lock"].includes(syncMarkerItem.deviceKind)
+            ? "div"
+            : "button",
+          "i3d-marker",
+        )),
+          (syncMarkerElement.type = "button"));
+        const ms2 = createMarkerTouch((markerHitEvent) =>
+          pickMarkerAtPoint(markerHitEvent, syncMarkerItem.id),
+        );
+        (syncMarkerElement.addEventListener("pointerdown", (dragDownEvent) => {
+          isEditing || ms2.down(dragDownEvent);
+        }),
+          syncMarkerElement.addEventListener("pointermove", (dragMoveEvent) =>
+            ms2.move(dragMoveEvent),
+          ),
+          syncMarkerElement.addEventListener("pointerup", (dragUpEvent) => ms2.up(dragUpEvent)),
+          syncMarkerElement.addEventListener("pointercancel", () => ms2.cancel()),
+          syncMarkerElement.addEventListener("click", (markerClickEvent) => {
+            if (
+              (markerClickEvent.stopPropagation(),
+              findBindingById(syncMarkerItem.id)?.passiveSensor ||
+                isCameraMoving ||
+                isAwaitingFloorViewAdjust ||
+                panelDisplayMode === "edit" ||
+                (!isEditing && findBindingById(syncMarkerItem.id)?.buttonHidden === true))
+            )
+              return;
+            if (syncMarkerElement.dataset.dragged === "true") {
+              syncMarkerElement.dataset.dragged = "";
+              return;
+            }
+            const clickedMarkerId =
+                !isEditing && markerClickEvent.detail > 0
+                  ? pickMarkerAtPoint(markerClickEvent, syncMarkerItem.id)
+                  : syncMarkerItem.id,
+              target = isEditing
+                ? syncMarkerItem.id
+                : ms2.target(markerClickEvent, clickedMarkerId);
+            target && activateMarker(target, true);
+          }),
+          syncMarkerElement.addEventListener("pointerdown", (markerDragEvent) =>
+            beginMarkerDrag(markerDragEvent, syncMarkerItem.id),
+          ),
+          syncMarkerElement.addEventListener("pointermove", moveMarkerDrag),
+          syncMarkerElement.addEventListener("pointerup", endMarkerDrag),
+          syncMarkerElement.addEventListener("pointercancel", cancelMarkerDrag),
+          markerLayerElement.append(syncMarkerElement),
+          map.set(syncMarkerItem.id, syncMarkerElement));
+      }
+      const icon2 = /^mdi:[a-z0-9-]+$/.test(syncMarkerItem.icon || "") ? syncMarkerItem.icon : "",
+        isVacuumDevice = syncMarkerItem.deviceKind === "vacuum",
+        isVacuumRoomDevice = syncMarkerItem.deviceKind === "vacuum-room";
+      if (syncMarkerItem.isCurtainGroup) {
+        const memberIconList = syncMarkerItem.memberItems.map((memberIconItem) =>
+            /^mdi:[a-z0-9-]+$/.test(memberIconItem.icon || "")
+              ? memberIconItem.icon
+              : "mdi:curtains",
+          ),
+          join = memberIconList.join("|");
+        syncMarkerElement.dataset.groupIcons !== join &&
+          ((syncMarkerElement.dataset.groupIcons = join),
+          syncMarkerElement.replaceChildren(
+            ...memberIconList.map((memberIconName) => {
+              const groupIconElement = createStageElement(
+                  "span",
+                  "i3d-marker-icon i3d-curtain-group-icon",
+                ),
+                groupIconMaskUrl =
+                  'url("/static/vendor/mdi/7.4.47/svg/' + memberIconName.slice(4) + '.svg")';
+              return (
+                groupIconElement.style.setProperty("mask-image", groupIconMaskUrl),
+                groupIconElement.style.setProperty("-webkit-mask-image", groupIconMaskUrl),
+                groupIconElement
+              );
+            }),
+          ));
+      } else {
+        if (
+          !isVacuumDevice &&
+          syncMarkerItem.deviceKind !== "smallcar" &&
+          syncMarkerItem.deviceKind !== "temperature-humidity" &&
+          syncMarkerElement.dataset.icon !== icon2
+        ) {
+          if (((syncMarkerElement.dataset.icon = icon2), icon2)) {
+            const markerIconElement = createStageElement("span", "i3d-marker-icon");
+            markerIconElement.setAttribute("aria-hidden", "true");
+            const markerIconMaskUrl =
+              'url("/static/vendor/mdi/7.4.47/svg/' + icon2.slice(4) + '.svg")';
+            (markerIconElement.style.setProperty("mask-image", markerIconMaskUrl),
+              markerIconElement.style.setProperty("-webkit-mask-image", markerIconMaskUrl),
+              syncMarkerElement.replaceChildren(markerIconElement));
+          } else syncMarkerElement.innerHTML = lampIconSvgMarkup;
+        }
+      }
+      const markerPresentationState = syncMarkerItem.isCurtainGroup
+          ? {
+              available: syncMarkerItem.memberItems.some(
+                (coverAvailabilityMember) =>
+                  coverState2(
+                    coverAvailabilityMember.entityId,
+                    deviceStates[coverAvailabilityMember.entityId],
+                    coverAvailabilityMember,
+                  ).available,
+              ),
+              on: syncMarkerItem.memberItems.some((coverIconMember) =>
+                coverIconIsOn2(
+                  coverIconMember,
+                  coverState2(
+                    coverIconMember.entityId,
+                    deviceStates[coverIconMember.entityId],
+                    coverIconMember,
+                  ),
+                ),
+              ),
+            }
+          : syncMarkerItem.deviceKind === "temperature-humidity"
+            ? {
+                available: temperatureHumidityEntities([syncMarkerItem]).some(
+                  ({ entityId: humidityEntityId }) =>
+                    readTemperatureHumidity(deviceStates[humidityEntityId]).available,
+                ),
+                on: false,
+              }
+            : syncMarkerItem.deviceKind?.startsWith("vacuum")
+              ? {
+                  available: !!(
+                    deviceStates[syncMarkerItem.entityId] &&
+                    !["unknown", "unavailable"].includes(
+                      deviceStates[syncMarkerItem.entityId].state,
+                    )
+                  ),
+                  on: deviceStates[syncMarkerItem.entityId]?.state === "cleaning",
+                }
+              : syncMarkerItem.deviceKind === "lock"
+                ? (() => {
+                    const lockState = lockState2(syncMarkerItem, deviceStates);
+                    return {
+                      available: lockState.available,
+                      on: lockState.state === "unlocked" || lockState.state === "open",
+                      name: syncMarkerItem.label || "门",
+                      lock: lockState,
+                    };
+                  })()
+                : syncMarkerItem.deviceKind === "speaker"
+                  ? speakerState2(syncMarkerItem, deviceStates)
+                  : syncMarkerItem.deviceKind === "television"
+                    ? televisionState2(syncMarkerItem, deviceStates)
+                    : syncMarkerItem.deviceKind === "smallcar"
+                      ? carState2(syncMarkerItem, deviceStates)
+                      : isGenericDeviceKind2(syncMarkerItem.deviceKind)
+                        ? deviceStatus2(syncMarkerItem, deviceStates)
+                        : syncMarkerItem.deviceKind === "nas"
+                          ? nasDeviceState2(syncMarkerItem, deviceStates)
+                          : syncMarkerItem.deviceKind === "cover"
+                            ? coverState2(
+                                syncMarkerItem.entityId,
+                                deviceStates[syncMarkerItem.entityId],
+                                syncMarkerItem,
+                              )
+                            : syncMarkerItem.modelId
+                              ? syncMarkerItem.waterHeater && !syncMarkerItem.entityId
+                                ? deviceStatus2(syncMarkerItem, deviceStates)
+                                : syncMarkerItem.airPurifier
+                                  ? purifierState2(syncMarkerItem, deviceStates)
+                                  : syncMarkerItem.climateType === "bath-heater"
+                                    ? bathHeaterState2(syncMarkerItem, deviceStates)
+                                    : climateState2(
+                                        syncMarkerItem.entityId,
+                                        deviceStates[syncMarkerItem.entityId],
+                                      )
+                              : readLightState(syncMarkerItem.entityId),
+        size =
+          Number.isFinite(syncMarkerItem.size) && syncMarkerItem.size > 0
+            ? syncMarkerItem.size
+            : 44,
+        iconSize =
+          Number.isFinite(syncMarkerItem.iconSize) && syncMarkerItem.iconSize > 0
+            ? syncMarkerItem.iconSize
+            : isVacuumDevice
+              ? 26
+              : Math.min(size, Math.max(4, size - 18)),
+        hitSize =
+          Number.isFinite(syncMarkerItem.hitSize) && syncMarkerItem.hitSize > 0
+            ? syncMarkerItem.hitSize
+            : Math.max(44, size),
+        scaleXFactor = 1,
+        scaleYFactor = 1,
+        baseScaleFactor = scaleXFactor,
+        scaledSizeX = size * scaleXFactor,
+        scaledSizeY = size * scaleYFactor,
+        scaledIconSizeX = iconSize * scaleXFactor,
+        scaledIconSizeY = iconSize * scaleYFactor,
+        scaledHitSizeX = hitSize * scaleXFactor,
+        scaledHitSizeY = hitSize * scaleYFactor;
+      if (
+        ((syncMarkerElement.style.width = scaledHitSizeX + "px"),
+        (syncMarkerElement.style.height = scaledHitSizeY + "px"),
+        syncMarkerItem.isCurtainGroup &&
+          ((syncMarkerElement.style.width =
+            Math.max(
+              scaledHitSizeX,
+              scaledSizeX * 2 + 4 * scaleXFactor,
+              scaledIconSizeX * 2 + 12 * scaleXFactor,
+            ) + "px"),
+          (syncMarkerElement.style.height =
+            Math.max(scaledHitSizeY, scaledSizeY, scaledIconSizeY + 8 * scaleYFactor) + "px")),
+        syncMarkerElement.classList.toggle("is-vacuum-status", isVacuumDevice),
+        syncMarkerElement.classList.toggle(
+          "is-curtain-group",
+          syncMarkerItem.isCurtainGroup === true,
+        ),
+        syncMarkerElement.classList.toggle(
+          "is-overview-quip",
+          syncMarkerItem.overviewQuip === true,
+        ),
+        (syncMarkerElement.style.pointerEvents =
+          syncMarkerItem.overviewQuip ||
+          (syncMarkerItem.passiveSensor && syncMarkerItem.deviceKind !== "temperature-humidity")
+            ? "none"
+            : ""),
+        syncMarkerElement.classList.toggle(
+          "is-presence-wave",
+          syncMarkerItem.passiveSensor === true &&
+            syncMarkerItem.deviceKind !== "temperature-humidity",
+        ),
+        syncMarkerElement.classList.toggle(
+          "is-security-label",
+          syncMarkerItem.deviceKind === "lock" ||
+            syncMarkerItem.deviceKind === "camera" ||
+            syncMarkerItem.deviceKind === "presence",
+        ),
+        syncMarkerElement.classList.toggle("is-lock-label", syncMarkerItem.deviceKind === "lock"),
+        syncMarkerElement.classList.toggle(
+          "is-temperature-humidity",
+          syncMarkerItem.deviceKind === "temperature-humidity",
+        ),
+        syncMarkerElement.classList.toggle(
+          "is-editable-temperature-humidity",
+          syncMarkerItem.deviceKind === "temperature-humidity" && isEditing,
+        ),
+        syncMarkerItem.deviceKind === "temperature-humidity")
+      ) {
+        let selector = syncMarkerElement.querySelector(".i3d-temperature-humidity-card");
+        if (!selector) {
+          selector = createStageElement("span", "i3d-temperature-humidity-card");
+          const environmentHeaderElement = createStageElement("span", "i3d-environment-header"),
+            batteryRowElement = createStageElement("span", "i3d-environment-battery"),
+            batteryIconElement = createStageElement("i", "i3d-meter-icon");
+          batteryIconElement.setAttribute("aria-hidden", "true");
+          const batteryIconMaskUrl = "url('/static/vendor/mdi/7.4.47/svg/battery.svg')";
+          (batteryIconElement.style.setProperty("mask-image", batteryIconMaskUrl),
+            batteryIconElement.style.setProperty("-webkit-mask-image", batteryIconMaskUrl),
+            batteryRowElement.append(
+              batteryIconElement,
+              createStageElement("span", "i3d-meter-label", "电量"),
+              createStageElement("span", "i3d-meter-number"),
+            ),
+            environmentHeaderElement.append(
+              createStageElement("strong", "i3d-temperature-humidity-title"),
+              batteryRowElement,
+            ),
+            selector.append(
+              environmentHeaderElement,
+              createStageElement("span", "i3d-temperature-humidity-values"),
+            ));
+          for (const {
+            key: metricKey,
+            label: metricLabelText,
+            icon: metricIconName,
+          } of environmentMetricNames) {
+            const metricReadingElement = createStageElement(
+                "span",
+                "i3d-meter-reading is-" + metricKey,
+              ),
+              metricReadingIconElement = createStageElement("i", "i3d-meter-icon");
+            metricReadingIconElement.setAttribute("aria-hidden", "true");
+            const metricIconMaskUrl =
+              "url('/static/vendor/mdi/7.4.47/svg/" + metricIconName + ".svg')";
+            (metricReadingIconElement.style.setProperty("mask-image", metricIconMaskUrl),
+              metricReadingIconElement.style.setProperty("-webkit-mask-image", metricIconMaskUrl),
+              metricReadingElement.setAttribute("aria-label", metricLabelText),
+              (metricReadingElement.title = metricLabelText),
+              metricReadingElement.append(
+                metricReadingIconElement,
+                createStageElement("span", "i3d-meter-label", metricLabelText),
+                createStageElement("span", "i3d-meter-number"),
+                createStageElement("span", "i3d-meter-unit"),
+              ),
+              selector.lastElementChild.append(metricReadingElement));
           }
-        : null;
-  });
-  /**
-   * 楼层切换末段按下即接管相机。
-   */
-  canvasElement.addEventListener(
+          syncMarkerElement.replaceChildren(selector);
+        }
+        const humidityTitleElement = selector.querySelector(".i3d-temperature-humidity-title");
+        ((humidityTitleElement.textContent = syncMarkerItem.label ?? "环境标签"),
+          (humidityTitleElement.hidden = !humidityTitleElement.textContent));
+        const isMetricNamesVisible = syncMarkerItem.showMetricNames !== false;
+        selector.classList.toggle("is-metric-names-hidden", !isMetricNamesVisible);
+        const batteryPanelElement = selector.querySelector(".i3d-environment-battery"),
+          ar2 = readTemperatureHumidity(deviceStates[syncMarkerItem.batteryEntityId]);
+        ((batteryPanelElement.hidden = !syncMarkerItem.batteryEntityId),
+          (batteryPanelElement.querySelector(".i3d-meter-label").hidden = !isMetricNamesVisible),
+          batteryPanelElement.classList.toggle("is-unavailable", !ar2.available));
+        const batteryValueText = "" + ar2.value + (ar2.available ? ar2.unit || "%" : "");
+        ((batteryPanelElement.querySelector(".i3d-meter-number").textContent = batteryValueText),
+          batteryPanelElement.setAttribute("aria-label", "电量 " + batteryValueText),
+          (selector.querySelector(".i3d-environment-header").hidden =
+            humidityTitleElement.hidden && batteryPanelElement.hidden));
+        const some5 = environmentMetricNames.some(
+          ({ key: metricEntitySuffix }) => syncMarkerItem[metricEntitySuffix + "EntityId"],
+        );
+        selector.querySelector(".i3d-temperature-humidity-values").hidden = !some5;
+        for (const { key: metricLoopKey } of environmentMetricNames) {
+          const metricEntityId = syncMarkerItem[metricLoopKey + "EntityId"],
+            ar3 = readTemperatureHumidity(deviceStates[metricEntityId]),
+            metricRowElement = selector.querySelector(".is-" + metricLoopKey);
+          ((metricRowElement.hidden = !metricEntityId),
+            (metricRowElement.querySelector(".i3d-meter-label").hidden = !isMetricNamesVisible),
+            metricRowElement.classList.toggle("is-unavailable", !ar3.available),
+            (metricRowElement.querySelector(".i3d-meter-number").textContent = ar3.value));
+          const metricUnitElement = metricRowElement.querySelector(".i3d-meter-unit");
+          ((metricUnitElement.textContent = ar3.unit), (metricUnitElement.hidden = !ar3.unit));
+        }
+        const min = Math.min(600, Math.max(100, Number(syncMarkerItem.size) || 180));
+        ((selector.style.fontSize =
+          Math.min(24, Math.max(9, Number(syncMarkerItem.iconSize) || 12)) + "px"),
+          selector.style.setProperty(
+            "--meter-background-opacity",
+            String(
+              Number.isFinite(syncMarkerItem.opacity)
+                ? Math.min(1, Math.max(0, syncMarkerItem.opacity))
+                : 1,
+            ),
+          ),
+          (selector.style.width = min + "px"),
+          layoutEnvironmentReadings(selector, syncMarkerItem.columns),
+          (selector.style.transformOrigin = "top left"),
+          (selector.style.transform = "scale(" + scaleXFactor + ", " + scaleYFactor + ")"),
+          (syncMarkerElement.style.width =
+            Math.min(600, Math.max(100, Number(syncMarkerItem.size) || 180)) * scaleXFactor + "px"),
+          (syncMarkerElement.style.height =
+            Math.max(44, selector.offsetHeight || 48) * scaleYFactor + "px"),
+          syncMarkerElement.setAttribute("role", isEditing ? "button" : "group"),
+          isEditing
+            ? syncMarkerElement.setAttribute("tabindex", "0")
+            : syncMarkerElement.removeAttribute("tabindex"));
+      }
+      if (
+        (syncMarkerElement.classList.toggle(
+          "is-car-status",
+          syncMarkerItem.deviceKind === "smallcar",
+        ),
+        syncMarkerItem.deviceKind === "smallcar" &&
+          (updateCarCard2(syncMarkerElement, syncMarkerItem, deviceStates),
+          (syncMarkerElement.style.pointerEvents = isEditing ? "" : "none"),
+          syncMarkerElement.setAttribute("role", isEditing ? "button" : "group"),
+          isEditing
+            ? syncMarkerElement.setAttribute("tabindex", "0")
+            : syncMarkerElement.removeAttribute("tabindex")),
+        isVacuumDevice)
+      ) {
+        syncMarkerElement.style.setProperty(
+          "--label-background-opacity",
+          String(labelBackgroundOpacity(syncMarkerItem.backgroundOpacity)),
+        );
+        let vacuumStatusElement = syncMarkerElement.querySelector(".i3d-vacuum-status");
+        (!vacuumStatusElement ||
+          vacuumStatusElement.dataset.compact !== String(syncMarkerItem.overviewQuip === true)) &&
+          ((vacuumStatusElement = createStageElement("span", "i3d-vacuum-status")),
+          (vacuumStatusElement.dataset.compact = String(syncMarkerItem.overviewQuip === true)),
+          syncMarkerItem.overviewQuip ||
+            (vacuumStatusElement.append(
+              createStageElement("strong", "i3d-vacuum-status-name"),
+              createStageElement("span", "i3d-vacuum-status-detail"),
+            ),
+            vacuumStatusElement.lastElementChild.append(
+              createStageElement("span", "i3d-vacuum-status-text"),
+              createStageElement("span", "i3d-vacuum-status-battery"),
+            )),
+          vacuumStatusElement.append(createStageElement("span", "i3d-vacuum-quip")),
+          syncMarkerItem.overviewQuip &&
+            (Object.assign(vacuumStatusElement.style, {
+              opacity: ".55",
+              pointerEvents: "none",
+              background: "none",
+              border: "none",
+              boxShadow: "none",
+              backdropFilter: "none",
+              webkitBackdropFilter: "none",
+            }),
+            (vacuumStatusElement.lastElementChild.style.pointerEvents = "none")),
+          syncMarkerElement.replaceChildren(vacuumStatusElement));
+        const vacuumPresentation = vacuumStatusPresentation2(syncMarkerItem, deviceStates),
+          vacuumScaleX = scaledSizeX / 44,
+          vacuumScaleY = scaledSizeY / 44;
+        syncMarkerItem.overviewQuip ||
+          ((vacuumStatusElement.querySelector(".i3d-vacuum-status-name").textContent =
+            syncMarkerItem.label || "扫地机器人"),
+          (vacuumStatusElement.querySelector(".i3d-vacuum-status-text").textContent =
+            vacuumPresentation.status),
+          (vacuumStatusElement.querySelector(".i3d-vacuum-status-battery").textContent =
+            vacuumPresentation.battery));
+        const vacuumQuipElement = vacuumStatusElement.querySelector(".i3d-vacuum-quip");
+        ((vacuumQuipElement.textContent = vacuumPresentation.active
+          ? vacuumQuip2(syncMarkerItem, deviceStates, performance.now())
+          : ""),
+          (vacuumQuipElement.hidden = !vacuumQuipElement.textContent),
+          (vacuumStatusElement.style.transform =
+            "translate(-50%,-50%) scale(" + vacuumScaleX + "," + vacuumScaleY + ")"),
+          (vacuumStatusElement.style.fontSize = Math.max(8, iconSize / 2) + "px"));
+        const vacuumCardHeight = Math.max(
+          syncMarkerItem.overviewQuip ? 28 : 50,
+          vacuumStatusElement.offsetHeight,
+        );
+        ((syncMarkerElement.style.width = Math.max(scaledHitSizeX, 140 * vacuumScaleX) + "px"),
+          (syncMarkerElement.style.height =
+            Math.max(scaledHitSizeY, vacuumCardHeight * vacuumScaleY) + "px"),
+          (syncMarkerElement.dataset.status = vacuumPresentation.status),
+          (syncMarkerElement.title =
+            (syncMarkerItem.label || "扫地机器人") +
+            " · " +
+            vacuumPresentation.status +
+            " · " +
+            vacuumPresentation.battery),
+          (markerPresentationState.on = vacuumPresentation.active),
+          (markerPresentationState.available = vacuumPresentation.available));
+      }
+      if (
+        syncMarkerItem.deviceKind === "lock" ||
+        syncMarkerItem.deviceKind === "camera" ||
+        syncMarkerItem.deviceKind === "presence"
+      ) {
+        const securityDeviceState =
+            deviceStates[syncMarkerItem.entityId]?.newState ||
+            deviceStates[syncMarkerItem.entityId],
+          lock = syncMarkerItem.deviceKind === "lock" ? markerPresentationState.lock : null,
+          available2 =
+            syncMarkerItem.deviceKind === "lock"
+              ? lock.available
+              : syncMarkerItem.deviceKind === "camera"
+                ? cameraOnline2(securityDeviceState)
+                : securityDeviceState?.available !== false &&
+                  !!securityDeviceState?.state &&
+                  !["unknown", "unavailable"].includes(securityDeviceState.state);
+        if (
+          ((markerPresentationState.available = available2),
+          (markerPresentationState.on =
+            syncMarkerItem.deviceKind === "lock"
+              ? lock.state === "unlocked" || lock.state === "open"
+              : syncMarkerItem.deviceKind === "camera"
+                ? securityDeviceState?.state === "recording"
+                : securityDeviceState?.state === "on"),
+          syncMarkerItem.passiveSensor)
+        )
+          (syncMarkerElement.querySelector(".i3d-sensor-wave") ||
+            syncMarkerElement.replaceChildren(
+              ...[0, 1, 2].map(() => createStageElement("span", "i3d-sensor-wave")),
+            ),
+            (syncMarkerElement.hidden = !available2),
+            syncMarkerElement.setAttribute("aria-hidden", "true"),
+            syncMarkerElement.classList.toggle("is-inactive", !available2));
+        else {
+          const isPresenceChoice = syncMarkerItem.deviceKind === "presence" && isEditing;
+          syncMarkerElement.classList.toggle("is-sensor-choice", isPresenceChoice);
+          let securityLabelElement = syncMarkerElement.querySelector(".i3d-security-label");
+          (securityLabelElement ||
+            ((securityLabelElement = createStageElement("span", "i3d-security-label")),
+            securityLabelElement.append(createStageElement("strong"), createStageElement("span")),
+            syncMarkerElement.append(securityLabelElement)),
+            (securityLabelElement.children[0].textContent =
+              syncMarkerItem.label ||
+              (syncMarkerItem.deviceKind === "lock"
+                ? "门"
+                : syncMarkerItem.deviceKind === "camera"
+                  ? "摄像头"
+                  : "人体传感器")));
+          const entityId3 =
+            syncMarkerItem.deviceKind === "lock" &&
+            (syncMarkerItem.doorEntityId ||
+              syncMarkerItem.doorEventEntityId ||
+              syncMarkerItem.doorOpenEntityId ||
+              syncMarkerItem.doorCloseEntityId ||
+              syncMarkerItem.batteryEntityId ||
+              syncMarkerItem.entityId);
+          if (
+            ((securityLabelElement.children[1].textContent =
+              isEditing &&
+              !(syncMarkerItem.deviceKind === "lock" ? entityId3 : syncMarkerItem.entityId)
+                ? "未绑定实体"
+                : available2
+                  ? syncMarkerItem.deviceKind === "lock"
+                    ? "" +
+                      (lock.doorOpen === true
+                        ? "已打开"
+                        : lock.doorOpen === false
+                          ? "已关闭"
+                          : "状态未知") +
+                      (syncMarkerItem.batteryEntityId && lock.battery !== "—"
+                        ? " · " + lock.battery
+                        : "")
+                    : syncMarkerItem.deviceKind === "presence"
+                      ? securityDeviceState.state === "on"
+                        ? "有人"
+                        : "检测中"
+                      : "在线"
+                  : "离线"),
+            (securityLabelElement.children[1].hidden = isPresenceChoice),
+            securityLabelElement.classList.toggle(
+              "is-camera-status",
+              syncMarkerItem.deviceKind === "camera",
+            ),
+            securityLabelElement.classList.toggle(
+              "is-lock-status",
+              syncMarkerItem.deviceKind === "lock",
+            ),
+            securityLabelElement.classList.toggle("is-camera-offline", !available2),
+            (securityLabelElement.hidden = !isLockLabelShown(syncMarkerItem, lock)),
+            (securityLabelElement.style.fontSize = (syncMarkerItem.fontSize || 12) + "px"),
+            securityLabelElement.style.setProperty(
+              "--label-background-opacity",
+              String(labelBackgroundOpacity(syncMarkerItem.backgroundOpacity)),
+            ),
+            syncMarkerItem.deviceKind === "camera" || syncMarkerItem.deviceKind === "lock")
+          ) {
+            const securityMarkerIconElement = syncMarkerElement.querySelector(".i3d-marker-icon");
+            (securityMarkerIconElement &&
+              securityMarkerIconElement.parentNode !== securityLabelElement &&
+              securityLabelElement.append(securityMarkerIconElement),
+              securityLabelElement.style.setProperty("--i3d-marker-icon-size", iconSize + "px"));
+          }
+          (syncMarkerElement.style.setProperty("--i3d-security-scale", String(scaledSizeX / 44)),
+            syncMarkerElement.style.setProperty("--i3d-security-scale-y", String(scaledSizeY / 44)),
+            (syncMarkerElement.style.width =
+              Math.max(
+                scaledHitSizeX,
+                ((syncMarkerItem.deviceKind === "camera"
+                  ? securityLabelElement.offsetWidth || 0
+                  : isPresenceChoice
+                    ? 120
+                    : 180) *
+                  scaledSizeX) /
+                  44,
+              ) + "px"),
+            (syncMarkerElement.style.height =
+              Math.max(
+                scaledHitSizeY,
+                ((syncMarkerItem.deviceKind === "camera"
+                  ? securityLabelElement.offsetHeight || 0
+                  : isPresenceChoice
+                    ? 32
+                    : 58) *
+                  scaledSizeY) /
+                  44,
+              ) + "px"));
+        }
+      }
+      if (
+        (syncMarkerElement.classList.toggle("i3d-vacuum-room", isVacuumRoomDevice),
+        syncMarkerElement.classList.toggle(
+          "is-icon-hidden",
+          isVacuumRoomDevice && syncMarkerItem.iconHidden === true,
+        ),
+        isVacuumRoomDevice)
+      ) {
+        let vacuumRoomLabelElement = syncMarkerElement.querySelector(".i3d-room-label");
+        (vacuumRoomLabelElement ||
+          ((vacuumRoomLabelElement = createStageElement("span", "i3d-room-label")),
+          syncMarkerElement.append(vacuumRoomLabelElement)),
+          (vacuumRoomLabelElement.textContent = syncMarkerItem.label || "清扫"),
+          (vacuumRoomLabelElement.hidden = syncMarkerItem.labelHidden === true),
+          (vacuumRoomLabelElement.style.fontSize =
+            (syncMarkerItem.fontSize || 12) * baseScaleFactor + "px"));
+      }
+      (syncMarkerElement.style.setProperty("--i3d-marker-size", scaledSizeX + "px"),
+        syncMarkerElement.style.setProperty("--i3d-marker-size-y", scaledSizeY + "px"),
+        syncMarkerElement.style.setProperty("--i3d-marker-icon-size", scaledIconSizeX + "px"),
+        syncMarkerElement.style.setProperty("--i3d-marker-icon-size-y", scaledIconSizeY + "px"),
+        syncMarkerItem.deviceKind !== "smallcar" &&
+          syncMarkerElement.setAttribute(
+            "aria-label",
+            syncMarkerItem.overviewQuip
+              ? vacuumQuip2(syncMarkerItem, deviceStates, performance.now())
+              : syncMarkerItem.label || markerPresentationState.name || "灯光",
+          ),
+        !isVacuumDevice &&
+          syncMarkerItem.deviceKind !== "smallcar" &&
+          (syncMarkerElement.title = syncMarkerItem.label || markerPresentationState.name));
+      const playing =
+        syncMarkerItem.deviceKind === "speaker"
+          ? markerPresentationState.available && markerPresentationState.playing
+          : syncMarkerItem.deviceKind === "cover"
+            ? coverIconIsOn2(syncMarkerItem, markerPresentationState)
+            : markerPresentationState.on;
+      (syncMarkerElement.classList.toggle(
+        "is-on",
+        !isVacuumDevice && syncMarkerItem.deviceKind !== "smallcar" && playing,
+      ),
+        syncMarkerElement.classList.toggle(
+          "is-offline",
+          !isEditing && !markerPresentationState.available,
+        ),
+        syncMarkerElement.classList.toggle("is-nas", syncMarkerItem.deviceKind === "nas"),
+        syncMarkerElement.classList.toggle("is-selected", isEditing && text === syncMarkerItem.id));
+    }
+    ((!markerChange || markerChange.lighting) && applyLightStates(undefined, markerChange),
+      (!markerChange || markerChange.environment) && refreshStageUi());
+    const isPanelAffected =
+      !markerChange || !!(focusedItemId && markerChange.affects(getFocusedEntry()));
+    (isPanelAffected && updateDevicePanel(),
+      (!markerChange || hasMarkerChange || isPanelAffected) &&
+        (syncLayoutMetrics(), syncStageVisibility(), renderMarkerPositions(true)));
+  }
+  function screenPointToFloor(floorPointerEvent, floorMarkerItem) {
+    const worldPoint = mountOptions.worldPoint(
+      floorMarkerItem.floorId,
+      0,
+      0,
+      floorMarkerItem.height,
+    );
+    if (!worldPoint) return null;
+    const floorCanvasRect = element.getBoundingClientRect(),
+      floorRaycaster = new three.Raycaster(),
+      pointerNdc = new three.Vector2(
+        ((floorPointerEvent.clientX - floorCanvasRect.left) / floorCanvasRect.width) * 2 - 1,
+        1 - ((floorPointerEvent.clientY - floorCanvasRect.top) / floorCanvasRect.height) * 2,
+      );
+    mountOptions.presentationRay
+      ? mountOptions.presentationRay(floorMarkerItem.floorId, pointerNdc, floorRaycaster)
+      : floorRaycaster.setFromCamera(pointerNdc, mountOptions.camera);
+    const intersectPlane = floorRaycaster.ray.intersectPlane(
+      new three.Plane(new three.Vector3(0, 1, 0), -worldPoint.y),
+      new three.Vector3(),
+    );
+    if (!intersectPlane) return null;
+    const sub = mountOptions
+        .worldPoint(floorMarkerItem.floorId, 1, 0, floorMarkerItem.height)
+        .sub(worldPoint),
+      sub2 = mountOptions
+        .worldPoint(floorMarkerItem.floorId, 0, 1, floorMarkerItem.height)
+        .sub(worldPoint),
+      sub3 = intersectPlane.sub(worldPoint);
+    return {
+      x: Math.round((sub3.dot(sub) / sub.lengthSq()) * 100) / 100,
+      y: Math.round((sub3.dot(sub2) / sub2.lengthSq()) * 100) / 100,
+    };
+  }
+  function beginMarkerDrag(dragStartEvent, dragMarkerId) {
+    if (!isEditing || panelDisplayMode || dragStartEvent.button !== 0) return;
+    (dragStartEvent.preventDefault(), dragStartEvent.stopPropagation());
+    const dragMarkerItem = findBindingById(dragMarkerId);
+    if (!dragMarkerItem) return;
+    if (dragMarkerItem.deviceKind === "presence") {
+      ((text = dragMarkerId),
+        refreshStageUi(),
+        postHostMessage({
+          type: "edit",
+          action: "select",
+          id: dragMarkerId,
+        }));
+      return;
+    }
+    ((text = dragMarkerId),
+      refreshStageUi(),
+      postHostMessage({
+        type: "edit",
+        action: "select",
+        id: dragMarkerId,
+      }));
+    const dragStartFloorPoint = screenPointToFloor(dragStartEvent, dragMarkerItem);
+    ((activePointerDrag = {
+      id: dragMarkerId,
+      pointerId: dragStartEvent.pointerId,
+      clientX: dragStartEvent.clientX,
+      clientY: dragStartEvent.clientY,
+      original: {
+        x: dragMarkerItem.x,
+        y: dragMarkerItem.y,
+      },
+      point: {
+        x: dragMarkerItem.x,
+        y: dragMarkerItem.y,
+      },
+      height: dragMarkerItem.height,
+      offset: dragStartFloorPoint
+        ? {
+            x: dragMarkerItem.x - dragStartFloorPoint.x,
+            y: dragMarkerItem.y - dragStartFloorPoint.y,
+          }
+        : {
+            x: 0,
+            y: 0,
+          },
+      moved: false,
+    }),
+      dragStartEvent.currentTarget.setPointerCapture(dragStartEvent.pointerId),
+      (mountOptions.controls.enabled = false));
+  }
+  function moveMarkerDrag(dragMovePointerEvent) {
+    if (
+      !activePointerDrag ||
+      activePointerDrag.pointerId !== dragMovePointerEvent.pointerId ||
+      (Math.hypot(
+        dragMovePointerEvent.clientX - activePointerDrag.clientX,
+        dragMovePointerEvent.clientY - activePointerDrag.clientY,
+      ) < 4 &&
+        !activePointerDrag.moved)
+    )
+      return;
+    const dragCurrentFloorPoint = screenPointToFloor(
+      dragMovePointerEvent,
+      findBindingById(activePointerDrag.id),
+    );
+    dragCurrentFloorPoint &&
+      ((activePointerDrag.moved = true),
+      (activePointerDrag.point = {
+        x: Math.round((dragCurrentFloorPoint.x + activePointerDrag.offset.x) * 100) / 100,
+        y: Math.round((dragCurrentFloorPoint.y + activePointerDrag.offset.y) * 100) / 100,
+      }),
+      activeModule === "light" &&
+        Object.assign(findBindingById(activePointerDrag.id), activePointerDrag.point),
+      renderMarkerPositions(true));
+  }
+  function endMarkerDrag(dragEndEvent) {
+    if (!(!activePointerDrag || activePointerDrag.pointerId !== dragEndEvent.pointerId)) {
+      if (activePointerDrag.moved) {
+        dragEndEvent.currentTarget.dataset.dragged = "true";
+        const draggedMarkerItem = findBindingById(activePointerDrag.id),
+          draggedTargetEntry =
+            draggedMarkerItem.deviceKind === "temperature-humidity"
+              ? options.environment?.temperatureHumidity?.find(
+                  (humidityCollectionItem) => humidityCollectionItem.id === draggedMarkerItem.id,
+                )
+              : draggedMarkerItem.isCurtainGroup
+                ? options.environment?.curtainGroups?.find(
+                    (curtainGroupCollectionItem) =>
+                      curtainGroupEntryId2(curtainGroupCollectionItem) === draggedMarkerItem.id,
+                  )
+                : draggedMarkerItem.deviceKind === "camera"
+                  ? options.security?.cameras?.find(
+                      (cameraCollectionItem) =>
+                        "camera:" + cameraCollectionItem.id === draggedMarkerItem.id,
+                    )
+                  : draggedMarkerItem.deviceKind === "vacuum-room"
+                    ? options.devices?.vacuums
+                        ?.find(
+                          (vacuumCollectionItem) =>
+                            vacuumCollectionItem.id === draggedMarkerItem.vacuumId,
+                        )
+                        ?.shortcuts?.find(
+                          (shortcutCollectionItem) =>
+                            shortcutCollectionItem.id === draggedMarkerItem.shortcutId,
+                        )
+                    : activeModule === "light"
+                      ? draggedMarkerItem
+                      : (isGenericDeviceKind2(activeModule)
+                          ? options.devices?.[genericDeviceProfile2(activeModule).collection] || []
+                          : ["nas", "television", "speaker", "vacuum"].includes(activeModule)
+                            ? options.devices?.[
+                                activeModule === "vacuum"
+                                  ? "vacuums"
+                                  : activeModule === "speaker"
+                                    ? "speakers"
+                                    : activeModule === "television"
+                                      ? "televisions"
+                                      : "nas"
+                              ] || []
+                            : options.environment?.[
+                                activeModule === "airer"
+                                  ? "airers"
+                                  : activeModule === "cover"
+                                    ? "curtains"
+                                    : activeModule === "water-heater"
+                                      ? "waterHeaters"
+                                      : activeModule === "fan"
+                                        ? "fans"
+                                        : activeModule === "purifier"
+                                          ? "airPurifiers"
+                                          : "airConditioners"
+                              ] || []
+                        ).find(
+                          (deviceCollectionItem) =>
+                            deviceCollectionItem.id === activePointerDrag.id,
+                        ),
+          nextMarkerPosition = {
+            ...activePointerDrag.point,
+          };
+        if (draggedMarkerItem.deviceKind === "smallcar") {
+          const smallcarSceneItem = mountOptions.document.floors
+            .find((floorSceneItem) => floorSceneItem.id === draggedMarkerItem.floorId)
+            ?.scene.items.find(
+              (smallcarModelItem) => smallcarModelItem.id === draggedMarkerItem.modelId,
+            );
+          ((nextMarkerPosition.x -= smallcarSceneItem?.x ?? 0),
+            (nextMarkerPosition.y -= smallcarSceneItem?.y ?? 0));
+        }
+        (draggedTargetEntry && Object.assign(draggedTargetEntry, nextMarkerPosition),
+          postHostMessage({
+            type: "edit",
+            action: "position",
+            id: draggedMarkerItem.id,
+            ...nextMarkerPosition,
+          }));
+      }
+      ((activePointerDrag = null), syncCameraInteraction());
+    }
+  }
+  function cancelMarkerDrag() {
+    (activePointerDrag &&
+      activeModule === "light" &&
+      Object.assign(findBindingById(activePointerDrag.id), activePointerDrag.original),
+      (activePointerDrag = null),
+      syncCameraInteraction(),
+      renderMarkerPositions(true));
+  }
+  let pointerGesture,
+    focusExitPointer = null;
+  const getPointerSlop = (slopPointerEvent) => (slopPointerEvent.pointerType === "touch" ? 8 : 5);
+  (canvasElement.addEventListener(
     "pointerdown",
-    (floorTailDragPointerDownEvent: any) => {
-      if (
-        floorTailDragPointerDownEvent.isPrimary === false ||
-        (floorTailDragPointerDownEvent.button != null &&
-          floorTailDragPointerDownEvent.button !== 0) ||
+    (stageDownEvent) => {
+      if (!(
+        stageDownEvent.isPrimary === false ||
+        (stageDownEvent.button != null && stageDownEvent.button !== 0) ||
         isRangeEditorOpen ||
-        followedVacuumId ||
-        markerDragState ||
-        (!isInteractive && !isEditing && !isViewEditing) ||
-        focusedId ||
-        focusMode
-      ) {
-        return;
+        followVacuumId ||
+        activePointerDrag ||
+        (!isControlReady && !isEditing && !isAwaitingFloorViewAdjust) ||
+        focusedItemId ||
+        panelDisplayMode
+      )) {
+        if (cameraMotionSnapshot?.owner === "floor") {
+          if (
+            !(cameraMotionSnapshot.amount >= 0.999) ||
+            !cameraMotionSnapshot.presentationRevealed ||
+            !cameraMotionSnapshot.markersRevealed
+          )
+            return;
+          const closingCameraMotion = cameraMotionSnapshot;
+          ((cameraMotionSnapshot = null),
+            mountOptions.advanceFloorTransition?.(1, mountOptions.cameraState()),
+            mountOptions.endCameraMotion(),
+            closingCameraMotion.done?.(),
+            mountOptions.setOrbitPivot(null),
+            syncCameraInteraction(),
+            syncAvailability(),
+            wakeSceneBackground());
+          return;
+        }
+        cameraMotionSnapshot?.owner !== "focus" ||
+          cameraMotionSnapshot.focused ||
+          ((focusExitPointer = {
+            motion: cameraMotionSnapshot,
+            pointerId: stageDownEvent.pointerId,
+            x: stageDownEvent.clientX,
+            y: stageDownEvent.clientY,
+            slop: getPointerSlop(stageDownEvent),
+            returnCamera: idleReturnCamera,
+          }),
+          (cameraMotionSnapshot = null),
+          mountOptions.endCameraMotion(),
+          syncCameraInteraction(),
+          wakeSceneBackground());
       }
-      if (cameraTransition?.owner !== "floor") {
-        return;
-      }
-      if (
-        !(cameraTransition.amount >= FLOOR_TAIL_DRAG_MIN_PROGRESS) ||
-        !cameraTransition.presentationRevealed ||
-        !cameraTransition.markersRevealed
-      ) {
-        return;
-      }
-      const settledFloorTransition = cameraTransition;
-      cameraTransition = null;
-      stageOptions.advanceFloorTransition?.(1, stageOptions.cameraState());
-      stageOptions.endCameraMotion();
-      settledFloorTransition.done?.();
-      stageOptions.setOrbitPivot(null);
-      syncCameraInteraction();
-      updateIdleControllers();
     },
     {
-      capture: true
-    }
-  );
-  canvasElement.addEventListener("pointermove", (canvasPointerMoveEvent: any) => {
-    if (
-      canvasPointerState &&
-      (canvasPointerMoveEvent.pointerId !== canvasPointerState.id ||
+      capture: true,
+    },
+  ),
+    canvasElement.addEventListener(
+      "pointermove",
+      (stageMoveEvent) => {
+        const pendingFocusExitPointer = focusExitPointer;
+        !pendingFocusExitPointer ||
+          stageMoveEvent.pointerId !== pendingFocusExitPointer.pointerId ||
+          Math.hypot(
+            stageMoveEvent.clientX - pendingFocusExitPointer.x,
+            stageMoveEvent.clientY - pendingFocusExitPointer.y,
+          ) < pendingFocusExitPointer.slop ||
+          ((focusExitPointer = null),
+          !cameraMotionSnapshot &&
+            !panelDisplayMode &&
+            idleReturnCamera === pendingFocusExitPointer.returnCamera &&
+            ((idleReturnCamera = null),
+            mountOptions.setOrbitPivot(null),
+            exitFollowMode(),
+            syncAvailability()));
+      },
+      {
+        capture: true,
+      },
+    ));
+  const releaseFocusExit = (releasePointerEvent) => {
+    const releasedFocusExitPointer = focusExitPointer;
+    !releasedFocusExitPointer ||
+      releasePointerEvent.pointerId !== releasedFocusExitPointer.pointerId ||
+      ((focusExitPointer = null),
+      !cameraMotionSnapshot &&
+        !panelDisplayMode &&
+        idleReturnCamera === releasedFocusExitPointer.returnCamera &&
+        startCameraMotion(
+          releasedFocusExitPointer.motion.to,
+          false,
+          false,
+          releasedFocusExitPointer.motion.done,
+        ));
+  };
+  (canvasElement.addEventListener("pointerup", releaseFocusExit, {
+    capture: true,
+  }),
+    canvasElement.addEventListener("pointercancel", releaseFocusExit, {
+      capture: true,
+    }),
+    window.addEventListener("blur", () => {
+      focusExitPointer &&
+        releaseFocusExit({
+          pointerId: focusExitPointer.pointerId,
+        });
+    }),
+    canvasElement.addEventListener("pointerdown", (gestureStartEvent) => {
+      pointerGesture =
+        (gestureStartEvent.button == null || gestureStartEvent.button === 0) &&
+        gestureStartEvent.isPrimary !== false
+          ? {
+              x: gestureStartEvent.clientX,
+              y: gestureStartEvent.clientY,
+              id: gestureStartEvent.pointerId,
+              slop: getPointerSlop(gestureStartEvent),
+              moved: false,
+            }
+          : null;
+    }),
+    canvasElement.addEventListener("pointermove", (gestureMoveEvent) => {
+      (pointerGesture &&
+        (gestureMoveEvent.pointerId !== pointerGesture.id ||
+          Math.hypot(
+            gestureMoveEvent.clientX - pointerGesture.x,
+            gestureMoveEvent.clientY - pointerGesture.y,
+          ) >= pointerGesture.slop) &&
+        (pointerGesture.moved = true),
+        pointerGesture?.moved &&
+          !isRangeEditorOpen &&
+          sceneBackgroundController.interact(gestureMoveEvent));
+    }),
+    canvasElement.addEventListener(
+      "wheel",
+      (stageWheelEvent) => {
+        isRangeEditorOpen || sceneBackgroundController.interact(stageWheelEvent);
+      },
+      {
+        passive: true,
+      },
+    ),
+    canvasElement.addEventListener("pointercancel", () => {
+      pointerGesture = null;
+    }),
+    canvasElement.addEventListener("pointerup", (stageUpEvent) => {
+      const isTap =
+        pointerGesture &&
+        !pointerGesture.moved &&
+        pointerGesture.id === stageUpEvent.pointerId &&
         Math.hypot(
-          canvasPointerMoveEvent.clientX - canvasPointerState.x,
-          canvasPointerMoveEvent.clientY - canvasPointerState.y
-        ) >= 5)
-    ) {
-      canvasPointerState.moved = true;
-    }
-    if (canvasPointerState?.moved && !isRangeEditorOpen) {
-      backgroundTheme.interact(canvasPointerMoveEvent, false);
-    }
-  });
-  canvasElement.addEventListener(
-    "wheel",
-    (wheelEvent: any) => {
-      if (!isRangeEditorOpen) {
-        backgroundTheme.interact(wheelEvent, false);
+          stageUpEvent.clientX - pointerGesture.x,
+          stageUpEvent.clientY - pointerGesture.y,
+        ) < pointerGesture.slop;
+      if (((pointerGesture = null), !isTap || followVacuumId || panelDisplayMode === "edit"))
+        return;
+      if (panelDisplayMode && panelDisplayMode !== "panel" && !isEditing) {
+        exitFocusMode();
+        return;
       }
-    },
-    {
-      passive: true
-    }
-  );
-  canvasElement.addEventListener("pointercancel", () => {
-    canvasPointerState = null;
-  });
-  canvasElement.addEventListener("pointerup", (canvasPointerUpEvent: any) => {
-    const isCanvasClick =
-      canvasPointerState &&
-      !canvasPointerState.moved &&
-      canvasPointerState.id === canvasPointerUpEvent.pointerId &&
-      Math.hypot(
-        canvasPointerUpEvent.clientX - canvasPointerState.x,
-        canvasPointerUpEvent.clientY - canvasPointerState.y
-      ) < 5;
-    canvasPointerState = null;
-    // 聚焦返回动画期间也允许点选其他设备：刚退出聚焦就想切隔壁设备时等动画跑完
-    const canPickDuringFocusReturn =
-      !cameraTransition ||
-      (cameraTransition.owner === "focus" && !cameraTransition.focused && !focusedId && !focusMode);
-    if (
-      !!isCanvasClick &&
-      !followedVacuumId &&
-      focusMode !== "edit" &&
-      (!!isEditing || !isOverviewMode())
-    ) {
+      if (!isEditing && isOverviewOrAllFloors()) return;
+      const isScenePickable =
+        !cameraMotionSnapshot ||
+        (cameraMotionSnapshot.owner === "focus" &&
+          !cameraMotionSnapshot.focused &&
+          !focusedItemId &&
+          !panelDisplayMode);
       if (
         activeModule === "security" &&
         !isEditing &&
-        !isViewEditing &&
-        isInteractive &&
-        canPickDuringFocusReturn
+        !isAwaitingFloorViewAdjust &&
+        isControlReady &&
+        isScenePickable
       ) {
-        const pickedSensorId = presenceScene.pick(
-          canvasPointerUpEvent.clientX,
-          canvasPointerUpEvent.clientY,
-          stageOptions.camera,
+        const pick = presenceScene.pick(
+          stageUpEvent.clientX,
+          stageUpEvent.clientY,
+          mountOptions.camera,
           canvasElement,
-          config.security?.presenceSensors || []
+          options.security?.presenceSensors || [],
+          mediaViewportSize,
         );
-        if (pickedSensorId) {
-          focusBinding("presence:" + pickedSensorId);
+        if (pick) {
+          focusMarkerById("presence:" + pick);
           return;
         }
       }
       if (
-        !isOverviewMode() &&
+        !isOverviewOrAllFloors() &&
         activeModule !== "light" &&
-        !isViewEditing &&
-        canPickDuringFocusReturn &&
-        (isEditing || isInteractive)
+        !isAwaitingFloorViewAdjust &&
+        isScenePickable &&
+        (isEditing || isControlReady)
       ) {
-        const pickedEnvironmentModel = stageOptions.pickEnvironmentModel?.(
-          canvasPointerUpEvent.clientX,
-          canvasPointerUpEvent.clientY,
-          collectModuleBindings(),
-          canvasPointerUpEvent.pointerType === "touch" ? 10 : 5
-        );
-        const matchedEnvironmentBinding =
-          pickedEnvironmentModel &&
-          collectModuleBindings().find(
-            (environmentBinding: any) =>
-              environmentBinding.floorId === pickedEnvironmentModel.floorId &&
-              environmentBinding.modelId === pickedEnvironmentModel.modelId
-          );
-        if (matchedEnvironmentBinding) {
-          activateBinding(matchedEnvironmentBinding.id);
+        const pickedEnvironmentModel = mountOptions.pickEnvironmentModel?.(
+            stageUpEvent.clientX,
+            stageUpEvent.clientY,
+            expandGroupMembers(currentModuleBindings()),
+            (stageUpEvent.pointerType === "touch" ? 10 : 5) *
+              Math.min(value?.x || 1, value?.y || 1),
+          ),
+          matchedMarkerItem =
+            pickedEnvironmentModel &&
+            expandGroupMembers(currentModuleBindings()).find(
+              (matchedMarkerFilterItem) =>
+                matchedMarkerFilterItem.floorId === pickedEnvironmentModel.floorId &&
+                matchedMarkerFilterItem.modelId === pickedEnvironmentModel.modelId,
+            ),
+          pickedMarkerEntry =
+            matchedMarkerItem && findBindingById(matchedMarkerItem.entryId || matchedMarkerItem.id);
+        if (pickedMarkerEntry) {
+          activateMarker(pickedMarkerEntry.id);
           return;
         }
       }
-      exitFocus();
-    }
-  });
-  /**
-   * ESC 退出聚焦。具名而不是内联箭头函数：pagehide 时要能摘掉它，
-   */
-  function handleEscapeKeydown(keydownEvent: any) {
-    if (keydownEvent.key === "Escape") {
-      exitFocus();
+      exitFocusMode();
+    }),
+    window.addEventListener("keydown", (stageKeydownEvent) => {
+      stageKeydownEvent.key === "Escape" && exitFocusMode();
+    }));
+  function handleHostMessage(hostMessageEvent) {
+    if (
+      hostMessageEvent.origin !== location.origin ||
+      hostMessageEvent.source !== window.parent ||
+      hostMessageEvent.data?.channel !== "hb-i3d-v1"
+    )
+      return;
+    const data = hostMessageEvent.data;
+    if ((data.type !== "states" && wakeSceneBackground(), data.type === "presentation-layout"))
+      Number.isFinite(data.width) &&
+        data.width > 0 &&
+        Number.isFinite(data.height) &&
+        data.height > 0 &&
+        ((mediaViewportSize = {
+          width: data.width,
+          height: data.height,
+        }),
+        syncLayoutMetrics());
+    else {
+      if (data.type === "config") {
+        if (isCameraMoving) {
+          pendingEditorAction = hostMessageEvent;
+          return;
+        }
+        ((isRangeEditorOnly = data.rangeEditorOnly === true),
+          (canEditLightRange = data.allowRangeEditing === true || data.editing === true),
+          isRangeEditorOpen &&
+            (!canEditLightRange ||
+              data.viewEditing === true ||
+              data.properties?.lightingMode !== "region" ||
+              data.properties?.floorSelection !== baseStageConfig.floorSelection ||
+              JSON.stringify(data.properties?.camera) !== JSON.stringify(baseStageConfig.camera) ||
+              JSON.stringify(data.properties?.lightRegionOverrides || {}) !==
+                JSON.stringify(baseStageConfig.lightRegionOverrides || {})) &&
+            rangeEditorHandle?.close(),
+          (hasIdleIconActivity = false),
+          focusedItemId.startsWith("vacuum:") &&
+            JSON.stringify(
+              (baseStageConfig.devices?.vacuums || []).find(
+                (currentVacuumEntry) => "vacuum:" + currentVacuumEntry.id === focusedItemId,
+              ),
+            ) !==
+              JSON.stringify(
+                (data.properties.devices?.vacuums || []).find(
+                  (nextVacuumEntry) => "vacuum:" + nextVacuumEntry.id === focusedItemId,
+                ),
+              ) &&
+            exitFocusMode({
+              immediate: true,
+            }),
+          (data.editing ||
+            data.viewEditing ||
+            baseStageConfig.floorSelection !== data.properties.floorSelection ||
+            JSON.stringify(baseStageConfig.floorCameras) !==
+              JSON.stringify(data.properties.floorCameras)) &&
+            ((pendingFloorId = ""), (pendingModule = "")),
+          (baseStageConfig = structuredClone(data.properties)),
+          !hasAutoSelectedFloors &&
+            !data.editing &&
+            !data.viewEditing &&
+            ((hasAutoSelectedFloors = true),
+            mountOptions.document.floors.length > 1 && (pendingFloorId = "all")),
+          pendingFloorId &&
+            pendingFloorId !== "all" &&
+            !mountOptions.document.floors.some(
+              (knownFloorEntry) => knownFloorEntry.id === pendingFloorId,
+            ) &&
+            (pendingFloorId = ""),
+          (data?.editing ||
+            data?.viewEditing ||
+            (baseStageConfig.floorSelection !== options.floorSelection && !pendingFloorId)) &&
+            mountOptions.finishFloorTransition?.(),
+          mountOptions.setFloorGap?.(baseStageConfig.floorGap),
+          mountOptions.setUniformOverviewStack?.(baseStageConfig.uniformOverviewStack),
+          (data.properties = buildFloorCameraConfig({
+            ...baseStageConfig,
+            ...(pendingFloorId
+              ? {
+                  floorSelection: pendingFloorId,
+                }
+              : {}),
+          })),
+          pendingFloorId && activeCameraPose
+            ? (data.properties.camera = activeCameraPose)
+            : pendingFloorId &&
+              pendingFloorId !== baseStageConfig.floorSelection &&
+              (data.properties.camera = transformFloorCamera(
+                baseStageConfig.floorCameras?.[pendingFloorId] || null,
+                pendingFloorId,
+              )),
+          idleRotationControl.activity(),
+          idleIconVisibilityControl.activity(),
+          idleFocusExitControl.activity());
+        const isCameraChanged =
+          (isAwaitingFloorViewAdjust && data.viewEditing !== true) ||
+          JSON.stringify(options.camera) !== JSON.stringify(data.properties.camera);
+        (panelDisplayMode || idleReturnCamera || cameraMotionSnapshot) &&
+          (isCameraChanged ||
+            options.sceneStyle !== data.properties.sceneStyle ||
+            options.wallOpacity !== data.properties.wallOpacity ||
+            options.floorSelection !== data.properties.floorSelection ||
+            isEditing !== (data.editing === true) ||
+            data.viewEditing === true ||
+            (isEditing && text !== (data.selectedId || ""))) &&
+          (exitFocusMode({
+            immediate: true,
+          }),
+          cameraMotionSnapshot &&
+            ((cameraMotionSnapshot = null),
+            mountOptions.finishFloorTransition?.(),
+            mountOptions.endCameraMotion()));
+        const editingSecurityKind =
+          data.editing === true && ["camera", "presence", "lock"].includes(data.editingSecurityKind)
+            ? data.editingSecurityKind
+            : "";
+        ((data.editing !== true ||
+          editingSecurityKind !== "lock" ||
+          (text && text !== (data.selectedId || ""))) &&
+          (selectedLockEntry = null),
+          (options = structuredClone(data.properties)),
+          (isEditing = data.editing === true),
+          (selectedSecurityKind = editingSecurityKind),
+          (isAwaitingFloorViewAdjust = data.viewEditing === true),
+          (text = data.selectedId || ""),
+          (deviceStates = data.states || {}),
+          syncAirConditionerHistory(),
+          (isNavigationVisible = data.editorCanvas === true && !isEditing),
+          document.body?.dataset &&
+            (document.body.dataset.sceneStyle =
+              options.sceneStyle === "warm-wood" ? "warm-wood" : "default"),
+          sceneBackgroundController.configure(options.backgroundTheme, options),
+          (isControlReady = !isEditing && data.interactive === true),
+          (editingVacuumId = data.editingVacuumId || ""),
+          (configuredModuleKinds2 = configuredModuleKinds(options)));
+        let editingModule = isEditing
+          ? [
+              "security",
+              "climate",
+              "fan",
+              "purifier",
+              "water-heater",
+              "airer",
+              "cover",
+              "nas",
+              "television",
+              "speaker",
+              "vacuum",
+              "vacuum-shortcut",
+              "temperature-humidity",
+              ...GENERIC_DEVICE_KINDS2,
+            ].includes(data.editingModule)
+            ? data.editingModule
+            : "light"
+          : ["overview", "security", "light", "devices", "vacuum"].includes(activeModule)
+            ? activeModule
+            : [
+                  "nas",
+                  "television",
+                  "speaker",
+                  "water-heater",
+                  "airer",
+                  ...GENERIC_DEVICE_KINDS2,
+                ].includes(activeModule)
+              ? "devices"
+              : "environment";
+        (!isEditing &&
+          editingModule !== "overview" &&
+          !configuredModuleKinds2.includes(editingModule) &&
+          (editingModule = "light"),
+          pendingModule && !configuredModuleKinds2.includes(pendingModule) && (pendingModule = ""),
+          activeModule !== editingModule &&
+            (stopVacuumFollow(),
+            exitFocusMode({
+              immediate: true,
+            }),
+            cancelGhostAnimation(),
+            (activeModule = editingModule),
+            sceneCacheByKey.clear()));
+        for (const queuedCommandEntry of lightGroupByKey.values())
+          queuedCommandEntry.next &&
+            (!isControlReady ||
+              !(options.lights || []).some(
+                (configuredLightItem) =>
+                  configuredLightItem.entityId === queuedCommandEntry.entityId,
+              )) &&
+            (vector.reject(queuedCommandEntry.entityId, queuedCommandEntry.next.previewToken),
+            (queuedCommandEntry.next = null));
+        (configureIdleBehaviors(),
+          syncAvailability(),
+          mountOptions.appearance(
+            applyRegionLightingPreset(
+              isRangeEditorOpen
+                ? {
+                    ...options,
+                    lightRegionOverrides: mountOptions.regionLighting.getOverrides(),
+                  }
+                : options,
+            ),
+          ));
+        const floorSelection =
+          mountOptions.document.floors.some(
+            (configuredFloorEntry) => configuredFloorEntry.id === options.floorSelection,
+          ) || options.floorSelection === "all"
+            ? options.floorSelection
+            : mountOptions.document.floors[0].id;
+        (isEditing || (floorSelection === "all" && (activeModule = "overview")),
+          selectedFloorId !== floorSelection
+            ? (stopVacuumFollow(false),
+              (selectedFloorId = floorSelection),
+              mountOptions.setFloor(floorSelection),
+              mountOptions.restoreCamera(
+                normalizeCameraPose(
+                  options.camera || mountOptions.floorDefaultCamera?.(floorSelection),
+                ),
+              ),
+              (activeCameraPose = mountOptions.cameraState()))
+            : isCameraChanged &&
+              (mountOptions.restoreCamera(normalizeCameraPose(options.camera || activeCameraPose)),
+              (activeCameraPose = mountOptions.cameraState())),
+          syncCameraInteraction(),
+          (toolbarElement.hidden = true),
+          syncPanelChrome(),
+          (isAwaitingFloorViewAdjust || (!isEditing && !isControlReady)) &&
+            exitFocusMode({
+              immediate: true,
+            }),
+          syncMarkers());
+        const adoptGeneration = ++animationFrameRequestId;
+        (isStagePresented ? Promise.resolve() : mountOptions.whenPresented())
+          .then(() => {
+            isControlBusy ||
+              adoptGeneration !== animationFrameRequestId ||
+              (isStagePresented || (activeCameraPose = mountOptions.cameraState()),
+              (isStagePresented = true),
+              syncAvailability(),
+              renderMarkerPositions(true),
+              noopStageCallback(),
+              postHostMessage({
+                type: "presented",
+                configId: data.configId,
+                camera: transformFloorCamera(
+                  mountOptions.cameraState(),
+                  options.floorSelection,
+                  true,
+                ),
+              }));
+          })
+          .catch((adoptError) => {
+            !isControlBusy &&
+              adoptGeneration === animationFrameRequestId &&
+              postHostMessage({
+                type: "error",
+                message: adoptError.message || "户型画面准备失败，请重新载入。",
+              });
+          });
+      } else {
+        if (data.type === "vacuum-room-result") {
+          (clearTimeout(vacuumOverlayByKey.get(data.id)), vacuumOverlayByKey.delete(data.id));
+          const roomResultMarkerElement = map.get(data.id);
+          (roomResultMarkerElement &&
+            ((roomResultMarkerElement.disabled = false),
+            (roomResultMarkerElement.title = data.error || "")),
+            data.error &&
+              ((moduleEmptyElement.hidden = false), (moduleEmptyElement.textContent = data.error)));
+        } else {
+          if (data.type === "range-editor") {
+            if (data.flush === true) {
+              const rangeEditorFlushError =
+                !canEditLightRange || !isRangeEditorOpen ? "请先打开照射范围编辑。" : "";
+              (rangeEditorFlushError || rangeEditorHandle.flush(),
+                postHostMessage({
+                  type: "range-editor-state",
+                  active: isRangeEditorOpen,
+                  requestId: data.requestId,
+                  ...(rangeEditorFlushError
+                    ? {
+                        error: rangeEditorFlushError,
+                      }
+                    : {}),
+                }));
+            } else {
+              if (data.open === false) {
+                isRangeEditorSuppressingClose = !!data.requestId;
+                try {
+                  rangeEditorHandle?.close();
+                } finally {
+                  isRangeEditorSuppressingClose = false;
+                }
+                data.requestId &&
+                  postHostMessage({
+                    type: "range-editor-state",
+                    active: false,
+                    requestId: data.requestId,
+                  });
+              } else openRangeEditor(data.requestId);
+            }
+          } else {
+            if (data.type === "range-save-result")
+              rangeEditorHandle?.setSaveStatus?.(data.error || "");
+            else {
+              if (data.type === "activity-state")
+                ((hasPresentedOnce = true),
+                  (isStageVisible = data.visible === true),
+                  (isPresentedVisible =
+                    data.presentedVisible === undefined
+                      ? isStageVisible
+                      : data.presentedVisible === true),
+                  (!isStageVisible || !isPresentedVisible) &&
+                    focusExitPointer &&
+                    releaseFocusExit({
+                      pointerId: focusExitPointer.pointerId,
+                    }),
+                  mountOptions.setPresentedVisible?.(isPresentedVisible),
+                  syncVacuumMap(),
+                  isStageVisible || (hasIdleIconActivity = false),
+                  syncAvailability());
+              else {
+                if (data.type === "user-activity")
+                  ((hasIdleIconActivity = false),
+                    (furthestFloorOrder = performance.now()),
+                    syncStageVisibility(),
+                    (isPointerHeld = data.held === true),
+                    syncIdleHold());
+                else {
+                  if (data.type === "dismiss-focus")
+                    (idleRotationControl.activity(),
+                      idleIconVisibilityControl.activity(),
+                      stopVacuumFollow(data.immediate !== true),
+                      exitFocusMode({
+                        immediate: data.immediate === true,
+                      }));
+                  else {
+                    if (data.type === "states") {
+                      const stateUpdatePlan =
+                          data.patch === true ? createStateUpdatePlan2(options, data.states) : null,
+                        snapshotLightState = (patchedEntityId) =>
+                          JSON.stringify([
+                            resolveDeviceState(patchedEntityId),
+                            readLightState(patchedEntityId),
+                          ]),
+                        lightOnlySnapshotMap = new Map(
+                          (stateUpdatePlan?.lightOnlyIds || []).map((lightOnlyId) => [
+                            lightOnlyId,
+                            snapshotLightState(lightOnlyId),
+                          ]),
+                        );
+                      ((deviceStates =
+                        data.patch === true
+                          ? {
+                              ...deviceStates,
+                              ...(data.states || {}),
+                            }
+                          : data.states || {}),
+                        syncAirConditionerHistory(stateUpdatePlan));
+                      for (const patchedLightItem of options.lights || [])
+                        (data.patch !== true ||
+                          Object.hasOwn(data.states || {}, patchedLightItem.entityId)) &&
+                          vector.reconcile(
+                            patchedLightItem.entityId,
+                            resolveDeviceState(patchedLightItem.entityId),
+                          );
+                      for (const [trackedLightId, previousLightSnapshot] of lightOnlySnapshotMap)
+                        snapshotLightState(trackedLightId) === previousLightSnapshot &&
+                          stateUpdatePlan.changed.delete(trackedLightId);
+                      (!stateUpdatePlan || stateUpdatePlan.changed.size) &&
+                        syncMarkers(stateUpdatePlan);
+                    } else {
+                      if (data.type === "control-result")
+                        mediaControlRequestsByRequestId.has(data.requestId)
+                          ? settleMediaRequest(data.requestId, data.error)
+                          : coverControlRequestsByRequestId.has(data.requestId)
+                            ? failCoverRequest(data.requestId, data.error)
+                            : pendingControlRequestsByRequestId.has(data.requestId)
+                              ? settleClimateRequest(data.requestId, data.error)
+                              : settleControlCommand(
+                                  data.requestId,
+                                  data.error || "",
+                                  data.timedOut === true,
+                                );
+                      else {
+                        if (data.type === "editor-command" && isEditing)
+                          try {
+                            if (data.command === "preview-lock-motion") {
+                              if (selectedSecurityKind !== "lock") throw new Error("请先选择门。");
+                              const previewLockMarkerItem = findBindingById(data.id);
+                              if (
+                                previewLockMarkerItem?.deviceKind !== "lock" ||
+                                !previewLockMarkerItem.modelAvailable
+                              )
+                                throw new Error("请选择可用的门模型。");
+                              ((selectedLockEntry = {
+                                id: data.id,
+                                open: data.value !== "closed",
+                              }),
+                                wakeSceneBackground(),
+                                syncCameraInteraction());
+                              return;
+                            } else {
+                              if (data.command === "presence-top-view") {
+                                const { floorId: presenceFloorId, box: presenceViewBox } =
+                                  data.value || {};
+                                if (
+                                  !presenceViewBox ||
+                                  ![
+                                    presenceViewBox.x,
+                                    presenceViewBox.y,
+                                    presenceViewBox.w,
+                                    presenceViewBox.h,
+                                  ].every(Number.isFinite) ||
+                                  presenceViewBox.w <= 0 ||
+                                  presenceViewBox.h <= 0
+                                )
+                                  throw new Error("顶视图范围无效。");
+                                const worldPoint2 = mountOptions.worldPoint(
+                                    presenceFloorId,
+                                    presenceViewBox.x + presenceViewBox.w / 2,
+                                    presenceViewBox.y + presenceViewBox.h / 2,
+                                    0,
+                                  ),
+                                  worldPoint3 = mountOptions.worldPoint(
+                                    presenceFloorId,
+                                    presenceViewBox.x,
+                                    presenceViewBox.y,
+                                    0,
+                                  ),
+                                  worldPoint4 = mountOptions.worldPoint(
+                                    presenceFloorId,
+                                    presenceViewBox.x + presenceViewBox.w,
+                                    presenceViewBox.y + presenceViewBox.h,
+                                    0,
+                                  );
+                                if (!worldPoint2 || !worldPoint3 || !worldPoint4)
+                                  throw new Error("请选择有效楼层。");
+                                const presenceFrameSize = Math.max(
+                                  Math.abs(worldPoint4.z - worldPoint3.z),
+                                  Math.abs(worldPoint4.x - worldPoint3.x) /
+                                    (canvasElement.clientWidth /
+                                      Math.max(1, canvasElement.clientHeight)),
+                                );
+                                (exitFocusMode({
+                                  immediate: true,
+                                }),
+                                  mountOptions.restoreCamera({
+                                    mode: "orthographic",
+                                    view: "top",
+                                    topRotation: 0,
+                                    position: [
+                                      worldPoint2.x,
+                                      worldPoint2.y + Math.max(20, presenceFrameSize * 2),
+                                      worldPoint2.z,
+                                    ],
+                                    target: worldPoint2.toArray(),
+                                    up: [0, 0, -1],
+                                    zoom: 1,
+                                    frameSize: presenceFrameSize,
+                                  }));
+                              } else {
+                                if (data.command === "presence-3d-view")
+                                  (mountOptions.setCameraView?.("free"),
+                                    mountOptions.restoreCamera(
+                                      options.camera ||
+                                        mountOptions.floorDefaultCamera?.(selectedFloorId) ||
+                                        activeCameraPose,
+                                    ));
+                                else {
+                                  if (data.command === "presence-preview-walk")
+                                    ((isPresencePressed = data.value === true),
+                                      syncPresenceScene());
+                                  else {
+                                    if (data.command === "presence-show-hit-range")
+                                      ((isPresenceEditing = data.value === true),
+                                        layoutPresenceHitBoxes());
+                                    else {
+                                      if (data.command === "edit-follow-camera") {
+                                        const followMarkerItem = findBindingById(data.id);
+                                        if (followMarkerItem?.deviceKind !== "vacuum")
+                                          throw new Error("请选择扫地机。");
+                                        focusMarkerById(data.id, "edit", true);
+                                        const followCameraTarget =
+                                          mountOptions.environmentModelPose(
+                                            followMarkerItem.floorId,
+                                            followMarkerItem.modelId,
+                                          )?.center || mountOptions.cameraState().target;
+                                        startCameraMotion(
+                                          followMarkerItem.followCamera ||
+                                            vacuumBirdCamera2(
+                                              options.camera || mountOptions.cameraState(),
+                                              followCameraTarget,
+                                            ),
+                                          false,
+                                          true,
+                                        );
+                                      } else {
+                                        if (data.command === "edit-light-camera")
+                                          focusMarkerById(data.id, "edit", true);
+                                        else {
+                                          if (data.command === "preview-light-camera")
+                                            focusMarkerById(data.id, "preview");
+                                          else {
+                                            if (data.command === "preview-device-panel")
+                                              focusMarkerById(data.id, "panel");
+                                            else {
+                                              if (data.command === "preview-light-effect") {
+                                                if (
+                                                  ![
+                                                    "brightnessMin",
+                                                    "brightnessMax",
+                                                    "temperatureMin",
+                                                    "temperatureMax",
+                                                    "defaults",
+                                                  ].includes(data.value)
+                                                )
+                                                  throw new Error("请选择要预览的效果。");
+                                                if (!findBindingById(data.id))
+                                                  throw new Error("灯光按钮已移除。");
+                                                if (!findBindingById(data.id).entityId)
+                                                  throw new Error("请先绑定实体，再预览灯光效果。");
+                                                (focusMarkerById(data.id, "preview"),
+                                                  (lightEditPreview = {
+                                                    id: data.id,
+                                                    kind: data.value,
+                                                  }),
+                                                  applyLightStates({
+                                                    preview: true,
+                                                  }),
+                                                  updateDevicePanel());
+                                              } else {
+                                                if (data.command === "cancel-light-camera")
+                                                  exitFocusMode({
+                                                    immediate: true,
+                                                  });
+                                                else {
+                                                  if (
+                                                    panelDisplayMode !== "edit" ||
+                                                    data.id !== focusedItemId
+                                                  )
+                                                    throw new Error("请先进入视角调整。");
+                                                  (data.command === "focus-projection" &&
+                                                    mountOptions.setCameraProjection(data.value),
+                                                    data.command === "focus-focal-length" &&
+                                                      mountOptions.setCameraFocalLength(
+                                                        data.value,
+                                                      ));
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                            syncCameraInteraction();
+                            const editCameraSnapshot = applyDefaultCamera();
+                            (postHostMessage({
+                              type: "edit",
+                              action: "focus-camera",
+                              requestId: data.requestId,
+                              id: data.id,
+                              camera: editCameraSnapshot,
+                            }),
+                              data.command === "save-light-camera" &&
+                                exitFocusMode({
+                                  immediate: true,
+                                }));
+                          } catch (editorCommandError) {
+                            postHostMessage({
+                              type: "edit",
+                              action: "focus-camera",
+                              requestId: data.requestId,
+                              error: editorCommandError.message,
+                            });
+                          }
+                        else
+                          data.type === "editor-command" &&
+                            isAwaitingFloorViewAdjust &&
+                            (data.command === "projection" &&
+                              mountOptions.setCameraProjection(data.value),
+                            data.command === "focal-length" &&
+                              mountOptions.setCameraFocalLength(data.value),
+                            syncCameraInteraction(),
+                            (data.command === "save-camera" || data.requestId) &&
+                              postHostMessage({
+                                type: "edit",
+                                action: "camera",
+                                requestId: data.requestId,
+                                camera: applyDefaultCamera(),
+                              }));
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
-  window.addEventListener("keydown", handleEscapeKeydown);
-
-
   window.addEventListener("message", handleHostMessage);
-  const orbitControls = stageOptions.controls;
-  const unsubscribeCameraChange = stageOptions.onCameraChange?.(() => {
-    const isCameraMoving = screenOutlines.cameraChanged();
-    scheduleMarkerPositionUpdate();
-    layoutPresenceHitBoxes();
-    if (isCameraMoving || pageBehavior.hideIconsWhileRotating === true) {
-      wakeFrameLoop();
+  const controls = mountOptions.controls,
+    cameraChangeUnsubscribe = mountOptions.onCameraChange?.(() => {
+      const cameraChanged = screenOutlines.cameraChanged();
+      (renderMarkerPositions(),
+        layoutPresenceHitBoxes(),
+        (cameraChanged || pageBehavior.hideIconsWhileRotating === true) && wakeSceneBackground());
+    });
+  cameraChangeUnsubscribe || controls.addEventListener("change", renderMarkerPositions);
+  const resizeObserver = new ResizeObserver(syncLayoutMetrics);
+  (resizeObserver.observe(element),
+    resizeObserver.observe(lightPanelSection),
+    resizeObserver.observe(navigationLayerElement),
+    resizeObserver.observe(floorTabsElement));
+  async function adoptSceneUpdate(sceneUpdateInput) {
+    const savedScene = mountOptions.savedScene,
+      currentCameraSnapshot = applyDefaultCamera(),
+      sceneAdoptStartTime = performance.now(),
+      reportLifecycle = (lifecyclePhase) => {
+        try {
+          Promise.resolve(
+            mountOptions.reportLifecycle?.(lifecyclePhase, {
+              sourceRevision: sceneUpdateInput?.revision,
+              floorCount: sceneUpdateInput?.scene?.floors?.length,
+              durationMs: Math.max(0, performance.now() - sceneAdoptStartTime),
+            }),
+          ).catch(() => {});
+        } catch {}
+      };
+    (reportLifecycle("source-adopt-start"),
+      (hasIdleIconActivity =
+        hasIdleIconActivity ||
+        (isCameraRotating && pageBehavior.hideIconsWhileRotating === true) ||
+        isUserActive),
+      (isCameraMoving = true),
+      idleRotationControl.activity(),
+      syncStageVisibility());
+    let releaseSceneCover = () => {},
+      hasCoveredScene = false;
+    const applySceneUpdate = async (nextSceneUpdate) => {
+      if (
+        (mountOptions.finishFloorTransition?.(),
+        await mountOptions.replaceScene(nextSceneUpdate),
+        isControlBusy)
+      )
+        return;
+      (mountOptions.setFloorGap?.(baseStageConfig.floorGap),
+        mountOptions.setUniformOverviewStack?.(baseStageConfig.uniformOverviewStack));
+      const floorSelection2 = pendingFloorId || baseStageConfig.floorSelection,
+        resolvedFloorId =
+          mountOptions.document.floors.some(
+            (resolvedFloorEntry) => resolvedFloorEntry.id === floorSelection2,
+          ) || floorSelection2 === "all"
+            ? floorSelection2
+            : mountOptions.document.floors[0].id;
+      (pendingFloorId && (pendingFloorId = resolvedFloorId),
+        (options = buildFloorCameraConfig({
+          ...baseStageConfig,
+          floorSelection: resolvedFloorId,
+        })),
+        (selectedFloorId = resolvedFloorId),
+        resolvedFloorId === "all" && (activeModule = "overview"),
+        mountOptions.setFloor(resolvedFloorId),
+        mountOptions.appearance(applyRegionLightingPreset(options)),
+        (activeCameraPose = transformFloorCamera(
+          baseStageConfig.floorCameras?.[resolvedFloorId] ||
+            baseStageConfig.camera ||
+            currentCameraSnapshot,
+          resolvedFloorId,
+        )),
+        mountOptions.restoreCamera(transformFloorCamera(currentCameraSnapshot, resolvedFloorId)),
+        applyLightStates({
+          immediate: true,
+        }),
+        await mountOptions.whenPresented(),
+        isControlBusy ||
+          applyLightStates({
+            immediate: true,
+          }));
+    };
+    try {
+      ((releaseSceneCover = mountOptions.coverSceneUpdate()),
+        mountOptions.setCameraInteraction({
+          enabled: false,
+        }),
+        (hasCoveredScene = true),
+        await applySceneUpdate(sceneUpdateInput),
+        isControlBusy ||
+          (postHostMessage({
+            type: "model-metadata",
+            metadata: buildMetadata(),
+          }),
+          reportLifecycle("source-adopt-complete")));
+    } catch (sceneAdoptError) {
+      throw (
+        reportLifecycle("source-adopt-failed"),
+        hasCoveredScene && !isControlBusy && (await applySceneUpdate(savedScene)),
+        sceneAdoptError
+      );
+    } finally {
+      if (
+        (releaseSceneCover(),
+        (isCameraMoving = false),
+        sceneCacheByKey.clear(),
+        (lastRenderSignature = ""),
+        !isControlBusy &&
+          (syncCameraInteraction(),
+          syncMarkers(),
+          renderMarkerPositions(true),
+          pendingEditorAction))
+      ) {
+        const pendingHostMessage = pendingEditorAction;
+        ((pendingEditorAction = null), handleHostMessage(pendingHostMessage));
+      }
     }
-  });
-  if (!unsubscribeCameraChange) {
-    orbitControls.addEventListener("change", scheduleMarkerPositionUpdate);
   }
-  const layoutResizeObserver = new ResizeObserver(scheduleLayoutStage);
-  layoutResizeObserver.observe(containerElement);
-  layoutResizeObserver.observe(lightPanelElement);
-  layoutResizeObserver.observe(navigationElement);
-  layoutResizeObserver.observe(floorTabsElement);
-
-
-  const stopSceneSync = stageOptions.readSceneUpdate
-    ? startSceneSync({
+  const sceneSync = mountOptions.readSceneUpdate
+    ? startSceneSync2({
         eligible: () =>
-          !isDisposed &&
-          isPresented &&
-          isPageVisible &&
+          !isControlBusy &&
+          isStagePresented &&
+          isStageVisible &&
           !document.hidden &&
           !isEditing &&
-          !isViewEditing &&
-          !focusMode &&
-          !cameraTransition &&
-          !markerDragState &&
+          !isAwaitingFloorViewAdjust &&
+          !isNavigationVisible &&
+          !panelDisplayMode &&
+          !followVacuumId &&
+          !cameraMotionSnapshot &&
+          !activePointerDrag &&
           !isRangeEditorOpen &&
-          !isSceneUpdating &&
-          !lightRequestsById.size &&
-          !climateRequestsById.size &&
-          !coverRequestsById.size &&
-          !televisionRequestsById.size &&
-          !deviceRequestsById.size &&
+          !isCameraMoving &&
+          !lightGroupByKey.size &&
+          !pendingControlRequestsByRequestId.size &&
+          !coverControlRequestsByRequestId.size &&
+          !mediaControlRequestsByRequestId.size &&
           !curtainMotion.isMoving() &&
-          nextCoverDelayMs() === Infinity &&
-          !isActivityHeld &&
-          !activePointerIds.size &&
-          !pressedKeys.size &&
-          performance.now() - lastActivityTimestamp > 1200,
-        read: sceneUpdatePayload => stageOptions.readSceneUpdate(sceneUpdatePayload),
-        apply: applySceneUpdate
+          nextCoverFeedbackDelay() === Infinity &&
+          !isPointerHeld &&
+          !set.size &&
+          !lightSyncKeySet.size &&
+          performance.now() - furthestFloorOrder > 1200,
+        read: (sceneReadRequest) => mountOptions.readSceneUpdate(sceneReadRequest),
+        apply: adoptSceneUpdate,
       })
     : () => {};
-  /**
-   * 渲染循环的一帧：推进各子系统动画、刷新标记与面板，返回下一帧间隔（毫秒）。
-   */
-  function renderFrame(timestamp: any) {
-    if (isDisposed || document.hidden || isSceneUpdating) {
+  function runFrame(frameTimestamp) {
+    if (isControlBusy || document.hidden || isCameraMoving || startupProgress === 0)
       return Infinity;
-    }
     syncPresenceScene();
-    const backgroundDelay = backgroundTheme.tick(timestamp);
-    const isFloorTransitionActive =
-      stageOptions.floorTransitionActive || cameraTransition?.owner === "floor";
-    if (!isFloorTransitionActive) {
-      syncCurtains();
-      syncLocks();
-      syncNasStatus();
-      syncGenericDeviceStatus();
-      syncCameraStatus();
-      syncTelevisionScreens();
-      syncVacuumMap();
-      nasStatus.tick(timestamp);
-      for (const genericDeviceStatusLight of genericDeviceStatusLights.values()) {
-        genericDeviceStatusLight.tick(timestamp);
-      }
-      if ([coverFeedback.tick(timestamp), dreamCoverFeedback.tick(timestamp)].some(Boolean)) {
-        pruneBladePreviews();
-        syncCoverFeedback();
-        if (findFocusedBinding()?.deviceKind === "cover") {
-          renderLightPanel();
-        }
-      }
-      curtainMotion.update(timestamp);
-      // 门动画逐帧推进。门模型清单走 syncLocks 的快照缓存（见下），
-      lockMotionActive = lockMotion.tick(timestamp, lockDoorModelsList, statesByEntityId);
+    const floorTransitionActive2 =
+      mountOptions.floorTransitionActive || cameraMotionSnapshot?.owner === "floor";
+    if (
+      (mountOptions.recordFloorFrame?.(frameTimestamp, !!floorTransitionActive2),
+      !floorTransitionActive2)
+    ) {
+      (rebuildCurtainMotion(),
+        syncNasOverlay(),
+        syncCameraOverlay(),
+        syncEnvironmentLayers(),
+        syncVacuumMotion(),
+        speakerRings.tick(frameTimestamp),
+        carCharging.tick(frameTimestamp),
+        fanMotion.tick(frameTimestamp),
+        airerMotion.tick(frameTimestamp),
+        nasStatus.tick(frameTimestamp));
+      for (const stateTickerEntry of Object.values(waterHeaterStatusByModelType))
+        stateTickerEntry.tick(frameTimestamp);
+      for (const genericTickerEntry of Object.values(entries))
+        genericTickerEntry.tick(frameTimestamp);
+      ([coverFeedback.tick(frameTimestamp), dreamTiltFeedback.tick(frameTimestamp)].some(Boolean) &&
+        (pruneTiltPreviews(),
+        syncCoverIconStates(),
+        getFocusedEntry()?.deviceKind === "cover" && updateDevicePanel()),
+        curtainMotion.update(frameTimestamp));
     }
-    syncVacuumMaps();
-    stageOptions.curtainFrame?.({
-      key: curtainMotion.poseKey(),
-      structure: curtainMotion.structureKey(),
-      floorIds: curtainFloorIds,
-      moving: curtainMotion.isMoving() || nextCoverDelayMs() <= 1000 / 30
-    });
-    const presenceWavesDelay = presenceWaves.tick(timestamp);
-    const environmentSceneDelay = environmentScene.tick(timestamp);
-    if (!isFloorTransitionActive) {
-      environmentAirflow.tick(timestamp);
-    }
-    stageOptions.setEnvironmentActive?.(environmentScene.isActive);
-    advanceCameraTransition(timestamp);
-    const vacuumMapDelay = vacuumMaps.tick(timestamp);
-    idleFocusExit.tick(timestamp);
-    idleRotation.tick(timestamp);
-    idleIconVisibility.tick(timestamp);
-    if (lightPreview.expire()) {
-      renderMarkers();
-    }
-    const frameDeltaSeconds = lastFrameTimestamp
-      ? Math.min(0.1, (timestamp - lastFrameTimestamp) / 1000)
+    (syncVacuumMap(),
+      mountOptions.curtainFrame?.({
+        key: curtainMotion.poseKey(),
+        structure: curtainMotion.structureKey(),
+        floorIds: list,
+        moving:
+          startupProgress > 0 &&
+          (curtainMotion.isMoving() || nextCoverFeedbackDelay() <= 1000 / 30),
+      }));
+    const tick = presenceWaves.tick(frameTimestamp),
+      tick2 = environmentScene.tick(frameTimestamp);
+    (floorTransitionActive2 || environmentAirflow.tick(frameTimestamp),
+      mountOptions.setEnvironmentActive?.(environmentScene.isActive),
+      advanceCameraMotion(frameTimestamp));
+    const tick3 = sceneBackgroundController.tick(frameTimestamp),
+      tick4 = vacuumMaps.tick(frameTimestamp);
+    (idleFocusExitControl.tick(frameTimestamp),
+      idleRotationControl.tick(frameTimestamp),
+      idleIconVisibilityControl.tick(frameTimestamp),
+      vector.expire() && syncMarkers());
+    const deltaSeconds = lastIdleFrameMs
+      ? Math.min(0.1, (frameTimestamp - lastIdleFrameMs) / 1000)
       : 0;
-    lastFrameTimestamp = timestamp;
-    const presenceSceneDelay = !isFloorTransitionActive && presenceScene.tick(frameDeltaSeconds);
+    lastIdleFrameMs = frameTimestamp;
+    const lightBindingFrame = buildLockMotionInput(),
+      tick5 =
+        !floorTransitionActive2 &&
+        lockMotion.tick(frameTimestamp, lightBindingFrame.bindings, lightBindingFrame.states);
+    mountOptions.setLockMoving?.(tick5);
+    const tick6 = !floorTransitionActive2 && presenceScene.tick(deltaSeconds);
     layoutPresenceHitBoxes();
-    const hasVacuumMotion = !isFloorTransitionActive && vacuumMotion.tick(frameDeltaSeconds);
-    if (hasVacuumMotion) {
-      markerLayoutSignature = "";
-      updateMarkerPositions(true);
+    const tick7 = !floorTransitionActive2 && vacuumMotion.tick(deltaSeconds);
+    tick7 && ((lastRenderSignature = ""), renderMarkerPositions(true));
+    const some6 = (options.devices?.vacuums || []).some(
+        (activeVacuumItem) => vacuumStatusPresentation2(activeVacuumItem, deviceStates).active,
+      ),
+      floor = Math.floor(frameTimestamp / 7000);
+    (some6 && floor !== lastIdleFloorId && ((lastIdleFloorId = floor), syncMarkers()),
+      revealFollowCamera(deltaSeconds));
+    const frameTimestampCameraQuaternionKey =
+      mountOptions.camera.quaternion?.toArray?.().join(",") || "";
+    if (frameTimestampCameraQuaternionKey !== cameraQuaternionKey) {
+      const frameDeltaSeconds =
+          Math.min(100, Math.max(1, frameTimestamp - (lastQuaternionMs ?? frameTimestamp - 16.7))) /
+          1000,
+        cameraAngularSpeed =
+          scratchQuaternion.angleTo(mountOptions.camera.quaternion) / frameDeltaSeconds;
+      (cameraQuaternionKey &&
+        !cameraMotionSnapshot &&
+        !followVacuumId &&
+        (set.size || isPointerHeld || cameraAngularSpeed > 0.035) &&
+        (idleIconDelayUntilMs = frameTimestamp + 60),
+        (cameraQuaternionKey = frameTimestampCameraQuaternionKey));
     }
-    // 是否至少有一台扫地机处于「工作中」：只有这时才值得重渲染随行台词气泡。
-    const hasActiveVacuum = (config.devices?.vacuums || []).some(
-      (vacuumStatusEntry: any) => vacuumStatusPresentation(vacuumStatusEntry, statesByEntityId).active
+    (scratchQuaternion.copy(mountOptions.camera.quaternion), (lastQuaternionMs = frameTimestamp));
+    const isRotatingByPointer =
+        isIdleIconHidden &&
+        !cameraMotionSnapshot &&
+        !followVacuumId &&
+        (set.size > 0 || isPointerHeld),
+      shouldHideIconsWhileRotating =
+        pageBehavior.hideIconsWhileRotating === true &&
+        !isEditing &&
+        !isAwaitingFloorViewAdjust &&
+        (isIdleRotationRunning || isRotatingByPointer || frameTimestamp < idleIconDelayUntilMs);
+    shouldHideIconsWhileRotating !== isIdleIconHidden &&
+      ((isIdleIconHidden = shouldHideIconsWhileRotating), syncStageVisibility());
+    const some7 = (options.devices?.vacuums || []).some(
+      (trackedVacuumItem) =>
+        matchesSelectedFloor(trackedVacuumItem) && vacuumMotion.hasTracking(trackedVacuumItem.id),
     );
-    const vacuumQuipSlot = Math.floor(timestamp / 7000);
-    if (hasActiveVacuum && vacuumQuipSlot !== lastVacuumQuipSlot) {
-      lastVacuumQuipSlot = vacuumQuipSlot;
-      renderMarkers();
-    }
-    updateVacuumFollow(frameDeltaSeconds);
-    const cameraQuaternionKey = stageOptions.camera.quaternion?.toArray?.().join(",") || "";
-    if (cameraQuaternionKey !== lastCameraQuaternionKey) {
-      const rotationDeltaSeconds =
-        Math.min(100, Math.max(1, timestamp - (previousFrameTimestamp ?? timestamp - 16.7))) / 1000;
-      const rotationSpeed =
-        previousCameraQuaternion.angleTo(stageOptions.camera.quaternion) / rotationDeltaSeconds;
-      if (
-        lastCameraQuaternionKey &&
-        !cameraTransition &&
-        !followedVacuumId &&
-        (activePointerIds.size || isActivityHeld || rotationSpeed > 0.035)
-      ) {
-        idleIconHideDeadline = timestamp + 60;
-      }
-      lastCameraQuaternionKey = cameraQuaternionKey;
-    }
-    previousCameraQuaternion.copy(stageOptions.camera.quaternion);
-    previousFrameTimestamp = timestamp;
-    const isUserRotating =
-      areIconsHiddenByRotation &&
-      !cameraTransition &&
-      !followedVacuumId &&
-      (activePointerIds.size > 0 || isActivityHeld);
-    const shouldHideIcons =
-      pageBehavior.hideIconsWhileRotating === true &&
-      !isEditing &&
-      !isViewEditing &&
-      (isIdleRotating || isUserRotating || timestamp < idleIconHideDeadline);
-    if (shouldHideIcons !== areIconsHiddenByRotation) {
-      areIconsHiddenByRotation = shouldHideIcons;
-      updateMarkerVisibility();
-    }
-    // 当前楼层有没有被跟踪（有动画轨迹、可跟随）的扫地机；没有就隐藏「跟随漫游」
-    const hasTrackedVacuum = (config.devices?.vacuums || []).some(
-      (trackedVacuumEntry: any) =>
-        isOnActiveFloor(trackedVacuumEntry) && vacuumMotion.hasTracking(trackedVacuumEntry.id)
-    );
-    followButton.hidden =
-      isEditing || (!followedVacuumId && (activeModule !== "vacuum" || !hasTrackedVacuum));
-    toolbarElement.hidden = followButton.hidden;
-    followButton.disabled = !followedVacuumId && !hasTrackedVacuum;
-    updateMarkerPositions();
-    return Math.min(
-      backgroundDelay,
-      presenceWavesDelay ? 1000 / 30 : Infinity,
-      screenOutlines.nextDelay(),
-      presenceSceneDelay ? 1000 / 30 : Infinity,
-      hasVacuumMotion || followedVacuumId ? 1000 / 30 : Infinity,
-      areIconsHiddenByRotation ? 60 : Infinity,
-      hasActiveVacuum ? 7000 - (timestamp % 7000) : Infinity,
-      cameraTransition || environmentSceneDelay || vacuumMapDelay ? 0 : Infinity,
-      curtainMotion.isMoving() ? 1000 / 30 : Infinity,
-      lockMotionActive ? 1000 / 30 : Infinity,
-      Math.min(coverFeedback.nextDelay(timestamp), dreamCoverFeedback.nextDelay(timestamp)),
-      environmentAirflow.nextDelay(),
-      nasStatus.nextDelay(),
-      ...Array.from(genericDeviceStatusLights.values(), statusLight => statusLight.nextDelay()),
-      idleFocusExit.nextDelay(timestamp),
-      idleRotation.nextDelay(timestamp),
-      idleIconVisibility.nextDelay(timestamp),
-      lightPreview.nextDelay(timestamp)
+    return (
+      (followToggleButton.hidden =
+        isEditing || (!followVacuumId && (activeModule !== "vacuum" || !some7))),
+      (toolbarElement.hidden = followToggleButton.hidden),
+      (followToggleButton.disabled = !followVacuumId && !some7),
+      renderMarkerPositions(),
+      (canvasElement.dataset.stageFrameChecks = String(sceneBackground.stats.frames)),
+      Math.min(
+        carCharging.nextDelay(),
+        airerMotion.nextDelay(),
+        fanMotion.nextDelay(),
+        speakerRings.nextDelay(),
+        tick5 ? 1000 / 30 : Infinity,
+        tick3,
+        tick ? 1000 / 30 : Infinity,
+        screenOutlines.nextDelay(),
+        tick6 ? 0 : Infinity,
+        tick7 || followVacuumId ? 1000 / 30 : Infinity,
+        isIdleIconHidden ? 60 : Infinity,
+        some6 ? 7000 - (frameTimestamp % 7000) : Infinity,
+        cameraMotionSnapshot || tick2 || tick4 ? 0 : Infinity,
+        curtainMotion.isMoving() ? 1000 / 30 : Infinity,
+        Math.min(
+          coverFeedback.nextDelay(frameTimestamp),
+          dreamTiltFeedback.nextDelay(frameTimestamp),
+        ),
+        environmentAirflow.nextDelay(),
+        nasStatus.nextDelay(),
+        ...Object.values(waterHeaterStatusByModelType).map((stateTickerForDelay) =>
+          stateTickerForDelay.nextDelay(),
+        ),
+        ...Object.values(entries).map((genericTickerForDelay) => genericTickerForDelay.nextDelay()),
+        idleFocusExitControl.nextDelay(frameTimestamp),
+        idleRotationControl.nextDelay(frameTimestamp),
+        idleIconVisibilityControl.nextDelay(frameTimestamp),
+        vector.nextDelay(frameTimestamp),
+      )
     );
   }
-  // 按需渲染循环：每帧回调 renderFrame，只有它返回非 Infinity 时才会继续下一帧。
-  frameLoop = stageOptions.createFrameLoop({
-    step: (loopTimestamp: any) => renderFrame(loopTimestamp)
-  });
-  updateIdleControllers();
-  // 页面卸载时统一释放：先停各子系统动画与定时器，再把所有在途控制请求
-  window.addEventListener("pagehide", () => {
-    // bfcache 下 pagehide 会在 pageshow 之后再次触发；释放只做一次。
-    if (isDisposed) {
-      return;
-    }
-    // 这一段是「关键释放」，必须先做，且不依赖后面任何一步。它们的共同性质是：
-    isDisposed = true;
-    frameLoop?.dispose?.();
-    stopSceneSync();
-    window.removeEventListener("keydown", handleEscapeKeydown);
-    window.removeEventListener("message", handleHostMessage);
-    window.removeEventListener("blur", clearInputState);
-    for (const removedEventName of TRACKED_INPUT_EVENTS) {
-      window.removeEventListener(removedEventName, trackUserInput, true);
-    }
-    document.removeEventListener("visibilitychange", syncVacuumMaps);
-    document.removeEventListener?.("visibilitychange", updateIdleControllers);
-    // 相机变更回调在释放后仍会触发 updateMarkerPositions，同样属于「还会动」。
-    unsubscribeCameraChange?.();
-    if (!unsubscribeCameraChange) {
-      orbitControls.removeEventListener("change", scheduleMarkerPositionUpdate);
-    }
-    layoutResizeObserver.disconnect();
-    // 已排程但未执行的那一帧布局要一并取消：dispose 后 DOM 可能已被拆掉。
-    if (pendingLayoutFrameId) {
-      cancelAnimationFrame(pendingLayoutFrameId);
-      pendingLayoutFrameId = 0;
-    }
-    lightRequestsById.forEach((pendingLightRequestTimer: any) =>
-      clearTimeout(pendingLightRequestTimer.timeout)
+  ((sceneBackground = mountOptions.createFrameLoop({
+    step: (frameStepTimestamp) =>
+      mountOptions.profileFrameWork
+        ? mountOptions.profileFrameWork("stage-updates", () => runFrame(frameStepTimestamp))
+        : runFrame(frameStepTimestamp),
+  })),
+    syncAvailability(),
+    window.addEventListener("pagehide", () => {
+      (lockMotion.dispose(),
+        mountOptions.setLockMoving?.(false),
+        lockPanel.dispose(),
+        sceneBackgroundController.dispose(),
+        mountOptions.setBackgroundTheme?.(null),
+        moduleTabsAnimation?.cancel(),
+        (moduleTabsAnimation = null),
+        cancelGhostAnimation(),
+        document.removeEventListener("visibilitychange", syncVacuumMap),
+        vacuumMaps.dispose(),
+        vacuumMotion.dispose(),
+        presenceScene.dispose(),
+        presenceWaves.dispose(),
+        followVacuumId && stopVacuumFollow(false));
+      for (const roomTimeoutHandleRef of vacuumOverlayByKey.values())
+        clearTimeout(roomTimeoutHandleRef);
+      (vacuumOverlayByKey.clear(),
+        (canEditLightRange = false),
+        rangeEditorHandle?.dispose(),
+        mountOptions.setCurtainSync?.(null),
+        mountOptions.setTelevisionSync?.(null),
+        coverPanel.dispose(),
+        coverGroupPanel.dispose(),
+        curtainMotion.dispose(),
+        coverFeedback.clear(),
+        dreamTiltFeedback.clear(),
+        tiltPreviewByCoverKey.clear());
+      for (const pendingControlRequestId of mediaControlRequestsByRequestId.keys())
+        settleMediaRequest(pendingControlRequestId, "页面已关闭。");
+      for (const pendingSceneRequestId of coverControlRequestsByRequestId.keys())
+        failCoverRequest(pendingSceneRequestId, "页面已关闭。");
+      (lightModeMenu.dispose(),
+        lightColorPicker.dispose(),
+        lightStateCache.flush(),
+        sceneSync(),
+        screenOutlines.dispose(),
+        editorSelectionOutlines.dispose(),
+        editorSelectionElement.remove(),
+        nasPanel.dispose(),
+        nasStatus.dispose());
+      for (const disposedStateTicker of Object.values(waterHeaterStatusByModelType))
+        disposedStateTicker.dispose();
+      for (const disposedGenericTicker of Object.values(entries)) disposedGenericTicker.dispose();
+      (devicePanel.dispose(),
+        cameraStatus.dispose(),
+        speakerPanel.dispose(),
+        speakerRings.dispose(),
+        fanMotion.dispose(),
+        airerMotion.dispose(),
+        televisionPanel.dispose(),
+        televisionScreens.dispose(),
+        environmentAirflow.dispose(),
+        environmentScene.dispose(),
+        startupEffectsUnsubscribe?.(),
+        carCharging.dispose(),
+        climatePanel.dispose());
+      for (const pendingSyncRequestId of pendingControlRequestsByRequestId.keys())
+        settleClimateRequest(pendingSyncRequestId, "页面已关闭。");
+      (mountOptions.finishFloorTransition?.(),
+        (isControlBusy = true),
+        idleRotationControl.dispose(),
+        idleIconVisibilityControl.dispose(),
+        idleFocusExitControl.dispose(),
+        (cameraMotionSnapshot = null),
+        postHostMessage({
+          type: "focus-state",
+          active: false,
+        }));
+      for (const activityEventNameRef of activityEventNames)
+        window.removeEventListener(activityEventNameRef, handleActivityInput, true);
+      (window.removeEventListener("blur", clearActivityState),
+        document.removeEventListener?.("visibilitychange", handleVisibilityChange),
+        sceneBackground.dispose(),
+        cameraChangeUnsubscribe?.(),
+        cameraChangeUnsubscribe || controls.removeEventListener("change", renderMarkerPositions),
+        resizeObserver.disconnect(),
+        lightGroupByKey.forEach((pendingCommandEntry) => clearTimeout(pendingCommandEntry.timeout)),
+        lightGroupByKey.clear());
+    }));
+  function buildMetadata() {
+    const floorElevationByFloorId = new Map(
+      floorNavigationChoices2(mountOptions.document.floors)
+        .filter(([buildMetadataFloorChoiceId]) => buildMetadataFloorChoiceId !== "all")
+        .map(([floorId, floorNumberLabel]) => [
+          floorId,
+          floorNumberLabel.startsWith("B")
+            ? -Number(floorNumberLabel.slice(1))
+            : Number(floorNumberLabel.slice(0, -1)),
+        ]),
     );
-    lightRequestsById.clear();
-    lightStateCache.flush();
-    // 在途控制请求一律按失败结清，宿主侧不必等到各自超时才回收。
-    for (const televisionRequestKey of televisionRequestsById.keys()) {
-      settleTelevisionRequest(televisionRequestKey, "页面已关闭。");
-    }
-    for (const coverRequestKey of coverRequestsById.keys()) {
-      settleCoverRequest(coverRequestKey, "页面已关闭。");
-    }
-    for (const climateRequestKey of climateRequestsById.keys()) {
-      settleClimateRequest(climateRequestKey, "页面已关闭。");
-    }
-    for (const deviceRequestKey of deviceRequestsById.keys()) {
-      settleDeviceRequest(deviceRequestKey, "页面已关闭。");
-    }
-    postToHost({
-      type: "focus-state",
-      active: false
-    });
-    // 其余属于尽力回收：即使某一步抛异常，上面的关键释放已经完成。注意这个 try 只能
-    try {
-      backgroundTheme.dispose();
-      stageOptions.setBackgroundTheme?.(null);
-      modulePanelAnimation?.cancel();
-      modulePanelAnimation = null;
-      cancelModuleTransition();
-      vacuumMaps.dispose();
-      vacuumMotion.dispose();
-      presenceScene.dispose();
-      presenceWaves.dispose();
-      if (followedVacuumId) {
-        stopVacuumFollow(false);
+    return (
+      mountOptions.regionLighting?.sync?.(mountOptions.camera),
+      {
+        floorGap: mountOptions.document.previewFloorGap,
+        uniformOverviewStack: mountOptions.document.uniformOverviewStack === true,
+        appearanceCapabilities: {
+          detailedLighting: (mountOptions.regionLighting?.stats?.detailedMaterials || 0) > 0,
+        },
+        camera: transformFloorCamera(
+          mountOptions.cameraState(),
+          options.floorSelection || mountOptions.document.activeFloorId,
+          true,
+        ),
+        baseLighting: mountOptions.document.baseLighting,
+        defaults: mountOptions.defaults,
+        floors: mountOptions.document.floors.map((metadataFloorItem) => {
+          const wallHeightSetting = metadataFloorItem.scene.settings?.wallHeight,
+            filteredWallHeights = metadataFloorItem.scene.walls
+              .map((wallHeightItem) => wallHeightItem.height)
+              .filter((wallHeightValue) => Number.isFinite(wallHeightValue) && wallHeightValue > 0),
+            resolvedWallHeight = Math.max(
+              0.01,
+              Math.min(
+                6,
+                Number.isFinite(wallHeightSetting) && wallHeightSetting > 0
+                  ? wallHeightSetting
+                  : Math.max(0, ...filteredWallHeights) || 2.8,
+              ),
+            ),
+            doorModelEntries = doorModels2(metadataFloorItem).map((doorModel) => ({
+              id: doorModel.modelId,
+              name: doorModel.name,
+              doorType: doorModel.doorType,
+              doorLabel: doorModel.doorLabel,
+            }));
+          return {
+            id: metadataFloorItem.id,
+            name: metadataFloorItem.name,
+            elevation: metadataFloorItem.elevation,
+            number: floorElevationByFloorId.get(metadataFloorItem.id),
+            wallHeight: resolvedWallHeight,
+            doors: doorModelEntries,
+            entryDoors: doorModelEntries,
+            plan: {
+              pixelsPerMeter: metadataFloorItem.scene.calibration?.pixelsPerMeter || 1,
+              walls: metadataFloorItem.scene.walls.map((planWallItem) => ({
+                start: planWallItem.start,
+                end: planWallItem.end,
+                thickness: planWallItem.thickness,
+              })),
+              items: metadataFloorItem.scene.items.map(
+                ({
+                  id: planItemId,
+                  type: planItemType,
+                  name: planItemName,
+                  x: planItemX,
+                  y: planItemY,
+                  width: planItemWidth,
+                  depth: planItemDepth,
+                  rotation: planItemRotation,
+                  color: planItemColor,
+                }) => ({
+                  id: planItemId,
+                  type: planItemType,
+                  name: planItemName,
+                  x: planItemX,
+                  y: planItemY,
+                  width: planItemWidth,
+                  depth: planItemDepth,
+                  rotation: planItemRotation,
+                  color: planItemColor,
+                }),
+              ),
+            },
+            cameras: metadataFloorItem.scene.items
+              .filter((cameraSceneItem) => cameraSceneItem.type === "camera")
+              .map((cameraMetadataItem, cameraMetadataIndex) => ({
+                id: cameraMetadataItem.id,
+                name: cameraMetadataItem.name || "摄像头 " + (cameraMetadataIndex + 1),
+                x: cameraMetadataItem.x,
+                y: cameraMetadataItem.y,
+                height:
+                  (Number(cameraMetadataItem.elevation) || 0) +
+                  (Number(cameraMetadataItem.height) || 0.3) / 2,
+              })),
+            presenceSensors: metadataFloorItem.scene.items
+              .filter((sensorSceneItem) => sensorSceneItem.type === "presence")
+              .map((sensorMetadataItem, sensorMetadataIndex) => ({
+                id: sensorMetadataItem.id,
+                name: sensorMetadataItem.name || "人体传感器 " + (sensorMetadataIndex + 1),
+              })),
+            vacuums: metadataFloorItem.scene.items
+              .filter(
+                (buildMetadataVacuumSceneItem) =>
+                  buildMetadataVacuumSceneItem.type === "robotvacuum",
+              )
+              .map((vacuumMetadataItem, vacuumMetadataIndex) => ({
+                id: vacuumMetadataItem.id,
+                name: vacuumMetadataItem.name || "扫地机 " + (vacuumMetadataIndex + 1),
+                x: vacuumMetadataItem.x,
+                y: vacuumMetadataItem.y,
+                height:
+                  (Number(vacuumMetadataItem.elevation) || 0) +
+                  (Number(vacuumMetadataItem.height) || 0.85) / 2,
+              })),
+            speakers: metadataFloorItem.scene.items
+              .filter(
+                (buildMetadataSpeakerSceneItem) => buildMetadataSpeakerSceneItem.type === "speaker",
+              )
+              .map((speakerMetadataItem, speakerMetadataIndex) => ({
+                id: speakerMetadataItem.id,
+                name: speakerMetadataItem.name || "智能音响 " + (speakerMetadataIndex + 1),
+                type: speakerMetadataItem.type,
+                x: speakerMetadataItem.x,
+                y: speakerMetadataItem.y,
+                height:
+                  (Number(speakerMetadataItem.elevation) || 0) +
+                  (Number(speakerMetadataItem.height) || 0.2336) / 2,
+              })),
+            televisions: metadataFloorItem.scene.items
+              .filter(
+                (buildMetadataTelevisionSceneItem) =>
+                  buildMetadataTelevisionSceneItem.type === "tv",
+              )
+              .map((televisionMetadataItem, televisionMetadataIndex) => ({
+                id: televisionMetadataItem.id,
+                name: televisionMetadataItem.name || "电视 " + (televisionMetadataIndex + 1),
+                type: televisionMetadataItem.type,
+                x: televisionMetadataItem.x,
+                y: televisionMetadataItem.y,
+                height:
+                  (Number(televisionMetadataItem.elevation) || 0) +
+                  (Number(televisionMetadataItem.height) || 0.92) * 0.62,
+              })),
+            ...genericDeviceMetadata2(metadataFloorItem.scene.items),
+            nas: metadataFloorItem.scene.items
+              .filter((buildMetadataNasSceneItem) => buildMetadataNasSceneItem.type === "nas")
+              .map((nasMetadataItem, nasMetadataIndex) => ({
+                id: nasMetadataItem.id,
+                name: nasMetadataItem.name || "NAS " + (nasMetadataIndex + 1),
+                type: nasMetadataItem.type,
+                x: nasMetadataItem.x,
+                y: nasMetadataItem.y,
+                height:
+                  (Number(nasMetadataItem.elevation) || 0) +
+                  (Number(nasMetadataItem.height) || 0.34) / 2,
+              })),
+            curtains: metadataFloorItem.scene.items
+              .filter((curtainSceneItem) => curtainSceneItem.type === "curtain")
+              .map((curtainMetadataItem, curtainMetadataIndex) => ({
+                id: curtainMetadataItem.id,
+                name: curtainMetadataItem.name || "窗帘 " + (curtainMetadataIndex + 1),
+                type: curtainMetadataItem.type,
+                x: curtainMetadataItem.x,
+                y: curtainMetadataItem.y,
+                height:
+                  (Number(curtainMetadataItem.elevation) || 0) +
+                  (Number(curtainMetadataItem.height) || 2.4) / 2,
+                curtainPosition: curtainMetadataItem.curtainPosition || "split",
+                curtainTrack: curtainMetadataItem.curtainTrack || "straight",
+                curtainForm: curtainMetadataItem.curtainForm === "roller" ? "roller" : "standard",
+                curtainFabric: curtainMetadataItem.curtainFabric,
+              })),
+            waterHeaters: metadataFloorItem.scene.items
+              .filter((waterHeaterSceneItem) =>
+                ["storagewaterheater", "gaswaterheater"].includes(waterHeaterSceneItem.type),
+              )
+              .map((waterHeaterMetadataItem, waterHeaterMetadataIndex) => ({
+                ...waterHeaterMetadataItem,
+                name: waterHeaterMetadataItem.name || "热水器 " + (waterHeaterMetadataIndex + 1),
+              })),
+            airers: metadataFloorItem.scene.items
+              .filter((airerSceneItem) => airerSceneItem.type === "airer")
+              .map((airerMetadataItem, airerMetadataIndex) => ({
+                ...airerMetadataItem,
+                height:
+                  (Number(airerMetadataItem.elevation) || 2.7) -
+                  (Number(airerMetadataItem.airerExtension) || 1.2) / 2,
+                name: airerMetadataItem.name || "晾衣架 " + (airerMetadataIndex + 1),
+              })),
+            fans: metadataFloorItem.scene.items
+              .filter((fanSceneItem) => fanSceneItem.type === "fan")
+              .map((fanMetadataItem, fanMetadataIndex) => ({
+                ...fanMetadataItem,
+                name: fanMetadataItem.name || "电风扇 " + (fanMetadataIndex + 1),
+              })),
+            airPurifiers: metadataFloorItem.scene.items
+              .filter((purifierSceneItem) => purifierSceneItem.type === "airpurifier")
+              .map((purifierMetadataItem, purifierMetadataIndex) => ({
+                ...purifierMetadataItem,
+                name: purifierMetadataItem.name || "空气净化器 " + (purifierMetadataIndex + 1),
+              })),
+            airConditioners: metadataFloorItem.scene.items
+              .filter((airConditionerSceneItem) =>
+                ["wallac", "floorac", "airoutlet"].includes(airConditionerSceneItem.type),
+              )
+              .map((airConditionerMetadataItem, airConditionerMetadataIndex) => ({
+                id: airConditionerMetadataItem.id,
+                name:
+                  airConditionerMetadataItem.name ||
+                  (airConditionerMetadataItem.type === "airpurifier"
+                    ? "空气净化器"
+                    : airConditionerMetadataItem.type === "airoutlet"
+                      ? "出风口"
+                      : airConditionerMetadataItem.type === "wallac"
+                        ? "挂机空调"
+                        : "柜机空调") +
+                    " " +
+                    (airConditionerMetadataIndex + 1),
+                type: airConditionerMetadataItem.type,
+                x: airConditionerMetadataItem.x,
+                y: airConditionerMetadataItem.y,
+                height:
+                  (Number(airConditionerMetadataItem.elevation) || 0) +
+                  (Number(airConditionerMetadataItem.height) || 0.28) / 2,
+              })),
+            groups: metadataFloorItem.scene.lightGroups.map((lightGroup) => {
+              const groupLightItems = metadataFloorItem.scene.items.filter(
+                  (groupLightSceneItem) => groupLightSceneItem.lightGroupId === lightGroup.id,
+                ),
+                groupAnchorPoints = groupLightItems.length
+                  ? groupLightItems
+                  : metadataFloorItem.scene.walls.map((groupWallItem) => groupWallItem.start);
+              return {
+                id: lightGroup.id,
+                name: lightGroup.name,
+                height: resolvedWallHeight,
+                x: groupAnchorPoints.length
+                  ? groupAnchorPoints.reduce(
+                      (accumulatedX, xAnchorPoint) => accumulatedX + xAnchorPoint.x,
+                      0,
+                    ) / groupAnchorPoints.length
+                  : 0,
+                y: groupAnchorPoints.length
+                  ? groupAnchorPoints.reduce(
+                      (accumulatedY, yAnchorPoint) => accumulatedY + yAnchorPoint.y,
+                      0,
+                    ) / groupAnchorPoints.length
+                  : 0,
+              };
+            }),
+          };
+        }),
       }
-      for (const vacuumRoomTimerId of vacuumRoomTimersById.values()) {
-        clearTimeout(vacuumRoomTimerId);
-      }
-      vacuumRoomTimersById.clear();
-      isRangeEditingAllowed = false;
-      rangeEditor?.dispose();
-      stageOptions.setCurtainSync?.(null);
-      stageOptions.setTelevisionSync?.(null);
-      coverPanel.dispose();
-      coverGroupPanel.dispose();
-      curtainMotion.dispose();
-      coverFeedback.clear();
-      dreamCoverFeedback.clear();
-      bladePendingByEntityId.clear();
-      screenOutlines.dispose();
-      nasPanel.dispose();
-      nasStatus.dispose();
-      for (const genericDeviceStatusLight of genericDeviceStatusLights.values()) {
-        genericDeviceStatusLight.dispose();
-      }
-      cameraStatus.dispose();
-      televisionPanel.dispose();
-      televisionScreens.dispose();
-      environmentAirflow.dispose();
-      environmentScene.dispose();
-      climatePanel.dispose();
-      devicePanel.dispose();
-      lockPanel.dispose();
-      lockMotion.dispose();
-      stageOptions.finishFloorTransition?.();
-      idleRotation.dispose();
-      idleIconVisibility.dispose();
-      idleFocusExit.dispose();
-      cameraTransition = null;
-    } catch (teardownError) {
-      console.warn("3D 舞台的资源回收未走完，部分节点可能留在页面里。", teardownError);
-    }
-  });
-
-
-  postToHost({
-    // 挂载即回报 ready：metadata 里带平面图、墙体高度与各类模型坐标，
+    );
+  }
+  postHostMessage({
     type: "ready",
     statePatches: true,
-    metadata: buildMetadata()
+    metadata: buildMetadata(),
   });
 }

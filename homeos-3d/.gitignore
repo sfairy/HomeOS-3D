@@ -1,0 +1,14 @@
+# 依赖与构建产物
+node_modules/
+dist/
+.venv/
+.smoke/
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# 迁移 / 校验过程产物（映射表与对账报告可以留，缓存不留）
+tools/_migration/*.tmp
+tools/_migration/parity_report.json

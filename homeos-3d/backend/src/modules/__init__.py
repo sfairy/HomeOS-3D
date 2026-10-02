@@ -1,2 +1,1 @@
-"""可选、可独立授权的功能模块包。
-"""
+'''Optional independently licensed feature modules.'''

@@ -157,7 +157,7 @@ class StoreSettings:
     templates_dir: Path = PROJECT_ROOT / "dist" / "templates"
 
     # 会话
-    cookie_name: str = "ha_bridge_store_session"
+    cookie_name: str = "homeos_store_session"
     hint_cookie_name: str = "homeos_store_hint"
     #: HTTPS 部署时置 True；默认 False 不代表「只有显式开启才安全」——
     cookie_secure: bool = False
@@ -170,7 +170,7 @@ class StoreSettings:
 
     # 邮箱验证码
     mail_mode: str = "log"
-    mail_from: str = "HomeOS <no-reply@habridge.local>"
+    mail_from: str = "HomeOS <no-reply@homeos.local>"
     smtp_host: str = ""
     smtp_port: int = 465
     smtp_username: str = ""
@@ -386,7 +386,7 @@ def load_settings(**overrides) -> StoreSettings:
         "host": _env_str("STORE_HOST", DEFAULT_HOST) or DEFAULT_HOST,
         "port": _env_int("STORE_PORT", DEFAULT_PORT, minimum=1, maximum=65535),
         "base_url": _env_str("STORE_BASE_URL"),
-        "cookie_name": _env_str("STORE_COOKIE_NAME", "ha_bridge_store_session") or "ha_bridge_store_session",
+        "cookie_name": _env_str("STORE_COOKIE_NAME", "homeos_store_session") or "homeos_store_session",
         "cookie_secure": _env_bool("STORE_COOKIE_SECURE"),
         "trusted_proxies": tuple(
             piece.strip()
@@ -401,7 +401,7 @@ def load_settings(**overrides) -> StoreSettings:
         ),
         "setup_token": _env_str("STORE_SETUP_TOKEN", ""),
         "mail_mode": (_env_str("STORE_MAIL_MODE", "log") or "log").lower(),
-        "mail_from": _env_str("STORE_MAIL_FROM", "HomeOS <no-reply@habridge.local>") or "HomeOS <no-reply@habridge.local>",
+        "mail_from": _env_str("STORE_MAIL_FROM", "HomeOS <no-reply@homeos.local>") or "HomeOS <no-reply@homeos.local>",
         "smtp_host": _env_str("STORE_SMTP_HOST"),
         "smtp_port": _env_int("STORE_SMTP_PORT", 465, minimum=1, maximum=65535),
         "smtp_username": _env_str("STORE_SMTP_USERNAME"),

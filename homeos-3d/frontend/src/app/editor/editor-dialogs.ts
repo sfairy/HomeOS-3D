@@ -1,16 +1,7 @@
-/**
- * 编辑器设置对话框的懒挂载与点击穿透防护。
- */
-
-
-/**
- * 让隐藏的设置对话框延迟挂载。
- */
 export function deferHiddenEditorDialogs(
-  dialogElements = document.querySelectorAll("body > dialog.settings-dialog")
+  dialogElements = document.querySelectorAll("body > dialog.settings-dialog"),
 ) {
   for (const dialogElement of dialogElements) {
-    // data-lazyEditorDialog 做幂等标记，重复执行不会二次包装 show / showModal。
     if (
       !(dialogElement instanceof HTMLDialogElement) ||
       dialogElement.dataset.lazyEditorDialog === "true"
@@ -19,20 +10,18 @@ export function deferHiddenEditorDialogs(
     dialogElement.dataset.lazyEditorDialog = "true";
     const originalShow = dialogElement.show.bind(dialogElement),
       originalShowModal = dialogElement.showModal.bind(dialogElement),
-      // 原生 show/showModal 要求节点在文档中，摘除后必须先补挂。
       ensureAttached = () => {
         dialogElement.isConnected || document.body.append(dialogElement);
       };
-    ((dialogElement.show = (...showArguments: any[]) => (
+    ((dialogElement.show = (...showArguments) => (
       ensureAttached(),
-      (originalShow as (...args: any[]) => void)(...showArguments)
+      originalShow(...showArguments)
     )),
-      (dialogElement.showModal = (...showModalArguments: any[]) => (
+      (dialogElement.showModal = (...showModalArguments) => (
         ensureAttached(),
-        (originalShowModal as (...args: any[]) => void)(...showModalArguments)
+        originalShowModal(...showModalArguments)
       )),
       dialogElement.addEventListener("close", () => {
-        // 等一帧再摘除：让关闭过渡动画能在仍挂载的状态下播完。
         window.requestAnimationFrame(() => {
           !dialogElement.open && dialogElement.isConnected && dialogElement.remove();
         });
@@ -40,25 +29,24 @@ export function deferHiddenEditorDialogs(
       dialogElement.remove());
   }
 }
-
-/**
- * 安装对话框遮罩误触防护：在对话框内按下指针、拖到遮罩上松手会被判定为点击遮罩而关闭，容易丢内容。
- */
 export function installSettingsDialogBackdropGuard() {
   const backdropPointerState = new WeakMap();
   (document.addEventListener(
     "pointerdown",
-    (pointerDownEvent: any) => {
-      const targetDialog = pointerDownEvent.target?.closest?.("dialog.settings-dialog");
+    (pointerDownEvent) => {
+      const pointerTarget = pointerDownEvent.target,
+        targetDialog =
+          pointerTarget instanceof Element
+            ? pointerTarget.closest("dialog.settings-dialog")
+            : null;
       targetDialog &&
-        backdropPointerState.set(targetDialog, pointerDownEvent.target === targetDialog);
+        backdropPointerState.set(targetDialog, pointerTarget === targetDialog);
     },
-    // 用捕获阶段记录，早于任何可能的重渲染逻辑。
-    !0
+    true,
   ),
     document.addEventListener(
       "click",
-      (clickEvent: any) => {
+      (clickEvent) => {
         const clickedDialog = clickEvent.target;
         if (
           !(clickedDialog instanceof HTMLDialogElement) ||
@@ -67,9 +55,9 @@ export function installSettingsDialogBackdropGuard() {
           return;
         const pointerStartedOnBackdrop = backdropPointerState.get(clickedDialog);
         (backdropPointerState.delete(clickedDialog),
-          pointerStartedOnBackdrop === !1 &&
+          pointerStartedOnBackdrop === false &&
             (clickEvent.preventDefault(), clickEvent.stopImmediatePropagation()));
       },
-      !0
+      true,
     ));
 }

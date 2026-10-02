@@ -1,53 +1,99 @@
-"""3D 增量包自己的配置契约：校验控件 properties 是否合法。
-"""
+"""The 3D add-on's configuration contract, independent of the panel popup schema."""
+# 3D 增量包自己的配置契约：校验控件 properties 是否合法。
+#
+# 刻意独立于仪表盘弹窗的 pydantic 模型（panel/schema.py）：3D 控件的配置
+# 字段多且迭代快，前后端约定用 JSON 交换，这里用「白名单 + 手工逐字段校验」
+# 实现，只要出现未登记字段就整份拒绝。
+#
+# 两类校验都在这里完成：结构性（字段是否存在、类型、范围、ID 是否唯一）
+# 与引用性（实体 ID 的域是否与设备种类匹配、场景 / 模型 ID 是否存在于配置里）。
+# 写库前一定先过这一层。
 import json
 import math
 import re
-from typing import NoReturn
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 
-from .config_domains import (
-    _validate_cameras,
-    _validate_environment,
-    _validate_lights,
-    _validate_presence,
-)
-from .device import DEVICE_PROFILES, GENERIC_DEVICE_COLLECTIONS, validate_device_bindings
-from .lock import validate_lock_bindings
-from .numbers import as_finite_number
-from ...core.canonical_json import canonical_json
+
+def validate_appliance_extras(item, entity, fail):
+    # 附加功能（extraControls）：每项 {entityId, type, label?, columns?, rows?}，
+    # type 必须等于该域的默认能力（purifier.py 的 EXTRA_TYPES），同一实体只能出现一次，
+    # 与 device.py 的上限一致为 12 项。
+    extras = item.get('extraControls', [])
+    if not isinstance(extras, list) or len(extras) > 12:
+        fail()
+    extra_ids = set()
+    for extra in extras:
+        if (
+            not isinstance(extra, dict)
+            or set(extra) - {'rows', 'type', 'label', 'columns', 'entityId'}
+            or not re.fullmatch('[a-z_]+\\.[a-z0-9_]+', str(extra.get('entityId', '')))
+        ):
+            fail()
+        # columns / rows 是弹窗栅格跨度：必须是实打实的 int（bool 是 int 子类，要挡掉），
+        # 且落在允许集合里 —— 越界的跨度前端画不出来。
+        for dimension in ('columns', 'rows'):
+            if dimension in extra:
+                if type(extra[dimension]) is not int or extra[dimension] not in ((1, 2, 3, 4) if dimension == 'columns' else (1, 2)):
+                    fail()
+        # type 只认这五种能力；'state' 之外的必须与所在域的默认能力一致。
+        if extra.get('type') not in {'state', 'button', 'number', 'select', 'switch'}:
+            fail()
+        from .purifier import EXTRA_TYPES
+
+        extra_id = extra['entityId']
+        extra_domain = extra_id.split('.')[0]
+        if extra['type'] != 'state' and extra['type'] != EXTRA_TYPES.get(extra_domain):
+            fail()
+        # 同一实体只能出现一次，也不能与设备本体指向同一个实体（弹窗会重复渲染）。
+        if extra_id in extra_ids or extra_id == entity or not isinstance(extra.get('label', ''), str) or len(extra.get('label', '')) > 120:
+            fail()
+        extra_ids.add(extra_id)
 
 
 def validate_config(properties: dict) -> None:
-    """校验一份 3D 交互控件的 properties。
-    """
+    # [补充说明] 校验一份 3D 交互控件的 properties。
+    # 异常:
+    # HTTPException: 422，任一字段非法。大部分分支共用下面的 fail()，
+    # 因此文案统一；个别字段（如转动分辨率）会给出更具体的提示。
 
-    def fail() -> NoReturn:
-        """统一的 422 出口：文案固定，不把内部字段名暴露给前端。"""
+    def fail():
+        # [补充说明] 统一的 422 出口：文案固定，不把内部字段名暴露给前端。
         raise HTTPException(422, detail='3D 交互配置无效，请检查户型、灯光、环境及图标设置。')
 
     def number(value, low, high):
-        """值是否为 [low, high] 内的有限实数；bool 需单独排除（它是 int 的子类）。
-        """
-        parsed = as_finite_number(value, from_text = False)
-        return parsed is not None and low <= parsed <= high
+        # [补充说明] 值是否为 [low, high] 内的有限实数；bool 需单独排除（它是 int 的子类）。
+        #
+        # 配置来自前端 JSON，数值字段写成字符串就是配置错了，不替它转换后放过。
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            return False
+        try:
+            return math.isfinite(value) and low <= value <= high
+        except OverflowError:
+            return False
 
     def positive_number(value):
+        # [补充说明] 严格正数：尺寸、命中区域取 0 没有意义，因此 0 不算合法。
         return number(value, 0, math.inf) and value > 0
 
     def text(value, length=128):
-        """是否为长度不超过 length 的字符串（默认上限与前端输入框一致）。"""
+        # [补充说明] 是否为长度不超过 length 的字符串（默认上限与前端输入框一致）。
         return isinstance(value, str) and len(value) <= length
 
-    def validate_camera(camera):
-        """校验相机参数对象；None 表示未配置，直接放行。
-        """
+    def validate_camera(camera, *, allow_legacy_interaction=False):
+        # [补充说明] 校验相机参数对象；None 表示未配置，直接放行。
+        #
+        # 必填是 mode / zoom / target / position，其余按出现与否校验。
+        # allow_legacy_interaction=True 时额外接受旧自由视角的三个字段，
+        # 仅供顶层 camera 的历史数据使用。
         if camera is None:
-            return
+            return None
         # required 缺一不可；optional 是「出现才校验」的字段。
         required = {'mode', 'zoom', 'target', 'position'}
         optional = {'up', 'view', 'frameSize', 'focalLength', 'topRotation'}
+        # 历史字段：只为兼容旧文档，新写入的视角配置不会再产生它们。
+        if allow_legacy_interaction:
+            optional.update({'panEnabled', 'zoomEnabled', 'rotationMode'})
         # 必填齐备且没有未登记的键：多余键一律拒绝，防止前端悄悄塞字段。
         if not isinstance(camera, dict) or not required.issubset(camera) or set(camera) - required - optional:
             fail()
@@ -66,9 +112,16 @@ def validate_config(properties: dict) -> None:
             fail()
         if 'view' in camera and camera['view'] not in ('free', 'top'):
             fail()
-        return
+        # 旧版视角开关：rotationMode 决定可转动的轴向，panEnabled / zoomEnabled 缺省为 True。
+        if allow_legacy_interaction:
+            if camera.get('rotationMode', 'free') not in ('free', 'horizontal', 'vertical'):
+                fail()
+            if any(not isinstance(camera.get(key, True), bool) for key in ('panEnabled', 'zoomEnabled')):
+                fail()
+        return None
 
     # properties 白名单：出现任何未登记字段就整份拒绝。
+    # 新增字段必须前后端同步发版，旧后端不会静默丢掉自己认不出的配置。
     if not isinstance(properties, dict) or set(properties) - {
         'label',
         'camera',
@@ -107,6 +160,7 @@ def validate_config(properties: dict) -> None:
         'backgroundVisible',
         'motionRenderScale',
         # 暖阳原木主题的「背景暖阳暮色」开关：控件由前端渲染，这里只放行存取，
+        # 老版本读到该键也不会 422（升级路径上的前向兼容）。
         'warmBackgroundTheme',
         'lightRegionOverrides',
         'uniformOverviewStack',
@@ -114,15 +168,13 @@ def validate_config(properties: dict) -> None:
         'hideIconsWhileRotating'}:
         fail()
     # templateReadonly 标记「该控件来自模板、字段不可编辑」，只校验类型；
+    # 它不参与本层的引用校验，前端也不读它，因此只放行不解释。
     if 'templateReadonly' in properties and not isinstance(properties['templateReadonly'], bool):
         fail()
-    # 暖阳原木主题下的背景配色：布尔 true 等价于「暖阳暮色」，字符串则显式给出档位
-    if 'warmBackgroundTheme' in properties and properties['warmBackgroundTheme'] not in (
-        True,
-        False,
-        'warm-sunlight',
-        'warm-dusk',
-    ):
+    # 暖阳原木主题下的背景配色：缺省「暖阳微光」，取值只有微光与暮色两档字符串。
+    if not isinstance(properties.get('warmBackgroundTheme', 'warm-sunlight'), str) or properties.get(
+        'warmBackgroundTheme', 'warm-sunlight'
+    ) not in {'warm-dusk', 'warm-sunlight'}:
         fail()
     # 安防：门锁、摄像头与人形传感器三张表，各自的字段与范围都在下面单独校验。
     security = properties.get('security', {})
@@ -131,10 +183,157 @@ def validate_config(properties: dict) -> None:
         'cameras',
         'locks'}:
         fail()
+    # 门锁绑定校验放在 lock.py：两张表共用同一套绑定契约，这里只做转调。
+    from .lock import validate_lock_bindings
+
     validate_lock_bindings(security.get('locks', []), validate_camera)
-    fields, high, item, key, low = _validate_cameras(fail, number, security, text, validate_camera)
+    cameras = security.get('cameras', [])
+    if not isinstance(cameras, list):
+        fail()
+    # id 全局唯一，(floorId, modelId) 组合也唯一 —— 同一个模型上不该挂两个摄像头。
+    camera_ids = set()
+    camera_models = set()
+    for item in cameras:
+        fields = {
+            'x',
+            'y',
+            'id',
+            'icon',
+            'size',
+            'label',
+            'height',
+            'floorId',
+            'hitSize',
+            'modelId',
+            'visible',
+            'entityId',
+            'fontSize',
+            'iconSize',
+            'focusCamera',
+            'buttonHidden',
+            'backgroundOpacity'}
+        if not isinstance(item, dict) or set(item) - fields:
+            fail()
+        if any(not text(item.get(key)) or not item[key] for key in ('id', 'floorId', 'modelId')) or item['id'] in camera_ids or (item['floorId'], item['modelId']) in camera_models:
+            fail()
+        camera_ids.add(item['id'])
+        camera_models.add((item['floorId'], item['modelId']))
+        # 'all' 是「全部楼层」的伪楼层：摄像头必须挂在具体楼层上，否则无法定位。
+        if item['floorId'] == 'all':
+            fail()
+        # 只接受 camera.* 域的实体：别的域放进来会渲染出取不到流的状态。
+        # 没绑定（空串或字段缺省）是合法状态：控件可以先落位，实体稍后再选。
+        if not isinstance(item.get('entityId', ''), str) or item.get('entityId') and not re.fullmatch('camera\\.[a-z0-9_]+', item['entityId']):
+            fail()
+        if not text(item.get('label', '')) or not text(item.get('icon', '')):
+            fail()
+        for key, low, high in (('x', -1e+06, 1e+06), ('y', -1e+06, 1e+06), ('height', -1000, 1000), ('size', 1, 1000), ('iconSize', 1, 1000), ('fontSize', 1, 1000), ('hitSize', 1, 1000), ('backgroundOpacity', 0, 1)):
+            if key not in item:
+                continue
+            if number(item[key], low, high):
+                continue
+            fail()
+        if any(key in item and not isinstance(item[key], bool) for key in ('visible', 'buttonHidden')):
+            fail()
+        validate_camera(item.get('focusCamera'))
     # 人形传感器：除基本字段外还有路径、触发模式与展示页范围三组约束。
-    _validate_presence(fail, key, number, security, text, validate_camera)
+    people = security.get('presenceSensors', [])
+    if not isinstance(people, list):
+        fail()
+    # id 全局唯一；每层最多一个同模型（modelId）的人形，避免重叠渲染。
+    presence_ids = set()
+    presence_models = set()
+    for person in people:
+        if not isinstance(person, dict) or set(person) - {
+            'id',
+            'size',
+            'color',
+            'label',
+            'route',
+            'speed',
+            'floorId',
+            'modelId',
+            'deviceId',
+            'entityId',
+            'character',
+            'waveScale',
+            'deviceName',
+            'hitPadding',
+            'focusCamera',
+            'routeClosed',
+            'triggerMode',
+            'waveEnabled',
+            'waveOpacity',
+            'clickToFocus',
+            'displayPages',
+            'triggerValue',
+            'displayDuration',
+            'triggerThreshold'}:
+            fail()
+        if any(not text(person.get(key, '')) for key in ('deviceId', 'deviceName')):
+            fail()
+        ident = person.get('id')
+        if not text(ident) or not ident or ident in presence_ids:
+            fail()
+        presence_ids.add(ident)
+        if not isinstance(person.get('waveEnabled', True), bool) or not number(person.get('waveScale', 1), 0.25, 3) or not number(person.get('waveOpacity', 68), 0, 100):
+            fail()
+        # 人形同样必须挂在具体楼层上：'all' 只是筛选条件，落不到具体楼层上。
+        if not text(person.get('label', '')) or not text(person.get('floorId')) or person['floorId'] == 'all':
+            fail()
+        if 'modelId' in person:
+            if not text(person['modelId']) or not person['modelId']:
+                fail()
+            model_key = (person.get('floorId'), person['modelId'])
+            if model_key in presence_models:
+                fail()
+            presence_models.add(model_key)
+        # 允许空串：人形可以先把位置摆好，实体稍后再绑；
+        # 一旦填了就必须是 「域.实体名」 形式，避免存入取不到状态的垃圾值。
+        if not isinstance(person.get('entityId'), str) or person['entityId'] and not re.fullmatch('[a-z_]+\\.[a-z0-9_]{1,200}', person['entityId']):
+            fail()
+        if person.get('character', 'traveler') not in ('traveler', 'bean', 'glow') or person.get('color', 'cyan') not in ('cyan', 'orange'):
+            fail()
+        trigger_mode = person.get('triggerMode', 'auto')
+        if trigger_mode not in ('auto', 'threshold', 'equals', 'change'):
+            fail()
+        if 'triggerValue' in person and (not isinstance(person['triggerValue'], str) or len(person['triggerValue']) > 128):
+            fail()
+        if trigger_mode == 'equals' and not str(person.get('triggerValue', 'on')).strip():
+            fail()
+        if 'triggerThreshold' in person and not number(person['triggerThreshold'], -1000000, 1000000):
+            fail()
+        # 事件类触发（equals / change，或 auto 且实体属于 event 域）才需要停留时长；
+        # 常驻展示允许 0，表示一直留在页面上。
+        event_sensor = trigger_mode in ('equals', 'change') or trigger_mode == 'auto' and person['entityId'].startswith('event.')
+        if not number(person.get('displayDuration', 30 if event_sensor else 0), 1 if event_sensor else 0, 3600):
+            fail()
+        # 展示页范围：'all' 表示全部页面；给列表时要求 1~6 个、都在已知页面集合内且不重复。
+        pages = person.get('displayPages', ['overview', 'light', 'security'])
+        if pages != 'all' and (not isinstance(pages, list) or not 1 <= len(pages) <= 6 or any(not isinstance(page, str) or page not in ('overview', 'light', 'environment', 'devices', 'vacuum', 'security') for page in pages) or len(set(pages)) != len(pages)):
+            fail()
+        if not number(person.get('speed', 0.45), 0.1, 2) or not number(person.get('size', 1), 0.25, 3):
+            fail()
+        if not isinstance(person.get('clickToFocus', False), bool) or not number(person.get('hitPadding', 8), 0, 80):
+            fail()
+        validate_camera(person.get('focusCamera'))
+        route = person.get('route')
+        if not isinstance(person.get('routeClosed', True), bool):
+            fail()
+        if not isinstance(route, list) or not (0 if person.get('routeClosed') is False else 3) <= len(route) <= 128 or any(not isinstance(p, dict) or set(p) != {'x', 'y'} or not all(number(p[k], -1000000, 1000000) for k in ('x', 'y')) for p in route):
+            fail()
+        # 开放路径（走到终点不返回）跳过闭合性检查：重复顶点与面积要求只对环路成立。
+        if person.get('routeClosed') is False:
+            continue
+        # 闭合路径不允许重复顶点：重复会让路径自交、动画抖动。
+        if len({(p['x'], p['y']) for p in route}) != len(route):
+            fail()
+        # 闭合路径必须存在非共线的三点（用叉积判断），否则退化成线段，无法形成可绕行的环路。
+        a = route[0]
+        # 相邻三点取 route[1:] 与 route[2:] 逐位配对：两个切片本就差 1，
+        # zip 按短截断正好给出 len(route) - 2 组相邻点。
+        if not any(abs((b['x'] - a['x']) * (c['y'] - a['y']) - (b['y'] - a['y']) * (c['x'] - a['x'])) > 1e-06 for b, c in zip(route[1:], route[2:])):
+            fail()
     if 'uniformOverviewStack' in properties and not isinstance(properties['uniformOverviewStack'], bool):
         fail()
     if 'floorGap' in properties and not number(properties['floorGap'], 0, 20):
@@ -159,6 +358,9 @@ def validate_config(properties: dict) -> None:
             'idleHideIcons',
             'hideIconsWhileRotating'}:
             fail()
+        # 单页覆盖里的 autoRotate / idleHideIcons 允许写 bool 简写（等价于 {enabled: ...}），
+        # 归一后递归再走一遍完整校验，避免两处各维护一套规则。
+        # 用 type(value) is bool 而不是 isinstance：1 / 0 这类整数不该被当成开关简写。
         normalized = {
             key: {'enabled': value} if key in {'autoRotate', 'idleHideIcons'} and type(value) is bool else value
             for key, value in behavior.items()
@@ -186,6 +388,7 @@ def validate_config(properties: dict) -> None:
     if any(not number(value, 0, 100) for value in page_dim.values()) or not number(properties.get('focusDimStrength', 15), 0, 100):
         fail()
     # 楼层编号：键是 floorId，不得为伪楼层 'all'；值是非 0 的 -99~99 整数，
+    # 0 被排除是因为它在界面上语义歧义（地面层还是未设置）。
     floor_numbers = properties.get('floorNumbers', {})
     if not isinstance(floor_numbers, dict) or len(floor_numbers) > 128:
         fail()
@@ -236,8 +439,10 @@ def validate_config(properties: dict) -> None:
         if 'scale' in placement and not number(placement['scale'], 0.5, 2):
             fail()
     # 光影两档并存：standard（标准光影，原生灯光 + 实时阴影）与 region（轻量柔光，按光区分区），
+    # 缺省按 standard 归一（与前端 definition.js 的 normalizeInteraction3dLightingMode 同口径）。
     if properties.get('lightingMode', 'standard') not in ('standard', 'region'):
         fail()
+    # 地面反射：resolution 只允许 256 / 512 / 768 三档渲染目标，strength 上限 0.45 防止过曝。
     reflection = properties.get('groundReflection', {})
     if not isinstance(reflection, dict) or set(reflection) - {
         'mode',
@@ -250,6 +455,8 @@ def validate_config(properties: dict) -> None:
         fail()
     if not number(reflection.get('strength', 0.18), 0, 0.45):
         fail()
+    # 光区覆盖表的键必须是 json.dumps([floorId, regionId], separators=(',', ':')) 的精确文本，
+    # 下面会把它解析回来，确认键本身可还原成一对 ID。
     overrides = properties.get('lightRegionOverrides', {})
     if not isinstance(overrides, dict) or len(overrides) > 1024:
         fail()
@@ -277,7 +484,8 @@ def validate_config(properties: dict) -> None:
             fail()
         if not isinstance(pair, list) or len(pair) != 2 or any(not text(value) or not value for value in pair):
             fail()
-        if canonical_json(pair) != key:
+        # 键必须是 json.dumps 的规范文本（无空格、非 ASCII 不转义），否则前端回读时对不上。
+        if json.dumps(pair, ensure_ascii=False, separators=(',', ':')) != key:
             fail()
         if not isinstance(region, dict) or not region_fields <= set(region) or set(region) - region_fields - region_optional:
             fail()
@@ -285,6 +493,7 @@ def validate_config(properties: dict) -> None:
             fail()
         if any(field in region and not number(region[field], 0, 20) for field in ('heightAbove', 'heightBelow', 'heightMin', 'heightMax')):
             fail()
+        # 高度区间不能为空，否则光区算不出可见范围。
         if 'heightMin' in region and 'heightMax' in region and region['heightMin'] > region['heightMax']:
             fail()
         if 'moveCenterEnabled' in region and not isinstance(region['moveCenterEnabled'], bool):
@@ -294,18 +503,20 @@ def validate_config(properties: dict) -> None:
             fail()
         if any(not number(region[field], *bounds) for field, bounds in region_bounds.items()):
             fail()
-    # backgroundVisible 缺省 False：画布默认透明，只有显式 true 才画背景与网格。
+    # backgroundVisible 缺省 True：默认画背景与网格，显式 false 才隐藏。
     if properties.get('layoutMode', 'free') not in {
         'fill',
-        'free'} or not isinstance(properties.get('backgroundVisible', False), bool):
+        'free'} or not isinstance(properties.get('backgroundVisible', True), bool):
         fail()
     if not isinstance(properties.get('backgroundTheme', 'grid'), str) or properties.get('backgroundTheme', 'grid') not in {
         'dots',
         'grid',
-        'contours'}:
+        'contours',
+        'warm-dusk',
+        'warm-sunlight'}:
         fail()
-    # 材质风格：默认风格与「暖阳原木」。后端不放开 warm-sunlight ——
-    if str(properties.get('sceneStyle', 'default')) not in {
+    # 材质风格：只允许「默认」与「暖阳原木」两种字符串。
+    if not isinstance(properties.get('sceneStyle', 'default'), str) or properties.get('sceneStyle', 'default') not in {
         'default',
         'warm-wood'}:
         fail()
@@ -317,7 +528,7 @@ def validate_config(properties: dict) -> None:
         fail()
     # 这一条单独给出文案：便于前端区分「转动分辨率」设置项自身非法。
     if properties.get('motionRenderScale') is not None and not number(properties['motionRenderScale'], 0.25, 1):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='3D 转动分辨率无效')
+        raise HTTPException(status_code=422, detail='3D 转动分辨率无效')
     # 舞台整体渲染倍率；转动时的降级倍率另由 motionRenderScale 控制（可为 None）。
     if not number(properties.get('renderScale', 1), 0.25, 2):
         fail()
@@ -327,6 +538,7 @@ def validate_config(properties: dict) -> None:
         fail()
     if 'hideIconsWhileRotating' in properties and not isinstance(properties['hideIconsWhileRotating'], bool):
         fail()
+    # 视角交互：panEnabled / zoomEnabled 缺省为 True（与旧版一致），rotationMode 决定可转动轴向。
     interaction = properties.get('interaction', {})
     if not isinstance(interaction, dict) or set(interaction) - {
         'panEnabled',
@@ -382,6 +594,7 @@ def validate_config(properties: dict) -> None:
     exit_idle_seconds = idle_exit_focus.get('idleSeconds', 30)
     if not isinstance(exit_idle_seconds, int) or not number(exit_idle_seconds, 1, 3600):
         fail()
+    # 基光参数的取值范围；仰角下限（5° / 0°）是为了避免光源与地面共面时出现闪烁。
     lighting = properties.get('baseLighting', {})
     bounds = {
         'exposure': (0.5, 2),
@@ -409,21 +622,503 @@ def validate_config(properties: dict) -> None:
     if not isinstance(scene_id, str) or not scene_id or not re.fullmatch('[0-9a-f]{32}', scene_id):
         fail()
     # 灯光表：entityId 可空（纯装饰的灯），一旦填写就必须是合法的 HA 实体 ID。
-    entity, fields, high, low = _validate_lights(fail, key, number, positive_number, properties, text, validate_camera)
+    lights = properties.get('lights', [])
+    if not isinstance(lights, list):
+        fail()
+    ids = set()
+    for light in lights:
+        if not isinstance(light, dict) or set(light) - {
+            'x',
+            'y',
+            'id',
+            'icon',
+            'size',
+            'label',
+            'height',
+            'floorId',
+            'groupId',
+            'hitSize',
+            'visible',
+            'entityId',
+            'iconSize',
+            'clickAction',
+            'effectRange',
+            'focusCamera',
+            'buttonHidden',
+            'fadeDuration',
+            'effectDefaults',
+            'hiddenClickable'}:
+            fail()
+        if any(not text(light.get(key, '')) for key in ('id', 'floorId', 'groupId', 'entityId', 'label')):
+            fail()
+        if not light.get('id') or light['id'] in ids:
+            fail()
+        ids.add(light['id'])
+        entity = light.get('entityId', '')
+        if entity and not re.fullmatch('[a-z_]+\\.[a-z0-9_]+', entity):
+            fail()
+        if not all(number(light.get(key), low, high) for key, low, high in (('x', -1000000, 1000000), ('y', -1000000, 1000000), ('height', 0, 20))):
+            fail()
+        if not positive_number(light.get('size')):
+            fail()
+        if 'visible' in light and not isinstance(light['visible'], bool):
+            fail()
+        if any(key in light and not isinstance(light[key], bool) for key in ('hiddenClickable', 'buttonHidden')):
+            fail()
+        # 点击行为：focus 只聚焦；turn-on* 系列会同时开灯，turn-on-panel 还会打开面板。
+        if light.get('clickAction', 'focus') not in ('focus', 'turn-on-focus', 'turn-on', 'turn-on-panel'):
+            fail()
+        if any(key in light and not positive_number(light[key]) for key in ('iconSize', 'hitSize')):
+            fail()
+        if 'icon' in light and (not isinstance(light['icon'], str) or not re.fullmatch('mdi:[a-z0-9][a-z0-9-]{0,119}', light['icon'])):
+            fail()
+        if 'fadeDuration' in light and not number(light['fadeDuration'], 0, 10):
+            fail()
+        # 默认灯光效果：亮度百分比与色温（K），不填表示不做预设。
+        # 前端的固定效果区间是 1~100%；这里仍放宽到 150% 只为兼容历史草稿（早期版本存过 150），
+        # 收紧会让那些控件在保存时整份 422 —— 读入侧不放大、渲染侧自然按 100 封顶。
+        if 'effectDefaults' in light:
+            defaults = light['effectDefaults']
+            bounds = {
+                'brightness': (0, 150),
+                'kelvin': (1000, 20000)}
+            if not isinstance(defaults, dict) or set(defaults) - set(bounds) or any(not number(value, *bounds[key]) for key, value in defaults.items()):
+                fail()
+        # effectRange 是该灯可调范围的显式覆盖：四个字段必须全给，且 min <= max。
+        effect_range = light.get('effectRange')
+        if effect_range is not None:
+            fields = {
+                'brightnessMax',
+                'brightnessMin',
+                'temperatureMax',
+                'temperatureMin'}
+            if not isinstance(effect_range, dict) or set(effect_range) != fields:
+                fail()
+            for minimum, maximum, low, high in (('brightnessMin', 'brightnessMax', 0, 150), ('temperatureMin', 'temperatureMax', 1000, 20000)):
+                if not number(effect_range[minimum], low, high) or not number(effect_range[maximum], low, high) or effect_range[minimum] > effect_range[maximum]:
+                    fail()
+        validate_camera(light.get('focusCamera'))
     # 环境设备：窗帘（含窗帘组合）、空调、空气净化器与温湿度计五张表。窗帘 / 空调 / 净化器
-    entity, fields, item, key, model = _validate_environment(fail, high, low, number, positive_number, properties, text, validate_camera)
-    # 设备表：NAS、扫地机、电视，再加上通用设备（冰箱 / 冰柜 / 洗碗机 / 洗衣机 /
+    # 各自绑定到场景里的 3D 模型，温湿度计是不绑模型的只读信息卡；窗帘组合只引用 curtains
+    # 里的成员，没有自己的实体。airPurifiers 必须在这里登记：模板默认值（definition.js）里就有
+    # 这个空数组，漏登记的后果不是「净化器存不上」，而是**任何**一次 3D 配置保存都整份 422。
+    environment = properties.get('environment', {})
+    if not isinstance(environment, dict) or set(environment) - {
+        'curtains',
+        'dimStrength',
+        'airConditioners',
+        'airPurifiers',
+        'curtainGroups',
+        'temperatureHumidity',
+        'fans',
+        'airers',
+        'waterHeaters'}:
+        fail()
+    # dimStrength 是环境设备通用的压暗强度（百分比），默认 70。
+    if not number(environment.get('dimStrength', 70), 0, 100):
+        fail()
+    # 空调：entityId 只允许 climate.* 域，且 (楼层, 模型) 组合唯一。
+    air_conditioners = environment.get('airConditioners', [])
+    if not isinstance(air_conditioners, list):
+        fail()
+    ids = set()
+    models = set()
+    for item in air_conditioners:
+        fields = {
+            'x',
+            'y',
+            'id',
+            'icon',
+            'size',
+            'label',
+            'height',
+            'floorId',
+            'hitSize',
+            'modelId',
+            'visible',
+            'entityId',
+            'iconSize',
+            'clickAction',
+            'focusCamera',
+            'buttonHidden',
+            'hiddenClickable',
+            'deviceId',
+            'deviceName',
+            'climateType',
+            'extraControls',
+            'bathEffects'}
+        if not isinstance(item, dict) or set(item) - fields:
+            fail()
+        if any(not text(item.get(key, '')) for key in ('id', 'floorId', 'modelId', 'entityId', 'label')):
+            fail()
+        if any(not item.get(key) for key in ('id', 'floorId', 'modelId')):
+            fail()
+        model = (item['floorId'], item['modelId'])
+        if item['id'] in ids or model in models:
+            fail()
+        ids.add(item['id'])
+        models.add(model)
+        entity = item.get('entityId', '')
+        if item.get('climateType', 'air-conditioner') not in ('air-conditioner', 'bath-heater'):
+            fail()
+        if any(not text(item.get(key, '')) for key in ('deviceId', 'deviceName')):
+            fail()
+        pattern = '(climate|fan)\\.[a-z0-9_]+' if item.get('climateType') == 'bath-heater' else 'climate\\.[a-z0-9_]+'
+        if entity and not re.fullmatch(pattern, entity):
+            fail()
+        if any(key in item and not number(item[key], low, high) for key, low, high in (('x', -1000000, 1000000), ('y', -1000000, 1000000), ('height', 0, 20))):
+            fail()
+        if any(key in item and not positive_number(item[key]) for key in ('size', 'iconSize', 'hitSize')):
+            fail()
+        if any(key in item and not isinstance(item[key], bool) for key in ('visible', 'hiddenClickable', 'buttonHidden', 'motionEnabled', 'funMessages')):
+            fail()
+        if item.get('clickAction', 'focus') not in ('focus', 'turn-on-focus', 'turn-on', 'turn-on-panel'):
+            fail()
+        if 'icon' in item and (not isinstance(item['icon'], str) or not re.fullmatch('mdi:[a-z0-9][a-z0-9-]{0,119}', item['icon'])):
+            fail()
+        validate_appliance_extras(item, entity, fail)
+        rules = item.get('bathEffects', [])
+        if not isinstance(rules, list) or len(rules) > 12:
+            fail()
+        sources = {entity, *(extra['entityId'] for extra in item.get('extraControls', []))} - {''}
+        # 浴室暖风的附加效果：把 extraControls 里的兄弟实体映射到一种效果上，副作用由前端渲染。
+        for rule in rules:
+            if (
+                not isinstance(rule, dict)
+                or set(rule) != {'value', 'effect', 'entityId', 'attribute'}
+                or rule.get('entityId') not in sources
+                or rule['entityId'].split('.')[0] in {'event', 'button', 'input_button'}
+                or rule.get('effect') not in {'fan', 'heat', 'light', 'exhaust'}
+                or not text(rule.get('attribute'))
+                or not text(rule.get('value'))
+                or not rule['value']
+            ):
+                fail()
+        validate_camera(item.get('focusCamera'))
+    # 环境设备通用循环：晾衣架 / 风扇 / 空气净化器 / 热水器共用同一套字段与绑定校验，
+    # 只有 entityId 的域、clickAction 的允许集合、以及热水器独有的状态规则不同。
+    for collection, domain in (('airers', 'cover'), ('fans', 'fan'), ('airPurifiers', 'fan'), ('waterHeaters', 'water_heater')):
+        appliances = environment.get(collection, [])
+        if not isinstance(appliances, list):
+            fail()
+        ids = set()
+        models = set()
+        for item in appliances:
+            fields = {
+                'x',
+                'y',
+                'id',
+                'icon',
+                'size',
+                'label',
+                'height',
+                'floorId',
+                'hitSize',
+                'modelId',
+                'visible',
+                'entityId',
+                'iconSize',
+                'clickAction',
+                'focusCamera',
+                'buttonHidden',
+                'extraControls',
+                'hiddenClickable'}
+            if collection == 'airers':
+                # 晾衣架的行程时间是它唯一的专属字段，单位秒。
+                fields.add('travelSeconds')
+                if 'travelSeconds' in item and not number(item['travelSeconds'], 5, 180):
+                    fail()
+            if collection == 'waterHeaters':
+                fields.update({'deviceId', 'deviceName', 'statusRules', 'workingState'})
+            if collection == 'airPurifiers':
+                fields.update({'deviceId', 'deviceName', 'airflowEntityId'})
+            if not isinstance(item, dict) or set(item) - fields:
+                fail()
+            if any(not text(item.get(key, '')) for key in ('id', 'floorId', 'modelId', 'entityId', 'label')):
+                fail()
+            if any(not item.get(key) for key in ('id', 'floorId', 'modelId')):
+                fail()
+            model = (item['floorId'], item['modelId'])
+            if item['id'] in ids or model in models:
+                fail()
+            ids.add(item['id'])
+            models.add(model)
+            entity = item.get('entityId', '')
+            if entity and not re.fullmatch(f'{domain}\\.[a-z0-9_]+', entity):
+                fail()
+            if collection == 'waterHeaters':
+                # 状态灯规则与 device.py 的通用设备同一口径。
+                from .device import validate_device_status_rules
+
+                if any(not text(item.get(key, '')) for key in ('deviceId', 'deviceName')):
+                    fail()
+                rules = item.get('statusRules', {})
+                if rules and not entity and not item.get('deviceId'):
+                    fail()
+                validate_device_status_rules(rules, fail)
+            rule = item.get('workingState')
+            if rule is not None and (
+                not isinstance(rule, dict)
+                or set(rule) != {'kind', 'active', 'entityId', 'inactive'}
+                or not re.fullmatch('(?:binary_sensor|sensor)\\.[a-z0-9_]+', str(rule.get('entityId', '')))
+                or rule.get('kind') not in {'flow', 'burning', 'heating'}
+                or any(not isinstance(rule.get(key), str) or not rule[key].strip() or len(rule[key]) > 120 for key in ('active', 'inactive'))
+                or rule['active'] == rule['inactive']
+            ):
+                fail()
+            validate_appliance_extras(item, entity, fail)
+            if collection == 'airPurifiers':
+                if any(not text(item.get(key, '')) for key in ('deviceId', 'deviceName', 'airflowEntityId')):
+                    fail()
+                airflow = item.get('airflowEntityId', '')
+                if airflow and (
+                    not re.fullmatch('(switch|fan|binary_sensor|input_boolean)\\.[a-z0-9_]+', airflow)
+                    or airflow not in {extra['entityId'] for extra in item.get('extraControls', [])}
+                ):
+                    fail()
+            if any(key in item and not number(item[key], low, high) for key, low, high in (('x', -1000000, 1000000), ('y', -1000000, 1000000), ('height', 0, 20))):
+                fail()
+            if any(key in item and not positive_number(item[key]) for key in ('size', 'iconSize', 'hitSize')):
+                fail()
+            if any(key in item and not isinstance(item[key], bool) for key in ('visible', 'hiddenClickable', 'buttonHidden', 'motionEnabled', 'funMessages')):
+                fail()
+            if item.get('clickAction', 'focus') not in (('focus', 'panel') if collection == 'airers' else ('focus', 'turn-on-focus', 'turn-on', 'turn-on-panel')):
+                fail()
+            if 'icon' in item and (not isinstance(item['icon'], str) or not re.fullmatch('mdi:[a-z0-9][a-z0-9-]{0,119}', item['icon'])):
+                fail()
+            validate_camera(item.get('focusCamera'))
+    # 窗帘：entityId 只允许 cover.* 域；coverKind 区分普通帘 / 卷帘 / 梦幻帘
+    # （卷帘与普通帘可控时机相同但帘型不同，梦幻帘额外限制叶片的可控时机）。
+    curtains = environment.get('curtains', [])
+    if not isinstance(curtains, list):
+        fail()
+    ids = set()
+    models = set()
+    for item in curtains:
+        fields = {
+            'x',
+            'y',
+            'id',
+            'icon',
+            'size',
+            'label',
+            'height',
+            'floorId',
+            'hitSize',
+            'modelId',
+            'visible',
+            'entityId',
+            'iconSize',
+            'coverKind',
+            'clickAction',
+            'focusCamera',
+            'buttonHidden',
+            'curtainFabric',
+            # 帘型覆写：户型模型自带帘型（curtainStyle）时默认以模型为准，用户显式
+            # 在编辑器里改过才置 true，之后该控件的帘型不再被模型覆盖
+            # （见 runtime/core/stage/geometry.js 的覆写分支）。
+            'coverKindOverride',
+            # 帘布覆写：户型模型自带帘布时默认以模型为准，用户显式改过才置 true，
+            # 之后该控件的帘布不再被模型覆盖（见 runtime/core/stage/geometry.js）。
+            'curtainFabricOverride',
+            'coverDirection',
+            'hiddenClickable',
+            'unboundPosition',
+            'iconStateReversed'}
+        if not isinstance(item, dict) or set(item) - fields:
+            fail()
+        if any(not text(item.get(key, '')) for key in ('id', 'floorId', 'modelId', 'entityId', 'label')):
+            fail()
+        if not item.get('id') or item['id'] in ids:
+            fail()
+        ids.add(item['id'])
+        model = (item.get('floorId', ''), item.get('modelId', ''))
+        if all(model):
+            if model in models:
+                fail()
+            models.add(model)
+        entity = item.get('entityId', '')
+        if entity and not re.fullmatch('cover\\.[a-z0-9_]+', entity):
+            fail()
+        if any(key in item and not positive_number(item[key]) for key in ('size', 'iconSize', 'hitSize')):
+            fail()
+        if any(key in item and not isinstance(item[key], bool) for key in ('visible', 'hiddenClickable', 'buttonHidden', 'motionEnabled', 'funMessages')):
+            fail()
+        if item.get('clickAction', 'focus') not in ('focus', 'panel', 'turn-on-focus', 'turn-on', 'turn-on-panel'):
+            fail()
+        if any(key in item and not number(item[key], low, high) for key, low, high in (('x', -1000000, 1000000), ('y', -1000000, 1000000), ('height', 0, 20))):
+            fail()
+        if item.get('coverDirection', 'auto') not in ('auto', 'left', 'right', 'split'):
+            fail()
+        if item.get('coverKind', 'standard') not in ('standard', 'dream', 'roller'):
+            fail()
+        if item.get('curtainFabric', 'cloth') not in ('cloth', 'sheer'):
+            fail()
+        if 'coverKindOverride' in item and not isinstance(item['coverKindOverride'], bool):
+            fail()
+        if 'curtainFabricOverride' in item and not isinstance(item['curtainFabricOverride'], bool):
+            fail()
+        if 'unboundPosition' in item and not number(item['unboundPosition'], 0, 100):
+            fail()
+        if 'iconStateReversed' in item and not isinstance(item['iconStateReversed'], bool):
+            fail()
+        if 'icon' in item and (not isinstance(item['icon'], str) or not re.fullmatch('mdi:[a-z0-9][a-z0-9-]{0,119}', item['icon'])):
+            fail()
+        validate_camera(item.get('focusCamera'))
+    # 温湿度计：一块不绑定场景模型的信息卡，用 x / y 定位，两路实体分别指向温度与湿度传感器。
+    # 字段与前端 normalizeTemperatureHumidity 的白名单逐字对应，新增字段要两端同步。
+    climate_sensors = environment.get('temperatureHumidity', [])
+    if not isinstance(climate_sensors, list):
+        fail()
+    sensor_ids = set()
+    for item in climate_sensors:
+        fields = {
+            'x',
+            'y',
+            'id',
+            'label',
+            'floorId',
+            'height',
+            'columns',
+            'size',
+            'visible',
+            'showMetricNames',
+            'opacity',
+            'iconSize',
+            'hitSize',
+            'temperatureEntityId',
+            'humidityEntityId',
+            'formaldehydeEntityId',
+            'pm25EntityId',
+            'pm10EntityId',
+            'co2EntityId',
+            'tvocEntityId',
+            'aqiEntityId',
+            'illuminanceEntityId',
+            'batteryEntityId'}
+        if not isinstance(item, dict) or set(item) - fields or not all(text(item.get(key, '')) for key in ('id', 'floorId', 'label')):
+            fail()
+        # 信息卡必须带 id 与具体楼层，且同一 id 不能重复。
+        if not item.get('id') or not item.get('floorId') or item['id'] in sensor_ids:
+            fail()
+        sensor_ids.add(item['id'])
+        # 两路实体都允许先留空（先把卡片摆好，实体稍后再绑）；一旦填了就必须是 sensor.* 域，
+        # 否则前端状态订阅拿不到值，卡片会永远显示破折号。
+        for key in ('temperatureEntityId', 'humidityEntityId', 'formaldehydeEntityId', 'pm25EntityId', 'pm10EntityId', 'co2EntityId', 'tvocEntityId', 'aqiEntityId', 'illuminanceEntityId', 'batteryEntityId'):
+            if key not in item:
+                continue
+            if not isinstance(item[key], str):
+                fail()
+            if not item[key]:
+                continue
+            if not re.fullmatch('sensor\\.[a-z0-9_]+', item[key]):
+                fail()
+        if any(key in item and not positive_number(item[key]) for key in ('size', 'iconSize', 'hitSize')):
+            fail()
+        if any(key in item and not number(item[key], low, high) for key, low, high in (('x', -1000000, 1000000), ('y', -1000000, 1000000), ('height', 0, 20))):
+            fail()
+        if any(key in item and not isinstance(item[key], bool) for key in ('visible', 'showMetricNames')):
+            fail()
+        if 'columns' in item and (type(item['columns']) is not int or not 0 <= item['columns'] <= 4):
+            fail()
+        if 'opacity' in item and not number(item['opacity'], 0, 1):
+            fail()
+    # 窗帘组合（一拖多）：同一楼层两副普通窗帘并成一个整体控制，典型场景是双层帘。
+    # 组合自己不新增控制逻辑，只把成员各自的子面板拼起来，因此这里没有实体字段 ——
+    # 成员实体在 curtains 表里各自校验，组合只保证「成员引用」这一层自洽。
+    groups = environment.get('curtainGroups', [])
+    if not isinstance(groups, list):
+        fail()
+    group_ids = set()
+    # 已被前面组合占用的成员：后面的组合再引用到就判为非法，否则同一副帘会被两处驱动。
+    used_members = set()
+    # 窗帘卡的 id 集合：组合的合成 id 与窗帘卡共用一个命名空间，撞名时前端会取错卡。
+    curtain_ids = {item.get('id') for item in curtains}
+    for group in groups:
+        fields = {
+            'x',
+            'y',
+            'id',
+            'size',
+            'label',
+            'height',
+            'floorId',
+            'hitSize',
+            'iconSize',
+            'memberIds',
+            'visible',
+            'clickAction',
+            'focusCamera',
+            'panelLayout',
+            'buttonHidden',
+            'hiddenClickable'}
+        if not isinstance(group, dict) or set(group) - fields:
+            fail()
+        if not text(group.get('id')) or not group['id'] or group['id'] in group_ids:
+            fail()
+        group_ids.add(group['id'])
+        if not text(group.get('label', '')):
+            fail()
+        members = group.get('memberIds')
+        # 恰好两名成员，且不能是同一张配置项 —— 一拖一的「组合」没有存在意义。
+        if (
+            not isinstance(members, list)
+            or len(members) != 2
+            or any(not isinstance(value, str) or not value for value in members)
+            or len(set(members)) != 2
+        ):
+            fail()
+        # 成员必须是真实存在的窗帘卡，且未被别的组合占用：同一副帘不能被两处驱动。
+        if any(member not in curtain_ids or member in used_members for member in members):
+            fail()
+        used_members.update(members)
+        # 组合必须落在具体楼层上：成员要求同楼层，'all' 这种伪楼层无法与任何成员对齐。
+        if not text(group.get('floorId')) or not group['floorId']:
+            fail()
+        member_items = [item for item in curtains if item.get('id') in members]
+        # 与前端 validCurtainGroups 的条件逐条对应：两端判定不一致时，编辑器能建出舞台拒收的组合。
+        if (
+            len(member_items) != 2
+            or any(item.get('floorId') != group['floorId'] for item in member_items)
+            or any(item.get('coverKind') == 'dream' for item in member_items)
+        ):
+            fail()
+        # 组合的合成 id（curtain-group:<id>）不能撞上已有的窗帘卡 id。
+        if group['floorId'] == 'all' or f'curtain-group:{group["id"]}' in curtain_ids:
+            fail()
+        if member_items[0].get('entityId') and member_items[0].get('entityId') == member_items[1].get('entityId'):
+            fail()
+        if group.get('clickAction', 'focus') not in ('focus', 'panel', 'turn-on-focus', 'turn-on', 'turn-on-panel'):
+            fail()
+        # 弹窗布局：左右并排是缺省，上下布局用于成员面板较高的场景（组合面板据此加高）。
+        if group.get('panelLayout', 'horizontal') not in ('horizontal', 'vertical'):
+            fail()
+        if any(key in group and not isinstance(group[key], bool) for key in ('visible', 'hiddenClickable', 'buttonHidden')):
+            fail()
+        if any(key in group and not positive_number(group[key]) for key in ('size', 'iconSize', 'hitSize')):
+            fail()
+        if any(key in group and not number(group[key], low, high) for key, low, high in (('x', -1000000, 1000000), ('y', -1000000, 1000000), ('height', 0, 20))):
+            fail()
+        validate_camera(group.get('focusCamera'))
+    # 设备表：NAS、扫地机、电视，再加上六类「通用设备」（冰箱 / 冰柜 / 洗碗机 /
+    # 洗衣机 / 烘干机 / 绿植）—— 后者的校验方式完全一致，只是模型类型不同，因此按 DEVICE_PROFILES
+    # 派发，新增设备类型时只需改那张表。
+    from .device import DEVICE_PROFILES, GENERIC_DEVICE_COLLECTIONS, validate_device_bindings
+
     devices = properties.get('devices', {})
     if not isinstance(devices, dict) or set(devices) - {
         'nas',
+        'televisions',
+        'speakers',
         'vacuums',
-        'televisions'} - set(GENERIC_DEVICE_COLLECTIONS):
+        *GENERIC_DEVICE_COLLECTIONS}:
         fail()
     for profile in DEVICE_PROFILES.values():
         validate_device_bindings(
             devices.get(profile['collection'], []),
             validate_camera,
             model_type=profile['model_type'])
+    # 电视：entityId 是 media_player.*，电源实体另存 powerEntityId（允许 switch 等其它域）。
     televisions = devices.get('televisions', [])
     if not isinstance(televisions, list):
         fail()
@@ -470,6 +1165,56 @@ def validate_config(properties: dict) -> None:
             fail()
         if any(key in item and not isinstance(item[key], bool) for key in ('visible', 'hiddenClickable', 'buttonHidden', 'motionEnabled', 'funMessages')):
             fail()
+        if item.get('clickAction', 'focus-panel') not in ('focus', 'focus-panel', 'panel', 'turn-on-focus', 'turn-on', 'turn-on-panel'):
+            fail()
+        if 'icon' in item and (not isinstance(item['icon'], str) or not re.fullmatch('mdi:[a-z0-9-]{1,120}', item['icon'])):
+            fail()
+        validate_camera(item.get('focusCamera'))
+    # 音箱：与电视同属 devices 下的媒体设备，entityId 只允许 media_player.* 域，
+    # 比电视少了电源实体等附加绑定。
+    speakers = devices.get('speakers', [])
+    if not isinstance(speakers, list):
+        fail()
+    speaker_ids = set()
+    speaker_models = set()
+    for item in speakers:
+        fields = {
+            'x',
+            'y',
+            'id',
+            'icon',
+            'size',
+            'label',
+            'height',
+            'floorId',
+            'hitSize',
+            'modelId',
+            'visible',
+            'entityId',
+            'iconSize',
+            'clickAction',
+            'focusCamera',
+            'buttonHidden',
+            'hiddenClickable'}
+        if not isinstance(item, dict) or set(item) - fields:
+            fail()
+        if any(not text(item.get(key, '')) for key in ('id', 'floorId', 'modelId', 'entityId', 'label')):
+            fail()
+        if any(not item.get(key) for key in ('id', 'floorId', 'modelId')):
+            fail()
+        model = (item['floorId'], item['modelId'])
+        if item['id'] in speaker_ids or model in speaker_models:
+            fail()
+        speaker_ids.add(item['id'])
+        speaker_models.add(model)
+        if item.get('entityId') and not re.fullmatch('media_player\\.[a-z0-9_]+', item['entityId']):
+            fail()
+        if any(key in item and not number(item[key], low, high) for key, low, high in (('x', -1000000, 1000000), ('y', -1000000, 1000000), ('height', 0, 20))):
+            fail()
+        if any(key in item and not positive_number(item[key]) for key in ('size', 'iconSize', 'hitSize')):
+            fail()
+        if any(key in item and not isinstance(item[key], bool) for key in ('visible', 'hiddenClickable', 'buttonHidden', 'motionEnabled', 'funMessages')):
+            fail()
         if item.get('clickAction', 'focus-panel') not in ('focus', 'focus-panel', 'panel'):
             fail()
         if 'icon' in item and (not isinstance(item['icon'], str) or not re.fullmatch('mdi:[a-z0-9-]{1,120}', item['icon'])):
@@ -507,7 +1252,8 @@ def validate_config(properties: dict) -> None:
             'followCamera',
             'motionEnabled',
             'hiddenClickable',
-            'relatedEntityIds'}
+            'relatedEntityIds',
+            'backgroundOpacity'}
         if not isinstance(item, dict) or set(item) - fields:
             fail()
         if any(not text(item.get(key, '')) for key in ('id', 'floorId', 'modelId', 'entityId', 'label')):
@@ -532,6 +1278,8 @@ def validate_config(properties: dict) -> None:
         if 'icon' in item and (not isinstance(item['icon'], str) or not re.fullmatch('mdi:[a-z0-9-]{1,120}', item['icon'])):
             fail()
         validate_camera(item.get('focusCamera'))
+        if 'backgroundOpacity' in item and not number(item['backgroundOpacity'], 0, 1):
+            fail()
         validate_camera(item.get('followCamera'))
         # 地图贴片：宽深必须为正，rotation 允许 -360~360，opacity 是百分比。
         mapping = item.get('map', {})
@@ -650,6 +1398,7 @@ def validate_config(properties: dict) -> None:
         if item.get('clickAction', 'focus') not in ('focus', 'focus-panel', 'panel'):
             fail()
         # statusSource 的 primaryEntityId 必须落在 metrics 里（除非为空），
+        # 保证被选为主状态的实体确实会渲染到面板上。
         if 'statusSource' in item:
             source = item['statusSource']
             required = {
@@ -664,7 +1413,7 @@ def validate_config(properties: dict) -> None:
                 fail()
             if not text(source['deviceId']) or not source['deviceId'] or not text(source['name']) or source['platform'] not in ('fnos', 'synology_dsm'):
                 fail()
-            if not isinstance(source['primaryEntityId'], str) or (source['primaryEntityId'] != '' and not re.fullmatch('(?:sensor|binary_sensor)\\.[a-z0-9_]+', source['primaryEntityId'])):
+            if not isinstance(source['primaryEntityId'], str) or source['primaryEntityId'] != '' and not re.fullmatch('(?:sensor|binary_sensor)\\.[a-z0-9_]+', source['primaryEntityId']):
                 fail()
             if not isinstance(source['metrics'], list):
                 fail()
@@ -682,7 +1431,7 @@ def validate_config(properties: dict) -> None:
                 metric_ids.add(entity_id)
                 if not text(metric['label']) or metric['group'] not in ('system', 'storage', 'network', 'health') or metric['kind'] not in ('number', 'status', 'problem', 'timestamp'):
                     fail()
-            if (metric_ids and source['primaryEntityId'] not in metric_ids) or (not metric_ids and source['primaryEntityId'] != ''):
+            if metric_ids and source['primaryEntityId'] not in metric_ids or not metric_ids and source['primaryEntityId'] != '':
                 fail()
             # visibleMetrics 是展示白名单：必须是 metrics 的子集且不重复。
             if 'visibleMetrics' in source:
@@ -697,4 +1446,6 @@ def validate_config(properties: dict) -> None:
         if 'icon' in item and (not isinstance(item['icon'], str) or not re.fullmatch('mdi:[a-z0-9][a-z0-9-]{0,119}', item['icon'])):
             fail()
         validate_camera(item.get('focusCamera'))
-    validate_camera(properties.get('camera'))
+    # 顶层默认相机允许历史交互字段，理由见 validate_camera 的说明。
+    validate_camera(properties.get('camera'), allow_legacy_interaction=True)
+    return None

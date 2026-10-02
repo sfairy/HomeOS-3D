@@ -1,273 +1,187 @@
-/**
- * 电视（media_player + 可选电源实体）的状态归一化与控制命令构造：从 HA 实体抽出开关机、
- */
-
-import {
-  entityDomainFromId,
-  finiteNumberOrNull,
-  readFromMapOrRecord,
-  resolveStateEntry,
-  stateTextOf
-} from "../core/static-helpers.js";
-
-type TelevisionItem = {
-  entityId?: string;
-  powerEntityId?: string;
-  label?: string;
-  [key: string]: unknown;
-};
-
-type EntityAttributes = {
-  entity_picture_local?: unknown;
-  entity_picture?: unknown;
-  media_image_url?: unknown;
-  media_duration?: unknown;
-  media_position?: unknown;
-  media_position_updated_at?: unknown;
-  media_content_id?: unknown;
-  media_title?: unknown;
-  media_series_title?: unknown;
-  media_season?: unknown;
-  media_episode?: unknown;
-  media_album_name?: unknown;
-  media_artist?: unknown;
-  app_name?: unknown;
-  source?: unknown;
-  friendly_name?: unknown;
-  supported_features?: unknown;
-  [key: string]: unknown;
-};
-
-type StateObject = {
-  attributes?: EntityAttributes;
-  available?: boolean;
-  state?: unknown;
-  updatedAt?: unknown;
-  last_updated?: unknown;
-  [key: string]: unknown;
-};
-
-/**
- * 从媒体实体属性里挑出可用的封面地址。
- */
-function televisionArtwork(entityAttributes: EntityAttributes = {}): string {
-  // 只接受本机代理地址（/api/media_player_proxy 与 /api/image_proxy）：
-  const candidateUrl = [
-    entityAttributes.entity_picture_local,
-    entityAttributes.entity_picture,
-    entityAttributes.media_image_url
-  ].find(
-    (url): url is string =>
-      typeof url == "string" &&
-      /^\/api\/(?:media_player_proxy|image_proxy)\/[^\s]+$/.test(url)
-  );
-  return candidateUrl || "";
-}
-/**
- * 把 HA 状态归一化成 3D 电视屏幕需要的展示状态。
- */
-export function televisionState(
-  item: TelevisionItem,
-  stateSources: unknown = {},
-  nowMs = Date.now()
+const readEntityState = (stateSource, entityId) =>
+  stateSource instanceof Map ? stateSource.get(entityId) : stateSource?.[entityId];
+export function televisionArtwork(
+  artworkAttributes: {
+    entity_picture_local?: any;
+    entity_picture?: any;
+    media_image_url?: any;
+  } = {},
 ) {
-  const receivedState = readFromMapOrRecord(stateSources, item.entityId || "");
-  const stateObject = (resolveStateEntry(receivedState, {}) || {}) as StateObject;
-  const attributes = stateObject.attributes || {};
-  // 媒体实体缺失时用 unknown 兜底，后面统一按不可用处理。
-  const stateValue = stateTextOf(stateObject) || "unknown";
-  // 媒体侧可用性：绑定了实体、HA 未标记不可用、状态非未知。
-  const mediaAvailable =
-    !!item.entityId &&
-    stateObject.available !== false &&
-    !["unknown", "unavailable", ""].includes(stateValue);
-  const mediaOn = mediaAvailable && !["off", "standby"].includes(stateValue);
-  const powerControl = televisionPower(item, stateSources);
-  // 绑定了独立电源实体时，以电源为准：媒体实体可能整机断电而报 unknown，
-  const available = item.powerEntityId ? powerControl.available : mediaAvailable;
-  const isOn = item.powerEntityId ? powerControl.on : mediaOn;
-  // 已开机但媒体侧没在播：面板显示「空闲」而不是沿用上一首曲目。
-  const idle = isOn && (!mediaOn || ["on", "idle"].includes(stateValue));
-  const duration = finiteNumberOrNull(attributes.media_duration);
-  const reportedPosition = finiteNumberOrNull(attributes.media_position);
-  const positionUpdatedAt = Date.parse(String(attributes.media_position_updated_at || ""));
-  // HA 只在状态变化时上报 media_position，播放期间靠「上报时刻 + 已过时间」推算，
-  const elapsedSeconds =
-    isOn && stateValue === "playing" && Number.isFinite(positionUpdatedAt)
-      ? Math.max(0, (nowMs - positionUpdatedAt) / 1000)
-      : 0;
-  let artworkUrl = isOn && !idle ? televisionArtwork(attributes) : "";
+  return (
+    [
+      artworkAttributes.entity_picture_local,
+      artworkAttributes.entity_picture,
+      artworkAttributes.media_image_url,
+    ].find(
+      (candidateArtworkUrl) =>
+        typeof candidateArtworkUrl == "string" &&
+        /^\/api\/(?:media_player_proxy|image_proxy)\/[^\s]+$/.test(candidateArtworkUrl),
+    ) || ""
+  );
+}
+export function televisionState(televisionConfig, entityStateStore = {}, nowMs = Date.now()) {
+  const stateEntry = readEntityState(entityStateStore, televisionConfig.entityId),
+    entityState = stateEntry?.newState || stateEntry || {},
+    stateAttributes = entityState.attributes || {},
+    normalizedState = String(entityState.state || "unknown").toLowerCase(),
+    isMediaAvailable =
+      !!televisionConfig.entityId &&
+      entityState.available !== false &&
+      !["unknown", "unavailable", ""].includes(normalizedState),
+    isMediaOn = isMediaAvailable && !["off", "standby"].includes(normalizedState),
+    powerState = televisionPower(televisionConfig, entityStateStore),
+    isAvailable = televisionConfig.powerEntityId ? powerState.available : isMediaAvailable,
+    isOn = televisionConfig.powerEntityId ? powerState.on : isMediaOn,
+    isIdle = isOn && (!isMediaOn || ["on", "idle"].includes(normalizedState)),
+    parseFiniteNumber = (rawInput) =>
+      rawInput !== null && rawInput !== "" && Number.isFinite(Number(rawInput))
+        ? Number(rawInput)
+        : null,
+    mediaDurationSeconds = parseFiniteNumber(stateAttributes.media_duration),
+    mediaPositionSeconds = parseFiniteNumber(stateAttributes.media_position),
+    mediaPositionUpdatedAtMs = Date.parse(stateAttributes.media_position_updated_at || ""),
+    mediaPositionElapsedSeconds =
+      isOn && normalizedState === "playing" && Number.isFinite(mediaPositionUpdatedAtMs)
+        ? Math.max(0, (nowMs - mediaPositionUpdatedAtMs) / 1000)
+        : 0;
+  let artworkUrl = isOn && !isIdle ? televisionArtwork(stateAttributes) : "";
   if (artworkUrl) {
-    // 封面地址在同一台电视上往往是固定不变的（代理地址不变，内容却随曲目变），
-    const artworkSignature = JSON.stringify([
-      attributes.media_content_id,
-      attributes.media_title,
-      attributes.media_series_title,
-      attributes.media_season,
-      attributes.media_episode,
-      attributes.media_album_name,
-      attributes.media_artist,
-      attributes.app_name,
-      attributes.source
+    const artworkIdentityJson = JSON.stringify([
+      stateAttributes.media_content_id,
+      stateAttributes.media_title,
+      stateAttributes.media_series_title,
+      stateAttributes.media_season,
+      stateAttributes.media_episode,
+      stateAttributes.media_album_name,
+      stateAttributes.media_artist,
+      stateAttributes.app_name,
+      stateAttributes.source,
     ]);
-    // FNV-1a 32 位哈希：无依赖、够短，只为做缓存区分，不需要抗碰撞。
-    let hash = 2166136261;
-    for (let index = 0; index < artworkSignature.length; index++) {
-      hash = Math.imul(hash ^ artworkSignature.charCodeAt(index), 16777619);
-    }
-    // 用 36 进制压缩哈希长度；地址已带查询串时改用 & 追加。
-    artworkUrl += (artworkUrl.includes("?") ? "&" : "?") + "hb_i3d=" + (hash >>> 0).toString(36);
+    let artworkHash = 2166136261;
+    for (let charIndex = 0; charIndex < artworkIdentityJson.length; charIndex++)
+      artworkHash = Math.imul(artworkHash ^ artworkIdentityJson.charCodeAt(charIndex), 16777619);
+    artworkUrl +=
+      (artworkUrl.includes("?") ? "&" : "?") + "hb_i3d=" + (artworkHash >>> 0).toString(36);
   }
-  const statusLabels: Record<string, string> = {
-    playing: "播放中",
-    paused: "已暂停",
-    buffering: "缓冲中",
-    idle: "空闲",
-    on: "已开启",
-    off: "已关闭",
-    standby: "待机"
-  };
-  // 返回结构是电视屏幕与面板的内部契约；status 是一个优先级链：
   return {
-    state: stateValue,
-    available: available,
+    state: normalizedState,
+    available: isAvailable,
     on: isOn,
-    idle: idle,
-    mediaAvailable: mediaAvailable,
-    playing: isOn && mediaOn && stateValue === "playing",
-    name: item.label || attributes.friendly_name || "电视",
+    idle: isIdle,
+    mediaAvailable: isMediaAvailable,
+    playing: isOn && isMediaOn && normalizedState === "playing",
+    name: televisionConfig.label || stateAttributes.friendly_name || "电视",
     status:
-      !item.entityId && !item.powerEntityId
+      !televisionConfig.entityId && !televisionConfig.powerEntityId
         ? "尚未绑定媒体实体"
-        : available
-          ? !isOn && item.powerEntityId
+        : isAvailable
+          ? !isOn && televisionConfig.powerEntityId
             ? "电视已关闭"
-            : isOn && !mediaOn
+            : isOn && !isMediaOn
               ? "已开启"
-              : statusLabels[stateValue] || stateValue
+              : {
+                  playing: "播放中",
+                  paused: "已暂停",
+                  buffering: "缓冲中",
+                  idle: "空闲",
+                  on: "已开启",
+                  off: "已关闭",
+                  standby: "待机",
+                }[normalizedState] || normalizedState
           : "设备不可用",
-    title: idle
+    title: isIdle
       ? "暂无播放内容"
       : String(
-          attributes.media_title ||
-            attributes.media_series_title ||
-            attributes.app_name ||
-            attributes.source ||
-            "暂无播放内容"
+          stateAttributes.media_title ||
+            stateAttributes.media_series_title ||
+            stateAttributes.app_name ||
+            stateAttributes.source ||
+            "暂无播放内容",
         ),
-    app: String(attributes.app_name || attributes.source || ""),
-    artist: String(attributes.media_artist || ""),
+    app: String(stateAttributes.app_name || stateAttributes.source || ""),
+    artist: String(stateAttributes.media_artist || ""),
     artwork: artworkUrl,
-    // duration 为 0 或负数时视为「无时长」，后面进度条据此走未知态。
-    duration: duration !== null && duration > 0 ? duration : null,
-    // 进度上界取时长；时长未知时用 Infinity 兜底，只保证下界不小于 0。
+    duration: mediaDurationSeconds > 0 ? mediaDurationSeconds : null,
     position:
-      reportedPosition !== null
+      mediaPositionSeconds !== null
         ? Math.min(
-            duration !== null && duration > 0 ? duration : Infinity,
-            Math.max(0, reportedPosition + elapsedSeconds)
+            mediaDurationSeconds > 0 ? mediaDurationSeconds : Infinity,
+            Math.max(0, mediaPositionSeconds + mediaPositionElapsedSeconds),
           )
         : null,
-    updated: stateObject.updatedAt || stateObject.last_updated || ""
+    updated: entityState.updatedAt || entityState.last_updated || "",
   };
 }
-/**
- * 把秒数格式化成 m:ss。
- */
-export function televisionTime(seconds: number) {
-  if (!Number.isFinite(seconds)) {
-    return "—";
-  }
-  const totalSeconds = Math.max(0, Math.floor(seconds));
-  return Math.floor(totalSeconds / 60) + ":" + String(totalSeconds % 60).padStart(2, "0");
+export function televisionTime(totalSeconds) {
+  if (!Number.isFinite(totalSeconds)) return "—";
+  const wholeSeconds = Math.max(0, Math.floor(totalSeconds));
+  return Math.floor(wholeSeconds / 60) + ":" + String(wholeSeconds % 60).padStart(2, "0");
 }
-/**
- * 归一化电视的电源状态并生成开关机命令。
- */
-export function televisionPower(
-  powerItem: TelevisionItem,
-  powerStates: unknown = {},
-  desiredOn?: boolean
-) {
-  // 允许「电源就是媒体播放器自身」的简化配置。
-  const powerEntityId = powerItem.powerEntityId || powerItem.entityId || "";
-  const domain = entityDomainFromId(powerEntityId);
-  const powerState = readFromMapOrRecord(powerStates, powerEntityId);
-  const powerStateObject = (resolveStateEntry(powerState, {}) || {}) as StateObject;
-  const powerAvailable =
-    !!powerEntityId &&
-    powerStateObject.available !== false &&
-    typeof powerStateObject.state == "string" &&
-    !["unknown", "unavailable", ""].includes(powerStateObject.state);
-  // standby 在本项目里等同于关机，与电视遥控器的语义一致。
-  const powerOn =
-    powerAvailable &&
-    typeof powerStateObject.state === "string" &&
-    !["off", "standby"].includes(powerStateObject.state);
-  const turnOn = typeof desiredOn == "boolean" ? desiredOn : !powerOn;
-  const service = turnOn ? "turn_on" : "turn_off";
-  const supportedFeatures = Number(powerStateObject.attributes?.supported_features) || 0;
-  // switch 域必然支持开关；media_player 则要看能力位：128=开机、256=关机。
-  const supported =
-    domain === "switch" ||
-    (domain === "media_player" && !!(supportedFeatures & (turnOn ? 128 : 256)));
+export function televisionPower(powerConfig, powerStateStore = {}, desiredOn = undefined) {
+  const targetEntityId = powerConfig.powerEntityId || powerConfig.entityId || "",
+    entityDomain = targetEntityId.split(".")[0],
+    powerStateEntry = readEntityState(powerStateStore, targetEntityId),
+    powerEntityState = powerStateEntry?.newState || powerStateEntry || {},
+    isPowerAvailable =
+      !!targetEntityId &&
+      powerEntityState.available !== false &&
+      typeof powerEntityState.state == "string" &&
+      !["unknown", "unavailable", ""].includes(powerEntityState.state),
+    isPowerOn = isPowerAvailable && !["off", "standby"].includes(powerEntityState.state),
+    shouldTurnOn = typeof desiredOn == "boolean" ? desiredOn : !isPowerOn,
+    powerService = shouldTurnOn ? "turn_on" : "turn_off",
+    powerSupportedFeatures = Number(powerEntityState.attributes?.supported_features) || 0,
+    canTogglePower =
+      entityDomain === "switch" ||
+      (entityDomain === "media_player" && !!(powerSupportedFeatures & (shouldTurnOn ? 128 : 256)));
   return {
-    entityId: powerEntityId,
-    domain: domain,
-    on: powerOn,
-    available: powerAvailable,
-    supported: supported,
-    service: service,
-    reason: powerAvailable ? (supported ? "" : "此实体不支持开关机") : "电源状态不可用",
+    entityId: targetEntityId,
+    domain: entityDomain,
+    on: isPowerOn,
+    available: isPowerAvailable,
+    supported: canTogglePower,
+    service: powerService,
+    reason: isPowerAvailable ? (canTogglePower ? "" : "此实体不支持开关机") : "电源状态不可用",
     command: {
-      entityId: powerEntityId,
-      domain: domain,
-      service: service,
+      entityId: targetEntityId,
+      domain: entityDomain,
+      service: powerService,
       data: {},
-      deviceKind: "television"
-    }
+      deviceKind: "television",
+    },
   };
 }
-/**
- * 生成媒体控制（上一曲 / 下一曲 / 播放暂停）命令。
- */
-export function televisionMediaControl(
-  mediaItem: TelevisionItem,
-  mediaStates: unknown,
-  action: string
-) {
-  const mediaState = readFromMapOrRecord(mediaStates, mediaItem.entityId || "");
-  const mediaStateObject = (resolveStateEntry(mediaState, {}) || {}) as StateObject;
-  const mediaPlayerState = televisionState(mediaItem, mediaStates);
-  const mediaSupportedFeatures = Number(mediaStateObject.attributes?.supported_features) || 0;
-  const mediaService =
-    action === "previous"
-      ? "media_previous_track"
-      : action === "next"
-        ? "media_next_track"
-        : mediaPlayerState.playing
-          ? "media_pause"
-          : "media_play";
-  // 每个服务对应的能力位（HA MediaPlayerEntityFeature）：
-  const requiredFeature = {
-    media_previous_track: 16,
-    media_next_track: 32,
-    media_pause: 1,
-    media_play: 16384
-  }[mediaService];
+export function televisionMediaControl(mediaConfig, mediaStateStore, mediaAction) {
+  const mediaStateEntry = readEntityState(mediaStateStore, mediaConfig.entityId),
+    mediaEntityState = mediaStateEntry?.newState || mediaStateEntry || {},
+    televisionSnapshot = televisionState(mediaConfig, mediaStateStore),
+    mediaSupportedFeatures = Number(mediaEntityState.attributes?.supported_features) || 0,
+    mediaService =
+      mediaAction === "previous"
+        ? "media_previous_track"
+        : mediaAction === "next"
+          ? "media_next_track"
+          : televisionSnapshot.playing
+            ? "media_pause"
+            : "media_play",
+    requiredFeatureMask = {
+      media_previous_track: 16,
+      media_next_track: 32,
+      media_pause: 1,
+      media_play: 16384,
+    }[mediaService];
   return {
-    // 三重前置条件：电视已开机、媒体实体可用、且实体声明了对应能力位。
     enabled:
-      mediaPlayerState.on &&
-      mediaPlayerState.mediaAvailable &&
-      !["off", "standby"].includes(mediaPlayerState.state) &&
-      !!(mediaSupportedFeatures & (requiredFeature || 0)),
+      televisionSnapshot.on &&
+      televisionSnapshot.mediaAvailable &&
+      !["off", "standby"].includes(televisionSnapshot.state) &&
+      !!(mediaSupportedFeatures & requiredFeatureMask),
     command: {
       domain: "media_player",
-      entityId: mediaItem.entityId,
+      entityId: mediaConfig.entityId,
       service: mediaService,
       data: {},
-      deviceKind: "television"
-    }
+      deviceKind: "television",
+    },
   };
 }

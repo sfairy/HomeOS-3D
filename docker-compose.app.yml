@@ -25,6 +25,11 @@ services:
       APP_DATA_DIR: /data
       APP_PORT: "8801"
       APP_BASE_URL: ${APP_BASE_URL:-}
+      # 商店的**浏览器入口**（登录页「忘记密码」与授权对话框「前往商店」按它跳转）。
+      # 留空 = 出厂默认的厂商公网商店 https://pay.homeos.cn；自托管填客户端浏览器打得开的
+      # 地址（http://<商店IP>:8802 或反代域名）。与下面出站用的 APP_LICENSE_SERVER_URL 不同：
+      # 那条默认是 127.0.0.1，客户端浏览器点不动。
+      APP_STORE_URL: ${APP_STORE_URL:-}
       APP_COOKIE_SECURE: ${APP_COOKIE_SECURE:-false}
       # 应用自身的可信代理网段：只有同容器回环上的内置反代能作为对端，故固定收敛到回环。
       # 放宽到 docker 网段等于让同网段任何容器都能伪造来源 IP（限流与审计会一起失效）。

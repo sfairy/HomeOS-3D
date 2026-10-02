@@ -1,13 +1,29 @@
+# HomeOS 主应用运行时依赖。
+#
+# 依 import 实扫得出（backend/src/**/*.py 的第三方 import）：
+#   fastapi / starlette   HTTP 框架与 ASGI 基元
+#   uvicorn               ASGI 服务器（ops/start.py 与镜像入口都用它拉起 backend.src.main:app）
+#   sqlalchemy            ORM 与连接池
+#   alembic               数据库迁移（migrations/ + backend/src/migrations.py）
+#   pydantic              请求/响应模型与面板 schema
+#   cryptography          HA 凭据加密、授权签名验签
+#   argon2-cffi           管理员密码哈希（backend/src/security.py）
+#   httpx                 HA REST/WebSocket 握手、授权商店调用、更新检查
+#   websockets            HA 实时状态订阅
+#   Pillow                图片素材缩放与缩略图（api/assets.py、interaction3d/render_cache.py）
+#   python-multipart      FastAPI 解析上传表单（素材 / 户型包）
+#   anyio                 api/ha.py 的跨线程调度
 fastapi>=0.141
 uvicorn>=0.53
 sqlalchemy>=2.0.36
 alembic>=1.20
+pydantic>=2.13
 cryptography>=50
 argon2-cffi>=25.1
-pydantic>=2.13
 httpx>=0.28
 websockets>=17
 Pillow>=12
 python-multipart>=0.0.32
-# 本地热重载：ops/start.py / uvicorn reload 用；镜像构建可不依赖。
+anyio>=4.6
+# 本地热重载：ops/start.py 启 uvicorn --reload 时用；镜像构建可不依赖。
 watchfiles>=1.2

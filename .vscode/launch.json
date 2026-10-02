@@ -1,0 +1,77 @@
+{
+  // 调试与热重载并存的两条路，原理都写在 ops/start.py 的 debugpy_prefix() 注释里：
+  //
+  // 1) 「全栈（断点 + 热重载）」走 launch：调试器带 subProcess=true 起 ops/start.py，
+  //    debugpy 会 patch multiprocessing 与 subprocess._fork_exec，于是它拉起的两个后端
+  //    ——包括 uvicorn --reload / STORE_RELOAD 重载出来的子进程——都自动连回本会话。
+  //    这是首选：不需要给 venv 装 debugpy，也不用手工 attach。
+  //
+  // 2) 「attach」那几条是给「服务已经在终端里跑着（python3 ops/start.py --debug）」用的，
+  //    端口见 ops/start.py 的 DEBUG_APP_PORT / DEBUG_STORE_PORT。
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // 改 Python 后 uvicorn 会重载，重载出的新进程仍受调试，断点不会因为重载而失效。
+      "name": "HomeOS 全栈（断点 + 热重载）",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/ops/start.py",
+      "python": "${workspaceFolder}/.venv-store/bin/python",
+      "windows": {
+        "python": "${workspaceFolder}\\.venv-store\\Scripts\\python.exe"
+      },
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      // 关键开关：少了它，ops/start.py 用 subprocess.Popen 拉起的两个后端不会被调试。
+      "subProcess": true,
+      "preLaunchTask": "HomeOS：准备 Python 环境"
+    },
+    {
+      // 不起 Vite，只调试两个后端。等价于 python3 ops/start.py --backend-only。
+      "name": "HomeOS 仅后端（断点 + 热重载）",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/ops/start.py",
+      "args": ["--backend-only"],
+      "python": "${workspaceFolder}/.venv-store/bin/python",
+      "windows": {
+        "python": "${workspaceFolder}\\.venv-store\\Scripts\\python.exe"
+      },
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "subProcess": true,
+      "preLaunchTask": "HomeOS：准备 Python 环境"
+    },
+    {
+      // 先在终端执行：python3 ops/start.py --debug
+      "name": "主应用后端（attach 8803）",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "127.0.0.1",
+        "port": 8803
+      },
+      "justMyCode": false
+    },
+    {
+      // 先在终端执行：python3 ops/start.py --debug
+      "name": "授权商店后端（attach 8804）",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "127.0.0.1",
+        "port": 8804
+      },
+      "justMyCode": false
+    }
+  ],
+  "compounds": [
+    {
+      // 一条命令吃掉两个 attach；前提同上：python3 ops/start.py --debug 已在跑。
+      "name": "两个后端（attach 8803 + 8804）",
+      "configurations": ["主应用后端（attach 8803）", "授权商店后端（attach 8804）"]
+    }
+  ]
+}

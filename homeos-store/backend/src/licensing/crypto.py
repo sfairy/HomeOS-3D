@@ -35,19 +35,27 @@ class LicenseServerError(Exception):
         status_code: int = 400,
         revoked: bool = False,
         retry_after: float | None = None,
+        code: str | None = None,
     ) -> None:
         super().__init__(detail)
         self.detail = detail
         self.status_code = status_code
         self.revoked = revoked
         self.retry_after = retry_after
+        self.code = code
 
     def as_body(self) -> dict[str, object]:
-        """明文错误体：detail 给人看；revoked/code 给客户端做结构化吊销判定。"""
+        """明文错误体：detail 给人看；revoked/code 给客户端做结构化判定。
+
+        ``code`` 让客户端不必猜中文文案：``REVOKED`` 是「这份授权没了」，
+        ``BINDING_RELEASED`` 是「这台机器不再绑在这份授权上，重新激活即可」。
+        两者 revoked 都为真（客户端都该立刻停止自动恢复），但下一步动作不同 ——
+        混成一句「请联系管理员」会让只是被解绑的用户白等一个不会来的管理员。
+        """
         body: dict[str, object] = {"detail": self.detail}
         if self.revoked:
             body["revoked"] = True
-            body["code"] = "REVOKED"
+            body["code"] = self.code or "REVOKED"
         return body
 
 

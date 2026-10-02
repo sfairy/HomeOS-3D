@@ -13,7 +13,9 @@ import tempfile
 from pathlib import Path
 
 EXT_SUFFIX = sysconfig.get_config_var("EXT_SUFFIX") or ".so"
-KEEP_SOURCE_PREFIXES = ("db/",)
+#: 迁移脚本目录按源码保留，不编译：alembic 是**读源码文件**来执行的，编译成 .so 之后它
+#: 反而找不到脚本。两个应用的目录名不同 —— 主应用是项目根 ``migrations/``，商店是 ``db/``。
+KEEP_SOURCE_PREFIXES = ("db/", "migrations/")
 COMPILER_DIRECTIVES = {
     "language_level": "3",
     # 关掉「用注解当类型」：本项目的注解是 PEP 563 之后的普通标注，交给 Cython 解析
@@ -173,7 +175,7 @@ def compile_tree(root: Path, jobs: int | None = None) -> None:
         generated.unlink(missing_ok=True)
 
     count = _verify(root, sources)
-    print(f"完成：编译 {count} 个模块为原生扩展（{EXT_SUFFIX}），db/migrations 保留源码", flush=True)
+    print(f"完成：编译 {count} 个模块为原生扩展（{EXT_SUFFIX}），迁移脚本目录保留源码", flush=True)
 
 
 def main() -> None:

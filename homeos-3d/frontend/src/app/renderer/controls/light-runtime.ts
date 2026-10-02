@@ -1,102 +1,222 @@
-/**
- * 灯光控件的纯计算层：能力探测、颜色空间转换、服务数据拼装与预设确认状态机。
- */
-
-
-import { entityDomainFromId } from "../../utils/entities.js";
-// 「属性里有没有可用数值」的唯一口径（空串 / 布尔算缺失）：与特效层共用同一份实现。
-import { isUsableNumber } from "../../utils/numbers.js";
-import { resolveStateEntry } from "../../utils/state-entry.js";
-
-/**
- * 把 0~100 的相对色温百分比换算成开尔文。
- * @returns {number} 开尔文值；区间非法时回落到最低色温，最低色温也不可用时用 2700（常见暖白默认值）。
- */
-export function relativeLightColorTemperature(minimumKelvin: any, maximumKelvin: any, relativePercent: any) {
-  const parsedMinimumKelvin = Number(minimumKelvin);
-  const parsedMaximumKelvin = Number(maximumKelvin);
-  // 先把百分比夹到 0~100 再归一：滑块越界或属性缺失时不会算出区间外的色温。
-  const relativeRatio = Math.max(0, Math.min(100, Number(relativePercent) || 0)) / 100;
-  if (
-    !Number.isFinite(parsedMinimumKelvin) ||
+import type { HaEntityAttributes, HaEntityState } from "@app/utils/ha-entity";
+export function relativeLightColorTemperature(minimumKelvin, maximumKelvin, relativePercent) {
+  const parsedMinimumKelvin = Number(minimumKelvin),
+    parsedMaximumKelvin = Number(maximumKelvin),
+    relativeRatio = Math.max(0, Math.min(100, Number(relativePercent) || 0)) / 100;
+  return !Number.isFinite(parsedMinimumKelvin) ||
     !Number.isFinite(parsedMaximumKelvin) ||
     parsedMaximumKelvin <= parsedMinimumKelvin
-  ) {
-    // 上界缺失或区间反转时只能给一个值，选最低色温即「最暖」，视觉上最不易出错。
-    if (Number.isFinite(parsedMinimumKelvin)) {
-      return parsedMinimumKelvin;
-    } else {
-      return 2700;
-    }
-  } else {
-    return parsedMinimumKelvin + (parsedMaximumKelvin - parsedMinimumKelvin) * relativeRatio;
-  }
+    ? Number.isFinite(parsedMinimumKelvin)
+      ? parsedMinimumKelvin
+      : 2700
+    : parsedMinimumKelvin + (parsedMaximumKelvin - parsedMinimumKelvin) * relativeRatio;
 }
-/**
- * @param {*} fallbackValue 不可用时的兜底值。
- */
 export function lightVisualValueForCapability(
-  isCapabilitySupported: any,
-  capabilityValue: any,
-  fallbackValue: any
+  isCapabilitySupported,
+  capabilityValue,
+  fallbackValue,
 ) {
   const numericCapabilityValue = Number(capabilityValue);
-  if (isCapabilitySupported && Number.isFinite(numericCapabilityValue)) {
-    return numericCapabilityValue;
-  } else {
-    return Number(fallbackValue);
-  }
+  return isCapabilitySupported && Number.isFinite(numericCapabilityValue)
+    ? numericCapabilityValue
+    : Number(fallbackValue);
 }
-const COLOR_CAPABLE_MODES_SET = new Set(["hs", "rgb", "rgbw", "rgbww", "xy"]);
-/**
- * 归一化 supported_color_modes：统一小写去空格并丢掉空项。
- */
-function resolveSupportedColorModes(attributes: any = {}) {
+const colorModeSet = new Set(["hs", "rgb", "rgbw", "rgbww", "xy"]);
+function resolveSupportedColorModes(attributes: HaEntityAttributes = {}) {
   const normalizedColorModes = Array.isArray(attributes?.supported_color_modes)
     ? attributes.supported_color_modes
-        .map((declaredMode: any) =>
+        .map((declaredMode) =>
           String(declaredMode || "")
             .trim()
-            .toLowerCase()
+            .toLowerCase(),
         )
         .filter(Boolean)
     : [];
-  if (normalizedColorModes.length) {
-    return normalizedColorModes;
-  } else if (Array.isArray(attributes?.hs_color) || Array.isArray(attributes?.rgb_color)) {
-    return ["hs"];
-  } else {
-    return normalizedColorModes;
-  }
+  return normalizedColorModes.length
+    ? normalizedColorModes
+    : lightColorHs(attributes)
+      ? ["hs"]
+      : normalizedColorModes;
 }
-/**
- * 判断灯是否支持彩色（而非仅明暗 / 冷暖）。
- */
-export function lightSupportsColor(entityAttributes: any = {}) {
-  return resolveSupportedColorModes(entityAttributes).some((colorMode: any) =>
-    COLOR_CAPABLE_MODES_SET.has(colorMode)
+const isByteChannelArray = (channelArray, expectedLength) =>
+  Array.isArray(channelArray) &&
+  channelArray.length === expectedLength &&
+  channelArray.every(
+    (channelByte) =>
+      typeof channelByte == "number" &&
+      Number.isFinite(channelByte) &&
+      channelByte >= 0 &&
+      channelByte <= 255,
+  );
+export function lightKelvinRgb(kelvinValue) {
+  const scaledKelvin = Math.max(1000, Math.min(40000, Number(kelvinValue) || 2700)) / 100;
+  return [
+    scaledKelvin <= 66 ? 255 : 329.698727446 * (scaledKelvin - 60) ** -0.1332047592,
+    scaledKelvin <= 66
+      ? 99.4708025861 * Math.log(scaledKelvin) - 161.1195681661
+      : 288.1221695283 * (scaledKelvin - 60) ** -0.0755148492,
+    scaledKelvin >= 66
+      ? 255
+      : scaledKelvin <= 19
+        ? 0
+        : 138.5177312231 * Math.log(scaledKelvin - 10) - 305.0447927307,
+  ].map((clampedChannel) => Math.max(0, Math.min(255, clampedChannel)));
+}
+export function lightColorRgb(colorAttributes: HaEntityAttributes = {}) {
+  const colorState = colorAttributes,
+    colorMode = colorState.color_mode;
+  if (colorMode === "white") return [255, 255, 255];
+  if (["color_temp", "onoff", "brightness", "unknown"].includes(colorMode)) return null;
+  const resolveHsColor = () =>
+      Array.isArray(colorState.hs_color) &&
+      colorState.hs_color.length === 2 &&
+      colorState.hs_color.every(
+        (hsColorComponent) =>
+          typeof hsColorComponent == "number" && Number.isFinite(hsColorComponent),
+      )
+        ? hsToRgbColor(colorState.hs_color)
+        : null,
+    resolveRgbColor = () =>
+      isByteChannelArray(colorState.rgb_color, 3) ? [...colorState.rgb_color] : null,
+    resolveRgbwColor = (colorAttributeName, componentCount) => {
+      if (!isByteChannelArray(colorState[colorAttributeName], componentCount)) return null;
+      const rawColorComponents = colorState[colorAttributeName];
+      let baseChannels = [rawColorComponents[3], rawColorComponents[3], rawColorComponents[3]];
+      if (componentCount === 5) {
+        const [firstWhiteChannel, secondWhiteChannel] = rawColorComponents.slice(3),
+          minimumColorTemperatureKelvin = Number(colorState.min_color_temp_kelvin) || 2700,
+          maximumColorTemperatureKelvin = Number(colorState.max_color_temp_kelvin) || 6500,
+          whiteMixRatio =
+            firstWhiteChannel + secondWhiteChannel
+              ? secondWhiteChannel / (firstWhiteChannel + secondWhiteChannel)
+              : 0.5,
+          interpolatedKelvin =
+            1000000 /
+            (1000000 / maximumColorTemperatureKelvin +
+              whiteMixRatio *
+                (1000000 / minimumColorTemperatureKelvin -
+                  1000000 / maximumColorTemperatureKelvin));
+        baseChannels = lightKelvinRgb(interpolatedKelvin).map(
+          (kelvinChannel) =>
+            (kelvinChannel * Math.max(firstWhiteChannel, secondWhiteChannel)) / 255,
+        );
+      }
+      const combinedChannels = rawColorComponents
+          .slice(0, 3)
+          .map((baseChannel, channelIndex) => baseChannel + baseChannels[channelIndex]),
+        channelScale = Math.max(...combinedChannels)
+          ? Math.max(...rawColorComponents) / Math.max(...combinedChannels)
+          : 0;
+      return combinedChannels.map((scaledChannel) => Math.round(scaledChannel * channelScale));
+    },
+    resolveXyColor = () => {
+      if (
+        !Array.isArray(colorState.xy_color) ||
+        colorState.xy_color.length !== 2 ||
+        !colorState.xy_color.every(
+          (xyComponent) => typeof xyComponent == "number" && Number.isFinite(xyComponent),
+        )
+      )
+        return null;
+      const [chromaticityX, chromaticityY] = colorState.xy_color;
+      if (chromaticityX < 0 || chromaticityY <= 0 || chromaticityX + chromaticityY > 1.00001)
+        return null;
+      const chromaticityRatioX = chromaticityX / chromaticityY,
+        chromaticityRatioY = (1 - chromaticityX - chromaticityY) / chromaticityY,
+        linearRgbChannels = [
+          1.656492 * chromaticityRatioX - 0.354851 - 0.255038 * chromaticityRatioY,
+          -0.707196 * chromaticityRatioX + 1.655397 + 0.036152 * chromaticityRatioY,
+          0.051713 * chromaticityRatioX - 0.121364 + 1.01153 * chromaticityRatioY,
+        ].map((linearChannel) =>
+          linearChannel <= 0.0031308
+            ? Math.max(0, linearChannel) * 12.92
+            : 1.055 * Math.pow(linearChannel, 1 / 2.4) - 0.055,
+        ),
+        componentMaximum = Math.max(...linearRgbChannels, 1);
+      return linearRgbChannels.map((normalizedChannel) =>
+        Math.round((normalizedChannel / componentMaximum) * 255),
+      );
+    };
+  return colorMode === "hs"
+    ? resolveHsColor() || resolveRgbColor()
+    : colorMode === "xy"
+      ? resolveRgbColor() || resolveXyColor() || resolveHsColor()
+      : colorMode === "rgbw"
+        ? resolveRgbColor() || resolveRgbwColor("rgbw_color", 4) || resolveHsColor()
+        : colorMode === "rgbww"
+          ? resolveRgbColor() || resolveRgbwColor("rgbww_color", 5) || resolveHsColor()
+          : colorMode === "rgb"
+            ? resolveRgbColor() || resolveHsColor()
+            : resolveRgbColor() ||
+              resolveRgbwColor("rgbw_color", 4) ||
+              resolveRgbwColor("rgbww_color", 5) ||
+              resolveHsColor() ||
+              resolveXyColor();
+}
+export function lightColorHs(hsAttributes: HaEntityAttributes = {}) {
+  if (
+    (!hsAttributes.color_mode || hsAttributes.color_mode === "hs") &&
+    Array.isArray(hsAttributes.hs_color) &&
+    hsAttributes.hs_color.length === 2 &&
+    hsAttributes.hs_color.every(
+      (hsPairComponent) => typeof hsPairComponent == "number" && Number.isFinite(hsPairComponent),
+    )
+  )
+    return [
+      ((hsAttributes.hs_color[0] % 360) + 360) % 360,
+      Math.max(0, Math.min(100, hsAttributes.hs_color[1])),
+    ];
+  const computedRgbColor = lightColorRgb(hsAttributes);
+  return computedRgbColor ? rgbToHsColor(computedRgbColor) : null;
+}
+export function lightControlModes(modeAttributes = {}) {
+  const resolvedColorModes = resolveSupportedColorModes(modeAttributes);
+  return [
+    ...(resolvedColorModes.some((colorModeName) => colorModeSet.has(colorModeName))
+      ? ["color"]
+      : []),
+    ...(resolvedColorModes.includes("color_temp") ? ["temperature"] : []),
+    ...(resolvedColorModes.includes("white") ? ["white"] : []),
+  ];
+}
+export function lightControlMode(reportedColorMode, availableModes) {
+  const normalizedControlMode =
+    reportedColorMode === "color_temp"
+      ? "temperature"
+      : reportedColorMode === "white"
+        ? "white"
+        : "color";
+  return availableModes.includes(normalizedControlMode)
+    ? normalizedControlMode
+    : availableModes[0] || "temperature";
+}
+export function lightSupportsColor(entityAttributes: HaEntityAttributes = {}) {
+  return resolveSupportedColorModes(entityAttributes).some((supportedColorMode) =>
+    colorModeSet.has(supportedColorMode),
   );
 }
-/**
- * 探测灯在实时状态下的可调能力。
- */
-export function lightRealtimeCapabilities(entityId: any = "", entityState: any = {}) {
-  const stateObject: any = resolveStateEntry(entityState, {});
-  const stateAttributes = stateObject?.attributes || {};
-  const isLightEntity =
-    entityDomainFromId(entityId || stateObject.entityId || stateObject.domain) === "light";
-  const declaredColorModes = Array.isArray(stateAttributes.supported_color_modes)
-    ? stateAttributes.supported_color_modes
-    : [];
-  const supportedFeatures = Number(stateAttributes.supported_features || 0);
-  // 判断某属性是否已上报可用数值。口径统一在 utils/numbers.js 的 isUsableNumber：
-  const hasNumericAttribute = (attributeName: any) =>
-    isUsableNumber(stateAttributes[attributeName]);
+export function lightRealtimeCapabilities(
+  entityId = "",
+  entityState: HaEntityState = {},
+) {
+  const stateObject = entityState?.newState || entityState || {},
+    stateAttributes = stateObject?.attributes || {},
+    isLightEntity =
+      String(entityId || stateObject.entityId || stateObject.domain || "").split(".", 1)[0] ===
+      "light",
+    declaredColorModes = Array.isArray(stateAttributes.supported_color_modes)
+      ? stateAttributes.supported_color_modes
+      : [],
+    supportedFeatures = Number(stateAttributes.supported_features || 0),
+    hasNumericAttribute = (attributeName) =>
+      stateAttributes[attributeName] !== null &&
+      stateAttributes[attributeName] !== undefined &&
+      Number.isFinite(Number(stateAttributes[attributeName]));
   return {
     brightness:
       isLightEntity &&
       (hasNumericAttribute("brightness") ||
-        declaredColorModes.some((supportedMode: any) => supportedMode !== "onoff") ||
+        declaredColorModes.some((supportedMode) => supportedMode !== "onoff") ||
         (supportedFeatures & 1) === 1),
     colorTemperature:
       isLightEntity &&
@@ -105,190 +225,141 @@ export function lightRealtimeCapabilities(entityId: any = "", entityState: any =
         hasNumericAttribute("min_color_temp_kelvin") ||
         hasNumericAttribute("max_color_temp_kelvin") ||
         hasNumericAttribute("color_temp") ||
-        (supportedFeatures & 2) === 2)
+        (supportedFeatures & 2) === 2),
   };
 }
-/**
- * RGB 转 HS。
- */
-export function rgbToHsColor(rgbColor: any) {
-  if (!Array.isArray(rgbColor) || rgbColor.length < 3) {
-    return null;
-  }
+export function rgbToHsColor(rgbColor) {
+  if (!Array.isArray(rgbColor) || rgbColor.length < 3) return null;
   const normalizedChannels = rgbColor
-    .slice(0, 3)
-    .map((channelValue: any) => Math.max(0, Math.min(255, Number(channelValue) || 0)) / 255);
-  const maximumChannel = Math.max(...normalizedChannels);
-  const minimumChannel = Math.min(...normalizedChannels);
-  const channelRange = maximumChannel - minimumChannel;
+      .slice(0, 3)
+      .map((channelValue) => Math.max(0, Math.min(255, Number(channelValue) || 0)) / 255),
+    maximumChannel = Math.max(...normalizedChannels),
+    minimumChannel = Math.min(...normalizedChannels),
+    channelRange = maximumChannel - minimumChannel;
   let hueDegrees = 0;
-  if (channelRange > 0) {
-    // 标准 HSV 六段色相公式：按最大分量落在哪个通道决定用哪一段。
-    if (maximumChannel === normalizedChannels[0]) {
-      hueDegrees = (((normalizedChannels[1] - normalizedChannels[2]) / channelRange) % 6) * 60;
-    } else if (maximumChannel === normalizedChannels[1]) {
-      hueDegrees = ((normalizedChannels[2] - normalizedChannels[0]) / channelRange + 2) * 60;
-    } else {
-      hueDegrees = ((normalizedChannels[0] - normalizedChannels[1]) / channelRange + 4) * 60;
-    }
-  }
-  if (hueDegrees < 0) {
-    hueDegrees += 360;
-  }
+  (channelRange > 0 &&
+    (maximumChannel === normalizedChannels[0]
+      ? (hueDegrees = 60 * (((normalizedChannels[1] - normalizedChannels[2]) / channelRange) % 6))
+      : maximumChannel === normalizedChannels[1]
+        ? (hueDegrees = 60 * ((normalizedChannels[2] - normalizedChannels[0]) / channelRange + 2))
+        : (hueDegrees = 60 * ((normalizedChannels[0] - normalizedChannels[1]) / channelRange + 4))),
+    hueDegrees < 0 && (hueDegrees += 360));
   const saturationRatio = maximumChannel <= 0 ? 0 : channelRange / maximumChannel;
   return [hueDegrees, saturationRatio * 100];
 }
-/**
- * HS 转 RGB。
- */
-export function hsToRgbColor(hsColor: any) {
-  if (!Array.isArray(hsColor) || hsColor.length < 2) {
-    return null;
-  }
-  // 双取模再加 360 取模，负数色相也能落到 0~360。
-  const normalizedHue = (((Number(hsColor[0]) || 0) % 360) + 360) % 360;
-  const normalizedSaturation = Math.max(0, Math.min(100, Number(hsColor[1]) || 0)) / 100;
-  const maximumValue = 1;
-  // 标准 HSV → RGB：chroma 为最大与最小分量之差，secondaryComponent 是次大分量。
-  const chroma = maximumValue * normalizedSaturation;
-  const hueSector = normalizedHue / 60;
-  const secondaryComponent = chroma * (1 - Math.abs((hueSector % 2) - 1));
-  const minimumValue = maximumValue - chroma;
-  const [redComponent, greenComponent, blueComponent] =
-    hueSector < 1
-      ? [chroma, secondaryComponent, 0]
-      : hueSector < 2
-        ? [secondaryComponent, chroma, 0]
-        : hueSector < 3
-          ? [0, chroma, secondaryComponent]
-          : hueSector < 4
-            ? [0, secondaryComponent, chroma]
-            : hueSector < 5
-              ? [secondaryComponent, 0, chroma]
-              : [chroma, 0, secondaryComponent];
-  return [redComponent, greenComponent, blueComponent].map((componentValue: any) =>
-    Math.round((componentValue + minimumValue) * 255)
+export function hsToRgbColor(hsColor) {
+  if (!Array.isArray(hsColor) || hsColor.length < 2) return null;
+  const normalizedHue = (((Number(hsColor[0]) || 0) % 360) + 360) % 360,
+    normalizedSaturation = Math.max(0, Math.min(100, Number(hsColor[1]) || 0)) / 100,
+    maximumValue = 1,
+    chroma = maximumValue * normalizedSaturation,
+    hueSector = normalizedHue / 60,
+    secondaryComponent = chroma * (1 - Math.abs((hueSector % 2) - 1)),
+    minimumValue = maximumValue - chroma,
+    [redComponent, greenComponent, blueComponent] =
+      hueSector < 1
+        ? [chroma, secondaryComponent, 0]
+        : hueSector < 2
+          ? [secondaryComponent, chroma, 0]
+          : hueSector < 3
+            ? [0, chroma, secondaryComponent]
+            : hueSector < 4
+              ? [0, secondaryComponent, chroma]
+              : hueSector < 5
+                ? [secondaryComponent, 0, chroma]
+                : [chroma, 0, secondaryComponent];
+  return [redComponent, greenComponent, blueComponent].map((componentValue) =>
+    Math.round((componentValue + minimumValue) * 255),
   );
 }
-/**
- * 拾色盘点击坐标 → HS。
- */
-export function lightColorPickerHsFromPoint(normalizedX: any, normalizedY: any) {
-  const clampedX = Math.max(0, Math.min(1, Number(normalizedX) || 0));
-  const clampedY = Math.max(0, Math.min(1, Number(normalizedY) || 0));
-  const offsetX = clampedX - 0.5;
-  const offsetY = clampedY - 0.5;
-  const radiusRatio = Math.min(1, Math.hypot(offsetX / 0.36, offsetY / 0.36));
+export function lightColorPickerHsFromPoint(normalizedX, normalizedY, aspectRatio = 1) {
+  const clampedX = Math.max(0, Math.min(1, Number(normalizedX) || 0)),
+    clampedY = Math.max(0, Math.min(1, Number(normalizedY) || 0)),
+    offsetX = clampedX - 0.5,
+    offsetY = clampedY - 0.5,
+    radialDistance = Math.max(Math.abs(offsetX), Math.abs(offsetY)) * 2,
+    effectiveAspectRatio = Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 1;
   return [
-    ((((Math.atan2(offsetY, offsetX) * 180) / Math.PI + 360) % 360) + 90) % 360,
-    radiusRatio * 100
+    ((((Math.atan2(offsetY, offsetX * effectiveAspectRatio) * 180) / Math.PI + 360) % 360) + 90) %
+      360,
+    radialDistance * 100,
   ];
 }
-/**
- * HS → 拾色盘上的归一化坐标，是 lightColorPickerHsFromPoint 的逆运算。
- */
-export function lightColorPickerPointFromHs(hueSaturation: any) {
-  // 色相先归一化到 0~360，负值与绕了多圈的输入都能落回标准区间。
-  const pickerHueDegrees = (((Number(hueSaturation?.[0]) || 0) % 360) + 360) % 360;
-  const pickerSaturationRatio = Math.max(0, Math.min(100, Number(hueSaturation?.[1]) || 0)) / 100;
-  const hueRadians = ((pickerHueDegrees - 90) * Math.PI) / 180;
+export function lightColorPickerPointFromHs(hueSaturation, pickerAspectRatio = 1) {
+  const pickerHueDegrees = (((Number(hueSaturation?.[0]) || 0) % 360) + 360) % 360,
+    pickerSaturationRatio = Math.max(0, Math.min(100, Number(hueSaturation?.[1]) || 0)) / 100,
+    hueRadians = ((pickerHueDegrees - 90) * Math.PI) / 180,
+    effectivePickerAspectRatio =
+      Number.isFinite(pickerAspectRatio) && pickerAspectRatio > 0 ? pickerAspectRatio : 1,
+    cosineScale = Math.cos(hueRadians) / effectivePickerAspectRatio,
+    sineValue = Math.sin(hueRadians),
+    pointRadius =
+      (pickerSaturationRatio * 0.5) / Math.max(Math.abs(cosineScale), Math.abs(sineValue));
   return {
-    x: Math.max(0, Math.min(1, 0.5 + Math.cos(hueRadians) * pickerSaturationRatio * 0.36)),
-    y: Math.max(0, Math.min(1, 0.5 + Math.sin(hueRadians) * pickerSaturationRatio * 0.36))
+    x: Math.max(0, Math.min(1, 0.5 + cosineScale * pointRadius)),
+    y: Math.max(0, Math.min(1, 0.5 + sineValue * pointRadius)),
   };
 }
-/**
- * 拼装设置颜色的服务数据。
- */
-export function lightColorServiceData(lightAttributes: any, hsColorPair: any) {
-  const colorModes = resolveSupportedColorModes(lightAttributes);
-  // 发出去前先取整：小数色相 / 饱和度在部分设备上会被拒或产生抖动。
-  const roundedHsColor = [
-    Math.round((((Number(hsColorPair?.[0]) || 0) % 360) + 360) % 360),
-    Math.round(Math.max(0, Math.min(100, Number(hsColorPair?.[1]) || 0)))
-  ];
-  if (colorModes.includes("hs") || colorModes.includes("xy") || !colorModes.includes("rgb")) {
-    return {
-      hs_color: roundedHsColor
-    };
-  } else {
-    return {
-      rgb_color: hsToRgbColor(roundedHsColor)
-    };
-  }
+export function lightColorServiceData(lightAttributes, hsColorPair) {
+  const colorModes = resolveSupportedColorModes(lightAttributes),
+    roundedHsColor = [
+      Math.round((((Number(hsColorPair?.[0]) || 0) % 360) + 360) % 360),
+      Math.round(Math.max(0, Math.min(100, Number(hsColorPair?.[1]) || 0))),
+    ];
+  return colorModes.includes("hs") || colorModes.includes("xy") || !colorModes.includes("rgb")
+    ? {
+        hs_color: roundedHsColor,
+      }
+    : {
+        rgb_color: hsToRgbColor(roundedHsColor),
+      };
 }
-// 灯不支持色温时的显示用色温：4600K 接近正白，视觉上既不偏暖也不偏冷。
-export const UNSUPPORTED_LIGHT_VISUAL_TEMPERATURE_KELVIN = 4600;
-// 灯不支持亮度调节时的显示用亮度：按满亮绘制。
-export const UNSUPPORTED_LIGHT_VISUAL_BRIGHTNESS_PERCENT = 100;
-/**
- * 拼装预设亮度对应的服务数据。
- */
-export function lightPresetBrightnessServiceData(brightnessPercent: any) {
-  // 下限取 1：0% 在 HA 里等价于关灯，而调用方此处要表达的是「调到最暗但仍亮」。
+export const UNSUPPORTED_LIGHT_VISUAL_TEMPERATURE_KELVIN = 4600,
+  UNSUPPORTED_LIGHT_VISUAL_BRIGHTNESS_PERCENT = 100;
+export function lightPresetBrightnessServiceData(brightnessPercent) {
   const clampedBrightnessPercent = Math.max(
     1,
-    Math.min(100, Math.round(Number(brightnessPercent) || 1))
+    Math.min(100, Math.round(Number(brightnessPercent) || 1)),
   );
-  if (clampedBrightnessPercent === 100) {
-    return {
-      brightness: 255
-    };
-  } else {
-    return {
-      brightness_pct: clampedBrightnessPercent
-    };
-  }
+  return clampedBrightnessPercent === 100
+    ? {
+        brightness: 255,
+      }
+    : {
+        brightness_pct: clampedBrightnessPercent,
+      };
 }
-/**
- * 灯光详情面板的三个快捷预设。
- */
 export const LIGHT_DETAIL_PRESET_DEFINITIONS = Object.freeze([
-  Object.freeze({
-    label: "柔和",
-    detail: "25%",
-    brightnessPercent: 25,
-    colorTemperaturePercent: 10
-  }),
-  Object.freeze({
-    label: "日常",
-    detail: "60%",
-    brightnessPercent: 60,
-    colorTemperaturePercent: 50
-  }),
-  Object.freeze({
-    label: "明亮",
-    detail: "100%",
-    brightnessPercent: 100,
-    colorTemperaturePercent: 100
-  })
-]);
-// 预设下发后的最短等待：灯从收到指令到上报状态通常需要一段时间，
-export const LIGHT_PRESET_MINIMUM_HOLD_MS = 8000;
-export const LIGHT_PRESET_STABLE_CONFIRMATION_MS = 1200;
-// 超过这个时长还没等到匹配状态就放弃等待，防止 pending 永远挂着。
-export const LIGHT_PRESET_MAXIMUM_HOLD_MS = 12000;
-/**
- * 判断某个待确认预设当前应处于什么阶段。
- */
-export function lightPresetPendingDecision(pendingPreset: any, nowMs: any = Date.now()) {
-  if (!pendingPreset) {
-    return "idle";
-  }
+    Object.freeze({
+      label: "柔和",
+      detail: "25%",
+      brightnessPercent: 25,
+      colorTemperaturePercent: 10,
+    }),
+    Object.freeze({
+      label: "日常",
+      detail: "60%",
+      brightnessPercent: 60,
+      colorTemperaturePercent: 50,
+    }),
+    Object.freeze({
+      label: "明亮",
+      detail: "100%",
+      brightnessPercent: 100,
+      colorTemperaturePercent: 100,
+    }),
+  ]),
+  LIGHT_PRESET_MINIMUM_HOLD_MS = 8000,
+  LIGHT_PRESET_STABLE_CONFIRMATION_MS = 1200,
+  LIGHT_PRESET_MAXIMUM_HOLD_MS = 12000;
+export function lightPresetPendingDecision(pendingPreset, nowMs = Date.now()) {
+  if (!pendingPreset) return "idle";
   const currentTimeMs = Number(nowMs) || 0;
-  if (currentTimeMs >= Number(pendingPreset.expiresAt || 0)) {
-    return "timeout";
-  }
-  // 还没观察到匹配状态，或匹配的起始时刻未知，都只能继续等——累计稳定时长要从某个明确的起点算。
-  if (!pendingPreset.latestMatches || !Number.isFinite(Number(pendingPreset.matchStartedAt))) {
+  if (currentTimeMs >= Number(pendingPreset.expiresAt || 0)) return "timeout";
+  if (!pendingPreset.latestMatches || !Number.isFinite(Number(pendingPreset.matchStartedAt)))
     return "hold";
-  }
-  const hasReachedMinimumHold = currentTimeMs >= Number(pendingPreset.minimumHoldUntil || 0);
-  const isStableConfirmationElapsed =
-    currentTimeMs - Number(pendingPreset.matchStartedAt) >= LIGHT_PRESET_STABLE_CONFIRMATION_MS;
-  if (hasReachedMinimumHold && isStableConfirmationElapsed) {
-    return "confirmed";
-  } else {
-    return "hold";
-  }
+  const hasReachedMinimumHold = currentTimeMs >= Number(pendingPreset.minimumHoldUntil || 0),
+    isStableConfirmationElapsed =
+      currentTimeMs - Number(pendingPreset.matchStartedAt) >= LIGHT_PRESET_STABLE_CONFIRMATION_MS;
+  return hasReachedMinimumHold && isStableConfirmationElapsed ? "confirmed" : "hold";
 }

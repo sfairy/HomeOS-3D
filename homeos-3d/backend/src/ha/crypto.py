@@ -1,45 +1,44 @@
-"""Home Assistant 长期访问令牌的加密存储。
-"""
 from __future__ import annotations
-
+import os
 from pathlib import Path
-
 from cryptography.fernet import Fernet, InvalidToken
 
-from ..security.secret_key_file import load_or_create_secret_key
-
-
 class CredentialCipherError(RuntimeError):
-    """凭据加解密失败。
-    """
-
+    pass
 
 class CredentialCipher:
-    """长期访问令牌的加解密器；密钥文件按需生成并复用。"""
 
     def __init__(self, key_path: Path) -> None:
-        """只记录密钥文件路径，真正的读写推迟到第一次加解密时。"""
         self.key_path = key_path
+        return None
 
     def _load_or_create_key(self) -> bytes:
-        """取密钥文件里的 Fernet 密钥；进程内只碰一次文件。
-        """
-        return load_or_create_secret_key(
-            self.key_path,
-            error_factory=CredentialCipherError,
-            empty_message='凭证密钥文件为空。',
-        )
+        # 目录 0700：密钥文件与数据目录同卷存放，不应对其它账号可读。
+        self.key_path.parent.mkdir(parents = True, exist_ok = True, mode = 448)
+        # chmod 只是加固：某些文件系统（挂载的只读卷、容器的 overlay）不支持它，
+        # 失败不该阻断启动，mkdir 的 mode 已经给出 0700。
+        try:
+            os.chmod(self.key_path.parent, 448)
+        except OSError:
+            pass
+        if self.key_path.exists():
+            key = self.key_path.read_bytes().strip()
+            if not key:
+                raise CredentialCipherError('凭证密钥文件为空。')
+            return key
+        # O_EXCL：两个进程同时首启时只有一个能创建密钥，另一个走 exists 分支读同一份。
+        key = Fernet.generate_key()
+        descriptor = os.open(self.key_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 384)
+        with os.fdopen(descriptor, 'wb') as key_file:
+            key_file.write(key + b'\n')
+        return key
 
     def encrypt(self, plaintext: str) -> str:
-        """加密令牌并返回可直接入库的 ASCII 字符串。
-        """
         if not plaintext:
             raise CredentialCipherError('Home Assistant Token 不能为空。')
         return Fernet(self._load_or_create_key()).encrypt(plaintext.encode('utf-8')).decode('ascii')
 
     def decrypt(self, ciphertext: str) -> str:
-        """解出明文令牌。
-        """
         try:
             return Fernet(self._load_or_create_key()).decrypt(ciphertext.encode('ascii')).decode('utf-8')
         except (InvalidToken, UnicodeError, ValueError) as error:

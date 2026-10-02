@@ -1,617 +1,674 @@
-/**
- * 空调气流（出风）效果：根据空调 / 风口的模型包围盒自动推导「出风口」位置，挂一片着色器绘制的
- */
-
-import { normalizedTextOf, paletteColor, readFromMapOrRecord, resolveStateEntry, stateTextOf, AIRFLOW_OTHER_COLOR } from "../core/static-helpers.js";
-// 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js";
-import { modelWorldBounds } from "../core/scene-model-bounds.js";
-// 「减少动态效果」偏好的唯一判定与订阅（实现见 core/motion-preference.js）。
-import { onReducedMotionChange, prefersReducedMotionNow } from "../core/motion-preference.js";
-
-type AnyObj = Record<string, any>;
-
-/** 气流颜色：按 HA 的 state（制冷 / 制热 / 其它）取色。
-    顶层求值时样式表可能还没解析完，paletteColor 会把兜底色缓存下来、之后一直用那个。 */
-function flowStateColors() {
-  return {
-    cool: paletteColor("--hos-cool", "#58c4ff"),
-    heat: paletteColor("--hos-heat", "#ff8a65"),
-    other: AIRFLOW_OTHER_COLOR
-  };
-}
-/** hvac_action 里表示「风机确实在吹」的取值；不在集合内则不出风。 */
-const AIRFLOW_ACTIONS = new Set([
-  "cooling",
-  "cool",
-  "heating",
-  "heat",
-  "fan",
-  "fan_only",
-  "drying"
-]);
-/**
- * 创建气流效果控制器。
- */
+// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
+import { bathHeaterState as bathHeaterState2 } from "../bath-heater/bath-heater";
+import { purifierState as purifierState2 } from "../purifier/purifier-state";
+const flowStateColors = {
+    cool: "#73c8ff",
+    heat: "#ff8a65",
+    other: "#dce2e6",
+    purifier: "#69dc91",
+  },
+  airflowActionSet = new Set(["cooling", "cool", "heating", "heat", "fan", "fan_only", "drying"]),
+  sceneModelKey = (floorId, modelId) =>
+    JSON.stringify([String(floorId ?? ""), String(modelId ?? "")]);
 export function createEnvironmentAirflow({
   THREE: THREE,
+  camera: camera = null,
   requestFrame: requestFrame = () => {},
-  reducedMotion: reducedMotion
-}: AnyObj = {}) {
-  let sceneRoot: any = null;
-  let rootRevision: any = null;
-  let isEnabled = false;
-  let bindings: any = [];
-  let entityStates: AnyObj = {};
-  let focusedId = "";
-  let isDisposed = false;
-  let objectsByBindingKey = new Map();
-  let effectsByBindingKey = new Map();
-  let hasIndexedScene = false;
-  let lastTickMs = -Infinity;
-  let overviewOverride: any = null;
-  const isOverviewMode = () => overviewOverride ?? !focusedId;
-  // reducedMotion 显式配置优先于系统偏好；两者都没有时按「不减少」处理。
+  reducedMotion: reducedMotion,
+} = {}) {
+  let value = null,
+    rootRevision,
+    isEnabled = false,
+    list = [],
+    options = {},
+    text = "",
+    isDisposed = false,
+    map = new Map(),
+    effectsByBindingKey = new Map(),
+    hasIndexedScene = false,
+    lastTickMs = -Infinity;
+  const isVisibleInScene = (sceneEffect) => {
+      for (let parent = sceneEffect.mesh.parent; parent; parent = parent.parent) {
+        if (parent.visible === false) return false;
+        if (parent === value) return true;
+      }
+      return false;
+    },
+    needsAnimation = (animationCandidate) =>
+      isVisibleInScene(animationCandidate) &&
+      ((animationCandidate.binding.bathEffect !== "light" && animationCandidate.target > 0) ||
+        animationCandidate.mesh.material.uniforms.flowOpacity.value !== animationCandidate.target ||
+        animationCandidate.mesh.material.uniforms.flowOverview.value !==
+          animationCandidate.overviewTarget);
+  let overviewOverride;
+  const isOverviewMode = () => overviewOverride ?? !text;
   let reducedMotionOverride = typeof reducedMotion == "boolean" ? reducedMotion : undefined;
-  // 每次调用都重读系统偏好（实现见 core/motion-preference.js）：用户可能在页面存活期间切换系统的
-  const prefersReducedMotion = () => reducedMotionOverride ?? prefersReducedMotionNow();
-  // 顶点着色器：总览模式下把气幕在三个方向上都放大，让远景也能看见气流；
-  const FLOW_VERTEX_SHADER =
-    "attribute float flowLayer;\n    uniform float flowOverview;\n    varying vec2 vFlowUv;\n    varying float vFlowLayer;\n    void main() {\n      vFlowUv = uv; vFlowLayer = flowLayer;\n      vec3 expanded = position;\n      // Expand away from the outlet; the mouth keeps its authored position and width.\n      expanded.x *= 1.0 + flowOverview * 0.15 * uv.y;\n      expanded.y *= 1.0 + flowOverview * 0.25;\n      expanded.z *= 1.0 + flowOverview * 0.35;\n      gl_Position = projectionMatrix * modelViewMatrix * vec4(expanded, 1.0);\n    }";
-  // 片元着色器：用值噪声做纵向纤维状气流，横向高斯边缘 + 纵向距离衰减；
-  const FLOW_FRAGMENT_SHADER =
-    "uniform vec3 flowColor;\n    uniform float flowOpacity;\n    uniform float flowTime;\n    uniform float flowOverview;\n    varying vec2 vFlowUv;\n    varying float vFlowLayer;\n    float hash(vec2 p) {\n      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);\n    }\n    float noise(vec2 p) {\n      vec2 cell = floor(p), f = fract(p);\n      f = f * f * (3.0 - 2.0 * f);\n      return mix(mix(hash(cell), hash(cell + vec2(1.0, 0.0)), f.x),\n        mix(hash(cell + vec2(0.0, 1.0)), hash(cell + vec2(1.0)), f.x), f.y);\n    }\n    void main() {\n      float t = vFlowUv.y, across = vFlowUv.x * 2.0 - 1.0;\n      float edge = exp(-0.8 * across * across) * (1.0 - smoothstep(0.45, 1.0, abs(across)));\n      float distanceFade = smoothstep(0.0, 0.025, t) * exp(-mix(1.15, 0.9, flowOverview) * t)\n        * (1.0 - smoothstep(0.62, 1.0, t));\n      // Advected, lengthwise fibres: deliberately much longer than they are\n      // wide, so the air reads as a continuous breeze, never dots or light bars.\n      float drift = sin(t * 4.0 - flowTime * 0.45 + vFlowLayer * 2.0) * t * 0.16;\n      // Keep individual strands fine even in overview; visibility comes from\n      // their bright cores rather than widening them into opaque white bands.\n      vec2 p = vec2(vFlowUv.x * mix(22.0, 16.0, flowOverview) + drift + vFlowLayer * 23.0,\n        t * mix(1.8, 1.25, flowOverview) - flowTime * 0.9);\n      float detail = 0.28;\n      float fibres = noise(p) * (1.0 - detail) + noise(p * vec2(1.9, 0.7) + 13.0) * detail;\n      // Give the moving strands enough coverage on both pale wood and dark\n      // floors. Keep the empty space clear instead of adding a uniform veil.\n      float density = 0.012 + 1.25 * fibres * fibres;\n      // A soft density ceiling keeps the stronger near-outlet strands\n      // translucent while letting their motion remain readable at room scale.\n      density = density / (1.0 + density * 0.65);\n      // Moving fibre crests catch a white highlight, with the mode color in\n      // their softer edges. This remains one transparent draw, without lights.\n      float crest = smoothstep(0.56, 0.9, fibres);\n      float highlight = crest * crest;\n      float alpha = min(0.56, flowOpacity * edge * distanceFade\n        * (density + highlight * 0.16) * mix(1.0, 0.42, vFlowLayer));\n      vec3 strandColor = mix(flowColor, vec3(1.0), highlight * 0.68);\n      gl_FragColor = vec4(strandColor, alpha);\n      #include <colorspace_fragment>\n    }";
-  /**
-   * 由模型包围盒推导出风口版式（位置、宽度、长度、下坠量）。
-   */
-  function resolveOutletLayout(model: any) {
-    // 精确顶点包围盒（exact）：风口模型刚加载时几何体可能还没算过缓存盒，且要挡住 NaN 顶点。
-    const modelBox: any = modelWorldBounds(model, THREE, { exact: true });
-    if (!modelBox) {
-      return null;
+  const reducedMotionQuery = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)"),
+    prefersReducedMotion = () => reducedMotionOverride ?? reducedMotionQuery?.matches ?? false,
+    FLOW_VERTEX_SHADER =
+      "attribute float flowLayer;\n    uniform float flowOverview;\n    varying vec2 vFlowUv;\n    varying float vFlowLayer;\n    void main() {\n      vFlowUv = uv; vFlowLayer = flowLayer;\n      vec3 expanded = position;\n      // Expand away from the outlet; the mouth keeps its authored position and width.\n      expanded.x *= 1.0 + flowOverview * 0.15 * uv.y;\n      expanded.y *= 1.0 + flowOverview * 0.25;\n      expanded.z *= 1.0 + flowOverview * 0.35;\n      gl_Position = projectionMatrix * modelViewMatrix * vec4(expanded, 1.0);\n    }",
+    FLOW_LIGHT_FRAGMENT_SHADER =
+      "uniform vec3 flowColor;\n    uniform float flowOpacity;\n    varying vec2 vFlowUv;\n    void main() {\n      float edge = 1.0 - smoothstep(0.2, 0.5, abs(vFlowUv.x - 0.5));\n      gl_FragColor = vec4(flowColor, flowOpacity * edge * 0.35);\n      #include <colorspace_fragment>\n    }",
+    FLOW_FRAGMENT_SHADER =
+      "uniform vec3 flowColor;\n    uniform float flowOpacity;\n    uniform float flowTime;\n    uniform float flowOverview;\n    varying vec2 vFlowUv;\n    varying float vFlowLayer;\n    float hash(vec2 p) {\n      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);\n    }\n    float noise(vec2 p) {\n      vec2 cell = floor(p), f = fract(p);\n      f = f * f * (3.0 - 2.0 * f);\n      return mix(mix(hash(cell), hash(cell + vec2(1.0, 0.0)), f.x),\n        mix(hash(cell + vec2(0.0, 1.0)), hash(cell + vec2(1.0)), f.x), f.y);\n    }\n    void main() {\n      float t = vFlowUv.y, across = vFlowUv.x * 2.0 - 1.0;\n      // Keep the breeze as narrow strands; a broad alpha field reads as a\n      // floating transparent rectangle beside the purifier.\n      float edge = exp(-3.2 * across * across) * (1.0 - smoothstep(0.62, 1.0, abs(across)));\n      float distanceFade = smoothstep(0.0, 0.025, t) * exp(-mix(1.15, 0.9, flowOverview) * t)\n        * (1.0 - smoothstep(0.62, 1.0, t));\n      // Advected, lengthwise fibres: deliberately much longer than they are\n      // wide, so the air reads as a continuous breeze, never dots or light bars.\n      float drift = sin(t * 4.0 - flowTime * 0.45 + vFlowLayer * 2.0) * t * 0.16;\n      // Keep individual strands fine even in overview; visibility comes from\n      // their bright cores rather than widening them into opaque white bands.\n      vec2 p = vec2(vFlowUv.x * mix(22.0, 16.0, flowOverview) + drift + vFlowLayer * 23.0,\n        t * mix(1.8, 1.25, flowOverview) - flowTime * 0.9);\n      float detail = 0.28;\n      float fibres = noise(p) * (1.0 - detail) + noise(p * vec2(1.9, 0.7) + 13.0) * detail;\n      // Give the moving strands enough coverage on both pale wood and dark\n      // floors. Keep the empty space clear instead of adding a uniform veil.\n      float density = 0.012 + 1.25 * fibres * fibres;\n      // A soft density ceiling keeps the stronger near-outlet strands\n      // translucent while letting their motion remain readable at room scale.\n      density = density / (1.0 + density * 0.65);\n      // Moving fibre crests catch a white highlight, with the mode color in\n      // their softer edges. This remains one transparent draw, without lights.\n      float crest = smoothstep(0.56, 0.9, fibres);\n      float highlight = crest * crest;\n      float alpha = min(0.38, flowOpacity * edge * distanceFade\n        * (density + highlight * 0.16) * mix(1.0, 0.42, vFlowLayer));\n      vec3 strandColor = mix(flowColor, vec3(1.0), highlight * 0.68);\n      gl_FragColor = vec4(strandColor, alpha);\n      #include <colorspace_fragment>\n    }",
+    PURIFIER_FLOW_VERTEX_SHADER =
+      "attribute float flowLayer;\n    uniform float flowTime, flowOverview, flowStrength, flowWidth;\n    varying vec2 vFlowUv;\n    varying float vFlowLayer;\n    varying vec3 vNormal, vView;\n    void main() {\n      vFlowUv = uv; vFlowLayer = flowLayer;\n      float t = uv.y;\n      vec3 p = position;\n      p.xy *= 1.0 + flowOverview * 0.12 * t;\n      p.z *= (0.68 + flowStrength * 0.45) * (1.0 + flowOverview * 0.25);\n      // Motion grows away from the grille; the complete outlet stays anchored.\n      p.xy += flowWidth * t * t * vec2(\n        sin(t * 4.0 - flowTime * 0.65 + flowLayer * 1.7),\n        cos(t * 3.2 - flowTime * 0.5 + flowLayer * 2.3)) * 0.12;\n      vec4 view = modelViewMatrix * vec4(p, 1.0);\n      vNormal = normalize(normalMatrix * normal); vView = -view.xyz;\n      gl_Position = projectionMatrix * view;\n    }",
+    PURIFIER_FLOW_FRAGMENT_SHADER =
+      "uniform vec3 flowColor;\n    uniform float flowOpacity, flowTime, flowStrength;\n    varying vec2 vFlowUv;\n    varying float vFlowLayer;\n    varying vec3 vNormal, vView;\n    float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\n    float noise(vec2 p) {\n      vec2 cell = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);\n      return mix(mix(hash(cell), hash(cell + vec2(1.0, 0.0)), f.x),\n        mix(hash(cell + vec2(0.0, 1.0)), hash(cell + vec2(1.0)), f.x), f.y);\n    }\n    void main() {\n      float t = vFlowUv.y, angle = vFlowUv.x * 6.28318530718;\n      float travel = t * 1.8 - flowTime * 0.7;\n      // Circular coordinates make the texture continuous across the shell seam.\n      vec2 ring = vec2(cos(angle), sin(angle));\n      float fibres = noise(ring * 5.0 + vec2(travel, travel * 0.6) + vFlowLayer * 19.0);\n      float fine = noise(ring * 9.0 + vec2(travel * 0.65, travel) + vFlowLayer * 7.0);\n      float density = pow(smoothstep(0.28, 0.86, fibres * 0.75 + fine * 0.25), 2.0);\n      float fade = smoothstep(0.0, 0.045, t) * (1.0 - smoothstep(0.30, 1.0, t));\n      // Suppress grazing edges so a curved surface never reads as a solid tube.\n      float facing = abs(dot(normalize(vNormal), normalize(vView)));\n      float softness = smoothstep(0.0, 0.55, facing);\n      float alpha = min(0.22, flowOpacity * density * fade * softness\n        * (0.65 + flowStrength * 0.35) * mix(0.34, 0.24, vFlowLayer));\n      gl_FragColor = vec4(flowColor, alpha);\n      #include <colorspace_fragment>\n    }";
+  function modelWorldBounds(modelNode) {
+    const accumulatedBounds = new THREE.Box3(),
+      worldMatrix = new THREE.Matrix4();
+    function accumulateNodeBounds(sceneNode, parentMatrix) {
+      if (
+        !sceneNode.userData?.environmentAirflow &&
+        !(sceneNode !== modelNode && sceneNode.userData?.environmentModelId != null)
+      ) {
+        if (sceneNode.isMesh && sceneNode.geometry?.attributes?.position) {
+          const position = sceneNode.geometry.attributes.position;
+          if (position.count > 0 && typeof position.getX == "function") {
+            const matrix4 = new THREE.Box3()
+              .setFromBufferAttribute(position)
+              .applyMatrix4(parentMatrix);
+            [
+              matrix4.min.x,
+              matrix4.min.y,
+              matrix4.min.z,
+              matrix4.max.x,
+              matrix4.max.y,
+              matrix4.max.z,
+            ].every(Number.isFinite) && accumulatedBounds.union(matrix4);
+          }
+        }
+        for (const childNode of sceneNode.children || [])
+          (childNode.matrixAutoUpdate && childNode.updateMatrix(),
+            accumulateNodeBounds(
+              childNode,
+              new THREE.Matrix4().multiplyMatrices(parentMatrix, childNode.matrix),
+            ));
+      }
     }
-    const modelSize = modelBox.getSize(new THREE.Vector3());
-    if (modelSize.x <= 0 || modelSize.y <= 0 || modelSize.z <= 0) {
-      return null;
+    return (
+      accumulateNodeBounds(modelNode, worldMatrix),
+      accumulatedBounds.isEmpty() ? null : accumulatedBounds
+    );
+  }
+  function resolveOutletLayout(model, modelBinding = {}) {
+    const modelBox = modelWorldBounds(model);
+    if (!modelBox) return null;
+    const size = modelBox.getSize(new THREE.Vector3());
+    if (size.x <= 0 || size.y <= 0 || size.z <= 0) return null;
+    if (modelBinding.climateType === "bath-heater") {
+      const isLightEffect = modelBinding.bathEffect === "light",
+        max = Math.max(0.12, Math.min(size.x, size.z) * (isLightEffect ? 0.8 : 0.55));
+      return {
+        type: "bath-heater",
+        width: max,
+        length: isLightEffect ? 0.025 : Math.max(0.5, max * 3),
+        fall: 0,
+        spread: 0.3,
+        rotationX: Math.PI / 2,
+        outlet: [
+          (modelBox.min.x + modelBox.max.x) / 2 + (isLightEffect ? 0 : -size.x * 0.2),
+          modelBox.min.y - 0.006,
+          (modelBox.min.z + modelBox.max.z) / 2,
+        ],
+      };
     }
     const modelType =
       model.userData.environmentModelType ||
-      (modelSize.y > modelSize.x * 1.5 && modelSize.y > modelSize.z * 1.5 ? "floorac" : "wallac");
-    // 空气净化器：气流从顶盖**向上**吹，不是空调那种贴墙/落地的水平风道 —— 因此 fall 为 0，
-    if (modelType === "airpurifier") {
+      (size.y > size.x * 1.5 && size.y > size.z * 1.5 ? "floorac" : "wallac");
+    if (modelType === "airpurifier")
       return {
         type: modelType,
-        width: Math.max(modelSize.x, modelSize.z) * 0.8,
-        length: Math.max(0.5, modelSize.y * 1.4),
+        width: Math.min(size.x, size.z) * 0.8,
+        length: Math.max(0.5, size.y * 1.4),
         fall: 0,
         rotationX: -Math.PI / 2,
         spread: 0.3,
         outlet: [
           (modelBox.min.x + modelBox.max.x) / 2,
           modelBox.max.y + 0.005,
-          (modelBox.min.z + modelBox.max.z) / 2
-        ]
+          (modelBox.min.z + modelBox.max.z) / 2,
+        ],
       };
-    }
     if (modelType === "airoutlet") {
-      // 风口：口长沿 Z 轴，因此整体绕 Y 旋转 90°；口长夹在 0.6–2.4 米之间。
-      const mouthLength = Math.min(2.4, Math.max(0.6, modelSize.z * 0.9));
+      const min = Math.min(2.4, Math.max(0.6, size.z * 0.9));
       return {
         type: modelType,
-        width: modelSize.z * 0.88,
-        length: mouthLength,
-        // 下坠量取口长的 28%：气流先水平再下垂的观感。
-        fall: mouthLength * 0.28,
+        width: size.z * 0.88,
+        length: min,
+        fall: min * 0.28,
         rotationY: Math.PI / 2,
         spread: 0.3,
         outlet: [
-          modelBox.max.x + Math.max(0.003, modelSize.x * 0.03),
-          modelBox.min.y + modelSize.y * 0.48,
-          (modelBox.min.z + modelBox.max.z) / 2
-        ]
+          modelBox.max.x + Math.max(0.003, size.x * 0.03),
+          modelBox.min.y + size.y * 0.48,
+          (modelBox.min.z + modelBox.max.z) / 2,
+        ],
       };
     }
-    const isFloorUnit = modelType === "floorac";
-    // 柜机出风道窄、挂机风道宽（覆盖整个机身宽度）。
-    const ductWidth = modelSize.x * (isFloorUnit ? 0.48 : 0.84);
-    // 风道长度：柜机至少 3 倍机宽（往下吹得远），挂机 1.8 倍机宽；统一夹在 0.3–2.8 米。
-    const ductLength = Math.min(
-      2.8,
-      Math.max(0.3, isFloorUnit ? Math.max(modelSize.y * 0.95, modelSize.x * 3) : modelSize.x * 1.8)
-    );
+    const isFloorUnit = modelType === "floorac",
+      ductWidth = size.x * (isFloorUnit ? 0.48 : 0.84),
+      ductLength = Math.min(
+        2.8,
+        Math.max(0.3, isFloorUnit ? Math.max(size.y * 0.95, size.x * 3) : size.x * 1.8),
+      );
     return {
       type: modelType,
       width: ductWidth,
       length: ductLength,
-      // 只有柜机需要额外的竖向张开（气流从柜机出风口向下扩散）。
-      verticalSpan: isFloorUnit ? modelSize.y * 0.4 : 0,
-      // 柜机下坠轻（12%），挂机下坠重（38%）—— 挂机装得高，气流要更快落到地面。
+      verticalSpan: isFloorUnit ? size.y * 0.4 : 0,
       fall: ductLength * (isFloorUnit ? 0.12 : 0.38),
       outlet: [
         (modelBox.min.x + modelBox.max.x) / 2,
-        modelBox.min.y + modelSize.y * (isFloorUnit ? 0.68 : 0.18),
-        modelBox.max.z + Math.max(0.003, modelSize.z * 0.03)
-      ]
+        modelBox.min.y + size.y * (isFloorUnit ? 0.68 : 0.18),
+        modelBox.max.z + Math.max(0.003, size.z * 0.03),
+      ],
     };
   }
-  /**
-   * 构建气幕几何：两层 25×7 的网格面片。
-   */
-  function buildFlowGeometry(layout: any) {
-    const positions = [];
-    const uvs = [];
-    const layerIndices = [];
-    const indexTriples = [];
+  function buildFlowGeometry(layout) {
+    if (layout.type === "airpurifier") return buildPurifierShellGeometry(layout);
+    const positions = [],
+      uvs = [],
+      layerIndices = [],
+      indexTriples = [],
+      num = 24,
+      columnSegments = 6;
     for (let layerIndex = 0; layerIndex < 2; layerIndex++) {
       const baseVertexIndex = positions.length / 3;
-      // 25 行 × 7 列的网格：列数是 6 段（保证中间有一列正好在轴线上）。
-      for (let rowIndex = 0; rowIndex <= 24; rowIndex++) {
-        const rowT = rowIndex / 24;
-        // 越远离风口越宽，且带一点二次项，形成「喇叭口」式扩散。
-        const rowExpansion = 1 + (rowT * 0.8 + rowT * rowT * 0.15) * (layout.spread ?? 1);
-        for (let columnIndex = 0; columnIndex <= 6; columnIndex++) {
-          const columnU = columnIndex / 6;
-          const columnOffset = columnU * 2 - 1;
-          // 靠近风口时向中间收拢（口沿形状），远离后逐渐展开。
-          const mouthTaper = (1 - columnOffset * columnOffset) * layout.width * rowT * 0.09;
-          // 第二层再向外扩一点，两层之间形成体积感而不是重合的两片。
-          const layerSpread = layerIndex * layout.width * rowT * 0.075;
-          const isMouthLayer = layout.verticalSpan > 0 && layerIndex === 0;
-          positions.push(
-            isMouthLayer ? mouthTaper : columnOffset * layout.width * 0.5 * rowExpansion,
-            // 竖向：下坠按「线性 + 二次」混合，柜机的口沿层还要额外张开。
-            -layout.fall * (rowT * 0.35 + rowT * 0.65 * rowT) +
+      for (let rowIndex = 0; rowIndex <= num; rowIndex++) {
+        const rowT = rowIndex / num,
+          rowExpansion = 1 + (rowT * 0.8 + rowT * rowT * 0.15) * (layout.spread ?? 1);
+        for (let columnIndex = 0; columnIndex <= columnSegments; columnIndex++) {
+          const columnU = columnIndex / columnSegments,
+            columnOffset = columnU * 2 - 1,
+            mouthTaper = (1 - columnOffset * columnOffset) * layout.width * rowT * 0.09,
+            layerSpread = layerIndex * layout.width * rowT * 0.075,
+            isMouthLayer = layout.verticalSpan > 0 && layerIndex === 0,
+            offsetX = isMouthLayer ? mouthTaper : columnOffset * layout.width * 0.5 * rowExpansion,
+            offsetY =
+              -layout.fall * (0.35 * rowT + 0.65 * rowT * rowT) +
               (isMouthLayer
                 ? columnOffset * layout.verticalSpan * 0.5 * (1 + rowT * 0.2)
-                : mouthTaper + layerSpread),
-            layout.length * rowT
-          );
-          uvs.push(columnU, rowT);
-          layerIndices.push(layerIndex);
-          if (rowIndex < 24 && columnIndex < 6) {
-            // 每个格子两个三角形；列宽 7 表示下一行的同列顶点偏移 7。
-            const cellVertexIndex = baseVertexIndex + rowIndex * 7 + columnIndex;
-            const nextRowVertexIndex = cellVertexIndex + 6 + 1;
+                : mouthTaper + layerSpread);
+          if (
+            (positions.push(offsetX, offsetY, layout.length * rowT),
+            uvs.push(columnU, rowT),
+            layerIndices.push(layerIndex),
+            rowIndex < num && columnIndex < columnSegments)
+          ) {
+            const cellVertexIndex = baseVertexIndex + rowIndex * (columnSegments + 1) + columnIndex,
+              nextRowVertexIndex = cellVertexIndex + columnSegments + 1;
             indexTriples.push(
               cellVertexIndex,
               cellVertexIndex + 1,
               nextRowVertexIndex,
               cellVertexIndex + 1,
               nextRowVertexIndex + 1,
-              nextRowVertexIndex
+              nextRowVertexIndex,
             );
           }
         }
       }
     }
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
-    geometry.setAttribute("flowLayer", new THREE.Float32BufferAttribute(layerIndices, 1));
-    geometry.setIndex(indexTriples);
-    geometry.computeBoundingBox();
-    // 顶点着色器会在总览模式下把顶点放大（x/y/z 分别最多 15% / 25% / 35%），
+    const element = new THREE.BufferGeometry();
+    (element.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3)),
+      element.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2)),
+      element.setAttribute("flowLayer", new THREE.Float32BufferAttribute(layerIndices, 1)),
+      element.setIndex(indexTriples),
+      element.computeBoundingBox());
     const scratchVertex = new THREE.Vector3();
-    for (let vertexIndex = 0; vertexIndex < positions.length / 3; vertexIndex++) {
-      geometry.boundingBox.expandByPoint(
+    for (let vertexIndex = 0; vertexIndex < positions.length / 3; vertexIndex++)
+      element.boundingBox.expandByPoint(
         scratchVertex.set(
-          positions[vertexIndex * 3] * (1 + uvs[vertexIndex * 2 + 1] * 0.15),
+          positions[vertexIndex * 3] * (1 + 0.15 * uvs[vertexIndex * 2 + 1]),
           positions[vertexIndex * 3 + 1] * 1.25,
-          positions[vertexIndex * 3 + 2] * 1.35
-        )
+          positions[vertexIndex * 3 + 2] * 1.35,
+        ),
       );
-    }
-    geometry.boundingSphere = geometry.boundingBox.getBoundingSphere(new THREE.Sphere());
-    return geometry;
+    return (
+      (element.boundingSphere = element.boundingBox.getBoundingSphere(new THREE.Sphere())),
+      element
+    );
   }
-  /** 释放一片气流：摘除网格并销毁几何体与材质。 */
-  function disposeEffect(effectToDispose: any) {
-    effectToDispose.mesh.removeFromParent();
-    effectToDispose.mesh.geometry.dispose();
-    effectToDispose.mesh.material.dispose();
-  }
-  function refreshEffectLayout(effectEntry: any) {
-    const nextLayout = resolveOutletLayout(effectEntry.model);
-    if (!nextLayout) {
-      return false;
-    }
-    const layoutSignature = JSON.stringify(nextLayout);
-    if (layoutSignature !== effectEntry.layoutSignature) {
-      effectEntry.mesh.geometry.dispose();
-      effectEntry.mesh.geometry = buildFlowGeometry(nextLayout);
-      effectEntry.mesh.position.fromArray(nextLayout.outlet);
-      effectEntry.mesh.rotation.set(nextLayout.rotationX || 0, nextLayout.rotationY || 0, 0);
-      effectEntry.mesh.updateMatrix();
-      effectEntry.layoutSignature = layoutSignature;
-      effectEntry.mesh.userData.outletLayout = nextLayout;
-    }
-    return true;
-  }
-  /**
-   * 为某个模型创建气流网格。
-   */
-  function createFlowEffect(modelObject: any, binding: any) {
-    const outletLayout = resolveOutletLayout(modelObject);
-    if (!outletLayout) {
-      return null;
-    }
-    const overviewValue = isOverviewMode() ? 1 : 0;
-    const material = new THREE.ShaderMaterial({
-      vertexShader: FLOW_VERTEX_SHADER,
-      fragmentShader: FLOW_FRAGMENT_SHADER,
-      uniforms: {
-        flowColor: {
-          value: new THREE.Color(flowStateColors().other)
-        },
-        flowOpacity: {
-          value: 0
-        },
-        flowTime: {
-          value: 0
-        },
-        flowOverview: {
-          value: overviewValue
+  function buildPurifierShellGeometry(shellLayout) {
+    const shellPositions = [],
+      shellNormals = [],
+      shellUvs = [],
+      shellLayerIndices = [],
+      shellIndexTriples = [];
+    for (let shellLayerIndex = 0; shellLayerIndex < 2; shellLayerIndex++) {
+      const shellBaseVertexIndex = shellPositions.length / 3;
+      for (let shellRowIndex = 0; shellRowIndex <= 16; shellRowIndex++) {
+        const shellRowT = shellRowIndex / 16,
+          shellRowRadius =
+            shellLayout.width *
+            (shellLayerIndex ? 0.31 : 0.48) *
+            (1 + 0.38 * shellRowT + 0.18 * shellRowT * shellRowT);
+        for (let shellColumnIndex = 0; shellColumnIndex <= 32; shellColumnIndex++) {
+          const shellColumnU = shellColumnIndex / 32,
+            shellAngle = shellColumnU * Math.PI * 2,
+            cos = Math.cos(shellAngle),
+            sin = Math.sin(shellAngle);
+          if (
+            (shellPositions.push(
+              cos * shellRowRadius,
+              sin * shellRowRadius,
+              shellLayout.length * shellRowT,
+            ),
+            shellNormals.push(cos, sin, 0),
+            shellUvs.push(shellColumnU, shellRowT),
+            shellLayerIndices.push(shellLayerIndex),
+            shellRowIndex < 16 && shellColumnIndex < 32)
+          ) {
+            const shellCellVertexIndex =
+                shellBaseVertexIndex + shellRowIndex * 33 + shellColumnIndex,
+              shellNextRowVertexIndex = shellCellVertexIndex + 32 + 1;
+            shellIndexTriples.push(
+              shellCellVertexIndex,
+              shellCellVertexIndex + 1,
+              shellNextRowVertexIndex,
+              shellCellVertexIndex + 1,
+              shellNextRowVertexIndex + 1,
+              shellNextRowVertexIndex,
+            );
+          }
         }
-      },
-      transparent: true,
-      // 不写深度：气幕是加性观感的效果层，写深度会遮住后面的家具；
-      depthWrite: false,
-      depthTest: true,
-      side: THREE.DoubleSide,
-      // 双面渲染只算一遍光照，省一半开销。
-      forceSinglePass: true,
-      toneMapped: false
-    });
-    const mesh = new THREE.Mesh(buildFlowGeometry(outletLayout), material);
-    mesh.name = "environment-airflow-" + (binding.id || binding.modelId);
-    mesh.userData.environmentAirflow = true;
-    // environmentEffect 让场景清理逻辑把它当作环境效果统一处理。
-    mesh.userData.environmentEffect = true;
-    mesh.userData.outletLayout = outletLayout;
-    mesh.position.fromArray(outletLayout.outlet);
-    // rotationX 是净化器专用的：把风道从水平转到垂直（顶盖向上出风），其余类型为 0。
-    mesh.rotation.set(outletLayout.rotationX || 0, outletLayout.rotationY || 0, 0);
-    mesh.updateMatrix();
-    // 位置固定不变，关掉自动矩阵更新（只在版式变化时手动 updateMatrix）。
-    mesh.matrixAutoUpdate = false;
-    mesh.castShadow = false;
-    mesh.receiveShadow = false;
-    // renderOrder 4：压在半透明地面之上、状态点之下。
-    mesh.renderOrder = 4;
-    mesh.visible = false;
-    mesh.raycast = () => {};
-    modelObject.add(mesh);
-    return {
-      mesh: mesh,
-      model: modelObject,
-      binding: binding,
-      layoutSignature: JSON.stringify(outletLayout),
-      target: 0,
-      startOpacity: 0,
-      overviewTarget: overviewValue,
-      startOverview: overviewValue,
-      startTime: null
-    };
+      }
+    }
+    const shellGeometry = new THREE.BufferGeometry();
+    (shellGeometry.setAttribute("position", new THREE.Float32BufferAttribute(shellPositions, 3)),
+      shellGeometry.setAttribute("normal", new THREE.Float32BufferAttribute(shellNormals, 3)),
+      shellGeometry.setAttribute("uv", new THREE.Float32BufferAttribute(shellUvs, 2)),
+      shellGeometry.setAttribute(
+        "flowLayer",
+        new THREE.Float32BufferAttribute(shellLayerIndices, 1),
+      ),
+      shellGeometry.setIndex(shellIndexTriples));
+    const shellHalfExtent = shellLayout.width * (0.48 * 1.56 * 1.12 + 0.12);
+    return (
+      (shellGeometry.boundingBox = new THREE.Box3(
+        new THREE.Vector3(-shellHalfExtent, -shellHalfExtent, 0),
+        new THREE.Vector3(shellHalfExtent, shellHalfExtent, shellLayout.length * 1.13 * 1.25),
+      )),
+      (shellGeometry.boundingSphere = shellGeometry.boundingBox.getBoundingSphere(
+        new THREE.Sphere(),
+      )),
+      shellGeometry
+    );
   }
-  /** 索引场景里所有环境模型，建立「(楼层, 模型) → 节点」的映射。 */
+  function disposeEffect(effectToDispose) {
+    (effectToDispose.mesh.removeFromParent(),
+      effectToDispose.mesh.geometry.dispose(),
+      effectToDispose.mesh.material.dispose());
+  }
+  function refreshEffectLayout(effectEntry) {
+    const nextLayout = resolveOutletLayout(effectEntry.model, effectEntry.binding);
+    if (!nextLayout) return false;
+    const stringify = JSON.stringify(nextLayout);
+    return (
+      stringify !== effectEntry.layoutSignature &&
+        (effectEntry.mesh.geometry.dispose(),
+        (effectEntry.mesh.geometry = buildFlowGeometry(nextLayout)),
+        effectEntry.mesh.position.fromArray(nextLayout.outlet),
+        (effectEntry.mesh.rotation.x = nextLayout.rotationX || 0),
+        (effectEntry.mesh.rotation.y = nextLayout.rotationY || 0),
+        effectEntry.mesh.updateMatrix(),
+        (effectEntry.mesh.material.uniforms.flowWidth.value = nextLayout.width),
+        (effectEntry.layout = nextLayout),
+        (effectEntry.layoutSignature = stringify),
+        (effectEntry.mesh.userData.outletLayout = nextLayout)),
+      true
+    );
+  }
+  function createFlowEffect(modelObject, effectBinding) {
+    const outletLayout = resolveOutletLayout(modelObject, effectBinding);
+    if (!outletLayout) return null;
+    const overviewValue = isOverviewMode() ? 1 : 0,
+      isPurifierLayout = outletLayout.type === "airpurifier",
+      material = new THREE.ShaderMaterial({
+        vertexShader: isPurifierLayout ? PURIFIER_FLOW_VERTEX_SHADER : FLOW_VERTEX_SHADER,
+        fragmentShader:
+          effectBinding.bathEffect === "light"
+            ? FLOW_LIGHT_FRAGMENT_SHADER
+            : isPurifierLayout
+              ? PURIFIER_FLOW_FRAGMENT_SHADER
+              : FLOW_FRAGMENT_SHADER,
+        uniforms: {
+          flowColor: {
+            value: new THREE.Color(flowStateColors.other),
+          },
+          flowOpacity: {
+            value: 0,
+          },
+          flowTime: {
+            value: 0,
+          },
+          flowOverview: {
+            value: overviewValue,
+          },
+          flowStrength: {
+            value: 0.5,
+          },
+          flowWidth: {
+            value: outletLayout.width,
+          },
+        },
+        transparent: true,
+        depthWrite: false,
+        depthTest: true,
+        side: THREE.DoubleSide,
+        forceSinglePass: true,
+        toneMapped: false,
+      }),
+      mesh = new THREE.Mesh(buildFlowGeometry(outletLayout), material);
+    return (
+      (mesh.name = "environment-airflow-" + (effectBinding.id || effectBinding.modelId)),
+      (mesh.userData.bathEffect = effectBinding.bathEffect),
+      (mesh.userData.environmentAirflow = true),
+      (mesh.userData.environmentEffect = true),
+      (mesh.userData.outletLayout = outletLayout),
+      mesh.position.fromArray(outletLayout.outlet),
+      (mesh.rotation.x = outletLayout.rotationX || 0),
+      (mesh.rotation.y = outletLayout.rotationY || 0),
+      mesh.updateMatrix(),
+      (mesh.matrixAutoUpdate = false),
+      (mesh.castShadow = false),
+      (mesh.receiveShadow = false),
+      (mesh.renderOrder = 4),
+      (mesh.visible = false),
+      (mesh.raycast = () => {}),
+      modelObject.add(mesh),
+      {
+        mesh: mesh,
+        model: modelObject,
+        binding: effectBinding,
+        layout: outletLayout,
+        layoutSignature: JSON.stringify(outletLayout),
+        target: 0,
+        startOpacity: 0,
+        overviewTarget: overviewValue,
+        startOverview: overviewValue,
+        startTime: null,
+        strengthTarget: 0.5,
+        lastTick: null,
+      }
+    );
+  }
   function indexSceneModels() {
-    objectsByBindingKey = new Map();
-    sceneRoot?.traverse?.((traversedNode: any) => {
-      if (
-        traversedNode.userData?.environmentAirflow ||
-        traversedNode.userData?.environmentModelId == null
-      ) {
-        return;
-      }
-      // 楼层 ID 允许向上继承；模型自身的 environmentModelId 表示这是模型根节点。
-      let nodeFloorId = traversedNode.userData.environmentFloorId;
-      for (
-        let ancestorNode = traversedNode.parent;
-        nodeFloorId == null && ancestorNode;
-        ancestorNode = ancestorNode.parent
-      ) {
-        nodeFloorId = ancestorNode.userData?.environmentFloorId;
-      }
-      objectsByBindingKey.set(
-        sceneModelKey(nodeFloorId, traversedNode.userData.environmentModelId),
-        traversedNode
-      );
-    });
-    hasIndexedScene = true;
-  }
-  /**
-   * 按绑定列表增删 / 复用气流效果。
-   */
-  function syncEffects(shouldRefreshLayouts: any = false) {
-    // 惰性建索引：只有真正启用且有绑定时才遍历场景。
-    if (!hasIndexedScene && isEnabled && bindings.length) {
-      indexSceneModels();
-    }
-    const activeBindingKeys = new Set();
-    for (const bindingConfig of bindings) {
-      if (bindingConfig.visible === false || bindingConfig.modelId == null) {
-        continue;
-      }
-      const bindingKey = sceneModelKey(bindingConfig.floorId, bindingConfig.modelId);
-      const boundModel = objectsByBindingKey.get(bindingKey);
-      if (!boundModel) {
-        continue;
-      }
-      activeBindingKeys.add(bindingKey);
-      let existingEffect = effectsByBindingKey.get(bindingKey);
-      if (existingEffect && existingEffect.model !== boundModel) {
-        // 模型被重建：旧网格挂在已废弃的节点上，必须重建。
-        disposeEffect(existingEffect);
-        effectsByBindingKey.delete(bindingKey);
-        existingEffect = null;
-      }
-      if (!existingEffect && isEnabled) {
-        existingEffect = createFlowEffect(boundModel, bindingConfig);
-        if (existingEffect) {
-          effectsByBindingKey.set(bindingKey, existingEffect);
-        }
-      }
-      if (existingEffect) {
-        existingEffect.binding = bindingConfig;
-        // 结构变化时刷新版式；若模型已经量不出尺寸（正在卸载）就顺手回收。
-        if (shouldRefreshLayouts && !refreshEffectLayout(existingEffect)) {
-          disposeEffect(existingEffect);
-          effectsByBindingKey.delete(bindingKey);
-        }
-      }
-    }
-    for (const [removedKey, removedEffect] of effectsByBindingKey) {
-      if (!activeBindingKeys.has(removedKey)) {
-        disposeEffect(removedEffect);
-        effectsByBindingKey.delete(removedKey);
-      }
-    }
-  }
-  /** 按最新状态更新每片气流的颜色与目标不透明度。 */
-  function updateEffectStates() {
-    let didChange = false;
-    for (const effect of effectsByBindingKey.values()) {
-      const effectBinding = effect.binding;
-      const stateRecord = readFromMapOrRecord(entityStates, effectBinding.entityId);
-      const stateBody = (((((((((resolveStateEntry(stateRecord, {}) as AnyObj) as AnyObj) as AnyObj) as AnyObj) as AnyObj) as AnyObj) as AnyObj) as AnyObj) as AnyObj);
-      const stateValue = stateTextOf(stateBody);
-      const hvacAction = normalizedTextOf(stateBody.attributes?.hvac_action || "");
-      // 聚焦了别的设备时，本设备的气流不显示（画面里只保留一个焦点）。
-      const isFocusTarget = !focusedId || effectBinding.id === focusedId;
-      // 出风判定：state 不是关机 / 未知，且 hvac_action 为空（设备没上报）或落在白名单内。
-      const isAirflowActive =
-        !["", "off", "unknown", "unavailable"].includes(stateValue) &&
-        (hvacAction === "" || AIRFLOW_ACTIONS.has(hvacAction));
-      const overviewUniformValue = isOverviewMode() ? 1 : 0;
-      // 总览模式下用满不透明度（远景本来就看不清）；聚焦时也保持不透明，
-      const targetOpacity =
-        isEnabled && isFocusTarget && isAirflowActive ? (overviewUniformValue ? 1.45 : 1) : 0;
-      const uniforms = effect.mesh.material.uniforms;
-      const airflowFlowColors: AnyObj = flowStateColors();
-      const targetColor = new THREE.Color(airflowFlowColors[stateValue] || airflowFlowColors.other);
-      // 只在可见时才换颜色：隐藏状态下换色会白白触发一次重绘。
-      if (targetOpacity > 0 && !uniforms.flowColor.value.equals(targetColor)) {
-        uniforms.flowColor.value.copy(targetColor);
-        didChange = true;
-      }
-      if (effect.target !== targetOpacity || effect.overviewTarget !== overviewUniformValue) {
-        // 目标变化：记录淡入淡出的起点，实际推进交给 tick。
-        effect.target = targetOpacity;
-        effect.startOpacity = uniforms.flowOpacity.value;
-        effect.overviewTarget = overviewUniformValue;
-        effect.startOverview = uniforms.flowOverview.value;
-        effect.startTime = null;
-        didChange = true;
-      }
-      if (!isFocusTarget || prefersReducedMotion()) {
-        // 非焦点或用户要求减少动态效果：不做过渡，直接跳到目标值。
+    ((map = new Map()),
+      value?.traverse?.((traversedNode) => {
         if (
-          uniforms.flowOpacity.value !== targetOpacity ||
-          uniforms.flowOverview.value !== overviewUniformValue
-        ) {
-          didChange = true;
-        }
-        uniforms.flowOpacity.value = targetOpacity;
-        uniforms.flowOverview.value = overviewUniformValue;
-        effect.mesh.visible = targetOpacity > 0;
-        if (prefersReducedMotion()) {
-          // 冻结动画时间，气流保持静态形状。
-          uniforms.flowTime.value = 0;
-        }
-      } else if (targetOpacity > 0) {
-        effect.mesh.visible = true;
-      } else if (uniforms.flowOpacity.value === 0) {
-        effect.mesh.visible = false;
-        uniforms.flowOverview.value = overviewUniformValue;
-      }
+          traversedNode.userData?.environmentAirflow ||
+          traversedNode.userData?.environmentModelId == null
+        )
+          return;
+        let environmentFloorId = traversedNode.userData.environmentFloorId;
+        for (
+          let parent2 = traversedNode.parent;
+          environmentFloorId == null && parent2;
+          parent2 = parent2.parent
+        )
+          environmentFloorId = parent2.userData?.environmentFloorId;
+        map.set(
+          sceneModelKey(environmentFloorId, traversedNode.userData.environmentModelId),
+          traversedNode,
+        );
+      }),
+      (hasIndexedScene = true));
+  }
+  function syncEffects(shouldRefreshLayouts = false) {
+    !hasIndexedScene && isEnabled && list.length && indexSceneModels();
+    const set = new Set(),
+      flatMap = list.flatMap((sourceBinding) =>
+        sourceBinding.climateType === "bath-heater"
+          ? ["fan", "light"].map((bathEffect) => ({
+              ...sourceBinding,
+              bathEffect: bathEffect,
+            }))
+          : [sourceBinding],
+      );
+    for (const bindingConfig of flatMap) {
+      if (bindingConfig.visible === false || bindingConfig.modelId == null) continue;
+      const ee2 = sceneModelKey(bindingConfig.floorId, bindingConfig.modelId),
+        bindingKey = bindingConfig.bathEffect ? ee2 + "/" + bindingConfig.bathEffect : ee2,
+        boundModel = map.get(ee2);
+      if (
+        !boundModel ||
+        ["fan", "storagewaterheater", "gaswaterheater"].includes(
+          boundModel.userData.environmentModelType,
+        )
+      )
+        continue;
+      set.add(bindingKey);
+      let existingEffect = effectsByBindingKey.get(bindingKey);
+      (existingEffect &&
+        existingEffect.model !== boundModel &&
+        (disposeEffect(existingEffect),
+        effectsByBindingKey.delete(bindingKey),
+        (existingEffect = null)),
+        !existingEffect &&
+          isEnabled &&
+          ((existingEffect = createFlowEffect(boundModel, bindingConfig)),
+          existingEffect && effectsByBindingKey.set(bindingKey, existingEffect)),
+        existingEffect &&
+          ((existingEffect.binding = bindingConfig),
+          shouldRefreshLayouts &&
+            !refreshEffectLayout(existingEffect) &&
+            (disposeEffect(existingEffect), effectsByBindingKey.delete(bindingKey))));
     }
-    if (didChange) {
-      requestFrame();
+    for (const [removedKey, removedEffect] of effectsByBindingKey)
+      set.has(removedKey) || (disposeEffect(removedEffect), effectsByBindingKey.delete(removedKey));
+  }
+  function updateEffectStates() {
+    let hasChanged = false;
+    for (const effect of effectsByBindingKey.values()) {
+      const binding = effect.binding,
+        stateRecord =
+          options instanceof Map ? options.get(binding.entityId) : options?.[binding.entityId],
+        stateBody = stateRecord?.newState || stateRecord || {},
+        lowerCase = String(stateBody.state || "").toLowerCase(),
+        lowerCase2 = String(stateBody.attributes?.hvac_action || "").toLowerCase(),
+        isFocusTarget = !text || binding.id === text,
+        isPurifierEffect = effect.layout?.type === "airpurifier",
+        percentageValue = stateBody.attributes?.percentage,
+        finite =
+          (typeof percentageValue == "number" ||
+            (typeof percentageValue == "string" && percentageValue.trim() !== "")) &&
+          Number.isFinite(Number(percentageValue)),
+        purifierReading = isPurifierEffect ? purifierState2(binding, options) : null,
+        strength = purifierReading
+          ? purifierReading.strength
+          : finite
+            ? Math.max(0, Math.min(1, Number(percentageValue) / 100))
+            : 0.5,
+        heaterReading =
+          binding.climateType === "bath-heater" ? bathHeaterState2(binding, options) : null,
+        includes = heaterReading
+          ? heaterReading.active.includes(binding.bathEffect)
+          : purifierReading
+            ? purifierReading.running
+            : !["", "off", "unknown", "unavailable"].includes(lowerCase) &&
+              (lowerCase2 === "" || airflowActionSet.has(lowerCase2)),
+        overviewUniformValue = isOverviewMode() ? 1 : 0,
+        targetOpacity =
+          isEnabled && isFocusTarget && includes ? (overviewUniformValue ? 1.45 : 1) : 0,
+        uniforms = effect.mesh.material.uniforms;
+      isPurifierEffect &&
+        includes &&
+        effect.strengthTarget !== strength &&
+        ((effect.strengthTarget = strength), (hasChanged = true));
+      const targetColor = new THREE.Color(
+        effect.layout?.type === "airpurifier"
+          ? flowStateColors.purifier
+          : binding.bathEffect
+            ? flowStateColors.other
+            : flowStateColors[lowerCase] || flowStateColors.other,
+      );
+      (targetOpacity > 0 &&
+        !uniforms.flowColor.value.equals(targetColor) &&
+        (uniforms.flowColor.value.copy(targetColor), (hasChanged = true)),
+        (effect.target !== targetOpacity || effect.overviewTarget !== overviewUniformValue) &&
+          ((effect.target = targetOpacity),
+          (effect.startOpacity = uniforms.flowOpacity.value),
+          (effect.overviewTarget = overviewUniformValue),
+          (effect.startOverview = uniforms.flowOverview.value),
+          (effect.startTime = null),
+          (hasChanged = true)),
+        !isFocusTarget || prefersReducedMotion()
+          ? ((uniforms.flowOpacity.value !== targetOpacity ||
+              uniforms.flowOverview.value !== overviewUniformValue) &&
+              (hasChanged = true),
+            (uniforms.flowOpacity.value = targetOpacity),
+            (uniforms.flowOverview.value = overviewUniformValue),
+            (effect.mesh.visible = targetOpacity > 0),
+            prefersReducedMotion() &&
+              ((uniforms.flowTime.value = 0),
+              (uniforms.flowStrength.value = effect.strengthTarget),
+              (effect.lastTick = null)))
+          : targetOpacity > 0
+            ? (effect.mesh.visible = true)
+            : uniforms.flowOpacity.value === 0 &&
+              ((effect.mesh.visible = false),
+              (uniforms.flowOverview.value = overviewUniformValue)));
+    }
+    hasChanged && requestFrame();
+  }
+  function setRoot(nextRoot, revision) {
+    if (!(isDisposed || (value === nextRoot && rootRevision === revision))) {
+      if (value !== nextRoot) {
+        for (const staleEffect of effectsByBindingKey.values()) disposeEffect(staleEffect);
+        (effectsByBindingKey.clear(), map.clear(), (hasIndexedScene = false));
+      }
+      ((value = nextRoot || null),
+        (rootRevision = revision),
+        (hasIndexedScene = false),
+        !(!isEnabled && !effectsByBindingKey.size) &&
+          (indexSceneModels(), syncEffects(true), updateEffectStates(), requestFrame()));
     }
   }
-  /**
-   * 设置场景根节点。
-   */
-  function setRoot(nextRoot: any, revision: any) {
-    if (!isDisposed && (sceneRoot !== nextRoot || rootRevision !== revision)) {
-      if (sceneRoot !== nextRoot) {
-        // 换了根节点：旧效果全部作废（它们挂在旧场景的节点上）。
-        for (const staleEffect of effectsByBindingKey.values()) {
-          disposeEffect(staleEffect);
-        }
-        effectsByBindingKey.clear();
-        objectsByBindingKey.clear();
-        hasIndexedScene = false;
-      }
-      sceneRoot = nextRoot || null;
-      rootRevision = revision;
-      hasIndexedScene = false;
-      if (!!isEnabled || !!effectsByBindingKey.size) {
-        // 场景重建后模型节点全变了，必须重索引并重算版式。
-        indexSceneModels();
-        syncEffects(true);
-        updateEffectStates();
-        requestFrame();
-      }
-    }
-  }
-  /**
-   * 批量更新内部状态。
-   */
-  function setState(options: any = {}) {
-    if (isDisposed) {
-      return;
-    }
-    // 先记下旧的「减少动态效果」结果，用于判断是否需要补一次重绘。
+  function setState(stateUpdate = {}) {
+    if (isDisposed) return;
     const previousReducedMotion = prefersReducedMotion();
-    // 逐项用 hasOwn 判断而不是取默认值：调用方只传关心的字段。
-    if (Object.hasOwn(options, "enabled")) {
-      isEnabled = options.enabled === true;
-    }
-    if (Object.hasOwn(options, "bindings")) {
-      bindings = Array.isArray(options.bindings) ? options.bindings : [];
-    }
-    if (Object.hasOwn(options, "states")) {
-      entityStates = options.states || ({} as AnyObj);
-    }
-    if (Object.hasOwn(options, "focusedId")) {
-      focusedId = options.focusedId || "";
-    }
-    if (Object.hasOwn(options, "overview")) {
-      overviewOverride = typeof options.overview == "boolean" ? options.overview : undefined;
-    }
-    if (Object.hasOwn(options, "reducedMotion")) {
-      reducedMotionOverride = options.reducedMotion === true;
-    }
-    syncEffects();
-    updateEffectStates();
-    if (previousReducedMotion !== prefersReducedMotion()) {
-      requestFrame();
-    }
+    (Object.hasOwn(stateUpdate, "enabled") && (isEnabled = stateUpdate.enabled === true),
+      Object.hasOwn(stateUpdate, "bindings") &&
+        (list = Array.isArray(stateUpdate.bindings) ? stateUpdate.bindings : []),
+      Object.hasOwn(stateUpdate, "states") && (options = stateUpdate.states || {}),
+      Object.hasOwn(stateUpdate, "focusedId") && (text = stateUpdate.focusedId || ""),
+      Object.hasOwn(stateUpdate, "overview") &&
+        (overviewOverride =
+          typeof stateUpdate.overview == "boolean" ? stateUpdate.overview : undefined),
+      Object.hasOwn(stateUpdate, "reducedMotion") &&
+        (reducedMotionOverride = stateUpdate.reducedMotion === true),
+      syncEffects(),
+      updateEffectStates(),
+      previousReducedMotion !== prefersReducedMotion() && requestFrame());
   }
-  /**
-   * 推进淡入淡出与气流动画。
-   */
-  function tick(timestampMs: any) {
+  function tick(timestampMs) {
+    if (isDisposed || prefersReducedMotion()) return false;
     if (
-      isDisposed ||
-      prefersReducedMotion() ||
-      // 逗号表达式：先给非法时间戳补上当前时间，再判断有没有任何效果需要动画。
       (Number.isFinite(timestampMs) || (timestampMs = globalThis.performance?.now() ?? Date.now()),
-      ![...effectsByBindingKey.values()].some(
-        anyEffect => anyEffect.target > 0 || anyEffect.mesh.material.uniforms.flowOpacity.value > 0
-      ))
+      ![...effectsByBindingKey.values()].some(needsAnimation))
     ) {
-      return false;
+      for (const anyEffect of effectsByBindingKey.values()) anyEffect.lastTick = null;
+      return ((lastTickMs = -Infinity), false);
     }
-    // 气流动画限流在 30fps：噪声细节不需要更高帧率。
     const frameIntervalMs = 1000 / 30;
-    if (timestampMs >= lastTickMs && timestampMs - lastTickMs < frameIntervalMs) {
-      return true;
-    }
+    if (timestampMs >= lastTickMs && timestampMs - lastTickMs < frameIntervalMs) return true;
     lastTickMs =
       Number.isFinite(lastTickMs) && timestampMs >= lastTickMs
         ? timestampMs - ((timestampMs - lastTickMs) % frameIntervalMs)
         : timestampMs;
-    let shouldAnimate = false;
-    let didUniformsChange = false;
+    let shouldAnimate = false,
+      hasUniformsChanged = false;
     for (const animatedEffect of effectsByBindingKey.values()) {
-      const effectUniforms = animatedEffect.mesh.material.uniforms;
+      if (!isVisibleInScene(animatedEffect)) {
+        animatedEffect.lastTick = null;
+        continue;
+      }
+      const uniforms2 = animatedEffect.mesh.material.uniforms;
       if (
-        effectUniforms.flowOpacity.value !== animatedEffect.target ||
-        effectUniforms.flowOverview.value !== animatedEffect.overviewTarget
+        uniforms2.flowOpacity.value !== animatedEffect.target ||
+        uniforms2.flowOverview.value !== animatedEffect.overviewTarget
       ) {
-        if (animatedEffect.startTime === null) {
-          animatedEffect.startTime = timestampMs;
-        }
-        // 不透明度用线性过渡（240ms），总览系数用 smoothstep：
+        animatedEffect.startTime === null && (animatedEffect.startTime = timestampMs);
         const fadeProgress = Math.max(
-          0,
-          Math.min(1, (timestampMs - animatedEffect.startTime) / 240)
-        );
-        const opacityValue =
-          animatedEffect.startOpacity +
-          (animatedEffect.target - animatedEffect.startOpacity) * fadeProgress;
-        const easedProgress = fadeProgress * fadeProgress * (3 - fadeProgress * 2);
-        const animatedOverviewValue =
-          animatedEffect.startOverview +
-          (animatedEffect.overviewTarget - animatedEffect.startOverview) * easedProgress;
-        if (
-          effectUniforms.flowOpacity.value !== opacityValue ||
-          effectUniforms.flowOverview.value !== animatedOverviewValue
-        ) {
-          didUniformsChange = true;
-        }
-        effectUniforms.flowOpacity.value = opacityValue;
-        effectUniforms.flowOverview.value = animatedOverviewValue;
-        if (fadeProgress === 1) {
-          effectUniforms.flowOpacity.value = animatedEffect.target;
-          effectUniforms.flowOverview.value = animatedEffect.overviewTarget;
-          animatedEffect.mesh.visible = animatedEffect.target > 0;
-        } else {
-          shouldAnimate = true;
-        }
+            0,
+            Math.min(1, (timestampMs - animatedEffect.startTime) / 240),
+          ),
+          opacityValue =
+            animatedEffect.startOpacity +
+            (animatedEffect.target - animatedEffect.startOpacity) * fadeProgress,
+          easedProgress = fadeProgress * fadeProgress * (3 - 2 * fadeProgress),
+          animatedOverviewValue =
+            animatedEffect.startOverview +
+            (animatedEffect.overviewTarget - animatedEffect.startOverview) * easedProgress;
+        ((uniforms2.flowOpacity.value !== opacityValue ||
+          uniforms2.flowOverview.value !== animatedOverviewValue) &&
+          (hasUniformsChanged = true),
+          (uniforms2.flowOpacity.value = opacityValue),
+          (uniforms2.flowOverview.value = animatedOverviewValue),
+          fadeProgress === 1
+            ? ((uniforms2.flowOpacity.value = animatedEffect.target),
+              (uniforms2.flowOverview.value = animatedEffect.overviewTarget),
+              (animatedEffect.mesh.visible = animatedEffect.target > 0))
+            : (shouldAnimate = true));
       }
       if (
         animatedEffect.mesh.visible &&
-        (animatedEffect.target > 0 || effectUniforms.flowOpacity.value > 0)
+        (animatedEffect.target > 0 || uniforms2.flowOpacity.value > 0)
       ) {
-        // 时间参数对 1000 取模：数值过大时着色器里的 sin 会因浮点精度不足而抖动。
-        const flowTimeSeconds = (timestampMs / 1000) % 1000;
-        if (effectUniforms.flowTime.value !== flowTimeSeconds) {
-          didUniformsChange = true;
+        const isPurifierAnimation = animatedEffect.layout?.type === "airpurifier",
+          frameDeltaSeconds =
+            animatedEffect.lastTick === null
+              ? 0
+              : Math.max(0, Math.min(0.1, (timestampMs - animatedEffect.lastTick) / 1000));
+        if (
+          ((animatedEffect.lastTick = timestampMs),
+          isPurifierAnimation &&
+            (uniforms2.flowStrength.value +=
+              (animatedEffect.strengthTarget - uniforms2.flowStrength.value) *
+              (1 - Math.exp(-frameDeltaSeconds * 7))),
+          animatedEffect.binding.bathEffect === "light")
+        ) {
+          animatedEffect.lastTick = null;
+          continue;
         }
-        effectUniforms.flowTime.value = flowTimeSeconds;
-        shouldAnimate = true;
-      }
+        const flowTimeSeconds = isPurifierAnimation
+          ? uniforms2.flowTime.value +
+            frameDeltaSeconds * (0.35 + uniforms2.flowStrength.value * 1.1)
+          : (timestampMs / 1000) % 1000;
+        (uniforms2.flowTime.value !== flowTimeSeconds && (hasUniformsChanged = true),
+          (uniforms2.flowTime.value = flowTimeSeconds),
+          (shouldAnimate = true));
+      } else animatedEffect.lastTick = null;
     }
-    if (didUniformsChange) {
-      requestFrame();
-    }
-    return shouldAnimate;
+    return (hasUniformsChanged && requestFrame(), shouldAnimate);
   }
-  /** 系统「减少动态效果」设置变化时重新结算一次（可能需要立刻关掉动画，或把停掉的动画唤醒）。 */
   const handleReducedMotionChange = () => {
-    if (!isDisposed) {
-      updateEffectStates();
-      requestFrame();
-    }
+    isDisposed || (updateEffectStates(), requestFrame());
   };
-  const stopWatchingReducedMotion = onReducedMotionChange(handleReducedMotionChange);
-  return {
-    setRoot: setRoot,
-    setState: setState,
-    tick: tick,
-    /** 下次推进的间隔：有需要动画的效果且未开启减少动态效果时按 30fps。 */
-    nextDelay() {
-      if (
-        !isDisposed &&
-        !prefersReducedMotion() &&
-        [...effectsByBindingKey.values()].some(
-          candidateEffect =>
-            candidateEffect.target > 0 ||
-            candidateEffect.mesh.material.uniforms.flowOpacity.value > 0
-        )
-      ) {
-        return 1000 / 30;
-      } else {
-        return Infinity;
-      }
-    },
-    dispose() {
-      if (!isDisposed) {
-        isDisposed = true;
-        // 必须摘掉媒体查询监听：它是全局对象上的引用，不摘会阻止本模块被回收。
-        stopWatchingReducedMotion();
-        for (const disposedEffect of effectsByBindingKey.values()) {
-          disposeEffect(disposedEffect);
+  return (
+    reducedMotionQuery?.addEventListener?.("change", handleReducedMotionChange),
+    {
+      setRoot: setRoot,
+      setState: setState,
+      tick: tick,
+      nextDelay() {
+        return !isDisposed &&
+          !prefersReducedMotion() &&
+          [...effectsByBindingKey.values()].some(needsAnimation)
+          ? 1000 / 30
+          : Infinity;
+      },
+      dispose() {
+        if (!isDisposed) {
+          ((isDisposed = true),
+            reducedMotionQuery?.removeEventListener?.("change", handleReducedMotionChange));
+          for (const disposedEffect of effectsByBindingKey.values()) disposeEffect(disposedEffect);
+          (effectsByBindingKey.clear(), map.clear(), (list = []), (options = {}), (value = null));
         }
-        effectsByBindingKey.clear();
-        objectsByBindingKey.clear();
-        bindings = [];
-        entityStates = {};
-        sceneRoot = null;
-      }
+      },
     }
-  };
+  );
 }

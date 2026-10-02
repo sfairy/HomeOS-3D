@@ -85,7 +85,7 @@ ops/deploy/deploy.sh --role all
 
 所以：**商店轮换密钥时不需要动客户机** —— 把上一代四件套（`license-*.previous.pem`）按
 商店文档放好开启重叠窗口：分拆部署时 A 下次启动就会自动跟进；同机部署（`--role all`）则由
-商店启动器把上一代公钥一起镜像进共享卷（`ops/docker/license_keys.py`），不必人工搬运。
+商店启动器把上一代公钥一起镜像进共享卷（`ops/license_keys.py`），不必人工搬运。
 两种情况都会把这把旧公钥一起落盘继续参与验签，窗口结束后自动清理。
 
 想人工核对（可选）：`deploy.sh --role store` 结束前会打印两个 sha256，客户机端启动日志里也会打印

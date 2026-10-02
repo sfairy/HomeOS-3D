@@ -1,0 +1,24 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      // launch.json 的 preLaunchTask 靠它兜底：调试器必须先拿到解释器路径才能启动
+      // ops/start.py，而首次 clone（或换机器）时 .venv-store 还不存在。
+      // 实现见 ops/start.py 的 PREPARE_FLAG 分支：只建环境 / 补依赖，不起服务。
+      "label": "HomeOS：准备 Python 环境",
+      "type": "shell",
+      "command": "python3 ops/start.py --prepare",
+      "windows": {
+        "command": "python ops/start.py --prepare"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "close": true
+      }
+    }
+  ]
+}

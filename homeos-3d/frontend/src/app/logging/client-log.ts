@@ -1,22 +1,15 @@
-/**
- * 客户端日志上报（浏览器侧）。
- */
-
 (function (bridgeWindow) {
   "use strict";
-  // 已初始化过或环境不支持 fetch（老浏览器）时直接退出，保证脚本可重复引入。
-  if (bridgeWindow.HABridgeLog || typeof bridgeWindow.fetch != "function") return;
-  // originalFetch 先绑定好 this，后续替换 window.fetch 后仍能调用原生实现。
+
+  if (bridgeWindow.HomeOSLog || typeof bridgeWindow.fetch != "function") return;
   const originalFetch = bridgeWindow.fetch.bind(bridgeWindow),
     LOG_STORAGE_KEY = "homeos-client-log-v1",
     MAX_QUEUED_EVENT_COUNT = 50,
-    MAX_QUEUE_BYTES = 12e4,
-    // 900 秒（15 分钟）之前的日志视为过期，不再补报。
-    MAX_EVENT_AGE_MS = 900 * 1e3,
-    reportedErrors = new WeakSet(),
+    MAX_QUEUE_BYTES = 120000,
+    MAX_EVENT_AGE_MS = 900 * 1000,
+    reportedErrorSet = new WeakSet(),
     linkedResponseSet = new WeakSet(),
-    // 上下文白名单：只允许这些键进入日志，其余一律丢弃，防止误传敏感字段。
-    ALLOWED_CONTEXT_KEYS = new Set([
+    allowedPayloadKeySet = new Set([
       "page",
       "projectId",
       "componentId",
@@ -31,42 +24,29 @@
       "line",
       "column",
       "userAgent",
-      "phase"
+      "phase",
     ]),
-    // ResizeObserver 布局循环保护提示：没有堆栈也不代表业务出错，却会随布局抖动重复上报，统一识别后丢弃。
-    RESIZE_OBSERVER_LOOP_ERROR = /^ResizeObserver loop (?:completed with undelivered notifications|limit exceeded)\.?$/,
-    // 已知第三方浏览器扩展的控制台噪音前缀（详见 suppressThirdPartyConsoleNoise）。
-    EXTENSION_CONSOLE_NOISE_PREFIX = "Error processing XMLHttpRequest response:",
-    // 开发开关取值：与 utils/debug-log.js 同一口径，只认显式的 1 / true。
-    FRONTEND_DEBUG_QUERY_VALUES = new Set(["1", "true"]),
-    isPublicPage = /^\/(?:login|setup|pair|license)(?:\/|$)/.test(bridgeWindow.location.pathname);
-  // publicMode 可在收到 401 后动态切到 true（会话过期降级为公开上报）。
+    isPublicPage = /^\/(?:login|setup|pair)(?:\/|$)/.test(bridgeWindow.location.pathname);
   let publicMode = isPublicPage,
-    eventQueue: any[] = [],
-    flushTimer: any = null,
-    isFlushing = !1,
-    // retryDelayMs 是下一次失败后的等待时间，成倍增长；nextRetryAt 是允许重试的时间点。
-    retryDelayMs = 1e3,
+    eventQueue = [],
+    flushTimer = null,
+    isFlushing = false,
+    retryDelayMs = 1000,
     nextRetryAt = 0,
-    logContext = {};
-
-  /**
-   * 判断当前是否打开了开发开关。
-   */
+    logPayload = {};
+  // 开发开关取值：与 utils/debug-log.js 同一口径，只认显式的 1 / true。
   function isDebugModeEnabled() {
     try {
-      return FRONTEND_DEBUG_QUERY_VALUES.has(
-        new URLSearchParams(String(bridgeWindow.location?.search || "")).get("debug") || ""
+      return new Set(["1", "true"]).has(
+        new URLSearchParams(String(bridgeWindow.location?.search || "")).get("debug") || "",
       );
     } catch {
-      // 开关自己不该成为故障源：畸形输入按「没打开」处理。
       return false;
     }
   }
-
-  /**
-   * 丢弃已知第三方浏览器扩展在主世界打的 console.error 噪音。
-   */
+  // 已知第三方浏览器扩展（chrome-extension://odphnbhiddhdpoccbialllejaajemdio）会 patch
+  // XMLHttpRequest，在 responseType 为 arraybuffer / json 时仍去读 responseText，于是把
+  // InvalidStateError 打到控制台。它和业务无关却会刷屏，按前缀丢弃。
   function suppressThirdPartyConsoleNoise() {
     const consoleObject = bridgeWindow.console;
     if (!consoleObject || typeof consoleObject.error != "function") return;
@@ -74,20 +54,15 @@
     consoleObject.error = function (...consoleArguments) {
       if (
         typeof consoleArguments[0] == "string" &&
-        consoleArguments[0].startsWith(EXTENSION_CONSOLE_NOISE_PREFIX)
+        consoleArguments[0].startsWith("Error processing XMLHttpRequest response:")
       ) {
         return;
       }
       return originalConsoleError.apply(consoleObject, consoleArguments);
     };
   }
-
   isDebugModeEnabled() || suppressThirdPartyConsoleNoise();
-
-  /**
-   * 归一化并脱敏请求路径。
-   */
-  function sanitizePath(rawPath: any) {
+  function sanitizePath(rawPath) {
     try {
       const parsedUrl = new URL(String(rawPath || ""), bridgeWindow.location.href);
       if (!["http:", "https:", "ws:", "wss:"].includes(parsedUrl.protocol))
@@ -95,12 +70,10 @@
       let normalizedPath = parsedUrl.pathname;
       try {
         normalizedPath = decodeURIComponent(normalizedPath);
-      } catch {
-        // 畸形百分号编码（如 %zz）时保留原样：这里的路径只用于把请求归类成脱敏标签，
-      }
-      // HLS 流地址带随机 token，统一折叠成 [stream]；邮箱 / JWT 也一并替换。
+      } catch {}
       return normalizedPath
         .split(/[?#]/, 1)[0]
+        .replace(/\/embed\/[A-Za-z0-9_-]{43}(?=\/|$)/g, "/embed/[session]")
         .replace(/(\/api\/hls\/)[^/]+(?:\/.*)?/gi, "$1[stream]")
         .replace(/[A-Z0-9.!#$%&'*+=^_`{|}~-]+@[A-Z0-9-]+(?:\.[A-Z0-9-]+)+/gi, "[email redacted]")
         .replace(/\b(?:eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)\b/g, "[redacted]")
@@ -109,79 +82,61 @@
       return "[invalid path]";
     }
   }
-
-  /**
-   * 对任意文本做敏感信息脱敏，超出 ``maxLength``（默认 1000）截断。
-   * @param {*} rawText 原始文本。
-   * @returns {string} 脱敏后的文本。
-   */
-  function redactSensitive(rawText: any, maxLength: any = 1e3) {
+  function redactSensitive(rawText, maxLength = 1000) {
     return String(rawText ?? "")
+      .replace(/\/embed\/[A-Za-z0-9_-]{43}(?=\/|$)/g, "/embed/[session]")
       .replace(
         /(\b(?:set-cookie|cookie)["']?\s*[:=]\s*)(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\r\n]+)/gi,
-        "$1[redacted]"
+        "$1[redacted]",
       )
       .replace(
         /-----BEGIN[\s\S]*?PRIVATE KEY-----[\s\S]*?-----END[\s\S]*?PRIVATE KEY-----/g,
-        "[private key redacted]"
+        "[private key redacted]",
       )
       .replace(/[A-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[A-Z0-9-]+(?:\.[A-Z0-9-]+)+/gi, "[email redacted]")
-      .replace(/(?:https?|wss?|rtsps?):\/\/[^\s<>"']+/gi, matchedUrl => sanitizePath(matchedUrl))
+      .replace(/(?:https?|wss?|rtsps?):\/\/[^\s<>"']+/gi, (matchedUrl) => sanitizePath(matchedUrl))
       .replace(/\bBearer\s+[^\s,;"']+/gi, "Bearer [redacted]")
       .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "[redacted]")
       .replace(
         /((?:password|passwd|token|authorization|cookie|secret|api[_-]?key|access[_-]?token|refresh[_-]?token|pairing[_-]?code|activation[_-]?code|recovery[_-]?token|session[_-]?token|private[_-]?key|密码|激活码)\s*["']?\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s,;}]+)/gi,
-        "$1[redacted]"
+        "$1[redacted]",
       )
       .replace(/\/api\/hls\/[^\s<>"'?#)]+(?:\?[^\s<>"')]+)?/gi, "/api/hls/[stream]")
       .replace(/(\/[^\s?"'<>]*)\?[^\s"'<>]*/g, "$1")
       .slice(0, maxLength);
   }
-
-  /**
-   * 按白名单挑出可上报的上下文字段。
-   * @returns {object} 只含白名单键、且值已脱敏的上下文。
-   */
-  function pickContext(contextRecord: any) {
-    const pickedContext: AnyObj = {};
-    // 逐个键过滤：白名单外、值为 null / undefined、类型不是基本类型的都跳过。
-    for (const [contextKey, contextValue] of Object.entries(contextRecord || {}))
-      !ALLOWED_CONTEXT_KEYS.has(contextKey) ||
-        contextValue == null ||
-        !["string", "number", "boolean"].includes(typeof contextValue) ||
-        (pickedContext[contextKey] = ["path", "page"].includes(contextKey)
-          ? sanitizePath(contextValue)
-          : typeof contextValue == "number" && Number.isFinite(contextValue)
-            ? contextValue
-            : redactSensitive(contextValue, 512));
-    return pickedContext;
+  function pickPayload(sourceFields) {
+    const pickedPayload = {};
+    for (const [detailKey, detailValue] of Object.entries(sourceFields || {}))
+      !allowedPayloadKeySet.has(detailKey) ||
+        detailValue == null ||
+        !["string", "number", "boolean"].includes(typeof detailValue) ||
+        (pickedPayload[detailKey] = ["path", "page"].includes(detailKey)
+          ? sanitizePath(detailValue)
+          : typeof detailValue == "number" && Number.isFinite(detailValue)
+            ? detailValue
+            : redactSensitive(detailValue, 512));
+    return pickedPayload;
   }
-
-  // 按当前页面推断日志来源名称，后台日志列表里直接显示这四类来源。
   function currentSourceName() {
     return bridgeWindow.location.pathname.startsWith("/3d-studio")
       ? "3D 户型编辑器"
-      : /^\/display\//.test(bridgeWindow.location.pathname)
+      : /^\/(?:display|homeos)\//.test(bridgeWindow.location.pathname)
         ? "展示设备"
         : isPublicPage
           ? "登录与配对页面"
           : "仪表盘编辑器";
   }
-
-  // 清理过期与超量的队列项：先按时间淘汰，再按总字节数从队首丢弃。
   function pruneQueue() {
     const cutoffTime = Date.now() - MAX_EVENT_AGE_MS;
-    // 条件里用 JSON.stringify 估长：队列最多 50 条，这个开销可以接受。
     for (
       eventQueue = eventQueue
-        .filter((prunedEntry: any) => prunedEntry.queuedAt >= cutoffTime)
+        .filter((prunedEntry) => prunedEntry.queuedAt >= cutoffTime)
         .slice(-MAX_QUEUED_EVENT_COUNT);
       eventQueue.length && JSON.stringify(eventQueue).length > MAX_QUEUE_BYTES;
     )
       eventQueue.shift();
   }
-
-  // 把队列持久化到 sessionStorage；隐私模式下写入失败则静默忽略。
   function persistQueue() {
     pruneQueue();
     try {
@@ -190,103 +145,66 @@
         : bridgeWindow.sessionStorage.removeItem(LOG_STORAGE_KEY);
     } catch {}
   }
-
-  // 安排一次发送；已有定时器或队列为空时不重复排程（天然合并短时间内的多次事件）。
-  function scheduleFlush(delayMs: any = 100) {
+  function scheduleFlush(delayMs = 100) {
     flushTimer ||
       !eventQueue.length ||
       (flushTimer = bridgeWindow.setTimeout(() => {
         ((flushTimer = null), flushQueue());
       }, delayMs));
   }
-
-  /**
-   * 组装并入队一条日志事件。
-   * @param {string} [reportDetails] 详情（通常是堆栈），截断到 8000 字符。
-   */
   function reportEvent(
-      reportLevel: any,
-      reportCategory: any,
-      reportMessage: any,
-    reportContext: any = {},
-    reportDetails: any = ""
+    reportLevel,
+    reportCategory,
+    reportMessage,
+    reportFields = {},
+    reportDetails = "",
   ) {
     const eventPayload = {
       level: ["info", "success", "warning", "error"].includes(reportLevel) ? reportLevel : "error",
       source: currentSourceName(),
       category: redactSensitive(reportCategory || "界面", 64),
-      message: redactSensitive(reportMessage || "未知异常", 1e3) || "未知异常",
-      details: redactSensitive(reportDetails, 8e3) || null,
-      context: pickContext({
+      message: redactSensitive(reportMessage || "未知异常", 1000),
+      details: redactSensitive(reportDetails, 8000),
+      context: pickPayload({
+        page: bridgeWindow.location.pathname,
         userAgent: bridgeWindow.navigator?.userAgent || "",
-        // 全局上下文在前，单条事件的上下文可覆盖同名键。
-        ...logContext,
-        ...reportContext,
-        // page 必须钉死为当前路径：公开通道用它做白名单门禁，
-        page: bridgeWindow.location.pathname
+        ...logPayload,
+        ...reportFields,
       }),
-      clientTimestamp: new Date().toISOString()
+      clientTimestamp: new Date().toISOString(),
     };
-    // 公开页面（登录 / 配对）只允许上报 warning 与 error，其余等级直接丢弃。
     (publicMode && !["warning", "error"].includes(eventPayload.level)) ||
-      (eventQueue.push({ event: eventPayload, queuedAt: Date.now() }),
+      (eventQueue.push({
+        event: eventPayload,
+        queuedAt: Date.now(),
+      }),
       persistQueue(),
       scheduleFlush());
   }
-
-  /**
-   * 上报一个异常对象。
-   */
-  function reportError(thrownValue: any, extraContext: any = {}, fallbackMessage: any = "") {
+  function reportError(thrownValue, errorFields = {}, fallbackMessage = "") {
     if (thrownValue && typeof thrownValue == "object") {
-      if (reportedErrors.has(thrownValue)) return;
-      reportedErrors.add(thrownValue);
+      if (reportedErrorSet.has(thrownValue)) return;
+      reportedErrorSet.add(thrownValue);
     }
     reportEvent(
       "error",
       "界面",
       fallbackMessage || thrownValue?.message || String(thrownValue || "未知异常"),
-      extraContext,
-      thrownValue?.stack || ""
+      errorFields,
+      thrownValue?.stack || "",
     );
   }
-
-  function linkErrorToResponse(errorObject: any, response: any) {
+  function linkErrorToResponse(errorObject, response) {
     return (
       errorObject &&
         typeof errorObject == "object" &&
         linkedResponseSet.has(response) &&
-        reportedErrors.add(errorObject),
+        reportedErrorSet.add(errorObject),
       errorObject
     );
   }
-
-  /**
-   * 公开通道发送前规范化：钉死 page、丢掉非法时间戳、保证 message 非空。
-   */
-  function normalizePublicEvent(rawEvent: any) {
-    const context = { ...(rawEvent?.context || {}) };
-    context.page = String(bridgeWindow.location.pathname || "/")
-      .split(/[?#]/, 1)[0]
-      .replace(/\/+$/, "") || "/";
-    const parsedTimestamp = new Date(rawEvent?.clientTimestamp || Date.now());
-    return {
-      level: ["warning", "error"].includes(rawEvent?.level) ? rawEvent.level : "error",
-      source: redactSensitive(rawEvent?.source || currentSourceName(), 64),
-      category: redactSensitive(rawEvent?.category || "界面", 64),
-      message: redactSensitive(rawEvent?.message || "未知异常", 1e3) || "未知异常",
-      details: rawEvent?.details ? redactSensitive(rawEvent.details, 8e3) : null,
-      context: pickContext(context),
-      clientTimestamp: Number.isFinite(parsedTimestamp.getTime())
-        ? parsedTimestamp.toISOString()
-        : new Date().toISOString()
-    };
-  }
-
-  // 把队列里的日志逐条发给后端，失败按退避策略重试。
   async function flushQueue() {
-    // 正在发送或明确离线时不发起请求（离线时等待 online 事件唤醒）。
-    if (isFlushing || bridgeWindow.navigator?.onLine === !1) return;
+    if (isFlushing || bridgeWindow.navigator?.onLine === false) return;
     if (Date.now() < nextRetryAt) {
       scheduleFlush(nextRetryAt - Date.now());
       return;
@@ -295,141 +213,154 @@
       persistQueue();
       return;
     }
-    // 从待发送队列摘掉一条日志（发送成功，或因切到公开模式被跳过）。不用下标而是用
-    const removeQueuedEntry = (queuedEntry: any) => {
+    const removeQueuedEntry = (queuedEntry) => {
       const queueIndex = eventQueue.indexOf(queuedEntry);
-      // 队列可能在并发中被清空，下标为 -1 时直接跳过。
       queueIndex >= 0 && eventQueue.splice(queueIndex, 1);
     };
-    isFlushing = !0;
+    isFlushing = true;
     try {
       for (let attemptIndex = 0; eventQueue.length && attemptIndex < 5; attemptIndex += 1) {
         const batchEntry = eventQueue[0];
-        // 页面切换到公开模式后，队列里遗留的 info / success 不再发送。
         if (publicMode && !["warning", "error"].includes(batchEntry.event.level)) {
           removeQueuedEntry(batchEntry);
           continue;
         }
         const abortController = typeof AbortController == "function" ? new AbortController() : null,
-          timeoutId = bridgeWindow.setTimeout(() => abortController?.abort(), 8e3);
-        const eventBody = publicMode ? normalizePublicEvent(batchEntry.event) : batchEntry.event;
-        let sendResponse: any;
+          timeoutId = bridgeWindow.setTimeout(() => abortController?.abort(), 8000);
+        let sendResponse;
         try {
           sendResponse = await originalFetch(
             `/api/v1/logs/${publicMode ? "public-events" : "events"}`,
             {
               method: "POST",
               cache: "no-store",
-              // keepalive 让页面卸载途中也能把日志发出去。
-              keepalive: !0,
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(eventBody),
-              ...(abortController ? { signal: abortController.signal } : {})
-            }
+              keepalive: true,
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(batchEntry.event),
+              ...(abortController
+                ? {
+                    signal: abortController.signal,
+                  }
+                : {}),
+            },
           );
         } finally {
           bridgeWindow.clearTimeout(timeoutId);
         }
         if (sendResponse.ok) {
-          (removeQueuedEntry(batchEntry), (retryDelayMs = 1e3));
+          (removeQueuedEntry(batchEntry), (retryDelayMs = 1000));
           continue;
         }
         if (sendResponse.status === 401 && !publicMode) {
-          // 会话过期：降级为公开上报，1 秒后继续发（后续可用 public-events）。
-          ((publicMode = !0), (nextRetryAt = Date.now() + 1e3));
+          ((publicMode = true), (nextRetryAt = Date.now() + 1000));
           break;
         }
         if (sendResponse.status === 429 || sendResponse.status >= 500) {
-          // 限流或服务端故障：尊重 Retry-After，同时把退避时长翻倍（上限 60 秒）。
-          const retryAfterMs = Number(sendResponse.headers?.get("Retry-After")) * 1e3;
-          ((nextRetryAt = Date.now() + Math.min(6e4, Math.max(retryDelayMs, retryAfterMs || 0))),
-            (retryDelayMs = Math.min(6e4, retryDelayMs * 2)));
+          const retryAfterMs = Number(sendResponse.headers?.get("Retry-After")) * 1000;
+          ((nextRetryAt = Date.now() + Math.min(60000, Math.max(retryDelayMs, retryAfterMs || 0))),
+            (retryDelayMs = Math.min(60000, retryDelayMs * 2)));
           break;
         }
-        // 400 类客户端错误重试无意义，直接丢弃该条。
         removeQueuedEntry(batchEntry);
       }
     } catch {
-      // 网络异常：整轮退避，等待下次排程。
-      ((nextRetryAt = Date.now() + retryDelayMs), (retryDelayMs = Math.min(6e4, retryDelayMs * 2)));
+      ((nextRetryAt = Date.now() + retryDelayMs),
+        (retryDelayMs = Math.min(60000, retryDelayMs * 2)));
     } finally {
-      ((isFlushing = !1), persistQueue(), scheduleFlush(Math.max(100, nextRetryAt - Date.now())));
+      ((isFlushing = false),
+        persistQueue(),
+        scheduleFlush(Math.max(100, nextRetryAt - Date.now())));
     }
   }
+/** fetch 包装器认可的额外字段：调用方通过它附带日志上下文。 */
+type FetchInitWithLogContext = RequestInit & {
+  /** 日志上下文（会随请求一起上报）。 */
+  hbLogContext?: any;
+};
 
-  // 包裹 fetch：记录失败与慢请求；业务可传 hbLogContext 附加日志上下文（不发给后端）。
-  ((bridgeWindow.fetch = async function (requestInput: any, requestInit: any = {}) {
-    const { hbLogContext: hbLogContext, ...fetchOptions } = requestInit || {},
+/** 资源加载失败事件里被指向的元素：src / href / tagName 三选若干。 */
+type ResourceErrorTarget = EventTarget & {
+  src?: string;
+  href?: string;
+  tagName?: string;
+};
+
+  ((bridgeWindow.fetch = async function (
+    requestInput,
+    requestInit: FetchInitWithLogContext = {},
+  ) {
+    const { hbLogContext: hbLogPayload, ...fetchOptions } = requestInit || {},
       requestPath = sanitizePath(
         typeof requestInput == "string" || requestInput instanceof URL
           ? requestInput
-          : requestInput?.url
+          : requestInput?.url,
       );
     if (/^\/api\/v1\/logs(?:\/|$)/.test(requestPath))
       return originalFetch(requestInput, fetchOptions);
     const startedAt = Date.now(),
-      requestInfo = {
-        method: fetchOptions.method || requestInput?.method || "GET",
+      requestRecord = {
+        method: fetchOptions.method || (requestInput as Request)?.method || "GET",
         path: requestPath,
-        ...pickContext(hbLogContext)
+        ...pickPayload(hbLogPayload),
       };
     try {
       const fetchResponse = await originalFetch(requestInput, fetchOptions),
         durationMs = Date.now() - startedAt;
       return (
-        (!fetchResponse.ok || durationMs >= 5e3) &&
+        (!fetchResponse.ok || durationMs >= 5000) &&
           (reportEvent(
-            fetchResponse.ok || fetchResponse.status < 500 ? "warning" : "error",
+            fetchResponse.ok ? "warning" : "error",
             "网络请求",
-            `${fetchResponse.ok ? "请求耗时较长" : "请求失败"}：${(requestInfo as any).method} ${requestPath}${fetchResponse.ok ? "" : `（HTTP ${fetchResponse.status}）`}`,
+            `${fetchResponse.ok ? "请求耗时较长" : "请求失败"}\uFF1A${requestRecord.method} ${requestPath}${fetchResponse.ok ? "" : `\uFF08HTTP ${fetchResponse.status}\uFF09`}`,
             {
-              ...requestInfo,
+              ...requestRecord,
               status: fetchResponse.status,
               durationMs: durationMs,
-              requestId: fetchResponse.headers?.get("X-Request-ID") || ""
-            }
+              requestId: fetchResponse.headers?.get("X-Request-ID") || "",
+            },
           ),
           fetchResponse.ok || linkedResponseSet.add(fetchResponse)),
         fetchResponse
       );
-    } catch (caughtError: any) {
+    } catch (caughtError) {
       const abortSignal =
-        fetchOptions.signal === void 0 ? requestInput?.signal : fetchOptions.signal;
+        fetchOptions.signal === undefined
+          ? (requestInput as Request)?.signal
+          : fetchOptions.signal;
       throw (
-        // 主动取消（AbortError 或与 signal.reason 相同）不算故障，不记录。
         caughtError?.name === "AbortError" ||
           (abortSignal?.aborted && caughtError === abortSignal.reason) ||
           (reportEvent(
             "error",
             "网络请求",
-            `网络连接失败：${(requestInfo as any).method} ${requestPath}`,
-            { ...requestInfo, durationMs: Date.now() - startedAt },
-            caughtError?.stack || caughtError?.message || ""
+            `\u7F51\u7EDC\u8FDE\u63A5\u5931\u8D25\uFF1A${requestRecord.method} ${requestPath}`,
+            {
+              ...requestRecord,
+              durationMs: Date.now() - startedAt,
+            },
+            caughtError?.stack || caughtError?.message || "",
           ),
-          caughtError && typeof caughtError == "object" && reportedErrors.add(caughtError)),
+          caughtError && typeof caughtError == "object" && reportedErrorSet.add(caughtError)),
         caughtError
       );
     }
   }),
-    // 对外接口：手动上报、上报错误、关联错误与响应、强制发送、设置全局上下文。
-    (bridgeWindow.HABridgeLog = {
+    (bridgeWindow.HomeOSLog = {
       report: reportEvent,
       error: reportError,
       linkError: linkErrorToResponse,
       flush: flushQueue,
-      setContext: (contextInput: any) => {
-        logContext = pickContext(contextInput);
-      }
+      setContext: (payloadInput) => {
+        logPayload = pickPayload(payloadInput);
+      },
     }),
-    // 资源加载失败不会冒泡到 window.onerror，只能靠捕获阶段的 error 事件。
     bridgeWindow.addEventListener(
       "error",
-      (errorEvent: any) => {
-        // 先丢掉浏览器自身的 ResizeObserver 循环提示：非业务异常且高频重复。
-        if (RESIZE_OBSERVER_LOOP_ERROR.test(errorEvent.message || "")) {
-          return;
-        }
-        const failedTarget = errorEvent.target;
+      (errorEvent) => {
+        // 资源加载失败时 target 是 <img>/<script>/<link>，事件类型上只保证是 EventTarget。
+        const failedTarget = errorEvent.target as ResourceErrorTarget;
         if (
           failedTarget &&
           failedTarget !== bridgeWindow &&
@@ -438,41 +369,32 @@
           reportEvent(
             "error",
             "资源加载",
-            `资源加载失败：${sanitizePath(failedTarget.src || failedTarget.href)}`,
+            `\u8D44\u6E90\u52A0\u8F7D\u5931\u8D25\uFF1A${sanitizePath(failedTarget.src || failedTarget.href)}`,
             {
               path: failedTarget.src || failedTarget.href,
-              phase: String(failedTarget.tagName || "resource").toLowerCase()
-            }
+              phase: String(failedTarget.tagName || "resource").toLowerCase(),
+            },
           );
           return;
         }
-        reportError(
-          errorEvent.error ||
-            new Error(errorEvent.message || "页面脚本异常"),
-          {
-            path: errorEvent.filename || bridgeWindow.location.pathname,
-            line: errorEvent.lineno,
-            column: errorEvent.colno
-          }
-        );
+        reportError(errorEvent.error || new Error(errorEvent.message || "页面脚本异常"), {
+          path: errorEvent.filename || bridgeWindow.location.pathname,
+          line: errorEvent.lineno,
+          column: errorEvent.colno,
+        });
       },
-      // 捕获阶段才能拿到图片 / 脚本等资源的加载错误。
-      !0
+      true,
     ),
-    bridgeWindow.addEventListener("unhandledrejection", (rejectionEvent: any) =>
-      reportError(rejectionEvent.reason)
+    bridgeWindow.addEventListener("unhandledrejection", (rejectionEvent) =>
+      reportError(rejectionEvent.reason),
     ),
-    // 网络恢复时立刻清空退避状态并重试，不必等下一个排程。
     bridgeWindow.addEventListener("online", () => {
       ((nextRetryAt = 0), flushQueue());
     }),
     bridgeWindow.addEventListener("pagehide", () => {
-      // 页面即将卸载：落盘并趁机把队列发出去。
       (persistQueue(), flushQueue());
     }));
-  // 恢复上次会话留下的队列（刷新 / 跳转前的日志），逐条做同样的脱敏与校验。
   try {
-    // 存储不可用 / 内容损坏时从空队列开始，丢的只是上次会话未送出的日志。
     const storedEntries = JSON.parse(bridgeWindow.sessionStorage.getItem(LOG_STORAGE_KEY) || "[]");
     if (Array.isArray(storedEntries))
       for (const storedEntry of storedEntries.slice(-MAX_QUEUED_EVENT_COUNT)) {
@@ -491,23 +413,13 @@
               : "error",
             source: redactSensitive(storedEvent.source || currentSourceName(), 64),
             category: redactSensitive(storedEvent.category || "界面", 64),
-            message: redactSensitive(storedEvent.message || "未知异常", 1e3),
-            details: redactSensitive(storedEvent.details, 8e3),
-            context: pickContext({
-              ...(storedEvent.context || {}),
-              page: bridgeWindow.location.pathname
-            }),
-            // 时间用入队时刻，保证补报日志的时间线仍准确。
-            clientTimestamp: (() => {
-              const queuedDate = new Date(storedEntry.queuedAt);
-              return Number.isFinite(queuedDate.getTime())
-                ? queuedDate.toISOString()
-                : new Date().toISOString();
-            })()
-          }
+            message: redactSensitive(storedEvent.message || "未知异常", 1000),
+            details: redactSensitive(storedEvent.details, 8000),
+            context: pickPayload(storedEvent.context),
+            clientTimestamp: new Date(storedEntry.queuedAt).toISOString(),
+          },
         });
       }
   } catch {}
-  // 启动即落盘一次（顺带裁剪），并安排发送。
   (persistQueue(), scheduleFlush());
 })(window);

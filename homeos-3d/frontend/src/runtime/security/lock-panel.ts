@@ -1,216 +1,148 @@
-/**
- * 门锁详情面板（3D 详情弹窗 / 配置预览共用）。
- */
-import { lockState } from "./lock-state.js";
-
-type LockItem = {
-  id?: string;
-  entityId?: string;
-  batteryEntityId?: string;
-  label?: string;
-  [key: string]: unknown;
-};
-
-type LockViewState = {
-  label: string;
-  doorLabel: string;
-  battery?: string;
-  available?: boolean;
-  busy?: boolean;
-  codeRequired?: boolean;
-  canOpen?: boolean;
-  state?: string;
-};
-
-type LockControl = {
-  deviceKind: "lock";
-  domain: "lock";
-  service: string;
-  entityId?: string;
-  data: Record<string, unknown>;
-};
-
-type LockPanelOptions = {
-  onControl: (control: LockControl) => Promise<unknown> | unknown;
-};
-
-type LockPanelUpdate = {
-  item: LockItem;
-  states?: Map<string, unknown> | Record<string, unknown>;
-  editing?: boolean;
-};
-
-/**
- * 创建门锁面板。
- */
-export function createLockPanel({ onControl }: LockPanelOptions) {
-  const el = (tag: string, text = "") => {
-    const node = document.createElement(tag);
-    node.textContent = text;
-    return node;
-  };
-  const rootElement = el("section");
-  const headingElement = el("div");
-  const titleElement = el("h3");
-  const metaElement = el("p");
-  const statusElement = el("p");
-  const detailsElement = el("div");
-  const actionsElement = el("div");
-  const codeInputElement = el("input") as HTMLInputElement;
-  const feedbackElement = el("p");
-  // 沿用 NAS 面板的外观类，让门锁弹窗与其它设备弹窗的排版一致。
-  rootElement.className = "i3d-lock-panel i3d-nas-panel";
-  headingElement.className = "i3d-nas-heading";
-  metaElement.className = "i3d-nas-meta";
-  statusElement.className = "i3d-nas-status";
-  detailsElement.className = "i3d-lock-details";
-  actionsElement.className = "i3d-focus-actions";
-  feedbackElement.setAttribute("role", "status");
-  codeInputElement.type = "password";
-  codeInputElement.autocomplete = "off";
-  codeInputElement.maxLength = 128;
-  codeInputElement.placeholder = "门密码（仅本次操作）";
-  codeInputElement.setAttribute("aria-label", "门密码");
-  // 当前绑定项；为 null 表示尚未绑定门锁，所有动作按钮都隐藏。
-  let currentItem: LockItem | null = null;
-  // editing=true 表示处于编辑器预览态，此时禁用一切下发。
-  let isEditing = true;
-  let isBusy = false;
-  // 已 dispose 后所有异步回包都不应再改 DOM。
-  let isDisposed = false;
-  // 已点过一次、等待二次确认的动作名（空串表示无待确认动作）。
-  let pendingAction = "";
-  // 绑定项变化即自增，用于丢弃属于上一个门锁的异步回包。
-  let instanceId = 0;
-  const actionButtons = new Map<string, HTMLButtonElement>();
-  for (const [service, label] of [
+import { lockState } from "./lock-state";
+export function createLockPanel({ onControl: onControl }) {
+  const createTextElement = (tagName, textContent = "") => {
+      const createdElement = document.createElement(tagName);
+      return ((createdElement.textContent = textContent), createdElement);
+    },
+    panelElement = createTextElement("section"),
+    headingElement = createTextElement("div"),
+    titleElement = createTextElement("h3"),
+    metaElement = createTextElement("p"),
+    statusElement = createTextElement("p"),
+    detailsElement = createTextElement("div"),
+    actionsElement = createTextElement("div"),
+    codeInputElement = createTextElement("input"),
+    messageElement = createTextElement("p");
+  ((panelElement.className = "i3d-lock-panel i3d-nas-panel"),
+    (headingElement.className = "i3d-nas-heading"),
+    (metaElement.className = "i3d-nas-meta"),
+    (statusElement.className = "i3d-nas-status"),
+    (detailsElement.className = "i3d-lock-details"),
+    (actionsElement.className = "i3d-focus-actions"),
+    messageElement.setAttribute("role", "status"),
+    (codeInputElement.type = "password"),
+    (codeInputElement.autocomplete = "off"),
+    (codeInputElement.maxLength = 128),
+    (codeInputElement.placeholder = "门密码（仅本次操作）"),
+    codeInputElement.setAttribute("aria-label", "门密码"));
+  let currentComponent = null,
+    isEditing = true,
+    isSubmitting = false,
+    isDisposed = false,
+    pendingAction = "",
+    updateEpoch = 0;
+  const buttonsByActionName = new Map();
+  for (const [actionName, actionLabel] of [
     ["lock", "上锁"],
     ["unlock", "解锁"],
-    ["open", "释放锁舌"]
-  ] as const) {
-    const buttonElement = el("button", label) as HTMLButtonElement;
-    buttonElement.type = "button";
-    actionButtons.set(service, buttonElement);
-    actionsElement.append(buttonElement);
-    buttonElement.addEventListener("click", async () => {
-      if (isEditing || isBusy || !currentItem) {
-        return;
-      }
-      // 上锁是安全方向，不必二次确认；解锁 / 释放锁舌要先点一次确认。
-      if (service !== "lock" && pendingAction !== service) {
-        pendingAction = service;
-        feedbackElement.textContent = "确认要" + label + "吗？再次点击执行。";
-        return;
-      }
-      pendingAction = "";
-      isBusy = true;
-      const instanceAtSend = instanceId;
-      const itemAtSend = currentItem;
-      render();
-      const serviceData = codeInputElement.value ? { code: codeInputElement.value } : {};
-      // 密码只允许用于本次操作，无论成功失败都立刻清空输入框。
-      codeInputElement.value = "";
-      try {
-        await onControl({
-          deviceKind: "lock",
-          domain: "lock",
-          service,
-          entityId: itemAtSend.entityId,
-          data: serviceData
-        });
-        if (!isDisposed && instanceAtSend === instanceId) {
-          feedbackElement.textContent = "指令已提交，状态以门反馈为准。";
+    ["open", "释放锁舌"],
+  ]) {
+    const actionButton = createTextElement("button", actionLabel);
+    ((actionButton.type = "button"),
+      buttonsByActionName.set(actionName, actionButton),
+      actionsElement.append(actionButton),
+      actionButton.addEventListener("click", async () => {
+        if (isEditing || isSubmitting || !currentComponent) return;
+        if (actionName !== "lock" && pendingAction !== actionName) {
+          ((pendingAction = actionName),
+            (messageElement.textContent = "确认要" + actionLabel + "吗？再次点击执行。"));
+          return;
         }
-      } catch (error) {
-        if (!isDisposed && instanceAtSend === instanceId) {
-          feedbackElement.textContent =
-            error instanceof Error ? error.message || "操作失败。" : "操作失败。";
-        }
-      } finally {
-        if (!isDisposed && instanceAtSend === instanceId) {
-          isBusy = false;
-          render();
-        }
-      }
-    });
-  }
-  let viewState = (lockState as (item: unknown, states?: unknown) => LockViewState)({});
-  /** 按当前绑定项与 viewState 重绘面板。 */
-  function render() {
-    // 状态行：绑定后就显示「锁状态 · 门磁状态」，未绑定只显示锁状态。
-    statusElement.textContent = currentItem?.entityId
-      ? viewState.label + " · " + viewState.doorLabel
-      : viewState.label;
-    // 详情行只放电量（装配了电量实体时才有）。
-    detailsElement.replaceChildren(
-      ...[currentItem?.batteryEntityId ? "电量 " + viewState.battery : ""]
-        .filter(Boolean)
-        .map(text => {
-          const spanElement = el("span", text);
-          spanElement.className = "i3d-lock-detail";
-          return spanElement;
-        })
-    );
-    metaElement.textContent = viewState.available
-      ? viewState.busy
-        ? "设备正在动作"
-        : "状态实时更新"
-      : "设备不可用";
-    // 只有设备要求密码时才显示输入框。
-    codeInputElement.hidden = !viewState.codeRequired;
-    for (const [service, buttonElement] of actionButtons) {
-      buttonElement.hidden =
-        !currentItem?.entityId || (service === "open" && !viewState.canOpen);
-      buttonElement.disabled =
-        isEditing ||
-        isBusy ||
-        !viewState.available ||
-        !!viewState.busy ||
-        (service === "lock" && viewState.state === "locked");
-    }
-  }
-  headingElement.append(titleElement, metaElement);
-  rootElement.append(
-    headingElement,
-    statusElement,
-    detailsElement,
-    codeInputElement,
-    actionsElement,
-    feedbackElement
-  );
-  return {
-    root: rootElement,
-    /**
-     * 用新的绑定项 / 状态 / 编辑态刷新面板。
-     */
-    update({ item, states, editing }: LockPanelUpdate) {
-      if (currentItem?.id !== item.id) {
-        instanceId++;
-        isBusy = false;
-        pendingAction = "";
+        ((pendingAction = ""), (isSubmitting = true));
+        const submitEpoch = updateEpoch,
+          submittedComponent = currentComponent;
+        refreshPanel();
+        const serviceData = codeInputElement.value
+          ? {
+              code: codeInputElement.value,
+            }
+          : {};
         codeInputElement.value = "";
-        feedbackElement.textContent = "";
-      }
-      currentItem = item;
-      isEditing = !!editing;
-      viewState = (lockState as (item: unknown, states?: unknown) => LockViewState)(item, states);
-      titleElement.textContent = item.label || "门";
-      render();
-    },
-    /** 隐藏面板但保留节点（弹窗复用时不清 DOM）；同时作废在途回包与本地输入。 */
-    hide() {
-      instanceId++;
-      isBusy = false;
-      pendingAction = "";
-      codeInputElement.value = "";
-      feedbackElement.textContent = "";
-      rootElement.hidden = true;
-    },
-    /** 彻底释放：标记已销毁、清空密码并移除根节点。 */
-    dispose() {
-      isDisposed = true;
-      codeInputElement.value = "";
-      rootElement.remove();
+        try {
+          (await onControl({
+            deviceKind: "lock",
+            domain: "lock",
+            service: actionName,
+            entityId: submittedComponent.entityId,
+            data: serviceData,
+          }),
+            !isDisposed &&
+              submitEpoch === updateEpoch &&
+              (messageElement.textContent = "指令已提交，状态以门反馈为准。"));
+        } catch (error) {
+          !isDisposed &&
+            submitEpoch === updateEpoch &&
+            (messageElement.textContent = error.message || "操作失败。");
+        } finally {
+          !isDisposed && submitEpoch === updateEpoch && ((isSubmitting = false), refreshPanel());
+        }
+      }));
+  }
+  let lockSnapshot = lockState({});
+  function refreshPanel() {
+    ((statusElement.textContent = currentComponent?.entityId
+      ? lockSnapshot.label + " · " + lockSnapshot.doorLabel
+      : lockSnapshot.label),
+      detailsElement.replaceChildren(
+        ...[currentComponent?.batteryEntityId ? "电量 " + lockSnapshot.battery : ""]
+          .filter(Boolean)
+          .map((detailText) => {
+            const detailElement = createTextElement("span", detailText);
+            return ((detailElement.className = "i3d-lock-detail"), detailElement);
+          }),
+      ),
+      (metaElement.textContent = lockSnapshot.available
+        ? lockSnapshot.busy
+          ? "设备正在动作"
+          : "状态实时更新"
+        : "设备不可用"),
+      (codeInputElement.hidden = !lockSnapshot.codeRequired));
+    for (const [actionKey, actionButtonElement] of buttonsByActionName)
+      ((actionButtonElement.hidden =
+        !currentComponent?.entityId || (actionKey === "open" && !lockSnapshot.canOpen)),
+        (actionButtonElement.disabled =
+          isEditing ||
+          isSubmitting ||
+          !lockSnapshot.available ||
+          lockSnapshot.busy ||
+          (actionKey === "lock" && lockSnapshot.state === "locked")));
+  }
+  return (
+    headingElement.append(titleElement, metaElement),
+    panelElement.append(
+      headingElement,
+      statusElement,
+      detailsElement,
+      codeInputElement,
+      actionsElement,
+      messageElement,
+    ),
+    {
+      root: panelElement,
+      update({ item: component, states: entityStates, editing: editing }) {
+        (currentComponent?.id !== component.id &&
+          (updateEpoch++,
+          (isSubmitting = false),
+          (pendingAction = ""),
+          (codeInputElement.value = ""),
+          (messageElement.textContent = "")),
+          (currentComponent = component),
+          (isEditing = editing),
+          (lockSnapshot = lockState(component, entityStates)),
+          (titleElement.textContent = component.label || "门"),
+          refreshPanel());
+      },
+      hide() {
+        (updateEpoch++,
+          (isSubmitting = false),
+          (pendingAction = ""),
+          (codeInputElement.value = ""),
+          (messageElement.textContent = ""),
+          (panelElement.hidden = true));
+      },
+      dispose() {
+        ((isDisposed = true), (codeInputElement.value = ""), panelElement.remove());
+      },
     }
-  };
+  );
 }

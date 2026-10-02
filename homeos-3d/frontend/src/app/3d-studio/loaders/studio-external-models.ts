@@ -1,75 +1,98 @@
-/**
- * 外部模型（家具 / 家电）的资产表，以及加载、材质替换与落地管线。
- */
-import { finite } from "./studio-normalization.js";
-// 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js";
-// 模型模板的跨会话持久缓存与它的信封编解码：同一份 -lite.glb 在同一个浏览器里会被反复解析
-import { createModelPersistentCache } from "../model-persistent-cache.js";
-import { modelTemplateKey } from "../model-template-codec.js";
-// 主题专用的两个模块：地板材质着色器增强（场景，看 palette.warmWood）与树叶几何放大
-import { decorateWarmFloor } from "../studio/studio-scene-style.js";
-import { enlargeWarmLeaves } from "../materials/studio-warm-foliage.js";
-// 小汽车（上游第三方车模）的整件车漆着色器与法线修订：这台车只有一块网格、一个贴图集材质
+import { COURTYARD_MODELS, courtyardPalette } from "../plan/courtyard-models";
+import {
+  prepareVehicleChargeGeometry,
+  applyVehicleFinish,
+} from "../studio/studio-vehicle-models";
+import { decorateWarmFloor } from "../studio/studio-scene-style";
+import { enlargeWarmLeaves } from "../materials/studio-warm-foliage";
 import {
   applyCarFinish,
-  smoothCarSceneSurface
-} from "../materials/studio-car-finish.js";
-// 石材板整图（茶几的两块石板、餐桌台面）：与背景墙的「大理石」共用白色色号那张缓存贴图，
-import { createStoneSlabTexture } from "../materials/studio-surface-textures.js";
-// 逐物件「材质风格」的质感贴图（均值≈1 的细节图）：走调色板上的 materialSurface 键。
+  smoothCarSurfaceNormals,
+} from "../materials/studio-car-finish";
 import {
-  createMaterialSurfaceTexture,
-  hasMaterialSurfaceTexture
-} from "../materials/studio-surface-fabrics.js";
-// 柜类名单与「取色」共用一份（studio-app.js 的 paletteForItemType 也读它）：
+  repairGlassCabinetBack,
+  repairWallCabinetSides,
+  repairSideboardJoints,
+} from "../materials/studio-cabinet-back";
+import { finite } from "./studio-normalization";
+import { createModelPersistentCache } from "../model-persistent-cache";
+import { modelTemplateKey } from "../model-template-codec";
+import { releaseModelAsset } from "./model-asset-loader";
+import { DECOR_MODELS, DECOR_THEMES } from "../studio/decor-models";
 import {
-  APPLIANCE_FINISH_BY_ITEM_TYPE,
-  JOINERY_ITEM_TYPES
-} from "../studio/studio-item-types.js";
-// 破缓存只认 URL：模型文件换了内容而**文件名不变**时（重建某个物件就是这么改的），
-const HOME_LITE_MODEL_VERSION = "2609271411";
-const APPLIANCE_LITE_MODEL_VERSION = "2609271411";
-function modelAssetUrl(modelDir: any, fileKey: any, version: any, variant: any) {
+  MODEL_SLOT_ROLES,
+  isStoneSlabFlavor,
+  isStructuralModelFamily,
+  materialRoleRecipeFor,
+  resolveModelFamily,
+  resolveModelMaterialRole,
+  stoneSlabFlavorForMaterial,
+  stoneSlabSurfaceFinish,
+  usesNamedMaterialRole,
+} from "../materials/studio-model-material-roles";
+import { createStoneSlabTexture } from "../materials/studio-surface-textures";
+import {
+  materialStyleRecipeFor,
+  materialStyleStoneSlabRoles,
+} from "../materials/studio-material-presets";
+import {
+  createFurnitureBatchCache,
+  compactFurnitureIndices,
+} from "../studio/studio-furniture-batching";
+const homeLiteAssetVersion = "20260903-home-lite-v1",
+  // 柱族换成了「一形一模型」的整套资源（含方柱），单独给一版指纹，避免整批家居模型被迫重新下载。
+  pillarAssetVersion = "20261002-pillar-shapes-v1",
+  applianceLiteAssetVersion = "20260921-appliance-lite-clean-guides-v2",
+  sofaFamilyItemTypes = new Set(["sofa", "sofa-single", "sofa-l", "sofa-l-left"]),
+  preparedRestoreTimeoutMs = 160;
+export function insetBedBaseGeometry(bedGeometry) {
+  if (!bedGeometry?.attributes?.position) return bedGeometry;
+  bedGeometry.computeBoundingBox();
+  const { min: bedBoxMin, max: bedBoxMax } = bedGeometry.boundingBox;
+  if (
+    Math.abs(bedBoxMin.y) > 0.002 ||
+    Math.abs(bedBoxMax.y - 0.186) > 0.002 ||
+    Math.abs(bedBoxMax.x - bedBoxMin.x - 1.8) > 0.002 ||
+    Math.abs(bedBoxMax.z - bedBoxMin.z - 2) > 0.002
+  )
+    return bedGeometry;
+  const bedInsetGeometry = bedGeometry.clone(),
+    bedCenterX = (bedBoxMin.x + bedBoxMax.x) / 2,
+    bedCenterZ = (bedBoxMin.z + bedBoxMax.z) / 2;
   return (
-    "/static/3d-studio/models/" +
-    modelDir +
-    "/" +
-    fileKey +
-    (variant === "lite" ? "-lite" : "") +
-    ".glb?v=" +
-    version
+    bedInsetGeometry
+      .translate(-bedCenterX, 0, -bedCenterZ)
+      .scale(0.996, 1, 0.996)
+      .translate(bedCenterX, 0, bedCenterZ),
+    bedInsetGeometry.computeBoundingBox(),
+    bedInsetGeometry.computeBoundingSphere(),
+    bedInsetGeometry
   );
 }
 /**
- * 自带独立 GLB 资源的异形柱形：方形柱沿用原先烘焙好的方盒，因此仍留在普通的
+ * 给石材板部件补一套**平面投影 UV**（平铺坐标 = XZ 平面归一化）。
+ *
+ * 石材整图是按「一块整板」画的（云斑、主纹、细纹一次铺满），要贴在一次投影上才不会
+ * 出现接缝。GLB 里这些板件要么没有 UV，要么带的是「立方体每面各贴一遍」的 UV —— 后者
+ * 会让同一块台面上出现 6 份缩小的纹路，接缝正好落在最显眼的边上。所以这里整体改写 UV。
+ *
+ * XZ 平面投影的取舍：餐桌 / 茶几 / 橱柜台面都是水平板，投影上去比例正确；立柱式的石座
+ * 侧面会被压成一条窄带（0.6.5 同样如此），换来的是台面那一大片纹路正确。
  */
-const PILLAR_ASSET_SHAPES = new Set(["round", "semicircle", "quarter", "quarterinner"]);
-/**
- * 柱族的全部**模型类型**键（含方柱）：`pillar` 与 `pillar_<形状>`。
- */
-const PILLAR_MODEL_ITEM_TYPES = new Set([
-  "pillar",
-  ...[...PILLAR_ASSET_SHAPES].map(pillarShape => "pillar_" + pillarShape)
-]);
-/**
- * 给一块「石材板」几何写一份平面 UV：餐桌那几个模型只有 POSITION / NORMAL，直接贴石材会采到
- */
-function ensureStoneSlabPlanarUv(threeLib: any, slabGeometry: any) {
-  if (!slabGeometry?.attributes?.position) {
-    return;
-  }
+function ensureStoneSlabPlanarUv(threeLib, slabGeometry) {
+  if (!slabGeometry?.attributes?.position) return;
   slabGeometry.computeBoundingBox();
   const geometryBounds = slabGeometry.boundingBox;
-  const centerX = (geometryBounds.min.x + geometryBounds.max.x) / 2;
-  const centerZ = (geometryBounds.min.z + geometryBounds.max.z) / 2;
-  const horizontalSpan = Math.max(
-    geometryBounds.max.x - geometryBounds.min.x,
-    geometryBounds.max.z - geometryBounds.min.z,
-    0.001
-  );
-  const slabPosition = slabGeometry.attributes.position;
-  const planarUv = new Float32Array(slabPosition.count * 2);
+  if (!geometryBounds) return;
+  const centerX = (geometryBounds.min.x + geometryBounds.max.x) / 2,
+    centerZ = (geometryBounds.min.z + geometryBounds.max.z) / 2,
+    horizontalSpan = Math.max(
+      geometryBounds.max.x - geometryBounds.min.x,
+      geometryBounds.max.z - geometryBounds.min.z,
+      0.001,
+    ),
+    slabPosition = slabGeometry.attributes.position,
+    planarUv = new Float32Array(slabPosition.count * 2);
   for (let vertexIndex = 0; vertexIndex < slabPosition.count; vertexIndex += 1) {
     planarUv[vertexIndex * 2] = (slabPosition.getX(vertexIndex) - centerX) / horizontalSpan + 0.5;
     planarUv[vertexIndex * 2 + 1] =
@@ -78,1480 +101,1217 @@ function ensureStoneSlabPlanarUv(threeLib: any, slabGeometry: any) {
   slabGeometry.setAttribute("uv", new threeLib.BufferAttribute(planarUv, 2));
 }
 /**
- * 按模型类型给石材板部件写平面 UV。判据与材质替换期共用 STONE_SLAB_FLAVOR_BY_MODEL_SLOT
+ * 按模型给石材板部件补平面 UV。
+ *
+ * 判据是**纯函数**（不依赖当前选中档位）：几何 UV 会跟着模板缓存走，不能随用户换档位而变，
+ * 所以只要「角色表声明了 slab」或「该模型的档位组里任何一档会给石材板」就补。多补的槽位
+ * 只有在真被贴上石材图时才会用到这套 UV，其余情况是无害的占位。
  */
-function applyStoneSlabPlanarUv(threeLib: any, modelRoot: any, modelType: any) {
-  const slotFlavors = STONE_SLAB_FLAVOR_BY_MODEL_SLOT[modelType];
-  if (!slotFlavors) {
-    return;
-  }
-  modelRoot.traverse((modelMesh: any) => {
-    if (!modelMesh.isMesh || Array.isArray(modelMesh.material)) {
-      return;
-    }
-    const { slot } = parseMaterialSlotAndRole(modelMesh.material?.name);
-    if (slot === undefined || slotFlavors[Number(slot)] === undefined) {
-      return;
-    }
+function applyStoneSlabPlanarUv(threeLib, modelRoot, modelType) {
+  const styleSlabRoles = materialStyleStoneSlabRoles(modelType);
+  modelRoot.traverse((modelMesh) => {
+    // 多材质网格（材质数组）的槽位号在 mesh 内，这里按整体判断会错位，直接跳过：
+    // 石材板部件都是单材质网格。
+    if (!modelMesh.isMesh || Array.isArray(modelMesh.material) || !modelMesh.geometry) return;
+    const materialName = modelMesh.material?.name,
+      role = resolveModelMaterialRole(modelType, materialName).role;
+    if (!styleSlabRoles.has(role) && !stoneSlabFlavorForMaterial(modelType, materialName)) return;
     ensureStoneSlabPlanarUv(threeLib, modelMesh.geometry);
   });
 }
-function defineHomeItemModel(modelDir: any, fileKey: any, homeModelOverrides: any) {
+function createHomeAssetDescriptor(homeAssetId, homeFallbackVersion, homeAssetOverrides) {
   return Object.freeze({
-    url: modelAssetUrl(modelDir, fileKey, HOME_LITE_MODEL_VERSION, "lite"),
-    fallbackUrl: modelAssetUrl(modelDir, fileKey, HOME_LITE_MODEL_VERSION, "full"),
-    ...homeModelOverrides
+    url: "/static/3d-studio/models/" + homeAssetId + "-lite.glb?v=" + homeLiteAssetVersion,
+    fallbackUrl: "/static/3d-studio/models/" + homeAssetId + ".glb?v=" + homeFallbackVersion,
+    ...homeAssetOverrides,
   });
 }
-function defineApplianceItemModel(modelDir: any, fileKey: any, applianceModelOverrides: any) {
+function createApplianceAssetDescriptor(applianceAssetId, applianceAssetOverrides) {
   return Object.freeze({
-    url: modelAssetUrl(modelDir, fileKey, APPLIANCE_LITE_MODEL_VERSION, "lite"),
-    fallbackUrl: modelAssetUrl(modelDir, fileKey, APPLIANCE_LITE_MODEL_VERSION, "full"),
-    ...applianceModelOverrides
+    url:
+      "/static/3d-studio/models/" +
+      applianceAssetId +
+      "-lite.glb?v=" +
+      applianceLiteAssetVersion,
+    fallbackUrl:
+      "/static/3d-studio/models/" +
+      applianceAssetId +
+      ".glb?v=20260901-all-appliance-models-v1",
+    ...applianceAssetOverrides,
   });
 }
-const EXTERNAL_ITEM_MODELS = Object.freeze({
-  // 沙发：流水线产物（tools/models/model-specs.mjs 的 sofa），底面精确落在 y=0，
-  sofa: defineHomeItemModel("furniture", "sofa", {
-    scaleBasis: [2.2, 0.82, 0.9],
-    preserveOrigin: true
-  }),
-  coffeetable: defineHomeItemModel("furniture", "coffeetable", {
-    scaleBasis: [1.9, 0.5, 1.05],
-    preserveOrigin: true
-  }),
-  squarecoffeetable: defineHomeItemModel("furniture", "squarecoffeetable", {
-    scaleBasis: [1.4, 0.46, 0.7],
-    preserveOrigin: true
-  }),
-  tvstand: defineHomeItemModel("furniture", "tvstand", {
-    scaleBasis: [1.8, 0.48, 0.42],
-    preserveOrigin: true
-  }),
-  rug: defineHomeItemModel("decor", "rug", {
-    scaleBasis: [2, 0.013, 1.4],
-    preserveOrigin: true
-  }),
-  plant: defineHomeItemModel("decor", "plant", {
-    // 流水线产物。旧资产实测只有 0.647 × 1.622 × 0.375 —— 进深比声明的 0.75 少了整整一半，
-    scaleBasis: [0.75, 1.6, 0.75],
-    preserveOrigin: true
-  }),
-  bed: defineHomeItemModel("furniture", "bed", {
-    // 流水线产物（tools/models/model-specs.mjs 的 bed）。这里原先还挂着
-    scaleBasis: [1.8, 1.05, 2],
-    preserveOrigin: true
-  }),
-  nightstand: defineHomeItemModel("furniture", "nightstand", {
-    scaleBasis: [0.5, 0.55, 0.42],
-    preserveOrigin: true
-  }),
-  vanity: defineHomeItemModel("furniture", "vanity", {
-    scaleBasis: [1.2, 1.55, 0.5],
-    preserveOrigin: true
-  }),
-  desk: defineHomeItemModel("furniture", "desk", {
-    scaleBasis: [1.4, 0.76, 0.65],
-    preserveOrigin: true
-  }),
-  bookcase: defineHomeItemModel("furniture", "bookcase", {
-    scaleBasis: [1.2, 1.9, 0.32],
-    preserveOrigin: true
-  }),
-  // 小车：**上游第三方车模**（贴图集 + lite 走 Draco），不是流水线产物 —— 它既没有
-  smallcar: defineHomeItemModel("vehicle", "car", {
-    preserveOrigin: true
-  }),
-  airoutlet: defineApplianceItemModel("appliance", "airoutlet", {
-    scaleBasis: [0.188, 0.3, 2],
-    preserveOrigin: true
-  }),
-  pipelinewaterpurifier: defineApplianceItemModel("appliance", "pipelinewaterpurifier", {
-    scaleBasis: [0.48, 0.68, 0.24],
-    preserveOrigin: true
-  }),
-  tea_bar_machine: defineApplianceItemModel("appliance", "tea_bar_machine", {
-    scaleBasis: [0.62, 1.32, 0.48],
-    preserveOrigin: true
-  }),
-  // 家用电梯轿厢：2026-09 按流水线规格重建（见 model-specs.mjs 的 elevator）。
-  elevator: defineHomeItemModel("structure", "elevator", {
-    scaleBasis: [1.4, 2.2, 1.52],
-    preserveOrigin: true
-  }),
-  steelstairs: defineHomeItemModel("structure", "steel-stairs", {
-    scaleBasis: [1.86, 3.45, 2.93],
-    preserveOrigin: true
-  }),
-  glassstairs: defineHomeItemModel("structure", "glass-stairs", {
-    scaleBasis: [2.51, 3.41, 2.84],
-    preserveOrigin: true
-  }),
-  floatingstairs: defineHomeItemModel("structure", "floating-stairs", {
-    scaleBasis: [0.97254264, 2.59010673, 2.2483418],
-    preserveOrigin: true
-  }),
-  piano: defineHomeItemModel("furniture", "piano", {
-    // 流水线产物（tools/models/model-specs.mjs 的 piano）。重建前那件是第三方素材：
-    scaleBasis: [1.5, 0.99, 1.5],
-    preserveOrigin: true
-  }),
-  armchair: defineHomeItemModel("furniture", "armchair", {
-    scaleBasis: [0.85, 0.75, 0.80],
-    preserveOrigin: true
-  }),
-  loungechair: defineHomeItemModel("furniture", "loungechair", {
-    scaleBasis: [0.70, 0.85, 1.60],
-    preserveOrigin: true
-  }),
-  ottoman: defineHomeItemModel("furniture", "ottoman", {
-    scaleBasis: [0.60, 0.40, 0.45],
-    preserveOrigin: true
-  }),
-  bench: defineHomeItemModel("furniture", "bench", {
-    scaleBasis: [1.40, 0.45, 0.42],
-    preserveOrigin: true
-  }),
-  barstool: defineHomeItemModel("furniture", "barstool", {
-    scaleBasis: [0.42, 0.95, 0.42],
-    preserveOrigin: true
-  }),
-  sidetable: defineHomeItemModel("furniture", "sidetable", {
-    scaleBasis: [0.45, 0.55, 0.45],
-    preserveOrigin: true
-  }),
-  console: defineHomeItemModel("furniture", "console", {
-    scaleBasis: [1.20, 0.80, 0.35],
-    preserveOrigin: true
-  }),
-  chestdrawer: defineHomeItemModel("furniture", "chestdrawer", {
-    scaleBasis: [1.00, 1.10, 0.45],
-    preserveOrigin: true
-  }),
-  entrycabinet: defineHomeItemModel("furniture", "entrycabinet", {
-    scaleBasis: [1.00, 1.10, 0.38],
-    preserveOrigin: true
-  }),
-  displaycabinet: defineHomeItemModel("furniture", "displaycabinet", {
-    scaleBasis: [0.90, 1.80, 0.40],
-    preserveOrigin: true
-  }),
-  bunkbed: defineHomeItemModel("furniture", "bunkbed", {
-    scaleBasis: [1.00, 1.70, 1.95],
-    preserveOrigin: true
-  }),
-  kidsbed: defineHomeItemModel("furniture", "kidsbed", {
-    scaleBasis: [0.95, 0.65, 1.60],
-    preserveOrigin: true
-  }),
-  chaise: defineHomeItemModel("furniture", "chaise", {
-    scaleBasis: [0.75, 0.72, 1.65],
-    preserveOrigin: true
-  }),
-  nestingtable: defineHomeItemModel("furniture", "nestingtable", {
-    scaleBasis: [0.55, 0.5, 0.55],
-    preserveOrigin: true
-  }),
-  roundcoffeetable: defineHomeItemModel("furniture", "roundcoffeetable", {
-    scaleBasis: [0.9, 0.42, 0.9],
-    preserveOrigin: true
-  }),
-  screenspan: defineHomeItemModel("furniture", "screenspan", {
-    scaleBasis: [1.6, 1.75, 0.35],
-    preserveOrigin: true
-  }),
-  coatrail: defineHomeItemModel("furniture", "coatrail", {
-    scaleBasis: [0.45, 1.75, 0.45],
-    preserveOrigin: true
-  }),
-  stool: defineHomeItemModel("furniture", "stool", {
-    scaleBasis: [0.36, 0.45, 0.36],
-    preserveOrigin: true
-  }),
-  locker: defineHomeItemModel("furniture", "locker", {
-    scaleBasis: [0.9, 1.8, 0.4],
-    preserveOrigin: true
-  }),
-  laundrycabinet: defineHomeItemModel("furniture", "laundrycabinet", {
-    scaleBasis: [0.65, 0.85, 0.6],
-    preserveOrigin: true
-  }),
-  balconycabinet: defineHomeItemModel("furniture", "balconycabinet", {
-    scaleBasis: [0.8, 1.2, 0.4],
-    preserveOrigin: true
-  }),
-  winecabinet: defineHomeItemModel("furniture", "winecabinet", {
-    scaleBasis: [0.6, 1.6, 0.45],
-    preserveOrigin: true
-  }),
-  kitchenisland: defineHomeItemModel("furniture", "kitchenisland", {
-    scaleBasis: [2.4, 0.9, 0.8],
-    preserveOrigin: true
-  }),
-  pantry: defineHomeItemModel("furniture", "pantry", {
-    scaleBasis: [0.9, 1.9, 0.42],
-    preserveOrigin: true
-  }),
-  daybed: defineHomeItemModel("furniture", "daybed", {
-    scaleBasis: [1.2, 0.55, 2],
-    preserveOrigin: true
-  }),
-  cot: defineHomeItemModel("furniture", "cot", {
-    scaleBasis: [0.7, 0.95, 1.35],
-    preserveOrigin: true
-  }),
-  computertable: defineHomeItemModel("furniture", "computertable", {
-    scaleBasis: [1.2, 0.75, 0.6],
-    preserveOrigin: true
-  }),
-  officestool: defineHomeItemModel("furniture", "officestool", {
-    scaleBasis: [0.6, 1, 0.6],
-    preserveOrigin: true
-  }),
-  filecabinet: defineHomeItemModel("furniture", "filecabinet", {
-    scaleBasis: [0.8, 1.3, 0.45],
-    preserveOrigin: true
-  }),
-  booktower: defineHomeItemModel("furniture", "booktower", {
-    scaleBasis: [0.5, 1.6, 0.3],
-    preserveOrigin: true
-  }),
-});
-/**
- * 全部可在画面上出现的模型条目。
- */
-export const ALL_ITEM_MODELS = Object.freeze({
-  ...EXTERNAL_ITEM_MODELS,
-  aquarium: defineHomeItemModel("decor", "aquarium", {
-    scaleBasis: [1.5, 1.4, 0.55],
-    preserveOrigin: true
-  }),
-  table: defineHomeItemModel("furniture", "table", {
-    scaleBasis: [2.4, 0.82, 1.8],
-    preserveOrigin: true
-  }),
-  rounddiningtable: defineHomeItemModel("furniture", "rounddiningtable", {
-    // 流水线产物：车削中柱 + 落地底盘 + 台面围边 + 圆台面 + 四张软包餐椅。
-    scaleBasis: [2.2, 0.78, 2.2],
-    preserveOrigin: true
-  }),
-  chair: defineHomeItemModel("furniture", "chair", {
-    scaleBasis: [0.5, 0.86, 0.5],
-    preserveOrigin: true
-  }),
-  bar: defineHomeItemModel("furniture", "bar", {
-    // 流水线产物：吧台柜 + 踏脚横杆 + 三格敞开酒格 + 三张无靠背吧凳。
-    scaleBasis: [2.2, 1.05, 0.65],
-    preserveOrigin: true
-  }),
-  sideboard: defineHomeItemModel("furniture", "sideboard", {
-    scaleBasis: [1.6, 2.2, 0.45],
-    preserveOrigin: true
-  }),
-  shoecabinet: defineHomeItemModel("furniture", "shoecabinet", {
-    scaleBasis: [1.8, 2.25, 0.42],
-    preserveOrigin: true
-  }),
-  cabinet: defineHomeItemModel("furniture", "cabinet", {
-    scaleBasis: [1.6, 1.9, 0.45],
-    preserveOrigin: true
-  }),
-  glasscabinet: defineHomeItemModel("furniture", "glasscabinet", {
-    scaleBasis: [1.2, 1.9, 0.4],
-    preserveOrigin: true
-  }),
-  shelf: defineHomeItemModel("furniture", "shelf", {
-    scaleBasis: [1.2, 1.8, 0.45],
-    preserveOrigin: true
-  }),
-  wallcabinet: defineHomeItemModel("furniture", "wallcabinet", {
-    scaleBasis: [1.5, 0.82, 0.35],
-    preserveOrigin: true
-  }),
-  kitchenbase: defineHomeItemModel("furniture", "kitchenbase", {
-    scaleBasis: [2.4, 0.85, 0.6],
-    preserveOrigin: true
-  }),
-  kitchensink: defineHomeItemModel("furniture", "kitchensink", {
-    // 流水线产物：与地柜同一套柜体，台面开孔嵌一只不锈钢台下盆（盆体是独立的 `sink` 角色）。
-    scaleBasis: [1.2, 0.85, 0.6],
-    preserveOrigin: true
-  }),
-  kitchencooktop: defineHomeItemModel("furniture", "kitchencooktop", {
-    // 流水线产物：与地柜同一套柜体，台面开孔里坐着一块低于台面 1cm 的灶面板（下嵌灶），
-    scaleBasis: [1.2, 0.85, 0.6],
-    preserveOrigin: true
-  }),
-  basin: defineHomeItemModel("bath", "basin", {
-    scaleBasis: [0.9, 0.88, 0.5],
-    preserveOrigin: true
-  }),
-  toilet: defineHomeItemModel("bath", "toilet", {
-    scaleBasis: [0.42, 0.52, 0.7],
-    preserveOrigin: true
-  }),
-  squattoilet: defineHomeItemModel("bath", "squattoilet", {
-    scaleBasis: [0.45, 0.18, 0.65],
-    preserveOrigin: true
-  }),
-  urinal: defineHomeItemModel("bath", "urinal", {
-    scaleBasis: [0.38, 0.72, 0.34],
-    preserveOrigin: true
-  }),
-  shower: defineHomeItemModel("bath", "shower", {
-    scaleBasis: [0.9, 2.1, 0.9],
-    preserveOrigin: true
-  }),
-  bathtub: defineHomeItemModel("bath", "bathtub", {
-    scaleBasis: [1.7, 0.58, 0.78],
-    preserveOrigin: true
-  }),
-  glasspartition: defineHomeItemModel("bath", "glasspartition", {
-    scaleBasis: [1.2, 2, 0.08],
-    preserveOrigin: true
-  }),
-  stairs: defineHomeItemModel("structure", "stairs", {
-    scaleBasis: [1, 1.65, 2.8],
-    preserveOrigin: true
-  }),
-  pillar: defineHomeItemModel("structure", "pillar", {
-    scaleBasis: [0.45, 2.8, 0.45],
-    preserveOrigin: true
-  }),
-  pillar_round: defineHomeItemModel("structure", "pillar-round", {
-    scaleBasis: [0.45, 2.8, 0.45],
-    preserveOrigin: true
-  }),
-  pillar_semicircle: defineHomeItemModel("structure", "pillar-semicircle", {
-    scaleBasis: [0.45, 2.8, 0.45],
-    preserveOrigin: true
-  }),
-  pillar_quarter: defineHomeItemModel("structure", "pillar-quarter", {
-    scaleBasis: [0.45, 2.8, 0.45],
-    preserveOrigin: true
-  }),
-  pillar_quarterinner: defineHomeItemModel("structure", "pillar-quarterinner", {
-    scaleBasis: [0.45, 2.8, 0.45],
-    preserveOrigin: true
-  }),
-  curtain_left: defineHomeItemModel("decor", "curtain_left", {
-    scaleBasis: [1.8, 2.4, 0.18],
-    preserveOrigin: true
-  }),
-  curtain_right: defineHomeItemModel("decor", "curtain_right", {
-    scaleBasis: [1.8, 2.4, 0.18],
-    preserveOrigin: true
-  }),
-  curtain_split: defineHomeItemModel("decor", "curtain_split", {
-    scaleBasis: [1.8, 2.4, 0.18],
-    preserveOrigin: true
-  }),
-  rounddiningtable_turntable: defineHomeItemModel(
-    "furniture",
-    "rounddiningtable_turntable",
-    {
-      scaleBasis: [2.2, 0.78, 2.2],
-      preserveOrigin: true
-    }
-  ),
-  tv_standard: defineApplianceItemModel("electronics", "tv_standard", {
-    scaleBasis: [1.5, 0.92, 0.06],
-    preserveOrigin: true
-  }),
-  tv_tabletop: defineApplianceItemModel("electronics", "tv_tabletop", {
-    scaleBasis: [1.5, 0.92, 0.18],
-    preserveOrigin: true
-  }),
-  tv_mobile: defineApplianceItemModel("electronics", "tv_mobile", {
-    scaleBasis: [1.5, 1.55, 0.55],
-    preserveOrigin: true
-  }),
-  wallac: defineApplianceItemModel("appliance", "wallac", {
-    scaleBasis: [0.9, 0.28, 0.22],
-    preserveOrigin: true
-  }),
-  floorac: defineApplianceItemModel("appliance", "floorac", {
-    scaleBasis: [0.42, 1.75, 0.42],
-    preserveOrigin: true
-  }),
-  airpurifier: defineApplianceItemModel("appliance", "airpurifier", {
-    scaleBasis: [0.34, 0.7, 0.34],
-    preserveOrigin: true
-  }),
-  robotvacuum: defineApplianceItemModel("appliance", "robotvacuum", {
-    scaleBasis: [0.55, 0.85, 0.5],
-    preserveOrigin: true
-  }),
-  floorlamp: defineApplianceItemModel("decor", "floorlamp", {
-    scaleBasis: [1.35, 1.8, 0.5],
-    preserveOrigin: true
-  }),
-  walllamp: defineApplianceItemModel("decor", "walllamp", {
-    scaleBasis: [0.3, 0.34, 0.22],
-    preserveOrigin: true
-  }),
-  fridge: defineApplianceItemModel("appliance", "fridge", {
-    scaleBasis: [0.75, 1.85, 0.72],
-    preserveOrigin: true
-  }),
-  freezer: defineApplianceItemModel("appliance", "freezer", {
-    scaleBasis: [1.05, 0.85, 0.6],
-    preserveOrigin: true
-  }),
-  rangehood: defineApplianceItemModel("appliance", "rangehood", {
-    scaleBasis: [0.9, 0.55, 0.45],
-    preserveOrigin: true
-  }),
-  dishwasher: defineApplianceItemModel("appliance", "dishwasher", {
-    scaleBasis: [0.6, 0.82, 0.6],
-    preserveOrigin: true
-  }),
-  steamoven: defineApplianceItemModel("appliance", "steamoven", {
-    scaleBasis: [0.6, 0.6, 0.55],
-    preserveOrigin: true
-  }),
-  microwave: defineApplianceItemModel("appliance", "microwave", {
-    scaleBasis: [0.52, 0.32, 0.42],
-    preserveOrigin: true
-  }),
-  ricecooker: defineApplianceItemModel("appliance", "ricecooker", {
-    scaleBasis: [0.28, 0.25, 0.32],
-    preserveOrigin: true
-  }),
-  washer: defineApplianceItemModel("appliance", "washer", {
-    scaleBasis: [0.6, 0.85, 0.65],
-    preserveOrigin: true
-  }),
-  dryer: defineApplianceItemModel("appliance", "dryer", {
-    scaleBasis: [0.6, 0.85, 0.65],
-    preserveOrigin: true
-  }),
-  storagewaterheater: defineApplianceItemModel("appliance", "storagewaterheater", {
-    scaleBasis: [0.86, 0.48, 0.46],
-    preserveOrigin: true
-  }),
-  gaswaterheater: defineApplianceItemModel("appliance", "gaswaterheater", {
-    scaleBasis: [0.42, 0.72, 0.22],
-    preserveOrigin: true
-  }),
-  desktop: defineApplianceItemModel("electronics", "desktop", {
-    scaleBasis: [0.72, 0.5, 0.32],
-    preserveOrigin: true
-  }),
-  laptop: defineApplianceItemModel("electronics", "laptop", {
-    scaleBasis: [0.36, 0.22, 0.28],
-    preserveOrigin: true
-  }),
-  nas: defineApplianceItemModel("electronics", "nas", {
-    scaleBasis: [0.28, 0.34, 0.24],
-    preserveOrigin: true
-  }),
-  soundbar: defineApplianceItemModel("electronics", "soundbar", {
-    scaleBasis: [0.95, 0.08, 0.12],
-    preserveOrigin: true
-  }),
-  speaker: defineApplianceItemModel("electronics", "speaker", {
-    scaleBasis: [0.28, 1.05, 0.28],
-    preserveOrigin: true
-  }),
-  projector: defineApplianceItemModel("electronics", "projector", {
-    scaleBasis: [0.30, 0.10, 0.24],
-    preserveOrigin: true
-  }),
-  fan: defineApplianceItemModel("appliance", "fan", {
-    scaleBasis: [0.40, 1.15, 0.40],
-    preserveOrigin: true
-  }),
-  humidifier: defineApplianceItemModel("appliance", "humidifier", {
-    scaleBasis: [0.30, 0.55, 0.30],
-    preserveOrigin: true
-  }),
-  dehumidifier: defineApplianceItemModel("appliance", "dehumidifier", {
-    scaleBasis: [0.35, 0.60, 0.28],
-    preserveOrigin: true
-  }),
-  freshair: defineApplianceItemModel("appliance", "freshair", {
-    scaleBasis: [0.60, 0.30, 0.30],
-    preserveOrigin: true
-  }),
-  thermostat: defineApplianceItemModel("electronics", "thermostat", {
-    scaleBasis: [0.10, 0.10, 0.02],
-    preserveOrigin: true
-  }),
-  smartpanel: defineApplianceItemModel("electronics", "smartpanel", {
-    scaleBasis: [0.12, 0.12, 0.02],
-    preserveOrigin: true
-  }),
-  smartlock: defineApplianceItemModel("electronics", "smartlock", {
-    scaleBasis: [0.08, 0.28, 0.05],
-    preserveOrigin: true
-  }),
-  doorbell: defineApplianceItemModel("electronics", "doorbell", {
-    scaleBasis: [0.06, 0.13, 0.03],
-    preserveOrigin: true
-  }),
-  gateway: defineApplianceItemModel("electronics", "gateway", {
-    scaleBasis: [0.12, 0.05, 0.12],
-    preserveOrigin: true
-  }),
-  gameconsole: defineApplianceItemModel("electronics", "gameconsole", {
-    scaleBasis: [0.3, 0.08, 0.24],
-    preserveOrigin: true
-  }),
-  avreceiver: defineApplianceItemModel("electronics", "avreceiver", {
-    scaleBasis: [0.44, 0.16, 0.35],
-    preserveOrigin: true
-  }),
-  screenpanel: defineApplianceItemModel("electronics", "screenpanel", {
-    scaleBasis: [2.2, 1.25, 0.08],
-    preserveOrigin: true
-  }),
-  smartspeaker: defineApplianceItemModel("electronics", "smartspeaker", {
-    scaleBasis: [0.12, 0.18, 0.12],
-    preserveOrigin: true
-  }),
-  router: defineApplianceItemModel("electronics", "router", {
-    scaleBasis: [0.22, 0.15, 0.16],
-    preserveOrigin: true
-  }),
-  printer: defineApplianceItemModel("electronics", "printer", {
-    scaleBasis: [0.4, 0.3, 0.35],
-    preserveOrigin: true
-  }),
-  ceilingfan: defineApplianceItemModel("appliance", "ceilingfan", {
-    scaleBasis: [1.1, 0.4, 1.1],
-    preserveOrigin: true
-  }),
-  heater: defineApplianceItemModel("appliance", "heater", {
-    scaleBasis: [0.6, 0.55, 0.25],
-    preserveOrigin: true
-  }),
-  ceilingac: defineApplianceItemModel("appliance", "ceilingac", {
-    scaleBasis: [0.9, 0.3, 0.9],
-    preserveOrigin: true
-  }),
-  vacuumcleaner: defineApplianceItemModel("appliance", "vacuumcleaner", {
-    scaleBasis: [0.28, 1.15, 0.3],
-    preserveOrigin: true
-  }),
-  floorwasher: defineApplianceItemModel("appliance", "floorwasher", {
-    scaleBasis: [0.3, 1.1, 0.3],
-    preserveOrigin: true
-  }),
-  dryingrack: defineApplianceItemModel("appliance", "dryingrack", {
-    scaleBasis: [1.8, 0.5, 0.35],
-    preserveOrigin: true
-  }),
-  garmentcare: defineApplianceItemModel("appliance", "garmentcare", {
-    scaleBasis: [0.6, 1.85, 0.6],
-    preserveOrigin: true
-  }),
-  airer: defineApplianceItemModel("appliance", "airer", {
-    scaleBasis: [1.2, 0.3, 0.3],
-    preserveOrigin: true
-  }),
-  integratedstove: defineApplianceItemModel("appliance", "integratedstove", {
-    scaleBasis: [0.9, 1.35, 0.6],
-    preserveOrigin: true
-  }),
-  sterilizer: defineApplianceItemModel("appliance", "sterilizer", {
-    scaleBasis: [0.6, 0.65, 0.5],
-    preserveOrigin: true
-  }),
-  oven: defineApplianceItemModel("appliance", "oven", {
-    scaleBasis: [0.6, 0.6, 0.55],
-    preserveOrigin: true
-  }),
-  coffeemaker: defineApplianceItemModel("appliance", "coffeemaker", {
-    scaleBasis: [0.28, 0.38, 0.35],
-    preserveOrigin: true
-  }),
-  kettle: defineApplianceItemModel("appliance", "kettle", {
-    scaleBasis: [0.2, 0.26, 0.2],
-    preserveOrigin: true
-  }),
-  airfryer: defineApplianceItemModel("appliance", "airfryer", {
-    scaleBasis: [0.3, 0.34, 0.34],
-    preserveOrigin: true
-  }),
-  blender: defineApplianceItemModel("appliance", "blender", {
-    scaleBasis: [0.22, 0.45, 0.24],
-    preserveOrigin: true
-  }),
-  waterpurifier: defineApplianceItemModel("appliance", "waterpurifier", {
-    scaleBasis: [0.3, 1.2, 0.3],
-    preserveOrigin: true
-  }),
-  trashbin: defineApplianceItemModel("appliance", "trashbin", {
-    scaleBasis: [0.28, 0.45, 0.28],
-    preserveOrigin: true
-  }),
-});
-const FURNITURE_PALETTE_ITEM_TYPES = new Set([
-  "sofa",
-  "coffeetable",
-  "squarecoffeetable",
-  // 钢琴：2026-09 迁进流水线之后加进来。它在 CUSTOM_MATERIAL_ITEM_TYPES 里早就有，
-  "piano",
-  "tvstand",
-  "rug",
-  "plant",
+function createFurnitureAssetDescriptor(furnitureAssetId, furnitureAssetScaleBasis) {
+  // coffeetable / kitchenisland 在 2026-10-01 换成了 homeos-3d 的模型，单独给一版指纹，
+  // 避免整批家具模型被迫重新下载。
+  const furnitureAssetShippedFresh =
+    furnitureAssetId === "coffeetable" || furnitureAssetId === "kitchenisland";
+  return Object.freeze({
+    url:
+      "/static/3d-studio/models/" +
+      furnitureAssetId +
+      "-lite.glb?v=" +
+      (furnitureAssetShippedFresh
+        ? "20261001-coffeetable-island-v1"
+        : furnitureAssetId === "vanity"
+          ? "20260925-furniture-v1"
+          : "20260926-furniture-draco-v1"),
+    fallbackUrl:
+      "/static/3d-studio/models/" +
+      furnitureAssetId +
+      ".glb?v=" +
+      (furnitureAssetShippedFresh ? "20261001-coffeetable-island-v1" : "20260925-furniture-v1"),
+    scaleBasis: furnitureAssetScaleBasis,
+    preserveOrigin: true,
+  });
+}
+const paletteOverrideItemTypes = new Set([
+  "drawer-chest",
+  "smart-socket-86",
   "bed",
-  "nightstand",
-  "vanity",
-  "desk",
-  "bookcase",
-  "aquarium",
-  "table",
-  "rounddiningtable",
-  "chair",
-  "bar",
-  "sideboard",
-  "shoecabinet",
-  "cabinet",
-  "glasscabinet",
-  "shelf",
-  "wallcabinet",
-  "kitchenbase",
-  "kitchensink",
-  "kitchencooktop",
-  "basin",
-  "toilet",
-  "squattoilet",
-  "urinal",
-  "shower",
-  "bathtub",
-  "glasspartition",
-  "stairs",
-  // 悬空楼梯与直行 stairs 同族（建筑本体、木质踏面），调色板归属也照它走：进 FURNITURE_PALETTE
-  "floatingstairs",
-  "curtain_left",
-  "curtain_right",
-  "curtain_split",
-  "rounddiningtable_turntable",
-  "tv_standard",
-  "tv_tabletop",
-  "tv_mobile",
-  "wallac",
-  "floorac",
-  "airpurifier",
-  "robotvacuum",
-  "floorlamp",
-  "walllamp",
-  "fridge",
-  "freezer",
-  "rangehood",
-  "dishwasher",
-  "steamoven",
-  "microwave",
-  "ricecooker",
-  "washer",
-  "dryer",
-  "storagewaterheater",
-  "gaswaterheater",
-  "desktop",
-  "laptop",
-  "nas",
-  "armchair",
-  "loungechair",
-  "ottoman",
-  "bench",
-  "barstool",
-  "sidetable",
-  "console",
-  "chestdrawer",
-  "entrycabinet",
-  "displaycabinet",
-  "bunkbed",
-  "kidsbed",
-  "chaise",
-  "nestingtable",
-  "roundcoffeetable",
-  "screenspan",
-  "coatrail",
-  "stool",
-  "locker",
-  "laundrycabinet",
-  "balconycabinet",
-  "winecabinet",
-  "kitchenisland",
-  "pantry",
-  "daybed",
-  "cot",
-  "computertable",
-  "officestool",
-  "filecabinet",
-  "booktower",
-]);
-/**
- * 「家居」类型的调色板门槛：与 FURNITURE_PALETTE_ITEM_TYPES 同源，去掉建筑本体
- */
-const HOME_PALETTE_ITEM_TYPES = new Set(
-  [...FURNITURE_PALETTE_ITEM_TYPES].filter(
-    furnitureItemType =>
-      furnitureItemType !== "stairs" &&
-      furnitureItemType !== "floatingstairs" &&
-      furnitureItemType !== "pillar"
-  )
-);
-const LUMINANCE_BANDED_ITEM_TYPES = new Set([
-  "bed",
-  "nightstand",
-  "vanity",
-  "desk",
-  "bookcase",
-  "table",
-  "rounddiningtable",
-  "chair",
-  "bar",
-  "sideboard",
-  "shoecabinet",
-  "cabinet",
-  "glasscabinet",
-  "shelf",
-  "wallcabinet",
-  "kitchenbase",
-  "kitchensink",
-  "kitchencooktop",
-  "chestdrawer",
-  "entrycabinet",
-  "displaycabinet",
-  "console",
-  "sidetable",
-  "bench",
-  "armchair",
-  "loungechair",
-  "ottoman",
-  "bench",
-  "barstool",
-  "sidetable",
-  "console",
-  "chestdrawer",
-  "entrycabinet",
-  "displaycabinet",
-  "bunkbed",
-  "kidsbed",
-  "chaise",
-  "nestingtable",
-  "roundcoffeetable",
-  "screenspan",
-  "coatrail",
-  "stool",
-  "locker",
-  "laundrycabinet",
-  "balconycabinet",
-  "winecabinet",
-  "kitchenisland",
-  "pantry",
-  "daybed",
-  "cot",
-  "computertable",
-  "officestool",
-  "filecabinet",
-  "booktower",
-]);
-/** 家具五金的统一取色：**深色金属**，见 applyFurniturePalette 里那条按角色的五金分支。 */
-const FURNITURE_HARDWARE_TONE = 5462356;
-/**
- * 「调色板路径」上每个材质角色的**出口登记表**（默认档位「跟随全局风格」走的就是这条路径）。
- */
-const CARCASS_MATERIAL_ROLE_SET = new Set([
-  "body",
-  "door",
-  "top",
-  "base",
-  "shelf",
-  "interior",
-  "panel",
-  "trim",
-  "drawer",
-  "leg",
-  "frame"
-]);
-// 2. 内容物 / 撞色陈设件 / 镜面：取规格里烘焙的原色（槽位色就是「未套用风格时的底色」），
-const AUTHORED_COLOR_ONLY_RECIPE = Object.freeze({});
-const MIRROR_MATERIAL_RECIPE = Object.freeze({ roughness: 0.08, metalness: 0.35 });
-const AUTHORED_COLOR_MATERIAL_ROLE_RECIPES: Record<string, any> = Object.freeze({
-  book: AUTHORED_COLOR_ONLY_RECIPE,
-  stash: AUTHORED_COLOR_ONLY_RECIPE,
-  accent: AUTHORED_COLOR_ONLY_RECIPE,
-  mirror: MIRROR_MATERIAL_RECIPE
-});
-// 3. 另有专管，默认档位下不经过亮度兜底：五金（下面那条按角色的五金分支）、玻璃（透明分支）、
-const NON_CARCASS_MATERIAL_ROLE_SET = new Set([
-  "metal",
-  "handle",
-  "glass",
-  "upholstery",
-  "cushion",
-  "fabric",
-  "key",
-  "pot",
-  "foliage",
-  "sink",
-  "cooktop",
-  "screen",
-  "grating",
-  "lit"
-]);
-const APPLIANCE_PALETTE_ITEM_TYPES = new Set([
-  "tv_standard",
-  "tv_tabletop",
-  "tv_mobile",
-  "wallac",
-  "floorac",
-  "airpurifier",
-  "robotvacuum",
-  "floorlamp",
-  "walllamp",
-  "fridge",
-  "freezer",
-  "rangehood",
-  "dishwasher",
-  "steamoven",
-  "microwave",
-  "ricecooker",
-  "washer",
-  "dryer",
-  "storagewaterheater",
-  "gaswaterheater",
-  "desktop",
-  "laptop",
-  "nas",
-  "pipelinewaterpurifier",
-  "tea_bar_machine",
-  "airoutlet",
-  "soundbar",
-  "speaker",
-  "projector",
-  "fan",
-  "humidifier",
-  "dehumidifier",
-  "freshair",
-  "thermostat",
-  "smartpanel",
-  "smartlock",
-  "doorbell",
-  "gateway",
-  "gameconsole",
-  "avreceiver",
-  "screenpanel",
-  "smartspeaker",
   "router",
-  "printer",
-  "ceilingfan",
+  "humidifier",
+  "wardrobe",
+  "office-chair",
+  "dehumidifier",
   "heater",
-  "ceilingac",
-  "vacuumcleaner",
-  "floorwasher",
-  "dryingrack",
-  "garmentcare",
-  "airer",
-  "integratedstove",
-  "sterilizer",
-  "oven",
-  "coffeemaker",
-  "kettle",
-  "airfryer",
-  "blender",
-  "waterpurifier",
-  "trashbin",
-]);
-/**
- * 电视三件共用的「一身深色」角色档（屏面另有专门的贴图通道，不走这里）。
- */
-const TV_ROLE_TONES = Object.freeze({
-  body: "dark",
-  trim: "dark",
-  metal: "dark",
-  leg: "dark",
-  base: "dark"
-});
-/**
- * 电子设备与灯具里**按材质角色逐件取色**的表：键是物件类型，值是「角色 → 取哪一档色」。
- */
-const APPLIANCE_ROLE_TONE_BY_ITEM_TYPE: Record<string, any> = Object.freeze({
-  // 显示器：机身 / 底座 / 键面走柔光银，支架压深。屏面由「screen 统一压暗」那条处理。
-  desktop: Object.freeze({ base: "soft", body: "soft", grating: "soft", metal: "dark" }),
-  // 笔记本：机身与转轴银，触控板与键面压深（屏面同样交给 screen 那条）。
-  laptop: Object.freeze({ body: "soft", metal: "soft", trim: "dark", grating: "dark" }),
-  nas: Object.freeze({ body: "soft", drawer: "soft" }),
-  // 电视三件：整件一族深色（屏面另有专门的贴图通道，不走这里）。显式列出来是为了让
-  tv_standard: TV_ROLE_TONES,
-  tv_tabletop: TV_ROLE_TONES,
-  tv_mobile: TV_ROLE_TONES
-});
-const CUSTOM_MATERIAL_ITEM_TYPES = new Set([
-  "sofa",
+  "bunk-bed",
+  "pool-table",
+  // coffeetable / kitchenisland 的材质名从 <type>-furniture-<role> 换成了 material-<n>-<role>，
+  // 不再命中上面的 "-furniture-" 名称判断，改为按类型显式纳入，避免非暖木配色下丢失石材质感。
   "coffeetable",
-  "squarecoffeetable",
-  "tvstand",
-  "rug",
-  "plant",
-  "bed",
-  "nightstand",
-  "vanity",
-  "desk",
-  "bookcase",
-  // 桌案第三批（餐桌组合 / 圆餐桌 / 圆餐桌带转盘 / 吧台）与厨房地柜三件：迁进流水线后
-  "table",
-  "rounddiningtable",
-  "rounddiningtable_turntable",
-  "bar",
-  "kitchenbase",
-  "kitchensink",
-  "kitchencooktop",
-  "pipelinewaterpurifier",
-  "tea_bar_machine",
-  "elevator",
-  "steelstairs",
-  "glassstairs",
-  "smallcar",
-  "piano",
-  // 柱族五件：材质要跟着**墙色**走（见 applyAppliancePalette 的柱分支）。它们原先不进
-  ...PILLAR_MODEL_ITEM_TYPES,
-  "armchair",
-  "loungechair",
-  "ottoman",
-  "bench",
-  "barstool",
-  "sidetable",
-  "console",
-  "chestdrawer",
-  "entrycabinet",
-  "displaycabinet",
-  "bunkbed",
-  "kidsbed",
-  "chaise",
-  "nestingtable",
-  "roundcoffeetable",
-  "screenspan",
-  "coatrail",
-  "stool",
-  "locker",
-  "laundrycabinet",
-  "balconycabinet",
-  "winecabinet",
   "kitchenisland",
-  "pantry",
-  "daybed",
-  "cot",
-  "computertable",
-  "officestool",
-  "filecabinet",
-  "booktower",
 ]);
+function createIndoorAssetDescriptor(indoorAssetId, indoorAssetScaleBasis) {
+  return Object.freeze({
+    url: "/static/3d-studio/models/" + indoorAssetId + "-lite.glb?v=20260928-indoor-v1",
+    fallbackUrl: "/static/3d-studio/models/" + indoorAssetId + ".glb?v=20260928-indoor-v1",
+    scaleBasis: indoorAssetScaleBasis,
+    preserveOrigin: true,
+  });
+}
+function createPillarAssetDescriptor(pillarAssetId) {
+  return Object.freeze({
+    url: "/static/3d-studio/models/" + pillarAssetId + "-lite.glb?v=" + pillarAssetVersion,
+    fallbackUrl: "/static/3d-studio/models/" + pillarAssetId + ".glb?v=" + pillarAssetVersion,
+    scaleBasis: [0.45, 2.8, 0.45],
+    preserveOrigin: true,
+  });
+}
 /**
- * 「暖阳原木」主题下餐桌 / 餐椅的材质语义：键是家具类型，值是**按材质角色**给出的语义
+ * 自带独立 GLB 资源的异形柱形：方形柱沿用原先烘焙好的方盒，因此仍留在普通的
+ * `pillar` 模型键上；其余四种造型各有独立模型。
  */
-const WARM_DINING_MATERIAL_ROLE_TABLE: Record<string, any> = Object.freeze({
-  table: Object.freeze({ top: "wood", trim: "wood", leg: "wood", cushion: "linen" }),
-  rounddiningtable: Object.freeze({
-    top: "wood",
-    base: "wood",
-    body: "wood",
-    trim: "wood",
-    leg: "wood",
-    cushion: "linen"
+const PILLAR_ASSET_SHAPES = new Set(["round", "semicircle", "quarter", "quarterinner"]);
+/**
+ * 柱族的全部**模型类型**键（含方柱）：`pillar` 与 `pillar_<形状>`。
+ */
+const PILLAR_MODEL_ITEM_TYPES = new Set([
+  "pillar",
+  ...[...PILLAR_ASSET_SHAPES].map((pillarShape) => "pillar_" + pillarShape),
+]);
+export const EXTERNAL_ITEM_MODELS = Object.freeze({
+    "drawer-chest": createIndoorAssetDescriptor("drawer-chest", [1.05, 0.94, 0.45]),
+    "smart-socket-86": createIndoorAssetDescriptor("smart-socket-86", [0.086, 0.086, 0.012]),
+    router: createIndoorAssetDescriptor("router", [0.287, 0.205, 0.177]),
+    humidifier: createIndoorAssetDescriptor("humidifier", [0.206, 0.323, 0.218]),
+    wardrobe: createIndoorAssetDescriptor("wardrobe", [1.8, 2.2, 0.637]),
+    "office-chair": createIndoorAssetDescriptor("office-chair", [0.64, 1.18, 0.66]),
+    dehumidifier: createIndoorAssetDescriptor("dehumidifier", [0.34, 0.53, 0.26]),
+    heater: createIndoorAssetDescriptor("heater", [0.515, 0.59, 0.29]),
+    "bunk-bed": createIndoorAssetDescriptor("bunk-bed", [1.18, 1.845, 2.06]),
+    "pool-table": createIndoorAssetDescriptor("pool-table", [2.54, 0.823, 1.42]),
+    "tea-table-set": Object.freeze({
+      url: "/static/3d-studio/models/tea-table-set-lite.glb",
+      fallbackUrl: "/static/3d-studio/models/tea-table-set.glb",
+      scaleBasis: [1.61, 0.94, 1.4],
+      preserveOrigin: true,
+    }),
+    ...Object.fromEntries(
+      Object.entries(COURTYARD_MODELS).map(([courtyardModelId, courtyardModelDefinition]) => [
+        courtyardModelId,
+        Object.freeze({
+          url:
+            "/static/3d-studio/models/" +
+            courtyardModelId +
+            "-lite.glb?v=20260927-garden-v5",
+          fallbackUrl:
+            "/static/3d-studio/models/" + courtyardModelId + ".glb?v=20260927-garden-v5",
+          scaleBasis: courtyardModelDefinition.size,
+          preserveOrigin: true,
+        }),
+      ]),
+    ),
+    ...Object.fromEntries(
+      ["sofa-single", "sofa-l", "sofa-l-left"].map((sofaVariantModelId) => [
+        sofaVariantModelId,
+        Object.freeze({
+          url:
+            "/static/3d-studio/models/" +
+            sofaVariantModelId +
+            "-lite.glb?v=20260926-sofa-variants-v1",
+          fallbackUrl:
+            "/static/3d-studio/models/" +
+            sofaVariantModelId +
+            ".glb?v=20260926-sofa-variants-v1",
+          scaleBasis: sofaVariantModelId === "sofa-single" ? [1.05, 0.82, 0.9] : [2.8, 0.82, 1.6],
+          preserveOrigin: true,
+        }),
+      ]),
+    ),
+    ...Object.fromEntries(
+      Object.entries(DECOR_MODELS).map(([decorModelId, decorModelDefinition]) => [
+        decorModelId,
+        Object.freeze({
+          url: "/static/3d-studio/models/" + decorModelId + "-lite.glb?v=20260926-decor-v1",
+          fallbackUrl:
+            "/static/3d-studio/models/" + decorModelId + ".glb?v=20260926-decor-v1",
+          scaleBasis: decorModelDefinition.size,
+          preserveOrigin: true,
+        }),
+      ]),
+    ),
+    sofa: createFurnitureAssetDescriptor("sofa", [2.2, 0.82, 0.9]),
+    coffeetable: createFurnitureAssetDescriptor("coffeetable", [1.9, 0.5, 1.05]),
+    kitchenisland: createFurnitureAssetDescriptor("kitchenisland", [2.4, 0.9, 0.8]),
+    squarecoffeetable: createFurnitureAssetDescriptor("squarecoffeetable", [1.4, 0.46, 0.7]),
+    tvstand: createFurnitureAssetDescriptor("tvstand", [1.8, 0.48, 0.42]),
+    rug: createHomeAssetDescriptor("rug", "20260901-home-assets-v1", {
+      scaleBasis: [2, 0.012, 1.4],
+      preserveOrigin: true,
+    }),
+    plant: createHomeAssetDescriptor("plant", "20260901-home-assets-v1", {
+      scaleBasis: [0.75, 1.6, 0.75],
+      preserveOrigin: true,
+    }),
+    bed: createIndoorAssetDescriptor("bed", [1.92, 1.02, 2.18]),
+    nightstand: createHomeAssetDescriptor("nightstand", "20260901-home-furniture-v1", {
+      scaleBasis: [0.5, 0.55, 0.42],
+      preserveOrigin: true,
+    }),
+    vanity: createFurnitureAssetDescriptor("vanity", [1.2, 1.55, 0.5]),
+    desk: createHomeAssetDescriptor("desk", "20260901-home-furniture-v1", {
+      scaleBasis: [1.4, 0.76, 0.65],
+      preserveOrigin: true,
+    }),
+    bookcase: createHomeAssetDescriptor("bookcase", "20260901-home-furniture-v1", {
+      scaleBasis: [1.2, 1.9, 0.32],
+      preserveOrigin: true,
+    }),
+    suv: {
+      url: "/static/3d-studio/models/suv-lite.glb",
+    },
+    scooter: {
+      url: "/static/3d-studio/models/scooter-lite.glb",
+    },
+    smallcar: {
+      url: "/static/3d-studio/models/car-lite.glb",
+      fallbackUrl: "/static/3d-studio/models/car.glb",
+    },
+    airoutlet: {
+      url: "/static/3d-studio/models/air-outlet-lite.glb",
+      fallbackUrl: "/static/3d-studio/models/air-outlet.glb",
+    },
+    pipelinewaterpurifier: {
+      url: "/static/3d-studio/models/pipeline-water-purifier-lite.glb",
+      fallbackUrl:
+        "/static/3d-studio/models/pipeline-water-purifier.glb",
+    },
+    tea_bar_machine: {
+      url: "/static/3d-studio/models/tea-bar-machine-lite.glb",
+      fallbackUrl: "/static/3d-studio/models/tea-bar-machine.glb",
+    },
+    elevator: {
+      url: "/static/3d-studio/models/elevator-lite.glb",
+      fallbackUrl: "/static/3d-studio/models/elevator.glb",
+    },
+    steelstairs: {
+      url: "/static/3d-studio/models/steel-stairs-lite.glb",
+      fallbackUrl: "/static/3d-studio/models/steel-stairs.glb",
+    },
+    glassstairs: {
+      url: "/static/3d-studio/models/glass-stairs-lite.glb",
+      fallbackUrl: "/static/3d-studio/models/glass-stairs.glb",
+    },
+    floatingstairs: {
+      url: "/static/3d-studio/models/floating-stairs.glb",
+      scaleBasis: [0.97254264, 2.59010673, 2.2483418],
+      preserveOrigin: true,
+    },
+    piano: {
+      url: "/static/3d-studio/models/piano-lite.glb",
+      fallbackUrl: "/static/3d-studio/models/piano.glb",
+      materialRevision: "20260914-piano-surface-shadow-v1",
+      preserveAspect: true,
+    },
   }),
-  rounddiningtable_turntable: Object.freeze({
-    top: "wood",
-    base: "wood",
-    body: "wood",
-    trim: "wood",
-    leg: "wood",
-    cushion: "linen"
+  ALL_ITEM_MODELS = Object.freeze({
+    ...EXTERNAL_ITEM_MODELS,
+    bed: createIndoorAssetDescriptor("bed", [1.92, 1.02, 2.18]),
+    nightstand: createHomeAssetDescriptor("nightstand", "20260901-all-home-furniture-v1", {
+      scaleBasis: [0.5, 0.55, 0.42],
+      preserveOrigin: true,
+    }),
+    vanity: createFurnitureAssetDescriptor("vanity", [1.2, 1.55, 0.5]),
+    desk: createHomeAssetDescriptor("desk", "20260901-all-home-furniture-v1", {
+      scaleBasis: [1.4, 0.76, 0.65],
+      preserveOrigin: true,
+    }),
+    bookcase: createHomeAssetDescriptor("bookcase", "20260912-cabinet-back-v4", {
+      url: "/static/3d-studio/models/bookcase-lite.glb",
+      scaleBasis: [1.2, 1.9, 0.32],
+      preserveOrigin: true,
+    }),
+    aquarium: createHomeAssetDescriptor("aquarium", "20260928-aquarium-v2", {
+      url: "/static/3d-studio/models/aquarium-lite.glb",
+      scaleBasis: [1.5, 1.4, 0.55],
+      preserveOrigin: true,
+    }),
+    table: createFurnitureAssetDescriptor("table", [2.4, 0.82, 1.8]),
+    rounddiningtable: createFurnitureAssetDescriptor("rounddiningtable", [2.2, 0.78, 2.2]),
+    chair: createFurnitureAssetDescriptor("chair", [0.5, 0.86, 0.5]),
+    bar: createHomeAssetDescriptor("bar", "20260901-all-home-furniture-v1", {
+      scaleBasis: [2.2, 1.05, 0.65],
+      preserveOrigin: true,
+    }),
+    sideboard: createHomeAssetDescriptor("sideboard", "20260901-all-home-furniture-v1", {
+      scaleBasis: [1.6, 2.2, 0.45],
+      preserveOrigin: true,
+      geometryRevision: "20260925-sideboard-joints-v1",
+    }),
+    shoecabinet: createHomeAssetDescriptor("shoecabinet", "20260901-all-home-furniture-v1", {
+      scaleBasis: [1.8, 2.25, 0.42],
+      preserveOrigin: true,
+    }),
+    cabinet: createHomeAssetDescriptor("cabinet", "20260901-all-home-furniture-v1", {
+      scaleBasis: [1.6, 1.9, 0.45],
+      preserveOrigin: true,
+    }),
+    glasscabinet: createHomeAssetDescriptor("glasscabinet", "20260912-cabinet-back-v2", {
+      url: "/static/3d-studio/models/glasscabinet-lite.glb",
+      scaleBasis: [1.2, 1.9, 0.4],
+      preserveOrigin: true,
+    }),
+    shelf: createHomeAssetDescriptor("shelf", "20260901-all-home-furniture-v1", {
+      scaleBasis: [1.2, 1.8, 0.45],
+      preserveOrigin: true,
+    }),
+    wallcabinet: createHomeAssetDescriptor("wallcabinet", "20260912-cabinet-sides-v1", {
+      url: "/static/3d-studio/models/wallcabinet-lite.glb",
+      scaleBasis: [1.5, 0.82, 0.35],
+      preserveOrigin: true,
+    }),
+    kitchenbase: createHomeAssetDescriptor("kitchenbase", "20260901-all-home-furniture-v1", {
+      scaleBasis: [2.4, 0.85, 0.6],
+      preserveOrigin: true,
+    }),
+    kitchensink: createHomeAssetDescriptor("kitchensink", "20260901-all-home-furniture-v1", {
+      scaleBasis: [1.2, 0.85, 0.6],
+      preserveOrigin: true,
+    }),
+    kitchencooktop: createHomeAssetDescriptor("kitchencooktop", "20260901-all-home-furniture-v1", {
+      scaleBasis: [1.2, 0.85, 0.6],
+      preserveOrigin: true,
+    }),
+    basin: createHomeAssetDescriptor("basin", "20260901-all-home-furniture-v1", {
+      scaleBasis: [0.9, 0.88, 0.5],
+      preserveOrigin: true,
+    }),
+    toilet: createHomeAssetDescriptor("toilet", "20260901-all-home-furniture-v1", {
+      scaleBasis: [0.42, 0.52, 0.7],
+      preserveOrigin: true,
+    }),
+    squattoilet: createHomeAssetDescriptor("squattoilet", "20260901-all-home-furniture-v1", {
+      scaleBasis: [0.45, 0.18, 0.65],
+      preserveOrigin: true,
+    }),
+    urinal: createHomeAssetDescriptor("urinal", "20260901-all-home-furniture-v1", {
+      scaleBasis: [0.38, 0.72, 0.34],
+      preserveOrigin: true,
+    }),
+    shower: createHomeAssetDescriptor("shower", "20260901-all-home-furniture-v1", {
+      scaleBasis: [0.9, 2.1, 0.9],
+      preserveOrigin: true,
+    }),
+    bathtub: createHomeAssetDescriptor("bathtub", "20260901-all-home-furniture-v1", {
+      scaleBasis: [1.7, 0.58, 0.78],
+      preserveOrigin: true,
+    }),
+    glasspartition: createHomeAssetDescriptor("glasspartition", "20260901-all-home-furniture-v1", {
+      scaleBasis: [1.2, 2, 0.08],
+      preserveOrigin: true,
+    }),
+    stairs: createHomeAssetDescriptor("stairs", "20260901-all-home-furniture-v1", {
+      scaleBasis: [1, 1.65, 2.8],
+      preserveOrigin: true,
+    }),
+    pillar: createPillarAssetDescriptor("pillar"),
+    pillar_round: createPillarAssetDescriptor("pillar-round"),
+    pillar_semicircle: createPillarAssetDescriptor("pillar-semicircle"),
+    pillar_quarter: createPillarAssetDescriptor("pillar-quarter"),
+    pillar_quarterinner: createPillarAssetDescriptor("pillar-quarterinner"),
+    curtain_left: createHomeAssetDescriptor("curtain_left", "20260901-all-home-furniture-v1", {
+      scaleBasis: [1.8, 2.4, 0.18],
+      preserveOrigin: true,
+    }),
+    curtain_right: createHomeAssetDescriptor("curtain_right", "20260901-all-home-furniture-v1", {
+      scaleBasis: [1.8, 2.4, 0.18],
+      preserveOrigin: true,
+    }),
+    curtain_split: createHomeAssetDescriptor("curtain_split", "20260901-all-home-furniture-v1", {
+      scaleBasis: [1.8, 2.4, 0.18],
+      preserveOrigin: true,
+    }),
+    rounddiningtable_turntable: createFurnitureAssetDescriptor(
+      "rounddiningtable_turntable",
+      [2.2, 0.78, 2.2],
+    ),
+    tv_standard: createApplianceAssetDescriptor("tv_standard", {
+      scaleBasis: [1.5, 0.92, 0.18],
+      preserveOrigin: true,
+    }),
+    tv_tabletop: createApplianceAssetDescriptor("tv_tabletop", {
+      scaleBasis: [1.5, 0.92, 0.18],
+      preserveOrigin: true,
+    }),
+    tv_mobile: createApplianceAssetDescriptor("tv_mobile", {
+      scaleBasis: [1.5, 0.92, 0.18],
+      preserveOrigin: true,
+    }),
+    wallac: createApplianceAssetDescriptor("wallac", {
+      scaleBasis: [0.9, 0.28, 0.22],
+      preserveOrigin: true,
+    }),
+    floorac: createApplianceAssetDescriptor("floorac", {
+      url: "/static/3d-studio/models/floorac-lite.glb",
+      fallbackUrl: "/static/3d-studio/models/floorac.glb",
+      scaleBasis: [0.42, 1.75, 0.42],
+      preserveOrigin: true,
+    }),
+    airpurifier: createApplianceAssetDescriptor("airpurifier", {
+      url: "/static/3d-studio/models/airpurifier-lite.glb",
+      fallbackUrl: "/static/3d-studio/models/airpurifier.glb",
+      scaleBasis: [0.34, 0.7, 0.34],
+      preserveOrigin: true,
+    }),
+    robotvacuum: createApplianceAssetDescriptor("robotvacuum", {
+      url: "/static/3d-studio/models/robotvacuum-lite.glb",
+      fallbackUrl: "/static/3d-studio/models/robotvacuum.glb",
+      scaleBasis: [0.55, 0.85, 0.5],
+      preserveOrigin: true,
+    }),
+    floorlamp: createApplianceAssetDescriptor("floorlamp", {
+      scaleBasis: [1.35, 1.8, 0.5],
+      preserveOrigin: true,
+    }),
+    walllamp: createApplianceAssetDescriptor("walllamp", {
+      scaleBasis: [0.3, 0.34, 0.22],
+      preserveOrigin: true,
+    }),
+    fridge: createApplianceAssetDescriptor("fridge", {
+      scaleBasis: [0.75, 1.85, 0.72],
+      preserveOrigin: true,
+    }),
+    // 卧式冰柜：占地方向是「宽 × 深」的长边在前，与它顶开盖的造型一致。
+    freezer: createApplianceAssetDescriptor("freezer", {
+      scaleBasis: [1.05, 0.85, 0.6],
+      preserveOrigin: true,
+    }),
+    rangehood: createApplianceAssetDescriptor("rangehood", {
+      scaleBasis: [0.9, 0.55, 0.45],
+      preserveOrigin: true,
+    }),
+    dishwasher: createApplianceAssetDescriptor("dishwasher", {
+      scaleBasis: [0.6, 0.82, 0.6],
+      preserveOrigin: true,
+    }),
+    steamoven: createApplianceAssetDescriptor("steamoven", {
+      scaleBasis: [0.6, 0.6, 0.55],
+      preserveOrigin: true,
+    }),
+    microwave: createApplianceAssetDescriptor("microwave", {
+      scaleBasis: [0.52, 0.32, 0.42],
+      preserveOrigin: true,
+    }),
+    ricecooker: createApplianceAssetDescriptor("ricecooker", {
+      scaleBasis: [0.28, 0.25, 0.32],
+      preserveOrigin: true,
+    }),
+    washer: createApplianceAssetDescriptor("washer", {
+      scaleBasis: [0.6, 0.85, 0.65],
+      preserveOrigin: true,
+    }),
+    dryer: createApplianceAssetDescriptor("dryer", {
+      scaleBasis: [0.6, 0.85, 0.65],
+      preserveOrigin: true,
+    }),
+    storagewaterheater: createApplianceAssetDescriptor("storagewaterheater", {
+      url: "/static/3d-studio/models/storagewaterheater-lite.glb",
+      fallbackUrl:
+        "/static/3d-studio/models/storagewaterheater.glb",
+      scaleBasis: [0.86, 0.48, 0.46],
+      preserveOrigin: true,
+    }),
+    gaswaterheater: createApplianceAssetDescriptor("gaswaterheater", {
+      url: "/static/3d-studio/models/gaswaterheater-lite.glb",
+      fallbackUrl: "/static/3d-studio/models/gaswaterheater.glb",
+      scaleBasis: [0.42, 0.72, 0.22],
+      preserveOrigin: true,
+    }),
+    desktop: createApplianceAssetDescriptor("desktop", {
+      url: "/static/3d-studio/models/desktop-lite.glb",
+      fallbackUrl: "/static/3d-studio/models/desktop.glb",
+      scaleBasis: [0.72, 0.5, 0.32],
+      preserveOrigin: true,
+    }),
+    laptop: createApplianceAssetDescriptor("laptop", {
+      url: "/static/3d-studio/models/laptop-lite.glb",
+      fallbackUrl: "/static/3d-studio/models/laptop.glb",
+      scaleBasis: [0.36, 0.22, 0.28],
+      preserveOrigin: true,
+    }),
+    printer: createApplianceAssetDescriptor("printer", {
+      url: "/static/3d-studio/models/printer-lite.glb",
+      fallbackUrl: "/static/3d-studio/models/printer.glb",
+      scaleBasis: [0.44, 0.3, 0.36],
+      preserveOrigin: true,
+    }),
+    nas: createApplianceAssetDescriptor("nas", {
+      url: "/static/3d-studio/models/nas-lite.glb",
+      fallbackUrl: "/static/3d-studio/models/nas.glb",
+      scaleBasis: [0.28, 0.205, 0.24],
+      preserveOrigin: true,
+    }),
+  });
+const warmWoodFurnitureItemTypes = new Set([
+    "sofa",
+    "coffeetable",
+    "kitchenisland",
+    "squarecoffeetable",
+    "tvstand",
+    "rug",
+    "plant",
+    "bed",
+    "nightstand",
+    "vanity",
+    "desk",
+    "bookcase",
+    "aquarium",
+    "table",
+    "rounddiningtable",
+    "chair",
+    "bar",
+    "sideboard",
+    "shoecabinet",
+    "cabinet",
+    "glasscabinet",
+    "shelf",
+    "wallcabinet",
+    "kitchenbase",
+    "kitchensink",
+    "kitchencooktop",
+    "basin",
+    "toilet",
+    "squattoilet",
+    "urinal",
+    "shower",
+    "bathtub",
+    "glasspartition",
+    "stairs",
+    // 柱族五件：材质要跟着**墙色**走（见 applyWarmWoodFurnitureMaterial 的柱分支）。
+    ...PILLAR_MODEL_ITEM_TYPES,
+    "curtain_left",
+    "curtain_right",
+    "curtain_split",
+    "rounddiningtable_turntable",
+    "tv_standard",
+    "tv_tabletop",
+    "tv_mobile",
+    "wallac",
+    "floorac",
+    "airpurifier",
+    "robotvacuum",
+    "floorlamp",
+    "walllamp",
+    "fridge",
+    "freezer",
+    "rangehood",
+    "dishwasher",
+    "steamoven",
+    "microwave",
+    "ricecooker",
+    "washer",
+    "dryer",
+    "storagewaterheater",
+    "gaswaterheater",
+    "desktop",
+    "laptop",
+    "nas",
+    "printer",
+  ]),
+  /**
+   * 「角色表优先」的模型集合：材质名只有 `<type>-material-N`（不带角色），
+   * 之前靠亮度 / 槽位号启发式着色，现在由 studio-model-material-roles.ts 的槽位角色表接管。
+   * 楼梯 / 车辆 / 柱族 / 灯具等结构型模型仍走各自专用函数（角色表只提供数据）。
+   */
+  roleTableItemTypes = new Set([
+    ...Object.keys(MODEL_SLOT_ROLES),
+    "plant",
+    "rug",
+    "airoutlet",
+    "pipelinewaterpurifier",
+    "tea_bar_machine",
+  ]),
+  diningMaterialRolesByItemType = Object.freeze({
+    table: ["wood", "wood", "linen"],
+    rounddiningtable: ["wood", "wood", "wood", "linen", "wood"],
+    rounddiningtable_turntable: ["wood", "wood", "wood", "wood", "ceramic", "linen", "wood"],
+    chair: ["sage", "wood"],
   }),
-  // 单张餐椅的坐垫取鼠尾草绿：这与旧表的意图一致 —— 旧表给餐桌的亚麻色是给**烘进餐桌模型里
-  chair: Object.freeze({ leg: "wood", frame: "wood", upholstery: "sage" })
-});
+  warmCabinetItemTypes = new Set([
+    "cabinet",
+    "wallcabinet",
+    "shoecabinet",
+    "sideboard",
+    "bookcase",
+    "shelf",
+    "nightstand",
+    "tvstand",
+    "kitchenbase",
+    "kitchensink",
+    "kitchencooktop",
+    "glasscabinet",
+  ]),
+  countertopMaterialIndexByItemType = Object.freeze({
+    sideboard: "0",
+    shoecabinet: "2",
+    nightstand: "1",
+    kitchenbase: "2",
+    kitchensink: "2",
+    kitchencooktop: "2",
+  }),
+  luminancePaletteItemTypes = new Set([
+    "bed",
+    "nightstand",
+    "vanity",
+    "desk",
+    "bookcase",
+    "table",
+    "rounddiningtable",
+    "chair",
+    "bar",
+    "sideboard",
+    "shoecabinet",
+    "cabinet",
+    "glasscabinet",
+    "shelf",
+    "wallcabinet",
+    "kitchenbase",
+    "kitchensink",
+    "kitchencooktop",
+  ]),
+  applianceItemTypes = new Set([
+    "tv_standard",
+    "tv_tabletop",
+    "tv_mobile",
+    "wallac",
+    "floorac",
+    "airpurifier",
+    "robotvacuum",
+    "floorlamp",
+    "walllamp",
+    "fridge",
+    "freezer",
+    "rangehood",
+    "dishwasher",
+    "steamoven",
+    "microwave",
+    "ricecooker",
+    "washer",
+    "dryer",
+    "storagewaterheater",
+    "gaswaterheater",
+    "desktop",
+    "laptop",
+    "nas",
+    "pipelinewaterpurifier",
+    "tea_bar_machine",
+    "airoutlet",
+    "printer",
+  ]),
+  gardenItemTypes = new Set([
+    "tea-table-set",
+    "sofa",
+    "coffeetable",
+    "squarecoffeetable",
+    "tvstand",
+    "rug",
+    "plant",
+    "bed",
+    "nightstand",
+    "vanity",
+    "desk",
+    "bookcase",
+    "pipelinewaterpurifier",
+    "tea_bar_machine",
+    "elevator",
+    "steelstairs",
+    "glassstairs",
+    "floatingstairs",
+    "piano",
+  ]);
+/** 外模型加载状态；onLoadStateChange 回调与 collectLoadState 共用同一形状。 */
+export type ExternalModelLoadState = {
+  /** 正在加载的数量。 */
+  active: number;
+  /** 已开始加载（去重后）的条目数。 */
+  pending: number;
+  /** 队列里等待的数量。 */
+  queued: number;
+  /** 并发上限。 */
+  limit: number;
+  /** 单项加载超时（毫秒）。 */
+  timeoutMs: number;
+  /** 材质缓存条目数。 */
+  materials: number;
+  /** 材质复用命中次数。 */
+  materialReuses: number;
+};
+
+/** createPaletteMaterial 的材质覆盖项。 */
+export type PaletteMaterialOptions = {
+  roughness?: number;
+  metalness?: number;
+  flatShading?: boolean;
+  transparent?: boolean;
+  opacity?: number;
+  depthWrite?: boolean;
+  /** 启用 polygonOffset（避免细节件与主体 z-fighting）。 */
+  polygonOffset?: boolean;
+  polygonOffsetFactor?: number;
+  polygonOffsetUnits?: number;
+};
+
 /**
- * 上面那张角色表的**老资产回落**：还没有迁进流水线的餐桌 / 餐椅（没有角色后缀）按槽位号取语义。
+ * 外模型附加样式选项。既当开关用（warmWood），也当暖木色板用：
+ * 色板键由 studio-scene-style / studio-vehicle-models 等子系统各自消费，
+ * 所以除 warmWood 外保持开放键（签名去重也依赖“键集合”本身）。
  */
-const WARM_DINING_MATERIAL_TABLE: Record<string, any> = Object.freeze({});
-/**
- * 「石材板」所在的材质槽位与**默认色号**：键是模型类型，值是「槽位下标 → 色号」。
- */
-const STONE_SLAB_FLAVOR_BY_MODEL_SLOT: Record<string, any> = Object.freeze({
-  table: Object.freeze({ 0: "marble" }),
-  // 组合茶几：上白石、下黑石 —— 与实物照片一致（白石板压在黑石座上）。
-  coffeetable: Object.freeze({ 0: "marble", 1: "marble-dark" }),
-  rounddiningtable: Object.freeze({ 0: "marble" }),
-  rounddiningtable_turntable: Object.freeze({ 0: "marble", 3: "marble", 4: "marble" }),
-  desk: Object.freeze({ 1: "marble" })
-});
-const STONE_SLAB_FINISH_BY_FLAVOR: Record<string, any> = Object.freeze({
-  marble: Object.freeze({ roughness: 0.24, metalness: 0.03 }),
-  "marble-dark": Object.freeze({ roughness: 0.18, metalness: 0.04 })
-});
-/**
- * 某个模型是否有关键部件要走石材板。装载期（补 UV）与材质替换期（换材质）都先问这里，
- */
-function hasStoneSlab(modelType: any) {
-  return STONE_SLAB_FLAVOR_BY_MODEL_SLOT[modelType] !== undefined;
-}
-/**
- * 取某一块网格的石材规格；不是石材板则返回 null。装载期补 UV 与材质替换期换材质必须走同一判据：
- */
-function stoneSlabSpecFor(materialPalette: any, modelType: any, materialName: any) {
-  const slotFlavors = STONE_SLAB_FLAVOR_BY_MODEL_SLOT[modelType];
-  if (!slotFlavors) {
-    return null;
-  }
-  const { slot, role } = parseMaterialSlotAndRole(materialName);
-  const recipe = role ? materialPalette?.materialRoles?.[role] : null;
-  if (recipe) {
-    if (!recipe.slab) {
-      return null;
-    }
-    return {
-      flavor: recipe.slab,
-      tint: recipe.color,
-      roughness: recipe.roughness,
-      metalness: recipe.metalness
-    };
-  }
-  const defaultFlavor = slot === undefined ? undefined : slotFlavors[Number(slot)];
-  return defaultFlavor ? { flavor: defaultFlavor } : null;
-}
-/**
- * 各柜类「门板 / 抽屉面板」的判据：`material-<槽位>-door` 就是门板。
- */
-function isCabinetDoorMaterial(materialName: any) {
-  return parseMaterialSlotAndRole(materialName).role === "door";
-}
-/**
- * 「暖阳原木」主题下的台面判据：`material-<槽位>-top` 就是台面。
- */
-function isWarmCountertopMaterial(materialName: any) {
-  return parseMaterialSlotAndRole(materialName).role === "top";
-}
-/**
- * 从材质名里取出「槽位号 + 角色」。
- */
-function parseMaterialSlotAndRole(materialName: any) {
-  const matched = String(materialName || "")
-    .toLowerCase()
-    .match(/material-(\d+)(?:-([a-z][a-z0-9]*))?$/);
-  return { slot: matched?.[1], role: matched?.[2] };
-}
-/**
- * 「档位即组合」：取某块网格**自己那个角色**的配方。
- */
-function materialRoleRecipe(materialPalette: any, materialName: any) {
-  const roles = materialPalette?.materialRoles;
-  if (!roles) {
-    return null;
-  }
-  const { role } = parseMaterialSlotAndRole(materialName);
-  return (role && roles[role]) || null;
-}
-/**
- * 创建外部模型管理器：负责按需加载、并发排队、材质复用与实例落地。
- * @param {number} [managerOptions.maxConcurrentLoads] 并发加载上限（默认 2，解压占 Worker 与带宽）。@param {number} [managerOptions.loadTimeoutMs] 单次加载超时（默认 12s，弱网下 1MB 级模型的容忍上限）。
- * @param {object} [managerOptions.persistentCache] 模型模板持久缓存（默认自建；测试可注入替身）。
- */
+export type ExternalModelStyleOptions = {
+  /** 其余样式键：各子系统的调色板字段。 */
+  [styleKey: string]: any;
+  /** 暖木色系家具材质总开关。 */
+  warmWood?: boolean;
+};
+
 export function createExternalModelManager({
-  THREE: THREE,
-  loader: loader,
+  THREE: threeNamespace,
+  loader: assetLoader,
   stairItemTypes: stairItemTypes,
   isModelInUse: isModelInUse,
   requestRender: requestRender,
-  onLoadStateChange: onLoadStateChange = (_state: any) => {},
-  maxConcurrentLoads: maxConcurrentLoads = 2,
-  loadTimeoutMs: loadTimeoutMs = 12000,
-  deferralHost: deferralHost = null,
-  persistentCache: persistentCache = createModelPersistentCache({
-    THREE: THREE
-  })
-}: any) {
-  // 五个缓存各司其职：已加载（类型 → {source, size}）、GLTF 在飞（类型 → Promise，
-  const loadedModelByType = new Map();
-  const pendingLoadByType = new Map();
-  const preparedRestoreByType = new Map();
-  const loadQueue: any[] = [];
-  const materialCacheByKey = new Map();
-  const concurrencyLimit = Math.max(1, Math.floor(finite(maxConcurrentLoads, 2)));
-  const effectiveTimeoutMs = Math.max(50, Math.floor(finite(loadTimeoutMs, 12000)));
-  // 持久缓存最多等这么久（毫秒）：命中就省掉一次下载 + 解析，读不出来也必须立刻转回真实加载器 ——
-  const preparedRestoreTimeoutMs = 160;
-  let activeLoadCount = 0;
-  let materialReuseCount = 0;
-  /**
-   * 汇总当前的加载与材质缓存状态（供「正在载入模型」提示与导出前的等待使用）。
-   */
-  function getModelLoadState() {
+  onLoadStateChange = (_loadState: ExternalModelLoadState) => {},
+  maxConcurrentLoads = 2,
+  loadTimeoutMs = 12000,
+  retryDelayMs = 5000,
+  maxAutomaticRetries = 2,
+  lifecycle: lifecycleTarget = globalThis.window,
+  persistentCache = createModelPersistentCache({
+    THREE: threeNamespace,
+  }),
+}) {
+  const preparedTemplatesByItemType = new Map(),
+    inflightLoadsByItemType = new Map(),
+    restorePromisesByItemType = new Map(),
+    loadQueue = [],
+    activeItemTypes = new Set(),
+    retryStateByItemType = new Map(),
+    pendingCancelResolvers = new Set<(inFlightResult: any) => void>(),
+    activeTimeoutHandles = new Set<ReturnType<typeof setTimeout>>();
+  let isDisposed = false;
+  const materialCacheBySignature = new Map(),
+    materialVariantsBySource = new WeakMap(),
+    geometryVariantsBySource = new WeakMap(),
+    furnitureBatchCache = createFurnitureBatchCache(threeNamespace),
+    effectiveConcurrentLimit = Math.max(1, Math.floor(finite(maxConcurrentLoads, 2))),
+    effectiveLoadTimeoutMs = Math.max(50, Math.floor(finite(loadTimeoutMs, 12000)));
+  let activeLoadCount = 0,
+    materialReuseCount = 0;
+  function collectLoadState(): ExternalModelLoadState {
     return {
       active: activeLoadCount,
+      pending: activeItemTypes.size,
       queued: loadQueue.length,
-      limit: concurrencyLimit,
-      timeoutMs: effectiveTimeoutMs,
-      materials: materialCacheByKey.size,
-      materialReuses: materialReuseCount
+      limit: effectiveConcurrentLimit,
+      timeoutMs: effectiveLoadTimeoutMs,
+      materials: materialCacheBySignature.size,
+      materialReuses: materialReuseCount,
     };
   }
-  /**
-   * 把最新状态推给注入的回调（默认是个空函数，调用方可以完全不关心）。
-   */
-  function emitLoadStateChange() {
-    onLoadStateChange(getModelLoadState());
+  function notifyLoadStateChange() {
+    isDisposed || onLoadStateChange(collectLoadState());
   }
-  /**
-   * 按并发上限启动排队中的加载任务。
-   */
   function pumpLoadQueue() {
-    while (activeLoadCount < concurrencyLimit && loadQueue.length) {
-      const queuedTask = loadQueue.shift();
-      activeLoadCount += 1;
-      emitLoadStateChange();
-      Promise.resolve()
-        .then(queuedTask.run)
-        .then(queuedTask.resolve, queuedTask.reject)
-        .finally(() => {
-          activeLoadCount -= 1;
-          pumpLoadQueue();
-          emitLoadStateChange();
+    for (; !isDisposed && activeLoadCount < effectiveConcurrentLimit && loadQueue.length;) {
+      const queuedLoadEntry = loadQueue.shift();
+      ((activeLoadCount += 1),
+        notifyLoadStateChange(),
+        Promise.resolve()
+          .then(() => (isDisposed ? null : queuedLoadEntry.run()))
+          .then(queuedLoadEntry.resolve, queuedLoadEntry.reject)
+          .finally(() => {
+            ((activeLoadCount -= 1), pumpLoadQueue(), notifyLoadStateChange());
+          }));
+    }
+  }
+  function enqueueLoadTask(loadTaskRunner) {
+    return isDisposed
+      ? Promise.resolve(null)
+      : new Promise((resolveLoadTask, rejectLoadTask) => {
+          (loadQueue.push({
+            run: loadTaskRunner,
+            resolve: resolveLoadTask,
+            reject: rejectLoadTask,
+          }),
+            notifyLoadStateChange(),
+            pumpLoadQueue());
         });
-    }
   }
-  /**
-   * 把加载动作排进队列并返回它的 Promise。
-   */
-  function enqueueLoadTask(runLoad: any) {
-    return new Promise((resolveTask, rejectTask) => {
-      loadQueue.push({
-        run: runLoad,
-        resolve: resolveTask,
-        reject: rejectTask
-      });
-      emitLoadStateChange();
-      pumpLoadQueue();
-    });
-  }
-  async function loadModelWithFallback(modelDefinition: any, modelTypeLabel: any, { skipPersistentRestore = false }: any = {}) {
-    const preparedCacheKey = modelTemplateKey(THREE, modelTypeLabel, modelDefinition);
-    if (!skipPersistentRestore) {
-      const cachedTemplate = await persistentCache.restore(preparedCacheKey);
-      if (cachedTemplate) {
-        return { preparedTemplate: cachedTemplate };
-      }
-    }
-    let timeoutId: any = null;
-    // 发起一次带超时的加载：与 loadAsync 赛跑的计时器写入外层的 timeoutId 变量，
-    const loadFromUrl = (resourceUrl: any) =>
-      Promise.race([
-        loader.loadAsync(resourceUrl),
-        new Promise((_resolveTimeout, rejectTimeout) => {
-          timeoutId = setTimeout(
-            () => rejectTimeout(new Error("模型 " + modelTypeLabel + " 加载超时")),
-            effectiveTimeoutMs
-          );
-        })
-      ]).finally(() => clearTimeout(timeoutId));
-    if (!modelDefinition?.url) {
-      throw new Error("模型 " + modelTypeLabel + " 没有可用资源");
-    }
-    // 只在这里展开一次结果对象（GLTF 结果是普通对象字面量），把键带出去给写入方用。
-    return loadFromUrl(modelDefinition.url)
-      .catch(loadError => {
-        if (!modelDefinition.fallbackUrl) {
-          throw loadError;
-        }
-        return loadFromUrl(modelDefinition.fallbackUrl);
-      })
-      .then(gltfResult => ({ ...gltfResult, preparedCacheKey: preparedCacheKey }));
-  }
-  /**
-   * 把场景物件映射成具体的模型类型键。
-   */
-  function modelTypeForItem(item: any) {
-    if (item.type === "curtain") {
-      return (
-        "curtain_" +
-        (["left", "right", "split"].includes(item.curtainPosition) ? item.curtainPosition : "split")
-      );
-    } else if (item.type === "pillar") {
-      return PILLAR_ASSET_SHAPES.has(item.pillarShape) ? "pillar_" + item.pillarShape : "pillar";
-    } else if (
-      item.type === "rounddiningtable" &&
-      (item.roundTableTurntable === true || item.type === "rounddiningtableturntable")
-    ) {
-      return "rounddiningtable_turntable";
-    } else if (item.type === "tv") {
-      return (
-        "tv_" +
-        (["standard", "tabletop", "mobile"].includes(item.tvMountStyle)
-          ? item.tvMountStyle
-          : "standard")
-      );
-    } else {
-      return item.type;
-    }
-  }
-  /**
-   * 加载（或复用）指定类型的模型，包含延迟放行、请求去重、持久缓存命中与按类型的几何修订。
-   */
-  function loadExternalModel(modelType: any) {
-    if (deferralHost?.isDeferred() && !deferralHost.isReleasing()) {
-      // 首屏延后加载：只登记需求并立刻返回 null，让调用方本次先用过程几何渲染。
-      deferralHost.defer(modelType);
-      return Promise.resolve(null);
-    }
-    if (loadedModelByType.has(modelType)) {
-      return Promise.resolve(loadedModelByType.get(modelType));
-    }
-    if (pendingLoadByType.has(modelType)) {
-      return pendingLoadByType.get(modelType);
-    }
-    const definition = (ALL_ITEM_MODELS as Record<string, any>)[modelType];
-    if (!definition) {
-      return Promise.resolve(null);
-    }
-    // 持久缓存键：类型 + 定义（URL / 尺寸 / 覆盖项）+ 编解码版本 + three 版本
-    const preparedCacheKey = modelTemplateKey(THREE, modelType, definition);
-    let pendingRestore = preparedRestoreByType.get(modelType);
-    if (!pendingRestore) {
-      pendingRestore = Promise.resolve()
-        .then(() => persistentCache.restore(preparedCacheKey))
-        .catch(() => null);
-      preparedRestoreByType.set(modelType, pendingRestore);
-      // 「在飞」只活到读完为止：结果本身由每次调用的 preparedPromise 各自处理，这里只负责合并并发读。
-      pendingRestore.then(() => {
-        if (preparedRestoreByType.get(modelType) === pendingRestore) {
-          preparedRestoreByType.delete(modelType);
-        }
-      });
-    }
-    // 等缓存的同时把网络那一路准备好：一旦超时就立刻开跑，让磁盘与网络并行，而不是串行。
-    let loaderLoadPromise: any = null;
-    const startLoaderLoad = () => {
-      if (!loaderLoadPromise) {
-        loaderLoadPromise = enqueueLoadTask(() =>
-          loadModelWithFallback(definition, modelType, { skipPersistentRestore: true })
-        );
-      }
-      return loaderLoadPromise;
-    };
-    const preparedPromise = new Promise((resolvePrepared, rejectPrepared) => {
-      let settled = false;
-      let restoreTimer: any = null;
-      const fallBackToLoader = () => {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        clearTimeout(restoreTimer);
-        startLoaderLoad().then(resolvePrepared, rejectPrepared);
+  async function loadTemplateForItem(
+    itemDefinition,
+    itemTypeName,
+    { skipPersistentRestore = false } = {},
+  ) {
+    const templateCacheKey = modelTemplateKey(threeNamespace, itemTypeName, itemDefinition),
+      restoredPreparedTemplate = skipPersistentRestore
+        ? null
+        : await persistentCache.restore(templateCacheKey);
+    if (restoredPreparedTemplate)
+      return {
+        preparedTemplate: restoredPreparedTemplate,
       };
-      // 缓存是加分项：读得慢就先去加载，不能让它成为新的等待点。
-      restoreTimer = setTimeout(fallBackToLoader, preparedRestoreTimeoutMs);
-      pendingRestore.then((cachedTemplate: any) => {
-        if (settled) {
-          return;
-        }
-        clearTimeout(restoreTimer);
-        if (!cachedTemplate) {
-          fallBackToLoader();
-          return;
-        }
-        settled = true;
-        resolvePrepared({ preparedTemplate: cachedTemplate });
-      }, fallBackToLoader);
-    });
-    const loadPromise = preparedPromise
-      .then((loaded: any) => {
-        // 命中持久缓存：模板就是上一会话准备好的完整结果（含实测尺寸），直接落进缓存表。
-        if (loaded.preparedTemplate) {
-          loadedModelByType.set(modelType, loaded.preparedTemplate);
-          if (isModelInUse(modelType)) {
-            requestRender({
-              force: true
-            });
-          }
-          return loaded.preparedTemplate;
-        }
-        const loadedScene = loaded.scene || loaded.scenes?.[0];
-        if (!loadedScene) {
-          throw new Error("模型 " + modelType + " 没有可显示的场景");
-        }
-        // 原先这里有三条「按类型的几何修订」：玻璃柜背板补板、吊柜补侧板 / 顶板、床底座与
-        if (hasStoneSlab(modelType)) {
-          // 石材板要贴整块石材整图，而这些模型要么没有 UV、要么带的是「每面各贴一遍」的立方体 UV：
-          applyStoneSlabPlanarUv(THREE, loadedScene, modelType);
-        }
-        if (modelType === "smallcar") {
-          // 小车：上游第三方车模的法线按**平面**烘焙，车顶与翼子板直接渲染会出现一圈圈硬棱线，
-          smoothCarSceneSurface(THREE, loadedScene);
-        }
-        loadedScene.updateMatrixWorld(true);
-        const modelSize = new THREE.Box3().setFromObject(loadedScene).getSize(new THREE.Vector3());
-        // 尺寸无效（NaN / 0 / 负值）说明模型是空壳或缩放为 0，按加载失败处理：
-        if (
-          ![modelSize.x, modelSize.y, modelSize.z].every(
-            dimension => Number.isFinite(dimension) && dimension > 0.001
-          )
-        ) {
-          throw new Error("模型 " + modelType + " 的尺寸无效");
-        }
-        const modelCacheEntry = {
-          source: loadedScene,
-          size: modelSize
-        };
-        loadedModelByType.set(modelType, modelCacheEntry);
-        // 写回持久缓存：下一次打开就不必再下载与解析这份几何。空闲时执行、失败静默，
-        persistentCache.schedule(loaded.preparedCacheKey, modelCacheEntry);
-        if (isModelInUse(modelType)) {
-          requestRender({
-            force: true
-          });
-        }
-        return modelCacheEntry;
-      })
-      .catch(loadFailure => {
-        // 失败一律降级：记日志并返回 null，调用方继续用原来的（过程）模型。
-        (globalThis as any).window?.HABridgeLog?.error(
-          loadFailure,
-          {
-            phase: "studio-model-load"
-          },
-          "无法载入外部模型 " + modelType + "：" + (loadFailure?.message || loadFailure)
+    if (!itemDefinition?.url) throw new Error("模型 " + itemTypeName + " 没有可用资源");
+    try {
+      return {
+        ...(await assetLoader.loadAsync(itemDefinition.url)),
+        preparedCacheKey: templateCacheKey,
+      };
+    } catch (primaryLoadError) {
+      if (isDisposed || !itemDefinition.fallbackUrl) throw primaryLoadError;
+      try {
+        return await assetLoader.loadAsync(itemDefinition.fallbackUrl);
+      } catch (fallbackLoadError) {
+        throw new AggregateError(
+          [primaryLoadError, fallbackLoadError],
+          "模型 " + itemTypeName + " 的主资源和备用资源均不可用",
         );
-        if (String(loadFailure?.message || loadFailure).includes("加载超时")) {
-          // 超时已经由上面的 HABridgeLog 上报（同一句中文文案），控制台这份只在 ?debug=1 时出现。
-          debugLog("debug", "外部模型 " + modelType + " 加载超时，继续使用原模型");
-        } else {
-          debugLog("error", "无法载入外部模型 " + modelType, loadFailure);
-        }
-        if (isModelInUse(modelType)) {
+      }
+    }
+  }
+  function scheduleTimeout(onTimeoutElapsed, timeoutDelayMs) {
+    const scheduledTimeoutHandle = setTimeout(() => {
+      (activeTimeoutHandles.delete(scheduledTimeoutHandle), onTimeoutElapsed());
+    }, timeoutDelayMs);
+    return (activeTimeoutHandles.add(scheduledTimeoutHandle), scheduledTimeoutHandle);
+  }
+  function cancelScheduledTimeout(timeoutHandleToCancel) {
+    (clearTimeout(timeoutHandleToCancel), activeTimeoutHandles.delete(timeoutHandleToCancel));
+  }
+  function isPermanentAssetFailure(assetLoadError) {
+    return Array.isArray(assetLoadError?.errors)
+      ? assetLoadError.errors.every(isPermanentAssetFailure)
+      : [404, 410].includes(Number(assetLoadError?.response?.status ?? assetLoadError?.status));
+  }
+  function recordLoadFailure(failedItemTypeName, failureCause) {
+    const attemptCount = (retryStateByItemType.get(failedItemTypeName)?.attempts || 0) + 1,
+      isPermanentFailure = isPermanentAssetFailure(failureCause),
+      retryDelayForAttemptMs = isPermanentFailure
+        ? 300000
+        : Math.min(60000, Math.max(50, retryDelayMs) * 3 ** (attemptCount - 1)),
+      retryStateEntry = {
+        attempts: attemptCount,
+        permanent: isPermanentFailure,
+        retryAt: Date.now() + retryDelayForAttemptMs,
+        timer: null,
+      };
+    (retryStateByItemType.set(failedItemTypeName, retryStateEntry),
+      !isPermanentFailure &&
+        attemptCount <= Math.max(0, maxAutomaticRetries) &&
+        ((retryStateEntry.timer = scheduleTimeout(() => {
+          ((retryStateEntry.timer = null),
+            (retryStateEntry.retryAt = 0),
+            !isDisposed &&
+              isModelInUse(failedItemTypeName) &&
+              lifecycleTarget?.navigator?.onLine !== false &&
+              loadExternalItemModel(failedItemTypeName));
+        }, retryDelayForAttemptMs)),
+        retryStateEntry.timer.unref?.()),
+      globalThis.window?.HomeOSLog?.error(
+        failureCause,
+        {
+          phase: "studio-model-load",
+        },
+        "无法载入外部模型 " + failedItemTypeName + "：" + (failureCause?.message || failureCause),
+      ),
+      console.error("无法载入外部模型 " + failedItemTypeName, failureCause));
+  }
+  function retryPendingModels() {
+    if (!isDisposed) {
+      for (const [retryItemType, retryEntry] of retryStateByItemType)
+        retryEntry.permanent ||
+          (cancelScheduledTimeout(retryEntry.timer),
+          retryStateByItemType.delete(retryItemType),
+          isModelInUse(retryItemType) && loadExternalItemModel(retryItemType));
+    }
+  }
+  function disposeModelManager() {
+    if (!isDisposed) {
+      ((isDisposed = true),
+        assetLoader.dispose?.(),
+        furnitureBatchCache.dispose(),
+        lifecycleTarget?.removeEventListener?.("online", retryPendingModels),
+        lifecycleTarget?.removeEventListener?.("pagehide", disposeModelManager));
+      for (const timeoutHandleToClear of activeTimeoutHandles) clearTimeout(timeoutHandleToClear);
+      activeTimeoutHandles.clear();
+      for (const cancelResolver of pendingCancelResolvers) cancelResolver(null);
+      pendingCancelResolvers.clear();
+      for (const discardedQueueEntry of loadQueue.splice(0)) discardedQueueEntry.resolve(null);
+      (activeItemTypes.clear(),
+        retryStateByItemType.clear(),
+        inflightLoadsByItemType.clear(),
+        restorePromisesByItemType.clear());
+    }
+  }
+  (lifecycleTarget?.addEventListener?.("online", retryPendingModels),
+    lifecycleTarget?.addEventListener?.("pagehide", disposeModelManager, {
+      once: true,
+    }));
+  function resolveModelTypeForItem(item: any): string {
+    return item.type === "sofa-l"
+      ? item.sofaChaiseSide === "left"
+        ? "sofa-l-left"
+        : "sofa-l"
+      : item.type === "pillar"
+        ? PILLAR_ASSET_SHAPES.has(item.pillarShape)
+          ? "pillar_" + item.pillarShape
+          : "pillar"
+        : item.type === "curtain"
+          ? "curtain_" +
+            (["left", "right", "split"].includes(item.curtainPosition)
+              ? item.curtainPosition
+              : "split")
+          : item.type === "rounddiningtable" &&
+              (item.roundTableTurntable === true || item.type === "rounddiningtableturntable")
+            ? "rounddiningtable_turntable"
+            : item.type === "tv"
+              ? "tv_" +
+                (["standard", "tabletop", "mobile"].includes(item.tvMountStyle)
+                  ? item.tvMountStyle
+                  : "standard")
+              : item.type;
+  }
+  function preloadPersistentModels(itemTypeList = []) {
+    if (isDisposed) return Promise.resolve([]);
+    const restoredTemplatePromises = [...new Set(itemTypeList)]
+      .filter((requestedItemType) => ALL_ITEM_MODELS[requestedItemType])
+      .map((resolvedItemType) => {
+        if (preparedTemplatesByItemType.has(resolvedItemType))
+          return Promise.resolve(preparedTemplatesByItemType.get(resolvedItemType));
+        if (inflightLoadsByItemType.has(resolvedItemType))
+          return inflightLoadsByItemType.get(resolvedItemType);
+        if (restorePromisesByItemType.has(resolvedItemType))
+          return restorePromisesByItemType.get(resolvedItemType);
+        const cachedModelDefinition = ALL_ITEM_MODELS[resolvedItemType],
+          pendingRestorePromise = Promise.resolve()
+            .then(() =>
+              persistentCache.restore(
+                modelTemplateKey(threeNamespace, resolvedItemType, cachedModelDefinition),
+              ),
+            )
+            .then((restoredTemplate) =>
+              isDisposed
+                ? (releaseModelAsset(restoredTemplate), null)
+                : (restoredTemplate &&
+                    !preparedTemplatesByItemType.has(resolvedItemType) &&
+                    !inflightLoadsByItemType.has(resolvedItemType) &&
+                    (compactFurnitureIndices(
+                      threeNamespace,
+                      restoredTemplate.source,
+                      resolvedItemType,
+                    ),
+                    preparedTemplatesByItemType.set(resolvedItemType, restoredTemplate)),
+                  restoredTemplate),
+            )
+            .catch(() => null)
+            .finally(() => {
+              restorePromisesByItemType.get(resolvedItemType) === pendingRestorePromise &&
+                restorePromisesByItemType.delete(resolvedItemType);
+            });
+        return (
+          restorePromisesByItemType.set(resolvedItemType, pendingRestorePromise),
+          pendingRestorePromise
+        );
+      });
+    return Promise.all(restoredTemplatePromises);
+  }
+  function applyLoadedTemplate(loadedItemType, loadResult) {
+    if (isDisposed) return (releaseModelAsset(loadResult), null);
+    if (!loadResult) return null;
+    if (loadResult.preparedTemplate)
+      return (
+        compactFurnitureIndices(threeNamespace, loadResult.preparedTemplate.source, loadedItemType),
+        retryStateByItemType.delete(loadedItemType),
+        preparedTemplatesByItemType.set(loadedItemType, loadResult.preparedTemplate),
+        isModelInUse(loadedItemType) &&
           requestRender({
-            force: true
-          });
+            force: true,
+          }),
+        loadResult.preparedTemplate
+      );
+    const templateScene = loadResult.scene || loadResult.scenes?.[0];
+    if (!templateScene) throw new Error("模型 " + loadedItemType + " 没有可显示的场景");
+    // 石材板补平面 UV 必须在压紧图元索引**之前**：那一步会合并 / 重建几何，
+    // 之后再补 UV 就得为每个合并后的几何单独算一遍。
+    applyStoneSlabPlanarUv(threeNamespace, templateScene, loadedItemType);
+    if (
+      (compactFurnitureIndices(threeNamespace, templateScene, loadedItemType),
+      (loadedItemType === "glasscabinet" || loadedItemType === "bookcase") &&
+        repairGlassCabinetBack(threeNamespace, templateScene, loadedItemType),
+      loadedItemType === "wallcabinet" && repairWallCabinetSides(threeNamespace, templateScene),
+      loadedItemType === "sideboard" && repairSideboardJoints(threeNamespace, templateScene),
+      ["suv", "scooter"].includes(loadedItemType) &&
+        prepareVehicleChargeGeometry(threeNamespace, templateScene),
+      loadedItemType === "smallcar")
+    ) {
+      const smoothedGeometryByOriginal = new Map();
+      templateScene.traverse((carMesh) => {
+        if (!carMesh.isMesh) return;
+        const originalGeometry = carMesh.geometry;
+        (smoothedGeometryByOriginal.has(originalGeometry) ||
+          smoothedGeometryByOriginal.set(
+            originalGeometry,
+            smoothCarSurfaceNormals(threeNamespace, originalGeometry),
+          ),
+          (carMesh.geometry = smoothedGeometryByOriginal.get(originalGeometry)));
+      });
+      for (const [cachedGeometry, smoothedGeometry] of smoothedGeometryByOriginal)
+        cachedGeometry !== smoothedGeometry && cachedGeometry.dispose();
+    }
+    (loadedItemType === "bed" &&
+      templateScene.traverse((bedMesh) => {
+        bedMesh.isMesh && (bedMesh.geometry = insetBedBaseGeometry(bedMesh.geometry));
+      }),
+      templateScene.updateMatrixWorld(true));
+    const modelSize = new threeNamespace.Box3()
+      .setFromObject(templateScene)
+      .getSize(new threeNamespace.Vector3());
+    if (
+      ![modelSize.x, modelSize.y, modelSize.z].every(
+        (sizeAxis) => Number.isFinite(sizeAxis) && sizeAxis > 0.001,
+      )
+    )
+      throw new Error("模型 " + loadedItemType + " 的尺寸无效");
+    const loadedModelEntry = {
+      source: templateScene,
+      size: modelSize,
+    };
+    if (
+      (retryStateByItemType.delete(loadedItemType),
+      preparedTemplatesByItemType.set(loadedItemType, loadedModelEntry),
+      loadResult.preparedCacheKey)
+    )
+      try {
+        persistentCache.schedule(loadResult.preparedCacheKey, loadedModelEntry);
+      } catch {}
+    return (
+      isModelInUse(loadedItemType) &&
+        requestRender({
+          force: true,
+        }),
+      loadedModelEntry
+    );
+  }
+  function loadExternalItemModel(modelItemType) {
+    if (isDisposed) return Promise.resolve(null);
+    if (
+      typeof window < "u" &&
+      window.externalModelLoadsDeferred &&
+      !window.__homeosReleasingDeferredModels
+    )
+      return (window.__homeosDeferExternalModel?.(modelItemType), Promise.resolve(null));
+    if (preparedTemplatesByItemType.has(modelItemType))
+      return Promise.resolve(preparedTemplatesByItemType.get(modelItemType));
+    if (inflightLoadsByItemType.has(modelItemType))
+      return inflightLoadsByItemType.get(modelItemType);
+    const targetModelDefinition = ALL_ITEM_MODELS[modelItemType];
+    if (!targetModelDefinition) return Promise.resolve(null);
+    const retryState = retryStateByItemType.get(modelItemType);
+    if (retryState && Date.now() < retryState.retryAt) return Promise.resolve(null);
+    retryState && cancelScheduledTimeout(retryState.timer);
+    const sharedRestorePromise = restorePromisesByItemType.get(modelItemType),
+      restoreCacheKey = modelTemplateKey(threeNamespace, modelItemType, targetModelDefinition),
+      restorePromise =
+        sharedRestorePromise ||
+        Promise.resolve()
+          .then(() => persistentCache.restore(restoreCacheKey))
+          .catch(() => null);
+    let queuedTaskPromise = null;
+    const startQueuedLoad = () =>
+      (queuedTaskPromise ||= enqueueLoadTask(async () => {
+        const preparedTemplateFromLoad = await loadTemplateForItem(
+          targetModelDefinition,
+          modelItemType,
+          {
+            skipPersistentRestore: true,
+          },
+        );
+        try {
+          return applyLoadedTemplate(modelItemType, preparedTemplateFromLoad);
+        } catch (applyPreparedError) {
+          throw (releaseModelAsset(preparedTemplateFromLoad), applyPreparedError);
         }
-        return null;
-      })
-      .finally(() => pendingLoadByType.delete(modelType));
-    pendingLoadByType.set(modelType, loadPromise);
-    return loadPromise;
-  }
-/**
- * 按原材质的亮度把它归入调色板的某个明度档，生成家具用的标准材质。
- */
-  function createLuminanceBandedMaterial(sourceMaterial: any, palette: any) {
-    if (!sourceMaterial) {
-      return sourceMaterial;
-    }
-    const baseColor = sourceMaterial.color?.clone?.() || new THREE.Color(16777215);
-    const luminance = baseColor.r * 0.2126 + baseColor.g * 0.7152 + baseColor.b * 0.0722;
-    const paletteColor =
-      luminance < 0.1
-        ? palette.furnitureDark
-        : luminance < 0.42
-          ? palette.furniture
-          : luminance < 0.72
-            ? palette.furnitureSoft
-            : palette.furnitureLight;
-    const tintedColor = new THREE.Color(paletteColor).multiplyScalar(0.34);
-    const paletteMaterial = new THREE.MeshStandardMaterial({
-      color: tintedColor,
-      roughness: luminance < 0.1 ? 0.34 : luminance < 0.42 ? 0.52 : 0.58,
-      metalness: luminance < 0.1 ? 0.22 : 0.04,
-      emissive: paletteColor,
-      emissiveIntensity: 0.46,
-      side: sourceMaterial.side ?? THREE.FrontSide,
-      transparent: false,
-      opacity: 1,
-      depthWrite: sourceMaterial.depthWrite ?? true,
-      depthTest: sourceMaterial.depthTest ?? true,
-      toneMapped: true
+      }));
+    let settleInFlightLoad;
+    const inFlightLoadPromise = new Promise((resolveInFlightLoad) => {
+      settleInFlightLoad = (inFlightResult) => {
+        pendingCancelResolvers.delete(settleInFlightLoad) &&
+          (activeItemTypes.delete(modelItemType),
+          cancelScheduledTimeout(hardTimeoutHandle),
+          resolveInFlightLoad(inFlightResult),
+          notifyLoadStateChange());
+      };
     });
-    paletteMaterial.name = (sourceMaterial.name || "external-model") + " · HomeOS palette";
-    return paletteMaterial;
+    (pendingCancelResolvers.add(settleInFlightLoad),
+      inflightLoadsByItemType.set(modelItemType, inFlightLoadPromise),
+      activeItemTypes.add(modelItemType));
+    const hardTimeoutHandle = scheduleTimeout(
+      () => settleInFlightLoad(null),
+      effectiveLoadTimeoutMs,
+    );
+    return (
+      notifyLoadStateChange(),
+      new Promise((resolveOuterLoad, rejectOuterLoad) => {
+        let isLoadSettled = false,
+          restoreTimeoutHandle = null;
+        const completeLoad = () => {
+          if (!isLoadSettled) {
+            if (
+              ((isLoadSettled = true), cancelScheduledTimeout(restoreTimeoutHandle), isDisposed)
+            ) {
+              resolveOuterLoad(null);
+              return;
+            }
+            startQueuedLoad().then(resolveOuterLoad, rejectOuterLoad);
+          }
+        };
+        ((restoreTimeoutHandle = scheduleTimeout(completeLoad, preparedRestoreTimeoutMs)),
+          restorePromise.then((preparedTemplateResult) => {
+            if (isLoadSettled) {
+              preparedTemplateResult &&
+                preparedTemplatesByItemType.get(modelItemType) !== preparedTemplateResult &&
+                releaseModelAsset(preparedTemplateResult);
+              return;
+            }
+            if ((cancelScheduledTimeout(restoreTimeoutHandle), preparedTemplateResult)) {
+              isLoadSettled = true;
+              try {
+                resolveOuterLoad(
+                  applyLoadedTemplate(modelItemType, {
+                    preparedTemplate: preparedTemplateResult,
+                  }),
+                );
+              } catch (preparedApplyError) {
+                (releaseModelAsset(preparedTemplateResult), rejectOuterLoad(preparedApplyError));
+              }
+            } else completeLoad();
+          }, completeLoad));
+      })
+        .catch(
+          (loadAttemptError) => (
+            isDisposed || recordLoadFailure(modelItemType, loadAttemptError),
+            null
+          ),
+        )
+        .then(settleInFlightLoad)
+        .finally(() => inflightLoadsByItemType.delete(modelItemType)),
+      inFlightLoadPromise
+    );
   }
-/**
- * 生成家具用的标准材质，并为未显式指定的属性留出可覆盖的默认值。
- */
-  function createFurnitureMaterial(templateMaterial: any, colorValue: any, materialOptions: any = {}) {
-    if (!templateMaterial) {
-      return templateMaterial;
-    }
-    const furnitureMaterial = new THREE.MeshStandardMaterial({
-      color: colorValue,
+  function applyDefaultPaletteMaterial(originalMaterial, paletteColors) {
+    if (!originalMaterial) return originalMaterial;
+    const baseColor = originalMaterial.color?.clone?.() || new threeNamespace.Color(16777215),
+      baseLuminance = baseColor.r * 0.2126 + baseColor.g * 0.7152 + baseColor.b * 0.0722,
+      paletteColor =
+        baseLuminance < 0.1
+          ? paletteColors.furnitureDark
+          : baseLuminance < 0.42
+            ? paletteColors.furniture
+            : baseLuminance < 0.72
+              ? paletteColors.furnitureSoft
+              : paletteColors.furnitureLight,
+      emissiveBaseColor = new threeNamespace.Color(paletteColor).multiplyScalar(0.34),
+      defaultPaletteMaterial = new threeNamespace.MeshStandardMaterial({
+        color: emissiveBaseColor,
+        roughness: baseLuminance < 0.1 ? 0.34 : baseLuminance < 0.42 ? 0.52 : 0.58,
+        metalness: baseLuminance < 0.1 ? 0.22 : 0.04,
+        emissive: paletteColor,
+        emissiveIntensity: 0.46,
+        side: originalMaterial.side ?? threeNamespace.FrontSide,
+        transparent: false,
+        opacity: 1,
+        depthWrite: originalMaterial.depthWrite ?? true,
+        depthTest: originalMaterial.depthTest ?? true,
+        toneMapped: true,
+      });
+    return (
+      (defaultPaletteMaterial.name =
+        (originalMaterial.name || "external-model") + " · HomeOS palette"),
+      defaultPaletteMaterial
+    );
+  }
+  function createPaletteMaterial(
+    templateMaterial,
+    materialColor,
+    materialOptions: PaletteMaterialOptions = {},
+  ) {
+    if (!templateMaterial) return templateMaterial;
+    const derivedMaterial = new threeNamespace.MeshStandardMaterial({
+      color: materialColor,
       roughness: materialOptions.roughness ?? 0.58,
       metalness: materialOptions.metalness ?? 0.04,
       flatShading: materialOptions.flatShading ?? false,
       emissive: 0,
       emissiveIntensity: 0,
-      side: templateMaterial.side ?? THREE.FrontSide,
+      side: templateMaterial.side ?? threeNamespace.FrontSide,
       transparent: materialOptions.transparent ?? false,
       opacity: materialOptions.opacity ?? 1,
       depthWrite: materialOptions.depthWrite ?? templateMaterial.depthWrite ?? true,
       depthTest: templateMaterial.depthTest ?? true,
-      toneMapped: true
+      toneMapped: true,
     });
-    furnitureMaterial.name =
-      (templateMaterial.name || "external-model") + " · HomeOS furniture material";
-    furnitureMaterial.polygonOffset = materialOptions.polygonOffset === true;
-    furnitureMaterial.polygonOffsetFactor = materialOptions.polygonOffsetFactor ?? 0;
-    furnitureMaterial.polygonOffsetUnits = materialOptions.polygonOffsetUnits ?? 0;
-    return furnitureMaterial;
+    return (
+      (derivedMaterial.name =
+        (templateMaterial.name || "external-model") + " · HomeOS furniture material"),
+      (derivedMaterial.polygonOffset = materialOptions.polygonOffset === true),
+      (derivedMaterial.polygonOffsetFactor = materialOptions.polygonOffsetFactor ?? 0),
+      (derivedMaterial.polygonOffsetUnits = materialOptions.polygonOffsetUnits ?? 0),
+      derivedMaterial
+    );
   }
-  // 大理石台面贴图只在第一次用到时克隆一份并缓存：clone 出独立的一份是为了单独设
-  const stoneSlabTextureByFlavor = new Map();
-  /**
-   * 生成（或复用）石材板材质：整块石材自带颜色，材质基色取白（配方给了 color 就当作染色），
-   */
-  function createStoneSlabMaterial(templateMaterial: any, slabSpec: any) {
-    const flavor = slabSpec.flavor;
-    if (!stoneSlabTextureByFlavor.has(flavor)) {
-      const slabTexture = createStoneSlabTexture(THREE, flavor, 8)?.clone?.() ?? null;
-      if (slabTexture) {
-        slabTexture.wrapS = THREE.RepeatWrapping;
-        slabTexture.wrapT = THREE.RepeatWrapping;
-        slabTexture.needsUpdate = true;
-      }
-      stoneSlabTextureByFlavor.set(flavor, slabTexture);
-    }
-    const stoneFinish = STONE_SLAB_FINISH_BY_FLAVOR[flavor] ?? { roughness: 0.3, metalness: 0.03 };
-    const slabMaterial = createFurnitureMaterial(templateMaterial, slabSpec.tint ?? 16777215, {
-      roughness: Number.isFinite(slabSpec.roughness) ? slabSpec.roughness : stoneFinish.roughness,
-      metalness: Number.isFinite(slabSpec.metalness) ? slabSpec.metalness : stoneFinish.metalness
-    });
-    const slabTexture = stoneSlabTextureByFlavor.get(flavor);
-    if (slabTexture) {
-      slabMaterial.map = slabTexture;
-    }
-    // 打上标记：下游（自发光补偿 / 整件质感层 / 角色配方）见到它一律让路 ——
-    slabMaterial.userData.homeosStoneSlab = flavor;
-    return slabMaterial;
-  }
-/**
- * 给家具类材质挑调色板颜色：依据「材质名 + 类型 + 原色亮度」三路信息决定。
- */
-  function applyFurniturePalette(meshMaterial: any, inputPalette: any, furnitureItemType: any) {
-    // 暖阳原木：柜类整件走柜体木色而不是基础家具灰，先把 wood 兜到 cabinetWood，
-    let paletteColors = inputPalette;
-    const isWarmJoinery =
-      paletteColors.warmFurniture && JOINERY_ITEM_TYPES.has(furnitureItemType);
-    if (isWarmJoinery) {
-      paletteColors = {
-        ...paletteColors,
-        wood: paletteColors.cabinetWood ?? paletteColors.wood
-      };
-    }
-    if (paletteColors.warmFurniture) {
-      // 暖阳原木：除沙发 / 床 / 椅 / 地毯 / 窗帘这些以布艺为主体的类型外，
-      if (
-        !["sofa", "bed", "chair", "rug", "curtain_left", "curtain_right", "curtain_split"].includes(
-          furnitureItemType
-        )
-      ) {
-        paletteColors = {
-          ...paletteColors,
-          furnitureSoft: paletteColors.furnitureLight
-        };
-      }
-      // 暖阳原木：柜类的中 / 柔 / 深三档一起收敛到木色 —— 一件柜子上出现三种明度的
-      if (
+  function applyWarmWoodFurnitureMaterial(meshMaterial, warmPalette, furnitureItemType) {
+    const isWarmCabinetItem = warmPalette.warmWood && warmCabinetItemTypes.has(furnitureItemType);
+    (isWarmCabinetItem &&
+      (warmPalette = {
+        ...warmPalette,
+        wood: warmPalette.cabinetWood ?? warmPalette.wood,
+      }),
+      warmPalette.warmWood &&
+        (["sofa", "bed", "chair", "rug", "curtain_left", "curtain_right", "curtain_split"].includes(
+          furnitureItemType,
+        ) ||
+          (warmPalette = {
+            ...warmPalette,
+            furnitureSoft: warmPalette.furnitureLight,
+          }),
         [
           "cabinet",
           "wallcabinet",
@@ -1564,1140 +1324,1980 @@ export function createExternalModelManager({
           "kitchenbase",
           "desk",
           "vanity",
-          "glasscabinet"
-        ].includes(furnitureItemType)
-      ) {
-        paletteColors = {
-          ...paletteColors,
-          furniture: paletteColors.wood,
-          furnitureSoft: paletteColors.wood,
-          furnitureDark: paletteColors.wood
-        };
-      }
-    }
-    // 材质名统一转小写后再匹配：建模工具导出的大小写并不稳定。
+          "glasscabinet",
+        ].includes(furnitureItemType) &&
+          (warmPalette = {
+            ...warmPalette,
+            furniture: warmPalette.wood,
+            furnitureSoft: warmPalette.wood,
+            furnitureDark: warmPalette.wood,
+          })));
     const materialName = (meshMaterial?.name || "").toLowerCase();
-    // 暖阳原木：淋浴五金换成暖色金属。showerMetal 只在暖色色卡里定义，
-    if (furnitureItemType === "shower" && paletteColors.showerMetal !== undefined) {
-      return createFurnitureMaterial(meshMaterial, paletteColors.showerMetal, {
+    if (furnitureItemType === "shower" && warmPalette.showerMetal !== undefined)
+      return createPaletteMaterial(meshMaterial, warmPalette.showerMetal, {
         roughness: 0.48,
-        metalness: 0.3
+        metalness: 0.3,
+      });
+    if (PILLAR_MODEL_ITEM_TYPES.has(furnitureItemType)) {
+      // 柱族在户型里属于**墙**：柱体 / 底座 / 压顶都从墙色派生，靠材质名末段的角色区分
+      // （material-<n>-body / -base / -trim）；认不出角色时按柱体处理。
+      const pillarRole = materialName.match(/material-\d+-([a-z][a-z0-9]*)$/)?.[1],
+        pillarWallColor = new threeNamespace.Color(
+          warmPalette.wall ?? warmPalette.furniture ?? 16777215,
+        ),
+        pillarColor =
+          pillarRole === "base"
+            ? pillarWallColor.clone().multiplyScalar(0.92)
+            : pillarRole === "trim"
+              ? pillarWallColor.clone().lerp(new threeNamespace.Color(16777215), 0.35)
+              : pillarWallColor;
+      return createPaletteMaterial(meshMaterial, pillarColor, {
+        roughness: pillarRole === "base" ? 0.74 : 0.66,
+        metalness: 0.02,
       });
     }
-    // 石材板：整块石材（茶几的两块石板、餐桌台面）。位置放在木色槽位表**之前** ——
-    const stoneSlabSpec = paletteColors.warmFurniture
-      ? stoneSlabSpecFor(paletteColors, furnitureItemType, materialName)
+    const diningMaterialRole = warmPalette.warmWood
+      ? diningMaterialRolesByItemType[furnitureItemType]?.[
+          Number(materialName.match(/material-(\d+)$/)?.[1])
+        ]
       : null;
-    if (stoneSlabSpec) {
-      return createStoneSlabMaterial(meshMaterial, stoneSlabSpec);
-    }
-    // 暖阳原木：餐桌 / 餐椅按**角色**换成木色或亚麻，而不是沿用家具三档灰。
-    const { slot: warmDiningSlot, role: warmDiningRole } = parseMaterialSlotAndRole(materialName);
-    const warmDiningMaterialKey = paletteColors.warmFurniture
-      ? (warmDiningRole && WARM_DINING_MATERIAL_ROLE_TABLE[furnitureItemType]?.[warmDiningRole]) ??
-        (warmDiningSlot === undefined
-          ? undefined
-          : WARM_DINING_MATERIAL_TABLE[furnitureItemType]?.[Number(warmDiningSlot)])
-      : null;
-    if (warmDiningMaterialKey) {
-      const warmDiningColors = {
-        wood: paletteColors.wood,
-        linen: paletteColors.diningLinen ?? 15919316,
-        sage: paletteColors.diningSage ?? 10926731,
-        ceramic: paletteColors.applianceSoft
-      };
-      const isWarmDiningFabric =
-        warmDiningMaterialKey === "linen" || warmDiningMaterialKey === "sage";
-      const warmDiningMaterial = createFurnitureMaterial(
-        meshMaterial,
-        (warmDiningColors as Record<string, any>)[warmDiningMaterialKey],
-        {
-          // 布艺面最糙（0.94），陶面上釉（0.3），木面取常规 0.58。
-          roughness: isWarmDiningFabric ? 0.94 : warmDiningMaterialKey === "ceramic" ? 0.3 : 0.58,
-          metalness: 0
-        }
+    if (diningMaterialRole) {
+      const diningRoleColors = {
+          wood: warmPalette.wood,
+          linen: warmPalette.diningLinen ?? 15919316,
+          sage: warmPalette.diningSage ?? 10926731,
+          ceramic: warmPalette.applianceSoft,
+        },
+        isFabricRole = diningMaterialRole === "linen" || diningMaterialRole === "sage",
+        diningFabricMaterial = createPaletteMaterial(
+          meshMaterial,
+          diningRoleColors[diningMaterialRole],
+          {
+            roughness: isFabricRole ? 0.94 : diningMaterialRole === "ceramic" ? 0.3 : 0.58,
+            metalness: 0,
+          },
+        );
+      return (
+        (diningFabricMaterial.userData.warmDiningFabric = isFabricRole),
+        (diningFabricMaterial.userData.warmDiningMaterial = diningMaterialRole),
+        diningFabricMaterial
       );
-      // 记下材质语义：resolveSharedMaterial 据此再补一次自发光强度（布艺比木面更吃光）。
-      warmDiningMaterial.userData.warmDiningFabric = isWarmDiningFabric;
-      warmDiningMaterial.userData.warmDiningMaterial = warmDiningMaterialKey;
-      return warmDiningMaterial;
     }
-    // 默认档位（跟随全局风格）下的**角色出口**：见文件上面三份登记表的说明。角色从材质名后缀
-    const { role: paletteRole } = parseMaterialSlotAndRole(materialName);
-    const authoredColorRecipe =
-      paletteRole === undefined ? null : AUTHORED_COLOR_MATERIAL_ROLE_RECIPES[paletteRole] ?? null;
-    // 「取规格原色」这条只在颜色确实来自规格时才带上配方里的质感：后段的类型分支（洁具整件走
-    let authoredColorOverride = null;
-    let chosenColor = paletteColors.furniture;
+    let resolvedMaterialColor = warmPalette.furniture;
     if (/^curtain_(left|right|split)$/.test(furnitureItemType)) {
-      // 按角色分：帘布是织物（柔光档），顶轨与支架是五金（压深一档）。
-      const { role: curtainRole } = parseMaterialSlotAndRole(materialName);
-      chosenColor = curtainRole === "fabric" ? paletteColors.furnitureSoft : paletteColors.furnitureDark;
-    } else if (furnitureItemType === "squarecoffeetable") {
-      // 方茶几只有一个「台面 + 四腿」的构造，仍按命名分档取色。
-      chosenColor = materialName.endsWith("-dark")
-        ? paletteColors.furnitureDark
-        : materialName.endsWith("-light") || materialName.endsWith("-soft")
-          ? paletteColors.furnitureSoft
-          : paletteColors.furniture;
-    } else if (furnitureItemType === "piano") {
-      // 钢琴：琴身 / 顶盖 / 腰线 / 琴腿取深档（实物不是亮光黑就是深木），白键是整件唯一的亮面，
-      const { role: pianoRole } = parseMaterialSlotAndRole(materialName);
-      chosenColor =
-        pianoRole === "key"
-          ? paletteColors.furnitureLight ?? paletteColors.furnitureSoft
-          : pianoRole === "metal"
-            ? (paletteColors.applianceDark ?? paletteColors.furnitureDark)
-            : paletteColors.furnitureDark;
-    } else if (furnitureItemType === "tvstand") {
-      const standColor = meshMaterial?.color?.clone?.() || new THREE.Color(16777215);
-      const tvStandLuminance =
-        standColor.r * 0.2126 + standColor.g * 0.7152 + standColor.b * 0.0722;
-      chosenColor =
-        materialName.endsWith("-dark") || tvStandLuminance < 0.16
-          ? paletteColors.furnitureDark
-          : materialName.endsWith("-soft") ||
-              materialName.endsWith("-light") ||
-              tvStandLuminance >= 0.3
-            ? paletteColors.furnitureSoft
-            : paletteColors.furniture;
-    } else if (
-      ["table", "rounddiningtable", "rounddiningtable_turntable"].includes(furnitureItemType)
-    ) {
-      // 餐桌组合 / 圆餐桌：台面与椅垫取柔光档（浅色），其余木构件取中档。
-      const { role: diningTableRole } = parseMaterialSlotAndRole(materialName);
-      chosenColor =
-        diningTableRole === "top" || diningTableRole === "cushion"
-          ? paletteColors.furnitureSoft
-          : paletteColors.furniture;
-    } else if (furnitureItemType === "basin") {
-      // 台盆：陶瓷盆体是整件最白的一块（`body` 角色），石材台面次之，五金拉手与龙头走钢色。
-      const { role: basinRole } = parseMaterialSlotAndRole(materialName);
-      chosenColor =
-        basinRole === "body"
-          ? (paletteColors.applianceSoft ?? paletteColors.furnitureLight)
-          : basinRole === "top"
-            ? paletteColors.furnitureSoft
-            : basinRole === "handle" || basinRole === "metal"
-              ? (paletteColors.appliance ?? paletteColors.furniture)
-              : paletteColors.furniture;
-    } else if (["kitchenbase", "kitchensink", "kitchencooktop"].includes(furnitureItemType)) {
-      // 厨房地柜三件：柜体 / 门板按角色分档取色。
-      const { role: kitchenRole } = parseMaterialSlotAndRole(materialName);
-      chosenColor =
-        kitchenRole === "top" || kitchenRole === "door"
-          ? paletteColors.furnitureSoft
-          : kitchenRole === "base"
-            ? paletteColors.furnitureDark
-            : kitchenRole === "sink" || kitchenRole === "cooktop" || kitchenRole === "metal"
-              ? (paletteColors.appliance ?? paletteColors.furniture)
-              : paletteColors.furniture;
-    } else if (furnitureItemType === "stairs" || furnitureItemType === "floatingstairs") {
-      // 建筑本体的楼梯族（含悬空楼梯）：不吃家居档位，整件回主料色。实际路径由上面的
-      chosenColor = paletteColors.furniture;
-    } else if (
-      furnitureItemType === "plant" &&
-      (materialName.endsWith("-soft") || materialName.endsWith("-dark"))
-    ) {
-      chosenColor = paletteColors.furniture;
-    } else if (materialName.includes("foliagesoft")) {
-      chosenColor = 7835779;
-    } else if (materialName.includes("foliage")) {
-      chosenColor = 6257261;
-    } else if (materialName.endsWith("-soft") || materialName.endsWith("-light")) {
-      chosenColor = paletteColors.furnitureSoft;
-    } else if (materialName.endsWith("-dark")) {
-      chosenColor = paletteColors.furnitureDark;
-    } else if (paletteRole === "metal" || paletteRole === "handle") {
-      // 五金（拉手 / 滑轨 / 合页 / 顶轨）：整件统一深色金属。原先只有衣柜 / 床头柜 / 电视柜
-      chosenColor = FURNITURE_HARDWARE_TONE;
-    } else if (authoredColorRecipe) {
-      chosenColor = meshMaterial.color?.clone?.() || new THREE.Color(16777215);
-      authoredColorOverride = { ...authoredColorRecipe, color: chosenColor };
-    } else if (
-      paletteRole !== undefined &&
-      !CARCASS_MATERIAL_ROLE_SET.has(paletteRole) &&
-      !NON_CARCASS_MATERIAL_ROLE_SET.has(paletteRole)
-    ) {
-      // 没登记过的角色：按原色放行，**不猜**。「猜」的具体形式就是下面那条亮度分档，而它对
-      chosenColor = meshMaterial.color?.clone?.() || new THREE.Color(16777215);
-    } else if (LUMINANCE_BANDED_ITEM_TYPES.has(furnitureItemType)) {
-      const cabinetColor = meshMaterial.color?.clone?.() || new THREE.Color(16777215);
-      const cabinetLuminance =
-        cabinetColor.r * 0.2126 + cabinetColor.g * 0.7152 + cabinetColor.b * 0.0722;
-      chosenColor =
-        cabinetLuminance < 0.2
-          ? paletteColors.furnitureDark
-          : cabinetLuminance < 0.55
-            ? paletteColors.furniture
-            : paletteColors.furnitureSoft;
-    }
-    if (paletteColors.warmFurniture) {
-      // 暖阳原木：逐件按**材质角色**指定木色 / 布艺 / 五金，而不是套用家具三档灰 ——
-      if (furnitureItemType === "bed") {
-        // 木脚与床架箱体是木作，床垫 / 床头板 / 被褥 / 枕头都是织物。
-        const { role: bedRole } = parseMaterialSlotAndRole(materialName);
-        chosenColor =
-          bedRole === "leg" || bedRole === "frame" ? paletteColors.wood : paletteColors.furnitureLight;
-      }
-      if (furnitureItemType === "sofa") {
-        // 木脚与座台木框是木作，其余（座箱 / 靠背 / 扶手 / 坐垫 / 抱枕）是织物。
-        const { role: sofaRole } = parseMaterialSlotAndRole(materialName);
-        chosenColor =
-          sofaRole === "leg" || sofaRole === "frame"
-            ? paletteColors.wood
-            : paletteColors.sofaFabric ?? paletteColors.furnitureLight;
-      }
-      if (furnitureItemType === "cabinet") {
-        // 按**角色**分料：拉手是五金、踢脚压深一档、柜体（含中缝 trim）走棕褐柜体色。
-        const { role: cabinetRole } = parseMaterialSlotAndRole(materialName);
-        chosenColor =
-          cabinetRole === "metal"
-            ? FURNITURE_HARDWARE_TONE
-            : cabinetRole === "base"
-              ? 7830384
-              : paletteColors.cabinetBody ?? paletteColors.wood;
-      }
-      if (furnitureItemType === "nightstand") {
-        // 同上：五金（拉手 / 滑轨）走深色金属，柜体、抽屉面、搁板走木色。
-        const { role: nightstandRole } = parseMaterialSlotAndRole(materialName);
-        chosenColor = nightstandRole === "metal" ? FURNITURE_HARDWARE_TONE : paletteColors.wood;
-      }
-      if (["table", "rounddiningtable", "rounddiningtable_turntable"].includes(furnitureItemType)) {
-        const { role: diningFallbackRole } = parseMaterialSlotAndRole(materialName);
-        chosenColor = diningFallbackRole === "metal" ? paletteColors.applianceSoft : paletteColors.wood;
-      }
-      if (furnitureItemType === "tvstand") {
-        // 按角色分料：五金件（拉手 / 脚）走深色，其余（柜体、踢脚、抽屉面、内衬、搁板）走木色，
-        const { role: tvStandRole } = parseMaterialSlotAndRole(materialName);
-        chosenColor = tvStandRole === "metal" ? FURNITURE_HARDWARE_TONE : paletteColors.wood;
-      }
-      if (furnitureItemType === "sideboard") {
-        chosenColor = paletteColors.wood;
-      }
-      // 原先这里还有一条 `bookcase && 槽位号 >= 11` 的分支：老资产的 11 号往后是书脊 / 摆件
-      if (furnitureItemType === "plant") {
-        // 2026-09 起 plant 是流水线产物，材质名带角色。旧判据读的全是既有资产的命名
-        const { role: plantRole } = parseMaterialSlotAndRole(materialName);
-        chosenColor =
-          plantRole === "foliage"
-            ? paletteColors.leafColor
-            : // 花盆取陶土色（暖色卡里的 decorAccent 本来就是陶土那一支），
-              // 盆托与主干、盆土一律压到深色：实物上花盆是唯一该跳出来的那一块。
-              plantRole === "pot"
-              ? paletteColors.decorAccent
-              : paletteColors.furnitureDark;
-      }
-      if (furnitureItemType === "rug") {
-        // 同上：毯面 / 包边 / 防滑底三块必须分色。旧判据只认 `-soft`，新几何上不命中，
-        const { role: rugRole } = parseMaterialSlotAndRole(materialName);
-        chosenColor =
-          rugRole === "fabric"
-            ? paletteColors.furnitureLight
-            : rugRole === "trim"
-              ? paletteColors.joineryAccent
-              : paletteColors.furnitureDark;
-      }
-      if (furnitureItemType.startsWith("curtain_")) {
-        // 同上：旧判据按**槽位号**分（1 / 2 / 3 / 5 号算布面），那是既有资产的偶然编号。
-        const { role: curtainRole } = parseMaterialSlotAndRole(materialName);
-        chosenColor = curtainRole === "fabric" ? 16776696 : paletteColors.furnitureDark;
-      }
-      if (furnitureItemType === "aquarium") {
-        // 鱼缸原先一条暖色覆盖都没有：柜体、踢脚、缸框、拉手会一起落进基础家具灰，
-        const { role: aquariumRole } = parseMaterialSlotAndRole(materialName);
-        chosenColor =
-          aquariumRole === "handle"
-            ? paletteColors.furnitureSoft
-            : aquariumRole === "base" || aquariumRole === "frame"
-              ? paletteColors.furnitureDark
-              : aquariumRole === "lit"
-                ? paletteColors.applianceSoft
-                : // 缸内背板固定深青：它必须比柜体更冷更深，「里面有水」才立得住。
-                  // 不取木色是因为那不是木料 —— 它是水体的底色。
-                  aquariumRole === "interior"
-                  ? 0x1b3a40
-                  : paletteColors.furniture;
-      }
-      if (furnitureItemType === "chair") {
-        // 木脚与靠背立柱 / 上横档是木作，坐垫与靠背软垫是织物。
-        const { role: chairRole } = parseMaterialSlotAndRole(materialName);
-        chosenColor =
-          chairRole === "leg" || chairRole === "frame"
-            ? paletteColors.wood
-            : paletteColors.chairFabric ?? paletteColors.furnitureSoft;
-      }
-      if (["toilet", "squattoilet", "urinal", "bathtub", "basin"].includes(furnitureItemType)) {
-        chosenColor = paletteColors.applianceSoft;
-      }
-    }
-    // 暖阳原木：柜类的台面与金属水槽 / 灶面另有专门色板，这里按**角色**单独覆盖；
-    let isWarmCountertop = false;
-    let isWarmMetalSink = false;
-    let isWarmSteelPanel = false;
-    if (isWarmJoinery) {
-      const joineryMaterialRole = parseMaterialSlotAndRole(materialName).role;
-      isWarmCountertop = isWarmCountertopMaterial(materialName);
-      if (["kitchensink", "kitchencooktop"].includes(furnitureItemType)) {
-        chosenColor = paletteColors.wood;
-      }
+      const curtainMaterialIndex = materialName.match(/material-(\d+)/)?.[1];
+      ["0", "4"].includes(curtainMaterialIndex)
+        ? (resolvedMaterialColor = warmPalette.furnitureDark)
+        : ["1", "5", "2", "3"].includes(curtainMaterialIndex)
+          ? (resolvedMaterialColor = warmPalette.furnitureSoft)
+          : (resolvedMaterialColor = warmPalette.furniture);
+    } else {
       if (
-        (furnitureItemType === "kitchenbase" ||
-          furnitureItemType === "kitchensink" ||
-          furnitureItemType === "kitchencooktop") &&
-        joineryMaterialRole === "metal"
+        furnitureItemType === "coffeetable" ||
+        furnitureItemType === "kitchenisland" ||
+        furnitureItemType === "squarecoffeetable"
       ) {
-        // 拉手与火盖：银黑五金。柜体木色那条分支会把金属度归零，这里要抬回来，
-        chosenColor = paletteColors.steelBlackBright ?? 6976381;
-        isWarmSteelPanel = true;
+        // homeos-3d 的组合茶几是两块叠合石板、岛台是「浅色台面 + 深色木体」，
+        // 材质命名从 <type>-furniture-<role> 换成了 material-<n>-<role>：
+        // 先按角色分工取色，认不出角色的（方茶几仍是旧命名）再退回原来的后缀判断。
+        const slabPartRole = materialName.match(/material-\d+-([a-z]+)$/)?.[1];
+        resolvedMaterialColor =
+          slabPartRole === "top"
+            ? warmPalette.furnitureSoft
+            : slabPartRole === "base" || slabPartRole === "body" || slabPartRole === "leg"
+              ? warmPalette.furnitureDark
+              : slabPartRole === "door"
+                ? warmPalette.furnitureSoft
+                : slabPartRole === "metal"
+                  ? warmPalette.furniture
+                  : materialName.endsWith("-dark")
+                    ? warmPalette.furnitureDark
+                    : materialName.endsWith("-light") || materialName.endsWith("-soft")
+                      ? warmPalette.furnitureSoft
+                      : warmPalette.furniture;
+      } else {
+        if (furnitureItemType === "tvstand") {
+          const tvstandBaseColor =
+              meshMaterial?.color?.clone?.() || new threeNamespace.Color(16777215),
+            tvstandBaseLuminance =
+              tvstandBaseColor.r * 0.2126 +
+              tvstandBaseColor.g * 0.7152 +
+              tvstandBaseColor.b * 0.0722;
+          resolvedMaterialColor =
+            materialName.endsWith("-dark") || tvstandBaseLuminance < 0.16
+              ? warmPalette.furnitureDark
+              : materialName.endsWith("-soft") ||
+                  materialName.endsWith("-light") ||
+                  tvstandBaseLuminance >= 0.3
+                ? warmPalette.furnitureSoft
+                : warmPalette.furniture;
+        } else {
+          if (
+            ["table", "rounddiningtable", "rounddiningtable_turntable"].includes(furnitureItemType)
+          ) {
+            const tableMaterialIndex = materialName.match(/material-(\d+)/)?.[1],
+              tableSoftMaterialIndices =
+                furnitureItemType === "rounddiningtable_turntable" ? ["0", "3"] : ["0"],
+              tableBaseColor = meshMaterial?.color?.clone?.() || new threeNamespace.Color(16777215),
+              tableBaseLuminance =
+                tableBaseColor.r * 0.2126 + tableBaseColor.g * 0.7152 + tableBaseColor.b * 0.0722;
+            resolvedMaterialColor = tableSoftMaterialIndices.includes(tableMaterialIndex)
+              ? warmPalette.furnitureSoft
+              : tableBaseLuminance < 0.2
+                ? warmPalette.furnitureDark
+                : tableBaseLuminance < 0.55
+                  ? warmPalette.furniture
+                  : warmPalette.furnitureSoft;
+          } else {
+            if (
+              ["kitchenbase", "kitchensink", "kitchencooktop", "basin"].includes(furnitureItemType)
+            ) {
+              const kitchenMaterialIndex = materialName.match(/material-(\d+)/)?.[1],
+                kitchenCounterMaterialIndex = furnitureItemType === "basin" ? "1" : "2",
+                kitchenBaseColor =
+                  meshMaterial?.color?.clone?.() || new threeNamespace.Color(16777215),
+                kitchenBaseLuminance =
+                  kitchenBaseColor.r * 0.2126 +
+                  kitchenBaseColor.g * 0.7152 +
+                  kitchenBaseColor.b * 0.0722;
+              resolvedMaterialColor =
+                kitchenMaterialIndex === kitchenCounterMaterialIndex
+                  ? warmPalette.furniture
+                  : kitchenBaseLuminance < 0.2
+                    ? warmPalette.furnitureDark
+                    : kitchenBaseLuminance < 0.55
+                      ? warmPalette.furniture
+                      : warmPalette.furnitureSoft;
+            } else {
+              if (furnitureItemType === "stairs") resolvedMaterialColor = warmPalette.furniture;
+              else {
+                if (
+                  furnitureItemType === "plant" &&
+                  (materialName.endsWith("-soft") || materialName.endsWith("-dark"))
+                )
+                  resolvedMaterialColor = warmPalette.furniture;
+                else {
+                  if (materialName.includes("foliagesoft")) resolvedMaterialColor = 7835779;
+                  else {
+                    if (materialName.includes("foliage")) resolvedMaterialColor = 6257261;
+                    else {
+                      if (materialName.endsWith("-soft") || materialName.endsWith("-light"))
+                        resolvedMaterialColor = warmPalette.furnitureSoft;
+                      else {
+                        if (materialName.endsWith("-dark"))
+                          resolvedMaterialColor = warmPalette.furnitureDark;
+                        else {
+                          if (luminancePaletteItemTypes.has(furnitureItemType)) {
+                            const solidPaletteColor =
+                                meshMaterial.color?.clone?.() || new threeNamespace.Color(16777215),
+                              solidPaletteLuminance =
+                                solidPaletteColor.r * 0.2126 +
+                                solidPaletteColor.g * 0.7152 +
+                                solidPaletteColor.b * 0.0722;
+                            resolvedMaterialColor =
+                              solidPaletteLuminance < 0.2
+                                ? warmPalette.furnitureDark
+                                : solidPaletteLuminance < 0.55
+                                  ? warmPalette.furniture
+                                  : warmPalette.furnitureSoft;
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
-      if (furnitureItemType === "kitchensink" && joineryMaterialRole === "sink") {
-        // 水槽盆体：不锈钢，同样要求高金属度反光。
-        chosenColor = paletteColors.steelSink ?? 11450548;
-        isWarmMetalSink = true;
-      }
-      if (furnitureItemType === "kitchencooktop" && joineryMaterialRole === "cooktop") {
-        // 燃气灶面板：整块银黑玻璃，压到近黑 —— 与亮一档的火盖叠起来才有不锈钢灶具的层次。
-        chosenColor = paletteColors.steelBlackDark ?? 2501424;
-        isWarmSteelPanel = true;
-      }
+    }
+    if (warmPalette.warmWood) {
+      const warmWoodMaterialIndex = materialName.match(/material-(\d+)/)?.[1];
+      (furnitureItemType === "bed" &&
+        (resolvedMaterialColor = ["1", "3"].includes(warmWoodMaterialIndex)
+          ? warmPalette.furnitureLight
+          : warmPalette.wood),
+        furnitureItemType === "sofa" &&
+          (resolvedMaterialColor = materialName.includes("cushion")
+            ? (warmPalette.sofaFabric ??
+              (warmPalette.warmWood ? warmPalette.furnitureLight : warmPalette.furnitureSoft))
+            : warmPalette.wood),
+        furnitureItemType === "cabinet" &&
+          (resolvedMaterialColor = warmWoodMaterialIndex === "2" ? 5462356 : warmPalette.wood),
+        furnitureItemType === "nightstand" &&
+          (resolvedMaterialColor = warmWoodMaterialIndex === "2" ? 5462356 : warmPalette.wood),
+        ["table", "rounddiningtable", "rounddiningtable_turntable"].includes(furnitureItemType) &&
+          (resolvedMaterialColor = ["0", "3"].includes(warmWoodMaterialIndex)
+            ? warmPalette.wood
+            : warmPalette.furnitureLight),
+        furnitureItemType === "tvstand" && (resolvedMaterialColor = warmPalette.wood),
+        furnitureItemType === "sideboard" && (resolvedMaterialColor = warmPalette.wood),
+        furnitureItemType === "bookcase" &&
+          Number(warmWoodMaterialIndex) >= 11 &&
+          (resolvedMaterialColor = [
+            warmPalette.joineryAccent,
+            warmPalette.decorAccent,
+            warmPalette.furnitureLight,
+          ][Number(warmWoodMaterialIndex) % 3]),
+        furnitureItemType === "plant" &&
+          (resolvedMaterialColor = materialName.includes("foliagesoft")
+            ? 9877369
+            : materialName.includes("foliage")
+              ? warmPalette.leafColor
+              : materialName.endsWith("-soft")
+                ? warmPalette.decorAccent
+                : warmPalette.furnitureDark),
+        furnitureItemType === "rug" &&
+          (resolvedMaterialColor = materialName.endsWith("-soft")
+            ? warmPalette.furnitureLight
+            : warmPalette.joineryAccent),
+        furnitureItemType.startsWith("curtain_") &&
+          (resolvedMaterialColor = ["2", "3", "5", "1"].includes(warmWoodMaterialIndex)
+            ? 16776696
+            : warmPalette.furnitureDark),
+        furnitureItemType === "chair" &&
+          (resolvedMaterialColor =
+            warmWoodMaterialIndex === "0"
+              ? (warmPalette.chairFabric ?? warmPalette.furnitureSoft)
+              : warmPalette.wood),
+        ["toilet", "squattoilet", "urinal", "bathtub", "basin"].includes(furnitureItemType) &&
+          (resolvedMaterialColor = warmPalette.applianceSoft));
+    }
+    let isCountertopMaterial = false,
+      isMetalFinish = false;
+    if (isWarmCabinetItem) {
+      const warmCabinetMaterialIndex = materialName.match(/material-(\d+)$/)?.[1];
       if (
-        (furnitureItemType === "kitchenbase" ||
-          furnitureItemType === "kitchensink" ||
-          furnitureItemType === "kitchencooktop") &&
-        joineryMaterialRole === "base"
+        ((isCountertopMaterial =
+          countertopMaterialIndexByItemType[furnitureItemType] !== undefined &&
+          warmCabinetMaterialIndex === countertopMaterialIndexByItemType[furnitureItemType]),
+        furnitureItemType === "tvstand")
       ) {
-        // 踢脚 / 落地压条：暖色木作里最深的那一档，柜子才有「落地」的重量。
-        chosenColor = 7830384;
+        const tvstandMaterialColor = meshMaterial.color,
+          tvstandMaterialLuminance = tvstandMaterialColor
+            ? tvstandMaterialColor.r * 0.2126 +
+              tvstandMaterialColor.g * 0.7152 +
+              tvstandMaterialColor.b * 0.0722
+            : 0;
+        isCountertopMaterial =
+          materialName.endsWith("-soft") ||
+          (!materialName.includes("ha-tvstand-") && tvstandMaterialLuminance >= 0.3);
       }
-      if (isWarmCountertop) {
-        chosenColor = paletteColors.countertop ?? 16117989;
-      }
+      (["kitchensink", "kitchencooktop"].includes(furnitureItemType) &&
+        (resolvedMaterialColor = warmPalette.wood),
+        furnitureItemType === "kitchensink" &&
+          ["3", "4", "5", "6"].includes(warmCabinetMaterialIndex) &&
+          ((resolvedMaterialColor = ["3", "4"].includes(warmCabinetMaterialIndex)
+            ? 10200481
+            : 11450548),
+          (isMetalFinish = true)),
+        furnitureItemType === "kitchencooktop" &&
+          ["3", "6", "7"].includes(warmCabinetMaterialIndex) &&
+          (resolvedMaterialColor = 4212549),
+        ((furnitureItemType === "kitchenbase" && warmCabinetMaterialIndex === "4") ||
+          (furnitureItemType === "kitchensink" && warmCabinetMaterialIndex === "8") ||
+          (furnitureItemType === "kitchencooktop" && warmCabinetMaterialIndex === "5")) &&
+          (resolvedMaterialColor = 7830384),
+        furnitureItemType === "cabinet" &&
+          warmCabinetMaterialIndex === "1" &&
+          (resolvedMaterialColor = 9794135),
+        isCountertopMaterial && (resolvedMaterialColor = warmPalette.countertop ?? 16117989));
     }
-    // 柜门统一刷白：门板是独立材质，单独取白色，柜体仍是木料，「木柜体 + 白门」才成立。
-    const isCabinetDoor =
-      paletteColors.warmFurniture && isCabinetDoorMaterial(materialName);
-    if (isCabinetDoor) {
-      chosenColor = paletteColors.cabinetDoor ?? 16777215;
-    }
-    // isSoftRug 原先在这里：给地毯那块**贴花内衬**材质加 polygonOffset，压住它与毯底之间的
-    const isTransparentMaterial =
-      materialName.endsWith("-glass") ||
-      meshMaterial?.transparent === true ||
-      (meshMaterial?.opacity ?? 1) < 1;
-    if (paletteColors.warmFurniture && isTransparentMaterial) {
-      chosenColor = paletteColors.glass;
-    }
-    // 「取规格原色」的角色（内容物 / 陈设撞色件 / 镜面）还各自带质感。只在颜色确实还是规格
-    const authoredColorApplied = authoredColorOverride !== null && chosenColor === authoredColorOverride.color;
-    const defaultRoughness = isWarmCountertop
-      ? 0.65
-      : isWarmMetalSink
-        ? 0.36
-        : isWarmSteelPanel
-          ? 0.26
-          : paletteColors.warmFurniture && isTransparentMaterial
-            ? 0.18
-            : materialName.includes("foliage") || furnitureItemType === "rug"
-              ? 0.9
-              : 0.72;
-    const defaultMetalness = isWarmMetalSink
-      ? 0.55
-      : isWarmSteelPanel
-        ? 0.62
-        : isWarmJoinery || materialName.includes("foliage") || furnitureItemType === "rug"
-          ? 0
-          : 0.02;
-    return createFurnitureMaterial(meshMaterial, chosenColor, {
-      roughness:
-        authoredColorApplied && authoredColorOverride.roughness !== undefined
-          ? authoredColorOverride.roughness
-          : defaultRoughness,
-      metalness:
-        authoredColorApplied && authoredColorOverride.metalness !== undefined
-          ? authoredColorOverride.metalness
-          : defaultMetalness,
-      transparent: isTransparentMaterial,
-      // 暖阳原木：透明件保留原材质的不透明度（暖玻璃本来就调过半透明），
-      opacity: isTransparentMaterial ? (paletteColors.warmFurniture ? meshMaterial.opacity : 0.42) : 1,
-      depthWrite: !isTransparentMaterial
-    });
+    const usePolygonOffset = furnitureItemType === "rug" && materialName.endsWith("-soft"),
+      isTransparentFinish =
+        materialName.endsWith("-glass") ||
+        meshMaterial?.transparent === true ||
+        (meshMaterial?.opacity ?? 1) < 1;
+    return (
+      warmPalette.warmWood && isTransparentFinish && (resolvedMaterialColor = warmPalette.glass),
+      createPaletteMaterial(meshMaterial, resolvedMaterialColor, {
+        roughness: isCountertopMaterial
+          ? 0.65
+          : isMetalFinish
+            ? 0.36
+            : warmPalette.warmWood && isTransparentFinish
+              ? 0.18
+              : materialName.includes("foliage") || furnitureItemType === "rug"
+                ? 0.9
+                : 0.72,
+        metalness: isMetalFinish
+          ? 0.55
+          : isWarmCabinetItem || materialName.includes("foliage") || furnitureItemType === "rug"
+            ? 0
+            : 0.02,
+        polygonOffset: usePolygonOffset,
+        polygonOffsetFactor: usePolygonOffset ? -2 : 0,
+        polygonOffsetUnits: usePolygonOffset ? -4 : 0,
+        transparent: isTransparentFinish,
+        opacity: isTransparentFinish ? (warmPalette.warmWood ? meshMaterial.opacity : 0.42) : 1,
+        depthWrite: !isTransparentFinish,
+      })
+    );
   }
-/**
- * 生成楼梯专用材质：玻璃件走半透明，其余走框架色。
- */
-  function createStairMaterial(existingMaterial: any, stairPalette: any, stairItemType: any) {
-    if (!existingMaterial) {
-      return existingMaterial;
-    }
-    const { role: stairRole } = parseMaterialSlotAndRole(existingMaterial.name);
-    if (stairItemType === "glassstairs" && stairRole === "glass") {
-      const glassStairMaterial = new THREE.MeshStandardMaterial({
+  function applyStairMaterial(stairMaterial, stairPalette, stairItemTypeName) {
+    if (!stairMaterial) return stairMaterial;
+    if (
+      ["glassstairs", "floatingstairs"].includes(stairItemTypeName) &&
+      stairMaterial.transparent === true &&
+      finite(stairMaterial.opacity, 1) < 0.5
+    ) {
+      const stairGlassMaterial = new threeNamespace.MeshStandardMaterial({
         color: stairPalette.warmWood ? stairPalette.glass : stairPalette.furnitureSoft,
         roughness: 0.12,
         metalness: 0.04,
         transparent: true,
         opacity: 0.3,
-        side: THREE.DoubleSide,
+        side: threeNamespace.DoubleSide,
         depthWrite: false,
         depthTest: true,
-        toneMapped: true
+        toneMapped: true,
       });
-      glassStairMaterial.name = (existingMaterial.name || "stair-glass") + " · HomeOS glass";
-      return glassStairMaterial;
-    }
-    const isSteelStairs = stairItemType === "steelstairs";
-    if (stairPalette.warmWood) {
-      // 暖阳原木：踏面（角色 top）换成地板色，并注入与地板相同的拼板着色器，
-      const isWarmStairTread = stairRole === "top";
-      const warmStairMaterial = createFurnitureMaterial(
-        existingMaterial,
-        isWarmStairTread ? stairPalette.floor : 7567993,
-        {
-          roughness: isWarmStairTread ? 0.84 : 0.38,
-          metalness: isWarmStairTread ? 0 : 0.5
-        }
+      return (
+        (stairGlassMaterial.name = (stairMaterial.name || "stair-glass") + " · HomeOS glass"),
+        stairGlassMaterial
       );
-      if (isWarmStairTread) {
-        decorateWarmFloor(warmStairMaterial, stairPalette);
-        // 标记踏面：resolveSharedMaterial 据此把自发光强度压到 0.075。
-        warmStairMaterial.userData.warmFloorTread = true;
-      }
-      return warmStairMaterial;
     }
-    const frameColor = stairPalette.furnitureSoft;
-    const frameMaterial = new THREE.MeshStandardMaterial({
-      color: frameColor,
-      roughness: isSteelStairs ? 0.38 : 0.58,
-      metalness: isSteelStairs ? 0.42 : 0.08,
-      emissive: frameColor,
-      emissiveIntensity: 0.07,
-      side: existingMaterial.side ?? THREE.FrontSide,
-      transparent: false,
-      opacity: 1,
-      depthWrite: true,
-      depthTest: true,
-      toneMapped: true
-    });
-    frameMaterial.name = (existingMaterial.name || "stair-frame") + " · HomeOS palette";
-    return frameMaterial;
-  }
-/**
- * 家电 / 家具材质的统一分发入口：按类型挑这条链上最合适的替换策略。
- */
-  function applyAppliancePalette(baseMaterial: any, appliancePalette: any, applianceItemType: any) {
-    if (typeof THREE.MeshStandardMaterial != "function") {
-      return baseMaterial.clone?.() || baseMaterial;
+    const isSteelStair = stairItemTypeName === "steelstairs";
+    if (stairPalette.warmWood) {
+      const isTreadMaterial =
+          stairItemTypeName === "floatingstairs"
+            ? stairMaterial.name === "B-1"
+            : isSteelStair
+              ? /^004$/.test(stairMaterial.name || "")
+              : /^sacfdsa010$/.test(stairMaterial.name || ""),
+        stairTreadMaterial = createPaletteMaterial(
+          stairMaterial,
+          isTreadMaterial ? stairPalette.floor : 7567993,
+          {
+            roughness: isTreadMaterial ? 0.84 : 0.38,
+            metalness: isTreadMaterial ? 0 : 0.5,
+          },
+        );
+      return (
+        isTreadMaterial &&
+          (decorateWarmFloor(stairTreadMaterial, stairPalette),
+          (stairTreadMaterial.userData.warmFloorTread = true)),
+        stairTreadMaterial
+      );
     }
-    if (APPLIANCE_PALETTE_ITEM_TYPES.has(applianceItemType)) {
-      // 家电材质名同样来自建模约定（`material-<槽位>`，重建后带角色后缀 `-<角色>`）。
-      const applianceMaterialName = (baseMaterial?.name || "").toLowerCase();
-      const { role: applianceRole } = parseMaterialSlotAndRole(applianceMaterialName);
-      const applianceBaseColor = baseMaterial?.color?.clone?.() || new THREE.Color(16777215);
-      const applianceLuminance =
-        applianceBaseColor.r * 0.2126 +
-        applianceBaseColor.g * 0.7152 +
-        applianceBaseColor.b * 0.0722;
-      const applianceColor = appliancePalette.appliance ?? appliancePalette.furniture;
-      const applianceSoftColor = appliancePalette.applianceSoft ?? appliancePalette.furnitureSoft;
-      const applianceDarkColor = appliancePalette.applianceDark ?? appliancePalette.furnitureDark;
-      // 不锈钢家电里有色彩语义的小件不刷成钢色：热水器的红 / 蓝进出水管、显示屏 ——
-      const applianceChroma =
-        Math.max(applianceBaseColor.r, applianceBaseColor.g, applianceBaseColor.b) -
-        Math.min(applianceBaseColor.r, applianceBaseColor.g, applianceBaseColor.b);
-      const keepsOriginalColor =
-        (APPLIANCE_FINISH_BY_ITEM_TYPE as Record<string, any>)[applianceItemType] !== undefined && applianceChroma > 0.2;
-      // 两盏灯（壁灯 / 落地灯）的取色单独走：壁灯的灯罩内面取强调色，
-      const lampColor =
-        applianceItemType === "walllamp"
-          ? applianceRole === "lit"
-            ? appliancePalette.accent
-            : applianceColor
-          : appliancePalette.floorLampBody
-            ? applianceRole === "lit"
-              ? applianceSoftColor
-              : appliancePalette.floorLampBody
-            : applianceColor;
-      // 角色档表里查到的取色档名（见 APPLIANCE_ROLE_TONE_BY_ITEM_TYPE 的注释）。
-      const toneColorByTone = {
-        appliance: applianceColor,
-        soft: applianceSoftColor,
-        dark: applianceDarkColor,
-        accent: appliancePalette.accent
-      };
-      const roleTone =
-        (APPLIANCE_ROLE_TONE_BY_ITEM_TYPE as Record<string, any>)[applianceItemType as string]?.[
-          applianceRole as string
-        ] ?? null;
-      // 彩色小件保留原色：指示灯与 LED 点阵（lit，以及路由器 / 垃圾桶那两块绿点阵屏）本身
-      const keepsIndicatorColor =
-        (applianceRole === "lit" || applianceRole === "screen") && applianceChroma > 0.2;
-      const selectedColor =
-        applianceItemType === "walllamp" || applianceItemType === "floorlamp"
-          ? lampColor
-          : keepsIndicatorColor
-            ? applianceBaseColor
-            : // 屏面统一压到暗档：显示器 / 网络存储器 / 音响面板的屏在规格里都是近黑的中性色，
-              // 但按亮度分档时 0x31353A 这一档会落到「柔光银」上（台式机与智能面板的屏整个是银的）。
-              applianceRole === "screen" && applianceChroma < 0.2
-              ? applianceDarkColor
-              : roleTone
-                ? (toneColorByTone as Record<string, any>)[roleTone] ?? applianceColor
-                : applianceItemType === "tea_bar_machine"
-                  ?
-                    applianceLuminance < 0.16
-                    ? applianceColor
-                    : applianceSoftColor
-                  : // 其余家电按原材质亮度分三档归位：亮档是箱体、中档是次要面板、
-                    // 暗档是滤网 / 控制面板。不锈钢家电的三档由 applyItemFinish 换成
-                    // 同一族色的明度变体，这里不必知道具体是什么颜色。
-                    applianceMaterialName.endsWith("-dark") || applianceLuminance < 0.16
-                    ? applianceDarkColor
-                    : applianceMaterialName.endsWith("-soft") || applianceLuminance < 0.45
-                      ? applianceSoftColor
-                      : applianceColor;
-      // 彩度高的小件（红蓝水管 / 显示屏）保留原色，其余按上面的分档取钢色。
-      const finalColor = keepsOriginalColor ? applianceBaseColor : selectedColor;
-      const isSteelFinish = (APPLIANCE_FINISH_BY_ITEM_TYPE as Record<string, any>)[applianceItemType] !== undefined;
-      const applianceMaterial = createFurnitureMaterial(baseMaterial, finalColor, {
-        roughness: isSteelFinish ? (keepsOriginalColor ? 0.3 : 0.34) : 0.82,
-        metalness: isSteelFinish ? (keepsOriginalColor ? 0.45 : 0.3) : 0,
-        flatShading: false
+    const stairFrameColor = stairPalette.furnitureSoft,
+      stairFrameMaterial = new threeNamespace.MeshStandardMaterial({
+        color: stairFrameColor,
+        roughness: isSteelStair ? 0.38 : 0.58,
+        metalness: isSteelStair ? 0.42 : 0.08,
+        emissive: stairFrameColor,
+        emissiveIntensity: 0.07,
+        side: stairMaterial.side ?? threeNamespace.FrontSide,
+        transparent: false,
+        opacity: 1,
+        depthWrite: true,
+        depthTest: true,
+        toneMapped: true,
       });
-      if (applianceItemType === "tea_bar_machine") {
-        applianceMaterial.emissive = new THREE.Color(0);
-        applianceMaterial.emissiveIntensity = 0;
+    return (
+      (stairFrameMaterial.name = (stairMaterial.name || "stair-frame") + " · HomeOS palette"),
+      stairFrameMaterial
+    );
+  }
+  function applyItemDetailMaterial(detailMaterial, itemPalette, detailItemType) {
+    if (typeof threeNamespace.MeshStandardMaterial != "function")
+      return detailMaterial.clone?.() || detailMaterial;
+    // 「角色表优先」：<type>-material-N 这类无角色命名的模型，先按 studio-model-material-roles.ts
+    // 的槽位角色表取配方，绕开下面的亮度 / 槽位号启发式；材料名已自带角色的（-furniture-/-detail-/
+    // -aquatic-/… 与 material-N-role）以及楼梯 / 车辆 / 柱族等结构件仍走各自的专用分支。
+    if (
+      roleTableItemTypes.has(detailItemType) &&
+      !isStructuralModelFamily(resolveModelFamily(detailItemType)) &&
+      !usesNamedMaterialRole(detailMaterial.name)
+    ) {
+      const roleTableRecipe = materialRoleRecipeFor(detailItemType, detailMaterial.name, itemPalette);
+      if (roleTableRecipe) {
+        const roleTableMaterial = createPaletteMaterial(detailMaterial, roleTableRecipe.colorValue, {
+          roughness: roleTableRecipe.roughness,
+          metalness: roleTableRecipe.metalness,
+          flatShading: roleTableRecipe.flatShading,
+          transparent: roleTableRecipe.transparent,
+          opacity: roleTableRecipe.opacity,
+          depthWrite: roleTableRecipe.depthWrite,
+          polygonOffset: roleTableRecipe.polygonOffset,
+        });
+        if (roleTableRecipe.emissiveValue !== undefined) {
+          roleTableMaterial.emissive.setHex(roleTableRecipe.emissiveValue);
+          roleTableMaterial.emissiveIntensity = roleTableRecipe.emissiveIntensity ?? 0.5;
+        }
+        if (roleTableRecipe.fabricLike) roleTableMaterial.userData.warmDiningFabric = true;
+        return roleTableMaterial;
       }
-      return applianceMaterial;
     }
-    if (FURNITURE_PALETTE_ITEM_TYPES.has(applianceItemType)) {
-      return applyFurniturePalette(baseMaterial, appliancePalette, applianceItemType);
+    if (paletteOverrideItemTypes.has(detailItemType)) {
+      const detailRole = detailMaterial.name?.split(/-(?:furniture|detail)-/)[1],
+        isWarmWoodItem = itemPalette.warmWood,
+        lightAccentColor = itemPalette.furnitureLight ?? itemPalette.furnitureSoft,
+        isCompactApplianceItem = [
+          "smart-socket-86",
+          "router",
+          "humidifier",
+          "dehumidifier",
+          "heater",
+        ].includes(detailItemType);
+      let detailRoleColors;
+      isCompactApplianceItem
+        ? (detailRoleColors = {
+            body: itemPalette.appliance ?? itemPalette.furniture,
+            panel: itemPalette.applianceSoft ?? itemPalette.furnitureSoft,
+            recess: itemPalette.applianceDark ?? itemPalette.furnitureDark,
+            indicator: isWarmWoodItem ? itemPalette.furnitureSoft : lightAccentColor,
+            water: itemPalette.glass ?? lightAccentColor,
+            control: lightAccentColor,
+          })
+        : ["wardrobe", "drawer-chest"].includes(detailItemType)
+          ? (detailRoleColors = {
+              frame: isWarmWoodItem ? itemPalette.wood : itemPalette.furniture,
+              panel: isWarmWoodItem ? itemPalette.cabinetWood : itemPalette.furnitureSoft,
+              shadow: isWarmWoodItem ? itemPalette.woodDark : itemPalette.furnitureDark,
+              handle: isWarmWoodItem ? itemPalette.furnitureDark : lightAccentColor,
+            })
+          : detailItemType === "office-chair"
+            ? (detailRoleColors = {
+                frame: isWarmWoodItem ? itemPalette.wood : itemPalette.furniture,
+                fabric: isWarmWoodItem ? itemPalette.sofaFabric : itemPalette.furnitureSoft,
+                shadow: itemPalette.applianceDark ?? itemPalette.furnitureDark,
+                surface: lightAccentColor,
+                accent: itemPalette.furnitureSoft,
+              })
+            : (detailRoleColors = {
+                frame: isWarmWoodItem ? itemPalette.wood : itemPalette.furniture,
+                fabric:
+                  detailItemType === "pool-table"
+                    ? itemPalette.furnitureSoft
+                    : isWarmWoodItem
+                      ? lightAccentColor
+                      : itemPalette.furnitureSoft,
+                shadow: isWarmWoodItem ? itemPalette.woodDark : itemPalette.furnitureDark,
+                surface: lightAccentColor,
+                accent: isWarmWoodItem ? itemPalette.furnitureSoft : itemPalette.furniture,
+              });
+      const detailRoleMaterial = createPaletteMaterial(
+        detailMaterial,
+        detailRoleColors[detailRole] ?? itemPalette.furniture,
+        {
+          roughness: ["fabric", "surface", "accent"].includes(detailRole)
+            ? 0.91
+            : detailRole === "water"
+              ? 0.26
+              : 0.72,
+          metalness: 0,
+        },
+      );
+      return (
+        detailItemType === "bed" &&
+          detailRole === "fabric" &&
+          (detailRoleMaterial.userData.plan2SurfaceSlope = true),
+        detailRoleMaterial
+      );
     }
-    if (applianceItemType === "sofa") {
-      const isCushionMaterial = /cushion/i.test(baseMaterial?.name || "");
-      return createFurnitureMaterial(
-        baseMaterial,
-        isCushionMaterial ? appliancePalette.furnitureSoft : appliancePalette.furniture,
+    if (detailItemType === "aquarium" && detailMaterial.name?.startsWith("aquarium-aquatic-")) {
+      const aquariumRole = detailMaterial.name.split("-aquatic-")[1],
+        isWarmWoodAquarium = itemPalette.warmWood,
+        aquariumRoleColors = {
+          frame: isWarmWoodAquarium ? itemPalette.cabinetWood : itemPalette.furniture,
+          shadow: itemPalette.furnitureDark,
+          sand:
+            (isWarmWoodAquarium ? itemPalette.countertop : itemPalette.furnitureLight) ??
+            itemPalette.furnitureSoft,
+          rock: isWarmWoodAquarium ? itemPalette.applianceDark : itemPalette.furnitureSoft,
+          foliage: isWarmWoodAquarium ? itemPalette.leafColor : itemPalette.furniture,
+          fish:
+            (isWarmWoodAquarium ? itemPalette.decorAccent : itemPalette.furnitureLight) ??
+            itemPalette.furnitureSoft,
+          glass: itemPalette.glass ?? itemPalette.furnitureSoft,
+          water: itemPalette.glass ?? itemPalette.furnitureSoft,
+        },
+        isGlassAquariumRole = aquariumRole === "glass" || aquariumRole === "water";
+      return createPaletteMaterial(detailMaterial, aquariumRoleColors[aquariumRole], {
+        roughness: isGlassAquariumRole ? 0.18 : 0.78,
+        metalness: 0,
+        flatShading: aquariumRole === "rock",
+        transparent: isGlassAquariumRole,
+        opacity: isGlassAquariumRole ? detailMaterial.opacity : 1,
+        depthWrite: !isGlassAquariumRole,
+      });
+    }
+    if (detailItemType === "tea-table-set") {
+      const teaTableRole = detailMaterial.name?.split("-tea-")[1],
+        teaTableRoleColors = itemPalette.warmWood
+          ? {
+              frame: itemPalette.wood,
+              panel: itemPalette.woodLight,
+              recess: itemPalette.furnitureDark,
+              ceramic: itemPalette.furnitureLight,
+              accent: itemPalette.decorAccent,
+            }
+          : {
+              frame: 8226713,
+              panel: 10332346,
+              recess: 5397873,
+              ceramic: 12634839,
+              accent: 10332346,
+            };
+      return createPaletteMaterial(
+        detailMaterial,
+        teaTableRoleColors[teaTableRole] ?? teaTableRoleColors.frame,
+        {
+          roughness: teaTableRole === "ceramic" ? 0.6 : 0.82,
+          metalness: 0,
+        },
+      );
+    }
+    if (COURTYARD_MODELS[detailItemType]) {
+      const gardenRole = detailMaterial.name?.split("-garden-")[1],
+        gardenPalette = courtyardPalette(detailItemType, itemPalette.warmWood ? "warm" : "default");
+      return createPaletteMaterial(
+        detailMaterial,
+        gardenPalette[gardenRole] ?? gardenPalette.base,
+        {
+          roughness: gardenRole === "water" ? 0.3 : 0.82,
+          metalness: 0,
+        },
+      );
+    }
+    if (DECOR_MODELS[detailItemType]) {
+      const decorRoleIndex = Number(detailMaterial.name?.split("-decor-")[1]),
+        decorRole = DECOR_MODELS[detailItemType].roles[decorRoleIndex],
+        decorThemePalette = DECOR_THEMES[itemPalette.warmWood ? "warm" : "default"];
+      return createPaletteMaterial(
+        detailMaterial,
+        decorThemePalette[decorRole] ?? decorThemePalette.base,
+        {
+          roughness: 0.82,
+          metalness: 0,
+        },
+      );
+    }
+    if (detailMaterial.name?.includes("-furniture-")) {
+      const furnitureRole = detailMaterial.name.split("-furniture-")[1],
+        isDiningItem = [
+          "chair",
+          "table",
+          "rounddiningtable",
+          "rounddiningtable_turntable",
+        ].includes(detailItemType),
+        isSofaFamilyItem = sofaFamilyItemTypes.has(detailItemType) || detailItemType === "bed",
+        isWarmWoodStyle = itemPalette.warmWood,
+        furnitureFrameColor = isWarmWoodStyle
+          ? detailItemType === "tvstand"
+            ? itemPalette.cabinetWood
+            : itemPalette.wood
+          : itemPalette.furniture,
+        furnitureFabricColor = isWarmWoodStyle
+          ? detailItemType === "sofa"
+            ? itemPalette.sofaFabric
+            : isDiningItem
+              ? itemPalette.diningLinen
+              : itemPalette.furnitureLight
+          : itemPalette.furnitureSoft,
+        furnitureSurfaceColor = isWarmWoodStyle
+          ? isSofaFamilyItem
+            ? itemPalette.furnitureLight
+            : itemPalette.countertop
+          : itemPalette.furnitureSoft,
+        furnitureAccentColor = isDiningItem
+          ? isWarmWoodStyle
+            ? itemPalette.wood
+            : itemPalette.furnitureSoft
+          : isWarmWoodStyle
+            ? itemPalette.furnitureSoft
+            : itemPalette.furnitureDark,
+        furnitureRoleColors = {
+          frame: furnitureFrameColor,
+          fabric: furnitureFabricColor,
+          surface: furnitureSurfaceColor,
+          accent: furnitureAccentColor,
+          shadow: isWarmWoodStyle ? itemPalette.woodDark : itemPalette.furnitureDark,
+        };
+      if (
+        (!isWarmWoodStyle &&
+          (detailItemType === "bed" ||
+            isDiningItem ||
+            ["coffeetable", "squarecoffeetable"].includes(detailItemType)) &&
+          (furnitureRoleColors.frame = itemPalette.furnitureDark),
+        !isWarmWoodStyle &&
+          detailItemType === "bed" &&
+          ((furnitureRoleColors.frame = itemPalette.furniture),
+          (furnitureRoleColors.accent = itemPalette.furniture)),
+        !isWarmWoodStyle &&
+          detailItemType === "rounddiningtable_turntable" &&
+          (furnitureRoleColors.surface = itemPalette.furniture),
+        sofaFamilyItemTypes.has(detailItemType) &&
+          ((furnitureRoleColors.fabric = isWarmWoodStyle
+            ? itemPalette.wood
+            : itemPalette.furniture),
+          (furnitureRoleColors.surface = isWarmWoodStyle
+            ? itemPalette.sofaFabric
+            : itemPalette.furnitureSoft),
+          (furnitureRoleColors.accent = isWarmWoodStyle
+            ? itemPalette.furnitureSoft
+            : itemPalette.furniture)),
+        detailItemType === "vanity")
+      ) {
+        const vanityRoleColors = {
+          frame: isWarmWoodStyle ? itemPalette.wood : itemPalette.furnitureDark,
+          fabric: isWarmWoodStyle ? itemPalette.cabinetWood : itemPalette.furniture,
+          shadow: isWarmWoodStyle ? itemPalette.woodDark : itemPalette.furnitureDark,
+          surface: isWarmWoodStyle ? itemPalette.countertop : itemPalette.furnitureSoft,
+          accent: itemPalette.glass,
+        };
+        return createPaletteMaterial(detailMaterial, vanityRoleColors[furnitureRole], {
+          roughness: furnitureRole === "accent" ? 0.18 : 0.73,
+          metalness: furnitureRole === "accent" ? 0.18 : 0,
+          transparent: furnitureRole === "accent",
+          opacity: furnitureRole === "accent" ? 0.42 : 1,
+          depthWrite: furnitureRole !== "accent",
+        });
+      }
+      const isSoftFurnitureRole =
+        furnitureRole === "fabric" ||
+        (isSofaFamilyItem && ["surface", "accent"].includes(furnitureRole));
+      return createPaletteMaterial(
+        detailMaterial,
+        furnitureRoleColors[furnitureRole] ?? furnitureFrameColor,
+        {
+          roughness: isSoftFurnitureRole ? 0.94 : furnitureRole === "surface" ? 0.64 : 0.73,
+          metalness: 0,
+        },
+      );
+    }
+    if (itemPalette.warmWood && detailItemType === "piano") {
+      const pianoMaterialName = (detailMaterial.name || "").toLowerCase(),
+        isGoldenPiano = pianoMaterialName.includes("金色"),
+        pianoBaseColor = isGoldenPiano
+          ? 12296558
+          : pianoMaterialName.includes("color_009") || pianoMaterialName.includes("blinds_weave")
+            ? 3423034
+            : pianoMaterialName.includes("*1")
+              ? 16315885
+              : 9991250,
+        pianoMaterial = createPaletteMaterial(detailMaterial, pianoBaseColor, {
+          roughness: isGoldenPiano ? 0.4 : 0.55,
+          metalness: isGoldenPiano ? 0.5 : 0,
+        });
+      return ((pianoMaterial.userData.plan2SurfaceContact = false), pianoMaterial);
+    }
+    if (
+      ["storagewaterheater", "gaswaterheater"].includes(detailItemType) &&
+      detailMaterial.name?.startsWith(detailItemType + "-detail-")
+    ) {
+      const heaterDetailRole = detailMaterial.name.split("-detail-")[1],
+        heaterSoftColor = itemPalette.applianceSoft ?? itemPalette.furnitureSoft,
+        heaterBodyColor = itemPalette.appliance ?? itemPalette.furniture,
+        heaterDarkColor = itemPalette.applianceDark ?? itemPalette.furnitureDark;
+      return createPaletteMaterial(
+        detailMaterial,
+        {
+          body: heaterSoftColor,
+          panel: heaterDarkColor,
+          recess: heaterDarkColor,
+          trim: heaterBodyColor,
+          control: heaterSoftColor,
+        }[heaterDetailRole] ?? heaterSoftColor,
+        {
+          roughness: 0.82,
+          metalness: 0,
+        },
+      );
+    }
+    if (
+      detailItemType === "robotvacuum" &&
+      detailMaterial.name?.startsWith("robotvacuum-detail-")
+    ) {
+      const vacuumDetailRole = detailMaterial.name.split("-detail-")[1],
+        vacuumBodyColor = itemPalette.appliance ?? itemPalette.furniture ?? 10134967,
+        vacuumPanelColor = itemPalette.applianceSoft ?? itemPalette.furnitureSoft ?? 11911118,
+        vacuumDarkColor = itemPalette.applianceDark ?? itemPalette.furnitureDark ?? 6845576,
+        vacuumRoleColors = {
+          body: vacuumBodyColor,
+          panel: vacuumPanelColor,
+          dark: new threeNamespace.Color(vacuumDarkColor).multiplyScalar(0.42),
+          trim: vacuumDarkColor,
+          indicator: vacuumPanelColor,
+        };
+      return createPaletteMaterial(
+        detailMaterial,
+        vacuumRoleColors[vacuumDetailRole] ?? vacuumBodyColor,
+        {
+          roughness: 0.82,
+          metalness: 0,
+          flatShading: false,
+        },
+      );
+    }
+    if (
+      ["airpurifier", "floorac", "desktop", "laptop"].includes(detailItemType) &&
+      detailMaterial.name?.includes("-detail-")
+    ) {
+      const applianceDetailRole = detailMaterial.name.split("-detail-")[1],
+        appliancePanelColor = itemPalette.applianceSoft ?? itemPalette.furnitureSoft ?? 11911118,
+        applianceDarkColor = itemPalette.applianceDark ?? itemPalette.furnitureDark ?? 6845576,
+        applianceDetailRoleColors = {
+          body: appliancePanelColor,
+          panel: applianceDarkColor,
+          recess: new threeNamespace.Color(applianceDarkColor).multiplyScalar(0.42),
+          trim: itemPalette.appliance ?? appliancePanelColor,
+          control: appliancePanelColor,
+        };
+      return createPaletteMaterial(
+        detailMaterial,
+        applianceDetailRoleColors[applianceDetailRole] ?? appliancePanelColor,
+        {
+          roughness: 0.82,
+          metalness: 0,
+        },
+      );
+    }
+    if (detailItemType === "printer" && detailMaterial.name?.startsWith("printer-detail-")) {
+      const printerDetailRole = detailMaterial.name.split("-detail-")[1],
+        printerBodyColor = itemPalette.appliance ?? itemPalette.furniture,
+        printerRoleColors = {
+          body: printerBodyColor,
+          panel: itemPalette.applianceSoft ?? itemPalette.furnitureSoft,
+          recess: itemPalette.applianceDark ?? itemPalette.furnitureDark,
+          paper: itemPalette.furnitureLight,
+        };
+      return createPaletteMaterial(
+        detailMaterial,
+        printerRoleColors[printerDetailRole] ?? printerBodyColor,
+        {
+          roughness: 0.82,
+          metalness: 0,
+        },
+      );
+    }
+    if (detailItemType === "nas") {
+      const nasMaterialIndex = Number((detailMaterial?.name || "").match(/material-(\d+)/)?.[1]),
+        nasPanelColor = itemPalette.applianceSoft ?? itemPalette.furnitureSoft ?? 11911118,
+        nasDarkColor = itemPalette.applianceDark ?? itemPalette.furnitureDark ?? 6845576,
+        nasRecessColor = new threeNamespace.Color(nasDarkColor).multiplyScalar(0.48),
+        nasRoleColorList = [
+          nasPanelColor,
+          nasDarkColor,
+          nasRecessColor,
+          itemPalette.appliance ?? nasPanelColor,
+          8702858,
+        ],
+        nasRoleMaterial = createPaletteMaterial(
+          detailMaterial,
+          nasRoleColorList[nasMaterialIndex] ?? nasDarkColor,
+          {
+            roughness: 0.82,
+            metalness: 0,
+          },
+        );
+      return (
+        nasMaterialIndex === 4 &&
+          (nasRoleMaterial.emissive.set(6798195), (nasRoleMaterial.emissiveIntensity = 0.5)),
+        nasRoleMaterial
+      );
+    }
+    if (applianceItemTypes.has(detailItemType)) {
+      const applianceMaterialName = (detailMaterial?.name || "").toLowerCase(),
+        applianceBaseColor = detailMaterial?.color?.clone?.() || new threeNamespace.Color(16777215),
+        applianceLuminance =
+          applianceBaseColor.r * 0.2126 +
+          applianceBaseColor.g * 0.7152 +
+          applianceBaseColor.b * 0.0722,
+        applianceMaterialIndex = applianceMaterialName.match(/material-(\d+)/)?.[1],
+        applianceBodyColor = itemPalette.appliance ?? itemPalette.furniture,
+        applianceSoftBodyColor = itemPalette.applianceSoft ?? itemPalette.furnitureSoft,
+        applianceDarkBodyColor = itemPalette.applianceDark ?? itemPalette.furnitureDark,
+        isTranslucentPanel =
+          ["desktop", "laptop", "nas"].includes(detailItemType) && applianceMaterialIndex === "0",
+        applianceResolvedColor =
+          detailItemType === "walllamp"
+            ? applianceMaterialIndex === "2"
+              ? itemPalette.accent
+              : applianceBodyColor
+            : detailItemType === "floorlamp"
+              ? itemPalette.floorLampBody
+                ? applianceMaterialIndex === "3"
+                  ? applianceSoftBodyColor
+                  : itemPalette.floorLampBody
+                : applianceBodyColor
+              : detailItemType === "desktop"
+                ? applianceMaterialIndex === "1"
+                  ? applianceDarkBodyColor
+                  : applianceSoftBodyColor
+                : detailItemType === "laptop" && applianceMaterialIndex === "2"
+                  ? applianceDarkBodyColor
+                  : (detailItemType === "laptop" && applianceMaterialIndex === "1") ||
+                      isTranslucentPanel
+                    ? applianceSoftBodyColor
+                    : detailItemType.startsWith("tv_")
+                      ? applianceDarkBodyColor
+                      : detailItemType === "pipelinewaterpurifier" ||
+                          detailItemType === "tea_bar_machine"
+                        ? applianceLuminance < 0.16
+                          ? applianceBodyColor
+                          : applianceSoftBodyColor
+                        : applianceMaterialName.endsWith("-dark") || applianceLuminance < 0.16
+                          ? applianceDarkBodyColor
+                          : applianceMaterialName.endsWith("-soft") || applianceLuminance < 0.45
+                            ? applianceSoftBodyColor
+                            : applianceBodyColor,
+        applianceRoleMaterial = createPaletteMaterial(detailMaterial, applianceResolvedColor, {
+          roughness: 0.82,
+          metalness: 0,
+          flatShading: false,
+        });
+      return (
+        ((detailItemType === "laptop" && applianceMaterialIndex === "2") ||
+          (detailItemType === "nas" && ["2", "4"].includes(applianceMaterialIndex))) &&
+          ((applianceRoleMaterial.polygonOffset = true),
+          (applianceRoleMaterial.polygonOffsetFactor = -1),
+          (applianceRoleMaterial.polygonOffsetUnits = -1)),
+        detailItemType === "tea_bar_machine" &&
+          ((applianceRoleMaterial.emissive = new threeNamespace.Color(0)),
+          (applianceRoleMaterial.emissiveIntensity = 0)),
+        applianceRoleMaterial
+      );
+    }
+    if (warmWoodFurnitureItemTypes.has(detailItemType))
+      return applyWarmWoodFurnitureMaterial(detailMaterial, itemPalette, detailItemType);
+    if (detailItemType === "sofa") {
+      const isSofaCushion = /cushion/i.test(detailMaterial?.name || "");
+      return createPaletteMaterial(
+        detailMaterial,
+        isSofaCushion ? itemPalette.furnitureSoft : itemPalette.furniture,
         {
           roughness: 0.8,
-          metalness: 0.01
-        }
+          metalness: 0.01,
+        },
       );
     }
-    if (PILLAR_MODEL_ITEM_TYPES.has(applianceItemType)) {
-      const { role: pillarRole } = parseMaterialSlotAndRole(baseMaterial?.name);
-      const pillarWallColor = new THREE.Color(appliancePalette.wall);
-      const pillarColor =
-        pillarRole === "base"
-          ? pillarWallColor.clone().multiplyScalar(0.92)
-          : pillarRole === "trim"
-            ? pillarWallColor.clone().lerp(new THREE.Color(16777215), 0.35)
-            : pillarWallColor;
-      return createFurnitureMaterial(baseMaterial, pillarColor, {
-        roughness: pillarRole === "base" ? 0.74 : 0.66,
-        metalness: 0.02
-      });
+    if (detailItemType === "elevator") {
+      const isElevatorPanelMaterial = /Color_00[34]/i.test(detailMaterial?.name || ""),
+        elevatorPanelColor = isElevatorPanelMaterial
+          ? new threeNamespace.Color(itemPalette.wall)
+          : new threeNamespace.Color(itemPalette.furniture);
+      return createPaletteMaterial(
+        detailMaterial,
+        elevatorPanelColor,
+        isElevatorPanelMaterial
+          ? {
+              roughness: 0.82,
+              metalness: 0.01,
+            }
+          : {},
+      );
     }
-    if (applianceItemType === "elevator") {
-      // 电梯轿厢按角色分件（2026-09 迁进流水线，见 model-specs.mjs 的 elevator 规格）。
-      const { role: elevatorRole } = parseMaterialSlotAndRole(baseMaterial?.name);
-      if (elevatorRole === "screen" || elevatorRole === "lit") {
-        return baseMaterial.clone?.() || baseMaterial;
-      }
-      const elevatorWallColor = new THREE.Color(appliancePalette.wall);
-      const elevatorColor =
-        elevatorRole === "panel"
-          ? elevatorWallColor
-          : elevatorRole === "door"
-            ? new THREE.Color(appliancePalette.applianceSoft ?? appliancePalette.furnitureSoft)
-            : elevatorRole === "metal"
-              ? new THREE.Color(appliancePalette.applianceDark ?? appliancePalette.furnitureDark)
-              : elevatorWallColor.clone().multiplyScalar(0.32);
-      return createFurnitureMaterial(baseMaterial, elevatorColor, {
-        roughness:
-          elevatorRole === "door" ? 0.26 : elevatorRole === "metal" ? 0.32 : elevatorRole === "panel" ? 0.6 : 0.5,
-        metalness: elevatorRole === "door" ? 0.42 : elevatorRole === "metal" ? 0.5 : 0.06
-      });
+    if (detailItemType === "piano") {
+      const pianoName = (detailMaterial?.name || "").toLowerCase(),
+        pianoColor = pianoName.includes("color_009")
+          ? itemPalette.furnitureDark
+          : pianoName.includes("blinds_weave") ||
+              pianoName.includes("金色") ||
+              pianoName.includes("*1")
+            ? itemPalette.furnitureSoft
+            : itemPalette.furniture,
+        pianoSurfaceMaterial = new threeNamespace.MeshStandardMaterial({
+          color: pianoColor,
+          roughness: 0.72,
+          metalness: 0.06,
+          emissive: pianoColor,
+          emissiveIntensity: 0.08,
+          side: detailMaterial?.side ?? threeNamespace.FrontSide,
+          transparent: false,
+          opacity: 1,
+          depthWrite: detailMaterial?.depthWrite ?? true,
+          depthTest: detailMaterial?.depthTest ?? true,
+          toneMapped: true,
+        });
+      return (
+        (pianoSurfaceMaterial.userData.plan2SurfaceContact = false),
+        (pianoSurfaceMaterial.name =
+          (detailMaterial?.name || "piano") + " · HomeOS furniture palette"),
+        pianoSurfaceMaterial
+      );
     }
-    if (applianceItemType === "smallcar") {
-      // 小车。两条互斥的路：
-      const { role: carRole } = parseMaterialSlotAndRole(baseMaterial?.name);
-      if (!carRole) {
-        return baseMaterial.clone?.() || baseMaterial;
-      }
-      if (carRole === "glass") {
-        // 玻璃的透明与颜色由 resolveSharedMaterial 的玻璃分支统一收口（这一支只负责透明标记），
-        return baseMaterial.clone?.() || baseMaterial;
-      }
-      if (carRole === "lit") {
-        // 前大灯 / 尾灯：保留烘焙的暖白，并让它自己发一点光（车灯是光源，不是被照亮的塑料）。
-        const carLampMaterial = createFurnitureMaterial(
-          baseMaterial,
-          baseMaterial?.color?.clone?.() || new THREE.Color(16773328),
-          { roughness: 0.2, metalness: 0 }
-        );
-        carLampMaterial.emissive = carLampMaterial.color.clone();
-        carLampMaterial.emissiveIntensity = 0.55;
-        return carLampMaterial;
-      }
-      const carColor =
-        carRole === "body"
-          ? // 车漆：暖阳原木下走珍珠白（与原先那层着色器同色），默认风格走冷调银。
-            // 调色板参数名是 appliancePalette（全文件唯一调用点传的就是 materialPalette，
-            // 见 resolveSharedMaterial）—— 这里曾误写成 materialPalette，函数里没有那个绑定，
-            // 小车一走这一支就 ReferenceError。
-            new THREE.Color(
-              appliancePalette.warmWood === true ? 16776696 : appliancePalette.applianceSoft
-            )
-          : carRole === "metal"
-            ? new THREE.Color(appliancePalette.appliance)
-            : carRole === "grating"
-              ? new THREE.Color(appliancePalette.applianceDark)
-              :
-                baseMaterial?.color?.clone?.() || new THREE.Color(2237995);
-      const carMaterial = createFurnitureMaterial(baseMaterial, carColor, {
-        roughness: carRole === "body" ? 0.28 : carRole === "metal" ? 0.26 : carRole === "trim" ? 0.86 : 0.5,
-        metalness: carRole === "body" ? 0.34 : carRole === "metal" ? 0.6 : carRole === "trim" ? 0.02 : 0.3
-      });
-      if (carRole === "body") {
-        // 车漆的高光靠「低粗糙度 + 中金属度 + 一点与基色同色的自发光」在无环境贴图的场景里
-        carMaterial.emissive = carMaterial.color.clone();
-        carMaterial.emissiveIntensity = appliancePalette.warmWood === true ? 0.1 : 0.06;
-      }
-      return carMaterial;
-    }
-    if (stairItemTypes.has(applianceItemType)) {
-      return createStairMaterial(baseMaterial, appliancePalette, applianceItemType);
-    } else {
-      return createLuminanceBandedMaterial(baseMaterial, appliancePalette);
-    }
+    return stairItemTypes.has(detailItemType)
+      ? applyStairMaterial(detailMaterial, itemPalette, detailItemType)
+      : applyDefaultPaletteMaterial(detailMaterial, itemPalette);
   }
-/**
- * 克隆几何并重算法线，修正「按平面烘焙」带来的生硬着色。
- */
-  function cloneGeometryWithNormals(inputGeometry: any) {
-    const clonedGeometry = inputGeometry?.clone?.();
-    if (clonedGeometry?.computeVertexNormals) {
-      clonedGeometry.computeVertexNormals();
-      if (clonedGeometry.attributes?.normal) {
-        clonedGeometry.attributes.normal.needsUpdate = true;
-      }
-      clonedGeometry.computeBoundingBox?.();
-      clonedGeometry.computeBoundingSphere?.();
-      return clonedGeometry;
-    } else {
-      return inputGeometry;
-    }
+  function smoothGeometryNormals(sourceGeometry) {
+    const clonedGeometry = sourceGeometry?.clone?.();
+    return clonedGeometry?.computeVertexNormals
+      ? (clonedGeometry.computeVertexNormals(),
+        clonedGeometry.attributes?.normal && (clonedGeometry.attributes.normal.needsUpdate = true),
+        clonedGeometry.computeBoundingBox?.(),
+        clonedGeometry.computeBoundingSphere?.(),
+        clonedGeometry)
+      : sourceGeometry;
   }
-  // 白名单而不是遍历材质全部字段：three.js 的材质字段会随版本增删，逐字段遍历既慢，
-  const TEXTURE_MAP_KEYS = Object.freeze([
-    "alphaMap",
-    "anisotropyMap",
-    "aoMap",
-    "bumpMap",
-    "clearcoatMap",
-    "clearcoatNormalMap",
-    "clearcoatRoughnessMap",
-    "displacementMap",
-    "emissiveMap",
-    "envMap",
-    "gradientMap",
-    "iridescenceMap",
-    "iridescenceThicknessMap",
-    "lightMap",
-    "map",
-    "matcap",
-    "metalnessMap",
-    "normalMap",
-    "roughnessMap",
-    "sheenColorMap",
-    "sheenRoughnessMap",
-    "specularColorMap",
-    "specularIntensityMap",
-    "thicknessMap",
-    "transmissionMap"
-  ]);
-  // 与贴图白名单同理：这里列出的才是真正影响外观与渲染状态的字段。
-  const MATERIAL_PROPERTY_KEYS = Object.freeze([
-    "alphaHash",
-    "alphaTest",
-    "alphaToCoverage",
-    "anisotropy",
-    "aoMapIntensity",
-    "attenuationColor",
-    "attenuationDistance",
-    "blendAlpha",
-    "blendColor",
-    "blendDst",
-    "blendDstAlpha",
-    "blendEquation",
-    "blendEquationAlpha",
-    "blending",
-    "blendSrc",
-    "blendSrcAlpha",
-    "bumpScale",
-    "clearcoat",
-    "clearcoatNormalScale",
-    "clearcoatRoughness",
-    "clipIntersection",
-    "clipShadows",
-    "color",
-    "colorWrite",
-    "depthFunc",
-    "depthTest",
-    "depthWrite",
-    "displacementBias",
-    "displacementScale",
-    "dithering",
-    "emissive",
-    "emissiveIntensity",
-    "envMapIntensity",
-    "flatShading",
-    "fog",
-    "forceSinglePass",
-    "ior",
-    "iridescence",
-    "iridescenceIOR",
-    "iridescenceThicknessRange",
-    "lightMapIntensity",
-    "metalness",
-    "normalMapType",
-    "normalScale",
-    "opacity",
-    "polygonOffset",
-    "polygonOffsetFactor",
-    "polygonOffsetUnits",
-    "precision",
-    "premultipliedAlpha",
-    "reflectivity",
-    "refractionRatio",
-    "roughness",
-    "shadowSide",
-    "sheen",
-    "sheenColor",
-    "sheenRoughness",
-    "side",
-    "specularColor",
-    "specularIntensity",
-    "stencilFail",
-    "stencilFunc",
-    "stencilFuncMask",
-    "stencilRef",
-    "stencilWrite",
-    "stencilWriteMask",
-    "stencilZFail",
-    "stencilZPass",
-    "thickness",
-    "toneMapped",
-    "transmission",
-    "vertexColors",
-    "visible",
-    "wireframe",
-    "wireframeLinecap",
-    "wireframeLinejoin",
-    "wireframeLinewidth"
-  ]);
-/**
- * 把材质属性值归一化成可稳定 JSON 序列化的表示，供缓存键使用。
- */
-  function normalizeMaterialValue(rawValue: any): any {
-    if (rawValue === undefined) {
-      return "undefined";
-    } else if (rawValue === null) {
-      return null;
-    } else if (typeof rawValue == "number") {
-      if (Number.isNaN(rawValue)) {
-        return "NaN";
-      } else if (Number.isFinite(rawValue)) {
-        if (Object.is(rawValue, -0)) {
-          return 0;
-        } else {
-          return rawValue;
-        }
-      } else if (rawValue > 0) {
-        return "Infinity";
-      } else {
-        return "-Infinity";
+  function collectVertexSet(geometry, materialIndex = null) {
+    const vertexIndices = new Set(),
+      positionAttribute = geometry?.attributes?.position;
+    if (!positionAttribute) return vertexIndices;
+    const indexAttribute = geometry.index,
+      matchingGroups = Number.isInteger(materialIndex)
+        ? (geometry.groups || []).filter(
+            (geometryGroup) => geometryGroup.materialIndex === materialIndex,
+          )
+        : [];
+    if (matchingGroups.length)
+      for (const geometryGroupEntry of matchingGroups) {
+        const groupEndIndex = geometryGroupEntry.start + geometryGroupEntry.count;
+        for (
+          let vertexIndex = geometryGroupEntry.start;
+          vertexIndex < groupEndIndex;
+          vertexIndex += 1
+        )
+          vertexIndices.add(indexAttribute ? indexAttribute.getX(vertexIndex) : vertexIndex);
       }
-    } else if (["string", "boolean"].includes(typeof rawValue)) {
-      return rawValue;
-    } else if (rawValue.isTexture) {
-      return ["texture", rawValue.uuid ?? rawValue.id ?? "anonymous"];
-    } else if (rawValue.isColor) {
-      return [rawValue.r, rawValue.g, rawValue.b];
-    } else if (Array.isArray(rawValue)) {
-      return rawValue.map(normalizeMaterialValue);
-    } else if (typeof rawValue.toArray == "function") {
-      return rawValue.toArray().map(normalizeMaterialValue);
-    } else if (["x", "y", "z", "w"].some(axisKey => typeof rawValue[axisKey] == "number")) {
-      return [rawValue.x, rawValue.y, rawValue.z, rawValue.w].map(normalizeMaterialValue);
-    } else {
-      return String(rawValue);
+    else {
+      if (materialIndex === null) {
+        for (
+          let sequentialVertexIndex = 0;
+          sequentialVertexIndex < positionAttribute.count;
+          sequentialVertexIndex += 1
+        )
+          vertexIndices.add(sequentialVertexIndex);
+      }
     }
+    return vertexIndices;
   }
-/**
- * 由材质实例构造缓存键，用于跨物件复用等价材质。
- */
-  function buildMaterialCacheKey(material: any) {
-    if (material?.isShaderMaterial || material?.isRawShaderMaterial) {
+  function measureYRange(geometryAttribute, vertexIndexIterable) {
+    let minY = Infinity,
+      maxY = -Infinity;
+    for (const measuredVertexIndex of vertexIndexIterable) {
+      const vertexY = geometryAttribute.getY(measuredVertexIndex);
+      ((minY = Math.min(minY, vertexY)), (maxY = Math.max(maxY, vertexY)));
+    }
+    return {
+      min: minY,
+      max: maxY,
+    };
+  }
+  function alignLaptopScreenGeometry(
+    screenGeometry,
+    screenSourceGeometry,
+    screenMaterialIndex = null,
+    sourceMaterialIndex = null,
+  ) {
+    if (!screenGeometry?.attributes?.position) return screenGeometry;
+    const screenPositionAttribute = screenGeometry.attributes.position,
+      screenVertexIndices = collectVertexSet(screenGeometry, screenMaterialIndex);
+    if (!screenVertexIndices.size) return screenGeometry;
+    const { min: screenMinY, max: screenMaxY } = measureYRange(
+      screenPositionAttribute,
+      screenVertexIndices,
+    );
+    if (
+      !Number.isFinite(screenMinY) ||
+      !Number.isFinite(screenMaxY) ||
+      screenMaxY - screenMinY < 0.001
+    )
+      return screenGeometry;
+    const sourcePositionAttribute = screenSourceGeometry?.attributes?.position,
+      sourceVertexIndices = collectVertexSet(screenSourceGeometry, sourceMaterialIndex);
+    if (!sourcePositionAttribute || !sourceVertexIndices.size) return screenGeometry;
+    const sourceYRange = measureYRange(sourcePositionAttribute, sourceVertexIndices);
+    if (!Number.isFinite(sourceYRange.min) || !Number.isFinite(sourceYRange.max))
+      return screenGeometry;
+    const midY = (sourceYRange.min + sourceYRange.max) / 2;
+    let lowerVertex = null,
+      upperVertex = null;
+    for (const vertexLoopIndex of sourceVertexIndices) {
+      const vertexPosition = {
+        y: sourcePositionAttribute.getY(vertexLoopIndex),
+        z: sourcePositionAttribute.getZ(vertexLoopIndex),
+      };
+      (vertexPosition.y <= midY &&
+        (!lowerVertex || vertexPosition.z > lowerVertex.z) &&
+        (lowerVertex = vertexPosition),
+        vertexPosition.y > midY &&
+          (!upperVertex || vertexPosition.z > upperVertex.z) &&
+          (upperVertex = vertexPosition));
+    }
+    if (!lowerVertex || !upperVertex || upperVertex.y - lowerVertex.y < 0.001)
+      return screenGeometry;
+    const screenHeight = upperVertex.y - lowerVertex.y,
+      lowerY = lowerVertex.y + screenHeight * 0.04,
+      upperY = upperVertex.y - screenHeight * 0.07,
+      screenHeightRange = screenMaxY - screenMinY;
+    let minZ = Infinity,
+      maxZ = -Infinity;
+    for (const zVertexIndex of screenVertexIndices) {
+      const vertexZ = screenPositionAttribute.getZ(zVertexIndex);
+      ((minZ = Math.min(minZ, vertexZ)), (maxZ = Math.max(maxZ, vertexZ)));
+    }
+    const zRange = Math.max(maxZ - minZ, 0.001),
+      zInset = Math.min(zRange, screenHeight * 0.022),
+      zOffset = screenHeight * 0.008,
+      alignedGeometry = screenGeometry.clone?.();
+    if (!alignedGeometry?.attributes?.position) return screenGeometry;
+    const alignedPositionAttribute = alignedGeometry.attributes.position;
+    for (const alignVertexIndex of screenVertexIndices) {
+      const alignVertexY = screenPositionAttribute.getY(alignVertexIndex),
+        alignedY = lowerY + ((alignVertexY - screenMinY) / screenHeightRange) * (upperY - lowerY),
+        alignedZ =
+          lowerVertex.z +
+          ((alignedY - lowerVertex.y) / screenHeight) * (upperVertex.z - lowerVertex.z) +
+          zOffset,
+        zRatio = (screenPositionAttribute.getZ(alignVertexIndex) - minZ) / zRange;
+      (alignedPositionAttribute.setY(alignVertexIndex, alignedY),
+        alignedPositionAttribute.setZ(alignVertexIndex, alignedZ - zInset * (1 - zRatio)));
+    }
+    return (
+      (alignedPositionAttribute.needsUpdate = true),
+      alignedGeometry.computeVertexNormals?.(),
+      alignedGeometry.computeBoundingBox?.(),
+      alignedGeometry.computeBoundingSphere?.(),
+      alignedGeometry
+    );
+  }
+  const TEXTURE_MAP_PROPERTY_NAMES = Object.freeze([
+      "alphaMap",
+      "anisotropyMap",
+      "aoMap",
+      "bumpMap",
+      "clearcoatMap",
+      "clearcoatNormalMap",
+      "clearcoatRoughnessMap",
+      "displacementMap",
+      "emissiveMap",
+      "envMap",
+      "gradientMap",
+      "iridescenceMap",
+      "iridescenceThicknessMap",
+      "lightMap",
+      "map",
+      "matcap",
+      "metalnessMap",
+      "normalMap",
+      "roughnessMap",
+      "sheenColorMap",
+      "sheenRoughnessMap",
+      "specularColorMap",
+      "specularIntensityMap",
+      "thicknessMap",
+      "transmissionMap",
+    ]),
+    MATERIAL_PROPERTY_NAMES = Object.freeze([
+      "alphaHash",
+      "alphaTest",
+      "alphaToCoverage",
+      "anisotropy",
+      "aoMapIntensity",
+      "attenuationColor",
+      "attenuationDistance",
+      "blendAlpha",
+      "blendColor",
+      "blendDst",
+      "blendDstAlpha",
+      "blendEquation",
+      "blendEquationAlpha",
+      "blending",
+      "blendSrc",
+      "blendSrcAlpha",
+      "bumpScale",
+      "clearcoat",
+      "clearcoatNormalScale",
+      "clearcoatRoughness",
+      "clipIntersection",
+      "clipShadows",
+      "color",
+      "colorWrite",
+      "depthFunc",
+      "depthTest",
+      "depthWrite",
+      "displacementBias",
+      "displacementScale",
+      "dithering",
+      "emissive",
+      "emissiveIntensity",
+      "envMapIntensity",
+      "flatShading",
+      "fog",
+      "forceSinglePass",
+      "ior",
+      "iridescence",
+      "iridescenceIOR",
+      "iridescenceThicknessRange",
+      "lightMapIntensity",
+      "metalness",
+      "normalMapType",
+      "normalScale",
+      "opacity",
+      "polygonOffset",
+      "polygonOffsetFactor",
+      "polygonOffsetUnits",
+      "precision",
+      "premultipliedAlpha",
+      "reflectivity",
+      "refractionRatio",
+      "roughness",
+      "shadowSide",
+      "sheen",
+      "sheenColor",
+      "sheenRoughness",
+      "side",
+      "specularColor",
+      "specularIntensity",
+      "stencilFail",
+      "stencilFunc",
+      "stencilFuncMask",
+      "stencilRef",
+      "stencilWrite",
+      "stencilWriteMask",
+      "stencilZFail",
+      "stencilZPass",
+      "thickness",
+      "toneMapped",
+      "transmission",
+      "vertexColors",
+      "visible",
+      "wireframe",
+      "wireframeLinecap",
+      "wireframeLinejoin",
+      "wireframeLinewidth",
+    ]);
+  /** 普通字面量对象（调色板 / 覆盖表这类）：交给签名函数逐键展开。 */
+function isPlainRecord(recordValue: any): boolean {
+  if (!recordValue || typeof recordValue != "object" || Array.isArray(recordValue)) return false;
+  const recordPrototype = Object.getPrototypeOf(recordValue);
+  return recordPrototype === Object.prototype || recordPrototype === null;
+}
+function normalizeMaterialValue(materialValue) {
+    return materialValue === undefined
+      ? "undefined"
+      : materialValue === null
+        ? null
+        : typeof materialValue == "number"
+          ? Number.isNaN(materialValue)
+            ? "NaN"
+            : Number.isFinite(materialValue)
+              ? Object.is(materialValue, -0)
+                ? 0
+                : materialValue
+              : materialValue > 0
+                ? "Infinity"
+                : "-Infinity"
+          : ["string", "boolean"].includes(typeof materialValue)
+            ? materialValue
+            : materialValue.isTexture
+              ? ["texture", materialValue.uuid ?? materialValue.id ?? "anonymous"]
+              : materialValue.isColor
+                ? [materialValue.r, materialValue.g, materialValue.b]
+                : Array.isArray(materialValue)
+                  ? materialValue.map(normalizeMaterialValue)
+                  : typeof materialValue.toArray == "function"
+                    ? materialValue.toArray().map(normalizeMaterialValue)
+                    : ["x", "y", "z", "w"].some(
+                          (axisName) => typeof materialValue[axisName] == "number",
+                        )
+                      ? [materialValue.x, materialValue.y, materialValue.z, materialValue.w].map(
+                          normalizeMaterialValue,
+                        )
+                      : isPlainRecord(materialValue)
+                        ? // 普通对象（如 materialOverrides）逐键递归：不能落到 String()，
+                          // 否则不同覆盖值会签成同一个 "[object Object]"，材质变体会被错误复用。
+                          Object.keys(materialValue)
+                            .sort()
+                            .map((recordKey) => [
+                              recordKey,
+                              normalizeMaterialValue(materialValue[recordKey]),
+                            ])
+                        : String(materialValue);
+  }
+  function materialSignature(materialToSign) {
+    if (materialToSign?.isShaderMaterial || materialToSign?.isRawShaderMaterial)
       return JSON.stringify([
-        material.type || "ShaderMaterial",
+        materialToSign.type || "ShaderMaterial",
         "unique",
-        material.uuid || material.id
+        materialToSign.uuid || materialToSign.id,
       ]);
-    }
-    const customCacheKey =
-      typeof material?.customProgramCacheKey == "function" ? material.customProgramCacheKey() : "";
+    const customProgramKey =
+      typeof materialToSign?.customProgramCacheKey == "function"
+        ? materialToSign.customProgramCacheKey()
+        : "";
     return JSON.stringify([
-      material?.type || material?.constructor?.name || "Material",
-      customCacheKey,
-      MATERIAL_PROPERTY_KEYS.map(propertyName => [
+      materialToSign?.type || materialToSign?.constructor?.name || "Material",
+      customProgramKey,
+      materialToSign?.userData?.plan2SurfaceContact !== false,
+      materialToSign?.userData?.plan2SurfaceSlope === true,
+      MATERIAL_PROPERTY_NAMES.map((propertyName) => [
         propertyName,
-        normalizeMaterialValue(material?.[propertyName])
+        normalizeMaterialValue(materialToSign?.[propertyName]),
       ]),
-      TEXTURE_MAP_KEYS.map(mapPropertyName => [
-        mapPropertyName,
-        normalizeMaterialValue(material?.[mapPropertyName])
-      ])
+      TEXTURE_MAP_PROPERTY_NAMES.map((texturePropertyName) => [
+        texturePropertyName,
+        normalizeMaterialValue(materialToSign?.[texturePropertyName]),
+      ]),
     ]);
   }
-/**
- * 取得可在多个物件实例间共享的材质：必要时替换外观，并做缓存去重。
- */
-  function resolveSharedMaterial(inputMaterial: any, materialPalette: any, modelTypeName: any) {
-    if (!inputMaterial) {
-      return inputMaterial;
+  function optionsSignature(optionsObject) {
+    return JSON.stringify(
+      Object.keys(optionsObject)
+        .sort()
+        .map((optionName) => [optionName, normalizeMaterialValue(optionsObject[optionName])]),
+    );
+  }
+  /**
+   * 该（模型，材质名）是否走 `applyItemDetailMaterial` 的调色板 / 角色表出图。
+   * 判据与 resolveSharedMaterial 的选材三元式必须完全一致：检查面板要按同一条规则报出
+   * 「这个槽位到底由谁上色」，否则界面显示的会和画面不一致。
+   */
+  function usesDetailMaterialPipeline(itemType, materialName, palette) {
+    return (
+      paletteOverrideItemTypes.has(itemType) ||
+      (itemType === "aquarium" && materialName?.startsWith("aquarium-aquatic-")) ||
+      COURTYARD_MODELS[itemType] ||
+      DECOR_MODELS[itemType] ||
+      materialName?.includes("-furniture-") ||
+      gardenItemTypes.has(itemType) ||
+      applianceItemTypes.has(itemType) ||
+      // 角色表驱动的模型（柜体 / 洁具 / 木器 / 设备 / 摆件…）：两种主题都统一由
+      // studio-model-material-roles.ts 出图，避免默认主题直接吃 GLB 的烘焙占位色。
+      (roleTableItemTypes.has(itemType) &&
+        !isStructuralModelFamily(resolveModelFamily(itemType))) ||
+      (palette.warmWood && warmWoodFurnitureItemTypes.has(itemType))
+    );
+  }
+  /**
+   * 净化器 / 立柜空调的**导引面**：整块网格只挂一张 `*-material-2|3`，挂载时会被隐藏。
+   * 检查面板要跳过它，否则会多报一行用户根本看不见的材质。
+   */
+  function isHiddenApplianceGuideMesh(modelType, meshMaterials) {
+    return (
+      (modelType === "airpurifier" || modelType === "floorac") &&
+      meshMaterials.every(
+        (guideMaterial) =>
+          guideMaterial?.name ===
+          modelType + "-material-" + (modelType === "airpurifier" ? 3 : 2),
+      )
+    );
+  }
+  /**
+   * 取某个材质名上的**逐物件覆盖色**（`item.materialOverrides`）。
+   * 覆盖是整条选材链的最后一手：无论该槽位原本由角色表、调色板还是 GLB 烘焙色决定，
+   * 用户显式指定的颜色都赢，所以它不挂在任何专用分支里。
+   */
+  function materialOverrideColorFor(palette, materialName) {
+    const overridePalette = palette?.materialOverrides;
+    if (!materialName || !overridePalette || typeof overridePalette != "object") return null;
+    const overrideColor = overridePalette[materialName];
+    return typeof overrideColor == "string" && /^#[0-9a-f]{6}$/i.test(overrideColor)
+      ? overrideColor.toLowerCase()
+      : null;
+  }
+  function applyMaterialOverride(resolvedMaterial, materialName, palette) {
+    const overrideColor = materialOverrideColorFor(palette, materialName);
+    if (!overrideColor || !resolvedMaterial?.color) return resolvedMaterial;
+    const previousColorHex = resolvedMaterial.color.getHex();
+    // 暖木系的「自发光=本体色」是把 emissive 复制成 color 的；这里同步跟一次，
+    // 否则改完色会留下旧色的自发光残影。
+    resolvedMaterial.emissive?.isColor &&
+      resolvedMaterial.emissive.getHex() === previousColorHex &&
+      resolvedMaterial.emissive.set(overrideColor);
+    resolvedMaterial.color.set(overrideColor);
+    return resolvedMaterial;
+  }
+  /**
+   * 取某个材质名上的**逐槽表面覆盖**（`item.materialSurfaceOverrides`）。
+   *
+   * 颜色之外只开放粗糙度与金属度：透明 / 自发光 / 深度写入属于结构语义，跟着角色走才安全，
+   * 让用户改会把玻璃、灯罩、屏幕这类部件改坏。
+   */
+  function materialSurfaceOverrideFor(palette, materialName) {
+    const surfaceOverridePalette = palette?.materialSurfaceOverrides;
+    if (!materialName || !surfaceOverridePalette || typeof surfaceOverridePalette != "object")
+      return null;
+    const surfaceOverride = surfaceOverridePalette[materialName];
+    if (!surfaceOverride || typeof surfaceOverride != "object") return null;
+    const roughness = normalizeSurfaceOverrideValue(surfaceOverride.roughness),
+      metalness = normalizeSurfaceOverrideValue(surfaceOverride.metalness);
+    return roughness === null && metalness === null ? null : { roughness, metalness };
+  }
+  function normalizeSurfaceOverrideValue(surfaceValue) {
+    return typeof surfaceValue == "number" && Number.isFinite(surfaceValue)
+      ? Math.min(1, Math.max(0, surfaceValue))
+      : null;
+  }
+  function applyMaterialSurfaceOverride(resolvedMaterial, materialName, palette) {
+    const surfaceOverride = materialSurfaceOverrideFor(palette, materialName);
+    if (!surfaceOverride || !resolvedMaterial) return resolvedMaterial;
+    surfaceOverride.roughness !== null && (resolvedMaterial.roughness = surfaceOverride.roughness);
+    surfaceOverride.metalness !== null && (resolvedMaterial.metalness = surfaceOverride.metalness);
+    return resolvedMaterial;
+  }
+  /**
+   * 石材板贴图：整块石材按**一张整图**贴到板面上（配合装载期补的平面 UV，见
+   * `applyStoneSlabPlanarUv`）。色号决定画法，材质基色只作一层薄染色 —— 纹路与色相
+   * 都在贴图里，所以染色通常是「白色」或接近白，其余档位只是想压一点色温。
+   */
+  const stoneSlabTextureByFlavor = new Map();
+  function stoneSlabTextureFor(flavor) {
+    if (!stoneSlabTextureByFlavor.has(flavor)) {
+      // clone 一份：要单独设平铺方式并触发 needsUpdate，不能改到背景墙共用那份缓存实例上。
+      const slabTexture = createStoneSlabTexture(threeNamespace, flavor, 8)?.clone?.() ?? null;
+      slabTexture &&
+        ((slabTexture.wrapS = threeNamespace.RepeatWrapping),
+        (slabTexture.wrapT = threeNamespace.RepeatWrapping),
+        (slabTexture.needsUpdate = true));
+      stoneSlabTextureByFlavor.set(flavor, slabTexture);
     }
-    // 暖阳原木：家具类（不只是家电与自定义材质类）也要按件换材质 —— 暖色主题给每种
-    const preparedMaterial =
-      CUSTOM_MATERIAL_ITEM_TYPES.has(modelTypeName) ||
-      APPLIANCE_PALETTE_ITEM_TYPES.has(modelTypeName) ||
-      (materialPalette.warmFurniture && HOME_PALETTE_ITEM_TYPES.has(modelTypeName))
-        ? applyAppliancePalette(inputMaterial, materialPalette, modelTypeName)
-        : inputMaterial.clone?.() || inputMaterial;
-    // 石材板：外观已由整块石材整图决定（颜色在贴图里，材质基色只是白或一层薄染色），
-    const isStoneSlab = Boolean(preparedMaterial.userData?.homeosStoneSlab);
-    // 暖阳原木：给不透明材质补一层与基色同色的微弱自发光，抵消暖色环境光把木色
+    return stoneSlabTextureByFlavor.get(flavor);
+  }
+  /**
+   * 把某槽位按「石材板」或「非石材板」收口。
+   *
+   *  · flavor 是合法色号 → 贴整图 + 抛光面（大理石纹路就在这一步出现）；
+   *  · flavor 为 null → **摘掉**上游（角色表）打上的石材图：档位明说了这一槽不是石作
+   *    （黑色岩板 / 水磨石 / 一切木器档位），不能顶着大理石云纹出图。
+   *
+   * 一律**不动自发光**：暖木给不透明件补的「与基色同色」自发光在石材板上一开始就被跳过
+   * （见 resolveSharedMaterial 里的判据），换档时走的是同一趟材质解析，不需要在这里补。
+   */
+  function applyStoneSlabFinish(slabMaterial, flavor) {
+    if (!slabMaterial) return slabMaterial;
+    const isSlab = isStoneSlabFlavor(flavor),
+      wasSlab = isStoneSlabFlavor(slabMaterial.userData?.homeosStoneSlab);
+    // 既不是石材板、也从来不是：整支流程与它无关，直接放行（避免无谓地写 needsUpdate）。
+    if (!isSlab && !wasSlab) return slabMaterial;
+    const previousTexture = slabMaterial.map;
+    if (isSlab) {
+      const slabTexture = stoneSlabTextureFor(flavor);
+      if (slabTexture) slabMaterial.map = slabTexture;
+      const slabFinish = stoneSlabSurfaceFinish(flavor);
+      slabFinish &&
+        ((slabMaterial.roughness = slabFinish.roughness),
+        (slabMaterial.metalness = slabFinish.metalness));
+      slabMaterial.userData && (slabMaterial.userData.homeosStoneSlab = flavor);
+    } else {
+      slabMaterial.map = null;
+      delete slabMaterial.userData?.homeosStoneSlab;
+    }
+    if (previousTexture !== slabMaterial.map) slabMaterial.needsUpdate = true;
+    return slabMaterial;
+  }
+  /** 某槽位的石材板色号：只认**显式声明**（角色表或档位配方），不按槽位号猜。 */
+  function stoneSlabFlavorFor(palette, itemType, materialName, materialIndex = 0) {
+    const styleRecipe = materialStyleRecipeFor(itemType, materialName, palette, materialIndex);
+    // 档位一旦出手，这一槽是不是石材板就由档位说了算（auto 时 styleRecipe 为 null，
+    // 落到角色表的声明上）。两个来源都没有 = 不是石材板。
+    return styleRecipe
+      ? (isStoneSlabFlavor(styleRecipe.slab) ? styleRecipe.slab : null)
+      : stoneSlabFlavorForMaterial(itemType, materialName, materialIndex);
+  }
+  /**
+   * 逐物件「材质风格」档位（`item.materialStyle`）的最后一手，**紧挨在逐槽覆盖色之前**：
+   *
+   *  · 档位 = 整套角色换料，所以它要盖住家族底表 / 模型专用配方 / 暖木收尾算出来的颜色；
+   *  · 逐槽覆盖色（用户在某一行手工挑的颜色）比档位更具体，仍旧赢。
+   *
+   * 档位为 auto / 非法 / 该模型不提供档位时（`materialStyleRecipeFor` 返回 null）本函数不动材质。
+   */
+  function applyMaterialStyleRecipe(resolvedMaterial, materialName, itemType, palette) {
+    const styleRecipe = materialStyleRecipeFor(itemType, materialName, palette);
+    if (!styleRecipe || !resolvedMaterial) return resolvedMaterial;
+    if (styleRecipe.colorValue !== undefined && resolvedMaterial.color?.setHex) {
+      const previousColorHex = resolvedMaterial.color.getHex();
+      resolvedMaterial.color.setHex(styleRecipe.colorValue);
+      // 暖木系把 emissive 复制成了本体色：改色时同步跟一次，否则留旧色残影。
+      resolvedMaterial.emissive?.isColor &&
+        resolvedMaterial.emissive.getHex() === previousColorHex &&
+        resolvedMaterial.emissive.setHex(styleRecipe.colorValue);
+    }
+    if (styleRecipe.emissiveValue !== undefined && resolvedMaterial.emissive?.setHex) {
+      resolvedMaterial.emissive.setHex(styleRecipe.emissiveValue);
+      resolvedMaterial.emissiveIntensity = styleRecipe.emissiveIntensity ?? 0.5;
+    }
+    styleRecipe.roughness !== undefined && (resolvedMaterial.roughness = styleRecipe.roughness);
+    styleRecipe.metalness !== undefined && (resolvedMaterial.metalness = styleRecipe.metalness);
+    styleRecipe.transparent !== undefined && (resolvedMaterial.transparent = styleRecipe.transparent);
+    styleRecipe.opacity !== undefined && (resolvedMaterial.opacity = styleRecipe.opacity);
+    styleRecipe.depthWrite !== undefined && (resolvedMaterial.depthWrite = styleRecipe.depthWrite);
     if (
-      materialPalette.warmFurniture &&
-      preparedMaterial.color &&
-      !preparedMaterial.transparent &&
-      !isStoneSlab
+      styleRecipe.flatShading !== undefined &&
+      resolvedMaterial.flatShading !== styleRecipe.flatShading
     ) {
-      preparedMaterial.emissive = preparedMaterial.color.clone();
-      // 窗帘的「浅色布面」判据按**角色**取（`fabric`），不再是槽位号：
-      preparedMaterial.emissiveIntensity =
-        modelTypeName.startsWith("curtain_") &&
-        parseMaterialSlotAndRole(inputMaterial.name).role === "fabric"
-          ? 0.38
-          : ["sofa", "bed", "rug", "chair"].includes(modelTypeName)
-            ? 0.12
-            : 0.065;
+      ((resolvedMaterial.flatShading = styleRecipe.flatShading),
+        (resolvedMaterial.needsUpdate = true));
     }
+    styleRecipe.fabricLike &&
+      resolvedMaterial.userData &&
+      (resolvedMaterial.userData.warmDiningFabric = true);
+    // 石材板最后收口：档位一旦在这一槽出手，是不是大理石就由档位说了算 —— 声明了色号就贴整图，
+    // 没声明就把角色表打上的石材图摘掉（木器档位的桌面不该顶着大理石云纹）。
+    applyStoneSlabFinish(
+      resolvedMaterial,
+      isStoneSlabFlavor(styleRecipe.slab) ? styleRecipe.slab : null,
+    );
+    return resolvedMaterial;
+  }
+  function resolveSharedMaterial(sourceMaterial, palette, itemType, styleKey, partKey = "") {
+    if (!sourceMaterial) return sourceMaterial;
+    let variantCacheByStyle = materialVariantsBySource.get(sourceMaterial);
+    variantCacheByStyle ||
+      ((variantCacheByStyle = new Map()),
+      materialVariantsBySource.set(sourceMaterial, variantCacheByStyle));
+    const sourceSignature = JSON.stringify([
+        sourceMaterial.version,
+        sourceMaterial.name,
+        normalizeMaterialValue(sourceMaterial.color),
+        sourceMaterial.side,
+        sourceMaterial.transparent,
+        sourceMaterial.opacity,
+        sourceMaterial.depthWrite,
+        sourceMaterial.depthTest,
+      ]),
+      variantCacheKey = partKey ? itemType + ":" + partKey : itemType,
+      cachedVariant = variantCacheByStyle.get(variantCacheKey);
+    if (cachedVariant?.styleKey === styleKey && cachedVariant.sourceKey === sourceSignature)
+      return ((materialReuseCount += 1), cachedVariant.material);
+    const resolvedMaterial =
+      usesDetailMaterialPipeline(itemType, sourceMaterial.name, palette)
+        ? applyItemDetailMaterial(sourceMaterial, palette, itemType)
+        : sourceMaterial.clone?.() || sourceMaterial;
+    // 石材板（角色表声明的那一层）：**不挂在任何一支选材分支里** —— 餐桌 / 茶几走的是
+    // 「按角色命名」的分支而不走角色表，把这一步放在外面，两支才有同一个判据。
+    // 档位层（applyMaterialStyleRecipe）在最后收口，可以推翻这一手。
+    applyStoneSlabFinish(resolvedMaterial, stoneSlabFlavorForMaterial(itemType, sourceMaterial.name));
     if (
-      materialPalette.warmWood &&
-      (modelTypeName === "stairs" || modelTypeName === "floatingstairs")
+      (palette.warmWood &&
+        !DECOR_MODELS[itemType] &&
+        resolvedMaterial.color &&
+        !resolvedMaterial.transparent &&
+        !(itemType === "nas" && /^nas-material-4(?:$|\s)/.test(sourceMaterial.name || "")) &&
+        // 石材板不补这层「与基色同色」的微光：它会把深浅纹路之间的对比压平，黑金大理石的
+        // 白纹会被糊成一块灰。判据与贴图那一手同源（档位优先，其次角色表）。
+        !stoneSlabFlavorFor(palette, itemType, sourceMaterial.name) &&
+        ((resolvedMaterial.emissive = resolvedMaterial.color.clone()),
+        (resolvedMaterial.emissiveIntensity =
+          itemType.startsWith("curtain_") &&
+          ["1", "2", "3", "5"].includes((sourceMaterial.name || "").match(/material-(\d+)/)?.[1])
+            ? 0.38
+            : sofaFamilyItemTypes.has(itemType) || ["bed", "rug", "chair"].includes(itemType)
+              ? 0.12
+              : 0.065)),
+      palette.warmWood && itemType === "stairs")
     ) {
-      // 暖阳原木：楼梯的木质件换成地板 / 地板描边色，踏面还要自带地板拼板纹理 ——
-      const isWarmFloorTread = parseMaterialSlotAndRole(inputMaterial.name).role === "top";
-      preparedMaterial.color?.set?.(
-        isWarmFloorTread ? materialPalette.floor : materialPalette.floorEdge
-      );
-      preparedMaterial.emissive?.copy?.(preparedMaterial.color);
-      preparedMaterial.metalness = 0;
-      if (isWarmFloorTread) {
-        decorateWarmFloor(preparedMaterial, materialPalette);
-        preparedMaterial.userData.warmFloorTread = true;
-      }
+      const isFloorTreadMaterial = /(?:material-1|-soft)$/.test(sourceMaterial.name || "");
+      (resolvedMaterial.color?.set?.(isFloorTreadMaterial ? palette.floor : palette.floorEdge),
+        resolvedMaterial.emissive?.copy?.(resolvedMaterial.color),
+        (resolvedMaterial.metalness = 0),
+        isFloorTreadMaterial &&
+          (decorateWarmFloor(resolvedMaterial, palette),
+          (resolvedMaterial.userData.warmFloorTread = true)));
     }
-    if (preparedMaterial.userData?.warmFloorTread) {
-      // 踏面已由地板着色器负责提亮，自发光再强会过曝，这里单独压低。
-      preparedMaterial.emissiveIntensity = 0.075;
-    }
-    if (preparedMaterial.userData?.warmDiningMaterial) {
-      // 餐桌布艺比木面更吃光，给更高的自发光才能在同一盏灯下保持同样的明度。
-      preparedMaterial.emissiveIntensity = preparedMaterial.userData.warmDiningFabric ? 0.1 : 0.05;
-    }
-    // 暖阳原木：柜门侧面（回边）在侧光下会亮成一条白边，注入一段着色器按法线朝向压暗。
-    if (materialPalette.warmFurniture && isCabinetDoorMaterial(inputMaterial.name)) {
-      preparedMaterial.onBeforeCompile = (warmDoorReturnShader: any) => {
-        warmDoorReturnShader.vertexShader = warmDoorReturnShader.vertexShader
+    (resolvedMaterial.userData?.warmFloorTread && (resolvedMaterial.emissiveIntensity = 0.075),
+      resolvedMaterial.userData?.warmDiningMaterial &&
+        (resolvedMaterial.emissiveIntensity = resolvedMaterial.userData.warmDiningFabric
+          ? 0.1
+          : 0.05));
+    const cabinetDoorMaterialIndex = {
+      sideboard: "3",
+      shoecabinet: "4",
+      wallcabinet: "3",
+      kitchenbase: "3",
+      kitchensink: "7",
+      kitchencooktop: "4",
+    }[itemType];
+    if (
+      palette.warmWood &&
+      cabinetDoorMaterialIndex !== undefined &&
+      (sourceMaterial.name || "").endsWith("material-" + cabinetDoorMaterialIndex)
+    ) {
+      const doorEdgeColor = ["sideboard", "shoecabinet", "wallcabinet"].includes(itemType)
+        ? new threeNamespace.Color(palette.woodDark ?? palette.furnitureDark)
+        : null;
+      ((resolvedMaterial.onBeforeCompile = (shaderProgram) => {
+        ((shaderProgram.vertexShader = shaderProgram.vertexShader
           .replace("#include <common>", "#include <common>\nvarying float warmDoorFace;")
           .replace(
             "#include <begin_vertex>",
-            "#include <begin_vertex>\nwarmDoorFace = abs(normal.z);"
-          );
-        warmDoorReturnShader.fragmentShader = warmDoorReturnShader.fragmentShader
-          .replace("#include <common>", "#include <common>\nvarying float warmDoorFace;")
-          .replace(
-            "#include <color_fragment>",
-            "#include <color_fragment>\ndiffuseColor.rgb *= mix(0.70, 1.0, smoothstep(0.45, 0.85, warmDoorFace));"
-          );
-      };
-      preparedMaterial.customProgramCacheKey = () => "warm-cabinet-door-returns-v1";
+            "#include <begin_vertex>\nwarmDoorFace = abs(normal.z);",
+          )),
+          doorEdgeColor
+            ? ((shaderProgram.uniforms.warmDoorEdgeColor = {
+                value: doorEdgeColor,
+              }),
+              (shaderProgram.fragmentShader = shaderProgram.fragmentShader
+                .replace(
+                  "#include <common>",
+                  "#include <common>\nvarying float warmDoorFace;\nuniform vec3 warmDoorEdgeColor;",
+                )
+                .replace(
+                  "#include <color_fragment>",
+                  "#include <color_fragment>\nif (warmDoorFace < 0.85) diffuseColor.rgb = warmDoorEdgeColor;",
+                )
+                .replace(
+                  "#include <emissivemap_fragment>",
+                  "#include <emissivemap_fragment>\nif (warmDoorFace < 0.85) totalEmissiveRadiance = warmDoorEdgeColor * 0.065;",
+                )))
+            : (shaderProgram.fragmentShader = shaderProgram.fragmentShader
+                .replace("#include <common>", "#include <common>\nvarying float warmDoorFace;")
+                .replace(
+                  "#include <color_fragment>",
+                  "#include <color_fragment>\ndiffuseColor.rgb *= mix(0.70, 1.0, smoothstep(0.45, 0.85, warmDoorFace));",
+                )));
+      }),
+        (resolvedMaterial.customProgramCacheKey = () =>
+          doorEdgeColor
+            ? "warm-cabinet-door-returns-v2-" + doorEdgeColor.getHexString()
+            : "warm-cabinet-door-returns-v1"),
+        doorEdgeColor && (resolvedMaterial.userData.warmCabinetDoorReturns = true));
     }
     if (
-      (modelTypeName === "glasscabinet" || modelTypeName === "bookcase") &&
-      parseMaterialSlotAndRole(inputMaterial.name).role === "interior"
+      palette.warmWood &&
+      itemType === "shoecabinet" &&
+      /material-3$/.test(sourceMaterial.name || "")
     ) {
-      preparedMaterial.color?.set?.(
-        materialPalette.warmFurniture
-          ? materialPalette.cabinetWood ?? materialPalette.wood
-          : materialPalette.furniture
+      const shoeTopColor = new threeNamespace.Color(palette.countertop);
+      ((resolvedMaterial.onBeforeCompile = (shoeShaderProgram) => {
+        ((shoeShaderProgram.uniforms.warmShoeTopColor = {
+          value: shoeTopColor,
+        }),
+          (shoeShaderProgram.vertexShader = shoeShaderProgram.vertexShader
+            .replace("#include <common>", "#include <common>\nvarying vec3 warmShoePosition;")
+            .replace(
+              "#include <begin_vertex>",
+              "#include <begin_vertex>\nwarmShoePosition = position;",
+            )),
+          (shoeShaderProgram.fragmentShader = shoeShaderProgram.fragmentShader
+            .replace(
+              "#include <common>",
+              "#include <common>\nvarying vec3 warmShoePosition;\nuniform vec3 warmShoeTopColor;",
+            )
+            .replace(
+              "#include <color_fragment>",
+              "#include <color_fragment>\nfloat warmShoeTop = step(-0.002, warmShoePosition.x) * step(0.932, warmShoePosition.y) * (1.0 - step(0.970, warmShoePosition.y));\ndiffuseColor.rgb = mix(diffuseColor.rgb, warmShoeTopColor, warmShoeTop);",
+            )
+            .replace(
+              "#include <emissivemap_fragment>",
+              "#include <emissivemap_fragment>\ntotalEmissiveRadiance = mix(totalEmissiveRadiance, warmShoeTopColor * 0.065, warmShoeTop);",
+            )));
+      }),
+        (resolvedMaterial.customProgramCacheKey = () =>
+          "warm-shoe-countertop-v1-" + shoeTopColor.getHexString()));
+    }
+    if (palette.warmWood && itemType === "bed" && /material-1$/.test(sourceMaterial.name || "")) {
+      const bedRunnerColor = new threeNamespace.Color(palette.runnerColor ?? palette.furnitureSoft);
+      ((resolvedMaterial.roughness = 0.94),
+        (resolvedMaterial.onBeforeCompile = (bedShaderProgram) => {
+          ((bedShaderProgram.uniforms.warmBedRunner = {
+            value: bedRunnerColor,
+          }),
+            (bedShaderProgram.vertexShader = bedShaderProgram.vertexShader
+              .replace("#include <common>", "#include <common>\nvarying float warmBedZ;")
+              .replace(
+                "#include <begin_vertex>",
+                "#include <begin_vertex>\nwarmBedZ = position.z;",
+              )),
+            (bedShaderProgram.fragmentShader = bedShaderProgram.fragmentShader
+              .replace(
+                "#include <common>",
+                "#include <common>\nvarying float warmBedZ;\nuniform vec3 warmBedRunner;",
+              )
+              .replace(
+                "#include <color_fragment>",
+                "#include <color_fragment>\nfloat warmRunner = smoothstep(0.40, 0.415, warmBedZ) * (1.0 - smoothstep(0.86, 0.875, warmBedZ));\ndiffuseColor.rgb = mix(diffuseColor.rgb, warmBedRunner, warmRunner);",
+              )
+              .replace(
+                "#include <emissivemap_fragment>",
+                "#include <emissivemap_fragment>\ntotalEmissiveRadiance = mix(totalEmissiveRadiance, warmBedRunner * 0.12, warmRunner);",
+              )));
+        }),
+        (resolvedMaterial.customProgramCacheKey = () =>
+          "warm-bed-runner-v1-" + bedRunnerColor.getHexString()));
+    }
+    (itemType === "smallcar" &&
+      (palette.warmWood &&
+        (resolvedMaterial.color?.set?.(16776696),
+        (resolvedMaterial.roughness = 0.38),
+        (resolvedMaterial.metalness = 0.02),
+        (resolvedMaterial.emissiveMap = resolvedMaterial.map),
+        (resolvedMaterial.emissiveIntensity = 0.08)),
+      applyCarFinish(resolvedMaterial, {
+        pearlWhite: palette.warmWood === true,
+      })),
+      ((itemType === "glasscabinet" &&
+        /^glasscabinet-material-(0|10)$/.test(sourceMaterial.name)) ||
+        (itemType === "bookcase" && /^bookcase-material-(0|7)$/.test(sourceMaterial.name))) &&
+        (resolvedMaterial.color?.set?.(
+          palette.warmWood ? (palette.cabinetWood ?? palette.wood) : palette.furniture,
+        ),
+        (resolvedMaterial.transparent = false),
+        (resolvedMaterial.opacity = 1),
+        (resolvedMaterial.depthWrite = true),
+        (resolvedMaterial.depthTest = true)),
+      ["suv", "scooter"].includes(itemType) &&
+        applyVehicleFinish(threeNamespace, resolvedMaterial, sourceMaterial, palette),
+      itemType === "steelstairs" &&
+        ((resolvedMaterial.metalness = 0),
+        (resolvedMaterial.roughness = 0.9),
+        (resolvedMaterial.envMap = null),
+        (resolvedMaterial.envMapIntensity = 0)),
+      itemType === "steelstairs" &&
+        partKey === "handrail" &&
+        (resolvedMaterial.color?.set?.(palette.furnitureDark),
+        resolvedMaterial.emissive?.copy?.(resolvedMaterial.color),
+        (resolvedMaterial.onBeforeCompile = threeNamespace.Material.prototype.onBeforeCompile),
+        (resolvedMaterial.customProgramCacheKey =
+          threeNamespace.Material.prototype.customProgramCacheKey),
+        delete resolvedMaterial.userData.warmFloorTread));
+    // 逐物件档位（材质风格）先落，逐槽覆盖色次之，逐槽表面参数最后 —— 越具体的越靠后。
+    applyMaterialStyleRecipe(resolvedMaterial, sourceMaterial.name, itemType, palette);
+    // 逐物件覆盖色必须在 materialSignature 之前落下：签名决定材质缓存的复用，
+    // 覆盖后签名才会跟着变色，不同覆盖值的两个物件不会共用同一份材质。
+    applyMaterialOverride(resolvedMaterial, sourceMaterial.name, palette);
+    // 逐槽表面参数同理：粗糙 / 金属度也在 materialSignature 里，覆盖后缓存自然分叉。
+    applyMaterialSurfaceOverride(resolvedMaterial, sourceMaterial.name, palette);
+    const resolvedSignature = materialSignature(resolvedMaterial);
+    if (materialCacheBySignature.has(resolvedSignature)) {
+      ((materialReuseCount += 1),
+        resolvedMaterial !== sourceMaterial && resolvedMaterial.dispose?.());
+      const cachedSharedMaterial = materialCacheBySignature.get(resolvedSignature);
+      return (
+        variantCacheByStyle.set(variantCacheKey, {
+          styleKey: styleKey,
+          sourceKey: sourceSignature,
+          material: cachedSharedMaterial,
+        }),
+        cachedSharedMaterial
       );
-      preparedMaterial.transparent = false;
-      preparedMaterial.opacity = 1;
-      preparedMaterial.depthWrite = true;
-      preparedMaterial.depthTest = true;
     }
-    // 「档位即组合」：带角色的网格按**自己的角色**取色与质感。计算提前到这里，
-    const roleRecipe = isStoneSlab ? null : materialRoleRecipe(materialPalette, inputMaterial.name);
-    // 逐物件「材质风格」的整件质感层。调色板里带 materialSurface 键时才处理 —— 未选风格（auto）的物件
-    if (materialPalette.materialSurface && !roleRecipe && !isStoneSlab) {
-      const surfaceTexture = hasMaterialSurfaceTexture(materialPalette.materialSurface)
-        ? createMaterialSurfaceTexture(THREE, materialPalette.materialSurface, {
-            maxAnisotropy: 8,
-            repeat: 2
-          })
-        : null;
-      if (surfaceTexture) {
-        preparedMaterial.map = surfaceTexture;
-      }
-      if (Number.isFinite(materialPalette.materialRoughness)) {
-        preparedMaterial.roughness = materialPalette.materialRoughness;
-      }
-      if (Number.isFinite(materialPalette.materialMetalness)) {
-        preparedMaterial.metalness = materialPalette.materialMetalness;
-      }
-      // 换了 map 与参数，材质缓存键会跟着变（贴图 uuid 与数值属性都在键里），无需手工失效。
-      preparedMaterial.needsUpdate = true;
-    }
-    // 玻璃件（role = glass）单独收口：玻璃必须**保留自己的玻璃色并保持透明**，不能被上面几层
-    if (parseMaterialSlotAndRole(inputMaterial.name).role === "glass") {
-      // 基色回到建模时烘进 GLB 的槽位色（玻璃柜同款的蓝灰），而不是调色板里的木色 / 家具色。
-      const bakedGlassColor = inputMaterial.color?.getHex?.();
-      if (Number.isFinite(bakedGlassColor)) {
-        preparedMaterial.color?.setHex?.(bakedGlassColor);
-      }
-      preparedMaterial.transparent = true;
-      // 与玻璃柜那扇玻璃门取同一个不透明度（0.28）：0.45 那档太实，白门中间的玻璃会读成一块板。
-      preparedMaterial.opacity = 0.28;
-      // 玻璃双面渲染且不写深度：单面会让门板背面的玻璃消失，写深度则会把柜内挡成一块实色。
-      preparedMaterial.depthWrite = false;
-      preparedMaterial.depthTest = true;
-      preparedMaterial.side = THREE.DoubleSide;
-      // 玻璃要亮面反光，不能用柜体木料那套粗糙度。
-      preparedMaterial.roughness = 0.12;
-      preparedMaterial.metalness = 0.04;
-      // 暖阳原木给不透明件补的「与基色同色」自发光会让玻璃自己发亮、整块糊掉，清掉。
-      if (preparedMaterial.emissive?.setHex) {
-        preparedMaterial.emissive.setHex(0x000000);
-        preparedMaterial.emissiveIntensity = 1;
-      }
-      preparedMaterial.needsUpdate = true;
-    }
-    // 「档位即组合」：带角色的网格按**自己的角色**取色与质感。
-    if (roleRecipe) {
-      if (Number.isFinite(roleRecipe.color)) {
-        preparedMaterial.color?.set?.(roleRecipe.color);
-        // 暖阳原木给不透明件补的自发光是「与基色同色」的，换了颜色必须跟着换，
-        if (preparedMaterial.emissive && materialPalette.warmFurniture && !preparedMaterial.transparent) {
-          preparedMaterial.emissive = preparedMaterial.color.clone();
-        }
-      }
-      if (Number.isFinite(roleRecipe.roughness)) {
-        preparedMaterial.roughness = roleRecipe.roughness;
-      }
-      if (Number.isFinite(roleRecipe.metalness)) {
-        preparedMaterial.metalness = roleRecipe.metalness;
-      }
-      if (roleRecipe.surface) {
-        preparedMaterial.map =
-          hasMaterialSurfaceTexture(roleRecipe.surface)
-            ? createMaterialSurfaceTexture(THREE, roleRecipe.surface, {
-                maxAnisotropy: 8,
-                repeat: roleRecipe.repeat ?? 2
-              })
-            : null;
-      }
-      preparedMaterial.needsUpdate = true;
-    }
-    // 小车（上游第三方车模 `car_tms`）：整件套一层车漆 / 玻璃 / 车灯着色器。
-    if (modelTypeName === "smallcar" && !parseMaterialSlotAndRole(inputMaterial?.name).role) {
-      if (materialPalette.warmWood) {
-        // 暖阳原木：车漆换暖白（0xfffdf8 = 255/253/248），并把贴图兼作自发光 —— 让车在暖色场景
-        preparedMaterial.color?.set?.(0xfffdf8);
-        preparedMaterial.roughness = 0.38;
-        preparedMaterial.metalness = 0.02;
-        preparedMaterial.emissiveMap = preparedMaterial.map;
-        preparedMaterial.emissiveIntensity = 0.08;
-        // 上面「不透明件补同色自发光」是按换色**之前**的基色（白）写的，换了漆色必须跟着换 ——
-        if (preparedMaterial.emissive?.copy && preparedMaterial.color) {
-          preparedMaterial.emissive.copy(preparedMaterial.color);
-        }
-      }
-      applyCarFinish(preparedMaterial, { pearlWhite: materialPalette.warmWood === true });
-      preparedMaterial.needsUpdate = true;
-    }
-    const materialCacheKey = buildMaterialCacheKey(preparedMaterial);
-    if (materialCacheByKey.has(materialCacheKey)) {
-      materialReuseCount += 1;
-      if (preparedMaterial !== inputMaterial) {
-        preparedMaterial.dispose?.();
-      }
-      return materialCacheByKey.get(materialCacheKey);
-    } else {
-      materialCacheByKey.set(materialCacheKey, preparedMaterial);
-      return preparedMaterial;
-    }
+    return (
+      materialCacheBySignature.set(resolvedSignature, resolvedMaterial),
+      variantCacheByStyle.set(variantCacheKey, {
+        styleKey: styleKey,
+        sourceKey: sourceSignature,
+        material: resolvedMaterial,
+      }),
+      resolvedMaterial
+    );
   }
-/**
- * 把一个外部模型实例化并放进场景，成功返回 true。
- */
+  function getCachedGeometryVariant(cacheOwner, baseGeometry, variantKey, buildVariant) {
+    if (!baseGeometry) return baseGeometry;
+    let variantsBySourceGeometry = geometryVariantsBySource.get(cacheOwner);
+    variantsBySourceGeometry ||
+      ((variantsBySourceGeometry = new WeakMap()),
+      geometryVariantsBySource.set(cacheOwner, variantsBySourceGeometry));
+    let variantsByBaseGeometry = variantsBySourceGeometry.get(baseGeometry);
+    return (
+      variantsByBaseGeometry ||
+        ((variantsByBaseGeometry = new Map()),
+        variantsBySourceGeometry.set(baseGeometry, variantsByBaseGeometry)),
+      variantsByBaseGeometry.has(variantKey) ||
+        variantsByBaseGeometry.set(variantKey, buildVariant()),
+      variantsByBaseGeometry.get(variantKey)
+    );
+  }
   function addExternalItemModel(
-    parentObject: any,
-    itemSpec: any,
-    itemPalette: any,
-    { selected: isSelected = false } = {}
+    parentGroup,
+    targetSize,
+    addOptions: ExternalModelStyleOptions = {},
+    { selected: isSelected = false, staticMaterialKey = null, staticVertexTint = true } = {},
   ) {
-    const resolvedModelType = modelTypeForItem(itemSpec);
-    const modelEntry = loadedModelByType.get(resolvedModelType);
-    if (!modelEntry) {
-      loadExternalModel(resolvedModelType);
-      return false;
-    }
-    const placedObject = modelEntry.source.clone(true);
-    const curtainPosition = /^curtain_(left|right|split)$/.exec(resolvedModelType)?.[1];
-    if (curtainPosition) {
-      placedObject.userData.curtainRigRoot = true;
-    }
-    // 原先这里有一段笔记本「屏幕面板贴合」的预处理：老资产把翻盖与屏面做成两块独立几何，
-    placedObject.traverse((mesh: any) => {
-      if (!mesh.isMesh) {
-        return;
-      }
-      const originalGeometry = mesh.geometry;
-      const materialList = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      // 暖阳原木：植物的叶片整簇放大到 1.85 倍 —— 暖色主题的观感偏茂密，
-      if (resolvedModelType === "plant" && itemPalette.warmFurniture) {
-        mesh.geometry = enlargeWarmLeaves(mesh.geometry, materialList);
-      }
-      if (curtainPosition) {
-        const curtainPartIndex = Number(/material-(\d+)$/.exec(materialList[0]?.name || "")?.[1]);
-        mesh.userData.curtainPart =
-          curtainPartIndex === 0
-            ? "rod"
-            : curtainPartIndex === (curtainPosition === "split" ? 1 : 3)
-              ? "cap"
-              : (curtainPosition === "split" ? [2, 3] : [4, 5]).includes(curtainPartIndex)
-                ? "cloth"
-                : "band";
-      }
-      if (resolvedModelType === "tea_bar_machine" || resolvedModelType === "dishwasher") {
-        mesh.geometry = cloneGeometryWithNormals(mesh.geometry);
-      }
-      /**
-       * 选中态额外克隆一份材质用于高亮，未选中则直接共享缓存材质。
-       */
-      const resolveMeshMaterial = (meshMaterialInput: any) => {
-        const sharedMaterial = resolveSharedMaterial(
-          meshMaterialInput,
-          itemPalette,
-          resolvedModelType
+    const modelType = resolveModelTypeForItem(targetSize),
+      loadedModel = preparedTemplatesByItemType.get(modelType);
+    if (!loadedModel) return (loadExternalItemModel(modelType), false);
+    const optionsKey = optionsSignature(addOptions),
+      modelClone = loadedModel.source.clone(true),
+      curtainPart = /^curtain_(left|right|split)$/.exec(modelType)?.[1];
+    curtainPart && (modelClone.userData.curtainRigRoot = true);
+    let screenReference = null;
+    (modelType === "laptop" &&
+      modelClone.traverse((laptopMesh) => {
+        if (!laptopMesh.isMesh || screenReference) return;
+        const screenMaterialIndexInMesh = (
+          Array.isArray(laptopMesh.material) ? laptopMesh.material : [laptopMesh.material]
+        ).findIndex(
+          (meshMaterialEntry) =>
+            (meshMaterialEntry?.name || "").toLowerCase().match(/material-(\d+)/)?.[1] === "1",
         );
-        return (isSelected && sharedMaterial?.clone?.()) || sharedMaterial;
-      };
-      const hasGlassRole = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).some(
-        (meshMaterial: any) => parseMaterialSlotAndRole(meshMaterial?.name).role === "glass"
+        screenMaterialIndexInMesh < 0 ||
+          (screenReference = {
+            geometry: laptopMesh.geometry,
+            materialIndex: Array.isArray(laptopMesh.material) ? screenMaterialIndexInMesh : null,
+          });
+      }),
+      modelClone.traverse((modelMesh) => {
+        if (!modelMesh.isMesh) return;
+        const meshMaterials = Array.isArray(modelMesh.material)
+          ? modelMesh.material
+          : [modelMesh.material];
+        if (
+          ((modelMesh.userData.externalModelSharedGeometry = true),
+          (modelMesh.userData.externalModelSharedTextures = true),
+          // 立柱在户型里属于**墙**：地面反射据此把它和墙面归到同一趟里处理。
+          PILLAR_MODEL_ITEM_TYPES.has(modelType) &&
+            (modelMesh.userData.reflectionRole = "wall"),
+          isHiddenApplianceGuideMesh(modelType, meshMaterials))
+        ) {
+          ((modelMesh.visible = false),
+            (modelMesh.userData.hiddenApplianceGuide = true),
+            (modelMesh.userData.externalModelSharedMaterial = true));
+          return;
+        }
+        if (modelType === "plant" && addOptions.warmWood) {
+          const leafMaterialKey =
+            "warm-leaves:" +
+            meshMaterials
+              .map((leafMaterialEntry) => (/foliage/i.test(leafMaterialEntry?.name || "") ? 1 : 0))
+              .join(",");
+          modelMesh.geometry = getCachedGeometryVariant(
+            loadedModel,
+            modelMesh.geometry,
+            leafMaterialKey,
+            () => enlargeWarmLeaves(modelMesh.geometry, meshMaterials),
+          );
+        }
+        if (curtainPart) {
+          const curtainMaterialNumber = Number(
+            /material-(\d+)$/.exec(meshMaterials[0]?.name || "")?.[1],
+          );
+          modelMesh.userData.curtainPart =
+            curtainMaterialNumber === 0
+              ? "rod"
+              : curtainMaterialNumber === (curtainPart === "split" ? 1 : 3)
+                ? "cap"
+                : (curtainPart === "split" ? [2, 3] : [4, 5]).includes(curtainMaterialNumber)
+                  ? "cloth"
+                  : "band";
+        }
+        const panelMaterialIndex = meshMaterials.findIndex(
+          (panelMaterialEntry) =>
+            (panelMaterialEntry?.name || "").toLowerCase().match(/material-(\d+)/)?.[1] === "2",
+        );
+        if (modelType === "laptop" && panelMaterialIndex >= 0 && screenReference) {
+          const screenPanelMaterialIndex = Array.isArray(modelMesh.material)
+              ? panelMaterialIndex
+              : null,
+            screenGeometryKey = JSON.stringify([
+              "laptop-screen",
+              screenReference.geometry.uuid,
+              screenPanelMaterialIndex,
+              screenReference.materialIndex,
+            ]);
+          modelMesh.geometry = getCachedGeometryVariant(
+            loadedModel,
+            modelMesh.geometry,
+            screenGeometryKey,
+            () =>
+              alignLaptopScreenGeometry(
+                modelMesh.geometry,
+                screenReference.geometry,
+                screenPanelMaterialIndex,
+                screenReference.materialIndex,
+              ),
+          );
+        } else
+          (modelType === "tea_bar_machine" || modelType === "dishwasher") &&
+            (modelMesh.geometry = getCachedGeometryVariant(
+              loadedModel,
+              modelMesh.geometry,
+              "smooth-appliance",
+              () => smoothGeometryNormals(modelMesh.geometry),
+            ));
+        const resolveMeshMaterial = (meshSourceMaterial) => {
+          const steelStairPartKey =
+              modelType === "steelstairs" && ["Geom3D_8", "Geom3D_61"].includes(modelMesh.name)
+                ? "handrail"
+                : "",
+            sharedMaterial = resolveSharedMaterial(
+              meshSourceMaterial,
+              addOptions,
+              modelType,
+              optionsKey,
+              steelStairPartKey,
+            ),
+            materialForMesh = (isSelected && sharedMaterial?.clone?.()) || sharedMaterial;
+          return (
+            isSelected &&
+              ["sideboard", "shoecabinet", "wallcabinet", "suv", "scooter"].includes(modelType) &&
+              ((materialForMesh.onBeforeCompile = sharedMaterial.onBeforeCompile),
+              (materialForMesh.customProgramCacheKey = sharedMaterial.customProgramCacheKey)),
+            materialForMesh
+          );
+        };
+        if (
+          ((modelMesh.material = Array.isArray(modelMesh.material)
+            ? modelMesh.material.map(resolveMeshMaterial)
+            : resolveMeshMaterial(modelMesh.material)),
+          warmWoodFurnitureItemTypes.has(modelType) &&
+            (Array.isArray(modelMesh.material) ? modelMesh.material : [modelMesh.material]).some(
+              (transparentMaterialEntry) =>
+                transparentMaterialEntry?.transparent && transparentMaterialEntry.opacity < 1,
+            ) &&
+            (modelMesh.renderOrder = Math.max(modelMesh.renderOrder, 6)),
+          (modelMesh.castShadow = modelType !== "rug"),
+          (modelMesh.receiveShadow =
+            !["glassstairs", "floatingstairs"].includes(modelType) ||
+            modelMesh.material?.transparent !== true),
+          modelType === "laptop" || modelType === "nas")
+        ) {
+          const meshMaterialList = Array.isArray(modelMesh.material)
+            ? modelMesh.material
+            : [modelMesh.material];
+          for (const opaqueMaterial of meshMaterialList)
+            opaqueMaterial &&
+              !opaqueMaterial.transparent &&
+              opaqueMaterial.opacity >= 0.999 &&
+              ((opaqueMaterial.depthWrite = true),
+              (opaqueMaterial.depthTest = true),
+              (opaqueMaterial.forceSinglePass = true));
+        }
+        if (modelType === "rug") {
+          const rugMaterialList = Array.isArray(modelMesh.material)
+            ? modelMesh.material
+            : [modelMesh.material];
+          modelMesh.renderOrder = rugMaterialList.some(
+            (rugMaterialEntry) => rugMaterialEntry?.polygonOffset,
+          )
+            ? 1
+            : 0;
+        }
+        modelMesh.userData.externalModelSharedMaterial = !isSelected;
+      }),
+      isSelected ||
+        furnitureBatchCache.prepare(
+          modelClone,
+          loadedModel,
+          modelType,
+          staticMaterialKey,
+          staticVertexTint,
+        ));
+    const catalogDefinition = ALL_ITEM_MODELS[modelType],
+      scaleBasisSize =
+        Array.isArray(catalogDefinition?.scaleBasis) && catalogDefinition.scaleBasis.length === 3
+          ? {
+              x: catalogDefinition.scaleBasis[0],
+              y: catalogDefinition.scaleBasis[1],
+              z: catalogDefinition.scaleBasis[2],
+            }
+          : loadedModel.size;
+    if (catalogDefinition?.preserveAspect) {
+      const fitScale = Math.min(
+        targetSize.width / scaleBasisSize.x,
+        targetSize.height / scaleBasisSize.y,
+        targetSize.depth / scaleBasisSize.z,
       );
-      mesh.material = Array.isArray(mesh.material)
-        ? mesh.material.map(resolveMeshMaterial)
-        : resolveMeshMaterial(mesh.material);
-      if (
-        FURNITURE_PALETTE_ITEM_TYPES.has(resolvedModelType) &&
-        (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).some(
-          (materialItem: any) => materialItem?.transparent && materialItem.opacity < 1
-        )
-      ) {
-        mesh.renderOrder = Math.max(mesh.renderOrder, 6);
+      modelClone.scale.setScalar(fitScale);
+    } else
+      modelClone.scale.set(
+        targetSize.width / scaleBasisSize.x,
+        targetSize.height / scaleBasisSize.y,
+        targetSize.depth / scaleBasisSize.z,
+      );
+    if (catalogDefinition?.preserveOrigin) {
+      if (catalogDefinition?.groundAlign) {
+        modelClone.updateMatrixWorld(true);
+        const groundBox = new threeNamespace.Box3().setFromObject(modelClone);
+        ((modelClone.position.y -= groundBox.min.y),
+          (modelClone.position.y += finite(catalogDefinition.groundOffset, 0)));
       }
-      // 地毯是贴地薄片，投影只会多一次无意义的阴影绘制并在地面留下一圈假影，
-      mesh.castShadow = resolvedModelType !== "rug" && !hasGlassRole;
-      mesh.receiveShadow =
-        !hasGlassRole &&
-        (resolvedModelType !== "glassstairs" || mesh.material?.transparent !== true);
-      if (resolvedModelType === "rug") {
-        const rugMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-        // 只有开了 polygonOffset 的贴地地毯才抬到 1：让它在不透明队列里先画，
-        mesh.renderOrder = rugMaterials.some((rugMaterial: any) => rugMaterial?.polygonOffset) ? 1 : 0;
-      }
-      // 记录几何 / 贴图 / 材质是否与缓存中的源 scene 共享：销毁逻辑据此跳过 dispose，
-      mesh.userData.externalModelSharedGeometry = mesh.geometry === originalGeometry;
-      mesh.userData.externalModelSharedTextures = true;
-      mesh.userData.externalModelSharedMaterial = !isSelected;
-      if (PILLAR_MODEL_ITEM_TYPES.has(resolvedModelType)) {
-        // 立柱在户型里属于**墙**：占位几何把 reflectionRole 标成 wall，于是室内那趟反射
-        mesh.userData.reflectionRole = "wall";
-      }
+    } else {
+      modelClone.updateMatrixWorld(true);
+      const boundsBox = new threeNamespace.Box3().setFromObject(modelClone),
+        boundsCenter = boundsBox.getCenter(new threeNamespace.Vector3());
+      modelClone.position.set(-boundsCenter.x, -boundsBox.min.y, -boundsCenter.z);
+    }
+    return (parentGroup.add(modelClone), true);
+  }
+  /**
+   * 该物件是否挂外部 GLB 模型（`3d-studio` 检查面板据此决定要不要显示「材质属性」）。
+   * 程序化物件（帘轨 / 晾衣架 / 风扇 / 喇叭 / 画作 / 饰面墙 / 铭牌…）返回 false。
+   */
+  function hasExternalModelForItem(targetSize) {
+    return Boolean(targetSize?.type && ALL_ITEM_MODELS[resolveModelTypeForItem(targetSize)]);
+  }
+  /**
+   * 列出物件模型的**材质槽位检查表**：每个槽位的角色、当前实际显色与表面参数。
+   *
+   * 这里刻意复用渲染时的选材函数（resolveSharedMaterial），因此：
+   *  · 颜色 / 粗糙度 / 金属度 / 透明度与画面**同源**，不走另一套估算；
+   *  · 逐物件覆盖色（item.materialOverrides）已包含在内 —— 传进来的 addOptions 里带着它，
+   *    所以 overrideColor 为空的槽位就是「跟随主题」的槽位；
+   *  · 模型还没准备好时返回 null，调用方应显示「模型加载中」并在加载完成后重画。
+   */
+  function describeItemMaterials(targetSize, addOptions: ExternalModelStyleOptions = {}) {
+    const modelType = resolveModelTypeForItem(targetSize),
+      preparedModel = preparedTemplatesByItemType.get(modelType);
+    if (!preparedModel) return null;
+    const optionsKey = optionsSignature(addOptions),
+      slotEntries = [];
+    preparedModel.source.traverse((templateMesh) => {
+      if (!templateMesh.isMesh) return;
+      const meshMaterials = Array.isArray(templateMesh.material)
+        ? templateMesh.material
+        : [templateMesh.material];
+      if (isHiddenApplianceGuideMesh(modelType, meshMaterials)) return;
+      meshMaterials.forEach((templateMaterial, materialIndexInMesh) => {
+        const slotName = templateMaterial?.name;
+        if (!slotName || slotEntries.some((slotEntry) => slotEntry.name === slotName)) return;
+        const resolvedMaterial = resolveSharedMaterial(
+            templateMaterial,
+            addOptions,
+            modelType,
+            optionsKey,
+          ),
+          roleResolution = resolveModelMaterialRole(modelType, slotName, materialIndexInMesh);
+        slotEntries.push({
+          name: slotName,
+          role: roleResolution.role,
+          roleSource: roleResolution.source,
+          slot: roleResolution.slot ?? materialIndexInMesh,
+          /** 该槽位是否由角色表 / 调色板出图；false = 直接沿用 GLB 烘焙色（或专用结构件分支）。 */
+          fromPalette: usesDetailMaterialPipeline(modelType, slotName, addOptions),
+          color: resolvedMaterial?.color ? "#" + resolvedMaterial.color.getHexString() : "",
+          roughness: finite(resolvedMaterial?.roughness, 0),
+          metalness: finite(resolvedMaterial?.metalness, 0),
+          transparent: resolvedMaterial?.transparent === true,
+          opacity: finite(resolvedMaterial?.opacity, 1),
+          emissive: resolvedMaterial?.emissive?.isColor
+            ? "#" + resolvedMaterial.emissive.getHexString()
+            : "",
+          emissiveIntensity: finite(resolvedMaterial?.emissiveIntensity, 0),
+          depthWrite: resolvedMaterial?.depthWrite !== false,
+          overrideColor: materialOverrideColorFor(addOptions, slotName) || "",
+          surfaceOverride: materialSurfaceOverrideFor(addOptions, slotName),
+          /** 该槽位实际用的石材板色号（"" = 不是石材板）。 */
+          slab: isStoneSlabFlavor(resolvedMaterial?.userData?.homeosStoneSlab)
+            ? resolvedMaterial.userData.homeosStoneSlab
+            : "",
+        });
+      });
     });
-    const itemDefinition = (ALL_ITEM_MODELS as Record<string, any>)[resolvedModelType];
-    const scaleBasis =
-      Array.isArray(itemDefinition?.scaleBasis) && itemDefinition.scaleBasis.length === 3
-        ? {
-            x: itemDefinition.scaleBasis[0],
-            y: itemDefinition.scaleBasis[1],
-            z: itemDefinition.scaleBasis[2]
-          }
-        : modelEntry.size;
-    if (itemDefinition?.preserveAspect) {
-      // 等比缩放取三轴最小值：宁可整体略小，也不能让某一轴超出门洞或与邻件穿插。
-      const uniformScale = Math.min(
-        itemSpec.width / scaleBasis.x,
-        itemSpec.height / scaleBasis.y,
-        itemSpec.depth / scaleBasis.z
+    return slotEntries.sort((slotEntryA, slotEntryB) => {
+      const slotIndexA = Number.isFinite(slotEntryA.slot) ? slotEntryA.slot : Number.MAX_SAFE_INTEGER,
+        slotIndexB = Number.isFinite(slotEntryB.slot) ? slotEntryB.slot : Number.MAX_SAFE_INTEGER;
+      return (
+        slotIndexA - slotIndexB ||
+        slotEntryA.name.localeCompare(slotEntryB.name, "en", { numeric: true })
       );
-      placedObject.scale.setScalar(uniformScale);
-    } else {
-      placedObject.scale.set(
-        itemSpec.width / scaleBasis.x,
-        itemSpec.height / scaleBasis.y,
-        itemSpec.depth / scaleBasis.z
-      );
-    }
-    if (itemDefinition?.preserveOrigin) {
-      if (itemDefinition?.groundAlign) {
-        placedObject.updateMatrixWorld(true);
-        const placedBounds = new THREE.Box3().setFromObject(placedObject);
-        placedObject.position.y -= placedBounds.min.y;
-        placedObject.position.y += finite(itemDefinition.groundOffset, 0);
-      }
-    } else {
-      placedObject.updateMatrixWorld(true);
-      const objectBounds = new THREE.Box3().setFromObject(placedObject);
-      const objectCenter = objectBounds.getCenter(new THREE.Vector3());
-      placedObject.position.set(-objectCenter.x, -objectBounds.min.y, -objectCenter.z);
-    }
-    parentObject.add(placedObject);
-    // 标记外挂模型根：电视要在「机身高度带」里量前脸来定屏幕位置（见 studio-app 的
-    placedObject.userData.externalModelRoot = true;
-    return true;
+    });
   }
   return {
     addExternalItemModel: addExternalItemModel,
-    loadExternalItemModel: loadExternalModel,
-    modelTypeForItem: modelTypeForItem,
-    modelLoadState: getModelLoadState,
-    /**
-     * 汇总「这批物件会用到哪些模型类型、各自是否已就绪」，供预加载与测试断言。
-     */
-    cacheRepresentation(requestedItems: any) {
-      return [...new Set(requestedItems.map(modelTypeForItem).filter(Boolean))]
+    loadExternalItemModel: loadExternalItemModel,
+    preloadPersistentModels: preloadPersistentModels,
+    modelTypeForItem: resolveModelTypeForItem,
+    modelLoadState: collectLoadState,
+    persistentCacheState: () => persistentCache.stats(),
+    retryFailedModels: retryPendingModels,
+    dispose: disposeModelManager,
+    hasExternalModelForItem: hasExternalModelForItem,
+    describeItemMaterials: describeItemMaterials,
+    cacheRepresentation(itemTypeArray: any[]) {
+      return [...new Set(itemTypeArray.map(resolveModelTypeForItem).filter(Boolean))]
         .sort()
-        .map((modelTypeKey: any) => ({
-          type: modelTypeKey,
-          definition: (ALL_ITEM_MODELS as Record<string, any>)[modelTypeKey],
-          loaded: loadedModelByType.has(modelTypeKey)
+        .map((typeName) => ({
+          type: typeName,
+          definition: ALL_ITEM_MODELS[typeName],
+          loaded: preparedTemplatesByItemType.has(typeName),
+          rendererRevision: new URL(import.meta.url).search,
         }));
-    }
+    },
   };
 }

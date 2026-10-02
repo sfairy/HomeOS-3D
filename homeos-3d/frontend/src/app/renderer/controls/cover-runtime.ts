@@ -1,863 +1,762 @@
-type AnyObj = Record<string, any>;
-/**
- * 窗帘域的运行时映射：普通帘、晾衣机、梦幻帘，以及帘子背后的电机状态。
- */
-import { coverComponentIsDream } from "../core/registry/cover-state.js";
-import { entityMetadataIsAvailable } from "../core/entity-metadata.js";
-// 状态条目归一与小写状态文本（变更对象 / 状态对象两种形态）走 `utils/state-entry.js`。
-import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js";
-import { COVER_POSITION_EPSILON_PERCENT } from "../../utils/cover-features.js";
-// 电机方向那两份知识（读控件配置 / 反转时的四态互换）都在这个叶子模块里：
-import {
-  coverMotorIsReversedForComponent,
-  coverPhysicalStateForReversedMotor,
-} from "./cover-direction.js";
-/**
- * 通用「实体是否处于活动态」判定。
- */
-export function runtimeEntityStateIsActive(eventState: any) {
-  return ["on", "open", "true", "home"].includes(stateTextOf(eventState));
+import { coverComponentIsDream } from "../core/registry";
+import { entityMetadataIsAvailable } from "../core/entity-metadata";
+export function runtimeEntityStateIsActive(runtimeEntity) {
+  const normalizedStateText = String(runtimeEntity?.newState?.state ?? runtimeEntity?.state ?? "")
+    .trim()
+    .toLowerCase();
+  return ["on", "open", "true", "home"].includes(normalizedStateText);
 }
-// 百分比容差（1% 以内都当作端点）的唯一实现在 utils/cover-features.js：注册表的开合判定与
-const PERCENT_EPSILON = COVER_POSITION_EPSILON_PERCENT;
-/**
- * 取窗帘的当前位置百分比。
- */
-function coverPositionPercent(positionStateInput: any) {
-  const positionStateObject: any = resolveStateEntry(positionStateInput, {});
-  const currentPositionAttribute = Number(positionStateObject.attributes?.current_position);
-  if (Number.isFinite(currentPositionAttribute)) {
-    return Math.max(0, Math.min(100, currentPositionAttribute));
-  } else {
-    return null;
-  }
+const POSITION_TOLERANCE_PERCENT = 1;
+function airerPositionFromState(entityState) {
+  const runtimeStateData = entityState?.newState || entityState || {},
+    rawPositionValue = Number(runtimeStateData.attributes?.current_position);
+  return Number.isFinite(rawPositionValue) ? Math.max(0, Math.min(100, rawPositionValue)) : null;
 }
-/**
- * 判断窗帘是否已到达目标位置。
- */
-export function coverPositionReachedTarget(currentPosition: any, targetPosition: any, direction: any) {
-  const clampedReported = Math.max(0, Math.min(100, Number(currentPosition) || 0));
-  const clampedTarget = Math.max(0, Math.min(100, Number(targetPosition) || 0));
-  if (direction < 0) {
-    return clampedReported <= clampedTarget + 0.5;
-  } else {
-    return clampedReported >= clampedTarget - 0.5;
-  }
+export function coverPositionReachedTarget(currentPosition, targetPosition, motorDirection) {
+  const clampedCurrentPosition = Math.max(0, Math.min(100, Number(currentPosition) || 0)),
+    clampedTargetPosition = Math.max(0, Math.min(100, Number(targetPosition) || 0));
+  return motorDirection < 0
+    ? clampedCurrentPosition <= clampedTargetPosition + 0.5
+    : clampedCurrentPosition >= clampedTargetPosition - 0.5;
 }
-/**
- * 计算「等待设备确认」期间该显示的位置。
- */
-export function coverPendingDisplayPosition(fromPosition: any, toPosition: any, moveDirection: any) {
-  if (moveDirection < 0) {
-    return Math.min(fromPosition, toPosition);
-  } else {
-    return Math.max(fromPosition, toPosition);
-  }
-}
-/**
- * 判断窗帘当前是否处于「打开」侧。
- */
-export function runtimeCoverStateIsActive(coverEventState: any) {
-  const coverState: any = resolveStateEntry(coverEventState, {});
-  const rawCoverState = stateTextOf(coverState);
-  // opening / closing 直接给出结论，且 closing 要显式返回 false：
-  if (rawCoverState === "opening") {
-    return true;
-  }
-  if (rawCoverState === "closing") {
-    return false;
-  }
-  const resolvedPositionAttribute = coverPositionPercent(coverState);
-  if (resolvedPositionAttribute !== null) {
-    return resolvedPositionAttribute > PERCENT_EPSILON;
-  } else {
-    return runtimeEntityStateIsActive(coverState);
-  }
-}
-/**
- * 在同一台设备里找出指定域 + 指定翻译键的关联实体。
- */
-export function relatedDeviceEntity(
-  entitiesById: any,
-  entityId: any,
-  domain: any,
-  translationKey: any,
-  preferredEntityId: any = ""
+export function coverPendingDisplayPosition(
+  pendingCurrentPosition,
+  pendingTargetPosition,
+  pendingMotorDirection,
 ) {
-  const sourceEntity = entitiesById.get(entityId);
-  if (!sourceEntity?.deviceId) {
-    return null;
-  }
-  const relatedEntities = [...entitiesById.values()].filter(
-    candidateEntity =>
-      candidateEntity.deviceId === sourceEntity.deviceId &&
-      candidateEntity.domain === domain &&
-      candidateEntity.translationKey === translationKey &&
-      entityMetadataIsAvailable(candidateEntity)
-  );
-  relatedEntities.sort((leftEntity, rightEntity) => {
-    const leftEntityId = String(leftEntity.entityId || "");
-    const rightEntityId = String(rightEntity.entityId || "");
-    if (leftEntityId === preferredEntityId) {
-      return -1;
-    }
-    if (rightEntityId === preferredEntityId) {
-      return 1;
-    }
-    // 实体 ID 里带 _room_N_ 的是「按房间拆分」的那份，通常不是设备主实体，排在后面。
-    const leftIsRoomEntity = /_room_\d+_/.test(leftEntityId);
-    const rightIsRoomEntity = /_room_\d+_/.test(rightEntityId);
-    if (leftIsRoomEntity !== rightIsRoomEntity) {
-      if (leftIsRoomEntity) {
-        return 1;
-      } else {
-        return -1;
-      }
-    } else {
-      return (
-        leftEntityId.length - rightEntityId.length || leftEntityId.localeCompare(rightEntityId)
-      );
-    }
-  });
-  return relatedEntities[0] || null;
+  return pendingMotorDirection < 0
+    ? Math.min(pendingCurrentPosition, pendingTargetPosition)
+    : Math.max(pendingCurrentPosition, pendingTargetPosition);
 }
-/**
- * 在同一台设备里找出指定域的实体（不看翻译键）。
- */
-export function relatedDeviceDomainEntity(domainEntitiesById: any, domainEntityId: any, matchDomain: any) {
-  const domainSourceEntity = domainEntitiesById.get(domainEntityId);
-  if (!domainSourceEntity?.deviceId) {
-    return null;
-  }
-  const domainRelatedEntities = [...domainEntitiesById.values()].filter(
-    domainCandidate =>
+export function runtimeCoverStateIsActive(coverEntityState) {
+  const coverStateData = coverEntityState?.newState || coverEntityState || {},
+    coverStateText = String(coverStateData.state || "")
+      .trim()
+      .toLowerCase();
+  if (coverStateText === "opening") return true;
+  if (coverStateText === "closing") return false;
+  const coverPositionValue = airerPositionFromState(coverStateData);
+  return coverPositionValue !== null
+    ? coverPositionValue > POSITION_TOLERANCE_PERCENT
+    : runtimeEntityStateIsActive(coverStateData);
+}
+export function relatedDeviceEntity(
+  entityByEntityId,
+  entityId,
+  domain,
+  translationKey,
+  preferredEntityId = "",
+) {
+  const sourceEntity = entityByEntityId.get(entityId);
+  if (!sourceEntity?.deviceId) return null;
+  const deviceCandidates = [...entityByEntityId.values()].filter(
+    (deviceCandidate) =>
+      deviceCandidate.deviceId === sourceEntity.deviceId &&
+      deviceCandidate.domain === domain &&
+      deviceCandidate.translationKey === translationKey &&
+      entityMetadataIsAvailable(deviceCandidate),
+  );
+  return (
+    deviceCandidates.sort((leftDeviceCandidate, rightDeviceCandidate) => {
+      const leftDeviceEntityId = String(leftDeviceCandidate.entityId || ""),
+        rightDeviceEntityId = String(rightDeviceCandidate.entityId || "");
+      if (leftDeviceEntityId === preferredEntityId) return -1;
+      if (rightDeviceEntityId === preferredEntityId) return 1;
+      const leftIsRoomScoped = /_room_\d+_/.test(leftDeviceEntityId),
+        rightIsRoomScoped = /_room_\d+_/.test(rightDeviceEntityId);
+      return leftIsRoomScoped !== rightIsRoomScoped
+        ? leftIsRoomScoped
+          ? 1
+          : -1
+        : leftDeviceEntityId.length - rightDeviceEntityId.length ||
+            leftDeviceEntityId.localeCompare(rightDeviceEntityId);
+    }),
+    deviceCandidates[0] || null
+  );
+}
+export function relatedDeviceDomainEntity(domainEntityByEntityId, targetEntityId, targetDomain) {
+  const domainSourceEntity = domainEntityByEntityId.get(targetEntityId);
+  if (!domainSourceEntity?.deviceId) return null;
+  const domainCandidates = [...domainEntityByEntityId.values()].filter(
+    (domainCandidate) =>
       domainCandidate.deviceId === domainSourceEntity.deviceId &&
-      domainCandidate.domain === matchDomain &&
-      entityMetadataIsAvailable(domainCandidate)
+      domainCandidate.domain === targetDomain &&
+      entityMetadataIsAvailable(domainCandidate),
   );
-  domainRelatedEntities.sort((leftDomainEntity, rightDomainEntity) => {
-    const leftLooksLikeLight = /灯|照明|light/i.test(
-      (leftDomainEntity.name || "") + " " + (leftDomainEntity.entityId || "")
-    )
-      ? 0
-      : 1;
-    const rightLooksLikeLight = /灯|照明|light/i.test(
-      (rightDomainEntity.name || "") + " " + (rightDomainEntity.entityId || "")
-    )
-      ? 0
-      : 1;
-    return (
-      leftLooksLikeLight - rightLooksLikeLight ||
-      String(leftDomainEntity.entityId || "").length -
-        String(rightDomainEntity.entityId || "").length ||
-      String(leftDomainEntity.entityId || "").localeCompare(
-        String(rightDomainEntity.entityId || "")
-      )
-    );
-  });
-  return domainRelatedEntities[0] || null;
+  return (
+    domainCandidates.sort((leftDomainCandidate, rightDomainCandidate) => {
+      const leftLightScore = /灯|照明|light/i.test(
+          (leftDomainCandidate.name || "") + " " + (leftDomainCandidate.entityId || ""),
+        )
+          ? 0
+          : 1,
+        rightLightScore = /灯|照明|light/i.test(
+          (rightDomainCandidate.name || "") + " " + (rightDomainCandidate.entityId || ""),
+        )
+          ? 0
+          : 1;
+      return (
+        leftLightScore - rightLightScore ||
+        String(leftDomainCandidate.entityId || "").length -
+          String(rightDomainCandidate.entityId || "").length ||
+        String(leftDomainCandidate.entityId || "").localeCompare(
+          String(rightDomainCandidate.entityId || ""),
+        )
+      );
+    }),
+    domainCandidates[0] || null
+  );
 }
-const AIRER_NAME_PATTERN = /airer|clothes.?rack|laundry.?rack|晾衣机|晾衣架/i;
-const LIGHT_NAME_PATTERN = /light|lamp|灯光|照明|灯(?:$|[\s_-])/i;
-const SET_POSITION_NAME_PATTERN =
-  /set[_\s-]?position|target[_\s-]?position|设定位置|设置位置|目标位置/i;
-const CURRENT_POSITION_NAME_PATTERN = /current[_\s-]?position|当前位置|当前高度/i;
-const MOTOR_SPEED_NAME_PATTERN = /motor[_\s-]?speed|电机速度/i;
-// 晾衣机升降电机的三个动作按钮：上升 / 下降 / 暂停，按按钮名匹配。
-const MOTOR_CONTROL_PATTERNS = {
-  up: /motor[_\s-]?control[_\s-]?up|晾杆控制[^\n]*(?:上升|升起)/i,
-  down: /motor[_\s-]?control[_\s-]?down|晾杆控制[^\n]*下降/i,
-  pause: /motor[_\s-]?control[_\s-]?(?:pause|stop)|晾杆控制[^\n]*(?:停止|暂停)/i
-};
-/**
- * 判断窗帘控件是否应按晾衣机渲染。
- */
+const airerNamePattern = /airer|clothes.?rack|laundry.?rack|晾衣机|晾衣架/i,
+  lightNamePattern = /light|lamp|灯光|照明|灯(?:$|[\s_-])/i,
+  setPositionPattern = /set[_\s-]?position|target[_\s-]?position|设定位置|设置位置|目标位置/i,
+  currentPositionPattern = /current[_\s-]?position|当前位置|当前高度/i,
+  motorSpeedPattern = /motor[_\s-]?speed|电机速度/i,
+  motorActionPatterns = {
+    up: /motor[_\s-]?control[_\s-]?up|晾杆控制[^\n]*(?:上升|升起)/i,
+    down: /motor[_\s-]?control[_\s-]?down|晾杆控制[^\n]*下降/i,
+    pause: /motor[_\s-]?control[_\s-]?(?:pause|stop)|晾杆控制[^\n]*(?:停止|暂停)/i,
+  };
 export function coverComponentIsAirer(
-  component: any,
-  airerComponentEntityId: any = "",
-  componentState: any = null,
-  airerEntitiesById = new Map<any, any>(),
-  devicesById = new Map<any, any>()
+  component,
+  airerEntityId = "",
+  airerEntityState = null,
+  airerEntityByEntityId = new Map(),
+  deviceById = new Map(),
 ) {
   const coverKind = component?.properties?.coverKind;
-  if (coverKind === "airer") {
-    return true;
-  }
-  if (["standard", "dream"].includes(coverKind)) {
-    return false;
-  }
-  const airerStateObject: any = resolveStateEntry(componentState, {});
-  const airerEntityMetadata: AnyObj = airerEntitiesById.get(airerComponentEntityId) || {};
-  const airerDeviceMetadata: AnyObj = airerEntityMetadata.deviceId
-    ? devicesById.get(airerEntityMetadata.deviceId) || {}
-    : {};
-  return AIRER_NAME_PATTERN.test(
+  if (coverKind === "airer") return true;
+  if (["standard", "dream"].includes(coverKind)) return false;
+  const airerStateData = airerEntityState?.newState || airerEntityState || {},
+    airerEntityRecord = airerEntityByEntityId.get(airerEntityId) || {},
+    airerDeviceRecord = airerEntityRecord.deviceId
+      ? deviceById.get(airerEntityRecord.deviceId) || {}
+      : {};
+  return airerNamePattern.test(
     [
-      airerComponentEntityId,
-      airerStateObject.attributes?.friendly_name,
-      airerEntityMetadata.name,
-      airerEntityMetadata.originalName,
-      airerEntityMetadata.translationKey,
-      airerEntityMetadata.uniqueId,
-      airerDeviceMetadata.name,
-      airerDeviceMetadata.model
+      airerEntityId,
+      airerStateData.attributes?.friendly_name,
+      airerEntityRecord.name,
+      airerEntityRecord.originalName,
+      airerEntityRecord.translationKey,
+      airerEntityRecord.uniqueId,
+      airerDeviceRecord.name,
+      airerDeviceRecord.model,
     ]
       .filter(Boolean)
-      .join(" ")
+      .join(" "),
   );
 }
-/**
- * 从实体 ID 里取出「晾杆编号」。
- */
-function collectAirerSlotNumbers(slotSourceEntityId: any) {
+function airerEntityNumberIds(numberSourceEntityId) {
   return new Set(
-    [...String(slotSourceEntityId || "").matchAll(/_(?:s|p)_(\d+)(?:_|$)/gi)].map(
-      slotMatch => slotMatch[1]
-    )
+    [...String(numberSourceEntityId || "").matchAll(/_(?:s|p)_(\d+)(?:_|$)/gi)].map(
+      (numberIdMatch) => numberIdMatch[1],
+    ),
   );
 }
-/**
- * 在晾衣机的同设备实体里挑出那盏照明灯。
- */
-export function relatedAirerLightEntity(lightEntitiesById: any, lightSourceEntityId: any) {
-  const lightSourceEntity = lightEntitiesById.get(lightSourceEntityId);
-  if (!lightSourceEntity?.deviceId) {
-    return null;
-  }
-  const lightSourceSlots = collectAirerSlotNumbers(lightSourceEntity.entityId);
+export function relatedAirerLightEntity(lightEntityByEntityId, lightSourceEntityId) {
+  const lightSourceEntity = lightEntityByEntityId.get(lightSourceEntityId);
+  if (!lightSourceEntity?.deviceId) return null;
+  const sourceNumberIds = airerEntityNumberIds(lightSourceEntity.entityId);
   return (
-    [...lightEntitiesById.values()]
+    [...lightEntityByEntityId.values()]
       .filter(
-        candidateLightEntity =>
-          candidateLightEntity.entityId !== lightSourceEntityId &&
-          candidateLightEntity.deviceId === lightSourceEntity.deviceId &&
-          ["light", "switch"].includes(String(candidateLightEntity.domain || "")) &&
-          entityMetadataIsAvailable(candidateLightEntity)
+        (lightCandidate) =>
+          lightCandidate.entityId !== lightSourceEntityId &&
+          lightCandidate.deviceId === lightSourceEntity.deviceId &&
+          ["light", "switch"].includes(String(lightCandidate.domain || "")) &&
+          entityMetadataIsAvailable(lightCandidate),
       )
-      .map((lightCandidate: any) => {
-        const lightSearchText =
-          (lightCandidate.entityId || "") +
+      .map((scoredLightCandidate) => {
+        const lightCandidateText =
+          (scoredLightCandidate.entityId || "") +
           " " +
-          (lightCandidate.name || "") +
+          (scoredLightCandidate.name || "") +
           " " +
-          (lightCandidate.originalName || "") +
+          (scoredLightCandidate.originalName || "") +
           " " +
-          (lightCandidate.translationKey || "");
-        if (lightCandidate.domain === "switch" && !LIGHT_NAME_PATTERN.test(lightSearchText)) {
+          (scoredLightCandidate.translationKey || "");
+        if (scoredLightCandidate.domain === "switch" && !lightNamePattern.test(lightCandidateText))
           return null;
-        }
-        const candidateSlots = collectAirerSlotNumbers(lightCandidate.entityId);
-        const sharesSlot = [...lightSourceSlots].some((slotNumber: any) => candidateSlots.has(slotNumber));
-        // light 域的基础分高于 switch 域；同杆加成 360 是决定性的——
-        let lightScore = lightCandidate.domain === "light" ? 180 : 80;
-        if (sharesSlot) {
-          lightScore += 360;
-        }
-        if (AIRER_NAME_PATTERN.test(lightSearchText)) {
-          lightScore += 180;
-        }
-        if (LIGHT_NAME_PATTERN.test(lightSearchText)) {
-          lightScore += 90;
-        }
-        if (/night.?light|夜灯/i.test(lightSearchText)) {
-          lightScore -= 60;
-        }
-        return {
-          item: lightCandidate,
-          score: lightScore
-        };
+        const lightCandidateNumberIds = airerEntityNumberIds(scoredLightCandidate.entityId),
+          sharesNumberId = [...sourceNumberIds].some((numberId) =>
+            lightCandidateNumberIds.has(numberId),
+          );
+        let lightScore = scoredLightCandidate.domain === "light" ? 180 : 80;
+        return (
+          sharesNumberId && (lightScore += 360),
+          airerNamePattern.test(lightCandidateText) && (lightScore += 180),
+          lightNamePattern.test(lightCandidateText) && (lightScore += 90),
+          /night.?light|夜灯/i.test(lightCandidateText) && (lightScore -= 60),
+          {
+            item: scoredLightCandidate,
+            score: lightScore,
+          }
+        );
       })
       .filter(Boolean)
       .sort(
-        (leftLightScore: any, rightLightScore: any) =>
-          rightLightScore.score - leftLightScore.score ||
-          String(leftLightScore.item.entityId || "").length -
-            String(rightLightScore.item.entityId || "").length ||
-          String(leftLightScore.item.entityId || "").localeCompare(
-            String(rightLightScore.item.entityId || "")
-          )
+        (leftLightEntry, rightLightEntry) =>
+          rightLightEntry.score - leftLightEntry.score ||
+          String(leftLightEntry.item.entityId || "").length -
+            String(rightLightEntry.item.entityId || "").length ||
+          String(leftLightEntry.item.entityId || "").localeCompare(
+            String(rightLightEntry.item.entityId || ""),
+          ),
       )[0]?.item || null
   );
 }
-/**
- * 按名称模式在同设备实体里查找晾衣机的某个附属实体。
- */
-function findAirerEntityByPattern(
-  airerLookupEntitiesById: any,
-  airerEntityId: any,
-  patternDomain: any,
-  namePattern: any
+function findRelatedAirerEntity(
+  airerLookupByEntityId,
+  airerTargetEntityId,
+  airerTargetDomain,
+  airerNameMatcher,
 ) {
-  const airerSourceEntity: AnyObj = airerLookupEntitiesById.get(airerEntityId);
+  const airerSourceEntity = airerLookupByEntityId.get(airerTargetEntityId);
   if (!airerSourceEntity?.deviceId) {
-    // 该型号（_pro2 后缀）的附属实体 ID 由晾衣机实体 ID 派生，后缀 _p_4_N 是厂商约定的序号，
-    const entityIdMatch = String(airerEntityId || "").match(
-      /^cover\.(hyd_cn_[a-z0-9]+_pro2)_s_\d+_airer$/i
+    const airerDevicePatternMatch = String(airerTargetEntityId || "").match(
+      /^cover\.(hyd_cn_[a-z0-9]+_pro2)_s_\d+_airer$/i,
     );
-    if (entityIdMatch) {
-      if (patternDomain === "number" && namePattern === SET_POSITION_NAME_PATTERN) {
-        return {
-          entityId: "number." + entityIdMatch[1] + "_set_position_p_4_9",
-          domain: "number"
-        };
-      } else if (patternDomain === "sensor" && namePattern === CURRENT_POSITION_NAME_PATTERN) {
-        return {
-          entityId: "sensor." + entityIdMatch[1] + "_current_position_p_4_11",
-          domain: "sensor"
-        };
-      } else if (patternDomain === "sensor" && namePattern === MOTOR_SPEED_NAME_PATTERN) {
-        return {
-          entityId: "sensor." + entityIdMatch[1] + "_motor_speed_p_4_12",
-          domain: "sensor"
-        };
-      } else {
-        return null;
-      }
-    } else {
-      return null;
-    }
+    return airerDevicePatternMatch
+      ? airerTargetDomain === "number" && airerNameMatcher === setPositionPattern
+        ? {
+            entityId: "number." + airerDevicePatternMatch[1] + "_set_position_p_4_9",
+            domain: "number",
+          }
+        : airerTargetDomain === "sensor" && airerNameMatcher === currentPositionPattern
+          ? {
+              entityId: "sensor." + airerDevicePatternMatch[1] + "_current_position_p_4_11",
+              domain: "sensor",
+            }
+          : airerTargetDomain === "sensor" && airerNameMatcher === motorSpeedPattern
+            ? {
+                entityId: "sensor." + airerDevicePatternMatch[1] + "_motor_speed_p_4_12",
+                domain: "sensor",
+              }
+            : null
+      : null;
   }
   return (
-    [...airerLookupEntitiesById.values()]
+    [...airerLookupByEntityId.values()]
       .filter(
-        candidate =>
-          candidate.entityId !== airerEntityId &&
-          candidate.deviceId === airerSourceEntity.deviceId &&
-          candidate.domain === patternDomain &&
-          entityMetadataIsAvailable(candidate)
+        (airerCandidate) =>
+          airerCandidate.entityId !== airerTargetEntityId &&
+          airerCandidate.deviceId === airerSourceEntity.deviceId &&
+          airerCandidate.domain === airerTargetDomain &&
+          entityMetadataIsAvailable(airerCandidate),
       )
-      .map((scoredCandidate: any) => {
-        const candidateSearchText =
-          (scoredCandidate.entityId || "") +
+      .map((scoredAirerCandidate) => {
+        const airerCandidateText =
+          (scoredAirerCandidate.entityId || "") +
           " " +
-          (scoredCandidate.name || "") +
+          (scoredAirerCandidate.name || "") +
           " " +
-          (scoredCandidate.originalName || "") +
+          (scoredAirerCandidate.originalName || "") +
           " " +
-          (scoredCandidate.translationKey || "");
-        if (!namePattern.test(candidateSearchText)) {
-          return null;
-        }
-        let candidateScore = 0;
-        if (namePattern.test(String(scoredCandidate.translationKey || ""))) {
-          candidateScore += 300;
-        }
-        if (namePattern.test(String(scoredCandidate.entityId || ""))) {
-          candidateScore += 180;
-        }
-        if (AIRER_NAME_PATTERN.test(candidateSearchText)) {
-          candidateScore += 90;
-        }
-        return {
-          item: scoredCandidate,
-          score: candidateScore
-        };
+          (scoredAirerCandidate.translationKey || "");
+        if (!airerNameMatcher.test(airerCandidateText)) return null;
+        let airerCandidateScore = 0;
+        return (
+          airerNameMatcher.test(String(scoredAirerCandidate.translationKey || "")) &&
+            (airerCandidateScore += 300),
+          airerNameMatcher.test(String(scoredAirerCandidate.entityId || "")) &&
+            (airerCandidateScore += 180),
+          airerNamePattern.test(airerCandidateText) && (airerCandidateScore += 90),
+          {
+            item: scoredAirerCandidate,
+            score: airerCandidateScore,
+          }
+        );
       })
       .filter(Boolean)
       .sort(
-        (leftAirerScore: any, rightAirerScore: any) =>
-          rightAirerScore.score - leftAirerScore.score ||
-          String(leftAirerScore.item.entityId || "").length -
-            String(rightAirerScore.item.entityId || "").length ||
-          String(leftAirerScore.item.entityId || "").localeCompare(
-            String(rightAirerScore.item.entityId || "")
-          )
+        (leftAirerEntry, rightAirerEntry) =>
+          rightAirerEntry.score - leftAirerEntry.score ||
+          String(leftAirerEntry.item.entityId || "").length -
+            String(rightAirerEntry.item.entityId || "").length ||
+          String(leftAirerEntry.item.entityId || "").localeCompare(
+            String(rightAirerEntry.item.entityId || ""),
+          ),
       )[0]?.item || null
   );
 }
-/**
- * 取晾衣机的「设定位置」数值实体。
- */
-export function relatedAirerPositionNumberEntity(positionEntitiesById: any, positionEntityId: any) {
-  return findAirerEntityByPattern(
-    positionEntitiesById,
+export function relatedAirerPositionNumberEntity(positionEntityByEntityId, positionEntityId) {
+  return findRelatedAirerEntity(
+    positionEntityByEntityId,
     positionEntityId,
     "number",
-    SET_POSITION_NAME_PATTERN
+    setPositionPattern,
   );
 }
-/**
- * 取晾衣机的「当前位置」传感器。
- */
 export function relatedAirerCurrentPositionSensor(
-  currentPositionEntitiesById: any,
-  currentPositionEntityId: any
+  positionSensorByEntityId,
+  positionSensorEntityId,
 ) {
-  return findAirerEntityByPattern(
-    currentPositionEntitiesById,
-    currentPositionEntityId,
+  return findRelatedAirerEntity(
+    positionSensorByEntityId,
+    positionSensorEntityId,
     "sensor",
-    CURRENT_POSITION_NAME_PATTERN
+    currentPositionPattern,
   );
 }
-/**
- * 取晾衣机的电机速度传感器，用于判断升降是否已停止。
- */
-export function relatedAirerMotorSpeedSensor(motorSpeedEntitiesById: any, motorSpeedEntityId: any) {
-  return findAirerEntityByPattern(
-    motorSpeedEntitiesById,
-    motorSpeedEntityId,
+export function relatedAirerMotorSpeedSensor(motorSensorByEntityId, motorSensorEntityId) {
+  return findRelatedAirerEntity(
+    motorSensorByEntityId,
+    motorSensorEntityId,
     "sensor",
-    MOTOR_SPEED_NAME_PATTERN
+    motorSpeedPattern,
   );
 }
-/**
- * 取晾衣机的升降控制按钮。
- */
-export function relatedAirerMotorActionEntities(actionEntitiesById: any, actionEntityId: any) {
-  const actionSourceEntity = actionEntitiesById.get(actionEntityId);
-  if (!actionSourceEntity?.deviceId) {
+export function relatedAirerMotorActionEntities(motorEntityByEntityId, motorSourceEntityId) {
+  const motorSourceEntity = motorEntityByEntityId.get(motorSourceEntityId);
+  if (!motorSourceEntity?.deviceId)
     return {
       up: null,
       down: null,
-      pause: null
+      pause: null,
     };
-  }
-  const motorActionButtons = [...actionEntitiesById.values()].filter(
-    motorButtonCandidate =>
-      motorButtonCandidate.entityId !== actionEntityId &&
-      motorButtonCandidate.deviceId === actionSourceEntity.deviceId &&
+  const motorButtonEntities = [...motorEntityByEntityId.values()].filter(
+    (motorButtonCandidate) =>
+      motorButtonCandidate.entityId !== motorSourceEntityId &&
+      motorButtonCandidate.deviceId === motorSourceEntity.deviceId &&
       motorButtonCandidate.domain === "button" &&
-      entityMetadataIsAvailable(motorButtonCandidate)
+      entityMetadataIsAvailable(motorButtonCandidate),
   );
   return Object.fromEntries(
-    Object.entries(MOTOR_CONTROL_PATTERNS).map(([actionKey, actionPattern]) => {
-      const matchedButton = motorActionButtons.find((buttonCandidate: any) =>
-        actionPattern.test(
-          (buttonCandidate.entityId || "") +
+    Object.entries(motorActionPatterns).map(([motorActionName, motorActionMatcher]) => {
+      const matchedMotorButton = motorButtonEntities.find((motorButtonEntity) =>
+        motorActionMatcher.test(
+          (motorButtonEntity.entityId || "") +
             " " +
-            (buttonCandidate.name || "") +
+            (motorButtonEntity.name || "") +
             " " +
-            (buttonCandidate.originalName || "") +
+            (motorButtonEntity.originalName || "") +
             " " +
-            (buttonCandidate.translationKey || "")
-        )
+            (motorButtonEntity.translationKey || ""),
+        ),
       );
-      return [actionKey, matchedButton || null];
-    })
+      return [motorActionName, matchedMotorButton || null];
+    }),
   );
 }
 /**
- * 把晾衣机位置换算成界面上的「下降幅度」：返回值是画布内相对距离，2 表示完全收起（贴近顶部），40 表示完全放下。
+ * 晾衣架的行程标定：raised / lowered 是实测得到的上下限位置（%），
+ * command* 是下发指令时的参考位置，用于判断标定是否仍然有效。
  */
-export function airerVisualDrop(positionPercent: any, airerStateName: any = "", visualCalibration: AnyObj = {}) {
-  if (airerStateName === "open") {
-    return 2;
-  }
-  if (airerStateName === "closed") {
-    return 40;
-  }
-  const visualClampedPosition = Math.max(0, Math.min(100, Number(positionPercent) || 0));
-  const visualRaised =
-    (visualCalibration as AnyObj).raised === null || (visualCalibration as AnyObj).raised === undefined
-      ? Number.NaN
-      : Number((visualCalibration as AnyObj).raised);
-  const visualLowered =
-    (visualCalibration as AnyObj).lowered === null || (visualCalibration as AnyObj).lowered === undefined
-      ? Number.NaN
-      : Number((visualCalibration as AnyObj).lowered);
-    // 收起端未知时的推断：若已知道放下端且它不小（说明数值越大越靠下），
-  const visualCommandRaised = Number.isFinite(visualRaised)
-    ? visualRaised
-    : Number.isFinite(visualLowered) && visualLowered >= 50
-      ? 0
-      : 100;
-  const visualCommandSpan =
-    (Number.isFinite(visualLowered) ? visualLowered : visualCommandRaised < 50 ? 100 : 0) -
-    visualCommandRaised;
+type AirerPositionCalibration = {
+  raised?: number | null;
+  lowered?: number | null;
+  commandRaised?: number | null;
+  commandLowered?: number | null;
+};
+
+export function airerVisualDrop(
+  airerRawPosition,
+  airerStateText = "",
+  airerCalibration: AirerPositionCalibration = {},
+) {
+  if (airerStateText === "open") return 2;
+  if (airerStateText === "closed") return 40;
+  const clampedAirerPosition = Math.max(0, Math.min(100, Number(airerRawPosition) || 0)),
+    raisedCalibrationValue =
+      airerCalibration.raised === null || airerCalibration.raised === undefined
+        ? Number.NaN
+        : Number(airerCalibration.raised),
+    loweredCalibrationValue =
+      airerCalibration.lowered === null || airerCalibration.lowered === undefined
+        ? Number.NaN
+        : Number(airerCalibration.lowered),
+    raisedFallbackPosition = Number.isFinite(raisedCalibrationValue)
+      ? raisedCalibrationValue
+      : Number.isFinite(loweredCalibrationValue) && loweredCalibrationValue >= 50
+        ? 0
+        : 100,
+    airerTravelSpan =
+      (Number.isFinite(loweredCalibrationValue)
+        ? loweredCalibrationValue
+        : raisedFallbackPosition < 50
+          ? 100
+          : 0) - raisedFallbackPosition;
   return (
     2 +
-    (Math.abs(visualCommandSpan) < 0.5
+    (Math.abs(airerTravelSpan) < 0.5
       ? 0
       : Math.max(
           0,
-          Math.min(1, (visualClampedPosition - visualCommandRaised) / visualCommandSpan)
+          Math.min(1, (clampedAirerPosition - raisedFallbackPosition) / airerTravelSpan),
         )) *
       38
   );
 }
-/**
- * 取晾衣机的出厂标定。
- */
 export function airerPositionCalibration(
-  calibrationEntitiesById: any,
-  calibrationDevicesById: any,
-  calibrationEntityId: any
+  calibrationEntityByEntityId,
+  calibrationDeviceById,
+  calibrationEntityId,
 ) {
-  const calibrationEntityMetadata: AnyObj = calibrationEntitiesById.get(calibrationEntityId);
-  const calibrationDeviceMetadata: AnyObj = calibrationEntityMetadata?.deviceId
-    ? calibrationDevicesById.get(calibrationEntityMetadata.deviceId)
-    : null;
-  const calibrationSearchText =
-    (calibrationDeviceMetadata?.model || "") +
-    " " +
-    (calibrationDeviceMetadata?.name || "") +
-    " " +
-    (calibrationEntityMetadata?.entityId || "") +
-    " " +
-    (calibrationEntityId || "");
-  if (/hyd\.airer\.pro2|hyd_cn_[a-z0-9_]*_pro2(?:_|$)/i.test(calibrationSearchText)) {
-    return {
-      raised: null,
-      lowered: null,
-      commandRaised: 0,
-      commandLowered: 100
-    };
-  } else {
-    return {
-      raised: null,
-      lowered: null,
-      commandRaised: null,
-      commandLowered: null
-    };
-  }
+  const calibrationEntityRecord = calibrationEntityByEntityId.get(calibrationEntityId),
+    calibrationDeviceRecord = calibrationEntityRecord?.deviceId
+      ? calibrationDeviceById.get(calibrationEntityRecord.deviceId)
+      : null,
+    calibrationIdentityText =
+      (calibrationDeviceRecord?.model || "") +
+      " " +
+      (calibrationDeviceRecord?.name || "") +
+      " " +
+      (calibrationEntityRecord?.entityId || "") +
+      " " +
+      (calibrationEntityId || "");
+  return /hyd\.airer\.pro2|hyd_cn_[a-z0-9_]*_pro2(?:_|$)/i.test(calibrationIdentityText)
+    ? {
+        raised: null,
+        lowered: null,
+        commandRaised: 0,
+        commandLowered: 100,
+      }
+    : {
+        raised: null,
+        lowered: null,
+        commandRaised: null,
+        commandLowered: null,
+      };
 }
-/**
- * 根据实时读数学习「收起 / 放下」两端对应的上报位置。
- */
 export function learnAirerPositionCalibration(
-  calibration: any = {},
-  reportedPosition: any,
-  commandPosition: any,
-  motorSpeed: any
+  calibrationState: AirerPositionCalibration = {},
+  reachedPosition,
+  commandReferencePosition,
+  positionErrorValue,
 ) {
-    // 三个读数都得有效，且电机停了，才认为这次上报是可信的端点样本。
-  const reportedValue = Number(reportedPosition);
-  const commandValue = Number(commandPosition);
-  const motorSpeedValue = Number(motorSpeed);
-  const commandRaisedPosition =
-    (calibration as AnyObj).commandRaised === null || (calibration as AnyObj).commandRaised === undefined
-      ? Number.NaN
-      : Number((calibration as AnyObj).commandRaised);
-  const commandLoweredPosition =
-    (calibration as AnyObj).commandLowered === null || (calibration as AnyObj).commandLowered === undefined
-      ? Number.NaN
-      : Number((calibration as AnyObj).commandLowered);
-  if (
-    !!Number.isFinite(reportedValue) &&
-    !!Number.isFinite(commandValue) &&
-    !!Number.isFinite(motorSpeedValue) &&
-    !(Math.abs(motorSpeedValue) >= 0.5)
-  ) {
-    if (
-      Number.isFinite(commandRaisedPosition) &&
-      Math.abs(commandValue - commandRaisedPosition) <= 0.5
-    ) {
-      (calibration as AnyObj).raised = Math.max(0, Math.min(100, reportedValue));
-    }
-    if (
-      Number.isFinite(commandLoweredPosition) &&
-      Math.abs(commandValue - commandLoweredPosition) <= 0.5
-    ) {
-      (calibration as AnyObj).lowered = Math.max(0, Math.min(100, reportedValue));
-    }
-  }
-  return calibration;
+  const reachedPositionNumber = Number(reachedPosition),
+    commandReferenceNumber = Number(commandReferencePosition),
+    positionErrorNumber = Number(positionErrorValue),
+    commandRaisedValue =
+      calibrationState.commandRaised === null || calibrationState.commandRaised === undefined
+        ? Number.NaN
+        : Number(calibrationState.commandRaised),
+    commandLoweredValue =
+      calibrationState.commandLowered === null || calibrationState.commandLowered === undefined
+        ? Number.NaN
+        : Number(calibrationState.commandLowered);
+  return (
+    !Number.isFinite(reachedPositionNumber) ||
+      !Number.isFinite(commandReferenceNumber) ||
+      !Number.isFinite(positionErrorNumber) ||
+      Math.abs(positionErrorNumber) >= 0.5 ||
+      (Number.isFinite(commandRaisedValue) &&
+        Math.abs(commandReferenceNumber - commandRaisedValue) <= 0.5 &&
+        (calibrationState.raised = Math.max(0, Math.min(100, reachedPositionNumber))),
+      Number.isFinite(commandLoweredValue) &&
+        Math.abs(commandReferenceNumber - commandLoweredValue) <= 0.5 &&
+        (calibrationState.lowered = Math.max(0, Math.min(100, reachedPositionNumber)))),
+    calibrationState
+  );
 }
-/**
- * 把设备坐标的位置换算成界面坐标。
- */
-function airerPresentationPosition(airerPosition: any, presentationCalibration: AnyObj = {}) {
-  const clampedPosition = Math.max(0, Math.min(100, Number(airerPosition) || 0));
-  const raisedPosition =
-    (presentationCalibration as AnyObj).raised === null || (presentationCalibration as AnyObj).raised === undefined
-      ? Number.NaN
-      : Number((presentationCalibration as AnyObj).raised);
-  const loweredPosition =
-    (presentationCalibration as AnyObj).lowered === null || (presentationCalibration as AnyObj).lowered === undefined
-      ? Number.NaN
-      : Number((presentationCalibration as AnyObj).lowered);
-  if (!Number.isFinite(raisedPosition) && !Number.isFinite(loweredPosition)) {
-    return clampedPosition;
-  }
-  const effectiveRaised = Number.isFinite(raisedPosition) ? raisedPosition : 0;
-  const effectiveLowered = Number.isFinite(loweredPosition) ? loweredPosition : 100;
-  if (Math.abs(effectiveLowered - effectiveRaised) < 0.5) {
-    return clampedPosition;
-  } else {
-    return Math.max(
+export function airerPresentationPosition(
+  presentationRawPosition,
+  presentationCalibration: AirerPositionCalibration = {},
+) {
+  const clampedPresentationPosition = Math.max(
       0,
-      Math.min(
-        100,
-        ((effectiveLowered - clampedPosition) / (effectiveLowered - effectiveRaised)) * 100
-      )
-    );
-  }
+      Math.min(100, Number(presentationRawPosition) || 0),
+    ),
+    raisedBound =
+      presentationCalibration.raised === null || presentationCalibration.raised === undefined
+        ? Number.NaN
+        : Number(presentationCalibration.raised),
+    loweredBound =
+      presentationCalibration.lowered === null || presentationCalibration.lowered === undefined
+        ? Number.NaN
+        : Number(presentationCalibration.lowered);
+  if (!Number.isFinite(raisedBound) && !Number.isFinite(loweredBound))
+    return clampedPresentationPosition;
+  const effectiveRaisedBound = Number.isFinite(raisedBound) ? raisedBound : 0,
+    effectiveLoweredBound = Number.isFinite(loweredBound) ? loweredBound : 100;
+  return Math.abs(effectiveLoweredBound - effectiveRaisedBound) < 0.5
+    ? clampedPresentationPosition
+    : Math.max(
+        0,
+        Math.min(
+          100,
+          ((effectiveLoweredBound - clampedPresentationPosition) /
+            (effectiveLoweredBound - effectiveRaisedBound)) *
+            100,
+        ),
+      );
 }
-/**
- * 取晾衣机的展示位置，端点状态直接给 0 / 100。
- */
 export function airerPresentationPositionForState(
-  statePosition: any,
-  coverStateInput: any,
-  stateCalibration: any = {},
-  isReversed: any = false
+  statePresentationPosition,
+  stateEntityState,
+  stateCalibration = {},
+  isStateReversed = false,
 ) {
-  const physicalState = physicalCoverState(coverStateInput, isReversed);
-  if (physicalState === "open") {
-    return 100;
-  } else if (physicalState === "closed") {
-    return 0;
-  } else {
-    return airerPresentationPosition(statePosition, stateCalibration);
-  }
+  const statePhysicalCoverState = physicalCoverState(stateEntityState, isStateReversed);
+  return statePhysicalCoverState === "open"
+    ? 100
+    : statePhysicalCoverState === "closed"
+      ? 0
+      : airerPresentationPosition(statePresentationPosition, stateCalibration);
 }
-/**
- * 取晾衣机当前上报的位置。
- */
-export function airerReportedPosition(entityState: any, entityAttributes: any, reportedCalibration: AnyObj = {}) {
-  const stateNumber = Number(entityState?.state);
-  const attributePosition = Number(entityAttributes?.attributes?.current_position);
-  const hasRaisedPosition =
-    (reportedCalibration as AnyObj).raised !== null &&
-    (reportedCalibration as AnyObj).raised !== undefined &&
-    Number.isFinite(Number((reportedCalibration as AnyObj).raised));
-  const hasLoweredPosition =
-    (reportedCalibration as AnyObj).lowered !== null &&
-    (reportedCalibration as AnyObj).lowered !== undefined &&
-    Number.isFinite(Number((reportedCalibration as AnyObj).lowered));
-  if (
-    hasRaisedPosition &&
-    hasLoweredPosition &&
-    Math.abs(Number((reportedCalibration as AnyObj).lowered) - Number((reportedCalibration as AnyObj).raised)) >= 0.5 &&
-    Number.isFinite(stateNumber)
-  ) {
-    return stateNumber;
-  } else if (Number.isFinite(attributePosition)) {
-    return attributePosition;
-  } else {
-    return stateNumber;
-  }
+export function airerReportedPosition(
+  stateCoverEntity,
+  attributeCoverEntity,
+  reportedCalibration: AirerPositionCalibration = {},
+) {
+  const entityStatePosition = Number(stateCoverEntity?.state),
+    attributeCurrentPosition = Number(attributeCoverEntity?.attributes?.current_position),
+    hasRaisedCalibration =
+      reportedCalibration.raised !== null &&
+      reportedCalibration.raised !== undefined &&
+      Number.isFinite(Number(reportedCalibration.raised)),
+    hasLoweredCalibration =
+      reportedCalibration.lowered !== null &&
+      reportedCalibration.lowered !== undefined &&
+      Number.isFinite(Number(reportedCalibration.lowered));
+  return hasRaisedCalibration &&
+    hasLoweredCalibration &&
+    Math.abs(Number(reportedCalibration.lowered) - Number(reportedCalibration.raised)) >= 0.5 &&
+    Number.isFinite(entityStatePosition)
+    ? entityStatePosition
+    : Number.isFinite(attributeCurrentPosition)
+      ? attributeCurrentPosition
+      : entityStatePosition;
 }
-/**
- * 把界面百分比换算成下发命令用的设备百分比。
- */
-export function airerDevicePosition(reportedPercent: any, deviceCalibration: AnyObj = {}) {
-  const clampedDevicePosition = Math.max(0, Math.min(100, Number(reportedPercent) || 0));
-  const commandRaised =
-    (deviceCalibration as AnyObj).commandRaised === null || (deviceCalibration as AnyObj).commandRaised === undefined
-      ? Number((deviceCalibration as AnyObj).raised)
-      : Number((deviceCalibration as AnyObj).commandRaised);
-  const commandLowered =
-    (deviceCalibration as AnyObj).commandLowered === null || (deviceCalibration as AnyObj).commandLowered === undefined
-      ? Number((deviceCalibration as AnyObj).lowered)
-      : Number((deviceCalibration as AnyObj).commandLowered);
+export function airerDevicePosition(
+  deviceRawPosition,
+  deviceCalibration: AirerPositionCalibration = {},
+) {
+  const clampedDevicePosition = Math.max(0, Math.min(100, Number(deviceRawPosition) || 0)),
+    deviceCommandRaised =
+      deviceCalibration.commandRaised === null || deviceCalibration.commandRaised === undefined
+        ? Number(deviceCalibration.raised)
+        : Number(deviceCalibration.commandRaised),
+    deviceCommandLowered =
+      deviceCalibration.commandLowered === null || deviceCalibration.commandLowered === undefined
+        ? Number(deviceCalibration.lowered)
+        : Number(deviceCalibration.commandLowered);
   if (
-    !Number.isFinite(commandRaised) ||
-    !Number.isFinite(commandLowered) ||
-    Math.abs(commandLowered - commandRaised) < 0.5
-  ) {
+    !Number.isFinite(deviceCommandRaised) ||
+    !Number.isFinite(deviceCommandLowered) ||
+    Math.abs(deviceCommandLowered - deviceCommandRaised) < 0.5
+  )
     return clampedDevicePosition;
-  }
-  const spanStart = commandRaised;
-  const spanEnd = commandLowered;
-  return spanEnd - (clampedDevicePosition / 100) * (spanEnd - spanStart);
+  const deviceRaisedBound = deviceCommandRaised,
+    deviceLoweredBound = deviceCommandLowered;
+  return (
+    deviceLoweredBound - (clampedDevicePosition / 100) * (deviceLoweredBound - deviceRaisedBound)
+  );
 }
-// 与窗帘同设备、可视为「扩展功能」的域：开关、下拉、数值、按钮。
-const WATER_HEATER_DOMAINS = new Set(["switch", "select", "number", "button"]);
-/**
- * 取与窗帘同设备、可作为扩展功能的实体。
- */
-export function relatedWaterHeaterEntities(waterHeaterEntitiesById: any, waterHeaterEntityId: any) {
-  const waterHeaterSourceEntity = waterHeaterEntitiesById.get(waterHeaterEntityId);
-  if (!waterHeaterSourceEntity?.deviceId) {
-    return [];
-  }
-    // 固定展示顺序：开关 → 下拉 → 数值 → 按钮，同域内按实体 ID 字典序；
-  const domainOrder = new Map([
+const waterHeaterControlDomains = new Set(["switch", "select", "number", "button"]);
+export function relatedWaterHeaterEntities(waterHeaterEntityByEntityId, waterHeaterSourceEntityId) {
+  const waterHeaterSourceEntity = waterHeaterEntityByEntityId.get(waterHeaterSourceEntityId);
+  if (!waterHeaterSourceEntity?.deviceId) return [];
+  const waterHeaterDomainOrder = new Map([
     ["switch", 0],
     ["select", 1],
     ["number", 2],
-    ["button", 3]
+    ["button", 3],
   ]);
-  return [...waterHeaterEntitiesById.values()]
+  return [...waterHeaterEntityByEntityId.values()]
     .filter(
-      waterHeaterCandidate =>
-        waterHeaterCandidate.entityId !== waterHeaterEntityId &&
+      (waterHeaterCandidate) =>
+        waterHeaterCandidate.entityId !== waterHeaterSourceEntityId &&
         waterHeaterCandidate.deviceId === waterHeaterSourceEntity.deviceId &&
-        WATER_HEATER_DOMAINS.has(String(waterHeaterCandidate.domain || "")) &&
-        entityMetadataIsAvailable(waterHeaterCandidate)
+        waterHeaterControlDomains.has(String(waterHeaterCandidate.domain || "")) &&
+        entityMetadataIsAvailable(waterHeaterCandidate),
     )
     .sort(
       (leftWaterHeaterEntity, rightWaterHeaterEntity) =>
-        (domainOrder.get(leftWaterHeaterEntity.domain) ?? 99) -
-          (domainOrder.get(rightWaterHeaterEntity.domain) ?? 99) ||
+        (waterHeaterDomainOrder.get(leftWaterHeaterEntity.domain) ?? 99) -
+          (waterHeaterDomainOrder.get(rightWaterHeaterEntity.domain) ?? 99) ||
         String(leftWaterHeaterEntity.entityId || "").localeCompare(
-          String(rightWaterHeaterEntity.entityId || "")
-        )
+          String(rightWaterHeaterEntity.entityId || ""),
+        ),
     );
 }
-/**
- * 生成扩展功能项的展示名。
- */
-export function waterHeaterRelatedEntityLabel(labelComponent: any, entityMetadata: any) {
-  let label = String(entityMetadata?.name || entityMetadata?.originalName || "")
+export function waterHeaterRelatedEntityLabel(waterHeaterComponent, waterHeaterRelatedEntity) {
+  let relatedEntityLabel = String(
+    waterHeaterRelatedEntity?.name || waterHeaterRelatedEntity?.originalName || "",
+  )
     .replace(/\s+/g, " ")
     .trim();
-  const parentNameCandidates = [
+  const componentNameVariants = [
     ...new Set(
-      [labelComponent?.originalName, labelComponent?.name]
-        .map((nameCandidate: any) =>
-          String(nameCandidate || "")
+      [waterHeaterComponent?.originalName, waterHeaterComponent?.name]
+        .map((componentName) =>
+          String(componentName || "")
             .replace(/\s+/g, " ")
-            .trim()
+            .trim(),
         )
-        .filter(Boolean)
-    )
-  ].sort((leftParentName, rightParentName) => rightParentName.length - leftParentName.length);
-  for (const parentName of parentNameCandidates) {
-    while (label !== parentName && label.startsWith(parentName + " ")) {
-      label = label.slice(parentName.length).trim();
-    }
-  }
+        .filter(Boolean),
+    ),
+  ].sort((leftNameVariant, rightNameVariant) => rightNameVariant.length - leftNameVariant.length);
+  for (const nameVariant of componentNameVariants)
+    for (; relatedEntityLabel !== nameVariant && relatedEntityLabel.startsWith(nameVariant + " ");)
+      relatedEntityLabel = relatedEntityLabel.slice(nameVariant.length).trim();
   return (
-    label ||
-    (String(entityMetadata?.entityId || "").split(".", 2)[1] || "扩展功能").replace(/_/g, " ")
+    relatedEntityLabel ||
+    (String(waterHeaterRelatedEntity?.entityId || "").split(".", 2)[1] || "扩展功能").replace(
+      /_/g,
+      " ",
+    )
   );
 }
-/**
- * 在同一台设备里找出「电机反向」开关。
- */
-export function relatedCoverMotorReverseEntity(motorReverseEntitiesById: any, reverseEntityId: any) {
-  const motorReverseSourceEntity = motorReverseEntitiesById.get(reverseEntityId);
+export function relatedCoverMotorReverseEntity(reverseEntityByEntityId, reverseSourceEntityId) {
+  const reverseSourceEntity = reverseEntityByEntityId.get(reverseSourceEntityId);
   return (
-    (motorReverseSourceEntity?.deviceId &&
-      [...motorReverseEntitiesById.values()].find(
-        motorReverseCandidate =>
-          motorReverseCandidate.deviceId === motorReverseSourceEntity.deviceId &&
-          ["switch", "select"].includes(String(motorReverseCandidate.domain || "")) &&
+    (reverseSourceEntity?.deviceId &&
+      [...reverseEntityByEntityId.values()].find(
+        (reverseCandidate) =>
+          reverseCandidate.deviceId === reverseSourceEntity.deviceId &&
+          ["switch", "select"].includes(String(reverseCandidate.domain || "")) &&
           /motor_reverse|电机反向/i.test(
-            (motorReverseCandidate.entityId || "") + " " + (motorReverseCandidate.name || "")
+            (reverseCandidate.entityId || "") + " " + (reverseCandidate.name || ""),
           ) &&
-          entityMetadataIsAvailable(motorReverseCandidate)
+          entityMetadataIsAvailable(reverseCandidate),
       )) ||
     null
   );
 }
-/**
- * 按电机方向把展示状态还原成物理状态。
- */
-export function physicalCoverState(stateInput: any, reverseOverride: any = false) {
-  const stateName = String(stateInput || "");
-  return reverseOverride ? coverPhysicalStateForReversedMotor(stateName) : stateName;
+function entityStateIsEnabled(toggleStateInput) {
+  const toggleStateText = String(toggleStateInput?.newState?.state ?? toggleStateInput?.state ?? "")
+    .trim()
+    .toLowerCase();
+  return ["on", "true", "1", "enabled", "开启", "打开"].includes(toggleStateText);
 }
-/**
- * 取窗帘用于展示的状态名。
- */
-export function coverPresentationState(presentationStateInput: any, isReversedOverride: any = false) {
-  const stateObject: any = resolveStateEntry(presentationStateInput, {});
-  const presentedState = physicalCoverState(stateObject.state, isReversedOverride);
-  if (presentedState === "opening" || presentedState === "closing") {
-    return presentedState;
-  }
-  const statePositionPercent = coverPositionPercent(stateObject);
-  if (statePositionPercent === null) {
-    return presentedState;
-  } else if (
-    (isReversedOverride ? 100 - statePositionPercent : statePositionPercent) <= PERCENT_EPSILON
-  ) {
-    return "closed";
-  } else {
-    return "open";
-  }
+function resolveCoverMotorReversed(
+  motorReverseLookupByEntityId,
+  motorStateByEntityId,
+  motorComponentEntityId,
+) {
+  const motorReverseEntity = relatedCoverMotorReverseEntity(
+    motorReverseLookupByEntityId,
+    motorComponentEntityId,
+  );
+  return !!(
+    motorReverseEntity?.entityId &&
+    entityStateIsEnabled(motorStateByEntityId.get(motorReverseEntity.entityId))
+  );
 }
-/**
- * 在梦幻帘路径下复用的状态解析：只做电机方向还原，不做位置归一。
- */
-function resolvedCoverState(physicalStateInput: any, motorReversed: any = false) {
-  const coverStateObject: any = resolveStateEntry(physicalStateInput, {});
-  return physicalCoverState(coverStateObject.state, motorReversed);
+export function coverMotorIsReversedForComponent(
+  motorComponent,
+  motorDeviceById,
+  motorComponentByEntityId,
+  motorComponentEntityId2,
+) {
+  const coverMotorDirection = motorComponent?.properties?.coverMotorDirection;
+  return coverMotorDirection === "normal" ? false : coverMotorDirection === "reversed";
 }
-/**
- * 取梦幻帘叶片位置的文案。
- */
-function dreamCurtainBladeLabel(bladePosition: any) {
-  const clampedBladePosition = Math.max(0, Math.min(100, Number(bladePosition) || 0));
-  if (clampedBladePosition <= PERCENT_EPSILON) {
-    return "一侧闭合";
-  } else if (clampedBladePosition >= 100 - PERCENT_EPSILON) {
-    return "反向闭合";
-  } else if (Math.abs(clampedBladePosition - 50) <= 2) {
-    return "90°打开";
-  } else {
-    return Math.round(clampedBladePosition * 1.8) + "°";
-  }
+export function physicalCoverState(physicalStateText, isMotorReversed = false) {
+  const rawPhysicalState = String(physicalStateText || "");
+  return (
+    (isMotorReversed &&
+      {
+        open: "closed",
+        closed: "open",
+        opening: "closing",
+        closing: "opening",
+      }[rawPhysicalState]) ||
+    rawPhysicalState
+  );
 }
-/**
- * 生成梦幻帘「整体 + 叶片」的组合状态文案。
- */
-export function dreamCurtainStatusText(coverStateName: any, bladeAngle: any, reverseFlag: any = false) {
-  const resolvedPhysicalState = physicalCoverState(coverStateName, reverseFlag);
+export function coverPresentationState(dreamEntityState, isDreamReversed = false) {
+  const dreamStateData = dreamEntityState?.newState || dreamEntityState || {},
+    dreamPhysicalState = physicalCoverState(dreamStateData.state, isDreamReversed);
+  if (dreamPhysicalState === "opening" || dreamPhysicalState === "closing")
+    return dreamPhysicalState;
+  const dreamPositionValue = airerPositionFromState(dreamStateData);
+  return dreamPositionValue === null
+    ? dreamPhysicalState
+    : (isDreamReversed ? 100 - dreamPositionValue : dreamPositionValue) <=
+        POSITION_TOLERANCE_PERCENT
+      ? "closed"
+      : "open";
+}
+function resolvePhysicalCoverState(physicalEntityState, isPhysicalReversed = false) {
+  const physicalStateData = physicalEntityState?.newState || physicalEntityState || {};
+  return physicalCoverState(physicalStateData.state, isPhysicalReversed);
+}
+export function dreamCurtainBladeLabel(bladeRawPosition) {
+  const bladeClampedPosition = Math.max(0, Math.min(100, Number(bladeRawPosition) || 0));
+  return bladeClampedPosition <= POSITION_TOLERANCE_PERCENT
+    ? "一侧闭合"
+    : bladeClampedPosition >= 100 - POSITION_TOLERANCE_PERCENT
+      ? "反向闭合"
+      : Math.abs(bladeClampedPosition - 50) <= 2
+        ? "90°打开"
+        : Math.round(bladeClampedPosition * 1.8) + "°";
+}
+export function dreamCurtainStatusText(
+  curtainStateText,
+  curtainBladePosition,
+  isCurtainReversed = false,
+) {
+  const curtainPhysicalState = physicalCoverState(curtainStateText, isCurtainReversed);
   return (
     "整体：" +
     ({
       open: "开启",
       closed: "关闭",
       opening: "正在开启",
-      closing: "正在关闭"
-    }[resolvedPhysicalState] || "未知") +
+      closing: "正在关闭",
+    }[curtainPhysicalState] || "未知") +
     " · 叶片：" +
-    dreamCurtainBladeLabel(bladeAngle)
+    dreamCurtainBladeLabel(curtainBladePosition)
   );
 }
-/**
- * 由「是否已收起」与「是否在移动」生成同样的组合文案。
- */
-export function dreamCurtainStatusFromRetraction(isRetracting: any, isMoving: any, bladePercent: any) {
+export function dreamCurtainStatusFromRetraction(
+  isCurtainRetracted,
+  isCurtainInMotion,
+  motionBladePosition,
+) {
   return (
     "整体：" +
-    (isMoving ? (isRetracting ? "正在开启" : "正在关闭") : isRetracting ? "开启" : "关闭") +
+    (isCurtainInMotion
+      ? isCurtainRetracted
+        ? "正在开启"
+        : "正在关闭"
+      : isCurtainRetracted
+        ? "开启"
+        : "关闭") +
     " · 叶片：" +
-    dreamCurtainBladeLabel(bladePercent)
+    dreamCurtainBladeLabel(motionBladePosition)
   );
 }
-/**
- * 判断梦幻帘是否已收起。
- */
-export function dreamCurtainIsRetracted(retractionStateInput: any, retractionReversed: any = false) {
-  const retractedState = physicalCoverState(retractionStateInput, retractionReversed);
-  return retractedState === "open" || retractedState === "opening";
+export function dreamCurtainIsRetracted(retractionStateText, isRetractionReversed = false) {
+  const retractionPhysicalState = physicalCoverState(retractionStateText, isRetractionReversed);
+  return retractionPhysicalState === "open" || retractionPhysicalState === "opening";
 }
-/**
- * 按当前收起状态取反，返回要调用的服务名。
- */
-export function dreamCurtainToggleService(isRetracted: any, openService: any, closeService: any) {
-  if (isRetracted) {
-    return closeService;
-  } else {
-    return openService;
-  }
-}
-/**
- * 为窗帘控件挑出本次「切换」要调用的服务。
- */
-export function coverToggleServiceForComponent(
-  toggleComponent: any,
-  entityMetadataById: any,
-  stateByEntityId: any,
-  componentEntityId: any
+export function dreamCurtainToggleService(
+  isRetractedForToggle,
+  openCurtainService,
+  closeCurtainService,
 ) {
-  // 方向读控件属性（唯一实现在叶子模块 cover-direction.js，见模块头）。
-  const isMotorReversed = coverMotorIsReversedForComponent(toggleComponent);
-  const resolvedStateEntry = stateByEntityId.get(componentEntityId);
-  const presentationState = coverComponentIsDream(
-    toggleComponent,
-    componentEntityId,
-    resolvedStateEntry,
-    entityMetadataById
-  )
-    ? resolvedCoverState(resolvedStateEntry, isMotorReversed)
-    : coverPresentationState(resolvedStateEntry, isMotorReversed);
-    // 已在打开侧就去关；但电机反接时服务名要反过来发——
-  if (presentationState === "open" || presentationState === "opening") {
-    if (isMotorReversed) {
-      return "open_cover";
-    } else {
-      return "close_cover";
-    }
-  } else if (isMotorReversed) {
-    return "close_cover";
-  } else {
-    return "open_cover";
-  }
+  return isRetractedForToggle ? closeCurtainService : openCurtainService;
+}
+export function coverToggleServiceForComponent(
+  toggleComponent,
+  toggleDeviceById,
+  toggleEntityByEntityId,
+  toggleEntityId,
+) {
+  const toggleCoverState = toggleEntityByEntityId.get(toggleEntityId),
+    toggleMotorReversed = coverMotorIsReversedForComponent(
+      toggleComponent,
+      toggleDeviceById,
+      toggleEntityByEntityId,
+      toggleEntityId,
+    ),
+    togglePresentationState = coverComponentIsDream(
+      toggleComponent,
+      toggleEntityId,
+      toggleCoverState,
+      toggleDeviceById,
+    )
+      ? resolvePhysicalCoverState(toggleCoverState, toggleMotorReversed)
+      : coverPresentationState(toggleCoverState, toggleMotorReversed);
+  return togglePresentationState === "open" || togglePresentationState === "opening"
+    ? toggleMotorReversed
+      ? "open_cover"
+      : "close_cover"
+    : toggleMotorReversed
+      ? "close_cover"
+      : "open_cover";
 }

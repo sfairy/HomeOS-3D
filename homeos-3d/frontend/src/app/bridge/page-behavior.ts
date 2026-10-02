@@ -1,86 +1,63 @@
 /**
- * 页面行为解析：把「组件级配置 + 页面级覆盖」合成某类设备页面最终生效的行为参数。
+ * 页面行为配置来自文档，键是行为名（interaction / autoRotate / …），取值由各行为自己解释，
+ * 所以除少数已知键外统一走索引签名。
  */
-
-import type { PropertyBag } from "../types/document.js";
-
-type PageBehaviorConfig = PropertyBag & {
-  behaviorScope?: unknown;
-  pageBehaviors?: Record<string, PropertyBag | boolean | undefined>;
-  camera?: { rotationMode?: unknown; [key: string]: unknown };
+type PageBehaviorConfig = {
+  behaviorScope?: string;
+  pageBehaviors?: Record<string, Record<string, any>>;
+  camera?: { rotationMode?: string };
   hideIconsWhileRotating?: unknown;
-  interaction?: PropertyBag;
-  autoRotate?: PropertyBag;
-  idleExitFocus?: PropertyBag;
-  idleHideIcons?: PropertyBag;
+  // 每种行为的取值形状不同，且会被原样展开进结果，因此这里不设约束。
+  [behaviorName: string]: any;
 };
-
-/**
- * 解析指定设备种类的最终页面行为。
- */
-export function resolvePageBehavior(config: PageBehaviorConfig = {}, deviceKind = "light") {
-  // 清扫、电视、NAS、窗帘、空调在设置面板里各自归入固定的页面分组，
-  const targetPage =
-    {
-      climate: "environment",
-      cover: "environment",
-      nas: "devices",
-      television: "devices",
-      "vacuum-shortcut": "vacuum"
-    }[deviceKind] || deviceKind;
-  // scope 非 page 时覆盖整体失效；这里显式取 null 而不只是忽略，
-  const pageOverrides =
-    config.behaviorScope === "page"
-      ? ((config.pageBehaviors?.[targetPage] as PropertyBag | boolean | undefined) ?? null)
-      : null;
-  // 三个 spread 的书写顺序即优先级（后者覆盖前者），不能调换。
-  const mergeSection = (sectionKey: string, defaults: PropertyBag) => {
-    const pageOverride =
-      pageOverrides && typeof pageOverrides === "object"
-        ? pageOverrides[sectionKey]
-        : undefined;
-    const configSection = config[sectionKey];
-    return {
-      ...defaults,
-      ...(configSection && typeof configSection === "object"
-        ? (configSection as PropertyBag)
-        : {}),
-      ...(typeof pageOverride == "boolean"
-        ? {
-            enabled: pageOverride
-          }
-        : pageOverride && typeof pageOverride === "object"
-          ? (pageOverride as PropertyBag)
-          : {})
+export function resolvePageBehavior(behavior: PageBehaviorConfig = {}, pageKind = "light") {
+  const normalizedPage =
+      {
+        climate: "environment",
+        cover: "environment",
+        nas: "devices",
+        speaker: "devices",
+        television: "devices",
+        "vacuum-shortcut": "vacuum",
+      }[pageKind] || pageKind,
+    scopeBehaviors =
+      behavior.behaviorScope === "page" ? behavior.pageBehaviors?.[normalizedPage] : null,
+    mergeBehavior = (name, defaults) => {
+      const scopedBehavior = scopeBehaviors?.[name];
+      return {
+        ...defaults,
+        ...behavior[name],
+        ...(typeof scopedBehavior == "boolean"
+          ? {
+              enabled: scopedBehavior,
+            }
+          : scopedBehavior || {}),
+      };
     };
-  };
-  // 各分节默认 false / 关闭：页面行为是增强项，缺省不改变既有手感。interaction 的默认旋转模式
   return {
-    interaction: mergeSection("interaction", {
-      rotationMode: config.camera?.rotationMode || "free",
+    interaction: mergeBehavior("interaction", {
+      rotationMode: behavior.camera?.rotationMode || "free",
       panEnabled: false,
-      zoomEnabled: false
+      zoomEnabled: false,
     }),
-    autoRotate: mergeSection("autoRotate", {
+    autoRotate: mergeBehavior("autoRotate", {
       enabled: false,
       idleSeconds: 30,
       speed: 6,
       direction: "clockwise",
-      returnToDefault: false
+      returnToDefault: false,
     }),
-    idleExitFocus: mergeSection("idleExitFocus", {
+    idleExitFocus: mergeBehavior("idleExitFocus", {
       enabled: false,
-      idleSeconds: 30
+      idleSeconds: 30,
     }),
-    idleHideIcons: mergeSection("idleHideIcons", {
+    idleHideIcons: mergeBehavior("idleHideIcons", {
       enabled: false,
-      idleSeconds: 30
+      idleSeconds: 30,
     }),
     hideIconsWhileRotating:
-      pageOverrides &&
-      typeof pageOverrides === "object" &&
-      typeof pageOverrides.hideIconsWhileRotating == "boolean"
-        ? pageOverrides.hideIconsWhileRotating
-        : config.hideIconsWhileRotating === true
+      typeof scopeBehaviors?.hideIconsWhileRotating == "boolean"
+        ? scopeBehaviors.hideIconsWhileRotating
+        : behavior.hideIconsWhileRotating === true,
   };
 }
