@@ -13,7 +13,7 @@
     "obfuscate:store": "bun ops/docker/obfuscate_javascript.mjs homeos-store/dist/static",
     "typecheck": "bun run --cwd homeos-3d typecheck && bun run --cwd homeos-store typecheck",
     "verify:scene": "python3 ops/verify_scene_sync.py",
-    "verify:smoke": ".venv-store/bin/python homeos-3d/tools/smoke_logic.py && .venv-store/bin/python homeos-store/tools/smoke_store.py",
+    "verify:smoke": ".venv-store/bin/python homeos-store/tools/smoke_store.py",
     "dev": "python3 ops/start.py",
     "dev:runtime": "bun run --cwd homeos-3d dev:runtime",
     "dev:backend": "python3 ops/start.py --backend-only",

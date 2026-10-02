@@ -37,8 +37,7 @@
   // 这一步，于是 src.* / backend.src.* 一律报 reportMissingImports。
   //
   // 两个应用的约定**不一样**，这里必须分开写：
-  //   - 主应用：import 根是项目根，包名 backend.src（见 homeos-3d/migrations/env.py 与
-  //     homeos-3d/tools/smoke_pages.py）；
+  //   - 主应用：import 根是项目根，包名 backend.src（见 homeos-3d/migrations/env.py）；
   //   - 商店：import 根是 backend，包名就是 src（见 homeos-store/db/migrations/env.py）。
   // 每条只挂自己需要的那一个根：两个后端都有同名的 src 包，全局放开的话，后端代码里写错的
   // src.* 导入会被另一边的同名模块“接住”而不再报错；同理，两个迁移目录也各自只挂自己的根。

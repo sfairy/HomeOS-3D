@@ -103,8 +103,7 @@ bun run --cwd homeos-3d dev:runtime
 
 调试**不会**关掉后端的 `--reload` / `STORE_RELOAD`，改完代码重载出来的新进程照样能命中断点：
 
-- **Cursor / VS Code**：`Run and Debug` 选 **HomeOS 全栈（断点 + 热重载）** 或 **HomeOS 仅后端**（`.vscode/launch.json`，已配好 `subProcess`）。首次 F5 会自动建 `.venv-store` 并装依赖（`.vscode/tasks.json`）。
-- **终端 + attach**：先在终端 `python3 ops/start.py --debug`（`8803` / `8804` 挂 debugpy），再用 launch.json 里的 `attach` 配置连上去。
+- **终端 + attach**：先在终端 `python3 ops/start.py --debug`（后端 `8803`、商店 `8804` 挂 debugpy），再用编辑器的「附加到进程 / attach」连到对应端口。
 
 原理：debugpy 会 patch `multiprocessing` 与 `subprocess`，而两个后端的重载子进程正是从这两处拉起来的，所以它们会自动连回同一个调试会话。
 

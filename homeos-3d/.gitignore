@@ -8,7 +8,3 @@ data/
 # Python
 __pycache__/
 *.py[cod]
-
-# 对账门禁的过程报告：mapping.json 是 verify_parity.py 的输入（要提交），
-# parity_report.json 每次运行都重写（不提交）。
-tools/_migration/parity_report.json

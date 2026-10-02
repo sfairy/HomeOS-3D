@@ -323,8 +323,8 @@ def debugpy_prefix(python: str, debug_port: str) -> list[str]:
 
 def main() -> None:
     if PREPARE_FLAG in sys.argv[1:]:
-        # 只建环境、不起任何服务：给 IDE 的 preLaunchTask 用 —— 调试器得先拿到解释器路径
-        # 才能启动 ops/start.py，而首次 clone 时 .venv-store 还不存在（见 .vscode/tasks.json）。
+        # 只建环境、不起任何服务：给 IDE 的 preLaunchTask（或手动 `--prepare`）用 —— 调试器
+        # 得先拿到解释器路径才能启动 ops/start.py，而首次 clone 时 .venv-store 还不存在。
         print(f'Python 环境就绪：{ensure_venv()}', flush=True)
         return
     options = resolve_run_options(sys.argv[1:])
@@ -351,8 +351,8 @@ def main() -> None:
 
     app_environment = base_environment.copy()
     app_environment['APP_DATA_DIR'] = str(HOMEOS_3D / 'data')
-    # 后端包是 homeos-3d/backend/src，导入名因此是 backend.src.*（见 migrations/env.py 与
-    # tools/smoke_pages.py）。PYTHONPATH 必须挂项目根而不是 backend/：挂 backend/ 只能让
+    # 后端包是 homeos-3d/backend/src，导入名因此是 backend.src.*（见 migrations/env.py）。
+    # PYTHONPATH 必须挂项目根而不是 backend/：挂 backend/ 只能让
     # ``src.*`` 解析，而迁移脚本里的 ``backend.src.*`` 会另起一棵模块树，同一份 database.py
     # 被导入两次 → 两个 Base、两个模型类。
     app_environment['PYTHONPATH'] = str(HOMEOS_3D)

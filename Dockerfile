@@ -82,7 +82,7 @@ COPY --from=frontend-tools /work/homeos-3d/dist ./dist
 # migrations/ 里的迁移脚本必须原样保留（compile_python.py 的 KEEP_SOURCE_PREFIXES 已含它）：
 # alembic 是**读源码文件**来执行的，编译成 .so 之后它反而找不到脚本。
 # 位置与导入名都不是随意定的：/app/alembic.ini 的 script_location=migrations，而
-# migrations/env.py 按 backend.src.* 导入（见 backend/src/main.py 与 tools/smoke_pages.py），
+# migrations/env.py 按 backend.src.* 导入（见 backend/src/main.py），
 # 所以后端必须落在 /app/backend/src，PYTHONPATH=/app 才能同时解析 backend.src.* 与 ops.*。
 COPY homeos-3d/migrations ./migrations
 # /app/image：内置素材目录（settings.built_in_assets_dir），默认空，可另行挂载增删。

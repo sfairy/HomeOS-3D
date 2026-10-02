@@ -30,18 +30,13 @@ node_modules/
 dist/
 *.tsbuildinfo
 .pytest_cache/
-.ruff_cache/
 
 # IDE：JetBrains 的本地索引与个人配置不参与版本管理。
-# （.vscode/settings.json 是有意提交的——它钉死类型检查档位，见 pyrightconfig.json）
 .idea/
 
 # 本地构建产物：客户分发包（ops/deploy/pack-customer.sh 默认输出到 build/customer-pack）。
 /build/
 
-# 还原工程的本地工作区与工具暂存（见 tools/lib/scan-tree.mjs 的 DEFAULT_IGNORES：
-# .restore 放基线与批次回滚快照，.graphflow / graphflow-out 是 GraphFlow 的缓存与导出）。
+# 还原工程的本地工作区与工具暂存（.restore 放基线与批次回滚快照）。
 .restore/
-.graphflow/
-graphflow-out/
 tools/reference/.extracted/
