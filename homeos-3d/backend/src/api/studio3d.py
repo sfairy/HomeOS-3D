@@ -14,7 +14,7 @@ import os
 import shutil
 import tempfile
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from threading import RLock
 from urllib.parse import unquote
@@ -49,7 +49,7 @@ def _utc_now() -> str:
     #
     # 注意与 observability/global_log 的同名概念区分：那个 utc_now() 返回的是
     # datetime，本函数返回的是**字符串**。
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _atomic_json_write(path: Path, payload: dict) -> None:

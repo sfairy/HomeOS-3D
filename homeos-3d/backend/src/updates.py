@@ -11,7 +11,7 @@ import os
 import random
 import re
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID
 
@@ -211,7 +211,7 @@ class UpdateChecker:
             "channel": self.channel,
             "updateAvailable": available,
             "latestVersion": release["version"] if release else None,
-            "checkedAt": datetime.fromtimestamp(self.checked_at, timezone.utc).isoformat()
+            "checkedAt": datetime.fromtimestamp(self.checked_at, UTC).isoformat()
             if fresh
             else None,
             "logUrl": f"{WIKI_URL}?release={release['id']}#changelog"

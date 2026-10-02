@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import html
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -17,7 +17,7 @@ DECK_PLACEHOLDER = '<!--{{DECK}}-->'
 #: 有状态甲板的页面。商店只有这三块「整页入口壳」—— 前台其余分页（首页、商品、
 DECK_PAGES = frozenset({'store.html', 'admin.html', 'setup.html'})
 
-_PROCESS_STARTED_AT = datetime.now(timezone.utc)
+_PROCESS_STARTED_AT = datetime.now(UTC)
 
 #: 一格读数的冻结形态：``(标签, 文本, 单位, 色条档, 客户端钩子, 时间戳)``。
 Tile = tuple[str, str, str, str, str, str]

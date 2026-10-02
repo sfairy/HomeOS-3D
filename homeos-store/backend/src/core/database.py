@@ -62,7 +62,7 @@ class Database:
         self.session_factory = sessionmaker(bind=self.engine, expire_on_commit=False, future=True)
 
     @contextmanager
-    def session(self) -> Generator[Session, None, None]:
+    def session(self) -> Generator[Session]:
         session = self.session_factory()
         try:
             yield session

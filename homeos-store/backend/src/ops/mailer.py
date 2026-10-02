@@ -221,7 +221,7 @@ def _is_transient(error: BaseException) -> bool:
 @contextmanager
 def _connect_smtp(
     settings: StoreSettings, *, deadline: float | None = None
-) -> Generator[smtplib.SMTP, None, None]:
+) -> Generator[smtplib.SMTP]:
     """建立到 SMTP 的连接并完成 TLS / 登录握手，**不发信**。
     """
     timeout = max(1, int(settings.smtp_timeout_seconds or 15))

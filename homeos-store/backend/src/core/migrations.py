@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from alembic import command
@@ -108,7 +108,7 @@ def backup_database(database_path: Path) -> Path | None:
     """
     if not database_path.is_file() or database_path.stat().st_size == 0:
         return None
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     destination = database_path.parent / f"{database_path.name}.pre-{MIGRATION_BACKUP_LABEL}-{stamp}.bak"
     #: 同一秒内的第二次备份会撞上这个名字，而 ``VACUUM INTO`` 撞名是**直接报错**的。
     suffix = 1

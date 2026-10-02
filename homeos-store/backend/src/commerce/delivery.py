@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta, timezone
+from datetime import UTC, timedelta, timezone
 
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
@@ -32,7 +32,7 @@ def _expires_text(license_row: License) -> str:
     if moment is None:
         return "永久有效"
     if moment.tzinfo is None:
-        moment = moment.replace(tzinfo=timezone.utc)
+        moment = moment.replace(tzinfo=UTC)
     return moment.astimezone(_CHINA_TZ).strftime("%Y-%m-%d %H:%M") + "（北京时间）"
 
 

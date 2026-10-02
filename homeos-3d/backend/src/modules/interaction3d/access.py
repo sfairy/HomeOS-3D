@@ -7,7 +7,7 @@
 # 拿到的永远是「此刻能不能用」的结论。
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import HTTPException, Request
 
@@ -73,7 +73,7 @@ def access_grant(request: Request) -> dict:
         except (LicenseCryptoError, KeyError, TypeError, ValueError) as error:
             # 租约损坏或签名不匹配时宁可拒绝，不退化到「当没开授权强制」而放行。
             raise HTTPException(403, detail='3D 交互授权校验失败。') from error
-        lifetime = min(lifetime, (deadline - datetime.now(timezone.utc)).total_seconds())
+        lifetime = min(lifetime, (deadline - datetime.now(UTC)).total_seconds())
         # 租约本身还在，但权益已经过期：同样不放行。
         if lifetime <= 0:
             raise HTTPException(403, detail='3D 交互授权已到期。')

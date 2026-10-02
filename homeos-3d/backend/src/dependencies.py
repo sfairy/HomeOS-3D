@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, Response, status
@@ -47,7 +47,7 @@ DatabaseSession = Annotated[Session, Depends(get_database_session)]
 
 def _aware(value: datetime) -> datetime:
     # [补充说明] 把可能是 naive 的时间戳补成 UTC aware，便于与 datetime.now(timezone.utc) 比较。
-    return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
+    return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
 
 
 def _admin_session(
@@ -67,7 +67,7 @@ def _admin_session(
     record = database.scalar(
         select(LoginSession).where(LoginSession.id_hash == session_token_hash(token))
     )
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if record is None or _aware(record.expires_at) <= now:
         if record is not None:
             database.delete(record)
@@ -199,7 +199,7 @@ def _display_device(
     device = active_display_device(database, token)
     if device is None:
         return None
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     # 节流窗口：只有设备"冷下来"才回写活跃时间并续期 Cookie（每次心跳都写库会把它变成热点行）。
     if now - _aware(device.last_seen_at) >= timedelta(minutes=5):
         device.last_seen_at = now
@@ -230,7 +230,7 @@ def authenticated_viewer(
     display = _display_device(request, response, database)
     # 嵌入会话（跨站 iframe）不落在展示设备 Cookie 上，单独列出来。
     devices = list(embedded_devices(request, database))
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     refreshed = False
     for device in devices:
         # 与展示设备同样的滑动续期节流：只有设备"冷下来"才回写并续发 Cookie。

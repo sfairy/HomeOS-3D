@@ -16,7 +16,7 @@ import sys
 import time
 import traceback
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote
 from uuid import uuid4
@@ -405,7 +405,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             record = database.scalar(
                 select(LoginSession).where(LoginSession.id_hash == session_token_hash(token))
             )
-            if record is None or record.expires_at.replace(tzinfo = timezone.utc) <= datetime.now(timezone.utc):
+            if record is None or record.expires_at.replace(tzinfo = UTC) <= datetime.now(UTC):
                 return False
             if record.user_id != account_user_id:
                 return False

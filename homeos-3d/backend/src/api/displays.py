@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import secrets
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
@@ -280,7 +280,7 @@ def update_pairing_code(
         pairing.project_id = project.id
     if payload.enabled is not None:
         pairing.is_enabled = payload.enabled
-    pairing.updated_at = datetime.now(timezone.utc)
+    pairing.updated_at = datetime.now(UTC)
     # 该配对码若已经配对出设备，改名/改绑要一并同步，否则墙上的屏还指着旧项目。
     device = database.scalar(
         select(DisplayDevice).where(
@@ -354,7 +354,7 @@ def pair_display_device(
     # 嵌入配对由页面显式指定仪表盘：声明的项目与配对码不符就拒绝，避免把码用到别的屏上。
     if payload.embedded and payload.project_id and payload.project_id != project.id:
         raise HTTPException(403, detail='这个配对码不属于当前仪表盘。')
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     token = new_session_token()
     # 同一配对码只保留一行设备：重复配对时复用那一行并换发新令牌。
     device = database.scalar(
@@ -428,14 +428,14 @@ def update_display_device(
         device.project_id = project.id
         if pairing is not None:
             pairing.project_id = project.id
-            pairing.updated_at = datetime.now(timezone.utc)
+            pairing.updated_at = datetime.now(UTC)
     else:
         project = database.get(Project, device.project_id)
     if payload.name is not None:
         device.name = payload.name
         if pairing is not None:
             pairing.name = payload.name
-            pairing.updated_at = datetime.now(timezone.utc)
+            pairing.updated_at = datetime.now(UTC)
     database.commit()
     database.refresh(device)
     return device_payload(device, project)
@@ -452,6 +452,6 @@ def revoke_display_device(device_id: str, database: DatabaseSession, user: Licen
     if device is None or device.revoked_at is not None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='中控设备不存在。')
     # 软删除：依赖层只认未吊销的设备，写入时间戳即可让令牌立即失效。
-    device.revoked_at = datetime.now(timezone.utc)
+    device.revoked_at = datetime.now(UTC)
     database.commit()
     return None

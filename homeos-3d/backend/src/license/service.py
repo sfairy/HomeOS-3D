@@ -15,7 +15,7 @@ import threading
 import time
 from collections.abc import Collection
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import httpx
 from sqlalchemy import select
@@ -135,7 +135,7 @@ def aware(value):
     # SQLite 不保留时区，读出来的 datetime 是 naive 的；统一补成 UTC 再参与比较。
     if value is None or value.tzinfo is not None:
         return value
-    return value.replace(tzinfo=timezone.utc)
+    return value.replace(tzinfo=UTC)
 
 
 class LicenseService:
@@ -538,7 +538,7 @@ class LicenseService:
             ):
                 raise LicenseCryptoError('本地授权会话与签名租约不一致。')
             expires = parse_timestamp(payload['expiresAt'])
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             last_verified = aware(state.last_verified_at)
             # 时钟回拨检测：本机时间比上次校验时间还早，会让已过期的租约「复活」，必须拦下；
             # issuedAt 明显晚于本机同样是「本机时钟不可信」，此时按本机时间判到期只会得出错误结论。
@@ -671,7 +671,7 @@ class LicenseService:
             expires_at = parse_timestamp(payload['expiresAt'])
             issued_at = parse_timestamp(payload['issuedAt'])
             lease_sequence = payload['leaseSequence']
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             if issued_at > now + timedelta(seconds=self.settings.license_clock_skew_seconds):
                 # 签发时间明显超前本机 → 时钟偏慢或服务端异常，到期判断不可信，先要求校准时间。
                 state.status = 'CLOCK_ROLLBACK'
@@ -727,7 +727,7 @@ class LicenseService:
             state.deactivated_at = None
             # 首次激活时间只写一次：重新激活不覆盖，便于统计设备生命周期。
             if state.activated_at is None:
-                state.activated_at = datetime.now(timezone.utc)
+                state.activated_at = datetime.now(UTC)
             if activation_code_hint:
                 state.activation_code_hint = activation_code_hint
             if activation_code:
@@ -1125,7 +1125,7 @@ class LicenseService:
             else:
                 expires = aware(state.lease_expires_at)
                 # 租约未到期只是联系不上服务器，功能继续可用；已到期则必须拦截等恢复。
-                state.status = 'CONNECTION_WARNING' if expires and expires > datetime.now(timezone.utc) else 'LEASE_EXPIRED'
+                state.status = 'CONNECTION_WARNING' if expires and expires > datetime.now(UTC) else 'LEASE_EXPIRED'
                 code = code or 'NETWORK_UNAVAILABLE'
             # 同样截断，避免超长错误进库。
             state.last_error = message[:1000]
@@ -1160,7 +1160,7 @@ class LicenseService:
         expires = aware(state.lease_expires_at)
         if expires is None:
             return interval
-        remaining = (expires - (now or datetime.now(timezone.utc))).total_seconds()
+        remaining = (expires - (now or datetime.now(UTC))).total_seconds()
         # 不允许负等待；到期时间比间隔更近时提前唤醒。
         return max(0, min(interval, remaining))
 
@@ -1205,7 +1205,7 @@ class LicenseService:
                     recover = self._startup_validation_pending or state.status in {'LEASE_EXPIRED', 'RECOVERY_RETRY'}
                     expires = aware(state.lease_expires_at)
                     # 租约已到期（即使状态字段还说 ACTIVE）也必须走恢复。
-                    recover = recover or bool(expires and expires <= datetime.now(timezone.utc))
+                    recover = recover or bool(expires and expires <= datetime.now(UTC))
                 # 清黑名单：每一轮计划重试都要能重新探测全部地址，否则整轮会撞在冷却里，
                 # 把「自动恢复」拖成「干等一个冷却周期」。
                 self._endpoint_pool.retry_failed()
@@ -1234,7 +1234,7 @@ class LicenseService:
         # 先复制库值再实时修正：修正不写库，避免把与时间相关的瞬时判断固化成持久状态。
         effective_status = state.status
         effective_error = state.last_error
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         last_verified = aware(state.last_verified_at)
         lease_expires = aware(state.lease_expires_at)
         if last_verified and now + timedelta(seconds=self.settings.license_clock_skew_seconds) < last_verified:
@@ -1425,7 +1425,7 @@ class LicenseService:
         except LicenseCryptoError as error:
             self._record_failure('本地校验', error, sensitive_values=(state.signed_lease,))
             return False
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         last_verified = aware(state.last_verified_at)
         # 时钟回拨会让已过期的租约重新「有效」，必须拒绝。
         if last_verified and now + timedelta(seconds=self.settings.license_clock_skew_seconds) < last_verified:

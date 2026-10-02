@@ -8,7 +8,7 @@ import hmac
 import re
 import secrets
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 PBKDF2_ITERATIONS = 240_000
 PBKDF2_ALGORITHM = "sha256"
@@ -16,7 +16,7 @@ PBKDF2_ALGORITHM = "sha256"
 
 def utcnow() -> datetime:
     """返回 naive UTC 时间，便于 SQLite 存储与比较。"""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def naive_utc(value: datetime | None) -> datetime | None:
@@ -24,7 +24,7 @@ def naive_utc(value: datetime | None) -> datetime | None:
     """
     if value is None or value.tzinfo is None:
         return value
-    return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value.astimezone(UTC).replace(tzinfo=None)
 
 
 def iso(value: datetime | None) -> str | None:
@@ -127,7 +127,7 @@ def code_hash(code: str, salt: str = "") -> str:
 def new_order_no(prefix_email: str, *, now: datetime | None = None) -> str:
     """生成订单号：``HOMEOS-<本地时间14位>-<邮箱前缀>-<随机6位>``。
     """
-    moment = now or (datetime.now(timezone.utc) + timedelta(hours=8))
+    moment = now or (datetime.now(UTC) + timedelta(hours=8))
     local_prefix = "".join(ch for ch in (prefix_email or "").split("@")[0] if ch.isalnum())
     if not local_prefix:
         local_prefix = "customer"

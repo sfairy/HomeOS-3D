@@ -14,7 +14,7 @@ import hashlib
 import hmac
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from collections.abc import Mapping
 from typing import Any
@@ -161,8 +161,8 @@ def parse_timestamp(value: str) -> datetime:
     # 没有时区信息时按 UTC 解释：服务端始终以 UTC 签发，缺失时区不能理解成本机时区，
     # 否则跨时区部署会误判租约到期；再统一折算到 UTC，保证后续比较都在同一时区。
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _decode(value: str) -> bytes:

@@ -12,7 +12,7 @@ import json
 import math
 import time
 import traceback
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlsplit
 from uuid import uuid4
@@ -705,7 +705,7 @@ async def entity_history(
     if not entity_exists:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='实体不存在、已禁用或已失联。')
     # HA 的历史接口按绝对起始时间查询，这里换算成 UTC 的 ISO 字符串。
-    start_time = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    start_time = (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
     try:
         history = await request.app.state.ha_connector.fetch_history(connection, entity_id, start_time, hours)
     except (HAClientError, CredentialCipherError) as error:
@@ -1062,9 +1062,9 @@ def websocket_viewer(websocket: WebSocket) -> ViewerPrincipal | None:
     with websocket.app.state.database.session_factory() as database:
         if token:
             record = database.scalar(select(LoginSession).where(LoginSession.id_hash == session_token_hash(token)))
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             # 会话表里存的是 hash，且到期时间是 naive 的，比之前统一按 UTC 解释。
-            if record is not None and record.expires_at.replace(tzinfo=timezone.utc) > now:
+            if record is not None and record.expires_at.replace(tzinfo=UTC) > now:
                 user = database.get(User, record.user_id)
                 if user is not None and user.is_active:
                     # 解析完就 detach：这条连接可能挂很久，不能把数据库连接占住。

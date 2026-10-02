@@ -1,12 +1,12 @@
 from __future__ import annotations
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .database import Base
 
 def utc_now():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 class User(Base):
     __tablename__ = 'users'

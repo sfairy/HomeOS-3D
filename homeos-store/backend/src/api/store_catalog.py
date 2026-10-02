@@ -2,7 +2,7 @@
 """
 from __future__ import annotations
 
-from datetime import timezone
+from datetime import UTC
 
 from fastapi import HTTPException, Request, status
 from sqlalchemy import func, select
@@ -359,7 +359,7 @@ def _release_snapshot_conflict(payload: ReleaseDeviceRequest, binding) -> str | 
         # 前端发来的是 iso_z（带 Z 的 UTC 时刻），库内是 naive UTC。
         normalized = expected_at
         if normalized.tzinfo is not None:
-            normalized = normalized.astimezone(timezone.utc).replace(tzinfo=None)
+            normalized = normalized.astimezone(UTC).replace(tzinfo=None)
         actual = binding.activated_at
         if actual is None or abs((actual - normalized).total_seconds()) > 1:
             return "授权绑定的设备已变更，请刷新后重新确认。"

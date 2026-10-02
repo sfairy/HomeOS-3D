@@ -63,7 +63,7 @@ _refund_locks_guard = threading.Lock()
 
 
 @contextmanager
-def refund_lock(order_no: str) -> Generator[None, None, None]:
+def refund_lock(order_no: str) -> Generator[None]:
     """按订单号取一把进程内互斥锁，保证同一订单的退款不会交叠。"""
     with _refund_locks_guard:
         entry = _refund_locks.get(order_no)

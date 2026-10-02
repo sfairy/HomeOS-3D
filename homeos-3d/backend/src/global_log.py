@@ -14,7 +14,7 @@ import sys
 import threading
 from collections import deque
 from contextvars import ContextVar
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -64,7 +64,7 @@ _SECRET_PATTERNS = (
 
 def _utc_now() -> datetime:
     # [补充说明] 统一的时间来源：日志内所有时间戳都必须是 UTC aware。
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _storage_diagnostic(message: str) -> None:
@@ -216,9 +216,8 @@ class GlobalLogStore:
         if client_timestamp:
             # 客户端时间戳格式不对就丢掉这一项，事件本身仍按服务端时间入库。
             try:
-                event["clientTimestamp"] = datetime.fromisoformat(
-                    client_timestamp.replace("Z", "+00:00")
-                ).isoformat()
+                # fromisoformat 自 Python 3.11 起原生接受 'Z' 后缀，无需再替换成 '+00:00'。
+                event["clientTimestamp"] = datetime.fromisoformat(client_timestamp).isoformat()
             except (ValueError, TypeError):
                 pass
 
@@ -336,7 +335,7 @@ class GlobalLogStore:
                 )
                 # 落盘时间没有时区时按 UTC 解释后再与 cutoff 比较。
                 if timestamp.tzinfo is None:
-                    timestamp = timestamp.replace(tzinfo=timezone.utc)
+                    timestamp = timestamp.replace(tzinfo=UTC)
                 if timestamp < cutoff:
                     continue
             except (TypeError, ValueError, KeyError):
@@ -453,7 +452,7 @@ class GlobalLogStore:
                     str(event.get("lastTimestamp") or event.get("timestamp"))
                 )
                 if timestamp.tzinfo is None:
-                    timestamp = timestamp.replace(tzinfo=timezone.utc)
+                    timestamp = timestamp.replace(tzinfo=UTC)
                 if timestamp < cutoff:
                     continue
             except (TypeError, ValueError):
