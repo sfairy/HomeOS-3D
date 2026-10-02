@@ -12,7 +12,7 @@
     },
     "homeos-3d": {
       "name": "homeos-3d-067-ts",
-      "version": "0.6.7",
+      "version": "1.0.0",
       "dependencies": {
         "three": "0.186.0",
       },

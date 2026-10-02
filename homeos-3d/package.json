@@ -1,7 +1,7 @@
 {
   "name": "homeos-3d-067-ts",
   "private": true,
-  "version": "0.6.7",
+  "version": "1.0.0",
   "type": "module",
   "packageManager": "bun@1.4.2",
   "engines": {
