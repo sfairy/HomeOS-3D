@@ -1,4 +1,5 @@
 import { carState } from "./car-state";
+import { CARD_TEXT_SIZE_PX, migrateCardTextSize } from "@app/bridge/card-text-size";
 export function updateCarCard(containerElement, carConfig, carOptions) {
   let cardElement = containerElement.querySelector(".i3d-car-card");
   if (!cardElement) {
@@ -17,7 +18,8 @@ export function updateCarCard(containerElement, carConfig, carOptions) {
       containerElement.replaceChildren(cardElement));
   }
   const state = carState(carConfig, carOptions),
-    cardWidth = Math.min(600, Math.max(100, carConfig.cardWidth ?? 180));
+    cardWidth = Math.min(600, Math.max(100, carConfig.cardWidth ?? 180)),
+    cardTextSize = migrateCardTextSize(carConfig, true).cardFontSize;
   return (
     (cardElement.querySelector(".i3d-car-name").textContent =
       carConfig.label || carConfig.deviceName || "汽车"),
@@ -31,7 +33,9 @@ export function updateCarCard(containerElement, carConfig, carOptions) {
       String(Math.min(1, Math.max(0, carConfig.cardOpacity ?? 1))),
     ),
     (cardElement.style.width = cardWidth + "px"),
-    (cardElement.style.fontSize = Math.min(24, Math.max(9, carConfig.cardFontSize ?? 12)) + "px"),
+    // 上下限与编辑器（MIN/MAX_LABEL_ICON_SIZE = 9~32）和后端校验保持一致，
+    // 否则面板里能选 25~32、保存却被后端判非法。
+    (cardElement.style.fontSize = Math.min(32, Math.max(9, cardTextSize ?? CARD_TEXT_SIZE_PX)) + "px"),
     (containerElement.style.width = cardWidth + "px"),
     (containerElement.style.height = cardElement.offsetHeight + "px"),
     (containerElement.title =

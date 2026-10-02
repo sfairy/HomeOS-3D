@@ -142,6 +142,13 @@ export function createCoverPanel({
         ...deviceState,
         closedConfirmed: deviceState.closedConfirmed && !isRailUnconfirmed,
       },
+    // 梦幻帘叶片角度的唯一展示来源：拖动草稿 > 待确认目标 > 动画估算 > 上报值。
+    // 读数（output）与滑杆必须共用它，否则命令下发后读数会退回陈旧的 deviceState.tiltPosition，
+    // 出现「滑杆已到目标、数字还停在旧值」的状态不一致。
+    resolveDreamBladePosition = () =>
+      viewModel.presentation?.tiltTarget ??
+      viewModel.presentation?.tiltPosition ??
+      deviceState.tiltPosition,
     canAdjustSlider = () =>
       canControl() &&
       (viewModel.item?.coverKind === "dream"
@@ -156,10 +163,7 @@ export function createCoverPanel({
   function syncSlider() {
     const isDream = viewModel.item?.coverKind === "dream",
       sliderPosition = isDream
-        ? (draftPosition ??
-          viewModel.presentation?.tiltTarget ??
-          viewModel.presentation?.tiltPosition ??
-          deviceState.tiltPosition)
+        ? (draftPosition ?? resolveDreamBladePosition())
         : resolveTargetPosition();
     ((positionSliderElement.value = String(sliderPosition ?? 0)),
       positionSliderElement.style.setProperty(
@@ -318,19 +322,22 @@ export function createCoverPanel({
           : "设备不可用"
         : "尚未绑定设备";
     const isDreamCover = viewModel.item?.coverKind === "dream",
-      isAirerItem = viewModel.item?.airer;
+      isAirerItem = viewModel.item?.airer,
+      // 梦幻帘的整体开合文案：有独立叶片通道时来自整体上报，没有时来自 state
+      // （cover-state 已把 state 保留成整体开/合）。存在它就不该再被后面的“在线”兜底覆盖。
+      dreamStateLabel = {
+        open: "整体已开启",
+        closed: "整体已关闭",
+        opening: "整体正在开启",
+        closing: "整体正在关闭",
+      }[presentation.state];
     (rootElement.classList.toggle("is-dream", isDreamCover),
       (bladeHintElement.hidden = !isDreamCover),
       isDreamCover &&
         !viewModel.editing &&
         deviceState.available &&
-        (statusElement.textContent =
-          {
-            open: "整体已开启",
-            closed: "整体已关闭",
-            opening: "整体正在开启",
-            closing: "整体正在关闭",
-          }[presentation.state] || statusElement.textContent),
+        dreamStateLabel &&
+        (statusElement.textContent = dreamStateLabel),
       !viewModel.editing &&
         deviceState.available &&
         presentation.state === "open" &&
@@ -366,7 +373,7 @@ export function createCoverPanel({
     const displayPosition =
       draftPosition ??
       (isDreamCover
-        ? deviceState.tiltPosition
+        ? resolveDreamBladePosition()
         : presentation.estimated
           ? deviceState.position
           : presentation.position);
@@ -390,10 +397,12 @@ export function createCoverPanel({
         deviceState.available &&
         presentation.estimated &&
         !presentation.moving &&
+        !(isDreamCover && dreamStateLabel) &&
         (statusElement.textContent = "在线"),
       isDreamCover &&
         !viewModel.editing &&
         deviceState.available &&
+        !dreamStateLabel &&
         (!deviceState.overallFeedbackAvailable ||
           presentation.awaitingArrival ||
           presentation.estimated) &&

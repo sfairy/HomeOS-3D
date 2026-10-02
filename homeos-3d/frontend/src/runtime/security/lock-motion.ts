@@ -52,16 +52,20 @@ export function createLockMotion(options) {
   function resolveTarget(doorModel, parent, meshObject, entityStates) {
     const animationType = parent.userData?.doorAnimationType || "entry";
     if (animationType === "static") return null;
-    const doorOpen = lockState(doorModel, entityStates).doorOpen;
-    if (doorOpen === null) return null;
+    // 门扇开度 0~1：关门是 0，完全打开是 1，门虚掩取中间值。3D 姿态按这个比例插值，
+    // 所以「虚掩」只开一条缝，而每扇门自己的 openAngle / 滑动行程仍然生效。
+    const doorOpenRatio = lockState(doorModel, entityStates).doorOpenRatio;
+    if (doorOpenRatio === null) return null;
+    const interpolate = (closedValue, openValue) =>
+      closedValue + (openValue - closedValue) * doorOpenRatio;
     if (animationType === "sliding") {
       if (Number.isFinite(meshObject.userData?.doorSlideSide)) {
         const direction = doorModel.openDirection === -1 ? -1 : 1;
         return {
           kind: "slide",
           value:
-            doorOpen && meshObject.userData.doorSlideSide === -direction
-              ? direction * meshObject.userData.doorSlideTravel
+            meshObject.userData.doorSlideSide === -direction
+              ? direction * meshObject.userData.doorSlideTravel * doorOpenRatio
               : 0,
         };
       }
@@ -70,9 +74,10 @@ export function createLockMotion(options) {
       return Number.isFinite(slideOpenTranslation)
         ? {
             kind: "slide",
-            value: doorOpen
-              ? slideOpenTranslation * (doorModel.openDirection ?? 1)
-              : slideClosedTranslation,
+            value: interpolate(
+              slideClosedTranslation,
+              slideOpenTranslation * (doorModel.openDirection ?? 1),
+            ),
           }
         : null;
     }
@@ -85,7 +90,7 @@ export function createLockMotion(options) {
       return Number.isFinite(rollerOpenTranslation)
         ? {
             kind: "roller",
-            value: doorOpen ? rollerOpenTranslation : rollerClosedTranslation,
+            value: interpolate(rollerClosedTranslation, rollerOpenTranslation),
           }
         : null;
     }
@@ -99,18 +104,20 @@ export function createLockMotion(options) {
           : Math.abs(doorOpenRotation);
       return {
         kind: "hinge",
-        value: doorOpen
-          ? Math.sign(doorOpenRotation) * angleRadians * (doorModel.openDirection ?? 1)
-          : Number(parent.userData?.doorClosedRotation ?? 0),
+        value: interpolate(
+          Number(parent.userData?.doorClosedRotation ?? 0),
+          Math.sign(doorOpenRotation) * angleRadians * (doorModel.openDirection ?? 1),
+        ),
       };
     }
     const fallbackAngle = ((doorModel.openAngle ?? 80) * Math.PI) / 180,
       hingeSign = doorModel.hinge === "right" ? 1 : -1;
     return {
       kind: "hinge",
-      value: doorOpen
-        ? fallbackAngle * (doorModel.openDirection ?? 1) * hingeSign
-        : Number(parent.userData?.doorClosedRotation ?? 0),
+      value: interpolate(
+        Number(parent.userData?.doorClosedRotation ?? 0),
+        fallbackAngle * (doorModel.openDirection ?? 1) * hingeSign,
+      ),
     };
   }
   function tick(time, doorModels, states, forceSync = false) {

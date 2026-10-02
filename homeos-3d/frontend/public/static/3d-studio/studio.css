@@ -2609,6 +2609,20 @@ html.list-drag-active * {
 .label-text-fields[hidden] {
   display: none;
 }
+/* 铭牌颜色：文字在左、色块在右，比单列「标签压在上方」更省纵向空间。 */
+.label-text-fields label.label-color-field {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+.label-text-fields label.label-color-field input[type="color"] {
+  width: 46px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+}
 .light-fields {
   display: grid;
   gap: 10px;

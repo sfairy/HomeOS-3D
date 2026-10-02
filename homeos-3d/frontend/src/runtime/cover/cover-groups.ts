@@ -1,3 +1,5 @@
+import { DEFAULT_BUTTON_SIZE, buttonIconSize } from "@app/bridge/button-icon-size";
+
 /** 窗帘实例（后端 entity + 前端 kind 的混合形态，只用到这几个字段）。 */
 export type CurtainLike = {
   id?: string;
@@ -90,9 +92,9 @@ export function createCurtainGroup(groupEnvironment, firstMemberId, secondMember
     label: "双层窗帘",
     floorId: primaryCurtain.floorId,
     memberIds: [firstMemberId, secondMemberId],
-    size: primaryCurtain.size ?? 44,
-    iconSize: primaryCurtain.iconSize ?? 26,
-    hitSize: primaryCurtain.hitSize ?? Math.max(44, primaryCurtain.size ?? 44),
+    size: primaryCurtain.size ?? DEFAULT_BUTTON_SIZE,
+    iconSize: buttonIconSize(primaryCurtain.size ?? DEFAULT_BUTTON_SIZE),
+    hitSize: primaryCurtain.hitSize ?? Math.max(DEFAULT_BUTTON_SIZE, primaryCurtain.size ?? DEFAULT_BUTTON_SIZE),
     clickAction: ["panel", "turn-on-focus", "turn-on", "turn-on-panel"].includes(
       primaryCurtain.clickAction,
     )

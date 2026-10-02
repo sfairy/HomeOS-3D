@@ -19,9 +19,18 @@ const [
     temperatureHumidityEntities: temperatureHumidityEntities,
     ENVIRONMENT_METRICS: environmentMetricNames,
     layoutEnvironmentReadings: layoutEnvironmentReadings,
+    migrateEnvironmentLabelSize: migrateEnvironmentLabelSize,
+    DEFAULT_LABEL_SIZE: defaultLabelSize,
+    DEFAULT_LABEL_ICON_SIZE: defaultLabelIconSize,
+    MAX_LABEL_SIZE: maxLabelSize,
+    MAX_LABEL_ICON_SIZE: maxLabelIconSize,
+    MIN_LABEL_SIZE: minLabelSize,
+    MIN_LABEL_ICON_SIZE: minLabelIconSize,
   },
   { popupPlacement: computePopupPlacement },
   { createMarkerTouch: createMarkerTouch, nearestMarkerTarget: nearestMarkerTarget },
+  { buttonIconSize: resolveButtonIconSize, DEFAULT_BUTTON_SIZE: defaultButtonSize },
+  { CARD_TEXT_SIZE_PX: cardTextSizePx, migrateCardTextSize: migrateCardTextSize },
 ] = await Promise.all([
   import("./label-appearance"),
   import("@app/bridge/page-appearance-presets"),
@@ -30,6 +39,8 @@ const [
   import("@app/bridge/temperature-humidity"),
   import("@app/bridge/popup-placement"),
   import("./marker-input"),
+  import("@app/bridge/button-icon-size"),
+  import("@app/bridge/card-text-size"),
 ]);
 import {
   createPresenceScene as createPresenceScene2,
@@ -151,6 +162,35 @@ const lampIconSvgMarkup =
       temperaturePercent: 100,
     },
   ];
+/**
+ * 普通按钮的图标尺寸：按固定的「图标 / 按钮」比例（见 @app/bridge/button-icon-size），
+ * 让按钮放大时图标跟着放大，又不会顶到圆形描边。
+ *
+ * 旧配置里的 iconSize 是打开编辑器时按「按钮大小 - 18」自动写死一次的，之后按钮放大
+ * 图标不跟着动，视觉上就成了「按钮大、图标小」，所以这里不再沿用已存的值。
+ *
+ * 三类标记的 iconSize 不是图标边长，保持原样：
+ * - 扫地机状态卡、环境标签把它当字号用；
+ * - 门锁 / 摄像头 / 人体传感是标签式布局，尺寸由 security-editor 自己的「图标大小」控制。
+ */
+function resolveMarkerIconSize(markerItem, markerSize, isVacuumDevice, buttonIconSize) {
+  const rawIconSize =
+      Number.isFinite(markerItem.iconSize) && markerItem.iconSize > 0 ? markerItem.iconSize : 0,
+    usesIconSizeAsFont =
+      isVacuumDevice ||
+      markerItem.deviceKind === "temperature-humidity" ||
+      ["lock", "camera", "presence"].includes(markerItem.deviceKind);
+  // 图标边长没显式配置过时：
+  // - 扫地机状态卡字号、门 / 摄像头 / 人体传感的标签图标，一律回落到与圆形按钮同一
+  //   比例（见 button-icon-size.ts）。0.6 正好是旧默认（size 44 → 26，26/44≈0.59），
+  //   所以老配置观感不变，只是默认 size 由 44 提到 65 后跟着一起放大，不会「框大图标小」。
+  // - 环境标签把 iconSize 当信息框图标用，有独立的默认值与迁移逻辑，保持原样。
+  if (rawIconSize > 0 && usesIconSizeAsFont) return rawIconSize;
+  if (markerItem.deviceKind === "temperature-humidity") {
+    return Math.min(markerSize, Math.max(4, markerSize - 18));
+  }
+  return buttonIconSize(markerSize);
+}
 export function configuredModuleKinds(moduleConfigSource = {}) {
   return [
     // 总览 始终提供：它聚合当前楼层上所有已配置模块的标记，不依赖任何设备配置。
@@ -2284,9 +2324,9 @@ export function mountStage(mountOptions) {
             deviceKind: "vacuum-room",
             modelAvailable: vacuumShortcutSource.modelAvailable,
             icon: vacuumShortcutRoom.icon || "mdi:broom",
-            size: vacuumShortcutRoom.size ?? 44,
-            iconSize: vacuumShortcutRoom.iconSize ?? 26,
-            hitSize: vacuumShortcutRoom.hitSize ?? 44,
+            size: vacuumShortcutRoom.size ?? defaultButtonSize,
+            iconSize: vacuumShortcutRoom.iconSize ?? resolveButtonIconSize(defaultButtonSize),
+            hitSize: vacuumShortcutRoom.hitSize ?? defaultButtonSize,
           })),
       );
   }
@@ -2396,7 +2436,7 @@ export function mountStage(mountOptions) {
   function collectModuleBindings() {
     const temperatureHumidityBindings = (options.environment?.temperatureHumidity || []).map(
       (temperatureHumidityEntry) => ({
-        ...temperatureHumidityEntry,
+        ...migrateEnvironmentLabelSize(temperatureHumidityEntry),
         deviceKind: "temperature-humidity",
       }),
     );
@@ -2725,7 +2765,7 @@ export function mountStage(mountOptions) {
               doorModels2(lockFloor).find(
                 (lockDoor) => lockDoor.modelId === lockSourceEntry.modelId,
               );
-          return {
+          return migrateCardTextSize({
             ...lockSourceEntry,
             hinge: lockSourceEntry.hinge || lockDoorModel?.hinge || "left",
             id: "lock:" + lockSourceEntry.id,
@@ -2738,7 +2778,7 @@ export function mountStage(mountOptions) {
             height: Number.isFinite(lockSourceEntry.height)
               ? lockSourceEntry.height
               : (lockDoorModel?.height ?? 2.2) * 0.5,
-          };
+          });
         })
         .filter(
           (lockFilterEntry) =>
@@ -2773,7 +2813,7 @@ export function mountStage(mountOptions) {
               securityCameraSceneItem.id === securityCameraSourceEntry.modelId &&
               securityCameraSceneItem.type === "camera",
           );
-        return {
+        return migrateCardTextSize({
           ...securityCameraSourceEntry,
           buttonHidden: false,
           hiddenClickable: false,
@@ -2792,7 +2832,7 @@ export function mountStage(mountOptions) {
             ? securityCameraSourceEntry.height
             : (Number(securityCameraModel?.elevation) || 0) +
               (Number(securityCameraModel?.height) || 0.3) / 2,
-        };
+        });
       }),
     presenceBindings = () =>
       (options.security?.presenceSensors || []).map((presenceSourceEntry) => {
@@ -5419,17 +5459,12 @@ export function mountStage(mountOptions) {
         size =
           Number.isFinite(syncMarkerItem.size) && syncMarkerItem.size > 0
             ? syncMarkerItem.size
-            : 44,
-        iconSize =
-          Number.isFinite(syncMarkerItem.iconSize) && syncMarkerItem.iconSize > 0
-            ? syncMarkerItem.iconSize
-            : isVacuumDevice
-              ? 26
-              : Math.min(size, Math.max(4, size - 18)),
+            : defaultButtonSize,
+        iconSize = resolveMarkerIconSize(syncMarkerItem, size, isVacuumDevice, resolveButtonIconSize),
         hitSize =
           Number.isFinite(syncMarkerItem.hitSize) && syncMarkerItem.hitSize > 0
             ? syncMarkerItem.hitSize
-            : Math.max(44, size),
+            : Math.max(defaultButtonSize, size),
         scaleXFactor = 1,
         scaleYFactor = 1,
         baseScaleFactor = scaleXFactor,
@@ -5567,9 +5602,18 @@ export function mountStage(mountOptions) {
           const metricUnitElement = metricRowElement.querySelector(".i3d-meter-unit");
           ((metricUnitElement.textContent = ar3.unit), (metricUnitElement.hidden = !ar3.unit));
         }
-        const min = Math.min(600, Math.max(100, Number(syncMarkerItem.size) || 180));
+        // 信息卡随演示层（.i3d-presentation 的 scale）一起缩放：编辑器里填的 px 是
+        // 舞台设计像素，屏幕观感 = 配置值 × 演示层缩放系数（约 0.7）。
+        // 若要更大的观感，直接调大 size / iconSize；上限见 MAX_LABEL_SIZE。
+        const min = Math.min(
+          maxLabelSize,
+          Math.max(minLabelSize, Number(syncMarkerItem.size) || defaultLabelSize),
+        );
         ((selector.style.fontSize =
-          Math.min(24, Math.max(9, Number(syncMarkerItem.iconSize) || 12)) + "px"),
+          Math.min(
+            maxLabelIconSize,
+            Math.max(minLabelIconSize, Number(syncMarkerItem.iconSize) || defaultLabelIconSize),
+          ) + "px"),
           selector.style.setProperty(
             "--meter-background-opacity",
             String(
@@ -5583,7 +5627,12 @@ export function mountStage(mountOptions) {
           (selector.style.transformOrigin = "top left"),
           (selector.style.transform = "scale(" + scaleXFactor + ", " + scaleYFactor + ")"),
           (syncMarkerElement.style.width =
-            Math.min(600, Math.max(100, Number(syncMarkerItem.size) || 180)) * scaleXFactor + "px"),
+            Math.min(
+              maxLabelSize,
+              Math.max(minLabelSize, Number(syncMarkerItem.size) || defaultLabelSize),
+            ) *
+            scaleXFactor +
+            "px"),
           (syncMarkerElement.style.height =
             Math.max(44, selector.offsetHeight || 48) * scaleYFactor + "px"),
           syncMarkerElement.setAttribute("role", isEditing ? "button" : "group"),
@@ -5736,11 +5785,14 @@ export function mountStage(mountOptions) {
                 : available2
                   ? syncMarkerItem.deviceKind === "lock"
                     ? "" +
-                      (lock.doorOpen === true
-                        ? "已打开"
-                        : lock.doorOpen === false
-                          ? "已关闭"
-                          : "状态未知") +
+                      // 门扇档位由 lockState 统一给出（门已打开 / 门虚掩 / 门已关闭 / 门状态未知），
+                      // 这里不再各自判断 doorOpen，避免「虚掩」被显示成「已打开」。
+                      (lock.doorOpenLabel ||
+                        (lock.doorOpen === true
+                          ? "门已打开"
+                          : lock.doorOpen === false
+                            ? "门已关闭"
+                            : "门状态未知")) +
                       (syncMarkerItem.batteryEntityId && lock.battery !== "—"
                         ? " · " + lock.battery
                         : "")
@@ -5761,7 +5813,7 @@ export function mountStage(mountOptions) {
             ),
             securityLabelElement.classList.toggle("is-camera-offline", !available2),
             (securityLabelElement.hidden = !isLockLabelShown(syncMarkerItem, lock)),
-            (securityLabelElement.style.fontSize = (syncMarkerItem.fontSize || 12) + "px"),
+            (securityLabelElement.style.fontSize = (syncMarkerItem.fontSize || cardTextSizePx) + "px"),
             securityLabelElement.style.setProperty(
               "--label-background-opacity",
               String(labelBackgroundOpacity(syncMarkerItem.backgroundOpacity)),
@@ -5815,7 +5867,7 @@ export function mountStage(mountOptions) {
           (vacuumRoomLabelElement.textContent = syncMarkerItem.label || "清扫"),
           (vacuumRoomLabelElement.hidden = syncMarkerItem.labelHidden === true),
           (vacuumRoomLabelElement.style.fontSize =
-            (syncMarkerItem.fontSize || 12) * baseScaleFactor + "px"));
+            (syncMarkerItem.fontSize || cardTextSizePx) * baseScaleFactor + "px"));
       }
       (syncMarkerElement.style.setProperty("--i3d-marker-size", scaledSizeX + "px"),
         syncMarkerElement.style.setProperty("--i3d-marker-size-y", scaledSizeY + "px"),

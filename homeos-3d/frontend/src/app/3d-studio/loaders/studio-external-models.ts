@@ -13,6 +13,7 @@ import {
   repairGlassCabinetBack,
   repairWallCabinetSides,
   repairSideboardJoints,
+  repairSideboardGlassDoor,
 } from "../materials/studio-cabinet-back";
 import { finite } from "./studio-normalization";
 import { createModelPersistentCache } from "../model-persistent-cache";
@@ -33,6 +34,7 @@ import {
 import { createStoneSlabTexture } from "../materials/studio-surface-textures";
 import {
   materialStyleRecipeFor,
+  materialStyleRoleColorFor,
   materialStyleStoneSlabRoles,
 } from "../materials/studio-material-presets";
 import {
@@ -1078,6 +1080,7 @@ export function createExternalModelManager({
         repairGlassCabinetBack(threeNamespace, templateScene, loadedItemType),
       loadedItemType === "wallcabinet" && repairWallCabinetSides(threeNamespace, templateScene),
       loadedItemType === "sideboard" && repairSideboardJoints(threeNamespace, templateScene),
+      loadedItemType === "sideboard" && repairSideboardGlassDoor(threeNamespace, templateScene),
       ["suv", "scooter"].includes(loadedItemType) &&
         prepareVehicleChargeGeometry(threeNamespace, templateScene),
       loadedItemType === "smallcar")
@@ -2802,15 +2805,40 @@ function normalizeMaterialValue(materialValue) {
       kitchenbase: "3",
       kitchensink: "7",
       kitchencooktop: "4",
-    }[itemType];
+    }[itemType],
+      /**
+       * 储物柜（`cabinet.glb`）是唯一把**柜体与两扇柜门并进同一个闭合箱**的柜类：整个
+       * 1.60×1.90×0.45 的箱体就是 `cabinet-material-0`，正脸那 ±z 两面是柜门面（拉手装在这面上），
+       * 顶 / 侧 / 底 / 背也是这一支料 —— 它没有独立柜体槽。所以「木柜白门」这类档位会把整只柜子
+       * 刷成门色（全白），而同档位的吊柜是**木色柜体 + 白门**，两件配不成套。
+       *
+       * 修法与 sideboard / shoecabinet / wallcabinet 的「柜门返边」同源（按面法线把非前脸刷成
+       * 柜体色），但**触发条件与返边色不同**：其余柜类的返边是暖木主题的既有做法，只在暖木下生效；
+       * 储物柜则要在**选了档位**时就返边（默认主题下选「木柜白门」同样不能整只全白），且返边色取
+       * 该档位给 `body` 角色的配方色（吊柜的柜体正是这一支料），而不是主题固定的 woodDark ——
+       * 档位之间柜体色各不相同（木柜白门 #3d2818 / 浅橡木 #c49a6c / 胡桃木 #5a3a22 / 深色烤漆
+       * #2e2a28），只有逐档取柜体色才能和同档吊柜对上。auto 档不介入：此时 material-0 本来就是
+       * 柜体色（暖木）或主题门色，无需返边。
+       */
+      isStyledCabinetDoorMaterial =
+        itemType === "cabinet" &&
+        palette.materialStyle !== undefined &&
+        (sourceMaterial.name || "").endsWith("cabinet-material-0");
     if (
-      palette.warmWood &&
-      cabinetDoorMaterialIndex !== undefined &&
-      (sourceMaterial.name || "").endsWith("material-" + cabinetDoorMaterialIndex)
+      (palette.warmWood &&
+        cabinetDoorMaterialIndex !== undefined &&
+        (sourceMaterial.name || "").endsWith("material-" + cabinetDoorMaterialIndex)) ||
+      isStyledCabinetDoorMaterial
     ) {
-      const doorEdgeColor = ["sideboard", "shoecabinet", "wallcabinet"].includes(itemType)
-        ? new threeNamespace.Color(palette.woodDark ?? palette.furnitureDark)
-        : null;
+      const styledCabinetBodyColorValue = isStyledCabinetDoorMaterial
+          ? materialStyleRoleColorFor("cabinet", "body", palette)
+          : undefined,
+        doorEdgeColor =
+          styledCabinetBodyColorValue !== undefined
+            ? new threeNamespace.Color(styledCabinetBodyColorValue)
+            : ["sideboard", "shoecabinet", "wallcabinet"].includes(itemType)
+              ? new threeNamespace.Color(palette.woodDark ?? palette.furnitureDark)
+              : null;
       ((resolvedMaterial.onBeforeCompile = (shaderProgram) => {
         ((shaderProgram.vertexShader = shaderProgram.vertexShader
           .replace("#include <common>", "#include <common>\nvarying float warmDoorFace;")
@@ -3115,7 +3143,17 @@ function normalizeMaterialValue(materialValue) {
             materialForMesh = (isSelected && sharedMaterial?.clone?.()) || sharedMaterial;
           return (
             isSelected &&
-              ["sideboard", "shoecabinet", "wallcabinet", "suv", "scooter"].includes(modelType) &&
+              [
+                "sideboard",
+                "shoecabinet",
+                "wallcabinet",
+                // 储物柜的「柜门返边」（见 resolveSharedMaterial 的 isStyledCabinetDoorMaterial）
+                // 同样挂在 onBeforeCompile 上，选中态克隆材质会丢掉它 —— 不补这一手，选中的
+                // 储物柜会整只变回全白，与未选中时不是同一件东西。
+                "cabinet",
+                "suv",
+                "scooter",
+              ].includes(modelType) &&
               ((materialForMesh.onBeforeCompile = sharedMaterial.onBeforeCompile),
               (materialForMesh.customProgramCacheKey = sharedMaterial.customProgramCacheKey)),
             materialForMesh

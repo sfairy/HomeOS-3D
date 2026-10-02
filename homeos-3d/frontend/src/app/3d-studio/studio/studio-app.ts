@@ -44,7 +44,9 @@ import { createMuralModel } from "../materials/studio-mural";
 import { createFeaturewallModel } from "../materials/studio-feature-wall";
 import {
   doorMaterialPartIndex,
+  doorMaterialPartRoleFor,
   doorMaterialPartRolesForType,
+  doorPlanMaterialRoleFor,
   materialRoleLabel,
   resolveMaterialPaletteColor,
 } from "../materials/studio-model-material-roles";
@@ -170,6 +172,7 @@ import {
   remapWallAttachment as remapWallAttachment2,
   selectShadowCastingLightIds as selectShadowCastingLightIds2,
   segmentIntersection as segmentIntersection2,
+  SLIDING_DOOR_DISPLAY_OPEN_RATIO as SLIDING_DOOR_DISPLAY_OPEN_RATIO2,
   slidingDoorPanelCenters as slidingDoorPanelCenters2,
   spotShadowTextureUnitLimit as spotShadowTextureUnitLimit2,
   spotLightBrightnessResponse as spotLightBrightnessResponse2,
@@ -715,12 +718,30 @@ const saveCameraViewButton = selectElement("#save-camera-view"),
   defaultViewSettings = {
     background: 1120029,
     ground: 1382690,
-    floor: 5792116,
+    // 墙 / 墙顶 / 地板在暖阳档的色相上再朝白提一档。三面仍贴着暖阳的色相
+    // （墙 R−B 11 / 地板 25），只是明度整体上抬「变白」。
+    //
+    // 墙体是 `wallOpacity` 下的半透明出图，hex 只以该比例叠在暗背景上 —— 所以「墙变白 / 去灰」
+    // 除了提 hex，还要动默认透明度（下方 wallOpacity）与两处墙体着色：墙面自发光
+    // （createWallSideMaterial 的 emissiveIntensity 0.025 → 0.30、墙面 0.08 → 0.30）与墙根
+    // 压暗（studio-wall-materials 的 mix 0.70 → 0.85）。地板是不透明实面，提白直接可见。
+    // （另一支专用墙着色器只在嵌入 stage 模式的 wall-trial="shader" 下启用，未改动。）
+    floor: 15920610, // #f2ede2 更白的浅橡（暖阳地板色相再提亮）
     floorEdge: 16163146,
     grid: 5331300,
-    wall: 9476522,
-    wallTop: 13095134,
-    wallOpacity: 0.25,
+    // #faf8f2 → #f4f2ec：纯白墙在默认档偏白、发飘，各通道整体降约 2.5%（色相不变，
+    // R−B 仍为 8）。墙侧半透明、自发光取同一支 hex，所以这一降会同时压掉自发光。
+    wall: 16052972, // #f4f2ec 暖白（半透明，见上）
+    // #fcfbf7 → #f6f5f1：与墙侧同一步降幅，保持「顶面比侧面略亮一档」的原有关系。
+    wallTop: 16184817, // #f6f5f1 近白顶面（柱顶 / 墙顶都读它）
+    // 默认档此前没有这一键，窗框会回落到 `furniture`（冷灰）。照暖阳档的实际选择给中性灰
+    // （暖阳是 #a3aaa7）：窗框是不透明的窄构件，一上暖色整张图就发黄，中性灰最衬暖木地板。
+    windowFrame: 11515315, // #afb5b3 中性灰（暖阳窗框同族的 R−B −4）
+    // 0.25 → 0.32 → 0.36：半透明墙的 hex 只按这个比例叠到暗背景上，抬得越高、透上来的
+    // 暗背景越少、墙越不灰。0.36 是「去灰」与「仍能看进室内」之间的折中；真正去灰的主力
+    // 是墙的自发光（见 createWallSideMaterial 的 emissiveIntensity），透明度只是辅助。
+    // 逐户型可在「墙体透明度」里覆盖；这是个全局默认值。
+    wallOpacity: 0.36,
     furniture: 8226713,
     furnitureSoft: 10332346,
     furnitureLight: 12634839,
@@ -728,7 +749,11 @@ const saveCameraViewButton = selectElement("#save-camera-view"),
     appliance: 10134967,
     applianceSoft: 11911118,
     applianceDark: 6845576,
-    glass: 11126227,
+    // 玻璃取「暖阳原木」那支青绿：暖阳 glass #8cc9b5 是 G>R>B 的青绿，默认档原先是
+    // 蓝青 #a9c5d3（B>G>R），方向正好相反。上一版 #bce0d4 偏淡，这一版加深一档到 #a1d0bd
+    // （离暖阳的 #8cc9b5 更近，仍不到它那么深）。窗户 / 栏杆 / 门玻璃 / 玻璃隔断共用这支
+    // （与暖阳档同构：一个主题一支玻璃料），所以四处会一起变。
+    glass: 10604733, // #a1d0bd 青绿（比上一版深一档）
     frame: 12172999,
     doorLeaf: 10988725,
     accent: 16758886,
@@ -2373,6 +2398,8 @@ const lightPresetCatalog = {
     striplight: 120,
   },
   maxTextureUnitLimit = 8,
+  planLabelDefaultColor = "#e8eef6",
+  planLabelAccentAlpha = 0.72,
   shadowTextureUnits = 2,
   reservedTextureUnits = 1,
   minTextureSize = 1024,
@@ -4276,6 +4303,7 @@ function normalizeScenePayload(rawScene) {
                     titleSpacing: clamp2(finite2(rawItemRecord?.titleSpacing, 1.05), 0, 1.8),
                     subtitleSpacing: clamp2(finite2(rawItemRecord?.subtitleSpacing, 0.08), 0, 0.6),
                     lineLength: clamp2(finite2(rawItemRecord?.lineLength, 0.86), 0.3, 1),
+                    labelColor: normalizePlanLabelColor(rawItemRecord?.labelColor),
                   }
                 : {}),
               ...(rawItemRecord?.type === "tv"
@@ -6337,18 +6365,97 @@ function drawRailing(railingRecord, railingView: PlanEditPreviewFlags = {}) {
       !railingView.preview &&
       drawLabelText(xo2.center, "玻璃栏杆 · " + railingRecord.width.toFixed(2) + " m", "#8bd7e8"));
 }
+/**
+ * 平面图门色的最低相对亮度。
+ *
+ * 门是画在**近黑墙带**（`rgba(7, 16, 21, .94)`，实底约 `#071015`）上的，深色档位（黑砂金属 /
+ * 黑框玻璃 / 胡桃木）直接铺上去就糊成一条看不见的黑线。取 0.12 —— 对着那层墙带约 3.2:1
+ * （实测最低的一档是胡桃木门框），够看清门洞位置。
+ */
+const PLAN_DOOR_MIN_LUMINANCE = 0.12;
+/** 抬亮上限：抬到这个比例还没达标就认了，免得把颜色冲成纯白、丢掉档位辨识度。 */
+const PLAN_DOOR_MAX_LIFT = 0.6;
+
+/** WCAG 口径的相对亮度（sRGB → 线性）。 */
+function planColorLuminance(red: number, green: number, blue: number): number {
+  const linearizeChannel = (channel: number) => {
+    const ratio = channel / 255;
+    return ratio <= 0.04045 ? ratio / 12.92 : ((ratio + 0.055) / 1.055) ** 2.4;
+  };
+  return (
+    0.2126 * linearizeChannel(red) +
+    0.7152 * linearizeChannel(green) +
+    0.0722 * linearizeChannel(blue)
+  );
+}
+
+/** 平面图这扇门用哪块料代表（取「最占视线」的部件；取不到则退主料部件）。 */
+function doorPlanPartMaterial(doorRecord, doorType: string, themePalette) {
+  const partMaterials = resolveDoorPartMaterials(doorRecord, themePalette),
+    planRole = doorPlanMaterialRoleFor(doorType);
+  return partMaterials[planRole] ?? partMaterials[doorMaterialPartRolesForType(doorType)[0]];
+}
+
+/**
+ * 平面图门色：**与 3D 同一条取色链**（档位配方 → 主题键 → 逐门覆盖色）。
+ *
+ * 平面图其它构件（墙 / 窗 / 栏杆）用的是示意色，门这里刻意破例 —— 「档位」在平面图上也要看得见：
+ * 白色烤漆是近白、原木橡是浅木、胡桃木是深棕、黑砂金属是深灰。三件事照旧不动：
+ *   · 拖拽预览仍是那抹橙色虚线色；
+ *   · 选中仍叠一半 accent（与 3D 的 doorPartDisplayColor 同一规矩）—— 所以选着门改档位，
+ *     平面图里也能立刻看出颜色变化，而不是像从前被整条刷成高亮的橙色；
+ *   · 深色档位按 PLAN_DOOR_MIN_LUMINANCE 往白里抬，保住色相的前提下不糊进墙带。
+ * 取不到材质色时退回改造前的示意色（近白 / 浅蓝），保证任何异常下平面图都还看得清。
+ */
+function doorPlanColor(
+  doorRecord,
+  doorType: string,
+  isSelected: boolean,
+  isPreview: boolean,
+): string {
+  if (isPreview) return "rgba(255, 189, 110, .76)";
+  const fallbackColor = ["solid", "double", "entry", "roller-shutter", "frame-only"].includes(
+    doorType,
+  )
+    ? "#edf2f7"
+    : "#bfe9ff";
+  const themePalette = backgroundSettings(),
+    displayColorValue = doorPartDisplayColor(
+      doorPlanPartMaterial(doorRecord, doorType, themePalette),
+      isSelected,
+      themePalette,
+    );
+  if (typeof displayColorValue !== "number" || !Number.isFinite(displayColorValue))
+    return fallbackColor;
+  const sourceChannels = [
+      (displayColorValue >> 16) & 255,
+      (displayColorValue >> 8) & 255,
+      displayColorValue & 255,
+    ] as const,
+    liftedChannels = (liftRatio: number): [number, number, number] => [
+      Math.round(sourceChannels[0] + (255 - sourceChannels[0]) * liftRatio),
+      Math.round(sourceChannels[1] + (255 - sourceChannels[1]) * liftRatio),
+      Math.round(sourceChannels[2] + (255 - sourceChannels[2]) * liftRatio),
+    ];
+  let liftRatio = 0;
+  while (
+    liftRatio < PLAN_DOOR_MAX_LIFT &&
+    planColorLuminance(...liftedChannels(liftRatio)) < PLAN_DOOR_MIN_LUMINANCE
+  )
+    liftRatio += 0.02;
+  return (
+    "#" +
+    liftedChannels(liftRatio)
+      .map((channel) => channel.toString(16).padStart(2, "0"))
+      .join("")
+  );
+}
 function drawDoor(doorRecord, doorView: PlanEditPreviewFlags = {}) {
   const xo3 = wallWindowSpan(doorRecord);
   if (!xo3) return;
   const ne2 = createSelectionRef("door", doorRecord.id),
     doorTypeName = doorRecord.doorType || "solid",
-    doorColor = doorView.preview
-      ? "rgba(255, 189, 110, .76)"
-      : ne2
-        ? "#ffaf46"
-        : ["solid", "double", "entry", "roller-shutter", "frame-only"].includes(doorTypeName)
-          ? "#edf2f7"
-          : "#bfe9ff",
+    doorColor = doorPlanColor(doorRecord, doorTypeName, ne2, doorView.preview),
     doorLineWidth = Math.max(
       10,
       xo3.wall.thickness * (getPixelsPerMeter() || 100) * planView.zoom + 5,
@@ -6429,7 +6536,7 @@ function drawDoor(doorRecord, doorView: PlanEditPreviewFlags = {}) {
         drawPointMarker(slideSign < 0 ? panelEndPoint : panelStartPoint, doorColor, 2));
     }
     ne2 &&
-      drawLabelText(xo3.center, "玻璃推拉门 · " + doorRecord.width.toFixed(2) + " m", "#ffaf46");
+      drawLabelText(xo3.center, "玻璃推拉门（常开）· " + doorRecord.width.toFixed(2) + " m", "#ffaf46");
     return;
   }
   if (doorTypeName === "roller-shutter") {
@@ -6521,11 +6628,26 @@ function drawDoor(doorRecord, doorView: PlanEditPreviewFlags = {}) {
           cap: "butt",
         },
       ));
-    const hingeSign = doorRecord.hinge === "right" ? -1 : 1;
+    const hingeSign = doorRecord.hinge === "right" ? -1 : 1,
+      // 入户门按「常闭」出图：没有门扇也没有开合弧线，开向只能落在把手贴哪一面墙上。
+      // 于是内外翻转 = 把手（连同把手那面的五金）换到墙的另一面 —— 与三维里门扇/把手
+      // 按 hinge / swing 翻面同源，按钮才有肉眼可见的反馈。偏移至少留 6 屏幕像素，
+      // 避免比例小的时候「翻了但看不出」。
+      handleFaceOffset =
+        Math.max(
+          (xo3.wall.thickness * (getPixelsPerMeter() || 100)) / 2,
+          6 / planView.zoom,
+        ) * (doorRecord.swing === -1 ? -1 : 1);
     (drawPointMarker(
       {
-        x: xo3.center.x + xo3.unit.x * doorRecord.width * hingeSign * 0.34,
-        y: xo3.center.y + xo3.unit.y * doorRecord.width * hingeSign * 0.34,
+        x:
+          xo3.center.x +
+          xo3.unit.x * doorRecord.width * hingeSign * 0.34 +
+          rollerNormalVector.x * handleFaceOffset,
+        y:
+          xo3.center.y +
+          xo3.unit.y * doorRecord.width * hingeSign * 0.34 +
+          rollerNormalVector.y * handleFaceOffset,
       },
       doorColor,
       ne2 ? 3 : 2,
@@ -6796,7 +6918,7 @@ function drawCourtyardArea(planItem) {
           itemPixelDepth,
           planItem.lineLength,
         );
-        planCanvasRenderer.fillStyle = "#929baa";
+        planCanvasRenderer.fillStyle = normalizePlanLabelColor(planItem.labelColor);
         const titleFontSize = labelMetrics.titleFontSize;
         ((planCanvasRenderer.font = "700 " + titleFontSize + "px sans-serif"),
           drawTrackedText2(
@@ -6810,7 +6932,7 @@ function drawCourtyardArea(planItem) {
         const iconX = labelMetrics.iconX,
           iconY = labelMetrics.iconY,
           iconSize = labelMetrics.iconSize;
-        ((planCanvasRenderer.fillStyle = "#929baa"),
+        ((planCanvasRenderer.fillStyle = normalizePlanLabelColor(planItem.labelColor)),
           planCanvasRenderer.beginPath(),
           planCanvasRenderer.moveTo(iconX, iconY - iconSize * 0.58),
           planCanvasRenderer.lineTo(iconX + iconSize * 0.56, iconY - iconSize * 0.02),
@@ -6822,7 +6944,7 @@ function drawCourtyardArea(planItem) {
           planCanvasRenderer.lineTo(iconX, iconY - iconSize * 0.52),
           planCanvasRenderer.closePath(),
           planCanvasRenderer.fill(),
-          (planCanvasRenderer.fillStyle = "#929baa"),
+          (planCanvasRenderer.fillStyle = normalizePlanLabelColor(planItem.labelColor)),
           (planCanvasRenderer.textAlign = "left"));
         const subtitleFontSize = labelMetrics.subtitleFontSize;
         ((planCanvasRenderer.font =
@@ -6835,7 +6957,7 @@ function drawCourtyardArea(planItem) {
             subtitleFontSize * clamp2(finite2(planItem.subtitleSpacing, 0.08), 0, 0.6),
             labelMetrics.subtitleMaxWidth,
           ),
-          (planCanvasRenderer.strokeStyle = "rgba(146, 155, 170, .72)"),
+          (planCanvasRenderer.strokeStyle = planLabelAccentColor(planItem.labelColor)),
           (planCanvasRenderer.lineWidth = labelMetrics.baselineLineWidth));
         const baselineY = labelMetrics.baselineY,
           baselineStartX = labelMetrics.baselineStartX,
@@ -9023,7 +9145,7 @@ function refreshStudioUiInner(shouldClearActiveElement = false) {
               double: "双开门",
               entry: "入户门（常闭）",
               glass: "玻璃平开门",
-              "sliding-glass": "玻璃推拉门",
+              "sliding-glass": "玻璃推拉门（常开）",
               "roller-shutter": "卷帘门",
               "frame-only": "仅门框",
             }[at4.doorType] || "普通平开门"),
@@ -9203,6 +9325,10 @@ function refreshStudioUiInner(shouldClearActiveElement = false) {
                 setControlValue(
                   selectElement("#label-line-length"),
                   Math.round(clamp2(finite2(at4.lineLength, 0.86), 0.3, 1) * 100),
+                ),
+                setControlValue(
+                  selectElement("#label-color"),
+                  normalizePlanLabelColor(at4.labelColor),
                 )),
               isLightItem)
             ) {
@@ -10800,6 +10926,7 @@ function createSceneItem(
             titleSpacing: 1.05,
             subtitleSpacing: 0.08,
             lineLength: 0.86,
+            labelColor: planLabelDefaultColor,
           }
         : {}),
       ...(["camera", "presence"].includes(sceneItemType)
@@ -11204,16 +11331,25 @@ function refreshBaseLighting() {
     threeRenderer.setClearColor(yt2.background, 0),
     (threeScene.fog = null),
     (threeRenderer.toneMappingExposure = vn2.exposure));
+  // 默认档的整套灯原先都偏蓝：hemisphere `#d9dee8`、地面反弹 `#1d2230`（近黑的蓝）、
+  // ambient `#939aa8`、fill `#a0a6b5`，R−B 全在 −15 ~ −21。中性白的材质被这套蓝光一照就
+  // 发灰 —— 「木柜白门」的白门（`#f5f3ef`）明明不灰，画出来却是灰的，根因就在这里（墙体
+  // 「太灰」也是同一条）。所以把默认档这几支灯的色相**中和成中性灰**：只把 R / B 拉回 G 的
+  // 值，G 承载亮度、保持不动，整体明暗与深色背景 / 地面色板都不变，只去掉蓝染。
+  //   地面反弹 `#1d2230` → `#222222`（去蓝，仍是很暗的灰，柜门下缘不再吃蓝）
+  //   半球天光 `#d9dee8` → `#dedede` / ambient `#939aa8` → `#9a9a9a`
+  //   主光 `#f2f4fa` → `#f4f4f4` / 补光 `#a0a6b5` → `#a6a6a6` / 顶光 `#f6f7fa` → `#f7f7f7`
+  // 暖阳档（warmWood）的四组暖色一律不动。
   const intensityScale = isEmbedStageMode ? 0.5 : 1;
   (hemisphereLight &&
-    (hemisphereLight.color.setHex(yt2.warmWood ? 16776178 : 14278376),
-    hemisphereLight.groundColor.setHex(yt2.warmWood ? 10524035 : 1909296),
+    (hemisphereLight.color.setHex(yt2.warmWood ? 16776178 : 14606046),
+    hemisphereLight.groundColor.setHex(yt2.warmWood ? 10524035 : 2236962),
     (hemisphereLight.intensity = vn2.hemisphereIntensity * intensityScale)),
     ambientLight &&
-      (ambientLight.color.setHex(yt2.warmWood ? 15592162 : 9673384),
+      (ambientLight.color.setHex(yt2.warmWood ? 15592162 : 10132122),
       (ambientLight.intensity = vn2.ambientIntensity * intensityScale)),
     mainDirectionalLight &&
-      (mainDirectionalLight.color.setHex(yt2.warmWood ? 16774367 : 15922426),
+      (mainDirectionalLight.color.setHex(yt2.warmWood ? 16774367 : 16053492),
       (mainDirectionalLight.intensity = vn2.mainIntensity * intensityScale),
       positionLightFromAngles(mainDirectionalLight, vn2.mainAzimuth, vn2.mainElevation, 18.4),
       (mainDirectionalLight.shadow.bias = -0.00012),
@@ -11224,11 +11360,11 @@ function refreshBaseLighting() {
         ((mainDirectionalLight.shadow.radius = 1.2), (mainDirectionalLight.shadow.blurSamples = 8)),
       (mainDirectionalLight.shadow.intensity = vn2.mainShadowIntensity)),
     fillDirectionalLight &&
-      (fillDirectionalLight.color.setHex(yt2.warmWood ? 14346221 : 10528437),
+      (fillDirectionalLight.color.setHex(yt2.warmWood ? 14346221 : 10921638),
       (fillDirectionalLight.intensity = vn2.fillIntensity * intensityScale),
       positionLightFromAngles(fillDirectionalLight, vn2.fillAzimuth, vn2.fillElevation, 15.2)),
     topDirectionalLight &&
-      (topDirectionalLight.color.setHex(yt2.warmWood ? 16776693 : 16185338),
+      (topDirectionalLight.color.setHex(yt2.warmWood ? 16776693 : 16250871),
       (topDirectionalLight.intensity = vn2.topIntensity * intensityScale),
       positionLightFromAngles(topDirectionalLight, vn2.topAzimuth, vn2.topElevation, 16.1)));
 }
@@ -16574,12 +16710,34 @@ function applyAccentEmissive(accentRoot, isAccentActive) {
         (accentMaterial.emissiveIntensity = 0.32));
   });
 }
+/** 铭牌颜色的唯一收口：任何来源都要先过这里，避免写进非法色值。 */
+function normalizePlanLabelColor(candidateColor) {
+  return /^#[0-9a-f]{6}$/i.test(String(candidateColor || ""))
+    ? candidateColor
+    : planLabelDefaultColor;
+}
+/** 由铭牌颜色派生底线 / 描边的半透明色，保证描边永远跟字色同源。 */
+function planLabelAccentColor(candidateColor, alpha = planLabelAccentAlpha) {
+  const labelColorHex = normalizePlanLabelColor(candidateColor);
+  return (
+    "rgba(" +
+    Number.parseInt(labelColorHex.slice(1, 3), 16) +
+    ", " +
+    Number.parseInt(labelColorHex.slice(3, 5), 16) +
+    ", " +
+    Number.parseInt(labelColorHex.slice(5, 7), 16) +
+    ", " +
+    alpha +
+    ")"
+  );
+}
 function createPlanLabel(labelSpec) {
   const labelCanvas = document.createElement("canvas");
   ((labelCanvas.width = 2048), (labelCanvas.height = 640));
-  const labelCanvasPainter = labelCanvas.getContext("2d");
+  const labelCanvasPainter = labelCanvas.getContext("2d"),
+    labelPaintColor = normalizePlanLabelColor(labelSpec.labelColor);
   (labelCanvasPainter.clearRect(0, 0, labelCanvas.width, labelCanvas.height),
-    (labelCanvasPainter.fillStyle = "#929baa"),
+    (labelCanvasPainter.fillStyle = labelPaintColor),
     (labelCanvasPainter.textAlign = "left"),
     (labelCanvasPainter.textBaseline = "middle"));
   const labelTitleText = normalizeLabelText2(labelSpec.title, "家庭总览", 24),
@@ -16598,7 +16756,7 @@ function createPlanLabel(labelSpec) {
   const labelGlyphX = 1580,
     labelGlyphY = 130,
     labelGlyphSize = 170;
-  ((labelCanvasPainter.fillStyle = "#929baa"),
+  ((labelCanvasPainter.fillStyle = labelPaintColor),
     labelCanvasPainter.beginPath(),
     labelCanvasPainter.moveTo(labelGlyphX, labelGlyphY - labelGlyphSize * 0.58),
     labelCanvasPainter.lineTo(
@@ -16636,7 +16794,7 @@ function createPlanLabel(labelSpec) {
       labelGlyphSize * 0.3,
     ),
     labelCanvasPainter.restore(),
-    (labelCanvasPainter.fillStyle = "#929baa"),
+    (labelCanvasPainter.fillStyle = labelPaintColor),
     (labelCanvasPainter.textAlign = "left"));
   const labelSubtitleFontSize = 310;
   ((labelCanvasPainter.font =
@@ -16651,7 +16809,7 @@ function createPlanLabel(labelSpec) {
     ));
   const labelLineStartX = 74,
     labelLineEndX = labelLineStartX + 1880 * clamp2(finite2(labelSpec.lineLength, 0.86), 0.3, 1);
-  ((labelCanvasPainter.strokeStyle = "rgba(146, 155, 170, 0.72)"),
+  ((labelCanvasPainter.strokeStyle = planLabelAccentColor(labelSpec.labelColor)),
     (labelCanvasPainter.lineWidth = 16),
     labelCanvasPainter.beginPath(),
     labelCanvasPainter.moveTo(labelLineStartX, 590),
@@ -25901,7 +26059,10 @@ function createWallSideMaterial(
         polygonOffsetUnits: wallSideOptions.polygonOffsetUnits ?? -4,
         side: ns2.DoubleSide,
         emissive: wallSideOptions.emissive ?? wallSideColor,
-        emissiveIntensity: wallSideOptions.emissiveIntensity ?? (warmWood ? 0.32 : 0.025),
+        // 0.025 → 0.30：这就是墙体「太灰」的主因。墙是半透明的，0.32 透明度下有 68% 的
+        // 暗背景（#11171d）透上来；默认档墙面自发光又只有 0.025，于是只剩一块中灰。
+        // 暖阳档的墙不灰，靠的正是这一支给到 0.32 —— 这里按暖阳档取 0.30（自发光色＝墙面 hex）。
+        emissiveIntensity: wallSideOptions.emissiveIntensity ?? (warmWood ? 0.32 : 0.30),
       },
       wallSideOptions.polygonOffset !== true,
       isEmbedStageMode && typeof window < "u"
@@ -25948,7 +26109,8 @@ function createWallTopMaterial(
       ? wallTopOptions.emissiveIntensity * 0.3
       : warmWood2
         ? 0.38
-        : 0.08,
+        // 与墙侧同一条口径：默认档顶面原本只有 0.08，墙顶也会发灰。抬到 0.30 与墙侧一致。
+        : 0.30,
   });
   return (
     wallTopOptions.polygonOffset !== true && (wallTopMaterial.userData.environmentWallTop = true),
@@ -26798,14 +26960,20 @@ function buildInteriorScene({
         // 下面每个 mesh 从 doorParts.<角色> 取色，不再直接读 yt6 —— 这样「材质属性」面板
         // 与画面同源，改一处两边都变。
         doorParts = resolveDoorPartMaterials(currentDoor, yt6),
-        doorPartColor = (roleName) => doorPartDisplayColor(doorParts[roleName], ne8, yt6),
+        // 出图按固定部件语义取色，门型却只登记自己拥有的部件：必须经 doorMaterialPartRoleFor
+        // 回落（实木门的门扇填面取 `door`，实木门没有这个部件；直接取会拿到 undefined，
+        // 而 `new Color(undefined)` 是纯白 —— 「选胡桃木门，门还是白的」就是这个）。
+        doorPartForRole = (roleName) => doorParts[doorMaterialPartRoleFor(doorType, roleName)],
+        doorPartColor = (roleName) => doorPartDisplayColor(doorPartForRole(roleName), ne8, yt6),
         doorPartOptions = (roleName, baseOptions) =>
-          doorPartMeshOptions(doorParts[roleName], baseOptions),
+          doorPartMeshOptions(doorPartForRole(roleName), baseOptions),
+        // 玻璃门才有玻璃部件；真取不到就退回主题玻璃色，别让玻璃面板画成纯白。
+        doorGlassColor = doorParts.glass?.colorValue ?? doorPartThemeColor(doorType, "glass", yt6),
         doorLeafMaterialOptions = yt6.warmWood
           ? {
               // 暖木主题的门扇带一层自发光提亮；自发光跟着门扇自己的颜色走，换档位时
-              // 不会留下一层「旧色的发光」。
-              emissive: doorParts.door?.colorValue ?? yt6.doorLeaf,
+              // 不会留下一层「旧色的发光」（实木门的门扇就是它的主料部件）。
+              emissive: doorPartForRole("door")?.colorValue ?? yt6.doorLeaf,
               emissiveIntensity: 0.4,
             }
           : {},
@@ -26880,16 +27048,28 @@ function buildInteriorScene({
           doorHingeSign = currentDoor.hinge === "right" ? 1 : -1;
         for (const slidingPanelSign of [-1, 1]) {
           const slidingPanelGroup = new ns2.Group(),
-            slidingPanelOffset = slidingPanelSign * buildInteriorSceneDoorWidth * 0.23;
-          ((slidingPanelGroup.position.x =
-            !buildInteriorSceneIsEmbeddedStage && slidingPanelSign === -doorHingeSign
-              ? doorHingeSign * buildInteriorSceneDoorWidth * 0.46 * (2 / 3)
-              : 0),
+            slidingPanelOffset = slidingPanelSign * buildInteriorSceneDoorWidth * 0.23,
+            // 常开姿态：活动扇沿轨道推出 openRatio 行程（0.46 是两扇中心间距 = 全行程，理由与
+            // 「洞口净开 / 两扇错开量此消彼长」的约束见 SLIDING_DOOR_DISPLAY_OPEN_RATIO）。
+            //
+            // 编辑器和展示页**共用同一个姿态**（不加 `!buildInteriorSceneIsEmbeddedStage` 判断）：
+            // 存档里的推拉门几乎没有绑定门磁，展示页拿不到门的状态就一动不动地停在静止姿态，
+            // 之前静止姿态写死 0（两扇合拢），于是展示页上就是一堵关着的玻璃墙。
+            // 同时把该偏移写进 doorRestTranslation —— lock-motion 的 reset() 按它复位，
+            // 没有门磁 / 门磁状态未知（doorOpen === null）时都停在这个常开姿态上。
+            slidingPanelRestOffset =
+              slidingPanelSign === -doorHingeSign
+                ? doorHingeSign *
+                  buildInteriorSceneDoorWidth *
+                  0.46 *
+                  SLIDING_DOOR_DISPLAY_OPEN_RATIO2
+                : 0;
+          ((slidingPanelGroup.position.x = slidingPanelRestOffset),
             buildInteriorSceneIsEmbeddedStage &&
               Object.assign(slidingPanelGroup.userData, {
                 doorSlidePivot: true,
                 doorSlideSide: slidingPanelSign,
-                doorRestTranslation: 0,
+                doorRestTranslation: slidingPanelRestOffset,
                 doorSlideTravel: buildInteriorSceneDoorWidth * 0.46,
               }),
             doorGroup.add(slidingPanelGroup),
@@ -26904,7 +27084,7 @@ function buildInteriorScene({
                 },
               ],
               doorPartColor("frame"),
-              doorParts.glass.colorValue,
+              doorGlassColor,
             ));
           const slidingPanelTrackOffset =
             slidingPanelOffset - slidingPanelSign * doorLeafMaxWidth * 0.36;
@@ -27015,10 +27195,19 @@ function buildInteriorScene({
             buildInteriorSceneDoorWidth - doorLeafThickness * 1.5,
             0.4,
           ),
-          pocketLeafHeight = Math.max(buildInteriorSceneDoorHeight - doorLeafThickness * 0.85, 0.8);
+          pocketLeafHeight = Math.max(buildInteriorSceneDoorHeight - doorLeafThickness * 0.85, 0.8),
+          // 入户门是「常闭」门型：编辑预览里不打开展示，所以（和平面图一样）内外翻转
+          // 只能落在「门扇与五金贴哪一面」上 —— 门扇先往开向那面挪一点，门套线和把手
+          // 再挂到那一面的门扇外侧；swing 取反就整组翻到墙的另一面。
+          // 位移上限取 (门框进深 0.09 − 门扇厚) / 2，门扇不会被推出门框。
+          pocketSwingSign = currentDoor.swing === -1 ? -1 : 1,
+          pocketLeafFaceZ =
+            pocketSwingSign * Math.max(0, (0.09 - doorLeafThickness) / 2) * 0.9,
+          pocketTrimZ = pocketLeafFaceZ + pocketSwingSign * 0.012,
+          pocketHandleZ = pocketLeafFaceZ + pocketSwingSign * 0.055;
         (addArchitectureMesh(
           doorGroup,
-          [[pocketLeafWidth, pocketLeafHeight, 0.065, 0, pocketLeafHeight * 0.5, 0]],
+          [[pocketLeafWidth, pocketLeafHeight, 0.065, 0, pocketLeafHeight * 0.5, pocketLeafFaceZ]],
           doorPartColor("door"),
           doorPartOptions("door", {
             rounded: false,
@@ -27031,8 +27220,8 @@ function buildInteriorScene({
           addArchitectureMesh(
             doorGroup,
             [
-              [pocketLeafWidth * 0.76, 0.022, 0.078, 0, buildInteriorSceneDoorHeight * 0.68, 0.012],
-              [pocketLeafWidth * 0.76, 0.022, 0.078, 0, buildInteriorSceneDoorHeight * 0.34, 0.012],
+              [pocketLeafWidth * 0.76, 0.022, 0.078, 0, buildInteriorSceneDoorHeight * 0.68, pocketTrimZ],
+              [pocketLeafWidth * 0.76, 0.022, 0.078, 0, buildInteriorSceneDoorHeight * 0.34, pocketTrimZ],
             ],
             doorPartColor("trim"),
             doorPartOptions("trim", {
@@ -27046,7 +27235,7 @@ function buildInteriorScene({
           currentDoor.hinge === "right" ? -pocketLeafWidth * 0.34 : pocketLeafWidth * 0.34;
         addArchitectureMesh(
           doorGroup,
-          [[0.035, 0.18, 0.085, pocketHingeOffset, buildInteriorSceneDoorHeight * 0.5, 0.055]],
+          [[0.035, 0.18, 0.085, pocketHingeOffset, buildInteriorSceneDoorHeight * 0.5, pocketHandleZ]],
           doorPartColor("metal"),
           doorPartOptions("metal", {
             rounded: false,
@@ -27173,7 +27362,7 @@ function buildInteriorScene({
               },
             ],
             doorPartColor("frame"),
-            doorParts.glass.colorValue,
+            doorGlassColor,
           )
         : addArchitectureMesh(
             foldLeafGroup,
@@ -29255,6 +29444,9 @@ function applyToolSetting(selectedToolName) {
                 0.3,
                 1,
               )),
+              (toolPlacedElement.labelColor = normalizePlanLabelColor(
+                selectElement("#label-color").value,
+              )),
               (toolPlacedElement.height = 0.01),
               (toolPlacedElement.elevation = 0)),
             toolPlacedElement.type === "curtain")
@@ -30881,6 +31073,7 @@ for (const applianceOptionInput of [
   selectElement("#label-subtitle"),
   selectElement("#label-subtitle-spacing"),
   selectElement("#label-line-length"),
+  selectElement("#label-color"),
 ])
   applianceOptionInput.addEventListener("change", () => applyToolSetting("item"));
 for (const courtyardOptionInput of [

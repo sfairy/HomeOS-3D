@@ -17,19 +17,28 @@
  *
  * 用法：
  *   bun tools/verify_model_material_roles.ts [--verbose] [--model=shelf] [--no-parity]
+ *   bun tools/verify_model_material_roles.ts --audit [--model=fridge]
+ *
+ * `--audit` 打印「角色 ↔ 几何 ↔ 逐档位出图」的逐模型对照表（见 `printModelFitReport`）。
+ * 它与 `--model=<名>` 联用时只加载那一件模型，因此**全局覆盖类闸门**（L6c 的档位覆盖面、
+ * 档位组可达性等）会因样本不足而报错 —— 那是查看单件模型的正常代价，看表格本身即可。
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   DOOR_MATERIAL_PART_ROLES_BY_TYPE,
+  DOOR_MATERIAL_PARTS,
   MODEL_SLOT_ROLES,
   doorMaterialPartIndex,
+  doorMaterialPartRoleFor,
+  doorPlanMaterialRoleFor,
   isStoneSlabFlavor,
   isStructuralModelFamily,
   materialRoleRecipeFor,
   resolveModelFamily,
   resolveModelMaterialRole,
+  stoneSlabFlavorForMaterial,
   usesNamedMaterialRole,
   MATERIAL_ROLE_VOCABULARY,
 } from "../frontend/src/app/3d-studio/materials/studio-model-material-roles";
@@ -47,6 +56,7 @@ import {
   materialStylePresetFor,
   materialStylePresetSwatchColors,
   materialStyleRecipeFor,
+  materialStyleStoneSlabRoles,
   normalizeMaterialStyle,
   registerCustomMaterialStyles,
 } from "../frontend/src/app/3d-studio/materials/studio-material-presets";
@@ -60,6 +70,8 @@ const REFERENCE_DIR = join(PROJECT_ROOT, "../homeos-3d 0.6.5/frontend/public/sta
 const verbose = process.argv.includes("--verbose");
 const skipParity = process.argv.includes("--no-parity");
 const only = process.argv.find((a) => a.startsWith("--model="))?.slice(8);
+/** 逐模型打印「角色 ↔ 几何 ↔ 档位」报告（L7 审计的可复现依据）。 */
+const audit = process.argv.includes("--audit");
 
 /* -------------------------------------------------------------------------- */
 /* 行类型                                                                      */
@@ -170,19 +182,21 @@ const exemptionFor = (model: string, slot: number) =>
   PARITY_EXEMPTIONS.find((e) => e.model === model && e.slot === slot);
 
 /**
- * 默认（蓝灰）主题色板：照抄 studio-app.ts 的 `defaultViewSettings`（未导出）。
- * 它没有 wood / cabinetWood / countertop / sofaFabric 等暖木专用键，
+ * 默认主题色板：照抄 studio-app.ts 的 `defaultViewSettings`（未导出）。
+ * 墙 / 窗框 / 地板已朝「暖阳原木」的暖调靠（暖白墙 / 暖橡地板 / 暖铜木窗框），
+ * 其余键仍是默认的冷灰调；它没有 wood / cabinetWood / countertop / sofaFabric 等暖木专用键，
  * 这些要靠 PALETTE_KEY_FALLBACK 回落——所以这里只用它验「取得到且健全」。
  */
 const DEFAULT_PALETTE = {
   warmWood: false,
   background: 1120029,
   ground: 1382690,
-  floor: 5792116,
+  floor: 15920610,
   floorEdge: 16163146,
   grid: 5331300,
-  wall: 9476522,
-  wallTop: 13095134,
+  wall: 16052972,
+  wallTop: 16184817,
+  windowFrame: 11515315,
   furniture: 8226713,
   furnitureSoft: 10332346,
   furnitureLight: 12634839,
@@ -190,7 +204,7 @@ const DEFAULT_PALETTE = {
   appliance: 10134967,
   applianceSoft: 11911118,
   applianceDark: 6845576,
-  glass: 11126227,
+  glass: 10604733,
   frame: 12172999,
   doorLeaf: 10988725,
   accent: 16758886,
@@ -417,6 +431,28 @@ function auditLoaderSource(push: (message: string) => void): void {
   if (!applyDetailBody.includes("usesNamedMaterialRole(detailMaterial.name)")) {
     push("L2 applyItemDetailMaterial 内部缺少「材质名已带角色则跳过」的判定");
   }
+  /**
+   * 储物柜（`cabinet.glb`）把柜体与两扇柜门并进**同一个闭合箱**（`cabinet-material-0`），
+   * 没有独立柜体槽。选了档位时它必须靠「柜门返边」按面法线把非前脸刷成**该档位的 `body`
+   * 角色色**（与同档吊柜的柜体同源）—— 缺任意一环，「木柜白门」的储物柜都会整只变成门色
+   * （全白），与同档吊柜（木柜体 + 白门）配不成套。这条链横跨档位模块与加载器两处，
+   * 断掉只会表现为画面不对、没有报错 / 类型错误，故在此钉住。
+   */
+  if (
+    !readFileSync(PRESETS_SOURCE_PATH, "utf8").includes(
+      "export function materialStyleRoleColorFor(",
+    )
+  ) {
+    push("L2 档位模块缺少 materialStyleRoleColorFor（储物柜的柜体色无从按档位取）");
+  }
+  if (
+    !loaderSource.includes("isStyledCabinetDoorMaterial") ||
+    !loaderSource.includes('materialStyleRoleColorFor("cabinet", "body", palette)')
+  ) {
+    push(
+      "L2 储物柜（cabinet）缺少「按档位柜体色返边」的接线：选了木柜白门会整只刷成门色、与吊柜配不成套",
+    );
+  }
 }
 
 /**
@@ -617,6 +653,547 @@ function matchScore(a: Fingerprint, b: Fingerprint, tolerance = 0.09): number {
   }
   if (worst > tolerance) return -1;
   return worst + countGap * 0.2;
+}
+
+/* -------------------------------------------------------------------------- */
+/* L7：角色 / 表面 / 档位与模型特色的语义贴合                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * L6 只保证「档位能生效、彼此可分辨、色卡与物件一致」，不保证**档位语义与这件模型相符**：
+ * 木器档位能把台球桌的台呢刷成米色、joinery 档位能把梳妆台的镜子刷成陶土摆件 —— 覆盖率与
+ * 可分辨性全过，画面却是错的。L7 把这类「语义错配」钉住：
+ *
+ *   L7a 薄木顶面：书架 / 床头柜 / 电视柜 / 鞋柜 / 餐边柜 / 方茶几 / 台球桌的 `top`(`surface`)
+ *       都是 0.02~0.06m 的木板，在 auto 与全部档位下都不得带石材板（大理石整图）。
+ *   L7b 梳妆台镜面：`accent` 是立式镜，在所有档位下都必须保持透明（不能被刷成陶土摆件）。
+ *   L7c 台球桌台呢：四档的绒面色两两不同（换档位要看得出来）。
+ *   L7d 新组可达：poolTable / shower / teaTable / ornament 都要有真实模型，且 decor-* 有档位。
+ *   L7e 台面几何：给 `top` 贴石材板的模型，那条槽位必须真的是「板」（两条平面边够长、厚度是
+ *       最薄的一条）—— 台面被挂到细条 / 小件上时，石材档位在画面上什么也看不到。
+ *   L7f 缸景不跟柜框：鱼缸的底砂 / 造景石 / 水草 / 鱼在三种缸框档位下颜色必须一致，且不得
+ *       与缸框同色（它们是缸里的内容物，不是柜体的一部分）。
+ *   L7g 键盘不跟漆色：钢琴的白键 / 黑键与内板 / 黄铜五金在三种漆色下必须是同一批件，
+ *       且白键为浅色、黑键为深色。
+ *   L7h 纸张不跟漆色：打印机出纸口那张纸在所有档位下都必须是浅色（耗材不该被机身漆色染黑）。
+ */
+function auditSemanticFit(
+  modelList: ModelFacts[],
+  push: (message: string) => void,
+  note: (message: string) => void,
+): void {
+  const modelByType = new Map(modelList.map((model) => [model.itemType, model]));
+
+  /* L7a 薄木顶面不得贴石材板 */
+  const woodTopSlots: ReadonlyArray<readonly [string, string]> = [
+    ["shelf", "top"],
+    ["nightstand", "top"],
+    ["tvstand", "surface"],
+    ["shoecabinet", "top"],
+    ["sideboard", "top"],
+    ["squarecoffeetable", "surface"],
+    ["pool-table", "surface"],
+  ];
+  let woodTopChecks = 0;
+  for (const [modelType, roleName] of woodTopSlots) {
+    const model = modelByType.get(modelType);
+    if (!model) {
+      push(`L7a 找不到模型 ${modelType}（木质顶面断言无从进行）`);
+      continue;
+    }
+    const topSlots = model.materials.filter(
+      (material) =>
+        resolveModelMaterialRole(modelType, material.name, material.index).role === roleName,
+    );
+    if (!topSlots.length) {
+      push(`L7a ${modelType} 没有 ${roleName} 槽位（槽位表可能改名）`);
+      continue;
+    }
+    for (const [paletteLabel, palette] of PALETTES) {
+      for (const slot of topSlots) {
+        woodTopChecks += 1;
+        const autoSlab = stoneSlabFlavorForMaterial(modelType, slot.name, slot.index);
+        if (isStoneSlabFlavor(autoSlab)) {
+          push(
+            `L7a ${modelType}#${slot.index} 的木质 ${roleName} 在 auto/${paletteLabel} 下` +
+              `带着石材板 ${autoSlab}（自动档就贴了大理石整图）`,
+          );
+        }
+      }
+      for (const preset of materialStyleOptionsFor(modelType)) {
+        for (const slot of topSlots) {
+          woodTopChecks += 1;
+          const styleRecipe = materialStyleRecipeFor(
+            modelType,
+            slot.name,
+            { ...palette, ...preset.colors, materialStyle: preset.id },
+            slot.index,
+          );
+          if (styleRecipe && isStoneSlabFlavor(styleRecipe.slab)) {
+            push(
+              `L7a ${modelType}#${slot.index} 的木质 ${roleName} 在档位 ${preset.id}/${paletteLabel} 下` +
+                `带着石材板 ${styleRecipe.slab}（木顶板会飘大理石纹）`,
+            );
+          }
+        }
+      }
+    }
+  }
+  if (woodTopChecks < 40) push(`L7a 木质顶面只校验了 ${woodTopChecks} 次（闸门自己疑似失效）`);
+
+  /* L7b 梳妆台 accent 必须是透明镜面 */
+  const vanity = modelByType.get("vanity");
+  if (vanity) {
+    const mirrorSlots = vanity.materials.filter(
+      (material) =>
+        resolveModelMaterialRole("vanity", material.name, material.index).role === "accent",
+    );
+    if (!mirrorSlots.length) push("L7b vanity 没有 accent（镜面）槽位");
+    let mirrorChecks = 0;
+    for (const preset of materialStyleOptionsFor("vanity")) {
+      for (const slot of mirrorSlots) {
+        mirrorChecks += 1;
+        const styleRecipe = materialStyleRecipeFor(
+          "vanity",
+          slot.name,
+          { ...PALETTES[0][1], ...preset.colors, materialStyle: preset.id },
+          slot.index,
+        );
+        if (!styleRecipe) {
+          push(`L7b vanity.accent 在档位 ${preset.id} 下取不到配方`);
+        } else if (styleRecipe.transparent !== true) {
+          push(
+            `L7b vanity.accent（立式镜）在档位 ${preset.id} 下不是透明镜面（会被刷成实心色块）`,
+          );
+        }
+      }
+    }
+    note(`L7b 梳妆台镜面：校验 ${mirrorChecks} 次`);
+  }
+
+  /* L7c 台球桌台呢档位可分辨 */
+  const poolTable = modelByType.get("pool-table");
+  if (poolTable) {
+    const fabricSlots = poolTable.materials.filter(
+      (material) =>
+        resolveModelMaterialRole("pool-table", material.name, material.index).role === "fabric",
+    );
+    if (!fabricSlots.length) push("L7c pool-table 没有 fabric（台呢）槽位");
+    const clothByPreset = new Map<string, string>();
+    for (const preset of materialStyleOptionsFor("pool-table")) {
+      const signature = fabricSlots
+        .map((slot) =>
+          materialStyleRecipeFor(
+            "pool-table",
+            slot.name,
+            { ...PALETTES[0][1], ...preset.colors, materialStyle: preset.id },
+            slot.index,
+          )?.colorValue,
+        )
+        .join("|");
+      const duplicate = clothByPreset.get(signature);
+      if (duplicate) {
+        push(
+          `L7c 台球桌档位 ${preset.id} 与 ${duplicate} 的台呢颜色完全相同（换档位看不出变化）`,
+        );
+      }
+      clothByPreset.set(signature, preset.id);
+    }
+  }
+
+  /* L7d 新档位组的可达性与 decor 覆盖 */
+  for (const groupName of ["poolTable", "shower", "teaTable", "ornament"] as const) {
+    const reachable = modelList.some(
+      (model) => materialStyleGroupFor(model.itemType) === groupName,
+    );
+    if (!reachable) push(`L7d 档位组 ${groupName} 没有任何模型可达（整组死档位）`);
+  }
+  for (const decorType of [
+    "decor-books",
+    "decor-vase",
+    "decor-tea-tray",
+    "decor-tissue-box",
+    "decor-small-plant",
+  ]) {
+    if (!modelList.some((model) => model.itemType === decorType)) continue;
+    if (!isMaterialStyleCapable(decorType)) {
+      push(`L7d 摆件 ${decorType} 没有档位组（无法换风格）`);
+    }
+  }
+  /* L7e 石材台面必须落在「板状」几何上 */
+  // 台面角色一旦被挂到细条 / 小件上（台盆的 `top` 曾经落在一条 1.2cm 宽的竖收边上），
+  // 石作档位在画面上什么都看不到 —— 覆盖率 / 可分辨性 / 色卡全过，用户看到的是「选了没反应」。
+  // 这里用图元实测三围钉住：台面必须是「一条薄轴 + 两条够长的平面边」。
+  let countertopShapeChecked = 0;
+  for (const model of modelList) {
+    if (!materialStyleStoneSlabRoles(model.itemType).has("top")) continue;
+    // 槽位名从资产事实里取，不写死：槽位号会随资产重排。
+    const countertopSlot = model.materials.find(
+      (material) =>
+        resolveModelMaterialRole(model.itemType, material.name, material.position).role === "top",
+    );
+    if (!countertopSlot) {
+      push(
+        `L7e 模型 ${model.itemType} 的档位给 \`top\` 贴石材板，资产里却找不到 \`top\` 槽位` +
+          "（台面档位会落到别的料上）",
+      );
+      continue;
+    }
+    const modelPrimitives = primitivesOf(model.path);
+    const countertopDims = [0, 1, 2]
+      .map((axis) => {
+        let extent = 0;
+        for (const primitive of modelPrimitives)
+          if (primitive.materialName === countertopSlot.name)
+            extent = Math.max(extent, Math.abs(primitive.box[3 + axis] - primitive.box[axis]));
+        return extent;
+      })
+      .sort((a, b) => a - b);
+    countertopShapeChecked += 1;
+    const dimsText = countertopDims.map((value) => value.toFixed(3)).join("×");
+    if (countertopDims[0] > countertopDims[1] * 0.5) {
+      push(
+        `L7e ${model.itemType} 的台面 ${countertopSlot.name} 不是板状（三围 ${dimsText}）：` +
+          "石材整图会贴在一块方料 / 细条上，看不出是台面",
+      );
+    }
+    if (countertopDims[1] < 0.3) {
+      push(
+        `L7e ${model.itemType} 的台面 ${countertopSlot.name} 的平面边太短（三围 ${dimsText}）：` +
+          "石材档位在画面上几乎看不见",
+      );
+    }
+  }
+
+  /**
+   * 某（模型，角色）在**每个档位**下解析出的色值。L7f / L7g 共用：档位配方要么逐档给出
+   * 同一支色（＝这个角色不跟档位走），要么随档位变化（＝它就是这档要换的那件）。
+   */
+  const styleColorsByRole = (modelType: string, roleName: string): Set<number> => {
+    const model = modelByType.get(modelType);
+    if (!model) return new Set();
+    const slots = model.materials.filter(
+      (material) =>
+        resolveModelMaterialRole(modelType, material.name, material.index).role === roleName,
+    );
+    const colors = new Set<number>();
+    for (const preset of materialStyleOptionsFor(modelType)) {
+      for (const slot of slots) {
+        const styleRecipe = materialStyleRecipeFor(
+          modelType,
+          slot.name,
+          { ...PALETTES[0][1], ...preset.colors, materialStyle: preset.id },
+          slot.index,
+        );
+        if (styleRecipe?.colorValue !== undefined) colors.add(styleRecipe.colorValue);
+      }
+    }
+    return colors;
+  };
+
+  /* L7f 缸内造景与活体不随柜体 / 缸框变色 */
+  // 底砂 / 造景石 / 水草 / 鱼是缸里的**内容物**。派生表原本把它们接到 `interior`（深青背板）
+  // 与 `frame`（柜框）上：白框缸因此得到白色的造景石与白色的鱼、木框缸得到棕色的鱼，
+  // 底砂与水草在三种缸框下都变成 `#1b3a40` 的深青。判据：这四支色在所有缸框档位下必须
+  // **完全相同**（几何分别是缸底 0.03m 的砂层、0.65m 的石、0.46m 的水草、0.32m 的鱼）。
+  const aquarium = modelByType.get("aquarium");
+  if (aquarium) {
+    let aquascapeChecks = 0;
+    for (const aquascapeRole of ["sand", "rock", "foliage", "fish"]) {
+      const colors = styleColorsByRole("aquarium", aquascapeRole);
+      if (!colors.size) {
+        push(`L7f aquarium 的 ${aquascapeRole}（缸景）在所有档位下都取不到配方`);
+        continue;
+      }
+      aquascapeChecks += 1;
+      if (colors.size > 1) {
+        push(
+          `L7f aquarium 的 ${aquascapeRole}（缸景 / 活体）在不同缸框档位下颜色不同` +
+            `（${[...colors].map((c) => hex(c)).join("/")}）：换柜框不该换缸里的内容物`,
+        );
+      }
+    }
+    // 缸景不得与缸框同色：同色意味着又被接回柜体了。
+    const frameColors = styleColorsByRole("aquarium", "frame");
+    for (const aquascapeRole of ["sand", "rock", "foliage", "fish"]) {
+      const colors = styleColorsByRole("aquarium", aquascapeRole);
+      const shared = [...colors].filter((c) => frameColors.has(c));
+      if (shared.length) {
+        push(
+          `L7f aquarium 的 ${aquascapeRole} 与缸框同色（${shared.map((c) => hex(c)).join("/")}）：` +
+            "缸景又接回了柜体 / 缸框的配色",
+        );
+      }
+    }
+    note(
+      `L7f 鱼缸缸景：校验 ${aquascapeChecks} 个缸内角色在所有缸框档位下保持不变`,
+    );
+  }
+
+  /* L7g 钢琴的键盘与五金不随漆色变 */
+  // 「亮光黑 / 亮光白 / 暖木色」换的是**琴身漆色**：`trim` 是那 42 根白键、`dark` 是黑键与
+  // 铸铁内板、`accent` 是踏板 / 铰链的黄铜件 —— 三者在三种漆色下都该是同一批件。
+  // 原先把它们接到 `body` 派生，暖木钢琴会得到一排**棕色的白键**、亮光黑钢琴得到黑键盘。
+  const piano = modelByType.get("piano");
+  if (piano) {
+    let keyboardChecks = 0;
+    for (const [pianoRole, label] of [
+      ["trim", "白键"],
+      ["accent", "黄铜五金"],
+      ["dark", "黑键与内板"],
+    ] as const) {
+      const colors = styleColorsByRole("piano", pianoRole);
+      if (!colors.size) {
+        push(`L7g piano 的 ${pianoRole}（${label}）在所有档位下都取不到配方`);
+        continue;
+      }
+      keyboardChecks += 1;
+      if (colors.size > 1) {
+        push(
+          `L7g piano 的 ${pianoRole}（${label}）随漆色档位变色` +
+            `（${[...colors].map((c) => hex(c)).join("/")}）：换琴身漆色不该换键盘 / 五金`,
+        );
+      }
+    }
+    // 白键必须是浅色、黑键必须是深色（两条都反了才算错配，避免只钉具体色号）。
+    const keyColor = [...styleColorsByRole("piano", "trim")][0],
+      darkColor = [...styleColorsByRole("piano", "dark")][0];
+    if (keyColor !== undefined && darkColor !== undefined) {
+      const luma = (value: number) => {
+        const r = (value >> 16) & 0xff,
+          g = (value >> 8) & 0xff,
+          b = value & 0xff;
+        return 0.299 * r + 0.587 * g + 0.114 * b;
+      };
+      if (luma(keyColor) < 180) {
+        push(`L7g piano 的白键（trim=${hex(keyColor)}）不是浅色：键盘会被漆色染成深色`);
+      }
+      if (luma(darkColor) > 90) {
+        push(`L7g piano 的黑键 / 内板（dark=${hex(darkColor)}）不是深色`);
+      }
+    }
+    note(`L7g 钢琴键盘 / 五金：校验 ${keyboardChecks} 个角色不随漆色变化`);
+  }
+
+  /* L7h 纸张 / 耗材不跟机身漆色变 */
+  // 打印机出纸口那张纸是**耗材**：在「石墨黑 / 金属灰」档位下不能变成深灰纸。派生表原本把它
+  // 接到 `panel`（＝机身色）上，于是黑色的打印机配一张黑纸。
+  const printer = modelByType.get("printer");
+  if (printer) {
+    const paperSlots = printer.materials.filter(
+      (material) =>
+        resolveModelMaterialRole("printer", material.name, material.index).role === "paper",
+    );
+    if (!paperSlots.length) {
+      push("L7h printer 没有 paper（出纸）槽位（纸张断言无从进行）");
+    } else {
+      const luma = (value: number) => {
+        const r = (value >> 16) & 0xff,
+          g = (value >> 8) & 0xff,
+          b = value & 0xff;
+        return 0.299 * r + 0.587 * g + 0.114 * b;
+      };
+      let paperChecks = 0;
+      for (const preset of materialStyleOptionsFor("printer")) {
+        for (const slot of paperSlots) {
+          const styleRecipe = materialStyleRecipeFor(
+            "printer",
+            slot.name,
+            { ...PALETTES[0][1], ...preset.colors, materialStyle: preset.id },
+            slot.index,
+          );
+          if (styleRecipe?.colorValue === undefined) continue;
+          paperChecks += 1;
+          if (luma(styleRecipe.colorValue) < 180) {
+            push(
+              `L7h printer 的出纸（paper）在档位 ${preset.id} 下是深色` +
+                `（${hex(styleRecipe.colorValue)}）：纸张被机身漆色染黑了`,
+            );
+          }
+        }
+      }
+      note(`L7h 打印机纸张：校验 ${paperChecks} 次为浅色耗材`);
+    }
+  }
+
+  /* L7i 家电 / 设备的「机身层次」不得在档位下塌成一个色 */
+  // 角色表（FAMILY_ROLE_RECIPES 的 appliance / device）早就写明「箱体最亮、门脸中间、
+  // 控制面板与底座最暗」，可档位表原先只给 `body` 一支料 —— `applianceCombo` 的
+  // `door ?? body` / `panel ?? body` / `base ?? body` 三条回落链把整机刷成一个颜色：
+  // 三档不锈钢选下来只有整体深浅变化，冰箱的门缝、洗衣机的控制条、洗碗机的踢脚、
+  // 热水器的显示窗、蒸箱的门板压边全部消失（`recess` 是唯一还深的槽位）。
+  // 修法是在档位侧补 `applianceShellTones` / `deviceShellTones`：门脸 / 抽屉面 / 台面取本档
+  // 调色板 `applianceSoft`，控制面板 / 底座取 `applianceDark`，表面处理沿用本档箱体。
+  // 这里把结论钉住 —— **结构件必须与箱体不同色**。
+  {
+    const shellGroups = ["steelAppliance", "device"];
+    /**
+     * 必须与箱体分色的角色。
+     *
+     * 不含 `trim`：部分型号（落地空调 / 燃气热水器 / 储水式热水器）的 `trim` 就是外壳本身，
+     * 与箱体同料是刻意的；也不含 `metal` / `handle`（五金本来就是钢色，与漆色不同源）。
+     */
+    const shellRoles = ["door", "drawer", "panel", "base", "top"];
+    let shellChecks = 0;
+    let shellCollapsedModels = 0;
+    for (const model of modelList) {
+      if (!shellGroups.includes(materialStyleGroupFor(model.itemType))) continue;
+      const slots = model.materials.filter((material) => material.rendered);
+      if (slots.length < 2) continue;
+      const roleOf = (slot: ModelFacts["materials"][number]) =>
+        resolveModelMaterialRole(model.itemType, slot.name, slot.index).role;
+      const bodySlots = slots.filter((slot) => roleOf(slot) === "body");
+      if (!bodySlots.length) continue;
+      let collapsedThisModel = false;
+      for (const preset of materialStyleOptionsFor(model.itemType)) {
+        const styledPalette = { ...PALETTES[0][1], ...preset.colors, materialStyle: preset.id };
+        const colorFor = (slot: ModelFacts["materials"][number]) => {
+          const recipe =
+            materialStyleRecipeFor(model.itemType, slot.name, styledPalette, slot.index) ??
+            materialRoleRecipeFor(model.itemType, slot.name, styledPalette, slot.index);
+          return recipe?.colorValue;
+        };
+        const bodyColors = new Set(bodySlots.map((slot) => colorFor(slot)));
+        for (const roleName of shellRoles) {
+          const roleSlots = slots.filter((slot) => roleOf(slot) === roleName);
+          if (!roleSlots.length) continue;
+          shellChecks += 1;
+          const sameAsBody = roleSlots.filter((slot) => bodyColors.has(colorFor(slot)));
+          if (sameAsBody.length === roleSlots.length) {
+            collapsedThisModel = true;
+            push(
+              `L7i ${model.basename} 的 ${roleName}（${String(roleSlots.length)} 个槽位）在档位 ` +
+                `${preset.id} 下与箱体同色（${hex(colorFor(roleSlots[0]))}）：` +
+                "门脸 / 控制面板 / 底座被刷进了箱体，整机只剩一个颜色",
+            );
+          }
+        }
+      }
+      if (collapsedThisModel) shellCollapsedModels += 1;
+    }
+    if (shellChecks < 40) {
+      push(`L7i 家电 / 设备机身层次只校验了 ${shellChecks} 个角色槽位（闸门自己疑似失效）`);
+    }
+    note(
+      `L7i 家电 / 设备机身层次：校验 ${shellChecks} 个角色槽位；整机塌成一个色的模型 ` +
+        `${shellCollapsedModels} 个`,
+    );
+  }
+
+  /* L7j 软装的「第二层」不得与主体软包同色 */
+  // 沙发 / 床 / 办公椅的 `accent` 是靠背枕 / 搭毯 / 床品那一条（几何见 `--audit`：沙发上
+  // 1.90×0.32×0.15 的靠背枕、床上 1.87×0.31×1.56 的被子、办公椅上 0.37×0.08×0.08 的腰托）。
+  // 皮革三档原先没给 accent，`fabricCombo` 的 `accent ?? upholstery` 就把它接回主体皮革：
+  // 焦糖皮 / 干邑棕 / 墨黑皮整件只有一个色，靠背枕与坐垫之间没有缝。
+  // 判据：有 accent 槽位的软装模型，在每一档下 accent 都必须与主体软包不同色。
+  {
+    const bodyUpholsteryRoles = ["fabric", "surface", "upholstery", "cushion"];
+    let layerChecks = 0;
+    let layerMergedModels = 0;
+    for (const model of modelList) {
+      if (resolveModelFamily(model.itemType) !== "upholstery") continue;
+      const slots = model.materials.filter((material) => material.rendered);
+      const roleOf = (slot: ModelFacts["materials"][number]) =>
+        resolveModelMaterialRole(model.itemType, slot.name, slot.index).role;
+      const accentSlots = slots.filter((slot) => roleOf(slot) === "accent");
+      if (!accentSlots.length) continue;
+      const bodySlots = slots.filter((slot) => bodyUpholsteryRoles.includes(roleOf(slot)));
+      if (!bodySlots.length) continue;
+      let mergedThisModel = false;
+      for (const preset of materialStyleOptionsFor(model.itemType)) {
+        const styledPalette = { ...PALETTES[0][1], ...preset.colors, materialStyle: preset.id };
+        const colorFor = (slot: ModelFacts["materials"][number]) => {
+          const recipe =
+            materialStyleRecipeFor(model.itemType, slot.name, styledPalette, slot.index) ??
+            materialRoleRecipeFor(model.itemType, slot.name, styledPalette, slot.index);
+          return recipe?.colorValue;
+        };
+        const bodyColors = new Set(bodySlots.map((slot) => colorFor(slot)));
+        layerChecks += accentSlots.length;
+        const sameAsBody = accentSlots.filter((slot) => bodyColors.has(colorFor(slot)));
+        if (sameAsBody.length === accentSlots.length) {
+          mergedThisModel = true;
+          push(
+            `L7j ${model.basename} 的 accent（靠背枕 / 搭毯 / 床品）在档位 ${preset.id} 下与主体` +
+              `软包同色（${hex(colorFor(accentSlots[0]))}）：整件只有一个颜色，看不出第二层`,
+          );
+        }
+      }
+      if (mergedThisModel) layerMergedModels += 1;
+    }
+    if (layerChecks < 15) {
+      push(`L7j 软装第二层只校验了 ${layerChecks} 个槽位（闸门自己疑似失效）`);
+    }
+    note(`L7j 软装第二层：校验 ${layerChecks} 个 accent 槽位；与主体同色的模型 ${layerMergedModels} 个`);
+  }
+
+  note(`L7a 木质顶面：校验 ${woodTopChecks} 次；L7d 新档位组可达性 / 摆件档位已校验`);
+  note(`L7e 石材台面几何：校验 ${countertopShapeChecked} 个模型的台面槽位是板状`);
+}
+
+/**
+ * `--audit`：逐模型打印「角色 ↔ 几何 ↔ 档位出图」报告，作为 L7 的手工复核依据。
+ *
+ * 列的含义：
+ *   - `auto=` 跟随全局风格（角色表）时这一槽取到的色 —— 它是「这槽到底是什么」的第一手依据；
+ *   - `dims=` 该槽位图元的包围盒（单元与资产一致，多是米）—— 判断「这一槽是门板还是层板、
+ *     是控制条还是外壳」靠它，不能只看角色名；
+ *   - `档位` 段按 `presetIds` 的顺序列出**每一档**下这一槽解析出的色号 —— 这一段就是
+ *     「逐模型核对该模型的预设值」的入口：同一件模型横着读，能看出这一档到底动了哪些槽；
+ *     竖着读，能看出这一槽是否所有档位都一样（＝档位没接到这件料上）。
+ */
+function printModelFitReport(modelList: ModelFacts[]): void {
+  for (const model of modelList) {
+    if (LIGHT_ITEM_TYPES.has(model.itemType)) continue;
+    const renderedSlots = model.materials.filter((material) => material.rendered);
+    if (!renderedSlots.length) continue;
+    const dimsByMaterial = new Map<number, number[]>();
+    for (const primitive of primitivesOf(model.path)) {
+      const dims = dimsByMaterial.get(primitive.materialIndex) ?? [0, 0, 0];
+      for (let axis = 0; axis < 3; axis += 1) {
+        dims[axis] = Math.max(dims[axis], Math.abs(primitive.box[3 + axis] - primitive.box[axis]));
+      }
+      dimsByMaterial.set(primitive.materialIndex, dims);
+    }
+    const presets = materialStyleOptionsFor(model.itemType);
+    console.log(
+      `[${model.itemType}] family=${resolveModelFamily(model.itemType)} ` +
+        `style=${materialStyleGroupFor(model.itemType) || "-"} slots=${renderedSlots.length}` +
+        (presets.length ? ` presetIds=[${presets.map((preset) => preset.id).join(" ")}]` : ""),
+    );
+    for (const slot of renderedSlots) {
+      const resolution = resolveModelMaterialRole(model.itemType, slot.name, slot.index);
+      const recipe = materialRoleRecipeFor(model.itemType, slot.name, PALETTES[0][1], slot.index);
+      const slab = stoneSlabFlavorForMaterial(model.itemType, slot.name, slot.index);
+      const dims = (
+        dimsByMaterial.get(slot.position) ??
+        dimsByMaterial.get(slot.index) ?? [0, 0, 0]
+      )
+        .map((value) => value.toFixed(2))
+        .join("×");
+      // 每一档下这一槽的色号（含石材板 / 透明标记）：这是「预设值是否匹配这件模型」的证据。
+      const presetColors = presets.map((preset) => {
+        const styleRecipe = materialStyleRecipeFor(
+          model.itemType,
+          slot.name,
+          { ...PALETTES[0][1], ...preset.colors, materialStyle: preset.id },
+          slot.index,
+        );
+        if (styleRecipe?.colorValue === undefined) return "--".padEnd(9);
+        return (
+          hex(styleRecipe.colorValue) +
+          (styleRecipe.slab ? `[${styleRecipe.slab}]` : "") +
+          (styleRecipe.transparent ? "(g)" : "")
+        ).padEnd(9);
+      });
+      console.log(
+        `    #${slot.position} ${resolution.role.padEnd(10)} ${(slot.name || "").padEnd(34)}` +
+          ` dims=${dims.padEnd(18)} auto=${(recipe ? hex(recipe.colorValue) : "-").padEnd(9)}` +
+          `${slab ? `slab=${slab.padEnd(11)}` : "".padEnd(16)}` +
+          (presetColors.length ? `| ${presetColors.join(" ")}` : ""),
+      );
+    }
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -829,6 +1406,12 @@ if (!skipParity && existsSync(REFERENCE_DIR)) {
 }
 
 auditMaterialStylePresets(
+  models,
+  (message) => problems.push(message),
+  (message) => notes.push(message),
+);
+
+auditSemanticFit(
   models,
   (message) => problems.push(message),
   (message) => notes.push(message),
@@ -1067,6 +1650,24 @@ function auditMaterialStylePresets(
   if (capableModels < 30) {
     push(`L6c 支持档位的模型只有 ${capableModels} 个（档位覆盖面疑似被收窄）`);
   }
+  // 门（程序化宿主）另有一条比 60% 更严的规矩：**门型登记的每一个部件，每档都要显式声明**。
+  // 角色表回落能让 `materialStyleRecipeFor` 永远返回非空（所以上面的覆盖率对门恒为 100%），
+  // 但 `transparent` / `opacity` 只从档位配方来 —— 不显式声明，玻璃门的「玻璃」行就不报
+  // 透明档位，面板看着不透明而画面是透明玻璃。玻璃门 3 槽里漏 1 槽也压不到 60% 阈值以下，
+  // 所以这条必须单独钉住（2026-10 白色烤漆门等 4 档就是这么漏掉 glass 的）。
+  const doorPresets = materialStyleOptionsFor("door");
+  for (const [doorType, partRoles] of Object.entries(DOOR_MATERIAL_PART_ROLES_BY_TYPE)) {
+    for (const preset of doorPresets) {
+      if (!Object.keys(preset.roles).length) continue;
+      const undeclaredRoles = partRoles.filter((role) => !(role in preset.roles));
+      if (undeclaredRoles.length) {
+        push(
+          `L6c 门型 ${doorType} 的部件 ${undeclaredRoles.join(" / ")} 在档位 ${preset.id} 里没有显式配方：` +
+            `会退回角色表，透明 / 表面档位随之丢失（面板与画面不一致）`,
+        );
+      }
+    }
+  }
   // 档位组可达性：任何一组都至少要有一个真实模型能选到，否则就是「死档位」（0.6.5 里
   // 石材台面组就曾因没挂模型而整组不可达，这里把它钉住）。
   const reachablePresetIds = new Set<string>();
@@ -1147,7 +1748,7 @@ function auditMaterialStylePresets(
      *
      * 曾经的做法是「拿一份写死的调色板键去合并主题色板」：柜类真正的料键
      * （cabinetWood/cabinetBody/cabinetDoor）不在那份键表里，于是「木柜白门」的色卡显示的
-     * 是家具暖木色 #c49a6c，而柜体实际刷的是 #5a3a22 深木 + #f5f3ef 白门；档位没声明的键
+     * 是家具暖木色 #c49a6c，而柜体实际刷的是 #3d2818 深木 + #e9e4da 白门；档位没声明的键
      * （木器四档都不写 countertop）又会漏进当前主题色，四档色卡最后一格完全相同。
      * 用户看到的就是「预设值与实际不匹配」。
      */
@@ -1278,6 +1879,85 @@ function auditMaterialStylePresets(
     if (pairChecked < 60) push(`L6h 档位可比对只跑了 ${pairChecked} 个模型（闸门自己疑似失效）`);
     note(
       `L6h 档位可分辨：比对 ${pairChecked} 个模型；画面零变化的档位组 ${identicalPairs} 组`,
+    );
+  }
+
+  // ── L6i 门的出图取色必须落到「本门型真实登记」的部件上 ────────────────────
+  // 出图代码是固定写法（U 形门框取 frame、门扇填面取 door、玻璃取 glass…），而每个门型只登记
+  // 自己拥有的部件（实木门只有门框 + 五金）。两条线对不上时 `partMaterials[role]` 是 undefined，
+  // 而 `new Color(undefined)` 取 three.js 的初始值 —— **纯白**：实木门最大那块可见面（门扇填面）
+  // 取的是 door，于是「改成胡桃木门，门还是白的」。这里钉住两件事：
+  //   · 取角色必须经过 doorMaterialPartRoleFor 回落，不许直接 doorParts[role]；
+  //   · 逐门型 × 逐出图语义，回落后的角色在两套色板 × 全部门档位下都要推得出生效颜色。
+  {
+    if (studioSource.includes("doorParts[roleName]")) {
+      push("L6i 门出图直接取 doorParts[roleName]（本门型没有该部件时是 undefined，会画成纯白）");
+    }
+    if (!studioSource.includes("doorMaterialPartRoleFor(doorType, roleName)")) {
+      push("L6i 门出图没有经过 doorMaterialPartRoleFor 回落（未登记部件会画成纯白）");
+    }
+    // 平面图也是这条链的消费者：代表部件必须登记过（否则平面图拿不到材质色、退回示意色），
+    // 且取色要走 doorPlanColor（不许回到那套写死的示意色）。
+    if (!studioSource.includes("doorPlanMaterialRoleFor(doorType)")) {
+      push("L6i 平面图没有用 doorPlanMaterialRoleFor 取代表部件（档位在平面图上不生效）");
+    }
+    if (!studioSource.includes("function doorPlanColor(")) {
+      push("L6i 平面图没有 doorPlanColor（门色会退回写死的示意色，档位看不出来）");
+    }
+    let doorPartResolutions = 0,
+      doorPartFailures = 0;
+    for (const [doorType, declaredRoles] of Object.entries(DOOR_MATERIAL_PART_ROLES_BY_TYPE)) {
+      const planRole = doorPlanMaterialRoleFor(doorType);
+      if (!declaredRoles.includes(planRole)) {
+        push(
+          `L6i 门型 ${doorType} 的平面图代表部件 ${planRole} 未登记在该门型部件表里` +
+            "（平面图取不到材质色）",
+        );
+      }
+      // 出图语义 + 平面图代表部件：两者都要在「本门型登记的部件」里取得到色。
+      for (const requestedRole of new Set([...DOOR_MATERIAL_PARTS, planRole])) {
+        const resolvedRole = doorMaterialPartRoleFor(doorType, requestedRole);
+        if (!declaredRoles.includes(resolvedRole)) {
+          doorPartFailures += 1;
+          push(
+            `L6i 门型 ${doorType} 取部件 ${requestedRole} 回落到未登记的 ${resolvedRole}` +
+              "（出图拿不到材质，会画成纯白）",
+          );
+          continue;
+        }
+        const resolvedMaterialName = `door-material-${doorMaterialPartIndex(resolvedRole)}`;
+        for (const doorPreset of materialStyleOptionsFor("door")) {
+          for (const [paletteName, palette] of PALETTES) {
+            const styledPalette = {
+                ...palette,
+                ...doorPreset.colors,
+                materialStyle: doorPreset.id,
+              },
+              resolvedPartRecipe =
+                materialStyleRecipeFor("door", resolvedMaterialName, styledPalette) ??
+                materialRoleRecipeFor("door", resolvedMaterialName, palette);
+            doorPartResolutions += 1;
+            if (
+              resolvedPartRecipe?.colorValue === undefined ||
+              !isHealthyColor(resolvedPartRecipe.colorValue)
+            ) {
+              doorPartFailures += 1;
+              push(
+                `L6i 门型 ${doorType} 的 ${requestedRole}→${resolvedRole} 在档位 ${doorPreset.id} / ` +
+                  `${paletteName} 色板下算不出颜色（出图会画成纯白）`,
+              );
+            }
+          }
+        }
+      }
+    }
+    if (doorPartFailures) {
+      push(`L6i 门部件取色有 ${doorPartFailures} 处落空（画面会出现纯白部件）`);
+    }
+    note(
+      `L6i 门部件取色：${Object.keys(DOOR_MATERIAL_PART_ROLES_BY_TYPE).length} 个门型 × ` +
+        `${DOOR_MATERIAL_PARTS.length} 种出图语义 + 平面图代表部件，解析 ${doorPartResolutions} 次` +
+        "全部落到本门型登记的部件上",
     );
   }
 
@@ -1447,6 +2127,10 @@ function auditMaterialStylePresets(
       ["coffeetable", "stone-all-black", "material-0-top", "marble-dark"],
       ["coffeetable", "stone-all-black", "material-1-base", "marble-dark"],
       ["coffeetable", "stone-marble", "material-0-top", "marble"],
+      // 台盆的台面是第 1 个图元（`basin-material-1`，0.90×0.065×0.50 的薄板）：
+      // 「白色 / 黑色大理石台面」的整图必须贴在这块料上（几何形状另见 L7e）。
+      ["basin", "basin-marble-white", "basin-material-1", "marble"],
+      ["basin", "basin-marble-black", "basin-material-1", "marble-dark"],
     ];
     for (const [modelType, presetId, materialName, expectedSlab] of marbleStyleExpectations) {
       if (!materialStylePresetFor(modelType, presetId)) {
@@ -1603,5 +2287,6 @@ if (problems.length) {
 } else {
   console.log("✓ 全部通过：角色 / 配方 / 分发 / 槽位表 / 覆盖色接线 / 材质档位 / 0.6.5 对齐");
 }
+if (audit) printModelFitReport(models);
 if (verbose) for (const note of notes) console.log(note);
 process.exit(problems.length ? 1 : 0);

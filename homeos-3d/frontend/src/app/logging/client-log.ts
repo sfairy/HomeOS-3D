@@ -44,20 +44,24 @@
       return false;
     }
   }
-  // 已知第三方浏览器扩展（chrome-extension://odphnbhiddhdpoccbialllejaajemdio）会 patch
-  // XMLHttpRequest，在 responseType 为 arraybuffer / json 时仍去读 responseText，于是把
-  // InvalidStateError 打到控制台。它和业务无关却会刷屏，按前缀丢弃。
+  // 已知第三方浏览器扩展（chrome-extension://odphnbhiddhdpoccbialllejaajemdio，图片助手 ImageAssistant）
+  // 会在 document_start 往页面主世界注入脚本，同时 patch XMLHttpRequest 与 window.fetch：
+  //   - XHR：responseType 为 arraybuffer / json 时仍去读 responseText，于是把 InvalidStateError 打到控制台；
+  //   - fetch：给每次请求挂 .catch，失败时 console.error("Fetch request failed:", error) 再原样抛出。
+  // 业务在卸载组件 / 切换模式时会主动 abort 在途请求，这些 AbortError 于是刷屏。它们和业务无关，
+  // 真正的网络故障由本文件自己的 fetch 包装器按业务口径上报，因此这里按特征丢弃。
+  function isIgnorableThirdPartyConsoleError(consoleArguments) {
+    const [consoleMessage, consoleCause] = consoleArguments;
+    if (typeof consoleMessage != "string") return false;
+    if (consoleMessage.startsWith("Error processing XMLHttpRequest response:")) return true;
+    return consoleMessage === "Fetch request failed:" && consoleCause?.name === "AbortError";
+  }
   function suppressThirdPartyConsoleNoise() {
     const consoleObject = bridgeWindow.console;
     if (!consoleObject || typeof consoleObject.error != "function") return;
     const originalConsoleError = consoleObject.error;
     consoleObject.error = function (...consoleArguments) {
-      if (
-        typeof consoleArguments[0] == "string" &&
-        consoleArguments[0].startsWith("Error processing XMLHttpRequest response:")
-      ) {
-        return;
-      }
+      if (isIgnorableThirdPartyConsoleError(consoleArguments)) return;
       return originalConsoleError.apply(consoleObject, consoleArguments);
     };
   }

@@ -131,7 +131,7 @@ def validate_device_bindings(items, validate_camera, model_type='fridge'):
                 ('cardScale', 0.5, 3),
                 ('cardOpacity', 0, 1),
                 ('cardWidth', 100, 600),
-                ('cardFontSize', 9, 24),
+                ('cardFontSize', 9, 32),
             ):
                 if key not in item:
                     continue

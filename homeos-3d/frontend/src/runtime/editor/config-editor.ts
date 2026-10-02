@@ -7,6 +7,11 @@ import {
   copyBatchFields as copyBatchFields2,
 } from "./batch-apply";
 import { withFixedLightEffects as withFixedLightEffects2 } from "@app/bridge/light-effect-policy";
+import {
+  DEFAULT_BUTTON_SIZE,
+  buttonIconSize,
+} from "@app/bridge/button-icon-size";
+import { CARD_TEXT_SIZE_PX } from "@app/bridge/card-text-size";
 import { vacuumMapIdentity as vacuumMapIdentity2 } from "../vacuum/vacuum-map";
 import { openInteraction3dRangeEditor as openInteraction3dRangeEditor2 } from "./range-dialog";
 import { mountInteraction3d as mountInteraction3d2 } from "../core/runtime";
@@ -37,6 +42,12 @@ import {
   temperatureHumidityFloorCenter as temperatureHumidityFloorCenter2,
   ENVIRONMENT_METRICS as ENVIRONMENT_METRICS2,
   ENVIRONMENT_BATTERY as ENVIRONMENT_BATTERY2,
+  DEFAULT_LABEL_SIZE as DEFAULT_LABEL_SIZE2,
+  DEFAULT_LABEL_ICON_SIZE as DEFAULT_LABEL_ICON_SIZE2,
+  MIN_LABEL_SIZE as MIN_LABEL_SIZE2,
+  MIN_LABEL_ICON_SIZE as MIN_LABEL_ICON_SIZE2,
+  MAX_LABEL_SIZE as MAX_LABEL_SIZE2,
+  MAX_LABEL_ICON_SIZE as MAX_LABEL_ICON_SIZE2,
 } from "@app/bridge/temperature-humidity";
 import {
   carState as carState2,
@@ -406,7 +417,13 @@ export async function openInteraction3dEditor({
           [collectionKey]: structuredClone2.environment?.[collectionKey] || [],
           ...(isCoverMode
             ? {
-                curtainGroups: structuredClone2.environment?.curtainGroups || [],
+                curtainGroups: (structuredClone2.environment?.curtainGroups || []).map(
+                  (curtainGroupItem) => ({
+                    ...curtainGroupItem,
+                    // 组合的两个成员图标同样按固定比例跟随组合按钮大小。
+                    iconSize: buttonIconSize(curtainGroupItem.size),
+                  }),
+                ),
               }
             : {}),
         }),
@@ -436,7 +453,7 @@ export async function openInteraction3dEditor({
             const size =
               Number.isFinite(normalizedItem.size) && normalizedItem.size > 0
                 ? normalizedItem.size
-                : 44;
+                : DEFAULT_BUTTON_SIZE;
             return {
               ...(usesModelBinding || isTemperatureHumidityMode
                 ? normalizedItem
@@ -471,10 +488,14 @@ export async function openInteraction3dEditor({
                 : {
                     clickAction: normalizeClickAction(normalizedItem.clickAction),
                   }),
-              iconSize:
-                Number.isFinite(normalizedItem.iconSize) && normalizedItem.iconSize > 0
+              // 普通按钮的图标按固定比例跟随按钮（@app/bridge/button-icon-size，与
+              // stage.ts resolveMarkerIconSize 同口径），旧的按 size-18 写死的值不再沿用；
+              // 扫地机把 iconSize 当字号，保持原值。
+              iconSize: isVacuumMode
+                ? Number.isFinite(normalizedItem.iconSize) && normalizedItem.iconSize > 0
                   ? normalizedItem.iconSize
-                  : Math.min(size, Math.max(4, size - 18)),
+                  : buttonIconSize(size)
+                : buttonIconSize(size),
             };
           }),
       ));
@@ -505,7 +526,8 @@ export async function openInteraction3dEditor({
         ? [
             ...(isVacuumMode ? [] : [["icon", "图标", ""]]),
             ["size", isVacuumMode ? "状态框缩放" : "按钮大小", isVacuumMode ? "%" : "px"],
-            ["iconSize", isVacuumMode ? "文字大小" : "图标大小", "px"],
+            // 图标始终铺满按钮，只有扫地机把 iconSize 当字号用，才需要单独暴露。
+            ...(isVacuumMode ? [["iconSize", "文字大小", "px"]] : []),
             ["hitSize", "点击范围", "px"],
             ["buttonVisibility", "按钮显示", ""],
             ...(isVacuumMode ? [["backgroundOpacity", "背景不透明度", "%"]] : []),
@@ -519,7 +541,6 @@ export async function openInteraction3dEditor({
           ]
         : [
             ["size", "按钮大小", "px"],
-            ["iconSize", "图标大小", "px"],
             ["hitSize", "点击范围", "px"],
             ["fadeDuration", "缓开缓灭", "秒"],
           ];
@@ -534,7 +555,7 @@ export async function openInteraction3dEditor({
     return deviceKind === "smallcar"
       ? {
           cardWidth: item.cardWidth ?? 180,
-          cardFontSize: item.cardFontSize ?? 12,
+          cardFontSize: item.cardFontSize ?? CARD_TEXT_SIZE_PX,
           cardOpacity: item.cardOpacity ?? 1,
           buttonVisibility: item.buttonHidden
             ? "隐藏（不可点击）"
@@ -545,9 +566,9 @@ export async function openInteraction3dEditor({
       : usesModelBinding
         ? {
             icon: item.icon || defaultIcon,
-            size: item.size ?? 44,
-            iconSize: item.iconSize ?? 26,
-            hitSize: item.hitSize ?? Math.max(44, item.size ?? 44),
+            size: item.size ?? DEFAULT_BUTTON_SIZE,
+            iconSize: item.iconSize ?? buttonIconSize(item.size ?? DEFAULT_BUTTON_SIZE),
+            hitSize: item.hitSize ?? Math.max(DEFAULT_BUTTON_SIZE, item.size ?? DEFAULT_BUTTON_SIZE),
             ...(isVacuumMode
               ? {
                   backgroundOpacity: item.backgroundOpacity ?? 1,
@@ -555,7 +576,7 @@ export async function openInteraction3dEditor({
               : {}),
             ...(isVacuumShortcutMode
               ? {
-                  fontSize: item.fontSize ?? 12,
+                  fontSize: item.fontSize ?? CARD_TEXT_SIZE_PX,
                   iconHidden: item.iconHidden === true,
                   labelHidden: item.labelHidden === true,
                 }
@@ -568,9 +589,9 @@ export async function openInteraction3dEditor({
                   : "显示",
           }
         : {
-            size: item.size ?? 44,
-            iconSize: item.iconSize ?? 26,
-            hitSize: item.hitSize ?? Math.max(44, item.size ?? 44),
+            size: item.size ?? DEFAULT_BUTTON_SIZE,
+            iconSize: item.iconSize ?? buttonIconSize(item.size ?? DEFAULT_BUTTON_SIZE),
+            hitSize: item.hitSize ?? Math.max(DEFAULT_BUTTON_SIZE, item.size ?? DEFAULT_BUTTON_SIZE),
             fadeDuration: item.fadeDuration ?? 0.3,
           };
   }
@@ -814,7 +835,6 @@ export async function openInteraction3dEditor({
     const displayFieldValue = linkedFieldProbe
         ? [
             ["size", "按钮大小", "px"],
-            ["iconSize", "图标大小", "px"],
             ["hitSize", "触控范围", "px"],
             ["buttonVisibility", "按钮显示", ""],
           ]
@@ -1201,6 +1221,14 @@ export async function openInteraction3dEditor({
       createSettingRow(sizeRowContainer, sizeRowLabel, sizeInputElement)
     );
   }
+  // 按钮大小与图标大小联动：图标按固定比例（BUTTON_ICON_SIZE_RATIO = 0.6）跟随按钮，
+  // 避免旧的「按钮放大、图标不动」以及「图标和按钮等大、顶到圆形描边」。stage.ts 的
+  // resolveMarkerIconSize 用同一个常量，所以即使这里没保存也渲染一致。
+  function syncLinkedIconSize(targetConfig, nextButtonSize) {
+    const resolvedIconSize = buttonIconSize(nextButtonSize);
+    targetConfig.iconSize = resolvedIconSize;
+    return resolvedIconSize;
+  }
   function listAddableModels() {
     return (sceneMetadata?.floors || [])
       .filter((candidateFloorEntry) => candidateFloorEntry.id === floorSelection)
@@ -1407,8 +1435,8 @@ export async function openInteraction3dEditor({
                 unboundPosition: 0,
               }
             : {}),
-          size: 44,
-          iconSize: 26,
+          size: DEFAULT_BUTTON_SIZE,
+          iconSize: buttonIconSize(DEFAULT_BUTTON_SIZE),
           visible: true,
           icon: defaultIcon,
           clickAction: usesStatusPanel ? "focus-panel" : "focus",
@@ -1498,10 +1526,10 @@ export async function openInteraction3dEditor({
               x: averageWallCoordinate("x"),
               y: averageWallCoordinate("y"),
               height: 0.08,
-              size: 44,
-              iconSize: 26,
-              fontSize: 12,
-              hitSize: 44,
+              size: DEFAULT_BUTTON_SIZE,
+              iconSize: buttonIconSize(DEFAULT_BUTTON_SIZE),
+              fontSize: CARD_TEXT_SIZE_PX,
+              hitSize: DEFAULT_BUTTON_SIZE,
               icon: "mdi:broom",
               visible: true,
             };
@@ -1719,19 +1747,22 @@ export async function openInteraction3dEditor({
     ),
       shortcutAppearanceSectionElement.append(shortcutAdvancedDetailsElement));
     for (const [sizePropertyKey, sizeSettingLabel, shortcutSizeDefaultValue] of [
-      ["size", "按钮大小（px）", 44],
-      ["iconSize", "图标大小（px）", 26],
+      ["size", "按钮大小（px）", DEFAULT_BUTTON_SIZE],
       ["fontSize", "文字大小（px）", 12],
-      ["hitSize", "触控范围（px）", 44],
-    ])
+      ["hitSize", "触控范围（px）", DEFAULT_BUTTON_SIZE],
+    ]) {
       createSizeRow(
         sizePropertyKey === "size" ? shortcutAppearanceRowElement : shortcutSizeGridElement,
         sizeSettingLabel,
         () => selectedShortcut[sizePropertyKey] || shortcutSizeDefaultValue,
         (updatedShortcutSize) => {
-          ((selectedShortcut[sizePropertyKey] = updatedShortcutSize), refreshEditorPreview());
+          (selectedShortcut[sizePropertyKey] = updatedShortcutSize),
+            sizePropertyKey === "size" &&
+              syncLinkedIconSize(selectedShortcut, updatedShortcutSize),
+            refreshEditorPreview();
         },
       );
+    }
     const shortcutPositionSectionElement = createConfigSection("按钮位置"),
       shortcutPositionGridElement = createElement("div", "i3d-coordinate-grid");
     shortcutPositionSectionElement.append(shortcutPositionGridElement);
@@ -2387,18 +2418,21 @@ export async function openInteraction3dEditor({
     (sizeDetailsElement.append(createElement("summary", "", "更多尺寸设置"), sizeGridElement),
       appearanceSectionElement.append(sizeDetailsElement));
     for (const [buttonSizeFieldKey, buttonSizeFieldLabel, buttonSizeDefaultValue] of [
-      ["size", "按钮大小（px）", 44],
-      ["iconSize", "图标大小（px）", 26],
-      ["hitSize", "触控范围（px）", 44],
-    ])
+      ["size", "按钮大小（px）", DEFAULT_BUTTON_SIZE],
+      ["hitSize", "触控范围（px）", DEFAULT_BUTTON_SIZE],
+    ]) {
       createSizeRow(
         buttonSizeFieldKey === "size" ? buttonSizeRowElement : sizeGridElement,
         buttonSizeFieldLabel,
         () => curtainGroup[buttonSizeFieldKey] ?? buttonSizeDefaultValue,
         (nextSizeValue) => {
-          ((curtainGroup[buttonSizeFieldKey] = nextSizeValue), refreshEditorPreview());
+          (curtainGroup[buttonSizeFieldKey] = nextSizeValue),
+            buttonSizeFieldKey === "size" &&
+              syncLinkedIconSize(curtainGroup, nextSizeValue),
+            refreshEditorPreview();
         },
       );
+    }
     const buttonPositionSectionElement = createConfigSection("按钮位置"),
       buttonPositionGridElement = createElement("div", "i3d-coordinate-grid");
     buttonPositionSectionElement.append(buttonPositionGridElement);
@@ -2574,8 +2608,8 @@ export async function openInteraction3dEditor({
         humidityEntityId: "",
         ...temperatureHumidityFloorCenter2(currentFloor),
         height: 1.8,
-        size: 180,
-        iconSize: 12,
+        size: DEFAULT_LABEL_SIZE2,
+        iconSize: DEFAULT_LABEL_ICON_SIZE2,
         hitSize: 44,
       };
       (getItemList().push(newLabelDraft),
@@ -2765,8 +2799,8 @@ export async function openInteraction3dEditor({
       labelSizeMin,
       labelSizeMax,
     ] of [
-      [sizeFieldOptions.width, "信息框宽度（px）", 180, 100, 600],
-      [sizeFieldOptions.font, "文字大小（px）", 12, 9, 24],
+      [sizeFieldOptions.width, "信息框宽度（px）", DEFAULT_LABEL_SIZE2, MIN_LABEL_SIZE2, MAX_LABEL_SIZE2],
+      [sizeFieldOptions.font, "文字大小（px）", DEFAULT_LABEL_ICON_SIZE2, MIN_LABEL_ICON_SIZE2, MAX_LABEL_ICON_SIZE2],
     ])
       createNumberRow(
         sizeFieldRowElement,
@@ -2835,13 +2869,13 @@ export async function openInteraction3dEditor({
             key: "size",
             label: "信息框宽度",
             unit: " px",
-            fallback: 180,
+            fallback: DEFAULT_LABEL_SIZE2,
           },
           {
             key: "iconSize",
             label: "文字大小",
             unit: " px",
-            fallback: 12,
+            fallback: DEFAULT_LABEL_ICON_SIZE2,
           },
           {
             key: "opacity",
@@ -4714,26 +4748,37 @@ export async function openInteraction3dEditor({
           const readHitSize = () =>
             Number.isFinite(vector.hitSize) && vector.hitSize > 0
               ? vector.hitSize
-              : Math.max(44, vector.size);
-          (createSizeRow(
+              : Math.max(DEFAULT_BUTTON_SIZE, vector.size);
+          createSizeRow(
             itemAppearanceRowElement,
             isVacuumMode ? "状态框缩放（%）" : "按钮大小（px）",
-            () => (isVacuumMode ? Math.round((vector.size / 44) * 100) : vector.size),
+            // 百分比以 DEFAULT_BUTTON_SIZE 为 100%（= 新建时的默认大小）。渲染侧的
+            // 缩放基准仍是设计单位 44（stage.ts 的 vacuumScale），两者语义不同：
+            // 这里只是「相对默认多大」，改默认值不该改变已有按钮的实际像素。
+            () =>
+              isVacuumMode
+                ? Math.round((vector.size / DEFAULT_BUTTON_SIZE) * 100)
+                : vector.size,
             (pickedSizeValue) => {
-              ((vector.size = isVacuumMode ? (pickedSizeValue / 100) * 44 : pickedSizeValue),
+              ((vector.size = isVacuumMode
+                ? (pickedSizeValue / 100) * DEFAULT_BUTTON_SIZE
+                : pickedSizeValue),
+                !isVacuumMode && syncLinkedIconSize(vector, vector.size),
                 (hitSizeInputElement.value = String(Number(readHitSize().toPrecision(12)))),
                 refreshEditorPreview());
             },
-          ),
+          );
+          // 普通按钮的图标始终铺满按钮，不再单独暴露「图标大小」；扫地机的
+          // iconSize 是状态卡字号，仍然要能调。
+          isVacuumMode &&
             createSizeRow(
               coverSizeGridElement,
-              isVacuumMode ? "文字大小（px）" : "图标大小（px）",
-              () => (isVacuumMode ? vector.iconSize / 2 : vector.iconSize),
+              "文字大小（px）",
+              () => vector.iconSize / 2,
               (pickedIconSizeValue) => {
-                ((vector.iconSize = isVacuumMode ? pickedIconSizeValue * 2 : pickedIconSizeValue),
-                  refreshEditorPreview());
+                ((vector.iconSize = pickedIconSizeValue * 2), refreshEditorPreview());
               },
-            ));
+            );
           const hitSizeInputElement = createSizeRow(
             coverSizeGridElement,
             "触控范围（px）",

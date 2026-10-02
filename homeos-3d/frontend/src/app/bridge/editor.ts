@@ -1632,6 +1632,9 @@ type PopupPresetConfig = {
     ((opacityModeOptionElement.value = opacityModeValue),
       wallOpacityModeSelect.append(opacityModeOptionElement));
   }
+  // 0.32 必须与 3D 工作台 `defaultViewSettings.wallOpacity` 一致：DIY（null）时场景用的就是
+  // 那个默认值，而这里切到「统一调整」会把它落成一个显式值 —— 两边不一致会出现「切一下模式
+  // 墙的透明度就跳一档」。
   const hasCustomWallOpacity =
     typeof properties.wallOpacity == "number" && Number.isFinite(properties.wallOpacity);
   ((wallOpacityModeSelect.value = hasCustomWallOpacity ? "custom" : "diy"),
@@ -1639,7 +1642,7 @@ type PopupPresetConfig = {
       commitChange({
         properties: {
           wallOpacity:
-            wallOpacityModeSelect.value === "custom" ? (properties.wallOpacity ?? 0.25) : null,
+            wallOpacityModeSelect.value === "custom" ? (properties.wallOpacity ?? 0.32) : null,
         },
       });
     }),
@@ -1657,7 +1660,7 @@ type PopupPresetConfig = {
       min: "0",
       max: "100",
       step: "1",
-      value: String(Math.round((properties.wallOpacity ?? 0.25) * 100)),
+      value: String(Math.round((properties.wallOpacity ?? 0.32) * 100)),
       disabled: !hasCustomWallOpacity,
     }),
       opacityInput.setAttribute(

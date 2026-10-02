@@ -1019,7 +1019,9 @@ def validate_config(properties: dict) -> None:
             'tvocEntityId',
             'aqiEntityId',
             'illuminanceEntityId',
-            'batteryEntityId'}
+            'batteryEntityId',
+            # 尺寸默认值一次性升级的版本标记（前端 migrateEnvironmentLabelSize 写入）。
+            'sizingVersion'}
         if not isinstance(item, dict) or set(item) - fields or not all(text(item.get(key, '')) for key in ('id', 'floorId', 'label')):
             fail()
         # 信息卡必须带 id 与具体楼层，且同一 id 不能重复。
@@ -1046,6 +1048,11 @@ def validate_config(properties: dict) -> None:
         if 'columns' in item and (type(item['columns']) is not int or not 0 <= item['columns'] <= 4):
             fail()
         if 'opacity' in item and not number(item['opacity'], 0, 1):
+            fail()
+        # sizingVersion 是「信息框宽度 / 文字大小」默认值的一次性迁移标记（前端
+        # ENVIRONMENT_LABEL_SIZING_VERSION，当前为 4）：写过一次就不再重复迁移。
+        # 只要求非 0 的正整数，不枚举具体版本 —— 否则前端再加一档默认值就得连带发后端。
+        if 'sizingVersion' in item and (type(item['sizingVersion']) is not int or not 1 <= item['sizingVersion'] <= 1000):
             fail()
     # 窗帘组合（一拖多）：同一楼层两副普通窗帘并成一个整体控制，典型场景是双层帘。
     # 组合自己不新增控制逻辑，只把成员各自的子面板拼起来，因此这里没有实体字段 ——

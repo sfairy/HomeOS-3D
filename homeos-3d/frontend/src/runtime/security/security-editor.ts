@@ -13,6 +13,8 @@ import {
   identifyLockEntities,
   lockEntityRole,
 } from "@app/bridge/lock-state-runtime";
+import { CARD_TEXT_SIZE_PX, migrateCardTextSize } from "@app/bridge/card-text-size";
+import { DEFAULT_BUTTON_SIZE, buttonIconSize } from "@app/bridge/button-icon-size";
 const LOCK_ENTITY_FIELDS = ["doorEntityId", "batteryEntityId"],
   LEGACY_LOCK_FIELDS = [
     "doorSource",
@@ -66,6 +68,13 @@ export async function openSecurityEditor({
       delete normalizedLockItem.labelHidden);
   for (const cameraItem of draftProperties.security.cameras)
     (delete cameraItem.buttonHidden, delete cameraItem.hiddenClickable);
+  // 历史默认字号 12 → 统一字号：编辑器的显示值必须与场景渲染同口径，
+  // 否则会出现「面板写 12、场景却是 21」的错位。迁移值随保存回写，那之后即幂等。
+  for (const cardTextItem of [
+    ...draftProperties.security.locks,
+    ...draftProperties.security.cameras,
+  ])
+    Object.assign(cardTextItem, migrateCardTextSize(cardTextItem));
   const createElement = (tagName, className = "", textContent = "") => {
       const createdElement = document.createElement(tagName);
       return (
@@ -476,8 +485,8 @@ export async function openSecurityEditor({
     if (securityKind === "lock") {
       (Object.assign(batchSource, {
         icon: sourceItem.icon || "mdi:door-closed",
-        size: sourceItem.size ?? 44,
-        fontSize: sourceItem.fontSize ?? 12,
+        size: sourceItem.size ?? DEFAULT_BUTTON_SIZE,
+        fontSize: sourceItem.fontSize ?? CARD_TEXT_SIZE_PX,
         labelMode: sourceItem.labelMode || (sourceItem.labelHidden ? "hidden" : "always"),
         duration: sourceItem.duration ?? 0.7,
         openAngle: sourceItem.openAngle ?? 80,
@@ -530,10 +539,10 @@ export async function openSecurityEditor({
       securityKind === "camera"
         ? (batchFields = [
             ["icon", "图标", "mdi:cctv"],
-            ["size", "标签大小", 44],
-            ["iconSize", "图标大小", 26],
-            ["fontSize", "文字大小", 12],
-            ["hitSize", "触控范围", 44],
+            ["size", "标签大小", DEFAULT_BUTTON_SIZE],
+            ["iconSize", "图标大小", buttonIconSize(DEFAULT_BUTTON_SIZE)],
+            ["fontSize", "文字大小", CARD_TEXT_SIZE_PX],
+            ["hitSize", "触控范围", DEFAULT_BUTTON_SIZE],
           ].map(([cameraFieldKey, cameraFieldLabel, cameraFieldFallback]) => ({
             key: cameraFieldKey,
             label: cameraFieldLabel,
@@ -702,14 +711,14 @@ export async function openSecurityEditor({
                 openDirection: 1,
                 duration: 0.7,
                 hinge: addableModel.hinge === "right" ? "right" : "left",
-                size: 44,
-                fontSize: 12,
+                size: DEFAULT_BUTTON_SIZE,
+                fontSize: CARD_TEXT_SIZE_PX,
                 labelMode: "always",
                 icon: "mdi:door-closed",
               }
             : securityKind === "camera"
               ? {
-                  size: 44,
+                  size: DEFAULT_BUTTON_SIZE,
                   visible: true,
                   icon: "mdi:cctv",
                 }
@@ -1060,7 +1069,7 @@ export async function openSecurityEditor({
           appearanceGridElement.append(appearanceRowElement),
           createNumberField(
             "卡片大小（px）",
-            selectedItem.size ?? 44,
+            selectedItem.size ?? DEFAULT_BUTTON_SIZE,
             20,
             500,
             (nextSize) => {
@@ -1070,7 +1079,7 @@ export async function openSecurityEditor({
           ),
           createNumberField(
             "文字大小（px）",
-            selectedItem.fontSize ?? 12,
+            selectedItem.fontSize ?? CARD_TEXT_SIZE_PX,
             8,
             100,
             (nextLockFontSize) => {
@@ -1456,11 +1465,13 @@ export async function openSecurityEditor({
           currentContainerElement.append(cameraIconFieldElement),
           createNumberField(
             "标签缩放（%）",
-            Math.round(((selectedItem.size ?? 44) / 44) * 100),
+            // 百分比以 DEFAULT_BUTTON_SIZE 为 100%（= 新建时的默认大小）。渲染侧的缩放
+            // 基准仍是设计单位 44（stage.ts 的 --i3d-security-scale），两者语义不同。
+            Math.round(((selectedItem.size ?? DEFAULT_BUTTON_SIZE) / DEFAULT_BUTTON_SIZE) * 100),
             10,
             500,
             (nextScalePercent) => {
-              selectedItem.size = (nextScalePercent / 100) * 44;
+              selectedItem.size = (nextScalePercent / 100) * DEFAULT_BUTTON_SIZE;
             },
             1,
           ),
@@ -1480,7 +1491,7 @@ export async function openSecurityEditor({
           (currentContainerElement = sizeGridElement),
           createNumberField(
             "图标大小（px）",
-            selectedItem.iconSize ?? 26,
+            selectedItem.iconSize ?? buttonIconSize(selectedItem.size ?? DEFAULT_BUTTON_SIZE),
             4,
             200,
             (nextIconSize) => {
@@ -1490,7 +1501,7 @@ export async function openSecurityEditor({
           ),
           createNumberField(
             "文字大小（px）",
-            selectedItem.fontSize ?? 12,
+            selectedItem.fontSize ?? CARD_TEXT_SIZE_PX,
             8,
             100,
             (nextFontSize) => {
@@ -1500,7 +1511,7 @@ export async function openSecurityEditor({
           ),
           createNumberField(
             "触控范围（px）",
-            selectedItem.hitSize ?? 44,
+            selectedItem.hitSize ?? DEFAULT_BUTTON_SIZE,
             1,
             1000,
             (nextHitSize) => {
@@ -1797,8 +1808,13 @@ export async function openSecurityEditor({
     editorDialogElement.showModal(),
     renderPanel(),
     updatePreviewSize(),
-    mountEditorRuntime(),
+    // 先订阅授权、后挂载运行时：授权监控订阅时会同步派发当前状态（通常是 checking、
+    // allowed=false），若此时运行时已挂载，会立即 setAuthorized(false) 掐断刚建立的
+    // 实时 WebSocket 连接（出现 “WebSocket is closed before the connection is established”
+    // 与 fetch 的 AbortError）。订阅在前时该回调里运行时还不存在，等授权真正通过后
+    // handleAccessState 再调用 mountEditorRuntime 挂载。
     (unsubscribeAccessChange = subscribeInteraction3dAccess(handleAccessState)),
+    mountEditorRuntime(),
     {
       close: closeEditor,
     }

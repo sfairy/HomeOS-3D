@@ -254,10 +254,10 @@ body.interaction3d-stage.is-background-hidden,
   position: absolute;
   left: 50%;
   top: 50%;
-  width: var(--i3d-marker-size, 44px);
-  height: var(--i3d-marker-size-y, var(--i3d-marker-size, 44px));
+  width: var(--i3d-marker-size, 60px);
+  height: var(--i3d-marker-size-y, var(--i3d-marker-size, 60px));
   box-sizing: border-box;
-  border: min(1px, calc(var(--i3d-marker-size, 44px) / 2)) solid #aa967455;
+  border: min(1px, calc(var(--i3d-marker-size, 60px) / 2)) solid #aa967455;
   border-radius: 50%;
   background: #1b2029dc;
   box-shadow: 0 4px 14px #0005;
@@ -287,8 +287,8 @@ body.interaction3d-stage.is-background-hidden,
   top: 50%;
   transform: translate(-50%, -50%);
   pointer-events: none;
-  width: var(--i3d-marker-icon-size, 26px);
-  height: var(--i3d-marker-icon-size-y, var(--i3d-marker-icon-size, 26px));
+  width: var(--i3d-marker-icon-size, 36px);
+  height: var(--i3d-marker-icon-size-y, var(--i3d-marker-icon-size, 36px));
   background: currentColor;
   mask-size: contain;
   mask-repeat: no-repeat;
@@ -897,10 +897,10 @@ body.interaction3d-stage.is-background-hidden,
   position: absolute;
   left: 50%;
   top: 50%;
-  width: var(--i3d-marker-size, 44px);
-  height: var(--i3d-marker-size, 44px);
+  width: var(--i3d-marker-size, 60px);
+  height: var(--i3d-marker-size, 60px);
   box-sizing: border-box;
-  border: min(1px, calc(var(--i3d-marker-size, 44px) / 2)) solid #aa967455;
+  border: min(1px, calc(var(--i3d-marker-size, 60px) / 2)) solid #aa967455;
   border-radius: 50%;
   background: #1b2029dc;
   box-shadow: 0 4px 14px #0005;
@@ -919,8 +919,8 @@ body.interaction3d-stage.is-background-hidden,
   top: 50%;
   transform: translate(-50%, -50%);
   pointer-events: none;
-  width: var(--i3d-marker-icon-size, 26px);
-  height: var(--i3d-marker-icon-size, 26px);
+  width: var(--i3d-marker-icon-size, 36px);
+  height: var(--i3d-marker-icon-size, 36px);
   overflow: visible;
 }
 .interaction3d-stage .i3d-marker-icon {
@@ -930,8 +930,8 @@ body.interaction3d-stage.is-background-hidden,
   top: 50%;
   transform: translate(-50%, -50%);
   pointer-events: none;
-  width: var(--i3d-marker-icon-size, 26px);
-  height: var(--i3d-marker-icon-size, 26px);
+  width: var(--i3d-marker-icon-size, 36px);
+  height: var(--i3d-marker-icon-size, 36px);
   background: currentColor;
   mask-size: contain;
   mask-repeat: no-repeat;
@@ -1783,7 +1783,7 @@ body.interaction3d-stage.is-background-hidden,
   background: #51412e;
 }
 .interaction3d-stage .i3d-vacuum-room .i3d-room-label {
-  top: calc(50% + var(--i3d-marker-size, 44px) / 2 + 4px);
+  top: calc(50% + var(--i3d-marker-size, 60px) / 2 + 4px);
   pointer-events: auto;
 }
 .interaction3d-stage .i3d-vacuum-room .i3d-room-label[hidden] {
@@ -2126,15 +2126,15 @@ body.interaction3d-stage.is-background-hidden,
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: calc(max(0px, var(--i3d-marker-size, 44px) - var(--i3d-marker-icon-size, 26px)) + 4px);
+  gap: calc(max(0px, var(--i3d-marker-size, 60px) - var(--i3d-marker-icon-size, 36px)) + 4px);
   border-radius: 999px;
 }
 .interaction3d-stage .i3d-marker.is-curtain-group:before {
-  width: calc(var(--i3d-marker-size, 44px) * 2 + 4px);
+  width: calc(var(--i3d-marker-size, 60px) * 2 + 4px);
   border-radius: 999px;
 }
 .interaction3d-stage .i3d-marker.is-curtain-group.is-selected:after {
-  width: calc(var(--i3d-marker-size, 44px) * 2 + 12px);
+  width: calc(var(--i3d-marker-size, 60px) * 2 + 12px);
   border-radius: 999px;
 }
 .interaction3d-stage .is-curtain-group > .i3d-curtain-group-icon {

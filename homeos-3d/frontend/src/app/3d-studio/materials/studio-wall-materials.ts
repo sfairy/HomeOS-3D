@@ -37,15 +37,19 @@ export function createWallSideMaterial(
             "varying float vHbWallHeight;\n" + shaderObject.fragmentShader),
           (shaderObject.fragmentShader = shaderObject.fragmentShader.replace(
             "#include <opaque_fragment>",
+            // 0.70 → 0.85：默认档墙根原本被压暗 30%，半透明墙整面因此偏灰。
+            // 暖阳档用的是 0.92（只压 8%）—— 这里取 0.85，向暖阳靠但不追平。
             "\n      float wallHeightBlend = smoothstep(0.0, 0.65, vHbWallHeight);\n      outgoingLight *= mix(" +
-              (isWarmWood ? "0.92" : "0.70") +
+              (isWarmWood ? "0.92" : "0.85") +
               ", 1.0, wallHeightBlend);\n      diffuseColor.a += diffuseColor.a * (1.0 - diffuseColor.a) * " +
               (isWarmWood ? "0.0" : "0.65") +
               " * (1.0 - wallHeightBlend);\n      #include <opaque_fragment>",
           )));
       }),
+      // 非暖阳分支的着色改了（墙根压暗 0.70 → 0.85），缓存键必须跟着升版：
+      // 否则浏览器/渲染器可能复用上一版编译好的 program，改动看不到。
       (material.customProgramCacheKey = () =>
-        isWarmWood ? "hb-wall-warm-clean-v1" : "hb-wall-height-gradient-v3")),
+        isWarmWood ? "hb-wall-warm-clean-v1" : "hb-wall-height-gradient-v4")),
     material
   );
 }

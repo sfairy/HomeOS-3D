@@ -1,3 +1,29 @@
+/**
+ * 环境标签「信息框宽度 / 文字大小」的历史默认值，按代际从旧到新排列。
+ *
+ * 迁移只改写「仍是某一代默认值」的标签，用户自己调过的数值一律保留 —— 否则每次
+ * 升级默认值都会覆盖手工配置。新增一档默认值时，把被替换掉的那一档追加到这里。
+ */
+export const LABEL_SIZE_HISTORY = [
+  { size: 180, iconSize: 12 },
+  { size: 220, iconSize: 14 },
+  { size: 300, iconSize: 18 },
+];
+export const DEFAULT_LABEL_SIZE = 360;
+export const DEFAULT_LABEL_ICON_SIZE = 21;
+/**
+ * 编辑器与运行时共用的尺寸上下限。
+ *
+ * 注意：信息卡仍随演示层缩放（屏幕观感 ≈ 配置值 × 0.73），所以这里的 800 对应
+ * 屏幕上约 580px。上限只防误填极端值，不表示屏幕像素。
+ */
+export const MAX_LABEL_SIZE = 800;
+export const MAX_LABEL_ICON_SIZE = 32;
+/** 下限沿用历史值，避免出现无法阅读的卡片。 */
+export const MIN_LABEL_SIZE = 100;
+export const MIN_LABEL_ICON_SIZE = 9;
+/** 迁移版本：>= 该值表示已完成尺寸默认值升级，不再重复迁移。 */
+export const ENVIRONMENT_LABEL_SIZING_VERSION = 4;
 export const ENVIRONMENT_METRICS = [
     {
       key: "temperature",
@@ -133,7 +159,29 @@ export function layoutEnvironmentReadings(hostElement, requestedColumnCount = 0)
     ),
     clientWidth > 0 && layoutSignatureByElement.set(hostElement, join));
 }
+export function migrateEnvironmentLabelSize(labelConfig) {
+  if (
+    Number(labelConfig?.sizingVersion) >= ENVIRONMENT_LABEL_SIZING_VERSION ||
+    !labelConfig ||
+    typeof labelConfig !== "object"
+  )
+    return labelConfig;
+  const labelWidth = Number(labelConfig.size),
+    labelFontSize = Number(labelConfig.iconSize),
+    isDefaultWidth =
+      labelConfig.size == null || LABEL_SIZE_HISTORY.some(({ size }) => size === labelWidth),
+    isDefaultFont =
+      labelConfig.iconSize == null || LABEL_SIZE_HISTORY.some(({ iconSize }) => iconSize === labelFontSize);
+  return {
+    ...labelConfig,
+    ...(isDefaultWidth && isDefaultFont
+      ? { size: DEFAULT_LABEL_SIZE, iconSize: DEFAULT_LABEL_ICON_SIZE }
+      : {}),
+    sizingVersion: ENVIRONMENT_LABEL_SIZING_VERSION,
+  };
+}
 export function normalizeTemperatureHumidity(rawConfig) {
+  const migratedConfig = migrateEnvironmentLabelSize(rawConfig);
   const allowedFieldNames = [
     "id",
     "floorId",
@@ -149,11 +197,12 @@ export function normalizeTemperatureHumidity(rawConfig) {
     "opacity",
     "showMetricNames",
     "columns",
+    "sizingVersion",
   ];
   return Object.fromEntries(
     allowedFieldNames
-      .filter((fieldName) => Object.hasOwn(rawConfig, fieldName))
-      .map((retainedFieldName) => [retainedFieldName, rawConfig[retainedFieldName]]),
+      .filter((fieldName) => Object.hasOwn(migratedConfig, fieldName))
+      .map((retainedFieldName) => [retainedFieldName, migratedConfig[retainedFieldName]]),
   );
 }
 export function temperatureHumidityFloorCenter(floor) {

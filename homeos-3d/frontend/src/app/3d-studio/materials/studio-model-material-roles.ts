@@ -763,7 +763,14 @@ export const MODEL_SLOT_ROLES: Readonly<Record<string, readonly (string | null)[
   // 更少时截断，并用 GLB 材质的透明 / 自发光 / 金属度把这些「无角色」槽位修正回
   // 正确语义（玻璃 → glass / mirror，发光屏 → lit / indicator，高金属 → metal）。
   bar: ["top", "body", "base", "trim", "leg", "metal"],
-  basin: ["frame", "door", "handle", "top", "mirror", "metal", "base"],
+  // 台盆（浴室柜）的图元顺序与几何一度对不上，这里按图元实测尺寸重排：柜体 / **台面** /
+  // 盆体 / 收边 分别是第 0/1/2/3 个图元 ——
+  //   material-0 = 0.83×0.63×0.45 的柜体（y 0→0.634）；material-1 = 0.90×0.065×0.50 的**台面**
+  //   薄板（y 0.627→0.692）；material-2 = 0.45×0.45×0.08 坐在台面上的**盆体**（y 0.664→0.744）；
+  //   material-3 = 1.2cm 宽的**竖收边**（0.012×0.546×0.010）。
+  // 原先写成 `door` / `handle`，于是台面按柜门语义上了木色、盆体按五金语义上了金属，而真正的
+  // `top` 落在那条 1.2cm 收边上 —— 「给台面加大理石档位」会画到一根肉眼看不见的细线。
+  basin: ["frame", "top", "sink", "trim", "mirror", "metal", "base"],
   bathtub: ["body", "interior", "trim", "metal", "metal"],
   // bookcase 的图元 3~6 是柜内小摆件（0.085~0.15m、金属度≈0、烘焙色为陶土/深木色），
   // 不是柜体结构件，按 0.6.5 joineryCombo 的「撞色摆件」语义给 accent（陶土色）。
@@ -878,7 +885,12 @@ export const MODEL_SLOT_ROLES: Readonly<Record<string, readonly (string | null)[
   shelf: ["top", "metal", "shelf"],
   shoecabinet: ["interior", "base", "top", "body", "door"],
   shower: ["body", "interior", "metal"],
-  sideboard: ["top", "interior", "body", "door"],
+  // sideboard #4 是加载器 `repairSideboardGlassDoor` 现拆出来的「最右吊柜玻璃门」图元：
+  // GLB 里 6 扇门共用一个 door 槽，运行时把那扇门单独摘出来并补上**两扇对开**的木框 + 玻璃，
+  // 玻璃材质名沿用槽位约定（`sideboard-material-4`），故这里补登记 glass 角色。
+  // #5 是同一个函数补的**五金件**（五扇木门 + 对开两扇的竖拉手 + 两扇各两片明铰链）：走通用的
+  // `handle` 配方（金属色 + 高 metalness），换档位时不跟着柜体走。
+  sideboard: ["top", "interior", "body", "door", "glass", "handle"],
   squattoilet: ["body", "interior", "grating"],
   stairs: ["body", "top", "trim"],
   steamoven: ["body", "door", "glass", "panel", "indicator", "drawer"],
@@ -924,21 +936,82 @@ export const DOOR_MATERIAL_PARTS: readonly string[] = Object.freeze([
   "trim",
 ]);
 
-/** 各门型实际存在的部件（按槽位顺序）：没有的部件不出现在面板上，也不参与出图。 */
+/**
+ * 各门型实际存在的部件（按槽位顺序）：没有的部件不出现在面板上。
+ *
+ * **表要和几何画出来的部件一一对上** —— 出图是固定写法（U 形门框取 frame、门扇填面取 door、
+ * 入户门的门、装饰线取 trim…），漏登记一个部件，画面就会按「取不到材质」处理（见
+ * doorMaterialPartRoleFor），而不是像以前那样静默画成纯白。这几处就是这样补齐的：
+ *   · 实木门 solid：U 形门框 + **门扇填面**（原先只登记了门框，于是门上最大那块可见面
+ *     取 door 取不到 —— 「改成胡桃木门还是白的」）；
+ *   · 双开门 double：**U 形门框** + 两扇门 + 五金；入户门 entry：**U 形门框** + 门 + 装饰线 + 五金
+ *     （两者的门框原先也没登记，画成纯白）。
+ * 主题里那三支「按门型」的门框键（solidDoorFrame / entryDoorFrame / doorFrame）正是给这块
+ * 几何用的，登记齐了它们才继续有消费者（见 doorPartThemeColor 的 frame 分支）。
+ */
 export const DOOR_MATERIAL_PART_ROLES_BY_TYPE: Readonly<Record<string, readonly string[]>> =
   Object.freeze({
-    solid: ["frame", "metal"],
+    solid: ["frame", "door", "metal"],
     "frame-only": ["frame"],
     glass: ["frame", "glass", "metal"],
     "sliding-glass": ["frame", "glass", "metal"],
-    double: ["door", "metal"],
-    entry: ["door", "trim", "metal"],
+    double: ["frame", "door", "metal"],
+    entry: ["frame", "door", "trim", "metal"],
     "roller-shutter": ["frame", "shutter", "slat"],
   });
 
 /** 某门型用到的部件角色（未知门型按实木门处理，与出图分支的默认一致）。 */
 export function doorMaterialPartRolesForType(doorType: string): readonly string[] {
   return DOOR_MATERIAL_PART_ROLES_BY_TYPE[doorType] || DOOR_MATERIAL_PART_ROLES_BY_TYPE.solid;
+}
+
+/**
+ * 平面图用哪个部件代表这扇门。
+ *
+ * 平面图符号只能上一块颜色，所以取「最占视线」的那块料：门扇（实木 / 双开 / 入户）、卷帘布
+ * （卷帘门）、门框（仅门框 / 玻璃门 / 推拉门）。与 3D 出图取的部件同源，于是「平面图看到的
+ * 颜色」和「立体里的颜色」不会各说各话。
+ *
+ * 玻璃门这里刻意取**门框**而不是玻璃：档位改的是门框 / 五金，玻璃本身各档位都一样，取玻璃
+ * 会让「换档位平面图没反应」；门框那圈颜色变了才看得见档位，玻璃那层由平面图原有的那道
+ * 细线表示，门的**类型**则由几何（双扇 / 两轨 / 帘片 / 偏移板）继续区分。
+ *
+ * 每一项都必须是该门型登记过的部件（校验脚本 L6i 会盯住）—— 否则平面图拿不到材质色。
+ */
+export const DOOR_PLAN_MATERIAL_ROLE_BY_TYPE: Readonly<Record<string, string>> = Object.freeze({
+  solid: "door",
+  "frame-only": "frame",
+  glass: "frame",
+  "sliding-glass": "frame",
+  double: "door",
+  entry: "door",
+  "roller-shutter": "shutter",
+});
+
+/** 平面图的代表部件（未知门型按实木门处理）。 */
+export function doorPlanMaterialRoleFor(doorType: string): string {
+  return (
+    DOOR_PLAN_MATERIAL_ROLE_BY_TYPE[doorType] ||
+    DOOR_PLAN_MATERIAL_ROLE_BY_TYPE.solid ||
+    doorMaterialPartRolesForType(doorType)[0]
+  );
+}
+
+/**
+ * 出图请求的部件语义 → 该门型**真实拥有**的部件角色（兜底闸）。
+ *
+ * 出图代码是「按部件语义」取色的固定写法（U 形门框取 `frame`、门扇填面取 `door`…），门型表
+ * 应与之一一对上（见 DOOR_MATERIAL_PART_ROLES_BY_TYPE）。但两条线一旦对不上，
+ * `partMaterials[role]` 就是 undefined，而 `new Color(undefined)` 取的是 three.js 的初始值 ——
+ * **纯白**：实木门的门扇填面（门上最大那块可见面）取 `door` 取不到就是「改成胡桃木门还是白的」。
+ *
+ * 所以这里不让「取不到」落到 undefined 上：退到该门型的**主料角色**（表里第一项：实木门 /
+ * 玻璃门 / 卷帘门是门框，双开 / 入户门是门扇），与材质面板上能调的槽位一一对应 —— 面板改
+ * 「门框」，画面整扇门跟着走。校验脚本 L6i 会同时盯住「表登记齐了」和「取色经过了这里」。
+ */
+export function doorMaterialPartRoleFor(doorType: string, requestedRole: string): string {
+  const partRoles = doorMaterialPartRolesForType(doorType);
+  return partRoles.includes(requestedRole) ? requestedRole : (partRoles[0] ?? requestedRole);
 }
 
 /** 角色 → 槽位号（`door-material-<n>` 的 n；认不出时给 -1）。 */
@@ -1077,6 +1150,29 @@ export const MODEL_ROLE_BY_MATERIAL_NAME: Readonly<
 
 const MODEL_ROLE_RECIPE_OVERRIDES: Record<string, RoleRecipeTable> = {
   airoutlet: { body: { color: 0x9aa5b7, surface: "paint" } },
+  /**
+   * 以下五件「木顶柜」的 `top`（电视柜是 `surface`）是**木板**，几何上都是 0.02~0.06m 的薄板：
+   *  - shelf #0      1.2×0.04×0.406 顶板（下面才是层层搁板）
+   *  - nightstand #1 0.52×0.039×0.441 顶板
+   *  - tvstand #3    1.8×0.026×0.42 顶板
+   *  - shoecabinet #2 0.918×0.055×0.437 顶板
+   *  - sideboard #0  1.6×0.045×0.45 顶板
+   *
+   * joinery 家族给 `top` 的默认是「石材台面 + 大理石整图」（那是厨房橱柜的台面语义），
+   * 照搬到这五件上会得到「书架 / 床头柜 / 电视柜顶着一块大理石」——自动档就已经贴了整图。
+   * 这里把它们改回木质顶板；真正的石作柜（kitchenbase / kitchensink / kitchencooktop /
+   * kitchenisland / bar / cabinet）仍保留家族的石材台面。
+   */
+  shelf: { top: { color: "furniture", surface: "wood" } },
+  nightstand: { top: { color: "furniture", surface: "wood" } },
+  shoecabinet: { top: { color: "furniture", surface: "wood" } },
+  sideboard: { top: { color: "furniture", surface: "wood" } },
+  tvstand: { surface: { color: "furniture", surface: "wood" } },
+  // 方茶几属 woodwork 家族，`surface` 是 1.4×0.044×0.7 的木质台面；家族默认的石材台面
+  // （countertop + marble）是给石作茶几 coffeetable 的，不该落到这里。
+  squarecoffeetable: { surface: { color: "wood", surface: "wood" } },
+  // 台球桌 `surface` 是 0.057m 的木质台面边轨（台呢在 `fabric`），同样不该贴大理石。
+  "pool-table": { surface: { color: "wood", surface: "wood" } },
   elevator: {
     panel: { color: "wall", surface: "paint", roughness: 0.82, metalness: 0.01 },
     body: { color: "furniture", surface: "paint" },
