@@ -180,22 +180,13 @@ class LeaseVerifier:
     # signedLease 的验签才会被放行。多公钥支持（trusted_keys）是为了密钥轮换：新公钥
     # 上线时旧公钥仍可验签，等所有安装都续租过一轮后再撤下。
 
-    def __init__(self, public_key_path: Path | None = None, product: str = 'homeos', expected_sha256: str | None = None, *, trusted_keys: Mapping[str, tuple[Path, str | None]] | None = None, legacy_key_id: str = 'legacy') -> None:
-        # [补充说明] 配置可信公钥集合。
+    def __init__(self, product: str = 'homeos', *, trusted_keys: Mapping[str, tuple[Path, str | None]]) -> None:
+        # [补充说明] 配置可信公钥集合 {keyId: (公钥路径, 指纹或 None)}。
         #
-        # expected_sha256 为单公钥模式下的 SHA-256 指纹；trusted_keys 为多公钥模式：
-        # {keyId: (公钥路径, 指纹或 None)}。
+        # 多把公钥是为密钥轮换准备的：新公钥上线时旧公钥仍可验签，等所有安装都续租过一轮后再撤下。
         # 异常: ValueError —— 可信公钥集合为空（配置错误，启动期就该失败）。
         self.product = product
-        self.legacy_key_id = legacy_key_id
-        # 显式传入的集合优先于单公钥参数，两者都给时以 trusted_keys 为准。
-        if trusted_keys is not None:
-            self.trusted_keys = dict(trusted_keys)
-        elif public_key_path is not None:
-            # 单公钥模式等价于「只有一把 legacy 公钥」，与老版本租约的缺省 keyId 对齐。
-            self.trusted_keys = {legacy_key_id: (public_key_path, expected_sha256)}
-        else:
-            raise ValueError('至少需要配置一个可信授权公钥。')
+        self.trusted_keys = dict(trusted_keys)
         # 空集合意味着任何租约都验不过，属于配置失误：启动期直接报错，而不是运行期静默判「校验无效」。
         if not self.trusted_keys:
             raise ValueError('可信授权公钥集合不能为空。')
@@ -213,14 +204,14 @@ class LeaseVerifier:
         except ValueError as error:
             raise LicenseCryptoError('签名租约格式无效。') from error
         payload_bytes = _decode(encoded_payload)
-        # 老版本租约不带 keyId：缺省回落到 legacy_key_id，仍然只认白名单里的公钥。
         try:
             payload = json.loads(payload_bytes)
         except (UnicodeError, json.JSONDecodeError) as error:
             raise LicenseCryptoError('租约内容无效。') from error
-        key_id = payload.get('keyId', self.legacy_key_id)
+        # keyId 必填：不带 keyId 的旧版租约不再回退到某个固定名，直接提示重新激活换发新租约。
+        key_id = payload.get('keyId')
         if not isinstance(key_id, str) or not key_id:
-            raise LicenseCryptoError('租约 keyId 无效。')
+            raise LicenseCryptoError('租约缺少 keyId（旧版租约），需要重新激活授权。')
         # 白名单式查找：不在 trusted_keys 里的 keyId 一律拒绝，绝不尝试用未知公钥验签。
         trusted_key = self.trusted_keys.get(key_id)
         if trusted_key is None:

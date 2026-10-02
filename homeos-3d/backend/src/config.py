@@ -139,8 +139,6 @@ class Settings:
     license_public_key_sha256: str | None = None
     #: 签名 keyId：留空 = 由公钥文件派生（见 license_key_id 属性）。
     license_key_id_override: str = ''
-    #: 老租约**不带 keyId** 时的回退名（见 LeaseVerifier）；不是当前密钥的名字。
-    license_legacy_key_id: str = DEFAULT_LICENSE_KEY_ID
     license_trusted_public_keys_override: tuple[tuple[str, Path, str | None], ...] = ()
     license_transport_public_key_path_override: Path | None = None
     license_transport_public_key_sha256: str = DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256
@@ -284,9 +282,8 @@ class Settings:
     def license_key_id(self) -> str:
         # [补充说明] 签名 keyId：一律由公钥文件派生（口径同商店侧），读不到文件才用常量兜底。
         #
-        # 不要改用 license_legacy_key_id：那个是「老租约不带 keyId 时的回退名」，与当前密钥
-        # 叫什么无关。拿它当当前 keyId，租约里的派生 keyId 就查不到可信公钥，
-        # 表现是「所有租约都不可信」——启动器的路径注入恰好会走到这条分支。
+        # 租约里带的就是这个派生 keyId；它必须能在 license_trusted_public_keys 里查到公钥，
+        # 否则表现是「所有租约都不可信」——启动器的路径注入恰好会走到这条分支。
         if self.license_key_id_override:
             return self.license_key_id_override
         return _derive_key_id(self.license_public_key_path) or DEFAULT_LICENSE_KEY_ID
@@ -303,7 +300,7 @@ class Settings:
         # [补充说明] 可信公钥表 keyId -> (路径, 期望 sha256)。
         #
         # 三种来源按优先级取其一：显式覆盖表（APP_LICENSE_TRUSTED_PUBLIC_KEYS）整体替换；
-        # 只覆盖了单个公钥文件路径时收敛成一条以 license_legacy_key_id 为名的记录；
+        # 只覆盖了单个公钥文件路径时收敛成一条派生 keyId 的记录；
         # 否则用 keys/ 下的镜像 —— 当前代按文件字节核对指纹，上一代只登记不核对。
         if self.license_trusted_public_keys_override:
             return {
@@ -311,16 +308,10 @@ class Settings:
                 for key_id, path, expected_sha256 in self.license_trusted_public_keys_override
             }
         if self.license_public_key_path_override is not None:
-            # 主名用**派生** keyId：租约里带的就是它（启动器注入路径后仍要能查到）。
+            # keyId 用**派生**值：租约里带的就是它（启动器注入路径后仍要能查到）。
             trusted: dict[str, tuple[Path, str | None]] = {
                 self.license_key_id: (self.license_public_key_path_override, self.license_public_key_sha256)
             }
-            # 再挂一条 legacy 别名指向同一把公钥：不带 keyId 的老租约回落到它时仍能验。
-            if self.license_legacy_key_id and self.license_legacy_key_id != self.license_key_id:
-                trusted[self.license_legacy_key_id] = (
-                    self.license_public_key_path_override,
-                    self.license_public_key_sha256,
-                )
             # 上一代签名公钥与当前公钥同目录（启动器把商店的宽限公钥一起带过来）：
             # 少了它，服务端轮换密钥后的窗口内旧租约会全部验签失败。
             previous = self.license_public_key_path_override.parent / DEFAULT_LICENSE_PREVIOUS_PUBLIC_KEY_FILENAME
@@ -335,12 +326,6 @@ class Settings:
                 self.license_public_key_sha256 or DEFAULT_LICENSE_PUBLIC_KEY_SHA256,
             )
         }
-        # legacy 别名同上一分支：老租约不带 keyId，缺了它这些租约会一律判为「不受信任的公钥」。
-        if self.license_legacy_key_id and self.license_legacy_key_id != self.license_key_id:
-            trusted[self.license_legacy_key_id] = (
-                keys_dir / DEFAULT_LICENSE_PUBLIC_KEY_FILENAME,
-                self.license_public_key_sha256 or DEFAULT_LICENSE_PUBLIC_KEY_SHA256,
-            )
         # 上一代公钥不核对指纹：它本就是被换下去的那把，路径存在即登记，由验签结果说话。
         previous = keys_dir / DEFAULT_LICENSE_PREVIOUS_PUBLIC_KEY_FILENAME
         previous_key_id = _derive_key_id(previous)
@@ -402,7 +387,6 @@ def load_settings() -> Settings:
         'license_request_timeout_seconds': float(os.getenv('APP_LICENSE_REQUEST_TIMEOUT_SECONDS', '10')),
         # 指纹优先取启动器注入的值（按公钥文件实际字节算出），常量只是兜底。
         'license_public_key_sha256': os.getenv('APP_LICENSE_PUBLIC_KEY_SHA256', '').strip() or DEFAULT_LICENSE_PUBLIC_KEY_SHA256,
-        'license_legacy_key_id': DEFAULT_LICENSE_KEY_ID,
         'license_transport_public_key_sha256': os.getenv('APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256', '').strip() or DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256,
         'license_transport_key_id_override': os.getenv('APP_LICENSE_TRANSPORT_KEY_ID', '').strip(),
         # 公钥路径可由启动器注入：它把商店公钥同步到目标目录后，直接指向那份文件。

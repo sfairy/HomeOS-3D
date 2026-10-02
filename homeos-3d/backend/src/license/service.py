@@ -160,7 +160,7 @@ class LicenseService:
         # 按操作名累计失败次数，用于「恢复成功」时汇报此前失败了多少次。
         self._event_failures = {}
         # 验签器构造失败（配置里没有可用公钥）会在启动期直接抛错，属于快速失败。
-        self.verifier = LeaseVerifier(trusted_keys=settings.license_trusted_public_keys, legacy_key_id=settings.license_legacy_key_id)
+        self.verifier = LeaseVerifier(trusted_keys=settings.license_trusted_public_keys)
         self.cipher = SecretCipher(settings.license_secret_key_path)
         # 传输公钥的指纹在构造时即校验：配置错了不会拖到第一次请求才暴露。
         self.transport_cipher = LicenseTransportCipher(settings.license_transport_public_key_path, settings.license_transport_key_id, settings.license_transport_public_key_sha256)
