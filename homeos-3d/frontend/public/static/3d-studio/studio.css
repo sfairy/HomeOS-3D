@@ -836,12 +836,12 @@ button:disabled {
 }
 .light-layer-heading > div {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 3px;
   width: 100%;
 }
-/* 左栏可用宽度只有 200px 出头，三颗按钮平分后每颗约 60px，必须 min-width: 0 + 省略号，
-   否则「新建区域 / 新建灯组」这类中文标签会把按钮撑出容器。 */
+/* 左栏可用宽度只有 200px 出头，按钮平分后每颗约 60px，必须 min-width: 0 + 省略号，
+   否则「新建灯组」这类中文标签会把按钮撑出容器。 */
 .light-layer-heading button {
   width: 100%;
   min-width: 0;
@@ -1073,35 +1073,6 @@ html.list-drag-active * {
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
-.light-group-area-new-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 6px;
-  margin-top: 8px;
-}
-.light-group-area-new-row input {
-  width: 100%;
-  height: 34px;
-  padding: 0 10px;
-  border: 1px solid #ffa73a47;
-  border-radius: 7px;
-  outline: 0;
-  color: #fff;
-  background: #ffa73a0f;
-  font-size: 10px;
-}
-.light-group-area-new-row input:focus {
-  border-color: #ffa73ab8;
-}
-.light-group-area-new-row button {
-  height: 34px;
-  padding: 0 10px;
-  border-radius: 7px;
-  color: #e1ad66;
-  background: #ffa73a12;
-  font-size: 10px;
-  white-space: nowrap;
-}
 .light-group-context-menu {
   position: fixed;
   z-index: 300;
@@ -1131,7 +1102,6 @@ html.list-drag-active * {
   background: #ffffff0f;
 }
 .light-group-context-menu button[data-light-group-action="delete"],
-.light-group-context-menu button[data-area-action="delete"],
 .light-group-context-menu button[data-floor-action="delete"] {
   color: #d77b80;
 }

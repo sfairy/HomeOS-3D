@@ -703,17 +703,10 @@ const saveCameraViewButton = selectElement("#save-camera-view"),
   addLightGroupButton = selectElement("#add-light-group"),
   lightGroupsOffButton = selectElement("#light-groups-off"),
   lightGroupActionMenuElement = selectElement("#light-group-context-menu"),
-  addAreaButton = selectElement("#add-area"),
-  areaContextMenuElement = selectElement("#area-context-menu"),
-  areaRenameDialogElement = selectElement("#area-rename-dialog"),
-  areaRenameFormElement = selectElement("#area-rename-form"),
-  areaRenameInputElement = selectElement("#area-rename-input"),
-  areaRenameTitleElement = selectElement("#area-rename-title"),
   lightGroupAreaDialogElement = selectElement("#light-group-area-dialog"),
   lightGroupAreaFormElement = selectElement("#light-group-area-form"),
   lightGroupAreaSelectElement = selectElement("#light-group-area-select"),
   lightGroupAreaNameElement = selectElement("#light-group-area-name"),
-  lightGroupAreaNewNameElement = selectElement("#light-group-area-new-name"),
   lampsLayerIndex = 2,
   defaultViewSettings = {
     background: 1120029,
@@ -3097,10 +3090,7 @@ let activeLibraryCategory = "home",
   activeLightGroupId = "",
   pendingLightGroupId = "",
   renamingLightGroupId = "",
-  areaRenameMode = "create",
-  areaRenameId = "",
   areaAssignGroupId = "",
-  areaContextMenuId = "",
   expandedAreaIds = new Set(),
   movingFloorId = "",
   pendingLightPropertyApply = null,
@@ -3151,6 +3141,11 @@ let activeLibraryCategory = "home",
   hasAllFloorsSelected = false,
   isLightCachePreserved = false,
   isRendererLost = false;
+/**
+ * 灯光面板的区域改为只读，唯一来源是 HA 区域注册表（后端 /ha/areas 已同步的数据）。
+ * studio 不再自建区域，也不再把它写回场景文档。
+ */
+let lightAreaRecords: { areaId: string; name: string }[] = [];
 const dirtyFloorIdSet = new Set();
 let isSceneDirty = false,
   dragStart = null,
@@ -4122,9 +4117,9 @@ function normalizeScenePayload(rawScene) {
             24,
           ),
           enabled: rawLightGroup?.enabled !== false,
-          areaId: areaIdSet.has(String(rawLightGroup?.areaId || ""))
-            ? String(rawLightGroup?.areaId || "")
-            : null,
+          // 区域改由 HA 提供：旧文档里的 areaId 可能是 studio 自建 id，先原样保留，
+          // 等 HA 区域拉取后按名称迁移成 HA area_id；无效值在渲染/分配时按「未分类」处理。
+          areaId: String(rawLightGroup?.areaId || "").trim() || null,
         }));
     }
   const ensureDefaultLightGroup = (requestedGroupName = "默认灯组") => {
@@ -5079,32 +5074,34 @@ function beginListRowDrag(
     window.addEventListener("touchmove", handleListDragTouchMove, { passive: false }));
 }
 /**
- * 按区域头的拖放结果重排 `studioState.areas`。只改区域之间的顺序：区域内的灯组通过
- * `areaId` 关联，不跟着数组位置走，所以重排区域永远不会弄丢、也不会串组。
+ * 按区域头的拖放结果重排区域顺序。区域来自 HA，只调整前端展示顺序（内存 + 本地记录），
+ * 不回写 HA，也不进文档；灯组与区域的从属关系靠 `areaId`，不随数组位置变化。
  */
 function moveAreaRow(draggedAreaId, targetAreaId, insertAfterFlag) {
-  const sceneAreas = studioState.areas || [],
-    draggedAreaIndex = sceneAreas.findIndex(
-      (draggedAreaMatch) => draggedAreaMatch.id === draggedAreaId,
+  const draggedAreaIndex = lightAreaRecords.findIndex(
+      (draggedAreaMatch) => draggedAreaMatch.areaId === draggedAreaId,
     ),
-    targetAreaIndex = sceneAreas.findIndex(
-      (targetAreaMatch) => targetAreaMatch.id === targetAreaId,
+    targetAreaIndex = lightAreaRecords.findIndex(
+      (targetAreaMatch) => targetAreaMatch.areaId === targetAreaId,
     );
   if (draggedAreaIndex < 0 || targetAreaIndex < 0 || draggedAreaIndex === targetAreaIndex) return;
-  const reorderedAreas = [...sceneAreas],
+  const reorderedAreas = [...lightAreaRecords],
     [draggedArea] = reorderedAreas.splice(draggedAreaIndex, 1),
     insertAreaIndex = reorderedAreas.findIndex(
-      (insertTargetMatch) => insertTargetMatch.id === targetAreaId,
+      (insertTargetMatch) => insertTargetMatch.areaId === targetAreaId,
     );
-  (reorderedAreas.splice(insertAreaIndex + (insertAfterFlag ? 1 : 0), 0, draggedArea),
+  if (insertAreaIndex < 0) return;
+  reorderedAreas.splice(insertAreaIndex + (insertAfterFlag ? 1 : 0), 0, draggedArea);
+  if (
     reorderedAreas.every(
       (orderedArea, orderedAreaIndex) =>
-        orderedArea.id === sceneAreas[orderedAreaIndex]?.id,
-    ) ||
-      (deselectAll(),
-      (studioState.areas = reorderedAreas),
-      syncLightGroupList(),
-      markDocumentDirty()));
+        orderedArea.areaId === lightAreaRecords[orderedAreaIndex]?.areaId,
+    )
+  )
+    return;
+  lightAreaRecords = reorderedAreas;
+  persistLightAreaOrder();
+  syncLightGroupList();
 }
 /**
  * 把灯组移动到目标区域，可插到某组之前 / 之后（targetGroupId 为空表示只换区域、不改顺序）。
@@ -5152,16 +5149,104 @@ function moveLightGroupToArea(
     refreshStudioUi(),
     markDocumentDirty());
 }
-/** 归一区域名（去首尾空白、限长）。空名等同于「未填写」，由调用方决定怎么提示。 */
-function normalizeAreaName(requestedAreaName) {
-  return normalizeLabelText2(requestedAreaName, "", 16);
+/**
+ * 拉取 HA 区域注册表，作为灯光面板唯一的区域来源（只读，但展示顺序可在本地拖动调整）。
+ * 旧文档里自带 studio 自建的 `areas`，这里按区域名称把灯组的旧 areaId 迁移成 HA area_id，
+ * 并清空场景里的遗留区域，之后不再写回。
+ */
+async function refreshLightAreasFromHa() {
+  let fetchedAreaRecords: { areaId: string; name: string }[] = [];
+  try {
+    const areaApiPayload = await fetchStudioApi("/ha/areas"),
+      listedAreaItems = Array.isArray(areaApiPayload?.items) ? areaApiPayload.items : [];
+    fetchedAreaRecords = listedAreaItems
+      .map((areaItem) => ({
+        areaId: String(areaItem?.areaId || areaItem?.id || "").trim(),
+        name: String(areaItem?.name || "").trim(),
+      }))
+      .filter((areaRecord) => areaRecord.areaId && areaRecord.name);
+  } catch (lightAreaError) {
+    // 取不到区域时面板留空，但不动灯组已有的 areaId：下次拉取成功后仍能按名称迁移。
+    fetchedAreaRecords = [];
+  }
+  lightAreaRecords = applySavedLightAreaOrder(fetchedAreaRecords);
+  migrateLegacyLightGroupAreas();
+  syncLightGroupList();
 }
-function areaNameTaken(areaName, excludeAreaId = null) {
-  return (studioState.areas || []).some(
-    (namedArea) => namedArea.id !== excludeAreaId && namedArea.name === areaName,
-  );
+/** 灯光面板区域顺序的本地记录：HA 提供区域集合，顺序只是前端展示偏好，不写回 HA / 文档。 */
+const LIGHT_AREA_ORDER_STORAGE_KEY = "homeos3d.studio.light-area-order";
+function readSavedLightAreaOrder(): string[] {
+  try {
+    const savedOrder = JSON.parse(
+      window.localStorage.getItem(LIGHT_AREA_ORDER_STORAGE_KEY) || "[]",
+    );
+    return Array.isArray(savedOrder) ? savedOrder.map((areaIdItem) => String(areaIdItem)) : [];
+  } catch (lightAreaOrderError) {
+    return [];
+  }
 }
-/** 重建「所属区域」下拉框：「未分类」恒在首位，其后是当前场景的全部区域。 */
+function persistLightAreaOrder() {
+  try {
+    window.localStorage.setItem(
+      LIGHT_AREA_ORDER_STORAGE_KEY,
+      JSON.stringify(lightAreaRecords.map((areaRecord) => areaRecord.areaId)),
+    );
+  } catch (lightAreaOrderError) {
+    // 存不了就只在当前会话内保序，不影响面板使用。
+  }
+}
+/** 按本地记录的 areaId 顺序重排 HA 区域；记录里没有的新区域按 HA 原顺序追加到末尾。 */
+function applySavedLightAreaOrder(areaRecords: { areaId: string; name: string }[]) {
+  const areaRecordById = new Map(areaRecords.map((areaRecord) => [areaRecord.areaId, areaRecord])),
+    orderedAreaRecords = [];
+  for (const savedAreaId of readSavedLightAreaOrder()) {
+    const savedAreaRecord = areaRecordById.get(savedAreaId);
+    savedAreaRecord && (orderedAreaRecords.push(savedAreaRecord), areaRecordById.delete(savedAreaId));
+  }
+  for (const remainingAreaRecord of areaRecords)
+    areaRecordById.has(remainingAreaRecord.areaId) &&
+      (orderedAreaRecords.push(remainingAreaRecord), areaRecordById.delete(remainingAreaRecord.areaId));
+  return orderedAreaRecords;
+}
+/** 把旧文档（studio 自建区域）里的 areaId 按名称映射为 HA area_id，并清掉遗留区域数据。 */
+function migrateLegacyLightGroupAreas() {
+  const haAreaIdByName = new Map(
+      lightAreaRecords.map((areaRecord) => [areaRecord.name, areaRecord.areaId]),
+    ),
+    haAreaIdSet = new Set(lightAreaRecords.map((areaRecord) => areaRecord.areaId));
+  let hasMigratedArea = false;
+  for (const floorRecord of studioProject?.floors || []) {
+    const floorScene = floorRecord.scene;
+    if (!floorScene) continue;
+    const legacyAreaNameById = new Map(
+      (floorScene.areas || []).map((legacyArea) => [legacyArea.id, legacyArea.name]),
+    );
+    for (const lightGroupRecord of floorScene.lightGroups || []) {
+      const currentAreaId = lightGroupRecord.areaId;
+      if (!currentAreaId || haAreaIdSet.has(currentAreaId)) continue;
+      // 旧 areaId 可能是 studio 自建 id（靠遗留名称映射），也可能直接就是 HA 区域名。
+      const legacyAreaName = legacyAreaNameById.get(currentAreaId),
+        mappedAreaId =
+          (legacyAreaName && haAreaIdByName.get(String(legacyAreaName))) ||
+          haAreaIdByName.get(currentAreaId) ||
+          null;
+      if (mappedAreaId !== currentAreaId) {
+        lightGroupRecord.areaId = mappedAreaId;
+        hasMigratedArea = true;
+      }
+    }
+    if (floorScene.areas?.length) {
+      floorScene.areas = [];
+      hasMigratedArea = true;
+    }
+  }
+  hasMigratedArea && markDocumentDirty();
+}
+/** 该 areaId 是否为当前 HA 里的有效区域（渲染分组 / 分配校验用）。 */
+function isKnownLightAreaId(areaId) {
+  return !!areaId && lightAreaRecords.some((areaRecord) => areaRecord.areaId === areaId);
+}
+/** 重建「所属区域」下拉框：「未分类」恒在首位，其后是 HA 区域注册表里的全部区域。 */
 function syncAreaAssignOptions(selectedAreaId) {
   const areaOptionRecords = [
     {
@@ -5169,9 +5254,9 @@ function syncAreaAssignOptions(selectedAreaId) {
       label: "未分类",
     },
   ];
-  for (const listedArea of studioState.areas || [])
+  for (const listedArea of lightAreaRecords)
     areaOptionRecords.push({
-      value: listedArea.id,
+      value: listedArea.areaId,
       label: listedArea.name,
     });
   (lightGroupAreaSelectElement.replaceChildren(
@@ -5191,78 +5276,11 @@ function syncAreaAssignOptions(selectedAreaId) {
       : ""),
     syncStudioSelect2(lightGroupAreaSelectElement));
 }
-/** 在「分配区域」对话框里就地新建区域，并立即把它设为当前选项。 */
-function createAreaFromAssignDialog() {
-  const newAreaName = normalizeAreaName(lightGroupAreaNewNameElement.value);
-  if (!newAreaName) return showToast("请输入新区域名称。", "error");
-  if (areaNameTaken(newAreaName)) return showToast("已存在同名区域。", "error");
-  deselectAll();
-  const createdArea = {
-    id: generateId("area"),
-    name: newAreaName,
-  };
-  ((studioState.areas ||= []).push(createdArea),
-    expandedAreaIds.add(createdArea.id),
-    syncAreaAssignOptions(createdArea.id),
-    (lightGroupAreaNewNameElement.value = ""),
-    syncLightGroupList(),
-    markDocumentDirty(),
-    showToast("已新建区域“" + newAreaName + "”并选中。", "success"));
-}
-/** 以「新建」模式打开区域命名对话框。新建与重命名共用同一个 <dialog>。 */
-function openAreaCreateDialog() {
-  ((areaRenameMode = "create"),
-    (areaRenameId = ""),
-    (areaRenameTitleElement.textContent = "新建区域"),
-    (areaRenameInputElement.value = ""),
-    areaRenameDialogElement.showModal(),
-    requestAnimationFrame(() => areaRenameInputElement.focus()));
-}
-/** 以「重命名」模式打开区域命名对话框，并预填原名字。 */
-function openAreaRenameDialog(renameTargetArea) {
-  renameTargetArea &&
-    ((areaRenameMode = "rename"),
-    (areaRenameId = renameTargetArea.id),
-    (areaRenameTitleElement.textContent = "重命名区域"),
-    (areaRenameInputElement.value = renameTargetArea.name),
-    areaRenameDialogElement.showModal(),
-    requestAnimationFrame(() => areaRenameInputElement.select()));
-}
-/** 关闭区域命名对话框，并把模式重置回「新建」，避免残留上次的重命名目标。 */
-function closeAreaRenameDialog() {
-  ((areaRenameMode = "create"), (areaRenameId = ""), areaRenameDialogElement.close());
-}
-/** 删除区域：区域内灯组不删除，统一移到「未分类」（areaId = null）。 */
-function deleteArea(removedArea) {
-  if (!removedArea) return;
-  deselectAll();
-  for (const ownedLightGroup of studioState.lightGroups || [])
-    ownedLightGroup.areaId === removedArea.id && (ownedLightGroup.areaId = null);
-  ((studioState.areas = (studioState.areas || []).filter(
-    (remainingArea) => remainingArea.id !== removedArea.id,
-  )),
-    expandedAreaIds.delete(removedArea.id),
-    syncLightGroupList(),
-    markDocumentDirty(),
-    showToast("已删除区域“" + removedArea.name + "”，区域内灯组已移到未分类。", "success"));
-}
-function closeAreaContextMenu() {
-  ((areaContextMenuElement.hidden = true), (areaContextMenuId = ""));
-}
-function openAreaContextMenu(menuArea, areaMenuEvent) {
-  ((areaContextMenuId = menuArea.id),
-    (areaContextMenuElement.hidden = false),
-    (areaContextMenuElement.style.left =
-      Math.min(areaMenuEvent.clientX, window.innerWidth - 116) + "px"),
-    (areaContextMenuElement.style.top =
-      Math.min(areaMenuEvent.clientY, window.innerHeight - 76) + "px"));
-}
-/** 打开灯组的「设置区域」对话框，按该灯组当前所属区域回填下拉框，并清空新建输入框。 */
+/** 打开灯组的「设置区域」对话框，按该灯组当前所属区域回填下拉框。 */
 function openLightGroupAreaDialog(assignTargetGroup) {
   assignTargetGroup &&
     ((areaAssignGroupId = assignTargetGroup.id),
     (lightGroupAreaNameElement.textContent = assignTargetGroup.name),
-    (lightGroupAreaNewNameElement.value = ""),
     syncAreaAssignOptions(assignTargetGroup.areaId || ""),
     lightGroupAreaDialogElement.showModal());
 }
@@ -5349,23 +5367,24 @@ function createLightGroupRow(listedLightGroup) {
   return lightGroupRowElement;
 }
 /**
- * 创建一个「区域」区块：区域头可折叠、可右键，也是拖放目标（灯组拖到头上即挂进该区域）。
+ * 创建一个「区域」区块：区域来自 HA，可折叠、可拖动排序，也是拖放目标（灯组拖到头上即挂进该区域）。
+ * 区域本身不可新建 / 删除 / 重命名，名称与集合始终以 HA 为准。
  */
 function createAreaSection(listedArea, memberLightGroups) {
-  const isAreaExpanded = expandedAreaIds.has(listedArea.id),
+  const isAreaExpanded = expandedAreaIds.has(listedArea.areaId),
     areaSectionElement = document.createElement("div");
   ((areaSectionElement.className = "light-area-section"),
-    (areaSectionElement.dataset.areaId = listedArea.id));
+    (areaSectionElement.dataset.areaId = listedArea.areaId));
   const areaHeaderElement = document.createElement("div");
   ((areaHeaderElement.className = "light-area-row" + (isAreaExpanded ? " expanded" : "")),
-    (areaHeaderElement.dataset.areaId = listedArea.id),
+    (areaHeaderElement.dataset.areaId = listedArea.areaId),
     areaHeaderElement.setAttribute(
       "aria-label",
-      listedArea.name + "，单击展开或收起，拖动可调整区域顺序，右键可重命名或删除",
+      listedArea.name + "，单击展开或收起，拖动可调整区域顺序；区域来自 HA，不可新建或删除",
     ));
-  const listDragRowSession: ListDragRowSession = {
+  const areaDragRowSession: ListDragRowSession = {
     kind: "area",
-    id: listedArea.id,
+    id: listedArea.areaId,
     name: listedArea.name,
     rowElement: areaHeaderElement,
     pointerId: -1,
@@ -5385,19 +5404,16 @@ function createAreaSection(listedArea, memberLightGroups) {
         areaPointerDownEvent.target instanceof Element &&
         areaPointerDownEvent.target.closest("button")
       ) &&
-      beginListRowDrag(listDragRowSession, areaPointerDownEvent);
+      beginListRowDrag(areaDragRowSession, areaPointerDownEvent);
   }),
-    areaHeaderElement.addEventListener("click", () => toggleAreaExpanded(listedArea.id)),
-    areaHeaderElement.addEventListener("contextmenu", (areaMenuEvent) => {
-      (areaMenuEvent.preventDefault(), openAreaContextMenu(listedArea, areaMenuEvent));
-    }));
+    areaHeaderElement.addEventListener("click", () => toggleAreaExpanded(listedArea.areaId)));
   const areaCaretButton = document.createElement("button");
   ((areaCaretButton.type = "button"),
     (areaCaretButton.className = "light-area-caret"),
     (areaCaretButton.textContent = isAreaExpanded ? "▾" : "▸"),
     (areaCaretButton.title = isAreaExpanded ? "收起区域" : "展开区域"),
     areaCaretButton.addEventListener("click", (areaCaretEvent) => {
-      (areaCaretEvent.stopPropagation(), toggleAreaExpanded(listedArea.id));
+      (areaCaretEvent.stopPropagation(), toggleAreaExpanded(listedArea.areaId));
     }));
   const areaNameLabel = document.createElement("span");
   ((areaNameLabel.className = "light-area-name"), (areaNameLabel.textContent = listedArea.name));
@@ -5428,8 +5444,8 @@ function syncLightGroupList() {
     !lightLayerPanelElement.hidden)
   ) {
     (getLightGroups(), lightGroupListElement.replaceChildren());
-    const sceneAreas = studioState.areas || [],
-      knownAreaIdSet = new Set(sceneAreas.map((areaRef) => areaRef.id)),
+    const sceneAreas = lightAreaRecords,
+      knownAreaIdSet = new Set(sceneAreas.map((areaRef) => areaRef.areaId)),
       areaMemberGroupMap = new Map(),
       unassignedLightGroups = [];
     for (const listedLightGroup of studioState.lightGroups) {
@@ -5443,7 +5459,7 @@ function syncLightGroupList() {
     }
     for (const listedArea of sceneAreas)
       lightGroupListElement.append(
-        createAreaSection(listedArea, areaMemberGroupMap.get(listedArea.id) || []),
+        createAreaSection(listedArea, areaMemberGroupMap.get(listedArea.areaId) || []),
       );
     for (const unassignedLightGroup of unassignedLightGroups)
       lightGroupListElement.append(createLightGroupRow(unassignedLightGroup));
@@ -5916,6 +5932,8 @@ async function applyLoadedDraft(draftPayload, draftScene = null) {
     refreshPreviewScene(),
     (undoRecords = []),
     (redoRecords = []));
+  // 灯光区域以 HA 为准：拉取区域并迁移旧文档里的自建区域，再渲染图层面板。
+  await refreshLightAreasFromHa();
   const selectedFloorRecords = collectSelectedFloors();
   if (isEmbeddedStage) {
     isExternalModelPending = true;
@@ -29974,9 +29992,8 @@ for (const lightGroupActionButton of lightGroupActionMenuElement.querySelectorAl
               ? duplicateLightGroup(selectedLightGroup)
               : lightGroupAction === "delete" && deleteLightGroup(selectedLightGroup)));
   });
-addAreaButton.addEventListener("click", () => openAreaCreateDialog());
-// 拖动松手后浏览器还会补一个 click：这里在捕获阶段吞掉它。否则「拖完区域」会顺带折叠/展开，
-// 「拖完灯组」会顺带切换选中灯组。没拖动过的普通单击照常放行。
+// 拖动松手后浏览器还会补一个 click：这里在捕获阶段吞掉它。否则「拖完灯组」会顺带切换选中灯组。
+// 没拖动过的普通单击照常放行。
 lightGroupListElement.addEventListener(
   "click",
   (listClickEvent) => {
@@ -29985,68 +30002,6 @@ lightGroupListElement.addEventListener(
   },
   true,
 );
-areaRenameFormElement.addEventListener("submit", (areaRenameSubmitEvent) => {
-  areaRenameSubmitEvent.preventDefault();
-  const submittedAreaName = normalizeAreaName(areaRenameInputElement.value);
-  if (!submittedAreaName) {
-    showToast("请输入区域名称。", "error");
-    return;
-  }
-  if (areaRenameMode === "rename") {
-    // 按对话框打开时记录的区域 id 找回待重命名区域；找不到说明它已经被删掉了。
-    const renameTargetArea = (studioState.areas || []).find(
-      (areaLookupEntry) => areaLookupEntry.id === areaRenameId,
-    );
-    if (!renameTargetArea) {
-      closeAreaRenameDialog();
-      return;
-    }
-    if (renameTargetArea.name === submittedAreaName) {
-      closeAreaRenameDialog();
-      return;
-    }
-    if (areaNameTaken(submittedAreaName, renameTargetArea.id)) {
-      showToast("已存在同名区域。", "error");
-      return;
-    }
-    (deselectAll(),
-      (renameTargetArea.name = submittedAreaName),
-      syncLightGroupList(),
-      markDocumentDirty());
-  } else {
-    if (areaNameTaken(submittedAreaName)) {
-      showToast("已存在同名区域。", "error");
-      return;
-    }
-    deselectAll();
-    const createdArea = {
-      id: generateId("area"),
-      name: submittedAreaName,
-    };
-    ((studioState.areas ||= []).push(createdArea),
-      expandedAreaIds.add(createdArea.id),
-      syncLightGroupList(),
-      markDocumentDirty());
-  }
-  closeAreaRenameDialog();
-});
-selectElement("#area-rename-close").addEventListener("click", closeAreaRenameDialog);
-selectElement("#area-rename-cancel").addEventListener("click", closeAreaRenameDialog);
-areaRenameDialogElement.addEventListener("cancel", () => {
-  ((areaRenameMode = "create"), (areaRenameId = ""));
-});
-for (const areaActionButton of areaContextMenuElement.querySelectorAll("[data-area-action]"))
-  areaActionButton.addEventListener("click", () => {
-    const menuArea = (studioState.areas || []).find(
-        (areaLookupEntry) => areaLookupEntry.id === areaContextMenuId,
-      ),
-      areaAction = areaActionButton.dataset.areaAction;
-    (closeAreaContextMenu(),
-      menuArea &&
-        (areaAction === "rename"
-          ? openAreaRenameDialog(menuArea)
-          : areaAction === "delete" && deleteArea(menuArea)));
-  });
 lightGroupAreaFormElement.addEventListener("submit", (lightGroupAreaSubmitEvent) => {
   lightGroupAreaSubmitEvent.preventDefault();
   // 按对话框记录找回待分配区域的灯组。
@@ -30055,10 +30010,7 @@ lightGroupAreaFormElement.addEventListener("submit", (lightGroupAreaSubmitEvent)
   );
   if (assignTargetGroup) {
     const nextAreaId = lightGroupAreaSelectElement.value || null;
-    if (
-      nextAreaId === null ||
-      (studioState.areas || []).some((areaRef) => areaRef.id === nextAreaId)
-    )
+    if (nextAreaId === null || isKnownLightAreaId(nextAreaId))
       (assignTargetGroup.areaId || null) !== nextAreaId &&
         (deselectAll(),
         (assignTargetGroup.areaId = nextAreaId),
@@ -30073,11 +30025,6 @@ selectElement("#light-group-area-cancel").addEventListener("click", closeLightGr
 lightGroupAreaDialogElement.addEventListener("cancel", () => {
   areaAssignGroupId = "";
 });
-(selectElement("#light-group-area-create").addEventListener("click", createAreaFromAssignDialog),
-  lightGroupAreaNewNameElement.addEventListener("keydown", (areaNewNameKeyEvent) => {
-    areaNewNameKeyEvent.key === "Enter" &&
-      (areaNewNameKeyEvent.preventDefault(), createAreaFromAssignDialog());
-  }));
 for (const floorActionButton of floorActionMenuElement.querySelectorAll("[data-floor-action]"))
   floorActionButton.addEventListener("click", () => {
     const floorActionButtonSelectedFloor = studioProject.floors.find(
@@ -30094,9 +30041,6 @@ document.addEventListener("pointerdown", (documentPointerDownEvent) => {
   (!lightGroupActionMenuElement.hidden &&
     !lightGroupActionMenuElement.contains(documentPointerDownEvent.target) &&
     hideLightGroupActionMenu(),
-    !areaContextMenuElement.hidden &&
-      !areaContextMenuElement.contains(documentPointerDownEvent.target) &&
-      closeAreaContextMenu(),
     !floorActionMenuElement.hidden &&
       !floorActionMenuElement.contains(documentPointerDownEvent.target) &&
       hideFloorActionMenu(),

@@ -104,8 +104,7 @@
                             aria-hidden="true"></span></button></div>
                 <section id="light-layer-panel" class="light-layer-panel" hidden>
                     <div class="light-layer-heading">
-                        <div><button id="light-groups-off" type="button">全关</button><button id="add-area"
-                                type="button" title="新建区域">新建区域</button><button id="add-light-group"
+                        <div><button id="light-groups-off" type="button">全关</button><button id="add-light-group"
                                 type="button" title="新建灯组">新建灯组</button></div>
                     </div>
                     <div id="light-group-list" class="light-group-list"></div>
@@ -1083,27 +1082,13 @@
                     class="primary-action" type="submit">确认比例</button></div>
         </form>
     </dialog>
-    <!-- 重命名灯组所属区域：新建与重命名共用同一个 <dialog>，靠 areaRenameMode 区分。 -->
-    <dialog id="area-rename-dialog" class="scale-dialog light-group-rename-dialog">
-        <form id="area-rename-form" method="dialog"> <button id="area-rename-close" class="dialog-close"
-                type="button" aria-label="关闭">×</button> <span class="dialog-index">LIGHT AREA</span>
-            <h2 id="area-rename-title">新建区域</h2>
-            <p>区域用于把灯组按房间或空间归类，不影响灯组内的灯具。</p> <label class="light-group-rename-field">区域名称<input
-                    id="area-rename-input" maxlength="16" autocomplete="off" required></label>
-            <div class="dialog-actions"><button id="area-rename-cancel" type="button">取消</button><button
-                    class="primary-action" type="submit">确认</button></div>
-        </form>
-    </dialog>
-    <!-- 设置灯组所属区域：可选已有区域，也可就地新建并选中（新名称与选择框在同一行）。 -->
+    <!-- 设置灯组所属区域：区域来自 HA，只能从已有区域中选择。 -->
     <dialog id="light-group-area-dialog" class="scale-dialog light-group-rename-dialog">
         <form id="light-group-area-form" method="dialog"> <button id="light-group-area-close" class="dialog-close"
                 type="button" aria-label="关闭">×</button> <span class="dialog-index">LIGHT GROUP AREA</span>
             <h2>设置区域</h2>
             <p>为“<strong id="light-group-area-name"></strong>”选择所属区域，选择“未分类”可移出区域。</p> <label
                 class="light-group-rename-field">所属区域<select id="light-group-area-select"></select></label>
-            <div class="light-group-area-new-row"><input id="light-group-area-new-name" maxlength="16"
-                    autocomplete="off" placeholder="输入新区域名称"><button id="light-group-area-create"
-                    type="button">新建并选中</button></div>
             <div class="dialog-actions"><button id="light-group-area-cancel" type="button">取消</button><button
                     class="primary-action" type="submit">确认</button></div>
         </form>
@@ -1343,9 +1328,6 @@
             data-light-group-action="rename">重命名</button><button type="button"
             data-light-group-action="duplicate">复制灯组</button><button type="button"
             data-light-group-action="delete">删除</button></div>
-    <div id="area-context-menu" class="light-group-context-menu" hidden><button type="button"
-            data-area-action="rename">重命名区域</button><button type="button"
-            data-area-action="delete">删除区域</button></div>
     <div id="floor-context-menu" class="light-group-context-menu" hidden><button type="button"
             data-floor-action="rename">重命名</button><button type="button" data-floor-action="delete">删除楼层</button></div>
     <script type="module"
