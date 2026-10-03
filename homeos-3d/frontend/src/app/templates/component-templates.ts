@@ -4,6 +4,7 @@ import {
 } from "../shared/percentage-bar-model";
 import { FLOW_LINE_DEFAULTS as FLOW_LINE_DEFAULTS2 } from "../shared/flow-line-model";
 import { interaction3dTemplate as interaction3dTemplate2 } from "../bridge/definition";
+import { EVENT_LOG_WALL_DOMAINS } from "../renderer/controls/event-log-runtime";
 const templatesById = new Map();
 registerComponentTemplate(interaction3dTemplate2);
 const templateScopeOrder = {
@@ -27,6 +28,7 @@ const templateScopeOrder = {
       "icon-button-effect",
       "device-button",
       "presence-sensor",
+      "event-log-wall",
       "air-conditioner",
       "vacuum-map",
       "camera",
@@ -38,6 +40,38 @@ const templateScopeOrder = {
     ],
   },
   componentDefaultsByType = {
+    "event-log-wall": {
+      properties: {
+        enabled: true,
+        title: "即时消息墙",
+        titleVisible: false,
+        titleSize: 72,
+        titleColor: "#b8c2c8",
+        titleAlign: "left",
+        maxEntries: 20,
+        displayDuration: 4,
+        watchScope: "auto",
+        entityIds: [],
+        domains: [...EVENT_LOG_WALL_DOMAINS],
+        fontSize: 21,
+        panelBgOpacity: 0.3,
+        panelBlur: 8,
+        cornerRadius: 12,
+        entryClickMode: "details",
+        showFooter: false,
+        footerText: "查看全部事件历史",
+        stateOnColor: "#fb923c",
+        stateOffColor: "#93c5fd",
+        stateAttrColor: "#7dd3fc",
+        stateClimateColor: "#67e8f9",
+        stateAlertColor: "#f87171",
+        stateMutedColor: "#9ca3af",
+      },
+      style: {
+        scale: 1,
+        visible: true,
+      },
+    },
     image: {
       properties: {
         opacity: 1,
@@ -1977,3 +2011,68 @@ const sceneModeDefaults = {
       };
     },
   }));
+registerComponentTemplate({
+  id: "event-log-wall",
+  name: "即时消息墙",
+  type: "event-log-wall",
+  description: "实时展示设备状态变更流，消息出现后自动淡出，可配置监听范围与配色。",
+  thumbnailId: "event-log-wall",
+  scopes: ["page"],
+  create({
+    id: eventLogWallComponentId,
+    instanceName: eventLogWallInstanceName = "即时消息墙",
+    canvas: eventLogWallCanvas,
+  }) {
+    const eventLogWallCanvasWidth = Number(eventLogWallCanvas?.width || 2778),
+      eventLogWallCanvasHeight = Number(eventLogWallCanvas?.height || 1940),
+      eventLogWallWidth = 480,
+      eventLogWallHeight = 300;
+    return {
+      id: eventLogWallComponentId,
+      type: "event-log-wall",
+      componentVersion: 1,
+      position: {
+        x: (eventLogWallCanvasWidth - eventLogWallWidth) / 2,
+        y: (eventLogWallCanvasHeight - eventLogWallHeight) / 2,
+        width: eventLogWallWidth,
+        height: eventLogWallHeight,
+        rotation: 0,
+        zIndex: 1,
+      },
+      bindings: {},
+      properties: {
+        instanceName: eventLogWallInstanceName,
+        enabled: true,
+        title: "即时消息墙",
+        titleVisible: false,
+        titleSize: 72,
+        titleColor: "#b8c2c8",
+        titleAlign: "left",
+        maxEntries: 20,
+        displayDuration: 4,
+        watchScope: "auto",
+        entityIds: [],
+        domains: [...EVENT_LOG_WALL_DOMAINS],
+        fontSize: 21,
+        panelBgOpacity: 0.3,
+        panelBlur: 8,
+        cornerRadius: 12,
+        entryClickMode: "details",
+        showFooter: false,
+        footerText: "查看全部事件历史",
+        stateOnColor: "#fb923c",
+        stateOffColor: "#93c5fd",
+        stateAttrColor: "#7dd3fc",
+        stateClimateColor: "#67e8f9",
+        stateAlertColor: "#f87171",
+        stateMutedColor: "#9ca3af",
+      },
+      style: {
+        scale: 1,
+        visible: true,
+      },
+      actions: {},
+      children: [],
+    };
+  },
+});

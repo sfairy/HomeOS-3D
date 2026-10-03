@@ -1718,6 +1718,107 @@
                         type="button">一键应用到同类型控件</button>
                 </section>
             </form>
+            <form id="event-log-wall-inspector" class="inspector-form" hidden>
+                <section class="inspector-section">
+                    <h3>基础</h3>
+                    <div class="inspector-grid two-columns">
+                        <label>类型<input id="event-log-wall-type" value="即时消息墙"
+                                readonly="readonly"></label>
+                        <label>备注<input id="event-log-wall-label" maxlength="128"></label>
+                    </div>
+                    <div class="inspector-grid two-columns">
+                        <div class="navigation-property-control">
+                            <span>启用</span>
+                            <div id="event-log-wall-enabled" class="navigation-segmented-options" role="group"
+                                aria-label="是否启用消息墙">
+                                <button type="button" data-event-log-wall-enabled="on">启用</button>
+                                <button type="button" data-event-log-wall-enabled="off">停用</button>
+                            </div>
+                        </div>
+                        <label>条目点击<select id="event-log-wall-click-mode">
+                                <option value="details">打开设备详情</option>
+                                <option value="none">无动作</option>
+                            </select></label>
+                    </div>
+                    <div class="inspector-grid two-columns">
+                        <label>条目上限<input id="event-log-wall-max-entries" type="number" min="1" max="200"
+                                step="1"></label>
+                        <label>停留时长（秒）<input id="event-log-wall-display-duration" type="number" min="1"
+                                max="120" step="1"></label>
+                    </div>
+                    <p class="inspector-section-note">设备状态变化时面板自动出现，停留时长内没有新事件会淡出；隐藏期间已记录的事件仍会保留。</p>
+                </section>
+                <section class="inspector-section">
+                    <h3>监听范围</h3>
+                    <label>范围<select id="event-log-wall-watch-scope">
+                            <option value="auto">自动（全部控制类设备）</option>
+                            <option value="manual">手动指定实体</option>
+                        </select></label>
+                    <p class="inspector-section-note">自动模式订阅灯光、开关、窗帘、空调等控制类设备（最多 400 个）；切换到手动后仅监听下方实体。</p>
+                    <label>实体 ID（每行一个）<textarea id="event-log-wall-entity-ids" rows="3"
+                            placeholder="light.living_room&#10;switch.air_purifier"></textarea></label>
+                </section>
+                <section class="inspector-section">
+                    <div class="navigation-property-heading section-heading">
+                        <h3>标题</h3><button id="event-log-wall-title-visible"
+                            class="inspector-visibility-toggle compact" type="button"
+                            aria-pressed="false">显示</button>
+                    </div>
+                    <div class="inspector-grid two-columns">
+                        <label>内容<input id="event-log-wall-title" maxlength="64"
+                                placeholder="即时消息墙"></label>
+                        <label>大小（%）<input id="event-log-wall-title-size" type="number" min="40" max="300"
+                                step="1"></label>
+                    </div>
+                    <div class="inspector-grid two-columns">
+                        <label>颜色<input id="event-log-wall-title-color" type="color"></label>
+                        <div class="navigation-property-control">
+                            <span>对齐</span>
+                            <div id="event-log-wall-title-align"
+                                class="navigation-segmented-options three-columns" role="group"
+                                aria-label="标题对齐方式">
+                                <button type="button" data-event-log-wall-title-align="left">左</button>
+                                <button type="button" data-event-log-wall-title-align="center">中</button>
+                                <button type="button" data-event-log-wall-title-align="right">右</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <section class="inspector-section">
+                    <h3>外观</h3>
+                    <div class="inspector-grid two-columns">
+                        <label>字号（%）<input id="event-log-wall-font-size" type="number" min="8" max="200"
+                                step="1"></label>
+                        <label>圆角<input id="event-log-wall-radius" type="number" min="0" max="50"
+                                step="1"></label>
+                        <label>背景不透明度<input id="event-log-wall-bg-opacity" type="number" min="0" max="1"
+                                step="0.05"></label>
+                        <label>毛玻璃模糊<input id="event-log-wall-blur" type="number" min="0" max="40"
+                                step="1"></label>
+                    </div>
+                </section>
+                <section class="inspector-section">
+                    <h3>状态配色</h3>
+                    <div class="inspector-grid three-columns">
+                        <label>开启<input id="event-log-wall-on-color" type="color"></label>
+                        <label>关闭<input id="event-log-wall-off-color" type="color"></label>
+                        <label>属性变化<input id="event-log-wall-attr-color" type="color"></label>
+                        <label>空调<input id="event-log-wall-climate-color" type="color"></label>
+                        <label>警示<input id="event-log-wall-alert-color" type="color"></label>
+                        <label>其它<input id="event-log-wall-muted-color" type="color"></label>
+                    </div>
+                    <p class="inspector-section-note">按事件类型着色：开启/关闭、属性变化（如“目标温度 26°C → 28°C”）、空调模式与异常状态。</p>
+                </section>
+                <section class="inspector-section">
+                    <div class="navigation-property-heading section-heading">
+                        <h3>底部提示</h3><button id="event-log-wall-show-footer"
+                            class="inspector-visibility-toggle compact" type="button"
+                            aria-pressed="false">显示</button>
+                    </div>
+                    <label>文案<input id="event-log-wall-footer-text" maxlength="64"
+                            placeholder="查看全部事件历史"></label>
+                </section>
+            </form>
             <form id="panel-frame-inspector" class="inspector-form" hidden>
                 <section class="inspector-section">
                     <h3>基础</h3>

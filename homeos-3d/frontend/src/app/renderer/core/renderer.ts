@@ -171,6 +171,7 @@ import {
   historyRequestStillRelevant as historyRequestStillRelevant2,
   historySeriesCacheKey as historySeriesCacheKey2,
 } from "./runtime-caches";
+import { EVENT_LOG_WALL_AUTO_ENTITY_LIMIT, isEventLogWallDomain } from "../controls/event-log-runtime";
 import {
   collectComponents as collectComponents2,
   collectEntityIds as collectEntityIds2,
@@ -658,6 +659,7 @@ export class PanelRenderer {
   declare runtimeStateHandlers: Map<any, any>;
   declare runtimeRenderEntityIds: Set<string>;
   declare runtimeRenderTimer: number;
+  declare eventLogWallComponentIds: Set<any>;
   declare runtimeStaticImageCache: RuntimeStaticImageCache2;
   declare runtimeEffectImageLoader: RuntimeEffectImageLoader2;
   declare runtimeVacuumMapImagePreloader: RuntimeVacuumMapImagePreloader2;
@@ -762,6 +764,7 @@ export class PanelRenderer {
       (this.runtimeStateHandlers = new Map()),
       (this.runtimeRenderEntityIds = new Set()),
       (this.runtimeRenderTimer = 0),
+      (this.eventLogWallComponentIds = new Set()),
       (this.runtimeStaticImageCache = new RuntimeStaticImageCache2({
         maxConcurrent: 2,
         maxDecoded: 32,
@@ -2421,6 +2424,27 @@ export class PanelRenderer {
       [])
       entityStateHandler(entityStateSnapshot);
   }
+  ["pushEventLogWallEntries"](handledEntityId, previousStateEntry, nextStateEntry) {
+    if (!this.eventLogWallComponentIds.size || !isEventLogWallDomain(handledEntityId)) return;
+    for (const eventLogWallComponentId of this.eventLogWallComponentIds) {
+      const eventLogWallHostElement = this.componentHosts.get(eventLogWallComponentId);
+      if (!eventLogWallHostElement?.isConnected) continue;
+      const eventLogWallProperties =
+        this.componentRecords.get(eventLogWallComponentId)?.properties || {};
+      if (eventLogWallProperties.enabled === false) continue;
+      if (
+        String(eventLogWallProperties.watchScope || "auto") === "manual" &&
+        !(
+          Array.isArray(eventLogWallProperties.entityIds) &&
+          eventLogWallProperties.entityIds.includes(handledEntityId)
+        )
+      )
+        continue;
+      eventLogWallHostElement
+        .querySelector(".hb-event-log-wall")
+        ?.pushEvent?.(handledEntityId, previousStateEntry, nextStateEntry);
+    }
+  }
   ["runtimeEntityIdsForComponent"](runtimeEntityComponent) {
     const runtimeEntityIdCollection = collectEntityIds2([
         {
@@ -2444,12 +2468,16 @@ export class PanelRenderer {
       .filter(Boolean);
   }
   ["indexRuntimeComponent"](indexedComponent) {
+    indexedComponent.type === "event-log-wall" &&
+      indexedComponent.id &&
+      this.eventLogWallComponentIds.add(indexedComponent.id);
     for (const indexedEntityId of this.runtimeEntityIdsForComponent(indexedComponent))
       (this.runtimeEntityComponentIndex.has(indexedEntityId) ||
         this.runtimeEntityComponentIndex.set(indexedEntityId, new Set()),
         this.runtimeEntityComponentIndex.get(indexedEntityId).add(indexedComponent.id));
   }
   ["unindexRuntimeComponent"](unindexedComponent) {
+    this.eventLogWallComponentIds.delete(unindexedComponent);
     for (const [indexedEntityKey, componentIndexSet] of this.runtimeEntityComponentIndex)
       (componentIndexSet.delete(unindexedComponent),
         componentIndexSet.size || this.runtimeEntityComponentIndex.delete(indexedEntityKey));
@@ -2520,6 +2548,17 @@ export class PanelRenderer {
             },
           ),
         onError: (renderErrorObject) => this.options.onError?.(renderErrorObject),
+        openEntityDetails: (eventLogWallEntityId) =>
+          this.showActionPopup(
+            {
+              id: "event-log-wall:" + String(eventLogWallEntityId || ""),
+              type: "device-button",
+              bindings: { entity: { entityId: String(eventLogWallEntityId || "") } },
+              actions: {},
+              properties: {},
+            },
+            { type: "more-info", data: { popupSource: "current" } },
+          ),
         registerRuntimeStateHandler: (stateHandlerEntityKey, stateHandlerCallback) =>
           this.registerRuntimeStateHandler(
             stateHandlerEntityKey,
@@ -3574,6 +3613,17 @@ export class PanelRenderer {
           },
         ),
       onError: (actionErrorObject) => this.options.onError?.(actionErrorObject),
+      openEntityDetails: (eventLogWallEntityId) =>
+        this.showActionPopup(
+          {
+            id: "event-log-wall:" + String(eventLogWallEntityId || ""),
+            type: "device-button",
+            bindings: { entity: { entityId: String(eventLogWallEntityId || "") } },
+            actions: {},
+            properties: {},
+          },
+          { type: "more-info", data: { popupSource: "current" } },
+        ),
       registerRuntimeStateHandler: (componentStateEntityId, componentStateHandler) =>
         this.registerRuntimeStateHandler(
           componentStateEntityId,
@@ -17835,6 +17885,37 @@ export class PanelRenderer {
             (popupModule) => String(popupModule.id || "") === this.activePopupId,
           )
         : null;
+    for (const eventLogWallComponent of collectComponents2(
+      pageComponents,
+      (componentCandidate) => componentCandidate.type === "event-log-wall",
+    )) {
+      const eventLogWallProperties = eventLogWallComponent.properties || {};
+      if (eventLogWallProperties.enabled === false) continue;
+      if (String(eventLogWallProperties.watchScope || "auto") === "manual") {
+        for (const manualEventLogWallEntityId of Array.isArray(eventLogWallProperties.entityIds)
+          ? eventLogWallProperties.entityIds
+          : [])
+          manualEventLogWallEntityId &&
+            !isVirtualEntityId2(manualEventLogWallEntityId) &&
+            runtimeEntityIdSet.add(String(manualEventLogWallEntityId));
+        continue;
+      }
+      const eventLogWallAutoBudget = Math.min(
+        EVENT_LOG_WALL_AUTO_ENTITY_LIMIT,
+        Math.max(0, maxRuntimeEntitySubscriptions - runtimeEntityIdSet.size),
+      );
+      let eventLogWallAutoCount = 0;
+      for (const [eventLogWallAutoEntityId, eventLogWallAutoMetadata] of this.entityMetadata) {
+        if (eventLogWallAutoCount >= eventLogWallAutoBudget) break;
+        if (isVirtualEntityId2(eventLogWallAutoEntityId)) continue;
+        if (
+          !isEventLogWallDomain(eventLogWallAutoMetadata?.domain || eventLogWallAutoEntityId)
+        )
+          continue;
+        runtimeEntityIdSet.add(eventLogWallAutoEntityId);
+        eventLogWallAutoCount += 1;
+      }
+    }
     for (const moduleRecord of activePopupEntry?.modules || [])
       moduleRecord.entityId &&
         !isVirtualEntityId2(moduleRecord.entityId) &&
@@ -18178,6 +18259,7 @@ export class PanelRenderer {
               if (runtimeMessage.type === "state_changed") {
                 if (!this.optimisticStateIsConfirmed(runtimeMessage.entityId, runtimeMessage))
                   return;
+                const eventLogWallPreviousState = this.states.get(runtimeMessage.entityId);
                 if (
                   (this.removedRuntimeEntityIds.has(runtimeMessage.entityId) &&
                     (this.historyRequestPolicy?.success(runtimeMessage.entityId),
@@ -18207,6 +18289,11 @@ export class PanelRenderer {
                   runtimeMessage.entityId,
                   runtimeMessage.newState || runtimeMessage,
                 ),
+                  this.pushEventLogWallEntries(
+                    runtimeMessage.entityId,
+                    eventLogWallPreviousState,
+                    runtimeMessage.newState || runtimeMessage,
+                  ),
                   this.scheduleRuntimeRender(runtimeMessage.entityId));
               }
             }

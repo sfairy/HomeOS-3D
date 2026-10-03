@@ -950,6 +950,32 @@ const componentActionControlsElement = findElement("#component-action-controls")
   weatherScaleElement = findElement("#weather-scale"),
   weatherRotationElement = findElement("#weather-rotation"),
   lineChartInspectorElement = findElement("#line-chart-inspector"),
+  eventLogWallInspectorElement = findElement("#event-log-wall-inspector"),
+  eventLogWallTypeElement = findElement("#event-log-wall-type"),
+  eventLogWallLabelElement = findElement("#event-log-wall-label"),
+  eventLogWallEnabledElement = findElement("#event-log-wall-enabled"),
+  eventLogWallTitleElement = findElement("#event-log-wall-title"),
+  eventLogWallTitleVisibleElement = findElement("#event-log-wall-title-visible"),
+  eventLogWallTitleSizeElement = findElement("#event-log-wall-title-size"),
+  eventLogWallTitleColorElement = findElement("#event-log-wall-title-color"),
+  eventLogWallTitleAlignElement = findElement("#event-log-wall-title-align"),
+  eventLogWallMaxEntriesElement = findElement("#event-log-wall-max-entries"),
+  eventLogWallDisplayDurationElement = findElement("#event-log-wall-display-duration"),
+  eventLogWallWatchScopeElement = findElement("#event-log-wall-watch-scope"),
+  eventLogWallEntityIdsElement = findElement("#event-log-wall-entity-ids"),
+  eventLogWallFontSizeElement = findElement("#event-log-wall-font-size"),
+  eventLogWallRadiusElement = findElement("#event-log-wall-radius"),
+  eventLogWallBgOpacityElement = findElement("#event-log-wall-bg-opacity"),
+  eventLogWallBlurElement = findElement("#event-log-wall-blur"),
+  eventLogWallClickModeElement = findElement("#event-log-wall-click-mode"),
+  eventLogWallShowFooterElement = findElement("#event-log-wall-show-footer"),
+  eventLogWallFooterTextElement = findElement("#event-log-wall-footer-text"),
+  eventLogWallOnColorElement = findElement("#event-log-wall-on-color"),
+  eventLogWallOffColorElement = findElement("#event-log-wall-off-color"),
+  eventLogWallAttrColorElement = findElement("#event-log-wall-attr-color"),
+  eventLogWallClimateColorElement = findElement("#event-log-wall-climate-color"),
+  eventLogWallAlertColorElement = findElement("#event-log-wall-alert-color"),
+  eventLogWallMutedColorElement = findElement("#event-log-wall-muted-color"),
   lineChartTypeElement = findElement("#line-chart-type"),
   lineChartLabelElement = findElement("#line-chart-label"),
   lineChartEntityButtonElement = findElement("#line-chart-entity-button"),
@@ -1987,6 +2013,8 @@ function unbindDisplayDeviceError() {
       (dashboardDisplayLinkElement.textContent = ""));
     return;
   }
+  // 用仪表盘名称寻址（/homeos/{name}）：地址简洁、可手抄/做书签；后端 named_display_page 与
+  // /display/{project_id} 同一套鉴权。projectId 形态留给展示页内部按主键定位。
   const uRL = new URL("/homeos/" + encodeURIComponent(trim), window.location.origin);
   ((dashboardDisplayLinkElement.href = uRL.href),
     (dashboardDisplayLinkElement.textContent = decodeURI(uRL.href)),
@@ -6735,6 +6763,29 @@ function syncLineChartInspector(lineChartComponent) {
     (lineChartApplyStyleButtonElement.textContent = "一键应用到同类型控件"),
     syncComponentActionControls(lineChartComponent, lineChartActionControlsElement));
 }
+function syncEventLogWallInspector(eventLogWallComponent) {
+  const eventLogWallProperties = eventLogWallComponent.properties || {};
+  for (const eventLogWallFieldSpec of eventLogWallInspectorFieldSpecs)
+    writeEventLogWallFieldValue(
+      eventLogWallFieldSpec,
+      eventLogWallProperties[eventLogWallFieldSpec.property],
+    );
+  ((eventLogWallTypeElement.value = "即时消息墙"),
+    syncEventLogWallEnabledSegmented(eventLogWallProperties.enabled),
+    syncEventLogWallTitleAlignSegmented(
+      normalizeEventLogWallTitleAlign(eventLogWallProperties.titleAlign),
+    ),
+    setInspectorToggle2(
+      eventLogWallTitleVisibleElement,
+      eventLogWallProperties.titleVisible === true,
+    ),
+    setInspectorToggle2(
+      eventLogWallShowFooterElement,
+      eventLogWallProperties.showFooter === true,
+    ),
+    (eventLogWallEntityIdsElement.disabled = !isEventLogWallManualScope(eventLogWallProperties)),
+    (eventLogWallFooterTextElement.disabled = eventLogWallProperties.showFooter !== true));
+}
 function syncPanelFrameInspector(panelFrameComponent) {
   const frameProperties = panelFrameComponent.properties || {},
     framePosition = panelFrameComponent.position || {},
@@ -8219,6 +8270,7 @@ function coverMotorButtonElement() {
     isDate = createdInstanceConfig?.type === "date",
     isWeather = createdInstanceConfig?.type === "weather",
     isLineChart = createdInstanceConfig?.type === "line-chart",
+    isEventLogWall = createdInstanceConfig?.type === "event-log-wall",
     isPanelFrame = createdInstanceConfig?.type === "percentage-bar";
   renderPercentageBarInspector2(
     navigatorElement,
@@ -8262,6 +8314,7 @@ function coverMotorButtonElement() {
     isDate ||
     isWeather ||
     isLineChart ||
+    isEventLogWall ||
     isNavigationButton ||
     re2;
   ((inspectorEmptyElement.hidden = hasInspector),
@@ -8281,6 +8334,7 @@ function coverMotorButtonElement() {
     (dateInspectorElement.hidden = !isDate),
     (weatherInspectorElement.hidden = !isWeather),
     (lineChartInspectorElement.hidden = !isLineChart),
+    (eventLogWallInspectorElement.hidden = !isEventLogWall),
     (panelFrameInspectorFormElement.hidden = !isNavigationButton),
     (navigationInspectorFormElement.hidden = !re2));
   const startsWith = String(createdInstanceConfig?.bindings?.entity?.entityId || "").startsWith(
@@ -8693,6 +8747,10 @@ function coverMotorButtonElement() {
   }
   if (isLineChart) {
     (runShadow(), syncLineChartInspector(createdInstanceConfig));
+    return;
+  }
+  if (isEventLogWall) {
+    (runShadow(), syncEventLogWallInspector(createdInstanceConfig));
     return;
   }
   if (isNavigationButton) {
@@ -18545,6 +18603,250 @@ const lineChartColorPropertiesByElement = new Map([
           });
       });
   }));
+const eventLogWallInspectorFieldSpecs = [
+  { element: eventLogWallLabelElement, property: "label", kind: "text" },
+  { element: eventLogWallTitleElement, property: "title", kind: "text" },
+  {
+    element: eventLogWallTitleSizeElement,
+    property: "titleSize",
+    kind: "number",
+    minimum: 40,
+    maximum: 300,
+  },
+  { element: eventLogWallTitleColorElement, property: "titleColor", kind: "color" },
+  { element: eventLogWallTitleAlignElement, property: "titleAlign", kind: "text" },
+  {
+    element: eventLogWallMaxEntriesElement,
+    property: "maxEntries",
+    kind: "number",
+    minimum: 1,
+    maximum: 200,
+  },
+  {
+    element: eventLogWallDisplayDurationElement,
+    property: "displayDuration",
+    kind: "number",
+    minimum: 1,
+    maximum: 120,
+  },
+  { element: eventLogWallClickModeElement, property: "entryClickMode", kind: "text" },
+  { element: eventLogWallWatchScopeElement, property: "watchScope", kind: "text" },
+  { element: eventLogWallEntityIdsElement, property: "entityIds", kind: "entityList" },
+  {
+    element: eventLogWallFontSizeElement,
+    property: "fontSize",
+    kind: "number",
+    minimum: 8,
+    maximum: 200,
+  },
+  {
+    element: eventLogWallRadiusElement,
+    property: "cornerRadius",
+    kind: "number",
+    minimum: 0,
+    maximum: 50,
+  },
+  {
+    element: eventLogWallBgOpacityElement,
+    property: "panelBgOpacity",
+    kind: "number",
+    minimum: 0,
+    maximum: 1,
+  },
+  {
+    element: eventLogWallBlurElement,
+    property: "panelBlur",
+    kind: "number",
+    minimum: 0,
+    maximum: 40,
+  },
+  { element: eventLogWallFooterTextElement, property: "footerText", kind: "text" },
+  { element: eventLogWallOnColorElement, property: "stateOnColor", kind: "color" },
+  { element: eventLogWallOffColorElement, property: "stateOffColor", kind: "color" },
+  { element: eventLogWallAttrColorElement, property: "stateAttrColor", kind: "color" },
+  { element: eventLogWallClimateColorElement, property: "stateClimateColor", kind: "color" },
+  { element: eventLogWallAlertColorElement, property: "stateAlertColor", kind: "color" },
+  { element: eventLogWallMutedColorElement, property: "stateMutedColor", kind: "color" },
+];
+function readEventLogWallFieldValue(eventLogWallFieldSpec) {
+  const eventLogWallFieldElement = eventLogWallFieldSpec.element;
+  if (eventLogWallFieldSpec.kind === "number") {
+    if (
+      String(eventLogWallFieldElement.value).trim() === "" ||
+      !Number.isFinite(Number(eventLogWallFieldElement.value))
+    )
+      return undefined;
+    return clampNumber2(
+      Number(eventLogWallFieldElement.value),
+      eventLogWallFieldSpec.minimum ?? -1e9,
+      eventLogWallFieldSpec.maximum ?? 1e9,
+    );
+  }
+  if (eventLogWallFieldSpec.kind === "entityList")
+    return String(eventLogWallFieldElement.value || "")
+      .split(/[\n,]/)
+      .map((eventLogWallEntityEntry) => eventLogWallEntityEntry.trim())
+      .filter(Boolean);
+  return eventLogWallFieldElement.value;
+}
+const eventLogWallPropertyFallbacks = {
+  maxEntries: 20,
+  displayDuration: 4,
+  entryClickMode: "details",
+  watchScope: "auto",
+  titleAlign: "left",
+  fontSize: 21,
+  cornerRadius: 12,
+  panelBgOpacity: 0.3,
+  panelBlur: 8,
+  titleSize: 72,
+  titleColor: "#b8c2c8",
+  stateOnColor: "#fb923c",
+  stateOffColor: "#93c5fd",
+  stateAttrColor: "#7dd3fc",
+  stateClimateColor: "#67e8f9",
+  stateAlertColor: "#f87171",
+  stateMutedColor: "#9ca3af",
+};
+function writeEventLogWallFieldValue(eventLogWallFieldSpec, eventLogWallFieldValue) {
+  const eventLogWallFieldElement = eventLogWallFieldSpec.element,
+    isEventLogWallFieldUnset =
+      eventLogWallFieldValue === undefined ||
+      eventLogWallFieldValue === null ||
+      eventLogWallFieldValue === "",
+    eventLogWallResolvedValue = isEventLogWallFieldUnset
+      ? eventLogWallPropertyFallbacks[eventLogWallFieldSpec.property]
+      : eventLogWallFieldValue;
+  if (eventLogWallFieldSpec.kind === "entityList") {
+    eventLogWallFieldElement.value = Array.isArray(eventLogWallFieldValue)
+      ? eventLogWallFieldValue.join("\n")
+      : "";
+    return;
+  }
+  if (eventLogWallFieldSpec.kind === "color") {
+    const eventLogWallColorText = String(eventLogWallResolvedValue ?? "").trim();
+    /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(eventLogWallColorText) &&
+      (eventLogWallFieldElement.value = eventLogWallColorText);
+    return;
+  }
+  eventLogWallFieldElement.value =
+    eventLogWallResolvedValue === undefined || eventLogWallResolvedValue === null
+      ? ""
+      : String(eventLogWallResolvedValue);
+}
+function isEventLogWallManualScope(eventLogWallProperties) {
+  return String(eventLogWallProperties?.watchScope || "auto") === "manual";
+}
+function syncEventLogWallEnabledSegmented(eventLogWallEnabledValue) {
+  for (const eventLogWallSegmentButton of eventLogWallEnabledElement.querySelectorAll(
+    "[data-event-log-wall-enabled]",
+  )) {
+    const isEventLogWallSegmentActive =
+      eventLogWallSegmentButton.dataset.eventLogWallEnabled ===
+      (eventLogWallEnabledValue === false ? "off" : "on");
+    (eventLogWallSegmentButton.classList.toggle("active", isEventLogWallSegmentActive),
+      eventLogWallSegmentButton.setAttribute("aria-pressed", String(isEventLogWallSegmentActive)));
+  }
+}
+function syncEventLogWallTitleAlignSegmented(eventLogWallTitleAlignValue) {
+  for (const eventLogWallTitleAlignButton of eventLogWallTitleAlignElement.querySelectorAll(
+    "[data-event-log-wall-title-align]",
+  )) {
+    const isEventLogWallTitleAlignActive =
+      eventLogWallTitleAlignButton.dataset.eventLogWallTitleAlign === eventLogWallTitleAlignValue;
+    (eventLogWallTitleAlignButton.classList.toggle("active", isEventLogWallTitleAlignActive),
+      eventLogWallTitleAlignButton.setAttribute(
+        "aria-pressed",
+        String(isEventLogWallTitleAlignActive),
+      ));
+  }
+}
+function normalizeEventLogWallTitleAlign(eventLogWallTitleAlignValue) {
+  return ["left", "center", "right"].includes(String(eventLogWallTitleAlignValue))
+    ? String(eventLogWallTitleAlignValue)
+    : "left";
+}
+function commitEventLogWallInspectorValue(eventLogWallPropertyName, eventLogWallPropertyValue) {
+  const eventLogWallComponentId = selectedComponentId;
+  if (!eventLogWallComponentId) return;
+  mutateDocument((eventLogWallDraftDocument) => {
+    const eventLogWallDraftComponent = findComponent2(
+      eventLogWallDraftDocument,
+      eventLogWallComponentId,
+    )?.component;
+    if (!eventLogWallDraftComponent || eventLogWallDraftComponent.type !== "event-log-wall") return;
+    eventLogWallDraftComponent.properties = {
+      ...(eventLogWallDraftComponent.properties || {}),
+      [eventLogWallPropertyName]: eventLogWallPropertyValue,
+    };
+  });
+  ["watchScope", "entityIds"].includes(eventLogWallPropertyName) &&
+    editorRenderer?.connectRuntime?.();
+}
+(eventLogWallEnabledElement.addEventListener("click", (eventLogWallEnabledEvent) => {
+  const eventLogWallEnabledButton = eventLogWallEnabledEvent.target.closest(
+    "[data-event-log-wall-enabled]",
+  );
+  if (!eventLogWallEnabledButton) return;
+  const eventLogWallEnabledValue = eventLogWallEnabledButton.dataset.eventLogWallEnabled === "on";
+  (syncEventLogWallEnabledSegmented(eventLogWallEnabledValue),
+    commitEventLogWallInspectorValue("enabled", eventLogWallEnabledValue));
+}),
+  eventLogWallTitleAlignElement.addEventListener("click", (eventLogWallTitleAlignEvent) => {
+    const eventLogWallTitleAlignButton = eventLogWallTitleAlignEvent.target.closest(
+      "[data-event-log-wall-title-align]",
+    );
+    if (!eventLogWallTitleAlignButton) return;
+    const eventLogWallTitleAlignValue = normalizeEventLogWallTitleAlign(
+      eventLogWallTitleAlignButton.dataset.eventLogWallTitleAlign,
+    );
+    (syncEventLogWallTitleAlignSegmented(eventLogWallTitleAlignValue),
+      commitEventLogWallInspectorValue("titleAlign", eventLogWallTitleAlignValue));
+  }),
+  eventLogWallTitleVisibleElement.addEventListener("click", () => {
+    const eventLogWallTitleVisibleValue =
+      eventLogWallTitleVisibleElement.getAttribute("aria-pressed") !== "true";
+    (setInspectorToggle2(eventLogWallTitleVisibleElement, eventLogWallTitleVisibleValue),
+      commitEventLogWallInspectorValue("titleVisible", eventLogWallTitleVisibleValue));
+  }),
+  eventLogWallShowFooterElement.addEventListener("click", () => {
+    const eventLogWallShowFooterValue =
+      eventLogWallShowFooterElement.getAttribute("aria-pressed") !== "true";
+    (setInspectorToggle2(eventLogWallShowFooterElement, eventLogWallShowFooterValue),
+      (eventLogWallFooterTextElement.disabled = !eventLogWallShowFooterValue),
+      commitEventLogWallInspectorValue("showFooter", eventLogWallShowFooterValue));
+  }),
+  eventLogWallInspectorElement.addEventListener("input", (eventLogWallInputEvent) => {
+    const eventLogWallInputComponent = removedComponent();
+    if (!eventLogWallInputComponent || eventLogWallInputComponent.type !== "event-log-wall")
+      return;
+    const eventLogWallInputFieldSpec = eventLogWallInspectorFieldSpecs.find(
+      (eventLogWallFieldSpec) => eventLogWallFieldSpec.element === eventLogWallInputEvent.target,
+    );
+    if (!eventLogWallInputFieldSpec || eventLogWallInputFieldSpec.kind === "entityList") return;
+    const eventLogWallInputValue = readEventLogWallFieldValue(eventLogWallInputFieldSpec);
+    eventLogWallInputValue === undefined ||
+      editorRenderer?.previewComponentProperties(eventLogWallInputComponent.id, {
+        [eventLogWallInputFieldSpec.property]: eventLogWallInputValue,
+      });
+    eventLogWallInputFieldSpec.property === "watchScope" &&
+      (eventLogWallEntityIdsElement.disabled = String(eventLogWallInputValue) !== "manual");
+  }),
+  eventLogWallInspectorElement.addEventListener("change", (eventLogWallChangeEvent) => {
+    const eventLogWallChangeFieldSpec = eventLogWallInspectorFieldSpecs.find(
+        (eventLogWallFieldSpec) => eventLogWallFieldSpec.element === eventLogWallChangeEvent.target,
+      ),
+      eventLogWallChangeComponentId = selectedComponentId;
+    if (!eventLogWallChangeFieldSpec || !eventLogWallChangeComponentId) return;
+    const eventLogWallChangeValue = readEventLogWallFieldValue(eventLogWallChangeFieldSpec);
+    if (eventLogWallChangeValue === undefined) return;
+    commitEventLogWallInspectorValue(
+      eventLogWallChangeFieldSpec.property,
+      eventLogWallChangeValue,
+    );
+    eventLogWallChangeFieldSpec.property === "watchScope" &&
+      (eventLogWallEntityIdsElement.disabled = String(eventLogWallChangeValue) !== "manual");
+  }));
 const panelFrameColorPropertiesByElement = new Map([
     [panelFrameMainColorInputElement, "mainColor"],
     [panelFrameSecondaryColorInputElement, "secondaryColor"],
@@ -24997,7 +25299,10 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
                                                 : deleteAssetFolderClosestElement.dataset
                                                       .templateId === "panel-frame"
                                                   ? "底图框"
-                                                  : "图片",
+                                                  : deleteAssetFolderClosestElement.dataset
+                                                        .templateId === "event-log-wall"
+                                                    ? "即时消息墙"
+                                                    : "图片",
         scaleInputCaptureEventValue = nextTemplateInstanceName2(
           children2,
           popupActionTargetIdConfig,
