@@ -37,7 +37,6 @@ ignore = [
 
 [lint.per-file-ignores]
 "*/migrations/versions/*" = ["E", "UP"]
-"tests/*" = ["S", "PLR", "SIM"]
 
 [lint.isort]
 relative-imports-order = "closest-to-furthest"

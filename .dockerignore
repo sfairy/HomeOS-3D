@@ -8,13 +8,15 @@ __pycache__
 **/*.py[cod]
 .DS_Store
 
-# 运行时数据与本地私钥（镜像内由启动脚本按需生成，或由卷 / 宿主机注入）
-data
-homeos-3d/data
-homeos-store/data
+# 运行时数据与本地私钥（镜像内由启动脚本按需生成，或由卷 / 宿主机注入）。
+# `**/data` 覆盖任意层级的 data 目录；仓库里没有需要进镜像的源码 data/ 目录。
+**/data
 homeos-store/keys/local
-homeos-store/backend/src/data
 homeos-store/backend/src/keys/local
+
+# 内置素材目录：仓库不带素材图，Dockerfile 只 `mkdir /app/image`，素材由卷 / 宿主机注入。
+# 若将来要随镜像分发素材，删掉这行并在 Dockerfile 里加 COPY。
+homeos-3d/image
 
 # 授权公钥不进构建上下文：主应用启动时从授权服务器 `GET /v2/keys` 取回并落到数据卷，
 # 同机部署则由商店写出的共享卷注入，不在镜像里烘焙。
@@ -32,9 +34,9 @@ homeos-store/backend/src/keys/local
 docs
 ops/deploy
 
-# 依赖目录与本地构建产物（镜像内重新 bun run build）
-node_modules
-dist
+# 依赖目录与本地构建产物（镜像内重新 bun run build）；`**/` 前缀让每个子项目的同名目录一并排除。
+**/node_modules
+**/dist
 *.tsbuildinfo
 
 # 客户分发包输出目录（pack-customer.sh 产出，内含源码副本与 tar 包）。
@@ -48,11 +50,10 @@ dist
 release-manifest.json
 **/release-manifest.json
 
-# 仓库工程脚本与设计源件（镜像内只跑 package.json 的 build，不读这两处）。
-/tools
+# 仓库工程脚本与设计源件（镜像内只跑 package.json 的 build，不读这里）。
+# 之前还列了 `/tools`、`/packages`、`homeos-3d/tools`：这三个目录早已不存在，
+# 留着只会让人以为有东西被排除了。
 /design
-/packages
-homeos-3d/tools
 
 # 本地编排文件：镜像构建不需要，compose 从宿主机直接读。
 docker-compose*.yml

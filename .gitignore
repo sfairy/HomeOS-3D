@@ -13,6 +13,11 @@ homeos-store/data/
 homeos-store/keys/local/
 homeos-store/backend/src/data/
 homeos-store/backend/src/keys/local/
+
+# 内置素材目录（settings.built_in_assets_dir，源码运行时编辑器素材库指向它）。
+# 仓库不再带任何素材图：镜像里 Dockerfile 只 `mkdir /app/image`，素材由部署方挂卷或
+# 编辑器里上传；留在版本库里 65 张样例图只会让每次 clone 和每个业务提交都变重。
+homeos-3d/image/
 *-private.pem
 
 # 版本模块是构建期由 Dockerfile 生成的（唯一来源是仓库根 package.json 的 version），
@@ -37,6 +42,9 @@ dist/
 # 本地构建产物：客户分发包（ops/deploy/pack-customer.sh 默认输出到 build/customer-pack）。
 /build/
 
-# 还原工程的本地工作区与工具暂存（.restore 放基线与批次回滚快照）。
-.restore/
-tools/reference/.extracted/
+# 开发期残留：临时/备份/日志文件不进版本库。
+# （现在这些文件只在 data/ 下，靠上面的规则间接覆盖；单独列出来是为了将来
+#   在仓库其它位置生成同名文件时也不会被误提交。）
+*.bak
+*.bak-*
+*.log
