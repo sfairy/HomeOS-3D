@@ -63,10 +63,7 @@ export function loadImportedImage(imageUrl, { timeoutMs: imageTimeoutMs = 30000 
       (importedImage.src = imageUrl));
   });
 }
-/**
- * 底图导入过程中逐阶段回填的诊断信息，最终会拼进失败详情里给用户看。
- * 每次导入用一个新对象累加，字段按走到哪一步填到哪一步，因此全部可选。
- */
+/** 底图导入过程中逐阶段回填的诊断信息，最终会拼进失败详情里给用户看。 */
 export type BackgroundImportDiagnostics = {
   /** 当前阶段，如「读取文件」「解码图片」「调整图片」。 */
   stage?: string;

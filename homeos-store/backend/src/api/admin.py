@@ -49,7 +49,6 @@ from ..security.security import (
 logger = logging.getLogger("src.admin")
 
 
-# 共享助手在 admin_shared.py；这里再导入一次，
 from . import (
     admin_accounts,
     admin_bindings,
@@ -78,7 +77,6 @@ from .admin_shared import (
 router = APIRouter(prefix="/store-admin/v1", tags=["admin"])
 
 
-
 @router.get("/overview")
 def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) -> dict:
     """经营看板数据。
@@ -90,7 +88,6 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
     def count(statement) -> int:
         return int(session.execute(statement).scalar_one() or 0)
 
-    # —— 累计数（保持既有键名，后台与外部集成方都在用）——
     total_gross = count(
         select(func.coalesce(func.sum(Order.amount_cents), 0)).where(
             Order.paid_at.is_not(None),
@@ -105,7 +102,6 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
             _billable_money_clause(),
         )
     )
-    # 人工补记（未收到钱）单独统计：不进营收，但必须看得见。
     total_manual = count(
         select(func.coalesce(func.sum(Order.amount_cents), 0)).where(
             Order.paid_at.is_not(None),
@@ -114,7 +110,6 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
         )
     )
 
-    # —— 时间窗营收 ——
     revenue: dict[str, Any] = {"totalCents": total_gross - total_refunded, "totalGrossCents": total_gross,
                "totalRefundCents": total_refunded, "totalManualCents": total_manual,
                "currency": "CNY", "windows": []}
@@ -123,7 +118,6 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
         bucket["key"] = key
         revenue["windows"].append(bucket)
 
-    # —— 订单漏斗 ——
     status_rows = session.execute(
         select(
             Order.status,
@@ -145,7 +139,6 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
         for code in ORDER_STATUS_CHOICES
     ]
 
-    # —— 待办：需要人工介入的东西 ——
     awaiting_fulfillment = count(
         select(func.count(Order.id)).where(
             Order.status == "paid", Order.fulfillment_mode == "automatic"
@@ -202,7 +195,6 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
     ).one()
 
     return {
-        # —— 累计 ——
         "accounts": count(select(func.count(Account.id))),
         "products": count(select(func.count(Product.id))),
         "licenses": count(select(func.count(License.id))),
@@ -226,14 +218,10 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
         ),
         "serverTime": iso_z(moment),
         "maintenanceMode": bool(setting.maintenance_mode),
-        # 后台巡检（查单对账 / 关闭过期渠道交易）的存活状态。它坏掉时没有任何
         "paymentSweep": sweep_status(),
         "incidents": incidents.status(),
-        # —— 营收（含时间窗）——
         "revenue": revenue,
-        # —— 订单漏斗 ——
         "orderFunnel": funnel,
-        # —— 待办与风险 ——
         "attention": {
             "awaitingFulfillment": awaiting_fulfillment,
             "fulfillmentFailed": fulfillment_failed,
@@ -268,16 +256,12 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
                 "name": item.name,
                 "stockQuantity": int(item.stock_quantity or 0),
                 "reservedStock": int(item.reserved_stock or 0),
-                # 可售 = 库存 - 已被待支付/已付款订单占用的预留。这才是运营该看的数。
                 "availableStock": max(0, int(item.stock_quantity or 0) - int(item.reserved_stock or 0)),
             }
             for item in low_stock
         ],
-        # —— 积分负债 ——
         "referral": {
-            # 冻结是「已申请提现、还没打款」，仍在 balance 里但用户动不了，
             "wallets": int(wallet_row[0] or 0),
-            #: 对外仍是「两位小数字符串」，与改动前一致（厘是 1/100，无损）。
             "balancePoints": money.format_centi(wallet_row[1] or 0),
             "frozenPoints": money.format_centi(wallet_row[2] or 0),
             "availablePoints": money.format_centi(
@@ -288,7 +272,6 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
     }
 
 
-# 维护动作
 @router.post("/maintenance/recompute-stock")
 def admin_recompute_stock(session: DbSession, admin: AdminAccount) -> dict:
     """按订单表重算各商品的 ``reserved_stock``。
@@ -330,12 +313,6 @@ def admin_ack_incidents(session: DbSession, admin: AdminAccount) -> dict:
     return {"cleared": before["total"], "detail": detail, "incidents": incidents.status()}
 
 
-
-
-
-
-
-
 @router.get("/feature-codes")
 def admin_feature_codes(_admin: AdminAccount) -> dict:
     """商品可选的功能码目录（中文名 + 说明）。
@@ -343,11 +320,7 @@ def admin_feature_codes(_admin: AdminAccount) -> dict:
     return features.feature_catalog_payload()
 
 
-# products 资源组第 1 段（include 放在原位置以保持顺序）。
 router.include_router(admin_products.router)
-
-
-
 
 
 @router.get("/order-status-meta")
@@ -362,25 +335,18 @@ def admin_order_status_meta(_admin: AdminAccount) -> dict:
     }
 
 
-# orders 资源组第 1 段（include 放在原位置以保持顺序）。
 router.include_router(admin_orders.router)
 
 
-# 激活码
 router.include_router(admin_licenses.router)
-# bindings 资源组第 1 段（include 放在原位置以保持顺序）。
 router.include_router(admin_bindings.router)
 
 
-# 优惠码
 router.include_router(admin_coupons.router)
-# withdrawals 资源组第 1 段（include 放在原位置以保持顺序）。
 router.include_router(admin_withdrawals.router)
 
 
-# 站点配置资源组在 admin_settings.py；include 放在这里而不是文件末尾，
 router.include_router(admin_settings.router)
-# accounts 资源组在 admin_accounts.py（include 放在原位置以保持路由注册顺序）。
 router.include_router(admin_accounts.router)
 
 
@@ -444,8 +410,6 @@ def admin_patch_license(
     return _license_detail(session, settings, license)
 
 
-
-
 router.include_router(admin_entitlements.router)
 @router.post("/referral-wallets/{account_id}/adjust")
 def admin_adjust_wallet(
@@ -486,7 +450,6 @@ def admin_adjust_wallet(
         )
 
     try:
-        #: 上面那次判断只是**为了给出带数字的文案**，挡不住并发：两个调账请求各自读到同一份
         entry = referrals.ledger_entry(
             session,
             wallet,
@@ -522,23 +485,13 @@ def admin_adjust_wallet(
     }
 
 
-
-
-# products 资源组第 2 段（include 放在原位置以保持顺序）。
 router.include_router(admin_products.router_extra)
 
 
-# bindings 资源组第 2 段（include 放在原位置以保持顺序）。
 router.include_router(admin_bindings.router_extra)
 
 
-
-
-
-
-# 该资源组在 admin_ops.py（include 放在原位置以保持路由注册顺序）。
 router.include_router(admin_ops.router)
 
 
-# 该资源组在 admin_compliance.py（include 放在原位置以保持路由注册顺序）。
 router.include_router(admin_compliance.router)

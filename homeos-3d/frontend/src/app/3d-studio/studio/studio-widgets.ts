@@ -238,7 +238,7 @@ function enhanceNumberInput(numberInput) {
     ),
     syncStepperButtons(numberInput, stepperButtonConfigs));
 }
-/** 扫描并增强容器内的数字输入框；容器默认整篇文档，允许传任意子树（面板内部调用者传的是 div）。 */
+/** 扫描并增强容器内的数字输入框； */
 export function initializeNumberInputs(searchRootElement: ParentNode = document) {
   for (const targetNumberInput of searchRootElement.querySelectorAll('input[type="number"]'))
     enhanceNumberInput(targetNumberInput);

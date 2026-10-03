@@ -67,7 +67,6 @@ def setup_admin(
 ) -> Response:
     email = payload.email.strip().lower()
 
-    # 邮箱形态校验先于任何状态判断：只看请求体，不泄漏「有没有管理员 / 引导密钥对不对」。
     if not is_valid_email(email):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -80,7 +79,6 @@ def setup_admin(
             detail="两次输入的密码不一致。",
         )
 
-    # 顺序有讲究：1) 先判「是否已有管理员」，必须排在守卫前 —— 初始化后守卫会作废
     if admin_exists(session):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -105,7 +103,6 @@ def setup_admin(
     account_id = new_uuid()
     password_hash = hash_password(payload.password)
 
-    # 原子抢占「第一个管理员」这个名额：判空与写入在同一条语句里，由数据库定胜负。
     statement = (
         insert(Account)
         .from_select(
@@ -143,7 +140,6 @@ def setup_admin(
             detail="管理员账号已存在，无法重复初始化。",
         )
 
-    # 自动登录：下发会话 Cookie，部署者无需再手动登一次。
     token = new_token(32)
     session.add(
         AccountSession(
@@ -165,7 +161,6 @@ def setup_admin(
     session.flush()
     session.commit()
 
-    # 初始化窗口到此关闭：作废引导密钥（自动生成的那份直接删文件）。
     if guard is not None:
         guard.consume()
 

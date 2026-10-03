@@ -1419,8 +1419,8 @@ export async function openSecurityEditor({
           currentContainerElement.append(cameraIconFieldElement),
           createNumberField(
             "标签缩放（%）",
-            // 百分比以 DEFAULT_BUTTON_SIZE 为 100%（= 新建时的默认大小）。渲染侧的缩放
-            // 基准仍是设计单位 44（stage.ts 的 --i3d-security-scale），两者语义不同。
+
+
             Math.round(((selectedItem.size ?? DEFAULT_BUTTON_SIZE) / DEFAULT_BUTTON_SIZE) * 100),
             10,
             500,
@@ -1762,11 +1762,8 @@ export async function openSecurityEditor({
     editorDialogElement.showModal(),
     renderPanel(),
     updatePreviewSize(),
-    // 先订阅授权、后挂载运行时：授权监控订阅时会同步派发当前状态（通常是 checking、
-    // allowed=false），若此时运行时已挂载，会立即 setAuthorized(false) 掐断刚建立的
-    // 实时 WebSocket 连接（出现 “WebSocket is closed before the connection is established”
-    // 与 fetch 的 AbortError）。订阅在前时该回调里运行时还不存在，等授权真正通过后
-    // handleAccessState 再调用 mountEditorRuntime 挂载。
+
+
     (unsubscribeAccessChange = subscribeInteraction3dAccess(handleAccessState)),
     mountEditorRuntime(),
     {

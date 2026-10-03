@@ -42,7 +42,6 @@ def list_json(values) -> str:
     return json.dumps(list(values), ensure_ascii=False, separators=(",", ":"))
 
 
-# 商品
 def available_stock_units(product: Product) -> int | None:
     """可售数量；``None`` 表示不限量（未设库存）。"""
     if product.stock_quantity is None:
@@ -124,17 +123,13 @@ def product_payload(
     }
 
 
-# 账号
 def account_payload(account: Account) -> dict:
     return {
         "id": account.id,
         "email": account.email,
-        # 是否管理员：前台据此决定「管理后台」入口显不显示。这是账号**自己**的属性，
         "isAdmin": bool(account.is_admin),
-        # 邮箱是否已验证：未验证会被 ``_require_verified`` 挡在查看订单/下单之外，
         "emailVerified": account.email_verified_at is not None,
         "emailVerifiedAt": iso_z(account.email_verified_at),
-        # 库内时间列都是 naive UTC，序列化必须带 Z 后缀：裸 ISO 串会被浏览器当本地时间
         "createdAt": iso_z(account.created_at),
         "lastLoginAt": iso_z(account.last_login_at),
     }
@@ -160,7 +155,6 @@ def binding_version(binding: DeviceBinding | None) -> str | None:
 
 
 def device_payload(binding: DeviceBinding | None) -> dict | None:
-    # 已解绑的行不是「当前绑定的设备」。``release`` 只把 ``active`` 置 False（行留作
     if binding is None or not binding.is_live:
         return None
     return {
@@ -198,7 +192,6 @@ def device_release_policy(
     }
 
 
-#: 授权来源（``License.issuance_source``）→ 中文名。
 ISSUANCE_SOURCE_LABELS: dict[str, str] = {
     "manual": "后台手动发卡",
     "payment_automatic": "支付后自动发卡",
@@ -229,7 +222,6 @@ def license_payload(
         "activationCodeId": license.id,
         "codeHint": license.code_hint,
         "customerId": license.customer_id,
-        # 前台需要它来判断「这个商品我是不是已经买过」，用于重复购买的二次确认。
         "productId": license.product_id,
         "customerName": customer.name if customer is not None else "",
         "accountEmail": customer.email if customer is not None else "",
@@ -238,12 +230,10 @@ def license_payload(
         "priceCents": int(license.price_cents or 0),
         "validityDays": license.validity_days,
         "issuanceSource": license.issuance_source,
-        # 来源的中文名与「是否是手动签发」都由服务端给出，前台不再自存词表：
         "issuanceSourceLabel": issuance_source_label(license.issuance_source),
         "manuallyIssued": license.issuance_source == "manual",
         "userLabel": license.user_label,
         "active": active,
-        # 全部走 iso_z：裸 ISO 串在浏览器里会偏 8 小时（见 account_payload）。
         "createdAt": iso_z(license.created_at),
         "issuedAt": iso_z(license.issued_at),
         "accessStartedAt": iso_z(license.access_started_at),
@@ -274,7 +264,6 @@ def entitlement_payload(entitlement: Entitlement, *, now: datetime | None = None
     }
 
 
-# 订单
 def order_payload(order: Order) -> dict:
     payment = {}
     try:
@@ -301,16 +290,13 @@ def order_payload(order: Order) -> dict:
         "fulfillmentMode": order.fulfillment_mode,
         "payment": payment,
         "refundAmountCents": int(order.refund_amount_cents or 0),
-        #: 还能退多少（分）。支持多次部分退款后，后台必须知道「剩余可退」，
         "refundableCents": refundable_cents(
             order.amount_cents, order.refund_amount_cents
         ),
         "refundTradeNo": order.refund_trade_no,
         "needsReview": bool(order.needs_review),
         "reviewNote": order.review_note or "",
-        #: 这笔订单的「已支付」是人工补记的：照常发码，但**不计入营收**。
         "manualSettlement": bool(order.manual_settlement),
-        #: 这一单是否改过一张**已有**授权（升级/增量包履约前的快照非空）。后台「删除订单」
         "targetLicenseModified": bool(order.license_state_before_json),
         "codeHint": order.license.code_hint if order.license is not None else None,
         "createdAt": iso_z(order.created_at),
@@ -357,9 +343,7 @@ def account_center_payload(
         "licenses": license_items,
         "entitlements": [entitlement_payload(item, now=moment) for item in entitlements],
         "orders": [order_payload(order) for order in orders],
-        #: 订单总数与 ``orders`` 的长度可能不同：账号中心只取最近若干单，没有这个数字
         "ordersTotal": int(orders_total if orders_total is not None else len(orders)),
-        # 前台靠它决定「试用还能不能买」。
         "hasUsedTrial": bool(has_used_trial),
         "serverTime": iso_z(moment),
     }

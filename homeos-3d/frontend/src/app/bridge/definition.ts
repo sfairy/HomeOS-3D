@@ -4,7 +4,7 @@ export const INTERACTION3D_LIGHTING_MODES = [
     ["standard", "标准光影"],
     ["region", "轻量柔光"],
   ],
-  // 两档并存，standard 为默认：只有显式写了 "region" 才走轻量柔光（二维光照图 + 接触阴影），
+
   normalizeInteraction3dLightingMode = (lightingMode) =>
     lightingMode === "region" ? "region" : "standard",
   BACKGROUND_THEMES = [

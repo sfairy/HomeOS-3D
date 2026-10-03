@@ -1,7 +1,4 @@
-/**
- * 合并墙带时切分属性数据只需要这三样：原始数组、每顶点分量数、是否归一化。
- * （Object.entries 在 TS 6 里从 any 推断出的是 unknown，所以要显式收窄。）
- */
+/** 合并墙带时切分属性数据只需要这三样：原始数组、每顶点分量数、是否归一化。 */
 type SlicedAttribute = {
   array: { slice: (start: number, end: number) => ArrayLike<number> };
   itemSize: number;
@@ -37,8 +34,8 @@ export function createWallSideMaterial(
             "varying float vHbWallHeight;\n" + shaderObject.fragmentShader),
           (shaderObject.fragmentShader = shaderObject.fragmentShader.replace(
             "#include <opaque_fragment>",
-            // 0.70 → 0.85：默认档墙根原本被压暗 30%，半透明墙整面因此偏灰。
-            // 暖阳档用的是 0.92（只压 8%）—— 这里取 0.85，向暖阳靠但不追平。
+
+
             "\n      float wallHeightBlend = smoothstep(0.0, 0.65, vHbWallHeight);\n      outgoingLight *= mix(" +
               (isWarmWood ? "0.92" : "0.85") +
               ", 1.0, wallHeightBlend);\n      diffuseColor.a += diffuseColor.a * (1.0 - diffuseColor.a) * " +
@@ -46,8 +43,8 @@ export function createWallSideMaterial(
               " * (1.0 - wallHeightBlend);\n      #include <opaque_fragment>",
           )));
       }),
-      // 非暖阳分支的着色改了（墙根压暗 0.70 → 0.85），缓存键必须跟着升版：
-      // 否则浏览器/渲染器可能复用上一版编译好的 program，改动看不到。
+
+
       (material.customProgramCacheKey = () =>
         isWarmWood ? "hb-wall-warm-clean-v1" : "hb-wall-height-gradient-v4")),
     material

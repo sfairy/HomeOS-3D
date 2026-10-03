@@ -53,9 +53,6 @@ def record_refund_in_new_session(session: Session, refund: OrderRefund) -> bool:
     return True
 
 
-#: 按订单号的进程内互斥锁表（值 = [锁, 持有者计数]）。
-#: 放在这里而不是接口层：退款是**渠道侧会真的动钱**的操作，同一订单的两笔并发退款
-#: 会让累计额度算错，所以这道锁与退款记账属于同一个关注点。
 @dataclass
 class _RefundLock:
     """一把锁加上等待它的持锁者计数。原先写成 ``[Lock(), 0]``，被推断成
@@ -87,7 +84,6 @@ def refund_lock(order_no: str) -> Generator[None]:
         lock.release()
         with _refund_locks_guard:
             entry = _refund_locks.get(order_no)
-            #: 只在「还是同一把锁」时才动计数：期间可能有人把表项删掉重建了。
             if entry is not None and entry.lock is lock:
                 if entry.holders <= 1:
                     del _refund_locks[order_no]
@@ -111,10 +107,6 @@ def claim_refund_amount(session: Session, order, *, seen_cents: int, add_cents: 
     return claimed.rowcount == 1  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
 
 
-#: 「这笔退款还没有定论」的状态集合：
-#: * ``running`` —— 渠道调用正在进行（闸门占位行）；
-#: * ``processing`` —— 渠道已受理但未到账（微信异步退款），或结果未知（超时/网络异常）。
-#: 两者都必须用**同一个幂等号 + 同一个金额**重试，绝不能换号重发。
 REFUND_UNSETTLED_STATUSES = frozenset({"running", "processing"})
 
 
@@ -157,7 +149,6 @@ def _gate_verdict(row: OrderRefund) -> str:
         return "settled"
     if row.status == "running":
         return "in_flight"
-    # processing / failed：同一幂等号原样重发在渠道侧是幂等的，放行。
     return "retry"
 
 
@@ -183,7 +174,6 @@ def open_refund_gate(session: Session, refund: OrderRefund) -> tuple[str, OrderR
                     amount_cents=int(refund.amount_cents or 0),
                     status="running",
                     detail="",
-                    # ORM 的 default 对 Core insert 不生效，这里显式兜底，避免 NOT NULL 报错。
             reason=refund.reason or "",
                     offline=refund.offline,
                     operator=refund.operator,
@@ -192,7 +182,6 @@ def open_refund_gate(session: Session, refund: OrderRefund) -> tuple[str, OrderR
             )
             gate.commit()
         except IntegrityError:
-            # 另一个进程刚好抢到同一个幂等号：这不是错误，是对账口径在起作用。
             gate.rollback()
             existing = refund_by_request_no(gate, refund.out_request_no)
             if existing is None:
@@ -224,7 +213,6 @@ def write_refund_result(
         .values(**values)
         .execution_options(synchronize_session=False)
     )
-    # SQLAlchemy CursorResult.rowcount 是动态属性。
     return int(result.rowcount)  # type: ignore[reportAttributeAccessIssue]
 
 

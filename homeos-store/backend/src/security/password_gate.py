@@ -66,7 +66,6 @@ def prune(session: Session) -> None:
     session.execute(delete(LoginAttempt).where(LoginAttempt.created_at < cutoff))
 
 
-#: 上次清理的时间（``time.monotonic()``）。进程级即可：清理是幂等的，
 _last_prune_at: float = 0.0
 
 

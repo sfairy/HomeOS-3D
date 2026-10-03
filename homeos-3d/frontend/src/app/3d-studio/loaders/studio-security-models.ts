@@ -20,7 +20,7 @@ export function addSecurityModel(three, modelGroup, modelSpec, colorPalette) {
         metalness: 0.3,
       }),
     },
-    // scaleVector 可选：不传即为 1:1:1 的等比例零件。
+
     addMeshPart = (
       meshGeometry,
       materialRole,

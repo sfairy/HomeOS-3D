@@ -1,14 +1,11 @@
 import { mergeGeometries } from "/static/vendor/three/0.186.0/BufferGeometryUtils.js";
 
-/**
- * 做几何签名 / 合批时读到的最小 Attribute 结构。
- * 普通 BufferAttribute 与 InterleavedBufferAttribute 都满足它；交错缓冲多出的 data 用来查内层版本号。
- */
+/** 做几何签名 / 合批时读到的最小 Attribute 结构。 */
 type GeometryAttributeLike = {
   version: number;
   count: number;
   itemSize: number;
-  /** 只有交错缓冲有；内层 buffer 改动时 version 会变。 */
+  /** 只有交错缓冲有； */
   data?: { version?: number };
 };
 
@@ -17,7 +14,7 @@ type ReflectionPassesOptions = {
   THREE: any;
   /** 一批建完后请求下一帧。 */
   requestFrame?: () => void;
-  /** 把建批任务挪到空闲时段；默认 requestIdleCallback，退化成 setTimeout。 */
+  /** 把建批任务挪到空闲时段； */
   scheduleWork?: (task: () => void) => () => void;
   /** 合批代理几何的总字节上限。 */
   maxBytes?: number;

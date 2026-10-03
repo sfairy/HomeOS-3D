@@ -8,11 +8,9 @@ import re
 import secrets
 from pathlib import Path
 
-#: 令牌名白名单。与 ``backend/src/core/appearance.py`` 逐字相同，与
 _TOKEN_NAME = re.compile(
     r'^--(?:hos|hb)-(?:accent|lumen|aura|eco)(?:-rgb|-bright|-deep|-soft|-line|-text)?$'
 )
-#: 主按钮悬停渐变：唯一一枚不按后缀归类的令牌（它同时用两枚色）。
 _TOKEN_NAME_EXTRA = frozenset({'--hb-accent-grad-hover'})
 
 _HEX = r'#[0-9a-f]{6}'
@@ -25,7 +23,6 @@ _VALUE_PATTERNS: dict[str, re.Pattern[str]] = {
 _VALUE_DEFAULT = re.compile(rf'^{_HEX}$')
 _VALUE_GRADIENT = re.compile(rf'^linear-gradient\(180deg, {_HEX}, {_HEX}\)$')
 
-#: 允许的预设 id。取值合法性（防写坏样式表）与「是不是我们发出去的预设」
 PRESET_IDS = frozenset({'amber', 'custom'})
 
 SCHEMA_VERSION = 1
@@ -89,7 +86,6 @@ def tokens_to_css(tokens: dict[str, str]) -> str:
     """把令牌表拼成 ``:root{…}`` 样式表正文。
     """
     if not tokens:
-        # 没配置时返回合法的空样式表而不是 404：<link> 拿到 404 会在控制台留下一条
         return '/* HomeOS 商店配色：尚未配置，使用设计系统默认值。 */\n'
     body = '\n'.join(f'  {name}: {value};' for name, value in sorted(tokens.items()))
     return f'/* HomeOS 商店配色（由设置界面生成，勿手改） */\n:root {{\n{body}\n}}\n'
@@ -116,7 +112,6 @@ class AppearanceStore:
             self._preset = validate_preset(payload.get('preset'))
             self._tokens = validate_tokens(payload.get('tokens'))
         except AppearanceError:
-            # 文件被手改坏了：退回默认值，下次写入时覆盖掉它。
             self._preset = ''
             self._tokens = {}
 
@@ -169,7 +164,6 @@ class AppearanceStore:
             with os.fdopen(descriptor, 'wb') as output:
                 output.write(encoded)
                 output.flush()
-                # 先刷内容再 rename：断电后不会留下一个空文件把配色清掉。
                 os.fsync(output.fileno())
             os.replace(temporary_path, self.path)
         except Exception:

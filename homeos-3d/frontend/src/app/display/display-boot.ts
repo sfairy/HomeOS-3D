@@ -261,7 +261,7 @@
       }),
       documentElement.classList.add("display-booting"),
       document.addEventListener("click", (clickEvent) => {
-        // target 声明类型是 EventTarget，但点击落到的是元素节点，closest 只在 Element 上存在。
+
         const clickTarget = clickEvent.target as Element | null;
         (clickTarget?.closest("#display-splash-retry") && location.reload(),
           clickTarget?.closest("#display-splash-enter") && finishLoading());
@@ -276,7 +276,7 @@
         45000,
       )),
       document.addEventListener("focusin", (focusEvent) => {
-        // 同上：focusin 的 target 实际是节点，contains 要的是 Node。
+
         const focusTarget = focusEvent.target as Node | null;
         splashPhase !== "done" &&
           focusTarget &&

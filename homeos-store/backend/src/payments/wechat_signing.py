@@ -30,11 +30,8 @@ class WeChatPaymentError(RuntimeError):
     """微信支付渠道的错误（凭据、签名、网关调用、回调验签）。"""
 
 
-#: APIv3 密钥必须是**恰好 32 个字符**（微信的硬要求，长度不对会在解密时才炸，
-#: 那时已经收到通知了 —— 所以必须在保存时就拦住）。
 API_V3_KEY_LENGTH = 32
 
-#: 随机串允许的字符集。微信要求 32 位以内，这里用去掉易混字符的字母数字。
 _NONCE_ALPHABET = string.ascii_letters + string.digits
 
 

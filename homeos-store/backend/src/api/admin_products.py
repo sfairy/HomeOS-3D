@@ -30,7 +30,6 @@ from ..security.security import (
 logger = logging.getLogger("src.admin")
 
 
-# 共享助手在 admin_shared.py；这里再导入一次，
 from .admin_shared import (
     _admin_actor,
     _admin_product_context,
@@ -82,7 +81,6 @@ def admin_list_products(
             Product.stock_quantity - Product.reserved_stock <= 0,
         )
     elif status_value == "lowstock":
-        # 「低库存」没有全局阈值，这里取「可售 ≤ 5」这一运营常用口径；
         base = base.where(
             Product.active.is_(True),
             Product.stock_quantity.is_not(None),
@@ -129,8 +127,6 @@ def _assert_product_configuration(
     codes = [str(code).strip() for code in (feature_codes or []) if str(code).strip()]
     unknown = sorted({code for code in codes if code not in features.FEATURE_CODES})
     if unknown:
-        # 能力码清单的权威源在主项目（``homeos-3d/backend/src/license/service.py``），
-        # 商店侧 ``ops/features.py`` 只是它的镜像；对不上的码客户端不会认，直接拒绝。
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
@@ -140,15 +136,11 @@ def _assert_product_configuration(
         )
 
     if not active:
-        # 草稿/下架商品不拦：运营有权先把商品建出来，再慢慢配功能码。
         return
     if codes:
         return
     if [str(item).strip() for item in (included_product_ids or []) if str(item).strip()]:
         return
-    # 这条**不再只针对套餐**：授权在激活时是 fail-closed 的（features_for 没有功能码
-    # 就 422），而这条检查原先只覆盖 product_type=package —— 于是基础版/增量包漏配
-    # 功能码时可以照常上架、照常卖出、照常签出授权，买家到最后一步才发现激活不了。
     raise HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         detail=(
@@ -225,7 +217,6 @@ def admin_update_product(
     for field, column in mapping.items():
         if field in data:
             setattr(product, column, data[field])
-    # product_code 是结算与授权里的产品标识，绝不能留空（留空会让下游按空标识建授权）
     if not product.product_code:
         product.product_code = "homeos"
     if "feature_codes" in data:
@@ -273,7 +264,6 @@ def admin_delete_product(
             "reason": reason,
         }
 
-    # 物理删除：数据库里 product_images 是 ON DELETE CASCADE，但磁盘上的图片文件
     image_paths = [
         image.path
         for image in session.scalars(
@@ -299,7 +289,6 @@ def admin_delete_product(
     return {"id": product_id, "deleted": True, "deactivated": False}
 
 
-#: 商品图上传的体积上限。
 IMAGE_MAX_BYTES = 8 * 1024 * 1024
 
 
@@ -312,7 +301,6 @@ def _image_suffix(content: bytes) -> str | None:
         return ".jpg"
     if content[:6] in {b"GIF87a", b"GIF89a"}:
         return ".gif"
-    # WebP 是 RIFF 容器：0-4 是 "RIFF"，8-12 是 "WEBP"（中间 4 字节是长度）
     if len(content) >= 12 and content[:4] == b"RIFF" and content[8:12] == b"WEBP":
         return ".webp"
     return None
@@ -333,7 +321,6 @@ def admin_upload_product_image(
     folder = settings.product_images_dir
     folder.mkdir(parents=True, exist_ok=True)
 
-    # 先按上限 + 1 字节读：超限时我们已经知道「超了」，不需要把整个文件读进内存。
     content = file.file.read(IMAGE_MAX_BYTES + 1)
     if len(content) > IMAGE_MAX_BYTES:
         raise HTTPException(
@@ -341,7 +328,6 @@ def admin_upload_product_image(
             detail="图片不能超过 8MB。",
         )
 
-    # 格式**按内容判定**，不看文件名 —— 见 ``_image_suffix`` 的说明。
     suffix = _image_suffix(content)
     if suffix is None:
         raise HTTPException(
@@ -401,7 +387,6 @@ def admin_delete_product_image(
     missing: list[str] = []
     for image in images:
         target = _safe_image_target(root, image.path)
-        # 防目录穿越：库里的 path 是上传时自己拼的文件名，但不排除被改过，
         if target is None:
             logger.warning("商品图片路径越界，跳过文件删除：%s", image.path)
             missing.append(image.path)

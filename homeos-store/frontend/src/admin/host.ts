@@ -1,6 +1,4 @@
-/**
- * 后台各模块回调「外壳」时用的窄接口（`admin/app.ts`）。
- */
+/** 后台各模块回调「外壳」时用的窄接口（`admin/app.ts`）。 */
  type PagedLoader = () => Promise<unknown> | unknown;
 
  type AdminHost = {

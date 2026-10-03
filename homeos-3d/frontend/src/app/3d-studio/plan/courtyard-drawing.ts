@@ -703,7 +703,7 @@ export function sceneContentBounds(boundsSceneModel) {
           })
         : modelBounds(boundsSceneModel);
 }
-// originFallback 允许只给部分轴：缺省轴按 0 兜底（调用方常常只想覆盖其中一轴）。
+
 export function sceneModelOrigin(
   originSceneModel,
   originFallback: { originX?: number; originY?: number } = {},
@@ -1073,7 +1073,7 @@ export function snapCourtyardPoint(
     anchor: anchorPoint,
     forceAxis: shouldForceAxis = false,
     excludeId: excludeItemId,
-    // 吸附开关：只有显式传 false 才关掉对应类型的吸附目标。
+
     settings: snapSettings = {} as { snapEndpoints?: boolean; snapSegments?: boolean },
   },
 ) {

@@ -15,11 +15,7 @@ from ..payments.alipay import (
     validate_callback_url,
     validate_gateway_url,
 )
-
-#: 微信支付的「凭据是否齐全」判定由 provider 自己实现（见 wechat_credentials_summary）。
 from ..payments.wechat import WeChatPayProvider
-
-#: 打码/归一化密钥提交值的规则与 SMTP 授权码共用一份实现，这里重新导出以保持调用点不变。
 from ..security.secret_fields import (
     MASK_PREFIX,
     is_masked_secret,
@@ -42,7 +38,6 @@ __all__ = [
     "wechat_credentials_summary",
 ]
 
-#: 支付宝正式网关（站点配置与环境变量都没给时的最终兜底）
 PRODUCTION_GATEWAY_URL = "https://openapi.alipay.com/gateway.do"
 
 
@@ -61,7 +56,6 @@ def merge_alipay_settings(
     database_notify_url = (setting.alipay_notify_url or "").strip()
     database_return_url = (setting.alipay_return_url or "").strip()
 
-    # 留空即用支付宝生产网关。
     gateway = database_gateway or settings.alipay_gateway_url or PRODUCTION_GATEWAY_URL
 
     return replace(
@@ -71,7 +65,6 @@ def merge_alipay_settings(
         alipay_app_private_key=database_private_key or settings.alipay_app_private_key,
         alipay_public_key=database_public_key or settings.alipay_public_key,
         alipay_gateway_url=gateway,
-        # 回调地址同理：留空跟随环境变量，非空以站点配置为准；改它不该需要重启容器。
         alipay_notify_url=database_notify_url or settings.alipay_notify_url,
         alipay_return_url=database_return_url or settings.alipay_return_url,
         alipay_app_private_key_path=(
@@ -95,22 +88,18 @@ def alipay_credentials_summary(
         "appId": app_id,
         "sellerId": merged.alipay_seller_id,
         "gatewayUrl": merged.alipay_gateway_url,
-        #: 当前**实际生效**的异步通知/同步跳转地址（可能来自后台、环境变量或按
         "notifyUrl": merged.alipay_notify_url,
         "returnUrl": merged.alipay_return_url,
-        #: 只读展示：签名算法与响应验签开关仍由环境变量控制（改错会全挂），排障时要看得见。
         "signType": merged.alipay_sign_type,
         "verifyResponseSign": bool(merged.alipay_verify_response_sign),
         "applicationPrivateKeyConfigured": bool(private_key),
         "alipayPublicKeyConfigured": bool(public_key),
-        #: 打码后的密钥，只为让运营确认「填的是哪一把」，不能反推出明文。
         "applicationPrivateKeyMasked": mask_secret(
             (getattr(setting, "alipay_app_private_key", "") or "").strip()
         ),
         "alipayPublicKeyMasked": mask_secret(
             (getattr(setting, "alipay_public_key", "") or "").strip()
         ),
-        #: 各字段各报各的来源。前端**只回填来源为后台的字段** —— 若把环境变量的值也回填，
         "appIdFromDatabase": bool((getattr(setting, "alipay_app_id", "") or "").strip()),
         "sellerIdFromDatabase": bool((getattr(setting, "alipay_seller_id", "") or "").strip()),
         "gatewayUrlFromDatabase": bool(
@@ -132,8 +121,6 @@ def alipay_credentials_summary(
     }
 
 
-#: 微信支付的字段名 → StoreSettings 字段名。合并与概览都按这张表走，
-#: 避免「加了一个字段、某一个地方忘了带上」这种最难发现的走散。
 _WECHAT_TEXT_FIELDS: tuple[tuple[str, str], ...] = (
     ("wechat_mch_id", "wechat_mch_id"),
     ("wechat_app_id", "wechat_app_id"),
@@ -192,7 +179,6 @@ def wechat_credentials_summary(
         "apiV3KeyConfigured": not signing.api_v3_key_error(merged.wechat_api_v3_key),
         "merchantPrivateKeyConfigured": bool(private_key),
         "platformPublicKeyConfigured": bool(public_key),
-        #: 打码后的值，只为让运营确认「填的是哪一个」，不能反推出明文。
         "apiV3KeyMasked": mask_secret(
             (getattr(setting, "wechat_api_v3_key", "") or "").strip()
         ),
@@ -202,8 +188,6 @@ def wechat_credentials_summary(
         "platformPublicKeyMasked": mask_secret(
             (getattr(setting, "wechat_platform_public_key", "") or "").strip()
         ),
-        #: 各字段各报各的来源：前端只回填来源为后台的字段，否则会把环境变量的值
-        #: 当成后台值再提交回去，等于把环境变量抄进数据库。
         "mchIdFromDatabase": bool((getattr(setting, "wechat_mch_id", "") or "").strip()),
         "appIdFromDatabase": bool((getattr(setting, "wechat_app_id", "") or "").strip()),
         "merchantSerialNoFromDatabase": bool(

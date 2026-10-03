@@ -107,9 +107,6 @@ def list_orders(
     size = max(1, min(int(limit or ACCOUNT_ORDER_PAGE_SIZE), 100))
     skip = max(0, int(offset or 0))
     orders = _account_orders(session, account, limit=size, offset=skip)
-    # 与 get_order 同一顺序：先对账，再过期。账号中心是买家最可能先看到结果的地方，
-    # 顺序反了会让「刚过期但钱已到账」的单在这一屏显示成已过期。每个账号最多一笔待
-    # 支付订单（数据库唯一索引），所以这里的对账最多一次查单请求。
     pending = [item for item in orders if item.status == "pending"]
     for item in pending:
         _reconcile_payment(session, request, item)
@@ -140,7 +137,6 @@ def create_order(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=setting.maintenance_message or "商城正在升级维护，请稍后再试。",
         )
-    # 「启用支付」必须在**下单流程**里读：只影响站点配置接口的展示
     if not setting.payment_enabled:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -162,11 +158,9 @@ def create_order(
         )
 
     product = _product_or_404(session, payload.product_id)
-    #: 只判售罄，不为了这一位去算「已售份数 / 拥有客户数」与整张商品表 ——
     if is_sold_out(product):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该商品已售罄。")
 
-    # 判定订单类型：module / template 之类的功能增量包属于 addon
     is_addon = product.product_type in {"module", "template"} or bool(product.requires_license)
     target_license: License | None = None
     if is_addon:
@@ -187,7 +181,6 @@ def create_order(
                 detail="增量包只能添加到永不过期的主授权上。",
             )
     elif _is_trial_product(product):
-        # 「每个账号只能买一次试用」必须在**服务端**兜底：只写在前端
         permanent, _temporary = _account_license_state(session, account)
         if permanent:
             raise HTTPException(
@@ -206,7 +199,6 @@ def create_order(
     discount = 0
     coupon_code = (payload.coupon_code or "").strip()
     if coupon_code:
-        # 限流、口径校验、失败记账都在这里 —— 与 ``/coupons/preview`` 走同一条
         coupon, discount = _evaluate_coupon_limited(
             session, account=account, product=product, code=coupon_code
         )
@@ -245,10 +237,6 @@ def create_order(
         coupon_code=coupon.code if coupon is not None else None,
         status="pending",
         fulfillment_mode=product.fulfillment_mode,
-        #: 订单冻结**顾客实际要用的渠道**：之后运营改默认渠道也不影响在途订单
-        #: 的回调与对账（它们都按订单自己的 payment_provider 解析 provider）。
-        #: 未显式选渠道时用 default_channel_name（只在启用集合内挑），与前台展示、
-        #: resolve_provider 保持同一口径。
         payment_provider=(
             _resolve_requested_channel(setting, payload, request)
             or default_channel_name(setting, request.app.state.settings)
@@ -264,7 +252,6 @@ def create_order(
             detail="你有一笔待支付订单，请先完成或等待其超时关闭。",
         )
     if outcome != "ok":
-        #: 订单号撞车。``new_order_no`` 末尾的随机段已经让这件事的概率可忽略，但真撞上
         session.rollback()
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -276,15 +263,12 @@ def create_order(
         try:
             coupons.redeem_coupon(session, order, coupon, account, discount)
         except coupons.CouponUnavailable as error:
-            # 名额在「校验」和「占用」之间被别人抢走：整单作废，先建的订单不会
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)
             ) from error
     if not fulfill.reserve_stock(session, product, 1):
-        # 并发下单：更早那一次 soldOut 检查是「读」，这里是「原子占位」。
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该商品已售罄。")
 
-    # 优惠后应付 0 元：支付宝不接受 0 元交易，直接按免费订单开通
     if amount <= 0:
         order.status = "paid"
         order.paid_at = utcnow()
@@ -301,8 +285,6 @@ def create_order(
         if order.fulfillment_mode != "manual":
             fulfill.fulfill_order(session, order=order, setting=setting)
         session.refresh(order)
-        # 与支付宝/微信回调、后台入账同口径：发码邮件排在响应之后，且必然看到已提交的授权。
-        # 少了这一步，免费单只能等巡检（默认 30s）或用户手动重发。
         background.add_task(
             delivery.notify_license_issued,
             request.app.state.database,
@@ -315,18 +297,14 @@ def create_order(
     try:
         provider = request.app.state.resolve_payment_provider(setting, name=chosen)
     except PaymentError as error:
-        # 渠道配置非法（例如后台把 payment_provider 写成了未知值）：此时绝不能
         order.status = "payment_failed"
         fulfill.release_order_effects(session, order=order, product=product)
         session.flush()
         logger.error("支付渠道解析失败 order=%s: %s", order.order_no, error)
-        # B904：这条 503 是**转换**而不是新错误，原始异常（哪个渠道的配置、哪一步不合规）
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)
         ) from error
 
-    # 真实渠道的支付页由渠道自己承载（当面付只回一个二维码），没有「页面凭证」这回事 ——
-    # 那个参数是模拟收银台为了把票据写进 URL 才存在的。
     try:
         intent = provider.create_payment(
             order=order,
@@ -366,8 +344,6 @@ def get_order(
     if not authorized:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权查看该订单。")
 
-    # 默认本地状态（轮询）；reconcile=1 时才主动查渠道（手动确认支付）。
-    # 渠道收款以 notify / sweeper 为准。本地过期收尾始终执行。
     if int(reconcile or 0):
         _reconcile_payment(session, request, order)
     expire_stale_orders(session, request.app.state.settings)
@@ -398,7 +374,6 @@ def cancel_order(
             status_code=status.HTTP_409_CONFLICT, detail="只有待支付订单可以取消。"
         )
 
-    # ---- 阶段一：先关渠道（网络调用），失败只记日志 ----
     channel_closed = close_order_channel_best_effort(
         request,
         session,
@@ -407,15 +382,12 @@ def cancel_order(
         already_paid_detail="该订单已有付款记录，无法取消；请稍后到账号中心查看授权。",
     )
 
-    # ---- 阶段二：本地收尾（条件 UPDATE 抢单） ----
     product = session.get(Product, order.product_id) if order.product_id else None
-    # 取消可能和支付回调、超时扫描同时发生：只有把订单从 pending 推走的那一个请求
     if not fulfill.close_pending_order(session, order=order, product=product):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="订单状态已变更，请刷新后重试。"
         )
     if channel_closed:
-        #: 只有真的关掉了（或本来就已关闭）才写这个时间戳。关单报错时留空，
         order.channel_closed_at = utcnow()
     session.flush()
     session.refresh(order)
@@ -427,10 +399,8 @@ def cancel_order(
 
 @router.post("/orders/{order_no}/archive")
 def archive_order(order_no: str, session: DbSession, account: AuthedAccount) -> dict:
-    #: 与 ``GET/POST /orders`` 对齐：能读订单列表的账号必须先验证邮箱。
     _require_verified(account)
     order = order_or_404(session, order_no)
-    # 越权访问与「订单不存在」回同一个 404：不给出「这个单号存在」的旁路信息。
     if order.account_id != account.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="订单不存在。")
     order.archived_at = utcnow()

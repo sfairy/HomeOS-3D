@@ -3,7 +3,7 @@ const ENABLED_STORAGE_KEY = "homeos-dashboard-sound-enabled",
 function readEnabledSetting() {
   try {
     const storedValue = window.localStorage.getItem(ENABLED_STORAGE_KEY);
-    // 只有显式的 "0" 表示关闭；null（首次访问）与其它值都视为开启。
+
     return storedValue !== "0";
   } catch {
     return true;

@@ -1,7 +1,7 @@
 /** 平面图坐标（米）：planToScreen / screenToPlan 在同一套坐标系里来回换算。 */
 type PlanPoint = { x: number; y: number };
 
-/** 画线样式；全部可选，缺省值在 drawLine 里兜底。 */
+/** 画线样式； */
 type PlanLineOptions = {
   color?: string;
   width?: number;

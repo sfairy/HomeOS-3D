@@ -11,10 +11,7 @@ function normalizeRange(minValue, maxValue, fallbackRange, bounds) {
     clampedMax = clampNumber(finiteNumberOr(maxValue, fallbackRange[1]), bounds[0], bounds[1]);
   return [Math.min(clampedMin, clampedMax), Math.max(clampedMin, clampedMax)];
 }
-/**
- * 灯光效果映射的结果：colorRgb 只在灯具支持彩色时才补上，所以是可选字段。
- * 值一律按 any 处理：它们来自未定型的外部灯光条目，后面会直接参与算术与钳制。
- */
+/** 灯光效果映射的结果：colorRgb 只在灯具支持彩色时才补上，所以是可选字段。 */
 type MappedLightState = {
   brightness: any;
   kelvin: any;
@@ -123,7 +120,7 @@ export function lightEffectColorHex(kelvin, rgbChannels = null) {
     (clampChannel(redChannel) << 16) | (clampChannel(greenChannel) << 8) | clampChannel(blueChannel)
   );
 }
-// options 的三个开关都来自 UI 侧（立即生效 / 预览 / 只改了色温）；缺省时按普通切换处理。
+
 export function lightTransitionDurationMs(
   wasOn,
   isOn,

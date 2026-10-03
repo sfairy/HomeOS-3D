@@ -39,8 +39,8 @@ function applyPairingLink() {
         location.origin + location.pathname + location.search + pairingHash,
       );
       ((codeFieldElement.value = pairing.code),
-        // 藏掉码格时同时藏掉它的标签：新坞体把「标签」与「控件」拆成 .hos-label-row 与
-        // .hos-control 两层，只藏控件会留下一个「6 位配对码」的孤儿标签。
+
+
         (codeFieldElement.closest(".hos-field").hidden = true),
         (document.querySelector<DomControl>("#pair-title").textContent = "连接 HomeOS"),
         (document.querySelector<DomControl>("#pair-description").textContent =

@@ -349,7 +349,7 @@ function createPicker(panelRoot, createPickerElement) {
     close: closePicker,
   };
 }
-/** 面板的宿主元素与回调；缺省时面板自建节点并把回调降级为 no-op。 */
+/** 面板的宿主元素与回调； */
 type ClimatePanelOptions = {
   element?: any;
   onControl?: (...args: any[]) => any;
@@ -374,11 +374,7 @@ type ClimateStateValue<Key extends PropertyKey, Branch> = Branch extends unknown
     ? Branch[Key]
     : never
   : never;
-/**
- * climateState() 按实体类型返回三个分支（热水器/净化器/空调），每个分支只带本分支的能力字段；
- * 面板既要按三者并集读取，又要就地拼装合成态（如 { ...deviceState, purifier: true }），
- * 故把三分支合并成一张全可选的表：键取三分支键的并集，值取各分支对应类型的并集。
- */
+/** climateState() 按实体类型返回三个分支（热水器/净化器/空调），每个分支只带本分支的能力字段； */
 type ClimateDeviceState = {
   [Key in ClimateStateKeys<ClimateStateBranch>]?: ClimateStateValue<Key, ClimateStateBranch>;
 };

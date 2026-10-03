@@ -11,18 +11,14 @@ from sqlalchemy.orm import Session
 from ..core.models import StoreSetting
 from ..ops import site_settings as site_config
 
-#: 页面模板里的甲板插入点。与 SCENE/APPEARANCE 同一套严格度（登记进
 DECK_PLACEHOLDER = '<!--{{DECK}}-->'
 
-#: 有状态甲板的页面。商店只有这三块「整页入口壳」—— 前台其余分页（首页、商品、
 DECK_PAGES = frozenset({'store.html', 'admin.html', 'setup.html'})
 
 _PROCESS_STARTED_AT = datetime.now(UTC)
 
-#: 一格读数的冻结形态：``(标签, 文本, 单位, 色条档, 客户端钩子, 时间戳)``。
 Tile = tuple[str, str, str, str, str, str]
 
-#: 客户端钩子名。``''`` 表示这格是静态读数，由服务端一次算定（见 entry-deck.js）。
 HOOK_CLOCK = 'clock'
 HOOK_UPTIME = 'uptime'
 
@@ -101,7 +97,6 @@ def deck_tiles(
     settings = request.app.state.settings
 
     if page == 'store.html':
-        # 认证三屏（登录 / 注册 / 找回）。访问者一定是未登录的 —— 登录成功的人
         setting = site_config.get_setting(session)
         return (
             _clock_tile(),
@@ -111,7 +106,6 @@ def deck_tiles(
         )
 
     if page == 'admin.html':
-        # 后台登录屏。能看到这一屏，就说明库里已经有管理员了 —— 一个管理员都没有时
         setting = site_config.get_setting(session)
         return (
             _clock_tile(),
@@ -121,10 +115,8 @@ def deck_tiles(
         )
 
     if page == 'setup.html':
-        # 未初始化：站点配置与支付渠道都还没被后台配过，这里只有机制读数。
         return (
             _clock_tile(),
-            # 只写「SQLite」而不是「本机 SQLite」：后者实测 106.8px，比四列甲板最宽的
             _tile('数据存储', 'SQLite', spark = _SPARK_OK),
             _tile('初始化', '待完成', spark = _SPARK_IDLE),
             _uptime_tile(),
@@ -141,7 +133,6 @@ def deck_markup(tiles: tuple[Tile, ...], *, indent: str) -> str:
     """把读数渲染成 ``<div class="hos-deck">``。
     """
     if len(tiles) != 4:
-        # 四列是这个组件的形状（见模块 docstring 末段）。少一格 CSS 会留下一个空洞，
         raise RuntimeError(f'状态甲板必须有 4 格读数，实际有 {len(tiles)} 格')
 
     lines = [f'{indent}<div class="hos-deck" role="group" aria-label="服务状态读数">']

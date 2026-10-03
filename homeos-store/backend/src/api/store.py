@@ -76,11 +76,9 @@ from ..security.security import (
 
 router = APIRouter(prefix="/store/v1", tags=["store"])
 
-# 站点配置与商品
 @router.get("/configuration")
 def configuration(session: DbSession, settings: SettingsDep) -> dict:
     setting = site_config.get_setting(session)
-    # 这是**匿名可读**的接口：不带商户凭据概览（appId / 网关 / 密钥配置状态）。
     return site_config.site_configuration_payload(
         setting, settings, include_credentials=False
     )
@@ -155,16 +153,12 @@ def send_verification(
     )
     purpose = payload.purpose
 
-    # 先把请求本身校验完，**再**消耗发信配额：反过来会让一个写错邮箱的请求也扣掉
-    # 来源 IP 与全站的小时额度，把真正的用户挤在 429 外面。
     _assert_purpose_allowed(session, purpose=purpose, email=email, account=account)
 
-    # ---- 按来源 IP 与全站的发信配额 ---- #
     _enforce_verification_send_quota(request, settings, email=email)
 
     cooldown_scope = f"verify:{email}"
     remaining = password_gate.retry_after_seconds(session, cooldown_scope)
-    # 复用登录限流表做冷却：超过阈值即为冷却中
     recent = session.scalars(
         select(EmailVerification)
         .where(EmailVerification.email == email)
@@ -181,7 +175,6 @@ def send_verification(
                 headers={"Retry-After": str(int(settings.verification_cooldown_seconds - elapsed))},
             )
 
-    # 单邮箱发信上限：cooldown 只管「两次之间要隔多久」，一个脚本持续按冷却
     sent_in_window = session.execute(
         select(func.count())
         .select_from(EmailVerification)
@@ -205,19 +198,12 @@ def send_verification(
     )
     session.add(record)
     password_gate.clear(session, f"verify:{email}")
-    # 事务一：先把验证码提交落库。发信是几秒到十几秒的网络等待，绝不能发生在持有
-    # SQLite 写锁的时候 —— busy_timeout 只有 5 秒，并发的下单 / 心跳 / 保存配置会
-    # 直接报 database is locked。先提交也让「信已发出、进程随后崩了」不会留下一个
-    # 用户手里有、服务端却没有的验证码。
     session.commit()
 
     result = mailer.send_verification_email(
         settings, setting, email=email, code=code, purpose=purpose
     )
 
-    # 投递结果必须落库：只回给前端就丢了，事后无法回答「用户说没收到，那封信到底发出去没有」——只能翻日志，而日志会轮转。
-    # 事务二（短）：单独落投递结果。它失败**不能**让验证码失效 —— 码已经提交了，
-    # 用户手上那串仍然有效；后台只是少了「这封信到底发出去没有」的答案。
     try:
         record.delivery_mode = result.mode
         record.delivery_attempts = result.attempts
@@ -227,8 +213,6 @@ def send_verification(
         session.commit()
     except SQLAlchemyError as error:
         session.rollback()
-        # incidents.note 只接受 order_no/error：邮箱拼进 error 文本，不能传不存在的
-        # email= 关键字（那会在这个 except 分支里再抛 TypeError，把原异常盖掉）。
         incidents.note(
             "verification.delivery_record",
             error=f"email={email} {error}",
@@ -239,25 +223,20 @@ def send_verification(
         "email": email,
         "purpose": purpose,
         "expiresInSeconds": settings.verification_ttl_seconds,
-        #: 前端用 resendAfter 驱动「重新发送」倒计时；缺省会让按钮白白多锁 120 秒
         "resendAfter": settings.verification_cooldown_seconds,
         "delivered": result.delivered,
         "deliveryMode": result.mode,
         "deliveryAttempts": result.attempts,
     }
     if not result.delivered:
-        # 没发出去就必须如实说。SMTP 真失败时给一句用户能照做的文案，技术细节
-        # （result.error）留在日志与后台审计表里；「配置不全」那条自带友好文案。
         if result.mode == "smtp":
             body["deliveryError"] = "验证码邮件发送失败，请稍后重试或联系客服。"
         elif result.error:
             body["deliveryError"] = result.error
     return body
 
-# auth 资源组第 1 段（include 放在原位置以保持顺序）。
 router.include_router(store_auth.router)
 
-# 账号中心
 @router.get("/account")
 def account_center(request: Request, session: DbSession, account: AuthedAccount) -> Response:
     response = JSONResponse(_center_payload(session, request, account))
@@ -304,9 +283,6 @@ def change_account_email(
     if (account.email or "").strip().lower() == email:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="新邮箱与当前邮箱相同。")
 
-    # 顺序是「先校验验证码 → 再查占用 → 最后才消费」。占用校验不能挪到校验之前
-    # （那就成了「这个邮箱有没有账号」的探针），也不能等消费之后再查（会把用户的验证码
-    # 白白烧掉，重试还得重新收码）。
     record = _check_verification_code(
         session, email=email, purpose="change_email", code=payload.code
     )
@@ -331,7 +307,6 @@ def change_account_email(
     if customer is not None:
         customer.email = email
 
-    # 登录标识变了：把其它设备上的会话全部踢下线，只保留当前这一个。
     settings: StoreSettings = request.app.state.settings
     current = token_hash(request.cookies.get(settings.cookie_name) or "")
     _drop_account_sessions(session, account.id, keep_hash=current)
@@ -340,8 +315,6 @@ def change_account_email(
     logger.info("账号邮箱变更 account=%s %s -> %s", account.id, previous, email)
     return {"email": email, "previousEmail": previous, "verified": True}
 
-#: 个人中心「重发激活码邮件」的按账号预算。与其它限流器同一口径：进程内计数，
-#: 所以本部署必须单进程运行（见 backend/src/README.md「必须单进程」一节）。
 _LICENSE_EMAIL_LIMITER = SlidingWindowLimiter(limit=5, window_seconds=3600.0)
 
 @router.post("/account/licenses/{license_id}/email")
@@ -377,8 +350,6 @@ def resend_license_email(
             headers={"Retry-After": str(retry_after)},
         )
 
-    # 显式重发**不受**「已经发过」与「自动重试次数用尽」两道闸门阻挡（force=True），
-    # 但仍走同一个领取标记，所以并发重发也只会发出去一封。
     result = delivery.notify_license_issued(
         request.app.state.database, order_id=order.id, force=True
     )
@@ -424,7 +395,6 @@ def release_device(
     settings: StoreSettings = request.app.state.settings
     cooldown = site_config.resolve_device_release_cooldown(setting, settings)
     moment = utcnow()
-    # 冷却是「两次解绑之间」的间隔：解绑后**可以立刻激活**（任意设备），但同一张授权
     authority = request.app.state.license_authority
     remaining = authority.release_remaining_seconds(session, license.id, moment)
     if remaining > 0:
@@ -434,14 +404,12 @@ def release_device(
             headers={"Retry-After": str(remaining)},
         )
 
-    # 与 ``licensing.ensure_binding`` 同一口径：同一张授权可能留下多行绑定（解绑只是
     binding = session.scalars(
         select(DeviceBinding)
         .where(DeviceBinding.license_id == license.id)
         .order_by(*DeviceBinding.liveness_order())
     ).first()
 
-    # 乐观锁：前端在弹窗里看到的绑定快照必须仍然有效。用户输密码的这段时间里
     conflict = _release_snapshot_conflict(payload, binding)
     if conflict:
         raise HTTPException(
@@ -466,7 +434,6 @@ def release_device(
     return {
         "activationCodeId": license.id,
         "released": True,
-        # 复用账号中心那一份构造：同一个字段在两处各拼一次，迟早有一处漏改
         "deviceReleasePolicy": device_release_policy(
             cooldown_seconds=cooldown,
             last_released_at=moment,
@@ -474,16 +441,13 @@ def release_device(
         ),
     }
 
-# orders 资源组第 1 段（include 放在原位置以保持顺序）。
 router.include_router(store_orders.router)
 
-# 优惠码
 @router.post("/coupons/preview")
 def preview_coupon(
     payload: CouponPreviewRequest, session: DbSession, account: AuthedAccount
 ) -> dict:
     product = _product_or_404(session, payload.product_id)
-    # 与下单走同一条路径（含限流）：预览返回精确折扣额，是一个天然的判定 oracle，
     coupon, discount = _evaluate_coupon_limited(
         session, account=account, product=product, code=payload.coupon_code
     )
@@ -496,5 +460,4 @@ def preview_coupon(
         "amountCents": max(0, original - discount),
     }
 
-# referrals 资源组第 1 段（include 放在原位置以保持顺序）。
 router.include_router(store_referrals.router)

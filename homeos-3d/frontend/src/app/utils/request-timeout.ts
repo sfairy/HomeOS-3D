@@ -1,9 +1,4 @@
-/**
- * 给一次请求加超时与外部取消。
- * @param timeoutMs 超时毫秒数
- * @param request 实际发起请求的函数，收到内部 AbortSignal
- * @param externalSignal 外部取消信号（可选；也可由调用方把自己的 signal 传进来）
- */
+/** 给一次请求加超时与外部取消。 */
 export async function withRequestTimeout(
   timeoutMs: number,
   request: (signal: AbortSignal) => Promise<any>,

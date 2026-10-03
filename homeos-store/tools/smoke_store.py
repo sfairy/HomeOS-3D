@@ -48,19 +48,13 @@ from contextlib import contextmanager
 from datetime import timedelta
 from pathlib import Path
 
-#: 脚本位置：homeos-store/tools/smoke_store.py
 STORE_ROOT = Path(__file__).resolve().parents[1]
-#: 商店后端的 import 根：顶层包名是 src（见仓库根 ops/check_schema.py 的 LAYOUT 注释）。
 BACKEND = STORE_ROOT / "backend"
 
-#: 邀请码字母表：32 个字符，剔除了手抄 / 口述最易混的 0、1、I、O。
 REFERRAL_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
 
 failures: list[str] = []
 checked = 0
-
-
-# --------------------------------------------------------------------------- 极简断言 harness
 
 
 def expect(actual: object, wanted: object, what: str) -> None:
@@ -85,7 +79,7 @@ def check(name: str, fn) -> None:
         failures.append(f"{name} —— {error}")
         print(f"  FAIL {name}")
         print(f"       期望 / 实际：{error}")
-    except Exception as error:  # 冒烟必须把任何异常都记成一条失败，而不是崩掉。
+    except Exception as error:
         failures.append(f"{name} —— {type(error).__name__}: {error}")
         print(f"  FAIL {name}")
         print(f"       {type(error).__name__}: {error}")
@@ -93,9 +87,6 @@ def check(name: str, fn) -> None:
         print(f"  OK   {name}")
 
 
-# --------------------------------------------------------------------- 环境准备与导入兜底
-
-#: 正常 import src.payments 失败时的原始错误（None 表示顶层包 import 正常）。
 _payments_import_error: str | None = None
 
 
@@ -152,9 +143,6 @@ def _check_payments_package_importable() -> None:
         raise AssertionError("src.payments 顶层包无法 import，商店后端当前起不来：" + _payments_import_error)
 
 
-# ------------------------------------------------------------------- 临时 SQLite（退款闸门用）
-
-
 def _fresh_refund_engine():
     """建一个临时**文件** SQLite 库，只建 order_refunds 一张表。
 
@@ -207,9 +195,6 @@ def _refund_row(**overrides):
     return OrderRefund(**values)
 
 
-# --------------------------------------------------------------------------- 源码定位工具
-
-
 def _first_index(source: str, *needles: str) -> int:
     """返回第一个在源码里出现的 needle 的下标；一个都没出现就判失败。"""
     found = [(source.find(needle), needle) for needle in needles]
@@ -229,9 +214,6 @@ def _assert_duplicate_check_before_consume(source: str, label: str, *duplicate_t
         f"_consume_verification_record 下标 {consume_at}（先查重才不会白白烧掉验证码，"
         f"也不会留下邮箱是否已注册的枚举探针）",
     )
-
-
-# --------------------------------------------------------------------------------- 各项检查
 
 
 def _check_refund_request_no() -> None:
@@ -290,7 +272,6 @@ def _check_refund_gate_settled_after_write() -> None:
             rowcount = write_refund_result(session, out_request_no=request_no, status="succeeded", amount_cents=100)
             expect(rowcount, 1, "write_refund_result 影响的行数")
             session.commit()
-        # 换一个新连接再进闸门，确认结果真的落到了库里。
         with Session(engine) as session:
             verdict, row = open_refund_gate(
                 session, _refund_row(id="refund-2", status="running", out_request_no=request_no)
@@ -338,7 +319,6 @@ def _check_unsettled_refund_picks_latest_processing() -> None:
                     status="processing",
                     created_at=base,
                 ),
-                # 更新的 running / succeeded 都不能算「未定论」。
                 _refund_row(
                     id="running-new",
                     order_id="o1",
@@ -353,7 +333,6 @@ def _check_unsettled_refund_picks_latest_processing() -> None:
                     status="succeeded",
                     created_at=base + timedelta(minutes=20),
                 ),
-                # 别的订单上的 processing 不能串味。
                 _refund_row(
                     id="other-order",
                     order_id="o2",
@@ -487,9 +466,6 @@ def _check_license_delete_refuses_when_ordered() -> None:
     )
 
 
-# ------------------------------------------------- 增量包履约必产生权益（P1 回归）
-
-
 @contextmanager
 def _products_db():
     """只建 products 一张表的临时**文件**库：够 bundled_feature_codes 展开「包含商品」。"""
@@ -534,7 +510,6 @@ def _check_addon_fulfillment_grants_entitlements() -> None:
                 "只配包含商品的增量包必须被判为「能开出能力」，否则会被履约守卫直接拦掉",
             )
 
-    # 源码事实：追加与升级都要展开「包含商品」的功能码，履约后还要兜底断言。
     addon_source = inspect.getsource(fulfill.apply_addon_to_license)
     expect_true(
         "bundled_feature_codes(" in addon_source,
@@ -553,9 +528,6 @@ def _check_addon_fulfillment_grants_entitlements() -> None:
         "_license_grants_features(" in order_source,
         "fulfill_order 必须在履约后断言授权至少能开出 1 个能力码，否则置 fulfillment_failed",
     )
-
-
-# ------------------------------------------------------------ 默认渠道口径（P1 回归）
 
 
 def _check_default_channel_stays_within_enabled() -> None:
@@ -589,9 +561,6 @@ def _check_default_channel_stays_within_enabled() -> None:
         "default_channel_name(" in source,
         "resolve_provider 的无 name 分支必须走 default_channel_name（只在启用集合内挑）",
     )
-
-
-# ----------------------------------------- 付款入账 → 退款撤权益（settle → revert 全链路）
 
 
 def _check_settle_then_revert_license_chain() -> None:

@@ -31,10 +31,8 @@ from ..security.security import (
 )
 
 logger = logging.getLogger("src.api")
-#: 同一邮箱一小时内最多能索取多少次验证码（含注册与找回密码）。
 MAX_VERIFICATION_SENDS_PER_HOUR = 10
 _VERIFICATION_IP_LIMITER = SlidingWindowLimiter(limit=20, window_seconds=3600.0)
-#: 全站配额按 ``limit`` 缓存实例（见下）。
 _VERIFICATION_GLOBAL_LIMITERS: dict[int, SlidingWindowLimiter] = {}
 def _verification_global_limiter(limit: int) -> SlidingWindowLimiter:
     cached = _VERIFICATION_GLOBAL_LIMITERS.get(limit)
@@ -72,7 +70,6 @@ def _enforce_verification_send_quota(
             detail="暂时无法发送验证码，请稍后再试。",
             headers={"Retry-After": str(retry_after)},
         )
-# 公共工具
 def _base_url(request: Request) -> str:
     return request.app.state.settings.public_base_url
 def _require_verified(account: Account) -> None:
@@ -84,7 +81,6 @@ def _set_session_cookies(
     request: Request, response: Response, *, token: str, hint: str
 ) -> None:
     settings: StoreSettings = request.app.state.settings
-    # Secure 按请求自动判定（https 基址 / 可信代理转发的 https / 本连接 https），
     secure = secure_cookies_required(request)
     response.set_cookie(
         settings.cookie_name,
@@ -116,7 +112,6 @@ def _create_session(session, request: Request, account: Account) -> str:
         AccountSession(
             id_hash=token_hash(token),
             account_id=account.id,
-            # 诊断页要靠这个字段区分「谁在用后台」。登录那一刻账号是否管理员就定了；
             is_admin_session=bool(account.is_admin),
             expires_at=moment + timedelta(seconds=settings.session_max_age_seconds),
             last_seen_at=moment,
@@ -141,7 +136,6 @@ def _customer_for(session, account: Account) -> Customer:
 
     customer = Customer(account_id=account.id, email=account.email, name=account.email)
     try:
-        # 用 SAVEPOINT 而非整个事务回滚：失败时只丢掉这一条 INSERT，调用方在本事务里已完成的其它写入
         with session.begin_nested():
             session.add(customer)
             session.flush()
@@ -149,7 +143,6 @@ def _customer_for(session, account: Account) -> Customer:
         message = str(getattr(error, "orig", error))
         if "UNIQUE constraint failed" not in message or "customers.account_id" not in message:
             raise
-        # 竞争对手先建好了：把自己这条脏对象从会话里摘掉，把已有的读回来。
         if customer in session:
             session.expunge(customer)
         existing = session.scalars(
@@ -159,7 +152,6 @@ def _customer_for(session, account: Account) -> Customer:
             raise
         return existing
     return customer
-# 账号
 
 _PURPOSES_REQUIRING_ACCOUNT = frozenset({"verify", "change_email"})
 
@@ -174,11 +166,7 @@ def _assert_purpose_allowed(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="请先登录后再获取该验证码。"
         )
 
-    # 这里**不查**「这个邮箱有没有账号」：注册/找回密码要按正常流程发码并返回同样的 200
-    # （已注册不报 409、未注册不报 404），而更换邮箱的占用校验必须放到验证码消费之后 ——
-    # 详见下面 change_email 分支的说明。查了也没人用，只会让下一个人以为它是判据。
 
-    # register / reset 一律按正常流程发码并返回同样的 200（已注册不报 409、未注册不报 404），
     if purpose in {"register", "reset"}:
         return
 
@@ -195,11 +183,6 @@ def _assert_purpose_allowed(
         return
 
     if purpose == "change_email":
-        # 这里**故意不查**「该邮箱是否已被占用」：发码接口不需要登录态之外的信息，
-        # 而在发码阶段回 409 就等于给任何注册用户一个「这个邮箱注册过没有」的探针。
-        # 占用校验放在**验证码校验之后、消费之前**（见 api/store.py 的
-        # change_account_email）：拿到验证码就意味着对方并不掌握那个邮箱，此时再回
-        # 409 不再泄露任何信息；「校验」与「消费」拆开后，409 之前的验证码也不会被烧掉。
         if account is not None and (account.email or "").strip().lower() == email:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT, detail="新邮箱与当前邮箱相同。"
@@ -230,17 +213,12 @@ def _check_verification_code(
     if record is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请先获取邮箱验证码。")
     if record.expires_at <= utcnow():
-        # 同上：过期不是「猜错」，把它算成失败次数只会让正常用户被自己拖累。
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码已过期，请重新获取。")
     if int(record.attempts or 0) >= MAX_VERIFICATION_CODE_ATTEMPTS:
         _record_verify_failure(session, scope)
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="尝试次数过多，请重新获取验证码。")
-    # 常量时间比较：与登录令牌同一口径（security.token_matches 内部用 compare_digest）。
     provided = code_hash(code.strip(), record.code_salt or "")
     if not token_matches(provided, record.code_hash):
-        # 两次记账都必须在**独立事务**里完成。raise 会让请求作用域的会话整体回滚
-        # （见 core/database.py 的 session 上下文），写在请求事务里的 attempts 自增
-        # 会被一起丢掉 —— 那正是「单码尝试上限 8」形同虚设的原因。
         _record_verify_failure(session, scope)
         _bump_verification_attempts(session, record_id=record.id)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码不正确。")
@@ -260,7 +238,6 @@ def _consume_verification(session, *, email: str, purpose: str, code: str) -> No
     """校验并立即消费（给没有中间判断步骤的调用方用）。"""
     record = _check_verification_code(session, email=email, purpose=purpose, code=code)
     _consume_verification_record(session, record, email=email)
-#: 单封验证码最多可以被尝试几次（按验证码记录计）。
 MAX_VERIFICATION_CODE_ATTEMPTS = 8
 def _record_verify_failure(session, scope: str) -> None:
     """记录一次验证码失败，作为 verify:<email> 的限流依据。
@@ -285,8 +262,6 @@ def _bump_verification_attempts(session, *, record_id: str) -> None:
             )
             probe.commit()
     except SQLAlchemyError:
-        # 与 record_attempt_in_new_session 同一口径：限流记录写不进去也不能反过来
-        # 让「验证码不正确」变成 500。
         logger.warning("验证码尝试次数写入失败 record=%s", record_id, exc_info=True)
 def record_attempt_in_new_session(session, scope: str) -> None:
     """在一个独立事务里记录失败尝试，确保外层请求回滚不会把它抹掉。
@@ -298,9 +273,7 @@ def record_attempt_in_new_session(session, scope: str) -> None:
             probe.commit()
     except SQLAlchemyError:
         logger.warning("限流记录写入失败，本次不计入 scope=%s", scope, exc_info=True)
-#: 登录限流的阈值。按来源 IP 放宽（同一个出口 NAT 后面可能坐着整间办公室）。
 LOGIN_IP_MAX_ATTEMPTS = 30
-#: 全局维度**只告警、不拦截**，见 :func:`_note_login_failure` 的说明。
 LOGIN_FLOOD_ALERT_ATTEMPTS = 120
 LOGIN_GLOBAL_SCOPE = "login-global"
 def _login_scopes(request: Request, email: str) -> list[str]:

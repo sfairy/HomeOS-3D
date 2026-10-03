@@ -57,9 +57,6 @@ from ..security.security import (
 
 router = APIRouter()
 
-#: 未知账号时用来空跑一次口令校验的哈希。与真实哈希**同一套参数**（同一个 PBKDF2
-#: 迭代次数），否则「空跑」本身又是另一种耗时。惰性计算：一次 PBKDF2 是几十毫秒，
-#: 不该加在进程启动（以及每次跑测试建 app）的路径上。
 _dummy_hash: str | None = None
 
 
@@ -76,8 +73,6 @@ def register(payload: RegisterRequest, request: Request, session: DbSession) -> 
     if payload.confirm_password and payload.confirm_password != payload.password:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="两次输入的密码不一致。")
 
-    # 先「校验」再查重、最后才「消费」：查重放在消费之后会把用户的有效验证码白白烧掉
-    # （重试还得重新收码），放到校验之前又成了「这个邮箱注册过没有」的探针。
     record = _check_verification_code(session, email=email, purpose="register", code=payload.code)
 
     existing = session.scalars(select(Account).where(func.lower(Account.email) == email)).first()
@@ -100,7 +95,6 @@ def register(payload: RegisterRequest, request: Request, session: DbSession) -> 
     referral_note = ""
     if raw_referral_code:
         if referral_code is None:
-            # 老码是 6 位数字、新码是 8 位字母数字；填错格式时之前是**静默忽略**，
             referral_note = "邀请码格式不正确（应为 6 位数字或 8 位邀请码），本次未绑定邀请关系。"
         else:
             referrer_wallet = session.scalars(
@@ -127,7 +121,6 @@ def register(payload: RegisterRequest, request: Request, session: DbSession) -> 
         has_temporary=state[1],
         has_used_trial=_has_used_trial(session, account),
     )
-    # 邀请码没能绑定时必须让用户看到：绑定只在注册这一步发生，静默失败之后
     body["referralNote"] = referral_note
     response = JSONResponse(body)
     _set_session_cookies(
@@ -139,27 +132,11 @@ def register(payload: RegisterRequest, request: Request, session: DbSession) -> 
     return response
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 @router.post("/auth/login")
 def login(payload: LoginRequest, request: Request, session: DbSession) -> Response:
     email = payload.email.strip().lower()
-    # 限流表只增不减（prune 定义了却没人调用），挂在登录这条本来就要写的路径上。
     password_gate.maybe_prune(session)
     account_scope = f"login:{email}"
-    # 按 IP 那一档只在来源地址可信时启用，理由见 _login_scopes。
     address = resolve_client_ip(request)
     ip_scope = f"login-ip:{address.ip}" if address.per_client and address.ip else ""
 
@@ -179,9 +156,6 @@ def login(payload: LoginRequest, request: Request, session: DbSession) -> Respon
         )
 
     account = session.scalars(select(Account).where(func.lower(Account.email) == email)).first()
-    # 未知 / 已停用的账号也要**空跑**一次等价的口令校验。短路掉 PBKDF2 会让
-    # 「账号不存在」明显快于「密码错」，那本身就是一个可被利用的账号枚举侧信道：
-    # 攻击者不需要读响应，只要量时间就能筛出哪些邮箱注册过。
     if account is None or not account.is_active:
         verify_password(payload.password, _dummy_password_hash())
         ok = False
@@ -191,14 +165,11 @@ def login(payload: LoginRequest, request: Request, session: DbSession) -> Respon
         _note_login_failure(session, _login_scopes(request, email))
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="邮箱或密码不正确。")
 
-    # 登录成功：清掉这个账号与这个来源 IP 的失败计数。清来源 IP 是为了「同一个人先打错几次再成功」的正常体验，
     password_gate.clear(session, account_scope)
     if ip_scope:
         password_gate.clear(session, ip_scope)
     password_gate.record_attempt(session, account_scope, succeeded=True)
 
-    # 走到这里 ``ok`` 必为真，意味着上面对 ``account`` 的 ``is None`` 分支已被排除，
-    # 此处显式收窄给静态检查看（运行期不变量，不改任何业务路径）。
     assert account is not None
 
     token = _create_session(session, request, account)
@@ -274,7 +245,6 @@ def change_password(
 
     account.password_hash = hash_password(payload.new_password)
 
-    # 踢掉其它设备的会话，只保留当前这一个。改密码就是为了止损，
     settings: StoreSettings = request.app.state.settings
     current = token_hash(request.cookies.get(settings.cookie_name) or "")
     _drop_account_sessions(session, account.id, keep_hash=current)
@@ -289,7 +259,6 @@ def reset_password(payload: PasswordResetRequest, request: Request, session: DbS
     email = payload.email.strip().lower()
     if payload.confirm_password and payload.confirm_password != payload.password:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="两次输入的密码不一致。")
-    # 同 ``register`` —— 先消费验证码，再表态邮箱是否存在。
     _consume_verification(session, email=email, purpose="reset", code=payload.code)
 
     account = session.scalars(select(Account).where(func.lower(Account.email) == email)).first()
@@ -297,7 +266,6 @@ def reset_password(payload: PasswordResetRequest, request: Request, session: DbS
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="该邮箱尚未注册。")
 
     account.password_hash = hash_password(payload.password)
-    # 重置密码后强制所有会话下线
     _drop_account_sessions(session, account.id)
     session.commit()
     return {"email": email, "reset": True}

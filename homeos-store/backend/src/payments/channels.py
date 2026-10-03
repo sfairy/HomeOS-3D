@@ -12,13 +12,10 @@ import json
 from ..config import StoreSettings
 from ..core.models import StoreSetting
 
-#: 受支持的支付渠道。
 PROVIDER_NAMES: tuple[str, ...] = ("alipay", "wechat")
 
-#: 各渠道的默认显示名（顾客在二维码弹窗上看到的名字）。
 CHANNEL_LABELS: dict[str, str] = {"alipay": "支付宝", "wechat": "微信支付"}
 
-#: 空值表示「跟随环境变量」，不是渠道名。
 _FOLLOW_ENV = ""
 
 
@@ -48,9 +45,6 @@ def _json_array(raw: object) -> list:
     return value if isinstance(value, list) else []
 
 
-#: 不是渠道、但会出现在订单 ``payment_provider`` 上的标记。
-#: ``manual`` 是「人工补记/线下入账」—— 它没有走任何渠道，运营在订单表上要能一眼
-#: 看出这笔钱**不是**在线收的，所以必须给它一个中文名，而不是显示一个英文单词。
 SPECIAL_PROVIDER_LABELS: dict[str, str] = {"manual": "人工/线下"}
 
 

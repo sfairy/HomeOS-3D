@@ -1,6 +1,6 @@
-// 释放时遍历的三类资源：都是 three 里「提供 dispose()」的对象。
+
 type DisposableResource = { dispose?: () => void };
-// 贴图在材质上挂在任意属性名下（map / normalMap / envMap …），所以用索引签名遍历。
+
 type TextureLike = DisposableResource & { isTexture?: boolean };
 type TextureBearingMaterial = DisposableResource & { [materialProperty: string]: unknown };
 
@@ -31,7 +31,7 @@ export function releaseModelAsset(modelAsset) {
 export function createModelAssetLoader({
   THREE: three,
   GLTFLoader: gltfLoaderClass,
-  // 形参要在默认实现里声明出来：调用方会传 LoadingManager 进来建 DRACOLoader。
+
   createDracoLoader: dracoLoaderFactory = (_manager) => null,
   requestTimeoutMs: requestTimeoutMs = 60000,
   fetchImpl: fetchImpl = globalThis.fetch,
@@ -40,7 +40,7 @@ export function createModelAssetLoader({
   cancelDeadline: cancelDeadline = clearTimeout,
 }) {
   const loaderPool = [],
-    // 存的是取消加载的回调，不是 AbortController：Set 里的元素要能直接当函数调用。
+
     pendingAbortSet = new Set<(abortReason?: unknown) => void>(),
     effectiveTimeoutMs = Math.max(50, Number(requestTimeoutMs) || 60000);
   let isDisposed = false;

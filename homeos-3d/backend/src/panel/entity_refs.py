@@ -13,7 +13,6 @@ def document_entity_ids(value):
     def walk(item: Any) -> None:
         if isinstance(item, dict):
             if item.get('type') == 'weather':
-                # 天气控件的太阳实体：bindings.sun.entityId 缺省时回落到 sun.sun。
                 sun_id = ((item.get('bindings') or { }).get('sun') or { }).get('entityId')
                 result.add(str(sun_id or 'sun.sun'))
             for key, child in item.items():

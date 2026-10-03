@@ -19,7 +19,6 @@ COPIES = (
     ROOT / 'homeos-3d' / 'frontend' / 'public' / 'static' / 'auth' / 'scene',
     ROOT / 'homeos-store' / 'frontend' / 'public' / 'static' / 'scene',
 )
-# scene.html 是设计预览页，不随应用发布，因此不在同步范围内。
 FILES = ('fonts.css', 'page.css', 'panel.css', 'scene.css')
 FONT_DIR = 'fonts'
 

@@ -19,10 +19,8 @@ const normalizeStateEntry = (stateEntry) => stateEntry?.newState || stateEntry,
       : "",
   contactTextSet = new Set(["contact", "接触", "接觸"]),
   noContactTextSet = new Set(["no contact", "分离", "分離"]),
-  // 智能门锁自带「门状态」枚举（如 已上锁 / 已开锁 / 门未关 / 门虚掩）：它不是二值门磁，
-  // 一个读数同时携带锁舌与门扇信息，但同样能推出门扇开合，所以单独识别。
-  // 档位按门扇开度分三类：完全打开（已开锁 / 门未关）、虚掩（只开一条缝）、关闭（已上锁 / 童锁 / 反锁）。
-  // 灯下「已开锁」按用户口径算「开」：锁舌收起时门扇通常已经推开了。
+
+
   doorOpenTextSet = new Set([
     "门未关",
     "未关",
@@ -43,15 +41,15 @@ const normalizeStateEntry = (stateEntry) => stateEntry?.newState || stateEntry,
     "door closed",
     "closed door",
   ]),
-  // 「门虚掩」在 3D 里只开一条缝：用「完全打开」行程或角度的比例表示，不是写死角度，
-  // 这样每扇门自己的 openAngle / 滑动行程仍然生效。
+
+
   AJAR_DOOR_OPEN_RATIO = 0.2;
 function pendingDoorStateTexts(entry) {
   const rawState = entry.state,
     options = entry.attributes?.options,
     pendingTexts = [String(rawState ?? "")];
-  // 少数集成把枚举状态上报成选项下标（0/1/2…）而不是标签。这里补一条按下标取到的
-  // 标签一起匹配，避免「实体有 options 但 state 是数字」时又被判成未知。
+
+
   if (Array.isArray(options)) {
     const numericIndex = Number(rawState);
     Number.isInteger(numericIndex) &&
@@ -68,7 +66,7 @@ function doorOpenRatioFromText(normalizedText) {
     ["on", "open", "opened", "打开", "已打开", "开启"].includes(normalizedText)
   )
     return 1;
-  // 「虚掩」比完全打开小一档，排在开/关之间判别，别被后面的关闭集合吞掉。
+
   if (doorAjarTextSet.has(normalizedText)) return AJAR_DOOR_OPEN_RATIO;
   if (
     contactTextSet.has(normalizedText) ||
@@ -101,8 +99,8 @@ function hasContactEnumOptions(entity, deviceClass) {
   );
 }
 function hasDoorStateEnumOptions(entity, deviceClass) {
-  // 门锁「门状态」枚举：选项里出现任一「未关 / 虚掩」档位即可认定它是门扇状态来源，
-  // 不再要求恰好两个「接触 / 分离」选项（那把 6 档的门锁枚举全挡在门外）。
+
+
   const options = entity.attributes?.options;
   return (
     deviceClass === "enum" &&
@@ -244,7 +242,7 @@ export function lockState(lockItem, states = {}) {
     batteryEntry = readState(lockItem.batteryEntityId),
     isEventSource = ["single-event", "dual-event"].includes(lockItem.doorSource),
     eventState = isEventSource ? doorEventState(lockItem, readState) : null,
-    // 门扇开度：1 = 完全打开，0 = 关闭，(0,1) = 虚掩。事件来源只有开/关两态，取 1/0。
+
     doorOpenRatio = isEventSource
       ? eventState === null
         ? null

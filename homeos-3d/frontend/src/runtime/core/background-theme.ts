@@ -62,10 +62,7 @@ export function createBackgroundTheme(
         (meshMaterial.customProgramCacheKey = savedProgramKey),
       (meshMaterial.needsUpdate = true));
   }
-/**
- * 地面主题注入记录：保存材质原始状态，并挂上改写过的
- * onBeforeCompile / customProgramCacheKey。compile / key 在构造完后才补上。
- */
+/** 地面主题注入记录：保存材质原始状态，并挂上改写过的onBeforeCompile / customProgramCacheKey。 */
 type GroundThemeRecord = {
   object: any;
   material: any;

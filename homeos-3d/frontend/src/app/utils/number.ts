@@ -1,12 +1,6 @@
-/**
- * 数值收敛工具：全前端唯一的「夹取区间」与「非有限数兜底」口径。
- *
- * 背景：`clamp` / `finiteNumberOr` 在 editor-utils、light-motion、camera-motion、
- * courtyard-drawing 里各写了一份（共 4 份 clamp、3 份 finiteOr），实现完全一致。
- * 这里收成一处，调用点保持原有名称与参数顺序，行为不变。
- */
+/** 数值收敛工具：全前端唯一的「夹取区间」与「非有限数兜底」口径。 */
 
-/** 把数值夹到 `[lowerBound, upperBound]`；NaN 会原样传出，需要兜底请配合 finiteNumberOr。 */
+/** 把数值夹到 `[lowerBound, upperBound]`； */
 export function clampNumber(sourceNumber: number, lowerBound: number, upperBound: number): number {
   return Math.max(lowerBound, Math.min(upperBound, sourceNumber));
 }

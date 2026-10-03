@@ -28,7 +28,6 @@ from ..security.security import (
 logger = logging.getLogger("src.admin")
 
 
-# 共享助手在 admin_shared.py；这里再导入一次，
 from .admin_shared import (
     _account_payload,
     _admin_actor,
@@ -57,7 +56,6 @@ def admin_list_accounts(
     base = select(Account)
     if keyword:
         like = f"%{keyword.strip()}%"
-        # 邮箱是主键式的检索口径；邀请码是用户唯一会主动报给客服的另一个标识。
         base = base.where(
             or_(Account.email.like(like), Account.referral_code.like(like))
         )
@@ -99,7 +97,6 @@ def admin_deactivate_account(account_id: str, session: DbSession, admin: AdminAc
     account = session.get(Account, account_id)
     if account is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="账号不存在。")
-    # 与 ``admin_patch_account`` 的两条自锁保护必须一致：这个端点是「停用」的
     _guard_self_lockout(account, admin, action="停用当前登录的账号")
     _guard_last_active_admin(session, account)
     account.is_active = False
@@ -142,14 +139,11 @@ def admin_patch_account(
                 status_code=status.HTTP_409_CONFLICT, detail="该邮箱已被其他账号使用。"
             )
         account.email = email
-        # 客户档案里的邮箱是下单/开票用的，跟着账号一起改，免得两处不一致
         customer = session.scalars(
             select(Customer).where(Customer.account_id == account.id)
         ).first()
         if customer is not None:
             customer.email = email
-        # 邮箱是登录身份：管理员改邮箱等同于身份接管处置，旧持有者（或被盗会话）的
-        # 全部会话必须立刻失效——与停用/重置密码/删除账号及用户自助改邮箱同一口径。
         _drop_account_sessions(session, account.id)
         changed.append("email")
 
@@ -161,7 +155,6 @@ def admin_patch_account(
 
     if "is_active" in data and data["is_active"] is not None:
         if data["is_active"] is False:
-            # 停用最后一位启用中的管理员同样会造成后台自锁
             _guard_last_active_admin(session, account)
         account.is_active = bool(data["is_active"])
         if not account.is_active:
@@ -175,7 +168,6 @@ def admin_patch_account(
     if data.get("new_password"):
         account.password_hash = hash_password(data["new_password"])
         _drop_account_sessions(session, account.id)
-        # 审计里只记「改过密码」，绝不记明文
         changed.append("new_password")
 
     if not changed:

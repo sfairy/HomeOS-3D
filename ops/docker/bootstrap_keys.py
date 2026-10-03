@@ -24,22 +24,15 @@ import urllib.request
 from collections.abc import Callable
 from pathlib import Path
 
-#: 公钥文件名（与主应用 ``config.py`` / ``license_keys.py`` 保持一致）。
 SIGNING_PUBLIC_KEY_FILENAME = "license-public.pem"
 TRANSPORT_PUBLIC_KEY_FILENAME = "license-transport-public.pem"
 
-#: 公钥都是 SubjectPublicKeyInfo，PEM 头一致。
 PUBLIC_KEY_MARKER = b"-----BEGIN PUBLIC KEY-----"
-#: 单把公钥的合理上限：防住「返回一整本证书链」这类垃圾响应。
 MAX_PEM_BYTES = 4096
 
-#: 商店侧的公钥分发端点（见 ``homeos-store/backend/src/api/license.py``）。
 KEYS_PATH = "/v2/keys"
-#: 单次请求超时。公钥就是两个小文件，慢到这个数基本就是不通。
 FETCH_TIMEOUT_SECONDS = 10.0
-#: 首次（本地还没有公钥）重试间隔：商店可能正与本应用同时启动。
 RETRY_INTERVAL_SECONDS = 3.0
-#: 首次取回的总等待时长，与 ``start_app.wait_for_client_keys`` 的默认超时一致。
 FIRST_FETCH_WAIT_SECONDS = 120.0
 
 
@@ -119,7 +112,7 @@ def fetch_license_keys(license_server_url: str) -> dict:
             body = json.loads(error.read().decode("utf-8"))
             if isinstance(body, dict):
                 detail = str(body.get("detail", "")).strip()
-        except Exception:  # 错误体不是 JSON 也不该盖住原始错误
+        except Exception:
             detail = ""
         raise LicenseKeyFetchError(
             f"授权服务器拒绝公钥请求（HTTP {error.code}）"
@@ -128,7 +121,6 @@ def fetch_license_keys(license_server_url: str) -> dict:
     except (urllib.error.URLError, OSError) as error:
         hint = ""
         if url.startswith("https://"):
-            # 商店内置反代是 Caddy 内部 CA 的自签证书，容器之间默认不互信；跨机直连请用 HTTP 8802。
             hint = (
                 " 若跨机部署用的是商店内置反代的 HTTPS 端口，它用的是自签证书，"
                 "本容器默认不信任；请改用商店的 HTTP 端口（如 http://<商店IP>:8802），"
@@ -164,7 +156,6 @@ def apply_license_keys(directory: Path, payload: dict, *, log: Callable[[str], N
         changed = False
 
     directory.mkdir(parents=True, exist_ok=True)
-    # 只写内容真的变了的文件：避免每次重启都刷新 mtime / 触发无谓的告警。
     wanted = [(transport_path, transport)]
     if changed:
         wanted.append((signing_path, signing))
@@ -200,7 +191,6 @@ def ensure_client_keys(
     try:
         directory.mkdir(parents=True, exist_ok=True)
     except OSError:
-        # 只读挂载点：目录是商店容器创建并写入的，本进程无权建也无权写。
         pass
 
     if not os.access(directory, os.W_OK):
@@ -227,7 +217,6 @@ def ensure_client_keys(
             return True
         except LicenseKeyFetchError as error:
             last_error = error
-        # 本地已有可用公钥就不卡启动：拿旧的先起来，授权链路的问题会在授权日志里体现。
         if ready:
             log(f"警告：{last_error} 沿用本地已有的授权公钥。")
             return True

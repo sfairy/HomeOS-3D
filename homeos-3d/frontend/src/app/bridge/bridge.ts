@@ -4,10 +4,7 @@ import { createInteraction3dFocusLayout } from "./focus-layout";
 /** 在 Error 上挂 HTTP 状态码：授权校验失败时调用方按它分支。 */
 type AccessError = Error & { status?: number };
 
-/**
- * 宿主元素上的 bridge 扩展方法：3D 预览块挂在画布 DOM 里，
- * 编辑器通过这两个方法控制页面可见性与内容刷新。
- */
+/** 宿主元素上的 bridge 扩展方法：3D 预览块挂在画布 DOM 里，编辑器通过这两个方法控制页面可见性与内容刷新。 */
 type Interaction3dHostElement = HTMLElement & {
   /** 页面可见性（编辑器切页时调用，避免后台空转）。 */
   setInteraction3dPageVisible?: (shouldShowPage: boolean) => void;
@@ -15,10 +12,7 @@ type Interaction3dHostElement = HTMLElement & {
   updateInteraction3d?: (nextComponent: any, contentDocument: any) => void;
 };
 
-/**
- * 3D 交互实例（runtime.mountInteraction3d 的返回值）。
- * bridge 只用到下面列出的成员，所以这里按「最小可用形状」声明。
- */
+/** 3D 交互实例（runtime.mountInteraction3d 的返回值）。 */
 export type Interaction3dEditorView = {
   /** 视图是否已经就绪（不是「已挂载」）。 */
   ready?: boolean;
@@ -157,16 +151,13 @@ function getAccessMonitor() {
 export function subscribeInteraction3dAccess(onAccessChange) {
   return getAccessMonitor().subscribe(onAccessChange);
 }
-// 组件预览在画布里是整体缩放的（画布 zoom × 组件自身缩放），预览内按设计像素排版的
-// 状态文案会跟着一起缩掉。这里按「布局尺寸 ÷ 实际渲染尺寸」反算出需要放大多少倍，
-// 由 bridge.css 把 .i3d-access-pending 补回到 12–18px 的屏幕字号 —— 组件载入失败时
-// 整块区域只有这一行字，必须读得出来。
-// 两者都是整体缩放的真实比例，所以不用去猜画布缩了多少、组件又缩了多少。
+
+
 export function syncInteraction3dUiScale(hostElement) {
   const layoutWidth = Number(hostElement?.offsetWidth) || 0,
     visualWidth = Number(hostElement?.getBoundingClientRect?.().width) || 0;
   if (!layoutWidth || !visualWidth) return;
-  // 只补「被缩小」：画布放大时整块预览本来就会变大，不该再叠一层放大。
+
   hostElement.style.setProperty(
     "--i3d-visual-scale",
     String(Math.min(6, Math.max(1, layoutWidth / visualWidth))),

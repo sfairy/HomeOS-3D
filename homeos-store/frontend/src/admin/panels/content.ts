@@ -1,6 +1,4 @@
-/**
- * 审计与权益。
- */
+/** 审计与权益。 */
 
 import { errorMessage } from "../../store-types.js";
 import { $, emptyRow, esc, toast } from "../dom.js";
@@ -61,9 +59,7 @@ type EntitlementForm = HTMLFormElement & {
   };
 };
 
-// --------------------------------------------------------------------------- //
-// 审计日志
-// --------------------------------------------------------------------------- //
+
 export async function loadAudits() {
   const cursor = pageState('audits');
   let data: { items?: AuditItem[] } | null;
@@ -126,7 +122,7 @@ $('#audit-rows')?.addEventListener('click', async (event) => {
 
 $('#audit-purge')?.addEventListener('click', async () => {
   const days = Number(($('#audit-purge-days') as HTMLInputElement | null)?.value || 0);
-  // 必须是不小于 1 的**整数**：后端按整数天解析，3.5 会被 FastAPI 直接挡在
+
   if (!Number.isInteger(days) || days < 1) {
     toast('清理天数必须是不小于 1 的整数。', 'warning');
     return;
@@ -154,9 +150,7 @@ $('#audit-purge')?.addEventListener('click', async () => {
   }
 });
 
-// --------------------------------------------------------------------------- //
-// 功能权益
-// --------------------------------------------------------------------------- //
+
 export async function loadEntitlements() {
   const params = new URLSearchParams();
   const feature = (($('#entitlement-feature') as HTMLInputElement | null)?.value || '').trim();
@@ -247,7 +241,7 @@ $('#entitlement-new')?.addEventListener('click', () => {
   closeFeaturePickers();
   form.reset();
   form.elements.active.checked = true;
-  // form.reset() 不会碰隐藏域：不显式清空，上一次填的功能码会跟着留下来。
+
   setFeaturePickerValue(picker, []);
   renderFeatureOptions(picker);
   syncFeatureSummary(picker);
@@ -267,7 +261,7 @@ $('#entitlement-patch-cancel')?.addEventListener('click', () => {
 $('#entitlement-form')?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = event.target as EntitlementForm;
-  // 功能码改成了选择器，隐藏域不再受浏览器 required 保护，这里自己拦一道
+
   const features = $('#entitlement-features');
   if (!features || !requireFeatureCode(features, '请先选择功能码。')) return;
   try {
@@ -280,7 +274,7 @@ $('#entitlement-form')?.addEventListener('submit', async (event) => {
             licenseId: form.elements.licenseId.value.trim(),
             featureCode: form.elements.featureCode.value.trim(),
             productName: form.elements.productName.value.trim(),
-            // 本地时间 → UTC：后端按 naive UTC 存库，直接回传本地字面量会差一个时区
+
             startsAt: utcInput(form.elements.startsAt.value),
             expiresAt: utcInput(form.elements.expiresAt.value),
             active: form.elements.active.checked,

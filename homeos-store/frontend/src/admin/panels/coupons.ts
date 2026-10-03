@@ -1,6 +1,4 @@
-/**
- * 优惠码。
- */
+/** 优惠码。 */
 
 import { errorMessage } from "../../store-types.js";
 import { $, emptyRow, esc, toast } from "../dom.js";
@@ -57,16 +55,14 @@ type CouponForm = HTMLFormElement & {
   };
 };
 
-// --------------------------------------------------------------------------- //
-// 优惠码
-// --------------------------------------------------------------------------- //
+
 export async function loadCoupons() {
   const params = new URLSearchParams();
   const keyword = (($('#coupon-keyword') as HTMLInputElement | null)?.value || '').trim();
   const status = ($('#coupon-status') as HTMLSelectElement | null)?.value || '';
   if (keyword) params.set('keyword', keyword);
   if (status) params.set('status_filter', status);
-  // 「刷新 / 搜索」按钮、分页器与筛选框都直接调这个 loader，失败时没人接那个 Promise，
+
   let data: { items?: Coupon[] } | null;
   try {
     data = (await pagedFetch(
@@ -118,7 +114,7 @@ export async function loadCoupons() {
   renderPager('coupons');
 }
 
-// 逗号分隔的 ID 列表 ↔ 数组。多选字段（功能码、套餐内容、适用商品）共用这一个口径。
+
  function idList(value: unknown) {
   return String(value || '')
     .split(',')
@@ -202,7 +198,7 @@ $('#coupon-form')?.addEventListener('submit', async (event) => {
           toast('优惠码已创建');
         }
         host.hideEditor?.('#coupon-editor');
-        // 新建的优惠码按 created_at desc 排最前，回到第 1 页才看得到
+
         if (!couponId) resetPage('coupons');
         await Promise.all([loadCoupons(), host.loadOverview?.()]);
       },
@@ -227,20 +223,20 @@ $('#coupon-rows')?.addEventListener('click', async (event) => {
     return;
   }
 
-  // 跳到诊断页并只看这个码的核销记录：作废重复核销必须能一眼看到「是谁、哪一单」
+
   if (redemptionsFor) {
     state.redemptionFilter = {
       couponId: redemptionsFor,
       couponCode: target.dataset.couponCode || redemptionsFor,
     };
     pageState('coupon-redemptions').offset = 0;
-    // 落到「优惠码核销」那个 tab：核销表不在默认 tab 上，停在默认 tab 的话
+
     await host.activate?.('diagnostics', 'redeem');
     $('#redemption-rows')?.scrollIntoView({ block: 'center' });
     return;
   }
 
-  // 启用 / 停用：不影响核销记录
+
   if (toggleId) {
     const next = target.dataset.couponActive !== '1';
     try {

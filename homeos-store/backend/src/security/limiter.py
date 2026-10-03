@@ -61,7 +61,6 @@ class SlidingWindowLimiter:
                 bucket.popleft()
             if len(bucket) < self.limit:
                 return 0.0
-            # 窗口内最早的一次过期后，就少占一个名额
             return max(0.0, bucket[0] + self.window_seconds - moment)
 
     def reset(self, key: str | None = None) -> None:
@@ -79,7 +78,6 @@ class SlidingWindowLimiter:
             self._hits.pop(name, None)
         if len(self._hits) < self.max_keys:
             return
-        # 仍然满：按最后一次命中的时间排序，丢掉最旧的四分之一
         overflow = max(1, len(self._hits) - self.max_keys // 2)
         for name, _ in sorted(self._hits.items(), key=lambda item: item[1][-1] if item[1] else 0.0)[:overflow]:
             self._hits.pop(name, None)

@@ -17,10 +17,7 @@ export function prepareVehicleChargeGeometry(threeModule, rootObject) {
       (mesh.geometry = geometry));
   });
 }
-/**
- * 车漆收尾用到的场景风格开关。三个字段都来自调用方（studio-app）的材质库 / 主题配置，
- * 缺省时用代码里既有的兜底色，所以整体可选。
- */
+/** 车漆收尾用到的场景风格开关。 */
 type VehicleFinishOptions = {
   /** 暖木主题：车漆走米白高光，暗部发光也换成暖色。 */
   warmWood?: boolean;

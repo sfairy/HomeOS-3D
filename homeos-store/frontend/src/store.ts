@@ -29,7 +29,7 @@ function asInput(node: Element | RadioNodeList | null | undefined): HTMLInputEle
 function asButton(node: Element | null | undefined): HTMLButtonElement | null {
   return node as HTMLButtonElement | null;
 }
-// 页面可见性切换（三张表单共用一块玻璃坞）。原先在 store-shared.js，因要用到本层的
+
 function showPage() {
   const page = currentPage();
   $$('[data-store-page]').forEach(node => { node.hidden = node.dataset.storePage !== page; });
@@ -92,7 +92,7 @@ function updateDeviceReleasePolicy(payload: any) {
   }
 }
 
-// 把实现挂到 store-shared 的 `api` 上：每次成功拿到 /account 都会回调到这里，
+
 onAccountLoaded(updateDeviceReleasePolicy);
 
 function updateDeviceReleaseUi() {
@@ -260,18 +260,12 @@ function scheduleCouponPreview() {
 }
 
 
-// 站内统一确认框，替代 window.confirm（系统框跟不上暗色主题、文案不可定制）。用 <dialog> 自绘，
-
-
-// 取消待支付订单：付款码与待支付订单两个弹窗共用。必须走接口：服务端要先关掉渠道侧预下单交易
-
-
 function ownedPermanentLicense(product: StoreProduct | null | undefined) {
   if (!state.account || !product || isAddonProduct(product) || product.validityDays) return null;
   const now = Date.now();
   return state.accountLicenses.find((item: any) => {
     if (!item.active || item.productId !== product.id) return false;
-    // 永久授权 = 没有 validityDays 也没有到期时间；已过期的时限授权不算。
+
     if (item.validityDays) return false;
     if (item.accessExpiresAt && new Date(item.accessExpiresAt).getTime() <= now) return false;
     return true;
@@ -296,7 +290,7 @@ async function createOrder(event: Event) {
   if (!product) return;
   if (product.soldOut) { toast('该商品已售罄。'); return; }
   if (!state.account) { showGuestPurchaseNotice(); return; }
-  // 重复购买永久商品会另发新激活码而非延长原授权；服务端不能硬拦（多设备是合法需求），故这里二次确认。
+
   if (ownedPermanentLicense(product) && !await confirmDuplicatePurchase(product)) {
     toast('已取消，未创建订单。');
     return;
@@ -320,9 +314,8 @@ async function createOrder(event: Event) {
       showPendingOrderNotice(pendingOrder);
       return;
     }
-    // 渠道由购买页上那个按钮决定（见 renderPaymentMethods）：点哪个就把哪个写进
-    // 隐藏字段。下单接口会把渠道**冻结在订单上**，之后的回调与对账都按订单自己
-    // 的渠道走，所以运营中途换默认渠道不影响在途订单。
+
+
     const channel = asInput(form.elements.namedItem('paymentChannel'))?.value;
     if (channel) payload.paymentChannel = channel;
     const order = await api('/orders', { method: 'POST', body: JSON.stringify(payload) }) as StoreOrder;
@@ -370,7 +363,7 @@ function applyAccountUi() {
   if (loginLink) loginLink.hidden = Boolean(state.account);
   const registerLink = $('#home-register-link');
   if (registerLink) registerLink.hidden = Boolean(state.account);
-  // 管理后台入口：只给管理员账号。标记里默认 hidden，这里只负责在确认过
+
   $$('[data-admin-entry]').forEach((entry) => {
     entry.hidden = !Boolean((state.account as any)?.isAdmin);
   });
@@ -447,9 +440,7 @@ function startEmailCooldown(button: HTMLButtonElement | null, seconds: number) {
   state.emailCooldownTimers.set(button, setInterval(update, 1000));
 }
 
-// 服务端现在如实回报投递结果（delivered / deliveryMode / deliveryError）。这里必须照着
-// 它说话：以前无论信发没发出去都提示「验证码已发送」，用户对着收件箱干等，而服务端
-// 其实根本没发出那封信 —— 注册就这样彻底卡死。
+
 function applyVerificationResponse(button: HTMLButtonElement | null, result: any) {
   startEmailCooldown(button, result.resendAfter || 120);
   if (result.delivered === true) {
@@ -460,7 +451,7 @@ function applyVerificationResponse(button: HTMLButtonElement | null, result: any
     toast(result.deliveryError, 'err');
     return;
   }
-  // 没回显、没投递、也没给原因：只能说「没发出去」，绝不能报「已发送」。
+
   toast(`验证码未能通过邮件发出（当前投递方式：${result.deliveryMode || '未知'}），请联系客服。`, 'err');
 }
 
@@ -501,7 +492,7 @@ async function register(event: Event) {
   state.hasUsedTrial = Boolean(result.hasUsedTrial);
   setAuthHint(true, state.hasPermanentLicense, state.hasTemporaryLicense);
   if (result.referralNote) {
-    // 邀请码没绑定成功必须显式告诉用户：绑定只发生在注册这一步，错过就补不上。
+
     toast(`注册成功。${result.referralNote}`);
   } else {
     toast(state.hasPermanentLicense ? '注册成功，正在进入账号中心。' : '注册成功，正在进入购买页。');
@@ -574,7 +565,7 @@ function accountOrderCard(item: any) {
   const countdown = item.status === 'pending'
     ? `<p class="hb-order-countdown" data-order-expires="${escapeHtml(item.expiresAt)}" data-order-no="${escapeHtml(item.orderNo)}">剩余 ${orderCountdownText(item.expiresAt)}，超时后自动关闭</p>`
     : '';
-  // 优先按订单记录的目标授权匹配：同一账号下的多张授权共享同一个 customerId，
+
   const target = item.orderType === 'addon'
     ? state.accountLicenses.find(license => license.activationCodeId === item.targetLicenseId)
       || state.accountLicenses.find(license => license.customerId === item.customerId)
@@ -583,8 +574,7 @@ function accountOrderCard(item: any) {
   return `<article class="hb-account-item hb-account-item--row"><div class="hb-account-order-main"><h3>${escapeHtml(item.productName)}</h3><p>订单号：${escapeHtml(item.orderNo)}</p>${targetLine}<p>${escapeHtml(statusLabel(item))} · ${money(item.amountCents)}</p>${countdown}</div><div class="hb-account-order-side"><span>${escapeHtml(new Date(item.createdAt).toLocaleDateString('zh-CN'))}</span>${accountOrderActions(item)}</div></article>`;
 }
 
-/** 「加载更多订单」按钮：只在还有未加载的订单时出现，并写出剩余条数。
- *  被系统丢掉了 —— 界面上既看不到后面的单，也没有任何「还有更多」的提示。 */
+/** 「加载更多订单」按钮：只在还有未加载的订单时出现，并写出剩余条数。 */
 function accountOrdersMoreButton() {
   const remaining = Number(state.accountOrdersTotal || 0) - Number(state.accountOrdersLoaded || 0);
   if (remaining <= 0) return '';
@@ -615,25 +605,23 @@ async function loadMoreAccountOrders() {
   }
 }
 
-/* 账号中心的元信息芯片。
-   只做中性展示。颜色统一走 theme.css 的令牌，不要在 JS 里写色值。 */
+
 function metaChip(text: unknown, variant = '') {
   return `<span class="hb-meta-chip${variant ? ` hb-meta-chip--${variant}` : ''}">${escapeHtml(text)}</span>`;
 }
 
-/* 授权/权益卡的「规格表」单元格：小号等宽标签 + 值。
-   比一排长短不一的芯片更容易竖着对齐，宽屏下也能自己铺满内容区。 */
+
 function factCell(label: string, value: unknown, variant = '') {
   return `<li><small>${escapeHtml(label)}</small><span${variant ? ` class="${variant}"` : ''}>${escapeHtml(value)}</span></li>`;
 }
 
-/* 生命周期 → 芯片配色：有效=绿、到期=琥珀（可续期，不是错误）、停用=红。 */
+
 function licenseStateVariant(active: boolean, expired: boolean) {
   if (!active) return 'danger';
   return expired ? 'warning' : 'success';
 }
 
-/* 账号中心的 tab 切换：纯 class 切换，面板用 [hidden]，不做路由。 */
+
 function showAccountTab(tab = 'licenses') {
   $$('[data-account-tab]').forEach(button => {
     const active = button.dataset.accountTab === tab;
@@ -648,7 +636,7 @@ function setText(selector: string, value: unknown) {
   if (node) node.textContent = String(value);
 }
 
-/* 概览统计条与 tab 计数 —— 都是 payload 的纯函数，别在别处再算一遍。 */
+
 function renderAccountOverview(payload: any) {
   const licenses = payload.licenses || [];
   const entitlements = payload.entitlements || [];
@@ -699,7 +687,7 @@ function renderAccount(payload: any) {
     const releaseAction = item.device ? `<button class="hb-button hb-button--secondary" data-release-license="${escapeHtml(item.activationCodeId)}">解除设备绑定</button>` : '';
     const releasePolicyState = `<p class="hb-release-policy-state" data-release-policy-license="${escapeHtml(item.activationCodeId)}"></p>`;
     const labelAction = `<button class="hb-button hb-button--secondary" data-label-license="${escapeHtml(item.activationCodeId)}" data-current-label="${escapeHtml(item.userLabel || '')}">修改备注</button>`;
-    // 重发激活码邮件：买家邮箱收不到时的自助入口（服务端按账号限流）。
+
     const emailAction = item.activationCode
       ? `<button class="hb-button hb-button--secondary" data-email-license="${escapeHtml(item.activationCodeId)}">重发激活码邮件</button>`
       : '';
@@ -707,7 +695,7 @@ function renderAccount(payload: any) {
       ? `<a class="hb-button hb-button--primary" href="${escapeHtml(storePageHref('/products'))}?upgrade=${encodeURIComponent(item.activationCodeId)}">升级为永久授权</a>`
       : '';
     const actions = `<div class="hb-account-actions">${upgradeAction}${emailAction}${labelAction}${releaseAction}</div>`;
-    // 来源与「是否手动发放」都由服务端下发（apps/store/core/serializers.py 的
+
     const source = item.issuanceSourceLabel || '后台发放';
     const status = !item.active ? '已停用' : expired ? '已到期' : '有效';
     const validity = item.validityDays ? `${item.validityDays} 天` : '永久授权';
@@ -737,7 +725,7 @@ function renderAccount(payload: any) {
     const expired = Boolean(item.expiresAt) && new Date(item.expiresAt) <= new Date();
     const status = !item.active ? '已停用' : expired ? '已到期' : '有效';
     const validity = item.expiresAt ? `有效至 ${new Date(item.expiresAt).toLocaleDateString('zh-CN')}` : '永久';
-    // 权益带 licenseId，定位它挂在哪张授权上。
+
     const target = state.accountLicenses.find(license =>
       license.activationCodeId === item.licenseId
     );
@@ -790,14 +778,14 @@ export async function loadAccount() {
 async function accountAction(event: Event) {
   const targetEl = event.target;
   if (!(targetEl instanceof Element)) return;
-  // 复制部署指令。命令原文放在 data-deploy-copy 上而不是读 <code> 的文本：
+
   const copy = targetEl.closest('[data-deploy-copy]') as HTMLElement | null;
   if (copy) {
     try {
       await navigator.clipboard.writeText(copy.dataset.deployCopy || '');
       toast('部署指令已复制。');
     } catch (_) {
-      // 非安全上下文（http 局域网）里 navigator.clipboard 不存在，只能让用户手动选。
+
       toast('复制失败，请手动选中命令复制。', 'err');
     }
     return;
@@ -1014,7 +1002,7 @@ async function init() {
       showAccountTab(button.dataset.accountTab || 'licenses'),
     ),
   );
-  // ESC 和「关闭」按钮都会关掉这个 <dialog>，把停表和清空当前订单挂在 close
+
   asDialog($('#payment-dialog'))?.addEventListener('close', () => {
     stopPaymentTimers();
     state.currentOrder = null;
@@ -1022,7 +1010,7 @@ async function init() {
   $$('#payment-dialog [data-payment-close]').forEach((button) =>
     button.addEventListener('click', () => asDialog($('#payment-dialog'))?.close()),
   );
-  // 「我已完成支付」：不等下一轮 3 秒轮询，立刻查一次状态；订单超时被关单后后端对「关单时发现
+
   asButton($('#payment-refresh'))?.addEventListener('click', async () => {
     const order = state.currentOrder;
     if (!order) return;
@@ -1033,7 +1021,7 @@ async function init() {
     if (status) status.textContent = '正在向服务端确认支付结果…';
     const ok = await pollOrder(order.orderNo || '', order.lookupToken);
     if (button) button.disabled = false;
-    // 查单失败时把状态文案还原：停在「正在确认…」会让用户以为卡住了。
+
     if (!ok) {
       if (status) status.textContent = previous;
       toast('查询支付结果失败，请检查网络后重试。');
@@ -1046,7 +1034,7 @@ async function init() {
   $('#guest-purchase-dismiss')?.addEventListener('click', () =>
     asDialog($('#guest-purchase-dialog'))?.close(),
   );
-  // 待支付订单弹窗：右上角 X / ESC 只是关掉提示（订单仍然有效，倒计时继续走），
+
   asDialog($('#pending-order-dialog'))?.addEventListener('close', () => {
     clearInterval(state.pendingCountdownTimer ?? undefined);
     state.pendingCountdownTimer = null;
@@ -1097,7 +1085,7 @@ async function init() {
   );
   $('#account-licenses')?.addEventListener('click', accountAction);
   $('#account-orders')?.addEventListener('click', (event) => {
-    // 「加载更多」按钮与订单操作共用同一个委派监听：都在 #account-orders 里。
+
     const target = event.target;
     if (!(target instanceof Element)) return;
     if (target.closest('[data-orders-more]')) {

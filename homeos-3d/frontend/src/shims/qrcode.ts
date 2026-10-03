@@ -1,6 +1,4 @@
-/**
- * 编译期影子模块：对应 `/static/vendor/qrcode-generator/qrcode.js`（经典 UMD，默认导出工厂函数）。
- */
+/** 编译期影子模块：对应 `/static/vendor/qrcode-generator/qrcode.js`（经典 UMD，默认导出工厂函数）。 */
 interface QrCodeInstance {
   addData(data: string): void;
   make(): void;

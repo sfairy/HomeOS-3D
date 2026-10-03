@@ -113,16 +113,7 @@ function buildAtlasVertexParsChunk() {
 function buildAtlasVertexChunk() {
   return "\n#if NUM_SPOT_LIGHTS > 0\n  vec3 userShadowWorldNormal = inverseTransformDirection( transformedNormal, viewMatrix );\n  vec4 userShadowWorldPosition;\n  #pragma unroll_loop_start\n  for ( int i = 0; i < NUM_SPOT_LIGHTS; i ++ ) {\n    userShadowWorldPosition = worldPosition + vec4( userShadowWorldNormal * userSpotShadowParams[ i ].w, 0.0 );\n    vUserSpotShadowCoord[ i ] = userSpotShadowMatrix[ i ] * userShadowWorldPosition;\n  }\n  #pragma unroll_loop_end\n#endif\n";
 }
-/**
- * 定位灯光着色器里「聚光灯直接光」那一段分支，返回 [start, end) 半开区间。
- *
- * 不能简单截到 `#if ( NUM_DIR_LIGHTS > 0 )`：r186 的灯光链在聚光灯与平行光之间还夹了一段
- * 「太阳光」（NUM_SUN_LIGHTS），那段里同样只有一次 RE_Direct，一路截过去会让分支内的调用点
- * 计数变成 2，守卫就会误判成「three.js 改版」。因此这里先取聚光灯分支自己的
- * `#pragma unroll_loop_end` 与收尾 `#endif`，再从 `#endif` 之后找同级的下一个灯光块边界。
- *
- * @returns {{start: number, end: number} | null} 结构不匹配时返回 null，由调用方决定如何报错。
- */
+/** 定位灯光着色器里「聚光灯直接光」那一段分支，返回 [start, end) 半开区间。 */
 function spotLightBlockRange(lightsShader) {
   const spotBlockStart = lightsShader.indexOf("#if ( NUM_SPOT_LIGHTS > 0 )");
   if (spotBlockStart < 0) return null;
@@ -141,7 +132,7 @@ function guardZeroContributionSpotLights(lightsShader) {
     directLightCall =
       "RE_Direct( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );",
     spotLightBranch = blockRange ? lightsShader.slice(blockRange.start, blockRange.end) : "";
-  // 用「该调用在聚光灯分支里恰好出现一次」来确认结构，多一次或零次都说明 three.js 改版了。
+
   if (!blockRange || spotLightBranch.split(directLightCall).length !== 2)
     throw new Error("当前 Three.js 聚光灯反射 Shader 与零贡献优化不兼容。");
   const guardedCall =
@@ -175,11 +166,7 @@ function disposeShadowTargets(disposedLight) {
     disposedLight?.shadow &&
       ((disposedLight.shadow.map = null), (disposedLight.shadow.mapPass = null)));
 }
-/**
- * 聚光灯阴影图集控制器的外部依赖。
- * 四个 Three.js 上下文标成可选是有意的：构造时会在下面显式校验并抛出可读错误，
- * 这样「不传参数直接调用」拿到的是中文提示而不是解构报错。
- */
+/** 聚光灯阴影图集控制器的外部依赖。 */
 type SpotShadowAtlasOptions = {
   THREE?: any;
   renderer?: any;
@@ -230,8 +217,8 @@ export function createSpotShadowAtlasController({
     scratchTarget = null,
     preparedMaterialSet = new WeakSet(),
     pendingRoot = null,
-    // 计时器 id 在浏览器里是 number，在 Node 类型定义里是 Timeout；这里两者都可能出现，
-    // 只用它做真值判断和 clearTimeout，所以取联合类型即可。
+
+
     buildTimer: ReturnType<typeof setTimeout> | number = 0,
     revision = 0,
     isBuilding = false,

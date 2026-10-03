@@ -134,10 +134,7 @@ type RenderCacheReport = {
 };
 
 /** createRenderCache 的构造选项。 */
-/**
- * 离屏 canvas：缓存解码结果时会在上面挂 close()，
- * 以便提前释放显存（与 ImageBitmap.close 对齐）。
- */
+/** 离屏 canvas：缓存解码结果时会在上面挂 close()，以便提前释放显存（与 ImageBitmap.close 对齐）。 */
 type CacheCanvas = HTMLCanvasElement & { close?: () => void };
 
 type RenderCacheOptions = {

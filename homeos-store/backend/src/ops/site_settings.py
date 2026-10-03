@@ -15,10 +15,8 @@ from ..payments.credentials import merge_alipay_settings, merge_wechat_settings
 from ..payments.wechat import WeChatPayProvider
 from ..security.security import iso, utcnow
 
-#: 默认品牌标识。必须与 ``models.StoreSetting.logo_url`` 的默认值一致：该字段留空时
 DEFAULT_LOGO_URL = "/store-static/homeos-mark.svg"
 
-#: 账号中心「一键部署」的脚本清单（标签, 相对基础地址的路径）。目前只有官方源一条 ——
 DEPLOY_SCRIPTS: tuple[tuple[str, str], ...] = (
     ("OFFICIAL-SCRIPT（官方源）", "install.sh"),
 )
@@ -72,10 +70,8 @@ def store_configuration_payload(setting: StoreSetting) -> dict:
         "siteTitle": setting.site_title,
         "description": setting.description,
         "announcement": setting.announcement,
-        # 与 logo_url 同款口径：留空回落到默认值，而不是把空串报给前端（空串在页面上
         "supportEmail": setting.support_email or DEFAULT_SUPPORT_EMAIL,
         "logoUrl": setting.logo_url,
-        #: 账号中心「一键部署」区块。基础地址由后台配置，未配置时 deployScripts 为空、
         "deployBaseUrl": deploy_base,
         "deployScripts": [
             {"label": label, "command": f"curl -sSL {deploy_base}/{path} | bash"}
@@ -141,7 +137,6 @@ def payment_channels_payload(
                 "displayName": display_name_for(name, setting, settings),
                 "icon": name,
                 "note": _channel_note(name),
-                #: 凭据齐全 **且** 运营开了收款开关，才允许顾客选它。
                 "configured": ready,
                 "available": bool(setting.payment_enabled) and ready,
                 "isDefault": name == default_name,
@@ -166,8 +161,6 @@ def payment_configuration_payload(
         channels[0] if channels else None,
     )
 
-    # 一个可用渠道都没有：如实报「不可用」，让前台收起支付入口，而不是给一个点了会
-    # 失败的按钮。这里的 displayName 是给**后台**看的诊断文案（前台不会显示它）。
     if chosen is None:
         provider = ""
         display_name = "未配置支付渠道"
@@ -194,7 +187,6 @@ def payment_configuration_payload(
         "transactionDescription": transaction_description,
         "configured": configured,
         "available": available,
-        #: 多渠道清单。单个渠道时前台不显示选择器，行为与从前完全一致。
         "channels": channels,
         "updatedAt": iso(setting.updated_at),
     }
@@ -209,7 +201,6 @@ def payment_configuration_payload(
                 bool(alipay_merged.alipay_public_key_text)
             ),
             "gatewayUrl": alipay_merged.alipay_gateway_url,
-            #: 交易标题的「来源」标记：留空即跟随环境变量，前端只回填来源为后台的值
             "transactionDescriptionFromDatabase": bool(
                 (setting.payment_transaction_description or "").strip()
             ),

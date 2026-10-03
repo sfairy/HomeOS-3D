@@ -308,7 +308,7 @@ async function refreshDisplay() {
           builtinAssets = null,
           userAssets = null;
         if (!panelRenderer && assetsPromise) {
-          // 资源包可能是错误对象，这里按联合类型收窄后再逐项使用。
+
           const assetsBundle: any = await assetsPromise;
           if (assetsBundle.error) throw assetsBundle.error;
           const versionsPayload = assetsBundle.versions;

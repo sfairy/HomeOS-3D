@@ -1,14 +1,7 @@
-/**
- * 环境标签的默认信息框宽度与文字大小。
- */
+/** 环境标签的默认信息框宽度与文字大小。 */
 export const DEFAULT_LABEL_SIZE = 360;
 export const DEFAULT_LABEL_ICON_SIZE = 21;
-/**
- * 编辑器与运行时共用的尺寸上下限。
- *
- * 注意：信息卡仍随演示层缩放（屏幕观感 ≈ 配置值 × 0.73），所以这里的 800 对应
- * 屏幕上约 580px。上限只防误填极端值，不表示屏幕像素。
- */
+/** 编辑器与运行时共用的尺寸上下限。 */
 export const MAX_LABEL_SIZE = 800;
 export const MAX_LABEL_ICON_SIZE = 32;
 /** 下限沿用历史值，避免出现无法阅读的卡片。 */

@@ -37,7 +37,6 @@ from ..security.security import (
 logger = logging.getLogger("src.admin")
 
 
-# 共享助手在 admin_shared.py；这里再导入一次，
 from .admin_shared import (
     _admin_actor,
     _audit,
@@ -83,7 +82,6 @@ def admin_list_licenses(
     if account_id:
         base = base.where(License.account_id == account_id)
     if expiring_days is not None:
-        # 只圈「还没过期、但 N 天内过期」的：已经过期的授权不属于「临期提醒」，
         moment = utcnow()
         base = base.where(
             License.access_expires_at.is_not(None),
@@ -154,7 +152,6 @@ def admin_issue_license(
         )
 
     license = fulfill.insert_license_with_unique_code(session, build)
-    # 审计只记 id + 提示码，**绝不落激活码明文**：激活码就是这张授权的凭证，
     _audit(
         session,
         _admin_actor(admin),
@@ -164,7 +161,6 @@ def admin_issue_license(
     )
     return {
         "activationCodeId": license.id,
-        # 明文取自这一行本身（``activation_code`` 列存的就是明文，激活要按它查；
         "activationCode": license.activation_code,
         "email": email,
         "productName": license.product_name,
@@ -182,7 +178,6 @@ def admin_deactivate_license(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="授权不存在。")
     license.active = False
     license.revoked_at = utcnow()
-    # 一条授权可能在多台设备上绑定过（每个 instance_id 一行），停用必须把它们
     for binding in session.scalars(
         select(DeviceBinding).where(DeviceBinding.license_id == license.id)
     ):
@@ -251,7 +246,6 @@ def admin_delete_license(license_id: str, session: DbSession, admin: AdminAccoun
     )
     session.delete(license)
     session.flush()
-    # 只留提示码：审计日志不该成为激活码的第二份副本（见 license.issue 处的说明）
     _audit(
         session,
         _admin_actor(admin),
@@ -262,4 +256,3 @@ def admin_delete_license(license_id: str, session: DbSession, admin: AdminAccoun
     return {"activationCodeId": license_id, "deleted": True, "bindings": binding_count}
 
 
-# 设备绑定

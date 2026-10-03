@@ -1,6 +1,4 @@
-/**
- * 商店前台的商品目录：卡片/详情渲染、筛选与增购项分组。
- */
+/** 商店前台的商品目录：卡片/详情渲染、筛选与增购项分组。 */
 
 import { renderAddonTargets, resetCouponPreview, storePageHref } from "./store-shared.js";
 import { $ } from "./store-shared.js";
@@ -68,8 +66,8 @@ export function availableAddonProducts() {
     eligible.some((license) => {
       const owned = new Set(
         state.accountEntitlements
-          //: 与「附加到哪份授权」的结算口径一致：服务端按 License.id（前端 activationCodeId）
-        //: 回查目标授权，这里也必须按同一把钥匙算已拥有，否则两处会给出不同结论。
+
+
         .filter((item) => item.active && item.licenseId === license.activationCodeId)
           .map((item) => item.featureCode)
           .filter((code): code is string => Boolean(code)),
@@ -145,7 +143,7 @@ function catalogCards() {
 
 export function renderProducts() {
   const cards = catalogCards();
-  // 没有任何主授权在售时，顶栏「购买授权」与页脚入口都收起来，
+
   document.documentElement.classList.toggle(
     'hb-no-base-products',
     !primaryProducts().length,
@@ -199,24 +197,13 @@ export function renderAddons() {
 }
 
 function packageContentsText(product: StoreProduct) {
-  // 「主授权」是套餐默认包含的基础授权（includedProductIds 里只有增量包，基础授权是隐式的），
+
   return ['主授权', ...(product.packageItems || []).map((item) => item.name)].join(
     ' + ',
   );
 }
 
-/**
- * 渲染「选择支付方式」的按钮。
- *
- * 住在 catalog 而不是 store.js：它依赖 ``renderProduct`` 算出的 ``state.purchaseBlock``，
- * 而依赖方向是 store.js → store-catalog.js，放反了就成了循环导入。
- *
- * 四条规则：
- *   1. **只渲染 available 的渠道** —— 凭据不全的渠道画出来就是个点下去 503 的按钮；
- *   2. 商品不可买（售罄/试用已用过）时给一个禁用的按钮，文案说清原因；
- *   3. 一个可用渠道都没有时给一个禁用的提示按钮，而不是整块空白（用户会以为页面坏了）；
- *   4. 每个按钮都是 submit，点哪个就把哪个渠道写进隐藏字段 —— 单渠道时与从前完全一样。
- */
+/** 渲染「选择支付方式」的按钮。 */
 export function renderPaymentMethods() {
   const box = $('#payment-methods');
   const form = $('#purchase-form') as HTMLFormElement | null;
@@ -263,7 +250,7 @@ export function renderPaymentMethods() {
     button.dataset.channel = channel.provider;
     const icon = document.createElement('i');
     icon.className = 'fa-duotone fa-regular fa-qrcode';
-    // 显示名是运营可控的文本 —— 必须用 textContent 拼，不能进 innerHTML。
+
     button.append(icon, document.createTextNode(` ${channel.displayName}付款`));
     button.addEventListener('click', () => {
       if (paymentChannel) paymentChannel.value = channel.provider;
@@ -345,10 +332,8 @@ export function renderProduct() {
       .closest('.hb-product-cover')
       ?.classList.toggle('has-product-image', Boolean(product.imageUrl));
   }
-  // 付款按钮**不能**在这里抓：渠道是动态的（见 renderPaymentMethods），而
-  // ``querySelector('[type="submit"]')`` 在多个渠道下只会抓到第一个，然后把它
-  // 覆写成「支付宝付款」—— 微信那个按钮就永远显示不出来，售罄时也只禁用其中一个。
-  // 所以这里只记录「商品层面能不能买」，按钮的渲染与禁用统一交给 renderPaymentMethods。
+
+
   state.purchaseBlock = product.soldOut
     ? { label: '已售罄' }
     : unavailable

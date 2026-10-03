@@ -17,7 +17,6 @@ class AppearanceUpdateRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    #: 预设 id；``custom`` 表示主控色被手动改过，其余三束光沿用某个预设。
     preset: str = ""
     tokens: dict[str, str] = Field(default_factory=dict)
 

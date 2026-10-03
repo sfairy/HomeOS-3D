@@ -7,7 +7,7 @@ import {
 import { domSvgNode } from "@app/utils/dom-factory";
 /** 流水线条渲染时由 registry 注入的宿主能力。 */
 type FlowLineRuntimeHost = {
-  /** 运行期状态是否已就绪；显式返回 false 时先不接状态。 */
+  /** 运行期状态是否已就绪； */
   runtimeStateReady?: () => boolean;
   /** 实体 id → 运行期状态。 */
   states?: Map<string, any>;

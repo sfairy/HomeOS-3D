@@ -2,7 +2,7 @@ const numberOrFallback = (candidate, fallback) => {
   const parsed = Number(candidate);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
-// target / reference 是「画布尺寸」这类只有 width / height 的普通对象，允许缺省。
+
 type DiagramPixelSize = { width?: unknown; height?: unknown };
 export function floorplanAutoDiagramExportResolution(
   target: DiagramPixelSize = {},

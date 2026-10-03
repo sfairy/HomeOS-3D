@@ -22,17 +22,12 @@ from ..payments.settlement import settle_paid_order
 
 logger = logging.getLogger("src.payments.reconcile")
 
-#: 同一订单两次主动查单的最小间隔（秒）
 MIN_QUERY_INTERVAL_SECONDS = 3.0
 
-#: 节流表上限，超过就整体清空（订单号不会长期复用）
 _MAX_TRACKED_ORDERS = 1024
 
-#: 巡检/关单/查单共用的回溯窗口。三者必须同一口径：窗口短了，超过它的待支付订单
-#: 会既不被主动查单、也不被关单兜底，彻底失去自动恢复的机会（而人工往往发现不了）。
 RECONCILE_LOOKBACK_HOURS = 72
 
-#: 一轮巡检最多做多少笔本地过期收尾；这段不在用户请求里，比请求路径的限额大得多。
 SWEEP_EXPIRE_LIMIT = EXPIRE_BATCH_LIMIT * 5
 
 _last_query_at: dict[str, float] = {}
@@ -49,11 +44,9 @@ def channel_still_payable(order: Order, *, now: datetime | None = None) -> bool:
         return False
     created = order.created_at
     if created is None:
-        # 老数据可能没有创建时间；这只是附加守卫，拿不到依据时宁可放行。
         return False
     moment = now or utcnow()
     return created >= moment - timedelta(hours=RECONCILE_LOOKBACK_HOURS)
-
 
 
 def _allow_query(order_no: str) -> bool:
@@ -79,7 +72,6 @@ def _reconcile_provider(settings: StoreSettings, setting: StoreSetting, name: st
 
 def _amount_matches(order: Order, node: dict, provider) -> bool:
     expected = int(order.amount_cents or 0)
-    # 单位换算留在各渠道自己的 provider 里（支付宝是元、微信是分）。
     actual = provider.paid_cents_of(node)
     if actual is None or actual != expected:
         logger.error(
@@ -120,7 +112,6 @@ def reconcile_channel_order(
     try:
         node = provider.query_payment(settings, order)
     except PaymentError as error:
-        # 查单失败绝不影响用户：可能只是网络抖动，下次轮询会重试
         logger.warning("主动查单失败 order=%s error=%s", order.order_no, error)
         return False
 
@@ -151,7 +142,6 @@ class _Action:
     kind: str
     trade_no: str = ""
     detail: str = ""
-    #: 关单时是否也把本地订单推进终态（用于「已过期但仍是 pending」那一类）。
     expire_local: bool = False
 
 
@@ -163,7 +153,6 @@ class SweepResult:
     settled: int = 0
     closed: int = 0
     failed: int = 0
-    #: 与渠道无关的部分：本地超时单被推进终态的笔数；未配渠道的站点也会有值。
     expired: int = 0
     settled_orders: list[str] = field(default_factory=list)
 
@@ -189,7 +178,6 @@ def _confirm_paid_after_close(
         logger.warning("关单后复核查单失败 order=%s error=%s", order.order_no, error)
         return False
     if not node:
-        # 关单接口说已付款，查单却说交易不存在 —— 两者矛盾，绝不入账。
         result.failed += 1
         logger.error("关单接口称已付款，但查单查不到该交易 order=%s", order.order_no)
         return False
@@ -232,7 +220,6 @@ def reconcile_due_orders(
     """巡检一次：先做渠道对账，再做**与渠道无关**的本地过期收尾。
     """
     result = _sweep_channel_orders(session, settings=settings, setting=setting, limit=limit)
-    #: 本地过期一次多清一些：这段不在用户请求里，巡检间隔以分钟计。
     expired = expire_stale_orders(session, settings, limit=SWEEP_EXPIRE_LIMIT)
     if expired:
         result.expired = expired
@@ -255,7 +242,6 @@ def _sweep_channel_orders(
     """巡检一次：认领「已付款但本地还是待支付」的单，并关闭过期未付的渠道交易。
     """
     result = SweepResult()
-    #: 每个渠道一个 provider，按需构造 —— 一个渠道没配不该让另一个渠道整轮跳过。
     providers: dict = {}
 
     def provider_for(name: str):
@@ -265,13 +251,11 @@ def _sweep_channel_orders(
 
     active = [name for name in PROVIDER_NAMES if provider_for(name).is_configured(settings)]
     if not active:
-        # 一个渠道都没配：与「没有可用渠道」等价，渠道部分不做任何事（本地过期收尾照旧）。
         return result
 
     moment = utcnow()
     actions: list[_Action] = []
 
-    # ---- 阶段一：网络调用（不持有写锁） ----
     pending = session.scalars(
         select(Order)
         .where(Order.status == "pending")
@@ -304,11 +288,9 @@ def _sweep_channel_orders(
             continue
 
         if not is_expired:
-            # 未到期的 pending 单查单只为发现「钱已到账但通知丢了」，没付属正常。
             continue
 
         if node is None:
-            # 渠道确认没有这笔交易：没有远端交易要关，只把本地订单推进终态。
             actions.append(
                 _Action(
                     order=order,
@@ -330,7 +312,6 @@ def _sweep_channel_orders(
                 provider=provider, settings=settings, order=order, actions=actions, result=result
             ):
                 continue
-            # 核实不过：不关单也不过期，留给人工与下一轮（渠道状态可能正在变）。
             continue
         if outcome.closed:
             actions.append(
@@ -370,14 +351,12 @@ def _sweep_channel_orders(
             continue
 
         if node is None:
-            # 渠道**确认**没有这笔交易（查单失败会抛异常，不会走到这）—— 无需关单。
             actions.append(
                 _Action(order=order, kind="close", detail="渠道无此交易，直接标记已关闭")
             )
             continue
 
         if provider.is_success_node(node) and _amount_matches(order, node, provider):
-            # 钱其实已经付了（用户扫的还是那个旧码）。不能关单，要把它认回来。
             actions.append(
                 _Action(
                     order=order,
@@ -407,7 +386,6 @@ def _sweep_channel_orders(
                 "关单未成功 order=%s reason=%s", order.order_no, outcome.reason
             )
 
-    # ---- 阶段二：落库 ----
     for action in actions:
         if action.kind == "settle":
             outcome = settle_paid_order(
@@ -417,14 +395,12 @@ def _sweep_channel_orders(
                 trade_no=action.trade_no,
                 source=f"{normalize_provider_name(action.order.payment_provider)}.sweep",
             )
-            # 只有真的改动了才记数：``settle_paid_order`` 在已被其它路径入账时返回
             if outcome.get("changed"):
                 result.settled += 1
                 result.settled_orders.append(action.order.order_no)
             continue
 
         if action.expire_local and not _expire_local_order(session, action.order):
-            # 状态已被别的路径改走（支付回调 / 其它扫描），副作用由它负责。
             continue
         action.order.channel_closed_at = utcnow()
         if action.detail:

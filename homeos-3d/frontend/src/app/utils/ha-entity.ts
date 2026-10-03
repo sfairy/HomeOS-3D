@@ -1,10 +1,4 @@
-/**
- * HA 实体在前端各处流通时的公共形状。
- *
- * 这些字段来自后端 /api/v1/ha 的实体目录与状态中枢（state hub）：
- * 目录项带 entityId / name / deviceClass…，状态项带 state / attributes。
- * 各业务域（灯光、净化器、电视、车辆…）只读自己关心的属性，所以属性集合保持开放。
- */
+/** HA 实体在前端各处流通时的公共形状。 */
 
 /** 实体属性：常用字段显式列出，其余按域自行取用。 */
 export type HaEntityAttributes = {

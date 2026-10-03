@@ -1,4 +1,4 @@
-/** 见文件头（store-shared 的说明）。这里补上「页面链接拼接」与两个被商品目录/订单两块共用的渲染片段。 */
+/** 见文件头（store-shared 的说明）。 */
 
 import { formatCents as money } from "./money.js";
 import { fromResponse } from "./api-error.js";
@@ -45,7 +45,7 @@ export function renderAddonTargets() {
   );
   const requestedCodes = new Set(state.product?.featureCodes || []);
   const seen = new Set<string>();
-  // 选项值必须是授权主键：服务端按 License.id 回查目标授权。
+
   const options = eligible.filter((item) => {
     if (!item.activationCodeId || seen.has(item.activationCodeId)) return false;
     seen.add(item.activationCodeId);
@@ -190,4 +190,3 @@ export function currentPage() {
   return 'home';
 }
 
-// showPage 已随「商品目录」一起下沉到 store.js：它要判断当前商品是不是主商品

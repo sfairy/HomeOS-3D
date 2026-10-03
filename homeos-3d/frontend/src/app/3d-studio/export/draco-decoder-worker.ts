@@ -1,5 +1,5 @@
-// lib.dom 把 self 声明成 Window，但这个文件实际跑在 Worker 里：importScripts / DracoDecoderModule
-// 是 Worker / emscripten 注入的全局，postMessage 的第二参数是转移列表而不是 targetOrigin。
+
+
 type DracoWorkerScope = {
   onmessage: ((event: { data: any }) => void) | null;
   postMessage: (message: any, transfer?: Transferable[]) => void;
@@ -168,10 +168,7 @@ function decodeIndex(dracoDecoderModule, meshDecoder, mesh) {
     }
   );
 }
-/**
- * 解码后交给主线程的顶点属性描述（与 three 的 InterleavedBufferAttribute 形状对齐）。
- * vertexColorSpace 只有 color 属性会带：下游据此决定顶点色是否要做色彩空间转换。
- */
+/** 解码后交给主线程的顶点属性描述（与 three 的 InterleavedBufferAttribute 形状对齐）。 */
 type DecodedAttribute = {
   name: string;
   count: number;

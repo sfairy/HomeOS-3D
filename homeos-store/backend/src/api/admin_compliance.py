@@ -26,7 +26,6 @@ from ..security.security import (
 logger = logging.getLogger("src.admin")
 
 
-# 共享助手在 admin_shared.py；这里再导入一次，
 from .admin_shared import (
     _admin_actor,
     _audit,
@@ -66,7 +65,6 @@ def admin_list_email_verifications(
             "email": record.email,
             "purpose": record.purpose,
             "attempts": int(record.attempts or 0),
-            #: None 表示「本次没有真实发信」（log/echo 模式）
             "delivered": record.delivered,
             "deliveryMode": record.delivery_mode or "",
             "deliveryError": record.delivery_error or "",
@@ -174,7 +172,6 @@ def admin_purge_device_release_events(
     )
 
 
-# 审计日志
 @router.get("/license-sessions")
 def admin_list_license_sessions(
     session: DbSession,
@@ -211,7 +208,6 @@ def admin_list_license_sessions(
                 "instanceId": bindings[record.binding_id].instance_id
                 if record.binding_id in bindings
                 else None,
-                #: 判据同 ``/bindings`` 的 ``bound``：``is_live``，不是裸 ``active``。
                 "bindingActive": bindings[record.binding_id].is_live
                 if record.binding_id in bindings
                 else False,

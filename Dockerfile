@@ -134,6 +134,7 @@ COPY homeos-store/alembic.ini ./alembic.ini
 COPY homeos-store/backend/src ./src
 # db/ 里的迁移脚本必须原样保留（compile_python.py 的 KEEP_SOURCE_PREFIXES 已含它）：
 # alembic 是**读源码文件**来执行的，编译成 .so 之后它反而找不到脚本。
+COPY homeos-store/db ./db
 # src/_version.py 随后与其它源码一起被编译成 .so，运行期由 src/__init__.py 读取。
 # 末尾两条 test 是**结构约束**而不是重复检查：迁移文件一旦没随镜像走，代价是
 # 「镜像推出去、用户机器上才发现容器起不来」—— 在这里失败，代价只是一次构建。

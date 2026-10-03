@@ -1,4 +1,4 @@
-/// <reference types="vite/client" />
+
 
 interface Navigator {
   standalone?: boolean;
@@ -64,10 +64,7 @@ interface Window {
   [key: string]: unknown;
 }
 
-/**
- * User-Agent Client Hints（UA-CH）还没有进入 TS 的 lib.dom，
- * renderer 用 navigator.userAgentData.platform 判平台，这里按实际用到的字段补齐。
- */
+/** User-Agent Client Hints（UA-CH）还没有进入 TS 的 lib.dom，renderer 用 navigator.userAgentData.platform 判平台，这里按实际用到的字段补齐。 */
 interface Navigator {
   userAgentData?: {
     platform?: string;

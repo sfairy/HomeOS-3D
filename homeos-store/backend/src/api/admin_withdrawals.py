@@ -23,7 +23,6 @@ from ..security.security import (
 logger = logging.getLogger("src.admin")
 
 
-# 共享助手在 admin_shared.py；这里再导入一次，
 from .admin_shared import (
     _admin_actor,
     _audit,
@@ -77,7 +76,6 @@ def admin_list_withdrawals(
             "feePercent": float(money.from_centi(row.fee_bps)),
             "netPoints": money.format_centi(row.net_points_centi),
             "status": row.status,
-            #: 中文口径由服务端下发（``referrals.WITHDRAWAL_STATUS_LABELS``）：前台
             "statusLabel": referrals.WITHDRAWAL_STATUS_LABELS.get(row.status, row.status),
             "note": row.note,
             "createdAt": iso_z(row.created_at),
@@ -105,7 +103,6 @@ def admin_resolve_withdrawal(
             session, withdrawal, approve=payload.approve, note=payload.note
         )
     except referrals.WalletGuardError:
-        #: 余额小于冻结额（只能由人工调账造成）时记账会被守卫拒绝。整个事务随之回滚，
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(

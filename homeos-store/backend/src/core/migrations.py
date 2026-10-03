@@ -18,12 +18,8 @@ from ..config import StoreSettings
 
 logger = logging.getLogger("src.migrations")
 
-#: 迁移锁文件名（与库文件同目录）。内核在进程结束时自动释放，因此进程被 kill 之后
-#: 不会留下需要人工清理的「死锁」。
 MIGRATION_LOCK_SUFFIX = ".migrate.lock"
-#: 迁移前快照的标签，出现在文件名里（``<库名>.pre-<标签>-<时间戳>.bak``）。
 MIGRATION_BACKUP_LABEL = "migrate"
-#: 同库同标签只留最近这几份快照。
 MIGRATION_BACKUP_KEEP = 3
 
 
@@ -48,8 +44,6 @@ def _head_revision(config: Config) -> str:
 def _recorded_revision(database_path: Path) -> str | None:
     """读取库内记录的 revision；库文件不存在或没有版本表时返回 None。
     """
-    #: 全新安装时库文件都还不存在，而 ``mode=ro`` 打不开不存在的文件 —— 这里先挡一道，
-    #: 否则「第一次启动」会以一个「无法打开数据库」的报错收场，而不是正常建库。
     if not database_path.is_file() or database_path.stat().st_size == 0:
         return None
     with sqlite3.connect(f"file:{database_path}?mode=ro", uri=True) as connection:
@@ -69,7 +63,6 @@ def backup_database(database_path: Path) -> Path | None:
         return None
     stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     destination = database_path.parent / f"{database_path.name}.pre-{MIGRATION_BACKUP_LABEL}-{stamp}.bak"
-    #: 同一秒内的第二次备份会撞上这个名字，而 ``VACUUM INTO`` 撞名是**直接报错**的。
     suffix = 1
     while destination.exists():
         destination = (
@@ -78,12 +71,10 @@ def backup_database(database_path: Path) -> Path | None:
         )
         suffix += 1
 
-    # isolation_level=None（autocommit）：VACUUM 不能在事务里执行。
     connection = sqlite3.connect(database_path, isolation_level=None)
     try:
         connection.execute("VACUUM INTO ?", (str(destination),))
     except sqlite3.Error as error:
-        #: 半截文件比没有文件更危险（文件名、大小都像那么回事），先删掉再报错。
         destination.unlink(missing_ok=True)
         raise MigrationBackupError(
             f"迁移前备份数据库失败（{database_path} → {destination}）：{error}。"
@@ -119,7 +110,6 @@ def run_migrations(settings: StoreSettings) -> list[str]:
     """把数据库带到 head 结构（串行化 + 动结构前留快照），返回本次做过的事。
     """
     database_path = settings.database_path
-    #: 锁与库文件同目录：从读 revision 到 upgrade 结束是一段「只能一个人做」的临界区。
     lock_path = database_path.parent / f"{database_path.name}{MIGRATION_LOCK_SUFFIX}"
     performed: list[str] = []
 
@@ -129,7 +119,6 @@ def run_migrations(settings: StoreSettings) -> list[str]:
         head = _head_revision(config)
 
         if recorded != head:
-            #: 备份必须先于任何结构改动。
             backup_database(database_path)
             prune_database_backups(database_path)
             command.upgrade(config, "head")

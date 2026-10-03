@@ -14,8 +14,6 @@ from ..ops.features import BASE_PRODUCT_FEATURES, MODULE_3D_FEATURES
 
 logger = logging.getLogger("src.core.bootstrap")
 
-# 商品
-
 
 def _value(expression):
     return null() if expression is None else literal(expression)
@@ -74,7 +72,6 @@ def ensure_default_products(session: Session) -> None:
     ):
         inserted.append("module")
 
-    # 套餐要指向「实际存在的那条 module」的 id。上面的插入可能是**别的进程**完成的
     module_id = session.scalar(
         select(Product.id).where(Product.product_type == "module").limit(1)
     )

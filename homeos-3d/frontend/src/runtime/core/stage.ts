@@ -161,17 +161,7 @@ const lampIconSvgMarkup =
       temperaturePercent: 100,
     },
   ];
-/**
- * 普通按钮的图标尺寸：按固定的「图标 / 按钮」比例（见 @app/bridge/button-icon-size），
- * 让按钮放大时图标跟着放大，又不会顶到圆形描边。
- *
- * 旧配置里的 iconSize 是打开编辑器时按「按钮大小 - 18」自动写死一次的，之后按钮放大
- * 图标不跟着动，视觉上就成了「按钮大、图标小」，所以这里不再沿用已存的值。
- *
- * 三类标记的 iconSize 不是图标边长，保持原样：
- * - 扫地机状态卡、环境标签把它当字号用；
- * - 门锁 / 摄像头 / 人体传感是标签式布局，尺寸由 security-editor 自己的「图标大小」控制。
- */
+/** 普通按钮的图标尺寸：按固定的「图标 / 按钮」比例（见 @app/bridge/button-icon-size），让按钮放大时图标跟着放大，又不会顶到圆形描边。 */
 function resolveMarkerIconSize(markerItem, markerSize, isVacuumDevice, buttonIconSize) {
   const rawIconSize =
       Number.isFinite(markerItem.iconSize) && markerItem.iconSize > 0 ? markerItem.iconSize : 0,
@@ -179,21 +169,18 @@ function resolveMarkerIconSize(markerItem, markerSize, isVacuumDevice, buttonIco
       isVacuumDevice ||
       markerItem.deviceKind === "temperature-humidity" ||
       ["lock", "camera", "presence"].includes(markerItem.deviceKind);
-  // 图标边长没显式配置过时：
-  // - 扫地机状态卡字号、门 / 摄像头 / 人体传感的标签图标，一律回落到与圆形按钮同一
-  //   比例（见 button-icon-size.ts）。0.6 正好是旧默认（size 44 → 26，26/44≈0.59），
-  //   所以老配置观感不变，只是默认 size 由 44 提到 65 后跟着一起放大，不会「框大图标小」。
-  // - 环境标签把 iconSize 当信息框图标用，有独立的默认值与迁移逻辑，保持原样。
+
+
   if (rawIconSize > 0 && usesIconSizeAsFont) return rawIconSize;
   if (markerItem.deviceKind === "temperature-humidity") {
     return Math.min(markerSize, Math.max(4, markerSize - 18));
   }
   return buttonIconSize(markerSize);
 }
-// moduleConfigSource 是后端下发的动态属性袋（字段随模块扩展），这里按字符串键访问。
+
 function configuredModuleKinds(moduleConfigSource: Record<string, any> = {}) {
   return [
-    // 总览 始终提供：它聚合当前楼层上所有已配置模块的标记，不依赖任何设备配置。
+
     "overview",
     "light",
     ...(moduleConfigSource.environment?.airConditioners?.length ||
@@ -228,7 +215,7 @@ export function mountStage(mountOptions) {
   let value = null;
   const hasStageRect = () => !!value,
     noopStageCallback = () => {};
-  // options 是后端下发的动态属性袋（字段随模块扩展），这里按字符串键访问。
+
   let options: Record<string, any> = {
       lights: [],
     },
@@ -248,7 +235,7 @@ export function mountStage(mountOptions) {
     isStagePresented = false,
     animationFrameRequestId = 0,
     pageBehavior = resolvePageBehavior2(),
-    // 总览 是落地模块：只展示房子本体，不显示设备按钮。
+
     activeModule = "overview",
     selectedSecurityKind = "",
     editingVacuumId = "",
@@ -300,8 +287,8 @@ export function mountStage(mountOptions) {
     try {
       lightHistoryStorage = window.localStorage;
     } catch {}
-  // createLightStateCache 的形参解构里 storage/scope 没有默认值，TS 6 会把它们从推断出的形参
-  // 类型里丢掉，直接传字面量会被判成多余属性；先用变量承载选项，运行时完全相同。
+
+
   const lightStateCacheOptions = {
       storage: lightHistoryStorage,
       scope: lightHistoryScope,
@@ -325,7 +312,7 @@ export function mountStage(mountOptions) {
   const resolveDeviceState = (resolvedEntityId) =>
     lightStateCache.resolve(resolvedEntityId || "", deviceStates[resolvedEntityId]);
   let lightEditPreview = null,
-    // baseStageConfig 同 options，是后端下发的动态属性袋。
+
     baseStageConfig: Record<string, any> = {
       lights: [],
     },
@@ -499,7 +486,7 @@ export function mountStage(mountOptions) {
     ((moduleTabButton.type = "button"),
       (moduleTabButton.dataset.module = moduleKind),
       moduleTabButton.style.setProperty("--i3d-tab-index", String(moduleTabsByKind.size)),
-      // 调整导航位置时拖完整条轨道会紧跟一个 click，别让它顺手切了模块（见 bindNavigationDrag）。
+
       moduleTabButton.addEventListener("click", () => {
         if (moduleTabsElement.dataset.dragged === "true") {
           moduleTabsElement.dataset.dragged = "";
@@ -1618,8 +1605,8 @@ export function mountStage(mountOptions) {
   });
   (mountOptions.setTelevisionSync?.(syncEnvironmentLayers),
     mountOptions.setEnvironmentScene?.(environmentScene));
-  // createEnvironmentAirflow 的形参解构里 THREE/reducedMotion 没有默认值，TS 6 会把它们从
-  // 推断出的形参类型里丢掉，直接传字面量会被判成多余属性；先用变量承载选项，运行时完全相同。
+
+
   const environmentAirflowOptions = {
     THREE: three,
     camera: mountOptions.camera,
@@ -1650,7 +1637,7 @@ export function mountStage(mountOptions) {
   const screenOutlines = createScreenOutlines2({
       THREE: three,
       container: presentationLayerElement,
-      // camera 是 getCamera 的静态回退项，此处两者指向同一个相机。
+
       camera: mountOptions.camera,
       getCamera: () => mountOptions.camera,
       getObjectCamera: (screenOutlineObject) =>
@@ -2594,7 +2581,7 @@ export function mountStage(mountOptions) {
           (floorTabButton.dataset.floor = floorChoiceKey),
           (floorTabButton.title = floorChoiceTitle),
           floorTabButton.setAttribute("aria-label", floorChoiceTitle),
-          // 同上：拖完楼层栏紧跟的 click 只用来清标记。
+
           floorTabButton.addEventListener("click", () => {
             if (floorTabsElement.dataset.dragged === "true") {
               floorTabsElement.dataset.dragged = "";
@@ -3117,7 +3104,7 @@ export function mountStage(mountOptions) {
     }
     const fallbackBindings = collectModuleBindings().filter(matchesSelectedFloor);
     syncFloorTabs();
-    // 导航位置调整态：只有编辑器画布才允许直接拖分类栏 / 楼层栏改位置。
+
     const isNavigationDraggable = navigationEditing && isNavigationVisible;
     (moduleTabsElement.classList.toggle("is-navigation-draggable", isNavigationDraggable),
       floorTabsElement.classList.toggle("is-navigation-draggable", isNavigationDraggable),
@@ -3617,9 +3604,8 @@ export function mountStage(mountOptions) {
         String(categoryScaleFactor),
       ),
       presentationLayerElement.style.setProperty("--i3d-floor-scale", String(floorScaleFactor)),
-      // 操作提示条（.i3d-view-help）与配置对象提示（.i3d-editor-selection）不参与面板的
-      // 放大系数，若不反算，就会跟着演示层的缩放假 s 一起变小（屏幕字号 = 设计字号 ×
-      // 自身系数 × s）。这里按演示层缩小的倍数反算，屏幕上保持设计字号，并夹在 1~4 之间。
+
+
       presentationLayerElement.style.setProperty(
         "--i3d-help-scale",
         String(Math.min(4, Math.max(1, 1 / Math.max(mediaScale, 0.01)))),
@@ -3735,25 +3721,20 @@ export function mountStage(mountOptions) {
         ((focusInset = computeFocusInset()), mountOptions.setFocusViewport(focusInset)),
       renderMarkerPositions(true));
   }
-  // 拖动导航栏改位置的触发阈值（屏幕像素）：小于它按点选处理，不当成拖动。
+
   const NAVIGATION_DRAG_THRESHOLD = 4;
-  /**
-   * 让分类栏 / 楼层栏可以被拖动改位置 —— 只在「导航位置调整态」生效。
-   * @param {HTMLElement} dragElement 接收指针的元素：分类栏整条轨道 / 楼层栏整列。
-   * @param {"categories"|"floors"} navigationKey 写回配置里的哪一条导航。
-   * @param {[number, number]} fallbackPosition 配置缺省时的兜底中心点百分比，与布局取法一致。
-   */
+  /** 让分类栏 / 楼层栏可以被拖动改位置 —— 只在「导航位置调整态」生效。 */
   function bindNavigationDrag(dragElement, navigationKey, fallbackPosition) {
-    // 一次拖动一个状态对象；为 null 说明当前没在拖。
+
     let navigationDrag = null;
-    // 读当前生效的中心点百分比：缺省或越界回落兜底位置，夹取口径与布局一致。
+
     const readOffsetPercent = (axisName) => {
       const configuredPercent = options.navigation?.[navigationKey]?.[axisName];
       return Number.isFinite(configuredPercent)
         ? Math.max(0, Math.min(100, configuredPercent))
         : fallbackPosition[axisName === "x" ? 0 : 1];
     };
-    // 只覆盖这一条导航的 x / y，同级的 scale、followOffset 等字段原样保留。
+
     const writeOffsetPercent = (percentX, percentY) => {
       options = {
         ...options,
@@ -3773,18 +3754,18 @@ export function mountStage(mountOptions) {
       dragElement.classList.remove("is-navigation-dragging");
     };
     dragElement.addEventListener("pointerdown", (dragStartEvent) => {
-      // 只有调整态、主指针、左键才拖；拖动期间导航整条轨道先按住谁都能拖。
+
       if (!navigationEditing || dragStartEvent.button !== 0 || dragStartEvent.isPrimary === false)
         return;
-      // 同 id 的按下还在拖动中才忽略；上一次拖动的 pointerup 若没送达（元素被替换等），
-      // 这里靠引用判等把旧状态清掉。
+
+
       if (navigationDrag?.pointerId === dragStartEvent.pointerId) return;
       const containerRect = element.getBoundingClientRect();
       if (!(containerRect.width > 0) || !(containerRect.height > 0)) return;
-      // 上一次拖动若在页签外松手，click 不会到来，标记会一直留着吃掉后面的点击：这里先清一次。
+
       dragElement.dataset.dragged = "";
       dragStartEvent.preventDefault();
-      // 拦在这里：画布自己的 pointerdown 会记下指针并驱动背景视差，拖页签时不需要它。
+
       dragStartEvent.stopPropagation();
       navigationDrag = {
         pointerId: dragStartEvent.pointerId,
@@ -3801,7 +3782,7 @@ export function mountStage(mountOptions) {
     });
     dragElement.addEventListener("pointermove", (dragMoveEvent) => {
       if (!navigationDrag || navigationDrag.pointerId !== dragMoveEvent.pointerId) return;
-      // 拖动途中若被外部退出调整态，直接收尾，别继续改位置。
+
       if (!navigationEditing) {
         (stopNavigationDrag(), (dragElement.dataset.dragged = ""));
         return;
@@ -3814,8 +3795,8 @@ export function mountStage(mountOptions) {
       )
         return;
       navigationDrag.moved = true;
-      // 用「按下时的中心点 + 总位移」算绝对值，而不是逐帧累加：中途被夹取后再拖回来，
-      // 位置不会因为夹取而丢失。
+
+
       const nextPercentX = Math.max(
           0,
           Math.min(
@@ -3839,10 +3820,10 @@ export function mountStage(mountOptions) {
       const finishedDrag = navigationDrag;
       stopNavigationDrag();
       if (!finishedDrag.moved) {
-        // 没超过阈值：当作点选页签，不写位置，点击仍由页签自己的 click 处理。
+
         return;
       }
-      // 这次拖拽的尾巴会紧跟一个 click，用标记吃掉它，免得顺手切了模块 / 楼层。
+
       dragElement.dataset.dragged = "true";
       postHostMessage({
         type: "edit",
@@ -3852,7 +3833,7 @@ export function mountStage(mountOptions) {
         y: readOffsetPercent("y"),
       });
     });
-    // 指针被系统收走（来电、手势接管）时的回滚：本地预览过的新位置退回按下时的值。
+
     dragElement.addEventListener("pointercancel", () => {
       if (!navigationDrag) return;
       const cancelledDrag = navigationDrag;
@@ -3863,8 +3844,8 @@ export function mountStage(mountOptions) {
       }
     });
   }
-  // 分类栏绑在内层轨道（moduleTabsElement）而不是外层 .i3d-navigation：外层是布局容器，
-  // 楼层栏绑整列；缺省位置与 syncLayoutMetrics 里的兜底一致。
+
+
   bindNavigationDrag(moduleTabsElement, "categories", [50, 94]);
   bindNavigationDrag(floorTabsElement, "floors", [96, 50]);
   function restoreFocusWithin(focusScopeElement, focusTargetElement = canvasElement) {
@@ -5771,9 +5752,8 @@ export function mountStage(mountOptions) {
           const metricUnitElement = metricRowElement.querySelector(".i3d-meter-unit");
           ((metricUnitElement.textContent = ar3.unit), (metricUnitElement.hidden = !ar3.unit));
         }
-        // 信息卡随演示层（.i3d-presentation 的 scale）一起缩放：编辑器里填的 px 是
-        // 舞台设计像素，屏幕观感 = 配置值 × 演示层缩放系数（约 0.7）。
-        // 若要更大的观感，直接调大 size / iconSize；上限见 MAX_LABEL_SIZE。
+
+
         const min = Math.min(
           maxLabelSize,
           Math.max(minLabelSize, Number(syncMarkerItem.size) || defaultLabelSize),
@@ -5954,8 +5934,8 @@ export function mountStage(mountOptions) {
                 : available2
                   ? syncMarkerItem.deviceKind === "lock"
                     ? "" +
-                      // 门扇档位由 lockState 统一给出（门已打开 / 门虚掩 / 门已关闭 / 门状态未知），
-                      // 这里不再各自判断 doorOpen，避免「虚掩」被显示成「已打开」。
+
+
                       (lock.doorOpenLabel ||
                         (lock.doorOpen === true
                           ? "门已打开"
@@ -6622,7 +6602,7 @@ export function mountStage(mountOptions) {
           (deviceStates = data.states || {}),
           syncAirConditionerHistory(),
           (isNavigationVisible = data.editorCanvas === true && !isEditing),
-          // 导航位置调整态由宿主下发：编辑器画布里专门用来拖分类栏 / 楼层栏。
+
           (navigationEditing = data.navigationEditing === true && isNavigationVisible),
           document.body?.dataset &&
             (document.body.dataset.sceneStyle =

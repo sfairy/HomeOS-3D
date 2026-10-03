@@ -279,7 +279,7 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
                 binding.color === "orange" ? 15376452 : 5421233,
                 binding.character,
               ),
-              actorMaterialSet = new Set<any>(); // three 材质对象来自场景图 mesh.material
+              actorMaterialSet = new Set<any>();
             walkerRoot.traverse((meshObject) => {
               meshObject.isMesh && actorMaterialSet.add(meshObject.material);
             });
@@ -540,7 +540,7 @@ export function createPresenceWaves(waveOptions, wakeWaveFrameLoop = () => {}) {
     preview: wavePreview = false,
   }: {
     bindings?: any[];
-    // waveStates 由宿主下发，既可能是 Map（.get）也可能是普通对象（[entityId]），故用 any
+
     states?: any;
     enabled?: boolean;
     floorId?: string;

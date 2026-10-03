@@ -20,7 +20,7 @@ function toFiniteNumber(candidateNumber, fallbackNumber = 0) {
 function clamp(inputNumber, minValue, maxValue) {
   return Math.max(minValue, Math.min(maxValue, inputNumber));
 }
-// defaultPoint 允许只给部分轴：缺省轴按 0 兜底（调用方有时只想覆盖 y）。
+
 function resolvePoint(sourcePoint, defaultPoint: Partial<PointCoordinates> = {}) {
   return {
     x: toFiniteNumber(sourcePoint?.x, defaultPoint.x ?? 0),
@@ -43,8 +43,8 @@ function normalizeSelectedFiles(sourceFiles) {
       ].slice(0, 128)
     : [];
 }
-// frameSize 是可选字段：只有调用方显式给了正数才写进 preset，否则整个键都不存在
-// （下游用 Number.isFinite 判断有没有，序列化后的 preset 也因此保持稳定）。
+
+
 function normalizeCameraConfig(sourceCamera) {
   const cameraMode = sourceCamera?.mode === "perspective" ? "perspective" : "orthographic",
     cameraView = sourceCamera?.view === "top" ? "top" : "free",

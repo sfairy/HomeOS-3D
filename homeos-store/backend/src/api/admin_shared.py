@@ -137,7 +137,6 @@ def _cooldown(setting: StoreSetting, settings: SettingsDep) -> int:
     return site_config.resolve_device_release_cooldown(setting, settings)
 
 
-# 概览
 _OVERVIEW_WINDOWS: tuple[tuple[str, timedelta], ...] = (
     ("last24h", timedelta(hours=24)),
     ("last7d", timedelta(days=7)),
@@ -152,7 +151,6 @@ PAID_MONEY_STATUSES: tuple[str, ...] = (
     "fulfillment_failed",
 )
 
-#: 需要人工介入的授权临期窗口。
 OVERVIEW_EXPIRING_DAYS = 30
 
 
@@ -181,7 +179,6 @@ def _window_money(session: Session, since: datetime) -> dict:
             _billable_money_clause(),
         )
     ).one()
-    # 退款按 order_refunds 的发生时间聚合，只算已到账的；人工补记订单（未真收钱）不计。
     refunded = int(
         session.execute(
             select(func.coalesce(func.sum(OrderRefund.amount_cents), 0))
@@ -216,7 +213,6 @@ def _window_money(session: Session, since: datetime) -> dict:
     }
 
 
-# —— 分页助手 ——
 def _page_bounds(limit: int, offset: int) -> tuple[int, int]:
     """分页参数的统一闸门：单页上限 500，offset 不允许负数或离谱的大值。"""
     size = max(1, min(int(limit or 200), 500))
@@ -252,7 +248,6 @@ def _page_items(session: Session, base, order_by, *, limit: int, offset: int, bu
     return {"items": build(rows), "total": total, "limit": size, "offset": skip}
 
 
-# —— 授权码详情 ——
 def _license_detail(session, settings, license: License) -> dict:
     """按列表接口同一口径返回单条授权。"""
     meta = _license_meta(session, [license])
@@ -276,7 +271,6 @@ def _entitlement_payload(entry: Entitlement) -> dict:
         "productName": entry.product_name,
         "productType": entry.product_type,
         "featureCode": entry.feature_code,
-        # activeFlag 是库里的原始开关，active 是叠加了有效期后的实际生效状态：
         "activeFlag": bool(entry.active),
         "active": bool(entry.active) and (entry.expires_at is None or entry.expires_at > now),
         "startsAt": iso_z(entry.starts_at),
@@ -285,7 +279,6 @@ def _entitlement_payload(entry: Entitlement) -> dict:
     }
 
 
-# —— 批量查询与清理助手 ——
 def _by_ids(session: Session, model, ids) -> dict[str, Any]:
     """按主键批量取行，返回 ``{主键: 行}``；空集合直接返回空字典。
     """
@@ -296,7 +289,6 @@ def _by_ids(session: Session, model, ids) -> dict[str, Any]:
         row.id: row
         for row in session.scalars(select(model).where(model.id.in_(wanted)))
     }
-
 
 
 def _cutoff_days(older_than_days: int) -> datetime:
@@ -315,7 +307,6 @@ def _cutoff_days(older_than_days: int) -> datetime:
     return utcnow() - timedelta(days=days)
 
 
-#: 批量清理时每批取多少行。
 _PURGE_BATCH = 500
 
 
@@ -346,7 +337,6 @@ def _purge_rows(
     return {"deleted": total, "detail": detail}
 
 
-#: ``id_hash`` 是 ``sha256`` 的 hexdigest，合法前缀只可能是这些字符。
 _HEX_CHARS = frozenset("0123456789abcdef")
 
 
@@ -377,7 +367,6 @@ def _resolve_by_hash_hint(session: Session, model, hint: str, label: str):
     return rows[0]
 
 
-# 商品
 def _product_delete_refs(session) -> tuple[dict[str, int], dict[str, int]]:
     """统计每个商品被多少条授权 / 订单引用。
     """
@@ -406,7 +395,6 @@ def _admin_product_context(session, product_ids=None) -> dict:
     }
 
 def _product_admin_payload(session, product: Product, context: dict | None = None) -> dict:
-    #: 单商品路径（新建/更新返回）也只统计这一张商品。
     context = context or _admin_product_context(session, [product.id])
     payload = product_payload(
         product,
@@ -415,21 +403,17 @@ def _product_admin_payload(session, product: Product, context: dict | None = Non
         customer_count=int(context["stats"]["customer"].get(product.id, 0)),
         purchase_count=int(context["stats"]["purchase"].get(product.id, 0)),
     )
-    # 后台比前台多几个运营字段
     payload["originalPriceCents"] = product.original_price_cents
     payload["requiresLicense"] = bool(product.requires_license)
     payload["note"] = product.note
-    # 把删除守卫的判定依据原样交给前端，确认弹窗才能如实预告「真删」还是「下架」
     payload["licenseCount"] = int(context["licenses"].get(product.id, 0))
     payload["orderCount"] = int(context["orders"].get(product.id, 0))
     return payload
 
-# 订单
 _FULFILLABLE_STATUS_TEXT = " / ".join(
     ORDER_STATUS_LABELS.get(code, code) for code in ORDER_FULFILLABLE_STATUSES
 )
 
-# 商品图片 / 设备绑定：删除与修正
 def _safe_image_target(root: Path, raw: str) -> Path | None:
     """把库里的商品图相对路径解析成绝对路径；越界返回 ``None``。
     """

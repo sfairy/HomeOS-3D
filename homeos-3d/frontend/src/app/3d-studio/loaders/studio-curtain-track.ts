@@ -1,8 +1,4 @@
-/**
- * 帘轨 / 帘布的可配置字段。全部可选：绑定记录、场景模型、材质库都往这里塞字段，
- * 缺省值统一由 clampOptionalNumber / normalizeCurtainTrack 兜底，所以这里只声明「有哪些旋钮」。
- * 数值型字段同时接受字符串：绑定数据来自 JSON，历史上存在字符串形态。
- */
+/** 帘轨 / 帘布的可配置字段。 */
 type CurtainTrackOptions = {
   /** 帘种：「roller」走卷帘分支，其余按帘轨处理。 */
   curtainForm?: string;
@@ -29,9 +25,9 @@ type CurtainTrackOptions = {
   depth?: number | string;
 };
 
-/** 帘布 / 帘杆的颜色覆盖，由材质库按主题传入；缺省时用内置色。 */
+/** 帘布 / 帘杆的颜色覆盖，由材质库按主题传入； */
 type CurtainColorOverrides = {
-  /** 直接替换帘布材质；给定时 light 不再生效。 */
+  /** 直接替换帘布材质； */
   material?: any;
   /** 帘布底色。 */
   light?: number;

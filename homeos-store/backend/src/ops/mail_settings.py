@@ -9,19 +9,13 @@ from ..config import StoreSettings
 from ..core.models import DEFAULT_SUPPORT_EMAIL, StoreSetting
 from ..security.secret_fields import mask_secret
 
-#: 后台可选的邮件投递方式。"" 表示跟随环境变量，不是投递方式。
-#: **没有 echo**：那个模式会把验证码明文回给调用方，而它只在「请求来自本机」时才生效 ——
-#: 一道依赖对端 IP 与转发头的判定，部署形态一变就可能失效，失效的后果是任何人都能读到
-#: 别人的验证码。本地联调请用 log（写服务端日志）或直接配 SMTP。
 MAIL_MODES = ("log", "smtp")
 
 SMTP_SECURITY_MODES = ("ssl", "starttls", "plain")
 
-#: 各加密方式的行业标准端口。填了加密方式但没填端口时按它推导 ——
 DEFAULT_SMTP_PORTS: dict[str, int] = {"ssl": 465, "starttls": 587, "plain": 25}
 
 
-#: 常见服务商的 SMTP 接入参数（后台「注册邮箱验证码 → 邮箱预设」的一键填充源）。四个字段
 SMTP_PRESETS: tuple[dict[str, object], ...] = (
     {
         "id": "qq",
@@ -113,7 +107,6 @@ def mail_presets_payload() -> list[dict]:
         for preset in SMTP_PRESETS
     ]
 
-#: 验证码有效期的上下限（秒）。下限 60 秒是「用户来得及复制粘贴」的底线；
 MIN_TTL_SECONDS = 60
 MAX_TTL_SECONDS = 3600
 
@@ -131,7 +124,6 @@ def merge_mail_settings(
 
     mode = _text(getattr(setting, "mail_mode", "")).lower()
     if mode not in MAIL_MODES:
-        # 库里的脏数据（人工改库、旧版本写坏）按「未配置」处理，跟随环境变量。
         mode = ""
 
     security = _text(getattr(setting, "smtp_security", "")).lower()
@@ -143,7 +135,6 @@ def merge_mail_settings(
         starttls = security == "starttls"
         port = int(getattr(setting, "smtp_port", 0) or 0) or DEFAULT_SMTP_PORTS[security]
     else:
-        # 没选加密方式：两个布尔开关与端口都跟随环境变量
         use_ssl = settings.smtp_use_ssl
         starttls = settings.smtp_starttls
         port = int(getattr(setting, "smtp_port", 0) or 0) or settings.smtp_port
@@ -234,7 +225,6 @@ def mail_delivery_summary(
         "smtpPortFromDatabase": bool(int(getattr(setting, "smtp_port", 0) or 0)),
         "smtpUsername": merged.smtp_username,
         "smtpUsernameFromDatabase": bool(_text(getattr(setting, "smtp_username", ""))),
-        #: 授权码永不回显，只报「有没有」和打码值（确认换没换成）。
         "smtpPasswordConfigured": bool(merged.smtp_password),
         "smtpPasswordMasked": mask_secret(database_password),
         "smtpPasswordFromDatabase": bool(database_password),
@@ -251,20 +241,16 @@ def mail_delivery_summary(
         "verificationCooldownFromDatabase": bool(
             int(getattr(setting, "verification_cooldown_seconds", 0) or 0)
         ),
-        #: 全站小时上限：触顶时**所有**用户都收不到码，所以后台必须能看到当前值。
         "verificationGlobalHourlyLimit": int(merged.verification_global_hourly_limit or 0),
         "verificationGlobalHourlyLimitFromDatabase": bool(
             int(getattr(setting, "verification_global_hourly_limit", 0) or 0)
         ),
-        #: 发货邮件与验证码共用 SMTP；NULL 视为开启。
         "deliveryEmailEnabled": _enabled_flag(
             getattr(setting, "delivery_email_enabled", None)
         ),
         "smtpReady": bool(merged.smtp_ready),
         "smtpMisconfigured": bool(merged.smtp_misconfigured),
         "deliveryEnabled": bool(merged.mail_delivery_enabled),
-        #: 本部署的默认邮箱。后台拿它预填「测试收件邮箱」、SMTP 账号与发件人，
         "defaultEmail": DEFAULT_SUPPORT_EMAIL,
-        #: 服务商预设清单。放在**服务端**而不是前端硬编码：这张表同时是默认值的
         "presets": mail_presets_payload(),
     }

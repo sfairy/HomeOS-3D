@@ -5,7 +5,6 @@ from __future__ import annotations
 import zlib
 from collections.abc import Sequence
 
-#: 值得压的响应类型前缀。只列文本类：图片 / 字体（woff2 本就是压缩格式）压了只会更慢。
 COMPRESSIBLE_CONTENT_TYPES: tuple[str, ...] = (
     'application/javascript',
     'application/json',
@@ -15,13 +14,10 @@ COMPRESSIBLE_CONTENT_TYPES: tuple[str, ...] = (
     'text/',
 )
 
-#: 小于它不压：压完更大，而且要把 Content-Length 换成 chunked 编码。
 MINIMUM_SIZE = 1024
 
-#: 压缩级别。取 6 而不是 9：这一档是 CPU 与体积的拐点。
 _COMPRESSION_LEVEL = 6
 
-#: 15 位窗口 + 16 表示「gzip 容器」，与 gzip(1) 的默认口径一致，兼容性最好。
 _GZIP_WBITS = 16 + zlib.MAX_WBITS
 
 _HEADER_CONTENT_ENCODING = b'content-encoding'
@@ -48,7 +44,6 @@ def _header(headers: Sequence[tuple[bytes, bytes]], name: bytes) -> bytes | None
 def _is_compressible_type(headers: Sequence[tuple[bytes, bytes]], allowed: Sequence[str]) -> bool:
     raw = _header(headers, _HEADER_CONTENT_TYPE)
     if not raw:
-        # 没有类型就无法判断「压它安不安全」：宁可明文下发，也不要压一份二进制。
         return False
     content_type = raw.decode('latin-1').split(';')[0].strip().lower()
     return any(content_type.startswith(prefix) for prefix in allowed)
@@ -84,7 +79,6 @@ class _GZipSend:
         self._send = send
         self._allowed_types = allowed_types
         self._minimum_size = minimum_size
-        # 压缩器只在「决定压」的那一刻建；为 None 表示这份响应原样放行。
         self._compressor = None
         self._passthrough = False
 
@@ -112,7 +106,6 @@ class _GZipSend:
 
         body = message.get('body') or b''
         more_body = bool(message.get('more_body'))
-        # 压不满一个块时 zlib 会自己攒着，这里不必再包一层缓冲。
         payload = self._compressor.compress(body)
         if not more_body:
             payload += self._compressor.flush()
@@ -134,7 +127,6 @@ class SelectiveGZipMiddleware:
         self.minimum_size = minimum_size
 
     async def __call__(self, scope, receive, send) -> None:
-        # WebSocket / lifespan 没有响应实体可言，原样放行。
         if scope['type'] != 'http':
             await self.app(scope, receive, send)
             return

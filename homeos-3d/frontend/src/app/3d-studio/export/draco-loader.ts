@@ -9,12 +9,7 @@ function toWorkerError(event) {
   const messageText = String(event?.message || "").trim();
   return new Error(messageText || "Draco 同源解码 Worker 启动失败");
 }
-/**
- * 从解码器文件的 URL 反推它所在的目录（含结尾 `/`）。取不到时返回空串，由调用方判定「没配」。
- *
- * r186 的基类只保留 `decoderPaths`（一个对象），没有能直接喂给 Worker 的目录字符串；
- * 少了它，Worker 里的 `importScripts` 会以 Worker 脚本自身所在目录为基准，找不到解码器。
- */
+/** 从解码器文件的 URL 反推它所在的目录（含结尾 `/`）。 */
 function directoryFromDecoderUrl(url) {
   const value = String(url || "").trim();
   if (!value) return "";
@@ -36,12 +31,7 @@ export class SameOriginDRACOLoader extends DRACOLoader {
       this
     );
   }
-  /**
-   * 静默写入解码器配置。
-   *
-   * 基类的 `setDecoderConfig` 自 r186 起已废弃（调用会打 console.warn，r194 移除），
-   * 这里直接写字段，行为与基类一致但不出告警。
-   */
+  /** 静默写入解码器配置。 */
   setDecoderConfig(config) {
     return ((this.decoderConfig = config), this);
   }
@@ -82,8 +72,8 @@ export class SameOriginDRACOLoader extends DRACOLoader {
                 for (const pending of Object.values<DracoPendingCallback>(worker._callbacks))
                   pending.reject(fatalError);
                 worker._callbacks = {};
-                // 毒化 Worker 必须立刻出池并销毁：它永久占着槽位，池满后 _getWorker
-                // 只会反复选到它并抛 _fatalError，再也没有重建机会。
+
+
                 const poolIndex = this.workerPool.indexOf(worker);
                 poolIndex >= 0 && this.workerPool.splice(poolIndex, 1);
                 (worker.terminate(), errorEvent.preventDefault?.());

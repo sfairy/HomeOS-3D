@@ -131,7 +131,7 @@ function isModelTypeBound(modelType, bindingCandidate) {
             : !!bindingCandidate.entityId;
 }
 export function pageModelBindings(floors, sceneBindings, page, floorId) {
-  // 键是 floorId+modelId 组合键，值是宿主下发的场景绑定记录（字段随场景类型变化）
+
   const map = new Map<string, any>(
     sceneBindings.map((sceneBinding) => [
       JSON.stringify([sceneBinding.floorId, sceneBinding.modelId]),
@@ -189,7 +189,7 @@ export function createEnvironmentScene({
     variantsBySourceMaterial = new Map(),
     set = new Set<any>(),
     retainedRootSet = new Set(),
-    // 材质条目记录 mesh/original/applied/modelNode/modelKey 等，运行时逐步补全
+
     retainedEntriesByMesh = new Map<any, any>(),
     modelKeysByRetainedRoot = new Map(),
     retainedKeySet = new Set(),

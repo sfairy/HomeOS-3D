@@ -26,24 +26,22 @@ import os
 import sys
 from pathlib import Path
 
-#: 命中即失败的规则：这些不是「类型不够严谨」，而是运行期会直接抛异常的写法。
 HARD_RULES = frozenset(
     {
-        "reportPossiblyUnboundVariable",  # 条件分支里可能未赋值 → UnboundLocalError
-        "reportUninitializedInstanceVariable",  # 属性从未初始化 → AttributeError
-        "reportUnusedExcept",  # 永远捕不到的 except
+        "reportPossiblyUnboundVariable",
+        "reportUninitializedInstanceVariable",
+        "reportUnusedExcept",
     }
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-#: 直方图里最多列几个文件/规则，避免日志被刷屏。
 TOP_LIMIT = 15
 
 
 def _relative(file_path: str) -> str:
     try:
         return Path(os.path.relpath(file_path, REPO_ROOT)).as_posix()
-    except ValueError:  # 不同盘符等极端情况：退回原样输出
+    except ValueError:
         return file_path
 
 

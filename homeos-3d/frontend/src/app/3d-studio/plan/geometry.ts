@@ -201,34 +201,7 @@ export function localSpotShadowSettings(
 export function distance(firstPoint, secondPoint) {
   return Math.hypot(secondPoint.x - firstPoint.x, secondPoint.y - firstPoint.y);
 }
-/**
- * 玻璃推拉门的**展示开度**（0 = 两扇对齐合拢，1 = 活动扇完全叠到固定扇上）。
- *
- * 「玻璃推拉门」这一档的语义是**常开**（与入户门档位的「常闭」相对）：平面上画错开的两扇、
- * 三维里把活动扇推出去，一眼能看出这是一樘敞着的推拉门，而不是一堵玻璃墙。
- *
- * ⚠️ 这里有个**此消彼长**的硬约束，调值前先看一眼，不然很容易来回改：
- * 门扇宽按洞口的 0.54L 取（见 `studio-app.ts` 的 `doorLeafMaxWidth`），两扇基准中心相距 0.46L，
- * 全行程也只有 0.46L。于是
- *
- *     洞口净开 = 0.46L × openRatio      两扇错开量 = 0.46L × (1 − openRatio)
- *
- * 两者之和恒等于 0.46L —— **想让洞口让得越开，两扇就必然重得越死**，没有两头都占的取值。
- * 以 2.0m 洞口为例：
- *
- *     openRatio │ 洞口净开        │ 两扇错开
- *        0.5    │ 0.46m (23%)    │ 0.46m（错开半个身位，中缝被占满 → 看着像关着）
- *        2/3    │ 0.61m (31%)    │ 0.31m
- *        0.8    │ 0.74m (37%)    │ 0.18m  ← 现取值（三维开阔、平面两扇仍看得出错位）
- *        1.0    │ 0.92m (46%)    │ 0.00m（两扇完全重合 → 看着像一扇，太"收"）
- *
- * 取值理由：`1` 虽然洞口最敞，但两扇严丝合缝地叠成一扇，观感上**像是门被摘走了**；`0.5` 又因为
- * 活动扇正停在洞口中央、净开只剩 23%，**看着像没开**。取 `0.8` —— 洞口净开约 37%（一眼就是
- * 敞着的），两扇仍错开约 0.18m（还看得出是两扇推拉门），两头都不吃亏。
- *
- * 二维平面与三维模型（`studio-app.ts` 的 `sliding-glass` 分支）都读这一个值，两边不能各写
- * 各的魔数 —— 之前就是 2D 写 `2/3`、3D 写 `* (2/3)`，两份保持一致纯属巧合。
- */
+/** 玻璃推拉门的**展示开度**（0 = 两扇对齐合拢，1 = 活动扇完全叠到固定扇上）。 */
 export const SLIDING_DOOR_DISPLAY_OPEN_RATIO = 0.8;
 
 export function slidingDoorPanelCenters(
@@ -1197,9 +1170,7 @@ export function wallSolidPieces(solidTargetWall, wallSegmentList, wallUnitScale,
   }
   return solidPieces;
 }
-/**
- * 点吸附选项。
- */
+/** 点吸附选项。 */
 type PointSnapOptions = {
   /** 端点吸附，默认开。 */
   snapEndpoints?: boolean;
@@ -1241,7 +1212,7 @@ type ResizeSizeLimits = {
   maximum?: number;
 };
 
-/** resizeRotatedItemFromCorner 的结果矩形；只有源矩形带高度时才补 height。 */
+/** resizeRotatedItemFromCorner 的结果矩形； */
 type ResizedRectangle = {
   x: number;
   y: number;

@@ -17,9 +17,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from ..licensing import keys
 
-#: 传输协议标识。**改动它等于把所有已部署客户端踢下线**：它参与 HKDF 的 info 与 AES-GCM
 PROTOCOL = b"homeos-license-transport-v1"
-#: 激活时客户端上报的产品标识，服务端严格比对。
 PRODUCT = "homeos"
 
 

@@ -10,11 +10,7 @@ export function cacheHistorySeries(cache, entityId, series) {
       cache.delete(oldestKey);
     }
 }
-// ──────────────────────────────────────────────────────────────────────
-// 下面 5 个类沿用原有写法：构造函数里 `this.x = ...` 逐个赋值。
-// TS 6 不再据此推断实例属性（共 261 个 TS2339），故集中声明。
-// `declare` 保证零产码 —— 注意本工程 target 为 ES2022，裸声明会产码改变行为。
-// ──────────────────────────────────────────────────────────────────────
+
 
 /** 计时器句柄：浏览器是 number，Node 是 Timeout，故保持不透明。 */
 type CacheTimerHandle = any;

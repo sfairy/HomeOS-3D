@@ -1,9 +1,6 @@
 import { createBackgroundTheme } from "./background-theme";
 
-/**
- * 背景外观配置：只列本模块读的键。
- * sceneStyle / *Theme 决定暖木主题与冷暖色，backgroundMotion 只有显式 false 才关掉动效。
- */
+/** 背景外观配置：只列本模块读的键。 */
 type BackgroundAppearanceConfig = {
   sceneStyle?: unknown;
   warmBackgroundTheme?: unknown;
@@ -194,7 +191,7 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
     get cacheBackground() {
       return isWarmWood && isBackgroundEnabled ? warmBackdrop : null;
     },
-    // config 来自外观设置对象：这几个键都要「缺省即保持默认行为」，因此只声明用到的字段。
+
     configure(configuredTheme, config: BackgroundAppearanceConfig = {}) {
       const isWarmWoodNext = config.sceneStyle === "warm-wood",
         nextWarmDusk =

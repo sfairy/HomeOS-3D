@@ -1,6 +1,4 @@
-/*
- * 前端唯一的「接口失败 → 人话」实现：把 FastAPI 422 的 detail 数组、`{msg}` /
- */
+
 
 type DetailEntry = {
   loc?: unknown;
@@ -8,7 +6,7 @@ type DetailEntry = {
   message?: unknown;
 };
 
-// 单个 422 条目 → 一行人话。认不出来时给「取值不合法」，不把对象本身泄露出去。
+
 function describeEntry(entry: unknown): string {
   if (typeof entry === 'string') return entry;
   if (!entry || typeof entry !== 'object') return '取值不合法';
@@ -43,7 +41,7 @@ export type ApiError = Error & {
   retryAfter?: number;
 };
 
-// 非 2xx 响应 → 带状态码的 Error。调用方据此区分「没登录」（401/403，正常状态）
+
 export function fromResponse(
   response: Response,
   data: unknown,

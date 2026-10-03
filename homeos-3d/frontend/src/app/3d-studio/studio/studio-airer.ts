@@ -1,5 +1,5 @@
 import { RoundedBoxGeometry } from "/static/vendor/three/0.186.0/RoundedBoxGeometry.js";
-// 尺寸输入来自文档里的任意属性，允许缺省也允许脏值（numberOrDefault 会兜底）。
+
 type AirerDimensionOptions = {
   elevation?: unknown;
   airerExtension?: unknown;

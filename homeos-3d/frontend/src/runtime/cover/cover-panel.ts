@@ -6,7 +6,7 @@ import {
   coverCanAdjustBlades,
 } from "./cover-state";
 import { domElement } from "@app/utils/dom-factory";
-/** cover 面板的宿主元素与回调；element 缺省时面板自建节点，所以是可选的。 */
+/** cover 面板的宿主元素与回调； */
 type CoverPanelOptions = {
   element?: any;
   onControl?: (...args: any[]) => any;
@@ -15,10 +15,7 @@ type CoverPanelOptions = {
   onLayout?: (...args: any[]) => any;
 };
 
-/**
- * 面板视图模型由 stage 的 update() 注入：字段来自运行时设备状态（动态属性袋），
- * 这里按实际访问到的键显式列出并全部保持可选，不做窄化假设。
- */
+/** 面板视图模型由 stage 的 update() 注入：字段来自运行时设备状态（动态属性袋），这里按实际访问到的键显式列出并全部保持可选，不做窄化假设。 */
 type CoverPanelViewModel = {
   item?: any;
   states?: any;
@@ -149,9 +146,8 @@ export function createCoverPanel({
         ...deviceState,
         closedConfirmed: deviceState.closedConfirmed && !isRailUnconfirmed,
       },
-    // 梦幻帘叶片角度的唯一展示来源：拖动草稿 > 待确认目标 > 动画估算 > 上报值。
-    // 读数（output）与滑杆必须共用它，否则命令下发后读数会退回陈旧的 deviceState.tiltPosition，
-    // 出现「滑杆已到目标、数字还停在旧值」的状态不一致。
+
+
     resolveDreamBladePosition = () =>
       viewModel.presentation?.tiltTarget ??
       viewModel.presentation?.tiltPosition ??
@@ -330,8 +326,8 @@ export function createCoverPanel({
         : "尚未绑定设备";
     const isDreamCover = viewModel.item?.coverKind === "dream",
       isAirerItem = viewModel.item?.airer,
-      // 梦幻帘的整体开合文案：有独立叶片通道时来自整体上报，没有时来自 state
-      // （cover-state 已把 state 保留成整体开/合）。存在它就不该再被后面的“在线”兜底覆盖。
+
+
       dreamStateLabel = {
         open: "整体已开启",
         closed: "整体已关闭",

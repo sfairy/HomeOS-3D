@@ -13,13 +13,8 @@ from ..security.security import utcnow
 
 logger = logging.getLogger("src.commerce.coupons")
 
-#: 合法的折扣类型白名单。结算逻辑（``src.api.store``）只区分 ``fixed``
 DISCOUNT_TYPES = frozenset({"percent", "fixed"})
 
-#: 「名额已归还」的订单状态：这些路径都调用 :func:`release_coupon`，核销记录不再占名额，
-#: 全额退款也归还名额：钱已经退回去了，这笔单不该再占着一个折扣额度。
-#: 库存预留的归还在退款路径里本来就会做（admin_orders 的 _release_...），唯独
-#: 优惠码名额过去没有跟着走，于是「退了款的名额」会一直被锁着。
 RELEASED_STATUSES = frozenset(
     {"cancelled", "expired", "payment_failed", "refunded"}
 )
@@ -81,7 +76,6 @@ def redeem_coupon(
             func.coalesce(Coupon.redeemed_count, 0) < int(coupon.max_redemptions)
         )
     if coupon.per_account_limit:
-        # 该账号仍占用中的核销记录数，作为**相关标量子查询**参与 WHERE；整个判断与自增在同一条
         used_subquery = (
             select(func.count(CouponRedemption.id))
             .select_from(CouponRedemption)
@@ -193,14 +187,12 @@ def reoccupy_coupon(session: Session, order: Order) -> bool:
         select(Coupon).where(func.lower(Coupon.code) == order.coupon_code.lower())
     ).first()
     if coupon is None:
-        # 码已经被删除：历史行为是放行（钱已经收了，不能因为码没了就不入账）。
         return True
 
     record = session.scalars(
         select(CouponRedemption).where(CouponRedemption.order_id == order.id)
     ).first()
     if record is not None and record.voided_at is None:
-        # 这一单本来就还占着名额（没有走过归还路径），不必再占用。
         return True
 
     if not coupon.active:
@@ -217,8 +209,6 @@ def reoccupy_coupon(session: Session, order: Order) -> bool:
             return False
 
     if record is None:
-        # 没有核销行可复活（例如订单建单时就失败了）。不能凭这一条凭空造一行：
-        # 那需要折扣额等建单时才有的信息。记账按现状重算，并留下痕迹。
         logger.warning(
             "复活单找不到核销记录，名额未重新占用 order=%s code=%s",
             order.order_no,

@@ -1,13 +1,3 @@
-# [补充说明] 3D 交互增量包的全部 HTTP 路由，统一挂在 /modules/interaction3d 前缀下。
-#
-# 四类资源：
-# - 户型快照：把 studio 草稿冻结成不可变的 sceneId 快照（含底图副本），供舞台页长期读取；
-# - 舞台页：下发 3d-studio.html，并注入样式与「灯光历史作用域」；
-# - 设备控制：灯光 / 开关直接转发 HA，电视、空调、窗帘先做配置与能力校验；
-# - 渲染缓存：舞台页回传的灯光合图 PNG，按 (项目, 户型, 缓存键) 分目录存放。
-#
-# 鉴权口径：读接口用 LicensedViewer（认证 + api 授权 + sceneId 归属校验），
-# 写接口（建快照）用 LicensedUser（必须管理员登录），两者都再叠一层 require_access。
 from __future__ import annotations
 
 import hashlib
@@ -36,30 +26,20 @@ from ...models import HAEntity, ProjectDraft
 from ...request_origin import require_same_origin_write
 from ...schemas import HAServiceCallRequest
 
-# 这个前缀必须与前端请求、舞台页注入的样式链接保持一致。
 router = APIRouter(prefix='/modules/interaction3d', tags=['3D interaction'])
 
 LOGGER = logging.getLogger(__name__)
 
-# studio 快照的来源标记：只在服务端内部流转，不下发给前端。
 SCENE_SOURCE_KEY = 'interaction3dSource'
 
-# 运行时资源清单缓存：键是 (清单路径, mtime_ns)。构建一次换一个 mtime，
-# 缓存自然失效，不用重启后端；只保留当前这一代，避免反复构建把缓存撑大。
 _runtime_media_type_cache: dict[tuple[str, int], dict[str, str]] = {}
 
 
 def find_module_component(document: dict, component_id: str) -> dict | None:
-    # [补充说明] 在仪表盘文档里按控件 id 找 3D 交互控件；找不到返回 None。
     return next((item for _, item in module_components(document) if item.get('id') == component_id), None)
 
 
 def component_properties(database, project_id: str | None, component_id: str | None) -> dict:
-    # [补充说明] 取出某个仪表盘草稿里控件的 properties 配置。
-    #
-    # 草稿缺失、文档损坏、控件不存在都退化成空字典：调用方随后的「实体未配置到当前
-    # 控件」判定会自然拒绝，不必每个设备分支各写一遍「取草稿 → 找控件 → 读 properties」。
-    # 文档损坏由 decode_draft_document 记一条 warning 后按空文档处理，不让脏数据冒成 500。
     if not project_id or not component_id:
         return {}
     draft = database.get(ProjectDraft, project_id)
@@ -71,21 +51,12 @@ def component_properties(database, project_id: str | None, component_id: str | N
 
 
 def scene_snapshot(request: Request, database, scene_id: str) -> dict:
-    # [补充说明] 读取户型快照并叠加实时状态，返回 scene 子树。
-    #
-    # 快照文件不存在时 scene_path 抛 404；内容损坏由调用方包成 409 —— 两类失败
-    # 在设备控制分支里的文案不同，所以异常处理留在调用处。
     snapshot = load_scene_document(request, scene_id)
     return current_scene_payload(request, database, scene_id, snapshot)['scene']
 
 class Interaction3dControlRequest(HAServiceCallRequest):
-    # [补充说明] 3D 舞台页的设备控制请求：在 HA 服务调用之上补三个定位字段。
-    #
-    # projectId / componentId 用来反查控件配置（确认实体确实配到了这个控件上），
-    # deviceKind 由前端声明设备种类（如 television），后端仍会独立校验，不信任它。
     project_id: str = Field(default='', alias='projectId', max_length=128)
     component_id: str = Field(default='', alias='componentId', max_length=128)
-    # 长度上限与前端约定一致；空串表示未声明，后端不据此放宽任何校验。
     device_kind: str = Field(default='', alias='deviceKind', max_length=32)
     binding_id: str = Field(default='', alias='bindingId', max_length=128)
     binding_floor_id: str = Field(default='', alias='bindingFloorId', max_length=128)
@@ -93,26 +64,14 @@ class Interaction3dControlRequest(HAServiceCallRequest):
 
 
 def light_history_scope(connection, viewer, project_id: str) -> str:
-    # [补充说明] 算出一块屏的灯光历史作用域标识（sha256 十六进制摘要）。
-    #
-    # 前端用它给本地缓存的灯光历史分桶，避免同一块屏的多个项目、或不同屏之间串数据。
-    # 参与摘要的是 access_token 的哈希而不是令牌本身：换 HA 连接或换令牌即视为新作用域，
-    # 旧历史自然失效，但摘要里不会泄露令牌。
-    #
-    # 返回:
-    # 64 位十六进制字符串；任一前提缺失（无项目、无主体、无连接）时返回空串，
     principal = viewer.user or viewer.display
-    # 缺项目、缺主体身份或缺连接都退化到空作用域：宁可前端不缓存，也不共用错的分桶。
     if not project_id or principal is None or not principal.id or connection is None:
         return ''
     base_url = (connection.base_url or '').strip().rstrip('/')
     encrypted_token = connection.encrypted_access_token or ''
-    # 连接必须处于活跃状态且要素齐全，否则同样返回空作用域。
     if not (connection.is_active and connection.id and base_url and encrypted_token):
         return ''
-    # 固定顺序的列表而不是集合：摘要必须稳定可复现，顺序一变所有屏都会重新分桶。
     identity = [
-        # 版本前缀：分桶算法变更时改这一段，等于无声废弃所有旧分桶。
         'i3d-light-history-v1',
         'user' if viewer.user else 'display',
         principal.id,
@@ -121,18 +80,10 @@ def light_history_scope(connection, viewer, project_id: str) -> str:
         base_url,
         hashlib.sha256(encrypted_token.encode('utf-8')).hexdigest(),
     ]
-    # 规范序列化去掉多余空格：顺序由列表本身固定，摘要因此在任何 Python 版本下都可复现。
     return hashlib.sha256(json.dumps(identity, separators=(',', ':')).encode('utf-8')).hexdigest()
 
 
 def scene_path(request: Request, scene_id: str):
-    # [补充说明] 把 sceneId 解析成磁盘上的快照路径，并确认文件存在。
-    #
-    # 判定与拼路径都走 access.scene_snapshot_file：户型清理流程要做同一件事，
-    # 两处各写一份时「什么样的 sceneId 合法」迟早会分叉。
-    #
-    # 异常:
-    # HTTPException: 404，ID 格式非法，或快照已被清理。
     if not is_scene_id(scene_id):
         raise HTTPException(404, detail='户型快照不存在。')
     path = scene_snapshot_file(request.app.state.settings, scene_id)
@@ -142,10 +93,6 @@ def scene_path(request: Request, scene_id: str):
 
 
 def load_scene_document(request: Request, scene_id: str) -> dict:
-    # [补充说明] 读取户型快照原文；文件缺失 → 404（scene_path 抛出），内容损坏 → 409。
-    #
-    # 快照被写坏（截断 / 非法 JSON）时不能让它冒成 500：这是舞台页与墙屏的取景入口，
-    # 调用方需要一个能自动重试或提示重新导出户型的确定性错误码。
     try:
         payload = json.loads(scene_path(request, scene_id).read_text(encoding='utf-8'))
     except (OSError, ValueError) as error:
@@ -156,10 +103,6 @@ def load_scene_document(request: Request, scene_id: str) -> dict:
 
 
 def decode_draft_document(draft: ProjectDraft | None) -> dict | None:
-    # [补充说明] 解析仪表盘草稿的 document_json；草稿缺失或内容损坏都返回 None。
-    #
-    # 读草稿的两类调用方（鉴权门禁、控件配置读取）都不该因为库里的脏数据 500：
-    # 门禁按「没配到」拒绝、配置读取退化成空配置，错误由更上层的业务判定给出。
     if draft is None:
         return None
     try:
@@ -171,23 +114,11 @@ def decode_draft_document(draft: ProjectDraft | None) -> dict | None:
 
 
 def require_scene_viewer(request, database, viewer, scene_id, project_id):
-    # [补充说明] 要求当前主体有权读取这个户型快照，否则 403。
-    #
-    # 门禁顺序（先松后紧，逐层收口）：
-    # 1. 先过增量包授权，没买包的一律拒绝；
-    # 2. 管理员会话直接放行 —— 只有中控设备需要被限制在绑定项目内；
-    # 3. 中控设备必须是请求里声明的那个项目；
-    # 4. 最后确认该项目此刻的仪表盘文档里，确实有控件引用了这个 sceneId。
     require_access(request)
-    # 管理员不受项目限制，也不校验引用关系：后台需要能预览任意快照。
     if viewer.is_admin_session:
         return
     require_viewer_project(viewer, project_id)
-    # 关键一步：快照文件躺在共享目录里，必须确认当前项目的文档确实引用了它，
-    # 否则任一已配对设备换掉 URL 里的 sceneId 就能读到别人的户型。
     draft = database.get(ProjectDraft, project_id)
-    # 草稿损坏时按「没配到」拒绝（403）而不是 500：这是一道门禁，脏数据的答案
-    # 只能是「不放行」（统一入口）。decode_draft_document 会记 warning 后返回 None。
     document = decode_draft_document(draft)
     if not any(
         c.get('properties', {}).get('sceneId') == scene_id
@@ -198,20 +129,12 @@ def require_scene_viewer(request, database, viewer, scene_id, project_id):
 
 
 def require_scene_transfer(request, viewer, scene_id, project_id):
-    # [补充说明] require_scene_viewer 的「自建会话」版本，供同步路由直接调用。
-    #
-    # 这些路由已经通过 DatabaseSession 依赖拿到了会话，而 sceneId 归属校验要读草稿表，
-    # 这里另开一个短会话用完即关，避免把校验查询挂在请求级会话上延长它的生命周期。
     database = request.app.state.database.session_factory()
     with database:
         require_scene_viewer(request, database, viewer, scene_id, project_id)
 
 
 def current_scene_payload(request: Request, database, scene_id: str, reference: dict, *, since: str = '') -> dict:
-    # [补充说明] 取「此刻最新」的场景载荷：优先用 studio 草稿，回落到快照。
-    #
-    # since 非空表示前端正在跟踪同步：此时草稿读不出来必须报错（调用方转成 409 让它重试），
-    # 不能悄悄退化成快照，否则前端会以为「没有变化」而一直停在旧画面上。
     settings = request.app.state.settings
     source = settings.studio3d_draft_path
     if since and not source.is_file():
@@ -223,46 +146,32 @@ def current_scene_payload(request: Request, database, scene_id: str, reference: 
 
 @router.post('/scenes', status_code=201)
 def snapshot_scene(request: Request, _user: LicensedUser):
-    # [补充说明] 把 studio 的户型草稿冻结成一个不可变快照，返回 sceneId。
-    #
-    # 冻结的意义：studio 草稿会被继续编辑，而舞台页的 sceneId 必须长期指向同一份数据，否则同一块屏
-    # 刷新前后布局就变了。底图也复制一份，之后在 studio 里删掉素材也不影响已有快照。
-    #
-    # 草稿不存在、为空或 JSON 损坏时抛 409。
     require_same_origin_write(request)
     require_access(request)
-    # 没有草稿说明用户还没在 3D 户型图绘制里保存过，属于可预期状态，用 409 而非 404。
     source = request.app.state.settings.studio3d_draft_path
     if not source.is_file():
         raise HTTPException(409, detail='请先在 3D 户型图绘制中绘制并保存户型。')
     try:
         payload = json.loads(source.read_text(encoding='utf-8'))
-        # 顶层必须有 scene 字典：studio 可能只写出了半成品或空文件。
         if not isinstance(payload, dict) or not isinstance(payload.get('scene'), dict):
             raise HTTPException(409, detail='户型数据为空，请先在 3D 户型图绘制中保存户型。')
     except (OSError, ValueError) as error:
         raise HTTPException(409, detail='户型暂时无法读取，请检查保存状态。') from error
-    # 标记这份快照的来源是 studio 草稿，舞台页据此区分模板场景。
     payload[SCENE_SOURCE_KEY] = 'studio'
-    # uuid4().hex 即 32 位十六进制，天然满足 scene_path 对 sceneId 的格式校验。
     scene_id = uuid4().hex
     folder = request.app.state.settings.data_dir / 'modules' / 'interaction3d' / 'scenes'
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / f'{scene_id}.json'
-    # 'x' 独占创建：sceneId 是新的，万一撞名也宁可报错，不覆盖已有快照。
     with path.open('x', encoding='utf-8') as output:
         json.dump(payload, output, ensure_ascii=False)
-    # 384（八进制 600）：快照含户型细节，只给属主读写。
     path.chmod(384)
     scene = payload['scene']
     for floor in scene.get('floors', []):
         background = floor.get('scene', {}).get('background') or {}
-        # 底图资源 ID 形如 user:<hash>，去掉前缀后才是素材目录里的文件名。
         asset_id = str(background.get('assetId', '')).removeprefix('user:')
         asset = user_asset_file(request.app.state.settings.user_assets_dir.resolve(), asset_id)
         if not asset:
             continue
-        # 复制成 <sceneId>-<assetId><后缀>，与快照同目录，清理场景时可一并删除。
         suffix = asset.suffix.lower()
         shutil.copyfile(asset, folder / f'{scene_id}-{asset_id}{suffix}')
     return {'sceneId': scene_id}
@@ -270,84 +179,54 @@ def snapshot_scene(request: Request, _user: LicensedUser):
 
 @router.get('/scenes/{scene_id}')
 def get_scene(scene_id: str, request: Request, viewer: LicensedViewer, projectId: str = ''):
-    # [补充说明] 读取一份户型快照（底图 URL 已注入）。
-    #
-    # 返回快照原文，只在每个楼层的背景上补一个指向本模块 background 路由的 url，
-    # 让前端统一按 url 取图，不必自己拼路径与鉴权参数。
     require_scene_transfer(request, viewer, scene_id, projectId)
     payload = load_scene_document(request, scene_id)
     scene = payload['scene']
-    # 局部导入：只有本路由与 get_current_scene 用到 urlencode，放模块顶部属于噪音。
     from urllib.parse import urlencode
     for floor in scene.get('floors', []):
         background = floor.get('scene', {}).get('background') or {}
         asset_id = str(background.get('assetId', '')).removeprefix('user:')
-        # 只给本模块冻结过来的哈希底图补 url；其它素材走别的通道，不在这里兜底。
         if not re.fullmatch('[0-9a-f]{32}', asset_id):
             continue
-        # url 上带 projectId：中控设备取图时要用它过 require_viewer_project。
         background['url'] = f'/api/v1/modules/interaction3d/scenes/{scene_id}/background/{asset_id}?{urlencode({"projectId": projectId})}'
-    # 模板来源标记只在服务端内部流转，不下发给前端。
     payload.pop(SCENE_SOURCE_KEY, None)
     return JSONResponse(payload, headers={'Cache-Control': 'no-store'})
 
 
 @router.get('/scenes/{scene_id}/current')
 def get_current_scene(scene_id: str, request: Request, database: DatabaseSession, viewer: LicensedViewer, projectId: str = '', since: str = ''):
-    # [补充说明] 对比 studio 草稿与参考快照，返回最新场景；无变化时返回 204。
-    #
-    # since 是前端上次拿到的 syncKey，两者一致说明没有改动，直接回 204 ——
-    # 这是舞台页轮询的主路径，避免每次轮询都回传整份户型。
-    #
-    # 异常:
-    # HTTPException: 409，前端带了 since（说明正在跟踪同步）但草稿读不出来或写了一半。
     require_scene_transfer(request, viewer, scene_id, projectId)
     reference = load_scene_document(request, scene_id)
     try:
-        # 载荷来源（草稿 / 快照）由 current_scene_payload 统一决定，
-        # 带 since 时读不出草稿会抛 ValueError，转成 409 让前端稍后重试。
         payload = current_scene_payload(request, database, scene_id, reference, since=since)
         if not isinstance(payload.get('scene'), dict):
             raise ValueError('missing scene')
     except (OSError, ValueError, AttributeError) as error:
-        # 已在同步中却读到坏草稿：给 409，让前端按既定节奏稍后自动重试。
         if since:
             raise HTTPException(409, detail='户型保存尚未完成，稍后自动重试。') from error
         payload = reference
-    # syncKey 只对 scene 本身做规范化哈希：包装字段（如本地临时状态）变化不算改动。
     key = hashlib.sha256(json.dumps(payload['scene'], sort_keys=True, separators=(',', ':')).encode()).hexdigest()
-    # 无变化：回 204 空响应，前端什么都不用做，这是轮询的主路径。
     if key == since:
         from fastapi.responses import Response
         return Response(status_code=204, headers={'Cache-Control': 'no-store'})
     payload['syncKey'] = key
-    # referenceScene 是快照里的对照版本，供前端做本地比对与回滚。
     payload['referenceScene'] = reference['scene']
     from urllib.parse import urlencode
-    # 与 get_scene 相同的底图 URL 注入，只是这里的场景来自实时草稿。
     for floor in payload['scene'].get('floors', []):
         background = floor.get('scene', {}).get('background') or {}
         asset_id = str(background.get('assetId', '')).removeprefix('user:')
         if not re.fullmatch('[0-9a-f]{32}', asset_id):
             continue
         background['url'] = f'/api/v1/modules/interaction3d/scenes/{scene_id}/background/{asset_id}?{urlencode({"projectId": projectId})}'
-    # 模板来源标记只在服务端内部流转，不下发给前端。
     payload.pop(SCENE_SOURCE_KEY, None)
-    # 同样 no-store：场景来自草稿、随时会变，更不能让浏览器缓存。
     return JSONResponse(payload, headers={'Cache-Control': 'no-store'})
 
 
 @router.get('/scenes/{scene_id}/background/{asset_id}')
 def get_background(scene_id: str, asset_id: str, request: Request, viewer: LicensedViewer, projectId: str = ''):
-    # [补充说明] 读取户型快照的底图。
-    #
-    # 先找随快照一起冻结的本地副本（``<sceneId>-<assetId><后缀>``）；副本缺失（冻结时复制失败、
-    # 素材后来才补上）时回退到用户素材库，此时要求该素材被全局草稿里某个楼层的背景引用过
-    # （``studio3d_draft_path`` 里的 scene.floors）。两种来源都取不到时抛 404。
     require_scene_transfer(request, viewer, scene_id, projectId)
     path = scene_path(request, scene_id)
     folder = path.parent
-    # 只接受 32 位十六进制（user: 前缀后的哈希），排除路径穿越与任意文件名猜测。
     if re.fullmatch('[0-9a-f]{32}', asset_id):
         for suffix, media_type in UPLOAD_CONTENT_TYPES.items():
             copy_path = folder / f'{scene_id}-{asset_id}{suffix}'
@@ -355,11 +234,9 @@ def get_background(scene_id: str, asset_id: str, request: Request, viewer: Licen
                 continue
             return FileResponse(copy_path, media_type=media_type, headers={'Cache-Control': 'no-store'})
     try:
-        # 回退路径：快照建立时复制失败，或素材是后来才补上的，就从用户素材库直读。
         scene = json.loads(
             request.app.state.settings.studio3d_draft_path.read_text(encoding='utf-8')
         )['scene']
-        # 必须被当前草稿的某个楼层背景引用才放行。
         referenced = any(
             str((floor.get('scene', {}).get('background') or {}).get('assetId', '')).removeprefix('user:') == asset_id
             for floor in scene.get('floors', [])
@@ -368,7 +245,6 @@ def get_background(scene_id: str, asset_id: str, request: Request, viewer: Licen
         if asset:
             return FileResponse(asset, headers={'Cache-Control': 'no-store'})
     except (OSError, ValueError, KeyError, AttributeError):
-        # 草稿损坏或不存在时直接落到 404，不向调用方暴露内部状态。
         pass
     raise HTTPException(404, detail='户型底图不存在。')
 
@@ -407,18 +283,6 @@ async def water_heater_capabilities(
 
 @router.post('/control')
 async def control_light(payload: Interaction3dControlRequest, request: Request, database: DatabaseSession, viewer: LicensedViewer):
-    # [补充说明] 3D 舞台页的设备控制入口，按 domain 走四条不同的校验路径。
-    #
-    # - media_player / 前端声明为 television：确认实体确实配在该控件的电视列表里，且对应电视模型仍在
-    # 场景中，再按 supported_features 位掩码核对能力；
-    # - cover / climate：确认环境配置里的绑定与场景中的窗帘 / 空调模型，再取 HA 实时状态做能力校验；
-    # - fan：确认净化器配在该控件的 environment.airPurifiers 里、对应模型仍在场景中，
-    # 再取 HA 实时状态做能力校验；
-    # - 其余（light / switch）：只允许 turn_on / turn_off，直接转发 HA 服务调用。
-    #
-    # ``payload`` 含 domain / service / entity_id / data 与定位字段，``viewer`` 是已认证且通过 api
-    # 授权的主体。403 实体未配置到当前控件；404 实体不存在或已禁用；409 状态不可用或模型失联；
-    # 415 / 413 / 422 参数或能力不匹配。
     require_access(request)
     if payload.device_kind == 'speaker':
         from .speaker import validate_speaker_command
@@ -552,8 +416,6 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         require_viewer_project(viewer, payload.project_id)
         properties = component_properties(database, payload.project_id, payload.component_id)
         bindings = properties.get('environment', {}).get('airConditioners' if is_climate_extra or is_bath_heater else 'airers' if is_airer else 'fans' if is_fan else 'waterHeaters' if is_water_heater else 'curtains' if is_cover else 'airPurifiers' if payload.domain == 'fan' or extra_domain else 'airConditioners', [])
-        # 先落空列表：下面 `require_binding_model` 闭包与 extra_domain 分支会读这两个名字，
-        # 显式初始化既让「可能未绑定」的静态告警消失，也避免以后调整分支顺序时踩到 UnboundLocalError。
         generic_bindings = []
         valid_owners = []
         if is_bath_heater:
@@ -660,29 +522,17 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
 
 @router.get('/stage.html')
 def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId: str = ''):
-    # [补充说明] 下发舞台页 HTML，并注入阶段样式与灯光历史作用域。
-    #
-    # 用字符串替换而不是改静态文件：这份页面与编辑器共用同一个文件，这里只做两处追加 ——
-    # <head> 末尾挂本模块样式，<body> 上挂 class 与 data-* 作用域。
-    # 页面本身 no-store，保证改版后前端立刻拿到新版本。
-    #
-    # 两处追加都**必须命中**，否则整页会退化成工作室界面（见各处的断言）。
     database = request.app.state.database.session_factory()
     with database:
         require_scene_viewer(request, database, viewer, sceneId, projectId)
-        # 作用域要在会话关闭前算完，它依赖 HA 连接表。
         scope = light_history_scope(active_connection(database), viewer, projectId)
     scene_path(request, sceneId)
     settings = request.app.state.settings
     html = (settings.frontend_dir / '3d-studio.html').read_text(encoding='utf-8')
-    # 样式表带固定版本号：页面本身 no-store，URL 变了浏览器才会重新取样式；
-    # 改样式后记得同步改这行字面量。
     html = html.replace(
         '</head>',
         '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css?v=20260927-follow-ui-v1-20260926-label-opacity-v1-20260925-touch-target-v1-light-menu-v1-20260926-speaker-clean-v6-20260926-airer-v2"></head>',
     )
-    # 舞台作用域挂在 <body> 上：class 让 stage.css 的每条作用域样式生效，
-    # data-* 让前端按屏分桶本地灯光历史。
     html = html.replace(
         '<body>',
         f'<body class="interaction3d-stage" data-i3d-light-history-scope="{scope}">',
@@ -692,51 +542,33 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
 
 @router.get('/scenes/{scene_id}/render-cache/{cache_key}')
 def get_render_cache(scene_id: str, cache_key: str, request: Request, viewer: LicensedViewer, projectId: str = ''):
-    # [补充说明] 取一份灯光渲染缓存；不存在时返回 204，让前端自己重新渲染。
-    #
-    # 204 而不是 404：缓存缺失是正常状态（首次打开、刚被清理过），
-    # 前端按「无缓存」处理即可，不必区分两种情况。
     require_scene_transfer(request, viewer, scene_id, projectId)
     scene_path(request, scene_id)
     scope = f'display:{viewer.display.id}' if viewer.display else 'admin'
     path = cache_path(request.app.state.settings.data_dir, scene_id, projectId, cache_key, principal=scope)
     content = read_cache(path)
-    # 共享缓存路径没命中时，退回按显示器隔离的那份（不同屏的灯光参数可能不同）。
     if content is None and viewer.display:
         content = read_cache(cache_path(request.app.state.settings.data_dir, scene_id, projectId, cache_key))
     from fastapi.responses import Response
-    # 返回空体而不是错误：前端据此直接走渲染流程，不必额外处理一种失败态。
     if content is None:
         return Response(status_code=204, headers={'Cache-Control': 'no-store'})
-    # private + no-cache：允许浏览器存，但每次都要回源确认（内容可能已被别的屏覆盖）。
     return Response(content, media_type='image/png', headers={'Cache-Control': 'private, no-cache'})
 
 
 @router.put('/scenes/{scene_id}/render-cache/{cache_key}', status_code=204)
 async def put_render_cache(scene_id: str, cache_key: str, request: Request, viewer: LicensedViewer, projectId: str = ''):
-    # [补充说明] 接收舞台页回传的灯光合图 PNG 并写入缓存。
-    #
-    # 鉴权与磁盘 IO 都放到线程池执行：文件锁（flock）是阻塞调用，
-    # 直接留在事件循环里会拖住其它请求。
-    # 请求体边收边计数，超限立刻中断，避免畸形请求先把体积放大一轮。
-    #
-    # 异常:
-    # HTTPException: 415 不是 PNG；413 超出单条缓存体积上限。
     require_same_origin_write(request)
     await run_in_threadpool(require_scene_transfer, request, viewer, scene_id, projectId)
     scene_path(request, scene_id)
     scope = f'display:{viewer.display.id}' if viewer.display else 'admin'
     path = cache_path(request.app.state.settings.data_dir, scene_id, projectId, cache_key, principal=scope)
-    # content-type 可能带参数，取分号前的部分比较即可。
     if request.headers.get('content-type', '').split(';')[0].strip() != 'image/png':
         raise HTTPException(415, detail='缓存仅接受 PNG 图层。')
     content = bytearray()
     async for chunk in request.stream():
-        # 边收边计数，超限立刻中断：等收完再判断，畸形请求的体积会先被放大一轮。
         if len(content) + len(chunk) > MAX_ENTRY_BYTES:
             raise HTTPException(413, detail='缓存图层过大。')
         content.extend(chunk)
-    # 写入同样丢线程池：内部要加 flock、校验图片并清理整目录。
     await run_in_threadpool(write_cache, path, bytes(content))
     from fastapi.responses import Response
     return Response(status_code=204, headers={'Cache-Control': 'no-store'})
@@ -744,18 +576,11 @@ async def put_render_cache(scene_id: str, cache_key: str, request: Request, view
 
 @router.get('/access')
 def get_access(request: Request, _viewer: LicensedViewer) -> JSONResponse:
-    # [补充说明] 返回前端授权凭据（短时效，仅供界面判断元素显隐）。
-    #
-    # 响应不缓存：授权状态随时可能变化。
     return JSONResponse(access_grant(request), headers={'Cache-Control': 'no-store'})
 
 
 @router.get('/projects/{project_id}/components/{component_id}/config')
 def get_config(project_id: str, component_id: str, request: Request, database: DatabaseSession, viewer: LicensedViewer) -> dict:
-    # [补充说明] 读取单个 3D 交互控件的完整配置（含位置与全部 properties）。
-    #
-    # 先查项目归属再查增量包授权：无权限的调用方不该从错误码里
-    # 推断出「这个仪表盘 / 控件是否存在」。
     require_viewer_project(viewer, project_id)
     require_access(request)
     draft = database.get(ProjectDraft, project_id)
@@ -769,44 +594,18 @@ def get_config(project_id: str, component_id: str, request: Request, database: D
 
 @router.get('/{filename:path}')
 def get_resource(filename: str, request: Request, _viewer: LicensedViewer) -> FileResponse:
-    # [补充说明] 下发 3D 交互前端资源（JS / CSS），按白名单限定可访问文件。
-    #
-    # 参数用 ``{filename:path}``：资源按域分嵌套目录（core/runtime.js、
-    # editor/config-editor.js、chunks/xxx-<hash>.js），而 ``{filename}`` 不匹配
-    # 斜杠 —— 用错的话前端每个模块都 404，整条 import 链全断。
-    #
-    # 放开路径深度不会放宽可访问面：下面先用清单白名单拒绝，再用
-    # ``is_relative_to`` 卡住解析后的真实路径，``..`` 与符号链接都出不去。
-    # 本路由注册在模块最后，``/access``、``/stage.html`` 等具体路由仍然优先匹配。
-    #
-    # 异常:
-    # HTTPException: 404，文件不在白名单内，或解析后落在资源目录之外。
     require_access(request)
-    # [补充说明] 白名单由构建期清单提供（见 _runtime_resource_media_types）。
-    #
-    # 旧实现把文件名与媒体类型手写在这里，新增资源漏登记不报错，只表现为浏览器里
-    # 某个模块 404、整条 import 链断掉（真踩过一次）。Vite 打包后入口名对不上、
-    # 还多出带内容哈希的共享 chunk，手写维护既不可能也没意义，因此改为读
-    # frontend/vite.runtime.config.ts 生成的 manifest.json —— 清单即白名单，
-    # 「没登记就 404」这条越权防线保持不变。
     media_types = _runtime_resource_media_types(request.app.state.settings)
     if filename not in media_types:
         raise HTTPException(404, detail='3D 交互资源不存在。')
     root = request.app.state.settings.runtime_dir.resolve()
     path = (root / filename).resolve()
-    # resolve 之后比对前缀：filename 里的 .. 或符号链接都不能逃出资源目录。
     if not path.is_relative_to(root) or not path.is_file():
         raise HTTPException(404, detail='3D 交互资源不存在。')
-    # no-store：前端资源迭代频繁，宁可每次回源，也不要出现「改完没生效」。
     return FileResponse(path, media_type=media_types[filename], headers={'Cache-Control': 'no-store'})
 
 
 def _runtime_resource_media_types(settings: Settings) -> dict[str, str]:
-    # [补充说明] 读取运行时资源清单，返回 {相对路径: 媒体类型}。
-    #
-    # 按 (路径, mtime) 缓存：跑一次 bun run build 就换一个 mtime，缓存自然失效，
-    # 不需要重启后端。清单缺失时返回空 dict —— 所有 runtime 资源都 404，
-    # 前端报错明确指向「没构建」，而不是静默放行整棵目录。
     manifest_path = settings.runtime_manifest_path
     try:
         stamp = manifest_path.stat().st_mtime_ns
@@ -830,7 +629,6 @@ def _runtime_resource_media_types(settings: Settings) -> dict[str, str]:
                 continue
             media_type = suffixes.get(Path(entry).suffix.lower(), 'application/octet-stream')
             table[entry] = media_type
-    # 只保留当前这一代清单，避免反复构建把缓存撑大。
     _runtime_media_type_cache.clear()
     _runtime_media_type_cache[cache_key] = table
     return table

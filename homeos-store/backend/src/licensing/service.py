@@ -37,13 +37,10 @@ from ..security.security import (
 
 logger = logging.getLogger("src.license")
 
-#: 恢复凭证有效期（比会话长，保证会话失效后仍能救回来）
 RECOVERY_TOKEN_TTL_SECONDS = 180 * 24 * 3600
 
-#: 恢复凭证的轮换阈值：活过这么久之后，下一次 ``recover`` 换新的。不能每次 recover
 RECOVERY_TOKEN_ROTATE_AFTER_SECONDS = 30 * 24 * 3600
 
-#: 被轮换下来的恢复凭证还留多久：旧凭证不是立刻作废，而是在宽限窗口内仍可用，客户端
 RECOVERY_TOKEN_GRACE_SECONDS = 24 * 3600
 
 class LicenseAuthority:
@@ -59,7 +56,6 @@ class LicenseAuthority:
         self.database = database
         self.keyring = keyring
 
-        # 端点
     def activate(
         self,
         payload: dict,
@@ -89,7 +85,6 @@ class LicenseAuthority:
                 select(License).where(License.activation_code == code)
             ).first()
             customer = session.get(Customer, license.customer_id) if license is not None else None
-            # 「激活码不存在」与「邮箱不匹配」必须给出完全相同的回答：分开回答等于
             if license is None or customer is None or (customer.email or "").strip().lower() != email:
                 raise LicenseServerError(
                     "激活码或邮箱不正确，请核对购买授权时收到的信息后重试。",
@@ -149,7 +144,6 @@ class LicenseAuthority:
             now = utcnow()
             row = session.get(LicenseSession, token_hash(token))
             if row is None or row.expires_at <= now:
-                # 401 会让客户端自动转到 recover
                 raise LicenseServerError("授权会话已失效，请重新激活。", status_code=401)
             binding = session.get(DeviceBinding, row.binding_id)
             license = session.get(License, row.license_id)
@@ -157,10 +151,6 @@ class LicenseAuthority:
                 raise LicenseServerError("授权会话对应的绑定已不存在。", status_code=401)
             if not binding.is_live:
                 raise LicenseServerError("实例绑定已停用。", status_code=403, revoked=True, code="BINDING_RELEASED")
-            # 会话必须属于**当前**绑定在该授权上的实例。少了这条，管理员刚做的解绑对
-            # 老客户端无效。但「字段缺失」与「实例不匹配」是两类问题，必须分开：
-            # 缺 instanceId 的畸形/旧版客户端回 422 引导重新激活，绝不能按已吊销处理 ——
-            # revoked=True 会让客户端清掉本地授权、停用功能。
             if not instance_id:
                 raise LicenseServerError(
                     "心跳缺少实例标识（instanceId），请升级客户端或重新激活。",
@@ -228,7 +218,6 @@ class LicenseAuthority:
                 raise LicenseServerError("实例绑定已停用。", status_code=403, revoked=True, code="BINDING_RELEASED")
             self.assert_usable(license, now)
 
-            # 轮换会话，恢复凭证默认不变，但活太久的要换新的：轮换太激进会在响应丢失时
             recovery_token, rotated = self.rotate_recovery_if_stale(
                 session,
                 token=token,
@@ -263,7 +252,6 @@ class LicenseAuthority:
                 generation=generation,
             )
 
-        # 内部
     @property
     def session_ttl_seconds(self) -> int:
         return max(3600, int(self.settings.lease_ttl_seconds))
@@ -354,7 +342,6 @@ class LicenseAuthority:
         ip: str | None,
         now: datetime,
     ) -> DeviceBinding:
-        # 无 ORDER BY 的 .first() 挑行取决于引擎返回顺序，而同一张授权可能留下多行绑定
         binding = session.scalars(
             select(DeviceBinding)
             .where(DeviceBinding.license_id == license.id)
@@ -382,7 +369,6 @@ class LicenseAuthority:
             binding.last_heartbeat_at = now
             return binding
 
-        # 冷却**不在这里**：它约束的是「下一次解绑」，不是「下一次激活」。解绑后用户
         if binding.is_live and binding.instance_id != instance_id:
             raise LicenseServerError(
                 "该授权已绑定其他设备，请先在账号中心解除绑定。", status_code=409

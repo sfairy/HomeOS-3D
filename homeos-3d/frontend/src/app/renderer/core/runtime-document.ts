@@ -1,10 +1,7 @@
 import { percentageBarSeries } from "../../shared/percentage-bar-model";
 import { selectedRelatedEntityIds } from "../../shared/related-entities";
 import { isVirtualEntityId } from "../../shared/virtual-entities";
-/**
- * 运行期组件的最小可用形状：只描述本文件真正读到的字段，
- * 具体页面组件的完整定义在别处（这里刻意保持宽松）。
- */
+/** 运行期组件的最小可用形状：只描述本文件真正读到的字段，具体页面组件的完整定义在别处（这里刻意保持宽松）。 */
 type RuntimeComponentLike = {
   /** 组件实例 id（视图事件按它派发）。 */
   id?: string;

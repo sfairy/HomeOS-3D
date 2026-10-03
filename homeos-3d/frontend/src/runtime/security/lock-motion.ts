@@ -52,8 +52,8 @@ export function createLockMotion(options) {
   function resolveTarget(doorModel, parent, meshObject, entityStates) {
     const animationType = parent.userData?.doorAnimationType || "entry";
     if (animationType === "static") return null;
-    // 门扇开度 0~1：关门是 0，完全打开是 1，门虚掩取中间值。3D 姿态按这个比例插值，
-    // 所以「虚掩」只开一条缝，而每扇门自己的 openAngle / 滑动行程仍然生效。
+
+
     const doorOpenRatio = lockState(doorModel, entityStates).doorOpenRatio;
     if (doorOpenRatio === null) return null;
     const interpolate = (closedValue, openValue) =>

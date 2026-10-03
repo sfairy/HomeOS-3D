@@ -40,9 +40,8 @@ export function coverState(entityId, stateChange, options: { coverKind?: string 
         : 0,
     hasTiltFeedback = currentTiltPosition !== null || !!(supportedFeatures & 240),
     hasOverallFeedback = !isDreamCover || hasTiltFeedback,
-    // 没有独立叶片通道的梦幻帘（hasOverallFeedback=false）：上报的 current_position 是
-    // 叶片角度，但 state（open/closed/opening/closing）仍是整体开合的可用信息。
-    // 之前一律置成 "unknown" 会连带丢掉整体状态，3D 窗帘的整体开合也就无从驱动。
+
+
     hasRailState = hasOverallFeedback || Object.hasOwn(stateLabelByState, normalizedState),
     effectiveState = hasRailState ? normalizedState : "unknown",
     effectivePosition = hasOverallFeedback
@@ -51,8 +50,8 @@ export function coverState(entityId, stateChange, options: { coverKind?: string 
           ? 0
           : null
         : Math.max(0, Math.min(100, currentPosition))
-      : // 无独立叶片通道时整体只有开/合两态可辨（没有行程百分比）：
-        // 把 state 映射成 0/100 供 3D 整体开合使用，running 方向按终点取值。
+      :
+
         effectiveState === "closed" || effectiveState === "closing"
         ? 0
         : effectiveState === "open" || effectiveState === "opening"
@@ -76,9 +75,8 @@ export function coverState(entityId, stateChange, options: { coverKind?: string 
     positionReported: hasOverallFeedback && currentPosition !== null,
     features: supportedFeatures,
     closedConfirmed:
-      // 整体确认全关：有独立叶片通道时靠整体行程 0 判定；无独立叶片通道的梦幻帘
-      // 没有行程百分比，只能信 state === "closed"（此时 effectivePosition 也被映射成 0）。
-      // 这里放开 hasOverallFeedback 不会重新锁死叶片：coverCanAdjustBlades 对这类设备直接返回 true。
+
+
       isAvailable && effectiveState === "closed" && effectivePosition === 0,
     tiltPosition:
       computedTiltPosition === null ? null : Math.max(0, Math.min(100, computedTiltPosition)),
@@ -103,9 +101,9 @@ export function coverCanAdjustBlades(coverStatus, estimatedStatus = coverStatus)
     ? false
     : coverStatus.overallFeedbackAvailable
       ? estimatedStatus.closedConfirmed === true
-      : // 没有独立叶片通道的梦幻帘：上报的 position 就是唯一的可调轴（叶片角度），
-        // 不应再用整体运行/估算状态设门禁 —— 设备可能长时间停在 opening/closing 的
-        // 陈旧上报或持久化的估算位置上，一旦据此禁用就会把滑杆永久锁死。
+      :
+
+
         true;
 }
 export function coverControl(coverDevice, serviceName, targetPosition) {

@@ -19,8 +19,6 @@ from ..ops import site_settings as site_config
 
 logger = logging.getLogger("src.commerce.delivery")
 
-#: 自动投递的最大尝试次数（含首次）。用尽后停止自动重试，等人工处理或用户自己
-#: 在个人中心点「重发激活码邮件」—— 那个入口不受这个上限约束，但另有按账号限流。
 MAX_AUTO_DELIVERY_ATTEMPTS = 3
 
 _CHINA_TZ = timezone(timedelta(hours=8))
@@ -50,7 +48,6 @@ def notify_license_issued(
     try:
         with database.session() as session:
             setting = site_config.get_setting(session)
-            # NULL 当作「开」：这一项默认必须是开，一个空值不该静默关掉发码邮件。
             delivery_enabled = getattr(setting, "delivery_email_enabled", None)
             if delivery_enabled is not None and not bool(delivery_enabled):
                 return {"sent": False, "reason": "disabled"}
@@ -70,9 +67,6 @@ def notify_license_issued(
             already_sent = order.license_email_sent_at is not None
             attempts_used = int(order.license_email_attempts or 0)
 
-            # 领取标记：用**条件自增**代替「先读再写」。异步通知、前端轮询、后台巡检
-            # 可能同时走到这里，只有一个调用方能把 attempts 推上去，其余 rowcount=0
-            # 直接退出 —— 所以买家不会收到重复的激活码邮件。
             conditions = [Order.id == order.id]
             if not force:
                 conditions.append(Order.license_email_sent_at.is_(None))
@@ -90,8 +84,6 @@ def notify_license_issued(
                     "sent": False,
                     "reason": "already_sent" if already_sent else "attempts_exhausted",
                 }
-            # 先把领取标记提交掉：发信是几秒到十几秒的网络等待，绝不能持着 SQLite
-            # 写锁做（busy_timeout 只有 5 秒，并发的下单/心跳会直接失败）。
             session.commit()
 
             result = mailer.send_license_email(

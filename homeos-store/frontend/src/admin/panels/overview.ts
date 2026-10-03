@@ -1,6 +1,4 @@
-/**
- * 概览面板。
- */
+/** 概览面板。 */
 
 import { errorMessage } from "../../store-types.js";
 import { $, emptyRow, esc, toast } from "../dom.js";
@@ -23,7 +21,7 @@ type OverviewJump = {
   tab?: string;
 };
 
-// 待办磁贴：超过 0 才显示。jump 是「跳到哪个面板、先把某个筛选器设成什么」。
+
  const OVERVIEW_TODOS: Array<{
   key: string;
   label: string;
@@ -73,31 +71,31 @@ type OverviewJump = {
   },
 ];
 
-// 概览里的跳转统一走这里：先设筛选、再切面板，切面板时 loaders 会带着新筛选重新拉。
+
  function jumpFromOverview(target: OverviewJump | null | undefined) {
   if (!target) return;
   if (target.filter) {
     const node = $(target.filter) as HTMLInputElement | HTMLSelectElement | null;
-    // 复选类筛选取的是 checked 而不是 value，赋值给 value 等于什么都没做。
+
     if (node && 'type' in node && node.type === 'checkbox') {
       (node as HTMLInputElement).checked = Boolean(target.value);
     } else if (node) {
       node.value = String(target.value ?? '');
-      // 选项由服务端词表填的筛选器（订单状态）此刻可能还没选项：赋值给不存在的 value 会把
+
       if (node.tagName === 'SELECT' && node.value !== String(target.value ?? '')) {
         PENDING_FILTER_VALUES.set(target.filter, String(target.value ?? ''));
       }
     }
   }
-  // 目标面板可能停在别的页码上，不清零会落到空的第 N 页
+
   resetPage(target.page);
-  // 落到列表 tab：带 tab 的面板第一个 tab 都是列表，而待办说的都是
+
   const tab = host.collectTabs?.(target.page) ? 'list' : '';
   location.hash = tab ? `#${target.page}/${tab}` : `#${target.page}`;
   host.activate?.(target.page, tab);
 }
 
-// 巡检状态 → 徽标语气。**只放语气，中文名由后端下发**（sweep.healthLabel，见
+
 const SWEEP_HEALTH_TONE: Record<string, string> = {
   ok: 'hb-tag--success',
   disabled: 'hb-tag--warning',
@@ -133,7 +131,7 @@ type Sweep = {
   lastSuccessAt?: string;
 };
 
-// 这块的意义就在于「出问题时一定要看得见」：待办区没有待办会整块隐藏，
+
 function renderPaymentSweep(sweep: Sweep | null | undefined) {
   const pillNode = $('#overview-sweep-pill');
   const detail = $('#overview-sweep-detail');
@@ -144,7 +142,7 @@ function renderPaymentSweep(sweep: Sweep | null | undefined) {
     detail.textContent = '这个版本的服务端没有上报巡检状态。';
     return;
   }
-  // 中文名一律用后端下发的 healthLabel。
+
   pillNode.className = `hb-tag ${SWEEP_HEALTH_TONE[sweep.health || ''] || 'hb-tag--warning'}`;
   pillNode.textContent = sweep.healthLabel || '未知';
 
@@ -191,7 +189,7 @@ type Incidents = {
   clearedTotal?: unknown;
 };
 
-// 资金/履约异常计数。文案的重点是「这些异常不会自己报错」——运维看到
+
  function renderIncidents(incidents: Incidents | null | undefined) {
   const pillNode = $('#overview-incidents-pill');
   const detail = $('#overview-incidents-detail');
@@ -237,7 +235,7 @@ export async function loadOverview() {
 
   renderPaymentSweep(data.paymentSweep);
   renderIncidents(data.incidents);
-  // —— 营收 ——
+
   const manualNote = revenue.totalManualCents
     ? ` · 人工补记 ${money(revenue.totalManualCents)} 不计营收`
     : '';
@@ -260,8 +258,7 @@ export async function loadOverview() {
     ).join('');
   }
 
-  // —— 订单漏斗 ——
-  // 条形宽度按最大计数归一。全为 0 时（新站）给 0 而不是 NaN。
+
   const funnel = data.orderFunnel || [];
   const maxCount = Math.max(1, ...funnel.map((item: any) => Number(item.count || 0)));
   const funnelEl = $('#overview-funnel');
@@ -278,7 +275,7 @@ export async function loadOverview() {
     }).join('');
   }
 
-  // —— 待办 ——
+
   const todos = OVERVIEW_TODOS.filter((todo) => Number(attention[todo.key] || 0) > 0);
   const todosEl = $('#overview-todos');
   if (todosEl) todosEl.hidden = todos.length === 0;
@@ -292,7 +289,7 @@ export async function loadOverview() {
     ).join('');
   }
 
-  // —— 库存预警 ——
+
   const stock = data.lowStockProducts || [];
   const stockRows = $('#overview-stock-rows');
   if (stockRows) {
@@ -307,7 +304,7 @@ export async function loadOverview() {
       : emptyRow(4, '没有设置库存的商品，或库存都很充足。');
   }
 
-  // —— 临期授权 ——
+
   const expiring = data.expiringLicenses || [];
   const expiringRows = $('#overview-expiring-rows');
   if (expiringRows) {
@@ -319,9 +316,9 @@ export async function loadOverview() {
       : emptyRow(3, `未来 ${Number(attention.expiringWindowDays || 30)} 天内没有到期的授权。`);
   }
 
-  // —— 累计 ——
+
   const referral = data.referral || {};
-  // 积分负债 = 全部未兑付的积分 = balance（可用 + 冻结）。只给「可用」会低估要付的账，
+
   const pointsTotal = Number(referral.balancePoints || 0);
   const cards: Array<[string, unknown, string, string]> = [
     ['账号', data.accounts, '', 'is-tone-blue'],
@@ -352,7 +349,7 @@ export async function loadOverview() {
   host.setNavBadge?.('withdrawals', data.pendingWithdrawals);
 }
 
-// 概览跳转：委托在面板上，这样磁贴与漏斗共用一套逻辑。
+
 $('#panel-overview')?.addEventListener('click', (event) => {
   const target = event.target;
   if (!(target instanceof Element)) return;
@@ -417,7 +414,7 @@ $('#overview-recompute-stock')?.addEventListener('click', async () => {
     toast(errorMessage(error, '操作失败'), 'danger');
   }
 });
-// 重算优惠码核销数：与「重算库存预留」对称的维护动作，只改统计值。
+
 $('#overview-recompute-coupons')?.addEventListener('click', async () => {
   const ok = await askConfirm({
     title: '重算优惠码核销数',
@@ -445,7 +442,7 @@ $('#overview-recompute-coupons')?.addEventListener('click', async () => {
   }
 });
 
-// 确认（清零）入账异常计数。文案要说清这是「我已经处理过了」而不是
+
 $('#overview-incidents-ack')?.addEventListener('click', async () => {
   const ok = await askConfirm({
     title: '确认已处理',

@@ -57,26 +57,22 @@ function computeMeshPixelError(errorMesh, errorMetric, viewportWidth, viewportHe
   return Math.max(axisPixelError(0, viewportWidth), axisPixelError(1, viewportHeight));
 }
 
-/**
- * 「远景网格简化」控制器的外部依赖。
- * 除 THREE / renderer / scene 外都是回调：本模块只负责判断「哪些网格离得够近、值得换用简化几何」，
- * 取景与楼层归属都交给调用方，所以这里一律按回调描述。
- */
+/** 「远景网格简化」控制器的外部依赖。 */
 type OverviewDetailOptions = {
   THREE: any;
   renderer: any;
   scene: any;
-  /** 主相机；只有主相机渲染时才替换几何，阴影 / 反射等旁路渲染不受影响。 */
+  /** 主相机； */
   getCamera: () => any;
   /** 网格所属楼层 id，用来复用同一层的投影矩阵。 */
   getFloorId?: (meshForFloor: any) => string;
-  /** 某楼层对应的相机；默认复用主相机。 */
+  /** 某楼层对应的相机； */
   getFloorCamera?: (meshForCamera: any, fallbackCamera: any) => any;
   /** 本帧是否启用简化。 */
   enabled: () => boolean;
   /** 简化几何准备就绪后请求下一帧。 */
   requestFrame?: () => void;
-  /** 复用的反射简化器；不传则内部新建一个。 */
+  /** 复用的反射简化器； */
   detail?: any;
 };
 

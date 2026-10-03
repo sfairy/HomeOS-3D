@@ -7,14 +7,11 @@ from backend.src import models  # noqa: F401  # 确保模型注册到 Base.metad
 from backend.src.database import Base
 from sqlalchemy import engine_from_config, pool
 
-# Alembic Config 对象，对应 alembic.ini 里的取值。
 config = context.config
 
-# 有配置文件时按它初始化日志。
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# autogenerate 需要比对的目标元数据。
 target_metadata = Base.metadata
 
 

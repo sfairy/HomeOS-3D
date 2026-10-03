@@ -22,7 +22,6 @@ from ..security.security import new_referral_code, new_uuid
 
 logger = logging.getLogger("src.commerce.referrals")
 
-#: 积分流水类型（``ReferralLedger.kind``）的取值与中文名 —— **后端是唯一出处**。
 LEDGER_KIND_LABELS: dict[str, str] = {
     "reward": "下单奖励",
     "reversal": "奖励退回",
@@ -32,7 +31,6 @@ LEDGER_KIND_LABELS: dict[str, str] = {
     "manual_adjust": "人工调账",
 }
 
-#: 提现申请状态（``ReferralWithdrawal.status``）的取值与中文名。同上，后台由接口下发。
 WITHDRAWAL_STATUS_LABELS: dict[str, str] = {
     "pending": "待审核",
     "paid": "已提现",
@@ -150,13 +148,11 @@ def _apply_wallet_delta(
             frozen_delta_centi
         )
     if earned_delta_centi:
-        #: 累计获得同样是读-改-写：两笔奖励并发结算会互相覆盖，改成一条 SQL 的加法，
         values["earned_centi"] = func.max(
             0,
             func.coalesce(ReferralWallet.earned_centi, 0) + int(earned_delta_centi),
         )
     if withdrawn_delta_centi:
-        #: 累计提现同理：放在这条语句里，钱包的三个聚合值就只有一个写入点。
         values["withdrawn_centi"] = func.coalesce(
             ReferralWallet.withdrawn_centi, 0
         ) + int(withdrawn_delta_centi)
@@ -221,7 +217,6 @@ def ledger_entry(
         kind=kind,
         delta_centi=int(delta_centi),
         frozen_delta_centi=int(frozen_delta_centi),
-        #: 记的是**数据库里算出来的**结果，而不是本地推导的期望值。两者不一致时
         balance_after_centi=balance,
         frozen_after_centi=frozen,
         note=note,
@@ -276,7 +271,6 @@ def grant_order_reward(
         wallet,
         kind="reward",
         delta_centi=points_centi,
-        #: 累计获得与余额在同一条 SQL 里更新，分成两次写会丢掉并发下的更新。
         earned_delta_centi=points_centi,
         note=f"好友订单 {order.order_no} 实付奖励",
         reference=order.order_no,
@@ -323,7 +317,6 @@ def reverse_order_reward(
         reference=order.order_no,
         order_id=order.id,
     )
-    #: 只把**真正扣回的部分**结清：还有短差时保留短差，而不是清零。
     order.referral_reward_points_centi = shortfall
     session.flush()
     return deductible, shortfall
@@ -422,7 +415,6 @@ def resolve_withdrawal(
         .execution_options(synchronize_session=False)
     )
     if claimed.rowcount == 0:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
-        #: 别人刚刚处理完这笔；刷新一次让调用方看到真实终态，但绝不再记账。
         session.refresh(withdrawal)
         return withdrawal
 
@@ -434,11 +426,9 @@ def resolve_withdrawal(
             kind="withdrawal",
             delta_centi=-points_centi,
             frozen_delta_centi=-points_centi,
-            #: ``withdrawn`` 也走同一个写入点，保持「钱包聚合值只有一个写入点」。
             withdrawn_delta_centi=points_centi,
             note=note or "提现完成",
             reference=withdrawal.id,
-            #: 下界守卫：冻结额是「余额里被预留的那一份」，正常情况下 balance >= frozen，
             min_balance_centi=0,
         )
     else:

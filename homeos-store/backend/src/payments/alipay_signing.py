@@ -14,8 +14,6 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 from ..commerce import money
-
-# 地址校验与诊断的**规则本体**在 payments/urls.py（渠道无关）；这里只固定渠道名。
 from ..payments import urls as payment_urls
 from ..payments.base import PaymentError
 
@@ -26,7 +24,6 @@ _PRE_HEADER = "RSA PRIVATE KEY"
 _PKCS8_HEADER = "PRIVATE KEY"
 
 
-# 金额：分 ↔ 元（口径统一走 commerce.money，这里只固定支付宝的字符串形态）
 def yuan_from_cents(cents: int) -> str:
     """分转元，固定两位小数（支付宝要求 ``total_amount`` 形如 ``12.00``）。"""
     return money.format_centi(int(cents or 0))
@@ -34,7 +31,6 @@ def yuan_from_cents(cents: int) -> str:
 
 def cents_from_yuan(value: object) -> int | None:
     """元转分；解析失败返回 None（调用方必须把 None 当校验失败，不能当 0）。"""
-    # 空值与缺失字段必须判失败：money.to_centi(None) 会退化成 0
     if value is None or (isinstance(value, str) and not value.strip()):
         return None
     try:
@@ -43,10 +39,8 @@ def cents_from_yuan(value: object) -> int | None:
         return None
 
 
-# 密钥：把支付宝密钥工具产出的各种格式统一成 PEM
 def _strip_wrapping(raw: str) -> str:
     text = (raw or "").strip()
-    # 环境变量里常见把换行写成字面量 \n 的写法
     if "\\n" in text and "BEGIN" in text:
         text = text.replace("\\n", "\n")
     return text.strip().strip('"').strip("'")
@@ -65,7 +59,6 @@ def _private_key_candidates(raw: str) -> tuple[str, ...]:
         return ()
     if "BEGIN" in text:
         return (text,)
-    # 支付宝密钥工具给的是纯 base64，PKCS1/PKCS8 都遇到过，全部试一遍
     return (_wrap(text, _PKCS8_HEADER), _wrap(text, _PRE_HEADER))
 
 
@@ -82,7 +75,6 @@ def _public_key_candidates(raw: str) -> tuple[str, ...]:
 @lru_cache(maxsize=8)
 def _load_private_key(raw: str) -> rsa.RSAPrivateKey:
     for candidate in _private_key_candidates(raw):
-        # 候选逐个试：这一份不是 PEM 私钥就试下一份，全部失败由调用方报错。
         try:
             key = serialization.load_pem_private_key(
                 candidate.encode("utf-8"), password=None
@@ -100,7 +92,6 @@ def _load_private_key(raw: str) -> rsa.RSAPrivateKey:
 @lru_cache(maxsize=8)
 def _load_public_key(raw: str) -> rsa.RSAPublicKey:
     for candidate in _public_key_candidates(raw):
-        # 同上：这一份不是合法 PEM 公钥就试下一份。
         try:
             key = serialization.load_pem_public_key(candidate.encode("utf-8"))
         except (ValueError, TypeError):
@@ -113,7 +104,6 @@ def _load_public_key(raw: str) -> rsa.RSAPublicKey:
     )
 
 
-# 凭据校验（纯函数：返回错误文案而不是抛异常，供保存校验与后台自检共用）
 MIN_RSA_BITS = 2048
 
 
@@ -164,7 +154,6 @@ def key_pair_same_modulus(private_key_text: str, public_key_text: str) -> bool:
         private_key = _load_private_key(private_key_text)
         public_key = _load_public_key(public_key_text)
     except PaymentError:
-        # 解析都过不了时由 private-key / public-key 两条检查去报告，这里不重复啰嗦
         return False
     return private_key.public_key().public_numbers().n == public_key.public_numbers().n
 
@@ -203,7 +192,6 @@ def _callback_check(
     )
 
 
-# 签名
 def build_sign_content(params: Mapping[str, object], *, excluded: frozenset[str]) -> str:
     """拼接待签名字符串：按 key 字典序，跳过空值和 excluded。"""
     items = [
@@ -297,7 +285,6 @@ def _skip_json_value(raw: str, index: int) -> int:
                     return index + 1
             index += 1
         return -1
-    # 数字 / true / false / null：吃到结构分隔符为止，再把尾部空白剪掉。
     index = start
     length = len(raw)
     while index < length and raw[index] not in ",}]":
@@ -324,7 +311,6 @@ def extract_raw_node(raw: str, key: str) -> str | None:
             return None
         char = raw[index]
         if char == "}":
-            # 顶层对象正常闭合。命中多次会在这里之前就返回 None。
             return found
         if char != '"':
             return None
@@ -343,7 +329,6 @@ def extract_raw_node(raw: str, key: str) -> str | None:
             return None
         if name == target:
             if found is not None:
-                # 同名顶层键出现第二次：该验哪一段没有正确答案，这种报文本就不该出现。
                 return None
             found = raw[value_start:value_end]
         index = _skip_ws(raw, value_end)
@@ -354,7 +339,6 @@ def extract_raw_node(raw: str, key: str) -> str | None:
             continue
         if raw[index] == "}":
             return found
-        # 既不是 `,` 也不是 `}`：骨架不对，宁可返回「定位不到」也不猜。
         return None
 
 

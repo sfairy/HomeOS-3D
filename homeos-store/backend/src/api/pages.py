@@ -46,7 +46,6 @@ def _render_store_page(request: Request, session: DbSession) -> HTMLResponse:
 
 
 def _home(request: Request, session: DbSession) -> Response:
-    # 首次部署无管理员时，首页跳 /admin，再由 /admin 跳 /setup。
     admin_count = session.scalar(
         select(func.count()).select_from(Account).where(Account.is_admin == True)
     )
@@ -76,7 +75,6 @@ router.add_api_route("/user/referrals", _home, methods=["GET"], include_in_schem
 
 @router.get("/admin", include_in_schema=False)
 def admin_page(request: Request, session: DbSession) -> Response:
-    # 无管理员时跳初始化页：部署者直接访问 /admin 不会看到一个用不了的登录表单。
     admin_count = session.scalar(
         select(func.count()).select_from(Account).where(Account.is_admin == True)
     )
@@ -104,7 +102,6 @@ def setup_page(request: Request, session: DbSession) -> HTMLResponse:
     )
 
 
-# 商品图
 @router.get("/store/v1/product-images/{product_id}", include_in_schema=False)
 def product_image(product_id: str, request: Request, session: DbSession) -> FileResponse:
     image = session.scalars(

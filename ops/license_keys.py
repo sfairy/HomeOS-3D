@@ -14,15 +14,11 @@ import hashlib
 import os
 from pathlib import Path
 
-#: 公钥文件名（与 backend/src/config.py 的 DEFAULT_LICENSE_*_FILENAME 保持一致）。
 SIGNING_PUBLIC_KEY_FILENAME = 'license-public.pem'
 TRANSPORT_PUBLIC_KEY_FILENAME = 'license-transport-public.pem'
-#: 公钥都是 SubjectPublicKeyInfo，PEM 头一致；用来判断「文件是不是写完整了」。
 PUBLIC_KEY_MARKER = b'-----BEGIN PUBLIC KEY-----'
 
-#: 同机部署时商店写出的默认公钥目录（上溯一层即工作区根）。
 DEFAULT_STORE_KEYS_DIR = Path(__file__).resolve().parents[1] / 'homeos-store' / 'keys' / 'local'
-#: 主应用读取公钥的默认目录。
 DEFAULT_CLIENT_KEYS_DIR = Path(__file__).resolve().parents[1] / 'keys'
 
 
@@ -52,7 +48,6 @@ def _mirror_public(sync_dir: Path, source: Path | None, name: str) -> bool:
     if target.is_file() and target.read_bytes() == payload:
         return False
     if target.exists():
-        # 文件可能被上一次以只读方式留下（属主仍是本进程），直接写会 EACCES。
         target.chmod(0o644)
     target.write_bytes(payload)
     target.chmod(0o644)

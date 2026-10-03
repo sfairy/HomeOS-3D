@@ -71,10 +71,7 @@ export function createWalker(THREE, outfitColor = 5421233, designKey = "traveler
   walkerGroup.add(bodyGroup);
   const headGroup = new THREE.Group();
   bodyGroup.add(headGroup);
-/**
- * 角色部件表：基础骨架在创建时就填好，帽子 / 长袍 / 发光材质等
- * 由各套装扮按需挂上，所以除骨架外都允许缺省。
- */
+/** 角色部件表：基础骨架在创建时就填好，帽子 / 长袍 / 发光材质等由各套装扮按需挂上，所以除骨架外都允许缺省。 */
 type CharacterParts = {
   body: any;
   headRig: any;

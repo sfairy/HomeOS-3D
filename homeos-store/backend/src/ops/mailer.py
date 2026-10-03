@@ -34,7 +34,6 @@ class _Copy:
     ignore_hint: str
 
 
-#: 用途 → 文案。新增用途时必须在这里登记：``_copy_for`` 对未知用途会回落到
 PURPOSE_COPY: dict[str, _Copy] = {
     "register": _Copy(
         label="注册账号",
@@ -56,7 +55,6 @@ PURPOSE_COPY: dict[str, _Copy] = {
         action="把账号邮箱更换为本邮箱",
         ignore_hint="如果这不是您本人的操作，请忽略本邮件，您的邮箱不会被更改。",
     ),
-    #: 后台「发送测试邮件」用。文案必须自报家门：测试邮件会出现在运营自己的
     "test": _Copy(
         label="【测试邮件】",
         action="测试验证码邮件的投递链路（收到本邮件即说明 SMTP 配置可用，无需任何操作）",
@@ -69,11 +67,8 @@ PURPOSE_COPY: dict[str, _Copy] = {
 class MailResult:
     """一次投递尝试的完整结果，会被落库（见 ``EmailVerification``）。"""
 
-    #: 是否真的通过 SMTP 投递成功
     delivered: bool
-    #: 实际生效的投递方式：smtp / log
     mode: str
-    #: SMTP 实际尝试次数（含首次）；未走 SMTP 时为 0
     attempts: int = 0
     error: str = ""
 
@@ -99,8 +94,6 @@ def _copy_for(purpose: str) -> _Copy:
     )
 
 
-#: 邮件头（发件人 / 主题）里的字段上限。超过就拒收 —— 让配错的值在保存时被发现，
-#: 而不是等到用户点「获取验证码」时炸在构造阶段。
 MAX_HEADER_CHARS = 200
 
 
@@ -108,9 +101,6 @@ def header_text_error(value: str, *, label: str, allow_empty: bool = False) -> s
     """校验一个会进邮件头的文本；返回错误文案，空串表示合法。
     """
     raw = value or ""
-    # 换行必须在 strip **之前**判："\n".strip() 是空串，会被当成「没填」放行。
-    # 这不是注入问题（email 库本身会拒绝），而是可用性问题 —— 它会让每一封验证码
-    # 邮件在构造阶段抛 ValueError，整条注册链路 500。
     if any(char in raw for char in "\r\n"):
         return f"{label}不能包含换行符。"
     text = raw.strip()
@@ -124,7 +114,6 @@ def header_text_error(value: str, *, label: str, allow_empty: bool = False) -> s
 def mail_from_error(value: str) -> str:
     """校验发件人写法：邮箱地址，或「显示名 <邮箱地址>」。空串表示合法（回落默认值）。
     """
-    # 走 allow_empty：空值合法（回落到 STORE_MAIL_FROM），但换行 / 超长仍要拦。
     problem = header_text_error(value, label="发件人", allow_empty=True)
     if problem:
         return problem
@@ -201,7 +190,6 @@ def _build_message(
     message["From"] = mail_from
     message["To"] = email
     message["Subject"] = subject
-    # 先设纯文本再 add_alternative：顺序决定 MIME 部件次序，
     message.set_content(plain)
     message.add_alternative(rich, subtype="html")
     return message
@@ -213,7 +201,6 @@ def _is_transient(error: BaseException) -> bool:
     if isinstance(error, (smtplib.SMTPAuthenticationError, smtplib.SMTPRecipientsRefused)):
         return False
     if isinstance(error, smtplib.SMTPResponseException):
-        # 4xx 是「稍后再试」，5xx 是永久失败
         return 400 <= int(getattr(error, "smtp_code", 0) or 0) < 500
     return isinstance(error, (OSError, smtplib.SMTPException))
 
@@ -255,7 +242,6 @@ def _send_smtp_once(
         client.send_message(message)
 
 
-#: 一次发信的**总**墙钟预算（秒）。
 MAX_SEND_WALL_SECONDS = 20.0
 
 
@@ -272,9 +258,7 @@ def _send_smtp(
             plain=plain,
             rich=rich,
         )
-    except Exception as error:  # email 库对非法邮件头抛 ValueError
-        # 构造失败是**配置错误**（例如发件人里混进了换行）。它以前会冒到路由层变成
-        # 500，而那是最坏的形态：信没发出去，也没告诉任何人为什么。这里如实报告未投递。
+    except Exception as error:
         logger.error("验证码邮件构造失败（多半是发件人配置不合法）：%s", error)
         return False, 0, f"{error.__class__.__name__}: {error}"[:250]
     max_attempts = max(1, int(settings.smtp_max_attempts or 1))
@@ -292,7 +276,7 @@ def _send_smtp(
         tries = attempt
         try:
             _send_smtp_once(settings, message=message, email=email, deadline=deadline)
-        except Exception as error:  # 需要覆盖 smtplib 与 socket 的全部异常
+        except Exception as error:
             last_error = f"{error.__class__.__name__}: {error}"[:250]
             logger.warning(
                 "SMTP 投递失败（第 %d/%d 次）收件人=%s：%s",
@@ -314,7 +298,6 @@ def _send_smtp(
         return True, attempt, ""
 
     if not last_error:
-        # 一次都没发出去、也不是被异常打断：只可能是进循环时预算就已耗尽
         last_error = f"SMTP 总时限（{MAX_SEND_WALL_SECONDS:.0f}s）内未能完成投递"
     return False, max(1, tries), last_error
 
@@ -328,7 +311,6 @@ def send_verification_email(
     purpose: str,
 ) -> MailResult:
     copy = _copy_for(purpose)
-    # 站点配置优先、环境变量兜底的合并必须收口在这里，而不是让每个调用方自己做。
     settings = mail_settings.merge_mail_settings(settings, setting)
     mode = (settings.mail_mode or "log").lower()
     site = setting.site_name or "HomeOS 授权中心"
@@ -362,14 +344,11 @@ def send_verification_email(
         )
         return MailResult(
             delivered=False,
-            # 必须如实记成 smtp：记成 log 会让后台审计表把「尝试过 SMTP 但失败」
-            # 显示成「本来就走日志通道」，两种结论指向完全不同的处置动作。
             mode="smtp",
             attempts=attempts,
             error=error,
         )
 
-    # 只有显式 mail_mode=log 时才记录明文验证码。
     log_plaintext_code = mode == "log"
     if log_plaintext_code:
         logger.warning(
@@ -389,8 +368,6 @@ def send_verification_email(
             email,
             purpose,
         )
-    #: SMTP 未就绪时用户**以为**会收到信，实际只会写日志。必须带上 error，
-    #: 否则接口与前端都会报「已发送」，用户对着收件箱干等（注册彻底走不下去）。
     delivery_error = ""
     if mode == "smtp":
         delivery_error = (
@@ -627,7 +604,6 @@ def diagnose_mail(
             check_result("server", "服务器与端口", net_probe.LEVEL_PASS, f"{host}:{port}")
         )
 
-    # 用户名与授权码必须成对。这个组合不对时 ``smtp_ready`` 为假，发信会**静默降级**
     if settings.smtp_username and not settings.smtp_password:
         checks.append(
             check_result(
@@ -696,7 +672,7 @@ def diagnose_mail(
             try:
                 with _connect_smtp(settings):
                     pass
-            except Exception as error:  # 诊断要覆盖 smtplib/socket/ssl 全部异常
+            except Exception as error:
                 checks.append(
                     check_result("connect", "连接与登录", net_probe.LEVEL_FAIL, _describe_smtp_error(error))
                 )

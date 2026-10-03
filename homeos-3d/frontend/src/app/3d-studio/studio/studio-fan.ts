@@ -1,4 +1,4 @@
-// 与 airerDimensions 同理：文档给的是任意属性值，这里只声明会用到的键。
+
 type FanDimensionConfig = {
   fanScale?: unknown;
   fanHeight?: unknown;

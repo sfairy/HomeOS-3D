@@ -1,11 +1,9 @@
-/**
- * 商店入口页状态甲板的自走读数（/user/authentication/login、/register、/forget、
- */
+/** 商店入口页状态甲板的自走读数（/user/authentication/login、/register、/forget、 */
 
 const decks = document.querySelectorAll('.hos-deck');
-// 没有甲板就直接退出：这个脚本同时被三块入口壳引用，缺一块不该在控制台留下一串异常。
+
 if (decks.length) {
-  // 降低动效偏好、以及触摸设备：秒级跳动的数字也是一种「持续动效」。这里改成每 30 秒
+
   const calm = window.matchMedia(
     '(prefers-reduced-motion: reduce), (pointer: coarse), (hover: none)'
   ).matches;
@@ -23,7 +21,7 @@ if (decks.length) {
     return `${Math.floor(hours / 24)}天${hours % 24}时`;
   };
 
-  /** 一格读数的渲染函数。与主应用那份逐行对应 —— 两份文件，一套行为。 */
+  /** 一格读数的渲染函数。 */
   const renderers: Record<string, (since: number) => string> = {
     clock: () => {
       const now = new Date();
@@ -45,7 +43,7 @@ if (decks.length) {
       const key = node.dataset.deck || '';
       const render = renderers[key];
       if (!render) continue;
-      // 缺时间戳的格子（服务端没给起点）保持原样：宁可显示一条静态读数，
+
       const since = node.dataset.since ? Date.parse(node.dataset.since) : Number.NaN;
       if (node.dataset.deck !== 'clock' && Number.isNaN(since)) continue;
       hooks.push({ node, render, since });
@@ -55,7 +53,7 @@ if (decks.length) {
   const paint = () => {
     for (const { node, render, since } of hooks) {
       const next = render(since);
-      // 只在文本真的变了才写 DOM：每 30 秒一轮里，多数格子的读数是不变的，
+
       if (node.textContent !== next) node.textContent = next;
     }
   };

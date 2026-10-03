@@ -1,11 +1,4 @@
-/**
- * IndexedDB 持久缓存的公共件：诊断日志 + 带超时的一次性任务。
- *
- * `model-persistent-cache` 与 `scene-persistent-cache` 各写了一份同样的
- * `log`（看 `?performance-diagnostics=1` 决定打不打印 stats）与
- * `runWithTimeout`（超时 / 抛错一律 `settle(null)`）。这里收成一处，
- * 差异（日志前缀、超时副作用）用参数表达，行为逐字对齐原实现。
- */
+/** IndexedDB 持久缓存的公共件：诊断日志 + 带超时的一次性任务。 */
 
 /** URL 上是否带了 `?performance-diagnostics=1`。 */
 export function cacheDiagnosticsEnabled(env) {
@@ -27,10 +20,7 @@ export function createCacheLogger(env, prefix, stats) {
   };
 }
 
-/**
- * 跑一次性任务并加超时：任务用 `settle(result)` 交付结果；超时或任务抛错都
- * resolve `null`（绝不 reject）。`onTimeout` 是超时时的额外副作用。
- */
+/** 跑一次性任务并加超时：任务用 `settle(result)` 交付结果； */
 export function runCacheTask(env, task, { duration, onTimeout }) {
   return new Promise((resolve) => {
     let isSettled = false;

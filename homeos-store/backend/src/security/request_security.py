@@ -10,7 +10,6 @@ from urllib.parse import urlsplit
 
 from fastapi import Request
 
-#: 转发头：出现任一即说明「前面还有代理」。
 FORWARDED_HEADERS = ("x-forwarded-for", "x-forwarded-proto", "x-real-ip", "forwarded")
 
 
@@ -36,11 +35,8 @@ def parse_trusted_proxies(values: tuple[str, ...]) -> tuple:
 class ClientAddress:
     """一次请求的来源地址判定结果。"""
 
-    #: 用于限流与审计的地址；取不到时为空串。
     ip: str
-    #: 能否代表「一个客户端」。False 时不能拿它当限流桶（代理没传转发头）。
     per_client: bool
-    #: 是否由可信代理的转发头解析得出。
     via_proxy: bool
 
 
@@ -160,7 +156,6 @@ def expected_request_scheme(request: Request) -> str:
 def _origin_allowed(request: Request, origin: str) -> bool:
     """给定一个 ``scheme://host`` 形态的来源，判断它是否属于本商店。"""
     parsed = urlsplit(origin)
-    # Origin 必须是裸的 scheme://host：``http://evil@本机地址/`` 这类写法会让朴素的
     if (
         parsed.scheme not in {"http", "https"}
         or not parsed.netloc
@@ -174,12 +169,10 @@ def _origin_allowed(request: Request, origin: str) -> bool:
     allowed = set()
     host = request.headers.get("host", "").strip().lower()
     if host:
-        # 浏览器用 Host 寻址，攻击者的页面改不了它，这是最可靠的同源依据；
         allowed.add(f"{expected_request_scheme(request)}://{host}")
     settings = _settings(request)
     base_origin = _origin_from_referer(str(getattr(settings, "public_base_url", "") or "").strip())
     if base_origin:
-        # 反代部署下 Host 可能是内网地址，显式配置的基址同样算合法来源。
         allowed.add(base_origin.lower())
     return f"{parsed.scheme}://{parsed.netloc}".lower() in allowed
 
@@ -196,7 +189,6 @@ def same_origin_request(request: Request) -> bool:
     if referer:
         referer_origin = _origin_from_referer(referer)
         return bool(referer_origin) and _origin_allowed(request, referer_origin)
-    # 无 Origin/Referer：仅允许无 Cookie 的请求（如已豁免的渠道回调不会走到这里）。
     return not bool(request.cookies)
 
 
@@ -289,7 +281,6 @@ def forwarded_headers_present(request: Request) -> bool:
     return any(request.headers.get(name) for name in FORWARDED_HEADERS)
 
 
-#: 页面模板里内联 ``<script>`` 用来占位 nonce 的记号。用纯字符串替换而不是正则改 HTML：
 CSP_NONCE_PLACEHOLDER = "{{NONCE}}"
 
 
@@ -327,10 +318,8 @@ def security_headers(request: Request) -> dict[str, str]:
         "X-Content-Type-Options": "nosniff",
         "Referrer-Policy": "strict-origin-when-cross-origin",
         "Content-Security-Policy": csp_header(nonce),
-        # 点击劫持兜底：CSP 的 frame-ancestors 已覆盖现代浏览器，这条照顾老浏览器。
         "X-Frame-Options": "DENY",
         "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
-        # 跨源打开时切断 opener 引用：本商店没有任何需要保留 opener 的流程。
         "Cross-Origin-Opener-Policy": "same-origin",
     }
     if request_is_https(request):

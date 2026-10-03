@@ -1,11 +1,3 @@
-# [补充说明] FastAPI 应用装配：生命周期、异常处理、中间件、页面路由与静态资源保护。
-#
-# 这个模块是后端的总入口，create_app() 把各子系统拼成一个应用：
-# - lifespan 里按顺序收紧目录权限、迁移密钥文件、跑数据库迁移，再起授权 / HA 同步 / 更新检查三个后台服务；
-# - 两层 HTTP 中间件：一层做请求诊断日志，一层做资源鉴权、安全响应头与缓存策略；
-# - 一组页面路由各自判断「是否已初始化 / 是否登录 / 授权是否允许」，不合格就 303 跳转。
-#
-# 注意最后一行会直接构造 app，uvicorn 的 backend.src.main:app 依赖它存在。
 from __future__ import annotations
 
 import asyncio
@@ -58,33 +50,22 @@ from .security import session_token_hash, set_display_cookie
 from .updates import UpdateChecker
 from .updates import router as updates_router
 
-# 超过这个耗时的接口会在全局日志里记一条"响应缓慢"的警告。
 SLOW_REQUEST_MILLISECONDS = 2000
 
 
 def _record_lifecycle_failure(app: FastAPI, phase: str, error: Exception) -> None:
-    # [补充说明] 把启动 / 停止阶段的异常同时写进全局日志与 stderr。
-    #
-    # 启动失败时日志系统本身可能就是故障点，因此两条路都写：
-    # 全局日志能看到就更好，看不到还有 stderr 兜底。
     message = f"HomeOS {'启动' if phase == 'startup' else '停止'}失败：{error}"
     details = traceback.format_exc()
     event_log = getattr(app.state, 'global_log', None)
     if event_log is not None:
         event_log.append('error', '系统后台', '系统', message, context={'phase': phase}, details=details)
     try:
-        # stderr 写失败（例如已关闭）不该掩盖真正的启动异常。
         sys.stderr.write(f'{_safe_text(message, limit = 1000)}\n{_safe_text(details, limit = 12000)}\n')
     except OSError:
         pass
 
 
 def _read_build_manifest(path: Path, what: str) -> dict:
-    # [补充说明] 读取前端构建期生成的清单 JSON。
-    #
-    # 读不到 / 解析不了都返回空 dict，只写 stderr 不抛异常：清单缺失说明前端没构建
-    # （此时 dist/ 整个不存在，页面路由本来也全都拿不到文件）。若在这里直接崩，
-    # 运维看到的是「启动即退出」，反而盖住了「忘了跑 bun run build」这个真因。
     try:
         payload = json.loads(path.read_text(encoding='utf-8'))
     except FileNotFoundError:
@@ -97,11 +78,6 @@ def _read_build_manifest(path: Path, what: str) -> dict:
 
 
 def _load_public_static_files(settings: Settings) -> frozenset[str]:
-    # [补充说明] 读取构建期生成的匿名静态资源白名单（dist/public-static.json）。
-    #
-    # 未初始化 / 未登录 / 未激活时必须能加载的资源全在这里（公开页 HTML 直接引用的
-    # 构建产物 + 图标 + 清单文件）。清单为空时退化成「除白名单外全部拦下」，
-    # 也就是未登录页白屏 —— 但绝不会反过来放行整棵 /static（那是静默越权）。
     payload = _read_build_manifest(settings.public_static_manifest_path, '匿名静态资源')
     entries = payload.get('files', [])
     if not isinstance(entries, list):
@@ -118,24 +94,12 @@ def _load_public_static_files(settings: Settings) -> frozenset[str]:
 
 
 def create_app(settings: Settings | None = None, license_transport = None, license_endpoint_pool = None) -> FastAPI:
-    # [补充说明] 构造 FastAPI 应用。
-    #
-    # 参数:
-    # settings: 覆盖配置；为 None 时从环境变量加载。
     app_settings = settings or load_settings()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        # [补充说明] 启动与停止流程。
-        #
-        # 启动顺序是有依赖的：日志 → 目录权限 → 密钥迁移 → 数据库迁移 → 数据库 →
-        # 账号 → 授权服务（它决定门禁）→ 资源目录 → HA 同步 → 更新检查。
-        # 任一步抛异常都会逆序关闭已启动的服务，再向上抛出，让进程退出，
-        # 而不是留下一个"半启动"的进程对外服务。
         try:
-            # 日志最先建：后面每一步的失败都要能记进日志。
             app.state.global_log = GlobalLogStore(app_settings.data_dir)
-            # 所有数据目录都收紧到 0700，密钥与用户图片不允许同机其它用户读取。
             app_settings.data_dir.mkdir(parents = True, exist_ok = True, mode = 0o700)
             os.chmod(app_settings.data_dir, 0o700)
             app_settings.user_assets_dir.mkdir(parents = True, exist_ok = True, mode = 0o700)
@@ -147,41 +111,31 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             app_settings.effect_variants_dir.mkdir(parents = True, exist_ok = True, mode = 0o700)
             os.chmod(app_settings.effect_variants_dir, 0o700)
             upgrade_backup = run_migrations(app_settings)
-            # 数据库文件同样只给属主读写：里面有加密后的 HA 令牌与授权状态。
             os.chmod(app_settings.database_path, 0o600)
             app.state.database = Database(app_settings.database_url)
             app.state.admin_account = AdminAccountStore(app_settings.admin_account_path)
             try:
                 account_state = app.state.admin_account.initialize(app.state.database)
             except Exception:
-                # 账号初始化失败时数据库已经建好：立刻收掉连接并把升级备份还原，
-                # 否则重启后看到的是「迁移完但账号没了」的半成品目录。
                 app.state.database.dispose()
                 if upgrade_backup is not None:
                     restore_upgrade_backup(app_settings, upgrade_backup)
                 raise
             app.state.settings = app_settings
             if account_state == 'reset_required':
-                # 账号文件被删过：记录下来，前端会跳设置页重建账号。
                 app.state.global_log.append('warning', '系统后台', '账号', '检测到管理员账号文件已删除，等待重新设置账号和密码')
-            # 登录限流器是进程内状态，重启即清空（可接受：重启本身不常见）。
             app.state.login_limiter = LoginAttemptLimiter()
-            # 激活尝试的失败预算（按账号，见 api/license.py）：激活码可枚举且每次都会
-            # 真打授权后台，没有这一层就成一个已登录会话能无限试的猜码口子。
             app.state.license_activation_limiter = LoginAttemptLimiter(*LICENSE_ACTIVATION_LIMIT)
             app.state.license_service = LicenseService(app_settings, app.state.database, transport = license_transport, endpoint_pool = license_endpoint_pool, event_log = app.state.global_log)
             await app.state.license_service.start()
             app.state.asset_catalog = AssetCatalog(app_settings.built_in_assets_dir, app_settings.user_assets_dir, app_settings.studio3d_exports_dir, app_settings.effect_variants_dir)
             app.state.ha_connector = HAConnectorService(app_settings, app.state.database, event_log = app.state.global_log)
-            # HA 同步是同步方法，内部自己起线程 / 任务，因此这里不 await。
             app.state.ha_connector.start()
             app.state.update_checker = UpdateChecker(app_settings.data_dir, app_settings.version, app_settings.update_channel, enabled = app_settings.update_checks_enabled)
             app.state.update_checker.start()
             app.state.global_log.append('success', '系统后台', '系统', f'HomeOS {app_settings.version} 已启动', context={'phase': 'ready'})
         except Exception as error:
             _record_lifecycle_failure(app, 'startup', error)
-            # 逆序回滚：只关闭真正启动成功的那些服务，
-            # 逐个 try 是为了让一个关闭失败不影响其余服务的清理。
             for service_name in ('update_checker', 'ha_connector', 'license_service'):
                 service = getattr(app.state, service_name, None)
                 if service is None:
@@ -200,8 +154,6 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         try:
             yield
         finally:
-            # 正常停止也要逐个关闭，并把第一个失败留到最后抛出，
-            # 保证其余服务仍然被尝试关闭。
             shutdown_error = None
             for service in (app.state.update_checker, app.state.ha_connector, app.state.license_service):
                 try:
@@ -218,31 +170,21 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
                 raise shutdown_error
             app.state.global_log.append('info', '系统后台', '系统', 'HomeOS 已正常停止')
 
-    # 关掉 docs / redoc / openapi：本项目不对外暴露接口文档。
     app = FastAPI(title = 'HomeOS', version = app_settings.version, lifespan = lifespan, docs_url = None, redoc_url = None, openapi_url = None)
     app.state.settings = app_settings
 
     @app.exception_handler(Exception)
     async def unhandled_error_response(request: Request, _error: Exception):
-        # [补充说明] 兜底异常处理：只回纯文本，不回堆栈。
-        #
-        # 带上 X-Request-ID 便于用户报障时与服务端日志对上号；
-        # 真正的异常详情已经由诊断中间件记进全局日志。
         context = getattr(request.state, 'log_context', {})
         return PlainTextResponse('Internal Server Error', status_code = 500, headers = {'X-Request-ID': context['requestId']} if context.get('requestId') else None)
 
     @app.exception_handler(StarletteHTTPException)
     async def remember_http_error(request: Request, error: StarletteHTTPException):
-        # [补充说明] 把 HTTPException 的 detail 暂存到请求上，供诊断中间件写日志。
         request.state.diagnostic_detail = error.detail
         return await http_exception_handler(request, error)
 
     @app.exception_handler(RequestValidationError)
     async def remember_validation_error(request: Request, error: RequestValidationError):
-        # [补充说明] 同上，并对 422 的校验错误做裁剪。
-        #
-        # 只保留 loc / msg / type 三个键：pydantic 原始错误里会带 input 原文，
-        # 那可能包含用户提交的敏感内容，不该进日志。
         request.state.diagnostic_detail = [
             {key: item[key] for key in ('loc', 'msg', 'type') if key in item}
             for item in error.errors()
@@ -265,28 +207,20 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         return await request_validation_exception_handler(request, error)
 
     async def record_request_diagnostics(request: Request, call_next):
-        # [补充说明] 诊断中间件：分配 requestId、记录慢请求与错误、注入日志上下文。
-        #
-        # 只记录 /api/ 开头的请求（页面与静态资源量太大，记了反而淹没真问题），
-        # 并显式排除日志接口自身，否则前端一拉日志就会因为慢而再写一条日志。
         started = time.monotonic()
-        # HLS 流地址里带令牌，日志里一律折叠成占位路径，避免令牌落盘。
         diagnostic_path = '/api/hls/[stream]' if request.url.path.startswith('/api/hls/') else request.url.path
         context = {'requestId': uuid4().hex, 'method': request.method, 'path': diagnostic_path}
         request.state.log_context = context
-        # 放进 ContextVar，深层代码 append 日志时会自动带上这些字段。
         token = event_context.set(context)
         log_endpoint = request.url.path == '/api/v1/logs' or request.url.path.startswith('/api/v1/logs/')
         api_request = request.url.path.startswith('/api/')
         try:
             response = await call_next(request)
-            # 回带 requestId：用户截图报障时服务端能直接定位到这次请求。
             response.headers['X-Request-ID'] = context['requestId']
             context.update(status = response.status_code, durationMs = round((time.monotonic() - started) * 1000, 1))
             log = getattr(request.app.state, 'global_log', None)
             if log is not None and api_request and not log_endpoint:
                 detail = getattr(request.state, 'diagnostic_detail', None)
-                # 业务错误码（如 LICENSE_RESTRICTED）单独提出来，便于日志按码筛选。
                 if isinstance(detail, dict) and isinstance(detail.get('code'), str):
                     context['code'] = detail['code']
                 if response.status_code >= 400 and not getattr(request.state, 'diagnostic_error_logged', False):
@@ -302,18 +236,14 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
                     log.append('warning', '系统后台', '性能', f'接口响应缓慢：{request.method} {diagnostic_path} · {context["durationMs"]} 毫秒', context = context)
             return response
         except Exception as error:
-            # 未捕获异常：记完整堆栈后原样抛出，交给兜底处理器回 500。
             context.update(status = 500, durationMs = round((time.monotonic() - started) * 1000, 1))
             log = getattr(request.app.state, 'global_log', None)
             if log is not None and not log_endpoint:
                 log.append('error', '系统后台', '接口', f'接口运行异常：{request.method} {diagnostic_path} · {error}', context = context, details = traceback.format_exc())
             raise
         finally:
-            # 必须重置 ContextVar：ASGI 会在同一线程 / 任务里复用上下文，
-            # 不重置会把上个请求的 requestId 带到下个请求的日志里。
             event_context.reset(token)
 
-    # 主应用路由统一挂在 /api/v1 下。
     app.include_router(auth_router, prefix = '/api/v1')
     app.include_router(displays_router, prefix = '/api/v1')
     app.include_router(assets_router, prefix = '/api/v1')
@@ -327,18 +257,12 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
     app.include_router(interaction3d_router, prefix = '/api/v1')
     app.include_router(global_logs_router, prefix = '/api/v1')
     app.include_router(updates_router, prefix = '/api/v1')
-    # 静态资源挂载在 /static；是否允许匿名访问由下面的中间件按白名单决定。
     app.mount('/static', StaticFiles(directory = app_settings.frontend_dir / 'static'), name = 'static')
 
     def initialized(request: Request) -> bool:
-        # [补充说明] 系统是否已完成管理员初始化。
         return request.app.state.admin_account.initialized
 
     def signed_in(request: Request) -> bool:
-        # [补充说明] 是否为已登录的有效管理员会话。
-        #
-        # 会话令牌只以哈希入库，因此这里用 session_token_hash 反查 LoginSession：
-        # 过期（含绝对寿命）或不属于当前管理员账号都算未登录，还会再确认用户仍然可用。
         account_user_id = request.app.state.admin_account.user_id
         if account_user_id is None:
             return False
@@ -357,11 +281,6 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             return user is not None and user.is_active
 
     def active_display(request: Request, project_id: str | None = None) -> DisplayDevice | None:
-        # [补充说明] 从 Cookie 解析已配对且未过期的中控设备，并把对象 detachment 出会话。
-        #
-        # expunge 是为了让调用方拿到游离对象后连接即可归还连接池。
-        # 令牌有效期必须由 active_display_device 判定：只查「配没配过」的话，
-        # 展示页就绕过了 display_token_ttl / hard_ttl。
         token = request.cookies.get(app_settings.display_cookie_name, '')
         with request.app.state.database.session_factory() as database:
             device = active_display_device(database, token)
@@ -375,18 +294,11 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             return device
 
     def browser_authorized(request: Request) -> bool:
-        # [补充说明] 页面级访问条件：管理员已登录，或是一台已配对且未过期的中控设备。
         return signed_in(request) or active_display(request) is not None
 
-    # 清单不手写：入口产物带内容哈希（如 /static/assets/login-<hash>.js），手写必然过期。
-    # 由 frontend/vite.config.ts 扫描公开页 HTML 并入种子清单，生成
-    # dist/public-static.json；后端只负责读取（见 _load_public_static_files）。
     public_static_files = _load_public_static_files(app_settings)
 
     def premium_asset(path: str) -> bool:
-        # [补充说明] 判断该路径是否属于"需要登录且需要 assets 能力"的受保护资源。
-        #
-        # 规则：内置素材目录，以及不在白名单里的 /static/ 资源。
         return (
             path.startswith('/assets/builtin/')
             or path == '/assets/builtin'
@@ -394,11 +306,9 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         )
 
     def immutable_private_asset(path: str) -> bool:
-        # [补充说明] 这些私有资源带不可变缓存（内容变即换 URL），因此不受 no-store 影响。
         return path.startswith(('/api/v1/assets/effect-variant', '/api/v1/assets/user/', '/api/v1/assets/studio3d-export/'))
 
     def versioned_interaction_module(path: str, request: Request) -> bool:
-        # [补充说明] 带 ?v= 的交互模块 js/css：内容由版本戳标识，可以走私有强缓存。
         return (
             path.startswith('/api/v1/modules/interaction3d/')
             and path != '/api/v1/modules/interaction3d/stage.html'
@@ -429,13 +339,8 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
 
     @app.middleware('http')
     async def protect_assets_and_add_security_headers(request: Request, call_next):
-        # [补充说明] 资源鉴权 + 安全响应头 + 缓存策略，三件事合并在一个中间件里。
-        #
-        # 鉴权只作用于 premium_asset，且要在 call_next 之前拒绝，
-        # 否则文件内容已经发出去了才追加 401 是无意义的。
         path = request.url.path
         if premium_asset(path):
-            # 数据库查询是同步的，丢到线程池避免阻塞事件循环。
             if not await asyncio.to_thread(browser_authorized, request):
                 return Response(
                     '请先登录或完成中控设备配对。',
@@ -451,7 +356,6 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
                     headers = {'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0', 'Pragma': 'no-cache', 'Expires': '0'},
                 )
         response = await call_next(request)
-        # 需要加安全头的页面与接口集合（静态资源与展示页也包含在内）。
         app_surface = (
             path == '/'
             or path in {'/pair', '/login', '/setup', '/license', '/3d-studio'}
@@ -465,12 +369,9 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         if app_surface:
             embedded_auto_diagram = path == '/3d-studio' and request.query_params.get('auto-diagram-embed') == '1'
             embedded_interaction3d = path == '/api/v1/modules/interaction3d/stage.html' and response.status_code == 200
-            # 只有这两个页面允许被同源 iframe 嵌入（展示页里嵌 3D 舞台），
-            # 其余一律 frame-ancestors 'none'，防点击劫持。
             same_origin_frame = embedded_auto_diagram or embedded_interaction3d
             ha_frame = path.startswith(('/display/', '/homeos/')) or path == '/pair' or embedded_interaction3d
             if path.startswith('/api/v1/assets/user/') and response.headers.get('content-type', '').startswith('image/svg+xml'):
-                # 用户上传的 SVG 可能带脚本，用最严格的沙箱策略隔离。
                 response.headers['Content-Security-Policy'] = "default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
                 response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
             else:
@@ -492,14 +393,15 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         )
         interaction_module_asset = versioned_interaction_module(path, request)
         if model_asset and response.status_code in {304, 200, 206}:
-            # 3D 模型体积大且内容不变，带 ?v= 版本戳时允许一年强缓存；
-            # 没有版本戳就只能 no-cache，否则换了模型用户看不到。
             response.headers['Cache-Control'] = 'private, max-age=31536000, immutable' if request.query_params.get('v') else 'private, no-cache'
-        elif response.status_code in {304, 200} and path.startswith('/static/') and Path(path).suffix.lower() in {'.js', '.css', '.woff2'}:
-            # 字体放这一档而不是强缓存：fonts.css 里的 @font-face 是相对路径、没有版本戳，
-            # 没有版本戳就不能 immutable —— 换了字体会取不到新的。
-            response.headers['Cache-Control'] = 'private, no-cache'
-        elif interaction_module_asset and response.status_code in {304, 200}:
+        elif (
+            (
+                response.status_code in {304, 200}
+                and path.startswith('/static/')
+                and Path(path).suffix.lower() in {'.js', '.css', '.woff2'}
+            )
+            or (interaction_module_asset and response.status_code in {304, 200})
+        ):
             response.headers['Cache-Control'] = 'private, no-cache'
         elif (
             path in {'/', '/pair', '/login', '/setup', '/license', '/3d-studio'}
@@ -514,12 +416,9 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             or path.startswith('/static/3d-studio/')
             or path in {'/static/display.js', '/static/display.css'}
         ):
-            # 入口页面与它们的 JS/CSS：内容一变就必须立刻换新，否则前端资源戳全对不上。
             response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
             response.headers['Pragma'] = 'no-cache'
             response.headers['Expires'] = '0'
-        # 304 必须在鉴权之后判：私有一年缓存的条目不能因为「校验器命中」就
-        # 把一个未授权的请求变成 304。带 no-cache 的响应才做这一步。
         if etag_matches(request, response) and response.headers.get('cache-control', '').startswith('private, no-cache'):
             headers = dict(response.headers)
             headers.pop('content-length', None)
@@ -528,17 +427,12 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         return response
 
     def safe_next_path(request: Request) -> str:
-        # [补充说明] 安全地取出 ?next= 跳转目标。
-        #
-        # 只接受以单个 / 开头的站内路径：以 // 开头是协议相对 URL，
-        # 会跳到外站，属于开放重定向漏洞，因此必须排除。
         destination = request.query_params.get('next', '').strip()
         if destination.startswith('/') and not destination.startswith('//'):
             return destination
         return '/'
 
     def pairing_redirect(request: Request, project_id: str | None = None) -> RedirectResponse:
-        # [补充说明] 把当前请求转到配对页，并把原地址塞进 next 以便配对后跳回。
         destination = request.url.path
         if request.url.query:
             destination = f'{destination}?{request.url.query}'
@@ -547,7 +441,6 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         return RedirectResponse(f'/pair?next={quote(destination, safe = "")}{embed}{project}', status_code = 303)
 
     def login_redirect(request: Request) -> RedirectResponse:
-        # [补充说明] 把当前请求转到登录页，并把原地址塞进 next 以便登录后跳回。
         destination = request.url.path
         if request.url.query:
             destination = f'{destination}?{request.url.query}'
@@ -555,48 +448,37 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
 
     @app.get('/health/live', include_in_schema = False)
     async def health_live() -> dict[str, str]:
-        # [补充说明] 存活探针：只要进程能响应就算存活，不检查任何依赖。
         return {'status': 'ok', 'version': app_settings.version}
 
     @app.get('/favicon.ico', include_in_schema = False)
     def favicon() -> FileResponse:
-        # [补充说明] 站点图标：浏览器标签页与书签栏使用。
         return FileResponse(app_settings.frontend_dir / 'static' / 'assets' / 'icons' / 'homeos-favicon-h5.ico', media_type = 'image/x-icon')
 
     @app.get('/apple-touch-icon.png', include_in_schema = False)
     @app.get('/apple-touch-icon-precomposed.png', include_in_schema = False)
     def apple_touch_icon() -> FileResponse:
-        # [补充说明] iOS 添加到主屏时使用的 180×180 图标。
-        #
-        # 同时挂在 /apple-touch-icon.png 与 /apple-touch-icon-precomposed.png 上：
-        # 不同 iOS 版本会请求其中之一，缺了就会在添加到主屏时显示空白图标。
         return FileResponse(app_settings.frontend_dir / 'static' / 'assets' / 'icons' / 'homeos-icon-180-h5.png', media_type = 'image/png')
 
     @app.get('/assets/builtin/{asset_path:path}', include_in_schema = False)
     def built_in_asset(asset_path: str, request: Request) -> FileResponse:
-        # [补充说明] 内置素材：这里再查一次身份，因为路径不在 /static 前缀下，
-        # 不会被 StaticFiles 的中间件规则覆盖。
         if not browser_authorized(request):
             raise HTTPException(status_code = 401, detail = '请先登录或完成中控设备配对。')
         return read_builtin_asset(asset_path, request)
 
     @app.get('/health/ready', include_in_schema = False)
     def health_ready(request: Request) -> dict[str, str | bool]:
-        # [补充说明] 就绪探针：真的连一次数据库，连不上就返回 500 让编排器不转发流量。
         with request.app.state.database.engine.connect() as connection:
             connection.execute(text('SELECT 1'))
         return {'status': 'ready', 'initialized': initialized(request), 'version': app_settings.version}
 
     @app.get('/setup', include_in_schema = False)
     def setup_page(request: Request):
-        # [补充说明] 设置页：已初始化就不允许再进来，按登录状态分流。
         if initialized(request):
             return RedirectResponse('/' if signed_in(request) else '/login', status_code = 303)
         return FileResponse(app_settings.frontend_dir / 'setup.html')
 
     @app.get('/login', include_in_schema = False)
     def login_page(request: Request):
-        # [补充说明] 登录页：未初始化先去设置；已登录直接回 next 指向的站内地址。
         if not initialized(request):
             return RedirectResponse('/setup', status_code = 303)
         if signed_in(request):
@@ -605,11 +487,6 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
 
     @app.get('/pair', include_in_schema = False)
     def pair_page(request: Request):
-        # [补充说明] 配对页。
-        #
-        # ?scan=1 表示用户主动要看扫码 / 手输配对界面，
-        # 此时即使已登录或已配对也不跳走，否则用户没法再配一台设备。
-        # embed=1 与 iframe 嵌入同理：那两种进入方式本来就要停在配对页上。
         if not initialized(request):
             return RedirectResponse('/setup', status_code = 303)
         scan_link = (
@@ -621,23 +498,17 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             return RedirectResponse(safe_next_path(request), status_code = 303)
         device = active_display(request)
         if device is not None and not scan_link:
-            # 已配对且未强制扫码：直接送去它绑定的那块仪表盘。
             return RedirectResponse(f'/display/{device.project_id}', status_code = 303)
         if not request.app.state.license_service.allows('display'):
-            # 不落 403 错误页：授权不可用时墙面设备没有键盘，报错页无从处理。改为把恢复页
-            # 就地渲染在同一个地址上，它可以自动重试、网络恢复后无需人工介入。
             return FileResponse(app_settings.frontend_dir / 'license-recovery.html')
         return FileResponse(app_settings.frontend_dir / 'pair.html')
 
     @app.get('/', include_in_schema = False)
     async def home_page(request: Request):
-        # [补充说明] 编辑器主页：未初始化 → 设置页；未登录 → 登录页；授权非 editor → 授权页。
         if not initialized(request):
             return RedirectResponse('/setup', status_code = 303)
         if not signed_in(request):
             return RedirectResponse('/login', status_code = 303)
-        # 打开编辑器是本机「是否仍被授权」的最强信号：顺手联网确认一次设备绑定，
-        # 商店里已解绑 / 停用的安装会在这一步被拦回授权页。节流窗口见 confirm_binding。
         await request.app.state.license_service.confirm_binding()
         if not await asyncio.to_thread(request.app.state.license_service.allows, 'editor'):
             return RedirectResponse('/license', status_code = 303)
@@ -645,12 +516,10 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
 
     @app.get('/license', include_in_schema = False)
     async def license_page(request: Request):
-        # [补充说明] 授权页：已激活且有 editor 能力时不必再看，直接回首页。
         if not initialized(request):
             return RedirectResponse('/setup', status_code = 303)
         if not signed_in(request):
             return RedirectResponse('/login', status_code = 303)
-        # 授权页正是用户来处理「被解绑 / 被停用」的地方，进来先确认一次绑定状态。
         await request.app.state.license_service.confirm_binding()
         if await asyncio.to_thread(request.app.state.license_service.allows, 'editor'):
             return RedirectResponse('/', status_code = 303)
@@ -658,7 +527,6 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
 
     @app.get('/3d-studio', include_in_schema = False)
     async def three_d_studio_page(request: Request):
-        # [补充说明] 3D 户型工作室：需要登录 + editor 能力。
         if not initialized(request):
             return RedirectResponse('/setup', status_code = 303)
         if not signed_in(request):
@@ -670,41 +538,26 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
 
     @app.get('/display/{project_id}', include_in_schema = False)
     def display_page(project_id: str, request: Request):
-        # [补充说明] 正式展示页（中控设备打开的那一页）。
-        #
-        # 鉴权有两种合法身份：管理员会话，或已配对且正好绑定该项目的设备。
-        # 不是这两种情况就送去配对页，而不是直接 401 —— 墙面设备没有键盘，
-        # 报错页无法处理，跳配对页才能让用户扫码。
         if not initialized(request):
             return RedirectResponse('/setup', status_code = 303)
         device = active_display(request, project_id)
         if not signed_in(request) and (device is None or device.project_id != project_id):
             return pairing_redirect(request)
         if not request.app.state.license_service.allows('display'):
-            # 与 /pair 同理：展示地址本身就是恢复页的最佳落点 —— 设备刷新后仍回到这里，
-            # 授权一恢复就能直接进画面，不需要用户重新输地址。
             return FileResponse(app_settings.frontend_dir / 'license-recovery.html')
         response = FileResponse(app_settings.frontend_dir / 'display.html')
         if device is not None and session_token_hash(request.cookies.get(app_settings.display_cookie_name, '')) == device.token_hash:
-            # 打开展示页即顺带续期 Cookie，减少设备因长期不活跃而掉配对。
             set_display_cookie(response, app_settings, request.cookies[app_settings.display_cookie_name])
         return response
 
     @app.api_route('/api/v1/{unknown_path:path}', methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'], include_in_schema = False)
     def unknown_api_route(unknown_path: str) -> None:
-        # [补充说明] 兜底 API 路由：返回结构化 404，而不是落到 SPA 的 index.html。
-        #
-        # 注册在所有真实 API 路由之后，只接住完全没匹配上的 /api/v1/* 路径。
         raise HTTPException(status_code = 404, detail = 'API 接口不存在。')
 
-    # camera / HLS 反向代理自行定义 /api/* 路径，因此不挂 /api/v1 前缀。
     app.include_router(ha_proxy_router)
-    # 诊断中间件放在最后注册：它会包住上面所有路由（含 ha_proxy），
-    # 从而也能记录代理请求的耗时与错误。
     app.middleware('http')(record_request_diagnostics)
     app.add_middleware(EmbedSessionMiddleware, settings = app_settings)
     return app
 
 
-# 模块级实例：uvicorn 的 backend.src.main:app 依赖它存在。
 app = create_app()

@@ -5,13 +5,10 @@ from __future__ import annotations
 from fastapi import status
 from fastapi.responses import JSONResponse
 
-#: 大多数写路由的请求体上限。
 MAX_DEFAULT_BODY_BYTES = 1024 * 1024
 
-#: multipart 请求按 ``Content-Length`` 提前拒绝的阈值（见模块说明）。
 MAX_MULTIPART_DECLARED_BYTES = 16 * 1024 * 1024
 
-#: 不带请求体的方法：整体跳过。
 _BODYLESS_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 
@@ -44,7 +41,6 @@ async def _read_capped_body(receive, limit: int) -> tuple[bytes, bool]:
     while True:
         message = await receive()
         if message.get("type") != "http.request":
-            # http.disconnect：客户端已经走了，没必要再往路由里送。
             return b"", False
         body = message.get("body") or b""
         total += len(body)
@@ -88,7 +84,6 @@ class RequestBodyGuard:
             await self.app(scope, receive, send)
             return
         if _content_type(scope) == "multipart/form-data":
-            # 上传路由自己管流（spool 到磁盘 + 成品上限），这一层只做声明长度的快速拒绝。
             declared = _declared_length(scope)
             if declared is not None and declared > MAX_MULTIPART_DECLARED_BYTES:
                 await _send_too_large(send, MAX_MULTIPART_DECLARED_BYTES)

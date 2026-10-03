@@ -25,7 +25,7 @@ export function compactStaticDeviceParts(three, deviceRoot, deviceType, canBatch
   };
   if (!batchableDeviceTypeSet.has(deviceType)) return batchStats;
   const candidateGroups = [],
-    // 这两组存的是待释放的几何 / 材质，统一按「有 dispose()」收窄，避免迭代时是 unknown。
+
     disposableGeometrySet = new Set<{ dispose: () => void }>(),
     disposableMaterialSet = new Set<{ dispose: () => void }>();
   deviceRoot.traverse((candidateNode) => {

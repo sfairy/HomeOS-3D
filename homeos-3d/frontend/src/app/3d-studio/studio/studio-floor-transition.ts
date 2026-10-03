@@ -1,18 +1,15 @@
-/**
- * 楼层切换动画的外部依赖。
- * 本模块只做「把楼层节点搬进搬出、按进度插值」这件事，取根对象、回收节点、暂停反射都交给调用方。
- */
+/** 楼层切换动画的外部依赖。 */
 type FloorTransitionOptions = {
   THREE: any;
   /** 承载所有楼层节点的根对象。 */
   getRoot: () => any;
-  /** 记录彻底离场时回收它的节点；released 返回 true 时不会再走这里。 */
+  /** 记录彻底离场时回收它的节点； */
   dispose: (node: any) => void;
   /** 返回 true 表示调用方自己接管离场节点，本模块不再 dispose。 */
   release?: (record: any) => boolean;
   /** 过渡期间暂停 / 恢复地面反射。 */
   suspendReflections?: (shouldSuspend: boolean) => void;
-  /** 请求重绘；参数为 true 表示需要立即刷新。 */
+  /** 请求重绘； */
   invalidate?: (isImmediate: boolean) => void;
 };
 
@@ -178,8 +175,8 @@ export function createFloorTransition({
     targetFloorId = null,
   ) {
     const sceneRoot = getRootObject(),
-      // 显式标注键值类型：previousRecords / nextRecords 是 any[]，Map 构造器推不出元素类型，
-      // 不标注的话 .get() 会退化成 unknown，后面的 previousRecord?.frame 之类全部报错。
+
+
       previousById = new Map<string, any>(
         previousRecords.map((previousEntry) => [previousEntry.id, previousEntry]),
       ),

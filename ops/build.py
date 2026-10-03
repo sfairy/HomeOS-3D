@@ -43,10 +43,8 @@ ROOT = Path(__file__).resolve().parents[1]
 DIST_ROOT = ROOT / 'dist'
 DOCKERFILE = ROOT / 'Dockerfile'
 
-#: 官方基础镜像（Dockerfile 的默认值）。--base-mirror 会据此拼出镜像站引用。
 DEFAULT_PYTHON_IMAGE = 'python:3.14-slim-bookworm'
 DEFAULT_CADDY_IMAGE = 'caddy:2.11.4-alpine'
-#: 镜像站默认值来源：显式 --base-mirror > 环境变量 / .env > 不镜像（走 Docker Hub）。
 BASE_MIRROR_ENV = 'HOMEOS_BASE_MIRROR'
 
 
@@ -73,13 +71,9 @@ def load_env_file(path: Path) -> None:
 
 
 class Project(NamedTuple):
-    #: 命令行里的简写（--project）。
     key: str
-    #: 目录名与镜像名前缀。
     name: str
-    #: 导出加密后端的 Docker 阶段。
     export_target: str
-    #: 组装运行镜像的 Docker 阶段。
     image_target: str
 
 
@@ -88,7 +82,6 @@ PROJECTS: dict[str, Project] = {
     'store': Project('store', 'homeos-store', 'store-export', 'store'),
 }
 
-#: 把 ``docker version`` 的架构名与 ``platform.machine()`` 归一成两种目标架构。
 ARCH_ALIASES = {
     'x86_64': 'amd64',
     'amd64': 'amd64',
@@ -98,7 +91,6 @@ ARCH_ALIASES = {
 
 
 def docker_bin() -> str:
-    # 用绝对路径调用：既避免依赖 PATH 的歧义，也满足静态检查对「部分路径启动进程」的约束。
     resolved = shutil.which('docker')
     if not resolved:
         raise SystemExit('找不到 docker 可执行文件，请先安装并确保它在 PATH 中')
@@ -145,8 +137,6 @@ def run(command: list[str]) -> None:
 
 
 def buildx_cache_args(args: argparse.Namespace) -> list[str]:
-    # --cache-from / --cache-to 可重复；CI 用它把「导出后端」与「组装镜像」两次
-    # 调用接到同一个 gha 缓存 scope 上，避免后端被 Cython 编译两遍。
     extra: list[str] = []
     for dest in ('cache_from', 'cache_to'):
         for value in getattr(args, dest) or []:
@@ -155,8 +145,6 @@ def buildx_cache_args(args: argparse.Namespace) -> list[str]:
 
 
 def _mirrored(mirror: str, official_image: str) -> str:
-    # 把官方库镜像（"python:3.14-..."）改写成镜像站引用（"<mirror>/library/python:3.14-..."）。
-    # mirror 里若带协议/尾部斜杠做一次规整；已是完整仓库路径的镜像名不会被改写（见调用方）。
     host = mirror.strip().rstrip('/')
     if not host:
         return official_image
@@ -165,9 +153,6 @@ def _mirrored(mirror: str, official_image: str) -> str:
 
 
 def base_image_args(args: argparse.Namespace) -> list[str]:
-    # 基础镜像可整体指向镜像站：Docker Hub 在部分网络下拉不动
-    # （auth.docker.io 超时，见 README「构建镜像」一节的说明）。
-    # 优先级：显式 --python-image / --caddy-image > --base-mirror > HOMEOS_BASE_MIRROR > Dockerfile 默认。
     mirror = (getattr(args, 'base_mirror', None) or os.getenv(BASE_MIRROR_ENV, '')).strip()
     python_image = args.python_image or (_mirrored(mirror, DEFAULT_PYTHON_IMAGE) if mirror else '')
     caddy_image = args.caddy_image or (_mirrored(mirror, DEFAULT_CADDY_IMAGE) if mirror else '')
@@ -266,7 +251,6 @@ def _add_base_image_options(parser: argparse.ArgumentParser) -> None:
 
 
 def main() -> None:
-    # 先吃 .env（真实环境变量优先），机器相关的 HOMEOS_BASE_MIRROR 等可写在那里。
     load_env_file(ROOT / '.env')
     parser = argparse.ArgumentParser(
         description=__doc__,

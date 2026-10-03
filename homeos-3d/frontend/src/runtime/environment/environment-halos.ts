@@ -37,7 +37,7 @@ export function createScreenOutlines({
     innerGlowElement = document.createElementNS("http://www.w3.org/2000/svg", "path");
   (svgElement.setAttribute("class", "i3d-model-outlines"),
     svgElement.setAttribute("aria-hidden", "true"));
-  // 三层轮廓：[path 元素, 描边宽度, 描边不透明度]，元素来自 createElementNS("…svg","path")。
+
   const outlineLayers: [SVGPathElement, number, number][] = [
     [outerGlowElement, 10, 0.14],
     [innerGlowElement, 6, 0.22],
@@ -302,7 +302,7 @@ export function createScreenOutlines({
     activeCamera.updateMatrixWorld();
     const widthPx = containerElement.clientWidth,
       heightPx = containerElement.clientHeight,
-      // 轮廓条目：model/points 是宿主场景图里的动态对象，camera 在下方按模型解析后写入。
+
       outlineEntries: { model: any; points: any; camera?: any }[] = outlineModels
         .filter(
           (outlineCandidate) =>

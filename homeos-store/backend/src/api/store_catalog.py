@@ -178,7 +178,6 @@ def _evaluate_coupon(
     if coupon.max_redemptions is not None and int(coupon.redeemed_count or 0) >= coupon.max_redemptions:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="优惠码已被领完。")
     if coupon.per_account_limit:
-        # 「这个账号还用没用过该码」的判据收在 coupons.holds_slot_conditions()：
         used = session.execute(
             select(func.count(CouponRedemption.id))
             .outerjoin(Order, Order.id == CouponRedemption.order_id)
@@ -205,7 +204,6 @@ def _evaluate_coupon(
     else:
         discount = min(money.discount_centi(price, coupon.percent), price)
     return coupon, max(0, discount)
-#: 人工发卡商品不支持优惠码的统一文案。下单与 ``/coupons/preview`` 必须**一字不差**：
 _MANUAL_COUPON_DETAIL = "该商品为人工发卡，不支持使用优惠码。"
 def _evaluate_coupon_limited(
     session, *, account: Account, product: Product, code: str
@@ -216,7 +214,6 @@ def _evaluate_coupon_limited(
     if not normalized:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请输入优惠码。")
     if product.fulfillment_mode == "manual":
-        # 人工发卡商品由运营手工核对后发码，折扣没法自动结算，因此明确不支持。
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=_MANUAL_COUPON_DETAIL
         )
@@ -240,7 +237,6 @@ def _flush_order(session, order: Order) -> str:
         with session.no_autoflush, session.begin_nested():
             session.flush()
     except IntegrityError as error:
-        # SQLite 的报错只列列名、不带索引名（``UNIQUE constraint failed:
         message = str(getattr(error, "orig", error))
         if "UNIQUE constraint failed" not in message:
             raise
@@ -266,7 +262,6 @@ def _license_meta(session, licenses: list[License]) -> dict[str, dict]:
         .where(DeviceBinding.license_id.in_(license_ids))
         .order_by(*DeviceBinding.liveness_order())
     ):
-        # 有序之后，先到的那一行就是该授权最该显示的一行；非「存活」的一律跳过 ——
         if binding.is_live:
             bindings.setdefault(binding.license_id, binding)
     releases: dict[str, object] = {}
@@ -299,7 +294,6 @@ def _account_orders(
         session.scalars(
             select(Order)
             .where(Order.account_id == account.id)
-            # 用户主动「清除订单记录」写的就是 archived_at；不在这里过滤的话，
             .where(Order.archived_at.is_(None))
             .order_by(Order.created_at.desc())
             .limit(limit)
@@ -337,7 +331,6 @@ def _center_payload(session, request: Request, account: Account) -> dict:
         license_meta=_license_meta(session, licenses),
         entitlements=entitlements,
         orders=_account_orders(session, account),
-        #: 总数单独查一次（与列表同口径），让前端能如实显示「还有 N 单未加载」；
         orders_total=_account_orders_total(session, account),
         has_used_trial=_has_used_trial(session, account),
     )
@@ -350,13 +343,11 @@ def _release_snapshot_conflict(payload: ReleaseDeviceRequest, binding) -> str | 
         or payload.expected_binding_version
     )
     if binding is None:
-        # 带了快照却查不到绑定：说明它在这几秒内被别处释放/换绑了。
         return "授权绑定的设备已变更，请刷新后重新确认。" if has_snapshot else None
     if payload.expected_binding_id and payload.expected_binding_id != binding.id:
         return "授权绑定的设备已变更，请刷新后重新确认。"
     expected_at = payload.expected_activated_at
     if expected_at is not None:
-        # 前端发来的是 iso_z（带 Z 的 UTC 时刻），库内是 naive UTC。
         normalized = expected_at
         if normalized.tzinfo is not None:
             normalized = normalized.astimezone(UTC).replace(tzinfo=None)
@@ -367,13 +358,10 @@ def _release_snapshot_conflict(payload: ReleaseDeviceRequest, binding) -> str | 
         if payload.expected_binding_version != binding_version(binding):
             return "授权绑定的设备已变更，请刷新后重新确认。"
     return None
-# 订单
 ACCOUNT_ORDER_PAGE_SIZE = 20
 def _reconcile_payment(session, request: Request, order: Order) -> None:
     if order.status != "pending":
         return
-    # 不在这里判渠道：``reconcile_channel_order`` 按**订单自己的** provider 决定能不能
-    # 查单（运营把默认渠道换掉之后，在途的老订单仍然必须能被对账）。
     setting = site_config.get_setting(session)
     try:
         reconcile_channel_order(
@@ -383,17 +371,13 @@ def _reconcile_payment(session, request: Request, order: Order) -> None:
             setting=setting,
         )
     except Exception as error:
-        # 查单失败不影响这一轮响应（用户下次轮询还会再查），但它是「订单可能永远
-        # 停在待支付」的早期信号，所以除了日志也计入计数。
         incidents.note("reconcile.poll", order_no=order.order_no, error=error)
         logger.exception("订单查单对账失败 order=%s", order.order_no)
 
 
-# 邀请有礼
 def _wallet_payload(wallet: ReferralWallet | None) -> dict | None:
     if wallet is None:
         return None
-    #: 对外仍是「两位小数字符串」，与改动之前**逐字节一致** —— 厘正好是 1/100，
     return {
         "code": wallet.code,
         "balance": money.format_centi(wallet.balance_centi),

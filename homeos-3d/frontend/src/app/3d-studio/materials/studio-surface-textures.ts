@@ -1,10 +1,5 @@
-// 工作室模型库的程序化表面贴图：3D 工作室「壁画」的装饰画、以及「背景墙」的饰面材质都在线生成。
-//
-// 另见 homeos-3d 的 frontend/src/app/3d-studio/materials/studio-surface-textures.ts。
-// 本模块只依赖调用方传入的 THREE 命名空间（与场景同一份），不直接 import three：
-// three 从 /static/vendor/three/0.186.0 加载，实际路径由主模块决定。
 
-// 壁画可选的艺术风格。
+
 const MURAL_ART_STYLES = Object.freeze([
   "bauhaus",
   "colorfield",
@@ -14,7 +9,7 @@ const MURAL_ART_STYLES = Object.freeze([
   "terrazzo",
 ]);
 
-// 背景墙可选饰面：大理石、木饰面、格栅、石材、清水混凝土、织物、金属。
+
 const FEATURE_WALL_STYLES = Object.freeze([
   "marble",
   "wood",
@@ -25,7 +20,7 @@ const FEATURE_WALL_STYLES = Object.freeze([
   "metal",
 ]);
 
-// 各饰面对应的材质参数：让同一种饰面在 3D 里除了贴图之外，粗糙度与金属度也各不相同。
+
 export const FEATURE_WALL_STYLE_MATERIAL = Object.freeze({
   marble: { color: 0xf7f7f5, roughness: 0.34, metalness: 0.03 },
   wood: { color: 0x9a6f42, roughness: 0.72, metalness: 0.02 },
@@ -36,31 +31,31 @@ export const FEATURE_WALL_STYLE_MATERIAL = Object.freeze({
   metal: { color: 0x9ba0a6, roughness: 0.38, metalness: 0.28 },
 });
 
-// 用 Set 做白名单查询：归一化函数会被频繁调用，线性查找没必要。
+
 const muralArtStyleSet = new Set(MURAL_ART_STYLES);
 const featureWallStyleSet = new Set(FEATURE_WALL_STYLES);
 
-// 归一化壁画风格，非法值回落到第一个风格。
+
 export function normalizeMuralArtStyle(styleValue) {
   return muralArtStyleSet.has(styleValue) ? styleValue : MURAL_ART_STYLES[0];
 }
 
-// 归一化背景墙饰面风格，非法值回落到第一个风格。
+
 export function normalizeFeatureWallStyle(styleValue) {
   return featureWallStyleSet.has(styleValue) ? styleValue : FEATURE_WALL_STYLES[0];
 }
 
-// 确定性伪随机数源：同一风格每次绘制得到同一张图。
+
 function seededRandomSource(seed) {
   let randomSeed = seed >>> 0;
   return () => {
-    // 常数取自 Numerical Recipes 的 LCG（乘 1664525、加 1013904223）。
+
     randomSeed = (randomSeed * 1664525 + 1013904223) >>> 0;
     return randomSeed / 4294967296;
   };
 }
 
-// 按系数调整颜色明度。
+
 function shadeColor(hexColor, factor) {
   const red = Math.min(255, Math.max(0, Math.round(((hexColor >> 16) & 255) * factor)));
   const green = Math.min(255, Math.max(0, Math.round(((hexColor >> 8) & 255) * factor)));
@@ -68,7 +63,7 @@ function shadeColor(hexColor, factor) {
   return "rgb(" + red + ", " + green + ", " + blue + ")";
 }
 
-// 用二次曲线平滑地串起一串采样点并描边。
+
 function strokeSmoothPath(canvasCtx, points) {
   if (points.length < 2) {
     return;
@@ -76,7 +71,7 @@ function strokeSmoothPath(canvasCtx, points) {
   canvasCtx.beginPath();
   canvasCtx.moveTo(points[0].x, points[0].y);
   for (let index = 1; index < points.length - 1; index += 1) {
-    // 相邻两点的中点作为二次贝塞尔的锚点：曲线终点落在中点，才能自然接上下一段。
+
     const midX = (points[index].x + points[index + 1].x) / 2;
     const midY = (points[index].y + points[index + 1].y) / 2;
     canvasCtx.quadraticCurveTo(points[index].x, points[index].y, midX, midY);
@@ -86,7 +81,7 @@ function strokeSmoothPath(canvasCtx, points) {
   canvasCtx.stroke();
 }
 
-// 包豪斯风格壁画：几何色块 + 一条手绘曲线 + 右侧刻度短线。
+
 function paintMuralBauhaus(canvasCtx, width, height) {
   const muralBase = canvasCtx.createLinearGradient(0, 0, width, height);
   muralBase.addColorStop(0, "#f5f0e6");
@@ -137,7 +132,7 @@ function paintMuralBauhaus(canvasCtx, width, height) {
   }
 }
 
-// 色域风格壁画：几块大面积的半透明圆角色块叠在竖向浅色条带上。
+
 function paintMuralColorField(canvasCtx, width, height) {
   const colorFieldRandom = seededRandomSource(74123);
   const muralBase = canvasCtx.createLinearGradient(0, 0, 0, height);
@@ -173,7 +168,7 @@ function paintMuralColorField(canvasCtx, width, height) {
   canvasCtx.strokeRect(width * 0.07, height * 0.09, width * 0.86, height * 0.82);
 }
 
-// 线条风格壁画：46 条随机长度与透明度的斜线，加一段深蓝圆弧与红点、一条水平参考线。
+
 function paintMuralLinework(canvasCtx, width, height) {
   const lineworkRandom = seededRandomSource(90211);
   canvasCtx.fillStyle = "#f6f3ec";
@@ -208,7 +203,7 @@ function paintMuralLinework(canvasCtx, width, height) {
   canvasCtx.stroke();
 }
 
-// 色块风格壁画：四列自下而上堆叠的矩形色块，列间留竖向浅色缝。
+
 function paintMuralBlocks(canvasCtx, width, height) {
   const blocksRandom = seededRandomSource(31577);
   canvasCtx.fillStyle = "#f2ece1";
@@ -246,7 +241,7 @@ function paintMuralBlocks(canvasCtx, width, height) {
   canvasCtx.fillRect(width * 0.52, height * 0.44, width * 0.06, height * 0.14);
 }
 
-// 水墨风格壁画：14 团径向渐变的墨晕 + 一条黑色笔触 + 一道红色横笔与朱点。
+
 function paintMuralInk(canvasCtx, width, height) {
   const inkRandom = seededRandomSource(60413);
   canvasCtx.fillStyle = "#f7f2e8";
@@ -294,7 +289,7 @@ function paintMuralInk(canvasCtx, width, height) {
   canvasCtx.fill();
 }
 
-// 水磨石风格壁画：340 颗随机旋转的多边形石粒，叠两段粗圆弧与一块浅色遮盖圆。
+
 function paintMuralTerrazzo(canvasCtx, width, height) {
   const terrazzoRandom = seededRandomSource(52019);
   canvasCtx.fillStyle = "#f3eee4";
@@ -342,7 +337,7 @@ function paintMuralTerrazzo(canvasCtx, width, height) {
   canvasCtx.stroke();
 }
 
-// 风格名 → 绘制函数；新增风格需要同时更新 MURAL_ART_STYLES 与本表。
+
 const muralPainters = Object.freeze({
   bauhaus: paintMuralBauhaus,
   colorfield: paintMuralColorField,
@@ -352,16 +347,16 @@ const muralPainters = Object.freeze({
   terrazzo: paintMuralTerrazzo,
 });
 
-// 贴图按风格缓存：Canvas 绘制开销不小，同一风格全场景只生成一次。
+
 const muralArtTextures = new Map();
 
-// 生成（或取回缓存的）壁画贴图。
+
 export function createMuralArtTexture(threeApi, styleValue, maxAnisotropy = 1) {
   const muralStyle = normalizeMuralArtStyle(styleValue);
   if (muralArtTextures.has(muralStyle)) {
     return muralArtTextures.get(muralStyle);
   }
-  // 768×512 是壁画在两米宽墙面上仍够清晰的折中尺寸，再大对内存不划算。
+
   const canvasElement = document.createElement("canvas");
   canvasElement.width = 768;
   canvasElement.height = 512;
@@ -372,14 +367,14 @@ export function createMuralArtTexture(threeApi, styleValue, maxAnisotropy = 1) {
   muralPainters[muralStyle](canvasCtx, canvasElement.width, canvasElement.height);
   const texture = new threeApi.CanvasTexture(canvasElement);
   texture.colorSpace = threeApi.SRGBColorSpace;
-  // 各向异性上限取 8：足以让斜视角度下的纹路不糊，又不会在小设备上耗费过多采样。
+
   texture.anisotropy = Math.min(maxAnisotropy || 1, 8);
   texture.needsUpdate = true;
   muralArtTextures.set(muralStyle, texture);
   return texture;
 }
 
-// 大理石的两个色号。**画法只有一套**（同一个随机结构、同一组云斑与纹路数量），色号只换调色。
+
 const MARBLE_TONES = Object.freeze({
   white: Object.freeze({
     seed: 88117,
@@ -403,7 +398,7 @@ const MARBLE_TONES = Object.freeze({
     speckDarkTone: "24, 25, 28",
     speckDarkAlpha: ".3",
   }),
-  // 黑金大理石（黑底白纹）：实物参考里黑石座就是这一支 —— 近黑的底上飘着灰白纹路。
+
   dark: Object.freeze({
     seed: 20260924,
     baseStops: Object.freeze([
@@ -428,7 +423,7 @@ const MARBLE_TONES = Object.freeze({
   }),
 });
 
-// 抛光大理岩：底色渐变 + 柔和的云斑 + 9 条粗主纹 + 46 条细纹 + 明暗噪点。
+
 function paintMarbleSlab(canvasCtx, width, height, tone) {
   const marbleRandom = seededRandomSource(tone.seed);
   const surfaceBase = canvasCtx.createLinearGradient(0, 0, width, height);
@@ -443,7 +438,7 @@ function paintMarbleSlab(canvasCtx, width, height, tone) {
     const cloudRadius = Math.min(width, height) * (0.08 + marbleRandom() * 0.32);
     const cloudLighter = marbleRandom() > 0.35;
     const cloudTone = cloudLighter ? tone.cloudLightTone : tone.cloudDarkTone;
-    // 偏亮 / 偏暗两路各自一对「基准 + 浮动」，与 tone 里的两对区间一一对应。
+
     const cloudAlphaRange = cloudLighter ? tone.cloudLightAlpha : tone.cloudDarkAlpha;
     const cloudAlpha = cloudAlphaRange[0] + marbleRandom() * cloudAlphaRange[1];
     const cloudGradient = canvasCtx.createRadialGradient(cloudX, cloudY, 0, cloudX, cloudY, cloudRadius);
@@ -453,7 +448,7 @@ function paintMarbleSlab(canvasCtx, width, height, tone) {
     canvasCtx.fillRect(cloudX - cloudRadius, cloudY - cloudRadius, cloudRadius * 2, cloudRadius * 2);
   }
   canvasCtx.lineCap = "round";
-  // 粗主纹是抛光大理石最典型的对比特征，宽度与透明度随随机数变化。
+
   for (let vein = 0; vein < 9; vein += 1) {
     const veinPoints = [];
     let veinX = width * (-0.04 + marbleRandom() * 1.08);
@@ -470,7 +465,7 @@ function paintMarbleSlab(canvasCtx, width, height, tone) {
     canvasCtx.lineWidth = tone.mainVeinWidth[0] + marbleRandom() * tone.mainVeinWidth[1];
     strokeSmoothPath(canvasCtx, veinPoints);
   }
-  // 再补一层更细、更淡的分支纹：只有主纹的话会像印刷的条纹而不像石材。
+
   for (let fine = 0; fine < 46; fine += 1) {
     const finePoints = [];
     let fineX = marbleRandom() * width;
@@ -498,12 +493,12 @@ function paintMarbleSlab(canvasCtx, width, height, tone) {
   }
 }
 
-// 大理石饰面：白色色号（与石材板共用同一套画法，见 MARBLE_TONES）。
+
 function paintFeatureWallMarble(canvasCtx, width, height) {
   paintMarbleSlab(canvasCtx, width, height, MARBLE_TONES.white);
 }
 
-// 木饰面：四块竖向拼板，每块带横向渐变的底色、120 条木纹与若干年轮节疤。
+
 function paintFeatureWallWood(canvasCtx, width, height) {
   const woodRandom = seededRandomSource(45119);
   const grainPalette = [0xa4713f, 0x8c5c31, 0xb98a54];
@@ -523,7 +518,7 @@ function paintFeatureWallWood(canvasCtx, width, height) {
       const grainPoints = [];
       let grainX = plankX + woodRandom() * plankWidth;
       let grainY = -height * 0.06;
-      // 木纹整体沿板宽方向的漂移量（±4.5% 板宽）：让纹路不总是与板长方向平行。
+
       const grainDrift = (woodRandom() - 0.5) * plankWidth * 0.09;
       grainPoints.push({ x: grainX, y: grainY });
       while (grainY < height * 1.06) {
@@ -558,7 +553,7 @@ function paintFeatureWallWood(canvasCtx, width, height) {
   canvasCtx.fillRect(width - 2.4, 0, 2.4, height);
 }
 
-// 木格栅饰面：深色凹槽底 + 等距竖条，竖条中间有一条高光细线。
+
 function paintFeatureWallSlat(canvasCtx, width, height) {
   const slatRandom = seededRandomSource(70841);
   const slatCount = Math.max(12, Math.round(width / 34));
@@ -593,7 +588,7 @@ function paintFeatureWallSlat(canvasCtx, width, height) {
   canvasCtx.fillRect(0, 0, width, height);
 }
 
-// 石材墙面：3×2 块板材，每块在基准色上做明度浮动，并叠加云斑、细纹与白色噪点。
+
 function paintFeatureWallStone(canvasCtx, width, height) {
   const stoneRandom = seededRandomSource(25309);
   const slabColumns = 3;
@@ -645,7 +640,7 @@ function paintFeatureWallStone(canvasCtx, width, height) {
   }
 }
 
-// 清水混凝土饰面：中性灰底 + 34 团云斑 + 16 道抹刀弧痕 + 两层噪点。
+
 function paintFeatureWallConcrete(canvasCtx, width, height) {
   const concreteRandom = seededRandomSource(13627);
   const surfaceBase = canvasCtx.createLinearGradient(0, 0, width, height);
@@ -692,7 +687,7 @@ function paintFeatureWallConcrete(canvasCtx, width, height) {
   }
 }
 
-// 织物饰面：底色 + 22 团柔斑 + 3 像素间距的经纬织纹 + 90 道横向竹节纱。
+
 function paintFeatureWallFabric(canvasCtx, width, height) {
   const fabricRandom = seededRandomSource(38971);
   canvasCtx.fillStyle = shadeColor(0xc9c0b2, 1);
@@ -728,7 +723,7 @@ function paintFeatureWallFabric(canvasCtx, width, height) {
   }
 }
 
-// 金属饰面：多段竖向灰度渐变模拟反射 + 900 道拉丝 + 12 道高光条。
+
 function paintFeatureWallMetal(canvasCtx, width, height) {
   const metalRandom = seededRandomSource(19237);
   const surfaceBase = canvasCtx.createLinearGradient(0, 0, 0, height);
@@ -760,7 +755,7 @@ function paintFeatureWallMetal(canvasCtx, width, height) {
   }
 }
 
-// 饰面名 → 绘制函数；新增饰面需要同时更新 FEATURE_WALL_STYLES 与本表。
+
 const featureWallPainters = Object.freeze({
   marble: paintFeatureWallMarble,
   wood: paintFeatureWallWood,
@@ -771,16 +766,16 @@ const featureWallPainters = Object.freeze({
   metal: paintFeatureWallMetal,
 });
 
-// 背景墙饰面贴图同样按风格缓存。
+
 const featureWallTextures = new Map();
 
-// 生成（或取回缓存的）背景墙饰面贴图。
+
 export function createFeatureWallTexture(threeApi, styleValue, maxAnisotropy = 1) {
   const wallStyle = normalizeFeatureWallStyle(styleValue);
   if (featureWallTextures.has(wallStyle)) {
     return featureWallTextures.get(wallStyle);
   }
-  // 背景墙尺寸更大，用 1024×768，纹理细节（木纹、拉丝）才经得起近看。
+
   const canvasElement = document.createElement("canvas");
   canvasElement.width = 1024;
   canvasElement.height = 768;
@@ -797,7 +792,7 @@ export function createFeatureWallTexture(threeApi, styleValue, maxAnisotropy = 1
   return texture;
 }
 
-// 石材板整图的色号表：**整块石材**（茶几的上下两块石板、餐桌台面）走这里。
+
 const STONE_SLAB_TONES = Object.freeze({
   marble: MARBLE_TONES.white,
   "marble-dark": MARBLE_TONES.dark,
@@ -805,11 +800,10 @@ const STONE_SLAB_TONES = Object.freeze({
 
 const stoneSlabTextures = new Map();
 
-// 生成（或取回缓存的）石材板整图。
-// flavor：marble（白）/ marble-dark（黑金）。取不到时返回 null（调用方退化成纯色）。
+
 export function createStoneSlabTexture(threeApi, flavor, maxAnisotropy = 1) {
   if (flavor === "marble") {
-    // 与背景墙共用同一份缓存实例；调用方负责 clone 后再改平铺方式。
+
     return createFeatureWallTexture(threeApi, "marble", maxAnisotropy);
   }
   const tone = STONE_SLAB_TONES[flavor];
@@ -819,7 +813,7 @@ export function createStoneSlabTexture(threeApi, flavor, maxAnisotropy = 1) {
   if (stoneSlabTextures.has(flavor)) {
     return stoneSlabTextures.get(flavor);
   }
-  // 与背景墙同尺寸：石材近看的纹路要经得起贴到 1.7m 长的板面上。
+
   const canvasElement = document.createElement("canvas");
   canvasElement.width = 1024;
   canvasElement.height = 768;

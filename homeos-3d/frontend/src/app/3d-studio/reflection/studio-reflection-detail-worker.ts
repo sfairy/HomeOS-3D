@@ -1,6 +1,6 @@
 import { MeshoptSimplifier } from "/static/vendor/meshoptimizer/0.25/meshopt_simplifier.module.js";
 
-// lib.dom 把 self 声明成 Window，但这个文件实际跑在 Worker 里，postMessage 的第二参数是转移列表。
+
 type ReflectionWorkerScope = {
   onmessage: ((event: { data: any }) => void) | null;
   postMessage: (message: any, transfer?: Transferable[]) => void;

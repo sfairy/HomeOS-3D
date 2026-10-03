@@ -20,7 +20,6 @@ LEVEL_WARN = "warn"
 LEVEL_FAIL = "fail"
 LEVEL_SKIP = "skip"
 
-#: 四个级别里「算不算真的验证过」。只有 pass 才是。
 PASSING_LEVELS = frozenset({LEVEL_PASS})
 
 
@@ -65,7 +64,6 @@ def is_private_host(host: str) -> bool:
     try:
         address = ipaddress.ip_address(text)
     except ValueError:
-        # 域名（含 .local/.internal 这类内网后缀）一律不在这里判死：那是启发式判断，
         return False
     return any(address in network for network in _PRIVATE_NETWORKS)
 
@@ -87,7 +85,7 @@ def resolve_host(host: str) -> tuple[bool, str, tuple[str, ...]]:
         infos = socket.getaddrinfo(text, None, proto=socket.IPPROTO_TCP)
     except socket.gaierror as error:
         return False, f"域名解析失败：{error}（请检查是否拼写错误，或该域名在公网不存在）。", ()
-    except OSError as error:  # 解析器的其它故障同样不该炸掉自检
+    except OSError as error:
         return False, f"域名解析失败：{error}", ()
     addresses = tuple(sorted({str(info[4][0]) for info in infos if info[4]}))
     if not addresses:
@@ -105,7 +103,6 @@ def _blocked_probe_reason(host: str) -> str:
             address = ipaddress.ip_address(value.strip().strip("[]"))
         except ValueError:
             return False
-        # ``::ffff:169.254.169.254`` 是 IPv4 映射写法，必须折回 IPv4 再比：
         mapped = getattr(address, "ipv4_mapped", None)
         if mapped is not None:
             address = mapped
@@ -120,7 +117,6 @@ def _blocked_probe_reason(host: str) -> str:
     try:
         ipaddress.ip_address(text)
     except ValueError:
-        # 是域名：按解析结果判断（与真正连接时会连到的地址一致）。
         resolved, _detail, addresses = resolve_host(text)
         if resolved and any(blocked(item) for item in addresses):
             return _BLOCKED_MESSAGE.format(host=text)

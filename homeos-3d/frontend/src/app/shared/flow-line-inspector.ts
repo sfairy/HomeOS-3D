@@ -118,7 +118,7 @@ export function renderFlowLineInspector(hostElement, inspectorComponent, inspect
       ) => {
         const fieldLabelElement = document.createElement("label");
         fieldLabelElement.append(document.createTextNode(fieldLabel));
-        // select 与 input 共用同一套赋值语句，统一按过渡期控件类型处理。
+
         const controlElement = document.createElement(
           controlType === "select" ? "select" : "input",
         ) as DomControl;

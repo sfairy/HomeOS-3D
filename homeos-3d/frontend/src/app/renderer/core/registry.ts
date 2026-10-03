@@ -16,26 +16,16 @@ import {
 import { entityPowerIsOn } from "./entity-power";
 import { lightRealtimeCapabilities } from "../controls/light-runtime";
 import { renderInteraction3d } from "../../bridge/bridge";
-/**
- * 渲染环境 / 属性袋：由 renderer 按组件类型动态组装（states、editable、document、
- * cleanup、callEntityService、airflow* …），registry 侧只读取其中的可选字段；
- * 各组件键集不同，无法在本文件内收敛成固定接口，故显式声明为动态袋。
- */
+/** 渲染环境 / 属性袋：由 renderer 按组件类型动态组装（states、editable、document、cleanup、callEntityService、airflow* …），registry 侧只读取其中的可选字段； */
 type RenderPropertyBag = any;
-/**
- * 渲染期直接挂在 DOM 元素上的组件控制器钩子（renderer.ts 的 ComponentControllerHooks
- * 未导出，这里按同样的「全部可选」写法声明 registry 用到的键）。
- */
+/** 渲染期直接挂在 DOM 元素上的组件控制器钩子（renderer.ts 的 ComponentControllerHooks未导出，这里按同样的「全部可选」写法声明 registry 用到的键）。 */
 type ComponentControllerHooks = {
   syncFloorplanAutoDiagramState?: () => void;
   hbSyncVacuumMap?: () => void;
   syncLineChartState?: (...stateArgs: any[]) => any;
   cleanupLineChartHover?: () => void;
 };
-/**
- * hls.js 运行时：外部脚本注入 window.Hls，vite-env.d.ts 的 Window 只有索引签名，
- * 这里按本文件实际用到的 API 补一份局部类型。
- */
+/** hls.js 运行时：外部脚本注入 window.Hls，vite-env.d.ts 的 Window 只有索引签名，这里按本文件实际用到的 API 补一份局部类型。 */
 type HlsRuntime = {
   isSupported?: () => boolean;
   Events: {
@@ -70,8 +60,8 @@ export function setBuiltinAssetVersions(assetVersionEntries = []) {
     const assetId = String(assetVersionEntry?.assetId || "");
     if (!assetId) continue;
     const assetVersion = String(assetVersionEntry.version || "");
-    // 老素材 ID 由后端在 API 边界归一（api/projects.py 的 canonicalize_document_asset_ids），
-    // 前端只登记现行 assetId，不再维护旧 ID 别名。
+
+
     (stagedVersionByAssetId.set(assetId, assetVersion),
       assetVersionEntry.url && stagedUrlByAssetId.set(assetId, String(assetVersionEntry.url)));
     const effectVariant = assetVersionEntry.effectVariant || {},
@@ -165,8 +155,8 @@ function resolveAssetSource(assetKey) {
     return /^[0-9a-f]{32}$/.test(userAssetId) ? "/api/v1/assets/user/" + userAssetId : "";
   }
   if (!normalizedAssetKey.startsWith("builtin:")) return "";
-  // 老 ID（v1/2D/、v1/3D/、v1/底图.png 等）由后端 builtin_path 的别名表兜底解析，
-  // 前端不再自带一份路径改写规则。
+
+
   const normalizedBuiltinPath = normalizedAssetKey
     .slice(8)
     .split("/")

@@ -125,8 +125,6 @@ def referral_history(
     return {"items": items, "total": total, "page": page}
 
 
-
-
 @router.post("/referrals/withdrawals")
 def request_withdrawal(
     payload: WithdrawalRequest, session: DbSession, account: AuthedAccount
@@ -141,7 +139,6 @@ def request_withdrawal(
     if wallet is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="请先生成邀请码。")
 
-    # requestKey 是幂等键：重复提交必须原样返回上一次结果，
     existing = session.scalars(
         select(ReferralWithdrawal).where(ReferralWithdrawal.request_key == payload.request_key)
     ).first()
@@ -157,7 +154,6 @@ def request_withdrawal(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"最低提现 {money.format_centi(minimum_centi)} 积分。",
         )
-    # 「可用积分」口径必须与前端展示一致（余额 - 冻结）；只比 balance 的话，
     available_centi = referrals.available_points_centi(wallet)
     if points_centi > available_centi:
         raise HTTPException(
@@ -172,7 +168,6 @@ def request_withdrawal(
             status_code=status.HTTP_409_CONFLICT, detail="你有正在处理中的提现申请，请等待处理完成。"
         )
     fee_percent = float(setting.referral_withdrawal_fee_percent or 0.0)
-    # 手续费在用户确认那一刻可能是 1%，等运营改成 5% 后才提交 —— 用户看到的到账金额与实际不符，只能事后投诉；
     if payload.expected_fee_percent is not None and money.percent_to_bps(
         payload.expected_fee_percent
     ) != money.percent_to_bps(fee_percent):
@@ -192,15 +187,11 @@ def request_withdrawal(
             fee_percent=fee_percent,
         )
     except referrals.WalletConflictError:
-        #: 上面的「可用积分够不够」「有没有正在处理的提现」都是**读**判断，与真正冻结之间存在窗口：
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="钱包刚刚有其它操作，请刷新后重试。",
         ) from None
     except IntegrityError:
-        # request_key 是全局唯一索引：两个账号（或同账号双击）并发用同一请求键提交时，
-        # 上面的 SELECT 查重挡不住，败者在 flush 时撞键。回滚后复查，把裸 500 换成
-        # 业务口径（别人的键→409；自己的键→幂等返回既有单）；其它完整性错误照旧抛出。
         session.rollback()
         clashing = session.scalars(
             select(ReferralWithdrawal).where(ReferralWithdrawal.request_key == payload.request_key)

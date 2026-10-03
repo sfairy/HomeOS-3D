@@ -1,15 +1,4 @@
-/**
- * 页面脚本里的「控件节点」。
- *
- * 背景：这些页面正在脱离 ts-nocheck 注释，节点几乎全是
- * `document.querySelector("#id")` / `querySelectorAll` 抓出来的。逐个写死
- * HTMLInputElement / HTMLSelectElement / HTMLButtonElement 会把调用点淹掉，
- * 所以统一收窄成「控件节点」：补齐代码实际读写的表单与写作属性，
- * 其余保持 HTMLElement 语义。
- *
- * 只要用 `document.querySelector<DomControl>(...)` 标注查询结果即可；
- * 这是过渡期的折中，只放宽类型，不改变任何运行时行为。
- */
+/** 页面脚本里的「控件节点」。 */
 export type DomControl = HTMLElement & {
   /** 表单控件的当前值（input / select / textarea）。 */
   value?: any;

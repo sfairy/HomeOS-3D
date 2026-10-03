@@ -414,7 +414,7 @@ export async function openInteraction3dEditor({
                 curtainGroups: (structuredClone2.environment?.curtainGroups || []).map(
                   (curtainGroupItem) => ({
                     ...curtainGroupItem,
-                    // 组合的两个成员图标同样按固定比例跟随组合按钮大小。
+
                     iconSize: buttonIconSize(curtainGroupItem.size),
                   }),
                 ),
@@ -482,9 +482,8 @@ export async function openInteraction3dEditor({
                 : {
                     clickAction: normalizeClickAction(normalizedItem.clickAction),
                   }),
-              // 普通按钮的图标按固定比例跟随按钮（@app/bridge/button-icon-size，与
-              // stage.ts resolveMarkerIconSize 同口径），旧的按 size-18 写死的值不再沿用；
-              // 扫地机把 iconSize 当字号，保持原值。
+
+
               iconSize: isVacuumMode
                 ? Number.isFinite(normalizedItem.iconSize) && normalizedItem.iconSize > 0
                   ? normalizedItem.iconSize
@@ -520,7 +519,7 @@ export async function openInteraction3dEditor({
         ? [
             ...(isVacuumMode ? [] : [["icon", "图标", ""]]),
             ["size", isVacuumMode ? "状态框缩放" : "按钮大小", isVacuumMode ? "%" : "px"],
-            // 图标始终铺满按钮，只有扫地机把 iconSize 当字号用，才需要单独暴露。
+
             ...(isVacuumMode ? [["iconSize", "文字大小", "px"]] : []),
             ["hitSize", "点击范围", "px"],
             ["buttonVisibility", "按钮显示", ""],
@@ -1205,9 +1204,8 @@ export async function openInteraction3dEditor({
       createSettingRow(sizeRowContainer, sizeRowLabel, sizeInputElement)
     );
   }
-  // 按钮大小与图标大小联动：图标按固定比例（BUTTON_ICON_SIZE_RATIO = 0.6）跟随按钮，
-  // 避免旧的「按钮放大、图标不动」以及「图标和按钮等大、顶到圆形描边」。stage.ts 的
-  // resolveMarkerIconSize 用同一个常量，所以即使这里没保存也渲染一致。
+
+
   function syncLinkedIconSize(targetConfig, nextButtonSize) {
     const resolvedIconSize = buttonIconSize(nextButtonSize);
     targetConfig.iconSize = resolvedIconSize;
@@ -4719,9 +4717,8 @@ export async function openInteraction3dEditor({
           createSizeRow(
             itemAppearanceRowElement,
             isVacuumMode ? "状态框缩放（%）" : "按钮大小（px）",
-            // 百分比以 DEFAULT_BUTTON_SIZE 为 100%（= 新建时的默认大小）。渲染侧的
-            // 缩放基准仍是设计单位 44（stage.ts 的 vacuumScale），两者语义不同：
-            // 这里只是「相对默认多大」，改默认值不该改变已有按钮的实际像素。
+
+
             () =>
               isVacuumMode
                 ? Math.round((vector.size / DEFAULT_BUTTON_SIZE) * 100)
@@ -4735,8 +4732,8 @@ export async function openInteraction3dEditor({
                 refreshEditorPreview());
             },
           );
-          // 普通按钮的图标始终铺满按钮，不再单独暴露「图标大小」；扫地机的
-          // iconSize 是状态卡字号，仍然要能调。
+
+
           isVacuumMode &&
             createSizeRow(
               coverSizeGridElement,

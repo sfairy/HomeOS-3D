@@ -15,7 +15,6 @@ NOISY_ACCESS_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     ),
 )
 
-#: 过滤器名字：重复安装时靠它去重（lifespan 在热重载下会跑很多次）。
 _FILTER_NAME = 'homeos-access-noise'
 
 

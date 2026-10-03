@@ -1,6 +1,4 @@
-/**
- * 站点配置与诊断。
- */
+/** 站点配置与诊断。 */
 
 import { errorMessage } from "../../store-types.js";
 import { $, $$, toast } from "../dom.js";
@@ -208,9 +206,7 @@ function control(form: SettingsForm, name: string): HTMLInputElement {
 }
 
 
-/**
- * 站点配置的「读到了吗」闸门：读失败时表单只是没回填（既非空也非对），此时保存会把支付渠道等
- */
+/** 站点配置的「读到了吗」闸门：读失败时表单只是没回填（既非空也非对），此时保存会把支付渠道等 */
 function setSettingsLoadState(phase: SettingsLoadPhase, message = '') {
   const chip = $('#settings-load-status');
   const submit = $('#settings-save') as HTMLButtonElement | null;
@@ -234,9 +230,7 @@ function setSettingsLoadState(phase: SettingsLoadPhase, message = '') {
   }
 }
 
-/**
- * 按**上一次**的结论把闸门重新落到界面上：「忙状态」会把按钮重新启用，保存后的重载若失败，
- */
+/** 按**上一次**的结论把闸门重新落到界面上：「忙状态」会把按钮重新启用，保存后的重载若失败， */
  function syncSettingsGate() {
   setSettingsLoadState(state.settingsLoadPhase || 'loading', state.settingsLoadMessage || '');
 }
@@ -258,16 +252,16 @@ export async function loadSettings() {
   form.elements.siteName.value = String(store.siteName || '');
   form.elements.siteTitle.value = String(store.siteTitle || '');
   form.elements.supportEmail.value = String(store.supportEmail || '');
-  // logoUrl 在响应里嵌在 store 下，写入时却是顶层字段（AdminSettingsRequest 的口径）
+
   form.elements.logoUrl.value = String(store.logoUrl || '');
-  // 留空 = 账号中心的部署块整块不显示（不是回落默认值，见 admin.html 该字段的注释）
+
   form.elements.deployBaseUrl.value = String(store.deployBaseUrl || '');
   form.elements.description.value = String(store.description || '');
   form.elements.announcement.value = data.announcement || '';
-  // 空串必须保持空串（= 跟随环境变量）：随手保存一次就把它写成一个具体渠道，
+
   form.elements.paymentProvider.value = payment.provider || '';
   form.elements.paymentDisplayName.value = payment.displayName || '';
-  // 交易标题只在「来源是后台」时回填：留空即跟随环境变量（与支付宝凭据同款口径）。
+
   form.elements.paymentTransactionDescription.value = payment.transactionDescriptionFromDatabase
     ? payment.transactionDescription || ''
     : '';
@@ -278,7 +272,7 @@ export async function loadSettings() {
   form.elements.referralRatePercent.value = String(referral.ratePercent ?? 0);
   form.elements.referralWithdrawalFeePercent.value = String(referral.withdrawalFeePercent ?? 0);
   form.elements.referralWithdrawalMinPoints.value = String(referral.withdrawalMinPoints ?? 0);
-  // 留空 = 跟随环境变量（与 smtpPort / verificationTtl 同款口径）：库里是 NULL 时
+
   form.elements.deviceReleaseCooldownSeconds.value = data.deviceReleaseCooldownSeconds == null ? '' : String(data.deviceReleaseCooldownSeconds);
   form.elements.deviceReleaseCooldownSeconds.placeholder =
     `跟随环境变量（当前 ${data.deviceReleaseCooldownEffectiveSeconds ?? 0}）`;
@@ -320,9 +314,7 @@ export async function loadSettings() {
   if (list) list.textContent = '';
 }
 
-/**
- * 回填支付宝凭据区块，三条铁律：密钥输入框永不回填（只把打码值放进 placeholder）；
- */
+/** 回填支付宝凭据区块，三条铁律：密钥输入框永不回填（只把打码值放进 placeholder）； */
 function loadAlipayCredentials(alipay: AlipaySettings) {
   const form = settingsForm();
   const envHint = (configured: boolean | undefined) => (configured ? '跟随环境变量（已配置）' : '跟随环境变量');
@@ -352,20 +344,14 @@ function loadAlipayCredentials(alipay: AlipaySettings) {
   clearDiagnostics('#alipay-diagnostic-list');
 }
 
-/**
- * 订单有效期与支付宝二维码寿命不匹配时的常驻提示。
- *
- * 二维码在渠道侧约两小时有效；本地订单 TTL 短于它时，用户扫码稍慢就会变成
- * 「订单已过期后才到账」的复活单 —— 每笔都要人工核对库存。这条提示常驻，
- * 不用一闪而过的 toast：运营是在事后改配置时才需要看到它。
- */
+/** 订单有效期与支付宝二维码寿命不匹配时的常驻提示。 */
 function renderOrderTtlWarning(payload: SettingsPayload) {
   const node = $('#order-ttl-warning');
   if (!node) return;
   const ttl = Number(payload.orderTtlSeconds || 0);
   const floor = Number(payload.orderTtlRecommendedSeconds || 300);
-  // 这条约束对**所有扫码渠道**都成立：支付宝与微信的付款码在渠道侧都活约两小时。
-  // 从前它只判 'alipay'，两个渠道并存后会漏报（微信渠道下 TTL 太短同样是复活单）。
+
+
   const qrChannels = (payload.payment?.channels || []).map((item: PaymentChannel) => item.provider);
   const hasQrChannel = qrChannels.length > 0 || Boolean(payload.payment?.provider);
   const mismatch = hasQrChannel && ttl > 0 && ttl < floor;
@@ -378,9 +364,7 @@ function renderOrderTtlWarning(payload: SettingsPayload) {
 }
 
 
-/**
- * 把「当前实际生效」的回调地址与签名配置念出来。
- */
+/** 把「当前实际生效」的回调地址与签名配置念出来。 */
 function renderAlipayEffectiveUrls(alipay: AlipaySettings) {
   const target = $('#alipay-effective-urls');
   if (!target) return;
@@ -389,9 +373,7 @@ function renderAlipayEffectiveUrls(alipay: AlipaySettings) {
   target.textContent = `当前生效 · 异步通知 ${notify} · 同步跳转 ${back} · 签名 ${alipay.signType || 'RSA2'}${alipay.verifyResponseSign === false ? '（响应验签已关闭，不建议）' : ''}`;
 }
 
-/**
- * 回填注册邮箱验证码区块，与支付宝区块共用同三条铁律（授权码永不回填、只回填后台来源、清除勾选复位）。
- */
+/** 回填注册邮箱验证码区块，与支付宝区块共用同三条铁律（授权码永不回填、只回填后台来源、清除勾选复位）。 */
 function loadMailSettings(mail: MailSettings) {
   const form = settingsForm();
   const envText = (fromDatabase: boolean | undefined, value: unknown) =>
@@ -447,9 +429,7 @@ function loadMailSettings(mail: MailSettings) {
   clearDiagnostics('#mail-diagnostic-list');
 }
 
-/**
- * 渲染邮件投递的状态徽标：这个徽标存在的唯一理由是「填了 SMTP 但授权码漏了」不会报错 ——
- */
+/** 渲染邮件投递的状态徽标：这个徽标存在的唯一理由是「填了 SMTP 但授权码漏了」不会报错 —— */
 function renderMailBadge(mail: MailSettings, unsaved = false) {
   const badge = $('#mail-delivery-status');
   const mode = mail.mode || 'log';
@@ -498,9 +478,7 @@ function presetEmailDomain(email: unknown): string {
   return at > 0 ? address.slice(at + 1).trim().toLowerCase() : '';
 }
 
-/**
- * 按邮箱域名反查预设。自定义域名（企业邮局、自有域名）返回 ``null`` ——
- */
+/** 按邮箱域名反查预设。 */
 function presetForEmail(email: unknown, mail: MailSettings): MailPreset | null {
   const domain = presetEmailDomain(email);
   if (!domain) return null;
@@ -529,9 +507,7 @@ function renderMailPresetOptions(mail: MailSettings) {
   select.value = current;
 }
 
-/**
- * 只更新「选中哪个服务商」与一行提示，**不写任何表单字段**。
- */
+/** 只更新「选中哪个服务商」与一行提示，**不写任何表单字段**。 */
  function syncMailPresetHint(mail: MailSettings) {
   const select = $('#mail-preset-provider') as HTMLSelectElement | null;
   const emailInput = $('#mail-preset-email') as HTMLInputElement | null;
@@ -575,7 +551,7 @@ function mailFromDisplayName(form: SettingsForm) {
   if (email) {
     set('smtpUsername', email);
     set('mailFrom', `${mailFromDisplayName(form)} <${email}>`);
-    // 客服邮箱（在「站点信息」分区）**只在它空着时**才补上，且不受 overwrite 影响：
+
     const support = form.elements.supportEmail;
     if (!String(support.value || '').trim()) support.value = email;
   }
@@ -587,9 +563,7 @@ function mailFromDisplayName(form: SettingsForm) {
   return true;
 }
 
-/**
- * 按**当前表单**重算徽标：「切到 smtp 但授权码没填」会让用户收不到验证码，必须在切换当下就变色提醒，
- */
+/** 按**当前表单**重算徽标：「切到 smtp 但授权码没填」会让用户收不到验证码，必须在切换当下就变色提醒， */
  function refreshMailBadge() {
   const form = settingsForm();
   const saved = ((state.settings as SettingsPayload | null)?.mail || {}) as MailSettings;
@@ -663,16 +637,8 @@ $('#mail-preset-email')?.addEventListener('input', () => {
   return value ? { smtpPassword: value } : {};
 }
 
-/**
- * 渲染「凭据是否可用」的结论徽标。
- */
-/**
- * 渠道徽标：**每个渠道各报各的**。
- *
- * 从前这个徽标只看「当前选中的渠道是不是 alipay」，非 alipay 一律报红「不再受支持」——
- * 两个渠道并存后，这句话会把好好的微信支付说成「下单会失败」。现在它只回答一个
- * 问题：**这个**渠道有没有被启用、凭据齐不齐。
- */
+/** 渲染「凭据是否可用」的结论徽标。 */
+/** 渠道徽标：**每个渠道各报各的**。 */
 function renderChannelBadge({ selector, channel, configured, fromDatabase }: { selector: string; channel: string; configured: boolean; fromDatabase: boolean }) {
   const badge = $(selector);
   if (!badge) return;
@@ -701,11 +667,7 @@ function renderChannelBadge({ selector, channel, configured, fromDatabase }: { s
   });
 }
 
-/**
- * 回填微信支付凭据区块。与支付宝同一套铁律：密钥输入框永不回填（只把打码值放进
- * placeholder），且**只回填来源为后台的字段** —— 把环境变量的值回填进来，保存时就会
- * 把它当成后台值写回数据库，等于把环境变量抄进库。
- */
+/** 回填微信支付凭据区块。 */
 function loadWechatCredentials(wechat: WechatSettings) {
   const form = settingsForm();
   const envHint = (configured: boolean | undefined) => (configured ? '跟随环境变量（已配置）' : '跟随环境变量');
@@ -757,13 +719,7 @@ function renderWechatBadge(wechat: WechatSettings) {
   });
 }
 
-/**
- * 「顾客会看到几个支付方式」的实时摘要。
- *
- * 存在的理由很实在：启用集合是**复选框**、默认渠道是**下拉框**，只动下拉框的人会
- * 以为已经支持了那个渠道，实际只启用了它一个（另几个仍是未勾选）。这句话把
- * 服务端的口径原样说出来，让「同时支持支付宝和微信」变成一件看得见的事。
- */
+/** 「顾客会看到几个支付方式」的实时摘要。 */
 function updateChannelSummary() {
   const node = $('#payment-channel-summary');
   if (!node) return;
@@ -833,7 +789,7 @@ function refreshChannelUi() {
   return payload;
 }
 
-/** 启用的渠道 ↔ 两个复选框。只认受支持的两个名字，别的忽略。 */
+/** 启用的渠道 ↔ 两个复选框。 */
 function loadPaymentChannels(channels: unknown) {
   const form = settingsForm();
   const enabled = new Set(Array.isArray(channels) ? channels : []);
@@ -866,8 +822,7 @@ function loadPaymentChannels(channels: unknown) {
   control(settingsForm(), name).addEventListener('change', syncAlipaySecretInputs);
 });
 
-// 渠道下拉框一变：① 自动把该渠道的复选框勾上（选了默认渠道却忘了勾，是最常见的
-// 误配置 —— 表现就是「明明选了微信，前台还是只有支付宝」）；② 重算全部渠道界面。
+
 settingsForm().elements.paymentProvider.addEventListener('change', () => {
   const form = settingsForm();
   const chosen = form.elements.paymentProvider.value;
@@ -880,8 +835,7 @@ settingsForm().elements.paymentProvider.addEventListener('change', () => {
   control(settingsForm(), name).addEventListener('change', refreshChannelUi);
 });
 
-/** 组装密钥字段：只有「确实要改」时才把字段放进请求体。
- *  空输入 = 不改动（否则改个站点名就会顺手清掉密钥），勾选「清除」= 显式传空串。 */
+/** 组装密钥字段：只有「确实要改」时才把字段放进请求体。 */
  function alipaySecretPayload(form: SettingsForm): Record<string, string> {
   const payload: Record<string, string> = {};
   if (form.elements.alipayClearPrivateKey.checked) payload.alipayAppPrivateKey = '';
@@ -898,7 +852,7 @@ settingsForm().elements.paymentProvider.addEventListener('change', () => {
 settingsForm().addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = event.target as SettingsForm;
-  // 第二道闸：按钮已经禁用了，但回车提交、脚本触发都不看 disabled。
+
   if (!state.settingsLoaded) {
     toast('站点配置还没读到，保存已被拦下。请先点侧栏的「站点配置」重新加载。', 'danger');
     return;
@@ -925,7 +879,7 @@ settingsForm().addEventListener('submit', async (event) => {
         referralRatePercent: Number(form.elements.referralRatePercent.value || 0),
         referralWithdrawalFeePercent: Number(form.elements.referralWithdrawalFeePercent.value || 0),
         referralWithdrawalMinPoints: Number(form.elements.referralWithdrawalMinPoints.value || 0),
-        // 留空 = 清回「跟随环境变量」（null）。必须显式发 null 而不是发 0：
+
         deviceReleaseCooldownSeconds: form.elements.deviceReleaseCooldownSeconds.value === ''
           ? null
           : Number(form.elements.deviceReleaseCooldownSeconds.value),
@@ -935,8 +889,8 @@ settingsForm().addEventListener('submit', async (event) => {
         alipayNotifyUrl: form.elements.alipayNotifyUrl.value.trim(),
         alipayReturnUrl: form.elements.alipayReturnUrl.value.trim(),
         ...alipaySecretPayload(form),
-        // 微信支付的**文本**字段必须逐个列出：只有密钥那几个是条件提交的
-        // （空 = 不改动），其余字段留空就表示「清回跟随环境变量」，必须原样发出去。
+
+
         wechatMchId: form.elements.wechatMchId.value.trim(),
         wechatAppId: form.elements.wechatAppId.value.trim(),
         wechatMerchantSerialNo: form.elements.wechatMerchantSerialNo.value.trim(),
@@ -944,9 +898,9 @@ settingsForm().addEventListener('submit', async (event) => {
         wechatGatewayUrl: form.elements.wechatGatewayUrl.value.trim(),
         wechatNotifyUrl: form.elements.wechatNotifyUrl.value.trim(),
         ...wechatSecretPayload(form),
-        // 启用的渠道清单：复选框的勾选状态就是运营的意图，直接提交。
+
         paymentChannels: paymentChannelsPayload(form),
-        // 邮件 / 验证码：留空或 0 表示「跟随环境变量」，原样提交即可 ——
+
         mailMode: form.elements.mailMode.value,
         smtpSecurity: form.elements.smtpSecurity.value,
         smtpHost: form.elements.smtpHost.value.trim(),
@@ -958,7 +912,7 @@ settingsForm().addEventListener('submit', async (event) => {
         verificationGlobalHourlyLimit: Number(
           form.elements.verificationGlobalHourlyLimit.value || 0
         ),
-        // 发货邮件是纯布尔（没有「跟随环境变量」这一态），直接提交勾选状态。
+
         deliveryEmailEnabled: form.elements.deliveryEmailEnabled.checked,
         ...mailPasswordPayload(form),
       }),
@@ -968,7 +922,7 @@ settingsForm().addEventListener('submit', async (event) => {
     }, '保存中…');
   } catch (error) { toast(errorMessage(error, '操作失败'), 'danger'); }
   finally {
-    // 忙状态结束后必须按闸门重新校准：上面的 loadSettings() 失败时已经关掉了保存
+
     syncSettingsGate();
   }
 });
@@ -1020,9 +974,7 @@ $('#alipay-test-button')?.addEventListener('click', (event) =>
   })
 );
 
-/**
- * 邮件诊断 / 发送测试邮件：按**已保存**的配置先做连接诊断，给了收件人再真发一封（先保存、再测试）。
- */
+/** 邮件诊断 / 发送测试邮件：按**已保存**的配置先做连接诊断，给了收件人再真发一封（先保存、再测试）。 */
 $('#mail-test-button')?.addEventListener('click', async (event) => {
   const button = event.currentTarget as HTMLButtonElement;
   const output = $('#mail-test-result');
@@ -1059,13 +1011,13 @@ $('#mail-test-button')?.addEventListener('click', async (event) => {
   }
 });
 
-// 「刷新」与「清理」要重拉的那几张诊断表
+
  const DIAGNOSTIC_KEYS = [
   'sessions', 'license-sessions', 'recovery-tokens',
   'login-attempts', 'email-verifications', 'device-release-events', 'coupon-redemptions',
 ];
 
-// 清理入口的「安全谓词」说明。每一条都要如实写清「什么会被删、什么一定不会」，
+
 const PURGE_SPECS: Record<string, { path: string; message: string; impact: string; reload: () => Promise<unknown> | unknown }> = {
   sessions: {
     path: '/sessions',
@@ -1123,7 +1075,7 @@ const PURGE_SPECS: Record<string, { path: string; message: string; impact: strin
 }
 
 export async function loadDiagnostics() {
-  // 七张表互不依赖，并发取；各支自己 catch，不让一个接口报错吞掉整页诊断信息。
+
   await Promise.all(DIAGNOSTIC_KEYS.map(key => host.PAGED_LOADERS?.[key]?.()));
 }
 
@@ -1141,7 +1093,7 @@ $('#panel-diagnostics')?.addEventListener('click', async (event) => {
     return;
   }
 
-  // 筛选胶囊：点一下回到「全部核销记录」
+
   if (target.closest('#redemption-filter')) {
     state.redemptionFilter = null;
     pageState('coupon-redemptions').offset = 0;

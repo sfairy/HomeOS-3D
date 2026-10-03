@@ -29,7 +29,6 @@ from ..security.security import (
 logger = logging.getLogger("src.admin")
 
 
-# 共享助手在 admin_shared.py；这里再导入一次，
 from .admin_shared import (
     _admin_actor,
     _audit,
@@ -217,14 +216,12 @@ def admin_patch_coupon(
             detail=f"折扣类型只能是 {'/'.join(sorted(coupons.DISCOUNT_TYPES))}。",
         )
 
-    # 换了折扣类型就把另一种折扣的残留值清零。两个字段同时有非零值时，结算只认
     if "discount_type" in data:
         if data["discount_type"] == "fixed":
             data.setdefault("percent", 0.0)
         else:
             data.setdefault("amount_cents", 0)
 
-    # 名额是反规范化的用量计数，改到低于已核销数会让"剩余名额"变成负数，
     redeemed = _coupon_redemption_count(session, coupon.id)
     if data.get("max_redemptions") is not None and int(data["max_redemptions"]) < redeemed:
         raise HTTPException(
@@ -266,11 +263,9 @@ def admin_patch_coupon(
             status_code=status.HTTP_400_BAD_REQUEST, detail="开始时间必须早于结束时间。"
         )
 
-    # 改完字段立刻按核销表纠一次计数，免得后台显示的「已核销」与真实占用长期漂移。
     coupons.recount_coupon_slots(session, coupon.id)
     session.flush()
     _audit(session, _admin_actor(admin), "coupon.update", coupon.id, ",".join(sorted(changed)))
     return _coupon_payload(coupon, _coupon_redemption_count(session, coupon.id))
 
 
-# 提现审核

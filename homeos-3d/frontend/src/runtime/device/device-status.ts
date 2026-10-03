@@ -38,10 +38,7 @@ const deviceClassLabels = {
     fault: "故障",
     error: "错误",
   };
-/**
- * 实体描述来自 Home Assistant 的实体注册表，字段既有 camelCase 也有 snake_case，
- * 且 attributes 是自由字典，所以这里显式声明两个命名变体。
- */
+/** 实体描述来自 Home Assistant 的实体注册表，字段既有 camelCase 也有 snake_case，且 attributes 是自由字典，所以这里显式声明两个命名变体。 */
 type EntityDescriptor = {
   entityId?: unknown;
   entity_id?: unknown;
@@ -51,7 +48,7 @@ type EntityDescriptor = {
 };
 export function deviceStatusChoices(entityDescriptor: EntityDescriptor = {}, stateUpdate) {
   const newState = stateUpdate?.newState || stateUpdate,
-    // entityId 可能是字符串或数字，统一先转字符串再取 domain 段。
+
     entityDomain = String(entityDescriptor.entityId || entityDescriptor.entity_id || "").split(
       ".",
     )[0],

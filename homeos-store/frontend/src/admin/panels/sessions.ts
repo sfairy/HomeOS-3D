@@ -1,6 +1,4 @@
-/**
- * 会话与令牌类诊断表。
- */
+/** 会话与令牌类诊断表。 */
 
 import { errorMessage } from "../../store-types.js";
 import { actions, cell, pageState, pagedFetch, renderPager } from "../table.js";

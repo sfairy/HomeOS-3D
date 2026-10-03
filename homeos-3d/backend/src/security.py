@@ -13,8 +13,6 @@ def hash_password(password):
     return password_hasher.hash(password)
 
 def verify_password(password_hash, password):
-    # 哈希格式非法与口令不匹配都要归成「验证失败」，否则调用方会收到异常而不是 401，
-    # 登录限流也永远记不上失败次数（见 auth.py 的 login）。
     try:
         return password_hasher.verify(password_hash, password)
     except (InvalidHashError, VerifyMismatchError):

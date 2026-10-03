@@ -44,8 +44,6 @@ class PaymentProvider(Protocol):
         setting: StoreSetting,
     ) -> RefundResult: ...
 
-    # 对账层（payments/reconcile.py）只认下面这一组渠道无关方法，详见各 provider
-    # 里的说明。它们不参与发起 / 退款，所以放在主流程之外。
     def query_payment(self, settings: StoreSettings, order: Order) -> dict[str, Any] | None: ...
 
     def is_success_node(self, node: dict) -> bool: ...
@@ -79,13 +77,9 @@ class RefundResult:
     """
 
     ok: bool
-    #: 渠道侧的退款单号 / 交易号，用于对账
     trade_no: str | None = None
-    #: 未退回的金额（渠道部分退款时 > 0）
     unrefunded_cents: int = 0
     detail: str = ""
-    #: 渠道**已受理但尚未到账**（微信异步退款）。这不是失败：必须用同一个幂等号重试或
-    #: 等异步结果，绝不能当成「可以重新发起一笔」而去另换一个幂等号。
     processing: bool = False
 
 

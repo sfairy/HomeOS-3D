@@ -1,6 +1,4 @@
-/**
- * 功能项选择器。
- */
+/** 功能项选择器。 */
 
 import { state } from "./state.js";
 import { $, $$, esc, toast } from "./dom.js";
@@ -40,7 +38,7 @@ function featureLabel(code: string) {
   return item ? item.label || code : code;
 }
 
-// 列表里给运营看中文名，代码留在 title 里备查（中文是主口径）。
+
 export function featureCell(codes: string[]) {
   if (!codes.length) return '—';
   return `<span title="${esc(codes.join(', '))}">${esc(codes.map(featureLabel).join('、'))}</span>`;
@@ -65,7 +63,7 @@ export function setFeaturePickerValue(root: HTMLElement, codes: string[]) {
   return root.dataset.featureMultiple === 'true';
 }
 
-// 单选实例（权益的功能码）是必填字段：空值直接拦在客户端，别让一个空
+
 export function requireFeatureCode(root: HTMLElement, message: string) {
   if (featurePickerValue(root).length) return true;
   toast(message, 'danger');
@@ -73,7 +71,7 @@ export function requireFeatureCode(root: HTMLElement, message: string) {
   return false;
 }
 
-// 已有记录可能带着目录里没有的代码（脚本导入）：编辑器只展示目录内的选项，保存时丢弃。
+
 export function syncFeatureSummary(root: HTMLElement) {
   const summary = $('[data-feature-summary]', root);
   if (!summary) return;
@@ -85,7 +83,7 @@ export function syncFeatureSummary(root: HTMLElement) {
   }
   summary.classList.remove('is-empty');
   if (!featurePickerMultiple(root)) {
-    // 单选（权益）连代码一起显示：客服核对「客户端认的是哪个功能」看的就是这个标识。
+
     summary.textContent = codes.map((code) => `${featureLabel(code)} · ${code}`).join('、');
     return;
   }
@@ -102,7 +100,7 @@ function featureOptionRow(
   description?: string,
 ) {
   const checked = featurePickerValue(root).includes(code) ? ' checked' : '';
-  // 选项故意不带 name：单选若共用 name，form.elements.featureCode 会变成
+
   const type = featurePickerMultiple(root) ? 'checkbox' : 'radio';
   return `<label class="feature-option">
       <input type="${type}" data-feature-option value="${esc(code)}"${checked}>
@@ -113,7 +111,7 @@ function featureOptionRow(
     </label>`;
 }
 
-// 重新渲染整个列表：目录只拉一次，但每次打开编辑器都要按当前选中的代码重置勾选态。
+
 export function renderFeatureOptions(root: HTMLElement) {
   const list = $('[data-feature-list]', root);
   if (!list) return;
@@ -146,7 +144,7 @@ export function renderFeatureOptions(root: HTMLElement) {
     || '<div class="feature-picker__empty">没有匹配的功能码</div>';
 }
 
-// 勾选顺序按目录顺序收集，保证保存结果稳定、可 diff。
+
  function collectFeatureSelection(root: HTMLElement) {
   const checked = new Set(
     $$('[data-feature-option]:checked', root).map(
@@ -180,14 +178,14 @@ export function closeFeaturePickers() {
   featurePickers().forEach(closeFeaturePicker);
 }
 
-// 与行内「⋯」菜单同一套坐标算法：absolute 弹出层会被 .admin-main / .table-wrap 的
+
 function placeFeaturePicker(root: HTMLElement) {
   const pop = $('[data-feature-pop]', root);
   const toggle = $('[data-feature-toggle]', root);
   if (!pop || !toggle) return;
   placePopover(pop, toggle, {
     align: 'left',
-    // 字段是整行宽，弹层跟着等宽会拉出一行超长的说明文字，这里夹到一档易读的宽度。
+
     prepare: (node) => {
       const anchorWidth = toggle.getBoundingClientRect().width;
       node.style.width = `${Math.round(Math.min(Math.max(anchorWidth, 300), 460))}px`;
@@ -204,7 +202,7 @@ function placeFeaturePicker(root: HTMLElement) {
   root.classList.add('is-open');
   if (typeof pop.showPopover === 'function') pop.showPopover();
   $('[data-feature-toggle]', root)?.setAttribute('aria-expanded', 'true');
-  // 每次都从完整目录打开：残留的搜索词会让「少了几项」看起来像功能码丢了。
+
   const searchInput = $('[data-feature-search]', root) as HTMLInputElement | null;
   if (searchInput) searchInput.value = '';
   renderFeatureOptions(root);
@@ -221,7 +219,7 @@ export async function loadFeatureCatalog() {
   refreshFeaturePickers();
 }
 
-// 事件全部委托到 document：选择器实例散落在商品与权益的编辑器里，逐个
+
 document.addEventListener('click', (event) => {
   const target = event.target;
   if (!(target instanceof Element)) return;
@@ -233,7 +231,7 @@ document.addEventListener('click', (event) => {
     else openFeaturePicker(root);
     return;
   }
-  // 点击弹层内部（勾选、搜索）不收起
+
   if (target.closest('[data-feature-picker]')) return;
   closeFeaturePickers();
 });
@@ -246,7 +244,7 @@ document.addEventListener('change', (event) => {
   if (!root) return;
   const multiple = featurePickerMultiple(root);
   if (!multiple) {
-    // 单选手动做互斥，选项才敢不带 name（见 featureOptionRow 的注释）
+
     $$('[data-feature-option]', root).forEach((input) => {
       if (input !== target) (input as HTMLInputElement).checked = false;
     });
@@ -268,7 +266,7 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') closeFeaturePickers();
 });
 
-// 弹层坐标按按钮位置算死，任何祖先滚动都会错位；但弹层自身的列表要能滚，
+
 $('.admin-main')?.addEventListener('scroll', (event) => {
   const scrollTarget = event.target;
   if (

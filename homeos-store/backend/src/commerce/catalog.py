@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-#: 商品类型 → 中文名（列表页展示用的映射前端也有一份）。``template`` / ``bundle``
 PRODUCT_TYPE_LABELS: dict[str, str] = {
     "base": "基础授权",
     "module": "增量包",
@@ -14,7 +13,6 @@ PRODUCT_TYPE_LABELS: dict[str, str] = {
 
 PRODUCT_TYPES: frozenset[str] = frozenset(PRODUCT_TYPE_LABELS)
 
-#: 履约方式 → 中文名。``automatic`` 付款即发码；``manual`` 只把订单标记成已付款，等运营
 FULFILLMENT_MODE_LABELS: dict[str, str] = {
     "automatic": "自动发码",
     "manual": "人工发码",

@@ -10,7 +10,7 @@ from pathlib import Path
 def _default_env_file() -> Path:
     """单体仓库根 ``.env``；独立拆库后回落到项目根。"""
     here = Path(__file__).resolve()
-    project = here.parents[3]  # homeos-store/
+    project = here.parents[3]
     repo = project.parent
     if (repo / "homeos-3d").is_dir() or (repo / "homeos-store").is_dir():
         return repo / ".env"
@@ -37,11 +37,9 @@ def _parse(text: str) -> dict[str, str]:
         if not key:
             continue
         value = value.strip()
-        # 去掉成对的引号，保留引号内的空格
         if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
             value = value[1:-1]
         else:
-            # 行尾注释只在未加引号时生效
             value = value.split(" #", 1)[0].strip()
         values[key] = value
     return values

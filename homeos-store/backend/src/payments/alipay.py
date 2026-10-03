@@ -22,8 +22,6 @@ from ..ops.net_probe import (
     host_from_url,
     probe_tls,
 )
-
-# CloseResult 曾定义在本模块里；现在住在 base.py（微信支付用同一套关单语义）。
 from ..payments import channels
 from ..payments.base import (
     CloseResult,
@@ -34,26 +32,15 @@ from ..payments.base import (
 
 logger = logging.getLogger("src.payments.alipay")
 
-#: 沙箱（openapi-sandbox.dl.alipaydev.com）与它的开关已**整块删除**。理由与模拟收银台同源：
-#: 它是一个「能在生产上被单点打开、而且打开后看不出来」的通道 —— 沙箱下订单能建、二维码
-#: 能出，只是那张码只有沙箱买家账号付得了，真钱一分进不来（表现为静默停收）。
-#: 联调改用生产环境的 0.01 元小额自测：把某个商品临时改成 0.01，自己扫码付一笔，
-#: 走完「下单 → 出码 → 通知/查单 → 入账 → 发码 → 邮件」再把价格改回来。
 
-
-#: 支付成功的两种交易状态
 SUCCESS_TRADE_STATUSES = frozenset({"TRADE_SUCCESS", "TRADE_FINISHED"})
 
-#: 交易不存在（还没付款）时的子错误码
 TRADE_NOT_EXIST_SUB_CODES = frozenset({"ACQ.TRADE_NOT_EXIST", "ACQ.TRADE_HAS_CLOSE"})
 
-#: 关单时「本来就无需关闭」的子错误码：交易不存在，或已经关闭过。
 CLOSE_IDEMPOTENT_SUB_CODES = frozenset({"ACQ.TRADE_NOT_EXIST", "ACQ.TRADE_HAS_CLOSE"})
 
-#: 关单时发现交易**已经付掉了**。这不是关单失败：钱已经进来，调用方必须立刻
 CLOSE_ALREADY_PAID_SUB_CODES = frozenset({"ACQ.TRADE_HAS_FINISHED"})
 
-#: 明确指向「这套凭据有问题」的子错误码，用于凭据自检时区分「凭据错」与
 CREDENTIAL_ERROR_SUB_CODES = frozenset(
     {
         "isv.invalid-app-id",
@@ -85,13 +72,8 @@ class AlipayNotification:
         return self.trade_status in SUCCESS_TRADE_STATUSES
 
 
-
-
-#: 「网关不认识这个 APPID」这类子错误码。
 _APP_ID_SUB_CODES = frozenset({"isv.invalid-app-id", "isv.app-not-exist"})
 
-#: 支付宝生产网关域名。自检用它回答「网关是不是被指到别处了」——
-#: 不 import credentials 的常量是为了避免循环依赖（credentials 反过来 import 本模块）。
 PRODUCTION_GATEWAY_HOST = "openapi.alipay.com"
 
 
@@ -113,7 +95,6 @@ class AlipayProvider:
     name = "alipay"
 
     def __init__(self, settings: StoreSettings | None = None) -> None:
-        #: 由 resolve_provider 注入的「已合并站点配置」的 settings：方法收到的
         self._settings = settings
 
     def _resolve(self, settings: StoreSettings) -> StoreSettings:
@@ -124,7 +105,6 @@ class AlipayProvider:
         """
         return self._resolve(settings)
 
-        # 配置
     def is_configured(self, settings: StoreSettings) -> bool:
         settings = self._resolve(settings)
         return bool(
@@ -136,7 +116,6 @@ class AlipayProvider:
     def _assert_configured(self, settings: StoreSettings) -> None:
         settings = self._resolve(settings)
         if self.is_configured(settings):
-            # sign_params 实际写死 SHA256withRSA（RSA2），但 sign_type 可配：配成
             sign_type = (settings.alipay_sign_type or "RSA2").upper()
             if sign_type != "RSA2":
                 raise PaymentError(
@@ -163,7 +142,6 @@ class AlipayProvider:
         settings = self._resolve(settings)
         return settings.alipay_return_url or f"{base_url}/store/payment/return"
 
-        # 调接口
     def _call(
         self,
         settings: StoreSettings,
@@ -190,7 +168,6 @@ class AlipayProvider:
             "biz_content": json.dumps(biz_content, ensure_ascii=False, separators=(",", ":")),
         }
         if method == "alipay.trade.precreate":
-            # 只有下单需要回调地址；优先用请求推导出的 base_url（穿透/反代下它才可达）
             origin = base_url or settings.public_base_url
             params["notify_url"] = self.notify_url(settings, origin)
             params["return_url"] = self.return_url(settings, origin)
@@ -247,7 +224,6 @@ class AlipayProvider:
         if not verify_content(content, signature, settings.alipay_public_key_text):
             raise ResponseSignatureInvalid("支付宝响应验签失败，已拒绝该响应。")
 
-        # 下单
     def create_payment(
         self,
         *,
@@ -299,7 +275,6 @@ class AlipayProvider:
             qr_code=qr_code,
         )
 
-        # 退款
     def refund_payment(
         self,
         *,
@@ -322,7 +297,6 @@ class AlipayProvider:
         biz_content: dict[str, object] = {
             "out_trade_no": order.order_no,
             "refund_amount": yuan_from_cents(amount_cents),
-            # 每次退款动作唯一：支付宝按它幂等，重复点击不会扣两次，而多次部分退款
             "out_request_no": out_request_no.strip()[:64],
         }
         if reason:
@@ -338,9 +312,7 @@ class AlipayProvider:
             detail = node.get("sub_msg") or node.get("msg") or "未知错误"
             raise PaymentError(f"支付宝退款失败（{code}）：{detail}")
 
-        # fund_change=N 表示本次没有实际资金变动（重复退款/已退款），按成功处理。
         fund_change = str(node.get("fund_change", "")).upper()
-        # ``refund_fee`` 是**本次实际**退出的钱，必须原样采信（含 0）：写成
         parsed_fee = cents_from_yuan(node.get("refund_fee"))
         if parsed_fee is None:
             parsed_fee = 0 if fund_change == "N" else int(amount_cents)
@@ -363,7 +335,6 @@ class AlipayProvider:
             ),
         )
 
-        # 异步通知验签
     def verify_notification(
         self, settings: StoreSettings, form: dict[str, str]
     ) -> AlipayNotification:
@@ -373,7 +344,6 @@ class AlipayProvider:
         if not signature:
             return AlipayNotification(ok=False, reason="通知缺少 sign 参数", fields=fields)
 
-        # 注意：通知验签要同时排除 sign 和 sign_type，与请求签名规则不同
         content = build_sign_content(
             fields, excluded=frozenset({"sign", "sign_type"})
         )
@@ -391,7 +361,6 @@ class AlipayProvider:
             fields=fields,
         )
 
-        # 凭据自检
     def _probe_gateway_credentials(self, settings: StoreSettings) -> tuple[bool, str]:
         """用一笔**不存在的交易**探活，判断网关认不认这套 app_id + 私钥。
         """
@@ -411,7 +380,6 @@ class AlipayProvider:
         sub_code = str(node.get("sub_code", ""))
         detail = str(node.get("sub_msg") or node.get("msg") or "")
         if code == "10000":
-            # 理论上不该命中（探测单号是随机生成的），真命中同样说明凭据可用。
             return True, "凭据可用：网关接受了本次请求。"
         if sub_code in TRADE_NOT_EXIST_SUB_CODES:
             return True, "凭据可用：网关已完成验签（探测单号不存在属于预期结果）。"
@@ -431,7 +399,6 @@ class AlipayProvider:
         settings = self._resolve(settings)
         checks: list[dict] = []
 
-        # ---- 网关地址 ---- #
         gateway = (settings.alipay_gateway_url or "").strip()
         gateway_valid = True
         try:
@@ -442,7 +409,6 @@ class AlipayProvider:
         else:
             checks.append(check_result("gateway-url", "网关地址", LEVEL_PASS, gateway or "（未配置）"))
 
-        # ---- 签名算法 ---- #
         sign_type = (settings.alipay_sign_type or "RSA2").upper()
         if sign_type == "RSA2":
             checks.append(check_result("sign-type", "签名算法", LEVEL_PASS, "RSA2（SHA256withRSA）"))
@@ -456,7 +422,6 @@ class AlipayProvider:
                 )
             )
 
-        # ---- 应用私钥 ---- #
         private_text = settings.alipay_private_key_text
         private_error = private_key_error(private_text)
         if private_error:
@@ -466,7 +431,6 @@ class AlipayProvider:
                 check_result("private-key", "应用私钥", LEVEL_PASS, "格式与位数合法（RSA2048）。")
             )
 
-        # ---- 支付宝公钥 ---- #
         public_text = settings.alipay_public_key_text
         public_error = public_key_error(public_text)
         if public_error:
@@ -476,7 +440,6 @@ class AlipayProvider:
                 check_result("public-key", "支付宝公钥", LEVEL_PASS, "格式与位数合法（RSA2048）。")
             )
 
-        # ---- 两把公钥是否同一把（最隐蔽的配置错误） ---- #
         if not private_error and not public_error:
             if key_pair_same_modulus(private_text, public_text):
                 checks.append(
@@ -499,7 +462,6 @@ class AlipayProvider:
                     )
                 )
 
-        # ---- 网关网络可达性 ---- #
         gateway_host = host_from_url(gateway)
         if not gateway_valid or not gateway_host:
             checks.append(check_result("network", "网关连通性", LEVEL_SKIP, "网关地址无效，未尝试连接。"))
@@ -515,7 +477,6 @@ class AlipayProvider:
                 )
             )
 
-        # ---- 网关是否认可这套凭据（探活，无资金动作） ---- #
         accepted, accepted_detail = self._probe_gateway_credentials(settings)
         checks.append(
             check_result(
@@ -526,7 +487,6 @@ class AlipayProvider:
             )
         )
 
-        # ---- 支付宝公钥能不能真的验通（响应验签） ---- #
         probe_no = f"HOMEOS-PROBE-{uuid4().hex[:12]}"
         try:
             self._call(
@@ -537,7 +497,6 @@ class AlipayProvider:
                 force_signature_check=True,
             )
         except ResponseSignatureMissing:
-            # 支付宝在「app_id/私钥不对」这类错误上不签名，此时无法判定公钥。
             checks.append(
                 check_result(
                     "public-key-verified",
@@ -571,7 +530,6 @@ class AlipayProvider:
                 )
             )
 
-        # ---- 卖家 PID ---- #
         if (settings.alipay_seller_id or "").strip():
             checks.append(check_result("seller-id", "卖家 PID", LEVEL_PASS, settings.alipay_seller_id))
         else:
@@ -584,7 +542,6 @@ class AlipayProvider:
                 )
             )
 
-        # ---- 回调地址 ---- #
         checks.extend(
             [
                 _callback_check(
@@ -603,8 +560,6 @@ class AlipayProvider:
             ]
         )
 
-        # ---- 运行环境 ---- #
-        #: 网关非生产域名时提示（代理/迁移场景仍可能合法）。
         production_host = PRODUCTION_GATEWAY_HOST
         if gateway_host and gateway_host != production_host:
             checks.append(
@@ -635,7 +590,6 @@ class AlipayProvider:
             )
         return passed, message[:500], checks
 
-        # 查单
     def query_payment(
         self, settings: StoreSettings, order: Order
     ) -> dict[str, object] | None:
@@ -654,13 +608,6 @@ class AlipayProvider:
         detail = node.get("sub_msg") or node.get("msg") or "未知错误"
         raise PaymentError(f"支付宝查单失败（{code}）：{detail}")
 
-        # 关单
-
-    # ---- 查单响应的解读 ---- #
-    #
-    # 对账层（payments/reconcile.py）只认下面这四个方法，不认任何渠道特有的字段名：
-    # 支付宝的钱在 ``total_amount``（元/字符串），微信的在 ``amount.total``（分/整数），
-    # 把这些差异留在各自的 provider 里，「两个渠道各写一套 if」才不会长到对账层去。
 
     def is_success_node(self, node: dict) -> bool:
         return str(node.get("trade_status") or "") in SUCCESS_TRADE_STATUSES
@@ -706,7 +653,6 @@ class AlipayProvider:
 
         raise PaymentError(f"支付宝关单失败（{code}）：{detail}")
 
-# 凭据与签名层在 alipay_signing.py；这里再导出一次，
 from .alipay_signing import (
     ResponseSignatureInvalid,
     ResponseSignatureMissing,

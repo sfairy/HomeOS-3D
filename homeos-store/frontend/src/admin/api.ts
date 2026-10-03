@@ -1,6 +1,4 @@
-/**
- * 后台接口出口。
- */
+/** 后台接口出口。 */
 
 import { fromResponse } from "../api-error.js";
 import { $$ } from "./dom.js";
@@ -16,13 +14,13 @@ export async function api(path: string, options: AdminApiOptions = {}) {
   const isForm = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const response = await fetch(`/store-admin/v1${path}`, {
     credentials: 'same-origin',
-    // multipart 必须让浏览器自己带 boundary，手写 Content-Type 会让解析端读不到文件
+
     headers: options.body && !isForm ? { 'Content-Type': 'application/json' } : {},
     ...options,
   });
   if (response.status === 401 || response.status === 403) {
     host.showLogin?.();
-    // 403 与 401 共用这条提示，但状态码要留住：调用方据此分辨「没登录」与
+
     throw httpError(response, { detail: '未登录后台或无权限。' });
   }
   if (options.raw) return response;
@@ -42,13 +40,13 @@ export async function storeApi(path: string, options: RequestInit = {}) {
   return data;
 }
 
-// 提交按钮的忙态：请求期间禁用并换文案。这不是装饰 —— 「点了没反应就再点一次」
+
 export async function withBusy<T>(
   form: HTMLFormElement,
   task: () => Promise<T>,
   busyText = '处理中…',
 ): Promise<T> {
-  // 提交按钮不一定在表单里面：站点配置的「保存配置」常驻在面板头部，靠
+
   const submits = [
     ...form.querySelectorAll<HTMLButtonElement>('button[type="submit"]'),
     ...(form.id

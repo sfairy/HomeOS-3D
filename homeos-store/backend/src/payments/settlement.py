@@ -20,7 +20,6 @@ from ..security.security import utcnow
 
 logger = logging.getLogger("src.payments.settlement")
 
-#: 允许被入账的状态。fulfilled / refunded 不在其中，保证幂等。
 _SETTLEABLE_STATUSES = (
     "pending",
     "paid",
@@ -46,13 +45,11 @@ def settle_paid_order(
     values: dict[str, object] = {
         "status": "paid",
         "paid_at": order.paid_at or moment,
-        # 走到这里就是**渠道**说钱收到了（异步通知 / 主动查单 / 同步跳转），是全系统最强的
         "manual_settlement": False,
     }
     if trade_no:
         values["payment_trade_no"] = trade_no
 
-    # 条件更新：只有仍处于可入账状态的行才会被改写。
     result = session.execute(
         update(Order)
         .where(Order.id == order.id)
@@ -75,7 +72,6 @@ def settle_paid_order(
         return {"changed": False, "alreadyFulfilled": True, "licenseId": order.license_id}
 
     session.refresh(order)
-    #: 「复活单」判据必须与库存预留的**实际**状态一致，而不是入账前读到的 ``original_status``
     revived = order.stock_reservation_released_at is not None or (
         original_status not in RESERVING_STATUSES
     )
@@ -99,10 +95,8 @@ def settle_paid_order(
             original_status,
         )
 
-    # 手动发卡商品只标记已支付，等管理员核对后发码
     if order.fulfillment_mode != "manual":
         try:
-            # SAVEPOINT 包住履约：失败时只回滚这一段的写入（发出去的半张授权、
             with session.begin_nested():
                 fulfill.fulfill_order(
                     session,
@@ -110,11 +104,7 @@ def settle_paid_order(
                     setting=setting,
                 )
         except Exception as error:
-            # 不能把 500 抛给支付宝：那会让它无限重推通知，而每次重推都会再走
-            # 一遍同样的失败。这里把订单显式推到 fulfillment_failed 交后台人工
-            # 处理（重试或退款），并把失败原因写进复核备注。
             _mark_fulfillment_failed(session, order_id=order.id, error=error)
-            # 除了日志，还要留下**能被接口读到**的计数：这一条是本文件里最重
             incidents.note("fulfillment", order_no=order.order_no, error=error)
             logger.exception("订单入账后履约失败 order=%s source=%s", order.order_no, source)
             return {"changed": True, "alreadyFulfilled": False, "licenseId": None}
@@ -144,7 +134,6 @@ def _mark_fulfillment_failed(session: Session, *, order_id: str, error: Exceptio
     )
     note = f"履约失败：{_short_error(error)}"
     if previous and note not in previous:
-        # 既要留下旧警示，又要给新原因留位置：总长受 ReviewNote 列宽（255）约束。
         keep = max(0, 255 - len(note) - 1)
         note = f"{previous[:keep]}｜{note}"
     session.execute(
@@ -153,7 +142,6 @@ def _mark_fulfillment_failed(session: Session, *, order_id: str, error: Exceptio
         .where(Order.status.in_(FAILURE_MARKABLE_STATUSES))
         .values(
             status="fulfillment_failed",
-            # 履约中途抛异常时 fulfilled_at 可能已被抢单语句写上，必须清掉，
             fulfilled_at=None,
             needs_review=True,
             review_note=note[:255],

@@ -24,7 +24,6 @@ from ..security.security import (
 logger = logging.getLogger("src.admin")
 
 
-# 共享助手在 admin_shared.py；这里再导入一次，
 from .admin_shared import (
     _admin_actor,
     _audit,
@@ -104,7 +103,6 @@ def admin_create_entitlement(
     if license is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="授权不存在。")
     feature_code = payload.feature_code.strip()
-    # 补权益是「手工放行一个能力」：码写错了不会报错，客户端的 ``allows`` 只会
     if feature_code not in features.FEATURE_CODES:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -168,7 +166,6 @@ def admin_patch_entitlement(
     changed: list[str] = []
     if data.get("feature_code"):
         feature_code = str(data["feature_code"]).strip()
-        # 与 admin_create_entitlement 对齐：功能码写错了不会报任何错，客户端的
         if feature_code not in features.FEATURE_CODES:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -202,7 +199,6 @@ def admin_patch_entitlement(
         entry.starts_at = _naive_utc(data["starts_at"]) or entry.starts_at
         changed.append("starts_at")
     if "expires_at" in data:
-        # 显式 null 表示改为永久有效
         entry.expires_at = _naive_utc(data["expires_at"])
         changed.append("expires_at")
 
@@ -236,4 +232,3 @@ def admin_delete_entitlement(
     return {"id": entitlement_id, "deleted": True}
 
 
-# 邀请积分：人工调账

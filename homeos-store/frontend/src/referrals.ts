@@ -4,7 +4,7 @@ import { formatPoints, formatCentsPlain } from "./money.js";
 
 const storageKey = 'hb_invite_v1';
 try {
-  // 存储不可用 / 值被改坏时只是不预填邀请码，注册流程本身不依赖它。
+
   const code = new URL(location.href).searchParams.get('invite');
   if (code && /^[0-9]{6}$/.test(code)) {
     localStorage.setItem(
@@ -31,9 +31,9 @@ try {
     localStorage.removeItem(storageKey);
   }
 } catch {
-  /* ignore */
+
 }
-// 积分流水的类型标签。键必须覆盖后端全部写入方（apps/store/commerce/referrals.py 的
+
 const labels: Record<string, string> = {
   reward: '邀请奖励',
   reversal: '邀请失败',
@@ -52,19 +52,16 @@ const table = (heads: string[], rows: string[][]) =>
     ? `<div class="referral-table-wrap"><table class="referral-table"><thead><tr>${heads.map((x) => `<th>${esc(x)}</th>`).join('')}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((x) => `<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`
     : '<p class="referral-empty">暂无记录。分享邀请链接，开始积累积分。</p>';
 
-// 提现手续费唯一口径，必须与后端 commerce/money.py 的 withdraw_fee_centi 一致：
-// 输入积分与百分比，内部转「厘」与「基点」；fee=floor(cents*bps/10000)，不足 0.01 舍去。
-// 设置或输入缺失/非数时一律按 0 处理，绝不把 NaN 渲染进文案。
+
 const withdrawFeeBreakdown = (pointsValue: unknown, percent: unknown) => {
   const cents = Math.max(0, Math.round((Number(pointsValue) || 0) * 100));
   const bps = Math.max(0, Math.round((Number(percent) || 0) * 100));
-  // 与后端 withdraw_fee_centi 同款钳制：bps>=10000（费率≥100%）视为配置错误，全额扣除。
+
   const fee = cents > 0 ? (bps >= 10000 ? cents : Math.floor((cents * bps) / 10000)) : 0;
   return { cents, fee, net: Math.max(0, cents - fee) };
 };
 
-// 历史分页页大小：必须与后端 store_catalog.HISTORY_PAGE_SIZE 保持一致
-// （store_referrals 的 ledger/withdrawals 两个列表都按它 offset/limit）。
+
 const HISTORY_PAGE_SIZE = 20;
 
 type ReferralData = {
@@ -84,8 +81,7 @@ type ReferralData = {
   };
 };
 
-/** 请求去重键。crypto.randomUUID 只在安全上下文（https / localhost）存在：
- * 用局域网 http 打开商店时它是 undefined，直接调用会抛错，整个推荐页连数据都拉不到。 */
+/** 请求去重键。 */
 function randomRequestKey(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -100,7 +96,7 @@ export const HBReferrals = {
     try {
       localStorage.removeItem(storageKey);
     } catch {
-      /* ignore */
+
     }
   },
   async init() {
@@ -119,7 +115,7 @@ export const HBReferrals = {
       }
       toast(message);
     };
-    // 提现下限只有一个主人：服务端下发的 settings.withdrawalMinPoints（后台可配）。
+
     const minPoints = () => Math.max(0, Number(data?.settings?.withdrawalMinPoints ?? 0));
     const preview = () => {
       const form = $('#referral-withdraw-form') as HTMLFormElement | null;
@@ -163,9 +159,9 @@ export const HBReferrals = {
           link.value = `${location.origin}/user/authentication/register?invite=${encodeURIComponent(w.code || '')}`;
         }
       }
-      // 「可用积分」必须和服务端 referrals.available_points 同一口径：余额 - 提现冻结。
+
       const available = Math.max(0, Number(w?.balance || 0) - Number(w?.frozen || 0));
-      // 四张积分卡各挂一个语义色（与账号概览、后台徽标同一套 data-tone 词汇）：
+
       const stats = $('#referral-stats');
       if (stats) {
         stats.innerHTML = (
@@ -198,7 +194,7 @@ export const HBReferrals = {
         const guideCalc = withdrawFeeBreakdown(minPoints(), feePercent);
         guideFee.textContent = `1 积分等于 1 元，满 ${minPoints()} 积分可以申请提现。当前手续费 ${feePercent}%，申请 ${minPoints()} 积分，扣除 ${formatPoints(guideCalc.fee)} 积分手续费，实际到账 ${formatCentsPlain(guideCalc.net)} 元。手续费不足 0.01 部分舍去。`;
       }
-      // 输入框的下限同样跟服务端走：模板里的 min/placeholder 是给「还没拿到设置」时兜底的静态值。
+
       const form = $('#referral-withdraw-form') as HTMLFormElement | null;
       const pointsInput = form?.elements.namedItem('points') as HTMLInputElement | null;
       if (pointsInput) {

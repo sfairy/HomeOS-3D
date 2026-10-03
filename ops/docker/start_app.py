@@ -26,7 +26,6 @@ from ops.docker.http_security import forwarded_allow_ips_warning
 from ops.docker.proxy import run_with_proxy
 from ops.license_keys import apply_client_key_env
 
-#: 默认只信任回环：容器里没有反向代理时，TCP 对端就是客户端本人，任何人都伪造不了
 DEFAULT_FORWARDED_ALLOW_IPS = '127.0.0.1,::1'
 
 
@@ -83,7 +82,6 @@ def main() -> None:
     environment = os.environ.copy()
     environment["PYTHONPATH"] = str(ROOT)
     environment.setdefault("APP_DATA_DIR", "/data")
-    # 可写目录，落在数据卷里：公钥由本项目向授权服务器取回后缓存于此，重启不必再取。
     environment.setdefault("APP_CLIENT_KEYS_DIR", "/data/client-keys")
     environment.setdefault("APP_UPDATE_CHANNEL", "docker")
     if not (environment.get("APP_LICENSE_SERVER_URL") or "").strip():
@@ -100,7 +98,6 @@ def main() -> None:
     def log(message: str) -> None:
         print(f'授权公钥：{message}', flush=True)
 
-    # 先自举：本地没有公钥时向授权服务器取回（只读共享卷不动，交给商店侧）。
     ensure_client_keys(
         client_keys_dir,
         license_server_url=environment["APP_LICENSE_SERVER_URL"],
@@ -108,12 +105,10 @@ def main() -> None:
         retry_seconds=FIRST_FETCH_WAIT_SECONDS,
         log=log,
     )
-    # 兜底：同机共享卷由商店容器写出，可能比本容器晚一点就绪。
     wait_for_client_keys(client_keys_dir)
     environment = apply_client_key_env(environment, client_keys_dir)
     log(f'就绪目录 {client_keys_dir}（签名 keyId={derive_key_id(client_keys_dir / "license-public.pem")}）')
 
-    # 转发头信任范围：默认回环，只有显式配置才放宽。取成通配时在 uvicorn 起来之前
     forwarded_allow_ips = (
         environment.get('UVICORN_FORWARDED_ALLOW_IPS', '').strip() or DEFAULT_FORWARDED_ALLOW_IPS
     )
@@ -128,8 +123,6 @@ def main() -> None:
 
     os.environ.clear()
     os.environ.update(environment)
-    # 内置反代（Caddy，/etc/caddy/Caddyfile）与 uvicorn 同容器守护：反代对端固定是
-    # 回环，所以 --forwarded-allow-ips 保持默认回环即可，不必放宽到 docker 网段。
     raise SystemExit(
         run_with_proxy(
             [

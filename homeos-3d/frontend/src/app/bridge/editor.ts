@@ -162,8 +162,8 @@ async function requestInteraction3dScene() {
     };
   });
 }
-// 导航拖拽回写的订阅：面板每次改属性都会整块重建，而舞台视图活得更久（换户型才会换新），
-// 所以订阅按「组件」复用，只把回调体换成最新一次渲染里的那个。
+
+
 const navigationEditBindingByComponentId = new Map();
 function bindNavigationEditEvents(componentId, editorView, handleEditEvent) {
   const existingBinding = navigationEditBindingByComponentId.get(componentId);
@@ -179,7 +179,7 @@ function bindNavigationEditEvents(componentId, editorView, handleEditEvent) {
   };
   (navigationEditBindingByComponentId.set(componentId, navigationEditBinding),
     (navigationEditBinding.unsubscribe = editorView?.subscribeEdit?.((editEvent) => {
-      // 经 Map 再取一次：期间面板可能已重建，要用最新那个回调体。
+
       navigationEditBindingByComponentId.get(componentId)?.handleEditEvent?.(editEvent);
     })));
 }
@@ -943,9 +943,7 @@ type PopupPresetConfig = {
     }),
     createLabeledField(viewOptionsElement, "焦段（mm）", focalLengthInput));
   const navigationSection = createSection("导航位置");
-  /**
-   * 舞台拖完抛回的位置：写回与下面输入框同一份 navigation 配置，并把输入框同步成新值。
-   */
+  /** 舞台拖完抛回的位置：写回与下面输入框同一份 navigation 配置，并把输入框同步成新值。 */
   function applyDraggedNavigationPosition(editEvent) {
     if (!Number.isFinite(editEvent.x) || !Number.isFinite(editEvent.y)) return;
     const draggedNavigationKey = editEvent.target === "floors" ? "floors" : "categories";
@@ -966,7 +964,7 @@ type PopupPresetConfig = {
   function handleNavigationEditEvent(editEvent) {
     if (editEvent?.action === "navigation-position") applyDraggedNavigationPosition(editEvent);
   }
-  // 每次重建都把回调体换成最新的这一份（订阅本身复用，见 bindNavigationEditEvents）。
+
   if (editorView)
     bindNavigationEditEvents(targetComponent.id, editorView, handleNavigationEditEvent);
   const isNavigationEditing = !!editorView?.navigationEditing,
@@ -976,14 +974,14 @@ type PopupPresetConfig = {
       isNavigationEditing ? "完成调整" : "在画布上拖拽调整",
     );
   ((dragNavigationButton.type = "button"),
-    // 视角调整期间数值输入是禁用的，拖拽自然也一并禁用（两者抢同一套指针事件）。
+
     (dragNavigationButton.disabled = !properties.sceneId || isViewEditing),
     dragNavigationButton.setAttribute("aria-pressed", String(isNavigationEditing)));
   const dragNavigationNoteElement = createElement("p", "inspector-section-note");
   ((dragNavigationNoteElement.hidden = !isNavigationEditing),
     (dragNavigationNoteElement.textContent =
       "在画布上拖动分类栏或楼层栏即可调整位置，松手后会写进下面的横向 / 纵向百分比；再点一次上方按钮结束调整。"));
-  // 主操作整行铺满，不并进 .i3d-finishing-row —— 那是两列等宽的取值行。
+
   const dragNavigationRowElement = createElement("div", "i3d-navigation-drag-row");
   (dragNavigationRowElement.append(dragNavigationButton),
     navigationSection.append(dragNavigationRowElement, dragNavigationNoteElement));
@@ -992,7 +990,7 @@ type PopupPresetConfig = {
     try {
       const activeView = await ensureEditorView();
       if (!activeView) return;
-      // 视图可能刚挂载（渲染面板时还没有句柄），这里补上拖拽回写的订阅。
+
       bindNavigationEditEvents(targetComponent.id, activeView, handleNavigationEditEvent);
       activeView.setNavigationEditing(!activeView.navigationEditing);
       renderInteraction3dInspector(hostElement, targetComponent, editorOptions);
@@ -1708,9 +1706,8 @@ type PopupPresetConfig = {
     ((opacityModeOptionElement.value = opacityModeValue),
       wallOpacityModeSelect.append(opacityModeOptionElement));
   }
-  // 0.32 必须与 3D 工作台 `defaultViewSettings.wallOpacity` 一致：DIY（null）时场景用的就是
-  // 那个默认值，而这里切到「统一调整」会把它落成一个显式值 —— 两边不一致会出现「切一下模式
-  // 墙的透明度就跳一档」。
+
+
   const hasCustomWallOpacity =
     typeof properties.wallOpacity == "number" && Number.isFinite(properties.wallOpacity);
   ((wallOpacityModeSelect.value = hasCustomWallOpacity ? "custom" : "diy"),

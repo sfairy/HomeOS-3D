@@ -254,12 +254,7 @@ import {
 } from "./studio-item-posture";
 window.__homeosStudioModuleVersion =
   "20260904-local-shadow-edge-v6-depth-precision-v1-model-load-state-v3-floor-scope-v1-ground-grid-v3-depth-fade-v2-local-shadow-depth-v1-export-shadow-quality-v1-base-light-entry-v1-auto-diagram-preview-hd-v1-auto-diagram-floor-v1-20260905-first-light-prewarm-v3-20260905-orbit-architecture-center-v1";
-/**
- * 面板控件元素。studio-app 里成百上千个节点都是用 querySelector(All) 拿到的，
- * 逐个写死 HTMLInputElement / HTMLSelectElement 不现实。这里统一收窄成
- * 「面板控件」：补上代码实际用到的表单属性，其余保持 HTMLElement 语义。
- * value / checked 保持宽类型——上层会原样交给 Number / 字符串比较处理。
- */
+/** 面板控件元素。 */
 /** 网格材质通用选项：盒体 / 圆柱 / 建筑体块 / 墙侧墙顶都复用这一组。 */
 type MeshMaterialOptions = {
   roughness?: number;
@@ -329,7 +324,7 @@ type SceneRebuildOptions = {
   force?: boolean;
   /** 只重建外模型（家具模型就绪后走这条）。 */
   externalModelsOnly?: boolean;
-  /** 重建范围；数组时按项判断。 */
+  /** 重建范围； */
   scope?: string | string[];
   /** 瞬时重建：不改脏文档状态。 */
   transient?: boolean;
@@ -711,37 +706,21 @@ const saveCameraViewButton = selectElement("#save-camera-view"),
   defaultViewSettings = {
     background: 1120029,
     ground: 1382690,
-    // 墙 / 墙顶 / 地板的走向（历史：曾一度朝白提过一档，之后逐版压暗）。
-    // 当前落在「比初版低约一档半」的位置（亮度 242 → 197，即初版的 ~81%），三面仍贴着
-    // 暖阳档的暖色相（R−B 14）。
-    //
-    // 注意墙体是 `wallOpacity` 下的半透明出图，hex 只以该比例叠在背后的暗背景上 ——
-    // 墙自己的着色只占最终像素的一部分，**降 hex 的观感会被这个比例削掉一次**；
-    // 真正决定墙「白不白 / 亮不亮」的是自发光（见 createWallSideMaterial 的
-    // emissiveIntensity）。所以「墙太白」优先微调自发光，「墙发灰」优先抬 hex，
-    // 两者各管一件事，别一次同时大动 —— 上一版把两者一起压死，结果就过头了。
-    // 地板是不透明实面，降 hex 直接可见。
-    // （另一支专用墙着色器只在嵌入 stage 模式的 wall-trial="shader" 下启用，未改动。）
-    // 地板这次一次走 ×0.94（≈1.5 档）：前几次用的 ×0.979 半步只有约 2%，低于肉眼可辨的
-    // 阈值，所以连着调了三轮都「看不出差别」。地板是 MeshStandardMaterial 的不透明实面，
-    // 默认档没有暖木那层修饰（decorateWarmFloor 直接 return），roughness 已是 0.96、
-    // emissive 仅 0.025 —— 亮度几乎只由这支 hex 决定，要看出变化就得给足步长。
-    floor: 13091768, // #c7c3b8 浅橡（在 #ddd9cd 上再 ×0.90，约 −10%：此前的半步只有 ~2%，低于肉眼阈值）
+
+
+    floor: 13091768,
     floorEdge: 16163146,
     grid: 5331300,
-    // 逐版记录：… → #dad6cb → #e3dfd3 → #dedacf。这一版是半步（×0.979）——
-    // 「一档」是 ×0.96（= #dad6cb），但那是用户此前要求「再亮一档」离开的点，
-    // 整档回调会正好回到已被否掉的位置，所以这里取半步落在两者之间。
-    wall: 14605007, // #dedacf 暖白（比上一版 #e3dfd3 暗半步，见上）
-    // 与墙侧同步，保持「顶面比侧面略亮一档」的原有关系。
-    wallTop: 14933715, // #e3ded3 暖白顶面（柱顶 / 墙顶都读它）
-    // 默认档此前没有这一键，窗框会回落到 `furniture`（冷灰）。照暖阳档的实际选择给中性灰
-    // （暖阳是 #a3aaa7）：窗框是不透明的窄构件，一上暖色整张图就发黄，中性灰最衬暖木地板。
-    windowFrame: 11515315, // #afb5b3 中性灰（暖阳窗框同族的 R−B −4）
-    // 0.25 → 0.32 → 0.36：半透明墙的 hex 只按这个比例叠到暗背景上，抬得越高、透上来的
-    // 暗背景越少、墙越不灰。0.36 是「去灰」与「仍能看进室内」之间的折中；真正去灰的主力
-    // 是墙的自发光（见 createWallSideMaterial 的 emissiveIntensity），透明度只是辅助。
-    // 逐户型可在「墙体透明度」里覆盖；这是个全局默认值。
+
+
+    wall: 14605007,
+
+    wallTop: 14933715,
+
+
+    windowFrame: 11515315,
+
+
     wallOpacity: 0.36,
     furniture: 8226713,
     furnitureSoft: 10332346,
@@ -750,11 +729,9 @@ const saveCameraViewButton = selectElement("#save-camera-view"),
     appliance: 10134967,
     applianceSoft: 11911118,
     applianceDark: 6845576,
-    // 玻璃取「暖阳原木」那支青绿：暖阳 glass #8cc9b5 是 G>R>B 的青绿，默认档原先是
-    // 蓝青 #a9c5d3（B>G>R），方向正好相反。上一版 #bce0d4 偏淡，这一版加深一档到 #a1d0bd
-    // （离暖阳的 #8cc9b5 更近，仍不到它那么深）。窗户 / 栏杆 / 门玻璃 / 玻璃隔断共用这支
-    // （与暖阳档同构：一个主题一支玻璃料），所以四处会一起变。
-    glass: 10604733, // #a1d0bd 青绿（比上一版深一档）
+
+
+    glass: 10604733,
     frame: 12172999,
     doorLeaf: 10988725,
     accent: 16758886,
@@ -1852,7 +1829,7 @@ const saveCameraViewButton = selectElement("#save-camera-view"),
       height: 1.85,
       color: "#b8c3c8",
     },
-    // 卧式冰柜：占地方向是「宽 × 深」的长边在前，与它顶开盖的造型一致。
+
     freezer: {
       name: "冰柜",
       glyph: "▭",
@@ -2618,20 +2595,15 @@ const externalModelRegistry = createExternalModelManager2({
     preloadPersistentModels: preloadPersistentModels,
     modelTypeForItem: modelTypeForItem,
   } = externalModelRegistry;
-/**
- * 「材质属性」检查面板的运行态。
- *
- * 这两项刻意声明在 publishModelLoadState 之前：加载状态回调可能在模块初始化阶段就被触发，
- * 若声明放在面板函数附近（更靠后），回调读到时还在 TDZ 里会直接抛 ReferenceError。
- */
+/** 「材质属性」检查面板的运行态。 */
 let materialSlotPanelSignature = "",
   /** 「材质风格」色卡条的签名（模型类型 + 档位表长度）：变了才重建色卡，避免打断点击。 */
   materialStyleOptionSignature = "",
-  /** 面板正在等模型加载（此时显示「模型加载中」）；加载状态一变就重画一次。 */
+  /** 面板正在等模型加载（此时显示「模型加载中」）； */
   isMaterialSlotPanelPending = false,
-  /** 槽位筛选：当前选中的角色族（空串 = 全部）；换模型时回到全部。 */
+  /** 槽位筛选：当前选中的角色族（空串 = 全部）； */
   materialSlotGroupFilter = "",
-  /** 展开表面参数的槽位集合（按 GLB 材质名）；只影响展开态，不写进文档。 */
+  /** 展开表面参数的槽位集合（按 GLB 材质名）； */
   expandedMaterialSurfaceSlots = new Set();
 function publishModelLoadState(modelLoaderEntry = externalModelRegistry.modelLoadState()) {
   const pending = modelLoaderEntry.pending ?? modelLoaderEntry.active + modelLoaderEntry.queued,
@@ -2662,7 +2634,7 @@ function publishModelLoadState(modelLoaderEntry = externalModelRegistry.modelLoa
             pending > 0 ? "正在加载模型… " + pending : hn2 ? "正在完成模型…" : "",
           ),
         )));
-  // 检查面板在等模型时是「模型加载中」占位：加载状态一变就重画，让槽位立刻出现。
+
   isMaterialSlotPanelPending &&
     selectedItem?.kind === "item" &&
     renderMaterialSlotPanel(getSelectedObject());
@@ -2924,18 +2896,7 @@ const floorGroupCacheByKey = new Map(),
     "nas",
     "printer",
   ]);
-/**
- * 某物件的模型加载选项 = 当前主题调色板 + 该物件自己的材质档位 + 该物件自己的覆盖色
- * + 该物件自己的逐槽表面参数。
- *
- * · `materialOverrides` 是**逐物件**的（`{ "<GLB 材质名>": "#rrggbb" }`）；
- * · `materialSurfaceOverrides` 同样是逐物件的（`{ "<GLB 材质名>": { roughness, metalness } }`）；
- * · `materialStyle` 是该物件的「材质风格」档位 id，`materialStylePaletteColors` 把档位
- *   声明的调色板键合并进来（档位为 auto 时是空表）。
- *
- * 三者都必须并进传给加载器的 options：它们既参与 optionsSignature（材质变体缓存键），
- * 也是 resolveSharedMaterial 改材质参数的来源（档位 → 覆盖色 → 表面参数，越具体越靠后）。
- */
+/** 某物件的模型加载选项 = 当前主题调色板 + 该物件自己的材质档位 + 该物件自己的覆盖色+ 该物件自己的逐槽表面参数。 */
 function materialLoadOptionsForItem(itemRecordRef) {
   const itemModelType = externalModelRegistry.modelTypeForItem(itemRecordRef),
     itemMaterialStyle = normalizeMaterialStyle(itemModelType, itemRecordRef?.materialStyle),
@@ -3141,10 +3102,7 @@ let activeLibraryCategory = "home",
   hasAllFloorsSelected = false,
   isLightCachePreserved = false,
   isRendererLost = false;
-/**
- * 灯光面板的区域改为只读，唯一来源是 HA 区域注册表（后端 /ha/areas 已同步的数据）。
- * studio 不再自建区域，也不再把它写回场景文档。
- */
+/** 灯光面板的区域改为只读，唯一来源是 HA 区域注册表（后端 /ha/areas 已同步的数据）。 */
 let lightAreaRecords: { areaId: string; name: string }[] = [];
 const dirtyFloorIdSet = new Set();
 let isSceneDirty = false,
@@ -3903,11 +3861,7 @@ function remapOpeningsToWalls(
     railings: railingList.map(snapOpeningToPiece),
   };
 }
-/**
- * 逐物件材质覆盖色的**入库净化**：只接受 `{ "<GLB 材质名>": "#rrggbb" }`，
- * 键按字典序排好（让产物稳定，也避免同一份覆盖在不同页面到处重建材质）。
- * 一个合法项都没有时返回 null，调用方据此不写字段。
- */
+/** 逐物件材质覆盖色的**入库净化**：只接受 `{ "<GLB 材质名>": "#rrggbb" }`，键按字典序排好（让产物稳定，也避免同一份覆盖在不同页面到处重建材质）。 */
 function normalizeMaterialOverrides(rawOverrides) {
   if (!rawOverrides || typeof rawOverrides != "object" || Array.isArray(rawOverrides)) return null;
   const normalizedEntries = Object.entries(rawOverrides)
@@ -3931,14 +3885,7 @@ function normalizeItemMaterialStyle(rawItemRecord) {
     materialStyle = normalizeMaterialStyle(modelType, rawItemRecord?.materialStyle);
   return materialStyle === MATERIAL_STYLE_AUTO ? null : materialStyle;
 }
-/**
- * 门的材质字段净化：与家具同一套规则（档位非法归一成 auto、覆盖色必须是 `#rrggbb`、
- * 表面参数规整到 0–1 两位小数）。
- *
- * 单独写一份而不是复用 `normalizeItemMaterialStyle`：那个走 `externalModelRegistry`，
- * 门是程序化几何、不在这张表里，模型类型直接就是 `"door"`。
- * 返回的是「要并进记录里的字段」，空值一律不落键 —— 没改过材质的门在文档里不留痕迹。
- */
+/** 门的材质字段净化：与家具同一套规则（档位非法归一成 auto、覆盖色必须是 `#rrggbb`、表面参数规整到 0–1 两位小数）。 */
 function doorMaterialFields(rawDoor) {
   const materialStyle = normalizeMaterialStyle("door", rawDoor?.materialStyle),
     materialOverrides = normalizeMaterialOverrides(rawDoor?.materialOverrides),
@@ -3949,11 +3896,7 @@ function doorMaterialFields(rawDoor) {
     ...(Object.keys(materialSurfaceOverrides).length ? { materialSurfaceOverrides } : {}),
   };
 }
-/**
- * 逐槽表面参数的**入库净化**：只接受 `{ "<GLB 材质名>": { roughness?, metalness? } }`，
- * 两个值都规整到 0–1 并按两位小数定下来（避免浮点尾数让产物不稳定）。
- * 一个合法项都没有时返回空对象，调用方据此不写字段。
- */
+/** 逐槽表面参数的**入库净化**：只接受 `{ "<GLB 材质名>": { roughness?, metalness? } }`，两个值都规整到 0–1 并按两位小数定下来（避免浮点尾数让产物不稳定）。 */
 function normalizeMaterialSurfaceOverrides(rawSurfaceOverrides) {
   if (
     !rawSurfaceOverrides ||
@@ -3983,7 +3926,7 @@ function normalizeMaterialSurfaceOverrides(rawSurfaceOverrides) {
     );
   return normalizedEntries.length ? Object.fromEntries(normalizedEntries) : {};
 }
-/** 某个槽位上的表面覆盖（已净化）；没有则返回 null。 */
+/** 某个槽位上的表面覆盖（已净化）； */
 function normalizeScenePayload(rawScene) {
   const kd2 = createStudioDocument();
   if (!rawScene || typeof rawScene != "object") return kd2;
@@ -4056,8 +3999,8 @@ function normalizeScenePayload(rawScene) {
               : "solid",
             hinge: rawDoor?.hinge === "right" ? "right" : "left",
             swing: rawDoor?.swing === -1 ? -1 : 1,
-            // 门的「材质属性」（逐门档位 + 逐部件覆盖色 / 表面参数）与家具同构，净化规则
-            // 也共用：非法档位归一成 auto、不合法的色值一律丢掉，不落进文档。
+
+
             ...doorMaterialFields(rawDoor),
           }))
           .filter((doorCandidate) => wallIdSet.has(doorCandidate.wallId))
@@ -4089,7 +4032,7 @@ function normalizeScenePayload(rawScene) {
             24,
           ),
           enabled: rawLightGroup?.enabled !== false,
-          // 区域由 HA 提供：无效的 areaId 在渲染/分配时按「未分类」处理。
+
           areaId: String(rawLightGroup?.areaId || "").trim() || null,
         }));
     }
@@ -4752,13 +4695,7 @@ function clearLightGroupDropIndicator() {
     (areaDropIndicatorElement.classList.remove("drop-into", "drop-before", "drop-after"),
       delete areaDropIndicatorElement.dataset.dropPosition);
 }
-/**
- * 灯组行 / 区域头的拖动统一改用指针事件，不再依赖 HTML5 drag&drop。
- *
- * 起因：`dragstart` 在部分内嵌客户端（webview）里会被整体抑制，整行表现为「拖不动」，而且不报错；
- * 原生拖动还要求按下后原地停住约 280ms 才允许起手，鼠标稍快就是一按即拖，会被判成滚动而失效。
- * 指针事件在所有客户端都可用，且触摸 / 鼠标的门限可以分别处理。
- */
+/** 灯组行 / 区域头的拖动统一改用指针事件，不再依赖 HTML5 drag&drop。 */
 const LIST_DRAG_TOUCH_HOLD_MS = 280,
   LIST_DRAG_START_DISTANCE = 6,
   LIST_DRAG_TOUCH_GIVE_UP_DISTANCE = 8,
@@ -4804,10 +4741,7 @@ const isPointOverRect = (pointX, pointY, targetRect, verticalPadding = 2) =>
   pointY <= targetRect.bottom + verticalPadding;
 const isPointPastRectMiddle = (pointY, targetRect) =>
   pointY >= (targetRect.top + targetRect.bottom) / 2;
-/**
- * 起拖瞬间把所有落点的矩形抓一份快照，之后拖动过程中不再读 DOM：
- * 这样即使源行被重绘（同一帧内不会），本次拖动的判定也不会错位。
- */
+/** 起拖瞬间把所有落点的矩形抓一份快照，之后拖动过程中不再读 DOM：这样即使源行被重绘（同一帧内不会），本次拖动的判定也不会错位。 */
 function collectListDragDropTargets() {
   const listDragDropTargets = [];
   for (const areaRowElement of lightGroupListElement.querySelectorAll(".light-area-row")) {
@@ -4836,10 +4770,7 @@ function collectListDragDropTargets() {
   }
   return listDragDropTargets;
 }
-/**
- * 指针落点 → 落点语义。返回 null 表示当前悬停位置不接受这次放下（松手即放弃）。
- * `insertAfter` 统一由「指针是否越过目标行中线」决定，和原来 dragover 的手感一致。
- */
+/** 指针落点 → 落点语义。 */
 function resolveListDragDrop(listDragSession, pointX, pointY) {
   const hoveredGroupTarget = listDragSession.dropTargets.find(
     (dropTargetCandidate) =>
@@ -4876,7 +4807,7 @@ function resolveListDragDrop(listDragSession, pointX, pointY) {
   );
   if (hoveredAreaTarget)
     return { kind: "group", anchorGroupId: null, areaId: hoveredAreaTarget.id, insertAfter: false };
-  // 落在展开区域的空白处（区域头之下、区块之内）：一样算挂进这个区域。
+
   const hoveredAreaBodyTarget = listDragSession.dropTargets.find(
     (dropTargetCandidate) =>
       dropTargetCandidate.kind === "area" &&
@@ -4893,7 +4824,7 @@ function resolveListDragDrop(listDragSession, pointX, pointY) {
       areaId: hoveredAreaBodyTarget.id,
       insertAfter: false,
     };
-  // 其余位置（列表空白、屏幕灯组等其他行）不作数：宁可什么都不做，也不要静默把灯组挪出区域。
+
   return null;
 }
 function applyListDragDropIndicator(listDragSession, pendingListDrop) {
@@ -4932,7 +4863,7 @@ function activateListDrag(listDragSession) {
   try {
     listDragSession.rowElement.setPointerCapture(listDragSession.pointerId);
   } catch {
-    // 指针已经抬起：忽略即可，后面的 pointermove 照样能算落点。
+
   }
 }
 function handleListDragPointerMove(listDragPointerMoveEvent) {
@@ -4943,7 +4874,7 @@ function handleListDragPointerMove(listDragPointerMoveEvent) {
     listDragPointerMoveEvent.clientY - listDragSession.startY,
   );
   if (!listDragSession.active) {
-    // 触摸还没按满 280ms 就先滑动：这是面板滚动，不是拖动，直接放弃本次手势。
+
     if (!listDragSession.armed) {
       movedDistance > LIST_DRAG_TOUCH_GIVE_UP_DISTANCE && finishListDrag(false);
       return;
@@ -4989,7 +4920,7 @@ function finishListDrag(commitListDropFlag) {
     listDragSession.rowElement.classList.remove("dragging", "drag-ready"),
     document.documentElement.classList.remove("list-drag-active"),
     clearLightGroupDropIndicator();
-  // 只有真正拖动过才吞掉随后的 click：普通单击仍然要能选中灯组、折叠区域。
+
   if (!listDragSession.active) return;
   listDragEndedAt = Date.now();
   const pendingListDrop = listDragSession.pendingDrop;
@@ -5004,11 +4935,7 @@ function finishListDrag(commitListDropFlag) {
           pendingListDrop.insertAfter,
         ));
 }
-/**
- * 行上的 pointerdown 入口。鼠标按下即就绪（不必先按住停 280ms）；触摸要先按住 280ms，
- * 否则第一次触摸会被拖动抢走，图层面板就滚不动了。
- * 起手落在行内按钮上时直接不管：那颗按钮的单击要正常工作。
- */
+/** 行上的 pointerdown 入口。 */
 function beginListRowDrag(
   listDragRowSession: ListDragRowSession,
   listDragPointerDownEvent,
@@ -5037,10 +4964,7 @@ function beginListRowDrag(
     window.addEventListener("pointercancel", handleListDragPointerCancel),
     window.addEventListener("touchmove", handleListDragTouchMove, { passive: false }));
 }
-/**
- * 按区域头的拖放结果重排区域顺序。区域来自 HA，只调整前端展示顺序（内存 + 本地记录），
- * 不回写 HA，也不进文档；灯组与区域的从属关系靠 `areaId`，不随数组位置变化。
- */
+/** 按区域头的拖放结果重排区域顺序。 */
 function moveAreaRow(draggedAreaId, targetAreaId, insertAfterFlag) {
   const draggedAreaIndex = lightAreaRecords.findIndex(
       (draggedAreaMatch) => draggedAreaMatch.areaId === draggedAreaId,
@@ -5067,10 +4991,7 @@ function moveAreaRow(draggedAreaId, targetAreaId, insertAfterFlag) {
   persistLightAreaOrder();
   syncLightGroupList();
 }
-/**
- * 把灯组移动到目标区域，可插到某组之前 / 之后（targetGroupId 为空表示只换区域、不改顺序）。
- * 区域与顺序都没变化时直接放弃这次拖动，避免给撤销栈塞空记录。
- */
+/** 把灯组移动到目标区域，可插到某组之前 / 之后（targetGroupId 为空表示只换区域、不改顺序）。 */
 function moveLightGroupToArea(
   draggedGroupId,
   targetAreaId,
@@ -5113,11 +5034,7 @@ function moveLightGroupToArea(
     refreshStudioUi(),
     markDocumentDirty());
 }
-/**
- * 拉取 HA 区域注册表，作为灯光面板唯一的区域来源（只读，但展示顺序可在本地拖动调整）。
- * 旧文档里自带 studio 自建的 `areas`，这里按区域名称把灯组的旧 areaId 迁移成 HA area_id，
- * 并清空场景里的遗留区域，之后不再写回。
- */
+/** 拉取 HA 区域注册表，作为灯光面板唯一的区域来源（只读，但展示顺序可在本地拖动调整）。 */
 async function refreshLightAreasFromHa() {
   let fetchedAreaRecords: { areaId: string; name: string }[] = [];
   try {
@@ -5154,10 +5071,10 @@ function persistLightAreaOrder() {
       JSON.stringify(lightAreaRecords.map((areaRecord) => areaRecord.areaId)),
     );
   } catch (lightAreaOrderError) {
-    // 存不了就只在当前会话内保序，不影响面板使用。
+
   }
 }
-/** 按本地记录的 areaId 顺序重排 HA 区域；记录里没有的新区域按 HA 原顺序追加到末尾。 */
+/** 按本地记录的 areaId 顺序重排 HA 区域； */
 function applySavedLightAreaOrder(areaRecords: { areaId: string; name: string }[]) {
   const areaRecordById = new Map(areaRecords.map((areaRecord) => [areaRecord.areaId, areaRecord])),
     orderedAreaRecords = [];
@@ -5215,17 +5132,14 @@ function openLightGroupAreaDialog(assignTargetGroup) {
 function closeLightGroupAreaDialog() {
   ((areaAssignGroupId = ""), lightGroupAreaDialogElement.close());
 }
-/** 展开 / 收起某个区域。展开状态只存在内存里（expandedAreaIds），不写入文档。 */
+/** 展开 / 收起某个区域。 */
 function toggleAreaExpanded(toggledAreaId) {
   (expandedAreaIds.has(toggledAreaId)
     ? expandedAreaIds.delete(toggledAreaId)
     : expandedAreaIds.add(toggledAreaId),
     syncLightGroupList());
 }
-/**
- * 创建一个灯组列表行（长按拖动排序 / 移入区域 + 右键菜单）。触摸设备必须按住 280ms 才能拖动，
- * 否则第一下触摸会被拖动抢走，图层面板没法滚动。
- */
+/** 创建一个灯组列表行（长按拖动排序 / 移入区域 + 右键菜单）。 */
 function createLightGroupRow(listedLightGroup) {
   const lightGroupRowElement = document.createElement("div");
   ((lightGroupRowElement.className =
@@ -5294,10 +5208,7 @@ function createLightGroupRow(listedLightGroup) {
     lightGroupRowElement.append(groupToggleButton, groupNameLabel, groupLampCountNote));
   return lightGroupRowElement;
 }
-/**
- * 创建一个「区域」区块：区域来自 HA，可折叠、可拖动排序，也是拖放目标（灯组拖到头上即挂进该区域）。
- * 区域本身不可新建 / 删除 / 重命名，名称与集合始终以 HA 为准。
- */
+/** 创建一个「区域」区块：区域来自 HA，可折叠、可拖动排序，也是拖放目标（灯组拖到头上即挂进该区域）。 */
 function createAreaSection(listedArea, memberLightGroups) {
   const isAreaExpanded = expandedAreaIds.has(listedArea.areaId),
     areaSectionElement = document.createElement("div");
@@ -5860,7 +5771,7 @@ async function applyLoadedDraft(draftPayload, draftScene = null) {
     refreshPreviewScene(),
     (undoRecords = []),
     (redoRecords = []));
-  // 灯光区域以 HA 为准：拉取区域并迁移旧文档里的自建区域，再渲染图层面板。
+
   await refreshLightAreasFromHa();
   const selectedFloorRecords = collectSelectedFloors();
   if (isEmbeddedStage) {
@@ -6319,13 +6230,7 @@ function drawRailing(railingRecord, railingView: PlanEditPreviewFlags = {}) {
       !railingView.preview &&
       drawLabelText(xo2.center, "玻璃栏杆 · " + railingRecord.width.toFixed(2) + " m", "#8bd7e8"));
 }
-/**
- * 平面图门色的最低相对亮度。
- *
- * 门是画在**近黑墙带**（`rgba(7, 16, 21, .94)`，实底约 `#071015`）上的，深色档位（黑砂金属 /
- * 黑框玻璃 / 胡桃木）直接铺上去就糊成一条看不见的黑线。取 0.12 —— 对着那层墙带约 3.2:1
- * （实测最低的一档是胡桃木门框），够看清门洞位置。
- */
+/** 平面图门色的最低相对亮度。 */
 const PLAN_DOOR_MIN_LUMINANCE = 0.12;
 /** 抬亮上限：抬到这个比例还没达标就认了，免得把颜色冲成纯白、丢掉档位辨识度。 */
 const PLAN_DOOR_MAX_LIFT = 0.6;
@@ -6343,24 +6248,14 @@ function planColorLuminance(red: number, green: number, blue: number): number {
   );
 }
 
-/** 平面图这扇门用哪块料代表（取「最占视线」的部件；取不到则退主料部件）。 */
+/** 平面图这扇门用哪块料代表（取「最占视线」的部件； */
 function doorPlanPartMaterial(doorRecord, doorType: string, themePalette) {
   const partMaterials = resolveDoorPartMaterials(doorRecord, themePalette),
     planRole = doorPlanMaterialRoleFor(doorType);
   return partMaterials[planRole] ?? partMaterials[doorMaterialPartRolesForType(doorType)[0]];
 }
 
-/**
- * 平面图门色：**与 3D 同一条取色链**（档位配方 → 主题键 → 逐门覆盖色）。
- *
- * 平面图其它构件（墙 / 窗 / 栏杆）用的是示意色，门这里刻意破例 —— 「档位」在平面图上也要看得见：
- * 白色烤漆是近白、原木橡是浅木、胡桃木是深棕、黑砂金属是深灰。三件事照旧不动：
- *   · 拖拽预览仍是那抹橙色虚线色；
- *   · 选中仍叠一半 accent（与 3D 的 doorPartDisplayColor 同一规矩）—— 所以选着门改档位，
- *     平面图里也能立刻看出颜色变化，而不是像从前被整条刷成高亮的橙色；
- *   · 深色档位按 PLAN_DOOR_MIN_LUMINANCE 往白里抬，保住色相的前提下不糊进墙带。
- * 取不到材质色时退回改造前的示意色（近白 / 浅蓝），保证任何异常下平面图都还看得清。
- */
+/** 平面图门色：**与 3D 同一条取色链**（档位配方 → 主题键 → 逐门覆盖色）。 */
 function doorPlanColor(
   doorRecord,
   doorType: string,
@@ -6583,10 +6478,8 @@ function drawDoor(doorRecord, doorView: PlanEditPreviewFlags = {}) {
         },
       ));
     const hingeSign = doorRecord.hinge === "right" ? -1 : 1,
-      // 入户门按「常闭」出图：没有门扇也没有开合弧线，开向只能落在把手贴哪一面墙上。
-      // 于是内外翻转 = 把手（连同把手那面的五金）换到墙的另一面 —— 与三维里门扇/把手
-      // 按 hinge / swing 翻面同源，按钮才有肉眼可见的反馈。偏移至少留 6 屏幕像素，
-      // 避免比例小的时候「翻了但看不出」。
+
+
       handleFaceOffset =
         Math.max(
           (xo3.wall.thickness * (getPixelsPerMeter() || 100)) / 2,
@@ -6801,7 +6694,7 @@ function drawCourtyardArea(planItem) {
           planCanvasRenderer.stroke());
       } else {
         if (planItem.type === "striplight") {
-          // 立起后，平面能画的只剩它占的那块地（厚度 × 发光宽度），发光长度改为沿房间向上延伸。
+
           const standingStripInset = Math.min(itemPixelWidth, itemPixelDepth) * 0.3;
           (planCanvasRenderer.beginPath(),
             planCanvasRenderer.rect(
@@ -7117,7 +7010,7 @@ function drawCourtyardArea(planItem) {
               } else {
                 if (planItem.type === "pillar")
                   (pillarIsLying2(planItem)
-                    ? // 躺倒时，平面画的是柱子占的地面范围（宽 × 长）而不是截面。
+                    ?
                       (planCanvasRenderer.beginPath(),
                       planCanvasRenderer.rect(
                         -itemPixelWidth / 2,
@@ -7217,15 +7110,15 @@ function drawCourtyardArea(planItem) {
                           planCanvasRenderer.stroke());
                     } else {
                       if (planItem.type === "coffeetable") {
-                        // 组合茶几：两块叠合错位的石材——下方是通体黑石座，上方是向左悬挑的白石板。
-                        // 平面整体跟着 GLB 的俯视轮廓走，画两个圆角矩形，避免 3D 换件后图纸对不上。
+
+
                         const coffeeTableBaseLengthRatio = 1.72 / 1.9,
                           coffeeTableBaseOffsetRatio = 0.09 / 1.9,
                           coffeeTableTopLengthRatio = 1.0 / 1.9,
                           coffeeTableTopOffsetRatio = -0.45 / 1.9,
                           coffeeTableTopDepthRatio = 0.85 / 1.05,
                           coffeeTableCornerRadiusPx = Math.min(itemPixelWidth, itemPixelDepth) * 0.02;
-                        // 先画石座（它在下面，兼作外轮廓），再把石板压上去；同一枚填充色，叠合处自然加深。
+
                         (planCanvasRenderer.beginPath(),
                           planCanvasRenderer.roundRect(
                             (-coffeeTableBaseLengthRatio / 2 + coffeeTableBaseOffsetRatio) *
@@ -7830,7 +7723,7 @@ function drawCourtyardArea(planItem) {
     (planCanvasRenderer.lineWidth = 1),
     planItem.type === "coffeetable")
   ) {
-    // 组合茶几在这一层只画石板的收边：沿上方石板内侧退一圈的细线，表示石板有厚度。
+
     const coffeeTableTopLengthRatio = 1.0 / 1.9,
       coffeeTableTopOffsetRatio = -0.45 / 1.9,
       coffeeTableTopDepthRatio = 0.85 / 1.05,
@@ -9054,8 +8947,8 @@ function refreshStudioUiInner(shouldClearActiveElement = false) {
         (selectElement("#selection-title").textContent = itemTypeCatalog[at4.type].name));
       return;
     }
-    // 材质面板按来源分流：门是程序化部件表（renderDoorMaterialPanel），家具是 GLB 材质槽
-    // （renderMaterialSlotPanel）；其它类型没有外部模型，后者会顺手把面板收起来。
+
+
     selectedItem.kind === "door"
       ? renderDoorMaterialPanel(at4)
       : renderMaterialSlotPanel(at4);
@@ -9471,12 +9364,7 @@ function refreshStudioUiInner(shouldClearActiveElement = false) {
     }
   }
 }
-/**
- * 刷新整个属性检查器：先跑原来那套「按选中类型逐个开关字段」的逻辑，再统一收敛一次分组。
- *
- * 收敛放在外面是因为 `refreshStudioUiInner` 有多处提前 return（框选、庭院绘图…），挂在
- * 函数末尾会有分支漏掉；包一层才能保证每次刷新都收敛。
- */
+/** 刷新整个属性检查器：先跑原来那套「按选中类型逐个开关字段」的逻辑，再统一收敛一次分组。 */
 function refreshStudioUi(shouldClearActiveElement = false) {
   refreshStudioUiInner(shouldClearActiveElement);
   syncInspectorGroups();
@@ -9505,16 +9393,11 @@ function writeInspectorGroupCollapseState(collapseState) {
   try {
     window.localStorage.setItem(INSPECTOR_GROUP_STORAGE_KEY, JSON.stringify(collapseState));
   } catch {
-    // 隐私模式 / 配额已满：折叠状态记不住不影响功能，静默降级。
+
   }
 }
 let inspectorGroupCollapseState = readInspectorGroupCollapseState();
-/**
- * 组内是否还有可见字段。
- *
- * 只认 `hidden` 属性（面板里所有字段的显隐都走 `.hidden =`），不看计算样式 —— 组本身
- * 折叠时子元素的计算样式必然是隐藏的，看样式会把「折叠」误判成「空组」。
- */
+/** 组内是否还有可见字段。 */
 function inspectorGroupHasVisibleField(inspectorGroupElement) {
   const groupBodyElement = inspectorGroupElement.querySelector(".inspector-group-body");
   if (!groupBodyElement) return false;
@@ -9538,12 +9421,7 @@ function countInspectorGroupFields(inspectorGroupElement) {
   }
   return visibleFieldCount;
 }
-/**
- * 收敛分组：空组整组隐藏、组标题随选中类型换说法、折叠态回放、计数徽标只在折叠时出现。
- *
- * 组内直接子项（字段区 / 字段网格）由 `refreshStudioUiInner` 逐个开关，这里只读结果，
- * 所以以后新增字段不用回来登记。
- */
+/** 收敛分组：空组整组隐藏、组标题随选中类型换说法、折叠态回放、计数徽标只在折叠时出现。 */
 function syncInspectorGroups() {
   const architectureKind = INSPECTOR_GROUP_TITLE_BY_ARCHITECTURE_KIND[selectedItem?.kind]
     ? selectedItem.kind
@@ -9598,32 +9476,20 @@ function materialSlotPanelSignatureFor(modelItem, materialSlotEntries) {
     materialSlotEntries ? materialSlotEntries.map((slotEntry) => slotEntry.name).join(",") : "",
   ].join("|");
 }
-/* -------------------------------------------------------------------------- */
-/* 材质风格色卡条                                                              */
-/* -------------------------------------------------------------------------- */
 
-/**
- * 一枚色卡上排的 3–4 格调色板缩略。
- *
- * 取色不在这里做：写死一份调色板键会把「柜类真正的料键」（cabinetWood/cabinetBody/
- * cabinetDoor）漏掉、又会把档位没声明的键漏成当前主题色，色卡就会与物件对不上。
- * 统一交给档位模块的 `materialStylePresetSwatchColors`（与加载器同一条解析路径），
- * 并把这件模型**真实槽位的角色**传下去 —— 色卡于是逐格对应画面上的面。
- */
+
+/** 一枚色卡上排的 3–4 格调色板缩略。 */
 function materialStyleSwatchColors(preset, fallbackPalette, slotRoles) {
   return materialStylePresetSwatchColors(preset, fallbackPalette || backgroundSettings(), {
     roles: slotRoles,
   });
 }
-/**
- * 重建「材质风格」色卡条：档位表随模型类型变化（沙发是布艺 / 皮革组、柜类是木作组…），
- * 所以色卡不写死在标记里；只有模型类型或档位数变了才重建，之后仅切高亮。
- */
+/** 重建「材质风格」色卡条：档位表随模型类型变化（沙发是布艺 / 皮革组、柜类是木作组…），所以色卡不写死在标记里； */
 function syncMaterialStyleStrip(modelItem, modelType, slotRoles) {
   if (!materialStyleStripElement) return;
   ensureCustomMaterialStylesLoaded();
   const presetOptions = isMaterialStyleCapable(modelType) ? materialStyleOptionsFor(modelType) : [],
-    // 槽位角色也进签名：模型加载完（槽位从无到有）后色卡要按真实槽位重建一次。
+
     roleSignature = (slotRoles || []).filter(Boolean).join(","),
     optionSignature = modelType + ":" + presetOptions.length + ":" + roleSignature,
     itemPalette = backgroundSettings();
@@ -9688,14 +9554,8 @@ function createMaterialStyleChip(styleId, styleLabel, swatchColors, isCustom) {
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* 槽位按角色族归组                                                            */
-/* -------------------------------------------------------------------------- */
 
-/**
- * 角色 → 角色族。分组只服务「找得到那个槽位」，所以按**材质语义**而不是模型来分，
- * 跨模型的槽位能落到同一族，同一族的芯片在任何模型上都成立。
- */
+/** 角色 → 角色族。 */
 const MATERIAL_SLOT_GROUPS = [
   {
     id: "body",
@@ -9767,7 +9627,7 @@ const MATERIAL_SLOT_GROUP_ROLE_INDEX = new Map(
     slotGroup.roles.map((roleName) => [roleName, slotGroup]),
   ),
 );
-/** 槽位属于哪个角色族；未登记的角色归到「其它」。 */
+/** 槽位属于哪个角色族； */
 function materialSlotGroupOf(slotEntry) {
   return (
     MATERIAL_SLOT_GROUP_ROLE_INDEX.get(slotEntry.role) || { id: "other", label: "其它部件" }
@@ -9846,13 +9706,9 @@ function materialSlabLabel(slabFlavor) {
     { marble: "大理石", "marble-dark": "黑金大理石" }[slabFlavor] || ""
   );
 }
-/* -------------------------------------------------------------------------- */
-/* 门的材质部件                                                                */
-/* -------------------------------------------------------------------------- */
 
-/**
- * 门部件的解析结果（出图与面板共用的那一份）。
- */
+
+/** 门部件的解析结果（出图与面板共用的那一份）。 */
 type DoorPartMaterial = {
   role: string;
   /** 逐门覆盖色 / 表面参数在 `door.materialOverrides` 里用的键（`door-material-<n>`）。 */
@@ -9860,7 +9716,7 @@ type DoorPartMaterial = {
   /** 画面用色：逐门覆盖色 > 档位配方 > 主题键（不含选中高亮）。 */
   colorValue: number;
   overrideColor: string;
-  /** 只有档位 / 逐门表面参数给过才有值；undefined = 保持调用点原本写死的值。 */
+  /** 只有档位 / 逐门表面参数给过才有值； */
   roughness?: number;
   metalness?: number;
   transparent: boolean;
@@ -9870,22 +9726,10 @@ type DoorPartMaterial = {
   emissiveIntensity?: number;
 };
 
-/**
- * 门的材质部件表（部件顺序 `DOOR_MATERIAL_PARTS` / 各门型部件 / 部件索引）统一放在
- * `materials/studio-model-material-roles.ts`：运行时出图、材质面板与 CI 校验脚本共用同一份
- * 事实（门没有 GLB 可扫，槽位全靠这张表定义），门型增删部件时不会两边各记一套。
- */
-/* -------------------------------------------------------------------------- */
-/* 门部件材质解析                                                               */
-/* -------------------------------------------------------------------------- */
+/** 门的材质部件表（部件顺序 `DOOR_MATERIAL_PARTS` / 各门型部件 / 部件索引）统一放在`materials/studio-model-material-roles.ts`：运行时出图、材质面板与 CI 校验脚本共用同一份事实（门没有 GLB 可扫，槽位全靠这张表定义），门型增删部件时不会两边各… */
 
-/**
- * 门部件「跟随主题」时读的调色板键（返回色号）。
- *
- * 门框 / 门扇 / 五金的键**按门型分档**（实木门 solidDoorFrame、入户门 entryDoorFrame、
- * 入户门五金走亮一档的 furnitureLight…），与改造前逐个 mesh 写死的那几处三元式逐条对应：
- * 「不选档位、不改色」的门，画面必须与之前一模一样。
- */
+
+/** 门部件「跟随主题」时读的调色板键（返回色号）。 */
 function doorPartThemeColor(doorType: string, role: string, palette) {
   const themeKeys = {
     frame:
@@ -9902,22 +9746,15 @@ function doorPartThemeColor(doorType: string, role: string, palette) {
     trim: ["furnitureSoft", "furnitureDark"],
   }[role];
   if (!themeKeys) return resolveMaterialPaletteColor(palette, "furniture");
-  // 逐键显式找一遍：`PALETTE_KEY_FALLBACK` 也能兜住（doorFrame → frame），但写全这几档
-  // 才能保证以后有人改了回落链时，门的默认色不会跟着漂。
+
+
   for (const themeKey of themeKeys) {
     const colorValue = palette?.[themeKey];
     if (typeof colorValue === "number") return colorValue;
   }
   return resolveMaterialPaletteColor(palette, themeKeys[themeKeys.length - 1]);
 }
-/**
- * 门的逐部件材质 —— 出图与面板**同源**的那一份（改这里就等于同时改画面与检查面板）。
- *
- * 生效顺序（最后一手赢，与家具同一条口径）：
- *   主题键 → 档位配方 → 逐门覆盖色 `door.materialOverrides[角色]` → 逐门表面参数。
- * 档位走 `materialStyleRecipeFor("door", "door-material-<n>", …)`，于是门的「材质风格」
- * 与家具共用同一套预设、色卡与校验；`door.materialStyle` 为 auto 时这一层不产生覆盖。
- */
+/** 门的逐部件材质 —— 出图与面板**同源**的那一份（改这里就等于同时改画面与检查面板）。 */
 function resolveDoorPartMaterials(doorRecord, themePalette): Record<string, DoorPartMaterial> {
   const doorType = doorRecord?.doorType || "solid",
     doorStyleId = normalizeMaterialStyle("door", doorRecord?.materialStyle),
@@ -9939,17 +9776,13 @@ function resolveDoorPartMaterials(doorRecord, themePalette): Record<string, Door
     partMaterials[role] = {
       role,
       materialName,
-      /**
-       * 画面用的色号：逐门覆盖色 > 档位配方 > 主题键。
-       * **不含**选中高亮 —— 高亮是「这一帧正在选中的门」的显示层（doorPartDisplayColor），
-       * 面板要显示的是真实材质色，两者不能混在一起。
-       */
+      /** 画面用的色号：逐门覆盖色 > 档位配方 > 主题键。 */
       colorValue:
         overrideColorValue !== undefined
           ? overrideColorValue
           : styleRecipe?.colorValue ?? doorPartThemeColor(doorType, role, doorPalette),
       overrideColor: overrideColor || "",
-      // 只有档位 / 逐门表面参数才改粗糙度与金属度：都没给时保持各 mesh 原本写死的值。
+
       roughness: slotSurfaceOverride.roughness ?? styleRecipe?.roughness,
       metalness: slotSurfaceOverride.metalness ?? styleRecipe?.metalness,
       transparent: styleRecipe?.transparent === true,
@@ -9961,11 +9794,7 @@ function resolveDoorPartMaterials(doorRecord, themePalette): Record<string, Door
   }
   return partMaterials;
 }
-/**
- * 画面上的门部件色：选中时叠一层主题 accent（沿用架构构件「选中即高亮」的老规矩），
- * 但**只叠一半** —— 从前的写法是把整扇门刷成 accent，于是编辑材质时画面上永远是一片高亮色，
- * 看不出自己改了什么（「选了风格没变化」）。混一半既保留选中提示，又能立刻看出颜色变化。
- */
+/** 画面上的门部件色：选中时叠一层主题 accent（沿用架构构件「选中即高亮」的老规矩），但**只叠一半** —— 从前的写法是把整扇门刷成 accent，于是编辑材质时画面上永远是一片高亮色，看不出自己改了什么（「选了风格没变化」）。 */
 function doorPartDisplayColor(partMaterial, isSelected: boolean, themePalette) {
   const partColorValue = partMaterial?.colorValue;
   if (!isSelected || typeof partColorValue !== "number") return partColorValue;
@@ -9978,12 +9807,7 @@ function doorPartDisplayColor(partMaterial, isSelected: boolean, themePalette) {
   };
   return (mixChannel(16) << 16) | (mixChannel(8) << 8) | mixChannel(0);
 }
-/**
- * 门部件材质 → `addArchitectureMesh` 的 options。
- *
- * 只在用户真的设过档位 / 表面参数时覆盖粗糙度与金属度：没设过就原样透传调用点自己的
- * 默认值，保证「不选档位」的门与改造前出图一致。
- */
+/** 门部件材质 → `addArchitectureMesh` 的 options。 */
 function doorPartMeshOptions(partMaterial, baseOptions) {
   if (!partMaterial) return baseOptions;
   const meshOptions = { ...baseOptions };
@@ -9998,10 +9822,7 @@ function doorPartMeshOptions(partMaterial, baseOptions) {
     (meshOptions.emissiveIntensity = partMaterial.emissiveIntensity ?? 0.5));
   return meshOptions;
 }
-/**
- * 门的「材质属性」槽位表：形状与 `loader.describeItemMaterials` 的输出一致，
- * 于是同一块面板 DOM、同一套写入函数与同一份色卡逻辑都能直接复用。
- */
+/** 门的「材质属性」槽位表：形状与 `loader.describeItemMaterials` 的输出一致，于是同一块面板 DOM、同一套写入函数与同一份色卡逻辑都能直接复用。 */
 function describeDoorMaterials(doorRecord) {
   const themePalette = backgroundSettings(),
     partMaterials = resolveDoorPartMaterials(doorRecord, themePalette),
@@ -10033,10 +9854,7 @@ function describeDoorMaterials(doorRecord) {
 function doorMaterialPeerCount(doorRecord) {
   return materialSameModelPeerCount({ kind: "door", record: doorRecord });
 }
-/**
- * 重建「材质属性」面板的门版本：与 `renderMaterialSlotPanel` 共用色卡条 / 槽位行 / 动作
- * 按钮，只有槽位来源不同（门是程序化部件，家具是 GLB 材质槽）。
- */
+/** 重建「材质属性」面板的门版本：与 `renderMaterialSlotPanel` 共用色卡条 / 槽位行 / 动作按钮，只有槽位来源不同（门是程序化部件，家具是 GLB 材质槽）。 */
 function renderDoorMaterialPanel(doorRecord) {
   if (!materialFieldsElement || !materialSlotListElement || !doorRecord) return;
   const doorPartRoles = doorMaterialPartRolesForType(doorRecord.doorType);
@@ -10047,7 +9865,7 @@ function renderDoorMaterialPanel(doorRecord) {
   if (panelSignature === materialSlotPanelSignature) return;
   materialSlotPanelSignature = panelSignature;
   isMaterialSlotPanelPending = false;
-  // 换门型后展开态可能指向已经不存在的部件：清掉，免得集合越攒越大。
+
   for (const expandedSlotName of [...expandedMaterialSurfaceSlots])
     materialSlotEntries.some((slotEntry) => slotEntry.name === expandedSlotName) ||
       expandedMaterialSurfaceSlots.delete(expandedSlotName);
@@ -10083,14 +9901,7 @@ function renderDoorMaterialPanel(doorRecord) {
   }
   materialSlotListElement.replaceChildren(slotRowFragment);
 }
-/**
- * 重建「材质属性」检查面板：先给「材质风格」预设下拉（选一档 = 整套角色换料），
- * 再列出选中物件的每个 GLB 材质槽位 → 角色 → 当前显色与表面。
- *
- * 颜色值直接取自渲染用的选材函数（loader.describeItemMaterials），所以面板与画面同源；
- * 用户改色写入 `item.materialOverrides`（按 GLB 材质名）；档位写入 `item.materialStyle`。
- * 生效顺序：模型自带 / 家族底表 → 档位 → 逐槽覆盖色。
- */
+/** 重建「材质属性」检查面板：先给「材质风格」预设下拉（选一档 = 整套角色换料），再列出选中物件的每个 GLB 材质槽位 → 角色 → 当前显色与表面。 */
 function renderMaterialSlotPanel(modelItem) {
   if (!materialFieldsElement || !materialSlotListElement) return;
   const hasExternalModel = Boolean(
@@ -10104,7 +9915,7 @@ function renderMaterialSlotPanel(modelItem) {
     return;
   }
   const itemModelType = externalModelRegistry.modelTypeForItem(modelItem);
-  // 先取槽位（含角色），色卡要按这件模型真实渲染的面取色，所以顺序不能颠倒。
+
   const materialSlotEntries = externalModelRegistry.describeItemMaterials(
       modelItem,
       materialLoadOptionsForItem(modelItem),
@@ -10127,7 +9938,7 @@ function renderMaterialSlotPanel(modelItem) {
     return;
   }
   isMaterialSlotPanelPending = false;
-  // 换模型 / 换筛选后，展开态可能指向已经不存在的槽位：清掉，免得集合越攒越大。
+
   for (const expandedSlotName of [...expandedMaterialSurfaceSlots])
     materialSlotEntries.some((slotEntry) => slotEntry.name === expandedSlotName) ||
       expandedMaterialSurfaceSlots.delete(expandedSlotName);
@@ -10185,12 +9996,7 @@ function materialCoverageSummary(overrideCount, surfaceOverrideCount) {
   surfaceOverrideCount && changeParts.push("改参数 " + surfaceOverrideCount);
   return changeParts.length ? changeParts.join(" · ") : "全部跟随主题";
 }
-/**
- * 一条槽位行：左边角色 / 槽位号 / GLB 名，右边色块 + 十六进制 + 参数 + 复位。
- *
- * 「参数」展开的是粗糙度与金属度两个滑块 —— 颜色之外只有这两项能单独调，透明 / 自发光 /
- * 深度写入属于结构语义，跟着角色走才安全（见加载器的 materialSurfaceOverrideFor）。
- */
+/** 一条槽位行：左边角色 / 槽位号 / GLB 名，右边色块 + 十六进制 + 参数 + 复位。 */
 function createMaterialSlotRow(slotEntry) {
   const displayedColor = (slotEntry.overrideColor || slotEntry.color || "#000000").toLowerCase(),
     surfaceOverride = slotEntry.surfaceOverride || null,
@@ -10312,17 +10118,11 @@ function createMaterialSlotSurfacePanel(slotEntry, isSurfaceExpanded) {
 function materialSameModelPeerCount(target) {
   return materialSameModelPeerRecords(target).length;
 }
-/**
- * 材质编辑用的「模型类型」：家具取注册表里的模型类型，门就是 `door` —— 门的档位组与
- * 角色表都以 `door` 为键（门型差异由部件表处理，不另开模型类型）。
- */
+/** 材质编辑用的「模型类型」：家具取注册表里的模型类型，门就是 `door` —— 门的档位组与角色表都以 `door` 为键（门型差异由部件表处理，不另开模型类型）。 */
 function materialEditModelType(record, kind) {
   return kind === "door" ? "door" : externalModelRegistry.modelTypeForItem(record);
 }
-/**
- * 当前选中对象里那一个「可做材质编辑」的：家具（GLB 模型）或门（户型洞口）。
- * 其余（墙 / 窗 / 栏杆 / 未选中）返回 null —— 面板与写入通道都靠它判定。
- */
+/** 当前选中对象里那一个「可做材质编辑」的：家具（GLB 模型）或门（户型洞口）。 */
 function selectedMaterialEditTarget() {
   const selectedObject = getSelectedObject();
   if (!selectedObject || !isSelectionAllowed(selectedItem)) return null;
@@ -10330,10 +10130,7 @@ function selectedMaterialEditTarget() {
   if (selectedItem?.kind === "door") return { kind: "door", record: selectedObject };
   return null;
 }
-/**
- * 同款物件的其它成员：家具按 itemType 比，门按 **doorType** 比 —— 门的「同款」就是同一种
- * 门型（实木门与推拉门的部件都不一样，互相套用材质只会套出一堆无主的覆盖色）。
- */
+/** 同款物件的其它成员：家具按 itemType 比，门按 **doorType** 比 —— 门的「同款」就是同一种门型（实木门与推拉门的部件都不一样，互相套用材质只会套出一堆无主的覆盖色）。 */
 function materialSameModelPeerRecords(target) {
   if (!target) return [];
   if (target.kind === "door") {
@@ -10351,14 +10148,7 @@ function materialSameModelPeerRecords(target) {
       externalModelRegistry.modelTypeForItem(sceneItem) === modelType,
   );
 }
-/**
- * 逐物件材质编辑的公共收尾：只调用一次 `captureUndoSnapshot`，改动为真才落撤销 / 重建。
- * 返回 false 表示没有任何变化（调用方不必再处理）。
- *
- * 家具（GLB 模型）与门（程序化几何）共用这一条通道：改的都是选中记录上的
- * `materialStyle` / `materialOverrides` / `materialSurfaceOverrides`，只是刷新范围不同 ——
- * 家具重建它自己的 items 范围，门重建 architecture（门属于户型洞口那一层）。
- */
+/** 逐物件材质编辑的公共收尾：只调用一次 `captureUndoSnapshot`，改动为真才落撤销 / 重建。 */
 function commitItemMaterialEdit(mutationFunction) {
   const materialEditTarget = selectedMaterialEditTarget();
   if (!materialEditTarget) return false;
@@ -10376,12 +10166,7 @@ function commitItemMaterialEdit(mutationFunction) {
     true
   );
 }
-/**
- * 写入 / 清除逐物件材质覆盖色。
- *
- * `materialName` 为空表示「清除该物件的全部槽位覆盖」；`overrideColor` 非合法 #rrggbb
- * 表示清除该槽位。写入后重建 items 场景范围，让材质变体缓存按新的 optionsSignature 重新出图。
- */
+/** 写入 / 清除逐物件材质覆盖色。 */
 function setItemMaterialOverride(materialName, overrideColor) {
   commitItemMaterialEdit((modelItem) => {
     const previousOverrides =
@@ -10416,12 +10201,7 @@ function setItemMaterialOverride(materialName, overrideColor) {
     return true;
   });
 }
-/**
- * 写入 / 清除「材质风格」档位（`item.materialStyle`）。
- *
- * `auto` 不落键：草稿 / 快照里只有真正选过档位才留下该字段，选回「跟随全局风格」即删除。
- * 非法 id（档位表里查不到、或该模型不支持档位）一律归一成 auto，不会写进文档。
- */
+/** 写入 / 清除「材质风格」档位（`item.materialStyle`）。 */
 function setItemMaterialStyle(styleValue) {
   commitItemMaterialEdit((modelItem, materialEditTargetKind) => {
     const modelType = materialEditModelType(modelItem, materialEditTargetKind),
@@ -10455,12 +10235,7 @@ function resetItemMaterialAll() {
     return true;
   });
 }
-/**
- * 写入 / 清除某个槽位的表面参数覆盖（`item.materialSurfaceOverrides`）。
- *
- * `surfaceValue` 不是 0–1 的有限数表示清除该项；两项都清掉就删掉整个槽位条目 —— 和覆盖色
- * 一样，「跟随档位」不留下任何痕迹，快照里也不会多出一堆空对象。
- */
+/** 写入 / 清除某个槽位的表面参数覆盖（`item.materialSurfaceOverrides`）。 */
 function setItemMaterialSurfaceOverride(materialName, surfaceKey, surfaceValue) {
   if (!materialName || !["roughness", "metalness"].includes(surfaceKey)) return;
   commitItemMaterialEdit((modelItem) => {
@@ -10492,9 +10267,6 @@ function setItemMaterialSurfaceOverride(materialName, surfaceKey, surfaceValue) 
   });
 }
 
-/* -------------------------------------------------------------------------- */
-/* 个人预设：存档 / 装载 / 删除                                                 */
-/* -------------------------------------------------------------------------- */
 
 /** 个人预设落在 localStorage：跨项目、跨会话复用，但**不进**户型文档（换台机器就没了）。 */
 const MATERIAL_STYLE_CUSTOM_STORAGE_KEY = "homeos3d.studio.material-styles";
@@ -10505,15 +10277,12 @@ function readStoredCustomMaterialStyles() {
     return [];
   }
 }
-/** 把存储里的个人预设装进档位表；返回打扫过的记录，调用方据此决定要不要回写。 */
+/** 把存储里的个人预设装进档位表； */
 function loadCustomMaterialStyles() {
   const acceptedRecords = registerCustomMaterialStyles(readStoredCustomMaterialStyles());
   return acceptedRecords;
 }
-/**
- * 个人预设只装一次：档位表的查询是热路径（每次刷新面板都要走），不能每次读 localStorage。
- * 装载后的增删都通过 `loadCustomMaterialStyles` 重装，保持单一数据源。
- */
+/** 个人预设只装一次：档位表的查询是热路径（每次刷新面板都要走），不能每次读 localStorage。 */
 let areCustomMaterialStylesLoaded = false;
 function ensureCustomMaterialStylesLoaded() {
   areCustomMaterialStylesLoaded ||
@@ -10523,15 +10292,10 @@ function writeStoredCustomMaterialStyles(records) {
   try {
     window.localStorage.setItem(MATERIAL_STYLE_CUSTOM_STORAGE_KEY, JSON.stringify(records));
   } catch {
-    // 隐私模式 / 配额已满：存不下就只留在本次会话里。
+
   }
 }
-/**
- * 把当前物件的出图结果存成一档个人预设（同名同组覆盖）。
- *
- * 家具与门共用这条通道：槽位来源按来源分流（门走程序化部件表，家具走 GLB 材质槽），
- * 但存下来的记录结构一致 —— 都是 `{ role, color, roughness, metalness, slab }`。
- */
+/** 把当前物件的出图结果存成一档个人预设（同名同组覆盖）。 */
 function saveCurrentItemMaterialStyle(label) {
   const materialEditTarget = selectedMaterialEditTarget(),
     modelItem = materialEditTarget?.record;
@@ -10558,7 +10322,7 @@ function saveCurrentItemMaterialStyle(label) {
         color: slotEntry.color || "#888888",
         roughness: slotEntry.roughness,
         metalness: slotEntry.metalness,
-        // 石材板色号一起采样：只钉颜色的话，大理石台面存成个人预设后会变成一块没纹路的白板。
+
         slab: slotEntry.slab || "",
       })),
       materialStylePresetFor(modelType, currentStyle),
@@ -10572,11 +10336,11 @@ function saveCurrentItemMaterialStyle(label) {
     loadCustomMaterialStyles(),
     (materialStyleOptionSignature = ""),
     (materialSlotPanelSignature = ""));
-  // 存完直接切到这一档：用户刚命名的配色就是他要的效果，不用再手点一次。
+
   setItemMaterialStyle(customId);
   return label;
 }
-/** 删除一档个人预设；正用着它的物件会退回「跟随全局风格」。 */
+/** 删除一档个人预设； */
 function deleteCustomMaterialStyle(styleId) {
   if (!String(styleId).startsWith("custom:")) return;
   const nextRecords = loadCustomMaterialStyles().filter(
@@ -10585,8 +10349,8 @@ function deleteCustomMaterialStyle(styleId) {
   (writeStoredCustomMaterialStyles(nextRecords),
     loadCustomMaterialStyles(),
     (materialStyleOptionSignature = ""));
-  // 档位表里已经没有这一档了，normalizeMaterialStyle 会把在用的物件自动归一成 auto。
-  // 家具与门分开记：门属于户型洞口那一层，要重建的是 architecture 范围。
+
+
   const affectedItems = studioState.items.filter(
       (sceneItem) => sceneItem.materialStyle === styleId,
     ),
@@ -10603,12 +10367,7 @@ function deleteCustomMaterialStyle(styleId) {
     affectedDoors.length && refreshScopeItems("architecture"),
     markDocumentDirty());
 }
-/**
- * 「应用到同类物件」：把当前物件的档位、逐槽颜色与表面参数复制给场景里同模型的其它物件。
- *
- * 家具按 itemType 找同款，门按 **doorType** 找同款（见 `materialSameModelPeerRecords`），
- * 两者共用这一条通道；一次 undo 快照 + 一次重建，批量改动要有一步回退。
- */
+/** 「应用到同类物件」：把当前物件的档位、逐槽颜色与表面参数复制给场景里同模型的其它物件。 */
 function applyMaterialToSameModelItems() {
   const materialEditTarget = selectedMaterialEditTarget(),
     modelItem = materialEditTarget?.record;
@@ -10699,7 +10458,7 @@ function selectStudioTool(toolId) {
     showToast("庭院编辑中户型已锁定，请先切回家居或电器。");
     return;
   }
-  // 平移与选择一样不改动场景，因此灯光锁定期间也放行。
+
   if (activeLibraryCategory === "light" && toolId !== "select" && toolId !== "pan") {
     showToast("灯光编辑中户型已锁定，请先切回家居、电器或庭院。");
     return;
@@ -11241,8 +11000,7 @@ async function importBackgroundFile(backgroundFile) {
     ((importPlanButton.disabled = false), (importPlanButton.textContent = "导入"));
   }
 }
-/** 当前主题下的视图 / 光照设置：默认值再叠 WARM_WOOD_STYLE（含 warmWood 标记）。
- *  显式声明返回类型——三元表达式的两支做联合归约时会把叠加出来的键推断丢掉。 */
+/** 当前主题下的视图 / 光照设置：默认值再叠 WARM_WOOD_STYLE（含 warmWood 标记）。 */
 type BackgroundViewSettings = typeof defaultViewSettings & Record<string, any>;
 
 /** createSceneItem 的尺寸覆盖（拖动排序 / 拖拽生成洞口时用）。 */
@@ -11285,15 +11043,8 @@ function refreshBaseLighting() {
     threeRenderer.setClearColor(yt2.background, 0),
     (threeScene.fog = null),
     (threeRenderer.toneMappingExposure = vn2.exposure));
-  // 默认档的整套灯原先都偏蓝：hemisphere `#d9dee8`、地面反弹 `#1d2230`（近黑的蓝）、
-  // ambient `#939aa8`、fill `#a0a6b5`，R−B 全在 −15 ~ −21。中性白的材质被这套蓝光一照就
-  // 发灰 —— 「木柜白门」的白门（`#f5f3ef`）明明不灰，画出来却是灰的，根因就在这里（墙体
-  // 「太灰」也是同一条）。所以把默认档这几支灯的色相**中和成中性灰**：只把 R / B 拉回 G 的
-  // 值，G 承载亮度、保持不动，整体明暗与深色背景 / 地面色板都不变，只去掉蓝染。
-  //   地面反弹 `#1d2230` → `#222222`（去蓝，仍是很暗的灰，柜门下缘不再吃蓝）
-  //   半球天光 `#d9dee8` → `#dedede` / ambient `#939aa8` → `#9a9a9a`
-  //   主光 `#f2f4fa` → `#f4f4f4` / 补光 `#a0a6b5` → `#a6a6a6` / 顶光 `#f6f7fa` → `#f7f7f7`
-  // 暖阳档（warmWood）的四组暖色一律不动。
+
+
   const intensityScale = isEmbedStageMode ? 0.5 : 1;
   (hemisphereLight &&
     (hemisphereLight.color.setHex(yt2.warmWood ? 16776178 : 14606046),
@@ -17018,7 +16769,7 @@ function addLightModel(lightModelParent, lightModelItem, shadowLightIdSet) {
       lightRangeFactor *
       lightElevationFactor *
       lightTypeIntensityFactor;
-    // 灯带是一块连续面光源，绕着它的长度轴滚转出光方向。
+
     const lightRollGroup = new ns2.Group();
     lightRollGroup.rotation.x = ns2.MathUtils.degToRad(stripRollRotationDeg);
     const rectAreaLight = new ns2.RectAreaLight(
@@ -26011,13 +25762,8 @@ function createWallSideMaterial(
         polygonOffsetUnits: wallSideOptions.polygonOffsetUnits ?? -4,
         side: ns2.DoubleSide,
         emissive: wallSideOptions.emissive ?? wallSideColor,
-        // 0.025 → 0.30：这就是墙体「太灰」的主因。墙是半透明的，0.32 透明度下有 68% 的
-        // 暗背景（#11171d）透上来；默认档墙面自发光又只有 0.025，于是只剩一块中灰。
-        // 暖阳档的墙不灰，靠的正是这一支给到 0.32 —— 这里按暖阳档取 0.30（自发光色＝墙面 hex）。
-        //
-        // 归位说明：中途曾把它压到 0.10 去「降墙的亮度」，结果整体发闷发暗 —— 因为自发光是
-        // 墙「去灰」的支点，压它等于把墙推进暗背景里。降亮度该走 hex（见 defaultViewSettings
-        // 的 wall / wallTop），这里保持 0.30。暖阳档自己的 0.32 不动。
+
+
         emissiveIntensity: wallSideOptions.emissiveIntensity ?? (warmWood ? 0.32 : 0.30),
       },
       wallSideOptions.polygonOffset !== true,
@@ -26065,8 +25811,8 @@ function createWallTopMaterial(
       ? wallTopOptions.emissiveIntensity * 0.3
       : warmWood2
         ? 0.38
-        // 与墙侧同一条口径（含归位说明）：默认档顶面原本只有 0.08，墙顶会发灰；
-        // 抬到 0.30 与墙侧一致。中途曾压到 0.10 降亮度，同样导致发闷，这里保持 0.30。
+
+
         : 0.30,
   });
   return (
@@ -26913,23 +26659,21 @@ function buildInteriorScene({
         ne8 = createSelectionRef("door", currentDoor.id),
         doorType = currentDoor.doorType || "solid",
         isSolidDoorLeaf = doorType === "solid" || doorType === "frame-only",
-        // 门的逐部件材质：主题键 → 档位配方 → 逐门覆盖色（见 resolveDoorPartMaterials）。
-        // 下面每个 mesh 从 doorParts.<角色> 取色，不再直接读 yt6 —— 这样「材质属性」面板
-        // 与画面同源，改一处两边都变。
+
+
         doorParts = resolveDoorPartMaterials(currentDoor, yt6),
-        // 出图按固定部件语义取色，门型却只登记自己拥有的部件：必须经 doorMaterialPartRoleFor
-        // 回落（实木门的门扇填面取 `door`，实木门没有这个部件；直接取会拿到 undefined，
-        // 而 `new Color(undefined)` 是纯白 —— 「选胡桃木门，门还是白的」就是这个）。
+
+
         doorPartForRole = (roleName) => doorParts[doorMaterialPartRoleFor(doorType, roleName)],
         doorPartColor = (roleName) => doorPartDisplayColor(doorPartForRole(roleName), ne8, yt6),
         doorPartOptions = (roleName, baseOptions) =>
           doorPartMeshOptions(doorPartForRole(roleName), baseOptions),
-        // 玻璃门才有玻璃部件；真取不到就退回主题玻璃色，别让玻璃面板画成纯白。
+
         doorGlassColor = doorParts.glass?.colorValue ?? doorPartThemeColor(doorType, "glass", yt6),
         doorLeafMaterialOptions = yt6.warmWood
           ? {
-              // 暖木主题的门扇带一层自发光提亮；自发光跟着门扇自己的颜色走，换档位时
-              // 不会留下一层「旧色的发光」（实木门的门扇就是它的主料部件）。
+
+
               emissive: doorPartForRole("door")?.colorValue ?? yt6.doorLeaf,
               emissiveIntensity: 0.4,
             }
@@ -27006,14 +26750,8 @@ function buildInteriorScene({
         for (const slidingPanelSign of [-1, 1]) {
           const slidingPanelGroup = new ns2.Group(),
             slidingPanelOffset = slidingPanelSign * buildInteriorSceneDoorWidth * 0.23,
-            // 常开姿态：活动扇沿轨道推出 openRatio 行程（0.46 是两扇中心间距 = 全行程，理由与
-            // 「洞口净开 / 两扇错开量此消彼长」的约束见 SLIDING_DOOR_DISPLAY_OPEN_RATIO）。
-            //
-            // 编辑器和展示页**共用同一个姿态**（不加 `!buildInteriorSceneIsEmbeddedStage` 判断）：
-            // 存档里的推拉门几乎没有绑定门磁，展示页拿不到门的状态就一动不动地停在静止姿态，
-            // 之前静止姿态写死 0（两扇合拢），于是展示页上就是一堵关着的玻璃墙。
-            // 同时把该偏移写进 doorRestTranslation —— lock-motion 的 reset() 按它复位，
-            // 没有门磁 / 门磁状态未知（doorOpen === null）时都停在这个常开姿态上。
+
+
             slidingPanelRestOffset =
               slidingPanelSign === -doorHingeSign
                 ? doorHingeSign *
@@ -27153,10 +26891,8 @@ function buildInteriorScene({
             0.4,
           ),
           pocketLeafHeight = Math.max(buildInteriorSceneDoorHeight - doorLeafThickness * 0.85, 0.8),
-          // 入户门是「常闭」门型：编辑预览里不打开展示，所以（和平面图一样）内外翻转
-          // 只能落在「门扇与五金贴哪一面」上 —— 门扇先往开向那面挪一点，门套线和把手
-          // 再挂到那一面的门扇外侧；swing 取反就整组翻到墙的另一面。
-          // 位移上限取 (门框进深 0.09 − 门扇厚) / 2，门扇不会被推出门框。
+
+
           pocketSwingSign = currentDoor.swing === -1 ? -1 : 1,
           pocketLeafFaceZ =
             pocketSwingSign * Math.max(0, (0.09 - doorLeafThickness) / 2) * 0.9,
@@ -27770,7 +27506,7 @@ async function waitForSceneReady(sceneWaitTimeout = null) {
       pollInterval: 16,
     });
   } catch {
-    // 光影预编译失败不阻断首屏，这里刻意静默；状态由 dataset 表达。
+
   }
 }
 function* buildFloorsAsync({ preserveLightCache: preserveLightCacheSnapshot = false } = {}) {
@@ -28422,7 +28158,7 @@ function updateSnapIndicator(snapWallTarget = isForceSnapDisabled) {
             (railingPlacement = null),
             (snapIndicatorElement.textContent = "吸附：未找到墙体"));
       } else if (activeToolName === "pan") {
-        // 平移工具不做命中判定：避免属性手柄把光标改成 grab/缩放样式，抢掉画布的抓取手势。
+
         ((snapHit = null),
           (windowPlacement = null),
           (doorPlacement = null),
@@ -28936,7 +28672,7 @@ function handlePointerUp(pointerUpEvent) {
       const at7 = getSelectedObject();
       if (!at7) return;
       const itemHeightMeters = Math.max(finite2(marqueeBox.originalItem.height, 0.05), 0.001),
-        // 平躺的立柱、立起的灯带按平面足迹（宽 × 长）缩放，因此先取带足迹的副本参与缩放。
+
         resizeSourceItem = itemWithPlanFootprint2(marqueeBox.originalItem),
         itemMinimumFootprint = itemMinimumFootprint2(marqueeBox.originalItem.type),
         itemResizeLimits =
@@ -29920,8 +29656,8 @@ for (const lightGroupActionButton of lightGroupActionMenuElement.querySelectorAl
               ? duplicateLightGroup(selectedLightGroup)
               : lightGroupAction === "delete" && deleteLightGroup(selectedLightGroup)));
   });
-// 拖动松手后浏览器还会补一个 click：这里在捕获阶段吞掉它。否则「拖完灯组」会顺带切换选中灯组。
-// 没拖动过的普通单击照常放行。
+
+
 lightGroupListElement.addEventListener(
   "click",
   (listClickEvent) => {
@@ -29932,7 +29668,7 @@ lightGroupListElement.addEventListener(
 );
 lightGroupAreaFormElement.addEventListener("submit", (lightGroupAreaSubmitEvent) => {
   lightGroupAreaSubmitEvent.preventDefault();
-  // 按对话框记录找回待分配区域的灯组。
+
   const assignTargetGroup = (studioState.lightGroups || []).find(
     (groupLookupEntry) => groupLookupEntry.id === areaAssignGroupId,
   );
@@ -30994,7 +30730,7 @@ for (const lightingOptionInputFridgeStyleInput of document.querySelectorAll(
   selectElement("#strip-axis").addEventListener("change", () => applyToolSetting("item")),
   selectElement("#mural-style").addEventListener("change", () => applyToolSetting("item")),
   selectElement("#featurewall-style").addEventListener("change", () => applyToolSetting("item")),
-  // 色块拖动时只同步同一行的十六进制文本，真正的写入等 change（避免每帧重建场景）。
+
   materialSlotListElement.addEventListener("input", (materialColorInputEvent) => {
     const materialColorInput = materialColorInputEvent.target.closest("[data-material-slot-color]"),
       materialSlotRow = materialColorInput?.closest(".material-slot"),
@@ -31003,7 +30739,7 @@ for (const lightingOptionInputFridgeStyleInput of document.querySelectorAll(
       materialColorInput &&
       ((materialHexInput.value = String(materialColorInput.value).toLowerCase()),
       materialHexInput.classList.remove("is-invalid"));
-    // 表面滑块：input 只更新读数，写入等 change。
+
     const materialSurfaceRange = materialColorInputEvent.target.closest(
       "[data-material-slot-surface-key]",
     );
@@ -31026,7 +30762,7 @@ for (const lightingOptionInputFridgeStyleInput of document.querySelectorAll(
       );
       return;
     }
-    // 十六进制手输：合法才写，不合法只标红，不打断排版好的输入过程。
+
     const materialHexInput = materialSlotChangeEvent.target.closest("[data-material-slot-hex]");
     if (materialHexInput) {
       const hexColorValue = String(materialHexInput.value).trim().toLowerCase(),
@@ -31034,7 +30770,7 @@ for (const lightingOptionInputFridgeStyleInput of document.querySelectorAll(
           ? "#" + hexColorValue
           : hexColorValue;
       if (!/^#[0-9a-f]{6}$/.test(normalizedHexValue)) {
-        // 写不进去就把显示值退回这一行当前生效的颜色，不留一个非法值在输入框里。
+
         const materialRowColorInput = materialHexInput
           .closest(".material-slot")
           ?.querySelector("[data-material-slot-color]");
@@ -31068,7 +30804,7 @@ for (const lightingOptionInputFridgeStyleInput of document.querySelectorAll(
       "[data-material-slot-surface-reset]",
     );
     if (materialSurfaceResetButton) {
-      // 只清这一槽的表面参数，颜色覆盖保持不动。
+
       const surfaceResetSlotName = materialSurfaceResetButton.dataset.materialSlotSurfaceReset;
       setItemMaterialSurfaceOverride(surfaceResetSlotName, "roughness", null);
       setItemMaterialSurfaceOverride(surfaceResetSlotName, "metalness", null);
@@ -31078,7 +30814,7 @@ for (const lightingOptionInputFridgeStyleInput of document.querySelectorAll(
       "[data-material-slot-surface-toggle]",
     );
     if (!materialSurfaceToggle) return;
-    // 折叠 / 展开表面参数：纯展示状态，重画一行就够，不必重建整个面板。
+
     const surfaceToggleSlotName = materialSurfaceToggle.dataset.materialSlotSurfaceToggle;
     expandedMaterialSurfaceSlots.has(surfaceToggleSlotName)
       ? expandedMaterialSurfaceSlots.delete(surfaceToggleSlotName)
@@ -31107,7 +30843,7 @@ for (const lightingOptionInputFridgeStyleInput of document.querySelectorAll(
     selectedStyle.startsWith("custom:") && deleteCustomMaterialStyle(selectedStyle);
   }),
   materialResetAllButton.addEventListener("click", () => resetItemMaterialAll()),
-  // 「存为我的预设」走一个命名弹窗，「应用到同类」走一个确认弹窗（都会改动多件物件）。
+
   materialSavePresetButton.addEventListener("click", () => {
     const materialEditTarget = selectedMaterialEditTarget(),
       modelType = materialEditModelType(materialEditTarget?.record, materialEditTarget?.kind);
@@ -31346,9 +31082,9 @@ if (
       (isSnapTemporarilyOff = false));
   }),
   window.addEventListener("beforeunload", (beforeUnloadEvent) => {
-    // [开发页放行] Vite dev server 的热重载本身就是一次 beforeunload：守卫拦下来，页面就会一直
+
     // 跑改动前的模块，改材质 / 改代码全都表现成「没变化」。判据用 dev 注入的 /@vite/client，
-    // 生产构建的页面里没有这个 script，未保存改动的拦截照旧生效。
+
     document.querySelector('script[src="/@vite/client"]') ||
       (localSaveRevision !== remoteSaveRevision &&
         (beforeUnloadEvent.preventDefault(), (beforeUnloadEvent.returnValue = "")));
@@ -32758,10 +32494,8 @@ function runStudioRenderLoop() {
         (effectsProgress > 0 &&
           !isStartupPresentationDone &&
           ((isStartupPresentationDone = true), stageLoadTiming("effects-reveal-start")),
-          // 地面反射的强度不再跟着入场动画的进度走（参考实现也没有这一步）。
-          // 原来这里会把强度从 0 拉到 1，只要入场动画停在「等待揭示」阶段，
-          // 反射就会被永久压在强度 0 上 —— 表现为「首次进页面看不到反射，
-          // 手指碰一下（pointerdown/wheel 会终结入场动画）才出现」。
+
+
           (reflectionDetailMode = effectsProgress));
         for (const progressListener of progressListenerSet) progressListener(effectsProgress);
       },
@@ -32796,10 +32530,8 @@ function runStudioRenderLoop() {
       getFloorCamera: (floorCamera, cameraFloorId) =>
         overviewStackController?.reflectionCamera(floorCamera, cameraFloorId) || floorCamera,
       cull: !isReflectionDiagnosticsMode,
-      // blur / fadeHeight / detailMaxResolution 都不在这里写死：
-      // 它们由 bridge/reflection-settings.ts 的 GROUND_REFLECTION_QUALITY + GROUND_REFLECTION_FADE_HEIGHT
-      // 按清晰度档统一决定（曾在这里写死 blur: true + fadeHeight: 1.25，
-      // 导致接近地面 1.25m 以上的内容倒影被裁掉、且整幅倒影发糊）。
+
+
       maxResumeCapturesPerFrame: 1,
       syncLighting: (lightingCamera) =>
         isReflectionDiagnosticsMode
@@ -33059,17 +32791,15 @@ function runStudioRenderLoop() {
           !contactShadowController?.hasPendingSurfaces?.() &&
           ((previousReflectionEnabled = false),
           groundReflections.setSuspended(isReflectionsSuspended || shouldSuspendReflections, {
-            // 恢复反射时按 160ms 淡入（参考实现的观感），而不是硬闪一下。
+
             fadeIn: true,
           }),
           groundReflections.changed(),
           stageLoadTiming("surface-shadows-ready"),
           startupPresentation.shadowsReady()),
         !previousReflectionEnabled &&
-          // 不再要求「入场动画已经开始 / 效果阶段已完成」才拍反射。
-          // 反射的可见性只由「是否启用 + 是否挂起」决定（与参考实现一致）：
-          // 挂起期间 render() 自己会提前返回，不需要在这里再挡一道，
-          // 否则入场动画一旦卡住，用户必须转动视角才能把反射「逼」出来。
+
+
           (!threeRenderer.getRenderTarget() || shadowAtlasCanvas?.isScreenPass) &&
           (scheduleTask("reflections", () => {
             const renderGroundReflections = () =>

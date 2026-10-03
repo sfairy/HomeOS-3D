@@ -25,13 +25,6 @@ def _migration_config(settings: Settings) -> Config:
     config.set_main_option('sqlalchemy.url', settings.database_url)
     return config
 
-#: SQLite sidecar files: rollback journal, WAL, and the WAL shared-memory index.
-#:
-#: On a WAL-mode database even a **read-only** connection creates ``-shm``/``-wal`` next to it
-#: (SQLite needs them for the shared-memory index), and they are not removed when the last
-#: connection closes. Both the upgrade backup and the failed-upgrade restore open connections on
-#: temporary paths, so cleaning those paths must also drop the sidecars -- otherwise every failed
-#: attempt leaves litter in the data directory.
 _SIDECAR_SUFFIXES = ('-journal', '-wal', '-shm')
 
 def _remove_sidecars(database_path: Path) -> None:
@@ -128,8 +121,6 @@ def restore_upgrade_backup(settings: Settings, backup_path: Path) -> None:
             if integrity is None or integrity[0] != 'ok':
                 detail = integrity[0] if integrity else 'no result'
                 raise RuntimeError(f'Upgrade backup restore check failed: {detail}')
-        # The target may be WAL-mode: drop its stale sidecars before swapping the main file in,
-        # otherwise a leftover WAL would be adopted by the restored database as its own journal.
         _remove_sidecars(settings.database_path)
         os.replace(restore_path, settings.database_path)
         os.chmod(settings.database_path, 0o600)

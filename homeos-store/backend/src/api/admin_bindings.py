@@ -24,7 +24,6 @@ from ..security.security import (
 logger = logging.getLogger("src.admin")
 
 
-# 共享助手在 admin_shared.py；这里再导入一次，
 from .admin_shared import (
     _admin_actor,
     _audit,
@@ -53,7 +52,6 @@ def admin_list_bindings(
         base = base.where(DeviceBinding.live_clause())
     if keyword:
         like = f"%{keyword.strip()}%"
-        # 激活码提示也要能搜到：docstring 与后台搜索框都承诺了这一点，但这里的
         hinted_license_ids = select(License.id).where(
             or_(License.activation_code.like(like), License.code_hint.like(like))
         )
@@ -86,7 +84,6 @@ def admin_list_bindings(
             "instanceId": binding.instance_id,
             "clientVersion": binding.client_version,
             "lastIp": binding.last_ip,
-            #: 名字是 ``bound`` 而不是 ``active``：字段名一旦叫 ``active``，读的人会
             "bound": bool(binding.is_live),
             "activatedAt": iso_z(binding.activated_at),
             "lastHeartbeatAt": iso_z(binding.last_heartbeat_at),

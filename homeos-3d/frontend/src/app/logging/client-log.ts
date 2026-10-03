@@ -34,7 +34,7 @@
     retryDelayMs = 1000,
     nextRetryAt = 0,
     logPayload = {};
-  // 开发开关取值：与 utils/debug-log.js 同一口径，只认显式的 1 / true。
+
   function isDebugModeEnabled() {
     try {
       return new Set(["1", "true"]).has(
@@ -44,12 +44,8 @@
       return false;
     }
   }
-  // 已知第三方浏览器扩展（chrome-extension://odphnbhiddhdpoccbialllejaajemdio，图片助手 ImageAssistant）
-  // 会在 document_start 往页面主世界注入脚本，同时 patch XMLHttpRequest 与 window.fetch：
-  //   - XHR：responseType 为 arraybuffer / json 时仍去读 responseText，于是把 InvalidStateError 打到控制台；
-  //   - fetch：给每次请求挂 .catch，失败时 console.error("Fetch request failed:", error) 再原样抛出。
-  // 业务在卸载组件 / 切换模式时会主动 abort 在途请求，这些 AbortError 于是刷屏。它们和业务无关，
-  // 真正的网络故障由本文件自己的 fetch 包装器按业务口径上报，因此这里按特征丢弃。
+
+
   function isIgnorableThirdPartyConsoleError(consoleArguments) {
     const [consoleMessage, consoleCause] = consoleArguments;
     if (typeof consoleMessage != "string") return false;
@@ -363,7 +359,7 @@ type ResourceErrorTarget = EventTarget & {
     bridgeWindow.addEventListener(
       "error",
       (errorEvent) => {
-        // 资源加载失败时 target 是 <img>/<script>/<link>，事件类型上只保证是 EventTarget。
+
         const failedTarget = errorEvent.target as ResourceErrorTarget;
         if (
           failedTarget &&
@@ -409,7 +405,7 @@ type ResourceErrorTarget = EventTarget & {
         )
           continue;
         const storedEvent = storedEntry.event;
-        // 单条记录归一化失败（例如越界的时间戳）只丢这一条，不能连坐整批待发送日志。
+
         try {
           eventQueue.push({
             queuedAt: storedEntry.queuedAt,

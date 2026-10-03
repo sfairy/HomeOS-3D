@@ -102,19 +102,16 @@ function computeSurfaceLevels(threeApi, meshList, floorY, levelLimit = 32) {
     }))
     .sort((levelLeft, levelRight) => levelLeft.height - levelRight.height);
 }
-/**
- * 缓存的 uniform 槽位。只用到 value：可能是 Color / Vector 这类可 clone 的值，
- * 也可能是 Texture（靠 isTexture 判断、不能 clone），所以这里保持宽类型。
- */
+/** 缓存的 uniform 槽位。 */
 type CachedUniformLike = { value?: any };
 
 /** collectSceneGroups 的收景范围过滤。 */
 type SceneGroupFilter = {
   /** 运动态：只处理需要跟着地面一起动的组。 */
   motion?: boolean;
-  /** 全部楼层都重建；为 true 时 affectedFloors 不再起作用。 */
+  /** 全部楼层都重建； */
   allFloors?: boolean;
-  /** 本次只需要这些楼层；元素是楼层 id。 */
+  /** 本次只需要这些楼层； */
   affectedFloors?: Set<any>;
 };
 

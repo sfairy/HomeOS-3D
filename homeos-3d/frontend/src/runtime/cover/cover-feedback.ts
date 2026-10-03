@@ -175,13 +175,8 @@ export function createCoverFeedback({
         savePresentation(syncedEntityId, stateEntry));
       return;
     }
-    // 估算位置必须让位给一次真实上报：entry 上的估算值多来自刷新后从 sessionStorage
-    // 还原的旧位置，而此时设备可能已经被别处（HA / 实体键 / 面板）开到另一个状态。
-    // 下面的重定位只看「新上报 vs 上一次上报」，两者相同时永远不会触发，于是估算值会
-    // 把 3D 姿态永久钉在旧位置上 —— 无独立叶片通道的梦幻帘尤其明显：整体行程由
-    // state 推导（没有连续百分比，state 不变就没有变化可比较），一旦还原成 0，
-    // 设备明明开着，3D 里也永远显示关闭。
-    // 因此这里在没有待确认命令、也没有动画时，直接用上报位置覆盖估算值。
+
+
     if (
       stateEntry.estimated &&
       !stateEntry.intent &&
@@ -193,7 +188,7 @@ export function createCoverFeedback({
         (stateEntry.estimated = false),
         (stateEntry.railUnconfirmed = false),
         (stateEntry.lastAvailable = nextState),
-        // 还原出来的旧位置已经作废，顺手清掉，避免下次刷新又先按旧值摆一帧。
+
         clearPresentation(syncedEntityId));
       return;
     }

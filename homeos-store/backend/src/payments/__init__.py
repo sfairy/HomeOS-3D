@@ -59,10 +59,6 @@ def resolve_provider(
     if name_override is not None:
         name = normalize_provider_name(name_override)
     else:
-        # 默认渠道必须走 default_channel_name（只在**启用集合**内挑）：直接读原始
-        # payment_provider 会与前台展示的渠道脱节 —— 运营以为只启用了微信（DB 的
-        # payment_channels_json=["wechat"]），而环境变量 STORE_PAYMENT_PROVIDER=alipay
-        # 会让没有显式选渠道的请求冻结成支付宝，甚至因支付宝凭据已清空而整店下不了单。
         name = default_channel_name(setting, settings)
     if not name:
         raise PaymentError(
@@ -70,7 +66,6 @@ def resolve_provider(
             "或设置 STORE_PAYMENT_PROVIDER 环境变量。"
         )
     if name == "alipay":
-        # 站点配置（后台可改）优先于环境变量；合并后注入 provider，让它每个方法都用同一份
         return AlipayProvider(merge_alipay_settings(settings, setting))
     if name == "wechat":
         return WeChatPayProvider(merge_wechat_settings(settings, setting))

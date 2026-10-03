@@ -24,12 +24,7 @@ import {
   hedgeSamples,
 } from "./courtyard-drawing";
 import { courtyardPalette } from "./courtyard-models";
-/**
- * 编辑器面板里的控件都是用 innerHTML 运行时拼出来的，选择器又是 data-* / 标签名动态查找，
- * 逐个写死具体元素类型不现实。这里统一收窄成「面板控件」：补上实际用到的表单属性，
- * 其余仍是 HTMLElement 的语义。value / checked 保持宽类型——上层会原样交给
- * Number.isFinite 判断，非数值按 0 处理。
- */
+/** 编辑器面板里的控件都是用 innerHTML 运行时拼出来的，选择器又是 data-* / 标签名动态查找，逐个写死具体元素类型不现实。 */
 type PanelControlElement = HTMLElement & {
   disabled?: boolean;
   value?: any;

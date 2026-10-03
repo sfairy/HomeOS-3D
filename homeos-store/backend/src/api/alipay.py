@@ -28,7 +28,6 @@ from ..security.security import token_matches, utcnow
 
 logger = logging.getLogger("src.api.alipay")
 
-#: 同步跳转页的**按来源**查单预算。
 _RETURN_QUERY_LIMITER = SlidingWindowLimiter(limit=20, window_seconds=60.0)
 
 router = APIRouter(tags=["alipay"])
@@ -64,7 +63,6 @@ def _close_pending_after_channel_close(session, *, order: Order) -> bool:
         session, order=order, product=product, status="expired"
     )
     if not closed:
-        # 已被其它路径（支付成功 / 用户取消 / 巡检）处理，副作用由它负责。
         return False
     session.execute(
         update(Order)
@@ -92,7 +90,6 @@ def alipay_notify(
         logger.warning("收到支付宝异步通知，但当前支付渠道不是支付宝，已忽略")
         return PlainTextResponse("failure")
 
-    # 支付宝的通知固定是 urlencoded；其它形态直接拒掉，不去猜。
     content_type = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
     if content_type != "application/x-www-form-urlencoded":
         logger.error("支付宝异步通知的 Content-Type 不是表单：%s", content_type or "(空)")
@@ -110,9 +107,6 @@ def alipay_notify(
         logger.error("收到支付宝异步通知，但收款凭据未配置，无法验签")
         return PlainTextResponse("failure")
 
-    # 公钥解析不出来是**配置故障**，不是攻击：它会让所有通知与查单一起失败，而 /healthz
-    # 的巡检仍报健康。这里明确记一笔，让后台概览看得见（验签失败本身不记账，否则任何人
-    # 往这个地址 POST 垃圾都会刷爆告警）。
     key_problem = public_key_error(provider.resolve_settings(settings).alipay_public_key_text)
     if key_problem:
         logger.error("支付宝公钥无法解析，通知与查单都会失败：%s", key_problem)
@@ -121,17 +115,11 @@ def alipay_notify(
 
     notification = provider.verify_notification(settings, form_fields)
     if not notification.ok:
-        # 验签失败意味着来源不可信，绝不能入账
         logger.error("支付宝异步通知验签未通过：%s", notification.reason)
         return PlainTextResponse("failure")
 
-    # app_id / seller_id 必须拿**验签用的那份**凭据来比：provider 内部已合并后台站点配置，
     effective = provider.resolve_settings(settings)
 
-    # 配了期望值就必须**逐字相等**。旧写法是「通知里有这个字段才校验」，于是通知一旦
-    # 缺字段就整条跳过校验，只剩签名与金额 —— 而这两条正是「别的商户往本回调地址推
-    # 消息」这个场景下**仍然成立**的部分。支付宝的通知始终带这两个字段，所以收紧不会
-    # 误伤正常通知。
     if effective.alipay_app_id and notification.app_id != effective.alipay_app_id:
         logger.error(
             "支付宝异步通知 app_id 不匹配：收到 %r，期望 %s",
@@ -156,8 +144,6 @@ def alipay_notify(
         return PlainTextResponse("failure")
 
     if (order.payment_provider or "").lower() != "alipay":
-        # 这笔单不是走支付宝建的。一条验签通过的通知指向它，只可能是订单号被复用或
-        # 渠道配置被改过 —— 绝不能拿支付宝的钱去结一笔别的渠道的订单。
         logger.error(
             "支付宝异步通知指向非支付宝订单，拒绝入账 order=%s provider=%r",
             order.order_no,
@@ -171,9 +157,6 @@ def alipay_notify(
         return PlainTextResponse("failure")
 
     if not notification.is_success:
-        # 未成功状态分两种，处理必须分开：WAIT_BUYER_PAY 是「还没付」，本地保持待支付；
-        # TRADE_CLOSED 是「这笔交易已经死了」，本地再留着 pending 只会继续占着库存预留
-        # 与优惠码名额，直到本地 TTL 或巡检才收尾（生产 TTL 下可能是几小时的空占）。
         if notification.trade_status == "TRADE_CLOSED":
             _close_pending_after_channel_close(session, order=order)
         logger.info(
@@ -186,7 +169,6 @@ def alipay_notify(
     expected = int(order.amount_cents or 0)
     actual = cents_from_yuan(notification.total_amount)
     if actual is None or actual != expected:
-        # 金额不符必须拒绝：可能被篡改，或订单号被复用
         logger.error(
             "支付宝异步通知金额不符，拒绝入账 order=%s 期望=%s 实际=%s",
             order.order_no,
@@ -203,9 +185,6 @@ def alipay_notify(
         trade_no=notification.trade_no,
         source="alipay.notify",
     )
-    # 发码邮件排在**响应之后**：DbSession 的提交发生在响应发出之前，而后台任务在
-    # 响应之后运行 —— 于是发信必然看到已经提交的授权，同时不拖慢给支付宝的 ack
-    # （支付宝有超时重推，ack 越慢越容易重复通知）。
     background.add_task(
         delivery.notify_license_issued,
         request.app.state.database,
@@ -295,7 +274,6 @@ def alipay_return(
             order_block="",
             next_url="/user/dashboard/index",
             next_label="前往账号中心",
-            # 主题表按文件 mtime 带版本号（见 core/static_revision.py），
             theme_stamp=file_revision(settings.static_dir / "theme.css"),
         )
 
@@ -314,7 +292,6 @@ def alipay_return(
                     force=owns_order,
                 )
             except Exception as error:
-                # 用户就站在这张页面上等结果，所以不能失败；但要留下计数，否则后台没有任何痕迹。
                 incidents.note("reconcile.return", order_no=order.order_no, error=error)
                 logger.exception("同步跳转页对账失败 order=%s", order.order_no)
         else:

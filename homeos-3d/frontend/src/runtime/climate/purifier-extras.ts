@@ -137,10 +137,7 @@ function extraRangeCommand(item, commandState, key, rawValue) {
 type PurifierCommandData = { option?: any; value?: any };
 /** 面板视图模型由调用方 update() 注入：字段是运行时状态袋，按实际访问到的键显式列出并全部可选。 */
 type PurifierExtrasViewModel = { item?: any; editing?: any; states?: any };
-/**
- * 卡片运行时状态袋：除建卡时的固定字段外，卡片在渲染/交互过程中还会挂上
- * description/submit/menu/choices/confirm/ranges 等成员，故按实际访问到的键显式列出并全部可选。
- */
+/** 卡片运行时状态袋：除建卡时的固定字段外，卡片在渲染/交互过程中还会挂上description/submit/menu/choices/confirm/ranges 等成员，故按实际访问到的键显式列出并全部可选。 */
 type PurifierCard = {
   item?: any;
   section?: any;

@@ -62,16 +62,12 @@ class LicenseTransportCipher:
         except OSError as error:
             raise LicenseCryptoError(f'无法读取授权传输公钥：{public_key_path}') from error
         actual_sha256 = hashlib.sha256(key_data).hexdigest()
-        # 指纹校验刻意放在解析之前：确认文件内容就是发布版本里钉死的那份公钥，防止被换成
-        # 攻击者公钥；用 compare_digest 做常数时间比较，避免指纹被逐字节试探。
         if not hmac.compare_digest(actual_sha256, expected_sha256):
             raise LicenseCryptoError('授权传输公钥指纹与正式发布版本不匹配。')
         try:
             key = serialization.load_pem_public_key(key_data)
         except ValueError as error:
             raise LicenseCryptoError('授权传输公钥格式无效。') from error
-        # 只接受 X25519：Ed25519 公钥混进来要么 exchange 直接抛错，要么协商出一把两端
-        # 都不一致的密钥，提前显式拒绝更容易定位。
         if not isinstance(key, X25519PublicKey):
             raise LicenseCryptoError('授权传输公钥必须是 X25519。')
         self._key = key
@@ -79,15 +75,11 @@ class LicenseTransportCipher:
 
     @staticmethod
     def _encode(value: bytes) -> str:
-        # [补充说明] URL 安全 base64 并去掉尾部 '='，便于放进 JSON 字段且无需转义。
         return base64.urlsafe_b64encode(value).rstrip(b'=').decode('ascii')
 
     @staticmethod
     def _decode(value: str) -> bytes:
-        # [补充说明] 还原 URL 安全 base64；先补回被 _encode 去掉的填充位再交给 AES-GCM。
         try:
-            # -len(value) % 4 正好是缺失的 '=' 个数：RFC 4648 允许省略填充，
-            # 但标准解码器会因此报错，所以这里补齐。
             return base64.urlsafe_b64decode(value + '=' * (-len(value) % 4))
         except (TypeError, ValueError) as error:
             raise LicenseCryptoError('授权传输响应编码无效。') from error
@@ -98,20 +90,12 @@ class LicenseTransportCipher:
         ``path`` 参与密钥派生与 AAD 绑定；返回的 key 必须原样保留用于解密配对的响应。
         """
         ephemeral = X25519PrivateKey.generate()
-        # ECDH 共享秘密；服务端用自己私钥 + 信封里的 ephemeralPublicKey 得到同一个值。
         shared = ephemeral.exchange(self._key)
-        # 从共享秘密派生 32 字节 AES-256 密钥。info 绑定协议版本、keyId 与路径，
-        # 使同一对密钥在不同端点或协议版本下派生出不同密钥，避免跨端点复用。
         key = HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=self.PROTOCOL + b'\x00' + self.key_id.encode('ascii') + b'\x00' + path.encode('ascii')).derive(shared)
-        # GCM 推荐 96 位随机 IV；同一密钥下 IV 绝不重复。
         iv = os.urandom(12)
-        # AAD 绑定协议、方向（request）与路径：截获者无法把请求密文挪到另一个端点重放。
         aad = self.PROTOCOL + b'\x00request\x00' + path.encode('ascii') + b'\x00' + self.key_id.encode('ascii')
-        # 规范化序列化（排序键 + 紧凑分隔符）：同样内容产出稳定字节，服务端按字节校验时才有确定性。
         plaintext = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode('utf-8')
-        # AESGCM.encrypt 返回「密文 + 16 字节 tag」拼接，tag 校验在解密侧自动完成。
         ciphertext = AESGCM(key).encrypt(iv, plaintext, aad)
-        # 只传 32 字节裸公钥：省掉 PEM 头尾与额外编码，体积最小。
         public_key = ephemeral.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
         return ({
             'keyId': self.key_id,
@@ -131,14 +115,10 @@ class LicenseTransportCipher:
             raise LicenseCryptoError('授权传输响应 keyId 不匹配。')
         iv = self._decode(envelope.get('iv', ''))
         ciphertext = self._decode(envelope.get('ciphertext', ''))
-        # 强制 96 位 IV，防止服务端（或中间人）用短 IV 削弱 GCM 的安全性。
         if len(iv) != 12:
             raise LicenseCryptoError('授权传输响应 IV 长度无效。')
-        # 方向固定为 response：请求与响应的 AAD 域分离，二者密文不能互换使用。
         aad = self.PROTOCOL + b'\x00response\x00' + path.encode('ascii') + b'\x00' + self.key_id.encode('ascii')
         try:
-            # 解密与 JSON 解析放在同一个 try：GCM tag 校验失败、明文不是 JSON、
-            # 或不是 UTF-8，全部视为「响应不可信」，对外只给一条中文错误。
             plaintext = AESGCM(key).decrypt(iv, ciphertext, aad)
             payload = json.loads(plaintext)
         except Exception as error:
@@ -154,20 +134,15 @@ def parse_timestamp(value: str) -> datetime:
     缺时区信息按 UTC 解释（服务端始终以 UTC 签发）。无法解析时抛 ``LicenseCryptoError``。
     """
     try:
-        # fromisoformat 自 Python 3.11 起原生接受 'Z' 后缀（本仓运行 3.14，
-        # 见 Dockerfile 的 python:3.14-slim-bookworm），无需再替换成 '+00:00'。
         parsed = datetime.fromisoformat(value)
     except (TypeError, ValueError) as error:
         raise LicenseCryptoError('租约时间格式无效。') from error
-    # 没有时区信息时按 UTC 解释：服务端始终以 UTC 签发，缺失时区不能理解成本机时区，
-    # 否则跨时区部署会误判租约到期；再统一折算到 UTC，保证后续比较都在同一时区。
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=UTC)
     return parsed.astimezone(UTC)
 
 
 def _decode(value: str) -> bytes:
-    # [补充说明] 租约的 URL 安全 base64 解码（同样要先补回填充位）。
     try:
         return base64.urlsafe_b64decode(value + '=' * (-len(value) % 4))
     except (ValueError, TypeError) as error:
@@ -188,7 +163,6 @@ class LeaseVerifier:
         """
         self.product = product
         self.trusted_keys = dict(trusted_keys)
-        # 空集合意味着任何租约都验不过，属于配置失误：启动期直接报错，而不是运行期静默判「校验无效」。
         if not self.trusted_keys:
             raise ValueError('可信授权公钥集合不能为空。')
 
@@ -203,7 +177,6 @@ class LeaseVerifier:
         以及缺少必要字段或序号非法。
         """
         try:
-            # 只切第一个点：payload 段不含点，但 maxsplit=1 更稳，签名段里出现点也不会截断内容。
             encoded_payload, encoded_signature = signed_lease.split('.', 1)
         except ValueError as error:
             raise LicenseCryptoError('签名租约格式无效。') from error
@@ -212,11 +185,9 @@ class LeaseVerifier:
             payload = json.loads(payload_bytes)
         except (UnicodeError, json.JSONDecodeError) as error:
             raise LicenseCryptoError('租约内容无效。') from error
-        # keyId 必填：不带 keyId 的旧版租约不再回退到某个固定名，直接提示重新激活换发新租约。
         key_id = payload.get('keyId')
         if not isinstance(key_id, str) or not key_id:
             raise LicenseCryptoError('租约缺少 keyId（旧版租约），需要重新激活授权。')
-        # 白名单式查找：不在 trusted_keys 里的 keyId 一律拒绝，绝不尝试用未知公钥验签。
         trusted_key = self.trusted_keys.get(key_id)
         if trusted_key is None:
             raise LicenseCryptoError(f'租约使用了不受信任的授权公钥：{key_id}')
@@ -225,36 +196,27 @@ class LeaseVerifier:
             key_data = public_key_path.read_bytes()
         except OSError as error:
             raise LicenseCryptoError(f'无法读取授权公钥：{public_key_path}') from error
-        # 指纹可空：多公钥模式允许只按 keyId 选择公钥，但配了指纹就必须核对。
         if expected_fingerprint:
             actual_sha256 = hashlib.sha256(key_data).hexdigest()
             if not hmac.compare_digest(actual_sha256, expected_fingerprint):
                 raise LicenseCryptoError('授权公钥指纹与正式发布版本不匹配。')
-        # 这里不捕获解析异常：公钥随发行版打包，格式错属于发布事故，应在首次校验时立刻暴露。
         key = serialization.load_pem_public_key(key_data)
-        # 只接受 Ed25519：公钥类型决定了签名算法，必须显式拒绝而不是尝试兼容。
         if not isinstance(key, Ed25519PublicKey):
             raise LicenseCryptoError('授权公钥必须是 Ed25519。')
         try:
-            # 先验签再比对业务字段：确认载荷确实出自授权服务，再谈内容是否可用。
             key.verify(_decode(encoded_signature), payload_bytes)
         except InvalidSignature as error:
             raise LicenseCryptoError('租约签名无效。') from error
-        # 产品标识写死比对，防止把其它产品的租约挪到 homeos 上使用。
         if payload.get('product') != self.product:
             raise LicenseCryptoError('租约产品标识不匹配。')
-        # 实例绑定：租约只能用在签发时那台安装上，换机即失效。
         if payload.get('instanceId') != instance_id:
             raise LicenseCryptoError('租约不属于当前实例。')
-        # 必要字段与 service.py 读取的字段一一对应：缺任何一个都说明服务端版本不匹配，整体拒绝。
         required = {'leaseId', 'features', 'issuedAt', 'expiresAt', 'sessionId', 'leaseSequence', 'activationCodeId'}
         if not required.issubset(payload):
             raise LicenseCryptoError('租约缺少必要字段。')
         sequence = payload['leaseSequence']
-        # 显式排除 bool：Python 里 True 也是 int，不排除的话 True >= 1 会让非法序号通过。
         if isinstance(sequence, bool) or not isinstance(sequence, int) or sequence < 1:
             raise LicenseCryptoError('租约序号无效。')
-        # 时间字段只做可解析性校验；到期判断由调用方结合本机时钟与时钟容差完成。
         parse_timestamp(payload['issuedAt'])
         parse_timestamp(payload['expiresAt'])
         return payload
@@ -268,7 +230,6 @@ class SecretCipher:
     """
 
     def __init__(self, key_path: Path) -> None:
-        # [补充说明] 只记住密钥文件路径；真正的密钥在首次加解密时惰性生成。
         self.key_path = key_path
 
     def _key(self) -> bytes:
@@ -291,7 +252,6 @@ class SecretCipher:
         return key
 
     def encrypt(self, value: str) -> str:
-        # [补充说明] 加密字符串，返回可直接入库的 ASCII 密文。
         return Fernet(self._key()).encrypt(value.encode('utf-8')).decode('ascii')
 
     def decrypt(self, value: str) -> str:

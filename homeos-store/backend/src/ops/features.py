@@ -3,13 +3,11 @@
 
 from __future__ import annotations
 
-#: 分组顺序即后台下拉里的展示顺序
 FEATURE_GROUPS: tuple[tuple[str, str], ...] = (
     ("base", "基础能力"),
     ("module", "增量模块"),
 )
 
-#: 与主项目 ``BASE_FEATURES`` + ``module.3d_interaction`` 一一对应
 FEATURE_CATALOG: tuple[dict[str, str], ...] = (
     {
         "code": "api",
@@ -73,10 +71,8 @@ FEATURE_CATALOG: tuple[dict[str, str], ...] = (
     },
 )
 
-#: 全部已知代码，供校验/判重使用
 FEATURE_CODES: frozenset[str] = frozenset(item["code"] for item in FEATURE_CATALOG)
 
-#: 播种商品时写进 ``feature_codes_json`` 的**顺序**。内容由目录决定，顺序只是展示，
 BASE_PRODUCT_FEATURES: tuple[str, ...] = (
     "api",
     "assets",
@@ -89,7 +85,6 @@ BASE_PRODUCT_FEATURES: tuple[str, ...] = (
     "runtime.websocket",
 )
 
-#: 增量包商品的播种顺序（同上）
 MODULE_3D_FEATURES: tuple[str, ...] = ("module.3d_interaction",)
 
 

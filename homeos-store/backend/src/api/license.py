@@ -19,10 +19,8 @@ router = APIRouter(tags=["license"])
 
 _LICENSE_ACTIVATE_IP_LIMITER = SlidingWindowLimiter(limit=60, window_seconds=3600.0)
 _LICENSE_CODE_LIMITER = SlidingWindowLimiter(limit=30, window_seconds=3600.0)
-#: 公钥分发只是读文件，配额给得宽一些，够挡住脚本刷。
 _LICENSE_KEYS_IP_LIMITER = SlidingWindowLimiter(limit=240, window_seconds=3600.0)
 
-#: heartbeat / recover 的 IP 桶按 ``limit`` 缓存实例（见下）。
 _LICENSE_SESSION_IP_LIMITERS: dict[int, SlidingWindowLimiter] = {}
 
 
@@ -60,13 +58,10 @@ def _run_in_worker(
     try:
         generation = authority.keyring.find((body or {}).get("keyId"))
         if generation is None:
-            # 与 ``TransportCipher.decrypt_request`` 里那条同文案：对客户端来说
             raise LicenseServerError("授权传输 keyId 不匹配。", status_code=400)
         payload, key = generation.transport.decrypt_request(body, path)
         stage = "dispatch"
         code = str((payload or {}).get("activationCode") or "").strip().upper()
-        # 桶键带上来源 IP：只按激活码计数的话，知道某个用户激活码的人可以把它刷满，
-        # 让该用户在 1 小时内无法激活（合法用户被 DoS）。
         code_key = f"code:{code}:{client_ip or '-'}" if code else ""
         if code_key and not _LICENSE_CODE_LIMITER.allow(code_key):
             logger.warning("授权端点限流：激活码维度触顶 path=%s", path)
@@ -93,7 +88,6 @@ async def _dispatch(request: Request, method: str) -> Response:
     authority = request.app.state.license_authority
     path = request.url.path
 
-    # 按来源 IP 限流，放在读请求体之前，「连解析都不做」就能挡掉洪水。桶按端点选：
     try:
         address = resolve_client_ip(request)
     except Exception:
@@ -115,8 +109,6 @@ async def _dispatch(request: Request, method: str) -> Response:
     except Exception:
         return JSONResponse({"detail": "授权请求格式无效。"}, status_code=400)
 
-    # 复用上面已解析的地址，不再二次调用 resolve_client_ip（那次没包 try/except，
-    # 解析异常会直接冒成 500，与上面的容错写法不一致）。
     client_ip = address.ip if address is not None and address.ip else None
     try:
         response_body, error, stage = await asyncio.to_thread(
@@ -207,7 +199,6 @@ def public_keys(request: Request) -> Response:
     signing = _read_public_pem(settings.public_key_path)
     transport = _read_public_pem(settings.transport_public_key_path)
     if signing is None or transport is None:
-        # 密钥还没准备好：回 503 让主应用按网络故障重试，而不是缓存一份残缺结果。
         logger.warning("公钥分发失败：密钥文件缺失或不是 PEM %s", settings.license_keys_dir)
         return JSONResponse(
             {"detail": "授权公钥尚未就绪，请稍后重试。"},

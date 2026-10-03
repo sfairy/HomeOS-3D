@@ -14,7 +14,6 @@ from ..core.models import Release
 
 logger = logging.getLogger("src.ops.release_info")
 
-#: 当前发布记录对应的版本号：与镜像版本（仓库根 package.json）同源，不再单独维护。
 CURRENT_VERSION = _package_version
 CURRENT_RELEASE_DATE = "2026-09-28"
 CURRENT_UPGRADE_NOTES = (
@@ -91,7 +90,6 @@ def ensure_current_release(session: Session) -> bool:
     except IntegrityError:
         existing = _load_current_release(session)
         if existing is None:
-            # 撞的不是这条唯一性（不该发生）：让启动照旧失败，别把结构问题藏起来。
             raise
         changed = _sync_release_fields(existing)
         session.flush()

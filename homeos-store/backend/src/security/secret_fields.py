@@ -5,10 +5,8 @@ from __future__ import annotations
 
 import re
 
-#: 密钥打码前缀。后台读到的密钥都是 ``••••abcd`` 这种形式，回传时按「不修改」处理。
 MASK_PREFIX = "••••"
 
-#: PEM 头尾（``-----BEGIN PRIVATE KEY-----`` 之类）与空白，用于取出密钥本体。
 _PEM_WRAPPER_RE = re.compile(r"-{3,}[^-]+-{3,}")
 _WHITESPACE_RE = re.compile(r"\s+")
 
@@ -19,7 +17,6 @@ def mask_secret(value: str | None) -> str:
     text = (value or "").strip()
     if not text:
         return ""
-    # 去掉 ----BEGIN XXX---- / ----END XXX---- 之类的头尾，只留密钥本体
     body = _PEM_WRAPPER_RE.sub("", text)
     material = _WHITESPACE_RE.sub("", body) or _WHITESPACE_RE.sub("", text)
     return f"{MASK_PREFIX}{material[-4:]}"

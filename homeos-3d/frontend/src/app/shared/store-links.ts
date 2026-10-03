@@ -1,12 +1,4 @@
-/**
- * 商店入口链接：把 HTML 里写死的 href 换成后端下发的商店地址。
- *
- * 地址不能钉死在页面里 —— 商店（homeos-store）在部署时可能是局域网 `http://<IP>:8802`，
- * 也可能是接了真实证书的反代域名，只有服务端知道自己那一份（见 `APP_STORE_URL`）。
- * 所以 HTML 里的 href 只当「脚本没跑起来时的兜底」，这里异步取一次配置再覆盖。
- *
- * 用法：给 <a> 加 `data-store-link`（商店首页）或 `data-store-password-reset-link`（找回密码）。
- */
+/** 商店入口链接：把 HTML 里写死的 href 换成后端下发的商店地址。 */
 interface StoreConfig {
   storeUrl: string;
   storePasswordResetPath: string;
@@ -41,7 +33,7 @@ async function loadStoreConfig(): Promise<StoreConfig> {
     });
     return response.ok ? readStoreConfig(await response.json()) : FALLBACK_STORE_CONFIG;
   } catch {
-    // 匿名接口也可能被反代拦掉：静默回落到兜底地址，页面不该因为一个跳转链接而报错。
+
     return FALLBACK_STORE_CONFIG;
   }
 }

@@ -1,9 +1,4 @@
-// 背景墙（featurewall）程序化模型。
-//
-// 另见 homeos-3d 的 studio-render-pipeline.ts::buildFeatureWallItemMeshGroup
-// 与其 item-builders/storage-cabinets.ts::buildFeaturewallItem。
-// 结构：基板 + 一张贴了程序化饰面的面片；slat（木格栅）额外生成实体竖条。
-// 饰面贴图与材质参数来自 studio-surface-textures.js，按 wallStyle 缓存。
+
 
 import {
   createFeatureWallTexture,
@@ -14,12 +9,7 @@ import { addMeshBoxToGroup } from "./mesh-box";
 
 const MAX_TEXTURE_ANISOTROPY = 8;
 
-/**
- * 构建背景墙模型。
- * @param {object} three 与场景同一份的 THREE 命名空间。
- * @param {object} item  场景物件（读取 width / height / depth / wallStyle）。
- * @returns {object} THREE.Group
- */
+/** 构建背景墙模型。 */
 export function createFeaturewallModel(three, item) {
   const itemWidth = Math.max(Number(item.width) || 3, 0.3);
   const itemHeight = Math.max(Number(item.height) || 2.4, 0.3);
@@ -35,10 +25,10 @@ export function createFeaturewallModel(three, item) {
   const wallMaterial = FEATURE_WALL_STYLE_MATERIAL[wallStyle];
   const panelDepth = Math.max(itemDepth, 0.04);
 
-  // 基板：饰面贴图之下的实体，保证侧看有厚度。
+
   addMeshBox(itemWidth, itemHeight, panelDepth, 0, itemHeight * 0.5, -panelDepth * 0.5, wallMaterial.color, wallMaterial.roughness, wallMaterial.metalness);
 
-  // 饰面面片：程序化画布贴图。
+
   const panelTexture = createFeatureWallTexture(three, wallStyle, MAX_TEXTURE_ANISOTROPY);
   if (panelTexture) {
     const claddingMesh = new three.Mesh(
@@ -55,7 +45,7 @@ export function createFeaturewallModel(three, item) {
     group.add(claddingMesh);
   }
 
-  // 木格栅：贴图之外再长出一排实体竖条，只有贴图会显得是平的一张纸。
+
   if (wallStyle === "slat") {
     const slatCount = Math.min(48, Math.max(4, Math.round(itemWidth / 0.1)));
     const slatPitch = itemWidth / slatCount;

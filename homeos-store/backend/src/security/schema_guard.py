@@ -11,7 +11,6 @@ from dataclasses import dataclass, field
 from sqlalchemy import inspect
 from sqlalchemy.engine import Engine
 
-#: 副作用导入：把 ORM 模型注册进 Base.metadata。
 from ..core import models, models_engagement  # noqa: F401  # pyright: ignore[reportUnusedImport]
 from ..core.database import Base
 
@@ -22,13 +21,9 @@ logger = logging.getLogger("src.schema")
 class SchemaDrift:
     """库结构与 ORM 元数据之间的差异。全部字段为空 = 完全一致。"""
 
-    #: ORM 里有、库里没有（缺表通常意味着迁移没跑成功）
     missing_tables: tuple[str, ...] = ()
-    #: ``表.列``，ORM 里有、库里没有
     missing_columns: tuple[str, ...] = ()
-    #: ``表.索引``，ORM 里有、库里没有
     missing_indexes: tuple[str, ...] = ()
-    #: 结构性差异之外的补充说明（例如列类型不一致），只报不判
     notes: tuple[str, ...] = field(default=())
 
     @property

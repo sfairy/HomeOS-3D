@@ -1,6 +1,4 @@
-/**
- * 商店后台的「站点配色」面板（系统配置 → 站点配色）。
- */
+/** 商店后台的「站点配色」面板（系统配置 → 站点配色）。 */
 
 import { describe } from "./api-error.js";
 import { api } from "./admin/api.js";
@@ -28,20 +26,18 @@ const swatches = new Map(
   ]),
 );
 
-/** 自定义色输入框的初值：从**当前生效的 --hb-accent** 读。
- * 值本身由 `./scene/appearance.js` 的预设决定，这里不再存第二份默认色。 */
+/** 自定义色输入框的初值：从**当前生效的 --hb-accent** 读。 */
 function liveAccent() {
   const applied = getComputedStyle(document.documentElement).getPropertyValue("--hb-accent").trim();
   const preset = PRESETS.find((item) => item.id === DEFAULT_PRESET)?.colors?.accent;
   return normalizeHex(applied) || normalizeHex(preset) || "";
 }
 
-/** 面板当前的工作副本；打开面板时从服务端读回。 */
+/** 面板当前的工作副本； */
 let draft: PaletteDraft = { preset: DEFAULT_PRESET, accent: "" };
 /** 服务端上的值，用于「有没有改动」与「取消了要回到哪儿」。 */
 let saved: PaletteDraft = { preset: DEFAULT_PRESET, accent: "" };
-/** 是否真的读到过服务端配色。读失败时**必须**禁止保存：
- * 用默认值当草稿存回去，会把线上真实配色一次覆盖掉。 */
+/** 是否真的读到过服务端配色。 */
 let remoteLoaded = false;
 /** 预览期间写在 root 上的令牌名，取消 / 关闭时要逐枚摘掉。 */
 const previewKeys = new Set<string>();
@@ -58,9 +54,7 @@ function draftTokens() {
   return resolveTokens({ presetId: draft.preset, accentColor: draft.accent || undefined });
 }
 
-/**
- * 把一张令牌表写到 root 上做预览。
- */
+/** 把一张令牌表写到 root 上做预览。 */
 function applyPreview(tokens: Record<string, string>) {
   const root = document.documentElement;
   for (const [name, value] of Object.entries(tokens)) {
@@ -92,7 +86,7 @@ function paintControls() {
   const accent = tokens["--hb-accent"] || "";
   if (accentInput) accentInput.value = accent;
   if (accentHexInput && document.activeElement !== accentHexInput) accentHexInput.value = accent;
-  // 自定义色输入只在「主控色被手动改过」时描边：恢复预设时用户看得见自己那枚
+
   const preset = PRESETS.find((item) => item.id === draft.preset);
   const isCustom =
     Boolean(draft.accent) && normalizeHex(draft.accent) !== normalizeHex(preset?.colors.accent);
@@ -125,15 +119,14 @@ function buildPresetCards() {
     const button = target.closest<HTMLElement>(".admin-palette-preset");
     if (!button) return;
     draft.preset = button.dataset.preset || DEFAULT_PRESET;
-    // 换预设 = 放弃自定义色：保留着它会让「点了暖居琥珀，主控色却还是上次拖的紫」
+
     draft.accent = "";
     setMessage("");
     repaint();
   });
 }
 
-/** 读回已保存的配色。失败（未登录 / 网络）时让面板可用，但**不给保存权**：
- * 草稿退回默认值只是为了画得出来，不代表服务端就是这套颜色。 */
+/** 读回已保存的配色。 */
 async function loadSaved() {
   try {
     const payload = (await api("/appearance")) as {
@@ -174,7 +167,7 @@ async function save() {
       tokens?: Record<string, string>;
     };
     saved = { ...draft };
-    // 保存后重新灌一次预览：服务端可能归一化了某个值，让界面立刻对齐真实生效的颜色。
+
     clearPreview();
     const tokens = payload?.tokens && Object.keys(payload.tokens).length ? payload.tokens : draftTokens();
     applyPreview(tokens);
@@ -195,7 +188,7 @@ if (dialogPane) {
     if (accentInput) accentInput.value = initialAccent;
     if (accentHexInput) accentHexInput.placeholder = initialAccent;
   }
-  // 「配色面板此刻真的可见」要同时满足三个条件：外层 #admin-app 已经显形（登录看它）、
+
   const settingsPanel = dialogPane.closest(".admin-panel");
   const appShell = document.getElementById("admin-app");
   const isVisible = () =>
@@ -203,7 +196,7 @@ if (dialogPane) {
     !dialogPane.hidden &&
     (!settingsPanel || settingsPanel.classList.contains("active"));
 
-  // 首次真正看到分页才读服务端：配色面板不是默认打开的分页，开局就多发一个请求不值。
+
   let loaded = false;
   const ensureLoaded = () => {
     if (loaded || !isVisible()) return;
@@ -231,7 +224,7 @@ if (dialogPane) {
     repaint();
   });
   accentHexInput?.addEventListener("input", () => {
-    // 只在写全了才应用：输到一半的 "#ffc" 也是合法三位色，中途应用会让用户
+
     const value = normalizeHex(accentHexInput.value);
     accentHexInput.classList.toggle("is-invalid", Boolean(accentHexInput.value) && !value);
   });

@@ -1,16 +1,10 @@
 """Saved curtain model binding and authoritative HA capability checks."""
-# [补充说明] 3D 窗帘控件的模型绑定与 HA 实时能力校验。
-#
-# 与空调模块同一套思路：配置侧确认「普通窗帘模型」仍在场景中，
-# 运行侧用 HA 上报的 supported_features 位掩码核对这次服务调用是否被支持。
-# 梦幻帘（coverKind=dream）额外一条：只有整体完全关闭且静止时才允许调整叶片。
 from __future__ import annotations
 
 from math import isfinite
 
 from fastapi import HTTPException
 
-# 服务 → HA 能力位（CoverEntityFeature 的取值），按设备实际上报的能力放行。
 COVER_SERVICES = {
     'open_cover': 1,
     'close_cover': 2,
@@ -23,21 +17,13 @@ def require_curtain_model(
     bindings: list, entity_id: str, scene: dict, *, model_type: str = 'curtain'
 ) -> None:
     """Only a unique ordinary curtain model can authorize its bound cover."""
-    # [补充说明] 只认 type == 'curtain'：梦幻帘等其它外观即使 ID 相同也不在这里放行，
-    # 因为两类帘可下发的指令集不同（见 validate_cover_command 的 dream 分支）。
-    #
-    # 异常:
-    # HTTPException: 409，找不到合法绑定（模型被删或换成了其它类型）。
     for binding in bindings:
-        # 绑定三要素缺一就跳过：没有楼层或模型 ID 时无法在场景里定位到具体模型。
         if binding.get('entityId') != entity_id or not binding.get('floorId') or not binding.get('modelId'):
             continue
         floors = [floor for floor in scene.get('floors', []) if floor.get('id') == binding['floorId']]
-        # 楼层必须唯一命中，避免同名楼层下选错模型。
         if len(floors) != 1:
             continue
         models = [item for item in floors[0].get('scene', {}).get('items', []) if item.get('id') == binding['modelId']]
-        # 模型同样必须唯一，且类型是普通窗帘。
         if len(models) == 1 and models[0].get('type') == model_type:
             return
     if model_type == 'airer':
@@ -46,16 +32,7 @@ def require_curtain_model(
 
 
 def validate_cover_command(service: str, data: dict, state: dict | None, *, dream: bool = False) -> None:
-    # [补充说明] 校验一次窗帘服务调用是否被当前设备能力支持。
-    #
-    # 参数:
-    # service: HA 服务名，必须命中 COVER_SERVICES。
-    # data: 透传参数，按服务类型要求恰好带 position 或 tilt_position，其余服务必须为空。
-    # state: 实体的实时状态快照，缺失视为设备不可用。
-    # 异常:
-    # HTTPException: 422 参数非法或设备不支持该操作；409 状态不可用或不满足调整前提。
     required_feature = COVER_SERVICES.get(service)
-    # 每类服务允许出现的参数集合是固定的：位置类带一个位置值，其余服务必须不带参数。
     if service == 'set_cover_position':
         fields = {'position'}
     elif service == 'set_cover_tilt_position':
@@ -65,25 +42,18 @@ def validate_cover_command(service: str, data: dict, state: dict | None, *, drea
     if required_feature is None or not isinstance(data, dict) or set(data) != fields:
         raise HTTPException(422, detail='3D 窗帘控制不支持此服务或参数。')
     if service in ('set_cover_position', 'set_cover_tilt_position'):
-        # 位置只接受 0~100 的整数：bool 是 int 子类须单独排除，浮点与字符串也一律拒绝，
-        # 否则 HA 侧按各自规则截断，行程会与用户预期不一致。
         position = data['position'] if service == 'set_cover_position' else data['tilt_position']
         if not isinstance(position, int) or isinstance(position, bool) or not 0 <= position <= 100:
             raise HTTPException(422, detail='窗帘位置必须是 0 到 100 的整数。')
-    # 状态缺失 / unknown / unavailable 一律按不可用处理，不做乐观转发。
     if not isinstance(state, dict) or state.get('available') is False or state.get('state') in (None, '', 'unknown', 'unavailable'):
         raise HTTPException(409, detail='窗帘状态暂不可用，请等待设备重新连接。')
     attributes = state.get('attributes')
-    # 区分「真的还没载入」与「属性结构本身不对」：两者都拿不到可用的能力位。
     features = attributes.get('supported_features') if isinstance(attributes, dict) else None
-    # 能力位必须是真正的非负整数，bool 是 int 子类须单独排除。
     if not isinstance(features, int) or isinstance(features, bool) or features < 0:
         raise HTTPException(409, detail='窗帘能力尚未载入，请稍后重试。')
-    # 位掩码比对：请求的服务必须出现在设备声明支持的能力位里。
     if not features & required_feature:
         raise HTTPException(422, detail='窗帘当前不支持此操作。')
     if dream and service in ('set_cover_position', 'set_cover_tilt_position'):
-        # 梦幻帘的叶片判断要做数值解析：HA 常把位置上报成数字字符串，这里统一转成有限浮点。
 
         def number(value):
             if isinstance(value, bool) or not isinstance(value, (str, int, float)):
@@ -94,16 +64,9 @@ def validate_cover_command(service: str, data: dict, state: dict | None, *, drea
             except ValueError:
                 return None
 
-        # 是否真有叶片能力：要么上报了 current_tilt_position，要么 240（16+32+64+128）
-        # 中任意一个能力位被置起。
         has_tilt = number(attributes.get('current_tilt_position')) is not None or bool(features & 240)
-        # 没有独立叶片通道时，上报的 position 就是唯一的可调轴（叶片角度）：
-        # 不再用整体运行状态设门禁 —— 网关常把状态长期停在 opening/closing，
-        # 一旦据此拒绝，滑杆会永久锁死。有独立叶片通道时仍要求整体确认全关。
         if not has_tilt:
             return
-        # 有叶片能力时，只有整体确实 closed 且实际行程为 0 才允许调叶片 ——
-        # 帘体未合拢时调叶片会与行程电机抢状态，HA 侧结果不确定。
         if state.get('state') != 'closed' or (
             attributes.get('current_position') is not None and number(attributes.get('current_position')) != 0
         ):

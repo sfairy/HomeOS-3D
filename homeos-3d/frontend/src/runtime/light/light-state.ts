@@ -170,7 +170,7 @@ function computeAttributePatch(patchEntityId, patchEntityState) {
   const entityStateBody = patchEntityState?.newState || patchEntityState || {},
     entityAttributes = entityStateBody.attributes || {},
     resolvedLightState = lightState(patchEntityId, patchEntityState),
-    // 属性补丁袋：键与 LIGHT_ATTRIBUTE_VALIDATORS 的校验键一一对应，按条件动态写入。
+
     attributePatch: Record<string, any> = {},
     patchSupportedColorModes = Array.isArray(entityAttributes.supported_color_modes)
       ? entityAttributes.supported_color_modes
@@ -228,9 +228,9 @@ function computeAttributePatch(patchEntityId, patchEntityState) {
     )
   );
 }
-// 灯光历史记录：键是属性名（brightness/kelvin/colorHs…），值是最后一次写入的时间戳与取值。
+
 type LightHistoryRecord = { at: number; value?: unknown };
-// createLightStateCache 的宿主存储（与 localStorage 同形状），用于跨会话恢复灯光历史。
+
 type LightHistoryStorage = {
   getItem: (storageKey: string) => string | null;
   setItem: (storageKey: string, storageValue: string) => void;
@@ -449,7 +449,7 @@ export function createLightStateCache({
   storage?: LightHistoryStorage | null;
   scope?: string;
   now?: () => number;
-  // 定时器句柄由宿主决定（浏览器 number / Node Timeout），这里原样透传。
+
   schedule?: (scheduledCallback: () => void) => any;
   cancel?: (scheduledTimerId: any) => void;
 } = {}) {
@@ -550,7 +550,7 @@ export function lightCommand(commandEntityId, commandName, commandValue, capabil
   throw new Error("此设备不支持该灯光调节。");
 }
 export function createLightPreview({ now: previewNow = () => performance.now() } = {}) {
-  // 预览条目：values 是按命令动态写键的值袋，其余字段是提交/过期元数据
+
   const previewsByEntityId = new Map<
     any,
     { values: Record<string, any>; revision: number; committed: boolean; expires: number }
@@ -558,7 +558,7 @@ export function createLightPreview({ now: previewNow = () => performance.now() }
   let revisionCounter = 0;
   return {
     set(previewEntityId, previewCommand, previewValue, isCommitted = false) {
-      // 预览值袋：按命令动态写入 brightness/kelvin/colorHs 等键，整袋提交给宿主。
+
       const previewValues: Record<string, any> = {
         ...previewsByEntityId.get(previewEntityId)?.values,
         on: previewCommand === "power" ? previewValue === true : true,

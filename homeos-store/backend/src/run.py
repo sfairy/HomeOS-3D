@@ -25,7 +25,6 @@ def main() -> None:
     )
     settings = load_settings()
     if reload_enabled():
-        # 热重载要求用 import 字符串 + factory，子进程会重新执行 load_settings()。
         uvicorn.run(
             "src.app:create_app",
             factory=True,

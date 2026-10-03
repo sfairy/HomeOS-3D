@@ -16,12 +16,9 @@ from .errors import connection_error_message, is_certificate_error
 
 LOGGER = logging.getLogger(__name__)
 
-#: 端点探测的单独超时（秒）。比常规 REST 超时短得多：探测要回答的是「这一路现在能不能用」，
-#: 内网不通时得快点判死才能回落外网，不能让用户对着转圈等主超时。
 HA_ENDPOINT_PROBE_TIMEOUT_SECONDS = 2.5
 
 def _is_local_hostname(host: str) -> bool:
-    # [补充说明] 判断主机名是否属于「内网」：私有 / 环回 IP，或 localhost / .local / .lan 之类的本地名。
     try:
         address = ipaddress.ip_address(host)
         return address.is_private or address.is_loopback
@@ -53,17 +50,12 @@ def validate_address_input(value: str) -> str:
     return candidates[0] if '://' in value else value.strip().rstrip('/')
 
 def guess_endpoint_url(value: str) -> str:
-    # [补充说明] 把用户输入整形成可落库的完整 HA 地址，不发任何网络请求。
-    #
-    # 只在「探测失败但配置仍要保存」时使用（例如人在外面、内网这一路暂时不通）：
-    # 探测能拿到解析结果时就该用实测地址，不必回落到猜测值。
     value = value.strip().rstrip('/')
     if '://' in value:
         return normalize_base_url(value)
     candidates = address_candidates(value)
     parsed = urlparse('//' + value)
     if parsed.port is None and parsed.hostname and _is_local_hostname(parsed.hostname):
-        # 本地地址没写端口时优先 8123：HA 的默认端口，猜错的代价最小。
         preferred = next((candidate for candidate in candidates if urlparse(candidate).port == 8123), None)
         if preferred:
             return preferred
@@ -118,10 +110,6 @@ async def has_ha_greeting(address: str, *, verify_tls: bool, timeout: float) -> 
         return False
 
 async def probe_endpoints(endpoints: tuple[HAEndpoint, ...], token: str, timeout: float) -> list[dict]:
-    # [补充说明] 逐个试连候选端点，返回每一项的结果（成功给版本/位置，失败给原因）。
-    #
-    # 与运行时探测不同，这里由用户手动触发（测试连接 / 保存），因此用常规超时耐心等结果，
-    # 而不是端点解析那种「快点判死好回落」。至少留一路可用的判断交给调用方。
     results: list[dict] = []
     for endpoint in endpoints:
         try:
@@ -147,11 +135,9 @@ async def probe_endpoints(endpoints: tuple[HAEndpoint, ...], token: str, timeout
     return results
 
 def failed_endpoint_summary(results: list[dict]) -> str:
-    # [补充说明] 把「不通的那几路」压成一行中文摘要，用于错误详情与审计日志。
     return '；'.join(f"{item['label']}（{item['baseUrl']}）：{item['error']}" for item in results if not item['ok'])
 
 def addresses_label(internal_url: str, external_url: str | None) -> str:
-    # [补充说明] 两端地址的可读表示，用于审计日志。
     text = f'内网 {internal_url}'
     return f'{text} · 外网 {external_url}' if external_url else text
 

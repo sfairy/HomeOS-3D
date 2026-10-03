@@ -13,10 +13,7 @@ function nasState(entityId, state) {
     name: stateObject.attributes?.friendly_name || entityId || "NAS",
   };
 }
-/**
- * NAS / 存储设备的展示状态。
- * 直连实体时由 nasState 给出颜色与运行状态；只有指标源时退化成 available/on/name。
- */
+/** NAS / 存储设备的展示状态。 */
 type NasDeviceState = {
   available?: boolean;
   on?: boolean;

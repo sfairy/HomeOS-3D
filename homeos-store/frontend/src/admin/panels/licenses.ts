@@ -1,6 +1,4 @@
-/**
- * 授权与设备绑定。
- */
+/** 授权与设备绑定。 */
 
 import { errorMessage } from "../../store-types.js";
 import { $, emptyRow, esc, toast } from "../dom.js";
@@ -56,9 +54,7 @@ type LicenseForm = HTMLFormElement & {
   };
 };
 
-// --------------------------------------------------------------------------- //
-// 激活码
-// --------------------------------------------------------------------------- //
+
 export async function loadLicenses() {
   const params = new URLSearchParams();
   const keyword = (($('#license-keyword') as HTMLInputElement | null)?.value || '').trim();
@@ -67,7 +63,7 @@ export async function loadLicenses() {
   if (keyword) params.set('keyword', keyword);
   if (status) params.set('status_filter', status);
   if (expiring) params.set('expiring_days', expiring);
-  // 「刷新 / 搜索」按钮、分页器与筛选框都直接调这个 loader，失败时没人接那个 Promise，
+
   let data: { items?: License[] } | null;
   try {
     data = (await pagedFetch(
@@ -140,7 +136,7 @@ $('#license-cancel')?.addEventListener('click', () => {
   host.hideEditor?.('#license-editor');
 });
 
-// 签发结果落在编辑器里的常驻面板：激活码是这一屏唯一的产出，toast 三秒消失后
+
  function showIssueResult(result: {
   activationCode?: string;
   email?: string;
@@ -197,7 +193,7 @@ $('#license-form')?.addEventListener('submit', async (event) => {
   }
 });
 
-// 修正授权：客服处理「客户要延期 / 备注写错了」。
+
 $('#license-patch-cancel')?.addEventListener('click', () => {
   host.hideEditor?.('#license-patch-editor');
 });
@@ -221,7 +217,7 @@ $('#license-patch-form')?.addEventListener('submit', async (event) => {
   };
   if (extendDays) payload.extendDays = Number(extendDays);
   if (permanent) payload.accessExpiresAt = null;
-  // 输入框是本地时间，提交前换算成库里认的 UTC
+
   else if (expiresAt) payload.accessExpiresAt = utcInput(expiresAt);
   if (validityDays) payload.validityDays = Number(validityDays);
   try {
@@ -320,9 +316,7 @@ $('#license-rows')?.addEventListener('click', async (event) => {
   }
 });
 
-// --------------------------------------------------------------------------- //
-// 设备绑定
-// --------------------------------------------------------------------------- //
+
 export async function loadBindings() {
   const params = new URLSearchParams();
   if (($('#binding-active-only') as HTMLInputElement | null)?.checked) {
@@ -330,7 +324,7 @@ export async function loadBindings() {
   }
   const keyword = (($('#binding-keyword') as HTMLInputElement | null)?.value || '').trim();
   if (keyword) params.set('keyword', keyword);
-  // 同 loadLicenses：刷新 / 筛选 / 分页都直接调它，失败要在这里收口，别把 Promise 漏出去。
+
   let data: { items?: Binding[] } | null;
   try {
     data = (await pagedFetch(

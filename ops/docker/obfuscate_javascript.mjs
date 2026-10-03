@@ -1,13 +1,10 @@
 #!/usr/bin/env node
-/**
- * 构建期混淆业务 JavaScript，写入原路径（就地替换）。
- */
+/** 构建期混淆业务 JavaScript，写入原路径（就地替换）。 */
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
-// javascript-obfuscator 在 TTY 下会周期性打 Pro 广告；广告走 advertise()，不受 log:false 控制。
-// CI=1 会让 AdvertisementUtils.shouldShowAdvertisement() 直接返回 false。
+
 process.env.CI ??= "1";
 
 const { default: JavaScriptObfuscator } = await import("javascript-obfuscator");
@@ -104,13 +101,13 @@ function obfuscateFile(filePath) {
     sourceMap: false,
   };
 
-  // javascript-obfuscator 对 ESM 默认兼容；显式关掉会改写 import 路径的选项已在上面设置
+
   const result = JavaScriptObfuscator.obfuscate(source, options);
   const code = result.getObfuscatedCode();
   if (!code || code.length < 1) {
     throw new Error(`混淆结果为空: ${filePath}`);
   }
-  // 模块文件混淆后仍应保留 import/export 关键字（路径可能被编码进字符串数组再还原）
+
   if (looksLikeModule(source) && !/\b(import|export)\b/.test(code)) {
     throw new Error(`ESM 混淆后丢失 import/export: ${filePath}`);
   }

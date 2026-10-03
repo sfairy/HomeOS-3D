@@ -195,7 +195,7 @@ function addSharedComponentRefsToPages(refDocument, sharedComponentIds) {
 /** 跨文档复制组件的可注入依赖（测试与编辑器各自替换 id 生成策略）。 */
 type ComponentCopyOptions = {
   cloneValue?: (value: any) => any;
-  /** 生成新组件 id；不传则直接拒绝复制。 */
+  /** 生成新组件 id； */
   createId?: () => string;
   componentLabel?: (component: any) => string;
   /** 尺寸适配策略：none 原样 / proportional 按画布比例缩放。 */

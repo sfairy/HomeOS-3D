@@ -80,15 +80,12 @@ def _handle(request: Request, background: BackgroundTasks, raw: bytes) -> JSONRe
     with database.session() as session:
         setting = site_config.get_setting(session)
         try:
-            # 按**渠道名**解析微信支付，不看当前默认渠道：回调服务的是已经存在的订单。
             provider = request.app.state.resolve_payment_provider(setting, name="wechat")
         except PaymentError as error:
             logger.warning("按渠道名解析微信支付失败，按「非微信通知」处理：%s", error)
             return _fail("当前支付渠道不是微信支付，已忽略", status_code=200, quiet=True)
 
         if not provider.is_configured(settings):
-            # 配置不全时既验不了签也解不开密。**回 200**：重推一万次还是解不开，
-            # 而刷满微信的告警面板只会掩盖真正的问题。记 incident 让后台看得见。
             incidents.note("wechat.config", error="回调到达时微信支付凭据未配置完整")
             return _fail("微信支付凭据未配置完整，无法验签", status_code=200, quiet=True)
 
@@ -96,8 +93,6 @@ def _handle(request: Request, background: BackgroundTasks, raw: bytes) -> JSONRe
             settings, headers=dict(request.headers), body=body
         )
         if not notification.ok:
-            # 验签/解密失败 = 来源不可信，绝不入账。回非 200 让微信重推，但**不**记
-            # incident：任何人都能往这个地址 POST 垃圾，记账会被刷爆。
             return _fail(f"回调不可信：{notification.reason}", quiet=True)
 
         effective = provider.resolve_settings(settings)
@@ -113,8 +108,6 @@ def _handle(request: Request, background: BackgroundTasks, raw: bytes) -> JSONRe
             return _fail(f"找不到订单 out_trade_no={notification.out_trade_no}")
 
         if normalize_provider_name(order.payment_provider) != "wechat":
-            # 验签通过但订单不是走微信建的：只可能是订单号被复用或渠道配置被改过。
-            # 绝不能拿微信的钱去结一笔别的渠道的订单。
             incidents.note(
                 "wechat.foreign_order",
                 order_no=order.order_no,
@@ -123,8 +116,6 @@ def _handle(request: Request, background: BackgroundTasks, raw: bytes) -> JSONRe
             return _fail("该订单不是微信支付订单，拒绝入账")
 
         if not notification.is_success:
-            # 与支付宝那条同理：还在等付款的保持待支付；渠道已终结的（CLOSED / REVOKED /
-            # PAYERROR）要本地收尾，否则它会一直占着库存预留与优惠码名额。
             if notification.trade_state in wechat_module.CLOSED_TRADE_STATES:
                 _close_pending_after_channel_close(session, order=order)
             logger.info(
@@ -136,7 +127,6 @@ def _handle(request: Request, background: BackgroundTasks, raw: bytes) -> JSONRe
 
         expected = int(order.amount_cents or 0)
         if notification.total_cents is None or notification.total_cents != expected:
-            # 金额不符绝不入账：这是「拿一笔小额支付换一张授权」的唯一防线。
             incidents.note(
                 "wechat.amount_mismatch",
                 order_no=order.order_no,
@@ -151,8 +141,6 @@ def _handle(request: Request, background: BackgroundTasks, raw: bytes) -> JSONRe
             trade_no=notification.transaction_id,
             source="wechat.notify",
         )
-        # 发码邮件排在**响应之后**：后台任务在响应之后运行，此时事务已提交，
-        # 发信必然看到已经落库的授权，同时不拖慢给微信的 ack。
         background.add_task(
             delivery.notify_license_issued,
             database,

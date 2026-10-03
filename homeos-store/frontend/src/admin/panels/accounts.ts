@@ -1,6 +1,4 @@
-/**
- * 提现与账号。
- */
+/** 提现与账号。 */
 
 import { errorMessage } from "../../store-types.js";
 import { $, emptyRow, esc, toast } from "../dom.js";
@@ -55,16 +53,14 @@ type AccountForm = HTMLFormElement & {
   };
 };
 
-// --------------------------------------------------------------------------- //
-// 提现
-// --------------------------------------------------------------------------- //
+
 export async function loadWithdrawals() {
   const params = new URLSearchParams();
   const status = ($('#withdrawal-status') as HTMLSelectElement | null)?.value || '';
   const keyword = (($('#withdrawal-keyword') as HTMLInputElement | null)?.value || '').trim();
   if (status) params.set('status_filter', status);
   if (keyword) params.set('keyword', keyword);
-  // 「刷新」按钮、分页器与筛选框都直接调这个 loader，失败时没人接那个 Promise，
+
   let data: { items?: Withdrawal[] } | null;
   try {
     data = (await pagedFetch(
@@ -92,7 +88,7 @@ export async function loadWithdrawals() {
       <td class="nowrap">${statusBadge(item.status || '', item.statusLabel)}</td>
       <td class="nowrap">${dt(item.createdAt)}</td>
       <td class="nowrap">${actions(
-        // 通过/驳回是「提现审核」这个面板的核心决策，保留为同级主操作
+
         item.status === 'pending'
           ? `<button class="hb-button hb-button--success hb-button--sm" data-withdrawal-ok="${esc(item.id)}">通过</button>`
           : '',
@@ -175,9 +171,7 @@ $('#withdrawal-rows')?.addEventListener('click', async (event) => {
   }
 });
 
-// --------------------------------------------------------------------------- //
-// 账号
-// --------------------------------------------------------------------------- //
+
 export async function loadAccounts() {
   const params = new URLSearchParams();
   const keyword = (($('#account-keyword') as HTMLInputElement | null)?.value || '').trim();
@@ -186,7 +180,7 @@ export async function loadAccounts() {
   if (keyword) params.set('keyword', keyword);
   if (role) params.set('role', role);
   if (status) params.set('status_filter', status);
-  // 同 loadWithdrawals：刷新 / 搜索 / 分页都直接调它，失败要在这里收口。
+
   let data: { items?: Account[] } | null;
   try {
     data = (await pagedFetch(
@@ -306,7 +300,7 @@ $('#account-rows')?.addEventListener('click', async (event) => {
   const deleteId = target.dataset.accountDelete;
   const ledgerId = target.dataset.accountLedger;
   const adjustId = target.dataset.accountAdjust;
-  // 停用 / 启用不在这里：它走「编辑」里的「启用」勾选框（PATCH /accounts/{id}），
+
 
   if (editId) {
     const account = (state.accounts as Account[]).find((item) => item.id === editId);
@@ -314,7 +308,7 @@ $('#account-rows')?.addEventListener('click', async (event) => {
     return;
   }
 
-  // 跳到「积分流水」页并按该账号过滤，省得再手输邮箱
+
   if (ledgerId) {
     const ledgerAccount = $('#ledger-account') as HTMLInputElement | null;
     const ledgerKind = $('#ledger-kind') as HTMLSelectElement | null;
@@ -325,7 +319,7 @@ $('#account-rows')?.addEventListener('click', async (event) => {
     return;
   }
 
-  // 调账弹窗自带输入框与校验，这里只要把账号带上
+
   if (adjustId) {
     openAdjustDialog(adjustId, target.dataset.accountEmail);
     return;

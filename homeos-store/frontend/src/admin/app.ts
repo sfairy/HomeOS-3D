@@ -31,14 +31,12 @@ type TabTree = {
   byKey: Map<string, TabItem>;
 };
 
-// --------------------------------------------------------------------------- //
-// 导航待办计数
-// --------------------------------------------------------------------------- //
+
 function setNavBadge(page: string, count: unknown) {
   const node = $(`[data-nav-badge="${page}"]`);
   if (!node) return;
   node.textContent = count ? String(count) : '';
-  // 分组收起后子项角标看不见了，把合计挂到一级菜单上，
+
   const group = node.closest('[data-nav-group]');
   const groupBadge = group && group.querySelector('[data-nav-group-badge]');
   if (!groupBadge) return;
@@ -58,18 +56,18 @@ function clearAutofilledLogin() {
   if (password) password.value = '';
 }
 
-// 捕获阶段监听：不打断表单自己的事件处理，也能在冒泡被拦时照样记到「用户已经动过手」。
+
 ['pointerdown', 'keydown', 'input', 'change'].forEach((type) => {
   loginForm?.addEventListener(type, () => { loginFormTouched = true; }, true);
 });
 
-// 自动填充的时机不确定（不同浏览器、不同扩展各写各的），多清几轮。定时器都很短，
+
 window.addEventListener('DOMContentLoaded', clearAutofilledLogin);
 window.addEventListener('load', clearAutofilledLogin);
 window.addEventListener('pageshow', clearAutofilledLogin);
 [0, 60, 200, 600, 1500].forEach((delay) => setTimeout(clearAutofilledLogin, delay));
 
-// 密码显示 / 隐藏：与商店认证页、setup 页同一交互（共享实现见 password-toggle.js）。
+
 loginForm?.addEventListener('click', handlePasswordToggleClick);
 
 function showLogin(message = '') {
@@ -99,24 +97,24 @@ function showApp() {
   if (app) app.hidden = false;
 }
 
-// 确认「当前浏览器带着一个**管理员**会话」，返回账号。
+
 async function resolveAdminSession() {
   let me;
   try {
     me = await storeApi('/auth/me') as { account?: { email?: string } };
   } catch (error) {
     const err = error as ApiError;
-    // 401=会话失效，403=根本不是管理员会话：对后台而言都按「未登录」回到登录页，
-    // 不要把 403 渲染成「无法确认登录状态」把用户挡在登录框外。
+
+
     if (err.status === 401 || err.status === 403) return null;
     throw new Error(`无法确认登录状态：${err.message}`);
   }
   if (!me.account) return null;
-  // 权限仍以后台 overview 探测为准（401/403 会被 api() 转成异常），而不是用
+
   try {
     await api('/overview');
   } catch (error) {
-    // 会话过期（401）或探测到不是管理员（403），统一按「未登录」处理。
+
     const err = error as ApiError;
     if (err.status === 401 || err.status === 403) return null;
     throw error;
@@ -124,7 +122,7 @@ async function resolveAdminSession() {
   return me.account;
 }
 
-// ``announce`` 为真时（登录成功后调用）汇报加载结果：登录动作本身成功、
+
 async function bootstrap({ announce = false }: { announce?: boolean } = {}) {
   let account;
   try {
@@ -146,10 +144,10 @@ async function bootstrap({ announce = false }: { announce?: boolean } = {}) {
   if (avatar) avatar.textContent = (account.email || 'A').trim().charAt(0);
   if (identitySide) identitySide.textContent = `${account.email}`;
   if (avatarSide) avatarSide.textContent = (account.email || 'A').trim().charAt(0);
-  // 后台所有时间列都按这个时区渲染，写死在界面上比写在文档里靠谱
+
   if (timezone) timezone.textContent = `时间按 ${localZoneLabel()} 显示`;
   showApp();
-  // 商品目录要一并拉（授权签发 / 权益编辑的下拉框依赖它，分页列表只有当前页）；
+
   const results = await Promise.allSettled([
     loadOverview(), loadProductCatalog(), loadFeatureCatalog(),
   ]);
@@ -196,7 +194,7 @@ $('#admin-login-form')?.addEventListener('submit', async (event) => {
     }
     return;
   }
-  // 会话已经落到 Cookie 上，输入框里的密码没用了，先清掉再继续
+
   form.reset();
   await bootstrap({ announce: true });
 });
@@ -208,7 +206,7 @@ $('#admin-logout')?.addEventListener('click', async () => {
 
 const TAB_TREES = new Map<string, TabTree | null>();
 
-// 首次访问时给按钮与 pane 补齐 id / aria-controls / aria-labelledby 与
+
 function collectTabs(page: string) {
   if (TAB_TREES.has(page)) return TAB_TREES.get(page);
   const panel = $(`#panel-${page}`);
@@ -233,7 +231,7 @@ function collectTabs(page: string) {
         })
         .join(' '),
     );
-    // 「按需出现」的 tab：内容是编辑器表单，默认整块 hidden。这类按钮要跟着
+
     const editors = mine.flatMap(pane => $$('[id$="-editor"]', pane));
     return { key, button, panes: mine, editors };
   });
@@ -242,12 +240,12 @@ function collectTabs(page: string) {
   return tree;
 }
 
-// tab 此刻有没有东西可看：常驻 tab 永远有，按需 tab 要看它的编辑器是否可见。
+
 function tabAvailable(item: TabItem) {
   return !item.editors.length || item.editors.some(node => !node.hidden);
 }
 
-// 按需 tab 的按钮跟着编辑器显隐。空按钮留在标签条上会让人点了以后面对一片空白。
+
 function syncOnDemandTabs(page: string) {
   const tree = collectTabs(page);
   if (!tree) return;
@@ -256,7 +254,7 @@ function syncOnDemandTabs(page: string) {
   }
 }
 
-// 切到某个 tab。key 不认识时回落到第一个 —— 深链里写错 key 也该看到点东西，
+
 function setTab(page: string, key: string, { push = false, focus = false }: { push?: boolean; focus?: boolean } = {}) {
   const tree = collectTabs(page);
   if (!tree || !tree.items.length) return '';
@@ -267,7 +265,7 @@ function setTab(page: string, key: string, { push = false, focus = false }: { pu
   for (const item of tree.items) {
     const on = item.key === target.key;
     item.button.setAttribute('aria-selected', on ? 'true' : 'false');
-    // roving tabindex：Tab 键进入标签条只落在选中的那一个上，其余靠左右方向键
+
     item.button.tabIndex = on ? 0 : -1;
     for (const pane of item.panes) pane.hidden = !on;
   }
@@ -287,7 +285,7 @@ function revealTabFor(node: HTMLElement | null) {
   setTab(panel.id.replace(/^panel-/, ''), pane.dataset.tabPane || '', { push: true });
 }
 
-// 编辑器的显隐必须和 tab 一起走：表单在 DOM 里可见了，但用户停在列表 tab 上
+
 function showEditor(selector: string) {
   const node = $(selector);
   if (!node) return;
@@ -295,7 +293,7 @@ function showEditor(selector: string) {
   revealTabFor(node);
 }
 
-// 收起编辑器并切回列表 tab：留着停在空表单上会让人分不清「保存成功了没有」。
+
 function hideEditor(selector: string) {
   const node = $(selector);
   if (!node) return;
@@ -307,7 +305,7 @@ function hideEditor(selector: string) {
   if (tree && tree.items.length) setTab(page, tree.items[0].key, { push: true });
 }
 
-// 点击与键盘都委派在 .admin-main 上：tab 条是静态的，但这样只需一个监听器，
+
 function tabPageOf(node: Element) {
   const strip = node.closest('[data-tab-strip]');
   const panel = strip && strip.closest('.admin-panel');
@@ -330,7 +328,7 @@ $('.admin-main')?.addEventListener('keydown', (event) => {
   if (!button) return;
   const strip = button.closest('[data-tab-strip]');
   if (!strip) return;
-  // 只走看得见的按钮：按需 tab（表单）在编辑器收起时是 hidden，方向键落到
+
   const buttons = $$('[data-tab]', strip).filter((tab) => !tab.hidden);
   const index = buttons.indexOf(button);
   let next = -1;
@@ -344,15 +342,13 @@ $('.admin-main')?.addEventListener('keydown', (event) => {
   if (page) setTab(page, buttons[next]?.dataset.tab || '', { push: true, focus: true });
 });
 
-// 地址栏格式：#page 或 #page/tab。拆成两段而不是一个字符串，
+
 function parseHash() {
   const [page, tab] = (location.hash || '').replace(/^#/, '').split('/');
   return { page: page || 'overview', tab: tab || '' };
 }
 
-// --------------------------------------------------------------------------- //
-// 导航
-// --------------------------------------------------------------------------- //
+
 const loaders = {
   overview: loadOverview, products: loadProducts, orders: loadOrders, licenses: loadLicenses,
   bindings: loadBindings, coupons: loadCoupons, withdrawals: loadWithdrawals,
@@ -361,7 +357,7 @@ const loaders = {
   diagnostics: loadDiagnostics,
 };
 
-// 一级菜单折叠：分组独立且默认全开。不做手风琴式「一次只开一组」——那会变成
+
 function setNavGroupOpen(group: Element | null, open: boolean) {
   if (!group) return;
   group.classList.toggle('open', open);
@@ -369,13 +365,13 @@ function setNavGroupOpen(group: Element | null, open: boolean) {
   if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
-// 收起的分组里那些链接会退出 Tab 焦点序列（见 .nav-group__items-inner 的
+
 function toggleNavGroup(group: Element | null) {
   if (!group) return;
   setNavGroupOpen(group, !group.classList.contains('open'));
 }
 
-// 当前页所在的链接要始终看得见：默认全开时通常已经可见，但运营收起分组后
+
 function revealActiveNav() {
   const active = $('#admin-nav a.nav-link.active');
   const nav = $('#admin-nav');
@@ -392,21 +388,21 @@ function revealActiveNav() {
 function activate(page: string, tab = '') {
   closeRowMenus();
   $$('#admin-nav a').forEach(link => link.classList.toggle('active', link.dataset.adminPage === page));
-  // 展开当前页所在的分组：概览待办、优惠码 → 核销记录这类跳转也要落在看得见的菜单上
+
   const activeLink = $(`#admin-nav a[data-admin-page="${page}"]`);
   if (activeLink) setNavGroupOpen(activeLink.closest('[data-nav-group]'), true);
   revealActiveNav();
   $$('.admin-panel').forEach(panel => panel.classList.toggle('active', panel.id === `panel-${page}`));
-  // tab 立刻切，不等 loader：加载要几百毫秒，等它回来才动标签条的话，
+
   const applied = setTab(page, tab);
   if (tab && applied) {
     const next = `#${page}/${applied}`;
     if (location.hash !== next) location.hash = next;
   }
-  // 主区是唯一滚动容器，切面板时要把滚动位置复位，
+
   const main = $('.admin-main');
   if (main) main.scrollTop = 0;
-  // 返回 Promise：调用方要能在加载完之后再滚动/聚焦（例如从优惠码跳到核销记录）。
+
   const loader = (loaders as Record<string, () => Promise<unknown>>)[page] || (() => Promise.resolve());
   return loader().catch((error: unknown) => {
     toast(error instanceof Error ? error.message : '加载失败', 'danger');
@@ -414,13 +410,13 @@ function activate(page: string, tab = '') {
 }
 
 $('#admin-nav')?.addEventListener('click', (event) => {
-  // 再点一下已展开的一级菜单可以收起，方便把后面的分组顶上来
+
   const target = event.target;
   if (!(target instanceof Element)) return;
   const toggle = target.closest('.nav-group__toggle');
   if (toggle) {
     const group = toggle.closest('[data-nav-group]');
-    // 独立折叠：只动被点的这一组，其它分组保持原状（默认全开，收起只是临时让位）
+
     toggleNavGroup(group);
     return;
   }
@@ -432,11 +428,7 @@ $('#admin-nav')?.addEventListener('click', (event) => {
   activate(page);
 });
 
-// --------------------------------------------------------------------------- //
-// 积分流水
-// --------------------------------------------------------------------------- //
 
-// 游标变化后要重新拉的那一支数据。key 与 data-pager / data-page 一一对应。
 const PAGED_LOADERS = {
   products: loadProducts,
   orders: loadOrders,
@@ -459,7 +451,6 @@ const PAGED_LOADERS = {
 };
 
 
-// 各面板的筛选控件 → 重载。集中注册的理由：loader 需要 PAGED_LOADERS 已经建好
 function bindPanelFilters() {
   bindFilters([
     ['#product-keyword', 'products'],
@@ -520,23 +511,23 @@ Object.assign(host, {
 bindPanelFilters();
 
 const initial = parseHash();
-// 只有确认拿到了管理员会话才去加载面板：未登录时照样 activate 会打出一串 401，
+
 bootstrap().then((loggedIn) => {
   if (loggedIn && (loaders as Record<string, unknown>)[initial.page]) {
     activate(initial.page, initial.tab);
   }
 });
 
-// 点导航走 activate()，但浏览器前进/后退、以及手工改地址栏只改 hash，不会调 activate。
+
 window.addEventListener('hashchange', () => {
   const { page, tab } = parseHash();
   if (!(loaders as Record<string, unknown>)[page]) return;
   const active = document.querySelector('.admin-panel.active');
-  // 换了面板：整页重新加载（数据也重拉）
+
   if (!active || active.id !== `panel-${page}`) {
     activate(page, tab);
     return;
   }
-  // 同一个面板只换 tab：切显示、不重新请求（重拉既慢又会冲掉筛选/翻页状态）。
+
   setTab(page, tab, { push: true });
 });

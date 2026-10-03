@@ -1,6 +1,4 @@
-/**
- * 商品面板。
- */
+/** 商品面板。 */
 
 import { errorMessage } from "../../store-types.js";
 import { $, emptyRow, esc, toast } from "../dom.js";
@@ -81,9 +79,7 @@ type ProductForm = HTMLFormElement & {
   };
 };
 
-// --------------------------------------------------------------------------- //
-// 商品
-// --------------------------------------------------------------------------- //
+
  function productFormPayload(form: ProductForm) {
   const list = (value: unknown) =>
     String(value || '')
@@ -109,7 +105,7 @@ type ProductForm = HTMLFormElement & {
     displayDescription: form.elements.displayDescription.value.trim() || null,
     active: form.elements.active.checked,
     featured: form.elements.featured.checked,
-    // 下面三个是结算会读的开关，不是纯展示字段：
+
     isFullPrice: form.elements.isFullPrice.checked,
     packageContentsLocked: form.elements.packageContentsLocked.checked,
     requiresLicense: form.elements.requiresLicense.checked,
@@ -159,7 +155,7 @@ type ProductForm = HTMLFormElement & {
   form.elements.name.focus();
 }
 
-// 商品目录（不分页）单独拉一份：授权签发、权益编辑这些下拉框要的是**全部**在售
+
 export async function loadProductCatalog() {
   const data = (await api('/products?limit=500&status_filter=active')) as {
     items?: Product[];
@@ -182,7 +178,7 @@ export async function loadProducts() {
   const status = ($('#product-status') as HTMLSelectElement | null)?.value || '';
   if (keyword) params.set('keyword', keyword);
   if (status) params.set('status_filter', status);
-  // 「刷新 / 搜索」按钮、分页器与筛选框都直接调这个 loader，失败时没人接那个 Promise，
+
   let data: { items?: Product[] } | null;
   try {
     data = (await pagedFetch(
@@ -235,7 +231,7 @@ export async function loadProducts() {
   renderPager('products');
 }
 
-// 商品在两个地方各有一份：分页列表（当前页）与完整目录（下拉框用）。
+
  function findProduct(id: string) {
   return (
     ((state.productPage || []) as Product[]).find((item) => item.id === id) ||
@@ -262,7 +258,7 @@ $('#product-rows')?.addEventListener('click', async (event) => {
   const imageId = target.dataset.productImage;
   if (editId) openProductEditor(findProduct(editId) || null);
 
-  // 移除商品图：会同时删掉磁盘文件，删完前台回落到默认标识
+
   if (imageId) {
     const name = target.dataset.productName || imageId;
     const ok = await askConfirm({
@@ -284,7 +280,7 @@ $('#product-rows')?.addEventListener('click', async (event) => {
   }
   if (deleteId) {
     const product = findProduct(deleteId);
-    // 用后端给的 licenseCount / orderCount（与删除守卫同口径）如实预告结果，
+
     const refs: string[] = [];
     if (product?.licenseCount) refs.push(`<b>${num(product.licenseCount)}</b> 条授权`);
     if (product?.orderCount) refs.push(`<b>${num(product.orderCount)}</b> 笔订单`);
@@ -320,7 +316,7 @@ $('#product-rows')?.addEventListener('click', async (event) => {
   }
 });
 
-// 商品图上传：走 multipart，后端会按扩展名落盘并生成新的 ?v= 版本号，
+
 $('#product-rows')?.addEventListener('change', async (event) => {
   const target = event.target;
   if (!(target instanceof Element)) return;

@@ -11,7 +11,7 @@ type LicenseProductLike = {
   name?: string;
   /** 产品类型：base / bundle / package / module / template…。 */
   type?: string;
-  /** 到期时间（ISO 字符串）；null 表示永久。 */
+  /** 到期时间（ISO 字符串）； */
   expiresAt?: string | null;
 };
 

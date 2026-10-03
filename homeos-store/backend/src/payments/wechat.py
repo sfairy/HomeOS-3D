@@ -36,29 +36,20 @@ DEFAULT_GATEWAY_URL = "https://api.mch.weixin.qq.com"
 NATIVE_PATH = "/v3/pay/transactions/native"
 REFUND_PATH = "/v3/refund/domestic/refunds"
 
-#: 单次网关调用的超时。微信的 P99 通常在一秒内；15 秒足够兜住网络抖动，
-#: 又不至于把收银台的下单请求卡到用户以为没反应。
 REQUEST_TIMEOUT_SECONDS = 15.0
 
-#: 交易成功。Native 支付只有这一个终态是「钱到了」。
 SUCCESS_TRADE_STATES = frozenset({"SUCCESS"})
 
-#: 还在等顾客付款（既不是成功、也不该本地收尾）。
 PENDING_TRADE_STATES = frozenset({"NOTPAY", "USERPAYING"})
 
-#: 渠道侧已终结且不会再被支付。与支付宝那条不同：微信把「支付失败」也算终态。
 CLOSED_TRADE_STATES = frozenset({"CLOSED", "REVOKED", "PAYERROR"})
 
-#: 关单时「本来就无需关闭」的错误码：订单不存在、或已经关过。
 CLOSE_IDEMPOTENT_CODES = frozenset({"ORDER_NOT_EXIST", "ORDER_CLOSED"})
 
-#: 关单时发现**钱已经进来了**。这不是关单失败：调用方必须立刻去查单入账。
 CLOSE_ALREADY_PAID_CODES = frozenset({"ORDER_PAID"})
 
-#: 查单时「这笔交易不存在」—— 与「查单失败」是两件不同的事。
 TRADE_NOT_EXIST_CODES = frozenset({"ORDER_NOT_EXIST"})
 
-#: 明确指向「这套凭据有问题」的错误码，用于把「配置错」与「网络/限流」区分开。
 CREDENTIAL_ERROR_CODES = frozenset(
     {
         "SIGN_ERROR",
@@ -71,7 +62,6 @@ CREDENTIAL_ERROR_CODES = frozenset(
     }
 )
 
-#: 回调时间戳的容忍窗口（秒）。微信官方建议校验，用来压缩重放窗口。
 NOTIFICATION_MAX_SKEW_SECONDS = 300
 
 
@@ -97,7 +87,6 @@ class WeChatNotification:
     out_trade_no: str = ""
     transaction_id: str = ""
     trade_state: str = ""
-    #: 实付金额（分）。与订单金额同口径直接比，不需要换算。
     total_cents: int | None = None
     mch_id: str = ""
     app_id: str = ""
@@ -112,10 +101,8 @@ class WeChatPayProvider:
     name = "wechat"
 
     def __init__(self, settings: StoreSettings | None = None) -> None:
-        #: 由 resolve_provider 注入的「已合并站点配置」的 settings
         self._settings = settings
 
-    # ---- 凭据 ---- #
 
     def _resolve(self, settings: StoreSettings) -> StoreSettings:
         return self._settings or settings
@@ -150,13 +137,11 @@ class WeChatPayProvider:
         if missing:
             raise PaymentError("微信支付收款尚未配置完整，缺少：" + "、".join(missing) + "。")
 
-    # ---- 地址 ---- #
 
     def notify_url(self, settings: StoreSettings, base_url: str) -> str:
         settings = self._resolve(settings)
         return settings.wechat_notify_url or f"{base_url}/store/v1/payments/wechat/notify"
 
-    # ---- 调接口 ---- #
 
     def _request(
         self,
@@ -227,7 +212,6 @@ class WeChatPayProvider:
             )
         return response.status_code, node, text
 
-    # ---- 下单 ---- #
 
     def create_payment(
         self,
@@ -248,7 +232,6 @@ class WeChatPayProvider:
         body = {
             "appid": settings.wechat_app_id,
             "mchid": settings.wechat_mch_id,
-            # 微信限制 127 个字符，超了会直接回 PARAM_ERROR
             "description": description[:127],
             "out_trade_no": order.order_no,
             "notify_url": self.notify_url(settings, base_url),
@@ -278,7 +261,6 @@ class WeChatPayProvider:
             qr_code=code_url,
         )
 
-    # ---- 查单 / 关单 ---- #
 
     def query_payment(self, settings: StoreSettings, order: Order) -> dict[str, Any] | None:
         """查这笔订单在渠道侧的状态；交易不存在时返回 ``None``（不是失败）。"""
@@ -312,18 +294,12 @@ class WeChatPayProvider:
                     return CloseResult(closed=False, already_paid=True, reason=message)
             for code in CLOSE_IDEMPOTENT_CODES:
                 if code in message:
-                    # 本来就无需关闭：交易不存在、或已经关过了。两者都算「关掉了」，
-                    # 因为我们关心的是「它不会再被支付」，而这两条都满足。
                     return CloseResult(closed=True, reason=message)
             raise
         if status in (200, 204):
             return CloseResult(closed=True)
         return CloseResult(closed=False, reason=f"网关返回 {status}")
 
-    # ---- 查单响应的解读 ---- #
-    #
-    # 与支付宝同一套方法名（见 alipay.py 的说明）：对账层因此完全渠道无关。
-    # 微信原生就是「分」，所以这里不需要任何单位换算 —— 也就没有那类换算错误。
 
     def is_success_node(self, node: dict) -> bool:
         return str(node.get("trade_state") or "") in SUCCESS_TRADE_STATES
@@ -339,7 +315,6 @@ class WeChatPayProvider:
         total = amount.get("total") if isinstance(amount, dict) else None
         return int(total) if isinstance(total, int) else None
 
-    # ---- 退款 ---- #
 
     def refund_payment(
         self,
@@ -356,7 +331,6 @@ class WeChatPayProvider:
         self._assert_configured(settings)
         body = {
             "out_trade_no": order.order_no,
-            # 幂等号：同一笔重复提交会返回同一张退款单，不会退两次。
             "out_refund_no": out_request_no,
             "reason": (reason or "用户申请退款")[:80],
             "amount": {
@@ -377,8 +351,6 @@ class WeChatPayProvider:
                 detail=f"微信支付已退回 ¥{money.format_centi(refunded)}",
             )
         if state == "PROCESSING":
-            # 微信是异步退款：PROCESSING 表示已受理但钱还没到账。**不能**记成已退款，
-            # 也不能当失败 —— 让运营在退款流水里看到它挂着。
             return RefundResult(
                 ok=False,
                 processing=True,
@@ -393,7 +365,6 @@ class WeChatPayProvider:
             detail=f"微信支付退款未成功（status={state or '未知'}）。",
         )
 
-    # ---- 回调 ---- #
 
     def verify_notification(
         self, settings: StoreSettings, *, headers: dict[str, str], body: str
@@ -416,7 +387,6 @@ class WeChatPayProvider:
         except (TypeError, ValueError):
             return WeChatNotification(ok=False, reason="回调时间戳不是整数")
         if skew > NOTIFICATION_MAX_SKEW_SECONDS:
-            # 一个很久以前的通知即使签名正确也可能是被录下来重放的。
             return WeChatNotification(
                 ok=False,
                 reason=f"回调时间戳偏差 {skew} 秒，超出 {NOTIFICATION_MAX_SKEW_SECONDS} 秒容忍窗口",
@@ -460,7 +430,6 @@ class WeChatPayProvider:
             resource=payload,
         )
 
-    # ---- 凭据自检 ---- #
 
     def _probe_gateway_credentials(self, settings: StoreSettings) -> tuple[bool, str]:
         """用一笔**不存在的交易**查单，判断网关认不认这套签名。

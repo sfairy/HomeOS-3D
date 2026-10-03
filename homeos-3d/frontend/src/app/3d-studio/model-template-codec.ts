@@ -1,25 +1,9 @@
-// v7：餐边柜玻璃柜继续收口 —— 门框整块前移到柜体前脸之外（原来和柜体顶面 / 右侧面共面，
-// 会 z-fighting 闪色）、顶板与内衬铺满整格到前脸、内腔层板从 `body` 槽挪进 `interior` 槽
-// （白柜体风格下玻璃后面不再是两块白层板）、内衬整体缩进 0.4mm 避免任何共面。
-// v6：餐边柜玻璃柜的门框挪进**门**槽（`sideboard-material-3`），门框铺到柜顶与柜体右缘 ——
-// 上一版把上 / 右外轮廓退到门框后面之后，柜体（`body` 槽）的前脸就露在门框外侧，正面看
-// 就是「顶部一条白柜体」；内腔另铺 `interior` 槽内衬，玻璃后面不再是裸柜体色。
-// v5：餐边柜「最右吊柜改玻璃柜」改成玻璃与内腔都铺满**整格柜体**（门缝 → 柜体右缘、
-// 壁龛顶 → 柜顶），不再补 `door` 槽木门框。模板缓存里存的就是补完门的场景，不升版本的话
-// 旧模板会继续把「带木框、只占门洞」的玻璃门塞回来，几何改动等于没生效。
-// v4：台盆（basin）的 `top` 从「1.2cm 竖收边」改判为真正的**台面**薄板并接上石材档位，
-// 加载器要为这个槽位补石材板平面 UV —— 不升版本的话，旧模板缓存会继续用立方体六面 UV，
-// 大理石整图在台面上会糊成六份。
-// 指纹串里必须留住 `stone-slab-uv` 这段：石材板平面 UV 的补丁挂在模板缓存指纹上，
-// 改名会让指纹与那一版几何脱钩（旧模板缓存继续用立方体六面 UV，石材整图糊成六份）。
+
+
 const MODEL_TEMPLATE_REVISION =
   "20261002-stone-slab-uv-sideboard-glass-double-door-v9";
 
-/**
- * 模板里一个打包属性的最小结构。
- * `array` 故意留宽类型：打包侧来自 three 的 BufferAttribute，解包侧还会做一次运行时校验，
- * 所以不在这里锁死具体视图类型。
- */
+/** 模板里一个打包属性的最小结构。 */
 type PackedAttribute = {
   array: unknown;
   itemSize: number;
@@ -28,11 +12,7 @@ type PackedAttribute = {
   usage?: number;
 };
 
-/**
- * 模板里一个打包几何体的结构（落盘格式）。
- * box / sphere 存的是 toArray() 的结果、解包时原样喂给 Vector3.fromArray，因此只声明「数组」
- * 而不锁定长度，免得把本该由运行时校验兜底的规则搬到类型上。
- */
+/** 模板里一个打包几何体的结构（落盘格式）。 */
 type PackedGeometry = {
   attributes: Record<string, PackedAttribute>;
   index: PackedAttribute | null;
@@ -169,8 +149,8 @@ export function unpackModelTemplate(threeModule, template) {
     materialByUuid: Record<string, { dispose: () => void }> = {},
     unpackAttribute = (packed) => {
       const sourceArray = packed?.array,
-        // 长度必须在 ArrayBuffer.isView 把 sourceArray 收窄成 ArrayBufferView 之前取出来：
-        // 收窄后的类型上没有 length，而 DataView 恰好也没有 length —— 正好用它区分「非定长视图」。
+
+
         sourceArrayLength = sourceArray?.length;
       if (
         !ArrayBuffer.isView(sourceArray) ||

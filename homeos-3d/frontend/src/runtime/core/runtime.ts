@@ -4,7 +4,7 @@ import {
 } from "./popup-preview";
 import { createLightStream } from "../light/light-stream";
 import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from "../device/device-profiles";
-// 全局 shim（vite-env.d.ts）给 HomeOSLog.report 只声明了 4 个参数，宿主实现（client-log 的 reportEvent）还接收第 5 个 details 文本。
+
 type HostLogger = HomeOSLog & {
   report?: (
     level: string,
@@ -14,7 +14,7 @@ type HostLogger = HomeOSLog & {
     detailsText?: string,
   ) => void;
 };
-// context 是宿主/桥接层注入的动态能力袋，运行时逐项判空使用，因此全部声明为可选。
+
 type RuntimeContextBag = {
   editable?: boolean;
   prewarmStage?: boolean;
@@ -230,7 +230,7 @@ function createLifecycleReporter(projectId, componentId) {
           )
             return;
           (mountDiagnostics.events.set(lifecycleEventCode, eventAtMs), reportThrottleState.count++);
-          // 诊断载荷按条件追加 previousEvents/navigation 等字段，是动态拼装的 JSON 详情。
+
           const reportPayload: Record<string, any> = {
             build: "20260927-reload-diagnostics-v2",
             mountCount: mountCount,
@@ -441,7 +441,7 @@ export function mountInteraction3d(
           : {}),
       }));
   }
-  // 导航位置调整态：编辑器画布里专门用来拖分类栏 / 楼层栏。状态真的变了才广播。
+
   function setNavigationEditingState(requestedActive) {
     const nextNavigationEditing = requestedActive === true;
     nextNavigationEditing === isNavigationEditing ||
@@ -1583,7 +1583,7 @@ export function mountInteraction3d(
       isAuthorized &&
       isScenePresented
     ) {
-      // 编辑器画布里的导航拖拽回写：这里不是设备编辑态，单独广播给属性面板。
+
       notifyEditSubscribers(stageMessage);
     }
     if (
@@ -1764,8 +1764,8 @@ export function mountInteraction3d(
   observeVisibilityAncestors();
   let lastLayoutJson = "",
     presentationLayout = null;
-  // forceUpdate 只在内部传 true；该函数还直接作为 ResizeObserver/resize/requestAnimationFrame 回调注册，
-  // 回调实参分别是 ResizeObserverEntry[]、Event 与时间戳，因此这里按未知类型接收。
+
+
   function updatePresentationLayout(forceUpdate: unknown = false) {
     refreshActivityState();
     const hostBounds = hostElement.getBoundingClientRect();
@@ -1954,7 +1954,7 @@ export function mountInteraction3d(
             defaultCamera),
           hostElement.classList.remove("is-view-editing"),
           (stageFrameElement.style.pointerEvents = "none")),
-        // 换户型后原来的页面结构没了，导航位置调整态必须退出。
+
         isNavigationEditing &&
           previousSceneId !== componentProperties.sceneId &&
           setNavigationEditingState(false),
@@ -2157,7 +2157,7 @@ export function mountInteraction3d(
       (nextViewEditing &&
         (isRangeEditing || pendingRangeRequestsByRequestId.size) &&
         runtimeHandle.closeRangeEditor(),
-        // 视角调整要独占指针：两个模式同时开着，转视角会和拖页签改位置互相抢事件。
+
         nextViewEditing && isNavigationEditing && setNavigationEditingState(false),
         (isViewEditing = nextViewEditing === true),
         isViewEditing ||
@@ -2170,7 +2170,7 @@ export function mountInteraction3d(
           isViewEditing || isRangeEditing || isNavigationEditing ? "auto" : "none"),
         sendConfigUpdate());
     }),
-    // 进入 / 退出「导航位置调整」：编辑器画布里的专门模式（属性面板的按钮开关）。
+
     (runtimeHandle.setNavigationEditing = (nextNavigationEditing) => {
       const isNavigationEditingEnabled = nextNavigationEditing === true;
       if (

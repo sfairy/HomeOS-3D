@@ -44,7 +44,6 @@ def main() -> None:
 
     keys_dir = Path(environment["STORE_LICENSE_KEYS_DIR"]).expanduser()
     client_keys_dir = Path(environment["APP_CLIENT_KEYS_DIR"]).expanduser()
-    # 先保证商店私钥存在（生成只在商店侧），再把公钥镜像到主应用读取的共享卷。
     ensure_store_keys(keys_dir)
     sync_store_keys(
         store_dir=keys_dir,
@@ -58,7 +57,6 @@ def main() -> None:
     store_port = environment.get("STORE_PORT", "8802")
     if not _check_admin_exists(data_dir):
         host = environment.get("STORE_HOST", "0.0.0.0")
-        # 0.0.0.0 不可直连，提示用户用 localhost 或反代域名
         display_host = "localhost" if host in ("0.0.0.0", "::") else host
         print(
             "═══════════════════════════════════════════════════════════",
@@ -81,10 +79,6 @@ def main() -> None:
 
     os.environ.clear()
     os.environ.update(environment)
-    # 镜像内置反代（Caddy，/etc/caddy/Caddyfile）与商店同容器守护：
-    # 反代对端固定是回环，uvicorn 默认只信回环的转发头，无需放宽到 docker 网段。
-    # 镜像里 backend/src/run 已被编译成原生扩展，``python -m`` 只支持有字节码的模块，
-    # 所以这里用 ``-c`` 方式导入。
     raise SystemExit(
         run_with_proxy(
             [sys.executable, "-c", "import src.run as m; m.main()"],

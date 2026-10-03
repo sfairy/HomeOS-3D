@@ -42,7 +42,7 @@ import {
   compactFurnitureIndices,
 } from "../studio/studio-furniture-batching";
 const homeLiteAssetVersion = "20260903-home-lite-v1",
-  // 柱族换成了「一形一模型」的整套资源（含方柱），单独给一版指纹，避免整批家居模型被迫重新下载。
+
   pillarAssetVersion = "20261002-pillar-shapes-v1",
   applianceLiteAssetVersion = "20260921-appliance-lite-clean-guides-v2",
   sofaFamilyItemTypes = new Set(["sofa", "sofa-single", "sofa-l", "sofa-l-left"]),
@@ -71,16 +71,7 @@ function insetBedBaseGeometry(bedGeometry) {
     bedInsetGeometry
   );
 }
-/**
- * 给石材板部件补一套**平面投影 UV**（平铺坐标 = XZ 平面归一化）。
- *
- * 石材整图是按「一块整板」画的（云斑、主纹、细纹一次铺满），要贴在一次投影上才不会
- * 出现接缝。GLB 里这些板件要么没有 UV，要么带的是「立方体每面各贴一遍」的 UV —— 后者
- * 会让同一块台面上出现 6 份缩小的纹路，接缝正好落在最显眼的边上。所以这里整体改写 UV。
- *
- * XZ 平面投影的取舍：餐桌 / 茶几 / 橱柜台面都是水平板，投影上去比例正确；立柱式的石座
- * 侧面会被压成一条窄带（参考实现同样如此），换来的是台面那一大片纹路正确。
- */
+/** 给石材板部件补一套**平面投影 UV**（平铺坐标 = XZ 平面归一化）。 */
 function ensureStoneSlabPlanarUv(threeLib, slabGeometry) {
   if (!slabGeometry?.attributes?.position) return;
   slabGeometry.computeBoundingBox();
@@ -102,18 +93,12 @@ function ensureStoneSlabPlanarUv(threeLib, slabGeometry) {
   }
   slabGeometry.setAttribute("uv", new threeLib.BufferAttribute(planarUv, 2));
 }
-/**
- * 按模型给石材板部件补平面 UV。
- *
- * 判据是**纯函数**（不依赖当前选中档位）：几何 UV 会跟着模板缓存走，不能随用户换档位而变，
- * 所以只要「角色表声明了 slab」或「该模型的档位组里任何一档会给石材板」就补。多补的槽位
- * 只有在真被贴上石材图时才会用到这套 UV，其余情况是无害的占位。
- */
+/** 按模型给石材板部件补平面 UV。 */
 function applyStoneSlabPlanarUv(threeLib, modelRoot, modelType) {
   const styleSlabRoles = materialStyleStoneSlabRoles(modelType);
   modelRoot.traverse((modelMesh) => {
-    // 多材质网格（材质数组）的槽位号在 mesh 内，这里按整体判断会错位，直接跳过：
-    // 石材板部件都是单材质网格。
+
+
     if (!modelMesh.isMesh || Array.isArray(modelMesh.material) || !modelMesh.geometry) return;
     const materialName = modelMesh.material?.name,
       role = resolveModelMaterialRole(modelType, materialName).role;
@@ -143,8 +128,8 @@ function createApplianceAssetDescriptor(applianceAssetId, applianceAssetOverride
   });
 }
 function createFurnitureAssetDescriptor(furnitureAssetId, furnitureAssetScaleBasis) {
-  // coffeetable / kitchenisland 在 2026-10-01 换成了 homeos-3d 的模型，单独给一版指纹，
-  // 避免整批家具模型被迫重新下载。
+
+
   const furnitureAssetShippedFresh =
     furnitureAssetId === "coffeetable" || furnitureAssetId === "kitchenisland";
   return Object.freeze({
@@ -178,8 +163,8 @@ const paletteOverrideItemTypes = new Set([
   "heater",
   "bunk-bed",
   "pool-table",
-  // coffeetable / kitchenisland 的材质名从 <type>-furniture-<role> 换成了 material-<n>-<role>，
-  // 不再命中上面的 "-furniture-" 名称判断，改为按类型显式纳入，避免非暖木配色下丢失石材质感。
+
+
   "coffeetable",
   "kitchenisland",
 ]);
@@ -199,14 +184,9 @@ function createPillarAssetDescriptor(pillarAssetId) {
     preserveOrigin: true,
   });
 }
-/**
- * 自带独立 GLB 资源的异形柱形：方形柱沿用原先烘焙好的方盒，因此仍留在普通的
- * `pillar` 模型键上；其余四种造型各有独立模型。
- */
+/** 自带独立 GLB 资源的异形柱形：方形柱沿用原先烘焙好的方盒，因此仍留在普通的`pillar` 模型键上； */
 const PILLAR_ASSET_SHAPES = new Set(["round", "semicircle", "quarter", "quarterinner"]);
-/**
- * 柱族的全部**模型类型**键（含方柱）：`pillar` 与 `pillar_<形状>`。
- */
+/** 柱族的全部**模型类型**键（含方柱）：`pillar` 与 `pillar_<形状>`。 */
 const PILLAR_MODEL_ITEM_TYPES = new Set([
   "pillar",
   ...[...PILLAR_ASSET_SHAPES].map((pillarShape) => "pillar_" + pillarShape),
@@ -513,7 +493,7 @@ export const ALL_ITEM_MODELS = Object.freeze({
       scaleBasis: [0.75, 1.85, 0.72],
       preserveOrigin: true,
     }),
-    // 卧式冰柜：占地方向是「宽 × 深」的长边在前，与它顶开盖的造型一致。
+
     freezer: createApplianceAssetDescriptor("freezer", {
       scaleBasis: [1.05, 0.85, 0.6],
       preserveOrigin: true,
@@ -619,7 +599,7 @@ const warmWoodFurnitureItemTypes = new Set([
     "bathtub",
     "glasspartition",
     "stairs",
-    // 柱族五件：材质要跟着**墙色**走（见 applyWarmWoodFurnitureMaterial 的柱分支）。
+
     ...PILLAR_MODEL_ITEM_TYPES,
     "curtain_left",
     "curtain_right",
@@ -650,11 +630,7 @@ const warmWoodFurnitureItemTypes = new Set([
     "nas",
     "printer",
   ]),
-  /**
-   * 「角色表优先」的模型集合：材质名只有 `<type>-material-N`（不带角色），
-   * 之前靠亮度 / 槽位号启发式着色，现在由 studio-model-material-roles.ts 的槽位角色表接管。
-   * 楼梯 / 车辆 / 柱族 / 灯具等结构型模型仍走各自专用函数（角色表只提供数据）。
-   */
+  /** 「角色表优先」的模型集合：材质名只有 `<type>-material-N`（不带角色），之前靠亮度 / 槽位号启发式着色，现在由 studio-model-material-roles.ts 的槽位角色表接管。 */
   roleTableItemTypes = new Set([
     ...Object.keys(MODEL_SLOT_ROLES),
     "plant",
@@ -761,7 +737,7 @@ const warmWoodFurnitureItemTypes = new Set([
     "floatingstairs",
     "piano",
   ]);
-/** 外模型加载状态；onLoadStateChange 回调与 collectLoadState 共用同一形状。 */
+/** 外模型加载状态； */
 type ExternalModelLoadState = {
   /** 正在加载的数量。 */
   active: number;
@@ -793,11 +769,7 @@ type PaletteMaterialOptions = {
   polygonOffsetUnits?: number;
 };
 
-/**
- * 外模型附加样式选项。既当开关用（warmWood），也当暖木色板用：
- * 色板键由 studio-scene-style / studio-vehicle-models 等子系统各自消费，
- * 所以除 warmWood 外保持开放键（签名去重也依赖“键集合”本身）。
- */
+/** 外模型附加样式选项。 */
 type ExternalModelStyleOptions = {
   /** 其余样式键：各子系统的调色板字段。 */
   [styleKey: string]: any;
@@ -1071,8 +1043,8 @@ export function createExternalModelManager({
       );
     const templateScene = loadResult.scene || loadResult.scenes?.[0];
     if (!templateScene) throw new Error("模型 " + loadedItemType + " 没有可显示的场景");
-    // 石材板补平面 UV 必须在压紧图元索引**之前**：那一步会合并 / 重建几何，
-    // 之后再补 UV 就得为每个合并后的几何单独算一遍。
+
+
     applyStoneSlabPlanarUv(threeNamespace, templateScene, loadedItemType);
     if (
       (compactFurnitureIndices(threeNamespace, templateScene, loadedItemType),
@@ -1342,8 +1314,8 @@ export function createExternalModelManager({
         metalness: 0.3,
       });
     if (PILLAR_MODEL_ITEM_TYPES.has(furnitureItemType)) {
-      // 柱族在户型里属于**墙**：柱体 / 底座 / 压顶都从墙色派生，靠材质名末段的角色区分
-      // （material-<n>-body / -base / -trim）；认不出角色时按柱体处理。
+
+
       const pillarRole = materialName.match(/material-\d+-([a-z][a-z0-9]*)$/)?.[1],
         pillarWallColor = new threeNamespace.Color(
           warmPalette.wall ?? warmPalette.furniture ?? 16777215,
@@ -1400,9 +1372,8 @@ export function createExternalModelManager({
         furnitureItemType === "kitchenisland" ||
         furnitureItemType === "squarecoffeetable"
       ) {
-        // homeos-3d 的组合茶几是两块叠合石板、岛台是「浅色台面 + 深色木体」，
-        // 材质命名从 <type>-furniture-<role> 换成了 material-<n>-<role>：
-        // 先按角色分工取色，认不出角色的（方茶几仍是旧命名）再退回原来的后缀判断。
+
+
         const slabPartRole = materialName.match(/material-\d+-([a-z]+)$/)?.[1];
         resolvedMaterialColor =
           slabPartRole === "top"
@@ -1706,9 +1677,8 @@ export function createExternalModelManager({
   function applyItemDetailMaterial(detailMaterial, itemPalette, detailItemType) {
     if (typeof threeNamespace.MeshStandardMaterial != "function")
       return detailMaterial.clone?.() || detailMaterial;
-    // 「角色表优先」：<type>-material-N 这类无角色命名的模型，先按 studio-model-material-roles.ts
-    // 的槽位角色表取配方，绕开下面的亮度 / 槽位号启发式；材料名已自带角色的（-furniture-/-detail-/
-    // -aquatic-/… 与 material-N-role）以及楼梯 / 车辆 / 柱族等结构件仍走各自的专用分支。
+
+
     if (
       roleTableItemTypes.has(detailItemType) &&
       !isStructuralModelFamily(resolveModelFamily(detailItemType)) &&
@@ -2502,8 +2472,8 @@ function normalizeMaterialValue(materialValue) {
                           normalizeMaterialValue,
                         )
                       : isPlainRecord(materialValue)
-                        ? // 普通对象（如 materialOverrides）逐键递归：不能落到 String()，
-                          // 否则不同覆盖值会签成同一个 "[object Object]"，材质变体会被错误复用。
+                        ?
+
                           Object.keys(materialValue)
                             .sort()
                             .map((recordKey) => [
@@ -2545,11 +2515,7 @@ function normalizeMaterialValue(materialValue) {
         .map((optionName) => [optionName, normalizeMaterialValue(optionsObject[optionName])]),
     );
   }
-  /**
-   * 该（模型，材质名）是否走 `applyItemDetailMaterial` 的调色板 / 角色表出图。
-   * 判据与 resolveSharedMaterial 的选材三元式必须完全一致：检查面板要按同一条规则报出
-   * 「这个槽位到底由谁上色」，否则界面显示的会和画面不一致。
-   */
+  /** 该（模型，材质名）是否走 `applyItemDetailMaterial` 的调色板 / 角色表出图。 */
   function usesDetailMaterialPipeline(itemType, materialName, palette) {
     return (
       paletteOverrideItemTypes.has(itemType) ||
@@ -2559,17 +2525,14 @@ function normalizeMaterialValue(materialValue) {
       materialName?.includes("-furniture-") ||
       gardenItemTypes.has(itemType) ||
       applianceItemTypes.has(itemType) ||
-      // 角色表驱动的模型（柜体 / 洁具 / 木器 / 设备 / 摆件…）：两种主题都统一由
-      // studio-model-material-roles.ts 出图，避免默认主题直接吃 GLB 的烘焙占位色。
+
+
       (roleTableItemTypes.has(itemType) &&
         !isStructuralModelFamily(resolveModelFamily(itemType))) ||
       (palette.warmWood && warmWoodFurnitureItemTypes.has(itemType))
     );
   }
-  /**
-   * 净化器 / 立柜空调的**导引面**：整块网格只挂一张 `*-material-2|3`，挂载时会被隐藏。
-   * 检查面板要跳过它，否则会多报一行用户根本看不见的材质。
-   */
+  /** 净化器 / 立柜空调的**导引面**：整块网格只挂一张 `*-material-2|3`，挂载时会被隐藏。 */
   function isHiddenApplianceGuideMesh(modelType, meshMaterials) {
     return (
       (modelType === "airpurifier" || modelType === "floorac") &&
@@ -2580,11 +2543,7 @@ function normalizeMaterialValue(materialValue) {
       )
     );
   }
-  /**
-   * 取某个材质名上的**逐物件覆盖色**（`item.materialOverrides`）。
-   * 覆盖是整条选材链的最后一手：无论该槽位原本由角色表、调色板还是 GLB 烘焙色决定，
-   * 用户显式指定的颜色都赢，所以它不挂在任何专用分支里。
-   */
+  /** 取某个材质名上的**逐物件覆盖色**（`item.materialOverrides`）。 */
   function materialOverrideColorFor(palette, materialName) {
     const overridePalette = palette?.materialOverrides;
     if (!materialName || !overridePalette || typeof overridePalette != "object") return null;
@@ -2597,20 +2556,15 @@ function normalizeMaterialValue(materialValue) {
     const overrideColor = materialOverrideColorFor(palette, materialName);
     if (!overrideColor || !resolvedMaterial?.color) return resolvedMaterial;
     const previousColorHex = resolvedMaterial.color.getHex();
-    // 暖木系的「自发光=本体色」是把 emissive 复制成 color 的；这里同步跟一次，
-    // 否则改完色会留下旧色的自发光残影。
+
+
     resolvedMaterial.emissive?.isColor &&
       resolvedMaterial.emissive.getHex() === previousColorHex &&
       resolvedMaterial.emissive.set(overrideColor);
     resolvedMaterial.color.set(overrideColor);
     return resolvedMaterial;
   }
-  /**
-   * 取某个材质名上的**逐槽表面覆盖**（`item.materialSurfaceOverrides`）。
-   *
-   * 颜色之外只开放粗糙度与金属度：透明 / 自发光 / 深度写入属于结构语义，跟着角色走才安全，
-   * 让用户改会把玻璃、灯罩、屏幕这类部件改坏。
-   */
+  /** 取某个材质名上的**逐槽表面覆盖**（`item.materialSurfaceOverrides`）。 */
   function materialSurfaceOverrideFor(palette, materialName) {
     const surfaceOverridePalette = palette?.materialSurfaceOverrides;
     if (!materialName || !surfaceOverridePalette || typeof surfaceOverridePalette != "object")
@@ -2633,15 +2587,11 @@ function normalizeMaterialValue(materialValue) {
     surfaceOverride.metalness !== null && (resolvedMaterial.metalness = surfaceOverride.metalness);
     return resolvedMaterial;
   }
-  /**
-   * 石材板贴图：整块石材按**一张整图**贴到板面上（配合装载期补的平面 UV，见
-   * `applyStoneSlabPlanarUv`）。色号决定画法，材质基色只作一层薄染色 —— 纹路与色相
-   * 都在贴图里，所以染色通常是「白色」或接近白，其余档位只是想压一点色温。
-   */
+  /** 石材板贴图：整块石材按**一张整图**贴到板面上（配合装载期补的平面 UV，见`applyStoneSlabPlanarUv`）。 */
   const stoneSlabTextureByFlavor = new Map();
   function stoneSlabTextureFor(flavor) {
     if (!stoneSlabTextureByFlavor.has(flavor)) {
-      // clone 一份：要单独设平铺方式并触发 needsUpdate，不能改到背景墙共用那份缓存实例上。
+
       const slabTexture = createStoneSlabTexture(threeNamespace, flavor, 8)?.clone?.() ?? null;
       slabTexture &&
         ((slabTexture.wrapS = threeNamespace.RepeatWrapping),
@@ -2651,21 +2601,12 @@ function normalizeMaterialValue(materialValue) {
     }
     return stoneSlabTextureByFlavor.get(flavor);
   }
-  /**
-   * 把某槽位按「石材板」或「非石材板」收口。
-   *
-   *  · flavor 是合法色号 → 贴整图 + 抛光面（大理石纹路就在这一步出现）；
-   *  · flavor 为 null → **摘掉**上游（角色表）打上的石材图：档位明说了这一槽不是石作
-   *    （黑色岩板 / 水磨石 / 一切木器档位），不能顶着大理石云纹出图。
-   *
-   * 一律**不动自发光**：暖木给不透明件补的「与基色同色」自发光在石材板上一开始就被跳过
-   * （见 resolveSharedMaterial 里的判据），换档时走的是同一趟材质解析，不需要在这里补。
-   */
+  /** 把某槽位按「石材板」或「非石材板」收口。 */
   function applyStoneSlabFinish(slabMaterial, flavor) {
     if (!slabMaterial) return slabMaterial;
     const isSlab = isStoneSlabFlavor(flavor),
       wasSlab = isStoneSlabFlavor(slabMaterial.userData?.homeosStoneSlab);
-    // 既不是石材板、也从来不是：整支流程与它无关，直接放行（避免无谓地写 needsUpdate）。
+
     if (!isSlab && !wasSlab) return slabMaterial;
     const previousTexture = slabMaterial.map;
     if (isSlab) {
@@ -2686,27 +2627,20 @@ function normalizeMaterialValue(materialValue) {
   /** 某槽位的石材板色号：只认**显式声明**（角色表或档位配方），不按槽位号猜。 */
   function stoneSlabFlavorFor(palette, itemType, materialName, materialIndex = 0) {
     const styleRecipe = materialStyleRecipeFor(itemType, materialName, palette, materialIndex);
-    // 档位一旦出手，这一槽是不是石材板就由档位说了算（auto 时 styleRecipe 为 null，
-    // 落到角色表的声明上）。两个来源都没有 = 不是石材板。
+
+
     return styleRecipe
       ? (isStoneSlabFlavor(styleRecipe.slab) ? styleRecipe.slab : null)
       : stoneSlabFlavorForMaterial(itemType, materialName, materialIndex);
   }
-  /**
-   * 逐物件「材质风格」档位（`item.materialStyle`）的最后一手，**紧挨在逐槽覆盖色之前**：
-   *
-   *  · 档位 = 整套角色换料，所以它要盖住家族底表 / 模型专用配方 / 暖木收尾算出来的颜色；
-   *  · 逐槽覆盖色（用户在某一行手工挑的颜色）比档位更具体，仍旧赢。
-   *
-   * 档位为 auto / 非法 / 该模型不提供档位时（`materialStyleRecipeFor` 返回 null）本函数不动材质。
-   */
+  /** 逐物件「材质风格」档位（`item.materialStyle`）的最后一手，**紧挨在逐槽覆盖色之前**：· 档位 = 整套角色换料，所以它要盖住家族底表 / 模型专用配方 / 暖木收尾算出来的颜色； */
   function applyMaterialStyleRecipe(resolvedMaterial, materialName, itemType, palette) {
     const styleRecipe = materialStyleRecipeFor(itemType, materialName, palette);
     if (!styleRecipe || !resolvedMaterial) return resolvedMaterial;
     if (styleRecipe.colorValue !== undefined && resolvedMaterial.color?.setHex) {
       const previousColorHex = resolvedMaterial.color.getHex();
       resolvedMaterial.color.setHex(styleRecipe.colorValue);
-      // 暖木系把 emissive 复制成了本体色：改色时同步跟一次，否则留旧色残影。
+
       resolvedMaterial.emissive?.isColor &&
         resolvedMaterial.emissive.getHex() === previousColorHex &&
         resolvedMaterial.emissive.setHex(styleRecipe.colorValue);
@@ -2730,8 +2664,8 @@ function normalizeMaterialValue(materialValue) {
     styleRecipe.fabricLike &&
       resolvedMaterial.userData &&
       (resolvedMaterial.userData.warmDiningFabric = true);
-    // 石材板最后收口：档位一旦在这一槽出手，是不是大理石就由档位说了算 —— 声明了色号就贴整图，
-    // 没声明就把角色表打上的石材图摘掉（木器档位的桌面不该顶着大理石云纹）。
+
+
     applyStoneSlabFinish(
       resolvedMaterial,
       isStoneSlabFlavor(styleRecipe.slab) ? styleRecipe.slab : null,
@@ -2762,9 +2696,8 @@ function normalizeMaterialValue(materialValue) {
       usesDetailMaterialPipeline(itemType, sourceMaterial.name, palette)
         ? applyItemDetailMaterial(sourceMaterial, palette, itemType)
         : sourceMaterial.clone?.() || sourceMaterial;
-    // 石材板（角色表声明的那一层）：**不挂在任何一支选材分支里** —— 餐桌 / 茶几走的是
-    // 「按角色命名」的分支而不走角色表，把这一步放在外面，两支才有同一个判据。
-    // 档位层（applyMaterialStyleRecipe）在最后收口，可以推翻这一手。
+
+
     applyStoneSlabFinish(resolvedMaterial, stoneSlabFlavorForMaterial(itemType, sourceMaterial.name));
     if (
       (palette.warmWood &&
@@ -2772,8 +2705,8 @@ function normalizeMaterialValue(materialValue) {
         resolvedMaterial.color &&
         !resolvedMaterial.transparent &&
         !(itemType === "nas" && /^nas-material-4(?:$|\s)/.test(sourceMaterial.name || "")) &&
-        // 石材板不补这层「与基色同色」的微光：它会把深浅纹路之间的对比压平，黑金大理石的
-        // 白纹会被糊成一块灰。判据与贴图那一手同源（档位优先，其次角色表）。
+
+
         !stoneSlabFlavorFor(palette, itemType, sourceMaterial.name) &&
         ((resolvedMaterial.emissive = resolvedMaterial.color.clone()),
         (resolvedMaterial.emissiveIntensity =
@@ -2806,20 +2739,7 @@ function normalizeMaterialValue(materialValue) {
       kitchensink: "7",
       kitchencooktop: "4",
     }[itemType],
-      /**
-       * 储物柜（`cabinet.glb`）是唯一把**柜体与两扇柜门并进同一个闭合箱**的柜类：整个
-       * 1.60×1.90×0.45 的箱体就是 `cabinet-material-0`，正脸那 ±z 两面是柜门面（拉手装在这面上），
-       * 顶 / 侧 / 底 / 背也是这一支料 —— 它没有独立柜体槽。所以「木柜白门」这类档位会把整只柜子
-       * 刷成门色（全白），而同档位的吊柜是**木色柜体 + 白门**，两件配不成套。
-       *
-       * 修法与 sideboard / shoecabinet / wallcabinet 的「柜门返边」同源（按面法线把非前脸刷成
-       * 柜体色），但**触发条件与返边色不同**：其余柜类的返边是暖木主题的既有做法，只在暖木下生效；
-       * 储物柜则要在**选了档位**时就返边（默认主题下选「木柜白门」同样不能整只全白），且返边色取
-       * 该档位给 `body` 角色的配方色（吊柜的柜体正是这一支料），而不是主题固定的 woodDark ——
-       * 档位之间柜体色各不相同（木柜白门 #3d2818 / 浅橡木 #c49a6c / 胡桃木 #5a3a22 / 深色烤漆
-       * #2e2a28），只有逐档取柜体色才能和同档吊柜对上。auto 档不介入：此时 material-0 本来就是
-       * 柜体色（暖木）或主题门色，无需返边。
-       */
+      /** 储物柜（`cabinet.glb`）是唯一把**柜体与两扇柜门并进同一个闭合箱**的柜类：整个1.60×1.90×0.45 的箱体就是 `cabinet-material-0`，正脸那 ±z 两面是柜门面（拉手装在这面上），顶 / 侧 / 底 / 背也是这一支料 —— 它没有独立柜体槽。 */
       isStyledCabinetDoorMaterial =
         itemType === "cabinet" &&
         palette.materialStyle !== undefined &&
@@ -2974,12 +2894,12 @@ function normalizeMaterialValue(materialValue) {
         (resolvedMaterial.customProgramCacheKey =
           threeNamespace.Material.prototype.customProgramCacheKey),
         delete resolvedMaterial.userData.warmFloorTread));
-    // 逐物件档位（材质风格）先落，逐槽覆盖色次之，逐槽表面参数最后 —— 越具体的越靠后。
+
     applyMaterialStyleRecipe(resolvedMaterial, sourceMaterial.name, itemType, palette);
-    // 逐物件覆盖色必须在 materialSignature 之前落下：签名决定材质缓存的复用，
-    // 覆盖后签名才会跟着变色，不同覆盖值的两个物件不会共用同一份材质。
+
+
     applyMaterialOverride(resolvedMaterial, sourceMaterial.name, palette);
-    // 逐槽表面参数同理：粗糙 / 金属度也在 materialSignature 里，覆盖后缓存自然分叉。
+
     applyMaterialSurfaceOverride(resolvedMaterial, sourceMaterial.name, palette);
     const resolvedSignature = materialSignature(resolvedMaterial);
     if (materialCacheBySignature.has(resolvedSignature)) {
@@ -3058,7 +2978,7 @@ function normalizeMaterialValue(materialValue) {
         if (
           ((modelMesh.userData.externalModelSharedGeometry = true),
           (modelMesh.userData.externalModelSharedTextures = true),
-          // 立柱在户型里属于**墙**：地面反射据此把它和墙面归到同一趟里处理。
+
           PILLAR_MODEL_ITEM_TYPES.has(modelType) &&
             (modelMesh.userData.reflectionRole = "wall"),
           isHiddenApplianceGuideMesh(modelType, meshMaterials))
@@ -3147,9 +3067,8 @@ function normalizeMaterialValue(materialValue) {
                 "sideboard",
                 "shoecabinet",
                 "wallcabinet",
-                // 储物柜的「柜门返边」（见 resolveSharedMaterial 的 isStyledCabinetDoorMaterial）
-                // 同样挂在 onBeforeCompile 上，选中态克隆材质会丢掉它 —— 不补这一手，选中的
-                // 储物柜会整只变回全白，与未选中时不是同一件东西。
+
+
                 "cabinet",
                 "suv",
                 "scooter",
@@ -3243,22 +3162,11 @@ function normalizeMaterialValue(materialValue) {
     }
     return (parentGroup.add(modelClone), true);
   }
-  /**
-   * 该物件是否挂外部 GLB 模型（`3d-studio` 检查面板据此决定要不要显示「材质属性」）。
-   * 程序化物件（帘轨 / 晾衣架 / 风扇 / 喇叭 / 画作 / 饰面墙 / 铭牌…）返回 false。
-   */
+  /** 该物件是否挂外部 GLB 模型（`3d-studio` 检查面板据此决定要不要显示「材质属性」）。 */
   function hasExternalModelForItem(targetSize) {
     return Boolean(targetSize?.type && ALL_ITEM_MODELS[resolveModelTypeForItem(targetSize)]);
   }
-  /**
-   * 列出物件模型的**材质槽位检查表**：每个槽位的角色、当前实际显色与表面参数。
-   *
-   * 这里刻意复用渲染时的选材函数（resolveSharedMaterial），因此：
-   *  · 颜色 / 粗糙度 / 金属度 / 透明度与画面**同源**，不走另一套估算；
-   *  · 逐物件覆盖色（item.materialOverrides）已包含在内 —— 传进来的 addOptions 里带着它，
-   *    所以 overrideColor 为空的槽位就是「跟随主题」的槽位；
-   *  · 模型还没准备好时返回 null，调用方应显示「模型加载中」并在加载完成后重画。
-   */
+  /** 列出物件模型的**材质槽位检查表**：每个槽位的角色、当前实际显色与表面参数。 */
   function describeItemMaterials(targetSize, addOptions: ExternalModelStyleOptions = {}) {
     const modelType = resolveModelTypeForItem(targetSize),
       preparedModel = preparedTemplatesByItemType.get(modelType);
@@ -3286,7 +3194,7 @@ function normalizeMaterialValue(materialValue) {
           role: roleResolution.role,
           roleSource: roleResolution.source,
           slot: roleResolution.slot ?? materialIndexInMesh,
-          /** 该槽位是否由角色表 / 调色板出图；false = 直接沿用 GLB 烘焙色（或专用结构件分支）。 */
+          /** 该槽位是否由角色表 / 调色板出图； */
           fromPalette: usesDetailMaterialPipeline(modelType, slotName, addOptions),
           color: resolvedMaterial?.color ? "#" + resolvedMaterial.color.getHexString() : "",
           roughness: finite(resolvedMaterial?.roughness, 0),

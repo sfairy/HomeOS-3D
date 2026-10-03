@@ -1,4 +1,4 @@
-/** 单个区域的覆盖参数；字段全部可选，实际取值由 sanitizeRegionOverrides 运行时校验。 */
+/** 单个区域的覆盖参数； */
 type RegionLightOverride = {
   /** 形状标识：circle / square / ellipse / strip，白名单在下面用 includes 校验。 */
   shape?: string;
@@ -15,7 +15,7 @@ type RegionLightOverride = {
   moveCenterEnabled?: boolean;
 };
 
-/** 监听子节点增删的场景节点；three 的 Object3D 都满足这个结构。 */
+/** 监听子节点增删的场景节点； */
 type EventTargetNodeLike = {
   addEventListener: (eventName: string, listener: () => void) => void;
   removeEventListener: (eventName: string, listener: () => void) => void;

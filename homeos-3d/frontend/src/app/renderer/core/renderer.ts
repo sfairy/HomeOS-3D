@@ -264,10 +264,7 @@ const maxRuntimeEntitySubscriptions = 1000,
   fillMaxScale = 2,
   tightFillMaxScale = 2.12;
 
-/**
- * 门帘位置死区：位置值大于该阈值即视为「已张开」，否则视为停在闭合端（0）。
- * 历史基线曾引用该常量却从未定义，运行到相关分支会抛 ReferenceError。
- */
+/** 门帘位置死区：位置值大于该阈值即视为「已张开」，否则视为停在闭合端（0）。 */
 const COVER_CLOSED_POSITION_EPSILON = 0.01;
 function runtimeDialogLayout({
   layerWidth: layoutLayerWidth,
@@ -551,11 +548,7 @@ type RendererDetailsStateSync = {
   [key: string]: any;
 };
 
-/**
- * 组件详情 / 可视化控制器元素。
- * 每个组件的状态同步钩子一直直接挂在 DOM 元素上（组件类型不同、挂的钩子也不同），
- * 这里把这组运行期钩子声明成「全部可选」——因此普通 HTMLElement 可以直接赋值给它。
- */
+/** 组件详情 / 可视化控制器元素。 */
 type ComponentControllerHooks = {
   syncCapabilityState?: (...args: any[]) => any;
   cleanupCapabilityDetails?: () => void;
@@ -593,10 +586,7 @@ type ComponentControllerElement = HTMLElement & ComponentControllerHooks;
 /** 对话框元素（dialog）承载组件控制钩子。 */
 type ComponentDialogElement = HTMLDialogElement & ComponentControllerHooks;
 
-/**
- * 组件属性 / 状态载荷。Home Assistant 侧字段随集成而变，
- * 渲染器只做透传与按需读取，因此按开放式载荷声明。
- */
+/** 组件属性 / 状态载荷。 */
 type ComponentPayload = Record<string, any>;
 
 /** 键盘 Enter/Space 触发时，模拟点击当前聚焦的控件（非 HTMLElement 时忽略）。 */
@@ -605,7 +595,7 @@ function clickFocusedElement(): void {
   focusedElement instanceof HTMLElement && focusedElement.click();
 }
 
-/** 页面是否处于后台。用函数封装，避免 TS 对 document.visibilityState 做字面量收窄。 */
+/** 页面是否处于后台。 */
 function isDocumentHidden(): boolean {
   return document.visibilityState === "hidden";
 }
@@ -632,18 +622,12 @@ type DraggedComponentEntry = {
   worldCenter?: { x: number; y: number };
 };
 
-/**
- * 实体状态控件：可点击时创建 button、只读时创建 div，
- * 这里用两者的交集描述「同一位置在不同分支下的两种形态」。
- */
+/** 实体状态控件：可点击时创建 button、只读时创建 div，这里用两者的交集描述「同一位置在不同分支下的两种形态」。 */
 type EntityStateControlElement = HTMLButtonElement & HTMLDivElement;
 
 export class PanelRenderer {
-  // ──────────────────────────────────────────────────────────────────────
-  // 原始 JS 在构造函数里用 `this.x = ...` 逐个赋值，TS 6 不再据此
-  // 推断实例属性，导致 78 个成员名的每次访问都报 TS2339（共 1,162 个错误）。
-  // 这里集中声明；`declare` 保证零产码，运行期行为保持不变。
-  // ──────────────────────────────────────────────────────────────────────
+
+
   declare container: HTMLElement;
   declare viewport: HTMLElement;
   declare canvas: HTMLElement;
@@ -1025,7 +1009,7 @@ export class PanelRenderer {
   ["iconVisibilityPageKey"]() {
     return String(this.page?.path || this.page?.id || "current-page");
   }
-  /** 图标可视化是否可见；形参只是为了让 isIconVisible 回调签名保持一致。 */
+  /** 图标可视化是否可见； */
   ["iconVisibilityState"](_iconVisibilityComponent = null) {
     return this.virtualEntityStates.get(this.iconVisibilityPageKey()) !== false;
   }
@@ -5627,8 +5611,8 @@ export class PanelRenderer {
           .get(transformHandleComponent.id)
           ?.querySelector(":scope > .hb-selection-bounds") ||
         transformHandleHostElement.querySelector(":scope > .hb-selection-bounds");
-    // 组件预览整体缩放后，预览内部的等待 / 载入失败文案要按实际缩放反算回来
-    // （见 bridge.ts 的 syncInteraction3dUiScale）；这里保证每次布局变化都刷新一次。
+
+
     syncInteraction3dUiScale2(transformHandleHostElement);
     if (!transformBoundsElement) return;
     (transformBoundsElement.style.setProperty("--hb-ui-scale", String(handleUiScale)),

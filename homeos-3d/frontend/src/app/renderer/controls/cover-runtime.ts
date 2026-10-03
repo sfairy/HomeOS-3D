@@ -339,10 +339,7 @@ export function relatedAirerMotorActionEntities(motorEntityByEntityId, motorSour
     }),
   );
 }
-/**
- * 晾衣架的行程标定：raised / lowered 是实测得到的上下限位置（%），
- * command* 是下发指令时的参考位置，用于判断标定是否仍然有效。
- */
+/** 晾衣架的行程标定：raised / lowered 是实测得到的上下限位置（%），command* 是下发指令时的参考位置，用于判断标定是否仍然有效。 */
 type AirerPositionCalibration = {
   raised?: number | null;
   lowered?: number | null;
@@ -617,9 +614,8 @@ export function relatedCoverMotorReverseEntity(reverseEntityByEntityId, reverseS
 }
 export function coverMotorIsReversedForComponent(
   motorComponent,
-  // 后三个参数本是「电机反向查表」路径（device → component → 反向实体）的入参。
-  // 反向判定目前只读 properties.coverMotorDirection，这条查表路径没有接线，
-  // 但调用方按完整签名传参，故保留签名占位而不是删除参数。
+
+
   _motorDeviceById,
   _motorComponentByEntityId,
   _motorComponentEntityId2,

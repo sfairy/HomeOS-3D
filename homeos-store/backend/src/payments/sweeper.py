@@ -21,10 +21,8 @@ from ..security.security import iso_z
 
 logger = logging.getLogger("src.payments.sweeper")
 
-#: 最近一次错误信息最多留多少字符。它是给后台一行提示用的，不是日志替身。
 _MAX_ERROR_CHARS = 300
 
-# 巡检状态
 HEALTH_OK = "ok"
 HEALTH_DISABLED = "disabled"
 HEALTH_PENDING = "pending"
@@ -32,7 +30,6 @@ HEALTH_NEVER = "never"
 HEALTH_FAILING = "failing"
 HEALTH_STOPPED = "stopped"
 
-#: 健康值 → 中文名。**后端是唯一出处**，概览接口随状态一起下发（同 incidents 的 label 做法）。
 SWEEP_HEALTH_LABELS: dict[str, str] = {
     HEALTH_OK: "正常",
     HEALTH_DISABLED: "已关闭",
@@ -45,7 +42,6 @@ SWEEP_HEALTH_LABELS: dict[str, str] = {
 
 @dataclass
 class _SweepState:
-    #: 当前这份状态属于哪一次循环。同一个进程里可能先后起过多个 app（测试就是这么
     generation: int = 0
     configured: bool = False
     enabled: bool = False
@@ -60,7 +56,6 @@ class _SweepState:
     last_result: dict[str, int] | None = None
 
 
-#: 循环跑在 asyncio.to_thread 的线程里，状态却是被请求线程读的（后台概览 / healthz），
 _state = _SweepState()
 _lock = threading.Lock()
 
@@ -172,7 +167,6 @@ def sweep_status() -> dict:
         interval_seconds = _state.interval_seconds
 
     if not configured:
-        # 循环还没启动（或被独立导入本模块使用）。不能报成「已关闭」——那是在
         health = HEALTH_PENDING
     elif not enabled:
         health = HEALTH_DISABLED
@@ -188,7 +182,6 @@ def sweep_status() -> dict:
     moment = utcnow()
     return {
         "health": health,
-        # 中文名由后端下发：前端自存一份会在新增健康值时静默落到兜底（见 SWEEP_HEALTH_LABELS）。
         "healthLabel": SWEEP_HEALTH_LABELS.get(health, health),
         "enabled": enabled,
         "intervalSeconds": interval_seconds,
@@ -205,11 +198,8 @@ def sweep_status() -> dict:
     }
 
 
-#: 履约失败的单自动重试上限。用尽后停下来等人工：无限重试既刷日志，也会掩盖
-#: 「这个商品配置本身有问题」这类必须有人看的事实。
 MAX_FULFILLMENT_RETRIES = 5
 
-#: 只自动重试最近这段时间内失败的单。更老的单人工早已处理或不再处理。
 FULFILLMENT_RETRY_LOOKBACK_HOURS = 24
 
 
@@ -243,9 +233,7 @@ def _retry_failed_fulfillments(
         for order_id in order_ids:
             order = session.get(Order, order_id)
             if order is None or order.fulfillment_mode == "manual":
-                # 手动发卡的商品本来就该等人来点，不是失败。
                 continue
-            # 先记一次尝试：用尽上限的单自然退出候选集，避免每轮都重试同一笔。
             session.execute(
                 update(Order)
                 .where(Order.id == order.id)
@@ -278,16 +266,12 @@ def sweep_once(database: Database, settings: StoreSettings) -> SweepResult | Non
             setting=setting,
             limit=max(1, int(settings.payment_sweep_batch or 25)),
         )
-    # 履约失败的单自动补发：入账事务里那次失败被刻意吞掉了（否则支付宝会无限重推），
-    # 没有这一段就再没有任何东西会碰它。放在入账之后，新失败的单当轮就能被捞到。
     recovered = _retry_failed_fulfillments(
         database, settings, limit=max(1, int(settings.payment_sweep_batch or 25))
     )
     if recovered:
         logger.warning("支付巡检：履约失败订单已自动补发 %d 笔", recovered)
 
-    # 发码邮件的兜底补发：即时发送跑在响应之后的后台任务里，进程重启或当时 SMTP
-    # 抖动都会让它没发生。这里放在入账与补发之后 —— 本轮刚入账 / 刚补发的单也能捞到。
     from ..commerce import delivery
 
     delivered = delivery.sweep_undelivered(database, limit=max(1, int(settings.payment_sweep_batch or 25)))

@@ -1,6 +1,4 @@
-/**
- * 返利台账与客户。
- */
+/** 返利台账与客户。 */
 
 import { $, emptyRow, esc, toast } from "../dom.js";
 import { cell, pageState, pagedFetch, renderPager } from "../table.js";
@@ -32,15 +30,13 @@ type Customer = {
 
 type AccountRow = { id?: string; email?: string; [key: string]: unknown };
 
-// 积分流水类型：**由接口下发**（`/referral-ledger` 响应里的 `kinds`），这里只作缓存。
+
 let LEDGER_KIND: Record<string, string> = {};
 
-// 下拉是否已经按后端词表填过：只填一次，之后刷新列表不再重建 DOM（会丢掉当前选中项）。
+
 let ledgerKindOptionsApplied = false;
 
-/**
- * 用后端下发的词表填筛选下拉并刷新标签映射。
- */
+/** 用后端下发的词表填筛选下拉并刷新标签映射。 */
 function applyLedgerKinds(kinds: unknown) {
   if (!Array.isArray(kinds) || !kinds.length) return;
   const typed = kinds as LedgerKind[];
@@ -123,9 +119,7 @@ $('#ledger-adjust')?.addEventListener('click', () => {
   openAdjustDialog(accountId, account ? account.email : accountId);
 });
 
-// --------------------------------------------------------------------------- //
-// 客户档案
-// --------------------------------------------------------------------------- //
+
 export async function loadCustomers() {
   const cursor = pageState('customers');
   const keyword = (($('#customer-keyword') as HTMLInputElement | null)?.value || '').trim();

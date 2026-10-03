@@ -139,7 +139,6 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     settings.product_images_dir.mkdir(parents=True, exist_ok=True)
     settings.license_keys_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     _ensure_license_keys(settings)
-    # 代理信任范围是安全配置：解析不了的值必须当场炸掉，不能静默退化成「谁也不信」
     trusted_proxies = parse_trusted_proxies(tuple(settings.trusted_proxies))
     if not trusted_proxies and settings.public_base_url.startswith("https://"):
         logger.warning(
@@ -147,23 +146,16 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
             "限流与授权记录会按反向代理地址统计，建议按部署方式配置。"
         )
 
-    # 库结构由迁移负责，且**必须先于**任何查库动作：存量库会被认领成基线、再把之后的
-    # 增量逐个应用（见 core/migrations.py）。这里不再有 create_all —— 按 ORM 建表的
-    # 兜底入口会让基线迁移漏掉的表被悄悄补上，本地正常、换台机器就少一张表。
     for step in run_migrations(settings):
         logger.info("数据库迁移：%s", step)
 
     database = Database(settings)
 
-    # 迁移跑通 ≠ 结构等于 ORM：脚本可能漏写了某一列，而那类偏差要等到相关查询在运行期
-    # 被调用才会报错。这里做一次**只读**自检，把它在启动时就变成一个可见的状态。
     schema_drift = inspect_schema(database.engine)
     log_drift(schema_drift)
 
-    # 确保 docker 渠道存在当前版本的发布记录：「检查更新」查的正是这张表。
     with database.session() as session:
         released = ensure_current_release(session)
-        # 商品目录、站点配置——首次部署就该就位的默认数据，幂等补齐，不覆盖运营改过的字段。
         ensure_default_settings(session)
         ensure_default_products(session)
     if released:
@@ -176,12 +168,10 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
         """后台支付巡检循环。
         """
         interval = int(settings.payment_sweep_interval_seconds or 0)
-        # 代号要一路带到 sweep_round / mark_sweep_loop_stopped：测试里会反复建 app，
         generation = configure_sweep_loop(interval)
         if interval <= 0:
             logger.info("支付巡检已关闭（STORE_PAYMENT_SWEEP_INTERVAL_SECONDS=0）")
             return
-        # 首轮稍作延后：启动瞬间还在建表/补列，没必要立刻去抢数据库
         delay = min(interval, 5)
         try:
             while True:
@@ -196,12 +186,10 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        # 访问日志的第三方噪音过滤必须在 lifespan 这一层装：uvicorn 会先
         install_access_log_noise_filter()
         logger.info(
             "授权商店服务已启动：%s（数据目录 %s）", settings.public_base_url, settings.data_dir
         )
-        # 首次初始化窗口：库里还没有管理员时，把引导密钥打印到启动日志（stderr），
         with database.session() as session:
             if not setup_api.admin_exists(session):
                 setup_guard.ensure_token()
@@ -217,7 +205,6 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
                 await sweep_task
             database.dispose()
 
-    #: OpenAPI / docs 永远关闭，避免暴露全部端点与鉴权结构。
     app = FastAPI(
         title="HomeOS 授权商店与授权服务器",
         version=__version__,
@@ -232,7 +219,6 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     app.state.schema_drift = schema_drift
     app.state.license_authority = authority
     app.state.setup_guard = setup_guard
-    # 商店站点配色：一个 JSON 文件，没有迁移、也没有表。失败只退回默认配色 ——
     app.state.appearance = AppearanceStore(settings.appearance_path)
     app.state.appearance.load()
 
@@ -241,7 +227,6 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
         """改状态的商店/后台请求必须同源（CSRF 第二道闸）。
         """
         path = request.url.path
-        # 只提示一次：请求带了转发头但没配可信代理，说明前面有反代而限流与授权记录
         if not getattr(app.state, "proxy_warning_logged", False) and forwarded_headers_present(request):
             if not trusted_proxies:
                 app.state.proxy_warning_logged = True
@@ -249,9 +234,6 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
                     "检测到请求带反向代理转发头，但未配置 STORE_TRUSTED_PROXIES："
                     "限流与授权记录会按代理地址统计。请按实际部署配置可信代理的 IP 或网段。"
                 )
-        #: 渠道回调必须豁免来源校验：它们是**服务器到服务器**的请求，既没有 Origin
-        #: 也没有 Referer（若有代理补了一个，反而会被这道闸门拒掉）。
-        #: 安全性由各渠道自己的验签负责 —— 那才是回调的信任根。
         callback_paths = frozenset({alipay_api.NOTIFY_PATH, wechat_api.NOTIFY_PATH})
         guarded = path.startswith(("/store/v1/", "/store-admin/v1/")) and path not in callback_paths
         if (
@@ -266,20 +248,16 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
             )
         return await call_next(request)
 
-    # 请求体字节上限。注册在这里意味着它比同源闸门与路由更靠外：FastAPI 是先读全请求体
     app.add_middleware(RequestBodyGuard)
 
-    # 响应压缩：**先注册 = 更靠里**，压的是路由产出（含 /store-static 下的主题与后台脚本）
     app.add_middleware(SelectiveGZipMiddleware)
 
-    # 安全头中间件必须**最后**注册：``@app.middleware`` 往栈顶插，最后注册的那层才
     @app.middleware("http")
     async def attach_security_headers(request: Request, call_next):
         """给所有响应补上安全头。
         """
         request.state.csp_nonce = new_csp_nonce()
         response = await call_next(request)
-        # setdefault：端点自己设过的同名头以端点的为准，这里只负责「没有就补上」。
         for name, value in security_headers(request).items():
             response.headers.setdefault(name, value)
         return response
@@ -288,7 +266,6 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
         """解析支付渠道。
         """
         if setting is None:
-            # 没带站点配置就从库里现读一份：支付宝凭据可以在后台改，绝不能把
             with database.session() as lookup:
                 setting = get_setting(lookup)
         if name:
@@ -297,13 +274,10 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
 
     app.state.resolve_payment_provider = resolve_payment_provider
 
-        # 静态资源
     static_dir = settings.static_dir
     app.mount("/store-static", StaticFiles(directory=static_dir), name="store-static")
-    # font.min.css 内部写死了 ../fonts/xxx，必须挂到根路径 /fonts 才能加载图标字体
     app.mount("/fonts", StaticFiles(directory=static_dir / "fonts"), name="fonts")
 
-        # 路由
     app.include_router(license_api.router)
     app.include_router(store_api.router)
     app.include_router(alipay_api.router)
@@ -331,9 +305,6 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
 
     @app.get("/healthz", include_in_schema=False)
     def healthz() -> dict:
-        # status 只表示「进程活着」，探活机器不会被巡检状态带偏；巡检与 incidents
-        # 结构异常只放在 schema 里，**刻意不改 status**：探活失败会被编排器重启，而
-        # 「库里有几列历史遗留」重启一百次也不会变 —— 那是要告警给人看的，不是要自愈的。
         drift = app.state.schema_drift
         return {
             "status": "ok",

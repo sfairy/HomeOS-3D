@@ -13,14 +13,10 @@ import tempfile
 from pathlib import Path
 
 EXT_SUFFIX = sysconfig.get_config_var("EXT_SUFFIX") or ".so"
-#: 迁移脚本目录按源码保留，不编译：alembic 是**读源码文件**来执行的，编译成 .so 之后它
-#: 反而找不到脚本。两个应用的目录名不同 —— 主应用是项目根 ``migrations/``，商店是 ``db/``。
 KEEP_SOURCE_PREFIXES = ("db/", "migrations/")
 COMPILER_DIRECTIVES = {
     "language_level": "3",
-    # 关掉「用注解当类型」：本项目的注解是 PEP 563 之后的普通标注，交给 Cython 解析
     "annotation_typing": False,
-    # 保留函数签名与自省信息，FastAPI 依赖 inspect.signature 解析路由参数。
     "binding": True,
     "embedsignature": True,
 }
@@ -40,7 +36,6 @@ def _iter_sources(root: Path) -> list[Path]:
 def _module_name(path: Path, root: Path) -> str:
     relative = path.relative_to(root)
     if path.name == "__init__.py":
-        # 包初始化模块对外就是包本身，扩展名必须叫 <pkg>（导出 PyInit_<pkg>）。
         return ".".join(relative.parent.parts)
     return ".".join(relative.with_suffix("").parts)
 
@@ -161,7 +156,7 @@ def compile_tree(root: Path, jobs: int | None = None) -> None:
     if jobs > 1:
         try:
             _compile(root, sources, jobs)
-        except Exception as error:  # Cython 并行模式在本项目上偶尔崩溃
+        except Exception as error:
             print(f"并行编译失败（{type(error).__name__}: {error}），改用单进程重试…", flush=True)
             _discard_artifacts(root, sources)
             _compile(root, sources, 1)

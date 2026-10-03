@@ -1,6 +1,4 @@
-/**
- * 表格与分页。
- */
+/** 表格与分页。 */
 
 import { $, $$, esc } from "./dom.js";
 import { api } from "./api.js";
@@ -19,15 +17,15 @@ type LatestEntry = {
   promise: Promise<unknown>;
 };
 
-// 由服务端词表填选项的筛选器：跳转目标可能先于选项到位设值 —— 赋给一个不存在的 option
+
 export const PENDING_FILTER_VALUES = new Map<string, string>();
 
-// 表格内统一的操作按钮组
+
 export function actions(...buttons: Array<string | false | null | undefined>) {
   return `<div class="row-actions">${buttons.filter(Boolean).join('')}</div>`;
 }
 
-// 「主操作 + ⋯ 菜单」：把低频/破坏性操作收进菜单。
+
 export function rowMenu(title: string, ...items: Array<string | false | null | undefined>) {
   const body = items.filter(Boolean).join('');
   if (!body) return '';
@@ -49,7 +47,7 @@ export function menuNote(text: string) {
   return `<p class="menu__note">${esc(text)}</p>`;
 }
 
-// 长内容只在单元格里附带完整值（title），截断交给「固定列宽 + td 省略号」。
+
 export function cell(value: unknown) {
   const text = value === null || value === undefined || value === '' ? '—' : String(value);
   if (text === '—') return '—';
@@ -67,7 +65,7 @@ export function pageState(key: string): PageCursor {
   return paging[key]!;
 }
 
-// 每个分页列表对应的表格主体。集中在这里，是为了让「加载中 / 出错」这两种瞬时
+
 const PAGED_TABLES: Record<string, string> = {
   products: '#product-rows',
   orders: '#order-rows',
@@ -89,7 +87,7 @@ const PAGED_TABLES: Record<string, string> = {
   'coupon-redemptions': '#redemption-rows',
 };
 
-// 列数从表头现读：写死列数的话，将来给某张表加一列就得回来改这里，
+
 function tableSpan(tbody: HTMLElement) {
   const table = tbody.closest('table');
   return table ? table.querySelectorAll('thead th').length : 1;
@@ -127,7 +125,7 @@ export async function pagedFetch(
   });
   const seq = ++cursor.seq;
   const run = async () => {
-    // 先占位再发请求：后台的列表查询偶尔要一两秒，没有占位用户会以为按钮坏了。
+
     setTableState(key, 'loading');
     let data: { total?: unknown; limit?: unknown; offset?: unknown; [key: string]: unknown };
     try {
@@ -138,11 +136,11 @@ export async function pagedFetch(
         setTableState(key, 'error', message);
         throw error;
       }
-      // 本请求已被更新的翻页/筛选请求取代：静默吞掉拒绝（返回与成功过期路径一致的 null），
-      // 否则快速翻页时旧请求的 reject 会从 pagedFetch 冒泡，额外弹一个错误 toast。
+
+
       return null;
     }
-    // 拿到数据就把压暗去掉；行内容由各 loader 自己填（它们才知道列怎么排）。
+
     if (seq !== cursor.seq) return null;
     setTableState(key, 'ready');
     cursor.total = Number(data.total || 0);
@@ -153,7 +151,7 @@ export async function pagedFetch(
   latestRequest[key] = { seq, promise: run() };
   let entry = latestRequest[key]!;
   let data = await entry.promise;
-  // 等待期间又发了新请求：改用最新那次的返回值。序号严格递增，循环必然收敛。
+
   while (latestRequest[key] && latestRequest[key]!.seq !== entry.seq) {
     entry = latestRequest[key]!;
     data = await entry.promise;
@@ -161,12 +159,12 @@ export async function pagedFetch(
   return data;
 }
 
-// 筛选条件变了必须回到第 1 页：留在第 3 页去查一个缩小后的结果集，
+
 export function resetPage(key: string) {
   pageState(key).offset = 0;
 }
 
-// 「已到末页」的判定：不能只比 offset+limit，末页不足一页时同样算到底了。
+
 function atLastPage(key: string) {
   const cursor = pageState(key);
   return cursor.offset + cursor.limit >= cursor.total;
@@ -202,7 +200,7 @@ export function bindFilters(entries: Array<[string, string]>) {
       resetPage(key);
       loader();
     });
-    // 文本框按回车即查询：运营的肌肉记忆，省一次点击。
+
     if (event === 'input') {
       node.addEventListener('keydown', (event_) => {
         if (!(event_ instanceof KeyboardEvent)) return;
@@ -216,7 +214,7 @@ export function bindFilters(entries: Array<[string, string]>) {
   });
 }
 
-// 「重置」按钮：把一组控件恢复成默认值再重载。
+
 export function resetFilters(selectors: string[], key: string) {
   selectors.forEach((selector) => {
     const node = $(selector) as HTMLInputElement | HTMLSelectElement | null;

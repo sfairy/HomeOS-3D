@@ -46,9 +46,6 @@ class DisplayPairingCode(Base):
     is_enabled: Mapped[bool] = mapped_column(Boolean, nullable = False, default = True, index = True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone = True), nullable = False, default = utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone = True), nullable = False, default = utc_now, onupdate = utc_now)
-    # 删除配对码只解绑设备（外键 SET NULL），不删设备：设备是独立的展示终端，
-    # 配对码只是它的一次入场凭据。去掉 cascade 后 ORM 不再把设备当从属对象删除，
-    # 保留 passive_deletes 让数据库自己执行 SET NULL。
     device: Mapped[DisplayDevice | None] = relationship(back_populates = 'pairing_code', passive_deletes = True, uselist = False)
 
 class DisplayDevice(Base):
@@ -70,13 +67,10 @@ class HAConnection(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key = True, default = (lambda : str(uuid4())))
     name: Mapped[str] = mapped_column(String(128), nullable = False, default = 'Home Assistant')
     base_url: Mapped[str] = mapped_column(String(512), nullable = False)
-    # 外网（备用）地址：留空表示没有备用地址，内网连不上就直接报错。
     external_base_url: Mapped[str | None] = mapped_column(String(512), nullable = True)
     encrypted_access_token: Mapped[str] = mapped_column(Text, nullable = False)
     verify_tls: Mapped[bool] = mapped_column(Boolean, nullable = False, default = True)
-    # 外网地址是否校验 HTTPS 证书。默认校验：外网多为公网证书，跳过风险高。
     external_verify_tls: Mapped[bool] = mapped_column(Boolean, nullable = False, default = True)
-    # 当前在用哪一路（'internal' / 'external'）。仅供界面展示，权威值在连接器内存里。
     active_endpoint: Mapped[str | None] = mapped_column(String(16), nullable = True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable = False, default = True, index = True)
     ha_version: Mapped[str | None] = mapped_column(String(64), nullable = True)
@@ -195,8 +189,6 @@ class LicenseState(Base):
     session_id: Mapped[str | None] = mapped_column(String(64), nullable = True)
     lease_sequence: Mapped[int] = mapped_column(Integer, nullable = False, default = 0)
     activation_code_hint: Mapped[str | None] = mapped_column(String(16), nullable = True)
-    # 完整激活码与绑定邮箱加密/明文落库：前者是「重新激活」唯一可用的本地凭证，
-    # 后者在重新激活时一并回传给服务端做绑定校验。界面只展示截断后的 hint。
     encrypted_activation_code: Mapped[str | None] = mapped_column(Text, nullable = True)
     activation_email: Mapped[str | None] = mapped_column(String(255), nullable = True)
     signed_lease: Mapped[str | None] = mapped_column(Text, nullable = True)

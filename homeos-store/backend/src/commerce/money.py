@@ -6,10 +6,8 @@ from __future__ import annotations
 import math
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
-#: 1 积分 = 100 厘。
 CENTI_PER_POINT = 100
 
-#: 百分比 → 基点（basis point）的倍数：5.0% = 500 bps。
 BPS_PER_PERCENT = 100
 
 
@@ -21,7 +19,6 @@ def _decimal(value: object) -> Decimal:
     if isinstance(value, Decimal):
         candidate = value
     elif isinstance(value, bool):
-        # bool 是 int 的子类，但 ``True`` 当金额用一定是调用方的 bug
         raise ValueError("金额不接受布尔值")
     elif isinstance(value, int):
         candidate = Decimal(value)
@@ -92,7 +89,6 @@ def withdraw_fee_centi(gross_centi: int, fee_percent: object) -> tuple[int, int]
     if bps <= 0:
         return 0, gross
     if bps >= 100 * BPS_PER_PERCENT:
-        # 100% 以上手续费属于配置错误：全部扣掉而不是给出负的到账额
         return gross, 0
     fee = gross * bps // (BPS_PER_PERCENT * BPS_PER_PERCENT)
     return fee, gross - fee

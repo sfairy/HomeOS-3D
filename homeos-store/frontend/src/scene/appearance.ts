@@ -1,5 +1,4 @@
-/* HomeOS 可配置配色（本文件为 store 侧逻辑源；3d 侧见 homeos-3d/.../auth/scene/appearance.ts）
-   悄悄变了。 */
+
 
  type ColorName = "accent" | "lumen" | "aura" | "eco";
 
@@ -29,9 +28,7 @@ export const CONFIGURABLE: readonly ColorName[] = ["accent", "lumen", "aura", "e
   shades: ShadeMap;
 };
 
-/**
- * 预设配色。全站只用一套（暖居琥珀），保留数组结构是为了让设置界面、后端校验与
- */
+/** 预设配色。 */
 export const PRESETS: Preset[] = [
   {
     id: "amber",
@@ -47,13 +44,11 @@ export const PRESETS: Preset[] = [
   },
 ];
 
-/** 默认预设 id。后端与设置界面都以它作为「没有配置过」的取值。 */
+/** 默认预设 id。 */
 export const DEFAULT_PRESET = "amber";
 
-/* --------------------------------------------------------------- 颜色工具 */
 
-
-/** `#abc` / `#aabbcc` / `aabbcc` → `#aabbcc`；无法解析时返回 null。 */
+/** `#abc` / `#aabbcc` / `aabbcc` → `#aabbcc`； */
 export function normalizeHex(input: unknown): string | null {
   if (typeof input !== "string") return null;
   const value = input.trim().replace(/^#/, "").toLowerCase();
@@ -73,9 +68,7 @@ function rgbTriplet(hex: string): string {
   return hexToRgb(hex).join(", ");
 }
 
-/**
- * 由一个基色推出 `-bright` 与 `-deep`。
- */
+/** 由一个基色推出 `-bright` 与 `-deep`。 */
 function deriveShades(hex: string): ShadePair {
   const [r, g, b] = hexToRgb(hex).map((channel) => channel / 255);
   const max = Math.max(r, g, b);
@@ -119,11 +112,8 @@ function deriveShades(hex: string): ShadePair {
   };
 }
 
-/* ------------------------------------------------------------- 令牌展开 */
 
-/**
- * 把四个基色展开成两张样式表要用的字面量令牌表。
- */
+/** 把四个基色展开成两张样式表要用的字面量令牌表。 */
  function appearanceTokens(colors: Partial<AppearanceColors>): Record<string, string> {
   const tokens: Record<string, string> = {};
   for (const name of CONFIGURABLE) {
@@ -146,7 +136,7 @@ function deriveShades(hex: string): ShadePair {
     tokens[`--hb-${name}-line`] = `rgba(${triplet}, 0.32)`;
     tokens[`--hb-${name}-text`] = bright;
   }
-  // 主按钮 hover 用的是比默认渐变再亮一档的独立渐变（默认那层上面压着深色文字，
+
   const accent = normalizeHex(colors.accent);
   if (accent) {
     const shades = colors.accentShades || deriveShades(accent);
@@ -161,9 +151,7 @@ function deriveShades(hex: string): ShadePair {
   accentColor?: string | null;
 };
 
-/**
- * 预设 + 可选的自定义主控色 → 展开好的令牌表。设置界面用这一个函数出图。
- */
+/** 预设 + 可选的自定义主控色 → 展开好的令牌表。 */
 export function resolveTokens({ presetId, accentColor }: ResolveTokensInput = {}): Record<string, string> {
   const preset = PRESETS.find((item) => item.id === presetId) || PRESETS.find((item) => item.id === DEFAULT_PRESET)!;
   const colors: AppearanceColors = { ...preset.colors };
@@ -176,7 +164,7 @@ export function resolveTokens({ presetId, accentColor }: ResolveTokensInput = {}
   const custom = normalizeHex(accentColor);
   if (custom && custom !== normalizeHex(preset.colors.accent)) {
     colors.accent = custom;
-    // 自定义色没有既定明暗档 —— 留着预设那一份会让按钮的渐变与底色对不上。
+
     delete colors.accentShades;
   }
   return appearanceTokens(colors);

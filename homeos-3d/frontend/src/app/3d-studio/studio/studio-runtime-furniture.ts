@@ -29,7 +29,7 @@ export function compactRuntimeFurniture(
 ) {
   const meshesBySurfaceKey = new Map(),
     probeMaterialsByMaterial = new Map(),
-    // 待释放的几何 / 材质：迭代时要能直接调 dispose()，所以显式收窄元素类型。
+
     disposableGeometrySet = new Set<{ dispose: () => void }>(),
     disposableMaterialSet = new Set<{ dispose: () => void }>(),
     batchStats = {
@@ -66,7 +66,7 @@ export function compactRuntimeFurniture(
           candidateMesh.onAfterRender !== three.Object3D.prototype.onAfterRender ||
           meshMaterial?.anisotropy > 0 ||
           !materialKey(candidateMesh, true, true) ||
-          // 材质上挂着贴图的不能合批（合批会丢贴图）；材质属性是任意键，逐个看 isTexture。
+
           Object.values(meshMaterial).some(
             (materialValue) => (materialValue as { isTexture?: boolean } | undefined)?.isTexture,
           ) ||

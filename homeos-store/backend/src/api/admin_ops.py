@@ -56,7 +56,6 @@ def admin_list_sessions(
     moment = utcnow()
 
     def build(rows) -> list[dict]:
-        #: 账号映射整批取（原先每行一次 ``session.get``，500 行就是 500 次往返）。
         account_map = _by_ids(session, Account, (record.account_id for record in rows))
         return [
             {
@@ -165,7 +164,6 @@ def admin_list_referral_ledger(
             offset=offset,
             build=build,
         ),
-        # 类型词表随数据一起下发（同 ``incidents.kinds`` 的做法）：后台的筛选下拉与列表标签
         "kinds": referrals.ledger_kind_options(),
     }
 
@@ -186,7 +184,6 @@ def admin_list_coupon_redemptions(
         base = base.where(CouponRedemption.account_id == account_id)
 
     def build(rows) -> list[dict]:
-        #: 三张关联表各取一次，而不是每行三次（500 行时是 1500 → 3）。
         coupon_map = _by_ids(session, Coupon, (record.coupon_id for record in rows))
         account_map = _by_ids(session, Account, (record.account_id for record in rows))
         order_map = _by_ids(session, Order, (record.order_id for record in rows))
@@ -205,7 +202,6 @@ def admin_list_coupon_redemptions(
                     "orderId": record.order_id,
                     "orderNo": order.order_no if order else "",
                     "orderStatus": order.status if order else "",
-                    # 判据与 SQL 侧同源（coupons.holds_slot），不要再在这里写第二份规则：
                     "holding": coupons.holds_slot(record, order),
                     "voidedAt": iso(record.voided_at) if record.voided_at else "",
                     "voidReason": record.void_reason or "",
@@ -238,7 +234,6 @@ def admin_void_coupon_redemption(
     account = session.get(Account, record.account_id)
     code = coupon.code if coupon else record.coupon_id
 
-    #: 已作废的记录再点一次（双击、两个标签页）不再重复记账：置空时间会覆盖掉
     already = record.voided_at is not None
     if not already:
         record.voided_at = utcnow()
@@ -281,7 +276,6 @@ def admin_list_customers(
         base = base.where(or_(Customer.email.like(like), Customer.name.like(like)))
 
     def build(rows) -> list[dict]:
-        #: 两个计数改成**每页两条**聚合查询（``GROUP BY customer_id``），而不是每行两条：
         customer_ids = {row.id for row in rows}
         scope_ids = customer_ids or {""}
         order_counts = {

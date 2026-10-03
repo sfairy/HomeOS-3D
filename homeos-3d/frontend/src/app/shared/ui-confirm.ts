@@ -1,6 +1,4 @@
-/**
- * 站内统一确认框。
- */
+/** 站内统一确认框。 */
 
 type AnyObj = Record<string, any>;
 
@@ -10,9 +8,7 @@ const DIALOG_ID = "homeos-ui-confirm-dialog";
 let stylePromise: any = null;
 let activeFinish: any = null;
 
-/**
- * 确保确认框样式表只注入一次。
- */
+/** 确保确认框样式表只注入一次。 */
 function ensureConfirmStyles() {
   if (stylePromise) {
     return stylePromise;
@@ -27,7 +23,7 @@ function ensureConfirmStyles() {
     styleLink.rel = "stylesheet";
     styleLink.href = STYLE_HREF;
     styleLink.dataset.uiConfirmStyle = "true";
-    // load / error 都放行：样式偶发失败时仍要弹出确认框，不能卡死业务。
+
     styleLink.addEventListener("load", () => resolve(), { once: true });
     styleLink.addEventListener("error", () => resolve(), { once: true });
     document.head.append(styleLink);
@@ -35,9 +31,7 @@ function ensureConfirmStyles() {
   return stylePromise;
 }
 
-/**
- * 取（或创建）全局唯一的确认 <dialog>。
- */
+/** 取（或创建）全局唯一的确认 <dialog>。 */
 function ensureConfirmDialog(): HTMLDialogElement {
   const existing = document.getElementById(DIALOG_ID);
   if (existing instanceof HTMLDialogElement) {
@@ -66,9 +60,7 @@ function ensureConfirmDialog(): HTMLDialogElement {
   return dialogElement;
 }
 
-/**
- * 弹出站内确认框，行为对齐原生 confirm：取消 / Esc / 遮罩 → false。
- */
+/** 弹出站内确认框，行为对齐原生 confirm：取消 / Esc / 遮罩 → false。 */
 export async function confirmAction({
   kicker = "CONFIRM",
   title,
@@ -134,7 +126,7 @@ export async function confirmAction({
     acceptButton.onclick = () => finish(true);
     cancelButton.onclick = () => finish(false);
     closeButton.onclick = () => finish(false);
-    // Esc 会先触发 cancel；preventDefault 后仍走 finish(false)，与点取消一致。
+
     dialogElement.oncancel = (cancelEvent: any) => {
       cancelEvent.preventDefault();
       finish(false);

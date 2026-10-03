@@ -193,7 +193,7 @@ const logoutButtonElement = findElement("#logout"),
   licenseOpenButtonElement = findElement("#license-open"),
   licenseDialogElement = findElement("#license-dialog"),
   licenseDialogRetryElement = findElement("#license-dialog-retry"),
-  // 用户主动触发的重新激活：凭证取自本机保存的激活记录，服务端有 /license/reactivate。
+
   licenseReactivateElement = findElement("#license-reactivate"),
   licenseRetryMessageElement = findElement("#license-retry-message"),
   licenseCloseElement = findElement("#license-close"),
@@ -1252,18 +1252,18 @@ let openCustomSelect = null,
   colorPickerDragPointerId = null,
   colorPickerCopyResetTimer = null,
   lastLicenseFeatureSignature = null;
-// 请求默认超时（毫秒）：超时即中断连接，避免后端/网络悬挂把「保存中」这类界面状态永久卡住。
+
 const DEFAULT_REQUEST_TIMEOUT_MS = 20000;
-// 并发请求可能同时拿到 401/403：只跳一次，避免多个 location 赋值互相打断（例如登录页刚打开又被 /license 顶掉）。
+
 let authRedirectStarted = false;
 function startAuthRedirect(targetPath, replaceCurrent = false) {
   if (authRedirectStarted) return;
   ((authRedirectStarted = true),
     replaceCurrent ? window.location.replace(targetPath) : window.location.assign(targetPath));
 }
-// requestOptions 是透传给 fetch 的动态选项袋：timeoutMs/signal 由本函数解释，其余键（method/body/headers/cache 等）原样转交 fetch
+
 async function requestJson(requestPath, requestOptions: Record<string, any> = {}) {
-  // 慢接口（大文件上传）在调用处显式放大；timeoutMs: 0 表示不设超时。
+
   const { timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, signal: callerSignal, ...fetchOptions } = requestOptions,
     requestAbort = new AbortController();
   let requestTimer = null,
@@ -1291,8 +1291,8 @@ async function requestJson(requestPath, requestOptions: Record<string, any> = {}
         : fetchOptions.headers,
     });
   } catch (requestError) {
-    // 超时给出可操作的中文提示；调用方主动取消（切换页面等）原样抛出，
-    // 免得把「用户离开」报成接口故障。
+
+
     if (requestTimedOut) {
       const timeoutError = new Error(
         "请求超时：" + requestPath.split("?")[0] + "（超过 " + Math.round(timeoutMs / 1000) + " 秒无响应）",
@@ -5674,7 +5674,7 @@ const {
       runCopyLast(removedSourceKey, removedFolderName),
   });
 function assetMatchesId(assetRecord, targetAssetId) {
-  // 老 ID 已由后端在 API 边界归一，这里只需比对现行 assetId。
+
   return assetRecord?.assetId === targetAssetId;
 }
 function allAssets() {
@@ -10719,7 +10719,7 @@ async function recoverDraftConflict(projectId2) {
     await historyEntry(projectId2);
     return;
   }
-  // 以最新 revision 重试保存：先解除 isSaving，否则递归的 saveDraft 会被自身守卫挡掉。
+
   activeProject = {
     ...activeProject,
     revision: latestDraft.revision,
@@ -11025,7 +11025,7 @@ function requestedPageMode() {
         : "正在重连"),
     (haDetailUrlElement.textContent = haConnection.baseUrl || "—"),
     (haDetailUrlElement.title = haConnection.baseUrl || ""),
-    // 「当前在用」由后端给出：内网优先，内网不通时它会是外网那一个。
+
     (haDetailActiveElement.textContent = (() => {
       const haActiveUrl = haConnection.activeBaseUrl || haConnection.baseUrl || "";
       if (!haActiveUrl) return "—";
@@ -11048,8 +11048,8 @@ function requestedPageMode() {
       licenseStatusCode.devices +
       " · 区域 " +
       licenseStatusCode.areas),
-    // 只读视图里的「提醒」有两个来源，前者（保存时发现某一路不通）优先：它是一条关于**配置**
-    // 的结论，用户不重新保存就不会消失；后者是运行期的实时状态，随连接状态自己变化。
+
+
     (haDetailWarningElement.hidden = !(
       haSavedEndpointWarning ||
       (haConnection.activeEndpoint === "external" && haConnection.baseUrl)
@@ -11117,7 +11117,7 @@ function popupDraftDocument(_requireToken = false, reuseTokenForNewUrl = false) 
     accessToken: accessTokenInput || null,
     verifyTls: formData.get("verifyTls") === "on",
     externalVerifyTls: formData.get("externalVerifyTls") === "on",
-    // 换地址时是否确认「继续复用已保存的令牌」：后端据此决定放行还是回 409。
+
     reuseTokenForNewUrl,
   };
 }
@@ -11569,7 +11569,7 @@ async function triggerKey() {
     }
   }),
   licenseReactivateElement.addEventListener("click", async () => {
-    // 重激活会走「先续租 → 再用本地激活码重放激活」两条路，两条都要联网，防重复点击。
+
     if (licenseReactivateElement.disabled) return;
     ((licenseReactivateElement.disabled = true),
       setSettingsMessage(licenseMessageElement, "正在重新激活并获取签名租约…"));
@@ -11578,16 +11578,16 @@ async function triggerKey() {
         method: "POST",
       });
       (licenseFormElement.reset(),
-        // 凭证已经刷新，本地激活表单不必再展开；保持和「激活成功」一样的收尾动作。
+
         (licenseFormElement.hidden = true),
         popupId(reactivateResponse),
         setSettingsMessage(licenseMessageElement, "已重新激活，授权租约与恢复凭证均已更新。", "success"));
     } catch (reactivateError) {
-      // 无凭证可复用（本机只存了截断提示码）时要用户补输入：把激活表单交给用户，
-      // 而不是只留一句错误让人不知道该做什么。
+
+
       ((licenseFormElement.hidden = false),
         setSettingsMessage(licenseMessageElement, reactivateError.message, "error"));
-      // 无论成败都读一次最新状态：可能刚刚自己恢复了，也可能带回新的错误码与重试计划。
+
       await requestJson("/license/status")
         .then(popupId)
         .catch(() => {});
@@ -11651,7 +11651,7 @@ async function triggerKey() {
   }));
 function onLicenseFormSubmit(licenseSubmitEvent = false) {
   const haTlsOptionsElement = haFormElement.querySelector("#ha-tls-options");
-  // 任何一路填了 https 地址，证书校验开关就有意义（内网走 HTTP、外网走 HTTPS 是常见组合）。
+
   const isHttpsUrl = /^https:\/\//i;
   ((haTlsOptionsElement.hidden =
     !licenseSubmitEvent &&
@@ -11684,7 +11684,7 @@ function onHaFormInput(onHaTestButtonClick) {
         method: "POST",
         body: JSON.stringify(jw2),
       });
-      // 后端会逐个试两个地址，这里逐个报出来：只报第一个成功的，备用地址填错了在界面上看不出来。
+
       const haTestEndpoints = Array.isArray(haTestResult.endpoints) ? haTestResult.endpoints : [];
       if (!haTestEndpoints.length) {
         (haTestResult.baseUrl && (haFormElement.elements.baseUrl.value = haTestResult.baseUrl),
@@ -11699,7 +11699,7 @@ function onHaFormInput(onHaTestButtonClick) {
             "success",
           ));
       } else {
-        // 内网那一格回填实测地址（自动补全协议与端口），外网留给用户，不擅自改动他填的内容。
+
         const haInternalEndpoint = haTestEndpoints.find((endpointItem) => endpointItem.kind === "internal");
         haInternalEndpoint?.baseUrl &&
           haInternalEndpoint.ok &&
@@ -11714,10 +11714,10 @@ function onHaFormInput(onHaTestButtonClick) {
               : endpointItem.label + " 连不上：" + (endpointItem.error || "未知原因"),
           )
           .join("；");
-        // 至少一路通就算成功（这正是备用地址存在的意义），但把不通的那一路如实写出来。
+
         const isEveryEndpointOk = haTestEndpoints.every((endpointItem) => endpointItem.ok);
         setSettingsMessage(haMessageElement, haTestSummary, isEveryEndpointOk ? "success" : "warning");
-        // 两路都通了：撤下只读视图上那条「某一路不通」的旧提示（用户刚把它修好）。
+
         isEveryEndpointOk && (haSavedEndpointWarning = "");
       }
     } catch (endpointItem) {
@@ -11738,8 +11738,8 @@ function onHaFormInput(onHaTestButtonClick) {
             body: JSON.stringify(jw3),
           });
         } catch (haUrlChangeError) {
-          // 409 + HA_URL_CHANGED_TOKEN_REUSE = 换了地址但要复用已保存的令牌：必须由用户确认。
-          // 地址可以被改成任意目标，不确认就等于把已保存的令牌发给用户随手填的地址。
+
+
           if (haUrlChangeError.code !== "HA_URL_CHANGED_TOKEN_REUSE") {
             throw haUrlChangeError;
           }
@@ -11761,8 +11761,8 @@ function onHaFormInput(onHaTestButtonClick) {
           });
         }
         isEditingHaConnection = false;
-        // 保存时后端会逐个试两个地址，只要求至少一路通。有一路不通就记住并显示在只读视图上 ——
-        // 否则用户看不出「备用地址填错了」，要等真的断网那天才发现。
+
+
         const haSavedBadEndpoints = (
           Array.isArray(haConnection.endpoints) ? haConnection.endpoints : []
         ).filter((endpointItem) => !endpointItem.ok);
@@ -15796,7 +15796,7 @@ const effectVisibleComponentById = new Map([
     [lightStatisticsScaleElement, "scale"],
     [lightStatisticsRotationElement, "rotation"],
   ]),
-  previewStateByInputElement = new Map<any, any>([ // 预览描述符袋：value 形状随控件而异（min/max/divisor/limits），无法统一推断
+  previewStateByInputElement = new Map<any, any>([
     [
       presenceHaloScaleXElement,
       {
@@ -16226,7 +16226,7 @@ const effectVisibleComponentById = new Map([
     [iconButtonScaleElement, "scale"],
     [iconButtonRotationElement, "rotation"],
   ]),
-  previewStateByInputElementByName = new Map<any, any>([ // 同上：预览描述符袋，值为异构描述符
+  previewStateByInputElementByName = new Map<any, any>([
     [
       airConditionerIconOffColorElement,
       {
@@ -24477,7 +24477,7 @@ async function popupModuleTypeValue(popupModuleTypeConfig, popupModuleTypeRef) {
       try {
         await requestJson("/assets/user", {
           method: "POST",
-          // 图片最大 20 MB：慢速局域网下也允许它传完，但仍要有上限。
+
           timeoutMs: 120000,
           body: popupModuleTypeName,
           headers: {

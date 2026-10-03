@@ -71,7 +71,7 @@ type PlacementWall = {
 
 function buildPlacementGroups(scene, ppm) {
   const placementGroups = [],
-    // 显式标注键值类型：Map 构造器无法从 any 推断元素类型，不标注的话 .get() 会退化成 unknown。
+
     wallsById = new Map<string, PlacementWall>(
       (scene.walls || []).map((wall) => [wall.id, wall] as [string, PlacementWall]),
     );

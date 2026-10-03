@@ -1,7 +1,7 @@
 import { COURTYARD_VARIANT_BASES } from "./courtyard-models";
 export const isCourtyardPlanItem = (candidateItem) =>
     candidateItem?.type?.startsWith("garden-") || candidateItem?.type?.startsWith("courtyard-"),
-  // pan 只是移动视口、不写入场景，因此庭院锁定时与 select/scale 一同放行。
+
   courtyardToolAllowed = (tool) =>
     [
       "select",

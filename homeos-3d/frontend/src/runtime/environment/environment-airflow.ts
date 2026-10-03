@@ -14,7 +14,7 @@ export function createEnvironmentAirflow({
   requestFrame: requestFrame = () => {},
   reducedMotion: reducedMotion,
 }: {
-  // 宿主注入的 three 命名空间与渲染循环回调；camera 选项当前实现未读取，但调用方（stage.ts:1615）仍会传入。
+
   THREE?: any;
   camera?: any;
   requestFrame?: () => void;
@@ -96,7 +96,7 @@ export function createEnvironmentAirflow({
       accumulatedBounds.isEmpty() ? null : accumulatedBounds
     );
   }
-  // modelBinding 是宿主下发的动态绑定袋（climateType/bathEffect 等键），逐项判空使用。
+
   function resolveOutletLayout(model, modelBinding: Record<string, any> = {}) {
     const modelBox = modelWorldBounds(model);
     if (!modelBox) return null;
@@ -552,7 +552,7 @@ export function createEnvironmentAirflow({
           (indexSceneModels(), syncEffects(true), updateEffectStates(), requestFrame()));
     }
   }
-  // stateUpdate 是宿主下发的动态状态袋（enabled/bindings/states/focusedId/overview/reducedMotion）。
+
   function setState(stateUpdate: Record<string, any> = {}) {
     if (isDisposed) return;
     const previousReducedMotion = prefersReducedMotion();

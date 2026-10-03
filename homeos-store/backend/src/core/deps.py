@@ -13,7 +13,6 @@ from ..config import StoreSettings
 from ..core.models import Account, AccountSession, Order
 from ..security.security import token_hash, utcnow
 
-#: ``last_seen_at`` 的写入节流窗口（秒）。诊断页要回答"这个会话现在还有人用吗"，
 LAST_SEEN_REFRESH_SECONDS = 60
 
 ACTIVITY_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
@@ -39,9 +38,7 @@ def _resolve_session(request: Request, session: Session) -> AccountSession | Non
         return None
     moment = utcnow()
     if record.expires_at <= moment:
-        # 只回答「这个会话不能用」，不做任何清理。
         return None
-    # 会话活跃时间：不更新的话诊断里永远显示成登录时间，判断不出"还在用 / 早就不用了"。
     if request.method in ACTIVITY_METHODS:
         seen = record.last_seen_at or record.created_at
         if seen is None or (moment - seen).total_seconds() >= LAST_SEEN_REFRESH_SECONDS:

@@ -30,12 +30,9 @@ from typing import Any
 CADDY_BINARY = 'caddy'
 CADDY_CONFIG = Path('/etc/caddy/Caddyfile')
 
-#: Caddy 连续退出时的重启节奏与上限；超限后放弃反代。
 RESTART_DELAY_SECONDS = 1.0
 MAX_CADDY_RESTARTS = 5
-#: 收到终止信号后等待子进程退出的时长；超时强杀。
 TERMINATE_GRACE_SECONDS = 10.0
-#: 主循环轮询间隔。
 POLL_INTERVAL_SECONDS = 0.5
 
 
@@ -82,7 +79,6 @@ def _stop(process: subprocess.Popen | None) -> None:
 def _exit_code(returncode: int | None) -> int:
     if returncode is None:
         return 0
-    # 被信号杀死时 Popen 给出负数，换算成 shell 惯例的 128+signum。
     return returncode if returncode >= 0 else 128 - returncode
 
 

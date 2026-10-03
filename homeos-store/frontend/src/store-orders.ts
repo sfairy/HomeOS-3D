@@ -1,20 +1,17 @@
-/**
- * 商店前台的订单与支付流程：下单确认、支付面板、待支付提示、轮询与取消/归档。
- */
+/** 商店前台的订单与支付流程：下单确认、支付面板、待支付提示、轮询与取消/归档。 */
 
 import { loadAccount } from "./store.js";
 import { $, api, currentPage, state, toast } from "./store-shared.js";
 import { formatCentsPlain as moneyAmount } from "./money.js";
 import type { StoreOrder } from "./store-types.js";
 
-//: 渠道名 → 弹窗标题上那两个字/四个字。取不到就退回渠道自己的显示名。
+
 const CHANNEL_KICKERS: Record<string, string> = {
   alipay: 'Alipay',
   wechat: 'WeChat Pay',
 };
 
-//: 渠道名 → 标题。**必须**按渠道区分：顶着「支付宝扫码支付」展示微信二维码，
-//: 是所有收银台事故里最容易被用户当成「网站坏了」的一种。
+
 const CHANNEL_TITLES: Record<string, string> = {
   alipay: '支付宝扫码支付',
   wechat: '微信扫码支付',
@@ -36,7 +33,7 @@ export function showPayment(order: StoreOrder) {
   const dialog = asDialog($('#payment-dialog'));
   if (!dialog) return;
   state.currentOrder = order;
-  // 上一张订单如果超时关闭过，弹窗上会留着「已结束」的压暗状态，重开前先清掉
+
   dialog.classList.remove('is-closed');
   const channel = channelOf(order);
   const channelName = order.payment.displayName || '';
@@ -52,8 +49,8 @@ export function showPayment(order: StoreOrder) {
   if (product) product.textContent = order.productName || '';
   const price = $('#payment-price');
   if (price) price.textContent = moneyAmount(order.amountCents);
-  // 提示语由**服务端**下发（每个渠道在 create_payment 里各写各的措辞）：让用户拿微信
-  // 扫支付宝的码是同一个事故，所以这句不能在前端按渠道名拼。
+
+
   const hint = $('#payment-hint');
   if (hint) {
     hint.textContent =
@@ -160,7 +157,7 @@ export function showPendingOrderNotice(order: StoreOrder) {
   dialog.showModal();
 }
 
-// 行为严格对齐：遮罩 / Esc 按「取消」（false）且不下发写操作，只有明确点确认才 resolve(true)。
+
 export function confirmAction({
   kicker = 'Confirm',
   title,
@@ -186,7 +183,7 @@ export function confirmAction({
   if (titleEl) titleEl.textContent = title;
   const messageEl = $('#confirm-message');
   if (messageEl) messageEl.textContent = message;
-  // 危险动作用红按钮：确认前让用户看清「这一步会清掉什么」。
+
   const accept = $('#confirm-accept') as HTMLButtonElement | null;
   if (accept) {
     accept.textContent = confirmLabel;
@@ -213,7 +210,7 @@ export function confirmAction({
       if (cancelEl) cancelEl.onclick = null;
       dialog.oncancel = null;
       if (dialog.open) {
-        // 走兜底路径时 close() 也可能不存在，两条都留好出口。
+
         if (typeof dialog.close === 'function') dialog.close();
         else dialog.removeAttribute('open');
       }
@@ -222,7 +219,7 @@ export function confirmAction({
     };
     if (accept) accept.onclick = () => finish(true);
     if (cancelEl) cancelEl.onclick = () => finish(false);
-    // Esc 与点遮罩都按「取消」处理：这类确认的默认答案必须是「什么都不做」。
+
     dialog.oncancel = (event) => {
       event.preventDefault();
       finish(false);
@@ -256,7 +253,7 @@ export async function cancelPendingOrderFrom(
     });
     toast('订单已取消，库存和优惠码已释放。');
   } catch (error) {
-    // 409 的两种来源（订单已被支付/已被超时关闭、关单时发现钱已付）都意味着
+
     toast(error instanceof Error ? error.message : '取消失败，请刷新后重试。');
   }
   stopPaymentTimers();
@@ -266,13 +263,13 @@ export async function cancelPendingOrderFrom(
   state.pendingOrder = null;
   asDialog($('#payment-dialog'))?.close();
   asDialog($('#pending-order-dialog'))?.close();
-  // 账号中心的订单卡片是服务端渲染的，取消后要重新拉一次才会变成「已取消」。
+
   if (currentPage() === 'account') loadAccount().catch(() => null);
   button.disabled = false;
   button.textContent = label;
 }
 
-// 返回是否成功取到订单状态：手动点「我已完成支付」时要靠它决定要不要提示失败。
+
 export async function pollOrder(
   orderNo: string,
   token?: string | null,
@@ -299,9 +296,8 @@ export async function pollOrder(
       payment_failed: '支付下单失败',
       fulfillment_failed: '已支付，正在人工处理',
     };
-    // 后端下发的 statusLabel 才是权威文案。这里只覆盖需要按订单类型细分的几个状态，
-    // 其余（含 refunded / partially_refunded 等本表未列出的）直接用 statusLabel，
-    // 避免把英文状态码原样显示给买家。
+
+
     const label = labels[order.status || ''] || order.statusLabel || order.status || '';
     const status = $('#payment-status');
     if (status) status.textContent = label;
@@ -345,7 +341,7 @@ export function orderCountdownText(expiresAt?: string | null) {
 
 export function stopPaymentTimers() {
   if (state.pollTimer !== null) {
-    // pollTimer 的唯一赋值点是 setTimeout（见本文件启动轮询处），clearInterval 是冗余误用。
+
     clearTimeout(state.pollTimer);
   }
   if (state.paymentCountdownTimer !== null) {

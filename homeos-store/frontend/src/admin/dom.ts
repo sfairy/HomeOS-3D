@@ -1,6 +1,4 @@
-/**
- * DOM 与提示。
- */
+/** DOM 与提示。 */
 
 export const $ = (
   selector: string,
@@ -22,7 +20,7 @@ export function toast(message: string, kind = 'success') {
   setTimeout(() => box.remove(), 3600);
 }
 
-// HTML 转义。实现在 htmlsafe.ts（唯一一份）：
+
 import { esc } from '../htmlsafe.js';
 
 export { esc };
@@ -31,7 +29,7 @@ export function emptyRow(columns: number, text: string) {
   return `<tr><td colspan="${columns}"><div class="table-empty"><span>◌</span>${esc(text)}</div></td></tr>`;
 }
 
-// 翻页统一在文档级委托（全部列表共用同一套分页条）；复制按钮也走这一个处理器 ——
+
  function selectNodeText(node: Node) {
   const range = document.createRange();
   range.selectNodeContents(node);

@@ -1,13 +1,4 @@
-/**
- * 地面反射控制器（一个渲染器一份）：把「当前能看到的平面」当成镜子，用镜像相机把它反过来的画面
- * 渲进一张渲染目标，再用地面的 overlay 网格把它贴回地面。
- *
- * 一次捕获的完整链路：镜像相机 + 斜切近平面裁剪（裁掉镜面以下的内容）
- *   → 剔除器剔掉不可能出现在倒影里的网格 → 材质替换（去折射、可选高度淡出）
- *   → 渲进 map（可选再做一趟双向高斯模糊）→ overlay 以 strength 叠加到地面。
- *
- * 与渲染无关的部分外提成模块：场景树查询见 reflection-scene-queries，折射材质克隆见 refraction-materials。
- */
+/** 地面反射控制器（一个渲染器一份）：把「当前能看到的平面」当成镜子，用镜像相机把它反过来的画面渲进一张渲染目标，再用地面的 overlay 网格把它贴回地面。 */
 import {
   GROUND_REFLECTION_FADE_HEIGHT,
   groundReflectionQuality,
@@ -28,25 +19,25 @@ export function createGroundReflections({
   scene: scene,
   getRoot: getRoot,
   syncLighting: syncLighting,
-  // 默认实现忽略楼层，直接返回传入的相机。第二个参数是楼层 ID —— 外部会传，
-  // 因此形参必须声明出来（studio-app 那边会用 overviewStack 的按楼层相机覆盖它）。
+
+
   getFloorCamera: getFloorCamera = (fallbackCamera, _floorId) => fallbackCamera,
   getStateKey: getStateKey = () => "",
   getSceneRevision: getSceneRevision = null,
   floorLighting: floorLighting = false,
   detail: detail = null,
-  // 几何简化（detail）允许生效的清晰度上限（像素宽），null＝按清晰度档自动决定（见
-  // GROUND_REFLECTION_QUALITY）：0 表示从不简化，Infinity 表示始终简化。
+
+
   detailMaxResolution: detailMaxResolution = null,
   passes: passes = null,
   cull: cull = true,
-  // blur：倒影贴图再走一趟双向高斯。null（默认）＝按清晰度档自动决定：低分辨率开（压闪烁），
-  // 高分辨率关（保清晰）。显式传 true / false 可强制覆盖。
+
+
   blur: blur = null,
-  // fadeHeight：> 0 时启用「离镜面高度淡出」——超过该高度的内容在倒影里渐隐，同时剔除器用同一阈值
-  // 把整盒都在该高度之上的网格直接剔掉。默认取 GROUND_REFLECTION_FADE_HEIGHT（0＝不截断，对齐参考实现）。
+
+
   fadeHeight: fadeHeight = GROUND_REFLECTION_FADE_HEIGHT,
-  // 恢复反射时的逐帧捕获上限：Infinity 一次性拍完，1 则一面镜子一面镜子地出，避免卡帧。
+
   maxResumeCapturesPerFrame: maxResumeCapturesPerFrame = Infinity,
   requestFrame: requestFrame = () => {},
 }) {
@@ -65,18 +56,18 @@ export function createGroundReflections({
       cachedRecords: 0,
       cachedBytes: 0,
       inCapture: false,
-      // 下面几项是后加的诊断计数，只在 ?performance-diagnostics=1 里读；这里显式声明初值，
-      // 免得「先赋值后读取」在类型上变成 any / undefined。
+
+
       candidateBuilds: 0,
       programPreparations: 0,
       lastDrawCalls: 0,
       lastTriangles: 0,
       culling: null as unknown,
     },
-    // 材质替换的三件套：无折射克隆（模块内缓存）、倒影淡出克隆、以及给淡出着色器用的共享 uniform。
+
     { getRefractionFreeMaterial, cloneReflectionMaterial, disposeMaterialClones } =
       createRefractionMaterialResolver({
-        // 非折射材质也要过一遍倒影通道的材质替换（passes 会换掉光照写法），所以按 source 兜一圈。
+
         material: (sourceMaterial) => passes?.material(sourceMaterial) || sourceMaterial,
       }),
     fadeRecordByMaterial = new Map(),
@@ -100,12 +91,7 @@ export function createGroundReflections({
     scratchPlaneVector = new three.Vector4(),
     scratchSignVector = new three.Vector4(),
     scratchProjectionMatrix = new three.Matrix4();
-  /**
-   * 取「捕获这一帧该用哪个材质」：先去掉折射，再按需要叠一层高度淡出。
-   *
-   * 高度淡出用「克隆 + onBeforeCompile 注入」而不是改原材质：同一材质在主画面里还要正常渲染，
-   * 只有反射通道这一帧需要它变透明，所以克隆体的着色器生命周期必须和源材质绑在一起（见 release）。
-   */
+  /** 取「捕获这一帧该用哪个材质」：先去掉折射，再按需要叠一层高度淡出。 */
   function resolveFadeMaterial(baseMaterial) {
     const refractionFreeMaterialNode = getRefractionFreeMaterial(baseMaterial);
     if (
@@ -115,8 +101,8 @@ export function createGroundReflections({
     )
       return refractionFreeMaterialNode;
     let fadeRecord = fadeRecordByMaterial.get(refractionFreeMaterialNode);
-    // 源材质版本变了（改了颜色 / 贴图）就把克隆体原地 copy 一次，而不是重建：重建会让已经在
-    // GPU 上编译好的程序作废，反射通道每帧换一堆材质时这个开销比 copy 大得多。
+
+
     if (
       (fadeRecord &&
         fadeRecord.version !== refractionFreeMaterialNode.version &&
@@ -126,9 +112,8 @@ export function createGroundReflections({
       !fadeRecord)
     ) {
       const fadedClone = cloneReflectionMaterial(refractionFreeMaterialNode);
-      // 顶点阶段把「离地高度」插值到片元（mvPosition 在 project_vertex 之后才有值）；
-      // 片元阶段按高度淡出，淡到 0 直接 discard。
-      // 注意：这个开关曾让高楼 / 吊灯倒影整体消失，只在 fadeHeight > 0 时才会走到这里。
+
+
       ((fadedClone.onBeforeCompile = function (shader, webglRenderer) {
         (refractionFreeMaterialNode.onBeforeCompile.call(this, shader, webglRenderer),
           Object.assign(shader.uniforms, reflectionUniforms),
@@ -218,9 +203,8 @@ export function createGroundReflections({
     isResumePending = false,
     resumeStartedAtMs = null,
     suspendStartedAtMs = null;
-  // 清晰度档只在两处影响开销策略：倒影贴图要不要再模糊一趟，以及能不能用简化几何。
-  // 都做成「跟着 settings.resolution 现算」而不是构造时定死，这样用户在设置里切清晰度后立刻生效。
-  // fadeHeight 不在这里：它由 createReflectionCulling 在构造时捕获，切档不会重算（默认是常量 0）。
+
+
   const qualityPreset = () => groundReflectionQuality(settings.resolution),
     usesReflectionBlur = () => blur ?? qualityPreset().blur,
     isDetailEnabled = () =>
@@ -316,8 +300,8 @@ export function createGroundReflections({
         objectIdByObject.get(targetObject))
       : 0;
   }
-  // 给几何体做一份「内容指纹」：它一变，反射通道就得重拍。这里逐个 attribute 记录
-  // 对象身份 + 版本号 + 顶点数，够用且便宜（不读 GPU、不哈希顶点数据）。
+
+
   function geometrySignature(mesh) {
     const meshGeometry = mesh.geometry;
     return [
@@ -325,8 +309,8 @@ export function createGroundReflections({
       getObjectId(meshGeometry.index),
       meshGeometry.index?.version,
       ...Object.entries(meshGeometry.attributes).flatMap(([attributeName, attribute]) => {
-        // THREE.BufferAttribute / InterleavedBufferAttribute：版本号在属性上，
-        // data.version 只有交错缓冲才有，所以分开取证。
+
+
         const signatureAttribute = attribute as {
           version?: number;
           data?: { version?: number };
@@ -849,7 +833,7 @@ export function createGroundReflections({
         (activeRecord.overlay.material.uniforms.strength.value =
           activeRecord.presentationBaseStrength * presentationGain));
     }
-    // 这里不再判 mode === "off"：函数开头已经因为该模式提前 return 了。
+
     if (!activeRecords.length) return;
     const frameStartMs = performance.now(),
       cameraSignature =
@@ -1285,7 +1269,7 @@ export function createGroundReflections({
         disposeAllRecords(),
         blurMesh.geometry.dispose(),
         blurMaterial.dispose());
-      // 折射克隆由 resolver 的内部缓存托管：这里一次性释放，避免逐个 WeakMap 反查。
+
       disposeMaterialClones();
       (floorChangeCountByFloorId.clear(), heightByFloorId.clear(), lightsByFloorId.clear());
     },

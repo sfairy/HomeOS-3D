@@ -11,10 +11,8 @@ class _Camel(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="ignore", allow_inf_nan=False)
 
 
-# 账号
 class VerificationRequest(_Camel):
     email: str = Field(min_length=3, max_length=255)
-    #: register / reset 无需登录；verify / change_email 必须带登录态
     purpose: str = Field(
         default="register", pattern="^(register|reset|verify|change_email)$"
     )
@@ -65,14 +63,12 @@ class PasswordResetRequest(_Camel):
     confirm_password: str = Field(default="", alias="confirmPassword", max_length=128)
 
 
-# 站点配置里的「发货邮件」开关由 admin_settings 的字段映射直接写入，无需单独模型。
 class LabelRequest(_Camel):
     label: str | None = Field(default=None, max_length=50)
 
 
 class ReleaseDeviceRequest(_Camel):
     password: str = Field(min_length=1, max_length=128)
-    #: 乐观锁：前端打开「解除绑定」弹窗时记下当时的绑定快照，提交时回传；期间授权可能
     expected_binding_id: str | None = Field(default=None, alias="expectedBindingId", max_length=64)
     expected_activated_at: datetime | None = Field(default=None, alias="expectedActivatedAt")
     expected_binding_version: str | None = Field(
@@ -80,22 +76,17 @@ class ReleaseDeviceRequest(_Camel):
     )
 
 
-# 订单
 class CreateOrderRequest(_Camel):
     product_id: str = Field(alias="productId", min_length=1, max_length=64)
     coupon_code: str | None = Field(default=None, alias="couponCode", max_length=64)
-    #: 增量包需要指定要追加到哪一份授权（授权主键 ``License.id``）。
     target_license_id: str | None = Field(
         default=None,
         alias="targetLicenseId",
         max_length=64,
     )
-    #: 「试用授权升级为永久」的既有授权：命中时不再另发新码，而是就地升级这张授权。
     upgrade_license_id: str | None = Field(
         default=None, alias="upgradeLicenseId", max_length=64
     )
-    #: 顾客在收银台选的支付渠道（``alipay`` / ``wechat``）。留空＝用默认渠道。
-    #: 服务端会校验它确实在**已启用**清单里 —— 不能凭这个字段绕开运营的开关。
     payment_channel: str | None = Field(
         default=None, alias="paymentChannel", max_length=32
     )
@@ -106,14 +97,12 @@ class CouponPreviewRequest(_Camel):
     coupon_code: str = Field(alias="couponCode", min_length=1, max_length=64)
 
 
-# 邀请
 class WithdrawalRequest(_Camel):
     points: float = Field(gt=0)
     request_key: str = Field(alias="requestKey", min_length=8, max_length=64)
     expected_fee_percent: float | None = Field(default=None, alias="expectedFeePercent")
 
 
-# 管理后台
 class _AdminBase(BaseModel):
     """后台请求体基类：**未知字段直接报 422**。
     """
@@ -203,7 +192,6 @@ class AdminSettingsRequest(_AdminBase):
     description: str | None = Field(default=None, max_length=512)
     announcement: str | None = None
     support_email: str | None = Field(default=None, alias="supportEmail", max_length=255)
-    #: 品牌标识；留空则回落到系统默认的 homeos-mark.svg
     logo_url: str | None = Field(default=None, alias="logoUrl", max_length=512)
     deploy_base_url: str | None = Field(default=None, alias="deployBaseUrl", max_length=512)
     maintenance_mode: bool | None = Field(default=None, alias="maintenanceMode")
@@ -224,7 +212,6 @@ class AdminSettingsRequest(_AdminBase):
     device_release_cooldown_seconds: int | None = Field(
         default=None, alias="deviceReleaseCooldownSeconds", ge=0
     )
-    # ---- 支付宝凭据（后台可改，免重启） ---------------------------------- #
     alipay_app_id: str | None = Field(default=None, alias="alipayAppId", max_length=64)
     alipay_seller_id: str | None = Field(default=None, alias="alipaySellerId", max_length=64)
     alipay_app_private_key: str | None = Field(
@@ -243,25 +230,16 @@ class AdminSettingsRequest(_AdminBase):
         default=None, alias="alipayReturnUrl", max_length=512
     )
 
-    # ---- 启用的支付渠道（后台可改） --------------------------------------- #
-    #: 数组，如 ["alipay", "wechat"]。空数组 = 跟随单渠道时代的 payment_provider。
-    #: 服务端逐个核对是受支持的渠道 —— 一个请求字段不能让运营启用一个不存在的渠道。
     payment_channels: list[str] | None = Field(default=None, alias="paymentChannels")
 
-    # ---- 微信支付凭据（后台可改，免重启） -------------------------------- #
-    #: 与支付宝同一套「留空即跟随环境变量」口径。
     wechat_mch_id: str | None = Field(default=None, alias="wechatMchId", max_length=64)
     wechat_app_id: str | None = Field(default=None, alias="wechatAppId", max_length=64)
     wechat_merchant_serial_no: str | None = Field(
         default=None, alias="wechatMerchantSerialNo", max_length=64
     )
-    #: APIv3 密钥：恰好 32 字符。长度**不**在 schema 上限制成 32，好让保存时的报错
-    #: 说清「必须是 32 个字符」，而不是一句「长度不符」；上限与列宽对齐
-    #: （core/models_engagement.py 的 wechat_api_v3_key 是 String(64)）。
     wechat_api_v3_key: str | None = Field(
         default=None, alias="wechatApiV3Key", max_length=64
     )
-    #: PEM 最长，给足 8192（与支付宝那两个密钥一致）。
     wechat_merchant_private_key: str | None = Field(
         default=None, alias="wechatMerchantPrivateKey", max_length=8192
     )
@@ -278,15 +256,11 @@ class AdminSettingsRequest(_AdminBase):
         default=None, alias="wechatNotifyUrl", max_length=512
     )
 
-    # ---- 注册邮箱验证码（后台可改，免重启） ------------------------------ #
-    #: 与支付宝凭据同一套「留空即跟随环境变量」口径。
     mail_mode: str | None = Field(default=None, alias="mailMode", max_length=16)
     mail_from: str | None = Field(default=None, alias="mailFrom", max_length=255)
     smtp_host: str | None = Field(default=None, alias="smtpHost", max_length=255)
-    #: 0 = 跟随环境变量 / 该加密方式的标准端口
     smtp_port: int | None = Field(default=None, alias="smtpPort", ge=0, le=65535)
     smtp_username: str | None = Field(default=None, alias="smtpUsername", max_length=255)
-    #: 留空 = 不改动；传空串 = 清空（跟随环境变量）；传打码值 = 不改动
     smtp_password: str | None = Field(default=None, alias="smtpPassword", max_length=512)
     smtp_security: str | None = Field(
         default=None, alias="smtpSecurity", max_length=16
@@ -297,11 +271,9 @@ class AdminSettingsRequest(_AdminBase):
     verification_cooldown_seconds: int | None = Field(
         default=None, alias="verificationCooldownSeconds", ge=0, le=3600
     )
-    #: 0 = 跟随环境变量；其余取值 1 ~ 100000（与 config.py / admin_settings 校验一致）
     verification_global_hourly_limit: int | None = Field(
         default=None, alias="verificationGlobalHourlyLimit", ge=0, le=100_000
     )
-    #: 支付成功后是否把激活码邮件发给买家（纯布尔，无「跟随环境变量」态）
     delivery_email_enabled: bool | None = Field(
         default=None, alias="deliveryEmailEnabled"
     )

@@ -22,7 +22,6 @@ def _set_sqlite_pragma(dbapi_connection, _record) -> None:
     """逐连接设置：外键约束与写锁等待。
     """
     cursor = dbapi_connection.cursor()
-    # 打开外键约束：SQLite 默认不校验外键，删商品/订单时子表会留下孤儿行。
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_SECONDS * 1000}")
     cursor.close()

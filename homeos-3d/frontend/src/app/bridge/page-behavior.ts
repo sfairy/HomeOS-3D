@@ -1,12 +1,9 @@
-/**
- * 页面行为配置来自文档，键是行为名（interaction / autoRotate / …），取值由各行为自己解释，
- * 所以除少数已知键外统一走索引签名。
- */
+/** 页面行为配置来自文档，键是行为名（interaction / autoRotate / …），取值由各行为自己解释，所以除少数已知键外统一走索引签名。 */
 type PageBehaviorConfig = {
   behaviorScope?: string;
   pageBehaviors?: Record<string, Record<string, any>>;
   hideIconsWhileRotating?: unknown;
-  // 每种行为的取值形状不同，且会被原样展开进结果，因此这里不设约束。
+
   [behaviorName: string]: any;
 };
 export function resolvePageBehavior(behavior: PageBehaviorConfig = {}, pageKind = "light") {

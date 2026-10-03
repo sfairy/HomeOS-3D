@@ -1,6 +1,4 @@
-/**
- * 领域词表。
- */
+/** 领域词表。 */
 
 export const ORDER_TYPE: Record<string, string> = {
   base: '基础',
@@ -20,7 +18,7 @@ export const LICENSE_SOURCE: Record<string, string> = {
   manual: '手动签发',
 };
 
-// 商品类型：前台 store 用的口径是「全授权 / 自定义套餐 / 功能增量包」，
+
 export const PRODUCT_TYPE: Record<string, string> = {
   base: '基础授权',
   bundle: '全授权',

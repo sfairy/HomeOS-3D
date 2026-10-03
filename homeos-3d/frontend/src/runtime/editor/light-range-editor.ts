@@ -76,7 +76,7 @@ export function mountRegionRangeEditor(
     wake: wake = () => {},
     standalone: standalone = false,
   }: {
-    // 配置袋：字段由宿主模块（core/stage.ts 的 options）提供并随模块变化，这里只声明本文件真正读取的字段。
+
     getConfig?: () => {
       lights?: any[];
       floorSelection?: any;

@@ -15,22 +15,16 @@ from ..ops.release_info import CURRENT_VERSION
 
 SCENE_PLACEHOLDER = '<!--{{SCENE}}-->'
 
-#: 站点配色样式表的插入点。同一个道理用注释包起来。
 APPEARANCE_PLACEHOLDER = '<!--{{APPEARANCE}}-->'
 
-#: 配色样式表的公开路径。前后端都认这一个字符串，别在别处再拼一遍。
 APPEARANCE_PATH = '/store-appearance.css'
 
-#: 片段文件名。分发产物，与模板同目录。
 SCENE_TEMPLATE_NAME = '_scene.html'
 
-#: 片段里剩下的花括号占位符。填空不全会把 ``{{TITLE}}`` 直接印在用户脸上，
 _PLACEHOLDER_PATTERN = re.compile(r'\{\{([A-Z_]+)\}\}')
 
-#: 片段自带的说明注释，不进响应：里面写着 canonical 路径与占位符清单。
 _HTML_COMMENT_PATTERN = re.compile(r'<!--.*?-->', re.DOTALL)
 
-#: 两个插入点，以及「它被写进注释里」的后果。
 _COMMENT_TRAPS = (
     (SCENE_PLACEHOLDER, '整块场景会被塞进注释，页面上看不到场景'),
     (DECK_PLACEHOLDER, '整块状态甲板会被塞进注释，页面上看不到读数'),
@@ -58,7 +52,6 @@ def _assert_placeholders_are_real(text: str) -> None:
     for placeholder, consequence in _COMMENT_TRAPS:
         for match in re.finditer(re.escape(placeholder), text):
             offset = match.start()
-            # `start < offset` 而不是 `<=`：占位符本身是一条完整的注释，它的区间起点
             if any(start < offset < end for start, end in spans):
                 line = text.count('\n', 0, offset) + 1
                 raise RuntimeError(
@@ -99,7 +92,6 @@ def _dossier(*rows: tuple[str, str]) -> str:
     )
 
 
-#: 商店三份模板的左栏口径，按模板文件名取（与主应用的 ``SCENE_VALUES_BY_PAGE`` 同构）。
 _SCENE_SHARED = {
     'SHELL_TITLE': 'HomeOS 授权服务中心',
     'SHELL_NAME': '授权中心',
@@ -207,7 +199,6 @@ def inject_scene(
     _assert_placeholders_are_real(text)
     page = page_of(request)
     if SCENE_PLACEHOLDER in text:
-        # 场景是**按页**填的（见 SCENE_VALUES_BY_PAGE）：先取页面名，填错页比少填更隐蔽 ——
         settings = request.app.state.settings
         text = text.replace(
             SCENE_PLACEHOLDER, scene_markup(settings.templates_dir, CURRENT_VERSION, page)
@@ -224,13 +215,11 @@ def inject_scene(
                 '调用 inject_scene 时请把 session 传进来'
             )
         indent = _deck_gutter(text)
-        # 替换键带上插入点前面那段缩进：单换占位符的话，它自己的缩进会留在原地，
         text = text.replace(
             indent + DECK_PLACEHOLDER,
             deck_markup(deck_tiles(page, session = session, request = request), indent = indent),
         )
     elif page and has_deck(page):
-        # 反向的漏法：这一页登记了读数，模板里却没有插入点。甲板会整块消失，
         raise RuntimeError(
             f'{page} 登记了状态甲板读数，模板里却没有 {DECK_PLACEHOLDER} 占位符；'
             '要么补上插入点，要么从 telemetry.DECK_PAGES 里移除这一页'
@@ -238,7 +227,6 @@ def inject_scene(
     return text
 
 
-#: 当前请求渲染的是哪一份模板。商店的前台是「一份 HTML 服务所有路由」，
 PAGE_STATE_ATTR = 'store_shell_page'
 
 

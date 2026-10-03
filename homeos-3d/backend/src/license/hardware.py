@@ -23,9 +23,6 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-# 各家主板 / 虚拟机固件写死的默认值或占位文案；这些值在大量机器上重复出现，
-# 一旦被当成真实标识用于绑定，任意同型号设备都能顶替。条目均已小写，
-# 因为 _clean 会先把原始值转成小写再比对。
 INVALID_IDENTIFIERS = {
     '',
     'none',
@@ -49,26 +46,19 @@ class HardwareIdentity:
 
 
 def _clean(value: str) -> str:
-    # [补充说明] 归一化原始标识：压缩内部空白、去首尾、转小写；占位值统一清成空串。
-    # 先压缩内部空白：DMI 里常见 'To Be Filled By O.E.M.' 与多空格变体，
-    # 规范化后再比对黑名单才能命中。
     normalized = ' '.join(value.strip().split()).lower()
     return '' if normalized in INVALID_IDENTIFIERS else normalized
 
 
 def _read(path: str) -> str:
-    # [补充说明] 读取文本文件并归一化；读不到（权限不足、路径不存在）一律返回空串。
     try:
-        # errors='ignore'：DMI 数据可能是非 UTF-8 字节，宁可有损也不能让整个识别流程失败。
         return _clean(Path(path).read_text(encoding='utf-8', errors='ignore'))
     except OSError:
         return ''
 
 
 def _command(*command: str) -> str:
-    # [补充说明] 执行外部命令并返回 stdout；命令不存在、非零退出或超时都返回空串。
     try:
-        # 3 秒超时：ioreg 这类命令在某些异常机器上会卡住，不能让启动流程被拖死。
         result = subprocess.run(command, check=True, capture_output=True, text=True, timeout=3)
     except (OSError, subprocess.SubprocessError):
         return ''
@@ -76,21 +66,15 @@ def _command(*command: str) -> str:
 
 
 def _machine_identity(override: str = '') -> str:
-    # [补充说明] 取机器标识：优先显式覆盖，再按「容器内 -> 宿主机」顺序找 machine-id。
-    # 显式覆盖（配置/环境变量）优先级最高，方便测试与特殊部署。
     if _clean(override):
         return _clean(override)
-    # /host/etc/machine-id 放最前：容器内的路径会随镜像重建变化，
-    # 挂载进来的宿主机文件才是跨升级稳定的来源。
     for path in ('/host/etc/machine-id', '/etc/machine-id', '/var/lib/dbus/machine-id'):
         value = _read(path)
         if not value:
             continue
         return value
-    # macOS 没有 machine-id，退回 ioreg 里的 IOPlatformUUID（相当于硬件 UUID）。
     if platform.system() == 'Darwin':
         ioreg = _command('/usr/sbin/ioreg', '-rd1', '-c', 'IOPlatformExpertDevice')
-        # 在 ioreg 输出里抓引号包裹的值；值里可能含空格，因此不能简单按空白切分。
         match = re.search('"IOPlatformUUID"\\s*=\\s*"([^"\\n]+)', ioreg)
         if match:
             return _clean(match.group(1))
@@ -98,15 +82,9 @@ def _machine_identity(override: str = '') -> str:
 
 
 def _board_identity(override: str = '') -> str:
-    # [补充说明] 取主板标识：把可用的 DMI 字段全部收集起来，排序去重后拼成一个字符串。
-    #
-    # 之所以用「多字段聚合」而不是只取 board_serial：不少机器上单个字段缺失，
-    # 或者写的是占位值；聚合能显著提高「同一台机器在不同发行版/内核下得出相同结果」
-    # 的概率，进而避免把老设备误判成新安装。
     if _clean(override):
         return _clean(override)
     values = [
-        # /host/ 版本在前、容器内版本在后：两者都在时优先用宿主机（更稳定）。
         _read('/host/sys/class/dmi/id/board_serial'),
         _read('/host/sys/class/dmi/id/product_uuid'),
         _read('/host/sys/class/dmi/id/board_name'),
@@ -115,7 +93,6 @@ def _board_identity(override: str = '') -> str:
         _read('/sys/class/dmi/id/product_uuid'),
         _read('/sys/class/dmi/id/board_name'),
         _read('/sys/class/dmi/id/board_vendor')]
-    # macOS：用主板 ID 与序列号等字段补进同一个聚合串。
     if platform.system() == 'Darwin':
         ioreg = _command('/usr/sbin/ioreg', '-rd1', '-c', 'IOPlatformExpertDevice')
         for key in ('board-id', 'mlb-serial-number', 'IOPlatformSerialNumber', 'serial-number'):
@@ -123,20 +100,15 @@ def _board_identity(override: str = '') -> str:
             if not match:
                 continue
             values.append(_clean(match.group(1)))
-    # 排序去重保证有确定顺序：DMI 的读取顺序在不同内核上并不保证一致，
-    # 不排序会让同一台机器得到不同 ID，从而被误判为新安装。
     return '|'.join(sorted({value for value in values if value}))
 
 
-# 虚拟/临时网卡名前缀：它们在容器重建后会变，不能进宿主封印。
 _VIRTUAL_NET_PREFIXES = (
     'lo', 'docker', 'br-', 'veth', 'virbr', 'tun', 'tap', 'fw', 'awdl', 'llw', 'utun', 'bridge',
 )
 
 
 def _network_identity() -> str:
-    # [补充说明] 本机网卡 MAC 聚合（排除虚拟网卡）；MAC 不在 APP_DATA_DIR 内，
-    # 整盘拷贝 data/ 带不走，因此可用作「这台机器」的旁证。
     macs: set[str] = set()
     sys_net = Path('/sys/class/net')
     if sys_net.is_dir():
@@ -144,7 +116,6 @@ def _network_identity() -> str:
             name = entry.name.lower()
             if name == 'lo' or any(name.startswith(prefix) for prefix in _VIRTUAL_NET_PREFIXES):
                 continue
-            # 没有 device 软链的多半是虚拟接口，跳过。
             if not (entry / 'device').exists():
                 continue
             mac = _read(str(entry / 'address'))
@@ -171,7 +142,6 @@ def _network_identity() -> str:
 
 
 def _host_binding_seal(machine: str, board: str) -> str:
-    # [补充说明] 本机宿主封印：只含 data/ 之外的信号，用于校验兜底文件是否被拷到别的机器。
     parts = [
         f'machine={machine}',
         f'board={board}',
@@ -184,7 +154,6 @@ def _host_binding_seal(machine: str, board: str) -> str:
 
 
 def _write_private_text(path: Path, content: str) -> None:
-    # [补充说明] 以 0600 权限原子写入文本文件。
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     temporary = path.with_name(f'.{path.name}.{secrets.token_hex(8)}.tmp')
     descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -194,7 +163,6 @@ def _write_private_text(path: Path, content: str) -> None:
         os.replace(temporary, path)
         os.chmod(path, 0o600)
     finally:
-        # 临时文件已被 os.replace 带走（或压根没建），这里再删只会 FileNotFound，属预期。
         try:
             temporary.unlink()
         except FileNotFoundError:
@@ -202,17 +170,6 @@ def _write_private_text(path: Path, content: str) -> None:
 
 
 def _persistent_fallback_identity(path: Path, host_seal: str) -> str:
-    # [补充说明] 兜底熵：硬件字段不全时生成随机秘密，并用本机宿主封印绑定。
-    #
-    # 参数:
-    # path: 存放兜底文件的路径（位于 data/ 内）。
-    # host_seal: 本机宿主封印；为空表示拿不到宿主信号，此时宁可直接失败，
-    # 也不能写出一个「拷走 data/ 就能复用」的可拷贝身份。
-    # 返回:
-    # 32 字节十六进制随机串。
-    # 异常:
-    # RuntimeError: 宿主封印不可用。
-    # OSError: 文件系统不可写，无法创建兜底标识。
     if not host_seal:
         raise RuntimeError('无法计算本机宿主封印，拒绝使用可拷贝的兜底设备标识。')
 
@@ -233,7 +190,6 @@ def _persistent_fallback_identity(path: Path, host_seal: str) -> str:
                 secret = _clean(str(payload.get('secret') or ''))
                 stored_seal = _clean(str(payload.get('host_seal') or ''))
 
-    # 秘密与封印都齐、长度对得上且封印一致才沿用；否则视为「换机 / 旧格式」轮换。
     if (
         secret
         and stored_seal
@@ -243,7 +199,6 @@ def _persistent_fallback_identity(path: Path, host_seal: str) -> str:
     ):
         return secret
 
-    # 封印不匹配、格式非法或旧版无封印文件：轮换秘密。
     secret = secrets.token_hex(32)
     _write_private_text(
         path,
@@ -270,33 +225,19 @@ def hardware_identity(*, machine_override: str = '', board_override: str = '', r
             fallback = _persistent_fallback_identity(fallback_path, host_seal)
         except OSError as error:
             raise RuntimeError('无法读取完整硬件 ID，也无法创建持久化兜底设备标识。') from error
-        # 只要缺一项就补齐：两项缺口共用同一个兜底值，保证 instance_id 至少唯一。
         if not machine:
             machine = f'fallback-machine:{fallback}'
         if not board:
             board = f'fallback-board:{fallback}'
         used_fallback = True
-        # 把 data/ 外的宿主信号编进材料：即使有人手工改封印文件，只要宿主不同，ID 仍变。
         host_extra = host_seal
     if required and (not machine or not board):
-        # 走到这里至少缺一项：machine 有值说明缺的是主板，否则报告机器缺失。
-        # 这是兜底路径不可用时的最后一道门禁 —— 宁可启动失败，
-        # 也不能拿空标识去建立绑定（那会让所有设备共享同一个身份）。
         missing = '主板' if machine else '机器'
         raise RuntimeError(f'无法读取{missing} ID，不能建立硬件绑定授权。')
-    # required=False（开发/测试）时用主机名兜底：保证本地跑得通，
-    # 但这类值不具备绑定意义，绝不能出现在生产配置里。
     if not machine:
         machine = f'development-machine:{platform.node()}'
     if not board:
         board = f'development-board:{platform.node()}'
-    # \x00 分隔 + 带版本前缀：避免字段拼接产生歧义碰撞（如 machine='a\x00board=b' 之类的组合），
-    # 前缀一旦变更就等于让所有旧 ID 失效（全部安装被判定「换设备」，需要重新激活）。
-    # 当前前缀是 homeos-*：这是 HomeOS 品牌化后**有意**采用的新前缀，与更早的
-    # 0.6.x（hardware-v1）不兼容 —— 作为全新版本不做迁移，旧机器升级后落到
-    # INSTANCE_CHANGED 引导重新激活；若商店后台还绑着旧实例，激活会收到 409，
-    # 由服务端确认后再引导用户去解绑，而不是本机凭残留记录就断言需要解绑。
-    # 走兜底时升级到 v2：材料里额外带上宿主封印，data/ 被拷到别的机器会算出不同 ID。
     if used_fallback:
         material = (
             f'homeos-hardware-v2\x00machine={machine}\x00board={board}\x00host={host_extra}'
@@ -304,9 +245,7 @@ def hardware_identity(*, machine_override: str = '', board_override: str = '', r
     else:
         material = f'homeos-hardware-v1\x00machine={machine}\x00board={board}'.encode()
     return HardwareIdentity(
-        # 组合哈希：机器或主板任一变化都会改变实例 ID，从而触发重新绑定。
         instance_id=hashlib.sha256(material).hexdigest(),
-        # 两类标识各自单独哈希，仅用于诊断定位，不参与门禁判定。
         machine_id=hashlib.sha256(f'homeos-machine-v1\x00{machine}'.encode()).hexdigest(),
         board_id=hashlib.sha256(f'homeos-board-v1\x00{board}'.encode()).hexdigest())
 
