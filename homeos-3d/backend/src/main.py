@@ -46,7 +46,7 @@ from .global_log import GlobalLogStore, _safe_text, event_context
 from .ha.service import HAConnectorService
 from .license import LicenseService
 from .migrations import restore_upgrade_backup, run_migrations
-from .models import DisplayDevice, LoginSession, User
+from .models import DisplayDevice, LoginSession, Project, User
 from .modules.interaction3d.api import router as interaction3d_router
 from .security import session_token_hash, set_display_cookie
 from .updates import UpdateChecker
@@ -545,6 +545,29 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         device = active_display(request, project_id)
         if not signed_in(request) and (device is None or device.project_id != project_id):
             return pairing_redirect(request)
+        if not request.app.state.license_service.allows('display'):
+            return FileResponse(app_settings.frontend_dir / 'license-recovery.html')
+        response = FileResponse(app_settings.frontend_dir / 'display.html')
+        if device is not None and session_token_hash(request.cookies.get(app_settings.display_cookie_name, '')) == device.token_hash:
+            set_display_cookie(response, app_settings, request.cookies[app_settings.display_cookie_name])
+        return response
+
+    @app.get('/homeos/{project_name:path}', include_in_schema = False)
+    def named_display_page(project_name: str, request: Request):
+        # 按仪表盘名称打开的展示页：地址简洁、可手抄/做书签，是编辑器「中控地址」用的形态。
+        # 与 /display/{project_id} 同一套鉴权，区别只是用名字而不是主键定位项目。
+        if not initialized(request):
+            return RedirectResponse('/setup', status_code = 303)
+        with request.app.state.database.session_factory() as database:
+            project = database.scalar(select(Project).where(Project.name == project_name))
+        if project is None:
+            if not signed_in(request) and active_display(request) is None:
+                return pairing_redirect(request)
+            raise HTTPException(status_code = 404, detail = '仪表盘不存在。')
+        device = active_display(request, project.id)
+        # 设备只能看自己绑定的项目；管理员会话不受此项限制。
+        if not signed_in(request) and (device is None or device.project_id != project.id):
+            return pairing_redirect(request, project.id)
         if not request.app.state.license_service.allows('display'):
             return FileResponse(app_settings.frontend_dir / 'license-recovery.html')
         response = FileResponse(app_settings.frontend_dir / 'display.html')

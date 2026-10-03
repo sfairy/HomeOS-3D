@@ -573,10 +573,13 @@ def validate_config(properties: dict) -> None:
             fail()
         if 'fadeDuration' in light and not number(light['fadeDuration'], 0, 10):
             fail()
+        # 默认灯光效果：亮度与色温（K），不填表示不做预设。
+        # 上限放宽到 150 是为了兼容历史草稿（早期版本存过 150，前端 LIGHT_EFFECT_DEFAULTS 也是 150）；
+        # 收紧到 100 会让含这些灯光的控件在保存时整份 422，读入侧不放大、渲染侧按 100 封顶即可。
         if 'effectDefaults' in light:
             defaults = light['effectDefaults']
             bounds = {
-                'brightness': (0, 100),
+                'brightness': (0, 150),
                 'kelvin': (1000, 20000)}
             if not isinstance(defaults, dict) or set(defaults) - set(bounds) or any(not number(value, *bounds[key]) for key, value in defaults.items()):
                 fail()
@@ -870,7 +873,10 @@ def validate_config(properties: dict) -> None:
             'tvocEntityId',
             'aqiEntityId',
             'illuminanceEntityId',
-            'batteryEntityId'}
+            'batteryEntityId',
+            # 环境信息框尺寸默认值的一次性迁移标记（旧版前端写入，现行前端已不再写）。
+            # 字段本身已无读写方，但现存草稿里仍带着它：白名单里删掉会让这些控件保存时整份 422。
+            'sizingVersion'}
         if not isinstance(item, dict) or set(item) - fields or not all(text(item.get(key, '')) for key in ('id', 'floorId', 'label')):
             fail()
         if not item.get('id') or not item.get('floorId') or item['id'] in sensor_ids:
@@ -894,6 +900,9 @@ def validate_config(properties: dict) -> None:
         if 'columns' in item and (type(item['columns']) is not int or not 0 <= item['columns'] <= 4):
             fail()
         if 'opacity' in item and not number(item['opacity'], 0, 1):
+            fail()
+        # sizingVersion 只要求正整数，不枚举具体版本：前端再加档默认值不必连带发后端。
+        if 'sizingVersion' in item and (type(item['sizingVersion']) is not int or not 1 <= item['sizingVersion'] <= 1000):
             fail()
     groups = environment.get('curtainGroups', [])
     if not isinstance(groups, list):
