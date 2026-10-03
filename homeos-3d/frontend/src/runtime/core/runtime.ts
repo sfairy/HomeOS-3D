@@ -361,6 +361,7 @@ export function mountInteraction3d(
     hasBeenConnected = false,
     hasLoadFailed = false,
     reloadGeneration = 0,
+    isNavigationEditing = false,
     isRangeEditing = false;
   const pendingEditsByRequestId = new Map(),
     pendingRangeRequestsByRequestId = new Map(),
@@ -394,6 +395,7 @@ export function mountInteraction3d(
         !isEditing &&
         !isViewEditing &&
         !isRangeEditing &&
+        !isNavigationEditing &&
         (frameElement.style.pointerEvents = "none"),
       frameElement
     );
@@ -428,7 +430,7 @@ export function mountInteraction3d(
       runtimeContext.editable &&
         !isEditing &&
         (stageFrameElement.style.pointerEvents =
-          nextRangeEditing || isViewEditing ? "auto" : "none"),
+          nextRangeEditing || isViewEditing || isNavigationEditing ? "auto" : "none"),
       notifyEditSubscribers({
         action: "range-editor-state",
         active: nextRangeEditing,
@@ -437,6 +439,22 @@ export function mountInteraction3d(
               error: errorMessage,
             }
           : {}),
+      }));
+  }
+  // 导航位置调整态：编辑器画布里专门用来拖分类栏 / 楼层栏。状态真的变了才广播。
+  function setNavigationEditingState(requestedActive) {
+    const nextNavigationEditing = requestedActive === true;
+    nextNavigationEditing === isNavigationEditing ||
+      ((isNavigationEditing = nextNavigationEditing),
+      hostElement.classList.toggle("is-navigation-editing", nextNavigationEditing),
+      runtimeContext.editable &&
+        !isEditing &&
+        (stageFrameElement.style.pointerEvents =
+          nextNavigationEditing || isViewEditing || isRangeEditing ? "auto" : "none"),
+      sendConfigUpdate(),
+      notifyEditSubscribers({
+        action: "navigation-editing-state",
+        active: nextNavigationEditing,
       }));
   }
   let hasPresentedStage = false,
@@ -1059,6 +1077,7 @@ export function mountInteraction3d(
         editingVacuumId: editingVacuumId,
         rangeEditorOnly: isRangeEditorOnly,
         viewEditing: isViewEditing,
+        navigationEditing: isNavigationEditing,
         editorCanvas: !!runtimeContext.editable && !isEditing,
         allowRangeEditing: isAuthorized && (isEditing || !!runtimeContext.editable),
         interactive: !isEditing && !runtimeContext.editable,
@@ -1557,6 +1576,17 @@ export function mountInteraction3d(
       notifyEditSubscribers(stageMessage);
     }
     if (
+      stageMessage.type === "edit" &&
+      stageMessage.action === "navigation-position" &&
+      !isEditing &&
+      runtimeContext.editable &&
+      isAuthorized &&
+      isScenePresented
+    ) {
+      // 编辑器画布里的导航拖拽回写：这里不是设备编辑态，单独广播给属性面板。
+      notifyEditSubscribers(stageMessage);
+    }
+    if (
       stageMessage.type === "control" &&
       isAuthorized &&
       isScenePresented &&
@@ -1800,6 +1830,8 @@ export function mountInteraction3d(
           editSubscribersSet.clear(),
           (isRangeEditing = false),
           hostElement.classList.remove("is-range-editing"),
+          (isNavigationEditing = false),
+          hostElement.classList.remove("is-navigation-editing"),
           (isDisposed = true),
           clearTimeout(loadingTimeoutId),
           cancelAnimationFrame(initialLayoutFrameId),
@@ -1922,6 +1954,10 @@ export function mountInteraction3d(
             defaultCamera),
           hostElement.classList.remove("is-view-editing"),
           (stageFrameElement.style.pointerEvents = "none")),
+        // 换户型后原来的页面结构没了，导航位置调整态必须退出。
+        isNavigationEditing &&
+          previousSceneId !== componentProperties.sceneId &&
+          setNavigationEditingState(false),
         previousSceneId !== componentProperties.sceneId ||
         previousLightingMode !== normalizeLightingMode(componentProperties.lightingMode)
           ? reloadStageFrame(
@@ -2105,6 +2141,9 @@ export function mountInteraction3d(
     Object.defineProperty(runtimeHandle, "viewEditing", {
       get: () => isViewEditing,
     }),
+    Object.defineProperty(runtimeHandle, "navigationEditing", {
+      get: () => isNavigationEditing,
+    }),
     Object.defineProperty(runtimeHandle, "viewCamera", {
       get: () => activeCamera,
     }),
@@ -2118,6 +2157,8 @@ export function mountInteraction3d(
       (nextViewEditing &&
         (isRangeEditing || pendingRangeRequestsByRequestId.size) &&
         runtimeHandle.closeRangeEditor(),
+        // 视角调整要独占指针：两个模式同时开着，转视角会和拖页签改位置互相抢事件。
+        nextViewEditing && isNavigationEditing && setNavigationEditingState(false),
         (isViewEditing = nextViewEditing === true),
         isViewEditing ||
           (activeCamera =
@@ -2125,8 +2166,23 @@ export function mountInteraction3d(
             componentProperties.camera ||
             defaultCamera),
         hostElement.classList.toggle("is-view-editing", isViewEditing),
-        (stageFrameElement.style.pointerEvents = isViewEditing || isRangeEditing ? "auto" : "none"),
+        (stageFrameElement.style.pointerEvents =
+          isViewEditing || isRangeEditing || isNavigationEditing ? "auto" : "none"),
         sendConfigUpdate());
+    }),
+    // 进入 / 退出「导航位置调整」：编辑器画布里的专门模式（属性面板的按钮开关）。
+    (runtimeHandle.setNavigationEditing = (nextNavigationEditing) => {
+      const isNavigationEditingEnabled = nextNavigationEditing === true;
+      if (
+        isNavigationEditingEnabled &&
+        (!runtimeContext.editable || isEditing || isDisposed)
+      )
+        throw new Error("请在仪表盘编辑器里调整导航位置。");
+      if (isNavigationEditingEnabled && !isScenePresented)
+        throw new Error("3D 画面还在加载，请稍候再调整导航位置。");
+      if (isNavigationEditingEnabled && (isViewEditing || isRangeEditing))
+        throw new Error("请先结束视角调整或照射范围编辑，再调整导航位置。");
+      setNavigationEditingState(isNavigationEditingEnabled);
     }),
     (runtimeHandle.viewCommand = (viewCommandName, viewCommandValue = undefined) =>
       new Promise((viewResolve, viewReject) => {

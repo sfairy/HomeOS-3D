@@ -242,6 +242,7 @@ export function mountStage(mountOptions) {
     selectedFloorId = "",
     isControlBusy = false,
     isNavigationVisible = false,
+    navigationEditing = false,
     num = 0,
     activePointerDrag = null,
     activeCameraPose = null,
@@ -499,7 +500,14 @@ export function mountStage(mountOptions) {
     ((moduleTabButton.type = "button"),
       (moduleTabButton.dataset.module = moduleKind),
       moduleTabButton.style.setProperty("--i3d-tab-index", String(moduleTabsByKind.size)),
-      moduleTabButton.addEventListener("click", () => selectModule(moduleKind)),
+      // 调整导航位置时拖完整条轨道会紧跟一个 click，别让它顺手切了模块（见 bindNavigationDrag）。
+      moduleTabButton.addEventListener("click", () => {
+        if (moduleTabsElement.dataset.dragged === "true") {
+          moduleTabsElement.dataset.dragged = "";
+          return;
+        }
+        selectModule(moduleKind);
+      }),
       moduleTabsElement.append(moduleTabButton),
       moduleTabsByKind.set(moduleKind, moduleTabButton));
   }
@@ -2587,7 +2595,14 @@ export function mountStage(mountOptions) {
           (floorTabButton.dataset.floor = floorChoiceKey),
           (floorTabButton.title = floorChoiceTitle),
           floorTabButton.setAttribute("aria-label", floorChoiceTitle),
-          floorTabButton.addEventListener("click", () => selectFloor(floorChoiceKey)),
+          // 同上：拖完楼层栏紧跟的 click 只用来清标记。
+          floorTabButton.addEventListener("click", () => {
+            if (floorTabsElement.dataset.dragged === "true") {
+              floorTabsElement.dataset.dragged = "";
+              return;
+            }
+            selectFloor(floorChoiceKey);
+          }),
           floorTabsElement.append(floorTabButton));
       }
     }
@@ -3107,6 +3122,13 @@ export function mountStage(mountOptions) {
     }
     const fallbackBindings = collectModuleBindings().filter(matchesSelectedFloor);
     syncFloorTabs();
+    // 导航位置调整态：只有编辑器画布才允许直接拖分类栏 / 楼层栏改位置。
+    const isNavigationDraggable = navigationEditing && isNavigationVisible;
+    (moduleTabsElement.classList.toggle("is-navigation-draggable", isNavigationDraggable),
+      floorTabsElement.classList.toggle("is-navigation-draggable", isNavigationDraggable),
+      !isNavigationDraggable &&
+        (moduleTabsElement.classList.remove("is-navigation-dragging"),
+        floorTabsElement.classList.remove("is-navigation-dragging")));
     const isAllFloorsSelected = selectedFloorId === "all";
     toggleModuleTabs(
       !isNavigationVisible &&
@@ -3718,6 +3740,138 @@ export function mountStage(mountOptions) {
         ((focusInset = computeFocusInset()), mountOptions.setFocusViewport(focusInset)),
       renderMarkerPositions(true));
   }
+  // 拖动导航栏改位置的触发阈值（屏幕像素）：小于它按点选处理，不当成拖动。
+  const NAVIGATION_DRAG_THRESHOLD = 4;
+  /**
+   * 让分类栏 / 楼层栏可以被拖动改位置 —— 只在「导航位置调整态」生效。
+   * @param {HTMLElement} dragElement 接收指针的元素：分类栏整条轨道 / 楼层栏整列。
+   * @param {"categories"|"floors"} navigationKey 写回配置里的哪一条导航。
+   * @param {[number, number]} fallbackPosition 配置缺省时的兜底中心点百分比，与布局取法一致。
+   */
+  function bindNavigationDrag(dragElement, navigationKey, fallbackPosition) {
+    // 一次拖动一个状态对象；为 null 说明当前没在拖。
+    let navigationDrag = null;
+    // 读当前生效的中心点百分比：缺省或越界回落兜底位置，夹取口径与布局一致。
+    const readOffsetPercent = (axisName) => {
+      const configuredPercent = options.navigation?.[navigationKey]?.[axisName];
+      return Number.isFinite(configuredPercent)
+        ? Math.max(0, Math.min(100, configuredPercent))
+        : fallbackPosition[axisName === "x" ? 0 : 1];
+    };
+    // 只覆盖这一条导航的 x / y，同级的 scale、followOffset 等字段原样保留。
+    const writeOffsetPercent = (percentX, percentY) => {
+      options = {
+        ...options,
+        navigation: {
+          ...(options.navigation || {}),
+          [navigationKey]: {
+            ...(options.navigation?.[navigationKey] || {}),
+            x: Math.round(percentX * 100) / 100,
+            y: Math.round(percentY * 100) / 100,
+          },
+        },
+      };
+    };
+    const stopNavigationDrag = () => {
+      if (!navigationDrag) return;
+      navigationDrag = null;
+      dragElement.classList.remove("is-navigation-dragging");
+    };
+    dragElement.addEventListener("pointerdown", (dragStartEvent) => {
+      // 只有调整态、主指针、左键才拖；拖动期间导航整条轨道先按住谁都能拖。
+      if (!navigationEditing || dragStartEvent.button !== 0 || dragStartEvent.isPrimary === false)
+        return;
+      // 同 id 的按下还在拖动中才忽略；上一次拖动的 pointerup 若没送达（元素被替换等），
+      // 这里靠引用判等把旧状态清掉。
+      if (navigationDrag?.pointerId === dragStartEvent.pointerId) return;
+      const containerRect = element.getBoundingClientRect();
+      if (!(containerRect.width > 0) || !(containerRect.height > 0)) return;
+      // 上一次拖动若在页签外松手，click 不会到来，标记会一直留着吃掉后面的点击：这里先清一次。
+      dragElement.dataset.dragged = "";
+      dragStartEvent.preventDefault();
+      // 拦在这里：画布自己的 pointerdown 会记下指针并驱动背景视差，拖页签时不需要它。
+      dragStartEvent.stopPropagation();
+      navigationDrag = {
+        pointerId: dragStartEvent.pointerId,
+        clientX: dragStartEvent.clientX,
+        clientY: dragStartEvent.clientY,
+        startPercentX: readOffsetPercent("x"),
+        startPercentY: readOffsetPercent("y"),
+        percentPerClientPxX: 100 / containerRect.width,
+        percentPerClientPxY: 100 / containerRect.height,
+        moved: false,
+      };
+      dragElement.setPointerCapture?.(dragStartEvent.pointerId);
+      dragElement.classList.add("is-navigation-dragging");
+    });
+    dragElement.addEventListener("pointermove", (dragMoveEvent) => {
+      if (!navigationDrag || navigationDrag.pointerId !== dragMoveEvent.pointerId) return;
+      // 拖动途中若被外部退出调整态，直接收尾，别继续改位置。
+      if (!navigationEditing) {
+        (stopNavigationDrag(), (dragElement.dataset.dragged = ""));
+        return;
+      }
+      const movedClientX = dragMoveEvent.clientX - navigationDrag.clientX,
+        movedClientY = dragMoveEvent.clientY - navigationDrag.clientY;
+      if (
+        !navigationDrag.moved &&
+        Math.hypot(movedClientX, movedClientY) < NAVIGATION_DRAG_THRESHOLD
+      )
+        return;
+      navigationDrag.moved = true;
+      // 用「按下时的中心点 + 总位移」算绝对值，而不是逐帧累加：中途被夹取后再拖回来，
+      // 位置不会因为夹取而丢失。
+      const nextPercentX = Math.max(
+          0,
+          Math.min(
+            100,
+            navigationDrag.startPercentX + movedClientX * navigationDrag.percentPerClientPxX,
+          ),
+        ),
+        nextPercentY = Math.max(
+          0,
+          Math.min(
+            100,
+            navigationDrag.startPercentY + movedClientY * navigationDrag.percentPerClientPxY,
+          ),
+        );
+      if (nextPercentX === readOffsetPercent("x") && nextPercentY === readOffsetPercent("y"))
+        return;
+      (writeOffsetPercent(nextPercentX, nextPercentY), syncLayoutMetrics());
+    });
+    dragElement.addEventListener("pointerup", (dragEndEvent) => {
+      if (!navigationDrag || navigationDrag.pointerId !== dragEndEvent.pointerId) return;
+      const finishedDrag = navigationDrag;
+      stopNavigationDrag();
+      if (!finishedDrag.moved) {
+        // 没超过阈值：当作点选页签，不写位置，点击仍由页签自己的 click 处理。
+        return;
+      }
+      // 这次拖拽的尾巴会紧跟一个 click，用标记吃掉它，免得顺手切了模块 / 楼层。
+      dragElement.dataset.dragged = "true";
+      postHostMessage({
+        type: "edit",
+        action: "navigation-position",
+        target: navigationKey,
+        x: readOffsetPercent("x"),
+        y: readOffsetPercent("y"),
+      });
+    });
+    // 指针被系统收走（来电、手势接管）时的回滚：本地预览过的新位置退回按下时的值。
+    dragElement.addEventListener("pointercancel", () => {
+      if (!navigationDrag) return;
+      const cancelledDrag = navigationDrag;
+      stopNavigationDrag();
+      if (cancelledDrag.moved) {
+        (writeOffsetPercent(cancelledDrag.startPercentX, cancelledDrag.startPercentY),
+          syncLayoutMetrics());
+      }
+    });
+  }
+  // 分类栏绑在内层轨道（moduleTabsElement）而不是外层 .i3d-navigation：外层是布局容器，
+  // 楼层栏绑整列；缺省位置与 syncLayoutMetrics 里的兜底一致。
+  bindNavigationDrag(moduleTabsElement, "categories", [50, 94]);
+  bindNavigationDrag(floorTabsElement, "floors", [96, 50]);
   function restoreFocusWithin(focusScopeElement, focusTargetElement = canvasElement) {
     const activeElement = document.activeElement;
     !activeElement ||
@@ -6473,6 +6627,8 @@ export function mountStage(mountOptions) {
           (deviceStates = data.states || {}),
           syncAirConditionerHistory(),
           (isNavigationVisible = data.editorCanvas === true && !isEditing),
+          // 导航位置调整态由宿主下发：编辑器画布里专门用来拖分类栏 / 楼层栏。
+          (navigationEditing = data.navigationEditing === true && isNavigationVisible),
           document.body?.dataset &&
             (document.body.dataset.sceneStyle =
               options.sceneStyle === "warm-wood" ? "warm-wood" : "default"),

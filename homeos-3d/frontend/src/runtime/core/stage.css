@@ -2013,6 +2013,22 @@ body.interaction3d-stage.is-background-hidden,
     animation: none !important;
   }
 }
+/* ===== 导航位置调整态（只在编辑器画布开） ===== */
+/* 编辑器画布里的舞台 iframe 平时 pointer-events: none —— 点击要留给画布去选控件。
+   进入调整态后由 runtime 打开 iframe 指针事件，这里再给整条轨道拖动手势提示。 */
+.interaction3d-stage .i3d-navigation .i3d-module-tabs.is-navigation-draggable,
+.interaction3d-stage .i3d-floor-tabs.is-navigation-draggable {
+  cursor: grab;
+  /* 触屏拖动时不滚动页面；指针事件被 pointer capture 接管后才收得到 pointermove。 */
+  touch-action: none;
+  outline: 1px dashed rgba(255, 255, 255, 0.34);
+  outline-offset: 6px;
+}
+.interaction3d-stage .i3d-navigation .i3d-module-tabs.is-navigation-dragging,
+.interaction3d-stage .i3d-floor-tabs.is-navigation-dragging {
+  cursor: grabbing;
+  outline-color: rgba(223, 190, 120, 0.85);
+}
 .interaction3d-stage .i3d-markers,
 .interaction3d-stage .i3d-markers.is-concealed {
   transform: none;

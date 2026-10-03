@@ -162,6 +162,27 @@ async function requestInteraction3dScene() {
     };
   });
 }
+// 导航拖拽回写的订阅：面板每次改属性都会整块重建，而舞台视图活得更久（换户型才会换新），
+// 所以订阅按「组件」复用，只把回调体换成最新一次渲染里的那个。
+const navigationEditBindingByComponentId = new Map();
+function bindNavigationEditEvents(componentId, editorView, handleEditEvent) {
+  const existingBinding = navigationEditBindingByComponentId.get(componentId);
+  if (existingBinding?.view === editorView) {
+    existingBinding.handleEditEvent = handleEditEvent;
+    return;
+  }
+  existingBinding?.unsubscribe?.();
+  const navigationEditBinding = {
+    view: editorView,
+    handleEditEvent: handleEditEvent,
+    unsubscribe: null,
+  };
+  (navigationEditBindingByComponentId.set(componentId, navigationEditBinding),
+    (navigationEditBinding.unsubscribe = editorView?.subscribeEdit?.((editEvent) => {
+      // 经 Map 再取一次：期间面板可能已重建，要用最新那个回调体。
+      navigationEditBindingByComponentId.get(componentId)?.handleEditEvent?.(editEvent);
+    })));
+}
 export function renderInteraction3dInspector(hostElement, targetComponent, editorOptions) {
   inspectorAbortByHost.get(hostElement)?.abort();
   const inspectorAbortController = new AbortController();
@@ -921,8 +942,68 @@ type PopupPresetConfig = {
         runViewCommand("focal-length", Math.max(18, Math.min(120, focalLengthInput.valueAsNumber)));
     }),
     createLabeledField(viewOptionsElement, "焦段（mm）", focalLengthInput));
-  const navigationSection = createSection("导航位置"),
-    navigationSettings = {
+  const navigationSection = createSection("导航位置");
+  /**
+   * 舞台拖完抛回的位置：写回与下面输入框同一份 navigation 配置，并把输入框同步成新值。
+   */
+  function applyDraggedNavigationPosition(editEvent) {
+    if (!Number.isFinite(editEvent.x) || !Number.isFinite(editEvent.y)) return;
+    const draggedNavigationKey = editEvent.target === "floors" ? "floors" : "categories";
+    navigationSettings[draggedNavigationKey] = {
+      ...navigationSettings[draggedNavigationKey],
+      x: editEvent.x,
+      y: editEvent.y,
+    };
+    for (const [positionAxisControl, positionGroupKey, positionAxisKey] of positionInputRefs)
+      positionAxisControl.value = String(navigationSettings[positionGroupKey][positionAxisKey]);
+    commitChange({
+      properties: {
+        navigation: structuredClone(navigationSettings),
+      },
+    });
+  }
+  /** 3D 视图的编辑事件里与本面板相关的那条：拖动结束后的位置回写。 */
+  function handleNavigationEditEvent(editEvent) {
+    if (editEvent?.action === "navigation-position") applyDraggedNavigationPosition(editEvent);
+  }
+  // 每次重建都把回调体换成最新的这一份（订阅本身复用，见 bindNavigationEditEvents）。
+  if (editorView)
+    bindNavigationEditEvents(targetComponent.id, editorView, handleNavigationEditEvent);
+  const isNavigationEditing = !!editorView?.navigationEditing,
+    dragNavigationButton = createElement(
+      "button",
+      isNavigationEditing ? "primary" : "",
+      isNavigationEditing ? "完成调整" : "在画布上拖拽调整",
+    );
+  ((dragNavigationButton.type = "button"),
+    // 视角调整期间数值输入是禁用的，拖拽自然也一并禁用（两者抢同一套指针事件）。
+    (dragNavigationButton.disabled = !properties.sceneId || isViewEditing),
+    dragNavigationButton.setAttribute("aria-pressed", String(isNavigationEditing)));
+  const dragNavigationNoteElement = createElement("p", "inspector-section-note");
+  ((dragNavigationNoteElement.hidden = !isNavigationEditing),
+    (dragNavigationNoteElement.textContent =
+      "在画布上拖动分类栏或楼层栏即可调整位置，松手后会写进下面的横向 / 纵向百分比；再点一次上方按钮结束调整。"));
+  // 主操作整行铺满，不并进 .i3d-finishing-row —— 那是两列等宽的取值行。
+  const dragNavigationRowElement = createElement("div", "i3d-navigation-drag-row");
+  (dragNavigationRowElement.append(dragNavigationButton),
+    navigationSection.append(dragNavigationRowElement, dragNavigationNoteElement));
+  dragNavigationButton.addEventListener("click", async () => {
+    dragNavigationButton.disabled = true;
+    try {
+      const activeView = await ensureEditorView();
+      if (!activeView) return;
+      // 视图可能刚挂载（渲染面板时还没有句柄），这里补上拖拽回写的订阅。
+      bindNavigationEditEvents(targetComponent.id, activeView, handleNavigationEditEvent);
+      activeView.setNavigationEditing(!activeView.navigationEditing);
+      renderInteraction3dInspector(hostElement, targetComponent, editorOptions);
+    } catch (navigationEditingError) {
+      (dragNavigationNoteElement.hidden = false),
+        (dragNavigationNoteElement.textContent = navigationEditingError.message);
+    } finally {
+      dragNavigationButton.disabled = false;
+    }
+  });
+  const navigationSettings = {
       categories: {
         x: 50,
         y: 94,

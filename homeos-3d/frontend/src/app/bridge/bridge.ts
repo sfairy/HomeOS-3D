@@ -24,9 +24,13 @@ export type Interaction3dEditorView = {
   ready?: boolean;
   /** 是否处于视图编辑态。 */
   viewEditing?: boolean;
+  /** 是否处于导航位置调整态。 */
+  navigationEditing?: boolean;
   /** 是否处于范围编辑态。 */
   rangeEditing?: boolean;
   setViewEditing?: (editing: boolean) => void;
+  setNavigationEditing?: (editing: boolean) => void;
+  subscribeEdit?: (listener: (editEvent: any) => void) => () => void;
   setAuthorized?: (authorized: boolean) => void;
   setPageVisible?: (visible: boolean) => void;
   closePopupLayoutPreview?: (...args: any[]) => any;
@@ -125,6 +129,9 @@ export function cancelOtherInteraction3dViews(currentEditorId: string) {
     (otherEditorId !== currentEditorId &&
       otherEditorView.viewEditing &&
       otherEditorView.setViewEditing(false),
+      otherEditorId !== currentEditorId &&
+        otherEditorView.navigationEditing &&
+        otherEditorView.setNavigationEditing?.(false),
       otherEditorId !== currentEditorId && otherEditorView.closePopupLayoutPreview?.(),
       otherEditorId !== currentEditorId &&
         otherEditorView.rangeEditing &&
