@@ -67,7 +67,7 @@ def _ensure_license_keys(settings: StoreSettings) -> None:
     default_keys_dir = (PROJECT_ROOT / "keys" / "local").resolve()
     using_default = settings.license_keys_dir.resolve() == default_keys_dir
     key_preparation_hint = (
-        "本地开发请在仓库根运行 python ops/start.py："
+        "本地开发请在仓库根运行 bun run dev："
         "它会生成 homeos-store/keys/local 私钥并把公钥镜像到仓库根 keys/，"
         "同时按公钥文件字节设置主应用的指纹校验；"
         "容器部署则由 ops/docker/start_store.py 启动时完成同样的准备。"

@@ -26,5 +26,5 @@ websockets>=17
 Pillow>=12
 python-multipart>=0.0.32
 anyio>=4.6
-# 本地热重载：ops/start.py 启 uvicorn --reload 时用；镜像构建可不依赖。
+# 本地热重载：ops/dev.mjs 启 uvicorn --reload 时用；镜像构建可不依赖。
 watchfiles>=1.2

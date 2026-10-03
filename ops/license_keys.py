@@ -5,8 +5,9 @@
 密钥对，写死常量必然对不上，主应用自检只会报「指纹不匹配」而看不出真正原因。
 
 本模块是仓库内唯一一份公钥同步实现，调用方：ops/container_entrypoint.py、
-ops/start.py、ops/docker/start_store.py、ops/docker/start_app.py。密钥生成只在
-商店侧，见 ensure_store_keys。
+ops/dev.mjs（命令 ``python -m ops.license_keys dev-env``）、
+ops/docker/start_store.py、ops/docker/start_app.py。密钥生成只在商店侧，
+见 ensure_store_keys。
 """
 from __future__ import annotations
 
@@ -200,3 +201,48 @@ def _env_overrides(target: Path) -> dict[str, str]:
         'APP_LICENSE_PUBLIC_KEY_SHA256': public_key_sha256(target / SIGNING_PUBLIC_KEY_FILENAME),
         'APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256': public_key_sha256(target / TRANSPORT_PUBLIC_KEY_FILENAME),
     }
+
+
+def _cli_dev_env() -> int:
+    """``dev-env``：本地开发启动器专用（ops/dev.mjs 调用）。
+
+    生成商店私钥（缺才生成）、把公钥镜像到仓库根 ``keys/``，并把主应用需要的
+    路径 / 指纹环境变量以**单行 JSON** 打到 stdout 供启动器注入子进程。日志一律
+    走 stderr，否则会污染那行 JSON。
+
+    启动器要先有 venv 才能拿到 cryptography（商店密钥模块依赖它），所以这个命令
+    总是用 venv 里的解释器执行。
+    """
+    import json
+    import sys
+
+    root = Path(__file__).resolve().parents[1]
+    for candidate in (str(root / 'homeos-store' / 'backend'), str(root)):
+        if candidate not in sys.path:
+            sys.path.insert(0, candidate)
+
+    keys_dir = root / 'homeos-store' / 'keys' / 'local'
+    target = root / 'keys'
+    ensure_store_keys(keys_dir)
+    overrides = sync_store_keys(
+        store_dir=keys_dir,
+        target_dir=target,
+        log=lambda message: print(f'授权公钥：{message}', file=sys.stderr, flush=True),
+    )
+    print(json.dumps(overrides, ensure_ascii=False), flush=True)
+    return 0
+
+
+def main(arguments: list[str] | None = None) -> int:
+    """模块级 CLI：目前只服务本地开发启动器。"""
+    import sys
+
+    argv = list(arguments if arguments is not None else sys.argv[1:])
+    if argv[:1] == ['dev-env']:
+        return _cli_dev_env()
+    print('用法：python -m ops.license_keys dev-env', file=sys.stderr)
+    return 2
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

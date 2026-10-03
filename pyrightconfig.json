@@ -1,5 +1,5 @@
 {
-  // 开发用的是仓库根的 .venv-store（见 ops/start.py 的 VENV_DIR）。它的名字不是
+  // 开发用的是仓库根的 .venv-store（见 ops/dev.mjs 的 VENV_DIR）。它的名字不是
   // .venv / venv / env，Pylance 的自动发现认不出来，不在这里点名就会退回系统
   // Python —— 那里没有 httpx / sqlalchemy / fastapi / cryptography，于是
   // backend 里每个第三方 import 都报无法解析，并连带一片属性错误。

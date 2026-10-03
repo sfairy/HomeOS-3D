@@ -20,9 +20,10 @@
     "typecheck:node": "tsc -p tsconfig.node.json",
     "verify:scene": "python3 ops/verify_scene_sync.py",
     "verify:smoke": ".venv-store/bin/python homeos-store/tools/smoke_store.py",
-    "dev": "python3 ops/start.py",
+    "dev": "bun ops/dev.mjs",
+    "dev:prepare": "bun ops/dev.mjs --prepare",
     "dev:runtime": "bun run --cwd homeos-3d dev:runtime",
-    "dev:backend": "python3 ops/start.py --backend-only",
+    "dev:backend": "bun ops/dev.mjs --backend-only",
     "dev:3d": "bun run --cwd homeos-3d dev",
     "dev:store": "bun run --cwd homeos-store dev"
   },

@@ -13,8 +13,9 @@
 推荐仓库根一键起双服务：
 
 ```bash
-python3 ops/start.py
+bun run dev
 # 商店: http://127.0.0.1:8802/
+# 只起后端（不启 Vite HMR）：bun run dev:backend
 ```
 
 只起商店：
@@ -32,7 +33,7 @@ PYTHONPATH=homeos-store/backend .venv-store/bin/python -m app.run
 
 | `STORE_MAIL_MODE` | 用途 |
 | --- | --- |
-| `log`（本地默认） | 验证码打在服务日志 / `ops/start.py` 终端，接口不回显 |
+| `log`（本地默认） | 验证码打在服务日志 / `ops/dev.mjs` 终端，接口不回显 |
 | `smtp`（生产必用） | 真实发信；凭据可在 `/admin` → 站点配置 → 注册邮件改，保存即生效 |
 
 生产勿使用任何「响应里回显验证码」的通道（已删除）。SMTP 示例见根目录 `.env.example`。

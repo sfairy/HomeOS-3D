@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """构建编排：把两个项目的产物统一收敛到工作区根 ``dist/``。
 
-与 ``ops/start.py``（本地联调）互补，本脚本负责**分发级构建**：
+与 ``ops/dev.mjs``（本地联调）互补，本脚本负责**分发级构建**：
 
   dist/
     homeos-3d/
@@ -53,7 +53,7 @@ APT_MIRROR_ENV = 'HOMEOS_APT_MIRROR'
 def load_env_file(path: Path) -> None:
     """把仓库根 ``.env`` 读进 ``os.environ``（不覆盖已存在的真实环境变量）。
 
-    与 ops/start.py 的口径一致：真实环境变量优先。这样机器相关的开关（例如
+    与 ops/dev.mjs 的口径一致：真实环境变量优先。这样机器相关的开关（例如
     ``HOMEOS_BASE_MIRROR``，见 Dockerfile 顶部说明）写进 .env（不入库）即可，
     不必每次在命令行重复。
     """

@@ -14,7 +14,7 @@ Pillow>=12
 # 而这里装的是裸 fastapi）。SBOM 里出现过 jinja2 的需求声明纯属历史遗留。
 python-multipart>=0.0.32
 
-# 本地热重载：ops/start.py 默认给商店设 STORE_RELOAD=1，backend/src/run.py 会以 uvicorn 的
+# 本地热重载：ops/dev.mjs 默认给商店设 STORE_RELOAD=1，backend/src/run.py 会以 uvicorn 的
 # reload 模式启动并监听 backend/src/ 目录。缺了这个包，uvicorn 的 reload 起不来——
 # 结果是改了 backend/src/api/*.py 里的模块级常量（例如模拟收银台的内联 HTML 与静态资源
 # 版本戳）后服务仍跑旧代码，只能手动重启。不参与线上的运行时逻辑。

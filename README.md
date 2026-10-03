@@ -30,13 +30,13 @@ HomeOS/
 │   └── homeos-store/
 │       ├── frontend/
 │       └── backend/linux-<arch>/
-├── ops/                       # 本地联调 start.py、构建 build.py、部署、Docker 构建辅助
+├── ops/                       # 本地联调 dev.mjs、构建 build.py、部署、Docker 构建辅助
 │   ├── build.py               # 分发级构建编排（导出加密后端、组装运行镜像）
 │   ├── caddy/                 # 镜像内置反代配置（app / store 各一份）
 │   ├── docker/                # 容器启动器、Cython 编译、JS 混淆
 │   ├── deploy/                # deploy.sh 与部署文档
 │   ├── check_schema.py        # 库结构门禁：迁移脚本 ↔ ORM 元数据一致性
-│   └── start.py               # 本地开发一键启动（不是部署脚本）
+│   └── dev.mjs                # 本地开发一键启动（Bun；不是部署脚本）
 ├── keys/                      # 仅本地联调用的开发公钥（生产商店会自生成新密钥对；容器不用）
 ├── packages/                  # 契约清单
 ├── node_modules/              # 全仓唯一的依赖安装（bunfig.toml 的 hoisted linker；
@@ -71,7 +71,7 @@ cp .env.example .env
 
 ```bash
 bun install
-bun run dev                 # = python3 ops/start.py：后端热重载 + Vite HMR
+bun run dev                 # = bun ops/dev.mjs：后端热重载 + Vite HMR
 ```
 
 | 地址 | 用途 |
@@ -81,7 +81,7 @@ bun run dev                 # = python3 ops/start.py：后端热重载 + Vite HM
 | http://127.0.0.1:8801/setup | 主应用 API / 首次建管理员 |
 | http://127.0.0.1:8802/ | 商店 API；首次走 `/setup` 建运营管理员 |
 
-`ops/start.py`（`bun run dev`）默认行为：
+`ops/dev.mjs`（`bun run dev`）默认行为：
 
 - 只绑 `127.0.0.1`；后端热重载（主应用 uvicorn `--reload`，商店 `STORE_RELOAD=1`）
 - 同时拉起 Vite `8805` / `8806`（页面 HMR）
@@ -94,14 +94,12 @@ bun run dev                 # = python3 ops/start.py：后端热重载 + Vite HM
 
 ```bash
 bun run dev -- --lan          # 绑 0.0.0.0，终端会打印局域网地址
-python3 ops/start.py --lan    # 同上
 ```
 
 只要后端（不启 Vite）：
 
 ```bash
 bun run dev:backend
-python3 ops/start.py --backend-only
 ```
 
 改 3D runtime 模块（`homeos-3d/frontend/src/runtime`）时另开终端：
@@ -114,11 +112,11 @@ bun run --cwd homeos-3d dev:runtime
 
 调试**不会**关掉后端的 `--reload` / `STORE_RELOAD`，改完代码重载出来的新进程照样能命中断点：
 
-- **终端 + attach**：先在终端 `python3 ops/start.py --debug`（后端 `8803`、商店 `8804` 挂 debugpy），再用编辑器的「附加到进程 / attach」连到对应端口。
+- **终端 + attach**：先在终端 `bun run dev -- --debug`（主应用 `8811`、商店 `8812` 挂 debugpy），再用编辑器的「附加到进程 / attach」连到对应端口。
 
 原理：debugpy 会 patch `multiprocessing` 与 `subprocess`，而两个后端的重载子进程正是从这两处拉起来的，所以它们会自动连回同一个调试会话。
 
-端口被占用时脚本会直接退出；关掉旧终端，或 `pkill -f ops/start.py` 后再启。若已单独跑着 `bun run dev:store`，先停掉再一键启动。
+端口被占用时脚本会直接退出；关掉旧终端，或 `pkill -f ops/dev.mjs` 后再启。若已单独跑着 `bun run dev:store`，先停掉再一键启动。
 
 ### 编排脚本
 
@@ -126,6 +124,7 @@ bun run --cwd homeos-3d dev:runtime
 | --- | --- |
 | `bun run dev` | 一键 dev：后端 + Vite HMR |
 | `bun run dev:backend` | 只起后端热重载 |
+| `bun run dev:prepare` | 只装 Python 环境（共享 `.venv-store`），不起服务 |
 | `bun run build` | 完整构建：前端 → 根 `dist/`（含混淆）+ 后端 Cython 导出到根 `dist/` |
 | `bun run build:frontend` | 只构建前端（Vite + 混淆）→ 根 `dist/<项目>/frontend/` |
 | `bun run build:backend` | 只导出加密后端（Cython `.so`）→ 根 `dist/<项目>/backend/linux-<arch>/` |
@@ -148,7 +147,7 @@ bun run --cwd homeos-3d dev:runtime
 
 ## 生产部署
 
-生产走 **GHCR 镜像 + `ops/deploy/deploy.sh` 一键部署**。**不要**用 `ops/start.py`：那是开发脚本（热重载、只绑回环、验证码 log 模式）。
+生产走 **GHCR 镜像 + `ops/deploy/deploy.sh` 一键部署**。**不要**用 `ops/dev.mjs`：那是开发脚本（热重载、只绑回环、验证码 log 模式）。
 
 - 完整最小检查清单：[ops/deploy/PRODUCTION.md](ops/deploy/PRODUCTION.md)
 - 中心商店 + 多客户机拓扑、授权身份与迁移：[ops/deploy/SPLIT-DEPLOY.md](ops/deploy/SPLIT-DEPLOY.md)
