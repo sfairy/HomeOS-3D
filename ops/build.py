@@ -46,6 +46,8 @@ DOCKERFILE = ROOT / 'Dockerfile'
 DEFAULT_PYTHON_IMAGE = 'python:3.14-slim-bookworm'
 DEFAULT_CADDY_IMAGE = 'caddy:2.11.4-alpine'
 BASE_MIRROR_ENV = 'HOMEOS_BASE_MIRROR'
+PIP_INDEX_ENV = 'HOMEOS_PIP_INDEX'
+APT_MIRROR_ENV = 'HOMEOS_APT_MIRROR'
 
 
 def load_env_file(path: Path) -> None:
@@ -152,7 +154,7 @@ def _mirrored(mirror: str, official_image: str) -> str:
     return f'{host}/library/{name}:{tag}' if tag else f'{host}/library/{name}'
 
 
-def base_image_args(args: argparse.Namespace) -> list[str]:
+def base_image_args(args: argparse.Namespace, *, with_build_mirrors: bool = False) -> list[str]:
     mirror = (getattr(args, 'base_mirror', None) or os.getenv(BASE_MIRROR_ENV, '')).strip()
     python_image = args.python_image or (_mirrored(mirror, DEFAULT_PYTHON_IMAGE) if mirror else '')
     caddy_image = args.caddy_image or (_mirrored(mirror, DEFAULT_CADDY_IMAGE) if mirror else '')
@@ -161,6 +163,16 @@ def base_image_args(args: argparse.Namespace) -> list[str]:
         extra += ['--build-arg', f'PYTHON_IMAGE={python_image}']
     if caddy_image:
         extra += ['--build-arg', f'CADDY_IMAGE={caddy_image}']
+    # pip / apt 的源只在编译阶段有用（只有那几段 RUN 装依赖）。基础镜像能拉下来，
+    # 不代表构建容器连得上 pypi.org 或 deb.debian.org —— 后者的表现是「卡在
+    # Downloading 一动不动」，不报错，只能干等，单包 30–80 秒。
+    if with_build_mirrors:
+        pip_index = (getattr(args, 'pip_index', None) or os.getenv(PIP_INDEX_ENV, '')).strip()
+        if pip_index:
+            extra += ['--build-arg', f'PIP_INDEX_URL={pip_index}']
+        apt_mirror = (getattr(args, 'apt_mirror', None) or os.getenv(APT_MIRROR_ENV, '')).strip()
+        if apt_mirror:
+            extra += ['--build-arg', f'APT_MIRROR={apt_mirror}']
     return extra
 
 
@@ -178,7 +190,7 @@ def export_backend(args: argparse.Namespace) -> None:
             '--target', project.export_target,
             '--output', f'type=local,dest={dest}',
             '--build-arg', f'HOMEOS_VERSION={version}',
-            *base_image_args(args),
+            *base_image_args(args, with_build_mirrors=True),
             *buildx_cache_args(args),
             str(ROOT),
         ])
@@ -248,6 +260,20 @@ def _add_base_image_options(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument('--python-image', metavar='REF', help=f'直接指定 Python 基础镜像（默认 {DEFAULT_PYTHON_IMAGE}）')
     parser.add_argument('--caddy-image', metavar='REF', help=f'直接指定 Caddy 基础镜像（默认 {DEFAULT_CADDY_IMAGE}）')
+    parser.add_argument(
+        '--pip-index',
+        metavar='URL',
+        default=None,
+        help=f'安装后端依赖用的 PyPI 索引，如 https://pypi.tuna.tsinghua.edu.cn/simple；'
+        f'也可用环境变量 {PIP_INDEX_ENV}。构建容器连不上 pypi.org 时（表现为卡在下载不动）用它',
+    )
+    parser.add_argument(
+        '--apt-mirror',
+        metavar='HOST',
+        default=None,
+        help=f'构建期替换 deb.debian.org 的镜像主机名，如 mirrors.tuna.tsinghua.edu.cn；'
+        f'也可用环境变量 {APT_MIRROR_ENV}。apt 直连 deb.debian.org 时单个包常等 30–80 秒',
+    )
 
 
 def main() -> None:

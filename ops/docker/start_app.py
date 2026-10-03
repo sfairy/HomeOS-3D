@@ -129,7 +129,7 @@ def main() -> None:
                 sys.executable,
                 "-m",
                 "uvicorn",
-                "backend.src.main:app",
+                "backend.app.main:app",
                 "--host",
                 "0.0.0.0",
                 "--port",

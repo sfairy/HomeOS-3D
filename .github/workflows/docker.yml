@@ -112,7 +112,7 @@ jobs:
 
   # 类型检查门禁（basedpyright）。
   # `error == 0` 现在还做不到：pyrightconfig.json 的 error 级里还有一批存量误报（模型标注偏窄
-  # 导致的 reportOptionalMemberAccess / reportArgumentType 等），实测 73 条。所以这里只把
+  # 导致的 reportOptionalMemberAccess / reportArgumentType 等），实测 72 条。所以这里只把
   # 「一定会炸」的三条规则当硬失败，其余打成直方图让人一直看得见；口径与 rationale 写在
   # ops/ci/pyright_gate.py 顶部。
   # （tools/ 下 src.* 的 reportMissingImports 已通过 pyrightconfig.json 的 executionEnvironments
@@ -145,7 +145,8 @@ jobs:
           basedpyright --outputjson > basedpyright.json || true
           python ops/ci/pyright_gate.py basedpyright.json
 
-  # 库结构门禁：确认「迁移脚本 = ORM 元数据 = 实际结构」（ops/check_schema.py）。
+  # 库结构门禁：确认「迁移脚本 = ORM 元数据 = 实际结构 = 发行路径建出来的结构」
+  # （ops/check_schema.py；最后一项验证产物里没有 Alembic 时按 ORM 建库是否等价）。
   # 放在 build 之前是刻意的：结构漂移的表现是「本地全新库一切正常、存量部署才报错」，
   # 它不会在任何一条类型检查或前端检查里露头，而一旦随镜像发出去，用户是唯一的
   # 发现者。坏迁移在这里拦下，就不会被推成镜像。
@@ -184,28 +185,28 @@ jobs:
             platform: linux/amd64
             arch: amd64
             runner: ubuntu-24.04
-            smoke_module: backend.src.main
+            smoke_module: backend.app.main  # 镜像里的包名是 app（源码目录是 src，构建时映射）
           - target: app
             project: 3d
             suffix: ""
             platform: linux/arm64
             arch: arm64
             runner: ubuntu-24.04-arm
-            smoke_module: backend.src.main
+            smoke_module: backend.app.main  # 镜像里的包名是 app（源码目录是 src，构建时映射）
           - target: store
             project: store
             suffix: "-store"
             platform: linux/amd64
             arch: amd64
             runner: ubuntu-24.04
-            smoke_module: src.app
+            smoke_module: app.app
           - target: store
             project: store
             suffix: "-store"
             platform: linux/arm64
             arch: arm64
             runner: ubuntu-24.04-arm
-            smoke_module: src.app
+            smoke_module: app.app
     steps:
       - uses: actions/checkout@v7
 

@@ -81,7 +81,7 @@ def main() -> None:
     os.environ.update(environment)
     raise SystemExit(
         run_with_proxy(
-            [sys.executable, "-c", "import src.run as m; m.main()"],
+            [sys.executable, "-c", "import app.run as m; m.main()"],
             data_dir=Path(environment["STORE_DATA_DIR"]),
             service_label="授权商店",
         )

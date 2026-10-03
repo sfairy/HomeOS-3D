@@ -7,13 +7,13 @@ import argparse
 import ast
 import os
 import shutil
+import subprocess
 import sys
 import sysconfig
 import tempfile
 from pathlib import Path
 
 EXT_SUFFIX = sysconfig.get_config_var("EXT_SUFFIX") or ".so"
-KEEP_SOURCE_PREFIXES = ("db/", "migrations/")
 COMPILER_DIRECTIVES = {
     "language_level": "3",
     "annotation_typing": False,
@@ -22,15 +22,8 @@ COMPILER_DIRECTIVES = {
 }
 
 
-def _is_kept_source(path: Path, root: Path) -> bool:
-    relative = path.relative_to(root).as_posix()
-    return any(relative == prefix.rstrip("/") or relative.startswith(prefix) for prefix in KEEP_SOURCE_PREFIXES)
-
-
 def _iter_sources(root: Path) -> list[Path]:
-    return sorted(
-        path for path in root.rglob("*.py") if "__pycache__" not in path.parts and not _is_kept_source(path, root)
-    )
+    return sorted(path for path in root.rglob("*.py") if "__pycache__" not in path.parts)
 
 
 def _module_name(path: Path, root: Path) -> str:
@@ -133,12 +126,32 @@ def _verify(root: Path, sources: list[Path]) -> int:
     if missing:
         raise SystemExit("以下模块没有产出原生扩展：\n" + "\n".join(str(p) for p in missing))
 
-    leaked = [
-        path for path in root.rglob("*.py") if "__pycache__" not in path.parts and not _is_kept_source(path, root)
-    ]
+    leaked = [path for path in root.rglob("*.py") if "__pycache__" not in path.parts]
     if leaked:
         raise SystemExit("以下源码未清理：\n" + "\n".join(str(p) for p in leaked))
     return len(sources)
+
+
+def _strip_extensions(sources: list[Path]) -> int:
+    # Cython 产出的 .so 默认带 DWARF 调试信息与静态符号表：strings 能直接看到原始文件名
+    # （形如 /app/backend/app/main.py），符号表里还有 __pyx_pf_* 这类内部函数名，等于把源码结构白送。
+    # --strip-all 去掉它们，但**保留 .dynsym**：动态加载靠它，删了 .so 就 import 不进来。
+    #
+    # 注意：Python 层的异常行号来自 Cython 生成 C 时**写死在代码里**的常量
+    # （__Pyx_AddTraceback 的实参），不是 DWARF，所以 strip 不会让线上堆栈丢行号；
+    # 丢掉的只是 C 级调试信息（gdb 断点、C 函数名）。
+    strip = shutil.which("strip")
+    if strip is None:
+        print("未找到 strip（binutils），跳过符号清理", flush=True)
+        return 0
+    targets: list[Path] = []
+    for path in sources:
+        so = _expected_so(path)
+        if so.is_file():
+            targets.append(so)
+    for so in targets:
+        subprocess.run([strip, "--strip-all", str(so)], check=True)
+    return len(targets)
 
 
 def compile_tree(root: Path, jobs: int | None = None) -> None:
@@ -170,7 +183,11 @@ def compile_tree(root: Path, jobs: int | None = None) -> None:
         generated.unlink(missing_ok=True)
 
     count = _verify(root, sources)
-    print(f"完成：编译 {count} 个模块为原生扩展（{EXT_SUFFIX}），迁移脚本目录保留源码", flush=True)
+    stripped = _strip_extensions(sources)
+    print(
+        f"完成：编译 {count} 个模块为原生扩展（{EXT_SUFFIX}），已清理符号 {stripped} 个",
+        flush=True,
+    )
 
 
 def main() -> None:
