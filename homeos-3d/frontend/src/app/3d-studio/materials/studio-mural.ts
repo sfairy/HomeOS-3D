@@ -1,6 +1,6 @@
 // 壁画（mural）程序化模型。
 //
-// 迁移自 homeos-3d 的 studio-render-pipeline.ts::buildMuralItemMeshGroup
+// 另见 homeos-3d 的 studio-render-pipeline.ts::buildMuralItemMeshGroup
 // 与其 item-builders/storage-cabinets.ts::buildMuralItem。
 // 结构：背板 + 画芯底 + 一张贴了程序化画作的面片 + 四条边框。
 // 画作贴图来自 studio-surface-textures.js，按 muralStyle 缓存。

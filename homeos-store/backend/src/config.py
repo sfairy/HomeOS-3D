@@ -36,6 +36,25 @@ REPO_ROOT = (
     else PROJECT_ROOT
 )
 
+
+def _detect_frontend_root() -> Path:
+    """前端构建产物根目录（内含 ``static/`` 与 ``templates/``）。
+
+    容器布局：Dockerfile 把 ``dist/homeos-store/frontend`` 拷进 ``/app/dist``。
+    工作区布局：构建产物统一收敛在工作区根 ``dist/homeos-store/frontend``，
+    与源码树彻底分离（见 ops/build.py 与 frontend/vite.config.ts 的 outDir）。
+    """
+    docker_dist = PROJECT_ROOT / "dist"
+    if docker_dist.is_dir():
+        return docker_dist
+    workspace_built = REPO_ROOT / "dist" / "homeos-store" / "frontend"
+    if workspace_built.is_dir():
+        return workspace_built
+    return docker_dist
+
+
+FRONTEND_ROOT = _detect_frontend_root()
+
 DEFAULT_PORT = 8802
 DEFAULT_HOST = "0.0.0.0"
 
@@ -153,8 +172,8 @@ class StoreSettings:
     base_url: str = ""
     project_root: Path = PROJECT_ROOT
     repo_root: Path = REPO_ROOT
-    static_dir: Path = PROJECT_ROOT / "dist" / "static"
-    templates_dir: Path = PROJECT_ROOT / "dist" / "templates"
+    static_dir: Path = FRONTEND_ROOT / "static"
+    templates_dir: Path = FRONTEND_ROOT / "templates"
 
     # 会话
     cookie_name: str = "homeos_store_session"

@@ -12,7 +12,7 @@
   background: transparent;
   text-align: center;
   /* 尺寸容器：等待 / 失败文案按组件实际尺寸缩放（见下方 .i3d-access-pending 的 cq 字号），
-     size containment 不会反过来压自身尺寸。0.6.7 单仓化时这行和 cq 字号一起丢了，
+     size containment 不会反过来压自身尺寸。这行曾和 cq 字号一起丢失，
      于是文案退化成固定 12px —— 在小组件与缩放后的预览里几乎读不出来。 */
   container-type: size;
 }

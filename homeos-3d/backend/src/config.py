@@ -202,14 +202,22 @@ class Settings:
     def frontend_dir(self) -> Path:
         # [补充说明] 前端页面与静态资源根目录（挂载为 /static）。
         #
-        # [TS 迁移] 前端已改为 Vite 构建产物：页面 HTML 与 /static/** 都从 dist/ 提供，
-        # 不再直接读 frontend/ 源码目录（源码里的 .ts / 未打包 import 浏览器跑不了）。
+        # 前端是 Vite 构建产物：页面 HTML 与 /static/** 都从 dist/ 提供，
+        # 不直接读 frontend/ 源码目录（源码里的 .ts / 未打包 import 浏览器跑不了）。
         # HOMEOS_FRONTEND_DIR 可覆盖本项（例如本地 vite dev 时指回源码目录）。
         override = _environment_path('HOMEOS_FRONTEND_DIR')
         if override is not None:
             return override
+        # 容器布局：镜像把前端产物拷进 /app/dist（见 Dockerfile 的 app 阶段）。
         built = self.project_root / 'dist'
-        return built if built.is_dir() else self.project_root / 'frontend'
+        if built.is_dir():
+            return built
+        # 工作区布局：构建产物统一收敛在工作区根 dist/homeos-3d/frontend，
+        # 与源码树彻底分离（见 ops/build.py 与 frontend/vite.config.ts 的 outDir）。
+        workspace_built = REPO_ROOT / 'dist' / 'homeos-3d' / 'frontend'
+        if workspace_built.is_dir():
+            return workspace_built
+        return self.project_root / 'frontend'
 
     @property
     def runtime_dir(self) -> Path:

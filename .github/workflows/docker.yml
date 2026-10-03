@@ -179,24 +179,28 @@ jobs:
       matrix:
         include:
           - target: app
+            project: 3d
             suffix: ""
             platform: linux/amd64
             arch: amd64
             runner: ubuntu-24.04
             smoke_module: backend.src.main
           - target: app
+            project: 3d
             suffix: ""
             platform: linux/arm64
             arch: arm64
             runner: ubuntu-24.04-arm
             smoke_module: backend.src.main
           - target: store
+            project: store
             suffix: "-store"
             platform: linux/amd64
             arch: amd64
             runner: ubuntu-24.04
             smoke_module: src.app
           - target: store
+            project: store
             suffix: "-store"
             platform: linux/arm64
             arch: arm64
@@ -205,7 +209,34 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # 前端产物改由宿主机构建并混淆，落到工作区根 dist/（镜像内不再跑 bun/vite）。
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Build frontend to workspace dist
+        run: |
+          bun install --frozen-lockfile
+          bun run build:frontend
+          # 混淆与产物结构断言（原先在 Dockerfile 的 frontend-tools 阶段）。
+          grep -q '_0x' dist/homeos-3d/frontend/static/logging/client-log.js
+          grep -q '_0x' dist/homeos-store/frontend/static/auth-bootstrap.js
+          test -f dist/homeos-3d/frontend/static/vendor/three/0.186.0/three.module.min.js
+          test -f dist/homeos-store/frontend/static/jquery.min.js
+          test -f dist/homeos-3d/frontend/index.html
+          test -f dist/homeos-store/frontend/templates/store.html
+
       - uses: docker/setup-buildx-action@v4
+
+      # 后端 Cython 编译成 .so 并导出到根 dist/；运行镜像直接 COPY，不再编译后端。
+      # 与下面的 build-push-action 共用 gha 缓存 scope，避免后端被编译两遍。
+      - name: Export protected backend to workspace dist
+        run: |
+          python3 ops/build.py backend \
+            --project ${{ matrix.project }} \
+            --arch ${{ matrix.arch }} \
+            --cache-from type=gha,scope=${{ matrix.target }}-${{ matrix.arch }} \
+            --cache-to type=gha,mode=max,scope=${{ matrix.target }}-${{ matrix.arch }}
 
       - name: Login to GHCR
         uses: docker/login-action@v4
@@ -223,8 +254,10 @@ jobs:
           platforms: ${{ matrix.platform }}
           push: true
           # 与 package.json 同源的版本号：镜像里由 src/_version.py 携带。
+          # BACKEND_PLATFORM 选根 dist 下的平台子目录（Cython .so 与架构绑定）。
           build-args: |
             HOMEOS_VERSION=${{ needs.meta.outputs.version }}
+            BACKEND_PLATFORM=linux-${{ matrix.arch }}
           tags: ${{ needs.meta.outputs.image }}${{ matrix.suffix }}:${{ needs.meta.outputs.tag }}-${{ matrix.arch }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}

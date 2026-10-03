@@ -8,8 +8,10 @@ import { quietLogger } from "./vite-quiet-logger.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = __dirname;
 const projectRoot = path.resolve(frontendRoot, "..");
+//: 工作区根：runtime 产物与主应用前端共用 <repoRoot>/dist/homeos-3d/frontend/ 前缀。
+const repoRoot = path.resolve(projectRoot, "..");
 const runtimeSrc = path.join(frontendRoot, "src", "runtime");
-const outDir = path.join(projectRoot, "dist", "modules", "runtime");
+const outDir = path.join(repoRoot, "dist", "homeos-3d", "frontend", "modules", "runtime");
 
 /**
  * 运行时模块：整个 src/runtime/** 都是入口（按需经 /api/v1/modules/interaction3d/*
@@ -135,6 +137,9 @@ const entries = discoverRuntimeEntries();
 
 export default defineConfig({
   root: frontendRoot,
+  // 独立子缓存目录：runtime 的 build/watch 与主应用 dev server 可能同时跑，
+  // 分开可避免抢占同一份预打包缓存（见 vite.config.ts 的 cacheDir 说明）。
+  cacheDir: path.join(repoRoot, "node_modules", ".vite", "homeos-3d-runtime"),
   customLogger: quietLogger(),
   publicDir: false,
   resolve: {

@@ -2,7 +2,9 @@
 
 面向 [Home Assistant](https://www.home-assistant.io/) 的本机仪表盘与中控，当前版本见仓库根 `package.json` 的 `version`。
 
-两个**相互独立**的项目：主应用 `homeos-3d` 与授权商店 `homeos-store`。各自含前后端源码与构建产物目录，互不 import 后端包，可同机或分机部署。
+两个**相互独立**的项目：主应用 `homeos-3d` 与授权商店 `homeos-store`。各自含前后端源码，互不 import 后端包，可同机或分机部署。两者的构建产物统一收敛到工作区根 `dist/`，与源码树彻底分开。
+
+两个项目互不依赖、可**分别构建与部署**（`bun run build:3d` / `build:store`、`python3 ops/build.py --project 3d|store`、Docker 的 `--target app|store` 都是单侧操作）。前端依赖只在工作区根装一份（见根 `bunfig.toml` 的 hoisted linker）：项目目录内不再有 `node_modules`，也不再有各自的 lockfile，全仓以根 `bun.lock` 为唯一依赖来源。
 
 ## 目录
 
@@ -11,19 +13,25 @@ HomeOS/
 ├── homeos-3d/                 # 主应用（独立项目）
 │   ├── backend/src/           # 后端（import 根是项目根，包名 backend.src）
 │   ├── frontend/              # 前端源码（pages / src / public）
-│   ├── dist/                  # bun run build 产物（构建进镜像，运行期不挂载）
 │   ├── data/                  # 运行时（不入库；APP_DATA_DIR）
 │   ├── migrations/ alembic.ini
 │   └── package.json
 ├── homeos-store/              # 授权商店（独立项目）
 │   ├── backend/src/           # 后端（Python 包名 src）
 │   ├── frontend/              # 前端源码
-│   ├── dist/                  # 构建产物（构建进镜像）
 │   ├── data/                  # 运行时（不入库；STORE_DATA_DIR）
 │   ├── db/ alembic.ini        # 结构迁移（与主应用各自独立的一套）
 │   ├── keys/local/            # 本地联调用的授权私钥（不入库）
 │   └── package.json
-├── ops/                       # 本地联调 start.py、部署、Docker 构建辅助
+├── dist/                      # 构建产物（与源码彻底分开，不入库）
+│   ├── homeos-3d/
+│   │   ├── frontend/          # Vite 产物（已混淆）
+│   │   └── backend/linux-<arch>/   # Cython 编译后的后端（.so，无 .py 源码）
+│   └── homeos-store/
+│       ├── frontend/
+│       └── backend/linux-<arch>/
+├── ops/                       # 本地联调 start.py、构建 build.py、部署、Docker 构建辅助
+│   ├── build.py               # 分发级构建编排（导出加密后端、组装运行镜像）
 │   ├── caddy/                 # 镜像内置反代配置（app / store 各一份）
 │   ├── docker/                # 容器启动器、Cython 编译、JS 混淆
 │   ├── deploy/                # deploy.sh 与部署文档
@@ -31,12 +39,15 @@ HomeOS/
 │   └── start.py               # 本地开发一键启动（不是部署脚本）
 ├── keys/                      # 仅本地联调用的开发公钥（生产商店会自生成新密钥对；容器不用）
 ├── packages/                  # 契约清单
-├── package.json / bunfig.toml # 单体仓库编排；前端依赖统一装到根 node_modules
-                               # 也是全仓唯一的版本号来源（version 字段）
+├── node_modules/              # 全仓唯一的依赖安装（bunfig.toml 的 hoisted linker；
+                               # 项目目录内不再有 node_modules，构建缓存落在其 .vite/ 下）
+├── package.json / bun.lock    # 单体仓库编排 + 全仓唯一的依赖锁
+├── bunfig.toml                # 依赖 hoist 到根 node_modules（两个项目不各自安装）
+                               # package.json 的 version 也是全仓唯一的版本号来源
 ├── docker-compose.app.yml     # 主应用编排（可单独部署）
 ├── docker-compose.store.yml   # 商店编排
 ├── docker-compose.app.shared.yml  # 同机部署时叠加到主应用
-└── Dockerfile                 # 双目标镜像：--target app / --target store
+└── Dockerfile                 # 双目标运行镜像：--target app / --target store（只消费根 dist/）
 ```
 
 | 项目 | 容器名 | HTTP | 镜像内置 HTTPS | 说明 |
@@ -74,7 +85,7 @@ bun run dev                 # = python3 ops/start.py：后端热重载 + Vite HM
 
 - 只绑 `127.0.0.1`；后端热重载（主应用 uvicorn `--reload`，商店 `STORE_RELOAD=1`）
 - 同时拉起 Vite `8805` / `8806`（页面 HMR）
-- 缺前端产物时自动跑 `bun run build:vite`（**不混淆**）；`modules/runtime` 用这份 dist，不在本脚本里 watch
+- 缺前端产物时自动跑 `bun run build:vite`（**不混淆**）；产物落在工作区根 `dist/`，`modules/runtime` 用这份 dist，不在本脚本里 watch
 - 本地验证码默认 `STORE_MAIL_MODE=log`，验证码打在启动终端
 - 授权密钥自动生成并镜像到仓库根 `keys/`
 - 支付渠道**不会**注入模拟收银台；未配真实/沙箱凭据时下单会 503（见商店 README）
@@ -115,13 +126,16 @@ bun run --cwd homeos-3d dev:runtime
 | --- | --- |
 | `bun run dev` | 一键 dev：后端 + Vite HMR |
 | `bun run dev:backend` | 只起后端热重载 |
-| `bun run build` | 构建 homeos-3d + homeos-store 前端 → 各自 `dist/`，并对业务 JS 做混淆 |
-| `bun run build:3d` / `build:store` | 只构建一侧（含混淆） |
-| `bun run build:vite` | 仅 Vite 构建，跳过混淆（调试用） |
-| `bun run obfuscate` | 对已有 `dist/` 再跑一遍混淆 |
+| `bun run build` | 完整构建：前端 → 根 `dist/`（含混淆）+ 后端 Cython 导出到根 `dist/` |
+| `bun run build:frontend` | 只构建前端（Vite + 混淆）→ 根 `dist/<项目>/frontend/` |
+| `bun run build:backend` | 只导出加密后端（Cython `.so`）→ 根 `dist/<项目>/backend/linux-<arch>/` |
+| `bun run build:3d` / `build:store` | 只构建一侧前端（含混淆） |
+| `bun run build:vite` | 仅 Vite 构建，跳过混淆（调试用，产出到根 `dist/`） |
+| `bun run obfuscate` | 对已有根 `dist/` 前端再跑一遍混淆 |
+| `bun run image` / `image:3d` / `image:store` | 从根 `dist/` 组装运行镜像（镜像内不再编译后端） |
 | `bun run typecheck` | 两边 `tsc` |
 | `bun run dev:3d` / `dev:store` | 单独跑一侧 Vite HMR（需后端已在跑） |
-| `bun run --cwd homeos-3d dev:runtime` | runtime 模块 watch → `dist/modules/runtime` |
+| `bun run --cwd homeos-3d dev:runtime` | runtime 模块 watch → 根 `dist/homeos-3d/frontend/modules/runtime` |
 
 ### 首次联调流程
 
@@ -290,18 +304,41 @@ docker logs homeos-3d | head
 
 ### 六、构建镜像（可选）
 
-CI 会在默认分支推送时构建并推送 `linux/amd64` + `linux/arm64` 双架构镜像到 GHCR（`.github/workflows/docker.yml`），tag 取仓库根 `package.json` 的 `version`（与 `latest`）；非默认分支退化为 `sha-<short>`。也可以本地构建（`Dockerfile` 一个文件、两个目标）：
+CI 会在默认分支推送时构建并推送 `linux/amd64` + `linux/arm64` 双架构镜像到 GHCR（`.github/workflows/docker.yml`），tag 取仓库根 `package.json` 的 `version`（与 `latest`）；非默认分支退化为 `sha-<short>`。
+
+本地构建是**两阶段**：先把前端与加密后端产出到工作区根 `dist/`，再从 `dist/` 组装运行镜像（镜像内不再编译后端，见 `Dockerfile` 的 app / store 目标与 `ops/build.py`）：
 
 ```bash
-docker build --target app   -t homeos-3d:local   .
-docker build --target store -t homeos-3d-store:local .
+bun install
+# 1) 前端（Vite + 混淆）+ 后端（Cython .so）→ 工作区根 dist/
+bun run build:frontend
+python3 ops/build.py backend          # 默认跟随宿主 Docker 架构
+
+# 2) 从根 dist/ 组装镜像（等价于 bun run image，走 Dockerfile 的 app / store 目标）
+python3 ops/build.py image --project 3d    --tag homeos-3d:local
+python3 ops/build.py image --project store --tag homeos-3d-store:local
 
 # 让 deploy.sh 用本地镜像（也可写进 .env）
 HOMEOS_IMAGE=homeos-3d:local HOMEOS_STORE_IMAGE=homeos-3d-store:local \
   ./ops/deploy/deploy.sh
 ```
 
-可用构建参数：`--build-arg CYTHON_VERSION=3.1.6`、`--build-arg CADDY_IMAGE=caddy:2.11.4-alpine`。
+Cython `.so` 与架构绑定：`dist/<项目>/backend/linux-<arch>/` 一份只对应一个架构；`--arch amd64|arm64` 可与宿主不同，但跨架构依赖 QEMU，会慢很多。
+
+**Docker Hub 拉不动时**（典型报错是 `load metadata for docker.io/library/python:3.14-slim-bookworm` → `auth.docker.io` 超时），把基础镜像切到镜像站即可，不必改 `Dockerfile`：
+
+```bash
+# 方式一：命令行
+python3 ops/build.py backend --base-mirror docker.m.daocloud.io
+
+# 方式二：写进 .env（真实环境变量优先；ops/build.py 会读），之后 bun run build 直接可用
+echo 'HOMEOS_BASE_MIRROR=docker.m.daocloud.io' >> .env
+bun run build
+```
+
+也可以直接把基础镜像钉到任意镜像站 / 私有仓库：`--python-image <ref>`、`--caddy-image <ref>`。
+
+可用构建参数：`--build-arg CYTHON_VERSION=3.2.9`、`--build-arg PYTHON_IMAGE=...`、`--build-arg CADDY_IMAGE=...`。
 不传 `--build-arg HOMEOS_VERSION=1.0.0` 时，构建阶段会自己从 `package.json` 读版本号（镜像内没有 VERSION 文件，版本号由构建期生成的 `src/_version.py` 携带）。
 
 ### 七、数据卷与备份

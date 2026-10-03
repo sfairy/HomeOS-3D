@@ -1,5 +1,5 @@
 /**
- * 逐物件的「材质风格」预设档位（对齐 homeos-3d 0.6.5 的 `studio/studio-material-styles.ts`）。
+ * 逐物件的「材质风格」预设档位（对齐参考实现的 `studio/studio-material-styles.ts`）。
  *
  * 角色体系（谁在哪一槽、什么角色）由 `studio-model-material-roles.ts` 决定；本模块只负责
  * **档位**：选一档 = 这个物件的整套角色一次换料。档位携带两样东西：
@@ -7,7 +7,7 @@
  *  1. `colors`：调色板覆盖键。合并进该物件的 palette 后，沿用调色板键的角色配方、
  *     以及暖木主题里那些读 palette 的着色收尾（柜门返边、床尾巾、鞋柜台面…）都会跟着走；
  *  2. `roles`：按角色的配方（颜色多为固定色号）。这一层是「档位即组合」——
- *     0.6.5 的 fabricCombo / joineryCombo / woodCombo… 已经把每档该给的槽位一次说清，
+ *     参考实现的 fabricCombo / joineryCombo / woodCombo… 已经把每档该给的槽位一次说清，
  *     这里直接把它们摊平成「角色 → 配方」表。
  *
  * 生效顺序（最后一手赢）：档位 roles → 逐槽 `item.materialOverrides`。
@@ -32,7 +32,7 @@ interface MaterialStylePreset {
   id: string;
   /** 下拉里显示的中文名。 */
   label: string;
-  /** 整件质感族：角色配方没写 surface 时的兜底（对齐 0.6.5 的档位级 surface）。 */
+  /** 整件质感族：角色配方没写 surface 时的兜底（对齐参考实现的档位级 surface）。 */
   surface?: MaterialSurface;
   /**
    * 整件石材板色号：角色配方没写 slab 时的兜底。
@@ -48,7 +48,7 @@ interface MaterialStylePreset {
 }
 
 /* -------------------------------------------------------------------------- */
-/* 颜色工具：朝白 / 朝黑插值（0.6.5 studio-color-utils.shadeColor 的同语义版本） */
+/* 颜色工具：朝白 / 朝黑插值（参考实现 studio-color-utils.shadeColor 的同语义版本） */
 /* -------------------------------------------------------------------------- */
 
 function shadeColor(color: number, amount: number): number {
@@ -62,7 +62,7 @@ function shadeColor(color: number, amount: number): number {
 }
 
 /**
- * 补齐 furniture 四档。0.6.5 的档位只声明少数调色板键，其余四档由基准色派生 ——
+ * 补齐 furniture 四档。参考实现的档位只声明少数调色板键，其余四档由基准色派生 ——
  * 新项目的家族底表大量引用 `furniture / furnitureSoft / furnitureLight / furnitureDark`，
  * 不补这一手，选了档位的物件会在这些角色上掉回全局主题色。
  */
@@ -110,12 +110,12 @@ function definePreset(
 }
 
 /* -------------------------------------------------------------------------- */
-/* 角色补齐：0.6.5 的 combo 角色名 → 新项目资产命名里多出来的角色                */
+/* 角色补齐：参考实现的 combo 角色名 → 新项目资产命名里多出来的角色                */
 /* -------------------------------------------------------------------------- */
 
 /**
  * 新项目的 GLB 里有一部分角色是**资产命名直接带出来的**（`-furniture-frame`、
- * `-detail-recess`、`-aquatic-sand`…），0.6.5 的 combo 里没有同名角色（0.6.5 没有这批模型）。
+ * `-detail-recess`、`-aquatic-sand`…），参考实现的 combo 里没有同名角色（参考实现没有这批模型）。
  * 若不补这一层，选了档位的那批模型会出现「一部分槽位跟着档位走、另一部分纹丝不动」。
  *
  * 补齐规则只在目标角色**未被 combo 显式给出**时生效，且每个目标只按第一条命中的来源派生；
@@ -136,7 +136,7 @@ const STYLE_ROLE_DERIVATIONS: ReadonlyArray<{
 }> = [
   // 软装件
   //
-  // `surface` 必须**先认 `top`**：新资产把 0.6.5 的台面槽（`top`）改成了
+  // `surface` 必须**先认 `top`**：新资产把参考实现的台面槽（`top`）改成了
   // `-furniture-surface`（方茶几 / 电视柜 / 梳妆台的整块台面、转盘餐桌的转盘盘面、
   // 台球桌的边框顶面 —— 都是「这一件最上面那块板」）。
   // 木器 combo（woodCombo）会给 `upholstery` 一个固定米色的兜底（木器族唯一不跟木色
@@ -269,7 +269,7 @@ function styleRoleRecipeFor(
 }
 
 /* -------------------------------------------------------------------------- */
-/* 组合：每档一次说清一族槽位（0.6.5 同名 combo 的移植）                        */
+/* 组合：每档一次说清一族槽位（参考实现同名 combo 的移植）                        */
 /* -------------------------------------------------------------------------- */
 
 type Recipe = RoleRecipe;
@@ -2618,7 +2618,7 @@ const PRESET_GROUPS: Readonly<Record<string, readonly MaterialStylePreset[]>> = 
 });
 
 /**
- * 逐模型的档位组：0.6.5 里按类型单独指定过的那些，这里逐一登记
+ * 逐模型的档位组：参考实现里按类型单独指定过的那些，这里逐一登记
  * （空串 = 明确不给档位：结构件 / 车辆 / 壁画 / 饰面墙等由专用收尾接管颜色）。
  */
 const PRESET_GROUP_BY_MODEL_TYPE: Readonly<Record<string, string>> = Object.freeze({
@@ -2652,7 +2652,7 @@ const PRESET_GROUP_BY_MODEL_TYPE: Readonly<Record<string, string>> = Object.free
   basin: "basin",
   // 门是程序化几何，模型类型就是 `door`；档位组与之同名（组表见 DOOR_STYLES）。
   door: "door",
-  // 结构件 / 专用收尾：不提供档位（对齐 0.6.5 的排除表，并把新项目的车辆一并排除）。
+  // 结构件 / 专用收尾：不提供档位（对齐参考实现的排除表，并把新项目的车辆一并排除）。
   mural: "",
   featurewall: "",
   stairs: "",

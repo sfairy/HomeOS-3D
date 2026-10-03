@@ -438,10 +438,9 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         # [补充说明] 页面级访问条件：管理员已登录，或是一台已配对且未过期的中控设备。
         return signed_in(request) or active_display(request) is not None
 
-    # [TS 迁移] 清单不再手写。Vite 会给入口产物加内容哈希（如
-    # /static/assets/login-DILrrL4D.js），手写清单每次构建都会失效；现在由
-    # frontend/vite.config.ts 扫描公开页 HTML 生成 dist/public-static.json，
-    # 后端只负责读取（见 _load_public_static_files）。
+    # 清单不手写：入口产物带内容哈希（如 /static/assets/login-<hash>.js），手写必然过期。
+    # 由 frontend/vite.config.ts 扫描公开页 HTML 并入种子清单，生成
+    # dist/public-static.json；后端只负责读取（见 _load_public_static_files）。
     public_static_files = _load_public_static_files(app_settings)
 
     def premium_asset(path: str) -> bool:

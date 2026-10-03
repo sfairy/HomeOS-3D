@@ -32830,7 +32830,7 @@ function runStudioRenderLoop() {
         (effectsProgress > 0 &&
           !isStartupPresentationDone &&
           ((isStartupPresentationDone = true), stageLoadTiming("effects-reveal-start")),
-          // 地面反射的强度不再跟着入场动画的进度走（0.6.5 也没有这一步）。
+          // 地面反射的强度不再跟着入场动画的进度走（参考实现也没有这一步）。
           // 原来这里会把强度从 0 拉到 1，只要入场动画停在「等待揭示」阶段，
           // 反射就会被永久压在强度 0 上 —— 表现为「首次进页面看不到反射，
           // 手指碰一下（pointerdown/wheel 会终结入场动画）才出现」。
@@ -32870,7 +32870,7 @@ function runStudioRenderLoop() {
       cull: !isReflectionDiagnosticsMode,
       // blur / fadeHeight / detailMaxResolution 都不在这里写死：
       // 它们由 bridge/reflection-settings.ts 的 GROUND_REFLECTION_QUALITY + GROUND_REFLECTION_FADE_HEIGHT
-      // 按清晰度档统一决定（0.6.7 曾经在这里写死 blur: true + fadeHeight: 1.25，
+      // 按清晰度档统一决定（曾在这里写死 blur: true + fadeHeight: 1.25，
       // 导致接近地面 1.25m 以上的内容倒影被裁掉、且整幅倒影发糊）。
       maxResumeCapturesPerFrame: 1,
       syncLighting: (lightingCamera) =>
@@ -33131,7 +33131,7 @@ function runStudioRenderLoop() {
           !contactShadowController?.hasPendingSurfaces?.() &&
           ((previousReflectionEnabled = false),
           groundReflections.setSuspended(isReflectionsSuspended || shouldSuspendReflections, {
-            // 恢复反射时按 160ms 淡入（0.6.5 的观感），而不是硬闪一下。
+            // 恢复反射时按 160ms 淡入（参考实现的观感），而不是硬闪一下。
             fadeIn: true,
           }),
           groundReflections.changed(),
@@ -33139,7 +33139,7 @@ function runStudioRenderLoop() {
           startupPresentation.shadowsReady()),
         !previousReflectionEnabled &&
           // 不再要求「入场动画已经开始 / 效果阶段已完成」才拍反射。
-          // 反射的可见性只由「是否启用 + 是否挂起」决定（与 0.6.5 一致）：
+          // 反射的可见性只由「是否启用 + 是否挂起」决定（与参考实现一致）：
           // 挂起期间 render() 自己会提前返回，不需要在这里再挡一道，
           // 否则入场动画一旦卡住，用户必须转动视角才能把反射「逼」出来。
           (!threeRenderer.getRenderTarget() || shadowAtlasCanvas?.isScreenPass) &&

@@ -44,7 +44,7 @@ export function createGroundReflections({
   // 高分辨率关（保清晰）。显式传 true / false 可强制覆盖。
   blur: blur = null,
   // fadeHeight：> 0 时启用「离镜面高度淡出」——超过该高度的内容在倒影里渐隐，同时剔除器用同一阈值
-  // 把整盒都在该高度之上的网格直接剔掉。默认取 GROUND_REFLECTION_FADE_HEIGHT（0＝不截断，对齐 0.6.5）。
+  // 把整盒都在该高度之上的网格直接剔掉。默认取 GROUND_REFLECTION_FADE_HEIGHT（0＝不截断，对齐参考实现）。
   fadeHeight: fadeHeight = GROUND_REFLECTION_FADE_HEIGHT,
   // 恢复反射时的逐帧捕获上限：Infinity 一次性拍完，1 则一面镜子一面镜子地出，避免卡帧。
   maxResumeCapturesPerFrame: maxResumeCapturesPerFrame = Infinity,
@@ -128,7 +128,7 @@ export function createGroundReflections({
       const fadedClone = cloneReflectionMaterial(refractionFreeMaterialNode);
       // 顶点阶段把「离地高度」插值到片元（mvPosition 在 project_vertex 之后才有值）；
       // 片元阶段按高度淡出，淡到 0 直接 discard。
-      // 注意：这就是 0.6.7 里让高楼 / 吊灯倒影整体消失的开关，只在 fadeHeight > 0 时才会走到这里。
+      // 注意：这个开关曾让高楼 / 吊灯倒影整体消失，只在 fadeHeight > 0 时才会走到这里。
       ((fadedClone.onBeforeCompile = function (shader, webglRenderer) {
         (refractionFreeMaterialNode.onBeforeCompile.call(this, shader, webglRenderer),
           Object.assign(shader.uniforms, reflectionUniforms),

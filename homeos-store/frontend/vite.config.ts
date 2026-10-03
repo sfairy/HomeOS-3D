@@ -9,8 +9,10 @@ import { quietLogger } from "./vite-quiet-logger.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const storeRoot = __dirname;
 const projectRoot = path.resolve(storeRoot, "..");
+//: 工作区根：构建产物统一收敛到 <repoRoot>/dist/homeos-store/，与源码树彻底分离。
+const repoRoot = path.resolve(projectRoot, "..");
 const pagesDir = path.join(storeRoot, "pages");
-const outDir = path.join(projectRoot, "dist");
+const outDir = path.join(repoRoot, "dist", "homeos-store", "frontend");
 
 const pages = ["store.html", "setup.html", "admin.html"] as const;
 
@@ -86,6 +88,8 @@ function flattenTemplatesPlugin(): Plugin {
 export default defineConfig({
   root: storeRoot,
   base: "/",
+  // 依赖预打包缓存统一落在工作区根 node_modules/.vite/homeos-store，避免项目内再长出 node_modules。
+  cacheDir: path.join(repoRoot, "node_modules", ".vite", "homeos-store"),
   customLogger: quietLogger(),
   publicDir: path.join(storeRoot, "public"),
   resolve: {

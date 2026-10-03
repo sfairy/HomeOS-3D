@@ -79,7 +79,7 @@ function insetBedBaseGeometry(bedGeometry) {
  * 会让同一块台面上出现 6 份缩小的纹路，接缝正好落在最显眼的边上。所以这里整体改写 UV。
  *
  * XZ 平面投影的取舍：餐桌 / 茶几 / 橱柜台面都是水平板，投影上去比例正确；立柱式的石座
- * 侧面会被压成一条窄带（0.6.5 同样如此），换来的是台面那一大片纹路正确。
+ * 侧面会被压成一条窄带（参考实现同样如此），换来的是台面那一大片纹路正确。
  */
 function ensureStoneSlabPlanarUv(threeLib, slabGeometry) {
   if (!slabGeometry?.attributes?.position) return;

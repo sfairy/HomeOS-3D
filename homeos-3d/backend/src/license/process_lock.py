@@ -13,7 +13,7 @@
 # 结束的对方。
 #
 # 本模块在 service.py 的**导入期**被引入，所以它只面向 POSIX（macOS / Linux）：
-# 0.6.5 的发型包就只在 macOS/Linux 上跑，fcntl 是无条件导入的。
+# 早期版本的发行包就只在 macOS/Linux 上跑，fcntl 是无条件导入的。
 from __future__ import annotations
 
 import fcntl

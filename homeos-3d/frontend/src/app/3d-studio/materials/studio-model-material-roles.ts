@@ -1,8 +1,8 @@
 /**
- * 外部模型「材质槽位 / 角色 → 材质配方」集中表（对齐 homeos-3d 0.6.5）。
+ * 外部模型「材质槽位 / 角色 → 材质配方」集中表（对齐参考实现）。
  *
- * 背景：0.6.5 的材质统一命名为 `material-<槽位>-<角色>`，角色由代码消费
- * （见 0.6.5 的 studio-material-styles.ts / studio-external-models.ts）。
+ * 背景：参考实现的材质统一命名为 `material-<槽位>-<角色>`，角色由代码消费
+ * （见参考实现的 studio-material-styles.ts / studio-external-models.ts）。
  * 新项目的 GLB 命名分五套体系：
  *   - `<type>-material-N`（无角色，需靠 slot 表定位）
  *   - `material-N-role`
@@ -18,7 +18,7 @@
 import { courtyardPalette } from "../plan/courtyard-models";
 import { DECOR_MODELS, DECOR_THEMES } from "../studio/decor-models";
 
-/** 表面族：决定默认粗糙度 / 金属度（对齐 0.6.5 的 SURFACE_ROUGHNESS / SURFACE_METALNESS）。 */
+/** 表面族：决定默认粗糙度 / 金属度（对齐参考实现的 SURFACE_ROUGHNESS / SURFACE_METALNESS）。 */
 export type MaterialSurface =
   | "fabric"
   | "leather"
@@ -61,7 +61,7 @@ export interface RoleRecipe {
   /** 在解析出的颜色上再乘一个系数（用于 recess / shadow 这类「比本体更暗」的角色）。 */
   multiply?: number;
   /**
-   * 石材板色号（0.6.5 STONE_SLAB_FLAVOR_BY_MODEL_SLOT 的等价物）：
+   * 石材板色号（参考实现 STONE_SLAB_FLAVOR_BY_MODEL_SLOT 的等价物）：
    * 声明了它，这一槽就按「整块石材」出图 —— 贴一张自带纹路的大理石整图。
    */
   slab?: StoneSlabFlavor;
@@ -77,7 +77,7 @@ interface ResolvedRoleRecipe extends RoleRecipe {
   emissiveValue?: number;
 }
 
-/** 表面族 → 默认粗糙度 / 金属度（对齐 0.6.5）。 */
+/** 表面族 → 默认粗糙度 / 金属度（对齐参考实现）。 */
 const SURFACE_FINISH: Record<MaterialSurface, { roughness: number; metalness: number }> = {
   fabric: { roughness: 0.94, metalness: 0 },
   leather: { roughness: 0.62, metalness: 0.02 },
@@ -130,7 +130,7 @@ export function materialSurfaceFinish(
 }
 
 /**
- * 石材板色号 → 抛光面参数（对齐 0.6.5 STONE_SLAB_FINISH_BY_FLAVOR）。
+ * 石材板色号 → 抛光面参数（对齐参考实现 STONE_SLAB_FINISH_BY_FLAVOR）。
  *
  * 为什么不能沿用 `surface` 那一列：石材板的角色配方常常写 `surface: "stone"`（哑光 0.66），
  * 而贴了整图的大理石板是**抛光面**（0.24 / 0.18）。色号自己带抛光参数，才不会让黑金大理石
@@ -298,7 +298,7 @@ const FAMILY_ROLE_RECIPES: Record<string, RoleRecipeTable> = {
     drawer: { color: "cabinetDoor", surface: "wood" },
     panel: { color: "cabinetBody", surface: "wood" },
     interior: { color: "furnitureDark", surface: "wood" },
-    // 0.6.5 joineryCombo 的默认：层板 / 踢脚 / 压条都跟随柜体（body），柜脚跟随踢脚。
+    // 参考实现 joineryCombo 的默认：层板 / 踢脚 / 压条都跟随柜体（body），柜脚跟随踢脚。
     shelf: { color: "furniture", surface: "wood" },
     top: { color: "countertop", surface: "stone", slab: "marble" },
     base: { color: "furniture", surface: "wood" },
@@ -582,7 +582,7 @@ const FAMILY_BY_ITEM_TYPE: Readonly<Record<string, string>> = Object.freeze({
   kitchencooktop: "joinery",
   glasscabinet: "joinery",
   // 桌子（desk）不是柜类：它没有柜门 / 内腔 / 水槽 / 灶头，台面 + 侧板 + 拉手就是全部。
-  // 0.6.5 给它的角色是 top / body / drawer / leg / metal，与 `woodwork`（桌几 / 吧台 /
+  // 参考实现给它的角色是 top / body / drawer / leg / metal，与 `woodwork`（桌几 / 吧台 /
   // 茶几 / 台球桌）同一套词表 —— 归到 joinery 会拿到「石材台面 + 柜门」的柜类档位，
   // 桌面最大的那块面反而落在柜体色上，档位名（木柜白门…）在这件家什上也无从兑现。
   desk: "woodwork",
@@ -694,7 +694,7 @@ export function isStructuralModelFamily(family: string): boolean {
 /* -------------------------------------------------------------------------- */
 
 export const MODEL_SLOT_ROLES: Readonly<Record<string, readonly (string | null)[]>> = Object.freeze({
-  // 以 0.6.5 `material-<槽位>-<角色>` 为准；新模型槽位更多时按最接近角色顺延，
+  // 以参考实现 `material-<槽位>-<角色>` 为准；新模型槽位更多时按最接近角色顺延，
   // 更少时截断，并用 GLB 材质的透明 / 自发光 / 金属度把这些「无角色」槽位修正回
   // 正确语义（玻璃 → glass / mirror，发光屏 → lit / indicator，高金属 → metal）。
   bar: ["top", "body", "base", "trim", "leg", "metal"],
@@ -708,7 +708,7 @@ export const MODEL_SLOT_ROLES: Readonly<Record<string, readonly (string | null)[
   basin: ["frame", "top", "sink", "trim", "mirror", "metal", "base"],
   bathtub: ["body", "interior", "trim", "metal", "metal"],
   // bookcase 的图元 3~6 是柜内小摆件（0.085~0.15m、金属度≈0、烘焙色为陶土/深木色），
-  // 不是柜体结构件，按 0.6.5 joineryCombo 的「撞色摆件」语义给 accent（陶土色）。
+  // 不是柜体结构件，按参考实现 joineryCombo 的「撞色摆件」语义给 accent（陶土色）。
   bookcase: [
     "interior",
     "base",
@@ -743,7 +743,7 @@ export const MODEL_SLOT_ROLES: Readonly<Record<string, readonly (string | null)[
   curtain_left: ["metal", "fabric", "fabric", "metal", "fabric", "fabric"],
   curtain_right: ["metal", "fabric", "fabric", "metal", "fabric", "fabric"],
   curtain_split: ["metal", "fabric", "fabric", "metal", "fabric", "fabric"],
-  // desk（桌子 / 书桌）的新 GLB 只有 3 个图元（0.6.5 有 5 个：top/body/drawer/leg/metal），
+  // desk（桌子 / 书桌）的新 GLB 只有 3 个图元（参考实现有 5 个：top/body/drawer/leg/metal），
   // 逐图元量过几何后这样分：
   //   0 = 0.38×0.02×0.03 细杆，y0.55、x0.12..0.50、z 出到 0.28（桌面前沿外），金属度 0.35
   //       → 抽屉拉手 `metal`。
@@ -760,15 +760,15 @@ export const MODEL_SLOT_ROLES: Readonly<Record<string, readonly (string | null)[
   //       四档都落在桌子的真实构件上且都能看出来。
   desk: ["metal", "top", "frame"],
   dishwasher: ["body", "door", "panel", "handle", "base", "screen"],
-  // dryer / washer 的新 GLB 把 0.6.5 的 10 个节点合并成 6~7 个图元，图元顺序与 0.6.5
-  // 的槽位顺序**不同**（0.6.5 是 body/top/base/door/glass/handle/panel/grating/screen/metal）：
-  // 0=整机外壳(含顶盖，0.6.5 的 top 已并进来) → body
-  // 1=0.649×0.18 前面上部窄条 → panel（控制面板，0.6.5 panel 0.34×0.09 同位）
-  // 2=前方正中圆环 → door（0.6.5 door 0.5×0.54 同位，圆门）
+  // dryer / washer 的新 GLB 把参考实现的 10 个节点合并成 6~7 个图元，图元顺序与参考实现
+  // 的槽位顺序**不同**（参考实现是 body/top/base/door/glass/handle/panel/grating/screen/metal）：
+  // 0=整机外壳(含顶盖，参考实现的 top 已并进来) → body
+  // 1=0.649×0.18 前面上部窄条 → panel（控制面板，参考实现 panel 0.34×0.09 同位）
+  // 2=前方正中圆环 → door（参考实现 door 0.5×0.54 同位，圆门）
   // 3=圆环内的深色窗（烘焙色 #05080b / #0a1017，与微波炉/蒸箱玻璃同档）→ glass
-  // 4=0.078 圆钮（金属度 0.4，位置与 0.6.5 metal 0.056 圆钮一致）→ metal
+  // 4=0.078 圆钮（金属度 0.4，位置与参考实现 metal 0.056 圆钮一致）→ metal
   // 5=控制条左侧小横条 → handle
-  // 6=washer 左下小抽屉（0.141×0.055，位置与 0.6.5 drawer 一致）→ drawer
+  // 6=washer 左下小抽屉（0.141×0.055，位置与参考实现 drawer 一致）→ drawer
   dryer: ["body", "panel", "door", "glass", "metal", "handle"],
   washer: ["body", "panel", "door", "glass", "metal", "handle", "drawer"],
   // 门是户型里的洞口构件，不是 GLB 模型：这张表登记的是**程序化门的部件 → 角色**，
@@ -777,7 +777,7 @@ export const MODEL_SLOT_ROLES: Readonly<Record<string, readonly (string | null)[
   // 色卡、逐部件取色与表面参数（材质名约定：`door-material-<n>`）。
   door: ["frame", "door", "glass", "metal", "shutter", "slat", "trim"],
   fridge: ["body", "panel", "handle"],
-  // glasscabinet 的新 GLB 有 18 个图元（0.6.5 只有 7 个），按「图元相对整机包围盒的
+  // glasscabinet 的新 GLB 有 18 个图元（参考实现只有 7 个），按「图元相对整机包围盒的
   // 尺寸 / 位置」逐槽判定：0=背板(1.12×1.82×0.03, Z-0.185) / 1,2=下柜双门(前面板) /
   // 3,4,5=玻璃(BLEND) / 6..9=陈列小件(0.15m 高竖向小件) / 10=柜体(1.2×1.9×0.4) /
   // 11=内胆 / 12=玻璃门框(144 顶点环形) / 13..17=柜内收纳盒(≈0.8×0.8×0.168 套装)。
@@ -802,7 +802,7 @@ export const MODEL_SLOT_ROLES: Readonly<Record<string, readonly (string | null)[
     "stash",
   ],
   glasspartition: ["glass", "metal", "handle"],
-  // 以下 7 个柜类模型的槽位顺序以**新 GLB 的真实图元顺序**为准（不是 0.6.5 的节点顺序）：
+  // 以下 7 个柜类模型的槽位顺序以**新 GLB 的真实图元顺序**为准（不是参考实现的节点顺序）：
   // 依据是加载器里为这些新模型写死的 `cabinetDoorMaterialIndex` /
   // `countertopMaterialIndexByItemType`，以及每个图元相对整机包围盒的尺寸 / 位置。
   // 例：kitchenbase 的台面在槽 2、门板在槽 3；sideboard 的台面在槽 0、门板在槽 3。

@@ -28,6 +28,10 @@ HOMEOS_3D = ROOT / 'homeos-3d'
 HOMEOS_STORE = ROOT / 'homeos-store'
 APP_BACKEND = HOMEOS_3D / 'backend'
 STORE_BACKEND = HOMEOS_STORE / 'backend'
+# 构建产物统一收敛在工作区根 dist/（见 ops/build.py 与各 frontend/vite.config.ts 的 outDir）。
+DIST_ROOT = ROOT / 'dist'
+HOMEOS_3D_FRONTEND = DIST_ROOT / 'homeos-3d' / 'frontend'
+HOMEOS_STORE_FRONTEND = DIST_ROOT / 'homeos-store' / 'frontend'
 
 # 商店后端优先入 path，供 load_dotenv / 密钥工具 import
 for _path in (str(STORE_BACKEND), str(ROOT)):
@@ -257,7 +261,7 @@ def anonymous_whitelist_complete() -> bool:
     """
     try:
         seed = json.loads((HOMEOS_3D / 'frontend' / 'public-static.seed.json').read_text(encoding = 'utf-8'))
-        manifest = json.loads((HOMEOS_3D / 'dist' / 'public-static.json').read_text(encoding = 'utf-8'))
+        manifest = json.loads((HOMEOS_3D_FRONTEND / 'public-static.json').read_text(encoding = 'utf-8'))
     except (OSError, json.JSONDecodeError):
         return False
     generated = set()
@@ -284,12 +288,12 @@ def ensure_frontend_build() -> None:
     # assets 只证明 app/store 主包在；runtime manifest 另算 —— 缺它时 3D 模块会 500。
     # 白名单完整性另算 —— 见 anonymous_whitelist_complete。
     ready = (
-        (HOMEOS_3D / 'dist' / 'static' / 'assets').is_dir()
-        and any((HOMEOS_3D / 'dist' / 'static' / 'assets').glob('*.js'))
-        and (HOMEOS_3D / 'dist' / 'modules' / 'runtime' / 'manifest.json').is_file()
+        (HOMEOS_3D_FRONTEND / 'static' / 'assets').is_dir()
+        and any((HOMEOS_3D_FRONTEND / 'static' / 'assets').glob('*.js'))
+        and (HOMEOS_3D_FRONTEND / 'modules' / 'runtime' / 'manifest.json').is_file()
         and anonymous_whitelist_complete()
-        and (HOMEOS_STORE / 'dist' / 'static' / 'assets').is_dir()
-        and any((HOMEOS_STORE / 'dist' / 'static' / 'assets').glob('*.js'))
+        and (HOMEOS_STORE_FRONTEND / 'static' / 'assets').is_dir()
+        and any((HOMEOS_STORE_FRONTEND / 'static' / 'assets').glob('*.js'))
     )
     if ready:
         return
@@ -354,6 +358,8 @@ def main() -> None:
 
     app_environment = base_environment.copy()
     app_environment['APP_DATA_DIR'] = str(HOMEOS_3D / 'data')
+    # 前端产物在根 dist（不在项目目录内），显式指给后端，避免它回落到源码 frontend/。
+    app_environment['HOMEOS_FRONTEND_DIR'] = str(HOMEOS_3D_FRONTEND)
     # 后端包是 homeos-3d/backend/src，导入名因此是 backend.src.*（见 migrations/env.py）。
     # PYTHONPATH 必须挂项目根而不是 backend/：挂 backend/ 只能让
     # ``src.*`` 解析，而迁移脚本里的 ``backend.src.*`` 会另起一棵模块树，同一份 database.py

@@ -9,8 +9,10 @@ import { quietLogger } from "./vite-quiet-logger.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = __dirname;
 const projectRoot = path.resolve(frontendRoot, "..");
+//: 工作区根：构建产物统一收敛到 <repoRoot>/dist/homeos-3d/，与源码树彻底分离。
+const repoRoot = path.resolve(projectRoot, "..");
 const pagesDir = path.join(frontendRoot, "pages");
-const outDir = path.join(projectRoot, "dist");
+const outDir = path.join(repoRoot, "dist", "homeos-3d", "frontend");
 
 const htmlPages = [
   "index.html",
@@ -64,7 +66,7 @@ const classicEntries: Record<string, string> = {
   ),
 };
 
-// three 锁定 0.186.0，与 0.6.7/frontend/static/vendor/three/0.186.0 一致。
+// three 锁定 0.186.0，与随包分发的 static/vendor/three/0.186.0 保持一致。
 const THREE_VENDOR = "/static/vendor/three/0.186.0/three.module.min.js";
 
 function isRuntimeExternal(id: string): boolean {
@@ -272,9 +274,9 @@ function updatePublicStaticManifest() {
     const p = typeof item === "string" ? item : item.path;
     if (!p?.startsWith("/static/")) continue;
     if (seen.has(p)) continue;
-    // 种子清单是从 0.6.7 的匿名白名单翻译过来的，里面记的是「打包前」的扁平文件名
-    // （/static/login.js 之类）。打包后它们变成了 /static/assets/login-<hash>.js 或被
-    // 归到子目录，因此这里按产物实际存在与否筛一遍。
+    // 种子清单记的是逻辑路径，入口产物打包后会带内容哈希（如
+    // /static/assets/login-<hash>.js）或按域归到子目录，因此这里按产物实际
+    // 存在与否筛一遍，只保留真正落盘的路径。
     // 不筛的代价是有害的：清单里留着不存在的条目，G6 对账就再也发现不了
     // 「新增公开页资源忘了登记」——因为噪声条目让门禁永远不干净。
     if (!fs.existsSync(path.join(outDir, p.replace(/^\//, "")))) {
@@ -300,9 +302,9 @@ function updatePublicStaticManifest() {
   // 记录被筛掉的种子条目，方便核对「是不是真有资源漏了」而不是被静默吞掉。
   (payload as Record<string, unknown>)._prunedStaleSeed = pruned.sort();
   if (pruned.length > 0) {
-    // 正常构建会筛掉那些「打包前的扁平文件名」（已换成 /static/assets/xxx-<hash>.js）。
-    // 若这里出现 /static/logging/client-log.js 这类新路径，说明本插件被排到了产物写入
-    // 插件之前 —— 白名单会少条目、未登录页白屏，所以必须出声。
+    // 正常构建不应筛掉任何条目。一旦出现（尤其是 /static/logging/client-log.js
+    // 这类确定会产出的路径），说明本插件被排到了产物写入插件之前 ——
+    // 白名单会少条目、未登录页白屏，所以必须出声。
     console.warn(`[homeos] 匿名白名单筛掉 ${pruned.length} 条不存在的种子条目：\n  ${pruned.join("\n  ")}`);
   }
   const revalidate = new Set<string>();
@@ -319,6 +321,10 @@ function updatePublicStaticManifest() {
 export default defineConfig({
   root: frontendRoot,
   base: "/",
+  // 依赖预打包缓存统一落在工作区根 node_modules/.vite/homeos-3d。
+  // 不显式指定的话，Vite 按最近的 package.json 落到 <项目>/node_modules/.vite，
+  // 会把「已合并到根」的项目内 node_modules 又长出来（见根 bunfig.toml 的 hoisted 说明）。
+  cacheDir: path.join(repoRoot, "node_modules", ".vite", "homeos-3d"),
   customLogger: quietLogger(),
   publicDir: path.join(frontendRoot, "public"),
   resolve: {

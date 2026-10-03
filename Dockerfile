@@ -1,38 +1,29 @@
-# syntax=docker/dockerfile:1
+# 刻意**不写** `# syntax=docker/dockerfile:1`：那一行会让每次构建都先去 Docker Hub
+# 拉一次前端镜像（实测 120s，网络差时直接超时失败），而本文件没有用到任何超越内置
+# 前端的语法（多阶段 / scratch / ARG before FROM / COPY --chown 都是内置支持）。
+
+# ─── 基础镜像（可用镜像站覆盖）─────────────────────────────────────
+#
+# Docker Hub 在部分网络下拉不动（auth.docker.io 超时）。这两个 ARG 让整个基础镜像
+# 可以整体指向镜像站 / 私有仓库，而不必改本文件：
+#
+#   docker buildx build \
+#     --build-arg PYTHON_IMAGE=docker.m.daocloud.io/library/python:3.14-slim-bookworm \
+#     --build-arg CADDY_IMAGE=docker.m.daocloud.io/library/caddy:2.11.4-alpine ...
+#
+# ops/build.py 的 --base-mirror（或 HOMEOS_BASE_MIRROR 环境变量）会自动拼出这两个引用，
+# 例如 `HOMEOS_BASE_MIRROR=docker.m.daocloud.io bun run build:backend`。
+ARG PYTHON_IMAGE=python:3.14-slim-bookworm
+ARG CADDY_IMAGE=caddy:2.11.4-alpine
 
 #: 镜像版本号来自仓库根 package.json 的 version（CI 用 --build-arg HOMEOS_VERSION 传同一个值）：
 #: 构建期写成 src/_version.py 再随源码一起编译，镜像里不再有 VERSION 文件。
 ARG CYTHON_VERSION=3.2.9
-#: 内置反代的 Caddy 二进制来源。Caddy 官方镜像是静态编译的 Go 二进制（/usr/bin/caddy），
-#: 直接把它拷进 Debian 基础镜像即可运行。这里钉住小版本以保证可复现；升级时改这一行，
-#: 或用 --build-arg CADDY_IMAGE=... 覆盖（也可换成 digest）。
-ARG CADDY_IMAGE=caddy:2.11.4-alpine
 
 # ─── 内置反代：只取 caddy 静态二进制，运行镜像不依赖这个基础镜像 ─────
 FROM ${CADDY_IMAGE} AS caddy-bin
 
-# ─── 前端：Bun + Vite → dist（含 JS 混淆）─────────────────────────
-FROM oven/bun:1.4-debian AS frontend-tools
-
-WORKDIR /work
-COPY package.json bun.lock bunfig.toml ./
-COPY homeos-3d/package.json ./homeos-3d/
-COPY homeos-store/package.json ./homeos-store/
-RUN bun install --frozen-lockfile
-
-COPY ops/docker/obfuscate_javascript.mjs ./ops/docker/obfuscate_javascript.mjs
-COPY homeos-3d ./homeos-3d
-COPY homeos-store ./homeos-store
-RUN bun run build \
-    && grep -q '_0x' homeos-3d/dist/static/logging/client-log.js \
-    && test -f homeos-3d/dist/static/vendor/three/0.186.0/three.module.min.js \
-    && grep -q '_0x' homeos-store/dist/static/auth-bootstrap.js \
-    && test -f homeos-store/dist/static/jquery.min.js \
-    && test -f homeos-3d/dist/index.html \
-    && test -f homeos-store/dist/templates/store.html
-
-
-FROM python:3.14-slim-bookworm AS base
+FROM ${PYTHON_IMAGE} AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -61,6 +52,15 @@ RUN pip install --upgrade pip \
     && rm /tmp/requirements-app.txt /tmp/requirements-store.txt
 
 
+# ═══ 后端保护：Cython 把 Python 源码编译成原生扩展（.so），随后删除 .py 源码 ═══
+#
+# 这两段产物**不直接进运行镜像**，而是由 ops/build.py 用
+#   docker buildx build --target app-export --output type=local,dest=dist/homeos-3d/backend/linux-<arch>
+# 导出到工作区根 dist/，再由运行阶段 COPY 回来。这样「加密后的后端」是一份可归档、
+# 可跨镜像复用的产物，运行镜像里不再编译任何后端源码。
+#
+# 前端（Vite 构建 + JS 混淆）改由宿主机的 `bun run build:frontend` 产出，也落在根 dist/，
+# 本文件不再承担前端构建。
 FROM base AS app-build
 ARG CYTHON_VERSION
 #: 版本号唯一来源是仓库根 package.json 的 version；CI 用 build-arg 传同一个值。
@@ -78,7 +78,6 @@ COPY ops/docker ./ops/docker
 COPY package.json /tmp/package.json
 COPY homeos-3d/alembic.ini ./alembic.ini
 COPY homeos-3d/backend/src ./backend/src
-COPY --from=frontend-tools /work/homeos-3d/dist ./dist
 # migrations/ 里的迁移脚本必须原样保留（compile_python.py 的 KEEP_SOURCE_PREFIXES 已含它）：
 # alembic 是**读源码文件**来执行的，编译成 .so 之后它反而找不到脚本。
 # 位置与导入名都不是随意定的：/app/alembic.ini 的 script_location=migrations，而
@@ -110,6 +109,11 @@ RUN mkdir -p /app/image \
     && test ! -f /app/ops/container_entrypoint.py \
     && test -z "$(find /app/backend/src /app/ops/docker \( -name '*.py' -o -name '*.pyc' \) -print -quit)"
 
+# 导出阶段：FROM scratch + 只 COPY /app，令 --output type=local 得到干净的 /app 内容，
+# 而不是整个 Debian rootfs（见 ops/build.py 的 export_backend）。
+FROM scratch AS app-export
+COPY --from=app-build /app/ /
+
 
 FROM base AS store-build
 ARG CYTHON_VERSION
@@ -128,10 +132,8 @@ COPY ops/docker ./ops/docker
 COPY package.json /tmp/package.json
 COPY homeos-store/alembic.ini ./alembic.ini
 COPY homeos-store/backend/src ./src
-COPY --from=frontend-tools /work/homeos-store/dist ./dist
 # db/ 里的迁移脚本必须原样保留（compile_python.py 的 KEEP_SOURCE_PREFIXES 已含它）：
 # alembic 是**读源码文件**来执行的，编译成 .so 之后它反而找不到脚本。
-COPY homeos-store/db ./db
 # src/_version.py 随后与其它源码一起被编译成 .so，运行期由 src/__init__.py 读取。
 # 末尾两条 test 是**结构约束**而不是重复检查：迁移文件一旦没随镜像走，代价是
 # 「镜像推出去、用户机器上才发现容器起不来」—— 在这里失败，代价只是一次构建。
@@ -158,7 +160,15 @@ RUN rm -f /app/ops/docker/compile_python.py /app/ops/docker/obfuscate_javascript
     && test ! -f /app/ops/container_entrypoint.py \
     && test -z "$(find /app/src /app/ops/docker \( -name '*.py' -o -name '*.pyc' \) -print -quit)"
 
+FROM scratch AS store-export
+COPY --from=store-build /app/ /
 
+
+# ═══ 运行镜像：组装工作区根 dist/ 里已构建好的加密后端与前端产物 ═══
+#
+# 两阶段构建（先 `bun run build:frontend` + `ops/build.py backend`，再 `ops/build.py image`）：
+# 本阶段不再编译任何后端源码，只 COPY dist/，因此构建极快、且拿到的就是被审计过的那份产物。
+# BACKEND_PLATFORM 选平台子目录（Cython .so 与架构绑定，amd64 / arm64 各一份）。
 FROM base AS app
 
 ENV APP_DATA_DIR=/data \
@@ -168,10 +178,17 @@ ENV APP_DATA_DIR=/data \
     APP_UPDATE_CHANNEL=docker \
     PYTHONPATH=/app
 
+#: 后端 .so 的平台目录名（linux-amd64 / linux-arm64），由构建方按目标架构指定。
+ARG BACKEND_PLATFORM=linux-amd64
+
 RUN mkdir -p /data /data/client-keys /run/secrets \
     && chown -R homeos:homeos /data /run/secrets /home/homeos
 
-COPY --from=app-build --chown=homeos:homeos /app /app
+# 加密后端（Cython .so + 保留的 migrations 源码）与前端产物都来自工作区根 dist/。
+COPY --chown=homeos:homeos dist/homeos-3d/backend/${BACKEND_PLATFORM} /app
+COPY --chown=homeos:homeos dist/homeos-3d/frontend /app/dist
+# 内置素材目录：空目录可能不被 local 导出保留，这里补建。
+RUN mkdir -p /app/image && chown homeos:homeos /app/image
 # 内置反代配置（Caddy 与 uvicorn 同容器，见 ops/docker/start_app.py）。
 COPY ops/caddy/app.Caddyfile /etc/caddy/Caddyfile
 
@@ -194,10 +211,14 @@ ENV STORE_DATA_DIR=/data \
     STORE_PORT=8802 \
     PYTHONPATH=/app
 
+ARG BACKEND_PLATFORM=linux-amd64
+
 RUN mkdir -p /data /data/license-keys /data/client-keys \
     && chown -R homeos:homeos /data /home/homeos
 
-COPY --from=store-build --chown=homeos:homeos /app /app
+# 加密后端（Cython .so + 保留的 db/migrations 源码）与前端产物都来自工作区根 dist/。
+COPY --chown=homeos:homeos dist/homeos-store/backend/${BACKEND_PLATFORM} /app
+COPY --chown=homeos:homeos dist/homeos-store/frontend /app/dist
 # 内置反代配置（Caddy 与商店同容器，见 ops/docker/start_store.py）。
 COPY ops/caddy/store.Caddyfile /etc/caddy/Caddyfile
 

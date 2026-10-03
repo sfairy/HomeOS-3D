@@ -49,7 +49,7 @@ ops/deploy/deploy.sh --role all
 - **同一份提交。** 两份镜像独立构建，授权协议里的 `keyId`（由公钥字节派生）、`generation`、`clientVersion` 都是运行期才校验的，版本漂移不会在构建期报错。两边都用同一个 tag（该 tag 由仓库根 `package.json` 的 `version` 决定）。
 - **架构要各自匹配。** 镜像里的 Python 已被 Cython 编译成 `.so`，是 per-arch 产物，amd64 / arm64 不能互相搬镜像。
 - **时钟同步。** 租约、会话、令牌全部按时间判定；两台机器时钟偏移大了会表现为「刚发的租约已过期」。
-- 构建只需 `Dockerfile`（`--target app` / `--target store`）或直接用 GHCR 镜像；**不需要**在两台机器上各自跑 compose 构建。
+- 构建只需 `Dockerfile`（`--target app` / `--target store`）或直接用 GHCR 镜像；**不需要**在两台机器上各自跑 compose 构建。本地自行构建是**两阶段**：先 `bun run build:frontend` + `python3 ops/build.py backend` 把前端（已混淆）与加密后端（Cython `.so`）产出到工作区根 `dist/`，再 `python3 ops/build.py image` 从 `dist/` 组装运行镜像（镜像内不再编译后端）。
 
 ## 1. 中心商店（厂商机）：先起商店
 

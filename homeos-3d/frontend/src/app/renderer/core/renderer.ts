@@ -266,7 +266,7 @@ const maxRuntimeEntitySubscriptions = 1000,
 
 /**
  * 门帘位置死区：位置值大于该阈值即视为「已张开」，否则视为停在闭合端（0）。
- * 0.6.7 基线引用过该常量但从未定义，运行到相关分支会抛 ReferenceError。
+ * 历史基线曾引用该常量却从未定义，运行到相关分支会抛 ReferenceError。
  */
 const COVER_CLOSED_POSITION_EPSILON = 0.01;
 function runtimeDialogLayout({
@@ -537,7 +537,7 @@ function mixHexColor(fromHexColor, toHexColor, blendAmount = 0) {
       .join("")
   );
 }
-/** renderer 构造选项：0.6.7 起就是开放结构，只有少数几个字段有固定语义。 */
+/** renderer 构造选项：一直是开放结构，只有少数几个字段有固定语义。 */
 type PanelRendererOptions = {
   editable?: boolean;
   onError?: (error: any) => void;
@@ -553,7 +553,7 @@ type RendererDetailsStateSync = {
 
 /**
  * 组件详情 / 可视化控制器元素。
- * 0.6.7 起就把每个组件的状态同步钩子直接挂在 DOM 元素上（组件类型不同、挂的钩子也不同），
+ * 每个组件的状态同步钩子一直直接挂在 DOM 元素上（组件类型不同、挂的钩子也不同），
  * 这里把这组运行期钩子声明成「全部可选」——因此普通 HTMLElement 可以直接赋值给它。
  */
 type ComponentControllerHooks = {
@@ -640,9 +640,9 @@ type EntityStateControlElement = HTMLButtonElement & HTMLDivElement;
 
 export class PanelRenderer {
   // ──────────────────────────────────────────────────────────────────────
-  // 0.6.7 的 JS 原文在构造函数里用 `this.x = ...` 逐个赋值，TS 6 不再据此
+  // 原始 JS 在构造函数里用 `this.x = ...` 逐个赋值，TS 6 不再据此
   // 推断实例属性，导致 78 个成员名的每次访问都报 TS2339（共 1,162 个错误）。
-  // 这里集中声明；`declare` 保证零产码，运行期行为与迁移前完全一致。
+  // 这里集中声明；`declare` 保证零产码，运行期行为保持不变。
   // ──────────────────────────────────────────────────────────────────────
   declare container: HTMLElement;
   declare viewport: HTMLElement;

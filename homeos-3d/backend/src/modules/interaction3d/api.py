@@ -775,10 +775,9 @@ def get_config(project_id: str, component_id: str, request: Request, database: D
 def get_resource(filename: str, request: Request, _viewer: LicensedViewer) -> FileResponse:
     # [补充说明] 下发 3D 交互前端资源（JS / CSS），按白名单限定可访问文件。
     #
-    # [TS 迁移] 参数从 ``{filename}`` 改成 ``{filename:path}``：打包后资源按域分了
-    # 嵌套目录（core/runtime.js、editor/config-editor.js、chunks/xxx-<hash>.js），
-    # 而 ``{filename}`` 不匹配斜杠 —— 不改的话前端每个模块都 404，整条 import 链全断。
-    # 旧实现是扁平文件名，所以这里原本就不需要 path 转换器。
+    # 参数用 ``{filename:path}``：资源按域分嵌套目录（core/runtime.js、
+    # editor/config-editor.js、chunks/xxx-<hash>.js），而 ``{filename}`` 不匹配
+    # 斜杠 —— 用错的话前端每个模块都 404，整条 import 链全断。
     #
     # 放开路径深度不会放宽可访问面：下面先用清单白名单拒绝，再用
     # ``is_relative_to`` 卡住解析后的真实路径，``..`` 与符号链接都出不去。
@@ -787,7 +786,7 @@ def get_resource(filename: str, request: Request, _viewer: LicensedViewer) -> Fi
     # 异常:
     # HTTPException: 404，文件不在白名单内，或解析后落在资源目录之外。
     require_access(request)
-    # [TS 迁移] 白名单改由构建期清单提供（见 _runtime_resource_media_types）。
+    # [补充说明] 白名单由构建期清单提供（见 _runtime_resource_media_types）。
     #
     # 旧实现把文件名与媒体类型手写在这里，新增资源漏登记不报错，只表现为浏览器里
     # 某个模块 404、整条 import 链断掉（真踩过一次）。Vite 打包后入口名对不上、

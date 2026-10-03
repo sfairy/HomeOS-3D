@@ -246,7 +246,7 @@ class AdminAccountStore:
                 session.commit()
                 self._recovery_user_id = user.id
                 return "reset_required"
-            # 库内还是明文凭据（0.6.4 及更早的库）：把这一行迁移成外置账号文件。
+            # 库内还是明文凭据（早期版本的库）：把这一行迁移成外置账号文件。
             credentials = AdminAccountCredentials(
                 user_id=user.id, username=user.username, password_hash=user.password_hash
             )

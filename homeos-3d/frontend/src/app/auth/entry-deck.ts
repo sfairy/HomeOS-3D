@@ -4,7 +4,7 @@
 // 它只读页面里已经有的时间戳（data-since），不发任何请求；没有 .hos-deck 时自行退出，
 // 所以五页共用一份不会互相干扰。
 //
-// ⚠ 当前状态：0.6.7 还没有 telemetry 读数源，五个入口页都**没有** .hos-deck 标记，
+// ⚠ 当前状态：尚无 telemetry 读数源，五个入口页都**没有** .hos-deck 标记，
 // 因此这个模块现在是无操作（挂上去立刻返回）。之所以照旧移植并接线，是为了保住这个插槽：
 // 将来某页加上 .hos-deck 与 data-deck/data-since，这份读数就是现成的，不必再回头补脚本。
 // 真要让甲板出场，参照 homeos-3d 的 backend/src/http/telemetry.py 的 deck_markup。

@@ -1,6 +1,6 @@
 // 背景墙（featurewall）程序化模型。
 //
-// 迁移自 homeos-3d 的 studio-render-pipeline.ts::buildFeatureWallItemMeshGroup
+// 另见 homeos-3d 的 studio-render-pipeline.ts::buildFeatureWallItemMeshGroup
 // 与其 item-builders/storage-cabinets.ts::buildFeaturewallItem。
 // 结构：基板 + 一张贴了程序化饰面的面片；slat（木格栅）额外生成实体竖条。
 // 饰面贴图与材质参数来自 studio-surface-textures.js，按 wallStyle 缓存。

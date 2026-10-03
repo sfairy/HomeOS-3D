@@ -1,8 +1,8 @@
 // 工作室模型库的程序化表面贴图：3D 工作室「壁画」的装饰画、以及「背景墙」的饰面材质都在线生成。
 //
-// 迁移自 homeos-3d 的 frontend/src/app/3d-studio/materials/studio-surface-textures.ts。
+// 另见 homeos-3d 的 frontend/src/app/3d-studio/materials/studio-surface-textures.ts。
 // 本模块只依赖调用方传入的 THREE 命名空间（与场景同一份），不直接 import three：
-// 0.6.7 的 three 走 /static/vendor/three/0.186.0，路径由主模块决定。
+// three 从 /static/vendor/three/0.186.0 加载，实际路径由主模块决定。
 
 // 壁画可选的艺术风格。
 const MURAL_ART_STYLES = Object.freeze([
