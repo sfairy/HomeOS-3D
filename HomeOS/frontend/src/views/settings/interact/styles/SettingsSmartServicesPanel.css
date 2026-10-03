@@ -1,0 +1,51 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/views/settings/interact/SettingsSmartServicesPanel.vue:143. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+@import '../smart-services/styles/smart-services.css';
+
+.smart-services-hub__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
+.smart-services-hub .settings-page-inset--scroll {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.smart-services-hub .settings-page-stack--single {
+  flex: 1 1 0%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.smart-services-hub .settings-page-stack--single > .settings-hub-section {
+  flex: 1 1 0%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.smart-services-hub .settings-hub-section--fill > .svc-workspace.svc-workspace--scrollable,
+.smart-services-hub .settings-hub-section.advisor-hub > .adv-workspace.svc-workspace {
+  flex: 1 1 0%;
+  min-height: 0;
+  height: auto;
+  max-height: none;
+}
+
+/* SettingsCard 默认 h-auto shrink-0，需允许在 flex 栈中拉伸 */
+.smart-services-hub .svc-workspace--scrollable.settings-card,
+.smart-services-hub .adv-workspace.settings-card {
+  flex: 1 1 0%;
+  min-height: 0;
+  align-self: stretch;
+}

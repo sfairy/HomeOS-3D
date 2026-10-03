@@ -1,0 +1,140 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/widgets/energy/WaterStatsPanel.vue:192. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.ws-root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
+}
+.ws-toolbar,
+.ws-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ws-toolbar--embedded {
+  padding: 8px 10px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.ws-toolbar-label {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+.ws-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ws-title {
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.ws-select {
+  background: rgba(255, 255, 255, 0.05);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--premium-fs-micro);
+  padding: 3px 6px;
+  outline: none;
+}
+.ws-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ws-layout {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.72fr) minmax(0, 1.35fr);
+  gap: 8px;
+  align-items: stretch;
+  min-height: 0;
+}
+
+.ws-echart {
+  width: 100%;
+  height: 100%;
+  min-height: 140px;
+  border-radius: var(--hos-radius-card);
+  border: 1px solid rgba(34, 211, 238, 0.12);
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(34, 211, 238, 0.1), transparent 55%),
+    rgba(255, 255, 255, 0.03);
+}
+
+.ws-summary {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+@media (max-width: 480px) {
+  .ws-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .ws-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ws-echart {
+    min-height: 132px;
+  }
+}
+.ws-sum-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 11px;
+  border-radius: var(--hos-radius-card);
+  background:
+    linear-gradient(160deg, rgba(34, 211, 238, 0.08), transparent 55%),
+    rgba(0, 0, 0, 0.16);
+  border: 1px solid rgba(34, 211, 238, 0.12);
+}
+.ws-sum-val {
+  font-size: 22px;
+  font-weight: 800;
+  color: #22d3ee;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.ws-sum-unit {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+}
+
+.ws-anomaly {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.06);
+  color: #f59e0b;
+  font-size: var(--premium-fs-micro);
+}
+.ws-error {
+  color: #f87171;
+  font-size: var(--premium-fs-caption);
+  margin: 0;
+}
+
+.ws-icon {
+  color: var(--set-info, #22d3ee);
+}
+.ws-forecast-text {
+  color: var(--set-info, rgba(34, 211, 238, 0.8));
+}
+.ws-alert-icon {
+  color: var(--set-warn, #fbbf24);
+}

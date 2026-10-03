@@ -1,0 +1,289 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/entities/popups/FreshAirControlPopup.vue:182. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+@import '@/assets/styles/popup-entities.css';
+
+:global(.popup-shell.fap-shell) {
+  padding: 20px 18px 16px;
+  height: 492px;
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.fap {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 16px;
+}
+
+.fap :deep(.popup-head) {
+  margin-bottom: 0;
+}
+
+.fap :deep(.temp-adjust-btn) {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+:global(.mobile-shell .fap .temp-adjust-btn) {
+  width: 40px;
+  height: 40px;
+}
+
+.fap :deep(.text-\[44px\]) {
+  font-size: 1.75rem;
+  line-height: 1.15;
+  letter-spacing: 0.04em;
+  min-height: 2.02rem;
+}
+
+.fap--off :deep(.text-\[44px\]) {
+  color: rgba(255, 255, 255, 0.4);
+  text-shadow: none;
+}
+
+.fap-state--on,
+.fap-state--off {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.fap-state--on {
+  color: #99f6e4;
+}
+.fap-state--off {
+  color: var(--hos-text-secondary);
+}
+
+.fap :deep(.fap-lbl) {
+  color: var(--hos-text-secondary);
+  letter-spacing: 0.08em;
+  min-height: 1.125rem;
+}
+
+.fap--off :deep(.fap-lbl) {
+  visibility: hidden;
+}
+
+.fap-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.fap-block__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  padding: 0 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--hos-text-secondary);
+}
+
+.fap-block__head strong {
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: #99f6e4;
+  max-width: 62%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fap-slider-wrap {
+  width: 100%;
+  padding: 6px 8px 8px;
+}
+
+.fap-meter {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+  height: 14px;
+}
+.fap-meter__bar {
+  width: 5px;
+  border-radius: var(--hos-radius-pill);
+  background: rgba(255, 255, 255, 0.12);
+}
+.fap-meter__bar:nth-child(1) {
+  height: 5px;
+}
+.fap-meter__bar:nth-child(2) {
+  height: 7px;
+}
+.fap-meter__bar:nth-child(3) {
+  height: 9px;
+}
+.fap-meter__bar:nth-child(4) {
+  height: 11px;
+}
+.fap-meter__bar:nth-child(5) {
+  height: 12px;
+}
+.fap-meter__bar:nth-child(6) {
+  height: 14px;
+}
+.fap-meter__bar--on {
+  background: linear-gradient(180deg, #67e8f9 0%, #22d3ee 100%);
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.45);
+}
+
+/* 七档：4 + 3，窄宽度下完整显示 */
+.fap-gears {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  min-height: 76px;
+}
+.fap-gear {
+  appearance: none;
+  flex: 1 1 calc((100% - 24px) / 4);
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 10px 2px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--hos-radius-card);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.2;
+  cursor: pointer;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+.fap-gear:nth-child(n + 5) {
+  flex-basis: calc((100% - 16px) / 3);
+}
+.fap--off .fap-gear {
+  opacity: 0.78;
+}
+.fap-gear:hover {
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.06);
+}
+.fap-gear--on {
+  background: rgba(45, 212, 191, 0.16);
+  border-color: rgba(45, 212, 191, 0.38);
+  color: #ccfbf1;
+}
+
+.fap-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--hos-text-secondary);
+}
+.fap-empty__icon {
+  width: 28px;
+  height: 28px;
+}
+.fap-empty__icon--spin {
+  color: #22d3ee;
+  animation: fap-spin 2.2s linear infinite;
+}
+@keyframes fap-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.fap-mode-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--hos-text-secondary);
+}
+.fap-mode-line strong {
+  font-weight: 650;
+  letter-spacing: 0;
+  color: #99f6e4;
+}
+
+.fap-modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.fap-mode {
+  appearance: none;
+  min-width: 0;
+  padding: 12px 8px;
+  border-radius: var(--hos-radius-card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+.fap-mode:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.8);
+}
+.fap-mode--on {
+  background: rgba(45, 212, 191, 0.14);
+  border-color: rgba(45, 212, 191, 0.36);
+  color: #99f6e4;
+}
+
+.fap-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  padding-top: 0;
+}
+
+.fap-off--active {
+  background: rgba(45, 212, 191, 0.16);
+  border-color: rgba(45, 212, 191, 0.32);
+  color: #99f6e4;
+}
+.fap-off--idle {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: var(--hos-text-secondary);
+}
+.fap-off--idle:hover {
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.28);
+  color: #fecaca;
+}

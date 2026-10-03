@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="light_track_off_rail" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+    <style>
+      .bg{fill:#f1f5f9}.fg{fill:#334155}.dim{fill:#64748b}.hole{fill:#1e293b}
+    </style>
+  </defs>
+  <circle cx="100" cy="100" r="87" class="bg"/>
+  <!-- 磁吸细轨：圆角轨 + 浅槽 -->
+  <rect width="136" height="14" x="32" y="54" fill="url(#light_track_off_rail)" rx="7"/>
+  <rect width="120" height="4" x="40" y="59" class="hole" opacity=".55" rx="2"/>
+  <rect width="10" height="18" x="28" y="52" class="dim" rx="3"/>
+  <rect width="10" height="18" x="162" y="52" class="dim" rx="3"/>
+  <circle cx="33" cy="61" r="1.5" class="hole"/>
+  <circle cx="167" cy="61" r="1.5" class="hole"/>
+  <!-- 左灯头：磁吸卡扣 + 锥形筒 -->
+  <g transform="translate(58 66) rotate(-22)">
+    <rect width="20" height="7" x="-10" y="-1" class="dim" rx="2"/>
+    <circle cy="8" r="6" class="dim"/>
+    <rect width="9" height="11" x="-4.5" y="10" class="fg" rx="2"/>
+    <path d="M-15 18h30l-4 36q-11 9-22 0Z" class="fg"/>
+    <ellipse cx="-4" cy="32" fill="#64748b" opacity=".7" rx="3" ry="7"/>
+    <ellipse cy="54" class="dim" rx="13" ry="5"/><ellipse cy="54" class="hole" rx="7" ry="2.5"/>
+  </g>
+  <!-- 右灯头 -->
+  <g transform="translate(142 66) rotate(22)">
+    <rect width="20" height="7" x="-10" y="-1" class="dim" rx="2"/>
+    <circle cy="8" r="6" class="dim"/>
+    <rect width="9" height="11" x="-4.5" y="10" class="fg" rx="2"/>
+    <path d="M-15 18h30l-4 36q-11 9-22 0Z" class="fg"/>
+    <ellipse cx="-4" cy="32" fill="#64748b" opacity=".7" rx="3" ry="7"/>
+    <ellipse cy="54" class="dim" rx="13" ry="5"/><ellipse cy="54" class="hole" rx="7" ry="2.5"/>
+  </g>
+  <circle cx="100" cy="100" r="87" fill="none" stroke="#0f172a" stroke-opacity=".1" stroke-width="2.5"/>
+</svg>

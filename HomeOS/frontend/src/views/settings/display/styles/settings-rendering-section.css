@@ -1,0 +1,244 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/views/settings/display/SettingsRenderingSection.vue:188. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+/* 从 SettingsRenderingSection.vue 抽出 */
+.sr-icon-accent {
+  color: var(--premium-accent-violet, #c084fc);
+}
+
+.render-intro-orb {
+  background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.1);
+  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb, 126, 184, 255), 0.2);
+}
+
+.render-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.render-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--hos-radius-card, 14px);
+  border: var(--hos-hairline) solid var(--set-border-subtle);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.render-panel--violet {
+  background: linear-gradient(160deg, rgba(var(--page-accent-rgb, 126, 184, 255), 0.08) 0%, rgba(0, 0, 0, 0.24) 100%);
+  border-color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.14);
+}
+
+.render-panel--sky {
+  background: linear-gradient(160deg, rgba(14, 165, 233, 0.08) 0%, rgba(0, 0, 0, 0.24) 100%);
+  border-color: rgba(56, 189, 248, 0.14);
+}
+
+.render-panel__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.render-panel__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(255, 255, 255, 0.05);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.render-panel--violet .render-panel__icon {
+  color: var(--page-accent, #7eb8ff);
+  background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.12);
+  border-color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.2);
+}
+
+.render-panel--sky .render-panel__icon {
+  color: #7dd3fc;
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.2);
+}
+
+.render-panel__title {
+  margin: 0;
+  font-size: var(--set-fs-body-sm);
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+
+.render-panel__desc {
+  margin: 2px 0 0;
+  font-size: var(--set-fs-caption);
+  line-height: 1.45;
+  color: var(--set-text-faint);
+}
+
+.render-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.render-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--set-border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.render-choice:hover {
+  border-color: var(--set-border-strong);
+  background: var(--premium-glass-bg-hover);
+}
+
+.render-choice--active {
+  border-color: rgba(var(--choice-accent-rgb, 167, 139, 250), 0.38);
+  background: rgba(var(--choice-accent-rgb, 167, 139, 250), 0.12);
+  box-shadow: 0 0 0 1px rgba(var(--choice-accent-rgb, 167, 139, 250), 0.12);
+}
+
+.render-panel--violet .render-choice--active {
+  --choice-accent-rgb: 167, 139, 250;
+}
+
+.render-panel--sky .render-choice--active {
+  --choice-accent-rgb: 56, 189, 248;
+}
+
+.render-choice__label {
+  font-size: var(--set-fs-body-sm);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.render-choice--active .render-choice__label {
+  color: #fff;
+}
+
+.render-choice__hint {
+  font-size: var(--set-fs-caption);
+  line-height: 1.4;
+  color: var(--set-text-faint);
+}
+
+.render-choice--active .render-choice__hint {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.render-smart {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
+  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
+  border-radius: var(--hos-radius-card, 14px);
+  border: var(--hos-hairline) solid rgba(251, 191, 36, 0.16);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.07) 0%, rgba(0, 0, 0, 0.22) 100%);
+}
+
+.render-smart__body {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.render-smart__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--hos-radius-card);
+  color: #fcd34d;
+  background: rgba(251, 191, 36, 0.12);
+  border: var(--hos-hairline) solid rgba(251, 191, 36, 0.22);
+}
+
+.render-smart__title {
+  margin: 0;
+  font-size: var(--set-fs-body-sm);
+  font-weight: 700;
+  color: #fff;
+}
+
+.render-smart__desc {
+  margin: 3px 0 0;
+  font-size: var(--set-fs-caption);
+  line-height: 1.45;
+  color: var(--set-text-faint);
+}
+
+.render-toggle {
+  position: relative;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  width: 2.75rem;
+  height: 1.5rem;
+  border-radius: var(--hos-radius-pill);
+  background: rgba(255, 255, 255, 0.1);
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.render-toggle--on {
+  background: color-mix(in srgb, #fbbf24 45%, rgba(0, 0, 0, 0));
+}
+
+.render-toggle__thumb {
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: var(--hos-radius-pill);
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  transform: translateX(2px);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.render-toggle__thumb--on {
+  transform: translateX(22px);
+}
+
+@media (max-width: 720px) {
+  .render-options {
+    grid-template-columns: 1fr;
+  }
+
+  .render-smart {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .render-toggle {
+    align-self: flex-end;
+  }
+}
+
+.render-flow-band__shell {
+  --flow-glow-a: rgba(var(--page-accent-rgb, 126, 184, 255), var(--flow-glow-alpha-a));
+  --flow-glow-b: rgba(56, 189, 248, var(--flow-glow-alpha-b));
+}
+

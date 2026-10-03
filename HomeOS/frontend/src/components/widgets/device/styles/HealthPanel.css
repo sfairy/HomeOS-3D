@@ -1,0 +1,215 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/widgets/device/HealthPanel.vue:301. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+/* 从 DeviceHealthPanel.vue 抽出 */
+.device-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--hos-radius-panel);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 14px;
+}
+.device-header {
+  flex-shrink: 0;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.device-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+  margin-bottom: 8px;
+  padding: 0 2px;
+}
+.device-summary span {
+  white-space: nowrap;
+}
+.device-refresh {
+  flex-shrink: 0;
+  padding: 6px;
+  border-radius: var(--hos-radius-card);
+  color: var(--hos-text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+  border: var(--hos-hairline) solid var(--premium-border);
+  transition: all 0.2s;
+}
+.device-refresh:hover:not(:disabled) {
+  color: #0a84ff;
+  border-color: rgba(10, 132, 255, 0.3);
+}
+.device-refresh:disabled {
+  opacity: 0.5;
+}
+.device-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.device-tab {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
+  border-radius: var(--hos-radius-card);
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  color: var(--hos-text-secondary);
+  background: rgba(255, 255, 255, 0.03);
+  transition: all 0.2s;
+}
+.device-tab--active {
+  background: rgba(10, 132, 255, 0.15);
+  color: #0a84ff;
+}
+.device-badge {
+  font-size: var(--premium-fs-micro);
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: var(--hos-radius-pill);
+  background: var(--premium-glass-bg-hover);
+}
+.device-badge--warn {
+  background: rgba(255, 149, 0, 0.2);
+  color: #ff9500;
+}
+.device-badge--danger {
+  background: rgba(255, 59, 48, 0.2);
+  color: #ff3b30;
+}
+.device-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+.device-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 14px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) dashed var(--premium-border-strong);
+  background: rgba(0, 0, 0, 0.08);
+  font-size: var(--premium-fs-caption);
+  color: var(--hos-text-secondary);
+}
+.device-loading__icon {
+  width: 20px;
+  height: 20px;
+  color: var(--hos-text-secondary);
+}
+.device-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.device-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(255, 255, 255, 0.03);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.04);
+}
+.device-item--critical {
+  border-color: rgba(255, 59, 48, 0.15);
+}
+.device-item--warn {
+  border-color: rgba(255, 149, 0, 0.15);
+}
+.device-item-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.device-name {
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
+}
+.device-domain {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+}
+.device-item-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.device-bar-wrap {
+  width: 48px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.device-bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s;
+}
+.device-bar--ok {
+  background: #34c759;
+}
+.device-bar--warn {
+  background: #ff9500;
+}
+.device-bar--critical {
+  background: #ff3b30;
+}
+.device-pct {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  min-width: 32px;
+  text-align: right;
+}
+.device-time {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+}
+
+/* ── 颜色统一：原 Tailwind color class → CSS 变量 ── */
+
+/* 离线 / 寿命告警图标 */
+.dh-icon-danger {
+  color: var(--set-danger);
+}
+.dh-icon-warn {
+  color: var(--set-warn);
+}
+
+/* 寿命推荐意见小字（琥珀） */
+.dh-rec-warn {
+  color: var(--set-warn);
+}
+
+/* 电池电量颜色分级（替代原 Tailwind 颜色类，统一为 CSS 变量） */
+.dh-battery-critical {
+  color: var(--set-danger);
+}
+.dh-battery-warn {
+  color: var(--set-warn);
+}
+.dh-battery-low {
+  color: var(--set-warn);
+}
+.dh-battery-ok {
+  color: var(--set-success);
+}
+.dh-pct-neutral {
+  color: var(--hos-text-secondary);
+}

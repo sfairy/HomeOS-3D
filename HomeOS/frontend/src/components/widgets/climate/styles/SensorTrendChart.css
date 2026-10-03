@@ -1,0 +1,76 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/widgets/climate/SensorTrendChart.vue:367. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.sc-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--hos-radius-panel);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 14px;
+}
+
+.sc-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.sc-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  color: var(--hos-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.sc-tabs {
+  display: flex;
+  gap: 1px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  padding: 1px;
+}
+.sc-tab {
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  color: var(--hos-text-secondary);
+  transition: all 0.2s;
+}
+.sc-tab:hover {
+  color: rgba(255, 255, 255, 0.6);
+}
+.sc-tab--active {
+  background: rgba(10, 132, 255, 0.15);
+  color: #0a84ff;
+}
+.sc-body {
+  flex: 1;
+  overflow: hidden;
+}
+.sc-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: var(--premium-fs-caption);
+  color: var(--hos-text-secondary);
+}
+.sc-fixed-hint {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+}
+.sc-chart {
+  width: 100%;
+  height: 100%;
+}
+
+.sc-icon {
+  color: var(--set-success, #34d399);
+}

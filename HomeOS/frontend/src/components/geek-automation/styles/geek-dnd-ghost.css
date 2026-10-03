@@ -1,0 +1,59 @@
+/**
+ * Geek 画布拖拽幽灵（挂 body，非 scoped）
+ */
+.geek-dnd-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--z-alert);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 132px;
+  padding: 8px 10px;
+  border-radius: var(--hos-radius-card);
+  border: 1px solid rgba(96, 165, 250, 0.55);
+  background: rgba(15, 23, 42, 0.96);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  color: #e2e8f0;
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  pointer-events: none;
+  white-space: nowrap;
+  will-change: transform;
+}
+.geek-dnd-ghost i {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  font-style: normal;
+  font-size: var(--premium-fs-micro);
+  background: rgba(96, 165, 250, 0.2);
+  color: #93c5fd;
+}
+.geek-dnd-ghost[data-kind='trigger'] i {
+  background: rgba(52, 211, 153, 0.2);
+  color: #6ee7b7;
+}
+.geek-dnd-ghost[data-kind='condition'] i {
+  background: rgba(56, 189, 248, 0.2);
+  color: #7dd3fc;
+}
+.geek-dnd-ghost[data-kind='action'] i {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fcd34d;
+}
+.geek-dnd-ghost span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+body.geek-dnd-dragging {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+body.geek-dnd-dragging * {
+  cursor: grabbing !important;
+}

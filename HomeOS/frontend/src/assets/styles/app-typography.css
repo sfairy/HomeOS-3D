@@ -1,0 +1,45 @@
+/**
+ * 全站排版映射（Tailwind 标准档 → token + 区域基准字号）
+ * 依赖 app-premium-tokens.css 中的 --premium-fs-* 变量
+ * 任意值字号（text-[12px] 等）由 Tailwind JIT 按字面像素自动生成，不做 token 覆盖
+ */
+
+/* ── Tailwind 标准档 → token ── */
+.text-xs { font-size: var(--premium-fs-caption); }
+.text-sm { font-size: var(--premium-fs-body-sm); }
+.text-base { font-size: var(--premium-fs-body); }
+.text-lg { font-size: var(--premium-fs-title); }
+.text-xl { font-size: var(--premium-fs-display); }
+
+/* ── 列表页 / 页头 ── */
+.list-page {
+  font-size: var(--premium-fs-body-sm);
+}
+
+.list-page__chip {
+  font-size: var(--premium-fs-caption);
+}
+
+.list-page__link-btn {
+  font-size: var(--premium-fs-caption);
+}
+
+/* ── Dashboard 侧栏 widget 区域基准 ── */
+.info-panel,
+.widget-wrapper,
+.widget-fixed,
+.widget-compact,
+.widget-elastic {
+  font-size: var(--premium-fs-body-sm);
+}
+
+/* ── 实体弹窗基准 ── */
+.popup-base,
+.popup-card {
+  font-size: var(--premium-fs-body-sm);
+}
+
+/* ── 顶栏 Tab ── */
+.tab-bar {
+  font-size: var(--premium-fs-body-sm);
+}

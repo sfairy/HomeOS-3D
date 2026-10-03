@@ -1,0 +1,31 @@
+{
+  "name": "@homeos/shared",
+  "version": "2026.09.22.08",
+  "private": true,
+  "type": "module",
+  "main": "./dist/cjs/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/cjs/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.esm.json && bun scripts/build-cjs.mjs",
+    "lint": "eslint \"**/*.ts\" --max-warnings 0",
+    "typecheck": "tsc -p tsconfig.esm.json --noEmit",
+    "test": "bun test test"
+  },
+  "dependencies": {
+    "js-yaml": "^5.4.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.11.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.70.0"
+  }
+}

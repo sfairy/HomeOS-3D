@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <radialGradient id="co_sensor_on_bg" cx="28%" cy="24%" r="72%" fx="22%" fy="18%">
+      <stop offset="0%" stop-color="#fff" stop-opacity=".2"/>
+      <stop offset="45%" stop-color="#b45309"/>
+      <stop offset="100%" stop-color="#92400e"/>
+    </radialGradient>
+    <linearGradient id="co_sensor_on_body" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#fff"/>
+      <stop offset="100%" stop-color="#fef9c3"/>
+    </linearGradient>
+    <style>
+      @keyframes co_sensor_on_warn{0%,to{opacity:.4}50%{opacity:1}}.co_sensor_on_led{animation:co_sensor_on_warn .8s ease-in-out infinite}
+    </style>
+  </defs>
+  <circle cx="100" cy="100" r="87" fill="url(#co_sensor_on_bg)"/>
+  <!-- 与 off 同底图 -->
+  <ellipse cx="100" cy="52" fill="#fff" rx="36" ry="8"/>
+  <ellipse cx="100" cy="88" fill="url(#co_sensor_on_body)" rx="50" ry="40"/>
+  <ellipse cx="100" cy="82" fill="#fde68a" rx="34" ry="26"/>
+  <ellipse cx="86" cy="74" fill="#fff" opacity=".6" rx="12" ry="6"/>
+  <rect width="10" height="28" x="78" y="72" fill="#92400e" rx="3"/>
+  <circle cx="116" cy="86" r="14" fill="#92400e"/>
+  <circle cx="116" cy="86" r="7" fill="#fef9c3"/>
+  <circle cx="100" cy="86" r="5" fill="#ef4444" class="co_sensor_on_led"/>
+  <circle cx="132" cy="100" r="5" fill="#b45309"/>
+  <circle cx="100" cy="100" r="87" fill="none" stroke="#fff" stroke-opacity=".1" stroke-width="2.5"/>
+</svg>

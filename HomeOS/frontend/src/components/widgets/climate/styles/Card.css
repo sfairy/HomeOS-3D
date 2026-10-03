@@ -1,0 +1,295 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/widgets/climate/Card.vue:304. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+/* 从 ClimateCard.vue 抽出 */
+.climate-card {
+  background: var(--card-bg-1);
+  -webkit-backdrop-filter: blur(var(--blur-md)) saturate(200%);
+  backdrop-filter: blur(var(--blur-md)) saturate(200%);
+  border: var(--hos-hairline) solid var(--card-border);
+  border-radius: var(--hos-radius-card);
+  flex-direction: column;
+  padding: 16px;
+  display: flex;
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow: var(--card-shadow);
+  transition: all 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+  position: relative;
+}
+
+.climate-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 8%;
+  right: 8%;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0), rgba(10, 132, 255, 0.25), rgba(0, 0, 0, 0));
+  pointer-events: none;
+}
+
+@media (pointer: coarse), (hover: none) {
+  .climate-card {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .climate-card::before {
+    content: none;
+  }
+}
+
+.cc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: var(--hos-hairline) solid var(--premium-border);
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+}
+
+.cc-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--premium-fs-body-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.cc-icon-wrap {
+  background: rgba(10, 132, 255, 0.12);
+  border: var(--hos-hairline) solid rgba(10, 132, 255, 0.18);
+  border-radius: var(--hos-radius-card);
+  padding: 8px;
+  display: flex;
+  box-shadow: 0 2px 12px rgba(10, 132, 255, 0.15);
+}
+
+.cc-badge {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  color: #5e9eff;
+  background: rgba(10, 132, 255, 0.1);
+  border: var(--hos-hairline) solid rgba(10, 132, 255, 0.2);
+  border-radius: var(--hos-radius-pill);
+  padding: 4px 12px;
+  box-shadow: 0 2px 8px rgba(10, 132, 255, 0.1);
+}
+
+.cc-item {
+  padding: 14px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(255, 255, 255, 0.025);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  transition: all 0.45s var(--ease-bounce);
+  margin-bottom: 8px;
+}
+
+.cc-item:last-child {
+  margin-bottom: 0;
+}
+
+.cc-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--premium-border-strong);
+  transform: translateX(4px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.cc-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.cc-item-name {
+  font-size: var(--premium-fs-body-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.cc-item-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cc-state-badge {
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--hos-radius-pill);
+}
+
+.cc-state-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse 2.5s ease-in-out infinite;
+  box-shadow: 0 0 12px currentColor;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.9);
+  }
+}
+
+.cc-item-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cc-temps {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.cc-current-temp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--premium-fs-caption);
+  color: var(--text-secondary);
+}
+
+.cc-target-temp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.03em;
+}
+
+.cc-fan-row {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: var(--hos-hairline) solid rgba(255, 255, 255, 0.04);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cc-fan-btn {
+  padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
+  border-radius: var(--hos-radius-card);
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: rgba(255, 255, 255, 0.04);
+  border: var(--hos-hairline) solid var(--premium-border);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.35s var(--ease-bounce);
+}
+
+.cc-fan-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.cc-fan-btn--active {
+  background: rgba(64, 200, 224, 0.15);
+  border-color: rgba(64, 200, 224, 0.3);
+  color: #66d4cf;
+  box-shadow: 0 2px 10px rgba(64, 200, 224, 0.2);
+}
+
+.cc-fan-label {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--premium-fs-caption);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Tailwind 颜色类替换：scoped 引用 CSS 变量 ── */
+
+/* 图标颜色 */
+.cc-ic-blue {
+  color: var(--premium-accent-blue, #0a84ff);
+}
+.cc-ic-cool {
+  color: var(--premium-accent-blue, #0a84ff);
+}
+.cc-ic-heat {
+  color: var(--premium-accent-amber, #ff9500);
+}
+.cc-ic-cyan {
+  color: var(--premium-accent-cyan, #22d3ee);
+}
+
+/* 状态点 */
+.cc-dot--cool {
+  background: var(--premium-accent-blue, #0a84ff);
+}
+.cc-dot--heat {
+  background: var(--premium-accent-amber, #ff9500);
+}
+
+/* 状态徽章 */
+.cc-state-badge--cool {
+  background: rgba(96, 165, 250, 0.2);
+  color: var(--premium-accent-blue, #0a84ff);
+}
+.cc-state-badge--heat {
+  background: rgba(251, 146, 60, 0.2);
+  color: var(--premium-accent-amber, #ff9500);
+}
+.cc-state-badge--auto {
+  background: rgba(168, 85, 247, 0.2);
+  color: var(--premium-accent-violet, #c084fc);
+}
+.cc-state-badge--dry {
+  background: rgba(250, 204, 21, 0.2);
+  color: var(--set-warn, #fcd34d);
+}
+.cc-state-badge--fan {
+  background: rgba(34, 211, 238, 0.2);
+  color: var(--premium-accent-cyan, #22d3ee);
+}
+.cc-state-badge--off {
+  background: rgba(75, 85, 99, 0.2);
+  color: var(--set-text-tertiary);
+}
+
+/* 温度颜色 */
+.cc-temp-muted {
+  color: var(--hos-text-secondary);
+}
+.cc-temp-danger {
+  color: var(--set-danger, #fda4af);
+}
+.cc-temp-warn-deep {
+  color: var(--premium-accent-amber, #ff9500);
+}
+.cc-temp-warn {
+  color: var(--set-warn, #fcd34d);
+}
+.cc-temp-success {
+  color: var(--set-success, #6ee7b7);
+}
+.cc-temp-info {
+  color: var(--set-info, #7dd3fc);
+}
+.cc-temp-blue {
+  color: var(--premium-accent-blue, #0a84ff);
+}

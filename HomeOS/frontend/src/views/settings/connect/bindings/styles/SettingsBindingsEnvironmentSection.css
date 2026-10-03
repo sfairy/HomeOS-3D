@@ -1,0 +1,136 @@
+/* knip: used by Vue SFC <style src=> / @import / ESM side-effect import — refs: import@/Users/sfairy/项目/HomeOS/HomeOS/frontend/src/views/settings/connect/bindings/styles/bind-env-panel.css:1. knip 6.x 不解析 Vue <style src> 属性与 CSS @import 链 */
+@import './bind-env-panel.css';
+
+.env-room-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.env-room-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 11px;
+  border-radius: 9px;
+  border: none;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.62);
+  font-size: var(--set-fs-caption, 13px);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.env-room-btn:hover:not(:disabled) {
+  background: var(--page-accent-bg);
+  color: var(--page-accent-text);
+}
+
+.env-room-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.env-room-btn--muted {
+  color: var(--hos-text-secondary);
+}
+
+.env-room-btn--muted:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.env-room-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: var(--hos-panel-padding-default, 20px);
+  border-radius: var(--hos-radius-card, 14px);
+  border: var(--hos-hairline) solid var(--page-accent-border);
+  background:
+    radial-gradient(ellipse at 0% 0%, var(--page-accent-glow) 0%, transparent 65%),
+    rgba(0, 0, 0, 0.15);
+}
+
+.env-room-editor__bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: var(--hos-hairline) solid var(--premium-border);
+}
+
+.env-room-editor__tag {
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  color: var(--page-accent-text);
+  background: var(--page-accent-bg-strong);
+  border: var(--hos-hairline) solid var(--page-accent-border);
+}
+
+.env-room-editor__remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--hos-text-secondary);
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.env-room-editor__remove:hover {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.env-room-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.env-room-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.bind-env-quick-rules {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed rgb(52 211 153 / 0.15);
+}
+
+.bind-env-quick-rules__title {
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  color: #6ee7b7;
+  margin: 0 0 4px;
+}
+
+.bind-env-quick-rules__desc {
+  font-size: var(--premium-fs-micro);
+  color: #64748b;
+  margin: 0 0 10px;
+}
+
+.env-room-field__label--accent {
+  color: var(--page-accent-text);
+  opacity: 0.9;
+}

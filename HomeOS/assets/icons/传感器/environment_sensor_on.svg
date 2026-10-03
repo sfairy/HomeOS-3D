@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <radialGradient id="environment_sensor_on_bg" cx="28%" cy="24%" r="72%" fx="22%" fy="18%">
+      <stop offset="0%" stop-color="#fff" stop-opacity=".2"/>
+      <stop offset="45%" stop-color="#0d9488"/>
+      <stop offset="100%" stop-color="#0f766e"/>
+    </radialGradient>
+    <linearGradient id="environment_sensor_on_body" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#fff"/>
+      <stop offset="100%" stop-color="#ccfbf1"/>
+    </linearGradient>
+    <style>
+      @keyframes environment_sensor_on_breathe{0%,to{opacity:.55}50%{opacity:1}}@keyframes environment_sensor_on_bar1{0%,to{height:10px;y:78px;opacity:.65}50%{height:16px;y:72px;opacity:1}}@keyframes environment_sensor_on_bar2{0%,to{height:14px;y:74px;opacity:.7}50%{height:8px;y:80px;opacity:1}}@keyframes environment_sensor_on_bar3{0%,to{height:8px;y:80px;opacity:.6}50%{height:14px;y:74px;opacity:1}}@keyframes environment_sensor_on_air{0%,to{opacity:.2;transform:translateX(0)}50%{opacity:.85;transform:translateX(3px)}}.environment_sensor_on_led{animation:environment_sensor_on_breathe 2s ease-in-out infinite}.environment_sensor_on_bar1{animation:environment_sensor_on_bar1 1.6s ease-in-out infinite}.environment_sensor_on_bar2{animation:environment_sensor_on_bar2 1.6s ease-in-out infinite;animation-delay:.25s}.environment_sensor_on_bar3{animation:environment_sensor_on_bar3 1.6s ease-in-out infinite;animation-delay:.5s}.environment_sensor_on_air{animation:environment_sensor_on_air 2s ease-in-out infinite}
+    </style>
+  </defs>
+  <circle cx="100" cy="100" r="87" fill="url(#environment_sensor_on_bg)"/>
+  <rect width="96" height="104" x="52" y="48" fill="url(#environment_sensor_on_body)" rx="18"/>
+  <ellipse cx="74" cy="62" fill="#fff" opacity=".8" rx="14" ry="4"/>
+  <rect width="68" height="36" x="66" y="66" fill="#115e59" rx="6"/>
+  <rect width="40" height="16" x="72" y="72" fill="#0f766e" opacity=".45" rx="2"/>
+  <rect width="8" height="10" x="72" y="78" fill="#5eead4" class="environment_sensor_on_bar1" rx="1"/>
+  <rect width="8" height="14" x="84" y="74" fill="#99f6e4" class="environment_sensor_on_bar2" rx="1"/>
+  <rect width="8" height="8" x="96" y="80" fill="#5eead4" class="environment_sensor_on_bar3" rx="1"/>
+  <rect width="8" height="12" x="108" y="76" fill="#99f6e4" opacity=".8" rx="1"/>
+  <rect width="24" height="6" x="72" y="92" fill="#5eead4" opacity=".6" rx="1"/>
+  <circle cx="122" cy="80" r="4" fill="#22c55e" class="environment_sensor_on_led"/>
+  <circle cx="74" cy="128" r="12" fill="#0f766e" opacity=".8"/>
+  <circle cx="74" cy="128" r="6" fill="#5eead4"/>
+  <path fill="none" stroke="#0f766e" stroke-width="2.5" d="M68 128h12" opacity=".8"/>
+  <circle cx="100" cy="128" r="12" fill="#0f766e" opacity=".8"/>
+  <path fill="none" stroke="#5eead4" stroke-linecap="round" stroke-width="2.5" d="M94 132q6-12 12 0"/>
+  <circle cx="126" cy="128" r="12" fill="#0f766e" opacity=".8"/>
+  <circle cx="126" cy="128" r="5" fill="none" stroke="#5eead4" stroke-width="2.5"/>
+  <circle cx="126" cy="128" r="2" fill="#5eead4"/>
+  <g class="environment_sensor_on_air">
+    <path fill="none" stroke="#5eead4" stroke-linecap="round" stroke-width="2" d="M134 124q8 4 0 8"/>
+    <path fill="none" stroke="#99f6e4" stroke-linecap="round" stroke-width="1.5" d="M138 122q8 6 0 12" opacity=".7"/>
+  </g>
+  <g fill="#0f766e" opacity=".3">
+    <rect width="8" height="3" x="66" y="148" rx="1"/>
+    <rect width="8" height="3" x="78" y="148" rx="1"/>
+    <rect width="8" height="3" x="90" y="148" rx="1"/>
+    <rect width="8" height="3" x="102" y="148" rx="1"/>
+    <rect width="8" height="3" x="114" y="148" rx="1"/>
+    <rect width="8" height="3" x="126" y="148" rx="1"/>
+  </g>
+  <circle cx="100" cy="100" r="87" fill="none" stroke="#fff" stroke-opacity=".1" stroke-width="2.5"/>
+</svg>

@@ -1,0 +1,125 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/common/base/VNotification.vue:57. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+/** 通知容器：置于缩放画布顶部居中（坐标系随 app-shell transform 缩放） */
+.notification-container {
+  z-index: var(--z-notification);
+  pointer-events: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  display: flex;
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translate(-50%);
+  width: max-content;
+  max-width: calc(100% - 32px);
+}
+
+/** 单条通知：毛玻璃卡片 + 可点击关闭 */
+.notification-item {
+  pointer-events: auto;
+  -webkit-backdrop-filter: blur(36px) saturate(180%);
+  backdrop-filter: blur(36px) saturate(180%);
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(16, 16, 22, 0.72);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--hos-radius-panel);
+  align-items: center;
+  gap: 12px;
+  min-width: 300px;
+  max-width: 500px;
+  padding: 14px 22px;
+  font-size: var(--premium-fs-body-sm);
+  transition: all 0.35s var(--ease-spring);
+  display: flex;
+  box-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/** 悬停抬升 3px + 阴影加深 */
+.notification-item:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+}
+
+/** 图标区：固定 20x20 */
+.icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+/** 消息文字：自动撑满剩余空间 */
+.message {
+  flex-grow: 1;
+}
+
+/** 关闭提示 ×：默认低透明度，hover 增强 */
+.close-hint {
+  opacity: 0.35;
+  font-size: 18px;
+  transition: opacity 0.2s;
+}
+
+.notification-item:hover .close-hint {
+  opacity: 0.6;
+}
+
+/** 成功通知：绿色主题 */
+.notification-item.success {
+  background: rgba(52, 199, 89, 0.1);
+  border-color: rgba(52, 199, 89, 0.2);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(52, 199, 89, 0.1);
+}
+
+/** 错误通知：红色主题 */
+.notification-item.error {
+  background: rgba(255, 59, 48, 0.1);
+  border-color: rgba(255, 59, 48, 0.2);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(255, 59, 48, 0.1);
+}
+
+/** 警告通知：黄色主题 */
+.notification-item.warning {
+  background: rgba(255, 214, 10, 0.08);
+  border-color: rgba(255, 214, 10, 0.2);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(255, 214, 10, 0.08);
+}
+
+/** 信息通知：蓝色主题 */
+.notification-item.info {
+  background: rgba(10, 132, 255, 0.08);
+  border-color: rgba(10, 132, 255, 0.2);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(10, 132, 255, 0.08);
+}
+
+/** 通知入场/离场过渡动画 */
+.toast-enter-active,
+.toast-leave-active {
+  transition: all 0.4s var(--ease-spring);
+}
+
+.toast-enter-from {
+  opacity: 0;
+  transform: translateY(-40px) scale(0.9);
+}
+
+.toast-leave-to {
+  opacity: 0;
+  transform: translateY(-20px) scale(0.95);
+}

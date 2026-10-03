@@ -1,0 +1,126 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/dashboard/SceneBatchStepField.vue:223. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.scene-batch-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.scene-batch-field__label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 12px;
+}
+
+.scene-batch-field .hos-modal-label {
+  margin-bottom: 0;
+  font-size: var(--premium-fs-micro);
+  line-height: 1.2;
+}
+
+.scene-batch-default-btn {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.1);
+  color: rgba(253, 224, 71, 0.75);
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.scene-batch-default-btn:hover {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fde68a;
+}
+
+.scene-batch-stepper {
+  display: flex;
+  align-items: stretch;
+  height: var(--sbp-control-h, 36px);
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
+  background: rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.scene-batch-stepper:focus-within {
+  border-color: rgba(245, 158, 11, 0.38);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.07);
+}
+
+.scene-batch-stepper__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  flex-shrink: 0;
+  border: none;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--hos-text-secondary);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+  font-family: inherit;
+}
+
+.scene-batch-stepper__btn + .scene-batch-stepper__input,
+.scene-batch-stepper__input + .scene-batch-stepper__suffix {
+  border-left: var(--hos-hairline) solid var(--premium-border);
+}
+
+.scene-batch-stepper__btn:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.1);
+  color: #fcd34d;
+}
+
+.scene-batch-stepper__btn:disabled {
+  opacity: 0.28;
+  cursor: not-allowed;
+}
+
+.scene-batch-stepper__input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  outline: none;
+  font-family: inherit;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.scene-batch-stepper__input::-webkit-outer-spin-button,
+.scene-batch-stepper__input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+.scene-batch-stepper__suffix {
+  display: flex;
+  align-items: center;
+  padding: 0 2px 0 0;
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  color: var(--hos-text-secondary);
+  user-select: none;
+}

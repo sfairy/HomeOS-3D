@@ -1,0 +1,193 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/views/settings/connect/bindings/SettingsBindingsCamerasSection.vue:164. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.bind-section__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 0 14px;
+}
+
+.bind-section__eyebrow {
+  margin: 0 0 4px;
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--page-accent-text);
+  opacity: 0.85;
+}
+
+.bind-section__title {
+  margin: 0;
+  font-size: var(--premium-fs-body, 14px);
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.bind-section__desc {
+  margin: 6px 0 0;
+  font-size: var(--premium-fs-micro, 11px);
+  line-height: 1.45;
+  color: var(--hos-text-secondary);
+  max-width: 42rem;
+}
+
+.bind-section__badge {
+  flex-shrink: 0;
+  padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  color: var(--page-accent-text);
+  background: var(--page-accent-bg);
+  border: var(--hos-hairline) solid var(--page-accent-border);
+}
+
+.bind-cam-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bind-cam-card {
+  padding: 14px;
+  border-radius: var(--hos-radius-card, 14px);
+  background: linear-gradient(160deg, var(--page-accent-bg) 0%, rgba(0, 0, 0, 0.2) 100%);
+  border: var(--hos-hairline) solid var(--page-accent-border);
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.bind-cam-card:hover {
+  border-color: rgba(var(--page-accent-rgb), 0.34);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--page-accent-glow);
+}
+
+.bind-cam-card__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.bind-cam-card__index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: var(--hos-radius-card);
+  font-size: var(--premium-fs-micro);
+  font-weight: 800;
+  color: var(--page-accent-text);
+  background: var(--page-accent-bg-strong);
+  border: var(--hos-hairline) solid var(--page-accent-border);
+}
+
+.bind-cam-card__delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: var(--hos-radius-card);
+  color: rgba(253, 164, 175, 0.88);
+  background: rgba(251, 113, 133, 0.08);
+  border: var(--hos-hairline) solid rgba(251, 113, 133, 0.2);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.bind-cam-card__delete:hover {
+  background: rgba(251, 113, 133, 0.14);
+  border-color: rgba(251, 113, 133, 0.32);
+}
+
+.bind-cam-card__roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bind-cam-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  color: var(--hos-text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.bind-cam-role:hover {
+  color: rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.bind-cam-role--doorbell {
+  color: var(--set-warn);
+  background: var(--set-warn-bg);
+  border-color: var(--set-warn-border);
+}
+
+.bind-cam-role--default {
+  color: var(--page-accent-text);
+  background: var(--page-accent-bg-strong);
+  border-color: var(--page-accent-border);
+}
+
+.bind-cam-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: var(--hos-space-3xl, 32px) var(--hos-space-xl, 20px);
+  border-radius: var(--hos-radius-card, 14px);
+  background: rgba(0, 0, 0, 0.15);
+  border: var(--hos-hairline) dashed var(--page-accent-border);
+  text-align: center;
+}
+
+.bind-cam-empty__icon {
+  width: 32px;
+  height: 32px;
+  color: var(--page-accent-text);
+  opacity: 0.55;
+}
+
+.bind-cam-empty__title {
+  margin: 0;
+  font-size: var(--premium-fs-body-sm, 13px);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.bind-cam-empty__desc {
+  margin: 0;
+  max-width: 280px;
+  font-size: var(--premium-fs-caption);
+  line-height: 1.5;
+  color: var(--hos-text-secondary);
+}
+
+.bind-cam-intro__icon {
+  color: var(--page-accent);
+}
+
+.bind-cam-intro__orb {
+  background: var(--page-accent-bg);
+  border: var(--hos-hairline) solid var(--page-accent-border);
+}

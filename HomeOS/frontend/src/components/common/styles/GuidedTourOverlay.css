@@ -1,0 +1,72 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/common/GuidedTourOverlay.vue:134. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.guided-tour {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+.guided-tour__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+}
+.guided-tour__card {
+  position: absolute;
+  z-index: 1;
+  width: min(300px, calc(100vw - 32px));
+  padding: 16px;
+  border-radius: var(--hos-radius-panel);
+  background: rgba(22, 22, 28, 0.96);
+  border: 1px solid var(--premium-border-strong);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+.guided-tour__step {
+  font-size: var(--premium-fs-micro);
+  color: #a78bfa;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+.guided-tour__title {
+  font-size: var(--premium-fs-body);
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 8px;
+}
+.guided-tour__desc {
+  font-size: var(--premium-fs-caption);
+  color: rgba(255, 255, 255, 0.65);
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+.guided-tour__actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.guided-tour__skip {
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: var(--hos-radius-card);
+  font-size: var(--premium-fs-caption);
+  color: var(--hos-text-secondary);
+  background: transparent;
+}
+.guided-tour__next {
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: var(--hos-radius-card);
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  color: #fff;
+  background: #7c3aed;
+}
+.tour-fade-enter-active,
+.tour-fade-leave-active {
+  transition: opacity 0.25s;
+}
+.tour-fade-enter-from,
+.tour-fade-leave-to {
+  opacity: 0;
+}

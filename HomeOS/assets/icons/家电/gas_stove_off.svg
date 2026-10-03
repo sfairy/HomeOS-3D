@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="gs_off_t" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#e2e8f0"/>
+      <stop offset="100%" stop-color="#64748b"/>
+    </linearGradient>
+  </defs>
+  <!-- 燃气灶：连体灶台+旋钮条，炉架十字 -->
+  <ellipse cx="100" cy="176" fill="#cbd5e1" opacity=".45" rx="72" ry="9"/>
+  <rect width="140" height="108" x="30" y="44" fill="url(#gs_off_t)" rx="12"/>
+  <ellipse cx="70" cy="54" fill="#fff" opacity=".35" rx="20" ry="4"/>
+  <rect width="124" height="64" x="38" y="58" fill="#475569" rx="8"/>
+  <circle cx="74" cy="90" r="26" fill="#1e293b"/>
+  <circle cx="74" cy="90" r="18" fill="none" stroke="#94a3b8" stroke-width="3"/>
+  <path fill="none" stroke="#cbd5e1" stroke-width="3" stroke-linecap="round" d="M74 72v36M56 90h36"/>
+  <circle cx="74" cy="90" r="5" fill="#334155"/>
+  <circle cx="126" cy="90" r="26" fill="#1e293b"/>
+  <circle cx="126" cy="90" r="18" fill="none" stroke="#94a3b8" stroke-width="3"/>
+  <path fill="none" stroke="#cbd5e1" stroke-width="3" stroke-linecap="round" d="M126 72v36M108 90h36"/>
+  <circle cx="126" cy="90" r="5" fill="#334155"/>
+  <rect width="124" height="22" x="38" y="126" fill="#334155" rx="6"/>
+  <circle cx="64" cy="137" r="7" fill="#e2e8f0"/>
+  <circle cx="100" cy="137" r="7" fill="#e2e8f0"/>
+  <circle cx="136" cy="137" r="7" fill="#e2e8f0"/>
+  <rect width="2.5" height="6" x="62.75" y="132" fill="#94a3b8" rx="1"/>
+  <rect width="2.5" height="6" x="134.75" y="132" fill="#94a3b8" rx="1"/>
+  <circle cx="152" cy="56" r="3.5" fill="#94a3b8"/>
+</svg>

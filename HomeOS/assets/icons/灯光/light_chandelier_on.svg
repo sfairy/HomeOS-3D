@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <radialGradient id="light_chandelier_on_bulb" cx="38%" cy="28%" r="64%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="35%" stop-color="#fef9c3"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </radialGradient>
+    <radialGradient id="light_chandelier_on_wash" cx="50%" cy="0%" r="90%">
+      <stop offset="0%" stop-color="#fff7cc" stop-opacity=".65"/>
+      <stop offset="50%" stop-color="#fde68a" stop-opacity=".28"/>
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="light_chandelier_on_glow" width="180%" height="180%" x="-40%" y="-40%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3.2" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="light_chandelier_on_soft" width="180%" height="180%" x="-40%" y="-40%">
+      <feGaussianBlur stdDeviation="4.5"/>
+    </filter>
+    <style>
+      @keyframes sway{0%,to{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+      @keyframes bulb{0%,to{opacity:.82}50%{opacity:1}}
+      @keyframes soft{0%,to{opacity:.4}50%{opacity:.92}}
+      @keyframes ray{0%,to{opacity:.15}50%{opacity:.45}}
+      .hang{animation:sway 3s ease-in-out infinite;transform-origin:100px 40px}
+      .bulb{animation:bulb 2.2s ease-in-out infinite}
+      .wash{animation:soft 2.4s ease-in-out infinite}
+      .ray{animation:ray 2.2s ease-in-out infinite}
+    </style>
+  </defs>
+  <circle cx="100" cy="100" r="87" fill="#f1f5f9"/>
+  <ellipse cx="100" cy="168" fill="url(#light_chandelier_on_wash)" class="wash" filter="url(#light_chandelier_on_soft)" rx="92" ry="34"/><ellipse cx="100" cy="178" fill="#fff" class="wash" opacity=".45" rx="44" ry="8"/>
+  <g transform="translate(100 100) scale(1.12) translate(-100 -100)">
+    <g class="hang">
+      <!-- 与 off 同底图 -->
+      <ellipse cx="100" cy="40" fill="#334155" rx="16" ry="6"/>
+      <circle cx="96" cy="40" r="1.5" fill="#0f172a"/>
+      <circle cx="104" cy="40" r="1.5" fill="#0f172a"/>
+      <rect width="8" height="26" x="96" y="40" fill="#475569" rx="2"/>
+      <path fill="none" stroke="#334155" stroke-linecap="round" stroke-width="7" d="M100 66c-26 9-43 26-52 46"/><path fill="none" stroke="#334155" stroke-linecap="round" stroke-width="7" d="M100 66c26 9 43 26 52 46"/><path fill="none" stroke="#334155" stroke-linecap="round" stroke-width="7" d="M100 66v48"/>
+      <path fill="#64748b" d="M42 106h14l4 26q-9 9-18 0Z"/><path fill="#64748b" d="M158 106h-14l-4 26q9 9 18 0Z"/><path fill="#64748b" d="M86 108h28l4 34q-18 11-36 0Z"/><path fill="#fef08a" opacity=".45" d="M45 110h8l2 18q-5 5-10 0Z"/><path fill="#fef08a" opacity=".45" d="M155 110h-8l-2 18q5 5 10 0Z"/><path fill="#fef08a" opacity=".55" d="M92 112h16l2 24q-10 8-20 0Z"/><path fill="#fde68a" opacity=".35" d="M46 108h6l2 14q-5 4-10 0Z" filter="url(#light_chandelier_on_soft)"/>
+      <path fill="#fde68a" class="ray" opacity=".4" filter="url(#light_chandelier_on_soft)" d="M44 122l-12 36h28Z"/><path fill="#fde68a" class="ray" opacity=".4" filter="url(#light_chandelier_on_soft)" d="M156 122l-12 36h28Z" style="animation-delay:.2s"/><path fill="#fde68a" class="ray" opacity=".45" filter="url(#light_chandelier_on_soft)" d="M92 130l-14 40h42Z" style="animation-delay:.4s"/>
+      <ellipse cx="48" cy="118" fill="#fbbf24" class="bulb" opacity=".4" filter="url(#light_chandelier_on_soft)" rx="14" ry="16"/><ellipse cx="152" cy="118" fill="#fbbf24" class="bulb" opacity=".4" filter="url(#light_chandelier_on_soft)" rx="14" ry="16" style="animation-delay:.2s"/><ellipse cx="100" cy="126" fill="#fbbf24" class="bulb" opacity=".45" filter="url(#light_chandelier_on_soft)" rx="16" ry="18" style="animation-delay:.4s"/><ellipse cx="48" cy="118" fill="url(#light_chandelier_on_bulb)" class="bulb" filter="url(#light_chandelier_on_glow)" rx="8" ry="10"/><ellipse cx="152" cy="118" fill="url(#light_chandelier_on_bulb)" class="bulb" filter="url(#light_chandelier_on_glow)" rx="8" ry="10" style="animation-delay:.2s"/><ellipse cx="100" cy="126" fill="url(#light_chandelier_on_bulb)" class="bulb" filter="url(#light_chandelier_on_glow)" rx="10" ry="12" style="animation-delay:.4s"/><ellipse cx="48" cy="114" fill="#fff" opacity=".9" rx="4" ry="2.5"/><ellipse cx="152" cy="114" fill="#fff" opacity=".9" rx="4" ry="2.5"/>
+      <ellipse cx="48" cy="108" fill="#334155" rx="9" ry="5"/><ellipse cx="152" cy="108" fill="#334155" rx="9" ry="5"/><ellipse cx="100" cy="110" fill="#334155" rx="13" ry="5"/><ellipse cx="100" cy="154" fill="#334155" rx="7" ry="5"/><rect width="7" height="14" x="96.5" y="140" fill="#64748b" rx="1.5"/><circle cx="100" cy="140" r="4" fill="#64748b"/>
+    </g>
+  </g>
+  <circle cx="100" cy="100" r="87" fill="none" stroke="#0f172a" stroke-opacity=".1" stroke-width="2.5"/>
+</svg>

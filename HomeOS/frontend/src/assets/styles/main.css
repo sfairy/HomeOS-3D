@@ -1,0 +1,1483 @@
+/**
+ * HomeOS 全局样式表
+ * 
+ * 是整个应用的视觉底座，提供统一的深色主题设计系统
+ * 
+ * 包含：
+ * - Tailwind CSS 基类/组件/工具类入口
+ * - 全局 CSS Reset 与基础排版
+ * - 三档自定义滚动条样式（thin / normal / lg）
+ * - CSS 自定义属性（:root 变量——色彩/模糊/圆角/阴影等完整设计令牌）
+ * - Select 下拉菜单与 Range 滑块的原生控件美化
+ * - .ios-card 玻璃态卡片组件
+ * - 自定义 @keyframes 动画关键帧（入场/呼吸/浮动/弹性等）
+ * - 延迟交错入场动画类（stagger-1 ~ stagger-3）
+ * - 性能分级控制（高画质/均衡/低功耗三种模式）
+ * - GPU 合成层提升工具类（gpu-isolate / gpu-accelerate 等）
+ * - backdrop-filter 毛玻璃快捷类
+ * - 移动端触摸屏适配（pointer: coarse）
+ * - prefers-reduced-motion 无障碍适配
+ */
+@import "tailwindcss";
+@config "../../../tailwind.config.js";
+@import "./hos-dropdown-theme.css";
+
+/* ==========================================================================
+   1. 全局 CSS Reset & 基础排版
+   ========================================================================== */
+
+/** 统一盒模型为 border-box，避免宽高计算混乱 */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/** 根元素：全屏占满、禁止滚动、系统字体栈 */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'Inter', 'Noto Sans SC', sans-serif;
+  -webkit-font-smoothing: antialiased;               /* macOS 字体平滑 */
+  -moz-osx-font-smoothing: grayscale;                /* Firefox macOS 字体平滑 */
+  text-rendering: optimizeLegibility;                /* 优先字距/连字渲染质量 */
+}
+
+/** Vue 挂载点：占满高度、隐藏溢出 */
+#app { height: 100%; overflow: hidden; }
+
+/** 固定深色主题 */
+html {
+  color-scheme: dark;
+}
+
+/** body 深色主题基准：纯黑视口背景 + 白色主文字 + 1.2s 丝滑过渡 */
+body {
+  background-color: var(--bg-viewport, #000000);
+  color: var(--text-primary, rgba(255,255,255,0.96));
+  margin: 0; padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'Inter', 'Noto Sans SC', sans-serif;
+  transition: background-color 1.2s cubic-bezier(0.32, 0.72, 0, 1), color 1.2s cubic-bezier(0.32, 0.72, 0, 1);
+  overflow: hidden;
+}
+
+
+/* ==========================================================================
+   2. 全局滚动条与文本选中
+   ========================================================================== */
+
+/** 全局默认滚动条：6px 宽、半透明白色滑块、hover 变亮 */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }                      /* 轨道透明融入背景 */
+::-webkit-scrollbar-thumb { background: var(--premium-glass-bg-hover); border-radius: 3px; }
+
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+
+/** 全局文本选中色：蓝色半透明背景 + 白色文字 */
+::selection { background: rgba(var(--accent-rgb), 0.35); color: #fff; /* 必要硬编码：选区高对比白色文字，无对应白色文字 token */ }
+
+
+/* ==========================================================================
+   3. 可复用的自定义滚动条类
+   ========================================================================== */
+
+/**
+ * .custom-scrollbar —— 细滚动条（4px）
+ * 用于侧边栏、列表等紧凑场景
+ */
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 2px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.12); }
+
+.custom-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.06) transparent; }
+
+/**
+ * .custom-scrollbar-lg —— 加粗滚动条（5px、更亮滑块）
+ * 用于主内容区等需要明确滚动提示的场景
+ */
+.custom-scrollbar-lg::-webkit-scrollbar { width: 5px; }
+.custom-scrollbar-lg::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar-lg::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+.custom-scrollbar-lg::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.35); }
+
+.custom-scrollbar-lg { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) transparent; }
+
+/**
+ * .no-scrollbar —— 完全隐藏滚动条
+ * 用于横向滑动容器、全屏沉浸等场景
+ */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+
+/* ==========================================================================
+   4. 表单控件全局基础
+   ========================================================================== */
+
+/** 统一表单元素的字体继承，避免浏览器默认样式差异 */
+input, textarea, button { font-family: inherit; }
+
+/** 禁用 Chrome 自动填充的黄色背景：使用极长过渡模拟"永不出现" */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus { transition: background-color 5000s ease-in-out 0s; }
+
+
+/* ==========================================================================
+   5. 自定义 Range 滑块（深色主题适配）
+   ========================================================================== */
+
+/**
+ * input[type="range"] —— 完全自定义的滑块控件
+ * 渐变绘制在轨道伪元素上，与 thumb 共用坐标系，避免填充与按钮错位
+ * --progress-pct / --track-fill-from / --track-fill-to 由 JS 动态设置
+ * .wr-range / .slider-range 等由各自样式表接管，避免拇指尺寸冲突
+ */
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider) {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border-radius: var(--hos-radius-pill);
+  outline: none;
+  height: 6px;
+  position: relative;
+  cursor: pointer;
+}
+
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider)::-webkit-slider-runnable-track {
+  appearance: none;
+  height: 6px;
+  border-radius: var(--hos-radius-pill);
+  background: linear-gradient(to right,
+    var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))) 0%,
+    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))) var(--progress-pct, var(--progress, 50%)),
+    var(--track-bg, rgba(255, 255, 255, 0.04)) var(--progress-pct, var(--progress, 50%)),
+    var(--track-bg, rgba(255, 255, 255, 0.04)) 100%);
+}
+
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider)::-moz-range-track {
+  height: 6px;
+  border-radius: var(--hos-radius-pill);
+  background: var(--track-bg, rgba(255, 255, 255, 0.04));
+  border: none;
+}
+
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider)::-moz-range-progress {
+  height: 6px;
+  border-radius: var(--hos-radius-pill);
+  background: linear-gradient(to right,
+    var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))),
+    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))));
+}
+
+/**
+ * WebKit 滑块拖拽手柄（thumb）
+ * 24x24 白色圆形 + 蓝色光晕 ring + 弹性缩放过渡
+ */
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider)::-webkit-slider-thumb {
+  appearance: none; cursor: pointer; background: #ffffff; /* 必要硬编码：滑块手柄纯白圆点，保证在彩色轨道上的高对比 */ border: none;
+  border-radius: 50%; width: 24px; height: 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.22), 0 0 0 4px rgba(var(--accent-rgb), 0.15);
+  margin-top: -9px; transition: transform 0.4s var(--ease-bounce), box-shadow 0.4s var(--ease-bounce);
+  position: relative; z-index: 1;
+}
+
+/** thumb 悬停：放大 1.1 倍 + 光晕扩展 */
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider)::-webkit-slider-thumb:hover { transform: scale(1.1); box-shadow: 0 3px 12px rgba(0,0,0,0.28), 0 0 0 6px rgba(var(--accent-rgb), 0.12); }
+
+/** thumb 拖拽中：放大 1.18 倍 + 光晕进一步扩大 */
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider):active::-webkit-slider-thumb { transform: scale(1.18); box-shadow: 0 4px 16px rgba(0,0,0,0.32), 0 0 0 8px rgba(var(--accent-rgb), 0.08); }
+
+/* ---- 6b. 共享紧凑滑块（设置页 / 媒体音量等） ---- */
+input[type="range"].hos-range,
+input[type="range"].media-range,
+input[type="range"].sm-emergency-range {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: var(--hos-radius-pill);
+  background: transparent;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"].hos-range::-webkit-slider-runnable-track,
+input[type="range"].media-range::-webkit-slider-runnable-track,
+input[type="range"].sm-emergency-range::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: var(--hos-radius-pill);
+  background: linear-gradient(to right,
+    var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))) 0%,
+    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))) var(--progress-pct, var(--progress, 0%)),
+    var(--track-bg, var(--premium-border-strong)) var(--progress-pct, var(--progress, 0%)),
+    var(--track-bg, var(--premium-border-strong)) 100%);
+}
+
+input[type="range"].hos-range::-moz-range-track,
+input[type="range"].media-range::-moz-range-track,
+input[type="range"].sm-emergency-range::-moz-range-track {
+  height: 6px;
+  border-radius: var(--hos-radius-pill);
+  background: var(--track-bg, var(--premium-glass-bg-hover));
+  border: none;
+}
+
+input[type="range"].hos-range::-moz-range-progress,
+input[type="range"].media-range::-moz-range-progress,
+input[type="range"].sm-emergency-range::-moz-range-progress {
+  height: 6px;
+  border-radius: var(--hos-radius-pill);
+  background: linear-gradient(to right,
+    var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))),
+    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))));
+}
+
+input[type="range"].hos-range::-webkit-slider-thumb,
+input[type="range"].media-range::-webkit-slider-thumb,
+input[type="range"].sm-emergency-range::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff; /* 必要硬编码：滑块手柄纯白圆点，保证在彩色轨道上的高对比 */
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  margin-top: -6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+}
+
+input[type="range"].hos-range::-moz-range-thumb,
+input[type="range"].media-range::-moz-range-thumb,
+input[type="range"].sm-emergency-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff; /* 必要硬编码：滑块手柄纯白圆点，保证在彩色轨道上的高对比 */
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+}
+
+
+/* ==========================================================================
+   7. :root —— 全局 CSS 设计令牌（Design Tokens）
+   整个应用的视觉语言体系，所有组件通过 var() 引用这些变量
+   修改此处即可全局换肤，无需逐个组件调整
+   ========================================================================== */
+:root {
+
+  /* --------------------------------------------------------------------------
+     7.1 缓动函数（Easing Curves）
+     统一动画节奏，模拟 Apple 人机界面指南的缓动风格
+     -------------------------------------------------------------------------- */
+  --ease-spring: cubic-bezier(0.25, 0.1, 0.25, 1);         /* 弹性弹簧效果 */
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);               /* iOS 风格缓出 */
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);         /* 回弹过冲（弹窗/卡片弹性入场） */
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);              /* Material 标准缓动 */
+  --ease-apple: cubic-bezier(0.25, 0.1, 0.25, 1);           /* Apple 经典缓动 */
+
+  /* --------------------------------------------------------------------------
+     7.2 视口与层级背景色（Background Depths）
+     从深到浅四个深度层级，用于构建视觉层次感
+     -------------------------------------------------------------------------- */
+  --bg-viewport: #000000;                                   /* 最底层视口背景——纯黑 */
+  --bg-depth-1: rgba(255,255,255,0.02);                     /* 深度1——微亮 */
+  --bg-depth-2: rgba(255,255,255,0.03);                     /* 深度2——稍亮 */
+  --bg-depth-3: rgba(255,255,255,0.04);                     /* 深度3——更亮 */
+
+  /* --------------------------------------------------------------------------
+     7.3 主题色（Accent Colors）
+     17 种主色调，覆盖蓝/紫/橙/绿/红/黄等色系
+     通过 .color-accent-* 工具类可动态切换 --accent 变量
+     -------------------------------------------------------------------------- */
+  --accent: #0A84FF;                                        /* 主色调——系统蓝（交互可读） */
+  --accent-rgb: 10, 132, 255;                               /* 主色调 RGB，供 rgba() 使用 */
+  --accent-secondary: #5fd4ff;                              /* 次要色调——登录青（品牌中性强调） */
+  --accent-tertiary: #7eb8ff;                               /* 第三色调——冰蓝（替代默认紫光晕） */
+  --accent-warm: #FF9F0A;                                   /* 暖色调——琥珀橙 */
+  --accent-rose: #FF375F;                                   /* 玫瑰红 */
+  --accent-mint: #66D4CF;                                   /* 薄荷青 */
+  --accent-teal: #40C8E0;                                   /* 青蓝 */
+  --accent-green: #34C759;                                  /* 翠绿（与 premium 对齐） */
+  --accent-coral: #FF6B6B;                                  /* 珊瑚红 */
+  --accent-gold: #FFD60A;                                   /* 金色 */
+  --accent-indigo: #5856D6;                                 /* 靛蓝 */
+  --accent-cyan: #5fd4ff;                                   /* 品牌青（与登录/premium 对齐） */
+  --accent-pink: #FF2D55;                                   /* 粉红 */
+  --accent-orange: #FF9500;                                 /* 橘橙 */
+  --accent-yellow: #FFCC00;                                 /* 明黄 */
+  --accent-lime: #32D74B;                                   /* 青柠绿 */
+  --accent-purple-deep: #8E8EFF;                            /* 深紫 */
+
+  /* --------------------------------------------------------------------------
+     7.3b Neon 霓虹色板（已删除：原消费者 .hover-glow-* 与 .text-gradient-neon
+     工具类已在阶段 4 清理中删除，这些变量无任何 var() 引用，故一并移除）
+     -------------------------------------------------------------------------- */
+
+  /* --------------------------------------------------------------------------
+     7.3c 渐变预设（Gradient Presets）
+     预定义的渐变色组合，用于按钮、文字、装饰线
+     -------------------------------------------------------------------------- */
+  --gradient-blue-purple: linear-gradient(135deg, #0A84FF 0%, #BF5AF2 100%);
+  --gradient-cyan-blue: linear-gradient(135deg, #00D4FF 0%, #0A84FF 100%);
+  --gradient-sunset: linear-gradient(135deg, #FF6B3D 0%, #FF3B8B 50%, #BF5AF2 100%);
+  --gradient-aurora: linear-gradient(135deg, #00F593 0%, #00D4FF 50%, #B44DFF 100%);
+  --gradient-fire: linear-gradient(135deg, #FF9500 0%, #FF375F 100%);
+  --gradient-ocean: linear-gradient(135deg, #0A84FF 0%, #66D4CF 100%);
+  --gradient-forest: linear-gradient(135deg, #30D158 0%, #40C8E0 100%);
+  --gradient-royal: linear-gradient(135deg, #5856D6 0%, #BF5AF2 50%, #FF2D55 100%);
+  --gradient-golden: linear-gradient(135deg, #FFD60A 0%, #FF9F0A 50%, #FF375F 100%);
+
+  /* --------------------------------------------------------------------------
+     7.3d 渐变文字（已删除：原消费者 .text-gradient-{blue,purple,gold,neon}
+     工具类已在阶段 4 清理中删除，这些变量无任何引用，故一并移除）
+     -------------------------------------------------------------------------- */
+
+  /* --------------------------------------------------------------------------
+     7.4 光晕色（Glow Colors）
+     各主题色对应的发光/辉光版本，用于 box-shadow 和 filter
+     透明度统一为 0.3~0.4，确保大面积使用时不过曝
+     -------------------------------------------------------------------------- */
+  --accent-glow: rgba(10,132,255,0.4);                      /* 蓝色光晕 */
+  --accent-glow-2: rgba(94,92,230,0.35);                    /* 紫色光晕 */
+  --accent-glow-3: rgba(191,90,242,0.35);                   /* 亮紫光晕 */
+  --accent-glow-warm: rgba(255,159,10,0.32);                /* 暖色光晕 */
+  --accent-glow-rose: rgba(255,55,95,0.32);                 /* 玫瑰光晕 */
+  --accent-glow-mint: rgba(102,212,207,0.32);               /* 薄荷光晕 */
+  --accent-glow-teal: rgba(64,200,224,0.32);                /* 青蓝光晕 */
+  --accent-glow-green: rgba(48,209,88,0.32);                /* 绿色光晕 */
+  --accent-glow-coral: rgba(255,107,107,0.32);              /* 珊瑚光晕 */
+  --accent-glow-gold: rgba(255,214,10,0.32);                /* 金色光晕 */
+  --accent-glow-orange: rgba(255,149,0,0.3);                /* 橘色光晕 */
+  --accent-glow-purple: rgba(142,142,255,0.3);              /* 深紫光晕 */
+
+  /* --------------------------------------------------------------------------
+     7.4b 霓虹光晕（Neon Glow）（已删除：原消费者 .hover-glow-* 工具类
+     已在阶段 4 清理中删除，这些变量无任何 var() 引用，故一并移除）
+     -------------------------------------------------------------------------- */
+
+  /* --------------------------------------------------------------------------
+     7.5 文字颜色层级（Text Hierarchy）
+     五级透明度对应：主文字 / 次要 / 辅助 / 禁用 / 占位
+     统一使用白色 rgba 叠加，确保在深色背景上始终可见
+     -------------------------------------------------------------------------- */
+  --text-primary: rgba(255,255,255,0.96);                   /* 主文字——几乎不透明白 */
+  --text-secondary: rgba(255,255,255,0.65);                 /* 次要文字——半透明 */
+  --text-tertiary: rgba(255,255,255,0.45);                  /* 辅助文字——更淡 */
+  --text-muted: rgba(255,255,255,0.5);                      /* 禁用/占位文字——最淡（≥0.5 保证小字号可读性） */
+  --text-placeholder: rgba(255,255,255,0.2);                /* 占位符文字——极淡 */
+
+  /* --------------------------------------------------------------------------
+     7.5b iPad 增强文字颜色
+     针对大屏 iPad 优化，微微提升亮度和对比度
+     -------------------------------------------------------------------------- */
+  --text-primary-ipad: rgba(255,255,255,0.97);
+  --text-secondary-ipad: rgba(255,255,255,0.7);
+
+  /* --------------------------------------------------------------------------
+     7.6 卡片变量（Card Tokens）
+     四级背景透明度 + 边框 + 阴影，用于 .ios-card 等容器
+     -------------------------------------------------------------------------- */
+  --card-bg-1: rgba(255,255,255,0.045);                    /* 卡片背景——基础抬升 */
+  --card-bg-2: rgba(255,255,255,0.075);                    /* 卡片背景——次级 */
+  --card-bg-3: rgba(255,255,255,0.11);                     /* 卡片背景——控件 */
+  --card-bg-4: rgba(255,255,255,0.14);                     /* 卡片背景——高亮 */
+  --card-border: var(--premium-border);                    /* 卡片边框——默认 */
+  --card-border-hover: rgba(255,255,255,0.14);             /* 卡片边框——悬停高亮 */
+  --card-shadow: 0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.12);           /* 卡片阴影——默认 */
+  --card-shadow-hover: 0 16px 48px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.15);   /* 卡片阴影——悬停抬升 */
+
+  /* --------------------------------------------------------------------------
+     7.7 玻璃态背景（Glass Morphism）
+     五级半透明白色背景 + 三级边框，用于毛玻璃效果
+     -------------------------------------------------------------------------- */
+  --glass-bg-xs: rgba(255,255,255,0.02);                    /* 极浅玻璃 */
+  --glass-bg-sm: rgba(255,255,255,0.04);                    /* 浅玻璃 */
+  --glass-bg-md: rgba(255,255,255,0.06);                    /* 中等玻璃 */
+  --glass-bg-lg: rgba(255,255,255,0.09);                    /* 深玻璃 */
+  --glass-bg-xl: rgba(255,255,255,0.13);                    /* 最深玻璃 */
+  --glass-border: rgba(255,255,255,0.07);                   /* 玻璃边框——默认 */
+  --glass-border-subtle: rgba(255,255,255,0.04);            /* 玻璃边框——细微 */
+  --glass-border-bright: rgba(255,255,255,0.14);            /* 玻璃边框——明亮 */
+
+  /* --------------------------------------------------------------------------
+     7.8 面板与表面变量
+     用于设置面板、弹窗等独立浮层容器
+     -------------------------------------------------------------------------- */
+  --panel-bg: rgba(15,15,20,0.6);                           /* 面板背景——带蓝灰调 */
+  --panel-bg-heavy: rgba(12,12,18,0.78);                    /* 面板背景——加厚版 */
+  --panel-border: var(--premium-border);                   /* 面板边框 */
+
+  --surface-bg: rgba(255,255,255,0.02);                     /* 表面背景——最浅层 */
+  --surface-border: rgba(255,255,255,0.05);                 /* 表面边框 */
+
+  /* --------------------------------------------------------------------------
+     7.9 模糊半径（Backdrop Blur）
+     五级模糊程度，用于 backdrop-filter 毛玻璃效果
+     -------------------------------------------------------------------------- */
+  --blur-xs: 8px;                                           /* 极轻模糊半径 */
+  --blur-sm: 16px;                                          /* 轻微模糊半径 */
+  --blur-md: 28px;                                          /* 中等模糊半径（推荐） */
+  --blur-lg: 48px;                                          /* 重度模糊半径 */
+  --blur-xl: 64px;                                          /* 极度模糊半径 */
+
+  /* --------------------------------------------------------------------------
+     7.9b 间距令牌（Spacing Scale）
+     全站统一间距基线，列表页/模态/卡片优先引用
+     -------------------------------------------------------------------------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 14px;
+  --space-5: 18px;
+  --space-6: 22px;
+  --space-7: 28px;
+  --space-page-x: var(--space-6);
+  --space-page-y-top: var(--space-5);
+  --space-page-y-bottom: var(--space-7);
+  --space-page-gap: var(--space-4);
+
+  /* 触控最小命中（细指针默认 44，粗指针媒体查询可覆盖） */
+  --touch-min: 44px;
+
+  /* --------------------------------------------------------------------------
+     毛玻璃性能降级回退背景
+     coarse 触屏 与 html[data-glass-effect="static"] 共用（单一来源，见下方禁用组）
+     -------------------------------------------------------------------------- */
+  --glass-off-bg-surface: rgba(18, 22, 28, 0.88);   /* 玻璃面板 / 标签栏 */
+  --glass-off-bg-heavy: rgba(14, 14, 22, 0.96);     /* 电源面板 */
+  --glass-off-bg-popup: rgba(18, 18, 26, 0.96);     /* 弹层外壳 */
+
+  /* --------------------------------------------------------------------------
+     层级（z-index 令牌）——统一浮层层级，避免散落硬编码
+     语义（自低向高）：
+     - menu < modal < toast：基础浮层
+     - drawer 侧滑抽屉 < search 全局搜索 < overlay 构建器二级弹层
+     - alert 全屏紧急告警（地震等）
+     - notification 全局 toast 容器（须盖住告警以便提示可读）
+     - max 绝对顶层（下拉选择器/拾色器等，须盖住任何弹层）
+     - teleport-target（模态/弹层挂载容器）→ --z-modal
+     - tab-bar 更多菜单 portal → --z-menu（tab-bar 自带 isolation，数值仅在其上下文内生效）
+     -------------------------------------------------------------------------- */
+  --z-menu: 900;
+  --z-modal: 1000;
+  --z-toast: 1100;
+  --z-modal-root: 11000;  /* 居中模态根（独立于 teleport 时）：hos-modal-root 等 */
+  --z-drawer: 11000;      /* 侧滑抽屉：通知抽屉等 */
+  --z-search: 12000;      /* 全局搜索面板 */
+  --z-overlay: 13100;     /* 构建器抽屉内打开的二级弹层/遮罩 */
+  --z-alert: 99999;       /* 全屏紧急告警：地震、屏幕保护等 */
+  --z-notification: 100000; /* 全局 toast 容器（须盖住 alert 保证提示可读） */
+  --z-max: 2147483647;    /* 绝对顶层：下拉选择器/拾色器/输入联想等浮层 */
+
+  /* --------------------------------------------------------------------------
+     7.10 圆角半径（Border Radius）
+     六级圆角，遵循 4px 递增节奏
+     -------------------------------------------------------------------------- */
+  --radius-xs: 8px;                                         /* 极小圆角——按钮/标签 */
+  --radius-sm: 12px;                                        /* 小圆角——输入框 */
+  --radius-md: var(--hos-radius-card);                      /* 中等圆角——小卡片 */
+  --radius-lg: var(--hos-radius-panel);                     /* 大圆角——中卡片 */
+  --radius-xl: var(--hos-radius-shell);                     /* 超大圆角——大卡片 */
+  --radius-2xl: var(--hos-radius-shell);                    /* 极大圆角——主卡片（.ios-card） */
+
+  /* --------------------------------------------------------------------------
+     7.10b iPad 增强圆角
+     大屏设备使用更大、更柔和的圆角
+     -------------------------------------------------------------------------- */
+  --radius-ipad-sm: var(--hos-radius-card);
+  --radius-ipad-md: var(--hos-radius-panel);
+  --radius-ipad-lg: var(--hos-radius-panel);
+  --radius-ipad-xl: var(--hos-radius-shell);
+  --radius-ipad-2xl: var(--hos-radius-shell);
+  --radius-ipad-pill: 9999px;
+
+  /* --------------------------------------------------------------------------
+     7.10e 毛玻璃禁用组共享选择器（单一来源）
+     coarse 触屏 与 html[data-glass-effect="static"] 两组共用，
+     新增 blur 使用点只需登记在此，两组同步生效
+     -------------------------------------------------------------------------- */
+  --glass-fallback-selectors:
+    .ios-card,
+    .climate-card,
+    .glass-panel,
+    .tab-bar,
+    .hotspot--badge .hotspot__value,
+    .power-panel,
+    .premium-glass-surface--elevated,
+    .premium-glass-surface--panel,
+    .premium-head--card,
+    .list-page__panel,
+    .list-page__pager,
+    .list-page__hero.premium-head--card,
+    .hos-panel--glass,
+    .premium-backdrop,
+    .popup-shell,
+    .info-panel,
+    .panel-collapse-btn,
+    .notification-drawer,
+    .notif-drawer,
+    .device-group-modal,
+    .dgm-shell,
+    .linkage-hub__drawer,
+    .linkage-hub__nav-wrap,
+    .linkage-builder-drawer-panel,
+    .linkage-builder-drawer-backdrop,
+    .orch-premium-shell,
+    .settings-popout-menu__scrim,
+    .sov-panel,
+    .sec-hub,
+    .sov-zones;
+
+  /* --------------------------------------------------------------------------
+     7.10c iPad 增强阴影
+     更细腻的多层阴影，模拟物理抬升感
+     -------------------------------------------------------------------------- */
+  --shadow-ipad-sm: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
+  --shadow-ipad-md: 0 4px 16px rgba(0,0,0,0.16), 0 2px 6px rgba(0,0,0,0.08);
+  --shadow-ipad-lg: 0 8px 32px rgba(0,0,0,0.2), 0 4px 12px rgba(0,0,0,0.1);
+  --shadow-ipad-xl: 0 16px 48px rgba(0,0,0,0.25), 0 6px 16px rgba(0,0,0,0.12);
+  --shadow-ipad-glow: 0 0 40px rgba(10,132,255,0.08), 0 8px 32px rgba(0,0,0,0.16);
+
+  /* --------------------------------------------------------------------------
+     7.10d iPad 玻璃增强
+     更强的毛玻璃效果——更大模糊半径、更高饱和度
+     -------------------------------------------------------------------------- */
+  --glass-ipad-bg: rgba(255,255,255,0.04);
+  --glass-ipad-border: var(--premium-border-strong);
+  --glass-ipad-blur: blur(60px) saturate(220%);
+  --glass-ipad-blur-light: blur(40px) saturate(200%);
+}
+
+/* ==========================================================================
+   8. .ios-card —— iOS 风格玻璃态卡片
+   ========================================================================== */
+
+/**
+ * .ios-card
+ * HomeOS 核心容器组件，模拟 iOS 控制中心卡片风格：
+ * - 半透明背景 + 强毛玻璃模糊 + 饱和度增强
+ * - ::before 伪元素添加对角线渐变高光
+ * - ::after 伪元素添加顶部细线光泽
+ * - hover 时卡片抬升 2px + 边框高亮 + 阴影加深
+ */
+.ios-card {
+  background-color: var(--card-bg-1);
+  background-image: var(--page-card-tint-soft);
+  -webkit-backdrop-filter: blur(var(--blur-md)) saturate(200%);
+  backdrop-filter: blur(var(--blur-md)) saturate(200%);                /* 毛玻璃核心 */
+  border: var(--hos-hairline) solid var(--card-border);
+  border-radius: var(--radius-2xl);
+  transition: all 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);              /* Apple 风格缓动 */
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--card-shadow);
+}
+
+/** 对角线渐变高光层：左上到右下由亮到暗 */
+.ios-card::before {
+  content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(140deg, rgba(255,255,255,0.04) 0%, transparent 30%, transparent 70%, rgba(255,255,255,0.02) 100%);
+}
+
+/** 顶部页面色渐变光带：模拟玻璃折射的亮边 + 模块主题色 */
+.ios-card::after {
+  content: ''; position: absolute; top: 0; left: 15%; right: 15%; height: 1px;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0), color-mix(in srgb, var(--page-accent, #0a84ff) 55%, white), rgba(0, 0, 0, 0));
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/** 悬停态：背景加深、边框变亮、阴影扩展、卡片抬升 */
+.ios-card:hover {
+  background: var(--card-bg-2);
+  border-color: var(--card-border-hover);
+  box-shadow: var(--card-shadow-hover);
+  transform: translateY(-2px);                                          /* 轻微抬升 */
+}
+
+/** 悬停时顶部光泽线更亮 */
+.ios-card:hover::after {
+  opacity: 0.8;
+}
+
+
+/* ==========================================================================
+   9. 交互工具类
+   ========================================================================== */
+
+/**
+ * .tap-active —— 触控反馈样式
+ * 点击时缩小至 95% + 降低透明度，模拟 iOS 按钮点击反馈
+ */
+.tap-active {
+  transition: transform 0.3s var(--ease-bounce), opacity 0.25s ease;
+  cursor: pointer;
+}
+
+.tap-active:active { opacity: 0.75; transform: scale(0.95); }
+
+
+/* ==========================================================================
+   10. 主题色快速切换工具类
+   覆盖 --accent 和 --accent-glow 变量，用于动态换肤
+   （未引用类已移除，换肤请使用 data-accent / CSS 变量）
+   ========================================================================== */
+
+
+/* ==========================================================================
+   10b. 多色数据展示工具类（已移除）
+   原含 .text-amber、.text-gradient-*、.bg-* 透明度变体、.border-* 透明度变体、.shadow-* 等
+   硬编码色工具类。经全仓搜索确认无任何 .vue / .ts 引用，且与 CSS 变量体系冲突，
+   已统一删除。需要彩色文字/背景/边框请使用语义令牌（--set-info / --set-warn /
+   --set-danger / --set-success / --set-neutral）或主题令牌（--premium-accent-*）。
+   ========================================================================== */
+
+
+
+/* ---- 11. 入场动画工具类（GPU 3D 版本见性能优化区） ---- */
+/* 注：以下未引用工具类已删除（截至 2026-07 全仓搜索确认无 .vue/.ts 引用）：
+   .animate-fade-in-scale / .animate-slide-in-right / .animate-slide-in-left /
+   .animate-shimmer / .animate-breathe / .animate-float / .animate-spin-slow /
+   .animate-elastic-scale / .animate-pulse-glow / .animate-gradient /
+   .animate-number-pop / .animate-scale-warn / .animate-blink-soft /
+   .animate-bounce-in / .animate-color-cycle / .animate-scan-line /
+   .animate-rainbow-border
+   其中 .animate-shimmer / .animate-spin-slow 引用的 @keyframes 在 main.css 中本就不存在，
+   属于历史遗留断链。需要入场动画请使用下列保留类或 scoped 动画。 */
+
+/** 淡入上移：0.9s */
+.animate-fade-in-up { animation: fadeInUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+/** 纯淡入：0.6s，适合文字显现 */
+.animate-fade-in { animation: fadeIn 0.6s ease forwards; }
+
+/** 快速淡入：0.3s，适合 Tab 切换 */
+.animate-fade-in--fast { animation: fadeIn 0.3s ease forwards; }
+
+/** 轻微摇晃：0.5s */
+.animate-shake { animation: gentle-shake 0.5s ease-in-out; }
+
+
+/* ==========================================================================
+   12b. 发光与彩色 Hover 工具类（已删除）
+   原 .hover-glow-{blue,purple,pink,green,orange,cyan} 与 .hover-lift-glow
+   基于硬编码 --neon-* 变量且无任何 .vue/.ts 引用，与 CSS 变量体系冲突，已统一删除。
+   需要 hover 发光请使用语义令牌（--set-info / --set-warn / --set-danger / --set-success）
+   或主题令牌（--page-accent / --premium-accent-*）。
+   ========================================================================== */
+
+
+/* ==========================================================================
+   12c. 渐变文字工具类（已删除）
+   原 .text-gradient-{blue,purple,gold,neon} 基于硬编码 --text-gradient-* 变量，
+   且 .text-gradient-neon 引用的 @keyframes text-shimmer 不存在（断链）。
+   经全仓搜索确认无任何 .vue/.ts 引用，已统一删除。
+   需要渐变文字请使用 --page-accent-text 等 token 驱动的 scoped class。
+   ========================================================================== */
+
+
+/* ==========================================================================
+   13. 延迟交错入场（Staggered Entrance）
+   通过递增的 animation-delay 实现列表项依次出现的效果
+   初始 opacity: 0 防止动画开始前闪烁
+   ========================================================================== */
+
+/** 交错入场（GPU 3D 版本覆盖 keyframe，此区仅保留工具类） */
+
+/** 第 1 项：无延迟，立即播放 */
+.animate-stagger-1 { animation: entrance-stagger 1.1s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+/** 第 2 项：延迟 0.12s */
+.animate-stagger-2 { animation: entrance-stagger 1.1s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards; opacity: 0; }
+
+/** 第 3 项：延迟 0.24s */
+.animate-stagger-3 { animation: entrance-stagger 1.1s cubic-bezier(0.16, 1, 0.3, 1) 0.24s forwards; opacity: 0; }
+
+/* 注：原 .animate-stagger-4 / -5 已删除（无 .vue/.ts 引用，DashboardView 仅使用 -1/-2，
+   DashboardFooter 仅使用 -3）。如需更多交错层级可按需重新添加。 */
+
+
+/* ==========================================================================
+   14. 性能模式（Performance Tiers）
+   通过修改 CSS 变量降低渲染开销，适配不同硬件能力
+   ========================================================================== */
+
+/**
+ * .perf-medium —— 均衡性能模式
+ * 仅提高卡片背景透明度（减少模糊层数）
+ */
+.perf-medium { --card-bg-1: rgba(255,255,255,0.05); }
+
+.perf-medium .glass-panel:not(.glass-panel--native),
+.perf-adaptive.perf-medium .glass-panel:not(.glass-panel--native) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.03) 100%);
+}
+
+.perf-medium .hotspot--badge .hotspot__value,
+.perf-adaptive.perf-medium .hotspot--badge .hotspot__value {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.perf-medium .glass-panel,
+.perf-adaptive.perf-medium .glass-panel {
+  -webkit-backdrop-filter: blur(12px) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+.perf-adaptive.perf-medium .hotspot.gpu-isolate-light:not(:hover):not(.hotspot--active-popup) {
+  will-change: auto;
+}
+
+.perf-adaptive.perf-medium .gpu-isolate-light:not(:hover):not(:active) {
+  will-change: auto;
+}
+
+.perf-medium .hotspot__dot--glow,
+.perf-adaptive.perf-medium .hotspot__dot--glow {
+  animation: none !important;
+  box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.45);
+}
+
+/**
+ * .perf-low —— 低功耗模式
+ * 提高卡片背景透明度 + 关闭 GPU 密集效果：
+ * - 所有阴影、文字阴影
+ * - 所有 backdrop-filter 模糊
+ * - 所有 mix-blend-mode
+ * - 装饰性入场/呼吸/浮动/交错动画
+ * 保留功能动画（spin/pulse/fade 路由过渡等），确保 UI 可交互性不降低
+ * 适用于低端设备或节能需求
+ */
+.perf-low { --card-bg-1: var(--premium-border-strong); }
+
+.perf-low *,
+.perf-low ::before,
+.perf-low ::after {
+  box-shadow: none !important; text-shadow: none !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+.perf-low .animate-stagger-1,
+.perf-low .animate-stagger-2,
+.perf-low .animate-stagger-3,
+.perf-low .animate-fade-in,
+.perf-low .animate-fade-in--fast,
+.perf-low .animate-fade-in-up,
+.perf-low .animate-scale-in,
+.perf-low .animate-afh-in,
+.perf-low .log-list-enter-active,
+.perf-low .log-list-move {
+  animation: none !important;
+  opacity: 1 !important;
+}
+
+.perf-low .hotspot {
+  will-change: auto !important;
+}
+
+/* ==========================================================================
+   15. GPU 加速工具类
+   通过 CSS containment 和 will-change 将元素提升到独立合成层
+   大幅减少重绘/回流，提升动画流畅度
+   ========================================================================== */
+
+/**
+ * .gpu-isolate —— GPU 合成层隔离（完整版）
+ * - contain: layout paint —— 限制布局和绘制范围
+ * - will-change: transform, opacity —— 提前告知 GPU 准备
+ * - backface-visibility: hidden —— 避免 3D 变换时的背面闪烁
+ * - transform-style: preserve-3d —— 保持子元素 3D 空间
+ */
+.gpu-isolate { 
+  contain: layout paint; 
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+}
+
+/**
+ * .gpu-isolate-light —— GPU 合成层隔离（轻量版）
+ * 仅 contain: layout，适合不需要 paint containment 的场景
+ */
+.gpu-isolate-light { 
+  contain: layout; 
+  backface-visibility: hidden;
+}
+
+.gpu-isolate-light:hover,
+.gpu-isolate-light:active,
+.gpu-isolate-light.hotspot--active-popup {
+  will-change: transform, opacity;
+}
+
+/**
+ * .gpu-accelerate —— GPU 加速（基础版）
+ * 使用 translateZ(0) 强制创建合成层，适合简单动画元素
+ */
+.gpu-accelerate {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+/**
+ * .gpu-accelerate-strong —— GPU 加速（增强版）
+ * 使用 translate3d + preserve-3d，适合复杂动画元素
+ */
+.gpu-accelerate-strong {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+  will-change: transform, opacity;
+}
+
+
+/* ==========================================================================
+   16. 毛玻璃快捷类
+   预设的 backdrop-filter 组合，避免在组件中重复书写
+   ========================================================================== */
+
+/** 性能版毛玻璃：12px 模糊 + 150% 饱和度 */
+.backdrop-blur-performance {
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  backdrop-filter: blur(12px) saturate(150%);
+}
+
+/** 轻量版毛玻璃：8px 模糊 + 120% 饱和度 */
+.backdrop-blur-light {
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
+}
+
+
+/* ==========================================================================
+   17. GPU 优化版动画关键帧
+   使用 translate3d/scale3d 取代 2D 版本
+   强制触发 GPU 合成层，避免 CPU 重绘
+   ========================================================================== */
+
+/** 纯淡入（opacity 0→1，无位移） */
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/** 轻微摇晃（水平抖动，用于错误提示） */
+@keyframes gentle-shake {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  20% { transform: translate3d(-6px, 0, 0); }
+  40% { transform: translate3d(6px, 0, 0); }
+  60% { transform: translate3d(-4px, 0, 0); }
+  80% { transform: translate3d(4px, 0, 0); }
+}
+
+/** GPU 版：淡入上移（translate3d） */
+@keyframes fadeInUp {
+  0% { opacity: 0; transform: translate3d(0, 32px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+/** GPU 版：淡入缩放（scale3d） */
+@keyframes fadeInScale {
+  0% { opacity: 0; transform: scale3d(0.9, 0.9, 1); }
+  to { opacity: 1; transform: scale3d(1, 1, 1); }
+}
+
+/** GPU 版：右侧滑入（translate3d） */
+@keyframes slideInRight {
+  0% { opacity: 0; transform: translate3d(32px, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+/** GPU 版：左侧滑入（translate3d） */
+@keyframes slideInLeft {
+  0% { opacity: 0; transform: translate3d(-32px, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+/** GPU 版：下方滑入（translate3d） */
+@keyframes slideInUp {
+  0% { opacity: 0; transform: translate3d(0, 24px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+/** GPU 版：呼吸灯（scale3d） */
+@keyframes breathe {
+  0%, 100% { opacity: 0.5; transform: scale3d(1, 1, 1); }
+  50% { opacity: 1; transform: scale3d(1.06, 1.06, 1); }
+}
+
+/** GPU 版：浮动（translate3d） */
+@keyframes float {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -10px, 0); }
+}
+
+/** GPU 版：交错入场 */
+@keyframes entrance-stagger {
+  0% { opacity: 0; transform: translate3d(0, 32px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+
+/* ==========================================================================
+   18. 响应式适配
+   ========================================================================== */
+
+/**
+ * 触摸屏设备适配（pointer: coarse）
+ * - 禁用 widget-wrapper 的 will-change（减少内存占用）
+ * - 禁用 ios-card 的 backdrop-filter（触摸屏 GPU 性能有限）
+ * - 发丝边框宽度由 hos-design-system.css 的 --hos-hairline 统一切到 1px
+ */
+@media (pointer: coarse), (hover: none) { 
+  :root {
+    --touch-min: 44px;
+  }
+  .widget-wrapper { will-change: auto !important; }
+  .ios-card { backdrop-filter: none; -webkit-backdrop-filter: none; }
+
+  /* 触控端取消易粘住的 hover 态（桌面仍靠 @media (hover:hover) 生效） */
+  .list-page__btn:hover,
+  .list-page__chip--btn:hover,
+  .list-page__tab:hover,
+  .list-page__segment-btn:hover,
+  .list-page__card--interactive:hover,
+  .icon-btn:hover,
+  .wr-btn-weak:hover,
+  .wr-btn-add:hover {
+    transform: none;
+    filter: none;
+  }
+}
+
+/**
+ * prefers-reduced-motion —— 尊重用户减少动画偏好
+ * 将所有动画持续时间缩短到近乎 0，仅保留 1 次迭代
+ * 适用于前庭功能障碍或偏好减少动效的用户
+ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+
+/* ==========================================================================
+   19. 无障碍焦点样式
+   ========================================================================== */
+
+/**
+ * .focus-ring —— 键盘焦点环
+ * 双层蓝色发光 ring，确保键盘导航时可见
+ */
+
+/* ==========================================================================
+   20. 移动端响应式增强
+   ========================================================================== */
+
+/** 
+ * 断点策略:
+ *  < 640px  → 手机（底栏 Tab / 侧栏横滑，仅未开缩放）
+ *  ≥ 640px  → 平板墙屏（顶栏 Tab + 侧栏，推荐等比缩放）
+ *  约定：手机端用 max-width: 639px，平板起用 min-width: 640px（无 1px 缺口）
+ * 
+ * 适配原则:
+ *  1. 单栏布局替换多栏
+ *  2. 字体/间距等比缩小
+ *  3. 触屏目标 ≥ 44px (iOS HIG)
+ *  4. 侧边栏折叠为底部 Tab/抽屉
+ *  5. 弹窗全屏底部弹出
+ */
+
+/* ────── 手机 (≤639px) — 仅原生流式布局（未开启等比缩放） ────── */
+@media (max-width: 639px) {
+  html, body { font-size: var(--premium-fs-body-sm); }
+
+  .app-shell--mobile-native .dashboard-view,
+  .app-shell--mobile-native .dashboard-inner {
+    flex-direction: column !important;
+    padding: 4px !important;
+    gap: 6px !important;
+  }
+
+  .app-shell--mobile-native .dashboard-inner .dashboard-main {
+    flex-direction: column !important;
+  }
+
+  /* 实体侧边栏：折叠为顶部搜索条 */
+  .app-shell--mobile-native .entity-sidebar,
+  .app-shell--mobile-native .es-root {
+    max-width: 100% !important;
+    width: 100% !important;
+    min-width: unset !important;
+    height: auto !important;
+    max-height: 40vh !important;
+    border-radius: var(--radius-ipad-2xl) !important;
+    margin: 0 !important;
+  }
+
+  .app-shell--mobile-native .entity-sidebar .search-input,
+  .app-shell--mobile-native .es-root .es-search-input { font-size: var(--premium-fs-body) !important; }
+
+  /* 右侧信息栏：底部横滑卡片 */
+  .app-shell--mobile-native .info-panel-outer {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex-shrink: 0 !important;
+  }
+
+  .app-shell--mobile-native .info-panel-outer .panel-collapse-btn {
+    display: none;
+  }
+
+  .app-shell--mobile-native .info-panel {
+    max-width: 100% !important;
+    width: 100% !important;
+    min-width: unset !important;
+    max-height: 45vh !important;
+    border-radius: var(--radius-ipad-2xl) var(--radius-ipad-2xl) 0 0 !important;
+    margin: 0 !important;
+    padding: 8px 6px !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    box-shadow: 0 -4px 28px rgba(0, 0, 0, 0.22) !important;
+  }
+
+  .app-shell--mobile-native .info-panel > .widget-wrapper {
+    flex: 0 0 auto !important;
+    flex-shrink: 0 !important;
+    width: min(200px, 72vw) !important;
+    min-width: 140px !important;
+    max-width: 200px !important;
+    min-height: unset !important;
+    height: auto !important;
+    max-height: 42vh !important;
+  }
+
+  .app-shell--mobile-native .info-panel .widget-fixed,
+  .app-shell--mobile-native .info-panel .widget-compact {
+    min-height: unset !important;
+    max-height: 42vh !important;
+  }
+
+  .app-shell--mobile-native .info-panel .widget-elastic {
+    min-height: 160px !important;
+    max-height: 42vh !important;
+  }
+
+  /* 户型图画布全宽 */
+  .app-shell--mobile-native .floorplan-canvas-container {
+    border-radius: var(--radius-ipad-2xl) !important;
+    margin: 0 !important;
+  }
+
+  /* 设置页：侧栏折叠 */
+  .app-shell--mobile-native .settings-shell { flex-direction: column !important; }
+  .app-shell--mobile-native .settings-sidebar {
+    width: 100% !important;
+    max-height: 50px !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    border-right: none !important;
+    border-bottom: 1px solid rgba(255,255,255,0.04) !important;
+  }
+  .app-shell--mobile-native .settings-sidebar h2 { display: none !important; }
+  .app-shell--mobile-native .settings-sidebar .tab-item,
+  .app-shell--mobile-native .settings-sidebar .sidebar-group-header,
+  .app-shell--mobile-native .settings-sidebar .sidebar-tab {
+    flex-shrink: 0 !important; 
+    font-size: var(--premium-fs-body-sm) !important;
+    padding: 6px 14px !important;
+  }
+  .app-shell--mobile-native .settings-main { padding: 0 !important; }
+  .app-shell--mobile-native .settings-page-inset { padding-left: 1rem !important; padding-right: 1rem !important; }
+  .app-shell--mobile-native .settings-page:not(.settings-page--flush) { padding: 1rem 1rem 2rem !important; }
+
+  /* 弹窗全宽度（原生布局） */
+  .app-shell--mobile-native .popup-card,
+  .app-shell--mobile-native .popup-base {
+    max-width: 95vw !important;
+    max-height: 80vh !important;
+    font-size: var(--premium-fs-body-sm) !important;
+  }
+
+  /* 设置卡片 */
+  .app-shell--mobile-native .settings-card {
+    padding: 14px 12px;
+    border-radius: var(--hos-radius-panel);
+  }
+
+  .app-shell--mobile-native .es-root {
+    max-width: 100%;
+    border-radius: 0;
+  }
+}
+
+/* ────── 平板 (640–1024px) 未开缩放：限制画布拉伸 ────── */
+@media (min-width: 640px) and (max-width: 1024px) {
+  .app-shell:not(.app-shell--scaling):not(.app-shell--mobile-native) {
+    max-width: 100vw;
+    margin: 0 auto;
+  }
+
+  .app-shell:not(.app-shell--scaling) .floorplan-area {
+    min-width: 0;
+  }
+}
+
+/* ────── 手机 (≤480px) — 原生流式布局 ────── */
+@media (max-width: 480px) {
+  html, body { font-size: var(--premium-fs-body-sm); }
+
+  .app-shell--mobile-native .dashboard-view,
+  .app-shell--mobile-native .dashboard-inner { padding: 2px !important; gap: 4px !important; }
+
+  .app-shell--mobile-native .entity-sidebar,
+  .app-shell--mobile-native .es-root { max-height: 40vh !important; }
+
+  .app-shell--mobile-native .info-panel { 
+    max-height: 35vh !important; 
+    padding: 6px 4px !important;
+  }
+  .app-shell--mobile-native .info-panel > .widget-wrapper {
+    min-width: 120px !important;
+    max-width: 160px !important;
+    width: min(160px, 68vw) !important;
+  }
+
+  .app-shell--mobile-native .settings-sidebar .tab-item,
+  .app-shell--mobile-native .settings-sidebar .sidebar-group-header,
+  .app-shell--mobile-native .settings-sidebar .sidebar-tab { font-size: var(--premium-fs-caption) !important; padding: 4px 10px !important; }
+
+  /* 浮动挂件：缩小尺寸而非 transform 压扁 */
+  .app-shell--mobile-native .afh-root .afh-widget {
+    transform: none !important;
+  }
+
+  .app-shell--mobile-native .popup-card,
+  .app-shell--mobile-native .popup-base {
+    max-width: 100vw !important;
+    max-height: 85vh !important;
+    margin: 0 !important;
+    border-radius: 20px 20px 0 0 !important;
+    align-self: flex-end !important;
+    font-size: var(--premium-fs-body-sm) !important;
+  }
+}
+
+/* ────── 触屏通用优化 ────── */
+@media (pointer: coarse), (hover: none), (max-width: 900px) {
+  /* 增大点击目标；侧栏 widget 卡片排除，避免横滑面板被撑变形 */
+  .entity-item,
+  .tab-item,
+  .settings-sidebar .tab-item {
+    min-height: var(--touch-target-min, 44px);
+    min-width: var(--touch-target-min, 44px);
+  }
+
+  /* 设置页 / Widget 常用按钮：统一触控下限，覆盖 32–36px 硬编码。
+     开关轨道排除：min-height:44 会按规范抬高 max-height，胶囊 (40×20 / 44×26)
+     被撑成近正方形，再叠加 border-radius:999 就变成圆形。热区已由 ::before 外扩。 */
+  .settings-btn-primary,
+  .settings-btn-accent,
+  .settings-btn-ghost,
+  .list-page__link-btn,
+  .list-page__btn,
+  .wr-btn-add,
+  .wr-btn-weak,
+  .icon-btn,
+  .hos-degrade-banner__retry,
+  .widget-glass-card button:not(.widget-ignore-touch-min):not(.toggle-btn):not(.sg-toggle):not([role='switch']),
+  .settings-card button:not([aria-hidden='true']):not(.widget-ignore-touch-min):not(.toggle-btn):not([role='switch']) {
+    min-height: var(--touch-target-min, 44px);
+  }
+
+  .icon-btn {
+    min-width: var(--touch-target-min, 44px);
+  }
+
+  .info-panel > .widget-wrapper {
+    min-height: unset;
+    min-width: unset;
+  }
+
+  /* 禁用耗性能 / 易渗色毛玻璃（卡片/面板/弹层/独立页统一）
+     选择器清单单一来源：--glass-fallback-selectors（与 data-glass-effect="static" 组共享） */
+  .widget-wrapper { will-change: auto !important; }
+  :is(var(--glass-fallback-selectors)) {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .glass-panel:not(.glass-panel--native),
+  .tab-bar {
+    background: var(--glass-off-bg-surface);
+  }
+  .power-panel {
+    background: var(--glass-off-bg-heavy);
+  }
+  .popup-shell {
+    background: var(--glass-off-bg-popup);
+  }
+
+  /* 去掉玻璃顶/装饰细线，避免圆角裁剪失败时的亮边光晕 */
+  .ios-card::after,
+  .climate-card::before,
+  .glass-shine::after {
+    content: none !important;
+  }
+
+  /* 图标芯片 / 诊断环 / 方案卡：去掉易在圆角处泛白的彩色外发光 */
+  .premium-head__orb,
+  .rec-insight__orb,
+  .hm-preset-card__icon,
+  .schedule-preset-card__icon,
+  .power-card__icon-wrap,
+  .ef-preview__icon-wrap,
+  .life-overview__cat-orb,
+  .hm-template-card__icon,
+  .hm-editor-head__icon,
+  .settings-orch-orb,
+  .hub-tabs-config__toggle,
+  .hub-tabs-config__segment,
+  .dev-metric__icon,
+  .linkage-hub-card__icon,
+  .linkage-overview__cat-orb,
+  .lp-metrics__item,
+  .diag-hero-orb,
+  .diag-hero-orb--ok,
+  .diag-hero-orb--warn,
+  .diag-hero-orb--bad,
+  .diag-metrics-ring,
+  .diag-metrics-banner__orb--ok,
+  .diag-metrics-banner__orb--warn,
+  .diag-metrics-banner__orb--bad,
+  .diag-config-health__eyebrow::before,
+  .diag-section-title::before,
+  .bind-sec-path,
+  .bind-sec-path:hover,
+  .bind-sec-path--homeos:hover,
+  .bind-sec-path--ha:hover,
+  .bind-sec-action--primary,
+  .bind-doorbell-card:hover,
+  .linkage-hub .list-page__btn--primary,
+  .linkage-hub .list-page__btn--primary:hover:not(:disabled),
+  .list-page__btn--primary,
+  .list-page__btn--primary:hover:not(:disabled),
+  .weather-fx-switch--on,
+  .weather-fx-route-group__label::before,
+  .sz-zone-card--focus,
+  .settings-choice-btn--active svg,
+  .sec-dash-mode-btn--active,
+  .sec-mode-btn--active,
+  .sec-dash-status-ring {
+    box-shadow: none !important;
+    filter: none !important;
+  }
+
+  .sov-zones__glow,
+  .linkage-overview__analytics-glow,
+  .linkage-overview__stream-glow,
+  .hm-preset-card__glow,
+  .premium-head__glow,
+  .sw-step-hero__glow,
+  .ef-preview__glow,
+  .edit-command-glow {
+    display: none !important;
+  }
+
+  /* 主按钮保留轻暗影，去掉彩色光晕 */
+  .list-page__btn--primary,
+  .linkage-hub .list-page__btn--primary,
+  .bind-sec-action--primary {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28) !important;
+  }
+
+  /* 增大滚动区域 */
+  .info-panel, .entity-sidebar, .es-root, .settings-main {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+}
+
+/* 专家配置 / 自适应：强制静态毛玻璃（无 backdrop-filter）
+   选择器清单单一来源：--glass-fallback-selectors（与上方 coarse 触屏禁用组共享），
+   确保低性能模式下弹窗 / 信息栏 / 抽屉同样无 backdrop-filter */
+html[data-glass-effect="static"] :is(var(--glass-fallback-selectors)) {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html[data-glass-effect="static"] .glass-panel:not(.glass-panel--native),
+html[data-glass-effect="static"] .tab-bar {
+  background: var(--glass-off-bg-surface);
+}
+html[data-glass-effect="static"] .power-panel {
+  background: var(--glass-off-bg-heavy);
+}
+html[data-glass-effect="static"] .popup-shell {
+  background: var(--glass-off-bg-popup);
+}
+
+/* ────── 性能优化：浏览器原生虚拟滚动（零 JS 开销） ────── */
+/* content-visibility: auto 告诉浏览器跳过屏外元素的渲染，
+   对 500+ 实体列表可减少 60-80% 首帧渲染开销 */
+.es-item, .entity-item, .widget-card,
+.widget-wrapper,
+.info-panel .widget-wrapper,
+.security-camera-tile {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 44px;
+}
+.widget-wrapper,
+.info-panel .widget-wrapper {
+  contain-intrinsic-size: 0 180px;
+}
+/* 占位高度按类型细分（实际高度见 RightSidebar.css 各类型 min/max-height）：
+   fixed/compact 用实际高度、elastic 用较大值，减少滚动跳变 */
+.widget-wrapper.widget-fixed--clock,
+.widget-wrapper.widget-fixed--quickActions {
+  contain-intrinsic-size: 0 92px;
+}
+.widget-wrapper.widget-fixed--weather {
+  contain-intrinsic-size: 0 280px;
+}
+.widget-wrapper.widget-fixed--mediaMini {
+  contain-intrinsic-size: 0 115px;
+}
+.widget-wrapper.widget-elastic {
+  contain-intrinsic-size: 0 320px;
+}
+.widget-wrapper.widget-elastic--heroSwiper {
+  contain-intrinsic-size: 0 250px;
+}
+.widget-wrapper.widget-elastic--homeClimateChart {
+  contain-intrinsic-size: 0 320px;
+}
+.widget-wrapper.widget-elastic--homeEnvironment {
+  contain-intrinsic-size: 0 330px;
+}
+.widget-wrapper.widget-elastic--switchGroup {
+  contain-intrinsic-size: 0 360px;
+}
+.widget-wrapper.widget-elastic--systemTimeline {
+  contain-intrinsic-size: 0 340px;
+}
+.widget-wrapper.widget-elastic--customHtml {
+  contain-intrinsic-size: 0 480px;
+}
+.widget-wrapper.widget-compact {
+  contain-intrinsic-size: 0 120px;
+}
+.security-camera-tile {
+  contain-intrinsic-size: 0 120px;
+}
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.4), 0 0 0 5px rgba(var(--accent-rgb), 0.15);
+}
+
+/** 触控 icon 按钮：最小 44×44 点击区 + 焦点环 */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--hos-radius-card);
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+
+.icon-btn:hover {
+  background: var(--premium-glass-bg-hover);
+}
+
+.icon-btn:active {
+  transform: scale(0.94);
+}
+
+.icon-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.4), 0 0 0 5px rgba(var(--accent-rgb), 0.15);
+}
+
+/**
+ * 全局键盘焦点兜底：未单独声明焦点样式的可交互元素（场景 chip、电源卡、分页点等）
+ * 也必须有可见焦点环，避免键盘/读屏用户失去位置感。
+ * 使用 :where() 保持 0 特异性，已有显式焦点样式仍可覆盖。
+ */
+:where(a, button, [role="button"], summary, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb, 56, 189, 248), 0.75);
+  outline-offset: 2px;
+}
+
+:where(input, select, textarea):focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb, 56, 189, 248), 0.75);
+  outline-offset: 1px;
+}
+
+/** 两行文本截断 */
+.truncate-2 {
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+
+/* ==========================================================================
+   20. Toggle 触屏热区（Settings / Widget 共用）
+   ========================================================================== */
+
+.toggle-btn,
+.toggle-bg,
+.sg-toggle {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+@media (pointer: coarse), (hover: none) {
+  /* 允许移动端尺寸由组件本身或断点媒体查询独立控制，
+     不再强制 unset，避免覆盖 settings-layout.css / Widget 的 56×32 等显式尺寸 */
+  .toggle-btn::before,
+  .toggle-bg::before,
+  .sg-toggle::before {
+    content: '';
+    position: absolute;
+    inset: -10px;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .toggle-btn .toggle-dot,
+  .toggle-bg .toggle-dot,
+  .sg-toggle .sg-toggle-dot {
+    z-index: 1;
+  }
+}

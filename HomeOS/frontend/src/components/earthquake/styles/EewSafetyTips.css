@@ -1,0 +1,59 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/earthquake/EewSafetyTips.vue:89. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.est-info {
+  color: var(--set-info, #7dd3fc);
+}
+.est-warn {
+  color: var(--set-warn, #fcd34d);
+}
+.est-danger {
+  color: var(--set-danger, #fda4af);
+}
+.est-muted {
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
+}
+
+.eew-safety {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1.5rem 0 1.25rem;
+}
+
+.eew-safety--compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.eew-safety-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 8px;
+  border-radius: var(--hos-radius-panel);
+  background: rgb(255 255 255 / 0.02);
+  border: 1px solid rgb(255 255 255 / 0.04);
+  transition: all 0.3s;
+}
+
+.eew-safety-card:hover {
+  background: rgb(255 255 255 / 0.05);
+  transform: translateY(-2px);
+}
+
+.eew-safety-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--hos-radius-card);
+  border: 1px solid;
+}
+
+.eew-safety-icon--sm {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--hos-radius-card);
+}

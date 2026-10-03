@@ -1,0 +1,65 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/entities/popups/WaterPurifierPopup.vue:194. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+@import '@/assets/styles/popup-entities.css';
+
+/* ── Tailwind 颜色类替换：scoped 引用 CSS 变量 ── */
+.wpp-lbl {
+  color: var(--set-text-tertiary);
+}
+.wpp-lbl-faint {
+  color: var(--set-text-faint);
+}
+.wpp-lbl-sec {
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
+}
+
+.wpp-state-on {
+  color: var(--set-info, #60a5fa);
+}
+.wpp-state-off {
+  color: var(--set-text-tertiary);
+}
+
+.wpp-state-dot {
+  display: inline-block;
+}
+.wpp-state-dot--on {
+  background: var(--set-info, #60a5fa);
+  box-shadow: 0 0 6px var(--set-info, #60a5fa);
+}
+
+.wpp-status-dot--on {
+  background: var(--set-info, #60a5fa);
+  box-shadow: 0 0 6px var(--set-info, #60a5fa);
+}
+.wpp-status-dot--off {
+  background: rgba(100, 116, 139, 0.6);
+}
+
+.wpp-c-info {
+  color: var(--set-info, #60a5fa);
+}
+.wpp-c-danger {
+  color: var(--set-danger, #f87171);
+}
+
+.wpp-bar-good {
+  background: rgba(96, 165, 250, 0.6);
+}
+.wpp-bar-bad {
+  background: rgba(248, 113, 113, 0.6);
+}
+
+.wpp-off-btn--active {
+  background: rgba(51, 65, 85, 0.8);
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.65));
+  border-color: rgba(71, 85, 105, 0.5);
+}
+.wpp-off-btn--idle {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--set-text-tertiary);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+.wpp-off-btn--idle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.6));
+}

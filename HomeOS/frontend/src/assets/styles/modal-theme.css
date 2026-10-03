@@ -1,0 +1,600 @@
+/* ==========================================================================
+   modal-theme.css — HomeOS 居中/全屏模态弹窗统一视觉
+
+   与 settings-theme / popup-base 共用玻璃态、光晕头、渐变顶线设计语言。
+   在 main.css 全局引入；组件直接使用类名，无需 scoped 重复样式。
+   ========================================================================== */
+
+@import './hos-glass-shell.css';
+
+/* ---- 根容器 + 遮罩 ---- */
+.hos-modal-root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal-root);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.hos-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(8px) saturate(150%);
+  backdrop-filter: blur(8px) saturate(150%);
+  will-change: opacity;
+}
+
+/* ---- 玻璃面板 ---- */
+.hos-modal-panel {
+  --hos-accent: 10, 132, 255;
+  --hos-accent-end: 88, 86, 214;
+
+  /* 玻璃壳配方参数（配方本体见 hos-glass-shell.css） */
+  --shell-blur: 56px;
+  --shell-sat: 220%;
+  --shell-bg:
+    radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.035) 0%, transparent 55%),
+    rgba(12, 12, 18, 0.86);
+  --shell-border: var(--hos-hairline) solid var(--premium-border-strong);
+  --shell-radius: var(--hos-radius-shell, 24px);
+  --shell-shadow:
+    var(--premium-shadow, 0 32px 100px rgba(0, 0, 0, 0.62)),
+    0 0 0 var(--hos-hairline) rgba(255, 255, 255, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: #fff;
+  animation: hos-modal-in 0.5s var(--ease-bounce) backwards;
+}
+
+.hos-modal-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 4%,
+    rgba(var(--hos-accent), 0.55),
+    rgba(var(--hos-accent-end), 0.35),
+    transparent 96%);
+  z-index: 2;
+  pointer-events: none;
+  animation: hos-modal-line-glow 3s ease-in-out infinite;
+}
+
+.hos-modal-panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg,
+    rgba(var(--hos-accent), 0.02) 0%,
+    transparent 42%,
+    rgba(191, 90, 242, 0.02) 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes hos-modal-in {
+  from { opacity: 0; transform: scale(0.88) translateY(18px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes hos-modal-line-glow {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+/* ---- 尺寸变体 ---- */
+.hos-modal-panel--sm { max-width: 460px; }
+.hos-modal-panel--md {
+  max-width: 580px;
+  max-height: calc(85vh / var(--hos-scale, 1));
+}
+.hos-modal-panel--lg { max-width: 720px; max-height: 600px; }
+.hos-modal-panel--xl {
+  max-width: min(1100px, calc(90vw / var(--hos-scale, 1)));
+  max-height: calc(85vh / var(--hos-scale, 1));
+  border-radius: 32px;
+}
+.hos-modal-panel--pin {
+  max-width: 22rem;
+  border-radius: 36px;
+  padding: 32px 28px;
+}
+.hos-modal-panel--doorbell {
+  max-width: 36rem;
+  border-radius: var(--hos-radius-panel, 20px);
+  overflow: hidden;
+}
+.hos-modal-panel--danger { --hos-accent: 255, 69, 58; --hos-accent-end: 239, 68, 68; }
+.hos-modal-panel--purple { --hos-accent: 95, 212, 255; --hos-accent-end: 56, 189, 248; }
+.hos-modal-panel--amber { --hos-accent: 245, 158, 11; --hos-accent-end: 251, 146, 60; }
+.hos-modal-panel--emerald { --hos-accent: 52, 211, 153; --hos-accent-end: 16, 185, 129; }
+.hos-modal-panel--sky { --hos-accent: 56, 189, 248; --hos-accent-end: 96, 165, 250; }
+.hos-modal-panel--pink { --hos-accent: 236, 72, 153; --hos-accent-end: 219, 39, 119; }
+
+/* ---- 头部 ---- */
+.hos-modal-head {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 26px;
+  border-bottom: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.hos-modal-head--center {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  border-bottom: none;
+  background: transparent;
+  padding-bottom: 8px;
+}
+
+.hos-modal-head-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.hos-modal-head-icon {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--hos-radius-card);
+  background: rgba(var(--hos-accent), 0.1);
+  border: var(--hos-hairline) solid rgba(var(--hos-accent), 0.22);
+  color: rgb(var(--hos-accent));
+  box-shadow: 0 4px 20px rgba(var(--hos-accent), 0.12);
+}
+
+.hos-modal-head-icon--round {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--hos-radius-panel);
+  margin: 0 auto 14px;
+}
+
+.hos-modal-eyebrow {
+  font-size: var(--premium-fs-micro);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--hos-text-secondary);
+  margin-bottom: 4px;
+}
+
+.hos-modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: rgba(255, 255, 255, 0.95);
+  line-height: 1.3;
+}
+
+.hos-modal-subtitle {
+  margin: 4px 0 0;
+  font-size: var(--premium-fs-caption);
+  color: var(--hos-text-secondary);
+  line-height: 1.45;
+}
+
+.hos-modal-close {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--hos-radius-card);
+  color: var(--hos-text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+  border: var(--hos-hairline) solid var(--premium-border);
+  cursor: pointer;
+  transition: all 0.3s var(--ease-bounce);
+}
+
+.hos-modal-close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.06) rotate(90deg);
+}
+
+/* ---- 主体 / 底部 ---- */
+.hos-modal-body {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: var(--premium-fs-body);
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.hos-modal-body--flush { padding-top: 0; }
+.hos-modal-body--no-scroll { overflow: hidden; min-height: 0; }
+.hos-modal-body p { margin: 0; }
+
+.hos-modal-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 18px 26px;
+  border-top: var(--hos-hairline) solid rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.hos-modal-footer--center { justify-content: center; }
+.hos-modal-footer--split .hos-modal-btn { flex: 1; }
+
+/* ---- 按钮 ---- */
+.hos-modal-btn {
+  cursor: pointer;
+  border: none;
+  border-radius: var(--hos-radius-card);
+  padding: 12px 22px;
+  font-size: var(--premium-fs-body-sm);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  height: 44px;
+  transition: all 0.35s var(--ease-bounce);
+}
+
+.hos-modal-btn--ghost {
+  color: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.05);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
+}
+
+.hos-modal-btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+
+.hos-modal-btn--primary {
+  color: #fff;
+  background: linear-gradient(135deg, #0A84FF, #5856D6);
+  box-shadow: 0 4px 20px rgba(10, 132, 255, 0.38);
+}
+
+.hos-modal-btn--primary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 28px rgba(10, 132, 255, 0.48);
+}
+
+.hos-modal-btn--danger {
+  color: #fff;
+  background: linear-gradient(135deg, #FF453A, #dc2626);
+  box-shadow: 0 4px 20px rgba(255, 69, 58, 0.38);
+}
+
+.hos-modal-btn--danger:hover {
+  filter: brightness(1.08);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(255, 69, 58, 0.48);
+}
+
+.hos-modal-btn--full { width: 100%; }
+
+/* ---- 表单控件 ---- */
+.hos-modal-label {
+  display: block;
+  font-size: var(--premium-fs-micro);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--hos-text-secondary);
+  margin-bottom: 6px;
+}
+
+.hos-modal-input,
+.hos-modal-search {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--hos-radius-card);
+  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: var(--premium-fs-caption);
+  outline: none;
+  transition: all 0.25s;
+}
+
+.hos-modal-search { padding-left: 40px; }
+.hos-modal-input:focus,
+.hos-modal-search:focus {
+  border-color: rgba(10, 132, 255, 0.45);
+  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.08);
+}
+
+.hos-modal-input::placeholder,
+.hos-modal-search::placeholder { color: var(--hos-text-faint); }
+
+.hos-modal-input--compact {
+  font-size: var(--premium-fs-micro, 12px);
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.hos-modal-dropzone {
+  background: var(--premium-glass-bg, rgba(255,255,255,0.03));
+  border: var(--hos-hairline) solid var(--premium-border-strong);
+}
+
+.hos-modal-dropzone--active {
+  box-shadow: 0 0 0 2px color-mix(in srgb, #BF5AF2 40%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, #BF5AF2 35%, rgba(0, 0, 0, 0));
+}
+
+.hos-modal-dropzone__icon {
+  background: rgba(139, 92, 246, 0.15);
+}
+
+.hos-modal-dropzone__hint {
+  color: var(--hos-text-secondary);
+}
+
+.hos-modal-search-wrap {
+  position: relative;
+  margin-bottom: 14px;
+}
+
+.hos-modal-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--hos-text-secondary);
+  pointer-events: none;
+}
+
+/* ---- 列表行 ---- */
+.hos-modal-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: var(--premium-fs-caption);
+  color: var(--hos-text-secondary);
+}
+
+.hos-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.hos-modal-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+  min-height: 60px;
+  box-sizing: border-box;
+  padding: 13px 16px;
+  border-radius: var(--hos-radius-panel);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.015);
+  cursor: pointer;
+  transition: all 0.25s;
+  overflow: hidden;
+}
+
+.hos-modal-list-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--premium-border-strong);
+}
+
+.hos-modal-list-row--selected {
+  background: rgba(10, 132, 255, 0.06);
+  border-color: rgba(10, 132, 255, 0.28);
+}
+
+/* ---- 辅助块 ---- */
+.hos-modal-alert {
+  font-size: var(--premium-fs-caption);
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 69, 58, 0.08);
+  border: var(--hos-hairline) solid rgba(255, 69, 58, 0.18);
+  border-radius: var(--hos-radius-card);
+  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.5;
+}
+
+.hos-modal-divider {
+  position: relative;
+  margin: 18px 0;
+}
+
+.hos-modal-divider::before {
+  content: '';
+  position: absolute;
+  inset: 50% 0 auto;
+  height: var(--hos-hairline);
+  background: var(--premium-glass-bg-hover);
+}
+
+.hos-modal-divider span {
+  position: relative;
+  display: block;
+  width: fit-content;
+  margin: 0 auto;
+  padding: 0 14px;
+  font-size: var(--premium-fs-caption);
+  color: var(--hos-text-secondary);
+  background: inherit;
+}
+
+.hos-modal-link {
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  color: #60a5fa;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.hos-modal-link:hover { color: #93c5fd; }
+
+.hos-modal-empty {
+  text-align: center;
+  padding: 48px 16px;
+  font-size: var(--premium-fs-caption);
+  color: var(--hos-text-secondary);
+}
+
+/* ---- PIN 键盘（设置锁） ---- */
+.hos-modal-pin-dots {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  margin: 24px 0 28px;
+}
+
+.hos-modal-pin-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  transition: all 0.3s;
+}
+
+.hos-modal-pin-dot--filled {
+  background: #60a5fa;
+  border-color: #60a5fa;
+  box-shadow: 0 0 10px rgba(96, 165, 250, 0.5);
+}
+
+.hos-modal-pin-dot--success {
+  background: #34d399;
+  border-color: #34d399;
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.5);
+}
+
+.hos-modal-pin-dot--error {
+  background: #f87171;
+  border-color: #f87171;
+}
+
+.hos-modal-pin-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  width: 100%;
+}
+
+.hos-modal-pin-key {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--hos-radius-panel);
+  background: rgba(255, 255, 255, 0.04);
+  border: var(--hos-hairline) solid var(--premium-border);
+  color: #fff;
+  font-size: var(--premium-fs-stat);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hos-modal-pin-key:hover { background: rgba(255, 255, 255, 0.09); }
+.hos-modal-pin-key:active { transform: scale(0.94); }
+
+.hos-modal-glow {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.hos-modal-glow--blue {
+  width: 14rem;
+  height: 14rem;
+  top: -6rem;
+  right: -6rem;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.14) 0%, rgba(59, 130, 246, 0.04) 42%, rgba(0, 0, 0, 0) 70%);
+}
+.hos-modal-glow--purple {
+  width: 14rem;
+  height: 14rem;
+  bottom: -6rem;
+  left: -6rem;
+  background: radial-gradient(
+    circle,
+    rgba(var(--premium-accent-cyan-rgb, 95, 212, 255), 0.14) 0%,
+    rgba(var(--premium-accent-cyan-rgb, 95, 212, 255), 0.04) 42%,
+    rgba(0, 0, 0, 0) 70%
+  );
+}
+
+/* ---- 过渡动画 ---- */
+.hos-modal-enter-active,
+.hos-modal-leave-active {
+  transition: opacity 0.38s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.hos-modal-leave-active {
+  pointer-events: none;
+}
+
+.hos-modal-enter-from,
+.hos-modal-leave-to {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hos-modal-enter-from .hos-modal-panel,
+.hos-modal-leave-to .hos-modal-panel {
+  opacity: 0;
+  transform: scale(0.9) translateY(12px);
+}
+
+.fade-enter-active,
+.fade-leave-active { transition: opacity 0.3s ease; }
+.fade-enter-from,
+.fade-leave-to { opacity: 0; }
+
+.scale-fade-enter-active,
+.scale-fade-leave-active {
+  transition: all 0.35s var(--ease-bounce);
+}
+.scale-fade-enter-from,
+.scale-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.94);
+}

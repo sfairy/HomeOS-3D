@@ -1,0 +1,106 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/widgets/security/FrigateEvents.vue:195. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.fr-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
+  gap: 8px;
+}
+.fr-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.fr-title {
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.55);
+  text-transform: uppercase;
+  flex: 1;
+}
+.fr-refresh {
+  font-size: var(--premium-fs-caption);
+  color: var(--hos-text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.fr-body {
+  flex: 1;
+  overflow: hidden;
+}
+.fr-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 100%;
+  color: var(--hos-text-secondary);
+  font-size: var(--premium-fs-micro);
+  text-align: center;
+}
+.fr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  max-height: 100%;
+}
+.fr-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--hos-radius-card);
+  padding: 6px 8px;
+}
+.fr-thumb {
+  width: 36px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.fr-item-main {
+  flex: 1;
+  min-width: 0;
+}
+.fr-item-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+}
+.fr-item-bottom {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+  margin-top: 2px;
+}
+.fr-ack {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--hos-text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.fr-ack:hover:not(:disabled) {
+  background: rgba(52, 211, 153, 0.12);
+  color: #6ee7b7;
+}
+
+.fr-icon {
+  color: var(--premium-accent-pink, #f472b6);
+}
+.fr-score-high {
+  color: var(--set-danger, #f87171);
+}
+.fr-score-mid {
+  color: var(--set-warn, #facc15);
+}

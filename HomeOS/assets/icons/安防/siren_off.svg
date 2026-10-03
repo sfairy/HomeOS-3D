@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <radialGradient id="siren_off_dome" cx="40%" cy="35%" r="60%">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </radialGradient>
+    <linearGradient id="siren_off_body" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#64748b"/>
+    </linearGradient>
+    <style>
+      .bg{fill:#f1f5f9}.fg{fill:#334155}.dim{fill:#64748b}.hole{fill:#1e293b}
+    </style>
+  </defs>
+  <circle cx="100" cy="100" r="87" class="bg"/>
+  <rect width="84" height="14" x="58" y="148" class="dim" rx="4"/>
+  <circle cx="72" cy="155" r="3" class="hole"/>
+  <circle cx="128" cy="155" r="3" class="hole"/>
+  <rect width="92" height="56" x="54" y="96" fill="url(#siren_off_body)" rx="12"/>
+  <ellipse cx="78" cy="106" fill="#cbd5e1" opacity=".8" rx="16" ry="4"/>
+  <circle cx="100" cy="122" r="18" fill="none" stroke="#1e293b" stroke-width="3"/>
+  <circle cx="100" cy="122" r="11" fill="none" stroke="#1e293b" stroke-width="2.5"/>
+  <circle cx="100" cy="122" r="4" class="hole"/>
+  <g stroke="#334155" stroke-width="2" opacity=".5">
+    <path fill="none" d="M88 106v32"/>
+    <path fill="none" d="M100 104v36"/>
+    <path fill="none" d="M112 106v32"/>
+  </g>
+  <ellipse cx="100" cy="68" fill="url(#siren_off_dome)" rx="36" ry="32"/>
+  <ellipse cx="88" cy="56" fill="#64748b" opacity=".5" rx="10" ry="6"/>
+  <ellipse cx="100" cy="62" class="hole" rx="8" ry="6"/>
+  <ellipse cx="100" cy="96" class="fg" rx="38" ry="8"/>
+  <ellipse cx="100" cy="98" class="dim" rx="34" ry="5"/>
+  <circle cx="132" cy="108" r="4" class="hole"/>
+  <circle cx="132" cy="108" r="2" class="dim"/>
+  <circle cx="100" cy="100" r="87" fill="none" stroke="#0f172a" stroke-opacity=".1" stroke-width="2.5"/>
+</svg>

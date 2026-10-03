@@ -1,0 +1,74 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/widgets/orchestrator/HaSyncStatusCard.vue:154. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.ha-sync-card {
+  font-size: var(--premium-fs-caption);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
+  border-radius: var(--hos-radius-card);
+  border: 1px solid var(--premium-border);
+}
+.ha-sync-card--ok {
+  background: rgba(52, 211, 153, 0.06);
+  border-color: rgba(52, 211, 153, 0.15);
+}
+.ha-sync-card--warn {
+  background: rgba(251, 191, 36, 0.06);
+  border-color: rgba(251, 191, 36, 0.2);
+}
+.ha-sync-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ha-sync-card__head h3 {
+  margin: 0;
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+}
+.ha-sync-card__refresh {
+  padding: 4px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.ha-sync-card__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+.ha-sync-card__row span {
+  color: var(--hos-text-secondary);
+}
+.ha-sync-card__url {
+  font-size: var(--premium-fs-micro);
+  word-break: break-all;
+  max-width: 60%;
+  text-align: right;
+}
+.ha-sync-card__ok {
+  color: #86efac;
+}
+.ha-sync-card__fail {
+  color: #fca5a5;
+}
+.ha-sync-card__muted {
+  color: var(--hos-text-secondary);
+  margin: 0;
+}
+.ha-sync-card__error {
+  color: #fca5a5;
+  margin: 0;
+}
+.ha-sync-card__link {
+  font-size: var(--premium-fs-micro);
+  color: rgba(52, 211, 153, 0.9);
+  text-decoration: none;
+  margin-top: 4px;
+}
+.ha-sync-card__link:hover {
+  text-decoration: underline;
+}

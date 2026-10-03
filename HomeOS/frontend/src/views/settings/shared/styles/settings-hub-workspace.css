@@ -1,0 +1,116 @@
+/* 设置 Hub 页 · 统一 workspace 壳（复用 smart-services svc-* 结构） */
+
+@import '../../interact/smart-services/styles/smart-services.css';
+
+/* ── 通用 workspace 变量（翡翠/琥珀双主色 + 语义左色条） ── */
+.hub-workspace.settings-card--static,
+.link-workspace.svc-workspace.settings-card--static {
+  --hub-inset-x: var(--settings-inset-x, 2rem);
+  --hub-radius: var(--hos-radius-card, 14px);
+  --hub-surface: linear-gradient(165deg, rgba(255, 255, 255, 0.038) 0%, rgba(0, 0, 0, 0.2) 100%);
+  --hub-surface-border: rgba(var(--page-accent-secondary-rgb), 0.13);
+  --hub-band-bg:
+    radial-gradient(ellipse 85% 120% at 0% 0%, rgba(var(--page-accent-rgb), 0.11) 0%, transparent 58%),
+    radial-gradient(ellipse 55% 45% at 100% 0%, rgba(var(--page-accent-secondary-rgb), 0.08) 0%, transparent 50%),
+    rgba(0, 0, 0, 0.08);
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0%;
+  min-height: 0;
+  align-self: stretch;
+  border-radius: var(--hos-radius-panel, 20px);
+  background:
+    radial-gradient(ellipse 90% 70% at 100% 0%, rgba(var(--page-accent-secondary-rgb), 0.06) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 60% at 0% 100%, rgba(var(--page-accent-rgb), 0.05) 0%, transparent 50%),
+    var(--set-card-surface-bg);
+  border-color: var(--set-card-surface-border);
+  box-shadow: var(--set-card-surface-shadow), var(--set-card-surface-inset);
+}
+
+.hub-glance-band,
+.link-glance-band {
+  flex-shrink: 0;
+  padding: var(--hos-panel-padding-hero-y, 16px) var(--hub-inset-x, 2rem) var(--hos-panel-padding-compact-y, 14px);
+  border-bottom: var(--hos-hairline) solid rgba(var(--page-accent-secondary-rgb), 0.1);
+  background: var(--hub-band-bg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.link-workspace .link-glance-band {
+  background:
+    radial-gradient(ellipse 70% 90% at 8% 0%, rgba(var(--set-info-rgb), 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 80% at 50% 0%, rgba(var(--page-accent-rgb), 0.1) 0%, transparent 52%),
+    radial-gradient(ellipse 50% 70% at 92% 10%, rgba(var(--page-accent-secondary-rgb), 0.1) 0%, transparent 50%),
+    var(--hub-band-bg);
+}
+
+.hub-body,
+.link-body {
+  padding: var(--hos-panel-padding-default, 20px) var(--hub-inset-x, 2rem) var(--hos-space-2xl, 24px);
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.hub-body .hub-workspace-block + .hub-workspace-block,
+.link-body .linkage-workspace-block + .linkage-workspace-block {
+  margin-top: var(--hos-space-xl, 20px);
+  padding-top: var(--hos-space-xl, 20px);
+  border-top: var(--hos-hairline) solid rgba(var(--page-accent-secondary-rgb), 0.1);
+}
+
+/* hub-stat 左色条语义（克制，不大面积渐变） */
+.hub-stat-row .hub-stat[class*='--sky'],
+.hub-stat-row .hub-stat[class*='--emerald'],
+.hub-stat-row .hub-stat[class*='--amber'],
+.hub-stat-row .hub-stat[class*='--accent'],
+.hub-stat-row .hub-stat[class*='--secondary'] {
+  background: var(--hub-surface);
+  border: var(--hos-hairline) solid var(--hub-surface-border);
+  border-left-width: 3px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.hub-stat--sky,
+[class*='-stat--sky'] {
+  border-left-color: var(--set-info, #38bdf8) !important;
+}
+
+.hub-stat--emerald,
+[class*='-stat--emerald'] {
+  border-left-color: var(--set-success, #34d399) !important;
+}
+
+.hub-stat--amber,
+[class*='-stat--amber'] {
+  border-left-color: var(--set-warn, #fbbf24) !important;
+}
+
+.hub-stat--accent,
+[class*='-stat--accent'] {
+  border-left-color: rgba(var(--page-accent-rgb), 0.75) !important;
+}
+
+.hub-stat--secondary,
+[class*='-stat--secondary'] {
+  border-left-color: rgba(var(--page-accent-secondary-rgb), 0.75) !important;
+}
+
+@media (max-width: 639px) {
+  .hub-glance-band,
+  .link-glance-band {
+    padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px) 12px;
+  }
+
+  .hub-body,
+  .link-body {
+    padding: 16px;
+  }
+}

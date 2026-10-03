@@ -14,6 +14,14 @@ homeos-store/keys/local/
 homeos-store/backend/src/data/
 homeos-store/backend/src/keys/local/
 
+# HomeOS 项目（3D 分支）与旧目录同名规则保持一致，避免改名后规则失效。
+HomeOS/data/
+HomeOS/image/
+HomeOS/backend/src/_version.py
+# 部署时生成的 Postgres / Redis 口令，只保留说明用的 .gitkeep。
+HomeOS/secrets/*
+!HomeOS/secrets/.gitkeep
+
 # 内置素材目录（settings.built_in_assets_dir，源码运行时编辑器素材库指向它）。
 # 仓库不再带任何素材图：镜像里 Dockerfile 只 `mkdir /app/image`，素材由部署方挂卷或
 # 编辑器里上传；留在版本库里 65 张样例图只会让每次 clone 和每个业务提交都变重。

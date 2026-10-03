@@ -1,0 +1,70 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/views/settings/system/profiles/DisplaySection.vue:367. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.pd-intro-icon {
+  color: var(--page-accent-text);
+}
+.pd-intro-orb {
+  background: var(--page-accent-bg);
+  border: var(--hos-hairline) solid var(--page-accent-border);
+}
+
+.pd-section-eyebrow {
+  color: var(--page-accent-text);
+}
+.pd-section-eyebrow-neutral {
+  color: var(--set-text-tertiary);
+}
+
+.pd-local-box {
+  background: var(--page-accent-bg);
+  border-color: var(--page-accent-border);
+}
+
+.pd-accent-mono {
+  color: var(--page-accent-text);
+}
+
+.pd-info-text {
+  color: var(--set-text-secondary);
+}
+.pd-desc {
+  color: var(--set-text-label);
+}
+.pd-mono-faint {
+  color: var(--set-text-faint);
+}
+
+.profile-card__bind-row {
+  margin-top: 6px;
+  max-width: 220px;
+}
+
+.profile-card__profile-select {
+  width: 100%;
+  font-size: var(--set-fs-micro, 12px);
+}
+
+.profile-section__divider {
+  margin: 16px 0;
+  border-top: var(--hos-hairline) solid var(--set-border-subtle);
+}
+
+.pd-bind-row {
+  display: grid;
+  gap: 12px;
+}
+
+@media (min-width: 768px) {
+  .pd-bind-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pd-bind-row:has(> :only-child) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pd-flow-band__shell {
+  --flow-glow-a: rgba(129, 140, 248, var(--flow-glow-alpha-strong));
+  --flow-glow-b: rgba(56, 189, 248, var(--flow-glow-alpha-b));
+}
+

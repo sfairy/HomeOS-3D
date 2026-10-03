@@ -1,0 +1,36 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/views/events/ViewAnalytics.vue:355; frontend/src/views/notifications/ViewAnalytics.vue:135. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+/* Events analytics 域覆盖（共享见 list-page-analytics.css） */
+.ev-analytics__kpi {
+  transition:
+    border-color 0.22s ease,
+    transform 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+.ev-analytics__kpi:hover {
+  border-color: color-mix(in srgb, var(--page-accent, #22d3ee) 22%, transparent);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.ev-analytics__kpi--warn::before {
+  background: linear-gradient(90deg, rgba(251, 146, 60, 0.65), transparent);
+}
+
+.ev-analytics__kpi--pink::before {
+  background: linear-gradient(90deg, rgba(244, 114, 182, 0.65), transparent);
+}
+
+.ev-analytics__chart-card {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  transition:
+    border-color 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+.ev-analytics__chart-card:hover {
+  border-color: color-mix(in srgb, var(--page-accent, #22d3ee) 18%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 6px 20px rgba(0, 0, 0, 0.15);
+}

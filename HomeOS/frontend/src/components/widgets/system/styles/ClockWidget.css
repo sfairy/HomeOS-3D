@@ -1,0 +1,124 @@
+.clock {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 100%;
+  padding: 16px 20px;
+  box-sizing: border-box;
+}
+
+.clock__left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  flex: 1;
+  gap: 6px;
+}
+
+.clock__time {
+  display: flex;
+  align-items: baseline;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+.clock__time-main {
+  letter-spacing: -0.04em;
+  font-size: 44px;
+  font-weight: 250;
+  line-height: 1;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(200, 215, 240, 0.85) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: clockGlow 6s ease-in-out infinite;
+}
+
+.clock__time-second {
+  flex-shrink: 0;
+  min-width: 1.35em;
+  font-size: 18px;
+  font-weight: 350;
+  line-height: 1;
+  margin-left: 4px;
+  opacity: 0.7;
+  background: linear-gradient(180deg, rgba(0, 212, 255, 0.9) 0%, rgba(180, 77, 255, 0.7) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  /* 只动画 opacity：transform 会让 background-clip:text 在部分 WebView 上整段消失 */
+  animation: secondPulse 1s ease-in-out infinite;
+}
+
+@keyframes secondPulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+.clock__date {
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+  font-size: var(--premium-fs-caption);
+  font-weight: 500;
+  line-height: 1.3;
+  opacity: 0.72;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.clock__right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 100px;
+  gap: 3px;
+}
+
+.clock__lunar-year {
+  color: var(--text-tertiary);
+  letter-spacing: 0.04em;
+  font-size: var(--premium-fs-micro);
+  font-weight: 400;
+  line-height: 1.25;
+  opacity: 0.55;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.clock__lunar-date {
+  color: var(--text-tertiary);
+  letter-spacing: 0.04em;
+  font-size: var(--premium-fs-caption);
+  font-weight: 500;
+  line-height: 1.25;
+  opacity: 0.65;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes clockGlow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 10px rgba(10, 132, 255, 0.05));
+  }
+  33% {
+    filter: drop-shadow(0 0 18px rgba(0, 212, 255, 0.12));
+  }
+  66% {
+    filter: drop-shadow(0 0 14px rgba(191, 90, 242, 0.1));
+  }
+}

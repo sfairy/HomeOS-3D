@@ -1,0 +1,305 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/views/settings/shared/system-config/SystemConfigFieldCell.vue:308. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+/* 从 SystemConfigFieldCell.vue 抽出 */
+.sc-text-violet {
+  color: var(--premium-accent-violet, #c084fc);
+}
+
+.params-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--set-border-subtle, rgba(255, 255, 255, 0.05));
+  background:
+    radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.02) 0%, transparent 65%),
+    rgba(255, 255, 255, 0.01);
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+  min-width: 0;
+}
+
+.params-cell-head-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.params-cell-type {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-micro);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hos-text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
+}
+
+.params-cell--modified {
+  border-color: rgba(251, 191, 36, 0.35);
+  box-shadow: inset 3px 0 0 rgba(251, 191, 36, 0.75);
+}
+
+.params-cell--row {
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 14px;
+}
+
+.params-cell--row .params-cell-head {
+  flex: 1;
+  min-width: 0;
+}
+
+.params-cell--row .params-cell-label {
+  font-size: var(--premium-fs-caption);
+}
+
+.params-cell--row .params-cell-hint {
+  margin-top: 2px;
+  font-size: var(--premium-fs-micro);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.params-cell--row .params-cell-control {
+  flex: 0 1 min(320px, 44%);
+  min-width: 140px;
+}
+
+.params-cell:hover {
+  border-color: color-mix(in srgb, var(--panel-accent, #0a84ff) 22%, rgba(0, 0, 0, 0));
+  background:
+    radial-gradient(
+      ellipse at 0% 0%,
+      color-mix(in srgb, var(--panel-accent, #0a84ff) 6%, rgba(0, 0, 0, 0)) 0%,
+      transparent 65%
+    ),
+    rgba(255, 255, 255, 0.02);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.params-cell--wide {
+  width: 100%;
+}
+
+.params-cell--wide .params-cell-control {
+  align-items: stretch;
+}
+
+.params-cell-head {
+  min-width: 0;
+}
+
+.params-cell-label {
+  display: block;
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.35;
+}
+
+.params-cell-key {
+  margin-top: 3px;
+  font-size: var(--premium-fs-micro);
+  font-family: ui-monospace, monospace;
+  color: var(--set-text-faint);
+}
+
+.params-cell-hint {
+  margin-top: 4px;
+  font-size: var(--premium-fs-caption);
+  color: var(--hos-text-secondary);
+  line-height: 1.45;
+}
+
+.params-cell-hint--compact {
+  margin-top: 2px;
+  font-size: var(--premium-fs-micro);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.params-cell--focus {
+  border-color: rgba(251, 191, 36, 0.55);
+  box-shadow:
+    inset 3px 0 0 rgba(251, 191, 36, 0.85),
+    0 0 0 1px rgba(251, 191, 36, 0.25);
+}
+
+.params-cell-control {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.params-cell-control--bool {
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.params-cell--compact {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.params-cell--compact .params-cell-head {
+  flex: 1;
+  min-width: 0;
+}
+
+.params-cell--compact .params-cell-label {
+  font-size: var(--premium-fs-caption);
+}
+
+.params-cell--compact .params-cell-control--bool {
+  flex-shrink: 0;
+  width: auto;
+}
+
+.params-cell--bool:not(.params-cell--compact) {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.params-cell--bool:not(.params-cell--compact) .params-cell-head {
+  flex: 1;
+  min-width: 0;
+}
+
+.params-cell--bool:not(.params-cell--compact) .params-cell-control--bool {
+  flex-shrink: 0;
+  width: auto;
+}
+
+.params-cell-input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.32);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
+  border-radius: var(--hos-radius-card);
+  padding: 9px 12px;
+  font-size: var(--premium-fs-body-sm);
+  color: #fff;
+  outline: none;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.params-cell-input::placeholder {
+  color: var(--hos-text-secondary);
+}
+
+.params-cell-input:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.38);
+}
+
+.params-cell-input:focus {
+  border-color: color-mix(in srgb, var(--panel-accent, #0a84ff) 45%, rgba(0, 0, 0, 0));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--panel-accent, #0a84ff) 12%, rgba(0, 0, 0, 0));
+  background: rgba(0, 0, 0, 0.42);
+}
+
+.params-cell-select {
+  cursor: pointer;
+  padding: 9px 6px 9px 12px;
+}
+
+.params-section-tag {
+  display: inline-block;
+  margin-bottom: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.params-cell-entity-wrap {
+  width: 100%;
+}
+
+/* 与 params-cell-input 对齐的实体选择器皮肤 */
+.params-cell-entity-wrap .ems-trigger {
+  min-height: 40px;
+  padding: 9px 6px 9px 12px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(0, 0, 0, 0.32);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
+  color: #fff;
+}
+
+.params-cell-entity-wrap .ems-trigger:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.38);
+}
+
+.params-cell-entity-wrap .ems-trigger:focus-visible,
+.params-cell-entity-wrap .ems-trigger--open {
+  border-color: color-mix(in srgb, var(--panel-accent, #0a84ff) 45%, rgba(0, 0, 0, 0));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--panel-accent, #0a84ff) 12%, rgba(0, 0, 0, 0));
+  background: rgba(0, 0, 0, 0.42);
+}
+
+.params-cell-entity-wrap .ems-trigger--filled {
+  background: rgba(0, 0, 0, 0.32);
+}
+
+.params-cell-select.params-cell-input {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  box-sizing: border-box;
+}
+
+.params-cell--structured {
+  gap: 10px;
+  padding: 12px 14px 14px;
+}
+
+.params-cell--structured .params-cell-control {
+  display: block;
+}
+
+.params-cell--structured .nested-obj-editor__table-wrap,
+.params-cell--structured :deep(.nested-obj-editor__table-wrap) {
+  border: none;
+}
+
+@media (max-width: 639px) {
+  .params-cell--row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .params-cell--row .params-cell-control {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+  }
+}

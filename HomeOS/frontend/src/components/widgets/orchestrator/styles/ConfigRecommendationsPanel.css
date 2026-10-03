@@ -1,0 +1,86 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/widgets/orchestrator/ConfigRecommendationsPanel.vue:118. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.config-rec-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
+}
+
+.config-rec-panel--embedded {
+  padding: 0;
+  gap: 8px;
+}
+
+.config-rec-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.config-rec-panel__head h3 {
+  flex: 1;
+  margin: 0;
+  font-size: var(--premium-fs-caption);
+  font-weight: 760;
+  letter-spacing: -0.01em;
+}
+
+.config-rec-panel__icon {
+  color: #c4b5fd;
+}
+
+.config-rec-panel__refresh {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: var(--hos-radius-pill);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+}
+
+.config-rec-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.config-rec-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 14px;
+  text-align: center;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) dashed rgba(167, 139, 250, 0.3);
+  background:
+    radial-gradient(ellipse 80% 70% at 50% 0%, rgba(167, 139, 250, 0.12), transparent 60%),
+    rgba(0, 0, 0, 0.16);
+}
+
+.config-rec-panel--embedded .config-rec-empty {
+  padding: 18px 12px;
+}
+
+.config-rec-empty__icon {
+  width: 32px;
+  height: 32px;
+  color: rgba(196, 181, 253, 0.55);
+}
+
+.config-rec-empty__title {
+  margin: 0;
+  font-size: var(--premium-fs-body-sm);
+  font-weight: 760;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.config-rec-empty__desc {
+  margin: 0;
+  max-width: 280px;
+  font-size: var(--premium-fs-micro);
+  line-height: 1.5;
+  color: var(--hos-text-secondary);
+}

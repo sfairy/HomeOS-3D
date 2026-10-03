@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="fr_on_b" x1="0%" x2="100%" y1="0%" y2="0%">
+      <stop offset="0%" stop-color="#fff"/>
+      <stop offset="40%" stop-color="#ecfdf5"/>
+      <stop offset="100%" stop-color="#a7f3d0"/>
+    </linearGradient>
+    <style>
+      @keyframes fr_disp{0%,to{opacity:.55}50%{opacity:1}}
+      @keyframes fr_led{0%,to{opacity:.72}50%{opacity:1}}
+      @keyframes fr_seam{0%,to{opacity:.35}50%{opacity:.7}}
+      .fr_disp{animation:fr_disp 2.6s ease-in-out infinite}
+      .fr_led{animation:fr_led 2.4s ease-in-out infinite}
+      .fr_seam{animation:fr_seam 3s ease-in-out infinite}
+    </style>
+  </defs>
+  <ellipse cx="100" cy="178" fill="#a7f3d0" opacity=".5" rx="58" ry="9"/>
+  <rect width="112" height="144" x="44" y="26" fill="url(#fr_on_b)" rx="12"/>
+  <ellipse cx="66" cy="42" fill="#fff" opacity=".85" rx="14" ry="6"/>
+  <path fill="none" stroke="#059669" stroke-width="3.5" d="M44 98h112"/>
+  <path fill="none" stroke="#6ee7b7" stroke-width="2.5" class="fr_seam" d="M100 34v128"/>
+  <rect width="6" height="32" x="142" y="48" fill="#047857" rx="2"/>
+  <rect width="6" height="36" x="142" y="112" fill="#047857" rx="2"/>
+  <rect width="26" height="12" x="60" y="44" fill="#022c22" rx="3"/>
+  <g fill="#34d399" class="fr_disp">
+    <rect width="3.5" height="7" x="64" y="46.5" rx=".6"/>
+    <rect width="6" height="2.5" x="68.5" y="46.5" rx=".5"/>
+    <rect width="3.5" height="7" x="76" y="46.5" rx=".6"/>
+    <rect width="6" height="2.5" x="68.5" y="50" rx=".5"/>
+    <rect width="6" height="2.5" x="68.5" y="53" rx=".5"/>
+  </g>
+  <circle cx="68" cy="68" r="3.5" fill="#22c55e" class="fr_led"/>
+  <rect width="112" height="8" x="44" y="162" fill="#34d399" rx="2"/>
+  <rect width="16" height="7" x="58" y="170" fill="#d1fae5" rx="2"/>
+  <rect width="16" height="7" x="126" y="170" fill="#d1fae5" rx="2"/>
+</svg>

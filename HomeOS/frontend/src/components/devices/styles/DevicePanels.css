@@ -1,0 +1,43 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/devices/DeviceAnalyticsDashboard.vue:257; frontend/src/components/devices/DeviceStateHistoryPanel.vue:531; frontend/src/components/devices/DeviceOverviewPanel.vue:736. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+/* 设备面板图标/颜色共用样式 */
+
+/* —— device-analytics-dashboard —— */
+.dad-ic-sky { color: var(--set-info, #7dd3fc); }
+.dad-ic-cyan { color: var(--premium-accent-cyan, #22d3ee); }
+.dad-ic-purple { color: var(--premium-accent-violet, #c084fc); }
+.dad-ic-amber { color: var(--set-warn, #fcd34d); }
+.dad-ic-danger { color: var(--set-danger, #fda4af); }
+.dad-ic-success { color: var(--set-success, #6ee7b7); }
+
+/* —— DeviceUsageStats —— */
+.dus-icon-violet {
+  color: var(--premium-accent-violet, #a78bfa);
+}
+.dus-icon-info {
+  color: var(--set-info, #7dd3fc);
+}
+.dus-icon-violet {
+  color: var(--premium-accent-violet, #a78bfa);
+}
+
+/* —— DeviceOverviewPanel —— */
+.dov-icon-info {
+  color: var(--set-info, #7dd3fc);
+}
+.dov-icon-violet {
+  color: var(--premium-accent-violet, #a78bfa);
+}
+.dov-icon-warn {
+  color: var(--set-warn, #fcd34d);
+}
+
+/* —— DeviceStateHistoryPanel —— */
+.dsh-icon-info {
+  color: var(--set-info, #7dd3fc);
+}
+.dsh-icon-info {
+  color: var(--set-info, #7dd3fc);
+}
+.dsh-icon-violet {
+  color: var(--premium-accent-violet, #a78bfa);
+}

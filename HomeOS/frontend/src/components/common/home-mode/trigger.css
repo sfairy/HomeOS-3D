@@ -1,0 +1,40 @@
+.home-mode-switcher__btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--hos-radius-card);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.home-mode-switcher__btn:hover:not(:disabled) {
+  background: var(--premium-glass-bg-hover);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.home-mode-switcher__btn--active {
+  border-color: rgba(129, 140, 248, 0.4);
+  background: rgba(129, 140, 248, 0.12);
+}
+
+.home-mode-switcher__btn--readonly {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.home-mode-switcher__icon {
+  opacity: 0.9;
+}
+
+.home-mode-switcher__label {
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

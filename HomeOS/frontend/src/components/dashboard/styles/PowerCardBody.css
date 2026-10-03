@@ -1,0 +1,147 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/dashboard/PowerCardBody.vue:74. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.power-card__icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--hos-radius-card);
+  background: color-mix(in srgb, var(--ef-accent, #fbbf24) 22%, #12141c);
+  /* 固定 1px 实色边，避免 0.5px 发丝边在移动端圆角处泛白晕 */
+  border: 1px solid color-mix(in srgb, var(--ef-accent, #fbbf24) 40%, #1a1d28);
+  flex-shrink: 0;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+.power-card__icon {
+  font-size: var(--premium-fs-title);
+  line-height: 1;
+}
+
+.power-card__col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: flex-start;
+}
+
+.power-card__row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.power-card__row--value {
+  gap: 5px;
+}
+
+.power-card__value {
+  color: color-mix(in srgb, var(--ef-accent, #fbbf24) 72%, #fff);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--premium-fs-title);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.power-card__value--date {
+  font-size: var(--premium-fs-caption);
+  font-weight: 500;
+  color: var(--hos-text-secondary);
+}
+
+.power-card__unit {
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  color: color-mix(in srgb, var(--ef-accent, #fbbf24) 48%, rgba(255, 255, 255, 0.42));
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+}
+
+.power-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 2px;
+  max-width: 100%;
+}
+
+.power-card__label {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: var(--premium-fs-micro);
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.power-card__secondary {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  flex-shrink: 0;
+  padding-left: 8px;
+  margin-left: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  white-space: nowrap;
+}
+
+.power-card__secondary--solo {
+  padding-left: 0;
+  margin-left: 0;
+  border-left: none;
+}
+
+.power-card__secondary-name {
+  font-size: var(--premium-fs-micro);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.3;
+}
+
+.power-card__secondary-value {
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--ef-accent, #fbbf24) 62%, #fff);
+  line-height: 1.3;
+}
+
+.power-card__bar {
+  width: 100%;
+  min-width: 72px;
+  max-width: 140px;
+  margin-top: 1px;
+}
+
+@media (max-width: 639px), (pointer: coarse), (hover: none) {
+  .power-card__icon-wrap {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+  }
+
+  .power-card__meta {
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .power-card__bar {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+/* ── 作用域语义色类（替代 Tailwind 颜色工具类） ── */
+.pcb-value-danger {
+  color: var(--set-danger, #fda4af);
+}
+.pcb-value-warn {
+  color: var(--set-warn, #fcd34d);
+}

@@ -1,0 +1,93 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/views/GuestView.vue:125. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+/* ── 页面主色派生变量（slate 中性 + emerald 点缀） ── */
+.guest-root {
+  /* 注：--page-accent-* 派生变量、--set-* 语义色、--set-transition-* 已移至
+         app-premium-tokens.css 的 :root 全局共享。本组件通过 :style 注入
+         --page-accent / --page-accent-rgb 后，全局派生变量自动跟随。
+         访客卡片为单卡状态展示，边框是主要状态信号，沿用 0.35 alpha（与
+         SmartAdvisorWidget / VEmptyState / RecommendationsPanel 等保持一致），
+         比全局 --set-*-border 的 0.22 默认值更显眼。 */
+  --set-success-border: rgba(52, 211, 153, 0.35);
+  --set-danger-border: rgba(251, 113, 133, 0.35);
+
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(var(--page-accent-rgb), 0.12) 0%,
+    rgba(13, 17, 23, 1) 70%
+  );
+  padding: max(env(safe-area-inset-top, 0px), 24px) max(env(safe-area-inset-right, 0px), 24px)
+    max(env(safe-area-inset-bottom, 0px), 24px) max(env(safe-area-inset-left, 0px), 24px);
+}
+
+.guest-card {
+  background: var(--premium-glass-bg, rgba(255, 255, 255, 0.03));
+  border: var(--hos-hairline) solid var(--premium-border-strong);
+  border-radius: var(--hos-radius-shell, 24px);
+  padding: 32px;
+  max-width: 420px;
+  width: 100%;
+  backdrop-filter: var(--premium-blur, blur(24px) saturate(180%));
+  -webkit-backdrop-filter: var(--premium-blur, blur(24px) saturate(180%));
+  box-shadow: var(--premium-shadow, 0 8px 32px rgba(0, 0, 0, 0.28));
+}
+
+/* 错误态：danger 语义色边框/底色 */
+.guest-card--error {
+  border-color: var(--set-danger-border);
+  background:
+    radial-gradient(ellipse at top, var(--set-danger-bg), transparent 60%),
+    var(--premium-glass-bg, rgba(255, 255, 255, 0.03));
+}
+
+/* 成功态：使用 dashboard 模块色（emerald 点缀），表示进入仪表盘 */
+.guest-card--ok {
+  border-color: var(--set-success-border);
+  background:
+    radial-gradient(ellipse at top, var(--set-success-bg), transparent 60%),
+    var(--premium-glass-bg, rgba(255, 255, 255, 0.03));
+}
+
+/* 加载 spinner：跟随 page-accent（slate） */
+.guest-spinner {
+  color: var(--page-accent-text);
+  animation: guest-spin 1s linear infinite;
+}
+
+/* 图标：错误态使用 danger，成功态使用 emerald（dashboard） */
+.guest-icon--danger {
+  color: var(--set-danger);
+}
+
+.guest-icon--ok {
+  color: var(--set-success);
+}
+
+/* 文字色 */
+.guest-text--title {
+  color: var(--set-text-primary);
+}
+
+.guest-text--muted {
+  color: var(--set-text-secondary);
+}
+
+.guest-text--micro {
+  color: var(--set-text-label);
+}
+
+.guest-root :focus-visible {
+  outline: 2px solid var(--page-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@keyframes guest-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

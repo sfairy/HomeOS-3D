@@ -1,0 +1,160 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/widgets/media/ScenePanel.vue:401. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.ms-root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
+}
+.ms-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ms-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ms-title {
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.ms-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ms-scenes {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+}
+.ms-scene {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 2px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(255, 255, 255, 0.03);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: var(--premium-fs-micro);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.ms-scene:hover {
+  background: rgba(236, 72, 153, 0.1);
+  color: #ec4899;
+}
+.ms-scene--active {
+  background: rgba(236, 72, 153, 0.18);
+  color: #ec4899;
+  border-color: rgba(236, 72, 153, 0.3);
+}
+.ms-scene:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ms-result {
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(52, 199, 89, 0.06);
+  border: var(--hos-hairline) solid rgba(52, 199, 89, 0.12);
+}
+.ms-group {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  padding-top: 8px;
+}
+.ms-group-title {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  color: var(--hos-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+.ms-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.ms-preset {
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(236, 72, 153, 0.12);
+  color: #f9a8d4;
+  border: var(--hos-hairline) solid rgba(236, 72, 153, 0.2);
+  cursor: pointer;
+}
+.ms-preset--ghost {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--hos-text-secondary);
+  border-color: var(--premium-glass-bg-hover);
+}
+.ms-preset:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.ms-players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.ms-player {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: var(--premium-fs-micro);
+  color: rgba(255, 255, 255, 0.65);
+  cursor: pointer;
+}
+.ms-player input {
+  accent-color: #ec4899;
+}
+.ms-group-actions {
+  display: flex;
+  gap: 6px;
+}
+.ms-btn {
+  flex: 1;
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+  padding: 7px 0;
+  border-radius: 9px;
+  cursor: pointer;
+  border: var(--hos-hairline) solid transparent;
+}
+.ms-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ms-btn--primary {
+  background: rgba(236, 72, 153, 0.15);
+  color: #ec4899;
+  border-color: rgba(236, 72, 153, 0.25);
+}
+.ms-btn--ghost {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.6);
+  border-color: var(--premium-glass-bg-hover);
+}
+
+.msp-icon {
+  color: var(--premium-accent-pink, #f472b6);
+}
+.msp-result-text {
+  color: var(--set-success, rgba(52, 211, 153, 0.8));
+}

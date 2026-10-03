@@ -1,0 +1,68 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/entities/popups/CoverControlPopup.vue:189. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+@import '@/assets/styles/popup-entities.css';
+
+.position-control {
+  margin-bottom: 16px;
+}
+
+.position-display {
+  position: relative;
+  border-radius: var(--hos-radius-panel);
+  padding: 12px 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.02);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.04);
+  margin-bottom: 12px;
+}
+
+.slider-row {
+  padding: 0 4px;
+}
+
+.action-btns {
+  display: flex;
+  gap: 10px;
+}
+
+.action-btn {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px;
+  border-radius: var(--hos-radius-panel);
+  background: var(--premium-glass-bg);
+  border: var(--hos-hairline) solid var(--premium-border);
+  color: var(--hos-text-secondary);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.action-btn span {
+  white-space: nowrap;
+}
+
+.action-btn:hover {
+  background: color-mix(in srgb, var(--accent, var(--premium-accent-blue)) 10%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, var(--accent, var(--premium-accent-blue)) 20%, rgba(0, 0, 0, 0));
+  color: #fff;
+}
+
+.cvr-dot-on {
+  background-color: var(--set-info, #60a5fa);
+}
+.cvr-pos-gradient {
+  background-image: linear-gradient(to top, rgba(37, 99, 235, 0.2), transparent);
+}
+.cvr-percent-sign {
+  color: var(--set-text-tertiary);
+}
+.cvr-pos-label {
+  color: var(--set-text-tertiary);
+  line-height: 1.35;
+  padding-bottom: 1px;
+}

@@ -1,0 +1,262 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/views/settings/interact/alert-rules/AlertRulesInboxSection.vue:193. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.alert-rule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alert-rule-row {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px) 12px 16px;
+  border-radius: var(--hos-radius-card);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0.18) 100%);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.alert-rule-row:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+.alert-rule-row--disabled {
+  opacity: 0.62;
+}
+
+.alert-rule-row--danger {
+  --rule-accent: var(--set-danger);
+}
+.alert-rule-row--warn {
+  --rule-accent: var(--set-warn);
+}
+.alert-rule-row--info {
+  --rule-accent: var(--set-info);
+}
+
+.alert-rule-row__accent {
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--rule-accent, var(--set-info));
+  box-shadow: none;
+}
+
+.alert-rule-row__body {
+  min-width: 0;
+  flex: 1;
+}
+
+.alert-rule-row__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.alert-rule-row__name {
+  font-size: var(--premium-fs-body-sm, 13px);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.alert-rule-row__level {
+  padding: 2px 7px;
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--set-fs-micro, 12px);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.alert-rule-row__off {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+}
+
+.alert-rule-row__entity {
+  margin: 4px 0 0;
+  font-size: var(--premium-fs-micro);
+  font-family: ui-monospace, monospace;
+  color: var(--hos-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.alert-rule-row__condition {
+  margin: 3px 0 0;
+  font-size: var(--premium-fs-micro);
+  font-family: ui-monospace, monospace;
+  color: var(--hos-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.alert-rule-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* 行内启用开关：窄屏下替代编辑弹窗的一键启闭入口 */
+.alert-rule-switch {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.alert-rule-switch__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.alert-rule-switch__track {
+  position: relative;
+  display: inline-block;
+  width: 34px;
+  height: 20px;
+  border-radius: var(--hos-radius-pill);
+  background: rgba(255, 255, 255, 0.12);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.16);
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.alert-rule-switch__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.alert-rule-switch__input:checked + .alert-rule-switch__track {
+  background: rgba(var(--page-accent-rgb), 0.42);
+  border-color: rgba(var(--page-accent-rgb), 0.55);
+}
+
+.alert-rule-switch__input:checked + .alert-rule-switch__track .alert-rule-switch__thumb {
+  transform: translateX(14px);
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.alert-rule-switch__input:disabled + .alert-rule-switch__track {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.alert-rule-switch__input:focus-visible + .alert-rule-switch__track {
+  box-shadow: 0 0 0 3px rgba(var(--page-accent-rgb), 0.22);
+}
+
+.alert-rule-row__btn {
+  padding: 6px 10px;
+  border-radius: var(--hos-radius-card);
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.04);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.alert-rule-row__btn:hover:not(:disabled) {
+  color: rgba(255, 255, 255, 0.88);
+  background: var(--premium-glass-bg-hover);
+}
+
+.alert-rule-row__btn--primary {
+  color: rgba(125, 211, 252, 0.9);
+  background: rgba(var(--page-accent-rgb), 0.08);
+  border-color: rgba(var(--page-accent-rgb), 0.2);
+}
+
+.alert-rule-row__btn--danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  padding: 6px;
+  color: rgba(253, 164, 175, 0.88);
+  background: rgba(251, 113, 133, 0.06);
+  border-color: rgba(251, 113, 133, 0.18);
+}
+
+/* ── 颜色统一：原 Tailwind color class → CSS 变量 ── */
+
+/* 引言图标 + 光晕（child component props via :deep）—— 玫红告警 */
+.ar-intro-icon {
+  color: var(--set-danger);
+}
+.ar-intro-orb {
+  background: var(--set-danger-bg);
+  border: var(--hos-hairline) solid var(--set-danger-border);
+}
+
+/* 无 admin 权限提示卡片（extra-class 注入到 SettingsCard 边框/背景） */
+.ar-admin-warn {
+  border-color: var(--set-warn-border) !important;
+  background: var(--set-warn-bg) !important;
+}
+.ar-warn-text {
+  color: var(--set-warn);
+  /* 窄屏下保持按语义换行，避免中文提示逐字竖排 */
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+/* 移动端权责提示卡：仅保留启闭开关，新增/编辑引导至电脑端 */
+.ar-mobile-scope {
+  border-color: var(--set-warn-border) !important;
+  background: var(--set-warn-bg) !important;
+}
+.ar-mobile-scope__text {
+  margin: 0;
+  line-height: 1.6;
+  color: var(--set-warn);
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+/* 三个 hub-stat 数值（应用内规则/语音播报/自定义语音） */
+.ar-stat-rules {
+  color: var(--set-danger);
+}
+.ar-stat-voice {
+  color: var(--premium-accent-violet, #c084fc);
+}
+.ar-stat-custom {
+  color: var(--set-info);
+}
+
+/* 实体自定义播报卡片 */
+.ar-voice-card {
+  border-color: var(--premium-accent-violet-border, rgba(var(--page-accent-rgb, 126, 184, 255), 0.25)) !important;
+  background: var(--premium-accent-violet-bg, rgba(var(--page-accent-rgb, 126, 184, 255), 0.05)) !important;
+}
+.ar-voice-title {
+  color: var(--premium-accent-violet-text, var(--page-accent, #7eb8ff));
+}
+.ar-voice-desc {
+  color: var(--set-text-secondary);
+}

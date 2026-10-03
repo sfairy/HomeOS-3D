@@ -1,0 +1,136 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/views/settings/shared/system-config/SystemConfigNestedObjectEditor.vue:307. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.nested-obj-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.nested-obj-editor__table-wrap {
+  overflow-x: auto;
+  border-radius: 0;
+  border: none;
+  margin: 0 -2px;
+}
+
+.nested-obj-editor__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--premium-fs-caption);
+}
+
+.nested-obj-editor__table th {
+  text-align: left;
+  padding: 8px 10px;
+  font-weight: 700;
+  color: var(--hos-text-secondary);
+  background: transparent;
+  border-bottom: var(--hos-hairline) solid var(--premium-border);
+}
+
+.nested-obj-editor__table td {
+  padding: 6px 8px;
+  border-bottom: var(--hos-hairline) solid rgba(255, 255, 255, 0.04);
+  vertical-align: middle;
+}
+
+.nested-obj-editor__col-action {
+  width: 40px;
+  text-align: center;
+}
+
+.nested-obj-editor__empty {
+  padding: 14px 10px !important;
+  text-align: center;
+  color: var(--hos-text-secondary);
+  font-size: var(--premium-fs-caption);
+}
+
+.nested-obj-editor__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: rgba(248, 113, 113, 0.85);
+  background: rgba(248, 113, 113, 0.08);
+  border: var(--hos-hairline) solid rgba(248, 113, 113, 0.15);
+  transition: background 0.15s ease;
+}
+
+.nested-obj-editor__icon-btn:hover {
+  background: rgba(248, 113, 113, 0.16);
+}
+
+.nested-obj-editor__add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 6px 12px;
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  color: rgba(96, 165, 250, 0.95);
+  background: rgba(96, 165, 250, 0.1);
+  border: var(--hos-hairline) solid rgba(96, 165, 250, 0.22);
+}
+
+.nested-obj-editor__add:hover {
+  background: rgba(96, 165, 250, 0.16);
+}
+
+.nested-obj-editor__fixed-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.nested-obj-editor__fixed-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nested-obj-editor__fixed-label {
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.nested-obj-editor__row--dup td:first-child {
+  box-shadow: inset 3px 0 0 rgba(251, 191, 36, 0.85);
+}
+
+.nested-obj-editor__warn {
+  margin: 0;
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  color: rgba(251, 191, 36, 0.92);
+}
+
+.nested-obj-editor__warn--err {
+  color: rgba(248, 113, 113, 0.92);
+}
+
+.nested-obj-editor__inline-link {
+  margin-left: 6px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  color: rgba(96, 165, 250, 0.95);
+}
+
+.nested-obj-editor__toggle {
+  align-self: flex-start;
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  color: var(--hos-text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.nested-obj-editor__toggle:hover {
+  color: rgba(255, 255, 255, 0.62);
+}

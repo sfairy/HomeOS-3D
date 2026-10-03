@@ -1,0 +1,115 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/dashboard/OrchestratorSyncAlert.vue:136. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.orch-sync-alert {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 16px 12px;
+  padding: 10px 14px;
+  border-radius: var(--hos-radius-card);
+  border: 1px solid var(--set-warn-border, rgba(251, 191, 36, 0.35));
+  background: var(--set-warn-bg, rgba(251, 191, 36, 0.08));
+  color: rgba(255, 255, 255, 0.82);
+  font-size: var(--premium-fs-caption);
+}
+
+.orch-sync-alert__main {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.orch-sync-alert__icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: #ff9f0a;
+  margin-top: 1px;
+}
+
+.orch-sync-alert__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.orch-sync-alert__text strong {
+  font-size: var(--premium-fs-caption);
+  color: #ffb340;
+}
+
+.orch-sync-alert__text > span {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.orch-sync-alert__list {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  color: var(--hos-text-secondary);
+  line-height: 1.45;
+}
+
+.orch-sync-alert__tag {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--premium-glass-bg-hover);
+  font-size: var(--premium-fs-micro);
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.orch-sync-alert__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex-shrink: 0;
+  align-items: flex-start;
+}
+
+.orch-sync-alert__progress {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+}
+
+.orch-sync-alert__progress-bar {
+  width: 100%;
+}
+
+.orch-sync-alert__progress-text {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+}
+
+.orch-sync-alert__btn {
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 159, 10, 0.4);
+  background: rgba(255, 159, 10, 0.15);
+  color: #ffb340;
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.orch-sync-alert__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.orch-sync-alert__btn--danger {
+  border-color: rgba(255, 69, 58, 0.45);
+  background: rgba(255, 69, 58, 0.12);
+  color: #ff6961;
+}
+
+.orch-sync-alert__btn--ghost {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: var(--hos-text-secondary);
+}

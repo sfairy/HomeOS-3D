@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="vac_dock_body" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </linearGradient>
+    <linearGradient id="vac_dock_base" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <filter id="vac_dock_glow" width="160%" height="160%" x="-30%" y="-30%">
+      <feGaussianBlur in="SourceGraphic" result="b" stdDeviation="1.6"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <style>
+      @keyframes vac_dock_charge{0%,to{opacity:.35}50%{opacity:1}}
+      @keyframes vac_dock_bolt{0%,to{opacity:.45;transform:scale(.92)}50%{opacity:1;transform:scale(1.08)}}
+      @keyframes vac_dock_led{0%,to{opacity:.55}50%{opacity:1}}
+      @keyframes vac_dock_flow{0%{stroke-dashoffset:20;opacity:.4}50%{opacity:1}to{stroke-dashoffset:0;opacity:.5}}
+      .vac_dock_c1,.vac_dock_c2,.vac_dock_c3{animation:vac_dock_charge 1.2s ease-in-out infinite}
+      .vac_dock_c2{animation-delay:.2s}
+      .vac_dock_c3{animation-delay:.4s}
+      .vac_dock_bolt{animation:vac_dock_bolt 1.5s ease-in-out infinite;transform-origin:168px 128px}
+      .vac_dock_led{animation:vac_dock_led 1.8s ease-in-out infinite}
+      .vac_dock_cord{animation:vac_dock_flow 1.6s linear infinite}
+    </style>
+  </defs>
+  <!-- 底座在机体后方，机体位置与 cleaning 一致 -->
+  <path fill="url(#vac_dock_base)" d="m36 140 12 28h104l12-28Z"/>
+  <rect width="136" height="12" x="32" y="166" fill="#334155" rx="5"/>
+  <path fill="none" stroke="#fbbf24" stroke-dasharray="6 5" stroke-linecap="round" stroke-width="4" d="M166 172q16 0 16-28" class="vac_dock_cord"/>
+  <g class="vac_dock_bolt" filter="url(#vac_dock_glow)">
+    <path fill="#fbbf24" d="m174 116-6 18h8l-6 14 16-20h-10Z"/>
+  </g>
+  <circle cx="100" cy="100" r="72" fill="#0f172a"/>
+  <circle cx="100" cy="100" r="66" fill="url(#vac_dock_body)"/>
+  <ellipse cx="78" cy="74" fill="#fff" opacity=".7" rx="26" ry="13"/>
+  <path fill="none" stroke="#0f172a" stroke-linecap="round" stroke-width="9" d="M40 82a66 66 0 0 1 120 0"/>
+  <circle cx="58" cy="58" r="3" fill="#64748b"/>
+  <circle cx="142" cy="58" r="3" fill="#64748b"/>
+  <circle cx="100" cy="94" r="24" fill="#1e293b"/>
+  <circle cx="100" cy="94" r="10" fill="#f8fafc"/>
+  <circle cx="100" cy="94" r="4.5" fill="#0f172a"/>
+  <circle cx="100" cy="56" r="5.5" fill="#22c55e" class="vac_dock_led"/>
+  <ellipse cx="66" cy="158" fill="#0f172a" rx="16" ry="8"/>
+  <ellipse cx="134" cy="158" fill="#0f172a" rx="16" ry="8"/>
+  <circle cx="70" cy="172" r="4.5" fill="#fbbf24" class="vac_dock_c1"/>
+  <circle cx="100" cy="172" r="4.5" fill="#fbbf24" class="vac_dock_c2"/>
+  <circle cx="130" cy="172" r="4.5" fill="#fbbf24" class="vac_dock_c3"/>
+</svg>

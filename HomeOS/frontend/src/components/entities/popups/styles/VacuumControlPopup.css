@@ -1,0 +1,262 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/entities/popups/VacuumControlPopup.vue:553. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.vac-mode-btn {
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.04);
+  border: var(--hos-hairline) solid var(--premium-border);
+  color: var(--hos-text-secondary);
+  transition: all 0.2s;
+}
+.vac-mode-btn:hover {
+  background: var(--premium-glass-bg-hover);
+  color: rgba(255, 255, 255, 0.7);
+}
+.vac-mode-btn--active {
+  background: rgba(192, 132, 252, 0.15);
+  border-color: rgba(192, 132, 252, 0.3);
+  color: #c084fc;
+}
+
+.vac-room-chip {
+  padding: 4px 10px;
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  color: var(--hos-text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+}
+.vac-room-chip--on {
+  color: #e9d5ff;
+  background: rgba(192, 132, 252, 0.2);
+  border-color: rgba(192, 132, 252, 0.4);
+}
+.vac-room-chip--done {
+  box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.45);
+}
+.vac-room-chip--done:not(.vac-room-chip--on) {
+  color: rgba(52, 211, 153, 0.85);
+}
+
+.vcp-map-wrap {
+  margin-bottom: 12px;
+}
+.vcp-map-toolbar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.vcp-map-mode {
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  color: var(--hos-text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+}
+.vcp-map-mode:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.vcp-map-mode--on {
+  color: #e9d5ff;
+  background: rgba(192, 132, 252, 0.18);
+  border-color: rgba(192, 132, 252, 0.35);
+}
+.vcp-map-stage {
+  position: relative;
+  width: 100%;
+  /* 地图多为 16:9（如 1920×1080），按比例撑满宽度，避免上下黑边 */
+  aspect-ratio: 16 / 9;
+  height: auto;
+  border-radius: var(--hos-radius-card);
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.vcp-map-stage--goto,
+.vcp-map-stage--zone {
+  cursor: crosshair;
+}
+.vcp-zone-box {
+  position: absolute;
+  border: 1.5px dashed rgba(192, 132, 252, 0.9);
+  background: rgba(192, 132, 252, 0.18);
+  pointer-events: none;
+  border-radius: 2px;
+}
+.vcp-map-empty,
+.vcp-map-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+  pointer-events: none;
+}
+.vcp-map-hint {
+  inset: auto 0 0 0;
+  height: 28px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
+  color: rgba(196, 181, 253, 0.9);
+}
+.vcp-map-meta {
+  margin-top: 6px;
+  text-align: center;
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+  word-break: break-all;
+}
+.vcp-map-warn {
+  margin: 6px 0 0;
+  font-size: var(--premium-fs-micro);
+  color: #fbbf24;
+  text-align: center;
+}
+.vcp-map-guide {
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: var(--hos-radius-card);
+  border: 1px dashed rgba(192, 132, 252, 0.3);
+  background: rgba(192, 132, 252, 0.06);
+  text-align: center;
+}
+.vcp-map-guide__title {
+  margin: 0;
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  color: #c084fc;
+}
+.vcp-map-guide__desc {
+  margin: 6px 0 0;
+  font-size: var(--premium-fs-micro);
+  line-height: 1.45;
+  color: var(--hos-text-secondary);
+}
+.vcp-2fa {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  text-align: center;
+}
+.vcp-2fa__title {
+  margin: 0;
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  color: #fbbf24;
+}
+.vcp-2fa__link {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: var(--premium-fs-micro);
+  color: #c084fc;
+  text-decoration: underline;
+}
+.vcp-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.vcp-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.vcp-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.vcp-fan__list {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: stretch;
+  gap: 6px;
+  width: 100%;
+}
+.vcp-fan__list .vac-mode-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 5px 4px;
+  white-space: nowrap;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vcp-rooms-go {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  color: #c084fc;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.vcp-rooms-go:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.vcp-lbl {
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
+}
+.vcp-state-on {
+  color: var(--accent, #c084fc);
+}
+.vcp-state-off {
+  color: var(--set-text-tertiary);
+}
+.vcp-c-violet {
+  color: var(--accent, #c084fc);
+}
+.vcp-c-danger {
+  color: var(--set-danger, #f87171);
+}
+.vcp-ic-violet {
+  color: var(--accent, #c084fc);
+}
+.vcp-ic-warn {
+  color: var(--set-warn, #fbbf24);
+}
+.vcp-ic-danger {
+  color: var(--set-danger, #f87171);
+}
+.vcp-ic-success {
+  color: var(--set-success, #34d399);
+}
+.vcp-ic-cyan {
+  color: var(--premium-accent-cyan, #22d3ee);
+}
+.vcp-state-dot {
+  display: inline-block;
+}
+.vcp-state-dot--on {
+  background: var(--accent, #c084fc);
+  box-shadow: 0 0 6px var(--accent, #c084fc);
+}
+.vcp-status-dot--on {
+  background: var(--accent, #c084fc);
+}
+.vcp-status-dot--off {
+  background: rgba(100, 116, 139, 0.6);
+}

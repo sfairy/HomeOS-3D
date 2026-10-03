@@ -1,0 +1,130 @@
+/**
+ * 全站多色渲染工具层（均衡活力）
+ *
+ * 依赖三层令牌：--page-accent / --page-accent-secondary / --page-accent-rgb，
+ * 由各视图 :style 注入（未注入时回退全局 emerald #34d399）。
+ * 本层统一派生"双色页面渐变"并暴露渐变文字 / 卡片氛围工具类，
+ * 供核心基元与卡片体系按页面模块色自动多彩化，不引入硬编码色值。
+ */
+
+/* ── 派生渐变变量（供各 CSS 文件引用） ── */
+:root {
+  /* 页面主色 → 次色 135° 渐变；次色缺失时回退主色提亮版，仍能呈现柔和双色 */
+  --page-gradient: linear-gradient(
+    135deg,
+    var(--page-accent, #34d399) 0%,
+    var(--page-accent-secondary, color-mix(in srgb, var(--page-accent, #34d399) 62%, white)) 100%
+  );
+  /* 提亮版（向白方向混合），用于需要更柔和对比的场景 */
+  --page-gradient-soft: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--page-accent, #34d399) 76%, white) 0%,
+    color-mix(in srgb, var(--page-accent-secondary, var(--page-accent, #38bdf8)) 68%, white) 100%
+  );
+  /* 页面色外发光，用于 hover / 重点卡 */
+  --page-glow: 0 8px 28px color-mix(in srgb, var(--page-accent, #34d399) 22%, transparent);
+  /* 卡片左上氛围层（低透明度 radial），供各卡片 background 叠加 */
+  --page-card-tint: radial-gradient(
+    ellipse 110% 72% at 0% 0%,
+    rgba(var(--page-accent-rgb, 52, 211, 153), 0.1) 0%,
+    rgba(var(--page-accent-rgb, 52, 211, 153), 0.035) 38%,
+    transparent 62%
+  );
+  --page-card-tint-soft: radial-gradient(
+    ellipse 100% 66% at 0% 0%,
+    rgba(var(--page-accent-rgb, 52, 211, 153), 0.07) 0%,
+    transparent 58%
+  );
+}
+
+/* ── 渐变文字工具类 ──
+   仅用于 14px+ 的标题 / 数值 / 重点文本；
+   正文、标签、描述保持语义色以保证小字号可读性。 */
+.text-gradient {
+  color: var(--page-accent, #34d399);
+}
+
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .text-gradient {
+    background: var(--page-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+}
+
+.text-gradient--soft {
+  color: color-mix(in srgb, var(--page-accent, #34d399) 72%, white);
+}
+
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .text-gradient--soft {
+    background: var(--page-gradient-soft);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+}
+
+/* ── 预设多彩渐变文字（复用 main.css 既有 --gradient-* 预设） ── */
+.text-gradient-aurora {
+  background: var(--gradient-aurora, linear-gradient(135deg, #00f593 0%, #00d4ff 50%, #b44dff 100%));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.text-gradient-golden {
+  background: var(--gradient-golden, linear-gradient(135deg, #ffd60a 0%, #ff9f0a 50%, #ff375f 100%));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.text-gradient-royal {
+  background: var(--gradient-royal, linear-gradient(135deg, #5856d6 0%, #bf5af2 50%, #ff2d55 100%));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.text-gradient-sunset {
+  background: var(--gradient-sunset, linear-gradient(135deg, #ff6b3d 0%, #ff3b8b 50%, #bf5af2 100%));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* ── 卡片顶部渐变光带（供具体卡片类声明 ::after 时复用背景） ── */
+.card-top-band::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--page-accent, #34d399) 60%, transparent) 30%,
+    color-mix(in srgb, var(--page-accent-secondary, var(--page-accent, #38bdf8)) 60%, transparent) 70%,
+    transparent 100%
+  );
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+/* ── 卡片 hover 外发光（随页面色） ── */
+.card-hover-glow:hover {
+  box-shadow:
+    var(--page-glow),
+    0 16px 40px rgba(0, 0, 0, 0.35),
+    var(--hos-surface-inset, inset 0 1px 0 rgba(255, 255, 255, 0.07));
+}

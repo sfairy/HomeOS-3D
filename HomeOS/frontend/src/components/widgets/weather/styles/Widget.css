@@ -1,0 +1,83 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/widgets/weather/Widget.vue:421. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.weather-inner--compact {
+  padding: 4px 12px 10px;
+}
+
+/* ── 文本颜色（标签 / 中性） ── */
+.weather-lbl {
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
+}
+.weather-lbl-faint {
+  color: var(--set-text-tertiary);
+}
+
+/* ── 图标颜色 ── */
+.weather-ic-blue {
+  color: var(--premium-accent-blue, #0a84ff);
+}
+.weather-ic-cyan {
+  color: var(--premium-accent-cyan, #22d3ee);
+}
+.weather-ic-amber {
+  color: var(--set-warn, #fcd34d);
+}
+.weather-ic-violet {
+  color: var(--premium-accent-violet, #c084fc);
+}
+.weather-ic-success {
+  color: var(--set-success, #6ee7b7);
+}
+
+/* ── 数值颜色（语义映射） ── */
+.weather-c-success {
+  color: var(--set-success, #6ee7b7);
+}
+.weather-c-danger {
+  color: var(--set-danger, #fda4af);
+}
+.weather-c-warn {
+  color: var(--set-warn, #fcd34d);
+}
+.weather-c-warn-deep {
+  color: var(--premium-accent-amber, #ff9500);
+}
+.weather-c-warn-soft {
+  color: var(--set-warn, #fcd34d);
+  opacity: 0.7;
+}
+.weather-c-info {
+  color: var(--set-info, #7dd3fc);
+}
+.weather-c-blue {
+  color: var(--premium-accent-blue, #0a84ff);
+}
+.weather-c-blue-soft {
+  color: var(--set-info, #7dd3fc);
+}
+.weather-c-violet {
+  color: var(--premium-accent-violet, #c084fc);
+}
+.weather-c-cyan {
+  color: var(--premium-accent-cyan, #22d3ee);
+}
+.weather-c-white {
+  color: #ffffff;
+}
+
+/* ── AQI 徽章 ── */
+.weather-badge-success {
+  background: var(--set-success-bg, rgba(16, 185, 129, 0.12));
+  color: var(--set-success, #6ee7b7);
+}
+.weather-badge-warn {
+  background: var(--set-warn-bg, rgba(251, 191, 36, 0.12));
+  color: var(--set-warn, #fcd34d);
+}
+.weather-badge-warn-deep {
+  background: rgba(255, 149, 0, 0.18);
+  color: var(--premium-accent-amber, #ff9500);
+}
+.weather-badge-danger {
+  background: var(--set-danger-bg, rgba(251, 113, 133, 0.12));
+  color: var(--set-danger, #fda4af);
+}

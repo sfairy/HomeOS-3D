@@ -1,0 +1,8 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/views/settings/shared/RegistryDegradedGuide.vue:66. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.rd-text-tertiary {
+  color: var(--set-text-tertiary);
+}
+
+.rd-text-warn {
+  color: var(--set-warn, #fcd34d);
+}

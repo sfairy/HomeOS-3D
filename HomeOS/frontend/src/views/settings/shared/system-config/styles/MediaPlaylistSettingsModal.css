@@ -1,0 +1,96 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/views/settings/shared/system-config/MediaPlaylistSettingsModal.vue:88. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.media-pl-modal {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal-root);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--hos-space-2xl, 24px) var(--hos-panel-padding-compact-x, 16px);
+}
+
+.media-pl-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(6px);
+}
+
+.media-pl-modal__panel {
+  position: relative;
+  width: min(100%, 480px);
+  max-height: min(88vh, 640px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--hos-radius-panel);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, #12121c 0%, #0b0b12 100%);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  font-size: var(--premium-fs-body);
+  line-height: 1.5;
+}
+
+.media-pl-modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 20px 14px;
+  border-bottom: var(--hos-hairline) solid var(--premium-border);
+}
+
+.media-pl-modal__eyebrow {
+  margin: 0 0 4px;
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--hos-text-secondary);
+}
+
+.media-pl-modal__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.25;
+}
+
+.media-pl-modal__desc {
+  margin: 6px 0 0;
+  font-size: var(--premium-fs-body-sm);
+  line-height: 1.5;
+  color: var(--hos-text-secondary);
+}
+
+.media-pl-modal__close {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+}
+
+.media-pl-modal__close:hover {
+  color: #fff;
+  background: var(--premium-glass-bg-hover);
+}
+
+.media-pl-modal__body {
+  padding: 16px 20px 20px;
+  overflow: auto;
+  --set-fs-body: 15px;
+  --set-fs-body-sm: 14px;
+  --set-fs-caption: 13px;
+  --set-fs-micro: 12px;
+  --set-fs-btn: 14px;
+  --set-fs-input: 15px;
+  font-size: var(--set-fs-body);
+}

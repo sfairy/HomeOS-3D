@@ -1,0 +1,63 @@
+/* ---- 时钟排版 ---- */
+.ss-time-block {
+  position: relative;
+  z-index: 1;
+}
+
+.ss-time-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+}
+
+.ss-time {
+  font-size: min(
+    calc(var(--ss-time-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)),
+    calc(var(--ss-vh) * 0.34)
+  );
+  font-weight: 200;
+  line-height: 0.92;
+  letter-spacing: -0.05em;
+  font-variant-numeric: tabular-nums;
+  font-family: 'SF Pro Display', -apple-system, 'Helvetica Neue', sans-serif;
+  background: linear-gradient(180deg, #fff 0%, rgba(255,255,255,0.88) 45%, rgba(255,255,255,0.42) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.ss-time-sep {
+  font-size: min(
+    calc(var(--ss-sep-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)),
+    calc(var(--ss-vh) * 0.24)
+  );
+  font-weight: 100;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.22);
+  animation: ss-blink 1s step-end infinite;
+  margin: 0 2px;
+  transform: translateY(-0.06em);
+}
+
+@keyframes ss-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.08; }
+}
+
+.ss-sec-row {
+  margin-top: 6px;
+}
+
+.ss-sec {
+  font-size: min(
+    calc(var(--ss-sec-pct) / 100 * var(--ss-canvas-w) * var(--ss-scale)),
+    calc(var(--ss-vh) * 0.1)
+  );
+  font-weight: 100;
+  letter-spacing: 0.35em;
+  padding-left: 0.35em;
+  color: rgba(255, 255, 255, 0.22);
+  font-variant-numeric: tabular-nums;
+  font-family: 'SF Pro Display', -apple-system, sans-serif;
+}

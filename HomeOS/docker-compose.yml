@@ -1,0 +1,300 @@
+# ══════════════════════════════════════════════════════════
+#  HomeOS — 飞牛 NAS (fnOS) Docker Compose 部署
+# ══════════════════════════════════════════════════════════
+#
+#  部署步骤（飞牛 Docker → Compose → 新建项目）：
+#    1. 在存储盘建英文目录，上传 docker-compose.yml（及可选 .env）与 deploy/（Caddyfile）
+#       勿把 deploy/ensure-secrets.sh 挂成单文件：源文件缺失时 Docker 会误建成目录
+#    2. 在 Compose「环境变量」中设置 HOST_IP、HA_URL、HA_TOKEN
+#       （POSTGRES_PASSWORD / REDIS_PASSWORD 可留空：全新部署自动生成到 ./secrets/）
+#       （已有数据卷则沿用卷内口令；改 env 不会改卷内密码。请备份 ./secrets/）
+#       （HOMEOS_HARDENED 默认 1，生产拒绝演示口令）
+#    3. 启动项目 — homeos 启动时会自动创建 assets/{floorplans,backgrounds,icons,room_images,logo,sounds}、license、backups、secrets、Caddyfile
+#    可选：bash scripts/deploy.sh up --interactive 生成本地 .env
+#
+#  访问：
+#    HTTPS（推荐，支持电量采集）https://<NAS局域网IP>:8443
+#    HTTP（备用，COOKIE_SECURE=auto 时可登录）http://<NAS局域网IP>:8126
+#
+#  飞牛注意：
+#    - HOST_IP 必填（NAS 局域网 IP，如 192.168.1.100）
+#    - HA 与 HomeOS 同机时 HA_URL=http://<HOST_IP>:8123
+#    - 目录名用英文；勿复用已有目录建 Compose（面板已知 Bug）
+#    - Docker 设置中配置镜像加速可提升拉取速度
+#
+# ══════════════════════════════════════════════════════════
+
+services:
+  redis:
+    image: ${REDIS_IMAGE:-docker.m.daocloud.io/library/redis:7-alpine}
+    container_name: homeos-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+      - ./secrets:/secrets
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        mkdir -p /secrets
+        dest=/secrets/redis_password
+        if [ -n "$${REDIS_PASSWORD:-}" ]; then
+          printf '%s' "$$REDIS_PASSWORD" > "$$dest"
+        elif [ ! -s "$$dest" ]; then
+          if command -v openssl >/dev/null 2>&1; then
+            printf '%s' "$$(openssl rand -hex 16)" > "$$dest"
+          else
+            dd if=/dev/urandom bs=16 count=1 2>/dev/null | od -An -tx1 | tr -d ' \n' > "$$dest"
+          fi
+          echo "[redis] 已生成随机口令，写入宿主机 ./secrets/redis_password（请备份）"
+        fi
+        chmod 644 "$$dest" 2>/dev/null || true
+        pass=$$(cat "$$dest")
+        [ -n "$$pass" ] || { echo "[redis] 口令为空" >&2; exit 1; }
+        exec redis-server --save 60 1 --loglevel warning --maxmemory 512mb --maxmemory-policy allkeys-lru --requirepass "$$pass"
+    networks:
+      - homeos-internal
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$(cat /secrets/redis_password) redis-cli ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    mem_limit: 512m
+    cpus: 0.5
+
+  postgres:
+    image: ${POSTGRES_IMAGE:-docker.m.daocloud.io/library/postgres:16-alpine}
+    container_name: homeos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: homeos
+      POSTGRES_USER: homeos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+    # PITR：archive WAL 到独立卷；逻辑 dump 仍用 backup profile
+    # 命名卷默认 root 属主，postgres 用户无法写入；启动时放开 /wal_archive
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        mkdir -p /wal_archive /secrets
+        chown postgres:postgres /wal_archive 2>/dev/null || chmod 1777 /wal_archive
+        dest=/secrets/postgres_password
+        if [ -n "$${POSTGRES_PASSWORD:-}" ]; then
+          printf '%s' "$$POSTGRES_PASSWORD" > "$$dest"
+        elif [ -s "$$dest" ]; then
+          :
+        elif [ ! -f /var/lib/postgresql/data/PG_VERSION ]; then
+          if command -v openssl >/dev/null 2>&1; then
+            printf '%s' "$$(openssl rand -hex 16)" > "$$dest"
+          else
+            dd if=/dev/urandom bs=16 count=1 2>/dev/null | od -An -tx1 | tr -d ' \n' > "$$dest"
+          fi
+          echo "[postgres] 已生成随机口令，写入宿主机 ./secrets/postgres_password（请备份）"
+        else
+          echo "[postgres] 已有数据卷但缺少 ./secrets/postgres_password。请写入原口令或设置 POSTGRES_PASSWORD" >&2
+          exit 1
+        fi
+        chmod 644 "$$dest" 2>/dev/null || true
+        POSTGRES_PASSWORD=$$(cat "$$dest")
+        export POSTGRES_PASSWORD
+        echo "[postgres] 正在启动数据库…"
+        exec docker-entrypoint.sh postgres \
+          -c wal_level=replica \
+          -c archive_mode=on \
+          -c 'archive_command=test ! -f /wal_archive/%f && cp %p /wal_archive/%f' \
+          -c archive_timeout=300 \
+          -c wal_keep_size=256MB \
+          -c log_checkpoints=off \
+          -c log_min_messages=warning \
+          -c log_timezone=Asia/Shanghai
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - pg_wal_archive:/wal_archive
+      - ./secrets:/secrets
+    # 不映射宿主机端口：homeos 经 Docker 内网 postgres:5432 连接；避免 fnOS 等 NAS 系统自带 PostgreSQL 占用 5432
+    networks:
+      - homeos-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U homeos -d homeos"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    mem_limit: 512m
+    cpus: 0.75
+
+  homeos:
+    image: ${HOMEOS_IMAGE:-ghcr.io/sfairy/homeos:latest}
+    pull_policy: missing
+    container_name: homeos
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 8501
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD:-}@redis:6379}
+      # Prisma 7 + adapter-pg：连接池读 PRISMA_*，勿在 URL 上写 connection_limit（无效）
+      # 口令为空时由 entrypoint 从 ./secrets/* 回填
+      DATABASE_URL: ${DATABASE_URL:-postgresql://homeos:${POSTGRES_PASSWORD:-}@postgres:5432/homeos}
+      PRISMA_CONNECTION_LIMIT: ${PRISMA_CONNECTION_LIMIT:-10}
+      PRISMA_POOL_TIMEOUT: ${PRISMA_POOL_TIMEOUT:-30}
+      PRISMA_CONNECT_TIMEOUT: ${PRISMA_CONNECT_TIMEOUT:-10}
+      FLOORPLANS_DIR: /app/floorplans
+      BACKGROUNDS_DIR: /app/backgrounds
+      ICONS_DIR: /app/icons
+      ROOM_IMAGES_DIR: /app/room_images
+      LOGO_DIR: /app/logo
+      SOUNDS_DIR: /app/sounds
+      LICENSE_DIR: /app/license
+      # JWT_SECRET / GUEST_PASS_SECRET 可选；未设置时分别自动写入 data/.jwt-secret、data/.guest-pass-secret 卷
+      JWT_SECRET: ${JWT_SECRET:-}
+      # auto（强烈推荐，勿改）：HTTPS(:8443) 发 Secure Cookie，HTTP(:8126) 发非 Secure Cookie，
+      # 两端口均可登录。双协议部署下切勿设为 true，否则 HTTP(:8126) 的登录 Cookie 会被浏览器丢弃
+      # 而无法登录；设为 false 则 HTTPS 下亦不带 Secure（仅纯内网 HTTP 调试用）。详见 README。
+      COOKIE_SECURE: ${COOKIE_SECURE:-auto}
+      # 飞牛 NAS：填 NAS 局域网 IP（Linux Docker 无 host.docker.internal）
+      HOST_IP: ${HOST_IP:-}
+      HA_URL: ${HA_URL:-}
+      # 外网（可选）；局域网连续失败后自动切换
+      HA_URL_FALLBACK: ${HA_URL_FALLBACK:-}
+      HA_TOKEN: ${HA_TOKEN:-}
+      # 生产默认禁用 Mock LLM；未配置 API Key 时 Agent 返回未配置错误
+      AGENT_ALLOW_MOCK: ${AGENT_ALLOW_MOCK:-false}
+      # 商业授权：生产默认开启；开发可设 LICENSE_REQUIRED=0
+      LICENSE_REQUIRED: ${LICENSE_REQUIRED:-1}
+      LICENSE_PUBLIC_KEY: ${LICENSE_PUBLIC_KEY:-}
+      # 加固：生产拒绝过弱 / 演示默认 DB 密码
+      HOMEOS_HARDENED: ${HOMEOS_HARDENED:-1}
+      MCP_GATEWAY_ALLOW_IPS: ${MCP_GATEWAY_ALLOW_IPS:-}
+      MCP_GATEWAY_SECRET: ${MCP_GATEWAY_SECRET:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - db_data:/app/data
+      # 仅挂载部署目录，避免整仓可写
+      - ./deploy:/deploy-work/deploy
+      - ./assets:/deploy-work/assets
+      - ./license:/deploy-work/license
+      - ./backups:/deploy-work/backups
+      - ./secrets:/deploy-work/secrets
+      - ./assets/floorplans:/app/floorplans
+      - ./assets/backgrounds:/app/backgrounds
+      - ./assets/icons:/app/icons
+      - ./assets/room_images:/app/room_images
+      - ./assets/logo:/app/logo
+      - ./assets/sounds:/app/sounds
+      - ./license:/app/license
+      # 手动 JSON 备份与 backup profile 的 pg_dump 共用宿主机目录
+      - ./backups:/app/backups
+      - ./secrets:/secrets:ro
+      # 商业授权设备指纹（飞牛/Linux NAS 默认挂载）；Windows Docker Desktop 请注释本行
+      - /etc/machine-id:/etc/machine-id:ro
+    ports:
+      - "${HTTP_PORT:-8126}:8501"
+    networks:
+      - homeos-internal
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bun -e \"try{process.exit((await fetch('http://localhost:8501/health')).ok?0:1)}catch{process.exit(1)}\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    mem_limit: 1024m
+    cpus: 1.5
+
+  # 内网 HTTPS 反代（默认启用；智能充放电电量采集须走 https://）
+  caddy:
+    image: ${CADDY_IMAGE:-docker.m.daocloud.io/library/caddy:2-alpine}
+    container_name: homeos-caddy
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "[caddy] 内网 HTTPS 反代已启动（端口 8443）"
+        exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
+    ports:
+      - "${HTTPS_PORT:-8443}:8443"
+    volumes:
+      # 挂载目录而非单文件，避免源路径不存在时 Docker 误建 Caddyfile 目录
+      - ./deploy/caddy:/etc/caddy:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      homeos:
+        condition: service_healthy
+    networks:
+      - homeos-internal
+    mem_limit: 128m
+    cpus: 0.25
+
+  backup:
+    profiles: [backup]
+    image: ${POSTGRES_IMAGE:-docker.m.daocloud.io/library/postgres:16-alpine}
+    container_name: homeos-backup
+    restart: "no"
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-}
+    volumes:
+      - ./backups:/backups
+      - ./secrets:/secrets:ro
+    networks:
+      - homeos-internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        mkdir -p /backups
+        if [ -s /secrets/postgres_password ]; then
+          PGPASSWORD=$$(cat /secrets/postgres_password)
+          export PGPASSWORD
+        fi
+        pg_dump -h postgres -U homeos -d homeos -Fc -f /backups/homeos-$$(date +%Y%m%d-%H%M).dump
+        # 仅保留最近 14 份 custom-format dump（按修改时间）；无定时调度，需自行 cron 或手动 run
+        ls -1t /backups/homeos-*.dump 2>/dev/null | tail -n +15 | while read -r f; do rm -f "$$f"; done
+        echo "Backup written to ./backups on host (kept newest 14 *.dump)"
+
+  # 物理基准备份（PITR 必需；与 WAL archive 卷配合）
+  backup-base:
+    profiles: [backup]
+    image: ${POSTGRES_IMAGE:-docker.m.daocloud.io/library/postgres:16-alpine}
+    container_name: homeos-backup-base
+    restart: "no"
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-}
+    volumes:
+      - ./backups:/backups
+      - ./secrets:/secrets:ro
+      - ./scripts/pg-basebackup.sh:/pg-basebackup.sh:ro
+      - pg_wal_archive:/wal_archive
+    networks:
+      - homeos-internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ['/bin/sh', '/pg-basebackup.sh']
+
+networks:
+  homeos-internal:
+    driver: bridge
+
+volumes:
+  redis_data:
+    name: homeos-redis-data
+  db_data:
+    name: homeos-db-data
+  pg_data:
+    name: homeos-pg-data
+  pg_wal_archive:
+    name: homeos-pg-wal-archive
+  caddy_data:
+    name: homeos-caddy-data
+  caddy_config:
+    name: homeos-caddy-config

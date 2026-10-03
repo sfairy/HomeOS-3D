@@ -1,0 +1,55 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/widgets/care/MonitorPanel.vue:535; frontend/src/views/security/MonitorPanel.vue:359. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.hidden-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hidden-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scanline-overlay {
+  background:
+    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%) 0 0 / 100% 3px,
+    linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06)) 0
+      0 / 3px 100%;
+}
+.sec-carousel-select {
+  font-size: var(--premium-fs-micro);
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+}
+/* REC 录制指示器（红色，保持危险语义） */
+.sec-rec-indicator {
+  background: rgba(var(--set-danger-rgb), 0.9);
+}
+/* 侧栏缩略图选中态：跟随页面主色（rose） */
+.sec-camera-thumb--active {
+  border-color: var(--page-accent);
+  box-shadow: 0 0 0 1px rgba(var(--page-accent-rgb), 0.35);
+}
+.sec-monitor-pip {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  width: 28%;
+  max-width: 220px;
+  aspect-ratio: 16/9;
+  border-radius: var(--hos-radius-card);
+  overflow: hidden;
+  border: 2px solid rgba(var(--page-accent-rgb), 0.6);
+  z-index: 30;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.sec-monitor-pip__label {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  color: white;
+  background: rgba(var(--page-accent-rgb), 0.85);
+  padding: 2px 6px;
+  border-radius: 6px;
+}

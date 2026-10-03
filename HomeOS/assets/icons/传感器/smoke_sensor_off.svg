@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="smoke_sensor_off_body" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#e2e8f0"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+    <style>
+      .bg{fill:#f1f5f9}.dim{fill:#64748b}.hole{fill:#1e293b}.ok{fill:#22c55e}
+    </style>
+  </defs>
+  <circle cx="100" cy="100" r="87" class="bg"/>
+  <ellipse cx="100" cy="58" fill="#cbd5e1" rx="40" ry="10"/>
+  <ellipse cx="100" cy="84" fill="url(#smoke_sensor_off_body)" rx="52" ry="36"/>
+  <ellipse cx="100" cy="78" class="dim" rx="36" ry="22"/>
+  <ellipse cx="86" cy="72" fill="#e2e8f0" opacity=".6" rx="12" ry="6"/>
+  <circle cx="100" cy="84" r="14" class="hole"/>
+  <circle cx="100" cy="84" r="6" class="ok"/>
+  <circle cx="130" cy="96" r="5" class="dim"/>
+  <circle cx="100" cy="100" r="87" fill="none" stroke="#0f172a" stroke-opacity=".1" stroke-width="2.5"/>
+</svg>

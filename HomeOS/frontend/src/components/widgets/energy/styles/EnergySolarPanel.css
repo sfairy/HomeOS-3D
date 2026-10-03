@@ -1,0 +1,267 @@
+.energy-solar {
+  font-size: var(--premium-fs-caption);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
+}
+.energy-solar__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.energy-solar__head--embedded {
+  padding: 8px 10px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.energy-solar__label {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--hos-text-secondary);
+}
+.energy-solar__refresh {
+  font-size: var(--premium-fs-caption);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: inherit;
+}
+
+/* 发电-用电-充电三流卡片 */
+.energy-solar__flows {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.energy-solar__flow {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 11px;
+  border-radius: var(--hos-radius-card);
+  border: 1px solid var(--premium-border);
+  background: rgba(255, 255, 255, 0.02);
+  min-width: 0;
+}
+.energy-solar__flow--gen {
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(52, 211, 153, 0.12), transparent 55%),
+    rgba(255, 255, 255, 0.02);
+}
+.energy-solar__flow--use {
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(251, 191, 36, 0.1), transparent 55%),
+    rgba(255, 255, 255, 0.02);
+}
+.energy-solar__flow--charge {
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(56, 189, 248, 0.1), transparent 55%),
+    rgba(255, 255, 255, 0.02);
+}
+.energy-solar__flow-icon {
+  color: rgba(255, 255, 255, 0.55);
+  display: inline-flex;
+}
+.energy-solar__flow--gen .energy-solar__flow-icon {
+  color: #34d399;
+}
+.energy-solar__flow--use .energy-solar__flow-icon {
+  color: #fbbf24;
+}
+.energy-solar__flow--charge .energy-solar__flow-icon {
+  color: #38bdf8;
+}
+.energy-solar__flow-label {
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--hos-text-secondary);
+}
+.energy-solar__flow-main {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.energy-solar__flow-val {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: rgba(255, 255, 255, 0.92);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.energy-solar__flow-unit {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+}
+.energy-solar__flow-sub {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* SOC + 自消纳率 */
+.energy-solar__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.energy-solar__meta-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 11px;
+  border-radius: var(--hos-radius-card);
+  border: 1px solid var(--premium-border);
+  background: rgba(255, 255, 255, 0.02);
+}
+.energy-solar__meta-label {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+}
+.energy-solar__meta-val {
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+/* 储能峰谷调度状态条 */
+.energy-solar__dispatch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  border-radius: var(--hos-radius-card);
+  border: 1px solid var(--premium-border);
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(56, 189, 248, 0.08), transparent 55%),
+    rgba(255, 255, 255, 0.02);
+}
+.energy-solar__dispatch-badge {
+  flex-shrink: 0;
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--hos-radius-pill);
+  line-height: 1;
+}
+.energy-solar__dispatch-badge--peak {
+  background: rgba(251, 191, 36, 0.18);
+  color: #fbbf24;
+}
+.energy-solar__dispatch-badge--valley {
+  background: rgba(52, 211, 153, 0.18);
+  color: #34d399;
+}
+.energy-solar__dispatch-badge--flat {
+  background: rgba(148, 163, 184, 0.18);
+  color: #94a3b8;
+}
+.energy-solar__dispatch-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--premium-fs-micro);
+  color: rgba(255, 255, 255, 0.55);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.energy-solar__dispatch-run {
+  flex-shrink: 0;
+  font-size: var(--premium-fs-micro);
+  padding: 3px 8px;
+  border-radius: var(--hos-radius-pill);
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  background: rgba(52, 211, 153, 0.12);
+  color: #6ee7b7;
+  cursor: pointer;
+}
+.energy-solar__dispatch-run:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.energy-solar__dispatch-error {
+  margin: 0;
+  font-size: var(--premium-fs-micro);
+  color: #fda4af;
+}
+.energy-solar__dispatch-cd {
+  flex-shrink: 0;
+  font-size: var(--premium-fs-micro);
+  padding: 2px 7px;
+  border-radius: var(--hos-radius-pill);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: var(--hos-text-secondary);
+  cursor: default;
+}
+
+/* 趋势图 */
+.energy-solar__chart-block {
+  padding: 10px 11px;
+  border-radius: var(--hos-radius-card);
+  border: 1px solid var(--premium-border);
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(52, 211, 153, 0.07), transparent 55%),
+    rgba(255, 255, 255, 0.02);
+}
+.energy-solar__chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.energy-solar__chart-head h4 {
+  margin: 0;
+  font-size: var(--premium-fs-caption);
+  color: var(--hos-text-secondary);
+}
+.energy-solar__seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18);
+}
+.energy-solar__seg-btn {
+  font-size: var(--premium-fs-micro);
+  line-height: 1;
+  padding: 4px 9px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--hos-text-secondary);
+  cursor: pointer;
+}
+.energy-solar__seg-btn--on {
+  background: rgba(52, 211, 153, 0.16);
+  color: #34d399;
+  font-weight: 700;
+}
+.energy-solar__chart {
+  width: 100%;
+  height: 148px;
+  min-height: 148px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(0, 0, 0, 0.14);
+}
+
+@media (max-width: 480px) {
+  .energy-solar__flows {
+    grid-template-columns: 1fr;
+  }
+  .energy-solar__meta {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,134 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/views/settings/shared/system-config/SystemConfigActionsBar.vue:124. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.config-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.config-actions__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: min(100%, 18rem);
+}
+
+.config-actions__tools {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.config-actions__group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.config-actions__divider {
+  width: 1px;
+  height: 22px;
+  background: var(--premium-glass-bg-hover);
+  margin: 0 2px;
+}
+
+.config-actions__tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: min(100%, 28rem);
+  padding: 5px 11px;
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.config-actions__tip--ok {
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.1);
+  border: var(--hos-hairline) solid rgba(52, 211, 153, 0.22);
+}
+
+.config-actions__tip--err {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.1);
+  border: var(--hos-hairline) solid rgba(248, 113, 113, 0.22);
+}
+
+.config-actions__conflict-reload {
+  margin-left: 4px;
+  padding: 2px 8px;
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  color: #fca5a5;
+  background: rgba(248, 113, 113, 0.18);
+  border: var(--hos-hairline) solid rgba(248, 113, 113, 0.35);
+  flex-shrink: 0;
+}
+
+.config-actions__conflict-reload:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.28);
+}
+
+.config-actions__conflict-reload:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.config-actions__pending {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  color: var(--set-warn, #fbbf24);
+  background: rgba(251, 191, 36, 0.12);
+  border: var(--hos-hairline) solid rgba(251, 191, 36, 0.28);
+}
+
+.config-actions__save {
+  min-height: 36px;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+@media (max-width: 639px) {
+  .config-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .config-actions__status {
+    max-width: 100%;
+  }
+
+  .config-actions__tools {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+/* 与 SettingsPageShell mobile-save（≤1024px）分工，避免双重保存栏 */
+@media (max-width: 1024px) {
+  .config-actions__pending-block {
+    display: none !important;
+  }
+}

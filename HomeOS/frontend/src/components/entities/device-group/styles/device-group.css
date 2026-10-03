@@ -1,0 +1,24 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/entities/device-group/DeviceGroupMemberList.vue:484; frontend/src/components/entities/device-group/DeviceGroupModal.vue:307. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+/* 设备组面板共用样式 */
+
+/* —— DeviceGroupModal —— */
+.dgm-empty-ok-icon {
+  color: var(--set-success, rgba(52, 211, 153, 0.6));
+}
+.dgm-empty-ok-title {
+  color: var(--set-success, rgba(52, 211, 153, 0.9));
+}
+.dgm-domain-default {
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.7));
+}
+
+/* —— DeviceGroupMemberList —— */
+.dgm-chip-inactive {
+  color: var(--set-text-tertiary);
+}
+.dgm-member-name {
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.7));
+}
+.dgm-member-state {
+  color: var(--set-text-tertiary);
+}

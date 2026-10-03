@@ -1,0 +1,141 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/widgets/energy/AnalyticsWidget.vue:423. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.energy-analytics {
+  font-size: var(--premium-fs-caption);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
+}
+.energy-analytics__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.energy-analytics__head--embedded {
+  padding: 8px 10px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.energy-analytics__label {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--hos-text-secondary);
+}
+.energy-analytics__head h3 {
+  margin: 0;
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+}
+.energy-analytics__refresh {
+  font-size: var(--premium-fs-caption);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: inherit;
+}
+.energy-analytics__stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(120px, 0.85fr);
+  gap: 8px;
+  align-items: stretch;
+}
+
+.energy-analytics__rail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.energy-analytics__block--chart {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.energy-analytics__block--chart .energy-analytics__chart {
+  flex: 1;
+  min-height: 132px;
+}
+
+@media (max-width: 480px) {
+  .energy-analytics__stage {
+    grid-template-columns: 1fr;
+  }
+}
+
+.energy-analytics__block {
+  padding: 10px 11px;
+  border-radius: var(--hos-radius-card);
+  border: 1px solid var(--premium-border);
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(251, 191, 36, 0.07), transparent 55%),
+    rgba(255, 255, 255, 0.02);
+}
+.energy-analytics__block h4 {
+  margin: 0 0 6px;
+  font-size: var(--premium-fs-caption);
+  color: var(--hos-text-secondary);
+}
+
+.energy-analytics__chart {
+  width: 100%;
+  height: 148px;
+  min-height: 148px;
+  margin-top: 6px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(0, 0, 0, 0.14);
+}
+.energy-analytics__list {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.energy-analytics__list li {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  min-width: 0;
+}
+
+.energy-analytics__list li > span:nth-child(2) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.energy-analytics__rank {
+  color: #fbbf24;
+  font-weight: 600;
+}
+.energy-analytics__muted {
+  color: var(--hos-text-secondary);
+  margin-left: auto;
+}
+
+.energy-analytics__ha-badge {
+  margin: 0;
+  align-self: flex-start;
+  padding: 3px 8px;
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(125, 211, 252, 0.95);
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+}

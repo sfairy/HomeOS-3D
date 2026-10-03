@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="gs_on_t" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#64748b"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="gs_on_fl" x1="50%" x2="50%" y1="100%" y2="0%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="55%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#ef4444"/>
+    </linearGradient>
+    <filter id="gs_glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <style>
+      @keyframes gs_fl{
+        0%{opacity:.7;transform:scaleX(.92) scaleY(.88)}
+        18%{opacity:1;transform:scaleX(1.08) scaleY(1.16)}
+        36%{opacity:.82;transform:scaleX(.96) scaleY(1.02)}
+        54%{opacity:1;transform:scaleX(1.12) scaleY(1.2)}
+        72%{opacity:.78;transform:scaleX(.94) scaleY(.95)}
+        to{opacity:.7;transform:scaleX(.92) scaleY(.88)}
+      }
+      @keyframes gs_core{
+        0%,to{opacity:.55;transform:scale(.9)}
+        40%{opacity:1;transform:scale(1.15)}
+        70%{opacity:.7;transform:scale(1)}
+      }
+      @keyframes gs_led{0%,to{opacity:.72}50%{opacity:1}}
+      .gs_fl1{animation:gs_fl .7s ease-in-out infinite;transform-origin:74px 96px}
+      .gs_fl2{animation:gs_fl .7s ease-in-out infinite;animation-delay:.18s;transform-origin:126px 96px}
+      .gs_c1{animation:gs_core .55s ease-in-out infinite;transform-origin:74px 94px}
+      .gs_c2{animation:gs_core .55s ease-in-out infinite;animation-delay:.12s;transform-origin:126px 94px}
+      .gs_led{animation:gs_led 2.4s ease-in-out infinite}
+    </style>
+  </defs>
+  <ellipse cx="100" cy="176" fill="#64748b" opacity=".4" rx="72" ry="9"/>
+  <rect width="140" height="108" x="30" y="44" fill="url(#gs_on_t)" rx="12"/>
+  <ellipse cx="70" cy="54" fill="#94a3b8" opacity=".35" rx="20" ry="4"/>
+  <rect width="124" height="64" x="38" y="58" fill="#0f172a" rx="8"/>
+  <circle cx="74" cy="90" r="26" fill="#020617"/>
+  <circle cx="74" cy="90" r="18" fill="none" stroke="#64748b" stroke-width="3"/>
+  <path fill="none" stroke="#64748b" stroke-width="3" stroke-linecap="round" d="M74 72v36M56 90h36"/>
+  <g filter="url(#gs_glow)">
+    <g class="gs_fl1">
+      <path fill="url(#gs_on_fl)" d="M74 74c-7 9-7 16 0 24 7-8 7-15 0-24"/>
+    </g>
+    <g class="gs_c1">
+      <path fill="#fde68a" d="M74 82c-3.5 5-3.5 10 0 14 3.5-4 3.5-9 0-14"/>
+    </g>
+  </g>
+  <circle cx="126" cy="90" r="26" fill="#020617"/>
+  <circle cx="126" cy="90" r="18" fill="none" stroke="#64748b" stroke-width="3"/>
+  <path fill="none" stroke="#64748b" stroke-width="3" stroke-linecap="round" d="M126 72v36M108 90h36"/>
+  <g filter="url(#gs_glow)">
+    <g class="gs_fl2">
+      <path fill="url(#gs_on_fl)" d="M126 74c-7 9-7 16 0 24 7-8 7-15 0-24"/>
+    </g>
+    <g class="gs_c2">
+      <path fill="#fde68a" d="M126 82c-3.5 5-3.5 10 0 14 3.5-4 3.5-9 0-14"/>
+    </g>
+  </g>
+  <rect width="124" height="22" x="38" y="126" fill="#1e293b" rx="6"/>
+  <circle cx="64" cy="137" r="7" fill="#e2e8f0"/>
+  <circle cx="100" cy="137" r="7" fill="#e2e8f0"/>
+  <circle cx="136" cy="137" r="7" fill="#e2e8f0"/>
+  <rect width="2.5" height="6" x="62.75" y="132" fill="#ef4444" rx="1"/>
+  <rect width="2.5" height="6" x="134.75" y="132" fill="#ef4444" rx="1"/>
+  <circle cx="152" cy="56" r="3.5" fill="#22c55e" class="gs_led"/>
+</svg>

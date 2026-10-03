@@ -1,0 +1,232 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/orchestrator/BuilderExecHistory.vue:183. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+/* 从 BuilderExecHistory.vue 抽出 */
+.beh-block {
+  flex-shrink: 0;
+  border-bottom: var(--hos-hairline) solid var(--premium-border);
+  font-size: var(--premium-fs-body);
+  color: var(--hos-text-secondary);
+}
+
+.wr-side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 16px 6px;
+  font-size: var(--premium-fs-body);
+  font-weight: 700;
+  color: rgba(129, 140, 248, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.wr-side-head__toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.wr-side-head__toggle:hover {
+  color: rgba(165, 180, 252, 0.95);
+}
+
+.wr-side-head__title--static {
+  flex: 1;
+  min-width: 0;
+}
+
+.wr-side-head__chev {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  opacity: 0.55;
+  transition: transform 0.15s;
+}
+
+.wr-side-head__chev--open {
+  transform: rotate(180deg);
+}
+
+.wr-side-head__summary {
+  color: var(--hos-text-secondary);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wr-side-copy {
+  flex-shrink: 0;
+  font-size: var(--premium-fs-body-sm);
+  font-weight: 600;
+  color: var(--hos-text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.wr-side-copy:hover {
+  color: rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.wr-exec-list {
+  flex-shrink: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 6px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.wr-exec-list--compact {
+  max-height: 140px;
+}
+
+.wr-exec-list--flow {
+  max-height: none;
+  overflow: visible;
+}
+
+.beh-block--flow {
+  border-bottom: none;
+}
+
+.beh-block--collapsed .wr-side-head {
+  padding-bottom: 10px;
+}
+
+.wr-exec-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 12px;
+  text-align: center;
+  font-size: var(--premium-fs-caption);
+  color: var(--hos-text-secondary);
+}
+
+.wr-exec-state--empty {
+  border-radius: var(--hos-radius-card);
+  background: rgba(0, 0, 0, 0.15);
+  border: var(--hos-hairline) dashed rgba(129, 140, 248, 0.18);
+}
+
+.wr-exec-state__icon {
+  width: 22px;
+  height: 22px;
+  color: rgba(129, 140, 248, 0.4);
+}
+
+.wr-exec-state__title {
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  color: var(--hos-text-secondary);
+}
+
+.wr-exec-state__desc {
+  font-size: var(--premium-fs-micro);
+  line-height: 1.45;
+  color: var(--hos-text-secondary);
+  max-width: 200px;
+}
+
+.wr-exec-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(0, 0, 0, 0.16);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
+}
+
+.wr-exec-card--ok {
+  border-color: rgba(52, 211, 153, 0.12);
+}
+
+.wr-exec-card--fail {
+  border-color: rgba(248, 113, 113, 0.14);
+}
+
+.wr-exec-card__status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  font-size: var(--premium-fs-micro);
+  font-weight: 800;
+}
+
+.wr-exec-card__status--ok {
+  color: #6ee7b7;
+  background: rgba(52, 211, 153, 0.1);
+}
+
+.wr-exec-card__status--fail {
+  color: #fca5a5;
+  background: rgba(248, 113, 113, 0.1);
+}
+
+.wr-exec-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.wr-exec-card__name {
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.72);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.35;
+}
+
+.wr-exec-card__meta {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+  line-height: 1.3;
+}
+
+.wr-exec-card__trigger {
+  font-size: var(--premium-fs-micro);
+  color: rgba(129, 140, 248, 0.7);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wr-exec-card__detail {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,0 +1,59 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/views/settings/connect/bindings/SettingsBindingsWeatherSection.vue:109. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.weather-bind-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
+  border-radius: var(--hos-radius-card);
+  background: rgba(0, 0, 0, 0.18);
+  border: var(--hos-hairline) dashed rgba(255, 255, 255, 0.12);
+}
+
+.weather-bind-status--bound {
+  background: linear-gradient(135deg, var(--page-accent-bg) 0%, rgba(0, 0, 0, 0.18) 100%);
+  border: var(--hos-hairline) solid var(--page-accent-border);
+}
+
+.weather-bind-status__icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  color: var(--hos-text-secondary);
+  transition: color 0.2s ease;
+}
+
+.weather-bind-status--bound .weather-bind-status__icon {
+  color: var(--page-accent-text);
+}
+
+.weather-bind-status__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.weather-bind-status__title {
+  font-size: var(--premium-fs-body-sm, 13px);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.weather-bind-status__entity {
+  font-size: var(--premium-fs-micro);
+  font-family: ui-monospace, monospace;
+  color: var(--hos-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.weather-bind-intro__icon {
+  color: var(--page-accent);
+}
+
+.weather-bind-intro__orb {
+  background: var(--page-accent-bg);
+  border: var(--hos-hairline) solid var(--page-accent-border);
+}

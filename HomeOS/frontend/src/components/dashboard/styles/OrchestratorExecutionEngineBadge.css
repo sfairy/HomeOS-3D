@@ -1,0 +1,51 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/dashboard/OrchestratorExecutionEngineBadge.vue:49. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.wr-exec-engine {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: var(--premium-fs-micro);
+  line-height: 1.3;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.wr-exec-engine--local {
+  background: rgba(16, 185, 129, 0.06);
+  border: var(--hos-hairline) solid rgba(16, 185, 129, 0.22);
+}
+.wr-exec-engine--ha {
+  background: rgba(245, 158, 11, 0.06);
+  border: var(--hos-hairline) solid rgba(245, 158, 11, 0.28);
+}
+.wr-exec-engine__badge {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--premium-text-primary, #e5e7eb);
+}
+.wr-exec-engine--local .wr-exec-engine__badge {
+  color: #6ee7b7;
+}
+.wr-exec-engine--ha .wr-exec-engine__badge {
+  color: #fcd34d;
+}
+.wr-exec-engine__reasons {
+  flex: 1 1 100%;
+  margin: 0;
+  padding-left: 16px;
+  color: #9ca3af;
+  list-style: disc;
+}
+.wr-exec-engine__switch {
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgb(245 158 11 / 0.15);
+  border: 1px solid rgb(245 158 11 / 0.35);
+  color: #fcd34d;
+  font-size: var(--premium-fs-micro);
+  cursor: pointer;
+}
+.wr-exec-engine__switch:hover {
+  background: rgb(245 158 11 / 0.25);
+}

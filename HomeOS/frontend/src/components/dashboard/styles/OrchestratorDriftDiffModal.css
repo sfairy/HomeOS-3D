@@ -1,0 +1,59 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/dashboard/OrchestratorDriftDiffModal.vue:93. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.orch-drift-modal {
+  max-width: min(960px, calc(96vw / var(--hos-scale, 1)));
+}
+.orch-drift-modal__stats {
+  margin-left: 8px;
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+}
+.orch-drift-modal__panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  max-height: calc(42vh / var(--hos-scale, 1));
+  overflow: hidden;
+}
+@media (max-width: 639px) {
+  .orch-drift-modal__panes {
+    grid-template-columns: 1fr;
+    max-height: calc(50vh / var(--hos-scale, 1));
+  }
+}
+.orch-drift-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--premium-border-strong);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.orch-drift-pane header {
+  padding: 6px 10px;
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  color: var(--hos-text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--premium-border);
+}
+.orch-drift-pre {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: var(--premium-fs-micro);
+  line-height: 1.45;
+  overflow: auto;
+  flex: 1;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(0, 0, 0, 0.25);
+}
+.orch-drift-pre--diff {
+  max-height: 120px;
+  margin-top: 6px;
+}
+.orch-drift-modal__diff {
+  margin-top: 10px;
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+}

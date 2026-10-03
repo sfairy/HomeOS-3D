@@ -1,0 +1,45 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/widgets/orchestrator/QuickSimpleAutomationPanel.vue:122. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.qsa-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
+  font-size: var(--premium-fs-caption);
+}
+.qsa-panel--embedded {
+  padding: 0;
+}
+.qsa-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.qsa-panel__head h3 {
+  margin: 0;
+  flex: 1;
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.qsa-panel__desc {
+  margin: 0;
+  line-height: 1.5;
+  color: var(--hos-text-secondary);
+  font-size: var(--premium-fs-micro);
+}
+.qsa-panel__btn {
+  align-self: flex-start;
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--hos-radius-pill);
+  border: var(--hos-hairline) solid rgba(56, 189, 248, 0.35);
+  background: rgba(56, 189, 248, 0.12);
+  color: #7dd3fc;
+  cursor: pointer;
+}
+
+.qsa-icon {
+  color: var(--set-info, #38bdf8);
+}

@@ -1,0 +1,43 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/widgets/CustomHtmlWidget.vue:241. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+/* 从 CustomHtmlWidget.vue 抽出 */
+.custom-html-widget {
+  min-height: 40px;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.custom-html-widget > div {
+  height: 100%;
+  min-height: 0;
+  overflow: visible;
+}
+
+.chwt-error-bg {
+  background: rgba(239, 68, 68, 0.1);
+}
+.chwt-role-notice {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(245, 158, 11, 0.1);
+  border: var(--hos-hairline) solid rgba(245, 158, 11, 0.28);
+}
+.chwt-role-notice__text {
+  margin: 0;
+  font-size: var(--premium-fs-micro);
+  line-height: 1.45;
+  color: rgba(253, 230, 138, 0.95);
+}
+.chwt-error-border {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+.chwt-error-title {
+  color: var(--set-danger, #f87171);
+}
+.chwt-error-text {
+  color: var(--set-danger, #fca5a5);
+}
+.chwt-default-empty {
+  color: var(--set-text-tertiary);
+}

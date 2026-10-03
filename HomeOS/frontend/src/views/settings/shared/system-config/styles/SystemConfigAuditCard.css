@@ -1,0 +1,57 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/views/settings/shared/system-config/SystemConfigAuditCard.vue:66. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.config-audit__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.config-audit__title {
+  font-size: var(--premium-fs-body-sm);
+  font-weight: 700;
+  color: #fff;
+}
+.config-audit__meta {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+}
+.config-audit__list {
+  max-height: 12rem;
+  overflow-y: auto;
+}
+.config-audit__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: var(--premium-fs-caption);
+  padding: 8px 0;
+  border-bottom: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
+}
+.config-audit__row:last-child {
+  border-bottom: none;
+}
+.config-audit__time {
+  flex-shrink: 0;
+  font-family: ui-monospace, monospace;
+  color: var(--hos-text-secondary);
+}
+.config-audit__badge {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.2);
+}
+.config-audit__badge--reset {
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.2);
+}
+.config-audit__body {
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.75);
+}
+.config-audit__section {
+  color: var(--hos-text-secondary);
+}

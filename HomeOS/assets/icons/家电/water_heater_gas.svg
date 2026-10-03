@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="whp_gas_b" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#fff"/>
+      <stop offset="100%" stop-color="#fed7aa"/>
+    </linearGradient>
+    <linearGradient id="whp_gas_fl" x1="50%" x2="50%" y1="100%" y2="0%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="55%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#ef4444"/>
+    </linearGradient>
+    <filter id="whp_gas_glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2.4" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <style>
+      @keyframes whp_gas_fl{
+        0%{opacity:.65;transform:scaleX(.88) scaleY(.8)}
+        20%{opacity:1;transform:scaleX(1.12) scaleY(1.22)}
+        40%{opacity:.78;transform:scaleX(.94) scaleY(.98)}
+        65%{opacity:1;transform:scaleX(1.08) scaleY(1.16)}
+        to{opacity:.65;transform:scaleX(.88) scaleY(.8)}
+      }
+      @keyframes whp_gas_core{
+        0%,to{opacity:.45;transform:scale(.82)}
+        40%{opacity:1;transform:scale(1.22)}
+        70%{opacity:.7;transform:scale(1)}
+      }
+      @keyframes whp_gas_side{
+        0%,to{opacity:.4;transform:scaleY(.75)}
+        50%{opacity:.95;transform:scaleY(1.15)}
+      }
+      @keyframes whp_gas_led{0%,to{opacity:.7}50%{opacity:1}}
+      @keyframes whp_gas_disp{0%,to{opacity:.6}50%{opacity:1}}
+      .whp_gas_fl{animation:whp_gas_fl .68s ease-in-out infinite;transform-origin:100px 134px}
+      .whp_gas_core{animation:whp_gas_core .48s ease-in-out infinite;transform-origin:100px 132px}
+      .whp_gas_sl{animation:whp_gas_side .72s ease-in-out infinite;transform-origin:90px 134px}
+      .whp_gas_sr{animation:whp_gas_side .72s ease-in-out infinite;animation-delay:.15s;transform-origin:110px 134px}
+      .whp_gas_led{animation:whp_gas_led 2.2s ease-in-out infinite}
+      .whp_gas_disp{animation:whp_gas_disp 2s ease-in-out infinite}
+    </style>
+  </defs>
+  <ellipse cx="100" cy="176" fill="#fdba74" opacity=".45" rx="54" ry="8"/>
+  <ellipse cx="100" cy="32" fill="#fb923c" rx="42" ry="9"/>
+  <rect width="28" height="14" x="86" y="20" fill="#f97316" rx="4"/>
+  <rect width="96" height="122" x="52" y="32" fill="url(#whp_gas_b)" rx="16"/>
+  <ellipse cx="72" cy="50" fill="#fff" opacity=".8" rx="14" ry="5"/>
+  <rect width="64" height="28" x="68" y="52" fill="#9a3412" rx="6"/>
+  <rect width="42" height="15" x="72" y="58" fill="#fdba74" class="whp_gas_disp" rx="3"/>
+  <circle cx="124" cy="66" r="4" fill="#22c55e" class="whp_gas_led"/>
+  <circle cx="78" cy="100" r="13" fill="#c2410c"/>
+  <circle cx="78" cy="100" r="6" fill="#ffedd5"/>
+  <circle cx="122" cy="100" r="12" fill="#c2410c"/>
+  <rect width="4" height="11" x="120" y="91" fill="#ffedd5" rx="1"/>
+  <rect width="52" height="24" x="74" y="118" fill="#7c2d12" rx="5"/>
+  <g filter="url(#whp_gas_glow)">
+    <path fill="#f97316" class="whp_gas_sl" d="M90 126c-4 6-4 12 0 16 4-4 4-10 0-16" opacity=".85"/>
+    <path fill="#f97316" class="whp_gas_sr" d="M110 126c-4 6-4 12 0 16 4-4 4-10 0-16" opacity=".85"/>
+    <g class="whp_gas_fl">
+      <path fill="url(#whp_gas_fl)" d="M100 120c-8 8-8 16 0 22 8-6 8-14 0-22"/>
+    </g>
+    <g class="whp_gas_core">
+      <path fill="#fde68a" d="M100 128c-4 5-4 10 0 13 4-3 4-8 0-13"/>
+    </g>
+  </g>
+  <rect width="16" height="14" x="64" y="152" fill="#fda4af" rx="3"/>
+  <rect width="16" height="14" x="120" y="152" fill="#7dd3fc" rx="3"/>
+</svg>

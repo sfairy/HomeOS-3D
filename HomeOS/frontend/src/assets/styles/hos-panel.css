@@ -1,0 +1,149 @@
+/**
+ * HomeOS 统一面板基元
+ * 合并 ios-card / settings-card / list-page panel / sec-dash / widget-glass
+ */
+
+/* ── 基础面板 ── */
+.hos-panel {
+  position: relative;
+  overflow: visible;
+  border: var(--hos-hairline) solid var(--hos-border-subtle);
+  border-radius: var(--hos-radius-panel);
+  background: var(--hos-surface-panel);
+  box-shadow: var(--hos-shadow-card), var(--hos-surface-inset);
+  transition:
+    transform var(--hos-transition-panel),
+    box-shadow var(--hos-transition-panel),
+    border-color var(--hos-transition-panel),
+    background var(--hos-transition-panel);
+}
+
+.hos-panel--glass {
+  background:
+    radial-gradient(
+      ellipse 100% 80% at 0% 0%,
+      color-mix(in srgb, var(--head-accent, var(--accent, #0a84ff)) 10%, #0a0c12) 0%,
+      rgba(0, 0, 0, 0) 55%
+    ),
+    var(--page-card-tint-soft),
+    var(--hos-surface-panel);
+  -webkit-backdrop-filter: var(--premium-blur, blur(24px) saturate(180%));
+  backdrop-filter: var(--premium-blur, blur(24px) saturate(180%));
+  box-shadow: var(--hos-shadow-panel), var(--hos-surface-inset);
+}
+
+@media (pointer: coarse), (hover: none), (max-width: 900px) {
+  .hos-panel--glass {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* ── 变体 ── */
+.hos-panel--hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--hos-space-md) var(--hos-space-lg);
+  padding: var(--hos-panel-padding-hero-y) var(--hos-panel-padding-hero-x);
+  border-radius: var(--hos-radius-card);
+}
+
+.hos-panel--default {
+  padding: var(--hos-panel-padding-default);
+  gap: var(--hos-panel-gap-default);
+  display: flex;
+  flex-direction: column;
+}
+
+.hos-panel--compact {
+  padding: var(--hos-panel-padding-compact-y) var(--hos-panel-padding-compact-x);
+  gap: var(--hos-panel-gap-compact);
+  border-radius: var(--hos-radius-card);
+}
+
+.hos-panel--flat {
+  padding: 0;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.hos-panel--nested {
+  padding: var(--hos-panel-padding-nested-y) var(--hos-panel-padding-nested-x);
+  gap: var(--hos-panel-gap-nested);
+  border-radius: var(--hos-radius-card);
+  background: var(--hos-surface-well);
+  border-color: var(--hos-surface-well-border);
+  box-shadow: var(--hos-surface-well-inset);
+}
+
+/* ── 交互（仅显式 interactive，避免 static/hero/default 误抬升） ── */
+.hos-panel--interactive:hover {
+  border-color: var(--hos-border-strong);
+  background: var(--hos-surface-panel-hover);
+  box-shadow: var(--hos-shadow-card-hover), var(--hos-surface-inset);
+  transform: translateY(var(--hos-hover-lift));
+}
+
+/* ── 映射现有类名 ── */
+.ios-card {
+  border-radius: var(--hos-radius-panel);
+  box-shadow: var(--hos-shadow-card);
+  transition:
+    transform var(--hos-transition-panel),
+    box-shadow var(--hos-transition-panel),
+    border-color var(--hos-transition-panel);
+}
+
+.ios-card:hover {
+  transform: translateY(var(--hos-hover-lift));
+  box-shadow: var(--hos-shadow-card-hover);
+}
+
+.premium-head--card {
+  padding: var(--hos-panel-padding-hero-y) var(--hos-panel-padding-hero-x);
+  border-radius: var(--hos-radius-card);
+  gap: var(--hos-space-md) var(--hos-space-lg);
+}
+
+.list-page__panel.premium-glass-surface--panel,
+.premium-glass-surface--panel {
+  padding: var(--hos-panel-padding-default);
+  border-radius: var(--hos-radius-panel);
+  gap: var(--hos-panel-gap-default);
+}
+
+/* .widget-glass-card 基础样式单源收敛至 widget-glass.css */
+
+.settings-card:not(.settings-card--flat):not(.settings-card--nested) {
+  /* 圆角由 hos-panel / settings-layout 统一；勿在此重复叠 padding */
+  border-radius: var(--hos-radius-panel);
+}
+
+/* padding 仅由 SettingsCard 的 hos-panel 变体或下方显式规则提供一层 */
+.settings-card--static:not(.settings-card--popout):not(.params-panel-card) {
+  padding: var(--hos-panel-padding-default);
+}
+
+.settings-card:not(.settings-card--static):not(.settings-card--flat):not(.settings-card--nested) {
+  padding: var(--hos-panel-padding-default);
+}
+
+.settings-card--nested {
+  padding: var(--hos-panel-padding-nested-y) var(--hos-panel-padding-nested-x);
+  border-radius: var(--hos-radius-card);
+}
+
+.sec-dash-panel {
+  border-radius: var(--hos-radius-panel);
+  border-color: var(--hos-border-subtle);
+  background: var(--hos-surface-panel);
+  box-shadow: var(--hos-shadow-card), var(--hos-surface-inset);
+}
+
+.sec-dash-panel-head {
+  padding: var(--hos-space-md) var(--hos-panel-padding-compact-x);
+  gap: var(--hos-space-md);
+}

@@ -1,0 +1,206 @@
+/**
+ * Widget Hub 面板共享主题（侧栏 / 浮动组件）
+ * Tab 风格对齐 settings-hub-subnav，使用 premium token。
+ * 顶栏默认：标题在左、Tab 外框自适应并靠右（单行）。
+ */
+.widget-hub-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  font-size: var(--premium-fs-caption);
+}
+
+.widget-hub-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hos-space-sm, 8px);
+  flex-shrink: 0;
+  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px) 8px;
+  border-bottom: none;
+}
+
+.widget-hub-head--tabs-only {
+  justify-content: flex-end;
+}
+
+.widget-hub-head--stacked {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.widget-hub-head--stacked .widget-hub-subnav {
+  width: 100%;
+  max-width: 100%;
+  align-self: stretch;
+}
+
+/* 开关控制 Hub：单行头时 Tab 自适应靠右（不再用 stacked 双行） */
+.sc-hub.widget-hub-root .widget-hub-subnav {
+  margin-left: auto;
+}
+
+.sc-hub.widget-hub-root .widget-hub-subnav__btn {
+  flex: 0 0 auto;
+}
+
+.widget-hub-head__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.widget-hub-head__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.widget-hub-head__title {
+  margin: 0;
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-primary, rgba(255, 255, 255, 0.9));
+}
+
+.widget-hub-head__meta {
+  font-size: var(--premium-fs-micro);
+  color: var(--text-tertiary, rgba(255, 255, 255, 0.35));
+}
+
+.widget-hub-subnav {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 3px;
+  padding: 3px;
+  width: fit-content;
+  max-width: min(68%, 100%);
+  box-sizing: border-box;
+  border-radius: var(--acc-radius, 14px);
+  background: var(--premium-glass-bg);
+  border: var(--hos-hairline) solid var(--premium-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+
+.widget-hub-head--tabs-only .widget-hub-subnav {
+  max-width: 100%;
+}
+
+.widget-hub-subnav::-webkit-scrollbar {
+  display: none;
+}
+
+.widget-hub-subnav__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
+  border-radius: 8px;
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+  color: var(--text-tertiary, rgba(255, 255, 255, 0.35));
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.widget-hub-subnav__btn:hover {
+  color: var(--text-secondary, rgba(255, 255, 255, 0.6));
+  background: var(--premium-glass-bg-hover);
+}
+
+.widget-hub-subnav__btn--active {
+  color: color-mix(in srgb, var(--hub-accent, var(--premium-accent-blue)) 70%, white);
+  background: color-mix(in srgb, var(--hub-accent, var(--premium-accent-blue)) 14%, rgba(0, 0, 0, 0));
+  box-shadow: inset 0 0 0 var(--hos-hairline) color-mix(in srgb, var(--hub-accent, var(--premium-accent-blue)) 30%, rgba(0, 0, 0, 0));
+}
+
+/* ── 平板（≤1100px）：增强 widget-hub tab 激活/非激活对比度 ── */
+@media (max-width: 1100px) {
+  .widget-hub-subnav__btn {
+    color: rgba(255, 255, 255, 0.58);
+  }
+  .widget-hub-subnav__btn:hover {
+    color: color-mix(in srgb, var(--hub-accent, var(--premium-accent-blue)) 75%, white);
+    background: color-mix(in srgb, var(--hub-accent, var(--premium-accent-blue)) 12%, transparent);
+  }
+  .widget-hub-subnav__btn--active {
+    color: #fff;
+    /* 高不透明度渐变背景 */
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--hub-accent, var(--premium-accent-blue)) 90%, rgba(0, 0, 0, 0.05)),
+      color-mix(in srgb, var(--hub-accent, var(--premium-accent-blue)) 72%, rgba(0, 0, 0, 0.1))
+    );
+    /* 增强外发光与边框 */
+    box-shadow:
+      0 3px 16px color-mix(in srgb, var(--hub-accent, var(--premium-accent-blue)) 45%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--hub-accent, var(--premium-accent-blue)) 55%, white),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+  }
+}
+
+.widget-hub-subnav__badge {
+  min-width: 14px;
+  height: 14px;
+  padding: 0 4px;
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-micro);
+  font-weight: 800;
+  line-height: 14px;
+  background: color-mix(in srgb, var(--hub-accent, var(--premium-accent-green)) 25%, rgba(0, 0, 0, 0));
+  color: color-mix(in srgb, var(--hub-accent, var(--premium-accent-green)) 80%, white);
+}
+
+.widget-hub-action {
+  font-size: var(--premium-fs-caption);
+  padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
+  border-radius: 6px;
+  border: var(--hos-hairline) solid var(--premium-border-strong);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.widget-hub-action:disabled {
+  opacity: 0.5;
+}
+
+.widget-hub-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.widget-hub-panel .widget-glass-card {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.info-panel .widget-hub-root .widget-glass-card {
+  background: transparent;
+  border-color: transparent;
+}
+
+/* 浮动 Hub：覆盖侧栏 height:100%，自适应内容高度 */
+.afh-content--hub-panel > .widget-hub-root {
+  height: auto;
+  max-height: min(70vh, 480px);
+}

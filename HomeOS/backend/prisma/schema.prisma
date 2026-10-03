@@ -1,0 +1,684 @@
+// Prisma 数据库模型定义
+// 使用 PostgreSQL 作为数据库
+
+generator client {
+  provider      = "prisma-client"
+  output        = "../src/generated/prisma"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  admin
+  adult
+  child
+  guest
+}
+
+enum NotificationLevel {
+  info
+  warn
+  danger
+}
+
+enum RecommendationStatus {
+  pending
+  adopted
+  dismissed
+}
+
+/// 用户模型 - 存储系统用户信息
+/// 支持多用户，但默认为单用户模式
+model User {
+  id                  String    @id @default(uuid())  // UUID 主键
+  username            String    @unique               // 用户名（唯一）
+  password            String                          // bcrypt 加密的密码
+  role                UserRole  @default(admin)       // 用户角色（默认管理员）
+  preferences         Json?     @db.JsonB             // 用户偏好设置（温度/色温/夜模等）
+  tokenVersion        Int       @default(0)           // JWT 会话版本，递增可吊销已签发令牌
+  failedLoginAttempts Int       @default(0)           // 连续登录失败次数
+  lockedUntil         DateTime?                       // 账户锁定截止时间
+  totpSecret          String?                         // TOTP 密钥（admin MFA，可选）
+  totpEnabled         Boolean   @default(false)       // 是否启用 TOTP
+  createdAt           DateTime  @default(now())       // 创建时间
+  updatedAt           DateTime  @updatedAt             // 更新时间
+
+  commandAudits CommandAudit[]
+  loginAudits   LoginAudit[]
+}
+
+/// 登录审计 — 成功/失败记录
+model LoginAudit {
+  id        String   @id @default(uuid())
+  username  String
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  ip        String?
+  success   Boolean
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([username])
+}
+
+/// 访客分享短码 — code → 会话 payload（JWT 兑换时签发，库内不存明文 token）
+model GuestShareCode {
+  code      String   @id
+  payload   Json?    @db.JsonB
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+/// 项目配置模型 - 存储前端布局和自定义设置
+/// 每个项目有唯一的 projectId（默认为 "default"）
+model ProjectConfig {
+  id        String   @id @default(uuid())
+  projectId String   @unique @default("default")  // 项目标识符
+  layout    Json     @db.JsonB                    // 设备位置、平面图、HA 连接等
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// 实体事件日志 - 记录所有实体状态变更
+/// 使用 JSONB 存储完整状态快照，支持时序查询和历史回溯
+model EventLog {
+  id        Int      @default(autoincrement())
+  entityId  String                        // 实体 ID（如 "light.living_room"）
+  domain    String   @default("")         // HA domain（写入时从 entityId 解析，供按域过滤/统计）
+  oldState  Json?    @db.JsonB            // 变更前的完整状态（JSONB 格式）
+  newState  Json?    @db.JsonB            // 变更后的完整状态（JSONB 格式）
+  stateDiff String?                       // 变更摘要（如: "on→off", "23.5→24.0"）
+  createdAt DateTime @default(now())      // 事件发生时间
+
+  @@id([createdAt, id])  // 复合主键：物理按月分区（原生 PARTITION BY RANGE(createdAt)）要求分区键包含在主键内
+  @@index([entityId, createdAt])  // 复合索引：按实体和时间查询
+  @@index([domain, createdAt])    // 按域 + 时间（基线聚合 / 统计）
+  @@index([createdAt], map: "EventLog_createdAt_brin_idx", type: Brin)  // 分区内时间范围检索；勿再加 btree(createdAt)
+  // 分区 DDL 在 init migration（PARTITION BY）；未来分区与过期整月分区 DROP 由 PartitionMaintenanceService 维护
+}
+
+/// 自动化模型 - 存储 Home Assistant 自动化规则
+/// YAML 格式存储完整的自动化配置
+model Automation {
+  id         String    @id @default(uuid())
+  name       String                        // 自动化名称
+  yaml       String                        // YAML 格式的自动化配置
+  /// 流程编辑器图 JSON（编辑源真相；yaml 由 compile 生成）
+  geekGraph  Json?     @db.JsonB
+  enabled    Boolean   @default(true)      // 是否启用
+  haConfigId String?                       // HA config API id（如 homeos_xxx）
+  runOnHa    Boolean   @default(false)     // true=由 HA 执行，本地引擎跳过
+  haSyncedAt DateTime?                     // 上次同步到 HA 的时间
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  executions AutomationExecution[]
+  variables  AutomationVariable[]
+
+  @@index([haConfigId])
+}
+
+/// 自动化持久变量（对齐米家 global / 本规则变量）
+/// 唯一性由 init SQL 部分索引保证：global 按 key；rule 按 (ruleId, key)。
+model AutomationVariable {
+  id        String      @id @default(uuid())
+  key       String      // 程序用标识，建议 [a-zA-Z0-9_]+
+  name      String      // 显示名
+  scope     String      @default("global") // global | rule
+  ruleId    String?     // scope=rule 时绑定的自动化 ID；global 为 null
+  rule      Automation? @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  type      String      @default("string") // number | string
+  value     String      @default("")
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([scope, key])
+  @@index([ruleId])
+}
+
+/// 场景模型 - 存储预设场景配置
+/// 场景是一组实体状态的快照，可一键恢复
+model Scene {
+  id             String    @id @default(uuid())
+  name           String                        // 场景名称
+  entities       Json      @db.JsonB           // 实体状态映射 / 动作列表
+  /// 场景 YAML 原文（HA 导入/粘贴保留；有损 entities 还原时保存可回退）
+  yaml           String?
+  /// 场景编辑器图 JSON（编辑源真相；entities 由 compile 生成）
+  geekSceneGraph Json?     @db.JsonB
+  haConfigId String?                       // HA scene config id（如 homeos_xxx）
+  runOnHa    Boolean   @default(false)     // true=由 HA scene.turn_on 执行
+  /// 叠加执行：true=仅改变场景声明实体并在执行前采集快照（支持 POST /scene/:id/cancel 取消恢复），false=保持默认执行行为
+  overlay    Boolean   @default(false)
+  haSyncedAt DateTime?                     // 上次同步到 HA 的时间
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  executions SceneExecution[]
+  schedules  SceneSchedule[]
+
+  @@index([haConfigId])
+}
+
+/// 场景定时条目（每场景至多一行）
+model SceneSchedule {
+  id        String   @id @default(uuid())
+  sceneId   String   @unique
+  scene     Scene    @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  sceneName String   @default("")
+  cron      String?
+  at        String?
+  days      Json?    @db.JsonB
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enabled])
+}
+
+/// 场景执行历史 - 记录每次执行的完整结果
+model SceneExecution {
+  id         String   @id @default(uuid())
+  sceneId    String
+  scene      Scene    @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  sceneName  String                        // 场景名称（冗余，方便查询）
+  success    Boolean                       // 是否全部成功
+  executed   Int                           // 成功执行数量
+  total      Int                           // 总设备数量
+  errors     Json     @default("[]") @db.JsonB  // 错误列表
+  executedAt DateTime @default(now())      // 执行时间
+
+  @@index([sceneId])
+  @@index([executedAt])
+}
+
+/// 自动化执行历史 — 记录每次触发与 trace 步骤
+model AutomationExecution {
+  id           String     @id @default(uuid())
+  automationId String
+  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  name         String
+  success      Boolean    @default(true)
+  trace        Json       @default("[]") @db.JsonB  // 执行步骤 trace
+  error        String?
+  executedAt   DateTime   @default(now())
+
+  @@index([automationId])
+  @@index([executedAt])
+}
+
+/// 设备控制审计日志 — 记录谁在何时操作了哪个实体
+model CommandAudit {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  username  String?
+  role      String?
+  domain    String
+  service   String
+  entityId  String
+  success   Boolean  @default(true)
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entityId])
+  @@index([userId])
+  // 用户名 + 时间复合索引：管理员按用户名前缀检索审计时走索引而非全表扫
+  @@index([username, createdAt])
+}
+
+/// 脚本执行历史
+model ScriptExecution {
+  id         String   @id @default(uuid())
+  scriptId   String
+  script     Script   @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+  scriptName String
+  success    Boolean
+  executed   Int
+  total      Int
+  errors     Json     @default("[]") @db.JsonB
+  executedAt DateTime @default(now())
+
+  @@index([scriptId])
+  @@index([executedAt])
+}
+
+/// 脚本模型 - 存储可执行的脚本
+/// YAML 格式存储脚本序列
+model Script {
+  id         String    @id @default(uuid())
+  name       String                        // 脚本名称
+  yaml       String                        // YAML 格式的脚本定义
+  /// 脚本编辑器图 JSON（编辑源真相；yaml 由 compile 生成）
+  geekGraph  Json?     @db.JsonB
+  haConfigId String?                       // HA script config id
+  runOnHa    Boolean   @default(false)     // true=由 HA script.turn_on 执行
+  haSyncedAt DateTime?                     // 上次同步到 HA 的时间
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  executions ScriptExecution[]
+
+  @@index([haConfigId])
+}
+
+/// 模板实体模型 - 存储自定义模板实体
+/// 允许用户创建虚拟实体或组合多个实体
+model TemplateEntity {
+  id              String    @id @default(uuid())
+  name            String                        // 模板实体名称
+  type            String                        // 家电类型或 yaml_import
+  yaml            String                        // YAML 格式的 template: 定义
+  slotMapping     Json?     @db.JsonB               // 槽位 → entity_id 映射（编辑回显）
+  haConfigId      String?                       // HA unique_id
+  haEntityId      String?                       // HA 运行中 entity_id
+  haConfigEntryId String?                       // UI Template Helper 的 config entry id
+  yamlSource      String?                       // homeos | config_entry | configuration_yaml | stub
+  yamlComplete    Boolean   @default(true)      // 导入/解析是否包含完整 YAML
+  contentHash     String?                       // yaml 内容哈希（漂移检测）
+  haSyncedAt      DateTime?                     // 上次同步到 HA 的时间
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([haConfigId])
+}
+
+/// 通知模型 - 存储系统通知
+/// 支持不同级别和来源的通知
+model Notification {
+  id               String             @id @default(uuid())
+  level            NotificationLevel  @default(info)      // 通知级别（info、warn、danger）
+  message          String                         // 通知内容
+  entityId         String?                        // 关联的实体 ID（可选）
+  source           String    @default("system")   // 通知来源
+  read             Boolean   @default(false)      // 是否已读
+  deliveredAt      DateTime?                      // LAN 推送送达时间
+  deliveryChannels Json     @default("[]") @db.JsonB  // in_app/socket/tts
+  createdAt        DateTime  @default(now())
+
+  @@index([createdAt])  // 按时间索引，用于查询最新通知
+  @@index([read, createdAt])  // 未读统计 / 未读列表
+}
+
+/// 安防事件日志 — 布防/撤防/告警/紧急求救全量记录
+model SecurityEvent {
+  id        String   @id @default(uuid())
+  type      String                        // arm/disarm/alarm/emergency/safety
+  mode      String?                       // armed_home/armed_away/armed_night/disarmed
+  entityId  String?                       // 触发传感器实体
+  detail    String                        // 事件描述
+  zones     Json     @default("[]") @db.JsonB  // 涉及区域
+  createdAt DateTime @default(now())
+
+  @@index([type])
+  @@index([createdAt])
+  @@index([type, createdAt])
+}
+
+/// 地震预警历史 — EEW 触发记录（PostgreSQL 持久化，Redis 为热缓存）
+model EarthquakeAlertHistory {
+  id             String   @id @default(uuid())
+  eventId        String
+  epicenter      String
+  magnitude      Float
+  depth          Float
+  latitude       Float
+  longitude      Float
+  originTime     BigInt
+  distance       Float
+  countdown      Int
+  localIntensity Float
+  maxIntensity   String?
+  /// early | confirmation；旧记录可为空
+  alertKind      String?
+  /// wolfx | sc_eew | cenc_eew | cenc | usgs | test；旧记录可为空
+  source         String?
+  savedAt        DateTime @default(now())
+
+  @@index([savedAt(sort: Desc)])
+  @@index([eventId])
+}
+
+model AlertRule {
+  id              String   @id @default(uuid())
+  name            String                        // 规则名称
+  entityId        String?                       // 关联实体 ID（可选）
+  condition       String                        // 触发条件（如 "state === 'on'"）
+  level           String   @default("warn")     // 告警级别（info/warn/danger）
+  channels        Json     @default("[]") @db.JsonB  // 推送通道列表
+  cooldownMinutes Int      @default(60)         // 冷却时间（分钟）
+  enabled         Boolean  @default(true)       // 是否启用
+  messageTemplate String?                       // 可选：{{entity}} {{state}} {{name}} {{value}} 等
+  title           String?                       // 可选：外部推送标题（Email/WebPush/企微）；为空回退各通道内置标题
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([enabled])
+  @@index([entityId])
+  @@index([createdAt])
+}
+
+/// 家庭模式模型 - 存储不同的家庭运行模式
+/// 如：在家、离家、睡眠、度假等
+model HomeMode {
+  id             String   @id @default(uuid())
+  name           String                        // 模式名称（如 "在家"、"离家"）
+  icon           String   @default("home")     // 图标标识
+  config         Json     @db.JsonB            // 模式动作列表
+  triggers       Json?    @db.JsonB            // 触发条件
+  isActive       Boolean  @default(false)      // 是否为当前激活模式
+  deviceSnapshot Json?    @db.JsonB            // 激活前设备状态快照（deactivate / 互斥切换 undo；禁止覆盖为执行后态）
+  sortOrder      Int      @default(0)          // 排序顺序
+  exclusiveGroup String?  @default("default")  // 互斥组（同组切换时恢复快照）
+  priority       Int      @default(50)          // 优先级（触发/手动切换时高者优先）
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([isActive])
+  // 同组仅一条 isActive=true：部分唯一索引写在 init SQL（Prisma 无法表达 WHERE）
+}
+
+/// 设备寿命追踪 - 持久化开关次数/运行时长/健康分
+model DeviceLifespan {
+  id                    String   @id @default(uuid())
+  entityId              String   @unique              // HA 实体 ID
+  friendlyName          String                        // 设备名称
+  domain                String                        // 设备域
+  switchCount           Int      @default(0)          // 开关次数
+  totalRuntimeSeconds   Int      @default(0)          // 总运行时长（秒）
+  avgCycleSeconds       Int      @default(0)          // 平均单次运行时长
+  firstSeen             DateTime @default(now())      // 首次出现时间
+  lastSeen              DateTime?                     // 最近出现时间
+  healthScore           Int      @default(100)        // 健康分 0-100
+  updatedAt             DateTime @updatedAt
+}
+
+/// 能源基线数据 - 存储功率滚动平均值
+model EnergyBaseline {
+  id         String   @id @default(uuid())
+  entityId   String   @unique              // 功率传感器实体 ID
+  readings   Json                       @db.JsonB  // 最近功率读数数组
+  lastAlert  BigInt   @default(0)          // 上次告警时间戳
+  updatedAt  DateTime @updatedAt
+}
+
+/// 能源计量候选实体 — 能耗排名/基线查询的精确 ID 白名单
+/// 由 EventLog 写入流水线增量维护（sensor 域 + energy/power_meter/kwh/electricity 关键词），
+/// 使能耗查询从「contains 前导通配全窗口扫描」变为「entityId IN + createdAt 范围」走 [entityId, createdAt] 索引。
+/// 只增不删：候选表体量极小（数千行），已删除实体在 Redis 时间线无数据时排名/基线自然为空。
+model EnergyCandidateEntity {
+  entityId    String   @id               // HA 实体 ID（sensor.xxx）
+  firstSeenAt DateTime @default(now())   // 首次被识别为能源计量的时间
+  updatedAt   DateTime @updatedAt        // 最近一次事件时间
+}
+
+/// 日程提醒 - 垃圾回收/家务/药物等
+model ScheduleItem {
+  id          String   @id @default(uuid())
+  type        String                        // recycle/cleaning/medication/maintenance/custom
+  label       String                        // 显示标签
+  icon        String   @default("📅")       // 图标
+  frequency   String   @default("weekly")   // daily/weekly/biweekly/monthly/custom
+  dayOfWeek   Int      @default(0)          // 0=周日
+  customDays  Json     @default("[]") @db.JsonB  // 每月日期
+  /// 提醒时间 HH:MM（如 "07:00"）；空或非法回退 07:00
+  time        String   @default("07:00")
+  color       String   @default("#3b82f6")  // 颜色
+  /// 优先级：normal（受 DND 限制）| danger（绕过 DND，受冷却限制）
+  priority    String   @default("normal")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// 系统运行参数 — AppConfig 单例，仅 id=default
+model SystemConfig {
+  id        String   @id @default("default")
+  data      Json     @db.JsonB
+  updatedAt DateTime @updatedAt
+}
+
+/// 运行时快照 KV（安防面板、场景叠加、客户端电量、人员状态等）。不是 AppConfig。
+model RuntimeKv {
+  id        String   @id
+  data      Json     @db.JsonB
+  updatedAt DateTime @updatedAt
+}
+
+/// 儿童模式运行时（媒体已用时长 / 家长 override）；配置走 AppConfig.childMode
+model ChildModeRuntime {
+  id            String   @id @default("default")
+  mediaUsedMin  Float    @default(0)
+  usageDate     String   @default("")
+  overrideUntil BigInt   @default(0)
+  updatedAt     DateTime @updatedAt
+}
+
+/// 智能建议冷却记录 - 防止重复播报/Tips推送
+model AdvisorCooldown {
+  id        String   @id @default(uuid())
+  dedupKey  String   @unique              // 去重 key
+  cooldownUntil BigInt                    // 冷却截止时间戳 (ms)
+  createdAt DateTime @default(now())
+
+  @@index([cooldownUntil])
+}
+
+/// 环境数据历史 — 定时快照温湿度/空气质量
+model EnvironmentRecord {
+  id          String   @id @default(uuid())
+  room        String                        // 房间名称
+  temperature Float?                        // 温度 ℃
+  humidity    Float?                        // 湿度 %
+  dewPoint    Float?                        // 露点温度
+  pm25        Float?                        // PM2.5 μg/m³（空气质量趋势）
+  co2         Float?                        // CO₂ ppm
+  tvoc        Float?                        // TVOC μg/m³
+  iaqScore    Int?                          // IAQ 综合指数
+  moldRisk    String?                       // low/medium/high
+  recordedAt  DateTime @default(now())
+
+  @@index([room])
+  @@index([recordedAt])
+  @@index([room, recordedAt])
+}
+
+/// 用水监测 — 水表读数追踪 + 异常检测
+model WaterRecord {
+  id          String   @id @default(uuid())
+  entityId    String                        // 水表传感器实体
+  flowRate    Float?                        // 当前流量 L/min
+  totalUsage  Float?                        // 累计用量 m³
+  anomaly     String?                       // leak/overflow/continuous_flow
+  recordedAt  DateTime @default(now())
+
+  @@index([entityId])
+  @@index([recordedAt])
+  @@index([entityId, recordedAt])
+}
+
+/// 阶梯电价配置 - 单行配置表
+model PricingConfig {
+  id          String   @id @default("default")
+  tiers       Json     @db.JsonB            // 阶梯电价档位数组
+  monthUsage  Float    @default(0)          // 当月用电量
+  yearUsage   Float    @default(0)          // 年度用电量
+  daysInMonth Int      @default(30)
+  currentDay  Int      @default(1)
+  updatedAt   DateTime @updatedAt
+}
+
+/// 设备使用统计 — 顾问 usage 持久化
+model DeviceUsageStat {
+  id              String   @id @default(uuid())
+  entityId        String
+  day             String                        // YYYY-MM-DD
+  onCount         Int      @default(0)
+  totalRuntimeMs  BigInt   @default(0)
+  lastOn          DateTime?
+  updatedAt       DateTime @updatedAt
+
+  @@unique([entityId, day])
+  @@index([day])
+  @@index([entityId])
+}
+
+/// 能源同时段基线 — hour × dow
+model EnergyHourlyBaseline {
+  id          String   @id @default(uuid())
+  entityId    String
+  hour        Int
+  dow         Int                           // 0=Sunday
+  avgKwh      Float    @default(0)
+  sampleCount Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([entityId, hour, dow])
+  @@index([entityId])
+}
+
+/// 房间作息基线 — 从 EventLog 学习
+model ActivityBaseline {
+  id            String   @id @default(uuid())
+  room          String
+  hour          Int
+  dow           Int
+  activityScore Float    @default(0)
+  sampleCount   Int      @default(0)
+  updatedAt     DateTime @updatedAt
+
+  @@unique([room, hour, dow])
+  @@index([room])
+}
+
+/// 用户手动 override 学习 — 温控/照明偏移
+model AdaptiveOverride {
+  id          String   @id @default(uuid())
+  scope       String                        // room id or "global"
+  kind        String                        // climate | light
+  offset      Float    @default(0)
+  sampleCount Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([scope, kind])
+}
+
+/// 离家模拟 — EventLog 学习的开灯概率
+model AwayPatternBucket {
+  id           String   @id @default(uuid())
+  dow          Int
+  hour         Int
+  lightOnProb  Float    @default(0)
+  sampleCount  Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  @@unique([dow, hour])
+}
+
+/// 习惯学习推荐 — 场景/自动化草案
+model Recommendation {
+  id        String   @id @default(uuid())
+  type      String                        // automation | scene
+  title     String
+  payload   Json     @db.JsonB
+  score     Float                 @default(0)
+  status    RecommendationStatus  @default(pending)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([type, status, title])
+}
+
+/// 访客门锁临时密码 — AES-GCM 密文落库，重启后可恢复到期撤销
+model GuestPass {
+  id           String   @id
+  name         String
+  lockEntityId String
+  slot         Int
+  codeCipher   String
+  codeIv       String
+  codeTag      String
+  createdAt    DateTime
+  expiresAt    DateTime
+  active       Boolean  @default(true)
+  updatedAt    DateTime @updatedAt
+
+  @@index([active, expiresAt])
+  @@index([lockEntityId])
+}
+
+/// Web Push 浏览器订阅（持久化，重启后仍可推送）
+model WebPushSubscription {
+  id        String   @id @default(uuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  label     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
+}
+
+/// 用户自定义房间（移动端 Rooms 权威排序层；可与 HA area 并存）
+model Area {
+  id            String       @id @default(uuid())
+  name          String
+  icon          String       @default("🏠")
+  backgroundUrl String?
+  /// 可选关联的 HA area_registry.area_id（用于传感器映射 / 实体回退）
+  haAreaId      String?      @unique
+  sortOrder     Int          @default(0)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  entities      AreaEntity[]
+
+  @@index([sortOrder])
+}
+
+/// 房间与 HA 实体映射（支持长按拖拽排序）
+model AreaEntity {
+  id        String @id @default(uuid())
+  areaId    String
+  entityId  String
+  sortOrder Int    @default(0)
+  area      Area   @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@unique([areaId, entityId])
+  @@index([entityId])
+  @@index([areaId, sortOrder])
+}
+
+/// 能耗日聚合 — EventLog 增量累计，供趋势查询在无 Redis 时回退
+model EnergyUsageDaily {
+  id          String   @id @default(uuid())
+  entityId    String
+  day         String                        // YYYY-MM-DD（Asia/Shanghai）
+  kwh         Float    @default(0)
+  sampleCount Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([entityId, day])
+  @@index([day])
+  @@index([entityId])
+}
+
+/// 能耗月聚合 — EventLog 增量累计，供趋势查询在无 Redis 时回退
+model EnergyUsageMonthly {
+  id          String   @id @default(uuid())
+  entityId    String
+  month       String                        // YYYY-MM（Asia/Shanghai）
+  kwh         Float    @default(0)
+  sampleCount Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([entityId, month])
+  @@index([month])
+  @@index([entityId])
+}

@@ -1,0 +1,154 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/views/settings/shared/layout/SettingsFeatureMaster.vue:68. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+/* 功能总开关条 · 天气/全屋关闭/灾备/地震/语音等复用 */
+
+.settings-feature-master {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  padding: 12px 14px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--set-border-subtle, rgba(255, 255, 255, 0.1));
+  background: rgba(0, 0, 0, 0.22);
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.settings-feature-master__main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.settings-feature-master__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--hos-radius-card);
+  color: var(--sfm-accent, var(--set-info, #7dd3fc));
+  background: var(--sfm-accent-bg, rgba(56, 189, 248, 0.12));
+  border: var(--hos-hairline) solid var(--sfm-accent-border, rgba(56, 189, 248, 0.22));
+}
+
+.settings-feature-master__icon-svg {
+  width: 16px;
+  height: 16px;
+}
+
+.settings-feature-master__copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.settings-feature-master__title {
+  margin: 0;
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  line-height: 1.3;
+  color: #fff;
+}
+
+.settings-feature-master__hint {
+  margin: 3px 0 0;
+  font-size: var(--set-fs-micro, 12px);
+  line-height: 1.4;
+  color: var(--set-text-faint);
+}
+
+.settings-feature-master__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 1 auto;
+  margin-left: auto;
+}
+
+/* 色调 token */
+.settings-feature-master--sky {
+  --sfm-accent: var(--set-info, #7dd3fc);
+  --sfm-accent-bg: rgba(56, 189, 248, 0.12);
+  --sfm-accent-border: rgba(56, 189, 248, 0.22);
+  --sfm-on-bg: rgba(56, 189, 248, 0.14);
+  --sfm-on-border: rgba(56, 189, 248, 0.3);
+  --sfm-on-icon-bg: rgba(14, 165, 233, 0.32);
+}
+
+.settings-feature-master--info {
+  --sfm-accent: var(--set-info, #38bdf8);
+  --sfm-accent-bg: var(--set-info-bg, rgba(56, 189, 248, 0.12));
+  --sfm-accent-border: var(--set-info-border, rgba(56, 189, 248, 0.22));
+  --sfm-on-bg: rgba(56, 189, 248, 0.12);
+  --sfm-on-border: rgba(56, 189, 248, 0.28);
+  --sfm-on-icon-bg: rgba(14, 165, 233, 0.32);
+}
+
+.settings-feature-master--rose {
+  --sfm-accent: #fda4af;
+  --sfm-accent-bg: rgba(251, 113, 133, 0.12);
+  --sfm-accent-border: rgba(251, 113, 133, 0.22);
+  --sfm-on-bg: rgba(244, 63, 94, 0.12);
+  --sfm-on-border: rgba(251, 113, 133, 0.28);
+  --sfm-on-icon-bg: rgba(244, 63, 94, 0.28);
+}
+
+.settings-feature-master--amber {
+  --sfm-accent: #fdba74;
+  --sfm-accent-bg: rgba(251, 146, 60, 0.12);
+  --sfm-accent-border: rgba(251, 146, 60, 0.22);
+  --sfm-on-bg: rgba(251, 146, 60, 0.14);
+  --sfm-on-border: rgba(251, 146, 60, 0.3);
+  --sfm-on-icon-bg: rgba(234, 88, 12, 0.36);
+}
+
+.settings-feature-master--accent {
+  --sfm-accent: var(--page-accent, #7eb8ff);
+  --sfm-accent-bg: rgba(var(--page-accent-rgb, 126, 184, 255), 0.14);
+  --sfm-accent-border: rgba(var(--page-accent-rgb, 126, 184, 255), 0.24);
+  --sfm-on-bg: rgba(var(--page-accent-rgb, 126, 184, 255), 0.14);
+  --sfm-on-border: rgba(var(--page-accent-rgb, 126, 184, 255), 0.3);
+  --sfm-on-icon-bg: rgba(var(--page-accent-rgb, 126, 184, 255), 0.36);
+}
+
+.settings-feature-master--emerald {
+  --sfm-accent: var(--set-success, #34d399);
+  --sfm-accent-bg: rgba(52, 211, 153, 0.12);
+  --sfm-accent-border: rgba(52, 211, 153, 0.22);
+  --sfm-on-bg: rgba(52, 211, 153, 0.12);
+  --sfm-on-border: rgba(52, 211, 153, 0.28);
+  --sfm-on-icon-bg: rgba(16, 185, 129, 0.32);
+}
+
+.settings-feature-master--on {
+  background: linear-gradient(155deg, var(--sfm-on-bg) 0%, rgba(0, 0, 0, 0.24) 100%);
+  border-color: var(--sfm-on-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.settings-feature-master--on .settings-feature-master__icon {
+  color: #fff;
+  background: var(--sfm-on-icon-bg);
+  border-color: transparent;
+}
+
+/* 嵌在卡片内时的外边距约定（顶距收紧，避免与上方流程概览叠加大空隙） */
+.settings-feature-master--inset {
+  margin: 10px 16px 0;
+}
+
+.settings-feature-master--inset-lg {
+  margin: 10px 20px 16px;
+}
+
+.settings-feature-master--stack {
+  margin-top: 10px;
+}

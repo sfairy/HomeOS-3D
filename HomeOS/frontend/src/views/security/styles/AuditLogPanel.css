@@ -1,0 +1,103 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/views/security/AuditLogPanel.vue:189. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.sec-dash-panel--audit-embed {
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: none;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0 !important;
+  gap: 0 !important;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.sec-dash-audit-filters--embed {
+  flex-shrink: 0;
+  padding: 0 12px 10px;
+  flex-wrap: wrap;
+}
+
+.sec-dash-audit-filters__refresh {
+  margin-left: auto;
+}
+
+/* 绝对定位铺满：给网格明确高度，1fr 才能均分行高 */
+.sec-dash-audit-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.sec-dash-audit-scroll > .hos-panel-skeleton,
+.sec-dash-audit-scroll > .v-panel-skeleton {
+  position: absolute;
+  inset: 0;
+}
+
+.sec-dash-audit-fill {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sec-dash-audit-fill > .v-empty-state {
+  flex: 1;
+  min-height: 0;
+}
+
+.sec-dash-audit-list {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  padding: 0 10px 10px;
+}
+
+.sec-dash-audit-list--paged {
+  flex: none !important;
+  width: 100%;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: repeat(var(--audit-rows, 8), minmax(0, 1fr));
+  align-content: start;
+  gap: var(--audit-row-gap, 6px);
+  overflow: hidden !important;
+  padding: 0 10px !important;
+  list-style: none;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.sec-dash-audit-list--paged > .sec-dash-audit-item {
+  min-height: 0 !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  display: flex !important;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.sec-dash-audit-list--paged > .sec-dash-audit-item:active {
+  transform: none;
+}
+
+.sec-dash-audit-pager {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px 10px 10px;
+  border-top: var(--hos-hairline) solid rgba(255, 255, 255, 0.06);
+}

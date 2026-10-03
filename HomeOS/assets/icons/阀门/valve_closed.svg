@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <style>
+      .bg{fill:#f1f5f9}.fg{fill:#334155}.dim{fill:#64748b}.hole,.knob{fill:#1e293b}
+    </style>
+  </defs>
+  <circle cx="100" cy="100" r="87" class="bg"/>
+  <rect width="144" height="20" x="28" y="90" class="fg" rx="4"/>
+  <ellipse cx="100" cy="90" fill="#64748b" opacity=".8" rx="60" ry="4"/>
+  <circle cx="40" cy="100" r="14" class="dim"/>
+  <circle cx="160" cy="100" r="14" class="dim"/>
+  <circle cx="40" cy="100" r="7" class="hole"/>
+  <circle cx="160" cy="100" r="7" class="hole"/>
+  <circle cx="100" cy="100" r="28" class="fg"/>
+  <rect width="16" height="50" x="92" y="58" class="knob" rx="4"/>
+  <circle cx="100" cy="58" r="16" fill="none" stroke="#64748b" stroke-width="5"/>
+  <circle cx="100" cy="58" r="5" class="dim"/>
+  <rect width="6" height="28" x="97" y="44" class="dim" rx="2"/>
+  <rect width="28" height="6" x="86" y="55" class="dim" rx="2"/>
+  <circle cx="100" cy="100" r="87" fill="none" stroke="#0f172a" stroke-opacity=".1" stroke-width="2.5"/>
+</svg>

@@ -1,0 +1,671 @@
+/* ── 联动器 Tab 轨（高大上版） ── */
+.settings-orch-dock {
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-hero-x, 20px) 0;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(10,132,255,0.05) 0%, transparent 60%),
+    rgba(0, 0, 0, 0.28);
+  border-bottom: var(--hos-hairline) solid var(--set-border-subtle);
+}
+
+/* 底部信息栏等内嵌场景：不撑开父级宽度 */
+.ef-item-tabs,
+.embed-item-tabs,
+.bind-energy-dock {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ef-item-tabs .settings-orch-dock,
+.embed-item-tabs .settings-orch-dock,
+.bind-energy-dock .settings-orch-dock {
+  border-bottom: none;
+}
+
+.settings-orch-dock--plain {
+  padding: 0 0 8px;
+  background: transparent;
+  border-bottom: none;
+}
+
+.settings-orch-dock--plain.settings-orch-dock--toolbar {
+  padding-top: 0;
+}
+
+.ef-item-tabs .settings-orch-dock {
+  padding: 0;
+  background: none;
+  border: none;
+}
+
+/* 底部信息栏：竖向磁贴 Tab（上图标 · 下文字） */
+.ef-item-tabs .settings-orch-toolbar {
+  gap: 10px;
+  align-items: center;
+}
+
+.ef-item-tabs .settings-orch-shell {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--hos-radius-panel, 20px);
+  background: var(--set-bg-dark-hover);
+  border: var(--hos-hairline) solid var(--set-border-subtle);
+}
+
+.ef-item-tabs .settings-orch-sort-shift {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  min-height: 0;
+  align-self: center;
+  border: var(--hos-hairline) solid var(--premium-border-strong);
+  border-radius: var(--hos-radius-card);
+  background: var(--set-glass-bg);
+  color: var(--set-text-label);
+}
+
+.ef-item-tabs .settings-orch-sort-shift:hover:not(:disabled) {
+  background: var(--set-warn-bg);
+  border-color: rgba(251, 191, 36, 0.28);
+  color: rgba(253, 224, 171, 0.95);
+}
+
+.ef-item-tabs .settings-orch-track {
+  align-items: stretch;
+  gap: 8px;
+  padding: 2px 4px;
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+.ef-item-tabs .settings-orch-track--overflow {
+  mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent);
+}
+
+.ef-item-tabs .settings-orch-tab {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  flex: 0 0 76px;
+  width: 76px;
+  min-width: 76px;
+  max-width: 76px;
+  min-height: 78px;
+  padding: 10px 6px 8px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--set-border-subtle);
+  background: var(--set-glass-bg-subtle);
+  transition:
+    background 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease,
+    transform 0.18s ease;
+}
+
+.ef-item-tabs .settings-orch-tab--active::after {
+  content: '';
+  flex-shrink: 0;
+  width: 18px;
+  height: 2px;
+  margin-top: auto;
+  border-radius: var(--hos-radius-pill);
+  background: var(--tab-accent, #fbbf24);
+  opacity: 0.9;
+  box-shadow: none;
+}
+
+.ef-item-tabs .settings-orch-tab:hover {
+  background: rgba(255, 255, 255, 0.055);
+  border-color: var(--set-border);
+  transform: translateY(-1px);
+}
+
+.ef-item-tabs .settings-orch-tab--active {
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 0%, color-mix(in srgb, var(--tab-accent, #fbbf24) 22%, #0c0e14), rgba(0, 0, 0, 0) 72%),
+    rgba(255, 255, 255, 0.06);
+  border-color: color-mix(in srgb, var(--tab-accent, #fbbf24) 40%, #1a1d28);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
+  transform: translateY(-1px);
+}
+
+.ef-item-tabs .settings-orch-tab--disabled {
+  opacity: 0.38;
+}
+
+.ef-item-tabs .settings-orch-tab--disabled .settings-orch-label {
+  text-decoration: line-through;
+  text-decoration-color: rgba(255, 255, 255, 0.2);
+}
+
+/* 去掉内嵌小方框，图标直接展示 */
+.ef-item-tabs .settings-orch-orb {
+  width: auto;
+  height: auto;
+  min-height: 32px;
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  transform: none;
+  box-shadow: none;
+}
+
+.ef-item-tabs .settings-orch-tab--active .settings-orch-orb {
+  background: transparent;
+  border: none;
+  transform: none;
+  box-shadow: none;
+}
+
+.ef-item-tabs .settings-orch-emoji {
+  display: block;
+  font-size: 22px;
+  line-height: 1;
+  transition: transform 0.22s ease, filter 0.22s ease;
+  filter: saturate(0.88) brightness(0.95);
+}
+
+.ef-item-tabs .settings-orch-tab:hover .settings-orch-emoji {
+  transform: scale(1.06);
+  filter: saturate(1) brightness(1);
+}
+
+.ef-item-tabs .settings-orch-tab--active .settings-orch-emoji {
+  transform: scale(1.06);
+  filter: saturate(1.05) brightness(1.05);
+}
+
+.ef-item-tabs .settings-orch-label {
+  width: 100%;
+  font-size: var(--set-fs-micro, 12px);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-align: center;
+  line-height: 1.3;
+  color: var(--set-text-label);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  word-break: break-all;
+}
+
+.ef-item-tabs .settings-orch-tab--active .settings-orch-label {
+  color: var(--set-text-primary);
+  font-weight: 700;
+}
+
+.ef-item-tabs .settings-orch-indicator {
+  display: none;
+}
+
+.ef-item-tabs .settings-orch-arrow {
+  width: 28px;
+  height: 28px;
+  min-height: 0;
+  align-self: center;
+  border: none;
+  border-radius: 8px;
+  background: var(--set-glass-bg);
+  color: var(--set-text-label);
+}
+
+.ef-item-tabs .settings-orch-arrow:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--set-text-secondary);
+}
+
+/* 内嵌网页：竖向磁贴 Tab（与底部信息栏同结构，天蓝主题） */
+.embed-item-tabs .settings-orch-dock {
+  padding: 0;
+  background: none;
+  border: none;
+}
+
+.embed-item-tabs .settings-orch-toolbar {
+  gap: 10px;
+  align-items: center;
+}
+
+.embed-item-tabs .settings-orch-shell {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--hos-radius-panel, 20px);
+  background:
+    radial-gradient(ellipse 55% 80% at 0% 50%, rgba(34, 211, 238, 0.07), transparent 55%),
+    radial-gradient(ellipse 55% 80% at 50% 50%, rgba(var(--page-accent-rgb, 126, 184, 255), 0.06), transparent 55%),
+    radial-gradient(ellipse 55% 80% at 100% 50%, rgba(251, 191, 36, 0.05), transparent 55%),
+    var(--set-bg-dark-hover);
+  border: var(--hos-hairline) solid var(--set-border-subtle);
+}
+
+.embed-item-tabs .settings-orch-sort-shift {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  min-height: 0;
+  align-self: center;
+  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb, 126, 184, 255), 0.22);
+  border-radius: var(--hos-radius-card);
+  background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.08);
+  color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.85);
+}
+
+.embed-item-tabs .settings-orch-sort-shift:hover:not(:disabled) {
+  background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.16);
+  border-color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.38);
+  color: var(--page-accent, #7eb8ff);
+}
+
+.embed-item-tabs .settings-orch-track {
+  align-items: stretch;
+  gap: 8px;
+  padding: 2px 4px;
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+.embed-item-tabs .settings-orch-track--overflow {
+  mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent);
+}
+
+.embed-item-tabs .settings-orch-tab {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+  flex: 0 0 84px;
+  width: 84px;
+  min-width: 84px;
+  max-width: 84px;
+  min-height: 92px;
+  padding: 14px 6px 10px;
+  border-radius: var(--hos-radius-card, 14px);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--tab-accent, #38bdf8) 36%, #1a1d28);
+  background: color-mix(in srgb, var(--tab-accent, #38bdf8) 12%, #0c0e14);
+  transition:
+    background 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease,
+    transform 0.18s ease;
+}
+
+.embed-item-tabs .settings-orch-tab:hover {
+  background: color-mix(in srgb, var(--tab-accent, #38bdf8) 18%, #0c0e14);
+  border-color: color-mix(in srgb, var(--tab-accent, #38bdf8) 48%, #1a1d28);
+  transform: translateY(-1px);
+}
+
+.embed-item-tabs .settings-orch-tab--active {
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 0%, color-mix(in srgb, var(--tab-accent, #38bdf8) 28%, #0c0e14), rgba(0, 0, 0, 0) 72%),
+    color-mix(in srgb, var(--tab-accent, #38bdf8) 10%, #12141c);
+  border-color: color-mix(in srgb, var(--tab-accent, #38bdf8) 55%, #1a1d28);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
+  transform: translateY(-1px);
+}
+
+.embed-item-tabs .settings-orch-tab--active::after {
+  content: '';
+  flex-shrink: 0;
+  width: 18px;
+  height: 2px;
+  margin-top: auto;
+  border-radius: var(--hos-radius-pill);
+  background: var(--tab-accent, #38bdf8);
+  opacity: 0.9;
+  box-shadow: none;
+}
+
+.embed-item-tabs .settings-orch-orb {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--tab-accent, #38bdf8) 28%, #1a1d28);
+  color: color-mix(in srgb, var(--tab-accent, var(--set-info)) 92%, #fff);
+  background: color-mix(in srgb, var(--tab-accent, #38bdf8) 22%, #0c0e14);
+  transform: none;
+  box-shadow: none;
+}
+
+.embed-item-tabs .settings-orch-tab--active .settings-orch-orb {
+  transform: none;
+  box-shadow: none;
+  background: color-mix(in srgb, var(--tab-accent, #38bdf8) 34%, #0c0e14);
+  color: #fff;
+  border-color: color-mix(in srgb, var(--tab-accent, #38bdf8) 48%, #1a1d28);
+}
+
+.embed-item-tabs .settings-orch-label {
+  width: 100%;
+  font-size: var(--set-fs-micro, 12px);
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.3;
+  color: color-mix(in srgb, var(--tab-accent, #38bdf8) 58%, rgba(255, 255, 255, 0.42));
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  word-break: break-all;
+}
+
+.embed-item-tabs .settings-orch-tab--active .settings-orch-label {
+  color: color-mix(in srgb, var(--tab-accent, #38bdf8) 82%, #fff);
+  font-weight: 700;
+}
+
+.embed-item-tabs .settings-orch-indicator {
+  display: none;
+}
+
+.embed-item-tabs .settings-orch-arrow {
+  width: 28px;
+  height: 28px;
+  min-height: 0;
+  align-self: center;
+  border: none;
+  border-radius: 8px;
+  background: var(--set-glass-bg);
+  color: var(--set-text-label);
+}
+
+.embed-item-tabs .settings-orch-arrow:hover:not(:disabled) {
+  background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.14);
+  color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.9);
+}
+
+.settings-orch-shell {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.settings-orch-arrow {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--set-border-subtle);
+  background: var(--set-glass-bg-subtle);
+  color: var(--set-text-label);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.settings-orch-arrow:hover:not(:disabled) {
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--set-border-strong);
+}
+
+.settings-orch-arrow:disabled {
+  opacity: 0.28;
+  cursor: default;
+  pointer-events: none;
+}
+
+.settings-orch-sort-shift {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid rgba(251, 191, 36, 0.24);
+  background: rgba(251, 191, 36, 0.08);
+  color: rgba(253, 224, 171, 0.92);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.settings-orch-sort-shift:hover:not(:disabled) {
+  background: rgba(251, 191, 36, 0.16);
+  border-color: rgba(251, 191, 36, 0.38);
+  color: #fef3c7;
+}
+
+.settings-orch-sort-shift:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.settings-orch-sort-shift:disabled {
+  opacity: 0.22;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.settings-orch-track {
+  flex: 1 1 0;
+  min-width: 0;
+  width: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  padding: 4px 2px 0;
+  position: relative;
+}
+
+.settings-orch-track--overflow {
+  mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent);
+}
+
+.settings-orch-track::-webkit-scrollbar { display: none; }
+
+.settings-orch-tab {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  min-width: 96px;
+  padding: var(--hos-chip-pad-y, 6px) var(--hos-space-lg, 16px) var(--hos-panel-padding-compact-y, 14px);
+  border: var(--hos-hairline) solid transparent;
+  border-radius: var(--hos-radius-card, 14px) var(--hos-radius-card, 14px) 10px 10px;
+  background: transparent;
+  cursor: pointer;
+  scroll-snap-align: center;
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.settings-orch-tab:hover {
+  background: var(--set-glass-bg);
+  border-color: var(--set-border-subtle);
+}
+
+.settings-orch-tab--active {
+  background: var(--set-glass-bg);
+  border-color: color-mix(in srgb, var(--tab-accent, #0A84FF) 36%, #1a1d28);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+}
+
+.settings-orch-orb {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--hos-radius-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--set-text-tertiary);
+  background: color-mix(in srgb, var(--set-glass-bg, rgba(255,255,255,0.045)) 100%, #0c0e14);
+  border: var(--hos-hairline) solid var(--set-border-subtle);
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+.settings-orch-emoji {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.settings-orch-tab--disabled .settings-orch-label {
+  opacity: 0.45;
+}
+
+.settings-orch-tab--disabled .settings-orch-orb {
+  opacity: 0.55;
+}
+
+.settings-orch-tab--active .settings-orch-orb {
+  color: var(--tab-accent, #60a5fa);
+  background: color-mix(in srgb, var(--tab-accent, #0A84FF) 16%, #0c0e14);
+  border-color: color-mix(in srgb, var(--tab-accent, #0A84FF) 40%, #1a1d28);
+  transform: translateY(-1px) translateZ(0);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+}
+
+.settings-orch-label {
+  font-size: var(--set-fs-caption);
+  font-weight: 700;
+  color: var(--set-text-label);
+  white-space: nowrap;
+  transition: color 0.2s ease;
+}
+
+.settings-orch-tab--active .settings-orch-label { color: #fff; }
+
+.settings-orch-tab--sortable {
+  cursor: grab;
+}
+
+.settings-orch-tab--sortable:active {
+  cursor: grabbing;
+}
+
+.settings-orch-tab--dragging {
+  opacity: 0.45;
+  transform: scale(0.96);
+}
+
+.settings-orch-tab--drag-over {
+  box-shadow: inset 0 0 0 2px var(--tab-accent, #fbbf24);
+  background: var(--set-glass-bg-hover);
+}
+
+.settings-orch-count {
+  font-size: var(--set-fs-micro);
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: var(--hos-radius-pill);
+  background: var(--set-glass-bg);
+  color: var(--set-text-faint);
+}
+
+.settings-orch-count--badge {
+  position: absolute;
+  top: -5px;
+  right: -7px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  border: var(--hos-hairline) solid var(--set-border-strong);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  z-index: 2;
+}
+
+.settings-orch-count--alert {
+  background: rgba(239, 68, 68, 0.92);
+  color: #fff;
+  border-color: rgba(252, 165, 165, 0.45);
+  box-shadow: 0 2px 12px rgba(239, 68, 68, 0.45);
+}
+
+.settings-orch-tab--active .settings-orch-count:not(.settings-orch-count--alert) {
+  background: color-mix(in srgb, var(--tab-accent, #0A84FF) 18%, #0c0e14);
+  color: var(--tab-accent, #60a5fa);
+  border-color: color-mix(in srgb, var(--tab-accent, #0A84FF) 40%, #1a1d28);
+}
+
+.settings-orch-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  height: 2px;
+  border-radius: var(--hos-radius-pill);
+  background: linear-gradient(90deg, var(--orch-accent, #0A84FF), #5E5CE6);
+  pointer-events: none;
+  transition:
+    transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+    width 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.2s ease;
+  box-shadow: none;
+}
+
+@media (max-width: 900px), (pointer: coarse), (hover: none) {
+  .settings-orch-tab--active,
+  .ef-item-tabs .settings-orch-tab--active,
+  .embed-item-tabs .settings-orch-tab--active {
+    box-shadow: none;
+    transform: none;
+  }
+
+  .settings-orch-tab:hover,
+  .ef-item-tabs .settings-orch-tab:hover,
+  .embed-item-tabs .settings-orch-tab:hover {
+    transform: none;
+  }
+
+  .settings-orch-tab--active .settings-orch-orb,
+  .embed-item-tabs .settings-orch-orb,
+  .embed-item-tabs .settings-orch-tab--active .settings-orch-orb {
+    box-shadow: none;
+    transform: none;
+  }
+
+  .ef-item-tabs .settings-orch-tab--active .settings-orch-emoji,
+  .ef-item-tabs .settings-orch-tab:hover .settings-orch-emoji {
+    transform: none;
+    filter: none;
+  }
+
+  .settings-orch-indicator {
+    box-shadow: none;
+  }
+}
+

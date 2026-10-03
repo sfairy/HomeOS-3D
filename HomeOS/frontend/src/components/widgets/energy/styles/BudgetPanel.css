@@ -1,0 +1,249 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/components/widgets/energy/BudgetPanel.vue:287. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+.eb-root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
+}
+.eb-toolbar,
+.eb-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.eb-toolbar--embedded {
+  padding: 8px 10px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.eb-toolbar-label {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+.eb-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.eb-title {
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.eb-edit {
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  color: var(--hos-text-secondary);
+  padding: 4px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.eb-edit:hover {
+  color: #fff;
+}
+.eb-setup-link {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  color: #fcd34d;
+  text-decoration: none;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.22);
+}
+.eb-setup-link:hover {
+  background: rgba(251, 191, 36, 0.16);
+}
+.eb-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.eb-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  gap: 4px;
+}
+
+.eb-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(128px, 0.8fr);
+  gap: 8px;
+  align-items: stretch;
+}
+
+.eb-side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.eb-progress {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.eb-progress-item {
+  padding: 14px;
+  border-radius: var(--hos-radius-card);
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(251, 191, 36, 0.12), transparent 55%),
+    rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.eb-progress-item__label {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.eb-pct {
+  font-size: var(--premium-fs-stat);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.eb-pct span {
+  font-size: var(--premium-fs-caption);
+}
+
+.eb-info-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+}
+
+.eb-info-val {
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 700;
+  font-size: var(--premium-fs-caption);
+}
+
+@media (max-width: 480px) {
+  .eb-stage {
+    grid-template-columns: 1fr;
+  }
+
+  .eb-progress {
+    grid-template-columns: 1fr;
+  }
+}
+.eb-progress .v-progress {
+  margin: 5px 0 4px;
+}
+.eb-sub {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+}
+
+.eb-forecast {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(56, 189, 248, 0.06);
+  font-size: var(--premium-fs-micro);
+}
+.eb-forecast-label {
+  color: rgba(125, 211, 252, 0.9);
+}
+.eb-forecast-val {
+  font-weight: 700;
+  color: #7dd3fc;
+}
+.eb-forecast-sub {
+  color: var(--hos-text-secondary);
+}
+
+.eb-warn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(244, 63, 94, 0.06);
+  color: #f43f5e;
+  font-size: var(--premium-fs-micro);
+}
+
+.eb-edit-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.eb-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+}
+.eb-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 6px 8px;
+  color: #fff;
+  font-size: var(--premium-fs-caption);
+  outline: none;
+}
+.eb-input:focus {
+  border-color: rgba(52, 199, 89, 0.4);
+}
+.eb-edit-actions {
+  display: flex;
+  gap: 6px;
+}
+.eb-btn {
+  flex: 1;
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+  padding: 7px 0;
+  border-radius: 9px;
+  cursor: pointer;
+  border: var(--hos-hairline) solid transparent;
+}
+.eb-btn:disabled {
+  opacity: 0.5;
+}
+.eb-btn--primary {
+  background: rgba(52, 199, 89, 0.15);
+  color: #34c759;
+  border-color: rgba(52, 199, 89, 0.25);
+}
+.eb-btn--ghost {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.6);
+  border-color: var(--premium-glass-bg-hover);
+}
+
+.eb-icon {
+  color: var(--set-success, #6ee7b7);
+}

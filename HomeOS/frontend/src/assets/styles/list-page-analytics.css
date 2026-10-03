@@ -1,0 +1,229 @@
+/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/views/events/ViewAnalytics.vue:354; frontend/src/views/notifications/ViewAnalytics.vue:134. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
+/**
+ * Events / Notifications analytics 面板共享样式
+ * 根类保持 .ev-analytics / .nc-analytics，避免改动模板
+ */
+
+.ev-analytics,
+.nc-analytics {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--hos-radius-panel);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--page-accent) 24%, var(--premium-border));
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(var(--page-accent-rgb), 0.1), transparent 55%),
+    radial-gradient(80% 60% at 100% 100%, rgba(var(--page-accent-secondary-rgb, var(--page-accent-rgb)), 0.06), transparent 50%),
+    linear-gradient(165deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.32));
+  backdrop-filter: blur(20px);
+  box-shadow:
+    var(--premium-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.ev-analytics__glow,
+.nc-analytics__glow {
+  position: absolute;
+  pointer-events: none;
+}
+
+.ev-analytics__glow--tl,
+.nc-analytics__glow--tl {
+  inset: -40% auto auto -20%;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(var(--page-accent-rgb), 0.14), transparent 70%);
+}
+
+.ev-analytics__glow--br,
+.nc-analytics__glow--br {
+  inset: auto -15% -35% auto;
+  width: 240px;
+  height: 240px;
+  background: radial-gradient(circle, rgba(var(--page-accent-secondary-rgb, var(--page-accent-rgb)), 0.08), transparent 72%);
+}
+
+.ev-analytics__kpis,
+.nc-analytics__kpis {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.ev-analytics__kpi,
+.nc-analytics__kpi {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
+  background:
+    var(--page-card-tint-soft),
+    rgba(0, 0, 0, 0.24);
+  overflow: hidden;
+}
+
+.ev-analytics__kpi::before,
+.nc-analytics__kpi::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 12px;
+  right: 12px;
+  height: 2px;
+  border-radius: 0 0 3px 3px;
+  background: linear-gradient(90deg, var(--page-accent), transparent);
+  opacity: 0.6;
+}
+
+.ev-analytics__kpi-label,
+.nc-analytics__kpi-label {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hos-text-secondary);
+}
+
+.ev-analytics__kpi-value,
+.nc-analytics__kpi-value {
+  font-size: 1.15rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  background: var(--page-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  line-height: 1.1;
+}
+
+.ev-analytics__kpi-value--accent,
+.ev-analytics__kpi-value--sky,
+.ev-analytics__kpi-value--warn,
+.ev-analytics__kpi-value--pink,
+.ev-analytics__kpi-value--muted,
+.nc-analytics__kpi-value--accent,
+.nc-analytics__kpi-value--sky,
+.nc-analytics__kpi-value--warn,
+.nc-analytics__kpi-value--pink,
+.nc-analytics__kpi-value--muted {
+  background: none;
+  -webkit-text-fill-color: currentColor;
+}
+
+.ev-analytics__kpi-value--accent { color: #67e8f9; }
+.nc-analytics__kpi-value--accent { color: #f9a8d4; }
+.ev-analytics__kpi-value--sky,
+.nc-analytics__kpi-value--sky { color: #7dd3fc; }
+.ev-analytics__kpi-value--warn,
+.nc-analytics__kpi-value--warn { color: #fdba74; }
+.ev-analytics__kpi-value--pink { color: #f9a8d4; }
+.nc-analytics__kpi-value--pink { color: #f472b6; }
+.ev-analytics__kpi-value--muted,
+.nc-analytics__kpi-value--muted { color: rgba(255, 255, 255, 0.55); }
+
+.ev-analytics__kpi-hint,
+.nc-analytics__kpi-hint {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ev-analytics__charts,
+.nc-analytics__charts {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+}
+
+.ev-analytics__charts {
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+.nc-analytics__charts {
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+}
+
+.ev-analytics__chart-card,
+.nc-analytics__chart-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 10px 10px 6px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
+  background:
+    var(--page-card-tint-soft),
+    rgba(0, 0, 0, 0.22);
+}
+
+.ev-analytics__chart-card--wide,
+.nc-analytics__chart-card--wide {
+  grid-column: 1 / -1;
+}
+
+.ev-analytics__chart-head,
+.nc-analytics__chart-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  padding: 0 2px;
+}
+
+.ev-analytics__chart-title,
+.nc-analytics__chart-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.ev-analytics__chart-title::before,
+.nc-analytics__chart-title::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--page-accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--page-accent) 55%, transparent);
+}
+
+.ev-analytics__chart-hint,
+.nc-analytics__chart-hint {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+}
+
+.ev-analytics__chart,
+.nc-analytics__chart {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.ev-analytics__chart {
+  min-height: 140px;
+}

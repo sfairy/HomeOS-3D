@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="rh_on_m" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="55%" stop-color="#cbd5e1"/>
+      <stop offset="100%" stop-color="#64748b"/>
+    </linearGradient>
+    <filter id="rh_soft" x="-40%" y="-60%" width="180%" height="220%">
+      <feGaussianBlur stdDeviation="2.4"/>
+    </filter>
+    <style>
+      @keyframes rh_steam{
+        0%{opacity:0;transform:translateY(8px) scaleX(.7)}
+        22%{opacity:.75}
+        70%{opacity:.4}
+        to{opacity:0;transform:translateY(-28px) scaleX(1.25)}
+      }
+      @keyframes rh_glow{0%,to{opacity:.55}50%{opacity:1}}
+      @keyframes rh_led{0%,to{opacity:.72}50%{opacity:1}}
+      .rh_s1{animation:rh_steam 2.2s cubic-bezier(.22,.61,.36,1) infinite;transform-origin:69px 149px}
+      .rh_s2{animation:rh_steam 2.2s cubic-bezier(.22,.61,.36,1) infinite;animation-delay:.45s;transform-origin:91px 149px}
+      .rh_s3{animation:rh_steam 2.2s cubic-bezier(.22,.61,.36,1) infinite;animation-delay:.9s;transform-origin:109px 149px}
+      .rh_s4{animation:rh_steam 2.2s cubic-bezier(.22,.61,.36,1) infinite;animation-delay:1.35s;transform-origin:131px 149px}
+      .rh_glow{animation:rh_glow 2s ease-in-out infinite}
+      .rh_led{animation:rh_led 2.4s ease-in-out infinite}
+    </style>
+  </defs>
+  <ellipse cx="100" cy="168" fill="#cbd5e1" opacity=".4" rx="64" ry="9"/>
+  <rect width="40" height="48" x="80" y="18" fill="url(#rh_on_m)" rx="4"/>
+  <rect width="30" height="9" x="85" y="24" fill="#e2e8f0" rx="2"/>
+  <path fill="url(#rh_on_m)" d="M30 78h140l-16 34H46Z"/>
+  <path fill="#64748b" d="M46 112h108l-6 10H52Z"/>
+  <ellipse cx="78" cy="84" fill="#fff" opacity=".55" rx="30" ry="5"/>
+  <rect width="108" height="20" x="46" y="118" fill="#475569" rx="3"/>
+  <g fill="none" stroke="#e2e8f0" stroke-width="1.8" opacity=".9">
+    <path d="M56 124h88"/><path d="M56 130h88"/><path d="M56 136h88"/>
+  </g>
+  <rect width="30" height="6" x="54" y="144" fill="#fde68a" class="rh_glow" rx="2"/>
+  <rect width="30" height="6" x="116" y="144" fill="#fde68a" class="rh_glow" rx="2"/>
+  <g filter="url(#rh_soft)" fill="none" stroke="#e2e8f0" stroke-linecap="round" stroke-width="5">
+    <path class="rh_s1" d="M66 166q8-18 2-34"/>
+    <path class="rh_s2" d="M90 170q4-22 0-40"/>
+    <path class="rh_s3" d="M110 170q-4-22 0-40"/>
+    <path class="rh_s4" d="M134 166q-8-18-2-34"/>
+  </g>
+  <circle cx="100" cy="94" r="4" fill="#22c55e" class="rh_led"/>
+</svg>
