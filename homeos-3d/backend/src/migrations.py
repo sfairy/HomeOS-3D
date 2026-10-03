@@ -31,15 +31,82 @@ def _remove_sidecars(database_path: Path) -> None:
     for suffix in _SIDECAR_SUFFIXES:
         Path(f'{database_path}{suffix}').unlink(missing_ok = True)
 
+def _has_business_tables(connection: sqlite3.Connection) -> bool:
+    row = connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != 'alembic_version' LIMIT 1"
+    ).fetchone()
+    return row is not None
+
 def _database_revision(database_path: Path) -> str | None:
+    """库内记录的 revision。
+
+    ``None`` 表示全新安装（没有库文件，或文件里连业务表都没有）；
+    ``'unversioned'`` 表示 Alembic 迁移之前的老结构（有业务表，却没有 alembic_version 记录）。
+    """
     if not database_path.is_file() or database_path.stat().st_size == 0:
         return None
     with closing(sqlite3.connect(f'file:{database_path}?mode=ro', uri = True)) as connection:
         table = connection.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'alembic_version'").fetchone()
         if table is None:
-            return 'unversioned'
+            return 'unversioned' if _has_business_tables(connection) else None
         row = connection.execute('SELECT version_num FROM alembic_version LIMIT 1').fetchone()
-        return str(row[0]) if row else 'unversioned'
+        if row:
+            return str(row[0])
+        return 'unversioned' if _has_business_tables(connection) else None
+
+def _set_recorded_revision(database_path: Path, revision: str) -> None:
+    """直接改写 ``alembic_version``。
+
+    库内记录的旧 revision 已不在脚本目录里，``alembic stamp`` 会因为解析不了它而失败，所以这里
+    只改那一行记录 —— 前提是调用方已经确认过库结构与 ORM 一致（见 :func:`_schema_matches_orm`）。
+    """
+    with closing(sqlite3.connect(database_path)) as connection:
+        connection.execute('DELETE FROM alembic_version')
+        connection.execute('INSERT INTO alembic_version (version_num) VALUES (?)', (revision,))
+        connection.commit()
+
+def _script_knows_revision(config: Config, revision: str) -> bool:
+    """当前脚本目录里是否存在这个 revision。"""
+    try:
+        ScriptDirectory.from_config(config).get_revision(revision)
+        return True
+    except Exception:
+        return False
+
+def _schema_matches_orm(database_url: str) -> bool:
+    """库结构是否已满足 ORM 元数据（只查「缺表 / 缺列 / 缺索引」，多出来的历史对象不算差异）。
+
+    结构链压缩后，老链末端建出来的库与本基线 ``0001`` 在 ORM 口径上是同一个结构，
+    只是 ``alembic_version`` 记录还停在旧编号。这种情况可以安全接管：只改记录、不动结构。
+    """
+    from sqlalchemy import create_engine, inspect
+
+    from . import models  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    from .database import Base
+    engine = create_engine(database_url)
+    try:
+        inspector = inspect(engine)
+        existing_tables = set(inspector.get_table_names())
+        for table in Base.metadata.sorted_tables:
+            if table.name not in existing_tables:
+                return False
+            columns = {column['name'] for column in inspector.get_columns(table.name)}
+            if not {column.name for column in table.columns} <= columns:
+                return False
+            indexes = {index['name'] for index in inspector.get_indexes(table.name)}
+            if not {index.name for index in table.indexes if index.name} <= indexes:
+                return False
+        return True
+    finally:
+        engine.dispose()
+
+def _legacy_error(revision: str) -> RuntimeError:
+    return RuntimeError(
+        f'数据库记录的是压缩基线之前的迁移版本（{revision}），且结构与当前 ORM 不一致：'
+        '当前版本只保留了 0001 基线，不能从老库直接升级，也不会自动改写老结构。'
+        '请先备份数据目录；需要保留数据时，用旧版本启动导出数据后，再在全新安装上导入'
+        '（或从 data/upgrade-backups/ 的备份恢复）。'
+    )
 
 def _sha256(file_path: Path) -> str:
     digest = hashlib.sha256()
@@ -134,15 +201,30 @@ def run_migrations(settings: Settings) -> Path | None:
     if target_revision is None:
         raise RuntimeError('No database migration head is configured.')
     source_revision = _database_revision(settings.database_path)
-    backup_path = None
-    if source_revision is not None and source_revision != target_revision:
-        backup_path = create_upgrade_backup(settings, source_revision, target_revision)
-    try:
+    if source_revision == 'unversioned':
+        raise RuntimeError(
+            '数据库是老版本的旧结构：库里已经有业务表，却没有 alembic_version 记录。'
+            '当前版本只支持全新安装的 0001 基线，不能从老库直接升级，也不会自动改写老结构。'
+            '请先备份数据目录；需要保留数据时，用旧版本启动导出数据后，再在全新安装上导入。'
+        )
+    if source_revision == target_revision:
+        return None
+    if source_revision is None:
         command.upgrade(config, 'head')
         _validate_database(settings.database_path, target_revision)
-    except Exception as error:
-        if backup_path is not None:
+        return None
+    known = _script_knows_revision(config, source_revision)
+    if not known and not _schema_matches_orm(settings.database_url):
+        raise _legacy_error(source_revision)
+    backup_path = create_upgrade_backup(settings, source_revision, target_revision)
+    if known:
+        try:
+            command.upgrade(config, 'head')
+            _validate_database(settings.database_path, target_revision)
+        except Exception as error:
             restore_upgrade_backup(settings, backup_path)
             raise RuntimeError(f'Database upgrade failed; the pre-upgrade database was restored from {backup_path}.') from error
-        raise
+        return backup_path
+    _set_recorded_revision(settings.database_path, target_revision)
+    _validate_database(settings.database_path, target_revision)
     return backup_path

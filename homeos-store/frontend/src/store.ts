@@ -216,7 +216,7 @@ async function previewCoupon() {
       body: JSON.stringify({ productId: product.id, couponCode }),
     });
     if (sequence !== state.couponPreviewSequence || couponCode !== (input?.value.trim() || '')) return;
-    const data = result as { discountCents?: number; originalAmountCents?: number; amountCents?: number };
+    const data = result as { discountCents: number; originalAmountCents: number; amountCents: number };
     setCouponFeedback('valid', `优惠码有效，优惠 ${money(data.discountCents)}`);
     const priceLabel = $('#store-product-price-label');
     if (priceLabel) priceLabel.textContent = '优惠后';

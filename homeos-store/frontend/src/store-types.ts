@@ -51,7 +51,7 @@ export interface StoreLicense {
 export interface StoreProduct {
   id: string;
   name?: string;
-  priceCents?: number;
+  priceCents: number;
   featureCodes?: string[];
   productType?: string;
   kind?: string;
@@ -82,7 +82,7 @@ export interface StoreOrder {
   status?: string;
   statusLabel?: string;
   productName?: string;
-  amountCents?: number;
+  amountCents: number;
   expiresAt?: string;
   fulfillmentMode?: string;
   orderType?: string;

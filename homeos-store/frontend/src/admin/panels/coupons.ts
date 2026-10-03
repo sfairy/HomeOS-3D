@@ -23,7 +23,7 @@ type Coupon = {
   code?: string;
   description?: string;
   discountType?: string;
-  amountCents?: number;
+  amountCents: number;
   percent?: number;
   minAmountCents?: number;
   redeemedCount?: number;

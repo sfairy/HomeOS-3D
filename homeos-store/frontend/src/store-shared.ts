@@ -31,7 +31,7 @@ export function resetCouponPreview(clearInput = false) {
   if (original) original.hidden = true;
   if (state.product) {
     const price = $('#store-product-price');
-    if (price) price.textContent = money(state.product.priceCents ?? 0);
+    if (price) price.textContent = money(state.product.priceCents);
   }
 }
 

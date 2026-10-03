@@ -31,7 +31,7 @@ type Product = {
   name?: string;
   productCode?: string | null;
   productType?: string;
-  priceCents?: number;
+  priceCents: number;
   originalPriceCents?: number | null;
   validityDays?: number | null;
   sortOrder?: number;

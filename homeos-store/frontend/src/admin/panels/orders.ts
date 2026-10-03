@@ -34,7 +34,7 @@ type AdminOrder = {
   productName?: string;
   orderType?: string;
   licenseAction?: string;
-  amountCents?: number;
+  amountCents: number;
   paymentProvider?: string;
   paymentProviderLabel?: string;
   status?: string;
