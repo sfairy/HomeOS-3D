@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuildBuild } from "esbuild";
+import vue from "@vitejs/plugin-vue";
 import { defineConfig, type Plugin } from "vite";
 import { quietLogger } from "./vite-quiet-logger.js";
 
@@ -11,18 +12,24 @@ const storeRoot = __dirname;
 const projectRoot = path.resolve(storeRoot, "..");
 //: 工作区根：构建产物统一收敛到 <repoRoot>/dist/homeos-store/，与源码树彻底分离。
 const repoRoot = path.resolve(projectRoot, "..");
-const pagesDir = path.join(storeRoot, "pages");
-const outDir = path.join(repoRoot, "dist", "homeos-store", "frontend");
+const frontendOutDir = path.join(repoRoot, "dist", "homeos-store", "frontend");
+//: 商店走 StaticFiles 把 `/store-static` 挂到 `frontend/static`。
+//: Vite 的 base 会拼在产物文件名之前，所以构建产物必须直接落在挂载根这一层：
+//: `base: "/store-static/"` + `assets/...` => `/store-static/assets/...`。
+//: 否则 `import()` 的 chunk 能用（相对入口解析），但 `__vite__mapDeps` 生成的
+//: modulepreload 提示会落在 `/static/assets/...`，撞上 SPA catch-all 拿到 HTML。
+const buildOutDir = path.join(frontendOutDir, "static");
+const templatesDir = path.join(frontendOutDir, "templates");
 
-const pages = ["store.html", "setup.html", "admin.html"] as const;
+const SPA_ENTRY = "index.html";
+
+//: 构建走挂载前缀；dev 仍在根路径提供（8806 下 `/store-static` 被代理给后端）。
+const BUILD_BASE = "/store-static/";
+const DEV_BASE = "/";
 
 function htmlInputs(): Record<string, string> {
-  const input: Record<string, string> = {};
-  for (const name of pages) {
-    const full = path.join(pagesDir, name);
-    if (fs.existsSync(full)) input[name.replace(/\.html$/, "")] = full;
-  }
-  return input;
+  const full = path.join(storeRoot, SPA_ENTRY);
+  return fs.existsSync(full) ? { index: full } : {};
 }
 
 function classicIifePlugin(): Plugin {
@@ -31,7 +38,8 @@ function classicIifePlugin(): Plugin {
     async closeBundle() {
       const entry = path.join(storeRoot, "src/auth-bootstrap.ts");
       if (!fs.existsSync(entry)) return;
-      const outfile = path.join(outDir, "static", "auth-bootstrap.js");
+      //: 构建产物根就是挂载根，auth-bootstrap.js 直接落在这里（/store-static/auth-bootstrap.js）。
+      const outfile = path.join(buildOutDir, "auth-bootstrap.js");
       fs.mkdirSync(path.dirname(outfile), { recursive: true });
       await esbuildBuild({
         entryPoints: [entry],
@@ -47,79 +55,70 @@ function classicIifePlugin(): Plugin {
   };
 }
 
+/** 把 Vite 产出的 index.html 收敛到 templates/（挂载根之外），并清掉旧版三入口残留。 */
 function flattenTemplatesPlugin(): Plugin {
   return {
     name: "homeos-store-flatten-templates",
     closeBundle() {
-      const templatesDir = path.join(outDir, "templates");
+      const from = path.join(buildOutDir, "index.html");
+      if (!fs.existsSync(from)) {
+        const listing = fs.existsSync(buildOutDir) ? fs.readdirSync(buildOutDir).join(", ") : "(outDir 不存在)";
+        throw new Error(`SPA 入口缺失：${from}（outDir 内容: ${listing}）`);
+      }
       fs.mkdirSync(templatesDir, { recursive: true });
-      for (const name of pages) {
-        const candidates = [
-          path.join(outDir, "pages", name),
-          path.join(outDir, name),
-        ];
-        const from = candidates.find((p) => fs.existsSync(p));
-        if (!from) continue;
-        // Vite emits /static/assets/*；商店挂载前缀是 /store-static。
-        let html = fs.readFileSync(from, "utf8");
-        html = html.replaceAll("/static/assets/", "/store-static/assets/");
-        fs.writeFileSync(path.join(templatesDir, name), html, "utf8");
-      }
-      const nested = path.join(outDir, "pages");
+      //: base 已经是挂载前缀，产物里的资源引用无需再改写，直接搬走即可。
+      fs.copyFileSync(from, path.join(templatesDir, "index.html"));
+      fs.unlinkSync(from);
+      // 旧版三入口残留目录，构建时顺手清掉。
+      const nested = path.join(buildOutDir, "pages");
       if (fs.existsSync(nested)) fs.rmSync(nested, { recursive: true, force: true });
-      for (const name of pages) {
-        const loose = path.join(outDir, name);
-        if (fs.existsSync(loose)) fs.unlinkSync(loose);
-      }
-      // 页面壳注入的场景片段：与 templates 同目录，文件名由后端约定。
-      // 商店自包含：只使用本项目 public/static/scene/scene.html，
-      // 缺失即报错，不回退到其它项目（保持两项目相互独立）。
-      const sceneFrom = path.join(storeRoot, "public/static/scene/scene.html");
-      if (!fs.existsSync(sceneFrom)) {
-        throw new Error(
-          `商店场景片段缺失：${sceneFrom}；请从 design/scene/scene.html 同步分发副本到本项目 public/static/scene/`,
-        );
-      }
-      fs.copyFileSync(sceneFrom, path.join(templatesDir, "_scene.html"));
     },
   };
 }
 
-export default defineConfig({
-  root: storeRoot,
-  base: "/",
-  // 依赖预打包缓存统一落在工作区根 node_modules/.vite/homeos-store，避免项目内再长出 node_modules。
-  cacheDir: path.join(repoRoot, "node_modules", ".vite", "homeos-store"),
-  customLogger: quietLogger(),
-  publicDir: path.join(storeRoot, "public"),
-  resolve: {
-    alias: {
-      "@store": path.join(storeRoot, "src"),
-    },
-  },
-  server: {
-    port: 8806,
-    strictPort: true,
-    proxy: {
-      "/v2": { target: "http://127.0.0.1:8802", changeOrigin: true },
-      "/store-static": { target: "http://127.0.0.1:8802", changeOrigin: true },
-      "/healthz": { target: "http://127.0.0.1:8802", changeOrigin: true },
-      "/fonts": { target: "http://127.0.0.1:8802", changeOrigin: true },
-    },
-  },
-  build: {
-    outDir,
-    emptyOutDir: true,
-    sourcemap: false,
-    chunkSizeWarningLimit: 800,
-    rollupOptions: {
-      input: htmlInputs(),
-      output: {
-        entryFileNames: "static/assets/[name]-[hash].js",
-        chunkFileNames: "static/assets/[name]-[hash].js",
-        assetFileNames: "static/assets/[name]-[hash][extname]",
+export default defineConfig(({ command }) => {
+  const isBuild = command === "build";
+  return {
+    root: storeRoot,
+    base: isBuild ? BUILD_BASE : DEV_BASE,
+    // 依赖预打包缓存统一落在工作区根 node_modules/.vite/homeos-store，避免项目内再长出 node_modules。
+    cacheDir: path.join(repoRoot, "node_modules", ".vite", "homeos-store"),
+    customLogger: quietLogger(),
+    // 构建时 outDir 就是挂载根：public 的 `static/` 子层要剥掉，否则会多出一层 static。
+    publicDir: isBuild ? path.join(storeRoot, "public", "static") : path.join(storeRoot, "public"),
+    resolve: {
+      alias: {
+        "@store": path.join(storeRoot, "src"),
       },
     },
-  },
-  plugins: [flattenTemplatesPlugin(), classicIifePlugin()],
+    server: {
+      port: 8806,
+      strictPort: true,
+      proxy: {
+        "/store/v1": { target: "http://127.0.0.1:8802", changeOrigin: true },
+        "/store-admin/v1": { target: "http://127.0.0.1:8802", changeOrigin: true },
+        "/store-appearance.css": { target: "http://127.0.0.1:8802", changeOrigin: true },
+        "/v2": { target: "http://127.0.0.1:8802", changeOrigin: true },
+        "/store-static": { target: "http://127.0.0.1:8802", changeOrigin: true },
+        "/healthz": { target: "http://127.0.0.1:8802", changeOrigin: true },
+        "/fonts": { target: "http://127.0.0.1:8802", changeOrigin: true },
+      },
+    },
+    build: {
+      outDir: buildOutDir,
+      emptyOutDir: true,
+      sourcemap: false,
+      chunkSizeWarningLimit: 800,
+      rollupOptions: {
+        input: htmlInputs(),
+        output: {
+          entryFileNames: "assets/[name]-[hash].js",
+          chunkFileNames: "assets/[name]-[hash].js",
+          assetFileNames: "assets/[name]-[hash][extname]",
+        },
+      },
+    },
+    // 模板里的资源一律写运行时绝对路径（/store-static/...），不参与打包解析。
+    plugins: [vue({ template: { transformAssetUrls: false } }), flattenTemplatesPlugin(), classicIifePlugin()],
+  };
 });

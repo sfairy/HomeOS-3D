@@ -12,8 +12,6 @@ const { default: JavaScriptObfuscator } = await import("javascript-obfuscator");
 const SKIP_DIR_NAMES = new Set(["vendor", "node_modules", ".git"]);
 const SKIP_FILE_SUFFIXES = [".min.js", ".min.mjs"];
 const SKIP_FILE_NAMES = new Set([
-  "jquery.min.js",
-  "jquery.qrcode.min.js",
   "hls.min.js",
 ]);
 

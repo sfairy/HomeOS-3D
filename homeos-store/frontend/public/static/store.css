@@ -2430,6 +2430,16 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   color: var(--hb-accent-bright);
 }
 
+/* 整页场景壳的兜底定位（初始化页 / 后台登录屏）。
+   旧版这两页的 .hos-page 是 <body> 的直接子元素，`height: 100%` 有确定的父高；
+   迁到 SPA 之后中间多了一层 #app（高度 auto），百分比链断开、.hos-page 塌成 0 高，
+   叠上 overflow: hidden 整页就只剩背景色。这里按视口定位，与 #admin-login /
+   .hb-auth-stage 同口径。 */
+.hb-page-shell {
+  position: fixed;
+  inset: 0;
+}
+
 /* 6. 入口分页（登录 / 注册 / 找回）：整页场景壳
    维护模式下 showPage() 不会被调用，三张表单保持初始的 [hidden]，壳也就不出现。 */
 .hb-auth-stage {

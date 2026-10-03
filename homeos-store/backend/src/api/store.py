@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 
-from . import store_auth, store_orders, store_referrals
+from . import store_auth, store_orders, store_referrals, telemetry
 from .admin_shared import _drop_account_sessions
 from .store_catalog import (
     _bundled_map,
@@ -82,6 +82,31 @@ def configuration(session: DbSession, settings: SettingsDep) -> dict:
     return site_config.site_configuration_payload(
         setting, settings, include_credentials=False
     )
+
+
+_DECK_KEYS = {"store": "store.html", "admin": "admin.html", "setup": "setup.html"}
+
+
+@router.get("/shell/deck")
+def shell_deck(request: Request, session: DbSession, page: str = "store") -> dict:
+    """SPA 状态甲板的读数（原服务端注入改为 JSON）。"""
+    page_key = _DECK_KEYS.get(page)
+    if page_key is None:
+        raise HTTPException(status_code=404, detail="未知页面。")
+    tiles = telemetry.deck_tiles(page_key, session=session, request=request)
+    return {
+        "tiles": [
+            {
+                "label": label,
+                "text": text,
+                "unit": unit,
+                "spark": spark,
+                "hook": hook,
+                "since": stamp,
+            }
+            for (label, text, unit, spark, hook, stamp) in tiles
+        ]
+    }
 
 @router.get("/products")
 def list_products(session: DbSession) -> dict:

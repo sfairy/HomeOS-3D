@@ -1359,15 +1359,26 @@
   color: var(--hos-eco);
 }
 
-/* 坞底的换页提示（「没有账号？注册」「已有账号？登录」）。 */
+/* 坞底的换页提示（「没有账号？注册」「已有账号？登录」「返回商店前台」）。
+   它被夹在自己和坞脚的两条分隔线之间：上下都留同等的内边距，文字才居中，
+   原来只写了 padding-top，文字会贴着下面那条线。 */
 .hos-switch {
   margin-top: 20px;
-  padding-top: 18px;
+  padding: 18px 0;
+  /* p 的默认下边距会把下面那条分隔线推远，让居中的间距失衡。 */
+  margin-bottom: 0;
   border-top: 1px solid rgba(var(--hos-tone-rgb), 0.1);
+  border-bottom: 1px solid rgba(var(--hos-tone-rgb), 0.1);
   color: rgba(var(--hos-muted-rgb), 0.72);
   font-size: 0.8rem;
   line-height: 1.6;
   text-align: center;
+}
+
+/* 坞脚本来用 border-top 画第二条分隔线；紧跟换页提示时改由提示的 border-bottom 承担，
+   两条线不会叠在一起，提示也就能稳定地居中于两条线之间。 */
+.hos-switch + .hos-panel__copy {
+  border-top: 0;
 }
 
 .hos-switch a {
@@ -1715,7 +1726,7 @@
      而它们各自只有一行字。收掉一半 —— 注册屏在 1366×768 上就靠这 17px 落进画面。 */
   .hos-switch {
     margin-top: 14px;
-    padding-top: 12px;
+    padding: 12px 0;
   }
 
   /* 这一档坞脚有固定的 margin-top 收缝，坞脚前一块的固定下缝要收回 0，别叠加。 */
@@ -1766,7 +1777,7 @@
 
   .hos-switch {
     margin-top: 10px;
-    padding-top: 8px;
+    padding: 8px 0;
   }
 
   /* 同 900 档：坞脚固定 margin-top 接管，坞脚前一块的固定下缝收回。 */
@@ -1817,7 +1828,7 @@
 
   .hos-switch {
     margin-top: 7px;
-    padding-top: 6px;
+    padding: 6px 0;
   }
 
   /* 同前两档：坞脚固定 margin-top 接管，坞脚前一块的固定下缝收回。 */

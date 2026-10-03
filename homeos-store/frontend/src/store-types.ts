@@ -90,7 +90,7 @@ export interface StoreOrder {
   [key: string]: unknown;
 }
 
- interface StoreAccount {
+export interface StoreAccount {
   email?: string;
   [key: string]: unknown;
 }
@@ -113,7 +113,7 @@ export interface StoreSiteConfig {
   [key: string]: unknown;
 }
 
- interface StoreConfiguration {
+export interface StoreConfiguration {
   store?: StoreSiteConfig;
   payment?: {
     channels?: PaymentChannel[];

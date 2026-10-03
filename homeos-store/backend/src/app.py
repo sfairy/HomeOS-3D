@@ -285,7 +285,6 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     app.include_router(admin_api.router)
     app.include_router(appearance_api.router)
     app.include_router(setup_api.router)
-    app.include_router(pages_api.router)
 
     @app.get("/store-appearance.css", include_in_schema=False)
     def appearance_stylesheet(request: Request) -> Response:
@@ -333,5 +332,9 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
                 response.headers.setdefault(name, value)
             return response
         return JSONResponse({"detail": "服务器内部错误，请稍后重试。"}, status_code=500)
+
+    # 页面外壳（含 SPA catch-all）必须最后注册：它会把所有未命中路径兜走，
+    # 所以要在 /healthz、/store-appearance.css 与各 API 路由之后。
+    app.include_router(pages_api.router)
 
     return app

@@ -16,7 +16,7 @@
     "paths": {
       "@store/*": ["./frontend/src/*"]
     },
-    "types": ["jquery", "node"]
+    "types": ["node"]
   },
   "include": ["frontend/src/**/*.ts", "frontend/vite.config.ts"],
   "exclude": ["node_modules", "dist"]

@@ -13,7 +13,7 @@ from sqlalchemy import Boolean, DateTime, String, exists, func, insert, literal,
 
 from ..core.deps import DbSession
 from ..core.models import Account, AccountSession
-from ..security.request_security import resolve_client_ip, secure_cookies_required
+from ..security.request_security import resolve_client_ip
 from ..security.security import (
     hash_password,
     is_valid_email,
@@ -22,6 +22,7 @@ from ..security.security import (
     token_hash,
     utcnow,
 )
+from .store_shared import _set_session_cookies
 
 logger = logging.getLogger("src.setup")
 
@@ -166,18 +167,11 @@ def setup_admin(
 
     logger.info("商店管理员初始化成功 email=%s", email)
 
-    secure = secure_cookies_required(request)
     response = JSONResponse(
         {"email": email, "isAdmin": True},
         status_code=status.HTTP_201_CREATED,
     )
-    response.set_cookie(
-        settings.cookie_name,
-        token,
-        max_age=settings.session_max_age_seconds,
-        httponly=True,
-        samesite="lax",
-        secure=secure,
-        path="/",
-    )
+    # 与 `/store/v1/auth/login` 口径一致：会话 cookie 之外还要写 hint cookie。
+    # 少了它，初始化完成后首屏之前的外壳读不到登录态，会先闪一帧游客导航。
+    _set_session_cookies(request, response, token=token, hint="unlicensed")
     return response

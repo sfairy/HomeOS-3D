@@ -46,11 +46,20 @@
   }
 
 
+  // 已知第三方扩展（图片助手 ImageAssistant）会在 document_start 往页面注入脚本并 patch window.fetch：
+  // 给每次请求挂 .catch，失败时 console.error("Fetch request failed:", error) 再原样抛出。
+  // 业务主动 abort 在途请求时拒绝值可能是 AbortError，也可能是字符串 reason（如 "stale" / "lifecycle"），
+  // 二者都与业务无关（真正的网络故障由本文件的 fetch 包装器按业务口径上报），这里按特征一并丢弃。
   function isIgnorableThirdPartyConsoleError(consoleArguments) {
     const [consoleMessage, consoleCause] = consoleArguments;
     if (typeof consoleMessage != "string") return false;
     if (consoleMessage.startsWith("Error processing XMLHttpRequest response:")) return true;
-    return consoleMessage === "Fetch request failed:" && consoleCause?.name === "AbortError";
+    if (consoleMessage !== "Fetch request failed:") return false;
+    return (
+      consoleCause == null ||
+      typeof consoleCause == "string" ||
+      consoleCause?.name === "AbortError"
+    );
   }
   function suppressThirdPartyConsoleNoise() {
     const consoleObject = bridgeWindow.console;
@@ -181,7 +190,17 @@
       persistQueue(),
       scheduleFlush());
   }
+  // 主动 abort 产生的拒绝值不该被当成错误上报：可能是 AbortError，也可能是本仓库约定的字符串 reason
+  // （render-cache 的 "stale"、renderer 的 "lifecycle"）。它们会经 unhandledrejection 触发这里。
+  const ignorableAbortReasonSet = new Set(["stale", "lifecycle"]);
+  function isAbortRejection(thrownValue) {
+    return (
+      thrownValue?.name === "AbortError" ||
+      (typeof thrownValue == "string" && ignorableAbortReasonSet.has(thrownValue))
+    );
+  }
   function reportError(thrownValue, errorFields = {}, fallbackMessage = "") {
+    if (isAbortRejection(thrownValue)) return;
     if (thrownValue && typeof thrownValue == "object") {
       if (reportedErrorSet.has(thrownValue)) return;
       reportedErrorSet.add(thrownValue);
