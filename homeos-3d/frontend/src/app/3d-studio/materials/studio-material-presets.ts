@@ -357,7 +357,12 @@ function stoneCombo({ top, base, metal, trim, drawer, shelf }: {
   };
 }
 
-/** 家电机身的三档明暗：**门脸 / 抽屉面 / 台面**取中间那档，**控制面板 / 底座**压到最暗那档。 */
+/** 家电机身的三档明暗：**门脸 / 抽屉面 / 台面**取中间那档，**控制面板 / 底座**压到最暗那档。
+ *
+ * @param finish 本档箱体的表面处理（不锈钢档是 metal、奶白档是 paint）。门脸 / 踢脚 / 控制面板
+ * 一律**沿用箱体的表面处理**：一台奶白冰箱配一扇金属门、或白漆箱体配一块金属踢脚，
+ * 都会读成「几件不同材质拼起来的」，而真实家电的同一面漆 / 同一种拉丝是整套的。
+ */
 function applianceShellTones(finish: MaterialSurface): {
   door: Recipe;
   drawer: Recipe;
@@ -374,7 +379,11 @@ function applianceShellTones(finish: MaterialSurface): {
   };
 }
 
-/** 智能设备的机身层次：**面板 / 顶端面**比箱体浅一档（`applianceSoft`），**底座 / 支脚**压到最暗一档（`applianceDark`）。 */
+/** 智能设备的机身层次：**面板 / 顶端面**比箱体浅一档（`applianceSoft`），**底座 / 支脚**压到最暗一档（`applianceDark`）。
+ *
+ * @param finish 本档箱体的表面处理（皓白 / 石墨黑是 paint、金属灰是 metal），面板与底座
+ * 沿用同一支表面处理，避免「塑料壳配金属面」的拼装感。
+ */
 function deviceShellTones(finish: MaterialSurface): {
   panel: Recipe;
   top: Recipe;
@@ -2545,7 +2554,11 @@ function swatchRoleRank(role: string): number {
 
 const swatchHex = (colorValue: number) => "#" + (colorValue & 0xffffff).toString(16).padStart(6, "0");
 
-/** 档位色卡上显示的缩略色（最多四格）。 */
+/** 档位色卡上显示的缩略色（最多四格）。
+ *
+ * @param options.roles 这件模型真实槽位对应的角色（按槽位顺序，可以带 null）
+ * @param options.limit 最多几格，默认 4
+ */
 export function materialStylePresetSwatchColors(
   preset: MaterialStylePreset | null | undefined,
   fallbackPalette?: Readonly<Record<string, unknown>> | null,

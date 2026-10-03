@@ -9,7 +9,12 @@ import { addMeshBoxToGroup } from "./mesh-box";
 
 const MAX_TEXTURE_ANISOTROPY = 8;
 
-/** 构建背景墙模型。 */
+/** 构建背景墙模型。
+ *
+ * @param {object} three 与场景同一份的 THREE 命名空间。
+ * @param {object} item  场景物件（读取 width / height / depth / wallStyle）。
+ * @returns {object} THREE.Group
+ */
 export function createFeaturewallModel(three, item) {
   const itemWidth = Math.max(Number(item.width) || 3, 0.3);
   const itemHeight = Math.max(Number(item.height) || 2.4, 0.3);

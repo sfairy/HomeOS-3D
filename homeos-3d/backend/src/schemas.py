@@ -1,3 +1,5 @@
+"""接口的请求 / 响应模型（pydantic）。"""
+
 from __future__ import annotations
 
 import re

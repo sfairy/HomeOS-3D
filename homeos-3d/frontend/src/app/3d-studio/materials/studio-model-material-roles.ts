@@ -1,4 +1,18 @@
-/** 外部模型「材质槽位 / 角色 → 材质配方」集中表（对齐参考实现）。 */
+/** 外部模型「材质槽位 / 角色 → 材质配方」集中表（对齐参考实现）。
+ *
+ * 背景：参考实现的材质统一命名为 `material-<槽位>-<角色>`，角色由代码消费
+ * （见参考实现的 studio-material-styles.ts / studio-external-models.ts）。新项目的 GLB 命名
+ * 分五套体系：
+ *   - `<type>-material-N`（无角色，需靠 slot 表定位）
+ *   - `material-N-role`
+ *   - `<type>-furniture-role` / `<type>-detail-role`
+ *   - `<type>-aquatic-role` / `<type>-garden-role` / `<type>-decor-N` / `<type>-tea-role`
+ *   - legacy 名（`004`、`car_tms`、`金色金属材料` …）
+ * 本模块把这些体系统一解析成角色，再按「家族 → 角色 → 配方」给出颜色与表面参数，让调色板按
+ * 角色着色，而不是靠亮度 / 槽位号猜。
+ *
+ * 约定：灯光（`floorlamp / walllamp` 等外部灯具与程序化灯）只登记角色数据，是否走本表由接入方决定。
+ */
 import { courtyardPalette } from "../plan/courtyard-models";
 import { DECOR_MODELS, DECOR_THEMES } from "../studio/decor-models";
 

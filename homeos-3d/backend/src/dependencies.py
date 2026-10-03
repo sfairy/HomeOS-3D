@@ -1,3 +1,5 @@
+"""FastAPI 依赖：身份认证、授权门禁与中控视角的数据可见范围。"""
+
 from __future__ import annotations
 
 import json

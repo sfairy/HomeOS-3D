@@ -1,3 +1,5 @@
+"""数据库连接与 ORM 基类。 只做最简单的封装：一个全局 Engine、一个会话工厂，外加 SQLite 的连接级 PRAGMA。"""
+
 from __future__ import annotations
 
 from collections.abc import Iterator

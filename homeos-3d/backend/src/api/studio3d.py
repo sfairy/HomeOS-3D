@@ -1,3 +1,5 @@
+"""3D 户型图（Studio 3D）草稿与导出文件的存储接口；草稿以单文件 JSON 保存，保存时用 revision 做乐观并发控制。"""
+
 from __future__ import annotations
 
 import json

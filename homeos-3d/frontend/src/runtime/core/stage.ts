@@ -3723,7 +3723,12 @@ export function mountStage(mountOptions) {
   }
 
   const NAVIGATION_DRAG_THRESHOLD = 4;
-  /** 让分类栏 / 楼层栏可以被拖动改位置 —— 只在「导航位置调整态」生效。 */
+  /** 让分类栏 / 楼层栏可以被拖动改位置 —— 只在「导航位置调整态」生效。
+ *
+ * @param {HTMLElement} dragElement 接收指针的元素：分类栏整条轨道 / 楼层栏整列。
+ * @param {"categories"|"floors"} navigationKey 写回配置里的哪一条导航。
+ * @param {[number, number]} fallbackPosition 配置缺省时的兜底中心点百分比，与布局取法一致。
+ */
   function bindNavigationDrag(dragElement, navigationKey, fallbackPosition) {
 
     let navigationDrag = null;

@@ -1,3 +1,5 @@
+"""授权客户端：激活、心跳续租、租约恢复与能力门禁。"""
+
 from __future__ import annotations
 
 import asyncio

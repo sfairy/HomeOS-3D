@@ -1,3 +1,5 @@
+"""FastAPI 应用装配：生命周期、异常处理、中间件、页面路由与静态资源保护。"""
+
 from __future__ import annotations
 
 import asyncio

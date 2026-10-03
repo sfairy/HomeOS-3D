@@ -1,3 +1,5 @@
+"""认证与初始化接口：设置管理员账号、登录、登出与查询当前身份。 对外路径为 /api/v1/setup/* 与 /api/v1/auth/*，分别对应前端的设置页与登录页。"""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request, Response, status

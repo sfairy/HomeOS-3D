@@ -1,3 +1,5 @@
+"""管理员账号：把登录凭据从数据库外置到一个可删除的文件，删掉账号文件重启即可回到设置页重新设置。"""
+
 from __future__ import annotations
 
 import json

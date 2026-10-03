@@ -1,3 +1,5 @@
+"""新建仪表盘时的初始文档。 只负责拼一份合法的空文档并交给校验层归一，不接触数据库， 因此这里可以单独测试，也不会引出循环导入。"""
+
 from __future__ import annotations
 
 from .schema import validate_panel_document

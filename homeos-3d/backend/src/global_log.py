@@ -1,3 +1,5 @@
+"""全局事件日志：JSONL 落盘、敏感信息遮盖、查询与自动清理。"""
+
 from __future__ import annotations
 
 import json

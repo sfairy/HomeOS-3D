@@ -1,3 +1,5 @@
+"""Home Assistant 实体状态的内存中枢与订阅分发。 连接器把 HA 推来的原始状态归一成前端约定的 camelCase 结构后存在这里，再由 WebSocket / SSE 端点 通过订阅队列实时取走，避免每个前端连接各自去 HA 拉一次状态。"""
+
 from __future__ import annotations
 
 import asyncio

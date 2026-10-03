@@ -1,3 +1,5 @@
+"""Home Assistant 端点（内网 / 外网）的建模与候选顺序。 一条连接可以配两路地址：内网（优先）与外网（备用，可留空）。"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

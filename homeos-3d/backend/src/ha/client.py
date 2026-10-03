@@ -1,3 +1,5 @@
+"""Home Assistant 的底层访问客户端（REST + WebSocket）。"""
+
 from __future__ import annotations
 
 import asyncio
@@ -18,6 +20,12 @@ class HAClientError(RuntimeError):
 
 
 def normalize_base_url(value: str) -> str:
+    """把用户输入的 HA 地址归一成基地址，并在源头挡掉不可用的写法。
+
+    去首尾空白与末尾斜杠；拒绝含空白字符、反斜杠或端口不在 1..65535 的写法；必须是
+    http/https 且带主机名；不接受账号密码、查询串与锚点 —— 这些字段一旦混进基地址，
+    后续拼接出来的 URL 会静默指向别处。
+    """
     candidate = value.strip().rstrip('/')
     try:
         parsed = urlparse(candidate)
@@ -40,6 +48,7 @@ def normalize_base_url(value: str) -> str:
 
 
 def websocket_url(base_url: str) -> str:
+    """由 REST 基地址推出 WebSocket 端点：同主机端口，协议换 ws/wss，路径加 ``/api/websocket``。"""
     parsed = urlparse(base_url)
     scheme = 'wss' if parsed.scheme == 'https' else 'ws'
     path = f"{parsed.path.rstrip('/')}/api/websocket"
@@ -63,6 +72,14 @@ def is_ipv6_literal(base_url: str) -> bool:
 
 @dataclass(slots=True)
 class HASnapshot:
+    """一次全量对账所需的全部 HA 侧数据。
+
+    ``config`` 来自 ``test_connection``（版本、位置名、时区），``states`` 来自
+    ``get_states``，其余四个字段是实体 / 设备 / 区域 / 服务注册表。
+
+    注册表字段用「None 与 [] 区分语义」：None 表示这次没取到（HA 版本不支持该命令或
+    调用失败），同步层据此跳过「标记缺失」，避免把整个目录误判为已删除；[] 是权威的空结果。
+    """
 
     config: dict[str, Any]
     states: list[dict[str, Any]]

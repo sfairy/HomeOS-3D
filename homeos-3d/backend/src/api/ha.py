@@ -1,3 +1,5 @@
+"""Home Assistant 集成的主接口面：连接配置、目录查询、历史、同步与设备控制，按 api / ha.control / ha.sync / ha.configure 四档能力码放行。"""
+
 from __future__ import annotations
 
 import asyncio

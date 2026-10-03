@@ -1,3 +1,5 @@
+"""授权状态查询与激活接口。 本模块只做三件事：读当前授权状态、用激活码激活、重新激活/重试。"""
+
 from __future__ import annotations
 
 import asyncio

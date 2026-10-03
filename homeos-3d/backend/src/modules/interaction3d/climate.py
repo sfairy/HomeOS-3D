@@ -64,6 +64,7 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
     declared = isinstance(features, int) and not isinstance(features, bool) and features >= 0
 
     def supports(bit: int, legacy: bool = False) -> bool:
+        """HA 能力码声明了 ``supported_features`` 时按位判断；没声明（旧版/精简集成）时退回调用方给出的经验判据。"""
         return bool(features & bit) if declared else legacy
 
     if power:

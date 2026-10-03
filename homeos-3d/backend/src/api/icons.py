@@ -1,3 +1,5 @@
+"""图标库查询接口：在 Material Design Icons 的元数据里按关键词搜索。 路由前缀 /api/v1/icons。"""
+
 from __future__ import annotations
 
 import json

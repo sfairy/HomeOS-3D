@@ -1,3 +1,5 @@
+"""素材（图片）的目录、上传与读取接口。"""
+
 from __future__ import annotations
 
 import hashlib

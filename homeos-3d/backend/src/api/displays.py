@@ -1,3 +1,5 @@
+"""中控设备（墙面屏）的配对码与设备管理接口。 路由前缀 /api/v1/displays。"""
+
 from __future__ import annotations
 
 import secrets

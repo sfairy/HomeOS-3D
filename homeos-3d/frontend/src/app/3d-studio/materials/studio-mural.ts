@@ -5,7 +5,13 @@ import { addMeshBoxToGroup } from "./mesh-box";
 
 const MAX_TEXTURE_ANISOTROPY = 8;
 
-/** 构建壁画模型。 */
+/** 构建壁画模型。
+ *
+ * @param {object} three 与场景同一份的 THREE 命名空间。
+ * @param {object} item  场景物件（读取 width / height / depth / muralStyle）。
+ * @param {object} palette 站点配色（读取 furnitureDark 作边框、furnitureLight 作画芯底）。
+ * @returns {object} THREE.Group
+ */
 export function createMuralModel(three, item, palette) {
   const itemWidth = Math.max(Number(item.width) || 1.2, 0.2);
   const itemHeight = Math.max(Number(item.height) || 0.8, 0.2);

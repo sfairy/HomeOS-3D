@@ -1,3 +1,5 @@
+"""运行期配置：常量默认值、环境变量解析与路径推导。 职责边界：本模块只做「读环境变量 → 拼出不可变的 Settings 对象」， 不建立目录、不连数据库、不读密钥文件内容（只给出路径）。"""
+
 from __future__ import annotations
 
 import hashlib

@@ -1,3 +1,5 @@
+"""3D 交互增量包的全部 HTTP 路由，统一挂在 /modules/interaction3d 前缀下。"""
+
 from __future__ import annotations
 
 import hashlib

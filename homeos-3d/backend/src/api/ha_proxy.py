@@ -1,3 +1,20 @@
+"""Home Assistant 媒体与摄像头的反向代理。
+
+浏览器不能直接访问 HA（Token 只在服务端，HA 常在私网），因此把 camera_proxy /
+camera_proxy_stream / image_proxy / media_player_proxy / hls 几类路径中转到 HA：注入服务端
+Bearer Token，剥掉浏览器凭据与转发头，只放行这些前缀并拒绝路径绕过。
+
+``camera_hls_stream`` 额外做实体归属校验（它会用服务端令牌向 HA 换取播放地址），快照走带 TTL
+的进程内缓存并在后台刷新；媒体流是长连接，流式分支超时设为 None（不主动掐断）。
+
+安全口径：代理是通配路由，``ALLOWED_MEDIA_PROXY_PREFIXES`` 这份白名单就是唯一的门禁 ——
+只有摄像头实时流、图片与 HLS 片段能穿过去，其它 HA 接口一律拦下。``REQUEST_HEADERS_TO_DROP``
+剥掉逐跳头、浏览器凭据（cookie / authorization）与外层反代的来源信息（不剥会把自己的部署拓扑
+透给 HA，也可能让 HA 误判请求来源）；``RESPONSE_HEADERS_TO_DROP`` 剥掉 hop-by-hop 头以及
+content-length / content-encoding —— 这里会改写响应体（流式透传或本地缓存命中），长度与编码
+必须由本服务重新决定。
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -58,6 +75,7 @@ CAMERA_SNAPSHOT_CACHE_MAX_ENTRIES = 64
 
 @dataclass
 class CameraSnapshotCacheEntry:
+    """一张已缓存的摄像头快照：字节内容、媒体类型与写入时刻（monotonic）。"""
 
     content: bytes
     content_type: str
@@ -69,6 +87,7 @@ camera_snapshot_refreshes: dict[str, asyncio.Task[None]] = {}
 
 
 def upstream_path(request: Request) -> str:
+    """拼出要转给 HA 的路径（含查询串）；HA 侧路径与本服务完全一致。"""
     path = request.url.path
     query = request.url.query
     return f'{path}?{query}' if query else path
@@ -120,6 +139,7 @@ def camera_snapshot_cache_key(base_url: str, path: str) -> str:
 
 
 def _remember_camera_snapshot(key: str, content: bytes, content_type: str) -> None:
+    """写入快照缓存；超限时按创建时间淘汰最旧一条，防止长期运行把内存吃满。"""
     if key not in camera_snapshot_cache and len(camera_snapshot_cache) >= CAMERA_SNAPSHOT_CACHE_MAX_ENTRIES:
         oldest_key = min(camera_snapshot_cache, key=lambda item: camera_snapshot_cache[item].created_at)
         camera_snapshot_cache.pop(oldest_key, None)

@@ -1,3 +1,5 @@
+"""仪表盘（项目）与其草稿的接口，编辑器的所有读写都落在这里。 路由前缀 /api/v1/projects。"""
+
 from __future__ import annotations
 
 import json

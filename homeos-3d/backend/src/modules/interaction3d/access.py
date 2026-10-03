@@ -1,3 +1,5 @@
+"""3D 交互增量包的授权门禁与控件配置校验。 同一个功能有两条能力码：'editor'（编辑器整包）与 'module.3d_interaction' （本增量包自己），任一有效即放行 —— 既能随整包售卖，也能只给 3D 交互单独授权。"""
+
 from __future__ import annotations
 
 import re

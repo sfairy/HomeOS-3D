@@ -1,3 +1,21 @@
+"""Home Assistant 连接器服务：同步、实时事件与状态分发的主循环。
+
+- ``_run`` 常驻后台：取启用连接 → 全量同步 → WebSocket 长连收事件，异常按指数退避重连；
+- ``sync_once`` 按 ``ha_reconcile_interval_seconds`` 周期对账，用 HA 权威数据修正漏掉的增量；
+- ``_handle_live_event`` 只做「落库 + 推内存」，注册表类事件再触发防抖的元数据刷新；
+- 状态分发交给 ``StateHub``，本模块只决定「谁该被关注」。
+
+并发约定：数据库操作经 ``_run_database`` 串行化并放线程池（SQLAlchemy 是同步的），注册表刷新
+与全量同步共用 ``_sync_lock``，避免两份快照互相覆盖。
+
+模块常量的口径：``HA_ENDPOINT_RECHECK_SECONDS`` 是在用端点的复用窗口 —— 每隔这么久复探一次，
+内网可能已经恢复，不能因为一开始走了外网就永远不再回头看内网；``INCREMENTAL_FLUSH_SECONDS``
+内已知实体的状态事件不写库（功率/温度类实体可能每秒多条）；``STATE_FETCH_RETRY_DELAYS`` 共尝试
+3 次（首次 + 两次重试），兜住 HA 刚启动或集成未就绪时状态暂时不完整的时刻；
+``HISTORY_FETCH_CONCURRENCY`` 限并发是因为 HA 侧历史接口要查 recorder 数据库、开销大；
+``HISTORY_CACHE_SECONDS`` 让同一图表在页面切换/轮询时复用结果。
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -42,6 +60,11 @@ STATE_FETCH_REQUIRED_ATTRIBUTES = {
         'current_temperature'} }
 
 def state_requires_fetch_retry(entity_id: str, state: dict | None) -> bool:
+    """判断某个实体的状态是否缺失或残缺、需要重新拉取。
+
+    不在 ``STATE_FETCH_REQUIRED_ATTRIBUTES`` 白名单里的域只要有状态就算完整；sensor 例外：
+    unknown / unavailable 是「还没读到值」的占位状态，必须重拉，否则图表永远停在未知。
+    """
     domain = entity_id.partition('.')[0]
     required_attributes = STATE_FETCH_REQUIRED_ATTRIBUTES.get(domain)
     if required_attributes is None:

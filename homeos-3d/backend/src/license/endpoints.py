@@ -1,3 +1,5 @@
+"""授权服务器端点池：三批地址的选路、洗牌与失败拉黑。"""
+
 from __future__ import annotations
 
 import random

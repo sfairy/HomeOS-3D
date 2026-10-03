@@ -1,3 +1,5 @@
+"""全局日志接口：查询、导出、清空，以及前端与未登录页面的日志上报。"""
+
 from __future__ import annotations
 
 import json

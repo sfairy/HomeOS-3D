@@ -1,3 +1,5 @@
+"""仪表盘文档的 pydantic 结构定义与整体校验。 模型的字段名用 snake_case，别名（alias）用前端的 camelCase： 入库与网络传输一律走别名，内部代码读写属性名，两边互不干扰。"""
+
 from __future__ import annotations
 
 import re
