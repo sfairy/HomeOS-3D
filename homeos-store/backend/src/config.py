@@ -18,12 +18,12 @@ STORE_ROOT = Path(__file__).resolve().parent
 
 
 def _detect_project_root() -> Path:
-    """源码布局 ``homeos-store/backend/src`` 或镜像布局 ``/app/src``。"""
+    """源码布局 ``homeos-store/backend/src`` 或镜像布局 ``/app/app``。"""
     candidate_src = STORE_ROOT.parents[1]
     candidate_docker = STORE_ROOT.parent
     if (candidate_src / 'frontend').is_dir() or (candidate_src / 'backend').is_dir():
         return candidate_src
-    if (candidate_docker / 'dist').is_dir() or (candidate_docker / 'src').is_dir():
+    if (candidate_docker / 'dist').is_dir() or (candidate_docker / 'app').is_dir():
         return candidate_docker
     return candidate_src
 

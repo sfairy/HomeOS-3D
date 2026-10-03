@@ -23,7 +23,7 @@ python3 ops/start.py
 # 在仓库根执行；PYTHONPATH 指向本项目 backend/
 python -m venv .venv-store
 .venv-store/bin/pip install -r homeos-store/backend/src/requirements.txt
-PYTHONPATH=homeos-store/backend .venv-store/bin/python -m src.run
+PYTHONPATH=homeos-store/backend .venv-store/bin/python -m app.run
 ```
 
 首次访问会进 `/setup` 建管理员。密钥在启动时生成（私钥 `homeos-store/keys/local/`，公钥镜像到仓库根 `keys/`）。

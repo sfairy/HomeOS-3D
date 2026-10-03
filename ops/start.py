@@ -67,7 +67,7 @@ VENV_PYTHON = (
 )
 APP_REQUIREMENTS = APP_BACKEND / 'src' / 'requirements.txt'
 STORE_REQUIREMENTS = STORE_BACKEND / 'src' / 'requirements.txt'
-APP_SRC = APP_BACKEND / 'src'
+APP_SOURCE = APP_BACKEND / 'src'
 
 CLIENT_KEYS_DIR = ROOT / 'keys'
 
@@ -345,7 +345,7 @@ def main() -> None:
         APP_PORT,
         '--reload',
         '--reload-dir',
-        str(APP_SRC),
+        str(APP_SOURCE),
     ]
     if options.debug:
         store_command = debugpy_prefix(python, DEBUG_STORE_PORT) + store_command

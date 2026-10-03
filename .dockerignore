@@ -29,8 +29,10 @@ homeos-3d/image
 .env.*
 !.env.example
 
-# 文档与部署清单（不进运行镜像）
-*.md
+# 文档与类型桩（不进运行镜像）：`*.md` 只匹配根目录，源码包里的 README 会跟着 COPY
+# 进镜像，所以这里用 `**/` 递归覆盖。
+**/*.md
+**/*.pyi
 docs
 ops/deploy
 

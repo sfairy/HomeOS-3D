@@ -17,7 +17,7 @@ ARG PYTHON_IMAGE=python:3.14-slim-bookworm
 ARG CADDY_IMAGE=caddy:2.11.4-alpine
 
 #: 镜像版本号来自仓库根 package.json 的 version（CI 用 --build-arg HOMEOS_VERSION 传同一个值）：
-#: 构建期写成 src/_version.py 再随源码一起编译，镜像里不再有 VERSION 文件。
+#: 构建期写成 <包>/_version.py 再随源码一起编译，镜像里不再有 VERSION 文件。
 ARG CYTHON_VERSION=3.2.9
 
 # ─── 内置反代：只取 caddy 静态二进制，运行镜像不依赖这个基础镜像 ─────
@@ -47,9 +47,20 @@ WORKDIR /app
 
 COPY homeos-3d/backend/src/requirements.txt /tmp/requirements-app.txt
 COPY homeos-store/backend/src/requirements.txt /tmp/requirements-store.txt
-RUN pip install --upgrade pip \
-    && pip install -r /tmp/requirements-app.txt -r /tmp/requirements-store.txt \
+#: 构建容器连不上 pypi.org 时（表现为卡在 Downloading 一动不动、且不报错）由
+#: ops/build.py 的 --pip-index / HOMEOS_PIP_INDEX 传进来，换成可达的 PyPI 镜像。
+ARG PIP_INDEX_URL=""
+RUN pip install --upgrade pip ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} \
+    && pip install ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} \
+        -r /tmp/requirements-app.txt -r /tmp/requirements-store.txt \
     && rm /tmp/requirements-app.txt /tmp/requirements-store.txt
+
+#: Debian 包源同上：deb.debian.org 直连时单个包能等 30–80 秒，换成就近镜像
+#: （如 mirrors.tuna.tsinghua.edu.cn 或 mirrors.aliyun.com），由 ops/build.py 传入。
+ARG APT_MIRROR=""
+RUN if [ -n "$APT_MIRROR" ]; then \
+        sed -i "s|deb.debian.org|$APT_MIRROR|g" /etc/apt/sources.list.d/debian.sources; \
+    fi
 
 
 # ═══ 后端保护：Cython 把 Python 源码编译成原生扩展（.so），随后删除 .py 源码 ═══
@@ -66,26 +77,34 @@ ARG CYTHON_VERSION
 #: 版本号唯一来源是仓库根 package.json 的 version；CI 用 build-arg 传同一个值。
 ARG HOMEOS_VERSION=""
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends gcc libc6-dev \
+#: 同 base 阶段：构建容器连不上 pypi.org / deb.debian.org 时换成可达的镜像。
+ARG PIP_INDEX_URL=""
+ARG APT_MIRROR=""
+#: apt 的超时 + 重试是必要的：直连 deb.debian.org 时会「连上但不传数据」，
+#: 表现为构建卡死在某个 Get 上无限等；设了超时它才会自己重试或快速失败。
+RUN if [ -n "$APT_MIRROR" ]; then \
+        sed -i "s|deb.debian.org|$APT_MIRROR|g" /etc/apt/sources.list.d/debian.sources; \
+    fi \
+    && apt-get -o Acquire::http::Timeout=20 -o Acquire::Retries=5 update \
+    && apt-get -o Acquire::http::Timeout=20 -o Acquire::Retries=5 install -y --no-install-recommends gcc libc6-dev \
     && rm -rf /var/lib/apt/lists/* \
-    && pip install "cython==${CYTHON_VERSION}" setuptools
+    && pip install ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} "cython==${CYTHON_VERSION}" setuptools
 
 COPY ops/docker/compile_python.py /tmp/compile_python.py
 COPY ops/container_entrypoint.py ./ops/
 COPY ops/license_keys.py ./ops/
 COPY ops/docker ./ops/docker
 COPY package.json /tmp/package.json
-COPY homeos-3d/alembic.ini ./alembic.ini
-COPY homeos-3d/backend/src ./backend/src
-# migrations/ 里的迁移脚本必须原样保留（compile_python.py 的 KEEP_SOURCE_PREFIXES 已含它）：
-# alembic 是**读源码文件**来执行的，编译成 .so 之后它反而找不到脚本。
-# 位置与导入名都不是随意定的：/app/alembic.ini 的 script_location=migrations，而
-# migrations/env.py 按 backend.src.* 导入（见 backend/src/main.py），
-# 所以后端必须落在 /app/backend/src，PYTHONPATH=/app 才能同时解析 backend.src.* 与 ops.*。
-COPY homeos-3d/migrations ./migrations
+COPY homeos-3d/backend/src ./backend/app
+# 注意这一行的**两边名字不一样**：源码目录是 backend/src（仓库约定），构建镜像里落到
+# backend/app。Cython 的模块名取自路径，所以 .so 里烤进去的是 backend.app.*，产物里
+# 不会出现 src 目录。
+# 迁移脚本（migrations/ 与 alembic.ini）**不进产物**：发行版里没有 Alembic，新库由
+# backend.app.migrations 按 ORM 元数据直接建（基线 0001 与 Base.metadata 等价，
+# ops/check_schema.py 会比对结构指纹）。位置不是随意定的：后端落在 /app/backend/app，
+# PYTHONPATH=/app 才能同时解析 backend.app.* 与 ops.*。
 # /app/image：内置素材目录（settings.built_in_assets_dir），默认空，可另行挂载增删。
-# backend/src/_version.py 随后与其它源码一起被编译成 .so，运行期由 config.py 读取。
+# backend/app/_version.py 随后与其它源码一起被编译成 .so，运行期由 config.py 读取。
 RUN mkdir -p /app/image \
     && rm -f /app/ops/docker/compile_python.py /app/ops/docker/obfuscate_javascript.mjs \
     && version="${HOMEOS_VERSION}" \
@@ -93,21 +112,25 @@ RUN mkdir -p /app/image \
          version="$(sed -n 's/^  "version":[[:space:]]*"\([^"]*\)".*/\1/p' /tmp/package.json | head -n 1)"; \
        fi \
     && [ -n "$version" ] || { echo "无法确定版本号：package.json 缺 version 且未传 --build-arg HOMEOS_VERSION" >&2; exit 1; } \
-    && printf '__version__ = "%s"\n' "$version" > /app/backend/src/_version.py \
+    && printf '__version__ = "%s"\n' "$version" > /app/backend/app/_version.py \
     && echo "主应用构建版本：$version" \
+    && rm -f /app/backend/app/requirements.txt \
     && python /tmp/compile_python.py /app \
     && rm -f /tmp/compile_python.py \
-    && test -f /app/alembic.ini \
-    && test -f /app/backend/src/main.*.so \
-    && test -f /app/backend/src/__init__.*.so \
-    && test -f /app/backend/src/_version.*.so \
+    && test -f /app/backend/app/main.*.so \
+    && test -f /app/backend/app/__init__.*.so \
+    && test -f /app/backend/app/_version.*.so \
     && test -f /app/ops/container_entrypoint.*.so \
     && test -f /app/ops/license_keys.*.so \
     && test -f /app/ops/docker/start_app.*.so \
-    && test -f /app/migrations/env.py \
-    && test ! -f /app/backend/src/main.py \
+    && test ! -f /app/backend/app/main.py \
     && test ! -f /app/ops/container_entrypoint.py \
-    && test -z "$(find /app/backend/src /app/ops/docker \( -name '*.py' -o -name '*.pyc' \) -print -quit)"
+    && test ! -e /app/migrations \
+    && test ! -e /app/alembic.ini \
+    # 产物里只允许有原生扩展：多一个 .py/.pyc/.pyi/.md/requirements.txt 都算加密没做完整。
+    # 报出具体文件名而不是只给一个非零退出码，否则排查得重新解包镜像。
+    && stray="$(find /app/backend/app /app/ops -type f ! -name '*.so' -print)" \
+    && test -z "$stray" || { echo "产物里混入了非 .so 文件：$stray" >&2; exit 1; }
 
 # 导出阶段：FROM scratch + 只 COPY /app，令 --output type=local 得到干净的 /app 内容，
 # 而不是整个 Debian rootfs（见 ops/build.py 的 export_backend）。
@@ -120,46 +143,57 @@ ARG CYTHON_VERSION
 #: 版本号唯一来源是仓库根 package.json 的 version；CI 用 build-arg 传同一个值。
 ARG HOMEOS_VERSION=""
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends gcc libc6-dev \
+#: 同 base 阶段：构建容器连不上 pypi.org / deb.debian.org 时换成可达的镜像。
+ARG PIP_INDEX_URL=""
+ARG APT_MIRROR=""
+#: apt 的超时 + 重试是必要的：直连 deb.debian.org 时会「连上但不传数据」，
+#: 表现为构建卡死在某个 Get 上无限等；设了超时它才会自己重试或快速失败。
+RUN if [ -n "$APT_MIRROR" ]; then \
+        sed -i "s|deb.debian.org|$APT_MIRROR|g" /etc/apt/sources.list.d/debian.sources; \
+    fi \
+    && apt-get -o Acquire::http::Timeout=20 -o Acquire::Retries=5 update \
+    && apt-get -o Acquire::http::Timeout=20 -o Acquire::Retries=5 install -y --no-install-recommends gcc libc6-dev \
     && rm -rf /var/lib/apt/lists/* \
-    && pip install "cython==${CYTHON_VERSION}" setuptools
+    && pip install ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} "cython==${CYTHON_VERSION}" setuptools
 
 COPY ops/docker/compile_python.py /tmp/compile_python.py
 COPY ops/container_entrypoint.py ./ops/
 COPY ops/license_keys.py ./ops/
 COPY ops/docker ./ops/docker
 COPY package.json /tmp/package.json
-COPY homeos-store/alembic.ini ./alembic.ini
-COPY homeos-store/backend/src ./src
-# db/ 里的迁移脚本必须原样保留（compile_python.py 的 KEEP_SOURCE_PREFIXES 已含它）：
-# alembic 是**读源码文件**来执行的，编译成 .so 之后它反而找不到脚本。
-COPY homeos-store/db ./db
-# src/_version.py 随后与其它源码一起被编译成 .so，运行期由 src/__init__.py 读取。
-# 末尾两条 test 是**结构约束**而不是重复检查：迁移文件一旦没随镜像走，代价是
-# 「镜像推出去、用户机器上才发现容器起不来」—— 在这里失败，代价只是一次构建。
+COPY homeos-store/backend/src ./app
+# 同 app 阶段：源码目录叫 src，构建镜像里落到 app，.so 里的模块名因此是 app.*，
+# 产物里不会出现 src 目录。
+# 迁移脚本（db/ 与 alembic.ini）**不进产物**：发行版里没有 Alembic，新库由
+# app.core.migrations 按 ORM 元数据直接建（基线 0001 与 Base.metadata 等价）。
+# app/_version.py 随后与其它源码一起被编译成 .so，运行期由 app/__init__.py 读取。
+# 末尾的 find 是**结构约束**而不是重复检查：一旦有 .py 漏进产物（缓存、新目录没跟上
+# 清理），加密就等于没做 —— 在这里失败，代价只是一次构建。
 RUN rm -f /app/ops/docker/compile_python.py /app/ops/docker/obfuscate_javascript.mjs \
     && version="${HOMEOS_VERSION}" \
     && if [ -z "$version" ]; then \
          version="$(sed -n 's/^  "version":[[:space:]]*"\([^"]*\)".*/\1/p' /tmp/package.json | head -n 1)"; \
        fi \
     && [ -n "$version" ] || { echo "无法确定版本号：package.json 缺 version 且未传 --build-arg HOMEOS_VERSION" >&2; exit 1; } \
-    && printf '__version__ = "%s"\n' "$version" > /app/src/_version.py \
+    && printf '__version__ = "%s"\n' "$version" > /app/app/_version.py \
     && echo "商店构建版本：$version" \
+    && rm -f /app/app/requirements.txt /app/app/README.md \
     && python /tmp/compile_python.py /app \
     && rm -f /tmp/compile_python.py \
-    && test -f /app/src/app.*.so \
-    && test -f /app/src/run.*.so \
-    && test -f /app/src/__init__.*.so \
-    && test -f /app/src/_version.*.so \
+    && test -f /app/app/app.*.so \
+    && test -f /app/app/run.*.so \
+    && test -f /app/app/__init__.*.so \
+    && test -f /app/app/_version.*.so \
     && test -f /app/ops/container_entrypoint.*.so \
     && test -f /app/ops/license_keys.*.so \
     && test -f /app/ops/docker/start_store.*.so \
-    && test -f /app/alembic.ini \
-    && test -f /app/db/migrations/env.py \
-    && test ! -f /app/src/app.py \
+    && test ! -f /app/app/app.py \
     && test ! -f /app/ops/container_entrypoint.py \
-    && test -z "$(find /app/src /app/ops/docker \( -name '*.py' -o -name '*.pyc' \) -print -quit)"
+    && test ! -e /app/db \
+    && test ! -e /app/alembic.ini \
+    # 同 app 阶段：产物里只允许有原生扩展。
+    && stray="$(find /app/app /app/ops -type f ! -name '*.so' -print)" \
+    && test -z "$stray" || { echo "产物里混入了非 .so 文件：$stray" >&2; exit 1; }
 
 FROM scratch AS store-export
 COPY --from=store-build /app/ /
@@ -185,7 +219,7 @@ ARG BACKEND_PLATFORM=linux-amd64
 RUN mkdir -p /data /data/client-keys /run/secrets \
     && chown -R homeos:homeos /data /run/secrets /home/homeos
 
-# 加密后端（Cython .so + 保留的 migrations 源码）与前端产物都来自工作区根 dist/。
+# 加密后端（纯 Cython .so，无任何明文 .py）与前端产物都来自工作区根 dist/。
 COPY --chown=homeos:homeos dist/homeos-3d/backend/${BACKEND_PLATFORM} /app
 COPY --chown=homeos:homeos dist/homeos-3d/frontend /app/dist
 # 内置素材目录：空目录可能不被 local 导出保留，这里补建。
@@ -217,7 +251,7 @@ ARG BACKEND_PLATFORM=linux-amd64
 RUN mkdir -p /data /data/license-keys /data/client-keys \
     && chown -R homeos:homeos /data /home/homeos
 
-# 加密后端（Cython .so + 保留的 db/migrations 源码）与前端产物都来自工作区根 dist/。
+# 加密后端（纯 Cython .so，无任何明文 .py）与前端产物都来自工作区根 dist/。
 COPY --chown=homeos:homeos dist/homeos-store/backend/${BACKEND_PLATFORM} /app
 COPY --chown=homeos:homeos dist/homeos-store/frontend /app/dist
 # 内置反代配置（Caddy 与商店同容器，见 ops/docker/start_store.py）。

@@ -1,4 +1,7 @@
-"""启动授权商店服务：``python -m src.run``。
+"""启动授权商店服务。
+
+源码布局用 ``python -m src.run``，发行产物里包名是 ``app``（构建时把 src 映射成 app），
+入口都是 ``python -m <包>.run``。
 """
 
 from __future__ import annotations
@@ -26,7 +29,8 @@ def main() -> None:
     settings = load_settings()
     if reload_enabled():
         uvicorn.run(
-            "src.app:create_app",
+            # 用 __package__ 而不是写死包名：源码下是 src，发行产物里是 app。
+            f"{__package__}.app:create_app",
             factory=True,
             host=settings.host,
             port=settings.port,

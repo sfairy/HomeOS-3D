@@ -11,16 +11,16 @@
 ```text
 HomeOS/
 ├── homeos-3d/                 # 主应用（独立项目）
-│   ├── backend/src/           # 后端（import 根是项目根，包名 backend.src）
+│   ├── backend/src/           # 后端（import 根是项目根，源码包名 backend.src）
 │   ├── frontend/              # 前端源码（pages / src / public）
 │   ├── data/                  # 运行时（不入库；APP_DATA_DIR）
-│   ├── migrations/ alembic.ini
+│   ├── migrations/ alembic.ini   # 只在开发期用，不进构建产物
 │   └── package.json
 ├── homeos-store/              # 授权商店（独立项目）
-│   ├── backend/src/           # 后端（Python 包名 src）
+│   ├── backend/src/           # 后端（源码包名 src）
 │   ├── frontend/              # 前端源码
 │   ├── data/                  # 运行时（不入库；STORE_DATA_DIR）
-│   ├── db/ alembic.ini        # 结构迁移（与主应用各自独立的一套）
+│   ├── db/ alembic.ini        # 结构迁移（与主应用各自独立的一套；只在开发期用）
 │   ├── keys/local/            # 本地联调用的授权私钥（不入库）
 │   └── package.json
 ├── dist/                      # 构建产物（与源码彻底分开，不入库）
@@ -218,7 +218,7 @@ cp .env.example .env
 | `APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES` | `127.0.0.1,::1` | 内置反代在容器回环上，**保持默认**；不要填 `*` 或 docker 网段 |
 | `UVICORN_FORWARDED_ALLOW_IPS` | `127.0.0.1,::1` | 同上，**不要填 `*`** |
 | `APP_BASE_URL` / `STORE_BASE_URL` | 空 | 局域网 IP 不固定时留空，应用按请求 `Host` 判断同源；需要固定地址时才填 |
-| `APP_STORE_URL` | `https://pay.homeos.cn` | 商店的**浏览器入口**，登录页「忘记密码」与授权对话框「前往商店」按它跳转。自托管填客户端能访问的商店地址（`http://<商店IP>:8802` 或反代域名）；注意它和出站用的 `APP_LICENSE_SERVER_URL` 不是一回事 |
+| `APP_STORE_URL` | `https://pay.homeos.cn` | 商店的**浏览器入口**，登录页「忘记密码」「商店」按它跳转。自托管填客户端能访问的商店地址（`http://<商店IP>:8802` 或反代域名）；注意它和出站用的 `APP_LICENSE_SERVER_URL` 不是一回事 |
 | `APP_PUBLISH_PORT` / `APP_PROXY_PUBLISH_PORT` | `8801` / `8803` | 主应用宿主发布端口 |
 | `STORE_PUBLISH_PORT` / `STORE_PROXY_PUBLISH_PORT` | `8802` / `8804` | 商店宿主发布端口 |
 | `HOMEOS_VERSION` | 仓库 `package.json` 的 `version` | 镜像 tag；等价于 `--version`。优先级：`--version` > 真实环境变量 > `.env` > `package.json`。`deploy.sh` 会把解析结果写回 `.env`（连同 `HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE`）**钉住版本**，让中心与各客户机不会漂到 `latest` |
@@ -324,6 +324,14 @@ HOMEOS_IMAGE=homeos-3d:local HOMEOS_STORE_IMAGE=homeos-3d-store:local \
 ```
 
 Cython `.so` 与架构绑定：`dist/<项目>/backend/linux-<arch>/` 一份只对应一个架构；`--arch amd64|arm64` 可与宿主不同，但跨架构依赖 QEMU，会慢很多。
+
+**产物里的包名是 `app`，不是 `src`**：源码目录按仓库约定叫 `backend/src`，但构建阶段用 `COPY homeos-3d/backend/src ./backend/app`（商店是 `./app`）把它映射过去再交给 Cython —— Cython 的模块名取自文件路径，映射之后 `.so` 里烤进去的就是 `backend.app.*` / `app.*`，`dist/` 里因此不存在任何名为 `src` 的目录。
+
+产物里**没有任何明文 `.py`**：后端包之外，`migrations/`、`db/` 与 `alembic.ini` 也都不进 `dist/`（Dockerfile 的构建阶段用 `find /app \( -name '*.py' -o -name '*.pyc' \)` 兜底断言）。发行版不需要 Alembic —— 全新库由后端按 ORM 元数据直接建，再写入基线版本号 `0001`（见 `backend/src/migrations.py` 与 `src/core/migrations.py` 的 `_create_schema`）；老库接管、备份这些行为不变。`ops/check_schema.py` 会额外验证「ORM 建库」与「迁移脚本建库」结构等价，所以少了迁移脚本也不会让新库缺表。
+
+编译后编译脚本会自动对每个 `.so` 执行 `strip --strip-all`（见 `ops/docker/compile_python.py` 的 `_strip_extensions`）：去掉 DWARF 调试信息与 `.symtab` 静态符号，保留 `.dynsym`（动态加载靠它，删了 `import` 就失败）。这样 `strings` 里不再出现 `__pyx_pf_*` 内部函数名与原始路径。
+
+**Python 层的异常行号不受影响**：Cython 把「文件名 + 行号」作为常量编译进了机器码（供 `__Pyx_AddTraceback` 使用），不在 DWARF 里，所以 strip 之后线上堆栈依然是 `backend/src/.../config.py, line N`；丢掉的只是 gdb 级调试信息。
 
 **Docker Hub 拉不动时**（典型报错是 `load metadata for docker.io/library/python:3.14-slim-bookworm` → `auth.docker.io` 超时），把基础镜像切到镜像站即可，不必改 `Dockerfile`：
 

@@ -11,6 +11,7 @@ ops/start.py、ops/docker/start_store.py、ops/docker/start_app.py。密钥生�
 from __future__ import annotations
 
 import hashlib
+import importlib
 import os
 from pathlib import Path
 
@@ -91,12 +92,27 @@ def keys_ready(directory: Path) -> bool:
     return all(ok(directory / name) for name in (SIGNING_PUBLIC_KEY_FILENAME, TRANSPORT_PUBLIC_KEY_FILENAME))
 
 
+def _licensing_keys_module():
+    """取商店的密钥模块。
+
+    本模块在**两套布局**下都会被 import：源码/开发是 ``src.licensing.keys``（源码目录就叫
+    src），发行产物是 ``app.licensing.keys``（构建时把 src 映射成 app，见 Dockerfile）。
+    所以按候选名逐个探测，而不是写死其中一个。
+    """
+    for name in ('src.licensing.keys', 'app.licensing.keys'):
+        try:
+            return importlib.import_module(name)
+        except ImportError:
+            continue
+    raise ImportError('找不到商店密钥模块（src.licensing.keys / app.licensing.keys）')
+
+
 def ensure_store_keys(keys_dir: Path) -> None:
     """确保商店私钥存在；这是本模块里唯一会生成密钥的地方。
 
     商店自身在默认目录下缺密钥时直接报错（不自动生成），所以启动器得先备好。
     """
-    from src.licensing import keys as license_keys
+    license_keys = _licensing_keys_module()
 
     keys_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
 

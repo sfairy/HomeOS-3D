@@ -33,6 +33,12 @@
   // 虚拟环境与缓存目录里有大量第三方源码，不该参与本仓库的诊断。
   "exclude": [".venv-store", "**/node_modules", "**/__pycache__", "dist"],
 
+  // 但 exclude 只挡「批量扫描」：dist/ 里的文件一旦在编辑器里打开，分析器仍会单独分析它，
+  // 而产物里只剩加密后的 .so（包名 app / backend.app），解析不了，于是必然报
+  // reportMissingImports。
+  // ignore 与 exclude 的区别正在这里：它连「已包含 / 已打开文件」的诊断一起压掉。
+  "ignore": ["dist"],
+
   // 仓库根与各迁移目录下的脚本在运行时会自行把 import 根注入 sys.path，静态分析看不到
   // 这一步，于是 src.* / backend.src.* 一律报 reportMissingImports。
   //
