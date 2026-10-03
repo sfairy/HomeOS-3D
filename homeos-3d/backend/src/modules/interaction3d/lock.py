@@ -45,7 +45,6 @@ def validate_lock_bindings(items, validate_camera) -> None:
         "openAngle",
         "deviceName",
         "focusCamera",
-        "labelHidden",
         "doorEntityId",
         "openDirection",
         "tamperEntityId",
@@ -68,17 +67,9 @@ def validate_lock_bindings(items, validate_camera) -> None:
     for item in items:
         if not isinstance(item, dict):
             fail()
-        # 旧版本把这几个字段写在门绑定里，现在它们属于户型图模型；直接丢弃，
-        # 让老配置在保存时被自动清理，而不是因为多余字段被拒。
-        for key in ("doorType", "doorLabel", "wallId", "t"):
-            item.pop(key, None)
         model_id = item.get("modelId")
         if isinstance(model_id, str) and model_id:
-            raw_model_id = model_id
-            # 反复剥前缀，兼容早期写成 door:door:xxx 的配置。
-            while raw_model_id.startswith("door:"):
-                raw_model_id = raw_model_id[5:]
-            item["modelId"] = f"door:{raw_model_id}" if raw_model_id else model_id
+            item["modelId"] = model_id if model_id.startswith("door:") else f"door:{model_id}"
         # 必填项里除下面这些可选字段之外都在此核对：字符串且不超过 255 字符；
         # 可选字段缺省即空串是合法的 —— 门的绑定是渐进补全的，因此这里不强制非空。
         if any(
@@ -94,7 +85,6 @@ def validate_lock_bindings(items, validate_camera) -> None:
                 "labelMode",
                 "openAngle",
                 "focusCamera",
-                "labelHidden",
                 "openDirection",
                 "backgroundOpacity",
             }
@@ -162,11 +152,8 @@ def validate_lock_bindings(items, validate_camera) -> None:
             fail()
         if item.get("hinge", "left") not in ("left", "right"):
             fail()
-        # labelHidden 是旧字段，labelMode 是新的三态；没写 labelMode 时由 labelHidden 折算。
-        default_label_mode = "hidden" if item.get("labelHidden") is True else "always"
-        if item.get("labelMode", default_label_mode) not in ("hidden", "always", "open"):
-            fail()
-        if "labelHidden" in item and item["labelHidden"] not in (None, "") and type(item["labelHidden"]) is not bool:
+        # labelMode 为三态：hidden / always / open。
+        if item.get("labelMode", "always") not in ("hidden", "always", "open"):
             fail()
         for field, low, high in (("size", 20, 500), ("fontSize", 8, 100)):
             value = item.get(field)

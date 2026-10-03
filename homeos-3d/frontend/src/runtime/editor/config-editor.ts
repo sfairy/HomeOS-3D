@@ -3683,14 +3683,10 @@ export async function openInteraction3dEditor({
           ),
           !isGenericDeviceMode &&
             !isVacuumMode &&
-            (!isNasMode || (!vector.statusSource && vector.entityId)) &&
+            !isNasMode &&
             createSettingRow(
               currentContainer,
-              isNasMode
-                ? "指示灯状态实体（旧版兼容）"
-                : bindingContainer
-                  ? "主实体（选填）"
-                  : "绑定实体",
+              bindingContainer ? "主实体（选填）" : "绑定实体",
               boundEntityPickerButton,
             ),
           bindingContainer)
@@ -4527,16 +4523,6 @@ export async function openInteraction3dEditor({
             ));
         }
         if (
-          (isNasMode &&
-            !vector.statusSource &&
-            vector.entityId &&
-            currentContainer.append(
-              createElement(
-                "p",
-                "i3d-note",
-                "旧版绑定仅按 on/off 控制指示灯，不会开关 NAS 或关联整台设备。安全状态表示告警，不应作为开机依据；选择 NAS 数据来源后将替换旧绑定。",
-              ),
-            ),
           isNasMode &&
             currentContainer.append(
               createElement(
@@ -4547,7 +4533,7 @@ export async function openInteraction3dEditor({
                   : "请先选择 NAS 数据来源，缺少 CPU 等个别指标也可绑定。",
               ),
             ),
-          !matchedCurtainGroup && deviceKind !== "smallcar")
+          !matchedCurtainGroup && deviceKind !== "smallcar"
         ) {
           ((currentContainer = createConfigSection("交互行为")),
             createSelectRow(

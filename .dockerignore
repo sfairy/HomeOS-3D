@@ -36,9 +36,6 @@ ops/deploy
 
 # 依赖目录（镜像内不再构建前端，两个子项目的 node_modules 都不进上下文）。
 **/node_modules
-# 历史遗留的项目内构建产物：新构建统一落在工作区根 dist/，这两个旧目录只会污染上下文。
-homeos-3d/dist
-homeos-store/dist
 # 注意：工作区根 dist/ 必须进入构建上下文 —— 运行阶段要 COPY 其中的加密后端与前端产物。
 # 因此这里不能再用 `**/dist` 通配（它会连根 dist 一起排除）。
 *.tsbuildinfo
@@ -55,8 +52,6 @@ release-manifest.json
 **/release-manifest.json
 
 # 仓库工程脚本与设计源件（镜像内只跑 package.json 的 build，不读这里）。
-# 之前还列了 `/tools`、`/packages`、`homeos-3d/tools`：这三个目录早已不存在，
-# 留着只会让人以为有东西被排除了。
 /design
 
 # 本地编排文件：镜像构建不需要，compose 从宿主机直接读。

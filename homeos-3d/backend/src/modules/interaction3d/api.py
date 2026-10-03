@@ -251,14 +251,11 @@ def snapshot_scene(request: Request, _user: LicensedUser):
     path = folder / f'{scene_id}.json'
     # 'x' 独占创建：sceneId 是新的，万一撞名也宁可报错，不覆盖已有快照。
     with path.open('x', encoding='utf-8') as output:
-        # 原样落盘 studio 草稿的 JSON，不裁剪也不另加版本号：快照与草稿共用同一份
-        # 场景格式，兼容性靠读取端容错（例如缺 floors 时兜底成单层）。
         json.dump(payload, output, ensure_ascii=False)
     # 384（八进制 600）：快照含户型细节，只给属主读写。
     path.chmod(384)
     scene = payload['scene']
-    # 老格式的快照没有 floors 字段，这里用 [{'scene': scene}] 兜底成「整份 scene 即唯一一层」。
-    for floor in scene.get('floors', [{'scene': scene}]):
+    for floor in scene.get('floors', []):
         background = floor.get('scene', {}).get('background') or {}
         # 底图资源 ID 形如 user:<hash>，去掉前缀后才是素材目录里的文件名。
         asset_id = str(background.get('assetId', '')).removeprefix('user:')
@@ -282,7 +279,7 @@ def get_scene(scene_id: str, request: Request, viewer: LicensedViewer, projectId
     scene = payload['scene']
     # 局部导入：只有本路由与 get_current_scene 用到 urlencode，放模块顶部属于噪音。
     from urllib.parse import urlencode
-    for floor in scene.get('floors', [{'scene': scene}]):
+    for floor in scene.get('floors', []):
         background = floor.get('scene', {}).get('background') or {}
         asset_id = str(background.get('assetId', '')).removeprefix('user:')
         # 只给本模块冻结过来的哈希底图补 url；其它素材走别的通道，不在这里兜底。
@@ -328,7 +325,7 @@ def get_current_scene(scene_id: str, request: Request, database: DatabaseSession
     payload['referenceScene'] = reference['scene']
     from urllib.parse import urlencode
     # 与 get_scene 相同的底图 URL 注入，只是这里的场景来自实时草稿。
-    for floor in payload['scene'].get('floors', [{'scene': payload['scene']}]):
+    for floor in payload['scene'].get('floors', []):
         background = floor.get('scene', {}).get('background') or {}
         asset_id = str(background.get('assetId', '')).removeprefix('user:')
         if not re.fullmatch('[0-9a-f]{32}', asset_id):
@@ -346,8 +343,7 @@ def get_background(scene_id: str, asset_id: str, request: Request, viewer: Licen
     #
     # 先找随快照一起冻结的本地副本（``<sceneId>-<assetId><后缀>``）；副本缺失（冻结时复制失败、
     # 素材后来才补上）时回退到用户素材库，此时要求该素材被全局草稿里某个楼层的背景引用过
-    # （``studio3d_draft_path`` 里的 scene.floors，老格式没有 floors 就把整份 scene 当唯一一层）。
-    # 两种来源都取不到时抛 404。
+    # （``studio3d_draft_path`` 里的 scene.floors）。两种来源都取不到时抛 404。
     require_scene_transfer(request, viewer, scene_id, projectId)
     path = scene_path(request, scene_id)
     folder = path.parent
@@ -366,7 +362,7 @@ def get_background(scene_id: str, asset_id: str, request: Request, viewer: Licen
         # 必须被当前草稿的某个楼层背景引用才放行。
         referenced = any(
             str((floor.get('scene', {}).get('background') or {}).get('assetId', '')).removeprefix('user:') == asset_id
-            for floor in scene.get('floors', [{'scene': scene}])
+            for floor in scene.get('floors', [])
         )
         asset = user_asset_file(request.app.state.settings.user_assets_dir.resolve(), asset_id) if referenced else None
         if asset:

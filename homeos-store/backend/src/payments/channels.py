@@ -15,9 +15,6 @@ from ..core.models import StoreSetting
 #: 受支持的支付渠道。
 PROVIDER_NAMES: tuple[str, ...] = ("alipay", "wechat")
 
-#: 历史渠道显示名：读取时归一、后台禁止写回。
-RETIRED_DISPLAY_NAMES = frozenset({"模拟支付", "mock", "模拟"})
-
 #: 各渠道的默认显示名（顾客在二维码弹窗上看到的名字）。
 CHANNEL_LABELS: dict[str, str] = {"alipay": "支付宝", "wechat": "微信支付"}
 
@@ -75,26 +72,14 @@ def provider_label(name: str) -> str:
 
 def enabled_channel_names(setting: StoreSetting | None, settings: StoreSettings) -> tuple[str, ...]:
     """当前**启用**的渠道列表（顺序即前台展示顺序）。空 = 一个都没启用 → 拒绝建单。
-
-    ``payment_channels_json`` 非空时以它为准；为空则回落到单渠道时代的 ``payment_provider``，
-    这样老部署升级后行为完全不变（不需要人工去勾一遍）。
     """
     raw = _json_array(getattr(setting, "payment_channels_json", "")) if setting else []
-    names = tuple(
-        name
-        for name in (normalize_provider_name(str(item)) for item in raw)
-        if name in PROVIDER_NAMES
-    )
-    if names:
-        seen: list[str] = []
-        for name in names:
-            if name not in seen:
-                seen.append(name)
-        return tuple(seen)
-    single = normalize_provider_name(
-        (getattr(setting, "payment_provider", None) or "") if setting else ""
-    ) or normalize_provider_name(settings.payment_provider)
-    return (single,) if single in PROVIDER_NAMES else ()
+    names: list[str] = []
+    for item in raw:
+        name = normalize_provider_name(str(item))
+        if name in PROVIDER_NAMES and name not in names:
+            names.append(name)
+    return tuple(names)
 
 
 def default_channel_name(
@@ -113,25 +98,14 @@ def default_channel_name(
 def display_name_for(
     channel: str, setting: StoreSetting | None, settings: StoreSettings
 ) -> str:
-    """某个渠道的显示名。
-
-    ``payment_display_name`` 是**单渠道时代**的字段：只有「这个渠道正是默认渠道」或
-    「默认渠道没配」时才采用它。否则同时在跑支付宝与微信时，运营给支付宝起的名字
-    （或历史遗留的「模拟支付」）会挂到微信的二维码弹窗上。
-    """
+    """某个渠道的显示名（顾客在二维码弹窗上看到的名字）。"""
     name = normalize_provider_name(channel)
-    fallback = CHANNEL_LABELS.get(name, name or "支付")
-    custom = (getattr(setting, "payment_display_name", "") or "").strip() if setting else ""
-    if not custom or custom in RETIRED_DISPLAY_NAMES:
-        return fallback
-    is_default = default_channel_name(setting, settings) in ("", name)
-    return custom if is_default else fallback
+    return CHANNEL_LABELS.get(name, name or "支付")
 
 
 __all__ = [
     "CHANNEL_LABELS",
     "PROVIDER_NAMES",
-    "RETIRED_DISPLAY_NAMES",
     "SPECIAL_PROVIDER_LABELS",
     "default_channel_name",
     "display_name_for",

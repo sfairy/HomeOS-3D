@@ -1,13 +1,6 @@
 """启动时的数据库迁移。
 
-与主应用 ``homeos-3d/backend/src/core/migrations.py`` 同一套约定（锁 → 备份 → upgrade），
-外加一步商店独有的**存量库认领**：
-
-商店在引入 Alembic 之前，库结构由 ``create_all()`` + ``ensure_schema()`` 建成，库里
-没有 ``alembic_version``。这种库不能直接 ``upgrade head`` —— 基线会试图重建已存在的表。
-所以：只要发现「库里有业务表、却没有版本表」，就先把它 ``stamp`` 成基线 revision
-（认领为「结构等于基线」），再往后应用增量。存量库里多出来的历史列/索引由
-``0002`` 负责清理。
+与主应用 ``homeos-3d/backend/src/migrations.py`` 同一套约定（锁 → 备份 → upgrade）。
 """
 from __future__ import annotations
 
@@ -20,9 +13,6 @@ from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
-#: 副作用导入：把 ORM 表注册进 ``Base.metadata``（``0002`` 与只读自检都依赖它）。
-from . import models  # noqa: F401  # pyright: ignore[reportUnusedImport]
-from .database import Base
 from .file_lock import locked_file
 from ..config import StoreSettings
 
@@ -41,10 +31,6 @@ class MigrationBackupError(RuntimeError):
     """迁移前的快照写不出来，因此拒绝继续迁移。"""
 
 
-class UnknownRevisionError(RuntimeError):
-    """库内 revision 不在当前脚本目录中（说明代码回退到了更早的版本）。"""
-
-
 def _migration_config(settings: StoreSettings) -> Config:
     """构造 Alembic 配置：脚本目录与数据库 URL 都从 Settings 推导。
     """
@@ -54,23 +40,9 @@ def _migration_config(settings: StoreSettings) -> Config:
     return config
 
 
-def _known_revisions(config: Config) -> set[str]:
-    """取出脚本目录里全部已知 revision。"""
-    return {script.revision for script in ScriptDirectory.from_config(config).walk_revisions()}
-
-
 def _head_revision(config: Config) -> str:
     """当前脚本目录的 head revision。"""
     return str(ScriptDirectory.from_config(config).get_current_head())
-
-
-def _baseline_revision(config: Config) -> str:
-    """基线 revision：整条链上 ``down_revision`` 为空的那个（即 ``0001``）。
-    """
-    for script in ScriptDirectory.from_config(config).walk_revisions():
-        if not script.down_revision:
-            return str(script.revision)
-    raise RuntimeError("迁移脚本目录里没有基线 revision（找不到 down_revision 为空的脚本）。")
 
 
 def _recorded_revision(database_path: Path) -> str | None:
@@ -88,19 +60,6 @@ def _recorded_revision(database_path: Path) -> str | None:
             return None
         row = connection.execute("SELECT version_num FROM alembic_version LIMIT 1").fetchone()
     return str(row[0]) if row else None
-
-
-def _has_application_tables(database_path: Path) -> bool:
-    """库里是否已有本应用的业务表（用于识别「Alembic 之前建的老库」）。
-    """
-    if not database_path.is_file() or database_path.stat().st_size == 0:
-        return False
-    expected = set(Base.metadata.tables)
-    with sqlite3.connect(f"file:{database_path}?mode=ro", uri=True) as connection:
-        rows = connection.execute(
-            "SELECT name FROM sqlite_master WHERE type = 'table'"
-        ).fetchall()
-    return any(name in expected for (name,) in rows)
 
 
 def backup_database(database_path: Path) -> Path | None:
@@ -167,31 +126,12 @@ def run_migrations(settings: StoreSettings) -> list[str]:
     with locked_file(lock_path):
         config = _migration_config(settings)
         recorded = _recorded_revision(database_path)
-        known = _known_revisions(config)
-        if recorded is not None and recorded not in known:
-            raise UnknownRevisionError(
-                f"数据库 revision「{recorded}」不在当前迁移脚本中（已知：{sorted(known)}）。"
-                "这通常意味着代码回退到了更早的版本；请用对应版本的代码启动，"
-                "或从迁移前的快照恢复数据库。"
-            )
-
         head = _head_revision(config)
-        baseline = _baseline_revision(config)
-        #: 存量库（有业务表、没有版本表）需要先被「认领」成基线，不能重放基线。
-        adoption = recorded is None and _has_application_tables(database_path)
-        structure_changes = adoption or recorded != head
-
-        #: 备份必须先于**任何**结构改动，且只做一次：认领（stamp）本身也会写 alembic_version。
-        if structure_changes:
-            backup_database(database_path)
-            prune_database_backups(database_path)
-
-        if adoption:
-            command.stamp(config, baseline)
-            recorded = baseline
-            performed.append(f"认领存量库为基线 {baseline}")
 
         if recorded != head:
+            #: 备份必须先于任何结构改动。
+            backup_database(database_path)
+            prune_database_backups(database_path)
             command.upgrade(config, "head")
             performed.append(f"应用迁移 {recorded} → {head}")
 

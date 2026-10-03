@@ -616,7 +616,6 @@ export function createInteraction3dEditorPickers({
       title: entityPickerTitle,
     }) {
       const isSpeakerEntity = entityDeviceKind === "speaker",
-        isNasEntity = entityDeviceKind === "nas",
         isDeviceStatusEntity = entityDeviceKind === "device-status",
         isLockDoorEntity = entityDeviceKind === "lock-door",
         isLockBatteryEntity = entityDeviceKind === "lock-battery",
@@ -659,10 +658,8 @@ export function createInteraction3dEditorPickers({
                                 ? /^(camera|image)\.[a-z0-9_]+$/
                                 : isTelevisionEntity || isSpeakerEntity
                                   ? /^media_player\.[a-z0-9_]+$/
-                                  : isNasEntity
-                                    ? /^(binary_sensor|switch|input_boolean)\.[a-z0-9_]+$/
-                                    : isCoverEntity
-                                      ? /^cover\.[a-z0-9_]+$/
+                                  : isCoverEntity
+                                    ? /^cover\.[a-z0-9_]+$/
                                       : isClimateEntity
                                         ? /^climate\.[a-z0-9_]+$/
                                         : /^(light|switch)\.[a-z0-9_]+$/,
@@ -700,17 +697,17 @@ export function createInteraction3dEditorPickers({
                             ? "water_heater."
                             : ["fan", "purifier"].includes(entityDeviceKind)
                               ? "fan."
-                              : isTelevisionEntity || isTelevisionPowerEntity
-                                ? "media_player."
-                                : isNasEntity || entityDeviceKind === "presence"
-                                  ? "binary_sensor."
-                                  : isCoverEntity
-                                    ? "cover."
-                                    : isClimateEntity
-                                      ? "climate."
-                                      : entityDeviceKind === "camera"
-                                        ? "camera."
-                                        : "light.",
+                                : isTelevisionEntity || isTelevisionPowerEntity
+                                  ? "media_player."
+                                  : entityDeviceKind === "presence"
+                                    ? "binary_sensor."
+                                    : isCoverEntity
+                                      ? "cover."
+                                      : isClimateEntity
+                                        ? "climate."
+                                        : entityDeviceKind === "camera"
+                                          ? "camera."
+                                          : "light.",
                         ),
           }),
           pickerEntitiesForComponentType: () =>
@@ -802,13 +799,11 @@ export function createInteraction3dEditorPickers({
                                           ? "选择电视媒体实体（Apple TV）"
                                           : isTelevisionPowerEntity
                                             ? "选择电视电源状态"
-                                            : isNasEntity
-                                              ? "选择 NAS 指示灯状态实体（旧版兼容）"
-                                              : isCoverEntity
-                                                ? "选择窗帘实体"
-                                                : isClimateEntity
-                                                  ? "选择空调实体"
-                                                  : "选择灯光实体"),
+                                            : isCoverEntity
+                                              ? "选择窗帘实体"
+                                              : isClimateEntity
+                                                ? "选择空调实体"
+                                                : "选择灯光实体"),
         searchPlaceholder: "搜索实体名称或 ID",
         triggerButton: entityTrigger,
         pageSize: EDITOR_PICKER_PAGE_SIZES.entity,
@@ -846,13 +841,11 @@ export function createInteraction3dEditorPickers({
                             ? "没有匹配的媒体播放器，请先在 Home Assistant 接入 Apple TV"
                             : isTelevisionPowerEntity
                               ? "没有匹配的电源状态实体"
-                              : isNasEntity
-                                ? "没有匹配的开关或二元传感器"
-                                : isCoverEntity
-                                  ? "没有匹配的窗帘"
-                                  : isClimateEntity
-                                    ? "没有匹配的空调"
-                                    : "没有匹配的灯光或开关",
+                              : isCoverEntity
+                                ? "没有匹配的窗帘"
+                                : isClimateEntity
+                                  ? "没有匹配的空调"
+                                  : "没有匹配的灯光或开关",
         itemClass: "entity-list",
         getPage: ({ query: entityQuery, page: entityPage }) =>
           editorEntityPickerPage(filterEntities(entityQuery), entityPage, null),

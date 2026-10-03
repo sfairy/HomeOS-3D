@@ -385,14 +385,12 @@ def _check_referral_code_generation() -> None:
     expect(duplicates, 0, "200 个新邀请码互不相同的数量（重复数）")
 
 
-def _check_referral_code_regex_legacy() -> None:
+def _check_referral_code_regex() -> None:
     from src.security.security import REFERRAL_CODE_RE
 
-    expect_true(bool(REFERRAL_CODE_RE.match("012345")), "老的 6 位数字码必须仍然匹配")
-    expect_true(bool(REFERRAL_CODE_RE.match("987654")), "老 6 位数字码（含 9）必须仍然匹配")
-    # 000000 是合法的老码（6 位数字码不排除 0/1），别拿它当非法输入。
-    expect_true(bool(REFERRAL_CODE_RE.match("000000")), "老的 6 位数字码（全 0）必须仍然匹配")
-    expect_true(bool(REFERRAL_CODE_RE.match("23456789")), "新 8 位码必须匹配")
+    expect_true(bool(REFERRAL_CODE_RE.match("23456789")), "8 位无歧义码必须匹配")
+    for legacy in ("012345", "987654", "000000"):
+        expect_true(not REFERRAL_CODE_RE.match(legacy), f"6 位数字码 {legacy!r} 不再匹配")
 
 
 def _check_normalize_referral_code() -> None:
@@ -400,16 +398,14 @@ def _check_normalize_referral_code() -> None:
 
     expect(normalize_referral_code("abcdefgh"), "ABCDEFGH", "小写新码应当转成大写")
     expect(normalize_referral_code("  abcdefgh  "), "ABCDEFGH", "应当去掉首尾空白")
-    expect(normalize_referral_code("012345"), "012345", "老 6 位数字码应当原样保留")
-    for bad in ("23456780", "23456781", "2345678I", "2345678O", "ABCDE", "abcdefghi", "0000000", "", "   ", None):
+    for bad in ("012345", "23456780", "23456781", "2345678I", "2345678O", "ABCDE", "abcdefghi", "0000000", "", "   ", None):
         expect(normalize_referral_code(bad), None, f"非法邀请码 {bad!r} 应当归一化为 None")
 
 
 def _check_reconcile_lookback_window() -> None:
-    from src.payments.reconcile import CLOSE_LOOKBACK_HOURS, RECONCILE_LOOKBACK_HOURS
+    from src.payments.reconcile import RECONCILE_LOOKBACK_HOURS
 
     expect(RECONCILE_LOOKBACK_HOURS, 72, "对账巡检回看窗口（小时）")
-    expect(CLOSE_LOOKBACK_HOURS, RECONCILE_LOOKBACK_HOURS, "关单回看窗口应当与巡检窗口对齐")
 
 
 def _check_wechat_api_v3_key_max_length() -> None:
@@ -584,7 +580,7 @@ def _check_default_channel_stays_within_enabled() -> None:
 
     expect(default_for('["wechat"]', "alipay", "alipay"), "wechat", "启用集合必须压过原始 payment_provider")
     expect(default_for('["wechat", "alipay"]', "alipay", "wechat"), "alipay", "配置的渠道本身也在启用集合内时应当直接采用")
-    expect(default_for("", "", "wechat"), "wechat", "老部署（未写 payment_channels_json）回落到环境变量")
+    expect(default_for("", "", "wechat"), "", "未写 payment_channels_json 时没有任何渠道启用，必须返回空串")
     expect(default_for('["wechat"]', "", "alipay"), "wechat", "setting 未写 payment_provider 时同样只能在启用集合内挑")
     expect(default_for("", "", "mock"), "", "一个渠道都没启用时必须返回空串（拒绝建单），不能退化成未知渠道")
 
@@ -658,7 +654,7 @@ def main() -> int:
 
     print("\n邀请码（src.security.security）：")
     check("new_referral_code 恒 8 位、32 字符集、200 个互不相同", _check_referral_code_generation)
-    check("REFERRAL_CODE_RE 兼容老 6 位数字码", _check_referral_code_regex_legacy)
+    check("REFERRAL_CODE_RE 仅接受 8 位无歧义码", _check_referral_code_regex)
     check("normalize_referral_code 归一化与非法输入拒绝", _check_normalize_referral_code)
 
     print("\n对账与设置：")

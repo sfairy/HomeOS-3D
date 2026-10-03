@@ -50,12 +50,6 @@ TERMINAL_STATES = {
 
 #: 服务端结构化吊销码；命中即为「确认吊销」，不必再猜文案。
 CONFIRMED_REVOCATION_CODES = frozenset({'REVOKED', 'LICENSE_REVOKED'})
-#: 服务端只发中文文案、不带结构化 code 时的吊销措辞，作为 code 之外的兜底。
-CONFIRMED_REVOCATION_MESSAGES = (
-    '实例绑定已停用',
-    '客户授权或激活码已停用',
-    '客户、激活码或实例绑定已停用',
-    '商品授权有效期已结束')
 #: 服务端结构化「本机需要重新建立绑定」码：被解绑（后台强制 / 账号中心自助）时下发。
 #: 与吊销的区别只在**下一步动作**：吊销要找管理员，被解绑重新激活即可。
 #: 两者都让客户端立刻停止自动恢复，但只有前者该被展示成「授权已撤销」。
@@ -92,14 +86,8 @@ class LicenseClientError(RuntimeError):
         # 只有 401/403 才可能是吊销；网络错误、5xx 一律不算。
         if self.status_code not in {401, 403}:
             return False
-        # 先看结构化 code：服务端给了准话就不必猜文案。
-        # 只认文案会漏判 —— 服务端换了措辞、或只带 code 不带那句话时，
-        # 已吊销的安装会被当成「网络故障」无限重试，正是这里要防的事。
-        if self.code in CONFIRMED_REVOCATION_CODES:
-            return True
-        # 兜底兼容只发中文文案的老节点：detail 命中吊销措辞同样算确认。
-        detail = str(self)
-        return any(message in detail for message in CONFIRMED_REVOCATION_MESSAGES)
+        # 只认服务端的结构化 code：不带 code 的 401/403 一律按可重试处理。
+        return self.code in CONFIRMED_REVOCATION_CODES
 
     @property
     def requires_rebind(self) -> bool:
@@ -349,8 +337,7 @@ class LicenseService:
         #
         # 硬件指纹为 SHA-256 十六进制（64 字符）；下限 16 挡住占位/手填短串，
         # 上限 64 与服务端字段对齐。
-        # 允许 ':'，兼容 fallback-machine:xxx 派生格式的诊断片段（正式 ID 仍是纯 hex）。
-        return 16 <= len(value) <= 64 and all(character.isalnum() or character in '-_.:' for character in value)
+        return 16 <= len(value) <= 64 and all(character.isalnum() or character in '-_.' for character in value)
 
     def _instance_id(self) -> str:
         # [补充说明] 取出本机硬件指纹派生的安装实例 ID，并持久化到 data/instance-id。

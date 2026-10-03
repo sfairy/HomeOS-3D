@@ -50,7 +50,7 @@ from ..ops import site_settings as site_config
 from ..payments import PROVIDER_NAMES, normalize_provider_name, refunds
 from ..payments.base import PaymentError
 from ..payments.channels import provider_label
-from ..payments.reconcile import CLOSE_LOOKBACK_HOURS, channel_still_payable
+from ..payments.reconcile import RECONCILE_LOOKBACK_HOURS, channel_still_payable
 from ..payments.refunds import (
     claim_refund_amount,
     record_refund_audit,
@@ -840,7 +840,7 @@ def admin_cancel(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="只有待支付订单可以取消。")
 
     # 与买家自助取消（store_orders.cancel_order）同一口径：先 best-effort 关渠道，
-    # 再做本地收尾。否则旧二维码在巡检关单前（最长 CLOSE_LOOKBACK_HOURS）仍可被支付，
+    # 再做本地收尾。否则旧二维码在巡检关单前（最长 RECONCILE_LOOKBACK_HOURS）仍可被支付，
     # 一笔迟到的成功付款会把已取消单「复活」并自动发码，管理员的取消意图被静默推翻。
     channel_closed = close_order_channel_best_effort(
         request,
@@ -892,7 +892,7 @@ def admin_delete_order(order_no: str, session: DbSession, admin: AdminAccount) -
             detail=(
                 "该订单的支付宝交易尚未确认关闭，用户手上那个旧二维码仍可能被付款；"
                 "删除会让一笔延迟到账的付款失去凭证。请等对账巡检关单后再删除"
-                f"（下单后 {CLOSE_LOOKBACK_HOURS} 小时内巡检会持续重试）。"
+                f"（下单后 {RECONCILE_LOOKBACK_HOURS} 小时内巡检会持续重试）。"
             ),
         )
 

@@ -132,6 +132,13 @@ class LicenseAuthority:
         user_agent: str | None = None,
         generation: KeyGeneration | None = None,
     ) -> dict:
+        """心跳续期。
+
+        会话必须属于当前绑定在该授权上的实例，否则管理员刚做的解绑对老客户端无效。
+        但「字段缺失」与「实例不匹配」是两类问题：缺 instanceId 的畸形/旧版客户端回 422
+        引导重新激活，绝不能按已吊销（``revoked=True``）处理 —— 那会让客户端清掉本地授权、
+        停用功能。
+        """
         token = str(payload.get("sessionToken") or "")
         client_version = str(payload.get("clientVersion") or "").strip()
         instance_id = str(payload.get("instanceId") or "").strip()

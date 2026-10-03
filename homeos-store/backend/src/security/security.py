@@ -155,9 +155,8 @@ def normalize_email(value: str) -> str:
     return value.strip().lower()
 
 
-#: 邀请码形态：老码是 6 位数字（已经发出去的必须继续能查），新码是 8 位无歧义字母数字
-#: （不含 0/1/I/O —— 手抄或电话口述时最容易混的四个字符）。
-REFERRAL_CODE_RE = re.compile(r"^(?:[0-9]{6}|[2-9A-HJ-NP-Z]{8})$")
+#: 邀请码形态：8 位无歧义字母数字（不含 0/1/I/O —— 手抄或电话口述时最容易混的四个字符）。
+REFERRAL_CODE_RE = re.compile(r"^[2-9A-HJ-NP-Z]{8}$")
 
 
 def new_referral_code() -> str:

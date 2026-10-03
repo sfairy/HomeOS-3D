@@ -282,8 +282,6 @@ class AlipayProvider:
         if not qr_code:
             raise PaymentError("支付宝下单成功但没有返回二维码。")
 
-        # 显示名走统一口径（见 payments/channels.py）：单渠道时代它是无条件的，
-        # 两个渠道并存后必须只在「支付宝是默认渠道」时才用它。
         display_name = channels.display_name_for("alipay", setting, settings)
         logger.info(
             "支付宝下单成功 order=%s amount=%s", order.order_no, biz_content["total_amount"]

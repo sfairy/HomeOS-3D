@@ -841,11 +841,9 @@ function resolveWallAttachment(
 export function snapPoint(
   rawPoint,
   targetWalls,
-  pointSnapOptions: PointSnapOptions | boolean = {},
+  pointSnapOptions: PointSnapOptions = {},
 ) {
-  // 兼容历史上传布尔值（shiftKey）的调用点：非对象视为空选项。
-  const snapOptions: PointSnapOptions =
-      pointSnapOptions && typeof pointSnapOptions === "object" ? pointSnapOptions : {},
+  const snapOptions: PointSnapOptions = pointSnapOptions || {},
     zoomScale = Math.max(Number(snapOptions.zoom) || 1, 1e-7),
     worldTolerance = (Number(snapOptions.screenTolerance) || 12) / zoomScale,
     providedIntersections = Array.isArray(snapOptions.intersections)
@@ -1200,8 +1198,7 @@ export function wallSolidPieces(solidTargetWall, wallSegmentList, wallUnitScale,
   return solidPieces;
 }
 /**
- * 点吸附选项。历史调用点（courtyard-drawing-editor）在第三个参数位置传过 shiftKey
- * 布尔值，所以 snapPoint 的入参同时兼容布尔；非对象一律当空选项处理，行为与之前一致。
+ * 点吸附选项。
  */
 type PointSnapOptions = {
   /** 端点吸附，默认开。 */

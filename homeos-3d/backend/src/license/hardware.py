@@ -1,17 +1,16 @@
-# [补充说明] 硬件指纹：把机器与主板标识派生成稳定的安装实例 ID。
-#
-# 设计要点：
-# 1. 只取「跨重启、跨容器重建都保持不变」的标识（machine-id、主板序列号等），
-# 并且先归一化（压缩空白、转小写）再参与哈希。
-# 2. 出厂占位值（INVALID_IDENTIFIERS）必须排除：这些值在同一批设备上完全相同，
-# 拿它们做绑定等于没有绑定。
-# 3. 容器里优先读 /host/... —— 容器内的 /etc/machine-id 会随后端镜像重建而变，
-# 挂载进来的宿主机文件才是稳定来源。
-# 4. 拼接时加版本前缀与 \x00 分隔符再哈希：既避免字段拼接的歧义碰撞，
-# 又让「算法前缀变更」等价于让全部旧 ID 失效（需要重新绑定时用）。
-# 5. 兜底路径（硬件字段不全）不能只靠 data/ 里的秘密：整盘拷贝 data/ 会把身份一起
-# 带走。兜底秘密因此与本机「宿主封印」（网卡 MAC、主机名等 data/ 之外的信号）绑定，
-# 换机时封印比对失败会主动轮换秘密，指纹必然改变 —— 这是刻意设计的防克隆。
+"""硬件指纹：把机器与主板标识派生成稳定的安装实例 ID。
+
+只取跨重启、跨容器重建都保持不变的标识（machine-id、主板序列号等），先归一化再参与
+哈希，并排除出厂占位值（``INVALID_IDENTIFIERS``）。容器里优先读 ``/host/...``，因为容器
+内的 ``/etc/machine-id`` 会随后端镜像重建而变。拼接时加版本前缀与 ``\\x00`` 分隔符，
+避免字段拼接的歧义碰撞。
+
+当前前缀是 ``homeos-*``：与更早的 0.6.x（``hardware-v1``）不兼容 —— 作为全新版本不做
+迁移，旧机器升级后由授权服务引导重新激活。
+
+硬件字段不全时的兜底秘密与本机「宿主封印」（网卡 MAC、主机名等 ``data/`` 之外的信号）
+绑定，整盘拷贝 ``data/`` 换机时封印比对失败会主动轮换秘密 —— 这是刻意设计的防克隆。
+"""
 from __future__ import annotations
 
 import hashlib
@@ -39,11 +38,11 @@ INVALID_IDENTIFIERS = {
 
 @dataclass(frozen=True)
 class HardwareIdentity:
-    # [补充说明] 安装实例身份三元组。
-    #
-    # instance_id 用于授权服务侧的绑定与租约校验；machine_id / board_id 是两类
-    # 标识各自的哈希，便于诊断「到底是机器变了还是主板变了」。frozen 表示
-    # 这份身份一经创建就不应再被改动。
+    """安装实例身份三元组，一经创建就不应再被改动。
+
+    ``instance_id`` 用于授权服务侧的绑定与租约校验；``machine_id`` / ``board_id`` 是
+    两类标识各自的哈希，仅用于诊断「到底是机器变了还是主板变了」。
+    """
     instance_id: str
     machine_id: str
     board_id: str
@@ -254,13 +253,13 @@ def _persistent_fallback_identity(path: Path, host_seal: str) -> str:
 
 
 def hardware_identity(*, machine_override: str = '', board_override: str = '', required: bool = True, fallback_path: Path | None = None) -> HardwareIdentity:
-    # [补充说明] 按机器与主板标识计算硬件身份。
-    #
-    # 参数:
-    # required: True 表示拿不到完整标识时必须报错或走兜底；False 允许退化为开发值。
-    # fallback_path: 兜底随机 ID 的存放路径；None 表示不允许兜底。
-    # 异常:
-    # RuntimeError: required 为真但标识缺失，且无法创建兜底 ID。
+    """按机器与主板标识计算硬件身份。
+
+    ``required`` 为 True 时拿不到完整标识必须报错或走兜底，False 允许退化为开发值；
+    ``fallback_path`` 为 None 表示不允许兜底。
+
+    异常: RuntimeError —— required 为真但标识缺失，且无法创建兜底 ID。
+    """
     machine = _machine_identity(machine_override)
     board = _board_identity(board_override)
     used_fallback = False
@@ -313,5 +312,5 @@ def hardware_identity(*, machine_override: str = '', board_override: str = '', r
 
 
 def hardware_instance_id(*, machine_override: str = '', board_override: str = '', required: bool = True, fallback_path: Path | None = None) -> str:
-    # [补充说明] 只需实例 ID 时的便捷封装，参数语义与 hardware_identity 完全一致。
+    """只需实例 ID 时的便捷封装，参数语义与 ``hardware_identity`` 完全一致。"""
     return hardware_identity(machine_override=machine_override, board_override=board_override, required=required, fallback_path=fallback_path).instance_id

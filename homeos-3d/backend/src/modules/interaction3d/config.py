@@ -15,6 +15,11 @@ from typing import NoReturn
 
 from fastapi import HTTPException
 
+#: columns / rows 是弹窗栅格跨度，必须落在这些允许值里（越界的跨度前端画不出来）。
+#: 写成模块级常量再按下标取：Cython 无法为「两个长度不同的元组做条件表达式」推导类型
+#: （Incompatible types in conditional expression），会把整个模块的编译直接打断。
+_GRID_SPANS = {'columns': (1, 2, 3, 4), 'rows': (1, 2)}
+
 
 def validate_appliance_extras(item, entity, fail):
     # 附加功能（extraControls）：每项 {entityId, type, label?, columns?, rows?}，
@@ -32,10 +37,10 @@ def validate_appliance_extras(item, entity, fail):
         ):
             fail()
         # columns / rows 是弹窗栅格跨度：必须是实打实的 int（bool 是 int 子类，要挡掉），
-        # 且落在允许集合里 —— 越界的跨度前端画不出来。
+        # 且落在允许集合里（见 _GRID_SPANS）—— 越界的跨度前端画不出来。
         for dimension in ('columns', 'rows'):
             if dimension in extra:
-                if type(extra[dimension]) is not int or extra[dimension] not in ((1, 2, 3, 4) if dimension == 'columns' else (1, 2)):
+                if type(extra[dimension]) is not int or extra[dimension] not in _GRID_SPANS[dimension]:
                     fail()
         # type 只认这五种能力；'state' 之外的必须与所在域的默认能力一致。
         if extra.get('type') not in {'state', 'button', 'number', 'select', 'switch'}:
@@ -52,44 +57,12 @@ def validate_appliance_extras(item, entity, fail):
         extra_ids.add(extra_id)
 
 
-LEGACY_CAMERA_INTERACTION_KEYS = ('panEnabled', 'zoomEnabled', 'rotationMode')
-
-
-def normalize_legacy_camera_interaction(properties: dict) -> None:
-    # [补充说明] 就地归一旧文档：把挂在顶层 camera 上的交互字段搬到 interaction 下。
-    #
-    # 1.0 之前 panEnabled / zoomEnabled / rotationMode 与相机参数混在同一个 camera 对象里，
-    # 现在统一放在 interaction 下。读取与保存各走一次这里，老文档不必先升级前端也能收敛；
-    # 搬迁只在 interaction 未定义该键时进行（新值优先），interaction 本身畸形时不替它兜底，
-    # 留给校验层按原样报错。
-    if not isinstance(properties, dict) or not isinstance(properties.get('camera'), dict):
-        return
-    camera = properties['camera']
-    if not any(key in camera for key in LEGACY_CAMERA_INTERACTION_KEYS):
-        return
-    interaction = properties.get('interaction')
-    if interaction is None:
-        interaction = { }
-        properties['interaction'] = interaction
-    if isinstance(interaction, dict):
-        for key in LEGACY_CAMERA_INTERACTION_KEYS:
-            if key in camera:
-                interaction.setdefault(key, camera.pop(key))
-    # 搬迁不了的一律丢弃：camera 白名单里不再有这三个键，留着会被判 422。
-    for key in LEGACY_CAMERA_INTERACTION_KEYS:
-        camera.pop(key, None)
-
-
 def validate_config(properties: dict) -> None:
     # [补充说明] 校验一份 3D 交互控件的 properties。
     #
-    # 校验前先把旧文档的历史字段就地归一（见 normalize_legacy_camera_interaction），
-    # 因此调用方拿到的 properties 可能已被改写：老文档保存一次即完成收敛。
     # 异常:
     # HTTPException: 422，任一字段非法。大部分分支共用下面的 fail()，
     # 因此文案统一；个别字段（如转动分辨率）会给出更具体的提示。
-    if isinstance(properties, dict):
-        normalize_legacy_camera_interaction(properties)
 
     def fail() -> NoReturn:
         # [补充说明] 统一的 422 出口：文案固定，不把内部字段名暴露给前端。
@@ -118,8 +91,6 @@ def validate_config(properties: dict) -> None:
         # [补充说明] 校验相机参数对象；None 表示未配置，直接放行。
         #
         # 必填是 mode / zoom / target / position，其余按出现与否校验。
-        # 历史的 panEnabled / zoomEnabled / rotationMode 不在这里认：它们在进校验前
-        # 已被 normalize_legacy_camera_interaction 搬去 interaction。
         if camera is None:
             return
         # required 缺一不可；optional 是「出现才校验」的字段。
@@ -700,12 +671,10 @@ def validate_config(properties: dict) -> None:
         if 'fadeDuration' in light and not number(light['fadeDuration'], 0, 10):
             fail()
         # 默认灯光效果：亮度百分比与色温（K），不填表示不做预设。
-        # 前端的固定效果区间是 1~100%；这里仍放宽到 150% 只为兼容历史草稿（早期版本存过 150），
-        # 收紧会让那些控件在保存时整份 422 —— 读入侧不放大、渲染侧自然按 100 封顶。
         if 'effectDefaults' in light:
             defaults = light['effectDefaults']
             bounds = {
-                'brightness': (0, 150),
+                'brightness': (0, 100),
                 'kelvin': (1000, 20000)}
             if not isinstance(defaults, dict) or set(defaults) - set(bounds) or any(not number(value, *bounds[key]) for key, value in defaults.items()):
                 fail()
@@ -1020,9 +989,7 @@ def validate_config(properties: dict) -> None:
             'tvocEntityId',
             'aqiEntityId',
             'illuminanceEntityId',
-            'batteryEntityId',
-            # 尺寸默认值一次性升级的版本标记（前端 migrateEnvironmentLabelSize 写入）。
-            'sizingVersion'}
+            'batteryEntityId'}
         if not isinstance(item, dict) or set(item) - fields or not all(text(item.get(key, '')) for key in ('id', 'floorId', 'label')):
             fail()
         # 信息卡必须带 id 与具体楼层，且同一 id 不能重复。
@@ -1049,11 +1016,6 @@ def validate_config(properties: dict) -> None:
         if 'columns' in item and (type(item['columns']) is not int or not 0 <= item['columns'] <= 4):
             fail()
         if 'opacity' in item and not number(item['opacity'], 0, 1):
-            fail()
-        # sizingVersion 是「信息框宽度 / 文字大小」默认值的一次性迁移标记（前端
-        # ENVIRONMENT_LABEL_SIZING_VERSION，当前为 4）：写过一次就不再重复迁移。
-        # 只要求非 0 的正整数，不枚举具体版本 —— 否则前端再加一档默认值就得连带发后端。
-        if 'sizingVersion' in item and (type(item['sizingVersion']) is not int or not 1 <= item['sizingVersion'] <= 1000):
             fail()
     # 窗帘组合（一拖多）：同一楼层两副普通窗帘并成一个整体控制，典型场景是双层帘。
     # 组合自己不新增控制逻辑，只把成员各自的子面板拼起来，因此这里没有实体字段 ——

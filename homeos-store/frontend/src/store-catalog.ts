@@ -41,7 +41,7 @@ function productHref(product: StoreProduct) {
   const base = storePageHref(`/item/${encodeURIComponent(product.id)}`);
   const upgrade = requestedUpgradeLicenseId();
   return upgrade && !isTrialProduct(product)
-    ? `${base}&upgrade=${encodeURIComponent(upgrade)}`
+    ? `${base}?upgrade=${encodeURIComponent(upgrade)}`
     : base;
 }
 

@@ -35,9 +35,6 @@ RECONCILE_LOOKBACK_HOURS = 72
 #: 一轮巡检最多做多少笔本地过期收尾；这段不在用户请求里，比请求路径的限额大得多。
 SWEEP_EXPIRE_LIMIT = EXPIRE_BATCH_LIMIT * 5
 
-#: 兼容旧名（api/admin_orders.py 等外部仍在引用）；取值与巡检窗口保持同一口径。
-CLOSE_LOOKBACK_HOURS = RECONCILE_LOOKBACK_HOURS
-
 _last_query_at: dict[str, float] = {}
 _lock = threading.Lock()
 
@@ -55,7 +52,7 @@ def channel_still_payable(order: Order, *, now: datetime | None = None) -> bool:
         # 老数据可能没有创建时间；这只是附加守卫，拿不到依据时宁可放行。
         return False
     moment = now or utcnow()
-    return created >= moment - timedelta(hours=CLOSE_LOOKBACK_HOURS)
+    return created >= moment - timedelta(hours=RECONCILE_LOOKBACK_HOURS)
 
 
 
@@ -355,7 +352,7 @@ def _sweep_channel_orders(
         .where(Order.status.in_(("expired", "cancelled")))
         .where(Order.payment_provider.in_(active))
         .where(Order.channel_closed_at.is_(None))
-        .where(Order.created_at >= moment - timedelta(hours=CLOSE_LOOKBACK_HOURS))
+        .where(Order.created_at >= moment - timedelta(hours=RECONCILE_LOOKBACK_HOURS))
         .order_by(Order.created_at.desc())
         .limit(limit)
     ).all()

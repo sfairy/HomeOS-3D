@@ -165,8 +165,7 @@ def admin_update_settings(
         "maintenance_mode": "maintenance_mode",
         "maintenance_message": "maintenance_message",
         "payment_provider": "payment_provider",
-        "payment_display_name": "payment_display_name",
-        # 启用的渠道清单（JSON 数组）。空数组 = 跟随 payment_provider 的单渠道语义。
+        # 启用的渠道清单（JSON 数组）。
         "payment_channels": "payment_channels_json",
         "payment_enabled": "payment_enabled",
         "payment_transaction_description": "payment_transaction_description",
@@ -228,20 +227,6 @@ def admin_update_settings(
         updates["logo_url"] = (
             str(updates["logo_url"] or "").strip() or site_config.DEFAULT_LOGO_URL
         )
-    if "payment_display_name" in updates:
-        # 「模拟支付」已经不是一个存在的渠道。把它写进显示名，顾客会在二维码弹窗上
-        # 看到「模拟支付」而实际要付真钱 —— 保存时就拦住（读取侧另有归一，见
-        # ops/site_settings.py 的 RETIRED_DISPLAY_NAMES）。
-        name = str(updates["payment_display_name"] or "").strip()
-        if name in site_config.RETIRED_DISPLAY_NAMES:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail=(
-                    f"支付显示名不能是「{name}」：模拟收银台已删除，这个渠道不存在。"
-                    "留空会用「支付宝」。"
-                ),
-            )
-        updates["payment_display_name"] = name
     if "site_name" in updates:
         # 站点名会进邮件主题。空值仍然允许（发信时回落到默认名），但换行必须拒掉。
         problem = mailer.header_text_error(

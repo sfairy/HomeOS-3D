@@ -73,14 +73,7 @@ export function requireFeatureCode(root: HTMLElement, message: string) {
   return false;
 }
 
-// 已有记录可能带着目录里没有的代码（旧版本遗留、脚本导入）。它们必须仍然可见、
-function featurePickerExtras(selected: string[]) {
-  // 目录还没到就别急着判「未知」：那会把所有已选代码都错标成自定义代码。
-  if (!catalog().length) return [];
-  const known = new Set(catalog().map((item) => item.code));
-  return selected.filter((code) => !known.has(code));
-}
-
+// 已有记录可能带着目录里没有的代码（脚本导入）：编辑器只展示目录内的选项，保存时丢弃。
 export function syncFeatureSummary(root: HTMLElement) {
   const summary = $('[data-feature-summary]', root);
   if (!summary) return;
@@ -149,13 +142,6 @@ export function renderFeatureOptions(root: HTMLElement) {
         ${items.map((item) => featureOptionRow(root, item.code, item.label || item.code, item.description)).join('')}
       </div>`;
   });
-  const extras = featurePickerExtras(featurePickerValue(root));
-  if (extras.length) {
-    blocks.push(`<div class="feature-group">
-        <div class="feature-group__head">自定义代码</div>
-        ${extras.map((code) => featureOptionRow(root, code, code, '不在当前能力码目录中，保留原样不丢失。')).join('')}
-      </div>`);
-  }
   list.innerHTML = blocks.filter(Boolean).join('')
     || '<div class="feature-picker__empty">没有匹配的功能码</div>';
 }
@@ -168,11 +154,7 @@ export function renderFeatureOptions(root: HTMLElement) {
     ),
   );
   const known = catalog().map((item) => item.code);
-  const ordered = known.filter((code) => checked.has(code));
-  featurePickerExtras([...checked]).forEach((code) => {
-    if (!ordered.includes(code)) ordered.push(code);
-  });
-  return ordered;
+  return known.filter((code) => checked.has(code));
 }
 
 function refreshFeaturePickers() {

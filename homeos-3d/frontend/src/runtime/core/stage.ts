@@ -18,7 +18,6 @@ const [
     temperatureHumidityEntities: temperatureHumidityEntities,
     ENVIRONMENT_METRICS: environmentMetricNames,
     layoutEnvironmentReadings: layoutEnvironmentReadings,
-    migrateEnvironmentLabelSize: migrateEnvironmentLabelSize,
     DEFAULT_LABEL_SIZE: defaultLabelSize,
     DEFAULT_LABEL_ICON_SIZE: defaultLabelIconSize,
     MAX_LABEL_SIZE: maxLabelSize,
@@ -29,7 +28,7 @@ const [
   { popupPlacement: computePopupPlacement },
   { createMarkerTouch: createMarkerTouch, nearestMarkerTarget: nearestMarkerTarget },
   { buttonIconSize: resolveButtonIconSize, DEFAULT_BUTTON_SIZE: defaultButtonSize },
-  { CARD_TEXT_SIZE_PX: cardTextSizePx, migrateCardTextSize: migrateCardTextSize },
+  { CARD_TEXT_SIZE_PX: cardTextSizePx },
 ] = await Promise.all([
   import("./label-appearance"),
   import("@app/bridge/page-appearance-presets"),
@@ -2461,7 +2460,7 @@ export function mountStage(mountOptions) {
   function collectModuleBindings() {
     const temperatureHumidityBindings = (options.environment?.temperatureHumidity || []).map(
       (temperatureHumidityEntry) => ({
-        ...migrateEnvironmentLabelSize(temperatureHumidityEntry),
+        ...temperatureHumidityEntry,
         deviceKind: "temperature-humidity",
       }),
     );
@@ -2797,7 +2796,7 @@ export function mountStage(mountOptions) {
               doorModels2(lockFloor).find(
                 (lockDoor) => lockDoor.modelId === lockSourceEntry.modelId,
               );
-          return migrateCardTextSize({
+          return {
             ...lockSourceEntry,
             hinge: lockSourceEntry.hinge || lockDoorModel?.hinge || "left",
             id: "lock:" + lockSourceEntry.id,
@@ -2810,7 +2809,7 @@ export function mountStage(mountOptions) {
             height: Number.isFinite(lockSourceEntry.height)
               ? lockSourceEntry.height
               : (lockDoorModel?.height ?? 2.2) * 0.5,
-          });
+          };
         })
         .filter(
           (lockFilterEntry) =>
@@ -2827,9 +2826,7 @@ export function mountStage(mountOptions) {
       labelModeEntry.labelMode === "open" ||
       labelModeEntry.labelMode === "always"
         ? labelModeEntry.labelMode
-        : labelModeEntry.labelHidden === true
-          ? "hidden"
-          : "always",
+        : "always",
     isLockLabelShown = (lockLabelEntry, lockLabelState) =>
       lockLabelEntry.deviceKind !== "lock" ||
       labelModeOf(lockLabelEntry) === "always" ||
@@ -2845,10 +2842,8 @@ export function mountStage(mountOptions) {
               securityCameraSceneItem.id === securityCameraSourceEntry.modelId &&
               securityCameraSceneItem.type === "camera",
           );
-        return migrateCardTextSize({
+        return {
           ...securityCameraSourceEntry,
-          buttonHidden: false,
-          hiddenClickable: false,
           id: "camera:" + securityCameraSourceEntry.id,
           deviceKind: "camera",
           clickAction: "focus",
@@ -2864,7 +2859,7 @@ export function mountStage(mountOptions) {
             ? securityCameraSourceEntry.height
             : (Number(securityCameraModel?.elevation) || 0) +
               (Number(securityCameraModel?.height) || 0.3) / 2,
-        });
+        };
       }),
     presenceBindings = () =>
       (options.security?.presenceSensors || []).map((presenceSourceEntry) => {

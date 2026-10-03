@@ -112,21 +112,6 @@ SVG_LENGTH_FACTORS = {
 ElementTree.register_namespace('', SVG_NAMESPACE)
 ElementTree.register_namespace('xlink', XLINK_NAMESPACE)
 
-def asset_id_aliases(relative_path: str) -> list[str]:
-    # [补充说明] 内置素材改名表：给出现行路径，返回它曾经用过的 assetId 与相对路径。
-    #
-    # 目录布局改过两次：v1/底图/底图.png 曾经就是 v1/底图.png；户型图示例也曾经直接放在
-    # v1/2D、v1/3D 下。这里只服务老文档归一（api/projects.py 的 canonicalize_document_asset_ids）
-    # 与老 URL 兜底（builtin_path），不再是下发给前端的一份兼容清单。
-    if relative_path == 'v1/底图/底图.png':
-        return ['builtin:v1/底图.png']
-    for source in ('v1/户型图示例/2D/', 'v1/户型图示例/3D/'):
-        if not relative_path.startswith(source):
-            continue
-        legacy_path = relative_path.replace('v1/户型图示例/', 'v1/', 1)
-        return [f'builtin:{legacy_path}']
-    return []
-
 def user_asset_file(root: Path, asset_id: str) -> Path | None:
     # [补充说明] 定位某个用户素材目录里唯一的图片文件；目录非法或文件数不为 1 时返回 None。
     # 目录名必须是纯十六进制 ID：先把 ../ 这类构造挡在门口。
@@ -540,8 +525,6 @@ class AssetCatalog:
         self._user_loaded = False
         self._builtin_items = { }
         self._builtin_paths = { }
-        self._builtin_aliases = { }
-        self._builtin_path_aliases = { }
         self._user_items = { }
         self._effect_variant_paths = { }
         # 版本戳用随机值而非递增数字：进程重启后必然变化，前端不会误用旧缓存。
@@ -596,11 +579,6 @@ class AssetCatalog:
                 self._attach_effect_variant(payload, resolved)
                 self._builtin_items[asset_id] = payload
                 self._builtin_paths[relative_path] = resolved
-                # 旧 id / 旧相对路径都登记成别名：老文档与老 URL 仍能定位到同一条目，
-                # 归一在 api/projects.py 读取时完成，前端不再需要任何旧 id 兼容分支。
-                for alias in asset_id_aliases(relative_path):
-                    self._builtin_aliases[alias] = asset_id
-                    self._builtin_path_aliases[alias.removeprefix('builtin:')] = relative_path
             self._builtin_loaded = True
             return
 
@@ -690,32 +668,20 @@ class AssetCatalog:
         return items
 
     def builtin_path(self, relative_path: str) -> Path | None:
-        # [补充说明] 把内置素材的相对路径换成磁盘路径；未收录的返回 None。
-        #
-        # 旧相对路径（改名表里登记过的）也认：老文档拼出来的 URL 不必先归一也能取到图。
-        self._load_builtin()
-        normalized = relative_path.strip('/')
-        with self.mutation_lock:
-            canonical = self._builtin_path_aliases.get(normalized, normalized)
-            return self._builtin_paths.get(canonical)
-
-    def canonical_asset_id(self, asset_id: str) -> str:
-        # [补充说明] 把老文档里的内置素材 id 归一到现行 id；改名表之外的原样返回。
+        """Map an in-catalog built-in relative path to its file, or None."""
         self._load_builtin()
         with self.mutation_lock:
-            return self._builtin_aliases.get(asset_id, asset_id)
+            return self._builtin_paths.get(relative_path.strip('/'))
 
     def builtin_asset_exists(self, asset_id: str) -> bool:
-        # [补充说明] assetId（含旧版别名）是否在内置目录里。
+        """Whether the built-in asset id is in the catalog."""
         self._load_builtin()
         with self.mutation_lock:
-            canonical = self._builtin_aliases.get(asset_id, asset_id)
-            return canonical in self._builtin_items
+            return asset_id in self._builtin_items
 
     def asset_exists(self, asset_id: str) -> bool:
-        # [补充说明] 判断素材 ID 是否在目录里；user: 与 studio3d: 都查用户侧索引。
-        # 前缀决定查哪本索引：user: 与 studio3d: 共用用户侧目录（studio3d 的导出图也登记在那里），
-        # builtin: 走内置目录（含旧版别名），其余前缀一律不存在。
+        # 前缀决定查哪本索引：user: 与 studio3d: 共用用户侧目录，
+        # builtin: 走内置目录，其余前缀一律不存在。
         if asset_id.startswith('user:'):
             self._load_user()
             with self.mutation_lock:
@@ -779,8 +745,7 @@ class AssetCatalog:
         self._load_builtin()
         self._load_user()
         with self.mutation_lock:
-            canonical = self._builtin_aliases.get(asset_id, asset_id)
-            path = self._effect_variant_paths.get(canonical)
+            path = self._effect_variant_paths.get(asset_id)
         # 缓存文件可能被外部清理掉，因此这里再确认一次存在性。
         return path if path is not None and path.is_file() else None
 

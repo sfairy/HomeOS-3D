@@ -10,13 +10,20 @@ import type { DomControl } from "@app/utils/dom-control";
 const formElement = document.querySelector<DomControl>("#license-form"),
   messageElement = document.querySelector<DomControl>("#message"),
   statusElement = document.querySelector<DomControl>("#license-status-text"),
-  // 提示条是可选的：旧版页面没有这个节点，缺了就只是不显示，不该拖垮整段接线。
   recoveryHintElement = document.querySelector<DomControl>("#license-recovery-hint"),
   retryButton = document.querySelector<DomControl>("#license-retry"),
   reactivateButton = document.querySelector<DomControl>("#license-reactivate"),
   submitButton = formElement?.querySelector<DomControl>('button[type="submit"]'),
   logoutButton = document.querySelector<DomControl>("#logout");
-if (!formElement || !messageElement || !statusElement || !retryButton || !submitButton || !logoutButton)
+if (
+  !formElement ||
+  !messageElement ||
+  !statusElement ||
+  !recoveryHintElement ||
+  !retryButton ||
+  !submitButton ||
+  !logoutButton
+)
   throw new Error("授权页缺少必要表单节点。");
 
 // isLoadingStatus 防重入（点击、轮询、online 三个触发源会叠加）；
@@ -32,7 +39,8 @@ let isLoadingStatus = false,
 const TONE_CLASSES = ["hos-tone--lumen", "hos-tone--alert"];
 function paintTone(tone) {
   for (const toneElement of [statusElement, recoveryHintElement])
-    toneElement && (toneElement.classList.remove(...TONE_CLASSES), tone && toneElement.classList.add(`hos-tone--${tone}`));
+    (toneElement.classList.remove(...TONE_CLASSES),
+      tone && toneElement.classList.add(`hos-tone--${tone}`));
 }
 
 function enterEditor() {
@@ -41,7 +49,6 @@ function enterEditor() {
 }
 
 function setRecoveryHint(statusCode) {
-  if (!recoveryHintElement) return;
   // INSTANCE_MISMATCH 是唯一「必须先去商店解绑」的终态（服务端 409 确认的绑定冲突），
   // 步骤多且容易搞错，必须逐条写出来。本机指纹变化的 INSTANCE_CHANGED 只需重新激活，
   // 不能套这套步骤 —— 本地并不知道商店那边有没有绑定。

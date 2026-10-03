@@ -3270,7 +3270,6 @@ function createStudioDocument() {
     windows: [],
     doors: [],
     railings: [],
-    areas: [],
     lightGroups: [
       {
         id: "light-group-default",
@@ -3353,28 +3352,14 @@ function normalizeStudioDocument(rawDocument) {
     activeFloorRecord =
       parsedFloors.find((matchedFloor) => matchedFloor.id === requestedActiveFloorId) ||
       parsedFloors[0],
-    documentFloorHeight = clamp2(finite2(rawDocument?.defaultFloorHeight, 3), 0, 20),
-    hasModernSchema = finite2(rawDocument?.schemaVersion, 0) >= 6,
     exportPresetSlots = normalizeExportPresetSlots2(rawDocument?.exportPresets);
   return {
-    schemaVersion: 7,
+    schemaVersion: 8,
     activeFloorId: activeFloorRecord.id,
     defaultFloorHeight: clamp2(finite2(rawDocument?.defaultFloorHeight, 3), 1.8, 8),
-    previewFloorGap: clamp2(
-      hasModernSchema
-        ? finite2(rawDocument?.previewFloorGap, 3)
-        : documentFloorHeight + finite2(rawDocument?.previewFloorGap, 0),
-      0,
-      20,
-    ),
+    previewFloorGap: clamp2(finite2(rawDocument?.previewFloorGap, 3), 0, 20),
     uniformOverviewStack: rawDocument?.uniformOverviewStack === true,
-    exportFloorGap: clamp2(
-      hasModernSchema
-        ? finite2(rawDocument?.exportFloorGap, 3)
-        : documentFloorHeight + finite2(rawDocument?.exportFloorGap, 0),
-      0,
-      20,
-    ),
+    exportFloorGap: clamp2(finite2(rawDocument?.exportFloorGap, 3), 0, 20),
     previewFloorMode: rawDocument?.previewFloorMode === "all" ? "all" : "active",
     combinedCameraSettings: normalizeCameraSettings2(rawDocument?.combinedCameraSettings),
     combinedFixedCameraView: normalizeFixedCameraView2(rawDocument?.combinedFixedCameraView),
@@ -4002,8 +3987,7 @@ function normalizeMaterialSurfaceOverrides(rawSurfaceOverrides) {
 function normalizeScenePayload(rawScene) {
   const kd2 = createStudioDocument();
   if (!rawScene || typeof rawScene != "object") return kd2;
-  const sceneSchemaVersion = finite2(rawScene.schemaVersion, 0),
-    pixelsPerMeterValue = clamp2(finite2(rawScene.calibration?.pixelsPerMeter, 0), 0, 100000),
+  const pixelsPerMeterValue = clamp2(finite2(rawScene.calibration?.pixelsPerMeter, 0), 0, 100000),
     calibrationSettings =
       pixelsPerMeterValue > 0
         ? {
@@ -4090,20 +4074,8 @@ function normalizeScenePayload(rawScene) {
           }))
           .filter((railingCandidate) => wallIdSet.has(railingCandidate.wallId))
       : [],
-    areaRecords = [],
-    areaIdSet = new Set(),
     lightGroupRecords = [],
     lightGroupIdSet = new Set();
-  if (Array.isArray(rawScene.areas))
-    for (const rawArea of rawScene.areas) {
-      const areaIdString = String(rawArea?.id || generateId("area"));
-      areaIdSet.has(areaIdString) ||
-        (areaIdSet.add(areaIdString),
-        areaRecords.push({
-          id: areaIdString,
-          name: normalizeLabelText2(rawArea?.name, "区域 " + (areaRecords.length + 1), 16),
-        }));
-    }
   if (Array.isArray(rawScene.lightGroups))
     for (const rawLightGroup of rawScene.lightGroups) {
       const lightGroupIdString = String(rawLightGroup?.id || generateId("light-group"));
@@ -4117,8 +4089,7 @@ function normalizeScenePayload(rawScene) {
             24,
           ),
           enabled: rawLightGroup?.enabled !== false,
-          // 区域改由 HA 提供：旧文档里的 areaId 可能是 studio 自建 id，先原样保留，
-          // 等 HA 区域拉取后按名称迁移成 HA area_id；无效值在渲染/分配时按「未分类」处理。
+          // 区域由 HA 提供：无效的 areaId 在渲染/分配时按「未分类」处理。
           areaId: String(rawLightGroup?.areaId || "").trim() || null,
         }));
     }
@@ -4165,13 +4136,7 @@ function normalizeScenePayload(rawScene) {
                 itemMinimumFootprint2(rawItemRecord?.type),
                 isCourtyardDrawing2(rawItemRecord) ? 200 : 8,
               ),
-              needsStriplightRotation =
-                sceneSchemaVersion < 2 &&
-                rawItemRecord?.type === "striplight" &&
-                itemDepth > itemWidth,
-              itemRotation = normalizeFullRotation2(
-                finite2(rawItemRecord?.rotation) + (needsStriplightRotation ? 90 : 0),
-              ),
+              itemRotation = normalizeFullRotation2(finite2(rawItemRecord?.rotation)),
               itemHeight = clamp2(
                 finite2(rawItemRecord?.height, table.height),
                 itemMinimumHeight2(rawItemRecord?.type),
@@ -4481,7 +4446,6 @@ function normalizeScenePayload(rawScene) {
     windows: tf2.windows,
     doors: tf2.doors,
     railings: tf2.railings,
-    areas: areaRecords,
     lightGroups: lightGroupRecords,
     items: sceneItemRecords,
   };
@@ -5166,11 +5130,9 @@ async function refreshLightAreasFromHa() {
       }))
       .filter((areaRecord) => areaRecord.areaId && areaRecord.name);
   } catch (lightAreaError) {
-    // 取不到区域时面板留空，但不动灯组已有的 areaId：下次拉取成功后仍能按名称迁移。
     fetchedAreaRecords = [];
   }
   lightAreaRecords = applySavedLightAreaOrder(fetchedAreaRecords);
-  migrateLegacyLightGroupAreas();
   syncLightGroupList();
 }
 /** 灯光面板区域顺序的本地记录：HA 提供区域集合，顺序只是前端展示偏好，不写回 HA / 文档。 */
@@ -5207,40 +5169,6 @@ function applySavedLightAreaOrder(areaRecords: { areaId: string; name: string }[
     areaRecordById.has(remainingAreaRecord.areaId) &&
       (orderedAreaRecords.push(remainingAreaRecord), areaRecordById.delete(remainingAreaRecord.areaId));
   return orderedAreaRecords;
-}
-/** 把旧文档（studio 自建区域）里的 areaId 按名称映射为 HA area_id，并清掉遗留区域数据。 */
-function migrateLegacyLightGroupAreas() {
-  const haAreaIdByName = new Map(
-      lightAreaRecords.map((areaRecord) => [areaRecord.name, areaRecord.areaId]),
-    ),
-    haAreaIdSet = new Set(lightAreaRecords.map((areaRecord) => areaRecord.areaId));
-  let hasMigratedArea = false;
-  for (const floorRecord of studioProject?.floors || []) {
-    const floorScene = floorRecord.scene;
-    if (!floorScene) continue;
-    const legacyAreaNameById = new Map(
-      (floorScene.areas || []).map((legacyArea) => [legacyArea.id, legacyArea.name]),
-    );
-    for (const lightGroupRecord of floorScene.lightGroups || []) {
-      const currentAreaId = lightGroupRecord.areaId;
-      if (!currentAreaId || haAreaIdSet.has(currentAreaId)) continue;
-      // 旧 areaId 可能是 studio 自建 id（靠遗留名称映射），也可能直接就是 HA 区域名。
-      const legacyAreaName = legacyAreaNameById.get(currentAreaId),
-        mappedAreaId =
-          (legacyAreaName && haAreaIdByName.get(String(legacyAreaName))) ||
-          haAreaIdByName.get(currentAreaId) ||
-          null;
-      if (mappedAreaId !== currentAreaId) {
-        lightGroupRecord.areaId = mappedAreaId;
-        hasMigratedArea = true;
-      }
-    }
-    if (floorScene.areas?.length) {
-      floorScene.areas = [];
-      hasMigratedArea = true;
-    }
-  }
-  hasMigratedArea && markDocumentDirty();
 }
 /** 该 areaId 是否为当前 HA 里的有效区域（渲染分组 / 分配校验用）。 */
 function isKnownLightAreaId(areaId) {

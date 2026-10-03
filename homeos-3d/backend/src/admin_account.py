@@ -189,14 +189,9 @@ class AdminAccountStore:
 
     @staticmethod
     def _admin_user(database_session) -> User | None:
-        # [补充说明] 找出库内的管理员账号。
-        #
-        # 优先取 role == "admin" 的行；老库可能没有正确设置 role，
-        # 因此退化到「最早创建的那个账号」。
+        """Return the administrator row, or None when the database has no admin."""
         return database_session.scalar(
             select(User).where(User.role == "admin").order_by(User.created_at, User.id)
-        ) or database_session.scalar(
-            select(User).order_by(User.created_at, User.id)
         )
 
     def initialize(self, database: Database) -> str:
@@ -237,31 +232,13 @@ class AdminAccountStore:
             user = self._admin_user(session)
             if user is None:
                 return "empty"
-            # 库内还留着管理员、但账号文件不存在：先看它是否已经外置过。
-            if user.auth_externalized:
-                # 曾经外置过、文件却被删了：一律按「需要重新设置」处理，
-                # 由设置页重建账号文件。
-                # 顺带清空全部登录会话，避免旧会话绕过重设后的新口令。
-                session.execute(delete(LoginSession))
-                session.commit()
-                self._recovery_user_id = user.id
-                return "reset_required"
-            # 库内还是明文凭据（早期版本的库）：把这一行迁移成外置账号文件。
-            credentials = AdminAccountCredentials(
-                user_id=user.id, username=user.username, password_hash=user.password_hash
-            )
-            self._write(credentials)
-            try:
-                user.password_hash = EXTERNAL_PASSWORD_SENTINEL
-                user.auth_externalized = True
-                session.commit()
-                self._credentials = credentials
-                return "migrated"
-            except Exception:
-                # 库事务失败：把刚落盘的账号文件回滚掉，否则下次启动会卡在「文件已存在」。
-                session.rollback()
-                self._discard(credentials)
-                raise
+            # 库内还留着管理员、但账号文件不存在：一律按「需要重新设置」处理，
+            # 由设置页重建账号文件。
+            # 顺带清空全部登录会话，避免旧会话绕过重设后的新口令。
+            session.execute(delete(LoginSession))
+            session.commit()
+            self._recovery_user_id = user.id
+            return "reset_required"
 
     def stage(self, user: User, password_hash: str) -> AdminAccountCredentials:
         # [补充说明] 先落盘新凭据（尚未生效），供后续 activate / abort 二选一。

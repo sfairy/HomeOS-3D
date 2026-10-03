@@ -259,8 +259,6 @@ class WeChatPayProvider:
         if not code_url:
             raise PaymentError("微信支付下单成功但没有返回 code_url。")
 
-        # 显示名走统一口径：payment_display_name 是单渠道时代的字段，只在微信是默认渠道
-        # （或默认渠道没配）时才采用它，否则会把它串到另一个渠道的二维码弹窗上。
         display_name = channels.display_name_for("wechat", setting, settings)
         logger.info(
             "微信支付下单成功 order=%s amount_fen=%s",

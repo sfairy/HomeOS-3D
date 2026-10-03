@@ -129,6 +129,9 @@ def _create_session(session, request: Request, account: Account) -> str:
     return token
 def _customer_for(session, account: Account) -> Customer:
     """取（必要时创建）账号对应的客户档案行。
+
+    并发创建撞唯一键时用 SAVEPOINT 只回滚这一条 INSERT：调用方在本事务里已完成的其它
+    写入必须保住，因此不能整个事务回滚。
     """
     customer = session.scalars(
         select(Customer).where(Customer.account_id == account.id)
@@ -363,7 +366,7 @@ def close_order_channel_best_effort(
     """取消订单第一步：best-effort 关闭支付渠道，返回「渠道是否已明确关单」。
 
     买家自助取消（store_orders.cancel_order）与后台取消（admin_orders.admin_cancel）必须
-    **同一口径**：少了这一步，旧二维码在巡检关单前（最长 CLOSE_LOOKBACK_HOURS）仍可被支付，
+    **同一口径**：少了这一步，旧二维码在巡检关单前（最长 RECONCILE_LOOKBACK_HOURS）仍可被支付，
     一笔迟到的成功付款会把已取消单「复活」并自动发码，取消意图被静默推翻。两条路径共用这一份
     实现，避免「改了一处忘了另一处」再次分叉。
 

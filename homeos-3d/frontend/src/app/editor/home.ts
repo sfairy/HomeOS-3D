@@ -63,7 +63,6 @@ import {
 } from "./component-page-copy";
 import {
   RELATED_ENTITY_DOMAIN_LABELS as RELATED_ENTITY_DOMAIN_LABELS2,
-  legacyRelatedEntityIds as legacyRelatedEntityIds2,
   manualRelatedEntityConfig as manualRelatedEntityConfig2,
   relatedEntityIsAvailable as relatedEntityIsAvailable2,
   relatedEntityLabel as relatedEntityLabel2,
@@ -5392,9 +5391,7 @@ function ensureRelatedPopupElement() {
       if (!relatedPopupContext2(deviceMap, rs2, as2)) return;
       const configuredRelatedIds = selectedRelatedEntityIds2(deviceMap),
         selectedIdSet = new Set(
-          configuredRelatedIds === null
-            ? legacyRelatedEntityIds2(deviceMap, rs2, as2)
-            : configuredRelatedIds,
+          configuredRelatedIds === null ? [] : configuredRelatedIds,
         ),
         popup = relatedPopupContext2(deviceMap, rs2, as2),
         selectionLimit = relatedPopupSelectionLimit2(popup);
@@ -5430,7 +5427,7 @@ function updateRelatedPopup(editedComponent, anchorElement) {
   const storedRelatedIds = selectedRelatedEntityIds2(editedComponent),
     isAutomaticSelection = storedRelatedIds === null,
     currentRelatedIdSet = new Set(
-      isAutomaticSelection ? legacyRelatedEntityIds2(editedComponent, rs3, as3) : storedRelatedIds,
+      isAutomaticSelection ? [] : storedRelatedIds,
     ),
     popupSelectionLimit = relatedPopupSelectionLimit2(related),
     isLimitReached = popupSelectionLimit > 0 && currentRelatedIdSet.size >= popupSelectionLimit,

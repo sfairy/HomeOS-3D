@@ -250,7 +250,7 @@ cp .env.example .env
 4. `docker compose pull` → `up -d`，按角色轮询健康检查（商店最长 180s，主应用最长 300s）；
 5. 打印访问地址与 `./setup` 入口。
 
-**授权公钥无需人工投放**：`--role all` 时主应用只读挂载商店写出的公钥卷；`--role app` 时主应用启动即向 `APP_LICENSE_SERVER_URL` 的 `GET /v2/keys` 取回两个 PEM 并缓存到自己的数据卷（首次之后即使商店暂时不可达也能离线启动）。取回会校验指纹，并在商店轮换密钥时按「上一代公钥连续性」自动跟进。
+**授权公钥无需人工投放**：`--role all` 时主应用只读挂载商店写出的公钥卷；`--role app` 时主应用启动即向 `APP_LICENSE_SERVER_URL` 的 `GET /v2/keys` 取回两个 PEM 并缓存到自己的数据卷（首次之后即使商店暂时不可达也能离线启动）。取回结果会与响应声明的 sha256 逐字节核对后再落盘。
 
 支持的全部参数：
 
@@ -391,7 +391,7 @@ docker run --rm -v homeos-3d_homeos-3d-data:/data \
 | 客户机连不上、且地址写的是 `https://…:8804` | 那是商店内置反代的自签证书，客户机不信任：改用 `http://<商店>:8802`，或按 [PUBLIC-ACCESS.md](ops/deploy/PUBLIC-ACCESS.md) 上真实证书域名 |
 | 公网证书一直申请不下来 | 检查域名解析、公网 80/443 是否可达；见 [PUBLIC-ACCESS.md](ops/deploy/PUBLIC-ACCESS.md) |
 | 激活报「租约使用了不受信任的授权公钥」 | 主应用公钥与该商店不匹配（例如数据卷是别台机器搬来的）。删掉主应用数据卷里的 `client-keys` 后重启即会重新取回；同机部署检查公钥卷是否被手工覆盖 |
-| 公钥取回被拒（日志「拒绝替换」） | 商店公钥换了却没有把本地这把列为上一代公钥：确认是不是真换了密钥对；是的话按商店的轮换流程（保留 `license-*.previous.pem`）重来 |
+| 公钥取回被拒（日志「拒绝替换」） | 商店换过密钥对，本地已固定的是旧公钥：删掉主应用数据卷里的 `client-keys` 后重启，重新取回后旧租约失效、需重新激活 |
 | 已激活的客户端被判「换设备」 | `/host` 挂载或主机名变了导致实例指纹改变：先在商店后台解绑，再重新激活；或钉住 `APP_HARDWARE_MACHINE_ID` / `APP_HARDWARE_BOARD_ID` |
 | 宿主端口冲突 | 改 `.env` 的 `APP_PUBLISH_PORT` / `APP_PROXY_PUBLISH_PORT` / `STORE_PUBLISH_PORT` / `STORE_PROXY_PUBLISH_PORT`，然后重跑 `deploy.sh` |
 | 只想看脚本会做什么 | `./ops/deploy/deploy.sh --dry-run`（不写文件、不调 docker） |

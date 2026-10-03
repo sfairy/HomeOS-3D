@@ -59,23 +59,11 @@ def run_migrations_online() -> None:
         connect_args={"timeout": BUSY_TIMEOUT_SECONDS},
     )
     with connectable.connect() as connection:
-        #: **显式关掉外键强制**，这是迁移连接与运行期连接的关键差别：0002 会用
-        #: ``batch_alter_table`` 重建表（CREATE 新表 → 拷数据 → DROP 旧表 → RENAME），
-        #: 开着外键时 DROP 会按 CASCADE 连带删掉子表数据 —— 那是不可逆的数据损失。
-        #: 结构一致性由迁移脚本自己保证，不依赖这里的开关。
-        connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()
-        #: **这一行是承重的。** SQLite 的 ``transactional_ddl`` 是 False，于是
-        #: ``begin_transaction()`` 在上面这一步直接返回 ``nullcontext()``（除非是
-        #: ``transaction_per_migration``）—— 也就是说那个 with 块什么都没管。
-        #: ``upgrade`` 之所以能落库，是因为它内部逐条迁移时走的是
-        #: ``begin_transaction(_per_migration=True)``（那条路径会真的开事务并提交）；
-        #: 而 ``stamp`` **不经过那条路径**，它写 alembic_version 用的是连接的隐式事务，
-        #: 出了 ``with connection`` 就被 SQLAlchemy 回滚 —— 表现为「stamp 报成功、
-        #: 库里版本表却是空的」，紧接着 upgrade 会从基线重放，在存量库上直接
-        #: ``table ... already exists`` 起不来。显式提交一次把两条路径拉平。
+        #: SQLite 的 ``transactional_ddl`` 是 False，``begin_transaction()`` 在这里返回
+        #: ``nullcontext()``；显式提交一次，确保版本表落盘。
         connection.commit()
 
 

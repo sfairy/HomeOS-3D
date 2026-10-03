@@ -5,12 +5,9 @@
 没有共享传输公钥（X25519 请求体加密依赖它），只能直接读。
 
 公钥不是秘密（租约真伪由 Ed25519 验签保证），所以端点可以公开；真正要防的是「被换成
-别的密钥对」，因此本模块坚持两条：
+别的密钥对」，因此本模块坚持：
 
-* **一致性**：返回的 PEM 必须与它声明的 sha256 相符，且必须是 PEM 公钥；
-* **连续性**：本地已固定某把签名公钥时，只有当服务器把**这把**列为上一代公钥，才允许
-  换成新的（合法轮换的必然特征）。否则拒绝替换并保留原样 —— 宁可不换，也不接受来路
-  不明的密钥对。
+* **一致性**：返回的 PEM 必须与它声明的 sha256 相符，且必须是 PEM 公钥。
 
 取回结果落盘到数据卷（`APP_CLIENT_KEYS_DIR`），因此首次之后即使授权服务器暂时不可达，
 主应用也能照常离线启动。
@@ -30,8 +27,6 @@ from pathlib import Path
 #: 公钥文件名（与主应用 ``config.py`` / ``license_keys.py`` 保持一致）。
 SIGNING_PUBLIC_KEY_FILENAME = "license-public.pem"
 TRANSPORT_PUBLIC_KEY_FILENAME = "license-transport-public.pem"
-#: 上一代签名公钥：轮换重叠窗口内仍要参与验签。
-PREVIOUS_SIGNING_PUBLIC_KEY_FILENAME = "license-public.previous.pem"
 
 #: 公钥都是 SubjectPublicKeyInfo，PEM 头一致。
 PUBLIC_KEY_MARKER = b"-----BEGIN PUBLIC KEY-----"
@@ -163,36 +158,20 @@ def apply_license_keys(directory: Path, payload: dict, *, log: Callable[[str], N
 
     signing_path = _key_path(directory, SIGNING_PUBLIC_KEY_FILENAME)
     transport_path = _key_path(directory, TRANSPORT_PUBLIC_KEY_FILENAME)
-    previous_path = _key_path(directory, PREVIOUS_SIGNING_PUBLIC_KEY_FILENAME)
-    previous = payload.get("licensePublicKeyPrevious")
-    previous_bytes = _decode_pem(previous, "上一代签名公钥") if isinstance(previous, str) and previous else None
 
     changed = True
-    if _is_pem(signing_path):
-        current_sha256 = public_key_sha256(signing_path)
-        if current_sha256 == signing_sha256:
-            changed = False
-        # 连续性：允许换新的唯一凭据是「服务器把本地这把认作上一代公钥」。
-        elif previous_bytes is None or hashlib.sha256(previous_bytes).hexdigest() != current_sha256:
-            raise LicenseKeyFetchError(
-                "授权服务器给出的签名公钥与本地已固定的不是同一把，且没有把本地这把列为上一代公钥："
-                "拒绝替换（可能是密钥被换或请求被劫持）。"
-            )
+    if _is_pem(signing_path) and public_key_sha256(signing_path) == signing_sha256:
+        changed = False
 
     directory.mkdir(parents=True, exist_ok=True)
     # 只写内容真的变了的文件：避免每次重启都刷新 mtime / 触发无谓的告警。
     wanted = [(transport_path, transport)]
     if changed:
         wanted.append((signing_path, signing))
-    if previous_bytes is not None:
-        wanted.append((previous_path, previous_bytes))
     for path, content in wanted:
         if _is_pem(path) and path.read_bytes() == content:
             continue
         _write_public(path, content)
-    if previous_bytes is None and previous_path.is_file():
-        # 服务器已结束轮换窗口：同步删掉本地宽限公钥，别让旧租约被无限期接受。
-        previous_path.unlink(missing_ok=True)
 
     log(
         f"授权公钥已同步：keyId={derive_key_id(signing_path)}"

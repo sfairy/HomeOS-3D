@@ -1,5 +1,5 @@
 import { carState } from "./car-state";
-import { CARD_TEXT_SIZE_PX, migrateCardTextSize } from "@app/bridge/card-text-size";
+import { CARD_TEXT_SIZE_PX } from "@app/bridge/card-text-size";
 export function updateCarCard(containerElement, carConfig, carOptions) {
   let cardElement = containerElement.querySelector(".i3d-car-card");
   if (!cardElement) {
@@ -19,7 +19,7 @@ export function updateCarCard(containerElement, carConfig, carOptions) {
   }
   const state = carState(carConfig, carOptions),
     cardWidth = Math.min(600, Math.max(100, carConfig.cardWidth ?? 180)),
-    cardTextSize = migrateCardTextSize(carConfig, true).cardFontSize;
+    cardTextSize = carConfig.cardFontSize ?? CARD_TEXT_SIZE_PX;
   return (
     (cardElement.querySelector(".i3d-car-name").textContent =
       carConfig.label || carConfig.deviceName || "汽车"),

@@ -1,13 +1,13 @@
-# [补充说明] 授权链路的密码学原语。
-#
-# 三块职责，共同构成「离线可信」的基础：
-# 1. LeaseVerifier —— 用 Ed25519 公钥校验授权服务签发的「签名租约」，这是门禁的信任根：
-# 数据库里的状态字段可以被改写，签名伪造不了。
-# 2. LicenseTransportCipher —— X25519 ECDH 协商一次性共享秘密，经 HKDF-SHA256 派生
-# AES-256-GCM 密钥，加密请求体并解密响应体，保证激活码、令牌与实例 ID 不以明文过网。
-# 3. SecretCipher —— 用本机密钥文件（Fernet）加密落库的会话令牌、恢复令牌与激活码。
-#
-# 本模块所有失败都抛 LicenseCryptoError；调用方据此把状态归类为 INVALID / INSTANCE_CHANGED / INSTANCE_MISMATCH。
+"""授权链路的密码学原语。
+
+``LeaseVerifier``（Ed25519 验签）是离线门禁的信任根：数据库里的状态字段可以被改写，
+签名伪造不了。``LicenseTransportCipher``（X25519 + HKDF-SHA256 派生的 AES-256-GCM）
+保证激活码、令牌与实例 ID 不以明文过网；``SecretCipher``（Fernet）加密落库的会话令牌、
+恢复令牌与激活码。
+
+本模块所有失败都抛 ``LicenseCryptoError``；调用方据此把状态归类为 INVALID /
+INSTANCE_CHANGED / INSTANCE_MISMATCH。
+"""
 from __future__ import annotations
 
 import base64
@@ -30,32 +30,31 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 
 class LicenseCryptoError(RuntimeError):
-    # [补充说明] 授权相关的密码学错误：格式非法、指纹不符、验签失败、解密失败等一律用它表达。
-    pass
+    """授权相关的密码学错误，涵盖格式非法、指纹不符、验签失败与解密失败。"""
 
 
 class LicenseTransportCipher:
-    """Encrypt one licensing request and decrypt its paired response."""
-    # 加密一次授权请求，并解密与之配对的响应。
-    #
-    # 握手是无状态的一次性 ECDH：每次 encrypt_request 都新生成一把临时 X25519 私钥，
-    # 同一请求重放也不会复用密钥流。返回的对称密钥必须原样交给 decrypt_response ——
-    # AAD 里绑定了方向、路径与 keyId，跨请求复用必然解不开。
-    #
-    # 协议版本串，同时参与 HKDF 的 info 与 AES-GCM 的 AAD；
-    # 改动它等于与授权服务断约，只应随协议升级一起变。
-    # 必须与商店侧 ``homeos-store/backend/src/licensing/crypto.py`` 的 ``PROTOCOL``
-    # 逐字节一致：两者不同时 keyId 校验仍会通过，但派生密钥与 AAD 不同，
-    # AES-GCM 解密必然失败，表现为「授权请求无法解密或已被篡改」。
+    """加密一次授权请求，并解密与之配对的响应。
+
+    握手是无状态的一次性 ECDH：每次 ``encrypt_request`` 都新生成一把临时 X25519 私钥，
+    返回的对称密钥必须原样交给 ``decrypt_response``（AAD 绑定了方向、路径与 keyId，
+    跨请求复用必然解不开）。
+
+    ``PROTOCOL`` 同时参与 HKDF 的 info 与 AES-GCM 的 AAD，必须与商店侧
+    ``homeos-store/backend/src/licensing/crypto.py`` 的 ``PROTOCOL`` 逐字节一致：
+    两者不同时 keyId 校验仍会通过，但派生密钥与 AAD 不同，AES-GCM 解密必然失败。
+    """
     PROTOCOL = b'homeos-license-transport-v1'
 
     def __init__(self, public_key_path: Path, key_id: str, expected_sha256: str) -> None:
-        # [补充说明] 载入并校验授权传输公钥（服务端 X25519 公钥）。
-        #
-        # expected_sha256 是公钥文件内容的 SHA-256 十六进制指纹，钉死在发布版本里。
-        # 异常: LicenseCryptoError —— keyId 非法、公钥读不到、指纹不符，或公钥不是 X25519。
-        # keyId 会被拼进 HKDF 的 info 与 AAD，且必须与授权服务完全一致，
-        # 因此限制在安全字符集与长度内，避免控制字符污染派生输入。
+        """载入并校验授权传输公钥（服务端 X25519 公钥）。
+
+        ``expected_sha256`` 是公钥文件内容的 SHA-256 十六进制指纹，钉死在发布版本里。
+        keyId 会被拼进 HKDF 的 info 与 AAD，且必须与授权服务完全一致，因此限制在安全
+        字符集与长度内。指纹校验刻意放在解析之前，且用 ``compare_digest`` 常数时间比较。
+
+        异常: LicenseCryptoError —— keyId 非法、公钥读不到、指纹不符，或公钥不是 X25519。
+        """
         if not key_id or len(key_id) > 64 or not all(character.isalnum() or character in '-_.' for character in key_id):
             raise LicenseCryptoError('授权传输加密 keyId 格式无效。')
         try:
@@ -94,11 +93,10 @@ class LicenseTransportCipher:
             raise LicenseCryptoError('授权传输响应编码无效。') from error
 
     def encrypt_request(self, payload: dict[str, Any], path: str) -> tuple[dict[str, str], bytes]:
-        # [补充说明] 加密一次请求体，返回（信封字段字典，响应解密所需的对称密钥）。
-        #
-        # path 为请求路径（如 /v2/activate），参与密钥派生与 AAD 绑定。
-        # 返回的 key 必须原样保留，用于 decrypt_response 解密配对的响应。
-        # 每次请求都换一把临时私钥：即便某次请求密文被录下，也无法反推长期私钥。
+        """加密一次请求体，返回（信封字段字典，响应解密所需的对称密钥）。
+
+        ``path`` 参与密钥派生与 AAD 绑定；返回的 key 必须原样保留用于解密配对的响应。
+        """
         ephemeral = X25519PrivateKey.generate()
         # ECDH 共享秘密；服务端用自己私钥 + 信封里的 ephemeralPublicKey 得到同一个值。
         shared = ephemeral.exchange(self._key)
@@ -122,11 +120,13 @@ class LicenseTransportCipher:
             'ciphertext': self._encode(ciphertext)}, key)
 
     def decrypt_response(self, envelope: dict[str, Any], path: str, key: bytes) -> dict[str, Any]:
-        # [补充说明] 解密与某个请求配对的响应信封。
-        #
-        # path 必须与加密时一致，key 为 encrypt_request 返回的对称密钥（一个请求一把）。
-        # 异常: LicenseCryptoError —— keyId 不符、编码非法、IV 长度异常或 GCM 校验失败。
-        # 先核对 keyId 再解密：不符说明请求被路由到了别的环境，早一步拒绝能给出更准确的原因。
+        """解密与某个请求配对的响应信封。
+
+        ``path`` 必须与加密时一致，``key`` 为 ``encrypt_request`` 返回的对称密钥
+        （一个请求一把）。先核对 keyId 再解密，IV 强制 96 位。
+
+        异常: LicenseCryptoError —— keyId 不符、编码非法、IV 长度异常或 GCM 校验失败。
+        """
         if envelope.get('keyId') != self.key_id:
             raise LicenseCryptoError('授权传输响应 keyId 不匹配。')
         iv = self._decode(envelope.get('iv', ''))
@@ -149,9 +149,10 @@ class LicenseTransportCipher:
 
 
 def parse_timestamp(value: str) -> datetime:
-    # [补充说明] 解析租约里的 ISO-8601 时间戳，统一成 UTC 时区感知对象。
-    #
-    # 返回可直接与 datetime.now(timezone.utc) 比较的 datetime；无法解析时抛 LicenseCryptoError。
+    """解析租约里的 ISO-8601 时间戳，统一成 UTC 时区感知对象。
+
+    缺时区信息按 UTC 解释（服务端始终以 UTC 签发）。无法解析时抛 ``LicenseCryptoError``。
+    """
     try:
         # fromisoformat 自 Python 3.11 起原生接受 'Z' 后缀（本仓运行 3.14，
         # 见 Dockerfile 的 python:3.14-slim-bookworm），无需再替换成 '+00:00'。
@@ -174,17 +175,17 @@ def _decode(value: str) -> bytes:
 
 
 class LeaseVerifier:
-    # [补充说明] 用 Ed25519 公钥校验授权服务签发的签名租约。
-    #
-    # 这是离线门禁的信任根：即使数据库里的 status 被改成 ACTIVE，也必须先通过这里对
-    # signedLease 的验签才会被放行。多公钥支持（trusted_keys）是为了密钥轮换：新公钥
-    # 上线时旧公钥仍可验签，等所有安装都续租过一轮后再撤下。
+    """用 Ed25519 公钥校验授权服务签发的签名租约。
+
+    ``trusted_keys``（keyId → 公钥路径/指纹）是白名单：不在其中的 keyId 一律拒绝，
+    绝不尝试用未知公钥验签。
+    """
 
     def __init__(self, product: str = 'homeos', *, trusted_keys: Mapping[str, tuple[Path, str | None]]) -> None:
-        # [补充说明] 配置可信公钥集合 {keyId: (公钥路径, 指纹或 None)}。
-        #
-        # 多把公钥是为密钥轮换准备的：新公钥上线时旧公钥仍可验签，等所有安装都续租过一轮后再撤下。
-        # 异常: ValueError —— 可信公钥集合为空（配置错误，启动期就该失败）。
+        """配置可信公钥集合，指纹为 None 时只按 keyId 选公钥。
+
+        异常: ValueError —— 可信公钥集合为空（配置错误，启动期就该失败）。
+        """
         self.product = product
         self.trusted_keys = dict(trusted_keys)
         # 空集合意味着任何租约都验不过，属于配置失误：启动期直接报错，而不是运行期静默判「校验无效」。
@@ -192,12 +193,15 @@ class LeaseVerifier:
             raise ValueError('可信授权公钥集合不能为空。')
 
     def verify(self, signed_lease: str, instance_id: str) -> dict[str, Any]:
-        # [补充说明] 校验签名租约并返回其载荷。
-        #
-        # signed_lease 形如 <base64url(payload)>.<base64url(signature)>；instance_id 为当前安装
-        # 实例 ID，载荷里的 instanceId 必须与之一致。
-        # 异常: LicenseCryptoError —— 格式、编码、keyId、指纹、签名、产品或实例任一不符，
-        # 以及缺少必要字段或序号非法。
+        """校验签名租约并返回其载荷。
+
+        ``signed_lease`` 形如 ``<base64url(payload)>.<base64url(signature)>``；载荷里的
+        instanceId 必须与 ``instance_id`` 一致。租约必须带 keyId，公钥必须是 Ed25519，
+        且先验签再比对业务字段。
+
+        异常: LicenseCryptoError —— 格式、编码、keyId、指纹、签名、产品或实例任一不符，
+        以及缺少必要字段或序号非法。
+        """
         try:
             # 只切第一个点：payload 段不含点，但 maxsplit=1 更稳，签名段里出现点也不会截断内容。
             encoded_payload, encoded_signature = signed_lease.split('.', 1)
@@ -257,19 +261,21 @@ class LeaseVerifier:
 
 
 class SecretCipher:
-    # [补充说明] 落库凭证的对称加密（Fernet：AES-128-CBC + HMAC-SHA256 认证）。
-    #
-    # 数据库里只存密文：会话令牌、恢复令牌与激活码即使被拖库也无法直接复用。密钥单独存在
-    # key_path（0600 权限），与数据库分离 —— 备份数据库不会连带泄漏密钥，删库也不能解密历史备份。
+    """落库凭证的对称加密（Fernet：AES-128-CBC + HMAC-SHA256 认证）。
+
+    数据库里只存密文，密钥单独存在 ``key_path``（0600 权限），与数据库分离 ——
+    备份数据库不会连带泄漏密钥。
+    """
 
     def __init__(self, key_path: Path) -> None:
         # [补充说明] 只记住密钥文件路径；真正的密钥在首次加解密时惰性生成。
         self.key_path = key_path
 
     def _key(self) -> bytes:
-        # 取本机 Fernet 密钥：目录 0700、文件 O_EXCL + 0600 原子创建，密钥文件一旦存在
-        # 就是这个部署的加密身份，运行期不会变。
-        # 异常: LicenseCryptoError —— 密钥文件已存在但内容为空。
+        """取本机 Fernet 密钥：目录 0700、文件 O_EXCL + 0600 原子创建。
+
+        异常: LicenseCryptoError —— 密钥文件已存在但内容为空。
+        """
         self.key_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         if self.key_path.exists():
             value = self.key_path.read_bytes().strip()
@@ -289,10 +295,10 @@ class SecretCipher:
         return Fernet(self._key()).encrypt(value.encode('utf-8')).decode('ascii')
 
     def decrypt(self, value: str) -> str:
-        # [补充说明] 解密库里取出的密文。
-        #
-        # 异常:
-        # LicenseCryptoError: 密钥不匹配、密文被改动（HMAC 校验失败）或内容损坏。
+        """解密库里取出的密文。
+
+        异常: LicenseCryptoError —— 密钥不匹配、密文被改动（HMAC 校验失败）或内容损坏。
+        """
         try:
             return Fernet(self._key()).decrypt(value.encode('ascii')).decode('utf-8')
         except (InvalidToken, UnicodeError, ValueError) as error:

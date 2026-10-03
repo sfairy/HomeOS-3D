@@ -72,7 +72,7 @@ type RedemptionRow = {
   couponCode?: string;
   accountEmail?: string;
   accountId?: string;
-  discountCents?: unknown;
+  discountCents?: number;
   orderNo?: string;
   orderId?: string;
   voidedAt?: string | null;

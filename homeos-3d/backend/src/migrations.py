@@ -17,15 +17,6 @@ from alembic.script import ScriptDirectory
 from .config import Settings
 
 
-class UnknownRevisionError(RuntimeError):
-    '''库内记录的 revision 不在当前迁移脚本目录里。
-
-    最典型的情形是迁移链被压缩（例如把 0001…0023 收敛成单一基线）：旧库记录的 revision
-    随旧脚本一起被删掉。Alembic 对这种情况只会抛一句 "Can't locate revision identified
-    by ..."，读的人无从判断该重建库还是该对齐版本；这里把它换成一个写明出路的错误。
-    '''
-
-
 def _migration_config(settings: Settings) -> Config:
     config = Config(settings.project_root / 'alembic.ini')
     release_scripts = settings.project_root / 'alembic_runtime'
@@ -146,88 +137,12 @@ def restore_upgrade_backup(settings: Settings, backup_path: Path) -> None:
         restore_path.unlink(missing_ok = True)
         _remove_sidecars(restore_path)
 
-def _unmodeled_tables(database_path: Path) -> tuple[str, ...]:
-    '''List tables that exist in the database but are unknown to the current ORM metadata.
-
-    This is the tell-tale of a database built by another migration lineage: two lineages may reuse
-    the same revision ids, so ``alembic_version`` alone cannot tell them apart. A release bundle
-    ships a squashed baseline (see ``db/migrations``) and its database carries tables this code does
-    not model (for example ``project_path_aliases``) while its recorded revision can collide with
-    this lineage's -- running the upgrade chain on it only crashes on ``CREATE TABLE``.
-    '''
-    if not database_path.is_file() or database_path.stat().st_size == 0:
-        return ()
-    # 副作用导入：把 models 注册到 Base.metadata（ruff/pyright 都看不出「导入即副作用」）
-    from . import models  # noqa: F401  # pyright: ignore[reportUnusedImport]
-    from .database import Base
-    known = set(Base.metadata.tables)
-    with closing(sqlite3.connect(f'file:{database_path}?mode=ro', uri = True)) as connection:
-        rows = connection.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").fetchall()
-    return tuple(sorted(str(name) for (name,) in rows if name not in known and name != 'alembic_version'))
-
-def _known_revisions(config: Config) -> set[str]:
-    '''脚本目录里当前已知的全部 revision。'''
-    return {str(script.revision) for script in ScriptDirectory.from_config(config).walk_revisions()}
-
-
-def _baseline_revision(config: Config) -> str:
-    '''内建基线 revision：整条链上 ``down_revision`` 为空的那个。'''
-    for script in ScriptDirectory.from_config(config).walk_revisions():
-        if not script.down_revision:
-            return str(script.revision)
-    raise RuntimeError('No database migration baseline is configured.')
-
-
-def _guard_known_revision(config: Config, source_revision: str | None, target_revision: str) -> None:
-    '''库内 revision 不在脚本目录里时，给出可执行的出路而不是 Alembic 的原始报错。
-
-    ``unversioned``（有版本表但没记录）不算异常：那是 start.py 之外的调用方手工建出的
-    半成品库，交给后续 upgrade 自己报错更准确。
-    '''
-    if source_revision in (None, 'unversioned', target_revision):
-        return
-    known = _known_revisions(config)
-    if source_revision in known:
-        return
-    baseline = _baseline_revision(config)
-    raise UnknownRevisionError(
-        f'数据库 revision 是「{source_revision}」，它不在当前迁移脚本目录里（已知：{sorted(known)}）。'
-        '这通常意味着迁移链被压缩过 —— 旧库记录的 revision 已随旧脚本删除，'
-        '而不是库被改坏了。两种正当出路：'
-        f'（1）开发阶段不需要库内数据时，删掉数据目录重新建库；'
-        f'（2）要保留库内数据、且确认库结构已经等于基线时，把版本对齐到基线：'
-        f'cd homeos-3d && .venv-store/bin/python -m alembic -c alembic.ini stamp --purge {baseline}。'
-        '注意 stamp 只改版本号、不动结构，库结构对不上基线时不要使用。'
-    )
-
-
-def _guard_foreign_schema(settings: Settings, source_revision: str | None, target_revision: str) -> None:
-    '''Refuse to upgrade a database whose schema is already ahead of its recorded revision.
-
-    Only runs when the database is genuinely behind the target: a normal upgrade has no unmodeled
-    tables, so this cannot produce false positives.
-    '''
-    if source_revision is None or source_revision == target_revision:
-        return
-    unmodeled = _unmodeled_tables(settings.database_path)
-    if not unmodeled:
-        return
-    raise RuntimeError(
-        f'Database schema is ahead of its recorded revision ({source_revision} -> {target_revision}): '
-        f'the database contains tables this code does not model {list(unmodeled)}. This usually means '
-        'the database was created by another migration lineage (e.g. the squashed baseline shipped in a '
-        'release bundle), and two lineages may reuse the same revision ids, so upgrading further would '
-        'fail with "table ... already exists". Use a separate data directory (APP_DATA_DIR) for this '
-        'code, or align the database to this lineage with "alembic stamp".')
-
 def run_migrations(settings: Settings) -> Path | None:
     config = _migration_config(settings)
     target_revision = ScriptDirectory.from_config(config).get_current_head()
     if target_revision is None:
         raise RuntimeError('No database migration head is configured.')
     source_revision = _database_revision(settings.database_path)
-    _guard_foreign_schema(settings, source_revision, target_revision)
-    _guard_known_revision(config, source_revision, target_revision)
     backup_path = None
     if source_revision is not None and source_revision != target_revision:
         backup_path = create_upgrade_backup(settings, source_revision, target_revision)
@@ -237,15 +152,6 @@ def run_migrations(settings: Settings) -> Path | None:
     except Exception as error:
         if backup_path is not None:
             restore_upgrade_backup(settings, backup_path)
-        lineage_hint = ''
-        if 'already exists' in str(error) or 'duplicate column name' in str(error):
-            lineage_hint = (' The database already contains objects this upgrade tries to create, which '
-                            'usually means it was created by another migration lineage (two lineages may '
-                            'reuse the same revision ids); use a separate data directory (APP_DATA_DIR) '
-                            'or align the lineage with "alembic stamp".')
-        if backup_path is not None:
-            raise RuntimeError(f'Database upgrade failed; the pre-upgrade database was restored from {backup_path}.{lineage_hint}') from error
-        if lineage_hint:
-            raise RuntimeError(f'Database upgrade failed.{lineage_hint}') from error
+            raise RuntimeError(f'Database upgrade failed; the pre-upgrade database was restored from {backup_path}.') from error
         raise
     return backup_path

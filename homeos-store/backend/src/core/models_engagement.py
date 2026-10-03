@@ -46,9 +46,7 @@ class StoreSetting(Base):
     #: 多渠道并存后，它是**默认渠道**（顾客没选时用它），而启用集合见 payment_channels_json。
     payment_provider: Mapped[str] = mapped_column(String(32), default="")
     #: 已启用的支付渠道（JSON 数组，如 ["alipay","wechat"]）。
-    #: 空数组 = 跟随 payment_provider（老部署的语义，保持不变）。
     payment_channels_json: Mapped[str] = mapped_column(Text, default="[]")
-    payment_display_name: Mapped[str] = mapped_column(String(64), default="")
     payment_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     payment_transaction_description: Mapped[str] = mapped_column(String(128), default="")
 

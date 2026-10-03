@@ -298,23 +298,6 @@ class StoreSettings:
         return self.license_keys_dir / "license-transport-public.pem"
 
     @property
-    def previous_private_key_path(self) -> Path:
-        """上一代签名私钥；存在即开启轮换重叠窗口。"""
-        return license_keys.previous_path(self.private_key_path)
-
-    @property
-    def previous_public_key_path(self) -> Path:
-        return license_keys.previous_path(self.public_key_path)
-
-    @property
-    def previous_transport_private_key_path(self) -> Path:
-        return license_keys.previous_path(self.transport_private_key_path)
-
-    @property
-    def previous_transport_public_key_path(self) -> Path:
-        return license_keys.previous_path(self.transport_public_key_path)
-
-    @property
     def license_key_id(self) -> str:
         if self.license_key_id_override:
             return self.license_key_id_override
@@ -327,20 +310,6 @@ class StoreSettings:
         if not self.transport_public_key_path.is_file():
             return ""
         return license_keys.key_id_from_public(self.transport_public_key_path)
-
-    @property
-    def previous_key_paths(self) -> tuple[Path, Path, Path, Path] | None:
-        """上一代四件套（签名/传输 × 公/私）；只要有一件缺失就返回 ``None``。
-        """
-        paths = (
-            self.previous_private_key_path,
-            self.previous_public_key_path,
-            self.previous_transport_private_key_path,
-            self.previous_transport_public_key_path,
-        )
-        if not all(path.is_file() for path in paths):
-            return None
-        return paths  # type: ignore[return-value]
 
     @property
     def public_base_url(self) -> str:
@@ -548,7 +517,6 @@ def _validate_settings(settings: StoreSettings) -> None:
             "「租约已过期」，看起来像网络正常但功能时有时无。"
         )
     _validate_verification_window_config(settings)
-    _validate_rotation(settings)
 
 
 def _validate_verification_window_config(settings: StoreSettings) -> None:
@@ -562,32 +530,6 @@ def _validate_verification_window_config(settings: StoreSettings) -> None:
             f" verification_ttl_seconds={ttl}：否则验证码过期后用户仍被冷却挡住，"
             "永远拿不到新码，注册与找回密码会被**永久**卡死（两个配置项单独看都合法）。"
         )
-
-
-def _validate_rotation(settings: StoreSettings) -> None:
-    """检查轮换重叠窗口的配置自洽性。
-    """
-    previous_paths = settings.previous_key_paths
-    if previous_paths is None:
-        return
-    previous_public, previous_transport_public = previous_paths[1], previous_paths[3]
-    active_transport_id = settings.license_transport_key_id
-    previous_transport_id = license_keys.key_id_from_public(previous_transport_public)
-    if active_transport_id and previous_transport_id == active_transport_id:
-        raise ValueError(
-            "轮换重叠窗口里的上一代传输公钥与当前公钥相同"
-            f"（派生 keyId 都是 {previous_transport_id}）：这通常是直接把当前密钥"
-            "复制成了 *.previous.pem。请删掉上一代四件套，或改用真正的前一代密钥 ——"
-            "同 id 的两代密钥在密钥环里会直接冲突。"
-        )
-    logger.warning(
-        "检测到上一代授权密钥（重叠窗口开启）：旧客户端仍可用 keyId=%s 验签，"
-        "上一代签名 keyId=%s。要结束窗口请删除 store 密钥目录下的 *.previous.pem "
-        "四件套 —— 删掉后旧客户端会立刻失效。",
-        previous_transport_id,
-        license_keys.key_id_from_public(previous_public),
-    )
-
 
 
 #: 支付宝二维码的渠道侧有效期是 2 小时（见 README「接入支付宝」）。本地订单 TTL

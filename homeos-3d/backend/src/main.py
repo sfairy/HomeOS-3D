@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import asyncio
-import hmac
 import json
 import os
 import sys
@@ -47,13 +46,13 @@ from .api.studio3d import router as studio3d_router
 from .auth_limiter import LoginAttemptLimiter
 from .config import Settings, load_settings
 from .database import Database
-from .display_access import active_display_device, backfill_persistent_display_pairings
+from .display_access import active_display_device
 from .embedding import EmbedSessionMiddleware, embedded_devices
 from .global_log import GlobalLogStore, _safe_text, event_context
 from .ha.service import HAConnectorService
 from .license import LicenseService
 from .migrations import restore_upgrade_backup, run_migrations
-from .models import DisplayDevice, LoginSession, Project, User
+from .models import DisplayDevice, LoginSession, User
 from .modules.interaction3d.api import router as interaction3d_router
 from .security import session_token_hash, set_display_cookie
 from .updates import UpdateChecker
@@ -78,47 +77,6 @@ def _record_lifecycle_failure(app: FastAPI, phase: str, error: Exception) -> Non
         sys.stderr.write(f'{_safe_text(message, limit = 1000)}\n{_safe_text(details, limit = 12000)}\n')
     except OSError:
         pass
-
-
-def migrate_secret_key(source: os.PathLike[str], target: os.PathLike[str]) -> bool:
-    # [补充说明] 把历史位置的密钥文件搬到新的独立密钥目录。
-    #
-    # 目标已存在时只比对内容：一致就沿用（顺手收紧权限并删掉旧文件），
-    # 不一致则抛 RuntimeError 并保留 /data 里的旧密钥 —— 静默覆盖会让正在使用的
-    # 会话令牌、配对码与授权凭据全部失效。目标不存在则用 O_EXCL 新建，
-    # 写完立刻回读比对，确认落盘才算迁移成功。
-    source_path = os.fspath(source)
-    target_path = os.fspath(target)
-    if os.path.abspath(source_path) == os.path.abspath(target_path):
-        return False
-    if not os.path.isfile(source_path):
-        return False
-    target_parent = os.path.dirname(target_path)
-    os.makedirs(target_parent, mode = 0o700, exist_ok = True)
-    try:
-        os.chmod(target_parent, 0o700)
-    except OSError:
-        pass
-    with open(source_path, 'rb') as source_file:
-        payload = source_file.read()
-    if os.path.exists(target_path):
-        with open(target_path, 'rb') as target_file:
-            target_payload = target_file.read()
-        if not hmac.compare_digest(payload, target_payload):
-            raise RuntimeError('新旧密钥内容不一致，已保留 /data 中的旧密钥。')
-    else:
-        descriptor = os.open(target_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        with os.fdopen(descriptor, 'wb') as output:
-            output.write(payload)
-            output.flush()
-            os.fsync(output.fileno())
-        with open(target_path, 'rb') as target_file:
-            target_payload = target_file.read()
-        if not hmac.compare_digest(payload, target_payload):
-            raise RuntimeError('新密钥写入验证失败，已保留 /data 中的旧密钥。')
-    os.chmod(target_path, 0o600)
-    os.unlink(source_path)
-    return True
 
 
 def _read_build_manifest(path: Path, what: str) -> dict:
@@ -188,20 +146,6 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             os.chmod(app_settings.studio3d_exports_dir, 0o700)
             app_settings.effect_variants_dir.mkdir(parents = True, exist_ok = True, mode = 0o700)
             os.chmod(app_settings.effect_variants_dir, 0o700)
-            # 老版本把三份密钥直接放在 data_dir 根下，新版收进 secrets 目录：
-            # 迁移是幂等的，目标已存在就只做校验。
-            migrate_secret_key(
-                app_settings.secrets_dir / 'ha_credentials.key',
-                app_settings.credential_key_path,
-            )
-            migrate_secret_key(
-                app_settings.secrets_dir / 'display_pairing_codes.key',
-                app_settings.display_pairing_key_path,
-            )
-            migrate_secret_key(
-                app_settings.secrets_dir / 'license_credentials.key',
-                app_settings.license_secret_key_path,
-            )
             upgrade_backup = run_migrations(app_settings)
             # 数据库文件同样只给属主读写：里面有加密后的 HA 令牌与授权状态。
             os.chmod(app_settings.database_path, 0o600)
@@ -217,13 +161,9 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
                     restore_upgrade_backup(app_settings, upgrade_backup)
                 raise
             app.state.settings = app_settings
-            if account_state == 'migrated':
-                app.state.global_log.append('success', '系统后台', '账号', '原管理员账号已自动迁移到独立账号文件')
-            elif account_state == 'reset_required':
+            if account_state == 'reset_required':
                 # 账号文件被删过：记录下来，前端会跳设置页重建账号。
                 app.state.global_log.append('warning', '系统后台', '账号', '检测到管理员账号文件已删除，等待重新设置账号和密码')
-            # 老版本把「常驻展示设备」写在别的表里：这里补一次回填，让历史配对继续可用。
-            backfill_persistent_display_pairings(app_settings, app.state.database)
             # 登录限流器是进程内状态，重启即清空（可接受：重启本身不常见）。
             app.state.login_limiter = LoginAttemptLimiter()
             # 激活尝试的失败预算（按账号，见 api/license.py）：激活码可枚举且每次都会
@@ -728,17 +668,6 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             return RedirectResponse('/license', status_code = 303)
         return FileResponse(app_settings.frontend_dir / '3d-studio.html')
 
-    @app.get('/projects/{project_id}/3d-studio', include_in_schema = False)
-    def legacy_three_d_studio_page(project_id: str, request: Request):
-        # [补充说明] 旧地址：3D 工作室已经从「按项目」改成全局入口，这里做一次永久跳转。
-        if not initialized(request):
-            return RedirectResponse('/setup', status_code = 303)
-        if not signed_in(request):
-            return login_redirect(request)
-        if not request.app.state.license_service.allows('editor'):
-            return RedirectResponse('/license', status_code = 303)
-        return RedirectResponse('/3d-studio', status_code = 308)
-
     @app.get('/display/{project_id}', include_in_schema = False)
     def display_page(project_id: str, request: Request):
         # [补充说明] 正式展示页（中控设备打开的那一页）。
@@ -761,46 +690,12 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             set_display_cookie(response, app_settings, request.cookies[app_settings.display_cookie_name])
         return response
 
-    @app.get('/homeos/{project_name:path}', include_in_schema = False)
-    def named_display_page(project_name: str, request: Request):
-        # [补充说明] 按项目名打开的展示页（改名前的旧书签形态）。
-        #
-        # 与 /display/{project_id} 同一套鉴权，区别只是用名字而不是主键定位项目。
-        if not initialized(request):
-            return RedirectResponse('/setup', status_code = 303)
-        with request.app.state.database.session_factory() as database:
-            project = database.scalar(select(Project).where(Project.name == project_name))
-        if project is None:
-            if not signed_in(request) and active_display(request) is None:
-                return pairing_redirect(request)
-            raise HTTPException(status_code = 404, detail = '仪表盘不存在。')
-        device = active_display(request, project.id)
-        # 设备只能看自己绑定的项目；管理员会话不受此项限制。
-        if not signed_in(request) and (device is None or device.project_id != project.id):
-            return pairing_redirect(request, project.id)
-        if not request.app.state.license_service.allows('display'):
-            return FileResponse(app_settings.frontend_dir / 'license-recovery.html')
-        response = FileResponse(app_settings.frontend_dir / 'display.html')
-        if device is not None and session_token_hash(request.cookies.get(app_settings.display_cookie_name, '')) == device.token_hash:
-            set_display_cookie(response, app_settings, request.cookies[app_settings.display_cookie_name])
-        return response
-
     @app.api_route('/api/v1/{unknown_path:path}', methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'], include_in_schema = False)
     def unknown_api_route(unknown_path: str) -> None:
         # [补充说明] 兜底 API 路由：返回结构化 404，而不是落到 SPA 的 index.html。
         #
         # 注册在所有真实 API 路由之后，只接住完全没匹配上的 /api/v1/* 路径。
         raise HTTPException(status_code = 404, detail = 'API 接口不存在。')
-
-    @app.get('/component-lab', include_in_schema = False)
-    def removed_component_lab() -> None:
-        # [补充说明] 已下线页面：显式 404，避免被静态兜底吞掉变成首页内容。
-        raise HTTPException(status_code = 404, detail = '页面不存在。')
-
-    @app.get('/template-assets/{asset_path:path}', include_in_schema = False)
-    def removed_template_assets(asset_path: str) -> None:
-        # [补充说明] 已下线资源路径：显式 404，防止旧链接拿到半截内容。
-        raise HTTPException(status_code = 404, detail = '资源不存在。')
 
     # camera / HLS 反向代理自行定义 /api/* 路径，因此不挂 /api/v1 前缀。
     app.include_router(ha_proxy_router)

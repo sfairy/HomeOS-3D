@@ -8,7 +8,7 @@ export function scenePreparationKey(lightHistoryScope, projectId, sceneId, sourc
 }
 function isUsablePreparedDocument(preparedDocument) {
   return (
-    preparedDocument?.schemaVersion === 7 &&
+    preparedDocument?.schemaVersion === 8 &&
     Array.isArray(preparedDocument.floors) &&
     preparedDocument.floors.length > 0 &&
     preparedDocument.floors.some((floor) => floor.id === preparedDocument.activeFloorId) &&

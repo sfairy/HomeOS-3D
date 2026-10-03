@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 from ..config import StoreSettings
 from ..core.models import DEFAULT_SUPPORT_EMAIL, StoreSetting
 from ..payments.channels import (
-    RETIRED_DISPLAY_NAMES,
     default_channel_name,
     display_name_for,
     enabled_channel_names,
@@ -15,10 +14,6 @@ from ..payments.channels import (
 from ..payments.credentials import merge_alipay_settings, merge_wechat_settings
 from ..payments.wechat import WeChatPayProvider
 from ..security.security import iso, utcnow
-
-#: 已删除渠道留下的显示名规则住在 payments/channels.py（显示名在那儿解析）；
-#: 这里重新导出，让 api/admin_settings.py 的保存时校验继续从同一处拿。
-
 
 #: 默认品牌标识。必须与 ``models.StoreSetting.logo_url`` 的默认值一致：该字段留空时
 DEFAULT_LOGO_URL = "/store-static/homeos-mark.svg"
@@ -98,13 +93,6 @@ def _mask_secret(configured: bool) -> bool:
     return bool(configured)
 
 
-def _display_name(setting: StoreSetting, *, fallback: str) -> str:
-    """支付显示名。已删除渠道留下的名字（「模拟支付」）不再生效，回落到渠道默认名。"""
-    name = (setting.payment_display_name or "").strip()
-    if name and name not in RETIRED_DISPLAY_NAMES:
-        return name
-    return fallback
-
 def _channel_credentials(
     name: str, setting: StoreSetting, settings: StoreSettings
 ) -> StoreSettings:
@@ -182,7 +170,7 @@ def payment_configuration_payload(
     # 失败的按钮。这里的 displayName 是给**后台**看的诊断文案（前台不会显示它）。
     if chosen is None:
         provider = ""
-        display_name = _display_name(setting, fallback="未配置支付渠道")
+        display_name = "未配置支付渠道"
         icon = "alipay"
         available = False
         configured = False

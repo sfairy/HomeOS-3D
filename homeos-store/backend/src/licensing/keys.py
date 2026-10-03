@@ -27,14 +27,6 @@ class GeneratedKeyPair:
     created: bool
 
 
-#: 上一代密钥的文件名后缀。轮换时把当前那对改名成 ``*<后缀>.pem`` 就地保留，授权服务按请求
-PREVIOUS_KEY_SUFFIX = ".previous"
-
-
-def previous_path(path: Path) -> Path:
-    return path.with_name(f"{path.stem}{PREVIOUS_KEY_SUFFIX}{path.suffix}")
-
-
 def key_id_from_public(public_path: Path) -> str:
     """由公钥**文件字节**派生 keyId。
     """

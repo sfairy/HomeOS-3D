@@ -144,9 +144,9 @@ function renderPaymentSweep(sweep: Sweep | null | undefined) {
     detail.textContent = '这个版本的服务端没有上报巡检状态。';
     return;
   }
-  // 中文名一律用后端下发的 healthLabel；缺失（老服务端）时才退回原始 health 值。
+  // 中文名一律用后端下发的 healthLabel。
   pillNode.className = `hb-tag ${SWEEP_HEALTH_TONE[sweep.health || ''] || 'hb-tag--warning'}`;
-  pillNode.textContent = sweep.healthLabel || sweep.health || '未知';
+  pillNode.textContent = sweep.healthLabel || '未知';
 
   const interval = Number(sweep.intervalSeconds || 0);
   const rounds = Number(sweep.rounds || 0);

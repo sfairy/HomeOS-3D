@@ -6,7 +6,6 @@ from __future__ import annotations
 import base64
 import json
 import os
-from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -175,29 +174,20 @@ class KeyGeneration:
 
 
 class KeyRegistry:
-    """当前一代 + 至多一代上一代，按请求里的**传输** keyId 选择。
+    """当前一代密钥（传输 + 签名成对），按请求里的**传输** keyId 校验。
     """
 
-    def __init__(self, generations: Sequence[KeyGeneration]) -> None:
-        if not generations:
-            raise ValueError("KeyRegistry 至少需要一代密钥。")
-        table: dict[str, KeyGeneration] = {}
-        for generation in generations:
-            key_id = generation.transport_key_id
-            if not key_id:
-                raise ValueError("传输密钥的 keyId 不能为空。")
-            if key_id in table:
-                raise ValueError(f"密钥环里出现重复的传输 keyId：{key_id}")
-            table[key_id] = generation
-        self._generations = tuple(generations)
-        self._by_transport = table
+    def __init__(self, generation: KeyGeneration) -> None:
+        if not generation.transport_key_id:
+            raise ValueError("传输密钥的 keyId 不能为空。")
+        self._generation = generation
 
     @property
     def active(self) -> KeyGeneration:
-        """新签发用的一代（列表第一项）。"""
-        return self._generations[0]
+        """新签发用的一代。"""
+        return self._generation
 
     def find(self, transport_key_id: Any) -> KeyGeneration | None:
         if not isinstance(transport_key_id, str):
             return None
-        return self._by_transport.get(transport_key_id)
+        return self._generation if transport_key_id == self._generation.transport_key_id else None

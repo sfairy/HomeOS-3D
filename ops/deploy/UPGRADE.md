@@ -61,9 +61,6 @@ docker compose -f docker-compose.store.yml -f docker-compose.store.public.yml up
 - [ ] `curl -fsS <商店地址>/v2/keys | head -c 200` 能取回公钥（客户机全靠它）；
 - [ ] `/admin` 能登录，授权列表 / 设备绑定页面正常。
 
-> 密钥轮换与本步骤无关：商店轮换签名密钥时，客户机下次启动会按「上一代公钥连续性」
-> 自动跟进，不需要你在客户机上做任何事。
-
 ### 商店启动即迁移（结构变更都在这一步发生）
 
 商店现在也走 Alembic（`homeos-store/db/migrations`），迁移在**容器启动时**同步执行，
@@ -161,10 +158,10 @@ docker compose -f docker-compose.app.yml pull && docker compose -f docker-compos
 ⚠️ **回滚不回滚数据**。若新版本做过不可逆的数据结构迁移，回滚前先备份数据卷，并确认旧
 版本能读新结构，否则宁可不回滚。升级前建议统一快照：
 
-> 商店从「启动即迁移」起要特别注意这一条：`homeos-store` 的 `0002` 会删掉历史遗留的列与
-> 孤立表，**不可降级**（`downgrade()` 直接抛错）。要退回删除之前的商店版本，请从数据目录里
-> 那份 `store.db.pre-migrate-*.bak` 恢复，而不是只把镜像 tag 换回去 —— 换回旧镜像不会把
-> 删掉的列变回来，但旧代码如果还在读它们就会直接报错。
+> 商店的迁移链已压缩为单一基线 `0001`：老库（`0002` 时代及之前的结构）**不能直升**，也
+> 不可降级。要退回旧版本或从老库迁移，请从数据目录里的 `store.db.pre-migrate-*.bak`
+> 恢复 / 重建，而不是只把镜像 tag 换回去 —— 换回旧镜像不会把删掉的列变回来，但旧代码如果
+> 还在读它们就会直接报错。
 
 ```bash
 mkdir -p backup

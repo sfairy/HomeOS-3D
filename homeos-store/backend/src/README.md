@@ -93,7 +93,6 @@ PYTHONPATH=homeos-store/backend .venv-store/bin/python -m src.run
 
 - 客户端默认连 `http://127.0.0.1:8802`，公钥在仓库根 `keys/`。
 - 仓库根 `keys/` 与 `homeos-store/keys/local/` 公钥必须逐字节一致。
-- 轮换：旧四件套改名 `*.previous.pem` 再生成新钥；删四个 `*.previous.pem` 关闭重叠窗口。
 - 吊销响应必须带 `code=REVOKED`（或 `LICENSE_REVOKED`）/ `revoked: true`；客户端只认结构化字段。
 - `activate` / `recover` 会轮换会话与恢复凭证；`leaseSequence` 用数据库原子自增。
 

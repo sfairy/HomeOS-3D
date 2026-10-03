@@ -71,8 +71,6 @@ def _ensure_license_keys(settings: StoreSettings) -> None:
         "它会生成 homeos-store/keys/local 私钥并把公钥镜像到仓库根 keys/，"
         "同时按公钥文件字节设置主应用的指纹校验；"
         "容器部署则由 ops/docker/start_store.py 启动时完成同样的准备。"
-        "要让旧客户端在轮换后继续可用一段时间，"
-        "保留成对齐全的 *.previous.pem（四件套齐全时重叠窗口自动开启）。"
     )
 
     missing_signing = (
@@ -122,37 +120,17 @@ def _ensure_license_keys(settings: StoreSettings) -> None:
 
 
 def build_key_registry(settings: StoreSettings):
-    """按当前密钥 +（可选的）上一代密钥组装密钥环。
+    """按当前密钥组装密钥环。
     """
-    active = KeyGeneration(
-        transport=TransportCipher(
-            settings.transport_private_key_path,
-            settings.license_transport_key_id,
-        ),
-        signer=LeaseSigner(settings.private_key_path, settings.license_key_id),
+    return KeyRegistry(
+        KeyGeneration(
+            transport=TransportCipher(
+                settings.transport_private_key_path,
+                settings.license_transport_key_id,
+            ),
+            signer=LeaseSigner(settings.private_key_path, settings.license_key_id),
+        )
     )
-    generations = [active]
-    previous_paths = settings.previous_key_paths
-    if previous_paths is not None:
-        previous_private, previous_public, previous_transport_private, previous_transport_public = previous_paths
-        generations.append(
-            KeyGeneration(
-                transport=TransportCipher(
-                    previous_transport_private,
-                    keys.key_id_from_public(previous_transport_public),
-                ),
-                signer=LeaseSigner(
-                    previous_private, keys.key_id_from_public(previous_public)
-                ),
-            )
-        )
-        logger.warning(
-            "授权密钥重叠窗口开启：新签发的租约用 %s，旧客户端仍可用 %s。"
-            "窗口结束（删除 *.previous.pem）后它们会立即失效。",
-            active.lease_key_id,
-            generations[-1].lease_key_id,
-        )
-    return KeyRegistry(generations)
 
 
 def create_app(settings: StoreSettings | None = None) -> FastAPI:

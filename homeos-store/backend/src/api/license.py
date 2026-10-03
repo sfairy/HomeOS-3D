@@ -192,9 +192,6 @@ def public_keys(request: Request) -> Response:
     这是**唯一**的明文授权端点：主应用首次启动时还没有传输公钥，无法加解密，
     只能直接读。公钥不是秘密 —— 租约真伪由 Ed25519 验签保证，泄露公钥不构成风险；
     响应里只有 PEM 与指纹，绝不涉及私钥。
-
-    ``licensePublicKeyPrevious`` 是密钥轮换时上一代签名公钥（没有则为 ``null``），
-    主应用会一并落盘，让「客户端先升级、服务端后轮换」的窗口内旧租约仍能验签。
     """
     settings = request.app.state.settings
     try:
@@ -220,7 +217,6 @@ def public_keys(request: Request) -> Response:
 
     signing_text, signing_sha256 = signing
     transport_text, transport_sha256 = transport
-    previous = _read_public_pem(settings.previous_public_key_path)
     return JSONResponse(
         {
             "product": "homeos",
@@ -230,8 +226,6 @@ def public_keys(request: Request) -> Response:
             "licenseTransportPublicKey": transport_text,
             "licensePublicKeySha256": signing_sha256,
             "licenseTransportPublicKeySha256": transport_sha256,
-            # 轮换重叠窗口内才非空。
-            "licensePublicKeyPrevious": previous[0] if previous else None,
         },
         headers={"Cache-Control": "no-store"},
     )

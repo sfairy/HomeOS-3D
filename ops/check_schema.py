@@ -64,10 +64,8 @@ LAYOUT: dict[str, tuple[Path, str, str, Path]] = {
 #: 真正的新漂移就会被一起忽略，这与本文件开头那段话要防的是同一件事。所以这些**精确**的
 #: 历史分歧单独放行，且每次放行都会打印出来；任何**其它**分歧仍然照常判失败。
 #: 放行必须是一次有意的决定，绝不是把整条 ``alembic check`` 关掉。
+#: 允许精确放行的历史结构分歧：(表, 列)。迁移链压缩为单一基线后，两端都应为空。
 KNOWN_DIVERGENCES: dict[str, frozenset[tuple[str, str]]] = {
-    # 主应用曾经放行过 users.editor_theme_mode：那是 0011 为「0.3.3 时期已升级过的库」
-    # 补的历史列，ORM 刻意不建模。迁移链压缩成单一基线 0001 后，全新库不再建这一列，
-    # 分歧随之消失，因此清空 —— 主应用现在也应该做到零放行。
     "app": frozenset(),
     "store": frozenset(),
 }

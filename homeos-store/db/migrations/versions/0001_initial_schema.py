@@ -1,9 +1,7 @@
 """商店结构基线：与当前 ORM 元数据完全一致的全新库结构。
 
 本文件由 ``alembic revision --autogenerate`` 对着**空库**生成，不是对着某个存量库
-生成的增量差异 —— 因此它精确等于 ``Base.metadata``。存量部署不会执行它，而是被
-stamp 成这个 revision（见 ``backend/src/core/migrations.py``），后续增量由 0002 起
-逐个应用。
+生成的增量差异 —— 因此它精确等于 ``Base.metadata``。
 
 Revision ID: 0001
 Revises:
@@ -253,7 +251,6 @@ def upgrade() -> None:
     sa.Column('deploy_base_url', sa.String(length=512), nullable=False),
     sa.Column('payment_provider', sa.String(length=32), nullable=False),
     sa.Column('payment_channels_json', sa.Text(), nullable=False),
-    sa.Column('payment_display_name', sa.String(length=64), nullable=False),
     sa.Column('payment_enabled', sa.Boolean(), nullable=False),
     sa.Column('payment_transaction_description', sa.String(length=128), nullable=False),
     sa.Column('alipay_app_id', sa.String(length=64), nullable=False),

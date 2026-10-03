@@ -704,7 +704,7 @@ function renderAccount(payload: any) {
       ? `<button class="hb-button hb-button--secondary" data-email-license="${escapeHtml(item.activationCodeId)}">重发激活码邮件</button>`
       : '';
     const upgradeAction = item.validityDays && permanentProducts.length
-      ? `<a class="hb-button hb-button--primary" href="${escapeHtml(storePageHref('/products'))}&upgrade=${encodeURIComponent(item.activationCodeId)}">升级为永久授权</a>`
+      ? `<a class="hb-button hb-button--primary" href="${escapeHtml(storePageHref('/products'))}?upgrade=${encodeURIComponent(item.activationCodeId)}">升级为永久授权</a>`
       : '';
     const actions = `<div class="hb-account-actions">${upgradeAction}${emailAction}${labelAction}${releaseAction}</div>`;
     // 来源与「是否手动发放」都由服务端下发（apps/store/core/serializers.py 的

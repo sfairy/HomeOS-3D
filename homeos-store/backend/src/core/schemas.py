@@ -209,7 +209,6 @@ class AdminSettingsRequest(_AdminBase):
     maintenance_mode: bool | None = Field(default=None, alias="maintenanceMode")
     maintenance_message: str | None = Field(default=None, alias="maintenanceMessage", max_length=512)
     payment_provider: str | None = Field(default=None, alias="paymentProvider", max_length=32)
-    payment_display_name: str | None = Field(default=None, alias="paymentDisplayName", max_length=64)
     payment_enabled: bool | None = Field(default=None, alias="paymentEnabled")
     payment_transaction_description: str | None = Field(
         default=None, alias="paymentTransactionDescription", max_length=128

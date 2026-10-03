@@ -12,18 +12,9 @@ import {
   identifyLockEntities,
   lockEntityRole,
 } from "@app/bridge/lock-state-runtime";
-import { CARD_TEXT_SIZE_PX, migrateCardTextSize } from "@app/bridge/card-text-size";
+import { CARD_TEXT_SIZE_PX } from "@app/bridge/card-text-size";
 import { DEFAULT_BUTTON_SIZE, buttonIconSize } from "@app/bridge/button-icon-size";
 const LOCK_ENTITY_FIELDS = ["doorEntityId", "batteryEntityId"],
-  LEGACY_LOCK_FIELDS = [
-    "doorSource",
-    "doorEventEntityId",
-    "doorOpenEntityId",
-    "doorCloseEntityId",
-    "doorEventAttribute",
-    "doorOpenValue",
-    "doorCloseValue",
-  ],
   LOCK_BATCH_APPEARANCE_FIELDS = [
     ["icon", "图标"],
     ["size", "卡片大小"],
@@ -54,27 +45,6 @@ export async function openSecurityEditor({
     cameras: draftProperties.security?.cameras || [],
     presenceSensors: draftProperties.security?.presenceSensors || [],
   };
-  for (const lockItem of draftProperties.security.locks)
-    for (const legacyKey of LEGACY_LOCK_FIELDS) delete lockItem[legacyKey];
-  for (const normalizedLockItem of draftProperties.security.locks)
-    ((normalizedLockItem.labelMode =
-      normalizedLockItem.labelMode === "hidden" ||
-      normalizedLockItem.labelMode === "open" ||
-      normalizedLockItem.labelMode === "always"
-        ? normalizedLockItem.labelMode
-        : normalizedLockItem.labelHidden === true
-          ? "hidden"
-          : "always"),
-      delete normalizedLockItem.labelHidden);
-  for (const cameraItem of draftProperties.security.cameras)
-    (delete cameraItem.buttonHidden, delete cameraItem.hiddenClickable);
-  // 历史默认字号 12 → 统一字号：编辑器的显示值必须与场景渲染同口径，
-  // 否则会出现「面板写 12、场景却是 21」的错位。迁移值随保存回写，那之后即幂等。
-  for (const cardTextItem of [
-    ...draftProperties.security.locks,
-    ...draftProperties.security.cameras,
-  ])
-    Object.assign(cardTextItem, migrateCardTextSize(cardTextItem));
   const createElement = (tagName, className = "", textContent = "") =>
       domElement(document, tagName, className, textContent),
     createButton = (buttonLabel, onClick) => {
@@ -481,7 +451,7 @@ export async function openSecurityEditor({
         icon: sourceItem.icon || "mdi:door-closed",
         size: sourceItem.size ?? DEFAULT_BUTTON_SIZE,
         fontSize: sourceItem.fontSize ?? CARD_TEXT_SIZE_PX,
-        labelMode: sourceItem.labelMode || (sourceItem.labelHidden ? "hidden" : "always"),
+        labelMode: sourceItem.labelMode || "always",
         duration: sourceItem.duration ?? 0.7,
         openAngle: sourceItem.openAngle ?? 80,
         openDirection: sourceItem.openDirection ?? 1,
@@ -493,8 +463,7 @@ export async function openSecurityEditor({
           ...(batchFieldKey === "labelMode"
             ? {
                 write: (writeTargetItem, writeLabelModeValue) => {
-                  ((writeTargetItem.labelMode = writeLabelModeValue),
-                    delete writeTargetItem.labelHidden);
+                  writeTargetItem.labelMode = writeLabelModeValue;
                 },
               }
             : {}),
@@ -825,12 +794,6 @@ export async function openSecurityEditor({
                       delete selectedItem.entityId,
                       delete selectedItem.lowBatteryEntityId,
                       delete selectedItem.tamperEntityId);
-                    for (const staleEntityField of [
-                      "doorEventEntityId",
-                      "doorOpenEntityId",
-                      "doorCloseEntityId",
-                    ])
-                      delete selectedItem[staleEntityField];
                     (markPropertiesDirty(), renderPanel());
                   }
                 },
@@ -1035,9 +998,7 @@ export async function openSecurityEditor({
             selectedItem.labelMode === "open" ||
             selectedItem.labelMode === "always"
               ? selectedItem.labelMode
-              : selectedItem.labelHidden === true
-                ? "hidden"
-                : "always",
+              : "always",
           labelModeSelectElement = createElement("select");
         labelModeSelectElement.setAttribute("aria-label", "标签显示");
         for (const [labelModeValue, labelModeLabel] of [
@@ -1052,7 +1013,6 @@ export async function openSecurityEditor({
         ((labelModeSelectElement.value = currentLabelMode),
           labelModeSelectElement.addEventListener("change", () => {
             ((selectedItem.labelMode = labelModeSelectElement.value),
-              delete selectedItem.labelHidden,
               markPropertiesDirty(),
               renderPanel());
           }));

@@ -110,43 +110,6 @@ def _read_draft(path: Path) -> dict | None:
     return payload
 
 
-def _migrate_legacy_scene(request: Request, database: DatabaseSession) -> dict | None:
-    # [补充说明] 把旧版仪表盘文档里的 studio3d 字段迁出成独立草稿文件。
-    #
-    # 迁移只做一次：从所有草稿里挑出第一份可用场景写入草稿文件（revision=1），并把该字段
-    # 从所有文档中删净 —— 不删的话每次启动都会重复迁移。没有任何可迁内容时返回 None。
-    #
-    # 参数用 request 而不是单独的 draft_path，是因为写入目标就来自
-    # settings.studio3d_draft_path，调用方不必自己再解析一遍配置。
-    selected_scene = None
-    changed = False
-    # 按更新时间倒序：优先采用最近编辑过的那份场景。
-    drafts = database.scalars(select(ProjectDraft).order_by(ProjectDraft.updated_at.desc())).all()
-    for draft in drafts:
-        # 单份草稿损坏时跳过（统一入口）：迁移不该因为一份坏文档整个失败。
-        try:
-            document = json.loads(draft.document_json)
-        except (TypeError, json.JSONDecodeError):
-            continue
-        # pop 而非 get：迁走之后要把它从文档里彻底移除，避免下次再被扫到。
-        scene = document.pop('studio3d', None)
-        if scene is None:
-            continue
-        # 只采用第一份有效场景；后续文档里的字段照删，但内容不再覆盖。
-        if selected_scene is None and isinstance(scene, dict):
-            selected_scene = scene
-        draft.document_json = json.dumps(document, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
-        changed = True
-    if changed:
-        database.commit()
-    if selected_scene is None:
-        return None
-    # 迁移产物从 revision 1 起步，让客户端拿到的初始版本号与新建草稿一致。
-    payload = {'revision': 1, 'scene': selected_scene, 'updatedAt': _utc_now()}
-    _atomic_json_write(request.app.state.settings.studio3d_draft_path, payload)
-    return payload
-
-
 def _folder_name(request: Request) -> str:
     # [补充说明] 从 x-export-folder 请求头解析并校验导出文件夹名。
     #
@@ -255,15 +218,12 @@ def _validate_archive(archive_path: Path) -> list[zipfile.ZipInfo]:
 def get_studio3d_draft(request: Request, database: DatabaseSession, _user: LicensedUser) -> dict:
     # [补充说明] 读取 3D 户型图草稿（需已登录且授权允许 api）。
     #
-    # 返回 {revision, scene, updatedAt}；草稿文件不存在时尝试把旧版仪表盘文档里的
-    # studio3d 字段一次性迁出，仍然没有就返回 revision=0 的空草稿，前端据此进入新建流程。
-    # 读操作同样加锁：必须与写入串行。
+    # 返回 {revision, scene, updatedAt}；草稿文件不存在时返回 revision=0 的空草稿，
+    # 前端据此进入新建流程。读操作同样加锁：必须与写入串行。
     with _storage_lock:
         # 上一次保存若在「库已提交、文件还没落盘」之间崩掉，这里补写草稿文件。
         _deliver_pending(request, database)
         payload = _read_draft(request.app.state.settings.studio3d_draft_path)
-        if payload is None:
-            payload = _migrate_legacy_scene(request, database)
         return payload or {'revision': 0, 'scene': None, 'updatedAt': None}
 
 

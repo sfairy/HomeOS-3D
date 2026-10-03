@@ -33,9 +33,6 @@ DEFAULT_LICENSE_PUBLIC_KEY_SHA256 = 'a53d869318a3d9005431b0296b9f0d1d7f7b2523e08
 DEFAULT_LICENSE_TRANSPORT_KEY_ID = 'hb-local-transport-2026'
 DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_FILENAME = 'license-transport-public.pem'
 DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256 = '1dd4a0a822b9227ebd1032fabd992342f7fb52630cdf2fedfc30db54191b2b19'
-#: 上一代签名公钥镜像的文件名：存在就一并登记，让「客户端先升级、服务端后轮换」期间的
-#: 旧租约仍能验签。
-DEFAULT_LICENSE_PREVIOUS_PUBLIC_KEY_FILENAME = 'license-public.previous.pem'
 # 商店（homeos-store）对外地址：登录页「忘记密码」与编辑器授权对话框「前往商店」都指向它。
 # 默认值沿用厂商公网商店；自托管部署用 APP_STORE_URL 覆盖（局域网 http://<商店IP>:8802，
 # 或接了真实证书的反代 https://store.example.com）。注意这是给**浏览器**点的地址，
@@ -338,8 +335,7 @@ class Settings:
         # [补充说明] 可信公钥表 keyId -> (路径, 期望 sha256)。
         #
         # 三种来源按优先级取其一：显式覆盖表（APP_LICENSE_TRUSTED_PUBLIC_KEYS）整体替换；
-        # 只覆盖了单个公钥文件路径时收敛成一条派生 keyId 的记录；
-        # 否则用 keys/ 下的镜像 —— 当前代按文件字节核对指纹，上一代只登记不核对。
+        # 只覆盖了单个公钥文件路径时收敛成一条派生 keyId 的记录；否则用 keys/ 下的镜像。
         if self.license_trusted_public_keys_override:
             return {
                 key_id: (path, expected_sha256)
@@ -347,29 +343,16 @@ class Settings:
             }
         if self.license_public_key_path_override is not None:
             # keyId 用**派生**值：租约里带的就是它（启动器注入路径后仍要能查到）。
-            trusted: dict[str, tuple[Path, str | None]] = {
+            return {
                 self.license_key_id: (self.license_public_key_path_override, self.license_public_key_sha256)
             }
-            # 上一代签名公钥与当前公钥同目录（启动器把商店的宽限公钥一起带过来）：
-            # 少了它，服务端轮换密钥后的窗口内旧租约会全部验签失败。
-            previous = self.license_public_key_path_override.parent / DEFAULT_LICENSE_PREVIOUS_PUBLIC_KEY_FILENAME
-            previous_key_id = _derive_key_id(previous)
-            if previous_key_id and previous_key_id not in trusted:
-                trusted[previous_key_id] = (previous, None)
-            return trusted
         keys_dir = self._keys_dir()
-        trusted = {
+        return {
             self.license_key_id: (
                 keys_dir / DEFAULT_LICENSE_PUBLIC_KEY_FILENAME,
                 self.license_public_key_sha256 or DEFAULT_LICENSE_PUBLIC_KEY_SHA256,
             )
         }
-        # 上一代公钥不核对指纹：它本就是被换下去的那把，路径存在即登记，由验签结果说话。
-        previous = keys_dir / DEFAULT_LICENSE_PREVIOUS_PUBLIC_KEY_FILENAME
-        previous_key_id = _derive_key_id(previous)
-        if previous_key_id and previous_key_id not in trusted:
-            trusted[previous_key_id] = (previous, None)
-        return trusted
 
     @property
     def effective_license_server_batches(self) -> tuple[tuple[str, tuple[str, ...]], ...]:
