@@ -2,9 +2,10 @@
 #
 # 依 import 实扫得出（backend/src/**/*.py 的第三方 import）：
 #   fastapi / starlette   HTTP 框架与 ASGI 基元
-#   uvicorn               ASGI 服务器（ops/start.py 与镜像入口都用它拉起 backend.src.main:app）
+#   uvicorn               ASGI 服务器（源码下是 backend.src.main:app，镜像里是 backend.app.main:app）
 #   sqlalchemy            ORM 与连接池
-#   alembic               数据库迁移（migrations/ + backend/src/migrations.py）
+#   alembic               开发期数据库迁移（migrations/ 与 backend/src/migrations.py；
+#                          发行产物不带迁移脚本，新库由 ORM 元数据直接建）
 #   pydantic              请求/响应模型与面板 schema
 #   cryptography          HA 凭据加密、授权签名验签
 #   argon2-cffi           管理员密码哈希（backend/src/security.py）

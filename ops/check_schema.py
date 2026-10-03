@@ -82,7 +82,7 @@ def _check_one(app: str) -> int:
     sys.path.insert(0, str(LAYOUT[app][0]))
     with tempfile.TemporaryDirectory(prefix=f"homeos-schema-{app}-") as temp_dir:
         os.environ[data_env] = temp_dir
-        return _run_checks(app, title)
+        return _run_checks(app, title, data_env)
 
 
 def _alembic_config(project_root: Path, script_dir: Path, database_url: str):
@@ -210,12 +210,66 @@ def _recorded_revision(database_path: Path) -> str | None:
     return str(row[0]) if row else None
 
 
-def _run_checks(app: str, title: str) -> int:
+def _structure_snapshot(database_path: Path) -> dict[str, dict]:
+    """按语义口径取结构快照：表 → 列 / 外键 / 索引。
+
+    刻意**不**比较 ``sqlite_master.sql`` 的原文：外键书写顺序、``PRIMARY KEY`` 摆在哪一行
+    都是 SQLite 排版的结果，两种建库方式必然不同，比了只会误报。也别复用
+    :func:`_fingerprint`：那个按原文哈希，作用恰恰是抓「同 revision 但结构被动过」。
+    """
+    tables: dict[str, dict] = {}
+    with sqlite3.connect(f"file:{database_path}?mode=ro", uri=True) as connection:
+        names = [
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' "
+                "AND name NOT LIKE 'sqlite_%' ORDER BY name"
+            )
+        ]
+        for name in names:
+            tables[name] = {
+                "columns": sorted(
+                    (row[1], (row[2] or "").upper(), row[3], row[4], row[5])
+                    for row in connection.execute(f"PRAGMA table_info({name!r})")
+                ),
+                "foreign_keys": sorted(
+                    (row[2], row[3], row[4], row[5], row[6])
+                    for row in connection.execute(f"PRAGMA foreign_key_list({name!r})")
+                ),
+                "indexes": sorted(
+                    (row[1], row[2], row[3])
+                    for row in connection.execute(f"PRAGMA index_list({name!r})")
+                ),
+            }
+    return tables
+
+
+def _describe_structure_diff(left: dict, right: dict) -> str:
+    """把两份语义快照的差异压成一小段文字，用于失败时的报错。"""
+    lines: list[str] = []
+    for table in sorted(set(left) | set(right)):
+        if left.get(table) == right.get(table):
+            continue
+        if table not in left or table not in right:
+            lines.append(f"只有{'迁移' if table in left else 'ORM 建库'}建出了表 {table}")
+            continue
+        for field, label in (("columns", "列"), ("foreign_keys", "外键"), ("indexes", "索引")):
+            only_left = [item for item in left[table][field] if item not in right[table][field]]
+            only_right = [item for item in right[table][field] if item not in left[table][field]]
+            if only_left:
+                lines.append(f"{table}.{label} 迁移独有：{only_left}")
+            if only_right:
+                lines.append(f"{table}.{label} ORM 建库独有：{only_right}")
+    return "；".join(lines)
+
+
+def _run_checks(app: str, title: str, data_env: str) -> int:
     project_root = APPS[app][0]
     prefix = LAYOUT[app][1]
 
     load_settings = importlib.import_module(f"{prefix}.config").load_settings
-    run_migrations = importlib.import_module(LAYOUT[app][2]).run_migrations
+    migrations_module = importlib.import_module(LAYOUT[app][2])
+    run_migrations = migrations_module.run_migrations
 
     settings = load_settings()
     database_path = settings.database_path
@@ -269,6 +323,30 @@ def _run_checks(app: str, title: str) -> int:
             print(f"[{title}] ✗ 结构自检：{drift.summary()}")
         else:
             print(f"[{title}] ✓ 结构自检：与 ORM 元数据一致")
+
+    # 发行产物里没有迁移脚本，走的是「按 ORM 元数据直接建库」那条路（migrations.py 的
+    # _create_schema）。两条路必须建出同一套结构 —— 否则开发期一切正常，装到用户机器上
+    # 却少一张表。这里临时把脚本目录探测挡掉，让 run_migrations 走发行路径，再按语义
+    # 口径逐表比对。（替换的是被测代码的分支开关，不是复用它的私有实现去核对结果。）
+    original_script_dir = getattr(migrations_module, "_migrations_dir")
+    setattr(migrations_module, "_migrations_dir", lambda _settings: None)
+    try:
+        with tempfile.TemporaryDirectory(prefix=f"homeos-release-{app}-") as release_dir:
+            os.environ[data_env] = release_dir
+            release_settings = load_settings()
+            run_migrations(release_settings)
+            released = _structure_snapshot(release_settings.database_path)
+    finally:
+        setattr(migrations_module, "_migrations_dir", original_script_dir)
+        os.environ[data_env] = str(database_path.parent)
+
+    migrated = _structure_snapshot(database_path)
+    if released != migrated:
+        detail = _describe_structure_diff(migrated, released)
+        failures.append(f"发行路径（ORM 建库）与迁移脚本结构不一致：{detail}")
+        print(f"[{title}] ✗ 发行路径：与迁移脚本结构不一致：{detail}")
+    else:
+        print(f"[{title}] ✓ 发行路径（ORM 建库）与迁移脚本结构一致")
 
     if failures:
         print(f"[{title}] 共 {len(failures)} 项不一致")

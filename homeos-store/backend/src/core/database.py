@@ -50,9 +50,10 @@ def create_store_engine(settings: StoreSettings) -> Engine:
 class Database:
     """轻量封装：持有 engine 并提供会话上下文。
 
-    注意这里**没有** ``create_all``：库结构由 Alembic 迁移负责（``core/migrations.py``）。
-    保留一个「按 ORM 建表」的入口会让基线迁移漏掉的东西被悄悄兜住 —— 本地看起来一切正常，
-    换一台机器启动就少一张表。
+    库结构由 ``core/migrations.py`` 负责：开发期跑 Alembic 迁移，发行产物里没有迁移
+    脚本，改为按 ORM 元数据建库（基线 ``0001`` 与 ``Base.metadata`` 等价，见
+    ``ops/check_schema.py`` 的结构指纹比对）。这里不暴露 create_all，是为了避免有人
+    绕过 ``run_migrations`` 建库、让缺表被悄悄兜住 —— 本地看起来正常，换台机器就少一张表。
     """
 
     def __init__(self, settings: StoreSettings) -> None:

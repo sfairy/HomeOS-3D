@@ -1,6 +1,7 @@
 fastapi>=0.141
 uvicorn>=0.53
 sqlalchemy>=2.0.36
+# 开发期迁移（db/migrations）；发行产物不带迁移脚本，新库由 ORM 元数据直接建。
 alembic>=1.20
 cryptography>=50
 argon2-cffi>=25.1

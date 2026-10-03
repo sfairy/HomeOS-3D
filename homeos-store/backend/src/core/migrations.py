@@ -22,6 +22,11 @@ MIGRATION_LOCK_SUFFIX = ".migrate.lock"
 MIGRATION_BACKUP_LABEL = "migrate"
 MIGRATION_BACKUP_KEEP = 3
 
+#: 迁移链压缩后的唯一基线版本号。发行产物不带迁移脚本，新库直接按 ORM 元数据建好后
+#: 写入这个版本号；开发期存在 ``db/migrations`` 时，会校验它与 Alembic head 一致，
+#: 防止有人加了 0002 却忘了同步这个常量（产物会退回「只建 0001」）。
+SCHEMA_REVISION = "0001"
+
 
 class MigrationBackupError(RuntimeError):
     """迁移前的快照写不出来，因此拒绝继续迁移。"""
@@ -31,11 +36,18 @@ class LegacyDatabaseError(RuntimeError):
     """库是压缩基线之前的老结构，不能直升，也不会被自动改写。"""
 
 
-def _migration_config(settings: StoreSettings) -> Config:
+def _migrations_dir(settings: StoreSettings) -> Path | None:
+    """Alembic 脚本目录；源码/开发布局有，发行产物里没有（那时改走 ORM 建库）。
+    """
+    candidate = settings.project_root / "db" / "migrations"
+    return candidate if candidate.is_dir() else None
+
+
+def _migration_config(settings: StoreSettings, script_dir: Path) -> Config:
     """构造 Alembic 配置：脚本目录与数据库 URL 都从 Settings 推导。
     """
     config = Config(str(settings.project_root / "alembic.ini"))
-    config.set_main_option("script_location", str(settings.project_root / "db" / "migrations"))
+    config.set_main_option("script_location", str(script_dir))
     config.set_main_option("sqlalchemy.url", settings.database_url)
     return config
 
@@ -43,6 +55,32 @@ def _migration_config(settings: StoreSettings) -> Config:
 def _head_revision(config: Config) -> str:
     """当前脚本目录的 head revision。"""
     return str(ScriptDirectory.from_config(config).get_current_head())
+
+
+def _create_schema(settings: StoreSettings) -> None:
+    """按 ORM 元数据建出全新库，并打上基线版本号。
+
+    ``0001`` 基线是照着 ``Base.metadata`` 自动生成的，两者结构等价（``ops/check_schema.py``
+    会比对结构指纹），所以 create_all 与跑一次迁移得到的是同一个库。
+    """
+    from . import models, models_engagement  # noqa: F401  # 注册到 Base.metadata
+    from .database import Base, create_store_engine
+
+    engine = create_store_engine(settings)
+    try:
+        Base.metadata.create_all(engine)
+        with engine.begin() as connection:
+            connection.exec_driver_sql(
+                "CREATE TABLE IF NOT EXISTS alembic_version ("
+                "version_num VARCHAR(32) NOT NULL, "
+                "CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num))"
+            )
+            connection.exec_driver_sql("DELETE FROM alembic_version")
+            connection.exec_driver_sql(
+                "INSERT INTO alembic_version (version_num) VALUES (?)", (SCHEMA_REVISION,)
+            )
+    finally:
+        engine.dispose()
 
 
 def _has_business_tables(connection: sqlite3.Connection) -> bool:
@@ -171,15 +209,27 @@ def prune_database_backups(
 
 def run_migrations(settings: StoreSettings) -> list[str]:
     """把数据库带到 head 结构（串行化 + 动结构前留快照），返回本次做过的事。
+
+    发行产物里没有迁移脚本（``_migrations_dir`` 返回 None），此时 head 就是常量
+    ``SCHEMA_REVISION``，新库按 ORM 元数据建；只有开发期存在脚本目录时才真正跑 Alembic。
     """
     database_path = settings.database_path
     lock_path = database_path.parent / f"{database_path.name}{MIGRATION_LOCK_SUFFIX}"
     performed: list[str] = []
 
     with locked_file(lock_path):
-        config = _migration_config(settings)
+        script_dir = _migrations_dir(settings)
+        config = _migration_config(settings, script_dir) if script_dir is not None else None
+        if config is None:
+            head = SCHEMA_REVISION
+        else:
+            head = _head_revision(config)
+            if head != SCHEMA_REVISION:
+                raise RuntimeError(
+                    f"迁移脚本的 head 是 {head}，但常量 SCHEMA_REVISION 是 {SCHEMA_REVISION}："
+                    "发行产物按常量建库，两者不一致会让新库缺表。请同步 core/migrations.py。"
+                )
         recorded = _recorded_revision(database_path)
-        head = _head_revision(config)
 
         if recorded == "unversioned":
             raise LegacyDatabaseError(
@@ -188,19 +238,34 @@ def run_migrations(settings: StoreSettings) -> list[str]:
                 "请先备份数据目录；需要保留数据时，用旧版本启动导出数据后，再在全新安装上导入。"
             )
 
-        if recorded != head:
-            known = recorded is not None and _script_knows_revision(config, recorded)
-            if recorded is not None and not known and not _schema_matches_orm(settings):
-                raise _legacy_error(str(recorded))
-            backup_database(database_path)
-            prune_database_backups(database_path)
-            if recorded is None or known:
+        if recorded == head:
+            return performed
+
+        if recorded is None:
+            if config is None:
+                _create_schema(settings)
+                performed.append(f"按 ORM 元数据建库并记录版本 {head}")
+            else:
+                backup_database(database_path)
+                prune_database_backups(database_path)
                 command.upgrade(config, "head")
                 performed.append(f"应用迁移 {recorded} → {head}")
-            else:
-                _set_recorded_revision(database_path, head)
-                if _recorded_revision(database_path) != head:
-                    raise LegacyDatabaseError(f"改写版本记录失败：仍读到 {_recorded_revision(database_path)!r}")
-                performed.append(f"接管压缩前的版本记录 {recorded} → {head}（结构已与 ORM 一致，只改记录）")
+            return performed
+
+        # 有版本号却不是 head：要么是脚本目录认识的历史节点（走正常升级），要么是压缩前的
+        # 旧编号（结构一致才允许只改记录）。两条都会改到库文件，先留快照。
+        known = config is not None and _script_knows_revision(config, recorded)
+        if not known and not _schema_matches_orm(settings):
+            raise _legacy_error(str(recorded))
+        backup_database(database_path)
+        prune_database_backups(database_path)
+        if config is not None and known:
+            command.upgrade(config, "head")
+            performed.append(f"应用迁移 {recorded} → {head}")
+            return performed
+        _set_recorded_revision(database_path, head)
+        if _recorded_revision(database_path) != head:
+            raise LegacyDatabaseError(f"改写版本记录失败：仍读到 {_recorded_revision(database_path)!r}")
+        performed.append(f"接管压缩前的版本记录 {recorded} → {head}（结构已与 ORM 一致，只改记录）")
 
     return performed

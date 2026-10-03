@@ -1,7 +1,7 @@
 """库结构自检：把实际库结构对到 ORM 元数据上，**只读**。
 
-结构由 Alembic 负责（见 ``core/migrations.py``），本模块只如实报告差异：漏写的迁移
-会让差异以一个显式的状态被看见，而不是被悄悄补掉。
+结构由 ``core/migrations.py`` 负责（开发期跑 Alembic，发行产物按 ORM 元数据建库），
+本模块只如实报告差异：漏写的迁移会让差异以一个显式的状态被看见，而不是被悄悄补掉。
 """
 from __future__ import annotations
 

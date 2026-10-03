@@ -17,13 +17,48 @@ from alembic.script import ScriptDirectory
 from .config import Settings
 
 
-def _migration_config(settings: Settings) -> Config:
-    config = Config(settings.project_root / 'alembic.ini')
+def _migrations_dir(settings: Settings) -> Path | None:
+    """Alembic 脚本目录；源码/开发布局有，发行产物里没有（那时改走 ORM 建库）。"""
     release_scripts = settings.project_root / 'alembic_runtime'
-    script_location = release_scripts if release_scripts.is_dir() else settings.project_root / 'migrations'
-    config.set_main_option('script_location', str(script_location))
+    if release_scripts.is_dir():
+        return release_scripts
+    source_scripts = settings.project_root / 'migrations'
+    return source_scripts if source_scripts.is_dir() else None
+
+def _migration_config(settings: Settings, script_dir: Path) -> Config:
+    config = Config(settings.project_root / 'alembic.ini')
+    config.set_main_option('script_location', str(script_dir))
     config.set_main_option('sqlalchemy.url', settings.database_url)
     return config
+
+#: 迁移链压缩后的唯一基线版本号。发行产物不带迁移脚本，新库直接按 ORM 元数据建好后
+#: 写入这个版本号；开发期存在 migrations/ 时，会校验它与 Alembic head 一致，防止有人
+#: 加了 0002 却忘了同步这个常量（产物会退回「只建 0001」）。
+SCHEMA_REVISION = '0001'
+
+def _create_schema(settings: Settings) -> None:
+    """按 ORM 元数据建出全新库，并打上基线版本号。
+
+    ``0001`` 基线是照着 ``Base.metadata`` 自动生成的，两者结构等价（``ops/check_schema.py``
+    会比对结构指纹），所以 create_all 与跑一次迁移得到的是同一个库。
+    """
+    from . import models  # noqa: F401  # 注册到 Base.metadata
+    from .database import Base, Database
+    database = Database(settings.database_url)
+    try:
+        Base.metadata.create_all(database.engine)
+        with database.engine.begin() as connection:
+            connection.exec_driver_sql(
+                'CREATE TABLE IF NOT EXISTS alembic_version ('
+                'version_num VARCHAR(32) NOT NULL, '
+                'CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num))'
+            )
+            connection.exec_driver_sql('DELETE FROM alembic_version')
+            connection.exec_driver_sql(
+                'INSERT INTO alembic_version (version_num) VALUES (?)', (SCHEMA_REVISION,)
+            )
+    finally:
+        database.dispose()
 
 _SIDECAR_SUFFIXES = ('-journal', '-wal', '-shm')
 
@@ -196,10 +231,24 @@ def restore_upgrade_backup(settings: Settings, backup_path: Path) -> None:
         _remove_sidecars(restore_path)
 
 def run_migrations(settings: Settings) -> Path | None:
-    config = _migration_config(settings)
-    target_revision = ScriptDirectory.from_config(config).get_current_head()
-    if target_revision is None:
-        raise RuntimeError('No database migration head is configured.')
+    """把数据库带到 head 结构，返回升级前备份的路径（没动结构时为 None）。
+
+    发行产物里没有迁移脚本（``_migrations_dir`` 返回 None），此时 head 就是常量
+    ``SCHEMA_REVISION``，新库按 ORM 元数据建；只有开发期存在脚本目录时才真正跑 Alembic。
+    """
+    script_dir = _migrations_dir(settings)
+    config = _migration_config(settings, script_dir) if script_dir is not None else None
+    if config is None:
+        target_revision = SCHEMA_REVISION
+    else:
+        target_revision = ScriptDirectory.from_config(config).get_current_head()
+        if target_revision is None:
+            raise RuntimeError('No database migration head is configured.')
+        if target_revision != SCHEMA_REVISION:
+            raise RuntimeError(
+                f'迁移脚本的 head 是 {target_revision}，但常量 SCHEMA_REVISION 是 {SCHEMA_REVISION}：'
+                '发行产物按常量建库，两者不一致会让新库缺表。请同步 backend/src/migrations.py。'
+            )
     source_revision = _database_revision(settings.database_path)
     if source_revision == 'unversioned':
         raise RuntimeError(
@@ -210,21 +259,24 @@ def run_migrations(settings: Settings) -> Path | None:
     if source_revision == target_revision:
         return None
     if source_revision is None:
-        command.upgrade(config, 'head')
+        if config is None:
+            _create_schema(settings)
+        else:
+            command.upgrade(config, 'head')
         _validate_database(settings.database_path, target_revision)
         return None
-    known = _script_knows_revision(config, source_revision)
+    known = config is not None and _script_knows_revision(config, source_revision)
     if not known and not _schema_matches_orm(settings.database_url):
         raise _legacy_error(source_revision)
     backup_path = create_upgrade_backup(settings, source_revision, target_revision)
-    if known:
-        try:
-            command.upgrade(config, 'head')
-            _validate_database(settings.database_path, target_revision)
-        except Exception as error:
-            restore_upgrade_backup(settings, backup_path)
-            raise RuntimeError(f'Database upgrade failed; the pre-upgrade database was restored from {backup_path}.') from error
+    if config is None or not known:
+        _set_recorded_revision(settings.database_path, target_revision)
+        _validate_database(settings.database_path, target_revision)
         return backup_path
-    _set_recorded_revision(settings.database_path, target_revision)
-    _validate_database(settings.database_path, target_revision)
+    try:
+        command.upgrade(config, 'head')
+        _validate_database(settings.database_path, target_revision)
+    except Exception as error:
+        restore_upgrade_backup(settings, backup_path)
+        raise RuntimeError(f'Database upgrade failed; the pre-upgrade database was restored from {backup_path}.') from error
     return backup_path
