@@ -1,5 +1,0 @@
-/* knip: used by Vue SFC <style src=> / CSS @import / ESM side-effect import — refs frontend/src/views/events/ViewAnalytics.vue:355; frontend/src/views/notifications/ViewAnalytics.vue:135. knip 6.x 不解析 Vue <style src> 属性、CSS @import 链与裸 side-effect import */
-/* Notifications analytics 域覆盖（共享见 list-page-analytics.css） */
-.nc-analytics__chart-card {
-  background: rgba(0, 0, 0, 0.22);
-}

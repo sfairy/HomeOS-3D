@@ -1,6 +1,0 @@
-# Linux 容器脚本必须是 LF。CRLF 会让 shebang 变成 /bin/sh\r，
-# 运行时报 exec: /app/scripts/docker-entrypoint.sh: not found
-*.sh text eol=lf
-Dockerfile text eol=lf
-*.Dockerfile text eol=lf
-docker-compose*.yml text eol=lf
