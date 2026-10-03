@@ -299,13 +299,17 @@ export async function pollOrder(
       payment_failed: '支付下单失败',
       fulfillment_failed: '已支付，正在人工处理',
     };
+    // 后端下发的 statusLabel 才是权威文案。这里只覆盖需要按订单类型细分的几个状态，
+    // 其余（含 refunded / partially_refunded 等本表未列出的）直接用 statusLabel，
+    // 避免把英文状态码原样显示给买家。
+    const label = labels[order.status || ''] || order.statusLabel || order.status || '';
     const status = $('#payment-status');
-    if (status) status.textContent = labels[order.status || ''] || order.status || '';
+    if (status) status.textContent = label;
     state.currentOrder = { ...(state.currentOrder || {}), ...order };
     if (order.status === 'fulfilled') {
       status?.classList.add('done');
       stopPaymentTimers();
-      toast(labels.fulfilled || '');
+      toast(label || '');
       setTimeout(() => location.replace('/user/dashboard/index'), 800);
     }
     if (['expired', 'payment_failed', 'cancelled'].includes(order.status || '')) {

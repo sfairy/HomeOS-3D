@@ -14,17 +14,17 @@ from sqlalchemy import select
 
 from ..auth_limiter import retry_after_headers
 from ..dependencies import DatabaseSession, LicensedUser
+from ..embedding import embedded_devices, set_embedded_cookie
 from ..ha.crypto import CredentialCipher, CredentialCipherError
 from ..models import DisplayDevice, DisplayPairingCode, Project, User
+from ..request_origin import require_same_origin_write
 from ..schemas import (
     DisplayDeviceUpdateRequest,
-    DisplayPairRequest,
     DisplayPairingCodeRequest,
     DisplayPairingCodeUpdateRequest,
+    DisplayPairRequest,
 )
 from ..security import new_session_token, session_token_hash, set_display_cookie
-from ..embedding import embedded_devices, set_embedded_cookie
-from ..request_origin import require_same_origin_write
 
 router = APIRouter(prefix='/displays', tags=['displays'])
 
@@ -35,7 +35,6 @@ def require_admin(user: User) -> None:
     # 不放进依赖层，是因为本 router 里的 /pair 必须对未登录设备开放。
     if user.role != 'admin':
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='仅管理员可以管理中控设备。')
-    return None
 
 
 def device_payload(device: DisplayDevice, project: Project) -> dict:
@@ -309,7 +308,6 @@ def delete_pairing_code(pairing_id: str, database: DatabaseSession, user: Licens
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='配对码不存在。')
     database.delete(pairing)
     database.commit()
-    return None
 
 
 @router.post('/pair', status_code=status.HTTP_201_CREATED)
@@ -455,4 +453,3 @@ def revoke_display_device(device_id: str, database: DatabaseSession, user: Licen
     # 软删除：依赖层只认未吊销的设备，写入时间戳即可让令牌立即失效。
     device.revoked_at = datetime.now(UTC)
     database.commit()
-    return None

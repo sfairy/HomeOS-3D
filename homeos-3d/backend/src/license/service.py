@@ -20,15 +20,15 @@ from datetime import UTC, datetime, timedelta
 import httpx
 from sqlalchemy import select
 
-from ..config import Settings
-from ..database import Database
-from ..global_log import GlobalLogStore
-from ..models import LicenseState
 from .crypto import LeaseVerifier, LicenseCryptoError, LicenseTransportCipher, SecretCipher, parse_timestamp
 from .endpoints import LICENSE_RETRY_SECONDS, LicenseEndpointPool
 from .hardware import hardware_instance_id
 from .process_lock import LicenseProcessLock
 from .trust import verify_license_trust_anchors
+from ..config import Settings
+from ..database import Database
+from ..global_log import GlobalLogStore
+from ..models import LicenseState
 
 # 自动重试的退避阶梯（秒）：失败次数越多等得越久，第 5 次之后固定 300 秒。
 # 阶梯而不是固定间隔，是因为「刚断网」和「服务端长时间故障」要区分对待：
@@ -1328,7 +1328,7 @@ class LicenseService:
             'lastHeartbeatAt': aware(state.last_heartbeat_at),
             'lastVerifiedAt': aware(state.last_verified_at),
             # 重试相关字段：前端据此决定提示文案、按钮可见性与倒计时。
-            **{
+            
                 'lastError': effective_error,
                 # 没有显式错误码时按状态补一个：前端只认 errorCode，缺码会让提示退化成空白。
                 'errorCode': self._error_code or {
@@ -1347,8 +1347,8 @@ class LicenseService:
                 'retrying': self._heartbeat_lock.locked(),
                 'retryAttempt': self._failures,
                 'nextRetryAt': (now + timedelta(seconds=max(0, self._next_attempt - time.monotonic()))).isoformat() if self._next_attempt is not None and effective_status not in TERMINAL_STATES else None,
-                'startupValidationPending': self._startup_validation_pending,
-            }}
+                'startupValidationPending': self._startup_validation_pending
+            }
 
     def status(self) -> dict:
         # [补充说明] 取当前状态（开一个短事务，读单行状态后组装成字典）。

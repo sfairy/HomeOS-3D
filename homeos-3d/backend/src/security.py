@@ -1,9 +1,12 @@
 from __future__ import annotations
+
 import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
+
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerifyMismatchError
+
 password_hasher = PasswordHasher()
 
 def hash_password(password):
@@ -29,4 +32,3 @@ def session_expiry(max_age_seconds):
 def set_display_cookie(response, settings, token):
     max_age = settings.display_cookie_max_age_seconds
     response.set_cookie(key = settings.display_cookie_name, value = token, max_age = max_age, expires = datetime.now(UTC) + timedelta(seconds = max_age), httponly = True, secure = settings.cookie_secure, samesite = 'lax', path = '/')
-    return None

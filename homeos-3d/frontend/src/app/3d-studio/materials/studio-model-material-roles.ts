@@ -186,73 +186,8 @@ export function scaleMaterialColorChannels(color: number, factor: number): numbe
   return ((channel(16) << 16) | (channel(8) << 8) | channel(0)) >>> 0;
 }
 
-/* -------------------------------------------------------------------------- */
-/* 角色词表（并集，沿用 0.6.5）                                                */
-/* -------------------------------------------------------------------------- */
-
-export const MATERIAL_ROLE_VOCABULARY = Object.freeze([
-  "body",
-  "door",
-  "drawer",
-  "panel",
-  "top",
-  "base",
-  "trim",
-  "leg",
-  "side",
-  "back",
-  "frame",
-  "shelf",
-  "interior",
-  "handle",
-  "glass",
-  "mirror",
-  "metal",
-  "screen",
-  "grating",
-  "lit",
-  "sink",
-  "cooktop",
-  "book",
-  "stash",
-  "accent",
-  "upholstery",
-  "fabric",
-  "cushion",
-  "surface",
-  "shadow",
-  "recess",
-  "indicator",
-  "control",
-  "water",
-  "sand",
-  "rock",
-  "fish",
-  "foliage",
-  "foliageSoft",
-  "pot",
-  "soil",
-  "slab",
-  "key",
-  "paper",
-  "ceramic",
-  "runner",
-  "linen",
-  "sage",
-  "wood",
-  "dark",
-  "light",
-  "leaf",
-  "seat",
-  "tread",
-  "handrail",
-  // 卷帘门的两块料：帘布与帘片（主题里 rollerCurtain / rollerSlat 本来就分两色）。
-  "shutter",
-  "slat",
-] as const);
-
 /** 角色 → 中文短标签（检查面板 / 报表用；查不到就退回角色名本身）。 */
-export const MATERIAL_ROLE_LABELS: Readonly<Record<string, string>> = Object.freeze({
+const MATERIAL_ROLE_LABELS: Readonly<Record<string, string>> = Object.freeze({
   body: "主体",
   door: "门板",
   drawer: "抽屉",
@@ -949,7 +884,7 @@ export const DOOR_MATERIAL_PARTS: readonly string[] = Object.freeze([
  * 主题里那三支「按门型」的门框键（solidDoorFrame / entryDoorFrame / doorFrame）正是给这块
  * 几何用的，登记齐了它们才继续有消费者（见 doorPartThemeColor 的 frame 分支）。
  */
-export const DOOR_MATERIAL_PART_ROLES_BY_TYPE: Readonly<Record<string, readonly string[]>> =
+const DOOR_MATERIAL_PART_ROLES_BY_TYPE: Readonly<Record<string, readonly string[]>> =
   Object.freeze({
     solid: ["frame", "door", "metal"],
     "frame-only": ["frame"],
@@ -978,7 +913,7 @@ export function doorMaterialPartRolesForType(doorType: string): readonly string[
  *
  * 每一项都必须是该门型登记过的部件（校验脚本 L6i 会盯住）—— 否则平面图拿不到材质色。
  */
-export const DOOR_PLAN_MATERIAL_ROLE_BY_TYPE: Readonly<Record<string, string>> = Object.freeze({
+const DOOR_PLAN_MATERIAL_ROLE_BY_TYPE: Readonly<Record<string, string>> = Object.freeze({
   solid: "door",
   "frame-only": "frame",
   glass: "frame",
@@ -1035,7 +970,7 @@ const MODEL_FALLBACK_ROLE: Readonly<Record<string, string>> = Object.freeze({
 });
 
 /** materialIndex（GLB 顺序）→ 角色：用于材质名无槽位号、也无可解析角色的模型。 */
-export const MODEL_MATERIAL_ORDER_ROLES: Readonly<
+const MODEL_MATERIAL_ORDER_ROLES: Readonly<
   Record<string, readonly (string | null)[]>
 > = Object.freeze({
   pipelinewaterpurifier: ["panel", "body", "trim", "recess"],
@@ -1046,7 +981,7 @@ export const MODEL_MATERIAL_ORDER_ROLES: Readonly<
 });
 
 /** 具体材质名（小写）→ 角色：legacy 命名模型逐个点名。 */
-export const MODEL_ROLE_BY_MATERIAL_NAME: Readonly<
+const MODEL_ROLE_BY_MATERIAL_NAME: Readonly<
   Record<string, Readonly<Record<string, string>>>
 > = Object.freeze({
   plant: {
@@ -1271,7 +1206,7 @@ const MODEL_ROLE_RECIPE_OVERRIDES: Record<string, RoleRecipeTable> = {
   },
 };
 
-export const MODEL_ROLE_RECIPES: Readonly<Record<string, RoleRecipeTable>> =
+const MODEL_ROLE_RECIPES: Readonly<Record<string, RoleRecipeTable>> =
   Object.freeze(MODEL_ROLE_RECIPE_OVERRIDES);
 
 /* -------------------------------------------------------------------------- */

@@ -1,8 +1,8 @@
 export const bathEffects = {
     fan: "运行出风",
     light: "照明",
-  },
-  bathRawState = (stateSource, entityId) => {
+  };
+const bathRawState = (stateSource, entityId) => {
     const stateEntry =
       stateSource instanceof Map ? stateSource.get(entityId) : stateSource?.[entityId];
     return stateEntry?.newState || stateEntry;

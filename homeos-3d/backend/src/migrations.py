@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import hashlib
 import json
 import os
@@ -8,10 +9,13 @@ from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
+
 from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
+
 from .config import Settings
+
 
 class UnknownRevisionError(RuntimeError):
     '''库内记录的 revision 不在当前迁移脚本目录里。
@@ -63,7 +67,6 @@ def _sha256(file_path: Path) -> str:
 def _fsync_file(file_path: Path) -> None:
     with file_path.open('rb') as source:
         os.fsync(source.fileno())
-    return None
 
 def _validate_database(database_path: Path, expected_revision: str) -> None:
     with closing(sqlite3.connect(f'file:{database_path}?mode=ro', uri = True)) as connection:
@@ -79,11 +82,11 @@ def _validate_database(database_path: Path, expected_revision: str) -> None:
 def create_upgrade_backup(settings: Settings, source_revision: str, target_revision: str) -> Path:
     '''Create and verify a transactionally consistent copy before upgrading.'''
     backup_directory = settings.data_dir / 'upgrade-backups'
-    backup_directory.mkdir(parents = True, exist_ok = True, mode = 448)
-    os.chmod(backup_directory, 448)
+    backup_directory.mkdir(parents = True, exist_ok = True, mode = 0o700)
+    os.chmod(backup_directory, 0o700)
     timestamp = datetime.now(UTC).strftime('%Y%m%dT%H%M%S.%fZ')
-    safe_source = ''.join((character for character in source_revision if character.isalnum() or character in '-_'))
-    safe_target = ''.join((character for character in target_revision if character.isalnum() or character in '-_'))
+    safe_source = ''.join(character for character in source_revision if character.isalnum() or character in '-_')
+    safe_target = ''.join(character for character in target_revision if character.isalnum() or character in '-_')
     backup_path = backup_directory / f'app-{safe_source}-to-{safe_target}-{timestamp}.db'
     temporary_suffix = uuid4().hex
     temporary_path = backup_directory / f'.{backup_path.name}.{temporary_suffix}.tmp'
@@ -97,7 +100,7 @@ def create_upgrade_backup(settings: Settings, source_revision: str, target_revis
                 if integrity is None or integrity[0] != 'ok':
                     detail = integrity[0] if integrity else 'no result'
                     raise RuntimeError(f'Upgrade backup integrity check failed: {detail}')
-        os.chmod(temporary_path, 384)
+        os.chmod(temporary_path, 0o600)
         _fsync_file(temporary_path)
         os.replace(temporary_path, backup_path)
         metadata = {
@@ -111,7 +114,7 @@ def create_upgrade_backup(settings: Settings, source_revision: str, target_revis
         metadata_suffix = uuid4().hex
         metadata_temporary_path = metadata_path.with_name(f'.{metadata_path.name}.{metadata_suffix}.tmp')
         metadata_temporary_path.write_text(json.dumps(metadata, ensure_ascii = False, indent = 2) + '\n', encoding = 'utf-8')
-        os.chmod(metadata_temporary_path, 384)
+        os.chmod(metadata_temporary_path, 0o600)
         _fsync_file(metadata_temporary_path)
         os.replace(metadata_temporary_path, metadata_path)
         return backup_path
@@ -127,7 +130,7 @@ def restore_upgrade_backup(settings: Settings, backup_path: Path) -> None:
     restore_path = settings.data_dir / f'.app.db.restore-{restore_suffix}'
     try:
         shutil.copy2(backup_path, restore_path)
-        os.chmod(restore_path, 384)
+        os.chmod(restore_path, 0o600)
         _fsync_file(restore_path)
         with closing(sqlite3.connect(f'file:{restore_path}?mode=ro', uri = True)) as connection:
             integrity = connection.execute('PRAGMA integrity_check').fetchone()
@@ -138,7 +141,7 @@ def restore_upgrade_backup(settings: Settings, backup_path: Path) -> None:
         # otherwise a leftover WAL would be adopted by the restored database as its own journal.
         _remove_sidecars(settings.database_path)
         os.replace(restore_path, settings.database_path)
-        os.chmod(settings.database_path, 384)
+        os.chmod(settings.database_path, 0o600)
     finally:
         restore_path.unlink(missing_ok = True)
         _remove_sidecars(restore_path)

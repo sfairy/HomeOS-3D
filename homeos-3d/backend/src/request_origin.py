@@ -1,6 +1,8 @@
 '''Browser-origin guard for writes that do not require a JSON request body.'''
 from urllib.parse import urlsplit
+
 from fastapi import HTTPException, Request
+
 
 def require_same_origin_write(request: Request) -> None:
     site = request.headers.get('sec-fetch-site', '').strip().lower()

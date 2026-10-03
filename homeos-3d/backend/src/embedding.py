@@ -1,8 +1,11 @@
 '''Independent iframe credentials retain display-only access without origin restrictions.'''
 from __future__ import annotations
-from urllib.parse import urlsplit
+
 import re
+from urllib.parse import urlsplit
+
 from .display_access import active_display_device
+
 COOKIE_PREFIX = 'homeos_embed_'
 
 def embedded_devices(connection, database):

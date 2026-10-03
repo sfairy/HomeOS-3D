@@ -1458,6 +1458,157 @@ const STONE_FURNITURE_STYLES: readonly MaterialStylePreset[] = Object.freeze([
 ]);
 
 /* -------------------------------------------------------------------------- */
+/* 厨房柜体（岛台 / 地柜 / 水槽柜 / 灶柜）：台面石料 + 柜体逐档成套              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * 厨房这一族（`kitchenisland` / `kitchenbase` / `kitchensink` / `kitchencooktop`）共用一组档位：
+ * 它们都是「**石材台面 + 木柜体**」的橱柜，台面都是槽位 2 的 `top`——
+ *   `kitchenisland`  body / **top** / door / metal / base / leg
+ *   `kitchenbase`    base / body / **top** / door / metal
+ *   `kitchensink`    base / body / **top** / sink / sink / metal / sink / door / metal
+ *   `kitchencooktop` base / body / **top** / cooktop / door / metal / metal / metal
+ * 水槽 / 灶头由 `joineryCombo` 的默认接管（不锈钢盆 + 近黑灶面），与台面石料无关。
+ *
+ * 原先这四件都借用 `joinery` 组（木柜白门 / 浅橡木 / 胡桃木 / 深色烤漆）：那四档只管**柜体**，
+ * 台面一律给一块**不贴纹路**的纯色石面（`top: { surface: "stone", color: … }`，没有 `slab`），
+ * 于是整排档位里一个「大理石台面」都没有，档位名（木柜白门…）落到橱柜上也无从兑现 ——
+ * 这正是「材质风格与实际不符」的来源。
+ *
+ * 这里单列一组：**每一档把台面石料与柜体木料配成一套**，前三档用石材整图
+ * （角色配方里的 `slab` 会让加载器给台面贴大理石），后两档是哑光岩板台面 + 木柜。
+ * 四件共用一组，整个厨房的台面因此逐档一致。
+ */
+const KITCHEN_STYLES: readonly MaterialStylePreset[] = Object.freeze([
+  definePreset(
+    "kitchen-marble-white-wood",
+    "白大理石·深木柜",
+    "marble",
+    {
+      countertop: 0xf2f1ed,
+      cabinetWood: 0x3d2818,
+      cabinetBody: 0x3d2818,
+      cabinetDoor: 0x4a3220,
+      wood: 0x3d2818,
+      woodLight: 0x4a3220,
+      woodDark: 0x2a1a0f,
+      furniture: 0x3d2818,
+      furnitureSoft: 0x4a3220,
+      furnitureDark: 0x2a1a0f,
+    },
+    joineryCombo({
+      body: { surface: "wood", color: 0x3d2818 },
+      door: { surface: "wood", color: 0x4a3220 },
+      base: { surface: "wood", color: 0x2a1a0f },
+      leg: { surface: "wood", color: 0x2a1a0f },
+      top: STONE_SLAB_ON_WHITE,
+      metal: { surface: "metal", color: 0x9aa1a8 },
+    }),
+  ),
+  definePreset(
+    "kitchen-marble-black-walnut",
+    "黑大理石·胡桃木",
+    "stone",
+    {
+      countertop: 0x1e2023,
+      cabinetWood: 0x5a3a22,
+      cabinetBody: 0x5a3a22,
+      cabinetDoor: 0x6b4526,
+      wood: 0x5a3a22,
+      woodLight: 0x6b4526,
+      woodDark: 0x3f2916,
+      furniture: 0x5a3a22,
+      furnitureSoft: 0x6b4526,
+      furnitureDark: 0x3f2916,
+    },
+    joineryCombo({
+      body: { surface: "wood", color: 0x5a3a22 },
+      door: { surface: "wood", color: 0x6b4526 },
+      base: { surface: "wood", color: 0x3f2916 },
+      leg: { surface: "wood", color: 0x3f2916 },
+      top: STONE_SLAB_ON_DARK,
+      metal: { surface: "metal", color: 0x2e2e30 },
+    }),
+  ),
+  definePreset(
+    "kitchen-marble-all-white",
+    "全白大理石",
+    "marble",
+    {
+      countertop: 0xf4f3ef,
+      cabinetWood: 0xe6e5e0,
+      cabinetBody: 0xe6e5e0,
+      cabinetDoor: 0xefeeea,
+      wood: 0xf4f3ef,
+      woodLight: 0xfbfaf8,
+      woodDark: 0xd2d0c9,
+      furniture: 0xf4f3ef,
+      furnitureSoft: 0xe6e5e0,
+      furnitureDark: 0xd2d0c9,
+    },
+    joineryCombo({
+      // 通体一块大理石：柜体 / 柜门 / 踢脚都贴同一张整图（素色差异靠色号拉开）。
+      body: { ...STONE_SLAB_ON_WHITE, color: 0xe6e5e0 },
+      door: { ...STONE_SLAB_ON_WHITE, color: 0xefeeea },
+      base: { ...STONE_SLAB_ON_WHITE, color: 0xd2d0c9 },
+      leg: { ...STONE_SLAB_ON_WHITE, color: 0xd2d0c9 },
+      top: STONE_SLAB_ON_WHITE,
+      metal: { surface: "metal", color: 0xb4babf },
+    }),
+  ),
+  definePreset(
+    "kitchen-stone-white-oak",
+    "白色岩板·浅橡木",
+    "stone",
+    {
+      countertop: 0xede7db,
+      cabinetWood: 0xc49a6c,
+      cabinetBody: 0xc49a6c,
+      cabinetDoor: 0xd8b98f,
+      wood: 0xc49a6c,
+      woodLight: 0xd8b98f,
+      woodDark: 0x9c6b3f,
+      furniture: 0xc49a6c,
+      furnitureSoft: 0xd8b98f,
+      furnitureDark: 0x9c6b3f,
+    },
+    joineryCombo({
+      body: { surface: "wood", color: 0xc49a6c },
+      door: { surface: "wood", color: 0xd8b98f },
+      base: { surface: "wood", color: 0x9c6b3f },
+      leg: { surface: "wood", color: 0x9c6b3f },
+      top: { surface: "stone", color: 0xede7db },
+      metal: { surface: "metal", color: 0x8c8f94 },
+    }),
+  ),
+  definePreset(
+    "kitchen-stone-black-lacquer",
+    "黑色岩板·深色烤漆",
+    "stone",
+    {
+      countertop: 0x2b2b2e,
+      cabinetWood: 0x2e2a28,
+      cabinetBody: 0x2e2a28,
+      cabinetDoor: 0x3a3a3c,
+      wood: 0x2e2a28,
+      woodLight: 0x3a3a3c,
+      woodDark: 0x1f1f21,
+      furniture: 0x2e2a28,
+      furnitureSoft: 0x3a3a3c,
+      furnitureDark: 0x1f1f21,
+    },
+    joineryCombo({
+      body: { surface: "lacquer", color: 0x2e2a28 },
+      door: { surface: "lacquer", color: 0x3a3a3c },
+      base: { surface: "lacquer", color: 0x1f1f21 },
+      leg: { surface: "lacquer", color: 0x1f1f21 },
+      top: { surface: "stone", color: 0x2b2b2e },
+      metal: { surface: "metal", color: 0x44484d },
+    }),
+  ),
+]);
+
+/* -------------------------------------------------------------------------- */
 /* 家电 / 小家电 / 洁具 / 玻璃                                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -2445,6 +2596,8 @@ const PRESET_GROUPS: Readonly<Record<string, readonly MaterialStylePreset[]>> = 
   woodwork: WOOD_FURNITURE_STYLES,
   door: DOOR_STYLES,
   marbleTable: STONE_FURNITURE_STYLES,
+  // 厨房柜体单列一组：joinery 组管的是柜体，台面拿不到大理石整图（见 KITCHEN_STYLES）。
+  kitchen: KITCHEN_STYLES,
   steelAppliance: STEEL_APPLIANCE_STYLES,
   device: DEVICE_STYLES,
   ceramic: CERAMIC_STYLES,
@@ -2471,7 +2624,12 @@ const PRESET_GROUPS: Readonly<Record<string, readonly MaterialStylePreset[]>> = 
 const PRESET_GROUP_BY_MODEL_TYPE: Readonly<Record<string, string>> = Object.freeze({
   coffeetable: "marbleTable",
   squarecoffeetable: "woodwork",
-  kitchenisland: "joinery",
+  // 厨房柜体都是「石材台面 + 木柜体」，借 joinery 组会只剩柜体档位、台面永远是一块纯色石面，
+  // 所以整族共用一组（见 KITCHEN_STYLES：大理石 / 岩板台面与柜体逐档成套）。
+  kitchenisland: "kitchen",
+  kitchenbase: "kitchen",
+  kitchensink: "kitchen",
+  kitchencooktop: "kitchen",
   glasspartition: "glass",
   glasscabinet: "joinery",
   tv: "screen",
@@ -2876,25 +3034,6 @@ export function customMaterialStyleId(groupName: string, label: string): string 
   return MATERIAL_STYLE_CUSTOM_PREFIX + groupName + ":" + encodeURIComponent(label.trim());
 }
 
-/**
- * 采样时被多个槽位共用的角色（存档会把这些槽位合并成一种颜色）。
- *
- * 面板要把这件事说出来：「存为我的预设」是所见即所得的，但角色共用的槽位是唯一做不到
- * 逐槽钉色的地方 —— 档位按角色下料，一个角色只能配一种颜色。
- */
-export function materialStyleCollapsedRoles(
-  snapshotSlots: readonly MaterialStyleSnapshotSlot[],
-): string[] {
-  const slotsByRole = new Map<string, number>();
-  for (const snapshotSlot of snapshotSlots) {
-    if (!snapshotSlot?.role) continue;
-    slotsByRole.set(snapshotSlot.role, (slotsByRole.get(snapshotSlot.role) || 0) + 1);
-  }
-  return [...slotsByRole.entries()]
-    .filter(([, slotCount]) => slotCount > 1)
-    .map(([roleName]) => roleName);
-}
-
 /* -------------------------------------------------------------------------- */
 /* 档位的角色配方：材质流水线的最后一手（逐槽覆盖色之前）                        */
 /* -------------------------------------------------------------------------- */
@@ -3007,26 +3146,3 @@ export function materialStyleStoneSlabRoles(modelType: string): ReadonlySet<stri
       if (isStoneSlabFlavor(roleRecipe.slab)) slabRoles.add(roleName);
   return slabRoles;
 }
-
-/** 全部档位的扁平表（跨组去重前的原始顺序）：供校验脚本逐档体检，也便于报表。 */
-const MATERIAL_STYLE_PRESET_LIST: readonly MaterialStylePreset[] = Object.freeze(
-  Object.values(PRESET_GROUPS).reduce<MaterialStylePreset[]>(
-    (allPresets, groupPresets) => [...allPresets, ...groupPresets],
-    [],
-  ),
-);
-
-/** 汇总：便于核对与脚本校验。 */
-export const MATERIAL_STYLE_SUMMARY = Object.freeze({
-  auto: MATERIAL_STYLE_AUTO,
-  groups: Object.fromEntries(
-    Object.entries(PRESET_GROUPS).map(([groupName, presetList]) => [
-      groupName,
-      presetList.map((preset) => preset.id),
-    ]),
-  ),
-  groupCount: Object.keys(PRESET_GROUPS).length,
-  presetCount: MATERIAL_STYLE_PRESET_LIST.length,
-  groupByModelType: PRESET_GROUP_BY_MODEL_TYPE,
-  groupByFamily: PRESET_GROUP_BY_FAMILY,
-});

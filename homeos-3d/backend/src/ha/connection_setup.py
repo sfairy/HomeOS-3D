@@ -1,15 +1,19 @@
 '''Address discovery is setup-only; saved connections never run discovery.'''
 from __future__ import annotations
+
 import asyncio
 import ipaddress
 import json
 import logging
 from urllib.parse import urlparse, urlunparse
+
 import httpx
 import websockets
+
 from .client import HAClient, HAClientError, is_ipv6_literal, normalize_base_url, websocket_url
 from .endpoints import HAEndpoint
 from .errors import connection_error_message, is_certificate_error
+
 LOGGER = logging.getLogger(__name__)
 
 #: 端点探测的单独超时（秒）。比常规 REST 超时短得多：探测要回答的是「这一路现在能不能用」，
@@ -112,19 +116,6 @@ async def has_ha_greeting(address: str, *, verify_tls: bool, timeout: float) -> 
         if is_certificate_error(error):
             raise HAClientError(connection_error_message(error)) from error
         return False
-
-async def check_connection(address: str, token: str, *, verify_tls: bool, timeout: float) -> dict:
-    resolved = await resolve_address(address, verify_tls=verify_tls, timeout=timeout)
-    client = HAClient(resolved, token, verify_tls=verify_tls, timeout=timeout)
-    try:
-        result = await client.test_connection()
-        async with asyncio.timeout(timeout):
-            socket = await client.connect_websocket()
-            await socket.close()
-    except Exception as error:
-        LOGGER.warning('HA setup validation failed', exc_info=True)
-        raise HAClientError(connection_error_message(error)) from error
-    return {**result, 'baseUrl': resolved}
 
 async def probe_endpoints(endpoints: tuple[HAEndpoint, ...], token: str, timeout: float) -> list[dict]:
     # [补充说明] 逐个试连候选端点，返回每一项的结果（成功给版本/位置，失败给原因）。

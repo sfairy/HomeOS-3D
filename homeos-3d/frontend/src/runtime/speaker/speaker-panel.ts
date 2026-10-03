@@ -1,17 +1,12 @@
 import { speakerState, speakerCommand } from "./speaker-state";
 import { televisionTime } from "../television/television-state";
+import { domElement } from "@app/utils/dom-factory";
 export function createSpeakerPanel({
   onControl: sendCommand = async (_commandArgs) => {},
   fetchMedia: fetchMedia = (fetchUrl, fetchInit) => fetch(fetchUrl, fetchInit),
 } = {}) {
-  const createElement = (tagName, className = "", labelText = "") => {
-      const createdElement = document.createElement(tagName);
-      return (
-        (createdElement.className = className),
-        (createdElement.textContent = labelText),
-        createdElement
-      );
-    },
+  const createElement = (tagName, className = "", labelText = "") =>
+      domElement(document, tagName, className, labelText),
     panelElement = createElement("div", "i3d-television-panel i3d-speaker-panel");
   panelElement.hidden = true;
   const headingElement = createElement("div", "i3d-nas-heading"),

@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import httpx
 
+from ..commerce import money
 from ..config import StoreSettings
 from ..core.models import Order, StoreSetting
 from ..ops.net_probe import (
@@ -360,7 +361,7 @@ class AlipayProvider:
             detail=(
                 "渠道确认本次无新增资金变动（该笔可能已退过款）"
                 if fund_change == "N"
-                else f"支付宝已退回 ¥{refund_fee_cents / 100:.2f}"
+                else f"支付宝已退回 ¥{money.format_centi(refund_fee_cents)}"
             ),
         )
 

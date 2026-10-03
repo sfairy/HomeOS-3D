@@ -50,8 +50,11 @@ BACKEND_PORTS = ((APP_PORT, '主应用 API'), (STORE_PORT, '授权商店 API'))
 FRONTEND_PORTS = ((VITE_3D_PORT, '主应用 Vite'), (VITE_STORE_PORT, '授权商店 Vite'))
 #: ``--debug`` 时给两个后端各挂一个 debugpy 监听端口，IDE 用 attach 连这里。
 #: 不能复用 8801/8802 —— 那是 uvicorn 自己要 bind 的 HTTP 端口，debugpy 得另占一个口。
-DEBUG_APP_PORT = '8803'
-DEBUG_STORE_PORT = '8804'
+#: 也不能用 8803/8804 —— 那是容器内置 Caddy 的 HTTPS 入口在宿主机上的发布端口
+#: （APP_PROXY_PUBLISH_PORT / STORE_PROXY_PUBLISH_PORT），同机跑容器时会撞车。
+#: 这里退到 8811/8812 这一对当前无人占用的端口。
+DEBUG_APP_PORT = '8811'
+DEBUG_STORE_PORT = '8812'
 DEBUG_PORTS = ((DEBUG_APP_PORT, '主应用调试器'), (DEBUG_STORE_PORT, '授权商店调试器'))
 #: 默认只绑回环。这是**本地开发**脚本，而它默认打开的两个联调后门（见下方 LOOPBACK 说明）
 HOST = '127.0.0.1'

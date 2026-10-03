@@ -1,3 +1,4 @@
+import { domElement } from "@app/utils/dom-factory";
 export function nasGroups(nasConfig) {
   const groupLabels = {
     system: "系统",
@@ -76,14 +77,8 @@ function nasMetricValue(metric, stateUpdate) {
   };
 }
 export function createNasPanel() {
-  const createStyledElement = (tagName, className, textContent = "") => {
-      const createdElement = document.createElement(tagName);
-      return (
-        (createdElement.className = className),
-        (createdElement.textContent = textContent),
-        createdElement
-      );
-    },
+  const createStyledElement = (tagName, className, textContent = "") =>
+      domElement(document, tagName, className, textContent),
     panelElement = createStyledElement("div", "i3d-nas-panel"),
     headingElement = createStyledElement("div", "i3d-nas-heading"),
     titleElement = createStyledElement("h3", ""),

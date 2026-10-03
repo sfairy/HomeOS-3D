@@ -6,6 +6,7 @@
 // 画作贴图来自 studio-surface-textures.js，按 muralStyle 缓存。
 
 import { createMuralArtTexture } from "./studio-surface-textures";
+import { addMeshBoxToGroup } from "./mesh-box";
 
 const MAX_TEXTURE_ANISOTROPY = 8;
 
@@ -26,17 +27,8 @@ export function createMuralModel(three, item, palette) {
   const group = new three.Group();
   group.name = "mural";
 
-  const addMeshBox = (boxWidth, boxHeight, boxDepth, x, y, z, color, roughness, metalness) => {
-    const mesh = new three.Mesh(
-      new three.BoxGeometry(boxWidth, boxHeight, boxDepth),
-      new three.MeshStandardMaterial({ color, roughness, metalness }),
-    );
-    mesh.position.set(x, y, z);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    group.add(mesh);
-    return mesh;
-  };
+  const addMeshBox = (boxWidth, boxHeight, boxDepth, x, y, z, color, roughness, metalness) =>
+    addMeshBoxToGroup(three, group, boxWidth, boxHeight, boxDepth, x, y, z, color, roughness, metalness);
 
   const frameDepth = Math.max(itemDepth, 0.04);
   const frameBand = Math.min(itemWidth, itemHeight) * 0.058;

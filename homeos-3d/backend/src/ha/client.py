@@ -18,6 +18,7 @@ from urllib.parse import quote, urlparse, urlunparse
 import httpx
 import websockets
 
+
 class HAClientError(RuntimeError):
     # [补充说明] 与 HA 通信失败（地址非法、连不上、鉴权失败、响应格式不符）。
 
@@ -261,6 +262,10 @@ class HAClient:
         #
         # 异常: HAClientError —— 建连或鉴权失败；单条消息超限时给出可操作的提示
         # （提示调大 APP_HA_WEBSOCKET_MAX_SIZE_BYTES）。
+        # 分两段处理，让异常映射分支真正可达、且 close 时连接必然已绑定：
+        # 1. 建连阶段失败（拒绝连接/超时/TLS/代理错误——家庭网络下最常见）时还没有
+        #    websocket 可关，异常在这里归一成 HAClientError；
+        # 2. 鉴权阶段失败时 websocket 一定已绑定，任何异常（含取消）都先关连接再抛出。
         try:
             websocket = await websockets.connect(
                 websocket_url(self.base_url),
@@ -278,15 +283,6 @@ class HAClient:
                 # 也不让内存无限堆积事件消息。
                 max_queue=4,
             )
-            async with asyncio.timeout(self.timeout):
-                await self._authenticate(websocket)
-            return websocket
-        except BaseException:
-            # 任何异常（含取消）都要先关掉这条已经建立的连接，再原样抛出。
-            await websocket.close()
-            raise
-        except HAClientError:
-            raise
         except (OSError, TimeoutError, websockets.WebSocketException) as error:
             # 1009 是「消息过大」的关闭码；有些实现只给 message too big 文本，所以两种特征都判。
             if 'message too big' in str(error).lower() or '1009' in str(error):
@@ -296,6 +292,15 @@ class HAClient:
                     '请提高 APP_HA_WEBSOCKET_MAX_SIZE_BYTES 或减少异常庞大的实体属性。'
                 ) from error
             raise HAClientError(f'无法建立 Home Assistant WebSocket：{error}') from error
+
+        try:
+            async with asyncio.timeout(self.timeout):
+                await self._authenticate(websocket)
+        except BaseException:
+            # 任何异常（含取消）都要先关掉这条已经建立的连接，再原样抛出。
+            await websocket.close()
+            raise
+        return websocket
 
     async def command(self, websocket, message_id: int, command_type: str, **payload) -> Any:
         # [补充说明] 在已鉴权的连接上发一条命令并等它的结果。

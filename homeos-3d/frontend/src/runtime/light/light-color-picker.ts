@@ -1,3 +1,4 @@
+import { domElement } from "@app/utils/dom-factory";
 const {
   hsToRgbColor: hsToRgbColor,
   lightColorPickerHsFromPoint: hsFromPoint,
@@ -129,10 +130,7 @@ export function createLightColorPicker({
   );
 }
 export function createLightModeMenu(onSelect) {
-  const makeElement = (tagName, className) => {
-      const createdElement = document.createElement(tagName);
-      return ((createdElement.className = className), createdElement);
-    },
+  const makeElement = (tagName, className) => domElement(document, tagName, className),
     modeRoot = makeElement("div", "i3d-light-mode"),
     triggerButton = makeElement("button", "i3d-light-mode-trigger");
   ((triggerButton.type = "button"),

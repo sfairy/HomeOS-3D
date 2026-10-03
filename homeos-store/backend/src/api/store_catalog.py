@@ -197,7 +197,7 @@ def _evaluate_coupon(
     if coupon.min_amount_cents and price < int(coupon.min_amount_cents):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"订单金额未达到优惠码门槛（{int(coupon.min_amount_cents) / 100:.2f} 元）。",
+            detail=f"订单金额未达到优惠码门槛（{money.format_centi(int(coupon.min_amount_cents))} 元）。",
         )
 
     if coupon.discount_type == "fixed":

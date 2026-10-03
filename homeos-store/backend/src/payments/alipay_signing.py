@@ -7,12 +7,13 @@ import json
 import re
 from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal, InvalidOperation
 from functools import lru_cache
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
+
+from ..commerce import money
 
 # 地址校验与诊断的**规则本体**在 payments/urls.py（渠道无关）；这里只固定渠道名。
 from ..payments import urls as payment_urls
@@ -25,17 +26,20 @@ _PRE_HEADER = "RSA PRIVATE KEY"
 _PKCS8_HEADER = "PRIVATE KEY"
 
 
-# 金额：分 ↔ 元
+# 金额：分 ↔ 元（口径统一走 commerce.money，这里只固定支付宝的字符串形态）
 def yuan_from_cents(cents: int) -> str:
     """分转元，固定两位小数（支付宝要求 ``total_amount`` 形如 ``12.00``）。"""
-    return str((Decimal(int(cents or 0)) / Decimal(100)).quantize(Decimal("0.01")))
+    return money.format_centi(int(cents or 0))
 
 
 def cents_from_yuan(value: object) -> int | None:
     """元转分；解析失败返回 None（调用方必须把 None 当校验失败，不能当 0）。"""
+    # 空值与缺失字段必须判失败：money.to_centi(None) 会退化成 0
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
     try:
-        return int((Decimal(str(value).strip()) * 100).quantize(Decimal(1)))
-    except (InvalidOperation, ValueError, TypeError):
+        return money.to_centi(value)
+    except ValueError:
         return None
 
 

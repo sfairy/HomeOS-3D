@@ -253,7 +253,7 @@ def admin_void_coupon_redemption(
             code,
             (
                 f"账号 {account.email if account else record.account_id}，"
-                f"折扣 {int(record.discount_cents or 0) / 100:.2f} 元，"
+                f"折扣 {money.format_centi(int(record.discount_cents or 0))} 元，"
                 f"剩余占用名额 {used}"
             ),
         )

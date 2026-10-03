@@ -10,7 +10,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
-from ..commerce import coupons, delivery, fulfill, referrals
+from ..commerce import coupons, delivery, fulfill, money, referrals
 from ..commerce.order_status import (
     FAILURE_MARKABLE_STATUSES as ORDER_FAILURE_MARKABLE_STATUSES,
 )
@@ -43,15 +43,14 @@ from ..core.serializers import (
 )
 from ..ops import incidents
 from ..ops import site_settings as site_config
-from ..payments import PROVIDER_NAMES, normalize_provider_name
-from ..payments.base import PaymentError
-from ..payments.channels import provider_label
-from ..payments.reconcile import CLOSE_LOOKBACK_HOURS, channel_still_payable
 
 #: 退款的三个助手（锁 / 额度 CAS / 流水留痕）住在 payments/refunds.py：它们是
 #: 「渠道侧真的动过钱」之后的记账口径，与本文件的接口层职责不同，也该能单独被
 #: 回调与巡检路径复用。
-from ..payments import refunds
+from ..payments import PROVIDER_NAMES, normalize_provider_name, refunds
+from ..payments.base import PaymentError
+from ..payments.channels import provider_label
+from ..payments.reconcile import CLOSE_LOOKBACK_HOURS, channel_still_payable
 from ..payments.refunds import (
     claim_refund_amount,
     record_refund_audit,
@@ -415,7 +414,7 @@ def _refund_order(
     if remaining_cents <= 0 and not free_order:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"该订单已全额退款 ¥{refunded_cents / 100:.2f}，没有可退余额。",
+            detail=f"该订单已全额退款 ¥{money.format_centi(refunded_cents)}，没有可退余额。",
         )
 
     if free_order:
@@ -426,8 +425,8 @@ def _refund_order(
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=(
-                    f"退款金额超出可退余额：本次最多可退 ¥{remaining_cents / 100:.2f}"
-                    f"（订单 ¥{total_cents / 100:.2f}，已退 ¥{refunded_cents / 100:.2f}）。"
+                    f"退款金额超出可退余额：本次最多可退 ¥{money.format_centi(remaining_cents)}"
+                    f"（订单 ¥{money.format_centi(total_cents)}，已退 ¥{money.format_centi(refunded_cents)}）。"
                 ),
             )
 
@@ -491,7 +490,7 @@ def _refund_order(
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=(
-                    f"该订单有一笔退款结果未确认（¥{int(other.amount_cents or 0) / 100:.2f}，"
+                    f"该订单有一笔退款结果未确认（¥{money.format_centi(int(other.amount_cents or 0))}，"
                     f"幂等号 {other.out_request_no}）：它可能已经在渠道侧退了钱。"
                     "请先用**相同的金额**重试那一笔，或到渠道后台确认后再操作，不要改成别的金额。"
                 ),
@@ -499,12 +498,12 @@ def _refund_order(
         # 请求会话此前只做过读。先收掉读事务：WAL 下在读过的事务里做「读→写」升级会
         # SQLITE_BUSY_SNAPSHOT（而闸门那条流水正是另一个连接刚提交的）。
         session.commit()
-        gate, gate_row = refunds.open_refund_gate(session, refund)
+        gate, _gate_row = refunds.open_refund_gate(session, refund)
         if gate == "settled":
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=(
-                    f"该笔退款（¥{amount_cents / 100:.2f}，幂等号 {out_request_no}）"
+                    f"该笔退款（¥{money.format_centi(amount_cents)}，幂等号 {out_request_no}）"
                     "已经退款成功并记账，不需要重复退款。请刷新订单查看累计已退金额。"
                 ),
             )
@@ -616,8 +615,8 @@ def _refund_order(
         # 抢单失败：本次渠道退款**已经发出去了**，但本地累计值被另一笔退款改动过（进程内锁
         session.rollback()
         conflict_detail = (
-            f"{refund_detail} 本地记账冲突：累计值已不是 ¥{refunded_cents / 100:.2f}，"
-            f"本次渠道退款 ¥{settled_cents / 100:.2f} 待人工核对。"
+            f"{refund_detail} 本地记账冲突：累计值已不是 ¥{money.format_centi(refunded_cents)}，"
+            f"本次渠道退款 ¥{money.format_centi(settled_cents)} 待人工核对。"
         )[:255]
         if ledger_booked:
             ledger_recorded = refunds.persist_refund_result(
@@ -648,7 +647,7 @@ def _refund_order(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
-                f"渠道已退出 ¥{settled_cents / 100:.2f}，但本地退款累计值被并发改动，"
+                f"渠道已退出 ¥{money.format_centi(settled_cents)}，但本地退款累计值被并发改动，"
                 "为避免重复记账已中止。"
                 f"{ledger_note}请到「退款流水」核对这笔后手工处理。"
             ),
@@ -694,7 +693,7 @@ def _refund_order(
                 "referral.reversal_shortfall",
                 order_no=order.order_no,
                 error=(
-                    f"邀请奖励扣回短差 {referral_shortfall_centi / 100:.2f} 积分，"
+                    f"邀请奖励扣回短差 {money.format_centi(referral_shortfall_centi)} 积分，"
                     "推荐人钱包余额不足，需人工追偿"
                 ),
             )
@@ -711,15 +710,15 @@ def _refund_order(
         "order.refund",
         order.order_no,
         (
-            f"退款 ¥{settled_cents / 100:.2f}（累计 ¥{cumulative_cents / 100:.2f}"
-            f" / 订单 ¥{total_cents / 100:.2f}）"
+            f"退款 ¥{money.format_centi(settled_cents)}（累计 ¥{money.format_centi(cumulative_cents)}"
+            f" / 订单 ¥{money.format_centi(total_cents)}）"
             + ("（线下退款）" if offline_refund else "")
             + (f" 幂等号 {out_request_no}" if not offline_refund else "")
             + (f" 渠道单号 {refund_trade_no}" if refund_trade_no else "")
             + (f" {refund_detail}" if refund_detail else "")
-            + (f" 邀请奖励已扣回 {reversed_centi / 100:.2f} 积分" if (reversed_centi or referral_shortfall_centi) else "")
+            + (f" 邀请奖励已扣回 {money.format_centi(reversed_centi)} 积分" if (reversed_centi or referral_shortfall_centi) else "")
             + (
-                f"，另有 {referral_shortfall_centi / 100:.2f} 积分余额不足，已登记人工追偿"
+                f"，另有 {money.format_centi(referral_shortfall_centi)} 积分余额不足，已登记人工追偿"
                 if referral_shortfall_centi
                 else ""
             )

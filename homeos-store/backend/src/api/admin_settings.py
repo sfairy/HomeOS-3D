@@ -101,7 +101,6 @@ def _settings_response(setting, settings: SettingsDep) -> dict:
 
 _NULL_MEANS_FOLLOW_ENV = frozenset(
     {
-        # 验证码回显：NULL = 跟随环境变量，False = 生产上显式关掉。
         # 解绑冷却：NULL = 跟随环境变量，0 = 显式不限间隔。
         "device_release_cooldown_override",
     }

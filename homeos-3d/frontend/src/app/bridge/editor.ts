@@ -23,6 +23,7 @@ import {
   normalizeBackgroundTheme,
 } from "./definition";
 import type { DomControl } from "@app/utils/dom-control";
+import { domElement } from "@app/utils/dom-factory";
 function interaction3dEntries(componentTree, pathSegments = [], entriesByPath = new Map()) {
   if (Array.isArray(componentTree))
     componentTree.forEach((arrayItem, arrayIndex) =>
@@ -212,14 +213,8 @@ type PopupPresetConfig = {
   [layoutKey: string]: any;
 };
 
-  const createElement = (tagName, className = "", textContent: any = "") => {
-      const createdElement = document.createElement(tagName);
-      return (
-        (createdElement.className = className),
-        (createdElement.textContent = textContent),
-        createdElement
-      );
-    },
+  const createElement = (tagName, className = "", textContent: any = "") =>
+      domElement(document, tagName, className, textContent),
     createSection = (sectionTitle) => {
       const sectionElement = createElement("section", "inspector-section");
       return (

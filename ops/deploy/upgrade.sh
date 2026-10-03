@@ -100,8 +100,6 @@ report_check() {
   fi
   [ "$want_app" -eq 1 ] && info "主应用容器实际版本：$(container_version homeos-3d)"
   [ "$want_store" -eq 1 ] && info "商店容器实际版本：$(container_version homeos-3d-store)"
-  # 末行显式返回 0：report_check 会被 set -e 下的裸调用检查返回值，不能以失败条件收尾。
-  return 0
   if [ -f "$ENV_FILE" ]; then
     info ".env 镜像：app=$(env_value HOMEOS_IMAGE) store=$(env_value HOMEOS_STORE_IMAGE)"
   else
@@ -109,6 +107,9 @@ report_check() {
   fi
   log ""
   info "升级：ops/deploy/upgrade.sh --role <store|app> --version <tag>"
+  # 末行显式返回 0：上面那些 `[ ... ] && info` 一旦条件不成立就会留下非零退出码，
+  # 而 report_check 会被 set -e 下的裸调用检查返回值，不能以失败条件收尾。
+  return 0
 }
 
 if [ "$CHECK" -eq 1 ]; then

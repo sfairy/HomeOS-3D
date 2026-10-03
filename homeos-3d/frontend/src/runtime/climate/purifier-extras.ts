@@ -1,4 +1,5 @@
 import { deviceStatusChoices } from "../device/device-status";
+import { domElement } from "@app/utils/dom-factory";
 function extraStateLabel(entityId, state) {
   const liveState = state?.newState || state;
   return !liveState ||
@@ -243,10 +244,7 @@ export function createPurifierExtras({
     generation = 0,
     dragState = null,
     selectedEntityId = null;
-  const createEl = (tag, text = "") => {
-    const node = doc.createElement(tag);
-    return ((node.textContent = text), node);
-  };
+  const createEl = (tag, text = "") => domElement(doc, tag, "", text);
   let openSelect = null,
     rafId = null;
   function closeSelect(restoreFocus = false) {

@@ -20,8 +20,8 @@ from typing import Any
 from uuid import uuid4
 
 # 请求级上下文：中间件写入 requestId / method / path 等，深层代码 append 时不必透传。
-# 默认值是空字典：调用方（中间件 / 后台任务）可以放心把 get() 的结果当普通 dict 用。
-event_context: ContextVar[dict[str, Any]] = ContextVar("global_log_context", default={})
+# 不给 ContextVar 设默认值：可变默认值（dict）会被判为隐患，读取处改用显式空字典兜底。
+event_context: ContextVar[dict[str, Any]] = ContextVar("global_log_context")
 
 # 允许进入日志的上下文键白名单：名单外的键一律丢弃，防止某处误把整个请求体或实体属性
 # 塞进 context 而泄露敏感内容。
@@ -91,7 +91,7 @@ def _safe_text(value: Any, *, limit: int) -> str:
             lambda match: f"{match.group(1) if match.lastindex else ''}***", text
         )
     # URL 的查询串可能带令牌，整段打码，只保留？之前的部分。
-    text = re.sub("((?:https?|rtsps?)://[^\\s?#]+)[?#][^\\s]*", "\\1?***", text, flags=re.I)
+    text = re.sub("((?:https?|rtsps?)://[^\\s?#]+)[?#][^\\s]*", "\\1?***", text, flags=re.IGNORECASE)
     # HLS 流地址里的 token 参数由路径携带，统一收敛成一个占位符再进日志。
     text = re.sub('/api/hls/[^\\s\\"\'<>]*', "/api/hls/[stream]", text)
     return text[:limit]
@@ -208,7 +208,7 @@ class GlobalLogStore:
             "repeatCount": 1,
         }
         # 调用方传入的 context 优先于请求级上下文（同名键以后者为准的反面）。
-        metadata = safe_context({**event_context.get(), **(context or {})})
+        metadata = safe_context({**event_context.get({}), **(context or {})})
         if metadata:
             event["context"] = metadata
         if details:

@@ -72,8 +72,8 @@ def _atomic_json_write(path: Path, payload: dict) -> None:
             output.flush()
             # 先 flush 再 fsync：只有真落到磁盘，断电后才不会留下被截断的草稿。
             os.fsync(output.fileno())
-        # 384 = 0o600，创建后立刻收紧权限 —— 草稿里有完整的户型与家具布局。
-        temporary_path.chmod(384)
+        # 创建后立刻收紧权限（0o600）—— 草稿里有完整的户型与家具布局。
+        temporary_path.chmod(0o600)
         os.replace(temporary_path, path)
     finally:
         # 成功路径下临时文件已被 rename 走，这里只清理失败时的残留。
@@ -165,8 +165,8 @@ def _folder_name(request: Request) -> str:
         or name in {'.', '..'}
         or name.startswith('.')
         or name.endswith(('.', ' '))
-        or any((character in invalid_characters for character in name))
-        or any((ord(character) < 32 or ord(character) == 127 for character in name))
+        or any(character in invalid_characters for character in name)
+        or any(ord(character) < 32 or ord(character) == 127 for character in name)
         # 按字节限长：中文一个字占 3 字节，而 NAS 的路径长度限制按字节算。
         or len(name.encode('utf-8')) > 180
         # 兜底再确认一次「只剩文件名」，挡住用 '..' 拼出的路径穿越。
@@ -181,9 +181,9 @@ def _document_uses_asset_prefix(value, prefix: str) -> bool:
     #
     # 递归扫字典的值与列表项；宽一格只是少删一张图，窄一格会把还在用的导出图删掉。
     if isinstance(value, dict):
-        return any((_document_uses_asset_prefix(item, prefix) for item in value.values()))
+        return any(_document_uses_asset_prefix(item, prefix) for item in value.values())
     if isinstance(value, list):
-        return any((_document_uses_asset_prefix(item, prefix) for item in value))
+        return any(_document_uses_asset_prefix(item, prefix) for item in value)
     return isinstance(value, str) and value.startswith(prefix)
 
 
@@ -341,7 +341,7 @@ def update_studio3d_draft(payload: Studio3DDraftUpdate, request: Request, databa
                 'token': token,
                 'message': '删除将同步移除关联的 3D 交互配置。',
                 'impacts': impacts,
-                'projects': [names.get(key, key) for key in dict.fromkeys((impact['projectId'] for impact in impacts))]})
+                'projects': [names.get(key, key) for key in dict.fromkeys(impact['projectId'] for impact in impacts)]})
         # 逐份写回被清理过的文档；revision 也随之 +1，与草稿的版本链保持一致。
         for draft in drafts:
             if draft.project_id in changed:
@@ -465,9 +465,8 @@ def _store_export_package(request: Request, folder_name: str, overwrite: bool, t
                     output_path = staging / entry.filename
                     # 逐条复制而不是 extractall：条目名与类型已在 _validate_archive 校验过，
                     # 不再信任 ZIP 自带信息。
-                    with archive.open(entry) as source:
-                        with output_path.open('xb') as output:
-                            shutil.copyfileobj(source, output)
+                    with archive.open(entry) as source, output_path.open('xb') as output:
+                        shutil.copyfileobj(source, output)
                     output_path.chmod(384)
             # 原始 ZIP 也留在文件夹里，便于用户回下载或做整体备份。
             archive_name = f'{folder_name}.zip'

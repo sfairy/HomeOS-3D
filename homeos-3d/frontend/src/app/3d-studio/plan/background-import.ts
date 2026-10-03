@@ -1,4 +1,3 @@
-export const BACKGROUND_MAX_DIMENSION = 8192;
 function createCodedError(errorMessage, errorCode) {
   return Object.assign(new Error(errorMessage), {
     code: errorCode,

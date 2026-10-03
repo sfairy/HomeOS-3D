@@ -1,3 +1,4 @@
+import { createCacheLogger, runCacheTask } from "./cache-shared";
 const SCENE_PREPARATION_VERSION = "20260923-v1";
 const SCENE_STORE = "scenes";
 export function scenePreparationKey(lightHistoryScope, projectId, sceneId, source = "") {
@@ -48,32 +49,11 @@ export function createScenePersistentCache({
       writes: 0,
       fallbacks: 0,
     },
-    isDiagnosticsEnabled =
-      new URLSearchParams(env.location?.search || "").get("performance-diagnostics") === "1",
-    log = (event) => {
-      isDiagnosticsEnabled &&
-        env.console?.info(
-          "[3D-scene-cache]",
-          JSON.stringify({
-            event: event,
-            ...stats,
-          }),
-        );
-    };
+    log = createCacheLogger(env, "[3D-scene-cache]", stats);
   function runWithTimeout(task, operationTimeoutMs = timeoutMs) {
-    return new Promise((resolve) => {
-      let isSettled = false;
-      const settle = (result) => {
-          isSettled || ((isSettled = true), env.clearTimeout(timerId), resolve(result));
-        },
-        timerId = env.setTimeout(() => {
-          (stats.fallbacks++, settle(null));
-        }, operationTimeoutMs);
-      try {
-        task(settle);
-      } catch {
-        settle(null);
-      }
+    return runCacheTask(env, task, {
+      duration: operationTimeoutMs,
+      onTimeout: () => stats.fallbacks++,
     });
   }
   function open() {

@@ -1,5 +1,5 @@
 import { resolveXiaomiDeviceProfile } from "../renderer/core/device-profiles";
-export const RELATED_ENTITY_MODE_SELECTED = "selected",
+const RELATED_ENTITY_MODE_SELECTED = "selected",
   RELATED_POPUP_LABELS = Object.freeze({
     "water-heater": "热水器",
     "air-purifier": "空气净化器",

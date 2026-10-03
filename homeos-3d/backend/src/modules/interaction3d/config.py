@@ -11,6 +11,7 @@
 import json
 import math
 import re
+from typing import NoReturn
 
 from fastapi import HTTPException
 
@@ -90,7 +91,7 @@ def validate_config(properties: dict) -> None:
     if isinstance(properties, dict):
         normalize_legacy_camera_interaction(properties)
 
-    def fail():
+    def fail() -> NoReturn:
         # [补充说明] 统一的 422 出口：文案固定，不把内部字段名暴露给前端。
         raise HTTPException(422, detail='3D 交互配置无效，请检查户型、灯光、环境及图标设置。')
 
@@ -120,7 +121,7 @@ def validate_config(properties: dict) -> None:
         # 历史的 panEnabled / zoomEnabled / rotationMode 不在这里认：它们在进校验前
         # 已被 normalize_legacy_camera_interaction 搬去 interaction。
         if camera is None:
-            return None
+            return
         # required 缺一不可；optional 是「出现才校验」的字段。
         required = {'mode', 'zoom', 'target', 'position'}
         optional = {'up', 'view', 'frameSize', 'focalLength', 'topRotation'}
@@ -142,7 +143,7 @@ def validate_config(properties: dict) -> None:
             fail()
         if 'view' in camera and camera['view'] not in ('free', 'top'):
             fail()
-        return None
+        return
 
     # properties 白名单：出现任何未登记字段就整份拒绝。
     # 新增字段必须前后端同步发版，旧后端不会静默丢掉自己认不出的配置。
@@ -247,7 +248,7 @@ def validate_config(properties: dict) -> None:
             fail()
         # 只接受 camera.* 域的实体：别的域放进来会渲染出取不到流的状态。
         # 没绑定（空串或字段缺省）是合法状态：控件可以先落位，实体稍后再选。
-        if not isinstance(item.get('entityId', ''), str) or item.get('entityId') and not re.fullmatch('camera\\.[a-z0-9_]+', item['entityId']):
+        if not isinstance(item.get('entityId', ''), str) or (item.get('entityId') and not re.fullmatch('camera\\.[a-z0-9_]+', item['entityId'])):
             fail()
         if not text(item.get('label', '')) or not text(item.get('icon', '')):
             fail()
@@ -314,7 +315,7 @@ def validate_config(properties: dict) -> None:
             presence_models.add(model_key)
         # 允许空串：人形可以先把位置摆好，实体稍后再绑；
         # 一旦填了就必须是 「域.实体名」 形式，避免存入取不到状态的垃圾值。
-        if not isinstance(person.get('entityId'), str) or person['entityId'] and not re.fullmatch('[a-z_]+\\.[a-z0-9_]{1,200}', person['entityId']):
+        if not isinstance(person.get('entityId'), str) or (person['entityId'] and not re.fullmatch('[a-z_]+\\.[a-z0-9_]{1,200}', person['entityId'])):
             fail()
         if person.get('character', 'traveler') not in ('traveler', 'bean', 'glow') or person.get('color', 'cyan') not in ('cyan', 'orange'):
             fail()
@@ -329,7 +330,7 @@ def validate_config(properties: dict) -> None:
             fail()
         # 事件类触发（equals / change，或 auto 且实体属于 event 域）才需要停留时长；
         # 常驻展示允许 0，表示一直留在页面上。
-        event_sensor = trigger_mode in ('equals', 'change') or trigger_mode == 'auto' and person['entityId'].startswith('event.')
+        event_sensor = trigger_mode in ('equals', 'change') or (trigger_mode == 'auto' and person['entityId'].startswith('event.'))
         if not number(person.get('displayDuration', 30 if event_sensor else 0), 1 if event_sensor else 0, 3600):
             fail()
         # 展示页范围：'all' 表示全部页面；给列表时要求 1~6 个、都在已知页面集合内且不重复。
@@ -1444,7 +1445,7 @@ def validate_config(properties: dict) -> None:
                 fail()
             if not text(source['deviceId']) or not source['deviceId'] or not text(source['name']) or source['platform'] not in ('fnos', 'synology_dsm'):
                 fail()
-            if not isinstance(source['primaryEntityId'], str) or source['primaryEntityId'] != '' and not re.fullmatch('(?:sensor|binary_sensor)\\.[a-z0-9_]+', source['primaryEntityId']):
+            if not isinstance(source['primaryEntityId'], str) or (source['primaryEntityId'] != '' and not re.fullmatch('(?:sensor|binary_sensor)\\.[a-z0-9_]+', source['primaryEntityId'])):
                 fail()
             if not isinstance(source['metrics'], list):
                 fail()
@@ -1462,7 +1463,7 @@ def validate_config(properties: dict) -> None:
                 metric_ids.add(entity_id)
                 if not text(metric['label']) or metric['group'] not in ('system', 'storage', 'network', 'health') or metric['kind'] not in ('number', 'status', 'problem', 'timestamp'):
                     fail()
-            if metric_ids and source['primaryEntityId'] not in metric_ids or not metric_ids and source['primaryEntityId'] != '':
+            if (metric_ids and source['primaryEntityId'] not in metric_ids) or (not metric_ids and source['primaryEntityId'] != ''):
                 fail()
             # visibleMetrics 是展示白名单：必须是 metrics 的子集且不重复。
             if 'visibleMetrics' in source:
@@ -1479,4 +1480,3 @@ def validate_config(properties: dict) -> None:
         validate_camera(item.get('focusCamera'))
     # 顶层默认相机：历史字段已在 validate_config 入口归一，这里按现行白名单严格校验。
     validate_camera(properties.get('camera'))
-    return None

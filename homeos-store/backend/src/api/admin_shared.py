@@ -25,6 +25,7 @@ from ..core.models import (
     Entitlement,
     License,
     Order,
+    OrderRefund,
     Product,
     ReferralWallet,
     StoreSetting,
@@ -162,12 +163,16 @@ def _billable_money_clause():
 
 
 def _window_money(session: Session, since: datetime) -> dict:
-    """统计 ``[since, now)`` 内的收款、退款与付款订单数（后台三处 KPI 都读它）。
+    """统计 ``[since, now)`` 内的收款与退款（后台时间窗 KPI 都读它）。
+
+    收款按**订单支付时间**归因；退款按**退款流水的发生时间**归因（不是订单支付时间）。
+    两者若都用支付时间，今天为 40 天前订单办的退款不会被计入「近 24 小时/7 天」，
+    而今天支付、明天退款的单又会把退款算进今天的窗口 —— netCents 就与窗口内真实
+    现金流对不上（累计 ``totalRefunded`` 不受影响）。
     """
     row = session.execute(
         select(
             func.coalesce(func.sum(Order.amount_cents), 0),
-            func.coalesce(func.sum(Order.refund_amount_cents), 0),
             func.count(Order.id),
         ).where(
             Order.paid_at.is_not(None),
@@ -176,6 +181,19 @@ def _window_money(session: Session, since: datetime) -> dict:
             _billable_money_clause(),
         )
     ).one()
+    # 退款按 order_refunds 的发生时间聚合，只算已到账的；人工补记订单（未真收钱）不计。
+    refunded = int(
+        session.execute(
+            select(func.coalesce(func.sum(OrderRefund.amount_cents), 0))
+            .join(Order, Order.id == OrderRefund.order_id)
+            .where(
+                OrderRefund.status == "succeeded",
+                OrderRefund.created_at >= since,
+                Order.manual_settlement.is_(False),
+            )
+        ).scalar_one()
+        or 0
+    )
     manual_row = session.execute(
         select(
             func.coalesce(func.sum(Order.amount_cents), 0),
@@ -188,12 +206,11 @@ def _window_money(session: Session, since: datetime) -> dict:
         )
     ).one()
     gross = int(row[0] or 0)
-    refunded = int(row[1] or 0)
     return {
         "grossCents": gross,
         "refundCents": refunded,
         "netCents": gross - refunded,
-        "paidOrders": int(row[2] or 0),
+        "paidOrders": int(row[1] or 0),
         "manualCents": int(manual_row[0] or 0),
         "manualOrders": int(manual_row[1] or 0),
     }

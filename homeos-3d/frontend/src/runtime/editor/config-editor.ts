@@ -63,6 +63,7 @@ import {
   genericDeviceProfile as genericDeviceProfile2,
   isGenericDeviceKind as isGenericDeviceKind2,
 } from "../device/device-profiles";
+import { domElement } from "@app/utils/dom-factory";
 const APPEARANCE_GROUPS: [string, [string, string, number, number, number][]][] = [
   [
     "整体",
@@ -281,14 +282,8 @@ export async function openInteraction3dEditor({
     (element.href =
       "/api/v1/modules/interaction3d/core/runtime.css"),
     document.head.append(element));
-  const createElement = (tagName, className = "", textContent = "") => {
-      const createdElement = document.createElement(tagName);
-      return (
-        (createdElement.className = className || ""),
-        textContent && (createdElement.textContent = textContent),
-        createdElement
-      );
-    },
+  const createElement = (tagName, className = "", textContent = "") =>
+      domElement(document, tagName, className, textContent),
     createButton = (buttonLabel, handleButtonClick) => {
       const buttonElement = createElement("button", "", buttonLabel);
       return (

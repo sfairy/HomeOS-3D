@@ -1,7 +1,4 @@
-const clampNumber = (inputNumber, minimumNumber, maximumNumber) =>
-    Math.max(minimumNumber, Math.min(maximumNumber, inputNumber)),
-  finiteNumberOr = (candidateNumber, fallbackNumber) =>
-    Number.isFinite(candidateNumber) ? candidateNumber : fallbackNumber;
+import { clampNumber, finiteNumberOr } from "@app/utils/number";
 function clonePose(pose) {
   return Object.fromEntries(
     Object.entries(pose).map(([poseKey, poseField]) => [

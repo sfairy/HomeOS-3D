@@ -20,6 +20,7 @@ from uuid import uuid4
 
 import httpx
 
+from ..commerce import money
 from ..config import StoreSettings
 from ..core.models import Order, StoreSetting
 from ..ops.net_probe import LEVEL_FAIL, LEVEL_PASS, LEVEL_WARN, check_result, host_from_url
@@ -375,7 +376,7 @@ class WeChatPayProvider:
             return RefundResult(
                 ok=True,
                 trade_no=refund_id or None,
-                detail=f"微信支付已退回 ¥{refunded / 100:.2f}",
+                detail=f"微信支付已退回 ¥{money.format_centi(refunded)}",
             )
         if state == "PROCESSING":
             # 微信是异步退款：PROCESSING 表示已受理但钱还没到账。**不能**记成已退款，

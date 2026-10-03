@@ -1,7 +1,10 @@
 '''Live capability validation for native HA water-heater controls.'''
 import math
+
 from fastapi import HTTPException
+
 from .climate import _number
+
 
 def validate_water_heater_command(service, data, state):
     if not state or state.get('available') is False or state.get('state') in (None, '', 'unknown', 'unavailable'):

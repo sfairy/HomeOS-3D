@@ -1,5 +1,3 @@
-export const VEHICLE_MODEL_TYPES = Object.freeze(["smallcar", "suv", "scooter"]),
-  isVehicleModelType = (modelType) => VEHICLE_MODEL_TYPES.includes(modelType);
 export function prepareVehicleChargeGeometry(threeModule, rootObject) {
   rootObject.updateMatrixWorld(true);
   const bounds = new threeModule.Box3().setFromObject(rootObject),

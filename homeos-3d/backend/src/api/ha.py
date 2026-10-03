@@ -22,7 +22,14 @@ from fastapi import APIRouter, HTTPException, Query, Request, WebSocket, WebSock
 from sqlalchemy import func, or_, select
 
 from ..database import Database
-from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, ViewerPrincipal, require_viewer_entity, viewer_entity_ids
+from ..dependencies import (
+    DatabaseSession,
+    LicensedUser,
+    LicensedViewer,
+    ViewerPrincipal,
+    require_viewer_entity,
+    viewer_entity_ids,
+)
 from ..display_access import active_display_device
 from ..embedding import embedded_devices
 from ..global_log import event_context
@@ -73,7 +80,7 @@ ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
     ('cover', 'open_cover'): set(),
     ('cover', 'close_cover'): set(),
     ('cover', 'stop_cover'): set(),
-    **{
+    
         ('cover', 'set_cover_position'): {'position'},
         ('cover', 'open_cover_tilt'): set(),
         ('cover', 'close_cover_tilt'): set(),
@@ -90,9 +97,9 @@ ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
         ('water_heater', 'turn_on'): set(),
         ('water_heater', 'turn_off'): set(),
         ('water_heater', 'set_temperature'): {'temperature'},
-        ('water_heater', 'set_operation_mode'): {'operation_mode'},
-    },
-    **{
+        ('water_heater', 'set_operation_mode'): {'operation_mode'}
+    ,
+    
         ('water_heater', 'set_away_mode'): {'away_mode'},
         ('fan', 'set_percentage'): {'percentage'},
         ('fan', 'oscillate'): {'oscillating'},
@@ -109,9 +116,9 @@ ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
         ('media_player', 'media_previous_track'): set(),
         ('media_player', 'media_next_track'): set(),
         ('media_player', 'volume_up'): set(),
-        ('media_player', 'volume_down'): set(),
-    },
-    **{
+        ('media_player', 'volume_down'): set()
+    ,
+    
         ('media_player', 'media_seek'): {'seek_position'},
         ('media_player', 'shuffle_set'): {'shuffle'},
         ('media_player', 'repeat_set'): {'repeat'},
@@ -128,13 +135,13 @@ ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
         ('vacuum', 'locate'): set(),
         ('vacuum', 'clean_spot'): set(),
         ('vacuum', 'turn_on'): set(),
-        ('vacuum', 'turn_off'): set(),
-    },
-    **{
+        ('vacuum', 'turn_off'): set()
+    ,
+    
         ('vacuum', 'return_to_base'): set(),
         ('vacuum', 'set_fan_speed'): {'fan_speed'},
-        ('select', 'select_option'): {'option'},
-    },
+        ('select', 'select_option'): {'option'}
+    ,
 }
 
 
@@ -144,7 +151,6 @@ def require_admin(user: User) -> None:
     # 改 HA 连接配置是整个集成里权限最高的一档，普通用户与中控设备都不允许。
     if user.role != 'admin':
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='仅管理员可以修改 Home Assistant 连接。')
-    return None
 
 
 def active_connection(database: DatabaseSession) -> HAConnection | None:
@@ -311,7 +317,6 @@ async def delete_connection(request: Request, database: DatabaseSession, user: L
         await connector.restart()
     # 删除连接属于高影响操作，用 warning 级别留痕。
     request.app.state.global_log.append('warning', 'Home Assistant', '连接', 'Home Assistant 连接配置已删除')
-    return None
 
 
 @router.post('/test')
@@ -1140,7 +1145,6 @@ async def runtime_websocket(websocket: WebSocket) -> None:
     finally:
         # 协程结束必须还原 ContextVar，否则同一 worker 的后续请求会串到这份上下文。
         event_context.reset(token)
-    return None
 
 
 def _runtime_log(
@@ -1163,7 +1167,6 @@ def _runtime_log(
             else ('仪表盘编辑器' if context.get('actor') else '系统后台')
         )
         log.append(level, source, '实时连接', message, context=context, details=details)
-    return None
 
 
 async def _runtime_send_json(websocket: WebSocket, payload: dict) -> None:
@@ -1182,7 +1185,6 @@ async def _runtime_send_json(websocket: WebSocket, payload: dict) -> None:
         }:
             raise WebSocketDisconnect(code=1006) from error
         raise
-    return None
 
 
 async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
@@ -1203,18 +1205,17 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
             {**context, 'code': str(code), 'phase': 'rejected'},
         )
         await websocket.close(code=code, reason=reason if send_reason else None)
-        return None
 
     # Origin 不合法按 4403（禁止）处理，且不回传原因。
     if not websocket_origin_allowed(websocket):
         await close_with_log(4403, 'origin not allowed')
-        return None
+        return
     # 同步查库放到线程里，别阻塞事件循环。
     viewer = await asyncio.to_thread(websocket_viewer, websocket)
     if viewer is None:
         # 4401 表示未认证，客户端应引导用户去登录或完成配对。
         await close_with_log(4401, 'authentication required', send_reason=False)
-        return None
+        return
     # 把身份写进上下文：这条连接后续产生的日志都能标出是谁在看。
     if viewer.user is not None:
         context['actor'] = getattr(viewer.user, 'username', None)
@@ -1227,7 +1228,7 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
     # 实时推送是独立能力码：没有它时看板仍可用 HTTP 轮询，只是没有推送。
     if not await asyncio.to_thread(websocket.app.state.license_service.allows, 'runtime.websocket'):
         await close_with_log(4403, 'license restricted', send_reason=False)
-        return None
+        return
     await websocket.accept()
     _runtime_log(websocket, 'info', '实时连接已建立', {**context, 'phase': 'accepted'})
     # 每条连接一个订阅队列，广播由 state_hub 统一分发。
@@ -1274,7 +1275,7 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
         subscribe = await asyncio.wait_for(websocket.receive_json(), timeout=30)
         if subscribe.get('type') != 'subscribe' or not isinstance(subscribe.get('entityIds'), list):
             await close_with_log(4400, 'subscribe message required')
-            return None
+            return
         entity_ids = {str(value) for value in subscribe['entityIds'] if isinstance(value, str)}
         if viewer.project_id is not None:
 
@@ -1289,7 +1290,7 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
         # 订阅上限：一次连接关心上千个实体基本是异常用法。
         if len(entity_ids) > MAX_RUNTIME_ENTITIES:
             await close_with_log(4400, 'too many entities')
-            return None
+            return
         websocket.app.state.ha_connector.state_hub.set_subscription_entities(queue, entity_ids)
         # ensure_states=False：先登记监听，状态按需补全，避免订阅瞬间发起大量回源。
         await websocket.app.state.ha_connector.add_runtime_entity_watch(entity_ids, ensure_states=False)
@@ -1308,21 +1309,21 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
                 # 每次循环都确认配对没变；改绑后立即断开，避免旧屏继续看到别的项目数据。
                 if not await display_binding_matches():
                     await close_with_log(4401, 'display pairing changed')
-                    return None
+                    return
                 try:
                     # 展示设备用 5 秒心跳（要更快发现改绑），编辑器用 25 秒减少无意义唤醒。
                     event = await asyncio.wait_for(queue.get(), timeout=5 if viewer.display else 25)
                 except TimeoutError:
                     if not await display_binding_matches():
                         await close_with_log(4401, 'display pairing changed')
-                        return None
+                        return
                     await _runtime_send_json(websocket, {'type': 'ping'})
                     continue
                 if not await display_binding_matches():
                     await close_with_log(4401, 'display pairing changed')
-                    return None
+                    return
                 await _runtime_send_json(websocket, event)
-            return None
+            return
 
         async def receive_disconnect() -> None:
             """另一路任务只负责感知客户端断开。"""
@@ -1375,4 +1376,4 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
         finally:
             # 退订必须执行，否则 state_hub 的队列会随连接数一直累积。
             websocket.app.state.ha_connector.state_hub.unsubscribe(queue)
-    return None
+    return

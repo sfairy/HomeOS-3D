@@ -5,23 +5,34 @@
 # 十六进制目录）、studio3d（3D 工作室导出，按文件夹分组）。目录状态由进程内 AssetCatalog
 # 缓存（单进程部署前提），上传的 SVG 先白名单清洗再落盘，读取带长期缓存头靠 URL 版本失效。
 from __future__ import annotations
-import json
+
 import hashlib
+import json
 import math
 import re
 import warnings
-from xml.etree import ElementTree
 from pathlib import Path
 from threading import RLock
 from urllib.parse import quote, unquote
 from uuid import uuid4
+from xml.etree import ElementTree
+
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from fastapi.responses import FileResponse
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import select
-from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, authenticated_short_lived_viewer, licensed_viewer, require_viewer_user_asset, viewer_user_asset_ids
-from ..models import Project, ProjectDraft
+
+from ..dependencies import (
+    DatabaseSession,
+    LicensedUser,
+    LicensedViewer,
+    authenticated_short_lived_viewer,
+    licensed_viewer,
+    require_viewer_user_asset,
+    viewer_user_asset_ids,
+)
 from ..global_popups import global_popups
+from ..models import Project, ProjectDraft
 
 router = APIRouter(prefix = '/assets', tags = [
     'assets'])
@@ -160,7 +171,7 @@ def effect_variant_payload(path: Path, full_asset_id: str, version: str, cache_r
     if path.suffix.lower() not in {'.png', '.webp'}:
         return None
     # 缓存键 = 素材 ID + 版本号：内容变了键就变，无需主动失效旧文件。
-    cache_key = hashlib.sha256(f'{full_asset_id}\x00{version}'.encode('utf-8')).hexdigest()
+    cache_key = hashlib.sha256(f'{full_asset_id}\x00{version}'.encode()).hexdigest()
     variant_path = cache_root / f'{cache_key}.png'
     metadata_path = cache_root / f'{cache_key}.json'
     # 命中缓存还要校验元数据自洽：裁剪矩形必须落在原图范围内，否则当作脏缓存重新生成。
@@ -366,7 +377,7 @@ def svg_style_is_safe(value: str) -> bool:
     # [补充说明] 判断一段 CSS 文本是否安全：先过黑名单，再逐个检查 url(...) 引用。
     if SVG_UNSAFE_STYLE.search(value):
         return False
-    return all((svg_reference_is_safe(match.group(2)) for match in SVG_URL.finditer(value)))
+    return all(svg_reference_is_safe(match.group(2)) for match in SVG_URL.finditer(value))
 
 def parse_svg_length(value: str | None) -> float | None:
     # [补充说明] 把 SVG 的长度字符串解析成像素值；非法、非有限或非正数返回 None。
@@ -393,7 +404,7 @@ def svg_dimensions(root: ElementTree.Element) -> tuple[int, int]:
         except ValueError:
             parts = []
         # viewBox 必须是四个有限数且宽高为正，否则视为无效。
-        if len(parts) == 4 and all((math.isfinite(part) for part in parts)) and parts[2] > 0 and parts[3] > 0:
+        if len(parts) == 4 and all(math.isfinite(part) for part in parts) and parts[2] > 0 and parts[3] > 0:
             view_box = (parts[2], parts[3])
     # 只缺一边时按 viewBox 比例补出另一边。
     width = parse_svg_length(root.attrib.get('width'))
@@ -545,20 +556,20 @@ class AssetCatalog:
             generated = effect_variant_payload(path, str(payload['assetId']), str(payload['version']), self.effect_variants_root)
         # 生成变体失败（IO 错误等）不影响主流程：少一个可选字段而已。
         except OSError:
-            return None
+            return
         if generated is None:
-            return None
+            return
         (metadata, variant_path) = generated
         payload['effectVariant'] = metadata
         self._effect_variant_paths[str(payload['assetId'])] = variant_path
-        return None
+        return
 
     def _load_builtin(self) -> None:
         # [补充说明] 懒加载内置素材目录，建立 assetId -> 条目、相对路径 -> 文件路径、别名 -> assetId 三张索引。
         with self.mutation_lock:
             # 双检：多线程同时首次访问时，后到的直接返回。
             if self._builtin_loaded:
-                return None
+                return
             for path in self.built_in_root.rglob('*'):
                 if not path.is_file() or path.name.startswith('.') or path.suffix.lower() not in SUPPORTED_IMAGE_SUFFIXES:
                     continue
@@ -591,7 +602,7 @@ class AssetCatalog:
                     self._builtin_aliases[alias] = asset_id
                     self._builtin_path_aliases[alias.removeprefix('builtin:')] = relative_path
             self._builtin_loaded = True
-            return None
+            return
 
     def _load_user(self) -> None:
         # [补充说明] 懒加载用户素材目录，同时把 3D 工作室的导出图片并进同一份索引。
@@ -599,7 +610,7 @@ class AssetCatalog:
         # 两类素材的 assetId 前缀不同（user: / studio3d:），因此在同一字典里不会冲突。
         with self.mutation_lock:
             if self._user_loaded:
-                return None
+                return
             for directory in self.user_root.iterdir():
                 path = user_asset_file(self.user_root, directory.name)
                 if path is None:
@@ -779,9 +790,9 @@ def document_uses_asset(value, asset_id: str) -> bool:
     # 判据是「值里出现过这个字符串」—— 这里的后果是「拒删」，宽一格只是少删一张图；
     # 窄一格会删掉仍被引用的素材，引用它的控件渲染回退或报错。
     if isinstance(value, dict):
-        return any((document_uses_asset(item, asset_id) for item in value.values()))
+        return any(document_uses_asset(item, asset_id) for item in value.values())
     if isinstance(value, list):
-        return any((document_uses_asset(item, asset_id) for item in value))
+        return any(document_uses_asset(item, asset_id) for item in value)
     return value == asset_id
 
 @router.get('/builtin')
@@ -835,7 +846,7 @@ async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:
     except (UnicodeError, ValueError) as error:
         raise HTTPException(status_code = 422, detail = '图片文件名无效。') from error
     # 文件名白名单校验：点开头、含路径分隔符、含控制字符或超长的一律拒绝，URL 编码解出来也不放过。
-    if not filename or filename in {'.', '..'} or filename.startswith('.') or Path(filename).name != filename or '/' in filename or '\\' in filename or any((ord(character) < 32 or ord(character) == 127 for character in filename)) or len(filename.encode('utf-8')) > 240:
+    if not filename or filename in {'.', '..'} or filename.startswith('.') or Path(filename).name != filename or '/' in filename or '\\' in filename or any(ord(character) < 32 or ord(character) == 127 for character in filename) or len(filename.encode('utf-8')) > 240:
         raise HTTPException(status_code = 422, detail = '图片文件名无效，请保留普通文件名后重试。')
     suffix = Path(filename).suffix.lower()
     if suffix not in UPLOAD_IMAGE_SUFFIXES:

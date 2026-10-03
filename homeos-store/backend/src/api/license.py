@@ -65,14 +65,17 @@ def _run_in_worker(
         payload, key = generation.transport.decrypt_request(body, path)
         stage = "dispatch"
         code = str((payload or {}).get("activationCode") or "").strip().upper()
-        if code and not _LICENSE_CODE_LIMITER.allow(f"code:{code}"):
+        # 桶键带上来源 IP：只按激活码计数的话，知道某个用户激活码的人可以把它刷满，
+        # 让该用户在 1 小时内无法激活（合法用户被 DoS）。
+        code_key = f"code:{code}:{client_ip or '-'}" if code else ""
+        if code_key and not _LICENSE_CODE_LIMITER.allow(code_key):
             logger.warning("授权端点限流：激活码维度触顶 path=%s", path)
             return (
                 None,
                 LicenseServerError(
                     "请求过于频繁，请稍后再试。",
                     status_code=429,
-                    retry_after=_LICENSE_CODE_LIMITER.retry_after(f"code:{code}"),
+                    retry_after=_LICENSE_CODE_LIMITER.retry_after(code_key),
                 ),
                 "dispatch",
             )
@@ -112,7 +115,9 @@ async def _dispatch(request: Request, method: str) -> Response:
     except Exception:
         return JSONResponse({"detail": "授权请求格式无效。"}, status_code=400)
 
-    client_ip = resolve_client_ip(request).ip or None
+    # 复用上面已解析的地址，不再二次调用 resolve_client_ip（那次没包 try/except，
+    # 解析异常会直接冒成 500，与上面的容错写法不一致）。
+    client_ip = address.ip if address is not None and address.ip else None
     try:
         response_body, error, stage = await asyncio.to_thread(
             _run_in_worker, authority, method, body, path, client_ip

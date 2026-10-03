@@ -18,11 +18,11 @@ import httpx
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
+from .ha import active_connection
 from ..database import Database
 from ..dependencies import ShortLivedLicensedViewer, ViewerPrincipal, require_viewer_entity
 from ..ha.client import HAClientError
 from ..ha.crypto import CredentialCipherError
-from .ha import active_connection
 
 router = APIRouter(include_in_schema=False)
 # 允许代理的 HA 媒体路径前缀。代理是通配路由，这份白名单就是唯一的门禁：
@@ -212,10 +212,10 @@ def _schedule_camera_snapshot_refresh(key: str, target: str, headers: Mapping[st
     # [补充说明] 为一个已过期的缓存键排一次后台刷新；同键已有任务在跑就直接复用。
     existing = camera_snapshot_refreshes.get(key)
     if existing and not existing.done():
-        return None
+        return
     task = asyncio.create_task(_refresh_camera_snapshot(key, target, headers, verify_tls, timeout))
     camera_snapshot_refreshes[key] = task
-    return None
+    return
 
 
 async def proxy_http(request: Request) -> Response:

@@ -8,6 +8,7 @@
 # 并发约定：数据库操作经 ``_run_database`` 串行化并放线程池（SQLAlchemy 是同步的），
 # 注册表刷新与全量同步共用 ``_sync_lock``，避免两份快照互相覆盖。
 from __future__ import annotations
+
 import asyncio
 import json
 import logging
@@ -16,18 +17,21 @@ import traceback
 from collections import Counter
 from contextvars import copy_context
 from typing import Any
+
 from sqlalchemy import func, select
-from ..config import Settings
-from ..database import Database
-from ..models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, ProjectDraft, utc_now
-from ..global_popups import global_popups
-from ..global_log import GlobalLogStore, _safe_text, event_context
-from ..panel.entity_refs import document_entity_ids
+
 from .client import HAClient, HAClientError, HASnapshot
 from .connection_setup import HA_ENDPOINT_PROBE_TIMEOUT_SECONDS
 from .crypto import CredentialCipher
 from .endpoints import HAEndpoint, connection_endpoints, endpoint_signature
 from .state_hub import StateHub
+from ..config import Settings
+from ..database import Database
+from ..global_log import GlobalLogStore, _safe_text, event_context
+from ..global_popups import global_popups
+from ..models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, ProjectDraft, utc_now
+from ..panel.entity_refs import document_entity_ids
+
 LOGGER = logging.getLogger(__name__)
 # 当前端点的复用窗口（秒）。在用的这一路每隔这么久复探一次：内网可能已经恢复（回家、
 # 上了内网），不能因为一开始走了外网就永远不再回头看内网。

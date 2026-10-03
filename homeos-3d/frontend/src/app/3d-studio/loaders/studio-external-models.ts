@@ -211,7 +211,7 @@ const PILLAR_MODEL_ITEM_TYPES = new Set([
   "pillar",
   ...[...PILLAR_ASSET_SHAPES].map((pillarShape) => "pillar_" + pillarShape),
 ]);
-export const EXTERNAL_ITEM_MODELS = Object.freeze({
+const EXTERNAL_ITEM_MODELS = Object.freeze({
     "drawer-chest": createIndoorAssetDescriptor("drawer-chest", [1.05, 0.94, 0.45]),
     "smart-socket-86": createIndoorAssetDescriptor("smart-socket-86", [0.086, 0.086, 0.012]),
     router: createIndoorAssetDescriptor("router", [0.287, 0.205, 0.177]),
@@ -345,8 +345,8 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
       materialRevision: "20260914-piano-surface-shadow-v1",
       preserveAspect: true,
     },
-  }),
-  ALL_ITEM_MODELS = Object.freeze({
+  });
+export const ALL_ITEM_MODELS = Object.freeze({
     ...EXTERNAL_ITEM_MODELS,
     bed: createIndoorAssetDescriptor("bed", [1.92, 1.02, 2.18]),
     nightstand: createHomeAssetDescriptor("nightstand", "20260901-all-home-furniture-v1", {

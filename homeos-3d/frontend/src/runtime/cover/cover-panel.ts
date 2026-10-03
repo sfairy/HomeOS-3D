@@ -5,6 +5,7 @@ import {
   coverStateLabel,
   coverCanAdjustBlades,
 } from "./cover-state";
+import { domElement } from "@app/utils/dom-factory";
 /** cover 面板的宿主元素与回调；element 缺省时面板自建节点，所以是可选的。 */
 type CoverPanelOptions = {
   element?: any;
@@ -35,14 +36,8 @@ export function createCoverPanel({
   onLayout: onLayout = () => {},
 }: CoverPanelOptions = {}) {
   const ownerDocument = hostElement?.ownerDocument || globalThis.document,
-    createElement = (tagName, className = "", textContent = "") => {
-      const createdElement = ownerDocument.createElement(tagName);
-      return (
-        (createdElement.className = className),
-        (createdElement.textContent = textContent),
-        createdElement
-      );
-    },
+    createElement = (tagName, className = "", textContent = "") =>
+      domElement(ownerDocument, tagName, className, textContent),
     replaceChildren = (hostNode, ...childNodes) => {
       if (typeof hostNode.replaceChildren == "function") hostNode.replaceChildren(...childNodes);
       else {

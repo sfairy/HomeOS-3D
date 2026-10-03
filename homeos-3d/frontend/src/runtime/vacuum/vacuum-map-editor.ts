@@ -2,6 +2,7 @@ import {
   mapCorners,
   createVacuumMapImageLoader,
 } from "./vacuum-map";
+import { domElement } from "@app/utils/dom-factory";
 function planFurniture(
   plan: {
     pixelsPerMeter?: number | string;
@@ -51,10 +52,8 @@ export function openVacuumMapEditor({
 }) {
   const documentRef = window.document,
     svgXmlns = "http://www.w3.org/2000/svg",
-    createHtmlElement = (tagName, textContent = "") => {
-      const createdElement = documentRef.createElement(tagName);
-      return (textContent && (createdElement.textContent = textContent), createdElement);
-    },
+    createHtmlElement = (tagName, textContent = "") =>
+      domElement(documentRef, tagName, "", textContent),
     createSvgElement = (svgTagName, svgAttributes = {}) => {
       const createdSvgElement = documentRef.createElementNS(svgXmlns, svgTagName);
       for (const [svgAttributeName, svgAttributeValue] of Object.entries(svgAttributes))

@@ -2,6 +2,7 @@ import {
   packModelTemplate,
   unpackModelTemplate,
 } from "./model-template-codec";
+import { createCacheLogger, runCacheTask } from "./cache-shared";
 const MODEL_CACHE_DB_NAME = "homeos-3d-templates",
   TEMPLATE_STORE = "templates",
   METADATA_STORE = "metadata",
@@ -28,18 +29,7 @@ export function createModelPersistentCache({
       writes: 0,
       fallbacks: 0,
     },
-    isDiagnosticsEnabled =
-      new URLSearchParams(env.location?.search || "").get("performance-diagnostics") === "1",
-    log = (event) => {
-      isDiagnosticsEnabled &&
-        env.console?.info(
-          "[3D-model-cache]",
-          JSON.stringify({
-            event: event,
-            ...stats,
-          }),
-        );
-    };
+    log = createCacheLogger(env, "[3D-model-cache]", stats);
   function noteFallback() {
     (stats.fallbacks++, log("fallback"));
   }
@@ -54,19 +44,11 @@ export function createModelPersistentCache({
     task,
     { duration: durationMs = timeoutMs, disable: disableOnTimeout = true } = {},
   ): Promise<any> {
-    return new Promise((resolve) => {
-      let isSettled = false;
-      const settle = (result) => {
-          isSettled || ((isSettled = true), env.clearTimeout(timerId), resolve(result));
-        },
-        timerId = env.setTimeout(() => {
-          (disableOnTimeout && (isDisabled = true), noteFallback(), settle(null));
-        }, durationMs);
-      try {
-        task(settle);
-      } catch {
-        settle(null);
-      }
+    return runCacheTask(env, task, {
+      duration: durationMs,
+      onTimeout: () => {
+        (disableOnTimeout && (isDisabled = true), noteFallback());
+      },
     });
   }
   function openDatabase() {

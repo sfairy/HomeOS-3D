@@ -1,5 +1,6 @@
 '''Only explicit percentage units and HA-defined percentage attributes qualify.'''
 from typing import Any
+
 PERCENTAGE_ATTRIBUTES = {
     'cover': {
         'current_position': '开合度',

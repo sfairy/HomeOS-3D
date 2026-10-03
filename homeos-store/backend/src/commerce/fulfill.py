@@ -241,6 +241,28 @@ def _product_grants_features(session: Session, product: Product) -> bool:
         return True
     return bool(bundled_feature_codes(session, product))
 
+
+def _license_grants_features(session: Session, license: License) -> bool:
+    """这张授权当前能不能开出至少一个能力码（与 licensing/service.features_for 同口径）。
+
+    能力 = 授权当前商品的 feature_codes ∪ 该授权上仍 active 的权益。
+    履约后用它做兜底断言：商品改配/权益写入静默失败时，宁可把订单打成
+    ``fulfillment_failed`` 让巡检捞起来，也不要发出「钱收了、能力没开通」的成功单。
+    """
+    if license.product_id:
+        product = session.get(Product, license.product_id)
+        if product is not None and json_list(product.feature_codes_json):
+            return True
+    return (
+        session.scalars(
+            select(Entitlement.id)
+            .where(Entitlement.license_id == license.id)
+            .where(Entitlement.active.is_(True))
+        ).first()
+        is not None
+    )
+
+
 def _entitlement_for(
     session: Session, license_id: str, feature_code: str
 ) -> Entitlement | None:
@@ -444,8 +466,15 @@ def apply_addon_to_license(
     )
     created = 0
     _capture_license_state(session, order, license)
-    for feature_code in json_list(product.feature_codes_json):
-        feature_code = str(feature_code)
+    own_codes = [str(code) for code in json_list(product.feature_codes_json)]
+    # 增量包/套餐可能只配了「包含商品」而无自身功能码：必须与签发
+    # （create_license_for_order）、升级（upgrade_license_in_place）同口径地展开
+    # bundled 功能码，否则订单会被置为 fulfilled 却一条权益都不产生 —— 钱收了、
+    # 能力没开通，且订单是成功态，巡检不会捞它，只能靠买家投诉发现。
+    codes = own_codes + [
+        code for code in bundled_feature_codes(session, product) if code not in own_codes
+    ]
+    for feature_code in codes:
         _upsert_entitlement(
             session,
             customer=customer,
@@ -683,15 +712,17 @@ def fulfill_order(
     if customer is None:
         raise RuntimeError(f"订单 {order.order_no} 对应的客户不存在。")
 
-    # 新增授权的商品必须真的能开出功能码。licensing/service.py 的 features_for 是
+    # 签发 / 升级 / 追加都必须真的能开出功能码。licensing/service.py 的 features_for 是
     # fail-closed 的（没有功能码就 422），但那是**激活**时才发生的检查：一个漏配的
-    # 商品会先卖出去、先签出授权，买家在最后一步才发现自己拿到的是一张激活不了的码。
-    # 拦住发码换成「发货失败 + 待人工复核」是可运营的状态：修好商品再点履约即可。
+    # 商品会先卖出去、先签出授权/先记权益，买家在最后一步才发现自己拿到的是一张
+    # 激活不了的码。拦住发码换成「发货失败 + 待人工复核」是可运营的状态：修好商品再点履约。
     #    能开出的能力 = 商品自己的 feature_codes ∪ 它包含商品的功能码。
-    #    两者都空才叫「签出去也激活不了」。
-    if order.license_action == "issue" and not _product_grants_features(session, product):
+    #    两者都空才叫「履约也开通不了任何能力」。
+    if order.license_action in {"issue", "patch", "upgrade"} and not _product_grants_features(
+        session, product
+    ):
         raise RuntimeError(
-            f"商品「{product.name}」没有配置任何功能码，签发出去也无法激活。"
+            f"商品「{product.name}」没有配置任何功能码，履约后无法开通任何能力。"
             "请先在后台给商品勾选功能码（或把它下架）后再履约。"
         )
 
@@ -713,6 +744,20 @@ def fulfill_order(
         create_license_for_order(
             session, order=order, product=product, customer=customer, now=moment
         )
+
+    # 兜底断言：履约动作跑完后，这张授权至少能开出 1 个能力码，否则把订单留成
+    # fulfillment_failed 交给巡检，而不是发一张「付款成功但什么都没开通」的单。
+    if order.license_action in {"issue", "patch", "upgrade"}:
+        session.flush()
+        fulfilled_license = (
+            session.get(License, order.license_id) if order.license_id else None
+        )
+        if fulfilled_license is not None and not _license_grants_features(
+            session, fulfilled_license
+        ):
+            raise RuntimeError(
+                f"订单 {order.order_no} 履约后未产生任何可用能力，请检查商品与包含商品的功能码配置。"
+            )
 
     order.status = "fulfilled"
     order.fulfilled_at = moment

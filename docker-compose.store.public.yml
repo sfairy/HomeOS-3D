@@ -33,7 +33,7 @@ services:
 
   # 只做 TLS 终止与转发，不碰商店数据；证书落在自己的卷里。
   caddy-public:
-    image: ${CADDY_IMAGE:-caddy:2-alpine}
+    image: ${CADDY_IMAGE:-caddy:2.11.4-alpine}
     container_name: homeos-3d-store-caddy
     restart: unless-stopped
     depends_on:

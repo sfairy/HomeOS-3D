@@ -129,7 +129,8 @@ def _assert_product_configuration(
     codes = [str(code).strip() for code in (feature_codes or []) if str(code).strip()]
     unknown = sorted({code for code in codes if code not in features.FEATURE_CODES})
     if unknown:
-        # 能力码清单在主项目（``backend/src/license/service.py``）与
+        # 能力码清单的权威源在主项目（``homeos-3d/backend/src/license/service.py``），
+        # 商店侧 ``ops/features.py`` 只是它的镜像；对不上的码客户端不会认，直接拒绝。
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(

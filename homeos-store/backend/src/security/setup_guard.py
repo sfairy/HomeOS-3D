@@ -13,7 +13,7 @@ from pathlib import Path
 from fastapi import HTTPException, Request, status
 
 from ..security.limiter import SlidingWindowLimiter
-from ..security.request_security import forwarded_headers_present
+from ..security.request_security import forwarded_headers_present, resolve_client_ip
 
 logger = logging.getLogger("src.setup")
 
@@ -224,8 +224,13 @@ class SetupGuard:
     def authorize(self, request: Request, setup_token: str = "") -> None:
         """校验本次初始化请求；无权限抛 403，超限抛 429。
         """
-        host = peer_host(request) or "unknown"
-        limiter_key = f"setup:{host}"
+        # 按**真实来源**限流（解析可信代理后的地址）。反代部署下若用 TCP 对端计数，
+        # 所有初始化请求会共用同一个桶，攻击者刷 10 次就能让合法管理员首次初始化被
+        # 429 挡住 15 分钟。per_client=False（无可信代理 / 转发头不可信）时退化为全局桶，
+        # 宁可整体收紧，也不给伪造 XFF 的请求单独开桶。
+        address = resolve_client_ip(request)
+        host = address.ip or "unknown"
+        limiter_key = f"setup:{host}" if address.per_client else "setup:global"
 
         if not self._attempts.allow(limiter_key):
             retry_after = max(1, int(self._attempts.retry_after(limiter_key)) or 1)
@@ -239,8 +244,9 @@ class SetupGuard:
             return
 
         logger.warning(
-            "拒绝了未带正确引导密钥的初始化请求 对端=%s Host=%s 是否经代理=%s 已配置密钥=%s",
+            "拒绝了未带正确引导密钥的初始化请求 对端=%s 经代理=%s Host=%s 有转发头=%s 已配置密钥=%s",
             host,
+            address.via_proxy,
             host_header_name(request) or "(缺失)",
             forwarded_headers_present(request),
             bool(self._token),

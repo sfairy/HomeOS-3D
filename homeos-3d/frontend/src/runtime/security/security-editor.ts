@@ -38,6 +38,7 @@ import {
   subscribeInteraction3dAccess,
 } from "@app/bridge/bridge";
 import { interaction3dPreviewSize } from "@app/bridge/preview-layout";
+import { domElement } from "@app/utils/dom-factory";
 export async function openSecurityEditor({
   component: component,
   panelDocument: documentApi,
@@ -74,14 +75,8 @@ export async function openSecurityEditor({
     ...draftProperties.security.cameras,
   ])
     Object.assign(cardTextItem, migrateCardTextSize(cardTextItem));
-  const createElement = (tagName, className = "", textContent = "") => {
-      const createdElement = document.createElement(tagName);
-      return (
-        (createdElement.className = className),
-        (createdElement.textContent = textContent),
-        createdElement
-      );
-    },
+  const createElement = (tagName, className = "", textContent = "") =>
+      domElement(document, tagName, className, textContent),
     createButton = (buttonLabel, onClick) => {
       const buttonElement = createElement("button", "", buttonLabel);
       return (

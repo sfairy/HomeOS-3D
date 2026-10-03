@@ -491,6 +491,152 @@ def _check_license_delete_refuses_when_ordered() -> None:
     )
 
 
+# ------------------------------------------------- 增量包履约必产生权益（P1 回归）
+
+
+@contextmanager
+def _products_db():
+    """只建 products 一张表的临时**文件**库：够 bundled_feature_codes 展开「包含商品」。"""
+    from sqlalchemy import create_engine
+    from src.core.models import Product
+
+    db_dir = Path(tempfile.mkdtemp(prefix="homeos-store-smoke-products-"))
+    engine = create_engine(f"sqlite:///{db_dir / 'products.db'}")
+    Product.__table__.create(engine)
+    try:
+        yield engine
+    finally:
+        engine.dispose()
+
+
+def _check_addon_fulfillment_grants_entitlements() -> None:
+    """增量包（只配 included_product_ids）履约后必须至少能开出 1 个能力码。
+
+    原缺陷：``apply_addon_to_license`` 只展开增量包自己的 ``feature_codes_json``，漏了
+    「包含商品」这一路。运营按「包含商品」配增量包是完全合法的配置（下单与结算都放行），
+    于是顾客付完钱拿到一张什么都开不了的授权 —— licensing 的 features_for 是 fail-closed，
+    激活时才 422，钱已经收了。
+    """
+    from sqlalchemy.orm import Session
+    from src.commerce import fulfill
+    from src.core.models import Product
+
+    with _products_db() as engine:
+        with Session(engine) as session:
+            session.add(Product(id="parent", name="增量包", price_cents=100, feature_codes_json="[]", included_product_ids_json='["child"]'))
+            session.add(Product(id="child", name="被包含商品", price_cents=0, feature_codes_json='["feature.child"]', included_product_ids_json="[]"))
+            session.commit()
+
+            parent = session.get(Product, "parent")
+            expect(
+                fulfill.bundled_feature_codes(session, parent),
+                ["feature.child"],
+                "bundled_feature_codes 必须展开包含商品的功能码",
+            )
+            expect_true(
+                fulfill._product_grants_features(session, parent),  # noqa: SLF001 - 冒烟就是要钉这个私有判据
+                "只配包含商品的增量包必须被判为「能开出能力」，否则会被履约守卫直接拦掉",
+            )
+
+    # 源码事实：追加与升级都要展开「包含商品」的功能码，履约后还要兜底断言。
+    addon_source = inspect.getsource(fulfill.apply_addon_to_license)
+    expect_true(
+        "bundled_feature_codes(" in addon_source,
+        "apply_addon_to_license 必须展开包含商品的功能码（缺 bundled_feature_codes 调用）",
+    )
+    expect_true(
+        "grant_bundled_entitlements(" in inspect.getsource(fulfill.upgrade_license_in_place),
+        "upgrade_license_in_place 必须展开包含商品，否则两种增量形态口径不一致",
+    )
+    order_source = inspect.getsource(fulfill.fulfill_order)
+    expect_true(
+        'order.license_action in {"issue", "patch", "upgrade"}' in order_source,
+        "fulfill_order 的 _product_grants_features 守卫必须覆盖 issue / patch / upgrade",
+    )
+    expect_true(
+        "_license_grants_features(" in order_source,
+        "fulfill_order 必须在履约后断言授权至少能开出 1 个能力码，否则置 fulfillment_failed",
+    )
+
+
+# ------------------------------------------------------------ 默认渠道口径（P1 回归）
+
+
+def _check_default_channel_stays_within_enabled() -> None:
+    """没显式选渠道时必须落在**启用集合**内，不能读原始 payment_provider。
+
+    原缺陷：``resolve_provider`` / 下单流程直接读 ``settings.payment_provider``，于是
+    DB 里只勾了微信（``payment_channels_json=["wechat"]``）而环境变量是 alipay 时，
+    顾客没选渠道就被冻结成支付宝 —— 前台展示微信、后台按支付宝收款，两边对不上。
+    """
+    import types
+
+    from src.payments import channels as channels_module
+    from src.payments import resolve_provider
+
+    def default_for(channels_json: str, setting_provider: str, env_provider: str) -> str:
+        setting = types.SimpleNamespace(
+            payment_channels_json=channels_json,
+            payment_provider=setting_provider,
+        )
+        settings = types.SimpleNamespace(payment_provider=env_provider)
+        return channels_module.default_channel_name(setting, settings)
+
+    expect(default_for('["wechat"]', "alipay", "alipay"), "wechat", "启用集合必须压过原始 payment_provider")
+    expect(default_for('["wechat", "alipay"]', "alipay", "wechat"), "alipay", "配置的渠道本身也在启用集合内时应当直接采用")
+    expect(default_for("", "", "wechat"), "wechat", "老部署（未写 payment_channels_json）回落到环境变量")
+    expect(default_for('["wechat"]', "", "alipay"), "wechat", "setting 未写 payment_provider 时同样只能在启用集合内挑")
+    expect(default_for("", "", "mock"), "", "一个渠道都没启用时必须返回空串（拒绝建单），不能退化成未知渠道")
+
+    source = inspect.getsource(resolve_provider)
+    expect_true(
+        "default_channel_name(" in source,
+        "resolve_provider 的无 name 分支必须走 default_channel_name（只在启用集合内挑）",
+    )
+
+
+# ----------------------------------------- 付款入账 → 退款撤权益（settle → revert 全链路）
+
+
+def _check_settle_then_revert_license_chain() -> None:
+    """settle_paid_order 履约成功，退款时必须能沿同一口径把授权还原回去。
+
+    这一条是「钱与权益对得上」的底线：入账走 fulfill_order，退款走 revert_license_change，
+    两边都要认同一个「是否还有别的有效订单在给这个商品付款」的判据（has_other_live_grant），
+    否则重复购买同一增量包时，一笔退款会把别人付过钱的能力收回。
+    """
+    from src.api import admin_orders as admin_orders_module
+    from src.commerce import fulfill
+    from src.payments import settlement
+
+    settle_source = inspect.getsource(settlement.settle_paid_order)
+    expect_true("fulfill.fulfill_order(" in settle_source, "入账必须调 fulfill.fulfill_order")
+    expect_true(
+        "_mark_fulfillment_failed(" in settle_source,
+        "履约抛异常时必须把订单标成 fulfillment_failed（而不是吞掉）",
+    )
+    expect_true(
+        "def _mark_fulfillment_failed" in inspect.getsource(settlement),
+        "settlement 必须提供 _mark_fulfillment_failed",
+    )
+
+    revert_source = inspect.getsource(fulfill.revert_license_change)
+    expect_true(
+        "has_other_live_grant(" in revert_source,
+        "revert_license_change 收回权益前必须确认没有别的有效订单在给同一商品付款",
+    )
+
+    revoke_source = inspect.getsource(admin_orders_module._revoke_order_entitlements)  # noqa: SLF001
+    expect_true(
+        "fulfill.revert_license_change(" in revoke_source,
+        "全额退款撤权益时必须优先走 fulfill.revert_license_change（还原升级/增量包）",
+    )
+    expect_true(
+        "license_state_before_json" in revoke_source,
+        "撤权益前必须确认订单留下了升级/增量包的授权快照，否则无从还原",
+    )
+
+
 def main() -> int:
     data_dir = prepare_environment()
     print(f"数据目录：{data_dir}")
@@ -529,6 +675,15 @@ def main() -> int:
 
     print("\n授权删除：")
     check("被订单引用的授权拒绝硬删", _check_license_delete_refuses_when_ordered)
+
+    print("\n增量包履约权益（P1 回归）：")
+    check("只配包含商品的增量包履约后至少能开出 1 个能力码", _check_addon_fulfillment_grants_entitlements)
+
+    print("\n默认渠道口径（P1 回归）：")
+    check("未显式选渠道时必须落在启用集合内", _check_default_channel_stays_within_enabled)
+
+    print("\n入账 → 退款撤权益（全链路）：")
+    check("settle_paid_order 履约 / 退款沿同一判据还原授权", _check_settle_then_revert_license_chain)
 
     passed = checked - len(failures)
     print(f"\n通过 {passed} / {checked} 项检查。")

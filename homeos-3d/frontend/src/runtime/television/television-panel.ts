@@ -4,13 +4,11 @@ import {
   televisionPower,
   televisionMediaControl,
 } from "./television-state";
+import { domElement } from "@app/utils/dom-factory";
 export function createTelevisionPanel({
   onControl: onControl = async () => {},
 }: { onControl?: (command?: any) => any } = {}) {
-  const createElement = (tag, className) => {
-      const createdElement = document.createElement(tag);
-      return ((createdElement.className = className), createdElement);
-    },
+  const createElement = (tag, className) => domElement(document, tag, className),
     rootElement = createElement("div", "i3d-television-panel"),
     headingElement = createElement("div", "i3d-nas-heading"),
     titleElement = createElement("h3", ""),

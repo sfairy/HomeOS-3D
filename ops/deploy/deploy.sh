@@ -157,7 +157,9 @@ env_set() {
   tmp="$ENV_FILE.homeos-tmp.$$"
   awk -v key="$key" -v value="$value" '
     BEGIN { done = 0 }
-    $0 ~ "^[[:space:]]*#?[[:space:]]*" key "=" && done == 0 { print key "=" value; done = 1; next }
+    # 只替换**已生效**的赋值行；被注释掉的键（`# KEY=...`）按「没有这个键」处理，
+    # 与 env_value 的判读口径一致（否则会把别人特意注释掉的配置悄悄「复活」）。
+    $0 ~ "^[[:space:]]*" key "=" && done == 0 { print key "=" value; done = 1; next }
     { print }
     # .env 里没有这个键时（老 .env、精简客户包）也要补上，否则钉版本会静默丢失。
     END { if (done == 0) print key "=" value }

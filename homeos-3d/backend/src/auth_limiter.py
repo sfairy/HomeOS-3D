@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from collections import defaultdict, deque
 from math import ceil
 from threading import Lock
@@ -21,7 +22,6 @@ class LoginAttemptLimiter:
         self._failures = defaultdict(deque)
         self._blocked_until = { }
         self._lock = Lock()
-        return None
 
     def blocked(self, key) -> bool:
         now = monotonic()
@@ -63,23 +63,23 @@ class LoginAttemptLimiter:
                 # 攻击者只要每 block_seconds 打五个密码就能长期慢慢试。保留时间戳后，
                 # 解封瞬间窗口里仍留着失败记录，再失败一次立刻重新封禁，直到时间戳自然过期。
                 self._blocked_until[key] = now + self.block_seconds
-            return None
-        return None
+            return
+        return
 
     def reset(self, key) -> None:
         with self._lock:
             self._failures.pop(key, None)
             self._blocked_until.pop(key, None)
-            return None
-        return None
+            return
+        return
 
     def _prune(self, key, now) -> None:
         failures = self._failures.get(key)
         if failures is None:
-            return None
+            return
         cutoff = now - self.window_seconds
         while failures and failures[0] < cutoff:
             failures.popleft()
         if not failures:
             self._failures.pop(key, None)
-        return None
+        return

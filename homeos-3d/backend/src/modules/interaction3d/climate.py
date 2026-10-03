@@ -60,7 +60,7 @@ def require_air_conditioner_model(bindings: list, entity_id: str, scene: dict, *
             else { 'wallac', 'floorac', 'airoutlet' }
         )
         if len(models) == 1 and models[0].get('type') in allowed:
-            return None
+            return
     raise HTTPException(409, detail='设备模型已失联，请在环境配置中重新选择模型。')
 
 
@@ -93,8 +93,8 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
     power = service in { 'turn_on', 'turn_off' }
     temperature_fields = { 'temperature' } if set(data) == { 'temperature' } else { 'target_temp_low', 'target_temp_high' }
     if (
-        power and data
-        or not power and (field is None or set(data) != (temperature_fields if service == 'set_temperature' else { field }))
+        (power and data)
+        or (not power and (field is None or set(data) != (temperature_fields if service == 'set_temperature' else { field })))
     ):
         raise HTTPException(422, detail='3D 空调控制不支持此服务或参数。')
     # unknown / unavailable 与空状态同等对待，不去猜设备的真实状态。
@@ -113,7 +113,7 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
     if power:
         if not supports(256 if service == 'turn_on' else 128):
             raise HTTPException(422, detail='空调未提供有效的开机能力。' if service == 'turn_on' else '空调未提供有效的关机能力。')
-        return None
+        return
     if service == 'set_temperature':
         # 温度区间与步长都来自 HA 属性；step 缺失时不做刻度校验（温区形式的空调通常没有 step）。
         is_range = temperature_fields != { 'temperature' }
@@ -126,7 +126,7 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
             not supports(2 if is_range else 1, legacy)
             or not all(_number(v) for v in (minimum, maximum))
             or minimum >= maximum
-            or step is not None and (not _number(step) or step <= 0)
+            or (step is not None and (not _number(step) or step <= 0))
         ):
             raise HTTPException(409, detail='空调未提供有效的温度调节能力。')
         # 先挡越界值，再挡不在刻度上的值，两类错误分别给不同提示。
@@ -143,7 +143,7 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
                 raise HTTPException(422, detail='目标温度不符合空调支持的调节步长。')
         if is_range and data['target_temp_low'] > data['target_temp_high']:
             raise HTTPException(422, detail='温区下限不能高于上限。')
-        return None
+        return
     # 模式类服务：取值必须命中 HA 当前上报的候选列表，且设备声明了对应的能力位
     # （没声明能力位的旧版集成退化为「候选列表非空」）。feature 为 None 表示该模式
     # 在 HA 里没有独立能力位（hvac_mode），只看候选列表。
@@ -157,11 +157,11 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
     attribute, feature = options[field]
     value, choices = data[field], attributes.get(attribute)
     if (
-        feature is not None and not supports(feature, isinstance(choices, list))
+        (feature is not None and not supports(feature, isinstance(choices, list)))
         or not isinstance(value, str)
         or not isinstance(choices, list)
         or not value
         or value not in choices
     ):
         raise HTTPException(422, detail='该模式不在空调当前支持的选项中。')
-    return None
+    return

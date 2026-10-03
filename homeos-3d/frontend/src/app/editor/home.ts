@@ -10699,6 +10699,38 @@ async function projectSummary(
     activeProject
   );
 }
+async function recoverDraftConflict(projectId2) {
+  let latestDraft;
+  try {
+    latestDraft = await requestJson("/projects/" + projectId2 + "/draft");
+  } catch (refreshLatestError) {
+    handleOperationError(refreshLatestError);
+    return;
+  }
+  if (!activeProject || activeProject.projectId !== projectId2) return;
+  const useRemote = await confirmAction({
+    kicker: "REVISION CONFLICT",
+    title: "草稿已在其它页面被更新",
+    message: "服务器上的这份草稿比你打开的更新，当前版本号已无法直接保存。",
+    detail: "「加载远端」丢弃本页未保存的修改；「保留本地并重试」保留当前编辑，改用最新版本号重新保存。",
+    confirmLabel: "加载远端",
+    cancelLabel: "保留本地并重试",
+    tone: "warning",
+  });
+  if (!activeProject || activeProject.projectId !== projectId2) return;
+  if (useRemote) {
+    await historyEntry(projectId2);
+    return;
+  }
+  // 以最新 revision 重试保存：先解除 isSaving，否则递归的 saveDraft 会被自身守卫挡掉。
+  activeProject = {
+    ...activeProject,
+    revision: latestDraft.revision,
+    globalPopupRevision: latestDraft.globalPopupRevision,
+  };
+  ((isSaving = false), writeError(), syncHistoryButtons());
+  await saveDraft();
+}
 async function saveDraft() {
   if (!activeProject || !hasUnsavedChanges || isSaving || historyState.busy) return;
   const projectId2 = activeProject.projectId,
@@ -10760,6 +10792,10 @@ async function saveDraft() {
       documentSignature2(activeProject.document) !== savedProjectSummary &&
         renderEditorWorkspace(pageSelectElement.value));
   } catch (refreshAuthSession) {
+    if (refreshAuthSession?.code === "PROJECT_REVISION_CONFLICT") {
+      await recoverDraftConflict(projectId2);
+      return;
+    }
     handleOperationError(refreshAuthSession);
   } finally {
     ((isSaving = false), writeError(), syncHistoryButtons());

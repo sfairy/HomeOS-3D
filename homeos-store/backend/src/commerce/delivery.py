@@ -13,8 +13,8 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..core.database import Database
-from ..core.models import License, Order, StoreSetting, utcnow
-from ..ops import incidents, mail_settings, mailer
+from ..core.models import License, Order, utcnow
+from ..ops import incidents, mailer
 from ..ops import site_settings as site_config
 
 logger = logging.getLogger("src.commerce.delivery")
@@ -164,8 +164,3 @@ def sweep_undelivered(database: Database, *, limit: int = 10) -> int:
         if notify_license_issued(database, order_id=order_id).get("sent"):
             sent += 1
     return sent
-
-
-def merge_delivery_settings(database: Database, setting: StoreSetting):
-    """给调用方一个「当前生效的发信配置」入口（后台改完免重启）。"""
-    return mail_settings.merge_mail_settings(database.settings, setting)

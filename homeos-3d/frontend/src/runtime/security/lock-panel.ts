@@ -1,9 +1,8 @@
 import { lockState } from "./lock-state";
+import { domElement } from "@app/utils/dom-factory";
 export function createLockPanel({ onControl: onControl }) {
-  const createTextElement = (tagName, textContent = "") => {
-      const createdElement = document.createElement(tagName);
-      return ((createdElement.textContent = textContent), createdElement);
-    },
+  const createTextElement = (tagName, textContent = "") =>
+      domElement(document, tagName, "", textContent),
     panelElement = createTextElement("section"),
     headingElement = createTextElement("div"),
     titleElement = createTextElement("h3"),

@@ -208,7 +208,7 @@ class PanelComponent(ExtensibleModel):
     # 事件名 -> 动作，例如 {"tap": ComponentAction(...)}。
     actions: dict[str, ComponentAction] = Field(default_factory=dict)
     # 子组件（成组控件），通过字符串前向引用指回自身类型。
-    children: list['PanelComponent'] = Field(default_factory=list)
+    children: list[PanelComponent] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_id(self) -> PanelComponent:

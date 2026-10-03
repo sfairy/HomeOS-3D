@@ -1,6 +1,8 @@
 '''Capability and argument validation for a bound media-player speaker.'''
 import math
+
 from fastapi import HTTPException
+
 FEATURES = {
     'media_pause': 1,
     'media_seek': 2,

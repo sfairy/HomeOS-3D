@@ -15,12 +15,18 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
 from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, require_viewer_project
-from ..global_popups import clear_popup_references, global_popup_state, global_popups, hydrate_document_popups, strip_document_popups
+from ..global_popups import (
+    clear_popup_references,
+    global_popup_state,
+    global_popups,
+    hydrate_document_popups,
+    strip_document_popups,
+)
 from ..models import GlobalCustomPopupState, Project, ProjectDraft
-from ..panel.documents import create_blank_project
-from ..panel.schema import validate_panel_document
 from ..modules.interaction3d.access import canonicalize_document_camera_interaction
 from ..modules.interaction3d.access import require_document_changes as require_interaction3d_changes
+from ..panel.documents import create_blank_project
+from ..panel.schema import validate_panel_document
 from ..schemas import ProjectCreateRequest, ProjectDeleteRequest, ProjectDraftUpdate, ProjectDuplicateRequest
 
 router = APIRouter(prefix='/projects', tags=['projects'])

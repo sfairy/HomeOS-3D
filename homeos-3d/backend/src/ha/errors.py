@@ -1,7 +1,10 @@
 '''Chinese connection messages for setup and historical/runtime failures.'''
 from __future__ import annotations
+
 import re
+
 import httpx
+
 
 def is_certificate_error(error: Exception) -> bool:
     for _ in range(6):

@@ -12,31 +12,34 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 import shutil
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import Field
 from sqlalchemy import select
+from starlette.concurrency import run_in_threadpool
 
-from ...config import Settings
-from ...dependencies import DatabaseSession, LicensedViewer, LicensedUser, require_viewer_project
-from ...models import HAEntity, ProjectDraft
-from ...schemas import HAServiceCallRequest
-from ...api.ha import active_connection, call_service
-from ...api.assets import user_asset_file, UPLOAD_CONTENT_TYPES
 from .access import access_grant, is_scene_id, module_components, require_access, scene_snapshot_file
 from .climate import require_air_conditioner_model, validate_climate_command
 from .cover import require_curtain_model, validate_cover_command
 from .render_cache import MAX_ENTRY_BYTES, cache_path, read_cache, write_cache
+from ...api.assets import UPLOAD_CONTENT_TYPES, user_asset_file
+from ...api.ha import active_connection, call_service
+from ...config import Settings
+from ...dependencies import DatabaseSession, LicensedUser, LicensedViewer, require_viewer_project
+from ...models import HAEntity, ProjectDraft
 from ...request_origin import require_same_origin_write
-from starlette.concurrency import run_in_threadpool
+from ...schemas import HAServiceCallRequest
 
 # 这个前缀必须与前端请求、舞台页注入的样式链接保持一致。
 router = APIRouter(prefix='/modules/interaction3d', tags=['3D interaction'])
+
+LOGGER = logging.getLogger(__name__)
 
 # studio 快照的来源标记：只在服务端内部流转，不下发给前端。
 SCENE_SOURCE_KEY = 'interaction3dSource'
@@ -56,14 +59,14 @@ def component_properties(database, project_id: str | None, component_id: str | N
     #
     # 草稿缺失、文档损坏、控件不存在都退化成空字典：调用方随后的「实体未配置到当前
     # 控件」判定会自然拒绝，不必每个设备分支各写一遍「取草稿 → 找控件 → 读 properties」。
-    # 文档损坏时 json.loads 照旧抛出，由 FastAPI 转成 500：那属于库里的数据已经坏了，
-    # 不该被这里悄悄吞掉。
+    # 文档损坏由 decode_draft_document 记一条 warning 后按空文档处理，不让脏数据冒成 500。
     if not project_id or not component_id:
         return {}
     draft = database.get(ProjectDraft, project_id)
-    if draft is None:
+    document = decode_draft_document(draft)
+    if document is None:
         return {}
-    component = find_module_component(json.loads(draft.document_json), component_id)
+    component = find_module_component(document, component_id)
     return component.get('properties', {}) if component else {}
 
 
@@ -72,7 +75,7 @@ def scene_snapshot(request: Request, database, scene_id: str) -> dict:
     #
     # 快照文件不存在时 scene_path 抛 404；内容损坏由调用方包成 409 —— 两类失败
     # 在设备控制分支里的文案不同，所以异常处理留在调用处。
-    snapshot = json.loads(scene_path(request, scene_id).read_text(encoding='utf-8'))
+    snapshot = load_scene_document(request, scene_id)
     return current_scene_payload(request, database, scene_id, snapshot)['scene']
 
 class Interaction3dControlRequest(HAServiceCallRequest):
@@ -138,6 +141,35 @@ def scene_path(request: Request, scene_id: str):
     return path
 
 
+def load_scene_document(request: Request, scene_id: str) -> dict:
+    # [补充说明] 读取户型快照原文；文件缺失 → 404（scene_path 抛出），内容损坏 → 409。
+    #
+    # 快照被写坏（截断 / 非法 JSON）时不能让它冒成 500：这是舞台页与墙屏的取景入口，
+    # 调用方需要一个能自动重试或提示重新导出户型的确定性错误码。
+    try:
+        payload = json.loads(scene_path(request, scene_id).read_text(encoding='utf-8'))
+    except (OSError, ValueError) as error:
+        raise HTTPException(409, detail='户型快照损坏或无法读取，请重新保存后再试。') from error
+    if not isinstance(payload, dict):
+        raise HTTPException(409, detail='户型快照损坏或无法读取，请重新保存后再试。')
+    return payload
+
+
+def decode_draft_document(draft: ProjectDraft | None) -> dict | None:
+    # [补充说明] 解析仪表盘草稿的 document_json；草稿缺失或内容损坏都返回 None。
+    #
+    # 读草稿的两类调用方（鉴权门禁、控件配置读取）都不该因为库里的脏数据 500：
+    # 门禁按「没配到」拒绝、配置读取退化成空配置，错误由更上层的业务判定给出。
+    if draft is None:
+        return None
+    try:
+        document = json.loads(draft.document_json)
+    except (TypeError, ValueError):
+        LOGGER.warning('仪表盘草稿 %s 的 document_json 无法解析，按空文档处理。', draft.id)
+        return None
+    return document if isinstance(document, dict) else None
+
+
 def require_scene_viewer(request, database, viewer, scene_id, project_id):
     # [补充说明] 要求当前主体有权读取这个户型快照，否则 403。
     #
@@ -149,20 +181,20 @@ def require_scene_viewer(request, database, viewer, scene_id, project_id):
     require_access(request)
     # 管理员不受项目限制，也不校验引用关系：后台需要能预览任意快照。
     if viewer.is_admin_session:
-        return None
+        return
     require_viewer_project(viewer, project_id)
     # 关键一步：快照文件躺在共享目录里，必须确认当前项目的文档确实引用了它，
     # 否则任一已配对设备换掉 URL 里的 sceneId 就能读到别人的户型。
     draft = database.get(ProjectDraft, project_id)
     # 草稿损坏时按「没配到」拒绝（403）而不是 500：这是一道门禁，脏数据的答案
-    # 只能是「不放行」（统一入口）。
-    document = json.loads(draft.document_json) if draft is not None else None
+    # 只能是「不放行」（统一入口）。decode_draft_document 会记 warning 后返回 None。
+    document = decode_draft_document(draft)
     if not any(
         c.get('properties', {}).get('sceneId') == scene_id
         for _, c in module_components(document or {})
     ):
         raise HTTPException(403, detail='此户型未配置到当前仪表盘。')
-    return None
+    return
 
 
 def require_scene_transfer(request, viewer, scene_id, project_id):
@@ -173,7 +205,6 @@ def require_scene_transfer(request, viewer, scene_id, project_id):
     database = request.app.state.database.session_factory()
     with database:
         require_scene_viewer(request, database, viewer, scene_id, project_id)
-    return None
 
 
 def current_scene_payload(request: Request, database, scene_id: str, reference: dict, *, since: str = '') -> dict:
@@ -247,7 +278,7 @@ def get_scene(scene_id: str, request: Request, viewer: LicensedViewer, projectId
     # 返回快照原文，只在每个楼层的背景上补一个指向本模块 background 路由的 url，
     # 让前端统一按 url 取图，不必自己拼路径与鉴权参数。
     require_scene_transfer(request, viewer, scene_id, projectId)
-    payload = json.loads(scene_path(request, scene_id).read_text(encoding='utf-8'))
+    payload = load_scene_document(request, scene_id)
     scene = payload['scene']
     # 局部导入：只有本路由与 get_current_scene 用到 urlencode，放模块顶部属于噪音。
     from urllib.parse import urlencode
@@ -274,7 +305,7 @@ def get_current_scene(scene_id: str, request: Request, database: DatabaseSession
     # 异常:
     # HTTPException: 409，前端带了 since（说明正在跟踪同步）但草稿读不出来或写了一半。
     require_scene_transfer(request, viewer, scene_id, projectId)
-    reference = json.loads(scene_path(request, scene_id).read_text(encoding='utf-8'))
+    reference = load_scene_document(request, scene_id)
     try:
         # 载荷来源（草稿 / 快照）由 current_scene_payload 统一决定，
         # 带 since 时读不出草稿会抛 ValueError，转成 409 让前端稍后重试。
@@ -504,6 +535,8 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         is_purifier = not (is_climate_extra or is_bath_heater or is_airer or is_fan or is_water_heater or generic_device or is_cover) and (payload.domain == 'fan' or payload.device_kind == 'purifier-extra')
         if is_climate_extra:
             name = '空调'
+        elif is_bath_heater:
+            name = '浴霸'
         elif is_airer:
             name = '晾衣架'
         elif is_fan:
@@ -523,6 +556,10 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         require_viewer_project(viewer, payload.project_id)
         properties = component_properties(database, payload.project_id, payload.component_id)
         bindings = properties.get('environment', {}).get('airConditioners' if is_climate_extra or is_bath_heater else 'airers' if is_airer else 'fans' if is_fan else 'waterHeaters' if is_water_heater else 'curtains' if is_cover else 'airPurifiers' if payload.domain == 'fan' or extra_domain else 'airConditioners', [])
+        # 先落空列表：下面 `require_binding_model` 闭包与 extra_domain 分支会读这两个名字，
+        # 显式初始化既让「可能未绑定」的静态告警消失，也避免以后调整分支顺序时踩到 UnboundLocalError。
+        generic_bindings = []
+        valid_owners = []
         if is_bath_heater:
             bindings = [item for item in bindings if item.get('climateType') == 'bath-heater']
         if generic_device:
@@ -550,7 +587,7 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
                     profile = next(profile for profile, item in generic_bindings if item is owner)
                     require_device_model(owner, scene, profile['model_type'])
                 elif is_airer:
-                    require_curtain_model([owner if owner else primary], (owner if owner else primary)['entityId'], scene, model_type='airer')
+                    require_curtain_model([owner or primary], (owner or primary)['entityId'], scene, model_type='airer')
                 elif is_fan:
                     require_air_conditioner_model([owner] if owner else bindings, owner.get('entityId', '') if owner else payload.entity_id, scene, fan_model='fan')
                 elif is_purifier:
@@ -564,7 +601,6 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
 
         if extra_domain:
             failures = []
-            valid_owners = []
             for owner in owners:
                 try:
                     require_binding_model(owner)
@@ -589,7 +625,7 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
             failures = []
             for owner in valid_owners:
                 try:
-                    if generic_device or (is_purifier or is_water_heater or (is_climate_extra and owner.get('climateType') == 'bath-heater')) and owner.get('deviceId'):
+                    if generic_device or ((is_purifier or is_water_heater or (is_climate_extra and owner.get('climateType') == 'bath-heater')) and owner.get('deviceId')):
                         if not owner.get('deviceId') or entity.device_id != owner['deviceId']:
                             raise HTTPException(403, detail='此实体不属于当前绑定设备，请重新选择。')
                     else:
@@ -729,7 +765,7 @@ def get_config(project_id: str, component_id: str, request: Request, database: D
     draft = database.get(ProjectDraft, project_id)
     if draft is None:
         raise HTTPException(404, detail='仪表盘不存在。')
-    component = find_module_component(json.loads(draft.document_json), component_id)
+    component = find_module_component(decode_draft_document(draft) or {}, component_id)
     if component is None:
         raise HTTPException(404, detail='3D 交互控件不存在。')
     return {'projectId': project_id, 'componentId': component_id, 'phase': 'authorization-shell', 'component': component}

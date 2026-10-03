@@ -1,4 +1,4 @@
-export const LIGHT_EFFECT_RANGE = Object.freeze({
+const LIGHT_EFFECT_RANGE = Object.freeze({
     brightnessMin: 50,
     brightnessMax: 150,
     temperatureMin: 2700,

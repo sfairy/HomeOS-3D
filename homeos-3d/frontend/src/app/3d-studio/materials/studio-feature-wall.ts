@@ -10,6 +10,7 @@ import {
   FEATURE_WALL_STYLE_MATERIAL,
   normalizeFeatureWallStyle,
 } from "./studio-surface-textures";
+import { addMeshBoxToGroup } from "./mesh-box";
 
 const MAX_TEXTURE_ANISOTROPY = 8;
 
@@ -27,17 +28,8 @@ export function createFeaturewallModel(three, item) {
   const group = new three.Group();
   group.name = "featurewall";
 
-  const addMeshBox = (boxWidth, boxHeight, boxDepth, x, y, z, color, roughness, metalness) => {
-    const mesh = new three.Mesh(
-      new three.BoxGeometry(boxWidth, boxHeight, boxDepth),
-      new three.MeshStandardMaterial({ color, roughness, metalness }),
-    );
-    mesh.position.set(x, y, z);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    group.add(mesh);
-    return mesh;
-  };
+  const addMeshBox = (boxWidth, boxHeight, boxDepth, x, y, z, color, roughness, metalness) =>
+    addMeshBoxToGroup(three, group, boxWidth, boxHeight, boxDepth, x, y, z, color, roughness, metalness);
 
   const wallStyle = normalizeFeatureWallStyle(item.wallStyle);
   const wallMaterial = FEATURE_WALL_STYLE_MATERIAL[wallStyle];

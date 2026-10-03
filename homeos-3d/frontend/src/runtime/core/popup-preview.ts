@@ -1,3 +1,4 @@
+import { domElement } from "@app/utils/dom-factory";
 const { popupPlacement: popupPlacement } = await (import("@app/bridge/popup-placement")),
   { cameraPopupLayout: cameraPopupLayout } = await (import("@app/bridge/camera-popup-layout"));
 function popupPreviewPlacement(kind, width, height, settings) {
@@ -21,14 +22,8 @@ function popupPreviewPlacement(kind, width, height, settings) {
 }
 export function createPopupLayoutPreview(hostElement, getLayout, onClose) {
   const ownerDocument = hostElement.ownerDocument || document,
-    createElement = (tag, className, text = "") => {
-      const createdElement = ownerDocument.createElement(tag);
-      return (
-        (createdElement.className = className),
-        (createdElement.textContent = text),
-        createdElement
-      );
-    },
+    createElement = (tag, className, text = "") =>
+      domElement(ownerDocument, tag, className, text),
     layerElement = createElement("div", "i3d-popup-preview-layer"),
     previewElement = createElement("section", "i3d-popup-preview");
   previewElement.setAttribute("aria-label", "弹窗布局预览");

@@ -5,6 +5,7 @@ import {
   fitFlowLinePath as fitFlowLinePath2,
 } from "./flow-line-model";
 import { renderFlowLine as renderFlowLine2 } from "../renderer/core/registry/flow-line";
+import { domSvgNode } from "@app/utils/dom-factory";
 let activeEditorInstance = null;
 /** 路径编辑器选项：由 inspector 的 pathEditorContext 动态拼装后透传。 */
 /** 路径下拉增强器的返回句柄（inspector 提供，含 sync/keydown/destroy）。 */
@@ -156,12 +157,8 @@ export function openFlowLinePathEditor(
     inert: lockTargetElement.inert,
   }));
   map.forEach(({ element: inertTargetNode }) => (inertTargetNode.inert = true));
-  const createSvgElement = (tagName, attributes, parentElement = drawingSvgElement) => {
-      const elementNS2 = document.createElementNS("http://www.w3.org/2000/svg", tagName);
-      for (const [attributeName, attributeValue] of Object.entries(attributes))
-        elementNS2.setAttribute(attributeName, String(attributeValue));
-      return (parentElement.append(elementNS2), elementNS2);
-    },
+  const createSvgElement = (tagName, attributes, parentElement = drawingSvgElement) =>
+      domSvgNode(document, tagName, attributes, parentElement),
     axisGuidePathElement = createSvgElement("path", {
       class: "flow-line-axis-guide",
       fill: "none",

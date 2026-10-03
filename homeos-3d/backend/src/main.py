@@ -24,36 +24,40 @@ from uuid import uuid4
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select, text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .admin_account import AdminAccountStore
+from .api.assets import AssetCatalog, read_builtin_asset
+from .api.assets import router as assets_router
 from .api.auth import router as auth_router
-from .api.assets import AssetCatalog, read_builtin_asset, router as assets_router
 from .api.displays import router as displays_router
-from .embedding import EmbedSessionMiddleware, embedded_devices
-from .api.ha import router as ha_router, runtime_router
-from .api.ha_proxy import router as ha_proxy_router
 from .api.global_logs import router as global_logs_router
+from .api.ha import router as ha_router
+from .api.ha import runtime_router
+from .api.ha_proxy import router as ha_proxy_router
 from .api.icons import router as icons_router
-from .api.license import LICENSE_ACTIVATION_LIMIT, router as license_router
-from .modules.interaction3d.api import router as interaction3d_router
+from .api.license import LICENSE_ACTIVATION_LIMIT
+from .api.license import router as license_router
 from .api.projects import router as projects_router
 from .api.public_config import router as public_config_router
 from .api.studio3d import router as studio3d_router
 from .auth_limiter import LoginAttemptLimiter
 from .config import Settings, load_settings
 from .database import Database
+from .display_access import active_display_device, backfill_persistent_display_pairings
+from .embedding import EmbedSessionMiddleware, embedded_devices
+from .global_log import GlobalLogStore, _safe_text, event_context
 from .ha.service import HAConnectorService
 from .license import LicenseService
-from .updates import UpdateChecker, router as updates_router
 from .migrations import restore_upgrade_backup, run_migrations
-from .display_access import active_display_device, backfill_persistent_display_pairings
-from .global_log import GlobalLogStore, _safe_text, event_context
 from .models import DisplayDevice, LoginSession, Project, User
+from .modules.interaction3d.api import router as interaction3d_router
 from .security import session_token_hash, set_display_cookie
+from .updates import UpdateChecker
+from .updates import router as updates_router
 
 # 超过这个耗时的接口会在全局日志里记一条"响应缓慢"的警告。
 SLOW_REQUEST_MILLISECONDS = 2000

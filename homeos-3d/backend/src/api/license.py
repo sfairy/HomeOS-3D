@@ -10,8 +10,8 @@ import asyncio
 
 from fastapi import APIRouter, HTTPException, Request, status
 
-from ..dependencies import CurrentUser, CurrentViewer
 from ..auth_limiter import retry_after_headers
+from ..dependencies import CurrentUser, CurrentViewer
 from ..license import LicenseClientError
 from ..request_origin import require_same_origin_write
 from ..schemas import LicenseActivateRequest

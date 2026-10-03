@@ -6,15 +6,10 @@ import {
 } from "./percentage-bar-model";
 import { inspectorComponentMetrics as inspectorComponentMetrics2 } from "../editor/editor-basic-inspectors";
 import type { DomControl } from "@app/utils/dom-control";
+import { domElement } from "@app/utils/dom-factory";
 const inspectorStateByHost = new WeakMap<any, any>(),
-  createElement = (tagName, textContent = null, className = "") => {
-    const element = document.createElement(tagName);
-    return (
-      textContent != null && (element.textContent = textContent),
-      className && (element.className = className),
-      element
-    );
-  };
+  createElement = (tagName, textContent = null, className = "") =>
+    domElement(document, tagName, className, textContent);
 /** 检查器里一个字段的配置。 */
 type InspectorFieldOptions = {
 /** input 类型（number / text / color…）或 select。 */

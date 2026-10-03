@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -52,6 +53,35 @@ def _derive_key_id(public_key_path: Path) -> str | None:
     except OSError:
         return None
     return f'hb-{hashlib.sha256(payload).hexdigest()[:16]}'
+
+
+def _read_baked_version() -> str:
+    # [补充说明] 构建期烘进镜像的版本号（Dockerfile 生成 ``backend/src/_version.py``
+    # 后编译成扩展）。源码运行时该模块不存在，返回空串让调用方回落到 package.json。
+    try:
+        from ._version import __version__ as baked  # type: ignore[import-not-found]
+    except ImportError:
+        return ''
+    return str(baked).strip()
+
+
+def _read_package_version() -> str:
+    # [补充说明] 仓库根 ``package.json`` 的 ``version`` —— 源码运行时的版本权威源。
+    #
+    # 源码布局是 ``homeos-3d/backend/src/config.py``，所以按候选路径逐个探测；
+    # 镜像里 ``__file__`` 是 ``/app/backend/src/config*.so``，这条会落空，此时用烘入值。
+    for candidate in (
+        PROJECT_ROOT / 'package.json',
+        REPO_ROOT / 'package.json',
+    ):
+        try:
+            payload = json.loads(candidate.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        version = payload.get('version') if isinstance(payload, dict) else None
+        if isinstance(version, str) and version.strip():
+            return version.strip()
+    return ''
 
 
 def _environment_bool(name: str, default: bool = False) -> bool:
@@ -341,17 +371,23 @@ class Settings:
         # 不必再补 esa / eo 空占位：LicenseEndpointPool._normalize_batches 会为三个批次名
         # 都建好键，candidates() 的批次顺序也写死在池内，空组既不参与选路也不影响顺序。
         return (
-            self.license_server_batches
-            if self.license_server_batches
-            else (('direct', (self.license_server_url,)),)
+            self.license_server_batches or ((('direct', (self.license_server_url,)),)
             if self.license_server_url
-            else ()
+            else ())
         )
 
     @property
     def version(self) -> str:
-        # [补充说明] 当前版本号，直接读仓库根的 VERSION 文件。
-        return (self.project_root / 'VERSION').read_text(encoding='utf-8').strip()
+        # [补充说明] 当前版本号。
+        #
+        # 三级回退，与商店 ``homeos-store/backend/src/__init__.py`` 的口径一致：
+        # 1. 构建期烘进镜像的 ``_version.py``（Dockerfile 生成后编译成扩展）；
+        # 2. 仓库根 ``package.json`` 的 ``version``（源码运行的唯一权威源）；
+        # 3. 兜底 ``"0.0.0"``。
+        #
+        # 不能只读 ``project_root / 'VERSION'``：镜像的 app 阶段从不 COPY 该文件，
+        # 导入期取版本会直接 FileNotFoundError，主应用容器起不来。
+        return _read_baked_version() or _read_package_version() or '0.0.0'
 
 
 def load_settings() -> Settings:

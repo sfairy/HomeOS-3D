@@ -1,3 +1,4 @@
+import { domElement } from "@app/utils/dom-factory";
 export function copyBatchFields(target, source, fields) {
   for (const field of fields) {
     if (field.compatible && !field.compatible(target)) continue;
@@ -17,14 +18,8 @@ export function openBatchApply({
   onApply: onApply,
   onClose: onClose = () => {},
 }) {
-  const create = (tagName, text = "", className = "") => {
-      const createdElement = document.createElement(tagName);
-      return (
-        text && (createdElement.textContent = text),
-        className && (createdElement.className = className),
-        createdElement
-      );
-    },
+  const create = (tagName, text = "", className = "") =>
+      domElement(document, tagName, className, text),
     dialogElement = create(
       "dialog",
       "",

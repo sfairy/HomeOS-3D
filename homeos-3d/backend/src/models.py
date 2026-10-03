@@ -1,9 +1,13 @@
 from __future__ import annotations
+
 from datetime import UTC, datetime
 from uuid import uuid4
+
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from .database import Base
+
 
 def utc_now():
     return datetime.now(UTC)
@@ -18,7 +22,7 @@ class User(Base):
     auth_externalized: Mapped[bool] = mapped_column(Boolean, nullable = False, default = False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone = True), nullable = False, default = utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone = True), nullable = False, default = utc_now, onupdate = utc_now)
-    sessions: Mapped[list['LoginSession']] = relationship(back_populates = 'user', cascade = 'all, delete-orphan')
+    sessions: Mapped[list[LoginSession]] = relationship(back_populates = 'user', cascade = 'all, delete-orphan')
 
 class LoginSession(Base):
     __tablename__ = 'sessions'
@@ -45,7 +49,7 @@ class DisplayPairingCode(Base):
     # 删除配对码只解绑设备（外键 SET NULL），不删设备：设备是独立的展示终端，
     # 配对码只是它的一次入场凭据。去掉 cascade 后 ORM 不再把设备当从属对象删除，
     # 保留 passive_deletes 让数据库自己执行 SET NULL。
-    device: Mapped['DisplayDevice | None'] = relationship(back_populates = 'pairing_code', passive_deletes = True, uselist = False)
+    device: Mapped[DisplayDevice | None] = relationship(back_populates = 'pairing_code', passive_deletes = True, uselist = False)
 
 class DisplayDevice(Base):
     __tablename__ = 'display_devices'

@@ -80,6 +80,7 @@ export interface StoreOrder {
   orderNo?: string;
   lookupToken?: string;
   status?: string;
+  statusLabel?: string;
   productName?: string;
   amountCents?: number;
   expiresAt?: string;

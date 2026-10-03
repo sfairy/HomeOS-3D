@@ -8,6 +8,7 @@ import {
 } from "./presence-motion";
 import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character";
 import { randomUuid } from "@app/utils/random-id";
+import { domElement } from "@app/utils/dom-factory";
 export async function openPresenceEditor({
   component: component,
   panelDocument: panelDocument,
@@ -43,14 +44,8 @@ export async function openPresenceEditor({
             : 30
           : (sensorEntry.displayDuration ?? 0),
       }));
-  const createDomElement = (tagName, textValue = "", classNameValue = "") => {
-      const createdElement = ownerDocument.createElement(tagName);
-      return (
-        textValue && (createdElement.textContent = textValue),
-        classNameValue && (createdElement.className = classNameValue),
-        createdElement
-      );
-    },
+  const createDomElement = (tagName, textValue = "", classNameValue = "") =>
+      domElement(ownerDocument, tagName, classNameValue, textValue),
     createSvgElement = (svgTagName, svgAttributes = {}) => {
       const svgElement = ownerDocument.createElementNS("http://www.w3.org/2000/svg", svgTagName);
       for (const [attributeName, attributeValue] of Object.entries(svgAttributes || {}))

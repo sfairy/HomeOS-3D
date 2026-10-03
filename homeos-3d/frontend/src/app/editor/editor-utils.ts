@@ -1,4 +1,6 @@
 import { randomUuid } from "../utils/random-id";
+import { clampNumber } from "../utils/number";
+export { clampNumber };
 export function clone(sourceValue) {
   return structuredClone(sourceValue);
 }
@@ -92,9 +94,6 @@ export function hsvToRgb(hueInput, saturationInput, brightnessInput) {
 }
 export function roundField(numericField) {
   return Number.isFinite(numericField) ? String(Math.round(numericField * 100) / 100) : "0";
-}
-export function clampNumber(sourceNumber, lowerBound, upperBound) {
-  return Math.max(lowerBound, Math.min(upperBound, sourceNumber));
 }
 export function normalizedFontWeight(fontWeightInput, fallbackWeight = 0.4) {
   const numericWeight = Number(fontWeightInput);

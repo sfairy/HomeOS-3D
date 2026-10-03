@@ -53,7 +53,7 @@ class LicenseProcessLock:
             raise RuntimeError(
                 '同一数据目录已有 HomeOS 进程运行，请通过现有服务管理器重启，勿重复启动。'
             ) from None
-        return None
+        return
 
     def release(self) -> None:
         # [补充说明] 释放锁；没持锁时是空操作。

@@ -8,11 +8,13 @@
 # 失败时调用 mark_failed 把地址临时拉黑。黑名单只存在于内存中，进程重启即清空 ——
 # 它的定位是「快速止损」，而不是持久状态。
 from __future__ import annotations
+
 import random
 import threading
 import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+
 # 一轮计划重试的间隔下限（秒）。端点拉黑时长与它对齐：黑名单若比重试节奏还长，
 # 每一轮自动重试都会整轮撞在冷却里，把「自动恢复」拖成「干等一个冷却周期」。
 LICENSE_RETRY_SECONDS = 120
@@ -66,7 +68,7 @@ class LicenseEndpointPool:
         # 异常:
         # ValueError: 批次名不在白名单内，或地址不是 HTTP/HTTPS。
         # 先把三个批次键都建好（即使一个地址都没配），后续取值不必再判 None。
-        normalized = {name: () for name in LICENSE_ENDPOINT_BATCH_NAMES}
+        normalized = dict.fromkeys(LICENSE_ENDPOINT_BATCH_NAMES, ())
         seen = set()
         for raw_name, raw_urls in batches:
             # 批次名大小写不敏感、容忍首尾空格：配置里写 'ESA ' 也能命中。

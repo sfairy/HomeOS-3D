@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 import re
+
 ENTITY_ID = re.compile('^[a-z0-9_]+\\.[a-z0-9_]+$')
 VIRTUAL_ENTITY_ID = re.compile('^virtual\\.[a-z0-9_]+\\.[a-z0-9_]+$')
 POPUP_SOURCES = frozenset({

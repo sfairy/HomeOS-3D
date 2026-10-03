@@ -1,4 +1,4 @@
-export const CAR_LAMP_LENSES = {
+const CAR_LAMP_LENSES = {
     front: [
       [
         [208, 193],

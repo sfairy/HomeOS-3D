@@ -5,8 +5,8 @@ import {
   polygonArea,
   modelBounds,
 } from "./geometry";
-export const COURTYARD_DRAWING_TYPES = ["courtyard-area", "courtyard-path", "courtyard-fence"],
-  isCourtyardDrawing = (candidateDrawing) =>
+const COURTYARD_DRAWING_TYPES = ["courtyard-area", "courtyard-path", "courtyard-fence"];
+export const isCourtyardDrawing = (candidateDrawing) =>
     COURTYARD_DRAWING_TYPES.includes(candidateDrawing?.type),
   courtyardSurfaceRise = (riseDrawing) =>
     riseDrawing?.type === "courtyard-area" && riseDrawing.drawing?.style !== "lawn"
@@ -31,10 +31,7 @@ export const COURTYARD_DRAWING_TYPES = ["courtyard-area", "courtyard-path", "cou
       hedge: "连续绿篱",
     },
   };
-const clamp = (valueToClamp, lowerLimit, upperLimit) =>
-    Math.max(lowerLimit, Math.min(upperLimit, valueToClamp)),
-  finiteOr = (valueToCheck, defaultNumber) =>
-    Number.isFinite(Number(valueToCheck)) ? Number(valueToCheck) : defaultNumber;
+import { clampNumber as clamp, finiteNumberOrCoerced as finiteOr } from "@app/utils/number";
 export function normalizeCourtyardDrawing(drawingInput) {
   if (!isCourtyardDrawing(drawingInput)) return {};
   const normalizePoints = (pointSource) =>

@@ -151,13 +151,21 @@ class LicenseAuthority:
             if not binding.is_live:
                 raise LicenseServerError("实例绑定已停用。", status_code=403, revoked=True, code="BINDING_RELEASED")
             # 会话必须属于**当前**绑定在该授权上的实例。少了这条，管理员刚做的解绑对
-            if not instance_id or binding.instance_id != instance_id:
+            # 老客户端无效。但「字段缺失」与「实例不匹配」是两类问题，必须分开：
+            # 缺 instanceId 的畸形/旧版客户端回 422 引导重新激活，绝不能按已吊销处理 ——
+            # revoked=True 会让客户端清掉本地授权、停用功能。
+            if not instance_id:
+                raise LicenseServerError(
+                    "心跳缺少实例标识（instanceId），请升级客户端或重新激活。",
+                    status_code=422,
+                )
+            if binding.instance_id != instance_id:
                 logger.warning(
                     "心跳实例不匹配 license=%s binding=%s 期望=%s 实收=%s：按已吊销处理",
                     license.id,
                     binding.id,
                     binding.instance_id,
-                    instance_id or "(缺省)",
+                    instance_id,
                 )
                 raise LicenseServerError(
                     "授权会话不属于当前实例，请重新激活。", status_code=403, revoked=True

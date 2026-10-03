@@ -70,6 +70,9 @@ jobs:
         run: |
           bun install --frozen-lockfile
           bun run typecheck
+          # 三条 vite 配置不在两个子项目 tsconfig 的 include 里，单独用根 tsconfig.node.json
+          # 按 strict 检查一遍（此前完全没被任何门禁覆盖）。
+          bun run typecheck:node
           # 零 @ts-nocheck 门禁（Phase 6：迁移已清零，改为硬失败，不再只是告警）。
           # 不用 rg：runner 默认不保证装了 ripgrep，grep 更稳。
           # 扫 frontend 全目录而非仅 src：vite.config.ts / vite-quiet-logger.ts 等同样在 tsconfig 内。
@@ -86,6 +89,61 @@ jobs:
             exit 1
           fi
           echo "零 @ts-nocheck：通过"
+
+  # Python 静态检查硬门禁。规则集与本地 `.venv-store/bin/ruff` 逐条核对过，当前全仓 0 条。
+  # 这里不跑 `--fix`：CI 修不了东西，`--fix` 是提交前的动作；格式化的东西也不在这里拦，
+  # 否则一升级 ruff 就会因为无关的格式差异把所有人的 PR 变红。
+  ruff:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Install ruff
+        # 与本地 `.venv-store/bin/ruff --version` 对齐，避免规则集随上游漂移。
+        run: pip install "ruff==0.16.8"
+
+      - name: Ruff check
+        run: |
+          ruff check --select F,E9,I,RET501,PLR1711,RUF059 .
+
+  # 类型检查门禁（basedpyright）。
+  # `error == 0` 现在还做不到：pyrightconfig.json 的 error 级里还有一批存量误报（模型标注偏窄
+  # 导致的 reportOptionalMemberAccess / reportArgumentType 等），实测 73 条。所以这里只把
+  # 「一定会炸」的三条规则当硬失败，其余打成直方图让人一直看得见；口径与 rationale 写在
+  # ops/ci/pyright_gate.py 顶部。
+  # （tools/ 下 src.* 的 reportMissingImports 已通过 pyrightconfig.json 的 executionEnvironments
+  #   修掉：静态分析看不到 smoke_store.py 自己往 sys.path 插 backend，官方办法就是声明执行环境。）
+  pyright:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      # pyrightconfig.json 点名用仓库根的 .venv-store 解析第三方包；CI 里得自己把它建出来，
+      # 否则 fastapi / sqlalchemy / cryptography 全部解析不了，error 数会凭空翻好几倍。
+      - name: Create .venv-store with backend dependencies
+        run: |
+          python -m venv .venv-store
+          .venv-store/bin/python -m pip install --upgrade pip
+          .venv-store/bin/python -m pip install \
+            -r homeos-3d/backend/src/requirements.txt \
+            -r homeos-store/backend/src/requirements.txt
+
+      - name: Install basedpyright
+        run: pip install "basedpyright==1.40.1"
+
+      - name: Basedpyright
+        run: |
+          # 有存量 error 时 basedpyright 自己也返回非 0；退出码交给下面的门禁脚本判定。
+          basedpyright --outputjson > basedpyright.json || true
+          python ops/ci/pyright_gate.py basedpyright.json
 
   # 库结构门禁：确认「迁移脚本 = ORM 元数据 = 实际结构」（ops/check_schema.py）。
   # 放在 build 之前是刻意的：结构漂移的表现是「本地全新库一切正常、存量部署才报错」，
@@ -114,7 +172,7 @@ jobs:
   # 编译成 per-arch 的 .so，模拟执行会慢到不可用。
   # 每个矩阵项只推一个 <tag>-<arch> 单架构镜像，manifest list 交给 merge 合成。
   build:
-    needs: [meta, typecheck, schema]
+    needs: [meta, typecheck, schema, ruff, pyright]
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -125,21 +183,25 @@ jobs:
             platform: linux/amd64
             arch: amd64
             runner: ubuntu-24.04
+            smoke_module: backend.src.main
           - target: app
             suffix: ""
             platform: linux/arm64
             arch: arm64
             runner: ubuntu-24.04-arm
+            smoke_module: backend.src.main
           - target: store
             suffix: "-store"
             platform: linux/amd64
             arch: amd64
             runner: ubuntu-24.04
+            smoke_module: src.app
           - target: store
             suffix: "-store"
             platform: linux/arm64
             arch: arm64
             runner: ubuntu-24.04-arm
+            smoke_module: src.app
     steps:
       - uses: actions/checkout@v7
 
@@ -171,6 +233,14 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.target }}-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=${{ matrix.target }}-${{ matrix.arch }}
           provenance: false
+
+      # 镜像冒烟：把「镜像能起来」纳入门禁。这里只做一次 import（不连库、不跑服务），
+      # 但足以挡住「构建期少 COPY 了东西 / 版本模块没烘进去」这类只在运行容器时才暴露的问题
+      # —— 源码在宿主上跑得通，镜像里 .so 的包名与路径写错是看不出来的。
+      - name: Smoke test image import (${{ matrix.target }} / ${{ matrix.arch }})
+        run: |
+          image="${{ needs.meta.outputs.image }}${{ matrix.suffix }}:${{ needs.meta.outputs.tag }}-${{ matrix.arch }}"
+          docker run --rm --entrypoint python "$image" -c "import ${{ matrix.smoke_module }}; print('import ok')"
 
   # 把 <tag>-amd64 与 <tag>-arm64 合成为一个 manifest list：docker pull 时按宿主架构自动选。
   merge:

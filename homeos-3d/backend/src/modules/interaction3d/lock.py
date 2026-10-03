@@ -10,6 +10,7 @@ import re
 
 from fastapi import HTTPException
 
+
 def validate_lock_bindings(items, validate_camera) -> None:
     # [补充说明] 校验 security.locks 绑定表。
     #
@@ -224,7 +225,11 @@ def validate_lock_command(service: str, data, state) -> None:
     # HTTPException: 422 操作或参数不支持；409 门锁不可用或正在动作。
     if service not in {"lock", "open", "unlock"} or not isinstance(data, dict) or set(data) - {"code"}:
         raise HTTPException(422, detail="不支持的门锁操作或参数。")
-    if state and (
+    # 内存态缺失时调用侧会显式传 None（服务重启后首次点击、实体刚绑定还没进 state_hub），
+    # 这里必须先挡住，否则下面的 state.get 会 AttributeError 变 500。
+    if not state:
+        raise HTTPException(409, detail="门锁状态尚未载入，请稍后重试。")
+    if (
         state.get("available") is False
         or state.get("state") in {None, "", "unknown", "unavailable"}
     ):

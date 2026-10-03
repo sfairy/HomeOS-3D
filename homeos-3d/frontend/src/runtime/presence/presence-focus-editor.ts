@@ -1,5 +1,6 @@
 import { mountInteraction3d } from "../core/runtime";
 import { interaction3dPreviewSize } from "@app/bridge/preview-layout";
+import { domElement } from "@app/utils/dom-factory";
 export function openPresenceFocusEditor({
   component: component,
   properties: properties,
@@ -9,10 +10,8 @@ export function openPresenceFocusEditor({
   previewOnly: previewOnly = false,
 }) {
   const editorDocument = window.document,
-    createElement = (tagName, initialText = "") => {
-      const createdElement = editorDocument.createElement(tagName);
-      return (initialText && (createdElement.textContent = initialText), createdElement);
-    },
+    createElement = (tagName, initialText = "") =>
+      domElement(editorDocument, tagName, "", initialText),
     dialogElement = createElement("dialog");
   ((dialogElement.className = "i3d-editor"),
     dialogElement.setAttribute("aria-label", "人在传感器聚焦视角"),

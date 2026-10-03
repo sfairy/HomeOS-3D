@@ -1,7 +1,6 @@
 import { withPageAppearancePreset as withPageAppearancePreset } from "./page-appearance-presets";
-export const INTERACTION3D_TYPE = "interaction3d",
-  INTERACTION3D_FEATURE = "module.3d_interaction",
-  INTERACTION3D_LIGHTING_MODES = [
+const INTERACTION3D_TYPE = "interaction3d";
+export const INTERACTION3D_LIGHTING_MODES = [
     ["standard", "标准光影"],
     ["region", "轻量柔光"],
   ],

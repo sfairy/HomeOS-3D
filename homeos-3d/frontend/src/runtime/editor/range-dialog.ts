@@ -3,6 +3,7 @@ import {
   requestInteraction3dAccess,
   subscribeInteraction3dAccess,
 } from "@app/bridge/bridge";
+import { domElement } from "@app/utils/dom-factory";
 export async function openInteraction3dRangeEditor({
   component: component,
   document: panelDocument,
@@ -16,14 +17,8 @@ export async function openInteraction3dRangeEditor({
   const componentSnapshot = structuredClone(component),
     previouslyFocusedElement =
       document.activeElement instanceof HTMLElement ? document.activeElement : null,
-    createElement = (tag, className = "", text = "") => {
-      const createdElement = document.createElement(tag);
-      return (
-        (createdElement.className = className),
-        (createdElement.textContent = text),
-        createdElement
-      );
-    },
+    createElement = (tag, className = "", text = "") =>
+      domElement(document, tag, className, text),
     stylesheetLink = createElement("link");
   ((stylesheetLink.rel = "stylesheet"),
     (stylesheetLink.href =

@@ -1,7 +1,7 @@
 '''Only explicit saved deletions affect studio-backed bindings; never HA entities.'''
-from copy import deepcopy
 import hashlib
 import json
+from copy import deepcopy
 
 from .access import module_components, scene_snapshot_file
 from .device import GENERIC_DEVICE_COLLECTIONS

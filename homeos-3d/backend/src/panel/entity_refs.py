@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 from typing import Any
+
 
 def is_virtual_entity_id(value):
     return value.startswith('virtual.')
@@ -31,7 +33,6 @@ def document_entity_ids(value):
         elif isinstance(item, list):
             for child in item:
                 walk(child)
-        return None
 
     walk(value)
     return result

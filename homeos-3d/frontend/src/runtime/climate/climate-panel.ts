@@ -11,6 +11,7 @@ import {
 } from "./climate-state";
 import { createPurifierExtras as createPurifierExtras2 } from "./purifier-extras";
 import { purifierState as purifierState2 } from "../purifier/purifier-state";
+import { domElement } from "@app/utils/dom-factory";
 const formatSwingModeLabel = (swingModeKey, swingDirection = undefined) =>
     ({
       on: "开启",
@@ -388,14 +389,8 @@ export function createClimatePanel({
   modeHistory: modeHistory = createClimateModeHistory2(),
 }: ClimatePanelOptions = {}) {
   const document = hostElement?.ownerDocument || globalThis.document,
-    createElement = (tagName, className, textContent = "") => {
-      const createdElement = document.createElement(tagName);
-      return (
-        (createdElement.className = className),
-        (createdElement.textContent = textContent),
-        createdElement
-      );
-    },
+    createElement = (tagName, className, textContent = "") =>
+      domElement(document, tagName, className, textContent),
     replaceChildren = (containerElement, ...children) => {
       if (typeof containerElement.replaceChildren == "function")
         containerElement.replaceChildren(...children);

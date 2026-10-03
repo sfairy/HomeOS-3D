@@ -25717,9 +25717,8 @@ function scheduleLightPrecompile(delayMs = 360) {
             ? (delete activeRenderer.domElement.dataset.lightPrecompileDeferred,
               (activeRenderer.domElement.dataset.lightPrecompileState = "ready"))
             : (activeRenderer.domElement.dataset.lightPrecompileState = "deferred");
-        } catch (precompileError) {
-          ((activeRenderer.domElement.dataset.lightPrecompileState = "fallback"),
-            console.debug("3D first-light precompile skipped", precompileError));
+        } catch {
+          activeRenderer.domElement.dataset.lightPrecompileState = "fallback";
         } finally {
           ((isLightPrecompileRunning = false),
             updateExternalModelDataset(),
@@ -25776,9 +25775,8 @@ function scheduleExternalPrecompile(initialDelayMs = 0) {
             sg2.forEach((materialToCache) => disposedMaterialSet.add(materialToCache as object)),
             (externalPrecompilePassCount += 1),
             (threeRenderer.domElement.dataset.externalPrecompileState = "ready"));
-        } catch (externalPrecompileError) {
-          ((threeRenderer.domElement.dataset.externalPrecompileState = "fallback"),
-            console.debug("3D model precompile skipped", externalPrecompileError));
+        } catch {
+          threeRenderer.domElement.dataset.externalPrecompileState = "fallback";
         } finally {
           ((isRendererUnavailable = false),
             updateExternalModelDataset(),
@@ -27825,8 +27823,8 @@ async function waitForSceneReady(sceneWaitTimeout = null) {
       visibleOnly: true,
       pollInterval: 16,
     });
-  } catch (sceneWaitError) {
-    console.debug("3D initial shader preparation skipped", sceneWaitError);
+  } catch {
+    // 光影预编译失败不阻断首屏，这里刻意静默；状态由 dataset 表达。
   }
 }
 function* buildFloorsAsync({ preserveLightCache: preserveLightCacheSnapshot = false } = {}) {
@@ -32993,7 +32991,7 @@ function runStudioRenderLoop() {
     if (hasShadowBoost !== shadowEnabledFlag) {
       if (((hasShadowBoost = shadowEnabledFlag), We3)) {
         (shadowEnabledFlag && (isShadowBoostActive = threeRenderer.shadowMap.autoUpdate),
-          (threeRenderer.shadowMap.autoUpdate = shadowEnabledFlag ? true : isShadowBoostActive),
+          (threeRenderer.shadowMap.autoUpdate = shadowEnabledFlag || isShadowBoostActive),
           (threeRenderer.shadowMap.needsUpdate = true),
           regionLightController?.setMotion?.(shadowEnabledFlag, true));
         return;

@@ -1,8 +1,6 @@
 import { hsToRgbColor } from "../renderer/controls/light-runtime";
-const clampNumber = (value, minimum, maximum) => Math.max(minimum, Math.min(maximum, value)),
-  finiteNumberOr = (candidateValue, fallbackValue) =>
-    Number.isFinite(candidateValue) ? candidateValue : fallbackValue,
-  normalizeLightState = (lightState) => ({
+import { clampNumber, finiteNumberOr } from "../utils/number";
+const normalizeLightState = (lightState) => ({
     intensity: Math.max(0, finiteNumberOr(lightState?.intensity, 0)),
     color: [0, 1, 2].map((channelIndex) =>
       clampNumber(finiteNumberOr(lightState?.color?.[channelIndex], 1), 0, 1),

@@ -2,6 +2,7 @@
 import math
 import re
 from typing import Any
+
 DECIMAL_STATE = re.compile('[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?')
 TEXT_DEVICE_CLASSES = {'date', 'enum', 'timestamp'}
 
@@ -28,7 +29,7 @@ def numeric_sources(states: list[dict[str, Any]], allowed_ids: set[str]) -> list
         if domain == 'sensor':
             if attributes.get('device_class') in TEXT_DEVICE_CLASSES or isinstance(attributes.get('options'), list):
                 continue
-            unavailable = raw is None or isinstance(raw, str) and raw.strip().lower() in {'unknown', 'unavailable'}
+            unavailable = raw is None or (isinstance(raw, str) and raw.strip().lower() in {'unknown', 'unavailable'})
             if not numeric and not unavailable:
                 continue
         seen.add(entity_id)

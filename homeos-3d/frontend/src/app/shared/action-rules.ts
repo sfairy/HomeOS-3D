@@ -1,7 +1,7 @@
 import { isVirtualEntityId } from "./virtual-entities";
-export const ACTION_TYPES = Object.freeze(["toggle", "more-info", "navigate"]),
-  POPUP_SOURCES = Object.freeze(["current", "entity", "custom"]),
-  TOGGLE_ENTITY_DOMAINS = new Set([
+export const ACTION_TYPES = Object.freeze(["toggle", "more-info", "navigate"]);
+const POPUP_SOURCES = Object.freeze(["current", "entity", "custom"]);
+export const TOGGLE_ENTITY_DOMAINS = new Set([
     "automation",
     "button",
     "climate",

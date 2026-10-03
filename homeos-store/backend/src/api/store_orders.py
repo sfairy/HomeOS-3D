@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from datetime import timedelta
 
-from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
@@ -29,7 +29,7 @@ from .store_shared import (
     close_order_channel_best_effort,
     logger,
 )
-from ..commerce import coupons, fulfill
+from ..commerce import coupons, delivery, fulfill
 from ..commerce.expiry import expire_stale_orders
 from ..core.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep, order_or_404
 from ..core.models import (
@@ -46,6 +46,7 @@ from ..core.serializers import (
 )
 from ..ops import site_settings as site_config
 from ..payments import (
+    default_channel_name,
     enabled_channel_names,
     is_known_provider,
     normalize_provider_name,
@@ -127,6 +128,7 @@ def list_orders(
 def create_order(
     payload: CreateOrderRequest,
     request: Request,
+    background: BackgroundTasks,
     session: DbSession,
     account: AuthedAccount,
     settings: SettingsDep,
@@ -245,10 +247,11 @@ def create_order(
         fulfillment_mode=product.fulfillment_mode,
         #: 订单冻结**顾客实际要用的渠道**：之后运营改默认渠道也不影响在途订单
         #: 的回调与对账（它们都按订单自己的 payment_provider 解析 provider）。
+        #: 未显式选渠道时用 default_channel_name（只在启用集合内挑），与前台展示、
+        #: resolve_provider 保持同一口径。
         payment_provider=(
             _resolve_requested_channel(setting, payload, request)
-            or setting.payment_provider
-            or request.app.state.settings.payment_provider
+            or default_channel_name(setting, request.app.state.settings)
         ),
         expires_at=moment + timedelta(seconds=request.app.state.settings.order_ttl_seconds),
     )
@@ -298,6 +301,13 @@ def create_order(
         if order.fulfillment_mode != "manual":
             fulfill.fulfill_order(session, order=order, setting=setting)
         session.refresh(order)
+        # 与支付宝/微信回调、后台入账同口径：发码邮件排在响应之后，且必然看到已提交的授权。
+        # 少了这一步，免费单只能等巡检（默认 30s）或用户手动重发。
+        background.add_task(
+            delivery.notify_license_issued,
+            request.app.state.database,
+            order_id=order.id,
+        )
         logger.info("0 元订单直接开通 order=%s", order.order_no)
         return JSONResponse(order_payload(order), status_code=status.HTTP_201_CREATED)
 

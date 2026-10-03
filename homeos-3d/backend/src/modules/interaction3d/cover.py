@@ -6,8 +6,9 @@
 # 梦幻帘（coverKind=dream）额外一条：只有整体完全关闭且静止时才允许调整叶片。
 from __future__ import annotations
 
-from fastapi import HTTPException
 from math import isfinite
+
+from fastapi import HTTPException
 
 # 服务 → HA 能力位（CoverEntityFeature 的取值），按设备实际上报的能力放行。
 COVER_SERVICES = {
@@ -38,7 +39,7 @@ def require_curtain_model(
         models = [item for item in floors[0].get('scene', {}).get('items', []) if item.get('id') == binding['modelId']]
         # 模型同样必须唯一，且类型是普通窗帘。
         if len(models) == 1 and models[0].get('type') == model_type:
-            return None
+            return
     if model_type == 'airer':
         raise HTTPException(409, detail='晾衣架模型已移除，请重新选择模型。')
     raise HTTPException(409, detail='窗帘模型已失联，请在环境配置中重新选择普通窗帘模型。')
@@ -100,11 +101,11 @@ def validate_cover_command(service: str, data: dict, state: dict | None, *, drea
         # 不再用整体运行状态设门禁 —— 网关常把状态长期停在 opening/closing，
         # 一旦据此拒绝，滑杆会永久锁死。有独立叶片通道时仍要求整体确认全关。
         if not has_tilt:
-            return None
+            return
         # 有叶片能力时，只有整体确实 closed 且实际行程为 0 才允许调叶片 ——
         # 帘体未合拢时调叶片会与行程电机抢状态，HA 侧结果不确定。
         if state.get('state') != 'closed' or (
             attributes.get('current_position') is not None and number(attributes.get('current_position')) != 0
         ):
             raise HTTPException(409, detail='只有确认整体完全关闭且停止后，才能调整叶片。')
-    return None
+    return

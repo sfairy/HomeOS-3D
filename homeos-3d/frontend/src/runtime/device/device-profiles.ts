@@ -1,4 +1,4 @@
-export const GENERIC_DEVICE_PROFILES = Object.freeze({
+const GENERIC_DEVICE_PROFILES = Object.freeze({
     smallcar: Object.freeze({
       collection: "cars",
       modelType: "smallcar",
@@ -51,11 +51,8 @@ export const GENERIC_DEVICE_PROFILES = Object.freeze({
       height: 1.6,
       statusIndicator: false,
     }),
-  }),
-  GENERIC_DEVICE_KINDS = Object.freeze(Object.keys(GENERIC_DEVICE_PROFILES)),
-  GENERIC_DEVICE_COLLECTIONS = Object.freeze(
-    GENERIC_DEVICE_KINDS.map((listedKind) => GENERIC_DEVICE_PROFILES[listedKind].collection),
-  ),
+  });
+export const GENERIC_DEVICE_KINDS = Object.freeze(Object.keys(GENERIC_DEVICE_PROFILES)),
   isGenericDeviceKind = (candidateKind) => Object.hasOwn(GENERIC_DEVICE_PROFILES, candidateKind),
   genericDeviceProfile = (requestedKind) =>
     isGenericDeviceKind(requestedKind) ? GENERIC_DEVICE_PROFILES[requestedKind] : null;
