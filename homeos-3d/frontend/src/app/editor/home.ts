@@ -11519,7 +11519,13 @@ function popupId(entityLabelFor) {
       "INSTANCE_CHANGED",
       "INSTANCE_MISMATCH",
       "REVOKED",
-    ].includes(usageComponentLabel)));
+    ].includes(usageComponentLabel)),
+    // 授权正常（ACTIVE）时无需重新激活；没有激活码（开发模式）或激活表单已经在场时
+    // 同样不重复出现，避免两个入口指向同一件事。
+    (licenseReactivateElement.hidden =
+      usageComponentLabel === "ACTIVE" ||
+      !entityLabelFor?.activationCodeId ||
+      !licenseFormElement.hidden));
 }
 async function triggerKey() {
   const documentPages = await requestJson("/license/status");
