@@ -38,7 +38,7 @@ async function loadStoreConfig(): Promise<StoreConfig> {
   }
 }
 
-async function applyStoreLinks(): Promise<void> {
+export async function applyStoreLinks(): Promise<void> {
   const config = await loadStoreConfig(),
     storeHomeUrl = `${config.storeUrl}/`,
     passwordResetUrl = `${config.storeUrl}${
@@ -54,4 +54,9 @@ async function applyStoreLinks(): Promise<void> {
   }
 }
 
-void applyStoreLinks();
+/**
+ * 由视图在挂载后调用。
+ *
+ * 迁移前本文件以 `<script type="module">` 直接引入并自跑；SPA 下改为显式导出，
+ * 保证在视图 DOM 渲染完成后再改写 `a[data-store-link]` 的 href。
+ */

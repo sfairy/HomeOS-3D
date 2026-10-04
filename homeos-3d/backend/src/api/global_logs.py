@@ -57,6 +57,7 @@ PUBLIC_PAGES = {
     '/setup',
     '/display',
     '/license',
+    '/license-recovery',
     '/3d-studio',
 }
 

@@ -289,17 +289,24 @@ function storeFrontendBuildCurrent() {
   );
 }
 
-/** 主应用前端产物是否覆盖了 `frontend/{pages,src}` 的最新改动。 */
+/**
+ * 主应用前端产物是否覆盖了 `frontend/{index.html,src,public}` 的最新改动。
+ *
+ * `frontend/public/**` 必须一起比：SPA 外壳样式（`public/static/spa-shell.css`）和各页
+ * 既有 CSS 都在 public 下，dev 下 `/static/**` 是后端从 dist 下发的，只看 index.html/src
+ * 的话改了 public 里的 CSS 不会触发重建，浏览器一直拿旧副本。
+ */
 function appFrontendBuildCurrent() {
   return buildCoversSources(
     path.join(APP_FRONTEND, "public-static.json"),
-    path.join(HOMEOS_3D, "frontend", "pages"),
+    path.join(HOMEOS_3D, "frontend", "index.html"),
     path.join(HOMEOS_3D, "frontend", "src"),
+    path.join(HOMEOS_3D, "frontend", "public"),
   );
 }
 
 /**
- * 前端构建产物缺失、或落后于 `frontend/{pages,src}` 时，跑一次
+ * 前端构建产物缺失、或落后于 `frontend/{index.html,src,public}` 时，跑一次
  * `bun run build:vite`（开发用，不混淆）。
  */
 function ensureFrontendBuild() {

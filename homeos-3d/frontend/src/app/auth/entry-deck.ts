@@ -1,9 +1,11 @@
-
-
-const decks = document.querySelectorAll(".hos-deck");
-
-if (decks.length) {
-
+/**
+ * 场景仪表盘读数（时钟 / 在线时长 / 连接时长）。由认证类 Vue 视图在挂载时调用一次。
+ *
+ * 返回一个清理函数：SPA 客户端导航离开时调用，避免定时器在旧文档里空转。
+ */
+export function initEntryDeck(): () => void {
+  const decks = document.querySelectorAll(".hos-deck");
+  if (!decks.length) return () => {};
 
   const calm = window.matchMedia(
     "(prefers-reduced-motion: reduce), (pointer: coarse), (hover: none)",
@@ -47,11 +49,9 @@ if (decks.length) {
 
   const hooks = [];
   for (const deck of decks) {
-
-  for (const node of deck.querySelectorAll<HTMLElement>("[data-deck]")) {
+    for (const node of deck.querySelectorAll<HTMLElement>("[data-deck]")) {
       const render = renderers[node.dataset.deck];
       if (!render) continue;
-
 
       const since = node.dataset.since ? Date.parse(node.dataset.since) : Number.NaN;
       if (node.dataset.deck !== "clock" && Number.isNaN(since)) continue;
@@ -62,16 +62,20 @@ if (decks.length) {
   const paint = () => {
     for (const { node, render, since } of hooks) {
       const next = render(since);
-
-
       if (node.textContent !== next) node.textContent = next;
     }
   };
 
   paint();
 
-  window.setTimeout(() => {
+  let intervalId = 0;
+  const timeoutId = window.setTimeout(() => {
     paint();
-    window.setInterval(paint, tick);
+    intervalId = window.setInterval(paint, tick);
   }, tick - (Date.now() % tick));
+
+  return () => {
+    clearTimeout(timeoutId);
+    clearInterval(intervalId);
+  };
 }

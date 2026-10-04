@@ -1,22 +1,24 @@
-<!doctype html>
-<html lang="zh-CN">
+<script setup lang="ts">
+/**
+ * 由迁移工具从 `pages/3d-studio.html` 的 <body> 原样抽取生成。
+ *
+ * 模板保留全部 id / class，供既有命令式引导逻辑按 DOM 契约操作；脚本迁移前的
+ * <script> 引入顺序改由下方 onMounted 内的 await import 复现。
+ */
+import { onMounted } from "vue";
+import { useHardExit } from "../composables/useLegacyPage";
 
-<head>
-    <meta name="homeos-release" content="c4804759843c9dcd4aa1cb6b7e3456d0">
-    <meta charset="utf-8">
-    <script src="/static/logging/client-log.js"></script>
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="theme-color" content="#111820">
-    <title>户型图绘制</title>
-    <script type="module"
-        src="/src/app/3d-studio/stage-startup.ts"></script>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg" type="image/svg+xml">
-    <link rel="stylesheet"
-        href="/static/3d-studio/studio.css">
-</head>
+useHardExit();
 
-<body>
-    <header class="studio-header">
+onMounted(async () => {
+  // stage-startup 自判 pathname === stage.html：非 stage 路径下是空操作。
+  await import("@app/3d-studio/stage-startup");
+  await import("@app/3d-studio/studio/studio-app");
+});
+</script>
+
+<template>
+<header class="studio-header">
         <div class="header-leading"> <img class="brand-logo"
                 src="/static/assets/icons/homeos-mark-white-orange.svg" alt="HomeOS">
             <div class="header-title">
@@ -1330,8 +1332,4 @@
             data-light-group-action="delete">删除</button></div>
     <div id="floor-context-menu" class="light-group-context-menu" hidden><button type="button"
             data-floor-action="rename">重命名</button><button type="button" data-floor-action="delete">删除楼层</button></div>
-    <script type="module"
-        src="/src/app/3d-studio/studio/studio-app.ts"></script>
-</body>
-
-</html>
+</template>

@@ -1,34 +1,28 @@
-<!doctype html>
-<html lang="zh-CN">
+<script setup lang="ts">
+/**
+ * 由迁移工具从 `pages/index.html` 的 <body> 原样抽取生成。
+ *
+ * 模板保留全部 id / class，供既有命令式引导逻辑按 DOM 契约操作；脚本迁移前的
+ * <script> 引入顺序改由下方 onMounted 内的 await import 复现。
+ */
+import { onMounted } from "vue";
+import { loadClassicScript, useHardExit } from "../composables/useLegacyPage";
 
-<head>
-    <meta name="homeos-release" content="c4804759843c9dcd4aa1cb6b7e3456d0">
-    <meta charset="utf-8">
-    <script src="/static/logging/client-log.js"></script>
-    <meta name="viewport" content="width=1020,user-scalable=yes">
-    <meta name="theme-color" content="#172029">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="HomeOS">
-    <title>HomeOS</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico" sizes="16x16 32x32 48x48">
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png" sizes="180x180">
-    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png" sizes="180x180">
-    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest">
-    <link rel="stylesheet" href="/static/global-log.css">
-    <link rel="stylesheet"
-        href="/static/app.css">
-    <link rel="stylesheet"
-        href="/static/renderer/renderer.css">
-    <link rel="stylesheet"
-        href="/static/modules/interaction3d/bridge.css">
-    <link rel="stylesheet" href="/static/flow-line-editor.css">
-</head>
+// 重型视图：离开时整页跳转，完整回收一次性引导模块（three.js / WebSocket / 全局监听）。
+useHardExit();
 
-<body>
-    <header class="editor-header">
+onMounted(async () => {
+  await loadClassicScript("/static/vendor/hls.js/1.7.3/hls.min.js");
+  await import("@app/logging/global-log-boot");
+  await import("@app/updates/update-notice");
+  const storeLinks = await import("@app/shared/store-links");
+  void storeLinks.applyStoreLinks();
+  await import("@app/editor/home");
+});
+</script>
+
+<template>
+<header class="editor-header">
         <div class="brand-lockup"><img class="brand-icon"
                 src="/static/assets/icons/homeos-mark-white-orange.svg" alt=""><strong>HomeOS</strong><span
                 class="version">1.0.0</span></div>
@@ -2776,12 +2770,4 @@
             </div>
         </div>
     </dialog>
-    <script type="module" src="/src/app/logging/global-log-boot.ts"></script>
-    <script type="module" src="/src/app/updates/update-notice.ts"></script>
-    <script type="module" src="/src/app/shared/store-links.ts"></script>
-    <script src="/static/vendor/hls.js/1.7.3/hls.min.js"></script>
-    <script type="module"
-        src="/src/app/editor/home.ts"></script>
-</body>
-
-</html>
+</template>

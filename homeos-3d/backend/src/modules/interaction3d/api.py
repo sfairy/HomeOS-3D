@@ -533,7 +533,7 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
         scope = light_history_scope(active_connection(database), viewer, projectId)
     scene_path(request, sceneId)
     settings = request.app.state.settings
-    html = (settings.frontend_dir / '3d-studio.html').read_text(encoding='utf-8')
+    html = (settings.frontend_dir / 'index.html').read_text(encoding='utf-8')
     html = html.replace(
         '</head>',
         '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css?v=20260927-follow-ui-v1-20260926-label-opacity-v1-20260925-touch-target-v1-light-menu-v1-20260926-speaker-clean-v6-20260926-airer-v2"></head>',

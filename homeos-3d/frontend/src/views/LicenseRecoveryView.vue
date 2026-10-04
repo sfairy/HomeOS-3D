@@ -1,37 +1,29 @@
-<!doctype html>
-<html lang="zh-CN" class="hos-shell">
+<script setup lang="ts">
+/**
+ * 由迁移工具从 `pages/license-recovery.html` 的 <body> 原样抽取生成。
+ *
+ * 模板保留全部 id / class，供既有命令式引导逻辑按 DOM 契约操作；脚本迁移前的
+ * <script> 引入顺序改由下方 onMounted 内的 await import 复现。
+ */
+import { onBeforeUnmount, onMounted } from "vue";
+import { initLicenseRecovery } from "@app/auth/license-recovery";
+import { initEntryDeck } from "@app/auth/entry-deck";
 
-<head>
-    <meta name="homeos-release" content="c4804759843c9dcd4aa1cb6b7e3456d0">
-    <meta charset="utf-8">
-    <script src="/static/logging/client-log.js"></script>
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="theme-color" content="#050912">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="HomeOS">
-    <title>激活授权 · HomeOS</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico" sizes="16x16 32x32 48x48">
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png" sizes="180x180">
-    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png"
-        sizes="180x180">
-    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest">
-    <!-- 场景样式分四片：字体 → 容器 → 场景 → 坞体。顺序不能调，后两片都吃前两片定义的令牌；
-         也没有 auth.css —— 旧那套 .login-shell/.character 样式随卡通场景一起下线了。 -->
-    <link rel="stylesheet" href="/static/auth/scene/fonts.css">
-    <link rel="stylesheet" href="/static/auth/scene/page.css">
-    <link rel="stylesheet" href="/static/auth/scene/scene.css">
-    <link rel="stylesheet" href="/static/auth/scene/panel.css">
-    <!-- 站点配色覆盖：必须排在四片场景样式之后 —— 同为 :root 令牌，后加载的赢。
-         本页配色由这段静态展开的「暖居琥珀」默认预设给出（默认态等同空操作）；
-         要改站点配色，改 appearance.css 一个文件即可。 -->
-    <link rel="stylesheet" href="/static/appearance.css">
-</head>
+let disposeRecovery: (() => void) | undefined;
+let disposeDeck: (() => void) | undefined;
 
-<body>
-    <div class="hos-page hos-tone--eco">
+onBeforeUnmount(() => disposeDeck?.());
+
+onMounted(() => {
+  disposeRecovery = initLicenseRecovery();
+  disposeDeck = initEntryDeck();
+});
+
+onBeforeUnmount(() => disposeRecovery?.());
+</script>
+
+<template>
+<div class="hos-page hos-tone--alert">
         <div class="hos-scene">
             <div class="hos-scene__stage" aria-hidden="true">
               <div class="hos-scene__sky"></div>
@@ -331,7 +323,7 @@
             <div class="hos-scene__head-status">
               <span class="hos-scene__live">
                 <i class="hos-scene__live-dot" aria-hidden="true"></i>
-                <span class="hos-scene__live-label">等待激活</span>
+                <span class="hos-scene__live-label">授权暂不可达</span>
               </span>
               <span class="hos-scene__ver" title="HomeOS 本机中控">
                 <span class="hos-scene__ver-name">本机中控</span>
@@ -343,22 +335,24 @@
 
 
           <div class="hos-scene__brand">
-            <p class="hos-scene__title">还缺一张授权凭证</p>
+            <p class="hos-scene__title">家在，只是暂时说不上话</p>
             <p class="hos-scene__tag">
-              <span class="hos-scene__tag-line">把凭证交给这台机器，授权校验从此刻开始</span>
+              <span class="hos-scene__tag-line">授权后台暂时联系不上，本机照常过自己的日子</span>
             </p>
             <div class="hos-scene__dossier">
               <p class="hos-scene__dossier-head">
                 <i class="hos-scene__dossier-dot" aria-hidden="true"></i>
                 <span>本机档案</span>
               </p>
-              <dl class="hos-scene__dossier-list"><div class="hos-scene__dossier-row"><dt>绑定</dt><dd>首次激活认本机硬件指纹</dd></div><div class="hos-scene__dossier-row"><dt>换机</dt><dd>先在此重新激活，提示已绑定其他设备时再去商店解绑</dd></div><div class="hos-scene__dossier-row"><dt>离线</dt><dd>租约期内照常可用</dd></div><div class="hos-scene__dossier-row"><dt>之后</dt><dd>回中控配房间与设备</dd></div></dl>
+              <dl class="hos-scene__dossier-list"><div class="hos-scene__dossier-row"><dt>现状</dt><dd>项目、配对与连接信息都不清除</dd></div><div class="hos-scene__dossier-row"><dt>自检</dt><dd>每 5 秒重试一次授权后台</dd></div><div class="hos-scene__dossier-row"><dt>租约</dt><dd>本地租约内照常可用</dd></div><div class="hos-scene__dossier-row"><dt>之后</dt><dd>后台恢复后自动继续</dd></div></dl>
             </div>
           </div>
         </div>
 
         <main class="hos-dock">
-            <section class="hos-panel hos-rise">
+            <!-- id=license-recovery 是 license-recovery.js 的自举判据：这个模块同时被 /license 复用，
+                 靠它区分「现在是恢复页，该挂轮询」还是「只是被别的页 import 了」。 -->
+            <section class="hos-panel hos-rise" id="license-recovery">
                 <span class="hos-panel__edge" aria-hidden="true"></span>
                 <span class="hos-panel__corner hos-panel__corner--tl" aria-hidden="true"></span>
                 <span class="hos-panel__corner hos-panel__corner--tr" aria-hidden="true"></span>
@@ -367,68 +361,34 @@
 
                 <div class="hos-panel__head">
                     <div class="hos-eyebrow-row">
-                        <p class="hos-eyebrow">授权激活 · 03/05</p>
-                        <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>一机一码</span>
+                        <p class="hos-eyebrow">授权受阻 · 03/05</p>
+                        <!-- 这颗点是恒绿的「机制在跑」，不跟页面色调走：在珊瑚色的恢复页上，
+                             「自动重连中」会被读成「一切正常」，而这页恰恰是「进不去」。 -->
+                        <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>每 5 秒自检</span>
                     </div>
-                    <h1>绑定这台机器</h1>
-                    <p id="license-status-text" class="hos-panel__desc">正在读取授权状态…</p>
-                    <!-- 提示条留在抬头块里：它说的是「当前授权状态要你做什么」，
-                         与上面的状态句是同一件事的两句，隔开会被读成两件事。 -->
-                    <p id="license-recovery-hint" class="hos-notice" role="note" hidden></p>
+                    <h1>正在连接你的家</h1>
+                    <p id="recovery-message" class="hos-status" role="status" aria-live="polite">正在读取授权状态…</p>
+                    <!-- 错误单独一行、单独 role=alert：与「现在处于什么状态」分开报。合成一行时，
+                         一次网络抖动会把状态句覆盖掉，用户就看不到后端其实说了什么。 -->
+                    <p id="recovery-error" class="hos-msg is-err" role="alert" hidden></p>
                 </div>
 
-                <form id="license-form" class="hos-form" hidden>
-                    <div class="hos-field">
-                        <div class="hos-label-row"><label for="license-email">授权邮箱</label></div>
-                        <div class="hos-control">
-                            <input id="license-email" name="email" type="email" maxlength="255" autocomplete="email"
-                                placeholder="购买授权时使用的邮箱" required>
-                        </div>
-                        <!-- 邮箱口径要写清楚：这一格不是本机管理员账号。 -->
-                        <small>填商店下单时的账号邮箱，不是本机管理员账号。</small>
-                    </div>
-
-                    <div class="hos-field">
-                        <div class="hos-label-row"><label for="license-code">激活码</label></div>
-                        <div class="hos-control">
-                            <input id="license-code" name="activationCode" class="hos-mono" maxlength="128"
-                                autocomplete="off" placeholder="HOMEOS-XXXX-XXXX-XXXX" spellcheck="false" required>
-                        </div>
-                    </div>
-
-                    <p id="message" class="hos-msg is-err" role="alert" hidden></p>
-
-                    <div class="hos-actions">
-                        <button class="hos-btn-primary" type="submit">激活当前安装</button>
-                        <!-- 「重新连接」的定位是「不用等下一拍轮询」，不是替代填激活码。 -->
-                        <button id="license-retry" class="hos-btn-ghost" type="button" hidden>重新连接授权后台</button>
-                    </div>
-                </form>
-
-                <!-- 表单藏起来时（授权已生效或正在等状态）才轮到它出场：点击只是把上面的表单交还给用户，
-                     真正的自动重激活走编辑器首页那颗按钮 —— 那里有完整上下文。 -->
                 <div class="hos-actions">
-                    <button id="license-reactivate" class="hos-btn-ghost" type="button" hidden>重新激活</button>
+                    <button id="recovery-retry" class="hos-btn-primary" type="button">重新连接授权后台</button>
                 </div>
 
                 <div class="hos-panel__copy">
                     <div class="hos-panel__meta">
-                        <span>首次激活绑定本机指纹</span>
+                        <span>项目与配对信息不清除</span>
                         <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-                        <span>激活后自动进编辑器</span>
+                        <span>租约内照常可用</span>
                     </div>
-                    <!-- id=logout 必须在场：license.js 顶层就 addEventListener，缺了会中断整段接线。 -->
-                    <button id="logout" class="hos-text-button" type="button">退出本机登录</button>
+                    <p>已有项目、设备配对和连接信息不会被清除。</p>
+                    <a class="hos-text-button" href="/license">管理员重新激活</a>
                 </div>
             </section>
         </main>
     </div>
 
     <!-- 手持档开关：普通脚本（不导出、不 defer），必须在首帧前跑完给 <html> 挂 .hos-touch。 -->
-    <script src="/static/auth/scene/scene-depth.js"></script>
-    <script type="module"
-        src="/src/app/auth/license.ts"></script>
-    <script type="module" src="/src/app/auth/entry-deck.ts"></script>
-</body>
-
-</html>
+</template>

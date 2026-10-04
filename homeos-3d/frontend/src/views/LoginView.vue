@@ -1,39 +1,30 @@
-<!doctype html>
-<html lang="zh-CN" class="hos-shell">
+<script setup lang="ts">
+/**
+ * 由迁移工具从 `pages/login.html` 的 <body> 原样抽取生成。
+ *
+ * 模板保留全部 id / class，供既有命令式引导逻辑按 DOM 契约操作；脚本迁移前的
+ * <script> 引入顺序改由下方 onMounted 内的 await import 复现。
+ */
+import { onBeforeUnmount, onMounted } from "vue";
+import { initAuthShell } from "@app/auth/auth-shell";
+import { initLogin } from "@app/auth/login";
+import { applyStoreLinks } from "@app/shared/store-links";
+import { initEntryDeck } from "@app/auth/entry-deck";
 
-<head>
-    <meta name="homeos-release" content="c4804759843c9dcd4aa1cb6b7e3456d0">
-    <meta charset="utf-8">
-    <!-- 配对链接捕获必须在任何模块之前跑完：扫码进来的 #code= 会被它摘走并立刻从地址栏抹掉，
-         晚一步就会先被模块读成普通 hash。 -->
-    <script src="/static/auth/pairing-entry.js"></script>
-    <script src="/static/logging/client-log.js"></script>
-    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-    <meta name="theme-color" content="#050912">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="HomeOS">
-    <title>配对中控设备 · HomeOS</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico" sizes="16x16 32x32 48x48">
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png" sizes="180x180">
-    <!-- 这一页只用 manifest-h5：它既是「添加到主屏幕」的清单，也是配对页本身的站点身份。 -->
-    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest">
-    <!-- 场景样式分四片：字体 → 容器 → 场景 → 坞体。顺序不能调，后两片都吃前两片定义的令牌；
-         也没有 auth.css —— 旧那套 .login-shell/.character 样式随卡通场景一起下线了。 -->
-    <link rel="stylesheet" href="/static/auth/scene/fonts.css">
-    <link rel="stylesheet" href="/static/auth/scene/page.css">
-    <link rel="stylesheet" href="/static/auth/scene/scene.css">
-    <link rel="stylesheet" href="/static/auth/scene/panel.css">
-    <!-- 站点配色覆盖：必须排在四片场景样式之后 —— 同为 :root 令牌，后加载的赢。
-         本页配色由这段静态展开的「暖居琥珀」默认预设给出（默认态等同空操作）；
-         要改站点配色，改 appearance.css 一个文件即可。 -->
-    <link rel="stylesheet" href="/static/appearance.css">
-</head>
+let disposeDeck: (() => void) | undefined;
 
-<body>
-    <div class="hos-page hos-tone--aura">
+onBeforeUnmount(() => disposeDeck?.());
+
+onMounted(() => {
+  initAuthShell();
+  initLogin();
+  void applyStoreLinks();
+  disposeDeck = initEntryDeck();
+});
+</script>
+
+<template>
+<div class="hos-page hos-tone--accent">
         <div class="hos-scene">
             <div class="hos-scene__stage" aria-hidden="true">
               <div class="hos-scene__sky"></div>
@@ -333,7 +324,7 @@
             <div class="hos-scene__head-status">
               <span class="hos-scene__live">
                 <i class="hos-scene__live-dot" aria-hidden="true"></i>
-                <span class="hos-scene__live-label">等待配对</span>
+                <span class="hos-scene__live-label">本机服务就绪</span>
               </span>
               <span class="hos-scene__ver" title="HomeOS 本机中控">
                 <span class="hos-scene__ver-name">本机中控</span>
@@ -345,16 +336,16 @@
 
 
           <div class="hos-scene__brand">
-            <p class="hos-scene__title">把这块屏接进这个家</p>
+            <p class="hos-scene__title">中控在等你回来</p>
             <p class="hos-scene__tag">
-              <span class="hos-scene__tag-line">用管理员给的 6 位码，把这面屏接进来</span>
+              <span class="hos-scene__tag-line">一次登录，把灯光、空调、窗帘与影音收进同一个画面</span>
             </p>
             <div class="hos-scene__dossier">
               <p class="hos-scene__dossier-head">
                 <i class="hos-scene__dossier-dot" aria-hidden="true"></i>
                 <span>本机档案</span>
               </p>
-              <dl class="hos-scene__dossier-list"><div class="hos-scene__dossier-row"><dt>输入</dt><dd>扫码或手动输入</dd></div><div class="hos-scene__dossier-row"><dt>凭证</dt><dd>配对成功后下发设备 Cookie</dd></div><div class="hos-scene__dossier-row"><dt>生效</dt><dd>刷新后仍停在这台设备的画面</dd></div><div class="hos-scene__dossier-row"><dt>之后</dt><dd>引导添加到主屏幕</dd></div></dl>
+              <dl class="hos-scene__dossier-list"><div class="hos-scene__dossier-row"><dt>会话</dt><dd>只留在本机内存</dd></div><div class="hos-scene__dossier-row"><dt>网络</dt><dd>不依赖公网，仅本机网段可达</dd></div><div class="hos-scene__dossier-row"><dt>出口</dt><dd>本机唯一入口，不对外开放</dd></div><div class="hos-scene__dossier-row"><dt>之后</dt><dd>3D 全景编辑器</dd></div></dl>
             </div>
           </div>
         </div>
@@ -369,49 +360,62 @@
 
                 <div class="hos-panel__head">
                     <div class="hos-eyebrow-row">
-                        <p class="hos-eyebrow">设备配对 · 04/05</p>
-                        <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>6 位配对码</span>
+                        <p class="hos-eyebrow">登录 · 02/05</p>
+                        <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>账号存本机</span>
                     </div>
-                    <!-- 标题与说明都要能被 pair.js 就地改写：扫码模式与嵌入模式下说的是两件事。 -->
-                    <h1 id="pair-title">配对中控设备</h1>
-                    <p id="pair-description" class="hos-panel__desc">输入管理员为这台中控设置的固定 6 位配对码。</p>
+                    <h1>进入本机中控</h1>
+                    <p class="hos-panel__desc">用首次设置时创建的管理员账号登录。会话只落在这台机器上，登录后即可进入
+                        3D 全景编辑器。</p>
                 </div>
 
-                <p id="apple-pair-note" class="hos-notice" hidden>连接成功后会引导你添加到主屏幕，以后点击 HomeOS
-                    图标即可打开。</p>
-
-                <form id="pair-form" class="hos-form">
+                <form id="login-form" class="hos-form">
                     <div class="hos-field">
-                        <div class="hos-label-row"><label for="pair-code">6 位配对码</label></div>
+                        <div class="hos-label-row"><label for="login-username">账号</label></div>
+                        <!-- 这里不加 minlength：登录只回显长度约束，账号规则不泄露（见 LoginRequest）。 -->
                         <div class="hos-control">
-                            <input id="pair-code" name="code" inputmode="numeric" pattern="[0-9]{6}" minlength="6"
-                                maxlength="6" placeholder="000000" autocomplete="one-time-code" required>
+                            <input id="login-username" name="username" placeholder="输入管理员账号"
+                                autocomplete="username" maxlength="64" required>
+                        </div>
+                    </div>
+
+                    <div class="hos-field">
+                        <div class="hos-label-row"><label for="login-password">密码</label></div>
+                        <div class="hos-control hos-password-field">
+                            <input id="login-password" name="password" type="password" placeholder="输入密码"
+                                autocomplete="current-password" maxlength="256" required>
+                            <button type="button" data-password-toggle aria-label="显示密码"
+                                title="显示密码">显示</button>
                         </div>
                     </div>
 
                     <p id="message" class="hos-msg is-err" role="alert" hidden></p>
 
                     <div class="hos-actions">
-                        <button class="hos-btn-primary" type="submit">完成配对</button>
+                        <button class="hos-btn-primary" type="submit">登录</button>
                     </div>
                 </form>
 
                 <div class="hos-panel__copy">
                     <div class="hos-panel__meta">
-                        <span>扫码或手动输入</span>
+                        <span>失败多次临时限流</span>
                         <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-                        <span>配对码由管理员在本机生成</span>
+                        <span>未激活先进激活页</span>
                     </div>
-                    <p>配对成功后这台设备会拿到自己的设备 Cookie，刷新后仍停在它自己的画面。</p>
+                    <p>授权失效时不会丢账号：先进入激活页完成绑定，再回到这里。</p>
+                    <!-- 这一行借用 .hos-panel__meta 的 flex 排布：分隔条是 1px 的 <i>，
+                         只有在 flex 容器里才拿得到宽度，否则会缩成看不见的一个点。 -->
+                    <p class="hos-panel__meta">
+                        <a class="hos-text-button" data-store-password-reset-link
+                            href="https://pay.homeos.cn/user/authentication/forget" target="_blank"
+                            rel="noopener noreferrer">忘记密码</a>
+                        <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+                        <a class="hos-text-button" data-store-link href="https://pay.homeos.cn/" target="_blank"
+                            rel="noopener noreferrer">商店</a>
+                    </p>
                 </div>
             </section>
         </main>
     </div>
 
     <!-- 手持档开关：普通脚本（不导出、不 defer），必须在首帧前跑完给 <html> 挂 .hos-touch。 -->
-    <script src="/static/auth/scene/scene-depth.js"></script>
-    <script type="module" src="/src/app/auth/pair.ts"></script>
-    <script type="module" src="/src/app/auth/entry-deck.ts"></script>
-</body>
-
-</html>
+</template>

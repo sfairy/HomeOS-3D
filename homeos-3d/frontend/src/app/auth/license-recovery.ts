@@ -100,80 +100,104 @@ export async function licenseRequest(url, options = {}) {
 }
 
 
-const recoveryRoot = typeof document > "u" ? null : document.querySelector<DomControl>("#license-recovery");
-if (recoveryRoot) {
-  const messageElement = document.querySelector<DomControl>("#recovery-message"),
-    errorElement = document.querySelector<DomControl>("#recovery-error"),
-    retryButton = document.querySelector<DomControl>("#recovery-retry");
-  if (!messageElement || !retryButton) throw new Error("授权恢复页缺少必要节点。");
+/**
+ * 授权恢复页引导。由 `LicenseRecoveryView.vue` 在挂载时调用，返回清理函数。
+ *
+ * 本页也被 `/pair`、`/display/*`、`/3d-studio` 的授权门禁就地渲染，因此不能假设
+ * 一定存在自己的地址。
+ */
+export function initLicenseRecovery(): () => void {
+  const recoveryRoot =
+    typeof document > "u" ? null : document.querySelector<DomControl>("#license-recovery");
+  if (!recoveryRoot) return () => {};
+  {
+    const messageElement = document.querySelector<DomControl>("#recovery-message"),
+      errorElement = document.querySelector<DomControl>("#recovery-error"),
+      retryButton = document.querySelector<DomControl>("#recovery-retry");
+    if (!messageElement || !retryButton) throw new Error("授权恢复页缺少必要节点。");
 
-  let inFlight = false,
-    done = false,
-    recheckTimer;
+    let inFlight = false,
+      done = false,
+      recheckTimer;
 
-  const TONE_CLASSES = ["hos-tone--eco", "hos-tone--lumen", "hos-tone--alert"];
-  function paintTone(tone) {
-    (messageElement.classList.remove(...TONE_CLASSES),
-      tone && messageElement.classList.add(`hos-tone--${tone}`));
-  }
-  function clearError() {
-    errorElement && ((errorElement.textContent = ""), (errorElement.hidden = true));
-  }
-  async function check(manual = false) {
-    if (inFlight || done) return;
-    (clearTimeout(recheckTimer), (inFlight = true));
-
-    manual && ((retryButton.disabled = true), (messageElement.textContent = "正在重新连接授权后台…"));
-    try {
-
-      const firstState = await licenseRequest(
-          `/api/v1/license/${manual ? "retry" : "availability"}`,
-          manual
-            ? {
-                method: "POST",
-              }
-            : {},
-        ),
-        latestState = manual ? await licenseRequest("/api/v1/license/availability") : firstState;
-      clearError();
-      if (latestState.displayAllowed) {
-
-        ((done = true),
-          (messageElement.textContent = "授权已恢复，正在进入…"),
-          paintTone("eco"),
-          (retryButton.hidden = true),
-          window.setTimeout(() => window.location.reload(), 600));
-        return;
-      }
-      ((messageElement.textContent = licenseMessage(latestState)),
-
-        paintTone(latestState.status === "INSTANCE_MISMATCH" ? "alert" : "lumen"),
-
-        (retryButton.hidden = !latestState.canRetry));
-    } catch (checkError) {
-
-      errorElement
-        ? ((errorElement.textContent = checkError.message), (errorElement.hidden = false))
-        : (messageElement.textContent = checkError.message);
-      paintTone("alert");
-
-      retryButton.hidden = checkError?.retryable === false;
-    } finally {
-      ((inFlight = false),
-        (retryButton.disabled = false),
-
-        done || (recheckTimer = setTimeout(() => check(), RECHECK_INTERVAL_MS)));
+    const TONE_CLASSES = ["hos-tone--eco", "hos-tone--lumen", "hos-tone--alert"];
+    function paintTone(tone) {
+      (messageElement.classList.remove(...TONE_CLASSES),
+        tone && messageElement.classList.add(`hos-tone--${tone}`));
     }
-  }
-  (retryButton.addEventListener("click", () => check(true)),
+    function clearError() {
+      errorElement && ((errorElement.textContent = ""), (errorElement.hidden = true));
+    }
+    async function check(manual = false) {
+      if (inFlight || done) return;
+      (clearTimeout(recheckTimer), (inFlight = true));
 
-    window.addEventListener("online", () => check()),
+      manual && ((retryButton.disabled = true), (messageElement.textContent = "正在重新连接授权后台…"));
+      try {
 
-    window.addEventListener("pagehide", () => {
+        const firstState = await licenseRequest(
+            `/api/v1/license/${manual ? "retry" : "availability"}`,
+            manual
+              ? {
+                  method: "POST",
+                }
+              : {},
+          ),
+          latestState = manual ? await licenseRequest("/api/v1/license/availability") : firstState;
+        clearError();
+        if (latestState.displayAllowed) {
+
+          ((done = true),
+            (messageElement.textContent = "授权已恢复，正在进入…"),
+            paintTone("eco"),
+            (retryButton.hidden = true),
+            window.setTimeout(() => window.location.reload(), 600));
+          return;
+        }
+        ((messageElement.textContent = licenseMessage(latestState)),
+
+          paintTone(latestState.status === "INSTANCE_MISMATCH" ? "alert" : "lumen"),
+
+          (retryButton.hidden = !latestState.canRetry));
+      } catch (checkError) {
+
+        errorElement
+          ? ((errorElement.textContent = checkError.message), (errorElement.hidden = false))
+          : (messageElement.textContent = checkError.message);
+        paintTone("alert");
+
+        retryButton.hidden = checkError?.retryable === false;
+      } finally {
+        ((inFlight = false),
+          (retryButton.disabled = false),
+
+          done || (recheckTimer = setTimeout(() => check(), RECHECK_INTERVAL_MS)));
+      }
+    }
+    const onRetryClick = () => check(true);
+    const onOnline = () => check();
+    const onPageHide = () => {
       ((done = true), clearTimeout(recheckTimer));
-    }),
-    window.addEventListener("pageshow", () => {
+    };
+    const onPageShow = () => {
       ((done = false), check());
-    }),
-    check());
+    };
+    (retryButton.addEventListener("click", onRetryClick),
+
+      window.addEventListener("online", onOnline),
+
+      window.addEventListener("pagehide", onPageHide),
+      window.addEventListener("pageshow", onPageShow),
+      check());
+
+    return () => {
+      done = true;
+      clearTimeout(recheckTimer);
+      retryButton.removeEventListener("click", onRetryClick);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }
 }
+

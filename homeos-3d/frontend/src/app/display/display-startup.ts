@@ -83,3 +83,6 @@
   for (const assetEndpoint of ["/assets/version", "/assets/builtin", "/assets/user"])
     loadEndpoint(assetEndpoint);
 })();
+
+// 作为 ES module 被 SPA 视图 import；显式标注模块以通过 isolatedModules。
+export {};

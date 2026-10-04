@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuildBuild } from "esbuild";
+import vue from "@vitejs/plugin-vue";
 import { defineConfig, type Plugin } from "vite";
 import { quietLogger } from "./vite-quiet-logger.js";
 
@@ -11,11 +12,13 @@ const frontendRoot = __dirname;
 const projectRoot = path.resolve(frontendRoot, "..");
 //: 工作区根：构建产物统一收敛到 <repoRoot>/dist/homeos-3d/，与源码树彻底分离。
 const repoRoot = path.resolve(projectRoot, "..");
-const pagesDir = path.join(frontendRoot, "pages");
 const outDir = path.join(repoRoot, "dist", "homeos-3d", "frontend");
 
-const htmlPages = [
-  "index.html",
+/** SPA 唯一入口：迁移前这里列出的是 pages/ 下 8 个多页 HTML。 */
+const SPA_ENTRY = "index.html";
+
+/** 迁移前多页版本的 HTML 名：仅用于构建时清理陈旧产物，不再参与输入。 */
+const LEGACY_HTML_NAMES = [
   "3d-studio.html",
   "display.html",
   "login.html",
@@ -25,23 +28,9 @@ const htmlPages = [
   "license-recovery.html",
 ];
 
-/** 未登录 / 未激活时也必须能匿名加载的公开页（用于推导必须走匿名白名单的构建产物）。 */
-const PUBLIC_HTML = new Set([
-  "login.html",
-  "setup.html",
-  "pair.html",
-  "license.html",
-  "license-recovery.html",
-  "display.html",
-]);
-
 function htmlInputs(): Record<string, string> {
-  const input: Record<string, string> = {};
-  for (const name of htmlPages) {
-    const full = path.join(pagesDir, name);
-    if (fs.existsSync(full)) input[name.replace(/\.html$/, "")] = full;
-  }
-  return input;
+  const full = path.join(frontendRoot, SPA_ENTRY);
+  return fs.existsSync(full) ? { index: full } : {};
 }
 
 /**
@@ -159,32 +148,11 @@ function classicIifePlugin(): Plugin {
   };
 }
 
-function flattenPagesHtmlPlugin(): Plugin {
-  return {
-    name: "homeos-flatten-pages-html",
-    closeBundle() {
-      const nested = path.join(outDir, "pages");
-      if (!fs.existsSync(nested)) return;
-      for (const name of htmlPages) {
-        const from = path.join(nested, name);
-        if (fs.existsSync(from)) {
-          fs.renameSync(from, path.join(outDir, name));
-        }
-      }
-      try {
-        fs.rmdirSync(nested);
-      } catch {
-        /* keep if not empty */
-      }
-    },
-  };
-}
-
 /**
  * 只清理主应用自己拥有的产物，保留 `dist/modules/`。
  *
  * `dist/` 是主应用与 runtime 两次构建共用的目录：
- *   - 主应用：`vite.config.ts` → `dist/static/**`、`dist/*.html`、`dist/public-static.json`
+ *   - 主应用：`vite.config.ts` → `dist/static/**`、`dist/index.html`、`dist/public-static.json`
  *   - runtime：`vite.runtime.config.ts` → `dist/modules/runtime/**`（后端按 manifest.json 下发）
  *
  * 而 runtime 的 outDir 嵌套在主应用 outDir 之内。若沿用 Vite 默认的
@@ -204,7 +172,13 @@ function cleanAppOutputPlugin(): Plugin {
     apply: "build",
     configResolved(config) {
       if (config.command !== "build") return;
-      for (const name of ["static", "pages", "public-static.json", ...htmlPages]) {
+      for (const name of [
+        "static",
+        "pages",
+        "public-static.json",
+        SPA_ENTRY,
+        ...LEGACY_HTML_NAMES,
+      ]) {
         // macOS 上并发写入（同时开着的 dev server / 上一次构建）会让递归删除偶发
         // ENOTEMPTY，所以带重试；不重试的话一次抖动就整条构建失败。
         fs.rmSync(path.join(outDir, name), {
@@ -250,9 +224,11 @@ function updatePublicStaticManifest() {
     return;
   }
   const discovered = new Set<string>();
-  for (const name of PUBLIC_HTML) {
-    const htmlPath = path.join(outDir, name);
-    if (!fs.existsSync(htmlPath)) continue;
+  // SPA 入口是匿名路由唯一会下发的 HTML：它引用的 `/static/**`（入口 chunk、其
+  // modulepreload 依赖、外壳样式、经典启动脚本）就是未登录也必须可加载的全集。
+  // 认证后视图是懒加载 chunk，不出现在这里，因此继续受 premium_asset 保护。
+  const htmlPath = path.join(outDir, SPA_ENTRY);
+  if (fs.existsSync(htmlPath)) {
     const html = fs.readFileSync(htmlPath, "utf8");
     for (const match of html.matchAll(/(?:src|href)=["'](\/static\/[^"']+)["']/g)) {
       discovered.add(match[1].replace(/\?v=[^"']+$/i, ""));
@@ -264,6 +240,12 @@ function updatePublicStaticManifest() {
     "/static/display/display-startup.js",
     "/static/auth/pairing-entry.js",
     "/static/auth/scene/scene-depth.js",
+    // 认证页样式表由 App.vue 在运行时插入 <head>，不在 SPA 入口里，需显式登记。
+    "/static/auth/scene/fonts.css",
+    "/static/auth/scene/page.css",
+    "/static/auth/scene/scene.css",
+    "/static/auth/scene/panel.css",
+    "/static/appearance.css",
   ]) {
     discovered.add(stable);
   }
@@ -275,7 +257,7 @@ function updatePublicStaticManifest() {
     if (!p?.startsWith("/static/")) continue;
     if (seen.has(p)) continue;
     // 种子清单记的是逻辑路径，入口产物打包后会带内容哈希（如
-    // /static/assets/login-<hash>.js）或按域归到子目录，因此这里按产物实际
+    // /static/assets/index-<hash>.js）或按域归到子目录，因此这里按产物实际
     // 存在与否筛一遍，只保留真正落盘的路径。
     // 不筛的代价是有害的：清单里留着不存在的条目，G6 对账就再也发现不了
     // 「新增公开页资源忘了登记」——因为噪声条目让门禁永远不干净。
@@ -295,7 +277,7 @@ function updatePublicStaticManifest() {
     seen.add(p);
     kept.push({
       path: p,
-      why: "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。",
+      why: "SPA 入口引用的匿名静态资源，必须匿名可加载。",
     });
   }
   payload.files = kept;
@@ -384,9 +366,10 @@ export default defineConfig({
     vendorResolvePlugin(),
     runtimeUrlExternalPlugin(),
     runtimeVendorAssetPlugin(),
-    flattenPagesHtmlPlugin(),
     classicIifePlugin(),
     // 最后一位：closeBundle 按数组顺序串行，清单必须在所有产物写完后才生成。
     publicStaticManifestPlugin(),
+    // Vue SFC：关闭资源 URL 改写 —— 模板里的 /static/** 是运行时绝对路径，不是待打包模块。
+    vue({ template: { transformAssetUrls: false } }),
   ],
 });

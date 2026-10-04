@@ -1,35 +1,28 @@
-<!doctype html>
-<html lang="zh-CN">
+<script setup lang="ts">
+/**
+ * 由迁移工具从 `pages/display.html` 的 <body> 原样抽取生成。
+ *
+ * 模板保留全部 id / class，供既有命令式引导逻辑按 DOM 契约操作；脚本迁移前的
+ * <script> 引入顺序改由下方 onMounted 内的 await import 复现。
+ */
+import { onMounted } from "vue";
+import { loadClassicScript, useHardExit } from "../composables/useLegacyPage";
 
-<head>
-    <meta name="homeos-release" content="c4804759843c9dcd4aa1cb6b7e3456d0">
-    <meta charset="utf-8">
-    <script src="/static/logging/client-log.js"></script>
-    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-    <script
-        src="/static/display/display-boot.js"></script>
-    <script src="/static/display/display-startup.js"></script>
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="HomeOS">
-    <meta name="theme-color" content="#172029">
-    <title>HomeOS Display</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico" sizes="16x16 32x32 48x48">
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png" sizes="180x180">
-    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png" sizes="180x180">
-    <link rel="manifest" href="/static/assets/manifest/dashboard.webmanifest">
-    <link rel="stylesheet"
-        href="/static/renderer/renderer.css">
-    <link rel="stylesheet" href="/static/display.css">
-    <link rel="stylesheet" href="/static/display-boot.css">
-    <link rel="stylesheet" href="/static/modules/interaction3d/bridge.css">
-    <link rel="stylesheet" href="/static/apple-install-guide.css">
-</head>
+useHardExit();
 
-<body>
-    <main id="display-shell">
+onMounted(async () => {
+  // display-boot 设置 window.HomeOSDisplayBoot 与启动态；display-startup 自判 /display 或
+  // /homeos 路径。两者必须先于 display.ts 就位。
+  await import("@app/display/display-boot");
+  await import("@app/display/display-startup");
+  await loadClassicScript("/static/vendor/hls.js/1.7.3/hls.min.js");
+  await import("@app/display/display");
+  await import("@app/display/apple-install-guide");
+});
+</script>
+
+<template>
+<main id="display-shell">
         <div id="display-root" tabindex="-1"></div>
     </main>
     <section id="display-splash" aria-label="正在打开仪表盘" tabindex="-1">
@@ -130,10 +123,4 @@
         </div>
         <div class="display-splash-footer" aria-hidden="true">让家，触手可及</div>
     </section>
-    <script src="/static/vendor/hls.js/1.7.3/hls.min.js"></script>
-    <script type="module"
-        src="/src/app/display/display.ts"></script>
-    <script type="module" src="/src/app/display/apple-install-guide.ts"></script>
-</body>
-
-</html>
+</template>

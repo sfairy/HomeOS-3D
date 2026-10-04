@@ -83,3 +83,6 @@ if (updatesLinkElement && updateBadgeElement) {
       stopNotice || (stopNotice = startUpdateNotice(updatesLinkElement, updateBadgeElement));
     }));
 }
+
+// 作为 ES module 被 SPA 视图 import；显式标注模块以通过 isolatedModules。
+export {};

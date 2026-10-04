@@ -19,11 +19,15 @@
   "devDependencies": {
     "@types/node": "^26.6.4",
     "@types/three": "0.186.0",
+    "@vitejs/plugin-vue": "^6.0.9",
     "esbuild": "^0.28.2",
     "typescript": "^7.0.2",
     "vite": "^8.3.2"
   },
   "dependencies": {
-    "three": "0.186.0"
+    "pinia": "^3",
+    "three": "0.186.0",
+    "vue": "^3.5",
+    "vue-router": "^4"
   }
 }

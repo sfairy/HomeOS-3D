@@ -18,7 +18,7 @@ from uuid import uuid4
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select, text
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -361,7 +361,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         response = await call_next(request)
         app_surface = (
             path == '/'
-            or path in {'/pair', '/login', '/setup', '/license', '/3d-studio'}
+            or path in {'/pair', '/login', '/setup', '/license', '/license-recovery', '/3d-studio'}
             or path.startswith(('/api/v1/', '/static/', '/assets/builtin/', '/display/', '/homeos/', '/projects/'))
         )
         if app_surface:
@@ -402,7 +402,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         ):
             response.headers['Cache-Control'] = 'private, no-cache'
         elif (
-            path in {'/', '/pair', '/login', '/setup', '/license', '/3d-studio'}
+            path in {'/', '/pair', '/login', '/setup', '/license', '/license-recovery', '/3d-studio'}
             or (
                 path.startswith('/api/v1/')
                 and not immutable_private_asset(path)
@@ -441,6 +441,22 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             destination = f'{destination}?{request.url.query}'
         return RedirectResponse(f'/login?next={quote(destination, safe = "")}', status_code = 303)
 
+    def spa_shell(*, license_blocked: bool = False) -> HTMLResponse:
+        """返回 Vue SPA 的唯一入口（dist/homeos-3d/frontend/index.html）。
+
+        迁移前每个后端页面路由返回各自的 HTML；迁移后统一返回这份 SPA 外壳，
+        由前端 vue-router 选视图。页面级鉴权（303 重定向）仍由各路由保留，服务端
+        依旧是鉴权权威。
+
+        ``license_blocked=True`` 时给 ``<html>`` 打 ``data-license-blocked="1"``：
+        前端据此在原地址就地渲染授权恢复页（对应迁移前就地返回
+        license-recovery.html 的行为），从而保留地址、授权恢复后重载回到原页。
+        """
+        html = (app_settings.frontend_dir / 'index.html').read_text(encoding = 'utf-8')
+        if license_blocked:
+            html = html.replace('<html', '<html data-license-blocked="1"', 1)
+        return HTMLResponse(html, headers = {'Cache-Control': 'no-store'})
+
     @app.get('/health/live', include_in_schema = False)
     async def health_live() -> dict[str, str]:
         return {'status': 'ok', 'version': app_settings.version}
@@ -470,7 +486,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
     def setup_page(request: Request):
         if initialized(request):
             return RedirectResponse('/' if signed_in(request) else '/login', status_code = 303)
-        return FileResponse(app_settings.frontend_dir / 'setup.html')
+        return spa_shell()
 
     @app.get('/login', include_in_schema = False)
     def login_page(request: Request):
@@ -478,7 +494,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             return RedirectResponse('/setup', status_code = 303)
         if signed_in(request):
             return RedirectResponse(safe_next_path(request), status_code = 303)
-        return FileResponse(app_settings.frontend_dir / 'login.html')
+        return spa_shell()
 
     @app.get('/pair', include_in_schema = False)
     def pair_page(request: Request):
@@ -495,8 +511,8 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         if device is not None and not scan_link:
             return RedirectResponse(f'/display/{device.project_id}', status_code = 303)
         if not request.app.state.license_service.allows('display'):
-            return FileResponse(app_settings.frontend_dir / 'license-recovery.html')
-        return FileResponse(app_settings.frontend_dir / 'pair.html')
+            return spa_shell(license_blocked = True)
+        return spa_shell()
 
     @app.get('/', include_in_schema = False)
     async def home_page(request: Request):
@@ -507,7 +523,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         await request.app.state.license_service.confirm_binding()
         if not await asyncio.to_thread(request.app.state.license_service.allows, 'editor'):
             return RedirectResponse('/license', status_code = 303)
-        return FileResponse(app_settings.frontend_dir / 'index.html')
+        return spa_shell()
 
     @app.get('/license', include_in_schema = False)
     async def license_page(request: Request):
@@ -518,7 +534,15 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         await request.app.state.license_service.confirm_binding()
         if await asyncio.to_thread(request.app.state.license_service.allows, 'editor'):
             return RedirectResponse('/', status_code = 303)
-        return FileResponse(app_settings.frontend_dir / 'license.html')
+        return spa_shell()
+
+    @app.get('/license-recovery', include_in_schema = False)
+    async def license_recovery_page(request: Request):
+        # 授权恢复页：迁移前没有独立地址，仅被其它路由就地渲染；SPA 化后给它一个真实
+        # 路由（直接访问也能打开），就地渲染的等价行为由 spa_shell(license_blocked = True) 承担。
+        if not initialized(request):
+            return RedirectResponse('/setup', status_code = 303)
+        return spa_shell()
 
     @app.get('/3d-studio', include_in_schema = False)
     async def three_d_studio_page(request: Request):
@@ -529,7 +553,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         await request.app.state.license_service.confirm_binding()
         if not await asyncio.to_thread(request.app.state.license_service.allows, 'editor'):
             return RedirectResponse('/license', status_code = 303)
-        return FileResponse(app_settings.frontend_dir / '3d-studio.html')
+        return spa_shell()
 
     @app.get('/display/{project_id}', include_in_schema = False)
     def display_page(project_id: str, request: Request):
@@ -539,8 +563,8 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         if not signed_in(request) and (device is None or device.project_id != project_id):
             return pairing_redirect(request)
         if not request.app.state.license_service.allows('display'):
-            return FileResponse(app_settings.frontend_dir / 'license-recovery.html')
-        response = FileResponse(app_settings.frontend_dir / 'display.html')
+            return spa_shell(license_blocked = True)
+        response = spa_shell()
         if device is not None and session_token_hash(request.cookies.get(app_settings.display_cookie_name, '')) == device.token_hash:
             set_display_cookie(response, app_settings, request.cookies[app_settings.display_cookie_name])
         return response
@@ -562,8 +586,8 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         if not signed_in(request) and (device is None or device.project_id != project.id):
             return pairing_redirect(request, project.id)
         if not request.app.state.license_service.allows('display'):
-            return FileResponse(app_settings.frontend_dir / 'license-recovery.html')
-        response = FileResponse(app_settings.frontend_dir / 'display.html')
+            return spa_shell(license_blocked = True)
+        response = spa_shell()
         if device is not None and session_token_hash(request.cookies.get(app_settings.display_cookie_name, '')) == device.token_hash:
             set_display_cookie(response, app_settings, request.cookies[app_settings.display_cookie_name])
         return response
