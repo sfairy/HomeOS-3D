@@ -8,7 +8,7 @@ from .security import session_token_hash
 
 
 def active_display_device(database: Session, token: str) -> DisplayDevice | None:
-    """Resolve a display token bound to an enabled persistent pairing code."""
+    """解析绑定到已启用持久配对码的 display 令牌。"""
     if not token:
         return None
     return database.scalar(

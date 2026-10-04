@@ -1,4 +1,4 @@
-'''Address discovery is setup-only; saved connections never run discovery.'''
+'''地址发现仅在配置阶段进行；已保存的连接从不执行发现。'''
 from __future__ import annotations
 
 import asyncio

@@ -1,4 +1,4 @@
-/** 前台下单与支付流程（移植自 `store-orders.ts`）。 */
+/** 前台下单与支付流程。 */
 
 import { defineStore } from "pinia";
 import { ref } from "vue";

@@ -56,11 +56,10 @@ class LicenseClientError(RuntimeError):
 
     @property
     def is_confirmed_revocation(self) -> bool:
-        """Return true only when the authorization service confirms revocation.
+        """仅当授权服务确认吊销时才返回 true。
 
-        A 401/403 can also mean an expired session, a stale recovery token, or
-        a transient race while authorization nodes converge.  Those cases must
-        preserve the local license so the client can retry recovery.
+        401/403 也可能表示会话过期、恢复令牌失效，或授权节点收敛期间的瞬时竞态。
+        这些情况必须保留本地授权，以便客户端重试恢复。
         """
         if self.status_code not in {401, 403}:
             return False
@@ -640,7 +639,7 @@ class LicenseService:
             return await self._recover_unlocked()
 
     async def retry_now(self) -> dict:
-        """One shared task for simultaneous clicks; never queue token rotations."""
+        """并发点击共用同一个任务，令牌轮换从不排队。"""
         if self._retry_task is not None and not self._retry_task.done():
             await asyncio.shield(self._retry_task)
             return self.status()
@@ -955,14 +954,14 @@ class LicenseService:
         return min(deadlines)
 
     def availability(self) -> dict:
-        """Public recovery shell gets no identifiers, credentials or raw errors."""
+        """公开的恢复外壳不返回任何标识、凭证或原始错误。"""
         result = self.status()
         output = {key: result[key] for key in ('status', 'errorCode', 'retryable', 'canRetry', 'retrying', 'retryAttempt', 'nextRetryAt')}
         output['displayAllowed'] = self.allows('display')
         return output
 
     def _verified_access(self, state: LicenseState, feature: str | None = None) -> bool:
-        """Re-verify the signed lease instead of trusting mutable SQLite status fields."""
+        """重新校验签名租约，而不是信任可变的 SQLite 状态字段。"""
         if not self.settings.license_required:
             return True
         if state.status not in {'ACTIVE', 'CONNECTION_WARNING'}:

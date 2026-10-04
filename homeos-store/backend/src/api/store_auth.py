@@ -1,4 +1,4 @@
-"""商店接口的 auth 资源组（从 api/store.py 拆出）。
+"""商店接口的 auth 资源组。
 """
 from __future__ import annotations
 

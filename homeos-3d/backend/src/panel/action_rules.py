@@ -26,6 +26,6 @@ def valid_ha_entity_id(value):
     return bool(ENTITY_ID.fullmatch(value))
 
 def valid_entity_id(value):
-    """Accept Home Assistant IDs and the renderer's scoped virtual IDs."""
+    """同时接受 Home Assistant 的 id 与渲染器作用域内的虚拟 id。"""
     return valid_ha_entity_id(value) or bool(VIRTUAL_ENTITY_ID.fullmatch(value))
 

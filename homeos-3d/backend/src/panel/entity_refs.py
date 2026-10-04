@@ -7,7 +7,7 @@ def is_virtual_entity_id(value):
     return value.startswith('virtual.')
 
 def document_entity_ids(value):
-    '''Return every HA entity explicitly or implicitly used by a panel document.'''
+    '''返回面板文档显式或隐式使用的所有 HA 实体。'''
     result = set()
 
     def walk(item: Any) -> None:

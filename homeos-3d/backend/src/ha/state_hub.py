@@ -106,11 +106,10 @@ class StateHub:
     def set_subscription_entities(
         self, queue: asyncio.Queue[dict[str, Any]], entity_ids: set[str]
     ) -> None:
-        """Limit incremental state events delivered to one subscriber.
+        """限制投递给单个订阅者的增量状态事件。
 
-        Events queued before the subscription was validated belong to the
-        handshake window. The following snapshot is authoritative, so those
-        stale events are discarded before runtime processing starts.
+        订阅校验完成之前排队的事件属于握手窗口期。随后的快照才是权威数据，
+        因此在运行时处理开始前会丢弃这些过期事件。
         """
         if queue not in self._subscribers:
             return

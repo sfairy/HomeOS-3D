@@ -13,7 +13,7 @@
  *   bun run dev -- --debug      # 热重载照旧，另开 debugpy 端口给 IDE attach
  *   bun ops/dev.mjs --prepare   # 只装 Python 环境
  *
- * 设计要点（迁移自旧的 Python 启动脚本，行为保持不变）：
+ * 设计要点：
  *   - `package.json` 是唯一入口，本脚本只做「起进程 + 环境编排」，不承担构建 / 部署。
  *   - 授权公钥是**动态**的：商店首次启动随机生成密钥对，主应用启动自检会无条件
  *     核对 transport 公钥的 sha256（backend/src/license/trust.py），所以必须现算
@@ -497,7 +497,7 @@ async function shutdown(children) {
     try {
       child.kill("SIGKILL");
     } catch {
-      /* already gone */
+      /* 进程已退出 */
     }
   }
 }

@@ -4695,7 +4695,6 @@ function clearLightGroupDropIndicator() {
     (areaDropIndicatorElement.classList.remove("drop-into", "drop-before", "drop-after"),
       delete areaDropIndicatorElement.dataset.dropPosition);
 }
-/** 灯组行 / 区域头的拖动统一改用指针事件，不再依赖 HTML5 drag&drop。 */
 const LIST_DRAG_TOUCH_HOLD_MS = 280,
   LIST_DRAG_START_DISTANCE = 6,
   LIST_DRAG_TOUCH_GIVE_UP_DISTANCE = 8,
@@ -9364,7 +9363,7 @@ function refreshStudioUiInner(shouldClearActiveElement = false) {
     }
   }
 }
-/** 刷新整个属性检查器：先跑原来那套「按选中类型逐个开关字段」的逻辑，再统一收敛一次分组。 */
+/** 刷新整个属性检查器：先跑「按选中类型逐个开关字段」的逻辑，再统一收敛一次分组。 */
 function refreshStudioUi(shouldClearActiveElement = false) {
   refreshStudioUiInner(shouldClearActiveElement);
   syncInspectorGroups();

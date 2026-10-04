@@ -1,4 +1,4 @@
-/** 后台领域词表（与旧 `admin/vocab.ts` 同口径）。 */
+/** 后台领域词表。 */
 
 export const ORDER_TYPE: Record<string, string> = {
   base: "基础",

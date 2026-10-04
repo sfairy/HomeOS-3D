@@ -26,12 +26,11 @@ class AdminAccountCredentials:
 
 
 class AdminAccountStore:
-    """Own the resettable administrator credential file.
+    """持有可重置的管理员凭据文件。
 
-    The users row remains in app.db as a stable identity because projects,
-    drafts and display pairing records reference its id. Authentication uses
-    only this file after externalization. Deleting the file and restarting the
-    service therefore resets login without deleting any business data.
+    users 记录保留在 app.db 中作为稳定身份，因为 projects、drafts 与 display
+    配对记录都引用它的 id。凭据外置后，身份验证只使用该文件。因此删除该
+    文件并重启服务即可重置登录，而不会删除任何业务数据。
     """
 
     def __init__(self, path: Path) -> None:
@@ -149,7 +148,7 @@ class AdminAccountStore:
 
     @staticmethod
     def _admin_user(database_session) -> User | None:
-        """Return the administrator row, or None when the database has no admin."""
+        """返回管理员记录；数据库里没有管理员时为 None。"""
         return database_session.scalar(
             select(User).where(User.role == "admin").order_by(User.created_at, User.id)
         )

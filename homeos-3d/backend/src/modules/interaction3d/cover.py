@@ -1,4 +1,4 @@
-"""Saved curtain model binding and authoritative HA capability checks."""
+"""已保存的窗帘模型绑定与权威的 HA 能力校验。"""
 from __future__ import annotations
 
 from math import isfinite
@@ -16,7 +16,7 @@ COVER_SERVICES = {
 def require_curtain_model(
     bindings: list, entity_id: str, scene: dict, *, model_type: str = 'curtain'
 ) -> None:
-    """Only a unique ordinary curtain model can authorize its bound cover."""
+    """只有唯一的普通窗帘模型才能为其绑定的窗帘授权。"""
     for binding in bindings:
         if binding.get('entityId') != entity_id or not binding.get('floorId') or not binding.get('modelId'):
             continue

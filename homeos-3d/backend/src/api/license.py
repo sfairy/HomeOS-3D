@@ -57,7 +57,7 @@ async def reactivate_license(request: Request, _user: CurrentUser) -> dict:
 
 @router.post('/retry')
 async def retry_license(request: Request, viewer: CurrentViewer) -> dict:
-    """Explicitly retry the current instance's authorization recovery."""
+    """显式重试当前实例的授权恢复。"""
     require_same_origin_write(request)
     try:
         result = await request.app.state.license_service.retry_now()

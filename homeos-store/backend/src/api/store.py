@@ -46,7 +46,6 @@ from ..core.models import (
     License,
     Order,
     Product,
-    Release,
 )
 from ..core.schemas import (
     ChangeEmailRequest,
@@ -62,6 +61,7 @@ from ..core.serializers import (
 )
 from ..ops import incidents, mail_settings, mailer
 from ..ops import site_settings as site_config
+from ..ops.release_sync import select_latest_release as _select_latest_release
 from ..security import password_gate
 from ..security.limiter import SlidingWindowLimiter
 from ..security.security import (
@@ -89,7 +89,7 @@ _DECK_KEYS = {"store": "store.html", "admin": "admin.html", "setup": "setup.html
 
 @router.get("/shell/deck")
 def shell_deck(request: Request, session: DbSession, page: str = "store") -> dict:
-    """SPA 状态甲板的读数（原服务端注入改为 JSON）。"""
+    """SPA 状态甲板的读数。"""
     page_key = _DECK_KEYS.get(page)
     if page_key is None:
         raise HTTPException(status_code=404, detail="未知页面。")
@@ -138,13 +138,8 @@ def product_detail(product_id: str, session: DbSession) -> dict:
 
 @router.get("/updates/latest")
 def latest_release(request: Request, session: DbSession, channel: str = "docker") -> JSONResponse:
-    release = session.scalars(
-        select(Release)
-        .where(Release.product == "homeos")
-        .where(Release.channel == channel)
-        .order_by(Release.created_at.desc())
-        .limit(1)
-    ).first()
+    # 按版本号取最新（而非写入时间）：GitHub 同步行与本地补写行的写入顺序不固定。
+    release = _select_latest_release(session, channel)
     payload = {
         "product": "homeos",
         "channel": channel,

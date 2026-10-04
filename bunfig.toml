@@ -1,4 +1,4 @@
-# Workspace deps hoist into the repo-root node_modules only
-# (no homeos-3d/node_modules or homeos-store/node_modules).
+# 工作区依赖只提升到仓库根的 node_modules
+# （不在 homeos-3d/node_modules 或 homeos-store/node_modules 下）。
 [install]
 linker = "hoisted"

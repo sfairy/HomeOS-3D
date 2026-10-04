@@ -1,4 +1,4 @@
-/** 展示格式化（与旧 `admin/format.ts` 同口径）。 */
+/** 展示格式化。 */
 
 import { formatCents } from "../money.js";
 

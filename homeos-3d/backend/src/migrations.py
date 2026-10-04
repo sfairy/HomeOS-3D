@@ -31,9 +31,8 @@ def _migration_config(settings: Settings, script_dir: Path) -> Config:
     config.set_main_option('sqlalchemy.url', settings.database_url)
     return config
 
-#: 迁移链压缩后的唯一基线版本号。发行产物不带迁移脚本，新库直接按 ORM 元数据建好后
-#: 写入这个版本号；开发期存在 migrations/ 时，会校验它与 Alembic head 一致，防止有人
-#: 加了 0002 却忘了同步这个常量（产物会退回「只建 0001」）。
+#: 结构基线版本号。发行产物不带迁移脚本，新库直接按 ORM 元数据建好后写入这个版本号；
+#: 开发期存在 migrations/ 时，会校验它与 Alembic head 一致。
 SCHEMA_REVISION = '0001'
 
 def _create_schema(settings: Settings) -> None:
@@ -111,7 +110,7 @@ def _script_knows_revision(config: Config, revision: str) -> bool:
 def _schema_matches_orm(database_url: str) -> bool:
     """库结构是否已满足 ORM 元数据（只查「缺表 / 缺列 / 缺索引」，多出来的历史对象不算差异）。
 
-    结构链压缩后，老链末端建出来的库与本基线 ``0001`` 在 ORM 口径上是同一个结构，
+    老链末端建出来的库与本基线 ``0001`` 在 ORM 口径上是同一个结构，
     只是 ``alembic_version`` 记录还停在旧编号。这种情况可以安全接管：只改记录、不动结构。
     """
     from sqlalchemy import create_engine, inspect
@@ -166,7 +165,7 @@ def _validate_database(database_path: Path, expected_revision: str) -> None:
             raise RuntimeError(f'Database revision is {actual_revision}, expected {expected_revision}.')
 
 def create_upgrade_backup(settings: Settings, source_revision: str, target_revision: str) -> Path:
-    '''Create and verify a transactionally consistent copy before upgrading.'''
+    '''升级前创建并校验事务一致的副本。'''
     backup_directory = settings.data_dir / 'upgrade-backups'
     backup_directory.mkdir(parents = True, exist_ok = True, mode = 0o700)
     os.chmod(backup_directory, 0o700)
@@ -210,7 +209,7 @@ def create_upgrade_backup(settings: Settings, source_revision: str, target_revis
             metadata_temporary_path.unlink(missing_ok = True)
 
 def restore_upgrade_backup(settings: Settings, backup_path: Path) -> None:
-    '''Atomically restore the pre-upgrade database after a failed migration.'''
+    '''迁移失败后原子地恢复升级前的数据库。'''
     restore_suffix = uuid4().hex
     restore_path = settings.data_dir / f'.app.db.restore-{restore_suffix}'
     try:

@@ -169,7 +169,7 @@ class HAConnectorService:
             return database.scalar(select(HAConnection).where(HAConnection.is_active.is_(True)))
 
     async def _run_database(self, operation, *args, **kwargs):
-        """Serialize connector database work without blocking the async server loop."""
+        """串行化连接器的数据库操作，同时不阻塞异步服务循环。"""
         async with self._database_lock:
             return await asyncio.to_thread(operation, *args, **kwargs)
 
@@ -322,7 +322,7 @@ class HAConnectorService:
         return HAClient(endpoint.base_url, token, verify_tls = endpoint.verify_tls, timeout = self.settings.ha_request_timeout_seconds, websocket_max_size_bytes = self.settings.ha_websocket_max_size_bytes)
 
     async def fetch_history(self, connection: HAConnection, entity_id: str, start_time: str, hours: int) -> list[dict[str, Any]]:
-        """Limit and briefly cache history reads so charts cannot fan out to HA."""
+        """限制并短暂缓存历史数据读取，避免图表大量并发请求 HA。"""
         cache_key = (str(connection.id), str(entity_id), int(hours))
         now = time.monotonic()
         async with self._history_cache_lock:

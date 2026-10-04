@@ -1,4 +1,4 @@
-"""Model binding and live HA capability checks for the 3D climate controls."""
+"""3D 气候控件的模型绑定与 HA 实时能力校验。"""
 from __future__ import annotations
 
 import math
@@ -16,7 +16,7 @@ CLIMATE_SERVICES = {
 
 
 def require_air_conditioner_model(bindings: list, entity_id: str, scene: dict, *, fan_model: str = 'airpurifier', model_type: str | tuple[str, ...] | None = None) -> None:
-    """A saved model id, never a light-group id, anchors a climate binding."""
+    """气候绑定锚定的是已保存的模型 id，绝不是灯组 id。"""
     floors = scene.get('floors', [])
     for binding in bindings:
         if binding.get('entityId', '') != entity_id:

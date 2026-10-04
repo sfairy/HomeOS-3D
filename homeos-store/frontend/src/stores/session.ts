@@ -1,4 +1,4 @@
-/** 前台会话与账号数据（移植自 `store.ts` 的账号部分）。 */
+/** 前台会话与账号数据。 */
 
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";

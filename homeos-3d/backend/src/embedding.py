@@ -1,4 +1,4 @@
-'''Independent iframe credentials retain display-only access without origin restrictions.'''
+'''独立的 iframe 凭据保留仅 display 访问权限，且不受来源限制。'''
 from __future__ import annotations
 
 import re
@@ -30,11 +30,11 @@ def set_embedded_cookie(request, response, project_id: str, token: str) -> None:
         response.raw_headers[-1] = (key, value + b'; Partitioned')
 
 class EmbedSessionMiddleware:
-    """Keep a display's revocable bearer credential on a private URL namespace.
+    """把 display 的可撤销 bearer 凭据保存在私有 URL 命名空间下。
 
-    Relative modules inherit the namespace; the bootstrap scopes runtime URLs.
-    The normal authorization checks still run with exactly one display identity.
-    Neither administrator cookies nor other paired projects cross this boundary.
+    相对模块继承该命名空间；bootstrap 会限定运行时 URL 的范围。
+    常规授权检查仍以恰好一个 display 身份运行。
+    管理员 cookie 与其他已配对项目都不会跨越此边界。
     """
 
     def __init__(self, app, settings):

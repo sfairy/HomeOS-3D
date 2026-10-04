@@ -1,4 +1,4 @@
-'''Chinese connection messages for setup and historical/runtime failures.'''
+'''配置阶段与历史/运行时失败所用的连接提示消息（中文）。'''
 from __future__ import annotations
 
 import re

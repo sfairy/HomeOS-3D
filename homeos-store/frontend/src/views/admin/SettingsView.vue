@@ -264,7 +264,6 @@ const orderTtlWarning = computed(() => {
   );
 });
 
-/* ---------- 邮件预设 ---------- */
 const presetProvider = ref("");
 const presetEmail = ref("");
 
@@ -354,7 +353,6 @@ function applyPresetClick() {
   toast.push(`已按 ${preset.label} 填入预设，保存后生效；还差 SMTP 授权码。`, "success");
 }
 
-/* ---------- 邮件徽标 ---------- */
 const mailBadge = computed(() => {
   const source = mail();
   const mode = form.mailMode || text(source.mode) || "log";
@@ -384,7 +382,6 @@ const mailBadge = computed(() => {
   };
 });
 
-/* ---------- 自检 ---------- */
 const alipayChecks = ref<DiagnosticCheck[]>([]);
 const wechatChecks = ref<DiagnosticCheck[]>([]);
 const mailChecks = ref<DiagnosticCheck[]>([]);
@@ -463,7 +460,6 @@ async function testMail() {
   }
 }
 
-/* ---------- 载入 ---------- */
 function envHint(configured: unknown): string {
   return configured ? "跟随环境变量（已配置）" : "跟随环境变量";
 }
@@ -647,7 +643,6 @@ function onProviderChange() {
   if (form.paymentProvider === "wechat") form.paymentChannelWechat = true;
 }
 
-/* ---------- 保存 ---------- */
 function alipaySecretPayload(): Record<string, string> {
   const payload: Record<string, string> = {};
   if (form.alipayClearPrivateKey) payload.alipayAppPrivateKey = "";

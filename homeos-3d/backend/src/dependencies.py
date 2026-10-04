@@ -206,7 +206,7 @@ def authenticated_viewer(
 def authenticated_short_lived_viewer(
     request: Request, response: Response
 ) -> ViewerPrincipal:
-    "Return detached identity data, releasing authentication's DB connection."
+    "返回已脱离会话的身份数据，以释放身份验证持有的数据库连接。"
     with request.app.state.database.session_factory() as database:
         viewer = authenticated_viewer(request, response, database)
         if viewer.user is not None:

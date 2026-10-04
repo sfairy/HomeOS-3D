@@ -56,10 +56,10 @@ def websocket_url(base_url: str) -> str:
 
 
 def is_ipv6_literal(base_url: str) -> bool:
-    """Return whether the URL points directly at an IPv6 address.
+    """返回该 URL 是否直接指向 IPv6 地址。
 
-    IPv6 literals cannot be reached through the IPv4-only proxy commonly used
-    by local deployments, so these targets must bypass environment proxies.
+    IPv6 字面量无法通过本地部署常用的仅 IPv4 代理访问，
+    因此这些目标必须绕过环境代理。
     """
     hostname = urlparse(base_url).hostname
     if not hostname:
@@ -433,7 +433,7 @@ class HAClient:
         media_content_id: str = 'media-source://',
         media_content_type: str | None = None,
     ) -> Any:
-        """Browse Home Assistant's media sources for a media-player entity."""
+        """浏览 Home Assistant 中某个媒体播放器实体的媒体源。"""
         payload = {'media_content_id': media_content_id}
         websocket = await self.connect_websocket()
         try:
@@ -447,7 +447,7 @@ class HAClient:
         media_content_id: str = '',
         media_content_type: str | None = None,
     ) -> Any:
-        """Use the integration's own library; an empty content id requests its root."""
+        """使用集成自带的媒体库；content id 为空时请求其根目录。"""
         payload = {'entity_id': entity_id}
         if media_content_id:
             payload['media_content_id'] = media_content_id

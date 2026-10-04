@@ -20,7 +20,7 @@ class LicenseEndpoint:
 
 
 class LicenseEndpointPool:
-    """Select ESA/EO first, with direct origins as the final fallback."""
+    """优先选择 ESA/EO，最后才回退到直连源站。"""
 
     def __init__(self, batches: Iterable[tuple[str, Iterable[str]]], *, blacklist_seconds: int = LICENSE_ENDPOINT_BLACKLIST_SECONDS, clock: Callable[[], float] = time.monotonic, rng: random.Random | None = None) -> None:
         self._lock = threading.RLock()
@@ -75,7 +75,7 @@ class LicenseEndpointPool:
             self._blacklist_until[base_url] = self._clock() + self._blacklist_seconds
 
     def retry_failed(self) -> None:
-        """A scheduled retry round can probe lines before the old cooldown ends."""
+        """定时重试轮次可以在旧冷却期结束前探查各线路。"""
         with self._lock:
             self._blacklist_until.clear()
 

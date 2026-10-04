@@ -94,7 +94,7 @@ def upstream_path(request: Request) -> str:
 
 
 def upstream_request_headers(headers: Mapping[str, str]) -> dict[str, str]:
-    """Keep media request headers without leaking an outer reverse-proxy hop to HA."""
+    """保留媒体请求头，同时不把外层反向代理的信息泄漏给 HA。"""
     return {
         name: value
         for name, value in headers.items()
@@ -103,7 +103,7 @@ def upstream_request_headers(headers: Mapping[str, str]) -> dict[str, str]:
 
 
 def allowed_media_proxy_path(path: str) -> bool:
-    """Allow only HA media paths and reject path-normalization bypasses."""
+    """只允许 HA 媒体路径，并拒绝路径规范化绕过。"""
     if not path.startswith(ALLOWED_MEDIA_PROXY_PREFIXES) or '\\' in path:
         return False
     return all(segment not in {'.', '..'} for segment in path.split('/'))
@@ -119,7 +119,7 @@ def rewrite_location(value: str, base_url: str) -> str:
 
 
 def versioned_image_proxy_cache_control(path: str, query: str, status_code: int) -> str | None:
-    """Cache state-versioned HA images without changing live camera behavior."""
+    """缓存带状态版本号的 HA 图像，同时不改变实时摄像头行为。"""
     if path.startswith('/api/image_proxy/') and 200 <= status_code < 300:
         if parse_qs(query).get('hb_live') == ['1']:
             return 'private, no-store'

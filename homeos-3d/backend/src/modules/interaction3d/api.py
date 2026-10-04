@@ -257,7 +257,7 @@ async def water_heater_capabilities(
         request: Request,
         database: DatabaseSession,
         viewer: LicensedViewer):
-    """HA uses its configured display unit for climate and water-heater values."""
+    """气候和热水器数值使用 HA 配置的显示单位。"""
     require_access(request)
     connection = active_connection(database)
     if connection is None:

@@ -118,7 +118,7 @@ def user_asset_payload(root: Path, asset_id: str, path: Path, dimensions: tuple[
 
 
 def effect_variant_payload(path: Path, full_asset_id: str, version: str, cache_root: Path) -> tuple[dict, Path] | None:
-    'Build a non-destructive alpha-cropped PNG used only by the runtime renderer.'
+    '生成仅供运行时渲染器使用的非破坏性 alpha 裁剪 PNG。'
     if path.suffix.lower() not in {'.png', '.webp'}:
         return None
     cache_key = hashlib.sha256(f'{full_asset_id}\x00{version}'.encode()).hexdigest()
@@ -402,7 +402,7 @@ def validate_uploaded_image(suffix: str, path: Path) -> tuple[int, int]:
         raise ValueError('图片文件已损坏或无法完整解码。') from error
 
 class AssetCatalog:
-    'Process-local catalog; customer deployments run a single app worker.'
+    '进程本地的资源目录；客户部署只运行一个 app worker。'
 
     def __init__(self, built_in_root: Path, user_root: Path, studio3d_exports_root: Path | None = None, effect_variants_root: Path | None = None) -> None:
         self.built_in_root = built_in_root.resolve()
@@ -533,13 +533,13 @@ class AssetCatalog:
         return items
 
     def builtin_path(self, relative_path: str) -> Path | None:
-        """Map an in-catalog built-in relative path to its file, or None."""
+        """把目录内的内置相对路径映射到其文件；不存在时为 None。"""
         self._load_builtin()
         with self.mutation_lock:
             return self._builtin_paths.get(relative_path.strip('/'))
 
     def builtin_asset_exists(self, asset_id: str) -> bool:
-        """Whether the built-in asset id is in the catalog."""
+        """内置资源 id 是否在目录中。"""
         self._load_builtin()
         with self.mutation_lock:
             return asset_id in self._builtin_items

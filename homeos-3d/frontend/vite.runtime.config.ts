@@ -97,7 +97,7 @@ function manifestPlugin(): Plugin {
           if (Array.isArray(prev.capability)) capability = prev.capability;
           if (prev.mediaTypes && typeof prev.mediaTypes === "object") mediaTypes = prev.mediaTypes;
         } catch {
-          /* defaults */
+          /* 默认值 */
         }
       }
       fs.writeFileSync(

@@ -20,7 +20,7 @@
 
   image [--arch ARCH] [--project 3d|store|all] [--tag TAG] [--push]
       从工作区根 ``dist/`` 组装运行镜像（``--target app`` / ``--target store``）。
-      镜像内不再编译后端：后端 .so 与前端产物都直接 COPY 自 dist/。
+      镜像内不编译后端：后端 .so 与前端产物都直接 COPY 自 dist/。
 
   clean [--project 3d|store|all]
       删除工作区根 ``dist/`` 下对应项目的产物。

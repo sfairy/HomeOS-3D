@@ -150,9 +150,8 @@ def payment_configuration_payload(
 ) -> dict:
     """支付配置的序列化。
 
-    顶层字段（provider / displayName / available / configured）保持单渠道时代的语义，
-    取**默认渠道**的值 —— 老前台JS与后台都不必改就能继续工作；新增的 ``channels``
-    数组才是多渠道的信息来源。
+    顶层字段（provider / displayName / available / configured）取**默认渠道**的值；
+    新增的 ``channels`` 数组才是多渠道的信息来源。
     """
     channels = payment_channels_payload(setting, settings)
     default_name = default_channel_name(setting, settings)

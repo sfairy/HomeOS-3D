@@ -908,7 +908,7 @@ def websocket_viewer(websocket: WebSocket) -> ViewerPrincipal | None:
 
 
 def websocket_origin_allowed(websocket: WebSocket) -> bool:
-    """Require browser WebSockets to originate from this application host."""
+    """要求浏览器 WebSocket 必须源自本应用主机。"""
     origin = websocket.headers.get('origin', '').strip()
     if not origin:
         return False

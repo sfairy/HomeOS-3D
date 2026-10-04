@@ -1,1 +1,1 @@
-'''HomeOS application package.'''
+'''HomeOS 应用包。'''

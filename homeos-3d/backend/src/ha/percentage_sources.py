@@ -1,4 +1,4 @@
-'''Only explicit percentage units and HA-defined percentage attributes qualify.'''
+'''只有显式的百分比单位和 HA 定义的百分比属性才符合条件。'''
 from typing import Any
 
 PERCENTAGE_ATTRIBUTES = {

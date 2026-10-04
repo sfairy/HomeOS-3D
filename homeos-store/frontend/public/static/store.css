@@ -1004,7 +1004,6 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   white-space: nowrap;
 }
 
-/* ---- 中控示意 ---- */
 .hb-figure {
   margin: 0;
 }
@@ -1301,7 +1300,6 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   font-weight: 560;
 }
 
-/* ---- 部署四步 ---- */
 .hb-steps {
   display: grid;
   margin: 0;
@@ -1354,7 +1352,6 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   line-height: 1.6;
 }
 
-/* ---- 授权版本 ---- */
 .hb-tiers {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(248px, 1fr));
@@ -1435,7 +1432,6 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   text-align: center;
 }
 
-/* ---- 保障 ---- */
 .hb-trust {
   display: grid;
   margin: 0;
@@ -1475,7 +1471,6 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   line-height: 1.6;
 }
 
-/* ---- FAQ ---- */
 .hb-faq {
   border: 1px solid var(--hb-line);
   border-radius: var(--hb-radius-lg);

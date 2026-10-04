@@ -1,7 +1,6 @@
 /**
  * 即时消息墙运行时逻辑（纯函数，不依赖 DOM）
  *
- * 移植自 HomeOS 前端的 useEventLogOverlay：
  * - 控制类实体域白名单（EVENT_LOG_OVERLAY_DOMAINS）；
  * - 各域「控制 / 设定类」属性白名单与属性变更文案（control-attr-change.util）；
  * - state 变更文案解析与事件指纹（用于窗口期去重）；

@@ -1,1 +1,1 @@
-'''HomeOS API routers.'''
+'''HomeOS API 路由。'''

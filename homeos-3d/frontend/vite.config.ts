@@ -14,10 +14,10 @@ const projectRoot = path.resolve(frontendRoot, "..");
 const repoRoot = path.resolve(projectRoot, "..");
 const outDir = path.join(repoRoot, "dist", "homeos-3d", "frontend");
 
-/** SPA 唯一入口：迁移前这里列出的是 pages/ 下 8 个多页 HTML。 */
+/** SPA 唯一入口。 */
 const SPA_ENTRY = "index.html";
 
-/** 迁移前多页版本的 HTML 名：仅用于构建时清理陈旧产物，不再参与输入。 */
+/** 仅用于构建时清理陈旧产物的 HTML 名，不再参与输入。 */
 const LEGACY_HTML_NAMES = [
   "3d-studio.html",
   "display.html",

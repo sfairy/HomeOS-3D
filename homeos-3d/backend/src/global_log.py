@@ -91,7 +91,7 @@ def safe_context(value: dict[str, Any] | None) -> dict[str, Any]:
 
 
 class GlobalLogStore:
-    """Migration-free JSONL event log stored in the persistent data directory."""
+    """存储在持久化数据目录中的免迁移 JSONL 事件日志。"""
 
     def __init__(
         self, data_dir: Path, *, retention_days: int = 7, max_bytes: int = 5242880

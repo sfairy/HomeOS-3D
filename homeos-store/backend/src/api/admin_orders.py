@@ -1,4 +1,4 @@
-"""运营后台的 orders 资源组（从 api/admin.py 拆出）。
+"""运营后台的 orders 资源组。
 """
 from __future__ import annotations
 

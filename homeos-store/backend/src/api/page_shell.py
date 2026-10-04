@@ -1,7 +1,6 @@
 """商店页面外壳：把站点配色样式表填进 SPA 模板的 ``<!--{{APPEARANCE}}-->``。
 
-场景壳与状态甲板已迁到前端组件（``SceneStage.vue`` / ``DeckTiles.vue``）：前者是
-纯静态标记，后者经 ``/store/v1/shell/deck`` 取读数。本模块只剩「外壳」这一件事。
+本模块只剩「外壳」这一件事。
 """
 
 from __future__ import annotations
@@ -44,7 +43,7 @@ def inject_auth_state(text: str, account) -> str:
 def inject_scene(text: str, request: Request, *, session=None) -> str:
     """把 ``text`` 里的配色插入点换成实际的 ``<link>``。
 
-    参数 ``session`` 保留以兼容旧调用点，当前不再使用。
+    参数 ``session`` 当前未使用。
     """
     del session
     if APPEARANCE_PLACEHOLDER not in text:

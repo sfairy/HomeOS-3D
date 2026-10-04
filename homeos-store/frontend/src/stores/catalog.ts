@@ -1,4 +1,4 @@
-/** 商店前台的商品目录（移植自 `store-catalog.ts`）。 */
+/** 商店前台的商品目录。 */
 
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";

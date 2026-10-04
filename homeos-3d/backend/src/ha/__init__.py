@@ -1,1 +1,1 @@
-'''Home Assistant connector services.'''
+'''Home Assistant 连接器服务。'''

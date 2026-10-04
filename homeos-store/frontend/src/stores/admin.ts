@@ -50,7 +50,7 @@ export const useAdminStore = defineStore("admin", () => {
     }
     try {
       // 会话探针走后台作用域：`/store-admin/v1/overview` 只对管理员放行，
-      // 普通商店账号在这里就会被挡回登录屏（与旧实现的两次探测一致）。
+      // 普通商店账号在这里就会被挡回登录屏。
       await adminApi("/overview");
     } catch (error) {
       const status = (error as { status?: number }).status;

@@ -55,7 +55,7 @@ function classicIifePlugin(): Plugin {
   };
 }
 
-/** 把 Vite 产出的 index.html 收敛到 templates/（挂载根之外），并清掉旧版三入口残留。 */
+/** 把 Vite 产出的 index.html 收敛到 templates/（挂载根之外）。 */
 function flattenTemplatesPlugin(): Plugin {
   return {
     name: "homeos-store-flatten-templates",
@@ -69,7 +69,6 @@ function flattenTemplatesPlugin(): Plugin {
       //: base 已经是挂载前缀，产物里的资源引用无需再改写，直接搬走即可。
       fs.copyFileSync(from, path.join(templatesDir, "index.html"));
       fs.unlinkSync(from);
-      // 旧版三入口残留目录，构建时顺手清掉。
       const nested = path.join(buildOutDir, "pages");
       if (fs.existsSync(nested)) fs.rmSync(nested, { recursive: true, force: true });
     },

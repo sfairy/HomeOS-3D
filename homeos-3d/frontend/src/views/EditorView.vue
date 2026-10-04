@@ -1,9 +1,6 @@
 <script setup lang="ts">
 /**
- * 由迁移工具从 `pages/index.html` 的 <body> 原样抽取生成。
- *
- * 模板保留全部 id / class，供既有命令式引导逻辑按 DOM 契约操作；脚本迁移前的
- * <script> 引入顺序改由下方 onMounted 内的 await import 复现。
+ * 模板保留全部 id / class，供既有命令式引导逻辑按 DOM 契约操作。
  */
 import { onMounted } from "vue";
 import { loadClassicScript, useHardExit } from "../composables/useLegacyPage";

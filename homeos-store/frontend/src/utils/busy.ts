@@ -1,4 +1,4 @@
-/** 表单忙碌态：禁用提交按钮并改文案（与旧 `admin/api.ts#withBusy` 同行为）。 */
+/** 表单忙碌态：禁用提交按钮并改文案。 */
 
 export async function withBusy<T>(
   form: HTMLFormElement | null | undefined,

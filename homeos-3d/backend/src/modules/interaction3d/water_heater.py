@@ -1,4 +1,4 @@
-'''Live capability validation for native HA water-heater controls.'''
+'''原生 HA 热水器控件的实时能力校验。'''
 import math
 
 from fastapi import HTTPException

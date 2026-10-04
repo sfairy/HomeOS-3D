@@ -63,7 +63,7 @@ PUBLIC_PAGES = {
 
 
 class ClientLogLimiter:
-    'Bound anonymous reporting without growing one entry per arbitrary IP.'
+    '限制匿名上报，避免为每个任意 IP 各增长一条记录。'
 
 
     def __init__(self) -> None:

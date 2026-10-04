@@ -1,7 +1,7 @@
 import type { DomControl } from "@app/utils/dom-control";
 
 /**
- * 登录页引导。迁移为 Vue SPA 后由 `LoginView.vue` 在挂载时调用。
+ * 登录页引导。由 `LoginView.vue` 在挂载时调用。
  *
  * 之所以导出成函数而不是继续在模块顶层跑：SPA 内同文档多次进入同一路由时，模块只会求值
  * 一次，顶层副作用不会重跑；只有显式 init 才能把监听器重新挂到新渲染出来的 DOM 上。

@@ -1,4 +1,4 @@
-'''Browser-origin guard for writes that do not require a JSON request body.'''
+'''针对不需要 JSON 请求体的写操作的浏览器来源防护。'''
 from urllib.parse import urlsplit
 
 from fastapi import HTTPException, Request

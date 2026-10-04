@@ -1,4 +1,4 @@
-"""Explicit door bindings and capability-checked lock commands."""
+"""显式的门绑定以及经能力校验的锁命令。"""
 import math
 import re
 

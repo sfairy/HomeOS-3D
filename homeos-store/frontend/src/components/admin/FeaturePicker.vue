@@ -35,7 +35,7 @@ const matched = computed(() => {
   );
 });
 
-/** 与旧实现同口径：接口下发的分组优先，未覆盖的分组按出现顺序补在末尾。 */
+/** 接口下发的分组优先，未覆盖的分组按出现顺序补在末尾。 */
 const blocks = computed(() => {
   const base = catalog.groups.length ? [...catalog.groups] : [{ key: "base", label: "基础能力" }];
   const known = new Set(base.map((group) => group.key));

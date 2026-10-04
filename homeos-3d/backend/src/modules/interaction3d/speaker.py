@@ -1,4 +1,4 @@
-'''Capability and argument validation for a bound media-player speaker.'''
+'''对已绑定的媒体播放器音箱进行能力和参数校验。'''
 import math
 
 from fastapi import HTTPException

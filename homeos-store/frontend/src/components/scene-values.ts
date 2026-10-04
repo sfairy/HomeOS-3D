@@ -1,4 +1,4 @@
-/** 场景壳的左栏文案（移植自 backend/src/api/page_shell.py 的 SCENE_VALUES_BY_PAGE）。 */
+/** 场景壳的左栏文案。 */
 
 export interface SceneValues {
   STATUS_LABEL: string;

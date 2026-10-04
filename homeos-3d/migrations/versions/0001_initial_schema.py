@@ -1,10 +1,9 @@
 """HomeOS 主应用结构基线：与当前 ORM 元数据完全一致的全新库结构。
 
-本文件是 ``0001`` … ``0023`` 整条迁移链的压缩基线，精确等于
-``backend/src/models.py`` 里的 ``Base.metadata``，不是对着某个存量库生成的增量差异。
+精确等于 ``backend/src/models.py`` 里的 ``Base.metadata``。
 
-**旧库必须显式失败**：这里只声明 ``0001``，因此库内记录着 ``0002``…``0023`` 任何历史 revision
-时，Alembic 会因为找不到该 revision 直接报错退出（启动期的 ``run_migrations`` 会先备份、
+**旧库必须显式失败**：这里只声明 ``0001``，因此库内记录着任何其它 revision 时，
+Alembic 会因为找不到该 revision 直接报错退出（启动期的 ``run_migrations`` 会先备份、
 失败后回滚备份），不会把老结构悄悄当成新基线继续跑。
 
 ``ops/check_schema.py`` 会验证「全新库能建出来」「``alembic check`` 无差异」

@@ -1,4 +1,4 @@
-"""Disposable, bounded light-image cache. No project or studio data is stored here."""
+"""可丢弃、有界的灯光图片缓存。此处不存储任何项目或工作室数据。"""
 from __future__ import annotations
 
 import fcntl

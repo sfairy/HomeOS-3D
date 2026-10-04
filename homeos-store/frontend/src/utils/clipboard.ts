@@ -1,4 +1,4 @@
-/** 复制到剪贴板（与旧 `admin/dom.ts` 的 `data-copy-target` 同口径）。 */
+/** 复制到剪贴板。 */
 
 import { useToastStore } from "../stores/toast.js";
 

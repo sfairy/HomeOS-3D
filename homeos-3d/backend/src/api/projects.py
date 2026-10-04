@@ -230,7 +230,7 @@ async def get_project_draft(project_id: str, request: Request, database: Databas
 
 @router.get('/{project_id}/revision')
 def get_project_revision(project_id: str, database: DatabaseSession, viewer: LicensedViewer) -> dict:
-    """Return the lightweight dashboard revision used by display clients."""
+    """返回 display 客户端使用的轻量仪表盘修订版本。"""
     require_viewer_project(viewer, project_id)
     draft = database.get(ProjectDraft, project_id)
     if draft is None:

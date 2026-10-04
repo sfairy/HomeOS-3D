@@ -1,4 +1,4 @@
-'''Numeric state sources for signed flow; unavailable is not the same as text.'''
+'''带符号流向的数值状态来源；unavailable 与文本状态并不等同。'''
 import math
 import re
 from typing import Any

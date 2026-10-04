@@ -5,8 +5,7 @@
  * 下：剥离前缀后才交给路由表，同时注入授权用的 display cookie。因此嵌入页面里的
  * `location.pathname` 比 SPA 路由多一段 43 位 token 前缀。
  *
- * 迁移前是多页应用、浏览器每次都是整页导航，前缀由后端的 HTML 改写 + embed-runtime 承担；
- * SPA 化后 vue-router 必须在解析地址时就把它当 base 摘掉，否则
+ * vue-router 必须在解析地址时就把它当 base 摘掉，否则
  * `/embed/<token>/display/xxx` 匹配不到任何路由 → 落到 catch-all → `redirect: "/"` →
  * history.replaceState 把前缀整个抹掉（嵌入页渲染成编辑器）。
  *

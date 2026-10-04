@@ -630,7 +630,7 @@ const warmWoodFurnitureItemTypes = new Set([
     "nas",
     "printer",
   ]),
-  /** 「角色表优先」的模型集合：材质名只有 `<type>-material-N`（不带角色），之前靠亮度 / 槽位号启发式着色，现在由 studio-model-material-roles.ts 的槽位角色表接管。 */
+  /** 「角色表优先」的模型集合：材质名只有 `<type>-material-N`（不带角色），由 studio-model-material-roles.ts 的槽位角色表接管。 */
   roleTableItemTypes = new Set([
     ...Object.keys(MODEL_SLOT_ROLES),
     "plant",

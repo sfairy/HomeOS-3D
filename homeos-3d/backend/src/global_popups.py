@@ -47,7 +47,7 @@ def remap_popup_references(value, replacements: dict[str, str]) -> None:
             remap_popup_references(item, replacements)
 
 def clear_popup_references(value, popup_ids: set[str]) -> int:
-    '''Turn actions targeting deleted global popups into explicit no-op actions.'''
+    '''把指向已删除全局弹窗的操作转换为显式的空操作。'''
     if not popup_ids:
         return 0
     if isinstance(value, dict):

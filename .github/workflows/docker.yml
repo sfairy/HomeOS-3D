@@ -34,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # 版本号唯一来源：仓库根 package.json 的 version（不再是 VERSION 文件）。
+      # 版本号唯一来源：仓库根 package.json 的 version。
       # 发布标签只有两个：该版本号（如 1.0.0）与 latest，且只在默认分支推送，
       # 避免分支构建覆盖发布指针；非默认分支退化为 sha-<short>。
       - id: meta
@@ -73,7 +73,7 @@ jobs:
           # 三条 vite 配置不在两个子项目 tsconfig 的 include 里，单独用根 tsconfig.node.json
           # 按 strict 检查一遍（此前完全没被任何门禁覆盖）。
           bun run typecheck:node
-          # 零 @ts-nocheck 门禁（Phase 6：迁移已清零，改为硬失败，不再只是告警）。
+          # 零 @ts-nocheck 门禁（硬失败）。
           # 不用 rg：runner 默认不保证装了 ripgrep，grep 更稳。
           # 扫 frontend 全目录而非仅 src：vite.config.ts / vite-quiet-logger.ts 等同样在 tsconfig 内。
           # 允许前导空白，避免缩进写的 pragma 逃过检查。
@@ -210,7 +210,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # 前端产物改由宿主机构建并混淆，落到工作区根 dist/（镜像内不再跑 bun/vite）。
+      # 前端产物由宿主机构建并混淆，落到工作区根 dist/。
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
@@ -219,7 +219,7 @@ jobs:
         run: |
           bun install --frozen-lockfile
           bun run build:frontend
-          # 混淆与产物结构断言（原先在 Dockerfile 的 frontend-tools 阶段）。
+          # 混淆与产物结构断言。
           grep -q '_0x' dist/homeos-3d/frontend/static/logging/client-log.js
           grep -q '_0x' dist/homeos-store/frontend/static/auth-bootstrap.js
           test -f dist/homeos-3d/frontend/static/vendor/three/0.186.0/three.module.min.js
@@ -229,7 +229,7 @@ jobs:
 
       - uses: docker/setup-buildx-action@v4
 
-      # 后端 Cython 编译成 .so 并导出到根 dist/；运行镜像直接 COPY，不再编译后端。
+      # 后端 Cython 编译成 .so 并导出到根 dist/；运行镜像直接 COPY，不编译后端。
       # 与下面的 build-push-action 共用 gha 缓存 scope，避免后端被编译两遍。
       - name: Export protected backend to workspace dist
         run: |

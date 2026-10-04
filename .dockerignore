@@ -40,10 +40,10 @@ homeos-3d/image
 docs
 ops/deploy
 
-# 依赖目录（镜像内不再构建前端，两个子项目的 node_modules 都不进上下文）。
+# 依赖目录（镜像内不构建前端，两个子项目的 node_modules 都不进上下文）。
 **/node_modules
 # 注意：工作区根 dist/ 必须进入构建上下文 —— 运行阶段要 COPY 其中的加密后端与前端产物。
-# 因此这里不能再用 `**/dist` 通配（它会连根 dist 一起排除）。
+# 因此这里不能用 `**/dist` 通配（它会连根 dist 一起排除）。
 *.tsbuildinfo
 
 # 客户分发包输出目录（pack-customer.sh 产出，内含源码副本与 tar 包）。

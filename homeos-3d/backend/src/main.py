@@ -50,7 +50,7 @@ from .migrations import restore_upgrade_backup, run_migrations
 from .models import DisplayDevice, LoginSession, Project, User
 from .modules.interaction3d.api import router as interaction3d_router
 from .security import session_token_hash, set_display_cookie
-from .updates import UpdateChecker
+from .updates import STORE_UPDATES_PATH, UpdateChecker
 from .updates import router as updates_router
 
 SLOW_REQUEST_MILLISECONDS = 2000
@@ -134,7 +134,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             app.state.asset_catalog = AssetCatalog(app_settings.built_in_assets_dir, app_settings.user_assets_dir, app_settings.studio3d_exports_dir, app_settings.effect_variants_dir)
             app.state.ha_connector = HAConnectorService(app_settings, app.state.database, event_log = app.state.global_log)
             app.state.ha_connector.start()
-            app.state.update_checker = UpdateChecker(app_settings.data_dir, app_settings.version, app_settings.update_channel, enabled = app_settings.update_checks_enabled)
+            app.state.update_checker = UpdateChecker(app_settings.data_dir, app_settings.version, app_settings.update_channel, enabled = app_settings.update_checks_enabled, endpoints = app_settings.update_endpoints or (f'{app_settings.store_url}{STORE_UPDATES_PATH}',))
             app.state.update_checker.start()
             app.state.global_log.append('success', '系统后台', '系统', f'HomeOS {app_settings.version} 已启动', context={'phase': 'ready'})
         except Exception as error:
@@ -320,13 +320,11 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         )
 
     def etag_matches(request: Request, response) -> bool:
-        """Return whether a GET/HEAD validator matches this cacheable response.
+        """返回 GET/HEAD 校验器是否匹配此可缓存响应。
 
-        StaticFiles performs this negotiation itself, but interaction-module
-        resources are served through a normal API route and therefore return a
-        FileResponse directly. Keep the validator check here, after the
-        authorization middleware has run, so a stale private-cache entry can
-        never turn an unauthorized request into a 304.
+        StaticFiles 会自行完成这项协商，但交互模块资源是通过普通 API 路由
+        提供的，因此直接返回 FileResponse。把校验器检查放在这里，即在授权
+        中间件运行之后，这样过期的私有缓存条目就绝不会把未授权请求变成 304。
         """
         if request.method not in {'GET', 'HEAD'} or response.status_code != 200:
             return False
@@ -444,13 +442,11 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
     def spa_shell(*, license_blocked: bool = False) -> HTMLResponse:
         """返回 Vue SPA 的唯一入口（dist/homeos-3d/frontend/index.html）。
 
-        迁移前每个后端页面路由返回各自的 HTML；迁移后统一返回这份 SPA 外壳，
-        由前端 vue-router 选视图。页面级鉴权（303 重定向）仍由各路由保留，服务端
-        依旧是鉴权权威。
+        统一返回这份 SPA 外壳，由前端 vue-router 选视图。页面级鉴权（303 重定向）仍由各路由保留，
+        服务端依旧是鉴权权威。
 
         ``license_blocked=True`` 时给 ``<html>`` 打 ``data-license-blocked="1"``：
-        前端据此在原地址就地渲染授权恢复页（对应迁移前就地返回
-        license-recovery.html 的行为），从而保留地址、授权恢复后重载回到原页。
+        前端据此在原地址就地渲染授权恢复页，从而保留地址、授权恢复后重载回到原页。
         """
         html = (app_settings.frontend_dir / 'index.html').read_text(encoding = 'utf-8')
         if license_blocked:
@@ -538,8 +534,8 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
 
     @app.get('/license-recovery', include_in_schema = False)
     async def license_recovery_page(request: Request):
-        # 授权恢复页：迁移前没有独立地址，仅被其它路由就地渲染；SPA 化后给它一个真实
-        # 路由（直接访问也能打开），就地渲染的等价行为由 spa_shell(license_blocked = True) 承担。
+        # 授权恢复页：给它一个真实路由（直接访问也能打开），就地渲染的等价行为由
+        # spa_shell(license_blocked = True) 承担。
         if not initialized(request):
             return RedirectResponse('/setup', status_code = 303)
         return spa_shell()

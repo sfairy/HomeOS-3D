@@ -1,4 +1,4 @@
-'''Only explicit saved deletions affect studio-backed bindings; never HA entities.'''
+'''只有显式保存的删除才会影响工作室支撑的绑定；绝不涉及 HA 实体。'''
 import hashlib
 import json
 from copy import deepcopy
@@ -45,7 +45,7 @@ def binding_key(item, path):
     return (item.get('floorId'), 'light' if path == ('lights',) else 'model', item.get('groupId') if path == ('lights',) else item.get('modelId'))
 
 def plan_cleanup(documents, old_scene, new_scene, archives, settings):
-    """Return new documents and granular undo records without modifying inputs."""
+    """返回新文档和细粒度撤销记录，且不修改入参。"""
     before = identities(old_scene)
     after = identities(new_scene)
     removed = before - after

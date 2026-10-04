@@ -1,4 +1,4 @@
-"""One running service / credential writer per data directory (macOS/Linux)."""
+"""每个数据目录只允许一个运行中的服务 / 凭证写入者（macOS/Linux）。"""
 from __future__ import annotations
 
 import fcntl

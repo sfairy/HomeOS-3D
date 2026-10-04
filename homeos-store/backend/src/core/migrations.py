@@ -22,7 +22,7 @@ MIGRATION_LOCK_SUFFIX = ".migrate.lock"
 MIGRATION_BACKUP_LABEL = "migrate"
 MIGRATION_BACKUP_KEEP = 3
 
-#: 迁移链压缩后的唯一基线版本号。发行产物不带迁移脚本，新库直接按 ORM 元数据建好后
+#: 结构基线版本号。发行产物不带迁移脚本，新库直接按 ORM 元数据建好后
 #: 写入这个版本号；开发期存在 ``db/migrations`` 时，会校验它与 Alembic head 一致，
 #: 防止有人加了 0002 却忘了同步这个常量（产物会退回「只建 0001」）。
 SCHEMA_REVISION = "0001"
@@ -252,8 +252,8 @@ def run_migrations(settings: StoreSettings) -> list[str]:
                 performed.append(f"应用迁移 {recorded} → {head}")
             return performed
 
-        # 有版本号却不是 head：要么是脚本目录认识的历史节点（走正常升级），要么是压缩前的
-        # 旧编号（结构一致才允许只改记录）。两条都会改到库文件，先留快照。
+        # 有版本号却不是 head：要么是脚本目录认识的历史节点（走正常升级），要么是旧编号
+        # （结构一致才允许只改记录）。两条都会改到库文件，先留快照。
         known = config is not None and _script_knows_revision(config, recorded)
         if not known and not _schema_matches_orm(settings):
             raise _legacy_error(str(recorded))

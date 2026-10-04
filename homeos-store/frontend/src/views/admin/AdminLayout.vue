@@ -81,7 +81,7 @@ const router = useRouter();
 const admin = useAdminStore();
 const toast = useToastStore();
 
-/** 面板按 `:page` 懒加载；未知 page 渲染空白（与旧 hash 路由的容错一致）。 */
+/** 面板按 `:page` 懒加载；未知 page 渲染空白。 */
 const PANELS: Record<string, Component> = {
   overview: defineAsyncComponent(() => import("./OverviewView.vue")),
   products: defineAsyncComponent(() => import("./ProductsView.vue")),

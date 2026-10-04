@@ -42,7 +42,7 @@ def require_access(request: Request, *, database=None) -> None:
 
 
 def access_grant(request: Request) -> dict:
-    """A short UI lifetime, never a credential accepted by any backend route."""
+    """一个短暂的 UI 有效期，绝不是任何后端路由都会接受的凭证。"""
     require_access(request)
     service = request.app.state.license_service
     lifetime = float(MAX_GRANT_SECONDS)
@@ -63,7 +63,7 @@ def access_grant(request: Request) -> dict:
 
 
 def module_components(value, path=()):
-    """Visit nested groups/templates too; list positions must not block normal edits."""
+    """同时遍历嵌套的分组/模板；列表位置不应阻碍正常编辑。"""
     if isinstance(value, dict):
         if value.get('type') == COMPONENT_TYPE:
             yield (path, value)

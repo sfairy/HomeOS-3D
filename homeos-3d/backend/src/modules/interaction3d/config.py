@@ -1,4 +1,4 @@
-"""The 3D add-on's configuration contract, independent of the panel popup schema."""
+"""3D 增量包的配置契约，独立于面板弹窗 schema。"""
 import json
 import math
 import re
@@ -575,7 +575,7 @@ def validate_config(properties: dict) -> None:
         if 'fadeDuration' in light and not number(light['fadeDuration'], 0, 10):
             fail()
         # 默认灯光效果：亮度与色温（K），不填表示不做预设。
-        # 上限放宽到 150 是为了兼容历史草稿（早期版本存过 150，前端 LIGHT_EFFECT_DEFAULTS 也是 150）；
+        # 上限放宽到 150 是为了兼容存量草稿（前端 LIGHT_EFFECT_DEFAULTS 也是 150）；
         # 收紧到 100 会让含这些灯光的控件在保存时整份 422，读入侧不放大、渲染侧按 100 封顶即可。
         if 'effectDefaults' in light:
             defaults = light['effectDefaults']
@@ -875,8 +875,8 @@ def validate_config(properties: dict) -> None:
             'aqiEntityId',
             'illuminanceEntityId',
             'batteryEntityId',
-            # 环境信息框尺寸默认值的一次性迁移标记（旧版前端写入，现行前端已不再写）。
-            # 字段本身已无读写方，但现存草稿里仍带着它：白名单里删掉会让这些控件保存时整份 422。
+            # 环境信息框尺寸默认值的兼容标记：字段本身已无读写方，但现存草稿里仍带着它，
+            # 白名单里删掉会让这些控件保存时整份 422。
             'sizingVersion'}
         if not isinstance(item, dict) or set(item) - fields or not all(text(item.get(key, '')) for key in ('id', 'floorId', 'label')):
             fail()

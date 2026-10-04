@@ -1,4 +1,4 @@
-/** 邀请码的本地留存（移植自 `referrals.ts` 顶部逻辑）。 */
+/** 邀请码的本地留存。 */
 
 const STORAGE_KEY = "hb_invite_v1";
 

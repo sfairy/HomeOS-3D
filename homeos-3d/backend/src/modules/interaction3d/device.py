@@ -1,4 +1,4 @@
-"""Device-owned popup configuration, with no inferred primary entity."""
+"""由设备自身拥有的弹窗配置，不推断主实体。"""
 import math
 import re
 
@@ -22,7 +22,7 @@ GENERIC_DEVICE_COLLECTIONS = tuple(
 
 
 def validate_device_status_rules(rules, fail):
-    """Shared indicator contract for appliances, including water heaters."""
+    """适用于各类家电（含热水器）的共享指示灯契约。"""
     if not isinstance(rules, dict) or set(rules) - {'power', 'health'}:
         fail()
     values = []
