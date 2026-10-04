@@ -562,6 +562,12 @@ async function main() {
     "--reload",
     "--reload-dir",
     APP_SOURCE,
+    // 开发期日志降噪：丢掉重载器的「检测到改动，正在重载」提示。
+    // 它走 uvicorn.error 且级别就是 WARNING，`--log-level` 压不掉（除非连带把
+    // uvicorn.access 设成 ERROR、一起丢掉请求日志与启动信息），所以改用一份只过滤
+    // 这一条的 log config。商店侧等价逻辑在 backend/src/run.py 里就地安装。
+    "--log-config",
+    path.join(HERE, "dev_logging.json"),
   ];
   // 调试前缀顶替基础命令的 `python -m` 头（slice(2)），变成
   // `python -m debugpy --listen PORT -m <module> ...`，后面的模块参数原样保留。

@@ -13,6 +13,7 @@ import uvicorn
 
 from .app import create_app
 from .config import STORE_ROOT, load_settings
+from .logging_noise import install_reload_noise_filter
 
 _TRUTHY = frozenset({'1', 'true', 'yes', 'on'})
 
@@ -28,6 +29,7 @@ def main() -> None:
     )
     settings = load_settings()
     if reload_enabled():
+        install_reload_noise_filter()
         uvicorn.run(
             # 用 __package__ 而不是写死包名：源码下是 src，发行产物里是 app。
             f"{__package__}.app:create_app",
