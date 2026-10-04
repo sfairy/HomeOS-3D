@@ -100,7 +100,7 @@ async def has_ha_greeting(address: str, *, verify_tls: bool, timeout: float) -> 
     try:
         async with asyncio.timeout(timeout):
             connection = websockets.connect(websocket_url(address), ssl=client._ssl_context(), proxy=None if is_ipv6_literal(address) else True, open_timeout=timeout, close_timeout=timeout, max_size=8192, max_queue=1, ping_interval=None)
-            connection.process_redirect = lambda error: error
+            connection.process_redirect = lambda error: error  # pyright: ignore[reportAttributeAccessIssue]
             async with connection as socket:
                 greeting = json.loads(await socket.recv())
                 return isinstance(greeting, dict) and greeting.get('type') == 'auth_required' and isinstance(greeting.get('ha_version'), str) and bool(greeting['ha_version'].strip())

@@ -328,8 +328,8 @@ def _run_checks(app: str, title: str, data_env: str) -> int:
     # _create_schema）。两条路必须建出同一套结构 —— 否则开发期一切正常，装到用户机器上
     # 却少一张表。这里临时把脚本目录探测挡掉，让 run_migrations 走发行路径，再按语义
     # 口径逐表比对。（替换的是被测代码的分支开关，不是复用它的私有实现去核对结果。）
-    original_script_dir = getattr(migrations_module, "_migrations_dir")
-    setattr(migrations_module, "_migrations_dir", lambda _settings: None)
+    original_script_dir = migrations_module._migrations_dir
+    migrations_module._migrations_dir = lambda _settings: None  # pyright: ignore[reportAttributeAccessIssue]
     try:
         with tempfile.TemporaryDirectory(prefix=f"homeos-release-{app}-") as release_dir:
             os.environ[data_env] = release_dir
@@ -337,7 +337,7 @@ def _run_checks(app: str, title: str, data_env: str) -> int:
             run_migrations(release_settings)
             released = _structure_snapshot(release_settings.database_path)
     finally:
-        setattr(migrations_module, "_migrations_dir", original_script_dir)
+        migrations_module._migrations_dir = original_script_dir  # pyright: ignore[reportAttributeAccessIssue]
         os.environ[data_env] = str(database_path.parent)
 
     migrated = _structure_snapshot(database_path)

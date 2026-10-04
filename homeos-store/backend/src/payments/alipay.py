@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import httpx
 
+from .channels import display_name_for
 from ..commerce import money
 from ..config import StoreSettings
 from ..core.models import Order, StoreSetting
@@ -22,7 +23,6 @@ from ..ops.net_probe import (
     host_from_url,
     probe_tls,
 )
-from ..payments import channels
 from ..payments.base import (
     CloseResult,
     PaymentError,
@@ -258,7 +258,7 @@ class AlipayProvider:
         if not qr_code:
             raise PaymentError("支付宝下单成功但没有返回二维码。")
 
-        display_name = channels.display_name_for("alipay", setting, settings)
+        display_name = display_name_for("alipay", setting, settings)
         logger.info(
             "支付宝下单成功 order=%s amount=%s", order.order_no, biz_content["total_amount"]
         )

@@ -61,11 +61,11 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
     if not isinstance(attributes, dict):
         raise HTTPException(409, detail='空调能力尚未载入，请稍后重试。')
     features = attributes.get('supported_features')
-    declared = isinstance(features, int) and not isinstance(features, bool) and features >= 0
+    declared_features = features if isinstance(features, int) and not isinstance(features, bool) and features >= 0 else None
 
     def supports(bit: int, legacy: bool = False) -> bool:
         """HA 能力码声明了 ``supported_features`` 时按位判断；没声明（旧版/精简集成）时退回调用方给出的经验判据。"""
-        return bool(features & bit) if declared else legacy
+        return bool(declared_features & bit) if declared_features is not None else legacy
 
     if power:
         if not supports(256 if service == 'turn_on' else 128):
@@ -79,6 +79,7 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
         if (
             not supports(2 if is_range else 1, legacy)
             or not all(_number(v) for v in (minimum, maximum))
+            or minimum is None or maximum is None
             or minimum >= maximum
             or (step is not None and (not _number(step) or step <= 0))
         ):
@@ -101,6 +102,7 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
         'swing_horizontal_mode': ('swing_horizontal_modes', 512),
         'preset_mode': ('preset_modes', 16),
     }
+    assert field is not None
     attribute, feature = options[field]
     value, choices = data[field], attributes.get(attribute)
     if (

@@ -264,29 +264,4 @@ def load_settings() -> Settings:
     ha_key_path = os.getenv('APP_HA_CREDENTIAL_FILE', '').strip()
     display_pairing_key_path = os.getenv('APP_DISPLAY_PAIRING_KEY_FILE', '').strip()
     license_key_path = os.getenv('APP_LICENSE_CREDENTIAL_FILE', '').strip()
-    return Settings(**{
-        'data_dir': data_dir,
-        'app_base_url': os.getenv('APP_BASE_URL', '').strip().rstrip('/'),
-        'store_url': os.getenv('APP_STORE_URL', '').strip().rstrip('/') or DEFAULT_STORE_URL,
-        'session_max_age_seconds': int(os.getenv('APP_SESSION_MAX_AGE_SECONDS', '28800')),
-        'cookie_secure': _environment_bool('APP_COOKIE_SECURE'),
-        'update_checks_enabled': True,
-        'update_channel': os.getenv('APP_UPDATE_CHANNEL', 'docker').strip().lower(),
-        'ha_request_timeout_seconds': float(os.getenv('APP_HA_REQUEST_TIMEOUT_SECONDS', '10')),
-        'ha_reconcile_interval_seconds': int(os.getenv('APP_HA_RECONCILE_INTERVAL_SECONDS', '1800')),
-        'ha_websocket_max_size_bytes': int(os.getenv('APP_HA_WEBSOCKET_MAX_SIZE_BYTES', str(67108864))),
-        'license_required': True,
-        'hardware_machine_id_override': os.getenv('APP_HARDWARE_MACHINE_ID', '').strip(),
-        'hardware_board_id_override': os.getenv('APP_HARDWARE_BOARD_ID', '').strip(),
-        'license_server_url': os.getenv('APP_LICENSE_SERVER_URL', '').strip().rstrip('/') or SELF_HOSTED_LICENSE_SERVER_URL,
-        'license_server_batches': _environment_batches('APP_LICENSE_SERVER_BATCHES') or DEFAULT_LICENSE_SERVER_BATCHES,
-        'license_request_timeout_seconds': float(os.getenv('APP_LICENSE_REQUEST_TIMEOUT_SECONDS', '10')),
-        'license_public_key_sha256': os.getenv('APP_LICENSE_PUBLIC_KEY_SHA256', '').strip() or DEFAULT_LICENSE_PUBLIC_KEY_SHA256,
-        'license_transport_public_key_sha256': os.getenv('APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256', '').strip() or DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256,
-        'license_transport_key_id_override': os.getenv('APP_LICENSE_TRANSPORT_KEY_ID', '').strip(),
-        'license_public_key_path_override': _environment_path('APP_LICENSE_PUBLIC_KEY_FILE'),
-        'license_transport_public_key_path_override': _environment_path('APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE'),
-        'credential_key_path_override': Path(ha_key_path).expanduser().resolve() if ha_key_path else None,
-        'display_pairing_key_path_override': Path(display_pairing_key_path).expanduser().resolve() if display_pairing_key_path else None,
-        'license_secret_key_path_override': Path(license_key_path).expanduser().resolve() if license_key_path else None,
-    })
+    return Settings(data_dir=data_dir, app_base_url=os.getenv('APP_BASE_URL', '').strip().rstrip('/'), store_url=os.getenv('APP_STORE_URL', '').strip().rstrip('/') or DEFAULT_STORE_URL, session_max_age_seconds=int(os.getenv('APP_SESSION_MAX_AGE_SECONDS', '28800')), cookie_secure=_environment_bool('APP_COOKIE_SECURE'), update_checks_enabled=True, update_channel=os.getenv('APP_UPDATE_CHANNEL', 'docker').strip().lower(), ha_request_timeout_seconds=float(os.getenv('APP_HA_REQUEST_TIMEOUT_SECONDS', '10')), ha_reconcile_interval_seconds=int(os.getenv('APP_HA_RECONCILE_INTERVAL_SECONDS', '1800')), ha_websocket_max_size_bytes=int(os.getenv('APP_HA_WEBSOCKET_MAX_SIZE_BYTES', str(67108864))), license_required=True, hardware_machine_id_override=os.getenv('APP_HARDWARE_MACHINE_ID', '').strip(), hardware_board_id_override=os.getenv('APP_HARDWARE_BOARD_ID', '').strip(), license_server_url=os.getenv('APP_LICENSE_SERVER_URL', '').strip().rstrip('/') or SELF_HOSTED_LICENSE_SERVER_URL, license_server_batches=_environment_batches('APP_LICENSE_SERVER_BATCHES') or DEFAULT_LICENSE_SERVER_BATCHES, license_request_timeout_seconds=float(os.getenv('APP_LICENSE_REQUEST_TIMEOUT_SECONDS', '10')), license_public_key_sha256=os.getenv('APP_LICENSE_PUBLIC_KEY_SHA256', '').strip() or DEFAULT_LICENSE_PUBLIC_KEY_SHA256, license_transport_public_key_sha256=os.getenv('APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256', '').strip() or DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256, license_transport_key_id_override=os.getenv('APP_LICENSE_TRANSPORT_KEY_ID', '').strip(), license_public_key_path_override=_environment_path('APP_LICENSE_PUBLIC_KEY_FILE'), license_transport_public_key_path_override=_environment_path('APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE'), credential_key_path_override=Path(ha_key_path).expanduser().resolve() if ha_key_path else None, display_pairing_key_path_override=Path(display_pairing_key_path).expanduser().resolve() if display_pairing_key_path else None, license_secret_key_path_override=Path(license_key_path).expanduser().resolve() if license_key_path else None)

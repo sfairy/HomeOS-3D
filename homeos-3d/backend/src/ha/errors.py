@@ -7,13 +7,14 @@ import httpx
 
 
 def is_certificate_error(error: Exception) -> bool:
+    current: BaseException | None = error
     for _ in range(6):
-        detail = str(error).lower()
+        detail = str(current).lower()
         if 'certificate' in detail or 'cert_verify' in detail:
             return True
-        if error.__cause__ is None:
+        if current.__cause__ is None:
             break
-        error = error.__cause__
+        current = current.__cause__
     return False
 
 def connection_error_message(error: Exception | str | None) -> str | None:
@@ -22,9 +23,9 @@ def connection_error_message(error: Exception | str | None) -> str | None:
     text = str(error)
     if not text and not isinstance(error, Exception):
         return None
-    causes = [error]
-    while isinstance(causes[-1], Exception) and causes[-1].__cause__ and len(causes) < 6:
-        causes.append(causes[-1].__cause__)
+    causes: list[BaseException | str] = [error]
+    while isinstance(causes[-1], Exception) and (cause := causes[-1].__cause__) is not None and len(causes) < 6:
+        causes.append(cause)
     detail = ' '.join(str(cause) for cause in causes).lower()
     if '解密' in text or '密钥文件' in text:
         return '无法读取已保存的 HA 访问令牌，请检查原有 secrets 密钥目录是否保留且可读取，或重新填写长期访问令牌。'

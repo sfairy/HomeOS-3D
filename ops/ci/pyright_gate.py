@@ -67,7 +67,7 @@ def main(argv: list[str]) -> int:
     print("按规则：")
     for rule, count in rule_counts.most_common(TOP_LIMIT):
         print(f"  {count:4d}  {rule}")
-    print("按文件（前 %d）：" % TOP_LIMIT)
+    print(f"按文件（前 {TOP_LIMIT}）：")
     for file_name, count in file_counts.most_common(TOP_LIMIT):
         print(f"  {count:4d}  {file_name}")
 

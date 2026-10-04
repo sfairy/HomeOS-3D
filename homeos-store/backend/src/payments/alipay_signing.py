@@ -13,8 +13,9 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
+from .urls import callback_url_check, url_port
+from .urls import validate_callback_url as _validate_callback_url
 from ..commerce import money
-from ..payments import urls as payment_urls
 from ..payments.base import PaymentError
 
 CHINA_TZ = timezone(timedelta(hours=8))
@@ -175,19 +176,19 @@ def validate_callback_url(text: str, *, label: str) -> None:
     规则本体在 ``payments/urls.py``（渠道无关）；这里只把渠道名固定成「支付宝」，
     让错误文案说的是运营正在配的那个渠道。
     """
-    payment_urls.validate_callback_url(text, label=label, channel="支付宝")
+    _validate_callback_url(text, label=label, channel="支付宝")
 
 
 def _url_port(url: str, *, default: int) -> int:
     """从 URL 里取端口（规则本体在 payments/urls.py）。"""
-    return payment_urls.url_port(url, default=default)
+    return url_port(url, default=default)
 
 
 def _callback_check(
     check_id: str, label: str, url_value: str, *, reachable_hint: str
 ) -> dict:
     """回调地址的单项诊断（规则本体在 payments/urls.py，渠道名固定为支付宝）。"""
-    return payment_urls.callback_url_check(
+    return callback_url_check(
         check_id, label, url_value, channel="支付宝", reachable_hint=reachable_hint
     )
 

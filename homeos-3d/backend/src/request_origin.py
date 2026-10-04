@@ -10,10 +10,11 @@ def require_same_origin_write(request: Request) -> None:
         raise HTTPException(403, detail = '此操作只允许从当前应用页面发起。')
     origin = request.headers.get('origin')
     referer = request.headers.get('referer') if origin is None else None
-    if origin is None and referer is None:
+    raw_source = origin if origin is not None else referer
+    if raw_source is None:
         return
     try:
-        source = urlsplit((origin if origin is not None else referer).strip())
+        source = urlsplit(raw_source.strip())
         valid = source.scheme in {'http', 'https'} and bool(source.netloc) and source.username is None and source.password is None
         if origin is not None:
             valid = valid and not (source.path or source.query or source.fragment)

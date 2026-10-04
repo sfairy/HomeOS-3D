@@ -110,7 +110,7 @@ def decode_draft_document(draft: ProjectDraft | None) -> dict | None:
     try:
         document = json.loads(draft.document_json)
     except (TypeError, ValueError):
-        LOGGER.warning('仪表盘草稿 %s 的 document_json 无法解析，按空文档处理。', draft.id)
+        LOGGER.warning('仪表盘草稿 %s 的 document_json 无法解析，按空文档处理。', draft.project_id)
         return None
     return document if isinstance(document, dict) else None
 
@@ -447,7 +447,10 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
                     profile = next(profile for profile, item in generic_bindings if item is owner)
                     require_device_model(owner, scene, profile['model_type'])
                 elif is_airer:
-                    require_curtain_model([owner or primary], (owner or primary)['entityId'], scene, model_type='airer')
+                    target = owner or primary
+                    if target is None:
+                        raise ValueError('晾衣架绑定缺失。')
+                    require_curtain_model([target], target['entityId'], scene, model_type='airer')
                 elif is_fan:
                     require_air_conditioner_model([owner] if owner else bindings, owner.get('entityId', '') if owner else payload.entity_id, scene, fan_model='fan')
                 elif is_purifier:

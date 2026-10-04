@@ -16,7 +16,7 @@ def embedded_devices(connection, database):
         device = active_display_device(database, token)
         if device is None:
             continue
-        if not (name == COOKIE_PREFIX + device.project_id):
+        if name != COOKIE_PREFIX + device.project_id:
             continue
         devices.append(device)
     return tuple(sorted(devices, key = lambda item: item.project_id))
@@ -79,6 +79,7 @@ class EmbedSessionMiddleware:
                     body = body.replace(b'<head>', b'<head>' + bootstrap, 1)
                 else:
                     body = re.sub(b'(url\\(\\s*["\']?)(/[^/])', lambda m: m[1] + root + m[2], body)
+                assert start is not None
                 start['headers'] = [ (key, value) for (key, value) in start['headers'] if key.lower() not in {b'etag', b'cache-control', b'content-length'} ]
                 start['headers'].extend([ (b'content-length', str(len(body)).encode()), (b'cache-control', b'private, no-store') ])
                 await send(start)

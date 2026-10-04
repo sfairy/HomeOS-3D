@@ -5,9 +5,9 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from .wechat_signing import api_v3_key_error
 from ..config import StoreSettings
 from ..core.models import StoreSetting
-from ..payments import wechat_signing as signing
 from ..payments.alipay import (
     PaymentError,
     private_key_error,
@@ -176,7 +176,7 @@ def wechat_credentials_summary(
         "notifyUrl": merged.wechat_notify_url,
         "platformPublicKeyId": merged.wechat_platform_public_key_id,
         "transactionDescription": merged.wechat_transaction_description,
-        "apiV3KeyConfigured": not signing.api_v3_key_error(merged.wechat_api_v3_key),
+        "apiV3KeyConfigured": not api_v3_key_error(merged.wechat_api_v3_key),
         "merchantPrivateKeyConfigured": bool(private_key),
         "platformPublicKeyConfigured": bool(public_key),
         "apiV3KeyMasked": mask_secret(

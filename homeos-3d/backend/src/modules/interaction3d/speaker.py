@@ -55,7 +55,7 @@ def validate_speaker_command(service, data, state):
         fail()
     if service == 'media_seek':
         duration, position = attrs.get('media_duration'), data['seek_position']
-        if not number(duration) or duration <= 0 or not number(position) or not 0 <= position <= duration:
+        if duration is None or not number(duration) or duration <= 0 or position is None or not number(position) or not 0 <= position <= duration:
             fail('当前媒体不支持此进度位置。')
     if service in {'shuffle_set', 'volume_mute'}:
         if not isinstance(data[FIELDS[service]], bool):

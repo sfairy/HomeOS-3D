@@ -20,15 +20,26 @@ from uuid import uuid4
 
 import httpx
 
+from .channels import display_name_for
+from .urls import callback_url_check
+from .wechat_signing import (
+    WeChatPaymentError,
+    api_v3_key_error,
+    build_authorization_header,
+    build_request_sign_message,
+    decrypt_resource,
+    merchant_private_key_error,
+    merchant_serial_no_error,
+    new_nonce,
+    platform_public_key_error,
+    sign,
+    verify_notification,
+)
 from ..commerce import money
 from ..config import StoreSettings
 from ..core.models import Order, StoreSetting
 from ..ops.net_probe import LEVEL_FAIL, LEVEL_PASS, LEVEL_WARN, check_result, host_from_url
-from ..payments import channels
-from ..payments import urls as payment_urls
-from ..payments import wechat_signing as signing
 from ..payments.base import CloseResult, PaymentError, PaymentIntent, RefundResult
-from ..payments.wechat_signing import WeChatPaymentError
 
 logger = logging.getLogger("src.payments.wechat")
 
@@ -119,13 +130,13 @@ class WeChatPayProvider:
             missing.append("商户号 mchid")
         if not settings.wechat_app_id:
             missing.append("公众号/应用 appid")
-        if signing.api_v3_key_error(settings.wechat_api_v3_key):
+        if api_v3_key_error(settings.wechat_api_v3_key):
             missing.append("APIv3 密钥（须恰好 32 字符）")
-        if signing.merchant_private_key_error(settings.wechat_merchant_private_key_text):
+        if merchant_private_key_error(settings.wechat_merchant_private_key_text):
             missing.append("商户 API 私钥 apiclient_key.pem")
-        if signing.merchant_serial_no_error(settings.wechat_merchant_serial_no):
+        if merchant_serial_no_error(settings.wechat_merchant_serial_no):
             missing.append("商户证书序列号")
-        if signing.platform_public_key_error(settings.wechat_platform_public_key_text):
+        if platform_public_key_error(settings.wechat_platform_public_key_text):
             missing.append("微信支付公钥（或平台证书）")
         return missing
 
@@ -164,17 +175,17 @@ class WeChatPayProvider:
         url_path = path + (f"?{query}" if query else "")
         payload = "" if body is None else json.dumps(body, ensure_ascii=False, separators=(",", ":"))
         timestamp = str(int(time.time()))
-        nonce = signing.new_nonce()
-        message = signing.build_request_sign_message(
+        nonce = new_nonce()
+        message = build_request_sign_message(
             method=method, url_path=url_path, timestamp=timestamp, nonce=nonce, body=payload
         )
-        signature = signing.sign(message, settings.wechat_merchant_private_key_text)
+        signature = sign(message, settings.wechat_merchant_private_key_text)
 
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
             "User-Agent": "homeos-store/1.0",
-            "Authorization": signing.build_authorization_header(
+            "Authorization": build_authorization_header(
                 mchid=settings.wechat_mch_id,
                 serial_no=settings.wechat_merchant_serial_no,
                 nonce=nonce,
@@ -242,7 +253,7 @@ class WeChatPayProvider:
         if not code_url:
             raise PaymentError("微信支付下单成功但没有返回 code_url。")
 
-        display_name = channels.display_name_for("wechat", setting, settings)
+        display_name = display_name_for("wechat", setting, settings)
         logger.info(
             "微信支付下单成功 order=%s amount_fen=%s",
             order.order_no,
@@ -392,7 +403,7 @@ class WeChatPayProvider:
                 reason=f"回调时间戳偏差 {skew} 秒，超出 {NOTIFICATION_MAX_SKEW_SECONDS} 秒容忍窗口",
             )
 
-        if not signing.verify_notification(
+        if not verify_notification(
             timestamp=timestamp,
             nonce=nonce,
             body=body,
@@ -412,7 +423,7 @@ class WeChatPayProvider:
         if not isinstance(resource, dict):
             return WeChatNotification(ok=False, reason="回调缺少 resource")
         try:
-            payload = signing.decrypt_resource(settings.wechat_api_v3_key, resource)
+            payload = decrypt_resource(settings.wechat_api_v3_key, resource)
         except WeChatPaymentError as error:
             return WeChatNotification(ok=False, reason=str(error))
 
@@ -492,24 +503,24 @@ class WeChatPayProvider:
         for check_id, label, value, validator in (
             ("mch-id", "商户号 mchid", settings.wechat_mch_id, lambda text: "" if text else "未填写商户号。"),
             ("app-id", "应用 appid", settings.wechat_app_id, lambda text: "" if text else "未填写 appid。"),
-            ("api-v3-key", "APIv3 密钥", settings.wechat_api_v3_key, signing.api_v3_key_error),
+            ("api-v3-key", "APIv3 密钥", settings.wechat_api_v3_key, api_v3_key_error),
             (
                 "merchant-serial",
                 "商户证书序列号",
                 settings.wechat_merchant_serial_no,
-                signing.merchant_serial_no_error,
+                merchant_serial_no_error,
             ),
             (
                 "merchant-private-key",
                 "商户 API 私钥",
                 settings.wechat_merchant_private_key_text,
-                signing.merchant_private_key_error,
+                merchant_private_key_error,
             ),
             (
                 "platform-public-key",
                 "微信支付公钥",
                 settings.wechat_platform_public_key_text,
-                signing.platform_public_key_error,
+                platform_public_key_error,
             ),
         ):
             problem = validator(str(value or ""))
@@ -534,7 +545,7 @@ class WeChatPayProvider:
 
         effective_notify = (notify_url or "").strip() or settings.wechat_notify_url
         checks.append(
-            payment_urls.callback_url_check(
+            callback_url_check(
                 "notify-url",
                 "异步通知地址",
                 effective_notify,

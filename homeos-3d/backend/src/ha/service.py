@@ -474,7 +474,8 @@ class HAConnectorService:
                 if event_type == 'entity_registry_updated':
                     action = str(event_data.get('action') or 'update')
                     entity_id = str(event_data.get('entity_id') or '')
-                    changes = event_data.get('changes') if isinstance(event_data.get('changes'), dict) else { }
+                    changes_value = event_data.get('changes')
+                    changes = changes_value if isinstance(changes_value, dict) else { }
                     old_entity_id = str(changes.get('entity_id') or '')
                     removed_entity_ids = set()
                     if old_entity_id and old_entity_id != entity_id:
@@ -527,7 +528,8 @@ class HAConnectorService:
         if action not in {'create', 'remove', 'update'}:
             return None
         now = utc_now()
-        changes = event_data.get('changes') if isinstance(event_data.get('changes'), dict) else { }
+        changes_value = event_data.get('changes')
+        changes = changes_value if isinstance(changes_value, dict) else { }
         with self.database.session_factory() as database:
             if event_type == 'entity_registry_updated':
                 entity_id = str(event_data.get('entity_id') or '')

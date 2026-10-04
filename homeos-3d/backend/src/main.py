@@ -11,6 +11,7 @@ import traceback
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 from urllib.parse import quote
 from uuid import uuid4
 
@@ -211,7 +212,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
     async def record_request_diagnostics(request: Request, call_next):
         started = time.monotonic()
         diagnostic_path = '/api/hls/[stream]' if request.url.path.startswith('/api/hls/') else request.url.path
-        context = {'requestId': uuid4().hex, 'method': request.method, 'path': diagnostic_path}
+        context: dict[str, Any] = {'requestId': uuid4().hex, 'method': request.method, 'path': diagnostic_path}
         request.state.log_context = context
         token = event_context.set(context)
         log_endpoint = request.url.path == '/api/v1/logs' or request.url.path.startswith('/api/v1/logs/')
@@ -361,12 +362,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         app_surface = (
             path == '/'
             or path in {'/pair', '/login', '/setup', '/license', '/3d-studio'}
-            or path.startswith('/api/v1/')
-            or path.startswith('/static/')
-            or path.startswith('/assets/builtin/')
-            or path.startswith('/display/')
-            or path.startswith('/homeos/')
-            or path.startswith('/projects/')
+            or path.startswith(('/api/v1/', '/static/', '/assets/builtin/', '/display/', '/homeos/', '/projects/'))
         )
         if app_surface:
             embedded_auto_diagram = path == '/3d-studio' and request.query_params.get('auto-diagram-embed') == '1'
@@ -412,10 +408,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
                 and not immutable_private_asset(path)
                 and not (interaction_module_asset and response.status_code in {304, 200})
             )
-            or path.startswith('/display/')
-            or path.startswith('/homeos/')
-            or path.startswith('/projects/')
-            or path.startswith('/static/3d-studio/')
+            or path.startswith(('/display/', '/homeos/', '/projects/', '/static/3d-studio/'))
             or path in {'/static/display.js', '/static/display.css'}
         ):
             response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'

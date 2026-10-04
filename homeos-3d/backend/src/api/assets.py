@@ -333,8 +333,9 @@ def validate_and_sanitize_uploaded_svg(path: Path) -> tuple[int, int]:
     lowered = source.lower()
     if b'<!doctype' in lowered or b'<!entity' in lowered:
         raise ValueError('SVG 不允许包含文档类型或实体声明。')
+    # DOCTYPE / ENTITY 已在上方拦截，XXE 与实体膨胀均已封堵；解析不接受外部实体或网络访问。
     try:
-        root = ElementTree.fromstring(source)
+        root = ElementTree.fromstring(source)  # noqa: S314
     except ElementTree.ParseError as error:
         raise ValueError('SVG 文件已损坏或无法解析。') from error
     if xml_local_name(root.tag) != 'svg':
@@ -710,7 +711,7 @@ def read_effect_variant(request: Request, asset_id: str = Query(alias = 'assetId
     response = FileResponse(path, media_type = 'image/png')
     response.headers['Cache-Control'] = 'private, max-age=31536000, immutable'
     for key, value in authorization_response.raw_headers:
-        if not (key.lower() == b'set-cookie'):
+        if key.lower() != b'set-cookie':
             continue
         response.raw_headers.append((key, value))
     return response

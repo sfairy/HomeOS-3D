@@ -48,7 +48,9 @@ def validate_cover_command(service: str, data: dict, state: dict | None, *, drea
     if not isinstance(state, dict) or state.get('available') is False or state.get('state') in (None, '', 'unknown', 'unavailable'):
         raise HTTPException(409, detail='窗帘状态暂不可用，请等待设备重新连接。')
     attributes = state.get('attributes')
-    features = attributes.get('supported_features') if isinstance(attributes, dict) else None
+    if not isinstance(attributes, dict):
+        raise HTTPException(409, detail='窗帘能力尚未载入，请稍后重试。')
+    features = attributes.get('supported_features')
     if not isinstance(features, int) or isinstance(features, bool) or features < 0:
         raise HTTPException(409, detail='窗帘能力尚未载入，请稍后重试。')
     if not features & required_feature:

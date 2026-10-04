@@ -2,6 +2,7 @@
 import json
 import math
 import re
+from itertools import pairwise
 from typing import NoReturn
 
 from fastapi import HTTPException
@@ -265,7 +266,7 @@ def validate_config(properties: dict) -> None:
         if len({(p['x'], p['y']) for p in route}) != len(route):
             fail()
         a = route[0]
-        if not any(abs((b['x'] - a['x']) * (c['y'] - a['y']) - (b['y'] - a['y']) * (c['x'] - a['x'])) > 1e-06 for b, c in zip(route[1:], route[2:])):
+        if not any(abs((b['x'] - a['x']) * (c['y'] - a['y']) - (b['y'] - a['y']) * (c['x'] - a['x'])) > 1e-06 for b, c in pairwise(route)):
             fail()
     if 'uniformOverviewStack' in properties and not isinstance(properties['uniformOverviewStack'], bool):
         fail()

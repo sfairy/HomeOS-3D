@@ -63,7 +63,7 @@ def _create_schema(settings: StoreSettings) -> None:
     ``0001`` 基线是照着 ``Base.metadata`` 自动生成的，两者结构等价（``ops/check_schema.py``
     会比对结构指纹），所以 create_all 与跑一次迁移得到的是同一个库。
     """
-    from . import models, models_engagement  # noqa: F401  # 注册到 Base.metadata
+    from . import models, models_engagement  # noqa: F401  # 注册到 Base.metadata  # pyright: ignore[reportUnusedImport]
     from .database import Base, create_store_engine
 
     engine = create_store_engine(settings)

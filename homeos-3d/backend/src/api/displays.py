@@ -346,6 +346,8 @@ def update_display_device(
             pairing.updated_at = datetime.now(UTC)
     else:
         project = database.get(Project, device.project_id)
+        if project is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='仪表盘不存在。')
     if payload.name is not None:
         device.name = payload.name
         if pairing is not None:

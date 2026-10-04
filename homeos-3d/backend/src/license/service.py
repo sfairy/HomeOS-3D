@@ -460,19 +460,19 @@ class LicenseService:
                 state.last_error = '授权服务器时间明显晚于本机时间，请先校准系统时间。'
                 database.commit()
                 self._record_status(state.status, state.last_error)
-                raise LicenseClientError(state.last_error)
+                raise LicenseClientError(state.last_error or '')
             if expires_at <= now:
                 state.status = 'INVALID'
                 state.last_error = '授权服务器返回了已到期租约。'
                 database.commit()
                 self._record_status(state.status, state.last_error)
-                raise LicenseClientError(state.last_error)
+                raise LicenseClientError(state.last_error or '')
             if payload['activationCodeId'] == state.license_id and lease_sequence <= state.lease_sequence and state.signed_lease != signed_lease:
                 state.status = 'INVALID'
                 state.last_error = '授权服务器返回了未递增的租约序号。'
                 database.commit()
                 self._record_status(state.status, state.last_error)
-                raise LicenseClientError(state.last_error)
+                raise LicenseClientError(state.last_error or '')
             state.license_id = payload['activationCodeId']
             state.lease_id = payload['leaseId']
             state.session_id = payload['sessionId']
@@ -490,7 +490,7 @@ class LicenseService:
                 state.last_error = '授权服务器返回的权益列表无效。'
                 database.commit()
                 self._record_status(state.status, state.last_error)
-                raise LicenseClientError(state.last_error)
+                raise LicenseClientError(state.last_error or '')
             state.feature_set = json.dumps(features)
             state.max_projects = 0
             state.max_displays = 0
@@ -651,7 +651,7 @@ class LicenseService:
         await asyncio.shield(self._retry_task)
         return self.status()
 
-    async def _manual_retry(self) -> None:
+    async def _manual_retry(self) -> dict | None:
         generation = self._success_generation
         async with self._credential_operation():
             if generation != self._success_generation:
@@ -1028,5 +1028,5 @@ class LicenseService:
             if state is None or state.instance_id != self._instance_id():
                 return False
             return self._verified_access(state, feature)
-        with self.database.session_factory() as database:
-            return self._verified_access(self._state(database), feature)
+        with self.database.session_factory() as session:
+            return self._verified_access(self._state(session), feature)

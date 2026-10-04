@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import Boolean, DateTime, String, exists, func, insert, literal, select
 
+from .store_shared import _set_session_cookies
 from ..core.deps import DbSession
 from ..core.models import Account, AccountSession
 from ..security.request_security import resolve_client_ip
@@ -22,7 +23,6 @@ from ..security.security import (
     token_hash,
     utcnow,
 )
-from .store_shared import _set_session_cookies
 
 logger = logging.getLogger("src.setup")
 

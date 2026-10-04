@@ -149,8 +149,9 @@ def load_translation_context(database_manager: Database) -> tuple[HAConnection |
         connection = active_connection(database)
         if connection is None:
             return None, set()
-        integrations = set(
-            database.scalars(
+        integrations = {
+            platform
+            for platform in database.scalars(
                 select(HAEntity.platform)
                 .where(
                     HAEntity.connection_id == connection.id,
@@ -160,7 +161,8 @@ def load_translation_context(database_manager: Database) -> tuple[HAConnection |
                 )
                 .distinct()
             )
-        )
+            if platform is not None
+        }
         database.expunge(connection)
         return connection, integrations
 
@@ -779,7 +781,7 @@ async def call_service(
                     or not isinstance(v, (int, float))
                     or not math.isfinite(v)
                     or not (0 <= v <= bound)
-                    for v, bound in zip(values, bounds)
+                    for v, bound in zip(values, bounds, strict=True)
                 )
             ):
                 raise HTTPException(422, detail=f'灯光颜色参数无效：{field}')

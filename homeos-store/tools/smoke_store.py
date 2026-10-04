@@ -127,7 +127,7 @@ def ensure_store_importable() -> None:
     try:
         channels = _load_channels_bypassing_package_init()
         if "channel_label" not in channels.__dict__ and hasattr(channels, "provider_label"):
-            channels.channel_label = channels.provider_label
+            channels.channel_label = channels.provider_label  # pyright: ignore[reportAttributeAccessIssue]
         importlib.import_module("src.payments")
     except Exception as error:
         _payments_import_error = (
@@ -154,7 +154,7 @@ def _fresh_refund_engine():
 
     db_dir = Path(tempfile.mkdtemp(prefix="homeos-store-smoke-db-"))
     engine = create_engine(f"sqlite:///{db_dir / 'store.db'}")
-    OrderRefund.__table__.create(engine)
+    OrderRefund.__table__.create(engine)  # pyright: ignore[reportAttributeAccessIssue]
     return engine
 
 
@@ -226,7 +226,7 @@ def _check_refund_request_no() -> None:
     expect_true(refund_request_no("NO-2", 100) != first, "订单号不同必须换幂等号")
     expect_true(len(refund_request_no("N" * 200, 10**9)) <= 128, "幂等号长度不得超过 128")
     expect_true(refund_request_no("NO-1", 100).startswith("RFNO-1-"), "幂等号应以 RF + 订单号 + - 开头")
-    expect(refund_request_no("NO-1", 100), refund_request_no("NO-1", 100.0), "整数与等值浮点应同键")
+    expect(refund_request_no("NO-1", 100), refund_request_no("NO-1", 100.0), "整数与等值浮点应同键")  # pyright: ignore[reportArgumentType]
 
 
 def _check_refund_unsettled_statuses() -> None:
@@ -257,8 +257,8 @@ def _check_refund_gate_open_then_in_flight() -> None:
         verdict2, row2 = open_refund_gate(session, second)
         expect(verdict2, "in_flight", "同幂等号第二次进入闸门的裁决")
         expect_true(row2 is not None, "同幂等号第二次应当命中已存在的 running 流水")
-        expect(row2.out_request_no, request_no, "命中流水的 out_request_no")
-        expect(row2.status, "running", "命中流水的 status")
+        expect(row2.out_request_no, request_no, "命中流水的 out_request_no")  # pyright: ignore[reportOptionalMemberAccess]
+        expect(row2.status, "running", "命中流水的 status")  # pyright: ignore[reportOptionalMemberAccess]
 
 
 def _check_refund_gate_settled_after_write() -> None:
@@ -278,7 +278,7 @@ def _check_refund_gate_settled_after_write() -> None:
             )
             expect(verdict, "settled", "已成功退款的幂等号再进闸门的裁决")
             expect_true(row is not None, "settled 裁决必须带上命中的那行流水")
-            expect(row.status, "succeeded", "命中流水的 status")
+            expect(row.status, "succeeded", "命中流水的 status")  # pyright: ignore[reportOptionalMemberAccess]
 
 
 def _check_refund_gate_failed_is_retry() -> None:
@@ -345,7 +345,7 @@ def _check_unsettled_refund_picks_latest_processing() -> None:
         session.commit()
         latest = unsettled_refund(session, order_id="o1")
         expect_true(latest is not None, "o1 上应当能查到未定论的退款")
-        expect(latest.id, "p-new", "o1 上未定论退款应当取最新的 processing 一行")
+        expect(latest.id, "p-new", "o1 上未定论退款应当取最新的 processing 一行")  # pyright: ignore[reportOptionalMemberAccess]
         expect(unsettled_refund(session, order_id="o3"), None, "没有流水的订单应当返回 None")
 
 
@@ -429,7 +429,7 @@ def _check_coupon_patch_recounts_slots() -> None:
 
     function = getattr(admin_coupons_module, "admin_patch_coupon", None)
     expect_true(callable(function), "admin_coupons.admin_patch_coupon 应当存在")
-    source = inspect.getsource(function)
+    source = inspect.getsource(function)  # pyright: ignore[reportArgumentType]
     expect_true(
         "recount_coupon_slots" in source,
         "改动优惠券的分支应当调用 recount_coupon_slots 重算已发放份数",
@@ -441,7 +441,7 @@ def _check_register_checks_duplicate_before_consuming() -> None:
 
     function = getattr(store_auth_module, "register", None)
     expect_true(callable(function), "store_auth.register 应当存在")
-    _assert_duplicate_check_before_consume(inspect.getsource(function), "注册（store_auth.register）", "该邮箱已注册")
+    _assert_duplicate_check_before_consume(inspect.getsource(function), "注册（store_auth.register）", "该邮箱已注册")  # pyright: ignore[reportArgumentType]
 
 
 def _check_change_email_checks_duplicate_before_consuming() -> None:
@@ -450,7 +450,7 @@ def _check_change_email_checks_duplicate_before_consuming() -> None:
     function = getattr(store_module, "change_account_email", None)
     expect_true(callable(function), "store.change_account_email 应当存在")
     _assert_duplicate_check_before_consume(
-        inspect.getsource(function), "改邮箱（store.change_account_email）", "该邮箱已被其它账号使用"
+        inspect.getsource(function), "改邮箱（store.change_account_email）", "该邮箱已被其它账号使用"  # pyright: ignore[reportArgumentType]
     )
 
 
@@ -459,7 +459,7 @@ def _check_license_delete_refuses_when_ordered() -> None:
 
     function = getattr(admin_licenses_module, "admin_delete_license", None)
     expect_true(callable(function), "admin_licenses.admin_delete_license 应当存在")
-    source = inspect.getsource(function)
+    source = inspect.getsource(function)  # pyright: ignore[reportArgumentType]
     expect_true(
         "该授权已被订单引用" in source,
         "被订单引用时必须拒绝硬删（避免退款撤权益时找不到授权）",
@@ -474,7 +474,7 @@ def _products_db():
 
     db_dir = Path(tempfile.mkdtemp(prefix="homeos-store-smoke-products-"))
     engine = create_engine(f"sqlite:///{db_dir / 'products.db'}")
-    Product.__table__.create(engine)
+    Product.__table__.create(engine)  # pyright: ignore[reportAttributeAccessIssue]
     try:
         yield engine
     finally:
@@ -493,22 +493,22 @@ def _check_addon_fulfillment_grants_entitlements() -> None:
     from src.commerce import fulfill
     from src.core.models import Product
 
-    with _products_db() as engine:
-        with Session(engine) as session:
-            session.add(Product(id="parent", name="增量包", price_cents=100, feature_codes_json="[]", included_product_ids_json='["child"]'))
-            session.add(Product(id="child", name="被包含商品", price_cents=0, feature_codes_json='["feature.child"]', included_product_ids_json="[]"))
-            session.commit()
+    with _products_db() as engine, Session(engine) as session:
+        session.add(Product(id="parent", name="增量包", price_cents=100, feature_codes_json="[]", included_product_ids_json='["child"]'))
+        session.add(Product(id="child", name="被包含商品", price_cents=0, feature_codes_json='["feature.child"]', included_product_ids_json="[]"))
+        session.commit()
 
-            parent = session.get(Product, "parent")
-            expect(
-                fulfill.bundled_feature_codes(session, parent),
-                ["feature.child"],
-                "bundled_feature_codes 必须展开包含商品的功能码",
-            )
-            expect_true(
-                fulfill._product_grants_features(session, parent),  # noqa: SLF001 - 冒烟就是要钉这个私有判据
-                "只配包含商品的增量包必须被判为「能开出能力」，否则会被履约守卫直接拦掉",
-            )
+        parent = session.get(Product, "parent")
+        assert parent is not None
+        expect(
+            fulfill.bundled_feature_codes(session, parent),
+            ["feature.child"],
+            "bundled_feature_codes 必须展开包含商品的功能码",
+        )
+        expect_true(
+            fulfill._product_grants_features(session, parent),
+            "只配包含商品的增量包必须被判为「能开出能力」，否则会被履约守卫直接拦掉",
+        )
 
     addon_source = inspect.getsource(fulfill.apply_addon_to_license)
     expect_true(
@@ -548,7 +548,7 @@ def _check_default_channel_stays_within_enabled() -> None:
             payment_provider=setting_provider,
         )
         settings = types.SimpleNamespace(payment_provider=env_provider)
-        return channels_module.default_channel_name(setting, settings)
+        return channels_module.default_channel_name(setting, settings)  # pyright: ignore[reportArgumentType]
 
     expect(default_for('["wechat"]', "alipay", "alipay"), "wechat", "启用集合必须压过原始 payment_provider")
     expect(default_for('["wechat", "alipay"]', "alipay", "wechat"), "alipay", "配置的渠道本身也在启用集合内时应当直接采用")
@@ -591,7 +591,7 @@ def _check_settle_then_revert_license_chain() -> None:
         "revert_license_change 收回权益前必须确认没有别的有效订单在给同一商品付款",
     )
 
-    revoke_source = inspect.getsource(admin_orders_module._revoke_order_entitlements)  # noqa: SLF001
+    revoke_source = inspect.getsource(admin_orders_module._revoke_order_entitlements)
     expect_true(
         "fulfill.revert_license_change(" in revoke_source,
         "全额退款撤权益时必须优先走 fulfill.revert_license_change（还原升级/增量包）",

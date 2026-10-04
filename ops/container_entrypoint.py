@@ -17,7 +17,7 @@ def sync_license_keys(environment: MutableMapping[str, str]) -> None:
         print(f"授权公钥：未加载同步模块（{error}），跳过。", file=sys.stderr, flush=True)
         return
     try:
-        sync_store_keys(environment=environment)
+        sync_store_keys(environment=dict(environment))
     except Exception as error:
         print(f"授权公钥：同步失败（{error}），交由主应用启动自检处理。", file=sys.stderr, flush=True)
 

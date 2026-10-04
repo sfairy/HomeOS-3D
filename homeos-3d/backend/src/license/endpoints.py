@@ -32,7 +32,7 @@ class LicenseEndpointPool:
 
     @staticmethod
     def _normalize_batches(batches: Iterable[tuple[str, Iterable[str]]]) -> dict[str, tuple[str, ...]]:
-        normalized = dict.fromkeys(LICENSE_ENDPOINT_BATCH_NAMES, ())
+        normalized: dict[str, tuple[str, ...]] = dict.fromkeys(LICENSE_ENDPOINT_BATCH_NAMES, ())
         seen = set()
         for raw_name, raw_urls in batches:
             name = raw_name.strip().lower()

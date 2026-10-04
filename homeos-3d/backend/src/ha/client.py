@@ -190,7 +190,8 @@ class HAClient:
     def _ssl_context(self):
         if not websocket_url(self.base_url).startswith('wss://'):
             return None
-        return ssl.create_default_context() if self.verify_tls else ssl._create_unverified_context()
+        # verify_tls=False 是用户在高级设置中针对自签名证书的显式选择，默认路径使用 create_default_context。
+        return ssl.create_default_context() if self.verify_tls else ssl._create_unverified_context()  # noqa: S323
 
     async def _authenticate(self, websocket) -> None:
         try:

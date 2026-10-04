@@ -29,7 +29,12 @@ def validate_water_heater_command(service, data, state):
         value, low, high = data['temperature'], attrs.get('min_temp'), attrs.get('max_temp')
         step = attrs.get('target_temp_step') if attrs.get('target_temp_step') is not None else 0.5
         supported = supports(1, _number(attrs.get('temperature')))
-        if supported and all(_number(n) for n in (value, low, high, step)) and low < high and step > 0 and low <= value <= high:
+        if (
+            supported
+            and all(_number(n) for n in (value, low, high, step))
+            and low is not None and high is not None and step is not None
+            and low < high and step > 0 and low <= value <= high
+        ):
             increments = (value - low) / step
             if math.isfinite(increments) and math.isclose(increments, round(increments), abs_tol=1e-06):
                 return

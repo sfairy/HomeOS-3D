@@ -15,7 +15,7 @@ from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PublicKey
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
-from ..licensing import keys
+from .keys import load_ed25519_private, load_x25519_private
 
 PROTOCOL = b"homeos-license-transport-v1"
 PRODUCT = "homeos"
@@ -79,7 +79,7 @@ class TransportCipher:
     """服务端静态 X25519 私钥 + 客户端每次请求的临时公钥协商出一次性密钥。"""
 
     def __init__(self, private_key_path: Path, key_id: str) -> None:
-        self._private = keys.load_x25519_private(private_key_path)
+        self._private = load_x25519_private(private_key_path)
         self.key_id = key_id
 
     def _derive(self, shared: bytes, path: str) -> bytes:
@@ -145,7 +145,7 @@ class LeaseSigner:
     """用 Ed25519 私钥签发租约，公钥交给客户端做指纹校验。"""
 
     def __init__(self, private_key_path: Path, key_id: str, product: str = PRODUCT) -> None:
-        self._private = keys.load_ed25519_private(private_key_path)
+        self._private = load_ed25519_private(private_key_path)
         self.key_id = key_id
         self.product = product
 

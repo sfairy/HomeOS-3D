@@ -61,7 +61,7 @@ def validate_document_assets(request: Request, document: dict) -> set[str]:
     return user_asset_ids
 
 
-def serialize_document(document: dict) -> str:
+def serialize_document(document: object) -> str:
     return json.dumps(document, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
 
 
@@ -259,15 +259,15 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
     if not payload.global_popups_dirty:
         document_value['customPopups'] = stored_global_popups
     submitted_popup_ids = {
-        popup.get('id')
+        popup_id
         for popup in (document_value.get('customPopups') or [])
-        if isinstance(popup, dict) and isinstance(popup.get('id'), str)
+        if isinstance(popup, dict) and isinstance((popup_id := popup.get('id')), str)
     }
     removed_popup_ids = (
         submitted_popup_ids - {
-            popup.get('id')
+            popup_id
             for popup in stored_global_popups
-            if isinstance(popup, dict) and isinstance(popup.get('id'), str)
+            if isinstance(popup, dict) and isinstance((popup_id := popup.get('id')), str)
         } if payload.global_popups_dirty else set()
     )
     clear_popup_references(document_value, removed_popup_ids)
@@ -305,7 +305,7 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
                 .values(popups_json=serialize_document(submitted_popups), revision=GlobalCustomPopupState.revision + 1, updated_by=user.id)
                 .execution_options(synchronize_session=False)
             )
-            if popup_result.rowcount != 1:
+            if popup_result.rowcount != 1:  # pyright: ignore[reportAttributeAccessIssue]
                 database.rollback()
                 current_popup_revision = database.scalar(select(GlobalCustomPopupState.revision).where(GlobalCustomPopupState.id == 1))
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
@@ -326,7 +326,7 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
                         .values(document_json=serialize_document(referenced_document), revision=ProjectDraft.revision + 1, updated_by=user.id)
                         .execution_options(synchronize_session=False)
                     )
-                    if referenced_result.rowcount != 1:
+                    if referenced_result.rowcount != 1:  # pyright: ignore[reportAttributeAccessIssue]
                         database.rollback()
                         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
                             'code': 'PROJECT_REVISION_CONFLICT',
@@ -337,7 +337,7 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
             .values(document_json=serialized_document, schema_version=document['schemaVersion'], revision=ProjectDraft.revision + 1, updated_by=user.id)
             .execution_options(synchronize_session=False)
         )
-        if result.rowcount != 1:
+        if result.rowcount != 1:  # pyright: ignore[reportAttributeAccessIssue]
             database.rollback()
             current_revision = database.scalar(select(ProjectDraft.revision).where(ProjectDraft.project_id == project_id))
             if current_revision is None:
@@ -351,6 +351,8 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
     background_tasks.add_task(request.app.state.ha_connector.refresh_persistent_entity_ids, ensure_states=False)
     database.expire_all()
     draft = database.get(ProjectDraft, project_id)
+    if draft is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目草稿不存在。')
     request.app.state.global_log.append('success', '仪表盘编辑器', '配置', f"仪表盘已保存：{document['name']}（修订 {draft.revision}）")
     hydrated_document = hydrate_document_popups(database, json.loads(draft.document_json))
     result = {

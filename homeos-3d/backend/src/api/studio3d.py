@@ -317,7 +317,7 @@ def _store_export_package(request: Request, folder_name: str, overwrite: bool, t
         'folderName': folder_name,
         'relativePath': f'exports/{folder_name}',
         'overwritten': target_exists,
-        'files': sorted([entry.filename for entry in entries]) + [f'{folder_name}.zip'],
+        'files': [*sorted(entry.filename for entry in entries), f'{folder_name}.zip'],
     }
 
 

@@ -27,18 +27,19 @@ MAX_CACHE_AGE = 86400
 MAX_RESPONSE_BYTES = 32768
 
 
-def stable_version(value: str) -> tuple[int, int, int] | None:
+def stable_version(value: object) -> tuple[int, int, int] | None:
     if not isinstance(value, str) or not re.fullmatch(
         r"v?(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})", value
     ):
         return None
-    return tuple(map(int, value.removeprefix("v").split(".")))
+    major, minor, patch = value.removeprefix("v").split(".")
+    return int(major), int(minor), int(patch)
 
 
 def release_value(payload: dict, channel: str) -> dict | None:
     if (
         not isinstance(payload, dict)
-        or payload.get("product") not in {"homeos"}
+        or payload.get("product") != "homeos"
         or payload.get("channel") != channel
         or "release" not in payload
     ):
@@ -166,7 +167,7 @@ class UpdateChecker:
             "checkedAt": datetime.fromtimestamp(self.checked_at, UTC).isoformat()
             if fresh
             else None,
-            "logUrl": f"{WIKI_URL}?release={release['id']}#changelog"
+            "logUrl": f"{WIKI_URL}?release={release['id'] if release else ''}#changelog"
             if available
             else f"{WIKI_URL}#changelog",
         }

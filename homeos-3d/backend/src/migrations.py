@@ -42,7 +42,7 @@ def _create_schema(settings: Settings) -> None:
     ``0001`` 基线是照着 ``Base.metadata`` 自动生成的，两者结构等价（``ops/check_schema.py``
     会比对结构指纹），所以 create_all 与跑一次迁移得到的是同一个库。
     """
-    from . import models  # noqa: F401  # 注册到 Base.metadata
+    from . import models  # noqa: F401  # 注册到 Base.metadata  # pyright: ignore[reportUnusedImport]
     from .database import Base, Database
     database = Database(settings.database_url)
     try:
@@ -178,14 +178,13 @@ def create_upgrade_backup(settings: Settings, source_revision: str, target_revis
     temporary_path = backup_directory / f'.{backup_path.name}.{temporary_suffix}.tmp'
     metadata_temporary_path = None
     try:
-        with closing(sqlite3.connect(settings.database_path)) as source:
-            with closing(sqlite3.connect(temporary_path)) as target:
-                source.execute('PRAGMA busy_timeout = 5000')
-                source.backup(target)
-                integrity = target.execute('PRAGMA integrity_check').fetchone()
-                if integrity is None or integrity[0] != 'ok':
-                    detail = integrity[0] if integrity else 'no result'
-                    raise RuntimeError(f'Upgrade backup integrity check failed: {detail}')
+        with closing(sqlite3.connect(settings.database_path)) as source, closing(sqlite3.connect(temporary_path)) as target:
+            source.execute('PRAGMA busy_timeout = 5000')
+            source.backup(target)
+            integrity = target.execute('PRAGMA integrity_check').fetchone()
+            if integrity is None or integrity[0] != 'ok':
+                detail = integrity[0] if integrity else 'no result'
+                raise RuntimeError(f'Upgrade backup integrity check failed: {detail}')
         os.chmod(temporary_path, 0o600)
         _fsync_file(temporary_path)
         os.replace(temporary_path, backup_path)
