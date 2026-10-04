@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <radialGradient id="remote_on_bg" cx="28%" cy="26%" r="72%" fx="22%" fy="20%">
+      <stop offset="0%" stop-color="#fff" stop-opacity=".2"/>
+      <stop offset="50%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#3730a3"/>
+    </radialGradient>
+    <radialGradient id="remote_on_sheen" cx="32%" cy="28%" r="68%">
+      <stop offset="0%" stop-color="#fff" stop-opacity=".4"/>
+      <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <style>
+      @keyframes remote_on_strobe{0%,to{opacity:.3;transform:scaleY(.85)}15%{opacity:1;transform:scaleY(1.15)}30%{opacity:.4;transform:scaleY(.9)}45%{opacity:.95;transform:scaleY(1.1)}60%{opacity:.35;transform:scaleY(.88)}}@keyframes remote_on_emitter{0%,to{opacity:.55}15%,45%{opacity:1}}.remote_on_beam1,.remote_on_beam2,.remote_on_beam3{animation:remote_on_strobe 1.2s ease-in-out infinite;transform-origin:100px 48px}.remote_on_beam2{animation-delay:.15s}.remote_on_beam3{animation-delay:.3s}.remote_on_ir{animation:remote_on_emitter 1.2s ease-in-out infinite}
+    </style>
+  </defs>
+  <circle cx="100" cy="100" r="87" fill="url(#remote_on_bg)"/>
+  <rect width="64" height="128" x="68" y="36" fill="#fff" rx="16"/>
+  <rect width="56" height="6" x="72" y="40" fill="#4338ca" rx="2"/>
+  <ellipse cx="100" cy="48" fill="#fde68a" class="remote_on_ir" rx="16" ry="6"/>
+  <path fill="none" stroke="#fde68a" stroke-linecap="round" stroke-width="4" d="M88 26q12-18 24 0" class="remote_on_beam1"/>
+  <path fill="none" stroke="#fef08a" stroke-linecap="round" stroke-width="3" d="M82 18q18-18 36 0" class="remote_on_beam2"/>
+  <path fill="none" stroke="#fde68a" stroke-linecap="round" stroke-width="2.5" d="M76 12q24-18 48 0" class="remote_on_beam3" opacity=".7"/>
+  <circle cx="100" cy="70" r="10" fill="#4f46e5"/>
+  <circle cx="100" cy="70" r="5" fill="#fde68a"/>
+  <rect width="14" height="14" x="80" y="94" fill="#4f46e5" rx="3"/>
+  <rect width="14" height="14" x="102" y="94" fill="#4f46e5" rx="3"/>
+  <rect width="14" height="14" x="80" y="114" fill="#4f46e5" rx="3"/>
+  <rect width="14" height="14" x="102" y="114" fill="#fde68a" rx="3"/>
+  <circle cx="100" cy="146" r="13" fill="none" stroke="#4338ca" stroke-width="4"/>
+  <circle cx="100" cy="146" r="4" fill="#4f46e5"/>
+  <circle cx="100" cy="100" r="87" fill="none" stroke="#fff" stroke-opacity=".1" stroke-width="2.5"/>
+  <circle cx="100" cy="100" r="87" fill="url(#remote_on_sheen)"/>
+</svg>

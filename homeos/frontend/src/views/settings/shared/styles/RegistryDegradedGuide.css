@@ -1,0 +1,7 @@
+.rd-text-tertiary {
+  color: var(--set-text-tertiary);
+}
+
+.rd-text-warn {
+  color: var(--set-warn, #fcd34d);
+}

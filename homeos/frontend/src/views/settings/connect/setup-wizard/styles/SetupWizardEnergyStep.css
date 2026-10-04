@@ -1,0 +1,61 @@
+@import 'setup-wizard.css';
+.sw-energy-panel {
+  padding: 14px;
+  border-radius: var(--hos-radius-card, 14px);
+  border: var(--hos-hairline) solid var(--sw-amber-border);
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.sw-energy-panel__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.sw-energy-panel__title {
+  margin: 0;
+  font-size: var(--set-fs-body-sm);
+  font-weight: 800;
+  color: #fff;
+}
+
+.sw-energy-panel__sub {
+  margin: 4px 0 0;
+  font-size: var(--set-fs-micro);
+  color: var(--hos-text-secondary);
+  line-height: 1.4;
+}
+
+.sw-energy-panel__grid {
+  display: grid;
+  gap: 14px;
+}
+
+@media (min-width: 640px) {
+  .sw-energy-panel__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.sw-energy-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sw-energy-field__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--set-fs-micro);
+  font-weight: 700;
+  color: var(--sw-amber-text);
+}
+
+.sw-energy-field__hint {
+  margin: 0;
+  font-size: var(--set-fs-micro);
+  color: var(--hos-text-secondary);
+}

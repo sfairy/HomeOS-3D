@@ -1,0 +1,114 @@
+.hub-tabs-config {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hub-tabs-config__section .settings-form-label {
+  margin-bottom: 6px;
+}
+
+.hub-tabs-config__hint {
+  margin: 0 0 8px;
+  font-size: var(--set-fs-micro, 12px);
+  line-height: 1.45;
+  color: rgba(148, 163, 184, 0.58);
+}
+
+.hub-tabs-config__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.hub-tabs-config__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 6px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: var(--set-fs-micro, 12px);
+  font-weight: 600;
+  color: rgba(148, 163, 184, 0.78);
+  cursor: pointer;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  transition:
+    border-color 0.2s,
+    background 0.2s,
+    color 0.2s;
+}
+
+.hub-tabs-config__toggle:hover:not(:disabled) {
+  border-color: rgba(56, 189, 248, 0.28);
+  color: rgba(186, 230, 253, 0.95);
+}
+
+.hub-tabs-config__toggle--on {
+  border-color: rgba(56, 189, 248, 0.42);
+  background: rgba(14, 165, 233, 0.12);
+  color: rgb(186, 230, 253);
+}
+
+.hub-tabs-config__toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.hub-tabs-config__order {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--hos-radius-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--set-fs-micro, 12px);
+  font-weight: 800;
+  background: rgba(0, 0, 0, 0.35);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.hub-tabs-config__segments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.hub-tabs-config__segment {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: var(--set-fs-micro, 12px);
+  font-weight: 600;
+  color: rgba(148, 163, 184, 0.85);
+  cursor: pointer;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  transition:
+    border-color 0.2s,
+    background 0.2s,
+    color 0.2s,
+    box-shadow 0.2s;
+}
+
+.hub-tabs-config__segment:hover {
+  border-color: rgba(56, 189, 248, 0.3);
+  color: rgba(186, 230, 253, 0.95);
+}
+
+.hub-tabs-config__segment--active {
+  border-color: rgba(56, 189, 248, 0.42);
+  background: rgba(14, 165, 233, 0.14);
+  color: rgb(224, 242, 254);
+  box-shadow: none;
+}

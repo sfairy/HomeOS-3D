@@ -1,0 +1,23 @@
+/* 设备组面板共用样式 */
+
+/* —— DeviceGroupModal —— */
+.dgm-empty-ok-icon {
+  color: var(--set-success, rgba(52, 211, 153, 0.6));
+}
+.dgm-empty-ok-title {
+  color: var(--set-success, rgba(52, 211, 153, 0.9));
+}
+.dgm-domain-default {
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.7));
+}
+
+/* —— DeviceGroupMemberList —— */
+.dgm-chip-inactive {
+  color: var(--set-text-tertiary);
+}
+.dgm-member-name {
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.7));
+}
+.dgm-member-state {
+  color: var(--set-text-tertiary);
+}

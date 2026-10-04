@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="fr_off_b" x1="0%" x2="100%" y1="0%" y2="0%">
+      <stop offset="0%" stop-color="#fff"/>
+      <stop offset="40%" stop-color="#f1f5f9"/>
+      <stop offset="100%" stop-color="#cbd5e1"/>
+    </linearGradient>
+  </defs>
+  <!-- 对开门冰箱：更厚机身、清晰分缝、侧把手、底座 -->
+  <ellipse cx="100" cy="178" fill="#cbd5e1" opacity=".5" rx="58" ry="9"/>
+  <rect width="112" height="144" x="44" y="26" fill="url(#fr_off_b)" rx="12"/>
+  <ellipse cx="66" cy="42" fill="#fff" opacity=".75" rx="14" ry="6"/>
+  <path fill="none" stroke="#94a3b8" stroke-width="3.5" d="M44 98h112"/>
+  <path fill="none" stroke="#cbd5e1" stroke-width="2.5" d="M100 34v128"/>
+  <rect width="6" height="32" x="142" y="48" fill="#475569" rx="2"/>
+  <rect width="6" height="36" x="142" y="112" fill="#475569" rx="2"/>
+  <rect width="26" height="12" x="60" y="44" fill="#94a3b8" rx="3"/>
+  <circle cx="68" cy="68" r="3.5" fill="#cbd5e1"/>
+  <rect width="112" height="8" x="44" y="162" fill="#94a3b8" rx="2"/>
+  <rect width="16" height="7" x="58" y="170" fill="#cbd5e1" rx="2"/>
+  <rect width="16" height="7" x="126" y="170" fill="#cbd5e1" rx="2"/>
+</svg>

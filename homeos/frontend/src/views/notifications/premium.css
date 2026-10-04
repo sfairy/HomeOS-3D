@@ -1,0 +1,51 @@
+/**
+ * 通知中心页 · 域专属样式（壳层见 list-page-dual-pane.css）
+ */
+.notifications-view {
+  --nc-accent: var(--page-accent, #f472b6);
+  --nc-accent-secondary: var(--page-accent-secondary, #fb7185);
+  --nc-accent-rgb: var(--page-accent-rgb, 244, 114, 182);
+}
+
+.notifications-view__stream-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.notifications-view__stream-body .nc-root--page {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.notifications-view__toolbar {
+  --notifications-control-h: 40px;
+}
+
+.notifications-view__query-grid {
+  display: grid;
+  grid-template-columns: 140px 140px minmax(0, 1fr) auto;
+  gap: 8px 10px;
+  align-items: end;
+}
+
+.notifications-view__field--action {
+  align-self: end;
+}
+
+.notifications-view__toolbar .hos-select__trigger.list-page__input {
+  min-height: var(--notifications-control-h);
+  height: var(--notifications-control-h);
+}
+
+.notifications-view__stats-error {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid rgba(248, 113, 113, 0.28);
+  background: rgba(248, 113, 113, 0.08);
+  color: #fca5a5;
+  font-size: var(--premium-fs-caption);
+}

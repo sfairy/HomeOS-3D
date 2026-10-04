@@ -1,0 +1,19 @@
+/** 屏保后台 idle：暂停被遮挡层动画；用 visibility 保留布局盒，避免等比缩放偏移 */
+html[data-screensaver-idle] .app-shell,
+html[data-screensaver-idle] .app-shell * {
+  animation-play-state: paused !important;
+}
+
+html[data-screensaver-idle] .app-shell__content {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+html[data-screensaver-idle] .app-shell__weather-layer {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+html[data-screensaver-idle] .viewport-frame::before {
+  animation-play-state: paused !important;
+}

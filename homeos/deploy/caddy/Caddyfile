@@ -1,0 +1,39 @@
+# HomeOS 内网 HTTPS 入口（Caddy 内置 CA，按需自签证书）
+# homeos entrypoint / init-layout.sh 会在缺失/旧格式时重写本文件。
+#
+# 双协议支持：
+#   - HTTPS :8443 → Caddy 反代 → homeos:8501（默认带 X-Forwarded-Proto: https）
+#   - HTTP  :8126 → Docker 端口映射 → homeos:8501（直连）
+#   - COOKIE_SECURE=auto 使两端口均可登录：HTTPS 设 Secure Cookie，HTTP 不设
+#   - WebSocket（Socket.IO / 内嵌代理）由 Caddy v2 reverse_proxy 默认自动升级
+#
+# 任意局域网 IP / 主机名均可 HTTPS：
+#   浏览器用 IP 访问时 SNI 不能携带 IP（RFC4366），握手发空 SNI；裸 :8443 站点 +
+#   `tls internal { on_demand }` 按连入地址动态签发内网自签证书。
+#   （skip_install_trust 下浏览器首次仍会提示自签证书不受信任，手动放行即可。）
+{
+	skip_install_trust
+	admin off
+	auto_https disable_redirects
+	# 控制台只打错误；证书维护 / GOMAXPROCS 等 info 刷屏关掉
+	log {
+		level ERROR
+		format console
+	}
+	# h1 支持 WebSocket 升级，h2 用于常规 HTTP/2
+	servers :8443 {
+		protocols h1 h2
+	}
+}
+
+# 裸 :8443 匹配任意主机名/IP；按需内网证书覆盖空 SNI 的 IP 直连
+:8443 {
+	tls internal {
+		on_demand
+	}
+
+	reverse_proxy homeos:8501 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+	}
+}

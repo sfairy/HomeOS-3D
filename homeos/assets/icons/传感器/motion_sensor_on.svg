@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <radialGradient id="motion_sensor_on_bg" cx="28%" cy="24%" r="72%" fx="22%" fy="18%">
+      <stop offset="0%" stop-color="#fff" stop-opacity=".2"/>
+      <stop offset="45%" stop-color="#6d28d9"/>
+      <stop offset="100%" stop-color="#5b21b6"/>
+    </radialGradient>
+    <linearGradient id="motion_sensor_on_body" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#fff"/>
+      <stop offset="100%" stop-color="#ede9fe"/>
+    </linearGradient>
+    <style>
+      @keyframes sweep{0%,to{opacity:.25}50%{opacity:.95}}@keyframes pulse{0%,to{opacity:.55}50%{opacity:1}}.arc{animation:sweep 1.8s ease-in-out infinite}.led{animation:pulse 1.2s ease-in-out infinite}
+    </style>
+  </defs>
+  <circle cx="100" cy="100" r="87" fill="url(#motion_sensor_on_bg)"/>
+  <path fill="none" stroke="#4c1d95" stroke-linecap="round" stroke-width="7" d="M48 150a78 78 0 0 1 104 0" class="arc"/>
+  <path fill="none" stroke="#312e81" stroke-linecap="round" stroke-width="5" d="M62 138a58 58 0 0 1 76 0" class="arc" style="animation-delay:.25s"/>
+  <!-- 与 off 同底图 -->
+  <rect width="84" height="96" x="58" y="42" fill="url(#motion_sensor_on_body)" rx="14"/>
+  <ellipse cx="78" cy="54" fill="#fff" opacity=".8" rx="12" ry="4"/>
+  <circle cx="70" cy="54" r="3" fill="#312e81"/>
+  <circle cx="130" cy="54" r="3" fill="#312e81"/>
+  <circle cx="70" cy="122" r="3" fill="#312e81"/>
+  <circle cx="130" cy="122" r="3" fill="#312e81"/>
+  <ellipse cx="100" cy="86" fill="#312e81" rx="28" ry="26"/>
+  <ellipse cx="100" cy="84" fill="#5b21b6" opacity=".35" rx="20" ry="18"/>
+  <ellipse cx="90" cy="76" fill="#fff" opacity=".7" rx="7" ry="4"/>
+  <path fill="none" stroke="#7c3aed" stroke-width="1.6" d="M80 86h40m-38 8h36" opacity=".6"/>
+  <circle cx="100" cy="86" r="5" fill="#5b21b6"/>
+  <path fill="#5b21b6" d="M88 100q12-8 24 0l-4 8H92Z"/>
+  <circle cx="100" cy="122" r="5" fill="#fde68a" class="led"/>
+  <circle cx="100" cy="122" r="2.5" fill="#6d28d9"/>
+  <circle cx="100" cy="100" r="87" fill="none" stroke="#fff" stroke-opacity=".1" stroke-width="2.5"/>
+</svg>

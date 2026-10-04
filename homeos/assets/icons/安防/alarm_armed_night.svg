@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <radialGradient id="alarm_armed_night_bg" cx="28%" cy="24%" r="72%" fx="22%" fy="18%">
+      <stop offset="0%" stop-color="#fff" stop-opacity=".1"/>
+      <stop offset="45%" stop-color="#7f1d1d"/>
+      <stop offset="100%" stop-color="#450a0a"/>
+    </radialGradient>
+    <radialGradient id="alarm_armed_night_sheen" cx="32%" cy="28%" r="68%">
+      <stop offset="0%" stop-color="#fff" stop-opacity=".2"/>
+      <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="alarm_armed_night_shield" x1="50%" x2="50%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#e5e7eb"/>
+      <stop offset="100%" stop-color="#cbd5e1"/>
+    </linearGradient>
+    <linearGradient id="alarm_armed_night_panel" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#7f1d1d"/>
+      <stop offset="100%" stop-color="#450a0a"/>
+    </linearGradient>
+    <style>
+      @keyframes night-breathe{0%,to{opacity:.3}50%{opacity:.95}}@keyframes moon-glow{0%,to{opacity:.65}50%{opacity:1}}.night-led{animation:night-breathe 2.5s ease-in-out infinite}.moon{animation:moon-glow 2.5s ease-in-out infinite}
+    </style>
+  </defs>
+  <circle cx="100" cy="100" r="87" fill="url(#alarm_armed_night_bg)"/>
+  <rect width="56" height="96" x="72" y="52" fill="url(#alarm_armed_night_panel)" rx="6"/>
+  <ellipse cx="82" cy="58" fill="#fff" opacity=".2" rx="12" ry="4"/>
+  <rect width="48" height="5" x="76" y="56" fill="#fbbf24" class="night-led" rx="2.5"/>
+  <rect width="22" height="3" x="78" y="57" fill="#fde68a" class="night-led" opacity=".8" rx="1.5"/>
+  <rect width="10" height="10" x="80" y="124" fill="#fde68a" class="night-led" rx="2"/>
+  <rect width="10" height="10" x="95" y="124" fill="#fde68a" class="night-led" rx="2" style="animation-delay:.4s"/>
+  <rect width="10" height="10" x="110" y="124" fill="#fde68a" class="night-led" rx="2" style="animation-delay:.8s"/>
+  <path fill="url(#alarm_armed_night_shield)" d="m100 38 52 18v44c0 28-22 52-52 60-30-8-52-32-52-60V56Z"/>
+  <path fill="#fde68a" d="M114 82a18 18 0 1 1-12 32 14 14 0 1 0 12-32" class="moon"/>
+  <circle cx="128" cy="76" r="2.5" fill="#fde68a" class="moon" style="animation-delay:.3s"/>
+  <circle cx="136" cy="88" r="1.8" fill="#fde68a" class="moon" style="animation-delay:.6s"/>
+  <circle cx="122" cy="68" r="1.5" fill="#fde68a" class="moon" style="animation-delay:.9s"/>
+  <circle cx="100" cy="100" r="87" fill="none" stroke="#fff" stroke-opacity=".1" stroke-width="2.5"/>
+  <circle cx="100" cy="100" r="87" fill="url(#alarm_armed_night_sheen)"/>
+</svg>

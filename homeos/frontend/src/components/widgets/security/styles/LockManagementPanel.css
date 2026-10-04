@@ -1,0 +1,229 @@
+/* 从 LockManagementPanel.vue 抽出 */
+.lm-root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
+}
+.lm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.lm-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lm-title {
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.lm-header-right {
+  display: flex;
+  align-items: center;
+}
+.lm-badge {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--hos-radius-pill);
+}
+.lm-badge--warn {
+  background: color-mix(in srgb, var(--premium-accent-amber) 10%, rgba(0, 0, 0, 0));
+  color: var(--premium-accent-amber);
+  border: 1px solid color-mix(in srgb, var(--premium-accent-amber) 20%, rgba(0, 0, 0, 0));
+}
+.lm-badge--ok {
+  background: color-mix(in srgb, var(--premium-accent-green) 10%, rgba(0, 0, 0, 0));
+  color: var(--premium-accent-green);
+  border: 1px solid color-mix(in srgb, var(--premium-accent-green) 20%, rgba(0, 0, 0, 0));
+}
+
+.lm-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lm-global-actions {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.lm-action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 0;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--premium-border);
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.lm-action-btn--lock {
+  background: color-mix(in srgb, var(--premium-accent-green) 6%, rgba(0, 0, 0, 0));
+  color: var(--premium-accent-green);
+}
+.lm-action-btn--lock:hover {
+  background: color-mix(in srgb, var(--premium-accent-green) 12%, rgba(0, 0, 0, 0));
+}
+.lm-action-btn--unlock {
+  background: color-mix(in srgb, var(--premium-accent-amber) 6%, rgba(0, 0, 0, 0));
+  color: var(--premium-accent-amber);
+}
+.lm-action-btn--unlock:hover {
+  background: color-mix(in srgb, var(--premium-accent-amber) 12%, rgba(0, 0, 0, 0));
+}
+.lm-action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.lm-lock-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: var(--hos-radius-card);
+  background: var(--premium-glass-bg);
+  border: var(--hos-hairline) solid var(--premium-border);
+}
+.lm-lock-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lm-lock-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.lm-dot--locked {
+  background: var(--premium-accent-green);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--premium-accent-green) 50%, rgba(0, 0, 0, 0));
+}
+.lm-dot--unlocked {
+  background: var(--premium-accent-amber);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--premium-accent-amber) 50%, rgba(0, 0, 0, 0));
+}
+.lm-lock-detail {
+  display: flex;
+  flex-direction: column;
+}
+.lm-lock-name {
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+}
+.lm-lock-room {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+}
+.lm-lock-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lm-lock-state {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.lm-toggle-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.lm-toggle--lock {
+  background: color-mix(in srgb, var(--premium-accent-green) 10%, rgba(0, 0, 0, 0));
+  color: var(--premium-accent-green);
+}
+.lm-toggle--lock:hover {
+  background: color-mix(in srgb, var(--premium-accent-green) 20%, rgba(0, 0, 0, 0));
+}
+.lm-toggle--unlock {
+  background: color-mix(in srgb, var(--premium-accent-amber) 10%, rgba(0, 0, 0, 0));
+  color: var(--premium-accent-amber);
+}
+.lm-toggle--unlock:hover {
+  background: color-mix(in srgb, var(--premium-accent-amber) 20%, rgba(0, 0, 0, 0));
+}
+
+.lm-events {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  padding-top: 8px;
+}
+.lm-events-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  color: var(--hos-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.lm-event-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+.lm-event-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.lm-event--lock {
+  background: var(--premium-accent-green);
+}
+.lm-event--unlock {
+  background: var(--premium-accent-amber);
+}
+.lm-event-name {
+  font-size: var(--premium-fs-micro);
+  color: rgba(255, 255, 255, 0.6);
+  min-width: 50px;
+}
+.lm-event-action {
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  color: var(--hos-text-secondary);
+}
+.lm-event-time {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+  margin-left: auto;
+}
+
+.lm-icon-warn {
+  color: var(--set-warn, #fbbf24);
+}
+.lm-icon-ok {
+  color: var(--set-success, #34d399);
+}
+.lm-state-locked {
+  color: var(--set-success, #34d399);
+}
+.lm-state-unlocked {
+  color: var(--set-warn, #fbbf24);
+}
+.lm-clock-icon {
+  color: var(--set-text-tertiary);
+}

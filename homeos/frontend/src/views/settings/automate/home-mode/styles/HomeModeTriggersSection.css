@@ -1,0 +1,65 @@
+.ht-text-danger {
+  color: var(--set-danger, #fda4af);
+}
+
+.hm-trigger-card--disabled {
+  opacity: 0.5;
+}
+
+.hm-trigger-card--disabled .hm-trigger-card__body,
+.hm-trigger-card--disabled .hm-trigger-hint {
+  filter: grayscale(0.3);
+  pointer-events: none;
+}
+
+.hm-trigger-card__enable {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.hm-trigger-card__enable-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.hm-trigger-card__enable-switch {
+  width: 34px;
+  height: 20px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(255, 255, 255, 0.1);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.12);
+  position: relative;
+  transition: all 0.2s;
+}
+
+.hm-trigger-card__enable-switch::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  transition: all 0.2s;
+}
+
+.hm-trigger-card__enable-input:checked + .hm-trigger-card__enable-switch {
+  background: var(--page-accent-bg, rgba(99, 102, 241, 0.25));
+  border-color: var(--page-accent-border, rgba(99, 102, 241, 0.4));
+}
+
+.hm-trigger-card__enable-input:checked + .hm-trigger-card__enable-switch::before {
+  left: 16px;
+  background: var(--page-accent-text, #818cf8);
+  box-shadow: none;
+}
+
+.hm-trigger-card__enable:hover .hm-trigger-card__enable-switch {
+  border-color: rgba(255, 255, 255, 0.2);
+}

@@ -1,0 +1,58 @@
+.sov-pill em {
+  font-style: normal;
+  opacity: 0.6;
+  margin-left: 3px;
+}
+
+.sov-sensor-group-mode {
+  display: flex;
+  gap: 6px;
+}
+
+.sov-sensor-scroll--paged {
+  position: relative;
+  overflow: hidden !important;
+}
+
+.sov-sensor-row-measure {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 4px;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.sov-sensor-list--paged {
+  height: 100%;
+  overflow: hidden;
+}
+
+.sov-sensor-card__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sov-sensor-card__group {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  color: var(--hos-text-secondary);
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
+}
+
+.sov-sensor-pager {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px 10px 10px;
+  border-top: var(--hos-hairline) solid rgba(255, 255, 255, 0.06);
+}

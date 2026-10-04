@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <radialGradient id="fan_stand_on_bg" cx="28%" cy="26%" r="72%" fx="22%" fy="20%">
+      <stop offset="0%" stop-color="#fff" stop-opacity=".2"/>
+      <stop offset="50%" stop-color="#16a34a"/>
+      <stop offset="100%" stop-color="#15803d"/>
+    </radialGradient>
+    <style>
+      @keyframes spin{to{transform:rotate(360deg)}}@keyframes wind-streak{0%{transform:translateX(0);opacity:.15}50%{opacity:.7}to{transform:translateX(22px);opacity:.1}}@keyframes wind-fade{0%,to{opacity:.25}50%{opacity:.8}}.rotor{animation:spin 1s linear infinite;transform-origin:100px 72px}.streak1,.streak2,.streak3{animation:wind-streak 1.2s linear infinite}.streak2{animation-delay:.4s}.streak3{animation-delay:.8s}.arc{animation:wind-fade 1.4s ease-in-out infinite}
+    </style>
+  </defs>
+  <circle cx="100" cy="100" r="87" fill="url(#fan_stand_on_bg)"/>
+  <circle cx="100" cy="72" r="44" fill="none" stroke="#fff" stroke-width="5"/>
+  <circle cx="100" cy="72" r="40" fill="none" stroke="#dcfce7" stroke-width="2" opacity=".8"/>
+  <circle cx="100" cy="72" r="32" fill="none" stroke="#fff" stroke-width="1.5" opacity=".6"/>
+  <circle cx="100" cy="72" r="24" fill="none" stroke="#dcfce7" opacity=".5"/>
+  <g stroke="#dcfce7" stroke-width="1.5" opacity=".5">
+    <path d="M100 32v80"/>
+    <path d="M60 72h80"/>
+    <path d="m72 44 56 56"/>
+    <path d="m128 44-56 56"/>
+  </g>
+  <g class="rotor">
+    <ellipse cx="100" cy="50" fill="#fff" rx="7" ry="20"/>
+    <ellipse cx="100" cy="94" fill="#fff" rx="7" ry="20"/>
+    <ellipse cx="78" cy="72" fill="#fff" rx="20" ry="7"/>
+    <ellipse cx="122" cy="72" fill="#fff" rx="20" ry="7"/>
+  </g>
+  <circle cx="100" cy="72" r="7" fill="#fff"/>
+  <ellipse cx="92" cy="66" fill="#fff" opacity=".8" rx="5" ry="3"/>
+  <path fill="none" stroke="#bbf7d0" stroke-linecap="round" stroke-width="3" d="M148 62h20" class="streak1"/>
+  <path fill="none" stroke="#bbf7d0" stroke-linecap="round" stroke-width="2.5" d="M148 72h24" class="streak2"/>
+  <path fill="none" stroke="#bbf7d0" stroke-linecap="round" stroke-width="2" d="M148 82h18" class="streak3"/>
+  <path fill="none" stroke="#bbf7d0" stroke-linecap="round" stroke-width="3" d="M152 54a36 36 0 0 1 0 36" class="arc" opacity=".6"/>
+  <circle cx="100" cy="114" r="5" fill="#dcfce7"/>
+  <rect width="10" height="28" x="95" y="114" fill="#fff" rx="3"/>
+  <ellipse cx="100" cy="152" fill="#fff" rx="32" ry="9"/>
+  <ellipse cx="100" cy="148" fill="#fff" opacity=".8" rx="18" ry="4"/>
+  <circle cx="100" cy="100" r="87" fill="none" stroke="#fff" stroke-opacity=".1" stroke-width="2.5"/>
+</svg>

@@ -1,0 +1,4 @@
+/* Notifications analytics 域覆盖（共享见 list-page-analytics.css） */
+.nc-analytics__chart-card {
+  background: rgba(0, 0, 0, 0.22);
+}

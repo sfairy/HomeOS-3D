@@ -1,0 +1,537 @@
+/* 从 ChildModePanel.vue 抽出 */
+.cm2-root {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
+  height: auto;
+  min-height: 0;
+}
+
+.cm2-root--dense,
+.cm2-root--embedded {
+  gap: 10px;
+  padding: 0;
+}
+
+.cm2-embed-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid rgba(244, 63, 94, 0.18);
+  background: rgba(244, 63, 94, 0.06);
+  overflow: visible;
+}
+
+.cm2-embed-bar__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cm2-idle-tip {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--hos-radius-card);
+  font-size: var(--premium-fs-micro);
+  line-height: 1.45;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.03);
+  border: var(--hos-hairline) dashed rgba(255, 255, 255, 0.1);
+}
+
+.cm2-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cm2-form--idle {
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.cm2-form--idle .cm2-hour,
+.cm2-form--idle .cm2-num,
+.cm2-form--idle .cm2-select {
+  pointer-events: none;
+}
+
+.cm2-root--embedded .cm2-field {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.cm2-root--embedded .cm2-field > span:first-child {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--hos-text-secondary);
+}
+
+.cm2-root--embedded .cm2-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cm2-root--embedded .cm2-field--col {
+  padding: 12px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.cm2-root--embedded .cm2-restricted {
+  min-height: 36px;
+  padding: 6px 0;
+}
+
+.cm2-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cm2-header--dense {
+  padding-bottom: 0;
+}
+
+.cm2-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cm2-header-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.cm2-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.cm2-title {
+  font-size: var(--premium-fs-caption);
+  font-weight: 750;
+  color: rgba(255, 255, 255, 0.92);
+  letter-spacing: 0.02em;
+}
+
+.cm2-status {
+  font-style: normal;
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  color: var(--hos-text-secondary);
+}
+
+.cm2-status.is-on {
+  color: #fda4af;
+}
+
+.cm2-status.is-warn {
+  color: #fbbf24;
+}
+
+.cm2-status.is-off {
+  color: #94a3b8;
+}
+
+.cm2-switch {
+  box-sizing: border-box;
+  width: 36px;
+  height: 20px;
+  min-width: 36px;
+  min-height: 20px;
+  border-radius: var(--hos-radius-pill);
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.25s;
+  padding: 0;
+  flex-shrink: 0;
+  overflow: visible;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cm2-switch--on {
+  background: #f43f5e;
+}
+
+.cm2-switch:disabled {
+  opacity: 0.5;
+}
+
+.cm2-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.25s;
+  pointer-events: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.cm2-switch--on .cm2-knob {
+  transform: translateX(16px);
+}
+
+.cm2-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cm2-window-now {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  font-size: var(--premium-fs-micro);
+  color: #a78bfa;
+  background: rgba(139, 92, 246, 0.08);
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.cm2-window-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.cm2-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.cm2-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+  min-width: 0;
+}
+
+.cm2-root--dense .cm2-field {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  padding: 8px 9px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.cm2-field--col {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+}
+
+.cm2-hours,
+.cm2-media {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cm2-hour {
+  width: 38px;
+  background: rgba(255, 255, 255, 0.05);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 3px 5px;
+  color: #fff;
+  font-size: var(--premium-fs-caption);
+  text-align: center;
+  outline: none;
+}
+
+.cm2-hour-unit {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+  white-space: nowrap;
+}
+
+.cm2-num {
+  width: 52px;
+  background: rgba(255, 255, 255, 0.05);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 3px 5px;
+  color: #fff;
+  font-size: var(--premium-fs-caption);
+  text-align: center;
+  outline: none;
+}
+
+.cm2-usage-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+}
+
+.cm2-usage-row strong {
+  font-weight: 780;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.cm2-usage-track {
+  flex: 1;
+  height: 5px;
+  border-radius: var(--hos-radius-pill);
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.cm2-usage-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #38bdf8, #a78bfa);
+}
+
+.cm2-usage-track i.is-warn {
+  background: linear-gradient(90deg, #fbbf24, #fb7185);
+}
+
+.cm2-restricted {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 22px;
+  align-items: center;
+}
+
+.cm2-restricted-empty {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+}
+
+.cm2-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 8px;
+  background: rgba(244, 63, 94, 0.1);
+  color: #f43f5e;
+  font-size: var(--premium-fs-micro);
+}
+
+.cm2-chip-x {
+  width: 10px;
+  height: 10px;
+  cursor: pointer;
+}
+
+.cm2-select {
+  background: rgba(255, 255, 255, 0.05);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: var(--premium-fs-micro);
+  padding: 5px 7px;
+  outline: none;
+}
+
+.cm2-override {
+  font-size: var(--premium-fs-micro);
+  color: #a78bfa;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.cm2-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cm2-override-btn,
+.cm2-save {
+  font-size: var(--premium-fs-micro);
+  font-weight: 650;
+  padding: 6px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.cm2-override-btn {
+  background: rgba(139, 92, 246, 0.15);
+  color: #c4b5fd;
+  border: var(--hos-hairline) solid rgba(139, 92, 246, 0.25);
+}
+
+.cm2-save {
+  background: rgba(244, 63, 94, 0.15);
+  color: #f43f5e;
+  border: var(--hos-hairline) solid rgba(244, 63, 94, 0.25);
+}
+
+.cm2-override-btn:disabled,
+.cm2-save:disabled {
+  opacity: 0.5;
+}
+
+.cm2-icon-active {
+  color: var(--set-danger, #fb7185);
+}
+
+.cm2-icon-muted {
+  color: var(--hos-text-secondary);
+}
+
+@media (max-width: 480px) {
+  .cm2-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── 白名单 + 时间窗 ── */
+.cm2-wl-hint {
+  margin: 0;
+  font-size: var(--premium-fs-micro);
+  line-height: 1.4;
+  color: var(--hos-text-secondary);
+}
+
+.cm2-chip--wl {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+}
+
+.cm2-wl-wrap {
+  margin-top: 2px;
+}
+
+.cm2-wl-wrap .ei-input-row {
+  border-radius: 8px;
+  padding: 2px 0;
+}
+
+.cm2-wl-wrap .ei-input-row input {
+  padding: 5px 7px;
+  font-size: var(--premium-fs-micro);
+}
+
+.cm2-window {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.cm2-window__days {
+  background: rgba(255, 255, 255, 0.05);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: var(--premium-fs-micro);
+  padding: 4px 6px;
+  outline: none;
+}
+
+.cm2-window__time {
+  background: rgba(255, 255, 255, 0.05);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #fff;
+  font-size: var(--premium-fs-micro);
+  padding: 4px 6px;
+  outline: none;
+  color-scheme: dark;
+}
+
+.cm2-window__sep {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+}
+
+.cm2-window__del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 2px;
+  color: var(--hos-text-secondary);
+}
+
+.cm2-window__del:hover {
+  color: #fb7185;
+}
+
+.cm2-window-add {
+  align-self: flex-start;
+  font-size: var(--premium-fs-micro);
+  font-weight: 650;
+  padding: 4px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border: var(--hos-hairline) solid rgba(16, 185, 129, 0.25);
+}
+
+@media (pointer: coarse), (hover: none) {
+  /* 触控端：按比例放大开关，并用伪元素扩大点击热区；勿只拉高 min-height */
+  .cm2-switch {
+    width: 44px;
+    height: 26px;
+    min-width: 44px;
+    min-height: 26px;
+  }
+  .cm2-switch::after {
+    content: '';
+    position: absolute;
+    inset: -10px -8px;
+  }
+  .cm2-knob {
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    margin-top: 0;
+  }
+  .cm2-switch--on .cm2-knob {
+    transform: translateX(18px);
+  }
+  .cm2-select { min-height: 44px; }
+  .cm2-override-btn,
+  .cm2-save { min-height: 44px; }
+  .cm2-window__del { min-width: 44px; min-height: 44px; }
+  .cm2-window-add { min-height: 44px; }
+
+  .cm2-embed-bar {
+    padding: 12px 14px;
+  }
+}

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="climate_off_body" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="55%" stop-color="#e2e8f0"/>
+      <stop offset="100%" stop-color="#cbd5e1"/>
+    </linearGradient>
+    <linearGradient id="climate_off_face" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#94a3b8"/>
+      <stop offset="100%" stop-color="#64748b"/>
+    </linearGradient>
+    <linearGradient id="climate_off_shine" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#fff" stop-opacity=".6"/>
+      <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <style>
+      @keyframes climate_off_breathe{0%,to{opacity:.92}50%{opacity:1}}@keyframes climate_off_shine{0%,to{opacity:.35;transform:translateX(-8px)}50%{opacity:.65;transform:translateX(8px)}}@keyframes climate_off_led{0%,88%,to{opacity:.35}92%{opacity:.7}96%{opacity:.4}}.climate_off_body{animation:climate_off_breathe 4s ease-in-out infinite}.climate_off_shine{animation:climate_off_shine 5s ease-in-out infinite}.climate_off_led{animation:climate_off_led 5.5s ease-in-out infinite}
+    </style>
+  </defs>
+  <g class="climate_off_body">
+    <rect width="156" height="84" x="22" y="58" fill="url(#climate_off_body)" rx="30"/>
+    <rect width="156" height="84" x="22" y="58" fill="none" stroke="#94a3b8" stroke-width="3" opacity=".8" rx="30"/>
+    <ellipse cx="100" cy="72" fill="url(#climate_off_shine)" class="climate_off_shine" rx="62" ry="10"/>
+    <rect width="132" height="42" x="34" y="68" fill="url(#climate_off_face)" opacity=".9" rx="6"/>
+    <rect width="124" height="34" x="38" y="72" fill="#475569" opacity=".6" rx="4"/>
+    <circle cx="48" cy="80" r="3.2" fill="#cbd5e1" class="climate_off_led"/>
+    <circle cx="62" cy="80" r="3.2" fill="#cbd5e1" opacity=".4"/>
+    <circle cx="76" cy="80" r="3.2" fill="#cbd5e1" opacity=".3"/>
+    <rect width="24" height="12" x="90" y="88" fill="none" stroke="#94a3b8" stroke-width="2" opacity=".7" rx="3"/>
+    <path fill="none" stroke="#94a3b8" stroke-linecap="round" stroke-width="2.5" d="M96 94h12" opacity=".6"/>
+    <rect width="10" height="4" x="34" y="114" fill="#94a3b8" opacity=".6" rx="1"/>
+    <rect width="10" height="4" x="156" y="114" fill="#94a3b8" opacity=".6" rx="1"/>
+    <path fill="none" stroke="#94a3b8" stroke-linecap="round" stroke-width="2" d="M48 122h104" opacity=".5"/>
+    <path fill="none" stroke="#64748b" stroke-linecap="round" stroke-width="3.5" d="M40 128c32 10 88 10 120 0"/>
+    <path fill="none" stroke="#94a3b8" stroke-linecap="round" stroke-width="2" d="M52 134c26 8 70 8 96 0" opacity=".4"/>
+  </g>
+</svg>

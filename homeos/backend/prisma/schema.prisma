@@ -1,0 +1,296 @@
+// Prisma 数据库模型定义
+// 使用 PostgreSQL 作为数据库
+
+generator client {
+  provider      = "prisma-client"
+  output        = "../src/generated/prisma"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  admin
+  adult
+  child
+  guest
+}
+
+enum NotificationLevel {
+  info
+  warn
+  danger
+}
+
+/// 用户模型 - 存储系统用户信息
+/// 支持多用户，但默认为单用户模式
+model User {
+  id                  String    @id @default(uuid())  // UUID 主键
+  username            String    @unique               // 用户名（唯一）
+  password            String                          // bcrypt 加密的密码
+  role                UserRole  @default(admin)       // 用户角色（默认管理员）
+  preferences         Json?     @db.JsonB             // 用户偏好设置（温度/色温/夜模等）
+  tokenVersion        Int       @default(0)           // JWT 会话版本，递增可吊销已签发令牌
+  failedLoginAttempts Int       @default(0)           // 连续登录失败次数
+  lockedUntil         DateTime?                       // 账户锁定截止时间
+  totpSecret          String?                         // TOTP 密钥（admin MFA，可选）
+  totpEnabled         Boolean   @default(false)       // 是否启用 TOTP
+  createdAt           DateTime  @default(now())       // 创建时间
+  updatedAt           DateTime  @updatedAt             // 更新时间
+
+  commandAudits CommandAudit[]
+  loginAudits   LoginAudit[]
+}
+
+/// 登录审计 — 成功/失败记录
+model LoginAudit {
+  id        String   @id @default(uuid())
+  username  String
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  ip        String?
+  success   Boolean
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([username])
+}
+
+/// 访客分享短码 — code → 会话 payload（JWT 兑换时签发，库内不存明文 token）
+model GuestShareCode {
+  code      String   @id
+  payload   Json?    @db.JsonB
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+/// 项目配置模型 - 存储前端布局和自定义设置
+/// 每个项目有唯一的 projectId（默认为 "default"）
+model ProjectConfig {
+  id        String   @id @default(uuid())
+  projectId String   @unique @default("default")  // 项目标识符
+  layout    Json     @db.JsonB                    // 设备位置、平面图、HA 连接等
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// 设备控制审计日志 — 记录谁在何时操作了哪个实体
+model CommandAudit {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  username  String?
+  role      String?
+  domain    String
+  service   String
+  entityId  String
+  success   Boolean  @default(true)
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entityId])
+  @@index([userId])
+  // 用户名 + 时间复合索引：管理员按用户名前缀检索审计时走索引而非全表扫
+  @@index([username, createdAt])
+}
+
+/// 通知模型 - 存储系统通知
+/// 支持不同级别和来源的通知
+model Notification {
+  id               String             @id @default(uuid())
+  level            NotificationLevel  @default(info)      // 通知级别（info、warn、danger）
+  message          String                         // 通知内容
+  entityId         String?                        // 关联的实体 ID（可选）
+  source           String    @default("system")   // 通知来源
+  read             Boolean   @default(false)      // 是否已读
+  deliveredAt      DateTime?                      // LAN 推送送达时间
+  deliveryChannels Json     @default("[]") @db.JsonB  // in_app/socket/tts
+  createdAt        DateTime  @default(now())
+
+  @@index([createdAt])  // 按时间索引，用于查询最新通知
+  @@index([read, createdAt])  // 未读统计 / 未读列表
+}
+
+/// 安防事件日志 — 布防/撤防/告警/紧急求救全量记录
+model SecurityEvent {
+  id        String   @id @default(uuid())
+  type      String                        // arm/disarm/alarm/emergency/safety
+  mode      String?                       // armed_home/armed_away/armed_night/disarmed
+  entityId  String?                       // 触发传感器实体
+  detail    String                        // 事件描述
+  zones     Json     @default("[]") @db.JsonB  // 涉及区域
+  createdAt DateTime @default(now())
+
+  @@index([type])
+  @@index([createdAt])
+  @@index([type, createdAt])
+}
+
+/// 地震预警历史 — EEW 触发记录（PostgreSQL 持久化，Redis 为热缓存）
+model EarthquakeAlertHistory {
+  id             String   @id @default(uuid())
+  eventId        String
+  epicenter      String
+  magnitude      Float
+  depth          Float
+  latitude       Float
+  longitude      Float
+  originTime     BigInt
+  distance       Float
+  countdown      Int
+  localIntensity Float
+  maxIntensity   String?
+  /// early | confirmation；旧记录可为空
+  alertKind      String?
+  /// wolfx | sc_eew | cenc_eew | cenc | usgs | test；旧记录可为空
+  source         String?
+  savedAt        DateTime @default(now())
+
+  @@index([savedAt(sort: Desc)])
+  @@index([eventId])
+}
+
+model AlertRule {
+  id              String   @id @default(uuid())
+  name            String                        // 规则名称
+  entityId        String?                       // 关联实体 ID（可选）
+  condition       String                        // 触发条件（如 "state === 'on'"）
+  level           String   @default("warn")     // 告警级别（info/warn/danger）
+  channels        Json     @default("[]") @db.JsonB  // 推送通道列表
+  cooldownMinutes Int      @default(60)         // 冷却时间（分钟）
+  enabled         Boolean  @default(true)       // 是否启用
+  messageTemplate String?                       // 可选：{{entity}} {{state}} {{name}} {{value}} 等
+  title           String?                       // 可选：外部推送标题（Email/WebPush/企微）；为空回退各通道内置标题
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([enabled])
+  @@index([entityId])
+  @@index([createdAt])
+}
+
+/// 家庭模式模型 - 存储不同的家庭运行模式
+/// 如：在家、离家、睡眠、度假等
+model HomeMode {
+  id             String   @id @default(uuid())
+  name           String                        // 模式名称（如 "在家"、"离家"）
+  icon           String   @default("home")     // 图标标识
+  config         Json     @db.JsonB            // 模式动作列表
+  triggers       Json?    @db.JsonB            // 触发条件
+  isActive       Boolean  @default(false)      // 是否为当前激活模式
+  deviceSnapshot Json?    @db.JsonB            // 激活前设备状态快照（deactivate / 互斥切换 undo；禁止覆盖为执行后态）
+  sortOrder      Int      @default(0)          // 排序顺序
+  exclusiveGroup String?  @default("default")  // 互斥组（同组切换时恢复快照）
+  priority       Int      @default(50)          // 优先级（触发/手动切换时高者优先）
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([isActive])
+  // 同组仅一条 isActive=true：部分唯一索引写在 init SQL（Prisma 无法表达 WHERE）
+}
+
+/// 系统运行参数 — AppConfig 单例，仅 id=default
+model SystemConfig {
+  id        String   @id @default("default")
+  data      Json     @db.JsonB
+  updatedAt DateTime @updatedAt
+}
+
+/// 运行时快照 KV（安防面板、场景叠加、客户端电量、人员状态等）。不是 AppConfig。
+model RuntimeKv {
+  id        String   @id
+  data      Json     @db.JsonB
+  updatedAt DateTime @updatedAt
+}
+
+/// 儿童模式运行时（媒体已用时长 / 家长 override）；配置走 AppConfig.childMode
+model ChildModeRuntime {
+  id            String   @id @default("default")
+  mediaUsedMin  Float    @default(0)
+  usageDate     String   @default("")
+  overrideUntil BigInt   @default(0)
+  updatedAt     DateTime @updatedAt
+}
+
+/// 离家模拟 — EventLog 学习的开灯概率
+model AwayPatternBucket {
+  id           String   @id @default(uuid())
+  dow          Int
+  hour         Int
+  lightOnProb  Float    @default(0)
+  sampleCount  Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  @@unique([dow, hour])
+}
+
+/// 访客门锁临时密码 — AES-GCM 密文落库，重启后可恢复到期撤销
+model GuestPass {
+  id           String   @id
+  name         String
+  lockEntityId String
+  slot         Int
+  codeCipher   String
+  codeIv       String
+  codeTag      String
+  createdAt    DateTime
+  expiresAt    DateTime
+  active       Boolean  @default(true)
+  updatedAt    DateTime @updatedAt
+
+  @@index([active, expiresAt])
+  @@index([lockEntityId])
+}
+
+/// Web Push 浏览器订阅（持久化，重启后仍可推送）
+model WebPushSubscription {
+  id        String   @id @default(uuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  label     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
+}
+
+// 房间目录统一由 HA area_registry 提供（经 EntityAreaEnrichmentService 注入 area_id/area_name），
+// 不再保留本地 DB Area / AreaEntity 平行层（已移除冗余的第二套房间真相源）。
+
+model EventLog {
+  id        Int      @default(autoincrement())
+  entityId  String                        // 实体 ID（如 "light.living_room"）
+  domain    String   @default("")         // HA domain（写入时从 entityId 解析，供按域过滤/统计）
+  oldState  Json?    @db.JsonB            // 变更前的完整状态（JSONB 格式）
+  newState  Json?    @db.JsonB            // 变更后的完整状态（JSONB 格式）
+  stateDiff String?                       // 变更摘要（如: "on→off", "23.5→24.0"）
+  createdAt DateTime @default(now())      // 事件发生时间
+
+  @@id([createdAt, id])  // 复合主键：物理按月分区（原生 PARTITION BY RANGE(createdAt)）要求分区键包含在主键内
+  @@index([entityId, createdAt])  // 复合索引：按实体和时间查询
+  @@index([domain, createdAt])    // 按域 + 时间（基线聚合 / 统计）
+  @@index([createdAt], map: "EventLog_createdAt_brin_idx", type: Brin)  // 分区内时间范围检索；勿再加 btree(createdAt)
+  // 分区 DDL 在 init migration（PARTITION BY）；未来分区与过期整月分区 DROP 由 PartitionMaintenanceService 维护
+}
+
+model DeviceUsageStat {
+  id              String   @id @default(uuid())
+  entityId        String
+  day             String                        // YYYY-MM-DD
+  onCount         Int      @default(0)
+  totalRuntimeMs  BigInt   @default(0)
+  lastOn          DateTime?
+  updatedAt       DateTime @updatedAt
+
+  @@unique([entityId, day])
+  @@index([day])
+  @@index([entityId])
+}

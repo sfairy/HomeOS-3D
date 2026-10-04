@@ -1,0 +1,210 @@
+/* 从 SettingsGeneralPanel.vue 抽出 */
+/* Task 7.2 — orb 颜色 token 化（穿透至 SettingsCardIntro 内部 .settings-icon-orb） */
+.sys-hint-micro {
+  font-size: var(--set-fs-micro);
+  color: var(--hos-text-secondary);
+}
+.sys-hint-note {
+  font-size: var(--set-fs-caption);
+  color: var(--hos-text-secondary);
+}
+
+/* Task 19 — intro icon 颜色 token 化（替换原 Tailwind text-* 颜色类，需 :deep 穿透至 SettingsCardIntro 内部） */
+.general-intro-icon--violet {
+  color: var(--page-accent);
+}
+.general-intro-icon--cyan {
+  color: var(--set-info);
+}
+.general-intro-icon--emerald {
+  color: var(--module-accent-admin-sub);
+}
+
+/* Task 19 — 内联链接颜色 token 化（替换原 Tailwind 颜色类为语义令牌） */
+.general-link--warn {
+  color: var(--set-warn);
+}
+.general-link--info {
+  color: var(--set-info);
+}
+
+/* Task 7.2 — orb 颜色 token 化（穿透至 SettingsCardIntro 内部 .settings-icon-orb） */
+.orb-violet {
+  background: rgba(var(--page-accent-rgb), 0.1);
+  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.2);
+}
+.orb-cyan {
+  background: rgba(var(--set-info-rgb), 0.1);
+  border: var(--hos-hairline) solid rgba(var(--set-info-rgb), 0.2);
+}
+.orb-green {
+  background: rgba(var(--module-accent-admin-sub-rgb), 0.1);
+  border: var(--hos-hairline) solid rgba(var(--module-accent-admin-sub-rgb), 0.2);
+}
+.orb-red {
+  background: rgba(var(--set-danger-rgb), 0.1);
+  border: var(--hos-hairline) solid rgba(var(--set-danger-rgb), 0.2);
+}
+
+/* ── 站点品牌 · accent 顶光（单层，不叠底壳） ── */
+.general-brand-card {
+  background:
+    var(--set-card-accent-glow),
+    linear-gradient(168deg, rgba(255, 255, 255, 0.04) 0%, rgba(8, 10, 18, 0.5) 100%);
+  border-color: var(--set-card-surface-border);
+  box-shadow: var(--set-card-surface-shadow), var(--set-card-surface-inset);
+}
+
+.general-brand-notes {
+  margin-top: 10px;
+}
+
+.general-brand-editor {
+  margin-top: 20px;
+  padding: var(--hos-panel-padding-default, 20px) var(--hos-panel-padding-default, 20px) var(--hos-panel-padding-compact-x, 16px);
+  border-radius: var(--hos-radius-card, 14px);
+  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.16);
+  background:
+    radial-gradient(ellipse 70% 80% at 0% 0%, rgba(var(--page-accent-rgb), 0.08) 0%, transparent 60%),
+    rgba(0, 0, 0, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.general-brand-editor__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.general-brand-editor__label {
+  font-size: var(--set-fs-caption);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--hos-text-secondary);
+}
+
+.general-brand-editor__chip {
+  padding: 3px 8px;
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--set-fs-micro, 12px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: rgba(196, 181, 253, 0.88);
+  background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.1);
+  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb, 126, 184, 255), 0.22);
+}
+
+.general-brand-editor__input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 4px 4px 16px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.32);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.general-brand-editor__input-wrap:focus-within {
+  border-color: rgba(var(--page-accent-rgb), 0.45);
+  background: rgba(0, 0, 0, 0.4);
+  box-shadow:
+    0 0 0 3px rgba(var(--page-accent-rgb), 0.12),
+    0 8px 28px rgba(0, 0, 0, 0.28);
+}
+
+.general-brand-editor__input-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: rgba(var(--page-accent-rgb), 0.75);
+  opacity: 0.85;
+}
+
+.general-brand-editor__input {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 12px 14px 0;
+  border: none;
+  background: transparent;
+  font-size: clamp(1.05rem, 2vw, 1.25rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #fff;
+  outline: none;
+}
+
+.general-brand-editor__input::placeholder {
+  color: var(--hos-text-secondary);
+  font-weight: 600;
+}
+
+.general-brand-preview {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: var(--hos-hairline) solid var(--premium-border);
+}
+
+.general-brand-preview__eyebrow {
+  display: block;
+  margin-bottom: 8px;
+  font-size: var(--set-fs-micro, 12px);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--hos-text-secondary);
+}
+
+.general-brand-preview__bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--hos-radius-card);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0%, rgba(0, 0, 0, 0.2) 100%);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
+}
+
+.general-brand-preview__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--hos-radius-pill);
+  flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(var(--page-accent-rgb), 0.95), rgba(var(--page-accent-rgb, 126, 184, 255), 0.85));
+  box-shadow: none;
+}
+
+.general-brand-preview__title {
+  font-size: var(--set-fs-body-sm);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: rgba(255, 255, 255, 0.92);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.general-brand-editor__hint {
+  margin: 12px 0 0;
+  font-size: var(--set-fs-caption);
+  line-height: 1.55;
+  color: var(--hos-text-secondary);
+}
+
+.general-brand-editor__hint strong {
+  color: rgba(255, 255, 255, 0.62);
+  font-weight: 700;
+}
+
+.general-flow-band__shell {
+  --flow-glow-a: rgba(129, 140, 248, var(--flow-glow-alpha-strong));
+  --flow-glow-b: rgba(56, 189, 248, var(--flow-glow-alpha-b));
+}
+

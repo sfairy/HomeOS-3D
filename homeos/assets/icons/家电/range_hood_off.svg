@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="rh_off_m" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="55%" stop-color="#e2e8f0"/>
+      <stop offset="100%" stop-color="#94a3b8"/>
+    </linearGradient>
+  </defs>
+  <!-- 欧式烟机：烟道 + 加厚集烟罩 + 滤网层 -->
+  <ellipse cx="100" cy="168" fill="#cbd5e1" opacity=".4" rx="64" ry="9"/>
+  <rect width="40" height="48" x="80" y="18" fill="url(#rh_off_m)" rx="4"/>
+  <rect width="30" height="9" x="85" y="24" fill="#e2e8f0" rx="2"/>
+  <path fill="url(#rh_off_m)" d="M30 78h140l-16 34H46Z"/>
+  <path fill="#94a3b8" d="M46 112h108l-6 10H52Z"/>
+  <ellipse cx="78" cy="84" fill="#fff" opacity=".45" rx="30" ry="5"/>
+  <rect width="108" height="20" x="46" y="118" fill="#64748b" rx="3"/>
+  <g fill="none" stroke="#e2e8f0" stroke-width="1.8">
+    <path d="M56 124h88"/><path d="M56 130h88"/><path d="M56 136h88"/>
+  </g>
+  <rect width="30" height="6" x="54" y="144" fill="#cbd5e1" rx="2"/>
+  <rect width="30" height="6" x="116" y="144" fill="#cbd5e1" rx="2"/>
+  <circle cx="100" cy="94" r="4" fill="#94a3b8"/>
+</svg>

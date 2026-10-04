@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <filter id="climate_cool_neon" width="160%" height="160%" x="-30%" y="-30%">
+      <feGaussianBlur in="SourceGraphic" result="b" stdDeviation="2.4"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="climate_cool_mist" width="200%" height="200%" x="-50%" y="-30%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1.6"/>
+    </filter>
+    <linearGradient id="climate_cool_grad" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#7dd3fc"/>
+      <stop offset="100%" stop-color="#0369a1"/>
+    </linearGradient>
+    <style>
+      @keyframes climate_cool_pulse{0%,to{opacity:.86;filter:brightness(1)}50%{opacity:1;filter:brightness(1.08)}}@keyframes climate_cool_led{0%,to{opacity:.55}50%{opacity:1}}@keyframes climate_cool_spin{to{transform:rotate(360deg)}}@keyframes climate_cool_flake_pulse{0%,to{opacity:.75}50%{opacity:1}}@keyframes climate_cool_flap{0%,to{transform:translateY(0) rotate(0deg)}50%{transform:translateY(3px) rotate(1.2deg)}}@keyframes climate_cool_spray{0%{opacity:0;transform:translateY(0) scaleX(.5) scaleY(.35)}18%{opacity:1}to{opacity:0;transform:translateY(40px) scaleX(1.4) scaleY(1.9)}}@keyframes climate_cool_frost{0%{opacity:0;transform:translate(0,0) scale(.5)}25%{opacity:1}to{opacity:0;transform:translate(4px,42px) scale(1.1)}}@keyframes climate_cool_streak{0%{opacity:0;stroke-dashoffset:30}35%{opacity:.95}to{opacity:0;stroke-dashoffset:-10}}@keyframes climate_cool_disp{0%,to{opacity:.7}50%{opacity:1}}.climate_cool_frame{animation:climate_cool_pulse 2.2s ease-in-out infinite}.climate_cool_led{animation:climate_cool_led 1.6s ease-in-out infinite}.climate_cool_flake{animation:climate_cool_spin 7s linear infinite,climate_cool_flake_pulse 2s ease-in-out infinite;transform-origin:100px 92px}.climate_cool_flap{animation:climate_cool_flap 1.55s ease-in-out infinite;transform-origin:100px 128px}.climate_cool_s1,.climate_cool_s2{animation:climate_cool_spray 1.2s ease-out infinite}.climate_cool_s1{transform-origin:52px 136px}.climate_cool_s2{animation-delay:.2s;transform-origin:74px 138px}.climate_cool_s3{animation-delay:.4s;transform-origin:96px 140px}.climate_cool_s3,.climate_cool_s4,.climate_cool_s5,.climate_cool_s6{animation:climate_cool_spray 1.2s ease-out infinite}.climate_cool_s4{animation-delay:.6s;transform-origin:118px 140px}.climate_cool_s5{animation-delay:.8s;transform-origin:138px 138px}.climate_cool_s6{animation-delay:1s;transform-origin:154px 136px}.climate_cool_f1,.climate_cool_f2{animation:climate_cool_frost 1.5s ease-in infinite}.climate_cool_f1{transform-origin:60px 140px}.climate_cool_f2{animation-delay:.3s;transform-origin:88px 142px}.climate_cool_f3{animation-delay:.6s;transform-origin:110px 144px}.climate_cool_f3,.climate_cool_f4,.climate_cool_f5{animation:climate_cool_frost 1.5s ease-in infinite}.climate_cool_f4{animation-delay:.9s;transform-origin:132px 142px}.climate_cool_f5{animation-delay:1.2s;transform-origin:148px 140px}.climate_cool_t1,.climate_cool_t2,.climate_cool_t3{animation:climate_cool_streak .95s linear infinite}.climate_cool_t2{animation-delay:.3s}.climate_cool_t3{animation-delay:.6s}.climate_cool_disp{animation:climate_cool_disp 2s ease-in-out infinite}
+    </style>
+  </defs>
+  <rect width="156" height="84" x="22" y="58" fill="url(#climate_cool_grad)" class="climate_cool_frame" filter="url(#climate_cool_neon)" rx="30"/>
+  <rect width="156" height="84" x="22" y="58" fill="none" stroke="#fff" stroke-width="4" opacity=".9" rx="30"/>
+  <rect width="132" height="42" x="34" y="68" fill="#061018" rx="6"/>
+  <circle cx="48" cy="80" r="3.4" fill="#7dd3fc" class="climate_cool_led"/>
+  <circle cx="62" cy="80" r="3.2" fill="#fff" opacity=".9"/>
+  <circle cx="76" cy="80" r="3.2" fill="#fff" opacity=".8"/>
+  <g fill="none" stroke="#7dd3fc" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" class="climate_cool_flake">
+    <path d="M100 74v36"/>
+    <path d="M82 92h36"/>
+    <path d="m87 79 26 26"/>
+    <path d="m113 79-26 26"/>
+    <path d="m100 78-6 6"/>
+    <path d="m100 78 6 6"/>
+    <path d="m100 106-6-6"/>
+    <path d="m100 106 6-6"/>
+  </g>
+  <g fill="none" stroke="#bae6fd" stroke-width="1.5" class="climate_cool_disp" opacity=".5">
+    <rect width="28" height="14" x="128" y="86" rx="3"/>
+    <path d="M134 93h16"/>
+  </g>
+  <rect width="10" height="4" x="34" y="114" fill="#0c4a6e" opacity=".5" rx="1"/>
+  <rect width="10" height="4" x="156" y="114" fill="#0c4a6e" opacity=".5" rx="1"/>
+  <path fill="none" stroke="#fff" stroke-linecap="round" stroke-width="3.5" d="M40 128c32 14 88 14 120 0" class="climate_cool_flap"/>
+  <g filter="url(#climate_cool_mist)">
+    <ellipse cx="52" cy="136" fill="#e0f2fe" class="climate_cool_s1" rx="7" ry="5"/>
+    <ellipse cx="74" cy="138" fill="#bae6fd" class="climate_cool_s2" rx="8" ry="5.5"/>
+    <ellipse cx="96" cy="140" fill="#7dd3fc" class="climate_cool_s3" rx="9" ry="6"/>
+    <ellipse cx="118" cy="140" fill="#38bdf8" class="climate_cool_s4" rx="9" ry="6"/>
+    <ellipse cx="138" cy="138" fill="#bae6fd" class="climate_cool_s5" rx="8" ry="5.5"/>
+    <ellipse cx="154" cy="136" fill="#e0f2fe" class="climate_cool_s6" rx="6" ry="4.5"/>
+  </g>
+  <g fill="#e0f2fe">
+    <circle cx="60" cy="140" r="2.2" class="climate_cool_f1"/>
+    <circle cx="88" cy="142" r="1.8" class="climate_cool_f2"/>
+    <circle cx="110" cy="144" r="2.4" class="climate_cool_f3"/>
+    <circle cx="132" cy="142" r="1.6" class="climate_cool_f4"/>
+    <circle cx="148" cy="140" r="2" class="climate_cool_f5"/>
+  </g>
+  <g fill="none" stroke="#bae6fd" stroke-dasharray="5 9" stroke-linecap="round" stroke-width="2" opacity=".9">
+    <path d="M68 134v42" class="climate_cool_t1"/>
+    <path d="M100 136v44" class="climate_cool_t2"/>
+    <path d="M132 134v42" class="climate_cool_t3"/>
+  </g>
+</svg>

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="cam_gen_body" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="55%" stop-color="#e2e8f0"/>
+      <stop offset="100%" stop-color="#cbd5e1"/>
+    </linearGradient>
+    <radialGradient id="cam_gen_glass" cx="38%" cy="32%" r="68%">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="55%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </radialGradient>
+    <linearGradient id="cam_gen_mount" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="112" cy="178" fill="#94a3b8" opacity=".4" rx="56" ry="8"/>
+  <rect width="14" height="64" x="34" y="68" fill="url(#cam_gen_mount)" rx="4"/>
+  <rect width="6" height="18" x="38" y="78" fill="#64748b" rx="2"/>
+  <rect width="6" height="18" x="38" y="104" fill="#64748b" rx="2"/>
+  <path fill="url(#cam_gen_mount)" d="M48 94h22a6 6 0 0 1 6 6v0a6 6 0 0 1-6 6H48z"/>
+  <rect width="112" height="88" x="68" y="56" fill="url(#cam_gen_body)" rx="18"/>
+  <ellipse cx="88" cy="72" fill="#fff" opacity=".75" rx="22" ry="10"/>
+  <rect width="88" height="7" x="80" y="64" fill="#94a3b8" rx="2.5"/>
+  <circle cx="124" cy="100" r="30" fill="#1e293b"/>
+  <circle cx="124" cy="100" r="22" fill="url(#cam_gen_glass)"/>
+  <ellipse cx="116" cy="92" fill="#64748b" opacity=".55" rx="7" ry="4"/>
+  <circle cx="124" cy="100" r="9" fill="#38bdf8" opacity=".85"/>
+  <circle cx="124" cy="100" r="3.5" fill="#0f172a"/>
+  <circle cx="88" cy="80" r="3.5" fill="#64748b"/>
+  <circle cx="160" cy="80" r="3.5" fill="#64748b"/>
+  <circle cx="164" cy="128" r="5" fill="#22c55e"/>
+</svg>

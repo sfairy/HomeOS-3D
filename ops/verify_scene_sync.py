@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""校验 design/scene 下的场景资源与两个前端 public 副本逐字节一致。
+"""校验 design/scene 下的场景资源与各前端 public 副本逐字节一致。
 
-design/scene 是唯一真相，homeos-3d / homeos-store 的 public/static 副本才是真正
-被打包发布的那一份。副本落后不会有任何报错，只会让页面表现悄悄退回旧版：
+design/scene 是唯一真相，homeos-3d / homeos-store / HomeOS 的 public/static 副本
+才是真正被打包发布的那一份。副本落后不会有任何报错，只会让页面表现悄悄退回旧版：
 曾在商店那份 panel.css 上落后一个主版本（少了一条 [hidden] 规则），结果是
 激活表单在页面上藏不住。所以把「同源」固化成一条可执行的门槛。
 """
@@ -18,6 +18,7 @@ MASTER = ROOT / 'design' / 'scene'
 COPIES = (
     ROOT / 'homeos-3d' / 'frontend' / 'public' / 'static' / 'auth' / 'scene',
     ROOT / 'homeos-store' / 'frontend' / 'public' / 'static' / 'scene',
+    ROOT / 'HomeOS' / 'frontend' / 'public' / 'static' / 'scene',
 )
 FILES = ('fonts.css', 'page.css', 'panel.css', 'scene.css')
 FONT_DIR = 'fonts'

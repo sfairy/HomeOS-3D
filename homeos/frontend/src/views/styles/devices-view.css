@@ -1,0 +1,146 @@
+/* 布局与主题见 list-page-views.css / devices-theme.css
+   此处仅注入页面主色派生变量 + 语义色 + 焦点/hover 反馈。 */
+
+.devices-view {
+  /* 设备页二级色调：cyan（与 sky 形成 sky + cyan 点缀） */
+  --page-accent-secondary: var(--module-accent-devices-sub);
+
+  /* 注：--page-accent-* 派生变量、--set-* 语义色、--set-transition-* 已移至
+         app-premium-tokens.css 的 :root 全局共享。本组件通过 :style 注入
+         --page-accent / --page-accent-rgb 后，全局派生变量自动跟随。 */
+}
+
+/* ── 键盘焦点可见性：使用页面主色 outline ──
+   覆盖设备页内所有可交互元素（搜索框、chip、tab、列表行、批量按钮）。 */
+.devices-view :focus-visible {
+  outline: 2px solid var(--page-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ── 搜索/筛选 chip 的 hover/active 反馈跟随主题色 ── */
+.devices-view .list-page__chip--btn {
+  transition: background var(--set-transition-fast), border-color var(--set-transition-fast),
+    color var(--set-transition-fast), transform var(--set-transition-fast);
+}
+
+.devices-view .list-page__chip--btn:active {
+  transform: scale(0.97);
+}
+
+.devices-view .list-page__tab {
+  transition: background var(--set-transition-normal), box-shadow var(--set-transition-normal),
+    color var(--set-transition-fast);
+}
+
+/* ── 侧栏切换按钮的 hover 反馈 ── */
+.devices-view .devices-view__sidebar-toggle {
+  transition: background var(--set-transition-fast), border-color var(--set-transition-fast),
+    color var(--set-transition-fast);
+}
+
+/* ── 域 tab 切换 hover 反馈（未选中态轻微高亮） ── */
+.devices-view .list-page__tab:not(.list-page__tab--on):hover {
+  background: var(--page-accent-bg);
+  border-color: var(--page-accent-border);
+  color: var(--page-accent-text);
+}
+
+/* ── 全选按钮 active 反馈 ── */
+.devices-view .devices-view__select-all {
+  transition: background var(--set-transition-fast), border-color var(--set-transition-fast),
+    color var(--set-transition-fast), transform var(--set-transition-fast);
+}
+
+.devices-view .devices-view__select-all:active {
+  transform: scale(0.97);
+}
+
+/* ── 列表行 hover 已在 list-page-views.css 跟随 --page-accent ──
+   这里补充 active 态的轻微下压反馈。 */
+.devices-view .list-page__row {
+  transition: background var(--set-transition-fast), border-color var(--set-transition-fast),
+    transform var(--set-transition-fast);
+}
+
+.devices-view .list-page__row:active {
+  transform: translateY(1px);
+}
+
+.devices-view__list-viewport {
+  position: relative;
+  overflow: hidden !important;
+}
+
+.devices-view__list--paged {
+  overflow: hidden;
+}
+
+/* Hero 瘦身：搜索 + 模式 chips 紧凑单行 */
+.devices-view .list-page__hero.premium-head--card {
+  padding: 12px 16px;
+}
+
+.devices-view .list-page__stats {
+  margin-top: 8px;
+}
+
+.devices-view__hero-toolbar {
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.devices-view__mode-chips {
+  flex-wrap: nowrap;
+}
+
+.devices-view__mode-chips .list-page__chip--btn {
+  padding: 6px 10px;
+  font-size: var(--premium-fs-micro);
+  white-space: nowrap;
+}
+
+/* ── 响应式梯度：1440 / 1024 / 640，避免仅一个 900px 断点造成中间尺寸拥挤 ── */
+@media (min-width: 1440px) {
+  .devices-view__hero-toolbar {
+    gap: 16px;
+  }
+
+  .devices-view__mode-chips {
+    gap: 10px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .devices-view__hero-toolbar {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+}
+
+@media (max-width: 639px) {
+  .devices-view__hero-toolbar {
+    gap: 8px;
+  }
+
+  .devices-view__sidebar-toggle {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 900px) {
+  .devices-view__hero-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .devices-view__mode-chips {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .devices-view__mode-chips::-webkit-scrollbar {
+    display: none;
+  }
+}

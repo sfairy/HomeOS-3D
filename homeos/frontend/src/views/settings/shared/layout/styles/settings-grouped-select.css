@@ -1,0 +1,223 @@
+/* 从 SettingsGroupedSelect.vue 抽出 */
+.settings-grouped-select {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.settings-grouped-select__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--control-height-md, 36px);
+  padding: var(--control-padding-y, 8px) var(--control-padding-x, 10px)
+    var(--control-padding-y, 8px) 12px;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.settings-grouped-select__trigger:hover {
+  border-color: var(--hos-dd-accent-mid);
+  background: var(--premium-glass-bg-hover);
+}
+
+.settings-grouped-select__trigger--open {
+  border-color: var(--hos-dd-accent-mid);
+  box-shadow: 0 0 0 2px var(--hos-dd-accent-bg);
+}
+
+.settings-grouped-select__trigger-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.settings-grouped-select__group-tag {
+  font-size: var(--premium-fs-micro, 12px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hos-dd-group-color);
+  line-height: 1.2;
+}
+
+.settings-grouped-select__value {
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+  color: rgba(241, 245, 249, 0.95);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.25;
+}
+
+.settings-grouped-select__chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: var(--hos-hairline) solid var(--premium-border);
+  color: rgba(148, 163, 184, 0.8);
+  flex-shrink: 0;
+}
+
+.settings-grouped-select__chevron-icon--open {
+  transform: rotate(180deg);
+  transition: transform 0.2s ease;
+}
+
+.settings-grouped-select__panel {
+  position: fixed;
+  z-index: var(--z-max);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--hos-dd-panel-radius);
+  background: var(--hos-dd-panel-bg);
+  border: var(--hos-hairline) solid var(--hos-dd-panel-border);
+  box-shadow: var(--hos-dd-panel-shadow);
+  isolation: isolate;
+}
+
+.settings-grouped-select__search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: var(--hos-hairline) solid var(--hos-dd-divider);
+  flex-shrink: 0;
+}
+
+.settings-grouped-select__search-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--hos-text-secondary);
+  flex-shrink: 0;
+}
+
+.settings-grouped-select__search-wrap:focus-within .settings-grouped-select__search-icon {
+  color: var(--hos-dd-accent-mid);
+}
+
+.settings-grouped-select__search {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: var(--premium-fs-caption);
+  font-weight: 500;
+  color: white;
+}
+
+.settings-grouped-select__search::placeholder {
+  color: var(--hos-text-faint);
+}
+
+.settings-grouped-select__list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--premium-border-strong) transparent;
+}
+
+.settings-grouped-select__group + .settings-grouped-select__group {
+  margin-top: 4px;
+}
+
+.settings-grouped-select__group-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
+  font-size: var(--premium-fs-micro);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--hos-dd-group-color);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.settings-grouped-select__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background 0.1s ease,
+    color 0.1s ease;
+}
+
+.settings-grouped-select__option:hover,
+.settings-grouped-select__option--active {
+  background: var(--hos-dd-accent-soft);
+  color: var(--hos-dd-accent);
+}
+
+.settings-grouped-select__option--selected {
+  background: var(--hos-dd-accent-soft);
+}
+
+.settings-grouped-select__option-label {
+  font-size: var(--hos-dd-fs-item);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.settings-grouped-select__option-check {
+  width: 14px;
+  height: 14px;
+  color: var(--hos-dd-accent);
+  flex-shrink: 0;
+}
+
+.settings-grouped-select__empty {
+  padding: 12px;
+  text-align: center;
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-dd-empty-color);
+}
+
+.sgs-drop-enter-active {
+  transition: all 0.12s ease-out;
+}
+
+.sgs-drop-leave-active {
+  transition: all 0.08s ease-in;
+}
+
+.sgs-drop-enter-from,
+.sgs-drop-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.sgs-drop-enter-from.settings-grouped-select__panel--top,
+.sgs-drop-leave-to.settings-grouped-select__panel--top {
+  transform: translateY(4px);
+}

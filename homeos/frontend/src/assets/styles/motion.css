@@ -1,0 +1,89 @@
+/**
+ * 页面级动效与交互反馈（配合 hos-design-system.css）
+ */
+
+.page-enter {
+  animation: page-enter 0.45s var(--ease-spring, cubic-bezier(0.32, 0.72, 0, 1)) both;
+}
+
+.page-enter-stagger > * {
+  animation: page-enter 0.45s var(--ease-spring, cubic-bezier(0.32, 0.72, 0, 1)) both;
+}
+.page-enter-stagger > *:nth-child(1) { animation-delay: 0.05s; }
+.page-enter-stagger > *:nth-child(2) { animation-delay: 0.1s; }
+.page-enter-stagger > *:nth-child(3) { animation-delay: 0.15s; }
+.page-enter-stagger > *:nth-child(4) { animation-delay: 0.2s; }
+.page-enter-stagger > *:nth-child(5) { animation-delay: 0.25s; }
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.hos-fade-up {
+  animation: hos-fade-up 0.4s var(--ease-ios, cubic-bezier(0.32, 0.72, 0, 1)) both;
+}
+
+@keyframes hos-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.interactive-press,
+.tap-active {
+  transition: transform 0.2s var(--ease-spring), box-shadow 0.25s ease;
+}
+.interactive-press:active,
+.tap-active:active {
+  transform: scale(0.98);
+}
+
+.hos-panel-hover {
+  transition:
+    transform var(--hos-transition-panel, 0.25s cubic-bezier(0.32, 0.72, 0, 1)),
+    box-shadow var(--hos-transition-panel, 0.25s cubic-bezier(0.32, 0.72, 0, 1)),
+    border-color var(--hos-transition-panel, 0.25s cubic-bezier(0.32, 0.72, 0, 1));
+}
+
+.hos-panel-hover:hover {
+  transform: translateY(var(--hos-hover-lift, -1px));
+  box-shadow: var(--hos-shadow-card-hover, 0 6px 20px rgba(0, 0, 0, 0.28));
+}
+
+.accent-ring:focus-visible,
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--bg-viewport, #000),
+    0 0 0 4px var(--accent, #0A84FF);
+}
+
+html[data-kiosk="true"] .icon-btn[title*="命令"],
+html[data-kiosk="true"] .icon-btn[title*="Command"] {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter,
+  .page-enter-stagger > *,
+  .hos-fade-up {
+    animation: none;
+  }
+  .interactive-press:active,
+  .tap-active:active,
+  .hos-panel-hover:hover {
+    transform: none;
+  }
+}

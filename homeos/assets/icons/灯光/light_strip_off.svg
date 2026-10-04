@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <style>
+      .bg{fill:#f1f5f9}.fg{fill:#334155}.dim{fill:#64748b}.hole{fill:#1e293b}
+    </style>
+  </defs>
+  <circle cx="100" cy="100" r="87" class="bg"/>
+  <rect width="148" height="46" x="26" y="79" class="dim" opacity=".8" rx="6"/><rect width="140" height="34" x="30" y="85" class="fg" rx="5"/><rect width="12" height="28" x="20" y="87" class="dim" rx="3"/><rect width="12" height="28" x="168" y="87" class="dim" rx="3"/><circle cx="26" cy="101" r="2" class="hole"/><circle cx="174" cy="101" r="2" class="hole"/>
+  <rect width="24" height="20" x="34" y="91" class="dim" rx="4"/><rect width="24" height="20" x="70" y="91" class="dim" rx="4"/><rect width="24" height="20" x="106" y="91" class="dim" rx="4"/><rect width="24" height="20" x="142" y="91" class="dim" rx="4"/><rect width="20" height="16" x="36" y="93" fill="#94a3b8" opacity=".5" rx="3"/><rect width="20" height="16" x="72" y="93" fill="#94a3b8" opacity=".5" rx="3"/><rect width="20" height="16" x="108" y="93" fill="#94a3b8" opacity=".5" rx="3"/><rect width="20" height="16" x="144" y="93" fill="#94a3b8" opacity=".5" rx="3"/><path fill="none" stroke="#64748b" stroke-width="1.5" d="M36 114h128" opacity=".8"/>
+  <circle cx="100" cy="100" r="87" fill="none" stroke="#0f172a" stroke-opacity=".1" stroke-width="2.5"/>
+</svg>

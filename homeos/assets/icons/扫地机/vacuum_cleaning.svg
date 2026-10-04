@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <radialGradient id="vac_clean_ring" cx="50%" cy="50%" r="50%">
+      <stop offset="70%" stop-color="#22d3ee" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#06b6d4" stop-opacity=".6"/>
+    </radialGradient>
+    <linearGradient id="vac_clean_body" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </linearGradient>
+    <filter id="vac_clean_glow" width="140%" height="140%" x="-20%" y="-20%">
+      <feGaussianBlur in="SourceGraphic" result="b" stdDeviation="1.4"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <style>
+      @keyframes vac_clean_spin{to{transform:rotate(360deg)}}@keyframes vac_clean_lidar{to{transform:rotate(-360deg)}}@keyframes vac_clean_dust{0%{transform:translate(0,0) scale(.6);opacity:0}20%{opacity:1}to{transform:translate(16px,-18px) scale(1.1);opacity:0}}@keyframes vac_clean_suck{0%{opacity:0;transform:scale(.55)}35%{opacity:.7}to{opacity:0;transform:scale(1.35)}}@keyframes vac_clean_led{0%,to{opacity:.55}50%{opacity:1}}@keyframes vac_clean_bob{0%,to{transform:translateY(0)}50%{transform:translateY(1.5px)}}@keyframes vac_clean_trail{0%{stroke-dashoffset:0;opacity:.4}50%{opacity:1}to{stroke-dashoffset:-24;opacity:.45}}.vac_clean_body{animation:vac_clean_bob 1.8s ease-in-out infinite}.vac_clean_brush{animation:vac_clean_spin .55s linear infinite;transform-origin:46px 138px}.vac_clean_lidar{animation:vac_clean_lidar 2.4s linear infinite;transform-origin:100px 94px}.vac_clean_led{animation:vac_clean_led 1.2s ease-in-out infinite}.vac_clean_p1{animation:vac_clean_dust 1.1s linear infinite;transform-origin:156px 104px}.vac_clean_p2{animation:vac_clean_dust 1.1s linear infinite;animation-delay:.22s;transform-origin:166px 120px}.vac_clean_p3{animation:vac_clean_dust 1.1s linear infinite;animation-delay:.44s;transform-origin:150px 132px}.vac_clean_p4{animation:vac_clean_dust 1.1s linear infinite;animation-delay:.66s;transform-origin:170px 108px}.vac_clean_p5{animation:vac_clean_dust 1.1s linear infinite;animation-delay:.88s;transform-origin:158px 142px}.vac_clean_s1,.vac_clean_s2{animation:vac_clean_suck 1.4s ease-out infinite;transform-origin:100px 100px}.vac_clean_s2{animation-delay:.7s}.vac_clean_trail{animation:vac_clean_trail 1.3s linear infinite}
+    </style>
+  </defs>
+  <circle cx="100" cy="100" r="92" fill="url(#vac_clean_ring)" class="vac_clean_s1"/>
+  <circle cx="100" cy="100" r="92" fill="url(#vac_clean_ring)" class="vac_clean_s2"/>
+  <path fill="none" stroke="#67e8f9" stroke-dasharray="7 6" stroke-linecap="round" stroke-width="4" d="M158 118q-10 32-36 26-24-8-30 20" class="vac_clean_trail"/>
+  <g class="vac_clean_body">
+    <circle cx="100" cy="100" r="72" fill="#0f172a"/>
+    <circle cx="100" cy="100" r="66" fill="url(#vac_clean_body)"/>
+    <ellipse cx="78" cy="74" fill="#fff" opacity=".7" rx="26" ry="13"/>
+    <path fill="none" stroke="#0f172a" stroke-linecap="round" stroke-width="9" d="M40 82a66 66 0 0 1 120 0"/>
+    <circle cx="58" cy="58" r="3" fill="#64748b"/>
+    <circle cx="142" cy="58" r="3" fill="#64748b"/>
+    <circle cx="100" cy="94" r="24" fill="#1e293b"/>
+    <g fill="none" stroke="#67e8f9" stroke-linecap="round" stroke-width="2.5" class="vac_clean_lidar" filter="url(#vac_clean_glow)">
+      <path d="M100 74v10"/>
+      <path d="M100 104v10"/>
+      <path d="M80 94h10"/>
+      <path d="M110 94h10"/>
+    </g>
+    <circle cx="100" cy="94" r="10" fill="#f8fafc"/>
+    <circle cx="100" cy="94" r="4.5" fill="#0f172a"/>
+    <circle cx="100" cy="56" r="5.5" fill="#22d3ee" class="vac_clean_led"/>
+    <ellipse cx="66" cy="158" fill="#0f172a" rx="16" ry="8"/>
+    <ellipse cx="134" cy="158" fill="#0f172a" rx="16" ry="8"/>
+  </g>
+  <g class="vac_clean_brush">
+    <ellipse cx="46" cy="116" fill="#e2e8f0" rx="3.5" ry="18"/>
+    <ellipse cx="46" cy="160" fill="#e2e8f0" rx="3.5" ry="18"/>
+    <ellipse cx="24" cy="138" fill="#e2e8f0" rx="18" ry="3.5"/>
+    <ellipse cx="68" cy="138" fill="#e2e8f0" rx="18" ry="3.5"/>
+    <ellipse cx="30" cy="122" fill="#cbd5e1" rx="14" ry="3" transform="rotate(-45 46 138)"/>
+    <ellipse cx="62" cy="154" fill="#cbd5e1" rx="14" ry="3" transform="rotate(-45 46 138)"/>
+  </g>
+  <circle cx="46" cy="138" r="11" fill="#0f172a"/>
+  <circle cx="46" cy="138" r="4" fill="#67e8f9"/>
+  <circle cx="156" cy="104" r="5.5" fill="#ecfeff" class="vac_clean_p1"/>
+  <circle cx="166" cy="120" r="4" fill="#a5f3fc" class="vac_clean_p2"/>
+  <circle cx="150" cy="132" r="3.5" fill="#fff" class="vac_clean_p3"/>
+  <circle cx="170" cy="108" r="3" fill="#67e8f9" class="vac_clean_p4"/>
+  <circle cx="158" cy="142" r="4.5" fill="#cffafe" class="vac_clean_p5"/>
+</svg>

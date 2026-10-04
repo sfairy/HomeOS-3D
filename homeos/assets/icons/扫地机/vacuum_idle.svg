@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="vac_idle_body" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </linearGradient>
+    <style>
+      @keyframes vac_idle_led{0%,to{opacity:.35}50%{opacity:1}}
+      @keyframes vac_idle_ring{0%,to{opacity:.25;transform:scale(.92)}50%{opacity:.9;transform:scale(1.08)}}
+      @keyframes vac_idle_breathe{0%,to{opacity:.95}50%{opacity:1}}
+      .vac_idle_body{animation:vac_idle_breathe 3.2s ease-in-out infinite}
+      .vac_idle_led{animation:vac_idle_led 2.4s ease-in-out infinite}
+      .vac_idle_ring{animation:vac_idle_ring 2.4s ease-in-out infinite;transform-origin:100px 56px}
+    </style>
+  </defs>
+  <g class="vac_idle_body">
+    <circle cx="100" cy="100" r="72" fill="#0f172a"/>
+    <circle cx="100" cy="100" r="66" fill="url(#vac_idle_body)"/>
+    <ellipse cx="78" cy="74" fill="#fff" opacity=".7" rx="26" ry="13"/>
+    <path fill="none" stroke="#0f172a" stroke-linecap="round" stroke-width="9" d="M40 82a66 66 0 0 1 120 0"/>
+    <circle cx="58" cy="58" r="3" fill="#64748b"/>
+    <circle cx="142" cy="58" r="3" fill="#64748b"/>
+    <circle cx="100" cy="94" r="24" fill="#1e293b"/>
+    <circle cx="100" cy="94" r="10" fill="#f8fafc"/>
+    <circle cx="100" cy="94" r="4.5" fill="#0f172a"/>
+    <circle cx="100" cy="56" r="10" fill="none" stroke="#94a3b8" stroke-width="3" class="vac_idle_ring"/>
+    <circle cx="100" cy="56" r="5.5" fill="#64748b" class="vac_idle_led"/>
+    <circle cx="46" cy="138" r="11" fill="#0f172a"/>
+    <circle cx="46" cy="138" r="4" fill="#cbd5e1"/>
+    <ellipse cx="66" cy="158" fill="#0f172a" rx="16" ry="8"/>
+    <ellipse cx="134" cy="158" fill="#0f172a" rx="16" ry="8"/>
+  </g>
+</svg>

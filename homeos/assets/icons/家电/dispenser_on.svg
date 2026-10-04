@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="dp_on_b" x1="0%" x2="100%" y1="0%" y2="0%">
+      <stop offset="0%" stop-color="#fff"/>
+      <stop offset="45%" stop-color="#ecfeff"/>
+      <stop offset="100%" stop-color="#a5f3fc"/>
+    </linearGradient>
+    <linearGradient id="dp_on_panel" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#0891b2"/>
+      <stop offset="100%" stop-color="#0e7490"/>
+    </linearGradient>
+    <style>
+      @keyframes dp_drip{
+        0%{transform:translateY(0) scaleY(1);opacity:0}
+        12%{opacity:1}
+        55%{transform:translateY(12px) scaleY(1.35);opacity:.9}
+        85%{transform:translateY(20px) scaleY(.65);opacity:.3}
+        to{transform:translateY(24px) scaleY(.35);opacity:0}
+      }
+      @keyframes dp_stream{
+        0%{stroke-dashoffset:0;opacity:.5}
+        50%{opacity:1}
+        to{stroke-dashoffset:14;opacity:.5}
+      }
+      @keyframes dp_hot{0%,to{opacity:.65}50%{opacity:1}}
+      @keyframes dp_disp{0%,to{opacity:.6}50%{opacity:1}}
+      @keyframes dp_led{0%,to{opacity:.72}50%{opacity:1}}
+      .dp_d1{animation:dp_drip 1.15s cubic-bezier(.4,0,.6,1) infinite;transform-origin:100px 120px}
+      .dp_d2{animation:dp_drip 1.15s cubic-bezier(.4,0,.6,1) infinite;animation-delay:.35s;transform-origin:100px 128px}
+      .dp_d3{animation:dp_drip 1.15s cubic-bezier(.4,0,.6,1) infinite;animation-delay:.7s;transform-origin:100px 136px}
+      .dp_stream{animation:dp_stream .85s linear infinite;stroke-dasharray:3 4}
+      .dp_hot{animation:dp_hot 2s ease-in-out infinite}
+      .dp_disp{animation:dp_disp 2.2s ease-in-out infinite}
+      .dp_led{animation:dp_led 2.4s ease-in-out infinite}
+    </style>
+  </defs>
+  <ellipse cx="100" cy="178" fill="#a5f3fc" opacity=".5" rx="52" ry="9"/>
+  <rect width="100" height="148" x="50" y="24" fill="url(#dp_on_b)" rx="14"/>
+  <ellipse cx="72" cy="40" fill="#fff" opacity=".85" rx="14" ry="6"/>
+  <rect width="76" height="36" x="62" y="36" fill="url(#dp_on_panel)" rx="8"/>
+  <rect width="48" height="14" x="68" y="42" fill="#67e8f9" class="dp_disp" rx="3"/>
+  <circle cx="126" cy="49" r="3.5" fill="#22c55e" class="dp_led"/>
+  <circle cx="78" cy="62" r="6" fill="#fda4af" class="dp_hot"/>
+  <circle cx="100" cy="62" r="6" fill="#fde68a"/>
+  <circle cx="122" cy="62" r="6" fill="#7dd3fc"/>
+  <path fill="#cffafe" d="M66 86h68a10 10 0 0 1 10 10v52a8 8 0 0 1-8 8H64a8 8 0 0 1-8-8V96a10 10 0 0 1 10-10z"/>
+  <rect width="20" height="14" x="90" y="92" fill="#22d3ee" rx="4"/>
+  <rect width="10" height="6" x="95" y="95" fill="#ecfeff" rx="1.5"/>
+  <path fill="#0891b2" d="M96 106h8l2 8h-12z"/>
+  <path fill="none" stroke="#67e8f9" stroke-linecap="round" stroke-width="2.5" class="dp_stream" d="M100 114v18"/>
+  <ellipse cx="100" cy="120" fill="#22d3ee" class="dp_d1" rx="3" ry="4.5"/>
+  <ellipse cx="100" cy="128" fill="#67e8f9" class="dp_d2" rx="2.5" ry="3.5"/>
+  <ellipse cx="100" cy="136" fill="#a5f3fc" class="dp_d3" rx="2" ry="3"/>
+  <rect width="56" height="8" x="72" y="148" fill="#fff" rx="3"/>
+  <path fill="#a5f3fc" d="M86 156h28l-4 10H90z"/>
+  <rect width="100" height="6" x="50" y="166" fill="#22d3ee" rx="2"/>
+</svg>

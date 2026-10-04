@@ -1,0 +1,70 @@
+.asset-manager {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: linear-gradient(180deg, rgba(10,10,18,0.85), rgba(8,8,14,0.75));
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(24px) saturate(160%);
+}
+
+.asset-manager--embedded { height: auto; min-height: 0; }
+.asset-manager--embedded .asset-body {
+  flex: none;
+  display: block;
+  overflow: visible;
+  min-height: 240px;
+  padding: 12px 4px 4px;
+}
+
+.asset-manager--embedded .asset-grid,
+.asset-manager--embedded .asset-list,
+.asset-manager--embedded .asset-grid-virtual {
+  flex: none;
+  min-height: 0;
+  overflow: visible;
+}
+
+.asset-manager--embedded .asset-grid {
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 10px;
+}
+
+.asset-footer {
+  padding: 6px 16px 10px;
+  border-top: 1px solid rgba(255,255,255,0.03);
+}
+
+/* —— AssetManagerModal —— */
+.hos-modal-head-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--hos-radius-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hos-modal-head-icon--accent {
+  background: linear-gradient(135deg, rgba(192, 132, 252, 0.18), rgba(167, 139, 250, 0.08));
+  color: #c084fc;
+}
+.hos-modal-head-icon--blue {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(99, 102, 241, 0.08));
+  color: #60a5fa;
+}
+.asset-manager-modal__body {
+  min-height: 420px;
+  max-height: min(72vh, 720px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.asset-manager-modal__body .asset-manager {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.asset-manager-modal__body .asset-body {
+  flex: 1;
+  min-height: 0;
+}

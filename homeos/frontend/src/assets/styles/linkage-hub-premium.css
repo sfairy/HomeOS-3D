@@ -1,0 +1,439 @@
+/**
+ * 联动中心 · premium 主题
+ * 对齐生活中心：统一深底 + 子 Tab 语义多色换皮（非强制青蓝）
+ */
+
+.linkage-hub.list-page {
+  --lh-accent: var(--premium-accent-cyan, #5fd4ff);
+  --lh-accent-secondary: #7eb8ff;
+  --lh-accent-rgb: var(--premium-accent-cyan-rgb, 95, 212, 255);
+  --lh-accent-secondary-rgb: 126, 184, 255;
+  --page-accent: var(--lh-accent);
+  --page-accent-secondary: var(--lh-accent-secondary);
+  --page-accent-rgb: var(--lh-accent-rgb);
+  --lh-surface:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.015) 42%, rgba(0, 0, 0, 0.32) 100%);
+  --lh-surface-inset: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --lh-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  padding: var(--space-page-y-top) var(--space-page-x) var(--space-page-y-bottom);
+  gap: var(--space-page-gap);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  /* 按画布实际宽度响应，避免整页 scale 时仍按真实视口媒体查询误触窄屏布局 */
+  container-type: inline-size;
+  container-name: linkage-hub;
+  background:
+    radial-gradient(ellipse 90% 58% at 6% -10%, rgba(var(--lh-accent-rgb), 0.14) 0%, transparent 58%),
+    radial-gradient(ellipse 55% 42% at 98% 8%, rgba(var(--lh-accent-secondary-rgb), 0.07) 0%, transparent 50%),
+    radial-gradient(ellipse 70% 48% at 88% 108%, rgba(var(--lh-accent-rgb), 0.06) 0%, transparent 52%),
+    linear-gradient(180deg, #0c1018 0%, #080b12 48%, #07090f 100%);
+  color: var(--set-text-primary, rgba(255, 255, 255, 0.92));
+}
+
+/* 总览：联动品牌青 */
+.linkage-hub--overview.list-page {
+  --lh-accent: var(--premium-accent-cyan, #5fd4ff);
+  --lh-accent-secondary: #7eb8ff;
+  --lh-accent-rgb: var(--premium-accent-cyan-rgb, 95, 212, 255);
+  --lh-accent-secondary-rgb: 126, 184, 255;
+}
+
+/* 场景：sky（对齐设备系） */
+.linkage-hub--scene.list-page {
+  --lh-accent: var(--module-accent-scenes);
+  --lh-accent-secondary: var(--module-accent-scenes-sub);
+  --lh-accent-rgb: var(--module-accent-scenes-rgb);
+  --lh-accent-secondary-rgb: var(--module-accent-scenes-sub-rgb);
+}
+
+/* 自动化：琥珀（对齐能源/家模式） */
+.linkage-hub--automation.list-page {
+  --lh-accent: var(--module-accent-automation);
+  --lh-accent-secondary: var(--module-accent-automation-sub);
+  --lh-accent-rgb: var(--module-accent-automation-rgb);
+  --lh-accent-secondary-rgb: var(--module-accent-automation-sub-rgb);
+}
+
+/* 脚本：翠绿（对齐仪表盘/能耗） */
+.linkage-hub--script.list-page {
+  --lh-accent: var(--module-accent-script);
+  --lh-accent-secondary: var(--module-accent-script-sub);
+  --lh-accent-rgb: var(--module-accent-script-rgb);
+  --lh-accent-secondary-rgb: var(--module-accent-script-sub-rgb);
+}
+
+/* 模板实体：紫晶（对齐布局/语音） */
+.linkage-hub--template.list-page {
+  --lh-accent: var(--module-accent-template);
+  --lh-accent-secondary: var(--module-accent-template-sub);
+  --lh-accent-rgb: var(--module-accent-template-rgb);
+  --lh-accent-secondary-rgb: var(--module-accent-template-sub-rgb);
+}
+
+/* .linkage-hub--*.list-page 不再重复声明 --page-accent-*：
+   与 .linkage-hub.list-page 同元素，声明已被祖先规则覆盖（accent 二次覆盖清理）。 */
+
+.linkage-hub :focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--lh-accent) 55%, white);
+  outline-offset: 2px;
+}
+
+.linkage-hub__nav-wrap {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 100%),
+    radial-gradient(ellipse at 50% 0%, rgba(var(--lh-accent-rgb), 0.08) 0%, transparent 60%),
+    rgba(0, 0, 0, 0.36);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: none;
+}
+
+.linkage-hub__nav-wrap .settings-orch-tab--active {
+  background: color-mix(in srgb, var(--tab-accent, var(--lh-accent)) 14%, #0c0e14);
+  border-color: color-mix(in srgb, var(--tab-accent, var(--lh-accent)) 36%, #1a1d28);
+  box-shadow: none;
+}
+
+.linkage-hub__body {
+  padding: var(--space-page-y-top) var(--space-page-x) var(--space-page-y-bottom);
+  gap: var(--space-page-gap);
+}
+
+/* ── 头卡片：对齐生活中心玻璃 Hero ── */
+.linkage-hub .list-page__hero.premium-head--card,
+.linkage-hub .list-page__hero {
+  flex-shrink: 0;
+  border-radius: var(--hos-radius-panel);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--lh-accent) 26%, var(--premium-border));
+  background:
+    radial-gradient(ellipse 110% 90% at 0% 0%, rgba(var(--lh-accent-rgb), 0.16) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 60% at 100% 0%, rgba(var(--lh-accent-secondary-rgb), 0.08) 0%, transparent 48%),
+    var(--lh-surface);
+  box-shadow:
+    var(--premium-shadow),
+    var(--lh-surface-inset);
+}
+
+.linkage-hub .premium-head__accent {
+  background: linear-gradient(
+    90deg,
+    var(--lh-accent),
+    color-mix(in srgb, var(--lh-accent-secondary) 80%, var(--lh-accent)),
+    transparent
+  );
+}
+
+.linkage-hub .premium-head__glow {
+  background:
+    radial-gradient(ellipse 120% 80% at 0% 0%, rgba(var(--lh-accent-rgb), 0.14) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 60% at 100% 0%, rgba(var(--lh-accent-secondary-rgb), 0.08) 0%, transparent 50%);
+}
+
+.linkage-hub .premium-head__orb {
+  color: color-mix(in srgb, var(--lh-accent) 82%, white);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--lh-accent) 24%, #0c0e14),
+    color-mix(in srgb, var(--lh-accent-secondary) 14%, #0c0e14)
+  );
+  border: 1px solid color-mix(in srgb, var(--lh-accent) 38%, #1a1d28);
+  box-shadow: none;
+}
+
+.linkage-hub .premium-head__title {
+  font-size: var(--premium-fs-title);
+  letter-spacing: -0.02em;
+  font-weight: 780;
+}
+
+.linkage-hub .list-page__stats {
+  margin-top: 10px;
+}
+
+/* ── 面板内胶囊 Tab（对齐生活中心） ── */
+.linkage-hub__panel.list-page__panel,
+.linkage-hub__panel.list-page__panel.premium-glass-surface--panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  gap: 0;
+  border-radius: var(--hos-radius-panel);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--lh-accent) 18%, var(--premium-border));
+  background:
+    radial-gradient(ellipse 110% 80% at 100% 0%, rgba(var(--lh-accent-rgb), 0.08) 0%, transparent 55%),
+    var(--lh-surface);
+  box-shadow:
+    var(--premium-shadow),
+    var(--lh-surface-inset);
+}
+
+.linkage-hub__panel-toolbar.list-page__panel-toolbar {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  padding: 10px 14px;
+  overflow: visible;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent),
+    rgba(0, 0, 0, 0.18);
+}
+
+.linkage-hub__panel-toolbar-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+}
+
+.linkage-hub__tabs.list-page__tabs {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  max-width: none;
+  position: relative;
+  z-index: 5;
+  pointer-events: auto;
+}
+
+.linkage-hub__tabs .list-page__tab {
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.linkage-hub .list-page__tab--on {
+  color: #fff;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--lh-accent) 58%, rgba(0, 0, 0, 0.15)),
+    color-mix(in srgb, var(--lh-accent-secondary) 42%, rgba(0, 0, 0, 0.22))
+  );
+  box-shadow:
+    0 2px 12px color-mix(in srgb, var(--lh-accent) 28%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+/* 平板（≤1100px）：增强 linkage-hub tab 激活/非激活对比度 */
+@media (max-width: 1100px) {
+  .linkage-hub .list-page__tab {
+    color: rgba(255, 255, 255, 0.62);
+  }
+  .linkage-hub .list-page__tab:not(.list-page__tab--on):hover {
+    color: color-mix(in srgb, var(--lh-accent) 70%, white);
+    background: color-mix(in srgb, var(--lh-accent) 14%, transparent);
+  }
+  .linkage-hub .list-page__tab--on {
+    color: #fff;
+    /* 高不透明度渐变 */
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--lh-accent) 92%, rgba(0, 0, 0, 0.05)),
+      color-mix(in srgb, var(--lh-accent-secondary) 88%, rgba(0, 0, 0, 0.08))
+    );
+    /* 增强外发光 */
+    box-shadow:
+      0 4px 22px color-mix(in srgb, var(--lh-accent) 55%, transparent),
+      0 0 0 1px rgba(255, 255, 255, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.28);
+    transform: translateY(-1px);
+  }
+}
+
+.linkage-hub .list-page__tab:not(.list-page__tab--on):hover {
+  color: color-mix(in srgb, var(--lh-accent) 55%, white);
+  background: color-mix(in srgb, var(--lh-accent) 10%, transparent);
+}
+
+.linkage-hub__panel-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 12px;
+  gap: 10px;
+}
+
+@media (max-width: 639px) {
+  .linkage-hub__panel-toolbar.list-page__panel-toolbar {
+    padding: 8px 10px;
+  }
+
+  .linkage-hub__tabs.list-page__tabs {
+    gap: 2px;
+  }
+
+  .linkage-hub .list-page__tab {
+    padding: 6px 10px;
+    font-size: var(--premium-fs-micro);
+  }
+
+  .linkage-hub__content-toolbar {
+    padding: 2px 0 0;
+  }
+}
+
+.linkage-hub__panel-body > .linkage-overview,
+.linkage-hub__panel-body > .linkage-hub__list-shell {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+.linkage-hub__content-toolbar {
+  flex-shrink: 0;
+  width: 100%;
+  padding: 4px 2px 2px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.linkage-hub__list-shell.list-page__panel {
+  border-radius: var(--hos-radius-panel);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--lh-accent) 18%, var(--premium-border));
+  background:
+    radial-gradient(ellipse 110% 80% at 100% 0%, rgba(var(--lh-accent-rgb), 0.08) 0%, transparent 55%),
+    var(--lh-surface);
+  box-shadow:
+    var(--premium-shadow),
+    var(--lh-surface-inset);
+}
+
+.linkage-hub__list-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.linkage-hub__list-shell > * {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.linkage-hub__list-shell > .linkage-hub__grid-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.linkage-hub-card {
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--lh-accent) 12%, var(--premium-border));
+  background:
+    var(--page-card-tint-soft),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.045) 0%, rgba(0, 0, 0, 0.22) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+/* 仅精细指针设备启用；移动端 tap 后 :focus-within 会粘住产生边框光晕 */
+@media (hover: hover) and (pointer: fine) {
+  .linkage-hub-card:hover,
+  .linkage-hub-card:focus-within {
+    border-color: color-mix(in srgb, var(--lh-accent) 38%, rgba(0, 0, 0, 0));
+    box-shadow:
+      0 12px 32px rgba(0, 0, 0, 0.28),
+      0 0 0 1px color-mix(in srgb, var(--lh-accent) 14%, rgba(0, 0, 0, 0)),
+      0 0 28px color-mix(in srgb, var(--lh-accent) 12%, rgba(0, 0, 0, 0));
+  }
+
+  .linkage-hub .lp-metrics__item:hover {
+    border-color: color-mix(in srgb, var(--lh-accent) 28%, transparent);
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+  }
+}
+
+.linkage-hub .lp-metrics__item {
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
+  background: rgba(0, 0, 0, 0.26);
+  padding: 8px 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition:
+    border-color 0.22s var(--lh-ease),
+    transform 0.22s var(--lh-ease),
+    box-shadow 0.22s var(--lh-ease);
+}
+
+.linkage-hub .lp-metrics__value {
+  font-size: 1.12rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.linkage-hub .lp-metrics__label {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--hos-text-secondary);
+}
+
+.linkage-hub-card__icon {
+  background: color-mix(in srgb, var(--lh-accent) 18%, rgba(0, 0, 0, 0));
+  color: color-mix(in srgb, var(--lh-accent) 78%, white);
+  box-shadow: none;
+}
+
+.linkage-hub .list-page__btn--primary {
+  border-color: color-mix(in srgb, var(--lh-accent) 44%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--lh-accent) 54%, rgba(0, 0, 0, 0.18)),
+    color-mix(in srgb, var(--lh-accent-secondary) 36%, rgba(0, 0, 0, 0.28))
+  );
+  box-shadow:
+    0 4px 18px color-mix(in srgb, var(--lh-accent) 24%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.linkage-hub .list-page__btn--primary:hover:not(:disabled) {
+  box-shadow:
+    0 10px 30px color-mix(in srgb, var(--lh-accent) 30%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+@media (pointer: coarse), (hover: none), (max-width: 900px) {
+  .linkage-hub-card,
+  .linkage-hub-card:hover,
+  .linkage-hub-card:focus-within {
+    border-color: color-mix(in srgb, var(--lh-accent) 12%, var(--premium-border));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    transform: none;
+  }
+
+  .linkage-hub-card__icon {
+    box-shadow: none;
+  }
+  .linkage-hub .list-page__btn--primary,
+  .linkage-hub .list-page__btn--primary:hover:not(:disabled) {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+}
+
+.linkage-hub .list-page__link-btn {
+  color: color-mix(in srgb, var(--lh-accent) 78%, white);
+  border-color: color-mix(in srgb, var(--lh-accent) 32%, rgba(0, 0, 0, 0));
+  background: color-mix(in srgb, var(--lh-accent) 10%, rgba(0, 0, 0, 0));
+}
+
+.linkage-hub .list-page__link-btn:hover {
+  color: color-mix(in srgb, var(--lh-accent) 72%, white);
+  border-color: color-mix(in srgb, var(--lh-accent) 30%, transparent);
+  background: color-mix(in srgb, var(--lh-accent) 16%, rgba(0, 0, 0, 0));
+}

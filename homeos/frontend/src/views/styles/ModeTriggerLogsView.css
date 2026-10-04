@@ -1,0 +1,207 @@
+/* 从 ModeTriggerLogsView.vue 抽出 */
+/* 注：--page-accent-* 派生变量、--set-* 语义色、--set-transition-* 已移至
+   app-premium-tokens.css 的 :root 全局共享。本组件通过 :style 注入
+   --page-accent / --page-accent-rgb 后，全局派生变量自动跟随。 */
+.mode-logs-view :focus-visible {
+  outline: 2px solid var(--page-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.mode-logs-view .hos-select--inline .mode-logs-view__filter {
+  min-width: 108px;
+  justify-content: space-between;
+}
+
+.mode-logs-view .hos-select--inline .mode-logs-view__filter:focus-visible {
+  outline: 2px solid var(--page-accent);
+  outline-offset: 2px;
+  border-color: var(--page-accent-border);
+  box-shadow: 0 0 0 3px var(--page-accent-glow);
+}
+
+.mode-logs-view__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.mode-logs-view__table-wrap {
+  overflow: auto;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--premium-border);
+}
+
+.mode-logs-view__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--premium-fs-caption);
+}
+
+.mode-logs-view__table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(12, 14, 22, 0.98);
+  padding: 10px 12px;
+  text-align: left;
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--set-text-label);
+  border-bottom: var(--hos-hairline) solid var(--premium-border-strong);
+}
+
+.mode-logs-view__table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: var(--hos-hairline) solid rgba(255, 255, 255, 0.04);
+  vertical-align: top;
+}
+
+.mode-logs-view__table tbody tr {
+  transition: background var(--set-transition-fast);
+}
+
+.mode-logs-view__table tbody tr:hover {
+  background: var(--page-accent-bg);
+}
+
+.mode-logs-view__table tbody tr:focus-within {
+  background: var(--page-accent-bg);
+  box-shadow: inset 2px 0 0 var(--page-accent);
+}
+
+.mode-logs-view__time {
+  white-space: nowrap;
+  font-family: ui-monospace, monospace;
+  font-size: var(--premium-fs-caption);
+  color: var(--module-accent-home-mode-sub);
+}
+
+.mode-logs-view__reason {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mode-logs-view__ok {
+  color: var(--set-success);
+}
+.mode-logs-view__fail {
+  color: var(--set-danger);
+}
+
+.list-page__error {
+  margin: 0;
+  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
+  border-radius: var(--hos-radius-card);
+  font-size: var(--premium-fs-caption);
+  color: var(--set-danger);
+  background: var(--set-danger-bg);
+  border: var(--hos-hairline) solid var(--set-danger-border);
+}
+
+/* 空状态：跟随 page-accent（amber）做点缀 */
+.mode-logs-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 36px 24px;
+  border-radius: var(--hos-radius-panel);
+  text-align: center;
+  border: var(--hos-hairline) dashed var(--page-accent-border);
+  background: linear-gradient(160deg, var(--page-accent-bg) 0%, rgba(0, 0, 0, 0.12) 100%);
+}
+
+.mode-logs-empty--rose {
+  border-color: var(--set-danger-border);
+  background: linear-gradient(160deg, var(--set-danger-bg) 0%, rgba(0, 0, 0, 0.12) 100%);
+}
+
+.mode-logs-empty__icon {
+  width: 32px;
+  height: 32px;
+  color: var(--page-accent-text);
+  opacity: 0.55;
+}
+
+.mode-logs-empty--rose .mode-logs-empty__icon {
+  color: var(--set-danger);
+  opacity: 0.55;
+}
+
+.mode-logs-empty__title {
+  margin: 0;
+  font-size: var(--premium-fs-body-sm, 14px);
+  font-weight: 700;
+  color: var(--set-text-secondary);
+}
+
+.mode-logs-empty__desc {
+  margin: 0;
+  max-width: 320px;
+  font-size: var(--premium-fs-caption);
+  line-height: 1.5;
+  color: var(--set-text-label);
+}
+
+.mode-logs-empty__btn {
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-radius: var(--hos-radius-card);
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+  cursor: pointer;
+  border: var(--hos-hairline) solid var(--page-accent-border);
+  background: var(--page-accent-bg);
+  color: var(--page-accent-text);
+  text-decoration: none;
+  transition:
+    background var(--set-transition-fast),
+    border-color var(--set-transition-fast),
+    transform var(--set-transition-fast);
+}
+
+.mode-logs-empty__btn:hover {
+  background: var(--page-accent-bg-strong);
+  border-color: var(--page-accent-text);
+  transform: translateY(-1px);
+}
+
+.mode-logs-empty__btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.mode-logs-empty__btn:focus-visible {
+  outline: 2px solid var(--page-accent);
+  outline-offset: 2px;
+}
+
+.mode-logs-empty--rose .mode-logs-empty__btn {
+  border-color: var(--set-danger-border);
+  background: var(--set-danger-bg);
+  color: var(--set-danger);
+}
+
+.mode-logs-empty--rose .mode-logs-empty__btn:hover {
+  background: rgba(var(--set-danger-rgb), 0.18);
+  border-color: var(--set-danger);
+}
+
+@media (max-width: 768px) {
+  .mode-logs-view__col-source,
+  .mode-logs-view__col-reason,
+  .mode-logs-view__table thead th:nth-child(3),
+  .mode-logs-view__table thead th:nth-child(4),
+  .mode-logs-view__table tbody td:nth-child(3),
+  .mode-logs-view__table tbody td:nth-child(4) {
+    display: none;
+  }
+}

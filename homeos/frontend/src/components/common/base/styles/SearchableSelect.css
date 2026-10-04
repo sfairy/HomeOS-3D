@@ -1,0 +1,188 @@
+.ss-wrap {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.ss-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-height: var(--control-height-md, 36px);
+  background: rgba(255, 255, 255, 0.05);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--hos-radius-card);
+  overflow: hidden;
+}
+
+.ss-input-row:focus-within {
+  border-color: var(--hos-dd-accent-mid);
+  background: var(--premium-glass-bg-hover);
+}
+
+.ss-input-row .settings-field,
+.ss-input-row .ss-input--list-page {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding-right: 8px;
+}
+
+.ss-input--list-page {
+  width: 100%;
+  padding: 10px 14px;
+  color: inherit;
+  font-size: var(--premium-fs-caption);
+  outline: none;
+  background: transparent;
+}
+
+.ss-clear,
+.ss-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 32px;
+  width: 32px;
+  min-height: var(--control-height-md, 36px);
+  height: var(--control-height-md, 36px);
+  padding: 0 6px;
+  color: var(--hos-text-secondary);
+  background: transparent;
+  border: none;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.ss-clear:hover,
+.ss-toggle:hover {
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ss-toggle--open {
+  transform: rotate(180deg);
+}
+
+.ss-dropdown {
+  position: fixed;
+  z-index: var(--z-max);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--hos-dd-panel-radius);
+  background: var(--hos-dd-panel-bg);
+  border: var(--hos-hairline) solid var(--hos-dd-panel-border);
+  box-shadow: var(--hos-dd-panel-shadow);
+  isolation: isolate;
+}
+
+.ss-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--premium-border-strong) transparent;
+}
+
+.ss-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 0;
+  text-align: left;
+  color: rgba(255, 255, 255, 0.8);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition:
+    background 0.1s,
+    color 0.1s;
+}
+
+.ss-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.ss-item:hover,
+.ss-item--active {
+  background: var(--hos-dd-accent-soft);
+  color: var(--hos-dd-accent);
+}
+
+.ss-item-label {
+  /* list-page 触发器 caption(13) → micro；settings-field(15) 见下方覆盖 */
+  font-size: var(--hos-dd-fs-item);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  line-height: 1.35;
+}
+
+/* settings 场景：触发器 --set-fs-input(15) → 选项 body-sm(14) */
+.ss-wrap:has(.settings-field) .ss-item-label {
+  font-size: var(--hos-dd-fs-item-from-body);
+}
+
+.ss-item-hint {
+  font-size: var(--premium-fs-micro);
+  font-family: ui-monospace, monospace;
+  color: var(--hos-text-secondary);
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-all;
+}
+
+.ss-item:hover .ss-item-hint,
+.ss-item--active .ss-item-hint {
+  color: var(--hos-dd-accent-text-bright);
+}
+
+.ss-empty {
+  flex-shrink: 0;
+  padding: 12px;
+  text-align: center;
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-dd-empty-color);
+}
+
+.ss-loading {
+  flex-shrink: 0;
+  padding: 14px 12px;
+  text-align: center;
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+}
+
+.ss-drop-enter-active {
+  transition: all 0.12s ease-out;
+}
+
+.ss-drop-leave-active {
+  transition: all 0.08s ease-in;
+}
+
+.ss-drop-enter-from,
+.ss-drop-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.ss-drop-enter-from.ss-dropdown--top,
+.ss-drop-leave-to.ss-dropdown--top {
+  transform: translateY(4px);
+}

@@ -1,0 +1,54 @@
+.v-skeleton {
+  display: block;
+  border-radius: var(--radius-md, 10px);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.09) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 200% 100%;
+}
+
+.v-skeleton--text {
+  height: 14px;
+  width: 100%;
+  border-radius: 6px;
+}
+
+.v-skeleton--title {
+  height: 20px;
+  width: 60%;
+  border-radius: 8px;
+}
+
+.v-skeleton--card {
+  height: 88px;
+  width: 100%;
+  border-radius: var(--radius-2xl, 20px);
+}
+
+.v-skeleton--circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.v-skeleton--pulse {
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v-skeleton--pulse {
+    animation: none;
+  }
+}

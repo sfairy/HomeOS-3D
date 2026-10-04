@@ -1,0 +1,104 @@
+.device-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* 固定行高：与 DevicesView 虚拟列表 item-height 对齐（44px 触控元素 + 上下 padding 14px×2）。
+     虚拟滚动步长依赖该值，缺失/波动会在大列表时导致行内容裁切或重叠。 */
+  height: 72px;
+  min-height: 72px;
+  max-height: 72px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.device-row--selected {
+  background: rgba(var(--dev-accent-rgb, 56, 189, 248), 0.06);
+  border-color: rgba(var(--dev-accent-rgb, 56, 189, 248), 0.2);
+}
+
+.device-row__checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--hos-text-secondary, rgba(255, 255, 255, 0.58));
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.device-row__checkbox:hover {
+  border-color: var(--dev-accent-border, rgba(56, 189, 248, 0.4));
+  background: var(--dev-accent-soft, rgba(56, 189, 248, 0.08));
+}
+
+.device-row--selected .device-row__checkbox {
+  background: rgba(var(--dev-accent-rgb, 56, 189, 248), 0.2);
+  border-color: var(--dev-accent-border);
+  color: var(--dev-accent-text, #93c5fd);
+}
+
+.device-row__battery {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary, rgba(255, 255, 255, 0.58));
+  flex-shrink: 0;
+}
+
+.device-row__battery--medium {
+  color: #fbbf24;
+}
+.device-row__battery--low {
+  color: #f87171;
+}
+
+.device-row__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 触控目标统一 ≥44px：行内开关提升为 44×44，与行内复选框保持一致 */
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+  border: var(--hos-hairline) solid var(--dev-accent-border);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--dev-accent-rgb, 56, 189, 248), 0.25),
+    rgba(94, 92, 230, 0.2)
+  );
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    transform 0.2s var(--ease-spring, ease),
+    box-shadow 0.2s;
+  box-shadow: 0 4px 14px rgba(var(--dev-accent-rgb, 56, 189, 248), 0.2);
+}
+
+.device-row__toggle:hover {
+  transform: scale(1.06);
+  box-shadow: 0 6px 20px rgba(var(--dev-accent-rgb, 56, 189, 248), 0.35);
+}
+
+.device-row__detail {
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .device-row .device-row__entity-id {
+    display: block;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

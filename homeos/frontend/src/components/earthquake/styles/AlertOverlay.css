@@ -1,0 +1,194 @@
+.eew-root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-alert);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: #fff;
+  touch-action: none;
+}
+
+.eew-pulse-bg {
+  position: absolute;
+  inset: 0;
+  background: rgb(69 10 10 / 0.8);
+  backdrop-filter: blur(24px);
+  animation: eew-bg-pulse 0.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes eew-bg-pulse {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.eew-landscape,
+.eew-portrait {
+  position: relative;
+  z-index: 1;
+  width: min(920px, 94vw);
+  padding: 2rem 1.25rem 1.5rem;
+  text-align: center;
+}
+
+.eew-portrait {
+  width: min(420px, 92vw);
+  padding: 1.5rem 1rem;
+}
+
+.eew-hero {
+  margin-bottom: 2rem;
+}
+
+.eew-countdown-glow {
+  text-shadow:
+    0 0 40px rgb(239 68 68 / 0.4),
+    0 0 80px rgb(239 68 68 / 0.2),
+    0 0 120px rgb(239 68 68 / 0.1);
+}
+
+.eew-intensity-glow {
+  text-shadow:
+    0 0 20px rgb(251 146 60 / 0.5),
+    0 0 40px rgb(251 146 60 / 0.25);
+}
+
+.eew-info-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0 0 1.5rem;
+}
+
+.eew-portrait-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.eew-info-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  border-radius: var(--hos-radius-panel);
+  background: rgb(255 255 255 / 0.03);
+  border: 1px solid rgb(255 255 255 / 0.06);
+}
+
+.eew-info-card--sm {
+  padding: 10px 8px;
+  border-radius: var(--hos-radius-card);
+}
+
+.eew-info-label {
+  font-size: var(--premium-fs-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.eew-intensity-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 639px) {
+  .eew-info-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ── Tailwind 颜色类替换：scoped 引用 CSS 变量 ── */
+
+.eew-c-white {
+  color: #ffffff;
+}
+.eew-c-warn {
+  color: var(--set-warn, #fcd34d);
+}
+.eew-c-warn-deep {
+  color: var(--premium-accent-amber, #ff9500);
+}
+.eew-c-warn-soft {
+  color: var(--set-warn, #fcd34d);
+  opacity: 0.6;
+}
+.eew-c-warn-deep-soft {
+  color: var(--premium-accent-amber, #ff9500);
+  opacity: 0.6;
+}
+.eew-c-danger {
+  color: var(--set-danger, #fda4af);
+}
+.eew-c-danger-soft {
+  color: var(--set-danger, #fda4af);
+  opacity: 0.85;
+}
+.eew-c-danger-faint {
+  color: var(--set-danger, #fda4af);
+  opacity: 0.5;
+}
+.eew-c-danger-pulse {
+  color: var(--set-danger, #fda4af);
+  animation: eew-bg-pulse 0.8s ease-in-out infinite;
+}
+
+.eew-ic-danger {
+  color: var(--set-danger, #fda4af);
+}
+.eew-ic-danger-soft {
+  color: var(--set-danger, #fda4af);
+  opacity: 0.85;
+}
+.eew-ic-warn {
+  color: var(--set-warn, #fcd34d);
+}
+.eew-ic-warn-deep {
+  color: var(--premium-accent-amber, #ff9500);
+}
+
+/* ── 矮屏适配（横屏手机 / 低高度视口）：弹层可纵向滚动，滑动解锁条不被裁切 ── */
+@media (max-height: 560px) {
+  .eew-root {
+    align-items: flex-start;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    /* 允许纵向滚动；滑动解锁条自身仍为 touch-action: none，水平拖拽不受影响 */
+    touch-action: pan-y;
+  }
+
+  .eew-landscape,
+  .eew-portrait {
+    padding-top: 1.25rem;
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* 压缩纵向间距，使内容尽量一屏展示，超出部分随滚动触达 */
+  .eew-hero {
+    margin-bottom: 1rem;
+  }
+
+  .eew-info-grid {
+    margin-bottom: 1rem;
+  }
+
+  .eew-intensity-block {
+    margin-bottom: 1rem;
+  }
+
+  .eew-slide-hint {
+    margin-bottom: 0.5rem;
+  }
+}

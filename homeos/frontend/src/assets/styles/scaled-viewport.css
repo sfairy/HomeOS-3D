@@ -1,0 +1,185 @@
+/**
+ * 整页等比缩放视口壳层
+ * 与 useScaling / ScaledViewport 配合，供主布局与独立路由页共用。
+ */
+
+.viewport-frame {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, #050910 0%, #0a121c 30%, #0d1624 60%, #070b12 100%);
+  transition: background 1.5s ease;
+}
+
+.viewport-frame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 15% -10%, var(--nav-glow, rgba(95, 212, 255, 0.05)) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 55% at 88% 65%, rgba(56, 189, 248, 0.03) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 45% at 50% 95%, var(--nav-brand, rgba(48, 209, 88, 0.015)) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 40% at 45% 50%, rgba(255, 159, 10, 0.008) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+  animation: viewportGlow 14s ease-in-out infinite;
+}
+
+@keyframes viewportGlow {
+  0%, 100% { opacity: 0.8; }
+  25% { opacity: 1; }
+  50% { opacity: 0.7; }
+  75% { opacity: 0.9; }
+}
+
+.viewport-frame--static-glow::before {
+  animation: none;
+  opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewport-frame::before {
+    animation: none;
+    opacity: 0.85;
+  }
+}
+
+@media (pointer: coarse), (hover: none) {
+  .viewport-frame::before {
+    animation: none;
+    opacity: 0.85;
+  }
+}
+
+.app-shell {
+  width: 100%;
+  height: 100%;
+  color: var(--text-primary);
+  z-index: 10;
+  background: transparent;
+  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'Inter', 'Noto Sans SC', sans-serif;
+  transition: transform 0.15s ease-out;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+}
+
+/** 互斥下拉打开时冻结 scale 过渡，避免 visualViewport 变化期间定位失步 */
+.app-shell--dropdown-open {
+  transition: none !important;
+}
+
+.app-shell--scaling {
+  align-items: center;
+  justify-content: center;
+}
+
+.app-shell--scaling.app-shell--resizing {
+  will-change: transform;
+}
+
+/**
+ * 天气特效层（单层 Canvas，半透明叠加）
+ * - 动画模式 z-index:50，叠于主内容之上、tab-bar(200) 之下
+ * - static 模式 z-index:0，在 UI 下方作氛围底图（CSS 渐变已改为半透明）
+ * 禁止 position:fixed + 9999，避免嵌入式 WebView 合成异常遮挡 UI
+ */
+.app-shell__weather-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  overflow: hidden;
+  isolation: isolate;
+  contain: paint;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+}
+
+.app-shell__weather-layer--static {
+  z-index: 0;
+}
+
+.app-shell__content {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.app-shell__content--fluid {
+  width: 100%;
+  height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-shrink: 1;
+}
+
+/** 缩放画布内 Teleport 挂载点（toast / 实体弹窗等） */
+.teleport-target {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-modal);
+}
+
+/**
+ * 【指针事件父子策略 — 经验 1131862 强制约束】
+ * 父容器 .teleport-target 为了让透明区域不拦截文档点击而设 pointer-events:none；
+ * 子元素（弹窗/浮层）必须恢复 pointer-events:auto 才能接收点击；
+ * 采用 "直接子元素 + 深层 Modal 及其后代" 双重规则：
+ *   1) > * 覆盖常见浅层级场景
+ *   2) .hos-modal-root 及 * 其所有后代* 强制 auto，避免 defineAsyncComponent 异步
+ *      挂载 / Vue Transition 抽象节点 / 自定义 wrapper 等场景下漏掉孙级元素
+ *      （否则右上角按钮会表现为"视觉能 hover 但点击没反应"的典型症状）
+ */
+.teleport-target > * {
+  pointer-events: auto;
+}
+.teleport-target .hos-modal-root,
+.teleport-target .hos-modal-root * {
+  pointer-events: auto;
+}
+
+/* 构建器抽屉(12000)内打开的二级弹层须压在抽屉之上 */
+.teleport-target > .saw-overlay,
+.teleport-target > .hos-modal-root,
+.teleport-target > .wr-modal-shade,
+.teleport-target > .oph-wizard-root {
+  z-index: var(--z-overlay);
+}
+/* 同上，放宽至后代匹配（防止异步组件/抽象节点中间插入 wrapper 导致 > 直子匹配失效） */
+.teleport-target .hos-modal-root {
+  z-index: var(--z-overlay);
+}
+
+/* 离开动画中的遮罩不得拦截下层点击（生活/联动 Tab 常见误伤） */
+.teleport-target > .hos-modal-leave-active,
+.teleport-target > .hos-modal-leave-to,
+.teleport-target > .linkage-builder-drawer-leave-active,
+.teleport-target > .linkage-builder-drawer-leave-to,
+.teleport-target > .fade-leave-active,
+.teleport-target > .fade-leave-to,
+.teleport-target > .saw-fade-leave-active,
+.teleport-target > .saw-fade-leave-to {
+  pointer-events: none !important;
+}
+
+/* 移动设备等比缩放：下拉高度由 JS 画布单位 maxHeight 控制，避免 55vh 与画布坐标混用导致裁切/错位 */
+@media (max-width: 639px) and (orientation: landscape) {
+  .viewport-frame { height: 100vh; height: 100dvh; }
+}
+
+/* 平板等比缩放：旋转/分屏时减少 transform 动画抖动 */
+@media (min-width: 640px) and (max-width: 1366px) {
+  .app-shell--scaling {
+    transition: transform 0.12s ease-out;
+  }
+}

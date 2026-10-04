@@ -1,0 +1,138 @@
+.floorplan-root {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+  background: transparent;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  overflow: visible;
+}
+
+.floorplan-wrapper {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 100%;
+  position: relative;
+  overflow: visible;
+  /* 与天气 Canvas 分层，避免上层每帧重绘带动热点一起闪。
+     不用 translateZ：Android 上会把 mix-blend-mode:lighten 的灯具叠加层打成不透明黑块。 */
+  isolation: isolate;
+}
+
+.floorplan-wrapper--map-zoomed {
+  overflow: hidden;
+  touch-action: none;
+}
+
+.floorplan-map-world {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.base-image {
+  z-index: 1;
+  object-fit: fill;
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  width: 100%;
+  height: 100%;
+  display: block;
+  position: relative;
+  filter: brightness(0.98) contrast(1.05) saturate(1.05);
+}
+
+.empty-floorplan-placeholder {
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px dashed var(--premium-border);
+  border-radius: var(--hos-radius-panel);
+  justify-content: center;
+  align-items: center;
+  display: flex;
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(8px);
+}
+
+.floorplan-wrapper--placement {
+  cursor: crosshair;
+}
+
+.placement-mode-banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: var(--hos-radius-pill);
+  background: rgba(15, 23, 42, 0.88);
+  border: var(--hos-hairline) solid rgba(59, 130, 246, 0.35);
+  color: rgba(226, 232, 240, 0.92);
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+  backdrop-filter: blur(10px);
+}
+
+.placement-mode-cancel {
+  margin-left: 4px;
+  padding: 2px 8px;
+  border-radius: var(--hos-radius-pill);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--premium-fs-micro);
+  cursor: pointer;
+}
+
+.placement-mode-cancel:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+/* —— FloorplanHotspotCanvas —— */
+.floorplan-hotspot-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 11;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+/* —— FloorplanOverlayImage —— */
+.overlay-image {
+  z-index: 2;
+  object-fit: fill;
+  opacity: 0;
+  mix-blend-mode: lighten;
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  contain: layout paint;
+  width: 100%;
+  height: 100%;
+  transition: opacity 0.6s var(--ease-bounce);
+  position: absolute;
+  inset: 0;
+}
+.overlay-image.active {
+  opacity: 1;
+}

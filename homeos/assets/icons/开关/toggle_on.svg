@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <radialGradient id="toggle_on_glow" cx="50%" cy="28%" r="72%">
+      <stop offset="0%" stop-color="#fde68a" stop-opacity=".8"/>
+      <stop offset="100%" stop-color="#fde68a" stop-opacity="0"/>
+    </radialGradient>
+    <style>
+      @keyframes toggle_on_led{0%,to{opacity:.4}50%{opacity:1}}@keyframes toggle_on_pulse{0%,to{opacity:.3}50%{opacity:.75}}.toggle_on_led{animation:toggle_on_led 1.4s ease-in-out infinite}.toggle_on_pulse{animation:toggle_on_pulse 1.8s ease-in-out infinite}
+    </style>
+  </defs>
+  <rect width="104" height="124" x="48" y="38" fill="#b45309" rx="12"/>
+  <rect width="96" height="116" x="52" y="42" fill="#fffbeb" rx="10"/>
+  <rect width="96" height="116" x="52" y="42" fill="url(#toggle_on_glow)" class="toggle_on_pulse" rx="10"/>
+  <circle cx="100" cy="54" r="3.5" fill="#b45309" opacity=".55"/>
+  <circle cx="100" cy="146" r="3.5" fill="#b45309" opacity=".55"/>
+  <!-- 左键：开态，上端按下 -->
+  <rect width="36" height="72" x="60" y="64" fill="#f59e0b" opacity=".45" rx="5"/>
+  <path fill="#f59e0b" d="M63 67h30v30l-4 4H67l-4-4Z"/>
+  <path fill="#fff" d="M67 101h22l4 4v30H63v-30Z"/>
+  <rect width="12" height="5" x="72" y="78" fill="#fde68a" class="toggle_on_led" rx="2.5"/>
+  <!-- 右键：开态 -->
+  <rect width="36" height="72" x="104" y="64" fill="#f59e0b" opacity=".45" rx="5"/>
+  <path fill="#f59e0b" d="M107 67h30v30l-4 4h-22l-4-4Z"/>
+  <path fill="#fff" d="M111 101h22l4 4v30h-30v-30Z"/>
+  <rect width="12" height="5" x="116" y="78" fill="#fde68a" class="toggle_on_led" rx="2.5"/>
+</svg>

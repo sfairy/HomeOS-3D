@@ -14,13 +14,14 @@ homeos-store/keys/local/
 homeos-store/backend/src/data/
 homeos-store/backend/src/keys/local/
 
-# HomeOS 项目（3D 分支）与旧目录同名规则保持一致，避免改名后规则失效。
-HomeOS/data/
-HomeOS/image/
-HomeOS/backend/src/_version.py
-# 部署时生成的 Postgres / Redis 口令，只保留说明用的 .gitkeep。
-HomeOS/secrets/*
-!HomeOS/secrets/.gitkeep
+# homeos 应用（目录已由 HomeOS 更名为 homeos）：与上面两个应用同一套规则。
+# data/ 已被上面的通用规则覆盖，但这里显式列出，避免将来通用规则调整后失效。
+# secrets/ 里是部署时生成的真实口令，只能提交 .gitkeep 占位。
+homeos/data/
+homeos/image/
+homeos/backend/src/_version.py
+homeos/secrets/*
+!homeos/secrets/.gitkeep
 
 # 内置素材目录（settings.built_in_assets_dir，源码运行时编辑器素材库指向它）。
 # 仓库不再带任何素材图：镜像里 Dockerfile 只 `mkdir /app/image`，素材由部署方挂卷或

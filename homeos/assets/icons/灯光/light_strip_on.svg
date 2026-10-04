@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="light_strip_on_wash" x1="50%" x2="50%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#fff7cc" stop-opacity=".7"/>
+      <stop offset="55%" stop-color="#fde68a" stop-opacity=".28"/>
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="light_strip_on_wash_up" x1="50%" x2="50%" y1="100%" y2="0%">
+      <stop offset="0%" stop-color="#fff7cc" stop-opacity=".6"/>
+      <stop offset="55%" stop-color="#fde68a" stop-opacity=".24"/>
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="light_strip_on_bar" x1="0%" x2="100%" y1="0%" y2="0%">
+      <stop offset="0%" stop-color="#fbbf24" stop-opacity="0"/>
+      <stop offset="15%" stop-color="#fef08a"/>
+      <stop offset="50%" stop-color="#fef9c3"/>
+      <stop offset="85%" stop-color="#fef08a"/>
+      <stop offset="100%" stop-color="#fbbf24" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="light_strip_on_glow" width="150%" height="200%" x="-25%" y="-50%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="light_strip_on_soft" width="150%" height="200%" x="-25%" y="-50%">
+      <feGaussianBlur stdDeviation="4"/>
+    </filter>
+    <style>
+      @keyframes chip{0%,10%{opacity:1}25%{opacity:.3}50%{opacity:.25}75%{opacity:.3}90%,to{opacity:1}}
+      @keyframes glow{0%,10%{opacity:1}25%{opacity:.25}50%{opacity:.2}75%{opacity:.25}90%,to{opacity:1}}
+      @keyframes wash{0%,to{opacity:.35}50%{opacity:.9}}
+      @keyframes bar{0%,to{opacity:.55}50%{opacity:1}}
+      .c1,.c2,.c3,.c4{animation:chip 1.2s ease-in-out infinite}
+      .g1,.g2,.g3,.g4{animation:glow 1.2s ease-in-out infinite}
+      .c2,.g2{animation-delay:.3s}
+      .c3,.g3{animation-delay:.6s}
+      .c4,.g4{animation-delay:.9s}
+      .wash{animation:wash 2.1s ease-in-out infinite}
+      .bar{animation:bar 1.8s ease-in-out infinite}
+    </style>
+  </defs>
+  <circle cx="100" cy="100" r="87" fill="#f1f5f9"/>
+  <rect width="140" height="56" x="30" y="40" fill="url(#light_strip_on_wash_up)" class="wash" filter="url(#light_strip_on_soft)" rx="12"/><rect width="140" height="54" x="30" y="110" fill="url(#light_strip_on_wash)" class="wash" filter="url(#light_strip_on_soft)" rx="12" style="animation-delay:.3s"/>
+  <!-- 壳体与 off 同坐标 -->
+  <rect width="148" height="46" x="26" y="79" fill="#475569" opacity=".9" rx="6"/><rect width="140" height="34" x="30" y="85" fill="#334155" rx="5"/><rect width="12" height="28" x="20" y="87" fill="#64748b" rx="3"/><rect width="12" height="28" x="168" y="87" fill="#64748b" rx="3"/><circle cx="26" cy="101" r="2" fill="#1e293b"/><circle cx="174" cy="101" r="2" fill="#1e293b"/>
+  <rect width="132" height="18" x="34" y="94" fill="url(#light_strip_on_bar)" class="bar" filter="url(#light_strip_on_soft)" opacity=".6" rx="6"/><rect width="24" height="22" x="34" y="89" fill="#fde68a" class="g1" opacity=".7" filter="url(#light_strip_on_soft)" rx="4"/><rect width="24" height="22" x="70" y="89" fill="#fde68a" class="g2" opacity=".7" filter="url(#light_strip_on_soft)" rx="4"/><rect width="24" height="22" x="106" y="89" fill="#fde68a" class="g3" opacity=".7" filter="url(#light_strip_on_soft)" rx="4"/><rect width="24" height="22" x="142" y="89" fill="#fde68a" class="g4" opacity=".7" filter="url(#light_strip_on_soft)" rx="4"/><rect width="20" height="18" x="36" y="92" fill="#fef08a" class="c1" filter="url(#light_strip_on_glow)" rx="3.5"/><rect width="20" height="18" x="72" y="92" fill="#fef08a" class="c2" filter="url(#light_strip_on_glow)" rx="3.5"/><rect width="20" height="18" x="108" y="92" fill="#fef08a" class="c3" filter="url(#light_strip_on_glow)" rx="3.5"/><rect width="20" height="18" x="144" y="92" fill="#fef08a" class="c4" filter="url(#light_strip_on_glow)" rx="3.5"/><path fill="none" stroke="#fde68a" stroke-width="1.5" d="M36 114h128" opacity=".6"/>
+  <circle cx="100" cy="100" r="87" fill="none" stroke="#0f172a" stroke-opacity=".1" stroke-width="2.5"/>
+</svg>

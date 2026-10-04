@@ -1,0 +1,93 @@
+.conn-entities-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.conn-entities-toggle__main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.conn-entities-toggle__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+}
+
+.conn-entities-toggle__refresh {
+  flex-shrink: 0;
+}
+
+.conn-entities-toggle__refresh-feedback {
+  flex: 1 1 200px;
+  min-width: 0;
+  margin: 0;
+}
+
+.conn-entities-toggle--on {
+  border-color: rgba(99, 102, 241, 0.28);
+  background: linear-gradient(155deg, rgba(99, 102, 241, 0.08) 0%, rgba(0, 0, 0, 0.14) 100%);
+}
+
+.conn-entities-toggle__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--hos-radius-card);
+  flex-shrink: 0;
+}
+
+.conn-entities-toggle__icon--on {
+  color: #818cf8;
+  background: rgba(99, 102, 241, 0.15);
+}
+
+.conn-entities-toggle__icon--off {
+  color: var(--hos-text-secondary);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.conn-entities-toggle__title {
+  margin: 0;
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.conn-entities-toggle__desc {
+  margin: 4px 0 0;
+  font-size: var(--set-fs-micro, 12px);
+  line-height: 1.45;
+  color: var(--hos-text-secondary);
+}
+
+.conn-entities-feedback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: var(--set-fs-micro, 12px);
+}
+
+.conn-entities-feedback--ok {
+  color: #86efac;
+}
+.conn-entities-feedback--err {
+  color: #fda4af;
+}
+.conn-entities-feedback--warn {
+  color: #fcd34d;
+}

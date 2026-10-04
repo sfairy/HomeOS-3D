@@ -1,0 +1,45 @@
+@import '@/assets/styles/popup-entities.css';
+
+/* —— LightControlPopup —— */
+.lcp-section-label {
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
+}
+.lcp-brightness {
+  color: var(--set-warn, #facc15);
+}
+.lcp-kelvin-range {
+  color: var(--set-text-tertiary);
+}
+.lcp-power-on {
+  background-color: var(--accent, #fbbf24);
+}
+.lcp-power-off {
+  background-color: rgb(55, 65, 81);
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
+}
+
+/* —— UtilityMeterPopupShell —— */
+.um-reading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--premium-border);
+}
+
+.um-reading-label {
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+  color: var(--hos-text-secondary);
+}
+
+.um-reading-value {
+  font-size: var(--premium-fs-body-sm);
+  font-weight: 800;
+  color: var(--um-accent);
+  font-variant-numeric: tabular-nums;
+}

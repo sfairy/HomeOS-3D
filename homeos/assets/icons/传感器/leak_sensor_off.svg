@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="leak_sensor_off_body" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#475569"/>
+    </linearGradient>
+    <style>
+      .bg{fill:#f1f5f9}.dim{fill:#64748b}.hole{fill:#1e293b}.ok{fill:#22c55e}
+    </style>
+  </defs>
+  <circle cx="100" cy="100" r="87" class="bg"/>
+  <ellipse cx="100" cy="148" class="dim" opacity=".6" rx="36" ry="10"/>
+  <ellipse cx="100" cy="108" fill="#cbd5e1" rx="42" ry="16"/>
+  <rect width="84" height="42" x="58" y="70" fill="url(#leak_sensor_off_body)" rx="12"/>
+  <ellipse cx="78" cy="78" fill="#cbd5e1" opacity=".8" rx="10" ry="3"/>
+  <rect width="10" height="18" x="72" y="108" class="hole" rx="2"/>
+  <rect width="10" height="18" x="118" y="108" class="hole" rx="2"/>
+  <path d="M100 52S84 74 84 86c0 9 7 16 16 16s16-7 16-16c0-12-16-34-16-34" class="dim"/>
+  <circle cx="128" cy="78" r="6" class="ok"/>
+  <path fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m124 78 3 3 6-7"/>
+  <circle cx="100" cy="100" r="87" fill="none" stroke="#0f172a" stroke-opacity=".1" stroke-width="2.5"/>
+</svg>

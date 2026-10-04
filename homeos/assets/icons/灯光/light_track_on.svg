@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="light_track_on_rail" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+    <radialGradient id="light_track_on_lens" cx="38%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="40%" stop-color="#fef9c3"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </radialGradient>
+    <linearGradient id="light_track_on_cone" x1="50%" x2="50%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#fffbeb" stop-opacity=".9"/>
+      <stop offset="30%" stop-color="#fde68a" stop-opacity=".5"/>
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="light_track_on_core" x1="50%" x2="50%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity=".7"/>
+      <stop offset="55%" stop-color="#fef08a" stop-opacity=".28"/>
+      <stop offset="100%" stop-color="#fef08a" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="light_track_on_glow" width="190%" height="160%" x="-45%" y="-20%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3.2" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="light_track_on_soft" width="190%" height="160%" x="-45%" y="-20%">
+      <feGaussianBlur stdDeviation="4"/>
+    </filter>
+    <style>
+      @keyframes a{0%,to{opacity:.4}50%{opacity:1}}
+      @keyframes b{0%,to{opacity:1}50%{opacity:.4}}
+      @keyframes core{0%,to{opacity:.28}50%{opacity:.72}}
+      .b1{animation:a 2.1s ease-in-out infinite}
+      .b2{animation:b 2.1s ease-in-out infinite}
+      .lens{animation:a 2.1s ease-in-out infinite}
+      .core1{animation:core 2.1s ease-in-out infinite}
+      .core2{animation:core 2.1s ease-in-out infinite;animation-delay:.35s}
+    </style>
+  </defs>
+  <circle cx="100" cy="100" r="87" fill="#f1f5f9"/>
+  <!-- 光柱：透镜约 (78,116) / (122,116) -->
+  <path fill="url(#light_track_on_cone)" d="M76 114 L32 180 L110 180 Z" class="b1" filter="url(#light_track_on_soft)"/><path fill="url(#light_track_on_core)" d="M76 118 L54 172 L98 172 Z" class="core1"/><ellipse cx="70" cy="176" fill="#fff" class="b1" opacity=".6" rx="32" ry="8"/><ellipse cx="70" cy="176" fill="#fde68a" class="core1" opacity=".4" filter="url(#light_track_on_soft)" rx="16" ry="5"/><path fill="url(#light_track_on_cone)" d="M124 114 L90 180 L168 180 Z" class="b2" filter="url(#light_track_on_soft)"/><path fill="url(#light_track_on_core)" d="M124 118 L102 172 L146 172 Z" class="core2"/><ellipse cx="130" cy="176" fill="#fff" class="b2" opacity=".6" rx="32" ry="8"/><ellipse cx="130" cy="176" fill="#fde68a" class="core2" opacity=".4" filter="url(#light_track_on_soft)" rx="16" ry="5"/>
+  <!-- 与 off 同底图 -->
+  <rect width="136" height="14" x="32" y="54" fill="url(#light_track_on_rail)" rx="7"/>
+  <rect width="120" height="4" x="40" y="59" fill="#0f172a" opacity=".55" rx="2"/>
+  <rect width="10" height="18" x="28" y="52" fill="#64748b" rx="3"/>
+  <rect width="10" height="18" x="162" y="52" fill="#64748b" rx="3"/>
+  <circle cx="33" cy="61" r="1.5" fill="#0f172a"/>
+  <circle cx="167" cy="61" r="1.5" fill="#0f172a"/>
+  <g transform="translate(58 66) rotate(-22)">
+    <rect width="20" height="7" x="-10" y="-1" fill="#64748b" rx="2"/>
+    <circle cy="8" r="6" fill="#64748b"/>
+    <rect width="9" height="11" x="-4.5" y="10" fill="#334155" rx="2"/>
+    <path fill="#475569" d="M-15 18h30l-4 36q-11 9-22 0Z"/>
+    <ellipse cx="-4" cy="32" fill="#94a3b8" opacity=".55" rx="3" ry="7"/>
+    <ellipse cy="54" fill="#fbbf24" class="lens" opacity=".45" filter="url(#light_track_on_soft)" rx="18" ry="9"/><ellipse cy="54" fill="url(#light_track_on_lens)" class="lens" filter="url(#light_track_on_glow)" rx="13" ry="5"/><ellipse cx="-2" cy="52" fill="#fff" class="lens" opacity=".95" rx="5" ry="2.2"/>
+  </g>
+  <g transform="translate(142 66) rotate(22)">
+    <rect width="20" height="7" x="-10" y="-1" fill="#64748b" rx="2"/>
+    <circle cy="8" r="6" fill="#64748b"/>
+    <rect width="9" height="11" x="-4.5" y="10" fill="#334155" rx="2"/>
+    <path fill="#475569" d="M-15 18h30l-4 36q-11 9-22 0Z"/>
+    <ellipse cx="-4" cy="32" fill="#94a3b8" opacity=".55" rx="3" ry="7"/>
+    <ellipse cy="54" fill="#fbbf24" class="lens" opacity=".45" filter="url(#light_track_on_soft)" rx="18" ry="9" style="animation-delay:.3s"/><ellipse cy="54" fill="url(#light_track_on_lens)" class="lens" filter="url(#light_track_on_glow)" rx="13" ry="5" style="animation-delay:.3s"/><ellipse cx="-2" cy="52" fill="#fff" class="lens" opacity=".95" rx="5" ry="2.2" style="animation-delay:.3s"/>
+  </g>
+  <circle cx="100" cy="100" r="87" fill="none" stroke="#0f172a" stroke-opacity=".1" stroke-width="2.5"/>
+</svg>

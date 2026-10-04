@@ -1,0 +1,331 @@
+/* ==========================================================================
+   popup-entities.css — 恒温/热水器类弹窗公共控件（CSS变量驱动）
+
+   温度调节按钮、滑块、模式卡片等共用样式，由 --accent / --accent-rgb 驱动。
+   组件层无需覆写选择器，只需在 .popup-shell 上设置变量。
+
+   使用方式：
+     @import '@/assets/styles/popup-base.css';
+     @import '@/assets/styles/popup-entities.css';
+     .popup-shell { --accent: #38bdf8; --accent-rgb: 56,189,248; }
+   ========================================================================== */
+
+/* 大数字下方的中文计量标签：避免 line-height:1 / 负 margin / 过宽字距裁切字脚 */
+.popup-metric-caption {
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+  padding-bottom: 1px;
+}
+
+/* ---- 温度加减调节按钮 ---- */
+.temp-adjust-btn {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-ipad-lg);
+  background: rgba(255, 255, 255, 0.03);
+  border: var(--hos-hairline) solid var(--premium-border);
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  transition: all 0.35s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.temp-adjust-btn:hover {
+  background: rgba(var(--accent-rgb), 0.15);
+  color: rgba(255, 255, 255, 0.95);
+  border-color: rgba(var(--accent-rgb), 0.25);
+  transform: scale(1.05);
+}
+
+.temp-adjust-btn:active {
+  transform: scale(0.92);
+}
+
+.temp-adjust-btn--sm {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--hos-radius-card);
+}
+
+/* ---- 温度滑块轨道 ---- */
+.temp-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  border-radius: var(--hos-radius-pill);
+  outline: none;
+  width: 100%;
+  height: 6px;
+  touch-action: pan-x;
+  padding: 10px 0;
+  margin: -10px 0;
+  box-sizing: content-box;
+  cursor: pointer;
+}
+
+.temp-slider::-webkit-slider-runnable-track {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: var(--hos-radius-pill);
+  background: linear-gradient(to right,
+    var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))) 0%,
+    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))) var(--progress-pct, var(--progress, 50%)),
+    var(--track-bg, rgba(255, 255, 255, 0.06)) var(--progress-pct, var(--progress, 50%)),
+    var(--track-bg, rgba(255, 255, 255, 0.06)) 100%);
+}
+
+.temp-slider::-moz-range-track {
+  height: 6px;
+  border-radius: var(--hos-radius-pill);
+  background: var(--track-bg, rgba(255, 255, 255, 0.06));
+}
+
+.temp-slider::-moz-range-progress {
+  height: 6px;
+  border-radius: var(--hos-radius-pill);
+  background: linear-gradient(to right,
+    var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))),
+    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))));
+}
+
+.temp-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  background: #ffffff;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  margin-top: -7px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 0 3px rgba(var(--accent-rgb), 0.15);
+  transition: all 0.2s ease;
+}
+
+.temp-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), 0 0 0 5px rgba(var(--accent-rgb), 0.2);
+}
+
+.temp-slider::-moz-range-thumb {
+  cursor: pointer;
+  background: #ffffff;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* ---- 窗帘/数值滑块（与 temp-slider 同结构，尺寸可微调） ---- */
+.cover-slider,
+.num-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  border-radius: var(--hos-radius-pill);
+  outline: none;
+  width: 100%;
+  cursor: pointer;
+  touch-action: pan-x;
+  box-sizing: content-box;
+}
+
+.cover-slider {
+  height: 6px;
+  padding: 10px 0;
+  margin: -10px 0;
+}
+
+.num-slider {
+  flex: 1;
+  height: 4px;
+}
+
+.cover-slider::-webkit-slider-runnable-track,
+.num-slider::-webkit-slider-runnable-track {
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: var(--hos-radius-pill);
+  background: linear-gradient(to right,
+    var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))) 0%,
+    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))) var(--progress-pct, var(--progress, 50%)),
+    var(--track-bg, rgba(255, 255, 255, 0.06)) var(--progress-pct, var(--progress, 50%)),
+    var(--track-bg, rgba(255, 255, 255, 0.06)) 100%);
+}
+
+.cover-slider::-webkit-slider-runnable-track { height: 6px; }
+.num-slider::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; }
+
+.cover-slider::-moz-range-track,
+.num-slider::-moz-range-track {
+  border-radius: var(--hos-radius-pill);
+  background: var(--track-bg, rgba(255, 255, 255, 0.06));
+}
+
+.cover-slider::-moz-range-track { height: 6px; }
+.num-slider::-moz-range-track { height: 4px; border-radius: 2px; }
+
+.cover-slider::-moz-range-progress,
+.num-slider::-moz-range-progress {
+  border-radius: var(--hos-radius-pill);
+  background: linear-gradient(to right,
+    var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))),
+    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))));
+}
+
+.cover-slider::-moz-range-progress { height: 6px; }
+.num-slider::-moz-range-progress { height: 4px; border-radius: 2px; }
+
+.cover-slider::-webkit-slider-thumb,
+.num-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 50%;
+  background: var(--accent, #0A84FF);
+  border: 2px solid #fff;
+  cursor: pointer;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent, #0A84FF) 50%, rgba(0, 0, 0, 0));
+}
+
+.cover-slider::-webkit-slider-thumb {
+  width: 20px;
+  height: 20px;
+  margin-top: -7px;
+}
+
+.num-slider::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  background: var(--accent, #0A84FF);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent, #0A84FF) 40%, transparent);
+}
+
+.cover-slider::-moz-range-thumb,
+.num-slider::-moz-range-thumb {
+  border-radius: 50%;
+  background: var(--accent, #0A84FF);
+  border: 2px solid #fff;
+  cursor: pointer;
+}
+
+.cover-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent, #0A84FF) 50%, rgba(0, 0, 0, 0));
+}
+
+.num-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--accent, #0A84FF);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent, #0A84FF) 40%, transparent);
+}
+
+/* ---- 模式/预设卡片 ---- */
+.mode-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 10px;
+  border-radius: var(--radius-ipad-lg);
+  width: 68px;
+  height: 68px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--hos-text-secondary);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  transition: all 0.35s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.mode-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.8);
+  transform: translateY(-2px);
+  border-color: var(--premium-border-strong);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+
+.mode-card:active {
+  transform: scale(0.93);
+}
+
+.mode-card--active {
+  background: rgba(var(--accent-rgb), 0.14);
+  color: var(--accent);
+  border-color: rgba(var(--accent-rgb), 0.32);
+  box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transform: translateY(-1px);
+}
+
+.mode-icon {
+  font-size: 20px;
+  margin-bottom: 2px;
+}
+
+.mode-value {
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+}
+
+.mode-label {
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  opacity: 0.7;
+  margin-top: 2px;
+}
+
+/* ---- 关闭/开关按钮 ---- */
+.popup-off-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border-radius: var(--radius-ipad-pill);
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  border: var(--hos-hairline) solid;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* ---- 风扇/风速按钮 ---- */
+.fan-mode-btn {
+  padding: 9px 14px;
+  border-radius: var(--radius-ipad-pill);
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  background: rgba(255, 255, 255, 0.02);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.04);
+  color: var(--hos-text-secondary);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.fan-mode-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.fan-mode-btn.active {
+  background: rgba(var(--accent-rgb, 34, 211, 238), 0.14);
+  border-color: rgba(var(--accent-rgb, 34, 211, 238), 0.3);
+  color: var(--accent, #22d3ee);
+  box-shadow: 0 2px 12px rgba(var(--accent-rgb, 34, 211, 238), 0.15);
+}
+
+/* ---- 窄屏适配：缩小模式卡片，配合 flex-wrap 提高单行容纳量 ---- */
+@media (max-width: 380px) {
+  .mode-card {
+    width: 60px;
+    height: 60px;
+    padding: 10px 8px;
+  }
+}

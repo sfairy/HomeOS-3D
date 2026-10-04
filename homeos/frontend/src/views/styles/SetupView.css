@@ -1,0 +1,26 @@
+/* 初始化表单坞 — 复用登录页 login-panel / login-hub 视觉语言，仅补充少量差异 */
+
+/* 初始化步骤为 3 项，覆盖 login-hub 的 4 列网格 */
+.setup-hub {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* 表单较登录页多一个「确认密码」字段，矮屏时允许面板内滚动，避免被裁切 */
+.login-panel--setup {
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--page-accent-rgb), 0.28) transparent;
+}
+
+/* 小屏仍保持 3 列步骤横向排布，并恢复桌面端相邻项分隔线 */
+@media (max-width: 900px) {
+  .setup-hub .login-hub__item + .login-hub__item::before {
+    display: block;
+  }
+
+  .setup-hub .login-hub__item:nth-child(even)::before {
+    display: none;
+  }
+}

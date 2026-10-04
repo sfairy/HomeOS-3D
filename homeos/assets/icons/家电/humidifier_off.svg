@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="hum_off_b" x1="0%" x2="100%" y1="0%" y2="0%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="45%" stop-color="#e2e8f0"/>
+      <stop offset="100%" stop-color="#94a3b8"/>
+    </linearGradient>
+    <linearGradient id="hum_off_w" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#e2e8f0"/>
+      <stop offset="100%" stop-color="#94a3b8"/>
+    </linearGradient>
+  </defs>
+  <!-- 超声波加湿器：锥台机身 + 顶雾口 + 水位窗 + 嵌侧旋钮 -->
+  <ellipse cx="100" cy="176" fill="#cbd5e1" opacity=".55" rx="50" ry="9"/>
+  <path fill="url(#hum_off_b)" d="M62 78c0-20 16-36 38-36s38 16 38 36v70c0 18-16 30-38 30s-38-12-38-30Z"/>
+  <ellipse cx="100" cy="78" fill="#cbd5e1" rx="38" ry="13"/>
+  <ellipse cx="100" cy="74" fill="#94a3b8" rx="14" ry="7"/>
+  <ellipse cx="100" cy="72" fill="#64748b" rx="7" ry="3.5"/>
+  <ellipse cx="84" cy="92" fill="#fff" opacity=".55" rx="10" ry="16"/>
+  <rect width="24" height="52" x="76" y="104" fill="url(#hum_off_w)" opacity=".85" rx="8"/>
+  <rect width="14" height="30" x="81" y="120" fill="#e2e8f0" rx="4"/>
+  <circle cx="126" cy="126" r="16" fill="#cbd5e1"/>
+  <circle cx="126" cy="126" r="10" fill="#e2e8f0"/>
+  <circle cx="126" cy="126" r="4" fill="#64748b"/>
+  <path fill="none" stroke="#94a3b8" stroke-linecap="round" stroke-width="2.5" d="M126 116v8"/>
+  <circle cx="126" cy="156" r="3.5" fill="#94a3b8"/>
+</svg>

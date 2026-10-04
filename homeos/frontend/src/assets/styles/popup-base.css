@@ -1,0 +1,290 @@
+/* ==========================================================================
+   popup-base.css — 弹窗公共基础样式（CSS变量驱动）
+
+   所有实体弹窗通过设置 --accent / --accent-rgb 等变量来自定义主题色，
+   无需覆写选择器。
+
+   使用方式（在 Vue SFC 的 <style scoped> 块顶部）：
+     @import '@/assets/styles/popup-base.css';
+     .popup-shell {
+       --accent: #0A84FF;
+       --accent-rgb: 10, 132, 255;
+       --accent-end: #66d4cf;
+     }
+   ========================================================================== */
+
+@import './hos-glass-shell.css';
+@import './popup-pointer.css';
+
+/* ---- 弹窗锚点定位 ---- */
+.popup-anchor {
+  position: absolute;
+  z-index: 1000;
+  cursor: default;
+  overflow: visible;
+}
+
+.popup-shell {
+  --accent: #fbbf24;
+  --accent-rgb: 251, 191, 36;
+  --accent-end: #fb923c;
+
+  /* 玻璃壳配方参数（配方本体见 hos-glass-shell.css） */
+  --shell-blur: 80px;
+  --shell-sat: 260%;
+  --shell-bg:
+    radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0) 50%),
+    rgba(18, 18, 26, 0.9);
+  --shell-border: var(--hos-hairline) solid var(--premium-border-strong);
+  --shell-radius: var(--hos-radius-shell, var(--radius-ipad-2xl));
+  --shell-shadow:
+    0 40px 100px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    var(--hos-surface-inset, inset 0 1px 0 rgba(255, 255, 255, 0.07));
+
+  width: 320px;
+  /* 小屏兜底：任何宽度变体都不得超出视口（配合下方断点自适应） */
+  max-width: calc(100vw - 32px);
+  padding: 24px;
+  animation: popup-bounce-in 0.55s var(--ease-bounce);
+  position: relative;
+  overflow: visible;
+  isolation: isolate;
+  --popup-pointer-bg: rgba(18, 18, 26, 0.9);
+  --popup-pointer-border: var(--premium-border-strong);
+}
+
+@media (pointer: coarse), (hover: none) {
+  .popup-shell {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: rgba(18, 18, 26, 0.96);
+  }
+}
+
+.popup-anchor--fixed .popup-shell {
+  overflow: visible;
+}
+
+.popup-shell--wide { width: 340px; }
+.popup-shell--narrow { width: 270px; padding: 22px 20px; }
+.popup-shell--compact { min-width: 200px; }
+.popup-shell--compact-select { min-width: 180px; }
+
+/* ---- 中等视口（481-700px）：弹窗宽度自适应 90vw，避免横向溢出 ----
+   注意：实体弹窗挂载于缩放画布，视口宽度为 CSS 像素而非画布坐标，此处按真实视口判断 */
+@media (max-width: 700px) and (min-width: 481px) {
+  .popup-shell,
+  .popup-shell--wide,
+  .popup-shell--narrow {
+    width: min(320px, 90vw);
+  }
+  .popup-shell--wide {
+    width: min(340px, 90vw);
+  }
+  .popup-shell--narrow {
+    width: min(270px, 90vw);
+  }
+}
+
+/* 窄屏（≤480px）：统一收窄至 90vw，保证小屏不溢出 */
+@media (max-width: 480px) {
+  .popup-shell,
+  .popup-shell--wide,
+  .popup-shell--narrow {
+    width: 90vw;
+  }
+}
+
+/* ---- 顶部装饰线（由 --accent / --accent-end 驱动） ---- */
+.popup-shell::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 5%,
+    rgba(var(--accent-rgb), 0.5),
+    rgba(var(--accent-rgb), 0.35),
+    transparent 95%);
+  z-index: 2;
+  pointer-events: none;
+  animation: popupLineGlow 3s ease-in-out infinite;
+}
+
+@keyframes popupLineGlow {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* ---- 弹入动画 ---- */
+@keyframes popup-bounce-in {
+  0%   { opacity: 0; transform: scale(0.8) translateY(28px); }
+  45%  { opacity: 1; transform: scale(1.03) translateY(-8px); }
+  70%  { transform: scale(0.97) translateY(3px); }
+  100% { transform: scale(1) translateY(0); }
+}
+
+/* ---- 关闭按钮 ---- */
+.popup-close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.04);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.popup-close-btn:hover {
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.06) rotate(90deg);
+}
+
+/* ---- 弹窗标题区 ---- */
+.popup-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 3;
+  /* 为绝对定位的 .popup-close-btn（44×44 @ right:12）预留空间，避免与 actions 重叠 */
+  padding-right: 40px;
+}
+
+.popup-head-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.popup-head-icon {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--hos-radius-card);
+  background: rgba(var(--accent-rgb), 0.12);
+  border: var(--hos-hairline) solid rgba(var(--accent-rgb), 0.22);
+  color: var(--accent);
+}
+
+.popup-eyebrow {
+  font-size: var(--premium-fs-micro);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  /* ≤12px 小字号弱化文字：透明度下限 ≥0.5，保证可读性 */
+  color: var(--hos-text-secondary);
+}
+
+.popup-title {
+  font-size: var(--premium-fs-body-sm);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.popup-subtitle {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+  margin-top: 2px;
+}
+
+.popup-subtitle--status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.popup-head-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 42%;
+}
+
+.popup-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.popup-status-dot--pulse {
+  animation: popup-status-pulse 2s ease-in-out infinite;
+}
+
+@keyframes popup-status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.popup-status-badge {
+  padding: 4px 12px;
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border: var(--hos-hairline) solid transparent;
+}
+
+.popup-status-badge--off {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--hos-text-secondary);
+}
+
+.popup-status-badge--on {
+  background: color-mix(in srgb, var(--accent) 15%, rgba(0, 0, 0, 0));
+  color: color-mix(in srgb, var(--accent) 80%, white);
+  border-color: color-mix(in srgb, var(--accent) 20%, rgba(0, 0, 0, 0));
+}
+
+/* ---- 内部分区卡片 ---- */
+.popup-section {
+  background: rgba(255, 255, 255, 0.03);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--hos-radius-panel);
+  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
+  margin-bottom: 16px;
+}
+
+.popup-section-label {
+  font-size: var(--premium-fs-micro);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  /* ≤12px 小字号弱化文字：透明度下限 ≥0.5，保证可读性 */
+  color: var(--hos-text-secondary);
+}
+
+.popup-divider {
+  height: var(--hos-hairline);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  margin: 16px 0;
+}
+

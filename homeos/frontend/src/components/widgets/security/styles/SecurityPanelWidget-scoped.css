@@ -1,0 +1,366 @@
+/* 从 SecurityPanelWidget.vue 抽出 */
+.sp-card.widget-hub-root {
+  height: auto;
+}
+
+.sp-glass-block {
+  padding: 10px 12px;
+  border-radius: var(--hos-radius-card);
+  background: rgba(255, 255, 255, 0.03);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.07);
+}
+
+/* 5 个 Tab 必须完整露出（含「摄像」），禁止靠溢出裁切「省略」 */
+.sp-card .widget-hub-subnav {
+  width: 100%;
+  max-width: 100%;
+  align-self: stretch;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.sp-card .widget-hub-subnav__btn {
+  flex: 1 1 0;
+  justify-content: center;
+  min-width: 0;
+  padding: 4px 2px;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.sp-card .widget-hub-head__left {
+  overflow: hidden;
+}
+
+.sp-last-event-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--premium-fs-micro);
+  color: var(--text-tertiary, rgba(255, 255, 255, 0.45));
+}
+
+.sp-mode-badge {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--hos-radius-pill);
+  flex-shrink: 0;
+}
+
+.sp-zone-summary-meta {
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  color: var(--hos-text-secondary);
+  flex-shrink: 0;
+}
+
+.sp-badge--disarmed {
+  background: color-mix(in srgb, var(--premium-accent-green) 10%, rgba(0, 0, 0, 0));
+  color: var(--premium-accent-green);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--premium-accent-green) 20%, rgba(0, 0, 0, 0));
+}
+
+.sp-badge--home {
+  background: color-mix(in srgb, var(--premium-accent-amber) 12%, rgba(0, 0, 0, 0));
+  color: var(--premium-accent-amber);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--premium-accent-amber) 24%, rgba(0, 0, 0, 0));
+}
+
+.sp-badge--away {
+  background: color-mix(in srgb, var(--premium-accent-red) 10%, rgba(0, 0, 0, 0));
+  color: var(--premium-accent-red);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--premium-accent-red) 20%, rgba(0, 0, 0, 0));
+}
+
+.sp-badge--night {
+  background: color-mix(in srgb, var(--premium-accent-violet) 12%, rgba(0, 0, 0, 0));
+  color: var(--premium-accent-violet);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--premium-accent-violet) 24%, rgba(0, 0, 0, 0));
+}
+
+.sp-badge--armed {
+  background: color-mix(in srgb, var(--premium-accent-red) 10%, rgba(0, 0, 0, 0));
+  color: var(--premium-accent-red);
+  border: var(--hos-hairline) solid color-mix(in srgb, var(--premium-accent-red) 20%, rgba(0, 0, 0, 0));
+}
+
+.sp-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+
+@media (max-width: 320px) {
+  .sp-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.sp-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 0;
+  border-radius: var(--hos-radius-card);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.08);
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-tertiary, rgba(255, 255, 255, 0.35));
+  min-width: 0;
+}
+
+.sp-action-btn:not(.sp-action-btn--active):hover {
+  color: var(--text-secondary, rgba(255, 255, 255, 0.6));
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.sp-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sp-action-btn--active {
+  font-weight: 700;
+}
+
+/* 撤防 — 绿色安全 */
+.sp-action-btn--disarmed.sp-action-btn--active {
+  background: color-mix(in srgb, var(--premium-accent-green) 16%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, var(--premium-accent-green) 34%, rgba(0, 0, 0, 0));
+  color: #6ee7b7;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--premium-accent-green) 28%, rgba(0, 0, 0, 0));
+}
+
+/* 在家 — 琥珀色 */
+.sp-action-btn--armed-home.sp-action-btn--active {
+  background: color-mix(in srgb, var(--premium-accent-amber) 16%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, var(--premium-accent-amber) 34%, rgba(0, 0, 0, 0));
+  color: #fcd34d;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--premium-accent-amber) 28%, rgba(0, 0, 0, 0));
+}
+
+/* 离家 — 红色警戒 */
+.sp-action-btn--armed-away.sp-action-btn--active {
+  background: color-mix(in srgb, var(--premium-accent-red) 16%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, var(--premium-accent-red) 34%, rgba(0, 0, 0, 0));
+  color: #fca5a5;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--premium-accent-red) 28%, rgba(0, 0, 0, 0));
+}
+
+/* 夜间 — 紫色 */
+.sp-action-btn--armed-night.sp-action-btn--active {
+  background: color-mix(in srgb, var(--premium-accent-violet) 16%, rgba(0, 0, 0, 0));
+  border-color: color-mix(in srgb, var(--premium-accent-violet) 34%, rgba(0, 0, 0, 0));
+  color: #c4b5fd;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--premium-accent-violet) 28%, rgba(0, 0, 0, 0));
+}
+
+.sp-action-label {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  padding: 0 2px;
+}
+
+.sp-zones {
+  margin-top: 2px;
+}
+
+.sp-zone-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.sp-zone-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  min-width: 0;
+}
+
+.sp-zone-toggle:hover .sp-zone-title {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.sp-zone-chevron {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--hos-text-secondary);
+  transition: transform 0.18s ease;
+}
+
+.sp-zone-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.sp-zones:not(:has(.sp-zone-item)) .sp-zone-header {
+  margin-bottom: 0;
+}
+
+.sp-zones-retry {
+  margin: 0 0 8px;
+  font-size: var(--premium-fs-micro);
+  color: #f87171;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sp-zones-retry-btn {
+  font-size: var(--premium-fs-micro);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: var(--hos-hairline) solid rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.08);
+  color: #fca5a5;
+  cursor: pointer;
+}
+
+.sp-zone-title {
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  color: var(--hos-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.sp-zone-count {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+}
+
+.sp-zone-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.sp-zone-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sp-zone-dot--armed {
+  background: #ff3b30;
+  box-shadow: 0 0 6px rgba(248, 113, 113, 0.6);
+}
+
+.sp-zone-dot--disarmed {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.sp-zone-name {
+  font-size: var(--premium-fs-caption);
+  color: rgba(255, 255, 255, 0.6);
+  flex: 1;
+}
+
+.sp-zone-sensors {
+  font-size: var(--premium-fs-micro);
+  color: var(--hos-text-secondary);
+}
+
+.sp-zone-select-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.sp-zone-select-hint {
+  margin: 0;
+  flex: 1;
+  font-size: var(--premium-fs-micro);
+  line-height: 1.4;
+  color: var(--hos-text-secondary);
+}
+
+.sp-zone-select-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.sp-zone-select-btn {
+  font-size: var(--premium-fs-micro);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+}
+
+.sp-zone-select-btn:hover {
+  color: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.sp-zone-check {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.sp-zone-check input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--premium-accent-blue, #0a84ff);
+}
+
+.sp-empty-zones {
+  text-align: center;
+}
+
+.sp-empty-zones__title {
+  margin: 0 0 4px;
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.sp-empty-zones__hint {
+  margin: 0;
+  font-size: var(--premium-fs-micro);
+  line-height: 1.45;
+  color: var(--hos-text-secondary);
+}
+
+.sp-icon-disarmed {
+  color: var(--set-success, #6ee7b7);
+}
+.sp-icon-home {
+  color: var(--set-warn, #fcd34d);
+}
+.sp-icon-away {
+  color: var(--set-danger, #fda4af);
+}
+.sp-icon-night {
+  color: var(--premium-accent-violet, #a78bfa);
+}
+.sp-icon-default {
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
+}

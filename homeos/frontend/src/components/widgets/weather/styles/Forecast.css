@@ -1,0 +1,202 @@
+/* 从 WeatherForecast.vue 抽出 */
+/** 部件根容器：毛玻璃卡片 + 圆角 + 阴影 */
+.weather-forecast {
+  background: rgba(255, 255, 255, 0.02);
+  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--hos-radius-panel);
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+  display: flex;
+  overflow: hidden;
+  overflow-x: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+}
+
+/** 头部：图标 + 标题 + 天数标签 */
+.wf-header {
+  border-bottom: var(--hos-hairline) solid var(--premium-border);
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  display: flex;
+}
+
+/** 头部图标容器：蓝色发光圆角 */
+.wf-header-icon {
+  background: rgba(10, 132, 255, 0.12);
+  border: var(--hos-hairline) solid rgba(10, 132, 255, 0.15);
+  border-radius: var(--hos-radius-card);
+  padding: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(10, 132, 255, 0.15);
+}
+
+/** 标题文字 */
+.wf-title {
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  font-size: var(--premium-fs-body-sm);
+  font-weight: 700;
+}
+
+/** 天数标签：圆角胶囊 */
+.wf-badge {
+  color: var(--text-tertiary);
+  background: rgba(255, 255, 255, 0.04);
+  border: var(--hos-hairline) solid var(--premium-border);
+  border-radius: var(--hos-radius-pill);
+  padding: 3px 12px;
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  margin-left: auto;
+}
+
+/** 预报列表：可滚动 + 可溢出 */
+.wf-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+/* 滚动条样式已迁至 main.css 的 .custom-scrollbar */
+/** 单行预报条目 */
+.wf-row {
+  flex-shrink: 0;
+  min-height: 36px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-bottom: var(--hos-hairline) solid rgba(255, 255, 255, 0.02);
+  display: flex;
+  transition: all 0.4s var(--ease-bounce);
+  border-radius: var(--hos-radius-card);
+}
+
+.wf-row:last-child {
+  border-bottom: none;
+}
+
+.wf-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/** 日期列：星期 + 月/日 */
+.wf-date {
+  flex-direction: column;
+  width: 44px;
+  display: flex;
+  flex-shrink: 0;
+}
+
+/** 星期文字 */
+.wf-day {
+  color: var(--text-primary);
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/** 月/日数字 */
+.wf-date-num {
+  color: var(--text-tertiary);
+  font-size: var(--premium-fs-micro);
+  line-height: 1.2;
+}
+
+/** 天气图标容器 */
+.wf-icon {
+  width: 40px;
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/** 天气描述文字 */
+.wf-label {
+  color: var(--text-secondary);
+  flex: 1;
+  font-size: var(--premium-fs-caption);
+  font-weight: 500;
+}
+
+/** 温度列：高温 + 低温 */
+.wf-temps {
+  justify-content: flex-end;
+  gap: 12px;
+  width: 70px;
+  display: flex;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/** 最高温度：白色加粗 */
+.wf-high {
+  color: var(--text-primary);
+  font-size: var(--premium-fs-caption);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/** 最低温度：天蓝色 */
+.wf-low {
+  color: #64d2ff;
+  font-size: var(--premium-fs-caption);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Tailwind 颜色类替换：scoped 引用 CSS 变量 ── */
+
+.wf-ic-blue {
+  color: var(--premium-accent-blue, #0a84ff);
+}
+
+.wf-c-lbl {
+  color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
+}
+.wf-c-lbl-faint {
+  color: var(--set-text-tertiary);
+}
+.wf-c-muted {
+  color: var(--hos-text-secondary);
+}
+.wf-c-white {
+  color: #ffffff;
+}
+.wf-c-success {
+  color: var(--set-success, #6ee7b7);
+}
+.wf-c-danger {
+  color: var(--set-danger, #fda4af);
+}
+.wf-c-warn {
+  color: var(--set-warn, #fcd34d);
+}
+.wf-c-warn-deep {
+  color: var(--premium-accent-amber, #ff9500);
+}
+.wf-c-info {
+  color: var(--set-info, #7dd3fc);
+}
+.wf-c-blue {
+  color: var(--premium-accent-blue, #0a84ff);
+}
+.wf-c-blue-soft {
+  color: var(--set-info, #7dd3fc);
+}
+.wf-c-violet {
+  color: var(--premium-accent-violet, #c084fc);
+}
+.wf-c-cyan {
+  color: var(--premium-accent-cyan, #22d3ee);
+}

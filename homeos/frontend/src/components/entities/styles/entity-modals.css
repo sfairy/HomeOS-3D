@@ -1,0 +1,48 @@
+/* 实体弹层/宿主共用样式 */
+
+/* —— EntityControlHost —— */
+.entity-control-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal-root);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+}
+
+/* —— EntityPickModal —— */
+.epm-state-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--hos-radius-pill);
+  background: var(--premium-border-strong);
+}
+.epm-state-dot--on {
+  background: var(--premium-accent-amber);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--premium-accent-amber) 60%, rgba(0, 0, 0, 0));
+}
+.epm-entity-name {
+  font-size: var(--premium-fs-body-sm, 14px);
+  font-weight: 700;
+}
+.epm-entity-name--selected {
+  color: var(--premium-accent-blue);
+}
+.epm-entity-name--default {
+  color: rgba(255, 255, 255, 0.85);
+}
+.epm-entity-id {
+  font-size: var(--premium-fs-widget-meta);
+  color: var(--hos-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.epm-check-icon {
+  color: var(--premium-accent-blue);
+}
+.epm-circle-icon {
+  color: var(--premium-border-strong);
+}

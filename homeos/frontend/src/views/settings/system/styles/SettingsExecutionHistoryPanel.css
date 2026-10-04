@@ -1,0 +1,48 @@
+.exec-history-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-micro);
+  font-weight: 500;
+  color: rgba(52, 211, 153, 0.9);
+  background: rgba(52, 211, 153, 0.08);
+  border: var(--hos-hairline) solid rgba(52, 211, 153, 0.18);
+}
+.exec-history-status--fail {
+  color: rgba(248, 113, 113, 0.92);
+  background: rgba(248, 113, 113, 0.08);
+  border-color: rgba(248, 113, 113, 0.2);
+}
+
+.exec-history-card {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  gap: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding-bottom: 1rem;
+}
+
+.exec-history-panel {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+}
+
+.exec-flow-band__shell {
+  --flow-glow-a: rgba(52, 211, 153, var(--flow-glow-alpha-strong));
+  --flow-glow-b: rgba(56, 189, 248, var(--flow-glow-alpha-b));
+}
+

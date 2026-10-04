@@ -1,0 +1,59 @@
+/* 布局与主题见 list-page-views.css / devices-theme.css
+   此处仅注入页面主色派生变量 + 语义色 + 焦点/hover 反馈。 */
+
+.device-detail-view {
+  /* 设备详情二级色调：cyan（与 sky 形成 sky + cyan 点缀） */
+  --page-accent-secondary: var(--module-accent-devices-sub);
+
+  /* 注：--page-accent-* 派生变量、--set-* 语义色、--set-transition-* 已移至
+         app-premium-tokens.css 的 :root 全局共享。本组件通过 :style 注入
+         --page-accent / --page-accent-rgb 后，全局派生变量自动跟随。 */
+}
+
+/* ── 键盘焦点可见性：使用页面主色 outline ──
+   覆盖详情页内所有可交互元素（tab、返回按钮、链接、属性搜索框）。 */
+.device-detail-view :focus-visible {
+  outline: 2px solid var(--page-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ── Tab 切换的 hover/active 反馈跟随主题色 ── */
+.device-detail-view .list-page__tab {
+  transition:
+    background var(--set-transition-normal),
+    box-shadow var(--set-transition-normal),
+    color var(--set-transition-fast);
+}
+
+.device-detail-view .list-page__tab:not(.list-page__tab--on):hover {
+  background: var(--page-accent-bg);
+  border-color: var(--page-accent-border);
+  color: var(--page-accent-text);
+}
+
+/* ── 返回按钮 hover/active 反馈 ── */
+.device-detail-view .device-detail-view__back-btn {
+  transition:
+    background var(--set-transition-fast),
+    border-color var(--set-transition-fast),
+    color var(--set-transition-fast),
+    transform var(--set-transition-fast);
+}
+
+.device-detail-view .device-detail-view__back-btn:active {
+  transform: scale(0.97);
+}
+
+/* ── 列表行 hover 已在 list-page-views.css 跟随 --page-accent ──
+   这里补充 active 态的轻微下压反馈。 */
+.device-detail-view .list-page__row {
+  transition:
+    background var(--set-transition-fast),
+    border-color var(--set-transition-fast),
+    transform var(--set-transition-fast);
+}
+
+.device-detail-view .list-page__row:active {
+  transform: translateY(1px);
+}

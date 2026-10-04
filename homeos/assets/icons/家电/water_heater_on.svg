@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="whp_on_b" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#fff"/>
+      <stop offset="100%" stop-color="#ffedd5"/>
+    </linearGradient>
+    <style>
+      @keyframes whp_on_heat{0%,to{opacity:.45}50%{opacity:1}}
+      @keyframes whp_on_led{0%,to{opacity:.72}50%{opacity:1}}
+      @keyframes whp_on_disp{0%,to{opacity:.65}50%{opacity:1}}
+      .whp_on_heat{animation:whp_on_heat 2s ease-in-out infinite}
+      .whp_on_led{animation:whp_on_led 2.4s ease-in-out infinite}
+      .whp_on_disp{animation:whp_on_disp 2.2s ease-in-out infinite}
+    </style>
+  </defs>
+  <!-- 立式燃气热水器 Pro：on 态 — 通电/加热，观察窗暖光但无燃气火焰 -->
+  <ellipse cx="100" cy="176" fill="#fdba74" opacity=".35" rx="54" ry="8"/>
+  <ellipse cx="100" cy="32" fill="#fb923c" rx="42" ry="9"/>
+  <rect width="28" height="14" x="86" y="20" fill="#f97316" rx="4"/>
+  <rect width="96" height="122" x="52" y="32" fill="url(#whp_on_b)" rx="16"/>
+  <ellipse cx="72" cy="50" fill="#fff" opacity=".8" rx="14" ry="5"/>
+  <rect width="64" height="28" x="68" y="52" fill="#9a3412" rx="6"/>
+  <rect width="42" height="15" x="72" y="58" fill="#fdba74" class="whp_on_disp" rx="3"/>
+  <circle cx="124" cy="66" r="4" fill="#22c55e" class="whp_on_led"/>
+  <circle cx="78" cy="100" r="13" fill="#c2410c"/>
+  <circle cx="78" cy="100" r="6" fill="#ffedd5"/>
+  <circle cx="122" cy="100" r="12" fill="#c2410c"/>
+  <rect width="4" height="11" x="120" y="91" fill="#ffedd5" rx="1"/>
+  <rect width="52" height="24" x="74" y="118" fill="#9a3412" rx="5"/>
+  <rect width="36" height="12" x="82" y="124" fill="#fdba74" class="whp_on_heat" rx="3"/>
+  <rect width="16" height="14" x="64" y="152" fill="#fda4af" rx="3"/>
+  <rect width="16" height="14" x="120" y="152" fill="#7dd3fc" rx="3"/>
+</svg>

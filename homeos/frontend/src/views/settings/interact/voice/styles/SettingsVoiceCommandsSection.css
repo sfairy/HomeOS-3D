@@ -1,0 +1,175 @@
+.voice-section__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 0 14px;
+  flex-wrap: wrap;
+}
+
+.voice-section__eyebrow {
+  margin: 0 0 4px;
+  font-size: var(--premium-fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(var(--module-accent-voice-sub-rgb), 0.75);
+}
+
+.voice-section__title {
+  margin: 0;
+  font-size: var(--premium-fs-body, 14px);
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.voice-section__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.voice-section__badge {
+  padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
+  border-radius: var(--hos-radius-pill);
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  color: rgba(var(--module-accent-voice-sub-rgb), 0.9);
+  background: rgba(var(--module-accent-voice-sub-rgb), 0.1);
+  border: var(--hos-hairline) solid rgba(var(--module-accent-voice-sub-rgb), 0.22);
+}
+
+.voice-cmd-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.voice-cmd-card {
+  padding: 14px;
+  border-radius: var(--hos-radius-card, 14px);
+  background: linear-gradient(
+    160deg,
+    rgba(var(--module-accent-voice-sub-rgb), 0.06) 0%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+  border: var(--hos-hairline) solid rgba(var(--module-accent-voice-sub-rgb), 0.16);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.voice-cmd-card:hover {
+  border-color: rgba(var(--module-accent-voice-sub-rgb), 0.3);
+  box-shadow: 0 2px 12px rgba(var(--module-accent-voice-sub-rgb), 0.06);
+}
+
+.voice-cmd-card__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.voice-cmd-card__index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: var(--hos-radius-card);
+  font-size: var(--premium-fs-micro);
+  font-weight: 800;
+  color: var(--module-accent-voice-sub);
+  background: rgba(var(--module-accent-voice-sub-rgb), 0.12);
+  border: var(--hos-hairline) solid rgba(var(--module-accent-voice-sub-rgb), 0.25);
+}
+
+.voice-cmd-card__phrase {
+  flex: 1;
+  min-width: 140px;
+}
+
+.voice-cmd-card__service-badge {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-family: ui-monospace, monospace;
+  font-size: var(--premium-fs-micro);
+  font-weight: 600;
+  color: rgba(var(--module-accent-voice-sub-rgb), 0.85);
+  background: rgba(var(--module-accent-voice-sub-rgb), 0.08);
+  border: var(--hos-hairline) solid rgba(var(--module-accent-voice-sub-rgb), 0.18);
+}
+
+.voice-cmd-card__delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: var(--hos-radius-card);
+  color: rgba(var(--set-danger-rgb), 0.88);
+  background: rgba(var(--set-danger-rgb), 0.08);
+  border: var(--hos-hairline) solid rgba(var(--set-danger-rgb), 0.2);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.voice-cmd-card__delete:hover {
+  background: rgba(var(--set-danger-rgb), 0.14);
+  border-color: rgba(var(--set-danger-rgb), 0.32);
+}
+
+.voice-cmd-card__delete:focus-visible {
+  outline: none;
+  border-color: rgba(var(--set-danger-rgb), 0.5);
+  box-shadow: 0 0 0 3px rgba(var(--set-danger-rgb), 0.18);
+}
+
+.voice-cmd-card__grid {
+  margin-top: 0;
+}
+
+.voice-cmd-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: var(--hos-space-3xl, 32px) var(--hos-space-xl, 20px);
+  border-radius: var(--hos-radius-card, 14px);
+  background: rgba(0, 0, 0, 0.15);
+  border: var(--hos-hairline) dashed rgba(var(--module-accent-voice-sub-rgb), 0.2);
+  text-align: center;
+}
+
+.voice-cmd-empty__icon {
+  width: 32px;
+  height: 32px;
+  color: rgba(var(--module-accent-voice-sub-rgb), 0.45);
+}
+
+.voice-cmd-empty__title {
+  margin: 0;
+  font-size: var(--premium-fs-body-sm, 13px);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.voice-cmd-empty__desc {
+  margin: 0;
+  max-width: 300px;
+  font-size: var(--premium-fs-caption);
+  line-height: 1.5;
+  color: var(--hos-text-secondary);
+}
+
+.voice-cmd-flow-band__shell {
+  --flow-glow-a: rgba(var(--module-accent-voice-rgb), var(--flow-glow-alpha-a));
+  --flow-glow-b: rgba(var(--module-accent-voice-sub-rgb), var(--flow-glow-alpha-b));
+}
+
