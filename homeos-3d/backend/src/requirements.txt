@@ -11,6 +11,9 @@
 #   argon2-cffi           管理员密码哈希（backend/src/security.py）
 #   httpx                 HA REST/WebSocket 握手、授权商店调用、更新检查
 #   websockets            HA 实时状态订阅
+#   python-socks          websockets 走 SOCKS 代理时必需（websockets 17 已不再提供 extras，
+#                          只能单独装）；HA 走系统/环境里的 SOCKS 代理时 ws:// 会优先选
+#                          socks，缺它每轮同步都抛 ImportError
 #   Pillow                图片素材缩放与缩略图（api/assets.py、interaction3d/render_cache.py）
 #   python-multipart      FastAPI 解析上传表单（素材 / 户型包）
 #   anyio                 api/ha.py 的跨线程调度
@@ -23,6 +26,7 @@ cryptography>=50
 argon2-cffi>=25.1
 httpx>=0.28
 websockets>=17
+python-socks[asyncio]>=2.4.3,<3
 Pillow>=12
 python-multipart>=0.0.32
 anyio>=4.6

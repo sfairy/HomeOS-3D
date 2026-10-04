@@ -566,7 +566,8 @@ async def entity_translations(
     if connection is None:
         return {'language': 'zh-Hans', 'resources': {}}
     try:
-        resources = await (await request.app.state.ha_connector.client_for(connection)).fetch_entity_translations(
+        resources = await request.app.state.ha_connector.entity_translations(
+            connection,
             integrations,
             language='zh-Hans',
         )

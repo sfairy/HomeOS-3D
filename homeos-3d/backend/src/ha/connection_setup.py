@@ -10,7 +10,7 @@ from urllib.parse import urlparse, urlunparse
 import httpx
 import websockets
 
-from .client import HAClient, HAClientError, is_ipv6_literal, normalize_base_url, websocket_url
+from .client import HAClient, HAClientError, bypass_env_proxy, normalize_base_url, websocket_url
 from .endpoints import HAEndpoint
 from .errors import connection_error_message, is_certificate_error
 
@@ -68,7 +68,7 @@ async def resolve_address(value: str, *, verify_tls: bool, timeout: float) -> st
     failures = []
     for candidate in candidates:
         try:
-            async with httpx.AsyncClient(verify=verify_tls, timeout=min(timeout, 2.5), trust_env=not is_ipv6_literal(candidate), follow_redirects=False) as client:
+            async with httpx.AsyncClient(verify=verify_tls, timeout=min(timeout, 2.5), trust_env=not bypass_env_proxy(candidate), follow_redirects=False) as client:
                 response = await client.get(candidate + '/api/')
                 possible_ha = response.status_code == 401
                 if response.status_code == 200:
@@ -99,12 +99,12 @@ async def has_ha_greeting(address: str, *, verify_tls: bool, timeout: float) -> 
     client = HAClient(address, '', verify_tls=verify_tls, timeout=timeout)
     try:
         async with asyncio.timeout(timeout):
-            connection = websockets.connect(websocket_url(address), ssl=client._ssl_context(), proxy=None if is_ipv6_literal(address) else True, open_timeout=timeout, close_timeout=timeout, max_size=8192, max_queue=1, ping_interval=None)
+            connection = websockets.connect(websocket_url(address), ssl=client._ssl_context(), proxy=None if bypass_env_proxy(address) else True, open_timeout=timeout, close_timeout=timeout, max_size=8192, max_queue=1, ping_interval=None)
             connection.process_redirect = lambda error: error  # pyright: ignore[reportAttributeAccessIssue]
             async with connection as socket:
                 greeting = json.loads(await socket.recv())
                 return isinstance(greeting, dict) and greeting.get('type') == 'auth_required' and isinstance(greeting.get('ha_version'), str) and bool(greeting['ha_version'].strip())
-    except (OSError, TimeoutError, websockets.WebSocketException, ValueError, TypeError) as error:
+    except (OSError, TimeoutError, websockets.WebSocketException, ValueError, TypeError, ImportError) as error:
         if is_certificate_error(error):
             raise HAClientError(connection_error_message(error)) from error
         return False

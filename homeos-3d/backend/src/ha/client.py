@@ -70,6 +70,28 @@ def is_ipv6_literal(base_url: str) -> bool:
         return False
 
 
+def bypass_env_proxy(base_url: str) -> bool:
+    """返回该目标是否必须绕过环境代理直连。
+
+    本机 / 局域网内的 Home Assistant 不应经由为公网设计的环境代理访问：环境里配置的
+    代理（常见为 socks5）既到不了内网，还会让 websockets 直接报错 —— ws:// 的代理探测
+    顺序是 ws → socks → https → http，一旦命中 socks 而环境又没装 python-socks，每一轮
+    同步都会抛 ImportError。IPv6 字面量同样走不通仅 IPv4 的代理，保留原有行为。
+    """
+    hostname = urlparse(base_url).hostname
+    if not hostname:
+        return False
+    if is_ipv6_literal(base_url):
+        return True
+    if hostname.lower() == 'localhost' or hostname.lower().endswith(('.local', '.lan')):
+        return True
+    try:
+        address = ip_address(hostname)
+    except ValueError:
+        return False
+    return address.is_private or address.is_loopback or address.is_link_local
+
+
 @dataclass(slots=True)
 class HASnapshot:
     """一次全量对账所需的全部 HA 侧数据。
@@ -104,7 +126,7 @@ class HAClient:
         self.verify_tls = verify_tls
         self.timeout = timeout
         self.websocket_max_size_bytes = max(int(websocket_max_size_bytes), 8388608)
-        self._is_ipv6_literal = is_ipv6_literal(self.base_url)
+        self._bypass_env_proxy = bypass_env_proxy(self.base_url)
 
     @property
     def headers(self) -> dict[str, str]:
@@ -121,7 +143,7 @@ class HAClient:
                 verify=self.verify_tls,
                 timeout=self.timeout,
                 headers=self.headers,
-                trust_env=not self._is_ipv6_literal,
+                trust_env=not self._bypass_env_proxy,
             ) as client:
                 response = await client.get(f'{self.base_url}/api/config')
                 response.raise_for_status()
@@ -162,7 +184,7 @@ class HAClient:
             verify=self.verify_tls,
             timeout=self.timeout,
             headers=self.headers,
-            trust_env=not self._is_ipv6_literal,
+            trust_env=not self._bypass_env_proxy,
         ) as client:
 
             async def fetch_one(entity_id: str) -> dict[str, Any] | None:
@@ -213,13 +235,19 @@ class HAClient:
             websocket = await websockets.connect(
                 websocket_url(self.base_url),
                 ssl=self._ssl_context(),
-                proxy=None if self._is_ipv6_literal else True,
+                proxy=None if self._bypass_env_proxy else True,
                 open_timeout=self.timeout,
                 ping_interval=20,
                 ping_timeout=20,
                 max_size=self.websocket_max_size_bytes,
                 max_queue=4,
             )
+        except ImportError as error:
+            # 命中 SOCKS 代理但环境缺 python-socks（见 bypass_env_proxy 的说明）。
+            raise HAClientError(
+                '当前环境通过 SOCKS 代理连接 Home Assistant，但缺少 python-socks 依赖；'
+                '内网地址应直连，请检查代理设置。'
+            ) from error
         except (OSError, TimeoutError, websockets.WebSocketException) as error:
             if 'message too big' in str(error).lower() or '1009' in str(error):
                 maximum_mb = self.websocket_max_size_bytes // 1048576
@@ -412,7 +440,7 @@ class HAClient:
                 verify=self.verify_tls,
                 timeout=self.timeout,
                 headers=self.headers,
-                trust_env=not self._is_ipv6_literal,
+                trust_env=not self._bypass_env_proxy,
             ) as client:
                 response = await client.post(
                     f'{self.base_url}/api/services/{domain}/{service}',
@@ -471,7 +499,7 @@ class HAClient:
                 verify=self.verify_tls,
                 timeout=self.timeout,
                 headers=self.headers,
-                trust_env=not self._is_ipv6_literal,
+                trust_env=not self._bypass_env_proxy,
             ) as client:
                 response = await client.get(
                     f'{self.base_url}/api/history/period/{encoded_start}',

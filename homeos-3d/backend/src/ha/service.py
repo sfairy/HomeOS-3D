@@ -9,11 +9,13 @@
 与全量同步共用 ``_sync_lock``，避免两份快照互相覆盖。
 
 模块常量的口径：``HA_ENDPOINT_RECHECK_SECONDS`` 是在用端点的复用窗口 —— 每隔这么久复探一次，
-内网可能已经恢复，不能因为一开始走了外网就永远不再回头看内网；``INCREMENTAL_FLUSH_SECONDS``
+内网可能已经恢复，不能因为一开始走了外网就永远不再回头看内网（探测本身是并发的，见
+``_probe_endpoints``）；``INCREMENTAL_FLUSH_SECONDS``
 内已知实体的状态事件不写库（功率/温度类实体可能每秒多条）；``STATE_FETCH_RETRY_DELAYS`` 共尝试
 3 次（首次 + 两次重试），兜住 HA 刚启动或集成未就绪时状态暂时不完整的时刻；
 ``HISTORY_FETCH_CONCURRENCY`` 限并发是因为 HA 侧历史接口要查 recorder 数据库、开销大；
-``HISTORY_CACHE_SECONDS`` 让同一图表在页面切换/轮询时复用结果。
+``HISTORY_CACHE_SECONDS`` 让同一图表在页面切换/轮询时复用结果；
+``TRANSLATION_CACHE_SECONDS`` 让实体翻译表不再每次页面加载都逐集成重拉。
 """
 
 from __future__ import annotations
@@ -49,6 +51,10 @@ REGISTRY_REFRESH_DEBOUNCE_SECONDS = 1.5
 STATE_FETCH_RETRY_DELAYS = (0.2, 0.6)
 HISTORY_FETCH_CONCURRENCY = 2
 HISTORY_CACHE_SECONDS = 30
+# 实体翻译表只随 HA 版本变化，编辑器/墙屏每次加载都重拉一遍纯属浪费（实测 12 个集成 ~3s）。
+TRANSLATION_CACHE_SECONDS = 600
+# 并发探测端点时，先用一个的成功结果之后，再给更高优先级端点留的追赶窗口。
+ENDPOINT_PRIORITY_GRACE_SECONDS = 0.25
 STATE_FETCH_REQUIRED_ATTRIBUTES = {
     'climate': {
         'fan_modes',
@@ -102,6 +108,8 @@ class HAConnectorService:
         self._history_cache = { }
         self._history_fetches = { }
         self._history_cache_lock = asyncio.Lock()
+        self._translation_cache = { }
+        self._translation_lock = asyncio.Lock()
         self._initial_sync_logged = False
         self._endpoint: HAEndpoint | None = None
         self._endpoint_signature: tuple | None = None
@@ -268,6 +276,59 @@ class HAConnectorService:
     async def _probe_endpoint(self, connection: HAConnection, endpoint: HAEndpoint, token: str) -> None:
         await HAClient(endpoint.base_url, token, verify_tls = endpoint.verify_tls, timeout = HA_ENDPOINT_PROBE_TIMEOUT_SECONDS, websocket_max_size_bytes = self.settings.ha_websocket_max_size_bytes).test_connection()
 
+    async def _probe_endpoints(self, connection: HAConnection, token: str) -> tuple[HAEndpoint | None, list[str]]:
+        """并发探测所有候选端点，按配置顺序（内网优先）挑第一个可达的。
+
+        顺序探测时，挂掉的内网端点必须把 HA_ENDPOINT_PROBE_TIMEOUT_SECONDS 等满才轮到外网，
+        每次复探都白付一整个超时（实测内网不可达时 2.5s）；并发之后只需等「第一个成功」。
+        命中之后仍留一个很短的追赶窗口，避免外网先答完就把本该优先的内网挤掉。
+        """
+        endpoints = connection_endpoints(connection)
+        order = {endpoint: index for index, endpoint in enumerate(endpoints)}
+        tasks = {
+            asyncio.create_task(
+                self._probe_endpoint(connection, endpoint, token),
+                name = f'ha-probe-{endpoint.kind}',
+            ): endpoint
+            for endpoint in endpoints
+        }
+        pending = set(tasks)
+        reachable: list[HAEndpoint] = []
+        failures: dict[HAEndpoint, str] = {}
+        deadline: float | None = None
+        loop = asyncio.get_running_loop()
+        try:
+            while pending:
+                timeout = None if deadline is None else max(0.0, deadline - loop.time())
+                done, pending = await asyncio.wait(
+                    pending, timeout = timeout, return_when = asyncio.FIRST_COMPLETED,
+                )
+                for task in done:
+                    endpoint = tasks[task]
+                    error = task.exception()
+                    if error is None:
+                        reachable.append(endpoint)
+                    else:
+                        failures[endpoint] = str(error)
+                if not reachable:
+                    continue
+                # 最优候选已经确认可达，或者追赶窗口已用掉，就不用再等了。
+                if min(order[endpoint] for endpoint in reachable) == 0 or deadline is not None:
+                    break
+                deadline = loop.time() + ENDPOINT_PRIORITY_GRACE_SECONDS
+        finally:
+            for task in pending:
+                task.cancel()
+            if pending:
+                await asyncio.gather(*pending, return_exceptions = True)
+        if reachable:
+            return min(reachable, key = lambda endpoint: order[endpoint]), []
+        return None, [
+            f'{endpoint.label}（{endpoint.base_url}）：{failures[endpoint]}'
+            for endpoint in endpoints
+            if endpoint in failures
+        ]
+
     async def active_endpoint(self, connection: HAConnection) -> HAEndpoint:
         signature = endpoint_signature(connection)
         switched_from: HAEndpoint | None = None
@@ -279,16 +340,7 @@ class HAConnectorService:
             ):
                 return self._endpoint
             token = self.cipher.decrypt(connection.encrypted_access_token)
-            failures: list[str] = []
-            reachable: HAEndpoint | None = None
-            for endpoint in connection_endpoints(connection):
-                try:
-                    await self._probe_endpoint(connection, endpoint, token)
-                except HAClientError as error:
-                    failures.append(f'{endpoint.label}（{endpoint.base_url}）：{error}')
-                    continue
-                reachable = endpoint
-                break
+            reachable, failures = await self._probe_endpoints(connection, token)
             if reachable is None:
                 self._endpoint = None
                 self._endpoint_signature = signature
@@ -320,6 +372,33 @@ class HAConnectorService:
         endpoint = await self.active_endpoint(connection)
         token = self.cipher.decrypt(connection.encrypted_access_token)
         return HAClient(endpoint.base_url, token, verify_tls = endpoint.verify_tls, timeout = self.settings.ha_request_timeout_seconds, websocket_max_size_bytes = self.settings.ha_websocket_max_size_bytes)
+
+    async def entity_translations(
+        self,
+        connection: HAConnection,
+        integrations: set[str] | list[str] | tuple[str, ...],
+        language: str = 'zh-Hans',
+    ) -> dict[str, str]:
+        """带 TTL 缓存的实体翻译表。
+
+        HA 侧翻译要逐个集成各发一次 ``frontend/get_translations``（实测每次约 140ms，且是串行），
+        而内容只在 HA 升级后才变，所以按「连接 + 语言 + 集成集合」缓存，页面加载之间直接复用。
+        """
+        requested = tuple(sorted({str(item).strip() for item in integrations if str(item).strip()}))
+        cache_key = (str(connection.id), language, requested)
+        async with self._translation_lock:
+            cached = self._translation_cache.get(cache_key)
+            if cached is not None and time.monotonic() - cached[0] < TRANSLATION_CACHE_SECONDS:
+                return dict(cached[1])
+        resources = await (await self.client_for(connection)).fetch_entity_translations(
+            requested, language = language,
+        )
+        async with self._translation_lock:
+            self._translation_cache[cache_key] = (time.monotonic(), dict(resources))
+            if len(self._translation_cache) > 32:
+                oldest_key = min(self._translation_cache, key = lambda key: self._translation_cache[key][0])
+                self._translation_cache.pop(oldest_key, None)
+        return resources
 
     async def fetch_history(self, connection: HAConnection, entity_id: str, start_time: str, hours: int) -> list[dict[str, Any]]:
         """限制并短暂缓存历史数据读取，避免图表大量并发请求 HA。"""
