@@ -217,7 +217,7 @@ cp .env.example .env
 | `APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES` | `127.0.0.1,::1` | 内置反代在容器回环上，**保持默认**；不要填 `*` 或 docker 网段 |
 | `UVICORN_FORWARDED_ALLOW_IPS` | `127.0.0.1,::1` | 同上，**不要填 `*`** |
 | `APP_BASE_URL` / `STORE_BASE_URL` | 空 | 局域网 IP 不固定时留空，应用按请求 `Host` 判断同源；需要固定地址时才填 |
-| `APP_STORE_URL` | `https://pay.homeos.cn` | 商店的**浏览器入口**，登录页「忘记密码」「商店」按它跳转。自托管填客户端能访问的商店地址（`http://<商店IP>:8802` 或反代域名）；注意它和出站用的 `APP_LICENSE_SERVER_URL` 不是一回事 |
+| `APP_STORE_URL` | `http://127.0.0.1:8802` | 商店的**浏览器入口**，登录页「忘记密码」「商店」按它跳转。自托管填客户端能访问的商店地址（`http://<商店IP>:8802` 或反代域名）；注意它和出站用的 `APP_LICENSE_SERVER_URL` 不是一回事 |
 | `APP_PUBLISH_PORT` / `APP_PROXY_PUBLISH_PORT` | `8801` / `8803` | 主应用宿主发布端口 |
 | `STORE_PUBLISH_PORT` / `STORE_PROXY_PUBLISH_PORT` | `8802` / `8804` | 商店宿主发布端口 |
 | `HOMEOS_VERSION` | 仓库 `package.json` 的 `version` | 镜像 tag；等价于 `--version`。优先级：`--version` > 真实环境变量 > `.env` > `package.json`。`deploy.sh` 会把解析结果写回 `.env`（连同 `HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE`）**钉住版本**，让中心与各客户机不会漂到 `latest` |

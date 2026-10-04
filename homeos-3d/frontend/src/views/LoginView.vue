@@ -1,9 +1,6 @@
 <script setup lang="ts">
 /**
- * 由迁移工具从 `pages/login.html` 的 <body> 原样抽取生成。
- *
- * 模板保留全部 id / class，供既有命令式引导逻辑按 DOM 契约操作；脚本迁移前的
- * <script> 引入顺序改由下方 onMounted 内的 await import 复现。
+ * 模板保留全部 id / class，供既有命令式引导逻辑按 DOM 契约操作。
  */
 import { onBeforeUnmount, onMounted } from "vue";
 import { initAuthShell } from "@app/auth/auth-shell";
@@ -406,10 +403,10 @@ onMounted(() => {
                          只有在 flex 容器里才拿得到宽度，否则会缩成看不见的一个点。 -->
                     <p class="hos-panel__meta">
                         <a class="hos-text-button" data-store-password-reset-link
-                            href="https://pay.homeos.cn/user/authentication/forget" target="_blank"
+                            href="http://127.0.0.1:8802/user/authentication/forget" target="_blank"
                             rel="noopener noreferrer">忘记密码</a>
                         <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-                        <a class="hos-text-button" data-store-link href="https://pay.homeos.cn/" target="_blank"
+                        <a class="hos-text-button" data-store-link href="http://127.0.0.1:8802/" target="_blank"
                             rel="noopener noreferrer">商店</a>
                     </p>
                 </div>

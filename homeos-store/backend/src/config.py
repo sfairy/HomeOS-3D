@@ -225,6 +225,12 @@ class StoreSettings:
     payment_sweep_interval_seconds: int = 30
     payment_sweep_batch: int = 25
 
+    # 发布版本同步：商店定时从 GitHub Releases 取最新版本，落库供 /store/v1/updates/latest
+    # 读取。0 表示关闭（此时只保留启动时补写的本地版本记录）。
+    release_sync_interval_seconds: int = 6 * 3600
+    github_repo: str = "sfairy/HomeOS-3D"
+    github_token: str = ""
+
     @property
     def database_path(self) -> Path:
         return self.data_dir / "store.db"
@@ -418,6 +424,11 @@ def load_settings(**overrides) -> StoreSettings:
             "STORE_PAYMENT_SWEEP_INTERVAL_SECONDS", 30, minimum=5, maximum=3600
         ),
         "payment_sweep_batch": _env_int("STORE_PAYMENT_SWEEP_BATCH", 25, minimum=1, maximum=500),
+        "release_sync_interval_seconds": _env_int(
+            "STORE_RELEASE_SYNC_INTERVAL_SECONDS", 6 * 3600, minimum=0, maximum=7 * 24 * 3600
+        ),
+        "github_repo": _env_str("STORE_GITHUB_REPO", "sfairy/HomeOS-3D") or "sfairy/HomeOS-3D",
+        "github_token": _env_str("STORE_GITHUB_TOKEN"),
     }
     values.update(overrides)
     settings = StoreSettings(**values)
@@ -446,6 +457,7 @@ _RANGED_FIELDS: tuple[tuple[str, float | None, float | None], ...] = (
     ("device_release_cooldown_seconds", 0, 30 * 24 * 3600),
     ("payment_sweep_interval_seconds", 0, 3600),
     ("payment_sweep_batch", 1, 500),
+    ("release_sync_interval_seconds", 0, 7 * 24 * 3600),
 )
 
 

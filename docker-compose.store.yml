@@ -25,6 +25,11 @@ services:
       STORE_COOKIE_SECURE: ${STORE_COOKIE_SECURE:-false}
       # 商店自身的可信代理网段：与主应用同理，只有同容器回环上的内置反代能作为对端。
       STORE_TRUSTED_PROXIES: ${STORE_TRUSTED_PROXIES:-127.0.0.1,::1}
+      # 发布版本同步：商店定时从 GitHub Releases 拉最新版本，供主应用 /updates 提示升级。
+      # 客户机在内网只轮询商店，不直接出网；改 0 可关闭。私有仓库才需要 Token。
+      STORE_RELEASE_SYNC_INTERVAL_SECONDS: ${STORE_RELEASE_SYNC_INTERVAL_SECONDS:-21600}
+      STORE_GITHUB_REPO: ${STORE_GITHUB_REPO:-sfairy/HomeOS-3D}
+      STORE_GITHUB_TOKEN: ${STORE_GITHUB_TOKEN:-}
       # 管理员首次部署请通过浏览器 /setup 页面设置（不支持环境变量 seed）
     volumes:
       - homeos-3d-store-data:/data

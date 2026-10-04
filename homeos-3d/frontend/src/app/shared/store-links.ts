@@ -6,7 +6,7 @@ interface StoreConfig {
 
 /** 取不到配置时的兜底：与后端 DEFAULT_STORE_URL / STORE_PASSWORD_RESET_PATH 保持一致。 */
 const FALLBACK_STORE_CONFIG: StoreConfig = {
-  storeUrl: "https://pay.homeos.cn",
+  storeUrl: "http://127.0.0.1:8802",
   storePasswordResetPath: "/user/authentication/forget",
 };
 
@@ -57,6 +57,5 @@ export async function applyStoreLinks(): Promise<void> {
 /**
  * 由视图在挂载后调用。
  *
- * 迁移前本文件以 `<script type="module">` 直接引入并自跑；SPA 下改为显式导出，
- * 保证在视图 DOM 渲染完成后再改写 `a[data-store-link]` 的 href。
+ * 显式导出，保证在视图 DOM 渲染完成后再改写 `a[data-store-link]` 的 href。
  */

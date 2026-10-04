@@ -35,6 +35,7 @@ from .licensing.service import LicenseAuthority
 from .ops import incidents
 from .ops.appearance import AppearanceStore
 from .ops.release_info import CURRENT_VERSION, ensure_current_release
+from .ops.release_sync import sync_release_once
 from .ops.site_settings import get_setting
 from .payments import resolve_provider
 from .payments.sweeper import (
@@ -184,6 +185,24 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
         finally:
             mark_sweep_loop_stopped(generation)
 
+    async def _release_sync_loop() -> None:
+        """后台发布版本同步循环：定时从 GitHub Releases 取最新版本落库。
+
+        客户机在内网只轮询商店的 /store/v1/updates/latest，由商店这一台中心机负责
+        访问公网 GitHub —— 换版本来源不影响客户机。失败只记日志并按较短间隔重试。
+        """
+        interval = int(settings.release_sync_interval_seconds or 0)
+        if interval <= 0:
+            logger.info("发布版本同步已关闭（STORE_RELEASE_SYNC_INTERVAL_SECONDS=0）")
+            return
+        while True:
+            ok = False
+            try:
+                ok = await asyncio.to_thread(sync_release_once, database, settings)
+            except Exception:
+                logger.exception("发布版本同步本轮失败，将在 %d 秒后重试", min(interval, 3600))
+            await asyncio.sleep(interval if ok else min(interval, 3600))
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         install_access_log_noise_filter()
@@ -197,10 +216,14 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
             else:
                 setup_guard.discard_file()
         sweep_task = asyncio.create_task(_payment_sweep_loop())
+        release_task = asyncio.create_task(_release_sync_loop())
         try:
             yield
         finally:
+            release_task.cancel()
             sweep_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await release_task
             with contextlib.suppress(asyncio.CancelledError):
                 await sweep_task
             database.dispose()

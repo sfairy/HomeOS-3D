@@ -26,7 +26,7 @@ services:
       APP_PORT: "8801"
       APP_BASE_URL: ${APP_BASE_URL:-}
       # 商店的**浏览器入口**（登录页「忘记密码」「商店」按它跳转）。
-      # 留空 = 出厂默认的厂商公网商店 https://pay.homeos.cn；自托管填客户端浏览器打得开的
+      # 留空 = 出厂默认的厂商公网商店 http://127.0.0.1:8802；自托管填客户端浏览器打得开的
       # 地址（http://<商店IP>:8802 或反代域名）。与下面出站用的 APP_LICENSE_SERVER_URL 不同：
       # 那条默认是 127.0.0.1，客户端浏览器点不动。
       APP_STORE_URL: ${APP_STORE_URL:-}
@@ -51,8 +51,8 @@ services:
     volumes:
       - homeos-3d-data:/data
       - homeos-3d-secrets:/run/secrets
-      # 授权公钥不再由宿主目录提供：主应用启动时从授权服务器 `GET /v2/keys` 取回，
-      # 落到数据卷 /data/client-keys；同机部署改由 docker-compose.app.shared.yml
+      # 授权公钥：主应用启动时从授权服务器 `GET /v2/keys` 取回，
+      # 落到数据卷 /data/client-keys；同机部署由 docker-compose.app.shared.yml
       # 挂商店写出的共享卷（只读）。
       # 宿主标识：授权实例指纹的来源（见 backend/src/license/hardware.py）。缺了也能起，
       # 指纹退到 data/ 下的兜底 ID；deploy.sh --host-binds 会自动建这两个符号链接。

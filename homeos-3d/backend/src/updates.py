@@ -1,4 +1,4 @@
-"""Optional release discovery, isolated from licensing and editor startup."""
+"""可选的版本发布发现功能，与授权和编辑器启动相互隔离。"""
 from __future__ import annotations
 
 import asyncio
@@ -17,23 +17,30 @@ from fastapi import APIRouter, Request, Response
 from .dependencies import CurrentUser
 
 router = APIRouter()
-RELEASE_ENDPOINTS = (
-    "https://pay.homeos.cn/store/v1/updates/latest",
-    "https://pay2.homeos.cn/store/v1/updates/latest",
-)
-WIKI_URL = "https://wiki.homeos.cn/updates.html"
+_VERSION_PATTERN = re.compile(r"[vV]?(0|[1-9][0-9]{0,8})(?:\.(0|[1-9][0-9]{0,8})){0,3}")
+# 商店侧的更新查询路径（商店 API 的固定前缀，见 homeos-store 的 store.py）。
+STORE_UPDATES_PATH = "/store/v1/updates/latest"
+# 仅作 UpdateChecker 的兜底默认值：正常由 main.py 按 APP_UPDATE_ENDPOINTS（优先）
+# 或 APP_STORE_URL 注入，分拆部署时才能指向中心商店，而不是客户机自己的回环。
+RELEASE_ENDPOINTS = (f"http://127.0.0.1:8802{STORE_UPDATES_PATH}",)
 CHECK_INTERVAL = 21600
 MAX_CACHE_AGE = 86400
 MAX_RESPONSE_BYTES = 32768
 
 
-def stable_version(value: object) -> tuple[int, int, int] | None:
-    if not isinstance(value, str) or not re.fullmatch(
-        r"v?(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})", value
-    ):
+def parse_version(value: object) -> tuple[int, ...] | None:
+    """把版本号解析成可比较的整数元组；非法格式返回 ``None``。
+
+    允许 1~4 段纯数字，所以语义化 ``1.0.0`` 与 GitHub Release 的日期式
+    ``2026.10.4.10`` 都能解析并按元组逐位比较（``1.0.0 < 2026.10.4.10``、
+    ``2026.10.4 < 2026.10.4.10``）。
+    """
+    if not isinstance(value, str):
         return None
-    major, minor, patch = value.removeprefix("v").split(".")
-    return int(major), int(minor), int(patch)
+    text = value.strip()
+    if not _VERSION_PATTERN.fullmatch(text):
+        return None
+    return tuple(int(part) for part in text.lstrip("vV").split("."))
 
 
 def release_value(payload: dict, channel: str) -> dict | None:
@@ -47,7 +54,7 @@ def release_value(payload: dict, channel: str) -> dict | None:
     release = payload["release"]
     if release is None:
         return None
-    if not isinstance(release, dict) or stable_version(release.get("version")) is None:
+    if not isinstance(release, dict) or parse_version(release.get("version")) is None:
         raise ValueError("Invalid release version")
     entry_id = str(UUID(release["id"]))
     return {"id": entry_id, "version": release["version"]}
@@ -87,7 +94,7 @@ class UpdateChecker:
         if (
             self.enabled
             and self.channel in {"addon", "docker"}
-            and stable_version(self.version) is not None
+            and parse_version(self.version) is not None
             and self.task is None
         ):
             self.task = asyncio.create_task(self._run(), name="release-update-check")
@@ -156,20 +163,15 @@ class UpdateChecker:
     def status(self) -> dict:
         fresh = bool(self.checked_at and 0 <= self.clock() - self.checked_at <= MAX_CACHE_AGE)
         release = self.release if fresh else None
-        current = stable_version(self.version)
-        latest = stable_version(release["version"]) if release else None
+        current = parse_version(self.version)
+        latest = parse_version(release["version"]) if release else None
         available = bool(current is not None and latest is not None and latest > current)
         return {
             "currentVersion": self.version,
             "channel": self.channel,
             "updateAvailable": available,
             "latestVersion": release["version"] if release else None,
-            "checkedAt": datetime.fromtimestamp(self.checked_at, UTC).isoformat()
-            if fresh
-            else None,
-            "logUrl": f"{WIKI_URL}?release={release['id'] if release else ''}#changelog"
-            if available
-            else f"{WIKI_URL}#changelog",
+            "checkedAt": datetime.fromtimestamp(self.checked_at, UTC).isoformat(),
         }
 
 
