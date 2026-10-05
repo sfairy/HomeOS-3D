@@ -223,7 +223,7 @@ export function useDeviceAnalyticsCharts(options: {
    */
   async function renderTrendChart() {
     if (!chartDomReady(trendChartRef.value)) return
-    if (!trendChart) trendChart = (await import('@/utils/chart/echarts')).default.init(trendChartRef.value)
+    if (!trendChart) trendChart = (await import('@/utils/chart/echarts')).getOrInitChart(trendChartRef.value)
     const daily = summary.value.dailyTotals || []
     const labels = daily.map((d) => d.day.slice(5))
     trendChart.setOption(
@@ -275,7 +275,7 @@ export function useDeviceAnalyticsCharts(options: {
    */
   async function renderDomainChart() {
     if (!chartDomReady(domainChartRef.value)) return
-    if (!domainChart) domainChart = (await import('@/utils/chart/echarts')).default.init(domainChartRef.value)
+    if (!domainChart) domainChart = (await import('@/utils/chart/echarts')).getOrInitChart(domainChartRef.value)
     const domains = summary.value.domainBreakdown || []
     domainChart.setOption(
       {
@@ -306,7 +306,7 @@ export function useDeviceAnalyticsCharts(options: {
    */
   async function renderHeatmapChart() {
     if (!chartDomReady(heatmapChartRef.value) || !heatmapDevices.value.length) return
-    if (!heatmapChart) heatmapChart = (await import('@/utils/chart/echarts')).default.init(heatmapChartRef.value)
+    if (!heatmapChart) heatmapChart = (await import('@/utils/chart/echarts')).getOrInitChart(heatmapChartRef.value)
     const devices = heatmapDevices.value
     const dayLabels = (summary.value.dailyTotals || []).map((d) => d.day.slice(5))
     const data: Array<[number, number, number]> = []
@@ -376,7 +376,7 @@ export function useDeviceAnalyticsCharts(options: {
    */
   async function renderHealthTrendChart() {
     if (!chartDomReady(healthTrendRef.value) || healthTrend.value.length < 2) return
-    if (!healthTrendChart) healthTrendChart = (await import('@/utils/chart/echarts')).default.init(healthTrendRef.value)
+    if (!healthTrendChart) healthTrendChart = (await import('@/utils/chart/echarts')).getOrInitChart(healthTrendRef.value)
     const rows = healthTrend.value
     const labels = rows.map((r) => r.day.slice(5))
     healthTrendChart.setOption(
@@ -416,7 +416,7 @@ export function useDeviceAnalyticsCharts(options: {
    */
   async function renderEventsChart() {
     if (!chartDomReady(eventsChartRef.value) || !eventDomainEntries.value.length) return
-    if (!eventsChart) eventsChart = (await import('@/utils/chart/echarts')).default.init(eventsChartRef.value)
+    if (!eventsChart) eventsChart = (await import('@/utils/chart/echarts')).getOrInitChart(eventsChartRef.value)
     const entries = eventDomainEntries.value
     eventsChart.setOption(
       {

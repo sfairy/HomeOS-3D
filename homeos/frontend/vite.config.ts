@@ -15,7 +15,7 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const isProduction = process.env.NODE_ENV === 'production'
 const analyzeBundle = process.env.ANALYZE === '1'
 /** 开发代理目标：127.0.0.1 避免 Windows 下 localhost → IPv6 导致 ECONNREFUSED */
-const backendDevTarget = 'http://127.0.0.1:8501'
+const backendDevTarget = 'http://127.0.0.1:8801'
 
 /** 开发代理/WebSocket 断连时的可忽略错误码（重连、刷新、后端重启均属正常） */
 const BENIGN_PROXY_ERROR_CODES = new Set(['ECONNABORTED', 'ECONNRESET', 'ECONNREFUSED'])

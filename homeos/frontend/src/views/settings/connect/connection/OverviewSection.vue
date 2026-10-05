@@ -60,7 +60,7 @@
         <code class="conn-overview-code">/health</code>
         {{ '）。开发环境请同时运行' }}
         <code class="conn-overview-code">bun run dev:backend</code>
-        {{ '（8501）与' }}
+        {{ '（8801）与' }}
         <code class="conn-overview-code">bun run dev:frontend</code>
         {{ '。' }}
       </span>

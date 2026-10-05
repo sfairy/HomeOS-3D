@@ -35,7 +35,7 @@ function isSameAppEmbedUrl(
 
     if (!/^https?:$/i.test(target.protocol)) return false
 
-    // 同主机任意端口均视为 HomeOS 自身（常见误配：HTTPS :8443 访问、内嵌 http://LAN:8501）
+    // 同主机任意端口均视为 HomeOS 自身（常见误配：HTTPS :8443 访问、内嵌 http://LAN:8801）
     return (
       normalizeEmbedHostname(target.hostname) === normalizeEmbedHostname(currentLocation.hostname)
     )

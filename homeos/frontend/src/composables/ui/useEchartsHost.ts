@@ -144,7 +144,7 @@ export function useEchartsHost(options: EchartsHostOptions) {
       // 显式传入尺寸，避免测量阶段布局抖动时 ECharts 告警
       const width = target.clientWidth || target.offsetWidth
       const height = target.clientHeight || target.offsetHeight
-      const chart = mod.default.init(target, undefined, { width, height })
+      const chart = mod.getOrInitChart(target, undefined, { width, height })
       charts[key] = chart
       def.onInit?.(chart)
     }

@@ -1,0 +1,41 @@
+# HomeOS 应用仓库忽略规则。
+#
+# 口径与上层 HomeOS-3D/.gitignore 一致，但以本目录（homeos/）为仓库根重写。
+
+# ---- 系统 / 编辑器 ----
+.DS_Store
+.idea/
+
+# ---- 本地配置与密钥（绝不能提交）----
+# .env 里是数据库/Redis 口令等真实凭据；secrets/ 是部署时生成的真实口令。
+.env
+.env.*
+!.env.example
+secrets/*
+!secrets/.gitkeep
+*-private.pem
+
+# ---- JS 依赖与构建产物 ----
+node_modules/
+dist/
+*.tsbuildinfo
+
+# ---- Python：虚拟环境 / 字节码 ----
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# ---- 运行时数据与数据库 ----
+data/
+.debug-data/
+*.db
+*.db-wal
+*.db-shm
+
+# ---- 本地备份包 / 日志等开发期残留 ----
+backups/*
+!backups/.gitkeep
+*.bak
+*.bak-*
+*.log

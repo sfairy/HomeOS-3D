@@ -28,7 +28,7 @@ import {
 export function buildEntitySocketUrl(): string | undefined {
   const direct = import.meta.env.VITE_BACKEND_URL?.trim()
   if (direct) return direct
-  // 开发环境默认走 Vite 同源代理（/socket.io → 127.0.0.1:8501），避免直连 localhost:8501 在 Windows/IPv6 下失败
+  // 开发环境默认走 Vite 同源代理（/socket.io → 127.0.0.1:8801），避免直连 localhost:8801 在 Windows/IPv6 下失败
   return undefined
 }
 

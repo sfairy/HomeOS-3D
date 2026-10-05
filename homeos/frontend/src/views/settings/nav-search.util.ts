@@ -26,6 +26,7 @@ type SettingsNavGroupItem = {
 
 /** 设置搜索别名（中文口语 / 微件名 → 对应 tab） */
 const TAB_SEARCH_SYNONYMS: Record<string, string> = {
+  general: '品牌 站点名称 顶栏 导航标签 底部信息栏 天气特效 显示缩放 等比缩放 分辨率 页面宽度',
   family: '儿童模式 白名单 时段 关爱 媒体限时',
   floating: '浮动图层 安防面板 能源中心 关爱中心 门锁 智能中心',
   'life-accounts': '能源 电费 燃气 用水 电信',

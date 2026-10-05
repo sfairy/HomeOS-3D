@@ -52,7 +52,9 @@ export function useHubChart(
       if (retry < 12) scheduleEchartsTask(owner, () => render(retry + 1))
       return
     }
-    if (!chart) chart = (await import('@/utils/chart/echarts')).default.init(el)
+    // getOrInitChart：并发渲染（onMounted 与 watch 同帧各调度一次）时
+    // 两次调用都可能在 await 前通过 ``if (!chart)``，直接 init 会触发 ECharts 重复初始化告警
+    if (!chart) chart = (await import('@/utils/chart/echarts')).getOrInitChart(el)
     chart.setOption(buildOption(), true)
     chart.resize()
   }

@@ -1,0 +1,9 @@
+# HomeOS Python 后端开发 / CI 静态检查工具。
+#
+# 安装（作用于 backend/.venv）：
+#   pip install -r requirements-dev.txt
+#
+# 运行时依赖见 requirements.txt；此处仅补充 ruff（lint）与 pyright（类型检查）。
+
+ruff>=0.16
+pyright>=1.1

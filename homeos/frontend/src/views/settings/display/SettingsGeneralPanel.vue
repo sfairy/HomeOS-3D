@@ -2,11 +2,14 @@
 组件：SettingsGeneralPanel.vue
 所属模块：frontend / src / views / settings / display
 职责：通用设置面板。按子导航切换：站点品牌（siteTitle）、导航标签（NavTabEditor）、
-      底部信息栏、天气特效、高级渲染、性能调试（高/中/低三档）、全屋关闭；并提供安全登出入口。
+      底部信息栏、天气特效、显示缩放（整页等比缩放 + 布局尺寸与停靠）、
+      性能调试（高/中/低三档）、全屋关闭；并提供安全登出入口。
 关键依赖：
   - SettingsPageShell / SettingsCard / SettingsCardIntro：页面骨架
   - SettingsFlowBand / SettingsFlowStat / SettingsHubSubnav：流程概览与子导航
   - NavTabEditor / SettingsLayoutFooterSection / SettingsWeatherEffectsSection / SettingsRenderingSection / SettingsWholeHomeOffSection：子区段
+  - SettingsLayoutDisplaySection：显示缩放区段（自仪表板布局移入）
+  - useScaling：显示缩放派生
   - useDashboardFooterEditor：底部信息栏编辑逻辑
   - useSettingsPendingChanges / useSettingsSave：待保存变更与保存逻辑
   - applyGlassEffectDocument：毛玻璃效果应用
@@ -186,6 +189,23 @@
       <SettingsWeatherEffectsSection />
     </div>
 
+    <div v-show="generalSection === 'scaling'" class="settings-hub-section">
+      <SettingsLayoutDisplaySection
+        :scaling-enabled="scalingEnabled"
+        :scale="scale"
+        :active-design-width="activeDesignWidth"
+        :design-height="DESIGN_HEIGHT"
+        :viewport-w="viewportW"
+        :viewport-h="viewportH"
+        :width-presets="widthPresets"
+        :screen-hint="screenHint"
+        :screen-height-hint="screenHeightHint"
+        @toggle-scaling="toggleScaling()"
+        @apply-width-preset="applyWidthPreset"
+        @auto-match-resolution="autoMatchResolution"
+      />
+    </div>
+
     <div v-show="generalSection === 'nav'" class="settings-hub-section">
       <SettingsCard full static>
         <SettingsCardIntro
@@ -245,8 +265,15 @@ import {
 } from '@lucide/vue'
 import SettingsWholeHomeOffSection from '@/views/settings/display/SettingsWholeHomeOffSection.vue'
 import SettingsWeatherEffectsSection from '@/views/settings/display/SettingsWeatherEffectsSection.vue'
+import SettingsLayoutDisplaySection from '@/views/settings/display/layout/SettingsLayoutDisplaySection.vue'
 import SettingsLayoutFooterSection from '@/views/settings/display/layout/SettingsLayoutFooterSection.vue'
 import { useDashboardFooterEditor } from '@/composables/settings/display/layout-dashboard.internals'
+import { useScaling } from '@/composables/ui/useScaling'
+import { reloadFrontendConfig } from '@/utils/config/frontend-config'
+import {
+  handleSystemConfigPatchError,
+  useSystemConfig,
+} from '@/composables/config/system-config-core.internals'
 import { useAuthStore } from '@/stores/auth.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
@@ -291,10 +318,71 @@ const generalSubnavSections = computed(() => {
     { id: 'nav', label: '导航标签', emoji: '🧭' },
     { id: 'footer', label: '底部信息栏', emoji: '📊' },
     { id: 'weather-effects', label: '天气特效', emoji: '🌦️' },
+    { id: 'scaling', label: '显示缩放', emoji: '🖥️' },
     { id: 'runtime', label: '性能调试', emoji: '⚡' },
     { id: 'whole-home-off', label: '全屋关闭', emoji: '🔌' },
   ]
 })
+
+// 显示缩放：基于 pageMaxWidth 计算缩放比与设计尺寸（自仪表板布局面板移入）
+const {
+  scalingEnabled,
+  toggleScaling,
+  scale,
+  activeDesignWidth,
+  DESIGN_HEIGHT,
+  vw: viewportW,
+  vh: viewportH,
+} = useScaling(computed(() => layoutStore.layoutConfig.pageMaxWidth))
+
+const { save: saveSystemConfig } = useSystemConfig()
+
+// 宽度预设
+const widthPresets = [
+  { label: 'iPad 1366', w: 1366 },
+  { label: 'FHD 1920', w: 1920 },
+  { label: '2K 2560', w: 2560 },
+  { label: '4K 3840', w: 3840 },
+]
+
+// 应用宽度预设：写入 pageMaxWidth，缩放未启用时一并启用
+function applyWidthPreset(w) {
+  layoutStore.layoutConfig.pageMaxWidth = w
+  if (!scalingEnabled.value) toggleScaling()
+}
+
+// 屏幕宽度提示（限制在 1024–3840 之间）
+const screenHint = computed(() => Math.min(3840, Math.max(1024, window.screen?.width || 1920)))
+
+// 屏幕高度提示（限制在 600–2160 之间）
+const screenHeightHint = computed(() =>
+  Math.min(2160, Math.max(600, window.screen?.height || 1024)),
+)
+
+// 自动匹配屏幕分辨率：写入宽度并保存高度到系统配置，失败时仅提示宽度已生效
+async function autoMatchResolution() {
+  const w = screenHint.value
+  const h = screenHeightHint.value
+  layoutStore.layoutConfig.pageMaxWidth = w
+  if (!scalingEnabled.value) toggleScaling()
+  try {
+    await saveSystemConfig({ ui: { scaleBaseHeight: h } })
+    await reloadFrontendConfig()
+    chrome.notify(
+      '已匹配屏幕 {w}×{h}px 并启用等比缩放'.replace('{w}', String(w)).replace('{h}', String(h)),
+      'success',
+    )
+  } catch (e) {
+    if (await handleSystemConfigPatchError(e, chrome)) return
+    chrome.notify(
+      '已匹配宽度 {w}px；高度配置保存失败，请稍后在系统配置中设置 scaleBaseHeight'.replace(
+        '{w}',
+        String(w),
+      ),
+      'warn',
+    )
+  }
+}
 
 // 站点标题预览：读取配置，缺失回退为 HomeOS
 const brandPreviewTitle = computed(() => {

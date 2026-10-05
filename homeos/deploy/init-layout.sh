@@ -16,8 +16,8 @@ write_caddyfile() {
 # 访问：https://<NAS 局域网 IP>:8443（任意 LAN IP/主机名均可）
 #
 # 双协议支持：
-#   - HTTPS :8443 → Caddy 反代 → homeos:8501（X-Forwarded-Proto: https）
-#   - HTTP  :8126 → Docker 端口映射 → homeos:8501（直连，无 X-Forwarded-Proto）
+#   - HTTPS :8443 → Caddy 反代 → homeos:8801（X-Forwarded-Proto: https）
+#   - HTTP  :8126 → Docker 端口映射 → homeos:8801（直连，无 X-Forwarded-Proto）
 #   - COOKIE_SECURE=auto 使两端口均可登录：HTTPS 设 Secure Cookie，HTTP 不设
 #   - WebSocket（Socket.IO / 内嵌代理）由 Caddy v2 reverse_proxy 默认自动升级
 #
@@ -40,7 +40,7 @@ write_caddyfile() {
 		on_demand
 	}
 
-	reverse_proxy homeos:8501 {
+	reverse_proxy homeos:8801 {
 		header_up Host {host}
 		header_up X-Real-IP {remote_host}
 	}

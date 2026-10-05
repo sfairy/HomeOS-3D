@@ -401,7 +401,9 @@ export function useNotificationsViewAnalytics(
    */
   async function ensureChart(key: ChartKey, el: HTMLElement | null, builder: () => EChartsCoreOption) {
     if (!el) return
-    if (!charts[key]) charts[key] = (await import('@/utils/chart/echarts')).default.init(el)
+    // getOrInitChart：data watch 深监听会紧邻首帧再次触发 renderCharts，
+    // 两次调用都可能在 await 前通过 ``if (!charts[key])``，直接 init 会触发重复初始化告警
+    if (!charts[key]) charts[key] = (await import('@/utils/chart/echarts')).getOrInitChart(el)
     charts[key]!.setOption(builder(), true)
     charts[key]!.resize()
   }

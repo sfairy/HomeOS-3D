@@ -1,8 +1,0 @@
-{
-  "compilerOptions": {
-    "paths": {
-      "@generated/prisma": ["./dist/backend/generated/prisma/client.js"],
-      "@generated/prisma/*": ["./dist/backend/generated/prisma/*"]
-    }
-  }
-}

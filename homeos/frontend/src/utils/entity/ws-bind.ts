@@ -40,7 +40,10 @@ function filterDeltaBeforeFullSync(
     else full.push(c)
   }
   if (dropped > 0) {
-    logger.warn(`全量同步完成前丢弃 ${dropped} 条 delta 增量(本地缺少实体基线)`)
+    // 设计内的自愈：这些 delta 的变更时刻不晚于随后到达的全量快照，快照会覆盖其效果，
+    // 丢弃是安全的。后端侧已避免向未就绪客户端广播增量（见 gateway._baseline_ready），
+    // 此处仅作兜底，降级 debug 以免产生误导性告警。
+    logger.debug?.(`全量同步完成前丢弃 ${dropped} 条 delta 增量(本地缺少实体基线)`)
   }
   return full
 }

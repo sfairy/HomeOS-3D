@@ -1,0 +1,37 @@
+[project]
+name = "homeos-backend-py"
+version = "0.0.0"
+description = "HomeOS 后端（FastAPI / Python），NestJS 的透明替换实现"
+requires-python = ">=3.11"
+dynamic = ["version"]
+
+[tool.setuptools.dynamic]
+version = { attr = "src._version.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = [
+  "E501",  # 行长由格式化工具管，不硬拦
+  "E402",  # 模块级导入不在文件顶部：延迟/条件导入是项目既有模式
+  "E701",  # 单行 if 多语句与项目既有风格冲突
+  "E711",  # SQLAlchemy 查询里 column == None 是正常的
+  "E712",  # SQLAlchemy 查询里 column == False 是正常的
+  "B008",  # FastAPI 依赖注入在默认参数调用 File/Depends 是标准模式
+]
+
+[tool.pyright]
+include = ["src"]
+pythonVersion = "3.11"
+typeCheckingMode = "basic"
+# pyright 不会自动发现项目内的 .venv，需显式点名，否则第三方包
+# （fastapi / sqlalchemy / httpx 等）会整片报 reportMissingImports。
+venvPath = "."
+venv = ".venv"

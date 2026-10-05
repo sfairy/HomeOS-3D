@@ -4,7 +4,6 @@
   "version": "2026.09.22.08",
   "description": "HomeOS 智能家居中央控制平台 — Home Assistant 上层 UI 网关，提供 Dashboard、户型图可视化、设备触控、安防、能源管理与语音交互",
   "workspaces": [
-    "backend",
     "frontend",
     "packages/*"
   ],
@@ -29,20 +28,15 @@
     "clean:local": "bun scripts/clean-local.mjs",
     "prep": "bun scripts/run.mjs prep",
     "build:shared": "bun run --cwd packages/shared build",
+    "dev": "bun scripts/dev.mjs",
     "dev:db": "docker compose -f docker-compose.yml -f docker-compose.local.yml up -d postgres redis",
-    "dev:backend": "bun run prep && bun run --cwd backend start:dev",
+    "dev:backend": "cd backend && HOMEOS_RELOAD=1 .venv/bin/python -m src.run",
     "dev:frontend": "bun run --cwd frontend dev",
     "build": "bun scripts/run.mjs build",
-    "build:backend": "bun scripts/run.mjs build:backend",
     "build:frontend": "bun scripts/run.mjs build:frontend",
-    "start:prod": "bun run --cwd backend start:prod",
+    "start:prod": "sh deploy/run-backend.sh python",
     "lint": "bun scripts/run.mjs lint",
     "typecheck": "bun scripts/run.mjs typecheck",
     "check": "bun scripts/run.mjs check"
-  },
-  "trustedDependencies": [
-    "@nestjs/cli",
-    "@prisma/client",
-    "prisma"
-  ]
+  }
 }
