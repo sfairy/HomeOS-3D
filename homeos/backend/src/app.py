@@ -20,14 +20,16 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import HTMLResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.gzip import GZipMiddleware
 
+from . import studio3d_plane, studio_shell
 from ._version import load_app_version
 from .api.advisor_usage import router as advisor_usage_router
 from .api.agent import router as agent_router
+from .api.assets import read_builtin_asset
 from .api.auth import router as auth_router
 from .api.channels import router as channels_router
 from .api.channels import wecom_router as channels_wecom_router
@@ -44,7 +46,6 @@ from .api.moviepilot_proxy import router as moviepilot_proxy_router
 from .api.notification import router as notification_router
 from .api.security import router as security_router
 from .api.security_panel import router as security_panel_router
-from .api.system_access import router as system_access_router
 from .api.system_backup import router as system_backup_router
 from .api.system_config import router as system_config_router
 from .api.system_core import router as system_core_router
@@ -61,6 +62,7 @@ from .core.distributed_lock import DistributedLockService
 from .core.errors import (
     BusinessException,
     ErrorCode,
+    api_error,
     flatten_http_exception_message,
     localize_http_exception_message,
     resolve_api_error_code,
@@ -81,6 +83,7 @@ from .security.body_limit import BodyLimitMiddleware
 from .security.cookies import is_https_deploy_mode
 from .security.cors import CorsMiddleware
 from .security.csrf import CsrfMiddleware
+from .security.session_store import resolve_login_session
 from .security.sessions import SessionRevocation, TokenVersionCache
 from .services.agent.area_service import AgentAreaService
 from .services.agent.command_cache import CommandCacheService
@@ -108,7 +111,6 @@ from .services.channels import (
     WebPushService,
     WecomService,
 )
-from .services.child_mode import ChildModeService
 from .services.client_power import ClientPowerService
 from .services.command_proxy import CommandProxyService
 from .services.earthquake import (
@@ -120,21 +122,13 @@ from .services.earthquake import (
 )
 from .services.event_bus_bridge import EventBusBridge
 from .services.event_log import EventLogService
-from .services.ha_command_queue import HaCommandQueue
-from .services.ha_config import HaEndpointSelector, load_ha_endpoints
-from .services.ha_connector import HaConnectorService
+from .services.ha_config import HaEndpointSelector, load_active_ha_endpoints, load_ha_endpoints
 from .services.ha_filters import AlertRuleWatchIndex, HaStateChangeRouter
-from .services.ha_rest import HaRestClient
-from .services.ha_webrtc import HaWebrtcSignalService
-from .services.ha_ws import HaWebSocketClient
 from .services.home_mode.service import HomeModeService
 from .services.jobs import JobRegistryService
-from .services.license.service import (
-    LICENSE_EXEMPT_EXACT,
-    LICENSE_EXEMPT_PREFIX,
-    LicenseService,
-)
-from .services.lifestyle import GuestAccessService, MediaSceneService
+from .services.license import LicenseService
+from .services.license.guard import is_license_exempt_path
+from .services.lifestyle import MediaSceneService
 from .services.notification.service import NotificationService
 from .services.retention.service import DatabaseRetentionService
 from .services.security.away_simulation import AwaySimulationService
@@ -152,11 +146,14 @@ from .services.state_ingress_coalesce import StateIngressCoalesceService
 from .services.state_store.entity_area import EntityAreaEnrichmentService
 from .services.state_store.entity_references import EntityReferencesService
 from .services.state_store.entity_sync_filter import HaEntitySyncFilterService
+from .services.studio_ha_compat import StudioHAConnectorCompat
 from .services.system import DeviceHealthService, DeviceManagementService, SystemService
 from .services.system.embed_proxy import EmbedProxyService
 from .services.system.ops import ExternalApiService, MoviePilotProxyService
 from .services.ui_config import UiConfigService
 from .services.weather import WeatherAutoLinkageService, WeatherWatchService
+from .updates import STORE_UPDATES_PATH, UpdateChecker
+from .updates import router as updates_router
 
 #: 健康检查 DB 探针缓存 TTL：/health 为公开端点，避免高频轮询击穿连接。
 DB_PROBE_TTL_SECONDS = 3.0
@@ -180,6 +177,47 @@ def _full_path(request: Request) -> str:
     return f"{request.url.path}?{query}" if query else request.url.path
 
 
+def _signed_in(request: Request) -> bool:
+    """是否存在有效登录会话（DB 会话）。
+
+    仅为静态资源门禁服务，故不复刻完整守卫链：只要能确认「这条请求带着一个可解析的
+    登录凭证」即可，权限矩阵仍由各路由的 ``require_user`` / ``require_roles`` 把关。
+    """
+    settings = request.app.state.settings
+    database = getattr(request.app.state, "database", None)
+    if database is None:
+        return False
+    token = request.cookies.get(settings.cookie_name, "")
+    if not token:
+        return False
+    try:
+        with database.session_factory() as session:
+            return (
+                resolve_login_session(
+                    session, token, max_age_seconds=settings.jwt_expires_in_seconds
+                )
+                is not None
+            )
+    except Exception:  # noqa: BLE001 - 会话存储异常按未登录处理（fail-closed）
+        return False
+
+
+#: 需要按「能力」判定授权状态的页面路径 → 能力名。
+_PAGE_LICENSE_FEATURE: tuple[tuple[tuple[str, ...], str], ...] = (
+    (("/3d-studio", "/studio/editor"), "editor"),
+    (("/", "/display/", "/homeos/"), "display"),
+)
+
+
+def _page_license_feature(path: str) -> str | None:
+    """页面路径对应的授权能力；无需判定时返回 ``None``。"""
+    for prefixes, feature in _PAGE_LICENSE_FEATURE:
+        for prefix in prefixes:
+            if (path == prefix) or prefix.endswith("/") and path.startswith(prefix):
+                return feature
+    return None
+
+
 def _nest_error_payload(
     *,
     status: int,
@@ -188,6 +226,7 @@ def _nest_error_payload(
     error: str,
     request: Request,
     trace_id: str | None,
+    detail: object | None = None,
 ) -> dict[str, object]:
     payload: dict[str, object] = {
         "statusCode": status,
@@ -209,6 +248,11 @@ def _nest_error_payload(
             "timestamp": payload["timestamp"],
             "path": payload["path"],
         }
+    if detail is not None:
+        # 追加 homeos-3d 兼容字段：3D 前端（setup.ts / login.ts）从 ``payload.detail``
+        # 取错误文案（字符串），或从 ``payload.detail[0].msg`` 取校验错误文案。
+        # 纯追加字段，homeos 既有消费方仍读 ``message``，行为不变。
+        payload["detail"] = detail
     if trace_id:
         payload["traceId"] = trace_id
     return payload
@@ -237,18 +281,12 @@ def _apply_state_change(app: FastAPI, gateway: Any, store: Any, change: dict[str
 
 
 async def _run_state_change_effects(app: FastAPI, gateway: Any, store: Any, change: dict[str, Any]) -> None:
-    """冷路径副作用：儿童模式 / 家庭模式触发 / 安防域 / 通知 / 顾问用量 + WS 广播。"""
+    """冷路径副作用：家庭模式触发 / 安防域 / 通知 / 顾问用量 + WS 广播。"""
     entity_id = change.get("entity_id")
     sync_filter = getattr(app.state, "entity_sync_filter", None)
     if sync_filter is not None and not sync_filter.is_entity_syncable(str(entity_id)):
         return
     _apply_state_change(app, gateway, store, change)
-    child_mode = getattr(app.state, "child_mode", None)
-    if child_mode is not None:
-        try:
-            await child_mode.handle_state_change(change)
-        except Exception:  # noqa: BLE001 - 儿童模式拦截失败不影响状态广播
-            pass
     home_mode = getattr(app.state, "home_mode", None)
     if home_mode is not None:
         try:
@@ -426,9 +464,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.app_config = app_config
         app.state.app_config_backup = AppConfigBackupService(app_config)
 
-        # 商业授权：联网租约模型（Ed25519 验签 + X25519 加密传输 + 本地凭证加密）。
-        license_service = LicenseService(internal_dir=str(app_settings.data_dir / ".internal"))
+        # 商业授权：并入 homeos-3d 授权服务（Ed25519 验签租约 + X25519 加密传输 +
+        # 本地 Fernet 凭证加密 + 进程锁）。构造期即做公钥自检，指纹不符会直接启动失败。
+        license_service = LicenseService(app_settings, app.state.database, transport=None)
         app.state.license = license_service
+        app.state.license_service = license_service
+
+        # 3D Studio 后端平面：HA 单连接（3D ``HAConnectorService`` + ``StateHub``）+ 数据面服务。
+        # 必须早于下方 homeos HA 块，以便把 ``app.state.ha_connector`` 指向 3D 兼容适配器。
+        await studio3d_plane.install(app, app_settings)
 
         # 数据保留：策略面板 + 分批清理（首次延迟 + 周期调度在此接入）
         database_retention = DatabaseRetentionService(
@@ -466,79 +510,40 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.ha_endpoints = ha_endpoint_selector
 
         async def _voice_rest_config() -> dict[str, Any]:
-            """HA Assist 对话接口所需的 ``{haUrl, token}``（对齐 ``getConfigForRest``）。"""
-            endpoints_now = ha_endpoint_selector.resolve()
-            return {"haUrl": endpoints_now.ha_url_primary, "token": endpoints_now.token}
+            """HA Assist 对话接口所需的 ``{haUrl, token}``（对齐 ``getConfigForRest``）。
 
-        ha_rest = HaRestClient(ha_endpoint_selector.resolve)
+            跟随连接器的活跃端点而不是静态的「内网优先」配置：内网不可达、连接器已切到外网时，
+            Assist 若还打内网地址就会整段不可用。加密令牌的读取路径与连接器不同，这里仍沿用
+            ``layout.haConfig`` 里的 token（``load_active_ha_endpoints`` 只换地址不换令牌）。
+            """
+
+            def _load() -> dict[str, Any]:
+                with app.state.database.session_factory() as session:
+                    endpoints_now = load_active_ha_endpoints(session)
+                return {"haUrl": endpoints_now.ha_url_primary, "token": endpoints_now.token}
+
+            return await asyncio.to_thread(_load)
+
         gateway = app.state.realtime
         state_store = gateway.state_store
         # 实体同步过滤共享视图：由 HaConnector 在注册表加载后 configure（对齐 Nest）。
         entity_sync_filter = HaEntitySyncFilterService()
         app.state.entity_sync_filter = entity_sync_filter
 
-        async def _send_via_ws(
-            domain: str, service: str, entity_id: str, service_data, return_response: bool
-        ):
-            return await ha_connector._call_service_immediate(  # noqa: SLF001
-                domain, service, entity_id, service_data, return_response
-            )
-
-        command_queue = HaCommandQueue(sender=_send_via_ws, is_connected=lambda: ha_ws.is_connected())
-
-        async def _bus_emit(name: str, payload: dict[str, Any] | None = None) -> None:
-            bus = getattr(app.state, "security_bus", None)
-            if bus is not None:
-                await bus.emit(name, payload or {})
-            else:
-                bridge = getattr(app.state, "event_bus_bridge", None)
-                if bridge is not None:
-                    await bridge.publish(name, payload or {})
-
-        async def _on_ws_connected() -> None:
-            app.state.ha_connected = True
-            app.state.ha_version = ha_ws.ha_version
-            state_store.handle_ha_connected()
-            await ha_connector.on_ws_connected()
-            await _bus_emit("ha.connected", {"ha_version": ha_ws.ha_version})
-
-        async def _on_ws_disconnected() -> None:
-            app.state.ha_connected = False
-            state_store.handle_ha_disconnected()
-            ha_connector.on_ws_disconnected()
-            await _bus_emit("ha.disconnected", {})
-
-        async def _on_ws_reconnecting(attempt: int) -> None:
-            app.state.ha_reconnect_attempt = attempt
-            await _bus_emit("ha.reconnecting", {"attempt": attempt})
-
-        async def _on_ws_event(event) -> None:
-            await ha_connector.dispatch_state_event(event)
-
-        ha_ws = HaWebSocketClient(
-            ha_endpoint_selector,
-            on_event=_on_ws_event,
-            on_connected=_on_ws_connected,
-            on_disconnected=_on_ws_disconnected,
-            on_reconnecting=_on_ws_reconnecting,
+        # 单一 HA 连接：连接与 StateHub 由并入的 3D ``HAConnectorService`` 持有（见上方
+        # ``studio3d_plane.install``）。这里把 homeos 既有连接器接口指向「3D 兼容适配器」，
+        # 使 homeos 业务消费者与 3D 数据面共用同一条连接，调用点无需改写。
+        ha_connector = StudioHAConnectorCompat(
+            app.state.studio_ha, app.state.database, state_store=state_store
         )
-        ha_connector = HaConnectorService(ha_ws, ha_rest, state_store=state_store, command_queue=command_queue)
         ha_connector.set_state_listener(_make_state_listener(app, gateway, state_store))
-        app.state.ha_ws = ha_ws
-        app.state.ha_rest = ha_rest
-        app.state.ha_command_queue = command_queue
         app.state.ha_connector = ha_connector
         app.state.entity_area = EntityAreaEnrichmentService(ha_connector, state_store)
         ha_connector.attach_sync_filter(
             entity_sync_filter,
             lambda: bool((app_config.get("haConnector") or {}).get("syncOnlyEnabledEntities", True)),
         )
-        app.state.ha_webrtc = HaWebrtcSignalService(ha_ws, app.state.database.session_factory)
         app.state.command_proxy = CommandProxyService(app.state.database.session_factory, ha_connector, redis)
-        child_mode = ChildModeService(app.state.database.session_factory, ha_connector, jobs=app.state.jobs)
-        await child_mode.start()
-        app.state.child_mode = child_mode
-        app.state.child_mode_gate = child_mode
 
         # -------------------------------------------------------------- #
         # 安防域：事件总线 / 冷却 / 面板 / 在场 / Frigate / 离家模拟 / 演习
@@ -645,21 +650,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
         # -------------------------------------------------------------- #
-        # 生活方式域：访客临时密码 + 影音场景
+        # 生活方式域：影音场景
         # -------------------------------------------------------------- #
         media_scene = MediaSceneService(ha_connector, app_config)
         media_scene.start()
         app.state.media_scene = media_scene
-
-        guest_access = GuestAccessService(
-            ha_connector,
-            security_bus,
-            app_config,
-            app.state.database.session_factory,
-        )
-        guest_access.bind_events()
-        await guest_access.start()
-        app.state.guest_access = guest_access
 
         # -------------------------------------------------------------- #
         # 系统运维域：外部数据源（天气/电价/日历）+ MoviePilot 透明代理 + 内嵌反代
@@ -772,7 +767,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.database.session_factory,
             ha_connector,
             state_store,
-            child_mode_gate=child_mode,
             set_security_mode=_set_security_mode,
             emit_event=_emit_home_mode_event,
             is_leader=lambda: True,
@@ -788,7 +782,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             security_panel,
             away_sim,
             home_mode,
-            child_mode,
             security_config.get,
         )
         app.state.security_linkage = security_linkage
@@ -816,7 +809,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             agent_area,
             ui_config,
             app_config,
-            child_mode,
             ha_connector,
             home_mode,
             app.state.database.session_factory,
@@ -967,7 +959,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app_config=app_config,
             ha_connector=ha_connector,
             command_proxy=app.state.command_proxy,
-            child_mode=child_mode,
             home_mode=home_mode,
             state_store=state_store,
             entity_area=app.state.entity_area,
@@ -1074,19 +1065,38 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # 商业授权：门禁自举（公钥取回 / 状态恢复 / 续租循环）。
         await license_service.start()
 
+        # 版本更新发现（可选）：失败静默降级，不影响其余服务。
+        app.state.update_checker = UpdateChecker(
+            app_settings.data_dir,
+            app_settings.version,
+            app_settings.update_channel,
+            enabled=app_settings.update_checks_enabled,
+            endpoints=app_settings.update_endpoints
+            or (
+                (f"{app_settings.store_url}{STORE_UPDATES_PATH}",)
+                if app_settings.store_url
+                else ()
+            ),
+        )
+        app.state.update_checker.start()
+
         try:
             yield
         finally:
+            try:
+                await studio3d_plane.shutdown(app)
+            except Exception as exc:  # noqa: BLE001 - 停机清理失败不应阻断其余清理
+                logger.warning("3D 平面停机失败: %s", exc)
+            try:
+                await asyncio.wait_for(app.state.update_checker.stop(), timeout=5)
+            except Exception:  # noqa: BLE001
+                pass
             try:
                 await asyncio.wait_for(license_service.stop(), timeout=5)
             except Exception:  # noqa: BLE001
                 pass
             try:
                 await asyncio.wait_for(database_retention.stop_schedule(), timeout=5)
-            except Exception:  # noqa: BLE001
-                pass
-            try:
-                await asyncio.wait_for(guest_access.stop(), timeout=5)
             except Exception:  # noqa: BLE001
                 pass
             try:
@@ -1098,10 +1108,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     await asyncio.wait_for(service.stop(), timeout=5)
                 except Exception:  # noqa: BLE001
                     pass
-            try:
-                await asyncio.wait_for(child_mode.stop(), timeout=5)
-            except Exception:  # noqa: BLE001
-                pass
             try:
                 await asyncio.wait_for(home_mode.stop(), timeout=5)
             except Exception:  # noqa: BLE001
@@ -1204,6 +1210,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 error=error,
                 request=request,
                 trace_id=trace_id,
+                detail=raw_detail,
             ),
         )
 
@@ -1219,6 +1226,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         message = "；".join(dict.fromkeys(parts)) or "请求无效"
         message = localize_http_exception_message(message, status, "Bad Request")
         trace_id = get_trace_id() or request.headers.get("x-trace-id")
+        # 追加 homeos-3d 形状的 ``detail``（pydantic 原始条目，保留 ``Value error, `` 前缀）：
+        # 3D 前端 setup.ts 读 ``detail[0].msg``，与 3D 后端原生 422 响应逐字一致。
+        detail = [
+            {
+                "type": str(item.get("type", "")),
+                "loc": [str(part) for part in item.get("loc", [])],
+                "msg": str(item.get("msg", "")),
+            }
+            for item in exc.errors()
+        ]
         return JSONResponse(
             status_code=status,
             content=_nest_error_payload(
@@ -1228,6 +1245,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 error="Bad Request",
                 request=request,
                 trace_id=trace_id,
+                detail=detail,
             ),
         )
 
@@ -1268,15 +1286,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # 除白名单外所有 HTTP 请求必须处于激活有效期；中间件内直接输出 Nest 错误信封。
     @app.middleware("http")
     async def license_guard(request: Request, call_next):
-        service = getattr(request.app.state, "license", None)
-        if service is not None and service.is_license_required():
-            path = request.url.path
-            exempt = path in LICENSE_EXEMPT_EXACT or path.startswith(LICENSE_EXEMPT_PREFIX)
-            if not exempt:
-                try:
-                    service.validate_access()
-                except BusinessException as exc:
-                    return _business_exception_json(request, exc)
+        service = getattr(request.app.state, "license_service", None)
+        if service is not None and app_settings.license_required:
+            if not is_license_exempt_path(request.url.path, request.method):
+                # allows() 不带 feature 时只校验租约整体有效性（等价旧 validate_access）；
+                # 带 feature 会走权益白名单，不能用作全局限流门禁。
+                # 同步 SQLAlchemy 读写放到线程池，避免阻塞事件循环。
+                if not await asyncio.to_thread(service.allows):
+                    return _business_exception_json(
+                        request,
+                        BusinessException(
+                            ErrorCode.UNAUTHORIZED, api_error("LICENSE_INACTIVE"), 401
+                        ),
+                    )
         return await call_next(request)
 
     @app.middleware("http")
@@ -1372,6 +1394,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     # ------------------------------------------------------------------ #
+    # 页面级图标与内置素材（并入 homeos-3d 的公开 / 受保护资源路由）
+    # ------------------------------------------------------------------ #
+    @app.get("/favicon.ico", include_in_schema=False)
+    def favicon() -> FileResponse:
+        return FileResponse(
+            app_settings.frontend_dir / "static" / "assets" / "icons" / "homeos-favicon-h5.ico",
+            media_type="image/x-icon",
+        )
+
+    @app.get("/apple-touch-icon.png", include_in_schema=False)
+    @app.get("/apple-touch-icon-precomposed.png", include_in_schema=False)
+    def apple_touch_icon() -> FileResponse:
+        return FileResponse(
+            app_settings.frontend_dir / "static" / "assets" / "icons" / "homeos-icon-180-h5.png",
+            media_type="image/png",
+        )
+
+    @app.get("/assets/builtin/{asset_path:path}", include_in_schema=False)
+    def built_in_asset(asset_path: str, request: Request) -> FileResponse:
+        # 内置素材受登录门禁保护：未登录一律 401，授权 / 素材能力另由 read_builtin_asset 判定。
+        if not _signed_in(request):
+            raise HTTPException(status_code=401, detail="请先登录后再访问该资源。")
+        return read_builtin_asset(asset_path, request)
+
+    # ------------------------------------------------------------------ #
     # 业务路由（/api/v1）——必须在 SPA catch-all 之前注册
     # ------------------------------------------------------------------ #
     app.include_router(auth_router, prefix="/api/v1")
@@ -1391,7 +1438,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(notification_router, prefix="/api/v1")
     app.include_router(security_router, prefix="/api/v1")
     app.include_router(security_panel_router, prefix="/api/v1")
-    app.include_router(system_access_router, prefix="/api/v1")
     app.include_router(system_backup_router, prefix="/api/v1")
     app.include_router(system_config_router, prefix="/api/v1")
     app.include_router(system_core_router, prefix="/api/v1")
@@ -1399,9 +1445,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(system_ops_router, prefix="/api/v1")
     app.include_router(system_setup_router, prefix="/api/v1")
     app.include_router(ui_config_router, prefix="/api/v1")
+    app.include_router(updates_router, prefix="/api/v1")
     app.include_router(voice_router, prefix="/api/v1")
     app.include_router(advisor_usage_router, prefix="/api/v1")
     app.include_router(ws_proxy_router, prefix="/api/v1")
+
+    # 3D Studio 数据面路由（displays 配对路由已随配对码机制移除）。
+    studio3d_plane.mount(app, app_settings)
 
     # 中间件顺序（后注册者在外层）：CSRF 内层、压缩 / 请求体门禁 / CORS 依次在外。
     app.add_middleware(
@@ -1434,6 +1484,41 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if static_dir.is_dir():
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
+    # 构建产物根资源（vite 输出）：JS/CSS 哈希分片、runtime 模块、PWA manifest / service worker。
+    # 不挂载的话这些请求会落进下方 SPA 回退、以 text/html 返回，浏览器会因 MIME 不符拒绝执行
+    # 模块 —— 表现为页面空白、`#app` 永不挂载。
+    frontend_dir = app_settings.frontend_dir
+    for mount_path, sub_dir in (
+        ("/assets", "assets"),
+        ("/modules", "modules"),
+    ):
+        directory = frontend_dir / sub_dir
+        if directory.is_dir():
+            app.mount(
+                mount_path,
+                StaticFiles(directory=str(directory)),
+                name=mount_path.strip("/"),
+            )
+
+    @app.get("/manifest.json", include_in_schema=False)
+    async def spa_manifest():
+        manifest = frontend_dir / "manifest.json"
+        if manifest.is_file():
+            return FileResponse(manifest, media_type="application/manifest+json")
+        raise HTTPException(status_code=404)
+
+    @app.get("/sw.js", include_in_schema=False)
+    async def spa_service_worker():
+        worker = frontend_dir / "sw.js"
+        if worker.is_file():
+            # Service worker 必须允许根作用域并禁止缓存，否则更新无法生效。
+            return FileResponse(
+                worker,
+                media_type="application/javascript",
+                headers={"Cache-Control": "no-store", "Service-Worker-Allowed": "/"},
+            )
+        raise HTTPException(status_code=404)
+
     # 可替换静态资源（平面图 / 图标 / 背景图 / 房间图 / 音效 / Logo）。
     # 与 Nest ServeStaticModule 的 fallthrough:false 一致：文件不存在直接 404，不落入 SPA。
     from .core.asset_paths import (
@@ -1463,11 +1548,37 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def _spa_index() -> Path:
         return app_settings.frontend_dir / "index.html"
 
-    @app.get("/", include_in_schema=False)
-    async def spa_root():
+    async def _page_license_blocked(request: Request) -> bool:
+        """当前页面路径对应的授权能力是否未放行（据此就地渲染授权恢复页）。"""
+        if not app_settings.license_required:
+            return False
+        feature = _page_license_feature(request.url.path)
+        service = getattr(request.app.state, "license_service", None)
+        if feature is None or service is None:
+            return False
+        try:
+            return not await asyncio.to_thread(service.allows, feature)
+        except Exception:  # noqa: BLE001 - 判定失败不阻塞外壳下发，交由前端门禁兜底
+            return False
+
+    async def _spa_shell(request: Request) -> HTMLResponse:
+        """统一 SPA 外壳出口。
+
+        授权未放行时给 ``<html>`` 打 ``data-license-blocked="1"``：前端据此在**原地址**就地
+        渲染授权恢复页，保留地址，授权恢复后重载即回到原页。
+        """
         index = _spa_index()
-        if index.is_file():
-            return HTMLResponse(index.read_text(encoding="utf-8"), headers={"Cache-Control": "no-store"})
+        if not index.is_file():
+            raise HTTPException(status_code=404)
+        html = index.read_text(encoding="utf-8")
+        if await _page_license_blocked(request):
+            html = html.replace("<html", '<html data-license-blocked="1"', 1)
+        return HTMLResponse(html, headers={"Cache-Control": "no-store"})
+
+    @app.get("/", include_in_schema=False)
+    async def spa_root(request: Request):
+        if _spa_index().is_file():
+            return await _spa_shell(request)
         return JSONResponse({"status": "ok", "service": "homeos", "version": version})
 
     #: Nest ``spaFallbackMiddleware`` 对所有方法生效（未匹配的任意方法都回退 index.html）
@@ -1479,10 +1590,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # 由统一异常处理器产出 { error: "Not Found", message: "请求的资源不存在", errorCode: "UNKNOWN" }。
         if request.url.path.startswith("/api/"):
             raise HTTPException(status_code=404)
-        index = _spa_index()
-        if index.is_file():
-            return HTMLResponse(index.read_text(encoding="utf-8"), headers={"Cache-Control": "no-store"})
-        raise HTTPException(status_code=404)
+        return await _spa_shell(request)
+
+    # ------------------------------------------------------------------ #
+    # 静态资源门禁 / SPA 外壳安全头（并入 homeos-3d main.py 的保护层）
+    # ------------------------------------------------------------------ #
+    # 注册在最外层：授权判定要在任何业务中间件之前短路，未登录请求不会触达下游。
+    studio_shell.install(
+        app,
+        app_settings,
+        is_authorized=lambda request: asyncio.to_thread(_signed_in, request),
+    )
 
     return app
 

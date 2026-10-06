@@ -195,12 +195,16 @@ def _secret(app: Any) -> str:
 
 
 async def resolve_ha_base_url(app: Any) -> str:
-    """当前 HA base URL（UI/DB 配置优先，``HA_URL`` 兜底）；未配置返回空串。"""
+    """当前 HA base URL（跟随连接器当前活跃端点，``HA_URL`` 兜底）；未配置返回空串。
+
+    必须用 ``load_active_ha_endpoints`` 而不是静态配置：内网不可达、连接器已切到外网时，
+    摄像头 WebRTC 信令再打到内网地址就会一直连不上。
+    """
     try:
-        from .ha_config import load_ha_endpoints  # noqa: PLC0415 - 延迟导入避免环
+        from .ha_config import load_active_ha_endpoints  # noqa: PLC0415 - 延迟导入避免环
 
         with app.state.database.session_factory() as session:
-            endpoints = load_ha_endpoints(session)
+            endpoints = load_active_ha_endpoints(session)
         return endpoints.ha_url_primary or ""
     except Exception:  # noqa: BLE001
         return ""

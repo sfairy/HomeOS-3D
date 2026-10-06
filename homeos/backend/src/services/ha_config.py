@@ -23,7 +23,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..core.app_config import load_raw_config
-from ..core.models import ProjectConfig
+from ..core.models import HAConnection, ProjectConfig
+from ..ha.endpoints import ENDPOINT_EXTERNAL
 
 
 @dataclass(frozen=True)
@@ -118,6 +119,39 @@ def load_ha_endpoints(session: Session) -> HaEndpoints:
     if fallback and fallback == primary:
         fallback = ""
     return HaEndpoints(ha_url_primary=primary, ha_url_fallback=fallback, token=token)
+
+
+def load_active_ha_endpoints(session: Session) -> HaEndpoints:
+    """在 :func:`load_ha_endpoints` 之上，把地址换成「连接器当前正在使用的那一侧」。
+
+    ``layout.haConfig`` / 环境变量给的是静态的「内网优先」配置，而 3D 连接器每次探测后会把
+    结果写回 ``ha_connections.active_endpoint``。语音 Assist、摄像头 WebRTC WS、安防事件
+    读取这些旁路消费者原来一律取 ``ha_url_primary``（内网），一旦内网不可达、连接器已经
+    切到外网，它们就会全部连不上 —— 而它们并不属于连接器，无法复用连接器的 ``client_for``。
+
+    这里统一以连接记录为准：连接器在用哪一侧，就把哪一侧当作 ``ha_url_primary``，另一侧
+    留作 ``ha_url_fallback``。没有连接记录（或记录里没有可用地址）时保持原行为。
+    令牌仍沿用 :func:`load_ha_endpoints` 的解析结果，避免这里再引入一条解密路径。
+    """
+    endpoints = load_ha_endpoints(session)
+    try:
+        connection = session.scalars(
+            select(HAConnection).where(HAConnection.is_active.is_(True)).limit(1)
+        ).first()
+    except Exception:  # noqa: BLE001 - 读不到连接记录时退回静态配置
+        return endpoints
+    if connection is None:
+        return endpoints
+    internal = normalize_ha_url(connection.base_url or '')
+    external = normalize_ha_url(connection.external_base_url or '')
+    use_external = str(connection.active_endpoint or '') == ENDPOINT_EXTERNAL and bool(external)
+    primary = external if use_external else (internal or external)
+    if not primary:
+        return endpoints
+    fallback = internal if primary == external else external
+    if fallback == primary:
+        fallback = ''
+    return HaEndpoints(ha_url_primary=primary, ha_url_fallback=fallback, token=endpoints.token)
 
 
 class HaEndpointSelector:

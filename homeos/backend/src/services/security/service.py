@@ -12,7 +12,7 @@ import httpx
 
 from ...core.app_config import load_raw_config
 from ...core.models import ProjectConfig
-from ..ha_config import load_ha_endpoints
+from ..ha_config import load_active_ha_endpoints
 from .config import load_security_config
 
 logger = logging.getLogger("homeos.security.service")
@@ -34,7 +34,8 @@ class SecurityService:
         import os
 
         with self._session_factory() as session:
-            endpoints = load_ha_endpoints(session)
+            # 跟随连接器的活跃端点，否则安防事件在「内网不可达已切外网」时会取不到。
+            endpoints = load_active_ha_endpoints(session)
             live_url = (
                 endpoints.ha_url_primary or os.getenv("HA_URL", "") or "http://localhost:8123"
             ).rstrip("/")
