@@ -318,6 +318,7 @@ export function createEnvironmentScene({
       compile: patchedOnBeforeCompile,
       key: patchedProgramCacheKey,
       source: sourceMaterial,
+      uniforms: patchUniforms,
     }),
       (material.onBeforeCompile = patchedOnBeforeCompile),
       (material.customProgramCacheKey = patchedProgramCacheKey),
@@ -862,6 +863,26 @@ export function createEnvironmentScene({
     preparePresentationMaterials: preparePresentationMaterials,
     retainRoot: retainRoot,
     releaseRoot: releaseRoot,
+    persistentMaterialKey(material) {
+      const existingPatch = patchesByMaterial.get(material);
+      if (
+        isDisposed ||
+        !existingPatch ||
+        set.size ||
+        options.value !== num ||
+        modeUniform.value !== targetModeAmount
+      )
+        return null;
+      const patchUniformsForMaterial = existingPatch.uniforms;
+      return [
+        modeUniform.value,
+        saturationUniform.value,
+        patchUniformsForMaterial.amount.value,
+        patchUniformsForMaterial.retain.value,
+        patchUniformsForMaterial.glow.value.toArray(),
+        patchUniformsForMaterial.lift.value.toArray(),
+      ];
+    },
     get isActive() {
       return !isDisposed && (isEnabled || modeUniform.value > 0);
     },

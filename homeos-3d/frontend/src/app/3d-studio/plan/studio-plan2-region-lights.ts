@@ -268,6 +268,7 @@ export function createRegionLightController({
   getRoot: getRoot,
   contactShadows: contactShadows = null,
   requestFrame: requestFrame = () => {},
+  reuseRendererMatrices: reuseRendererMatrices = false,
 }) {
   const registrationsByLight = new Map(),
     listenedNodeSet = new Set<EventTargetNodeLike>(),
@@ -323,6 +324,8 @@ export function createRegionLightController({
       volumeCacheHits: 0,
       shaderCompiles: 0,
       textureFloors: 0,
+      matrixUpdates: 0,
+      matrixReuseSkips: 0,
       disposed: false,
     };
   let rootObject = null,
@@ -809,9 +812,14 @@ export function createRegionLightController({
     !isDisposed && camera?.matrixWorld && (viewToWorldUniform.value = camera.matrixWorld);
   }
   function refreshWorldMatrices(matrixNode, readyNodeSet) {
+    if (readyNodeSet === null) {
+      stats.matrixReuseSkips++;
+      return;
+    }
     readyNodeSet.has(matrixNode) ||
       (matrixNode.parent && refreshWorldMatrices(matrixNode.parent, readyNodeSet),
       matrixNode.updateWorldMatrix(false, false),
+      stats.matrixUpdates++,
       readyNodeSet.add(matrixNode));
   }
   function prepareMaterials() {
@@ -821,7 +829,7 @@ export function createRegionLightController({
       ((rootObject = preparedRootObject), (shouldRescanStructure = true)),
       shouldRescanStructure && rebuildStructure());
   }
-  function sync(activeCamera, skipStructureScan = false) {
+  function sync(activeCamera, skipStructureScan = false, matricesUpToDate = false) {
     if (isDisposed) return;
     if (!skipStructureScan) {
       contactShadows?.sync();
@@ -837,14 +845,14 @@ export function createRegionLightController({
         : Math.min(1, Math.max(0, (performance.now() - motionFadeStartMs) / 280));
     (motionFadeProgress < 1 ? requestFrame() : (motionFadeStartMs = null), (stats.active = 0));
     let shouldUpdateUniforms = false;
-    const updatedNodeSet = new Set();
+    const updatedNodeSet = matricesUpToDate && !isMotionEnabled ? null : new Set();
     for (const [loopFloorId, loopRegistrations] of registrationsByFloorId) {
       const loopGroups = REGION_KINDS.map((groupKind) =>
           groupsByKey.get(loopFloorId + "\0" + groupKind),
         ),
         motionMatrix =
           isMotionEnabled && isMotionInstant ? motionTransformProvider?.(loopFloorId) : null;
-      isMotionEnabled && isMotionInstant && updatedNodeSet.clear();
+      isMotionEnabled && isMotionInstant && updatedNodeSet?.clear();
       for (const activeLightGroup of loopGroups) {
         (motionMatrix
           ? activeLightGroup.uniforms.plan2MotionToLayout.value.copy(motionMatrix)
@@ -1223,7 +1231,8 @@ export function createRegionLightController({
     }
   }
   function onBeforeRender(...renderArgs) {
-    (originalOnBeforeRender?.apply(this, renderArgs), sync(renderArgs[2]));
+    (originalOnBeforeRender?.apply(this, renderArgs),
+      sync(renderArgs[2], false, reuseRendererMatrices && scene.matrixWorldAutoUpdate === true));
   }
   const setFloorBrightness = (brightnessPercent) => {
     const brightnessRatio = clamp(coercedFiniteNumberOr(brightnessPercent, 100), 50, 150) / 100;
@@ -1277,6 +1286,50 @@ export function createRegionLightController({
     invalidate: markStructureDirty,
     setFloorBrightness: setFloorBrightness,
     setMotion: setMotion,
+    persistentKey(floorId = null) {
+      const contactShadowKey = contactShadows?.persistentKey(floorId);
+      if (
+        isDisposed ||
+        shouldRescanStructure ||
+        isMotionEnabled ||
+        motionFadeStartMs !== null ||
+        contactShadowKey == null
+      )
+        return null;
+      const excludedUniformNames = new Set([
+          "plan2ViewToWorld",
+          "plan2LightData",
+          "plan2ContactMap",
+          "plan2SurfaceMap",
+          "plan2SurfaceLookup",
+        ]),
+        normalizeUniformValue = (uniformValue) =>
+          Array.isArray(uniformValue)
+            ? uniformValue.map(normalizeUniformValue)
+            : uniformValue?.toArray
+              ? uniformValue.toArray()
+              : uniformValue;
+      return [
+        settings,
+        sceneStyleGain,
+        floorBrightnessUniform.value,
+        contactShadowKey,
+        [...groupsByKey]
+          .filter(
+            ([, lightGroup]) =>
+              floorId === null || !lightGroup.floorId || lightGroup.floorId === floorId,
+          )
+          .map(([groupKey, lightGroup]) => [
+            groupKey,
+            Object.entries(lightGroup.uniforms)
+              .filter(([uniformName]) => !excludedUniformNames.has(uniformName))
+              .map(([uniformName, uniform]) => [
+                uniformName,
+                normalizeUniformValue((uniform as { value?: any })?.value),
+              ]),
+          ]),
+      ];
+    },
     setPresentationGain(requestedPresentationGain) {
       const clampedPresentationGain = clamp(
         coercedFiniteNumberOr(requestedPresentationGain, 1),

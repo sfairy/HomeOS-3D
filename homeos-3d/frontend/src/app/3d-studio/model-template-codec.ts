@@ -1,7 +1,6 @@
+import { packModelTextures, restoreModelTextures } from "./model-texture-cache";
 
-
-const MODEL_TEMPLATE_REVISION =
-  "20261002-stone-slab-uv-sideboard-glass-double-door-v9";
+const MODEL_TEMPLATE_REVISION = "20260930-textures-v3";
 
 /** 模板里一个打包属性的最小结构。 */
 type PackedAttribute = {
@@ -27,10 +26,6 @@ type PackedGeometry = {
 /** 打包材质颜色时只挑 isColor 属性，并调用它的 toArray()。 */
 type ColorLike = { isColor?: boolean; toArray: () => number[] };
 
-/** 判定「材质是否还挂着贴图」所需的最小结构。 */
-type TextureLike = { isTexture?: boolean };
-
-
 export function modelTemplateKey(THREE, modelType, modelDefinition) {
   return JSON.stringify([MODEL_TEMPLATE_REVISION, THREE.REVISION, modelType, modelDefinition]);
 }
@@ -53,7 +48,30 @@ function packAttribute(attribute) {
     usage: attribute.usage ?? attribute.data?.usage,
   };
 }
-export function packModelTemplate(threeApi, { source: source, size: size }) {
+/** 只取几何体的包围盒/包围球，供模板落盘（可提前算好，避免 unpack 时再遍历）。 */
+function describeGeometryBounds(geometry) {
+  return {
+    box: geometry.boundingBox
+      ? [geometry.boundingBox.min.toArray(), geometry.boundingBox.max.toArray()]
+      : null,
+    sphere: geometry.boundingSphere
+      ? [geometry.boundingSphere.center.toArray(), geometry.boundingSphere.radius]
+      : null,
+  };
+}
+/** 遍历模型，按几何体 uuid 收集包围盒/包围球。 */
+export function captureModelTemplateBounds(source) {
+  const boundsByUuid = {};
+  return (
+    source.traverse((node) => {
+      node.geometry &&
+        !boundsByUuid[node.geometry.uuid] &&
+        (boundsByUuid[node.geometry.uuid] = describeGeometryBounds(node.geometry));
+    }),
+    boundsByUuid
+  );
+}
+export function packModelTemplate(threeApi, { source: source, size: size, bounds: bounds }) {
   const packedGeometries = {},
     packedMaterialColors = {},
     serializationMeta = {
@@ -67,6 +85,9 @@ export function packModelTemplate(threeApi, { source: source, size: size }) {
       nodes: {},
     };
   let totalAttributeBytes = 0;
+  const textureSet = new Set(),
+    packedTransforms = {},
+    materialIdByUuid = new Map();
   source.traverse((node) => {
     if (
       !["Group", "Object3D", "Mesh"].includes(node.type) ||
@@ -76,15 +97,25 @@ export function packModelTemplate(threeApi, { source: source, size: size }) {
       node.isBatchedMesh
     )
       throw Error("Not a static template");
-    if (node.material)
+    if (
+      ((packedTransforms[node.uuid] = {
+        position: node.position.toArray(),
+        quaternion: node.quaternion.toArray(),
+        scale: node.scale.toArray(),
+        order: node.rotation.order,
+      }),
+      node.material)
+    )
       for (const material of [].concat(node.material)) {
         if (
           !["MeshStandardMaterial", "MeshPhysicalMaterial", "MeshBasicMaterial"].includes(
             material.type,
-          ) ||
-          Object.values(material as Record<string, TextureLike>).some((value) => value?.isTexture)
+          )
         )
           throw Error("Material needs the original loader");
+        materialIdByUuid.set(material.uuid, material.id);
+        for (const materialValue of Object.values(material as Record<string, any>))
+          materialValue?.isTexture && textureSet.add(materialValue);
         packedMaterialColors[material.uuid] = Object.fromEntries(
           Object.entries(material as Record<string, ColorLike>)
             .filter(([, propertyValue]) => propertyValue?.isColor)
@@ -111,33 +142,32 @@ export function packModelTemplate(threeApi, { source: source, size: size }) {
       drawRange: geometry.drawRange,
       name: geometry.name,
       userData: geometry.userData,
-      box: geometry.boundingBox
-        ? [geometry.boundingBox.min.toArray(), geometry.boundingBox.max.toArray()]
-        : null,
-      sphere: geometry.boundingSphere
-        ? [geometry.boundingSphere.center.toArray(), geometry.boundingSphere.radius]
-        : null,
+      ...(bounds?.[geometry.uuid] || describeGeometryBounds(geometry)),
     }),
       (serializationMeta.geometries[geometry.uuid] = {}));
   });
+  const packedTextures = packModelTextures(textureSet, serializationMeta);
+  totalAttributeBytes += packedTextures.bytes;
   const serializedObject = source.toJSON(serializationMeta).object;
-  if (
-    Object.keys(serializationMeta.textures).length ||
-    Object.keys(serializationMeta.animations).length
-  )
-    throw Error("Non-static template");
+  if (Object.keys(serializationMeta.animations).length) throw Error("Non-static template");
   return {
     revision: MODEL_TEMPLATE_REVISION,
     three: threeApi.REVISION,
     size: size.toArray(),
     object: serializedObject,
-    materials: Object.values(serializationMeta.materials),
+    materials: Object.values(serializationMeta.materials as Record<string, any>).sort(
+      (materialA, materialB) => materialIdByUuid.get(materialA.uuid) - materialIdByUuid.get(materialB.uuid),
+    ),
     materialColors: packedMaterialColors,
     geometries: packedGeometries,
+    transforms: packedTransforms,
     bytes: totalAttributeBytes,
+    textures: Object.values(serializationMeta.textures),
+    textureImages: packedTextures.images,
+    textureMatrices: packedTextures.matrices,
   };
 }
-export function unpackModelTemplate(threeModule, template) {
+export function unpackModelTemplate(threeModule, template, decodedTextures = {}) {
   if (
     template?.revision !== MODEL_TEMPLATE_REVISION ||
     template.three !== threeModule.REVISION ||
@@ -149,8 +179,6 @@ export function unpackModelTemplate(threeModule, template) {
     materialByUuid: Record<string, { dispose: () => void }> = {},
     unpackAttribute = (packed) => {
       const sourceArray = packed?.array,
-
-
         sourceArrayLength = sourceArray?.length;
       if (
         !ArrayBuffer.isView(sourceArray) ||
@@ -205,7 +233,9 @@ export function unpackModelTemplate(threeModule, template) {
           )));
     }
     const objectLoader = new threeModule.ObjectLoader();
-    Object.assign(materialByUuid, objectLoader.parseMaterials(template.materials, {}));
+    if ((template.textures || []).some((texture) => !decodedTextures[texture.uuid]))
+      throw Error("Textures must be decoded first");
+    Object.assign(materialByUuid, objectLoader.parseMaterials(template.materials, decodedTextures));
     for (const [materialUuid, colors] of Object.entries(template.materialColors || {}))
       for (const [colorKey, color] of Object.entries(colors))
         materialByUuid[materialUuid][colorKey].fromArray(color);
@@ -236,16 +266,53 @@ export function unpackModelTemplate(threeModule, template) {
       {},
     );
     return (
+      loadedSource.traverse((restoredNode) => {
+        const packedTransform = template.transforms?.[restoredNode.uuid];
+        if (
+          !packedTransform ||
+          packedTransform.position?.length !== 3 ||
+          packedTransform.quaternion?.length !== 4 ||
+          packedTransform.scale?.length !== 3 ||
+          ![
+            ...packedTransform.position,
+            ...packedTransform.quaternion,
+            ...packedTransform.scale,
+          ].every(Number.isFinite)
+        )
+          throw Error("Invalid transform");
+        ((restoredNode.rotation.order = packedTransform.order),
+          restoredNode.position.fromArray(packedTransform.position),
+          restoredNode.quaternion.fromArray(packedTransform.quaternion),
+          restoredNode.scale.fromArray(packedTransform.scale));
+      }),
       loadedSource.updateMatrixWorld(true),
       {
         source: loadedSource,
         size: new threeModule.Vector3().fromArray(template.size),
+        bounds: captureModelTemplateBounds(loadedSource),
       }
     );
   } catch (unpackError) {
     throw (
       Object.values(geometryByUuid).forEach((cachedGeometry) => cachedGeometry.dispose()),
       Object.values(materialByUuid).forEach((cachedMaterial) => cachedMaterial.dispose()),
+      unpackError
+    );
+  }
+}
+export async function restoreModelTemplate(threeModule, template, options: any = {}) {
+  if (template?.revision !== MODEL_TEMPLATE_REVISION || template.three !== threeModule.REVISION)
+    throw Error("Invalid template");
+  if (!template.textures?.length) return unpackModelTemplate(threeModule, template);
+  const decodedTextures = await restoreModelTextures(threeModule, template, options);
+  if (!decodedTextures) return null;
+  try {
+    return options.valid && !options.valid()
+      ? (Object.values(decodedTextures).forEach((decodedTexture) => decodedTexture.dispose()), null)
+      : unpackModelTemplate(threeModule, template, decodedTextures);
+  } catch (unpackError) {
+    throw (
+      Object.values(decodedTextures).forEach((decodedTexture) => decodedTexture.dispose()),
       unpackError
     );
   }

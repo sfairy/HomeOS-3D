@@ -202,9 +202,15 @@ export function createAirerModel(three, airerConfig, palette) {
           );
     }
   }
+  (airerGroup.scale.set(dimensions.width / 2.24, 1, dimensions.depth / 0.57),
+    updateRackPose(dimensions.airerPreview));
+  for (const restShadowNode of [
+    movingRack,
+    ...rackSides.flatMap(({ arms, pins }) => [...arms, ...pins]),
+  ])
+    (restShadowNode.updateMatrix(),
+      (restShadowNode.userData.contactShadowRestMatrix = restShadowNode.matrix.toArray()));
   return (
-    airerGroup.scale.set(dimensions.width / 2.24, 1, dimensions.depth / 0.57),
-    updateRackPose(dimensions.airerPreview),
     (airerGroup.userData.airerRig = {
       preview: dimensions.airerPreview,
       pose: updateRackPose,

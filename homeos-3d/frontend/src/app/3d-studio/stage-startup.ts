@@ -1,3 +1,7 @@
+import { createGeometryPersistentCache } from "./geometry-persistent-cache";
+import { createContactShadowPersistentCache } from "./plan/contact-shadow-persistent-cache";
+import { contactShadowPreparationKey } from "./plan/contact-shadow-cache-scope";
+import { createReflectionPersistentCache } from "./reflection/reflection-persistent-cache";
 import {
   createScenePersistentCache,
   scenePreparationKey,
@@ -24,14 +28,44 @@ function beginStageStartup({
     cache = createCache({
       env: env,
     }),
-    preparationKey = scenePreparationKey(
-      env.document.body?.dataset.i3dLightHistoryScope,
-      projectId,
-      sceneId,
+    lightHistoryScope = env.document.body?.dataset.i3dLightHistoryScope,
+    studioAppSource =
       env.document.querySelector<HTMLScriptElement>('script[src*="/3d-studio/studio-app.js"]')
         ?.src || "",
-    );
+    preparationKey = scenePreparationKey(lightHistoryScope, projectId, sceneId, studioAppSource);
   cache.preload(preparationKey);
+  const geometryCache = createGeometryPersistentCache({
+    env: env,
+    key: preparationKey,
+  });
+  geometryCache.preload();
+  const furnitureCache = createGeometryPersistentCache({
+    env: env,
+    key: preparationKey ? JSON.stringify(["furniture-batches-v1", preparationKey]) : "",
+  });
+  furnitureCache.preload();
+  const shadowCacheKey = contactShadowPreparationKey(
+      lightHistoryScope,
+      projectId,
+      sceneId,
+      studioAppSource,
+      {
+        legacy: searchParams.get("shadow-cache") === "legacy",
+      },
+    ),
+    shadowCache = createContactShadowPersistentCache({
+      env: env,
+      key: shadowCacheKey,
+    });
+  shadowCache.preload();
+  const reflectionCache =
+    searchParams.get("lighting") === "standard"
+      ? null
+      : createReflectionPersistentCache({
+          env: env,
+          key: preparationKey,
+        });
+  reflectionCache?.preload();
   const preparationResponse = env.fetch("/api/v1" + scenePath, {
     cache: "no-store",
     credentials: "same-origin",
@@ -46,6 +80,10 @@ function beginStageStartup({
       module: stageModule,
       cache: cache,
       key: preparationKey,
+      geometryCache: geometryCache,
+      furnitureCache: furnitureCache,
+      shadowCache: shadowCache,
+      reflectionCache: reflectionCache,
     }
   );
 }

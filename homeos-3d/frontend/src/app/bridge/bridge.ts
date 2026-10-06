@@ -83,6 +83,19 @@ export async function requestInteraction3dAccess() {
     clearTimeout(accessTimeoutId);
   }
 }
+/** runtime 模块的动态 import 缓存：并发挂载只加载一次；加载失败时清空缓存，下次可重试。 */
+let interaction3dRuntimePromise;
+function loadInteraction3dRuntime() {
+  return (
+    interaction3dRuntimePromise ||
+      (interaction3dRuntimePromise = import("/api/v1/modules/interaction3d/core/runtime.js").catch(
+        (runtimeImportError) => {
+          throw ((interaction3dRuntimePromise = null), runtimeImportError);
+        },
+      )),
+    interaction3dRuntimePromise
+  );
+}
 let accessMonitor;
 const editorViewsById = new Map<string, Interaction3dEditorView>(),
   viewListenersById = new Map<string, Set<(viewError?: any) => void>>();
@@ -248,8 +261,7 @@ export function renderInteraction3d(
     isMounting = true;
     const operationToken = ++operationCount;
     try {
-      const runtimeModule =
-        await import("/api/v1/modules/interaction3d/core/runtime.js");
+      const runtimeModule = await loadInteraction3dRuntime();
       if (isDisposed || operationToken !== operationCount || document.hidden) return;
       ((styleLinkElement = document.createElement("link")),
         (styleLinkElement.rel = "stylesheet"),
@@ -274,8 +286,20 @@ export function renderInteraction3d(
         (hostElement.dataset.access = "allowed"),
         hostElement.setAttribute("aria-busy", "false"),
         (isMounted = true));
-    } catch {
+    } catch (runtimeLoadError) {
       if (!isDisposed && operationToken === operationCount) {
+        try {
+          window.HomeOSLog?.error(
+            runtimeLoadError,
+            {
+              projectId: options.document?.projectId || "",
+              componentId: component.id,
+              phase: "interaction3d-runtime-load",
+              code: "INTERACTION3D_RUNTIME_LOAD_FAILED",
+            },
+            "3D 户型运行模块载入失败",
+          );
+        } catch {}
         (styleLinkElement?.remove(), (styleLinkElement = null));
         const errorElement = document.createElement("div");
         ((errorElement.className = "i3d-access-pending"),

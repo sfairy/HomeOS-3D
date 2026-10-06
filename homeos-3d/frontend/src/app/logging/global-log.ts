@@ -5,6 +5,71 @@ const LEVEL_LABELS = {
   warning: "警告",
   error: "错误",
 };
+const CONTEXT_LABELS = {
+  requestId: "请求编号",
+  path: "请求路径",
+  method: "请求方法",
+  status: "响应状态",
+  durationMs: "耗时（毫秒）",
+  page: "页面",
+  projectId: "仪表盘编号",
+  componentId: "控件编号",
+  entityId: "实体",
+  service: "服务",
+  displayId: "展示设备编号",
+  displayName: "展示设备名称",
+  actor: "操作账号",
+  userAgent: "浏览器信息",
+  code: "原因代码",
+  line: "行号",
+  column: "列号",
+  phase: "发生阶段",
+};
+const EVENT_LABELS = {
+  startup: "程序启动",
+  ready: "程序就绪",
+  shutdown: "程序停止",
+  accepted: "建立连接",
+  rejected: "拒绝或终止连接",
+  disconnected: "连接断开",
+  subscribe: "订阅实体",
+  "camera-stream": "摄像头持续传输",
+  "device-control": "设备控制",
+  "component-action": "控件操作",
+  "runtime-operation": "显示端操作",
+  "editor-operation": "编辑器操作",
+  "save-draft": "仪表盘保存",
+  "display-refresh": "仪表盘刷新",
+  "studio-save": "户型草稿保存",
+  "studio-exit-save": "退出前保存户型",
+  "studio-export": "户型导出",
+  "studio-model-load": "3D 模型加载",
+  "studio-webgl-init": "3D 图形初始化",
+  "studio-webgl-context": "3D 图形上下文",
+  "studio-light-precompile": "灯光材质提前准备",
+  "studio-model-precompile": "模型材质提前准备",
+  "studio-initial-precompile": "首屏材质提前准备",
+  "studio-shadow-atlas": "聚光灯阴影图集生成",
+  "studio-light-cache": "光照缓存生成",
+  "studio-light-cache-restore": "光照缓存恢复",
+  "interaction3d-cache-write": "3D 缓存写入",
+  "interaction3d-settled-cache": "3D 稳定画面缓存",
+  "interaction3d-lifecycle": "3D 运行生命周期",
+  "websocket-reconnected": "实时连接恢复",
+  "websocket-disconnected": "实时连接断开",
+  "websocket-message": "实时消息处理",
+  "history-timeout": "历史曲线超时",
+};
+function formatContextEntry(contextKey, contextValue) {
+  const eventLabel = contextKey === "phase" ? EVENT_LABELS[contextValue] : null;
+  return (
+    (CONTEXT_LABELS[contextKey] || contextKey) +
+    "（" +
+    contextKey +
+    "）：" +
+    (eventLabel ? eventLabel + "（" + contextValue + "）" : contextValue)
+  );
+}
 function formatTimestamp(timestamp) {
   const parsedDate = new Date(timestamp);
   return Number.isNaN(parsedDate.getTime())
@@ -88,7 +153,7 @@ export function setupGlobalLog({ api: apiRequest }) {
         const detailsPreElement = document.createElement("pre");
         ((detailsPreElement.textContent = [
           ...Object.entries(logEntry.context || {}).map(
-            ([detailKey, detailValue]) => detailKey + ": " + detailValue,
+            ([detailKey, detailValue]) => formatContextEntry(detailKey, detailValue),
           ),
           logEntry.details || "",
         ]

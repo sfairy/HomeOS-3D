@@ -426,11 +426,12 @@ export function createFanModel(three, mergeGeometries, options, theme) {
   }
   const fan = buildFan(palette),
     dimensions = fanDimensions(options);
-  return (
-    fan.setHeight(dimensions.fanHeight),
+  (fan.setHeight(dimensions.fanHeight),
     fan.setScale(dimensions.fanScale),
     (fan.yaw.userData.fanPart = "yaw"),
-    (fan.rotor.userData.fanPart = "rotor"),
-    fan.root
-  );
+    (fan.rotor.userData.fanPart = "rotor"));
+  for (const restShadowNode of [fan.yaw, fan.rotor])
+    (restShadowNode.updateMatrix(),
+      (restShadowNode.userData.contactShadowRestMatrix = restShadowNode.matrix.toArray()));
+  return fan.root;
 }

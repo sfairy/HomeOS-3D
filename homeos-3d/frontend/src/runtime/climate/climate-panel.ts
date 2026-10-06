@@ -931,8 +931,7 @@ export function createClimatePanel({
         !isControllable ||
         (!deviceState.turnOnSupported && !deviceState.modes.some((modeId) => modeId !== "off")) ||
         (deviceState.on && !deviceState.waterHeater && !deviceState.modes.includes("off"))),
-      !deviceState.waterHeater &&
-        !deviceState.purifier &&
+      deviceState.waterHeater ||
         (powerButton.disabled =
           !isControllable || (deviceState.on ? !deviceState.canTurnOff : !deviceState.canTurnOn)),
       deviceState.waterHeater &&

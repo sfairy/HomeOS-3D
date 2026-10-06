@@ -33,7 +33,7 @@ function packTilesIntoAtlas(tiles, atlasSize, gutter) {
   }
   return placed;
 }
-function packSpotShadowAtlasTiles(
+export function packSpotShadowAtlasTiles(
   tileSizes = [],
   maxAtlasSize = 4096,
   tileGutter = DEFAULT_TILE_GUTTER,
@@ -105,13 +105,13 @@ function isShadowableMaterial(material) {
   );
 }
 function buildAtlasFragmentChunk() {
-  return "\n#if NUM_SPOT_LIGHTS > 0\n  uniform sampler2D userSpotShadowAtlas;\n  uniform float userSpotShadowAtlasEnabled;\n  uniform vec4 userSpotShadowRect[ NUM_SPOT_LIGHTS ];\n  uniform vec4 userSpotShadowParams[ NUM_SPOT_LIGHTS ];\n  varying vec4 vUserSpotShadowCoord[ NUM_SPOT_LIGHTS ];\n\n  float getUserSpotAtlasShadow( vec4 atlasRect, vec4 shadowParams, vec4 shadowCoord ) {\n    if ( userSpotShadowAtlasEnabled < 0.5 || shadowParams.z < 0.5 ) return 1.0;\n    shadowCoord.xyz /= shadowCoord.w;\n    shadowCoord.z += shadowParams.x;\n    bool inFrustum = shadowCoord.x >= 0.0 && shadowCoord.x <= 1.0\n      && shadowCoord.y >= 0.0 && shadowCoord.y <= 1.0;\n    if ( ! inFrustum || shadowCoord.z > 1.0 ) return 1.0;\n    vec2 atlasUv = atlasRect.xy + clamp( shadowCoord.xy, 0.0, 1.0 ) * atlasRect.zw;\n    vec2 distribution = texture2D( userSpotShadowAtlas, atlasUv ).rg;\n    float mean = distribution.x;\n    // The stock VSM Chebyshev tail turns half-float depth steps from a\n    // 256px local-light map into several visible contour rings. Preserve the\n    // authored VSM blur, but use its deviation only to size one bounded edge\n    // transition. This keeps the same single texture sample and removes the\n    // long probability tail that made furniture shadows look layered.\n    float softness = clamp( abs( distribution.y ) * 0.35, 0.0007, 0.004 );\n    // A slope-scaled receiver guard keeps the newly bounded edge from\n    // exposing quantized self-shadow stripes on cabinet fronts and tabletops.\n    // It changes only the depth comparison, not the map resolution or sample\n    // count, and is capped tightly so real contact shadows stay attached.\n    // Cover the complete soft transition at equal depth, then add only a\n    // small slope allowance. This prevents the half-float map's depth bands\n    // from reappearing on large floors or through transparent glass, while\n    // keeping the allowance proportional to the authored penumbra.\n    float receiverGuard = softness + clamp( fwidth( shadowCoord.z ) * 1.5, 0.0002, 0.0015 );\n    #ifdef USE_REVERSED_DEPTH_BUFFER\n      float occludedDistance = mean - shadowCoord.z;\n    #else\n      float occludedDistance = shadowCoord.z - mean;\n    #endif\n    // The atlas contains only solid architectural occluders. Once a receiver\n    // is safely behind a wall, collapse the remaining VSM depth transition\n    // quickly instead of letting it extend through nearby cabinet backs and\n    // reveal half-float depth rows. The authored blur in atlas UV space still\n    // keeps the wall silhouette soft; this only removes light bleeding behind\n    // the blocker. Equality and the complete receiver guard remain lit.\n    float blockerTransition = max( softness * 0.5, 0.00035 );\n    float shadow = 1.0 - smoothstep(\n      receiverGuard,\n      receiverGuard + blockerTransition,\n      occludedDistance\n    );\n    return mix( 1.0, shadow, shadowParams.y );\n  }\n#endif\n";
+  return "\n#if NUM_SPOT_LIGHTS > 0\n  uniform sampler2D userSpotShadowAtlas;\n  uniform float userSpotShadowAtlasEnabled;\n  #if NUM_SPOT_LIGHTS > USER_SPOT_SHADOW_VERTEX_LIMIT\n    uniform highp sampler2D userSpotShadowData;\n    varying vec4 vUserShadowWorldPosition;\n    varying vec3 vUserShadowWorldNormal;\n    vec4 userSpotShadowValue( int slot, int column ) {\n      return texelFetch( userSpotShadowData, ivec2( column, slot ), 0 );\n    }\n  #else\n    uniform vec4 userSpotShadowRect[ NUM_SPOT_LIGHTS ];\n    uniform vec4 userSpotShadowParams[ NUM_SPOT_LIGHTS ];\n    varying vec4 vUserSpotShadowCoord[ NUM_SPOT_LIGHTS ];\n  #endif\n\n  float getUserSpotAtlasShadow( vec4 atlasRect, vec4 shadowParams, vec4 shadowCoord ) {\n    if ( userSpotShadowAtlasEnabled < 0.5 || shadowParams.z < 0.5 ) return 1.0;\n    shadowCoord.xyz /= shadowCoord.w;\n    shadowCoord.z += shadowParams.x;\n    bool inFrustum = shadowCoord.x >= 0.0 && shadowCoord.x <= 1.0\n      && shadowCoord.y >= 0.0 && shadowCoord.y <= 1.0;\n    if ( ! inFrustum || shadowCoord.z > 1.0 ) return 1.0;\n    vec2 atlasUv = atlasRect.xy + clamp( shadowCoord.xy, 0.0, 1.0 ) * atlasRect.zw;\n    vec2 distribution = texture2D( userSpotShadowAtlas, atlasUv ).rg;\n    float mean = distribution.x;\n    // The stock VSM Chebyshev tail turns half-float depth steps from a\n    // 256px local-light map into several visible contour rings. Preserve the\n    // authored VSM blur, but use its deviation only to size one bounded edge\n    // transition. This keeps the same single texture sample and removes the\n    // long probability tail that made furniture shadows look layered.\n    float softness = clamp( abs( distribution.y ) * 0.35, 0.0007, 0.004 );\n    // A slope-scaled receiver guard keeps the newly bounded edge from\n    // exposing quantized self-shadow stripes on cabinet fronts and tabletops.\n    // It changes only the depth comparison, not the map resolution or sample\n    // count, and is capped tightly so real contact shadows stay attached.\n    // Cover the complete soft transition at equal depth, then add only a\n    // small slope allowance. This prevents the half-float map's depth bands\n    // from reappearing on large floors or through transparent glass, while\n    // keeping the allowance proportional to the authored penumbra.\n    float receiverGuard = softness + clamp( fwidth( shadowCoord.z ) * 1.5, 0.0002, 0.0015 );\n    #ifdef USE_REVERSED_DEPTH_BUFFER\n      float occludedDistance = mean - shadowCoord.z;\n    #else\n      float occludedDistance = shadowCoord.z - mean;\n    #endif\n    // The atlas contains only solid architectural occluders. Once a receiver\n    // is safely behind a wall, collapse the remaining VSM depth transition\n    // quickly instead of letting it extend through nearby cabinet backs and\n    // reveal half-float depth rows. The authored blur in atlas UV space still\n    // keeps the wall silhouette soft; this only removes light bleeding behind\n    // the blocker. Equality and the complete receiver guard remain lit.\n    float blockerTransition = max( softness * 0.5, 0.00035 );\n    float shadow = 1.0 - smoothstep(\n      receiverGuard,\n      receiverGuard + blockerTransition,\n      occludedDistance\n    );\n    return mix( 1.0, shadow, shadowParams.y );\n  }\n#endif\n";
 }
 function buildAtlasVertexParsChunk() {
-  return "\n#if NUM_SPOT_LIGHTS > 0\n  uniform mat4 userSpotShadowMatrix[ NUM_SPOT_LIGHTS ];\n  uniform vec4 userSpotShadowParams[ NUM_SPOT_LIGHTS ];\n  varying vec4 vUserSpotShadowCoord[ NUM_SPOT_LIGHTS ];\n#endif\n";
+  return "\n#if NUM_SPOT_LIGHTS > 0\n  #if NUM_SPOT_LIGHTS > USER_SPOT_SHADOW_VERTEX_LIMIT\n    varying vec4 vUserShadowWorldPosition;\n    varying vec3 vUserShadowWorldNormal;\n  #else\n    uniform mat4 userSpotShadowMatrix[ NUM_SPOT_LIGHTS ];\n    uniform vec4 userSpotShadowParams[ NUM_SPOT_LIGHTS ];\n    varying vec4 vUserSpotShadowCoord[ NUM_SPOT_LIGHTS ];\n  #endif\n#endif\n";
 }
 function buildAtlasVertexChunk() {
-  return "\n#if NUM_SPOT_LIGHTS > 0\n  vec3 userShadowWorldNormal = inverseTransformDirection( transformedNormal, viewMatrix );\n  vec4 userShadowWorldPosition;\n  #pragma unroll_loop_start\n  for ( int i = 0; i < NUM_SPOT_LIGHTS; i ++ ) {\n    userShadowWorldPosition = worldPosition + vec4( userShadowWorldNormal * userSpotShadowParams[ i ].w, 0.0 );\n    vUserSpotShadowCoord[ i ] = userSpotShadowMatrix[ i ] * userShadowWorldPosition;\n  }\n  #pragma unroll_loop_end\n#endif\n";
+  return "\n#if NUM_SPOT_LIGHTS > 0\n  #if NUM_SPOT_LIGHTS > USER_SPOT_SHADOW_VERTEX_LIMIT\n    vUserShadowWorldPosition = worldPosition;\n    vUserShadowWorldNormal = inverseTransformDirection( transformedNormal, viewMatrix );\n  #else\n    vec3 userShadowWorldNormal = inverseTransformDirection( transformedNormal, viewMatrix );\n    vec4 userShadowWorldPosition;\n    #pragma unroll_loop_start\n    for ( int i = 0; i < NUM_SPOT_LIGHTS; i ++ ) {\n      userShadowWorldPosition = worldPosition + vec4( userShadowWorldNormal * userSpotShadowParams[ i ].w, 0.0 );\n      vUserSpotShadowCoord[ i ] = userSpotShadowMatrix[ i ] * userShadowWorldPosition;\n    }\n    #pragma unroll_loop_end\n  #endif\n#endif\n";
 }
 /** 定位灯光着色器里「聚光灯直接光」那一段分支，返回 [start, end) 半开区间。
  *
@@ -135,7 +135,7 @@ function spotLightBlockRange(lightsShader) {
     end: nextLightBlock >= 0 ? nextLightBlock : spotEndif + "#endif".length,
   };
 }
-function guardZeroContributionSpotLights(lightsShader) {
+export function guardZeroContributionSpotLights(lightsShader) {
   const blockRange = spotLightBlockRange(lightsShader),
     directLightCall =
       "RE_Direct( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );",
@@ -157,7 +157,7 @@ function patchLightsFragmentBegin(THREE) {
   const spotShadowLoopSnippet =
       "\n\t\t#if defined( USE_SHADOWMAP ) && ( UNROLLED_LOOP_INDEX < NUM_SPOT_LIGHT_SHADOWS )",
     atlasShadowPatch =
-      "\n    #if defined( USE_USER_SPOT_SHADOW_ATLAS )\n      directLight.color *= ( directLight.visible && receiveShadow )\n        ? getUserSpotAtlasShadow( userSpotShadowRect[ i ], userSpotShadowParams[ i ], vUserSpotShadowCoord[ i ] )\n        : 1.0;\n    #endif\n",
+      "\n    #if defined( USE_USER_SPOT_SHADOW_ATLAS )\n    {\n      #if NUM_SPOT_LIGHTS > USER_SPOT_SHADOW_VERTEX_LIMIT\n        // A fixed pair of interpolants avoids the per-light varying limit.\n        // Float32 data also avoids moving that limit to fragment uniforms.\n        vec4 userShadowRect = userSpotShadowValue( UNROLLED_LOOP_INDEX, 4 );\n        vec4 userShadowParams = userSpotShadowValue( UNROLLED_LOOP_INDEX, 5 );\n        mat4 userShadowMatrix = mat4( userSpotShadowValue( UNROLLED_LOOP_INDEX, 0 ), userSpotShadowValue( UNROLLED_LOOP_INDEX, 1 ),\n          userSpotShadowValue( UNROLLED_LOOP_INDEX, 2 ), userSpotShadowValue( UNROLLED_LOOP_INDEX, 3 ) );\n        // Keep the interpolated vertex normal unnormalized, preserving bias.\n        vec4 userSpotShadowCoord = userShadowMatrix *\n          ( vUserShadowWorldPosition + vec4( vUserShadowWorldNormal * userShadowParams.w, 0.0 ) );\n      #else\n        vec4 userShadowRect = userSpotShadowRect[ i ];\n        vec4 userShadowParams = userSpotShadowParams[ i ];\n        vec4 userSpotShadowCoord = vUserSpotShadowCoord[ i ];\n      #endif\n      directLight.color *= ( directLight.visible && receiveShadow )\n        ? getUserSpotAtlasShadow( userShadowRect, userShadowParams, userSpotShadowCoord )\n        : 1.0;\n    }\n    #endif\n",
     lightsFragmentBegin = THREE.ShaderChunk.lights_fragment_begin;
   if (!lightsFragmentBegin.includes(spotShadowLoopSnippet))
     throw new Error("当前 Three.js 灯光 Shader 与阴影图集不兼容。");
@@ -222,15 +222,29 @@ export function createSpotShadowAtlasController({
       userSpotShadowParams: {
         value: [],
       },
+      userSpotShadowData: {
+        value: null,
+      },
     },
+    // 每盏聚光灯默认要占用 5 个 varying（矩阵 4 列 + 参数 vec4），顶点着色器能同时表达的
+    // 灯数上限就是「可用 varying 向量数」减去基础骨架预留的余量。超过这个上限时改用
+    // sampler2D(texelFetch) 搬运参数，把顶点 stage 的 varying 压到固定的两个。
+    glContext = renderer.getContext?.(),
+    maxVaryingVectors = toPositiveInt(
+      glContext?.getParameter?.(glContext.MAX_VARYING_VECTORS),
+      16,
+    ),
+    maxVertexVaryingLights = Math.max(0, maxVaryingVectors - 16),
+    sharedDefinesChunk =
+      "\n#ifndef USE_USER_SPOT_SHADOW_ATLAS\n  #define USE_USER_SPOT_SHADOW_ATLAS 1\n#endif\n#ifndef USER_SPOT_SHADOW_VERTEX_LIMIT\n  #define USER_SPOT_SHADOW_VERTEX_LIMIT " +
+      maxVertexVaryingLights +
+      "\n#endif\n",
     patchedLightsFragment = patchLightsFragmentBegin(three),
     entryByLightKey = new Map();
   let atlasTarget = null,
     scratchTarget = null,
     preparedMaterialSet = new WeakSet(),
     pendingRoot = null,
-
-
     buildTimer: ReturnType<typeof setTimeout> | number = 0,
     revision = 0,
     isBuilding = false,
@@ -238,67 +252,129 @@ export function createSpotShadowAtlasController({
     isDisposed = false,
     isWebglLost = false,
     isEnabled = true,
+    isBudgetAvailable = true,
+    shadowDataTexture = null,
     syncedLights = null,
     syncedEntries = [],
     previousLights = [],
     previousEntries = [];
   const scratchMatrix = new three.Matrix4(),
-    scratchVector = new three.Vector4(),
-    lightIndex = syncBeforeRender ? createRenderLightIndex() : null;
-  let lastLightIndexStats = "";
+    scratchVector = new three.Vector4();
+  let lightIndex = syncBeforeRender ? createRenderLightIndex() : null,
+    lastLightIndexStats = "";
+  /**
+   * 参数灯数超出 varying 上限时，把矩阵/rect/params 打包进 6 列 Float32 数据纹理。
+   * 行号就是灯槽位，列 0..3 是矩阵列、4 是 rect、5 是 params，供顶点与片元 texelFetch。
+   */
+  function updateShadowDataTexture() {
+    const matrixValues = uniforms.userSpotShadowMatrix.value;
+    if (matrixValues.length <= maxVertexVaryingLights) return;
+    const textureHeight = nextPowerOfTwo(matrixValues.length);
+    (!shadowDataTexture || shadowDataTexture.image.height < textureHeight) &&
+      (shadowDataTexture?.dispose(),
+      (shadowDataTexture = new three.DataTexture(
+        new Float32Array(6 * textureHeight * 4),
+        6,
+        textureHeight,
+        three.RGBAFormat,
+        three.FloatType,
+      )),
+      (shadowDataTexture.minFilter = shadowDataTexture.magFilter = three.NearestFilter),
+      (shadowDataTexture.generateMipmaps = false),
+      (shadowDataTexture.name = "HomeOS spot shadow parameters"),
+      (uniforms.userSpotShadowData.value = shadowDataTexture));
+    const data = shadowDataTexture.image.data,
+      rectValues = uniforms.userSpotShadowRect.value,
+      paramValues = uniforms.userSpotShadowParams.value;
+    for (let lightCursor = 0; lightCursor < matrixValues.length; lightCursor++)
+      (matrixValues[lightCursor].toArray(data, lightCursor * 24),
+        rectValues[lightCursor].toArray(data, lightCursor * 24 + 16),
+        paramValues[lightCursor].toArray(data, lightCursor * 24 + 20));
+    shadowDataTexture.needsUpdate = true;
+  }
+  /**
+   * 顺着材质来源链判断是否已经挂过图集补丁。共享材质会被克隆、克隆体又会再被引用，
+   * 只看单层 environmentSourceMaterial 会漏判，于是这里沿 runtimeSourceMaterial /
+   * environmentSourceMaterial 一路回溯，命中即说明当前材质复用了已准备好的着色器。
+   */
+  function materialUsesPreparedSource(material) {
+    const visited = new Set();
+    for (let current = material; current && !visited.has(current);) {
+      if ((visited.add(current), preparedMaterialSet.has(current))) return true;
+      current = current.runtimeSourceMaterial || current.environmentSourceMaterial;
+    }
+    return false;
+  }
+  function buildMaterialDefines(material) {
+    const defines = {
+      ...(material.defines || {}),
+      USE_USER_SPOT_SHADOW_ATLAS: 1,
+      USER_SPOT_SHADOW_VERTEX_LIMIT: maxVertexVaryingLights,
+    };
+    return (
+      syncBeforeRender && material.isMeshStandardMaterial && (defines.HB_SKIP_ZERO_SPOT_LIGHT = 1),
+      defines
+    );
+  }
   function setAtlasEnabled(enabled) {
     uniforms.userSpotShadowAtlasEnabled.value =
-      enabled && isEnabled && entryByLightKey.size ? 1 : 0;
+      enabled && isEnabled && isBudgetAvailable && entryByLightKey.size ? 1 : 0;
   }
   function prepareMaterial(materialToPrepare) {
     if (!isShadowableMaterial(materialToPrepare) || preparedMaterialSet.has(materialToPrepare))
       return;
-    if (
-      materialToPrepare.environmentSourceMaterial &&
-      preparedMaterialSet.has(materialToPrepare.environmentSourceMaterial) &&
-      materialToPrepare.defines?.USE_USER_SPOT_SHADOW_ATLAS === 1
-    ) {
-      preparedMaterialSet.add(materialToPrepare);
+    if (materialUsesPreparedSource(materialToPrepare)) {
+      ((materialToPrepare.defines = buildMaterialDefines(materialToPrepare)),
+        (materialToPrepare.needsUpdate = true),
+        preparedMaterialSet.add(materialToPrepare));
       return;
     }
     preparedMaterialSet.add(materialToPrepare);
     const previousOnBeforeCompile = materialToPrepare.onBeforeCompile,
       previousCacheKey = materialToPrepare.customProgramCacheKey?.bind(materialToPrepare);
-    ((materialToPrepare.defines = {
-      ...(materialToPrepare.defines || {}),
-      USE_USER_SPOT_SHADOW_ATLAS: 1,
-    }),
-      syncBeforeRender &&
-        materialToPrepare.isMeshStandardMaterial &&
-        (materialToPrepare.defines.HB_SKIP_ZERO_SPOT_LIGHT = 1),
+    ((materialToPrepare.defines = buildMaterialDefines(materialToPrepare)),
       (materialToPrepare.onBeforeCompile = (shader, rendererInstance) => {
         (previousOnBeforeCompile?.call(materialToPrepare, shader, rendererInstance),
           Object.assign(shader.uniforms, uniforms),
-          (shader.vertexShader = shader.vertexShader
-            .replace(
-              "#include <shadowmap_pars_vertex>",
-              "#include <shadowmap_pars_vertex>\n" + buildAtlasVertexParsChunk(),
-            )
-            .replace("#include <worldpos_vertex>", "#include <worldpos_vertex>")
-            .replace(
-              "#include <shadowmap_vertex>",
-              "#include <shadowmap_vertex>\n" + buildAtlasVertexChunk(),
-            )),
-          (shader.fragmentShader = shader.fragmentShader
-            .replace(
-              "#include <shadowmap_pars_fragment>",
-              "#include <shadowmap_pars_fragment>\n" + buildAtlasFragmentChunk(),
-            )
-            .replace("#include <lights_fragment_begin>", patchedLightsFragment)));
+          (shader.vertexShader =
+            sharedDefinesChunk +
+            shader.vertexShader
+              .replace(
+                "#include <shadowmap_pars_vertex>",
+                "#include <shadowmap_pars_vertex>\n" + buildAtlasVertexParsChunk(),
+              )
+              .replace(
+                "#include <worldpos_vertex>",
+                three.ShaderChunk.worldpos_vertex.replace(
+                  "#if ",
+                  "#if defined( USE_USER_SPOT_SHADOW_ATLAS ) || ",
+                ),
+              )
+              .replace(
+                "#include <shadowmap_vertex>",
+                "#include <shadowmap_vertex>\n" + buildAtlasVertexChunk(),
+              )),
+          (shader.fragmentShader =
+            sharedDefinesChunk +
+            shader.fragmentShader
+              .replace(
+                "#include <shadowmap_pars_fragment>",
+                "#include <shadowmap_pars_fragment>\n" + buildAtlasFragmentChunk(),
+              )
+              .replace("#include <lights_fragment_begin>", patchedLightsFragment)));
       }),
       (materialToPrepare.customProgramCacheKey = () =>
-        (previousCacheKey?.() || "") + "|user-spot-shadow-atlas-v7-zero-contribution"),
+        (previousCacheKey?.() || "") + "|user-spot-shadow-atlas-v8-bounded-projection"),
       (materialToPrepare.needsUpdate = true));
   }
   const materialCloneBySource = new WeakMap(),
     materialCloneSet = new Set<{ dispose: () => void }>();
   function cloneSharedMaterial(sourceMaterial) {
-    if (!isShadowableMaterial(sourceMaterial) || materialCloneSet.has(sourceMaterial))
+    if (
+      !isShadowableMaterial(sourceMaterial) ||
+      materialCloneSet.has(sourceMaterial) ||
+      materialUsesPreparedSource(sourceMaterial)
+    )
       return sourceMaterial;
     let materialClone = materialCloneBySource.get(sourceMaterial);
     return (
@@ -351,9 +427,11 @@ export function createSpotShadowAtlasController({
             ? new three.Vector4(lightEntry.bias, lightEntry.intensity, 1, lightEntry.normalBias)
             : new three.Vector4(0, 0, 0, 0),
         ),
-        (light.castShadow = false));
+        isBudgetAvailable && (light.castShadow = false));
     }
-    ((uniforms.userSpotShadowAtlas.value = atlasTarget?.texture || null), setAtlasEnabled(true));
+    (updateShadowDataTexture(),
+      (uniforms.userSpotShadowAtlas.value = atlasTarget?.texture || null),
+      setAtlasEnabled(true));
     const enabledLightCount = paramUniforms.filter((lightParam) => lightParam.z > 0.5).length;
     return (
       (renderer.domElement.dataset.activeSpotShadows = String(enabledLightCount)),
@@ -361,7 +439,8 @@ export function createSpotShadowAtlasController({
     );
   }
   function syncRenderLights(renderedScene, renderedCamera) {
-    if (isDisposed || !syncBeforeRender || !renderedScene) return;
+    if (isDisposed || isWebglLost || !renderedScene || !renderedCamera) return;
+    lightIndex ||= createRenderLightIndex();
     const renderLights = previousLights,
       renderEntries = previousEntries;
     renderLights.length = renderEntries.length = 0;
@@ -400,6 +479,7 @@ export function createSpotShadowAtlasController({
               ))
             : scratchVector,
         ));
+    updateShadowDataTexture();
   }
   function createAtlasTarget(targetSize) {
     const textureTarget = new three.WebGLRenderTarget(targetSize, targetSize, {
@@ -432,7 +512,8 @@ export function createSpotShadowAtlasController({
       : new Promise((resolve) => setTimeout(resolve, 0));
   }
   async function rebuildAtlas(buildRoot, buildRevision) {
-    if (isDisposed || isWebglLost || isBuilding || buildRevision !== revision) return;
+    if (isDisposed || isWebglLost || !isBudgetAvailable || isBuilding || buildRevision !== revision)
+      return;
     if (!buildRoot) {
       isDirty = false;
       return;
@@ -546,7 +627,7 @@ export function createSpotShadowAtlasController({
       for (const previousState of lightStates)
         ((previousState.light.visible = previousState.visible),
           (previousState.light.intensity = previousState.intensity),
-          (previousState.light.castShadow = false));
+          isBudgetAvailable && (previousState.light.castShadow = false));
       (atlasTarget !== nextAtlasTarget && nextAtlasTarget?.dispose(),
         (isBuilding = false),
         isDisposed || isWebglLost
@@ -559,22 +640,40 @@ export function createSpotShadowAtlasController({
   function scheduleBuild(delay) {
     isDisposed ||
       isWebglLost ||
+      !isBudgetAvailable ||
       !isDirty ||
       (clearTimeout(buildTimer),
       (buildTimer = setTimeout(
         () => {
-          ((buildTimer = 0),
-            !(isDisposed || isBuilding || !isDirty) &&
-              rebuildAtlas(pendingRoot, revision).catch((error) => {
-                isDisposed ||
-                  (console.error(error), (renderer.domElement.dataset.spotShadowMode = "fallback"));
-              }));
+          if (((buildTimer = 0), isDisposed || isBuilding || !isDirty)) return;
+          const scheduledRoot = pendingRoot,
+            scheduledRevision = revision;
+          rebuildAtlas(scheduledRoot, scheduledRevision).catch((error) => {
+            if (!isDisposed) {
+              try {
+                !isWebglLost &&
+                  scheduledRoot === pendingRoot &&
+                  scheduledRevision === revision &&
+                  (globalThis.window?.HomeOSLog?.report as any)?.(
+                    "warning",
+                    "3D 阴影",
+                    "聚光灯阴影图集生成失败，本次缓存未完成",
+                    {
+                      phase: "studio-shadow-atlas",
+                      code: "STUDIO_SHADOW_ATLAS_FAILED",
+                    },
+                    error?.stack || String(error),
+                  );
+              } catch {}
+              (console.error(error), (renderer.domElement.dataset.spotShadowMode = "fallback"));
+            }
+          });
         },
         Math.max(0, Number(delay) || 0),
       )));
   }
   function schedule(scheduledRoot, { delay: scheduleDelay = buildDelay } = {}) {
-    if (isDisposed) return 0;
+    if (isDisposed || !isBudgetAvailable) return 0;
     if (((pendingRoot = scheduledRoot), isWebglLost)) return ((isDirty = !!scheduledRoot), 0);
     prepareRoot(scheduledRoot);
     for (const scheduledLight of collectShadowLights(scheduledRoot))
@@ -592,7 +691,7 @@ export function createSpotShadowAtlasController({
     lastLightIndexBuilds = -1,
     trackedLights = [];
   function refreshGeometry(refreshRoot = pendingRoot, viewBoxes = null) {
-    if (isDisposed) return true;
+    if (isDisposed || !isBudgetAvailable) return true;
     if (isBuilding || buildTimer || isDirty) return false;
     if (!atlasTarget || !entryByLightKey.size) return true;
     const lightIndexBuilds = lightIndex?.stats.builds || 0;
@@ -682,6 +781,7 @@ export function createSpotShadowAtlasController({
         ),
           updatedEntry.matrix.copy(lightMatrix));
       }
+      updateShadowDataTexture();
     } finally {
       for (const previousUpdate of updates) {
         const { light: restoreLight } = previousUpdate;
@@ -714,9 +814,27 @@ export function createSpotShadowAtlasController({
   function setEnabled(nextEnabled) {
     isDisposed || ((isEnabled = nextEnabled !== false), setAtlasEnabled(true), requestFrame());
   }
+  /**
+   * 性能预算开关。关掉时立即作废本轮建图（revision 自增让编译中的任务自行退出），
+   * 并清掉待执行定时器；重新打开则只是恢复 uniform 开关，等下一次 schedule 再建。
+   */
+  function setBudgetAvailable(budgetAvailable) {
+    const nextBudgetAvailable = budgetAvailable !== false;
+    return isDisposed || nextBudgetAvailable === isBudgetAvailable
+      ? false
+      : ((isBudgetAvailable = nextBudgetAvailable),
+        nextBudgetAvailable ||
+          ((revision += 1), (isDirty = false), clearTimeout(buildTimer), (buildTimer = 0)),
+        setAtlasEnabled(true),
+        true);
+  }
   function disposeAtlases() {
     (atlasTarget?.dispose(),
       scratchTarget?.dispose(),
+      shadowDataTexture?.dispose(),
+      (shadowDataTexture = null),
+      (uniforms.userSpotShadowData.value = null),
+      (syncedLights = null),
       (atlasTarget = null),
       (scratchTarget = null),
       entryByLightKey.clear(),
@@ -729,7 +847,7 @@ export function createSpotShadowAtlasController({
       ((isWebglLost = !!webglLost),
       isWebglLost
         ? ((revision += 1),
-          (isDirty = !!pendingRoot),
+          (isDirty = isBudgetAvailable && !!pendingRoot),
           clearTimeout(buildTimer),
           (buildTimer = 0),
           disposeAtlases())
@@ -768,12 +886,17 @@ export function createSpotShadowAtlasController({
     refreshGeometry: refreshGeometry,
     schedule: schedule,
     sync: syncUniforms,
+    syncRenderUniforms: (renderedScene = scene, renderedCamera = camera) =>
+      syncRenderLights(renderedScene, renderedCamera),
     setEnabled: setEnabled,
+    setBudgetAvailable: setBudgetAvailable,
     setContextLost: setWebglLost,
     dispose: dispose,
     activeCount: () => entryByLightKey.size,
     isBuilding: () => isBuilding,
     isPending: () => !!buildTimer || isDirty,
     releaseRenderIndex: () => lightIndex?.dispose(),
+    /** 单盏灯需要占用的纹理单元数：超过 varying 上限时矩阵/参数走数据纹理，多占一个。 */
+    textureUnitsFor: (lightCount) => (lightCount > maxVertexVaryingLights ? 2 : 1),
   };
 }

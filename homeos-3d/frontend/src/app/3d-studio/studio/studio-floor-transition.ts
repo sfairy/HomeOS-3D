@@ -57,8 +57,10 @@ export function createFloorTransition({
         const sourceChildren = groupByFloorId
           ? rootObject.children.filter((matchedChild) => matchedChild.userData.floorId === floorId)
           : [...rootObject.children];
-        rootObject.add(floorGroup);
-        for (const childObject of sourceChildren) floorGroup.attach(childObject);
+        // 先入根再刷新一次世界矩阵，随后用 add（保持局部变换）而不是 attach，
+        // 让过渡组的初始帧与阴影/灯光快照落在同一个世界位置上。
+        (rootObject.add(floorGroup), floorGroup.updateWorldMatrix(true, false));
+        for (const childObject of sourceChildren) floorGroup.add(childObject);
         const record = {
           id: floorId,
           node: floorGroup,

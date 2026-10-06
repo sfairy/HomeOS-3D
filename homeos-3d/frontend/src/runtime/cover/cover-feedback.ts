@@ -390,7 +390,7 @@ export function createCoverFeedback({
     for (const delayEntry of feedbackByEntityId.values())
       delayMs = Math.min(
         delayMs,
-        delayEntry.motion ? 1000 / 30 : Infinity,
+        delayEntry.motion ? 0 : Infinity,
         delayEntry.intent ? Math.max(0, delayEntry.intent.expires - currentTimeMs) : Infinity,
       );
     return delayMs;

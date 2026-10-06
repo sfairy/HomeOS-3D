@@ -1,6 +1,6 @@
 import {
   packModelTemplate,
-  unpackModelTemplate,
+  restoreModelTemplate,
 } from "./model-template-codec";
 import { createCacheLogger, runCacheTask } from "./cache-shared";
 const MODEL_CACHE_DB_NAME = "homeos-3d-templates",
@@ -90,8 +90,11 @@ export function createModelPersistentCache({
         openPromise)
       : Promise.resolve(null);
   }
-  async function restore(restoreKey) {
-    if (!isAvailable() || (hasOpenAttempted && !cachedConnection)) return null;
+  async function restore(
+    restoreKey,
+    { valid: valid = () => true }: { valid?: () => boolean } = {},
+  ) {
+    if (!isAvailable() || !valid() || (hasOpenAttempted && !cachedConnection)) return null;
     const restoreConnection =
       cachedConnection ||
       (await runWithTimeout(
@@ -103,7 +106,7 @@ export function createModelPersistentCache({
           duration: Math.min(timeoutMs, 150),
         },
       ));
-    if ((restoreConnection || (hasOpenAttempted = true), !restoreConnection || isDisabled))
+    if ((restoreConnection || (hasOpenAttempted = true), !restoreConnection || isDisabled || !valid()))
       return null;
     const record = await runWithTimeout((settleRead) => {
       const readTransaction = restoreConnection.transaction(TEMPLATE_STORE, "readonly"),
@@ -111,10 +114,15 @@ export function createModelPersistentCache({
       ((request.onsuccess = () => settleRead(request.result)),
         (request.onerror = readTransaction.onabort = () => settleRead(null)));
     });
+    if (isDisabled || !valid()) return null;
     if (!record) return (stats.misses++, log("miss"), null);
     try {
-      const restored = unpackModelTemplate(THREE, record.template);
-      return (stats.hits++, log("hit"), restored);
+      const restored = await restoreModelTemplate(THREE, record.template, {
+        env: env,
+        timeoutMs: timeoutMs,
+        valid: () => !isDisabled && valid(),
+      });
+      return restored ? (stats.hits++, log("hit"), restored) : null;
     } catch {
       noteFallback();
       try {

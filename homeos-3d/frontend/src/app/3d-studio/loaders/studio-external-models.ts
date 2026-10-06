@@ -17,7 +17,8 @@ import {
 } from "../materials/studio-cabinet-back";
 import { finite } from "./studio-normalization";
 import { createModelPersistentCache } from "../model-persistent-cache";
-import { modelTemplateKey } from "../model-template-codec";
+import { modelTemplateKey, captureModelTemplateBounds } from "../model-template-codec";
+import { prepareModelTextures } from "../model-texture-cache";
 import { releaseModelAsset } from "./model-asset-loader";
 import { DECOR_MODELS, DECOR_THEMES } from "../studio/decor-models";
 import {
@@ -789,6 +790,7 @@ export function createExternalModelManager({
   retryDelayMs = 5000,
   maxAutomaticRetries = 2,
   lifecycle: lifecycleTarget = globalThis.window,
+  geometryCache: geometryCache = null,
   persistentCache = createModelPersistentCache({
     THREE: threeNamespace,
   }),
@@ -796,6 +798,7 @@ export function createExternalModelManager({
   const preparedTemplatesByItemType = new Map(),
     inflightLoadsByItemType = new Map(),
     restorePromisesByItemType = new Map(),
+    restoreEligibleByItemType = new Map(),
     loadQueue = [],
     activeItemTypes = new Set(),
     retryStateByItemType = new Map(),
@@ -805,7 +808,9 @@ export function createExternalModelManager({
   const materialCacheBySignature = new Map(),
     materialVariantsBySource = new WeakMap(),
     geometryVariantsBySource = new WeakMap(),
-    furnitureBatchCache = createFurnitureBatchCache(threeNamespace),
+    furnitureBatchCache = createFurnitureBatchCache(threeNamespace, {
+      geometryCache: geometryCache,
+    }),
     effectiveConcurrentLimit = Math.max(1, Math.floor(finite(maxConcurrentLoads, 2))),
     effectiveLoadTimeoutMs = Math.max(50, Math.floor(finite(loadTimeoutMs, 12000)));
   let activeLoadCount = 0,
@@ -865,10 +870,14 @@ export function createExternalModelManager({
       };
     if (!itemDefinition?.url) throw new Error("模型 " + itemTypeName + " 没有可用资源");
     try {
-      return {
-        ...(await assetLoader.loadAsync(itemDefinition.url)),
-        preparedCacheKey: templateCacheKey,
-      };
+      const loadedAsset = await assetLoader.loadAsync(itemDefinition.url);
+      return (
+        await prepareModelTextures(loadedAsset),
+        {
+          ...loadedAsset,
+          preparedCacheKey: templateCacheKey,
+        }
+      );
     } catch (primaryLoadError) {
       if (isDisposed || !itemDefinition.fallbackUrl) throw primaryLoadError;
       try {
@@ -952,7 +961,8 @@ export function createExternalModelManager({
       (activeItemTypes.clear(),
         retryStateByItemType.clear(),
         inflightLoadsByItemType.clear(),
-        restorePromisesByItemType.clear());
+        restorePromisesByItemType.clear(),
+        restoreEligibleByItemType.clear());
     }
   }
   (lifecycleTarget?.addEventListener?.("online", retryPendingModels),
@@ -994,11 +1004,16 @@ export function createExternalModelManager({
           return inflightLoadsByItemType.get(resolvedItemType);
         if (restorePromisesByItemType.has(resolvedItemType))
           return restorePromisesByItemType.get(resolvedItemType);
-        const cachedModelDefinition = ALL_ITEM_MODELS[resolvedItemType],
-          pendingRestorePromise = Promise.resolve()
+        const cachedModelDefinition = ALL_ITEM_MODELS[resolvedItemType];
+        restoreEligibleByItemType.set(resolvedItemType, true);
+        const pendingRestorePromise = Promise.resolve()
             .then(() =>
               persistentCache.restore(
                 modelTemplateKey(threeNamespace, resolvedItemType, cachedModelDefinition),
+                {
+                  valid: () =>
+                    !isDisposed && restoreEligibleByItemType.get(resolvedItemType) === true,
+                },
               ),
             )
             .then((restoredTemplate) =>
@@ -1088,6 +1103,7 @@ export function createExternalModelManager({
     const loadedModelEntry = {
       source: templateScene,
       size: modelSize,
+      bounds: captureModelTemplateBounds(templateScene),
     };
     if (
       (retryStateByItemType.delete(loadedItemType),
@@ -1122,16 +1138,23 @@ export function createExternalModelManager({
     const retryState = retryStateByItemType.get(modelItemType);
     if (retryState && Date.now() < retryState.retryAt) return Promise.resolve(null);
     retryState && cancelScheduledTimeout(retryState.timer);
+    restoreEligibleByItemType.has(modelItemType) ||
+      restoreEligibleByItemType.set(modelItemType, true);
     const sharedRestorePromise = restorePromisesByItemType.get(modelItemType),
       restoreCacheKey = modelTemplateKey(threeNamespace, modelItemType, targetModelDefinition),
       restorePromise =
         sharedRestorePromise ||
         Promise.resolve()
-          .then(() => persistentCache.restore(restoreCacheKey))
+          .then(() =>
+            persistentCache.restore(restoreCacheKey, {
+              valid: () => !isDisposed && restoreEligibleByItemType.get(modelItemType) === true,
+            }),
+          )
           .catch(() => null);
     let queuedTaskPromise = null;
     const startQueuedLoad = () =>
       (queuedTaskPromise ||= enqueueLoadTask(async () => {
+        restoreEligibleByItemType.set(modelItemType, false);
         const preparedTemplateFromLoad = await loadTemplateForItem(
           targetModelDefinition,
           modelItemType,
@@ -1187,7 +1210,7 @@ export function createExternalModelManager({
               return;
             }
             if ((cancelScheduledTimeout(restoreTimeoutHandle), preparedTemplateResult)) {
-              isLoadSettled = true;
+              ((isLoadSettled = true), restoreEligibleByItemType.set(modelItemType, false));
               try {
                 resolveOuterLoad(
                   applyLoadedTemplate(modelItemType, {

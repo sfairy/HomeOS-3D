@@ -16,11 +16,31 @@ function boundEntityIds(
   return collectedIdSet;
 }
 export function createStateUpdatePlan(component, update) {
+  return !update || typeof update != "object" || Array.isArray(update)
+    ? null
+    : buildStateUpdatePlan(bindLightingAndEnvironmentSets(component), update);
+}
+export function createStateUpdatePlanner() {
+  let cachedComponent,
+    cachedBindings;
+  return {
+    plan(component, update) {
+      return !update || typeof update != "object" || Array.isArray(update)
+        ? null
+        : ((!cachedBindings || cachedComponent !== component) &&
+            ((cachedComponent = component),
+            (cachedBindings = bindLightingAndEnvironmentSets(component))),
+          buildStateUpdatePlan(cachedBindings, update));
+    },
+    invalidate() {
+      cachedComponent = cachedBindings = undefined;
+    },
+  };
+}
+function buildStateUpdatePlan(boundBindings, update) {
   if (!update || typeof update != "object" || Array.isArray(update)) return null;
   const changedKeySet = new Set(Object.keys(update)),
-    { lights: lightIds = [], ...componentRest } = component || {},
-    lightIdSet = boundEntityIds(lightIds),
-    environmentIdSet = boundEntityIds(componentRest);
+    { lighting: lightIdSet, environment: environmentIdSet } = boundBindings;
   if (
     [...changedKeySet].some(
       (entityId) => !lightIdSet.has(entityId) && !environmentIdSet.has(entityId),
@@ -44,6 +64,13 @@ export function createStateUpdatePlan(component, update) {
       const updateIdSet = boundEntityIds(incomingUpdate);
       return !updateIdSet.size || hasChangedEntry(updateIdSet);
     },
+  };
+}
+function bindLightingAndEnvironmentSets(component) {
+  const { lights: lightIds = [], ...componentRest } = component || {};
+  return {
+    lighting: boundEntityIds(lightIds),
+    environment: boundEntityIds(componentRest),
   };
 }
 export function lightBindingsForUpdate(lights, plan) {

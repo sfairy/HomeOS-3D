@@ -32,11 +32,11 @@ function resolveSupportedColorModes(attributes: HaEntityAttributes = {}) {
         )
         .filter(Boolean)
     : [];
-  return normalizedColorModes.length
-    ? normalizedColorModes
-    : lightColorHs(attributes)
-      ? ["hs"]
-      : normalizedColorModes;
+  if (normalizedColorModes.length) return normalizedColorModes;
+  if (lightColorHs(attributes)) normalizedColorModes.push("hs");
+  if (lightRealtimeCapabilities("light.legacy", { attributes }).colorTemperature)
+    normalizedColorModes.push("color_temp");
+  return normalizedColorModes;
 }
 const isByteChannelArray = (channelArray, expectedLength) =>
   Array.isArray(channelArray) &&
@@ -206,26 +206,35 @@ export function lightRealtimeCapabilities(
       "light",
     declaredColorModes = Array.isArray(stateAttributes.supported_color_modes)
       ? stateAttributes.supported_color_modes
+          .map((declaredMode) => String(declaredMode).trim().toLowerCase())
+          .filter(Boolean)
       : [],
     supportedFeatures = Number(stateAttributes.supported_features || 0),
     hasNumericAttribute = (attributeName) =>
       stateAttributes[attributeName] !== null &&
       stateAttributes[attributeName] !== undefined &&
+      stateAttributes[attributeName] !== "" &&
+      typeof stateAttributes[attributeName] != "boolean" &&
       Number.isFinite(Number(stateAttributes[attributeName]));
   return {
     brightness:
       isLightEntity &&
-      (hasNumericAttribute("brightness") ||
-        declaredColorModes.some((supportedMode) => supportedMode !== "onoff") ||
-        (supportedFeatures & 1) === 1),
+      (declaredColorModes.length
+        ? declaredColorModes.some(
+            (declaredMode) =>
+              colorModeSet.has(declaredMode) ||
+              ["brightness", "color_temp", "white"].includes(declaredMode),
+          )
+        : hasNumericAttribute("brightness") || (supportedFeatures & 1) === 1),
     colorTemperature:
       isLightEntity &&
-      (declaredColorModes.includes("color_temp") ||
-        hasNumericAttribute("color_temp_kelvin") ||
-        hasNumericAttribute("min_color_temp_kelvin") ||
-        hasNumericAttribute("max_color_temp_kelvin") ||
-        hasNumericAttribute("color_temp") ||
-        (supportedFeatures & 2) === 2),
+      (declaredColorModes.length
+        ? declaredColorModes.includes("color_temp")
+        : hasNumericAttribute("color_temp_kelvin") ||
+          hasNumericAttribute("min_color_temp_kelvin") ||
+          hasNumericAttribute("max_color_temp_kelvin") ||
+          hasNumericAttribute("color_temp") ||
+          (supportedFeatures & 2) === 2),
   };
 }
 export function rgbToHsColor(rgbColor) {

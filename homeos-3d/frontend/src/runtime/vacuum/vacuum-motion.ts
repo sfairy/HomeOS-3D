@@ -227,6 +227,8 @@ export function createVacuumMotion(sceneHost, requestRender) {
       scale: sourceMesh.scale.clone(),
     }));
     floorMeshes.forEach((bodyMesh) => bodyGroup.attach(bodyMesh));
+    bodyGroup.updateMatrix();
+    bodyGroup.userData.contactShadowRestMatrix = bodyGroup.matrix.toArray();
     const restPosition = bodyGroup.position.clone();
     return (
       (modelRoot.userData.vacuumMobileRoot = bodyGroup),

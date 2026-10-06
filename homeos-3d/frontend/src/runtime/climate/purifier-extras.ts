@@ -1,26 +1,45 @@
 import { deviceStatusChoices } from "../device/device-status";
+import {
+  attributesOf,
+  brightnessModes,
+  fanCapabilities,
+  haNumber,
+  stringOptions,
+} from "../device/entity-capabilities";
 import { domElement } from "@app/utils/dom-factory";
+/** 实体可用性判定：离线/未知态不可用，但 button/input_button 的 unknown 态视为可执行。 */
+function entityUsable(entityId, state) {
+  return !!(
+    state &&
+    state.available !== false &&
+    typeof state.state == "string" &&
+    !["", "unavailable"].includes(state.state) &&
+    (!String(entityId).startsWith("fan.") || ["on", "off"].includes(state.state)) &&
+    (state.state !== "unknown" || /^(button|input_button)\./.test(entityId))
+  );
+}
 function extraStateLabel(entityId, state) {
   const liveState = state?.newState || state;
-  return !liveState ||
-    liveState.available === false ||
-    ["", "unknown", "unavailable"].includes(liveState.state)
-    ? "不可用"
-    : String(entityId).startsWith("binary_sensor.")
-      ? liveState.attributes?.device_class === "running" && ["on", "off"].includes(liveState.state)
-        ? liveState.state === "on"
-          ? "正在运行"
-          : "未在运行"
-        : deviceStatusChoices(
-            {
-              entityId: entityId,
-            },
-            liveState,
-          )?.options.find((choice) => choice.value === liveState.state)?.label || liveState.state
-      : {
-          on: "已开启",
-          off: "已关闭",
-        }[liveState.state] || liveState.state;
+  return entityUsable(entityId, liveState)
+    ? liveState.state === "unknown"
+      ? "可执行"
+      : String(entityId).startsWith("binary_sensor.")
+        ? liveState.attributes?.device_class === "running" &&
+          ["on", "off"].includes(liveState.state)
+          ? liveState.state === "on"
+            ? "正在运行"
+            : "未在运行"
+          : deviceStatusChoices(
+              {
+                entityId: entityId,
+              },
+              liveState,
+            )?.options.find((choice) => choice.value === liveState.state)?.label || liveState.state
+        : {
+            on: "已开启",
+            off: "已关闭",
+          }[liveState.state] || liveState.state
+    : "不可用";
 }
 export function extraTypes(rawEntityId) {
   const domain = String(rawEntityId).split(".")[0],
@@ -67,8 +86,8 @@ export function purifierDeviceChanged(deviceEntities, previousEntityId, nextEnti
   return !deviceIdOf(previousEntityId) || deviceIdOf(previousEntityId) !== deviceIdOf(nextEntityId);
 }
 function extraRanges(rangeEntityId, rangeState) {
-  const attributes = (rangeState?.newState || rangeState)?.attributes || {};
-  if (rangeEntityId.startsWith("fan.") && Number(attributes.supported_features) & 1)
+  const attributes = attributesOf(rangeState?.newState || rangeState);
+  if (rangeEntityId.startsWith("fan.") && fanCapabilities(attributes).percentageSupported)
     return [
       {
         key: "percentage",
@@ -76,32 +95,36 @@ function extraRanges(rangeEntityId, rangeState) {
         min: 0,
         max: 100,
         step: 1,
-        value: attributes.percentage ?? 0,
+        value: haNumber(attributes.percentage) ?? 0,
       },
     ];
   if (!rangeEntityId.startsWith("light.")) return [];
-  const colorModes = attributes.supported_color_modes || [],
+  const colorModes = stringOptions(attributes.supported_color_modes),
     ranges = [];
+  colorModes.some((mode) => brightnessModes.has(mode)) &&
+    ranges.push({
+      key: "brightness",
+      label: "亮度",
+      min: 1,
+      max: 255,
+      step: 1,
+      value: haNumber(attributes.brightness) ?? 255,
+    });
+  const minKelvin = haNumber(attributes.min_color_temp_kelvin),
+    maxKelvin = haNumber(attributes.max_color_temp_kelvin);
   return (
-    colorModes.some((mode) => !["onoff", "unknown"].includes(mode)) &&
-      ranges.push({
-        key: "brightness",
-        label: "亮度",
-        min: 1,
-        max: 255,
-        step: 1,
-        value: attributes.brightness ?? 255,
-      }),
     colorModes.includes("color_temp") &&
-      Number.isFinite(attributes.min_color_temp_kelvin) &&
-      Number.isFinite(attributes.max_color_temp_kelvin) &&
+      minKelvin !== null &&
+      minKelvin > 0 &&
+      maxKelvin !== null &&
+      maxKelvin >= minKelvin &&
       ranges.push({
         key: "color_temp_kelvin",
         label: "色温 K",
-        min: attributes.min_color_temp_kelvin,
-        max: attributes.max_color_temp_kelvin,
+        min: minKelvin,
+        max: maxKelvin,
         step: 1,
-        value: attributes.color_temp_kelvin ?? attributes.min_color_temp_kelvin,
+        value: haNumber(attributes.color_temp_kelvin) ?? minKelvin,
       }),
     ranges
   );
@@ -109,15 +132,12 @@ function extraRanges(rangeEntityId, rangeState) {
 function extraRangeCommand(item, commandState, key, rawValue) {
   const commandLiveState = commandState?.newState || commandState,
     range = extraRanges(item.entityId, commandLiveState).find((candidate) => candidate.key === key),
-    numericValue = Number(rawValue);
+    numericValue = haNumber(rawValue);
   if (
-    !commandLiveState ||
-    commandLiveState.available === false ||
-    ["unknown", "unavailable"].includes(commandLiveState.state) ||
+    !entityUsable(item.entityId, commandLiveState) ||
     item.type !== "switch" ||
     !range ||
-    rawValue === "" ||
-    !Number.isFinite(numericValue) ||
+    numericValue === null ||
     numericValue < range.min ||
     numericValue > range.max
   )
@@ -158,39 +178,47 @@ type PurifierCard = {
   rangeExpected?: any;
   rangeTimer?: any;
 };
+function numberConstraints(state) {
+  const attributes = attributesOf(state);
+  return {
+    min: haNumber(attributes.min),
+    max: haNumber(attributes.max),
+    step: haNumber(Object.hasOwn(attributes, "step") ? attributes.step : 1),
+  };
+}
 function extraCommand(controlItem, controlState, controlValue) {
   const controlLiveState = controlState?.newState || controlState;
-  if (
-    !controlLiveState ||
-    controlLiveState.available === false ||
-    ["", "unknown", "unavailable"].includes(controlLiveState.state)
-  )
-    throw new Error("该实体当前不可用");
+  if (!entityUsable(controlItem.entityId, controlLiveState)) throw new Error("该实体当前不可用");
   if (!extraTypes(controlItem.entityId).includes(controlItem.type) || controlItem.type === "state")
     throw new Error("不支持此操作");
   const controlDomain = controlItem.entityId.split(".")[0],
+    controlAttributes = attributesOf(controlLiveState),
     data: PurifierCommandData = {};
   let service;
   if (
     (controlItem.type === "switch" &&
       (service = controlLiveState.state === "on" ? "turn_off" : "turn_on"),
-    controlItem.type === "button" && (service = "press"),
-    controlItem.type === "select")
-  ) {
-    if (!controlLiveState.attributes?.options?.includes(controlValue))
+    controlItem.type === "switch" &&
+      controlDomain === "fan" &&
+      (!["on", "off"].includes(controlLiveState.state) ||
+        !fanCapabilities(controlAttributes)[service === "turn_on" ? "canTurnOn" : "canTurnOff"]))
+  )
+    throw new Error("设备不支持此开关操作");
+  if ((controlItem.type === "button" && (service = "press"), controlItem.type === "select")) {
+    if (!stringOptions(controlAttributes.options).includes(controlValue))
       throw new Error("选项已失效");
     ((service = "select_option"), (data.option = controlValue));
   }
   if (controlItem.type === "number") {
-    const { min: min, max: max, step = 1 } = controlLiveState.attributes || {},
-      numeric = Number(controlValue);
+    const { min: min, max: max, step: step } = numberConstraints(controlLiveState),
+      numeric = haNumber(controlValue);
     if (
-      controlValue === "" ||
-      !Number.isFinite(numeric) ||
-      !Number.isFinite(min) ||
-      !Number.isFinite(max) ||
-      !Number.isFinite(step) ||
+      numeric === null ||
+      min === null ||
+      max === null ||
+      step === null ||
       step <= 0 ||
+      min > max ||
       numeric < min ||
       numeric > max
     )
@@ -690,11 +718,8 @@ export function createPurifierExtras({
   function refreshRows() {
     for (const row of cards) {
       const entityState = readState(row.item.entityId),
-        stateAttributes = entityState?.attributes || {},
-        available =
-          entityState &&
-          entityState.available !== false &&
-          !["", "unknown", "unavailable"].includes(entityState.state);
+        stateAttributes = attributesOf(entityState),
+        available = entityUsable(row.item.entityId, entityState);
       if (
         (row.pending &&
           row.expected != null &&
@@ -733,11 +758,15 @@ export function createPurifierExtras({
           row.control.setAttribute("role", "switch"),
           row.control.setAttribute("aria-checked", String(entityState?.state === "on")),
           row.control.setAttribute("aria-pressed", String(entityState?.state === "on"))),
+        row.item.type === "switch" &&
+          row.item.entityId.startsWith("fan.") &&
+          (row.control.disabled ||=
+            !fanCapabilities(stateAttributes)[
+              entityState?.state === "on" ? "canTurnOff" : "canTurnOn"
+            ]),
         row.item.type === "select")
       ) {
-        const options = Array.isArray(stateAttributes.options)
-          ? stateAttributes.options.filter((option) => typeof option == "string")
-          : [];
+        const options = stringOptions(stateAttributes.options);
         (row.options !== JSON.stringify(options) &&
           (openSelect === row && closeSelect(),
           (row.options = JSON.stringify(options)),
@@ -775,19 +804,21 @@ export function createPurifierExtras({
           );
         row.control.disabled && openSelect === row && closeSelect();
       }
-      row.item.type === "number" &&
-        ((row.control.min = stateAttributes.min),
-        (row.control.max = stateAttributes.max),
-        (row.control.step = stateAttributes.step || 1),
-        doc.activeElement !== row.control &&
-          (row.control.value =
-            row.pending && row.expected != null
-              ? row.expected
-              : available
-                ? entityState.state
-                : ""),
-        (row.control.disabled ||=
-          !Number.isFinite(stateAttributes.min) || !Number.isFinite(stateAttributes.max)));
+      if (row.item.type === "number") {
+        const { min: min, max: max, step: step } = numberConstraints(entityState);
+        ((row.control.min = min ?? ""),
+          (row.control.max = max ?? ""),
+          (row.control.step = step ?? ""),
+          doc.activeElement !== row.control &&
+            (row.control.value =
+              row.pending && row.expected != null
+                ? row.expected
+                : available
+                  ? entityState.state
+                  : ""),
+          (row.control.disabled ||=
+            min === null || max === null || min > max || step === null || step <= 0));
+      }
       for (const rangeEntry of row.ranges || []) {
         const rangeInfo = extraRanges(row.item.entityId, entityState).find(
           (rangeCandidate) => rangeCandidate.key === rangeEntry.key,

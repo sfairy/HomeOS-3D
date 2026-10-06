@@ -1,3 +1,14 @@
+import {
+  captureContactShadowSnapshot,
+  createContactShadowPersistentCache,
+  restoreContactShadowSnapshot,
+} from "./contact-shadow-persistent-cache";
+import { createContactShadowPoseResolver } from "./studio-contact-shadow-pose";
+import { stableModelTextureKey } from "../model-texture-cache";
+
+/** 持久缓存实例（由 stage-startup 注入）。 */
+type ContactShadowPersistentCache = ReturnType<typeof createContactShadowPersistentCache>;
+
 function findUserFieldInAncestors(startObject, userFieldKey) {
   for (let ancestorObject = startObject; ancestorObject; ancestorObject = ancestorObject.parent)
     if (ancestorObject.userData?.[userFieldKey] !== undefined)
@@ -128,6 +139,7 @@ export function createContactShadowController({
   surfaceBudgetMs: surfaceBudgetMs = 4,
   now: now = () => performance.now(),
   followMotion: followMotion = false,
+  persistentCache: persistentCache = null as ContactShadowPersistentCache | null,
 }) {
   const settings = {
       enabled: true,
@@ -157,12 +169,14 @@ export function createContactShadowController({
       cacheHits: 0,
       cachedFloors: 0,
       cachedBytes: 0,
+      persistentHits: 0,
       cachedLayouts: 0,
       disposed: false,
     },
     floorStatesById = new Map(),
     depthMaterialsByKey = new Map(),
     weakMap = new WeakMap(),
+    detailGeometryKeyByGeometry = new WeakMap(),
     receiverBoundsCacheByGeometry = new WeakMap(),
     cachedLayoutsByKey = new Map(),
     placeholderTexture = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
@@ -180,6 +194,7 @@ export function createContactShadowController({
     shouldDeferSurfaceBake = deferInitialBake && deferSurfaceBake,
     isSurfaceBakeDeferred = deferSurfaceBake === true,
     isEntranceTransition = false,
+    bakeGeneration = 0,
     isSyncEnabled = true;
   const pendingSurfaceBakesByFloorId = new Map();
   function disposePendingSurfaceBakes(floorIdFilter = null) {
@@ -271,7 +286,8 @@ export function createContactShadowController({
   function invalidate(floorIds?: any, keepLayoutCache = false) {
     if (!isDisposed) {
       if (
-        ((shouldRefreshMotion = true),
+        (bakeGeneration++,
+        (shouldRefreshMotion = true),
         disposePendingSurfaceBakes(
           floorIds == null ? null : new Set(typeof floorIds == "string" ? [floorIds] : floorIds),
         ),
@@ -921,18 +937,37 @@ export function createContactShadowController({
         trimMaterialCache());
     }
   }
-  function computeGeometryKey(bufferGeometry) {
-    const attributeVersions =
-        bufferGeometry.attributes.position?.version + ":" + bufferGeometry.index?.version,
-      cachedGeometryKey = weakMap.get(bufferGeometry);
+  function computeGeometryKey(bufferGeometry, detail = false) {
+    const uvAttributes = detail
+        ? ["uv", "uv1", "uv2", "uv3"].map((uvName) => bufferGeometry.attributes[uvName])
+        : [],
+      attributeVersions =
+        bufferGeometry.attributes.position?.version +
+        ":" +
+        bufferGeometry.index?.version +
+        (detail
+          ? JSON.stringify([
+              bufferGeometry.groups,
+              bufferGeometry.drawRange,
+              uvAttributes.map(
+                (uvAttribute) => uvAttribute?.version ?? uvAttribute?.data?.version,
+              ),
+            ])
+          : ""),
+      geometryKeyCache = detail ? detailGeometryKeyByGeometry : weakMap,
+      cachedGeometryKey = geometryKeyCache.get(bufferGeometry);
     if (
       cachedGeometryKey?.version === attributeVersions &&
       cachedGeometryKey.position === bufferGeometry.attributes.position &&
-      cachedGeometryKey.index === bufferGeometry.index
+      cachedGeometryKey.index === bufferGeometry.index &&
+      uvAttributes.every(
+        (uvAttribute, uvIndex) => cachedGeometryKey.uvs[uvIndex] === uvAttribute,
+      )
     )
       return cachedGeometryKey.key;
     let geometryKey;
     if (
+      !detail &&
       bufferGeometry.parameters &&
       bufferGeometry.attributes.position?.version === 0 &&
       !(bufferGeometry.index?.version > 0)
@@ -961,6 +996,7 @@ export function createContactShadowController({
           attribute.data?.stride,
           hashA >>> 0,
           hashB >>> 0,
+          ...(detail ? [array.constructor.name, attribute.normalized] : []),
         ];
       };
       geometryKey = JSON.stringify([
@@ -969,30 +1005,37 @@ export function createContactShadowController({
         (bufferGeometry.morphAttributes.position || []).map(hashAttribute),
         bufferGeometry.groups,
         bufferGeometry.drawRange,
+        ...(detail ? [uvAttributes.map(hashAttribute)] : []),
       ]);
     }
     return (
-      weakMap.set(bufferGeometry, {
+      geometryKeyCache.set(bufferGeometry, {
         version: attributeVersions,
         key: geometryKey,
         position: bufferGeometry.attributes.position,
         index: bufferGeometry.index,
+        uvs: uvAttributes,
       }),
       geometryKey
     );
   }
-  function computeLayoutKey(layout, bakeFrame) {
+  function computeLayoutKey(layout, bakeFrame, detail = false) {
     const invert = bakeFrame.clone().invert(),
+      poseResolver = createContactShadowPoseResolver(),
       describeObjectMatrix = (object) => {
-        const multiply = invert.clone().multiply(object.matrixWorld),
-          roundMatrixElements = (matrix) =>
-            matrix.elements.map((element) => Math.round(element * 10000));
-        if (!object.isInstancedMesh) return roundMatrixElements(multiply);
+        const multiply = invert.clone().multiply(poseResolver(object)),
+          describeMatrixElements = (matrix) =>
+            detail
+              ? matrix.elements.slice()
+              : matrix.elements.map((element) => Math.round(element * 10000));
+        if (!object.isInstancedMesh) return describeMatrixElements(multiply);
         const instanceWorldMatrix = new THREE.Matrix4(),
           instancedMatrices = [];
         for (let instanceCursor = 0; instanceCursor < object.count; instanceCursor++)
           (object.getMatrixAt(instanceCursor, instanceWorldMatrix),
-            instancedMatrices.push(roundMatrixElements(instanceWorldMatrix.premultiply(multiply))));
+            instancedMatrices.push(
+              describeMatrixElements(instanceWorldMatrix.premultiply(multiply)),
+            ));
         return instancedMatrices;
       },
       normalizeEntries = (matrixEntries) =>
@@ -1019,7 +1062,7 @@ export function createContactShadowController({
             .applyMatrix4(invert.clone().multiply(receiver.matrixWorld));
           return receiverBounds
             ? [...receiverBounds.min.toArray(), ...receiverBounds.max.toArray()].map((boundValue) =>
-                Math.round(boundValue * 10000),
+                detail ? boundValue : Math.round(boundValue * 10000),
               )
             : null;
         }),
@@ -1031,7 +1074,12 @@ export function createContactShadowController({
             ).map((casterMaterial) => {
               const materialAlphaTest = casterMaterial.alphaTest || 0,
                 displacementMap = casterMaterial.displacementMap,
-                describeTexture = (texture) => (texture ? [texture.uuid, texture.version] : null);
+                describeTexture = (texture) =>
+                  texture
+                    ? detail
+                      ? stableModelTextureKey(texture)
+                      : [texture.uuid, texture.version]
+                    : null;
               return [
                 isContactCasterMaterial(casterMaterial),
                 materialAlphaTest,
@@ -1040,6 +1088,7 @@ export function createContactShadowController({
                 describeTexture(displacementMap),
                 displacementMap ? (casterMaterial.displacementScale ?? 1) : 0,
                 displacementMap ? (casterMaterial.displacementBias ?? 0) : 0,
+                ...(detail ? [casterMaterial.userData?.plan2SurfaceContact !== false] : []),
               ];
             }),
             every = casterMaterialSignatures.every(
@@ -1047,16 +1096,111 @@ export function createContactShadowController({
                 JSON.stringify(materialSignature) === JSON.stringify(casterMaterialSignatures[0]),
             );
           return [
-            computeGeometryKey(caster.geometry),
+            computeGeometryKey(caster.geometry, detail),
             caster.isInstancedMesh ? caster.count : null,
             caster.morphTargetInfluences,
             describeObjectMatrix(caster),
             every ? casterMaterialSignatures.slice(0, 1) : casterMaterialSignatures,
+            ...(detail ? [caster.userData?.regionReceiverKind || ""] : []),
           ];
         }),
       ),
     ]);
   }
+  function persistentSignatureFor(floorEntry, bakeFrame) {
+    return !persistentCache ||
+      !bakeFrame ||
+      !floorEntry.casters.length ||
+      !floorEntry.receivers.length ||
+      floorEntry.casters.some(
+        (caster) =>
+          caster.isSkinnedMesh ||
+          caster.isBatchedMesh ||
+          caster.morphTexture ||
+          caster.morphTargetInfluences?.length ||
+          Object.keys(caster.geometry.morphAttributes || {}).length ||
+          (Array.isArray(caster.material) ? caster.material : [caster.material]).some(
+            (casterMaterial) =>
+              casterMaterial.displacementMap ||
+              (casterMaterial.alphaTest > 0 &&
+                [casterMaterial.map, casterMaterial.alphaMap].some(
+                  (texture) => texture && !stableModelTextureKey(texture),
+                )),
+          ),
+      )
+      ? null
+      : JSON.stringify([
+          THREE.REVISION,
+          renderer.capabilities.maxTextureSize,
+          renderer.capabilities.precision,
+          renderer.capabilities.logarithmicDepthBuffer === true,
+          renderer.capabilities.reversedDepthBuffer === true,
+          bakeFrame.elements,
+          computeLayoutKey(floorEntry, bakeFrame, true),
+        ]);
+  }
+  function restoreFromPersistentCache(floorEntry, signature, contentKey) {
+    if (!persistentCache || !signature || floorEntry.target) return false;
+    const persistedSnapshot = persistentCache.peek(floorEntry.id, signature);
+    if (
+      !persistedSnapshot ||
+      persistedSnapshot.target.width > renderer.capabilities.maxTextureSize ||
+      (persistedSnapshot.surface &&
+        persistedSnapshot.surface.width > renderer.capabilities.maxTextureSize)
+    )
+      return false;
+    const restoredSnapshot = restoreContactShadowSnapshot(THREE, persistedSnapshot);
+    if (!restoredSnapshot) return false;
+    disposeFloorState(floorEntry);
+    for (const restoredProperty of ["target", "surface", "lookup", "bakedFrame"])
+      floorEntry[restoredProperty] = restoredSnapshot[restoredProperty];
+    for (const [valueName, uniformValue] of Object.entries(restoredSnapshot.values))
+      floorEntry.uniforms[valueName].value = uniformValue;
+    return (
+      (floorEntry.uniforms.plan2ContactMap.value = floorEntry.target.texture),
+      (floorEntry.uniforms.plan2SurfaceMap.value =
+        floorEntry.surface?.texture || placeholderTexture),
+      (floorEntry.uniforms.plan2SurfaceLookup.value = floorEntry.lookup || placeholderTexture),
+      (floorEntry.contentKey = contentKey),
+      floorEntry.uniforms.plan2ContactTransform.value.identity(),
+      stats.persistentHits++,
+      true
+    );
+  }
+  function enqueuePersistentCapture(floorEntry) {
+    if (
+      !persistentCache ||
+      !floorEntry.persistentSignature ||
+      !floorEntry.target ||
+      floorEntry.target.restored ||
+      floorEntry.surfacePending
+    )
+      return;
+    const captureGeneration = bakeGeneration,
+      capturedTarget = floorEntry.target,
+      capturedSurface = floorEntry.surface,
+      capturedContentKey = floorEntry.contentKey,
+      capturedSignature = floorEntry.persistentSignature,
+      canCapture = () =>
+        !isDisposed &&
+        !isSuspended &&
+        !isMotionSuspended &&
+        canBuild() &&
+        captureGeneration === bakeGeneration &&
+        floorEntry.target === capturedTarget &&
+        floorEntry.surface === capturedSurface &&
+        floorEntry.contentKey === capturedContentKey &&
+        floorEntry.persistentSignature === capturedSignature &&
+        !floorEntry.surfacePending &&
+        (typeof document > "u" || !document.hidden);
+    persistentCache.enqueue(
+      floorEntry.id,
+      floorEntry.persistentSignature,
+      () => captureContactShadowSnapshot(THREE, renderer, floorEntry, canCapture),
+      canCapture,
+    );
+  }
+
   const estimateStateBytes = (cachedFloorState) =>
     (cachedFloorState.target
       ? cachedFloorState.target.width *
@@ -1179,7 +1323,8 @@ export function createContactShadowController({
         queuedSurfaceBake.iterator.next().done &&
           ((queuedSurfaceBake.record.surfacePending = false),
           queuedSurfaceBake.dispose(),
-          pendingSurfaceBakesByFloorId.delete(deferredFloorId)));
+          pendingSurfaceBakesByFloorId.delete(deferredFloorId),
+          enqueuePersistentCapture(queuedSurfaceBake.record)));
     } catch (pumpError) {
       throw (
         disposePendingSurfaceBakes(new Set([deferredFloorId])),
@@ -1372,13 +1517,15 @@ export function createContactShadowController({
         layoutHash &&
         floorState.contentKey !== layoutHash &&
         restoreCachedLayout(floorState, layoutHash);
-      const bakedFrame =
-        shouldReuseLayout &&
-        layoutHash &&
-        floorState.target &&
-        !floorState.surfacePending &&
-        floorState.contentKey === layoutHash &&
-        floorState.bakedFrame;
+      const persistentSignature = persistentSignatureFor(group, anchorFrame),
+        bakedFrame =
+          (restoreFromPersistentCache(floorState, persistentSignature, layoutHash) ||
+            shouldReuseLayout) &&
+          layoutHash &&
+          floorState.target &&
+          !floorState.surfacePending &&
+          floorState.contentKey === layoutHash &&
+          floorState.bakedFrame;
       if (!bakedFrame && buildCount >= maxBuildsThisSync) {
         deferredFloorIds.push(groupId);
         continue;
@@ -1418,6 +1565,8 @@ export function createContactShadowController({
             (floorState.uniforms.plan2SurfaceOpacity.value = previousSurfaceOpacity),
             requestFrame()),
         (floorState.anchor = anchorObject),
+        (floorState.persistentSignature = persistentSignature),
+        enqueuePersistentCapture(floorState),
         (floorState.casters = group.casters.length),
         (floorState.receivers = group.receivers.length),
         (floorState.instancedCasters = group.casters.filter(
@@ -1478,6 +1627,34 @@ export function createContactShadowController({
     setEnabled: setEnabled,
     setSuspended: setSuspended,
     setMotion: setMotion,
+    allowPersistence() {
+      isDisposed || persistentCache?.presented();
+    },
+    persistentKey(floorId = null) {
+      if (
+        isDisposed ||
+        shouldRebuild ||
+        set.size ||
+        isSuspended ||
+        isMotionSuspended ||
+        pendingSurfaceBakesByFloorId.size
+      )
+        return null;
+      const floorStates = [...floorStatesById.values()].filter(
+        (floorState) =>
+          matchesVisibleFloor(floorState.id) &&
+          floorState.target &&
+          (floorId === null || !floorState.id || floorState.id === floorId),
+      );
+      return floorStates.some(
+        (floorState) => !floorState.persistentSignature || floorState.surfacePending,
+      )
+        ? null
+        : [
+            settings,
+            floorStates.map((floorState) => [floorState.id, floorState.persistentSignature]),
+          ];
+    },
     prepareMotion() {
       !isDisposed &&
         followMotion &&

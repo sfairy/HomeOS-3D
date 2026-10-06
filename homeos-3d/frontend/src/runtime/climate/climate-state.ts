@@ -1,3 +1,10 @@
+import {
+  haNumber,
+  attributesOf,
+  featureFlags,
+  stringOptions,
+  fanCapabilities,
+} from "../device/entity-capabilities";
 const climateRendererModule = await (import("@app/renderer/controls/climate")),
   waterHeaterRendererModule = await (import("@app/renderer/controls/water-heater"));
 export const { createWaterHeaterFeedback, waterHeaterCapabilities } = waterHeaterRendererModule;
@@ -21,7 +28,6 @@ export function waterHeaterStatusLabel(entityState) {
           : climateRendererModule.climateModeLabel(presentationMode, "water-heater"));
 }
 const {
-  normalizeClimateCapabilities: normalizeClimateCapabilities,
   climateIsPoweredOn: climateIsPoweredOn,
   climateIsRunning: climateIsRunning,
   climatePowerCommand: climatePowerCommand,
@@ -32,15 +38,8 @@ export const {
   climateSwingModeLabel,
   climateOptionPresentation,
 } = climateRendererModule;
-const finiteNumberOrNull = (rawValue) =>
-  rawValue != null &&
-  rawValue !== "" &&
-  typeof rawValue != "boolean" &&
-  Number.isFinite(Number(rawValue))
-    ? Number(rawValue)
-    : null;
 function purifierSpeedLevels(percentageStep) {
-  const step = finiteNumberOrNull(percentageStep);
+  const step = haNumber(percentageStep);
   if (step === null || step <= 0 || step > 100) return [];
   const levelCount = Math.round(100 / step);
   return levelCount < 1 || levelCount > 10 || Math.abs(step - 100 / levelCount) > 0.02
@@ -57,7 +56,7 @@ function purifierSpeedLevels(percentageStep) {
 }
 export function climateState(entityId, receivedState) {
   const stateObject = receivedState?.newState || receivedState || {},
-    attributes = stateObject.attributes || {};
+    attributes = attributesOf(stateObject);
   if (/^water_heater\.[a-z0-9_]+$/.test(entityId)) {
     const heaterCapabilities = waterHeaterRendererModule.waterHeaterCapabilities(stateObject),
       isWaterHeaterOn =
@@ -84,22 +83,8 @@ export function climateState(entityId, receivedState) {
   if (/^fan\.[a-z0-9_]+$/.test(entityId)) {
     const isPurifierAvailable =
         stateObject.available !== false && ["on", "off"].includes(stateObject.state),
-      percentage = finiteNumberOrNull(attributes.percentage),
-      purifierFeatures = finiteNumberOrNull(attributes.supported_features) || 0,
-      hasSupportedFeatures = finiteNumberOrNull(attributes.supported_features) !== null,
-      percentageSupported = hasSupportedFeatures ? !!(purifierFeatures & 1) : percentage !== null,
-      isOscillatingSupported = !!(purifierFeatures & 2),
-      isDirectionSupported = !!(purifierFeatures & 4),
-      presetModes =
-        (!hasSupportedFeatures || purifierFeatures & 8) && Array.isArray(attributes.preset_modes)
-          ? [
-              ...new Set(
-                attributes.preset_modes.filter(
-                  (presetMode) => typeof presetMode == "string" && presetMode.trim(),
-                ),
-              ),
-            ]
-          : [];
+      percentage = haNumber(attributes.percentage),
+      purifierCapabilities = fanCapabilities(attributes);
     return {
       entityId: entityId,
       raw: stateObject,
@@ -115,41 +100,56 @@ export function climateState(entityId, receivedState) {
       temperatureSupported: false,
       rangeSupported: false,
       percentage: percentage,
-      percentageSupported: percentageSupported,
-      percentageStep: finiteNumberOrNull(attributes.percentage_step) || 1,
-      speedLevels: percentageSupported ? purifierSpeedLevels(attributes.percentage_step) : [],
+      ...purifierCapabilities,
+      percentageStep: haNumber(attributes.percentage_step) || 1,
+      speedLevels: purifierCapabilities.percentageSupported
+        ? purifierSpeedLevels(attributes.percentage_step)
+        : [],
       modes: ["off", "on"],
       fanModes: [],
       swingModes: [],
-      presetModes: presetModes,
       presetMode: attributes.preset_mode || "",
       oscillating: attributes.oscillating === true,
-      oscillatingSupported: isOscillatingSupported,
       direction: attributes.direction || "",
-      directionSupported: isDirectionSupported,
-      turnOnSupported: true,
+      turnOnSupported: purifierCapabilities.canTurnOn,
+      turnOffSupported: purifierCapabilities.canTurnOff,
     };
   }
-  const climateCapabilities = normalizeClimateCapabilities(stateObject),
+  const modeOptionsByName = Object.fromEntries(
+      Object.entries({
+        hvacModes: "hvac_modes",
+        fanModes: "fan_modes",
+        swingModes: "swing_modes",
+        horizontalSwingModes: "swing_horizontal_modes",
+        presetModes: "preset_modes",
+      }).map(([optionGroupName, optionAttributeName]) => [
+        optionGroupName,
+        stringOptions(attributes[optionAttributeName]),
+      ]),
+    ),
     stateValue = typeof stateObject.state == "string" ? stateObject.state : "",
-    minimum = finiteNumberOrNull(attributes.min_temp),
-    maximum = finiteNumberOrNull(attributes.max_temp),
-    temperature = finiteNumberOrNull(attributes.temperature),
-    supportedFeatures = finiteNumberOrNull(attributes.supported_features) || 0,
-    targetLow = finiteNumberOrNull(attributes.target_temp_low),
-    targetHigh = finiteNumberOrNull(attributes.target_temp_high),
-    hasSupportedFeaturesAttribute = finiteNumberOrNull(attributes.supported_features) !== null,
+    minimum = haNumber(attributes.min_temp),
+    maximum = haNumber(attributes.max_temp),
+    temperature = haNumber(attributes.temperature),
+    supportedFeatures = featureFlags(attributes),
+    targetLow = haNumber(attributes.target_temp_low),
+    targetHigh = haNumber(attributes.target_temp_high),
+    hasSupportedFeaturesAttribute = Object.hasOwn(attributes, "supported_features"),
     resolveFeatureSupport = (featureBit, fallbackResult) =>
       hasSupportedFeaturesAttribute ? !!(supportedFeatures & featureBit) : fallbackResult,
     hasTemperatureRange = minimum !== null && maximum !== null && maximum > minimum,
     temperatureUnit = ["°C", "°F", "K"].includes(attributes.temperature_unit)
       ? attributes.temperature_unit
       : "°",
-    parsedTargetStep = finiteNumberOrNull(attributes.target_temp_step),
+    parsedTargetStep = haNumber(attributes.target_temp_step),
     temperatureStep = parsedTargetStep > 0 ? parsedTargetStep : temperatureUnit === "°F" ? 1 : 0.5,
-    temperatureSupported = hasTemperatureRange && resolveFeatureSupport(1, temperature !== null),
+    hasValidTargetStep = attributes.target_temp_step == null || parsedTargetStep > 0,
+    temperatureSupported =
+      hasTemperatureRange && hasValidTargetStep && resolveFeatureSupport(1, temperature !== null),
     rangeSupported =
-      hasTemperatureRange && resolveFeatureSupport(2, targetLow !== null || targetHigh !== null),
+      hasTemperatureRange &&
+      hasValidTargetStep &&
+      resolveFeatureSupport(2, targetLow !== null && targetHigh !== null),
     available =
       /^(climate|water_heater)\.[a-z0-9_]+$/.test(entityId) &&
       stateObject.available !== false &&
@@ -179,7 +179,7 @@ export function climateState(entityId, receivedState) {
             ? "heat"
             : "other",
     temperature: temperature,
-    currentTemperature: finiteNumberOrNull(attributes.current_temperature),
+    currentTemperature: haNumber(attributes.current_temperature),
     targetLow: targetLow,
     targetHigh: targetHigh,
     minimum: minimum,
@@ -189,18 +189,19 @@ export function climateState(entityId, receivedState) {
     temperatureSupported: temperatureSupported,
     rangeSupported: rangeSupported,
     useTemperatureRange: rangeSupported && (stateValue === "heat_cool" || !temperatureSupported),
-    modes: climateCapabilities.hvacModes,
-    fanModes: resolveFeatureSupport(8, true) ? climateCapabilities.fanModes : [],
+    modes: modeOptionsByName.hvacModes,
+    fanModes: resolveFeatureSupport(8, true) ? modeOptionsByName.fanModes : [],
     turnOnSupported: !!(supportedFeatures & 256),
     turnOffSupported: !!(supportedFeatures & 128),
     canTurnOn:
-      !!(supportedFeatures & 256) || climateCapabilities.hvacModes.some((mode) => mode !== "off"),
-    canTurnOff: !!(supportedFeatures & 128) || climateCapabilities.hvacModes.includes("off"),
-    swingModes: resolveFeatureSupport(32, true) ? climateCapabilities.swingModes : [],
+      !!(supportedFeatures & 256) ||
+      modeOptionsByName.hvacModes.some((hvacModeName) => hvacModeName !== "off"),
+    canTurnOff: !!(supportedFeatures & 128) || modeOptionsByName.hvacModes.includes("off"),
+    swingModes: resolveFeatureSupport(32, true) ? modeOptionsByName.swingModes : [],
     horizontalSwingModes: resolveFeatureSupport(512, true)
-      ? climateCapabilities.horizontalSwingModes
+      ? modeOptionsByName.horizontalSwingModes
       : [],
-    presetModes: resolveFeatureSupport(16, true) ? climateCapabilities.presetModes : [],
+    presetModes: resolveFeatureSupport(16, true) ? modeOptionsByName.presetModes : [],
     fanMode: attributes.fan_mode || "",
     swingMode: attributes.swing_mode || "",
     horizontalSwingMode: attributes.swing_horizontal_mode || "",
@@ -214,13 +215,18 @@ export function climatePowerControl(state, desiredOn = !state.on, lastMode = "")
       entityId: state.entityId,
       ...waterHeaterRendererModule.waterHeaterPowerCommand(state.raw, desiredOn, lastMode),
     };
-  if (state.purifier)
+  if (state.purifier) {
+    if (desiredOn ? !state.canTurnOn : !state.canTurnOff)
+      throw new Error("设备不支持此开关操作。");
     return {
       entityId: state.entityId,
       domain: "fan",
       service: desiredOn ? "turn_on" : "turn_off",
       data: {},
     };
+  }
+  if (desiredOn ? !state.canTurnOn : !state.canTurnOff)
+    throw new Error("设备尚未提供可用的开关模式。");
   if (!desiredOn && state.turnOffSupported)
     return {
       entityId: state.entityId,
@@ -249,7 +255,13 @@ export function climatePowerControl(state, desiredOn = !state.on, lastMode = "")
   }
   const command = climatePowerCommand(
     state.entityId,
-    state.raw,
+    {
+      ...state.raw,
+      attributes: {
+        ...attributesOf(state.raw),
+        hvac_modes: state.modes,
+      },
+    },
     desiredOn,
     "air-conditioner",
     lastMode,
@@ -323,16 +335,16 @@ export function climateControl(deviceState, service, value) {
     if (
       service === "set_percentage" &&
       deviceState.percentageSupported &&
-      Number.isFinite(Number(value)) &&
-      Number(value) >= 0 &&
-      Number(value) <= 100
+      haNumber(value) !== null &&
+      haNumber(value) >= 0 &&
+      haNumber(value) <= 100
     )
       return {
         entityId: deviceState.entityId,
         domain: "fan",
         service: service,
         data: {
-          percentage: Number(value),
+          percentage: haNumber(value),
         },
       };
     if (service === "set_preset_mode" && deviceState.presetModes.includes(value))
@@ -399,7 +411,7 @@ export function climateControl(deviceState, service, value) {
         ),
       ),
       alignTemperature = (requestedTemperature) => {
-        const parsedTemperature = finiteNumberOrNull(requestedTemperature);
+        const parsedTemperature = haNumber(requestedTemperature);
         if (parsedTemperature === null) throw new Error("设备尚未提供可用的温度控制。");
         const maxSteps = Math.floor(
             (deviceState.maximum - deviceState.minimum) / deviceState.step + 1e-8,

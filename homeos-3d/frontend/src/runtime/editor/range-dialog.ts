@@ -13,9 +13,9 @@ export async function openInteraction3dRangeEditor({
 }) {
   if ((await requestInteraction3dAccess(), !component.properties?.sceneId))
     throw new Error("请先载入 3D 户型。");
-  if (component.properties.lightingMode !== "region") throw new Error("请先选择轻量柔光模式。");
-  const componentSnapshot = structuredClone(component),
-    previouslyFocusedElement =
+  const componentSnapshot = structuredClone(component);
+  componentSnapshot.properties.lightingMode = "region";
+  const previouslyFocusedElement =
       document.activeElement instanceof HTMLElement ? document.activeElement : null,
     createElement = (tag, className = "", text = "") =>
       domElement(document, tag, className, text),

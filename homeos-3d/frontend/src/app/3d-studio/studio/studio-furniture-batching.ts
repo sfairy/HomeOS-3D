@@ -86,9 +86,87 @@ export function compactFurnitureIndices(three, templateRoot, furnitureType) {
         meshGeometry.setIndex(new three.BufferAttribute(new Uint16Array(geometryIndex.array), 1));
     });
 }
-export function createFurnitureBatchCache(threeApi) {
-  let batchCacheByModel = new WeakMap();
+export function createFurnitureBatchCache(threeApi, { geometryCache: geometryCache = null } = {}) {
+  let batchCacheByModel = new WeakMap(),
+    geometrySignatureByGeometry = new WeakMap(),
+    modelGeometrySetByModel = new WeakMap();
   const disposableResourceSet = new Set<{ dispose: () => void }>();
+  /** 几何体批量缓存的签名：属性引用/版本/groups 变了就换一代，能命中才复用上次合并结果。 */
+  function describeGeometrySignature(geometry) {
+    const identityState = [],
+      attributeSignatures = [];
+    for (const [attributeName, attribute] of [["index", geometry.index], ...Object.entries(geometry.attributes).sort()]) {
+      const attributeSignature = [
+        attributeName,
+        attribute?.version,
+        attribute?.data?.version,
+        attribute?.count,
+        attribute?.itemSize,
+        attribute?.normalized,
+        attribute?.array?.constructor.name,
+        attribute?.offset,
+        attribute?.data?.stride,
+      ];
+      (identityState.push(attribute, attribute?.array, attribute?.data, ...attributeSignature),
+        attributeSignatures.push(attributeSignature));
+    }
+    identityState.push(geometry.drawRange.start, geometry.drawRange.count);
+    for (const group of geometry.groups) identityState.push(group.start, group.count, group.materialIndex);
+    const cachedSignature = geometrySignatureByGeometry.get(geometry);
+    if (
+      cachedSignature &&
+      cachedSignature.state.length === identityState.length &&
+      identityState.every((identityValue, index) => identityValue === cachedSignature.state[index])
+    )
+      return cachedSignature.key;
+    const generation = cachedSignature ? cachedSignature.generation + 1 : 0,
+      signatureKey = [geometry.uuid, generation, attributeSignatures, geometry.groups, geometry.drawRange];
+    return (
+      geometrySignatureByGeometry.set(geometry, {
+        state: identityState,
+        key: signatureKey,
+        generation: generation,
+      }),
+      signatureKey
+    );
+  }
+  /** 把一组网格记录压成几何缓存参数（几何/材质各自去重成索引，再带上世界矩阵）。 */
+  function batchGeometryCacheArgs(modelType, shouldTintVertices, meshRecords) {
+    const geometryIndexByKey = new Map(),
+      materialIndexByKey = new Map(),
+      recordArgs = meshRecords.map((sourceRecord) => (
+          geometryIndexByKey.has(sourceRecord.geometryKey) ||
+            geometryIndexByKey.set(sourceRecord.geometryKey, geometryIndexByKey.size),
+          materialIndexByKey.has(sourceRecord.exact) ||
+            materialIndexByKey.set(sourceRecord.exact, materialIndexByKey.size),
+          [
+            geometryIndexByKey.get(sourceRecord.geometryKey),
+            materialIndexByKey.get(sourceRecord.exact),
+            sourceRecord.matrix.elements,
+          ]
+        ));
+    return [
+      modelType,
+      shouldTintVertices,
+      [...geometryIndexByKey.keys()],
+      [...materialIndexByKey.keys()],
+      recordArgs,
+    ];
+  }
+  /** 只有当所有源几何体都还挂在这个模型上时，才敢用几何缓存（否则矩阵/几何对不上）。 */
+  function canUseGeometryCache(loadedModel, meshRecords) {
+    if (!geometryCache || !loadedModel.source?.traverse) return false;
+    let geometrySet = modelGeometrySetByModel.get(loadedModel);
+    return (
+      geometrySet ||
+        ((geometrySet = new Set()),
+        loadedModel.source.traverse((sourceNode) => {
+          sourceNode.geometry && geometrySet.add(sourceNode.geometry);
+        }),
+        modelGeometrySetByModel.set(loadedModel, geometrySet)),
+      meshRecords.every((sourceRecord) => geometrySet.has(sourceRecord.object.geometry))
+    );
+  }
   function prepareBatches(
     modelClone,
     loadedModel,
@@ -100,14 +178,15 @@ export function createFurnitureBatchCache(threeApi) {
     modelClone.updateMatrixWorld(true);
     const modelInverseMatrix = modelClone.matrixWorld.clone().invert(),
       meshRecords = [],
-      seenMaterialKeySet = new Set();
+      seenMaterialKeySet = new Set(),
+      materialKeyCache = new WeakMap();
     let hasDuplicateMaterialKey = false;
     if (
       (modelClone.traverse((childMesh) => {
         if (!childMesh.isMesh) return;
-        const exactMaterialKey = staticMaterialKey(childMesh),
+        const exactMaterialKey = staticMaterialKey(childMesh, false, false, materialKeyCache),
           tintedMaterialKey = shouldTintVertices
-            ? staticMaterialKey(childMesh, false, true)
+            ? staticMaterialKey(childMesh, false, true, materialKeyCache)
             : exactMaterialKey;
         for (let ancestorNode = childMesh; ancestorNode; ancestorNode = ancestorNode.parent)
           if (!ancestorNode.visible) return;
@@ -144,10 +223,17 @@ export function createFurnitureBatchCache(threeApi) {
       !hasDuplicateMaterialKey)
     )
       return false;
+    const geometryKeyByGeometry = new Map();
+    for (const sourceRecord of meshRecords) {
+      const sourceGeometry = sourceRecord.object.geometry;
+      (geometryKeyByGeometry.has(sourceGeometry) ||
+        geometryKeyByGeometry.set(sourceGeometry, describeGeometrySignature(sourceGeometry)),
+        (sourceRecord.geometryKey = geometryKeyByGeometry.get(sourceGeometry)));
+    }
     const cacheKey = JSON.stringify([
       shouldTintVertices,
       meshRecords.map((sourceRecord) => [
-        sourceRecord.object.geometry.uuid,
+        sourceRecord.geometryKey,
         sourceRecord.exact,
         sourceRecord.matrix.elements,
       ]),
@@ -164,7 +250,8 @@ export function createFurnitureBatchCache(threeApi) {
           recordsByTintedKey.get(groupedRecord.tinted).push(groupedRecord));
       batchDescriptors = [];
       for (const tintedGroup of recordsByTintedKey.values()) {
-        const preparedGeometries = tintedGroup.map(
+        const prepareMergedGeometry = () => {
+          const preparedGeometries = tintedGroup.map(
             ({ object: sourceMesh, matrix: instanceMatrix }) => {
               const sourceGeometry = sourceMesh.geometry,
                 bakedGeometry = new threeApi.BufferGeometry();
@@ -228,11 +315,21 @@ export function createFurnitureBatchCache(threeApi) {
               );
             },
           ),
-          mergedGeometry = mergeGeometries(preparedGeometries);
-        if (
-          (preparedGeometries.forEach((preparedGeometry) => preparedGeometry.dispose()),
-          !mergedGeometry)
-        ) {
+            mergedGeometry = mergeGeometries(preparedGeometries);
+          return (
+            preparedGeometries.forEach((preparedGeometry) => preparedGeometry.dispose()),
+            mergedGeometry
+          );
+        };
+        const mergedGeometry = canUseGeometryCache(loadedModel, tintedGroup)
+          ? geometryCache.geometry(
+              threeApi,
+              "furniture-batch-v1",
+              batchGeometryCacheArgs(modelType, shouldTintVertices, tintedGroup),
+              prepareMergedGeometry,
+            )
+          : prepareMergedGeometry();
+        if (!mergedGeometry) {
           for (const batchToDispose of batchDescriptors)
             (batchToDispose.geometry.dispose(), batchToDispose.material.dispose());
           return false;
@@ -279,7 +376,10 @@ export function createFurnitureBatchCache(threeApi) {
     prepare: prepareBatches,
     dispose() {
       for (const resource of disposableResourceSet) resource.dispose();
-      (disposableResourceSet.clear(), (batchCacheByModel = new WeakMap()));
+      (disposableResourceSet.clear(),
+        (batchCacheByModel = new WeakMap()),
+        (geometrySignatureByGeometry = new WeakMap()),
+        (modelGeometrySetByModel = new WeakMap()));
     },
   };
 }

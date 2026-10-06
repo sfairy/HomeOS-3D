@@ -122,6 +122,11 @@ export function createCoverPanel({
     instanceId = 0,
     ticketCounter = 0,
     isRailUnconfirmed = false,
+    nativeTiltElement = null,
+    tiltPositionSliderElement = null,
+    tiltPositionOutputElement = null,
+    draftTiltPosition = null,
+    tiltTicketCounter = 0,
     pendingIntent = null,
     intentTimeoutId = null,
     draftPosition = null,
@@ -187,6 +192,20 @@ export function createCoverPanel({
       rootElement.setAttribute("aria-invalid", String(!!(viewModel.error || errorText))));
   }
   async function sendControl(command) {
+    if (!deviceState.dream && command.service.includes("_tilt")) {
+      const instanceAtSend = instanceId,
+        tiltTicket = ++tiltTicketCounter;
+      ((draftTiltPosition = null), (errorText = ""), render());
+      try {
+        await onControl(command, viewModel.item);
+      } catch (error) {
+        !isDisposed &&
+          instanceId === instanceAtSend &&
+          tiltTicketCounter === tiltTicket &&
+          ((errorText = error?.message || "叶片控制失败，请重试。"), render());
+      }
+      return;
+    }
     const instanceAtSend = instanceId,
       ticket = ++ticketCounter,
       hasPresentation = !!viewModel.presentation;
@@ -311,6 +330,92 @@ export function createCoverPanel({
     positionSliderElement.addEventListener("blur", () => {
       draftPosition !== null && cancelPreview();
     }));
+  function syncTiltSection() {
+    if (
+      !(
+        !deviceState.dream &&
+        !viewModel.item?.airer &&
+        (deviceState.tiltSupported ||
+          deviceState.tiltOpenSupported ||
+          deviceState.tiltCloseSupported ||
+          deviceState.tiltStopSupported)
+      )
+    ) {
+      if (nativeTiltElement) {
+        ((nativeTiltElement.hidden = true), (tiltPositionSliderElement.disabled = true));
+        for (const tiltButton of nativeTiltElement.children[2].children) tiltButton.disabled = true;
+      }
+      draftTiltPosition = null;
+      return;
+    }
+    if (!nativeTiltElement) {
+      ((nativeTiltElement = createElement("section", "i3d-cover-native-tilt")),
+        nativeTiltElement.append(createElement("h4", "", "叶片角度")));
+      const tiltLabelElement = createElement("label", "hb-cover-details-position");
+      ((tiltPositionOutputElement = createElement("output")),
+        tiltPositionOutputElement.setAttribute("aria-label", "当前叶片位置"),
+        (tiltPositionSliderElement = createElement("input")),
+        (tiltPositionSliderElement.type = "range"),
+        (tiltPositionSliderElement.min = "0"),
+        (tiltPositionSliderElement.max = "100"),
+        (tiltPositionSliderElement.step = "1"),
+        tiltPositionSliderElement.setAttribute("aria-label", "目标叶片位置"),
+        tiltPositionSliderElement.addEventListener("input", () => {
+          canAdjustSlider() &&
+            deviceState.tiltSupported &&
+            ((draftTiltPosition = Number(tiltPositionSliderElement.value)), syncTiltSection());
+        }),
+        tiltPositionSliderElement.addEventListener("change", () => {
+          const committedTiltPosition = draftTiltPosition;
+          ((draftTiltPosition = null),
+            committedTiltPosition !== null && canAdjustSlider() && deviceState.tiltSupported
+              ? requestControl("set_cover_tilt_position", committedTiltPosition)
+              : syncTiltSection());
+        }));
+      const cancelTiltPreview = () => {
+        ((draftTiltPosition = null), syncTiltSection());
+      };
+      (tiltPositionSliderElement.addEventListener("pointercancel", cancelTiltPreview),
+        tiltPositionSliderElement.addEventListener("blur", cancelTiltPreview),
+        tiltLabelElement.append(tiltPositionOutputElement, tiltPositionSliderElement),
+        nativeTiltElement.append(tiltLabelElement));
+      const tiltActionsElement = createElement("div", "hb-cover-details-actions");
+      for (const [tiltLabel, tiltService, tiltCapability] of [
+        ["关闭叶片", "close_cover_tilt", "tiltCloseSupported"],
+        ["暂停叶片", "stop_cover_tilt", "tiltStopSupported"],
+        ["打开叶片", "open_cover_tilt", "tiltOpenSupported"],
+      ]) {
+        const tiltButtonElement = createElement("button");
+        ((tiltButtonElement.type = "button"),
+          (tiltButtonElement.dataset.coverAction = tiltService),
+          (tiltButtonElement.dataset.capability = tiltCapability),
+          tiltButtonElement.setAttribute("aria-label", tiltLabel),
+          tiltButtonElement.append(createElement("strong", "", tiltLabel)),
+          tiltButtonElement.addEventListener("click", () => (
+            (draftTiltPosition = null),
+            requestControl(tiltService)
+          )),
+          tiltActionsElement.append(tiltButtonElement));
+      }
+      (nativeTiltElement.append(tiltActionsElement), popupBodyElement.append(nativeTiltElement));
+    }
+    nativeTiltElement.hidden = false;
+    const tiltPosition = draftTiltPosition ?? deviceState.tiltPosition;
+    ((tiltPositionOutputElement.textContent =
+      tiltPosition === null ? "未知" : Math.round(tiltPosition) + "%"),
+      (tiltPositionSliderElement.value = String(tiltPosition ?? 0)),
+      (tiltPositionSliderElement.disabled = !canAdjustSlider() || !deviceState.tiltSupported),
+      tiltPositionSliderElement.style.setProperty(
+        "--hb-cover-position-progress",
+        (tiltPosition ?? 0) + "%",
+      ),
+      tiltPositionSliderElement.parentElement &&
+        (tiltPositionSliderElement.parentElement.hidden = !deviceState.tiltSupported));
+    for (const tiltButton of nativeTiltElement.children[2].children)
+      ((tiltButton.hidden = !deviceState[tiltButton.dataset.capability]),
+        (tiltButton.disabled =
+          !canAdjustSlider() || !deviceState[tiltButton.dataset.capability]));
+  }
   function render() {
     if (isDisposed) return;
     ((titleElement.textContent =
@@ -466,7 +571,8 @@ export function createCoverPanel({
             : pendingIntent && !pendingIntent.confirmed),
         ),
       ),
-      syncSlider());
+      syncSlider(),
+      syncTiltSection());
   }
   function update(nextViewModel: CoverPanelViewModel = {}) {
     if (isDisposed) return;
@@ -477,6 +583,7 @@ export function createCoverPanel({
       (isRailUnconfirmed = false),
       clearPendingIntent(),
       (draftPosition = null),
+      (draftTiltPosition = null),
       (isDragging = false),
       (errorText = ""),
       (stateRevision = 0),
@@ -577,7 +684,9 @@ export function createCoverPanel({
       update: update,
       dispose: dispose,
       deactivate() {
-        isDragging && cancelPreview();
+        ((draftTiltPosition = null),
+          tiltTicketCounter++,
+          isDragging ? cancelPreview() : syncTiltSection());
       },
     }
   );

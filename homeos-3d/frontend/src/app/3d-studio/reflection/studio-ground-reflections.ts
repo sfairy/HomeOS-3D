@@ -5,6 +5,11 @@ import {
   normalizeGroundReflection,
 } from "../../bridge/reflection-settings";
 import { createReflectionCulling } from "./studio-reflection-culling";
+import { createReflectionSignature } from "./studio-reflection-signature";
+import {
+  captureReflectionSnapshot,
+  restoreReflectionSnapshot,
+} from "./reflection-persistent-cache";
 import {
   isFloorTransitionLeaving,
   isVisibleWithin,
@@ -24,6 +29,9 @@ export function createGroundReflections({
   getFloorCamera: getFloorCamera = (fallbackCamera, _floorId) => fallbackCamera,
   getStateKey: getStateKey = () => "",
   getSceneRevision: getSceneRevision = null,
+  persistentCache: persistentCache = null,
+  getPersistentState: getPersistentState = (_floorId) => null,
+  getPersistentMaterialState: getPersistentMaterialState = (_material = null) => null,
   floorLighting: floorLighting = false,
   detail: detail = null,
 
@@ -40,12 +48,16 @@ export function createGroundReflections({
 
   maxResumeCapturesPerFrame: maxResumeCapturesPerFrame = Infinity,
   requestFrame: requestFrame = () => {},
+  inactiveBudget: inactiveBudget = 32 * 1024 * 1024,
+  maxInactiveRecords: maxInactiveRecords = 4,
+  insideIdleMs: insideIdleMs = Infinity,
 }) {
   const settings = {
       ...normalizeGroundReflection(),
       fps: 30,
     },
     culling = createReflectionCulling(three, fadeHeight),
+    reflectionSignature = persistentCache ? createReflectionSignature(three) : null,
     stats = {
       captures: 0,
       renders: 0,
@@ -55,6 +67,7 @@ export function createGroundReflections({
       reuses: 0,
       cachedRecords: 0,
       cachedBytes: 0,
+      expiredRecords: 0,
       inCapture: false,
 
 
@@ -63,6 +76,11 @@ export function createGroundReflections({
       lastDrawCalls: 0,
       lastTriangles: 0,
       culling: null as unknown,
+
+      persistenceRetainedBytes: 0,
+      persistencePeakBytes: 0,
+      persistenceKeyMs: 0,
+      persistentHits: 0,
     },
 
     { getRefractionFreeMaterial, cloneReflectionMaterial, disposeMaterialClones } =
@@ -172,8 +190,12 @@ export function createGroundReflections({
         (resolvedMaterial[materialProperty] = refractionFreeMaterialNode[materialProperty]);
     return (passes?.aliasMaterial?.(baseMaterial, resolvedMaterial), resolvedMaterial);
   }
-  function resolveFadeMaterials(materialInput) {
-    if (!Array.isArray(materialInput)) return resolveFadeMaterial(materialInput);
+  function resolveFadeMaterials(materialInput, materialCache) {
+    if (materialCache.has(materialInput)) return materialCache.get(materialInput);
+    if (!Array.isArray(materialInput)) {
+      const resolvedMaterial = resolveFadeMaterial(materialInput);
+      return (materialCache.set(materialInput, resolvedMaterial), resolvedMaterial);
+    }
     let arrayRecord = fadeArrayByInput.get(materialInput);
     (arrayRecord ||
       ((arrayRecord = {
@@ -183,9 +205,13 @@ export function createGroundReflections({
       (arrayRecord.next.length = materialInput.length));
     let hasMaterialChanged = false;
     for (let materialIndex = 0; materialIndex < materialInput.length; materialIndex++)
-      ((arrayRecord.next[materialIndex] = resolveFadeMaterial(materialInput[materialIndex])),
+      ((arrayRecord.next[materialIndex] = resolveFadeMaterials(
+        materialInput[materialIndex],
+        materialCache,
+      )),
         (hasMaterialChanged ||= arrayRecord.next[materialIndex] !== materialInput[materialIndex]));
-    return hasMaterialChanged ? arrayRecord.next : materialInput;
+    const resolvedInput = hasMaterialChanged ? arrayRecord.next : materialInput;
+    return (materialCache.set(materialInput, resolvedInput), resolvedInput);
   }
   let activeRecords = [],
     currentRoot = null,
@@ -216,10 +242,15 @@ export function createGroundReflections({
     outsideFloorId = null,
     visibleFloorId = null,
     usageCounter = 0,
+    insideEnabled = true,
     resumeRecordSet = null;
   const recordsBySource = new Map(),
     floorChangeCountByFloorId = new Map(),
-    cacheByteBudget = 32 * 1024 * 1024;
+    persistenceByteBudget = 24 * 1024 * 1024;
+  let insideExpiryTimer = null,
+    isPersistenceSettled = false,
+    propagationCount = 0,
+    persistenceRetainedBytes = 0;
   let heightByFloorId = new Map(),
     lightsByFloorId = new Map(),
     nodeEntries = [],
@@ -337,16 +368,21 @@ export function createGroundReflections({
       candidateObject.userData.groundReflectionReceiver === true
     );
   }
+  function cancelInsideExpiry() {
+    (clearTimeout(insideExpiryTimer), (insideExpiryTimer = null));
+  }
   function disposeRecord(recordToDispose) {
-    (recordToDispose.geometry.removeEventListener("dispose", recordToDispose.onSourceDispose),
+    (recordToDispose.pendingSnapshot?.release(),
+      recordToDispose.geometry.removeEventListener("dispose", recordToDispose.onSourceDispose),
       recordToDispose.overlay.removeFromParent(),
       recordToDispose.overlay.geometry.dispose(),
       recordToDispose.overlay.material.dispose(),
+      recordToDispose.restoredTexture?.dispose(),
       recordToDispose.map.dispose(),
       recordToDispose.scratch?.dispose(),
       recordsBySource.delete(recordToDispose.source));
   }
-  function trimRecordCache() {
+  function trimRecordCache(forceExpireInside = false) {
     const activeRecordSet = new Set(activeRecords),
       reclaimCandidates = [...recordsBySource.values()]
         .filter((candidateRecord) => !activeRecordSet.has(candidateRecord))
@@ -355,16 +391,37 @@ export function createGroundReflections({
       keptCount = 0;
     for (const candidate of reclaimCandidates) {
       const candidateBytes =
-        candidate.map.width *
-        candidate.map.height *
-        (12 * (1 + candidate.map.samples) + (candidate.scratch ? 8 : 0));
-      if (candidate.dead || keptCount >= 4 || totalBytes + candidateBytes > cacheByteBudget) {
-        disposeRecord(candidate);
+          candidate.map.width *
+          candidate.map.height *
+          (12 * (1 + candidate.map.samples) +
+            (candidate.scratch ? 8 : 0) +
+            (candidate.restoredTexture ? 8 : 0)),
+        shouldExpireInside = forceExpireInside && !insideEnabled && candidate.kind === "inside";
+      if (
+        shouldExpireInside ||
+        candidate.dead ||
+        keptCount >= maxInactiveRecords ||
+        totalBytes + candidateBytes > inactiveBudget
+      ) {
+        (shouldExpireInside && stats.expiredRecords++, disposeRecord(candidate));
         continue;
       }
       ((totalBytes += candidateBytes), keptCount++);
     }
-    ((stats.cachedRecords = keptCount), (stats.cachedBytes = totalBytes));
+    ((stats.cachedRecords = keptCount),
+      (stats.cachedBytes = totalBytes),
+      !insideEnabled &&
+      [...recordsBySource.values()].some(
+        (cachedRecord) => !activeRecordSet.has(cachedRecord) && cachedRecord.kind === "inside",
+      )
+        ? !isDisposed &&
+          insideExpiryTimer === null &&
+          Number.isFinite(insideIdleMs) &&
+          (insideExpiryTimer = setTimeout(() => {
+            ((insideExpiryTimer = null),
+              !isDisposed && !insideEnabled && trimRecordCache(true));
+          }, Math.max(0, insideIdleMs)))
+        : cancelInsideExpiry());
   }
   function buildLightingSignature(lights) {
     return lights
@@ -443,7 +500,7 @@ export function createGroundReflections({
       samples: forBlurPass ? 0 : Math.min(2, renderer.capabilities.maxSamples),
     });
   function disposeAllRecords() {
-    resumeRecordSet = null;
+    (cancelInsideExpiry(), (resumeRecordSet = null));
     for (const storedRecord of [...recordsBySource.values()]) disposeRecord(storedRecord);
     ((activeRecords = []), (receiverMeshes = []), (stats.cachedRecords = stats.cachedBytes = 0));
   }
@@ -530,6 +587,7 @@ export function createGroundReflections({
         isFloorTransitionLeaving(sourceMesh) ||
         !isOnVisibleFloor(sourceMesh) ||
         (settings.mode !== "all" && receiverKind !== settings.mode) ||
+        (receiverKind === "inside" && !insideEnabled) ||
         (receiverKind === "outside" && !isOnOutsideFloor(sourceMesh))
       )
         continue;
@@ -575,7 +633,7 @@ export function createGroundReflections({
             },
           },
           vertexShader:
-            "uniform mat4 reflectionMatrix; varying vec4 reflected; varying float up;\n          void main(){vec4 world=modelMatrix*vec4(position,1.);reflected=reflectionMatrix*world;\n          up=normalize(mat3(modelMatrix)*normal).y;gl_Position=projectionMatrix*viewMatrix*world;}",
+            "uniform mat4 reflectionMatrix; varying vec4 reflected; varying float up;\n          void main(){vec4 world=modelMatrix*vec4(position,1.);reflected=reflectionMatrix*world;\n          up=normalize(mat3(modelMatrix)*normal).y;vec4 mvPosition=modelViewMatrix*vec4(position,1.);\n          gl_Position=projectionMatrix*mvPosition;}",
           fragmentShader:
             "uniform sampler2D reflection; uniform float strength; varying vec4 reflected; varying float up;\n          void main(){if(up<.9||reflected.w<=0.)discard;vec2 uv=reflected.xy/reflected.w;\n          if(any(lessThan(uv,vec2(0.)))||any(greaterThan(uv,vec2(1.))))discard;\n          vec4 value=texture2D(reflection,uv);gl_FragColor=vec4(value.rgb/max(value.a,.001),clamp(value.a*strength,0.,.7));\n          #include <tonemapping_fragment>\n          #include <colorspace_fragment>\n          }",
         }),
@@ -614,8 +672,8 @@ export function createGroundReflections({
         sourceMesh.parent.add(overlayMesh),
         activeRecords.push(record));
     }
-    (isDetailEnabled() && detail.prepare(currentRoot),
-      passes?.prepare(currentRoot),
+    (activeRecords.length &&
+      (isDetailEnabled() && detail.prepare(currentRoot), passes?.prepare(currentRoot)),
       trimRecordCache(),
       (shouldRefresh = true));
   }
@@ -623,6 +681,7 @@ export function createGroundReflections({
     return (
       isOnVisibleFloor(recordToCheck.source) &&
       (settings.mode === "all" || settings.mode === recordToCheck.kind) &&
+      (recordToCheck.kind !== "inside" || insideEnabled) &&
       (recordToCheck.kind !== "outside" || isOnOutsideFloor(recordToCheck.source))
     );
   }
@@ -720,6 +779,107 @@ export function createGroundReflections({
       reflectionCamera
     );
   }
+  function buildPersistenceKey(persistenceRecord, persistenceCamera) {
+    if (!reflectionSignature) return null;
+    try {
+      const persistenceSignature = reflectionSignature({
+        scene: scene,
+        renderer: renderer,
+        camera: persistenceCamera,
+        state: getPersistentState(recordStateKey(persistenceRecord)),
+        insideOnly: persistenceRecord.kind === "inside",
+        scope: recordStateKey(persistenceRecord),
+        materialState: getPersistentMaterialState,
+        captureGeometry: (captureSource) =>
+          detail?.get(captureSource) || captureSource.geometry,
+        settings: [
+          settings,
+          passes?.options,
+          passes ? [passes.stats.batches, passes.stats.bytes, passes.stats.pending] : null,
+          floorLighting,
+          blur,
+          fadeHeight,
+          cull,
+          visibleFloorId,
+          outsideFloorId,
+          persistenceRecord.kind,
+          persistenceRecord.source.matrixWorld.toArray(),
+          [...persistenceRecord.plane.normal.toArray(), persistenceRecord.plane.constant],
+          getFloorCamera(persistenceCamera, persistenceRecord.source).matrixWorld.toArray(),
+          getFloorCamera(persistenceCamera, persistenceRecord.source).projectionMatrix.toArray(),
+        ],
+      });
+      return persistenceSignature && persistenceSignature.length <= 1024 * 1024
+        ? persistenceSignature
+        : null;
+    } catch {
+      return null;
+    }
+  }
+  const reflectionQueueKey = (queueRecord) =>
+    resolveFloorId(queueRecord.source) +
+    ":" +
+    queueRecord.kind +
+    ":" +
+    activeRecords.indexOf(queueRecord);
+  function enqueuePersistenceCapture(persistenceRecord, persistenceKey) {
+    if (
+      !persistenceKey ||
+      !persistentCache ||
+      persistenceRecord.restoredTexture ||
+      !renderer.readRenderTargetPixelsAsync
+    )
+      return;
+    const persistenceTarget = persistenceRecord.map,
+      persistenceMatrix = persistenceRecord.matrix.clone(),
+      persistenceBytes =
+        persistenceTarget.width *
+        persistenceTarget.height *
+        12 *
+        (1 + persistenceTarget.samples);
+    if (persistenceRetainedBytes + persistenceBytes > persistenceByteBudget) return;
+    ((persistenceRetainedBytes += persistenceBytes),
+      (stats.persistenceRetainedBytes = persistenceRetainedBytes),
+      (stats.persistencePeakBytes = Math.max(
+        stats.persistencePeakBytes || 0,
+        persistenceRetainedBytes,
+      )));
+    const snapshotHandle = {
+      map: persistenceTarget,
+      released: false,
+      release() {
+        snapshotHandle.released ||
+          ((snapshotHandle.released = true),
+          (persistenceRetainedBytes -= persistenceBytes),
+          (stats.persistenceRetainedBytes = persistenceRetainedBytes),
+          persistenceTarget !== persistenceRecord.map && persistenceTarget.dispose(),
+          persistenceRecord.pendingSnapshot === snapshotHandle &&
+            (persistenceRecord.pendingSnapshot = null));
+      },
+    };
+    persistenceRecord.pendingSnapshot = snapshotHandle;
+    const isPersistenceValid = () =>
+      !isDisposed &&
+      !persistenceRecord.dead &&
+      !snapshotHandle.released &&
+      (typeof document === "undefined" || !document.hidden);
+    persistentCache.enqueue(
+      reflectionQueueKey(persistenceRecord),
+      persistenceKey,
+      () =>
+        captureReflectionSnapshot(
+          three,
+          renderer,
+          {
+            map: persistenceTarget,
+            matrix: persistenceMatrix,
+          },
+          isPersistenceValid,
+        ),
+      isPersistenceValid,
+      snapshotHandle.release,
+    );
+  }
   function render(camera, { worldMatricesCurrent: worldMatricesCurrent = false } = {}) {
     if (isDisposed || stats.inCapture || !camera) return;
     if (isSuspended) {
@@ -779,6 +939,15 @@ export function createGroundReflections({
       !currentRoot)
     )
       return;
+    if (!activeRecords.length) {
+      ((shouldRefresh = false),
+        (isResumePending = false),
+        (resumeRecordSet = null),
+        (resumeStartedAtMs = null),
+        clearTimeout(throttleTimer),
+        (throttleTimer = null));
+      return;
+    }
     const resumeProgress = isResumePending
       ? 0
       : resumeStartedAtMs === null
@@ -833,7 +1002,6 @@ export function createGroundReflections({
         (activeRecord.overlay.material.uniforms.strength.value =
           activeRecord.presentationBaseStrength * presentationGain));
     }
-
     if (!activeRecords.length) return;
     const frameStartMs = performance.now(),
       cameraSignature =
@@ -917,13 +1085,41 @@ export function createGroundReflections({
       wallMeshes = [],
       floorNodeEntries = [],
       allInside = dirtyRecords.every((allInsideRecord) => allInsideRecord.kind === "inside");
+    const persistenceKeyByRecord = new Map();
+    if (persistentCache && !isPersistenceSettled && (persistentCache.available?.() ?? true)) {
+      for (const persistenceRecord of dirtyRecords)
+        if (!persistenceRecord.persistenceCaptured) {
+          const persistenceStamp = JSON.stringify([
+            cameraSignature,
+            lightingSignature,
+            stateKeyByRecord.get(persistenceRecord),
+            propagationCount,
+            detail?.stats.prepared,
+            passes?.stats.bytes,
+            passes?.stats.pending,
+            settings,
+          ]);
+          if (persistenceStamp !== persistenceRecord.persistenceStamp) {
+            const persistenceKeyStartMs = performance.now();
+            ((persistenceRecord.persistenceKey = buildPersistenceKey(
+              persistenceRecord,
+              camera,
+            )),
+              (persistenceRecord.persistenceStamp = persistenceStamp),
+              (stats.persistenceKeyMs =
+                (stats.persistenceKeyMs || 0) + performance.now() - persistenceKeyStartMs));
+          }
+          persistenceKeyByRecord.set(persistenceRecord, persistenceRecord.persistenceKey);
+        }
+    }
     let isCaptureDeferred = false,
       hasCaptured = false;
     culling.reset();
     const captureStartMs = performance.now();
     ((stats.inCapture = true), (stats.lastDrawCalls = stats.lastTriangles = 0));
     try {
-      const prepareNode = (candidateNode, nodeId, ancestorId) => {
+      const materialCache = new Map(),
+        prepareNode = (candidateNode, nodeId, ancestorId) => {
           if (!candidateNode.visible) return false;
           if (
             (candidateNode !== currentRoot &&
@@ -961,7 +1157,7 @@ export function createGroundReflections({
             candidateNode.isMesh && candidateNode.material)
           ) {
             const originalMaterial = candidateNode.material,
-              materialForRender = resolveFadeMaterials(originalMaterial);
+              materialForRender = resolveFadeMaterials(originalMaterial, materialCache);
             materialForRender !== originalMaterial &&
               (materialRestores.push([candidateNode, originalMaterial]),
               (candidateNode.material = materialForRender));
@@ -1029,7 +1225,47 @@ export function createGroundReflections({
             resumeRecordSet?.add(captureRecord));
           continue;
         }
-        isScenePrepared || (prepareFloorNodes(scene), (isScenePrepared = true));
+        if (persistentCache && !isPersistenceSettled && !captureRecord.persistenceChecked) {
+          const queuedPersistenceKey = persistenceKeyByRecord.get(captureRecord) || null;
+          if (((captureRecord.persistenceChecked = true), queuedPersistenceKey)) {
+            const persistenceQueueKey = reflectionQueueKey(captureRecord),
+              cachedSnapshot = persistentCache.peek(persistenceQueueKey, queuedPersistenceKey);
+            if (
+              cachedSnapshot?.size === currentResolution &&
+              cachedSnapshot.matrix.every(
+                (matrixEntry, matrixIndex) =>
+                  matrixEntry === captureRecord.matrix.elements[matrixIndex],
+              )
+            ) {
+              const restoredSnapshot = restoreReflectionSnapshot(three, cachedSnapshot);
+              if (restoredSnapshot) {
+                (captureRecord.restoredTexture?.dispose(),
+                  (captureRecord.restoredTexture = restoredSnapshot),
+                  (captureRecord.overlay.material.uniforms.reflection.value = restoredSnapshot),
+                  (captureRecord.hasCapture = true),
+                  (hasCaptured = true),
+                  (captureRecord.capturedPose = captureRecord.preparedPose = cameraSignature),
+                  (captureRecord.capturedStateKey = captureRecord.preparedStateKey =
+                    lightingSignature),
+                  (captureRecord.state = stateKeyByRecord.get(captureRecord)),
+                  resumeRecordSet?.add(captureRecord),
+                  (captureRecord.persistenceCaptured = true),
+                  (stats.persistentHits = (stats.persistentHits || 0) + 1));
+                continue;
+              }
+            }
+            cachedSnapshot && persistentCache.discard(persistenceQueueKey);
+          }
+        }
+        (captureRecord.pendingSnapshot?.map === captureRecord.map &&
+          ((captureRecord.map = createReflectionTarget(currentResolution)),
+          (captureRecord.overlay.material.uniforms.reflection.value = captureRecord.map.texture)),
+          captureRecord.restoredTexture &&
+            (captureRecord.restoredTexture.dispose(),
+            (captureRecord.restoredTexture = null),
+            (captureRecord.overlay.material.uniforms.reflection.value =
+              captureRecord.map.texture)),
+          isScenePrepared || (prepareFloorNodes(scene), (isScenePrepared = true)));
         const temporarilyHidden = [];
         try {
           const requiredFloorId = recordStateKey(captureRecord);
@@ -1078,6 +1314,12 @@ export function createGroundReflections({
         (stats.captures++,
           (captureRecord.hasCapture = true),
           (hasCaptured = true),
+          (captureRecord.captureRevision = (captureRecord.captureRevision || 0) + 1),
+          !captureRecord.persistenceCaptured &&
+            !isPersistenceSettled &&
+            enqueuePersistenceCapture(captureRecord, persistenceKeyByRecord.get(captureRecord)),
+          (captureRecord.persistenceCaptured = true),
+          (captureRecord.persistenceKey = null),
           (captureRecord.capturedPose = captureRecord.preparedPose = cameraSignature),
           (captureRecord.capturedStateKey = captureRecord.preparedStateKey = lightingSignature),
           resumeRecordSet?.add(captureRecord),
@@ -1148,6 +1390,30 @@ export function createGroundReflections({
     stats: stats,
     render: render,
     configure: configure,
+    allowPersistence() {
+      isDisposed ||
+        isPersistenceSettled ||
+        shouldRefresh ||
+        ((isPersistenceSettled = true), persistentCache?.presented());
+    },
+    setInsideEnabled(enabled) {
+      const nextInsideEnabled = enabled !== false;
+      if (!(isDisposed || nextInsideEnabled === insideEnabled)) {
+        if (((insideEnabled = nextInsideEnabled), cancelInsideExpiry(), !nextInsideEnabled)) {
+          for (const insideRecord of recordsBySource.values())
+            insideRecord.kind === "inside" &&
+              ((insideRecord.overlay.visible = false),
+              insideRecord.overlay.removeFromParent(),
+              (insideRecord.fadeOutStrength = 0),
+              insideRecord.pendingSnapshot?.release());
+        }
+        ((rootFirstChild = null),
+          (shouldRefresh = true),
+          clearTimeout(throttleTimer),
+          (throttleTimer = null),
+          requestFrame());
+      }
+    },
     setVisibleFloor(nextFloorId) {
       const normalizedFloorId = nextFloorId == null ? null : String(nextFloorId);
       if (normalizedFloorId !== visibleFloorId) {
@@ -1205,7 +1471,8 @@ export function createGroundReflections({
         shouldSuspend && !fade && (suspendStartedAtMs = null);
         return;
       }
-      ((isSuspended = shouldSuspend),
+      (propagationCount++,
+        (isSuspended = shouldSuspend),
         (resumeStartedAtMs = null),
         (isResumePending = !isSuspended && fadeIn),
         (resumeRecordSet =
@@ -1228,13 +1495,17 @@ export function createGroundReflections({
       return activeRecords;
     },
     invalidate() {
-      shouldRefresh = true;
+      ((shouldRefresh = true), propagationCount++);
     },
     invalidateContext() {
       if (!isDisposed) {
-        (clearTimeout(throttleTimer), (throttleTimer = null));
+        (propagationCount++,
+          (isPersistenceSettled = true),
+          clearTimeout(throttleTimer),
+          (throttleTimer = null));
         for (const cachedRecord of recordsBySource.values())
-          ((cachedRecord.hasCapture = false),
+          (cachedRecord.pendingSnapshot?.release(),
+            (cachedRecord.hasCapture = false),
             (cachedRecord.state = null),
             (cachedRecord.overlay.visible = false),
             (cachedRecord.programWork = null));
@@ -1247,6 +1518,7 @@ export function createGroundReflections({
       }
     },
     changed(changedFloorIds = null) {
+      propagationCount++;
       if (changedFloorIds == null) changeRevisionCount++;
       else
         for (const changedFloorId of new Set(changedFloorIds)) {

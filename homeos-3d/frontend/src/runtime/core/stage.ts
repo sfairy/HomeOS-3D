@@ -117,7 +117,7 @@ import {
 } from "../environment/environment-scene";
 import { startSceneSync as startSceneSync2 } from "./scene-sync";
 import {
-  createStateUpdatePlan as createStateUpdatePlan2,
+  createStateUpdatePlanner as createStateUpdatePlanner2,
   lightBindingsForUpdate as lightBindingsForUpdate2,
 } from "./state-update-plan";
 import {
@@ -210,12 +210,77 @@ function configuredModuleKinds(moduleConfigSource: Record<string, any> = {}) {
       : []),
   ];
 }
+export function createStageModelIndex(mountOptions) {
+  let indexedDocument,
+    indexedModelRoot,
+    indexedSceneRevision,
+    indexedEnvironmentRevision,
+    indexedFloors,
+    indexedFloorCount,
+    floorsById = new Map();
+  function floorEntryFor(floorId) {
+    const document2 = mountOptions.document,
+      floors = document2?.floors || [];
+    if (
+      indexedDocument !== document2 ||
+      indexedModelRoot !== mountOptions.modelRoot ||
+      indexedSceneRevision !== mountOptions.sceneRevision ||
+      indexedEnvironmentRevision !== mountOptions.environmentRevision ||
+      indexedFloors !== floors ||
+      indexedFloorCount !== floors.length
+    ) {
+      ((indexedDocument = document2),
+        (indexedModelRoot = mountOptions.modelRoot),
+        (indexedSceneRevision = mountOptions.sceneRevision),
+        (indexedEnvironmentRevision = mountOptions.environmentRevision),
+        (indexedFloors = floors),
+        (indexedFloorCount = floors.length),
+        (floorsById = new Map()));
+      for (const floorRecord of floors)
+        floorsById.has(floorRecord.id) || floorsById.set(floorRecord.id, { floor: floorRecord });
+    }
+    return floorsById.get(floorId);
+  }
+  return {
+    item(floorId, modelId, modelTypes = undefined) {
+      const floorEntry = floorEntryFor(floorId);
+      if (!floorEntry) return;
+      const items = floorEntry.floor.scene?.items || [];
+      if (floorEntry.items !== items || floorEntry.count !== items.length) {
+        ((floorEntry.items = items), (floorEntry.count = items.length), (floorEntry.byId = new Map()));
+        for (const floorItem of items) {
+          const itemId = floorItem.id;
+          (floorEntry.byId.has(itemId) || floorEntry.byId.set(itemId, []), floorEntry.byId.get(itemId).push(floorItem));
+        }
+      }
+      return floorEntry.byId
+        .get(modelId)
+        ?.find(
+          (candidateItem) =>
+            modelTypes === undefined ||
+            (Array.isArray(modelTypes) ? modelTypes.includes(candidateItem.type) : candidateItem.type === modelTypes),
+        );
+    },
+    invalidate() {
+      ((indexedDocument =
+        indexedModelRoot =
+        indexedSceneRevision =
+        indexedEnvironmentRevision =
+        indexedFloors =
+        indexedFloorCount =
+          undefined),
+        floorsById.clear());
+    },
+  };
+}
 export function mountStage(mountOptions) {
   const { THREE: three, container: element, canvas: canvasElement } = mountOptions;
   let value = null;
   const hasStageRect = () => !!value,
     noopStageCallback = () => {};
 
+  const stateUpdatePlanner = createStateUpdatePlanner2(),
+    stageModelIndex = createStageModelIndex(mountOptions);
   let options: Record<string, any> = {
       lights: [],
     },
@@ -1387,13 +1452,11 @@ export function mountStage(mountOptions) {
       brightness: cameraBrightnessScale,
     };
     const cameraSceneBindings = (options.security?.cameras || []).map((cameraSceneBinding) => {
-      const cameraSceneModel = mountOptions.document.floors
-        .find((cameraFloor) => cameraFloor.id === cameraSceneBinding.floorId)
-        ?.scene.items.find(
-          (cameraSceneEntry) =>
-            cameraSceneEntry.id === cameraSceneBinding.modelId &&
-            cameraSceneEntry.type === "camera",
-        );
+      const cameraSceneModel = stageModelIndex.item(
+        cameraSceneBinding.floorId,
+        cameraSceneBinding.modelId,
+        "camera",
+      );
       return {
         ...cameraSceneBinding,
         width: cameraSceneModel?.width || 0.2,
@@ -1411,8 +1474,8 @@ export function mountStage(mountOptions) {
     });
   }
   function syncNasOverlay() {
-    if (startupProgress === 0) return;
-    const isNasOverlayEnabled = !isAwaitingFloorViewAdjust && !isRangeEditorOpen,
+    const isNasOverlayEnabled =
+        startupProgress > 0 && !isAwaitingFloorViewAdjust && !isRangeEditorOpen,
       modelRoot3 = mountOptions.modelRoot,
       sceneRevision3 = mountOptions.sceneRevision,
       nasSizeScale = selectedFloorId === "all" ? 0.75 : 1,
@@ -1594,6 +1657,49 @@ export function mountStage(mountOptions) {
         dimStrength: 0,
       }));
   }
+  let startupDeviceSyncSnapshot;
+  function syncStartupDeviceLayers() {
+    if (startupProgress > 0) return;
+    syncNasOverlay();
+    const modelRoot4 = mountOptions.modelRoot,
+      sceneRevision4 = mountOptions.sceneRevision,
+      environmentRevision = mountOptions.environmentRevision ?? sceneRevision4,
+      document4 = mountOptions.document;
+    (startupDeviceSyncSnapshot?.root === modelRoot4 &&
+      startupDeviceSyncSnapshot.revision === sceneRevision4 &&
+      startupDeviceSyncSnapshot.environmentRevision === environmentRevision &&
+      startupDeviceSyncSnapshot.source === document4 &&
+      startupDeviceSyncSnapshot.config === options &&
+      startupDeviceSyncSnapshot.states === deviceStates) ||
+      (carCharging.sync({
+        root: modelRoot4,
+        revision: environmentRevision,
+        retainedRoots: mountOptions.retainedModelRoots || [],
+        bindings: options.devices?.cars || [],
+        states: deviceStates,
+      }),
+      airerMotion.sync({
+        root: modelRoot4,
+        revision: environmentRevision,
+        bindings: collectCoverBindings().filter((airerSyncBinding) => airerSyncBinding.airer),
+        states: deviceStates,
+        preparing: true,
+      }),
+      fanMotion.sync({
+        root: modelRoot4,
+        revision: environmentRevision,
+        bindings: options.environment?.fans || [],
+        states: deviceStates,
+      }),
+      (startupDeviceSyncSnapshot = {
+        root: modelRoot4,
+        revision: sceneRevision4,
+        environmentRevision: environmentRevision,
+        source: document4,
+        config: options,
+        states: deviceStates,
+      }));
+  }
   const environmentScene = createEnvironmentScene2({
     THREE: three,
     prepareMaterials: () => mountOptions.prepareEnvironmentMaterials?.(),
@@ -1604,6 +1710,7 @@ export function mountStage(mountOptions) {
     },
   });
   (mountOptions.setTelevisionSync?.(syncEnvironmentLayers),
+    mountOptions.setStartupDeviceSync?.(syncStartupDeviceLayers),
     mountOptions.setEnvironmentScene?.(environmentScene));
 
 
@@ -1736,20 +1843,17 @@ export function mountStage(mountOptions) {
       ...(options.environment?.airPurifiers || []),
       ...(options.environment?.waterHeaters || []),
     ].map((climateSourceEntry) => {
-      const climateModel = mountOptions.document.floors
-        .find((climateFloor) => climateFloor.id === climateSourceEntry.floorId)
-        ?.scene.items.find(
-          (climateSceneItem) =>
-            climateSceneItem.id === climateSourceEntry.modelId &&
-            (options.environment?.waterHeaters?.includes(climateSourceEntry)
-              ? ["storagewaterheater", "gaswaterheater"]
-              : options.environment?.fans?.includes(climateSourceEntry)
-                ? ["fan"]
-                : options.environment?.airPurifiers?.includes(climateSourceEntry)
-                  ? ["airpurifier"]
-                  : ["wallac", "floorac", "airoutlet"]
-            ).includes(climateSceneItem.type),
-        );
+      const climateModel = stageModelIndex.item(
+        climateSourceEntry.floorId,
+        climateSourceEntry.modelId,
+        options.environment?.waterHeaters?.includes(climateSourceEntry)
+          ? ["storagewaterheater", "gaswaterheater"]
+          : options.environment?.fans?.includes(climateSourceEntry)
+            ? ["fan"]
+            : options.environment?.airPurifiers?.includes(climateSourceEntry)
+              ? ["airpurifier"]
+              : ["wallac", "floorac", "airoutlet"],
+      );
       return {
         ...climateSourceEntry,
         pedestalFan: (options.environment?.fans || []).includes(climateSourceEntry),
@@ -1819,13 +1923,11 @@ export function mountStage(mountOptions) {
     return [...(options.environment?.curtains || []), ...(options.environment?.airers || [])].map(
       (coverSourceEntry) => {
         const isAirer = (options.environment?.airers || []).includes(coverSourceEntry),
-          coverModel = mountOptions.document.floors
-            .find((coverFloor) => coverFloor.id === coverSourceEntry.floorId)
-            ?.scene.items.find(
-              (coverSceneItem) =>
-                coverSceneItem.id === coverSourceEntry.modelId &&
-                coverSceneItem.type === (isAirer ? "airer" : "curtain"),
-            );
+          coverModel = stageModelIndex.item(
+            coverSourceEntry.floorId,
+            coverSourceEntry.modelId,
+            isAirer ? "airer" : "curtain",
+          );
         return {
           ...coverSourceEntry,
           airer: isAirer,
@@ -1950,15 +2052,11 @@ export function mountStage(mountOptions) {
     const deviceProfile = genericDeviceProfile2(collectDeviceKind);
     return deviceProfile
       ? (options.devices?.[deviceProfile.collection] || []).map((profileDeviceEntry) => {
-          const deviceModel = mountOptions.document.floors
-            .find((profileDeviceFloor) => profileDeviceFloor.id === profileDeviceEntry.floorId)
-            ?.scene.items.find(
-              (profileDeviceSceneItem) =>
-                profileDeviceSceneItem.id === profileDeviceEntry.modelId &&
-                (deviceProfile.modelTypes || [deviceProfile.modelType]).includes(
-                  profileDeviceSceneItem.type,
-                ),
-            );
+          const deviceModel = stageModelIndex.item(
+            profileDeviceEntry.floorId,
+            profileDeviceEntry.modelId,
+            deviceProfile.modelTypes || [deviceProfile.modelType],
+          );
           return {
             ...profileDeviceEntry,
             clickAction: profileDeviceEntry.clickAction || "focus-panel",
@@ -1990,12 +2088,11 @@ export function mountStage(mountOptions) {
   }
   function collectNasBindings() {
     return (options.devices?.nas || []).map((nasSourceEntry) => {
-      const nasModel = mountOptions.document.floors
-        .find((nasFloor) => nasFloor.id === nasSourceEntry.floorId)
-        ?.scene.items.find(
-          (nasSceneItem) =>
-            nasSceneItem.id === nasSourceEntry.modelId && nasSceneItem.type === "nas",
-        );
+      const nasModel = stageModelIndex.item(
+        nasSourceEntry.floorId,
+        nasSourceEntry.modelId,
+        "nas",
+      );
       return {
         ...nasSourceEntry,
         clickAction: nasSourceEntry.clickAction || "focus",
@@ -2283,13 +2380,11 @@ export function mountStage(mountOptions) {
   document.addEventListener("visibilitychange", syncVacuumMap);
   function collectVacuumBindings() {
     return (options.devices?.vacuums || []).map((vacuumSourceEntry) => {
-      const vacuumModel = mountOptions.document.floors
-          .find((vacuumFloor) => vacuumFloor.id === vacuumSourceEntry.floorId)
-          ?.scene.items.find(
-            (vacuumSceneItem) =>
-              vacuumSceneItem.id === vacuumSourceEntry.modelId &&
-              vacuumSceneItem.type === "robotvacuum",
-          ),
+      const vacuumModel = stageModelIndex.item(
+        vacuumSourceEntry.floorId,
+        vacuumSourceEntry.modelId,
+        "robotvacuum",
+      ),
         vacuumMapOffset = (!isEditing && vacuumMotion.offset(vacuumSourceEntry.id)) || {
           x: 0,
           y: 0,
@@ -2370,13 +2465,11 @@ export function mountStage(mountOptions) {
   }
   function collectSpeakerBindings() {
     return (options.devices?.speakers || []).map((speakerSourceEntry) => {
-      const speakerModel = mountOptions.document.floors
-        .find((speakerFloor) => speakerFloor.id === speakerSourceEntry.floorId)
-        ?.scene.items.find(
-          (speakerSceneItem) =>
-            speakerSceneItem.id === speakerSourceEntry.modelId &&
-            speakerSceneItem.type === "speaker",
-        );
+      const speakerModel = stageModelIndex.item(
+        speakerSourceEntry.floorId,
+        speakerSourceEntry.modelId,
+        "speaker",
+      );
       return {
         ...speakerSourceEntry,
         clickAction: speakerSourceEntry.clickAction || "focus-panel",
@@ -2393,13 +2486,11 @@ export function mountStage(mountOptions) {
   }
   function collectTelevisionBindings() {
     return (options.devices?.televisions || []).map((televisionSourceEntry) => {
-      const televisionModel = mountOptions.document.floors
-        .find((televisionFloor) => televisionFloor.id === televisionSourceEntry.floorId)
-        ?.scene.items.find(
-          (televisionSceneItem) =>
-            televisionSceneItem.id === televisionSourceEntry.modelId &&
-            televisionSceneItem.type === "tv",
-        );
+      const televisionModel = stageModelIndex.item(
+        televisionSourceEntry.floorId,
+        televisionSourceEntry.modelId,
+        "tv",
+      );
       return {
         ...televisionSourceEntry,
         clickAction: televisionSourceEntry.clickAction || "focus-panel",
@@ -2820,15 +2911,11 @@ export function mountStage(mountOptions) {
       (labelModeOf(lockLabelEntry) === "open" && lockLabelState?.doorOpen === true),
     securityCameraBindings = () =>
       (options.security?.cameras || []).map((securityCameraSourceEntry) => {
-        const securityCameraModel = mountOptions.document.floors
-          .find(
-            (securityCameraFloor) => securityCameraFloor.id === securityCameraSourceEntry.floorId,
-          )
-          ?.scene.items.find(
-            (securityCameraSceneItem) =>
-              securityCameraSceneItem.id === securityCameraSourceEntry.modelId &&
-              securityCameraSceneItem.type === "camera",
-          );
+        const securityCameraModel = stageModelIndex.item(
+          securityCameraSourceEntry.floorId,
+          securityCameraSourceEntry.modelId,
+          "camera",
+        );
         return {
           ...securityCameraSourceEntry,
           id: "camera:" + securityCameraSourceEntry.id,
@@ -2850,13 +2937,11 @@ export function mountStage(mountOptions) {
       }),
     presenceBindings = () =>
       (options.security?.presenceSensors || []).map((presenceSourceEntry) => {
-        const presenceModel = mountOptions.document.floors
-          .find((presenceFloor) => presenceFloor.id === presenceSourceEntry.floorId)
-          ?.scene.items.find(
-            (presenceSensorSceneItem) =>
-              presenceSensorSceneItem.id === presenceSourceEntry.modelId &&
-              presenceSensorSceneItem.type === "presence",
-          );
+        const presenceModel = stageModelIndex.item(
+          presenceSourceEntry.floorId,
+          presenceSourceEntry.modelId,
+          "presence",
+        );
         return {
           ...presenceSourceEntry,
           modelAvailable: presenceSourceEntry.modelId ? !!presenceModel : undefined,
@@ -2940,11 +3025,10 @@ export function mountStage(mountOptions) {
         bindings: (options.security?.presenceSensors || [])
           .filter((presenceSyncEntry) => !isEditing || "presence:" + presenceSyncEntry.id === text)
           .map((presenceSyncSensor) => {
-            const presenceLayerItem = mountOptions.document.floors
-              .find((presenceSyncFloor) => presenceSyncFloor.id === presenceSyncSensor.floorId)
-              ?.scene.items.find(
-                (presenceSyncItem) => presenceSyncItem.id === presenceSyncSensor.modelId,
-              );
+            const presenceLayerItem = stageModelIndex.item(
+              presenceSyncSensor.floorId,
+              presenceSyncSensor.modelId,
+            );
             return {
               ...presenceSyncSensor,
               width: presenceLayerItem?.width,
@@ -5420,7 +5504,10 @@ export function mountStage(mountOptions) {
   }
   function syncMarkers(markerChange = null) {
     if (isCameraMoving) return;
-    (wakeSceneBackground(), markerLayerElement.classList.toggle("is-editing", isEditing));
+    (markerChange ||
+      (stateUpdatePlanner.invalidate(), stageModelIndex.invalidate()),
+      wakeSceneBackground(),
+      markerLayerElement.classList.toggle("is-editing", isEditing));
     const syncMarkerItems = currentModuleBindings().filter(
         (filteredMarkerItem) => isEditing || filteredMarkerItem.deviceKind !== "presence",
       ),
@@ -6237,11 +6324,10 @@ export function mountStage(mountOptions) {
             ...activePointerDrag.point,
           };
         if (draggedMarkerItem.deviceKind === "smallcar") {
-          const smallcarSceneItem = mountOptions.document.floors
-            .find((floorSceneItem) => floorSceneItem.id === draggedMarkerItem.floorId)
-            ?.scene.items.find(
-              (smallcarModelItem) => smallcarModelItem.id === draggedMarkerItem.modelId,
-            );
+          const smallcarSceneItem = stageModelIndex.item(
+            draggedMarkerItem.floorId,
+            draggedMarkerItem.modelId,
+          );
           ((nextMarkerPosition.x -= smallcarSceneItem?.x ?? 0),
             (nextMarkerPosition.y -= smallcarSceneItem?.y ?? 0));
         }
@@ -6816,7 +6902,9 @@ export function mountStage(mountOptions) {
                   else {
                     if (data.type === "states") {
                       const stateUpdatePlan =
-                          data.patch === true ? createStateUpdatePlan2(options, data.states) : null,
+                          data.patch === true
+                            ? stateUpdatePlanner.plan(options, data.states)
+                            : null,
                         snapshotLightState = (patchedEntityId) =>
                           JSON.stringify([
                             resolveDeviceState(patchedEntityId),
@@ -7377,7 +7465,9 @@ export function mountStage(mountOptions) {
   })),
     syncAvailability(),
     window.addEventListener("pagehide", () => {
-      (lockMotion.dispose(),
+      (stateUpdatePlanner.invalidate(),
+        stageModelIndex.invalidate(),
+        lockMotion.dispose(),
         mountOptions.setLockMoving?.(false),
         lockPanel.dispose(),
         sceneBackgroundController.dispose(),
@@ -7398,6 +7488,7 @@ export function mountStage(mountOptions) {
         rangeEditorHandle?.dispose(),
         mountOptions.setCurtainSync?.(null),
         mountOptions.setTelevisionSync?.(null),
+        mountOptions.setStartupDeviceSync?.(null),
         coverPanel.dispose(),
         coverGroupPanel.dispose(),
         curtainMotion.dispose(),

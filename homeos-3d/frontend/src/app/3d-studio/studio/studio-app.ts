@@ -74,6 +74,9 @@ import { createMotionBuffer as createMotionBuffer2 } from "./studio-motion-buffe
 import { createBackgroundCache as createBackgroundCache2 } from "./studio-background-cache";
 import { createLoadTiming as createLoadTiming2 } from "../../bridge/load-timing";
 import { stageStartup as stageStartup2 } from "../stage-startup";
+import { interactionResourcePolicy } from "../studio-resource-policy";
+import { createPreviewTransformCache } from "../studio-preview-transforms";
+import { validGeometryLoops as validGeometryLoops2 } from "../geometry-persistent-cache";
 import { prepareSceneDocument as prepareSceneDocument2 } from "../scene-persistent-cache";
 import {
   prepareBackground as prepareBackground2,
@@ -386,6 +389,7 @@ const selectElement = (selectorText) => document.querySelector(selectorText),
   isEmbeddedStage =
     (window.HomeOSEmbed?.path || window.location.pathname) ===
     "/api/v1/modules/interaction3d/stage.html",
+  geometryCacheHandle: any = isEmbeddedStage ? stageStartup2?.geometryCache : null,
   isEmbedStageMode =
     isEmbeddedStage &&
     new URLSearchParams(window.location.search).get("lighting") === "region",
@@ -522,6 +526,12 @@ const planCanvasElement = selectElement("#plan-canvas"),
   saveConflictDialogElement = selectElement("#save-conflict-dialog"),
   saveConflictLoadButton = selectElement("#save-conflict-load"),
   saveConflictOverwriteButton = selectElement("#save-conflict-overwrite"),
+  studioBackLinkElement = selectElement("#studio-back-link"),
+  studioExitDialogElement = selectElement("#studio-exit-dialog"),
+  studioExitMessageElement = selectElement("#studio-exit-message"),
+  studioExitSaveButton = selectElement("#studio-exit-save"),
+  studioExitDiscardButton = selectElement("#studio-exit-discard"),
+  studioExitContinueButton = selectElement("#studio-exit-continue"),
   globalWallHeightInput = selectElement("#global-wall-height"),
   globalWallThicknessInput = selectElement("#global-wall-thickness"),
   globalWallOpacityInput = selectElement("#global-wall-opacity"),
@@ -2583,6 +2593,7 @@ function finishModelLoad() {
 }
 const externalModelRegistry = createExternalModelManager2({
     THREE: ns2,
+    geometryCache: isEmbeddedStage ? stageStartup2?.furnitureCache : null,
     loader: modelAssetLoader,
     stairItemTypes: stairItemTypeSet,
     isModelInUse: checkModelInUse,
@@ -2641,6 +2652,28 @@ function publishModelLoadState(modelLoaderEntry = externalModelRegistry.modelLoa
 }
 function emitRuntimeDiagnostic(eventName, timingRecord: Record<string, any> = {}) {
   try {
+    if (!isEmbeddedStage && ["gpu-lost", "gpu-restored"].includes(eventName)) {
+      const isContextRestored = eventName === "gpu-restored",
+        contextCanvas = threeRenderer?.domElement;
+      (window.HomeOSLog?.report as any)?.(
+        isContextRestored ? "success" : "warning",
+        "3D 图形",
+        isContextRestored
+          ? "3D 图形上下文已恢复，正在重建画面与阴影缓存"
+          : "3D 图形上下文已丢失，预览暂时停止，等待浏览器恢复",
+        {
+          phase: "studio-webgl-context",
+          code: eventName,
+        },
+        "画布像素：" +
+          (contextCanvas?.width || 0) +
+          " × " +
+          (contextCanvas?.height || 0) +
+          "\n像素比：" +
+          (threeRenderer?.getPixelRatio?.() || 1),
+      );
+      return;
+    }
     if (
       !isEmbeddedStage ||
       window.parent === window ||
@@ -5697,6 +5730,42 @@ function applyPlacementChange(undoSnapshot) {
     (redoRecords = []));
 }
 async function restoreSnapshot(snapshotDocument) {
+  /**
+   * 0.6.8 合并墙保护：恢复删除备份前，若恢复会改写一面当前仍存在的墙，
+   * 而当前场景在这面墙上新增了门窗或栏杆（不在备份的 attachmentIds 内），
+   * 说明合并墙在备份之后又发生变化，此时拒绝恢复，提示先撤销这些改动。
+   */
+  const backupWallById = new Map<string, any>(
+      (snapshotDocument.walls || []).map((backupWall: any) => [backupWall.id, backupWall]),
+    ),
+    changedWallIds = new Set(
+      (studioState.walls || [])
+        .filter((currentWall) => {
+          const backupWall = backupWallById.get(currentWall.id);
+          return (
+            backupWall &&
+            (backupWall.start.x !== currentWall.start.x ||
+              backupWall.start.y !== currentWall.start.y ||
+              backupWall.end.x !== currentWall.end.x ||
+              backupWall.end.y !== currentWall.end.y)
+          );
+        })
+        .map((currentWall) => currentWall.id),
+    );
+  if (changedWallIds.size)
+    for (const attachmentKey of ["windows", "doors", "railings"]) {
+      const backupAttachmentIds = new Set(
+        (snapshotDocument[attachmentKey] || []).map((attachmentRecord) => attachmentRecord.id),
+      );
+      if (
+        (studioState[attachmentKey] || []).some(
+          (attachmentRecord) =>
+            changedWallIds.has(attachmentRecord.wallId) &&
+            !backupAttachmentIds.has(attachmentRecord.id),
+        )
+      )
+        throw new Error("合并墙上已有新增门窗或栏杆，请先撤销这些改动，再撤销删除。");
+    }
   (selectStudioTool("select"), (studioState = normalizeScenePayload(snapshotDocument)));
   const ae6 = getActiveFloor();
   (ae6 && (ae6.scene = studioState),
@@ -5724,9 +5793,10 @@ function markDocumentDirty() {
     (syncCourtyardGates2(studioState.items, getPixelsPerMeter() || 100),
     (isExporting = false),
     (localSaveRevision += 1),
+    (firstLocalChangeAt ??= Date.now()),
+    (lastLocalChangeAt = Date.now()),
     showSaveState("有未保存修改", "saving"),
-    window.clearTimeout(autosaveTimeoutId),
-    (autosaveTimeoutId = window.setTimeout(flushAutosave, 650)),
+    scheduleAutosave(),
     refreshStepChecklist());
 }
 async function applyLoadedDraft(draftPayload, draftScene = null) {
@@ -5857,7 +5927,24 @@ function recordSaveConflict(conflictLatest, conflictLocalScene, conflictTargetVe
     showSaveState("等待处理保存冲突", "error"),
     saveConflictDialogElement.open || saveConflictDialogElement.showModal());
 }
-let blockedSaveRevision = -1;
+/** 0.6.8 退出保护：非重试性保存失败后锁定的版本；自动保存重试状态与退出请求状态。 */
+let blockedSaveRevision = -1,
+  failedSaveRevision = -1,
+  saveRetryDueAt = 0,
+  saveFailureRetryCount = 0,
+  firstLocalChangeAt = null,
+  lastLocalChangeAt = null,
+  isInteractionDeferredSave = false,
+  isExitSaveInFlight = false,
+  exitSaveRequestId = 0,
+  isLeavingStudio = false,
+  isPageSuspended = false;
+/** 自动保存节奏：最后一次修改后 3s 合并保存，首次修改后最多 15s 兜底。 */
+const AUTOSAVE_DEBOUNCE_MS = 3000,
+  AUTOSAVE_MAX_DELAY_MS = 15000;
+/** 等待进行中保存完成的解析器；等待交互结束再落盘的解析器（退出「保存并退出」用）。 */
+const saveWaiterResolvers = new Set<() => void>(),
+  exitWaiterResolvers = new Set<() => void>();
 function resolveInteractionCleanup(interactionImpact) {
   return new Promise((cleanupResolve) => {
     const cleanupDialogElement = document.createElement("dialog");
@@ -5896,7 +5983,20 @@ function resolveInteractionCleanup(interactionImpact) {
     ((cleanupCancelButton.type = "button"),
       (cleanupCancelButton.textContent = "撤销删除"),
       (cleanupCancelButton.onclick = async () => {
-        (await deleteSelectedObjects(), finishCleanup(false));
+        (cleanupCancelButton.disabled =
+          cleanupConfirmButton.disabled =
+          cleanupCloseButton.disabled =
+            true);
+        try {
+          (await deleteSelectedObjects(), finishCleanup(false));
+        } catch (cleanupRestoreFailure) {
+          showToast(cleanupRestoreFailure.message || "恢复删除失败，请重试。", "error");
+        } finally {
+          (cleanupCancelButton.disabled =
+            cleanupConfirmButton.disabled =
+            cleanupCloseButton.disabled =
+              false);
+        }
       }));
     const cleanupConfirmButton = document.createElement("button");
     ((cleanupConfirmButton.type = "button"),
@@ -5906,7 +6006,7 @@ function resolveInteractionCleanup(interactionImpact) {
     const cleanupNoteElement = document.createElement("p");
     ((cleanupNoteElement.className = "interaction-cleanup-note"),
       (cleanupNoteElement.textContent =
-        "撤销删除会恢复刚才移除的模型或灯组；确认删除后才会同步清理交互配置。"),
+        "撤销本次待保存删除会恢复移除的楼层、模型和灯组，并保留其他修改；确认后才会同步清理交互配置。"),
       cleanupActionsElement.append(cleanupCancelButton, cleanupConfirmButton),
       cleanupFormElement.append(
         cleanupCloseButton,
@@ -5926,18 +6026,109 @@ function resolveInteractionCleanup(interactionImpact) {
       cleanupDialogElement.showModal());
   });
 }
+/** 保存失败后的重试状态复位（重试次数、重试到期时间、非重试性失败锁定版本）。 */
+function resetSaveRetryState() {
+  ((saveFailureRetryCount = 0), (saveRetryDueAt = 0), (failedSaveRevision = -1));
+}
+/** 自动保存调度：合并 3s 内的多次修改，首次修改后最多 15s 兜底；失败重试按退避到期时间。 */
+function scheduleAutosave(explicitDelayMs?: number) {
+  if (
+    (window.clearTimeout(autosaveTimeoutId),
+    (autosaveTimeoutId = null),
+    isEmbeddedStage ||
+      isPageSuspended ||
+      (document.hidden && saveRetryDueAt > 0) ||
+      navigator.onLine === false ||
+      !loadedDraft ||
+      isSaveInFlight ||
+      studioExitDialogElement.open ||
+      pendingConflict ||
+      localSaveRevision === remoteSaveRevision ||
+      localSaveRevision === blockedSaveRevision ||
+      localSaveRevision === failedSaveRevision)
+  )
+    return;
+  const now = Date.now(),
+    dueAt =
+      saveRetryDueAt > 0
+        ? saveRetryDueAt
+        : explicitDelayMs !== undefined
+          ? now + explicitDelayMs
+          : Math.min(
+              (lastLocalChangeAt ?? now) + AUTOSAVE_DEBOUNCE_MS,
+              (firstLocalChangeAt ?? now) + AUTOSAVE_MAX_DELAY_MS,
+            );
+  autosaveTimeoutId = window.setTimeout(flushAutosave, Math.max(0, dueAt - now));
+}
+/** 交互（平面拖拽 / 渲染抑制 / 庭院绘制）结束后：释放退出等待者，并补一次被推迟的自动保存。 */
+function handleInteractionEnded() {
+  if (!isInteractionBusy()) {
+    for (const exitWaiter of exitWaiterResolvers) exitWaiter();
+    (exitWaiterResolvers.clear(),
+      isInteractionDeferredSave && ((isInteractionDeferredSave = false), scheduleAutosave()));
+  }
+}
+function isInteractionBusy() {
+  return isWindowHidden || isRenderSuppressed || !!planPainter?.isDragging?.();
+}
+/** 退出前的未保存判定：进行中保存、版本差、导出存档脏、平面拖拽或庭院绘制待提交。 */
+function hasUnsavedChanges() {
+  return (
+    isSaveInFlight ||
+    localSaveRevision !== remoteSaveRevision ||
+    isExportPresetDirty ||
+    !!marqueeBox?.moved ||
+    !!planPainter?.hasPendingChange?.()
+  );
+}
+function refreshExitDialogButtons() {
+  ((studioExitSaveButton.disabled = isExitSaveInFlight),
+    (studioExitDiscardButton.disabled = isSaveInFlight || isExitSaveInFlight),
+    (studioExitSaveButton.textContent = isExitSaveInFlight ? "正在保存…" : "保存并退出"));
+}
+/** 「继续编辑」/ Esc：作废当前退出请求，释放等待者并关闭对话框。 */
+function closeExitDialog() {
+  ((exitSaveRequestId += 1), (isExitSaveInFlight = false));
+  for (const exitWaiter of exitWaiterResolvers) exitWaiter();
+  (exitWaiterResolvers.clear(),
+    studioExitDialogElement.close(),
+    refreshExitDialogButtons(),
+    scheduleAutosave());
+}
+/** 「不保存并退出」：标记离开状态并跳转回编辑器。 */
+function leaveStudio() {
+  ((isLeavingStudio = true),
+    window.clearTimeout(autosaveTimeoutId),
+    (autosaveTimeoutId = null),
+    window.location.assign(studioBackLinkElement.href));
+}
 async function flushAutosave() {
   if (
     isEmbeddedStage ||
+    isPageSuspended ||
+    (document.hidden && saveRetryDueAt > 0) ||
+    navigator.onLine === false ||
     !loadedDraft ||
     isSaveInFlight ||
     pendingConflict ||
     localSaveRevision === remoteSaveRevision ||
-    localSaveRevision === blockedSaveRevision
+    localSaveRevision === failedSaveRevision
   )
     return;
-  isSaveInFlight = true;
-  const po2 = localSaveRevision;
+  if (Date.now() < saveRetryDueAt) {
+    scheduleAutosave();
+    return;
+  }
+  if (localSaveRevision === blockedSaveRevision) return;
+  if (isInteractionBusy()) {
+    isInteractionDeferredSave = true;
+    return;
+  }
+  (window.clearTimeout(autosaveTimeoutId), (autosaveTimeoutId = null), (isInteractionDeferredSave = false));
+  const previousFirstLocalChangeAt = firstLocalChangeAt,
+    previousLastLocalChangeAt = lastLocalChangeAt;
+  ((firstLocalChangeAt = lastLocalChangeAt = null), (isSaveInFlight = true), refreshExitDialogButtons());
+  const saveRevisionAtStart = localSaveRevision;
   showSaveState("正在保存…", "saving");
   const saveStudioDraft = async (draftToSave) => {
     const latestLocalRevision = getLocalSaveRevision(),
@@ -5961,7 +6152,9 @@ async function flushAutosave() {
         throw saveError;
       return (await resolveInteractionCleanup(saveErrorDetail))
         ? putStudioDraft(saveErrorDetail.token)
-        : ((blockedSaveRevision = po2), showSaveState("删除未确认，尚未保存", "error"), null);
+        : ((blockedSaveRevision = saveRevisionAtStart),
+          showSaveState("删除未确认，尚未保存", "error"),
+          null);
     }
   };
   try {
@@ -5972,24 +6165,41 @@ async function flushAutosave() {
     } catch (conflictError) {
       if (conflictError.status !== 409) throw conflictError;
       const xa2 = await fetchStudioApi("/studio3d");
-      recordSaveConflict(xa2, getLocalSaveRevision(), po2);
+      recordSaveConflict(xa2, getLocalSaveRevision(), saveRevisionAtStart);
       return;
     }
-    ((remoteSaveRevision = Math.max(remoteSaveRevision, po2)),
+    (resetSaveRetryState(),
+      (remoteSaveRevision = Math.max(remoteSaveRevision, saveRevisionAtStart)),
       localSaveRevision === remoteSaveRevision && showSaveState("已自动保存", "saved"));
   } catch (saveFailure) {
     (window.HomeOSLog?.error(saveFailure, {
       phase: "studio-save",
     }),
-      showSaveState("保存失败", "error"),
-      showToast(saveFailure.message || "3D 草稿保存失败。", "error"));
+      (saveFailureRetryCount += 1));
+    const isRetryableFailure =
+      !saveFailure.status ||
+      [408, 425, 429].includes(saveFailure.status) ||
+      saveFailure.status >= 500;
+    (isRetryableFailure
+      ? ((saveRetryDueAt =
+          Date.now() + Math.min(30000, 2000 * 2 ** Math.min(saveFailureRetryCount - 1, 4))),
+        showSaveState("保存失败，稍后自动重试", "error"))
+      : ((failedSaveRevision = saveRevisionAtStart),
+        (saveRetryDueAt = 0),
+        showSaveState("保存失败，修改后重试", "error")),
+      (saveFailureRetryCount === 1 || !isRetryableFailure) &&
+        showToast(saveFailure.message || "3D 草稿保存失败。", "error"));
   } finally {
-    ((isSaveInFlight = false),
-      !pendingConflict &&
-        localSaveRevision !== remoteSaveRevision &&
-        localSaveRevision !== blockedSaveRevision &&
-        (window.clearTimeout(autosaveTimeoutId),
-        (autosaveTimeoutId = window.setTimeout(flushAutosave, 500))));
+    (remoteSaveRevision < saveRevisionAtStart &&
+      ((firstLocalChangeAt = Math.min(
+        previousFirstLocalChangeAt ?? Date.now(),
+        firstLocalChangeAt ?? Date.now(),
+      )),
+      (lastLocalChangeAt = Math.max(previousLastLocalChangeAt ?? 0, lastLocalChangeAt ?? 0))),
+      (isSaveInFlight = false),
+      refreshExitDialogButtons());
+    for (const saveWaiter of saveWaiterResolvers) saveWaiter();
+    (saveWaiterResolvers.clear(), scheduleAutosave());
   }
 }
 (saveConflictDialogElement.addEventListener("cancel", (dialogCancelEvent) =>
@@ -5998,12 +6208,18 @@ async function flushAutosave() {
   saveConflictLoadButton.addEventListener("click", async () => {
     const Vr2 = pendingConflict;
     if (Vr2) {
-      ((pendingConflict = null), saveConflictDialogElement.close());
+      ((pendingConflict = null),
+        window.clearTimeout(autosaveTimeoutId),
+        resetSaveRetryState(),
+        (blockedSaveRevision = -1),
+        (firstLocalChangeAt = lastLocalChangeAt = null),
+        saveConflictDialogElement.close());
       try {
         (await applyLoadedDraft(Vr2.latest),
           (remoteSaveRevision = localSaveRevision),
           showSaveState("已加载服务器版本", "saved"),
-          showToast("已加载另一页面保存的户型，当前页面没有执行覆盖。", "success"));
+          showToast("已加载另一页面保存的户型，当前页面没有执行覆盖。", "success"),
+          scheduleAutosave(0));
       } catch (loadFailure) {
         (showSaveState("载入失败", "error"),
           showToast(loadFailure.message || "服务器版本载入失败。", "error"));
@@ -6013,7 +6229,8 @@ async function flushAutosave() {
   saveConflictOverwriteButton.addEventListener("click", () => {
     const Vr3 = pendingConflict;
     Vr3 &&
-      ((studioProject = normalizeStudioDocument(Vr3.localScene)),
+      (resetSaveRetryState(),
+      (studioProject = normalizeStudioDocument(Vr3.localScene)),
       (activeFloorId = studioProject.activeFloorId),
       (studioState = getActiveFloor().scene),
       (loadedDraft = Vr3.latest),
@@ -6021,8 +6238,78 @@ async function flushAutosave() {
       saveConflictDialogElement.close(),
       showSaveState("正在确认覆盖…", "saving"),
       window.clearTimeout(autosaveTimeoutId),
-      (autosaveTimeoutId = window.setTimeout(flushAutosave, 0)));
+      scheduleAutosave(0));
   }));
+// 退出保护三态对话框：返回编辑器前的未保存拦截、等待保存完成后再退出、不保存直接退出。
+studioBackLinkElement.addEventListener("click", (studioBackLinkEvent) => {
+  studioBackLinkEvent.button ||
+    studioBackLinkEvent.ctrlKey ||
+    studioBackLinkEvent.metaKey ||
+    studioBackLinkEvent.shiftKey ||
+    studioBackLinkEvent.altKey ||
+    !hasUnsavedChanges() ||
+    (studioBackLinkEvent.preventDefault(),
+    window.clearTimeout(autosaveTimeoutId),
+    (autosaveTimeoutId = null),
+    (studioExitMessageElement.textContent = isSaveInFlight
+      ? "户型正在保存。可以等待保存完成后退出，或继续编辑。"
+      : "户型还有未保存的修改。保存成功后再退出，或不保存本次待提交的修改。已保存的内容会保留。"),
+    refreshExitDialogButtons(),
+    studioExitDialogElement.open || studioExitDialogElement.showModal());
+});
+studioExitContinueButton.addEventListener("click", closeExitDialog);
+studioExitDialogElement.addEventListener("keydown", (studioExitKeyEvent) =>
+  studioExitKeyEvent.stopPropagation(),
+);
+studioExitDialogElement.addEventListener("cancel", (studioExitCancelEvent) => {
+  (studioExitCancelEvent.preventDefault(), closeExitDialog());
+});
+studioExitDiscardButton.addEventListener("click", () => {
+  if (!isSaveInFlight && !isExitSaveInFlight) leaveStudio();
+});
+studioExitSaveButton.addEventListener("click", async () => {
+  if (isExitSaveInFlight) return;
+  const exitSaveRequestToken = ++exitSaveRequestId;
+  ((isExitSaveInFlight = true),
+    refreshExitDialogButtons(),
+    (studioExitMessageElement.textContent = "正在保存，成功后将返回编辑器。你也可以继续编辑。"));
+  try {
+    if (
+      (isSaveInFlight && (await new Promise<void>((resolve) => saveWaiterResolvers.add(resolve))),
+      exitSaveRequestToken !== exitSaveRequestId ||
+        (isInteractionBusy() &&
+          (await new Promise<void>((resolve) => exitWaiterResolvers.add(resolve))),
+        exitSaveRequestToken !== exitSaveRequestId) ||
+        (resetSaveRetryState(),
+        (blockedSaveRevision = -1),
+        saveExportPreset(),
+        await flushAutosave(),
+        exitSaveRequestToken !== exitSaveRequestId))
+    )
+      return;
+    if (pendingConflict) {
+      (closeExitDialog(), showToast("请先处理保存冲突，再返回编辑器。", "error"));
+      return;
+    }
+    if (!hasUnsavedChanges()) {
+      leaveStudio();
+      return;
+    }
+    studioExitMessageElement.textContent =
+      navigator.onLine === false
+        ? "当前网络不可用，修改还未保存。请恢复连接后重试，或继续编辑。"
+        : "修改尚未全部保存，已留在当前页面。请重试保存，或继续编辑处理提示。";
+  } catch (exitSaveFailure) {
+    (exitSaveRequestToken === exitSaveRequestId &&
+      (studioExitMessageElement.textContent = "保存未完成，已留在当前页面。请重试或继续编辑。"),
+      window.HomeOSLog?.error(exitSaveFailure, {
+        phase: "studio-exit-save",
+      }));
+  } finally {
+    exitSaveRequestToken === exitSaveRequestId &&
+      ((isExitSaveInFlight = false), refreshExitDialogButtons());
+  }
+});
 function planToScreen(planPointInput) {
   return {
     x: planPointInput.x * planView.zoom + planView.offsetX,
@@ -11396,7 +11683,10 @@ function computeRenderPixelRatio(isHighQualityMode = false) {
     const isHighQualityModeBasePixelRatio =
       Math.min(window.devicePixelRatio || 1, 1.6) * basePixelRatio;
     return isHighQualityMode
-      ? Math.min(isHighQualityModeBasePixelRatio, 1)
+      ? Math.min(
+          isHighQualityModeBasePixelRatio,
+          isEmbeddedStage ? interactionResourcePolicy.motion.maxPixelRatio : 1,
+        )
       : isHighQualityModeBasePixelRatio;
   }
   const Kt2 = isEmbeddedStage && isPrewarming;
@@ -12462,7 +12752,8 @@ function showLightCacheFor(cacheMapSource, activeCacheKey = "") {
             !cacheTargetLight.shadow.map &&
             (cacheTargetLight.shadow.needsUpdate = true)));
   }
-  renderStudioFrame();
+  (isEmbeddedStage || lightPrecompileController?.syncRenderUniforms(threeScene, threeCamera),
+    renderStudioFrame());
 }
 function collectActiveLightGroupKeys() {
   return new Set(
@@ -12485,7 +12776,8 @@ function showCachedLights(cacheMapForDisplay) {
           : 0),
         displayLightObject.isSpotLight && (displayLightObject.castShadow = false));
   }
-  renderStudioFrame();
+  (isEmbeddedStage || lightPrecompileController?.syncRenderUniforms(threeScene, threeCamera),
+    renderStudioFrame());
 }
 function captureLightSnapshot() {
   if (!previewRenderShieldElement || !threeRenderer?.domElement) return;
@@ -12779,6 +13071,7 @@ function endStudioGesture() {
       if (
         ((deferredRenderTimeoutId = null),
         (isWindowHidden = false),
+        handleInteractionEnded(),
         dirtyFloorIdSet.size && !isPrecompileBlocked)
       ) {
         const activeScopes = [...dirtyFloorIdSet],
@@ -12907,6 +13200,7 @@ function handleOrbitEnd() {
   if (
     (resetFrameSamples(),
     (isRenderSuppressed = false),
+    handleInteractionEnded(),
     (isAdaptiveRenderPaused = false),
     (samplingWindowStartMs = 0),
     requestStudioRender(),
@@ -13322,6 +13616,7 @@ function createStudioRenderer() {
         ((shadowAtlasCanvas = createMotionBuffer2({
           THREE: ns2,
           renderer: threeRenderer,
+          maxSamples: interactionResourcePolicy.motion.maxSamples,
         })),
         window.addEventListener(
           "pagehide",
@@ -13438,6 +13733,8 @@ function createStudioRenderer() {
         ? ((contactShadowController = createContactShadowController2({
             THREE: ns2,
             renderer: threeRenderer,
+            ...(isEmbeddedStage ? interactionResourcePolicy.contactShadows : {}),
+            persistentCache: isEmbeddedStage ? stageStartup2?.shadowCache : null,
             getRoot: () => sceneRootNode,
             requestFrame: renderStudioFrame,
             followMotion: true,
@@ -13450,6 +13747,7 @@ function createStudioRenderer() {
           (regionLightController = createRegionLightController2({
             THREE: ns2,
             renderer: threeRenderer,
+            reuseRendererMatrices: isEmbeddedStage && interactionResourcePolicy.reuseLightMatrices,
             scene: threeScene,
             getRoot: () => sceneRootNode,
             contactShadows: contactShadowController,
@@ -16661,9 +16959,18 @@ function setupSceneShadows(
       (hasRectAreaLight = true);
   });
   const Gw2 = hasRectAreaLight ? shadowTextureUnits : 0,
-    availableShadowUnits = xv2 - qv2 - nonSpotShadowUnitCount - Gw2 - reservedTextureUnits;
-  if (!pendingRuntimeSettings && lightPrecompileController && availableShadowUnits >= 1) {
-    const schedule = shouldRebuildAtlas
+    availableShadowUnits = xv2 - qv2 - nonSpotShadowUnitCount - Gw2 - reservedTextureUnits,
+    shadowAtlasUnits =
+      lightPrecompileController?.textureUnitsFor?.(
+        collectShadowCandidates(shadowSetupRoot).filter(
+          (shadowCandidateLight) => shadowCandidateLight.enabled,
+        ).length,
+      ) || 1,
+    shadowBudgetChanged = lightPrecompileController?.setBudgetAvailable?.(
+      availableShadowUnits >= shadowAtlasUnits,
+    );
+  if (!pendingRuntimeSettings && lightPrecompileController && availableShadowUnits >= shadowAtlasUnits) {
+    const schedule = shouldRebuildAtlas || shadowBudgetChanged
         ? lightPrecompileController.schedule(shadowSetupRoot)
         : collectShadowCandidates(shadowSetupRoot).length,
       sync = lightPrecompileController.sync(shadowSetupRoot),
@@ -16689,12 +16996,14 @@ function setupSceneShadows(
     materialTextureUnits: qv2,
     nonSpotShadowTextureUnits: nonSpotShadowUnitCount,
     rectAreaLightTextureUnits: Gw2,
-    reservedTextureUnits: reservedTextureUnits,
+    reservedTextureUnits: lightPrecompileController
+      ? Math.max(reservedTextureUnits, shadowAtlasUnits)
+      : reservedTextureUnits,
     hardLimit: maxTextureUnitLimit,
   });
-  pendingRuntimeSettings &&
-    lightPrecompileController &&
-    (lightPrecompileController.setEnabled(false), lightPrecompileController.sync(shadowSetupRoot));
+  lightPrecompileController &&
+    (pendingRuntimeSettings && lightPrecompileController.setEnabled(false),
+    lightPrecompileController.sync(shadowSetupRoot));
   const castShadowLightIdSet = new Set(
     selectShadowCastingLightIds2(collectShadowCandidates(shadowSetupRoot), spotShadowLimit),
   );
@@ -25543,6 +25852,7 @@ function requestSceneRebuild(rebuildOptions: SceneRebuildOptions = {}) {
                 })
               : buildFloorAtIndex(rebuildScopeSet, {
                   preserveLightCache: shouldPreserveLightCacheOnRebuild,
+                  allowTransforms: !Hr2 && rebuildScopeSet.size === 1 && rebuildScopeSet.has("items"),
                 }),
           typeof stageLoadTiming == "function" && stageLoadTiming("rebuild-end"));
         const zd2 = isRendererLost;
@@ -25819,6 +26129,13 @@ function createWallTopMaterial(
     wallTopMaterial
   );
 }
+/** 墙体轮廓并集：经几何持久缓存复用，命中时跳过昂贵的多边形布尔运算。 */
+function cachedWallUnionLoops(wallLoopList) {
+  const computeUnionLoops = () => validatedUnionPolygonLoops2(wallLoopList, 1e-7);
+  return geometryCacheHandle
+    ? geometryCacheHandle.value("wall-union", wallLoopList, computeUnionLoops, validGeometryLoops2)
+    : computeUnionLoops();
+}
 function buildWallBandMesh(
   wallBandLoopList,
   wallBandBaseHeight,
@@ -25828,7 +26145,7 @@ function buildWallBandMesh(
   wallBandOptions: WallBandOptions = {},
 ) {
   if (!wallBandLoopList.length || wallBandTopHeight - wallBandBaseHeight <= 0.000001) return;
-  const validatedWallBandLoops = validatedUnionPolygonLoops2(wallBandLoopList, 1e-7),
+  const validatedWallBandLoops = cachedWallUnionLoops(wallBandLoopList),
     hasValidWallBandLoops = validatedWallBandLoops.length > 0,
     ms2 = buildShapesWithHoles(hasValidWallBandLoops ? validatedWallBandLoops : wallBandLoopList),
     resolvedWallBandOptions =
@@ -25840,26 +26157,41 @@ function buildWallBandMesh(
           }
         : wallBandOptions;
   for (const wallBandShape of ms2) {
-    const wallBandGeometry = new ns2.ExtrudeGeometry(wallBandShape, {
-      depth: wallBandTopHeight - wallBandBaseHeight,
-      bevelEnabled: false,
-      steps: 1,
-      curveSegments: 1,
-    });
-    if (
-      (setWallGradientHeight2(
-        ns2,
-        wallBandGeometry,
-        "z",
-        wallBandTopHeight,
-        -1,
-        studioState.settings.wallHeight,
-      ),
-      isWallTrialShaderEnabled() && wallBandOptions.polygonOffset !== true)
-    ) {
-      const extractPoints = wallBandShape.extractPoints(1);
-      setWallCornerDistances2(ns2, wallBandGeometry, [extractPoints.shape, ...extractPoints.holes]);
-    }
+    const usesWallTrialShader = isWallTrialShaderEnabled() && wallBandOptions.polygonOffset !== true,
+      extractPoints = wallBandShape.extractPoints(1),
+      buildWallBandGeometry = () => {
+        const extrudedGeometry = new ns2.ExtrudeGeometry(wallBandShape, {
+          depth: wallBandTopHeight - wallBandBaseHeight,
+          bevelEnabled: false,
+          steps: 1,
+          curveSegments: 1,
+        });
+        return (
+          setWallGradientHeight2(
+            ns2,
+            extrudedGeometry,
+            "z",
+            wallBandTopHeight,
+            -1,
+            studioState.settings.wallHeight,
+          ),
+          usesWallTrialShader &&
+            setWallCornerDistances2(ns2, extrudedGeometry, [
+              extractPoints.shape,
+              ...extractPoints.holes,
+            ]),
+          extrudedGeometry
+        );
+      },
+      wallBandGeometry = geometryCacheHandle
+        ? geometryCacheHandle.geometry(ns2, "wall-band", [
+            extractPoints,
+            wallBandBaseHeight,
+            wallBandTopHeight,
+            studioState.settings.wallHeight,
+            usesWallTrialShader,
+          ], buildWallBandGeometry)
+        : buildWallBandGeometry();
     const hiddenWallBandMaterial = createHiddenBasicMaterial(),
       hg3 = createWallSideMaterial(wallBandColor, wallBandOpacity, resolvedWallBandOptions),
       wallBandMesh = new ns2.Mesh(wallBandGeometry, [hiddenWallBandMaterial, hg3]);
@@ -25884,7 +26216,7 @@ function buildWallTopSurface(
   wallTopSurfaceOptions: WallTopSurfaceOptions = {},
 ) {
   if (!wallTopLoopList.length) return;
-  const validatedWallTopLoops = validatedUnionPolygonLoops2(wallTopLoopList, 1e-7),
+  const validatedWallTopLoops = cachedWallUnionLoops(wallTopLoopList),
     hasValidWallTopLoops = validatedWallTopLoops.length > 0,
     ms3 = buildShapesWithHoles(hasValidWallTopLoops ? validatedWallTopLoops : wallTopLoopList),
     resolvedWallTopSurfaceOptions =
@@ -27214,7 +27546,14 @@ function buildStudioScene({ preserveLightCache: preserveLightCache = false } = {
               },
             ],
           ],
-      floorOpeningSubtractLoops = subtractPolygonLoops2(floorOpeningWorldLoops, floorOpeningLoops),
+      floorOpeningSubtractLoops = geometryCacheHandle
+        ? geometryCacheHandle.value(
+            "floor-openings",
+            [floorOpeningWorldLoops, floorOpeningLoops],
+            () => subtractPolygonLoops2(floorOpeningWorldLoops, floorOpeningLoops),
+            validGeometryLoops2,
+          )
+        : subtractPolygonLoops2(floorOpeningWorldLoops, floorOpeningLoops),
       ms6 = buildShapesWithHoles(floorOpeningSubtractLoops);
     ms6.length
       ? addGroundPlateMesh(
@@ -27683,6 +28022,65 @@ function createFloorWorldMapper() {
     }),
   };
 }
+const previewTransformCache = createPreviewTransformCache();
+function previewTransformContext() {
+  const previewTransformOrigin = sceneModelOrigin || sceneModelOrigin2(studioState, getActiveFloor());
+  return {
+    items: studioState.items,
+    contextKey: JSON.stringify([
+      activeFloorId,
+      getPreviewFloorMode(),
+      previewTransformOrigin,
+      backgroundSettings(),
+      baseLightingSettings,
+      studioState.settings,
+      studioState.background,
+      studioState.walls,
+      studioState.windows,
+      studioState.doors,
+      studioState.railings,
+    ]),
+    isEligible: (previewCandidate) =>
+      !lampItemTypeSet.has(previewCandidate.type) &&
+      previewCandidate.type !== "flooropening" &&
+      !isCourtyardPlanItem2(previewCandidate),
+    isSelected: (previewCandidate) => createSelectionRef("item", previewCandidate.id),
+  };
+}
+function capturePreviewTransforms(layerItemRecords) {
+  isEmbeddedStage ||
+    isEmbedStageMode ||
+    !sceneRootNode ||
+    previewTransformCache.capture(sceneRootNode, {
+      ...previewTransformContext(),
+      groups: layerItemRecords,
+    });
+}
+function applyPreviewTransforms(
+  worldMapper,
+  { preserveLightCache: shouldPreservePreviewLightCache, shadowRoot: previewShadowRoot },
+) {
+  if (isEmbeddedStage || isEmbedStageMode || !sceneRootNode) return false;
+  const movedTransforms = previewTransformCache.plan(sceneRootNode, previewTransformContext());
+  if (!movedTransforms) return false;
+  for (const { item: movedItem, group: movedGroup } of movedTransforms) {
+    const world = worldMapper.toWorld(movedItem);
+    (movedGroup.position.set(world.x, movedItem.elevation || 0, world.z),
+      applyItemOrientation(movedGroup, movedItem));
+  }
+  return (
+    previewTransformCache.commit(sceneRootNode, movedTransforms),
+    movedTransforms.length &&
+      (setupSceneShadows(previewShadowRoot, {
+        rebuildAtlas: !shouldPreservePreviewLightCache,
+      }),
+      refreshSceneRender({
+        shadows: !shouldPreservePreviewLightCache,
+        preserveLightCache: shouldPreservePreviewLightCache,
+      })),
+    true
+  );
+}
 function buildSceneLayers(layerKeyList) {
   if (sceneRootNode) {
     for (const layerChildObject of [...sceneRootNode.children])
@@ -27695,11 +28093,17 @@ function buildLayerGroup(
   {
     preserveLightCache: preserveLayerLightCache = false,
     shadowRoot: layerShadowRoot = sceneRootNode,
+    allowTransforms: allowLayerTransforms = false,
   } = {},
 ) {
   if (!sceneRootNode) return;
   const mg3 = createFloorWorldMapper();
   if (!mg3) return;
+  if (layerKey === "items" && allowLayerTransforms && applyPreviewTransforms(mg3, {
+    preserveLightCache: preserveLayerLightCache,
+    shadowRoot: layerShadowRoot,
+  }))
+    return;
   buildSceneLayers(layerKey);
   const isLightsLayer = layerKey === "lights",
     $u3 = isLightsLayer ? collectLightSourceSpecs() : null,
@@ -27787,7 +28191,8 @@ function buildLayerGroup(
     refreshSceneRender({
       shadows: !isLightsLayer && !preserveLayerLightCache,
       preserveLightCache: preserveLayerLightCache,
-    }));
+    }),
+    isLightsLayer || capturePreviewTransforms(layerItemRecords));
 }
 function buildArchitectureLayer({
   preserveLightCache: preserveArchitectureLightCache = false,
@@ -30069,6 +30474,7 @@ for (const assetToolbarDragButton of itemTypeButtons)
     changed: markDocumentDirty,
     refresh: () => refreshScopeItems(getDefaultSelectionScope()),
     draw: refreshStudioView,
+    interactionEnded: handleInteractionEnded,
     select: (selectedToolItem) => selectSceneObject("item", selectedToolItem),
     isSelected: (toolSelectionItem) => createSelectionRef("item", toolSelectionItem),
     id: () => generateId("courtyard"),
@@ -31080,16 +31486,26 @@ if (
       (isForceSnapDisabled = false),
       (isSnapTemporarilyOff = false));
   }),
+  window.addEventListener("online", () => {
+    ((saveRetryDueAt = 0), scheduleAutosave(0));
+  }),
+  window.addEventListener("offline", () => {
+    (window.clearTimeout(autosaveTimeoutId), (autosaveTimeoutId = null));
+  }),
+  window.addEventListener("pagehide", () => {
+    ((isPageSuspended = true), window.clearTimeout(autosaveTimeoutId), (autosaveTimeoutId = null));
+  }),
+  window.addEventListener("pageshow", () => {
+    ((isPageSuspended = false), (isLeavingStudio = false), scheduleAutosave());
+  }),
   window.addEventListener("beforeunload", (beforeUnloadEvent) => {
-
-    // 跑改动前的模块，改材质 / 改代码全都表现成「没变化」。判据用 dev 注入的 /@vite/client，
-
-    document.querySelector('script[src="/@vite/client"]') ||
-      (localSaveRevision !== remoteSaveRevision &&
-        (beforeUnloadEvent.preventDefault(), (beforeUnloadEvent.returnValue = "")));
+    isEmbeddedStage ||
+      isLeavingStudio ||
+      !hasUnsavedChanges() ||
+      (beforeUnloadEvent.preventDefault(), (beforeUnloadEvent.returnValue = ""));
   }),
   document.addEventListener("visibilitychange", () => {
-    document.hidden || refreshSceneRender();
+    (document.hidden || refreshSceneRender(), scheduleAutosave());
   }),
   new URLSearchParams(window.location.search).has("model-export"))
 ) {
@@ -31375,6 +31791,7 @@ function runStudioRenderLoop() {
     sceneRetentionService = null,
     releaseCurtains = null,
     releaseTelevisionScreens = null,
+    releaseStartupDeviceSync = null,
     shouldRefreshGeometry = false,
     geometryRootRef,
     geometryKeyRef,
@@ -32248,6 +32665,12 @@ function runStudioRenderLoop() {
       activeCamera = threeCamera,
       bind2 = configureOrbitControlsOrbitControls.update.bind(configureOrbitControlsOrbitControls);
     orbitTargetAnchor = configureOrbitControlsOrbitControls;
+    let cachedOrbitShiftPivot = null,
+      cachedOrbitShiftProject = null,
+      cachedOrbitShiftScope = null,
+      cachedOrbitShiftFloorGap = null,
+      cachedOrbitShiftRuntimeSettings = null,
+      cachedOrbitShiftOverview = null;
     const panCameraForward = () => {
         if (
           !isPerspectiveCameraMode ||
@@ -32328,10 +32751,9 @@ function runStudioRenderLoop() {
           activeCamera !== threeCamera
         )
           return false;
-        const controlsTarget =
-            orbitTargetVector ||
-            (orbitTargetVector = computeCameraTarget(configureOrbitControlsOrbitControls.target)),
-          clone7 = activeCamera.quaternion.clone();
+        (orbitTargetVector ||
+          (orbitTargetVector = computeCameraTarget(configureOrbitControlsOrbitControls.target)));
+        const clone7 = activeCamera.quaternion.clone();
         if (
           getCameraView() === "top" &&
           (configureOrbitControlsOrbitControls._sphericalDelta.theta ||
@@ -32372,8 +32794,47 @@ function runStudioRenderLoop() {
         )
           return controlsUpdate;
         if (isOrbitEnabled && clone7.angleTo(activeCamera.quaternion) > 1e-7) {
+          const orbitShiftScope = getPreviewFloorMode(),
+            orbitShiftFloorGap = pendingRuntimeSettings
+              ? studioProject?.exportFloorGap
+              : studioProject?.previewFloorGap,
+            isOverviewOrbitShift =
+              !!(pendingRuntimeSettings && orbitShiftScope === "all" &&
+                studioProject?.uniformOverviewStack);
+          if (
+            !cachedOrbitShiftPivot ||
+            cachedOrbitShiftProject !== studioProject ||
+            cachedOrbitShiftScope !== orbitShiftScope ||
+            cachedOrbitShiftFloorGap !== orbitShiftFloorGap ||
+            cachedOrbitShiftRuntimeSettings !== pendingRuntimeSettings ||
+            cachedOrbitShiftOverview !== isOverviewOrbitShift
+          ) {
+            const overviewOrbitPivot = isOverviewOrbitShift
+                ? overviewStackController?.getOrbitPivot?.()
+                : null,
+              fallbackPivotCenter = overviewOrbitPivot ? null : computeOverviewBox(),
+              fallbackPivotBounds =
+                overviewOrbitPivot || fallbackPivotCenter
+                  ? null
+                  : sceneRootNode
+                    ? computeSceneBounds({
+                        excludeModelLayers: new Set(["items", "lights"]),
+                      })
+                    : null;
+            ((cachedOrbitShiftPivot =
+              overviewOrbitPivot?.clone() ||
+              fallbackPivotCenter?.clone() ||
+              (fallbackPivotBounds && !fallbackPivotBounds.isEmpty()
+                ? fallbackPivotBounds.getCenter(new ns2.Vector3())
+                : configureOrbitControlsOrbitControls.target.clone())),
+              (cachedOrbitShiftProject = studioProject),
+              (cachedOrbitShiftScope = orbitShiftScope),
+              (cachedOrbitShiftFloorGap = orbitShiftFloorGap),
+              (cachedOrbitShiftRuntimeSettings = pendingRuntimeSettings),
+              (cachedOrbitShiftOverview = isOverviewOrbitShift));
+          }
           const multiply = activeCamera.quaternion.clone().multiply(clone7.invert()),
-            sub3 = controlsTarget.clone().sub(configureOrbitControlsOrbitControls.target),
+            sub3 = cachedOrbitShiftPivot.clone().sub(configureOrbitControlsOrbitControls.target),
             sub4 = sub3.clone().sub(sub3.applyQuaternion(multiply));
           return (
             activeCamera.position.add(sub4),
@@ -32523,14 +32984,17 @@ function runStudioRenderLoop() {
       THREE: ns2,
       renderer: threeRenderer,
       scene: threeScene,
+      ...interactionResourcePolicy.reflections,
       getRoot: () => sceneRootNode,
       getSceneRevision: () => sceneRevisionCount + ":" + curtainFrameKey,
       floorLighting: isEmbedStageMode,
+      persistentCache: isEmbedStageMode ? stageStartup2?.reflectionCache : null,
+      getPersistentState: (floorId) => regionLightController?.persistentKey?.(floorId),
+      getPersistentMaterialState: (material) =>
+        floorRetentionService?.persistentMaterialKey?.(material),
       getFloorCamera: (floorCamera, cameraFloorId) =>
         overviewStackController?.reflectionCamera(floorCamera, cameraFloorId) || floorCamera,
       cull: !isReflectionDiagnosticsMode,
-
-
       maxResumeCapturesPerFrame: 1,
       syncLighting: (lightingCamera) =>
         isReflectionDiagnosticsMode
@@ -32749,8 +33213,10 @@ function runStudioRenderLoop() {
         isReflectionDiagnosticsMode && regionLightController?.sync(renderArgs[2], true);
         return;
       }
+      groundReflections.setInsideEnabled?.(getPreviewFloorMode() !== "all");
       if (
         (updateShadowBoost(),
+        reflectionDetailMode === 0 && releaseStartupDeviceSync?.(),
         hasShadowBoost || scheduleTask("curtains", () => releaseCurtains?.()),
         scheduleTask("television-screens", () => releaseTelevisionScreens?.()),
         shouldRefreshGeometry && !hasShadowBoost)
@@ -32863,6 +33329,12 @@ function runStudioRenderLoop() {
   const onAfterRender = threeScene.onAfterRender;
   threeScene.onAfterRender = function (...afterRenderArgs) {
     (onAfterRender?.apply(this, afterRenderArgs),
+      isShadowReady &&
+        reflectionDetailMode === 1 &&
+        afterRenderArgs[2] === threeCamera &&
+        (!threeRenderer.getRenderTarget() || shadowAtlasCanvas?.isScreenPass) &&
+        (contactShadowController?.allowPersistence?.(),
+        groundReflections.allowPersistence()),
       !shouldStartPresentation &&
         afterRenderArgs[2] === threeCamera &&
         reflectionModeIndex > 0 &&
@@ -32957,6 +33429,9 @@ function runStudioRenderLoop() {
     },
     setTelevisionSync(televisionSync) {
       releaseTelevisionScreens = televisionSync;
+    },
+    setStartupDeviceSync(startupDeviceSync) {
+      releaseStartupDeviceSync = startupDeviceSync;
     },
     curtainFrame({
       key: curtainKey,
@@ -34237,6 +34712,8 @@ function runStudioRenderLoop() {
               await new Promise(requestAnimationFrame),
               isCurrentAppInstance() &&
                 (stageLoadTiming("presented"),
+                geometryCacheHandle?.presented?.(),
+                stageStartup2?.furnitureCache?.presented?.(),
                 stageLoadTiming(
                   cameraReadyResolve ? "complete-model-frame" : "fallback-model-frame",
                 ),

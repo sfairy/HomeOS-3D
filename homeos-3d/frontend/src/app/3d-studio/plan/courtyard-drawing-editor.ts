@@ -64,6 +64,68 @@ export function createCourtyardDrawingEditor(host) {
     selectedRingIndex = -1,
     isNodeEditing = false,
     inspectedItemId = null;
+  const hostDocument = canvasElement.ownerDocument || document,
+    hostWindow = hostDocument.defaultView || window;
+  let pendingFrameId = 0,
+    pendingPointerEvent = null,
+    cachedScene = host.scene(),
+    isPageUnloading = false;
+  function cancelPendingFrame() {
+    (pendingFrameId && hostWindow.cancelAnimationFrame(pendingFrameId),
+      (pendingFrameId = 0),
+      (pendingPointerEvent = null));
+  }
+  function reconcileScene() {
+    return cachedScene === host.scene()
+      ? true
+      : (resetDraft(), (cachedScene = host.scene()), false);
+  }
+  function flushPendingFrame() {
+    pendingFrameId = 0;
+    const deferredPointerEvent = pendingPointerEvent;
+    if (
+      ((pendingPointerEvent = null),
+      !(!deferredPointerEvent || isPageUnloading || hostDocument.hidden) &&
+        !(!reconcileScene() ||
+          deferredPointerEvent.scene !== cachedScene ||
+          deferredPointerEvent.tool !== activeTool ||
+          deferredPointerEvent.drag !== dragState))
+    ) {
+      if (dragState?.item && !cachedScene.items.includes(dragState.item)) {
+        resetDraft();
+        return;
+      }
+      handlePointerMove(deferredPointerEvent.event);
+    }
+  }
+  function flushFrameForPointer(pointerId) {
+    pendingPointerEvent?.event.pointerId === pointerId &&
+      (pendingFrameId && hostWindow.cancelAnimationFrame(pendingFrameId), flushPendingFrame());
+  }
+  function queuePointerMove(moveEvent) {
+    if (isPageUnloading || hostDocument.hidden) return;
+    if ((reconcileScene(), dragState && dragState.pointerId !== moveEvent.pointerId)) {
+      isDrawingTool() && moveEvent.stopImmediatePropagation();
+      return;
+    }
+    (dragState?.pointerId !== moveEvent.pointerId && !isDrawingTool()) ||
+      (dragState?.pointerId === moveEvent.pointerId && moveEvent.preventDefault(),
+      moveEvent.stopImmediatePropagation(),
+      (pendingPointerEvent = {
+        scene: cachedScene,
+        tool: activeTool,
+        drag: dragState,
+        event: {
+          clientX: moveEvent.clientX,
+          clientY: moveEvent.clientY,
+          x: moveEvent.x,
+          y: moveEvent.y,
+          pointerId: moveEvent.pointerId,
+          shiftKey: moveEvent.shiftKey,
+        },
+      }),
+      pendingFrameId || (pendingFrameId = hostWindow.requestAnimationFrame(flushPendingFrame)));
+  }
   const drawingDefaultsByType = {};
   for (const drawingType of Object.keys(DRAWING_STYLES))
     drawingDefaultsByType[drawingType] = normalizeCourtyardDrawing({
@@ -105,6 +167,8 @@ export function createCourtyardDrawingEditor(host) {
       (selectElement.value = currentStyle));
   }
   function resetDraft() {
+    cancelPendingFrame();
+    const hadActiveDrag = !!dragState;
     if (dragState) {
       try {
         canvasElement.releasePointerCapture(dragState.pointerId);
@@ -118,10 +182,12 @@ export function createCourtyardDrawingEditor(host) {
       (trimTargetId = null),
       (snapFeedback = null),
       (dragState = null),
-      host.feedback?.(null));
+      host.feedback?.(null),
+      hadActiveDrag && host.interactionEnded?.());
   }
   function setTool(toolId) {
     (resetDraft(),
+      (cachedScene = host.scene()),
       (activeTool = toolId),
       (toolOptionsElement.hidden = !isDrawingTool()),
       (isNodeEditing = false),
@@ -141,7 +207,7 @@ export function createCourtyardDrawingEditor(host) {
       : true;
   }
   function finishDrawing() {
-    if (!isDrawingTool()) return;
+    if ((cancelPendingFrame(), !isDrawingTool())) return;
     if (trimTargetId) {
       host.toast("先点两点画裁剪线，再点击要裁掉的一侧。");
       return;
@@ -247,7 +313,7 @@ export function createCourtyardDrawingEditor(host) {
           styleSelect.value === "deck" ? 0.16 : 0.6));
   }),
     (areaModeSelect.onchange = () => {
-      ((draftPoints = []), (previewPoint = null), host.draw());
+      (cancelPendingFrame(), (draftPoints = []), (previewPoint = null), host.draw());
     }),
     (toolOptionsElement.querySelector<PanelControlElement>('[data-action="finish"]').onclick = finishDrawing),
     (toolOptionsElement.querySelector<PanelControlElement>('[data-action="cancel"]').onclick = () =>
@@ -308,7 +374,8 @@ export function createCourtyardDrawingEditor(host) {
     return null;
   }
   function handlePointerDown(downEvent) {
-    if (downEvent.button !== 0 || host.panning()) return;
+    if (isPageUnloading || (reconcileScene(), cancelPendingFrame(), downEvent.button !== 0 || host.panning()))
+      return;
     if (isDrawingTool()) {
       if (!host.calibrated()) return;
       (downEvent.preventDefault(),
@@ -504,7 +571,7 @@ export function createCourtyardDrawingEditor(host) {
   }
   function handlePointerMove(moveEvent) {
     if (dragState?.pointerId === moveEvent.pointerId) {
-      if ((moveEvent.preventDefault(), moveEvent.stopImmediatePropagation(), dragState.rectangle)) {
+      if (dragState.rectangle) {
         const movePoint = snapPoint(planPointAt(moveEvent), null, false),
           rectangleStart = dragState.start;
         if (moveEvent.shiftKey) {
@@ -556,14 +623,24 @@ export function createCourtyardDrawingEditor(host) {
       host.draw());
   }
   function handlePointerRelease(releaseEvent) {
-    if (dragState?.pointerId !== releaseEvent.pointerId) return;
-    (releaseEvent.preventDefault(), releaseEvent.stopImmediatePropagation());
+    if (
+      isPageUnloading ||
+      !reconcileScene() ||
+      dragState?.pointerId !== releaseEvent.pointerId ||
+      (releaseEvent.preventDefault(),
+      releaseEvent.stopImmediatePropagation(),
+      releaseEvent.type === "pointercancel"
+        ? cancelPendingFrame()
+        : flushFrameForPointer(releaseEvent.pointerId),
+      !dragState)
+    )
+      return;
     const releasedDrag = dragState;
     dragState = null;
     try {
       canvasElement.releasePointerCapture(releaseEvent.pointerId);
     } catch {}
-    if (releasedDrag.rectangle) {
+    if ((host.interactionEnded?.(), releasedDrag.rectangle)) {
       if (releaseEvent.type === "pointercancel") {
         host.draw();
         return;
@@ -609,9 +686,31 @@ export function createCourtyardDrawingEditor(host) {
       host.refresh());
   }
   (canvasElement.addEventListener("pointerdown", handlePointerDown, true),
-    canvasElement.addEventListener("pointermove", handlePointerMove, true));
+    canvasElement.addEventListener("pointermove", queuePointerMove, true));
   for (const pointerEventName of ["pointerup", "pointercancel"])
     canvasElement.addEventListener(pointerEventName, handlePointerRelease, true);
+  function cancelActiveInteraction() {
+    (cancelPendingFrame(),
+      dragState &&
+        handlePointerRelease({
+          pointerId: dragState.pointerId,
+          type: "pointercancel",
+          preventDefault() {},
+          stopImmediatePropagation() {},
+        }));
+  }
+  function handleVisibilityChange() {
+    hostDocument.hidden && cancelActiveInteraction();
+  }
+  hostDocument.addEventListener("visibilitychange", handleVisibilityChange);
+  function handlePageHide(pageHideEvent) {
+    (cancelActiveInteraction(),
+      !pageHideEvent.persisted &&
+        ((isPageUnloading = true),
+        hostDocument.removeEventListener("visibilitychange", handleVisibilityChange),
+        hostWindow.removeEventListener("pagehide", handlePageHide)));
+  }
+  hostWindow.addEventListener("pagehide", handlePageHide);
   (canvasElement.addEventListener(
     "dblclick",
     (doubleClickEvent) => {
@@ -726,7 +825,8 @@ export function createCourtyardDrawingEditor(host) {
             keyEvent.key.toLowerCase() === "z" &&
             (draftPoints.length || redoPoints.length)
           ) {
-            (keyEvent.preventDefault(),
+            (cancelPendingFrame(),
+              keyEvent.preventDefault(),
               keyEvent.stopImmediatePropagation(),
               keyEvent.shiftKey
                 ? redoPoints.length && draftPoints.push(redoPoints.pop())
@@ -736,7 +836,8 @@ export function createCourtyardDrawingEditor(host) {
           }
           isDrawingTool() &&
             ["Enter", "Escape", "Backspace", "Delete"].includes(keyEvent.key) &&
-            (keyEvent.preventDefault(),
+            (cancelPendingFrame(),
+            keyEvent.preventDefault(),
             keyEvent.stopImmediatePropagation(),
             keyEvent.key === "Enter"
               ? finishDrawing()
@@ -1074,7 +1175,12 @@ export function createCourtyardDrawingEditor(host) {
     previewPainter.restore();
   }
   function renderFields(inspectedItem) {
-    if (((fieldsElement.hidden = !isCourtyardDrawing(inspectedItem)), fieldsElement.hidden))
+    if (
+      (reconcileScene(),
+      dragState?.item && dragState.item !== inspectedItem && resetDraft(),
+      (fieldsElement.hidden = !isCourtyardDrawing(inspectedItem)),
+      fieldsElement.hidden)
+    )
       return ((inspectedItemId = null), (renderedSignature = ""), false);
     inspectedItemId !== inspectedItem.id &&
       ((selectedNodeIndex = -1),
@@ -1315,5 +1421,7 @@ export function createCourtyardDrawingEditor(host) {
     draw: drawPreview,
     drawItem: drawItem,
     editing: () => isNodeEditing && isCourtyardDrawing(getSelectedItem()),
+    isDragging: () => !!dragState,
+    hasPendingChange: () => !!dragState?.moved,
   };
 }

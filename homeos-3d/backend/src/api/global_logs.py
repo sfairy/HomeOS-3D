@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from ..auth_limiter import retry_after_headers
 from ..dependencies import CurrentUser, CurrentViewer, DatabaseSession, authenticated_viewer
-from ..global_log import event_context, safe_context
+from ..global_log import event_context, format_log_context, safe_context
 
 router = APIRouter(prefix='/logs', tags=['global-logs'])
 
@@ -151,6 +151,7 @@ def export_global_logs(request: Request, _user: CurrentUser, level: str | None =
                 f"客户端发生时间={item.get('clientTimestamp') or ''}",
                 f"客户端最近发生={item.get('lastClientTimestamp') or item.get('clientTimestamp') or ''}",
                 json.dumps(item.get('context') or {}, ensure_ascii=False, separators=(',', ':')),
+                format_log_context(item.get('context') or {}),
                 str(item.get('details') or ''),
             )
         )

@@ -3075,6 +3075,10 @@ select option:disabled {
 .save-conflict-dialog .dialog-actions {
   margin-top: 20px;
 }
+.studio-exit-dialog .dialog-actions {
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
 .interaction-cleanup-dialog {
   width: min(540px, calc(100vw - 40px));
 }

@@ -162,7 +162,7 @@ const EDITOR_DESIGN_WIDTH = 1020,
   AUTO_DIAGRAM_LAYOUT_VERSION = 2,
   COMPONENT_DIALOG_DESIGN_WIDTH = 1920,
   COMPONENT_DIALOG_DESIGN_HEIGHT = 1080,
-  COMPONENT_DIALOG_SCALE_MULTIPLIER = 1.1,
+  COMPONENT_DIALOG_SCALE_MULTIPLIER = 1,
   editorHeaderElement = findElement(".editor-header"),
   editorShellElement = findElement(".editor-shell");
 function refreshEditorViewportFit() {
@@ -174,14 +174,21 @@ function refreshEditorViewportFit() {
     document.documentElement.style.setProperty("--editor-viewport-scale", String(min)));
 }
 function refreshComponentDialogScale() {
-  const componentDialogScale = Math.max(
-    0.1,
-    COMPONENT_DIALOG_SCALE_MULTIPLIER *
+  const componentDialogElement = document.getElementById(
+    "component-template-dialog",
+  ) as HTMLDialogElement | null;
+  if (!componentDialogElement?.open || window.innerWidth <= 1180) return;
+  const designedScale =
+      COMPONENT_DIALOG_SCALE_MULTIPLIER *
       Math.min(
         window.innerWidth / COMPONENT_DIALOG_DESIGN_WIDTH,
         window.innerHeight / COMPONENT_DIALOG_DESIGN_HEIGHT,
       ),
-  );
+    componentDialogScale = Math.min(
+      designedScale,
+      (window.innerWidth * 0.9) / componentDialogElement.offsetWidth,
+      (window.innerHeight * 0.9) / componentDialogElement.offsetHeight,
+    );
   document.documentElement.style.setProperty(
     "--component-template-dialog-scale",
     String(componentDialogScale),
@@ -25197,7 +25204,9 @@ for (const popupModuleDeviceTypeState of [imageAssetOptionsElement, ibeAssetOpti
   showPageComponentsElement.addEventListener("click", () => setComponentScope("page")),
   addComponentButtonElement.addEventListener("click", () => {
     addComponentButtonElement.disabled ||
-      (renderComponentTemplates(), componentTemplateDialogElement.showModal());
+      (renderComponentTemplates(),
+      componentTemplateDialogElement.showModal(),
+      refreshComponentDialogScale());
   }),
   componentTemplateCloseElement.addEventListener("click", () =>
     componentTemplateDialogElement.close(),

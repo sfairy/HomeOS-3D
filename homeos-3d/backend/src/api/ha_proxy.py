@@ -18,14 +18,18 @@ content-length / content-encoding —— 这里会改写响应体（流式透传
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
+import traceback
+from collections.abc import AsyncIterator, Mapping
 from dataclasses import dataclass
 from time import monotonic
+from typing import Any
 from urllib.parse import parse_qs
 
 import httpx
+from anyio import CancelScope, create_task_group, move_on_after
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse, Response, StreamingResponse
+from starlette.requests import ClientDisconnect
 
 from .ha import active_connection
 from ..database import Database
@@ -71,6 +75,9 @@ RESPONSE_HEADERS_TO_DROP = {
 }
 CAMERA_SNAPSHOT_CACHE_TTL_SECONDS = 8
 CAMERA_SNAPSHOT_CACHE_MAX_ENTRIES = 64
+# 摄像头长连的授权复检间隔（秒）：逐帧复检太贵，但一次授权失效必须尽快掐断，
+# 否则一份过期授权能靠一条已建立的流无限看下去。
+CAMERA_STREAM_LICENSE_CHECK_SECONDS = 1
 
 
 @dataclass
@@ -188,6 +195,210 @@ def _schedule_camera_snapshot_refresh(key: str, target: str, headers: Mapping[st
     return
 
 
+def _camera_stream_log(
+    request: Request,
+    level: str,
+    message: str,
+    code: str,
+    *,
+    details: str | None = None,
+) -> None:
+    """终止性事件只记一次，绝不记录画面、URL 或凭据。"""
+    log = getattr(request.app.state, 'global_log', None)
+    if log is None:
+        return
+    state = getattr(request, 'state', request)
+    recorded = getattr(state, 'camera_stream_log_codes', None)
+    if recorded is None:
+        recorded = set()
+        state.camera_stream_log_codes = recorded
+    if code in recorded:
+        return
+    recorded.add(code)
+    context: dict[str, Any] = {}
+    context.update(getattr(state, 'log_context', {}) or {})
+    context.update({'phase': 'camera-stream', 'code': code})
+    path = getattr(getattr(request, 'url', None), 'path', '')
+    if path.startswith('/api/camera_proxy_stream/'):
+        context.update({'path': path, 'entityId': path.rsplit('/', 1)[-1]})
+    started = getattr(state, 'camera_stream_started_at', None)
+    if started is not None:
+        context['durationMs'] = round((monotonic() - started) * 1000, 1)
+    log.append(level, 'Home Assistant', '摄像头', message, context=context, details=details)
+
+
+async def open_licensed_camera_stream(
+    request: Request, client: httpx.AsyncClient, upstream_request: httpx.Request
+) -> httpx.Response:
+    """许可失效或观看端掉线时，终止一条静默的上游流。"""
+
+    async def wait_for_disconnect() -> None:
+        while True:
+            message = await request.receive()
+            if message['type'] == 'http.disconnect':
+                return
+
+    pending = asyncio.create_task(client.send(upstream_request, stream=True))
+    disconnected = asyncio.create_task(wait_for_disconnect())
+    try:
+        while True:
+            if pending.done():
+                break
+            if disconnected.done():
+                disconnected.result()
+                raise ClientDisconnect()
+            if not await asyncio.to_thread(request.app.state.license_service.allows, 'api'):
+                raise HTTPException(
+                    status_code=403,
+                    detail={
+                        'code': 'LICENSE_RESTRICTED',
+                        'message': '当前授权状态不允许读取摄像头。',
+                    },
+                )
+            await asyncio.wait(
+                {pending, disconnected},
+                timeout=CAMERA_STREAM_LICENSE_CHECK_SECONDS,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            if pending.done():
+                break
+        result = pending.result()
+    except BaseException:
+        # 上游可能已经建连：shield 住取消域，把连接收干净再往上抛。
+        with CancelScope(shield=True):
+            pending.cancel()
+            settled = (await asyncio.gather(pending, return_exceptions=True))[0]
+            if not isinstance(settled, BaseException):
+                await settled.aclose()
+        raise
+    with CancelScope(shield=True):
+        disconnected.cancel()
+        await asyncio.gather(disconnected, return_exceptions=True)
+    return result
+
+
+async def licensed_camera_stream(request: Request, upstream: httpx.Response) -> AsyncIterator[bytes]:
+    """逐帧复检授权；响应侧另外负责取消静默读取与卡住的发送。"""
+    iterator = upstream.aiter_raw().__aiter__()
+    if not await asyncio.to_thread(request.app.state.license_service.allows, 'api'):
+        _camera_stream_log(
+            request,
+            'warning',
+            '摄像头传输已停止：授权不可用或已到期，后续画面不再转发',
+            'CAMERA_STREAM_LICENSE_RESTRICTED',
+        )
+        with CancelScope(shield=True):
+            await iterator.aclose()
+        return
+    try:
+        while True:
+            try:
+                chunk = await anext(iterator)
+            except StopAsyncIteration:
+                with CancelScope(shield=True):
+                    await iterator.aclose()
+                break
+            if not await asyncio.to_thread(request.app.state.license_service.allows, 'api'):
+                _camera_stream_log(
+                    request,
+                    'warning',
+                    '摄像头传输已停止：授权不可用或已到期，后续画面不再转发',
+                    'CAMERA_STREAM_LICENSE_RESTRICTED',
+                )
+                with CancelScope(shield=True):
+                    await iterator.aclose()
+                return
+            if chunk:
+                yield chunk
+    except Exception as error:
+        _camera_stream_log(
+            request,
+            'error',
+            f'摄像头持续传输失败：{type(error).__name__} · {error}',
+            'CAMERA_STREAM_ERROR',
+            details=traceback.format_exc(),
+        )
+        raise
+    finally:
+        with CancelScope(shield=True):
+            await iterator.aclose()
+
+
+class LicensedCameraStreamingResponse(StreamingResponse):
+    """在开始迭代之前、以及下游发送卡住期间，都持有上游连接的所有权。"""
+
+    def __init__(
+        self,
+        request: Request,
+        upstream: httpx.Response,
+        client: httpx.AsyncClient,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(licensed_camera_stream(request, upstream), **kwargs)
+        self.request = request
+        self.upstream = upstream
+        self.client = client
+        state = getattr(request, 'state', request)
+        state.camera_stream_started_at = monotonic()
+
+    async def stream_response(self, send) -> None:
+        failure: BaseException | None = None
+        restricted = False
+        started = False
+        finished = False
+
+        async def track_send(message: dict[str, Any]) -> None:
+            nonlocal started, finished
+            await send(message)
+            if message['type'] == 'http.response.start':
+                started = True
+            elif message['type'] == 'http.response.body' and not message.get('more_body', False):
+                finished = True
+
+        async with create_task_group() as tasks:
+
+            async def deliver() -> None:
+                nonlocal failure
+                try:
+                    await super(LicensedCameraStreamingResponse, self).stream_response(track_send)
+                except Exception as error:
+                    failure = error
+                tasks.cancel_scope.cancel()
+
+            async def monitor_license() -> None:
+                nonlocal restricted
+                while await asyncio.to_thread(self.request.app.state.license_service.allows, 'api'):
+                    await asyncio.sleep(CAMERA_STREAM_LICENSE_CHECK_SECONDS)
+                    if not await asyncio.to_thread(self.request.app.state.license_service.allows, 'api'):
+                        break
+                restricted = True
+                _camera_stream_log(
+                    self.request,
+                    'warning',
+                    '摄像头传输已停止：授权不可用或已到期，后续画面不再转发',
+                    'CAMERA_STREAM_LICENSE_RESTRICTED',
+                )
+                tasks.cancel_scope.cancel()
+
+            tasks.start_soon(deliver)
+            tasks.start_soon(monitor_license)
+        if failure is not None:
+            raise failure
+        if restricted and started and not finished:
+            # 授权已失效但画面还没收尾：补一个空 body 结束响应，别把连接吊死。
+            with move_on_after(CAMERA_STREAM_LICENSE_CHECK_SECONDS):
+                await send({'type': 'http.response.body', 'body': b'', 'more_body': False})
+
+    async def __call__(self, scope, receive, send) -> None:
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            with CancelScope(shield=True):
+                await self.body_iterator.aclose()
+                await self.upstream.aclose()
+                await self.client.aclose()
+
+
 async def proxy_http(request: Request) -> Response:
     if request.method not in {'GET', 'HEAD'} or not allowed_media_proxy_path(request.url.path):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='媒体资源不存在。')
@@ -232,7 +443,11 @@ async def proxy_http(request: Request) -> Response:
     )
     try:
         upstream_request = client.build_request(request.method, target, headers=headers)
-        upstream = await client.send(upstream_request, stream=stream_response)
+        upstream = (
+            await open_licensed_camera_stream(request, client, upstream_request)
+            if stream_response
+            else await client.send(upstream_request, stream=False)
+        )
         response_headers = {
             name: value
             for name, value in upstream.headers.items()
@@ -244,16 +459,8 @@ async def proxy_http(request: Request) -> Response:
         if 'location' in response_headers:
             response_headers['location'] = rewrite_location(response_headers['location'], client_config.base_url)
         if stream_response:
-            async def stream_body():
-                try:
-                    async for chunk in upstream.aiter_raw():
-                        if chunk:
-                            yield chunk
-                finally:
-                    await upstream.aclose()
-                    await client.aclose()
-            return StreamingResponse(
-                stream_body(), status_code=upstream.status_code, headers=response_headers
+            return LicensedCameraStreamingResponse(
+                request, upstream, client, status_code=upstream.status_code, headers=response_headers
             )
         content = upstream.content
         if snapshot_request and 200 <= upstream.status_code < 300 and content:
@@ -261,11 +468,20 @@ async def proxy_http(request: Request) -> Response:
         await upstream.aclose()
         await client.aclose()
         return Response(content=content, status_code=upstream.status_code, headers=response_headers)
+    except ClientDisconnect:
+        # 观看端已经走了：上游不能因为没人接收而一直挂着。
+        with CancelScope(shield=True):
+            await client.aclose()
+        return Response(status_code=204)
     except httpx.HTTPError as error:
         await client.aclose()
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY, detail=f'无法载入 Home Assistant 后台：{error}'
         ) from error
+    except BaseException:
+        with CancelScope(shield=True):
+            await client.aclose()
+        raise
 
 
 @router.get('/api/camera_hls/{entity_id}')

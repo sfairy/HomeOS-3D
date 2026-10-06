@@ -25,7 +25,7 @@ const RUNTIME_FURNITURE_TYPES = new Set([
 export function compactRuntimeFurniture(
   furnitureRoot,
   furnitureEntries,
-  { THREE: three, mergeGeometries: mergeGeometries, materialKey: materialKey },
+  { THREE: three, mergeGeometries: _unusedMergeGeometries, materialKey: materialKey },
 ) {
   const meshesBySurfaceKey = new Map(),
     probeMaterialsByMaterial = new Map(),
@@ -99,66 +99,96 @@ export function compactRuntimeFurniture(
       });
   for (const surfaceMeshGroup of meshesBySurfaceKey.values()) {
     if (surfaceMeshGroup.length < 2) continue;
-    const transformedGeometries = surfaceMeshGroup.map(({ mesh: groupedMesh }) => {
-        const sourceGeometry = groupedMesh.geometry,
-          rebuiltGeometry = new three.BufferGeometry(),
-          vertexCount = sourceGeometry.attributes.position.count;
-        for (const attributeName of ["position", "normal"]) {
-          const sourceAttribute = sourceGeometry.attributes[attributeName],
-            attributeArray = new Float32Array(vertexCount * 3);
-          for (
-            let positionVertexIndex = 0;
-            positionVertexIndex < vertexCount;
-            positionVertexIndex++
+    let vertexCount = 0,
+      indexCount = 0,
+      maxVertexIndex = 0;
+    for (const { mesh: groupedMesh } of surfaceMeshGroup) {
+      const sourceGeometry = groupedMesh.geometry,
+        meshVertexCount = sourceGeometry.attributes.position.count;
+      if (sourceGeometry.index) {
+        for (let elementIndex = 0; elementIndex < sourceGeometry.index.count; elementIndex++)
+          maxVertexIndex = Math.max(
+            maxVertexIndex,
+            vertexCount + sourceGeometry.index.getX(elementIndex),
+          );
+      } else maxVertexIndex = Math.max(maxVertexIndex, vertexCount + meshVertexCount - 1);
+      ((vertexCount += meshVertexCount),
+        (indexCount += sourceGeometry.index?.count ?? meshVertexCount));
+    }
+    const positionArray = new Float32Array(vertexCount * 3),
+      normalArray = new Float32Array(vertexCount * 3),
+      colorArray = new Float32Array(vertexCount * 3),
+      surfaceArray = new Float32Array(vertexCount * 2),
+      indexArray =
+        maxVertexIndex >= 65535 ? new Uint32Array(indexCount) : new Uint16Array(indexCount),
+      geometryMatrix = new three.Matrix4(),
+      normalMatrix = new three.Matrix3(),
+      vertexVector = new three.Vector3();
+    let vertexOffset = 0,
+      indexOffset = 0;
+    for (const { mesh: groupedMesh } of surfaceMeshGroup) {
+      const sourceGeometry = groupedMesh.geometry,
+        meshVertexCount = sourceGeometry.attributes.position.count,
+        sourcePosition = sourceGeometry.attributes.position,
+        sourceNormal = sourceGeometry.attributes.normal,
+        sourceMaterial = groupedMesh.material,
+        vertexColorAttribute = sourceGeometry.attributes.color;
+      (geometryMatrix.multiplyMatrices(rootInverseMatrix, groupedMesh.matrixWorld),
+        normalMatrix.getNormalMatrix(geometryMatrix));
+      for (let meshVertexIndex = 0; meshVertexIndex < meshVertexCount; meshVertexIndex++) {
+        const mergedVertexIndex = vertexOffset + meshVertexIndex,
+          mergedArrayIndex = mergedVertexIndex * 3;
+        (vertexVector
+          .set(
+            Math.fround(sourcePosition.getX(meshVertexIndex)),
+            Math.fround(sourcePosition.getY(meshVertexIndex)),
+            Math.fround(sourcePosition.getZ(meshVertexIndex)),
           )
-            ((attributeArray[positionVertexIndex * 3] = sourceAttribute.getX(positionVertexIndex)),
-              (attributeArray[positionVertexIndex * 3 + 1] =
-                sourceAttribute.getY(positionVertexIndex)),
-              (attributeArray[positionVertexIndex * 3 + 2] =
-                sourceAttribute.getZ(positionVertexIndex)));
-          rebuiltGeometry.setAttribute(attributeName, new three.BufferAttribute(attributeArray, 3));
-        }
-        const colorArray = new Float32Array(vertexCount * 3),
-          surfaceArray = new Float32Array(vertexCount * 2),
-          sourceMaterial = groupedMesh.material,
-          vertexColorAttribute = sourceGeometry.attributes.color;
-        for (let surfaceVertexIndex = 0; surfaceVertexIndex < vertexCount; surfaceVertexIndex++)
-          ((colorArray[surfaceVertexIndex * 3] =
+          .applyMatrix4(geometryMatrix),
+          (positionArray[mergedArrayIndex] = vertexVector.x),
+          (positionArray[mergedArrayIndex + 1] = vertexVector.y),
+          (positionArray[mergedArrayIndex + 2] = vertexVector.z),
+          vertexVector
+            .set(
+              Math.fround(sourceNormal.getX(meshVertexIndex)),
+              Math.fround(sourceNormal.getY(meshVertexIndex)),
+              Math.fround(sourceNormal.getZ(meshVertexIndex)),
+            )
+            .applyNormalMatrix(normalMatrix),
+          (normalArray[mergedArrayIndex] = vertexVector.x),
+          (normalArray[mergedArrayIndex + 1] = vertexVector.y),
+          (normalArray[mergedArrayIndex + 2] = vertexVector.z),
+          (colorArray[mergedArrayIndex] =
             sourceMaterial.color.r *
-            (sourceMaterial.vertexColors ? vertexColorAttribute.getX(surfaceVertexIndex) : 1)),
-            (colorArray[surfaceVertexIndex * 3 + 1] =
-              sourceMaterial.color.g *
-              (sourceMaterial.vertexColors ? vertexColorAttribute.getY(surfaceVertexIndex) : 1)),
-            (colorArray[surfaceVertexIndex * 3 + 2] =
-              sourceMaterial.color.b *
-              (sourceMaterial.vertexColors ? vertexColorAttribute.getZ(surfaceVertexIndex) : 1)),
-            (surfaceArray[surfaceVertexIndex * 2] = sourceMaterial.roughness),
-            (surfaceArray[surfaceVertexIndex * 2 + 1] = sourceMaterial.metalness));
-        (rebuiltGeometry.setAttribute("color", new three.BufferAttribute(colorArray, 3)),
-          rebuiltGeometry.setAttribute(
-            "runtimeSurface",
-            new three.BufferAttribute(surfaceArray, 2),
-          ));
-        const indexArray = new Uint32Array(
-          sourceGeometry.index ? sourceGeometry.index.count : vertexCount,
-        );
-        for (let elementIndex = 0; elementIndex < indexArray.length; elementIndex++)
-          indexArray[elementIndex] = sourceGeometry.index
-            ? sourceGeometry.index.getX(elementIndex)
-            : elementIndex;
-        return (
-          rebuiltGeometry.setIndex(new three.BufferAttribute(indexArray, 1)),
-          rebuiltGeometry.applyMatrix4(
-            new three.Matrix4().multiplyMatrices(rootInverseMatrix, groupedMesh.matrixWorld),
-          )
-        );
-      }),
-      mergedGeometry = mergeGeometries(transformedGeometries);
-    if (
-      (transformedGeometries.forEach((transformedGeometry) => transformedGeometry.dispose()),
-      !mergedGeometry)
-    )
-      continue;
+            (sourceMaterial.vertexColors ? vertexColorAttribute.getX(meshVertexIndex) : 1)),
+          (colorArray[mergedArrayIndex + 1] =
+            sourceMaterial.color.g *
+            (sourceMaterial.vertexColors ? vertexColorAttribute.getY(meshVertexIndex) : 1)),
+          (colorArray[mergedArrayIndex + 2] =
+            sourceMaterial.color.b *
+            (sourceMaterial.vertexColors ? vertexColorAttribute.getZ(meshVertexIndex) : 1)),
+          (surfaceArray[mergedVertexIndex * 2] = sourceMaterial.roughness),
+          (surfaceArray[mergedVertexIndex * 2 + 1] = sourceMaterial.metalness));
+      }
+      const meshIndexCount = sourceGeometry.index?.count ?? meshVertexCount;
+      for (let elementIndex = 0; elementIndex < meshIndexCount; elementIndex++)
+        indexArray[indexOffset + elementIndex] =
+          vertexOffset +
+          (sourceGeometry.index ? sourceGeometry.index.getX(elementIndex) : elementIndex);
+      ((vertexOffset += meshVertexCount), (indexOffset += meshIndexCount));
+    }
+    const mergedGeometry = new three.BufferGeometry();
+    for (const [attributeName, attributeArray, itemSize] of [
+      ["position", positionArray, 3],
+      ["normal", normalArray, 3],
+      ["color", colorArray, 3],
+      ["runtimeSurface", surfaceArray, 2],
+    ])
+      mergedGeometry.setAttribute(
+        attributeName,
+        new three.BufferAttribute(attributeArray, itemSize),
+      );
+    mergedGeometry.setIndex(new three.BufferAttribute(indexArray, 1));
     const sourceMesh = surfaceMeshGroup[0].mesh,
       mergedMaterial = probeMaterialsByMaterial.get(sourceMesh.material).clone();
     ((mergedMaterial.onBeforeCompile = (shader) => {

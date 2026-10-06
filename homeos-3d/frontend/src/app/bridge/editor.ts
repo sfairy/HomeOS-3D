@@ -1582,16 +1582,39 @@ type PopupPresetConfig = {
   }
   ((lightingModeSelect.value = lightingMode),
     createLabeledField(lightEffectsSection, "灯光模式", lightingModeSelect),
-    lightingMode !== "region" && lightEffectsSection.append(planRenderButton));
-  lightingModeSelect.addEventListener("change", () => {
-    const nextLightingMode = normalizeInteraction3dLightingMode(lightingModeSelect.value);
-    nextLightingMode === lightingMode ||
-      commitChange({
-        properties: {
-          lightingMode: nextLightingMode,
-        },
-      });
-  });
+    lightingModeSelect.addEventListener("change", async () => {
+      if (programmaticControlSet.has(lightingModeSelect)) return;
+      const nextLightingMode = normalizeInteraction3dLightingMode(lightingModeSelect.value);
+      if (nextLightingMode !== lightingMode) {
+        (setControlValue(lightingModeSelect, lightingMode), (lightingModeSelect.disabled = true));
+        try {
+          if (
+            (await requestInteraction3dAccess(),
+            !(await confirmChangeWithWarning({
+              lightingMode: nextLightingMode,
+            })))
+          )
+            return;
+          (await editorOptions.onChange({
+            properties: {
+              lightingMode: nextLightingMode,
+            },
+          }),
+            (lightingMode = nextLightingMode),
+            setControlValue(lightingModeSelect, nextLightingMode),
+            nextLightingMode === "region"
+              ? planRenderButton.remove()
+              : lightEffectsSection.append(planRenderButton));
+        } catch (lightingModeError) {
+          (setControlValue(lightingModeSelect, lightingMode),
+            editorOptions.onError?.(lightingModeError));
+        } finally {
+          lightingModeSelect.disabled = isViewEditing;
+        }
+      }
+    }),
+    lightingMode !== "region" && lightEffectsSection.append(planRenderButton),
+    INTERACTION3D_LIGHTING_MODES.length < 2 && lightEffectsSection.remove());
   const backgroundVisibilityControlElement = createElement("div", "navigation-property-control"),
     backgroundVisibilityOptionsElement = createElement("div", "navigation-segmented-options");
   (backgroundVisibilityOptionsElement.setAttribute("role", "group"),
@@ -2282,7 +2305,7 @@ type PopupPresetConfig = {
       securitySection,
     ]),
     appendInspectorGroup("appearance", "画面效果", [
-      lightEffectsSection,
+      ...(INTERACTION3D_LIGHTING_MODES.length > 1 ? [lightEffectsSection] : []),
       renderScaleSection,
       motionResolutionSection,
       groundReflectionSection,

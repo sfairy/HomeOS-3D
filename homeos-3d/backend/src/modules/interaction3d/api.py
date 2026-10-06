@@ -536,7 +536,7 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
     html = (settings.frontend_dir / 'index.html').read_text(encoding='utf-8')
     html = html.replace(
         '</head>',
-        '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css?v=20260927-follow-ui-v1-20260926-label-opacity-v1-20260925-touch-target-v1-light-menu-v1-20260926-speaker-clean-v6-20260926-airer-v2"></head>',
+        '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css?v=20261002-light-popup-v1-20260930-warm-selection-v3-20260930-media-canvas-ratio-v4-20260930-marker-subpixel-v1-20260927-follow-ui-v1-20260926-label-opacity-v1-20260925-touch-target-v1-light-menu-v1-20260926-speaker-clean-v6-20260926-airer-v2"></head>',
     )
     html = html.replace(
         '<body>',

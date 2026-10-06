@@ -33,7 +33,8 @@ from sqlalchemy import func, select
 
 from .client import HAClient, HAClientError, HASnapshot
 from .connection_setup import HA_ENDPOINT_PROBE_TIMEOUT_SECONDS
-from .crypto import CredentialCipher
+from .control_pool import HAControlConfiguration, HAControlPool
+from .crypto import CredentialCipher, CredentialCipherError
 from .endpoints import HAEndpoint, connection_endpoints, endpoint_signature
 from .state_hub import StateHub
 from ..config import Settings
@@ -94,6 +95,11 @@ class HAConnectorService:
         self.cipher = CredentialCipher(settings.credential_key_path)
         self.state_hub = StateHub()
         self._runner = None
+        # 停/起/重启必须互斥：并发 stop 与 restart 会把子任务与连接池拆成两半。
+        self._lifecycle_lock = asyncio.Lock()
+        # 设备控制请求的连接池（按连接隔离，见 HAControlPool）。
+        # 传方法引用而非实例：池要取「当前活跃连接」的配置，而活跃连接随时可能换。
+        self._control_pool = HAControlPool(self._control_configuration)
         self._sync_lock = asyncio.Lock()
         self._database_lock = asyncio.Lock()
         self._connected = False
@@ -139,11 +145,43 @@ class HAConnectorService:
     def start(self) -> None:
         if self._runner is not None and not self._runner.done():
             return
+        # stop() 关过连接池（aclose 之后不可再用）：重启前换一个新的。
+        if self._control_pool.closed:
+            self._control_pool = HAControlPool(self._control_configuration)
         context = copy_context()
         context.run(event_context.set, { })
         self._runner = asyncio.create_task(self._run(), name = 'ha-connector', context = context)
 
     async def stop(self) -> None:
+        """停掉主循环与所有子任务，等待它们真正结束。
+
+        与 ``start`` / ``restart`` 共用一把生命周期锁：并发的 stop / restart 不能交错执行，
+        否则会出现「新连接刚建好就被旧 stop 关掉连接池」这类竞态。
+        """
+        async with self._lifecycle_lock:
+            await self._stop()
+
+    async def _stop(self) -> None:
+        """真正执行停机：先让连接池拒绝新租约，再收尾任务与主循环。
+
+        顺序刻意固定：``invalidate`` 放在最前面 —— 之后新来的控制请求会立刻失败，
+        而不是排在一个即将关闭的池后面干等。
+        """
+        pool = self._control_pool
+        pool.invalidate()
+        try:
+            await self._stop_tasks()
+        finally:
+            # 无论任务收尾是否正常，连接都必须关掉，字段也要复位。
+            self._connected = False
+            await pool.aclose()
+
+    async def _stop_tasks(self) -> None:
+        """取消并等待所有后台子任务与主循环。
+
+        先取消子任务（防抖中的注册表刷新、进行中的历史查询）再取消主循环，
+        否则主循环退出后这些任务会变成没人回收的孤儿任务。
+        """
         registry_tasks = list(self._registry_refresh_tasks.values())
         self._registry_refresh_tasks.clear()
         for task in registry_tasks:
@@ -162,15 +200,17 @@ class HAConnectorService:
         try:
             await self._runner
         except asyncio.CancelledError:
+            # 主动取消，属预期路径。
             pass
         self._runner = None
         self._connected = False
 
     async def restart(self) -> None:
-        await self.stop()
-        self._runtime_error = None
-        self.invalidate_endpoint()
-        self.start()
+        async with self._lifecycle_lock:
+            await self._stop()
+            self._runtime_error = None
+            self.invalidate_endpoint()
+            self.start()
 
     def active_connection(self) -> HAConnection | None:
         with self.database.session_factory() as database:
@@ -255,15 +295,22 @@ class HAConnectorService:
             if delay:
                 await asyncio.sleep(delay)
             requested = set(pending)
-            states = await client.fetch_states(requested)
+            # track_fetch_changes 记录本轮请求期间 StateHub 自己发生的变更（事件推送等），
+            # 交给 merge 判断「HA 返回的旧快照」能不能覆盖内存里更新的值。
+            async with self.state_hub.track_fetch_changes(requested) as invalidated:
+                states = await client.fetch_states(requested)
+                await self.state_hub.merge(states, invalidated = invalidated)
             pending.clear()
             if states:
-                await self.state_hub.merge(states)
+                # 重试判据必须基于「合并后」的状态：HA 刚返回的那份可能仍残缺。
+                current = await self.state_hub.snapshot({
+                    str(state.get('entity_id') or '') for state in states })
                 pending.update(
                     entity_id
-                    for state in states
+                    for state in current
                     if isinstance(state, dict) and
-                    (entity_id := str(state.get('entity_id') or '')) in requested and
+                    (entity_id := str(state.get('entityId') or '')) in requested and
+                    # 只对本轮请求过、且拿回来仍残缺的实体继续重试。
                     state_requires_fetch_retry(entity_id, state))
             if not pending:
                 break
@@ -371,7 +418,38 @@ class HAConnectorService:
     async def client_for(self, connection: HAConnection) -> HAClient:
         endpoint = await self.active_endpoint(connection)
         token = self.cipher.decrypt(connection.encrypted_access_token)
-        return HAClient(endpoint.base_url, token, verify_tls = endpoint.verify_tls, timeout = self.settings.ha_request_timeout_seconds, websocket_max_size_bytes = self.settings.ha_websocket_max_size_bytes)
+        return HAClient(
+            endpoint.base_url, token,
+            verify_tls = endpoint.verify_tls,
+            timeout = self.settings.ha_request_timeout_seconds,
+            websocket_max_size_bytes = self.settings.ha_websocket_max_size_bytes,
+            control_pool = self._control_pool,
+            control_connection_id = connection.id,
+        )
+
+    def _control_configuration(self) -> HAControlConfiguration | None:
+        """给连接池解析「当前活跃连接」的租约参数；没有活跃连接时返回 ``None``。
+
+        读库放在这里而不是构造时：活跃连接会被用户随时切换。控制类请求一律以连接记录里
+        的地址与令牌为准（``active_endpoint`` 的探测结果是异步的，这里只用于 REST 读取），
+        因此这里与 ``client_for`` 一样直接取连接记录。
+        """
+        connection = self.active_connection()
+        if connection is None:
+            return None
+        try:
+            token = self.cipher.decrypt(connection.encrypted_access_token)
+        except CredentialCipherError:
+            # 令牌解不开时视为「没有可用配置」：控制请求会拿到连接不可用的错误，
+            # 而不是在池里留下一条永远不可能建成的租约。
+            return None
+        return HAControlConfiguration(
+            connection_id = connection.id,
+            base_url = connection.base_url,
+            access_token = token,
+            verify_tls = connection.verify_tls,
+            timeout = self.settings.ha_request_timeout_seconds,
+        )
 
     async def entity_translations(
         self,
@@ -475,14 +553,19 @@ class HAConnectorService:
                 raise HAClientError('请先配置 Home Assistant 连接。')
             await self._run_database(self._mark_sync_started, connection.id)
             try:
-                snapshot = await (await self.client_for(connection)).fetch_snapshot()
-                counts = await self._run_database(self._apply_snapshot, connection.id, snapshot, reconciled = reconciled)
-                await self.refresh_persistent_entity_ids(ensure_states = False)
-                watched = await self.watched_entity_ids()
-                await self.state_hub.replace(
-                    raw
-                    for raw in snapshot.states
-                    if str(raw.get('entity_id') or '') in watched)
+                # 整段对账都在「变更追踪」窗口内：期间实时事件带来的状态更新会被记下，
+                # 让 replace 知道哪些实体的内存值比这份快照新，从而不被旧值覆盖。
+                async with self.state_hub.track_fetch_changes() as invalidated:
+                    snapshot = await (await self.client_for(connection)).fetch_snapshot()
+                    counts = await self._run_database(self._apply_snapshot, connection.id, snapshot, reconciled = reconciled)
+                    await self.refresh_persistent_entity_ids(ensure_states = False)
+                    watched = await self.watched_entity_ids()
+                    await self.state_hub.replace(
+                        (
+                            raw for raw in snapshot.states
+                            if str(raw.get('entity_id') or '') in watched
+                        ),
+                        invalidated = invalidated)
                 await self.state_hub.publish({
                     'type': 'entity_catalog_changed',
                     'operation': 'refreshed',

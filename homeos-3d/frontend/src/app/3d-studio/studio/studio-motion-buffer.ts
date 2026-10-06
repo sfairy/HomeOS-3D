@@ -2,6 +2,7 @@ export function createMotionBuffer({
   THREE: three,
   renderer: renderer,
   maxBytes: maxBytes = 32 * 1024 * 1024,
+  maxSamples: maxSamples = 4,
 }) {
   const sizeVector = new three.Vector2(),
     screenScene = new three.Scene(),
@@ -43,7 +44,7 @@ export function createMotionBuffer({
     renderer.getSize(sizeVector);
     const widthPx = Math.floor(sizeVector.x * resolutionScale),
       heightPx = Math.floor(sizeVector.y * resolutionScale),
-      sampleCount = Math.min(4, renderer.capabilities.maxSamples || 0),
+      sampleCount = Math.min(maxSamples, renderer.capabilities.maxSamples || 0),
       estimatedBytes = widthPx * heightPx * 4 * (sampleCount ? 1 + 2 * sampleCount : 2);
     return {
       width: widthPx,

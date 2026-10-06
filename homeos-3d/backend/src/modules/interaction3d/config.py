@@ -714,8 +714,11 @@ def validate_config(properties: dict) -> None:
                 'extraControls',
                 'hiddenClickable'}
             if collection == 'airers':
-                fields.add('travelSeconds')
+                # 晾衣架的专属字段：行程时间（秒）与升降动画方向是否反向。
+                fields.update({'travelSeconds', 'animationReversed'})
                 if 'travelSeconds' in item and not number(item['travelSeconds'], 5, 180):
+                    fail()
+                if 'animationReversed' in item and not isinstance(item['animationReversed'], bool):
                     fail()
             if collection == 'waterHeaters':
                 fields.update({'deviceId', 'deviceName', 'statusRules', 'workingState'})

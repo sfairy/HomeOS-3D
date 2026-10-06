@@ -2984,7 +2984,10 @@ export async function openInteraction3dEditor({
           (saveButtonElement.disabled = isSaving || !isAccessAllowed));
         return;
       }
-      if (!usesModelBinding && structuredClone2.lightingMode === "region") {
+      if (
+        !usesModelBinding &&
+        normalizeInteraction3dLightingMode2(structuredClone2.lightingMode) === "region"
+      ) {
         const rangeSectionElement = createConfigSection("照射范围"),
           rangeEditorButton = createButton("编辑照射范围", async () => {
             if (!isRangeEditorOpen) {
@@ -3866,30 +3869,41 @@ export async function openInteraction3dEditor({
           });
         }
         if (isAirerMode) {
-          currentContainer.append(
-            createElement(
-              "p",
-              "i3d-note",
-              "顶部安装高度和最大伸展距离在户型图中调整。100%为最高，0%为最低；模型跟随设备反馈。",
-            ),
-          );
-          const carEntityInputElement = createElement("input");
-          ((carEntityInputElement.type = "number"),
-            (carEntityInputElement.min = "5"),
-            (carEntityInputElement.max = "180"),
-            (carEntityInputElement.step = "1"),
-            (carEntityInputElement.value = String(vector.travelSeconds || 20)),
-            carEntityInputElement.addEventListener("change", () => {
+          const airerMotionSectionElement = createConfigSection("升降动画"),
+            airerReversedInputElement = createElement("input");
+          (Object.assign(airerReversedInputElement, {
+            type: "checkbox",
+            checked: vector.animationReversed === true,
+          }),
+            airerReversedInputElement.addEventListener("change", () => {
+              ((vector.animationReversed = airerReversedInputElement.checked),
+                refreshEditorPreview());
+            }),
+            createSettingRow(airerMotionSectionElement, "动画方向反向", airerReversedInputElement),
+            airerMotionSectionElement.append(
+              createElement(
+                "p",
+                "i3d-note",
+                "模型升降与实物相反时开启，仅反转动画，不改变升降按钮的控制方向。顶部安装高度和最大伸展距离在户型图中调整。",
+              ),
+            ));
+          const airerTravelSecondsInputElement = createElement("input");
+          ((airerTravelSecondsInputElement.type = "number"),
+            (airerTravelSecondsInputElement.min = "5"),
+            (airerTravelSecondsInputElement.max = "180"),
+            (airerTravelSecondsInputElement.step = "1"),
+            (airerTravelSecondsInputElement.value = String(vector.travelSeconds || 20)),
+            airerTravelSecondsInputElement.addEventListener("change", () => {
               ((vector.travelSeconds = Math.max(
                 5,
-                Math.min(180, Number(carEntityInputElement.value) || 20),
+                Math.min(180, Number(airerTravelSecondsInputElement.value) || 20),
               )),
                 refreshEditorPreview());
             }),
             createSettingRow(
-              currentContainer,
+              airerMotionSectionElement,
               "无位置回传时全程耗时（秒）",
-              carEntityInputElement,
+              airerTravelSecondsInputElement,
             ));
         }
         if (deviceKind === "water-heater") {

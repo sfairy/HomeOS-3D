@@ -12,7 +12,7 @@ from typing import Any
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-from anyio import create_task_group
+from anyio import CancelScope, create_task_group
 from fastapi import APIRouter, HTTPException, Query, Request, WebSocket, WebSocketDisconnect, status
 from sqlalchemy import func, or_, select
 
@@ -44,6 +44,9 @@ router = APIRouter(prefix='/ha', tags=['home-assistant'])
 runtime_router = APIRouter(tags=['runtime'])
 MAX_RUNTIME_ENTITIES = 1000
 DISPLAY_BINDING_CACHE_SECONDS = 1
+# 实时连接的授权复检间隔（秒）：连接建立后授权仍可能到期或被吊销，
+# 长连必须周期性回看，否则一份过期授权可以靠一条已建立的连接无限用下去。
+RUNTIME_LICENSE_CHECK_SECONDS = 30
 ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
     ('lock', 'lock'): {'code'},
     ('lock', 'unlock'): {'code'},
@@ -888,7 +891,12 @@ def websocket_viewer(websocket: WebSocket) -> ViewerPrincipal | None:
         if token:
             record = database.scalar(select(LoginSession).where(LoginSession.id_hash == session_token_hash(token)))
             now = datetime.now(UTC)
-            if record is not None and record.expires_at.replace(tzinfo=UTC) > now:
+            if (
+                record is not None
+                and record.expires_at.replace(tzinfo=UTC) > now
+                # 会话还必须属于当前管理员账号：配对设备/普通账号的会话不能拿来开实时连接。
+                and record.user_id == websocket.app.state.admin_account.user_id
+            ):
                 user = database.get(User, record.user_id)
                 if user is not None and user.is_active:
                     database.expunge(user)
@@ -980,11 +988,22 @@ async def _runtime_send_json(websocket: WebSocket, payload: dict) -> None:
 
 
 async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
+    # 关闭原因码 → 人话。日志里只出现原因码对排查毫无帮助，而这段文案会进入全局日志导出。
+    close_explanations = {
+        'origin not allowed': '页面来源未获允许',
+        'authentication required': '需要登录或重新配对',
+        'authentication expired': '登录会话已失效，请重新登录',
+        'license restricted': '授权不可用或已到期',
+        'subscribe message required': '未收到有效的实体订阅消息',
+        'too many entities': '订阅实体数量超过上限',
+        'display pairing changed': '展示设备配对已变更，请重新配对',
+    }
+
     async def close_with_log(code: int, reason: str, *, send_reason: bool = True) -> None:
         _runtime_log(
             websocket,
             'warning',
-            f'实时连接已关闭：{reason}',
+            f'实时连接已关闭：{close_explanations.get(reason, reason)}',
             {**context, 'code': str(code), 'phase': 'rejected'},
         )
         await websocket.close(code=code, reason=reason if send_reason else None)
@@ -1013,6 +1032,50 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
     entity_ids = set()
     watching = False
     display_binding_cache = None
+    # 授权与登录态在长连期间仍会变化：access_closed 记住「已经因为授权/登录问题关过连接」，
+    # 之后所有发送一律短路，避免在关闭途中继续往外推数据。
+    access_closed = False
+
+    async def access_allowed() -> bool:
+        """长连的授权复检：能力码仍在，且登录会话还是同一个管理员。"""
+        nonlocal access_closed
+        if access_closed:
+            return False
+        allowed = await asyncio.to_thread(
+            websocket.app.state.license_service.allows, 'runtime.websocket')
+        if not allowed:
+            if not access_closed:
+                access_closed = True
+                await close_with_log(4403, 'license restricted', send_reason=False)
+            return False
+        if access_closed:
+            return False
+        if viewer.user is None:
+            # 中控设备（无登录账号）只受能力码约束，没有会话可比对。
+            return not access_closed
+        current = await asyncio.to_thread(websocket_viewer, websocket)
+        if current is None or current.user is None or current.user.id != viewer.user.id:
+            if not access_closed:
+                access_closed = True
+                await close_with_log(4401, 'authentication expired', send_reason=False)
+            return False
+        return not access_closed
+
+    async def send_licensed(payload: dict) -> bool:
+        """所有出站消息的唯一出口：先确认还有效，再发送。"""
+        if not await access_allowed():
+            return False
+        await _runtime_send_json(websocket, payload)
+        return True
+
+    async def monitor_access() -> None:
+        """单独一路任务周期性复检授权，断开已经失效的长连。"""
+        if not await access_allowed():
+            return
+        while True:
+            await asyncio.sleep(RUNTIME_LICENSE_CHECK_SECONDS)
+            if not await access_allowed():
+                return
 
     async def display_binding_matches() -> bool:
         nonlocal display_binding_cache
@@ -1036,9 +1099,11 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
         display_binding_cache = (time.monotonic(), matches)
         return matches
 
-    try:
+    async def subscribe_and_stream() -> None:
+        """等订阅帧 → 建立订阅 → 持续推送。"""
+        nonlocal entity_ids, watching
         subscribe = await asyncio.wait_for(websocket.receive_json(), timeout=30)
-        if subscribe.get('type') != 'subscribe' or not isinstance(subscribe.get('entityIds'), list):
+        if not isinstance(subscribe, dict) or subscribe.get('type') != 'subscribe' or not isinstance(subscribe.get('entityIds'), list):
             await close_with_log(4400, 'subscribe message required')
             return
         entity_ids = {str(value) for value in subscribe['entityIds'] if isinstance(value, str)}
@@ -1061,11 +1126,13 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
         async def send_updates() -> None:
             """推送初始快照，然后持续转发状态事件并保活。"""
             initial_snapshot = await websocket.app.state.ha_connector.state_hub.snapshot(entity_ids)
-            await _runtime_send_json(websocket, {'type': 'snapshot', 'states': initial_snapshot})
+            if not await send_licensed({'type': 'snapshot', 'states': initial_snapshot}):
+                return
             await websocket.app.state.ha_connector.ensure_entity_states(entity_ids)
             hydrated_snapshot = await websocket.app.state.ha_connector.state_hub.snapshot(entity_ids)
             if hydrated_snapshot != initial_snapshot:
-                await _runtime_send_json(websocket, {'type': 'snapshot', 'states': hydrated_snapshot})
+                if not await send_licensed({'type': 'snapshot', 'states': hydrated_snapshot}):
+                    return
             while True:
                 if not await display_binding_matches():
                     await close_with_log(4401, 'display pairing changed')
@@ -1076,12 +1143,14 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
                     if not await display_binding_matches():
                         await close_with_log(4401, 'display pairing changed')
                         return
-                    await _runtime_send_json(websocket, {'type': 'ping'})
+                    if not await send_licensed({'type': 'ping'}):
+                        return
                     continue
                 if not await display_binding_matches():
                     await close_with_log(4401, 'display pairing changed')
                     return
-                await _runtime_send_json(websocket, event)
+                if not await send_licensed(event):
+                    return
             return
 
         async def receive_disconnect() -> None:
@@ -1103,9 +1172,31 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
                 tasks.cancel_scope.cancel()
 
         failure = None
+        # shield=True：这一段的收尾（推送尾包 / 摘除订阅）不能被外层的取消打断，
+        # 否则连接断开时会把内存里的订阅登记留成孤儿。
+        with CancelScope(shield=True):
+            async with create_task_group() as tasks:
+                tasks.start_soon(run_until_closed, send_updates)
+                tasks.start_soon(run_until_closed, receive_disconnect)
+        if failure is not None:
+            raise failure
+
+    failure = None
+    try:
         async with create_task_group() as tasks:
-            tasks.start_soon(run_until_closed, send_updates)
-            tasks.start_soon(run_until_closed, receive_disconnect)
+            # 三路：订阅并推送、授权周期复检、连接断开感知。任一路结束都会取消其余两路。
+            async def run_until_closed(operation) -> None:
+                nonlocal failure
+                try:
+                    await operation()
+                except Exception as error:
+                    if failure is None or not isinstance(error, WebSocketDisconnect):
+                        failure = error
+                finally:
+                    tasks.cancel_scope.cancel()
+
+            tasks.start_soon(run_until_closed, monitor_access)
+            tasks.start_soon(run_until_closed, subscribe_and_stream)
         if failure is not None:
             raise failure
     except WebSocketDisconnect as error:

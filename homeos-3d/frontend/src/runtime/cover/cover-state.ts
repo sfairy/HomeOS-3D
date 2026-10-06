@@ -1,10 +1,5 @@
-const parseFiniteNumber = (rawInput) =>
-    ["number", "string"].includes(typeof rawInput) &&
-    !(typeof rawInput == "string" && rawInput.trim() === "") &&
-    Number.isFinite(Number(rawInput))
-      ? Number(rawInput)
-      : null,
-  stateLabelByState = {
+import { attributesOf, featureFlags, haNumber } from "../device/entity-capabilities";
+const stateLabelByState = {
     open: "已打开",
     closed: "已关闭",
     opening: "正在打开",
@@ -26,18 +21,14 @@ export function coverIconIsOn(component, coverFeedback) {
 }
 export function coverState(entityId, stateChange, options: { coverKind?: string } = {}) {
   const rawState = stateChange?.newState || stateChange || {},
-    stateAttributes = rawState.attributes || {},
+    stateAttributes = attributesOf(rawState),
     normalizedState = String(rawState.state || "")
       .trim()
       .toLowerCase(),
-    currentPosition = parseFiniteNumber(stateAttributes.current_position),
-    currentTiltPosition = parseFiniteNumber(stateAttributes.current_tilt_position),
+    currentPosition = haNumber(stateAttributes.current_position),
+    currentTiltPosition = haNumber(stateAttributes.current_tilt_position),
     isDreamCover = options.coverKind === "dream",
-    parsedSupportedFeatures = parseFiniteNumber(stateAttributes.supported_features),
-    supportedFeatures =
-      Number.isSafeInteger(parsedSupportedFeatures) && parsedSupportedFeatures >= 0
-        ? parsedSupportedFeatures
-        : 0,
+    supportedFeatures = featureFlags(stateAttributes),
     hasTiltFeedback = currentTiltPosition !== null || !!(supportedFeatures & 240),
     hasOverallFeedback = !isDreamCover || hasTiltFeedback,
 
@@ -93,18 +84,23 @@ export function coverState(entityId, stateChange, options: { coverKind?: string 
     positionSupported: !!(supportedFeatures & 4),
     stopSupported: !!(supportedFeatures & 8),
     tiltSupported: !!(supportedFeatures & 128),
+    tiltOpenSupported: !!(supportedFeatures & 16),
+    tiltCloseSupported: !!(supportedFeatures & 32),
+    tiltStopSupported: !!(supportedFeatures & 64),
     bladeSupported: !!(supportedFeatures & 128) || (!hasTiltFeedback && !!(supportedFeatures & 4)),
   };
 }
 export function coverCanAdjustBlades(coverStatus, estimatedStatus = coverStatus) {
-  return !coverStatus.available || !coverStatus.bladeSupported
+  return !coverStatus.available ||
+    !(coverStatus.bladeSupported || coverStatus.tiltOpenSupported || coverStatus.tiltCloseSupported)
     ? false
-    : coverStatus.overallFeedbackAvailable
-      ? estimatedStatus.closedConfirmed === true
-      :
-
-
-        true;
+    : coverStatus.dream
+      ? coverStatus.overallFeedbackAvailable
+        ? estimatedStatus.closedConfirmed === true
+        : estimatedStatus.moving || ["opening", "closing"].includes(coverStatus.raw?.state)
+          ? false
+          : !(estimatedStatus.estimated && estimatedStatus.position > 0)
+      : true;
 }
 export function coverControl(coverDevice, serviceName, targetPosition) {
   if (!coverDevice.available) throw new Error("窗帘当前不可用。");
@@ -114,17 +110,25 @@ export function coverControl(coverDevice, serviceName, targetPosition) {
     stop_cover: "stopSupported",
     set_cover_position: "positionSupported",
     set_cover_tilt_position: "tiltSupported",
+    open_cover_tilt: "tiltOpenSupported",
+    close_cover_tilt: "tiltCloseSupported",
+    stop_cover_tilt: "tiltStopSupported",
   }[serviceName];
   if (!capabilityKey || !coverDevice[capabilityKey]) throw new Error("设备不支持此窗帘操作。");
   if (
     coverDevice.dream &&
-    ["set_cover_position", "set_cover_tilt_position"].includes(serviceName) &&
+    [
+      "set_cover_position",
+      "set_cover_tilt_position",
+      "open_cover_tilt",
+      "close_cover_tilt",
+    ].includes(serviceName) &&
     !coverCanAdjustBlades(coverDevice)
   )
     throw new Error("只有确认整体完全关闭且停止后，才能调整叶片。");
   let serviceData = {};
   if (serviceName === "set_cover_position" || serviceName === "set_cover_tilt_position") {
-    const parsedPosition = parseFiniteNumber(targetPosition);
+    const parsedPosition = haNumber(targetPosition);
     if (!Number.isInteger(parsedPosition) || parsedPosition < 0 || parsedPosition > 100)
       throw new Error("目标位置必须是 0–100 之间的整数。");
     serviceData =

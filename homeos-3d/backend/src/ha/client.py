@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import ssl
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from ipaddress import ip_address
 from typing import Any
@@ -12,6 +13,8 @@ from urllib.parse import quote, urlparse, urlunparse
 
 import httpx
 import websockets
+
+from .control_pool import HAControlConfiguration, HAControlPool
 
 
 class HAClientError(RuntimeError):
@@ -120,6 +123,9 @@ class HAClient:
         verify_tls: bool = True,
         timeout: float = 10,
         websocket_max_size_bytes: int = 67108864,
+        *,
+        control_pool: HAControlPool | None = None,
+        control_connection_id: str | None = None,
     ) -> None:
         self.base_url = normalize_base_url(base_url)
         self.access_token = access_token
@@ -127,6 +133,11 @@ class HAClient:
         self.timeout = timeout
         self.websocket_max_size_bytes = max(int(websocket_max_size_bytes), 8388608)
         self._bypass_env_proxy = bypass_env_proxy(self.base_url)
+        # control_pool 非空时，控制类请求（调服务）走共享连接池，由 HAControlPool 决定
+        # 是否复用已有连接、何时淘汰；缺省 None 表示每次新建（测试与一次性脚本的用法）。
+        self._control_pool = control_pool
+        # 连接池按「连接」隔离：同一个 HA 实例的两条连接记录不能共用同一条长连接。
+        self._control_connection_id = control_connection_id
 
     @property
     def headers(self) -> dict[str, str]:
@@ -427,6 +438,33 @@ class HAClient:
             await websocket.close()
         return resources
 
+    @property
+    def control_configuration(self) -> HAControlConfiguration:
+        """本客户端对应的连接池租约参数（由 ``HAControlPool`` 消费）。"""
+        return HAControlConfiguration(
+            connection_id=self._control_connection_id,
+            base_url=self.base_url,
+            access_token=self.access_token,
+            verify_tls=self.verify_tls,
+            timeout=self.timeout,
+            trust_env=not self._bypass_env_proxy,
+        )
+
+    @asynccontextmanager
+    async def _control_http_client(self):
+        """控制类请求的 httpx 客户端来源：有池走池，无池每次新建。"""
+        if self._control_pool is not None:
+            async with self._control_pool.lease(self.control_configuration) as client:
+                yield client
+            return
+        async with httpx.AsyncClient(
+            verify=self.verify_tls,
+            timeout=self.timeout,
+            headers=self.headers,
+            trust_env=not self._bypass_env_proxy,
+        ) as client:
+            yield client
+
     async def call_service(
         self,
         domain: str,
@@ -434,14 +472,13 @@ class HAClient:
         entity_id: str,
         data: dict[str, Any],
     ) -> Any:
+        """调用 HA 服务（开灯、设温度、执行脚本等）。
+
+        ``entity_id`` 在展开之后覆盖：强制以本参数为准，防止 ``data`` 里夹带另一个实体。
+        """
         payload = {**data, 'entity_id': entity_id}
         try:
-            async with httpx.AsyncClient(
-                verify=self.verify_tls,
-                timeout=self.timeout,
-                headers=self.headers,
-                trust_env=not self._bypass_env_proxy,
-            ) as client:
+            async with self._control_http_client() as client:
                 response = await client.post(
                     f'{self.base_url}/api/services/{domain}/{service}',
                     json=payload,

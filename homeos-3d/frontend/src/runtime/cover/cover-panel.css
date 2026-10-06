@@ -255,6 +255,46 @@
 .i3d-cover-panel.is-dream .i3d-cover-controls-slot {
   margin-top: 4px;
 }
+.i3d-cover-native-tilt {
+  flex: none;
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+.i3d-cover-native-tilt[hidden],
+.i3d-cover-native-tilt [hidden] {
+  display: none;
+}
+.i3d-cover-native-tilt h4 {
+  margin: 0;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 500;
+}
+.i3d-cover-native-tilt .hb-cover-details-actions {
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 8px;
+}
+.i3d-cover-native-tilt .hb-cover-details-actions button {
+  height: 42px;
+  min-height: 42px;
+  min-width: 0;
+  padding: 0 4px;
+  border-radius: 10px;
+}
+.interaction3d-stage
+  .i3d-light-panel.is-cover-panel:not(.is-cover-group-panel):has(.i3d-cover-native-tilt:not([hidden])) {
+  min-height: 0;
+  max-height: calc((100% - var(--i3d-control-top, 24px) - 12px) / var(--i3d-control-scale, 2));
+}
+.interaction3d-stage
+  .i3d-light-panel.is-cover-panel:has(.i3d-cover-native-tilt:not([hidden]))
+  > .i3d-cover-panel {
+  height: auto;
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
 .interaction3d-stage .i3d-light-panel.is-cover-group-panel {
   height: 232px;
   min-height: 232px;

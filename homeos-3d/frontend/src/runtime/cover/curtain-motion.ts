@@ -11,7 +11,6 @@ const {
   coverDirectionSet = new Set(["left", "right", "split"]),
   clothPartSet = new Set(["cloth", "band"]),
   trackPartSet = new Set(["rod", "cap", ...clothPartSet]),
-  FRAME_INTERVAL_MS = 1000 / 30,
   MOTION_DURATION_MS = 420,
   MIN_PANEL_SCALE = 0.12,
   CLOTH_FOLD_SPACING_METERS = 0.15,
@@ -250,7 +249,6 @@ export function createCurtainMotion({
   }
   let rigsByBindingId = new Map(),
     coverStatesByEntityId = new Map(),
-    lastUpdateMs = -Infinity,
     isPoseKeyDirty = true,
     cachedPoseKey = "",
     previousEntityIdByBindingId = new Map(),
@@ -492,13 +490,13 @@ export function createCurtainMotion({
       hasBladeChanged = motionRig.bladePosition !== receivedMotionState.bladePosition;
     if (
       ((motionRig.bladePosition = receivedMotionState.bladePosition),
-      hasBladeChanged && motionRig.dream && applyRigPose(motionRig),
       incomingPosition === null)
     ) {
       const hasPendingMotion = motionRig.target !== motionRig.position;
       return (
         (motionRig.target = motionRig.position),
         (motionRig.motionStart = null),
+        hasBladeChanged && motionRig.dream && applyRigPose(motionRig),
         hasPendingMotion || hasBladeChanged
       );
     }
@@ -509,16 +507,19 @@ export function createCurtainMotion({
         (motionRig.position = incomingPosition),
         (motionRig.target = incomingPosition),
         (motionRig.motionStart = null),
-        positionChanged && applyRigPose(motionRig),
+        (positionChanged || (hasBladeChanged && motionRig.dream)) && applyRigPose(motionRig),
         positionChanged || hasBladeChanged
       );
     }
-    return motionRig.target === incomingPosition
-      ? hasBladeChanged
-      : ((motionRig.target = incomingPosition),
-        (motionRig.motionFrom = motionRig.position),
-        (motionRig.motionStart = null),
-        true);
+    return (
+      hasBladeChanged && motionRig.dream && applyRigPose(motionRig),
+      motionRig.target === incomingPosition
+        ? hasBladeChanged
+        : ((motionRig.target = incomingPosition),
+          (motionRig.motionFrom = motionRig.position),
+          (motionRig.motionStart = null),
+          true)
+    );
   }
   function setBindings(modelRoot, bindings = [], sceneRevision) {
     if (isDisposed) return;
@@ -702,16 +703,8 @@ export function createCurtainMotion({
     );
   }
   function update(timestampMs) {
-    if (
-      !isMoving() ||
-      (Number.isFinite(timestampMs) || (timestampMs = globalThis.performance?.now() ?? Date.now()),
-      timestampMs >= lastUpdateMs && timestampMs - lastUpdateMs < FRAME_INTERVAL_MS)
-    )
-      return false;
-    lastUpdateMs =
-      Number.isFinite(lastUpdateMs) && timestampMs >= lastUpdateMs
-        ? timestampMs - ((timestampMs - lastUpdateMs) % FRAME_INTERVAL_MS)
-        : timestampMs;
+    if (!isMoving()) return false;
+    Number.isFinite(timestampMs) || (timestampMs = globalThis.performance?.now() ?? Date.now());
     let hasAnimated = false;
     for (const movingRig of rigsByBindingId.values()) {
       if (movingRig.position === null || movingRig.target === movingRig.position) continue;

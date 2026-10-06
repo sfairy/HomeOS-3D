@@ -136,6 +136,26 @@
           ? "登录与配对页面"
           : "仪表盘编辑器";
   }
+  function buildEventDetails(errorEvent: ErrorEvent, eventTarget = "window") {
+    const detailLines = [
+      `\u4E8B\u4EF6\u7C7B\u578B\uFF1A${errorEvent.type || "error"}`,
+      `\u4E8B\u4EF6\u76EE\u6807\uFF1A${eventTarget}`,
+    ];
+    (bridgeWindow.document?.readyState &&
+      detailLines.push(`\u9875\u9762\u72B6\u6001\uFF1A${bridgeWindow.document.readyState}`),
+      bridgeWindow.document?.visibilityState &&
+        detailLines.push(
+          `\u9875\u9762\u53EF\u89C1\u6027\uFF1A${bridgeWindow.document.visibilityState}`,
+        ));
+    const performanceNow = bridgeWindow.performance?.now?.();
+    return (
+      Number.isFinite(performanceNow) &&
+        detailLines.push(
+          `\u9875\u9762\u542F\u52A8\u540E\u6BEB\u79D2\uFF1A${Math.round(performanceNow)}`,
+        ),
+      detailLines
+    );
+  }
   function pruneQueue() {
     const cutoffTime = Date.now() - MAX_EVENT_AGE_MS;
     for (
@@ -302,8 +322,13 @@ type FetchInitWithLogContext = RequestInit & {
 /** 资源加载失败事件里被指向的元素：src / href / tagName 三选若干。 */
 type ResourceErrorTarget = EventTarget & {
   src?: string;
+  currentSrc?: string;
   href?: string;
   tagName?: string;
+  error?: {
+    code?: number;
+    message?: string;
+  };
 };
 
   ((bridgeWindow.fetch = async function (
@@ -345,23 +370,39 @@ type ResourceErrorTarget = EventTarget & {
       );
     } catch (caughtError) {
       const abortSignal =
-        fetchOptions.signal === undefined
-          ? (requestInput as Request)?.signal
-          : fetchOptions.signal;
+          fetchOptions.signal === undefined
+            ? (requestInput as Request)?.signal
+            : fetchOptions.signal,
+        isAbortError =
+          caughtError?.name === "AbortError" ||
+          (abortSignal?.aborted && caughtError === abortSignal.reason),
+        isTimeoutError =
+          caughtError?.name === "TimeoutError" ||
+          (abortSignal?.aborted && abortSignal.reason?.name === "TimeoutError");
       throw (
-        caughtError?.name === "AbortError" ||
-          (abortSignal?.aborted && caughtError === abortSignal.reason) ||
+        (isTimeoutError || !isAbortError) &&
           (reportEvent(
-            "error",
+            isTimeoutError ? "warning" : "error",
             "网络请求",
-            `\u7F51\u7EDC\u8FDE\u63A5\u5931\u8D25\uFF1A${requestRecord.method} ${requestPath}`,
+            `${
+              isTimeoutError ? "请求超时，未能在限定时间内完成" : "网络连接失败"
+            }\uFF1A${requestRecord.method} ${requestPath}`,
             {
               ...requestRecord,
               durationMs: Date.now() - startedAt,
+              ...(isTimeoutError
+                ? {
+                    code: "REQUEST_TIMEOUT",
+                  }
+                : {}),
             },
             caughtError?.stack || caughtError?.message || "",
           ),
-          caughtError && typeof caughtError == "object" && reportedErrorSet.add(caughtError)),
+          caughtError && typeof caughtError == "object" && reportedErrorSet.add(caughtError),
+          isTimeoutError &&
+            abortSignal?.reason &&
+            typeof abortSignal.reason == "object" &&
+            reportedErrorSet.add(abortSignal.reason)),
         caughtError
       );
     }
@@ -378,29 +419,99 @@ type ResourceErrorTarget = EventTarget & {
     bridgeWindow.addEventListener(
       "error",
       (errorEvent) => {
-
-        const failedTarget = errorEvent.target as ResourceErrorTarget;
+        const failedTarget = errorEvent.target as ResourceErrorTarget,
+          failedTagName = String(failedTarget?.tagName || "").toLowerCase(),
+          failedSource = failedTarget?.currentSrc || failedTarget?.src || failedTarget?.href;
         if (
           failedTarget &&
           failedTarget !== bridgeWindow &&
-          (failedTarget.src || failedTarget.href)
+          (failedSource ||
+            [
+              "img",
+              "script",
+              "link",
+              "video",
+              "audio",
+              "source",
+              "iframe",
+              "object",
+              "embed",
+            ].includes(failedTagName))
         ) {
-          reportEvent(
-            "error",
-            "资源加载",
-            `\u8D44\u6E90\u52A0\u8F7D\u5931\u8D25\uFF1A${sanitizePath(failedTarget.src || failedTarget.href)}`,
-            {
-              path: failedTarget.src || failedTarget.href,
-              phase: String(failedTarget.tagName || "resource").toLowerCase(),
-            },
-          );
+          const resourceDetails = buildEventDetails(errorEvent, failedTagName || "resource");
+          (failedTarget.error?.code != null &&
+            resourceDetails.push(
+              `\u5A92\u4F53\u9519\u8BEF\u4EE3\u7801\uFF1A${failedTarget.error.code}`,
+            ),
+            failedTarget.error?.message &&
+              resourceDetails.push(
+                `\u5A92\u4F53\u9519\u8BEF\u4FE1\u606F\uFF1A${failedTarget.error.message}`,
+              ),
+            reportEvent(
+              "error",
+              "资源加载",
+              `\u8D44\u6E90\u52A0\u8F7D\u5931\u8D25\uFF1A${
+                failedSource
+                  ? sanitizePath(failedSource)
+                  : `${failedTagName}\uFF08\u6D4F\u89C8\u5668\u672A\u63D0\u4F9B\u8D44\u6E90\u5730\u5740\uFF09`
+              }`,
+              {
+                ...(failedSource
+                  ? {
+                      path: failedSource,
+                    }
+                  : {
+                      code: "RESOURCE_ERROR_NO_PATH",
+                    }),
+                phase: failedTagName || "resource",
+              },
+              resourceDetails.join("\n"),
+            ));
           return;
         }
-        reportError(errorEvent.error || new Error(errorEvent.message || "页面脚本异常"), {
+        const scriptErrorFields: Record<string, string | number> = {
           path: errorEvent.filename || bridgeWindow.location.pathname,
           line: errorEvent.lineno,
           column: errorEvent.colno,
-        });
+        };
+        if (errorEvent.error) {
+          reportError(errorEvent.error, scriptErrorFields, errorEvent.message);
+          return;
+        }
+        const errorMessage = errorEvent.message || "浏览器错误事件（未提供异常信息）",
+          errorDetails = buildEventDetails(errorEvent);
+        (errorDetails.push("浏览器未提供原始异常堆栈；未生成日志收集器堆栈。"),
+          errorEvent.filename ||
+            errorDetails.push("浏览器未提供出错脚本的位置；请求路径为当前页面地址。"),
+          errorEvent.message
+            ? errorEvent.message === "Script error." &&
+              !errorEvent.filename &&
+              !errorEvent.lineno &&
+              !errorEvent.colno &&
+              ((scriptErrorFields.code = "SCRIPT_ERROR_OPAQUE"),
+              errorDetails.push(
+                "浏览器仅返回 Script error.，可能限制了异常详情；不能据此确定具体脚本或原因。",
+              ))
+            : (scriptErrorFields.code = "BROWSER_ERROR_NO_DETAILS"));
+        const isResizeObserverLoop =
+          [
+            "ResizeObserver loop completed with undelivered notifications.",
+            "ResizeObserver loop limit exceeded",
+          ].includes(errorEvent.message) &&
+          !errorEvent.lineno &&
+          !errorEvent.colno;
+        (isResizeObserverLoop &&
+          ((scriptErrorFields.code = "RESIZE_OBSERVER_LOOP"),
+          errorDetails.push(
+            "浏览器推迟了本轮部分尺寸通知；若反复出现或伴随卡顿，需检查布局与尺寸监听回调。",
+          )),
+          reportEvent(
+            isResizeObserverLoop ? "warning" : "error",
+            "界面",
+            errorMessage,
+            scriptErrorFields,
+            errorDetails.join("\n"),
+          ));
       },
       true,
     ),

@@ -16,18 +16,26 @@ export function createAirerMotion({
     ((entry.position = motion.from + (motion.to - motion.from) * progress),
       progress === 1 && (entry.motion = null));
   }
+  const visualPositionOf = (airerEntry) =>
+    airerEntry.animationReversed ? 100 - airerEntry.position : airerEntry.position;
   function applyPose(posedEntry) {
-    (posedEntry.rig.pose(posedEntry.position),
-      posedEntry.outlinePosition !== posedEntry.position &&
+    const visualPosition = visualPositionOf(posedEntry);
+    (posedEntry.rig.pose(visualPosition),
+      posedEntry.outlinePosition !== visualPosition &&
         ((posedEntry.model.userData.environmentOutlineRevision =
           (posedEntry.model.userData.environmentOutlineRevision || 0) + 1),
-        (posedEntry.outlinePosition = posedEntry.position)),
-      (posedEntry.model.userData.environmentOutlineMoving = !!(
-        posedEntry.motion || posedEntry.state?.moving
-      )));
+        (posedEntry.outlinePosition = visualPosition)),
+      (posedEntry.model.userData.environmentOutlineMoving =
+        !posedEntry.preparing && !!(posedEntry.motion || posedEntry.state?.moving)));
   }
   return {
-    sync({ root: root, revision: revision, bindings: bindings = [], states: states = {} }) {
+    sync({
+      root: root,
+      revision: revision,
+      bindings: bindings = [],
+      states: states = {},
+      preparing: preparing = false,
+    }) {
       if (isDisposed) return;
       const frameTime = now();
       (syncedRoot !== root || syncedRevision !== revision) &&
@@ -56,7 +64,12 @@ export function createAirerMotion({
             (bindingCandidate) => airerKey(bindingCandidate) === airerEntry.key,
           ),
           cover = coverState(airerBinding?.entityId || "", states[airerBinding?.entityId]),
-          entityId = airerBinding?.entityId || "",
+          entityId = airerBinding?.entityId || "";
+        airerEntry.animationReversed = !!(entityId && airerBinding?.animationReversed === true);
+        const unboundPosition = airerBinding?.unboundPosition ?? airerEntry.rig.preview ?? 55,
+          visualPosition = airerEntry.animationReversed
+            ? 100 - unboundPosition
+            : unboundPosition,
           signature = JSON.stringify([
             entityId,
             cover.available,
@@ -64,73 +77,88 @@ export function createAirerMotion({
             cover.position,
             airerBinding?.travelSeconds,
             airerBinding?.unboundPosition,
+            airerEntry.animationReversed,
+            preparing,
           ]);
         if (signature !== airerEntry.signature) {
-          advanceMotion(airerEntry, frameTime);
-          const entityChanged = !airerEntry.signature || entityId !== airerEntry.entityId;
+          preparing || advanceMotion(airerEntry, frameTime);
+          const entityChanged =
+            !airerEntry.signature ||
+            entityId !== airerEntry.entityId ||
+            airerEntry.preparing === true;
           airerEntry.motion = null;
           const motionReversed =
             airerEntry.state?.moving && cover.moving && airerEntry.state.opening !== cover.opening;
           if (
             ((entityChanged || !cover.available || !cover.moving || motionReversed) &&
               ((airerEntry.reportTime = null), (airerEntry.reportInterval = null)),
-            !airerBinding?.entityId)
+            preparing)
           )
-            airerEntry.position = airerBinding?.unboundPosition ?? airerEntry.rig.preview ?? 55;
+            airerBinding?.entityId
+              ? cover.available && cover.position !== null
+                ? (airerEntry.position = cover.position)
+                : entityChanged &&
+                  cover.available &&
+                  cover.moving &&
+                  (airerEntry.position = visualPosition)
+              : (airerEntry.position = airerBinding?.unboundPosition ?? airerEntry.rig.preview ?? 55);
           else {
-            if (cover.available && cover.position !== null) {
-              if (cover.moving && cover.position !== airerEntry.state?.position) {
-                const reportGap =
-                  airerEntry.reportTime == null ? null : frameTime - airerEntry.reportTime;
-                (reportGap >= 80 &&
-                  reportGap <= 5000 &&
-                  (airerEntry.reportInterval =
-                    airerEntry.reportInterval == null
-                      ? reportGap
-                      : Math.max(reportGap, airerEntry.reportInterval * 0.7 + reportGap * 0.3)),
-                  (airerEntry.reportTime = frameTime));
-              } else
-                cover.moving &&
-                  airerEntry.reportTime == null &&
-                  (airerEntry.reportTime = frameTime);
-              if (entityChanged || !cover.moving || motionReversed)
-                airerEntry.position = cover.position;
-              else {
-                if (airerEntry.position !== cover.position) {
-                  const reportInterval = airerEntry.reportInterval ?? 1000,
-                    motionDuration = Math.max(120, Math.min(5500, reportInterval * 1.15));
-                  airerEntry.motion = {
-                    from: airerEntry.position,
-                    to: cover.position,
-                    start: frameTime,
-                    duration: motionDuration,
-                  };
-                }
-              }
-            } else {
-              if (cover.available && cover.moving) {
-                const targetPosition = cover.opening ? 100 : 0;
-                (entityChanged &&
-                  (airerEntry.position =
-                    airerBinding?.unboundPosition ?? airerEntry.rig.preview ?? 55),
-                  targetPosition !== airerEntry.position &&
-                    (airerEntry.motion = {
+            if (!airerBinding?.entityId)
+              airerEntry.position = airerBinding?.unboundPosition ?? airerEntry.rig.preview ?? 55;
+            else {
+              if (cover.available && cover.position !== null) {
+                if (cover.moving && cover.position !== airerEntry.state?.position) {
+                  const reportGap =
+                    airerEntry.reportTime == null ? null : frameTime - airerEntry.reportTime;
+                  (reportGap >= 80 &&
+                    reportGap <= 5000 &&
+                    (airerEntry.reportInterval =
+                      airerEntry.reportInterval == null
+                        ? reportGap
+                        : Math.max(reportGap, airerEntry.reportInterval * 0.7 + reportGap * 0.3)),
+                    (airerEntry.reportTime = frameTime));
+                } else
+                  cover.moving &&
+                    airerEntry.reportTime == null &&
+                    (airerEntry.reportTime = frameTime);
+                if (entityChanged || !cover.moving || motionReversed)
+                  airerEntry.position = cover.position;
+                else {
+                  if (airerEntry.position !== cover.position) {
+                    const reportInterval = airerEntry.reportInterval ?? 1000,
+                      motionDuration = Math.max(120, Math.min(5500, reportInterval * 1.15));
+                    airerEntry.motion = {
                       from: airerEntry.position,
-                      to: targetPosition,
+                      to: cover.position,
                       start: frameTime,
-                      duration: Math.max(
-                        180,
-                        (Math.abs(targetPosition - airerEntry.position) / 100) *
-                          (airerBinding?.travelSeconds || 20) *
-                          1000,
-                      ),
-                    }));
+                      duration: motionDuration,
+                    };
+                  }
+                }
+              } else {
+                if (cover.available && cover.moving) {
+                  const targetPosition = cover.opening ? 100 : 0;
+                  (entityChanged && (airerEntry.position = visualPosition),
+                    targetPosition !== airerEntry.position &&
+                      (airerEntry.motion = {
+                        from: airerEntry.position,
+                        to: targetPosition,
+                        start: frameTime,
+                        duration: Math.max(
+                          180,
+                          (Math.abs(targetPosition - airerEntry.position) / 100) *
+                            (airerBinding?.travelSeconds || 20) *
+                            1000,
+                        ),
+                      }));
+                }
               }
             }
           }
           ((airerEntry.signature = signature),
             (airerEntry.entityId = entityId),
             (airerEntry.state = cover),
+            (airerEntry.preparing = preparing),
             applyPose(airerEntry),
             requestFrame());
         }
@@ -139,7 +167,10 @@ export function createAirerMotion({
           ),
           lightState = states[lightBinding?.entityId],
           lightEntityState = lightState?.newState || lightState,
-          lightOn = lightEntityState?.available !== false && lightEntityState?.state === "on";
+          lightOn =
+            !preparing &&
+            lightEntityState?.available !== false &&
+            lightEntityState?.state === "on";
         airerEntry.light !== lightOn &&
           ((airerEntry.light = lightOn), airerEntry.rig.setLight(lightOn), requestFrame());
       }
@@ -161,7 +192,7 @@ export function createAirerMotion({
       return {
         ...baseState,
         estimated: baseState.position === null,
-        visualPosition: matchedEntry?.position ?? null,
+        visualPosition: matchedEntry ? visualPositionOf(matchedEntry) : null,
       };
     },
     nextDelay() {

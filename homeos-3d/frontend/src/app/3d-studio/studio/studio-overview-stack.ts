@@ -42,6 +42,10 @@ export function createOverviewStack({
     syncedRevision = -1,
     lastBounds = null,
     maxBoundHeight = 0;
+  // 叠层/入场相机会替换掉 renderBufferDirect 收到的原始相机；直接换对象会让 three.js
+  // 因为相机 id 变化重编全部程序。这里给替换相机套一层 Object.create 门面并把 id 覆盖
+  // 回原相机，缓存键保持稳定，变换仍走替换相机。
+  let cameraFacadeByCamera = new WeakMap();
   const lastProjectionMatrix = new three.Matrix4(),
     lastWorldInverse = new three.Matrix4(),
     scratchViewPosition = new three.Vector3(),
@@ -78,6 +82,26 @@ export function createOverviewStack({
       culledNode.frustumCulled = frustumCulled;
     frustumCulledByNode.clear();
   }
+  function computeStackPivots() {
+    const sortedFloors = [...layout.floors].sort(
+      (floorA, floorB) => floorA.elevation - floorB.elevation,
+    );
+    if (lastBounds !== layout.bounds) {
+      ((lastBounds = layout.bounds), (maxBoundHeight = 0));
+      for (const boundsList of layout.bounds?.values() || [])
+        for (const boundsBox of boundsList) maxBoundHeight = Math.max(maxBoundHeight, boundsBox[1]);
+    }
+    const floorPivot = new three.Vector3(layout.center[0], maxBoundHeight / 2, layout.center[2]),
+      orbitPivot = floorPivot.clone();
+    return (
+      (orbitPivot.y += (sortedFloors.at(-1).elevation - sortedFloors[0].elevation) / 2),
+      {
+        ordered: sortedFloors,
+        floorPivot: floorPivot,
+        orbitPivot: orbitPivot,
+      }
+    );
+  }
   function syncFloorCameras(renderCamera) {
     if (
       !layout ||
@@ -89,18 +113,9 @@ export function createOverviewStack({
     (lastProjectionMatrix.copy(renderCamera.projectionMatrix),
       lastWorldInverse.copy(renderCamera.matrixWorldInverse),
       (syncedRevision = renderRevision));
-    const sortedFloors = [...layout.floors].sort(
-      (floorA, floorB) => floorA.elevation - floorB.elevation,
-    );
-    if (lastBounds !== layout.bounds) {
-      ((lastBounds = layout.bounds), (maxBoundHeight = 0));
-      for (const boundsList of layout.bounds?.values() || [])
-        for (const boundsBox of boundsList) maxBoundHeight = Math.max(maxBoundHeight, boundsBox[1]);
-    }
-    const stackCenter = new three.Vector3(layout.center[0], maxBoundHeight / 2, layout.center[2]),
-      topCenter = stackCenter.clone();
-    ((topCenter.y += (sortedFloors.at(-1).elevation - sortedFloors[0].elevation) / 2),
-      scratchViewPosition.copy(topCenter).applyMatrix4(renderCamera.matrixWorldInverse));
+    const { ordered: sortedFloors, floorPivot: stackCenter, orbitPivot: topCenter } =
+      computeStackPivots();
+    scratchViewPosition.copy(topCenter).applyMatrix4(renderCamera.matrixWorldInverse);
     const projectionElements = renderCamera.projectionMatrix.elements,
       projectedDepth =
         projectionElements[3] * scratchViewPosition.x +
@@ -229,32 +244,48 @@ export function createOverviewStack({
       object,
       group,
     ) {
-      if (
-        stackedLayerCamera === drawCamera &&
-        drawScene === scene &&
-        (stats.active &&
-          (syncFloorCameras(drawCamera),
-          (drawCamera = stackByFloorId.get(overviewFloorId(object))?.camera || drawCamera)),
-        entryProgress < 1 && overviewFloorId(object))
-      ) {
-        const objectFloorId = overviewFloorId(object);
-        let entryCameraRecord = entryCameraByFloorId.get(objectFloorId);
-        ((!entryCameraRecord || entryCameraRecord.camera.type !== drawCamera.type) &&
-          ((entryCameraRecord = {
-            camera: drawCamera.clone(false),
-            frame: -1,
-          }),
-          entryCameraByFloorId.set(objectFloorId, entryCameraRecord)),
-          entryCameraRecord.frame !== renderRevision &&
-            (entryCameraRecord.camera.copy(drawCamera, false),
-            (entryCameraRecord.frame = renderRevision),
-            entryOffsetMatrix.makeScale(entryScale, entryScale, 1),
-            (entryOffsetMatrix.elements[13] = entryOffsetByFloorId.get(objectFloorId) || 0),
-            entryCameraRecord.camera.projectionMatrix.premultiply(entryOffsetMatrix),
-            entryCameraRecord.camera.projectionMatrixInverse
-              .copy(entryCameraRecord.camera.projectionMatrix)
-              .invert()),
-          (drawCamera = entryCameraRecord.camera));
+      if (stackedLayerCamera === drawCamera && drawScene === scene) {
+        const baseDrawCamera = drawCamera;
+        if (
+          (stats.active &&
+            (syncFloorCameras(drawCamera),
+            (drawCamera = stackByFloorId.get(overviewFloorId(object))?.camera || drawCamera)),
+          entryProgress < 1 && overviewFloorId(object))
+        ) {
+          const objectFloorId = overviewFloorId(object);
+          let entryCameraRecord = entryCameraByFloorId.get(objectFloorId);
+          ((!entryCameraRecord || entryCameraRecord.camera.type !== drawCamera.type) &&
+            ((entryCameraRecord = {
+              camera: drawCamera.clone(false),
+              frame: -1,
+            }),
+            entryCameraByFloorId.set(objectFloorId, entryCameraRecord)),
+            entryCameraRecord.frame !== renderRevision &&
+              (entryCameraRecord.camera.copy(drawCamera, false),
+              (entryCameraRecord.frame = renderRevision),
+              entryOffsetMatrix.makeScale(entryScale, entryScale, 1),
+              (entryOffsetMatrix.elements[13] = entryOffsetByFloorId.get(objectFloorId) || 0),
+              entryCameraRecord.camera.projectionMatrix.premultiply(entryOffsetMatrix),
+              entryCameraRecord.camera.projectionMatrixInverse
+                .copy(entryCameraRecord.camera.projectionMatrix)
+                .invert()),
+            (drawCamera = entryCameraRecord.camera));
+        }
+        if (drawCamera !== baseDrawCamera) {
+          let cameraFacadeRecord = cameraFacadeByCamera.get(drawCamera);
+          if (!cameraFacadeRecord || cameraFacadeRecord.baseCamera !== baseDrawCamera) {
+            const facadeCamera = Object.create(drawCamera);
+            (Object.defineProperty(facadeCamera, "id", {
+              value: baseDrawCamera.id,
+            }),
+              (cameraFacadeRecord = {
+                baseCamera: baseDrawCamera,
+                facade: facadeCamera,
+              }),
+              cameraFacadeByCamera.set(drawCamera, cameraFacadeRecord));
+          }
+          drawCamera = cameraFacadeRecord.facade;
+        }
       }
       return originalRenderBufferDirect.call(
         this,
@@ -269,6 +300,9 @@ export function createOverviewStack({
     {
       stats: stats,
       cameraForFloor: cameraForFloor,
+      getOrbitPivot() {
+        return getActiveLayout() ? computeStackPivots().orbitPivot : null;
+      },
       setEntryProgress(progressValue) {
         ((entryProgress = Math.max(0, Math.min(1, progressValue))),
           entryProgress === 1 && entryCameraByFloorId.clear());
@@ -300,6 +334,8 @@ export function createOverviewStack({
       dispose() {
         (restoreFrustumCulled(),
           stackByFloorId.clear(),
+          entryCameraByFloorId.clear(),
+          (cameraFacadeByCamera = new WeakMap()),
           (renderer.render = originalRender),
           (renderer.renderBufferDirect = originalRenderBufferDirect));
       },

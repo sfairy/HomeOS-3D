@@ -631,6 +631,10 @@ export function createInteraction3dEditorPickers({
         isClimateEntity =
           !isCoverEntity && (entityDeviceKind === "climate" || entityDomainName === "climate"),
         isLightEntity = entityDeviceKind === "light" && !isCoverEntity && !isClimateEntity,
+        vacuumRoomDomainRank: { [domainName: string]: number } = {
+          script: 2,
+          button: 1,
+        },
         entityIdPattern =
           entityDeviceKind === "bath-heater"
             ? /^(climate|fan)\.[a-z0-9_]+$/
@@ -665,8 +669,10 @@ export function createInteraction3dEditorPickers({
                                         : /^(light|switch)\.[a-z0-9_]+$/,
         { editorEntityMatches: entityMatches } = createEditorPickerQueries({
           entityPickerConfig: () => ({
-            recommended: (candidateEntity) =>
-              isSpeakerEntity
+            recommended: (candidateEntity) => {
+              if (entityDeviceKind === "vacuum-room")
+                return vacuumRoomDomainRank[candidateEntity.entityId.split(".")[0]] || 0;
+              return isSpeakerEntity
                 ? (candidateEntity.deviceClass ||
                     candidateEntity.device_class ||
                     candidateEntity.attributes?.device_class ||
@@ -708,7 +714,8 @@ export function createInteraction3dEditorPickers({
                                         : entityDeviceKind === "camera"
                                           ? "camera."
                                           : "light.",
-                        ),
+                        );
+            },
           }),
           pickerEntitiesForComponentType: () =>
             buildEntityCatalog().filter(

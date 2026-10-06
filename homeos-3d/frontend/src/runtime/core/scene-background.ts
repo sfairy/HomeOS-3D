@@ -71,7 +71,11 @@ function backgroundFloorAnchor(
 }
 const WARM_MOTES_CHUNK =
   "\nfloat warmMotes(vec2 p, float size, float threshold, float time) {\n vec2 cell=floor(p), f=fract(p);\n float seed=fract(sin(dot(cell,vec2(127.1,311.7)))*43758.5453);\n float seed2=fract(sin(dot(cell,vec2(269.5,183.3)))*43758.5453);\n vec2 center=vec2(seed,seed2)*0.56+0.22;\n center+=vec2(sin(time*0.19+seed*6.28),cos(time*0.16+seed2*6.28))*0.065;\n float d=length(f-center), aa=max(length(fwidth(p)),0.0001);\n float radius=size*mix(.6,1.35,seed2);\n float core=(1.0-smoothstep(radius,radius+aa,d))*min(1.0,radius/aa);\n float halo=exp(-d*d/(radius*radius*18.0))*.11;\n return (core+halo)*step(threshold,seed)*(.66+.34*sin(time*.45+seed2*6.28));\n}";
-export function createSceneBackground(stageOptions, requestFrame = () => {}) {
+export function createSceneBackground(
+  stageOptions,
+  requestFrame = () => {},
+  { frameInterval = 50 } = {},
+) {
   const themeController = createBackgroundTheme(stageOptions, requestFrame),
     { THREE: THREE } = stageOptions,
     floorAnchorMap = new WeakMap(),
@@ -275,7 +279,10 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
       const deltaSeconds =
         lastTickMs === null
           ? 0
-          : Math.min(0.06, Math.max(0, (frameTimestampMs - lastTickMs) / 1000));
+          : Math.min(
+              Math.max(0.06, (frameInterval / 1000) * 1.2),
+              Math.max(0, (frameTimestampMs - lastTickMs) / 1000),
+            );
       lastTickMs = frameTimestampMs;
       const overviewTarget = stageOptions.backgroundFloor === "all" ? 1 : 0;
       return (
@@ -297,13 +304,13 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
             lastCameraPosition
               ? lastCameraPosition.copy(camera.position)
               : (lastCameraPosition = camera.position.clone()),
-            frameTimestampMs - lastWarmFrameMs >= 50 &&
+            frameTimestampMs - lastWarmFrameMs >= frameInterval &&
               ((isWarmAnimating = true),
               stageOptions.backgroundFrame?.(true, {
                 separate: true,
               }),
               (lastWarmFrameMs = frameTimestampMs)),
-            Math.max(0, 50 - (frameTimestampMs - lastWarmFrameMs)))
+            Math.max(0, frameInterval - (frameTimestampMs - lastWarmFrameMs)))
       );
     },
     suspend() {

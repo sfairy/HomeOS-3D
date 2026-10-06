@@ -39,6 +39,37 @@ CONTEXT_KEYS = frozenset(
     }
 )
 
+# 上下文键的中文标签：仅用于把诊断日志渲染成人能读的段落（api/global_logs 导出）。
+# 未在表内的键回退成键名本身，保证新增字段不会静默丢失。
+CONTEXT_LABELS = {
+    "requestId": "请求编号",
+    "path": "请求路径",
+    "method": "请求方法",
+    "status": "响应状态",
+    "durationMs": "耗时（毫秒）",
+    "page": "页面",
+    "projectId": "仪表盘编号",
+    "componentId": "控件编号",
+    "entityId": "实体",
+    "service": "服务",
+    "displayId": "展示设备编号",
+    "displayName": "展示设备名称",
+    "actor": "操作账号",
+    "userAgent": "浏览器信息",
+    "code": "原因代码",
+    "line": "行号",
+    "column": "列号",
+    "phase": "发生阶段",
+}
+
+
+def format_log_context(context: dict[str, Any]) -> str:
+    """把日志上下文渲染成「中文标签（键）：值」逐行排列的文本。"""
+    return "\n".join(
+        f"{CONTEXT_LABELS.get(key, key)}（{key}）：{value}"
+        for key, value in context.items()
+    )
+
 _SECRET_PATTERNS = (
     re.compile('(?is)-----BEGIN [^-]*PRIVATE KEY-----.*?(?:-----END [^-]*PRIVATE KEY-----|$)'),
     re.compile('(?im)(["\']?(?:cookie|set-cookie)["\']?\\s*[:=]\\s*)(?:"(?:\\\\.|[^"\\\\\\r\\n])*"|\'(?:\\\\.|[^\'\\\\\\r\\n])*\'|[^\\r\\n]*)'),

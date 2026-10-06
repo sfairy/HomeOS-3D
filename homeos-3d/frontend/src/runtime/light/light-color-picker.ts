@@ -144,7 +144,8 @@ export function createLightModeMenu(onSelect) {
     modeRoot.append(triggerButton, menuElement));
   let selectedMode = "",
     menuEntityId = "",
-    modesSignature = "";
+    modesSignature = "",
+    pendingMode = "";
   const modeButtons = [],
     getVisibleOptions = () => modeButtons.filter((optionButton) => !optionButton.hidden);
   function closeMenu(shouldRestoreFocus = false) {
@@ -176,7 +177,8 @@ export function createLightModeMenu(onSelect) {
       modeOptionButton.addEventListener("click", () => {
         triggerButton.disabled ||
           modeOptionButton.hidden ||
-          (closeMenu(true), selectedMode !== modeKey && onSelect(modeKey));
+          (closeMenu(true),
+          selectedMode !== modeKey && ((pendingMode = modeKey), onSelect(modeKey)));
       }),
       menuElement.append(modeOptionButton),
       modeButtons.push(modeOptionButton));
@@ -225,8 +227,16 @@ export function createLightModeMenu(onSelect) {
     {
       root: modeRoot,
       close: closeMenu,
+      get value() {
+        return selectedMode;
+      },
+      reset() {
+        ((pendingMode = ""), closeMenu());
+      },
       dispose() {
-        (document.removeEventListener("pointerdown", handleOutsidePointerDown, true), closeMenu());
+        (document.removeEventListener("pointerdown", handleOutsidePointerDown, true),
+          (pendingMode = ""),
+          closeMenu());
       },
       update({ modes: modes, value: selectedValue, disabled: isDisabled, entity: entityId }) {
         const nextModesSignature = Object.keys(modes)
@@ -234,9 +244,10 @@ export function createLightModeMenu(onSelect) {
           .join(",");
         ((menuEntityId !== entityId || modesSignature !== nextModesSignature || isDisabled) &&
           closeMenu(),
+          (menuEntityId !== entityId || !modes[pendingMode]) && (pendingMode = ""),
           (menuEntityId = entityId),
           (modesSignature = nextModesSignature),
-          (selectedMode = selectedValue),
+          (selectedMode = pendingMode || selectedValue),
           (modeRoot.hidden = Object.values(modes).filter(Boolean).length < 2),
           (triggerButton.disabled = isDisabled));
         for (const menuButton of modeButtons)
@@ -244,6 +255,7 @@ export function createLightModeMenu(onSelect) {
             menuButton.setAttribute("aria-checked", String(menuButton.value === selectedMode)),
             menuButton.value === selectedMode &&
               (labelElement.textContent = menuButton.textContent));
+        return selectedMode;
       },
     }
   );

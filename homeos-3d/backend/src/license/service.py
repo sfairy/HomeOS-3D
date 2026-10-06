@@ -66,6 +66,15 @@ class LicenseClientError(RuntimeError):
         return self.code in CONFIRMED_REVOCATION_CODES
 
     @property
+    def is_nonce_replay(self) -> bool:
+        """仅当授权服务明确拒绝了被重放的随机数时为真。
+
+        409 也可能是并发请求撞在同一个随机数上，只有文案确认「随机数已使用」才说明这次
+        请求真的被重放保护拦下。
+        """
+        return self.status_code == 409 and str(self) == '请求随机数已使用，请重新发起请求。'
+
+    @property
     def requires_rebind(self) -> bool:
         """商店已解除本机绑定：授权本身仍在，重新激活即可继续用。
 
@@ -537,7 +546,15 @@ class LicenseService:
             raise LicenseClientError('请输入购买授权时使用的邮箱。', status_code=422)
         payload['email'] = normalized_email
         try:
-            response = await self._post('/v2/activate', payload)
+            try:
+                response = await self._post('/v2/activate', payload)
+            except LicenseClientError as error:
+                # 随机数被服务端的重放保护拦下（多为上一次响应丢失后原样重发）：
+                # 换一个新随机数重发一次即可，不必打扰用户重新输入激活码。
+                if not error.is_nonce_replay:
+                    raise
+                payload['nonce'] = secrets.token_urlsafe(24)
+                response = await self._post('/v2/activate', payload)
             result = self._apply_response(
                 response,
                 activation_code_hint=activation_code.strip()[:-9],
@@ -622,7 +639,9 @@ class LicenseService:
             if isinstance(error, LicenseClientError) and error.is_confirmed_revocation:
                 self._mark_revoked(str(error))
                 raise LicenseClientError(str(error), status_code=error.status_code) from error
-            if isinstance(error, LicenseClientError) and error.status_code == 401:
+            if isinstance(error, LicenseClientError) and (error.status_code == 401 or error.is_nonce_replay):
+                # 401 与「随机数已使用」都说明手上的会话令牌不能用：前者是会话过期/失效，
+                # 后者说明这次心跳被服务端的重放保护拦下，直接换一份新租约即可恢复。
                 return await self._recover_unlocked()
             self._mark_failure(error)
             raise LicenseClientError(str(error), status_code=getattr(error, 'status_code', None), code=self._error_code) from error
@@ -745,6 +764,11 @@ class LicenseService:
         message = str(error)
         http_status = getattr(error, 'status_code', None)
         code = getattr(error, 'code', None)
+        # 服务端 409「随机数已使用」说明这次请求被重放保护拦下（多为上一次响应丢失后客户端
+        # 原样重发）。错误码单列出来，前端据此重新发起，而不是提示用户重新激活。
+        nonce_replay = isinstance(error, LicenseClientError) and error.is_nonce_replay
+        if nonce_replay:
+            code = 'LICENSE_NONCE_REPLAY'
         if code == 'LICENSE_RATE_LIMITED':
             self._rate_limited_until = time.monotonic() + RATE_LIMIT_COOLDOWN_SECONDS
         self._failures += 1
@@ -763,7 +787,7 @@ class LicenseService:
                 retry = state.status not in {'RECOVERY_RETRY', 'RECOVERY_REQUIRED'}
                 state.status = 'RECOVERY_RETRY' if retry else 'RECOVERY_REQUIRED'
                 code = code or 'RECOVERY_TOKEN_INVALID'
-            elif http_status is not None and 400 <= http_status < 500 and http_status not in {408, 429}:
+            elif http_status is not None and 400 <= http_status < 500 and http_status not in {408, 429} and not nonce_replay:
                 state.status = 'REMOTE_REJECTED'
                 code = code or 'LICENSE_REMOTE_REJECTED'
                 retry = False

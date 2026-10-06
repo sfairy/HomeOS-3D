@@ -3,6 +3,7 @@ const {
     lightColorRgb: lightColorRgb,
     lightColorHs: lightColorHs,
     lightColorServiceData: buildColorServicePayload,
+    lightRealtimeCapabilities: lightRealtimeCapabilities,
     hsToRgbColor: j,
   } = await (import("@app/renderer/controls/light-runtime")),
   isColorHsPair = (colorHsCandidate) =>
@@ -48,23 +49,15 @@ export function lightState(entityId, entityState, fallbackState = null) {
       (attributes.color_mode === "color_temp" || colorModeSet.has(attributes.color_mode))
         ? attributes.color_mode
         : (fallbackState?.colorMode ?? null),
+    realtimeCapabilities = lightRealtimeCapabilities(entityId, stateObject),
     brightnessSupported =
       isLightDomain &&
-      (supportedColorModes.length
-        ? supportedColorModes.some((supportedMode) => !["onoff", "unknown"].includes(supportedMode))
-        : isNumericValue(attributes.brightness) ||
-          (Number(attributes.supported_features) & 1) !== 0 ||
-          fallbackState?.brightnessSupported === true),
+      (realtimeCapabilities.brightness ||
+        (!supportedColorModes.length && fallbackState?.brightnessSupported === true)),
     temperatureSupported =
       isLightDomain &&
-      (supportedColorModes.length
-        ? supportedColorModes.includes("color_temp")
-        : isNumericValue(attributes.color_temp_kelvin) ||
-          isNumericValue(attributes.color_temp) ||
-          isNumericValue(attributes.min_color_temp_kelvin) ||
-          isNumericValue(attributes.max_color_temp_kelvin) ||
-          (Number(attributes.supported_features) & 2) !== 0 ||
-          fallbackState?.temperatureSupported === true),
+      (realtimeCapabilities.colorTemperature ||
+        (!supportedColorModes.length && fallbackState?.temperatureSupported === true)),
     capabilitiesKnown =
       supportedColorModes.length > 0 ||
       isNumericValue(attributes.brightness) ||
@@ -124,10 +117,19 @@ export function lightState(entityId, entityState, fallbackState = null) {
 export function lightRenderState(stateSnapshot) {
   const hasMissingBrightness =
       stateSnapshot.brightnessSupported && !Number.isFinite(stateSnapshot.brightness),
+    hasUsableColorRgb =
+      !stateSnapshot.colorMode &&
+      stateSnapshot.colorSupported &&
+      Array.isArray(stateSnapshot.colorRgb) &&
+      stateSnapshot.colorRgb.length === 3 &&
+      stateSnapshot.colorRgb.every(
+        (rgbChannel) => Number.isFinite(rgbChannel) && rgbChannel >= 0 && rgbChannel <= 255,
+      ),
     hasMissingKelvin =
       stateSnapshot.temperatureSupported &&
       !colorModeSet.has(stateSnapshot.colorMode) &&
-      !Number.isFinite(stateSnapshot.kelvin);
+      !Number.isFinite(stateSnapshot.kelvin) &&
+      !hasUsableColorRgb;
   return {
     ...stateSnapshot,
     on: stateSnapshot.on && !hasMissingBrightness && !hasMissingKelvin,
@@ -508,7 +510,14 @@ export function lightCommand(commandEntityId, commandName, commandValue, capabil
       service: "turn_on",
       entityId: commandEntityId,
       data: {
-        white: Math.round((Math.max(1, Math.min(100, capabilities.brightness || 100)) * 255) / 100),
+        white: Math.round(
+          (Math.max(
+            1,
+            Math.min(100, Number.isFinite(commandValue) ? commandValue : capabilities.brightness || 100),
+          ) *
+            255) /
+            100,
+        ),
       },
     };
   if (commandName === "color") {
@@ -579,6 +588,7 @@ export function createLightPreview({ now: previewNow = () => performance.now() }
           ((previewValues.colorMode = "white"),
           (previewValues.colorRgb = [255, 255, 255]),
           (previewValues.colorHs = [0, 0]),
+          Number.isFinite(previewValue) && (previewValues.brightness = previewValue),
           delete previewValues.kelvin),
         previewCommand === "preset" &&
           (Number.isFinite(previewValue?.brightness) &&

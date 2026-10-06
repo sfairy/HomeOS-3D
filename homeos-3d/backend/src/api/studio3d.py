@@ -20,7 +20,7 @@ from starlette.concurrency import run_in_threadpool
 from ..dependencies import DatabaseSession, LicensedUser
 from ..global_popups import global_popups
 from ..models import Project, ProjectDraft, StudioInteractionSync
-from ..modules.interaction3d.studio_cleanup import confirmation_token, plan_cleanup
+from ..modules.interaction3d.studio_cleanup import confirmation_token, identities, plan_cleanup
 from ..schemas import Studio3DDraftUpdate
 
 router = APIRouter(prefix='/studio3d', tags=['studio3d'])
@@ -177,34 +177,40 @@ def update_studio3d_draft(payload: Studio3DDraftUpdate, request: Request, databa
             'revision': current_revision + 1,
             'scene': payload.scene,
             'updatedAt': _utc_now()}
-        drafts = database.scalars(select(ProjectDraft)).all()
+        drafts = []
         documents = {}
-        for draft in drafts:
-            document = _decode_document_json(draft.document_json)
-            if document is None:
-                continue
-            documents[draft.project_id] = document
+        changed, impacts = {}, []
         state = database.get(StudioInteractionSync, 1)
         saved = _decode_document_json(state.document_json) if state is not None else {}
         archive = (saved or {}).get('archive', [])
         if not isinstance(archive, list):
             archive = []
-        (changed, archive, impacts) = plan_cleanup(
-            documents,
-            (current or {}).get('scene') or {},
-            payload.scene,
-            archive,
-            request.app.state.settings)
-        token = confirmation_token(current_revision, payload.scene, documents, impacts)
-        if impacts and payload.interactionConfirmation != token:
-            names = {p.id: p.name for p in database.scalars(select(Project)).all()}
-            database.rollback()
-            raise HTTPException(428, {
-                'code': 'STUDIO3D_INTERACTION_CONFIRMATION',
-                'token': token,
-                'message': '删除将同步移除关联的 3D 交互配置。',
-                'impacts': impacts,
-                'projects': [names.get(key, key) for key in dict.fromkeys(impact['projectId'] for impact in impacts)]})
+        previous_scene = (current or {}).get('scene') or {}
+        # 场景一模一样时整段级联清理没有意义：读全表文档、跑 plan_cleanup 都是白做，
+        # 而「反复保存但不改模型」是编辑期的常态（挪家具、调灯光都会触发保存）。
+        if identities(previous_scene) != identities(payload.scene):
+            drafts = database.scalars(select(ProjectDraft)).all()
+            for draft in drafts:
+                document = _decode_document_json(draft.document_json)
+                if document is None:
+                    continue
+                documents[draft.project_id] = document
+            (changed, archive, impacts) = plan_cleanup(
+                documents,
+                previous_scene,
+                payload.scene,
+                archive,
+                request.app.state.settings)
+            token = confirmation_token(current_revision, payload.scene, documents, impacts)
+            if impacts and payload.interactionConfirmation != token:
+                names = {p.id: p.name for p in database.scalars(select(Project)).all()}
+                database.rollback()
+                raise HTTPException(428, {
+                    'code': 'STUDIO3D_INTERACTION_CONFIRMATION',
+                    'token': token,
+                    'message': '删除将同步移除关联的 3D 交互配置。',
+                    'impacts': impacts,
+                    'projects': [names.get(key, key) for key in dict.fromkeys(impact['projectId'] for impact in impacts)]})
         for draft in drafts:
             if draft.project_id in changed:
                 draft.document_json = json.dumps(changed[draft.project_id], ensure_ascii=False)

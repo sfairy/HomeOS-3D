@@ -21,8 +21,8 @@ onMounted(async () => {
             <div class="header-title">
                 <p>HOMEOS · DESKTOP CREATOR</p>
                 <div class="header-title-row">
-                    <h1 id="project-name">户型图绘制</h1> <a class="back-link" href="/" aria-label="返回编辑器">←
-                        <span>返回编辑器</span></a>
+                    <h1 id="project-name">户型图绘制</h1> <a id="studio-back-link" class="back-link" href="/"
+                        aria-label="返回编辑器">← <span>返回编辑器</span></a>
                 </div>
             </div>
         </div>
@@ -1140,6 +1140,16 @@ onMounted(async () => {
             <p>确定删除“<strong id="export-preset-delete-name"></strong>”吗？只会删除保存的导出视角和设置，不会删除楼层或户型。</p>
             <div class="dialog-actions"><button id="export-preset-delete-cancel" type="button">取消</button><button
                     id="export-preset-delete-confirm" class="floor-delete-confirm" type="submit">删除存档</button></div>
+        </form>
+    </dialog>
+    <dialog id="studio-exit-dialog" class="scale-dialog export-notice-dialog studio-exit-dialog"
+        aria-labelledby="studio-exit-title">
+        <form method="dialog"> <span class="dialog-index">SAVE BEFORE LEAVING</span>
+            <h2 id="studio-exit-title">退出户型绘制？</h2>
+            <p id="studio-exit-message" role="status"></p>
+            <div class="dialog-actions"><button id="studio-exit-discard" type="button">不保存并退出</button><button
+                    id="studio-exit-continue" type="button" autofocus>继续编辑</button><button id="studio-exit-save"
+                    class="primary-action" type="button">保存并退出</button></div>
         </form>
     </dialog>
     <dialog id="save-conflict-dialog" class="scale-dialog export-notice-dialog save-conflict-dialog">
