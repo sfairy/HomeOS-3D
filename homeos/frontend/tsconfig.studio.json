@@ -1,0 +1,65 @@
+{
+  "//": "3D Studio 源码（src/studio/**）的独立类型检查工程。",
+  "//2": "用宽松档（strict:false）以兼容原 homeos-3d/frontend 的命令式实现；",
+  "//3": "主应用 tsconfig 通过 exclude 把 src/studio 排除在外，避免两套严格度互相污染。",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "allowUnreachableCode": false,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@app/*": ["./src/studio/app/*"],
+      "@runtime/*": ["./src/studio/runtime/*"],
+      "three": ["./src/studio/shims/vendor-three-core.ts"],
+
+      "/static/vendor/three/0.186.0/three.module.min.js": [
+        "./src/studio/shims/vendor-three-core.ts"
+      ],
+      "/static/vendor/three/0.186.0/OrbitControls.js": [
+        "./src/studio/shims/vendor-three-addons.ts"
+      ],
+      "/static/vendor/three/0.186.0/RoundedBoxGeometry.js": [
+        "./src/studio/shims/vendor-three-addons.ts"
+      ],
+      "/static/vendor/three/0.186.0/BufferGeometryUtils.js": [
+        "./src/studio/shims/vendor-three-addons.ts"
+      ],
+      "/static/vendor/three/0.186.0/GLTFLoader.js": [
+        "./src/studio/shims/vendor-three-addons.ts"
+      ],
+      "/static/vendor/three/0.186.0/DRACOLoader.js": ["./src/studio/shims/draco-loader.ts"],
+      "/static/vendor/qrcode-generator/qrcode.js": ["./src/studio/shims/qrcode.ts"],
+      "/static/vendor/meshoptimizer/0.25/meshopt_simplifier.module.js": [
+        "./src/studio/shims/meshopt.ts"
+      ],
+
+      "/api/v1/modules/interaction3d/core/runtime.js": [
+        "./src/studio/shims/interaction3d-runtime.ts"
+      ],
+      "/api/v1/modules/interaction3d/core/stage.js": [
+        "./src/studio/shims/interaction3d-stage.ts"
+      ],
+      "/api/v1/modules/interaction3d/editor/config-editor.js": [
+        "./src/studio/shims/interaction3d-config-editor.ts"
+      ],
+      "/api/v1/modules/interaction3d/security/security-editor.js": [
+        "./src/studio/shims/interaction3d-security-editor.ts"
+      ]
+    }
+  },
+  "include": ["src/studio/**/*.ts", "src/studio/**/*.d.ts", "src/studio/**/*.vue"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 
 from ..core.app_config import load_raw_config
 from ..core.models import HAConnection, ProjectConfig
+from ..ha.crypto import CredentialCipher, CredentialCipherError
 from ..ha.endpoints import ENDPOINT_EXTERNAL
 
 
@@ -94,7 +95,30 @@ def _read_json_object(raw: str | None) -> dict:
     return value if isinstance(value, dict) else {}
 
 
-def load_ha_endpoints(session: Session) -> HaEndpoints:
+def _decrypted_connection_token(session: Session, cipher: CredentialCipher) -> str | None:
+    """活跃连接记录里的**加密**令牌（``keep_crypto``）；无记录 / 解不开返回 ``None``。
+
+    解不开时返回 ``None`` 而不是抛异常：启动期不能因为一个坏令牌就整个起不来，
+    调用方会退回 ``layout.haConfig`` / 环境变量的旧解析结果。
+    """
+    try:
+        encrypted = session.scalars(
+            select(HAConnection.encrypted_access_token)
+            .where(HAConnection.is_active.is_(True))
+            .limit(1)
+        ).first()
+    except Exception:  # noqa: BLE001 - 表未就绪时退回旧路径
+        return None
+    if not encrypted:
+        return None
+    try:
+        return cipher.decrypt(encrypted)
+    except CredentialCipherError:
+        logger.warning("HA 连接记录的加密令牌无法解密，回退到 layout/app_config 中的令牌")
+        return None
+
+
+def load_ha_endpoints(session: Session, *, cipher: CredentialCipher | None = None) -> HaEndpoints:
     ha_url_primary = os.getenv("HA_URL", "").strip()
     ha_url_fallback = os.getenv("HA_URL_FALLBACK", "").strip()
     token = os.getenv("HA_TOKEN", "").strip()
@@ -114,6 +138,11 @@ def load_ha_endpoints(session: Session) -> HaEndpoints:
                 token = str(ha_config["token"])
     except Exception:  # noqa: BLE001 - 配置读取失败回退 env
         pass
+    # keep_crypto：连接记录里的 Fernet 加密令牌优先于 layout 明文 token。
+    if cipher is not None:
+        decrypted = _decrypted_connection_token(session, cipher)
+        if decrypted:
+            token = decrypted
     primary = normalize_ha_url(ha_url_primary)
     fallback = normalize_ha_url(ha_url_fallback)
     if fallback and fallback == primary:
@@ -121,7 +150,7 @@ def load_ha_endpoints(session: Session) -> HaEndpoints:
     return HaEndpoints(ha_url_primary=primary, ha_url_fallback=fallback, token=token)
 
 
-def load_active_ha_endpoints(session: Session) -> HaEndpoints:
+def load_active_ha_endpoints(session: Session, *, cipher: CredentialCipher | None = None) -> HaEndpoints:
     """在 :func:`load_ha_endpoints` 之上，把地址换成「连接器当前正在使用的那一侧」。
 
     ``layout.haConfig`` / 环境变量给的是静态的「内网优先」配置，而 3D 连接器每次探测后会把
@@ -133,7 +162,7 @@ def load_active_ha_endpoints(session: Session) -> HaEndpoints:
     留作 ``ha_url_fallback``。没有连接记录（或记录里没有可用地址）时保持原行为。
     令牌仍沿用 :func:`load_ha_endpoints` 的解析结果，避免这里再引入一条解密路径。
     """
-    endpoints = load_ha_endpoints(session)
+    endpoints = load_ha_endpoints(session, cipher=cipher)
     try:
         connection = session.scalars(
             select(HAConnection).where(HAConnection.is_active.is_(True)).limit(1)

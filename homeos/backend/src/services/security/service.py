@@ -17,8 +17,6 @@ from .config import load_security_config
 
 logger = logging.getLogger("homeos.security.service")
 
-_DEFAULT_EVENTS_PATH = "/local/doorbell_snapshots/events.jsonl"
-
 
 class SecurityService:
     def __init__(self, session_factory) -> None:
@@ -45,7 +43,9 @@ class SecurityService:
             if cached is not None and (time.monotonic() - self._cache_at) * 1000 < ttl_ms:
                 return {**cached, "haUrl": live_url, "token": endpoints.token}
 
-            events_path = _DEFAULT_EVENTS_PATH
+            # 未配置 eventsPath 时保持为空：由 fetch_events 提前返回，不去请求一个
+            # 并不存在的路径（旧实现兜底到虚构的 doorbell_snapshots，必然 404 并打出误导性告警）。
+            events_path = ""
             try:
                 raw = load_raw_config(session)
                 profiles = raw.get("profiles") if isinstance(raw.get("profiles"), dict) else {}

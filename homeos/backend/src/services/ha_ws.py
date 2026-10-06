@@ -165,6 +165,55 @@ class HaWebSocketClient:
         finally:
             self.delete_pending_result(message_id)
 
+    async def fetch_entity_translations(
+        self,
+        integrations: set[str] | list[str] | tuple[str, ...],
+        language: str = "zh-Hans",
+    ) -> dict[str, str]:
+        """实体翻译表（HA ``frontend/get_translations``），供实体选择器展示中文名。
+
+        先取 ``entity_component``（与集成无关的通用词条），再逐个集成取 ``entity``
+        —— HA 侧没有批量接口，实测每个集成一次往返（约 140ms），所以调用方必须做 TTL
+        缓存，否则每次页面加载都会逐集成重拉。
+
+        未连接直接返回空表；某个集成失败只跳过它，不影响其余词条。
+        """
+        resources: dict[str, str] = {}
+        if not self.is_connected():
+            return resources
+
+        def _collect(result: Any) -> None:
+            if not isinstance(result, dict):
+                return
+            payload = result.get("resources", result)
+            if not isinstance(payload, dict):
+                return
+            for key, value in payload.items():
+                if isinstance(key, str) and isinstance(value, str):
+                    resources[key] = value
+
+        try:
+            _collect(
+                await self.send_request(
+                    "frontend/get_translations",
+                    {"language": language, "category": "entity_component"},
+                )
+            )
+        except BusinessException:
+            pass
+        requested = sorted({str(item).strip() for item in integrations if str(item).strip()})
+        for integration in requested:
+            try:
+                _collect(
+                    await self.send_request(
+                        "frontend/get_translations",
+                        {"language": language, "category": "entity", "integration": integration},
+                    )
+                )
+            except BusinessException:
+                continue
+        return resources
+
     # ------------------------------------------------------------------ #
     # WebRTC 协商（camera/webrtc/offer 长流程）
     # ------------------------------------------------------------------ #

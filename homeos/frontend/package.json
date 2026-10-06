@@ -7,12 +7,16 @@
   "scripts": {
     "dev": "vite",
     "dev:clean": "vite --force",
-    "build": "vite build",
+    "build": "vite build && vite build --config vite.runtime.config.ts",
+    "build:app": "vite build",
+    "build:runtime": "vite build --config vite.runtime.config.ts",
+    "dev:runtime": "vite build --config vite.runtime.config.ts --watch",
     "build:analyze": "set ANALYZE=1&& vite build",
     "preview": "vite preview",
     "lint": "eslint \"src/**/*.{ts,vue}\" --fix",
     "lint:ci": "eslint \"src/**/*.{ts,vue}\" --max-warnings 0",
-    "typecheck": "vue-tsc -p tsconfig.json --noEmit"
+    "typecheck": "node scripts/run-vue-tsc.mjs -p tsconfig.json --noEmit",
+    "typecheck:studio": "node scripts/run-vue-tsc.mjs -p tsconfig.studio.json --noEmit"
   },
   "dependencies": {
     "@homeos/shared": "workspace:*",
@@ -25,11 +29,13 @@
     "pinia": "^4.0.3",
     "socket.io-client": "^4.8.3",
     "socket.io-msgpack-parser": "^3.0.2",
+    "three": "0.186.0",
     "vue": "^3.5.43",
     "vue-router": "^5.3.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/three": "0.186.0",
     "@tailwindcss/vite": "^4.3.3",
     "@typescript-eslint/eslint-plugin": "^8.70.0",
     "@typescript-eslint/parser": "^8.70.0",

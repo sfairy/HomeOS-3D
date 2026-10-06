@@ -1,0 +1,1342 @@
+<script setup lang="ts">
+/**
+ * 模板保留全部 id / class，供既有命令式引导逻辑按 DOM 契约操作。
+ */
+import { onMounted } from "vue";
+import { useHardExit } from "../composables/useLegacyPage";
+
+useHardExit();
+
+onMounted(async () => {
+  // stage-startup 自判 pathname === stage.html：非 stage 路径下是空操作。
+  await import("@app/3d-studio/stage-startup");
+  await import("@app/3d-studio/studio/studio-app");
+});
+</script>
+
+<template>
+<header class="studio-header">
+        <div class="header-leading"> <img class="brand-logo"
+                src="/static/assets/icons/homeos-mark-white-orange.svg" alt="HomeOS">
+            <div class="header-title">
+                <p>HOMEOS · DESKTOP CREATOR</p>
+                <div class="header-title-row">
+                    <h1 id="project-name">户型图绘制</h1> <a id="studio-back-link" class="back-link" href="/"
+                        aria-label="返回编辑器">← <span>返回编辑器</span></a>
+                </div>
+            </div>
+        </div>
+        <div class="workflow-center">
+            <ol class="workflow-steps" aria-label="制作步骤">
+                <li data-step="background"><i>1</i>导入底图</li>
+                <li data-step="scale"><i>2</i>标定比例</li>
+                <li data-step="walls"><i>3</i>绘制空间</li>
+                <li data-step="items"><i>4</i>摆放物件</li>
+                <li data-step="lights"><i>5</i>放置灯光</li>
+                <li data-step="export"><i>6</i>保存图片</li>
+            </ol>
+        </div>
+        <div class="header-actions"> <span id="save-state" class="save-state"><i></i>正在载入…</span> </div>
+    </header>
+    <main class="studio-shell">
+        <aside class="library-panel panel-surface">
+            <section class="start-card">
+                <div class="start-card-row">
+                    <h2>户型底图</h2>
+                    <div class="background-actions"><button id="import-plan" class="primary-action"
+                            type="button">导入</button><button id="toggle-background" type="button"
+                            disabled>隐藏</button><button id="remove-plan" type="button"
+                            disabled>移除</button></div>
+                </div> <input id="plan-file" type="file"
+                    accept=".png,.jpg,.jpeg,.webp,.svg,.bmp,.gif,image/png,image/jpeg,image/webp,image/svg+xml,image/bmp,image/gif"
+                    hidden>
+                <div id="background-import-error" class="background-import-error" hidden>
+                    <p id="background-import-message" role="alert"></p> <button id="background-import-copy"
+                        type="button">复制诊断信息</button>
+                    <details>
+                        <summary>查看详情</summary><textarea id="background-import-details" aria-label="底图导入诊断信息"
+                            readonly rows="10"></textarea>
+                    </details>
+                </div>
+            </section>
+            <section class="floor-manager-card">
+                <div class="start-card-row">
+                    <h2>楼层</h2>
+                    <div class="floor-heading-actions"><button id="align-floor" type="button" hidden
+                            disabled>对齐楼层</button><button id="add-floor" type="button">新增楼层</button></div>
+                </div>
+                <div id="floor-list" class="floor-list" aria-label="楼层列表"></div>
+            </section>
+            <section class="model-settings-card">
+                <div class="model-settings-row">
+                    <h2>墙体</h2><label title="墙高（m）"><span>高</span><input id="global-wall-height" aria-label="墙高（米）"
+                            type="number" min="0.01" max="6" step="0.01" value="2.4"></label><label
+                        title="墙厚（m）"><span>厚</span><input id="global-wall-thickness" aria-label="墙厚（米）" type="number"
+                            min="0.01" max="3" step="0.01" value="0.15"></label>
+                </div>
+                <div class="model-settings-option-row"><label title="通用墙体透明度"><span>透明度</span><input
+                            id="global-wall-opacity" aria-label="通用墙体透明度（百分比）" type="number" min="0" max="100" step="1"
+                            value="25"></label><span class="floor-edge-label">橙边</span><button id="toggle-floor-edge"
+                        type="button" aria-pressed="true">显示</button></div>
+            </section>
+            <section class="asset-library-card">
+                <div class="section-heading">
+                    <div><span class="eyebrow">OBJECTS</span>
+                        <h2>模型库</h2>
+                    </div><input id="asset-search" class="asset-search" type="search" placeholder="搜索模型"
+                        aria-label="搜索当前分类模型" autocomplete="off" spellcheck="false">
+                </div>
+                <div class="asset-category-tabs" role="group" aria-label="模型分类"><button class="active" type="button"
+                        data-asset-category="home" aria-pressed="true">家居</button><button type="button"
+                        data-asset-category="appliance" aria-pressed="false">电器</button><button type="button"
+                        data-asset-category="courtyard" aria-pressed="false">庭院</button><button type="button"
+                        data-asset-category="light" aria-pressed="false">灯光</button></div>
+                <p id="asset-search-empty" class="asset-search-empty" role="status" hidden>当前分类没有匹配的模型</p>
+                <div id="light-asset-row" class="light-asset-row" aria-label="灯具模板" hidden><button
+                        class="asset-card light-asset-card" type="button" draggable="true" data-item-type="downlight"
+                        aria-label="筒射灯" title="筒射灯"><span class="light-asset-icon light-asset-icon-downlight"
+                            aria-hidden="true"></span></button><button class="asset-card light-asset-card" type="button"
+                        draggable="true" data-item-type="ceilinglight" aria-label="吸顶灯" title="吸顶灯"><span
+                            class="light-asset-icon light-asset-icon-ceiling" aria-hidden="true"></span></button><button
+                        class="asset-card light-asset-card" type="button" draggable="true" data-item-type="striplight"
+                        aria-label="灯带" title="灯带"><span class="light-asset-icon light-asset-icon-strip"
+                            aria-hidden="true"></span></button></div>
+                <section id="light-layer-panel" class="light-layer-panel" hidden>
+                    <div class="light-layer-heading">
+                        <div><button id="light-groups-off" type="button">全关</button><button id="add-light-group"
+                                type="button" title="新建灯组">新建灯组</button></div>
+                    </div>
+                    <div id="light-group-list" class="light-group-list"></div>
+                </section>
+                <div id="asset-grid" class="asset-grid" aria-label="模型库">
+                    <div class="asset-group-heading" data-asset-heading-category="home">客厅常用</div> <button
+                        class="asset-card" type="button" draggable="true" data-item-type="sofa"
+                        data-asset-subcategory="living"><i>▰</i><span>沙发</span><small>2.20 × 0.90m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="sofa-single"
+                        data-asset-subcategory="living"><i>▰</i><span>单人沙发</span><small>1.05 × 0.90m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="sofa-l"
+                        data-asset-subcategory="living"><i>▰</i><span>L 型沙发</span><small>2.80 × 1.60m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="coffeetable"
+                        data-asset-subcategory="living"><i>▭</i><span>组合茶几</span><small>1.90 × 1.05m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="squarecoffeetable"
+                        data-asset-subcategory="living"><i>▦</i><span>方茶几</span><small>1.40 × 0.70m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="tea-table-set"
+                        data-asset-subcategory="living"><i>▦</i><span>组合茶桌</span><small>1.61 × 1.40m ·
+                            含圈椅</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="tvstand" data-asset-subcategory="living"><i>▬</i><span>电视柜</span><small>1.80 ×
+                            0.42m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="piano" data-asset-subcategory="living"><i>▰</i><span>钢琴</span><small>1.80 ×
+                            1.80m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="pool-table" data-asset-subcategory="living"><i>▤</i><span>台球桌</span><small>2.54
+                            × 1.42m</small></button>
+                    <div class="asset-group-heading" data-asset-heading-category="home">装饰</div> <button
+                        class="asset-card" type="button" draggable="true" data-item-type="decor-books"
+                        data-asset-subcategory="decor"><i>▤</i><span>书本组合</span><small>0.28 × 0.21m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="decor-vase"
+                        data-asset-subcategory="decor"><i>⚘</i><span>陶瓷花瓶</span><small>0.23 × 0.15m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="decor-tea-tray"
+                        data-asset-subcategory="decor"><i>☕</i><span>托盘杯子</span><small>0.34 × 0.23m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="decor-tissue-box"
+                        data-asset-subcategory="decor"><i>▱</i><span>纸巾盒</span><small>0.23 × 0.13m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="decor-small-plant"
+                        data-asset-subcategory="decor"><i>✦</i><span>小盆栽</span><small>0.24 × 0.22m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="plant"
+                        data-asset-subcategory="decor"><i>✦</i><span>绿植</span><small>0.75 × 0.75m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="rug"
+                        data-asset-subcategory="decor"><i>▨</i><span>地毯</span><small>2.00 × 1.40m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="aquarium"
+                        data-asset-subcategory="decor"><i>▣</i><span>鱼缸</span><small>1.50 × 0.55m</small></button>
+                    <div class="asset-group-heading" data-asset-heading-category="home">卧室与书房</div> <button
+                        class="asset-card" type="button" draggable="true" data-item-type="bed"
+                        data-asset-subcategory="bedroom"><i>▤</i><span>双人床</span><small>1.92 × 2.18m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="bunk-bed"
+                        data-asset-subcategory="bedroom"><i>▤</i><span>上下铺</span><small>1.18 × 2.06m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="wardrobe"
+                        data-asset-subcategory="bedroom"><i>▤</i><span>衣柜</span><small>1.80 × 0.64m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="drawer-chest"
+                        data-asset-subcategory="bedroom"><i>▤</i><span>斗柜</span><small>1.05 × 0.45m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="nightstand"
+                        data-asset-subcategory="bedroom"><i>▣</i><span>床头柜</span><small>0.50 × 0.42m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="curtain"
+                        data-asset-subcategory="bedroom"><i>▥</i><span>窗帘</span><small>1.80 × 0.18m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="vanity"
+                        data-asset-subcategory="bedroom"><i>◫</i><span>梳妆台</span><small>1.20 × 0.50m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="desk"
+                        data-asset-subcategory="bedroom"><i>▱</i><span>桌子</span><small>1.40 × 0.65m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="office-chair"
+                        data-asset-subcategory="bedroom"><i>▤</i><span>办公椅</span><small>0.64 × 0.66m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="bookcase"
+                        data-asset-subcategory="bedroom"><i>▥</i><span>书架</span><small>1.20 × 0.32m</small></button>
+                    <div class="asset-group-heading" data-asset-heading-category="home">餐厅与收纳</div> <button
+                        class="asset-card" type="button" draggable="true" data-item-type="table"
+                        data-asset-subcategory="dining"><i>▦</i><span>餐桌组合</span><small>2.40 × 1.80m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="rounddiningtable"
+                        data-asset-subcategory="dining"><i>◉</i><span>圆形餐桌</span><small>2.20 × 2.20m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="chair"
+                        data-asset-subcategory="dining"><i>◇</i><span>椅子</span><small>0.50 × 0.50m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="bar"
+                        data-asset-subcategory="dining"><i>▰</i><span>吧台</span><small>2.20 × 0.65m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="sideboard"
+                        data-asset-subcategory="dining"><i>▤</i><span>餐边柜</span><small>1.60 × 0.45m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="shoecabinet"
+                        data-asset-subcategory="dining"><i>▥</i><span>鞋柜</span><small>1.80 × 0.42m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="cabinet"
+                        data-asset-subcategory="dining"><i>▥</i><span>储物柜</span><small>1.60 × 0.45m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="glasscabinet"
+                        data-asset-subcategory="dining"><i>▧</i><span>玻璃柜</span><small>1.20 × 0.40m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="shelf"
+                        data-asset-subcategory="dining"><i>▤</i><span>货架</span><small>1.20 × 0.45m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="mural"
+                        data-asset-subcategory="living"><i>❐</i><span>壁画</span><small>1.20 × 0.80m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="featurewall"
+                        data-asset-subcategory="living"><i>❏</i><span>背景墙</span><small>3.00 × 2.40m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="wallcabinet"
+                        data-asset-subcategory="dining"><i>▧</i><span>吊柜</span><small>1.50 × 0.35m</small></button>
+                    <div class="asset-group-heading" data-asset-heading-category="home">厨房固定家具</div> <button
+                        class="asset-card" type="button" draggable="true" data-item-type="kitchenbase"
+                        data-asset-subcategory="kitchen-bath"><i>▤</i><span>厨房地柜</span><small>2.40 ×
+                            0.60m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="kitchensink"
+                        data-asset-subcategory="kitchen-bath"><i>▣</i><span>地柜带水盆</span><small>1.20 ×
+                            0.60m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="kitchencooktop"
+                        data-asset-subcategory="kitchen-bath"><i>▦</i><span>地柜带燃气灶</span><small>1.20 ×
+                            0.60m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="kitchenisland"
+                        data-asset-subcategory="kitchen-bath"><i>▭</i><span>岛台</span><small>2.40 ×
+                            0.80m</small></button>
+                    <div class="asset-group-heading" data-asset-heading-category="home">卫浴</div> <button
+                        class="asset-card" type="button" draggable="true" data-item-type="basin"
+                        data-asset-subcategory="kitchen-bath"><i>◉</i><span>台盆</span><small>0.90 ×
+                            0.50m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="toilet" data-asset-subcategory="kitchen-bath"><i>◒</i><span>马桶</span><small>0.42
+                            × 0.70m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="squattoilet"
+                        data-asset-subcategory="kitchen-bath"><i>▱</i><span>蹲便</span><small>0.45 ×
+                            0.65m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="urinal"
+                        data-asset-subcategory="kitchen-bath"><i>◖</i><span>小便斗</span><small>0.38 ×
+                            0.34m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="shower" data-asset-subcategory="kitchen-bath"><i>♨</i><span>花洒</span><small>0.90
+                            × 0.90m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="bathtub"
+                        data-asset-subcategory="kitchen-bath"><i>▱</i><span>浴缸</span><small>1.70 ×
+                            0.78m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="glasspartition"
+                        data-asset-subcategory="kitchen-bath"><i>▥</i><span>玻璃隔断</span><small>1.20 ×
+                            0.08m</small></button>
+                    <div class="asset-group-heading" data-asset-heading-category="home">结构与特殊物件</div> <button
+                        class="asset-card" type="button" draggable="true" data-item-type="stairs"
+                        data-asset-subcategory="structure"><i>⇧</i><span>楼梯</span><small>1.00 × 2.80m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="steelstairs"
+                        data-asset-subcategory="structure"><i>⇧</i><span>钢楼梯</span><small>1.86 × 2.93m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="glassstairs"
+                        data-asset-subcategory="structure"><i>⇧</i><span>玻璃楼梯</span><small>2.51 × 2.84m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="floatingstairs"
+                        data-asset-subcategory="structure"><i>⇧</i><span>悬空楼梯</span><small>0.97 × 2.25m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="pillar"
+                        data-asset-subcategory="structure"><i>▣</i><span>柱子</span><small>0.45 × 0.45m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="smallcar"
+                        data-asset-subcategory="structure"><i>◆</i><span>小汽车</span><small>2.19 × 5.01m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="suv"
+                        data-asset-subcategory="structure"><i>◆</i><span>SUV</span><small>2.09 × 4.76m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="scooter"
+                        data-asset-subcategory="structure"><i>◆</i><span>踏板车</span><small>0.77 × 1.90m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="elevator"
+                        data-asset-subcategory="structure"><i>⇧</i><span>电梯</span><small>1.40 × 1.52m</small></button>
+                    <div class="asset-group-heading" data-asset-heading-category="courtyard">乔木与绿植</div> <button
+                        class="asset-card" type="button" draggable="true" data-item-type="garden-tree"
+                        data-asset-subcategory="courtyard-0"><i>♣</i><span>庭院乔木</span><small>2.20 ×
+                            2.10m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-tree-rounded"
+                        data-asset-subcategory="courtyard-0"><i>♣</i><span>圆冠乔木</span><small>2.10 ×
+                            2.10m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-tree-columnar"
+                        data-asset-subcategory="courtyard-0"><i>♠</i><span>柱形乔木</span><small>1.00 ×
+                            1.00m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-tree-multistem"
+                        data-asset-subcategory="courtyard-0"><i>♣</i><span>多干小乔木</span><small>2.10 ×
+                            1.80m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-conifer"
+                        data-asset-subcategory="courtyard-0"><i>♠</i><span>景观松树</span><small>1.50 ×
+                            1.50m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-conifer-layered"
+                        data-asset-subcategory="courtyard-0"><i>♠</i><span>层叠景松</span><small>2.00 ×
+                            1.65m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-bamboo-dense"
+                        data-asset-subcategory="courtyard-0"><i>♧</i><span>浓密竹丛</span><small>1.20 ×
+                            1.00m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-shrub"
+                        data-asset-subcategory="courtyard-0"><i>♣</i><span>灌木丛</span><small>0.95 ×
+                            0.85m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-shrub-low"
+                        data-asset-subcategory="courtyard-0"><i>♣</i><span>低矮圆灌木</span><small>1.10 ×
+                            0.90m</small></button>
+                    <div class="asset-group-heading" data-asset-heading-category="courtyard">花坛与花器</div> <button
+                        class="asset-card" type="button" draggable="true" data-item-type="garden-planter"
+                        data-asset-subcategory="courtyard-1"><i>❀</i><span>长条花箱</span><small>1.50 ×
+                            0.50m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-planter-trough"
+                        data-asset-subcategory="courtyard-1"><i>▤</i><span>石质长花槽</span><small>1.60 ×
+                            0.55m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-flowerbed"
+                        data-asset-subcategory="courtyard-1"><i>✿</i><span>花坛</span><small>1.40 × 0.80m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="garden-flowers"
+                        data-asset-subcategory="courtyard-1"><i>✿</i><span>花朵组团</span><small>0.90 ×
+                            0.75m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-flowers-wild"
+                        data-asset-subcategory="courtyard-1"><i>✿</i><span>野花组团</span><small>1.10 ×
+                            0.90m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-round-planter"
+                        data-asset-subcategory="courtyard-1"><i>♣</i><span>圆形灌木花盆</span><small>0.75 ×
+                            0.75m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-planter-square"
+                        data-asset-subcategory="courtyard-1"><i>▣</i><span>方形花盆</span><small>0.70 ×
+                            0.70m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-large-planter"
+                        data-asset-subcategory="courtyard-1"><i>✧</i><span>高盆观叶植物</span><small>0.70 ×
+                            0.70m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-vegetable-bed"
+                        data-asset-subcategory="courtyard-1"><i>✿</i><span>菜圃模块</span><small>1.50 ×
+                            1.00m</small></button>
+                    <div class="asset-group-heading" data-asset-heading-category="courtyard">休闲家具</div> <button
+                        class="asset-card" type="button" draggable="true" data-item-type="garden-bench"
+                        data-asset-subcategory="courtyard-2"><i>▰</i><span>户外长椅</span><small>1.60 ×
+                            0.60m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-bench-backless"
+                        data-asset-subcategory="courtyard-2"><i>▬</i><span>无靠背长凳</span><small>1.50 ×
+                            0.44m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-bench-curved"
+                        data-asset-subcategory="courtyard-2"><i>⌒</i><span>弧形景观长凳</span><small>1.80 ×
+                            0.68m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-chair"
+                        data-asset-subcategory="courtyard-2"><i>▱</i><span>户外扶手椅</span><small>0.72 ×
+                            0.76m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-chair-bistro"
+                        data-asset-subcategory="courtyard-2"><i>♧</i><span>圆背庭院椅</span><small>0.55 ×
+                            0.58m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-table"
+                        data-asset-subcategory="courtyard-2"><i>▦</i><span>户外餐桌</span><small>1.60 ×
+                            0.85m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-table-round"
+                        data-asset-subcategory="courtyard-2"><i>◉</i><span>圆形庭院桌</span><small>1.05 ×
+                            1.05m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-table-picnic"
+                        data-asset-subcategory="courtyard-2"><i>▦</i><span>连体野餐桌</span><small>1.80 ×
+                            1.60m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-lounger"
+                        data-asset-subcategory="courtyard-2"><i>◩</i><span>日光躺椅</span><small>0.72 ×
+                            1.95m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-outdoor-sofa"
+                        data-asset-subcategory="courtyard-2"><i>▰</i><span>户外双人沙发</span><small>1.70 ×
+                            0.82m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-outdoor-coffee-table"
+                        data-asset-subcategory="courtyard-2"><i>▦</i><span>户外茶几</span><small>0.95 ×
+                            0.55m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-hanging-chair"
+                        data-asset-subcategory="courtyard-2"><i>♧</i><span>鸟巢吊椅</span><small>1.10 ×
+                            1.15m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-hammock"
+                        data-asset-subcategory="courtyard-2"><i>∽</i><span>支架吊床</span><small>1.05 ×
+                            3.30m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-swing"
+                        data-asset-subcategory="courtyard-2"><i>♧</i><span>庭院秋千</span><small>2.20 ×
+                            1.50m</small></button>
+                    <div class="asset-group-heading" data-asset-heading-category="courtyard">凉亭与遮阳</div> <button
+                        class="asset-card" type="button" draggable="true" data-item-type="garden-pergola"
+                        data-asset-subcategory="courtyard-3"><i>⌂</i><span>庭院廊架</span><small>3.20 ×
+                            3.20m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-pergola-shade"
+                        data-asset-subcategory="courtyard-3"><i>⌂</i><span>遮阳布廊架</span><small>3.20 ×
+                            3.20m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-gazebo"
+                        data-asset-subcategory="courtyard-3"><i>⌂</i><span>四角凉亭</span><small>3.20 ×
+                            3.20m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-gazebo-hex"
+                        data-asset-subcategory="courtyard-3"><i>⬡</i><span>六角凉亭</span><small>3.30 ×
+                            3.00m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-umbrella"
+                        data-asset-subcategory="courtyard-3"><i>☂</i><span>遮阳伞</span><small>2.60 ×
+                            2.60m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-umbrella-square"
+                        data-asset-subcategory="courtyard-3"><i>☂</i><span>方形遮阳伞</span><small>2.60 ×
+                            2.60m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-carport"
+                        data-asset-subcategory="courtyard-3"><i>⌂</i><span>庭院车棚</span><small>3.20 ×
+                            5.20m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-arch"
+                        data-asset-subcategory="courtyard-3"><i>∩</i><span>花园拱门</span><small>1.65 ×
+                            0.55m</small></button>
+                    <div class="asset-group-heading" data-asset-heading-category="courtyard">水景与景石</div> <button
+                        class="asset-card" type="button" draggable="true" data-item-type="garden-pond"
+                        data-asset-subcategory="courtyard-4"><i>◉</i><span>景观水池</span><small>2.60 ×
+                            1.70m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-pond-round"
+                        data-asset-subcategory="courtyard-4"><i>◉</i><span>圆形景观池</span><small>1.80 ×
+                            1.80m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-fountain"
+                        data-asset-subcategory="courtyard-4"><i>♧</i><span>庭院喷泉</span><small>1.25 ×
+                            1.25m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-fountain-wall"
+                        data-asset-subcategory="courtyard-4"><i>▣</i><span>壁泉水景</span><small>1.10 ×
+                            0.60m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-pool"
+                        data-asset-subcategory="courtyard-4"><i>▱</i><span>庭院泳池</span><small>5.00 ×
+                            3.00m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-rock-water"
+                        data-asset-subcategory="courtyard-4"><i>◆</i><span>假山水景</span><small>2.10 ×
+                            1.60m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-rocks"
+                        data-asset-subcategory="courtyard-4"><i>◆</i><span>景石组合</span><small>1.30 ×
+                            0.90m</small></button>
+                    <div class="asset-group-heading" data-asset-heading-category="courtyard">庭院门与设施</div> <button
+                        class="asset-card" type="button" draggable="true" data-item-type="garden-gate"
+                        data-asset-subcategory="courtyard-5"><i>▣</i><span>庭院门</span><small>1.40 ×
+                            0.22m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-gate-solid"
+                        data-asset-subcategory="courtyard-5"><i>▣</i><span>双扇实木院门</span><small>1.80 ×
+                            0.25m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-gate-arch"
+                        data-asset-subcategory="courtyard-5"><i>∩</i><span>拱形铁艺院门</span><small>1.60 ×
+                            0.23m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-gate-post"
+                        data-asset-subcategory="courtyard-5"><i>▯</i><span>独立门柱</span><small>0.46 ×
+                            0.46m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-bollard"
+                        data-asset-subcategory="courtyard-5"><i>▯</i><span>草坪灯</span><small>0.20 ×
+                            0.20m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-lantern"
+                        data-asset-subcategory="courtyard-5"><i>♧</i><span>庭院灯柱</span><small>0.42 ×
+                            0.42m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-barbecue"
+                        data-asset-subcategory="courtyard-5"><i>▣</i><span>户外烧烤台</span><small>1.25 ×
+                            0.60m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-outdoor-sink"
+                        data-asset-subcategory="courtyard-5"><i>▣</i><span>户外水槽台</span><small>1.30 ×
+                            0.60m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-storage-shed"
+                        data-asset-subcategory="courtyard-5"><i>⌂</i><span>户外储物屋</span><small>1.60 ×
+                            1.30m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="garden-firepit"
+                        data-asset-subcategory="courtyard-5"><i>◉</i><span>庭院火盆</span><small>0.95 ×
+                            0.95m</small></button>
+                    <div class="asset-group-heading" data-asset-heading-category="appliance">客厅与环境</div> <button
+                        class="asset-card" type="button" draggable="true" data-item-type="tv"
+                        data-asset-subcategory="media"><i>▭</i><span>电视</span><small>1.50 × 0.18m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="speaker"
+                        data-asset-subcategory="media"><i>◉</i><span>智能音响</span><small>0.17 × 0.17m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="camera"
+                        data-asset-subcategory="media"><i>◉</i><span>摄像头</span><small>0.12 × 0.12m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="presence"
+                        data-asset-subcategory="media"><i>◌</i><span>人体传感器</span><small>0.065 × 0.065m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="wallac"
+                        data-asset-subcategory="environment"><i>▬</i><span>挂机空调</span><small>0.90 ×
+                            0.22m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="floorac"
+                        data-asset-subcategory="environment"><i>◉</i><span>柜机空调</span><small>0.42 ×
+                            0.42m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="airer"
+                        data-asset-subcategory="environment"><i>↕</i><span>电动晾衣架</span><small>安装与伸展可调</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="fan"
+                        data-asset-subcategory="environment"><i>◉</i><span>电风扇</span><small>杆高可调</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="airpurifier"
+                        data-asset-subcategory="environment"><i>◌</i><span>空气净化器</span><small>0.34 ×
+                            0.34m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="humidifier"
+                        data-asset-subcategory="environment"><i>▤</i><span>加湿器</span><small>0.21 ×
+                            0.22m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="dehumidifier"
+                        data-asset-subcategory="environment"><i>▤</i><span>除湿机</span><small>0.34 ×
+                            0.26m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="heater" data-asset-subcategory="environment"><i>▤</i><span>取暖器</span><small>0.52
+                            × 0.29m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="robotvacuum"
+                        data-asset-subcategory="environment"><i>◎</i><span>扫地机器人</span><small>0.55 ×
+                            0.50m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="floorlamp"
+                        data-asset-subcategory="environment"><i>⌁</i><span>落地灯</span><small>1.35 ×
+                            0.50m</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="walllamp"
+                        data-asset-subcategory="environment"><i>◒</i><span>壁灯</span><small>0.30 × 0.22m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="airoutlet"
+                        data-asset-subcategory="environment"><i>▥</i><span>出风口</span><small>0.19 ×
+                            2.00m</small></button>
+                    <div class="asset-group-heading" data-asset-heading-category="appliance">厨房电器</div> <button
+                        class="asset-card" type="button" draggable="true" data-item-type="fridge"
+                        data-asset-subcategory="kitchen"><i>▯</i><span>冰箱</span><small>0.75 × 0.72m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="freezer"
+                        data-asset-subcategory="kitchen"><i>▭</i><span>冰柜</span><small>1.05 × 0.60m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="rangehood"
+                        data-asset-subcategory="kitchen"><i>◢</i><span>油烟机</span><small>0.90 × 0.45m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="dishwasher"
+                        data-asset-subcategory="kitchen"><i>▤</i><span>洗碗机</span><small>0.60 × 0.60m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="steamoven"
+                        data-asset-subcategory="kitchen"><i>▣</i><span>蒸烤箱</span><small>0.60 × 0.55m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="microwave"
+                        data-asset-subcategory="kitchen"><i>▭</i><span>微波炉</span><small>0.52 × 0.42m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="ricecooker"
+                        data-asset-subcategory="kitchen"><i>◉</i><span>电饭煲</span><small>0.28 × 0.32m</small></button>
+                    <div class="asset-group-heading" data-asset-heading-category="appliance">洗护</div> <button
+                        class="asset-card" type="button" draggable="true" data-item-type="washer"
+                        data-asset-subcategory="laundry"><i>◉</i><span>洗衣机</span><small>0.60 × 0.65m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="dryer"
+                        data-asset-subcategory="laundry"><i>◎</i><span>烘干机</span><small>0.60 × 0.65m</small></button>
+                    <div class="asset-group-heading" data-asset-heading-category="appliance">热水与饮水</div> <button
+                        class="asset-card" type="button" draggable="true" data-item-type="storagewaterheater"
+                        data-asset-subcategory="water"><i>◉</i><span>储水式热水器</span><small>0.86 × 0.46m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="gaswaterheater"
+                        data-asset-subcategory="water"><i>▯</i><span>燃气热水器</span><small>0.42 × 0.22m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="pipelinewaterpurifier"
+                        data-asset-subcategory="water"><i>▥</i><span>管线机</span><small>0.62 × 0.20m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="tea_bar_machine"
+                        data-asset-subcategory="water"><i>▤</i><span>茶吧机</span><small>0.62 × 0.48m</small></button>
+                    <div class="asset-group-heading" data-asset-heading-category="appliance">办公与设备</div> <button
+                        class="asset-card" type="button" draggable="true" data-item-type="desktop"
+                        data-asset-subcategory="office"><i>▣</i><span>台式电脑</span><small>0.72 × 0.32m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="printer"
+                        data-asset-subcategory="office"><i>▤</i><span>打印机</span><small>0.44 × 0.36m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="laptop"
+                        data-asset-subcategory="office"><i>⌨</i><span>笔记本电脑</span><small>0.36 × 0.28m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="nas"
+                        data-asset-subcategory="office"><i>▦</i><span>NAS</span><small>0.28 × 0.24m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="smart-socket-86"
+                        data-asset-subcategory="office"><i>▣</i><span>86 型智能插座</span><small>86 × 86 ×
+                            12mm</small></button> <button class="asset-card" type="button" draggable="true"
+                        data-item-type="router" data-asset-subcategory="office"><i>▤</i><span>路由器</span><small>0.29 ×
+                            0.18m</small></button>
+                </div>
+            </section>
+        </aside>
+        <section class="plan-panel panel-surface">
+            <div class="plan-toolbar">
+                <div class="tool-group" role="toolbar" aria-label="绘图工具">
+                    <div class="drawing-tool-section drawing-tool-section--common">
+                        <button class="drawing-tool-toggle" type="button" aria-haspopup="true" aria-expanded="false"
+                            aria-controls="drawing-tools-common" title="通用工具">
+                            <span class="drawing-tool-toggle-label">通用工具</span>
+                            <span class="drawing-tool-active" hidden></span>
+                            <span class="drawing-tool-caret" aria-hidden="true">▾</span>
+                        </button>
+                        <div class="drawing-tool-buttons" id="drawing-tools-common" hidden>
+                            <button class="tool-button active" type="button" data-tool="select" aria-pressed="true"
+                                title="选择与移动"><i>⌁</i><span>选择</span><small>选择与移动</small></button>
+                            <button class="tool-button" type="button" data-tool="pan" aria-pressed="false"
+                                title="按住左键拖动平移画布"><i>✥</i><span>平移</span><small>按住左键拖动</small></button>
+                            <button class="tool-button" type="button" data-tool="scale" aria-pressed="false"
+                                title="绘制参考线"><i>↔</i><span>参考线</span><small>绘制参考线</small></button>
+                            <button class="tool-button" type="button" data-tool="label" aria-pressed="false"
+                                title="放置户型铭牌"><i>T</i><span>铭牌</span><small>放置户型铭牌</small></button>
+                        </div>
+                    </div>
+                    <div class="drawing-tool-section drawing-tool-section--indoor">
+                        <button class="drawing-tool-toggle" type="button" aria-haspopup="true" aria-expanded="false"
+                            aria-controls="drawing-tools-indoor" title="室内工具">
+                            <span class="drawing-tool-toggle-label">室内工具</span>
+                            <span class="drawing-tool-active" hidden></span>
+                            <span class="drawing-tool-caret" aria-hidden="true">▾</span>
+                        </button>
+                        <div class="drawing-tool-buttons" id="drawing-tools-indoor" hidden>
+                            <button class="tool-button" type="button" data-tool="wall" aria-pressed="false"
+                                title="连续画墙"><i>╱</i><span>墙体</span><small>连续画墙</small></button>
+                            <button class="tool-button" type="button" data-tool="window" aria-pressed="false"
+                                title="将窗户吸附到墙上"><i>▣</i><span>窗户</span><small>吸附到墙上</small></button>
+                            <button class="tool-button" type="button" data-tool="door" aria-pressed="false"
+                                title="将门吸附到墙上"><i>◧</i><span>门</span><small>吸附到墙上</small></button>
+                            <button class="tool-button" type="button" data-tool="railing" aria-pressed="false"
+                                title="将玻璃栏杆吸附到墙上"><i>▥</i><span>栏杆</span><small>玻璃栏杆吸附到墙上</small></button>
+                            <button class="tool-button" type="button" data-tool="flooropening" aria-pressed="false"
+                                title="拖出矩形，仅切除当前层楼板"><i>▣</i><span>楼板洞口</span><small>仅切除当前层楼板</small></button>
+                        </div>
+                    </div>
+                    <div class="drawing-tool-section drawing-tool-section--courtyard">
+                        <button class="drawing-tool-toggle" type="button" aria-haspopup="true" aria-expanded="false"
+                            aria-controls="drawing-tools-courtyard" title="庭院工具">
+                            <span class="drawing-tool-toggle-label">庭院工具</span>
+                            <span class="drawing-tool-active" hidden></span>
+                            <span class="drawing-tool-caret" aria-hidden="true">▾</span>
+                        </button>
+                        <div class="drawing-tool-buttons" id="drawing-tools-courtyard" hidden>
+                            <button class="tool-button" type="button" data-tool="courtyard-area" aria-pressed="false"
+                                title="绘制庭院地面"><i>▧</i><span>地面</span><small>绘制庭院地面</small></button>
+                            <button class="tool-button" type="button" data-tool="courtyard-path" aria-pressed="false"
+                                title="沿路径铺设汀步"><i>◌</i><span>汀步</span><small>沿路径铺设汀步</small></button>
+                            <button class="tool-button" type="button" data-tool="courtyard-fence" aria-pressed="false"
+                                title="绘制庭院围挡"><i>▥</i><span>围挡</span><small>绘制庭院围挡</small></button>
+                            <button class="tool-button" type="button" data-tool="courtyard-gate" aria-pressed="false"
+                                title="沿围挡放置庭院门"><i>◧</i><span>庭院门</span><small>沿围挡放置庭院门</small></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="toolbar-actions">
+                    <div class="snap-control"> <button id="snap-toggle" class="snap-toggle active" type="button"
+                            aria-pressed="true" title="开启或关闭绘图吸附"><span>吸附</span><small
+                                id="snap-toggle-state">开</small></button> <button id="snap-settings-toggle"
+                            class="snap-settings-toggle" type="button" aria-label="吸附设置" aria-expanded="false"
+                            title="吸附设置">⌔</button>
+                        <div id="snap-settings-panel" class="snap-settings-panel" hidden>
+                            <header><strong>吸附设置</strong><small>按住 S 临时关闭</small></header>
+                            <div class="snap-option-grid"> <label><input type="checkbox"
+                                        data-snap-setting="snapEndpoints" name="snap-setting-snapEndpoints"
+                                        checked><span>端点</span></label> <label><input type="checkbox"
+                                        data-snap-setting="snapIntersections" name="snap-setting-snapIntersections"
+                                        checked><span>交点</span></label> <label><input type="checkbox"
+                                        data-snap-setting="snapSegments" name="snap-setting-snapSegments"
+                                        checked><span>墙线</span></label> <label><input type="checkbox"
+                                        data-snap-setting="snapOrthogonal" name="snap-setting-snapOrthogonal"
+                                        checked><span>垂直优先</span></label> <label><input type="checkbox"
+                                        data-snap-setting="snapAngles" name="snap-setting-snapAngles"
+                                        checked><span>15° 角度</span></label> <label><input type="checkbox"
+                                        data-snap-setting="snapGrid" name="snap-setting-snapGrid"
+                                        checked><span>网格</span></label> <label
+                                    title="新增或单独拖动桌面物件时自动贴合台面"><input type="checkbox" data-snap-setting="snapSurfaces"
+                                        name="snap-setting-snapSurfaces" checked><span>台面</span></label>
+                            </div> <label class="snap-distance"><span>吸附距离</span><input id="snap-tolerance" type="range"
+                                    min="6" max="24" step="1" value="13"><output id="snap-tolerance-value">13
+                                    px</output></label>
+                        </div>
+                    </div> <button id="finish-wall" type="button" title="未闭合的墙线不会生成地面" hidden>结束绘制</button> <button
+                        id="delete-selection" class="danger-action" type="button" disabled>删除</button>
+                    <button id="rotate-plan-view" type="button" title="顺时针旋转画布 90°"
+                        aria-label="顺时针旋转画布 90 度">旋转</button> <button id="fit-view" type="button">适应画布</button>
+                </div>
+            </div>
+            <div id="plan-stage" class="plan-stage"> <canvas id="plan-canvas" tabindex="0" aria-label="户型描摹画布"></canvas>
+                <div id="canvas-empty" class="canvas-empty">
+                    <div><span>01</span><strong>先导入一张户型图</strong>
+                        <p>支持 PNG、JPG 和 WebP，随后画参考线确定真实比例。</p>
+                    </div>
+                </div>
+                <div class="canvas-hud top-left"><span id="active-tool-label">选择工具</span><small
+                        id="tool-help">单击精确选择，空白处拖拽框选；滚轮缩放，空格拖动画布</small></div>
+                <div class="canvas-hud bottom-left"><span id="cursor-position">X 0.00 m · Y 0.00 m</span><span
+                        id="snap-indicator">吸附：开启</span></div>
+                <div class="canvas-hud bottom-right"><button id="zoom-out" type="button">−</button><span
+                        id="zoom-value">100%</span><button id="zoom-in" type="button">＋</button></div>
+                <div id="drop-hint" class="drop-hint">松开即可放置</div>
+            </div>
+        </section>
+        <aside class="details-panel">
+            <section class="preview-card panel-surface">
+                <div class="preview-heading">
+                    <div class="preview-heading-copy"><span class="eyebrow">LIVE MODEL</span>
+                        <div class="preview-title-row">
+                            <h2>3D 实时预览</h2><button id="refresh-preview" class="refresh-preview" type="button" hidden
+                                disabled>已更新</button><span id="preview-quality-status"
+                                class="preview-quality-status" hidden></span>
+                        </div>
+                    </div>
+                    <div class="preview-heading-actions">
+                        <div class="preview-primary-controls"> <span class="preview-control-label">预览</span>
+                            <div class="preview-scope-controls">
+                                <div class="preview-sync-switch" role="group" aria-label="3D 预览同步方式"><button
+                                        class="active" type="button" data-preview-sync="live">实时</button><button
+                                        type="button" data-preview-sync="manual">手动</button></div>
+                                <div class="preview-floor-switch" role="group" aria-label="3D 楼层显示"><button
+                                        class="active" type="button" data-preview-floor="active">当前层</button><button
+                                        type="button" data-preview-floor="all">全楼</button></div> <label
+                                    id="preview-floor-gap-control" class="floor-gap-control" hidden
+                                    title="等比例叠加开启后，调小间距可继续靠近，允许重叠"><span>层间距</span><input id="preview-floor-gap"
+                                        type="number" min="0" max="20" step="0.1" value="3"><i>m</i></label> <label
+                                    id="preview-floor-uniform-control" class="floor-gap-control"
+                                    hidden><span>等比例叠加</span><input id="preview-floor-uniform"
+                                        type="checkbox"><i>各层同视图</i></label>
+                            </div> <span class="preview-control-spacer"></span>
+                            <div id="floor-camera-actions" class="fixed-camera-actions" role="group"
+                                aria-label="当前楼层视角"> <button id="save-camera-view" type="button"
+                                    title="记录当前楼层的角度、缩放和投影方式">保存视角</button> <button id="fixed-camera-view" type="button"
+                                    title="恢复当前楼层保存的视角" disabled>恢复视角</button> </div>
+                            <div id="overview-camera-actions" class="fixed-camera-actions" role="group"
+                                aria-label="全楼总览视角" hidden> <button id="save-overview-view" type="button"
+                                    title="保存当前全楼角度和投影方式">保存总览</button> <button id="fixed-overview-view" type="button"
+                                    title="恢复上次保存的全楼视角" disabled>恢复总览</button> </div> <button
+                                id="open-export" class="open-export" type="button">导图</button>
+                        </div>
+                        <div class="preview-secondary-controls"> <span class="preview-control-label">相机</span>
+                            <div class="preview-camera-settings" aria-label="3D 实时预览视角设置">
+                                <div class="preview-view-switch" role="group" aria-label="3D 实时预览视角"><button
+                                        class="active" type="button" data-camera-view="free">自由</button><button
+                                        type="button" data-camera-view="top">顶视</button><button type="button"
+                                        data-camera-rotate-top title="将顶视顺时针旋转 90°" disabled>旋转90°</button>
+                                </div>
+                                <div class="preview-camera-switch" role="group" aria-label="3D 实时预览投影"><button
+                                        class="active" type="button" data-camera-mode="orthographic">正交</button><button
+                                        type="button" data-camera-mode="perspective">透视</button></div> <label
+                                    class="camera-focal-control" title="仅在透视模式下生效"><span>焦段</span><input
+                                        id="preview-camera-focal-length" data-camera-focal-length type="number" min="18"
+                                        max="120" step="1" value="50" inputmode="numeric"><i>mm</i></label>
+                            </div> <span class="preview-control-spacer"></span> <button id="reset-camera"
+                                type="button">重置视角</button>
+                        </div>
+                    </div>
+                    <div class="preview-heading-tip"><small id="preview-control-tip" class="preview-control-tip">左键旋转 ·
+                            右键平移 · 滚轮缩放</small><button id="open-base-lighting" class="open-base-lighting"
+                            type="button">进阶设置</button></div>
+                </div>
+                <div id="preview-3d" class="preview-3d" data-style="night">
+                    <div id="base-light-controls" class="base-light-controls" hidden>
+                        <div class="base-light-controls-header"><strong>基础光调节</strong><span
+                                class="base-light-drag-hint">按住拖动</span><button id="close-base-lighting"
+                                type="button">关闭</button></div>
+                        <div class="base-light-controls-body">
+                            <section>
+                                <h3>整体</h3>
+                                <div class="base-light-control-grid"> <label><span>曝光</span><input
+                                            data-base-light-control="exposure" name="base-light-control-exposure"
+                                            type="number" min="0.5" max="2" step="0.05" value="1.05"></label>
+                                    <label><span>半球光</span><input data-base-light-control="hemisphereIntensity"
+                                            name="base-light-control-hemisphereIntensity" type="number" min="0" max="3"
+                                            step="0.05" value="0.58"></label> <label><span>环境光</span><input
+                                            data-base-light-control="ambientIntensity"
+                                            name="base-light-control-ambientIntensity" type="number" min="0" max="2"
+                                            step="0.05" value="0.16"></label> </div>
+                            </section>
+                            <section>
+                                <h3>主光与阴影</h3>
+                                <div class="base-light-control-grid"> <label><span>强度</span><input
+                                            data-base-light-control="mainIntensity"
+                                            name="base-light-control-mainIntensity" type="number" min="0" max="5"
+                                            step="0.05" value="2.05"></label> <label><span>水平角</span><input
+                                            data-base-light-control="mainAzimuth" name="base-light-control-mainAzimuth"
+                                            type="number" min="-180" max="180" step="5" value="139"></label>
+                                    <label><span>高度角</span><input data-base-light-control="mainElevation"
+                                            name="base-light-control-mainElevation" type="number" min="5" max="89"
+                                            step="5" value="55"></label> <label><span>阴影浓度</span><input
+                                            data-base-light-control="mainShadowIntensity"
+                                            name="base-light-control-mainShadowIntensity" type="number" min="0" max="1"
+                                            step="0.05" value="0.18"></label> </div>
+                            </section>
+                            <section>
+                                <h3>侧面补光</h3>
+                                <div class="base-light-control-grid"> <label><span>强度</span><input
+                                            data-base-light-control="fillIntensity"
+                                            name="base-light-control-fillIntensity" type="number" min="0" max="3"
+                                            step="0.05" value="0.16"></label> <label><span>水平角</span><input
+                                            data-base-light-control="fillAzimuth" name="base-light-control-fillAzimuth"
+                                            type="number" min="-180" max="180" step="5" value="-48"></label>
+                                    <label><span>高度角</span><input data-base-light-control="fillElevation"
+                                            name="base-light-control-fillElevation" type="number" min="0" max="89"
+                                            step="5" value="28"></label> </div>
+                            </section>
+                            <section>
+                                <h3>顶部补光</h3>
+                                <div class="base-light-control-grid"> <label><span>强度</span><input
+                                            data-base-light-control="topIntensity"
+                                            name="base-light-control-topIntensity" type="number" min="0" max="3"
+                                            step="0.05" value="0.12"></label> <label><span>水平角</span><input
+                                            data-base-light-control="topAzimuth" name="base-light-control-topAzimuth"
+                                            type="number" min="-180" max="180" step="5" value="90"></label>
+                                    <label><span>高度角</span><input data-base-light-control="topElevation"
+                                            name="base-light-control-topElevation" type="number" min="0" max="89"
+                                            step="5" value="86"></label> </div>
+                            </section>
+                            <div class="base-light-actions"><button id="reset-base-lighting" class="reset-base-lighting"
+                                    type="button">恢复默认光照</button><button id="save-base-lighting"
+                                    class="save-base-lighting" type="button">保存设置</button></div>
+                        </div>
+                    </div> <canvas id="preview-light-cache" class="preview-light-cache" hidden></canvas><canvas
+                        id="preview-render-shield" class="preview-render-shield" hidden></canvas>
+                    <div id="webgl-message" class="webgl-message" hidden>当前浏览器无法创建 3D 画面。</div>
+                    <div id="model-loading-status" class="model-loading-status" role="status" aria-live="polite" hidden>
+                        <span class="model-loading-spinner" aria-hidden="true"></span><span>正在加载模型…</span></div>
+                </div>
+            </section>
+            <div class="details-divider"> <button id="details-resizer" class="details-resizer" type="button"
+                    role="separator" aria-label="拖动调整画布宽度和 3D 预览高度"></button> </div>
+            <section class="inspector-card panel-surface">
+                <div class="section-heading">
+                    <div><span class="eyebrow">PROPERTIES</span>
+                        <h2>属性</h2>
+                    </div><span id="scene-counts" class="scene-counts">0 墙 · 0 窗 · 0 门 · 0 栏杆 · 0 物件</span>
+                </div>
+                <div id="inspector-empty" class="inspector-empty"><span>⌁</span><strong>选择画布中的对象</strong>
+                    <p>选中墙体、窗户、门或家具后，可在这里精确调整。</p>
+                </div>
+                <form id="selection-inspector" class="selection-inspector" hidden>
+                    <div class="selection-heading"><strong id="selection-title">未选择</strong><span
+                            id="selection-id"></span><span id="light-preview-note" class="light-preview-note"
+                            title="推荐色温 3500K">推荐色温 3500K</span><label id="item-light-source-visibility-field"
+                            class="light-source-visibility-control" title="按最终出光方向显示，导图不会显示" hidden><input
+                                id="item-light-source-visible" type="checkbox"
+                                checked><span>显示光效范围</span></label></div>
+                    <!-- 属性检查器按语义分组：组标题粘性吸顶、可折叠、组内无可见字段时整组自动隐藏
+                         （见 studio-app 的 syncInspectorGroups），所以每组都能安全地常驻在标记里。 -->
+                    <section class="inspector-group" data-inspector-group="geometry">
+                        <button class="inspector-group-header" type="button" aria-expanded="true"><span
+                                class="inspector-group-caret" aria-hidden="true"></span><span
+                                class="inspector-group-title">尺寸与开口</span><span
+                                class="inspector-group-count" hidden></span></button>
+                        <div class="inspector-group-body">
+                            <div id="wall-fields" class="field-section" hidden> <label>墙长<input id="wall-length"
+                                readonly></label>
+                        <div class="field-grid"><label>墙高（m）<input id="wall-height" type="number" min="0.01" max="6"
+                                    step="0.01"></label><label>厚度（m）<input id="wall-thickness" type="number" min="0.01"
+                                    max="3" step="0.01"></label></div>
+                        <div class="field-grid wall-opacity-fields"><label>透明度设置<select id="wall-opacity-mode">
+                                    <option value="global">跟随通用</option>
+                                    <option value="custom">单独设置</option>
+                                </select></label><label>透明度（%）<input id="wall-opacity" type="number" min="0" max="100"
+                                    step="1"></label></div> <label class="door-type-field"><span>开放端点提醒</span><select
+                                id="wall-open-end-mode">
+                                <option value="auto">自动判断</option>
+                                <option value="allowed">允许开放端点</option>
+                            </select></label>
+                    </div>
+                    <div id="window-fields" class="field-section" hidden>
+                        <div class="field-grid"><label>窗宽（m）<input id="window-width" type="number" min="0.3" max="20"
+                                    step="0.05"></label><label>窗高（m）<input id="window-height" type="number" min="0.3"
+                                    max="20" step="0.05"></label><label>离地（m）<input id="window-sill" type="number"
+                                    min="0" max="20" step="0.05"></label><label>墙上位置<input id="window-position"
+                                    readonly></label></div> <label
+                            class="door-type-field"><span>窗框样式</span><select id="window-divider">
+                                <option value="with">显示中间分割</option>
+                                <option value="without">不显示中间分割</option>
+                            </select></label>
+                    </div>
+                    <div id="door-fields" class="field-section" hidden> <label class="door-type-field">门类型<select
+                                id="door-type">
+                                <option value="solid">普通平开门</option>
+                                <option value="double">双开门</option>
+                                <option value="entry">入户门（常闭）</option>
+                                <option value="glass">玻璃平开门</option>
+                                <option value="sliding-glass">玻璃推拉门（常开）</option>
+                                <option value="roller-shutter">卷帘门</option>
+                                <option value="frame-only">仅门框</option>
+                            </select></label>
+                        <div class="field-grid"><label>门宽（m）<input id="door-width" type="number" min="0.55" max="20"
+                                    step="0.05"></label><label>门高（m）<input id="door-height" type="number" min="1.8"
+                                    max="20" step="0.05"></label><label>墙上位置<input id="door-position"
+                                    readonly></label></div>
+                        <div class="door-actions"><button id="door-hinge" type="button">左右换边</button><button
+                                id="door-swing" type="button">内外翻转</button></div>
+                    </div>
+                    <div id="railing-fields" class="field-section" hidden>
+                        <div class="field-grid"><label>栏杆宽（m）<input id="railing-width" type="number" min="0.3" max="20"
+                                    step="0.05"></label><label>栏杆高（m）<input id="railing-height" type="number" min="0.5"
+                                    max="3" step="0.05"></label><label>墙上位置<input id="railing-position"
+                                    readonly></label></div>
+                            </div>
+                        </div>
+                    </section>
+                    <div id="item-fields" class="field-section" hidden>
+                        <section class="inspector-group" data-inspector-group="style">
+                            <button class="inspector-group-header" type="button" aria-expanded="true"><span
+                                    class="inspector-group-caret" aria-hidden="true"></span><span
+                                    class="inspector-group-title">类型与样式</span><span
+                                    class="inspector-group-count" hidden></span></button>
+                            <div class="inspector-group-body"> <label id="courtyard-gate-style-field"
+                            class="door-type-field" hidden>庭院门款式<select id="courtyard-gate-style">
+                                <option value="garden-gate">庭院木栅门</option>
+                                <option value="garden-gate-solid">双扇实木院门</option>
+                                <option value="garden-gate-arch">拱形铁艺院门</option>
+                            </select></label>
+                        <fieldset id="fridge-style-fields" class="fridge-style-fields" hidden>
+                            <legend>冰箱款式</legend> <label><input type="radio" name="fridge-style" value="standard"
+                                    checked><span>原款</span></label> <label><input type="radio"
+                                    name="fridge-style" value="double"><span>左右双开门</span></label>
+                        </fieldset>
+                        <div id="curtain-track-fields" hidden> <label class="door-type-field"><span>窗帘形态</span><select
+                                    id="curtain-form">
+                                    <option value="standard">普通窗帘</option>
+                                    <option value="roller">卷帘</option>
+                                </select></label> <label class="door-type-field"
+                                id="curtain-track-field"><span>轨道形状</span><select id="curtain-track">
+                                    <option value="straight">直线型</option>
+                                    <option value="l">L 型</option>
+                                    <option value="u">U 型</option>
+                                </select></label> <label id="curtain-corner-field" class="door-type-field"
+                                hidden><span>转角位置</span><select id="curtain-corner">
+                                    <option value="left">主边左侧</option>
+                                    <option value="right">主边右侧</option>
+                                </select></label>
+                            <div class="field-grid"> <label id="curtain-left-length-field" hidden>左侧长度（m）<input
+                                        id="curtain-left-length" type="number" min="0.2" max="7.8" step="0.05"></label>
+                                <label id="curtain-right-length-field" hidden>右侧长度（m）<input id="curtain-right-length"
+                                        type="number" min="0.2" max="7.8" step="0.05"></label> <label
+                                    id="curtain-meet-field">合拢位置（%）<input id="curtain-meet" type="number" min="5"
+                                        max="95" step="1" title="从轨道左端沿轨道计算，50%为总长度的一半"></label> <label>预览打开（%）<input
+                                        id="curtain-preview" type="number" min="0" max="100" step="5"
+                                        title="0为关闭，100为全开；仅调整模型预览，不控制设备"></label> </div> <label
+                                class="door-type-field"><span>帘布类型</span><select id="curtain-fabric">
+                                    <option value="cloth">布帘</option>
+                                    <option value="sheer">纱帘</option>
+                                </select></label>
+                            <p class="inspector-note">预览打开：0% 为关闭，100% 为完全收拢。主边长度在下方调整，旋转可改变开口朝向；合拢位置沿整条轨道计算。</p>
+                        </div> <label id="curtain-position-field" class="door-type-field"
+                            hidden><span>收拢方式</span><select id="curtain-position">
+                                <option value="left">向左侧收拢</option>
+                                <option value="right">向右侧收拢</option>
+                                <option value="split">中开（向两侧收拢）</option>
+                            </select></label> <label id="round-table-turntable-field" class="door-type-field"
+                            hidden><span>中心转盘</span><select id="round-table-turntable">
+                                <option value="without">不带转盘</option>
+                                <option value="with">带转盘</option>
+                            </select></label> <label id="sofa-chaise-side-field" class="door-type-field"
+                            hidden><span>贵妃位（面向沙发）</span><select id="sofa-chaise-side">
+                                <option value="right">右侧</option>
+                                <option value="left">左侧</option>
+                            </select></label> <label id="stair-direction-field" class="door-type-field"
+                            hidden><span>楼梯方向</span><select id="stair-direction">
+                                <option value="right">向右上行</option>
+                                <option value="left">向左上行</option>
+                            </select></label> <label id="tv-mount-style-field" class="door-type-field"
+                            hidden><span>安装方式</span><select id="tv-mount-style">
+                                <option value="standard">壁挂电视</option>
+                                <option value="tabletop">桌面底座</option>
+                                <option value="mobile">移动支架</option>
+                            </select></label> <label id="mural-style-field" class="door-type-field" hidden><span>画作风格</span><select
+                                id="mural-style">
+                                <option value="bauhaus">包豪斯</option>
+                                <option value="colorfield">色域</option>
+                                <option value="linework">线条</option>
+                                <option value="blocks">色块</option>
+                                <option value="ink">水墨</option>
+                                <option value="terrazzo">水磨石</option>
+                            </select></label> <label id="featurewall-style-field" class="door-type-field"
+                            hidden><span>饰面材质</span><select id="featurewall-style">
+                                <option value="marble">大理石</option>
+                                <option value="wood">木饰面</option>
+                                <option value="slat">木格栅</option>
+                                <option value="stone">石材</option>
+                                <option value="concrete">清水混凝土</option>
+                                <option value="fabric">织物</option>
+                                <option value="metal">金属</option>
+                            </select></label> <label id="pillar-shape-field" class="door-type-field"
+                            hidden><span>形状</span><select id="pillar-shape">
+                                <option value="square">方形</option>
+                                <option value="round">圆形</option>
+                                <option value="semicircle">半圆形</option>
+                                <option value="quarter">1/4 圆形</option>
+                                <option value="quarterinner">1/4 圆形（内弧）</option>
+                            </select></label> <label id="pillar-axis-field" class="door-type-field"
+                            hidden><span>布置方向</span><select id="pillar-axis">
+                                <option value="vertical">垂直（站立）</option>
+                                <option value="horizontal">水平（躺放）</option>
+                            </select></label> <label id="strip-axis-field" class="door-type-field"
+                            hidden><span>布置方向</span><select id="strip-axis">
+                                <option value="vertical">垂直（站立）</option>
+                                <option value="horizontal">水平（躺放）</option>
+                            </select></label>
+                            </div>
+                        </section>
+                        <section class="inspector-group" data-inspector-group="mount">
+                            <button class="inspector-group-header" type="button" aria-expanded="true"><span
+                                    class="inspector-group-caret" aria-hidden="true"></span><span
+                                    class="inspector-group-title">安装参数</span><span
+                                    class="inspector-group-count" hidden></span></button>
+                            <div class="inspector-group-body">
+                        <div id="airer-model-fields" class="field-grid" hidden><label>最大伸展距离（m）<input
+                                    id="airer-extension" type="number" min="0.3" max="2.4" step="0.05" value="1.2"
+                                    title="从顶部安装面到晾杆；会限制在地面以上"></label><label>预览升降（%）<input id="airer-preview"
+                                    type="number" min="0" max="100" step="5" value="55"
+                                    title="100为最高，0为最低；不控制设备"></label></div>
+                        <div id="fan-model-fields" class="field-grid" hidden><label>整体大小（%）<input id="fan-model-scale"
+                                    type="number" min="60" max="160" step="5" value="100"></label><label>调杆高度（整机
+                                m）<input id="fan-model-height" type="number" min="0.65" max="1.8" step="0.05"
+                                    value="1.23"></label></div>
+                            </div>
+                        </section>
+                        <section class="inspector-group" data-inspector-group="text">
+                            <button class="inspector-group-header" type="button" aria-expanded="true"><span
+                                    class="inspector-group-caret" aria-hidden="true"></span><span
+                                    class="inspector-group-title">文字标注</span><span
+                                    class="inspector-group-count" hidden></span></button>
+                            <div class="inspector-group-body">
+                                <div id="label-text-fields" class="label-text-fields" hidden><label>中文标题<input
+                                            id="label-title" maxlength="24"
+                                            autocomplete="off"></label><label>中文字间距（%）<input id="label-title-spacing"
+                                            type="number" min="0" max="180" step="5"></label><label>英文标题<input
+                                            id="label-subtitle" maxlength="36"
+                                            autocomplete="off"></label><label>英文字间距（%）<input id="label-subtitle-spacing"
+                                            type="number" min="0" max="60" step="2"></label><label>底线长度（%）<input
+                                            id="label-line-length" type="number" min="30" max="100"
+                                            step="5"></label><label class="label-color-field">铭牌颜色<input
+                                            id="label-color" type="color" value="#e8eef6"
+                                            title="字幕、箭头与底线的基准色；底线会自动跟随取半透明"></label></div>
+                            </div>
+                        </section>
+                        <section class="inspector-group" data-inspector-group="light">
+                            <button class="inspector-group-header" type="button" aria-expanded="true"><span
+                                    class="inspector-group-caret" aria-hidden="true"></span><span
+                                    class="inspector-group-title">灯光</span><span class="inspector-group-count"
+                                    hidden></span></button>
+                            <div class="inspector-group-body">
+                                <div id="light-fields" class="light-fields" hidden><label>所属灯组<select
+                                            id="light-group"></select></label>
+                                    <div class="field-grid">
+                                        <div class="light-batch-control">
+                                            <div><label for="light-temperature">色温（K）</label><button
+                                                    class="light-apply-button" type="button"
+                                                    data-apply-light-property="lightTemperature">应用到所有</button>
+                                            </div><input id="light-temperature" type="number" min="2200" max="6500"
+                                                step="100">
+                                        </div>
+                                        <div class="light-batch-control">
+                                            <div><label for="light-brightness">亮度（%）</label><button
+                                                    class="light-apply-button" type="button"
+                                                    data-apply-light-property="lightBrightness">应用到所有</button>
+                                            </div><input id="light-brightness" type="number" min="0" max="100"
+                                                step="5">
+                                        </div>
+                                        <div class="light-batch-control">
+                                            <div><label for="light-range">照射范围（m）</label><button
+                                                    class="light-apply-button" type="button"
+                                                    data-apply-light-property="lightRange">应用到所有</button></div>
+                                            <input id="light-range" type="number" min="0.5" max="10" step="0.1">
+                                        </div>
+                                        <div class="light-batch-control">
+                                            <div><label for="light-angle">光束角（°）</label><button
+                                                    class="light-apply-button" type="button"
+                                                    data-apply-light-property="lightAngle">应用到所有</button></div>
+                                            <input id="light-angle" type="number" min="15" max="150" step="5">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                        <section class="inspector-group" data-inspector-group="pose">
+                            <button class="inspector-group-header" type="button" aria-expanded="true"><span
+                                    class="inspector-group-caret" aria-hidden="true"></span><span
+                                    class="inspector-group-title">摆放与尺寸</span><span
+                                    class="inspector-group-count" hidden></span></button>
+                            <div class="inspector-group-body">
+                                <div class="field-grid"><label>X（m）<input id="item-x" type="number"
+                                    step="0.05"></label><label>Y（m）<input id="item-y" type="number"
+                                    step="0.05"></label><label><span id="item-width-label">宽（m）</span><input
+                                    id="item-width" type="number" min="0.1" max="8" step="0.05"></label><label
+                                id="item-height-field"><span id="item-height-label">高（m）</span><input id="item-height"
+                                    type="number" min="0.05" max="6"
+                                    step="0.05"></label><label><span id="item-depth-label">深（m）</span><input
+                                    id="item-depth" type="number" min="0.1" max="8" step="0.05"></label>
+                            <div id="shoe-cabinet-actions" class="shoe-cabinet-actions" hidden><button
+                                    id="shoe-cabinet-mirror" type="button" aria-pressed="false">左右对调</button></div>
+                        </div>
+                        <div class="field-grid item-transform-fields">
+                            <div id="item-elevation-field" class="light-batch-control">
+                                <div><label for="item-elevation">离地（m）</label><button class="light-apply-button"
+                                        type="button" data-apply-light-property="elevation">应用到所有</button></div><input
+                                    id="item-elevation" type="number" min="0" max="6" step="0.05">
+                            </div><label id="item-rotation-field"><span id="item-rotation-label">旋转角度（°）</span><input
+                                    id="item-rotation" type="number" min="-360" max="360" step="1"></label>
+                            <div id="item-strip-orientation-heading" class="strip-orientation-heading" hidden><strong>3D
+                                    安装与出光</strong><small>角度与上方发光尺寸独立调整</small></div><label
+                                id="item-vertical-rotation-field" title="灯带以自身中心调整横向、竖向或任意斜向；其他灯具保持原有出光角度" hidden><span
+                                    id="item-vertical-rotation-label">出光角度（°）</span><input id="item-vertical-rotation"
+                                    type="number" min="-90" max="90" step="1" value="0"></label><label
+                                id="item-strip-roll-field" title="灯带围绕自身长度轴调整照射方向，支持完整 360°" hidden>出光方向（°）<input
+                                    id="item-strip-roll" type="number" min="0" max="360" step="1" value="0"></label>
+                        </div>
+                        <div id="item-rotation-actions" class="rotation-actions"><button type="button"
+                                data-rotate="-15">−15°</button><button type="button"
+                                data-rotate="-90">−90°</button><button type="button"
+                                data-rotate="90">＋90°</button><button type="button" data-rotate="15">＋15°</button></div>
+                            </div>
+                        </section>
+                    </div>
+                    <section class="inspector-group" data-inspector-group="material">
+                        <button class="inspector-group-header" type="button" aria-expanded="true"><span
+                                class="inspector-group-caret" aria-hidden="true"></span><span
+                                class="inspector-group-title">材质属性</span><span class="inspector-group-count"
+                                hidden></span></button>
+                        <div class="inspector-group-body">
+                            <!-- 这一组在 #item-fields 之外：门（户型洞口）是程序化几何、没有 GLB 槽位，
+                                 但它同样要有「材质属性」（门框 / 门扇 / 玻璃 / 五金 / 卷帘…）。
+                                 组内是否有可见字段由 studio-app 决定，空组会被 syncInspectorGroups 整组隐藏。 -->
+                            <fieldset id="material-fields" class="material-fields" hidden>
+                                <legend>材质属性</legend>
+                                <!-- 材质风格：档位随模型类型变化（沙发是布艺 / 皮革组、柜类是木作组、门是一组门…），
+                                     色卡条由 studio-app 按模型类型重建，不写死在标记里。 -->
+                                <div id="material-style-field" class="material-style-field" hidden>
+                                    <div class="material-style-heading"><span>材质风格</span><button
+                                            id="material-style-delete" class="material-style-delete" type="button"
+                                            hidden title="删除这个自定义预设">删除预设</button></div>
+                                    <div id="material-style-strip" class="material-style-strip" role="radiogroup"
+                                        aria-label="材质风格"></div>
+                                </div>
+                                <p id="material-summary" class="material-summary">—</p>
+                                <div id="material-slot-groups" class="material-slot-groups" hidden></div>
+                                <div id="material-slot-list" class="material-slot-list"></div>
+                                <div class="material-actions"><button id="material-apply-same" type="button"
+                                        title="把当前档位与逐槽改动复制给同模型的其它物件">应用到同类</button><button
+                                        id="material-save-preset" type="button"
+                                        title="把当前配色与表面参数存成个人预设，跨项目复用">存为我的预设</button><button
+                                        id="material-reset-all" type="button">全部跟随主题</button></div>
+                                <details class="material-help"><summary>材质属性怎么用</summary>
+                                    <p class="inspector-note">先选「材质风格」预设（一次换掉这个物件的整套材质），再按槽位微调：色块可点开取色器，也可以直接改十六进制值；粗糙 / 金属度用右侧滑块单独调。改动只影响当前这个物件，「全部跟随主题」可整体复位。门的材质按「门框 / 门扇 / 玻璃 / 五金」等部件分开调，选中时画面会带一层选中高亮色，点空白处取消选中即可看到实际颜色。</p>
+                                </details>
+                            </fieldset>
+                        </div>
+                    </section>
+                </form>
+            </section>
+        </aside>
+    </main>
+    <dialog id="scale-dialog" class="scale-dialog">
+        <form id="scale-form" method="dialog"> <button id="scale-close" class="dialog-close" type="button"
+                aria-label="关闭">×</button> <span class="dialog-index">02 · SCALE REFERENCE</span>
+            <h2>这条参考线实际有多长？</h2>
+            <p>请填写图纸上这段距离的真实尺寸。之后墙长、窗宽和家具大小都会按这个比例计算。</p>
+            <div class="measurement-preview"><span id="reference-pixels">0 px</span><i>→</i><label><input
+                        id="reference-meters" type="number" min="0.1" max="100" step="0.01" value="3"> 米</label></div>
+            <div class="dialog-actions"><button id="scale-cancel" type="button">重新画线</button><button
+                    class="primary-action" type="submit">确认比例</button></div>
+        </form>
+    </dialog>
+    <!-- 设置灯组所属区域：区域来自 HA，只能从已有区域中选择。 -->
+    <dialog id="light-group-area-dialog" class="scale-dialog light-group-rename-dialog">
+        <form id="light-group-area-form" method="dialog"> <button id="light-group-area-close" class="dialog-close"
+                type="button" aria-label="关闭">×</button> <span class="dialog-index">LIGHT GROUP AREA</span>
+            <h2>设置区域</h2>
+            <p>为“<strong id="light-group-area-name"></strong>”选择所属区域，选择“未分类”可移出区域。</p> <label
+                class="light-group-rename-field">所属区域<select id="light-group-area-select"></select></label>
+            <div class="dialog-actions"><button id="light-group-area-cancel" type="button">取消</button><button
+                    class="primary-action" type="submit">确认</button></div>
+        </form>
+    </dialog>
+    <dialog id="light-group-rename-dialog" class="scale-dialog light-group-rename-dialog">
+        <form id="light-group-rename-form" method="dialog"> <button id="light-group-rename-close" class="dialog-close"
+                type="button" aria-label="关闭">×</button> <span class="dialog-index">LIGHT GROUP</span>
+            <h2>重命名灯组</h2>
+            <p>输入新的灯组名称，组内灯具不会发生变化。</p> <label class="light-group-rename-field">灯组名称<input id="light-group-rename-input"
+                    maxlength="24" autocomplete="off" required></label>
+            <div class="dialog-actions"><button id="light-group-rename-cancel" type="button">取消</button><button
+                    class="primary-action" type="submit">确认</button></div>
+        </form>
+    </dialog>
+    <dialog id="floor-rename-dialog" class="scale-dialog light-group-rename-dialog">
+        <form id="floor-rename-form" method="dialog"> <button id="floor-rename-close" class="dialog-close" type="button"
+                aria-label="关闭">×</button> <span class="dialog-index">FLOOR</span>
+            <h2>重命名楼层</h2>
+            <p>名称会用于楼层列表、视角和多层导出。</p> <label class="light-group-rename-field">楼层名称<input id="floor-rename-input"
+                    maxlength="24" autocomplete="off" required></label>
+            <div class="dialog-actions"><button id="floor-rename-cancel" type="button">取消</button><button
+                    class="primary-action" type="submit">确认</button></div>
+        </form>
+    </dialog>
+    <dialog id="floor-delete-dialog" class="scale-dialog floor-delete-dialog">
+        <form id="floor-delete-form" method="dialog"> <button id="floor-delete-close" class="dialog-close" type="button"
+                aria-label="关闭删除楼层提示">×</button> <span class="dialog-index">DELETE FLOOR</span>
+            <h2>删除这个楼层？</h2>
+            <p>确定删除“<strong id="floor-delete-name"></strong>”吗？这一层的绘图数据不会保留，此操作无法撤销。</p>
+            <div class="dialog-actions"><button id="floor-delete-cancel" type="button">取消</button><button
+                    id="floor-delete-confirm" class="floor-delete-confirm" type="submit">删除楼层</button></div>
+        </form>
+    </dialog>
+    <dialog id="export-preset-rename-dialog" class="scale-dialog light-group-rename-dialog">
+        <form id="export-preset-rename-form" method="dialog"> <button id="export-preset-rename-close"
+                class="dialog-close" type="button" aria-label="关闭">×</button> <span class="dialog-index">EXPORT
+                PRESET</span>
+            <h2>重命名导出存档</h2>
+            <p>可以按楼层命名，例如“一层视角”或“二层顶视”。</p> <label class="light-group-rename-field">存档名称<input
+                    id="export-preset-rename-input" maxlength="24" autocomplete="off" required></label>
+            <div class="dialog-actions"><button id="export-preset-rename-cancel" type="button">取消</button><button
+                    class="primary-action" type="submit">确认</button></div>
+        </form>
+    </dialog>
+    <dialog id="export-preset-delete-dialog" class="scale-dialog floor-delete-dialog">
+        <form id="export-preset-delete-form" method="dialog"> <button id="export-preset-delete-close"
+                class="dialog-close" type="button" aria-label="关闭删除存档提示">×</button> <span class="dialog-index">DELETE
+                PRESET</span>
+            <h2>删除这个导出存档？</h2>
+            <p>确定删除“<strong id="export-preset-delete-name"></strong>”吗？只会删除保存的导出视角和设置，不会删除楼层或户型。</p>
+            <div class="dialog-actions"><button id="export-preset-delete-cancel" type="button">取消</button><button
+                    id="export-preset-delete-confirm" class="floor-delete-confirm" type="submit">删除存档</button></div>
+        </form>
+    </dialog>
+    <dialog id="studio-exit-dialog" class="scale-dialog export-notice-dialog studio-exit-dialog"
+        aria-labelledby="studio-exit-title">
+        <form method="dialog"> <span class="dialog-index">SAVE BEFORE LEAVING</span>
+            <h2 id="studio-exit-title">退出户型绘制？</h2>
+            <p id="studio-exit-message" role="status"></p>
+            <div class="dialog-actions"><button id="studio-exit-discard" type="button">不保存并退出</button><button
+                    id="studio-exit-continue" type="button" autofocus>继续编辑</button><button id="studio-exit-save"
+                    class="primary-action" type="button">保存并退出</button></div>
+        </form>
+    </dialog>
+    <dialog id="save-conflict-dialog" class="scale-dialog export-notice-dialog save-conflict-dialog">
+        <form method="dialog"> <span class="dialog-index">SAVE CONFLICT</span>
+            <h2>其他页面已经修改了户型</h2>
+            <p>为避免覆盖另一处修改，自动保存已暂停。请选择加载服务器版本，或明确使用当前页面覆盖。</p>
+            <div class="export-notice-summary"><span>当前页面内容</span><strong>仍保留，尚未丢失</strong></div>
+            <div class="dialog-actions"><button id="save-conflict-load" type="button">加载服务器版本</button><button
+                    id="save-conflict-overwrite" class="primary-action" type="button">使用当前页面覆盖</button></div>
+        </form>
+    </dialog>
+    <dialog id="light-property-apply-dialog" class="scale-dialog light-group-rename-dialog light-property-apply-dialog">
+        <form id="light-property-apply-form" method="dialog"> <button id="light-property-apply-close"
+                class="dialog-close" type="button" aria-label="关闭">×</button> <span class="dialog-index">APPLY TO
+                LIGHTS</span>
+            <h2 id="light-property-apply-title">应用灯光属性</h2>
+            <p><strong id="light-property-apply-value"></strong> 将应用到下方选中的灯具，其他属性不会改变。</p>
+            <section class="light-property-targets">
+                <div class="light-property-targets-heading"><strong>应用到灯具</strong><span
+                        id="light-property-selection-count"></span><button id="light-property-toggle-all"
+                        type="button">取消全选</button></div>
+                <div id="light-property-target-list" class="light-property-target-list"></div>
+            </section>
+            <div class="dialog-actions"><button id="light-property-apply-cancel" type="button">取消</button><button
+                    class="primary-action" type="submit">应用所选</button></div>
+        </form>
+    </dialog>
+    <dialog id="material-preset-dialog" class="scale-dialog light-group-rename-dialog">
+        <form id="material-preset-form" method="dialog"> <button id="material-preset-close" class="dialog-close"
+                type="button" aria-label="关闭">×</button> <span class="dialog-index">CUSTOM STYLE</span>
+            <h2>存为我的预设</h2>
+            <p>把当前物件的整套配色与表面参数存成一个个人预设。之后在同类物件的「材质风格」里就能直接选用，换项目也还在。</p>
+            <label class="light-group-rename-field">预设名称<input id="material-preset-name" maxlength="16"
+                    autocomplete="off" required></label>
+            <div class="dialog-actions"><button id="material-preset-cancel" type="button">取消</button><button
+                    class="primary-action" type="submit">保存预设</button></div>
+        </form>
+    </dialog>
+    <dialog id="material-apply-dialog" class="scale-dialog light-group-rename-dialog">
+        <form id="material-apply-form" method="dialog"> <button id="material-apply-close" class="dialog-close"
+                type="button" aria-label="关闭">×</button> <span class="dialog-index">APPLY TO SAME MODEL</span>
+            <h2>应用到同类物件</h2>
+            <p>会把当前物件的材质风格、逐槽颜色与表面参数复制给 <strong id="material-apply-count"></strong>，覆盖它们原有的材质改动。此操作可以用撤销回退。</p>
+            <label class="material-apply-option"><input id="material-apply-include-hidden" type="checkbox"
+                    checked><span>同时应用到其它楼层被隐藏的物件</span></label>
+            <div class="dialog-actions"><button id="material-apply-cancel" type="button">取消</button><button
+                    class="primary-action" type="submit">应用</button></div>
+        </form>
+    </dialog>
+    <dialog id="export-overwrite-dialog" class="scale-dialog export-notice-dialog">
+        <form method="dialog"> <button id="export-overwrite-close" class="dialog-close" type="button"
+                aria-label="关闭同名导图提示">×</button> <span class="dialog-index">EXPORT EXISTS</span>
+            <h2>同名导图已经存在</h2>
+            <p>导图“<strong id="export-overwrite-name"></strong>”已经保存在 NAS 中。覆盖会整体替换原文件夹，原来存在但本次未勾选的文件也会删除。</p>
+            <div class="export-notice-summary"><span>已有仪表盘引用</span><strong>同名图片将自动更新</strong></div>
+            <div class="dialog-actions"><button id="export-overwrite-cancel" type="button">取消</button><button
+                    id="export-overwrite-rename" type="button">修改名称</button><button id="export-overwrite-confirm"
+                    class="primary-action" type="button">覆盖更新</button></div>
+        </form>
+    </dialog>
+    <dialog id="export-complete-dialog" class="scale-dialog export-notice-dialog export-complete-dialog">
+        <form method="dialog"> <button id="export-complete-close" class="dialog-close" type="button"
+                aria-label="关闭导图完成提示">×</button> <span class="dialog-index">EXPORT COMPLETE</span>
+            <h2 id="export-complete-title">导图保存完成</h2>
+            <p id="export-complete-message">导出的图片和数据已经保存到 NAS。</p>
+            <div class="export-notice-summary"><span>保存位置</span><strong id="export-complete-path"></strong></div>
+            <div class="dialog-actions"><button id="export-complete-confirm" class="primary-action"
+                    type="button">完成</button></div>
+        </form>
+    </dialog>
+    <dialog id="export-dialog" class="export-dialog">
+        <div class="export-workspace">
+            <header class="export-heading">
+                <div><span class="dialog-index">EXPORT WORKSPACE</span>
+                    <h2>导出3D户型图</h2>
+                    <p>先确定图像比例，再拖动、缩放和旋转户型，所有导出层将使用完全相同的视角。</p>
+                </div><button id="export-close" type="button" aria-label="关闭导图工作区">×</button>
+            </header>
+            <aside class="export-controls">
+                <div id="export-busy-notice" class="export-busy-notice" role="status" aria-live="polite" hidden>
+                    <strong>请勿操作</strong><span>正在处理导图，请等待操作完成…</span></div>
+                <section class="export-preset-section">
+                    <div class="export-preset-heading"><strong>设置存档</strong>
+                        <div class="export-preset-actions"><button id="export-preset-add"
+                                type="button">新增</button><button id="export-preset-rename"
+                                type="button">重命名</button><button id="export-preset-delete" type="button">删除</button>
+                        </div>
+                    </div>
+                    <div id="export-preset-slots" class="export-preset-slots" role="tablist" aria-label="导出设置存档"> </div>
+                </section>
+                <section>
+                    <div class="export-section-heading"><span>01</span>
+                        <div><strong>输出尺寸</strong><small>HomeOS默认 · WebP · sRGB</small></div>
+                    </div>
+                    <div class="export-size-control-row">
+                        <div class="export-size-fields"><label>宽度<input id="export-width" type="number" min="320"
+                                    max="4096" step="1" value="1852"></label><i>×</i><label>高度<input id="export-height"
+                                    type="number" min="320" max="4096" step="1" value="1293"></label></div><label
+                            class="export-ratio-lock"><input id="export-lock-ratio" type="checkbox"
+                                checked><span>锁定当前比例</span><output id="export-aspect-label">1852 :
+                                1293</output></label>
+                    </div>
+                </section>
+                <section class="export-composition-section">
+                    <div class="export-section-heading export-composition-heading"><span>02</span>
+                        <div><strong>户型构图</strong><small>楼层与相机</small></div><label
+                            class="export-floor-select-control"><select id="export-floor-select"
+                                aria-label="导出楼层"></select></label>
+                    </div>
+                    <div class="export-floor-fields"> <label id="export-floor-gap-control"
+                            class="export-floor-gap-control" hidden><span>层间距</span><input id="export-floor-gap"
+                                type="number" min="0" max="20" step="0.1" value="3"><i>m</i></label> </div>
+                    <div class="export-camera-controls">
+                        <div class="export-camera-row"><span>视角</span>
+                            <div class="preview-view-switch" role="group" aria-label="导出相机视角"><button class="active"
+                                    type="button" data-camera-view="free">自由</button><button type="button"
+                                    data-camera-view="top">顶视</button><button id="rotate-top-view"
+                                    data-camera-rotate-top type="button" title="将顶视顺时针旋转 90°"
+                                    disabled>旋转90°</button></div><button id="export-open-base-lighting"
+                                class="export-open-base-lighting" type="button">进阶设置</button>
+                        </div>
+                        <div class="export-camera-row"><span>投影</span>
+                            <div class="preview-camera-switch" role="group" aria-label="导出相机投影"><button class="active"
+                                    type="button" data-camera-mode="orthographic">正交</button><button type="button"
+                                    data-camera-mode="perspective">透视</button></div><label class="camera-focal-control"
+                                title="仅在透视模式下生效"><span>焦段</span><input id="camera-focal-length"
+                                    data-camera-focal-length type="number" min="18" max="120" step="1" value="50"
+                                    inputmode="numeric"><i>mm</i></label>
+                        </div>
+                    </div>
+                    <div class="export-view-actions">
+                        <div class="fixed-camera-actions export-fixed-camera-actions" role="group" aria-label="导图已存视角">
+                            <button id="export-save-view" type="button" title="记录当前导图的角度、缩放和投影方式">保存视角</button><button
+                                id="export-use-fixed" type="button" title="恢复当前导图已保存的视角"
+                                disabled>恢复视角</button></div>
+                    </div>
+                </section>
+                <section>
+                    <div class="export-section-heading"><span>03</span>
+                        <div><strong>文件夹名</strong><small>保存到 NAS data/exports</small></div><button id="export-package"
+                            class="export-section-action primary-action" type="button">保存导图</button>
+                    </div><label class="export-folder-field"><span>名称</span><input id="export-folder-name"
+                            maxlength="60" autocomplete="off" placeholder="例如：一楼户型"></label>
+                </section>
+                <section>
+                    <div class="export-section-heading"><span>04</span>
+                        <div><strong>导出内容</strong><small>勾选需要保存的图片、设备图层和数据</small></div>
+                    </div>
+                    <ul id="export-file-list" class="export-file-list">
+                        <li><label><input type="checkbox" data-export-file="background" name="export-file-background"
+                                    checked><span>00底图.webp</span></label><small>背景与网格</small></li>
+                        <li><label><input type="checkbox" data-export-file="backgroundWithPlan"
+                                    name="export-file-backgroundWithPlan"
+                                    checked><span>00底图带户型.webp</span></label><small>背景与关灯户型合成图</small></li>
+                        <li><label><input type="checkbox" data-export-file="floorPlan" name="export-file-floorPlan"
+                                    checked><span>00户型图.webp</span></label><small>透明背景户型、铭牌与描边</small></li>
+                        <div id="export-group-files"></div>
+                        <li><label><input type="checkbox" data-export-file="dataLights" name="export-file-dataLights"
+                                    checked><span>lights.json</span></label><small>灯光配置</small></li>
+                        <li><label><input type="checkbox" data-export-file="dataScene" name="export-file-dataScene"
+                                    checked><span>scene.json</span></label><small>完整户型数据</small></li>
+                    </ul>
+                </section>
+                <div class="export-footer">
+                    <p id="export-status">准备保存到 NAS</p>
+                </div>
+            </aside>
+            <main class="export-preview">
+                <div id="export-preview-frame" class="export-preview-frame">
+                    <div id="export-preview-stage" class="export-preview-stage"></div>
+                    <div class="export-safe-area" aria-hidden="true"></div>
+                    <div id="export-preset-empty-state" class="export-preset-empty-state" role="status" hidden>
+                        <span>EMPTY PRESET</span><strong id="export-preset-empty-title">存档 02 尚未设置</strong>
+                        <p>调整任意参数或移动画面后自动建立</p>
+                    </div>
+                </div>
+                <div class="export-preview-meta"><span id="export-resolution-label">1852 × 1293
+                        px</span><span>透明灯光层与底图严格对齐</span></div>
+            </main>
+        </div>
+    </dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="light-group-context-menu" class="light-group-context-menu" hidden><button type="button"
+            data-light-group-action="area">设置区域</button><button type="button"
+            data-light-group-action="rename">重命名</button><button type="button"
+            data-light-group-action="duplicate">复制灯组</button><button type="button"
+            data-light-group-action="delete">删除</button></div>
+    <div id="floor-context-menu" class="light-group-context-menu" hidden><button type="button"
+            data-floor-action="rename">重命名</button><button type="button" data-floor-action="delete">删除楼层</button></div>
+</template>
