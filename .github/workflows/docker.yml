@@ -9,6 +9,12 @@ permissions:
   contents: read
   packages: write
 
+# GHCR 推送认证：
+# - 默认用 GITHUB_TOKEN（需 packages: write）。
+# - 若包是以前用个人 PAT 创建的，Actions 常报 write_package denied：
+#   1) 在 package settings → Manage Actions access 给本仓库 Write；或
+#   2) 仓库 Secrets 加 GHCR_TOKEN = classic PAT（write:packages），本工作流会优先用它。
+
 concurrency:
   group: docker-${{ github.ref }}
   cancel-in-progress: true
@@ -297,8 +303,8 @@ jobs:
         uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Build and push ${{ matrix.target }} / ${{ matrix.arch }}
         uses: docker/build-push-action@v7
@@ -347,8 +353,8 @@ jobs:
         uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Create manifest list
         run: |
