@@ -124,10 +124,20 @@ async def get_public_config(request: Request):
     """获取公开系统配置（HA 区域索引最多等待 2s，避免慢注册表拖慢登录）。"""
     enrichment = getattr(request.app.state, "entity_area", None)
     if enrichment is not None:
+        # 用 ``asyncio.wait`` 而不是 ``wait_for``：超时只结束本请求的等待，
+        # 不取消共享的 ``ensure_loaded`` 任务（客户端断开时同理）。
+        load = asyncio.create_task(enrichment.ensure_loaded())
+        load.add_done_callback(
+            lambda t: t.exception() if not t.cancelled() else None
+        )
         try:
-            await asyncio.wait_for(
-                enrichment.ensure_loaded(), timeout=PUBLIC_CONFIG_AREA_WAIT_MS / 1000
+            done, _ = await asyncio.wait(
+                {load}, timeout=PUBLIC_CONFIG_AREA_WAIT_MS / 1000
             )
+            if done and (exc := load.exception()) is not None:
+                raise exc
+        except asyncio.CancelledError:
+            raise
         except Exception:  # noqa: BLE001 - 区域索引超时/失败时退回空索引
             pass
 

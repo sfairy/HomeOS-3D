@@ -224,16 +224,19 @@ class EntityAreaEnrichmentService:
         if self._index and (time.monotonic() * 1000 - self._index_at) < self.cache_ttl_ms:
             return self._index
         if self._inflight is not None and not self._inflight.done():
-            return await self._inflight
-        task = asyncio.ensure_future(self._load_index())
-        self._inflight = task
+            task = self._inflight
+        else:
+            task = asyncio.ensure_future(self._load_index())
+            self._inflight = task
 
-        def _clear(_: Any) -> None:
-            if self._inflight is task:
-                self._inflight = None
+            def _clear(_: Any) -> None:
+                if self._inflight is task:
+                    self._inflight = None
 
-        task.add_done_callback(_clear)
-        return await task
+            task.add_done_callback(_clear)
+        # shield：调用方 ``wait_for`` 超时或请求取消时，不能连带掐断共享的注册表拉取
+        # （否则 HA WebSocket ``recv`` 会冒 ``CancelledError`` 并打成 ASGI 500）。
+        return await asyncio.shield(task)
 
     def get_cached_ha_areas(self) -> list[dict[str, str]]:
         """区域清单（单读模型）：直接读 3D ``ha_areas`` 表，不再维护本地副本。"""
@@ -341,9 +344,17 @@ class EntityAreaEnrichmentService:
 
     async def enrich_entities(self, entities: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """异步补全（注册表慢时最多等 400ms，超时用已有索引，避免列表接口卡顿）。"""
+        load = asyncio.create_task(self.ensure_loaded())
+        load.add_done_callback(
+            lambda t: t.exception() if not t.cancelled() else None
+        )
         try:
-            await asyncio.wait_for(self.ensure_loaded(), timeout=0.4)
-        except TimeoutError:
+            done, _ = await asyncio.wait({load}, timeout=0.4)
+            if done and (exc := load.exception()) is not None:
+                raise exc
+        except asyncio.CancelledError:
+            raise
+        except Exception:  # noqa: BLE001 - 超时/失败时用已有索引
             pass
         return enrich_entities_areas(entities, self._index)
 
