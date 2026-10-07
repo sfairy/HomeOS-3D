@@ -76,7 +76,7 @@ def _js_stringify(value: Any) -> str:
         return ""
 
 
-def _is_number(value: Any) -> bool:
+def _is_number(value: Any) -> TypeGuard[int | float]:
     """对齐 JS ``typeof value === 'number'``（布尔不算数字）。"""
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
@@ -466,10 +466,11 @@ class AgentService:
             if cached.tool_name in ("control_device", "activate_scene"):
                 ok = tool_result.get("success") is True
             else:
+                total = tool_result.get("total")
                 ok = (
-                    _is_number(tool_result.get("total"))
-                    and tool_result.get("total") > 0
-                    and tool_result.get("affected") == tool_result.get("total")
+                    _is_number(total)
+                    and total > 0
+                    and tool_result.get("affected") == total
                 )
             if ok:
                 serialized = _js_stringify(tool_result)
@@ -595,10 +596,11 @@ class AgentService:
             if fast["kind"] in ("device", "scene"):
                 ok = tool_result.get("success") is True
             else:
+                total = tool_result.get("total")
                 ok = (
-                    _is_number(tool_result.get("total"))
-                    and tool_result.get("total") > 0
-                    and tool_result.get("affected") == tool_result.get("total")
+                    _is_number(total)
+                    and total > 0
+                    and tool_result.get("affected") == total
                 )
             blocked = tool_result.get("blocked") is True or (
                 isinstance(tool_result.get("results"), list)
@@ -907,10 +909,11 @@ class AgentService:
         if name == "activate_scene":
             return r.get("success") is True and r.get("blocked") is not True
         if name == "control_room":
+            total = r.get("total")
             return (
-                _is_number(r.get("total"))
-                and r.get("total") > 0
-                and r.get("affected") == r.get("total")
+                _is_number(total)
+                and total > 0
+                and r.get("affected") == total
             )
         return False
 
