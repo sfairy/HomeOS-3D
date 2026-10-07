@@ -22,11 +22,11 @@ from typing import Any
 
 from sqlalchemy import select
 
-from src.core.entity_domain import get_entity_domain
-from src.core.errors import BusinessException
-from src.core.ha_service_catalog import agent_service_allowed
-from src.core.models import HomeMode
-from src.realtime.access import (
+from ....core.entity_domain import get_entity_domain
+from ....core.errors import BusinessException
+from ....core.ha_service_catalog import agent_service_allowed
+from ....core.models import HomeMode
+from ....realtime.access import (
     is_entity_allowed,
     resolve_entity_restrictions,
 )

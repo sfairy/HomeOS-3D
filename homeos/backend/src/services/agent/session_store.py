@@ -18,7 +18,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 
-from src.core.redis import RedisService
+from ...core.redis import RedisService
 
 logger = logging.getLogger("homeos.agent.session_store")
 

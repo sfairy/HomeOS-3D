@@ -41,15 +41,34 @@ def _expected_so(path: Path) -> Path:
 
 def _precheck(sources: list[Path]) -> None:
     """先用 Python 自己的解析器过一遍，源码有问题时给出清晰报错。
+
+    同时拒绝绝对 ``from src.`` / ``import src``：镜像里源码目录已映射为 ``app``
+    （见 Dockerfile ``COPY .../src ./backend/app``），烤进 .so 的绝对 ``src`` 导入会在
+    冒烟 ``import backend.app.app`` 时炸掉。
     """
     broken: list[str] = []
+    absolute_src: list[str] = []
     for path in sources:
         try:
-            ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            text = path.read_text(encoding="utf-8")
+            tree = ast.parse(text, filename=str(path))
         except (SyntaxError, UnicodeDecodeError) as error:
             broken.append(f"{path}: {error}")
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name == "src" or alias.name.startswith("src."):
+                        absolute_src.append(f"{path}:{node.lineno}: import {alias.name}")
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                if node.module == "src" or node.module.startswith("src."):
+                    absolute_src.append(f"{path}:{node.lineno}: from {node.module}")
     if broken:
         raise SystemExit("以下源码无法解析，请先修复再构建：\n" + "\n".join(broken))
+    if absolute_src:
+        raise SystemExit(
+            "镜像包禁止绝对 import src（请改为相对导入）：\n" + "\n".join(absolute_src)
+        )
 
 
 def _clean_caches(root: Path) -> None:

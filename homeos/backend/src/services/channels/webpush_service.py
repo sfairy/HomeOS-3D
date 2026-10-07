@@ -25,8 +25,8 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from sqlalchemy import delete, select
 
-from src.core.errors import api_error, bad_request
-from src.core.models import WebPushSubscription
+from ...core.errors import api_error, bad_request
+from ...core.models import WebPushSubscription
 
 from .types import MessageHandler
 

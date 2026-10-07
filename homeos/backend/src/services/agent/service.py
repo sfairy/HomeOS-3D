@@ -23,8 +23,8 @@ from typing import Any
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from src.core.entity_domain import get_entity_domain
-from src.core.errors import BusinessException, ErrorCode, api_error
+from ...core.entity_domain import get_entity_domain
+from ...core.errors import BusinessException, ErrorCode, api_error
 
 from .agent_actor import AgentActor
 from .command_cache import CommandCacheService

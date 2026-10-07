@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from src.core.errors import BusinessException, ErrorCode, api_error
+from ....core.errors import BusinessException, ErrorCode, api_error
 
 from .llm_provider_interface import (
     LlmChatOptions,

@@ -11,7 +11,7 @@ import re
 from collections import OrderedDict
 from typing import Any
 
-from src.core.json_field import read_json_object
+from ...core.json_field import read_json_object
 
 from .mock_guide import MOCK_AGENT_CONFIG_GUIDE
 from .reply import format_channel_reply
@@ -94,7 +94,7 @@ class ChannelsService:
         return actor
 
     async def _find_user(self, user_id: str) -> Any:
-        from src.core.models import User
+        from ...core.models import User
 
         def _query() -> Any:
             from sqlalchemy import select

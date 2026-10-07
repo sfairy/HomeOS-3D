@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import re
 
-from src.core.entity_domain import get_entity_domain
+from ....core.entity_domain import get_entity_domain
 
 from .llm_provider_interface import (
     LlmChatOptions,

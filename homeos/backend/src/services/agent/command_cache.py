@@ -17,7 +17,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.core.redis import RedisService
+from ...core.redis import RedisService
 
 logger = logging.getLogger("homeos.agent.command_cache")
 

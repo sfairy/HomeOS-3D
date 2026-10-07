@@ -15,7 +15,7 @@ import logging
 import re
 from typing import Any
 
-from src.core.entity_domain import get_entity_domain
+from ...core.entity_domain import get_entity_domain
 
 from .area_service import AgentAreaService
 from .config_service import AgentConfigService

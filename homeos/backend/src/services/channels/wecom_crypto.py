@@ -11,7 +11,7 @@ from typing import Any, NoReturn
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
-from src.core.errors import BusinessException, ErrorCode, api_error
+from ...core.errors import BusinessException, ErrorCode, api_error
 
 
 def _decrypt_fail(detail: str) -> NoReturn:
