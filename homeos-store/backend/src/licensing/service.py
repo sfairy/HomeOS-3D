@@ -16,6 +16,7 @@ from ..core.models import (
     DeviceReleaseEvent,
     Entitlement,
     License,
+    LicenseNonce,
     LicenseSession,
     Product,
     RecoveryToken,
@@ -42,6 +43,20 @@ RECOVERY_TOKEN_TTL_SECONDS = 180 * 24 * 3600
 RECOVERY_TOKEN_ROTATE_AFTER_SECONDS = 30 * 24 * 3600
 
 RECOVERY_TOKEN_GRACE_SECONDS = 24 * 3600
+
+#: 随机数哈希前的域分隔前缀：与令牌哈希共用同一套 sha256，加前缀是为了让「随机数」
+#: 与「会话令牌」即使字面相同也不会撞进同一行。
+NONCE_HASH_PREFIX = "homeos-license-nonce-v1"
+
+#: 请求随机数的保留时长。它的价值不超过「重放一份请求还能换来什么」，而一份请求最多
+#: 撑到对应会话过期（``session_ttl_seconds``，至少 1 小时）；留一整天是给时钟漂移和
+#: 客户端重试留余量，到期后由 :meth:`LicenseAuthority.consume_nonce` 顺手清掉。
+NONCE_TTL_SECONDS = 24 * 3600
+
+#: 随机数被重放时的文案。**这是线上协议的一部分**：主应用靠「409 + 这句话」识别
+#: 「上一次其实已经受理了、只是响应丢了」，改文案会让它把可自愈的重发当成授权失败。
+NONCE_REPLAY_DETAIL = "请求随机数已使用，请重新发起请求。"
+
 
 class LicenseAuthority:
     """持有密钥环，负责全部租约签发逻辑。"""
@@ -81,6 +96,7 @@ class LicenseAuthority:
 
         with self.database.session() as session:
             now = utcnow()
+            self.consume_nonce(session, payload, scope="activate", now=now)
             license = session.scalars(
                 select(License).where(License.activation_code == code)
             ).first()
@@ -255,6 +271,65 @@ class LicenseAuthority:
     @property
     def session_ttl_seconds(self) -> int:
         return max(3600, int(self.settings.lease_ttl_seconds))
+
+    def consume_nonce(
+        self, session: Session, payload: dict, *, scope: str, now: datetime
+    ) -> None:
+        """受理一个一次性随机数；这个随机数以前出现过就直接拒绝。
+
+        授权请求的信封是自包含的（临时公钥 + 密文 + IV 全在里面），截获之后可以原样重发：
+        重发一次 recover 就能再换一份租约。加密只保证「没被篡改」，挡不住「被复制」，
+        所以服务端必须记住受理过哪些随机数。
+
+        判重只按哈希，不按明文 —— 这张表看一眼就知道有哪些随机数还没被用掉，
+        留明文等于泄一份可重放的凭据清单。
+
+        随机数缺失按 422 硬拒：客户端从引入该字段起就一直在发，收不到说明对端是旧版本，
+        此时「放行」等于给旧版本开后门，不如明确让它升级（与 instanceId 同一口径）。
+        """
+        nonce = str(payload.get("nonce") or "").strip()
+        if not nonce:
+            raise LicenseServerError(
+                "授权请求缺少随机数（nonce），请升级客户端后重试。",
+                status_code=422,
+                code="NONCE_MISSING",
+            )
+        key = token_hash(f"{NONCE_HASH_PREFIX}\x00{scope}\x00{nonce}")
+        # 惰性清理：每次受理顺手删掉已过期的行，省掉一个定时任务。
+        session.execute(delete(LicenseNonce).where(LicenseNonce.expires_at <= now))
+        if session.get(LicenseNonce, key) is not None:
+            logger.info("授权请求随机数被重放 scope=%s", scope)
+            raise LicenseServerError(
+                NONCE_REPLAY_DETAIL, status_code=409, code="NONCE_REPLAY"
+            )
+        session.add(
+            LicenseNonce(
+                id_hash=key,
+                scope=scope,
+                expires_at=now + timedelta(seconds=NONCE_TTL_SECONDS),
+            )
+        )
+        session.flush()
+
+    @staticmethod
+    def reported_lease_sequence(payload: dict) -> int:
+        """客户端自报的租约序号（它手上那份租约的 ``leaseSequence``）。
+
+        与 ``instanceId`` 同一口径：缺字段按 422 引导升级，而不是当成 0 悄悄放行 ——
+        序列号是「签发值必须严格递增」的依据，缺了它就退化回「服务端自己数自己的」。
+        """
+        raw = payload.get("leaseSequence")
+        if isinstance(raw, bool) or not isinstance(raw, int):
+            raise LicenseServerError(
+                "授权请求缺少租约序号（leaseSequence），请升级客户端后重试。",
+                status_code=422,
+                code="LEASE_SEQUENCE_MISSING",
+            )
+        if raw < 0:
+            raise LicenseServerError(
+                "授权请求的租约序号无效。", status_code=422, code="LEASE_SEQUENCE_INVALID"
+            )
+        return raw
 
     def assert_usable(self, license: License, now: datetime) -> None:
         """授权是否可继续使用。detail 命中客户端吊销短语以使吊销立即生效。"""
