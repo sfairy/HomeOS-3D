@@ -147,8 +147,10 @@ class DeepseekLlmProvider(LlmProvider):
     由 ResolvingLlmProvider 在配置了真实 API Key 时创建 / 更新。
     """
 
-    #: 提供商名，固定为 deepseek
-    name = "deepseek"
+    @property
+    def name(self) -> str:
+        """提供商名，固定为 deepseek。"""
+        return "deepseek"
 
     def __init__(
         self,

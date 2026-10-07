@@ -14,7 +14,6 @@ from urllib.parse import quote, urlparse
 import httpx
 
 from ...core.errors import BusinessException, ErrorCode, api_error
-
 from .types import ChannelMessage, MessageHandler
 from .wecom_utils import markdown_to_wecom_text, split_wecom_text
 

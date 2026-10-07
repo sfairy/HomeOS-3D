@@ -15,17 +15,17 @@
 
 from __future__ import annotations
 
+import inspect
 import json
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, TypeGuard
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from ...core.entity_domain import get_entity_domain
 from ...core.errors import BusinessException, ErrorCode, api_error
-
 from .agent_actor import AgentActor
 from .command_cache import CommandCacheService
 from .config_service import AgentConfigService
@@ -276,7 +276,9 @@ class AgentService:
         self._agent_config.invalidate_cache()
         refresh = getattr(self._llm, "refresh", None)
         if callable(refresh):
-            await refresh()
+            result = refresh()
+            if inspect.isawaitable(result):
+                await result
         return self.get_provider_info()
 
     # ------------------------------------------------------------------ #

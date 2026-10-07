@@ -27,7 +27,6 @@ from sqlalchemy import delete, select
 
 from ...core.errors import api_error, bad_request
 from ...core.models import WebPushSubscription
-
 from .types import MessageHandler
 
 logger = logging.getLogger("homeos.channels.webpush")

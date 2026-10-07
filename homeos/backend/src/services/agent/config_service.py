@@ -19,7 +19,6 @@ from sqlalchemy import select
 
 from ...core.json_field import read_json_object
 from ...core.models import ProjectConfig
-
 from ..app_config.constants import CONFIG_MASK_PLACEHOLDER
 from ..app_config.mask import is_masked_value
 

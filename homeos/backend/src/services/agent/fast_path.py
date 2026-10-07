@@ -16,7 +16,6 @@ import re
 from typing import Any
 
 from ...core.entity_domain import get_entity_domain
-
 from .area_service import AgentAreaService
 from .config_service import AgentConfigService
 from .lang_template_service import LangTemplateService

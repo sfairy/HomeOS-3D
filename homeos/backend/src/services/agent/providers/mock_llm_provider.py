@@ -12,7 +12,6 @@ from __future__ import annotations
 import re
 
 from ....core.entity_domain import get_entity_domain
-
 from .llm_provider_interface import (
     LlmChatOptions,
     LlmChatResult,
@@ -51,7 +50,10 @@ _SUCCESS_RE = re.compile(r'"success"\s*:\s*true')
 class MockLlmProvider(LlmProvider):
     """Mock LLM 提供商：不需要凭证，is_ready 永远为 true。"""
 
-    name = "mock"
+    @property
+    def name(self) -> str:
+        """提供商名，固定为 mock。"""
+        return "mock"
 
     def is_ready(self) -> bool:
         """始终就绪，未配置真实 Key 时作为兜底。"""

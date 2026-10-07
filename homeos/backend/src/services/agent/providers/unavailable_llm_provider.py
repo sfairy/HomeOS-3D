@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 from ....core.errors import BusinessException, ErrorCode, api_error
-
 from .llm_provider_interface import (
     LlmChatOptions,
     LlmChatResult,
@@ -25,8 +24,10 @@ class UnavailableLlmProvider(LlmProvider):
     永远 not ready，任何 chat 调用均抛异常，确保生产环境未配置时不静默回退到 mock。
     """
 
-    #: 提供商名，固定为 unavailable
-    name = "unavailable"
+    @property
+    def name(self) -> str:
+        """提供商名，固定为 unavailable。"""
+        return "unavailable"
 
     def is_ready(self) -> bool:
         """永不就绪：让上层 AgentService 在 ping_provider / get_provider_info 时直接暴露状态。"""

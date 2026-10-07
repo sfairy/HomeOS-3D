@@ -30,7 +30,6 @@ from ....realtime.access import (
     is_entity_allowed,
     resolve_entity_restrictions,
 )
-
 from ...command_proxy_auth import assert_command_proxy_authorized
 from ..agent_actor import AGENT_CONTROL_TOOLS, AgentActor
 from ..config_service import AgentConfigService
@@ -1162,8 +1161,9 @@ class HomeToolsService:
         actor: AgentActor | None = None,
     ) -> dict[str, Any]:
         entity_id = _s(args.get("entity_id"))
+        raw_brightness = args.get("brightness")
         try:
-            brightness = float(args.get("brightness"))
+            brightness = float(raw_brightness) if raw_brightness is not None else float("nan")
         except (TypeError, ValueError):
             brightness = float("nan")
         if not entity_id.startswith("light."):
@@ -1187,8 +1187,9 @@ class HomeToolsService:
         actor: AgentActor | None = None,
     ) -> dict[str, Any]:
         entity_id = _s(args.get("entity_id"))
+        raw_position = args.get("position")
         try:
-            position = float(args.get("position"))
+            position = float(raw_position) if raw_position is not None else float("nan")
         except (TypeError, ValueError):
             position = float("nan")
         if not entity_id.startswith("cover."):
@@ -1219,8 +1220,9 @@ class HomeToolsService:
             return {"error": "action 须为 play/pause/stop/next/previous/volume"}
         service_data: dict[str, Any] | None = None
         if action == "volume":
+            raw_volume = args.get("volume")
             try:
-                volume = float(args.get("volume"))
+                volume = float(raw_volume) if raw_volume is not None else 0.0
             except (TypeError, ValueError):
                 volume = 0.0
             if volume != volume:  # NaN → 对齐 JS Number(...) || 0

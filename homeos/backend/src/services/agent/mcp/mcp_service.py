@@ -24,7 +24,6 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from ....core.json_field import read_json_object
 from ....core.models import User
 from ....security.auth_context import resolve_restrictions
-
 from ..agent_actor import MCP_GATEWAY_ACTOR, AgentActor
 from .mcp_protocol import DEFAULT_SERVER_VERSION, McpHandlerDeps, handle_mcp_json_rpc
 

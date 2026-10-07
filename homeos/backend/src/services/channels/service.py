@@ -12,7 +12,6 @@ from collections import OrderedDict
 from typing import Any
 
 from ...core.json_field import read_json_object
-
 from .mock_guide import MOCK_AGENT_CONFIG_GUIDE
 from .reply import format_channel_reply
 from .types import ChannelMessage
