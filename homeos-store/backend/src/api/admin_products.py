@@ -65,6 +65,7 @@ def admin_list_products(
             or_(
                 Product.name.like(like),
                 Product.product_code.like(like),
+                Product.edition.like(like),
                 Product.feature_codes_json.like(like),
                 Product.display_description.like(like),
             )
@@ -170,6 +171,7 @@ def admin_create_product(
         is_full_price=payload.is_full_price,
         validity_days=payload.validity_days,
         product_type=payload.product_type,
+        edition=payload.edition,
         feature_codes_json=list_json(payload.feature_codes),
         included_product_ids_json=list_json(payload.included_product_ids),
         package_contents_locked=payload.package_contents_locked,
@@ -202,6 +204,7 @@ def admin_update_product(
         "is_full_price": "is_full_price",
         "validity_days": "validity_days",
         "product_type": "product_type",
+        "edition": "edition",
         "package_contents_locked": "package_contents_locked",
         "active": "active",
         "note": "note",

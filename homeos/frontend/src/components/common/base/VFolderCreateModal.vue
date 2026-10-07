@@ -14,7 +14,7 @@
     - props.error：父级传入的失败原因（如后端"目录已存在"）
     - props.defaultName：打开时回填的名称
     - emits update:modelValue / confirm(name)
-  依赖关系：@lucide/vue（图标）、useFocusTrap（焦点陷阱）、
+  依赖关系：@lucide/vue（图标）、useFocusTrap（焦点陷阱）、useBodyScrollLock（引用计数滚动锁）、
     ./styles/VFolderCreateModal.css（微晶样式）。
   注意事项：本组件只负责命名与校验，实际创建请求由父级 useAssetManager 发起；
     因此组件在 busy 期间保持打开，父级成功后自行关闭。
@@ -96,9 +96,11 @@
  * 约定：- 本组件不发起网络请求，只做命名校验并 emit confirm；
  *      - 关闭动作统一走 cancel/close，避免重复 emit。
  */
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { FolderOpen, FolderPlus, Loader2 } from '@lucide/vue'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
+import { useBodyScrollLock } from '@/composables/ui/useBodyScrollLock'
+import { useEscLayer } from '@/composables/ui/useEscStack'
 
 const props = withDefaults(
   defineProps<{
@@ -133,6 +135,12 @@ const errorMessage = computed(() => localError.value || props.error || '')
 
 // 焦点陷阱激活条件：弹窗打开
 useFocusTrap(panelRef, computed(() => props.modelValue))
+/** 滚动锁激活条件（与焦点陷阱同源，拆开便于日后单独调整） */
+const modalActive = computed(() => props.modelValue)
+// Esc 取消：入全局 Esc 层级栈（只关栈顶那一层）。原先自己挂 window keydown，
+// 与查看器/确认框同时在场上时一次 Esc 会关掉多层。
+useEscLayer(modalActive, '新建文件夹弹窗', () => cancel())
+useBodyScrollLock(modalActive, '新建文件夹弹窗')
 
 /** 关闭弹窗（不发请求） */
 function close() {
@@ -169,14 +177,9 @@ function submit() {
 }
 
 /**
- * 全局键盘事件：Escape 取消。
- * Enter 由输入框的 keydown 处理（需保证输入框获得焦点，故打开时自动聚焦）。
- * @param e 键盘事件
+ * Enter 提交由输入框自身的 keydown 处理（打开时自动聚焦，保证输入框有焦点）。
+ * Esc 取消已改走全局 Esc 层级栈，见 useEscLayer。
  */
-function onKeyDown(e: KeyboardEvent) {
-  if (!props.modelValue) return
-  if (e.key === 'Escape') cancel()
-}
 
 // 父级错误变化时清掉本地错误，避免两条错误互相覆盖
 watch(
@@ -186,11 +189,10 @@ watch(
   },
 )
 
-// 打开时锁定滚动、回填默认值并聚焦全选；关闭时恢复
+// 打开时回填默认值并聚焦全选（滚动锁由 useBodyScrollLock 统一管理，引用计数）
 watch(
   () => props.modelValue,
   async (open) => {
-    document.body.style.overflow = open ? 'hidden' : ''
     if (open) {
       name.value = props.defaultName ?? ''
       localError.value = ''
@@ -201,14 +203,6 @@ watch(
   },
 )
 
-onMounted(() => {
-  window.addEventListener('keydown', onKeyDown)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', onKeyDown)
-  document.body.style.overflow = ''
-})
 </script>
 
 <style scoped src="./styles/VFolderCreateModal.css"></style>

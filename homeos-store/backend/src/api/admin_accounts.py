@@ -22,6 +22,7 @@ from ..security.security import (
     hash_password,
     is_valid_email,
     normalize_email,
+    normalize_username,
     utcnow,
 )
 
@@ -57,7 +58,11 @@ def admin_list_accounts(
     if keyword:
         like = f"%{keyword.strip()}%"
         base = base.where(
-            or_(Account.email.like(like), Account.referral_code.like(like))
+            or_(
+                Account.username.like(like),
+                Account.email.like(like),
+                Account.referral_code.like(like),
+            )
         )
     role_value = (role or "").strip()
     if role_value == "admin":
@@ -123,6 +128,28 @@ def admin_patch_account(
         _guard_self_lockout(account, admin, action="停用当前登录的账号")
 
     changed: list[str] = []
+    if "username" in data and data["username"] is not None:
+        try:
+            username = normalize_username(str(data["username"]))
+        except ValueError as error:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)
+            ) from error
+        taken = session.scalars(
+            select(Account.id).where(Account.username == username, Account.id != account.id)
+        ).first()
+        if taken is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="该账号名已被其他账号使用。"
+            )
+        account.username = username
+        customer = session.scalars(
+            select(Customer).where(Customer.account_id == account.id)
+        ).first()
+        if customer is not None and not (customer.name or "").strip():
+            customer.name = username
+        changed.append("username")
+
     if data.get("email"):
         email = normalize_email(str(data["email"]))
         if not is_valid_email(email):

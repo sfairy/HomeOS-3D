@@ -212,11 +212,6 @@ class Settings:
         return self.jwt_expires_in_seconds
 
     @property
-    def admin_account_path(self) -> Path:
-        """管理员账号快照文件（兼容 homeos-3d 的账号自愈流程）。"""
-        return self.data_dir / "admin-account.json"
-
-    @property
     def user_assets_dir(self) -> Path:
         return self.data_dir / "assets"
 

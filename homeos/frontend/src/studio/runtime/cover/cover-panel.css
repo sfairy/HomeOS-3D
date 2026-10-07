@@ -90,9 +90,11 @@
   cursor: pointer;
   background: linear-gradient(
     90deg,
-    #8cb7ca var(--hb-cover-position-progress, 0%),
-    #3a444b var(--hb-cover-position-progress, 0%)
-  );
+    #8cb7ca 0%,
+    #8cb7ca var(--hb-cover-position-progress, var(--progress-pct, 0%)),
+    #3a444b var(--hb-cover-position-progress, var(--progress-pct, 0%)),
+    #3a444b 100%
+  ) !important;
   box-shadow:
     0 0 0 2px #6f849240,
     inset 0 2px 7px #000c;
@@ -100,7 +102,7 @@
 .i3d-cover-panel .hb-cover-details-position input::-webkit-slider-runnable-track {
   height: 14px;
   border-radius: 99px;
-  background: transparent;
+  background: transparent !important;
 }
 .i3d-cover-panel .hb-cover-details-position input::-webkit-slider-thumb {
   width: 43px;

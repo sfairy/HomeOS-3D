@@ -20,7 +20,8 @@
 #       - APP_COOKIE_SECURE / STORE_COOKIE_SECURE：HTTP/HTTPS 都要能登录用 false
 #       - APP_LICENSE_SERVER_URL：同机 --role all 由 shared overlay 注入内网；分拆 --role app 填商店局域网地址
 #       - APP_BASE_URL / STORE_BASE_URL：局域网 IP 不固定时留空（应用按请求 Host 判断同源）
-#       管理员不走环境变量：两个 /setup 页面创建（见第 6、7 步）。
+#       账号不走环境变量：主应用首装零用户在 /register 注册本机唯一账号（见第 7 步），
+#       商店运营管理员在 /setup 创建（见第 6 步）。
 #
 # [ ] 2. 宿主准备（授权实例指纹读的是宿主标识；一次即可）
 #       ./ops/deploy/deploy.sh 会自动做这一步（--host-binds auto|force|skip）；手工等价命令：
@@ -44,7 +45,7 @@
 #       docker compose -f docker-compose.app.yml ps
 #       curl -fsS http://127.0.0.1:8801/health/ready
 #       curl -fsS http://127.0.0.1:8802/healthz
-#       docker logs homeos | head   # 取 /setup 引导密钥（桥接网络访问时需要）
+#       docker logs homeos-store | head   # 取商店 /setup 引导密钥（桥接网络访问时需要）
 #
 # [ ] 5. 内网 HTTPS（镜像内置，无需额外操作）
 #       主应用与商店的镜像各自内置 Caddy 反代，与应用同容器、同镜像 tag：
@@ -70,8 +71,11 @@
 #       确认支付渠道是 alipay 且填了真实 APPID / 密钥（模拟收银台已删除）
 #
 # [ ] 7. 主应用（每台客户机）
-#       http://<主机IP>:8801/setup（HTTPS：https://<主机IP>:8803/setup）→ 建管理员
-#       /license 用商店发放的激活码激活（1 激活码 : 1 设备，见 SPLIT-DEPLOY.md 授权身份）
+#       打开 http://<主机IP>:8801/register（HTTPS：https://<主机IP>:8803/register）注册本机
+#       唯一账号：账号 + 密码 + 邮箱 + 邮箱验证码（验证码由商店代发，需先在第 6 步配好 SMTP）。
+#       注册后自动登录并检测授权；未激活会跳 /activate，填商店购买邮箱 + 激活码完成绑定
+#       （1 激活码 : 1 设备，见 SPLIT-DEPLOY.md 授权身份）。
+#       旧 /setup 入口保留为整页跳转到 /register。
 #
 # [ ] 8. 加固
 #       备份 volume（两个 compose 文件各自带项目名前缀）：

@@ -176,6 +176,7 @@ const systemPanels = {
     'retention',
     () => import('@/views/settings/system/SettingsRetentionPanel.vue'),
   ),
+  license: lazyPanel('license', () => import('@/views/settings/system/SettingsLicensePanel.vue')),
 }
 
 /** PANEL_MAP：对象常量，字段 / 方法语义见定义处。 */

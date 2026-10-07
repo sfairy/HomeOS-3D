@@ -40,6 +40,7 @@ import {
   House,
   Home,
   Bot,
+  KeyRound,
 } from '@lucide/vue'
 
 /** SettingsPageHeader 图标键 → 组件 */
@@ -68,6 +69,7 @@ export const SETTINGS_HEADER_ICONS = {
   smartphone: Smartphone,
   house: House,
   home: Home,
+  key: KeyRound,
 }
 
 /** 按 settings tab id 回退（与 settings-nav.js TAB_ICONS 一致） */
@@ -97,4 +99,5 @@ export const SETTINGS_TAB_HEADER_ICONS = {
   params: SlidersHorizontal,
   diagnostics: Activity,
   'execution-history': History,
+  license: KeyRound,
 }

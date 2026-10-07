@@ -466,12 +466,12 @@ export function getFloatingCategoryLabel(type: string) {
 }
 
 interface FloatingPanelDisplayOptions {
+  /** 布局仓库（调用方仍传入以保持签名一致；本展示派生函数不直接读取） */
   layoutStore: ReturnType<typeof useLayoutStore>
   afhEditId: Ref<string | null>
 }
 
 export function useFloatingPanelDisplay({
-  layoutStore,
   afhEditId,
 }: FloatingPanelDisplayOptions) {
   const openSection = ref('layout')

@@ -188,6 +188,11 @@ def _assert_entity_access_for_media(entity_id: str, user: dict[str, Any] | None)
 
 
 def assert_ha_media_path_authorized(path: str, user: dict[str, Any] | None) -> None:
+    """媒体路径实体 ACL（遗留辅助）。
+
+    当前 HTTP 摄像头/媒体代理走 ``ha_proxy`` + 许可 feature 门禁，**未**挂此函数。
+    保留实现供命令代理或将来媒体旁路复用；勿在文档里写成「已强制执行」。
+    """
     entity_id = extract_entity_id_from_media_path(path)
     if entity_id and entity_id.startswith("camera."):
         assert_webrtc_authorized(entity_id, user)

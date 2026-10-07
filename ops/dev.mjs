@@ -346,7 +346,10 @@ function startFrontendWatchBuild() {
         path.join(HOMEOS_APP, "frontend", "src"),
         path.join(HOMEOS_APP, "frontend", "public"),
       ],
-      buildArgs: ["run", "--cwd", path.join(HOMEOS_APP, "frontend"), "build"],
+      // 只重建主应用：`build` 还会顺带跑 runtime，且 runtime 的 emptyOutDir 会短暂
+      // 清空 modules/runtime，导致 interaction3d 动态 import 在 watch 窗口内 404。
+      // runtime 改动请另开 `bun run dev:runtime`（与 README 一致）。
+      buildArgs: ["run", "--cwd", path.join(HOMEOS_APP, "frontend"), "build:app"],
       refreshPort: APP_PORT,
     },
     {
@@ -704,7 +707,7 @@ async function main() {
       console.log(`前端 HMR  主应用   http://${HOST}:${VITE_3D_PORT}/`);
       console.log(`          授权商店 http://${HOST}:${VITE_STORE_PORT}/`);
     }
-    console.log(`后端 API  主应用   http://${HOST}:${APP_PORT}/setup`);
+    console.log(`后端 API  主应用   http://${HOST}:${APP_PORT}/register`);
     console.log(`          授权商店 http://${HOST}:${STORE_PORT}/`);
     if (options.debug) {
       console.log(`调试器    主应用   ${DEBUG_APP_PORT}（IDE attach，热重载保留）`);

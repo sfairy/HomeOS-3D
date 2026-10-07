@@ -24,9 +24,11 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 
 from ..config import Settings
+from .file_lock import locked_file
 
 #: 结构基线版本号。发行产物不带迁移脚本，新库直接按 ORM 元数据建好后写入这个版本号。
-SCHEMA_REVISION = "0006"
+SCHEMA_REVISION = "0001"
+MIGRATION_LOCK_SUFFIX = ".migrate.lock"
 
 _SIDECAR_SUFFIXES = ("-journal", "-wal", "-shm")
 
@@ -119,29 +121,44 @@ def _script_knows_revision(config: Config, revision: str) -> bool:
         return False
 
 
-def _schema_matches_orm(database_url: str) -> bool:
-    """库结构是否已满足 ORM 元数据（只查缺表/缺列/缺索引）。"""
+def _schema_drift(database_url: str) -> list[str]:
+    """列出库结构相对 ORM 元数据的缺口（缺表/缺列/缺索引），已满足则为空列表。
+
+    分成「返回明细」而不是「返回布尔」是为了能把缺什么直接写进报错里：启动期报
+    ``license_state 缺列 activated_by`` 远比后面某次查询抛 ``no such column`` 有用。
+
+    只查缺口，不查多余列：库里多一列不影响 ORM 读取，历史上也确实会留下退役列。
+    """
     from sqlalchemy import create_engine, inspect
 
     from . import models  # noqa: F401
     from .database import Base
 
     engine = create_engine(database_url)
+    drift: list[str] = []
     try:
         inspector = inspect(engine)
         existing_tables = set(inspector.get_table_names())
         for table in Base.metadata.sorted_tables:
             if table.name not in existing_tables:
-                return False
+                drift.append(f"缺表 {table.name}")
+                continue
             columns = {column["name"] for column in inspector.get_columns(table.name)}
-            if not {column.name for column in table.columns} <= columns:
-                return False
+            missing_columns = sorted({column.name for column in table.columns} - columns)
+            if missing_columns:
+                drift.append(f"{table.name} 缺列 {', '.join(missing_columns)}")
             indexes = {index["name"] for index in inspector.get_indexes(table.name)}
-            if not {index.name for index in table.indexes if index.name} <= indexes:
-                return False
-        return True
+            missing_indexes = sorted({index.name for index in table.indexes if index.name} - indexes)
+            if missing_indexes:
+                drift.append(f"{table.name} 缺索引 {', '.join(missing_indexes)}")
+        return drift
     finally:
         engine.dispose()
+
+
+def _schema_matches_orm(database_url: str) -> bool:
+    """库结构是否已满足 ORM 元数据（只查缺表/缺列/缺索引）。"""
+    return not _schema_drift(database_url)
 
 
 def _legacy_error(revision: str) -> LegacyDatabaseError:
@@ -171,6 +188,11 @@ def _validate_database(database_path: Path, expected_revision: str) -> None:
         if integrity is None or integrity[0] != "ok":
             detail = integrity[0] if integrity else "no result"
             raise RuntimeError(f"SQLite integrity check failed: {detail}")
+        # 只读 URI 下外键检查仍可读；写连接侧已开 foreign_keys=ON。
+        fk_violations = connection.execute("PRAGMA foreign_key_check").fetchall()
+        if fk_violations:
+            sample = "; ".join(str(row) for row in fk_violations[:5])
+            raise RuntimeError(f"SQLite foreign_key_check failed: {sample}")
         row = connection.execute("SELECT version_num FROM alembic_version LIMIT 1").fetchone()
         actual_revision = str(row[0]) if row else "unversioned"
         if actual_revision != expected_revision:
@@ -239,6 +261,13 @@ def restore_database_backup(database_path: Path, backup_path: Path) -> None:
 def run_migrations(settings: Settings) -> Path | None:
     """把数据库带到 head 结构，返回升级前备份的路径（没动结构时为 None）。"""
     database_path = settings.database_path
+    lock_path = database_path.parent / f"{database_path.name}{MIGRATION_LOCK_SUFFIX}"
+    with locked_file(lock_path):
+        return _run_migrations_locked(settings)
+
+
+def _run_migrations_locked(settings: Settings) -> Path | None:
+    database_path = settings.database_path
     script_dir = _migrations_dir(settings)
     config = _migration_config(settings, script_dir) if script_dir is not None else None
 
@@ -262,6 +291,18 @@ def run_migrations(settings: Settings) -> Path | None:
             "请先备份数据目录；需要保留数据时，用旧版本导出后在新库导入。"
         )
     if source_revision == target_revision:
+        # 版本号到了 head **不等于**结构到了 head：迁移被应用之后又改 ORM / 改脚本，
+        # 版本号不会回退。只信版本号会带着缺列的库启动（license 查询等直接 503）。
+        drift = _schema_drift(settings.database_url)
+        if drift:
+            detail = "\n  - ".join(drift)
+            raise RuntimeError(
+                f"数据库版本号已是 head（{target_revision}），但结构与 ORM 不一致：\n"
+                f"  - {detail}\n"
+                "常见原因：某个迁移在**被应用之后**又追加了内容，而版本号不会再回退。"
+                "请补一个「缺了才加」的修复迁移后重启，"
+                "或从数据目录的 *.pre-migrate-*.bak 快照恢复。"
+            )
         return None
     if source_revision is None:
         backup_database(database_path)

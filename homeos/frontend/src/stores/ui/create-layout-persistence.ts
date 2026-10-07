@@ -7,8 +7,7 @@
  *  - loadConfig: 200ms 防抖 + 请求去重 + requestId 竞态保护，
  *    从服务端拉取方案布局 -> mergeLayoutWithDefaults 合并默认值 ->
  *    写入 layoutConfig -> 同步激活方案 -> 触发 onAfterLoad
- *  - saveConfig: HA URL 校验 -> cloneLayoutForApi 清理运行时字段 ->
- *    prepareLayoutHotspotAnchorsForSave 规范化锚点 -> saveProject 写入
+ *  - saveConfig: HA URL 校验 -> cloneLayoutForApi 清理运行时字段 -> saveProject 写入
  *  - sanitize/normalize：statsSensors / haConfig / favoriteEntities / panel / floating widgets 等
  *  依赖 config API、auth store、defaults、tablet 性能模式、HA URL 校验等。
  */

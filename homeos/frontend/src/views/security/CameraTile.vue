@@ -60,8 +60,8 @@ import { useEntitiesStore } from '@/stores/entities.store'
 import HaCameraStream from '@/components/HaCameraStream.vue'
 import { getEntityDisplayName } from '@/utils/entity/derived.util'
 
-// 多路网格模式下同时拉流的最大摄像头数量，超出部分仅显示快照占位
-const GRID_MAX_ACTIVE = 4
+// 多路网格默认最多 2 路实时流（WebRTC/HLS），超出部分仅快照占位，避免平板/HA 过载
+const GRID_MAX_ACTIVE = 2
 
 // 入参：摄像头实体 ID、HA 地址、流错误映射、网格槽位、聚焦态、是否启用拉流、是否优先 WebRTC
 const props = defineProps({
@@ -82,7 +82,7 @@ const rootRef = ref(null)
 const visible = ref(false)
 let observer = null
 
-// 仅在启用拉流、可见且占用前 4 个槽位之一时才真正挂载实时流，避免平板/HA 同时承载过多流
+// 仅在启用拉流、可见且占用前 N 个槽位之一时才真正挂载实时流
 const active = computed(
   () =>
     props.streamsEnabled &&

@@ -23,6 +23,7 @@ import {
   getActiveSubscribeDomains,
   collectWsPinnedEntityIds,
 } from '@/utils/entity/ws-subscription'
+import { resolveActivePopupEntityId } from '@/utils/entity/active-popup-entity'
 
 /** 构建前端 Socket.IO 连接参数（从 entities.store 抽离） */
 export function buildEntitySocketUrl(): string | undefined {
@@ -55,7 +56,7 @@ export function buildEntitySocketAuth(
     const pinia = getActivePinia()
     if (pinia) {
       const layout = useLayoutStore(pinia)
-      const pinned = collectWsPinnedEntityIds(layout.layoutConfig, layout.activeFloorplanPopupId)
+      const pinned = collectWsPinnedEntityIds(layout.layoutConfig, resolveActivePopupEntityId())
       if (pinned.length) auth.pinnedEntityIds = pinned
     }
   } catch {

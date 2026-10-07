@@ -690,7 +690,6 @@ async function save() {
         description: form.description.trim(),
         announcement: form.announcement.trim(),
         paymentProvider: form.paymentProvider,
-        paymentDisplayName: form.paymentDisplayName.trim(),
         paymentTransactionDescription: form.paymentTransactionDescription.trim(),
         paymentEnabled: form.paymentEnabled,
         maintenanceMode: form.maintenanceMode,
@@ -796,9 +795,11 @@ async function save() {
               <small class="admin-field-hint">选它会把上面那个也自动勾上。</small>
             </label>
             <label class="hb-field">
-              <span>支付显示名</span>
-              <input v-model="form.paymentDisplayName" class="hb-input" />
-              <small class="admin-field-hint">只作用于默认支付方式；另一个用渠道自己的名字。</small>
+              <span>支付显示名（由渠道决定，只读）</span>
+              <input v-model="form.paymentDisplayName" class="hb-input" readonly />
+              <small class="admin-field-hint">
+                默认支付方式在二维码弹窗上的名字；后台按渠道固定给出，不能单独改。
+              </small>
             </label>
             <label class="hb-field admin-grid__fill-2col">
               <span>交易标题</span>

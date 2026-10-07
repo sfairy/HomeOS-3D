@@ -136,6 +136,32 @@ def filter_env_sensor_map_to_known_areas(
     return result
 
 
+def align_env_sensor_map_to_ha_areas(
+    sensor_map: EnvSensorMap | None = None,
+    ha_areas: Any = None,
+) -> EnvSensorMap:
+    """顾问用量与设置页同一口径：只保留 HA 房间，丢掉默认目录残留 slug。
+
+    HA area 清单就绪时走 ``filter_env_sensor_map_to_known_areas``。
+    清单尚未就绪、但配置已同时含 area 主键与 ``living`` / ``dining`` 等目录键时，
+    丢掉目录幽灵键，避免 12 个真实房间被加成 19。
+    """
+    if not isinstance(sensor_map, dict):
+        return {}
+    area_refs = normalize_ha_areas(ha_areas)
+    if area_refs:
+        return filter_env_sensor_map_to_known_areas(sensor_map, ha_areas)
+    catalog_ids = {room.id for room in DEFAULT_ROOM_CATALOG}
+    keys = [str(key) for key in sensor_map]
+    if any(key in catalog_ids for key in keys) and any(key not in catalog_ids for key in keys):
+        return {
+            key: entry
+            for key, entry in sensor_map.items()
+            if str(key) not in catalog_ids and isinstance(entry, dict)
+        }
+    return sensor_map
+
+
 def build_public_room_meta_from_ha_areas(
     ha_areas: Any = None,
     sensor_map: EnvSensorMap | None = None,
@@ -293,6 +319,7 @@ __all__ = [
     "build_public_room_meta",
     "build_public_room_meta_from_ha_areas",
     "filter_env_sensor_map_to_known_areas",
+    "align_env_sensor_map_to_ha_areas",
     "merge_env_entries",
     "resolve_voice_rooms",
     "resolve_voice_rooms_from_ha_areas",

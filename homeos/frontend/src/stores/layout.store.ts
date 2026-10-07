@@ -53,14 +53,13 @@ import { clonePlain } from '@/utils/core/clone-plain.util'
 
 /** useLayoutStore：Pinia store 工厂，状态与动作见定义。 */
 export const useLayoutStore = defineStore('layout', () => {
-  // 核心布局状态切片：layoutConfig / layoutDirty / activeFloorplanPopupId / profile 加载旗标
+  // 核心布局状态切片：layoutConfig / layoutDirty / profile 加载旗标
   const core = createLayoutCoreState()
   // chrome 状态切片：编辑模式 / 选中部件 / 放置实体 / 弹窗 / 通知
   const chrome = useChromeStore()
   const {
     layoutConfig,
     layoutDirty,
-    activeFloorplanPopupId,
     activeProfileId,
     isProfilesLoading,
     profilesLoadError,
@@ -232,7 +231,6 @@ export const useLayoutStore = defineStore('layout', () => {
   return {
     layoutConfig,
     layoutDirty,
-    activeFloorplanPopupId,
     activeProfileId,
     isProfilesLoading,
     profilesLoadError,

@@ -20,16 +20,22 @@ from fastapi import Depends, Query, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict
 
+from ..dependencies import license_feature
 from ..security.auth_context import require_roles
 from ..services.channels.wecom_crypto import compute_msg_signature, decrypt_wecom
+from ..services.license import features as feature_codes
 
 logger = logging.getLogger("homeos.api.channels")
 
 from .router import NestRouter
 
-#: 通道状态与订阅管理路由（前缀 ``/channels``）
-router = NestRouter(prefix="/channels", tags=["channels"])
-#: 企业微信回调路由（前缀 ``/channels/wecom``）
+#: 通道状态与订阅管理路由（前缀 ``/channels``）——与通知中心同属 ``module.notifications``。
+router = NestRouter(
+    prefix="/channels",
+    tags=["channels"],
+    dependencies=[license_feature(feature_codes.FEATURE_NOTIFICATIONS)],
+)
+#: 企业微信回调路由（前缀 ``/channels/wecom``）：公开回调无 JWT，不加模块门禁。
 wecom_router = NestRouter(prefix="/channels/wecom", tags=["channels"])
 
 

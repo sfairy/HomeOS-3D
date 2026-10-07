@@ -98,6 +98,9 @@ jobs:
             exit 1
           fi
           echo "零 @ts-nocheck：通过"
+          # Esc 层级栈回归：静态扫描全部 overlay 是否都走 useEscLayer，并跑一遍栈行为
+          # （压栈/出栈/优先级/defaultPrevented 旁路）。纯源码扫描，不需要构建后端。
+          bun run homeos/frontend/scripts/_esc_stack_smoke.ts
 
   # Python 静态检查硬门禁。规则集与本地 `.venv-store/bin/ruff` 逐条核对过，当前全仓 0 条。
   # 这里不跑 `--fix`：CI 修不了东西，`--fix` 是提交前的动作；格式化的东西也不在这里拦，
@@ -178,11 +181,53 @@ jobs:
       - name: Check schema
         run: python ops/check_schema.py
 
+  # 冒烟门禁：这些脚本此前**只在本地手动跑**，CI 完全不覆盖（`verify:smoke*` 是本地脚本）。
+  # 漂移护栏与 Esc 扫描分别挂在 schema / typecheck job；这里补齐两侧的端到端契约冒烟。
+  # 全部离线自足：进程内假商店、被替换的 httpx、临时数据目录，不连真实 HA / 商店 / SMTP。
+  smoke:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r homeos/backend/requirements.txt \
+                      -r homeos-store/backend/src/requirements.txt
+
+      # 认证契约、注册→登录→激活、**无凭据老行接管**、HA 白名单、HA 取状态容错、结构漂移护栏。
+      #
+      # 漂移护栏守护的是 check_schema 覆盖不到的那条路径：「版本号已在 head、结构却没到」
+      # （迁移文件被应用之后又被追加内容时就是这样）。2026-10-07 主应用正栽在这里：0008
+      # 应用后又被追加了 license_state.activated_by，版本号早已打上、不会再回退，那一列
+      # 永远补不上，直到业务查询报 no such column、应用启动失败，对外全是 503。
+      # 两个执行器的等版本快路径现在都会先做结构对账。
+      #
+      # 注意 `_register_login_activate_smoke.py` 用的是**假商店**：真实商店那条腿
+      # （/store/v1/verifications 发码与验码）不在 CI 覆盖内，只有本地联调会走到。
+      - name: App smokes
+        run: |
+          python homeos/backend/scripts/_auth_contract_smoke.py
+          python homeos/backend/scripts/_register_login_activate_smoke.py
+          python homeos/backend/scripts/_legacy_account_claim_smoke.py
+          python homeos/backend/scripts/_p51_ha_whitelist_smoke.py
+          python homeos/backend/scripts/_ha_fetch_resilience_smoke.py
+          python homeos/backend/scripts/_schema_drift_guard_smoke.py
+
+      - name: Store smokes
+        run: |
+          python homeos-store/tools/smoke_store.py
+          python homeos-store/tools/_schema_drift_guard_smoke.py
+
   # 两个架构各跑在**原生** runner 上，不用 QEMU：构建期要用 Cython + gcc 把 Python
   # 编译成 per-arch 的 .so，模拟执行会慢到不可用。
   # 每个矩阵项只推一个 <tag>-<arch> 单架构镜像，manifest list 交给 merge 合成。
   build:
-    needs: [meta, typecheck, schema, ruff, pyright]
+    needs: [meta, typecheck, schema, ruff, pyright, smoke]
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false

@@ -624,6 +624,13 @@
   gap: 12px;
 }
 
+/* 注册身份行：账号 | 邮箱 | 获取验证码。动作格沿用 .hos-field--action，与两个输入框同高。 */
+.hos-row-id {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(7.5rem, 0.72fr);
+  gap: 12px;
+}
+
 .hos-field {
   min-width: 0;
 }
@@ -1863,7 +1870,8 @@
     letter-spacing: 0.1em;
   }
 
-  .hos-row-2 {
+  .hos-row-2,
+  .hos-row-id {
     grid-template-columns: 1fr;
   }
 }

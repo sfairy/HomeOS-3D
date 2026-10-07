@@ -99,6 +99,7 @@ def product_payload(
         "priceCents": int(product.price_cents or 0),
         "validityDays": product.validity_days,
         "productType": product.product_type,
+        "edition": product.edition,
         "featureCodes": feature_codes,
         "includedProductIds": included_ids,
         "packageItems": package_items,
@@ -126,6 +127,7 @@ def product_payload(
 def account_payload(account: Account) -> dict:
     return {
         "id": account.id,
+        "username": account.username,
         "email": account.email,
         "isAdmin": bool(account.is_admin),
         "emailVerified": account.email_verified_at is not None,
@@ -162,6 +164,7 @@ def device_payload(binding: DeviceBinding | None) -> dict | None:
         "bindingVersion": binding_version(binding),
         "instanceId": binding.instance_id,
         "clientVersion": binding.client_version,
+        "accountName": binding.account_name,
         "lastIp": binding.last_ip,
         "activatedAt": iso_z(binding.activated_at),
         "lastHeartbeatAt": iso_z(binding.last_heartbeat_at),

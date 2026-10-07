@@ -17,6 +17,7 @@
           v-if="canPreview"
           :key="`${item.name}-${item.url}`"
           :src="item.url"
+          :alt="`${item.name} 预览`"
           decoding="async"
           class="agi-preview__img"
           @error="$emit('previewError', item.name)"

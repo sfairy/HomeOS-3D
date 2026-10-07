@@ -117,7 +117,7 @@ docker compose -f docker-compose.store.yml -f docker-compose.store.public.yml up
    报错信息里会写明是哪个路径不可写 —— 通常意味着数据卷挂载或磁盘空间有问题，先解决它，
    不要去关掉这条检查。
 3. **看 `/healthz` 的 `schema` 字段**。`schema.ok=false` 表示库结构与代码期望的不一致，
-   `drift` 里逐项列出差异（缺列 / 幽灵列 / 缺索引 / 多余索引）。它**刻意不改**
+   `drift` 里逐项列出差异（缺表 / 缺列 / 缺索引；不把「多余列」当漂移）。它**刻意不改**
    `status`：结构漂移重启一百次也不会变，那是要告警给人看的，不是要编排器自愈的。
 
 > 升级后如果 `/healthz` 的 `schema.ok` 是 `false`，请把该字段原样发回来 —— 那说明迁移

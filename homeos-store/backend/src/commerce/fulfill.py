@@ -22,7 +22,7 @@ from ..core.models import (
     Product,
     StoreSetting,
 )
-from ..core.serializers import json_list
+from ..core.serializers import json_list, list_json
 from ..ops import incidents
 from ..security.security import (
     activation_code_hint,
@@ -417,6 +417,7 @@ def create_license_for_order(
             order_id=order.id,
             product_name=product.name,
             product_type=product.product_type,
+            feature_codes_json=list_json(json_list(product.feature_codes_json)),
             price_cents=order.amount_cents,
             validity_days=validity_days,
             issuance_source="manual" if product.fulfillment_mode == "manual" else "payment_automatic",

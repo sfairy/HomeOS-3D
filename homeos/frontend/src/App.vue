@@ -39,6 +39,22 @@
         </transition>
       </router-view>
     </ErrorBoundary>
+    <!--
+      全局 chrome 原语：确认 / 输入 / 媒体全屏挂在 App 根，编辑器 / 户型图 / 展示页 /
+      入户页都能用（它们不在 MainLayout 内）。Toast 在主壳里仍由 ScaledViewport
+      承载（随缩放），其它路由用本层 fixed 宿主。
+    -->
+    <VConfirmModal />
+    <VPromptModal />
+    <MediaPlayerModal
+      :key="chrome.activeMediaEntityId || 'media'"
+      :is-open="chrome.isMediaPlayerOpen"
+      :entity-id="chrome.activeMediaEntityId"
+      @close="chrome.closeMediaPlayer()"
+    />
+    <div v-if="isAppChromeToastHost" class="app-chrome-toast-host" aria-live="off">
+      <VNotification />
+    </div>
   </div>
 </template>
 
@@ -61,9 +77,16 @@ import { logger } from '@/utils/core/logger'
 import { useClientPowerReporter } from '@/composables/energy/useClientPowerReporter'
 import { useDisplayLightBackdropState } from '@/composables/display/display-light-backdrop'
 import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
+import VConfirmModal from '@/components/common/base/VConfirmModal.vue'
+import VPromptModal from '@/components/common/base/VPromptModal.vue'
+import VNotification from '@/components/common/base/VNotification.vue'
+import { useChromeStore } from '@/stores/chrome.store'
 import { applyPageAssets, PAGE_ASSETS } from '@/studio/page-assets'
 
 const LicenseRecoveryView = defineAsyncComponent(() => import('@/studio/views/LicenseRecoveryView.vue'))
+const MediaPlayerModal = defineAsyncComponent(() =>
+  import('@/layouts/shell-overlays').then((m) => m.MediaPlayerModal),
+)
 
 // 初始化应用主题（监听并应用用户偏好的亮/暗主题）
 useAppTheme()
@@ -71,6 +94,7 @@ useAppTheme()
 useClientPowerReporter()
 const authStore = useAuthStore()
 const layoutStore = useLayoutStore()
+const chrome = useChromeStore()
 const route = useRoute()
 
 /**
@@ -114,6 +138,12 @@ watch(
  */
 const shellRouteKey = computed(() => route.matched[0]?.path ?? route.path)
 
+/**
+ * 主壳（MainLayout）路由：matched 至少两层（壳 + 子页）。
+ * 其它顶层路由（编辑器 / 户型图 / 整屏展示 / 入户页）不在缩放壳内，需要 App 层 toast 宿主。
+ */
+const isAppChromeToastHost = computed(() => route.matched.length <= 1)
+
 // ── 3D Studio 页面资产调度（并入 studio/App.vue）──
 // 后端在返回 SPA 外壳时给 <html> 标 data-license-blocked="1"：此时就地渲染授权恢复页。
 const licenseBlocked = ref(
@@ -123,9 +153,11 @@ const licenseBlocked = ref(
 /**
  * 按路由同步 <head> 资产（标题 / viewport / theme-color / manifest / 样式表）。
  *
+ * 这不是旧的「整页跳转换装」：样式表按路由声明安装/卸载，离开 studio 路由时
+ * ``PAGE_ASSETS.shell``（空样式表）会把 display.css / renderer.css 等清掉，避免残留。
  * 必须监听 route.name 而不是 fullPath：SPA 首次导航前 route 是 START_LOCATION
- * （fullPath 恰好也是 "/"），当目标路由就是 "/"（编辑器）时 fullPath 不变、
- * immediate watcher 不会再触发，页面资产就永远不会挂上。
+ * （fullPath 恰好也是 "/"），当目标路由就是 "/" 时 fullPath 不变、immediate watcher
+ * 不会再触发，页面资产就永远不会挂上。
  */
 watch(
   () => route.name,
@@ -196,3 +228,19 @@ watch(
 </script>
 
 <style src="./assets/styles/route-transitions.css"></style>
+
+<style scoped>
+/* 非主壳路由的 toast 宿主：VNotification 默认 position:absolute，这里改成 fixed 铺满视口。 */
+.app-chrome-toast-host {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-notification, 10000);
+  pointer-events: none;
+}
+.app-chrome-toast-host :deep(.notification-container) {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+</style>

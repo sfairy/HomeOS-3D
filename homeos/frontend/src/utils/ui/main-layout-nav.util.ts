@@ -116,6 +116,32 @@ type LayoutNavConfig = {
 type MainLayoutNavOptions = {
   /** 访客账号不可访问内嵌反代，默认隐藏内嵌 Tab */
   includeEmbeds?: boolean
+  /**
+   * 功能码门禁明细（来自 ``/license/status`` 的 ``featureAccess``）。
+   *
+   * 只做界面显隐：未授权模块的导航项不渲染，避免点进去才被后端 403。
+   * 缺省（未传 / 空对象）时全部按放行处理，界面上不会因状态未到而闪掉入口。
+   */
+  featureAccess?: Record<string, boolean>
+}
+
+/** 导航 Tab ID → 所需功能码；未登记的 Tab（总览 / 设备 / 事件）不参与门禁。 */
+const NAV_TAB_FEATURES: Record<string, string> = {
+  security: 'module.security',
+  notifications: 'module.notifications',
+  'earthquake-history': 'module.earthquake',
+  media: 'module.media',
+}
+
+/**
+ * 导航 Tab 是否被授权放行。
+ * @param id 导航 Tab ID
+ * @param featureAccess 功能码明细；缺省视为全部放行
+ */
+function isNavTabFeatureGranted(id: string, featureAccess?: Record<string, boolean>): boolean {
+  const code = NAV_TAB_FEATURES[id]
+  if (!code || !featureAccess) return true
+  return featureAccess[code] !== false
 }
 
 /**
@@ -126,6 +152,7 @@ type MainLayoutNavOptions = {
  */
 export function buildMainLayoutNavMenu(layout: LayoutNavConfig, options: MainLayoutNavOptions = {}) {
   const includeEmbeds = options.includeEmbeds !== false
+  const featureAccess = options.featureAccess
   const visibility = { ...(layout.navTabVisibility || {}) }
   const placement = { ...(layout.navTabPlacement || {}) }
   const customEmbeds = includeEmbeds ? layout.customEmbeds || [] : []
@@ -218,6 +245,7 @@ export function buildMainLayoutNavMenu(layout: LayoutNavConfig, options: MainLay
   const dropdownItems: MainLayoutNavItem[] = []
   for (const id of orderedIds) {
     if (!isNavTabVisible(visibility, id)) continue
+    if (!isNavTabFeatureGranted(id, featureAccess)) continue
     const def = tabDefs.get(id)
     if (!def) continue
     if (isNavTabInDropdown(placement, id)) dropdownItems.push(def)

@@ -19,7 +19,10 @@ import { THREE_VENDOR, frontendRoot, isRuntimeExternal, studioRoot } from "./vit
 const runtimeSrc = path.join(studioRoot, "runtime");
 // 前端产物统一收敛到工作区根 ``dist/homeos/frontend``（与 homeos-store 同位），
 // 由 ops/build.py / Dockerfile 统一打包，源码树里不留构建产物。
-const outDir = path.resolve(frontendRoot, "../../dist/homeos/frontend/modules/runtime");
+const finalOutDir = path.resolve(frontendRoot, "../../dist/homeos/frontend/modules/runtime");
+// 非 watch 构建先写到旁路目录，再原子替换，避免 emptyOutDir 窗口内 config-editor / chunks 404。
+const isWatchBuild = process.argv.includes("--watch");
+const outDir = isWatchBuild ? finalOutDir : `${finalOutDir}.building`;
 
 /**
  * 运行时模块：整个 src/studio/runtime/** 都是入口，按需经
@@ -92,17 +95,21 @@ function manifestPlugin(): Plugin {
         if (!files.includes(cssRel)) files.push(cssRel);
       }
       files.sort();
+      // capability / mediaTypes 以「线上目录」旧清单为准（旁路构建时 outDir 是 .building）。
+      const previousManifest = path.join(finalOutDir, "manifest.json");
       const manifestPath = path.join(outDir, "manifest.json");
       let capability = ["editor", "module.3d_interaction"];
       let mediaTypes: Record<string, string> = {
         ".js": "text/javascript",
         ".css": "text/css",
       };
-      if (fs.existsSync(manifestPath)) {
+      for (const candidate of [previousManifest, manifestPath]) {
+        if (!fs.existsSync(candidate)) continue;
         try {
-          const prev = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+          const prev = JSON.parse(fs.readFileSync(candidate, "utf8"));
           if (Array.isArray(prev.capability)) capability = prev.capability;
           if (prev.mediaTypes && typeof prev.mediaTypes === "object") mediaTypes = prev.mediaTypes;
+          break;
         } catch {
           /* 默认值 */
         }
@@ -124,6 +131,13 @@ function manifestPlugin(): Plugin {
         ) + "\n",
         "utf8",
       );
+      if (!isWatchBuild && outDir !== finalOutDir) {
+        const swapDir = `${finalOutDir}.prev`;
+        fs.rmSync(swapDir, { recursive: true, force: true });
+        if (fs.existsSync(finalOutDir)) fs.renameSync(finalOutDir, swapDir);
+        fs.renameSync(outDir, finalOutDir);
+        fs.rmSync(swapDir, { recursive: true, force: true });
+      }
     },
   };
 }
@@ -145,8 +159,9 @@ export default defineConfig({
   },
   build: {
     outDir,
-    // watch 时不要清空：否则会删掉正在被引用的 hash chunk。
-    emptyOutDir: !process.argv.includes("--watch"),
+    // watch：不清空，避免正在被引用的 hash chunk 被删。
+    // 非 watch：清空旁路 `.building` 目录（线上 runtime 目录由 closeBundle 原子替换）。
+    emptyOutDir: !isWatchBuild,
     reportCompressedSize: false,
     sourcemap: false,
     minify: true,

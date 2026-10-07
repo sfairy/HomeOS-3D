@@ -1,0 +1,315 @@
+/**
+ * 授权状态面板（SettingsLicensePanel）样式
+ *
+ * 分区：状态总览 / 租约信息 / 权益清单 / 账号与操作。
+ * 与其它 system 子面板共用 `settings-card`、`settings-btn-*`、`settings-premium-empty`
+ * 基础类（见 shared/styles），这里只补授权专有的徽标、门禁格、键值表与进度条。
+ */
+
+.license-hub .license-card + .license-card {
+  margin-top: 12px;
+}
+
+.license-hub__subnav {
+  margin-bottom: 4px;
+}
+
+/* ── 状态总览 ── */
+.license-hero {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.license-hero__main {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.license-hero__title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.license-hero__name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary, #e8eef7);
+}
+
+.license-hero__desc {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary, #a7b4c6);
+}
+
+.license-hero__hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-tertiary, #8b98aa);
+}
+
+.license-hero__hint--amber {
+  color: #e0b25c;
+}
+
+/* 三格放行指示 */
+.license-hero__gates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.license-gate {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--text-secondary, #a7b4c6);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.license-gate__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.75;
+}
+
+.license-gate.is-on {
+  border-color: rgba(52, 211, 153, 0.35);
+  color: #4ade9f;
+  background: rgba(52, 211, 153, 0.08);
+}
+
+.license-gate.is-off {
+  border-color: rgba(248, 113, 113, 0.3);
+  color: #f79b9b;
+  background: rgba(248, 113, 113, 0.07);
+}
+
+.license-gate__label {
+  font-weight: 500;
+}
+
+.license-gate__value {
+  opacity: 0.85;
+}
+
+/* 状态徽标：颜色随状态码，文案由后端 statusLabel 决定 */
+.license-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary, #a7b4c6);
+}
+
+.license-badge__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.license-badge--ok {
+  border-color: rgba(52, 211, 153, 0.35);
+  background: rgba(52, 211, 153, 0.1);
+  color: #4ade9f;
+}
+
+.license-badge--warn {
+  border-color: rgba(224, 178, 92, 0.35);
+  background: rgba(224, 178, 92, 0.1);
+  color: #e0b25c;
+}
+
+.license-badge--alert {
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.1);
+  color: #f79b9b;
+}
+
+/* ── 键值表 ── */
+.license-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 2px 20px;
+  margin: 16px 0 0;
+  padding: 0;
+}
+
+.license-fact {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 12.5px;
+}
+
+.license-fact dt {
+  flex: 0 0 auto;
+  color: var(--text-tertiary, #8b98aa);
+}
+
+.license-fact dd {
+  margin: 0;
+  min-width: 0;
+  text-align: right;
+  color: var(--text-primary, #e8eef7);
+  /* 实例标识 / 指纹是长串，允许换行，不撑破卡片 */
+  overflow-wrap: anywhere;
+}
+
+.license-fact dd.is-warn {
+  color: #e0b25c;
+}
+
+/* ── 卡片标题与副标题 ── */
+.license-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: baseline;
+}
+
+.license-card__name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #e8eef7);
+}
+
+.license-card__hint {
+  font-size: 12px;
+  color: var(--text-tertiary, #8b98aa);
+}
+
+.license-subtitle {
+  margin: 18px 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary, #8b98aa);
+}
+
+.license-subtitle:first-of-type {
+  margin-top: 12px;
+}
+
+.license-empty {
+  margin: 0;
+  padding: 10px 0;
+  font-size: 12.5px;
+  color: var(--text-tertiary, #8b98aa);
+}
+
+/* ── 功能码 / 商品 / 权益列表 ── */
+.license-codes {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.license-code {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: center;
+  padding: 8px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  font-size: 12.5px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.license-code__name {
+  min-width: 0;
+  color: var(--text-primary, #e8eef7);
+}
+
+.license-code__id {
+  font-size: 11.5px;
+  color: var(--text-tertiary, #8b98aa);
+  background: transparent;
+}
+
+.license-code__state {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-secondary, #a7b4c6);
+}
+
+.license-code.is-on .license-code__state {
+  color: #4ade9f;
+}
+
+.license-code.is-off {
+  opacity: 0.6;
+}
+
+.license-code.is-off .license-code__state {
+  color: #f79b9b;
+}
+
+/* ── 租约进度条 ── */
+.license-progress {
+  margin-top: 14px;
+}
+
+.license-progress__bar {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.license-progress__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #4ade9f, #e0b25c);
+  transition: width 0.3s ease;
+}
+
+.license-progress__text {
+  margin: 7px 0 0;
+  font-size: 12px;
+  color: var(--text-tertiary, #8b98aa);
+}
+
+/* ── 操作区 ── */
+.license-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.license-note {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-tertiary, #8b98aa);
+}

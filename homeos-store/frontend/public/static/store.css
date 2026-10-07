@@ -2469,6 +2469,7 @@ body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-site-
   text-decoration: underline;
 }
 
+
 .hb-account-heading p {
   margin-top: 8px;
   color: var(--hb-muted);
@@ -3706,7 +3707,7 @@ body.hb-maintenance-active .hb-site-footer {
   }
 
   /* 角标内缩距离跟着卡片内边距一起收：窄屏下卡片内边距收到 22px 左右，
-     9px 内缩的 16px 角线会顶到正文，所以改成 7px 内缩 + 13px 角线。 */::before,
+     9px 内缩的 16px 角线会顶到正文，所以改成 7px 内缩 + 13px 角线。 */
   .hb-product-summary::before,
   .referral-share::before,
   .hb-maintenance-card::before {

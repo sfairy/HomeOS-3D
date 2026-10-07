@@ -30,39 +30,17 @@ import { useSliderCommit } from '@/composables/entity/useSliderCommit'
 import { clampInRange } from '@/utils/ui/progress-bar.util'
 import { notifyError } from '@/services/notify'
 import { getEntityDisplayName } from '@/utils/entity/derived.util'
+import {
+  HVAC_MODE_LABELS,
+  climateFanModeLabel,
+  climateHvacStateLabel,
+  climatePresetModeLabel,
+  climateAttrStringList,
+  climateHasDualSetpoint,
+  climateHasTargetTemp,
+} from '@/composables/entity/control/climate-control-core'
 
-/** HVAC 模式中文标签映射，键为 HA hvac_mode 字符串。 */
-const HVAC_MODE_LABELS: Record<string, string> = {
-  auto: '自动',
-  cool: '制冷',
-  dry: '除湿',
-  fan_only: '送风',
-  heat: '制热',
-  off: '关闭',
-}
-
-/** 风扇模式中文标签映射，键为 HA fan_mode 字符串。 */
-const FAN_MODE_LABELS: Record<string, string> = {
-  auto: '自动',
-  high: '高风',
-  low: '低风',
-  medium: '中风',
-}
-
-/** 预设模式中文标签映射，键为 HA preset_mode 字符串。 */
-const PRESET_MODE_LABELS: Record<string, string> = {
-  activity: '活动',
-  anti_freeze: '防冻',
-  away: '离家',
-  boost: '强力',
-  comfort: '舒适',
-  eco: '节能',
-  home: '在家',
-  none: '无',
-  sleep: '睡眠',
-}
-
-/** HVAC 模式展示信息：图标、图标色 class、激活态 class。 */
+/** HVAC 模式展示信息：图标、图标色 class、激活态 class（UI 壳层，标签在 control core）。 */
 const modeMap = {
   auto: { icon: Settings, iconColor: 'ccp-ic-auto', activeClass: 'ccp-mode ccp-mode--auto' },
   cool: {
@@ -75,22 +53,6 @@ const modeMap = {
   heat: { icon: Flame, iconColor: 'ccp-ic-heat', activeClass: 'ccp-mode ccp-mode--heat' },
   off: { icon: Power, iconColor: 'ccp-ic-off', activeClass: 'ccp-mode ccp-mode--off' },
 }
-
-/** 风扇模式 emoji 前缀映射，用于按钮展示。 */
-const FAN_EMOJI: Record<string, string> = { auto: '🤖', low: '🌬', medium: '💨', high: '🌪' }
-
-/** 预设模式 emoji 前缀映射，none 不带 emoji。 */
-const PRESET_EMOJI: Record<string, string> = {
-  none: '',
-  eco: '🌱',
-  away: '🚪',
-  home: '🏠',
-  sleep: '😴',
-  comfort: '😊',
-  boost: '⚡',
-  activity: '🏃',
-  anti_freeze: '❄️',
-}
 /**
  * 温控弹窗控制组合式函数。
  *
@@ -101,26 +63,24 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
   const { liveEntity } = useEntityPopupBase(props)
   const entitiesStore = useEntitiesStore()
 
-  /**
-   * 从实体 attributes 中读取字符串列表（如 hvac_modes、fan_modes）。
-   * @param key attributes 键名。
-   * @returns 字符串数组；非数组时返回空数组。
-   */
-  function attrStringList(key: string): string[] {
-    const raw = liveEntity.value?.attributes?.[key]
-    return Array.isArray(raw) ? (raw as string[]) : []
-  }
-
   /** 支持的 HVAC 模式列表（含 off）。 */
-  const hvacModes = computed(() => attrStringList('hvac_modes'))
+  const hvacModes = computed(() =>
+    climateAttrStringList(liveEntity.value?.attributes as Record<string, unknown>, 'hvac_modes'),
+  )
   /** 可切换的 HVAC 模式列表（剔除 off，off 由独立开关控制）。 */
   const activeHvacModes = computed(() => hvacModes.value.filter((mode: string) => mode !== 'off'))
   /** 支持的风扇模式列表。 */
-  const fanModes = computed(() => attrStringList('fan_modes'))
+  const fanModes = computed(() =>
+    climateAttrStringList(liveEntity.value?.attributes as Record<string, unknown>, 'fan_modes'),
+  )
   /** 支持的摆风模式列表。 */
-  const swingModes = computed(() => attrStringList('swing_modes'))
+  const swingModes = computed(() =>
+    climateAttrStringList(liveEntity.value?.attributes as Record<string, unknown>, 'swing_modes'),
+  )
   /** 支持的预设模式列表。 */
-  const presetModes = computed(() => attrStringList('preset_modes'))
+  const presetModes = computed(() =>
+    climateAttrStringList(liveEntity.value?.attributes as Record<string, unknown>, 'preset_modes'),
+  )
   /** 当前实体是否属于 fan domain（风扇走独立服务路径）。 */
   const isFan = computed(() => liveEntity.value?.entity_id?.startsWith('fan.'))
 
@@ -145,23 +105,12 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
     }
   }
 
-  /**
-   * 取风扇模式展示文本：emoji + 中文标签，无 emoji 时直接返回原值；
-   * 未配置（undefined/null/空串）时回退为「—」。
-   * @param mode 风扇模式字符串。
-   */
   function getFanModeLabel(mode: string | null | undefined) {
-    if (mode == null || mode === '') return '—'
-    return FAN_EMOJI[mode] ? `${FAN_EMOJI[mode]} ${FAN_MODE_LABELS[mode] ?? mode}` : mode
+    return climateFanModeLabel(mode)
   }
 
-  /**
-   * 取 HVAC 状态展示文本：已知模式返回中文标签，未知原样返回。
-   * @param state 实体 state 字符串。
-   */
   function getHvacStateLabel(state: string | undefined) {
-    if (!state) return state
-    return modeMap[state as keyof typeof modeMap] ? (HVAC_MODE_LABELS[state] ?? state) : state
+    return climateHvacStateLabel(state)
   }
 
   /** 实体显示名，用于弹窗标题。 */
@@ -199,10 +148,9 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
   })
 
   /** 是否为双温区设定（同时存在 target_temp_low 与 target_temp_high）。 */
-  const hasDualSetpoint = computed(() => {
-    const a = liveEntity.value?.attributes || {}
-    return a.target_temp_low !== undefined && a.target_temp_high !== undefined
-  })
+  const hasDualSetpoint = computed(() =>
+    climateHasDualSetpoint(liveEntity.value?.attributes as Record<string, unknown>),
+  )
 
   /** 双温区下限，缺省取 minTemp。 */
   const dualTempLow = computed(() =>
@@ -214,14 +162,9 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
   )
 
   /** 是否存在任何目标温度字段（用于决定是否展示温度控制区）。 */
-  const hasTargetTemp = computed(() => {
-    const a = liveEntity.value?.attributes || {}
-    return (
-      a.temperature !== undefined ||
-      a.target_temp_low !== undefined ||
-      a.target_temp_high !== undefined
-    )
-  })
+  const hasTargetTemp = computed(() =>
+    climateHasTargetTemp(liveEntity.value?.attributes as Record<string, unknown>),
+  )
 
   /**
    * 提交目标温度到 HA。
@@ -413,11 +356,7 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
    * @param mode preset_mode 值。
    */
   function getPresetLabel(mode: string | null | undefined) {
-    if (mode == null || mode === '') return '—'
-    if (!(mode in PRESET_EMOJI)) return mode
-    const emoji = PRESET_EMOJI[mode]
-    const label = PRESET_MODE_LABELS[mode] ?? mode
-    return emoji ? `${emoji} ${label}` : label
+    return climatePresetModeLabel(mode)
   }
 
   /**

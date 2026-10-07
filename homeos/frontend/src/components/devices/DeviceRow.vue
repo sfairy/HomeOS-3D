@@ -2,11 +2,11 @@
   @file DeviceRow.vue
   @module 设备列表/单行组件
   @description 设备列表的单行渲染组件：展示复选框、域标签、设备名、entity_id、房间、电量、状态与操作按钮。
-               支持点击切换（light 域）、长按打开控制面板、右键弹出上下文菜单（控制/详情/切换/复制 ID）。
-               菜单通过 Teleport 挂载至 #teleport-target，并监听 Escape 关闭。
-  @dependencies vue（ref/computed/onMounted/onUnmounted）、@lucide/vue、useLongPress、
+               灯光短按切换、长按打开控制弹窗（对齐 entityPopupOpensOnClick）；其它可控域单击开弹窗。
+               右键菜单：控制/详情/切换/复制 ID。菜单 Teleport 至 #teleport-target，Esc 走 useEscStack。
+  @dependencies vue（ref/computed）、@lucide/vue、useLongPress、useEscStack（Esc 层级栈）、
                 DeviceListItem 类型、copyTextWithNotify、getDomainLabel、
-                displayEntityStateLabel。
+                displayEntityStateLabel、entityPopupOpensOnClick。
 -->
 <template>
   <div
@@ -15,24 +15,28 @@
       liveUnavailable && 'list-page__row--dim',
       selected && 'device-row--selected',
     ]"
+    :data-selected="selected ? 'true' : 'false'"
     @contextmenu.prevent="openMenu"
   >
-    <!-- 选择复选框：点击切换选中态，aria-label 随状态变化 -->
+    <!-- 选择复选框：role=checkbox + aria-checked 让读屏播报「已选中/未选中」，
+         aria-label 随状态变化。视觉态同时落 data-selected 供 CSS 与测试断言。 -->
     <button
       type="button"
+      role="checkbox"
       class="device-row__checkbox"
       :aria-checked="selected"
       :aria-label="selected ? `取消选择 ${item.name}` : `选择 ${item.name}`"
       @click.stop="$emit('select', item)"
     >
-      <component :is="selected ? CheckSquare : Square" class="w-4 h-4" />
+      <component :is="selected ? CheckSquare : Square" class="w-4 h-4" aria-hidden="true" />
     </button>
-    <!-- 主体按钮：可控设备可点击，light 域直接切换；其余打开控制面板。绑定长按与触摸事件以支持移动端 -->
+    <!-- 主体：灯光短按切换 / 长按弹窗；其它域单击弹窗。触摸/鼠标长按共用 useLongPress -->
     <button
       type="button"
       class="list-page__row-main"
       :class="{ 'list-page__row-main--clickable': item.controllable }"
       :disabled="!item.controllable"
+      :aria-describedby="stateId"
       @click="onMainClick"
       @mousedown="longPress.onPressStart"
       @mouseup="longPress.onPressEnd"
@@ -56,12 +60,15 @@
         v-if="liveBatteryLevel != null"
         :class="['device-row__battery', getBatteryClass(liveBatteryLevel)]"
       >
-        <component :is="getBatteryIcon(liveBatteryLevel)" class="w-3 h-3" />
+        <component :is="getBatteryIcon(liveBatteryLevel)" class="w-3 h-3" aria-hidden="true" />
         <span>{{ liveBatteryLevel }}%</span>
       </span>
+      <!-- 状态文案用 aria-describedby 挂在主体按钮上，而不是 role="status"：
+           列表是虚拟滚动，每滚动一屏会挂载一批新行，行内 live region 会把「开/关」
+           逐条念一遍。改为随按钮焦点读取，状态变化本身由开关按钮与 toast 反馈。 -->
       <span
+        :id="stateId"
         :class="['list-page__state', liveUnavailable && 'list-page__state--bad']"
-        role="status"
       >
         <TriangleAlert v-if="liveUnavailable" class="list-page__state-icon" aria-hidden="true" />
         <CircleCheck v-else class="list-page__state-icon" aria-hidden="true" />
@@ -123,7 +130,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
+import { useEscLayer } from '@/composables/ui/useEscStack'
 import {
   Power,
   CheckSquare,
@@ -147,6 +155,7 @@ import type { DeviceListItem } from '@/types/device'
 import { copyTextWithNotify } from '@/services/notify'
 import { getDomainLabel } from '@/utils/device/domain-labels.util'
 import { displayEntityStateLabel } from '@/constants/entity-state-labels'
+import { entityPopupOpensOnClick } from '@/utils/entity/popup-registry'
 
 // 当前设备项与是否被选中。
 const props = defineProps<{
@@ -170,6 +179,12 @@ const stateLabel = computed(() => displayEntityStateLabel(props.item.entity_id, 
 const liveUnavailable = computed(() => props.item.unavailable)
 /** 电量百分比；无电池时为 null */
 const liveBatteryLevel = computed(() => props.item.batteryLevel)
+/**
+ * 状态文案的 DOM id：主体按钮通过 aria-describedby 引用，
+ * 键盘/读屏聚焦设备名时顺带播报「开启/关闭/离线」。
+ * entity_id 在列表内唯一（VirtualList 以它作 key），故 id 不会重复。
+ */
+const stateId = computed(() => `device-row-state-${props.item.entity_id}`)
 // 右键菜单可见性。
 const menuVisible = ref(false)
 useExclusiveDropdown(menuVisible)
@@ -190,13 +205,17 @@ const longPress = useLongPress(() => {
 /**
  * 主体点击处理：
  * - 不可控设备直接返回；
- * - 若刚刚触发了长按则消费标记并返回，避免长按后误触发点击；
- * - 统一打开实体控制面板（不再对 light 域行单击即 toggle，避免翻页/误触时误开关灯；
- *   开关仅通过行内独立开关按钮与右键菜单「切换」触发）。
+ * - 若刚刚触发了长按则消费标记并返回（长按已 emit open）；
+ * - 灯光等「短按不弹窗」域：短按 toggle（行内开关 / 菜单切换仍可用）；
+ * - 其余可控域：单击打开控制弹窗（对齐 entityPopupOpensOnClick）。
  */
 function onMainClick() {
   if (!props.item.controllable) return
   if (longPress.consumeLongPress()) return
+  if (!entityPopupOpensOnClick(props.item.entity_id)) {
+    if (props.item.toggleable && !props.item.unavailable) emit('toggle', props.item)
+    return
+  }
   emit('open', props.item)
 }
 
@@ -266,14 +285,10 @@ function getBatteryIcon(level: number) {
   return BatteryFull
 }
 
-// Escape 键关闭菜单的全局监听。
-function onKeyDown(e: KeyboardEvent) {
-  if (e.key === 'Escape') closeMenu()
-}
-
-// 挂载时注册 keydown 监听，卸载时移除，避免内存泄漏。
-onMounted(() => document.addEventListener('keydown', onKeyDown))
-onUnmounted(() => document.removeEventListener('keydown', onKeyDown))
+// Esc 关闭菜单：入全局 Esc 层级栈，只关栈顶那一层。
+// 原来直接挂 document keydown，会在 window 上的层级栈之前抢先触发 ——
+// 菜单叠在确认框/查看器之上时，一次 Esc 会连下层一起关掉。
+useEscLayer(menuVisible, '设备行菜单', () => closeMenu())
 </script>
 
 <style scoped src="./styles/DeviceRow.css"></style>

@@ -30,12 +30,15 @@ import {
   getSetupStatus as apiGetSetupStatus,
   login as apiLogin,
   logout as apiLogout,
-  setupAdmin,
+  register as apiRegister,
+  sendVerificationCode as apiSendVerificationCode,
 } from '@/services/api/auth'
+import type { RegisterPayload } from '@/services/api/auth'
 import { getConfigSection, onConfigChange } from '@/utils/config/frontend-config'
 import { canControlEntity, isEntityAllowed as checkEntityAllowed } from '@homeos/shared'
 import { notifyAuthChanged } from '@/utils/bridge/store-bridge'
 import { bumpAuthGeneration } from '@/services/api-client'
+import { setLicenseFeatureAccess } from '@/router/license-gate'
 import { logger } from '@/utils/core/logger'
 import { schedulePoll } from '@/utils/core/poll-scheduler'
 import type { AuthUserPayload, HomeRole } from '@/types/auth'
@@ -158,14 +161,14 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * 用户名 + 密码登录
-   * @param username - 用户名
+   * 账号（用户名或注册邮箱）+ 密码登录
+   * @param account - 用户名或注册邮箱，二者任填其一
    * @param password - 密码
    * @returns 后端返回的用户信息
    * @throws 当后端接口异常时抛出
    */
-  async function login(username: string, password: string): Promise<AuthUserPayload> {
-    const res = await apiLogin(username, password)
+  async function login(account: string, password: string): Promise<AuthUserPayload> {
+    const res = await apiLogin(account.trim(), password)
     bumpAuthGeneration()
     syncAuthFromResponse(res.data)
     isAuthenticated.value = true
@@ -188,6 +191,8 @@ export const useAuthStore = defineStore('auth', () => {
     setUser(null)
     isAuthenticated.value = false
     stopSessionRefresh()
+    // 功能码明细随会话失效：留着会让下一个登录者的导航按上一个账号的授权渲染。
+    setLicenseFeatureAccess(null)
     // 断开旧用户的实体 WS 订阅并清空实体缓存：
     // reconnectForAuthChange 内部 connect() 在未认证时直接跳过，此处仅执行断开 + 清空
     reconnectEntitiesAfterAuthChange()
@@ -202,6 +207,8 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated.value = false
     setUser(null)
     stopSessionRefresh()
+    // 会话失效即清空功能码明细，避免 401 后导航仍按旧授权显隐
+    setLicenseFeatureAccess(null)
     // 401 后同样断开实体 WS 并清空实体，避免残留旧用户的连接与订阅
     reconnectEntitiesAfterAuthChange()
   }
@@ -326,18 +333,25 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * 系统首次初始化向导：创建管理员账号
-   * @param usernameParam - 管理员用户名
-   * @param passwordParam - 管理员密码
-   * @param passwordConfirmationParam - 二次输入的管理员密码
+   * 请求注册邮箱验证码（商店服务器代发）
+   * @param email - 接收验证码的邮箱
+   * @returns 发码结果（含重发冷却秒数）
+   */
+  async function sendVerificationCode(email: string) {
+    const res = await apiSendVerificationCode(email)
+    return res.data
+  }
+
+  /**
+   * 系统首次初始化向导：注册本机唯一账号
+   *
+   * 登录字段：账号（用户名或邮箱）+ 密码；首次注册成功后注册入口即关闭。
+   *
+   * @param payload - 注册请求体（账号 / 邮箱 / 验证码 / 密码 / 确认密码）
    * @returns 后端响应数据
    */
-  async function setup(
-    usernameParam: string,
-    passwordParam: string,
-    passwordConfirmationParam: string,
-  ) {
-    const res = await setupAdmin(usernameParam, passwordParam, passwordConfirmationParam)
+  async function register(payload: RegisterPayload) {
+    const res = await apiRegister(payload)
     bumpAuthGeneration()
     syncAuthFromResponse(res.data)
     isAuthenticated.value = true
@@ -354,7 +368,8 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     logout,
     getSetupStatus,
-    setup,
+    register,
+    sendVerificationCode,
     refreshSession,
     startSessionRefresh,
     stopSessionRefresh,

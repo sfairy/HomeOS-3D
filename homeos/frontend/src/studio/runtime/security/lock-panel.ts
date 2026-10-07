@@ -1,3 +1,8 @@
+/**
+ * 3D 门锁控制面板（栈 D）。
+ * 直播与编辑均可经 focusMarkerById / activateMarker 打开；
+ * `editing: true` 时禁用操作（模型不可用或控制未就绪），否则可上锁/解锁/释放锁舌。
+ */
 import { lockState } from "./lock-state";
 import { domElement } from "@app/utils/dom-factory";
 export function createLockPanel({ onControl: onControl }: any) {

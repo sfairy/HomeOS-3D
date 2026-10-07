@@ -130,6 +130,8 @@ interface EntitySocketActions {
     reason: string,
     opts?: { force?: boolean; quiet?: boolean },
   ) => Promise<boolean> // REST 兜底拉取实体
+  /** 背压建议时优先增量；成功返回 true 则跳过全量 REST */
+  requestSoftResync?: (reason?: string) => Promise<boolean>
   initStates: (entities: HaEntityState[], opts?: { force?: boolean; reason?: string }) => void // 初始化实体状态
   beginIncrementalInitialStates?: (expected: number) => unknown // 开始增量分块接收
   mergeInitialStatesChunk?: (list: HaEntityState[], token: unknown, expected: number) => void // 合并分块

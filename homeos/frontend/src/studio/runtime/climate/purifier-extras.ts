@@ -7,6 +7,7 @@ import {
   stringOptions,
 } from "../device/entity-capabilities";
 import { domElement } from "@app/utils/dom-factory";
+import { syncHtmlRangeProgress } from "@app/utils/range-progress";
 /** 实体可用性判定：离线/未知态不可用，但 button/input_button 的 unknown 态视为可执行。 */
 function entityUsable(entityId: any, state: any) {
   return !!(
@@ -837,9 +838,10 @@ export function createPurifierExtras({
           )),
           rangeInfo &&
             doc.activeElement !== rangeEntry.input &&
-            (rangeEntry.input.value = String(
+            ((rangeEntry.input.value = String(
               row.rangeExpected?.key === rangeEntry.key ? row.rangeExpected.value : rangeInfo.value,
             )),
+            syncHtmlRangeProgress(rangeEntry.input)),
           (rangeEntry.output.textContent = rangeInfo
             ? rangeInfo.label + " " + rangeInfo.value
             : ""));
@@ -1129,13 +1131,16 @@ export function createPurifierExtras({
               rangeInput = createEl("input");
             ((rangeLabel.className = "i3d-extra-range"),
               (rangeInput.type = "range"),
+              rangeInput.classList.add("i3d-control-range"),
               (rangeInput.min = rangeSpec.min),
               (rangeInput.max = rangeSpec.max),
               (rangeInput.step = rangeSpec.step),
               (rangeInput.value = rangeSpec.value),
+              syncHtmlRangeProgress(rangeInput),
               rangeInput.setAttribute("aria-label", control.entityId + " " + rangeSpec.label),
               rangeInput.addEventListener("input", () => {
-                rangeOutput.textContent = rangeSpec.label + " " + rangeInput.value;
+                (syncHtmlRangeProgress(rangeInput),
+                  (rangeOutput.textContent = rangeSpec.label + " " + rangeInput.value));
               }),
               rangeInput.addEventListener("change", async () => {
                 if (viewModel.editing || cardState.rangePending) return;

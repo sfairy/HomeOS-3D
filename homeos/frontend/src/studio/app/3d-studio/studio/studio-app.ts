@@ -259,6 +259,7 @@ window.__homeosStudioModuleVersion =
   "20260904-local-shadow-edge-v6-depth-precision-v1-model-load-state-v3-floor-scope-v1-ground-grid-v3-depth-fade-v2-local-shadow-depth-v1-export-shadow-quality-v1-base-light-entry-v1-auto-diagram-preview-hd-v1-auto-diagram-floor-v1-20260905-first-light-prewarm-v3-20260905-orbit-architecture-center-v1";
 import { createLegacyScope } from '../../../runtime/legacy-scope';
 import { navigateInShell } from '../../../runtime/shell-navigation';
+import { shellNotify } from '../../../runtime/shell-chrome';
 
 let disposeActiveStudio: (() => void) | null = null;
 
@@ -5682,12 +5683,12 @@ async function fetchStudioApi(
       errorBody = null;
     }
   if (httpResponse.status === 401) {
-    window.location.assign("/login?next=" + encodeURIComponent(window.location.pathname));
+    navigateInShell("/login?next=" + encodeURIComponent(window.location.pathname));
     const ru2 = new StudioApiError("登录状态已失效。", httpResponse.status, errorBody);
     throw window.HomeOSLog?.linkError!(ru2, httpResponse)! || ru2;
   }
   if (httpResponse.status === 403 && errorBody?.detail?.code === "LICENSE_RESTRICTED") {
-    window.location.assign("/license");
+    navigateInShell("/activate");
     const ru3 = new StudioApiError("当前授权无法使用户型图绘制。", httpResponse.status, errorBody);
     throw window.HomeOSLog?.linkError!(ru3, httpResponse)! || ru3;
   }
@@ -5705,15 +5706,8 @@ async function fetchStudioApi(
   return errorBody;
 }
 function showToast(toastMessage: any, toastKind = "") {
-  (window.clearTimeout(toastTimeoutId),
-    (toastElement.textContent = toastMessage),
-    (toastElement.className = ("toast visible " + toastKind).trim()),
-    (toastTimeoutId = window.setTimeout(
-      () => {
-        toastElement.className = "toast";
-      },
-      toastKind === "warning" ? 4400 : 2600,
-    )));
+  // 走外壳 chrome toast（App 根挂载的 VNotification），不再操作本页 .toast DOM。
+  shellNotify(String(toastMessage ?? ""), String(toastKind ?? ""));
 }
 function showSaveState(saveStateText: any, saveStateKind = "") {
   ((saveStateElement.className = ("save-state " + saveStateKind).trim()),
@@ -11695,37 +11689,31 @@ function requestStudioRender() {
     refreshLightPreviewButton &&
       ((refreshLightPreviewButton.hidden = true), (refreshLightPreviewButton.disabled = true)));
 }
-function computeRenderPixelRatio(isHighQualityMode = false) {
+function computeRenderPixelRatio(isMotionQuality = false) {
+  // 参数名历史遗留：true = 运动/交互中的质量档，false = 静置高清档。
+  const dprCap = Math.min(window.devicePixelRatio || 1, 1.6);
+  const idleRatio = dprCap * (isEmbeddedStage ? basePixelRatio : 1);
   if (
     isEmbeddedStage &&
-    isHighQualityMode &&
+    isMotionQuality &&
     adaptivePixelRatio !== null &&
     (!isPrewarming || isRenderSuppressed)
   )
-    return Math.min(window.devicePixelRatio || 1, 1.6) * basePixelRatio * adaptivePixelRatio;
+    return Math.max(idleRatio * adaptivePixelRatio, Math.min(idleRatio, 1));
   if (isEmbedStageMode) {
-    const isHighQualityModeBasePixelRatio =
-      Math.min(window.devicePixelRatio || 1, 1.6) * basePixelRatio;
-    return isHighQualityMode
-      ? Math.min(
-          isHighQualityModeBasePixelRatio,
-          isEmbeddedStage ? interactionResourcePolicy.motion.maxPixelRatio : 1,
-        )
-      : isHighQualityModeBasePixelRatio;
+    return isMotionQuality
+      ? Math.min(idleRatio, interactionResourcePolicy.motion.maxPixelRatio)
+      : idleRatio;
   }
   const Kt2 = isEmbeddedStage && isPrewarming;
-  let isHighQualityModeAdaptivePixelRatio =
-    Math.min(window.devicePixelRatio || 1, isHighQualityMode ? 1 : 1.6) *
-    (isEmbeddedStage ? basePixelRatio : 1);
-  if (isEmbeddedStage && (isHighQualityMode || Kt2)) {
+  let ratio = idleRatio;
+  // 运动期不再把 DPR 硬砍到 1；仅在超预算时温和下调，地板不低于 0.85×idle。
+  if (isEmbeddedStage && (isMotionQuality || Kt2)) {
     const { cost: zl4, budget: zl5 } = assessRenderBudget();
     zl4 > zl5 &&
-      (isHighQualityModeAdaptivePixelRatio = Math.min(
-        isHighQualityModeAdaptivePixelRatio,
-        clamp2(0.85 * Math.sqrt(zl5 / zl4), 0.5, 0.85),
-      ));
+      (ratio = Math.min(ratio, clamp2(Math.sqrt(zl5 / zl4) * idleRatio, idleRatio * 0.85, idleRatio)));
   }
-  return isHighQualityModeAdaptivePixelRatio;
+  return ratio;
 }
 const isRenderStatsTest = new URLSearchParams(window.location.search).has("render-stats-test"),
   isPerformanceDiagnostics =
@@ -13234,12 +13222,11 @@ function handleOrbitEnd() {
     pendingRuntimeSettings && !isInteractionLocked && syncExportControls();
     return;
   }
-  ((rendererRestoreTimeoutId = window.setTimeout(() => {
-    ((rendererRestoreTimeoutId = null),
-      updateShadowState(false, {
-        preserveLightCache: true,
-      }));
-  }, 140)),
+  // 立即恢复全质量像素比，避免拖转结束后再糊 140ms。
+  ((rendererRestoreTimeoutId = null),
+    updateShadowState(false, {
+      preserveLightCache: true,
+    }),
     pendingRuntimeSettings && !isInteractionLocked && syncExportControls());
 }
 function refreshFloorControls() {
@@ -33999,7 +33986,8 @@ function runStudioRenderLoop() {
         }),
         buildCameraPose(),
         configureOrbitControls(),
-        handleOrbitStart(),
+        // 自动旋转 / idle 回位保持静置像素比；仅用户 focus / 交互走运动降采样。
+        motionReason !== "idle" && handleOrbitStart(),
         shouldAnimateCamera
           ? ((cameraMotionSpec = {
               fromHeight: bo4,

@@ -229,10 +229,14 @@ class DeviceReleaseEvent(Base):
     license_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("licenses.id", ondelete="CASCADE"), index=True
     )
-    account_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("accounts.id", ondelete="SET NULL"))
+    account_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("accounts.id", ondelete="SET NULL"), index=True
+    )
     instance_id: Mapped[str | None] = mapped_column(String(128))
     source: Mapped[str] = mapped_column(String(32), default="self_service")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+
+
 class ReferralWallet(Base):
     __tablename__ = "referral_wallets"
 

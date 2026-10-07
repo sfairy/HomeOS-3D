@@ -122,12 +122,19 @@
   flex-shrink: 1;
 }
 
-/** 缩放画布内 Teleport 挂载点（toast / 实体弹窗等） */
+/** 缩放画布内 Teleport 挂载点（toast / 实体弹窗等）。
+ *
+ * z-index 用 --z-shell-overlay 而不是 --z-modal：这两个 .teleport-target 容器
+ * （ScaledViewport 里的 #teleport-target、MainLayout 里的 .teleport-target）
+ * 必须高于**任何**路由内浮层，否则路由里的全屏查看器 / 构建器抽屉（11500 / 12000）
+ * 会盖住容器内渲染的全局确认框与输入框。原因见 main.css 的 --z-shell-overlay 说明：
+ * .app-shell__content 不创建 stacking context，两边是在同一个上下文里比数值的。
+ * 容器本身 pointer-events:none，抬高不拦截路由内的点击。 */
 .teleport-target {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: var(--z-modal);
+  z-index: var(--z-shell-overlay);
 }
 
 /**

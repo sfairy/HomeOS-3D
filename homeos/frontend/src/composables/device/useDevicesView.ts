@@ -20,6 +20,7 @@ import { logger } from '@/utils/core/logger'
 import { getEntityDisplayName, collectIndexedEntityIds } from '@/utils/entity/derived.util'
 import { getDomainLabel } from '@/utils/device/domain-labels.util'
 import { appNotify } from '@/utils/bridge/store-bridge'
+import { coverToggleService } from '@/composables/entity/control/cover-control-core'
 
 const FILTER_STORAGE_KEY = 'homeos:devices-filter'
 const TOGGLE_DOMAINS = new Set(['light', 'switch', 'fan', 'cover', 'lock', 'input_boolean'])
@@ -423,8 +424,7 @@ export function useDevicesView() {
     const domain = item.domain
     try {
       if (domain === 'cover') {
-        const openStates = new Set(['open', 'opening'])
-        const service = openStates.has(state) ? 'close_cover' : 'open_cover'
+        const service = coverToggleService(state)
         await entitiesStore.callService('cover', service, item.entity_id, null, false)
       } else if (domain === 'lock') {
         const service = state === 'unlocked' ? 'lock' : 'unlock'

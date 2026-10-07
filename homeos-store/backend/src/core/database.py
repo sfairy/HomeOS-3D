@@ -19,20 +19,15 @@ class Base(DeclarativeBase):
 
 
 def _set_sqlite_pragma(dbapi_connection, _record) -> None:
-    """逐连接设置：外键约束与写锁等待。
-    """
+    """逐连接设置：外键、WAL 耐久、写锁等待（与主应用 database.py 对齐）。"""
     cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA foreign_keys=ON")
-    cursor.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_SECONDS * 1000}")
-    cursor.close()
-
-
-def _enable_wal(dbapi_connection, _record) -> None:
-    """把库切到 WAL，**每个 Engine 只做一次**。
-    """
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA journal_mode=WAL")
-    cursor.close()
+    try:
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_SECONDS * 1000}")
+    finally:
+        cursor.close()
 
 
 def create_store_engine(settings: StoreSettings) -> Engine:
@@ -40,10 +35,10 @@ def create_store_engine(settings: StoreSettings) -> Engine:
     engine = create_engine(
         settings.database_url,
         future=True,
+        pool_pre_ping=True,
         connect_args={"check_same_thread": False, "timeout": BUSY_TIMEOUT_SECONDS},
     )
     event.listen(engine, "connect", _set_sqlite_pragma)
-    event.listen(engine, "first_connect", _enable_wal)
     return engine
 
 

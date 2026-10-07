@@ -105,84 +105,30 @@
  * - 显示当前状态
  * - 弹出式面板
  */
-import { computed } from 'vue'
 import { ArrowUpFromLine, Square, ArrowDownToLine } from '@lucide/vue'
 import EntityPopupShell from '@/components/entities/popups/EntityPopupShell.vue'
 import PopupHead from '@/components/entities/popups/PopupHead.vue'
-import {
-  defineEntityPopupProps,
-  useEntityPopupBase,
-  useEntityPopupHeader,
-} from '@/composables/entity/useEntityPopupBase'
-import { useSliderCommit } from '@/composables/entity/useSliderCommit'
-import { clampInRange } from '@/utils/ui/progress-bar.util'
+import { defineEntityPopupProps } from '@/composables/entity/useEntityPopupBase'
+import { useCoverControlPopup } from '@/composables/entity/useCoverControlPopup'
 
 const props = defineProps(defineEntityPopupProps())
 
 defineEmits(['close'])
 
-const { liveEntity, entityRef, entityName, callService } = useEntityPopupBase(props)
-const { stateLabel } = useEntityPopupHeader(entityRef, {
-  stateLabelDomain: 'cover',
-})
-
-const isMoving = computed(() => {
-  const s = liveEntity.value?.state
-  return s !== 'closed' && s !== 'open' && s != null
-})
-
-const positionSource = computed(() =>
-  clampInRange(liveEntity.value?.attributes?.current_position ?? 50, 0, 100, 50),
-)
-
 const {
-  localValue: positionLocal,
-  rangeValue: positionRange,
-  trackStyle: positionTrackStyle,
-  onInput: onPositionInput,
-  onChange: onPositionChange,
-  commit: commitPosition,
-} = useSliderCommit(positionSource, {
-  parse: (v) => parseInt(v, 10),
-  onCommit: (pos) => setPosition(pos),
-  track: () => ({
-    min: 0,
-    max: 100,
-    step: 1,
-    color: '#a78bfa',
-    trackColor: 'rgba(255,255,255,0.1)',
-  }),
-})
-
-const hasPositionControl = computed(
-  () => (liveEntity.value?.attributes?.supported_features & 4) !== 0,
-)
-
-async function setPosition(pos) {
-  await callService(
-    'cover',
-    'set_cover_position',
-    liveEntity.value.entity_id,
-    { position: pos },
-    '设置窗帘位置失败',
-  )
-}
-
-const COVER_ACTION_ERRORS = {
-  open_cover: '窗帘打开操作失败',
-  close_cover: '窗帘关闭操作失败',
-  stop_cover: '窗帘停止操作失败',
-}
-
-async function handleAction(action) {
-  await callService(
-    'cover',
-    action,
-    liveEntity.value.entity_id,
-    undefined,
-    COVER_ACTION_ERRORS[action] || '窗帘打开操作失败',
-  )
-}
+  liveEntity,
+  entityName,
+  stateLabel,
+  isMoving,
+  positionLocal,
+  positionRange,
+  positionTrackStyle,
+  onPositionInput,
+  onPositionChange,
+  commitPosition,
+  hasPositionControl,
+  handleAction,
+} = useCoverControlPopup(props)
 </script>
 
 <style scoped src="./styles/CoverControlPopup.css"></style>

@@ -3,8 +3,9 @@
   所属模块：frontend/src/layouts
   组件职责：横屏大屏主布局外壳。顶部 Tab 导航栏（品牌 Logo、连接状态点、家庭模式切换 HomeModeSwitcher、
     导航 Tab、门铃/管家/通知按钮），中部 router-view + keep-alive(max=8) 缓存页面视图，
-    全屏装配 11 项全局浮层：媒体播放器 MediaPlayerModal、门铃 DoorbellAlertModal、地震预警
+    全屏装配全局浮层：门铃 DoorbellAlertModal、地震预警
     EarthquakeAlertOverlay/SetupWizard、设置锁 SettingsLockModal、Entity 控制 EntityControlHost、
+    （媒体全屏 MediaPlayerModal 挂在 App.vue 根，供画布 more-info / 展示页共用）
     屏保 Screensaver、引导 GuidedTourOverlay、智能管家 AgentChatPalette、
     通知抽屉 NotificationDrawer，以及 HA 实时降级横幅 HaStatusDegradeBanner +
     SetupChecklistBanner + ColdEntityPerfBanner，另有天气动态背景 WeatherBackground
@@ -60,11 +61,8 @@ import ScaledViewport from '@/layouts/ScaledViewport.vue'
 import EarthquakeAlertOverlay from '@/components/earthquake/AlertOverlay.vue'
 import CencBulletinCard from '@/components/earthquake/CencBulletinCard.vue'
 import AgentChatPalette from '@/components/widgets/agent/AgentChatPalette.vue'
-/** 壳层浮层合并为同一动态 chunk，避免 8+ 次独立小请求 */
+/** 壳层浮层合并为同一动态 chunk，避免 8+ 次独立小请求（媒体全屏已挂 App 根） */
 const loadShellOverlays = () => import('@/layouts/shell-overlays')
-const MediaPlayerModal = defineAsyncComponent(() =>
-  loadShellOverlays().then((m) => m.MediaPlayerModal),
-)
 const DoorbellAlertModal = defineAsyncComponent(() =>
   loadShellOverlays().then((m) => m.DoorbellAlertModal),
 )
@@ -80,8 +78,6 @@ const ColdEntityPerfBanner = defineAsyncComponent(() =>
 const SettingsLockModal = defineAsyncComponent(() =>
   loadShellOverlays().then((m) => m.SettingsLockModal),
 )
-import VConfirmModal from '@/components/common/base/VConfirmModal.vue'
-import VPromptModal from '@/components/common/base/VPromptModal.vue'
 import HomeModeSwitcher from '@/components/common/HomeModeSwitcher.vue'
 import HaStatusDegradeBanner from '@/components/common/HaStatusDegradeBanner.vue'
 const NotificationDrawer = defineAsyncComponent(() =>
@@ -102,6 +98,8 @@ import {
   measureDropdownFitWidth,
 } from '@/utils/ui/popup-position-dropdown.util'
 import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
+import { useEscLayer } from '@/composables/ui/useEscStack'
+import { isLicenseFeatureGranted } from '@/router/license-gate'
 import { getTeleportContainerSize } from '@/utils/ui/popup-position-shared.util'
 import Screensaver from '@/components/common/Screensaver.vue'
 const WeatherBackground = defineAsyncComponent(() => import('@/layouts/WeatherBackground.vue'))
@@ -160,6 +158,19 @@ const notificationCenterState = useNotificationCenter()
 // 注入通知中心上下文，供 NotificationDrawer 与下游组件通过 inject 消费
 provide(NOTIFICATION_CENTER_KEY, notificationCenterState)
 
+/** 壳层入口：未授权模块收起入口（后端仍是权威 403）。明细未加载时 fail-closed，避免闪现。 */
+const showAgentChrome = computed(
+  () =>
+    authStore.isAuthenticated &&
+    !isGuestMode.value &&
+    authStore.role !== 'child' &&
+    isLicenseFeatureGranted('module.agent'),
+)
+const showHomeModeChrome = computed(() => isLicenseFeatureGranted('module.home_mode'))
+const showNotificationChrome = computed(
+  () => authStore.isAuthenticated && isLicenseFeatureGranted('module.notifications'),
+)
+
 // 智能管家弹层开关提升到 chrome store：与仪表板入口共享同一状态源（首页卡片 / 悬浮按钮 / 顶栏按钮互通）
 const showAgentChat = computed({
   get: () => chrome.isAgentChatOpen,
@@ -167,6 +178,14 @@ const showAgentChat = computed({
 })
 
 const notificationUnread = computed(() => notificationCenterState?.unreadCount?.value ?? 0)
+
+// 授权收回时关掉已打开的壳层浮层，避免无入口却仍挂着面板。
+watch(showAgentChrome, (ok) => {
+  if (!ok) showAgentChat.value = false
+})
+watch(showNotificationChrome, (ok) => {
+  if (!ok) closeNotificationDrawer()
+})
 
 /** 打开通知抽屉：关闭智能管家，确保浮层互斥 */
 function openNotificationDrawer() {
@@ -185,21 +204,33 @@ function toggleAgentChat() {
   showAgentChat.value = !showAgentChat.value
 }
 
-function onGlobalKeydown(e) {
-  if (e.key === 'Escape') {
-    if (showAgentChat.value) {
-      showAgentChat.value = false
-      return
-    }
-    if (showNotificationDrawer.value) {
-      closeNotificationDrawer()
-      return
-    }
-    if (navMoreOpen.value) {
-      navMoreOpen.value = false
-    }
+/**
+ * 主布局自身浮层（智能管家面板 / 通知抽屉 / “更多”菜单）是否有任一层在场上。
+ * 任一在场上时主布局才参与 Esc 层级栈，否则不占层。
+ */
+const mainLayoutEscLayerOpen = computed(
+  () => showAgentChat.value || showNotificationDrawer.value || navMoreOpen.value,
+)
+
+/**
+ * 主布局浮层的 Esc 处理：只关自己这三层里最上面那一个。
+ *
+ * 这三层由主布局统一持有状态（子组件只 emit），所以合并成一层入栈；
+ * 主布局 setup 早于子组件，压栈位置天然在更晚打开的浮层之下，优先级正确。
+ */
+function onEscLayer() {
+  if (showAgentChat.value) {
+    showAgentChat.value = false
+    return
   }
+  if (showNotificationDrawer.value) {
+    closeNotificationDrawer()
+    return
+  }
+  navMoreOpen.value = false
 }
+
+useEscLayer(mainLayoutEscLayerOpen, '主布局导航浮层', onEscLayer)
 
 const navMoreAnchorRef = ref(null)
 const navMoreMenuRef = ref(null)
@@ -279,10 +310,10 @@ watch(dropdownMenuItems, () => {
   if (navMoreOpen.value) scheduleNavMorePosition()
 })
 
-// 注册全局监听：键盘快捷键 + 视口/滚动变化（用于重算“更多”菜单位置）
+// 注册视口/滚动变化监听（用于重算“更多”菜单位置）
 // 注：resize/scroll 使用 passive:true，因为这里不需要 preventDefault
+// Esc 不在这里注册：已改走全局 Esc 层级栈（useEscLayer），避免与其它浮层抢同一次按键
 onMounted(() => {
-  window.addEventListener('keydown', onGlobalKeydown)
   window.addEventListener('resize', onNavMoreViewportChange, { passive: true })
   window.addEventListener('scroll', onNavMoreViewportChange, { passive: true, capture: true })
   window.visualViewport?.addEventListener('resize', onNavMoreViewportChange)
@@ -290,7 +321,6 @@ onMounted(() => {
 })
 // 卸载时同步移除监听，参数需与 add 完全一致（含 capture）
 onUnmounted(() => {
-  window.removeEventListener('keydown', onGlobalKeydown)
   window.removeEventListener('resize', onNavMoreViewportChange)
   window.removeEventListener('scroll', onNavMoreViewportChange, { capture: true })
   window.visualViewport?.removeEventListener('resize', onNavMoreViewportChange)
@@ -413,7 +443,7 @@ watch(
             <span v-if="isGuestMode" class="guest-readonly-badge">{{ '访客只读' }}</span>
           </div>
         </div>
-        <HomeModeSwitcher class="tab-bar__mode-switcher" />
+        <HomeModeSwitcher v-if="showHomeModeChrome" class="tab-bar__mode-switcher" />
         <div class="tab-bar__nav-wrap" :class="{ 'tab-bar__nav-wrap--menu-open': navMoreOpen }">
           <nav class="tab-bar__tabs" role="navigation" :aria-label="'主导航'">
             <router-link
@@ -528,7 +558,7 @@ watch(
         </Teleport>
         <div class="tab-bar__actions">
           <button
-            v-if="authStore.isAuthenticated && !isGuestMode && authStore.role !== 'child'"
+            v-if="showAgentChrome"
             type="button"
             class="icon-btn"
             :class="{ 'icon-btn--active': showAgentChat }"
@@ -539,7 +569,7 @@ watch(
           >
             <MessageCircle class="w-4 h-4" />
           </button>
-          <div v-if="authStore.isAuthenticated" class="notify-anchor">
+          <div v-if="showNotificationChrome" class="notify-anchor">
             <button
               type="button"
               class="icon-btn icon-btn--notify"
@@ -657,17 +687,7 @@ watch(
 
       <!-- teleport-target：所有需要脱离正常文档流的全屏浮层/弹窗挂载容器 -->
       <div class="teleport-target">
-        <!-- 全局确认/输入对话框（配合 chrome.confirm() / chrome.prompt() 使用） -->
-        <!-- 确认对话框组件 -->
-        <VConfirmModal />
-        <VPromptModal />
-        <!-- 媒体播放器弹窗 -->
-        <MediaPlayerModal
-          :key="chrome.activeMediaEntityId || 'media'"
-          :is-open="chrome.isMediaPlayerOpen"
-          :entity-id="chrome.activeMediaEntityId"
-          @close="chrome.closeMediaPlayer()"
-        />
+        <!-- 确认 / 输入 / 媒体全屏已提升到 App.vue 根（编辑器 / 展示页 / more-info 也要用） -->
         <!-- 门铃提醒弹窗 -->
         <DoorbellAlertModal
           :is-open="chrome.isDoorbellModalOpen"
@@ -696,15 +716,15 @@ watch(
         />
         <!-- 屏保 -->
         <Screensaver />
-        <!-- 智能管家对话面板（仅认证非访客非儿童角色可见） -->
+        <!-- 智能管家对话面板（认证 + module.agent） -->
         <AgentChatPalette
-          v-if="authStore.isAuthenticated && !isGuestMode && authStore.role !== 'child'"
+          v-if="showAgentChrome"
           :open="showAgentChat"
           @close="showAgentChat = false"
         />
-        <!-- 通知抽屉（仅认证用户可见） -->
+        <!-- 通知抽屉（认证 + module.notifications） -->
         <NotificationDrawer
-          v-if="authStore.isAuthenticated"
+          v-if="showNotificationChrome"
           :is-open="showNotificationDrawer"
           @close="closeNotificationDrawer"
         />

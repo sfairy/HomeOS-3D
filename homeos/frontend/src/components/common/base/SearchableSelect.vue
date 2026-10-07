@@ -8,6 +8,11 @@
         :placeholder="placeholderText"
         :class="[variant === 'list-page' ? 'ss-input--list-page' : 'settings-field', inputClass]"
         autocomplete="off"
+        role="combobox"
+        aria-autocomplete="list"
+        :aria-expanded="showDropdown"
+        :aria-controls="listId"
+        :aria-activedescendant="activeOptionId"
         @input="onInput"
         @focus="onFocus"
         @keydown.down.prevent="moveDown"
@@ -43,11 +48,21 @@
           :style="dropdownStyle"
         >
           <div v-if="loading" class="ss-loading">{{ loadingText }}</div>
-          <div v-else-if="filteredOptions.length" class="ss-list">
+          <div
+            v-else-if="filteredOptions.length"
+            :id="listId"
+            ref="listRef"
+            class="ss-list"
+            role="listbox"
+            :aria-label="listLabel"
+          >
             <button
               v-for="(opt, idx) in filteredOptions"
+              :id="optionId(idx)"
               :key="`${opt.value}-${idx}`"
               type="button"
+              role="option"
+              :aria-selected="opt.value === modelValue"
               :class="['ss-item', idx === activeIdx && 'ss-item--active']"
               @mousedown.prevent="select(opt)"
               @mouseenter="activeIdx = idx"
@@ -129,6 +144,8 @@ const emit = defineEmits(['update:modelValue', 'select', 'open', 'search'])
 const wrapRef = ref(null)
 /** 下拉面板 ref，用于定位和点击外部判断 */
 const dropdownRef = ref(null)
+/** 选项列表 ref：键盘导航选中项需要滚动到可视区域 */
+const listRef = ref(null)
 /** 输入框 ref，用于聚焦 */
 const inputRef = ref(null)
 /** 是否显示下拉面板 */
@@ -137,6 +154,30 @@ const showDropdown = ref(false)
 const query = ref('')
 /** 当前键盘导航激活的选项索引 */
 const activeIdx = ref(0)
+
+/**
+ * 实例级唯一后缀：listbox / option 的 id 必须成对且全局唯一，
+ * 同一表单可能同时挂多个选择器，因此拼一个随机后缀而不是写死字符串。
+ */
+const uid = `ss-${Math.random().toString(36).slice(2, 9)}`
+/** listbox 的 id，供输入框 aria-controls 引用 */
+const listId = computed(() => `${uid}-list`)
+/** 列表可访问名：沿用占位文案（placeholder 是「选择什么」的语义来源）。
+    不再回退到 props.clearAria——那是清除按钮的标签（如「清除」），
+    拿它当列表框名会把「请选择房间」读成「清除」。 */
+const listLabel = computed(() => props.placeholder || placeholderText.value)
+/** 当前激活选项的 id：输入框 aria-activedescendant 指向它，读屏才播报高亮项 */
+const activeOptionId = computed(() =>
+  showDropdown.value && filteredOptions.value.length ? `${uid}-opt-${activeIdx.value}` : undefined,
+)
+
+/**
+ * 选项 id 生成器（与 activeOptionId 同一套规则）。
+ * @param idx 选项在过滤后列表中的索引
+ */
+function optionId(idx) {
+  return `${uid}-opt-${idx}`
+}
 
 /**
  * 下拉面板定位逻辑
@@ -182,17 +223,42 @@ const filteredOptions = computed(() => {
   })
 })
 
-// 监听过滤选项、下拉状态、加载状态变化，展开时重新计算面板位置
+// 监听过滤选项、下拉状态、加载状态变化，展开时重新计算面板位置并保证激活项可见
 watch([filteredOptions, showDropdown, () => props.loading], () => {
   if (!showDropdown.value) return
   nextTick(() => updatePosition())
+  scrollActiveOptionIntoView()
 })
 
-/** 展开下拉面板：同步搜索词为当前选中值、重置激活索引、触发 open 事件 */
+/**
+ * 把当前激活项滚动进可视区。
+ * 下拉列表自身有 max-height（默认 320px），键盘上下键移动高亮时若目标项在可视区外，
+ * 用户会「看得见输入框、看不见高亮」，等于键盘导航失效。
+ * `block: 'nearest'` 只滚动最近的滚动祖先、且仅在需要时滚动，不会带动整个页面跳动。
+ */
+function scrollActiveOptionIntoView() {
+  if (!showDropdown.value) return
+  nextTick(() => {
+    const items = listRef.value?.querySelectorAll('.ss-item')
+    const target = items?.[activeIdx.value]
+    target?.scrollIntoView({ block: 'nearest' })
+  })
+}
+
+// 键盘导航 / 鼠标悬停改变激活项时同步滚动（鼠标悬停时目标通常已在视口内，scrollIntoView 无副作用）
+watch(activeIdx, () => scrollActiveOptionIntoView())
+
+/** 展开下拉面板：同步搜索词为当前选中值、激活索引对齐选中项、触发 open 事件 */
 function openDropdown() {
   query.value = props.modelValue ? selectedLabel.value : ''
   showDropdown.value = true
-  activeIdx.value = 0
+  // 激活索引落在当前选中项上：打开即可见高亮，配合 scrollIntoView 直接滚到该项，
+  // 长列表下不必从第一项一路按方向键找回来。
+  const options = filteredOptions.value
+  const selectedIdx = options.findIndex((o) => o.value === props.modelValue)
+  activeIdx.value = selectedIdx >= 0 ? selectedIdx : 0
+  // activeIdx 未变化时上面的 watch 不会触发，这里兜底滚一次
+  scrollActiveOptionIntoView()
   emit('open')
   nextTick(updatePosition)
 }

@@ -25,10 +25,12 @@ from ..dependencies import (
     LicensedViewer,
     authenticated_short_lived_viewer,
     licensed_viewer,
+    require_license_feature,
     require_viewer_user_asset,
     viewer_user_asset_ids,
 )
 from ..global_popups import global_popups
+from ..services.license import features as feature_codes
 
 router = APIRouter(prefix = '/assets', tags = [
     'assets'])
@@ -610,8 +612,7 @@ def document_uses_asset(value, asset_id: str) -> bool:
 
 @router.get('/builtin')
 def list_builtin_assets(request: Request, _viewer: LicensedViewer) -> dict:
-    if not request.app.state.license_service.allows('assets'):
-        raise HTTPException(status_code = 403, detail = { 'code': 'LICENSE_RESTRICTED', 'message': '当前授权不允许读取素材。' })
+    require_license_feature(request, feature_codes.FEATURE_ASSETS)
     items = request.app.state.asset_catalog.builtin_items()
     versions = request.app.state.asset_catalog.versions()
     return {
@@ -621,6 +622,7 @@ def list_builtin_assets(request: Request, _viewer: LicensedViewer) -> dict:
 
 @router.get('/user')
 def list_user_assets(request: Request, database: DatabaseSession, viewer: LicensedViewer) -> dict:
+    require_license_feature(request, feature_codes.FEATURE_ASSETS)
     items = request.app.state.asset_catalog.user_items()
     allowed_asset_ids = viewer_user_asset_ids(database, viewer)
     if allowed_asset_ids is not None:
@@ -634,10 +636,12 @@ def list_user_assets(request: Request, database: DatabaseSession, viewer: Licens
 
 @router.get('/version')
 def asset_catalog_version(request: Request, _viewer: LicensedViewer) -> dict:
+    require_license_feature(request, feature_codes.FEATURE_ASSETS)
     return request.app.state.asset_catalog.versions()
 
 @router.post('/user', status_code = status.HTTP_201_CREATED)
 async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:
+    require_license_feature(request, feature_codes.FEATURE_ASSETS)
     encoded_name = request.headers.get('x-file-name', '')
     try:
         filename = unquote(encoded_name)
@@ -682,6 +686,7 @@ async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:
 
 @router.get('/user/{asset_id}')
 def read_user_asset(asset_id: str, request: Request, viewer: LicensedViewer) -> FileResponse:
+    require_license_feature(request, feature_codes.FEATURE_ASSETS)
     with request.app.state.database.session_factory() as database:
         require_viewer_user_asset(database, viewer, asset_id)
     root = request.app.state.settings.user_assets_dir.resolve()
@@ -697,6 +702,7 @@ def read_effect_variant(request: Request, asset_id: str = Query(alias = 'assetId
     catalog = request.app.state.asset_catalog
     authorization_response = Response()
     viewer = licensed_viewer(request, authenticated_short_lived_viewer(request, authorization_response))
+    require_license_feature(request, feature_codes.FEATURE_ASSETS)
     with request.app.state.database.session_factory() as database:
         if asset_id.startswith('user:'):
             require_viewer_user_asset(database, viewer, asset_id.removeprefix('user:'))
@@ -718,6 +724,7 @@ def read_effect_variant(request: Request, asset_id: str = Query(alias = 'assetId
 
 @router.get('/studio3d-export/{folder_name}/{filename}')
 def read_studio3d_export(folder_name: str, filename: str, request: Request, viewer: LicensedViewer) -> FileResponse:
+    require_license_feature(request, feature_codes.FEATURE_ASSETS)
     root = request.app.state.settings.studio3d_exports_dir.resolve()
     folder = unquote(folder_name)
     name = unquote(filename)
@@ -735,6 +742,7 @@ def read_studio3d_export(folder_name: str, filename: str, request: Request, view
 
 @router.delete('/user/{asset_id}', status_code = status.HTTP_204_NO_CONTENT)
 def delete_user_asset(asset_id: str, request: Request, database: DatabaseSession, _user: LicensedUser) -> Response:
+    require_license_feature(request, feature_codes.FEATURE_ASSETS)
     catalog = request.app.state.asset_catalog
     with catalog.mutation_lock:
         root = request.app.state.settings.user_assets_dir.resolve()
@@ -773,8 +781,7 @@ def delete_user_asset(asset_id: str, request: Request, database: DatabaseSession
         return Response(status_code = status.HTTP_204_NO_CONTENT)
 
 def read_builtin_asset(relative_path: str, request: Request) -> FileResponse:
-    if not request.app.state.license_service.allows('assets'):
-        raise HTTPException(status_code = 403, detail = '当前授权状态不允许读取该资源。')
+    require_license_feature(request, feature_codes.FEATURE_ASSETS)
     path = request.app.state.asset_catalog.builtin_path(relative_path)
     if path is None:
         raise HTTPException(status_code = 404, detail = '素材不存在。')

@@ -55,6 +55,7 @@ from .api.system_setup import router as system_setup_router
 from .api.ui_config import router as ui_config_router
 from .api.voice import router as voice_router
 from .api.ws_proxy import router as ws_proxy_router
+from .api.ha_webrtc import router as ha_webrtc_router
 from .config import Settings, load_settings
 from .core import migrations
 from .core.database import Database
@@ -126,6 +127,7 @@ from .services.ha_filters import AlertRuleWatchIndex, HaStateChangeRouter
 from .services.home_mode.service import HomeModeService
 from .services.jobs import JobRegistryService
 from .services.license import LicenseService
+from .services.license import features as feature_codes
 from .services.license.guard import is_license_exempt_path
 from .services.lifestyle import MediaSceneService
 from .services.notification.service import NotificationService
@@ -145,7 +147,6 @@ from .services.state_ingress_coalesce import StateIngressCoalesceService
 from .services.state_store.entity_area import EntityAreaEnrichmentService
 from .services.state_store.entity_references import EntityReferencesService
 from .services.state_store.entity_sync_filter import HaEntitySyncFilterService
-from .services.studio_ha_compat import StudioHAConnectorCompat
 from .services.system import DeviceHealthService, DeviceManagementService, SystemService
 from .services.system.embed_proxy import EmbedProxyService
 from .services.system.ops import ExternalApiService, MoviePilotProxyService
@@ -203,8 +204,8 @@ def _signed_in(request: Request) -> bool:
 
 #: 需要按「能力」判定授权状态的页面路径 → 能力名。
 _PAGE_LICENSE_FEATURE: tuple[tuple[tuple[str, ...], str], ...] = (
-    (("/3d-studio", "/studio/editor"), "editor"),
-    (("/", "/display/", "/homeos/"), "display"),
+    (("/3d-studio", "/studio/editor"), feature_codes.FEATURE_EDITOR),
+    (("/", "/display/", "/homeos/"), feature_codes.FEATURE_DISPLAY),
 )
 
 
@@ -471,7 +472,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         # 3D Studio 后端平面：HA 单连接（3D ``HAConnectorService`` + ``StateHub``）+ 数据面服务。
         # 显式注入 database；global_log 由本平面自行创建。必须早于下方 homeos HA 块，
-        # 以便把 ``app.state.ha_connector`` 指向 3D 兼容适配器。
+        # 以便把 ``app.state.ha_connector`` 指向 3D HA 连接器本身。
         await studio3d_plane.install(app, app_settings, app.state.database)
 
         # 数据保留：策略面板 + 分批清理（首次延迟 + 周期调度在此接入）
@@ -530,11 +531,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.entity_sync_filter = entity_sync_filter
 
         # 单一 HA 连接：连接与 StateHub 由并入的 3D ``HAConnectorService`` 持有（见上方
-        # ``studio3d_plane.install``）。这里把 homeos 既有连接器接口指向「3D 兼容适配器」，
-        # 使 homeos 业务消费者与 3D 数据面共用同一条连接，调用点无需改写。
-        ha_connector = StudioHAConnectorCompat(
-            app.state.studio_ha, app.state.database, state_store=state_store
-        )
+        # ``studio3d_plane.install``）。homeos 既有连接器接口已**并入连接器本身**
+        # （``ha.homeos_facade.HomeOSFacadeMixin``），因此这里不再包一层适配器：
+        # ``app.state.ha_connector`` 与 ``app.state.studio_ha`` 是同一个对象，
+        # 业务消费者与 3D 数据面共用同一条连接，调用点无需改写。
+        ha_connector = app.state.studio_ha
+        ha_connector.attach_state_store(state_store)
         ha_state_listener = _make_state_listener(app, gateway, state_store)
         ha_connector.set_state_listener(ha_state_listener)
         app.state.ha_connector = ha_connector
@@ -765,7 +767,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 return
             try:
                 await ha_connector.stop()
-                await ha_connector.start()
+                # ``HAConnectorService.start`` 是**同步**方法（内部只建任务，见 ha/service.py）。
+                # 适配器时代它是 async 空实现，折进后必须按同步调用：await None 会抛
+                # TypeError，而这里恰好被 except 吞掉，结果「已按新地址重连」成为假日志。
+                ha_connector.start()
                 logger.info("HA 连接配置变更，已按新地址重连")
             except Exception as exc:  # noqa: BLE001 - 重连失败不应影响主流程
                 logger.warning("HA 重连失败: %s", exc)
@@ -791,11 +796,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             # 走统一事件总线：本进程分发（WS fan-out）+ Redis 跨副本桥接
             await security_bus.emit(name, payload)
 
-        def _set_security_mode(mode: str, source: str):
+        def _set_security_mode(mode: str, source: str) -> bool:
+            # 家庭模式驱动安防时仍要求 ``module.security``，避免只买场景模式绕过安防门禁。
+            license_service = getattr(app.state, "license_service", None)
+            if license_service is not None and not license_service.allows(
+                feature_codes.FEATURE_SECURITY
+            ):
+                return False
             panel = getattr(app.state, "security_panel", None)
             if panel is None:
-                return {"success": True, "skipped": True}
-            return panel.set_mode(mode, source)
+                return True
+            result = panel.set_mode(mode, source)
+            if isinstance(result, dict):
+                return bool(result.get("success", False))
+            return bool(result)
 
         home_mode = HomeModeService(
             app.state.database.session_factory,
@@ -1093,7 +1107,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.ha_version = None
         if app.state.ha_configured:
             try:
-                await ha_connector.start()
+                # 同步方法（见 ha/service.py 的 ``def start``）；连接器自身做幂等，
+                # 平面已启动过时再调一次是安全的。
+                ha_connector.start()
             except Exception as exc:  # noqa: BLE001 - HA 不可用不应阻塞启动
                 import logging as _logging
 
@@ -1203,7 +1219,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         status = exc.status_code
         message = exc.message
         error_code = str(exc.error_code)
-        error = _SENSITIVE_5XX_MESSAGE
+        # ``error`` 是给客户端做二次判定的「分类名」，不是给用户看的文案。以前这里对所有
+        # 状态码都填 ``服务器内部错误``，于是 401/403/404 的响应里也写着「服务器内部错误」——
+        # 排查时会被这行字带到完全错误的方向。口径与 StarletteHTTPException 分支对齐：
+        # 业务异常没有专属 error_name，就用状态码的 reason phrase（Unauthorized / Forbidden）。
+        error = getattr(exc, "error_name", None) or _reason_phrase(status)
         message = localize_http_exception_message(message, status, error)
         display = _SENSITIVE_5XX_MESSAGE if status >= 500 and app_settings.is_production else message
         trace_id = get_trace_id() or request.headers.get("x-trace-id")
@@ -1234,7 +1254,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         else:
             message = str(raw_detail) if raw_detail is not None else _reason_phrase(status)
         error = getattr(exc, "error_name", None) or _reason_phrase(status)
-        error_code = str(ErrorCode.UNKNOWN)
+        # 异常可自带稳定错误码（``RequestRejected``）；没带就沿用 UNKNOWN（复刻 Nest 行为，
+        # 例如 ``ConfigValidationError`` 必须是 UNKNOWN）。
+        error_code = str(getattr(exc, "error_code", None) or ErrorCode.UNKNOWN)
         message = localize_http_exception_message(message, status, error)
         display = _SENSITIVE_5XX_MESSAGE if status >= 500 and app_settings.is_production else message
         trace_id = get_trace_id() or request.headers.get("x-trace-id")
@@ -1290,12 +1312,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def _unhandled(request: Request, _exc: Exception):
         status = 500
         trace_id = get_trace_id() or request.headers.get("x-trace-id")
+        # 开发期把未捕获异常打到日志，便于定位媒体代理等 500。
+        logger.exception(
+            "未处理异常 %s %s trace=%s: %s",
+            request.method,
+            request.url.path,
+            trace_id,
+            _exc,
+        )
         return JSONResponse(
             status_code=status,
             content=_nest_error_payload(
                 status=status,
                 error_code=str(ErrorCode.UNKNOWN),
-                message=_SENSITIVE_5XX_MESSAGE,
+                message=_SENSITIVE_5XX_MESSAGE if app_settings.is_production else f"{type(_exc).__name__}: {_exc}",
                 error=_SENSITIVE_5XX_MESSAGE,
                 request=request,
                 trace_id=trace_id,
@@ -1326,10 +1356,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         service = getattr(request.app.state, "license_service", None)
         if service is not None and app_settings.license_required:
             if not is_license_exempt_path(request.url.path, request.method):
-                # allows() 不带 feature 时只校验租约整体有效性（等价旧 validate_access）；
-                # 带 feature 会走权益白名单，不能用作全局限流门禁。
+                # 用 ``api`` 能力码而不是裸 ``allows()``：按商店的能力目录，``api`` 就是
+                # 「登录后读写业务数据的通用接口，其余能力码的前置条件」。以前这里只判
+                # 「租约整体有效」，于是 ``api`` 这个码在全仓库只有 HA 代理的流式循环里被
+                # 查过一次 —— 未购买接口访问的授权照样能打满所有业务 API。
+                #
+                # 判定成本与原先一致：都是「读一次状态 + 验一次签名租约」，这里只是把
+                # feature 从 None 换成 ``api``，不多一次 DB 读、不多一次验签。
                 # 同步 SQLAlchemy 读写放到线程池，避免阻塞事件循环。
-                if not await asyncio.to_thread(service.allows):
+                if not await asyncio.to_thread(service.allows, feature_codes.FEATURE_API):
                     return _business_exception_json(
                         request,
                         BusinessException(
@@ -1386,11 +1421,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ha_registry_available = ha_connected and not bool(
             getattr(request.app.state, "ha_registry_degraded", False)
         )
+        # 启动期已跑迁移 + drift 守卫；此处只暴露期望 revision，不扫库列明细。
+        from .core.migrations import SCHEMA_REVISION
+
         return {
             "status": "ok" if db_ok and not redis_degraded else "degraded",
             "redis_ok": redis_ready if redis_configured else None,
             "redis": {"configured": redis_configured, "ready": redis_ready},
             "ha_registry_available": ha_registry_available,
+            "schema": {
+                "ok": db_ok,
+                "revision": SCHEMA_REVISION,
+            },
             "timestamp": _iso_timestamp(),
         }
 
@@ -1486,6 +1528,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(voice_router, prefix="/api/v1")
     app.include_router(advisor_usage_router, prefix="/api/v1")
     app.include_router(ws_proxy_router, prefix="/api/v1")
+    app.include_router(ha_webrtc_router, prefix="/api/v1")
 
     # 3D Studio 数据面路由（displays 配对路由已随配对码机制移除）。
     studio3d_plane.mount(app, app_settings)
@@ -1524,27 +1567,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # 构建产物根资源（vite 输出）：JS/CSS 哈希分片、runtime 模块、PWA manifest / service worker。
     # 不挂载的话这些请求会落进下方 SPA 回退、以 text/html 返回，浏览器会因 MIME 不符拒绝执行
     # 模块 —— 表现为页面空白、`#app` 永不挂载。
+    #
+    # 目录必须在启动时 mkdir：watch-build / 原子发布窗口里 ``assets/`` 可能短暂不存在，
+    # 若这里 ``is_dir()`` 失败就永远不 mount，之后即使 dist 已恢复，进程不重启也会一直把
+    # ``/assets/*.js`` 回成 HTML（Strict MIME 报错）。
     frontend_dir = app_settings.frontend_dir
     for mount_path, sub_dir in (
         ("/assets", "assets"),
         ("/modules", "modules"),
     ):
         directory = frontend_dir / sub_dir
-        if directory.is_dir():
-            app.mount(
-                mount_path,
-                StaticFiles(directory=str(directory)),
-                name=mount_path.strip("/"),
-            )
+        directory.mkdir(parents=True, exist_ok=True)
+        app.mount(
+            mount_path,
+            StaticFiles(directory=str(directory)),
+            name=mount_path.strip("/"),
+        )
 
-    @app.get("/manifest.json", include_in_schema=False)
+    # GET+HEAD：FastAPI 的 ``@app.get`` 在与 catch-all HEAD 并存时，HEAD 可能落到 SPA 外壳
+    # （``/sw.js`` HEAD 曾返回 text/html 的 index），显式登记避免误判。
+    @app.api_route("/manifest.json", methods=["GET", "HEAD"], include_in_schema=False)
     async def spa_manifest():
         manifest = frontend_dir / "manifest.json"
         if manifest.is_file():
             return FileResponse(manifest, media_type="application/manifest+json")
         raise HTTPException(status_code=404)
 
-    @app.get("/sw.js", include_in_schema=False)
+    @app.api_route("/sw.js", methods=["GET", "HEAD"], include_in_schema=False)
     async def spa_service_worker():
         worker = frontend_dir / "sw.js"
         if worker.is_file():
@@ -1617,11 +1666,40 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     #: Nest ``spaFallbackMiddleware`` 对所有方法生效（未匹配的任意方法都回退 index.html）
     _SPA_FALLBACK_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
 
+    #: 这些后缀绝不是 SPA 路由；回 HTML 会被浏览器当成「MIME 不是 JS」拒绝执行模块。
+    _SPA_FALLBACK_ASSET_SUFFIXES = frozenset(
+        {
+            ".js",
+            ".mjs",
+            ".css",
+            ".map",
+            ".wasm",
+            ".json",
+            ".webmanifest",
+            ".woff",
+            ".woff2",
+            ".ttf",
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".webp",
+            ".gif",
+            ".svg",
+            ".ico",
+        }
+    )
+
     @app.api_route("/{spa_path:path}", methods=_SPA_FALLBACK_METHODS, include_in_schema=False)
     async def spa_fallback(spa_path: str, request: Request):
         # API 前缀未命中：与 Nest 一致 —— 抛出无 detail 的 404，
         # 由统一异常处理器产出 { error: "Not Found", message: "请求的资源不存在", errorCode: "UNKNOWN" }。
         if request.url.path.startswith("/api/"):
+            raise HTTPException(status_code=404)
+        # 静态产物路径未挂载 / 文件缺失时也绝不能回 index.html（否则 shared-*.js 报 Strict MIME）。
+        path = request.url.path
+        if path.startswith(("/assets/", "/static/", "/modules/")) or Path(path).suffix.lower() in (
+            _SPA_FALLBACK_ASSET_SUFFIXES
+        ):
             raise HTTPException(status_code=404)
         return await _spa_shell(request)
 

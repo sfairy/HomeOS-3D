@@ -46,6 +46,9 @@ class Account(Base):
     __tablename__ = "accounts"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)
+    #: 登录用账号名（与主应用口径一致）；老账号可为空，仅靠邮箱登录。
+    #: 购买 / 发码 / 授权归属仍以 ``email`` 为主线，账号名只用于登录与展示。
+    username: Mapped[str | None] = mapped_column(String(64), unique=True, index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(512))
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime)
@@ -54,7 +57,7 @@ class Account(Base):
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime)
     referral_code: Mapped[str | None] = mapped_column(String(16), unique=True, index=True)
     referred_by_account_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("accounts.id", ondelete="SET NULL")
+        String(36), ForeignKey("accounts.id", ondelete="SET NULL"), index=True
     )
     referral_bound_at: Mapped[datetime | None] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
@@ -90,6 +93,8 @@ class Product(Base):
     is_full_price: Mapped[bool] = mapped_column(Boolean, default=False)
     validity_days: Mapped[int | None] = mapped_column(Integer)
     product_type: Mapped[str] = mapped_column(String(32), default="base")
+    #: 商品版本/版本名（如「家庭版」「专业版」）。版本的本质就是一组功能码 + 展示信息。
+    edition: Mapped[str | None] = mapped_column(String(64))
     feature_codes_json: Mapped[str] = mapped_column(Text, default="[]")
     included_product_ids_json: Mapped[str] = mapped_column(Text, default="[]")
     package_contents_locked: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -156,9 +161,11 @@ class Order(Base):
     order_type: Mapped[str] = mapped_column(String(32), default="base", index=True)
     license_action: Mapped[str] = mapped_column(String(32), default="issue")
     target_license_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("licenses.id", ondelete="SET NULL")
+        String(36), ForeignKey("licenses.id", ondelete="SET NULL"), index=True
     )
-    license_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("licenses.id", ondelete="SET NULL"))
+    license_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("licenses.id", ondelete="SET NULL"), index=True
+    )
     license_state_before_json: Mapped[str] = mapped_column(Text, default="")
     original_amount_cents: Mapped[int] = mapped_column(Integer, default=0)
     discount_cents: Mapped[int] = mapped_column(Integer, default=0)
@@ -220,6 +227,10 @@ class License(Base):
     )
     product_name: Mapped[str] = mapped_column(String(255), default="")
     product_type: Mapped[str] = mapped_column(String(32), default="base")
+    #: 签发时固化的商品功能码快照；心跳/续租以此为准，不跟随商品后续 PATCH。
+    feature_codes_json: Mapped[str] = mapped_column(
+        Text, default="[]", server_default="[]"
+    )
     price_cents: Mapped[int] = mapped_column(Integer, default=0)
     validity_days: Mapped[int | None] = mapped_column(Integer)
     issuance_source: Mapped[str] = mapped_column(String(32), default="payment_automatic")
@@ -256,12 +267,14 @@ class Entitlement(Base):
     license_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("licenses.id", ondelete="CASCADE"), index=True
     )
-    product_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("products.id", ondelete="SET NULL"))
+    product_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("products.id", ondelete="SET NULL"), index=True
+    )
     product_name: Mapped[str] = mapped_column(String(255), default="")
     product_type: Mapped[str] = mapped_column(String(32), default="module")
     feature_code: Mapped[str] = mapped_column(String(64), index=True)
     source_order_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("orders.id", ondelete="SET NULL")
+        String(36), ForeignKey("orders.id", ondelete="SET NULL"), index=True
     )
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     starts_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
@@ -289,6 +302,8 @@ class DeviceBinding(Base):
     )
     instance_id: Mapped[str] = mapped_column(String(128), index=True)
     client_version: Mapped[str] = mapped_column(String(32), default="")
+    #: 激活时客户端上报的本机账号名（「授权用户增设账户名」）；旧客户端为空。
+    account_name: Mapped[str | None] = mapped_column(String(255))
     last_ip: Mapped[str | None] = mapped_column(String(64))
     active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     activated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

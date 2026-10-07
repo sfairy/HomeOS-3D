@@ -113,15 +113,22 @@ export function runtimeVendorAssetPlugin(): Plugin {
 /**
  * 用 esbuild 把零依赖经典入口打成 IIFE，落到固定路径 `/static/<name>.js`。
  * closeBundle 按插件数组顺序串行执行，所以输出顺序可预期。
+ *
+ * 写出目录取自 ``config.build.outDir``（主应用原子构建时是 ``frontend.building``），
+ * 不要写死导出的 ``outDir``，否则会绕过旁路目录、污染线上 dist。
  */
 export function classicIifePlugin(): Plugin {
+  let resolvedOutDir = outDir;
   return {
     name: "homeos-classic-iife",
     apply: "build",
+    configResolved(config) {
+      resolvedOutDir = path.resolve(config.root, config.build.outDir);
+    },
     async closeBundle() {
       for (const [name, entry] of Object.entries(classicEntries)) {
         if (!fs.existsSync(entry)) continue;
-        const outfile = path.join(outDir, "static", `${name}.js`);
+        const outfile = path.join(resolvedOutDir, "static", `${name}.js`);
         fs.mkdirSync(path.dirname(outfile), { recursive: true });
         await esbuildBuild({
           entryPoints: [entry],

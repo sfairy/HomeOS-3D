@@ -13,6 +13,7 @@
     <img
       v-show="imageUrl"
       :src="imageUrl"
+      :alt="streamAlt"
       :class="mediaClass"
       @error="onImageError"
     />
@@ -34,7 +35,8 @@
  * - resolveCameraDisplay: 摄像头显示方式解析
  */
 import { ref, watch, onUnmounted, computed, nextTick } from 'vue'
-import { resolveCameraDisplay } from '@/utils/ha/camera-stream.util'
+import { resolveCameraDisplay, resolveCameraHlsPlayUrl } from '@/utils/ha/camera-stream.util'
+import { getEntityDisplayName } from '@/utils/entity/derived.util'
 import { startCameraWebRtc } from '@/composables/camera/useHaWebRtcPlayer'
 import { startHlsPlayback } from '@/composables/camera/useHlsPlayer'
 import { logger } from '@/utils/core/logger'
@@ -79,6 +81,18 @@ const snapshotTick = ref(0)
 
 /** 媒体元素 class（根据 object-fit 配置） */
 const mediaClass = computed(() => `w-full h-full object-${props.objectFit}`)
+
+/**
+ * 画面可访问名：用实体展示名（统一走 getEntityDisplayName，避免各处自行读 friendly_name）。
+ * 拿不到实体时退回「摄像头画面」——视频标签不参与读屏播报，
+ * 但快照/静帧（img 分支）需要 alt，否则报「未标记图像」。
+ */
+const streamAlt = computed(() => {
+  const entity = props.entity
+  if (!entity) return '摄像头画面'
+  const name = getEntityDisplayName(String(entity.entity_id || ''), entity)
+  return name ? `${name} 画面` : '摄像头画面'
+})
 
 /** 当前有效的显示方式和 URL（根据偏好和降级状态计算） */
 const effectiveDisplay = computed(() => {
@@ -174,11 +188,17 @@ async function startStream() {
     return
   }
 
-  if (d.mode === 'hls' && videoRef.value && d.url) {
+  if (d.mode === 'hls' && videoRef.value) {
     if (starting) return
     starting = true
     try {
-      stopHls = await startHlsPlayback(d.url, videoRef.value)
+      // 与 3D registry 一致：多数摄像头只有 STREAM 能力位，需先向 /api/camera_hls 换 m3u8
+      const playUrl =
+        d.resolveHlsViaApi && d.entityId
+          ? await resolveCameraHlsPlayUrl(d.entityId)
+          : d.url
+      if (!playUrl) throw new Error('HLS URL 为空')
+      stopHls = await startHlsPlayback(playUrl, videoRef.value)
       emit('ready', d.mode)
     } catch (e) {
       logger.warn('[HaCameraStream] HLS 失败', e)

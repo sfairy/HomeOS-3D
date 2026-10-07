@@ -41,7 +41,13 @@ const unavailable = computed(
   () => Boolean(product.value) && !isAddon.value && catalog.primaryProductUnavailable(product.value!),
 );
 
-const accountLabel = computed(() => session.account?.email || "尚未登录");
+/** 购买确认以邮箱为主线；有账号名时一并展示。 */
+const accountLabel = computed(() => {
+  const email = session.account?.email;
+  if (!email) return "尚未登录";
+  const username = (session.account?.username || "").trim();
+  return username ? `${username} · ${email}` : email;
+});
 
 const targets = computed<StoreLicense[]>(() => {
   const requested = new Set(product.value?.featureCodes || []);
@@ -281,13 +287,13 @@ async function share() {
             <form class="hb-checkout-form" @submit.prevent="submit">
               <section class="hb-form-section">
                 <div class="hb-form-section__head">
-                  <div><strong>购买账号</strong><small>订单、激活码和设备将归属于当前登录账号</small></div>
+                  <div><strong>购买账号</strong><small>订单、激活码和设备以注册邮箱为主线归属</small></div>
                 </div>
                 <div class="hb-purchase-account">
                   <span><i class="fa-duotone fa-regular fa-envelope-circle-check"></i></span>
                   <div>
                     <strong>{{ accountLabel }}</strong>
-                    <small>{{ session.account ? "订单、激活码和设备将归属于此账号" : "请先登录后购买，未登录不会创建订单" }}</small>
+                    <small>{{ session.account ? "登录账号可换，订单与激活码仍归属于注册邮箱" : "请先登录后购买，未登录不会创建订单" }}</small>
                   </div>
                 </div>
                 <div v-if="!session.account" class="hb-purchase-account-actions">

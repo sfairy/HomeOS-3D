@@ -307,7 +307,11 @@ export function buildClimateChartOption(params: BuildClimateChartOptionParams) {
         if (!params?.length) return ''
         const t = params[0].data?.[0] ? new Date(params[0].data[0]) : null
         const ts = t ? formatAuditTimestamp(t) : ''
-        let html = `<div style="color:rgba(255,255,255,0.6);font-size:var(--premium-fs-caption);margin-bottom:8px;font-weight:600">${ts}</div>`
+        // 外壳页 CSP 是 ``style-src 'self'``，tooltip 里的行内 style **会被浏览器拦下**
+        // （曾经表现为控制台一串「Applying inline style violates …」且 tooltip 样式静默失效）。
+        // 因此这里只输出类名，样式集中在 styles/home-climate-chart.css；
+        // 唯一带动态值的圆点改用 SVG 的 ``fill`` 呈现属性 —— 它不受 style-src 约束。
+        let html = `<div class="hcc-tip__time">${ts}</div>`
         for (const p of params) {
           const isHum = humiditySeries.some((s) => s.entityId === p.seriesId)
           const unit = isHum ? '%' : '°C'
@@ -315,11 +319,12 @@ export function buildClimateChartOption(params: BuildClimateChartOptionParams) {
             temperatureSeries.find((s) => s.entityId === p.seriesId)?.name ??
             humiditySeries.find((s) => s.entityId === p.seriesId)?.name ??
             p.seriesName
+          const dotColor = typeof p.color === 'string' && p.color ? p.color : 'currentColor'
           html +=
-            '<div style="display:flex;align-items:center;margin-bottom:3px">' +
-            `<span style="width:8px;height:8px;border-radius:2px;background:${p.color};margin-right:8px;flex:none"></span>` +
-            `<span style="flex:1">${label}</span>` +
-            `<b style="margin-left:14px">${Number(p.data?.[1] ?? 0).toFixed(1)}${unit}</b>` +
+            '<div class="hcc-tip__row">' +
+            `<svg class="hcc-tip__dot" viewBox="0 0 8 8" aria-hidden="true"><rect width="8" height="8" rx="2" fill="${dotColor}"/></svg>` +
+            `<span class="hcc-tip__label">${label}</span>` +
+            `<b class="hcc-tip__value">${Number(p.data?.[1] ?? 0).toFixed(1)}${unit}</b>` +
             '</div>'
         }
         return html

@@ -204,14 +204,69 @@ export function createUIChromeState() {
   function notify(message: string, type: NotifyType = 'info', duration = 3000): void {
     const id = Math.random().toString(36).substring(2, 11)
     notifications.value.push({ id, message, type, duration })
-    if (duration > 0) setTimeout(() => removeNotification(id), duration)
+    if (duration > 0) startNotificationTimer(id, duration)
   }
   /**
    * 按 ID 移除一条通知。
    * @param id 通知 ID
    */
   function removeNotification(id: string): void {
+    clearNotificationTimer(id)
     notifications.value = notifications.value.filter((n) => n.id !== id)
+  }
+
+  // ── 自动关闭计时器（可暂停） ──
+  // 悬停 / 键盘聚焦时暂停：长文案或需要点开的提示不该在鼠标还停在上面时消失。
+  // 每个通知独立计时，剩余时长在暂停时按已过时间扣减，恢复后接着走。
+  const notificationTimers = new Map<
+    string,
+    { handle?: ReturnType<typeof setTimeout>; remaining: number; startedAt: number }
+  >()
+
+  /** 启动（或重启）某条通知的自动关闭计时。 */
+  function startNotificationTimer(id: string, ms: number): void {
+    clearNotificationTimer(id)
+    const startedAt = Date.now()
+    const handle = setTimeout(() => {
+      notificationTimers.delete(id)
+      removeNotification(id)
+    }, ms)
+    notificationTimers.set(id, { handle, remaining: ms, startedAt })
+  }
+
+  /** 清掉某条通知的计时器（不移除通知本身）。 */
+  function clearNotificationTimer(id: string): void {
+    const entry = notificationTimers.get(id)
+    if (!entry) return
+    if (entry.handle) clearTimeout(entry.handle)
+    notificationTimers.delete(id)
+  }
+
+  /**
+   * 暂停某条通知的自动关闭（鼠标移入 / 键盘聚焦）。
+   * 剩余时长至少保留 600ms，避免「一恢复就消失」让用户来不及看清。
+   * @param id 通知 ID
+   */
+  function pauseNotification(id: string): void {
+    const entry = notificationTimers.get(id)
+    if (!entry) return
+    const elapsed = entry.startedAt ? Date.now() - entry.startedAt : 0
+    const remaining = Math.max(entry.remaining - elapsed, 600)
+    if (entry.handle) clearTimeout(entry.handle)
+    // startedAt 置 0 作为「已暂停」标记，resume 时按剩余时长重新起算
+    notificationTimers.set(id, { remaining, startedAt: 0 })
+  }
+
+  /**
+   * 恢复某条通知的自动关闭（鼠标移出 / 焦点离开）。
+   * @param id 通知 ID
+   */
+  function resumeNotification(id: string): void {
+    const entry = notificationTimers.get(id)
+    if (!entry || entry.startedAt) return
+    const item = notifications.value.find((n) => n.id === id)
+    if (!item || item.duration <= 0) return
+    startNotificationTimer(id, entry.remaining)
   }
 
   /**
@@ -337,6 +392,8 @@ export function createUIChromeState() {
     notifications,
     notify,
     removeNotification,
+    pauseNotification,
+    resumeNotification,
     activeConfirm,
     confirm,
     resolveConfirm,

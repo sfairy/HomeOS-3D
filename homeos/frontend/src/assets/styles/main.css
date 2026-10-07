@@ -137,7 +137,8 @@ input:-webkit-autofill:focus { transition: background-color 5000s ease-in-out 0s
  * --progress-pct / --track-fill-from / --track-fill-to 由 JS 动态设置
  * .wr-range / .slider-range 等由各自样式表接管，避免拇指尺寸冲突
  */
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider) {
+/* hb-range / i3d-control-range：studio 灯光/窗帘等自带轨道样式，勿套全局蓝条默认 50% */
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range) {
   appearance: none;
   -webkit-appearance: none;
   background: transparent;
@@ -148,25 +149,25 @@ input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num
   cursor: pointer;
 }
 
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider)::-webkit-slider-runnable-track {
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range)::-webkit-slider-runnable-track {
   appearance: none;
   height: 6px;
   border-radius: var(--hos-radius-pill);
   background: linear-gradient(to right,
     var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))) 0%,
-    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))) var(--progress-pct, var(--progress, 50%)),
-    var(--track-bg, rgba(255, 255, 255, 0.04)) var(--progress-pct, var(--progress, 50%)),
+    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))) var(--progress-pct, var(--progress, 0%)),
+    var(--track-bg, rgba(255, 255, 255, 0.04)) var(--progress-pct, var(--progress, 0%)),
     var(--track-bg, rgba(255, 255, 255, 0.04)) 100%);
 }
 
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider)::-moz-range-track {
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range)::-moz-range-track {
   height: 6px;
   border-radius: var(--hos-radius-pill);
   background: var(--track-bg, rgba(255, 255, 255, 0.04));
   border: none;
 }
 
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider)::-moz-range-progress {
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range)::-moz-range-progress {
   height: 6px;
   border-radius: var(--hos-radius-pill);
   background: linear-gradient(to right,
@@ -178,7 +179,7 @@ input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num
  * WebKit 滑块拖拽手柄（thumb）
  * 24x24 白色圆形 + 蓝色光晕 ring + 弹性缩放过渡
  */
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider)::-webkit-slider-thumb {
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range)::-webkit-slider-thumb {
   appearance: none; cursor: pointer; background: #ffffff; /* 必要硬编码：滑块手柄纯白圆点，保证在彩色轨道上的高对比 */ border: none;
   border-radius: 50%; width: 24px; height: 24px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.22), 0 0 0 4px rgba(var(--accent-rgb), 0.15);
@@ -187,10 +188,10 @@ input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num
 }
 
 /** thumb 悬停：放大 1.1 倍 + 光晕扩展 */
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider)::-webkit-slider-thumb:hover { transform: scale(1.1); box-shadow: 0 3px 12px rgba(0,0,0,0.28), 0 0 0 6px rgba(var(--accent-rgb), 0.12); }
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range)::-webkit-slider-thumb:hover { transform: scale(1.1); box-shadow: 0 3px 12px rgba(0,0,0,0.28), 0 0 0 6px rgba(var(--accent-rgb), 0.12); }
 
 /** thumb 拖拽中：放大 1.18 倍 + 光晕进一步扩大 */
-input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider):active::-webkit-slider-thumb { transform: scale(1.18); box-shadow: 0 4px 16px rgba(0,0,0,0.32), 0 0 0 8px rgba(var(--accent-rgb), 0.08); }
+input[type="range"]:not(.wr-range):not(.slider-range):not(.temp-slider):not(.num-slider):not(.alert-dnd-range):not(.hos-range):not(.media-range):not(.sm-emergency-range):not(.cover-slider):not(.hb-range):not(.i3d-control-range):active::-webkit-slider-thumb { transform: scale(1.18); box-shadow: 0 4px 16px rgba(0,0,0,0.32), 0 0 0 8px rgba(var(--accent-rgb), 0.08); }
 
 /* ---- 6b. 共享紧凑滑块（设置页 / 媒体音量等） ---- */
 input[type="range"].hos-range,
@@ -464,16 +465,28 @@ input[type="range"].sm-emergency-range::-moz-range-thumb {
      - alert 全屏紧急告警（地震等）
      - notification 全局 toast 容器（须盖住告警以便提示可读）
      - max 绝对顶层（下拉选择器/拾色器等，须盖住任何弹层）
-     - teleport-target（模态/弹层挂载容器）→ --z-modal
+     - teleport-target（模态/弹层挂载容器）→ --z-shell-overlay（**不是** --z-modal，
+       容器必须高于路由内浮层，见下方说明；--z-modal 保留为 shell 底部档位，当前无消费者）
      - tab-bar 更多菜单 portal → --z-menu（tab-bar 自带 isolation，数值仅在其上下文内生效）
      -------------------------------------------------------------------------- */
   --z-menu: 900;
   --z-modal: 1000;
   --z-toast: 1100;
-  --z-modal-root: 11000;  /* 居中模态根（独立于 teleport 时）：hos-modal-root 等 */
-  --z-drawer: 11000;      /* 侧滑抽屉：通知抽屉等 */
-  --z-search: 12000;      /* 搜索 / 对话面板 */
+  /* ── 路由内浮层档：都在 .app-shell 这一个 stacking context 里比较 ──
+     注意 .app-shell__content 只有 position:relative + overflow:hidden、没有 z-index，
+     因此**不创建 stacking context**：路由里的浮层是直接和 .teleport-target 容器比大小的。
+     所以容器那一档必须高于这里最高的一档，见下方 --z-shell-overlay。 */
+  --z-drawer: 11000;      /* 侧滑抽屉：通知抽屉等（teleport 进容器） */
+  --z-modal-root: 11500;  /* 居中模态根：路由内容里的全屏查看器、实体弹层等 */
+  --z-search: 12000;      /* 搜索 / 对话面板、构建器抽屉 */
   --z-overlay: 13100;     /* 构建器抽屉内打开的二级弹层/遮罩 */
+  /* 全局浮层容器（.teleport-target）——必须高于路由内最高档 --z-overlay(13100)。
+     历史坑：容器原先用 --z-modal(1000)，而路由里任何 z≥1001 的浮层（如 SecurityView 的
+     全屏查看器 11500、构建器抽屉 12000）都直接盖住容器内渲染的全局确认框 / 输入框 /
+     媒体弹窗——因为这些都在同一个 stacking context 里比数值，与 DOM 顺序无关。
+     容器自身是 pointer-events:none，抬高它不会拦截路由内的点击。
+     仍低于 --z-alert(99999，挂在 body 上) 与全局 toast(100000)。 */
+  --z-shell-overlay: 14000;
   --z-alert: 99999;       /* 全屏紧急告警：地震、屏幕保护等 */
   --z-notification: 100000; /* 全局 toast 容器（须盖住 alert 保证提示可读） */
   --z-max: 2147483647;    /* 绝对顶层：下拉选择器/拾色器/输入联想等浮层 */

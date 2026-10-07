@@ -2,8 +2,15 @@
  * 设备页图表说明文案（统一维护，便于理解曲线含义）
  *
  * 职责：集中维护设备页各类图表的标题与说明文字，供组件直接引用。
- * 依赖：无外部依赖，纯常量 + tooltip 格式化函数。
+ * 依赖：``chart-tooltip.css``（tooltip 内容的类名样式，非 scoped）。
+ *
+ * 为什么 tooltip 用类名而不是行内 style：外壳页 CSP 是 ``style-src 'self'``，
+ * formatter 拼出的 ``style="..."`` 会被浏览器拦下，且 tooltip 是运行时注入的 DOM，
+ * 组件的 ``<style scoped>`` 也选不中它 —— 样式只能来自这份非 scoped 的独立文件。
+ * 唯一的动态值（序列颜色）走 SVG 的 ``fill`` 呈现属性，不受 style-src 约束。
  */
+import './chart-tooltip.css'
+
 export const DEVICE_CHART_COPY = {
   usageTrend: {
     title: '每日使用趋势',
@@ -70,13 +77,21 @@ export function formatDualMetricTooltip(
   if (!items.length) return ''
   const header = String((items[0] as { axisValue?: string }).axisValue ?? '')
   const lines = items.map((raw) => {
-    const item = raw as { seriesName?: string; value?: number | string; marker?: string }
+    const item = raw as {
+      seriesName?: string
+      value?: number | string
+      color?: string
+    }
     const idx = series.findIndex((s) => s.name === item.seriesName)
     const unit = idx >= 0 ? series[idx].unit : ''
     const val = item.value ?? '—'
-    return `${item.marker ?? ''}${item.seriesName ?? ''}：<b>${val}${unit ? ` ${unit}` : ''}</b>`
+    // 不用 ECharts 的 ``item.marker``：那是它生成的带行内 style 的 <span>，会被 CSP 拦下。
+    // 自绘 SVG 圆点，颜色走 fill 呈现属性。
+    const dotColor = typeof item.color === 'string' && item.color ? item.color : 'currentColor'
+    const dot = `<svg class="chart-tip__dot" viewBox="0 0 8 8" aria-hidden="true"><rect width="8" height="8" rx="2" fill="${dotColor}"/></svg>`
+    return `${dot}${item.seriesName ?? ''}：<b>${val}${unit ? ` ${unit}` : ''}</b>`
   })
-  return `<div style="font-size:var(--premium-fs-micro);color:rgba(255,255,255,0.55);margin-bottom:6px">${header}</div>${lines.join('<br/>')}`
+  return `<div class="chart-tip__caption">${header}</div>${lines.join('<br/>')}`
 }
 
 /**
@@ -90,10 +105,10 @@ export function formatDualMetricTooltip(
 export function formatHourlyBucketTooltip(hour: number, count: number, totalHours: number): string {
   const next = (hour + 1) % 24
   return [
-    `<div style="font-size:var(--premium-fs-micro);color:rgba(255,255,255,0.55);margin-bottom:4px">近 ${totalHours / 24} 天累计</div>`,
+    `<div class="chart-tip__caption chart-tip__caption--tight">近 ${totalHours / 24} 天累计</div>`,
     `<div>${String(hour).padStart(2, '0')}:00 – ${String(next).padStart(2, '0')}:00</div>`,
     `<div>事件 <b>${count}</b> 次</div>`,
-    '<div style="font-size:var(--premium-fs-micro);color:var(--hos-text-secondary);margin-top:4px">反映该时段的使用习惯</div>',
+    '<div class="chart-tip__footnote">反映该时段的使用习惯</div>',
   ].join('')
 }
 
@@ -107,7 +122,7 @@ export function formatHourlyBucketTooltip(hour: number, count: number, totalHour
  */
 export function formatHeatmapTooltip(dayLabel: string, deviceName: string, count: number): string {
   return [
-    `<div style="font-size:var(--premium-fs-micro);color:rgba(255,255,255,0.55);margin-bottom:4px">${dayLabel}</div>`,
+    `<div class="chart-tip__caption chart-tip__caption--tight">${dayLabel}</div>`,
     `<div>${deviceName}</div>`,
     `<div>切换 <b>${count}</b> 次</div>`,
   ].join('')

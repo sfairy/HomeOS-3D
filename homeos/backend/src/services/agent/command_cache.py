@@ -239,7 +239,13 @@ class CommandCacheService:
         from_fast_path: bool,
         user_id: str | None = None,
     ) -> None:
-        """写入缓存。若与已有条目完全一致且未确认，则提升为 confirmed（二次验证通过）。"""
+        """写入缓存。
+
+        规则（严格单调，只升不降）：
+        - 映射一致 → 标记 confirmed 并累加 hit_count（首次提升日志「二次验证通过」）；
+        - 映射新增 / 变更 → 以本次来源（快路径 / LLM）决定 confirmed，hit_count 归零。
+        已确认条目**不会**因为 LLM 兜底重复命中而被改回未确认。
+        """
         if len(self._cache) >= MAX_SIZE:
             keys = list(self._cache.keys())[:CLEANUP_SIZE]
             for key in keys:
@@ -253,15 +259,29 @@ class CommandCacheService:
             and _dump(existing.tool_args) == _dump(tool_args)
         )
 
-        if existing is not None and is_same and not existing.confirmed:
+        if existing is not None and is_same:
+            # 映射一致：二次命中即确认（含 LLM 兜底路径，保留原有「二次验证」语义），
+            # 且**永不**把已确认条目降级为未确认——否则 LLM 兜底会把快路径学到的
+            # 可信缓存打回待确认，用户每次都要再确认一遍。
+            just_confirmed = not existing.confirmed
             existing.confirmed = True
             existing.hit_count += 1
-            logger.info('缓存自动确认(二次验证通过): "%s"', key)
+            if just_confirmed:
+                logger.info('缓存自动确认(二次验证通过): "%s"', key)
+            else:
+                logger.info(
+                    '缓存命中(已确认·映射一致,第%s次): "%s" → %s(%s)',
+                    existing.hit_count,
+                    key,
+                    existing.tool_name,
+                    _dump(existing.tool_args),
+                )
         else:
+            # 映射新增，或映射发生变化（信任度重置：以本次来源决定是否已确认）
             self._cache[key] = CacheEntry(
                 tool_name=tool_name,
                 tool_args=dict(tool_args or {}),
-                hit_count=(existing.hit_count + 1 if existing is not None and is_same else 0),
+                hit_count=0,
                 confirmed=from_fast_path,
             )
             if existing is None:
@@ -270,6 +290,14 @@ class CommandCacheService:
                     "快路径·已确认" if from_fast_path else "LLM·待确认",
                     key,
                     tool_name,
+                )
+            else:
+                logger.info(
+                    '缓存更新(映射变更·%s): "%s" → %s(原: %s)',
+                    "快路径·已确认" if from_fast_path else "LLM·待确认",
+                    key,
+                    tool_name,
+                    existing.tool_name,
                 )
 
         self._last_action = LastAction(

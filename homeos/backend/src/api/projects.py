@@ -12,7 +12,13 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
 from ..core.models import GlobalCustomPopupState, Project, ProjectDraft
-from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, require_viewer_project
+from ..dependencies import (
+    DatabaseSession,
+    LicensedUser,
+    LicensedViewer,
+    require_license_feature,
+    require_viewer_project,
+)
 from ..global_popups import (
     clear_popup_references,
     global_popup_state,
@@ -24,12 +30,13 @@ from ..modules.interaction3d.access import require_document_changes as require_i
 from ..panel.documents import create_blank_project
 from ..panel.schema import validate_panel_document
 from ..schemas import ProjectCreateRequest, ProjectDeleteRequest, ProjectDraftUpdate, ProjectDuplicateRequest
+from ..services.license import features as feature_codes
 
 router = APIRouter(prefix='/projects', tags=['projects'])
 
 
 def require_project_write(request: Request) -> None:
-    if not request.app.state.license_service.allows('projects.write'):
+    if not request.app.state.license_service.allows(feature_codes.FEATURE_PROJECTS_WRITE):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许修改仪表盘。')
 
 
@@ -146,7 +153,14 @@ def get_active_project(request: Request, database: DatabaseSession, viewer: Lice
     两个轴各自单源：仪表盘看这里，布局方案看 ``/config/project/active``。
 
     无仪表盘时返回 ``{'active': None}``（全新安装的正常空状态，不是错误）。
+
+    这里额外判 ``display`` 能力码：本端点**只被展示端使用**（``display.ts`` 的
+    ``resolveOverviewProject``，全仓库唯一调用点），是「墙屏能看到哪个仪表盘」的数据出口。
+    在此之前它只挂了 ``LicensedViewer``（只判「授权整体可用」，不判具体能力），于是没买
+    ``display`` 的授权照样能直接调 API 读到展示数据 —— 页面级门禁拦得住浏览器，拦不住
+    直连。其余 ``/projects/*`` 读写端点是编辑器与展示共用，不能挂 ``display``。
     """
+    require_license_feature(request, feature_codes.FEATURE_DISPLAY)
     wanted = _active_dashboard_id(request)
     project = database.get(Project, wanted) if wanted else None
     if project is None:

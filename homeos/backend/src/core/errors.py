@@ -61,6 +61,27 @@ def not_found(message: str) -> NoReturn:
     raise BusinessException(ErrorCode.NOT_FOUND, message)
 
 
+class RequestRejected(StarletteHTTPException):
+    """带稳定 ``errorCode`` 的 HTTP 异常。
+
+    存在的理由：``HTTPException`` 走全局处理器时只能给 ``errorCode=UNKNOWN``，而前端是
+    按 ``errorCode`` 分派的（``CSRF_INVALID`` 刷新令牌重试、``LICENSE_*`` 跳激活页）。
+    让每个调用点自己拼响应体形状既啰嗦又容易漏，所以由异常自带一个码，处理器照读即可。
+    需要保留 ``detail`` 原样的场景（studio 侧读 ``payload.detail.code``）继续用普通
+    ``HTTPException``，不受影响。
+    """
+
+    def __init__(
+        self,
+        detail: str,
+        *,
+        error_code: ErrorCode = ErrorCode.FORBIDDEN,
+        status_code: int = 403,
+    ) -> None:
+        super().__init__(status_code=status_code, detail=detail)
+        self.error_code = error_code
+
+
 class ConfigValidationError(StarletteHTTPException):
     """配置字段校验异常（对齐 ``AppConfigValidationError extends BadRequestException``）。
 

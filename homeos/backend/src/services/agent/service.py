@@ -51,8 +51,19 @@ RATE_INPUT_HIT_CNY = 0.5
 RATE_OUTPUT_CNY = 3.0
 #: 单条工具结果回填 LLM 上下文的最大字符数（防止大实体状态 / 日志撑爆上下文）
 MAX_TOOL_RESULT_CHARS = 4000
+#: 单条历史消息进入上下文的字符上限
+MAX_HISTORY_MESSAGE_CHARS = 2000
+#: 历史上下文（不含 system prompt 与工具 schema）的字符预算。
+#: 之前按「最近 16 条」截断，条数无法反映长度：16 条长指令可轻松超过 1.5 万字符。
+#: 改为按字符预算从新到旧累计，保证不同长度的历史都收敛到同一量级。
+MAX_HISTORY_PROMPT_CHARS = 8000
+#: 历史消息条数硬上限（兜底，避免极短消息堆满上下文）
+MAX_HISTORY_MESSAGES = 24
 #: 单轮对话累计 prompt token 硬上限：超出即中止工具循环，避免无限膨胀
 MAX_SESSION_PROMPT_TOKENS = 30_000
+#: 单轮对话内 messages 的字符预算（含 system / 历史 / 工具回填）。
+#: 超出时优先丢弃最旧的非 system 消息，而不是等一轮跑完才发现超限。
+MAX_SESSION_PROMPT_CHARS = 24_000
 #: LLM tool-calling 最大轮数，避免无限循环
 MAX_ROUNDS = 8
 
@@ -68,6 +79,75 @@ def _js_stringify(value: Any) -> str:
 def _is_number(value: Any) -> bool:
     """对齐 JS ``typeof value === 'number'``（布尔不算数字）。"""
     return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _message_cost(message: LlmMessage) -> int:
+    """估算单条消息进入 prompt 的字符数（含工具调用参数）。"""
+    total = len(message.content or "")
+    for call in message.tool_calls or []:
+        total += len(call.name) + len(_js_stringify(call.arguments))
+    return total
+
+
+def _trim_messages(messages: list[LlmMessage], budget: int) -> list[LlmMessage]:
+    """按字符预算裁剪会话消息：保留 system 与最新消息，丢弃最旧的非 system 消息。
+
+    工具回填结果会不断追加进 ``messages``，若不裁剪，一次多轮 tool-calling 就可能
+    超限；等 ``MAX_SESSION_PROMPT_TOKENS`` 事后判定为时已晚（那一轮已经付费）。
+    """
+    total = sum(_message_cost(m) for m in messages)
+    if total <= budget or len(messages) <= 2:
+        return messages
+    system = messages[0] if messages and messages[0].role == "system" else None
+    body = messages[1:] if system is not None else list(messages)
+
+    kept: list[LlmMessage] = []
+    for message in reversed(body):
+        cost = _message_cost(message)
+        # kept 非空时才是「可以省略」，从而保证最新一条消息永远保留
+        if kept and total - cost < budget:
+            break
+        total -= cost
+        kept.append(message)
+    kept.reverse()
+
+    # 清理失去归属的 tool 回填消息：其 assistant(tool_calls) 已被裁掉时，
+    # tool_call_id 无法在上游关联，会直接 400。
+    dropped = body[: len(body) - len(kept)]
+    dropped_call_ids = {
+        call.id for message in dropped if message.tool_calls for call in message.tool_calls
+    }
+    while kept and kept[0].role == "tool" and kept[0].tool_call_id in dropped_call_ids:
+        kept.pop(0)
+
+    trimmed = ([system] if system is not None else []) + kept
+    if len(trimmed) != len(messages):
+        logger.info("会话上下文按长度裁剪: %s → %s 条消息", len(messages), len(trimmed))
+    return trimmed
+
+
+def _select_prior_history(history: list[dict[str, Any]]) -> list[dict[str, str]]:
+    """按字符预算从新到旧选取历史（替代固定「最近 16 条」）。
+
+    条数与实际上下文长度无关：16 条长指令同样会撑爆 prompt。这里改成先单条限长，
+    再从最新往旧累计，累计到预算用尽即停，最多 ``MAX_HISTORY_MESSAGES`` 条。
+    """
+    picked: list[dict[str, str]] = []
+    budget = MAX_HISTORY_PROMPT_CHARS
+    for turn in reversed(history or []):
+        role = turn.get("role")
+        if role not in ("user", "assistant"):
+            continue
+        content = str(turn.get("content") or "").strip()
+        if not content:
+            continue
+        content = content[:MAX_HISTORY_MESSAGE_CHARS]
+        if len(content) > budget or len(picked) >= MAX_HISTORY_MESSAGES:
+            break
+        budget -= len(content)
+        picked.append({"role": role, "content": content})
+    picked.reverse()
+    return picked
 
 
 def _math_round(value: float) -> int:
@@ -552,12 +632,8 @@ class AgentService:
             )
 
         # 5) 兜底：构造 LLM 对话，进入 tool-calling 多轮循环
-        # 截取最近 16 条有效历史，单条限长 2000，避免上下文膨胀
-        prior = [
-            {"role": h.get("role"), "content": str(h.get("content") or "")[:2000]}
-            for h in history
-            if h.get("role") in ("user", "assistant") and str(h.get("content") or "").strip()
-        ][-16:]
+        # 历史按字符预算（而非固定条数）从新到旧选取，单条限长后再累计
+        prior = _select_prior_history(history)
 
         messages: list[LlmMessage] = [
             LlmMessage(role="system", content=await self._resolve_system_prompt()),
@@ -578,6 +654,8 @@ class AgentService:
         # tool-calling 循环：每轮调用 LLM，若有 tool_calls 则执行后回填，直到无 tool_calls 或达到上限
         while rounds < MAX_ROUNDS:
             rounds += 1
+            # 每轮下发前先按长度收敛上下文（工具回填会持续追加）
+            messages = _trim_messages(messages, MAX_SESSION_PROMPT_CHARS)
             l0 = now_ms()
             chat_opts = (
                 LlmChatOptions(on_token=lambda text: on_progress({"type": "token", "text": text}))
@@ -786,19 +864,35 @@ class AgentService:
     def _match_query_fast_path(
         self, text: str
     ) -> dict[str, str] | None:
-        """匹配查询快路径（温度 / 湿度询问）。"""
+        """匹配查询快路径（温度 / 湿度询问）。
+
+        房间描述需先剥离「现在 / 当前 / 请问」等噪声词：否则「现在几度」会把时间词
+        当成房间名，白白打一次 ``get_area_snapshot`` 才回落 LLM。剥离后为空表示用户
+        没指定房间，此时不走快路径（交给 LLM 结合上下文判断）；清洗后仍残留「温 / 湿」
+        等查询词碎片时同样放弃（如「客厅的温湿度」被切成房间「客厅温」）。
+        """
         t = text.strip()
-        m = self._L.temp_query.search(t)
-        if m:
-            room_part = _strip_de(m.group(1) or m.group(3) or "")
-            if len(room_part) >= 1:
-                return {"roomName": room_part, "type": "temperature"}
-        m = self._L.humidity_query.search(t)
-        if m:
-            room_part = _strip_de(m.group(1) or "")
-            if len(room_part) >= 1:
-                return {"roomName": room_part, "type": "humidity"}
+        for pattern, query_type in (
+            (self._L.temp_query, "temperature"),
+            (self._L.humidity_query, "humidity"),
+        ):
+            m = pattern.search(t)
+            if not m:
+                continue
+            room_part = self._clean_query_room(m.group("room") or "")
+            if len(room_part) < 1:
+                continue
+            if self._L.query_room_conflict_pattern.search(room_part):
+                logger.info('快路径查询房间名残留查询词,交给 LLM: "%s" → %s', t, room_part)
+                continue
+            return {"roomName": room_part, "type": query_type}
         return None
+
+    def _clean_query_room(self, room: str) -> str:
+        """清洗查询语句捕获到的房间描述（去助词 + 去时间 / 礼貌噪声词）。"""
+        cleaned = _strip_de(room)
+        cleaned = self._L.query_noise_pattern.sub("", cleaned)
+        return cleaned.strip()
 
     @staticmethod
     def _is_control_success(name: str, r: dict[str, Any]) -> bool:
@@ -848,7 +942,11 @@ __all__ = [
     "AgentChatOptions",
     "AgentChatResponse",
     "AgentService",
+    "MAX_HISTORY_MESSAGES",
+    "MAX_HISTORY_MESSAGE_CHARS",
+    "MAX_HISTORY_PROMPT_CHARS",
     "MAX_ROUNDS",
+    "MAX_SESSION_PROMPT_CHARS",
     "MAX_SESSION_PROMPT_TOKENS",
     "MAX_TOOL_RESULT_CHARS",
     "estimate_cost_cny",

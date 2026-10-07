@@ -17,6 +17,7 @@ from sqlalchemy import func, or_, select
 
 from ..core.database import Database
 from ..core.errors import BusinessException
+from ..core.ha_service_catalog import ALLOWED_SERVICES
 from ..core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, LoginSession, User
 from ..dependencies import (
     DatabaseSession,
@@ -45,6 +46,7 @@ from ..schemas import (
 from ..security.session_store import session_token_hash
 from ..services.command_proxy import build_service_call_dto, dispatch_service_call
 from ..services.command_proxy_auth import RegistryTargetResolver, assert_command_proxy_authorized
+from ..services.license import features as feature_codes
 
 router = APIRouter(prefix='/ha', tags=['home-assistant'])
 runtime_router = APIRouter(tags=['runtime'])
@@ -52,87 +54,6 @@ MAX_RUNTIME_ENTITIES = 1000
 # 实时连接的授权复检间隔（秒）：连接建立后授权仍可能到期或被吊销，
 # 长连必须周期性回看，否则一份过期授权可以靠一条已建立的连接无限用下去。
 RUNTIME_LICENSE_CHECK_SECONDS = 30
-ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
-    ('lock', 'lock'): {'code'},
-    ('lock', 'unlock'): {'code'},
-    ('lock', 'open'): {'code'},
-    ('homeassistant', 'toggle'): set(),
-    ('button', 'press'): set(),
-    ('input_button', 'press'): set(),
-    ('input_boolean', 'turn_on'): set(),
-    ('input_boolean', 'turn_off'): set(),
-    ('input_select', 'select_option'): {'option'},
-    ('script', 'turn_on'): set(),
-    ('light', 'turn_on'): {'white', 'hs_color', 'rgb_color', 'brightness', 'transition', 'brightness_pct', 'color_temp_kelvin'},
-    ('light', 'turn_off'): {'transition'},
-    ('switch', 'turn_on'): set(),
-    ('switch', 'turn_off'): set(),
-    ('cover', 'open_cover'): set(),
-    ('cover', 'close_cover'): set(),
-    ('cover', 'stop_cover'): set(),
-    
-        ('cover', 'set_cover_position'): {'position'},
-        ('cover', 'open_cover_tilt'): set(),
-        ('cover', 'close_cover_tilt'): set(),
-        ('cover', 'stop_cover_tilt'): set(),
-        ('cover', 'set_cover_tilt_position'): {'tilt_position'},
-        ('climate', 'set_temperature'): {'temperature', 'target_temp_low', 'target_temp_high'},
-        ('climate', 'turn_on'): set(),
-        ('climate', 'turn_off'): set(),
-        ('climate', 'set_swing_horizontal_mode'): {'swing_horizontal_mode'},
-        ('climate', 'set_hvac_mode'): {'hvac_mode'},
-        ('climate', 'set_fan_mode'): {'fan_mode'},
-        ('climate', 'set_swing_mode'): {'swing_mode'},
-        ('climate', 'set_preset_mode'): {'preset_mode'},
-        ('water_heater', 'turn_on'): set(),
-        ('water_heater', 'turn_off'): set(),
-        ('water_heater', 'set_temperature'): {'temperature'},
-        ('water_heater', 'set_operation_mode'): {'operation_mode'}
-    ,
-    
-        ('water_heater', 'set_away_mode'): {'away_mode'},
-        ('fan', 'set_percentage'): {'percentage'},
-        ('fan', 'oscillate'): {'oscillating'},
-        ('fan', 'set_direction'): {'direction'},
-        ('fan', 'set_preset_mode'): {'preset_mode'},
-        ('fan', 'turn_on'): set(),
-        ('fan', 'turn_off'): set(),
-        ('number', 'set_value'): {'value'},
-        ('input_number', 'set_value'): {'value'},
-        ('media_player', 'media_play_pause'): set(),
-        ('media_player', 'media_play'): set(),
-        ('media_player', 'media_pause'): set(),
-        ('media_player', 'media_stop'): set(),
-        ('media_player', 'media_previous_track'): set(),
-        ('media_player', 'media_next_track'): set(),
-        ('media_player', 'volume_up'): set(),
-        ('media_player', 'volume_down'): set()
-    ,
-    
-        ('media_player', 'media_seek'): {'seek_position'},
-        ('media_player', 'shuffle_set'): {'shuffle'},
-        ('media_player', 'repeat_set'): {'repeat'},
-        ('media_player', 'volume_set'): {'volume_level'},
-        ('media_player', 'volume_mute'): {'is_volume_muted'},
-        ('media_player', 'select_source'): {'source'},
-        ('media_player', 'select_sound_mode'): {'sound_mode'},
-        ('media_player', 'play_media'): {'media_content_id', 'media_content_type'},
-        ('media_player', 'turn_on'): set(),
-        ('media_player', 'turn_off'): set(),
-        ('vacuum', 'start'): set(),
-        ('vacuum', 'pause'): set(),
-        ('vacuum', 'stop'): set(),
-        ('vacuum', 'locate'): set(),
-        ('vacuum', 'clean_spot'): set(),
-        ('vacuum', 'turn_on'): set(),
-        ('vacuum', 'turn_off'): set()
-    ,
-    
-        ('vacuum', 'return_to_base'): set(),
-        ('vacuum', 'set_fan_speed'): {'fan_speed'},
-        ('select', 'select_option'): {'option'}
-    ,
-}
 
 
 def require_admin(user: User) -> None:
@@ -327,7 +248,7 @@ async def save_connection(
     database: DatabaseSession,
     user: LicensedUser,
 ) -> dict[str, Any]:
-    if not request.app.state.license_service.allows('ha.configure'):
+    if not request.app.state.license_service.allows(feature_codes.FEATURE_HA_CONFIGURE):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许配置 Home Assistant。')
     require_admin(user)
     connector = request.app.state.studio_ha
@@ -720,7 +641,7 @@ def sync_status(request: Request, database: DatabaseSession, _viewer: LicensedVi
 
 @router.post('/sync')
 async def run_sync(request: Request, _database: DatabaseSession, user: LicensedUser) -> dict[str, Any]:
-    if not request.app.state.license_service.allows('ha.sync'):
+    if not request.app.state.license_service.allows(feature_codes.FEATURE_HA_SYNC):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许同步 Home Assistant。')
     require_admin(user)
     connection = await asyncio.to_thread(load_active_connection_snapshot, request.app.state.database)
@@ -755,7 +676,7 @@ async def call_service(
     _database: DatabaseSession,
     viewer: LicensedViewer,
 ) -> dict[str, Any]:
-    if not request.app.state.license_service.allows('ha.control'):
+    if not request.app.state.license_service.allows(feature_codes.FEATURE_HA_CONTROL):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许控制 Home Assistant。')
     allowed_fields = ALLOWED_SERVICES.get((payload.domain, payload.service))
     if allowed_fields is None:
@@ -876,7 +797,7 @@ async def browse_media(
     _database: DatabaseSession,
     viewer: LicensedViewer,
 ) -> dict[str, Any]:
-    if not request.app.state.license_service.allows('ha.control'):
+    if not request.app.state.license_service.allows(feature_codes.FEATURE_HA_CONTROL):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许控制 Home Assistant。')
     entity_domain = payload.entity_id.partition('.')[0]
     if entity_domain != 'media_player':
@@ -918,8 +839,6 @@ def websocket_viewer(websocket: WebSocket) -> ViewerPrincipal | None:
         if (
             record is None
             or record.expires_at.replace(tzinfo=UTC) <= now
-            # 会话还必须属于当前管理员账号。
-            or record.user_id != websocket.app.state.admin_account.user_id
         ):
             return None
         user = database.get(User, record.user_id)
@@ -1029,7 +948,7 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
         return
     if viewer.user is not None:
         context['actor'] = getattr(viewer.user, 'username', None)
-    if not await asyncio.to_thread(websocket.app.state.license_service.allows, 'runtime.websocket'):
+    if not await asyncio.to_thread(websocket.app.state.license_service.allows, feature_codes.FEATURE_RUNTIME_WEBSOCKET):
         await close_with_log(4403, 'license restricted', send_reason=False)
         return
     await websocket.accept()
@@ -1047,7 +966,7 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
         if access_closed:
             return False
         allowed = await asyncio.to_thread(
-            websocket.app.state.license_service.allows, 'runtime.websocket')
+            websocket.app.state.license_service.allows, feature_codes.FEATURE_RUNTIME_WEBSOCKET)
         if not allowed:
             if not access_closed:
                 access_closed = True
@@ -1099,7 +1018,19 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
             initial_snapshot = await websocket.app.state.studio_ha.state_hub.snapshot(entity_ids)
             if not await send_licensed({'type': 'snapshot', 'states': initial_snapshot}):
                 return
-            await websocket.app.state.studio_ha.ensure_entity_states(entity_ids)
+            # 状态补全是「尽力而为」：初始快照已经发出，补全失败不该拆掉整条实时推送。
+            # ensure_entity_states 内部已逐实体容错并带退避重试，这里再兜一层，防的是
+            # 未预期的异常（如取连接 / 合并阶段出错）把 send_updates 整体带崩。
+            try:
+                await websocket.app.state.studio_ha.ensure_entity_states(entity_ids)
+            except Exception:  # noqa: BLE001 - 补全失败不得影响后续事件转发
+                _runtime_log(
+                    websocket,
+                    'warning',
+                    '实时连接初始状态补全失败，继续转发事件',
+                    {**context, 'phase': 'hydrate'},
+                    details=traceback.format_exc(),
+                )
             hydrated_snapshot = await websocket.app.state.studio_ha.state_hub.snapshot(entity_ids)
             if hydrated_snapshot != initial_snapshot:
                 if not await send_licensed({'type': 'snapshot', 'states': hydrated_snapshot}):

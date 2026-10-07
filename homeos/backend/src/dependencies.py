@@ -14,6 +14,7 @@ from fastapi import Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .core.errors import unauthorized
 from .core.models import LoginSession, User
 from .security.session_store import session_token_hash
 
@@ -77,10 +78,10 @@ def authenticated_user(
 ) -> User:
     user = _admin_session(request, response, database)
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='登录状态已失效，请重新登录。',
-        )
+        # 与 ``security.auth_context.get_current_user`` 走同一个 helper，保证两套鉴权依赖的
+        # 未登录响应逐字段一致（``errorCode=UNAUTHORIZED``）。前端按 ``errorCode`` 分派
+        # 「未登录 → 跳登录页」，同一个语义给两种码会让部分端点上的跳转悄悄失效。
+        unauthorized('登录状态已失效，请重新登录。')
     return user
 
 
@@ -96,21 +97,59 @@ def authenticated_short_lived_user(
 CurrentUser = Annotated[User, Depends(authenticated_short_lived_user)]
 
 
+def _license_restricted(request: Request) -> HTTPException:
+    """授权门禁统一的 403：``detail.code = LICENSE_RESTRICTED``。
+
+    ``detail`` 是既有协议的一部分（studio 侧 ``home.ts`` / ``display.ts`` /
+    ``studio-app.ts`` 读 ``payload.detail.code`` 判断「该跳到激活页」），所以这里保持
+    结构不变，只把「什么时候需要 403」的判断收成一处，避免两个门禁依赖各写一份文案与形状。
+    """
+    license_status = request.app.state.license_service.status()
+    return HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail={
+            'code': 'LICENSE_RESTRICTED',
+            'message': '当前授权状态不允许执行此操作。',
+            'licenseStatus': license_status['status'],
+        },
+    )
+
+
 def licensed_user(request: Request, user: CurrentUser) -> User:
     if not request.app.state.license_service.allows():
-        license_status = request.app.state.license_service.status()
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                'code': 'LICENSE_RESTRICTED',
-                'message': '当前授权状态不允许执行此操作。',
-                'licenseStatus': license_status['status'],
-            },
-        )
+        raise _license_restricted(request)
     return user
 
 
 LicensedUser = Annotated[User, Depends(licensed_user)]
+
+
+def require_license_feature(request: Request, feature: str) -> None:
+    """路由级功能码门禁：登录之上再判一次「这张租约有没有开通这个能力」。
+
+    ``LicensedUser`` / ``LicensedViewer`` 只判「授权整体是否可用」，不判**具体能力**。
+    素材、展示数据这类路由此前就只挂了前者，于是「只买了基础版不含素材」的客户照样能读
+    素材库 —— 能力码签了却没人查。这里把判定收成一处，路由里一行调用即可，并且与
+    ``LicenseService.allows`` 走同一份 ``features.granted``（含 ``all`` 展开与蕴含关系），
+    不会再出现「路由器放行、状态页显示未开通」。
+
+    ``feature`` 一律传 ``services.license.features`` 里的常量，不要写字面串。
+    """
+    if not request.app.state.license_service.allows(feature):
+        raise _license_restricted(request)
+
+
+def license_feature(feature: str):
+    """把 :func:`require_license_feature` 包成路由级依赖。
+
+    供 ``APIRouter(dependencies=[license_feature(FEATURE_X)])`` 使用 —— 整个模块路由共享
+    一个能力码门禁，新增端点默认受保护，不必逐个补 ``require_license_feature``。
+    """
+
+    def _dependency(request: Request) -> None:
+        require_license_feature(request, feature)
+
+    return Depends(_dependency)
 
 
 @dataclass(frozen=True)
@@ -134,10 +173,8 @@ def authenticated_viewer(
 ) -> ViewerPrincipal:
     user = _admin_session(request, response, database)
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='请先登录。',
-        )
+        # 与 ``authenticated_user`` / ``auth_context.get_current_user`` 同一口径。
+        unauthorized('请先登录。')
     return ViewerPrincipal(user=user)
 
 
@@ -156,15 +193,7 @@ CurrentViewer = Annotated[ViewerPrincipal, Depends(authenticated_short_lived_vie
 
 def licensed_viewer(request: Request, viewer: CurrentViewer) -> ViewerPrincipal:
     if not request.app.state.license_service.allows():
-        license_status = request.app.state.license_service.status()
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                'code': 'LICENSE_RESTRICTED',
-                'message': '当前授权状态不允许执行此操作。',
-                'licenseStatus': license_status['status'],
-            },
-        )
+        raise _license_restricted(request)
     return viewer
 
 
@@ -204,9 +233,9 @@ def viewer_entity_ids(
 def require_viewer_entity(
     database: DatabaseSession, viewer: ViewerPrincipal, entity_id: str
 ) -> None:
-    """校验查看者是否有权访问该实体。
+    """实体级 ACL 校验占位：现行模型不做 per-entity 收敛（恒放行）。
 
-    登录会话与编辑器同权限，不做实体级收敛；保留函数以维持 HA 侧调用点不变。
+    调用点（HA 代理等）保留以便将来接白名单时无需改路由签名。
     """
     return
 

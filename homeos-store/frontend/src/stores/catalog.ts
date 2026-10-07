@@ -17,7 +17,7 @@ export const useCatalogStore = defineStore("catalog", () => {
 
   const primaryProducts = computed(() =>
     products.value.filter((item) =>
-      ["base", "bundle", "package"].includes(item.productType || ""),
+      ["base", "bundle", "edition_full", "package"].includes(item.productType || ""),
     ),
   );
 
@@ -47,7 +47,10 @@ export const useCatalogStore = defineStore("catalog", () => {
   }
 
   function isTrialProduct(product: StoreProduct | null | undefined) {
-    return product?.validityDays !== null && product?.validityDays !== undefined;
+    const kind = String(product?.productType || "")
+      .trim()
+      .toLowerCase();
+    return kind === "trial" || kind === "试用";
   }
 
   function addonTypeLabel(product: StoreProduct | null | undefined) {
@@ -58,7 +61,11 @@ export const useCatalogStore = defineStore("catalog", () => {
   function productGroup(product: StoreProduct) {
     if (isAddonProduct(product)) return "addon";
     if (isTrialProduct(product)) return "trial";
-    return product.productType === "bundle" ? "bundle" : "base";
+    // 全功能版与全授权同属「一整份主授权」陈列位。
+    if (product.productType === "bundle" || product.productType === "edition_full") {
+      return "bundle";
+    }
+    return "base";
   }
 
   function primaryProductUnavailable(product: StoreProduct) {

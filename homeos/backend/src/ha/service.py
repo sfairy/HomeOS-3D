@@ -42,6 +42,7 @@ from .connection_setup import HA_ENDPOINT_PROBE_TIMEOUT_SECONDS
 from .control_pool import HAControlConfiguration, HAControlPool
 from .crypto import CredentialCipher, CredentialCipherError
 from .endpoints import HAEndpoint, connection_endpoints, endpoint_signature
+from .homeos_facade import HomeOSFacadeMixin
 from .state_hub import StateHub
 
 LOGGER = logging.getLogger(__name__)
@@ -81,7 +82,7 @@ def state_requires_fetch_retry(entity_id: str, state: dict | None) -> bool:
     attributes = state.get('attributes') if isinstance(state, dict) else None
     return not isinstance(attributes, dict) or not required_attributes.intersection(attributes)
 
-class HAConnectorService:
+class HAConnectorService(HomeOSFacadeMixin):
 
     def __init__(
         self,
@@ -305,9 +306,21 @@ class HAConnectorService:
             # track_fetch_changes 记录本轮请求期间 StateHub 自己发生的变更（事件推送等），
             # 交给 merge 判断「HA 返回的旧快照」能不能覆盖内存里更新的值。
             async with self.state_hub.track_fetch_changes(requested) as invalidated:
-                states = await client.fetch_states(requested)
+                try:
+                    states = await client.fetch_states(requested)
+                except HAClientError as error:
+                    # 兜底：fetch_states 内部已逐实体容错，这里防的是连接级失败（如 Client 建连即失败）。
+                    # 不能把异常抛到实时推送链路上（会拆掉整条 runtime WebSocket）；
+                    # 按「本轮无数据」处理，下面的 returned 为空集，所有实体留在 pending 里退避重试。
+                    LOGGER.warning('批量拉取实体状态失败，本轮跳过：%s', error)
+                    states = []
                 await self.state_hub.merge(states, invalidated = invalidated)
-            pending.clear()
+            # 本轮「请求了但没返回」的实体 = 网络失败，或 HA 侧暂时还没有这个实体（404）。
+            # 必须保留在 pending 里，否则 pending 被清空后立刻 break，退避重试（共 3 轮）
+            # 一次都跑不到——正是「HA 刚启动 / 集成未就绪」最需要重试的时刻。
+            # 注：本层无法区分「已删除」与「尚未注册」，两者都会重试；每实体最多 3 次请求，有界。
+            returned = {str(state.get('entity_id') or '') for state in states}
+            pending = {entity_id for entity_id in requested if entity_id not in returned}
             if states:
                 # 重试判据必须基于「合并后」的状态：HA 刚返回的那份可能仍残缺。
                 current = await self.state_hub.snapshot({

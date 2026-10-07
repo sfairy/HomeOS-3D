@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import or_, select
 
 from ..core.deps import AdminAccount, DbSession
@@ -59,6 +59,7 @@ def admin_list_bindings(
             or_(
                 DeviceBinding.instance_id.like(like),
                 DeviceBinding.client_version.like(like),
+                DeviceBinding.account_name.like(like),
                 DeviceBinding.last_ip.like(like),
                 DeviceBinding.license_id.in_(hinted_license_ids),
             )
@@ -83,6 +84,7 @@ def admin_list_bindings(
             "activationCodeHint": hints.get(binding.license_id),
             "instanceId": binding.instance_id,
             "clientVersion": binding.client_version,
+            "accountName": binding.account_name,
             "lastIp": binding.last_ip,
             "bound": bool(binding.is_live),
             "activatedAt": iso_z(binding.activated_at),
@@ -96,7 +98,11 @@ def admin_list_bindings(
 
 @router.post("/bindings/{binding_id}/release")
 def admin_release_binding(
-    binding_id: str, payload: AdminOrderActionRequest, session: DbSession, admin: AdminAccount
+    binding_id: str,
+    payload: AdminOrderActionRequest,
+    session: DbSession,
+    admin: AdminAccount,
+    request: Request,
 ) -> dict:
     binding = session.get(DeviceBinding, binding_id)
     if binding is None:
@@ -105,6 +111,9 @@ def admin_release_binding(
     account_id = license.account_id if license is not None else None
     binding.active = False
     binding.released_at = utcnow()
+    authority = getattr(request.app.state, "license_authority", None)
+    if authority is not None:
+        authority.revoke_binding_credentials(session, binding.id)
     session.add(
         DeviceReleaseEvent(
             license_id=binding.license_id,

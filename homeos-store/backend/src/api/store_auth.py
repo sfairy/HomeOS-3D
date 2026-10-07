@@ -6,7 +6,7 @@ import secrets
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from .admin_shared import _drop_account_sessions
 from .store_catalog import (
@@ -55,6 +55,23 @@ from ..security.security import (
     verify_password,
 )
 
+
+def _find_account_by_login(session, account_key: str) -> Account | None:
+    """按「账号名或邮箱」查找账号（与主应用登录口径一致）。"""
+    key = account_key.strip()
+    if not key:
+        return None
+    key_lower = key.lower()
+    return session.scalars(
+        select(Account).where(
+            or_(
+                Account.username == key,
+                func.lower(Account.username) == key_lower,
+                func.lower(Account.email) == key_lower,
+            )
+        )
+    ).first()
+
 router = APIRouter()
 
 _dummy_hash: str | None = None
@@ -70,18 +87,26 @@ def _dummy_password_hash() -> str:
 @router.post("/auth/register")
 def register(payload: RegisterRequest, request: Request, session: DbSession) -> Response:
     email = payload.email.strip().lower()
+    username = payload.username
     if payload.confirm_password and payload.confirm_password != payload.password:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="两次输入的密码不一致。")
 
     record = _check_verification_code(session, email=email, purpose="register", code=payload.code)
 
-    existing = session.scalars(select(Account).where(func.lower(Account.email) == email)).first()
+    existing = session.scalars(
+        select(Account).where(
+            or_(Account.username == username, func.lower(Account.email) == email)
+        )
+    ).first()
     if existing is not None:
+        if existing.username == username:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该账号名已被占用。")
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该邮箱已注册，请直接登录。")
 
     _consume_verification_record(session, record, email=email)
 
     account = Account(
+        username=username,
         email=email,
         password_hash=hash_password(payload.password),
         email_verified_at=utcnow(),
@@ -134,9 +159,9 @@ def register(payload: RegisterRequest, request: Request, session: DbSession) -> 
 
 @router.post("/auth/login")
 def login(payload: LoginRequest, request: Request, session: DbSession) -> Response:
-    email = payload.email.strip().lower()
+    account_key = (payload.account or "").strip()
     password_gate.maybe_prune(session)
-    account_scope = f"login:{email}"
+    account_scope = f"login:{account_key.lower()}"
     address = resolve_client_ip(request)
     ip_scope = f"login-ip:{address.ip}" if address.per_client and address.ip else ""
 
@@ -155,15 +180,15 @@ def login(payload: LoginRequest, request: Request, session: DbSession) -> Respon
             headers={"Retry-After": str(remaining)},
         )
 
-    account = session.scalars(select(Account).where(func.lower(Account.email) == email)).first()
+    account = _find_account_by_login(session, account_key)
     if account is None or not account.is_active:
         verify_password(payload.password, _dummy_password_hash())
         ok = False
     else:
         ok = verify_password(payload.password, account.password_hash)
     if not ok:
-        _note_login_failure(session, _login_scopes(request, email))
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="邮箱或密码不正确。")
+        _note_login_failure(session, _login_scopes(request, account_key.lower()))
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="账号或密码不正确。")
 
     password_gate.clear(session, account_scope)
     if ip_scope:

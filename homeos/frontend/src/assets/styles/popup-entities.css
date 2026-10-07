@@ -72,8 +72,8 @@
   border-radius: var(--hos-radius-pill);
   background: linear-gradient(to right,
     var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))) 0%,
-    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))) var(--progress-pct, var(--progress, 50%)),
-    var(--track-bg, rgba(255, 255, 255, 0.06)) var(--progress-pct, var(--progress, 50%)),
+    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))) var(--progress-pct, var(--progress, 0%)),
+    var(--track-bg, rgba(255, 255, 255, 0.06)) var(--progress-pct, var(--progress, 0%)),
     var(--track-bg, rgba(255, 255, 255, 0.06)) 100%);
 }
 
@@ -152,8 +152,8 @@
   border-radius: var(--hos-radius-pill);
   background: linear-gradient(to right,
     var(--track-fill-from, var(--accent-from, var(--accent, #0A84FF))) 0%,
-    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))) var(--progress-pct, var(--progress, 50%)),
-    var(--track-bg, rgba(255, 255, 255, 0.06)) var(--progress-pct, var(--progress, 50%)),
+    var(--track-fill-to, var(--accent-to, var(--accent, #0A84FF))) var(--progress-pct, var(--progress, 0%)),
+    var(--track-bg, rgba(255, 255, 255, 0.06)) var(--progress-pct, var(--progress, 0%)),
     var(--track-bg, rgba(255, 255, 255, 0.06)) 100%);
 }
 

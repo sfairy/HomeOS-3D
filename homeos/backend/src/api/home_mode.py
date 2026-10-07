@@ -11,10 +11,16 @@ from typing import Any
 from fastapi import Depends, Query, Request
 from pydantic import BaseModel, ConfigDict
 
+from ..dependencies import license_feature
 from ..security.auth_context import require_roles, require_user
+from ..services.license import features as feature_codes
 from .router import NestRouter
 
-router = NestRouter(prefix="/modes", tags=["orchestrate"])
+router = NestRouter(
+    prefix="/modes",
+    tags=["orchestrate"],
+    dependencies=[license_feature(feature_codes.FEATURE_HOME_MODE)],
+)
 
 def _service(request: Request):
     return request.app.state.home_mode

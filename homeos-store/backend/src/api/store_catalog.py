@@ -67,16 +67,18 @@ def _account_license_state(session, account: Account) -> tuple[bool, bool]:
             temporary = True
     return permanent, temporary
 def _is_trial_product(product: Product) -> bool:
-    """试用商品的判定口径与前台 ``store.js`` 的 ``isTrialProduct`` 完全一致。
+    """仅 ``product_type`` 为 trial 的商品占「一生一次试用」槽。
+
+    付费限期 SKU（有 ``validity_days`` 但类型非 trial）可重复购买。
     """
-    return product.validity_days is not None
+    kind = str(product.product_type or "").strip().lower()
+    return kind in {"trial", "试用"}
 def _has_used_trial(session, account: Account) -> bool:
-    """该账号是否已经买过（或被后台发过）试用授权。
-    """
+    """该账号是否已买过 / 领过 ``product_type=trial`` 的试用授权。"""
     found = session.execute(
         select(License.id)
         .where(License.account_id == account.id)
-        .where(License.validity_days.is_not(None))
+        .where(func.lower(License.product_type).in_(("trial", "试用")))
         .limit(1)
     ).first()
     return found is not None

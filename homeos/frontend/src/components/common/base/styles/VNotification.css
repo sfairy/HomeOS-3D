@@ -14,6 +14,18 @@
   max-width: calc(100% - 32px);
 }
 
+/** 两个常驻 live region（assertive / polite）。
+    常驻是硬要求：内容变化只在**已存在**的 live region 内才会被播报，
+    因此某档为空时也保留元素（空档零高度，不产生布局跳动）。
+    分组只改变播报礼貌级别，视觉上仍是同一条居中纵列：外层列 + 内层列，间距一致。 */
+.notification-live {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+}
+
 /** 单条通知：毛玻璃卡片 + 可点击关闭 */
 .notification-item {
   pointer-events: auto;
@@ -60,15 +72,32 @@
   flex-grow: 1;
 }
 
-/** 关闭提示 ×：默认低透明度，hover 增强 */
-.close-hint {
-  opacity: 0.35;
+/** 关闭按钮 ×：默认低透明度，hover / 键盘聚焦时增强。
+    从原来的 <span class="close-hint"> 换成真按钮：可聚焦、有 aria-label，
+    键盘与读屏都能命中，且点击区域不再依赖整卡点击。 */
+.notification-item__close {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: inherit;
+  background: transparent;
+  opacity: 0.4;
   font-size: 18px;
-  transition: opacity 0.2s;
+  line-height: 1;
+  cursor: pointer;
+  transition: opacity 0.2s, background-color 0.2s;
 }
 
-.notification-item:hover .close-hint {
-  opacity: 0.6;
+.notification-item:hover .notification-item__close,
+.notification-item__close:focus-visible {
+  opacity: 0.85;
+}
+
+.notification-item__close:hover {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 /** 成功通知：绿色主题 */

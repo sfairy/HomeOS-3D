@@ -1,16 +1,31 @@
-"""在并入的 3D ``HAConnectorService`` 之上，提供 homeos 既有 ``HaConnectorService`` 接口。
+"""并入 HA 层之上的 homeos 兼容门面（原 ``StudioHAConnectorCompat`` 适配器已退役）。
 
-阶段 3 的目标是「单一 HA 连接 + 消费者改接新 HA 层」。homeos 有约 190 处消费者依赖
-既有连接器的接口（``fetch_entities_by_domain`` / ``call_service`` / ``get_status`` /
-``resync_from_ha`` / 实体与区域注册表 / 服务调用 …），逐一改写这些调用点成本高且易回归。
-本适配器把这些接口**映射到 3D 的 HA 连接**上，于是：
+背景：阶段 3 的「单一 HA 连接」迁移中，homeos 侧约 190 处消费者仍在调用既有
+``HaConnectorService`` 形状的接口（``fetch_entities_by_domain`` / ``call_service`` /
+``get_status`` / ``resync_from_ha`` / 实体与区域注册表读写 …）。当时用一层适配器
+``StudioHAConnectorCompat`` 把这些调用转发到 3D 的 ``HAConnectorService``。
 
-- 事实来源：3D 的 ``HAConnectorService``（持有 ``StateHub``，维护 ``ha_connections`` /
-  ``ha_entities`` / ``ha_devices`` / ``ha_areas`` 目录）——**不再有第二条 HA 连接**；
-- 消费方：``app.state.ha_connector`` 指向本适配器，既有调用点保持原样即可工作；
-- 状态读模型：连接器把全量快照与全量增量直接交给 homeos 状态监听写入 ``StateStore``。
+现在适配器**整体退役**：这些门面方法直接并入 ``HAConnectorService``（本 mixin），
+于是 ``app.state.studio_ha`` 与 ``app.state.ha_connector`` 指向**同一个对象**，
+消费点无需改名，也不再存在第二条 HA 连接、第二个状态源或第二跳转发。
 
-因此「全量迁移」在这里落地为：**连接与写入面切到 3D，读取面保留 homeos 兼容接口**。
+设计要点（避免踩坑）：
+
+- 本 mixin **不定义** ``connected`` / ``state_hub`` / ``start`` / ``stop`` / ``restart`` /
+  ``set_state_listener`` / ``fetch_history``：连接器自身的实现按 MRO 优先，既不会覆盖
+  活逻辑，也避免把 ``state_hub`` 这个**实例属性**变成 property —— 那会让连接器
+  ``__init__`` 里的 ``self.state_hub = StateHub()`` 直接 ``AttributeError``。
+- 装配期注入的三个钩子（``attach_sync_filter`` / ``attach_event_bus`` /
+  ``attach_state_store``）在读取处用 ``getattr`` 兜底，因此无需改动连接器的 ``__init__``。
+- 宿主成员（``database`` / ``state_hub`` / ``client_for`` / ``sync_once`` / ``connected`` /
+  ``active_base_url``）一律经 ``_host`` 视图按 ``Any`` 访问：mixin 与宿主同体，若直接写
+  ``self.database`` 会在 mixin 上找不到符号。装配期钩子（``_sync_filter`` 等）在类体给
+  ``None`` 默认值，既满足 ``reportUninitializedInstanceVariable``，也让读取处不必再
+  ``getattr`` 兜底。
+- ``fetch_history`` 的旧适配器实现把 ``hours: int`` 当 ``start_time: str`` 传给了客户端
+  （``filter_entity_id`` 收到 ``list``、``quote(6)`` 必抛 ``TypeError``），且全仓无人调用，
+  故不再迁移；历史读取一律走连接器自身的 ``fetch_history(connection, entity_id,
+  start_time, hours)``。
 """
 
 from __future__ import annotations
@@ -22,135 +37,83 @@ from sqlalchemy import select
 
 from ..core.errors import BusinessException, ErrorCode, api_error
 from ..core.models import HAConnection
-from ..ha.client import HAClientError
+from .client import HAClientError
 
-logger = logging.getLogger("homeos.studio_ha_compat")
+logger = logging.getLogger("homeos.ha.facade")
 
 
-class StudioHAConnectorCompat:
-    """把 3D ``HAConnectorService`` 包装成 homeos ``HaConnectorService`` 的接口形状。"""
+class HomeOSFacadeMixin:
+    """homeos 兼容门面：把既有调用面直接映射到本连接器（无第二跳）。"""
 
-    def __init__(self, connector: Any, database: Any, *, state_store: Any = None) -> None:
-        self._connector = connector
-        self._database = database
-        self._store = state_store
-        self._sync_filter: Any = None
-        self._get_sync_only: Any = None
-        self._event_bus: Any = None
-        self._state_listener: Any = None
+    # 装配期注入的钩子：类体给 ``None`` 默认值，满足
+    # ``reportUninitializedInstanceVariable``（CI 硬门禁）；``attach_*`` 在 lifespan 里覆写。
+    _sync_filter: Any = None
+    _get_sync_only: Any = None
+    _event_bus: Any = None
+    _state_store: Any = None
 
     @property
-    def state_hub(self):
-        """透出 3D 的 StateHub（部分消费方/端点直接读取）。"""
-        return self._connector.state_hub
-
-    @property
-    def connected(self) -> bool:
-        return bool(self._connector.connected)
+    def _host(self) -> Any:
+        """宿主视图：本 mixin 与 ``HAConnectorService`` 同体，宿主成员据此按 ``Any`` 访问。"""
+        return self
 
     # ------------------------------------------------------------------ #
-    # 生命周期：连接由 ``studio3d_plane`` 统一启停，这里只转发 stop。
-    # ------------------------------------------------------------------ #
-    async def start(self) -> None:  # pragma: no cover - 由平面统一启动
-        return None
-
-    async def stop(self) -> None:
-        await self._connector.stop()
-
-    async def restart(self) -> None:
-        await self._connector.restart()
-
-    # ------------------------------------------------------------------ #
-    # 同步过滤 / 事件总线 / 状态监听（装配期注入，行为与 homeos 版一致）
+    # 装配期注入（app.py 在 lifespan 中调用）
     # ------------------------------------------------------------------ #
     def attach_sync_filter(self, sync_filter: Any, get_sync_only: Any) -> None:
+        """注入实体同步过滤器。
+
+        ``get_sync_only`` 维持签名兼容：原适配器也只存不用，读取面按实体粒度过滤。
+        """
         self._sync_filter = sync_filter
         self._get_sync_only = get_sync_only
 
     def attach_event_bus(self, event_bus: Any) -> None:
         self._event_bus = event_bus
 
-    def set_state_listener(self, listener: Any) -> None:
-        self._state_listener = listener
+    def attach_state_store(self, state_store: Any) -> None:
+        """注入 homeos 读模型：``resync_from_ha`` 回报 ``storeCount`` 需要它。"""
+        self._state_store = state_store
+
+    def _facade_sync_filter(self) -> Any:
+        return self._sync_filter
 
     def is_entity_syncable(self, entity_id: str) -> bool:
-        if self._sync_filter is None:
+        sync_filter = self._facade_sync_filter()
+        if sync_filter is None:
             return True
-        return bool(self._sync_filter.is_entity_syncable(entity_id))
+        return bool(sync_filter.is_entity_syncable(entity_id))
 
     def filter_syncable_states(self, entities: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        if self._sync_filter is None:
+        sync_filter = self._facade_sync_filter()
+        if sync_filter is None:
             return entities
-        return self._sync_filter.filter_syncable_states(entities)
-
-    async def purge_non_syncable_from_state_store(self) -> int:
-        """从读模型移除不可同步实体（注册表变更后的清理），并广播删除事件。"""
-        if self._store is None or self._sync_filter is None:
-            return 0
-        purged = 0
-        for entity in list(self._store.get_all()):
-            entity_id = entity.get("entity_id")
-            if not entity_id or self.is_entity_syncable(str(entity_id)):
-                continue
-            self._store.apply_change(str(entity_id), None)
-            if self._event_bus is not None:
-                try:
-                    await self._event_bus.emit(
-                        "ha.state_changed",
-                        {"entity_id": str(entity_id), "old_state": entity, "new_state": None},
-                    )
-                except Exception as exc:  # noqa: BLE001
-                    logger.debug("广播实体移除失败 %s: %s", entity_id, exc)
-            purged += 1
-        return purged
-
-    async def handle_entity_registry_updated(self) -> None:
-        if self._event_bus is not None:
-            try:
-                await self._event_bus.emit("ha.entity_registry_updated", {})
-            except Exception as exc:  # noqa: BLE001
-                logger.debug("广播 ha.entity_registry_updated 失败: %s", exc)
-        await self.purge_non_syncable_from_state_store()
-
-    async def dispatch_state_event(self, event: dict[str, Any]) -> None:
-        """兼容入口：3D 连接器自行处理 WS 事件，这里转发给 homeos 状态监听（若已注册）。"""
-        if self._state_listener is None:
-            return
-        result = self._state_listener("change", event)
-        if hasattr(result, "__await__"):
-            await result
-
-    async def on_ws_connected(self) -> None:
-        return None
-
-    def on_ws_disconnected(self) -> None:
-        return None
+        return sync_filter.filter_syncable_states(entities)
 
     # ------------------------------------------------------------------ #
     # 连接状态
     # ------------------------------------------------------------------ #
     def is_connected(self) -> bool:
-        return self.connected
+        return bool(self._host.connected)
 
     def is_registry_degraded(self) -> bool:
-        return not self.connected
+        return not self.is_connected()
 
     def get_registry_degraded_reason(self) -> str | None:
-        return None if self.connected else "HA 未连接"
+        return None if self.is_connected() else "HA 未连接"
 
     def _status_dict(self) -> dict[str, Any]:
-        base_url = ""
         try:
-            base_url = self._connector.active_base_url or ""
+            base_url = self._host.active_base_url or ""
         except Exception:  # noqa: BLE001 - 传输细节不可用时留空
             base_url = ""
         return {
-            "connected": self.connected,
+            "connected": bool(self._host.connected),
             "ha_url": base_url,
-            "ha_version": getattr(self._connector, "ha_version", "") or "",
-            "last_connected_at": getattr(self._connector, "last_connected_at", None),
-            "reconnect_count": getattr(self._connector, "reconnect_count", 0),
-            # 单实例部署：3D 连接器为唯一通道，始终视为 standalone / leader。
+            "ha_version": getattr(self._host, "ha_version", "") or "",
+            "last_connected_at": getattr(self._host, "last_connected_at", None),
+            "reconnect_count": getattr(self._host, "reconnect_count", 0),
+            # 单实例部署：本连接器为唯一通道，始终视为 standalone / leader。
             "ha_ws_leader": True,
             "ha_ws_mode": "standalone",
         }
@@ -165,19 +128,19 @@ class StudioHAConnectorCompat:
     # 连接 / 客户端解析
     # ------------------------------------------------------------------ #
     def _active_connection(self) -> HAConnection | None:
-        with self._database.session_factory() as database:
+        with self._host.database.session_factory() as database:
             return database.scalar(
                 select(HAConnection).where(HAConnection.is_active.is_(True))
             )
 
-    async def _client(self):
+    async def _facade_client(self) -> Any:
         connection = self._active_connection()
         if connection is None:
             return None
-        return await self._connector.client_for(connection)
+        return await self._host.client_for(connection)
 
     def _require_connected(self) -> None:
-        if not self.connected:
+        if not self.is_connected():
             raise BusinessException(ErrorCode.SERVICE_UNAVAILABLE, api_error("HA_NOT_CONNECTED"))
 
     # ------------------------------------------------------------------ #
@@ -192,8 +155,8 @@ class StudioHAConnectorCompat:
         return_response: bool | None = None,
         request_id: str | None = None,
     ) -> Any:
-        del request_id  # 请求 id 由 3D 客户端内部管理（REST 语义无对应概念）
-        client = await self._client()
+        del request_id  # 请求 id 由连接器内部管理（REST 语义无对应概念）
+        client = await self._facade_client()
         if client is None:
             raise BusinessException(
                 ErrorCode.SERVICE_UNAVAILABLE, api_error("HA_NOT_CONNECTED")
@@ -208,18 +171,6 @@ class StudioHAConnectorCompat:
             )
         except HAClientError as exc:
             raise BusinessException(ErrorCode.EXTERNAL_ERROR, str(exc)) from exc
-
-    async def _call_service_immediate(
-        self,
-        domain: str,
-        service: str,
-        entity_id: str,
-        service_data: dict[str, Any] | None = None,
-        return_response: bool | None = None,
-    ) -> Any:
-        return await self.call_service(
-            domain, service, entity_id, service_data, return_response
-        )
 
     async def call_service_via_rest(
         self,
@@ -242,7 +193,7 @@ class StudioHAConnectorCompat:
     # 状态 / 注册表
     # ------------------------------------------------------------------ #
     async def fetch_all_states(self) -> list[dict[str, Any]]:
-        client = await self._client()
+        client = await self._facade_client()
         if client is None:
             return []
         return await client.fetch_all_states()
@@ -250,7 +201,7 @@ class StudioHAConnectorCompat:
     async def fetch_entities_by_domain(self, domain: str) -> list[dict[str, Any]]:
         """按 HA 域筛选实体：优先读 ``StateHub`` 快照，空则回退全量拉取。"""
         prefix = f"{domain}."
-        snapshot = await self._connector.state_hub.snapshot()
+        snapshot = await self._host.state_hub.snapshot()
         cached = [
             entity
             for entity in (self._hub_to_raw(item) for item in snapshot)
@@ -277,7 +228,7 @@ class StudioHAConnectorCompat:
         }
 
     async def fetch_entity_state(self, entity_id: str) -> dict[str, Any] | None:
-        client = await self._client()
+        client = await self._facade_client()
         if client is None:
             return None
         try:
@@ -290,21 +241,21 @@ class StudioHAConnectorCompat:
         return None
 
     async def fetch_entity_registry(self) -> list[dict[str, Any]]:
-        client = await self._client()
+        client = await self._facade_client()
         if client is None:
             return []
         entities, _devices, _areas = await client.fetch_registries()
         return list(entities or [])
 
     async def fetch_area_registry(self) -> list[dict[str, Any]]:
-        client = await self._client()
+        client = await self._facade_client()
         if client is None:
             return []
         _entities, _devices, areas = await client.fetch_registries()
         return list(areas or [])
 
     async def request_registry(self, type_: str) -> list[dict[str, Any]]:
-        client = await self._client()
+        client = await self._facade_client()
         if client is None:
             return []
         websocket = await client.connect_websocket()
@@ -318,7 +269,7 @@ class StudioHAConnectorCompat:
 
     async def update_entity_area(self, entity_id: str, area_id: str) -> None:
         self._require_connected()
-        client = await self._client()
+        client = await self._facade_client()
         if client is None:
             raise BusinessException(
                 ErrorCode.SERVICE_UNAVAILABLE, api_error("HA_NOT_CONNECTED")
@@ -339,24 +290,32 @@ class StudioHAConnectorCompat:
 
     async def resync_from_ha(self, timeout_ms: int = 120_000) -> dict[str, Any]:
         """重新同步 HA 全量目录/状态（对齐 homeos ``resync_from_ha`` 返回结构）。"""
+        del timeout_ms
         self._require_connected()
-        counts = await self._connector.sync_once(reconciled=True)
-        store_count = self._store.get_count() if self._store is not None else 0
+        counts = await self._host.sync_once(reconciled=True)
+        state_store = getattr(self, "_state_store", None)
+        store_count = state_store.get_count() if state_store is not None else 0
         return {
             "haCount": counts.get("entities", 0),
             "storeCount": store_count,
             "haSynced": True,
         }
 
-    async def fetch_history(self, entity_ids: list[str], hours: int) -> Any:
-        client = await self._client()
-        if client is None:
-            return []
-        return await client.fetch_history(entity_ids, hours)
+    # ------------------------------------------------------------------ #
+    # WS 生命周期钩子（连接状态已由连接器自身维护，这里保留为兼容空实现）
+    # ------------------------------------------------------------------ #
+    async def on_ws_connected(self) -> None:
+        return None
 
+    def on_ws_disconnected(self) -> None:
+        return None
+
+    # ------------------------------------------------------------------ #
+    # 连接测试
+    # ------------------------------------------------------------------ #
     async def test_ha_connection(self, url: str, token: str) -> dict[str, Any]:
-        """兼容接口：3D 侧连接测试走 ``HAClient.test_connection``。"""
-        from ..ha.client import HAClient
+        """兼容接口：连接测试走 ``HAClient.test_connection``（不落库、不影响活跃连接）。"""
+        from .client import HAClient
 
         client = HAClient(url, token)
         return await client.test_connection(include_temperature_unit=True)

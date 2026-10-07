@@ -202,8 +202,8 @@
     to right,
     var(--track-fill-from, var(--accent-from, var(--accent, #a78bfa))) 0%,
     var(--track-fill-to, var(--accent-to, var(--accent, #a78bfa)))
-      var(--progress-pct, var(--progress, 50%)),
-    var(--track-bg, var(--premium-border)) var(--progress-pct, var(--progress, 50%)),
+      var(--progress-pct, var(--progress, 0%)),
+    var(--track-bg, var(--premium-border)) var(--progress-pct, var(--progress, 0%)),
     var(--track-bg, var(--premium-border)) 100%
   );
 }

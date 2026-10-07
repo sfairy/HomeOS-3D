@@ -6,6 +6,7 @@ import {
   coverCanAdjustBlades,
 } from "./cover-state";
 import { domElement } from "@app/utils/dom-factory";
+import { applyRangeProgressCss } from "@app/utils/range-progress";
 /** cover 面板的宿主元素与回调； */
 type CoverPanelOptions = {
   element?: any;
@@ -60,6 +61,7 @@ export function createCoverPanel({
     positionHeadingElement.append(positionOutputElement));
   const positionSliderElement = createElement("input");
   ((positionSliderElement.type = "range"),
+    positionSliderElement.classList.add("hb-range"),
     (positionSliderElement.min = "0"),
     (positionSliderElement.max = "100"),
     (positionSliderElement.step = "1"),
@@ -174,10 +176,7 @@ export function createCoverPanel({
         ? (draftPosition ?? resolveDreamBladePosition())
         : resolveTargetPosition();
     ((positionSliderElement.value = String(sliderPosition ?? 0)),
-      positionSliderElement.style.setProperty(
-        "--hb-cover-position-progress",
-        (sliderPosition ?? 0) + "%",
-      ),
+      applyRangeProgressCss(positionSliderElement, (sliderPosition ?? 0) + "%"),
       positionSliderElement.setAttribute(
         "aria-valuetext",
         sliderPosition === null
@@ -356,6 +355,7 @@ export function createCoverPanel({
         tiltPositionOutputElement.setAttribute("aria-label", "当前叶片位置"),
         (tiltPositionSliderElement = createElement("input")),
         (tiltPositionSliderElement.type = "range"),
+        tiltPositionSliderElement.classList.add("hb-range"),
         (tiltPositionSliderElement.min = "0"),
         (tiltPositionSliderElement.max = "100"),
         (tiltPositionSliderElement.step = "1"),
@@ -405,10 +405,7 @@ export function createCoverPanel({
       tiltPosition === null ? "未知" : Math.round(tiltPosition) + "%"),
       (tiltPositionSliderElement.value = String(tiltPosition ?? 0)),
       (tiltPositionSliderElement.disabled = !canAdjustSlider() || !deviceState.tiltSupported),
-      tiltPositionSliderElement.style.setProperty(
-        "--hb-cover-position-progress",
-        (tiltPosition ?? 0) + "%",
-      ),
+      applyRangeProgressCss(tiltPositionSliderElement, (tiltPosition ?? 0) + "%"),
       tiltPositionSliderElement.parentElement &&
         (tiltPositionSliderElement.parentElement.hidden = !deviceState.tiltSupported));
     for (const tiltButton of nativeTiltElement.children[2].children)

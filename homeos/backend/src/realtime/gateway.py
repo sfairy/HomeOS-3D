@@ -8,7 +8,7 @@
 - 广播 API：ha_status / redis_status / state_changed_batch / entities_stale / ha_queue_dropped /
   notification / home_mode / automation_executed / security_* / presence_* /
   energy_anomaly / frigate_detection / room_presence / tts_speak / earthquake_*；
-- HA connector 事件接入 + Redis 跨副本桥接 + 领域事件 fan-out（见 ``services/studio_ha_compat.py``、
+- HA connector 事件接入 + Redis 跨副本桥接 + 领域事件 fan-out（见 ``ha/service.py``、
   ``services/event_bus_bridge.py``、``realtime/domain_events.py``）。
 """
 
@@ -25,6 +25,7 @@ from typing import Any
 import socketio
 
 from ..core.observability import record_ha_sync_fe_latency_samples, record_ha_sync_latency
+from ..core.entity_domain import get_entity_domain
 from .access import filter_entities_by_access, sort_entities_by_sync_priority
 from .msgpack_compat import install_msgpack_ext_hook
 from .payloads import (
@@ -74,6 +75,12 @@ class RealtimeGateway:
         #: 已收到全量基线的 sid。未就绪前不参与 ``state_changed_batch`` 广播：
         # 全量快照生成前的增量已包含在快照里，再以 delta 下发只会被前端丢弃并告警。
         self._baseline_ready: set[str] = set()
+        #: 订阅索引：域 / 钉选 → sid，广播时先收窄候选再做精确过滤。
+        self._sub_domain_sids: dict[str, set[str]] = {}
+        self._sub_wildcard_sids: set[str] = set()
+        self._sub_pinned_sids: dict[str, set[str]] = {}
+        self._sid_sub_domains: dict[str, set[str] | None] = {}
+        self._sid_pinned: dict[str, set[str]] = {}
         self.state_store: StateStore = StateStore()
         self._state_cfg_at = 0.0
         self._register_handlers()
@@ -109,9 +116,17 @@ class RealtimeGateway:
         }
 
     def _ws_config(self):
+        now = time.monotonic()
+        cached = getattr(self, "_ws_cfg_cache", None)
+        cached_at = getattr(self, "_ws_cfg_at", 0.0)
+        if cached is not None and now - cached_at < 5.0:
+            return cached
         database = self.app.state.database
         with database.session_factory() as session:
-            return load_ws_push_config(session)
+            cfg = load_ws_push_config(session)
+        self._ws_cfg_cache = cfg
+        self._ws_cfg_at = now
+        return cfg
 
     def _state_config(self):
         database = self.app.state.database
@@ -197,6 +212,11 @@ class RealtimeGateway:
         # entities 中，因此无需再以 delta 下发；此前不纳入 state_changed_batch 广播目标，
         # 可避免前端「全量同步完成前丢弃 delta」的告警与无效带宽。
         self._baseline_ready.add(sid)
+        self._index_subscription(
+            sid,
+            auth_payload.get("subscribeDomains"),
+            auth_payload.get("pinnedEntityIds"),
+        )
 
         handled_since = False
         try:
@@ -264,7 +284,68 @@ class RealtimeGateway:
     async def _on_disconnect(self, sid: str, reason: Any = None) -> None:
         self.connected.discard(sid)
         self._baseline_ready.discard(sid)
+        self._unindex_subscription(sid)
         self.app.state.socket_clients = len(self.connected)
+
+    def _unindex_subscription(self, sid: str) -> None:
+        domains = self._sid_sub_domains.pop(sid, None)
+        self._sub_wildcard_sids.discard(sid)
+        if domains:
+            for domain in domains:
+                bucket = self._sub_domain_sids.get(domain)
+                if not bucket:
+                    continue
+                bucket.discard(sid)
+                if not bucket:
+                    self._sub_domain_sids.pop(domain, None)
+        for entity_id in self._sid_pinned.pop(sid, ()):
+            bucket = self._sub_pinned_sids.get(entity_id)
+            if not bucket:
+                continue
+            bucket.discard(sid)
+            if not bucket:
+                self._sub_pinned_sids.pop(entity_id, None)
+
+    def _index_subscription(self, sid: str, domains_raw: Any, pinned_raw: Any) -> None:
+        self._unindex_subscription(sid)
+        domains = _as_set(domains_raw)
+        pinned = _as_set(pinned_raw, require_dot=True) or set()
+        self._sid_sub_domains[sid] = domains
+        self._sid_pinned[sid] = pinned
+        if domains is None:
+            self._sub_wildcard_sids.add(sid)
+        else:
+            for domain in domains:
+                self._sub_domain_sids.setdefault(domain, set()).add(sid)
+        for entity_id in pinned:
+            self._sub_pinned_sids.setdefault(entity_id, set()).add(sid)
+
+    def _candidate_sids_for_changes(
+        self, changes: list[dict[str, Any]], critical_domains: set[str]
+    ) -> set[str]:
+        """按域/钉选收窄广播候选；含 critical 域时退回全量 baseline（语义不变）。"""
+        if not self._baseline_ready:
+            return set()
+        change_domains = {get_entity_domain(str(change.get("entity_id") or "")) for change in changes}
+        change_domains.discard("")
+        if change_domains & critical_domains:
+            return set(self._baseline_ready)
+        candidates = set(self._sub_wildcard_sids)
+        for domain in change_domains:
+            bucket = self._sub_domain_sids.get(domain)
+            if bucket:
+                candidates |= bucket
+        for change in changes:
+            entity_id = str(change.get("entity_id") or "")
+            if not entity_id:
+                continue
+            bucket = self._sub_pinned_sids.get(entity_id)
+            if bucket:
+                candidates |= bucket
+        if not candidates:
+            # 索引尚未建立时保守退回全量，避免漏推。
+            return set(self._baseline_ready)
+        return candidates & self._baseline_ready
 
     # ------------------------------------------------------------------ #
     # 客户端事件
@@ -276,6 +357,9 @@ class RealtimeGateway:
         session["subscribedDomains"] = payload.get("subscribeDomains")
         session["pinnedEntityIds"] = payload.get("pinnedEntityIds")
         await self.sio.save_session(sid, session)
+        self._index_subscription(
+            sid, session.get("subscribedDomains"), session.get("pinnedEntityIds")
+        )
         return {"ok": True}
 
     async def _on_ha_sync_fe_latency(self, sid: str, payload: Any = None) -> dict[str, Any]:
@@ -378,8 +462,9 @@ class RealtimeGateway:
         self._apply_state_config()
         payloads = [to_ws_state_change_payload(change) for change in changes]
         timestamp = _iso_now()
-        # 仅向已完成全量基线的客户端广播增量（见 _baseline_ready 说明）
-        for sid in list(self._baseline_ready):
+        critical = set(ws_cfg.critical_domains)
+        # 先按域/钉选收窄候选，再对候选做精确可见性过滤（见 _baseline_ready 说明）
+        for sid in self._candidate_sids_for_changes(changes, critical):
             session = await self.sio.get_session(sid)
             session = session or {}
             user = session.get("user") or {}
@@ -394,7 +479,7 @@ class RealtimeGateway:
                     entity_id,
                     subscribed,
                     pinned,
-                    set(ws_cfg.critical_domains),
+                    critical,
                     ws_cfg.cold_entity_on_demand,
                 ):
                     continue

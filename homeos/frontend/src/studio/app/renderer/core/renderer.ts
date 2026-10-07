@@ -28,6 +28,10 @@ import {
   vacuumMapImageSource as vacuumMapImageSource2,
 } from "./registry";
 import { randomUuid as randomUuid2 } from "../../utils/random-id";
+import {
+  applyRangeProgressCss as applyRangeProgressCss2,
+  syncHtmlRangeProgress as syncHtmlRangeProgress2,
+} from "../../utils/range-progress";
 import { popupLayoutMetrics as popupLayoutMetrics2 } from "../../shared/popup-layout";
 import {
   bathHeaterModeUsesAirflow as bathHeaterModeUsesAirflow2,
@@ -178,6 +182,8 @@ import {
   lineChartRuntimeStateNeedsHydration as lineChartRuntimeStateNeedsHydration2,
   syncedLineChartProperties as syncedLineChartProperties2,
 } from "./runtime-document";
+import { navigateInShell } from "../../../runtime/shell-navigation";
+import { shellConfirm, shellOpenMediaPlayer } from "../../../runtime/shell-chrome";
 export { setBuiltinAssetVersions2 as setBuiltinAssetVersions };
 export {
   airflowCanvasOffsetBounds2 as airflowCanvasOffsetBounds,
@@ -7553,6 +7559,10 @@ export class PanelRenderer {
           (fanSpeedRangeSlider.max = "100"),
           (fanSpeedRangeSlider.step = "1"),
           (fanSpeedRangeSlider.value = String(fanSpeedPercentage)),
+          syncHtmlRangeProgress2(fanSpeedRangeSlider),
+          fanSpeedRangeSlider.addEventListener("input", () =>
+            syncHtmlRangeProgress2(fanSpeedRangeSlider),
+          ),
           fanSpeedRangeSlider.addEventListener("change", async () => {
             if (!isControlsInteractive || isCapabilityUnavailable()) return;
             fanSpeedRangeSlider.disabled = true;
@@ -7635,6 +7645,10 @@ export class PanelRenderer {
         (numericRangeSlider.max = String(rangeMaximum)),
         (numericRangeSlider.step = String(rangeStep)),
         (numericRangeSlider.value = String(Number(capabilityEntityState?.state) || rangeMinimum)),
+        syncHtmlRangeProgress2(numericRangeSlider),
+        numericRangeSlider.addEventListener("input", () =>
+          syncHtmlRangeProgress2(numericRangeSlider),
+        ),
         numericRangeSlider.addEventListener("change", async () => {
           if (!isControlsInteractive || isCapabilityUnavailable()) return;
           numericRangeSlider.disabled = true;
@@ -7794,6 +7808,7 @@ export class PanelRenderer {
                     : Number(getEntityAttributes()[controlDescriptor.dataKey]);
                 (Number.isFinite(purifierLevelValue) &&
                   (controlDescriptor.input.value = String(purifierLevelValue)),
+                  syncHtmlRangeProgress2(controlDescriptor.input),
                   (controlDescriptor.output.textContent = Number.isFinite(purifierLevelValue)
                     ? "" + purifierLevelValue + (getEntityAttributes().unit_of_measurement || "%")
                     : "--"));
@@ -8470,355 +8485,12 @@ export class PanelRenderer {
       ),
       airPurifierDialog.show());
   }
-  ["showMediaPlayerDetails"](mediaComponent: any, { preview: isMediaDetailsPreview = false } = {}) {
+  ["showMediaPlayerDetails"](mediaComponent: any, { preview: _isMediaDetailsPreview = false } = {}) {
     const mediaPlayerEntityId = mediaComponent.bindings?.entity?.entityId;
     if (!mediaPlayerEntityId) throw new Error("该控件没有关联实体。");
+    // 栈 C more-info → 栈 B MediaPlayerModal（与 MiniWidget / 紧凑弹窗展开共用），不再维护手写 DOM dialog。
     this.closeRuntimeDialog();
-    let mediaStateSnapshot = this.states.get(mediaPlayerEntityId)?.newState ||
-      this.states.get(mediaPlayerEntityId) || {
-        entityId: mediaPlayerEntityId,
-        state: "unknown",
-        attributes: {} as Record<string, any>,
-      };
-    const mediaDialog = document.createElement("dialog");
-    mediaDialog.className = "hb-entity-details-dialog media-player-details capability-details";
-    const mediaDialogCard = document.createElement("div");
-    mediaDialogCard.className = "hb-entity-details-card";
-    const mediaDialogHeading = document.createElement("div");
-    mediaDialogHeading.className = "hb-entity-details-heading";
-    const mediaDialogTitleBox = document.createElement("div"),
-      mediaDialogTitle = document.createElement("strong");
-    mediaDialogTitle.textContent = componentDialogTitle(
-      mediaComponent,
-      mediaStateSnapshot.attributes?.friendly_name || "媒体",
-    );
-    const mediaDialogStatus = document.createElement("span");
-    mediaDialogTitleBox.append(mediaDialogTitle, mediaDialogStatus);
-    const mediaSpeakerVisualElement = document.createElement("div");
-    ((mediaSpeakerVisualElement.className = "hb-media-speaker-visual"),
-      mediaSpeakerVisualElement.setAttribute("aria-hidden", "true"));
-    const mediaSpeakerBodyIcon = document.createElement("i");
-    mediaSpeakerBodyIcon.className = "hb-media-speaker-body";
-    const mediaSpeakerArtworkImage = document.createElement("img");
-    ((mediaSpeakerArtworkImage.className = "hb-media-speaker-artwork"),
-      (mediaSpeakerArtworkImage.alt = ""),
-      (mediaSpeakerArtworkImage.hidden = true));
-    const mediaSpeakerLightIcon = document.createElement("i");
-    ((mediaSpeakerLightIcon.className = "hb-media-speaker-light"),
-      mediaSpeakerVisualElement.append(
-        mediaSpeakerBodyIcon,
-        mediaSpeakerArtworkImage,
-        mediaSpeakerLightIcon,
-      ),
-      mediaDialogHeading.append(mediaDialogTitleBox, mediaSpeakerVisualElement));
-    const mediaDetailsBody = document.createElement("div");
-    mediaDetailsBody.className = "hb-media-player-details-body";
-    const mediaNowPlayingSection = document.createElement("section");
-    mediaNowPlayingSection.className = "hb-media-player-now-playing";
-    const mediaPlayerArtworkImage = document.createElement("img");
-    ((mediaPlayerArtworkImage.className = "hb-media-player-artwork"),
-      (mediaPlayerArtworkImage.alt = ""),
-      (mediaPlayerArtworkImage.hidden = true));
-    const mediaPlayerCopyBox = document.createElement("div");
-    mediaPlayerCopyBox.className = "hb-media-player-copy";
-    const mediaTitleLabel = document.createElement("strong"),
-      mediaSubtitleLabel = document.createElement("span"),
-      mediaProgressRow = document.createElement("div");
-    ((mediaProgressRow.className = "hb-media-player-progress"), (mediaProgressRow.hidden = true));
-    const mediaProgressBar = document.createElement("progress");
-    ((mediaProgressBar.max = 1), (mediaProgressBar.value = 0));
-    const mediaTimeRow = document.createElement("span"),
-      mediaElapsedLabel = document.createElement("time"),
-      mediaDurationLabel = document.createElement("time");
-    (mediaTimeRow.append(mediaElapsedLabel, mediaDurationLabel),
-      mediaProgressRow.append(mediaProgressBar, mediaTimeRow),
-      mediaPlayerCopyBox.append(mediaTitleLabel, mediaSubtitleLabel, mediaProgressRow),
-      mediaNowPlayingSection.append(mediaPlayerArtworkImage, mediaPlayerCopyBox));
-    const mediaActionsRow = document.createElement("div");
-    mediaActionsRow.className = "hb-media-player-actions";
-    const createMediaControlButton = (buttonLabel: any, mediaService: any, serviceOptions: Record<string, any> = {}) => {
-        const mediaControlButton = document.createElement("button");
-        return (
-          (mediaControlButton.type = "button"),
-          (mediaControlButton.textContent = buttonLabel),
-          mediaControlButton.addEventListener("click", async () => {
-            if (!isMediaDetailsPreview) {
-              mediaControlButton.disabled = true;
-              try {
-                await this.callEntityService(
-                  "media_player",
-                  mediaService,
-                  mediaPlayerEntityId,
-                  serviceOptions,
-                );
-              } catch (mediaControlError: any) {
-                this.options.onError?.(mediaControlError);
-              } finally {
-                mediaControlButton.disabled = false;
-              }
-            }
-          }),
-          mediaActionsRow.append(mediaControlButton),
-          mediaControlButton
-        );
-      },
-      mediaPreviousButton = createMediaControlButton("上一曲", "media_previous_track"),
-      mediaPlayButton = createMediaControlButton("播放", "media_play_pause"),
-      mediaNextButton = createMediaControlButton("下一曲", "media_next_track"),
-      mediaBrowserControl = this.createMediaBrowserControl(mediaPlayerEntityId, {
-        preview: isMediaDetailsPreview,
-      }),
-      mediaVolumeSection = document.createElement("section");
-    mediaVolumeSection.className = "hb-capability-range-group";
-    const mediaVolumeHeading = document.createElement("div");
-    mediaVolumeHeading.className = "hb-capability-range-heading";
-    const mediaVolumeTitle = document.createElement("strong");
-    mediaVolumeTitle.textContent = "音量";
-    const mediaVolumeOutputElement = document.createElement("output");
-    mediaVolumeHeading.append(mediaVolumeTitle, mediaVolumeOutputElement);
-    const mediaVolumeSlider = document.createElement("input");
-    ((mediaVolumeSlider.type = "range"),
-      (mediaVolumeSlider.min = "0"),
-      (mediaVolumeSlider.max = "1"),
-      (mediaVolumeSlider.step = ".01"),
-      (mediaVolumeSlider.disabled = isMediaDetailsPreview),
-      mediaVolumeSection.append(mediaVolumeHeading, mediaVolumeSlider),
-      mediaNowPlayingSection.append(mediaBrowserControl.root),
-      mediaDetailsBody.append(mediaNowPlayingSection, mediaActionsRow, mediaVolumeSection));
-    let artworkUrl = "",
-      volumeLevel: any = null,
-      sliderDraggingValue: any = null,
-      lastCommittedVolume: any = null,
-      pendingVolume: any = null,
-      isVolumeDragging = false,
-      volumeCommitTimer: any = null,
-      volumeSyncTimer: any = null,
-      mediaDurationSeconds: any = null,
-      initialPositionSeconds = 0,
-      playbackUpdatedAtMs: any = null,
-      isMediaPlaying = false;
-    const formatMediaTime = (secondsValue: any) => {
-        const wholeSeconds = Math.max(0, Math.floor(Number(secondsValue) || 0)),
-          floor = Math.floor(wholeSeconds / 60),
-          padStart = String(wholeSeconds % 60).padStart(2, "0");
-        return floor + ":" + padStart;
-      },
-      mediaPositionTick = () => {
-        if (!Number.isFinite(mediaDurationSeconds) || mediaDurationSeconds <= 0) {
-          mediaProgressRow.hidden = true;
-          return;
-        }
-        let mediaPositionSeconds = Number.isFinite(initialPositionSeconds)
-          ? initialPositionSeconds
-          : 0;
-        (isMediaPlaying &&
-          Number.isFinite(playbackUpdatedAtMs) &&
-          (mediaPositionSeconds += Math.max(0, (Date.now() - playbackUpdatedAtMs) / 1000)),
-          (mediaPositionSeconds = Math.max(
-            0,
-            Math.min(mediaDurationSeconds, mediaPositionSeconds),
-          )),
-          (mediaProgressRow.hidden = false),
-          (mediaProgressBar.max = mediaDurationSeconds),
-          (mediaProgressBar.value = mediaPositionSeconds),
-          (mediaElapsedLabel.textContent = formatMediaTime(mediaPositionSeconds)),
-          (mediaDurationLabel.textContent = formatMediaTime(mediaDurationSeconds)));
-      },
-      setInterval = window.setInterval(mediaPositionTick, 1000),
-      isVolumeClose = (leftVolume: any, rightVolume: any) =>
-        Number.isFinite(leftVolume) &&
-        Number.isFinite(rightVolume) &&
-        Math.abs(leftVolume - rightVolume) <= 0.005,
-      applyVolumeValue = (rawVolume: any) => {
-        ((volumeLevel = Math.max(0, Math.min(1, Number(rawVolume) || 0))),
-          (mediaVolumeSlider.value = String(volumeLevel)),
-          (mediaVolumeOutputElement.textContent = Math.round(volumeLevel * 100) + "%"));
-      },
-      commitVolume = async () => {
-        if (
-          (window.clearTimeout(volumeCommitTimer),
-          (volumeCommitTimer = null),
-          isVolumeDragging || pendingVolume === null)
-        )
-          return;
-        const committedVolume = pendingVolume;
-        ((pendingVolume = null), (isVolumeDragging = true));
-        try {
-          await this.callEntityService("media_player", "volume_set", mediaPlayerEntityId, {
-            volume_level: committedVolume,
-          });
-        } catch (volumeCommitError: any) {
-          ((pendingVolume = null),
-            (lastCommittedVolume = null),
-            window.clearTimeout(volumeSyncTimer),
-            sliderDraggingValue !== null && applyVolumeValue(sliderDraggingValue),
-            this.options.onError?.(volumeCommitError));
-        } finally {
-          ((isVolumeDragging = false),
-            pendingVolume !== null &&
-              !isVolumeClose(pendingVolume, committedVolume) &&
-              (volumeCommitTimer = window.setTimeout(commitVolume, 140)));
-        }
-      },
-      handleVolumeChange = () => {
-        const newVolumeLevel = Math.max(0, Math.min(1, Number(mediaVolumeSlider.value) || 0));
-        ((lastCommittedVolume = newVolumeLevel),
-          (pendingVolume = newVolumeLevel),
-          window.clearTimeout(volumeSyncTimer),
-          isVolumeDragging ||
-            (window.clearTimeout(volumeCommitTimer),
-            (volumeCommitTimer = window.setTimeout(commitVolume, 120))));
-      };
-    (mediaPlayerArtworkImage.addEventListener("error", () => {
-      ((mediaPlayerArtworkImage.hidden = true),
-        mediaNowPlayingSection.classList.remove("has-artwork"));
-    }),
-      mediaPlayerArtworkImage.addEventListener("load", () => {
-        ((mediaPlayerArtworkImage.hidden = false),
-          mediaNowPlayingSection.classList.add("has-artwork"));
-      }),
-      mediaSpeakerArtworkImage.addEventListener("error", () => {
-        ((mediaSpeakerArtworkImage.hidden = true),
-          mediaSpeakerVisualElement.classList.remove("has-artwork"));
-      }),
-      mediaSpeakerArtworkImage.addEventListener("load", () => {
-        ((mediaSpeakerArtworkImage.hidden = false),
-          mediaSpeakerVisualElement.classList.add("has-artwork"));
-      }),
-      mediaVolumeSlider.addEventListener("input", () => applyVolumeValue(mediaVolumeSlider.value)),
-      mediaVolumeSlider.addEventListener("change", handleVolumeChange));
-    const syncMediaState = (nextMediaState: any) => {
-      mediaStateSnapshot = nextMediaState || mediaStateSnapshot;
-      const mediaAttributes = mediaStateSnapshot.attributes || {},
-        mediaStateLabels = {
-          off: "已关闭",
-          on: "已开启",
-          idle: "空闲",
-          playing: "播放中",
-          paused: "已暂停",
-          buffering: "缓冲中",
-          standby: "待机",
-          unavailable: "不可用",
-          unknown: "未知状态",
-        },
-        lowerCase4 = String(mediaStateSnapshot.state || "unknown").toLowerCase(),
-        mediaSupportedFeatures = Number(mediaAttributes.supported_features || 0);
-      (mediaBrowserControl.sync(mediaStateSnapshot),
-        (mediaDialogStatus.textContent =
-          (mediaStateLabels as any)[lowerCase4] || mediaStateSnapshot.state || "未知状态"),
-        mediaSpeakerVisualElement.classList.toggle("is-playing", lowerCase4 === "playing"),
-        mediaSpeakerVisualElement.classList.toggle("is-paused", lowerCase4 === "paused"),
-        mediaSpeakerVisualElement.classList.toggle(
-          "is-off",
-          ["off", "unavailable", "unknown"].includes(lowerCase4),
-        ),
-        (mediaTitleLabel.textContent =
-          mediaAttributes.media_title ||
-          mediaAttributes.media_series_title ||
-          mediaAttributes.app_name ||
-          mediaAttributes.source ||
-          "暂无播放内容"),
-        (mediaSubtitleLabel.textContent =
-          [mediaAttributes.media_artist, mediaAttributes.media_album_name]
-            .filter(Boolean)
-            .join(" · ") ||
-          mediaAttributes.media_content_type ||
-          "媒体播放器"),
-        (mediaPlayButton.textContent = lowerCase4 === "playing" ? "暂停" : "播放"),
-        (mediaPlayButton.disabled =
-          isMediaDetailsPreview || ["off", "unavailable", "unknown"].includes(lowerCase4)),
-        (mediaPreviousButton.disabled = isMediaDetailsPreview || !(mediaSupportedFeatures & 16)),
-        (mediaNextButton.disabled = isMediaDetailsPreview || !(mediaSupportedFeatures & 32)),
-        (mediaDurationSeconds = Number.isFinite(Number(mediaAttributes.media_duration))
-          ? Number(mediaAttributes.media_duration)
-          : null),
-        (initialPositionSeconds = Number.isFinite(Number(mediaAttributes.media_position))
-          ? Number(mediaAttributes.media_position)
-          : 0));
-      const mediaPositionUpdatedAtMs = Date.parse(
-        String(mediaAttributes.media_position_updated_at || ""),
-      );
-      ((playbackUpdatedAtMs = Number.isFinite(mediaPositionUpdatedAtMs)
-        ? mediaPositionUpdatedAtMs
-        : null),
-        (isMediaPlaying = lowerCase4 === "playing"),
-        mediaPositionTick());
-      const reportVolumeLevel = Number(mediaAttributes.volume_level);
-      ((mediaVolumeSection.hidden = !Number.isFinite(reportVolumeLevel)),
-        Number.isFinite(reportVolumeLevel) &&
-          (lastCommittedVolume === null
-            ? ((sliderDraggingValue = reportVolumeLevel), applyVolumeValue(reportVolumeLevel))
-            : isVolumeClose(reportVolumeLevel, lastCommittedVolume)
-              ? ((sliderDraggingValue = reportVolumeLevel),
-                applyVolumeValue(lastCommittedVolume),
-                window.clearTimeout(volumeSyncTimer),
-                (volumeSyncTimer = window.setTimeout(() => {
-                  lastCommittedVolume = null;
-                }, 1800)))
-              : window.clearTimeout(volumeSyncTimer)));
-      const candidateArtworkUrl =
-        [
-          mediaAttributes.entity_picture_local,
-          mediaAttributes.entity_picture,
-          mediaAttributes.media_image_url,
-        ]
-          .map((rawArtworkUrl) => String(rawArtworkUrl || "").trim())
-          .find(
-            (artworkPath) =>
-              artworkPath.startsWith("/api/media_player_proxy/") ||
-              artworkPath.startsWith("/api/image_proxy/"),
-          ) || "";
-      candidateArtworkUrl !== artworkUrl &&
-        ((artworkUrl = candidateArtworkUrl),
-        (mediaPlayerArtworkImage.hidden = !artworkUrl),
-        mediaNowPlayingSection.classList.toggle("has-artwork", !!artworkUrl),
-        (mediaSpeakerArtworkImage.hidden = !artworkUrl),
-        mediaSpeakerVisualElement.classList.toggle("has-artwork", !!artworkUrl),
-        artworkUrl
-          ? ((mediaPlayerArtworkImage.src = artworkUrl),
-            (mediaSpeakerArtworkImage.src = artworkUrl))
-          : (mediaPlayerArtworkImage.removeAttribute("src"),
-            mediaSpeakerArtworkImage.removeAttribute("src")));
-    };
-    (syncMediaState(mediaStateSnapshot),
-      mediaDialogCard.append(mediaDialogHeading, mediaDetailsBody, mediaBrowserControl.panel),
-      mediaDialog.append(mediaDialogCard));
-    const mediaDialogOverlay = document.createElement("div");
-    ((mediaDialogOverlay.className =
-      "hb-renderer-runtime-dialog-layer" + (this.options.editable ? "" : " hb-runtime-no-select")),
-      (mediaDialogOverlay.tabIndex = -1),
-      mediaDialogOverlay.append(mediaDialog),
-      this.container.append(mediaDialogOverlay),
-      (this.detailsDialog = mediaDialog),
-      (this.detailsStateSync = {
-        dialog: mediaDialog,
-        handlers: new Map([[mediaPlayerEntityId, [syncMediaState]]]),
-      }),
-      this.registerRuntimeDialogScale(mediaDialogOverlay, mediaDialog, 540, 368),
-      this.bindRuntimeDialogOutsideDismiss(mediaDialogOverlay, mediaDialog, mediaDialogCard),
-      mediaDialogOverlay.addEventListener("keydown", (mediaKeyEvent) => {
-        mediaKeyEvent.key === "Escape" && mediaDialog.close();
-      }));
-    let artworkImageRequest: any = null;
-    (mediaDialog.addEventListener(
-      "close",
-      () => {
-        (artworkImageRequest?.cancel(),
-          mediaBrowserControl.cleanup?.(),
-          window.clearInterval(setInterval),
-          window.clearTimeout(volumeCommitTimer),
-          window.clearTimeout(volumeSyncTimer),
-          this.clearRuntimeDialogScale(mediaDialog),
-          this.detailsDialog === mediaDialog && (this.detailsDialog = null),
-          this.detailsStateSync?.dialog === mediaDialog && (this.detailsStateSync = null),
-          mediaDialogOverlay.remove());
-      },
-      {
-        once: true,
-      },
-    ),
-      mediaDialog.show(),
-      (artworkImageRequest = playMediaSpeakerEntrance2(mediaSpeakerVisualElement)));
+    shellOpenMediaPlayer(String(mediaPlayerEntityId));
   }
   ["showCustomPopup"](customPopupModule: any, { preview: isCustomPopupPreview = false } = {}) {
     (this.closeRuntimeDialog(),
@@ -11042,6 +10714,7 @@ export class PanelRenderer {
                                 Math.min(1, Number(popupRawVolume) || 0),
                               )),
                                 (popupMediaVolumeSlider.value = String(popupVolumeLevel)),
+                                syncHtmlRangeProgress2(popupMediaVolumeSlider),
                                 (popupMediaVolumeOutputElement.textContent =
                                   Math.round(popupVolumeLevel * 100) + "%"));
                             },
@@ -11483,6 +11156,7 @@ export class PanelRenderer {
         lightSliderHeading.append(lightSliderIcon, lightSliderLabel, lightSliderOutputElement));
       const lightSliderInput = document.createElement("input");
       ((lightSliderInput.type = "range"),
+        lightSliderInput.classList.add("hb-range"),
         (lightSliderInput.min = String(sliderMinimum)),
         (lightSliderInput.max = String(sliderMaximum)),
         (lightSliderInput.step = String(sliderStep)),
@@ -11490,27 +11164,41 @@ export class PanelRenderer {
         (lightSliderInput.disabled = !isSliderSupported));
       const updateSliderValue = ({ notify: shouldNotifyChange = false } = {}) => {
         const sliderValue = Number(lightSliderInput.value),
-          sliderProgressPercent =
-            ((sliderValue - sliderMinimum) / Math.max(1, sliderMaximum - sliderMinimum)) * 100;
+          sliderProgressPercent = Math.max(
+            0,
+            Math.min(
+              100,
+              ((sliderValue - sliderMinimum) / Math.max(1, sliderMaximum - sliderMinimum)) * 100,
+            ),
+          ),
+          // 同时写 studio 专用变量与全局 main.css 读取的 --progress-pct：
+          // 未排除的 range 会吃到 main.css 默认 50%，造成「读数 25%、蓝条却停在一半」。
+          progressCss = sliderProgressPercent + "%";
         ((lightSliderOutputElement.textContent = isSliderSupported
           ? "" + Math.round(sliderValue) + sliderSuffix
           : "不支持"),
-          lightSliderInput.style.setProperty(
-            "--hb-light-slider-progress",
-            Math.max(0, Math.min(100, sliderProgressPercent)) + "%",
-          ),
-          shouldNotifyChange &&
-            isSliderSupported &&
-            onLightVisualChange?.(
-              sliderPayloadKey === "brightness_pct"
-                ? {
-                    brightnessPercent: sliderValue,
-                  }
-                : {
-                    colorTemperatureKelvin: sliderValue,
-                    colorRgb: null as any,
-                  },
-            ));
+          lightSliderInput.style.setProperty("--hb-light-slider-progress", progressCss),
+          lightSliderInput.style.setProperty("--progress-pct", progressCss),
+          lightSliderInput.style.setProperty("--progress", progressCss),
+          lightSliderInput.style.setProperty("--range-progress", progressCss));
+        // 亮度：琥珀进度填充。色温：保留暖→冷渐变，进度点之后盖灰（拇指右侧不露色）
+        if (sliderPayloadKey === "brightness_pct") {
+          lightSliderInput.style.background = `linear-gradient(90deg, #f4a816 0%, #f4a816 ${progressCss}, #343d44 ${progressCss}, #343d44 100%)`;
+        } else if (sliderPayloadKey === "color_temp_kelvin") {
+          lightSliderInput.style.background = `linear-gradient(90deg, transparent 0%, transparent ${progressCss}, #343d44 ${progressCss}, #343d44 100%), linear-gradient(90deg, #f4a816, #f6c76d 35%, #e5dfcf 57%, #72b9ed)`;
+        }
+        shouldNotifyChange &&
+          isSliderSupported &&
+          onLightVisualChange?.(
+            sliderPayloadKey === "brightness_pct"
+              ? {
+                  brightnessPercent: sliderValue,
+                }
+              : {
+                  colorTemperatureKelvin: sliderValue,
+                  colorRgb: null as any,
+                },
+          );
       };
       (updateSliderValue(),
         lightSliderInput.addEventListener("input", () => {
@@ -12044,6 +11732,7 @@ export class PanelRenderer {
     coverPositionHeading.append(coverPositionLabel, coverPositionOutputElement);
     const coverPositionSlider = document.createElement("input");
     ((coverPositionSlider.type = "range"),
+      coverPositionSlider.classList.add("hb-range"),
       (coverPositionSlider.min = "0"),
       (coverPositionSlider.max = "100"),
       (coverPositionSlider.step = "1"));
@@ -12261,10 +11950,7 @@ export class PanelRenderer {
       updateCoverPosition = (nextCoverPosition: any, coverMotionPhase = "") => {
         ((displayCoverPosition = Math.max(0, Math.min(100, Number(nextCoverPosition) || 0))),
           (coverPositionSlider.value = String(displayCoverPosition)),
-          coverPositionSlider.style.setProperty(
-            "--hb-cover-position-progress",
-            displayCoverPosition + "%",
-          ),
+          applyRangeProgressCss2(coverPositionSlider, displayCoverPosition + "%"),
           (coverPositionOutputElement.textContent = Math.round(displayCoverPosition) + "%"));
         for (const coverActionButtonElement of coverActionEntries)
           coverActionButtonElement.classList.toggle(
@@ -14315,24 +14001,28 @@ export class PanelRenderer {
               };
               (extensionActionButton.addEventListener("click", async () => {
                 if (
-                  !(
-                    !createWaterHeaterExtensionControlsIsInteractive ||
-                    isActionBusy ||
-                    extensionActionButton.disabled
-                  ) &&
-                  !(
-                    relatedEntityNeedsConfirmation2(relatedEntity) &&
-                    !window.confirm("确认执行“" + entityLabel + "”吗？")
-                  )
-                ) {
-                  ((isActionBusy = true), syncActionButton(resolveEntityState(entityId2)));
-                  try {
-                    await this.callEntityService("button", "press", entityId2);
-                  } catch (actionUpdateError: any) {
-                    this.options.onError?.(actionUpdateError);
-                  } finally {
-                    ((isActionBusy = false), syncActionButton(resolveEntityState(entityId2)));
-                  }
+                  !createWaterHeaterExtensionControlsIsInteractive ||
+                  isActionBusy ||
+                  extensionActionButton.disabled
+                )
+                  return;
+                if (relatedEntityNeedsConfirmation2(relatedEntity)) {
+                  const accepted = await shellConfirm({
+                    title: "确认执行",
+                    message: "确认执行“" + entityLabel + "”吗？",
+                    confirmLabel: "执行",
+                    cancelLabel: "取消",
+                    tone: "warning",
+                  });
+                  if (!accepted) return;
+                }
+                ((isActionBusy = true), syncActionButton(resolveEntityState(entityId2)));
+                try {
+                  await this.callEntityService("button", "press", entityId2);
+                } catch (actionUpdateError: any) {
+                  this.options.onError?.(actionUpdateError);
+                } finally {
+                  ((isActionBusy = false), syncActionButton(resolveEntityState(entityId2)));
                 }
               }),
                 syncActionButton(resolveEntityState(entityId2)),
@@ -18324,11 +18014,11 @@ export class PanelRenderer {
           socketCloseEvent.code === 4401)
         ) {
           // 配对码机制已移除：会话失效一律回登录页，登录后由路由守卫放行。
-          window.location.assign("/login");
+          navigateInShell("/login");
           return;
         }
         if (socketCloseEvent.code === 4403) {
-          window.location.replace("/license");
+          navigateInShell("/activate");
           return;
         }
         if (socketCloseEvent.code === 4400) {

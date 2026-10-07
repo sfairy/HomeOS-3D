@@ -12,6 +12,7 @@
 import { watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useLayoutStore } from '@/stores/layout.store'
+import { useChromeStore } from '@/stores/chrome.store'
 import { useEntitiesStore } from '@/stores/entities.store'
 import {
   resolveSubscribeDomains,
@@ -20,6 +21,7 @@ import {
   collectWsPinnedEntityIds,
   buildLayoutSubscriptionKey,
 } from '@/utils/entity/ws-subscription'
+import { resolveActivePopupEntityId } from '@/utils/entity/active-popup-entity'
 import { configEpoch } from '@/utils/config/frontend-config'
 
 /** 同步防抖间隔（毫秒）：略低于旧 120ms，加快换页/弹窗后的域与 pinned 生效 */
@@ -36,6 +38,7 @@ const SYNC_DEBOUNCE_MS = 50
 export function useEntityWsSubscriptionSync() {
   const route = useRoute()
   const layoutStore = useLayoutStore()
+  const chrome = useChromeStore()
   const entitiesStore = useEntitiesStore()
 
   /** 最近一次下发的订阅指纹（避免重复 emit） */
@@ -43,9 +46,9 @@ export function useEntityWsSubscriptionSync() {
   /** debounce 计时器句柄 */
   let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
-  /** 收集当前布局下需要 pin 的实体 ID（如打开的弹窗实体） */
+  /** 收集当前布局下需要 pin 的实体 ID（打开的控制/媒体弹窗实体） */
   function resolvePinnedEntityIds() {
-    return collectWsPinnedEntityIds(layoutStore.layoutConfig, layoutStore.activeFloorplanPopupId)
+    return collectWsPinnedEntityIds(layoutStore.layoutConfig, resolveActivePopupEntityId())
   }
 
   /**
@@ -56,14 +59,12 @@ export function useEntityWsSubscriptionSync() {
   function syncSubscription(force = false) {
     const domains = resolveSubscribeDomains(route.path, layoutStore.layoutConfig)
     const pinnedEntityIds = resolvePinnedEntityIds()
-    // 浅指纹：path + domains + pinned + 布局 key + 公开配置世代（人来亮屏钉选随配置生效）
-    const key = JSON.stringify({
-      path: route.path,
-      domains,
-      pinned: pinnedEntityIds,
-      layout: buildLayoutSubscriptionKey(layoutStore.layoutConfig, layoutStore.activeFloorplanPopupId),
-      cfg: configEpoch.value,
-    })
+    const activePopup = resolveActivePopupEntityId()
+    // 稳定指纹：排序后拼接，避免 JSON.stringify 分配与键序抖动
+    const domainKey = domains ? [...domains].sort().join(',') : '*'
+    const pinnedKey = [...pinnedEntityIds].sort().join(',')
+    const layoutKey = buildLayoutSubscriptionKey(layoutStore.layoutConfig, activePopup)
+    const key = `${route.path}|${domainKey}|${pinnedKey}|${layoutKey}|${configEpoch.value}`
     // 指纹一致且非强制：跳过，避免无谓 emit
     if (!force && key === lastEmittedKey) return
     lastEmittedKey = key
@@ -87,14 +88,22 @@ export function useEntityWsSubscriptionSync() {
     }, SYNC_DEBOUNCE_MS)
   }
 
-  // 浅指纹 + debounce，避免编辑布局时 deep watch 抖动刷 update_subscription
+  // 浅指纹 + debounce；弹窗开闭也会改变 pin，故一并监听 chrome 弹窗状态
   watch(
     () =>
-      buildLayoutSubscriptionKey(layoutStore.layoutConfig, layoutStore.activeFloorplanPopupId) +
+      buildLayoutSubscriptionKey(layoutStore.layoutConfig, resolveActivePopupEntityId()) +
       '|' +
       route.path +
       '|' +
-      configEpoch.value,
+      configEpoch.value +
+      '|' +
+      String(chrome.isEntityControlOpen) +
+      '|' +
+      (chrome.entityControlEntityId || '') +
+      '|' +
+      String(chrome.isMediaPlayerOpen) +
+      '|' +
+      (chrome.activeMediaEntityId || ''),
     scheduleSync,
   )
 

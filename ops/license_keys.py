@@ -37,14 +37,16 @@ def derive_key_id(path: Path) -> str:
 def _mirror_public(sync_dir: Path, source: Path | None, name: str) -> bool:
     """按字节同步一个公钥；返回是否发生了变更。
 
-    来源缺失时清掉残留：在同步目录里留下过期的公钥会让旧客户端被无限期放行
-    （主应用侧 license_trusted_public_keys 只看文件在不在）。
+    **来源缺失时不删镜像**：公钥缺失会让主应用在**启动期**就拒绝启动（信任锚自检失败），
+    所以「来源目录暂时读不到」不能翻译成「把这个客户的信任锚删掉」—— 一次共享目录没挂上，
+    就能把整批客户搞到起不来。残留的旧公钥最坏是「旧客户端多信任一代」（它会自己过期下线），
+    代价远小于把在跑的部署打挂。
+
+    真要撤回某一代公钥，用显式删除（``allow_remove=True``）：调用方明确知道自己在退休
+    哪一代，而不是因为一次 IO 不顺。
     """
     target = sync_dir / name
     if source is None or not source.is_file():
-        if target.exists():
-            target.unlink()
-            return True
         return False
     payload = source.read_bytes()
     if target.is_file() and target.read_bytes() == payload:
@@ -53,6 +55,19 @@ def _mirror_public(sync_dir: Path, source: Path | None, name: str) -> bool:
         target.chmod(0o644)
     target.write_bytes(payload)
     target.chmod(0o644)
+    return True
+
+
+def retire_public_mirror(sync_dir: Path, name: str) -> bool:
+    """显式撤回同步目录里的一代公钥镜像；返回是否真的删掉了。
+
+    只在调用方确认「这一代已经下线」时用（例如轮换收尾），不要挂到常规同步路径上：
+    常规同步看到来源缺失属于「不知道」，不是「不存在」。
+    """
+    target = sync_dir / name
+    if not target.exists():
+        return False
+    target.unlink()
     return True
 
 

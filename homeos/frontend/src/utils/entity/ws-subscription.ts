@@ -4,7 +4,7 @@
  * entity WebSocket domain 订阅解析：按路由与布局计算订阅白名单 / pinned 实体收集
  * （含本机人来亮屏充电器开关，避免冷实体漏推）。
  */
-import type { PanelWidget, UILayoutConfig } from '@/types/layout'
+import type { PanelWidget } from '@/types/layout'
 import { getEntityDomain, resolveChargerSwitchWakeEntityIdForDevice } from '@homeos/shared'
 import { getClientDeviceId } from '@/utils/client/system.util'
 import { getConfigSection } from '@/utils/config/frontend-config'
@@ -45,13 +45,19 @@ const DASHBOARD_CORE_DOMAINS = [
   'group',
 ]
 
-/** 设备/事件页需订阅全部 domain 的实时推送 */
+/** 仅事件页保留全域订阅；设备页改为可控域白名单，降低传感器爆发时的推送量 */
 function needsFullDomainSubscription(path: string): boolean {
-  if (path === '/devices' || path.startsWith('/devices/')) return true
-  if (path === '/device' || path.startsWith('/device/')) return true
   if (path.startsWith('/events')) return true
   return false
 }
+
+/** /devices 列表常用域（对齐 useDevicesView PREFERRED + 可控域） */
+const DEVICES_PAGE_DOMAINS = [
+  ...DASHBOARD_CORE_DOMAINS,
+  'sensor',
+  'binary_sensor',
+  'device_tracker',
+]
 
 const SECURITY_DOMAINS = [
   'binary_sensor',
@@ -118,6 +124,16 @@ export function resolveSubscribeDomains(
   }
 
   const domains = new Set(BASE_DOMAINS)
+
+  if (
+    path === '/devices' ||
+    path.startsWith('/devices/') ||
+    path === '/device' ||
+    path.startsWith('/device/')
+  ) {
+    for (const d of DEVICES_PAGE_DOMAINS) domains.add(d)
+    return [...domains]
+  }
 
   if (path.startsWith('/security')) {
     for (const d of SECURITY_DOMAINS) domains.add(d)
@@ -242,7 +258,8 @@ export function collectPinnedEntityIds(
 }
 
 /**
- * 布局可见实体 + 当前活跃弹窗实体 + 本机人来亮屏充电器开关（冷实体 WS pinned 推送）
+ * 布局可见实体 + 当前活跃弹窗实体 + 本机人来亮屏充电器开关（冷实体 WS pinned 推送）。
+ * `activePopupEntityId` 应为栈 A 实体控制或栈 B 媒体全屏打开的 entity_id。
  */
 export function collectWsPinnedEntityIds(
   layoutConfig: LayoutSubscriptionConfig | undefined,

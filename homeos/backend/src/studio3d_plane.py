@@ -3,8 +3,7 @@
 把并入 homeos 的 homeos-3d 后端资产收敛成**一次调用**，避免把大段 3D 专有装配散落进
 homeos 的 ``app.py``：
 
-- 数据面服务：``GlobalLogStore``（全局日志）、``AssetCatalog``（素材目录）、
-  ``AdminAccountStore``（账号快照，供 3D 页面守卫读取）；
+- 数据面服务：``GlobalLogStore``（全局日志）、``AssetCatalog``（素材目录）；
 - HA 平面：以并入的 ``src.ha.service.HAConnectorService`` 作为**唯一 HA 连接**与状态
   事实源。它把全量快照与全量增量直接交给 homeos 状态监听（``app.py`` 的
   ``_make_state_listener``）写入 ``StateStore`` 读模型并广播，而 ``StateHub`` 只承载
@@ -22,7 +21,6 @@ from typing import Any
 
 from fastapi import FastAPI
 
-from .admin_account import AdminAccountStore
 from .api.assets import AssetCatalog
 from .api.assets import router as assets_router
 from .api.global_logs import router as global_logs_router
@@ -86,18 +84,13 @@ async def install(
         settings.studio3d_exports_dir,
         settings.effect_variants_dir,
     )
-    # 账号快照：供 3D 的页面守卫（初始化/登录判定）读取；homeos 认证仍是权威。
-    app.state.admin_account = AdminAccountStore(settings.admin_account_path)
-    try:
-        app.state.admin_account.initialize(database)
-    except Exception:  # noqa: BLE001 - 账号快照不可用不应阻塞主启动
-        pass
+    # 账号快照机制已退役：单用户注册下「是否已注册」直接查 ``users`` 表，无需外置文件。
     # 3D 登录限流器（配对码 / 授权激活等端点使用）。
     app.state.login_limiter = LoginAttemptLimiter()
 
     # HA 平面：并入的 HAConnectorService 是唯一 HA 连接与 StateHub 事实源。
-    # ``app.state.ha_connector`` 在同一次 lifespan 里由 app.py 指向
-    # ``StudioHAConnectorCompat``（把 homeos 兼容接口映射到本连接器），
+    # 它在同一次 lifespan 里由 app.py 直接挂到 ``app.state.ha_connector``
+    # （homeos 兼容接口已并入连接器本身，见 ``ha/homeos_facade.py``），
     # 因此不存在第二条 HA 连接；3D 数据面统一读 ``app.state.studio_ha``。
     studio_ha = StudioHAConnectorService(
         settings, database, event_log=app.state.global_log

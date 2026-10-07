@@ -13,6 +13,7 @@ import { PanelRenderer } from "../renderer/core/renderer";
 import { createButtonSound } from "../shared/sound-effects";
 import { syncAppleDisplaySurface } from "./display-surface";
 import type { DomControl } from "@app/utils/dom-control";
+import { navigateInShell } from "../../runtime/shell-navigation";
 
 let disposeActiveDisplay: (() => void) | null = null;
 
@@ -180,10 +181,10 @@ async function apiRequest(path: any) {
               if (abortController.signal.aborted) throw parseError;
               return {};
             });
-    // 展示页与总览共用同一登录会话（配对码机制已移除）：未登录直接回登录页。
-    if (response.status === 401) return (window.location.assign("/login"), null);
+    // 展示页与总览共用同一登录会话（配对码机制已移除）：未登录回登录页（shell 内路由）。
+    if (response.status === 401) return (navigateInShell("/login"), null);
     if (response.status === 403 && payload?.detail?.code === "LICENSE_RESTRICTED") {
-      window.location.reload();
+      navigateInShell("/activate");
       const licenseRestrictedError: DisplayRequestError = new Error(
         payload.detail.message || "授权后台正在验证，请稍后重试。",
       );

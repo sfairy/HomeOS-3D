@@ -1,4 +1,10 @@
-"""3D 交互增量包的授权门禁与控件配置校验。 同一个功能有两条能力码：'editor'（编辑器整包）与 'module.3d_interaction' （本增量包自己），任一有效即放行 —— 既能随整包售卖，也能只给 3D 交互单独授权。"""
+"""3D 交互增量包的授权门禁与控件配置校验。
+
+同一个功能有两条能力码：``editor``（编辑器整包）与 ``module.3d_interaction``（本增量包
+自己），任一有效即放行 —— 既能随整包售卖，也能只给 3D 交互单独授权。这个蕴含关系登记在
+``services/license/features.py`` 的 ``IMPLIED_BY`` 里，所以 ``allows(<增量包>)`` 已经包含
+了「有 editor 就算有」这一条，这里不再各写一次 ``or``。
+"""
 
 from __future__ import annotations
 
@@ -7,10 +13,11 @@ from datetime import UTC, datetime
 
 from fastapi import HTTPException, Request
 
+from ...services.license import features as feature_codes
 from ...services.license.crypto import LicenseCryptoError
 from .config import validate_config
 
-FEATURE = 'module.3d_interaction'
+FEATURE = feature_codes.FEATURE_INTERACTION_3D
 COMPONENT_TYPE = 'interaction3d'
 MAX_GRANT_SECONDS = 60
 
@@ -30,7 +37,7 @@ def scene_snapshot_file(settings, scene_id):
 
 def allowed(request: Request, *, database=None) -> bool:
     service = request.app.state.license_service
-    return service.allows('editor', database=database) or service.allows(FEATURE, database=database)
+    return service.allows(FEATURE, database=database)
 
 
 def require_access(request: Request, *, database=None) -> None:
@@ -48,7 +55,7 @@ def access_grant(request: Request) -> dict:
     lifetime = float(MAX_GRANT_SECONDS)
     if service.settings.license_required:
         try:
-            deadline = service.earliest_entitlement_expiry({'editor', FEATURE})
+            deadline = service.earliest_entitlement_expiry({feature_codes.FEATURE_EDITOR, FEATURE})
         except (LicenseCryptoError, KeyError, TypeError, ValueError) as error:
             raise HTTPException(403, detail='3D 交互授权校验失败。') from error
         lifetime = min(lifetime, (deadline - datetime.now(UTC)).total_seconds())

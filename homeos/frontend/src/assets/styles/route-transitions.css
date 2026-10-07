@@ -70,7 +70,7 @@
   will-change: transform;
   transform: translate3d(0, 0, 0);
 }
-.homeos-theme-atmosphere::before { left: -18vw; top: -22vw; background: radial-gradient(circle, var(--theme-glow-a, rgba(249,115,22,.12)), transparent 68%); }
+.homeos-theme-atmosphere::before { left: -18vw; top: -22vw; background: radial-gradient(circle, var(--theme-glow-a, rgba(37,99,235,.12)), transparent 68%); }
 .homeos-theme-atmosphere::after { right: -20vw; bottom: -24vw; background: radial-gradient(circle, var(--theme-glow-b, rgba(37,99,235,.1)), transparent 68%); }
 @media (prefers-reduced-motion: reduce) {
   .homeos-theme-atmosphere::before,

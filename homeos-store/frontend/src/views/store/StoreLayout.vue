@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useSiteStore } from "../../stores/site.js";
 import { useCatalogStore } from "../../stores/catalog.js";
@@ -14,6 +14,18 @@ const session = useSessionStore();
 const toast = useStoreToast();
 const route = useRoute();
 const router = useRouter();
+const mobileNavOpen = ref(false);
+
+function toggleMobileNav() {
+  mobileNavOpen.value = !mobileNavOpen.value;
+}
+
+watch(
+  () => route.fullPath,
+  () => {
+    mobileNavOpen.value = false;
+  },
+);
 
 const storePage = computed(() => (route.meta.storePage as string) || "home");
 const maintenance = computed(() => site.maintenanceMode);
@@ -76,7 +88,7 @@ onMounted(async () => {
           </span>
           <span class="hb-brand__text"><strong>HomeOS</strong><small>授权服务中心</small></span>
         </RouterLink>
-        <nav id="navbarNav" class="hb-nav" aria-label="主导航">
+        <nav id="navbarNav" class="hb-nav" :class="{ 'mobile-open': mobileNavOpen }" aria-label="主导航">
           <RouterLink class="hb-nav__link" :class="{ active: navActive === 'home' }" data-hb-nav="home" to="/">首页</RouterLink>
           <RouterLink class="hb-nav__link" :class="{ active: navActive === 'purchase' }" data-hb-nav="purchase" to="/products">购买授权</RouterLink>
           <RouterLink class="hb-nav__link hb-auth-only" :class="{ active: navActive === 'account' }" data-hb-nav="account" to="/user/dashboard/index">账号中心</RouterLink>
@@ -86,7 +98,13 @@ onMounted(async () => {
         <div class="hb-topbar__actions">
           <RouterLink class="hb-button hb-button--secondary hb-button--sm hb-auth-only" to="/user/dashboard/index"><i class="fa-duotone fa-regular fa-user"></i> 我的账号</RouterLink>
           <RouterLink class="hb-button hb-button--primary hb-button--sm hb-guest-only" to="/user/authentication/login"><i class="fa-duotone fa-regular fa-right-to-bracket"></i> 登录</RouterLink>
-          <button class="hb-store-nav-toggle" type="button" aria-label="展开导航" aria-expanded="false"><i class="fa-duotone fa-regular fa-bars"></i></button>
+          <button
+            class="hb-store-nav-toggle"
+            type="button"
+            aria-label="展开导航"
+            :aria-expanded="mobileNavOpen ? 'true' : 'false'"
+            @click="toggleMobileNav"
+          ><i class="fa-duotone fa-regular fa-bars"></i></button>
         </div>
       </div>
     </header>

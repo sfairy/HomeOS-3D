@@ -21,12 +21,14 @@ from pydantic import BaseModel, ConfigDict
 from ..core.errors import api_error, bad_request
 from ..core.pagination import parse_page_limit
 from ..core.retention import RETENTION_TABLE_KEYS
+from ..dependencies import require_license_feature
 from ..security.auth_context import require_roles, require_user
 from ..services.app_config.room_meta import (
     build_public_room_meta_from_ha_areas,
     filter_env_sensor_map_to_known_areas,
     resolve_voice_rooms,
 )
+from ..services.license import features as feature_codes
 from ..services.state_store.entity_area import PUBLIC_CONFIG_AREA_WAIT_MS
 from .router import NestRouter
 
@@ -65,6 +67,34 @@ _UPDATE_SECTIONS = (
 
 #: 需为数组（而非对象）的键。
 _ARRAY_SECTIONS = ("voiceCommands",)
+
+#: 配置分区 → 增量模块功能码：写入这些分区时要求对应授权（读路径仍走角色脱敏）。
+_SECTION_LICENSE_FEATURES: dict[str, str] = {
+    "energy": feature_codes.FEATURE_ENERGY,
+    "pricing": feature_codes.FEATURE_ENERGY,
+    "clientPower": feature_codes.FEATURE_ENERGY,
+    "voice": feature_codes.FEATURE_VOICE,
+    "voiceCommands": feature_codes.FEATURE_VOICE,
+    "homeMode": feature_codes.FEATURE_HOME_MODE,
+    "security": feature_codes.FEATURE_SECURITY,
+    "notification": feature_codes.FEATURE_NOTIFICATIONS,
+    "mediaPlaylists": feature_codes.FEATURE_MEDIA,
+}
+
+
+def _require_section_license_features(request: Request, sections: object) -> None:
+    """对即将写入的配置分区集合做功能码门禁（同一码只判一次）。"""
+    if not isinstance(sections, (dict, set, list, tuple)):
+        return
+    keys = sections.keys() if isinstance(sections, dict) else sections
+    required = {
+        _SECTION_LICENSE_FEATURES[key]
+        for key in keys
+        if isinstance(key, str) and key in _SECTION_LICENSE_FEATURES
+    }
+    for feature in sorted(required):
+        require_license_feature(request, feature)
+
 
 def _app_config(request: Request):
     return request.app.state.app_config
@@ -154,6 +184,7 @@ async def import_config(
     user: dict[str, Any] = Depends(require_roles("admin")),
 ):
     """导入系统运行参数（merge 或 replace）。"""
+    _require_section_license_features(request, payload.config)
     return await asyncio.to_thread(
         _backup(request).import_config, payload.model_dump(exclude_none=True)
     )
@@ -196,6 +227,7 @@ async def update_system_config(
 ):
     """局部更新系统配置（支持乐观锁 ``expectedUpdatedAt``，冲突 409）。"""
     payload = _validate_update_payload(body if isinstance(body, dict) else {})
+    _require_section_license_features(request, payload)
     expected_updated_at = payload.pop("expectedUpdatedAt", None) or None
     app_config = _app_config(request)
     await asyncio.to_thread(app_config.update, payload, expected_updated_at)
@@ -212,6 +244,11 @@ async def reset_system_config(
     section = payload.get("section")
     if section is not None and not isinstance(section, str):
         bad_request("section 须为字符串")
+    if isinstance(section, str) and section:
+        _require_section_license_features(request, {section})
+    else:
+        # 全量重置会触及受门禁分区，要求当前租约覆盖全部相关模块码。
+        _require_section_license_features(request, set(_SECTION_LICENSE_FEATURES))
     app_config = _app_config(request)
     return await asyncio.to_thread(app_config.reset, section)
 

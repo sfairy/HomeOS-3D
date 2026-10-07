@@ -12,7 +12,9 @@ from __future__ import annotations
 
 from urllib.parse import urlsplit
 
-from fastapi import HTTPException, Request
+from fastapi import Request
+
+from ..core.errors import RequestRejected
 
 _REJECTION = "此操作只允许从当前应用页面发起。"
 
@@ -20,11 +22,12 @@ _REJECTION = "此操作只允许从当前应用页面发起。"
 def require_same_origin_write(request: Request) -> None:
     site = request.headers.get("sec-fetch-site", "").strip().lower()
     if site and site != "same-origin":
-        raise HTTPException(403, detail=_REJECTION)
+        raise RequestRejected(_REJECTION)
     origin = request.headers.get("origin")
     referer = request.headers.get("referer") if origin is None else None
     raw_source = origin if origin is not None else referer
     if raw_source is None:
+        # 无 Origin/Referer：脚本 / 测试客户端放行；若已带 Sec-Fetch-Site 则上面已校验同源。
         return
     try:
         source = urlsplit(raw_source.strip())
@@ -52,7 +55,7 @@ def require_same_origin_write(request: Request) -> None:
     except ValueError:
         valid = False
     if not valid:
-        raise HTTPException(403, detail=_REJECTION)
+        raise RequestRejected(_REJECTION)
 
 
 __all__ = ["require_same_origin_write"]

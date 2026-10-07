@@ -1,17 +1,18 @@
 /**
  * @module entity-popup-registry
- * @description 实体控制弹窗组件注册表。
+ * @description 实体控制弹窗组件注册表（设备弹窗栈 A）。
  *
- * 职责：
- * - 按域注册各实体的控制弹窗组件（懒加载）。
- * - 根据 entity_id 解析对应的弹窗组件（与部件点击行为一致）。
- * - 生成弹窗 props，判断实体是否支持控制弹窗及触发方式。
+ * 职责边界见 `device-popup-stacks.ts`：
+ * - 栈 A（本注册表 + EntityControlHost）：设备列表 / 详情「控制」/ Hub 水电通讯
+ * - 栈 B：门铃、设备组、媒体全屏 MediaPlayerModal
+ * - 栈 C：画布 PanelRenderer more-info / 组合弹窗
+ * - 栈 D：3D i3d-*-panel
  *
  * 保留范围（其余域不再弹窗）：
  * - 灯光 `light`
  * - 空调 / 温控 `climate`
  * - 窗帘 `cover`
- * - 多媒体 `media_player`
+ * - 多媒体 `media_player`（紧凑锚定；全屏走栈 B）
  * - 生活账户（水 / 电 / 气 / 通讯）
  *
  * 依赖：

@@ -109,7 +109,10 @@ export default [
       'vue/no-reserved-component-names': 'off',
       'vue/no-ref-as-operand': 'warn',
       'vue/no-side-effects-in-computed-properties': 'warn',
-      'vue/no-mutating-props': 'warn',
+      // 表单草稿以对象 prop 下发（如 CredentialsSection 的 draft：由父级 composable 持有、
+      // 子组件用 v-model 绑定其字段）。这类「改嵌套字段」是约定的共享可变草稿用法，
+      // 只拦截真正的整包覆盖（draft = x），避免为了过规则把草稿链路拆成 emit 往返。
+      'vue/no-mutating-props': ['warn', { shallowOnly: true }],
     },
   },
   {

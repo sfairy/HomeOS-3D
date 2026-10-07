@@ -4,6 +4,9 @@
  list_areas / get_area_snapshot / control_room / activate_scene …），并统一执行入口。
  - 仅在 HomeOS 白名单（房间映射 + 常用监控列表）内搜索设备
  - 控制前用 is_high_risk 做安全校验，高危设备（门锁 / 安防 / 燃气阀 / 车库门）拦截
+ - 控制前用 agent_service_allowed 校验 domain.service 白名单（与 HTTP /ha/services/call 同源）
+ - 读工具（get_entity_state / get_area_snapshot / search_entities / query_camera）
+   按同一套实体可见性模型过滤（realtime.access.resolve_entity_restrictions）
  - HA 的 scene.* / script.* 走「场景语音控制」允许清单闸门，默认全禁（fail-closed）
  - control_room 支持“全屋”语义，自动遍历所有房间
 依赖：StateStore（状态）、CommandProxyService（下发 HA 调用）、AgentAreaService（房间）、
@@ -21,7 +24,12 @@ from sqlalchemy import select
 
 from src.core.entity_domain import get_entity_domain
 from src.core.errors import BusinessException
+from src.core.ha_service_catalog import agent_service_allowed
 from src.core.models import HomeMode
+from src.realtime.access import (
+    is_entity_allowed,
+    resolve_entity_restrictions,
+)
 
 from ...command_proxy_auth import assert_command_proxy_authorized
 from ..agent_actor import AGENT_CONTROL_TOOLS, AgentActor
@@ -226,6 +234,44 @@ class HomeToolsService:
             return {"ok": False, "message": _error_message(exc) or "无权控制该设备"}
 
     # ------------------------------------------------------------------ #
+    # 读路径 ACL / 服务白名单
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def _read_restrictions(actor: AgentActor | None) -> list[str] | None:
+        """读路径实体可见性（与 WS 推送 / HTTP 读接口同一模型）。
+
+        - ``None``：不限制（未绑定身份，或 admin）；
+        - ``[]``：看不到任何实体（guest、无白名单的 child）；
+        - ``[...]``：白名单前缀 / 精确 id / domain 列表。
+        """
+        return resolve_entity_restrictions(actor.to_auth_user() if actor is not None else None)
+
+    def _read_denied(self, actor: AgentActor | None) -> dict[str, Any] | None:
+        """整账号无任何可见实体时，直接给出明确拒绝结果（而不是空列表）。"""
+        restrictions = self._read_restrictions(actor)
+        if restrictions is not None and len(restrictions) == 0:
+            return {"error": "当前账号没有可查看设备的权限，请联系管理员配置可见范围。"}
+        return None
+
+    def _may_read(self, entity_id: str, actor: AgentActor | None) -> bool:
+        restrictions = self._read_restrictions(actor)
+        if restrictions is None:
+            return True
+        return is_entity_allowed(entity_id, restrictions)
+
+    @staticmethod
+    def _service_whitelist_error(domain: str, service: str) -> dict[str, Any]:
+        """服务白名单拒绝结果（与 HTTP /ha/services/call 同一份目录）。"""
+        return {
+            "success": False,
+            "blocked": True,
+            "message": (
+                f"出于安全考虑，服务 {domain}.{service} 不在允许列表中，已拒绝执行。"
+                "请改用受支持的动作（如 turn_on / turn_off / set_temperature）。"
+            ),
+        }
+
+    # ------------------------------------------------------------------ #
     # schema / 执行入口
     # ------------------------------------------------------------------ #
     def get_tool_schemas(self) -> list[Any]:
@@ -264,15 +310,15 @@ class HomeToolsService:
                 }
 
         if name == "search_entities":
-            return await self._search_entities(_s(args.get("query")))
+            return await self._search_entities(_s(args.get("query")), actor)
         if name == "get_entity_state":
-            return self._get_entity_state(_s(args.get("entity_id")))
+            return self._get_entity_state(_s(args.get("entity_id")), actor)
         if name == "control_device":
             return await self._control_device(args, actor)
         if name == "list_areas":
             return await self._list_areas()
         if name == "get_area_snapshot":
-            return await self._get_area_snapshot(_s(args.get("area_id")))
+            return await self._get_area_snapshot(_s(args.get("area_id")), actor)
         if name == "control_room":
             return await self._control_room(args, actor)
         if name == "activate_scene":
@@ -296,14 +342,17 @@ class HomeToolsService:
         if name == "media_control":
             return await self._media_control(args, actor)
         if name == "query_camera":
-            return self._query_camera(_s(args.get("entity_id")))
+            return self._query_camera(_s(args.get("entity_id")), actor)
         return {"error": f"未知工具: {name}"}
 
     # ------------------------------------------------------------------ #
     # 搜索 / 查询
     # ------------------------------------------------------------------ #
-    async def _search_entities(self, query: str) -> dict[str, Any]:
+    async def _search_entities(self, query: str, actor: AgentActor | None = None) -> dict[str, Any]:
         """搜索设备：仅在 HomeOS 白名单内匹配（房间映射 + 常用监控列表 favoriteEntities）。"""
+        denied = self._read_denied(actor)
+        if denied is not None:
+            return denied
         lower = query.lower()
         try:
             areas = await self._area_service.find_all()
@@ -338,10 +387,14 @@ class HomeToolsService:
             pass
 
         # 在白名单内按关键词匹配
+        restrictions = self._read_restrictions(actor)
         matched: list[dict[str, Any]] = []
         for entity in self._state_store.get_all():
             entity_id = str(entity.get("entity_id") or "")
             if entity_id not in whitelist:
+                continue
+            # 读路径 ACL：受限角色只能搜到自己可见的实体
+            if restrictions is not None and not is_entity_allowed(entity_id, restrictions):
                 continue
             attributes = entity.get("attributes") if isinstance(entity.get("attributes"), dict) else {}
             friendly = str((attributes or {}).get("friendly_name") or "")
@@ -371,8 +424,14 @@ class HomeToolsService:
         result["entities"] = matched
         return result
 
-    def _get_entity_state(self, entity_id: str) -> dict[str, Any]:
-        """查询单个设备的当前状态。"""
+    def _get_entity_state(self, entity_id: str, actor: AgentActor | None = None) -> dict[str, Any]:
+        """查询单个设备的当前状态（读路径 ACL：受限角色看不到白名单外实体）。"""
+        denied = self._read_denied(actor)
+        if denied is not None:
+            return denied
+        if not self._may_read(entity_id, actor):
+            logger.warning("Agent 读 ACL 拒绝: get_entity_state %s", entity_id)
+            return {"error": f"当前账号无权查看设备 {entity_id}"}
         entity = self._state_store.get(entity_id)
         if entity is None:
             return {"error": f"未找到设备 {entity_id}"}
@@ -396,11 +455,16 @@ class HomeToolsService:
         args: dict[str, Any],
         actor: AgentActor | None = None,
     ) -> dict[str, Any]:
-        """控制单个设备。高危 denylist → 实体 ACL → CommandProxy。"""
+        """控制单个设备。参数校验 → 服务白名单 → 高危 denylist → 实体 ACL → CommandProxy。"""
         domain = _s(args.get("domain"))
         service = _s(args.get("service"))
         entity_id = _s(args.get("entity_id"))
         actual_domain = extract_domain(entity_id) or domain
+        # 服务白名单：与 HTTP /ha/services/call 共用 core/ha_service_catalog，防止 LLM
+        # 说出任意 domain.service（如 light.reload / shell_command.turn_on）直达 HA。
+        if not agent_service_allowed(actual_domain, service):
+            logger.warning("服务不在白名单,已拒绝: %s.%s (%s)", actual_domain, service, entity_id)
+            return self._service_whitelist_error(actual_domain, service)
         raw_data = args.get("service_data")
         service_data = raw_data if isinstance(raw_data, dict) else None
         # scene / script 内部动作无法静态审计：仅在用户白名单内才放行（automation 永久拦截）
@@ -461,11 +525,18 @@ class HomeToolsService:
         except Exception as exc:  # noqa: BLE001
             return {"error": f"房间列表加载失败: {_error_message(exc)}"}
 
-    async def _get_area_snapshot(self, area_id_or_name: str) -> dict[str, Any]:
+    async def _get_area_snapshot(
+        self, area_id_or_name: str, actor: AgentActor | None = None
+    ) -> dict[str, Any]:
         """获取房间内所有设备的当前状态快照。
 
         温度 / 湿度传感器来源优先级：布局 mobileRoomStats → AppConfig 的 envSensorMap。
+        读路径 ACL：受限角色看不到白名单外实体（含温湿度传感器来源实体）。
         """
+        denied = self._read_denied(actor)
+        if denied is not None:
+            return denied
+        restrictions = self._read_restrictions(actor)
         try:
             area = await self._area_service.find_one(area_id_or_name)
         except Exception:  # noqa: BLE001
@@ -495,17 +566,28 @@ class HomeToolsService:
 
         devices: list[dict[str, Any]] = []
         for ae in area.entities or []:
-            entity = self._state_store.get(str(ae.entity_id))
+            entity_id = str(ae.entity_id)
+            if restrictions is not None and not is_entity_allowed(entity_id, restrictions):
+                continue
+            entity = self._state_store.get(entity_id)
             attributes = (
                 entity.get("attributes") if isinstance(entity, dict) and isinstance(entity.get("attributes"), dict) else {}
             )
             devices.append(
                 {
-                    "entity_id": str(ae.entity_id),
-                    "name": _or((attributes or {}).get("friendly_name"), str(ae.entity_id)),
+                    "entity_id": entity_id,
+                    "name": _or((attributes or {}).get("friendly_name"), entity_id),
                     "state": _or(entity.get("state") if entity else None, "unknown"),
                 }
             )
+
+        def _sensor(entity_id: str, value: str) -> dict[str, str] | None:
+            """按读路径 ACL 过滤传感器：看不到的传感器不返回，避免间接泄露状态。"""
+            if not entity_id or not value:
+                return None
+            if restrictions is not None and not is_entity_allowed(entity_id, restrictions):
+                return None
+            return {"entity_id": entity_id, "value": value}
 
         # 1) 先读布局里的 mobileRoomStats 配置的温度 / 湿度传感器
         temp: dict[str, str] | None = None
@@ -517,14 +599,11 @@ class HomeToolsService:
             if isinstance(room_stats, dict) and room_stats.get("temp"):
                 te = self._state_store.get(str(room_stats["temp"]))
                 if te:
-                    temp = {"entity_id": str(room_stats["temp"]), "value": _s(te.get("state"))}
+                    temp = _sensor(str(room_stats["temp"]), _s(te.get("state")))
             if isinstance(room_stats, dict) and room_stats.get("humidity"):
                 he = self._state_store.get(str(room_stats["humidity"]))
                 if he:
-                    humidity = {
-                        "entity_id": str(room_stats["humidity"]),
-                        "value": _s(he.get("state")),
-                    }
+                    humidity = _sensor(str(room_stats["humidity"]), _s(he.get("state")))
         except Exception:  # noqa: BLE001
             pass
 
@@ -532,9 +611,15 @@ class HomeToolsService:
         if not temp or not humidity:
             from_env = self._resolve_env_sensors(area.id, area.name)
             if not temp and from_env["temp"]:
-                temp = from_env["temp"]
+                temp = _sensor(
+                    str(from_env["temp"].get("entity_id") or ""),
+                    str(from_env["temp"].get("value") or ""),
+                )
             if not humidity and from_env["humidity"]:
-                humidity = from_env["humidity"]
+                humidity = _sensor(
+                    str(from_env["humidity"].get("entity_id") or ""),
+                    str(from_env["humidity"].get("value") or ""),
+                )
 
         return {
             "area": {"id": area.id, "name": area.name},
@@ -685,6 +770,18 @@ class HomeToolsService:
         )
         for entity_id in entity_ids:
             entity_domain = get_entity_domain(entity_id)
+            # 服务白名单：与 _control_device 同源（domain 可能来自实体本身）
+            if not agent_service_allowed(entity_domain, service):
+                logger.warning("房间控制中服务不在白名单: %s.%s (%s)", entity_domain, service, entity_id)
+                results.append(
+                    {
+                        "entity_id": entity_id,
+                        "ok": False,
+                        "blocked": True,
+                        "message": self._service_whitelist_error(entity_domain, service)["message"],
+                    }
+                )
+                continue
             risk = is_high_risk(entity_domain, service, entity_id, service_data, scene_voice)
             if risk.get("blocked"):
                 logger.warning("房间控制中跳过高危设备: %s (%s)", entity_id, risk.get("reason"))
@@ -776,12 +873,15 @@ class HomeToolsService:
                 "available_modes": await self._list_mode_names(),
             }
         try:
+            # meta.actor 必须是 dict：activate_home_mode 会用它做实体级 ACL
+            # （entity_execute_acl.assert_entity_targets_execute_authorized 调 actor.get(...)）。
+            # 传 AgentActor 数据类会 AttributeError，导致模式切换必然失败。
             await self._home_mode.activate(
                 mode["id"],
                 {
                     "source": "agent",
                     "reason": f"智能管家指令: {name_or_id.strip()}",
-                    "actor": actor,
+                    "actor": actor.to_auth_user(),
                 },
             )
             return {"success": True, "mode": {"id": mode["id"], "name": mode["name"]}}
@@ -1136,10 +1236,10 @@ class HomeToolsService:
             actor,
         )
 
-    def _query_camera(self, entity_id: str) -> dict[str, Any]:
+    def _query_camera(self, entity_id: str, actor: AgentActor | None = None) -> dict[str, Any]:
         if not entity_id.startswith("camera."):
             return {"error": "entity_id 须为 camera.*"}
-        return self._get_entity_state(entity_id)
+        return self._get_entity_state(entity_id, actor)
 
 
 __all__ = [

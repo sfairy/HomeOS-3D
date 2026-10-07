@@ -145,7 +145,6 @@ import { ref, computed, watch, defineAsyncComponent } from 'vue'
 import { Music, Pause, Play, SkipBack, SkipForward } from '@lucide/vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useHaConnectionStore } from '@/stores/ha-connection.store'
-import { useLayoutStore } from '@/stores/layout.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useEntityDisplayEpoch } from '@/composables/entity/useEntityDisplayEpoch'
 import { resolveHaEntityPicture } from '@/utils/ha/media-url.util'
@@ -200,8 +199,6 @@ watch(
 
 // 实体状态仓库（提供 media_player 实体与服务调用）
 const entitiesStore = useEntitiesStore()
-// UI 仓库（布局配置）
-const layoutStore = useLayoutStore()
 const haConnectionStore = useHaConnectionStore()
 // Chrome 仓库（打开播放器等）
 const chrome = useChromeStore()

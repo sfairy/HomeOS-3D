@@ -20,10 +20,11 @@ from sqlalchemy import delete, func, select
 from ...core.entity_domain import get_entity_domain
 from ...core.models import DeviceUsageStat
 from ..app_config.room_meta import (
+    align_env_sensor_map_to_ha_areas,
     is_room_hidden_in_map,
     list_visible_env_sensor_map_room_ids,
 )
-from ..rooms import entity_matches_env_room
+from ..rooms import DEFAULT_ROOM_CATALOG, entity_matches_env_room
 from .voice_alerts import (
     apply_alert_template,
     match_custom_entity_alert,
@@ -75,8 +76,19 @@ class SmartAdvisorUsageHelper:
     def register_room_devices(self, room: str, entity_ids: list[str]) -> None:
         self.room_device_map[room] = list(entity_ids)
 
+    def _ha_areas(self) -> Any:
+        getter = self._deps.get("ha_areas")
+        if not callable(getter):
+            return []
+        try:
+            return getter() or []
+        except Exception:  # noqa: BLE001
+            return []
+
     async def build_room_device_map_from_config(self) -> bool:
         """按 envSensorMap 拉取 light / climate / media_player 并按房间注册。
+
+        房间口径与设置页一致：只保留 HA area_id 主键，忽略默认目录残留 slug。
 
         注意：``fetch_all_states`` 在 HA 不可达 / 状态未就绪时会**静默返回空列表**
         （见 ``ha_rest.fetch_all_states`` 的 ``except httpx.HTTPError: return []``），
@@ -85,9 +97,9 @@ class SmartAdvisorUsageHelper:
         :returns: 是否建成了非空的房间设备映射。
         """
         app_config = self._deps["app_config"]
-        sensor_map = app_config.get("envSensorMap") or {}
-        if not isinstance(sensor_map, dict):
-            sensor_map = {}
+        sensor_map = align_env_sensor_map_to_ha_areas(
+            app_config.get("envSensorMap") or {}, self._ha_areas()
+        )
         rooms = list_visible_env_sensor_map_room_ids(sensor_map)
         if not rooms:
             return False
@@ -120,17 +132,7 @@ class SmartAdvisorUsageHelper:
                 ids = [
                     str(e.get("entity_id"))
                     for e in entities
-                    if entity_matches_env_room(
-                        str(e.get("entity_id") or ""),
-                        str((e.get("attributes") or {}).get("friendly_name") or ""),
-                        str(
-                            (e.get("attributes") or {}).get("area_id")
-                            or (e.get("attributes") or {}).get("area_name")
-                            or ""
-                        ),
-                        room,
-                        sensor_map,
-                    )
+                    if self._entity_belongs_to_room(e, room, sensor_map)
                 ]
                 if ids:
                     built[room] = ids
@@ -149,6 +151,27 @@ class SmartAdvisorUsageHelper:
         except Exception as exc:  # noqa: BLE001
             logger.warning("建立房间设备映射失败: %s", exc)
             return False
+
+    @staticmethod
+    def _entity_belongs_to_room(
+        entity: dict[str, Any], room: str, sensor_map: dict[str, Any]
+    ) -> bool:
+        """HA area_id 精确归属优先，再回退名称/关键词模糊匹配。"""
+        attrs = entity.get("attributes") or {}
+        entity_area = str(attrs.get("area_id") or "").strip()
+        entry = sensor_map.get(room) or {}
+        bound_area = str(entry.get("haAreaId") or entry.get("ha_area_id") or room).strip()
+        if entity_area and bound_area and entity_area == bound_area:
+            return True
+        if entity_area and entity_area == room:
+            return True
+        return entity_matches_env_room(
+            str(entity.get("entity_id") or ""),
+            str(attrs.get("friendly_name") or ""),
+            str(entity_area or attrs.get("area_name") or ""),
+            room,
+            sensor_map,
+        )
 
     async def build_entity_state_map(self) -> dict[str, dict[str, Any]]:
         """构建 light / climate / media_player 实体状态映射（HA 优先，回退 StateStore）。"""
@@ -612,6 +635,7 @@ class AdvisorUsageService:
                 "state_store": state_store,
                 "state_router": state_router,
                 "session_factory": session_factory,
+                "ha_areas": self._cached_ha_areas,
                 "push_tip": push_tip or self._push_tip,
                 "room_label": self._room_label,
                 "voice_config": lambda: self._app_config.get("voice"),
@@ -692,9 +716,14 @@ class AdvisorUsageService:
             if self._stop:
                 return
             try:
-                # 空映射自愈：启动期 HA 未就绪会留下空映射，靠定时任务兜底重建，
-                # 避免「忘了关」检测在 HA 恢复后仍然永久不生效。
-                if not self.usage.room_device_map:
+                # 空映射自愈：启动期 HA 未就绪会留下空映射。
+                # 目录幽灵键自愈：默认 slug 与 HA area 主键混在同一张表时重建。
+                mapped_rooms = list(self.usage.room_device_map)
+                catalog_ids = {room.id for room in DEFAULT_ROOM_CATALOG}
+                mixed_catalog = any(room_id in catalog_ids for room_id in mapped_rooms) and any(
+                    room_id not in catalog_ids for room_id in mapped_rooms
+                )
+                if not mapped_rooms or mixed_catalog:
                     await self.usage.build_room_device_map_from_config()
                 await self.check_forgotten_cron()
             except Exception as exc:  # noqa: BLE001
@@ -727,15 +756,19 @@ class AdvisorUsageService:
         if self._event_bus is not None:
             self._event_bus.emit_soon("tts.speak", {"message": message})
 
+    def _cached_ha_areas(self) -> list[Any]:
+        if self._entity_area is None:
+            return []
+        try:
+            return self._entity_area.get_cached_ha_areas() or []
+        except Exception:  # noqa: BLE001
+            return []
+
     def _room_label(self, room: str) -> str:
         from ..rooms import resolve_room_label_from_ha_areas  # noqa: PLC0415 - 延迟导入
 
-        try:
-            ha_areas = self._entity_area.get_cached_ha_areas()
-        except Exception:  # noqa: BLE001
-            ha_areas = []
         return resolve_room_label_from_ha_areas(
-            room, self._app_config.get("envSensorMap"), ha_areas
+            room, self._app_config.get("envSensorMap"), self._cached_ha_areas()
         )
 
     # ------------------------------------------------------------------ #

@@ -3,8 +3,7 @@
  *
  * 职责：
  * 1. 定义全部前端路由表（含认证页、主布局子路由、部件构建器）
- * 2. 注册全局前置守卫 beforeEach：处理系统初始化状态检查、认证拦截、商业授权与 profile 解析
- * 3. 提供 markSystemInitialized 供 SetupView 完成初始化后通知路由放行
+ * 2. 注册全局前置守卫 beforeEach：按「注册 → 登录 → 商业授权 → profile 解析」的顺序放行
  *
  * 依赖：vue-router、auth.store、layout.store、chrome.store、logger、api-boot-retry、lazy-component、router-auth.util
  */
@@ -20,11 +19,14 @@ import { resolveNavigationTarget } from './auth.util'
 import { registerShellNavigation } from '@/studio/runtime/shell-navigation'
 import {
   getLicenseActivated,
+  hasLicenseFeatureAccess,
+  isLicenseFeatureGranted,
   setLicenseActivated,
+  setLicenseFeatureAccess,
   shouldRefreshLicenseStatus,
 } from './license-gate'
 import type { SystemInitState } from '@/types/router'
-import { getLicenseAvailability } from '@/services/api/license'
+import { getLicenseAvailability, getLicenseStatus } from '@/services/api/license'
 import { defaultTabForRole, isAdminOnlyTab } from '@/utils/registry/settings-nav.util'
 import { PAGE_ASSETS as STUDIO_ASSETS } from '@/studio/page-assets'
 
@@ -54,11 +56,17 @@ const routes: RouteRecordRaw[] = [
     meta: { assets: STUDIO_ASSETS.login },
   },
   {
-    // 初始化引导页（首次使用时创建管理员账户）
+    // 注册页（首次部署零用户时的唯一入口：账号 + 密码 + 邮箱 + 验证码）
+    path: '/register',
+    name: 'register',
+    component: lazyView(() => import('@/studio/views/RegisterView.vue')),
+    meta: { assets: STUDIO_ASSETS.register },
+  },
+  {
+    // 兼容旧入口：初始化页并入注册语义，整页跳转到 /register
     path: '/setup',
     name: 'setup',
-    component: lazyView(() => import('@/studio/views/SetupView.vue')),
-    meta: { assets: STUDIO_ASSETS.setup },
+    redirect: '/register',
   },
   {
     // 商业授权激活（并入 homeos-3d 授权场景 UI）
@@ -66,6 +74,11 @@ const routes: RouteRecordRaw[] = [
     name: 'activation',
     component: lazyView(() => import('@/studio/views/LicenseView.vue')),
     meta: { assets: STUDIO_ASSETS.license },
+  },
+  {
+    // 兼容旧入口与部署文档里的 /license：授权页现为 /activate（后台「授权状态」面板另有入口）
+    path: '/license',
+    redirect: '/activate',
   },
   {
     // 授权恢复页（独立路由；授权门禁也会在任意地址就地渲染同一视图）
@@ -147,16 +160,18 @@ const routes: RouteRecordRaw[] = [
       // 房间管理重定向到设置页房间标签
       { path: 'rooms', redirect: { path: '/settings', query: { tab: 'rooms' } } },
       {
-        // 通知中心
+        // 通知中心（功能码 module.notifications 门禁）
         path: 'notifications',
         name: 'notifications',
         component: lazyView(() => import('@/views/NotificationsView.vue')),
+        meta: { requiresFeature: 'module.notifications' },
       },
       {
-        // 地震历史记录页
+        // 地震历史记录页（功能码 module.earthquake 门禁）
         path: 'earthquake-history',
         name: 'earthquake-history',
         component: lazyView(() => import('@/views/EarthquakeHistoryView.vue')),
+        meta: { requiresFeature: 'module.earthquake' },
       },
       {
         // 事件日志页
@@ -171,16 +186,24 @@ const routes: RouteRecordRaw[] = [
         component: lazyView(() => import('@/views/ModeTriggerLogsView.vue')),
       },
       {
-        // 安防中心（监控/告警等）
+        // 安防中心（监控/告警等；功能码 module.security 门禁）
         path: 'security',
         name: 'security',
         component: lazyView(() => import('@/views/SecurityView.vue')),
+        meta: { requiresFeature: 'module.security' },
       },
       {
         // 设置页
         path: 'settings',
         name: 'settings',
         component: lazyView(() => import('@/views/SettingsView.vue')),
+      },
+      {
+        // MoviePilot 影视库：需 module.media；须写在通用 embed/:id 之前以免被吞掉
+        path: 'embed/movie-pilot',
+        name: 'embed-movie-pilot',
+        component: lazyView(() => import('@/views/EmbedView.vue')),
+        meta: { requiresFeature: 'module.media' },
       },
       {
         // 嵌入式视图（供 iframe 或外部页面嵌入单个部件）
@@ -255,9 +278,8 @@ function restoreScrollPositions(remembered: RememberedScroll) {
 }
 
 const router = createRouter({
-  // 使用真实路径历史路由：与 homeos-3d 架构一致，studio 应用内含大量
-  // `window.location.assign("/3d-studio" | "/display/*" | "/license" | ...)` 的整页
-  // 跳转，hash 路由会把这些路径解析错。
+  // 使用真实路径历史路由：studio 运行时经 ``navigateInShell`` 走本 router；
+  // hash 路由会把 ``/3d-studio`` / ``/display/*`` 等路径解析错。
   // 后端已注册 SPA fallback（非 /api/* 的未命中路径返回 index.html），无需额外配置。
   history: createWebHistory('/'),
   routes,
@@ -315,12 +337,73 @@ router.beforeEach(async (to, from) => {
   const layout = useLayoutStore()
   const chrome = useChromeStore()
 
-  // 商业授权：首次 / TTL 过期 / 进入激活页时拉取（避免每次子路由导航都打一次探测）
+  // ── 1. 系统初始化 + 登录会话探测（首装流程的第一、二段）──
   //
-  // 走 `/license/availability` 而不是 `/license/status`：后者要求登录会话，而门禁探测
-  // 恰恰发生在「会话可能还不存在」的首屏 —— 用 `/status` 的 401 会被下面的 catch 误判成
-  // 「未激活」，把已激活实例的未登录用户送到激活页。`/availability` 是公开脱敏的，
-  // 同样返回 `required` / `allowed`。
+  // 必须先于授权探测：全新部署时本机零用户、也没有授权，若先跑授权门禁会把用户直接
+  // 送进激活页，永远到不了注册页。`GET /setup/status` 兼任 CSRF 引导，故无需再叠一次
+  // refreshCsrfToken；首屏后端可能仍在启动，用 withBackendBootRetry 轮询重试。
+  if (systemInitialized === null || systemInitialized === 'offline') {
+    try {
+      const initialized =
+        systemInitialized === 'offline'
+          ? await auth.getSetupStatus()
+          : await fetchSetupStatusWithBootRetry(auth)
+      systemInitialized = initialized ?? false
+      offlineNotified = false
+      if (auth.isAuthenticated) {
+        // getSetupStatus 内已探测过一次 /auth/me（即续期端点），不必再补一发 refreshSession；
+        // 轮询跳过首跑，避免紧随其后的双发与 CSRF 竞态。
+        auth.startSessionRefresh({ runImmediately: false })
+      }
+    } catch (err) {
+      logger.error('系统初始化状态检查失败:', err)
+      if (isBackendUnreachableError(err)) {
+        // 后端不可达：进入 offline 模式，允许重试但不阻塞入户页
+        systemInitialized = 'offline'
+        if (!offlineNotified) {
+          offlineNotified = true
+          chrome.notify(getBackendUnreachableHint(), 'error')
+        }
+      } else {
+        // 其他错误按未初始化处理：本机零用户 → 注册页
+        systemInitialized = false
+      }
+    }
+  }
+
+  // 初始化状态仍未确定时暂不放行（等待下次探测完成）
+  if (systemInitialized === null) return
+
+  // ── 2. 注册 → 登录（授权检测之前）──
+  // 未初始化：本机零用户，只能去注册页。
+  if (systemInitialized === false) {
+    if (to.name === 'register' || to.name === 'setup') return
+    return '/register'
+  }
+
+  // 后端不可达：放行入户页，其余阻断（不假装已授权）
+  if (systemInitialized === 'offline') {
+    if (
+      to.name === 'register' ||
+      to.name === 'setup' ||
+      to.name === 'login' ||
+      to.name === 'activation'
+    ) {
+      return
+    }
+    return false
+  }
+
+  // 已初始化仍在注册页：注册入口已关闭，按登录态分流
+  if (to.name === 'register' || to.name === 'setup') return auth.isAuthenticated ? '/' : '/login'
+
+  // 需认证但未登录：先登录，登录后再谈授权
+  if (!auth.isAuthenticated && to.meta?.requiresAuth) return '/login'
+
+  // ── 3. 商业授权检测（登录之后）──
+  //
+  // 走 `/license/availability` 而不是 `/license/status`：后者要求登录会话，而这里可能
+  // 还没建立会话（公开展示页）；`/availability` 公开脱敏，同样返回 `required` / `allowed`。
   const forceLicenseRefresh = to.name === 'activation'
   if (shouldRefreshLicenseStatus(forceLicenseRefresh)) {
     try {
@@ -333,8 +416,8 @@ router.beforeEach(async (to, from) => {
       logger.error('商业授权状态检查失败:', err)
       if (getLicenseActivated() === null) {
         if (isBackendUnreachableError(err)) {
-          // 不可达时不假装已授权（否则随后 setup 重试成功会误拉业务 API）
-          // 保持 null，下面 setup 探测会进入 offline
+          // 不可达时不假装已授权（否则随后重试成功会误拉业务 API）
+          // 保持 null，下面兜底分支会进入 offline
         } else {
           setLicenseActivated(false)
         }
@@ -342,10 +425,24 @@ router.beforeEach(async (to, from) => {
     }
   }
 
-  // 未激活：立刻去激活页，且不要先跑 getSetupStatus（会触发已登录副作用拉业务 API）
+  // 功能码门禁明细：公开的 `/availability` 不下发它（要求登录会话的 `/status` 才有），
+  // 因此登录后拉一次缓存下来，供导航栏与模块入口显隐。
+  // 未加载时 fail-closed（入口先收起）；拉取失败则记空明细并标记已加载，
+  // 未登记码按放行、真正拦截仍由后端 403 兜底。
+  if (auth.isAuthenticated && !hasLicenseFeatureAccess() && getLicenseActivated()) {
+    try {
+      setLicenseFeatureAccess((await getLicenseStatus()).data.featureAccess)
+    } catch (err) {
+      logger.warn('功能码门禁明细读取失败，界面按未登记码放行渲染', err)
+      setLicenseFeatureAccess({})
+    }
+  }
+
+  // 未激活：激活需本机会话，故放行 login / activation；其余按登录态分流，
+  // 避免「未登录 → 激活页 401 → 想去登录又被踢回激活」的死锁。
   if (getLicenseActivated() === false) {
-    if (to.name === 'activation') return
-    return '/activate'
+    if (to.name === 'activation' || to.name === 'login') return
+    return auth.isAuthenticated ? '/activate' : '/login'
   }
 
   // 授权状态仍未知（多半后端不可达）：跳过登录探测副作用，交给 offline 分支
@@ -360,43 +457,6 @@ router.beforeEach(async (to, from) => {
     if (to.name === 'login' || to.name === 'setup' || to.name === 'activation') return
     return false
   }
-
-  // 系统初始化状态未检查或处于离线态时，重新探测
-  if (systemInitialized === null || systemInitialized === 'offline') {
-    try {
-      const initialized =
-        systemInitialized === 'offline'
-          ? await auth.getSetupStatus()
-          : await fetchSetupStatusWithBootRetry(auth)
-      systemInitialized = initialized ?? false
-      offlineNotified = false
-      // CSRF 引导已由上面这发 GET /setup/status 完成（该端点兼任引导，见后端 api/auth.py）：
-      // 此处不必再叠一次 refreshCsrfToken，否则同一次首屏会打两发 /setup/status。
-      // 首个突变请求若仍缺 token，api-client 会自行 bootstrap 并在 403 时强制重置。
-      if (auth.isAuthenticated) {
-        // getSetupStatus 内已探测过一次 /auth/me（即续期端点），不必再补一发 refreshSession；
-        // 轮询跳过首跑，避免紧随其后的双发与 CSRF 竞态。
-        auth.startSessionRefresh({ runImmediately: false })
-      }
-    } catch (err) {
-      logger.error('系统初始化状态检查失败:', err)
-      if (isBackendUnreachableError(err)) {
-        // 后端不可达：进入 offline 模式，允许重试但不阻塞导航
-        systemInitialized = 'offline'
-        if (!offlineNotified) {
-          offlineNotified = true
-          chrome.notify(getBackendUnreachableHint(), 'error')
-        }
-      } else {
-        // 其他错误视为未初始化，跳转 setup 页
-        systemInitialized = false
-        if (to.name !== 'setup' && to.name !== 'activation') return '/setup'
-      }
-    }
-  }
-
-  // 初始化状态仍未确定时暂不放行（等待下次探测完成）
-  if (systemInitialized === null) return
 
   // 委托纯函数决策导航目标
   const target = resolveNavigationTarget(to, {
@@ -448,6 +508,18 @@ router.beforeEach(async (to, from) => {
     return { name: 'dashboard' }
   }
 
+  // 功能码门禁：未授权模块直链一律回总览并提示，避免点进去才发现接口 403。
+  // 明细未加载时 fail-closed（上面已尽量拉取；仍未加载则先挡直链，避免闪现）。
+  const requiredFeature = typeof to.meta?.requiresFeature === 'string' ? to.meta.requiresFeature : ''
+  if (requiredFeature && !isLicenseFeatureGranted(requiredFeature)) {
+    if (!hasLicenseFeatureAccess()) {
+      chrome.notify('正在确认授权模块…', 'info')
+      return { name: 'dashboard' }
+    }
+    chrome.notify('当前授权未包含该模块，请联系授权管理员。', 'warning')
+    return { name: 'dashboard' }
+  }
+
   // 已认证用户（非 login/setup/activation 路由）解析 profile 参数
   if (
     auth.isAuthenticated &&
@@ -480,9 +552,7 @@ router.beforeEach(async (to, from) => {
 })
 
 /**
- * 标记系统已完成初始化。
- *
- * 调用场景：SetupView 完成管理员账户创建后调用，使路由守卫放行后续导航到主界面。
+ * 标记系统已完成初始化（供注册/初始化完成后的调用方通知守卫放行）。
  */
 export function markSystemInitialized(): void {
   systemInitialized = true

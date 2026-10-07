@@ -69,15 +69,19 @@
  * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
   - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
  */
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { PencilLine } from '@lucide/vue'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
+import { useBodyScrollLock } from '@/composables/ui/useBodyScrollLock'
+import { useEscLayer } from '@/composables/ui/useEscStack'
 const chrome = useChromeStore()
 const panelRef = ref(null)
 // 焦点陷阱激活条件：存在激活的提示弹窗
 const trapActive = computed(() => !!chrome.activePrompt)
 useFocusTrap(panelRef, trapActive)
+// 滚动锁激活条件（与 trapActive 同源，语义上拆开便于日后单独调整）
+const promptActive = computed(() => !!chrome.activePrompt)
 const inputRef = ref(null)
 /** 输入框绑定值 */
 const inputValue = ref('')
@@ -112,19 +116,16 @@ function submit() {
 }
 
 /**
- * 全局键盘事件处理：Escape 取消。
- * @param e 键盘事件
+ * Esc 取消：入全局 Esc 层级栈（只关栈顶那一层）。
+ * 之前是 window 级监听：输入框可以叠在查看器/抽屉之上，各自都响应 window 上的 Esc，
+ * 一次按键会把两层一起关掉。
  */
-function onKeyDown(e) {
-  if (!chrome.activePrompt) return
-  if (e.key === 'Escape') cancel()
-}
+useEscLayer(promptActive, '全局输入框', () => cancel())
 
-// 监听弹窗状态：打开时锁定滚动、回填默认值并聚焦选中
+// 监听弹窗状态：打开时回填默认值并聚焦选中（滚动锁由 useBodyScrollLock 统一管理）
 watch(
   () => chrome.activePrompt,
   async (val) => {
-    document.body.style.overflow = val ? 'hidden' : ''
     if (val) {
       inputValue.value = val.defaultValue ?? ''
       validationError.value = ''
@@ -135,14 +136,8 @@ watch(
   },
 )
 
-onMounted(() => {
-  window.addEventListener('keydown', onKeyDown)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', onKeyDown)
-  document.body.style.overflow = ''
-})
+// 滚动锁：引用计数，与同时打开的确认框 / 抽屉共享同一把锁，不会提前放行
+useBodyScrollLock(promptActive, '全局输入框')
 </script>
 
 <style scoped>

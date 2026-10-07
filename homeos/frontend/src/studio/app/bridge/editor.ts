@@ -1789,9 +1789,9 @@ type PopupPresetConfig = {
   const renderScaleSelect = createElement("select");
   renderScaleSelect.name = "i3d-render-scale";
   for (const [renderScaleValue, renderScaleLabel] of [
-    [1.5, "高清 150%"],
+    [1.5, "高清 150%（桌面推荐）"],
     [1, "标准 100%"],
-    [0.8, "均衡 80%"],
+    [0.8, "均衡 80%（墙板）"],
     [0.75, "均衡 75%"],
     [0.5, "流畅 50%"],
     [0.25, "低负载 25%"],
@@ -1823,6 +1823,28 @@ type PopupPresetConfig = {
     }),
     renderScaleSection.append(renderScaleSelect),
     (renderScaleSelect.title = "画面卡顿时，可降低渲染分辨率。"));
+  const restoreClarityButton = createElement("button", "inspector-secondary-button", "一键恢复清晰");
+  ((restoreClarityButton.type = "button"),
+    (restoreClarityButton.title = "将渲染分辨率恢复为标准 100%（清晰优先）"),
+    restoreClarityButton.addEventListener("click", async () => {
+      if (programmaticControlSet.has(renderScaleSelect)) return;
+      const currentRenderScale = properties.renderScale ?? 1;
+      if (currentRenderScale === 1) return;
+      restoreClarityButton.disabled = true;
+      try {
+        (await confirmChangeWithWarning({
+          renderScale: 1,
+        })) &&
+          (await commitChange({
+            properties: {
+              renderScale: 1,
+            },
+          }));
+      } finally {
+        restoreClarityButton.disabled = isViewEditing;
+      }
+    }),
+    renderScaleSection.append(restoreClarityButton));
   const motionResolutionSection = createSection("转动分辨率"),
     motionResolutionGridElement = createElement("div", "inspector-grid two-columns"),
     motionModeSelect = createElement("select"),

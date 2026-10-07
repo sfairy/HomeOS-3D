@@ -5,8 +5,11 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import os
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +19,8 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from .keys import load_ed25519_private, load_x25519_private
+
+logger = logging.getLogger("src.license.crypto")
 
 PROTOCOL = b"homeos-license-transport-v1"
 PRODUCT = "homeos"
@@ -194,10 +199,20 @@ class LeaseSigner:
 @dataclass(frozen=True)
 class KeyGeneration:
     """一代密钥：一对传输密钥 + 一对签名密钥，两者成对轮换。
+
+    成对是关键：租约的 ``keyId`` 用**签名**密钥的，请求信封的 ``keyId`` 用**传输**密钥的。
+    旧一代还在退役窗口内时，老客户端仍用它自己的传输公钥加密请求（密钥派生与 AAD 都绑定
+    这个 keyId），而回给它的租约必须恰好是它能验签的那把 —— 所以服务端要能按「请求用的
+    哪一代」来决定「用哪一代签」，而不是一律用最新一代。见 ``issue`` 的 ``generation``。
     """
 
     transport: TransportCipher
     signer: LeaseSigner
+    retired_at: datetime | None = None
+
+    @property
+    def retired(self) -> bool:
+        return self.retired_at is not None
 
     @property
     def transport_key_id(self) -> str:
@@ -208,21 +223,87 @@ class KeyGeneration:
         return self.signer.key_id
 
 
+#: 退役代的默认接收窗口：30 天。窗口内旧客户端照常续租（可用），窗口一过就只认新代，
+#: 旧客户端会立刻失败并被迫重新激活（= 拉一次新公钥）。留窗口而不是立即切断，是因为
+#: 客户端拿到新公钥的时机由运维决定，不是服务端能同步的。
+DEFAULT_RETIREMENT_WINDOW_SECONDS = 30 * 24 * 3600
+
+
+def as_naive_utc(value: datetime) -> datetime:
+    """统一到「naive UTC」：商店的持久层口径（``security.utcnow``）。
+
+    密钥文件 mtime、ISO 标记文本都会产出**带时区**的时间，而库里的时间全是 naive。
+    比较两者之前必须先归一，否则 Windows/macOS 上会直接抛
+    ``can't subtract offset-naive and offset-aware datetimes`` —— 一个「只在轮换时才炸」
+    的错误，比不轮换更难查。
+    """
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(UTC).replace(tzinfo=None)
+
+
 class KeyRegistry:
-    """当前一代密钥（传输 + 签名成对），按请求里的**传输** keyId 校验。
+    """多代密钥环：一代在用，若干代在退役窗口内仍可接收。
+
+    - ``active``：新签发（含 ``/v2/keys`` 分发）用的一代。
+    - ``find()``：按请求信封里的**传输** keyId 找代；用旧的传输密钥来的请求，回包也用
+      同一代的签名密钥，老客户端才验得过。
+    - 退役代只「接收」不「分发」：``/v2/keys`` 只给在用代，所以新装客户端只会拿到新代。
     """
 
-    def __init__(self, generation: KeyGeneration) -> None:
-        if not generation.transport_key_id:
+    def __init__(
+        self,
+        active: KeyGeneration,
+        retired: Iterable[KeyGeneration] = (),
+        *,
+        retirement_window_seconds: int = DEFAULT_RETIREMENT_WINDOW_SECONDS,
+        clock: Callable[[], datetime] | None = None,
+    ) -> None:
+        if not active.transport_key_id:
             raise ValueError("传输密钥的 keyId 不能为空。")
-        self._generation = generation
+        self._active = active
+        self._window = max(0, int(retirement_window_seconds))
+        self._clock = clock or (lambda: datetime.now(UTC))
+        self._retired = tuple(
+            generation
+            for generation in retired
+            if generation.retired_at is not None
+            and generation.transport_key_id != active.transport_key_id
+        )
+        if self._retired:
+            logger.info(
+                "授权密钥环：在用代 %s，退役代 %d 个仍在 %d 天窗口内",
+                active.transport_key_id,
+                len(self._retired),
+                self._window // 86400,
+            )
 
     @property
     def active(self) -> KeyGeneration:
         """新签发用的一代。"""
-        return self._generation
+        return self._active
+
+    @property
+    def retired(self) -> tuple[KeyGeneration, ...]:
+        """仍在窗口内的退役代（诊断/运维可见）。"""
+        return self._retired
 
     def find(self, transport_key_id: Any) -> KeyGeneration | None:
-        if not isinstance(transport_key_id, str):
+        if not isinstance(transport_key_id, str) or not transport_key_id:
             return None
-        return self._generation if transport_key_id == self._generation.transport_key_id else None
+        if transport_key_id == self._active.transport_key_id:
+            return self._active
+        now = as_naive_utc(self._clock())
+        for generation in self._retired:
+            if generation.transport_key_id != transport_key_id:
+                continue
+            age = (now - as_naive_utc(generation.retired_at)).total_seconds()
+            if 0 <= age <= self._window:
+                return generation
+            logger.warning(
+                "拒绝已过退役窗口的授权密钥代：%s（退役 %.1f 天）",
+                transport_key_id,
+                age / 86400,
+            )
+            return None
+        return None

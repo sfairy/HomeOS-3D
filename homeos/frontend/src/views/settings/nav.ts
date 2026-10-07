@@ -5,7 +5,7 @@
  *      聚合导出默认 Tab、Tab 有效性校验、独立保存 Tab 集合与 PANEL_MAP lazy 组件映射等元数据，
  *      供设置页容器 SettingsContainer 统一消费。
  * 导出：DEFAULT_TAB / resolveTab / isValidSettingsTab / isAdminOnlyTab / defaultTabForRole /
- *      resolveDefaultSettingsTab / INDEPENDENT_SAVE_TABS / PANEL_MAP / buildNavGroups(isAdmin?)
+ *      resolveDefaultSettingsTab / INDEPENDENT_SAVE_TABS / PANEL_MAP / buildNavGroups(isAdmin?, featureAccess?)
  * 依赖：settings-nav.util（导航结构常量与标签工具）、panel-chunks（PANEL_MAP lazy 组件）、@lucide/vue（图标库）。
  */
 import type { Component } from 'vue'
@@ -50,6 +50,7 @@ import {
   Bot,
   Cpu,
   Database,
+  KeyRound,
 } from '@lucide/vue'
 import {
   DEFAULT_TAB,
@@ -63,6 +64,8 @@ import {
   defaultTabForRole,
   resolveDefaultSettingsTab,
   INDEPENDENT_SAVE_TABS,
+  isTabFeatureGranted,
+  tabFeature,
 } from '@/utils/registry/settings-nav.util'
 import { PANEL_MAP } from '@/views/settings/panel-chunks'
 
@@ -109,6 +112,7 @@ const TAB_ICONS: Record<string, Component> = {
   devices: Cpu,
   retention: Database,
   network: Globe,
+  license: KeyRound,
 }
 
 // 分组 ID 到图标的映射表，用于侧栏分组标题渲染
@@ -121,14 +125,16 @@ const GROUP_ICONS: Record<string, Component> = {
   system: SettingsIcon,
 }
 
-// 构建侧栏导航分组：按 isAdmin 过滤 admin-only Tab，并附加图标与独立保存标记
-export function buildNavGroups(isAdmin = true) {
+// 构建侧栏导航分组：按 isAdmin 过滤 admin-only Tab、按功能码明细收起未授权的模块 Tab，
+// 并附加图标与独立保存标记
+export function buildNavGroups(isAdmin = true, featureAccess?: Record<string, boolean>) {
   return NAV_STRUCTURE.map((group) => ({
     id: group.id,
     label: groupLabel(group.id),
     icon: GROUP_ICONS[group.id],
     tabs: group.tabs
       .filter((id) => isAdmin || !ADMIN_ONLY_TABS.has(id))
+      .filter((id) => isTabFeatureGranted(id, featureAccess))
       .map((id) => ({
         id,
         label: tabLabel(id),

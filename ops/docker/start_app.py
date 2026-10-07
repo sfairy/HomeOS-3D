@@ -86,6 +86,9 @@ def main() -> None:
     environment.setdefault("APP_CLIENT_KEYS_DIR", "/data/client-keys")
     environment.setdefault("HOMEOS_IMAGE_DIR", "/app/image")
     environment.setdefault("APP_UPDATE_CHANNEL", "docker")
+    # Compose / 文档使用 APP_COOKIE_SECURE；运行时 cookies 读 COOKIE_SECURE。
+    if "COOKIE_SECURE" not in environment and "APP_COOKIE_SECURE" in environment:
+        environment["COOKIE_SECURE"] = environment["APP_COOKIE_SECURE"]
     if not (environment.get("APP_LICENSE_SERVER_URL") or "").strip():
         raise SystemExit(
             '未设置 APP_LICENSE_SERVER_URL。'
@@ -119,8 +122,9 @@ def main() -> None:
     if forwarded_warning:
         print(f'警告：{forwarded_warning}', file=sys.stderr, flush=True)
 
-    print(f"HomeOS 主应用  http://0.0.0.0:{app_port}/setup", flush=True)
-    print("主应用 HTTPS    https://<本机局域网IP>:8803/setup（镜像内置反代，自签证书首次需放行）", flush=True)
+    print(f"HomeOS 主应用  http://0.0.0.0:{app_port}/register", flush=True)
+    print("主应用 HTTPS    https://<本机局域网IP>:8803/register（镜像内置反代，自签证书首次需放行）", flush=True)
+    print("首次部署此处为“注册本机唯一账号”（账号 / 密码 / 邮箱 / 邮箱验证码）", flush=True)
     print(f"授权服务器      {environment['APP_LICENSE_SERVER_URL']}", flush=True)
 
     os.environ.clear()

@@ -252,7 +252,7 @@ const SIDEBAR_WIDGET_DEFAULT_HEIGHT: Record<string, number> = {
   weather: 280,
   quickActions: 80,
   mediaMini: 115,
-  homeClimateChart: 250,
+  homeClimateChart: 320,
 }
 
 const SIDEBAR_WIDGET_DEFAULT_HEIGHT_FALLBACK = 120

@@ -25,6 +25,7 @@ import {
 } from '@/utils/ui/main-layout-nav.util'
 import type { useLayoutStore } from '@/stores/layout.store'
 import type { useAuthStore } from '@/stores/auth.store'
+import { useLicenseFeatureAccess } from '@/router/license-gate'
 import { useExclusiveDropdown } from '@/composables/ui/useExclusiveDropdown'
 
 /**
@@ -44,6 +45,9 @@ export function useMainLayoutNavMenu(options: {
 }) {
   const { layoutStore, authStore, route } = options
 
+  // 功能码门禁明细（响应式 ref）：导航项按它显隐，拿到新授权后自动重建菜单
+  const licenseFeatureAccess = useLicenseFeatureAccess()
+
   const viewportWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1366)
 
   function onViewportResize() {
@@ -57,8 +61,12 @@ export function useMainLayoutNavMenu(options: {
     window.removeEventListener('resize', onViewportResize)
   })
 
-  // 导航构建选项：访客不包含嵌入项（embeds），保护内部资源
-  const navOptions = computed(() => ({ includeEmbeds: !authStore.isGuest() }))
+  // 导航构建选项：访客不包含嵌入项（embeds），保护内部资源；
+  // 功能码门禁只影响界面显隐（后端仍是权威执行点）。
+  const navOptions = computed(() => ({
+    includeEmbeds: !authStore.isGuest(),
+    featureAccess: licenseFeatureAccess.value,
+  }))
   // 导航菜单整体（shallowRef：整体替换而非深层响应，避免高频 diff）
   const navMenu = shallowRef(
     capBarItemsForViewport(
@@ -94,6 +102,7 @@ export function useMainLayoutNavMenu(options: {
       embeds: layoutStore.layoutConfig.customEmbeds,
       moviePilot: layoutStore.layoutConfig.moviePilotUrl,
       includeEmbeds: navOptions.value.includeEmbeds,
+      featureAccess: navOptions.value.featureAccess,
       width: viewportWidth.value,
     }),
     () => {

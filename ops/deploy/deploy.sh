@@ -340,7 +340,7 @@ require_license_server() {
 # 客户机部署完打印一次激活入口提示（授权码由中心商店 /admin 发放）。
 announce_activation() {
   [ "$ROLE" = "app" ] || return 0
-  info "激活：登录主应用后打开 /license，填入中心商店发放的激活码"
+  info "激活：登录主应用后按提示进入 /activate，填入中心商店发放的激活码（用商店购买邮箱）"
   info "公钥取回结果：docker logs homeos | grep 授权公钥"
 }
 
@@ -674,8 +674,8 @@ summary() {
   if [ "$ROLE" != "store" ]; then
     app_https=$(publish_port APP_PROXY_PUBLISH_PORT 8803)
     app_http=$(publish_port APP_PUBLISH_PORT 8801)
-    info "主应用 setup：https://<主机>:${app_https}/setup（HTTP 备用 http://<主机>:${app_http}/setup）"
-    info "首次设置的引导密钥：docker logs homeos | head （容器内 /data/setup-token）"
+    info "主应用注册：https://<主机>:${app_https}/register（HTTP 备用 http://<主机>:${app_http}/register；旧 /setup 会跳转到这里）"
+    info "首次部署为「零用户」：打开任一地址都会跳到注册页，填账号 / 密码 / 邮箱 / 邮箱验证码"
     if [ "$ROLE" = "app" ]; then
       # dry-run 下 env_set 不落盘，env_value 读不到，就用本次传入的 --license-server 兜底，
       # 否则预演里最该看清的一项反而是空的。

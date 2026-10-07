@@ -15,7 +15,8 @@ export const interactionResourcePolicy = Object.freeze({
     insideIdleMs: 10000,
   }),
   motion: Object.freeze({
-    maxPixelRatio: 0.8,
+    // 桌面清晰优先；低端墙板仍可通过 appearance.motionRenderScale / performanceMode 下调。
+    maxPixelRatio: 1.5,
     maxSamples: 2,
   }),
   reuseLightMatrices: true,

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from ..security.security import normalize_username
 
 
 class _Camel(BaseModel):
@@ -14,8 +16,20 @@ class _Camel(BaseModel):
 class VerificationRequest(_Camel):
     email: str = Field(min_length=3, max_length=255)
     purpose: str = Field(
-        default="register", pattern="^(register|reset|verify|change_email)$"
+        default="register", pattern="^(register|reset|verify|change_email|homeos_register)$"
     )
+
+
+class VerifyCodeRequest(_Camel):
+    """服务端/客户端通用验码请求（不依赖已登录账号）。
+
+    主应用（homeos）首装注册用它校验并消费发到注册邮箱的验证码：``purpose`` 限定为
+    ``homeos_register``，避免这个公开端点被拿去替商店自身账号流程验码。
+    """
+
+    email: str = Field(min_length=3, max_length=255)
+    code: str = Field(min_length=4, max_length=12)
+    purpose: str = Field(default="homeos_register", max_length=32)
 
 
 class ChangeEmailRequest(_Camel):
@@ -44,22 +58,45 @@ class VerifyEmailRequest(_Camel):
 
 
 class RegisterRequest(_Camel):
+    """商店注册：账号 + 邮箱 + 验证码 + 密码。
+
+    购买 / 授权归属仍以邮箱为主线；账号名与主应用一致，用于登录与展示。
+    """
+
+    username: str = Field(min_length=3, max_length=64)
     email: str = Field(min_length=3, max_length=255)
     code: str = Field(min_length=4, max_length=12)
-    password: str = Field(min_length=6, max_length=128)
+    password: str = Field(min_length=8, max_length=128)
     confirm_password: str = Field(default="", alias="confirmPassword", max_length=128)
     referral_code: str | None = Field(default=None, alias="referralCode", max_length=16)
 
+    @model_validator(mode="after")
+    def validate_register(self) -> RegisterRequest:
+        self.username = normalize_username(self.username)
+        self.email = self.email.strip().lower()
+        return self
+
 
 class LoginRequest(_Camel):
-    email: str = Field(min_length=3, max_length=255)
+    """登录：``account`` 可填账号名或注册邮箱；兼容旧客户端仍传 ``email``。"""
+
+    account: str | None = Field(default=None, min_length=1, max_length=255)
+    email: str | None = Field(default=None, min_length=1, max_length=255)
     password: str = Field(min_length=1, max_length=128)
+
+    @model_validator(mode="after")
+    def resolve_account(self) -> LoginRequest:
+        key = (self.account or self.email or "").strip()
+        if not key:
+            raise ValueError("请填写账号或邮箱。")
+        self.account = key
+        return self
 
 
 class PasswordResetRequest(_Camel):
     email: str = Field(min_length=3, max_length=255)
     code: str = Field(min_length=4, max_length=12)
-    password: str = Field(min_length=6, max_length=128)
+    password: str = Field(min_length=8, max_length=128)
     confirm_password: str = Field(default="", alias="confirmPassword", max_length=128)
 
 
@@ -118,6 +155,7 @@ class AdminProductRequest(_AdminBase):
     is_full_price: bool = Field(default=False, alias="isFullPrice")
     validity_days: int | None = Field(default=None, alias="validityDays", ge=1)
     product_type: str = Field(default="base", alias="productType", max_length=32)
+    edition: str | None = Field(default=None, max_length=64)
     feature_codes: list[str] = Field(default_factory=list, alias="featureCodes")
     included_product_ids: list[str] = Field(default_factory=list, alias="includedProductIds")
     package_contents_locked: bool = Field(default=False, alias="packageContentsLocked")
@@ -140,6 +178,7 @@ class AdminProductPatch(_AdminBase):
     is_full_price: bool | None = Field(default=None, alias="isFullPrice")
     validity_days: int | None = Field(default=None, alias="validityDays", ge=1)
     product_type: str | None = Field(default=None, alias="productType", max_length=32)
+    edition: str | None = Field(default=None, max_length=64)
     feature_codes: list[str] | None = Field(default=None, alias="featureCodes")
     included_product_ids: list[str] | None = Field(default=None, alias="includedProductIds")
     package_contents_locked: bool | None = Field(default=None, alias="packageContentsLocked")
@@ -329,11 +368,12 @@ class AdminEntitlementPatch(_AdminBase):
 class AdminAccountPatch(_AdminBase):
     """账号维护。``new_password`` 只能由管理员在这里重置，不接受明文回显。"""
 
+    username: str | None = Field(default=None, min_length=3, max_length=64)
     email: str | None = Field(default=None, min_length=3, max_length=255)
     is_admin: bool | None = Field(default=None, alias="isAdmin")
     is_active: bool | None = Field(default=None, alias="isActive")
     email_verified: bool | None = Field(default=None, alias="emailVerified")
-    new_password: str | None = Field(default=None, alias="newPassword", min_length=6, max_length=128)
+    new_password: str | None = Field(default=None, alias="newPassword", min_length=8, max_length=128)
 
 
 class AdminWalletAdjustRequest(_AdminBase):

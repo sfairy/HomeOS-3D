@@ -35,6 +35,7 @@ from ..core.database import Database
 from ..dependencies import ShortLivedLicensedViewer, ViewerPrincipal, require_viewer_entity
 from ..ha.client import HAClientError
 from ..ha.crypto import CredentialCipherError
+from ..services.license import features as feature_codes
 from .ha import active_connection
 
 router = APIRouter(include_in_schema=False)
@@ -88,13 +89,16 @@ async def _camera_license_allows(request: Request) -> bool:
     """带 TTL 的摄像头授权判定，合并同进程内并发流的复检。"""
     service = getattr(request.app.state, 'license_service', None)
     if service is None:
-        return True
+        # 无许可服务时 fail-closed：摄像头属于安防增量，不能默开放行。
+        return False
     cache_key = id(service)
     now = monotonic()
     cached = _camera_license_cache.get(cache_key)
     if cached is not None and now - cached[0] < CAMERA_STREAM_LICENSE_CHECK_SECONDS:
         return cached[1]
-    allowed = bool(await asyncio.to_thread(service.allows, 'api'))
+    # 摄像头实时流属于安防增量模块，不能只用基础 ``api`` 码放行（否则 base 租约可绕过
+    # ``/security*`` 的 ``module.security`` 门禁直接拉 HLS/快照）。
+    allowed = bool(await asyncio.to_thread(service.allows, feature_codes.FEATURE_SECURITY))
     _camera_license_cache[cache_key] = (now, allowed)
     return allowed
 
@@ -386,9 +390,13 @@ class LicensedCameraStreamingResponse(StreamingResponse):
 
             async def monitor_license() -> None:
                 nonlocal restricted
-                while await asyncio.to_thread(self.request.app.state.license_service.allows, 'api'):
+                while await asyncio.to_thread(
+                    self.request.app.state.license_service.allows, feature_codes.FEATURE_SECURITY
+                ):
                     await asyncio.sleep(CAMERA_STREAM_LICENSE_CHECK_SECONDS)
-                    if not await asyncio.to_thread(self.request.app.state.license_service.allows, 'api'):
+                    if not await asyncio.to_thread(
+                        self.request.app.state.license_service.allows, feature_codes.FEATURE_SECURITY
+                    ):
                         break
                 restricted = True
                 _camera_stream_log(
@@ -418,9 +426,30 @@ class LicensedCameraStreamingResponse(StreamingResponse):
                 await self.client.aclose()
 
 
+def _path_requires_camera_license(path: str) -> bool:
+    """摄像头相关媒体代理一律要求 ``module.security``（含快照 / HLS / image）。"""
+    return path.startswith(
+        (
+            '/api/camera_proxy/',
+            '/api/camera_proxy_stream/',
+            '/api/hls/',
+            '/api/image_proxy/',
+        )
+    )
+
+
 async def proxy_http(request: Request) -> Response:
     if request.method not in {'GET', 'HEAD'} or not allowed_media_proxy_path(request.url.path):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='媒体资源不存在。')
+    if _path_requires_camera_license(request.url.path):
+        if not await _camera_license_allows(request):
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    'code': 'LICENSE_RESTRICTED',
+                    'message': '当前授权状态不允许读取摄像头。',
+                },
+            )
     connection = await asyncio.to_thread(load_active_connection, request.app.state.database)
     if connection is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='请先配置 Home Assistant 连接。')
@@ -507,6 +536,14 @@ async def proxy_http(request: Request) -> Response:
 async def camera_hls_stream(
     entity_id: str, request: Request, viewer: ShortLivedLicensedViewer
 ) -> JSONResponse:
+    if not await _camera_license_allows(request):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                'code': 'LICENSE_RESTRICTED',
+                'message': '当前授权状态不允许读取摄像头。',
+            },
+        )
     connection = await asyncio.to_thread(
         load_authorized_camera_connection, request.app.state.database, viewer, entity_id
     )

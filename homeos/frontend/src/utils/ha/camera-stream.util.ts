@@ -27,7 +27,15 @@ interface CameraDisplay {
   url: string
   webrtcSignal?: CameraWebRtcSignal
   entityId?: string
+  /**
+   * 为 true 时 `url` 尚不可用：需先 `GET /api/camera_hls/{entityId}` 换真实 m3u8
+   *（与 3D `resolveCameraStreamSource` 同源，走 HA websocket `camera/stream`）。
+   */
+  resolveHlsViaApi?: boolean
 }
+
+/** HA CameraEntityFeature.STREAM —— 支持后端拉 HLS/WebRTC 流 */
+const CAMERA_FEATURE_STREAM = 2
 
 /** 摄像头实体类型别名，兼容 null/undefined */
 type CameraEntity = HaEntityState | null | undefined
@@ -60,12 +68,14 @@ export function canPlayNativeHls(): boolean {
   )
 }
 
-/** 是否为 WebRTC 摄像头实体：frontend_stream_type 为 web_rtc 或 stream_source 含 webrtc/go2rtc */
+/** 是否走 HA 原生 WebRTC：显式 web_rtc、go2rtc 源，或具备 STREAM 能力（H265 摄像头 HLS 常播不了） */
 function isWebRtcCameraEntity(entity: CameraEntity) {
   const attrs = entity?.attributes || {}
   if (attrs.frontend_stream_type === 'web_rtc') return true
   const src = attrs.stream_source
-  return typeof src === 'string' && /webrtc|go2rtc/i.test(src)
+  if (typeof src === 'string' && /webrtc|go2rtc/i.test(src)) return true
+  // HA 对流媒体摄像头默认提供 camera/webrtc/*；与 3D/官方前端一致优先 WebRTC。
+  return ((Number(attrs.supported_features) || 0) & CAMERA_FEATURE_STREAM) !== 0
 }
 
 /** 仅无 HA web_rtc 声明、且 stream_source 指向 go2rtc 时走 /api/webrtc/ws */
@@ -125,33 +135,48 @@ function resolveWebRtcDisplay(
   return { url: '', webrtcSignal: 'ha', entityId: eid }
 }
 
-/**
- * 获取摄像头 HLS 播放地址。
- * 优先使用 stream_source 中的 .m3u8；其次按 entity_id 构造 HA 的 /api/hls 端点。
- * @param haUrl HA 基地址
- * @param entity 摄像头实体
- * @returns HLS 地址；不可用时返回空串
- */
-function isHlsCameraEntity(entity: CameraEntity) {
+/** 实体是否声明了可拉流（STREAM 位 / frontend_stream_type / stream_source.m3u8） */
+function hasCameraStreamCapability(entity: CameraEntity) {
   const attrs = entity?.attributes || {}
-  if (attrs.frontend_stream_type === 'hls') return true
+  if (attrs.frontend_stream_type === 'hls' || attrs.frontend_stream_type === 'web_rtc') return true
+  if ((Number(attrs.supported_features) || 0) & CAMERA_FEATURE_STREAM) return true
   const src = attrs.stream_source
   return typeof src === 'string' && /\.m3u8/i.test(src)
 }
 
-function getCameraHlsUrl(haUrl: string | null | undefined, entity: CameraEntity) {
+/**
+ * 解析可直接播放的 HLS URL（仅当实体已给出 m3u8 路径时）。
+ * 多数摄像头只有 STREAM 能力位、没有 stream_source —— 那种情况走
+ * {@link resolveCameraHlsPlayUrl}（`/api/camera_hls`），与 3D 一致。
+ */
+function getExplicitCameraHlsUrl(haUrl: string | null | undefined, entity: CameraEntity) {
   const attrs = entity?.attributes || {}
   const src = attrs.stream_source
   if (typeof src === 'string' && /\.m3u8/i.test(src)) {
-    if (src.startsWith('http')) return resolveHaResourceUrl(haUrl, src, 'stream')
-    if (src.startsWith('/')) return resolveHaResourceUrl(haUrl, src, 'stream')
-    return ''
+    if (src.startsWith('http') || src.startsWith('/')) {
+      return resolveHaResourceUrl(haUrl, src, 'stream')
+    }
   }
-  const eid = entity?.entity_id
-  const token = cameraToken(entity)
-  if (!eid || !haUrl || !token) return ''
-  if (!isHlsCameraEntity(entity)) return ''
-  return resolveHaResourceUrl(haUrl, `/api/hls/${eid}/playlist.m3u8?token=${token}`, 'stream')
+  return ''
+}
+
+/**
+ * 通过 HomeOS `/api/camera_hls/{entityId}` 向 HA 换取同源 HLS 播放地址。
+ * @throws 请求失败或响应无有效相对路径时
+ */
+export async function resolveCameraHlsPlayUrl(entityId: string): Promise<string> {
+  const eid = String(entityId || '').trim()
+  if (!eid) throw new Error('摄像头实体为空')
+  const response = await fetch(`/api/camera_hls/${encodeURIComponent(eid)}`, {
+    credentials: 'same-origin',
+  })
+  if (!response.ok) {
+    throw new Error(`摄像头 HLS 请求失败: ${response.status}`)
+  }
+  const payload = (await response.json()) as { url?: unknown }
+  const url = typeof payload?.url === 'string' ? payload.url.trim() : ''
+  if (!url.startsWith('/')) throw new Error('摄像头 HLS 响应无可用代理地址')
+  return url
 }
 
 /**
@@ -229,9 +254,14 @@ export function resolveCameraDisplay(
   }
 
   const tryHls = (): CameraDisplay | null => {
-    if (!preferHls) return null
-    const hls = getCameraHlsUrl(haUrl, entity)
-    return hls ? { mode: 'hls', url: hls } : null
+    if (!preferHls || !haUrl) return null
+    const explicit = getExplicitCameraHlsUrl(haUrl, entity)
+    if (explicit) return { mode: 'hls', url: explicit }
+    const eid = entity?.entity_id
+    if (eid && hasCameraStreamCapability(entity)) {
+      return { mode: 'hls', url: '', entityId: eid, resolveHlsViaApi: true }
+    }
+    return null
   }
   const tryMjpeg = (): CameraDisplay | null => {
     if (!preferMjpeg) return null

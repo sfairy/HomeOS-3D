@@ -41,6 +41,11 @@ def main() -> None:
     environment.setdefault("STORE_HOST", "0.0.0.0")
     environment.setdefault("STORE_PORT", "8802")
     environment.pop("STORE_RELOAD", None)
+    # Compose / 文档偶发用 COOKIE_SECURE；商店运行时读 STORE_COOKIE_SECURE。
+    if "STORE_COOKIE_SECURE" not in environment and "COOKIE_SECURE" in environment:
+        environment["STORE_COOKIE_SECURE"] = environment["COOKIE_SECURE"]
+    if "STORE_COOKIE_SECURE" not in environment and "APP_COOKIE_SECURE" in environment:
+        environment["STORE_COOKIE_SECURE"] = environment["APP_COOKIE_SECURE"]
 
     keys_dir = Path(environment["STORE_LICENSE_KEYS_DIR"]).expanduser()
     client_keys_dir = Path(environment["APP_CLIENT_KEYS_DIR"]).expanduser()

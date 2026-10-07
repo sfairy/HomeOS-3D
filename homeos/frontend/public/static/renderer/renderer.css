@@ -3492,7 +3492,8 @@
 .hb-light-details-panel .hb-light-details-slider input::-webkit-slider-runnable-track {
   height: 14px;
 }
-.hb-light-details-panel .hb-light-details-slider input::-webkit-slider-thumb {
+.hb-light-details-panel .hb-light-details-slider input::-webkit-slider-thumb,
+.hb-light-details-panel .hb-light-details-slider input.hb-range::-webkit-slider-thumb {
   width: 43px;
   height: 43px;
   margin-top: -14.5px;
@@ -4140,7 +4141,9 @@
   font-weight: 620;
   text-align: center;
 }
-.hb-cover-details-position input {
+.hb-cover-details-position input,
+.hb-cover-details-panel .hb-cover-details-position input,
+.hb-custom-popup-module--cover .hb-cover-details-position input {
   grid-column: 2;
   grid-row: 1;
   width: 100%;
@@ -4153,19 +4156,24 @@
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
+  /* !important：压过全局 range 的 background:transparent（窗帘未加 hb-range 时曾被抹成灰槽） */
   background: linear-gradient(
     90deg,
-    #8cb7ca var(--hb-cover-position-progress, 0%),
-    #3a444b var(--hb-cover-position-progress, 0%)
-  );
+    #8cb7ca 0%,
+    #8cb7ca var(--hb-cover-position-progress, var(--progress-pct, 0%)),
+    #3a444b var(--hb-cover-position-progress, var(--progress-pct, 0%)),
+    #3a444b 100%
+  ) !important;
   box-shadow:
     0 0 0 2px #6f849240,
     inset 0 2px 7px #000c;
 }
-.hb-cover-details-position input::-webkit-slider-runnable-track {
+.hb-cover-details-position input::-webkit-slider-runnable-track,
+.hb-cover-details-panel .hb-cover-details-position input::-webkit-slider-runnable-track,
+.hb-custom-popup-module--cover .hb-cover-details-position input::-webkit-slider-runnable-track {
   height: 14px;
   border-radius: 99px;
-  background: transparent;
+  background: transparent !important;
 }
 .hb-cover-details-position input::-webkit-slider-thumb {
   width: 43px;
@@ -6171,17 +6179,70 @@
   opacity: 0.55;
   cursor: wait;
 }
-.hb-light-details-temperature input {
-  background: linear-gradient(90deg, #f4a816, #f6c76d 35%, #e5dfcf 57%, #72b9ed);
+/*
+ * 色温 / 亮度：渐变必须画在 input 背景上（WebKit 下本面板的 border+透明 track
+ * 是靠「透过 track 看见 input 背景」出颜色的）。用 !important 压过全局 range 的
+ * background:transparent，否则会出现「只有灰槽、没有进度色」。
+ */
+/*
+ * 色温：底层暖→冷全轨渐变 + 上层在进度点之后盖灰槽（拇指右侧不露色）。
+ * 亮度：拇指左侧琥珀填充、右侧灰槽。
+ */
+.hb-light-details-temperature input,
+.hb-light-details-panel .hb-light-details-temperature input,
+.hb-custom-popup-module--light .hb-light-details-temperature input {
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      transparent var(--hb-light-slider-progress, var(--progress-pct, 0%)),
+      #343d44 var(--hb-light-slider-progress, var(--progress-pct, 0%)),
+      #343d44 100%
+    ),
+    linear-gradient(90deg, #f4a816, #f6c76d 35%, #e5dfcf 57%, #72b9ed) !important;
 }
-.hb-light-details-brightness input {
+.hb-light-details-brightness input,
+.hb-light-details-panel .hb-light-details-brightness input,
+.hb-custom-popup-module--light .hb-light-details-brightness input {
   background: linear-gradient(
     90deg,
     #f4a816 0%,
-    #f4a816 var(--hb-light-slider-progress),
-    #343d44 var(--hb-light-slider-progress),
+    #f4a816 var(--hb-light-slider-progress, var(--progress-pct, 0%)),
+    #343d44 var(--hb-light-slider-progress, var(--progress-pct, 0%)),
     #343d44 100%
-  );
+  ) !important;
+}
+.hb-light-details-temperature input::-webkit-slider-runnable-track,
+.hb-light-details-brightness input::-webkit-slider-runnable-track,
+.hb-light-details-panel .hb-light-details-temperature input::-webkit-slider-runnable-track,
+.hb-light-details-panel .hb-light-details-brightness input::-webkit-slider-runnable-track,
+.hb-custom-popup-module--light .hb-light-details-temperature input::-webkit-slider-runnable-track,
+.hb-custom-popup-module--light .hb-light-details-brightness input::-webkit-slider-runnable-track {
+  background: transparent !important;
+}
+.hb-light-details-temperature input::-moz-range-track,
+.hb-light-details-panel .hb-light-details-temperature input::-moz-range-track,
+.hb-custom-popup-module--light .hb-light-details-temperature input::-moz-range-track {
+  background: linear-gradient(90deg, #f4a816, #f6c76d 35%, #e5dfcf 57%, #72b9ed);
+}
+.hb-light-details-brightness input::-moz-range-track,
+.hb-light-details-panel .hb-light-details-brightness input::-moz-range-track,
+.hb-custom-popup-module--light .hb-light-details-brightness input::-moz-range-track {
+  background: #343d44;
+}
+.hb-light-details-temperature input::-moz-range-progress,
+.hb-light-details-panel .hb-light-details-temperature input::-moz-range-progress,
+.hb-custom-popup-module--light .hb-light-details-temperature input::-moz-range-progress {
+  height: inherit;
+  border-radius: 99px;
+  background: transparent;
+}
+.hb-light-details-brightness input::-moz-range-progress,
+.hb-light-details-panel .hb-light-details-brightness input::-moz-range-progress,
+.hb-custom-popup-module--light .hb-light-details-brightness input::-moz-range-progress {
+  height: inherit;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #f4a816, #f6c76d);
 }
 .hb-light-details-slider-legend {
   display: flex;
@@ -10578,7 +10639,13 @@
 .air-purifier-details .hb-capability-range-group input[type="range"] {
   height: 8px;
   border-radius: 99px;
-  background: linear-gradient(90deg, var(--hb-air-purifier-ui-accent), #343d44);
+  background: linear-gradient(
+    90deg,
+    var(--hb-air-purifier-ui-accent) 0%,
+    var(--hb-air-purifier-ui-accent) var(--progress-pct, 0%),
+    #343d44 var(--progress-pct, 0%),
+    #343d44 100%
+  );
   accent-color: var(--hb-air-purifier-ui-accent);
 }
 .air-purifier-details .hb-capability-options {

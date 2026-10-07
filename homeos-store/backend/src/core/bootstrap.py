@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from ..core.models import Product, StoreSetting
 from ..core.serializers import list_json
-from ..ops.features import BASE_PRODUCT_FEATURES, MODULE_3D_FEATURES
+from ..ops.features import BASE_PRODUCT_FEATURES, MODULE_3D_FEATURES, MODULE_FEATURES
 
 logger = logging.getLogger("src.core.bootstrap")
 
@@ -43,6 +43,7 @@ def ensure_default_products(session: Session) -> None:
         {
             "name": "编辑器+绘制工具",
             "product_code": "homeos",
+            "edition": "家庭基础版",
             "price_cents": 4990,
             "validity_days": None,
             "feature_codes_json": list_json(BASE_PRODUCT_FEATURES),
@@ -60,6 +61,7 @@ def ensure_default_products(session: Session) -> None:
         {
             "name": "3D交互包",
             "product_code": "homeos",
+            "edition": "3D 交互包",
             "price_cents": 3990,
             "validity_days": None,
             "feature_codes_json": list_json(MODULE_3D_FEATURES),
@@ -81,6 +83,7 @@ def ensure_default_products(session: Session) -> None:
         {
             "name": "编辑器+绘制工具+3D交互",
             "product_code": "homeos",
+            "edition": "家庭进阶版",
             "price_cents": 7990,
             "validity_days": None,
             "feature_codes_json": list_json(BASE_PRODUCT_FEATURES + MODULE_3D_FEATURES),
@@ -91,6 +94,27 @@ def ensure_default_products(session: Session) -> None:
         },
     ):
         inserted.append("package")
+
+    # 「全功能版」：把所有能力码（基础 + 全部增量模块）一次性打包的种子版本。它是
+    # 「版本 = 一组功能码」的样板 —— 运营可在后台按需增减功能码，改的就是这个集合。
+    if _insert_product_if_absent(
+        session,
+        "edition_full",
+        {
+            "name": "全功能版",
+            "product_code": "homeos",
+            "edition": "全功能版",
+            "price_cents": 12990,
+            "validity_days": None,
+            "feature_codes_json": list_json(BASE_PRODUCT_FEATURES + MODULE_FEATURES),
+            "included_product_ids_json": list_json([module_id] if module_id else []),
+            "active": True,
+            "display_description": "包含全部增量模块（安防、通知、地震预警、能耗、场景、语音、AI 助手、影视媒体等）",
+            "sort_order": 110,
+            "fulfillment_mode": "automatic",
+        },
+    ):
+        inserted.append("edition_full")
 
     if inserted:
         logger.info("已补齐默认商品：%s", "、".join(inserted))

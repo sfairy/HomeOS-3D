@@ -5,9 +5,13 @@
  *
  * 职责：
  * - 持有 layoutConfig 主状态（reactive，深 watch 触发 dirty）
- * - 维护 layoutDirty / activeFloorplanPopupId / profile 加载旗标（loading / loaded / error）
+ * - 维护 layoutDirty / profile 加载旗标（loading / loaded / error）
  * - 提供 setSuppressDirtyTracking：批量操作期间临时抑制 dirty 跟踪
  * - 初始化时按平板性能模式应用默认值
+ *
+ * 活跃设备弹窗实体的 WS pin 改由 chrome.entityControlEntityId /
+ * chrome.activeMediaEntityId 提供（见 useEntityWsSubscriptionSync），不再使用
+ * 从未写入的 activeFloorplanPopupId。
  *
  * 关键依赖：
  * - @/stores/defaults：getDefaultLayout 提供默认布局（深拷贝为初始值）
@@ -26,13 +30,11 @@ import { clonePlain } from '@/utils/core/clone-plain.util'
 
 /**
  * 创建布局核心响应式状态切片
- * @returns layoutConfig / layoutDirty / activeFloorplanPopupId / activeProfileId / 各种加载旗标 / setSuppressDirtyTracking
+ * @returns layoutConfig / layoutDirty / activeProfileId / 各种加载旗标 / setSuppressDirtyTracking
  */
 export function createLayoutCoreState() {
   // 脏标志：任何对 layoutConfig 的修改都会触发 dirty watch 标记 true
   const layoutDirty = ref(false)
-  // 当前激活的户型图弹层 ID（用于楼层切换时关闭旧弹层）
-  const activeFloorplanPopupId = ref<string | null>(null)
   // 布局配置主状态（reactive 深响应，由 dirty watch 跟踪）
   const layoutConfig = reactive<UILayoutConfig>(clonePlain(getDefaultLayout()))
   // 应用平板默认性能模式（如调低渲染模式、关闭玻璃效果等）
@@ -72,7 +74,6 @@ export function createLayoutCoreState() {
     isConfigLoading.value = false
     isConfigLoaded.value = false
     layoutDirty.value = false
-    activeFloorplanPopupId.value = null
     isProfilesLoading.value = false
     profilesLoadError.value = ''
     activeProfileId.value = 'default'
@@ -83,7 +84,6 @@ export function createLayoutCoreState() {
   return {
     layoutConfig,
     layoutDirty,
-    activeFloorplanPopupId,
     activeProfileId,
     isProfilesLoading,
     profilesLoadError,

@@ -42,7 +42,15 @@
           />
           <span class="text-white/40">{{ stateLabel }}</span>
         </template>
-        <template v-if="supports.repeatSet || supports.shuffleSet" #actions>
+        <template #actions>
+          <button
+            class="media-head-btn"
+            @click.stop="expandToFullscreen"
+            :aria-label="'全屏播放器'"
+            :title="'全屏播放器'"
+          >
+            <Maximize2 class="w-3 h-3" />
+          </button>
           <button
             v-if="supports.repeatSet"
             class="media-head-btn"
@@ -235,6 +243,7 @@ import {
   VolumeX,
   Repeat,
   Shuffle,
+  Maximize2,
 } from '@lucide/vue'
 import AnchoredPopupShell from '@/components/entities/popups/AnchoredPopupShell.vue'
 import PopupHead from '@/components/entities/popups/PopupHead.vue'
@@ -243,13 +252,23 @@ import { useTtsSpeak } from '@/composables/voice/useTtsSpeak'
 import { useMediaPlayerControls } from '@/composables/entity/useMediaPlayerControls'
 import VProgressBar from '@/components/common/base/VProgressBar.vue'
 import { notifyError } from '@/services/notify'
+import { useChromeStore } from '@/stores/chrome.store'
 
 const props = defineProps(defineEntityPopupProps())
 
-defineEmits(['close'])
+const emit = defineEmits(['close'])
+const chrome = useChromeStore()
 
 const { liveEntity } = useEntityPopupBase(props)
 const { speak: speakTtsMessage } = useTtsSpeak()
+
+/** 紧凑锚定 → 全屏 MediaPlayerModal（栈 A → 栈 B） */
+function expandToFullscreen() {
+  const id = String(liveEntity.value?.entity_id || props.entityId || props.entity?.entity_id || '')
+  if (!id.includes('.')) return
+  emit('close')
+  chrome.openMediaPlayer(id)
+}
 
 const {
   entity: mediaEntity,

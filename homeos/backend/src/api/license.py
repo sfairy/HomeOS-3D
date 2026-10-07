@@ -13,11 +13,11 @@
   首屏也要能读到它，才能决定该去激活页还是登录页。
 - ``/status`` —— 要求**登录会话**。它带 ``instanceId`` / 激活邮箱 / 公钥指纹等标识，
   只应给已登录管理员；编辑器设置页的授权诊断也走这里。
-- ``/activate`` —— **公开**，但要求**同源写**。未激活时可能还没有任何会话（会话随
-  ``/auth/login`` 建立，而门禁会把登录页也送回激活页），激活入口必须对匿名可用。
+- ``/activate`` —— 要求**登录会话** + **同源写**。激活会把本机账号名上报商店设备绑定，
+  因此首装顺序是注册/登录 → 再激活；匿名不能写激活。
 - ``/reactivate`` / ``/retry`` —— 要求**登录会话** + **同源写**。
 
-这里用 ``CurrentUser`` 而**不是** ``LicensedUser``：后两个端点正是「授权不可用时拿来
+这里用 ``CurrentUser`` 而**不是** ``LicensedUser``：这几个端点正是「授权不可用时拿来
 修复」的入口，用 ``LicensedUser`` 会在最需要它们的时候恒定 403。授权层级的限制由
 ``services/license/guard.py`` 的门禁中间件承担（该中间件对这几个路径豁免，见其模块注释）。
 """
@@ -34,6 +34,7 @@ from ..dependencies import CurrentUser
 from ..security.limiter import rate_limit
 from ..security.request_origin import require_same_origin_write
 from ..services.license import LicenseClientError
+from ..services.license import features as feature_codes
 from .router import NestRouter
 
 router = NestRouter(prefix="/license", tags=["license"])
@@ -64,7 +65,7 @@ def _gating_flags(request: Request) -> dict[str, bool]:
     return {
         "required": bool(service.settings.license_required),
         "allowed": service.allows(),
-        "editorAllowed": service.allows("editor"),
+        "editorAllowed": service.allows(feature_codes.FEATURE_EDITOR),
     }
 
 
@@ -89,12 +90,12 @@ async def get_availability(request: Request) -> dict[str, Any]:
 
 
 @router.post("/activate", dependencies=[Depends(rate_limit(5, 60.0))])
-async def activate(payload: ActivateDto, request: Request) -> dict[str, Any]:
-    # 匿名可用但必须同源：未激活时还没有会话可依赖，来源校验是这里唯一的写保护。
+async def activate(payload: ActivateDto, request: Request, user: CurrentUser) -> dict[str, Any]:
+    # 改为登录态激活：首装流程先注册/登录，再携带本机账号名激活（商店写入设备绑定）。
     require_same_origin_write(request)
     try:
         return await _service(request).activate(
-            payload.activationCode or "", payload.email or None
+            payload.activationCode or "", payload.email or None, user.username
         )
     except LicenseClientError as error:
         raise HTTPException(
@@ -106,7 +107,7 @@ async def activate(payload: ActivateDto, request: Request) -> dict[str, Any]:
 async def reactivate(request: Request, user: CurrentUser) -> dict[str, Any]:
     require_same_origin_write(request)
     try:
-        return await _service(request).reactivate()
+        return await _service(request).reactivate(user.username)
     except LicenseClientError as error:
         raise HTTPException(
             status_code=error.status_code or status.HTTP_409_CONFLICT,

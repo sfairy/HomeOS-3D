@@ -134,7 +134,11 @@ def _customer_for(session, account: Account) -> Customer:
     if customer is not None:
         return customer
 
-    customer = Customer(account_id=account.id, email=account.email, name=account.email)
+    customer = Customer(
+        account_id=account.id,
+        email=account.email,
+        name=(account.username or account.email),
+    )
     try:
         with session.begin_nested():
             session.add(customer)
@@ -167,7 +171,7 @@ def _assert_purpose_allowed(
         )
 
 
-    if purpose in {"register", "reset"}:
+    if purpose in {"register", "reset", "homeos_register"}:
         return
 
     if purpose == "verify":

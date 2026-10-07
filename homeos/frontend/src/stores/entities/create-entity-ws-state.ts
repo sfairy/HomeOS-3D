@@ -378,7 +378,8 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
   const wsTransportEpoch = ref(0)
 
   // 创建 REST 回退助手：全量拉取 / 增量同步 / 页面可见性回退
-  const { fetchEntitiesFallback, bindVisibilityFallbackHandler } = createEntityRestFallbackHelpers({
+  const { fetchEntitiesFallback, fetchEntitiesChangedSince, bindVisibilityFallbackHandler } =
+    createEntityRestFallbackHelpers({
     apiClient: deps.apiClient,
     entities: deps.entities,
     totalCount: deps.totalCount,
@@ -469,6 +470,12 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
       startHaDisconnectDebounce,
       setConnected,
       fetchEntitiesFallback,
+      /** 背压建议：先 REST 增量，成功则跳过全量 */
+      requestSoftResync: async (_reason?: string) => {
+        const ok = await fetchEntitiesChangedSince()
+        if (ok) deps.entitiesStale.value = false
+        return ok
+      },
       // WS initial_states 全量应用与增量同队列互斥
       initStates: (list, opts) => {
         void initStatesQueued(list, opts)

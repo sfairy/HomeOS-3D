@@ -34,6 +34,7 @@ SPA_PAGE_PATHS = frozenset(
     {
         "/",
         "/login",
+        "/register",
         "/setup",
         "/activate",
         "/license",

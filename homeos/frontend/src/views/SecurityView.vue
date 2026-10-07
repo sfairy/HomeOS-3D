@@ -233,15 +233,17 @@
                 <div v-if="dayEvents.length === 0" class="sec-events-empty sec-events-empty--log">
                   <p class="sec-events-empty__label">{{ '暂无事件' }}</p>
                 </div>
-                <div
+                <button
                   v-for="(event, i) in dayEvents"
                   :key="event.id || i"
+                  type="button"
                   :class="[
-                    'relative pl-8 pr-3 py-3 rounded-2xl cursor-pointer transition-all duration-300 border border-transparent',
+                    'relative w-full pl-8 pr-3 py-3 rounded-2xl cursor-pointer transition-all duration-300 border border-transparent text-left',
                     selectedEventIdx === i
                       ? 'sec-event-item--selected scale-[1.02]'
                       : 'hover:bg-white/5',
                   ]"
+                  :aria-current="selectedEventIdx === i ? 'true' : undefined"
                   @click="onEventClick(i)"
                 >
                   <div
@@ -268,7 +270,7 @@
                     v-if="selectedEventIdx === i"
                     class="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 sec-event-bar--selected rounded-r-full"
                   />
-                </div>
+                </button>
               </div>
             </div>
           </aside>
@@ -319,6 +321,7 @@
                 <img
                   v-else-if="dayEvents[selectedEventIdx].img"
                   :src="dayEvents[selectedEventIdx].img"
+                  :alt="`${dayEvents[selectedEventIdx].time || ''} ${dayEvents[selectedEventIdx].label || '事件'} 截图`"
                   class="w-full h-full object-contain"
                 />
                 <div class="absolute top-4 left-4 flex gap-2 z-30" v-if="currentEventVideo">
@@ -342,7 +345,7 @@
                 />
                 <button
                   type="button"
-                  class="absolute bottom-6 right-6 p-4 bg-black/60 hover:bg-black/90 backdrop-blur-xl border border-white/10 rounded-2xl text-white opacity-60 hover:opacity-100 transition-all shadow-2xl z-40"
+                  class="absolute bottom-6 end-6 p-4 bg-black/60 hover:bg-black/90 backdrop-blur-xl border border-white/10 rounded-2xl text-white opacity-60 hover:opacity-100 transition-all shadow-2xl z-40"
                   :aria-label="'全屏查看'"
                   @click="isFullscreenViewer = true"
                 >
@@ -361,38 +364,59 @@
               ref="thumbnailsContainerRef"
               class="h-28 shrink-0 p-4 bg-[#0d1017] border-t border-white/5 flex gap-4 overflow-x-auto hidden-scrollbar relative"
             >
-              <img
+              <!-- 缩略图原先是一排裸 <img> + @click：鼠标可用，但既不可聚焦也没有键盘激活，
+                   对键盘/读屏用户等于「不存在」。改成 button 后 Enter/Space 原生可用，
+                   焦点环走 main.css 的全局 :focus-visible 规则；语义与左侧事件列表保持一致
+                   （aria-current 标记当前选中）。图片保持装饰性（alt="" + aria-hidden），
+                   可访问名由按钮的 aria-label 承载，避免读屏重复念一遍。
+                   注意：容器滚动定位在 useSecurityView 里用 querySelectorAll('img') 找元素，
+                   包一层 button 不影响该后代选择器，索引顺序仍与 dayEvents 对齐。 -->
+              <button
                 v-for="(event, i) in dayEvents"
                 :key="'thumb' + (event.id || i)"
                 v-show="event.img"
-                :src="event.img"
-                :class="[
-                  'h-full w-32 object-cover rounded-2xl border-2 transition-all cursor-pointer flex-shrink-0 snap-center',
-                  selectedEventIdx === i
-                    ? 'sec-thumb--selected scale-[1.05] z-10'
-                    : 'border-transparent opacity-30 hover:opacity-100',
-                ]"
-                loading="lazy"
+                type="button"
+                class="h-full shrink-0 snap-center cursor-pointer rounded-2xl bg-transparent p-0"
+                :aria-label="`${event.time || ''} ${event.label || '事件'} 截图，第 ${i + 1} 张`"
+                :aria-current="selectedEventIdx === i ? 'true' : undefined"
                 @click="selectedEventIdx = i"
-              />
+              >
+                <img
+                  :src="event.img"
+                  alt=""
+                  aria-hidden="true"
+                  :class="[
+                    'h-full w-32 object-cover rounded-2xl border-2 transition-all',
+                    selectedEventIdx === i
+                      ? 'sec-thumb--selected scale-[1.05] z-10'
+                      : 'border-transparent opacity-30 hover:opacity-100',
+                  ]"
+                  loading="lazy"
+                />
+              </button>
             </div>
           </main>
         </div>
       </div>
     </section>
 
-    <!-- 全屏查看器 -->
+    <!-- 全屏查看器：模态语义（role/aria-modal）+ 焦点陷阱 + Esc 关闭 + 引用计数滚动锁。
+         z 轴走 token（--z-modal-root），不再用 z-[9999]/z-[10000] 这类魔法值。 -->
     <Transition name="fade">
       <div
-        v-if="isFullscreenViewer && dayEvents[selectedEventIdx]"
-        class="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-lg flex items-center justify-center p-4 sm:p-10"
-        @click.self="isFullscreenViewer = false"
+        v-if="fullscreenOpen"
+        ref="fullscreenRef"
+        class="sec-fullscreen-viewer fixed inset-0 bg-black/95 backdrop-blur-lg flex items-center justify-center p-4 sm:p-10"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="fullscreenLabel"
+        @click.self="closeFullscreen"
       >
         <button
           type="button"
-          class="absolute top-8 right-8 p-3 sec-text-muted hover:text-white bg-white/5 border border-white/10 hover:bg-white/20 rounded-full transition-all hover:rotate-90 z-[10000]"
+          class="absolute top-8 end-8 p-3 sec-text-muted hover:text-white bg-white/5 border border-white/10 hover:bg-white/20 rounded-full transition-all hover:rotate-90 z-10"
           :aria-label="'关闭全屏'"
-          @click="isFullscreenViewer = false"
+          @click="closeFullscreen"
         >
           <X class="w-6 h-6" />
         </button>
@@ -408,6 +432,7 @@
         <img
           v-else-if="dayEvents[selectedEventIdx].img"
           :src="dayEvents[selectedEventIdx].img"
+          :alt="`${dayEvents[selectedEventIdx].time || ''} ${dayEvents[selectedEventIdx].label || '事件'} 截图（全屏）`"
           class="max-w-full max-h-full object-contain rounded-2xl shadow-2xl ring-1 ring-white/10"
         />
         <MediaPagerControls
@@ -424,6 +449,7 @@
 </template>
 
 <script setup>
+import { computed, ref } from 'vue'
 import { defineAsyncComponent } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
@@ -446,6 +472,9 @@ import SecurityOverview from '@/views/security/Overview.vue'
 import VPanelSkeleton from '@/components/common/base/VPanelSkeleton.vue'
 import VEmptyState from '@/components/common/base/VEmptyState.vue'
 import { useSecurityView } from '@/composables/security/useSecurityView'
+import { useFocusTrap } from '@/composables/ui/useFocusTrap'
+import { useBodyScrollLock } from '@/composables/ui/useBodyScrollLock'
+import { useEscLayer } from '@/composables/ui/useEscStack'
 import '@/views/security/styles/security.css'
 import './styles/security-view.css'
 
@@ -491,4 +520,39 @@ const {
   onEventClick,
   fetchEvents,
 } = useSecurityView()
+
+/** 全屏查看器容器 ref：焦点陷阱的边界与首个可聚焦元素（关闭按钮）的落点。 */
+const fullscreenRef = ref(null)
+/**
+ * 全屏查看器是否**真的**展示了媒体。
+ * 与 `isFullscreenViewer` 分开：打开标记为真但当天的选事件没有画面时不应进入模态语义，
+ * 否则会出现「对话框里什么都没有」且焦点被锁。陷阱、滚动锁、Esc 都以它为准。
+ */
+const fullscreenOpen = computed(
+  () => isFullscreenViewer.value && !!dayEvents.value[selectedEventIdx.value],
+)
+/** 对话框可访问名：带当前序号，读屏进入全屏后能立刻知道「在看第几条」。 */
+const fullscreenLabel = computed(
+  () => `事件媒体全屏查看 · 第 ${selectedEventIdx.value + 1} / ${dayEvents.value.length} 条`,
+)
+
+/** 关闭全屏查看器。 */
+function closeFullscreen() {
+  isFullscreenViewer.value = false
+}
+
+/**
+ * 全屏状态下的 Esc：交给全局 Esc 层级栈（见 useEscStack）。
+ *
+ * 这里原先自己挂 window keydown。问题是 `stopPropagation()` 挡不住**同一目标**上的其它
+ * window 监听器（只受 `stopImmediatePropagation` 影响，而那取决于注册顺序，不可依赖）。
+ * 层级修好之后，全局确认框显示在查看器之上、两者可以同时在场上，一次 Esc 会把两层一起关掉。
+ * 入栈后 Esc 只派发给栈顶：确认框开着时先关确认框，确认框关掉后才是查看器。
+ */
+useEscLayer(fullscreenOpen, '安防全屏查看器', () => closeFullscreen())
+
+// 焦点陷阱 + 滚动锁（引用计数）：全屏期间 Tab 不会跑到背后的日历/事件列表上，
+// body 也不会被滚动；与同时打开的确认框共享同一把锁，不会提前放行。
+useFocusTrap(fullscreenRef, fullscreenOpen)
+useBodyScrollLock(fullscreenOpen, '安防全屏查看器')
 </script>

@@ -4,7 +4,7 @@
  * @description 全局确认对话框组件。通过 Teleport 渲染到 body 层级，与 VNotification 配合使用。
  *  支持键盘快捷键：Enter 确认、Escape 取消。模态框打开时锁定 body 滚动。
  *  依赖：vue（ref/computed/watch/onMounted/onUnmounted）、chrome.store（确认弹窗状态）、
- *  useFocusTrap（焦点陷阱，辅助无障碍）。
+ *  useFocusTrap（焦点陷阱，辅助无障碍）、useBodyScrollLock（引用计数滚动锁）。
  */
 <template>
   <Transition name="hos-modal">
@@ -19,10 +19,12 @@
         class="hos-modal-panel hos-modal-panel--sm"
         role="dialog"
         aria-modal="true"
+        aria-labelledby="hos-confirm-title"
+        aria-describedby="hos-confirm-message"
         :class="chrome.activeConfirm.type === 'danger' ? 'hos-modal-panel--danger' : ''"
       >
         <div class="hos-modal-head">
-          <h3 class="hos-modal-title">{{ chrome.activeConfirm.title }}</h3>
+          <h3 id="hos-confirm-title" class="hos-modal-title">{{ chrome.activeConfirm.title }}</h3>
           <button
             type="button"
             class="hos-modal-close"
@@ -33,7 +35,7 @@
           </button>
         </div>
         <div class="hos-modal-body">
-          <p>{{ chrome.activeConfirm.message }}</p>
+          <p id="hos-confirm-message">{{ chrome.activeConfirm.message }}</p>
         </div>
         <div class="hos-modal-footer">
           <!-- 取消按钮：点击即拒绝 -->
@@ -73,6 +75,8 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
+import { useBodyScrollLock } from '@/composables/ui/useBodyScrollLock'
+import { useEscLayer } from '@/composables/ui/useEscStack'
 const chrome = useChromeStore()
 const panelRef = ref(null)
 // 焦点陷阱激活条件：存在激活的确认弹窗
@@ -80,13 +84,31 @@ const trapActive = computed(() => !!chrome.activeConfirm)
 useFocusTrap(panelRef, trapActive)
 
 /**
- * 全局键盘事件处理：Escape 取消、Enter 确认。
+ * 防误确认窗口（毫秒）。
+ * 弹窗常由「刚刚按下 Enter/Space 的那次交互」间接触发（如按钮激活后异步弹确认），
+ * 键盘事件仍可能在同一帧落到 window 上；再加上长按 Enter 的自动重复，
+ * 会直接把「确定」按掉。打开后的这段时间内忽略确认键，只接受 Escape。
+ */
+const CONFIRM_GUARD_MS = 350
+/** 弹窗打开的时间戳；0 表示当前没有弹窗。 */
+let openedAt = 0
+
+watch(trapActive, (isActive) => {
+  openedAt = isActive ? Date.now() : 0
+})
+
+/**
+ * 全局键盘事件处理：Enter 确认（Escape 走全局 Esc 层级栈，见下方 useEscLayer）。
  * @param e 键盘事件
  */
 function onKeyDown(e) {
   if (!chrome.activeConfirm) return
-  if (e.key === 'Escape') chrome.resolveConfirm(false)
-  if (e.key === 'Enter') chrome.resolveConfirm(true)
+  if (e.key !== 'Enter') return
+  // 危险档（删除 / 撤销授权等）必须点击确认：Enter 与「刚才那次回车」无法区分，
+  // 误判代价不可逆，这里直接不响应键盘确认。
+  if (chrome.activeConfirm.type === 'danger') return
+  if (Date.now() - openedAt < CONFIRM_GUARD_MS) return
+  chrome.resolveConfirm(true)
 }
 
 onMounted(() => {
@@ -97,11 +119,10 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKeyDown)
 })
 
-// 弹窗打开时锁定 body 滚动，关闭时恢复
-watch(
-  () => chrome.activeConfirm,
-  (val) => {
-    document.body.style.overflow = val ? 'hidden' : ''
-  },
-)
+// Esc 取消：入全局 Esc 层级栈，只关栈顶那一层。
+// 确认框可以叠在查看器/抽屉/下拉之上，若各自都响应 window 上的 Esc，一次按键会关掉多层。
+useEscLayer(trapActive, '全局确认框', () => chrome.resolveConfirm(false))
+
+// 弹窗打开时锁定 body 滚动（引用计数，与同一时刻的其它浮层共享锁）
+useBodyScrollLock(trapActive, '全局确认框')
 </script>

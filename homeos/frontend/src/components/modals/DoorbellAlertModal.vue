@@ -72,11 +72,11 @@
  * 门铃提醒弹窗：实时视频 + 可选远程开门。
  */
 import { getEntityDomain } from '@homeos/shared'
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, toRef } from 'vue'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
+import { useEscLayer } from '@/composables/ui/useEscStack'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useHaConnectionStore } from '@/stores/ha-connection.store'
-import { useLayoutStore } from '@/stores/layout.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { logger } from '@/utils/core/logger'
 import { getApiErrorMessage } from '@/utils/core/error-message'
@@ -94,7 +94,6 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const entitiesStore = useEntitiesStore()
-const layoutStore = useLayoutStore()
 const haConnectionStore = useHaConnectionStore()
 const chrome = useChromeStore()
 const panelRef = ref(null)
@@ -102,6 +101,9 @@ useFocusTrap(
   panelRef,
   computed(() => !!props.isOpen),
 )
+useEscLayer(toRef(props, 'isOpen'), '门铃提醒', () => {
+  void onDismiss()
+})
 
 const isUnlocking = ref(false)
 let doorbellAudio = null

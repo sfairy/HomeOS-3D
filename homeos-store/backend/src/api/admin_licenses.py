@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import timedelta
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import func, or_, select
 
 from ..api.store_catalog import (
@@ -25,7 +25,9 @@ from ..core.schemas import (
     AdminOrderActionRequest,
 )
 from ..core.serializers import (
+    json_list,
     license_payload,
+    list_json,
 )
 from ..ops import site_settings as site_config
 from ..security.security import (
@@ -140,6 +142,7 @@ def admin_issue_license(
             product_id=product.id,
             product_name=product.name,
             product_type=product.product_type,
+            feature_codes_json=list_json(json_list(product.feature_codes_json)),
             price_cents=product.price_cents,
             validity_days=validity_days,
             issuance_source="manual",
@@ -152,6 +155,9 @@ def admin_issue_license(
         )
 
     license = fulfill.insert_license_with_unique_code(session, build)
+    fulfill.grant_bundled_entitlements(
+        session, license=license, product=product, customer=customer, now=moment
+    )
     _audit(
         session,
         _admin_actor(admin),
@@ -171,18 +177,25 @@ def admin_issue_license(
 
 @router.post("/licenses/{license_id}/deactivate")
 def admin_deactivate_license(
-    license_id: str, payload: AdminOrderActionRequest, session: DbSession, admin: AdminAccount
+    license_id: str,
+    payload: AdminOrderActionRequest,
+    session: DbSession,
+    admin: AdminAccount,
+    request: Request,
 ) -> dict:
     license = session.get(License, license_id)
     if license is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="授权不存在。")
     license.active = False
     license.revoked_at = utcnow()
+    authority = getattr(request.app.state, "license_authority", None)
     for binding in session.scalars(
         select(DeviceBinding).where(DeviceBinding.license_id == license.id)
     ):
         binding.active = False
         binding.released_at = utcnow()
+        if authority is not None:
+            authority.revoke_binding_credentials(session, binding.id)
     session.flush()
     _audit(session, _admin_actor(admin), "license.deactivate", license.id, payload.note)
     return {"activationCodeId": license.id, "active": False}

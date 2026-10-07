@@ -18,8 +18,9 @@ const session = useSessionStore();
 const site = useSiteStore();
 const toast = useStoreToast();
 
-const login = reactive({ email: "", password: "" });
+const login = reactive({ account: "", password: "" });
 const register = reactive({
+  username: "",
   email: "",
   code: "",
   referralCode: "",
@@ -108,7 +109,7 @@ async function submitLogin() {
   errorText.value = "";
   submitting.value = true;
   try {
-    await session.login(login.email, login.password);
+    await session.login(login.account, login.password);
     toast.show(
       session.hasPermanentLicense ? "登录成功，正在进入账号中心。" : "登录成功，正在进入购买页。",
     );
@@ -126,6 +127,7 @@ async function submitRegister() {
   submitting.value = true;
   try {
     const result = await session.register({
+      username: register.username,
       email: register.email,
       code: register.code,
       password: register.password,
@@ -187,20 +189,27 @@ async function submitForget() {
         <div class="hos-panel__head">
           <div class="hos-eyebrow-row">
             <p class="hos-eyebrow">账号 · 01/03</p>
-            <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>账号即授权</span>
+            <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>账号或邮箱登录</span>
           </div>
           <h1>登录后取回你的授权</h1>
           <p class="hos-panel__desc">
-            订单、激活码、设备绑定与邀请积分都挂在同一个邮箱账号下；换设备登录，购买记录跟人走。
+            用账号或邮箱登录均可。订单、激活码与设备绑定仍挂在注册邮箱下；换设备登录，购买记录跟人走。
           </p>
         </div>
         <DeckTiles page="store" />
         <form class="hos-form" @submit.prevent="submitLogin">
           <p v-if="errorText" class="hos-msg is-err" role="alert">{{ errorText }}</p>
           <div class="hos-field">
-            <div class="hos-label-row"><label for="store-login-email">邮箱</label></div>
+            <div class="hos-label-row"><label for="store-login-account">账号或邮箱</label></div>
             <div class="hos-control">
-              <input id="store-login-email" v-model="login.email" type="email" autocomplete="email" placeholder="name@example.com" required />
+              <input
+                id="store-login-account"
+                v-model="login.account"
+                inputmode="email"
+                autocomplete="username"
+                placeholder="账号或 name@example.com"
+                required
+              />
             </div>
           </div>
           <div class="hos-field">
@@ -267,11 +276,11 @@ async function submitForget() {
           <div class="hos-row-2">
             <div class="hos-field">
               <div class="hos-label-row"><label for="store-forget-password">新密码</label></div>
-              <PasswordField id="store-forget-password" v-model="forget.password" autocomplete="new-password" placeholder="至少 6 位" :minlength="6" />
+              <PasswordField id="store-forget-password" v-model="forget.password" autocomplete="new-password" placeholder="至少 8 位" :minlength="8" />
             </div>
             <div class="hos-field">
               <div class="hos-label-row"><label for="store-forget-confirm">确认新密码</label></div>
-              <PasswordField id="store-forget-confirm" v-model="forget.confirmPassword" autocomplete="new-password" placeholder="请再次输入密码" :minlength="6" />
+              <PasswordField id="store-forget-confirm" v-model="forget.confirmPassword" autocomplete="new-password" placeholder="请再次输入密码" :minlength="8" />
             </div>
           </div>
           <p v-if="mismatch" class="hos-msg is-err" role="alert">两次输入的密码不一致。</p>
@@ -286,7 +295,7 @@ async function submitForget() {
           <div class="hos-panel__meta">
             <span>验证码有时效</span>
             <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-            <span>新密码至少 6 位</span>
+            <span>新密码至少 8 位</span>
             <i class="hos-panel__meta-sep" aria-hidden="true"></i>
             <span>不影响已授权设备</span>
           </div>
@@ -303,15 +312,33 @@ async function submitForget() {
         <div class="hos-panel__head">
           <div class="hos-eyebrow-row">
             <p class="hos-eyebrow">账号 · 03/03</p>
-            <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>邮箱 + 验证码</span>
+            <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>账号 + 邮箱验证</span>
           </div>
           <h1>开一个订单跟着你的账号</h1>
-          <p class="hos-panel__desc">邮箱验证码通过后设置登录密码，账号建好即可下单。</p>
+          <p class="hos-panel__desc">
+            账号用于登录，邮箱用于购买与发码；验证通过后即可下单。
+          </p>
         </div>
         <DeckTiles page="store" />
         <form class="hos-form" @submit.prevent="submitRegister">
           <p v-if="errorText" class="hos-msg is-err" role="alert">{{ errorText }}</p>
-          <div class="hos-row-2">
+          <div class="hos-row-id">
+            <div class="hos-field">
+              <div class="hos-label-row"><label for="store-register-username">账号</label></div>
+              <div class="hos-control">
+                <input
+                  id="store-register-username"
+                  v-model="register.username"
+                  autocomplete="username"
+                  placeholder="登录用账号，至少 3 位"
+                  minlength="3"
+                  maxlength="64"
+                  pattern="[^@\s]{3,64}"
+                  title="账号至少 3 位，不能包含 @ 或空格（@ 保留给邮箱登录）"
+                  required
+                />
+              </div>
+            </div>
             <div class="hos-field">
               <div class="hos-label-row"><label for="store-register-email">邮箱</label></div>
               <div class="hos-control">
@@ -345,11 +372,11 @@ async function submitForget() {
           <div class="hos-row-2">
             <div class="hos-field">
               <div class="hos-label-row"><label for="store-register-password">密码</label></div>
-              <PasswordField id="store-register-password" v-model="register.password" autocomplete="new-password" placeholder="至少 6 位" :minlength="6" />
+              <PasswordField id="store-register-password" v-model="register.password" autocomplete="new-password" placeholder="至少 8 位" :minlength="8" />
             </div>
             <div class="hos-field">
               <div class="hos-label-row"><label for="store-register-confirm">确认密码</label></div>
-              <PasswordField id="store-register-confirm" v-model="register.confirmPassword" autocomplete="new-password" placeholder="请再次输入密码" :minlength="6" />
+              <PasswordField id="store-register-confirm" v-model="register.confirmPassword" autocomplete="new-password" placeholder="请再次输入密码" :minlength="8" />
             </div>
           </div>
           <p v-if="mismatch" class="hos-msg is-err" role="alert">两次输入的密码不一致。</p>
@@ -362,11 +389,11 @@ async function submitForget() {
         <p class="hos-switch">已有账号？<RouterLink to="/user/authentication/login">立即登录</RouterLink></p>
         <div class="hos-panel__copy">
           <div class="hos-panel__meta">
-            <span>只收邮箱与验证码</span>
+            <span>账号用于登录</span>
+            <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+            <span>邮箱用于购买与发码</span>
             <i class="hos-panel__meta-sep" aria-hidden="true"></i>
             <span>邀请码选填</span>
-            <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-            <span>支付后才发积分</span>
           </div>
           <p>账号创建后即可下单，激活码会进入账号中心。</p>
         </div>

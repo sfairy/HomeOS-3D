@@ -15,10 +15,16 @@ from typing import Annotated, Any
 from fastapi import Depends, Query, Request
 from pydantic import BaseModel, BeforeValidator, ConfigDict
 
+from ..dependencies import license_feature
 from ..security.auth_context import require_roles, require_user
+from ..services.license import features as feature_codes
 from .router import NestRouter
 
-router = NestRouter(prefix="/system", tags=["system"])
+router = NestRouter(
+    prefix="/system",
+    tags=["system"],
+    dependencies=[license_feature(feature_codes.FEATURE_MEDIA)],
+)
 
 #: 媒体场景预设白名单（对齐 DTO 的 ``MEDIA_SCENE_PRESETS``）。
 _MEDIA_SCENE_PRESETS = ("movie", "music", "gaming", "party", "sleep", "morning")

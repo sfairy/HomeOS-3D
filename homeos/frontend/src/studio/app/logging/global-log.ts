@@ -312,18 +312,27 @@ export function setupGlobalLog({ api: apiRequest }: any) {
         downloadLink.remove());
     }),
     globalLogClearButton!.addEventListener("click", async () => {
-      if (window.confirm("确定清空当前全局日志吗？清空后无法恢复。")) {
-        globalLogClearButton!.disabled = true;
-        try {
-          (await apiRequest("/logs", {
-            method: "DELETE",
-          }),
-            await loadEntries());
-        } catch (clearError: any) {
-          globalLogStatusElement!.textContent = clearError.message || "日志清空失败。";
-        } finally {
-          globalLogClearButton!.disabled = false;
-        }
+      const { shellConfirm } = await import("../../runtime/shell-chrome");
+      if (
+        !(await shellConfirm({
+          title: "清空全局日志",
+          message: "确定清空当前全局日志吗？清空后无法恢复。",
+          confirmLabel: "清空",
+          cancelLabel: "取消",
+          tone: "danger",
+        }))
+      )
+        return;
+      globalLogClearButton!.disabled = true;
+      try {
+        (await apiRequest("/logs", {
+          method: "DELETE",
+        }),
+          await loadEntries());
+      } catch (clearError: any) {
+        globalLogStatusElement!.textContent = clearError.message || "日志清空失败。";
+      } finally {
+        globalLogClearButton!.disabled = false;
       }
     }),
     {

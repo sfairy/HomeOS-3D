@@ -22,11 +22,17 @@ from sqlalchemy.orm import Session
 from ..core.app_config import load_raw_config
 from ..core.deps import get_session
 from ..core.errors import api_error, forbidden
+from ..dependencies import license_feature
 from ..security.auth_context import get_current_user, require_roles
 from ..services.alerts.channels import resolve_notification_fetch_limit
+from ..services.license import features as feature_codes
 from .router import NestRouter
 
-router = NestRouter(prefix="/notifications", tags=["awareness"])
+router = NestRouter(
+    prefix="/notifications",
+    tags=["awareness"],
+    dependencies=[license_feature(feature_codes.FEATURE_NOTIFICATIONS)],
+)
 
 #: 告警级别枚举（对齐 DTO 的 ``ALERT_LEVELS``）。
 _ALERT_LEVELS = ("info", "warn", "danger")

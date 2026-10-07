@@ -7,7 +7,7 @@ export type TimerHandle = ReturnType<typeof setInterval> | ReturnType<typeof set
  interface DeviceReleasePolicy {
   cooldownSeconds: number;
   lastReleasedAt?: string | null;
-  nextAllowedAt?: number | null;
+  nextAllowedAt?: string | number | null;
   remainingSeconds?: number;
   deadline?: number;
 }
@@ -91,6 +91,7 @@ export interface StoreOrder {
 }
 
 export interface StoreAccount {
+  username?: string | null;
   email?: string;
   [key: string]: unknown;
 }

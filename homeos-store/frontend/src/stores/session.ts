@@ -112,6 +112,12 @@ export const useSessionStore = defineStore("session", () => {
     hasPermanentLicense.value = Boolean(payload.hasPermanentLicense);
     hasUsedTrial.value = Boolean(payload.hasUsedTrial);
     syncAuthHint();
+    // /auth/me 不含 licenses；结账/Addon 依赖完整 /account 会话。
+    try {
+      await load();
+    } catch {
+      /* 账号中心失败时仍保留 me 的 flags */
+    }
     return payload;
   }
 
@@ -126,16 +132,17 @@ export const useSessionStore = defineStore("session", () => {
     ordersTotal.value = Number(data.ordersTotal ?? ordersTotal.value);
   }
 
-  async function login(email: string, password: string) {
+  async function login(account: string, password: string) {
     const result = await api<AccountPayload>("/auth/login", {
       method: "POST",
-      body: JSON.stringify({ email: email.trim(), password }),
+      body: JSON.stringify({ account: account.trim(), password }),
     });
     applyAccount(result);
     return result;
   }
 
   async function register(payload: {
+    username: string;
     email: string;
     code: string;
     password: string;
@@ -144,7 +151,11 @@ export const useSessionStore = defineStore("session", () => {
   }) {
     const result = await api<AccountPayload & { referralNote?: string }>("/auth/register", {
       method: "POST",
-      body: JSON.stringify({ ...payload, email: payload.email.trim() }),
+      body: JSON.stringify({
+        ...payload,
+        username: payload.username.trim(),
+        email: payload.email.trim(),
+      }),
     });
     applyAccount(result);
     return result;

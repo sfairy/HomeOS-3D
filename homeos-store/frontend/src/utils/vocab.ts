@@ -21,6 +21,7 @@ export const LICENSE_SOURCE: Record<string, string> = {
 export const PRODUCT_TYPE: Record<string, string> = {
   base: "基础授权",
   bundle: "全授权",
+  edition_full: "全功能版",
   package: "套餐",
   module: "增量包",
   template: "模板",

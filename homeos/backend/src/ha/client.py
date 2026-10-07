@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import ssl
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -15,6 +16,8 @@ import httpx
 import websockets
 
 from .control_pool import HAControlConfiguration, HAControlPool
+
+LOGGER = logging.getLogger(__name__)
 
 
 class HAClientError(RuntimeError):
@@ -187,9 +190,48 @@ class HAClient:
         self,
         entity_ids: set[str] | list[str] | tuple[str, ...],
     ) -> list[dict[str, Any]]:
+        """批量拉取实体状态（逐实体容错）。
+
+        单个实体拉取失败（读超时 / 5xx / 瞬时网络错误）只记日志并跳过该实体，**不再让异常冒泡**。
+
+        为什么必须逐实体容错：调用方 ``HAConnectionService.ensure_entity_states`` 处在实时推送
+        链路上（``api/ha.py`` 的 ``send_updates``）。曾经一次针对单个实体的 ReadTimeout 经
+        ``asyncio.gather`` 冒泡后，会把整条 runtime WebSocket 拆掉——客户端重连、**全部**实体的
+        推送都断掉；而真正损失的只是那一个实体的一次刷新，下一轮重试或 HA 的事件推送都会补上。
+        ``asyncio.gather`` 默认在首个异常处短路，其余并发请求的返回值一并被丢弃，因此这里显式用
+        ``return_exceptions=True`` 收集，再逐条判定。
+
+        注：实体已不存在（404）返回 ``None`` 并跳过，与失败同样不产生异常。
+        """
         requested = sorted({str(value) for value in entity_ids if str(value)})
         if not requested:
             return []
+        wanted = set(requested)
+        # 批量路径：一次 GET /api/states，再本地过滤。实体较多时显著减少 HA 往返。
+        if len(requested) >= 4:
+            try:
+                async with httpx.AsyncClient(
+                    verify=self.verify_tls,
+                    timeout=self.timeout,
+                    headers=self.headers,
+                    trust_env=not self._bypass_env_proxy,
+                ) as client:
+                    response = await client.get(f'{self.base_url}/api/states')
+                    if response.status_code in {401, 403}:
+                        raise HAClientError('Home Assistant Token 无效或权限不足。')
+                    response.raise_for_status()
+                    payload = response.json()
+                if isinstance(payload, list):
+                    return [
+                        item
+                        for item in payload
+                        if isinstance(item, dict) and str(item.get('entity_id') or '') in wanted
+                    ]
+            except HAClientError:
+                raise
+            except (httpx.HTTPError, ValueError) as error:
+                LOGGER.warning('批量拉取 /api/states 失败，回退逐实体：%s', error)
+
         semaphore = asyncio.Semaphore(8)
         async with httpx.AsyncClient(
             verify=self.verify_tls,
@@ -217,8 +259,21 @@ class HAClient:
                         raise HAClientError(f'无法获取 Home Assistant 实体 {entity_id}：{error}') from error
                     return payload if isinstance(payload, dict) else None
 
-            results = await asyncio.gather(*(fetch_one(entity_id) for entity_id in requested))
-        return [item for item in results if item is not None]
+            results = await asyncio.gather(
+                *(fetch_one(entity_id) for entity_id in requested),
+                return_exceptions=True,
+            )
+
+        states: list[dict[str, Any]] = []
+        for entity_id, result in zip(requested, results, strict=True):
+            if isinstance(result, BaseException):
+                LOGGER.warning(
+                    '拉取 Home Assistant 实体状态失败，跳过本次刷新：%s（%s）', entity_id, result
+                )
+                continue
+            if result is not None:
+                states.append(result)
+        return states
 
     def _ssl_context(self):
         if not websocket_url(self.base_url).startswith('wss://'):

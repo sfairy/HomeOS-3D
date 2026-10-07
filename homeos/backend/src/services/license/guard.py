@@ -22,15 +22,17 @@ LICENSE_EXEMPT_EXACT = frozenset(
         "/health/ready",
         "/metrics",
         "/api/v1/setup/status",
-        "/api/v1/setup/admin",
+        "/api/v1/auth/register",
+        "/api/v1/auth/verification",
         "/api/v1/auth/login",
         "/api/v1/auth/logout",
         "/api/v1/auth/me",
         "/api/v1/system/config/public",
-        # SPA 页面：必须能下发外壳，才能由前端就地渲染「授权恢复 / 激活」页。
+        # SPA 页面：必须能下发外壳，才能由前端就地渲染「注册 / 登录 / 授权恢复 / 激活」页。
         # 未激活时后端会给外壳打 data-license-blocked（见 app.py ``_spa_shell``）。
         "/",
         "/login",
+        "/register",
         "/setup",
         "/activate",
         "/license",

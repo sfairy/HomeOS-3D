@@ -111,7 +111,7 @@ docker logs homeos | grep 授权公钥
 #   UVICORN_FORWARDED_ALLOW_IPS=127.0.0.1,::1     # 保持默认，不要填 *
 
 ./ops/deploy/deploy.sh --role app --license-server http://<中心商店IP>:8802
-docker logs homeos | head     # 取首次设置引导密钥（容器内 /data/setup-token）
+# 首装零用户：打开 http://<本机IP>:8801/register 注册本机唯一账号（无需引导密钥）
 ```
 
 独立部署用的 `docker-compose.app.yml` **不再**声明 external 网络与共享卷，所以不需要先

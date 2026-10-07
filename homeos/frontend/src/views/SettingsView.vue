@@ -80,8 +80,7 @@
 
     <!-- 仪表板编辑模式退出确认（非设置表单离开守卫；设置离开见 confirmLeaveIfDirty） -->
     <ExitEditConfirmDialog />
-    <VConfirmModal />
-    <VPromptModal />
+    <!-- 确认 / 输入对话框已提升到 App.vue 根，避免设置页与主壳双重挂载 -->
   </div>
 </template>
 
@@ -119,6 +118,8 @@ import {
   resolveDefaultSettingsTab,
   INDEPENDENT_SAVE_TABS,
 } from '@/views/settings/nav'
+import { isTabFeatureGranted } from '@/utils/registry/settings-nav.util'
+import { useLicenseFeatureAccess } from '@/router/license-gate'
 import {
   hasIndependentSettingsPending,
   getIndependentPendingTabIds,
@@ -145,10 +146,6 @@ const appVersion = pkg.version
 const ExitEditConfirmDialog = defineAsyncComponent(
   () => import('@/components/common/ExitEditConfirmDialog.vue'),
 )
-const VConfirmModal = defineAsyncComponent(
-  () => import('@/components/common/base/VConfirmModal.vue'),
-)
-const VPromptModal = defineAsyncComponent(() => import('@/components/common/base/VPromptModal.vue'))
 
 const router = useRouter()
 const route = useRoute()
@@ -182,7 +179,11 @@ function toggleSidebar() {
 
 const isAdmin = computed(() => authStore.role === 'admin')
 
-const navGroups = computed(() => buildNavGroups(isAdmin.value))
+// 功能码明细（``GET /license/status`` 的 featureAccess）：只用于侧栏与落地页显隐，
+// 未加载时为空对象 → isTabFeatureGranted 一律放行，接口层 403 才是权威拦截点。
+const licenseFeatureAccess = useLicenseFeatureAccess()
+
+const navGroups = computed(() => buildNavGroups(isAdmin.value, licenseFeatureAccess.value))
 
 const showSettingsNav = computed(() => countNavTabs(navGroups.value) >= 1)
 
@@ -193,6 +194,10 @@ const resolvedTab = computed(() => {
     : resolveDefaultSettingsTab({ isAdmin: isAdmin.value })
   // 非管理员访问管理员专属标签页时回退到账户与安全
   if (!isAdmin.value && isAdminOnlyTab(tab)) return defaultTabForRole(false)
+  // 未授权增量模块的 Tab 同样回退：直接带 ?tab=voice 进来时不能渲染一个必然被 403 的配置页
+  if (!isTabFeatureGranted(tab, licenseFeatureAccess.value)) {
+    return resolveDefaultSettingsTab({ isAdmin: isAdmin.value })
+  }
   return tab
 })
 

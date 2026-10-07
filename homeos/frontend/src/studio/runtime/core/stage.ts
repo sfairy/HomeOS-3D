@@ -1,3 +1,4 @@
+import { syncHtmlRangeProgress } from "@app/utils/range-progress";
 import { bathHeaterState as bathHeaterState2 } from "../bath-heater/bath-heater";
 import { purifierState as purifierState2 } from "../purifier/purifier-state";
 import { createAirerMotion as createAirerMotion2 } from "../airer/airer-motion";
@@ -540,7 +541,7 @@ export function mountStage(mountOptions: any) {
   const moduleTabsByKind = new Map();
   let configuredModuleKinds2 = configuredModuleKinds(options);
   for (const [moduleKind, moduleLabel] of [
-    ["overview", "总览"],
+    ["overview", "3D"],
     ["light", "灯光"],
     ["environment", "环境"],
     ["devices", "设备"],
@@ -635,10 +636,19 @@ export function mountStage(mountOptions: any) {
       rangeInput = createStageElement("input");
     ((rangeInput.name = "i3d-light-" + sliderKey),
       (rangeInput.type = "range"),
+      rangeInput.classList.add("i3d-control-range"),
       (rangeInput.min = sliderMin),
       (rangeInput.max = sliderMax),
       (rangeInput.step = sliderKey === "temperature" ? "10" : "1"),
       rangeInput.setAttribute("aria-label", sliderLabelText));
+    const syncSliderProgress = () => {
+      const progressCss = syncHtmlRangeProgress(rangeInput);
+      if (sliderKey === "brightness") {
+        rangeInput.style.background = `linear-gradient(90deg, #d6ae65 0%, #d6ae65 ${progressCss}, #3a342c ${progressCss}, #3a342c 100%)`;
+      } else if (sliderKey === "temperature") {
+        rangeInput.style.background = `linear-gradient(90deg, transparent 0%, transparent ${progressCss}, #3a342c ${progressCss}, #3a342c 100%), linear-gradient(90deg, #eaa95b, #f1e1bf, #b8d6f4)`;
+      }
+    };
     const sliderHeadingElement = createStageElement("div", "i3d-slider-heading");
     sliderHeadingElement.append(sliderNameElement, sliderOutputElement);
     const sliderLegendElement = createStageElement("span", "i3d-slider-legend");
@@ -649,8 +659,9 @@ export function mountStage(mountOptions: any) {
       ),
       sliderFieldLabel.append(sliderHeadingElement, rangeInput, sliderLegendElement),
       rangeInput.addEventListener("input", () => {
-        sliderOutputElement.value =
-          "" + rangeInput.value + (sliderKey === "temperature" ? " K" : "%");
+        (syncSliderProgress(),
+          (sliderOutputElement.value =
+            "" + rangeInput.value + (sliderKey === "temperature" ? " K" : "%")));
         const interactiveLightEntry = getFocusedEntry();
         !interactiveLightEntry ||
           isEditing ||
@@ -666,11 +677,13 @@ export function mountStage(mountOptions: any) {
         "change",
         () => void runLightCommand(sliderKey, Number(rangeInput.value)),
       ),
+      syncSliderProgress(),
       lightControlsElement.append(sliderFieldLabel),
       {
         root: sliderFieldLabel,
         input: rangeInput,
         value: sliderOutputElement,
+        syncProgress: syncSliderProgress,
       }
     );
   }
@@ -3639,12 +3652,14 @@ export function mountStage(mountOptions: any) {
     }),
       (mediaScale = stageBoundingRect.width / width2));
     const stageScaleY = stageBoundingRect.height / height,
+      // 触控缩放用等比 fit，避免横向/纵向非均匀 stretch 造成 UI 变形。
+      uniformMediaScale = Math.min(mediaScale, stageScaleY),
       hasMediaViewport = !!mediaViewportSize,
       isTouchScalingEnabled = typeof mountOptions < "u" && hasMediaViewport,
       width3 = isTouchScalingEnabled ? width2 : stageBoundingRect.width,
       height2 = isTouchScalingEnabled ? height : stageBoundingRect.height,
-      uiScaleX = hasMediaViewport ? mediaScale : 1,
-      uiScaleY = hasMediaViewport ? stageScaleY : 1;
+      uiScaleX = hasMediaViewport ? uniformMediaScale : 1,
+      uiScaleY = hasMediaViewport ? uniformMediaScale : 1;
     ((value = hasMediaViewport
       ? {
           x: uiScaleX,
@@ -3776,7 +3791,9 @@ export function mountStage(mountOptions: any) {
       Object.assign(presentationLayerElement.style, {
         width: width3 + "px",
         height: height2 + "px",
-        transform: isTouchScalingEnabled ? "scale(" + mediaScale + "," + stageScaleY + ")" : "none",
+        transform: isTouchScalingEnabled
+          ? "scale(" + uniformMediaScale + "," + uniformMediaScale + ")"
+          : "none",
       }));
     const presentationUiSignature = JSON.stringify({
       fixedUi: hasMediaViewport,
@@ -4455,13 +4472,12 @@ export function mountStage(mountOptions: any) {
   }
   function focusMarkerById(targetMarkerId: any, focusMode = "runtime", isImmediate = false) {
     const targetMarkerItem = findBindingById(targetMarkerId);
-    if (
-      !targetMarkerItem ||
-      targetMarkerItem.modelAvailable === false ||
-      (focusedItemId !== targetMarkerId && (lightModeMenu.close(), lightColorPicker.cancel()),
-      targetMarkerItem.deviceKind === "lock")
-    )
-      return;
+    // 门锁与其它 panel 设备一致：直播允许 focus / panel（lock-panel 负责控制）
+    if (!targetMarkerItem || targetMarkerItem.modelAvailable === false) return;
+    if (focusedItemId !== targetMarkerId) {
+      lightModeMenu.close();
+      lightColorPicker.cancel();
+    }
     if (
       (lightEditPreview && ((lightEditPreview = null), applyLightStates()),
       focusedItemId === targetMarkerId && panelDisplayMode === focusMode && focusMode === "runtime")
@@ -4942,7 +4958,8 @@ export function mountStage(mountOptions: any) {
             sliderValue ??
             (lightSliderControl === brightnessSlider ? 100 : panelLightState.minimum)),
           (lightSliderControl.value.value =
-            sliderValue === null ? "—" : "" + sliderValue + sliderUnitSuffix)));
+            sliderValue === null ? "—" : "" + sliderValue + sliderUnitSuffix)),
+        lightSliderControl.syncProgress?.());
     lightPresetsElement.hidden =
       panelLightState.colorSupported ||
       (!panelLightState.brightnessSupported && !panelLightState.temperatureSupported);
@@ -5127,8 +5144,7 @@ export function mountStage(mountOptions: any) {
       (!isEditing && (activatedMarkerItem.overviewQuip || activatedMarkerItem.passiveSensor)) ||
       (followVacuumId && !isEditing) ||
       (!isEditing &&
-        ["temperature-humidity", "smallcar"].includes(activatedMarkerItem.deviceKind)) ||
-      (!isEditing && activatedMarkerItem.deviceKind === "lock")
+        ["temperature-humidity", "smallcar"].includes(activatedMarkerItem.deviceKind))
     )
       return;
     const markerClickAction = activatedMarkerItem.clickAction || "focus";

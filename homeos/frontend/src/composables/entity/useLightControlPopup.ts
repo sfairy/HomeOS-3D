@@ -8,7 +8,8 @@
  * - 通过 useSliderCommit 统一处理拖拽本地值与提交，避免拖拽期间被外部更新打断。
  *
  * 依赖：vue ref/computed/watch/onMounted、useLiveEntity、useEntityPopupHeader、
- * useHaEntityService、useSliderCommit、entity-cold-fetch、progress-bar 工具。
+ * useHaEntityService、useSliderCommit、entity-cold-fetch、progress-bar 工具、
+ * `@/composables/entity/control/light-control-core`（能力/颜色/服务 data）。
  */
 import { ref, computed, watch, onMounted } from 'vue'
 import { useLiveEntity } from '@/composables/entity/useLiveEntity'
@@ -26,131 +27,19 @@ import {
   resolveColorTempStep,
 } from '@/utils/ui/progress-bar.util'
 
-/** 灯光能力相关 attributes key（用于刷新能力属性时只 pick 这些字段） */
-const CAPABILITY_ATTR_KEYS = [
-  'supported_color_modes',
-  'min_color_temp_kelvin',
-  'max_color_temp_kelvin',
-  'min_mireds',
-  'max_mireds',
-  'min_mired',
-  'max_mired',
-]
+import {
+  LIGHT_COLOR_PRESETS as COLOR_PRESETS,
+  pickLightCapabilityAttrs,
+  lightSupportsRgb,
+  lightSupportsColorTemp,
+  lightBrightnessPct,
+  lightBrightnessFromPct,
+  hslToRgb,
+  rgbToHs,
+  hexToRgb,
+  buildLightTurnOnData,
+} from '@/composables/entity/control/light-control-core'
 
-/**
- * 从灯光 attributes 中提取能力字段（仅保留 CAPABILITY_ATTR_KEYS 列出的字段）。
- * @param attributes HA 灯光 attributes
- * @returns 仅包含能力字段的对象
- */
-function pickLightCapabilityAttrs(attributes: Record<string, unknown> | undefined) {
-  if (!attributes) return {}
-  const picked: Record<string, unknown> = {}
-  for (const key of CAPABILITY_ATTR_KEYS) {
-    if (attributes[key] != null) picked[key] = attributes[key]
-  }
-  return picked
-}
-
-/** 预设颜色调色板（HEX 字符串） */
-const COLOR_PRESETS = [
-  '#FFFFFF',
-  '#FFEAA7',
-  '#FDCB6E',
-  '#F39C12',
-  '#E17055',
-  '#FF6B6B',
-  '#D63031',
-  '#E84393',
-  '#FD79A8',
-  '#A29BFE',
-  '#6C5CE7',
-  '#0984E3',
-  '#74B9FF',
-  '#00CEC9',
-  '#55EFC4',
-  '#00B894',
-  '#636E72',
-  '#2D3436',
-]
-
-/**
- * HSL → RGB 转换（HA 灯光使用 hs_color: [hue(0-360), sat(0-100)]）。
- * @param h 色相 0-360
- * @param s 饱和度 0-100
- * @returns {r,g,b} 0-255 整数
- */
-function hslToRgb(h: number, s: number) {
-  const c = s / 100
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
-  const m = 1 - c
-  let r = 0,
-    g = 0,
-    b = 0
-  if (h < 60) {
-    r = c
-    g = x
-  } else if (h < 120) {
-    r = x
-    g = c
-  } else if (h < 180) {
-    g = c
-    b = x
-  } else if (h < 240) {
-    g = x
-    b = c
-  } else if (h < 300) {
-    r = x
-    b = c
-  } else {
-    r = c
-    b = x
-  }
-  return {
-    r: Math.round((r + m) * 255),
-    g: Math.round((g + m) * 255),
-    b: Math.round((b + m) * 255),
-  }
-}
-
-/**
- * RGB → HS 转换（输出 HA 灯光使用的 hs_color 格式）。
- * @param r 0-255
- * @param g 0-255
- * @param b 0-255
- * @returns {h: 0-360, s: 0-100}
- */
-function rgbToHs(r: number, g: number, b: number) {
-  r /= 255
-  g /= 255
-  b /= 255
-  const max = Math.max(r, g, b),
-    min = Math.min(r, g, b)
-  const l = (max + min) / 2
-  let h = 0,
-    s = 0
-  if (max !== min) {
-    const d = max - min
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
-    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60
-    else if (max === g) h = ((b - r) / d + 2) * 60
-    else h = ((r - g) / d + 4) * 60
-  }
-  return { h: Math.round(h), s: Math.round(s * 100) }
-}
-
-/**
- * HEX 字符串 → RGB 转换。
- * @param hex 形如 #RRGGBB 的字符串
- * @returns {r,g,b} 0-255
- */
-function hexToRgb(hex: string) {
-  const clean = hex.replace('#', '')
-  return {
-    r: parseInt(clean.substring(0, 2), 16),
-    g: parseInt(clean.substring(2, 4), 16),
-    b: parseInt(clean.substring(4, 6), 16),
-  }
-}
 /**
  * 灯光控制弹窗组合式函数。
  *
@@ -203,29 +92,20 @@ export function useLightControlPopup(props: { entity?: { entity_id?: string } | 
   const isOn = computed(() => liveEntity.value?.state === 'on')
 
   // 是否支持 RGB/HS/XY/RGBW/RGBWW 颜色模式
-  const hasRgb = computed(() => {
-    const modes = lightAttrs.value?.supported_color_modes as string[] | undefined
-    return modes?.some(
-      (m) => m === 'rgb' || m === 'hs' || m === 'xy' || m === 'rgbw' || m === 'rgbww',
-    )
-  })
+  const hasRgb = computed(() => lightSupportsRgb(lightAttrs.value?.supported_color_modes))
 
   // 是否支持色温（color_temp 模式）
-  const hasColorTemp = computed(() => {
-    const modes = lightAttrs.value?.supported_color_modes as string[] | undefined
-    return modes?.some((m) => m.includes('color_temp'))
-  })
+  const hasColorTemp = computed(() =>
+    lightSupportsColorTemp(lightAttrs.value?.supported_color_modes),
+  )
 
   // 弹窗高度：RGB 模式最高（含色盘），色温模式中等，纯亮度最低
   const popupHeight = computed(() => (hasRgb.value ? 460 : hasColorTemp.value ? 320 : 260))
 
   // 亮度百分比：brightness(0-255) → 0-100，关灯时为 1（避免滑块完全归零）
-  const brightnessPct = computed(() => {
-    const e = liveEntity.value
-    const b = e?.attributes?.brightness
-    if (b != null) return Math.round((Number(b) / 255) * 100)
-    return e?.state === 'on' ? 100 : 1
-  })
+  const brightnessPct = computed(() =>
+    lightBrightnessPct(liveEntity.value?.state, liveEntity.value?.attributes?.brightness),
+  )
 
   // 是否使用 Kelvin API（部分灯具支持 color_temp_kelvin 而非 mireds）
   const usesKelvinApi = computed(() => {
@@ -426,7 +306,13 @@ export function useLightControlPopup(props: { entity?: { entity_id?: string } | 
   async function applyRgbColor({ r, g, b }: { r: number; g: number; b: number }) {
     const entityId = liveEntity.value?.entity_id
     if (!entityId) return
-    await callService('light', 'turn_on', entityId, { rgb_color: [r, g, b] }, '设置颜色失败')
+    await callService(
+      'light',
+      'turn_on',
+      entityId,
+      buildLightTurnOnData({ rgbColor: [r, g, b] }),
+      '设置颜色失败',
+    )
   }
 
   /**
@@ -456,7 +342,14 @@ export function useLightControlPopup(props: { entity?: { entity_id?: string } | 
   async function setBrightness(val: number) {
     const entityId = liveEntity.value?.entity_id
     if (!entityId) return
-    await callService('light', 'turn_on', entityId, { brightness_pct: val }, '亮度设置失败')
+    // HA 同时接受 brightness_pct 与 brightness；核心统一转 brightness 位
+    await callService(
+      'light',
+      'turn_on',
+      entityId,
+      { brightness_pct: val, brightness: lightBrightnessFromPct(val) },
+      '亮度设置失败',
+    )
   }
   /**
    * 构建色温 service data：支持 Kelvin API 的设备用 color_temp_kelvin，

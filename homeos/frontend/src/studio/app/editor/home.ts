@@ -1236,10 +1236,10 @@ let openCustomSelect: any = null,
 const DEFAULT_REQUEST_TIMEOUT_MS = 20000;
 
 let authRedirectStarted = false;
-function startAuthRedirect(targetPath: any, replaceCurrent = false) {
+function startAuthRedirect(targetPath: any, _replaceCurrent = false) {
   if (authRedirectStarted) return;
-  ((authRedirectStarted = true),
-    replaceCurrent ? window.location.replace(targetPath) : window.location.assign(targetPath));
+  // 同文档内路由：编辑器已具备 boot/teardown，不必整页跳转清文档。
+  ((authRedirectStarted = true), navigateInShell(String(targetPath || "/login")));
 }
 
 async function requestJson(requestPath: any, requestOptions: Record<string, any> = {}) {
@@ -11133,7 +11133,7 @@ function popupId(_entityLabelFor: any) {}
 async function triggerKey() {
   const documentPages = await requestJson("/license/status");
   if (documentPages?.required && !documentPages.allowed)
-    return (window.location.replace("/license"), documentPages);
+    return (navigateInShell("/activate"), documentPages);
   const sharedUsages = JSON.stringify([...(documentPages?.features || [])].sort()),
     sharedScopeText =
       lastLicenseFeatureSignature !== null && lastLicenseFeatureSignature !== sharedUsages;

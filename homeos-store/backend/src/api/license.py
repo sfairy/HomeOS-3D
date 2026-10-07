@@ -43,7 +43,7 @@ def _retry_after_value(seconds: float | None) -> str:
 
 def _rate_limited(retry_after: float | None) -> JSONResponse:
     return JSONResponse(
-        {"detail": "请求过于频繁，请稍后再试。"},
+        {"detail": "请求过于频繁，请稍后再试。", "code": "RATE_LIMITED"},
         status_code=429,
         headers={"Retry-After": _retry_after_value(retry_after)},
     )
@@ -107,7 +107,9 @@ async def _dispatch(request: Request, method: str) -> Response:
     try:
         body = await request.json()
     except Exception:
-        return JSONResponse({"detail": "授权请求格式无效。"}, status_code=400)
+        return JSONResponse(
+            {"detail": "授权请求格式无效。", "code": "REQUEST_INVALID"}, status_code=400
+        )
 
     client_ip = address.ip if address is not None and address.ip else None
     try:
@@ -116,10 +118,14 @@ async def _dispatch(request: Request, method: str) -> Response:
         )
     except Exception:
         logger.exception("授权端点内部错误 path=%s", path)
-        return JSONResponse({"detail": "授权服务内部错误，请稍后重试。"}, status_code=500)
+        return JSONResponse(
+            {"detail": "授权服务内部错误，请稍后重试。", "code": "SERVER_ERROR"}, status_code=500
+        )
 
     if stage == "invalid":
-        return JSONResponse({"detail": "授权请求格式无效。"}, status_code=400)
+        return JSONResponse(
+            {"detail": "授权请求格式无效。", "code": "REQUEST_INVALID"}, status_code=400
+        )
     if error is not None:
         if stage == "decrypt":
             logger.warning("授权请求解密失败 path=%s detail=%s", path, error.detail)

@@ -219,6 +219,8 @@ class StoreSettings:
     lease_ttl_seconds: int = DEFAULT_LEASE_TTL_SECONDS
     heartbeat_interval_seconds: int = DEFAULT_HEARTBEAT_INTERVAL_SECONDS
     license_session_ip_hourly_limit: int = 3600
+    # 密钥轮换：退役代在此天数内仍接收（老客户端继续续租），过期后代只认在用代。
+    license_key_retirement_days: int = 30
 
     order_ttl_seconds: int = DEFAULT_ORDER_TTL_SECONDS
     device_release_cooldown_seconds: int = DEFAULT_DEVICE_RELEASE_COOLDOWN_SECONDS
@@ -264,6 +266,30 @@ class StoreSettings:
     @property
     def transport_public_key_path(self) -> Path:
         return self.license_keys_dir / "license-transport-public.pem"
+
+    @property
+    def retired_private_key_path(self) -> Path:
+        """退役代的签名私钥：轮换时把上一代 **重命名** 到这里（不要删）。
+        """
+        return self.license_keys_dir / "license-private.retired.pem"
+
+    @property
+    def retired_public_key_path(self) -> Path:
+        return self.license_keys_dir / "license-public.retired.pem"
+
+    @property
+    def retired_transport_private_key_path(self) -> Path:
+        return self.license_keys_dir / "license-transport-private.retired.pem"
+
+    @property
+    def retired_transport_public_key_path(self) -> Path:
+        return self.license_keys_dir / "license-transport-public.retired.pem"
+
+    @property
+    def retired_key_marker_path(self) -> Path:
+        """退役时刻标记（ISO-8601 文本）。缺省回退到退役公钥文件的 mtime。
+        """
+        return self.license_keys_dir / "license-retired-at"
 
     @property
     def license_key_id(self) -> str:
@@ -411,6 +437,12 @@ def load_settings(**overrides) -> StoreSettings:
             minimum=60,
             maximum=100_000,
         ),
+        "license_key_retirement_days": _env_int(
+            "STORE_LICENSE_KEY_RETIREMENT_DAYS",
+            30,
+            minimum=0,
+            maximum=3650,
+        ),
         "order_ttl_seconds": _env_int(
             "STORE_ORDER_TTL_SECONDS", DEFAULT_ORDER_TTL_SECONDS, minimum=30, maximum=24 * 3600
         ),
@@ -453,6 +485,7 @@ _RANGED_FIELDS: tuple[tuple[str, float | None, float | None], ...] = (
     ("lease_ttl_seconds", 60, None),
     ("heartbeat_interval_seconds", 5, 24 * 3600),
     ("license_session_ip_hourly_limit", 60, 100_000),
+    ("license_key_retirement_days", 0, 3650),
     ("order_ttl_seconds", 30, 24 * 3600),
     ("device_release_cooldown_seconds", 0, 30 * 24 * 3600),
     ("payment_sweep_interval_seconds", 0, 3600),

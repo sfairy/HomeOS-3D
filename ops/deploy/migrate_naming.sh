@@ -238,7 +238,7 @@ cat <<EOF
 $(log "迁移完成")
 下一步：
   1. 起新部署：   ops/deploy/deploy.sh --role all        （或 --role app / --role store）
-  2. 核对数据：   登录看 /setup 或 /license；商店看 /admin 的商品与订单是否还在。
+  2. 核对数据：   主应用登录（/register 或 /login，账号或邮箱均可）后看 /license 授权；商店看 /admin 的商品与订单是否还在。
      主应用最容易漏的是授权私钥与公钥缓存，快速核对：
        docker volume inspect homeos_homeos-data --format '{{.Mountpoint}}'
   3. 确认无误后删旧卷（**别提前删**，这就是回滚凭据）：

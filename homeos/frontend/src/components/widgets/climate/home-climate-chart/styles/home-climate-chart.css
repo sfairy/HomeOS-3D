@@ -334,3 +334,35 @@
     transform: rotate(360deg);
   }
 }
+
+/* ── ECharts tooltip 内容 ──
+   外壳页 CSP 是 style-src 'self'，tooltip 里由 formatter 拼出的行内 style 会被浏览器
+   拦下（样式静默失效 + 控制台刷违规）。所以这里的元素只带类名，样式收进本文件；
+   唯一的动态值（序列颜色）走 SVG 的 fill 呈现属性，不受 style-src 约束。 */
+.hcc-tip__time {
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: var(--premium-fs-caption);
+  font-weight: 600;
+}
+
+.hcc-tip__row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 3px;
+}
+
+.hcc-tip__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+}
+
+.hcc-tip__label {
+  flex: 1;
+}
+
+.hcc-tip__value {
+  margin-left: 14px;
+}

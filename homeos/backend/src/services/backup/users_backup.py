@@ -5,9 +5,9 @@
 关键策略：
 - 导出附 ``kind=homeos-users``，含 username / role / preferences / tokenVersion / createdAt；
 - 导入时角色不合法回退到 adult；
-- **凭据唯一权威是** :class:`AdminAccountStore`（凭据外置在账号文件里，``users.password``
-  恒为哨兵值）。因此导入新建的用户不写任何可用密码，也不生成临时密码 —— 非管理员用户
-  的身份由会话内的 ``role`` 决定，登录只对管理员凭据开放。
+- **登录凭据唯一权威是** ``users.password`` 的 argon2 哈希（首装单用户注册写入）。
+  导入新建的用户不写任何可用密码（写入不可校验的哨兵值），也不生成临时密码 ——
+  它们只作为实体访问上下文里的 ``role`` 存在，登录只对本机注册账号开放。
 - 会话是 ``sessions`` 表里的 DB 记录，导入不做任何 token 版本失效动作（无状态 JWT 概念已退役）。
 """
 
@@ -21,14 +21,18 @@ from typing import Any
 
 from sqlalchemy import delete, select, update
 
-from ...admin_account import EXTERNAL_PASSWORD_SENTINEL
 from ...core.json_field import read_json_object
 from ...core.models import User
+from ...security.passwords import EXTERNAL_PASSWORD_SENTINEL
 
 logger = logging.getLogger("homeos.backup.users")
 
 USERS_BACKUP_KIND = "homeos-users"
 USER_ROLES: tuple[str, ...] = ("admin", "adult", "child", "guest")
+
+# 哨兵口令（``!no-local-credential-v1!``）的定义已收敛到 ``security.passwords``：
+# 那里同时收录历史哨兵与 ``is_credentialless()`` 判定，注册流程靠它识别「无凭据老行」。
+# 本模块导入即用，不再自带一份字面量。
 
 
 def parse_user_role(value: object, fallback: str = "adult") -> str:
@@ -156,7 +160,24 @@ class UsersBackupService:
                             token_version=User.token_version + 1,
                         )
                     )
+                # 多行哨兵口令会让 ``_claimable_legacy_user`` 失效（要求恰好 1 行），
+                # 从而锁死注册+登录。仅保留一名可接管 admin；其余导入行跳过。
+                claimable = [
+                    item
+                    for item in to_create
+                    if item["role"] == "admin"
+                ] or to_create[:1]
+                skipped_extra = 0
                 for item in to_create:
+                    if item not in claimable[:1]:
+                        skipped_extra += 1
+                        logger.warning(
+                            "备份导入跳过多余无凭据用户 %s（角色 %s）："
+                            "避免多哨兵行锁死首装注册接管。",
+                            item["username"],
+                            item["role"],
+                        )
+                        continue
                     session.add(
                         User(
                             username=item["username"],
@@ -166,9 +187,16 @@ class UsersBackupService:
                             token_version=item["token_version"],
                         )
                     )
+                if skipped_extra:
+                    skipped += skipped_extra
+                    to_create[:] = claimable[:1]
 
         for item in to_create:
-            logger.info("备份导入新用户 %s（无登录凭据，登录仅对管理员开放）", item["username"])
+            logger.info(
+                "备份导入新用户 %s（无登录凭据：口令为哨兵值，无法登录）。"
+                "本机尚无可用账号时，首装注册会就地接管该行并写入新凭据。",
+                item["username"],
+            )
 
         return {
             "created": len(to_create),

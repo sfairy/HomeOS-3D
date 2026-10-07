@@ -110,7 +110,7 @@ async def _execute_home_mode_action(
                 "entity_id": f"security:{ref}",
                 "service": "security.set_mode",
                 "success": bool(ok),
-                "error": None if ok else "安防模式切换失败",
+                "error": None if ok else "安防模式切换失败（需安防模块授权）",
             }
 
         domain = action.get("domain") or action.get("entity_id", "").split(".")[0]

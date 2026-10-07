@@ -45,7 +45,7 @@ export const INTERACTION3D_LIGHTING_MODES = [
           sceneStyle: "default",
           wallOpacity: null as any,
           backgroundMotion: true,
-          renderScale: 0.8,
+          renderScale: 1,
           lightingMode: "standard",
           groundReflection: {
             mode: "off",

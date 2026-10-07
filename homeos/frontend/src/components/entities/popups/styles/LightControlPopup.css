@@ -28,8 +28,8 @@
   border-radius: 3px;
   background: linear-gradient(to right,
     var(--track-fill-from, var(--accent-from, var(--accent, #fbbf24))) 0%,
-    var(--track-fill-to, var(--accent-to, var(--accent, #fbbf24))) var(--progress-pct, var(--progress, 50%)),
-    var(--track-bg, var(--premium-border-strong)) var(--progress-pct, var(--progress, 50%)),
+    var(--track-fill-to, var(--accent-to, var(--accent, #fbbf24))) var(--progress-pct, var(--progress, 0%)),
+    var(--track-bg, var(--premium-border-strong)) var(--progress-pct, var(--progress, 0%)),
     var(--track-bg, var(--premium-border-strong)) 100%);
 }
 

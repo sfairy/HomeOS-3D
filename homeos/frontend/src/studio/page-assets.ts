@@ -1,8 +1,11 @@
 /**
  * 每个路由对应的 `<head>` 资产。
  *
- * 按路由在运行时同步到 `<head>`。样式表顺序即数组顺序 —— 例如
- * appearance.css 必须排在 auth/scene 四片之后（同为 :root 令牌，后加载的赢）。
+ * 按路由在运行时同步到 `<head>`（``App.vue`` 的 route.name watcher）。这**不是**旧的
+ * 「整页跳转换装」：样式表按声明安装 / 卸载，离开 studio 路由时 ``PAGE_ASSETS.shell``
+ * （空样式表清单）会把 display.css / renderer.css / app.css 清掉，避免残留到设备页。
+ * 样式表顺序即数组顺序 —— 例如 appearance.css 必须排在 auth/scene 四片之后
+ * （同为 :root 令牌，后加载的赢）。
  */
 
 export interface PageAssets {
@@ -54,7 +57,8 @@ export const PAGE_ASSETS = {
     stylesheets: [] as any[],
   } satisfies PageAssets,
 
-  setup: authPage("初始化 · HomeOS"),
+  setup: authPage("注册 · HomeOS"),
+  register: authPage("注册 · HomeOS"),
   login: authPage("登录 · HomeOS"),
   license: authPage("激活授权 · HomeOS"),
   licenseRecovery: authPage("连接状态 · HomeOS"),

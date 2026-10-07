@@ -859,8 +859,8 @@
   background: linear-gradient(
     to right,
     rgba(var(--page-accent-rgb), 0.85) 0%,
-    rgba(var(--page-accent-rgb), 0.85) var(--progress-pct, var(--range-progress, var(--progress, 50%))),
-    rgba(255, 255, 255, 0.08) var(--progress-pct, var(--range-progress, var(--progress, 50%))),
+    rgba(var(--page-accent-rgb), 0.85) var(--progress-pct, var(--range-progress, var(--progress, 0%))),
+    rgba(255, 255, 255, 0.08) var(--progress-pct, var(--range-progress, var(--progress, 0%))),
     rgba(255, 255, 255, 0.08) 100%
   );
 }
@@ -871,8 +871,8 @@
   background: linear-gradient(
     to right,
     rgba(var(--page-accent-rgb), 0.85) 0%,
-    rgba(var(--page-accent-rgb), 0.85) var(--progress-pct, var(--range-progress, var(--progress, 50%))),
-    rgba(255, 255, 255, 0.08) var(--progress-pct, var(--range-progress, var(--progress, 50%))),
+    rgba(var(--page-accent-rgb), 0.85) var(--progress-pct, var(--range-progress, var(--progress, 0%))),
+    rgba(255, 255, 255, 0.08) var(--progress-pct, var(--range-progress, var(--progress, 0%))),
     rgba(255, 255, 255, 0.08) 100%
   );
 }

@@ -1,6 +1,7 @@
 import { speakerState, speakerCommand } from "./speaker-state";
 import { televisionTime } from "../television/television-state";
 import { domElement } from "@app/utils/dom-factory";
+import { syncHtmlRangeProgress } from "@app/utils/range-progress";
 export function createSpeakerPanel({
   onControl: sendCommand = async (_commandArgs: any) => {},
   fetchMedia: fetchMedia = (fetchUrl: any, fetchInit: any) => fetch(fetchUrl, fetchInit),
@@ -29,6 +30,7 @@ export function createSpeakerPanel({
     (seekInput.min = "0"),
     (seekInput.step = "1"),
     seekInput.setAttribute("aria-label", "播放进度"),
+    seekInput.addEventListener("input", () => syncHtmlRangeProgress(seekInput)),
     detailsElement.append(
       trackTitleElement,
       artistElement,
@@ -156,7 +158,8 @@ export function createSpeakerPanel({
       service: "volume_set",
     }),
     volumeInput.addEventListener("input", () => {
-      volumeLabel.textContent = "音量 " + Math.round(Number(volumeInput.value)) + "%";
+      (syncHtmlRangeProgress(volumeInput),
+        (volumeLabel.textContent = "音量 " + Math.round(Number(volumeInput.value)) + "%"));
     }),
     volumeInput.addEventListener(
       "change",
@@ -458,12 +461,14 @@ export function createSpeakerPanel({
       (progressElement.max = seekInput.max = entityState.duration || 1),
       (progressElement.value = entityState.position || 0),
       document.activeElement !== seekInput && (seekInput.value = entityState.position || 0),
+      syncHtmlRangeProgress(seekInput),
       (seekInput.disabled = isControlDisabled(entityState, "media_seek") || !entityState.on),
       (timeElement.textContent =
         televisionTime(entityState.position) + " / " + televisionTime(entityState.duration)));
     const volumeLevel = entityState.attributes.volume_level;
     (document.activeElement !== volumeInput &&
       ((volumeInput.value = Number.isFinite(volumeLevel) ? volumeLevel * 100 : 0),
+      syncHtmlRangeProgress(volumeInput),
       (volumeLabel.textContent = Number.isFinite(volumeLevel)
         ? "音量 " + Math.round(volumeLevel * 100) + "%"
         : "音量")),

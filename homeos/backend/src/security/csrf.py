@@ -32,7 +32,8 @@ CSRF_HEADER = "x-csrf-token"
 CSRF_SKIP_PATHS = frozenset(
     {
         "/health",
-        "/api/v1/setup/admin",
+        "/api/v1/auth/register",
+        "/api/v1/auth/verification",
         "/api/v1/auth/login",
         "/api/v1/auth/logout",
         "/api/v1/license/activate",

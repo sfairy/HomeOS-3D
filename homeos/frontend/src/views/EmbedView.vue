@@ -108,6 +108,7 @@ const iframeKey = ref(0)
 let loadTimer = null
 
 function routeEmbedId() {
+  if (route.name === 'embed-movie-pilot') return 'movie-pilot'
   const id = route.params.id
   return Array.isArray(id) ? String(id[0] || '') : String(id || '')
 }

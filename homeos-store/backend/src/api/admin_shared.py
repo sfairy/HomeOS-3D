@@ -99,6 +99,7 @@ def _account_payload(session, account: Account) -> dict:
     ).first()
     return {
         "id": account.id,
+        "username": account.username,
         "email": account.email,
         "isAdmin": bool(account.is_admin),
         "isActive": bool(account.is_active),

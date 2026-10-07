@@ -9,6 +9,8 @@ PRODUCT_TYPE_LABELS: dict[str, str] = {
     "template": "模板",
     "package": "套餐",
     "bundle": "全授权",
+    #: 种子「全功能版」：一组功能码打包成的主授权版本（见 bootstrap.ensure_default_products）。
+    "edition_full": "全功能版",
 }
 
 PRODUCT_TYPES: frozenset[str] = frozenset(PRODUCT_TYPE_LABELS)

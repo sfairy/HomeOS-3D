@@ -22,12 +22,18 @@ from fastapi import Depends, Query, Request
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from ..core.errors import BusinessException, ErrorCode
+from ..dependencies import license_feature
 from ..security.auth_context import require_roles, require_user
+from ..services.license import features as feature_codes
 from .router import NestRouter
 
 logger = logging.getLogger("homeos.earthquake.api")
 
-router = NestRouter(prefix="/earthquake", tags=["awareness"])
+router = NestRouter(
+    prefix="/earthquake",
+    tags=["awareness"],
+    dependencies=[license_feature(feature_codes.FEATURE_EARTHQUAKE)],
+)
 
 #: 演练触发前的延迟：使前端有时间切换到预警监听状态（毫秒）
 SIMULATION_TRIGGER_DELAY_MS = 3000

@@ -34,6 +34,25 @@ ARGON2_PREFIX = "$argon2"
 #: 密码策略提示文案（与 Nest cookie-cors.util 完全一致）。
 PASSWORD_POLICY_MESSAGE = "密码至少 8 位，且须同时包含字母和数字"
 
+#: 「无本地凭据」哨兵口令：备份导入的账号用它占位（凭据留在导出的那台机器上）。
+EXTERNAL_PASSWORD_SENTINEL = "!no-local-credential-v1!"
+#: 历史哨兵：删号前的本机管理员账号文件写入口令（``admin_account.py`` 已删除，但存量库里
+#: 的行还在）。字面量在这里**只此一处**——源码里再也搜不到它，因为写入方已经没了。
+LEGACY_ADMIN_PASSWORD_SENTINEL = "!external-admin-account-v1!"
+#: 全部哨兵。都不是任何哈希算法可产生的格式，``verify_password`` 对它们必定返回 False。
+CREDENTIALLESS_SENTINELS = frozenset(
+    {EXTERNAL_PASSWORD_SENTINEL, LEGACY_ADMIN_PASSWORD_SENTINEL}
+)
+
+
+def is_credentialless(hashed: str | None) -> bool:
+    """该口令哈希是否为「无本地凭据」哨兵。
+
+    拿哨兵当口令的行**永远无法登录**（与传入什么口令无关）。判定用途见
+    ``api/auth.py`` 的 ``_claimable_legacy_user``：这类行不该把首装注册永久挡在 409 之外。
+    """
+    return (hashed or "") in CREDENTIALLESS_SENTINELS
+
 
 def hash_password(password: str) -> str:
     """生成 argon2id 哈希（新密码一律走这里）。"""

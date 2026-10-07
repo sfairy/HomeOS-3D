@@ -13,6 +13,7 @@
       <img
         v-if="item.type === 'file' && canPreview(item) && isImage(item)"
         :src="item.url"
+        :alt="`${item.name} 预览`"
         class="asset-list-item__thumb"
         @error="onPreviewError(item.name)"
       />

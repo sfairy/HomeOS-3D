@@ -140,25 +140,40 @@
           v-if="allCameras.length > 1"
           class="w-44 h-full bg-[#0d1017] border-l border-white/5 flex flex-col gap-3 p-3 overflow-y-auto hidden-scrollbar"
         >
-          <div
+          <!-- 摄像头缩略图原先也是可点击的 <div>：鼠标可用但不可聚焦、无键盘激活。
+               改成 button 后获得原生键盘语义与焦点环。内部叠层只能用 span：
+               button 的内容模型是 phrasing content，塞 div/p 属于非法 HTML。
+               名称由 aria-label 承载，图片转为装饰性，避免读屏把名字念两遍。 -->
+          <button
             v-for="cam in allCameras"
             :key="cam"
+            type="button"
             :class="[
-              'relative aspect-video rounded-xl overflow-hidden border-2 transition-all cursor-pointer flex-shrink-0',
+              'relative aspect-video rounded-xl overflow-hidden border-2 transition-all cursor-pointer shrink-0 bg-transparent p-0',
               activeCameraId === cam
                 ? 'sec-camera-thumb--active scale-[1.02]'
                 : 'border-white/5 opacity-30 hover:opacity-100 hover:border-white/20',
             ]"
+            :aria-label="`切换到 ${getCameraName(cam)} 画面`"
+            :aria-current="activeCameraId === cam ? 'true' : undefined"
             @click="activeCameraId = cam"
           >
             <!-- 仅当前选中路拉实时流，其余侧栏缩略图用单帧快照，避免同时打开多路 MJPEG 流压垮平板/HA -->
-            <img :src="getSnapshotUrl(cam)" class="w-full h-full object-cover" loading="lazy" />
-            <div
-              class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black to-transparent p-1.5"
+            <img
+              :src="getSnapshotUrl(cam)"
+              alt=""
+              aria-hidden="true"
+              class="w-full h-full object-cover"
+              loading="lazy"
+            />
+            <span
+              class="absolute inset-x-0 bottom-0 block bg-gradient-to-t from-black to-transparent p-1.5"
             >
-              <p class="text-[12px] text-white font-bold truncate">{{ getCameraName(cam) }}</p>
-            </div>
-          </div>
+              <span class="block text-[12px] text-white font-bold truncate">{{
+                getCameraName(cam)
+              }}</span>
+            </span>
+          </button>
         </div>
       </div>
     </div>

@@ -21,14 +21,18 @@ export function needsHaMediaProxy(resourceUrl: string): boolean {
 
 /**
  * 构造 HomeOS 同源代理 URL。
+ *
+ * 阶段 3 起 `ha_proxy` 在同源挂载与 HA 相同的路径前缀
+ *（`/api/camera_proxy`、`/api/camera_proxy_stream`、`/api/hls` 等），
+ * 旧的 `/api/v1/ha/media-proxy?path=` / `stream-proxy` 已下线。
+ * `kind` 由调用方写进 HA 路径（快照 vs 流），此处仅做同源路径归一化。
+ *
  * @param haPath HA 相对路径（自动补前导斜杠）
- * @param kind 代理类型，决定走 media-proxy 还是 stream-proxy 端点
- * @returns 形如 `/api/v1/ha/<kind>-proxy?path=<encoded>` 的同源地址
+ * @param _kind 保留参数以兼容既有调用方（media / stream）
+ * @returns 形如 `/api/camera_proxy/<entity>?token=...` 的同源地址
  */
-function buildHaProxyUrl(haPath: string, kind: HaProxyKind = 'media'): string {
-  const base = kind === 'stream' ? '/api/v1/ha/stream-proxy' : '/api/v1/ha/media-proxy'
-  const path = haPath.startsWith('/') ? haPath : `/${haPath}`
-  return `${base}?path=${encodeURIComponent(path)}`
+function buildHaProxyUrl(haPath: string, _kind: HaProxyKind = 'media'): string {
+  return haPath.startsWith('/') ? haPath : `/${haPath}`
 }
 
 /**

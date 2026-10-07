@@ -2,15 +2,14 @@
  * @file 编辑模式行为
  * @module stores/ui/create-edit-mode-actions
  * @description
- *  布局编辑模式的顶层行为集合：楼层切换、进入/退出编辑模式、
+ *  布局编辑模式的顶层行为集合：进入/退出编辑模式、
  *  实体放置（placementEntity）的设置/清除/切换、退出确认流程。
  *  关键路径：
  *  - 进入编辑模式时清空并初始化编辑历史栈
  *  - 退出时若有未保存修改需弹确认框，确认后 reload 配置丢弃修改
- *  - 楼层切换时临时抑制 dirty 跟踪，避免误标记脏数据
- *  依赖 Vue nextTick 与多个外部注入的 ref / 方法。
+ *  依赖多个外部注入的 ref / 方法。
  */
-import { nextTick, type Ref } from 'vue'
+import type { Ref } from 'vue'
 import type { UILayoutConfig } from '@/types/layout'
 
 /** 放置实体载荷：id 为 entity_id，type 为可选 widget 类型提示 */
@@ -21,7 +20,7 @@ interface PlacementEntityPayload {
 
 /** createEditModeActions 的依赖注入参数 */
 interface EditModeActionsDeps {
-  /** 布局配置 */
+  /** 布局配置（调用方仍传入以保持签名一致；当前实现只读 ref 与回调） */
   layoutConfig: UILayoutConfig
   /** 脏标志 ref */
   layoutDirty: Ref<boolean>
@@ -33,7 +32,7 @@ interface EditModeActionsDeps {
   placementEntity: Ref<PlacementEntityPayload | null>
   /** 退出编辑确认弹窗开关 ref */
   showExitEditConfirm: Ref<boolean>
-  /** 临时抑制 dirty 跟踪的回调（楼层切换等批量操作时使用） */
+  /** 临时抑制 dirty 跟踪的回调（批量操作时使用；调用方仍传入，当前实现未读取） */
   setSuppressDirtyTracking: (v: boolean) => void
   /** 推送编辑历史的回调 */
   pushEditHistory: (immediate?: boolean, force?: boolean) => void
@@ -44,23 +43,21 @@ interface EditModeActionsDeps {
 }
 
 /**
- * 编辑模式：楼层切换、进入/退出、放置实体（layout 拆分模块）。
+ * 编辑模式：进入/退出、放置实体（layout 拆分模块）。
  *
- * 集中管理编辑模式的生命周期与楼层/放置实体状态，
+ * 集中管理编辑模式的生命周期与放置实体状态，
  * 确保编辑历史的初始化与清理时机正确。
  *
  * @param deps 依赖注入参数
- * @returns 楼层切换、编辑模式开关、放置实体控制等行为函数
+ * @returns 编辑模式开关、放置实体控制等行为函数
  */
 export function createEditModeActions(deps: EditModeActionsDeps) {
   const {
-    layoutConfig,
     layoutDirty,
     isEditMode,
     selectedWidgetId,
     placementEntity,
     showExitEditConfirm,
-    setSuppressDirtyTracking,
     pushEditHistory,
     clearEditHistory,
     loadConfig,

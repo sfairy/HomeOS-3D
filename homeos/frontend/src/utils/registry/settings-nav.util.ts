@@ -48,6 +48,7 @@ const TAB_LABELS: Record<string, string> = {
   family: '家庭状态',
   retention: '数据保留',
   devices: '绑定清理',
+  license: '授权状态',
 }
 
 const PAGE_TITLE_LABELS: Record<string, string> = {
@@ -85,10 +86,43 @@ const PAGE_DESC_LABELS: Record<string, string> = {
   agent: '自然语言家居控制与多轮对话',
   widgets: '右侧面板微件的添加、排序与配置',
   family: '家庭模式、勿扰、通知与儿童模式',
+  license: '本机授权状态、租约与权益清单，含重连 / 重激活 / 退出',
 }
 
 /** DEFAULT_TAB：常量，取值语义见定义处。 */
 export const DEFAULT_TAB = 'setup-wizard'
+
+/**
+ * 设置 Tab → 所需功能码。
+ *
+ * 只登记**与某个增量模块一一对应**的 Tab。刻意不登记的是聚合型 Tab（``alerts`` 一个面板里
+ * 同时编排通知、语音播报与地震预警），按单个码收起会把其它已购模块的配置一起藏掉，
+ * 这类面板的可用性交由后端路由门禁兜底。
+ */
+const TAB_FEATURES: Record<string, string> = {
+  voice: 'module.voice',
+  agent: 'module.agent',
+  'home-mode': 'module.home_mode',
+  'security-modes': 'module.security',
+  'life-accounts': 'module.energy',
+  'smart-charge': 'module.energy',
+}
+
+/** 查询 Tab 所需功能码；未登记（不参与门禁）返回空串 */
+export function tabFeature(tabId: string) {
+  return TAB_FEATURES[tabId] ?? ''
+}
+
+/**
+ * 判定 Tab 是否被授权放行（仅界面显隐）。
+ * @param tabId Tab id
+ * @param featureAccess 功能码明细；缺省或未含该码时一律放行（fail-open，接口层 403 兜底）
+ */
+export function isTabFeatureGranted(tabId: string, featureAccess?: Record<string, boolean>) {
+  const code = TAB_FEATURES[tabId]
+  if (!code || !featureAccess) return true
+  return featureAccess[code] !== false
+}
 
 /** NAV_STRUCTURE：常量集合，成员语义见定义处。 */
 export const NAV_STRUCTURE = [
@@ -102,6 +136,7 @@ export const NAV_STRUCTURE = [
     tabs: [
       'family',
       'profiles',
+      'license',
       'retention',
       'diagnostics',
       'params',
@@ -133,6 +168,7 @@ export const ADMIN_ONLY_TABS = new Set([
   'diagnostics',
   'params',
   'devices',
+  'license',
 ])
 
 const ALL_TAB_IDS = new Set(NAV_STRUCTURE.flatMap((g) => g.tabs))

@@ -525,7 +525,11 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
         scope = light_history_scope(active_connection(database), viewer, projectId)
     scene_path(request, sceneId)
     settings = request.app.state.settings
-    html = (settings.frontend_dir / 'index.html').read_text(encoding='utf-8')
+    index_path = settings.frontend_dir / 'index.html'
+    if not index_path.is_file():
+        # watch-build / 首次构建窗口里 dist 可能尚未就绪；回 503 而不是 ASGI 裸异常。
+        raise HTTPException(503, detail='前端产物尚未就绪，请稍后重试。')
+    html = index_path.read_text(encoding='utf-8')
     html = html.replace(
         '</head>',
         '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css?v=20261002-light-popup-v1-20260930-warm-selection-v3-20260930-media-canvas-ratio-v4-20260930-marker-subpixel-v1-20260927-follow-ui-v1-20260926-label-opacity-v1-20260925-touch-target-v1-light-menu-v1-20260926-speaker-clean-v6-20260926-airer-v2"></head>',

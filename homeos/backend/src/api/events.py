@@ -7,8 +7,10 @@ from typing import Any
 from fastapi import Depends, Query, Request
 
 from ..core.errors import forbidden
+from ..dependencies import require_license_feature
 from ..realtime.access import is_entity_allowed, resolve_entity_restrictions
 from ..security.auth_context import require_roles, require_user
+from ..services.license import features as feature_codes
 from .router import NestRouter
 
 router = NestRouter(prefix="/events", tags=["connect"])
@@ -106,6 +108,9 @@ async def get_report_compare(
     field: str | None = Query(default=None),
     user: dict[str, Any] = Depends(require_user),
 ):
+    resolved_metric = metric if metric in ("energy", "environment", "device") else "events"
+    if resolved_metric == "energy":
+        require_license_feature(request, feature_codes.FEATURE_ENERGY)
     restrictions = resolve_entity_restrictions(user)
     ids = [part.strip() for part in (entity_ids or "").split(",") if part.strip()] or None
     if ids and restrictions is not None:
@@ -114,7 +119,7 @@ async def get_report_compare(
                 forbidden("无权查看该实体的报表数据")
     return _service(request).report_compare(
         {
-            "metric": metric if metric in ("energy", "environment", "device") else "events",
+            "metric": resolved_metric,
             "granularity": "month" if granularity == "month" else "week",
             "entityIds": ids,
             "field": field if field in ("humidity", "iaq") else "temperature",

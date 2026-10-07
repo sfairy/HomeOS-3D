@@ -28,10 +28,11 @@ def _settings(request: Request):
 
 
 def resolve_restrictions(role: str, preferences: Any = None) -> list[str] | None:
-    """实体级限制：homeos-3d 模型下不存在，恒不限制。
+    """实体级白名单限制（adult/child/guest ACL）：**刻意未实现**，恒返回 ``None``。
 
-    保留原签名（``role`` / ``preferences``）以兼容既有调用点；``preferences`` 已随
-    ``users.preferences`` 列下线。
+    HomeOS 现行模型只用角色（admin/user/child/guest）+ 域级限制
+    （见 ``is_child_domain_access_denied``），不做 per-entity whitelist。
+    保留签名以免 Agent/MCP / 备份路径的调用点断裂；勿再假设返回值非空。
     """
     return None
 

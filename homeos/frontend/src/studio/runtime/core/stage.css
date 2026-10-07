@@ -638,15 +638,42 @@ body.interaction3d-stage.is-background-hidden,
   border-radius: 10px;
   appearance: none;
   -webkit-appearance: none;
-  background: linear-gradient(90deg, #514435, #d6ae65);
+  /* 默认与亮度同款：按 --progress-pct 裁切，避免音量/风速等拇指后露装饰渐变 */
+  background: linear-gradient(
+    90deg,
+    #d6ae65 0%,
+    #d6ae65 var(--hb-light-slider-progress, var(--progress-pct, 0%)),
+    #3a342c var(--hb-light-slider-progress, var(--progress-pct, 0%)),
+    #3a342c 100%
+  );
   cursor: pointer;
   box-shadow:
     0 0 0 2px #7e6f6640,
     inset 0 2px 7px #000c;
   box-sizing: border-box;
 }
+.interaction3d-stage .i3d-brightness input {
+  background: linear-gradient(
+    90deg,
+    #d6ae65 0%,
+    #d6ae65 var(--hb-light-slider-progress, var(--progress-pct, 0%)),
+    #3a342c var(--hb-light-slider-progress, var(--progress-pct, 0%)),
+    #3a342c 100%
+  ) !important;
+}
 .interaction3d-stage .i3d-temperature input {
-  background: linear-gradient(90deg, #eaa95b, #f1e1bf, #b8d6f4);
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      transparent var(--hb-light-slider-progress, var(--progress-pct, 0%)),
+      #3a342c var(--hb-light-slider-progress, var(--progress-pct, 0%)),
+      #3a342c 100%
+    ),
+    linear-gradient(90deg, #eaa95b, #f1e1bf, #b8d6f4) !important;
+}
+.interaction3d-stage :is(.i3d-slider input, input.i3d-control-range)::-webkit-slider-runnable-track {
+  background: transparent !important;
 }
 .interaction3d-stage :is(.i3d-slider input, input.i3d-control-range)::-webkit-slider-thumb {
   width: 36px;
@@ -2866,17 +2893,42 @@ body.interaction3d-stage.is-background-hidden,
     inset 0 1px 3px #6a513322;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] :is(.i3d-slider input, input.i3d-control-range) {
-  background: linear-gradient(90deg, #d9cbb5, #b88c4c);
+  background: linear-gradient(
+    90deg,
+    #b88c4c 0%,
+    #b88c4c var(--hb-light-slider-progress, var(--progress-pct, 0%)),
+    #ddd2c0 var(--hb-light-slider-progress, var(--progress-pct, 0%)),
+    #ddd2c0 100%
+  );
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-brightness input {
+  background: linear-gradient(
+    90deg,
+    #b88c4c 0%,
+    #b88c4c var(--hb-light-slider-progress, var(--progress-pct, 0%)),
+    #ddd2c0 var(--hb-light-slider-progress, var(--progress-pct, 0%)),
+    #ddd2c0 100%
+  ) !important;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-temperature input {
-  background: linear-gradient(90deg, #e4ad6b, #f3ead9, #a8c7dd);
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      transparent var(--hb-light-slider-progress, var(--progress-pct, 0%)),
+      #ddd2c0 var(--hb-light-slider-progress, var(--progress-pct, 0%)),
+      #ddd2c0 100%
+    ),
+    linear-gradient(90deg, #e4ad6b, #f3ead9, #a8c7dd) !important;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .hb-cover-details-position input {
   background: linear-gradient(
     90deg,
-    #ae8c59 var(--hb-cover-position-progress, 0%),
-    #ded4c3 var(--hb-cover-position-progress, 0%)
-  );
+    #ae8c59 0%,
+    #ae8c59 var(--hb-cover-position-progress, var(--progress-pct, 0%)),
+    #ded4c3 var(--hb-cover-position-progress, var(--progress-pct, 0%)),
+    #ded4c3 100%
+  ) !important;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel {
   --i3d-climate-accent: #655947;

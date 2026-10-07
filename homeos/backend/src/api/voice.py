@@ -19,10 +19,16 @@ from typing import Annotated, Any
 from fastapi import Depends, Request
 from pydantic import BaseModel, BeforeValidator, ConfigDict
 
+from ..dependencies import license_feature
 from ..security.auth_context import require_roles, require_user
+from ..services.license import features as feature_codes
 from .router import NestRouter
 
-router = NestRouter(prefix="/system", tags=["system"])
+router = NestRouter(
+    prefix="/system",
+    tags=["system"],
+    dependencies=[license_feature(feature_codes.FEATURE_VOICE)],
+)
 
 
 class StrictModel(BaseModel):

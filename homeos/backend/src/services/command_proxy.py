@@ -142,9 +142,6 @@ class CommandProxyService:
             logger.error("[命令错误] %s.%s → %s 失败: %s", domain, service, entity_id, message)
             bad_request(api_error("PROXY_HA_SERVICE_FAILED", message))
 
-    async def fetch_history(self, entity_ids: list[str], hours: int) -> Any:
-        return await self._connector.fetch_history(entity_ids, hours)
-
     async def test_ha_connection(self, url: str, token: str) -> dict[str, Any]:
         return await self._connector.test_ha_connection(url, token)
 

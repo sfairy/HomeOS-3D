@@ -19,8 +19,9 @@ from sqlalchemy import select
 from ...config import Settings
 from ...core.database import Database
 from ...core.models import LicenseState
+from . import features as feature_codes
 from .crypto import LeaseVerifier, LicenseCryptoError, LicenseTransportCipher, SecretCipher, parse_timestamp
-from .endpoints import LICENSE_RETRY_SECONDS, LicenseEndpointPool
+from .endpoints import LICENSE_RETRY_SECONDS, LicenseEndpoint, LicenseEndpointPool
 from .hardware import hardware_instance_id
 from .process_lock import LicenseProcessLock
 from .trust import verify_license_trust_anchors
@@ -43,6 +44,11 @@ TERMINAL_STATES = {
 
 CONFIRMED_REVOCATION_CODES = frozenset({'REVOKED', 'LICENSE_REVOKED'})
 BINDING_RELEASED_CODES = frozenset({'BINDING_RELEASED'})
+INSTANCE_MISMATCH_CODES = frozenset({'INSTANCE_MISMATCH'})
+
+#: 商店重放保护拒收随机数时用的文案。线上协议的一部分：靠它才认得出
+#: 「上一次其实已经受理、只是响应丢了」这种可以换随机数自愈的情况。
+NONCE_REPLAY_DETAIL = '请求随机数已使用，请重新发起请求。'
 
 
 class LicenseClientError(RuntimeError):
@@ -73,10 +79,22 @@ class LicenseClientError(RuntimeError):
     def is_nonce_replay(self) -> bool:
         """仅当授权服务明确拒绝了被重放的随机数时为真。
 
-        409 也可能是并发请求撞在同一个随机数上，只有文案确认「随机数已使用」才说明这次
-        请求真的被重放保护拦下。
+        ``code`` 是结构化判据；文案比对留给还没有这个码的商店（409 也可能是并发请求撞在
+        同一个随机数上，两种判据都不认就说明不是重放保护拦下的）。
         """
-        return self.status_code == 409 and str(self) == '请求随机数已使用，请重新发起请求。'
+        if self.status_code != 409:
+            return False
+        return self.code == 'NONCE_REPLAY' or str(self) == NONCE_REPLAY_DETAIL
+
+    @property
+    def is_instance_mismatch(self) -> bool:
+        """商店说这份会话属于另一台机器：授权还在，重新激活即可。
+
+        与 :attr:`is_confirmed_revocation` 分开，是因为商店一度把这种情况也按「已吊销」
+        回给了客户端（``revoked=True`` 且不给码，兜底成 ``REVOKED``），客户端于是把它当
+        「授权没了」处理，用户被卡在只能联系管理员的死局里；实际动作是重新激活。
+        """
+        return self.status_code in {401, 403, 409} and self.code in INSTANCE_MISMATCH_CODES
 
     @property
     def requires_rebind(self) -> bool:
@@ -89,19 +107,28 @@ class LicenseClientError(RuntimeError):
         return self.status_code in {401, 403} and self.code in BINDING_RELEASED_CODES
 
 
-BASE_FEATURES = {
-    'api',
-    'assets',
-    'editor',
-    'display',
-    'ha.sync',
-    'ha.control',
-    'ha.configure',
-    'projects.write',
-    'runtime.websocket'}
+BASE_FEATURES = feature_codes.BASE_FEATURES
 
 MANUAL_ACTIVATION_REQUIRED = 'LICENSE_ACTIVATION_REQUIRED'
 RATE_LIMIT_COOLDOWN_SECONDS = 120.0
+
+#: 状态 → 中文文案（事件日志与 ``_payload`` 的 ``statusLabel`` 共用一份，避免两处漂移）。
+STATUS_LABELS = {
+    'UNACTIVATED': '未激活',
+    'ACTIVE': '正常',
+    'CONNECTION_WARNING': '连接异常',
+    'LEASE_EXPIRED': '租约已到期',
+    'REVOKED': '已吊销',
+    'INVALID': '校验无效',
+    'INSTANCE_CHANGED': '安装标识已变化',
+    'INSTANCE_MISMATCH': '安装标识不匹配',
+    'CLOCK_ROLLBACK': '系统时间异常',
+    'DEACTIVATED': '已停用',
+    'RECOVERY_RETRY': '授权会话重试中',
+    'RECOVERY_REQUIRED': '授权会话需人工恢复',
+    'REMOTE_REJECTED': '授权后台明确拒绝',
+    'STARTUP_VALIDATION_REQUIRED': '等待启动联网验证',
+}
 
 
 def aware(value):
@@ -140,6 +167,9 @@ class LicenseService:
         self._success_generation = 0
         self._last_binding_confirm_at = 0.0
         self._rate_limited_until = 0.0
+        # allows() 热路径缓存：key=(lease_id, sequence, feature) → (monotonic_deadline, allowed)
+        self._allow_cache: dict[tuple[str, int, str], tuple[float, bool]] = {}
+        self._allow_cache_ttl_seconds = 2.0
 
     def _rate_limit_remaining(self) -> float:
         return max(0.0, self._rate_limited_until - time.monotonic())
@@ -181,21 +211,7 @@ class LicenseService:
             pass
 
     def _record_status(self, status: str, reason: str | None = None) -> None:
-        labels = {
-            'UNACTIVATED': '未激活',
-            'ACTIVE': '正常',
-            'CONNECTION_WARNING': '连接异常',
-            'LEASE_EXPIRED': '租约已到期',
-            'REVOKED': '已吊销',
-            'INVALID': '校验无效',
-            'INSTANCE_CHANGED': '安装标识已变化',
-            'INSTANCE_MISMATCH': '安装标识不匹配',
-            'CLOCK_ROLLBACK': '系统时间异常',
-            'DEACTIVATED': '已停用',
-            'RECOVERY_RETRY': '授权会话重试中',
-            'RECOVERY_REQUIRED': '授权会话需人工恢复',
-            'REMOTE_REJECTED': '授权后台明确拒绝',
-            'STARTUP_VALIDATION_REQUIRED': '等待启动联网验证'}
+        labels = STATUS_LABELS
         with self._event_lock:
             previous = self._observed_status
             if previous == status:
@@ -371,8 +387,9 @@ class LicenseService:
                 raise LicenseCryptoError('本地授权会话与签名租约不一致。')
             expires = parse_timestamp(payload['expiresAt'])
             now = datetime.now(UTC)
-            last_verified = aware(state.last_verified_at)
-            if (last_verified and now + timedelta(seconds=self.settings.license_clock_skew_seconds) < last_verified) or parse_timestamp(payload['issuedAt']) > now + timedelta(seconds=self.settings.license_clock_skew_seconds):
+            # 时间回拨只认签名租约里的 ``issuedAt``（商店私钥签的），不再叠加本地
+            # ``last_verified_at``：后者可写，抹掉就能绕过回拨判定。
+            if parse_timestamp(payload['issuedAt']) > now + timedelta(seconds=self.settings.license_clock_skew_seconds):
                 state.status = 'CLOCK_ROLLBACK'
                 state.last_error = '检测到系统时间回拨，请校准系统时间后重新验证授权。'
             else:
@@ -397,6 +414,31 @@ class LicenseService:
             raise LicenseClientError('尚未配置授权服务器地址。')
         if not candidates:
             raise LicenseClientError('授权服务器暂时不可用，请稍后重试。')
+        current = dict(payload)
+        failure: LicenseClientError | None = None
+        # 服务端重放保护只让一个随机数生效一次。线路轮询（esa → eo → 直连）会把同一份载荷
+        # 原样重发：若前一条线其实已经受理、只是响应在路上丢了，后一条线必然收到
+        # 409「随机数已使用」。随机数不是凭据，换一个重发就能接着走；把它当成授权失败，
+        # 会把「上一次其实成功了」误报成失败给用户看。
+        for attempt in range(2):
+            if attempt:
+                if 'nonce' not in current:
+                    break
+                current = {**current, 'nonce': secrets.token_urlsafe(24)}
+            result, failure, replayed = await self._post_round(candidates, path, current)
+            if result is not None:
+                return result
+            if not replayed:
+                break
+        raise failure or LicenseClientError('无法连接授权服务器。')
+
+    async def _post_round(
+        self, candidates: list[LicenseEndpoint], path: str, payload: dict
+    ) -> tuple[dict | None, LicenseClientError | None, bool]:
+        """发一轮：按线路顺序试同一份载荷。
+
+        返回 ``(响应, 失败原因, 是否被重放保护拦下)``；第三项为真时调用方应换随机数重试。
+        """
         last_failure = None
         async with httpx.AsyncClient(transport=self._transport, timeout=self.settings.license_request_timeout_seconds) as client:
             for endpoint in candidates:
@@ -412,19 +454,22 @@ class LicenseService:
                         continue
                     if response.status_code >= 400:
                         detail, response_code = self._response_error_body(response)
-                        raise LicenseClientError(
+                        error = LicenseClientError(
                             detail,
                             status_code=response.status_code,
                             code='LICENSE_RATE_LIMITED' if response.status_code == 429 else response_code)
+                        if error.is_nonce_replay:
+                            return None, error, True
+                        raise error
                     if not response.content:
-                        return {}
+                        return {}, None, False
                     parsed = response.json()
                     if not isinstance(parsed, dict):
                         self._endpoint_pool.mark_failed(endpoint.base_url)
                         last_failure = LicenseClientError('授权服务器响应格式无效。')
                         continue
                     parsed = self.transport_cipher.decrypt_response(parsed, path, response_key)
-                    return parsed
+                    return parsed, None, False
                 except httpx.HTTPError as error:
                     self._endpoint_pool.mark_failed(endpoint.base_url)
                     last_failure = LicenseClientError(
@@ -436,7 +481,7 @@ class LicenseService:
                 except LicenseCryptoError as error:
                     self._endpoint_pool.mark_failed(endpoint.base_url)
                     last_failure = LicenseClientError(str(error))
-        raise last_failure or LicenseClientError('无法连接授权服务器。')
+        return None, last_failure, False
 
     @staticmethod
     def _response_error_body(response: httpx.Response) -> tuple[str, str | None]:
@@ -450,7 +495,7 @@ class LicenseService:
         code = parsed.get('code')
         return str(detail), code if isinstance(code, str) and code else None
 
-    def _apply_response(self, response: dict, *, activation_code_hint: str | None = None, activation_code: str | None = None, email: str | None = None) -> dict:
+    def _apply_response(self, response: dict, *, activation_code_hint: str | None = None, activation_code: str | None = None, email: str | None = None, account_name: str | None = None) -> dict:
         signed_lease = response.get('signedLease', '')
         with self.database.session_factory() as database:
             state = self._state(database)
@@ -504,8 +549,6 @@ class LicenseService:
                 self._record_status(state.status, state.last_error)
                 raise LicenseClientError(state.last_error or '')
             state.feature_set = json.dumps(features)
-            state.max_projects = 0
-            state.max_displays = 0
             state.heartbeat_interval_seconds = max(30, int(response.get('heartbeatIn', 300)))
             state.last_error = None
             state.deactivated_at = None
@@ -517,11 +560,14 @@ class LicenseService:
                 state.encrypted_activation_code = self.cipher.encrypt(activation_code)
             if email:
                 state.activation_email = email
+            if account_name:
+                state.activated_by = account_name
             if response.get('sessionToken'):
                 state.encrypted_session_token = self.cipher.encrypt(response['sessionToken'])
             if response.get('recoveryToken'):
                 state.encrypted_recovery_token = self.cipher.encrypt(response['recoveryToken'])
             database.commit()
+            self.invalidate_allow_cache()
             self._startup_validation_pending = False
             self._failures = 0
             self._next_attempt = None
@@ -530,11 +576,11 @@ class LicenseService:
             self._schedule_changed.set()
             return self._payload(state)
 
-    async def activate(self, activation_code: str, email: str | None = None) -> dict:
+    async def activate(self, activation_code: str, email: str | None = None, account_name: str | None = None) -> dict:
         async with self._credential_operation():
-            return await self._activate_unlocked(activation_code, email)
+            return await self._activate_unlocked(activation_code, email, account_name)
 
-    async def _activate_unlocked(self, activation_code: str, email: str | None = None) -> dict:
+    async def _activate_unlocked(self, activation_code: str, email: str | None = None, account_name: str | None = None) -> dict:
         with self.database.session_factory() as database:
             state = self._state(database)
             instance_id = state.instance_id
@@ -549,6 +595,10 @@ class LicenseService:
             self._record_failure('激活', '请输入购买授权时使用的邮箱。')
             raise LicenseClientError('请输入购买授权时使用的邮箱。', status_code=422)
         payload['email'] = normalized_email
+        # 「授权用户增设账户名」：本机账号名随激活上报，商店写入设备绑定。
+        normalized_account = (account_name or '').strip()
+        if normalized_account:
+            payload['accountName'] = normalized_account
         try:
             try:
                 response = await self._post('/v2/activate', payload)
@@ -563,17 +613,20 @@ class LicenseService:
                 response,
                 activation_code_hint=activation_code.strip()[:-9],
                 activation_code=payload['activationCode'],
-                email=normalized_email)
+                email=normalized_email,
+                account_name=normalized_account or None)
         except (LicenseClientError, LicenseCryptoError) as error:
             self._record_failure('激活', error, sensitive_values=(activation_code, activation_code.strip(), payload['activationCode'], email or '', normalized_email))
-            if isinstance(error, LicenseClientError) and error.status_code == 409:
+            # 只认「实例不匹配」这个码：409 也可能是重放保护拒了随机数，那跟绑定没关系，
+            # 按实例冲突记下来会让用户看到「该授权已绑定其他设备」这种牛头不对马嘴的提示。
+            if isinstance(error, LicenseClientError) and error.is_instance_mismatch:
                 self._mark_instance_conflict(str(error))
             raise
         self._record_online_success('激活')
         self._schedule_changed.set()
         return result
 
-    async def reactivate(self) -> dict:
+    async def reactivate(self, account_name: str | None = None) -> dict:
         (licensed, encrypted_activation_code, email) = await asyncio.to_thread(self._activation_credentials)
         if not licensed:
             raise LicenseClientError(
@@ -600,7 +653,7 @@ class LicenseService:
                 status_code=409,
                 code=MANUAL_ACTIVATION_REQUIRED) from error
         try:
-            return await self.activate(activation_code, email)
+            return await self.activate(activation_code, email, account_name)
         except LicenseClientError as error:
             self._record_failure('重新激活', error, sensitive_values=(activation_code, email))
             raise
@@ -639,6 +692,9 @@ class LicenseService:
             self._record_failure('心跳', error, sensitive_values=(session_token, encrypted))
             if isinstance(error, LicenseClientError) and error.requires_rebind:
                 self._mark_binding_released(str(error))
+                raise LicenseClientError(str(error), status_code=error.status_code, code=error.code) from error
+            if isinstance(error, LicenseClientError) and error.is_instance_mismatch:
+                self._mark_instance_conflict(str(error))
                 raise LicenseClientError(str(error), status_code=error.status_code, code=error.code) from error
             if isinstance(error, LicenseClientError) and error.is_confirmed_revocation:
                 self._mark_revoked(str(error))
@@ -724,6 +780,9 @@ class LicenseService:
             if isinstance(error, LicenseClientError) and error.requires_rebind:
                 self._mark_binding_released(str(error))
                 raise LicenseClientError(str(error), status_code=error.status_code, code=error.code) from error
+            if isinstance(error, LicenseClientError) and error.is_instance_mismatch:
+                self._mark_instance_conflict(str(error))
+                raise LicenseClientError(str(error), status_code=error.status_code, code=error.code) from error
             if isinstance(error, LicenseClientError) and error.is_confirmed_revocation:
                 self._mark_revoked(str(error))
                 raise LicenseClientError(str(error), status_code=error.status_code) from error
@@ -759,6 +818,7 @@ class LicenseService:
             state.status = 'INSTANCE_CHANGED'
             state.last_error = '该授权已在商店解除设备绑定，请重新激活授权。'
             database.commit()
+        self.invalidate_allow_cache()
         self._error_code = 'INSTANCE_CHANGED'
         self._next_attempt = None
         self._record_status('INSTANCE_CHANGED', message[:200])
@@ -864,16 +924,60 @@ class LicenseService:
                 if self._stop.is_set():
                     break
 
+    @staticmethod
+    def _signed_timestamp(payload: dict, key: str) -> datetime | None:
+        """读签名租约里的时间戳；缺失或格式异常时返回 ``None``（由调用方决定降级口径）。"""
+        raw = payload.get(key)
+        if not isinstance(raw, str) or not raw:
+            return None
+        try:
+            return aware(parse_timestamp(raw))
+        except (LicenseCryptoError, TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _mask_email(email: str | None) -> str | None:
+        """邮箱脱敏：``ab***@example.com``。状态面板要展示又不宜全明文。"""
+        value = (email or '').strip()
+        if not value or '@' not in value:
+            return value or None
+        local, _, domain = value.partition('@')
+        if len(local) <= 2:
+            masked_local = local[:1] + '***'
+        else:
+            masked_local = local[:2] + '***'
+        return f'{masked_local}@{domain}'
+
+    def _public_key_fingerprint(self) -> str:
+        """授权公钥指纹（只给前后缀），供状态页核对是否与商店发布一致。"""
+        raw = (self.settings.license_public_key_sha256 or '').strip()
+        if not raw:
+            return ''
+        if len(raw) <= 20:
+            return raw
+        return f'{raw[:8]}…{raw[-8:]}'
+
     def _payload(self, state: LicenseState) -> dict:
         effective_status = state.status
         effective_error = state.last_error
         now = datetime.now(UTC)
-        last_verified = aware(state.last_verified_at)
-        lease_expires = aware(state.lease_expires_at)
-        if last_verified and now + timedelta(seconds=self.settings.license_clock_skew_seconds) < last_verified:
+        # 时间锚点用**服务端签名的时间**，不用可变的本地 ``last_verified_at``：租约的
+        # ``issuedAt``/``expiresAt`` 由商店私钥签名，本机改不动，所以它才是「现在到底
+        # 该不该有效」的可信起点。以前靠 ``last_verified_at``（本地列）判时间回拨，
+        # 清空这一列就能绕过，而签名时间戳绕不过去。
+        signed_payload: dict = {}
+        if state.signed_lease:
+            try:
+                signed_payload = self.verifier.verify(state.signed_lease, state.instance_id)
+            except LicenseCryptoError:
+                signed_payload = {}
+        skew = timedelta(seconds=self.settings.license_clock_skew_seconds)
+        server_issued_at = self._signed_timestamp(signed_payload, 'issuedAt')
+        if server_issued_at is not None and server_issued_at > now + skew:
             effective_status = 'CLOCK_ROLLBACK'
-            effective_error = '检测到系统时间回拨，请校准系统时间后重新验证授权。'
-        elif lease_expires and lease_expires <= now and effective_status in {'ACTIVE', 'CONNECTION_WARNING'}:
+            effective_error = '授权服务器签发的租约时间晚于本机时间，请校准系统时间后重试。'
+        lease_expires = self._signed_timestamp(signed_payload, 'expiresAt') or aware(state.lease_expires_at)
+        if effective_status not in {'CLOCK_ROLLBACK'} and lease_expires and lease_expires <= now and effective_status in {'ACTIVE', 'CONNECTION_WARNING'}:
             effective_status = 'LEASE_EXPIRED'
             if not effective_error:
                 effective_error = '授权租约已到期。'
@@ -882,60 +986,95 @@ class LicenseService:
             effective_error = state.last_error or '服务重启后正在等待授权后台确认最新租约。'
         self._record_status(effective_status)
         allowed = self._verified_access(state)
-        editor_allowed = self._verified_access(state, 'editor')
         if not allowed and effective_status in {'ACTIVE', 'CONNECTION_WARNING', 'STARTUP_VALIDATION_REQUIRED'}:
             effective_status = 'INVALID'
             effective_error = '本地授权签名或会话记录校验失败，请联系管理员检查。'
-        try:
-            stored_features = json.loads(state.feature_set or '[]')
-        except json.JSONDecodeError:
-            stored_features = []
-        if not isinstance(stored_features, list):
-            stored_features = []
-        if 'all' in stored_features:
-            visible_features = sorted(BASE_FEATURES)
-        else:
-            visible_features = [item for item in stored_features if isinstance(item, str)]
-        visible_products = []
-        if state.signed_lease:
+        # 能力清单同样以**签名租约**为准（服务端签的 features/entitlements 不可被改），
+        # ``feature_set`` 只是本地缓存，租约不可读时才退回它。以前这里只读 feature_set，
+        # 而 _verified_access 读租约，两边数据源不同，才会出现「放行了但显示未开通」。
+        lease_features = signed_payload.get('features')
+        if not isinstance(lease_features, list):
             try:
-                signed_payload = self.verifier.verify(state.signed_lease, state.instance_id)
-            except LicenseCryptoError:
-                signed_payload = {}
-            raw_products = signed_payload.get('products')
-            if isinstance(raw_products, list):
-                for item in raw_products:
-                    if not isinstance(item, dict) or not isinstance(item.get('name'), str):
-                        continue
-                    product_name = item['name'].strip()
-                    if not product_name:
-                        continue
-                    product_type = item.get('type') if isinstance(item.get('type'), str) else 'module'
-                    expires_at = item.get('expiresAt') if isinstance(item.get('expiresAt'), str) else None
-                    visible_products.append({
-                        'name': product_name,
-                        'type': product_type,
-                        'expiresAt': expires_at})
+                lease_features = json.loads(state.feature_set or '[]')
+            except json.JSONDecodeError:
+                lease_features = []
+        granted_codes = feature_codes.expand(item for item in lease_features if isinstance(item, str))
+        visible_products = []
+        raw_products = signed_payload.get('products')
+        if isinstance(raw_products, list):
+            for item in raw_products:
+                if not isinstance(item, dict) or not isinstance(item.get('name'), str):
+                    continue
+                product_name = item['name'].strip()
+                if not product_name:
+                    continue
+                product_type = item.get('type') if isinstance(item.get('type'), str) else 'module'
+                expires_at = item.get('expiresAt') if isinstance(item.get('expiresAt'), str) else None
+                visible_products.append({
+                    'name': product_name,
+                    'type': product_type,
+                    'expiresAt': expires_at})
         if allowed and not visible_products:
             visible_products = [{
                 'name': '基础版',
                 'type': 'base',
                 'expiresAt': None}]
+        entitlements = signed_payload.get('entitlements')
+        entitlement_codes = feature_codes.active_entitlement_codes(entitlements, now=now)
+
+        def _granted(code: str) -> bool:
+            """单码判定：未验证通过（无授权 / 校验失败）时一律 false。
+
+            直接委托 ``feature_codes.granted``（路由门禁 ``require_license_feature`` 的同一实现）：
+            以前这里手写「只查租约 features」，于是单买的模块权益被后端放行、前端却按未开通
+            收起入口 —— 「后端放行、界面显示未开通」的老矛盾换了个位置复发。
+            """
+            if not (state.license_id and allowed):
+                return False
+            return feature_codes.granted(lease_features, entitlements, code, now=now)
+
+        # 面板展示「这台上现在可用的码」：租约 features 与权益码的并集，再逐码过同一判定。
+        # 目录里没有的未知码也如实列出（商店签了新码时便于排查），可见性由 allowed 收口。
+        available_codes = granted_codes | feature_codes.expand(entitlement_codes)
+        visible_features = [code for code in sorted(available_codes) if _granted(code)]
         return {
             'required': self.settings.license_required,
             'allowed': allowed,
-            'editorAllowed': editor_allowed,
+            'editorAllowed': _granted(feature_codes.FEATURE_EDITOR),
             'status': effective_status,
+            'statusLabel': STATUS_LABELS.get(effective_status, effective_status),
             'instanceId': state.instance_id,
             'activationCodeId': state.license_id,
+            'activationCodeHint': state.activation_code_hint,
+            'activationEmail': self._mask_email(state.activation_email),
+            'accountName': state.activated_by,
+            'publicKeyFingerprint': self._public_key_fingerprint(),
             'leaseId': state.lease_id,
             'leaseSequence': state.lease_sequence,
-            'edition': 'full' if allowed else None,
+            'edition': (state.product_edition or 'full') if allowed else None,
             'features': visible_features if allowed else [],
             'featureAccess': {
-                'editor': bool(state.license_id and 'editor' in visible_features and editor_allowed),
-                'interaction3d': bool(state.license_id and 'module.3d_interaction' in visible_features and self._verified_access(state, 'module.3d_interaction'))},
+                'editor': _granted(feature_codes.FEATURE_EDITOR),
+                'interaction3d': _granted(feature_codes.FEATURE_INTERACTION_3D),
+                # 增量模块统一展开：前端导航/视图按标志显隐，不必各自硬编码码串。
+                **{
+                    code: _granted(code)
+                    for code in sorted(feature_codes.MODULE_FEATURES)
+                },
+            },
             'products': visible_products if allowed else [],
+            'entitlements': (
+                [
+                    {
+                        'code': item.get('code'),
+                        'startsAt': item.get('startsAt'),
+                        'expiresAt': item.get('expiresAt')}
+                    for item in entitlements
+                    if isinstance(item, dict) and isinstance(item.get('code'), str)
+                ]
+                if allowed and isinstance(entitlements, list)
+                else []
+            ),
             'heartbeatIn': state.heartbeat_interval_seconds,
             'leaseIssuedAt': aware(state.lease_issued_at),
             'leaseExpiresAt': aware(state.lease_expires_at),
@@ -1005,10 +1144,9 @@ class LicenseService:
             self._record_failure('本地校验', error, sensitive_values=(state.signed_lease,))
             return False
         now = datetime.now(UTC)
-        last_verified = aware(state.last_verified_at)
-        if last_verified and now + timedelta(seconds=self.settings.license_clock_skew_seconds) < last_verified:
-            self._record_failure('本地校验', '检测到系统时间回拨，请校准系统时间后重新验证授权。')
-            return False
+        # 时间回拨只以签名租约为锚：``issuedAt`` 晚于本机就说明本机时钟落后。
+        # 这里不再参考本地 ``last_verified_at`` —— 那是可写列，抹掉它就能让回拨检测失效，
+        # 而签名时间戳必须拿到商店私钥才能伪造。
         if issued_at > now + timedelta(seconds=self.settings.license_clock_skew_seconds):
             self._record_failure('本地校验', '授权服务器时间明显晚于本机时间，请先校准系统时间。')
             return False
@@ -1031,29 +1169,35 @@ class LicenseService:
         self._record_local_success()
         if feature is None:
             return True
-        if 'all' in features:
-            return feature in BASE_FEATURES
-        entitlements = payload.get('entitlements')
-        if isinstance(entitlements, list):
-            active_features = set()
-            for entitlement in entitlements:
-                if not isinstance(entitlement, dict) or not isinstance(entitlement.get('code'), str):
-                    continue
-                expires_at = entitlement.get('expiresAt')
-                try:
-                    if expires_at and parse_timestamp(expires_at) <= now:
-                        continue
-                except (LicenseCryptoError, TypeError, ValueError):
-                    continue
-                active_features.add(entitlement['code'])
-            return feature in active_features
-        return feature in features
+        # 判定只走 features.granted（``all`` 展开 + 蕴含 + 未过期 entitlements）。
+        # 以前这里另写了一份 ``feature in BASE_FEATURES``，与 _payload 的可见能力表
+        # 各算一遍，才会出现「后端放行、前端显示未开通」。
+        return feature_codes.granted(features, payload.get('entitlements'), feature, now=now)
+
+    def invalidate_allow_cache(self) -> None:
+        self._allow_cache.clear()
 
     def allows(self, feature: str | None = None, *, database=None) -> bool:
+        feature_key = feature or "*"
+
+        def _evaluate(state: LicenseState) -> bool:
+            cache_key = (str(state.lease_id or ""), int(state.lease_sequence or 0), feature_key)
+            now = time.monotonic()
+            cached = self._allow_cache.get(cache_key)
+            if cached is not None and cached[0] > now:
+                return cached[1]
+            allowed = self._verified_access(state, feature)
+            self._allow_cache[cache_key] = (now + self._allow_cache_ttl_seconds, allowed)
+            # 粗暴限长，避免特征组合膨胀
+            if len(self._allow_cache) > 64:
+                self._allow_cache.clear()
+                self._allow_cache[cache_key] = (now + self._allow_cache_ttl_seconds, allowed)
+            return allowed
+
         if database is not None:
             state = database.scalar(select(LicenseState).limit(1))
             if state is None or state.instance_id != self._instance_id():
                 return False
-            return self._verified_access(state, feature)
+            return _evaluate(state)
         with self.database.session_factory() as session:
-            return self._verified_access(self._state(session), feature)
+            return _evaluate(self._state(session))

@@ -7,7 +7,7 @@ from collections.abc import Callable
 from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
-from sqlalchemy import or_, select, update
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.orm import Session
 
 from ..commerce import coupons, delivery, fulfill, money, referrals
@@ -29,9 +29,11 @@ from ..core.models import (
     DeviceBinding,
     Entitlement,
     License,
+    LicenseSession,
     Order,
     OrderRefund,
     Product,
+    RecoveryToken,
     StoreSetting,
 )
 from ..core.schemas import (
@@ -703,6 +705,12 @@ def _revoke_order_entitlements(session, order: Order) -> None:
         ):
             binding.active = False
             binding.released_at = utcnow()
+            session.execute(
+                delete(LicenseSession).where(LicenseSession.binding_id == binding.id)
+            )
+            session.execute(
+                delete(RecoveryToken).where(RecoveryToken.binding_id == binding.id)
+            )
     for entitlement in session.scalars(
         select(Entitlement).where(Entitlement.license_id == order.license_id)
     ):

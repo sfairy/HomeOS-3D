@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import logging
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -30,6 +31,7 @@ from .licensing.crypto import (
     KeyRegistry,
     LeaseSigner,
     TransportCipher,
+    as_naive_utc,
 )
 from .licensing.service import LicenseAuthority
 from .ops import incidents
@@ -60,6 +62,30 @@ from .security.schema_guard import inspect_schema, log_drift
 from .security.setup_guard import SetupGuard, announce_setup_window
 
 logger = logging.getLogger("src")
+
+
+def _release_sync_hint(error: BaseException) -> str | None:
+    """把「预期内」的发布同步失败收成一行提示；无法归类时返回 ``None``（走完整 traceback）。
+
+    本地开发连不上 GitHub 很常见（无外网、或启动器为避免干扰 HA 而剥离了代理），
+    不必用 ``logger.exception`` 刷屏。
+    """
+    try:
+        import httpx
+    except ImportError:  # pragma: no cover
+        httpx = None  # type: ignore[assignment]
+    if httpx is not None:
+        if isinstance(error, (httpx.ConnectError, httpx.ConnectTimeout)):
+            return f"无法连接 GitHub（{error.__class__.__name__}）"
+        if isinstance(error, (httpx.ReadTimeout, httpx.TimeoutException, httpx.NetworkError)):
+            return f"访问 GitHub 超时或网络异常（{error.__class__.__name__}）"
+        if isinstance(error, httpx.HTTPStatusError):
+            code = error.response.status_code if error.response is not None else "?"
+            return f"GitHub 返回 HTTP {code}"
+    # DNS / 系统层连接拒绝也会以 OSError 透上来（有时未再包成 httpx）
+    if isinstance(error, OSError) and getattr(error, "errno", None) in {61, 111, 101, 51}:
+        return f"无法连接 GitHub（{error.__class__.__name__}: {error}）"
+    return None
 
 
 def _ensure_license_keys(settings: StoreSettings) -> None:
@@ -120,9 +146,76 @@ def _ensure_license_keys(settings: StoreSettings) -> None:
             )
 
 
-def build_key_registry(settings: StoreSettings):
-    """按当前密钥组装密钥环。
+def _load_retired_generation(settings: StoreSettings) -> KeyGeneration | None:
+    """读退役代密钥（轮换时把上一代重命名加 ``.retired``）；四个文件齐了才算一代。
+
+    退役代的两个私钥都必须还在：只留传输私钥，老客户端能连上却验不过回包的签名；
+    只留签名私钥，又根本解不开它的请求。缺任何一个都当成「没有退役代」并告警 ——
+    半套密钥出现在密钥环里只会让失败现象变得难查。
     """
+    paths = (
+        settings.retired_transport_private_key_path,
+        settings.retired_transport_public_key_path,
+        settings.retired_private_key_path,
+        settings.retired_public_key_path,
+    )
+    present = [path for path in paths if path.is_file()]
+    if not present:
+        return None
+    if len(present) != len(paths):
+        missing = "、".join(str(path.name) for path in paths if not path.is_file())
+        logger.warning(
+            "退役代授权密钥不完整（缺少 %s）：本次不启用退役代接收。轮换时请把上一代的"
+            "四个 pem 一并重命名加 .retired 后缀。",
+            missing,
+        )
+        return None
+
+    retired_at = _retired_at(settings)
+    logger.warning(
+        "启用退役代授权密钥：退役时间 %sZ（接收窗口 %d 天）",
+        retired_at.isoformat(),
+        settings.license_key_retirement_days,
+    )
+    return KeyGeneration(
+        transport=TransportCipher(
+            settings.retired_transport_private_key_path,
+            keys.key_id_from_public(settings.retired_transport_public_key_path),
+        ),
+        signer=LeaseSigner(
+            settings.retired_private_key_path,
+            keys.key_id_from_public(settings.retired_public_key_path),
+        ),
+        retired_at=retired_at,
+    )
+
+
+def _retired_at(settings: StoreSettings) -> datetime:
+    """退役时刻（naive UTC，与库里其余时间同口径）：优先读标记文件，缺失时退回公钥 mtime。
+
+    mtime 只是「重命名那一刻」的近似，够用：窗口以天计，不是秒。标记文件存在是为了
+    让运维能显式声明（例如提前把密钥换掉、推迟公布退役时间）。
+    """
+    marker = settings.retired_key_marker_path
+    try:
+        text = marker.read_text(encoding="utf-8").strip()
+    except OSError:
+        text = ""
+    if text:
+        try:
+            parsed = datetime.fromisoformat(f"{text[:-1]}+00:00" if text.endswith("Z") else text)
+        except ValueError:
+            logger.warning("退役时刻标记无法解析（%s）：改用公钥文件 mtime。", marker)
+        else:
+            return as_naive_utc(parsed)
+    stamp = settings.retired_public_key_path.stat().st_mtime
+    return datetime.fromtimestamp(stamp, tz=UTC).replace(tzinfo=None)
+
+
+def build_key_registry(settings: StoreSettings):
+    """按当前密钥组装密钥环（在用代 + 仍在窗口内的退役代）。
+    """
+    retired = _load_retired_generation(settings)
     return KeyRegistry(
         KeyGeneration(
             transport=TransportCipher(
@@ -130,7 +223,9 @@ def build_key_registry(settings: StoreSettings):
                 settings.license_transport_key_id,
             ),
             signer=LeaseSigner(settings.private_key_path, settings.license_key_id),
-        )
+        ),
+        retired=[retired] if retired is not None else (),
+        retirement_window_seconds=settings.license_key_retirement_days * 24 * 3600,
     )
 
 
@@ -199,8 +294,22 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
             ok = False
             try:
                 ok = await asyncio.to_thread(sync_release_once, database, settings)
-            except Exception:
-                logger.exception("发布版本同步本轮失败，将在 %d 秒后重试", min(interval, 3600))
+            except Exception as error:
+                retry_in = min(interval, 3600)
+                # 网络类失败是本地开发常态（dev 启动器会剥离代理、内网也到不了 GitHub），
+                # 打一行可读提示即可；整段 traceback 只会吓人，对排障没帮助。
+                hint = _release_sync_hint(error)
+                if hint is not None:
+                    logger.warning(
+                        "发布版本同步本轮跳过：%s。%d 秒后重试"
+                        "（本地可设 STORE_RELEASE_SYNC_INTERVAL_SECONDS=0 关闭）。",
+                        hint,
+                        retry_in,
+                    )
+                else:
+                    logger.exception(
+                        "发布版本同步本轮失败，将在 %d 秒后重试", retry_in
+                    )
             await asyncio.sleep(interval if ok else min(interval, 3600))
 
     @asynccontextmanager

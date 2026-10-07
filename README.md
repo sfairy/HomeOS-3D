@@ -85,7 +85,7 @@ bun run dev                 # = bun ops/dev.mjs：后端热重载 + Vite HMR
 | --- | --- |
 | http://127.0.0.1:8805/ | 主应用前端 HMR（改页面走这里） |
 | http://127.0.0.1:8806/ | 商店前端 HMR |
-| http://127.0.0.1:8801/setup | 主应用 API / 首次建管理员 |
+| http://127.0.0.1:8801/register | 主应用 API / 首次注册本机唯一账号（旧 `/setup` 会跳到这里） |
 | http://127.0.0.1:8802/ | 商店 API；首次走 `/setup` 建运营管理员 |
 
 `ops/dev.mjs`（`bun run dev`）默认行为：
@@ -143,13 +143,28 @@ bun run dev:runtime
 | `bun run typecheck:py` | 只跑 Python 静态检查（`ops/ci/pyright_gate.py`） |
 | `bun run dev:app` / `dev:store` | 单独跑一侧 Vite HMR（需后端已在跑） |
 | `bun run dev:runtime` | runtime 模块 watch → 根 `dist/homeos/frontend/modules/runtime` |
+| `bun run verify:scene` | 校验 `design/scene` 与两端 `public/static/**/scene` 逐字节一致 |
+| `bun run verify:features` | 校验功能码真源（`ops/feature_codes.json`）与两端后端 + 前端镜像一致 |
+| `bun run verify:schema` | 库结构门禁（`ops/check_schema.py`）：迁移脚本 ↔ ORM 元数据 ↔ 实际结构 ↔ 发行路径建库 |
+| `bun run verify:smoke` | 商店侧冒烟：端到端判定口径（`smoke_store.py`）+ 结构漂移护栏 |
+| `bun run verify:smoke:app` | 主应用侧冒烟：认证契约 + 注册→登录→激活契约 + HA 白名单 + HA 取状态容错 + 结构漂移护栏 |
+| `bun run verify:smoke:frontend` | Esc 层级栈回归（`_esc_stack_smoke.ts`）：栈行为 + 全部 overlay 静态接线扫描 |
 
 ### 首次联调流程
 
-1. 主应用 `/setup` 建管理员。
+1. 主应用 `/register` 注册本机唯一账号（账号 + 密码 + 邮箱 + 邮箱验证码；验证码由商店代发代验）。
 2. 商店 `/setup` 建运营管理员 → 注册买家 → 在 `/admin` 配支付（沙箱见商店 README）。
-3. 主应用 `/license` 用激活码激活。
+3. 主应用登录后自动检测授权；未激活跳 `/activate`，用商店激活码完成绑定。
 4. 编辑器配 HA；3D 先在 `/3d-studio` 保存户型。
+
+不改代码就能验证这条链路（临时数据目录、进程内假商店、不碰网络）：
+
+```bash
+bun run verify:smoke:app
+```
+
+覆盖「零用户 → 发码 → 注册并登录 → 账号/邮箱两种登录 → 未登录激活 401 → 登录后激活携带
+accountName → 激活失败不误判为已授权」。授权页与后台「设置 → 授权状态」面板给人工复核用。
 
 ---
 
@@ -208,7 +223,9 @@ bun run dev:runtime
 - **部署目录**：`deploy.sh` 需要与 `docker-compose.app.yml` 同目录（默认取脚本所在的仓库根，可用 `--dir` 指定）。`--role app` 时不要求 `docker-compose.store.yml`（客户精简包就只有 app 侧文件）；`--role store` / `all` 才需要 store 编排。
 - **中心 + 客户机**：所有机器保持时钟同步（租约、会话、令牌都按时间判定），并使用同一镜像 tag（`deploy.sh` 会写回 `.env` 钉住）。
 
-管理员账号**不走环境变量**：容器起来后在浏览器打开各服务的 `/setup` 创建。
+**账号不走环境变量、也不预置**：主应用首装时**零用户**，浏览器打开会自动进 `/register` 注册
+本机唯一账号（账号 / 密码 / 邮箱 / 邮箱验证码，验证码由商店代发代验）；商店运营管理员仍在
+商店的 `/setup` 建。
 
 ### 一、准备环境变量
 
@@ -255,7 +272,7 @@ cp .env.example .env
 2. 解析镜像 tag（取仓库根 `package.json` 的 `version`），导出 `HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE`，并把版本写回 `.env` 钉住；
 3. `--role app` / `all` 时准备宿主标识符号链接（`/host/etc/machine-id`、`/host/sys/class/dmi/id`，授权实例指纹读它）；
 4. `docker compose pull` → `up -d`，按角色轮询健康检查（商店最长 180s，主应用最长 300s）；
-5. 打印访问地址与 `./setup` 入口。
+5. 打印访问地址与入户页入口（主应用 `/register`、商店 `/setup`）。
 
 **授权公钥无需人工投放**：`--role all` 时主应用只读挂载商店写出的公钥卷；`--role app` 时主应用启动即向 `APP_LICENSE_SERVER_URL` 的 `GET /v2/keys` 取回两个 PEM 并缓存到自己的数据卷（首次之后即使商店暂时不可达也能离线启动）。取回结果会与响应声明的 sha256 逐字节核对后再落盘。
 
@@ -275,8 +292,8 @@ cp .env.example .env
 
 1. **商店**：浏览器打开 `http://<商店IP>:8802/setup`（HTTPS：`https://<商店IP>:8804/setup`）创建运营管理员。
 2. **商店后台**：`/admin` 配置邮件 SMTP、支付渠道（支付宝 / 微信）、站点文案。真实收款必须填真实凭据；未配置时下单会 503（刻意 fail-closed）。
-3. **主应用**：`http://<主机IP>:8801/setup`（HTTPS：`https://<主机IP>:8803/setup`）创建管理员；首次设置的引导密钥可用 `docker logs homeos | head` 查看（桥接网络访问时需要）。
-4. **激活**：主应用 `/license` 用商店发放的激活码激活；再到编辑器配 HA、`/3d-studio` 保存户型。
+3. **主应用**：`http://<主机IP>:8801/register`（HTTPS：`https://<主机IP>:8803/register`）注册本机唯一账号（账号、密码、邮箱、邮箱验证码）。首装零用户时任何地址都会自动跳到注册页；注册入口在账号建好后即关闭。
+4. **激活**：注册后自动登录并检测授权；未激活会跳 `/activate`，填入商店购买邮箱与激活码绑定本机；再到编辑器配 HA、`/3d-studio` 保存户型。
 
 ### 四、健康检查与访问地址
 
@@ -293,7 +310,7 @@ docker logs homeos | head
 
 | 服务 | HTTP 直连 | 内置 HTTPS（自签） |
 | --- | --- | --- |
-| 主应用 `/setup` | `http://<IP>:8801/setup` | `https://<IP>:8803/setup` |
+| 主应用 `/register`（旧 `/setup` 跳转） | `http://<IP>:8801/register` | `https://<IP>:8803/register` |
 | 商店前台 | `http://<IP>:8802/` | `https://<IP>:8804/` |
 | 商店后台 | `http://<IP>:8802/admin` | `https://<IP>:8804/admin` |
 

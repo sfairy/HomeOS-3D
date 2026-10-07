@@ -55,6 +55,11 @@ PURPOSE_COPY: dict[str, _Copy] = {
         action="把账号邮箱更换为本邮箱",
         ignore_hint="如果这不是您本人的操作，请忽略本邮件，您的邮箱不会被更改。",
     ),
+    "homeos_register": _Copy(
+        label="注册 HomeOS 本机账号",
+        action="注册本机 HomeOS 账号（邮箱验证）",
+        ignore_hint="如果这不是您本人的操作，请忽略本邮件，本机不会创建任何账号。",
+    ),
     "test": _Copy(
         label="【测试邮件】",
         action="测试验证码邮件的投递链路（收到本邮件即说明 SMTP 配置可用，无需任何操作）",

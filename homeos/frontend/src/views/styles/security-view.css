@@ -382,6 +382,17 @@
   max-width: 100%;
 }
 
+/* 全屏查看器根：z 轴走全局 token（原先散落的 z-[9999]/z-[10000] 魔法值已清掉）。
+   取 --z-modal-root：高于抽屉（--z-drawer 11000），低于搜索面板（--z-search 12000）
+   ——后者是刻意留给搜索/对话面板的档位，本查看器不该盖住它。
+   注意本组件渲染在**路由内容里**（没有 teleport 进 .teleport-target），所以它整体位于
+   全局浮层容器（--z-shell-overlay 14000）**之下**：查看器打开期间弹出的全局确认框仍在其上，
+   这一点依赖 scaled-viewport.css 里容器抬到 14000 才成立，改动时勿把容器降回 --z-modal。
+   内容层（关闭按钮）用局部 z-10 即可，无需第二档魔法值。 */
+.sec-fullscreen-viewer {
+  z-index: var(--z-modal-root);
+}
+
 .security-events-calendar {
   border-radius: var(--hos-radius-shell, 24px);
 }

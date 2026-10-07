@@ -60,10 +60,16 @@ class LangTemplate:
     second_action: Pattern[str] = field(repr=False)
     #: 宾语标记（如“把”），解析时剥离
     object_marker: str
-    #: 温度查询正则，捕获房间名
+    #: 温度查询正则，捕获房间名（``room`` 组；可为空表示未指定房间）
     temp_query: Pattern[str] = field(repr=False)
-    #: 湿度查询正则，捕获房间名
+    #: 湿度查询正则，捕获房间名（``room`` 组；可为空表示未指定房间）
     humidity_query: Pattern[str] = field(repr=False)
+    #: 查询语句中需从房间描述里剥离的时间 / 礼貌噪声词
+    #: （如「现在几度」的「现在」、「请问卧室温度」的「请问」）
+    query_noise_pattern: Pattern[str] = field(repr=False)
+    #: 房间描述里出现即判定「查询词被切错」的残留字模式
+    #: （如「客厅的温湿度」→ 房间「客厅温」），命中则放弃快路径
+    query_room_conflict_pattern: Pattern[str] = field(repr=False)
     #: 纠正口令正则（不对 / 学错了 等）
     correction_commands: Pattern[str] = field(repr=False)
     #: 清除记忆口令（完全匹配字符串）
@@ -77,6 +83,25 @@ class LangTemplate:
     #: LLM 系统提示词，定义管家人格与规则
     system_prompt: str
 
+
+#: 中文环境查询的可选后缀：温度 / 湿度关键词 + 可能跟的「是多少 / 了 / 呢 / ?」
+_ZH_TEMP_KEYWORDS = r"温度|室温|气温|多少摄氏度|多少度|几摄氏度|几度|摄氏度"
+_ZH_HUMIDITY_KEYWORDS = r"湿度|相对湿度|多少湿度"
+_ZH_QUERY_TAIL = r"(?:是|有|为)?(?:多少)?(?:了|呢|啊|呀|吧)?[?？]?"
+
+#: 房间描述捕获组：懒惰匹配 0-10 字符，配合 service 侧的「残留字」校验使用。
+#: 不用 lookahead 逐字排除关键词：中文里「卧室温度」内部的「室温」会误命中
+#: 「室温」这一关键词，导致合法房间名被拒（见 query_room_conflict_pattern）。
+_ZH_ROOM_GROUP = r"(?P<room>.{0,10}?)"
+
+#: 清洗后的房间描述里若残留这些字符，说明查询词被切错（如「客厅的温湿度」→ 房间「客厅温」，
+#: 「客厅温度湿度」→ 房间「客厅温度」）：这不是房间名，放弃快路径交给 LLM。
+_ZH_QUERY_ROOM_CONFLICT = re.compile(r"[温湿]")
+
+#: 中文查询语句噪声词：时间 / 礼貌 / 语气助词。
+#: 关键：从房间描述里剥掉「现在」，否则「现在几度」会被当成房间名「现在」
+#: （旧的 ``^(.{1,8})(现在|当前|)几度$`` 会把时间词吞进房间组）。
+_ZH_QUERY_NOISE = re.compile(r"现在|当前|目前|此刻|请问|问一下|帮我|帮忙|麻烦|请|一下|的|呢|啊|呀|吧|了")
 
 #: 中文语言模板：覆盖灯 / 空调 / 窗帘 / 风扇 / 扫地机 / 电视 / 热水器 / 插座等设备域
 ZH = LangTemplate(
@@ -132,10 +157,16 @@ ZH = LangTemplate(
     conjunctions=re.compile(r"和|跟|还有|然后|以及|并且|并|顺便|、|，|,"),
     second_action=re.compile(r"打开|关闭|关掉|开启"),
     object_marker="把",
+    # 房间名前置捕获（允许为空 = 未指定房间，交给上层决定是否走 LLM），
+    # 时间词由 query_noise_pattern 兜底剥离，因此这里不再把「现在」当房间。
     temp_query=re.compile(
-        r"^(.{1,8})(现在|当前|)几度$|^(.{1,8})(现在|当前|)温度$|^(.{1,8})(现在|当前|)多少度$"
+        rf"^{_ZH_ROOM_GROUP}(?:的)?(?:{_ZH_TEMP_KEYWORDS}){_ZH_QUERY_TAIL}$"
     ),
-    humidity_query=re.compile(r"^(.{1,8})(现在|当前|)湿度$"),
+    humidity_query=re.compile(
+        rf"^{_ZH_ROOM_GROUP}(?:的)?(?:{_ZH_HUMIDITY_KEYWORDS}){_ZH_QUERY_TAIL}$"
+    ),
+    query_noise_pattern=_ZH_QUERY_NOISE,
+    query_room_conflict_pattern=_ZH_QUERY_ROOM_CONFLICT,
     correction_commands=re.compile(r"^不对$|^学错了$|^重新学$"),
     clear_memory="清除记忆",
     temp_reply_template="{room}现在{value}°C。",
@@ -244,11 +275,24 @@ EN = LangTemplate(
     second_action=re.compile(r"\b(turn on|turn off|switch on|switch off|open|close)\b", re.I),
     object_marker="",
     temp_query=re.compile(
-        r"^(?:what'?s |what is )?(?:the )?temperature (?:in |of |at )?(.{1,15})(?:\?)?$", re.I
+        r"^(?:what'?s|what is|how)\s*(?:the\s+)?(?:current\s+|ambient\s+)?"
+        r"(?:temperature|temp)\b\s*(?:in|of|at|for|is it in)?\s*"
+        r"(?P<room>[a-z0-9_.\- ]{0,20}?)\s*[?.!]?$",
+        re.I,
     ),
     humidity_query=re.compile(
-        r"^(?:what'?s |what is )?(?:the )?humidity (?:in |of |at )?(.{1,15})(?:\?)?$", re.I
+        r"^(?:what'?s|what is|how)\s*(?:the\s+)?(?:current\s+)?"
+        r"humidity\b\s*(?:in|of|at|for|is it in)?\s*"
+        r"(?P<room>[a-z0-9_.\- ]{0,20}?)\s*[?.!]?$",
+        re.I,
     ),
+    # 英文噪声词：时间 / 礼貌 / 冠词（「what's the temperature now?」的 now / the）
+    query_noise_pattern=re.compile(
+        r"\b(now|right now|currently|today|please|kindly)\b|^(?:the|a|an|my|our)\s+|\s+(?:is|are)\s*$",
+        re.I,
+    ),
+    # 英文不区分「温湿度」连写，房间描述里出现查询词本身即视为切错
+    query_room_conflict_pattern=re.compile(r"temperature|humidity|degrees?", re.I),
     correction_commands=re.compile(r"^(wrong|no that'?s wrong|that'?s not right|oops|nope)$", re.I),
     clear_memory="clear memory",
     temp_reply_template="The temperature in {room} is {value}°C.",

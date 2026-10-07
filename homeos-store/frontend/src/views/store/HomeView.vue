@@ -53,7 +53,7 @@ const authenticated = computed(() => Boolean(session.account));
           <li><strong>买断授权</strong><small>支付确认后自动发码</small></li>
         </ul>
         <ol class="hb-flow">
-          <li><span>01</span><div><strong>注册并登录</strong><small>邮箱验证码创建账号</small></div></li>
+          <li><span>01</span><div><strong>注册并登录</strong><small>账号 + 邮箱验证码</small></div></li>
           <li><span>02</span><div><strong>扫码完成支付</strong><small>支付结果由服务端确认</small></div></li>
           <li><span>03</span><div><strong>账号管理授权</strong><small>激活码与设备都在账号中心</small></div></li>
         </ol>

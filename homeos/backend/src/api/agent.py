@@ -14,11 +14,17 @@ from fastapi import Depends, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, model_validator
 
+from ..dependencies import license_feature
 from ..security.auth_context import require_roles
 from ..services.agent.agent_actor import AgentActor
+from ..services.license import features as feature_codes
 from .router import NestRouter
 
-router = NestRouter(prefix="/agent", tags=["agent"])
+router = NestRouter(
+    prefix="/agent",
+    tags=["agent"],
+    dependencies=[license_feature(feature_codes.FEATURE_AGENT)],
+)
 
 #: 对话历史单条上限
 _HISTORY_MAX = 16

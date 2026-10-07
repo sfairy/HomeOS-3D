@@ -17,6 +17,7 @@ import { num } from "../../utils/format.js";
 
 interface Account {
   id: string;
+  username?: string | null;
   email?: string;
   isAdmin?: boolean;
   isActive?: boolean;
@@ -28,6 +29,7 @@ interface Account {
 }
 
 const COLUMNS = [
+  { key: "username", label: "账号", nowrap: true },
   { key: "email", label: "邮箱", nowrap: true },
   { key: "role", label: "角色", nowrap: true },
   { key: "licenseCount", label: "授权数", nowrap: true },
@@ -64,6 +66,7 @@ const saving = ref(false);
 
 const draft = reactive({
   id: "",
+  username: "",
   email: "",
   newPassword: "",
   isAdmin: false,
@@ -91,6 +94,7 @@ function reset() {
 
 function openEditor(account: Account) {
   draft.id = account.id;
+  draft.username = account.username || "";
   draft.email = account.email || "";
   draft.newPassword = "";
   draft.isAdmin = Boolean(account.isAdmin);
@@ -111,6 +115,8 @@ async function save() {
     isActive: draft.isActive,
     emailVerified: draft.emailVerified,
   };
+  const username = draft.username.trim();
+  if (username) payload.username = username;
   const password = draft.newPassword;
   if (password) payload.newPassword = password;
   saving.value = true;
@@ -161,7 +167,7 @@ async function removeAccount(account: Account) {
   <section class="admin-panel active" data-domain="licensing">
     <PanelHead
       title="账号"
-      desc="可改邮箱、角色、重置密码；只有未产生过授权/订单/积分的干净账号才能删除"
+      desc="可改账号名、邮箱、角色、重置密码；购买与授权仍以邮箱为主线。只有未产生过授权/订单/积分的干净账号才能删除"
       domain="授权"
     />
 
@@ -182,7 +188,7 @@ async function removeAccount(account: Account) {
 
     <div v-show="active === 'list'" class="admin-tab-pane" role="tabpanel">
       <div class="panel-toolbar">
-        <input v-model="keyword" class="hb-input" aria-label="邮箱或邀请码关键字" placeholder="邮箱 / 邀请码" />
+        <input v-model="keyword" class="hb-input" aria-label="账号、邮箱或邀请码关键字" placeholder="账号 / 邮箱 / 邀请码" />
         <select v-model="role" class="hb-select" aria-label="按角色筛选">
           <option value="">全部角色</option>
           <option value="user">普通用户</option>
@@ -201,6 +207,10 @@ async function removeAccount(account: Account) {
       <DataTable ref="table" path="/accounts" :columns="COLUMNS" :params="params" empty-text="没有符合条件的账号">
         <template #default="{ items }">
           <tr v-for="account in asAccounts(items)" :key="account.id">
+            <td class="nowrap">
+              <span v-if="account.username" :title="account.username">{{ account.username }}</span>
+              <template v-else>—</template>
+            </td>
             <td class="nowrap">
               <span v-if="account.email" :title="account.email">{{ account.email }}</span>
               <template v-else>—</template>
@@ -233,12 +243,23 @@ async function removeAccount(account: Account) {
     <div v-show="active === 'form'" class="admin-tab-pane" role="tabpanel">
       <div v-if="editorOpen" class="hb-card admin-editor">
         <div class="hb-card__body">
-          <h3 class="admin-editor__title">编辑账号 <span class="mono">{{ draft.email }}</span></h3>
+          <h3 class="admin-editor__title">编辑账号 <span class="mono">{{ draft.username || draft.email }}</span></h3>
           <p class="admin-editor__hint">
-            改密码会<b>立即踢掉该账号的全部登录会话</b>；审计日志只记录「改过密码」，不记录明文。
+            改密码会<b>立即踢掉该账号的全部登录会话</b>；审计日志只记录「改过密码」，不记录明文。购买与授权归属以邮箱为准。
           </p>
           <form class="admin-grid admin-grid--wide" @submit.prevent="save">
-            <label class="hb-field admin-grid__wide">
+            <label class="hb-field">
+              <span>账号</span>
+              <input
+                v-model="draft.username"
+                class="hb-input"
+                minlength="3"
+                maxlength="64"
+                pattern="[^@\s]{3,64}"
+                placeholder="登录用账号（老账号可留空暂不填）"
+              />
+            </label>
+            <label class="hb-field">
               <span>邮箱</span>
               <input v-model="draft.email" class="hb-input" type="email" required />
             </label>
@@ -248,9 +269,9 @@ async function removeAccount(account: Account) {
                 v-model="draft.newPassword"
                 class="hb-input"
                 type="password"
-                minlength="6"
+                minlength="8"
                 autocomplete="new-password"
-                placeholder="至少 6 位"
+                placeholder="至少 8 位"
               />
             </label>
             <div class="hb-check-group">

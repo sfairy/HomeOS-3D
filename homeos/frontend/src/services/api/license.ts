@@ -7,9 +7,9 @@
  * 端点：GET /license/status、GET /license/availability、POST /license/activate、
  *       POST /license/reactivate、POST /license/retry。
  *
- * 鉴权口径（后端 Phase 2b）：`/availability` 公开脱敏，`/status` 与 `/reactivate`、
- * `/retry` 要求登录会话，`/activate` 匿名可用但要求同源写。因此**门禁探测一律走
- * `/availability`**（未登录也能读），`/status` 只用于已登录的管理面（编辑器诊断）。
+ * 鉴权口径：`/availability` 公开脱敏；`/status`、`/activate`、`/reactivate`、`/retry`
+ * 均要求登录会话（激活会上报本机账号名）。因此**门禁探测一律走 `/availability`**
+ * （未登录也能读），`/status` 只用于已登录的管理面（编辑器诊断）。
  */
 import { apiGet, apiPost } from '../api-client'
 import { getApiErrorMessage, isUnauthorizedError } from '@/utils/core/error-message'
@@ -67,8 +67,12 @@ export type LicenseStatus = {
   startupValidationPending: boolean
   activationCodeHint: string | null
   activationEmail: string | null
+  /** 本机注册账号名（激活时上报给商店，记录在 DeviceBinding.account_name）。 */
+  accountName: string | null
   publicKeyFingerprint: string | null
   rateLimitedUntil: string | null
+  /** 功能码门禁明细：编辑器 / 3D 交互 / 各增量模块是否放行。 */
+  featureAccess: Record<string, boolean>
 }
 
 /** 授权可用性响应（GET /license/availability，字段是 LicenseStatus 的子集 + displayAllowed）。 */

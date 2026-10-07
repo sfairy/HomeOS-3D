@@ -12,6 +12,7 @@ import {
 import { createPurifierExtras as createPurifierExtras2 } from "./purifier-extras";
 import { purifierState as purifierState2 } from "../purifier/purifier-state";
 import { domElement } from "@app/utils/dom-factory";
+import { syncHtmlRangeProgress } from "@app/utils/range-progress";
 const formatSwingModeLabel = (swingModeKey: any, swingDirection: any = undefined) =>
     (
       {
@@ -453,7 +454,8 @@ export function createClimatePanel({
     (fanSpeedRangeElement.max = "100"),
     fanSpeedRangeElement.setAttribute("aria-label", "净化器风速"),
     fanSpeedRangeElement.addEventListener("input", () => {
-      fanSpeedLabelElement.textContent = "风速 " + fanSpeedRangeElement.value + "%";
+      (syncHtmlRangeProgress(fanSpeedRangeElement),
+        (fanSpeedLabelElement.textContent = "风速 " + fanSpeedRangeElement.value + "%"));
     }),
     fanSpeedRangeElement.addEventListener("change", () =>
       requestControl("set_percentage", Number(fanSpeedRangeElement.value)),
@@ -964,6 +966,7 @@ export function createClimatePanel({
       (fanSpeedRangeElement.disabled = !isControllable),
       (fanSpeedRangeElement.step = String(deviceState.percentageStep || 1)),
       (fanSpeedRangeElement.value = String(deviceState.percentage ?? 0)),
+      syncHtmlRangeProgress(fanSpeedRangeElement),
       (fanSpeedLabelElement.textContent = "风速 " + (deviceState.percentage ?? "--") + "%"));
     const speedLevels = deviceState.speedLevels || [],
       stringify = JSON.stringify([deviceState.entityId, speedLevels]);

@@ -1,4 +1,5 @@
 import { setupGlobalLog } from "./global-log";
+import { navigateInShell } from "../../runtime/shell-navigation";
 async function apiFetch(
   path: any,
   options: { body?: any; headers?: Record<string, string> } = {},
@@ -22,7 +23,7 @@ async function apiFetch(
       if (response.ok) throw new Error("接口返回格式异常：" + path.split("?")[0]);
     }
   if (response.status === 401)
-    throw (window.location.assign("/login"), new Error("登录状态已失效。"));
+    throw (navigateInShell("/login"), new Error("登录状态已失效。"));
   if (!response.ok) {
     const detail = payload?.detail;
     throw new Error(

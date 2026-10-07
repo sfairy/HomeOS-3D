@@ -19,7 +19,13 @@
     "typecheck": "bun run --cwd homeos typecheck && bun run --cwd homeos-store typecheck",
     "typecheck:node": "tsc -p tsconfig.node.json",
     "verify:scene": "python3 ops/verify_scene_sync.py",
-    "verify:smoke": ".venv-store/bin/python homeos-store/tools/smoke_store.py",
+    "verify:features": "python3 ops/check_feature_codes.py",
+    "verify:schema": ".venv-store/bin/python ops/check_schema.py",
+    "verify:database": ".venv-store/bin/python ops/check_database.py",
+    "verify:smoke": ".venv-store/bin/python homeos-store/tools/smoke_store.py && .venv-store/bin/python homeos-store/tools/_schema_drift_guard_smoke.py",
+    "verify:smoke:app": "homeos/backend/.venv/bin/python homeos/backend/scripts/_auth_contract_smoke.py && homeos/backend/.venv/bin/python homeos/backend/scripts/_register_login_activate_smoke.py && homeos/backend/.venv/bin/python homeos/backend/scripts/_legacy_account_claim_smoke.py && homeos/backend/.venv/bin/python homeos/backend/scripts/_p51_ha_whitelist_smoke.py && homeos/backend/.venv/bin/python homeos/backend/scripts/_ha_fetch_resilience_smoke.py && homeos/backend/.venv/bin/python homeos/backend/scripts/_schema_drift_guard_smoke.py && homeos/backend/.venv/bin/python homeos/backend/scripts/_module_feature_gate_smoke.py && homeos/backend/.venv/bin/python homeos/backend/scripts/_license_activation_e2e_smoke.py",
+    "verify:smoke:frontend": "bun run homeos/frontend/scripts/_esc_stack_smoke.ts",
+    "verify:smoke:license": "homeos/backend/.venv/bin/python homeos/backend/scripts/_license_activation_e2e_smoke.py",
     "dev": "bun ops/dev.mjs",
     "dev:prepare": "bun ops/dev.mjs --prepare",
     "dev:runtime": "bun run --cwd homeos dev:runtime",
@@ -52,6 +58,6 @@
   "devDependencies": {
     "@types/node": "^26.6.4",
     "javascript-obfuscator": "^5.8.1",
-    "typescript": "^7.0.2"
+    "typescript": "^6.0.3"
   }
 }

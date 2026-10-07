@@ -22,7 +22,7 @@ const cards = computed<Card[]>(() => {
     kind: "primary",
   }));
   if (session.hasPermanentLicense) {
-    catalog.addonProducts.forEach((product) =>
+    catalog.availableAddonProducts.forEach((product) =>
       list.push({ group: "addon", product, kind: "addon" }),
     );
   }
@@ -67,6 +67,7 @@ function primaryUnavailable(product: StoreProduct) {
 
 function primaryBadge(product: StoreProduct) {
   if (catalog.isTrialProduct(product)) return `${product.validityDays} 天试用`;
+  if (product.productType === "edition_full") return "全功能版";
   if (product.productType === "bundle") return "全授权";
   if (product.productType === "package") return "自定义套餐";
   return "主授权";

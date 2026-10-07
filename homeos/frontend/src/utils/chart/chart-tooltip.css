@@ -1,0 +1,35 @@
+/* 设备页图表 tooltip 内容样式。
+ *
+ * 为什么单独一份而不是写进组件：外壳页 CSP 是 ``style-src 'self'``，ECharts 的 tooltip
+ * 是**运行时注入**的 DOM，既不能用 formatter 里的行内 ``style="..."``（会被浏览器拦下，
+ * 表现为样式静默失效 + 控制台刷违规），也不能用组件的 ``<style scoped>``（scoped 选择器
+ * 依赖编译期加在元素上的 data 属性，注入的节点上没有）。
+ *
+ * 所以 tooltip 元素只带类名，由本文件（非 scoped）统一着色，并由
+ * ``device-chart-copy.util.ts`` 侧效应引入 —— 用到 formatter 的地方样式必定到位。
+ * 唯一的动态值（序列颜色）走 SVG 的 ``fill`` 呈现属性，不受 style-src 约束。
+ */
+
+.chart-tip__caption {
+  margin-bottom: 6px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: var(--premium-fs-micro);
+}
+
+.chart-tip__caption--tight {
+  margin-bottom: 4px;
+}
+
+.chart-tip__footnote {
+  margin-top: 4px;
+  color: var(--hos-text-secondary);
+  font-size: var(--premium-fs-micro);
+}
+
+.chart-tip__dot {
+  display: inline-block;
+  vertical-align: -1px;
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+}

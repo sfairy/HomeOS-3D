@@ -33,6 +33,11 @@ const loadingMore = ref(false);
 let tick: number | undefined;
 
 const email = computed(() => session.account?.email || "—");
+const accountHeading = computed(() => {
+  const username = (session.account?.username || "").trim();
+  if (username && email.value !== "—") return `${username} · ${email.value}`;
+  return username || email.value;
+});
 const licenses = computed(() => session.licenses);
 const activeEntitlements = computed(() => session.entitlements.filter((item) => item.active));
 const orders = computed(() => session.orders);
@@ -106,19 +111,48 @@ function orderRemaining(item: StoreOrder) {
   return orderRemainingSeconds(item.expiresAt);
 }
 
+function policyDeadlineMs(policy: NonNullable<StoreLicense["deviceReleasePolicy"]>): number | null {
+  if (policy.nextAllowedAt != null && policy.nextAllowedAt !== "") {
+    const parsed =
+      typeof policy.nextAllowedAt === "number"
+        ? policy.nextAllowedAt
+        : Date.parse(String(policy.nextAllowedAt));
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  if (policy.lastReleasedAt && policy.cooldownSeconds) {
+    const start = Date.parse(String(policy.lastReleasedAt));
+    if (Number.isFinite(start)) return start + Number(policy.cooldownSeconds) * 1000;
+  }
+  return null;
+}
+
 function releaseRemaining(item: StoreLicense | null) {
   if (!item?.deviceReleasePolicy) return 0;
   const policy = item.deviceReleasePolicy;
-  if (typeof policy.remainingSeconds === "number") return policy.remainingSeconds;
-  if (policy.nextAllowedAt) {
-    return Math.max(0, Math.ceil((Number(policy.nextAllowedAt) - Date.now()) / 1000));
+  const deadline = policyDeadlineMs(policy);
+  if (deadline != null) {
+    return Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
   }
-  return 0;
+  return Math.max(0, Math.floor(Number(policy.remainingSeconds) || 0));
+}
+
+function formatReleaseWait(totalSeconds: number): string {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${hours} 时 ${minutes} 分 ${seconds} 秒`;
 }
 
 const releaseSeconds = computed(() => {
   void now.value;
   return releaseRemaining(releaseLicense.value);
+});
+
+const releaseWaitText = computed(() => {
+  const remaining = releaseSeconds.value;
+  return remaining > 0
+    ? `这份授权还需等待 ${formatReleaseWait(remaining)}。`
+    : "这份授权当前可以解绑。";
 });
 
 async function refresh() {
@@ -293,7 +327,7 @@ async function copyCommand(command: string) {
             <span class="hb-account-heading__path">~/account/licenses</span>
           </div>
           <h1>我的<strong>授权中心</strong></h1>
-          <p>{{ email }}</p>
+          <p>{{ accountHeading }}</p>
         </div>
         <div class="hb-account-heading__actions">
           <RouterLink class="hb-button hb-button--secondary hb-button--sm" to="/user/referrals">
@@ -478,7 +512,7 @@ async function copyCommand(command: string) {
         </div>
         <div class="hb-dialog__body">
           <p><span>{{ releaseLicense?.userLabel || releaseLicense?.productName }} · 设备</span> <code>{{ releaseLicense?.device?.instanceId }}</code></p>
-          <p class="hb-form-hint">{{ releaseSeconds > 0 ? `这份授权还需等待 ${Math.floor(releaseSeconds / 60)} 分 ${releaseSeconds % 60} 秒。` : "这份授权当前可以解绑。" }}</p>
+          <p class="hb-form-hint">{{ releaseWaitText }}</p>
           <p class="hb-form-hint">解绑后原设备授权会失效。若因升级/换机出现「硬件绑定不匹配」，解绑完成后再回 HomeOS 激活页重新激活。</p>
           <label v-if="releaseSeconds <= 0" class="hb-field">
             <span>商店登录密码</span>

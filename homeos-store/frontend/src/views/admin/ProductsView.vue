@@ -423,9 +423,12 @@ void catalog.load().catch(() => {});
             <label class="hb-field">
               <span>类型</span>
               <select v-model="draft.productType" class="hb-select">
-                <option value="base">base</option>
-                <option value="module">module</option>
-                <option value="package">package</option>
+                <option value="base">基础授权</option>
+                <option value="edition_full">全功能版</option>
+                <option value="bundle">全授权</option>
+                <option value="package">套餐</option>
+                <option value="module">增量包</option>
+                <option value="template">模板</option>
               </select>
             </label>
             <h4 class="admin-grid__section">定价与有效期</h4>

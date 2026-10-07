@@ -14,10 +14,16 @@ from typing import Any
 from fastapi import Depends, Request
 from fastapi.responses import Response
 
+from ..dependencies import license_feature
 from ..security.auth_context import require_roles
+from ..services.license import features as feature_codes
 from .router import NestRouter
 
-router = NestRouter(prefix="/system/moviepilot", tags=["system"])
+router = NestRouter(
+    prefix="/system/moviepilot",
+    tags=["system"],
+    dependencies=[license_feature(feature_codes.FEATURE_MEDIA)],
+)
 
 #: Nest ``@All('*path')`` 等价：透传以下方法（实际仅放行 GET/POST）
 _PROXY_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]

@@ -21,8 +21,72 @@ import {
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
-/** 前端产物根目录：收敛到工作区根 `dist/homeos/frontend`（与 homeos-store 同位）。 */
-const outDir = resolve(__dirname, '../../dist/homeos/frontend')
+/**
+ * 线上产物目录（后端 / 8801 直接伺服）。
+ * 构建先写到旁路 ``frontend.building``，closeBundle 末尾再原子替换，避免 watch-build
+ * 清空窗口里 ``index.html`` / ``modules/runtime`` 失踪（stage.html 500、动态 import 404）。
+ */
+const finalOutDir = resolve(__dirname, '../../dist/homeos/frontend')
+const outDir = `${finalOutDir}.building`
+
+/**
+ * 把旁路 ``frontend.building`` 发布进线上 ``frontend/``，且**不删掉线上根目录**。
+ *
+ * 旧实现 ``rename(live→prev) + rename(building→live)`` 中间有空窗：``/assets`` mount
+ * 找不到目录时请求会落到 SPA 外壳（text/html），浏览器对 ``shared-*.js`` 报 Strict MIME。
+ * 这里改为：先覆盖拷贝（``index.html`` 最后），再修剪旧 hash 文件，全程根路径常在。
+ */
+function publishOutDirPlugin(): Plugin {
+  const walkFiles = (root: string): string[] => {
+    const out: string[] = []
+    if (!fs.existsSync(root)) return out
+    const stack = [root]
+    while (stack.length) {
+      const dir = stack.pop()!
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = resolve(dir, entry.name)
+        if (entry.isDirectory()) stack.push(full)
+        else if (entry.isFile()) out.push(full)
+      }
+    }
+    return out
+  }
+
+  const pruneStale = (liveRoot: string, buildRoot: string) => {
+    if (!fs.existsSync(liveRoot) || !fs.existsSync(buildRoot)) return
+    const keep = new Set(
+      walkFiles(buildRoot).map((f) => f.slice(buildRoot.length + 1).replace(/\\/g, '/')),
+    )
+    for (const file of walkFiles(liveRoot)) {
+      const rel = file.slice(liveRoot.length + 1).replace(/\\/g, '/')
+      if (!keep.has(rel)) fs.rmSync(file, { force: true })
+    }
+  }
+
+  return {
+    name: 'homeos-publish-outdir',
+    apply: 'build',
+    closeBundle() {
+      if (!fs.existsSync(outDir)) return
+      fs.mkdirSync(finalOutDir, { recursive: true })
+      const entries = fs.readdirSync(outDir).filter((name) => name !== 'modules')
+      // 先资源后外壳：避免新 index 已上线却仍缺新 hash chunk。
+      const ordered = [
+        ...entries.filter((name) => name !== 'index.html'),
+        ...entries.filter((name) => name === 'index.html'),
+      ]
+      for (const name of ordered) {
+        const from = resolve(outDir, name)
+        const to = resolve(finalOutDir, name)
+        fs.cpSync(from, to, { recursive: true, force: true })
+      }
+      for (const bucket of ['assets', 'static'] as const) {
+        pruneStale(resolve(finalOutDir, bucket), resolve(outDir, bucket))
+      }
+      fs.rmSync(outDir, { recursive: true, force: true })
+    },
+  }
+}
 
 /** SPA 唯一入口。 */
 const SPA_ENTRY = 'index.html'
@@ -220,10 +284,27 @@ function updatePublicStaticManifest(): void {
     seen.add(p)
     kept.push({ path: p, why: typeof item === 'object' && item.why ? item.why : '' })
   }
+  // index.html 与登记清单引用的静态资源是**硬要求**：产物缺失就是每个页面稳定 404
+  // （静态处理回 JSON 错误信封，浏览器还会再报一次「MIME 类型不可执行」）。
+  // 这类缺口不能只 warn —— 曾经 ``auth/scene/scene-depth.ts`` 在应用树合并时随
+  // ``app/auth/**`` 一并丢失，``vite-studio.ts`` 的入口指向不存在的文件却**不报错、
+  // 只是不产出**，白名单照样登记，于是登录页首帧前 404、``hos-touch`` 手持档全失效。
+  const missing: string[] = []
   for (const p of [...discovered].sort()) {
+    if (!fs.existsSync(resolve(outDir, p.replace(/^\//, '')))) {
+      missing.push(p)
+      continue
+    }
     if (seen.has(p)) continue
     seen.add(p)
     kept.push({ path: p, why: 'SPA 入口引用的匿名静态资源，必须匿名可加载。' })
+  }
+  if (missing.length > 0) {
+    throw new Error(
+      `以下匿名静态资源被 index.html 或登记清单引用，但构建产物里不存在（线上会稳定 404）：\n  ${missing.join('\n  ')}\n` +
+        '常见原因：vite-studio.ts / vite.config.ts 的入口指向了不存在的源文件 —— ' +
+        '这不会让构建报错，只会不产出该产物。请补齐源文件或移除引用。',
+    )
   }
   payload.files = kept
   // 记录被筛掉的种子条目，方便核对「是不是真有资源漏了」而不是被静默吞掉。
@@ -258,8 +339,10 @@ export default defineConfig(async (): Promise<UserConfig> => {
     tailwindcss(),
     // 构建产物写完后再落经典 IIFE（closeBundle 按数组顺序串行）。
     classicIifePlugin(),
-    // 最后一位：匿名白名单按「产物是否真的存在」筛种子条目，必须在所有产物写完后生成。
+    // 匿名白名单按「产物是否真的存在」筛种子条目，必须在 IIFE 写完后、发布前。
     publicStaticManifestPlugin(),
+    // 最后：旁路目录覆盖发布到线上 dist（保留 modules/runtime，根目录不消失）。
+    publishOutDirPlugin(),
   ]
   if (analyzeBundle) {
     const { visualizer } = await import('rollup-plugin-visualizer')
@@ -373,6 +456,7 @@ export default defineConfig(async (): Promise<UserConfig> => {
     },
     build: {
       outDir,
+      // 只清空旁路 ``frontend.building``；线上 ``frontend/`` 在 closeBundle 原子替换前保持可伺服。
       emptyOutDir: true,
       assetsDir: 'assets',
       manifest: true,

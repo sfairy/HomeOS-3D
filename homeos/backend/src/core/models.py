@@ -68,17 +68,34 @@ class JsonMixin:
 # --------------------------------------------------------------------------- #
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        # email 的唯一性用**具名唯一索引**表达，而不是列级 ``unique=True``：
+        # 迁移 0008 建的是 ``users_email_idx``，而列级 unique 会让 ``create_all``（发行路径）
+        # 生成一个匿名 UNIQUE 约束——两者结构不等价，ops/check_schema.py 会判为不一致。
+        # 具名索引也是本文件既有约定（见 HomeMode 的 __table_args__）。
+        Index("users_email_idx", "email", unique=True),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
     username: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    #: 注册邮箱（唯一）；单用户注册流程要求必填，库层允许 NULL 只为兼容存量安装。
+    #: 唯一性由上面的 users_email_idx 承担，这里不能再写 unique=True（会变成匿名约束）。
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    #: 邮箱验证码校验通过的时间；未验证为 NULL。
+    email_verified_at: Mapped[datetime | None] = mapped_column(
+        "emailVerifiedAt", DateTime(timezone=True), nullable=True
+    )
     password: Mapped[str] = mapped_column(String(512), nullable=False)
     role: Mapped[str] = mapped_column(String(16), nullable=False, default="admin")
+    #: 两列都带 server_default，与迁移 0006 的 ALTER 保持一致：0006 用 server_default 给
+    #: 存量行补值，若 ORM 只声明 Python 侧 default，发行路径（create_all 建库）就会少一个
+    #: DEFAULT，与迁移建出的库不等价。
     is_active: Mapped[bool] = mapped_column(
-        "isActive", Boolean, nullable=False, default=True
+        "isActive", Boolean, nullable=False, default=True, server_default=text("1")
     )
-    #: 凭据是否外置到 ``admin_account`` 文件（homeos-3d 的账号自愈流程）。
+    #: 保留列以兼容存量数据；单用户注册流程下密码恒为 argon2 入库哈希，不再外置。
     auth_externalized: Mapped[bool] = mapped_column(
-        "authExternalized", Boolean, nullable=False, default=False
+        "authExternalized", Boolean, nullable=False, default=False, server_default=text("0")
     )
     preferences: Mapped[str | None] = mapped_column(Text, nullable=True)
     token_version: Mapped[int] = mapped_column("tokenVersion", Integer, nullable=False, default=0)
@@ -472,12 +489,12 @@ class LicenseState(Base):
     last_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     product_edition: Mapped[str | None] = mapped_column(String(64), nullable=True)
     feature_set: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
-    max_projects: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    max_displays: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     heartbeat_interval_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=300)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     deactivated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    #: 激活时本机账号名（「授权用户增设账户名」）：激活需登录态，写入当前用户名。
+    activated_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
 # --------------------------------------------------------------------------- #

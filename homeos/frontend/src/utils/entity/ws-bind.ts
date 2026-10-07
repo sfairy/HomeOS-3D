@@ -210,12 +210,16 @@ export function bindEntitySocketHandlers(
     const now = Date.now()
     if (now - lastResyncAt < 30_000) return
     lastResyncAt = now
-    logger.warn('服务端建议全量重同步:', data?.reason || 'backpressure')
-    // 背压丢包：立即标陈旧并回滚乐观态，避免 UI 粘住错误开关/亮度
+    logger.warn('服务端建议重同步:', data?.reason || 'backpressure')
     refs.entitiesStale.value = true
     const rolled = actions.rollbackAllOptimistic?.() ?? 0
     if (rolled > 0) logger.info(`背压重同步前已回滚 ${rolled} 条乐观更新`)
-    void actions.fetchEntitiesFallback?.('服务端背压建议重同步', { force: true })
+    // 优先增量 / 服务端 resync；冷却内不全量连环 REST（由 fetchEntitiesFallback 内部去重）。
+    void (async () => {
+      const soft = await actions.requestSoftResync?.('服务端背压建议重同步')
+      if (soft) return
+      void actions.fetchEntitiesFallback?.('服务端背压建议重同步', { force: true })
+    })()
   })
 
   socket.on(
