@@ -78,16 +78,6 @@ export function sha256(text: any) {
   }
   return hashState.map((hexWord) => hexWord.toString(16).padStart(8, "0")).join("");
 }
-export function lightLayerKey(baseKey: any, layerDescriptor: any) {
-  return sha256(
-    stableCacheJSON({
-      version: RENDER_CACHE_VERSION,
-      base: baseKey,
-      lamp: layerDescriptor.item,
-      floor: layerDescriptor.floor.id,
-    }),
-  );
-}
 export function cacheSceneDescriptor(floors: any) {
   const omitProperties = (source: any, omittedKeys: any) =>
     Object.fromEntries(

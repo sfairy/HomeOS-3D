@@ -1,7 +1,10 @@
 .afh-root {
+  /* 空白穿透到 3D 舞台；仅 .afh-widget 拦截命中。z-index 低于楼层条(45+)/壳模态 */
   pointer-events: none;
-  z-index: 120;
+  z-index: 40;
   position: absolute;
+  /* 必须铺满内容区：底边 inset 会缩短百分比坐标系，底边锚点面板（yPct≈100）
+     会提前顶死，表现为「明明下面还有空位却拖不下去」。楼层条用更高 z-index 叠在上面即可。 */
   inset: 0;
   overflow: visible;
 }

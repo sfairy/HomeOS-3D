@@ -38,6 +38,12 @@ body {
   background: #050912;
 }
 
+/* 3D 舞台嵌入态：外壳默认底色让路，避免盖住展示端要求的透明合成 */
+html:has(body.interaction3d-stage.is-background-hidden),
+body.interaction3d-stage.is-background-hidden {
+  background: transparent !important;
+}
+
 /*
  * stage 页的例外：interaction3d/core/stage.css 用
  *   `.interaction3d-stage > :not(.studio-shell):not(.i3d-climate-picker-menu) { display: none !important; }`
@@ -55,15 +61,21 @@ body.interaction3d-stage > #app {
  *
  * 多页版的 `.studio-shell` 是 body 的直接子元素，所以「其余一律隐藏」等价于「只留舞台」。
  * 合并后 App.vue 的层级是
- *   body > #app > .app-container > .error-boundary-root > .route-transition-root > .studio-shell，
+ *   body > #app > .app-container > … > .studio-chrome-root > (.sc-topbar | .studio-shell | …)，
  * `.studio-shell` 被包在自家外壳里，同一条过滤就会隐藏 `.app-container` —— 整站（含 3D 舞台）
  * 一起不可见；boot-guard 的残留保护随即把 body class 当垃圾摘掉，舞台于是退回**带绘制工具、
  * 属性面板与模型库的全量界面**，总览里的 3D 户型图就变成了户型图绘制页。
- * 因此这里改为精确丢弃舞台页真正多余的壳层：StudioView 的两个模板根里只留 `.studio-shell`，
- * 以及应用根的氛围光层（多页版舞台页并不存在）。
+ *
+ * 因此改为精确丢弃舞台页多余壳层：Vue 顶栏 / 快捷键浮层 / 旧 header / chrome-root 里
+ * 除 `.studio-shell` 外的兄弟节点，以及应用根的氛围光层。
  */
 body.interaction3d-stage .studio-header,
-body.interaction3d-stage #app > .app-container > .homeos-theme-atmosphere {
+body.interaction3d-stage .sc-topbar,
+body.interaction3d-stage .sc-shortcuts-overlay,
+body.interaction3d-stage .sc-tool-strip,
+body.interaction3d-stage .studio-chrome-root > :not(.studio-shell):not(.i3d-climate-picker-menu),
+body.interaction3d-stage #app > .app-container > .homeos-theme-atmosphere,
+body.interaction3d-stage #app > .app-container > .app-chrome-toast-host {
   display: none !important;
 }
 
@@ -73,18 +85,21 @@ body.interaction3d-stage #app > .app-container > .homeos-theme-atmosphere {
  *   `body.auto-diagram-embedded
  *      > :not(#export-dialog):not(#export-overwrite-dialog):not(#export-complete-dialog):not(#toast)`
  * 隐藏除导出对话框以外的所有 body 直接子元素。SPA 下 body 只有 `#app` 一个直接子元素，
- * 整站连同导出界面一起被隐藏（白屏）。
+ * 且导出 dialog 已嵌在 `.studio-chrome-root` 内，不能再按 `#app` 的直接子元素过滤。
  *
- * 注意优先级：这条规则有 4 个 `:not(#id)`，specificity 是 (4,1,1)；
+ * 注意优先级：studio.css 那条规则有 4 个 `:not(#id)`，specificity 是 (4,1,1)；
  * 单纯写 `body.auto-diagram-embedded > #app` 只有 (1,1,1)，即使加 `!important` 也压不住。
- * 所以必须把同样的 `:not()` 链原样镜像过来，把 id 计数提到 5。
- * 后半条再把「只留导出对话框」的过滤下推到 `#app` 的子元素上，复刻多页版观感。
+ * 所以必须把同样的 `:not()` 链原样镜像过来，把 id 计数提到 5，让 `#app` 走 display:contents；
+ * 真正「只留导出对话框」的过滤下推到 `.studio-chrome-root` 子元素上。
  */
 body.auto-diagram-embedded > #app:not(#export-dialog):not(#export-overwrite-dialog):not(#export-complete-dialog):not(#toast) {
   display: contents !important;
 }
 
-body.auto-diagram-embedded > #app > :not(#export-dialog):not(#export-overwrite-dialog):not(#export-complete-dialog):not(#toast) {
+body.auto-diagram-embedded .studio-chrome-root > :not(#export-dialog):not(#export-overwrite-dialog):not(#export-complete-dialog):not(#toast),
+body.auto-diagram-embedded .homeos-theme-atmosphere,
+body.auto-diagram-embedded .homeos-light-backdrop,
+body.auto-diagram-embedded .app-chrome-toast-host {
   display: none !important;
 }
 

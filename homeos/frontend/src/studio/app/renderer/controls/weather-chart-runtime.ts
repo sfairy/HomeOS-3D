@@ -54,7 +54,7 @@ function sampleArrayAtRatio(values: any, ratio: any) {
     ? values[lowerIndex]
     : values[lowerIndex] + (values[upperIndex] - values[lowerIndex]) * (scaledIndex - lowerIndex);
 }
-export function normalizedThresholds(thresholds: any) {
+function normalizedThresholds(thresholds: any) {
   return (Array.isArray(thresholds) ? thresholds : [])
     .filter((entry) => Number.isFinite(Number(entry?.value)))
     .map((threshold) => ({
@@ -63,7 +63,7 @@ export function normalizedThresholds(thresholds: any) {
     }))
     .sort((leftEntry, rightEntry) => leftEntry.value - rightEntry.value);
 }
-export function automaticThresholds(series: any) {
+function automaticThresholds(series: any) {
   const sortedValues = (Array.isArray(series) ? series : [])
     .map((seriesValue) => Number(seriesValue?.value ?? seriesValue))
     .filter((numericSeriesValue) => Number.isFinite(numericSeriesValue))

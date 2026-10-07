@@ -64,9 +64,9 @@ export const PAGE_ASSETS = {
   licenseRecovery: authPage("连接状态 · HomeOS"),
 
   editor: {
-    title: "HomeOS",
-    viewport: "width=1020,user-scalable=yes",
-    themeColor: "#172029",
+    title: "仪表盘编辑器 · HomeOS",
+    viewport: "width=device-width,initial-scale=1,viewport-fit=cover",
+    themeColor: "#080d18",
     manifest: "/static/assets/manifest/manifest-h5.webmanifest",
     stylesheets: [
       "/static/global-log.css",
@@ -99,8 +99,6 @@ export const PAGE_ASSETS = {
     ],
   } satisfies PageAssets,
 } as const;
-
-export type PageAssetsKey = keyof typeof PAGE_ASSETS;
 
 const MANAGED_ATTR = "data-spa-managed";
 // 用 href 后缀而不是全等：入口里的 href 可能带查询串或片段，全等匹配会落空。

@@ -18,7 +18,8 @@
 #       cp .env.example .env
 #       - APP_TRUSTED_PROXIES / STORE_TRUSTED_PROXIES：反代已内置在容器回环上，保持默认 127.0.0.1,::1
 #       - APP_COOKIE_SECURE / STORE_COOKIE_SECURE：HTTP/HTTPS 都要能登录用 false
-#       - APP_LICENSE_SERVER_URL：同机 --role all 由 shared overlay 注入内网；分拆 --role app 填商店局域网地址
+#       - APP_LICENSE_SERVER_URL：同机 --role all 由 shared overlay 注入内网；
+#         分拆 --role app 用 --license-server（同时写入 APP_STORE_URL）
 #       - APP_BASE_URL / STORE_BASE_URL：局域网 IP 不固定时留空（应用按请求 Host 判断同源）
 #       账号不走环境变量：主应用首装零用户在 /register 注册本机唯一账号（见第 7 步），
 #       商店运营管理员在 /setup 创建（见第 6 步）。

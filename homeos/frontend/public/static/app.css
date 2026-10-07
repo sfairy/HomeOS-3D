@@ -253,6 +253,38 @@ button.danger-quiet {
   min-height: 560px;
   overflow: hidden;
 }
+/* Vue 壳层：固定三区 + 折叠只压列宽（勿 display:none） */
+.editor-chrome-root .editor-shell {
+  grid-template-areas: "nav workspace inspector";
+}
+.editor-chrome-root .editor-shell > .panel.navigator {
+  grid-area: nav;
+}
+.editor-chrome-root .editor-shell > .workspace-panel {
+  grid-area: workspace;
+}
+.editor-chrome-root .editor-shell > .panel.inspector {
+  grid-area: inspector;
+}
+.editor-chrome-root.sc-shell--left-collapsed .editor-shell {
+  grid-template-columns: 0 minmax(0, 1fr) var(--sc-right, 280px);
+}
+.editor-chrome-root.sc-shell--right-collapsed .editor-shell {
+  grid-template-columns: var(--sc-left, 260px) minmax(0, 1fr) 0;
+}
+.editor-chrome-root.sc-shell--left-collapsed.sc-shell--right-collapsed .editor-shell {
+  grid-template-columns: 0 minmax(0, 1fr) 0;
+}
+.editor-chrome-root .panel.navigator.is-collapsed,
+.editor-chrome-root .panel.inspector.is-collapsed {
+  display: block !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  padding: 0 !important;
+  border: 0 !important;
+  opacity: 0 !important;
+}
 .panel {
   min-width: 0;
   overflow: auto;
@@ -271,12 +303,13 @@ button.danger-quiet {
     overflow: auto;
     -webkit-overflow-scrolling: touch;
   }
-  body,
+  /* 创作壳层由 .editor-chrome-root 自适应；不再强制 1020 硬锁 */
+  body:not(:has(.editor-chrome-root)),
   .editor-shell {
-    min-width: 1020px;
+    min-width: 0;
   }
   .editor-shell {
-    overflow: visible;
+    overflow: hidden;
   }
   .panel {
     -webkit-overflow-scrolling: touch;

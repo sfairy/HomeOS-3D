@@ -232,11 +232,24 @@ class SystemService:
         """解析前端访问端口。
 
         生产环境下 SPA 由后端直接托管，不存在独立前端端口，按回退链推导：
-        ``FRONTEND_PORT → HTTPS_PORT → HTTP_PORT → 请求 Host 端口 → 后端端口``。
+        ``FRONTEND_PORT → APP_PROXY_PUBLISH_PORT / HTTPS_PORT →
+        APP_PUBLISH_PORT / HTTP_PORT → 请求 Host 端口 → 后端端口``。
+        宿主发布端口可能写成 ``127.0.0.1:8803``，只取末段数字。
         """
-        for key in ("FRONTEND_PORT", "HTTPS_PORT", "HTTP_PORT"):
+        for key in (
+            "FRONTEND_PORT",
+            "APP_PROXY_PUBLISH_PORT",
+            "HTTPS_PORT",
+            "APP_PUBLISH_PORT",
+            "HTTP_PORT",
+        ):
+            raw = (os.getenv(key) or "").strip()
+            if not raw:
+                continue
+            # 兼容 compose 宿主映射写法 host:port / 裸端口
+            tail = raw.rsplit(":", 1)[-1]
             try:
-                explicit = int(os.getenv(key) or 0)
+                explicit = int(tail)
             except ValueError:
                 explicit = 0
             if explicit > 0:

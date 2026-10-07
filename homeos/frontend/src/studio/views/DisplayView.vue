@@ -8,20 +8,59 @@
  * 每次挂载/切换目标都重建 DOM 契约（`:key="bootKey"`）再重新引导，卸载时回收渲染循环、
  * WebSocket、全局监听与文档级残留 —— 不再用 `useHardExit()` 的整文档跳转。
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, watch } from "vue";
+import {
+  computed,
+  nextTick,
+  onActivated,
+  onBeforeUnmount,
+  onDeactivated,
+  onMounted,
+  ref,
+  watch,
+} from "vue";
 import { useRoute } from "vue-router";
 import { loadClassicScript } from "../composables/useLegacyPage";
 
 const route = useRoute();
 
+/** 本视图负责的路由；keep-alive 失活后 `useRoute()` 会变成别的页，不能跟着改 DOM。 */
+const DISPLAY_ROUTE_NAMES = new Set(["dashboard", "display", "homeos"]);
+
+function isDisplayRouteName(name: unknown): boolean {
+  return DISPLAY_ROUTE_NAMES.has(String(name ?? ""));
+}
+
 /**
- * 引导键：路径变化即重建 DOM 契约并重新引导。
+ * 引导键：仅在本视图仍匹配展示路由时跟随路径；失活期间冻结。
  *
- * 两种宿主（独立整屏 `/display/*`、`/homeos/*` 与嵌入总览 `/`）的定尺规则不同，
- * 且 `display-boot` 结束时会把 `#display-splash` 从文档里摘掉 —— 只有重建节点才能
- * 拿到干净的 splash 与 `#display-root`。同一组件实例被路由复用时靠这个键兜住。
+ * MainLayout 对子页 keep-alive。从 `/` 切到 `/devices` 时 DisplayView 仍存活，
+ * 若 `bootKey` 跟着变成 `/devices`，`:key` 重挂 + watch 重引导会与失活 patch
+ * 叠成 `insertBefore(null)`（ErrorBoundary「页面加载失败」）。
  */
-const bootKey = computed(() => route.fullPath);
+const frozenBootKey = ref(route.fullPath);
+watch(
+  () => ({ name: route.name, fullPath: route.fullPath }),
+  ({ name, fullPath }) => {
+    if (isDisplayRouteName(name)) frozenBootKey.value = fullPath;
+  },
+  { immediate: true },
+);
+const bootKey = computed(() => frozenBootKey.value);
+
+/**
+ * splash 仍由本模板渲染时为 true。
+ *
+ * `display-boot` 进场结束后要卸掉 `#display-splash`。若只做原生 `.remove()`、不告诉 Vue，
+ * 父树（MainLayout / keep-alive / App 过渡）任意一次重渲染都会对已脱离节点做
+ * `insertBefore`。本仓库 Vue 构建不导出 `flushSync`，因此只靠 v-if 卸 vnode，
+ * 命令式侧禁止再 `.remove()`。
+ */
+const splashPresent = ref(true);
+
+/** display-boot 派发 `hb-display-splash-detach` 时调用：只改状态，由 v-if 卸 DOM。 */
+function detachSplashFromVue() {
+  splashPresent.value = false;
+}
 
 interface DisplayModules {
   bootDisplayBoot: () => void;
@@ -36,6 +75,13 @@ interface DisplayModules {
 
 let modules: DisplayModules | null = null;
 let isUnmounted = false;
+/** keep-alive 失活：禁止异步引导在后台写回已冻结的 DOM 契约。 */
+let isInactive = false;
+/**
+ * keep-alive 首次进入会先 `onMounted` 再 `onActivated`；用此标记避免双重引导。
+ * 独立整屏路由不在 keep-alive 内，只有 `onMounted`。
+ */
+let bootedInActiveCycle = false;
 
 /** 按原始依赖顺序加载引导模块（只求值一次）：boot → startup → hls → display → 安装引导。 */
 async function ensureModules(): Promise<DisplayModules> {
@@ -62,7 +108,7 @@ async function ensureModules(): Promise<DisplayModules> {
 /** 引导顺序即依赖顺序：splash 契约 → 预取 → 展示页 → 安装引导（读 `display-booting` 类）。 */
 async function startDisplay(): Promise<void> {
   const loaded = await ensureModules();
-  if (isUnmounted) return;
+  if (isUnmounted || isInactive || !isDisplayRouteName(route.name)) return;
   loaded.bootDisplayBoot();
   loaded.bootDisplayStartup();
   loaded.bootDisplay();
@@ -78,27 +124,60 @@ function stopDisplay(): void {
 }
 
 onMounted(() => {
+  isInactive = false;
+  bootedInActiveCycle = true;
+  window.addEventListener("hb-display-splash-detach", detachSplashFromVue);
   void startDisplay();
+});
+
+onActivated(() => {
+  // 与 onMounted 同一次进入：跳过，避免 boot×2。
+  if (bootedInActiveCycle) return;
+  isInactive = false;
+  bootedInActiveCycle = true;
+  if (!isDisplayRouteName(route.name)) return;
+  // 从其它 Tab 回到总览：运行时已在 deactivated 里拆掉，需重新引导。
+  splashPresent.value = true;
+  void startDisplay();
+});
+
+onDeactivated(() => {
+  isInactive = true;
+  bootedInActiveCycle = false;
+  stopDisplay();
 });
 
 onBeforeUnmount(() => {
   isUnmounted = true;
+  isInactive = true;
+  bootedInActiveCycle = false;
+  window.removeEventListener("hb-display-splash-detach", detachSplashFromVue);
   stopDisplay();
 });
 
 watch(bootKey, async () => {
+  if (isUnmounted || isInactive || !isDisplayRouteName(route.name)) return;
   stopDisplay();
-  // 等新 DOM 契约渲染完成再引导，否则 querySelector 拿到的还是旧节点。
+  // 路径变化：重新挂上 splash 节点，再等 DOM 契约就绪后引导。
+  splashPresent.value = true;
   await nextTick();
+  if (isUnmounted || isInactive || !isDisplayRouteName(route.name)) return;
   void startDisplay();
 });
 </script>
 
 <template>
+  <div class="display-chrome-host" style="position: relative; width: 100%; height: 100%">
 <main id="display-shell" :key="bootKey" tabindex="-1">
         <div id="display-root" tabindex="-1"></div>
     </main>
-    <section id="display-splash" :key="`${bootKey}-splash`" aria-label="正在打开仪表盘" tabindex="-1">
+    <section
+      v-if="splashPresent"
+      id="display-splash"
+      :key="`${bootKey}-splash`"
+      aria-label="正在打开仪表盘"
+      tabindex="-1"
+    >
         <div class="display-splash-halo" aria-hidden="true"></div>
         <div class="display-splash-identity">
             <svg class="display-splash-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 168 168" role="img"
@@ -196,4 +275,5 @@ watch(bootKey, async () => {
         </div>
         <div class="display-splash-footer" aria-hidden="true">让家，触手可及</div>
     </section>
+  </div>
 </template>

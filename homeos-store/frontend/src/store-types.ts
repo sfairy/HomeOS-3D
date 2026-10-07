@@ -1,9 +1,5 @@
 /** 商店前台共享领域类型（API JSON 的宽松形状）。 */
 
-export type JsonObject = Record<string, unknown>;
-
-export type TimerHandle = ReturnType<typeof setInterval> | ReturnType<typeof setTimeout>;
-
  interface DeviceReleasePolicy {
   cooldownSeconds: number;
   lastReleasedAt?: string | null;
@@ -32,14 +28,6 @@ export interface StoreLicense {
   accessExpiresAt?: string | null;
   device?: StoreDevice | null;
   deviceReleasePolicy?: DeviceReleasePolicy;
-  [key: string]: unknown;
-}
-
- interface StoreEntitlement {
-  active?: boolean;
-  licenseId?: string;
-  customerId?: string;
-  featureCode?: string;
   [key: string]: unknown;
 }
 
@@ -121,54 +109,6 @@ export interface StoreConfiguration {
     [key: string]: unknown;
   };
   [key: string]: unknown;
-}
-
- interface ReleaseTarget {
-  expectedBindingId?: unknown;
-  expectedActivatedAt?: unknown;
-  expectedBindingVersion?: unknown;
-  [key: string]: unknown;
-}
-
- interface PurchaseBlock {
-  label: string;
-}
-
-export interface StoreFrontState {
-  products: StoreProduct[];
-  product: StoreProduct | null;
-  configuration: StoreConfiguration | null;
-  account: StoreAccount | null;
-  hasLicense: boolean;
-  hasTemporaryLicense: boolean;
-  hasPermanentLicense: boolean;
-  hasUsedTrial: boolean;
-  accountLicenses: StoreLicense[];
-  accountEntitlements: StoreEntitlement[];
-  accountOrders: StoreOrder[];
-  accountOrdersLoaded?: boolean;
-  accountOrdersTotal?: number;
-  productFilter: string;
-  ownedFeatureCodes: Set<string>;
-  purchaseBlock?: PurchaseBlock | null;
-  pollTimer: TimerHandle | null;
-  paymentCountdownTimer: TimerHandle | null;
-  pendingCountdownTimer: TimerHandle | null;
-  accountCountdownTimer: TimerHandle | null;
-  accountExpiryRefreshing: boolean;
-  emailCooldownTimers: Map<HTMLButtonElement, TimerHandle>;
-  deviceReleasePolicy: DeviceReleasePolicy | null;
-  releaseCountdownTimer: TimerHandle | null;
-  releaseOpening: boolean;
-  releaseSubmitting: boolean;
-  releaseLicenseId: string | null;
-  releaseTarget: ReleaseTarget | null;
-  labelLicenseId: string | null;
-  currentOrder: StoreOrder | null;
-  pendingOrder: StoreOrder | null;
-  couponPreviewTimer: TimerHandle | null;
-  couponPreviewSequence: number;
-  _paymentVisibilityHandler?: (() => void) | null;
 }
 
 export function errorMessage(error: unknown, fallback = '请求失败'): string {

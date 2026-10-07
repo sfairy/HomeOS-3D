@@ -80,5 +80,3 @@ export function sceneValues(page: string): SceneValues & typeof SHARED {
   const found = VALUES[page] || VALUES.login!;
   return { ...SHARED, ...found };
 }
-
-export const SCENE_PAGES = Object.keys(VALUES);

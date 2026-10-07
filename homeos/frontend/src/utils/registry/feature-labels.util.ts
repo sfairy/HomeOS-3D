@@ -48,6 +48,3 @@ export const FEATURE_LABELS: Record<string, FeatureLabelEntry> = {
 export function featureLabel(code: string): string {
   return FEATURE_LABELS[code]?.label ?? code
 }
-
-/** 全部已登记功能码（顺序同真源）。 */
-export const FEATURE_CODES: readonly string[] = Object.keys(FEATURE_LABELS)

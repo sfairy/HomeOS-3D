@@ -2,9 +2,9 @@
   @file DeviceRow.vue
   @module 设备列表/单行组件
   @description 设备列表的单行渲染组件：展示复选框、域标签、设备名、entity_id、房间、电量、状态与操作按钮。
-               灯光短按切换、长按打开控制弹窗（对齐 entityPopupOpensOnClick）；其它可控域单击开弹窗。
+               有控制弹窗的域（含灯光）单击主体打开弹窗；灯光短按开关改走行内「切换」按钮。
                右键菜单：控制/详情/切换/复制 ID。菜单 Teleport 至 #teleport-target，Esc 走 useEscStack。
-  @dependencies vue（ref/computed）、@lucide/vue、useLongPress、useEscStack（Esc 层级栈）、
+  @dependencies vue（ref/computed）、@lucide/vue、useEscStack（Esc 层级栈）、
                 DeviceListItem 类型、copyTextWithNotify、getDomainLabel、
                 displayEntityStateLabel、entityPopupOpensOnClick。
 -->
@@ -30,7 +30,7 @@
     >
       <component :is="selected ? CheckSquare : Square" class="w-4 h-4" aria-hidden="true" />
     </button>
-    <!-- 主体：灯光短按切换 / 长按弹窗；其它域单击弹窗。触摸/鼠标长按共用 useLongPress -->
+    <!-- 主体：有控制弹窗则单击打开；开关仍走右侧「切换」按钮 -->
     <button
       type="button"
       class="list-page__row-main"
@@ -38,12 +38,6 @@
       :disabled="!item.controllable"
       :aria-describedby="stateId"
       @click="onMainClick"
-      @mousedown="longPress.onPressStart"
-      @mouseup="longPress.onPressEnd"
-      @mouseleave="longPress.onPressCancel"
-      @touchstart.passive="longPress.onPressStart"
-      @touchend="longPress.onPressEnd"
-      @touchcancel="longPress.onPressCancel"
     >
       <span class="list-page__domain" :data-domain="item.domain" :title="item.entity_id">{{
         domainLabel
@@ -146,7 +140,6 @@ import {
   CircleCheck,
   TriangleAlert,
 } from '@lucide/vue'
-import { useLongPress } from '@/composables/ui/useLongPress'
 import { useExclusiveDropdown } from '@/composables/ui/useExclusiveDropdown'
 import { viewportPointToPopupAnchor } from '@/composables/ui/usePopupPosition'
 import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
@@ -193,30 +186,18 @@ const { teleportTarget: menuTeleportTo, refreshShellTeleport } = useShellTelepor
 const menuStyle = ref<{ top: string; left: string }>({ top: '0px', left: '0px' })
 
 /**
- * 长按回调：仅可控设备触发 open 事件，打开控制面板。
- * 通过 useLongPress 封装长按判定与触摸/鼠标兼容。
- */
-const longPress = useLongPress(() => {
-  if (props.item.controllable) {
-    emit('open', props.item)
-  }
-})
-
-/**
  * 主体点击处理：
  * - 不可控设备直接返回；
- * - 若刚刚触发了长按则消费标记并返回（长按已 emit open）；
- * - 灯光等「短按不弹窗」域：短按 toggle（行内开关 / 菜单切换仍可用）；
- * - 其余可控域：单击打开控制弹窗（对齐 entityPopupOpensOnClick）。
+ * - 有控制弹窗：emit open；
+ * - 无弹窗但可切换：短按 toggle（开关等）。
  */
 function onMainClick() {
   if (!props.item.controllable) return
-  if (longPress.consumeLongPress()) return
-  if (!entityPopupOpensOnClick(props.item.entity_id)) {
-    if (props.item.toggleable && !props.item.unavailable) emit('toggle', props.item)
+  if (entityPopupOpensOnClick(props.item.entity_id)) {
+    emit('open', props.item)
     return
   }
-  emit('open', props.item)
+  if (props.item.toggleable && !props.item.unavailable) emit('toggle', props.item)
 }
 
 /**

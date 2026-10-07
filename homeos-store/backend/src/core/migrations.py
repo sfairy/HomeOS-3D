@@ -31,7 +31,7 @@ MIGRATION_BACKUP_KEEP = 3
 #: 结构基线版本号。发行产物不带迁移脚本，新库直接按 ORM 元数据建好后
 #: 写入这个版本号；开发期存在 ``db/migrations`` 时，会校验它与 Alembic head 一致，
 #: 防止有人加了新 revision 却忘了同步这个常量（产物会退回「只建旧基线」，缺表）。
-SCHEMA_REVISION = "0005"
+SCHEMA_REVISION = "0006"
 
 
 class MigrationBackupError(RuntimeError):

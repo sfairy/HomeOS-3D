@@ -355,8 +355,42 @@ button:disabled {
   height: calc(100% - 70px);
   display: grid;
   grid-template-columns: 204px minmax(400px, 1fr) minmax(420px, var(--details-panel-width, 29vw));
+  grid-template-areas: "library plan details";
   gap: 10px;
   padding: 10px;
+}
+.studio-chrome-root .studio-shell > .library-panel {
+  grid-area: library;
+}
+.studio-chrome-root .studio-shell > .plan-panel {
+  grid-area: plan;
+}
+.studio-chrome-root .studio-shell > .details-panel {
+  grid-area: details;
+}
+/* 库折叠 / 平面聚焦：只压列宽，勿 display:none（会触发表格重排） */
+.studio-chrome-root.sc-shell--library-rail .studio-shell {
+  grid-template-columns: 0 minmax(400px, 1fr) minmax(420px, var(--details-panel-width, 29vw)) !important;
+}
+.studio-chrome-root.sc-shell--plan-focus .studio-shell {
+  grid-template-columns: 204px minmax(400px, 1fr) 0 !important;
+}
+.studio-chrome-root.sc-shell--library-rail.sc-shell--plan-focus .studio-shell {
+  grid-template-columns: 0 minmax(400px, 1fr) 0 !important;
+}
+.studio-chrome-root .library-panel.is-collapsed,
+.studio-chrome-root.sc-shell--library-rail .library-panel,
+.studio-chrome-root .details-panel.is-collapsed,
+.studio-chrome-root.sc-shell--plan-focus .details-panel {
+  display: block !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  min-width: 0 !important;
 }
 .panel-surface {
   border: 1px solid var(--line);

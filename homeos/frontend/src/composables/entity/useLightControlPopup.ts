@@ -49,21 +49,26 @@ import {
  * @param props 组件 props，需提供 entity.entity_id
  * @returns 灯光弹窗所需的全部响应式状态与控制方法
  */
-export function useLightControlPopup(props: { entity?: { entity_id?: string } | null }) {
+export function useLightControlPopup(props: {
+  entityId?: string
+  entity?: { entity_id?: string } | null
+}) {
   const { callService } = useHaEntityService()
   // 能力属性（supported_color_modes/Kelvin 范围等），需通过 REST 刷新获取完整值
   const capabilityAttrs = ref<Record<string, unknown>>({})
   const liveEntity = useLiveEntity(
-    () => props.entity?.entity_id,
+    () => props.entityId || props.entity?.entity_id,
     () => props.entity,
   )
+  const resolveEntityId = () =>
+    props.entityId || props.entity?.entity_id || liveEntity.value?.entity_id
 
   /**
    * 通过 REST 刷新灯光能力属性（WS 推送可能不含 min/max_color_temp_kelvin 等字段）。
    * 仅在返回的 entity_id 匹配时更新 capabilityAttrs，避免切换实体时回写旧值。
    */
   async function refreshLightCapabilities() {
-    const entityId = props.entity?.entity_id ?? liveEntity.value?.entity_id
+    const entityId = resolveEntityId()
     if (!entityId) return
     const fresh = await fetchEntityById(entityId, { refresh: true })
     if (fresh?.entity_id === entityId && fresh) {
@@ -74,7 +79,7 @@ export function useLightControlPopup(props: { entity?: { entity_id?: string } | 
   onMounted(refreshLightCapabilities)
   // 实体切换时清空能力属性并重新刷新
   watch(
-    () => props.entity?.entity_id ?? liveEntity.value?.entity_id,
+    () => props.entityId || props.entity?.entity_id || liveEntity.value?.entity_id,
     () => {
       capabilityAttrs.value = {}
       refreshLightCapabilities()

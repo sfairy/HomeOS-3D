@@ -260,6 +260,12 @@ window.__homeosStudioModuleVersion =
 import { createLegacyScope } from '../../../runtime/legacy-scope';
 import { navigateInShell } from '../../../runtime/shell-navigation';
 import { shellNotify } from '../../../runtime/shell-chrome';
+import {
+  patchStudioFacadeState,
+  registerStudioCommandHandler,
+  resetStudioFacade,
+} from '../../../engine';
+import { buildStudioHistoryPatch } from './studio-history';
 
 let disposeActiveStudio: (() => void) | null = null;
 
@@ -522,6 +528,11 @@ const autoDiagramComponentId =
     ? new URLSearchParams(window.location.search).get("floor-selection")
     : null;
 isAutoDiagramEmbed && document.body.classList.add("auto-diagram-embedded");
+// 嵌入舞台（总览 / 展示 iframe）默认透明底：等父页 config 再决定是否显示网格/星空。
+// 否则场景 JSON 默认 backgroundVisible:true 会先铺一层不透明背景，房子周围看起来「没铺满」。
+if (isEmbeddedStage) {
+  document.body.classList.add("is-background-hidden");
+}
 const planCanvasElement = selectElement("#plan-canvas"),
   planStageElement = selectElement("#plan-stage"),
   canvasEmptyElement = selectElement("#canvas-empty"),
@@ -5712,6 +5723,50 @@ function showToast(toastMessage: any, toastKind = "") {
 function showSaveState(saveStateText: any, saveStateKind = "") {
   ((saveStateElement.className = ("save-state " + saveStateKind).trim()),
     (saveStateElement.innerHTML = "<i></i>" + saveStateText));
+  const mapped =
+    saveStateKind === "saving"
+      ? "saving"
+      : saveStateKind === "error"
+        ? "error"
+        : saveStateKind === "saved"
+          ? "saved"
+          : saveStateText?.includes?.("未保存") || saveStateKind === "saving"
+            ? "dirty"
+            : "idle";
+  patchStudioFacadeState({
+    dirty: mapped === "dirty" || mapped === "saving",
+    saveState: mapped as any,
+    history: {
+      canUndo: undoRecords.length > 0,
+      canRedo: redoRecords.length > 0,
+      undoDepth: undoRecords.length,
+      redoDepth: redoRecords.length,
+    },
+    activeTool: activeToolName,
+  });
+}
+
+function syncStudioHistoryFacade() {
+  patchStudioFacadeState({
+    history: buildStudioHistoryPatch(undoRecords.length, redoRecords.length),
+    activeTool: activeToolName,
+  });
+}
+
+/** 语义正确的撤销 / 重做（旧名 deleteSelectedObjects / duplicateSelectedObjects 易误导）。 */
+async function undoStudioHistory() {
+  if (!undoRecords.length) return;
+  redoRecords.push(captureUndoSnapshot());
+  const pop = undoRecords.pop();
+  await restoreSnapshot(pop);
+  syncStudioHistoryFacade();
+}
+async function redoStudioHistory() {
+  if (!redoRecords.length) return;
+  undoRecords.push(captureUndoSnapshot());
+  const pop2 = redoRecords.pop();
+  await restoreSnapshot(pop2);
+  syncStudioHistoryFacade();
 }
 function validateSelectionChange(placementChange: any) {
   const placementError = validatePlacementChange2(
@@ -5787,17 +5842,13 @@ async function restoreSnapshot(snapshotDocument: any) {
     refreshScopeItems(),
     markDocumentDirty());
 }
+/** @deprecated 误导性旧名，实际为 undo；请用 undoStudioHistory */
 async function deleteSelectedObjects() {
-  if (!undoRecords.length) return;
-  redoRecords.push(captureUndoSnapshot());
-  const pop = undoRecords.pop();
-  await restoreSnapshot(pop);
+  await undoStudioHistory();
 }
+/** @deprecated 误导性旧名，实际为 redo；请用 redoStudioHistory */
 async function duplicateSelectedObjects() {
-  if (!redoRecords.length) return;
-  undoRecords.push(captureUndoSnapshot());
-  const pop2 = redoRecords.pop();
-  await restoreSnapshot(pop2);
+  await redoStudioHistory();
 }
 function markDocumentDirty() {
   isEmbeddedStage ||
@@ -9046,6 +9097,13 @@ function refreshStepChecklist() {
   for (const stepElement of document.querySelectorAll<StudioControlElement>("[data-step]"))
     (stepElement.classList.toggle("complete", (stepCompletionFlags as any)[stepElement.dataset.step!]),
       stepElement.classList.toggle("active", stepElement.dataset.step === activeStepName));
+  patchStudioFacadeState({ workflowStep: activeStepName });
+  // 同步 Vue 工作流按钮完成态
+  for (const stepButton of document.querySelectorAll<HTMLElement>(".sc-workflow__step[data-step]")) {
+    const stepId = stepButton.getAttribute("data-step") || "";
+    stepButton.classList.toggle("is-complete", !!(stepCompletionFlags as any)[stepId]);
+    stepButton.classList.toggle("is-active", stepId === activeStepName);
+  }
 }
 function getPanelRatioLimits() {
   const detailsPanelRect = detailsPanelElement.getBoundingClientRect(),
@@ -10775,6 +10833,8 @@ function selectStudioTool(toolId: any) {
   for (const toolButton of toolButtons)
     (toolButton.classList.toggle("active", toolButton.dataset.tool === toolId),
       toolButton.setAttribute("aria-pressed", String(toolButton.dataset.tool === toolId)));
+  patchStudioFacadeState({ activeTool: toolId });
+  patchStudioFacadeState({ activeTool: toolId });
   (closeDrawingToolGroups(),
     syncDrawingToolGroupStates(),
     ([activeToolLabel.textContent, toolHelpElement.textContent] =
@@ -31388,20 +31448,26 @@ if (
       (activeToolName === "scale" || activeToolName === "wall") &&
       ((isForceSnapDisabled = true), updateSnapIndicator(), refreshStudioView());
     const ctrlKey = windowKeyDownEvent.metaKey || windowKeyDownEvent.ctrlKey;
-    if (ctrlKey && windowKeyDownEvent.key.toLowerCase() === "z") {
+    const keyLowerStudio = windowKeyDownEvent.key.toLowerCase();
+    if (ctrlKey && keyLowerStudio === "z") {
       (windowKeyDownEvent.preventDefault(),
-        windowKeyDownEvent.shiftKey ? duplicateSelectedObjects() : deleteSelectedObjects());
+        windowKeyDownEvent.shiftKey ? void redoStudioHistory() : void undoStudioHistory());
       return;
     }
-    if (ctrlKey && windowKeyDownEvent.key.toLowerCase() === "d") {
+    if (ctrlKey && keyLowerStudio === "y" && !windowKeyDownEvent.shiftKey) {
+      (windowKeyDownEvent.preventDefault(), void redoStudioHistory());
+      return;
+    }
+    if (ctrlKey && keyLowerStudio === "d") {
       (windowKeyDownEvent.preventDefault(), duplicateSelection());
       return;
     }
-    if (ctrlKey && windowKeyDownEvent.key.toLowerCase() === "c") {
+    // mirrorSelection / rotateSelection 虽名误导，语义实为 copy / paste
+    if (ctrlKey && keyLowerStudio === "c" && !windowKeyDownEvent.shiftKey) {
       (windowKeyDownEvent.preventDefault(), mirrorSelection());
       return;
     }
-    if (ctrlKey && windowKeyDownEvent.key.toLowerCase() === "v") {
+    if (ctrlKey && keyLowerStudio === "v" && !windowKeyDownEvent.shiftKey) {
       (windowKeyDownEvent.preventDefault(), rotateSelection());
       return;
     }
@@ -31812,7 +31878,7 @@ function runStudioRenderLoop() {
     geometryBoxes: any = [],
     backgroundBoundaries: any = [],
     invalidationBounds: any = [],
-    isBackgroundVisible = true,
+    isBackgroundVisible = !isEmbeddedStage,
     isOrbitEnabled = false,
     cameraRootRef: any,
     cameraFirstChildRef: any,
@@ -34802,9 +34868,89 @@ function runStudioRenderLoop() {
 }
 startupStudio();
 
+  function jumpWorkflowStep(step: string) {
+    patchStudioFacadeState({ workflowStep: step });
+    if (step === "background") {
+      importPlanButton?.focus?.();
+      importPlanButton?.click?.();
+      return;
+    }
+    if (step === "scale") {
+      selectStudioTool("scale");
+      return;
+    }
+    if (step === "walls") {
+      selectStudioTool("wall");
+      return;
+    }
+    if (step === "items") {
+      try {
+        setAssetCategory?.("home");
+      } catch {}
+      selectStudioTool("select");
+      return;
+    }
+    if (step === "lights") {
+      try {
+        setAssetCategory?.("light");
+      } catch {}
+      selectStudioTool("select");
+      return;
+    }
+    if (step === "export") {
+      openExportPanel();
+    }
+  }
+
+  registerStudioCommandHandler((command) => {
+    switch (command.type) {
+      case "undo":
+        void undoStudioHistory();
+        break;
+      case "redo":
+        void redoStudioHistory();
+        break;
+      case "delete":
+        clearSelection();
+        break;
+      case "copy":
+        mirrorSelection();
+        break;
+      case "paste":
+        rotateSelection();
+        break;
+      case "setTool":
+        selectStudioTool(command.tool);
+        break;
+      case "setWorkflowStep":
+        jumpWorkflowStep(command.step);
+        break;
+      case "setPlanFocus":
+        document.querySelector(".studio-chrome-root")?.classList.toggle(
+          "sc-shell--plan-focus",
+          !!command.focus,
+        );
+        patchStudioFacadeState({ planFocus: !!command.focus });
+        window.dispatchEvent(new Event("resize"));
+        break;
+      case "setLibraryCollapsed":
+        document.querySelector(".studio-chrome-root")?.classList.toggle(
+          "sc-shell--library-rail",
+          !!command.collapsed,
+        );
+        patchStudioFacadeState({ libraryCollapsed: !!command.collapsed });
+        window.dispatchEvent(new Event("resize"));
+        break;
+      default:
+        break;
+    }
+  });
+  refreshStepChecklist();
+  syncStudioHistoryFacade();
 
   // ── 显式回收：需要访问引导体内作用域的资源 ──────────────────────────────
   return () => {
+    registerStudioCommandHandler(null);
     // SPA 内路由不会触发 pagehide / beforeunload（那是整页导航的路径），所以在拆场景之前
     // 尽力提交一次未保存修改；「不保存并退出」（isLeavingStudio）时按用户意愿跳过。
     if (!isEmbeddedStage && !isLeavingStudio && hasUnsavedChanges()) {
@@ -34903,6 +35049,7 @@ startupStudio();
     } finally {
       // 无论显式回收是否成功，登记过的全局监听/定时器/观察器都必须释放
       scope.dispose();
+      resetStudioFacade();
     }
   };
 }

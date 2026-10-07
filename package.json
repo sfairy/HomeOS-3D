@@ -18,6 +18,7 @@
     "image:store": "python3 ops/build.py image --project store",
     "typecheck": "bun run --cwd homeos typecheck && bun run --cwd homeos-store typecheck",
     "typecheck:node": "tsc -p tsconfig.node.json",
+    "knip": "knip --reporter compact",
     "verify:scene": "python3 ops/verify_scene_sync.py",
     "verify:features": "python3 ops/check_feature_codes.py",
     "verify:schema": ".venv-store/bin/python ops/check_schema.py",
@@ -41,23 +42,27 @@
   ],
   "overrides": {
     "form-data": "4.0.6",
-    "ws": "8.21.3",
+    "ws": "8.22.0",
     "body-parser": "2.3.0",
     "brace-expansion": "5.0.12",
-    "js-yaml": "5.4.2",
-    "valibot": "1.4.2",
+    "js-yaml": "5.4.3",
+    "valibot": "1.5.0",
     "find-my-way": "9.9.0",
-    "fast-uri": "3.1.7",
+    "fast-uri": "3.1.8",
     "file-type": "22.1.1",
     "socket.io-parser": "4.2.7",
     "multer": "2.4.0",
-    "nanoid": "3.3.18",
-    "pg": "8.23.0",
-    "postcss": "8.5.28"
+    "nanoid": "3.3.20",
+    "pg": "8.23.1",
+    "postcss": "8.5.29",
+    "typescript": "6.0.3",
+    "pinia": "4.0.3",
+    "vue-router": "5.4.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
-    "javascript-obfuscator": "^5.8.1",
+    "javascript-obfuscator": "^5.9.0",
+    "knip": "^6.40.0",
     "typescript": "^6.0.3"
   }
 }

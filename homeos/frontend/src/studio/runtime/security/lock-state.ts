@@ -3,7 +3,6 @@ export const {
   lockState,
   doorOpenState,
   doorModels,
-  entryDoorModels,
   identifyLockEntities,
   lockEntityRole,
   LOCK_ENTITY_FIELDS,

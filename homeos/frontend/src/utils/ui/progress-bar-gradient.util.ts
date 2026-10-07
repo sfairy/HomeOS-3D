@@ -55,13 +55,6 @@ const BUILDER_COLOR_GRADIENTS: Record<string, ProgressGradient> = {
   '#06b6d4': PROGRESS_VARIANTS.teal,
 }
 
-/** PIN 强度 class → variant */
-export const PIN_STRENGTH_VARIANT = {
-  'access-pin-strength__fill--weak': 'danger',
-  'access-pin-strength__fill--ok': 'warn',
-  'access-pin-strength__fill--strong': 'success',
-}
-
 /** THRESHOLD_VARIANTS：常量集合，成员语义见定义处。 */
 export const THRESHOLD_VARIANTS = new Set(['budget', 'threshold', 'balance', 'resource'])
 

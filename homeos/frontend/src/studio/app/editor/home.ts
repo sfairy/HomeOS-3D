@@ -157,6 +157,19 @@ import {
 } from "../bridge/editor";
 import { createLegacyScope } from '../../runtime/legacy-scope';
 import { navigateInShell } from '../../runtime/shell-navigation';
+import {
+  patchEditorFacadeState,
+  registerEditorCommandHandler,
+  resetEditorFacade,
+} from '../../engine';
+import { applyEditorZoomCss } from './editor-canvas-navigation';
+import {
+  clientPointToCanvas,
+  computeAlignedPositions,
+  normalizeMarquee,
+  pickComponentsInMarquee,
+  type AlignMode,
+} from './editor-selection-tools';
 
 let disposeActiveEditor: (() => void) | null = null;
 
@@ -181,13 +194,14 @@ const EDITOR_DESIGN_WIDTH = 1020,
   COMPONENT_DIALOG_SCALE_MULTIPLIER = 1,
   editorHeaderElement = findElement(".editor-header"),
   editorShellElement = findElement(".editor-shell");
+/** 整页 scale 已废弃：改由 Vue 壳层自适应 + 画布独立 zoom。 */
 function refreshEditorViewportFit() {
-  const max = Math.max(1, editorHeaderElement.offsetHeight + editorShellElement.offsetHeight),
-    min = Math.min(1, window.innerWidth / EDITOR_DESIGN_WIDTH, window.innerHeight / max),
-    shouldScaleEditor = min < 0.999;
-  (document.documentElement.classList.toggle("editor-viewport-fit", shouldScaleEditor),
-    document.documentElement.style.setProperty("--editor-layout-height", max + "px"),
-    document.documentElement.style.setProperty("--editor-viewport-scale", String(min)));
+  document.documentElement.classList.remove("editor-viewport-fit");
+  document.documentElement.style.removeProperty("--editor-layout-height");
+  document.documentElement.style.setProperty("--editor-viewport-scale", "1");
+  void EDITOR_DESIGN_WIDTH;
+  void editorHeaderElement;
+  void editorShellElement;
 }
 function refreshComponentDialogScale() {
   const componentDialogElement = document.getElementById(
@@ -1187,14 +1201,14 @@ let editorMode = "edit",
   appliedStyleRecord: any = null,
   imageAlignSourceComponentId: any = null;
 const pendingAssetProbeKeysSet = new Set();
-let selectedComponentIdsSet = new Set(),
+let selectedComponentIdsSet = new Set<string>(),
   selectionAnchorComponentId: any = null;
 const historyState = {
     undo: [] as any[],
     redo: [] as any[],
     busy: false,
   },
-  MAX_HISTORY_ENTRIES = 10,
+  MAX_HISTORY_ENTRIES = 50,
   RECOVERY_STORAGE_PREFIX = "homeos:unsaved:";
 let savedDocumentSignature = "",
   baselineDocument: any = null,
@@ -1204,7 +1218,10 @@ let savedDocumentSignature = "",
   copySuccessNavigationTarget: any = null,
   isSaving = false,
   recoverySnapshot: any = null,
-  menuComponentId: any = null;
+  menuComponentId: any = null,
+  editorClipboardComponentIds: string[] = [],
+  editorCanvasZoom = 1,
+  editorSpacePanning = false;
 const navigationPreviewStateByComponentId = new Map(),
   iconButtonEffectPreviewStateByComponentId = new Map(),
   iconButtonPreviewStateByComponentId = new Map(),
@@ -2092,6 +2109,112 @@ const workspaceResizeObserver = new ResizeObserver(() => {
   (resizeWorkspaceCanvas(), syncCustomPopupStage(), dashboardPreviewRenderer?.resize());
 });
 workspaceResizeObserver.observe(displayDeviceCountElement);
+
+/** 空白画布框选 */
+let marqueeState: {
+  startX: number;
+  startY: number;
+  overlay: HTMLDivElement;
+} | null = null;
+function ensureMarqueeOverlay() {
+  let overlay = editorCanvasElement.querySelector(".sc-marquee") as HTMLDivElement | null;
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.className = "sc-marquee";
+    overlay.hidden = true;
+    editorCanvasElement.appendChild(overlay);
+  }
+  return overlay;
+}
+editorCanvasElement.addEventListener("pointerdown", (marqueeDownEvent: PointerEvent) => {
+  if (
+    editorMode !== "edit" ||
+    marqueeDownEvent.button !== 0 ||
+    editorSpacePanning ||
+    (marqueeDownEvent.target as Element).closest(
+      ".editable, .hb-transform-handle, .hb-multi-selection, button, input, select, a",
+    )
+  )
+    return;
+  const canvasWidth = Number(activeProject?.document?.canvas?.width || 2778);
+  const canvasHeight = Number(activeProject?.document?.canvas?.height || 1940);
+  const start = clientPointToCanvas(
+    marqueeDownEvent.clientX,
+    marqueeDownEvent.clientY,
+    editorCanvasElement,
+    canvasWidth,
+    canvasHeight,
+  );
+  const overlay = ensureMarqueeOverlay();
+  marqueeState = { startX: start.x, startY: start.y, overlay };
+  overlay.hidden = false;
+  overlay.style.cssText = "left:0;top:0;width:0;height:0;";
+  try {
+    editorCanvasElement.setPointerCapture(marqueeDownEvent.pointerId);
+  } catch {
+    /* ignore */
+  }
+  marqueeDownEvent.preventDefault();
+});
+editorCanvasElement.addEventListener("pointermove", (marqueeMoveEvent: PointerEvent) => {
+  if (!marqueeState || !activeProject) return;
+  const canvasWidth = Number(activeProject.document.canvas.width || 2778);
+  const canvasHeight = Number(activeProject.document.canvas.height || 1940);
+  const current = clientPointToCanvas(
+    marqueeMoveEvent.clientX,
+    marqueeMoveEvent.clientY,
+    editorCanvasElement,
+    canvasWidth,
+    canvasHeight,
+  );
+  const box = normalizeMarquee(
+    marqueeState.startX,
+    marqueeState.startY,
+    current.x,
+    current.y,
+  );
+  const scaleX = editorCanvasElement.clientWidth / canvasWidth;
+  const scaleY = editorCanvasElement.clientHeight / canvasHeight;
+  marqueeState.overlay.style.left = box.x * scaleX + "px";
+  marqueeState.overlay.style.top = box.y * scaleY + "px";
+  marqueeState.overlay.style.width = box.width * scaleX + "px";
+  marqueeState.overlay.style.height = box.height * scaleY + "px";
+});
+editorCanvasElement.addEventListener("pointerup", (marqueeUpEvent: PointerEvent) => {
+  if (!marqueeState || !activeProject) return;
+  const canvasWidth = Number(activeProject.document.canvas.width || 2778);
+  const canvasHeight = Number(activeProject.document.canvas.height || 1940);
+  const end = clientPointToCanvas(
+    marqueeUpEvent.clientX,
+    marqueeUpEvent.clientY,
+    editorCanvasElement,
+    canvasWidth,
+    canvasHeight,
+  );
+  const box = normalizeMarquee(marqueeState.startX, marqueeState.startY, end.x, end.y);
+  marqueeState.overlay.hidden = true;
+  marqueeState = null;
+  try {
+    editorCanvasElement.releasePointerCapture(marqueeUpEvent.pointerId);
+  } catch {
+    /* ignore */
+  }
+  if (box.width < 4 && box.height < 4) {
+    clearComponentSelection();
+    syncRendererSelection();
+    renderComponentLists();
+    coverMotorButtonElement();
+    return;
+  }
+  const hitIds = pickComponentsInMarquee(collectPageComponentBounds(), box);
+  selectedComponentIdsSet = new Set(hitIds);
+  selectedComponentId = hitIds[0] || null;
+  selectionAnchorComponentId = selectedComponentId;
+  syncRendererSelection();
+  renderComponentLists();
+  coverMotorButtonElement();
+  syncHistoryButtons();
+});
 function currentPage() {
   return (
     activeProject?.document?.pages?.find(
@@ -10024,6 +10147,44 @@ function applyTransformToInspector(syncedComponentId: any, transform: any) {
     Number.isFinite(transform.scale) && (Yr2.value = roundField2(transform.scale * 100)),
     Number.isFinite(transform.rotation) && (sc2.value = roundField2(transform.rotation)));
 }
+function collectPageComponentBounds(): Array<{
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}> {
+  const page = currentPage();
+  return (page?.components || [])
+    .map((componentEntry: any) => ({
+      id: componentEntry.id,
+      x: Number(componentEntry.position?.x || 0),
+      y: Number(componentEntry.position?.y || 0),
+      width: Number(componentEntry.position?.width || 100),
+      height: Number(componentEntry.position?.height || 100),
+    }))
+    .filter((bounds: any) => bounds.id);
+}
+
+function alignSelectedComponents(mode: AlignMode) {
+  const selectedBounds = collectPageComponentBounds().filter((bounds) =>
+    selectedComponentIdsSet.has(bounds.id),
+  );
+  const nextPositions = computeAlignedPositions(selectedBounds, mode);
+  if (!nextPositions.length) return;
+  mutateDocument((alignDocument: any) => {
+    for (const position of nextPositions) {
+      const component = findComponent2(alignDocument, position.id)?.component;
+      if (!component) continue;
+      component.position = {
+        ...(component.position || {}),
+        x: position.x,
+        y: position.y,
+      };
+    }
+  });
+}
+
 function ensureEditorRenderer() {
   return (
     editorRenderer ||
@@ -10032,6 +10193,14 @@ function ensureEditorRenderer() {
       historySeriesCache: historySeriesCacheById,
       runtimeStateCache: runtimeStateCacheById,
       virtualEntityStateCache: virtualEntityStateCacheById,
+      onSelectionChange(nextIds: string[], primaryId: string | null) {
+        selectedComponentIdsSet = new Set(nextIds || []);
+        selectedComponentId = primaryId || null;
+        selectionAnchorComponentId = selectedComponentId;
+        renderComponentLists();
+        coverMotorButtonElement();
+        syncHistoryButtons();
+      },
       onComponentTransform(transformedComponentId: any, componentTransform: any) {
         ((selectedComponentId = transformedComponentId),
           (selectedComponentIdsSet = new Set([transformedComponentId])),
@@ -10267,6 +10436,41 @@ function syncHistoryButtons() {
     isSaving || historyState.busy || !historyState.undo.length || !activeProject),
     (redoElement.disabled =
       isSaving || historyState.busy || !historyState.redo.length || !activeProject));
+  patchEditorFacadeState({
+    dirty: hasUnsavedChanges,
+    saveState: isSaving ? "saving" : hasUnsavedChanges ? "dirty" : "idle",
+    projectId: activeProject?.projectId || null,
+    projectName: activeProject?.name || activeProject?.title || "",
+    pagePath: pageSelectElement?.value || null,
+    canvasZoom: editorCanvasZoom,
+    history: {
+      canUndo: !undoElement.disabled,
+      canRedo: !redoElement.disabled,
+      undoDepth: historyState.undo.length,
+      redoDepth: historyState.redo.length,
+    },
+    selection: {
+      ids: [...selectedComponentIdsSet],
+      primaryId: selectedComponentId || null,
+    },
+  });
+}
+
+function applyEditorCanvasZoom(nextZoom: number) {
+  editorCanvasZoom = applyEditorZoomCss(nextZoom, [editorCanvasElement, dashboardPreviewElement]);
+  patchEditorFacadeState({ canvasZoom: editorCanvasZoom });
+  resizeWorkspaceCanvas();
+}
+
+function selectAllPageComponents() {
+  const page = currentPage();
+  const ids = (page?.components || []).map((componentEntry: any) => componentEntry.id).filter(Boolean);
+  if (!ids.length) return;
+  selectedComponentIdsSet = new Set(ids);
+  selectedComponentId = ids[0];
+  selectionAnchorComponentId = selectedComponentId;
+  coverMotorButtonElement();
+  syncHistoryButtons();
 }
 function discardRecoverySnapshot(recoveryProjectId = activeProject?.projectId) {
   if (recoveryProjectId) {
@@ -25127,20 +25331,62 @@ const scaleInputElementsSet = new Set([
     const keyboardTargetElementState = (documentKeydownEventState.target as Element).closest(
       'input, textarea, select, button, [contenteditable="true"], dialog',
     );
+    const modKey =
+      documentKeydownEventState.metaKey || documentKeydownEventState.ctrlKey;
+    const keyLower = documentKeydownEventState.key.toLowerCase();
+
+    if (!keyboardTargetElementState && modKey && !documentKeydownEventState.altKey) {
+      if (keyLower === "z") {
+        documentKeydownEventState.preventDefault();
+        void entityLoadError(documentKeydownEventState.shiftKey ? "redo" : "undo");
+        return;
+      }
+      if (keyLower === "y" && !documentKeydownEventState.shiftKey) {
+        documentKeydownEventState.preventDefault();
+        void entityLoadError("redo");
+        return;
+      }
+      if (keyLower === "s") {
+        documentKeydownEventState.preventDefault();
+        void saveDraft();
+        return;
+      }
+      if (keyLower === "a" && editorMode === "edit") {
+        documentKeydownEventState.preventDefault();
+        selectAllPageComponents();
+        return;
+      }
+      if (keyLower === "c" && editorMode === "edit" && selectedComponentIdsSet.size) {
+        documentKeydownEventState.preventDefault();
+        editorClipboardComponentIds = [...selectedComponentIdsSet];
+        return;
+      }
+      if (keyLower === "v" && editorMode === "edit" && editorClipboardComponentIds.length) {
+        documentKeydownEventState.preventDefault();
+        duplicateComponents(editorClipboardComponentIds, editorClipboardComponentIds[0]);
+        return;
+      }
+    }
+
+    if (documentKeydownEventState.code === "Space" && !keyboardTargetElementState && !modKey) {
+      editorSpacePanning = true;
+      documentKeydownEventState.preventDefault();
+      return;
+    }
+
     if (editorMode === "edit" && selectedComponentIdsSet.size && !keyboardTargetElementState) {
       if (
-        (documentKeydownEventState.metaKey || documentKeydownEventState.ctrlKey) &&
+        modKey &&
         !documentKeydownEventState.altKey &&
         !documentKeydownEventState.shiftKey &&
-        documentKeydownEventState.key.toLowerCase() === "d"
+        keyLower === "d"
       ) {
         (documentKeydownEventState.preventDefault(),
           duplicateComponents([...selectedComponentIdsSet], selectedComponentId));
         return;
       }
       if (
-        !documentKeydownEventState.metaKey &&
-        !documentKeydownEventState.ctrlKey &&
+        !modKey &&
         !documentKeydownEventState.altKey &&
         (documentKeydownEventState.key === "Delete" ||
           documentKeydownEventState.key === "Backspace")
@@ -25177,6 +25423,9 @@ const scaleInputElementsSet = new Set([
     );
     enterTargetElementElement &&
       (documentKeydownEventState.preventDefault(), enterTargetElementElement.blur());
+  }),
+  document.addEventListener("keyup", (keyupEvent) => {
+    if (keyupEvent.code === "Space") editorSpacePanning = false;
   }),
   navigatorElement.addEventListener("scroll", () => {
     (hideAssetLargePreview(),
@@ -25774,8 +26023,70 @@ function mutationRecord() {
 }
 
 
+  registerEditorCommandHandler((command) => {
+    switch (command.type) {
+      case "undo":
+        void entityLoadError("undo");
+        break;
+      case "redo":
+        void entityLoadError("redo");
+        break;
+      case "save":
+        void saveDraft();
+        break;
+      case "selectAll":
+        selectAllPageComponents();
+        break;
+      case "copy":
+        editorClipboardComponentIds = [...selectedComponentIdsSet];
+        break;
+      case "paste":
+        if (editorClipboardComponentIds.length) {
+          duplicateComponents(editorClipboardComponentIds, editorClipboardComponentIds[0]);
+        }
+        break;
+      case "delete":
+        if (selectedComponentIdsSet.size) {
+          deleteComponentIds([...selectedComponentIdsSet]);
+        }
+        break;
+      case "setZoom":
+        applyEditorCanvasZoom(command.zoom);
+        break;
+      case "fitZoom":
+        applyEditorCanvasZoom(1);
+        break;
+      case "setLeftCollapsed":
+        document.querySelector(".editor-chrome-root")?.classList.toggle(
+          "sc-shell--left-collapsed",
+          !!command.collapsed,
+        );
+        patchEditorFacadeState({ leftCollapsed: !!command.collapsed });
+        window.dispatchEvent(new Event("resize"));
+        break;
+      case "setRightCollapsed":
+        document.querySelector(".editor-chrome-root")?.classList.toggle(
+          "sc-shell--right-collapsed",
+          !!command.collapsed,
+        );
+        patchEditorFacadeState({ rightCollapsed: !!command.collapsed });
+        window.dispatchEvent(new Event("resize"));
+        break;
+      case "openFloorplan":
+        navigateInShell("/3d-studio");
+        break;
+      case "align":
+        alignSelectedComponents(command.mode);
+        break;
+      default:
+        break;
+    }
+  });
+  syncHistoryButtons();
+
   // ── 显式回收：需要访问引导体内作用域的资源 ──────────────────────────────
   return () => {
+    registerEditorCommandHandler(null);
     // 3D 渲染器：负责释放 WebGL 上下文、渲染循环、WebSocket 与所有运行时监听
     try {
       editorRenderer?.destroy?.()
@@ -25797,6 +26108,7 @@ function mutationRecord() {
     } finally {
       // 无论显式回收是否成功，登记过的全局监听/定时器/观察器都必须释放
       scope.dispose();
+      resetEditorFacade();
     }
   };
 }

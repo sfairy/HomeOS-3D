@@ -33,8 +33,8 @@ export function resolvePageBehavior(behavior: PageBehaviorConfig = {}, pageKind 
   return {
     interaction: mergeBehavior("interaction", {
       rotationMode: "free",
-      panEnabled: false,
-      zoomEnabled: false,
+      panEnabled: true,
+      zoomEnabled: true,
     }),
     autoRotate: mergeBehavior("autoRotate", {
       enabled: false,

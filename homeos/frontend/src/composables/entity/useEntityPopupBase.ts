@@ -88,6 +88,8 @@ export function useEntityPopupHeader(
  */
 export function defineEntityPopupProps() {
   return {
+    // 实体 ID（列表/详情打开时必传，避免 store 尚未 hydrate 时弹窗空白）
+    entityId: { type: String, default: '' },
     // 实体原始对象（可能为 null）
     entity: { type: Object as PropType<Record<string, unknown> | null>, default: null },
     // 弹窗中心在视口中的相对位置（百分比），支持 number/string

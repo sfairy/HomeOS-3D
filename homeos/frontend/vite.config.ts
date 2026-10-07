@@ -358,6 +358,8 @@ export default defineConfig(async (): Promise<UserConfig> => {
     // 构建路径（`bun run --cwd frontend build`）的 cwd 本就是本目录，故这里是等值固定。
     // 授权商店在 homeos-store/frontend/vite.config.ts 里同样显式指定了 root。
     root: __dirname,
+    // 预打包缓存落在工作区根，避免默认 node_modules/.vite 在 frontend 下再长出 node_modules。
+    cacheDir: resolve(__dirname, '../../node_modules/.vite/homeos-dashboard'),
     customLogger,
     plugins,
     resolve: {

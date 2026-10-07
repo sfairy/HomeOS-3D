@@ -53,6 +53,3 @@ export function api<T = unknown>(path: string, options: HttpOptions = {}): Promi
 export function adminApi<T = unknown>(path: string, options: HttpOptions = {}): Promise<T> {
   return request("/store-admin/v1", path, options, { notifyAuth: true }) as Promise<T>;
 }
-
-export { fromResponse };
-export type { ApiError };

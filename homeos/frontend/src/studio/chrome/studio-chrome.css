@@ -1,0 +1,717 @@
+/**
+ * Studio 创作面壳层样式 —— 仅消费 --hos-*，对齐主站设计体系。
+ * 挂在 .studio-chrome-root / .editor-chrome-root 上，覆盖旧 public/static chrome 外观。
+ */
+
+.studio-chrome-root,
+.editor-chrome-root {
+  --sc-header-height: 52px;
+  --sc-rail-width: 52px;
+  color: var(--hos-text-primary);
+  background: var(--hos-surface-0);
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* 废除整页 transform scale：壳层自适应，画布独立 letterbox */
+html.editor-viewport-fit body {
+  transform: none !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+.sc-topbar {
+  position: relative;
+  z-index: 50;
+  display: flex;
+  height: var(--sc-header-height);
+  align-items: center;
+  gap: var(--hos-space-md);
+  padding: 0 var(--hos-space-lg);
+  overflow: hidden;
+  border-bottom: var(--hos-hairline) solid var(--hos-border-subtle);
+  background: var(--hos-surface-panel);
+  box-shadow: var(--hos-shadow-card);
+}
+
+.sc-topbar__brand {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--hos-space-md);
+}
+
+.sc-topbar__brand img {
+  width: 36px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.sc-topbar__brand-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sc-topbar__eyebrow {
+  margin: 0;
+  color: var(--hos-text-faint);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sc-topbar__title {
+  margin: 0;
+  overflow: hidden;
+  color: var(--hos-text-primary);
+  font-size: 14px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sc-topbar__nav {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--hos-space-sm);
+}
+
+.sc-topbar__center {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: var(--hos-space-sm);
+}
+
+.sc-topbar__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--hos-space-sm);
+  margin-left: auto;
+}
+
+.sc-btn {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 var(--hos-chip-pad-x);
+  border: var(--hos-hairline) solid var(--hos-border-subtle);
+  border-radius: var(--hos-radius-card);
+  color: var(--hos-text-secondary);
+  background: var(--hos-surface-2);
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    color var(--hos-transition-panel),
+    border-color var(--hos-transition-panel),
+    background var(--hos-transition-panel);
+}
+
+.sc-btn:hover:not(:disabled) {
+  color: var(--hos-text-primary);
+  border-color: var(--hos-border-strong);
+  background: var(--hos-surface-3);
+}
+
+.sc-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.sc-btn:focus-visible {
+  outline: 2px solid var(--page-accent);
+  outline-offset: 2px;
+}
+
+.sc-btn--primary {
+  border-color: rgba(var(--page-accent-rgb), 0.55);
+  color: #0b1220;
+  background: linear-gradient(180deg, #7dd3fc, #38bdf8);
+  font-weight: 700;
+}
+
+.sc-btn--ghost {
+  border-color: transparent;
+  background: transparent;
+}
+
+.sc-btn--icon {
+  width: 32px;
+  min-width: 32px;
+  padding: 0;
+}
+
+.sc-btn--active {
+  border-color: var(--hos-border-strong);
+  color: var(--hos-text-primary);
+  background: rgba(var(--page-accent-rgb), 0.18);
+}
+
+.sc-save-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--hos-text-faint);
+  font-size: 11px;
+}
+
+.sc-save-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--hos-text-faint);
+}
+
+.sc-save-badge--dirty {
+  color: var(--page-accent);
+}
+
+.sc-save-badge--dirty .sc-save-badge__dot {
+  background: var(--page-accent);
+  box-shadow: 0 0 8px rgba(var(--page-accent-rgb), 0.55);
+}
+
+.sc-save-badge--saving {
+  color: var(--hos-text-secondary);
+}
+
+/* 可折叠三栏 */
+.sc-shell {
+  display: grid;
+  height: calc(100vh - var(--sc-header-height));
+  height: calc(100dvh - var(--sc-header-height));
+  min-height: 480px;
+  overflow: hidden;
+  grid-template-columns: var(--sc-left, 260px) 6px minmax(0, 1fr) 6px var(--sc-right, 280px);
+}
+
+/* 编辑器侧栏折叠：宽度归零（勿用 rail 窄轨，否则旧 navigator 正文会挤爆） */
+.sc-shell--left-collapsed {
+  --sc-left: 0px;
+}
+
+.sc-shell--right-collapsed {
+  --sc-right: 0px;
+}
+
+.sc-shell--plan-focus {
+  --sc-right: 0px;
+}
+
+/* 户型库面板折叠：宽度归零（与编辑器侧栏同理，勿用 52px 窄轨挤内容） */
+.sc-shell--library-rail {
+  --sc-left: 0px;
+}
+
+.sc-splitter {
+  position: relative;
+  z-index: 2;
+  cursor: col-resize;
+  background: transparent;
+}
+
+.sc-splitter::after {
+  content: '';
+  position: absolute;
+  inset: 0 2px;
+  background: var(--hos-border-subtle);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.sc-splitter:hover::after,
+.sc-splitter:focus-visible::after {
+  opacity: 1;
+}
+
+.sc-panel {
+  min-width: 0;
+  overflow: auto;
+  background: var(--hos-surface-panel);
+  border-color: var(--hos-border-subtle);
+}
+
+.sc-panel--left {
+  border-right: var(--hos-hairline) solid var(--hos-border-subtle);
+}
+
+.sc-panel--right {
+  border-left: var(--hos-hairline) solid var(--hos-border-subtle);
+}
+
+.sc-panel--rail {
+  overflow: hidden;
+}
+
+.sc-workspace {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--hos-surface-0);
+}
+
+.sc-zoom-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  border: var(--hos-hairline) solid var(--hos-border-subtle);
+  border-radius: var(--hos-radius-card);
+  background: var(--hos-surface-1);
+}
+
+.sc-zoom-bar__label {
+  min-width: 44px;
+  color: var(--hos-text-secondary);
+  font-size: 11px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.sc-shortcuts-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(6px);
+}
+
+.sc-shortcuts-card {
+  width: min(440px, calc(100vw - 32px));
+  padding: var(--hos-panel-padding-default);
+  border: var(--hos-hairline) solid var(--hos-border-subtle);
+  border-radius: var(--hos-radius-panel);
+  background: var(--hos-surface-panel);
+  box-shadow: var(--hos-shadow-panel);
+}
+
+.sc-shortcuts-card h3 {
+  margin: 0 0 var(--hos-space-md);
+  font-size: 15px;
+}
+
+.sc-shortcuts-card dl {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 16px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.sc-shortcuts-card dt {
+  color: var(--hos-text-secondary);
+}
+
+.sc-shortcuts-card dd {
+  margin: 0;
+  color: var(--hos-text-primary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.sc-workflow {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.sc-workflow::-webkit-scrollbar {
+  display: none;
+}
+
+.sc-workflow__step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  border: var(--hos-hairline) solid transparent;
+  border-radius: var(--hos-radius-pill);
+  color: var(--hos-text-faint);
+  background: transparent;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.sc-workflow__step i {
+  display: grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--hos-surface-3);
+  font-style: normal;
+  font-size: 10px;
+}
+
+.sc-workflow__step.is-active {
+  color: var(--hos-text-primary);
+  border-color: var(--hos-border-strong);
+  background: rgba(var(--page-accent-rgb), 0.14);
+}
+
+.sc-workflow__step.is-complete {
+  color: var(--hos-text-secondary);
+}
+
+.sc-workflow__step.is-complete i {
+  background: rgba(52, 211, 153, 0.28);
+  color: #6ee7b7;
+}
+
+/* 覆盖旧 editor-shell / studio-shell，在 chrome root 内统一语言 */
+/* 平面工具栏保持 studio.css 原布局，不另挂第二套工具条 */
+.editor-chrome-root .editor-header.sc-legacy-hidden,
+.studio-chrome-root .studio-header.sc-legacy-hidden {
+  display: none !important;
+}
+
+.editor-chrome-root .editor-shell {
+  display: grid;
+  grid-template-columns: var(--sc-left, 260px) minmax(0, 1fr) var(--sc-right, 280px);
+  grid-template-areas: "nav workspace inspector";
+  height: calc(100vh - var(--sc-header-height));
+  height: calc(100dvh - var(--sc-header-height));
+  min-height: 480px;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--hos-surface-0);
+}
+
+/* 固定三区占位，避免某一列 display:none 后轨道重排 */
+.editor-chrome-root .editor-shell > .panel.navigator {
+  grid-area: nav;
+}
+.editor-chrome-root .editor-shell > .workspace-panel {
+  grid-area: workspace;
+  min-width: 0;
+}
+.editor-chrome-root .editor-shell > .panel.inspector {
+  grid-area: inspector;
+}
+
+/*
+ * 折叠：列宽强制 0，并隐藏 aside。
+ * 使用 !important 压过后加载的 /static/app.css（page-assets 会在 Vite CSS 之后挂上）。
+ */
+.editor-chrome-root.sc-shell--left-collapsed .editor-shell {
+  grid-template-columns: 0 minmax(0, 1fr) var(--sc-right, 280px) !important;
+}
+
+.editor-chrome-root.sc-shell--right-collapsed .editor-shell {
+  grid-template-columns: var(--sc-left, 260px) minmax(0, 1fr) 0 !important;
+}
+
+.editor-chrome-root.sc-shell--left-collapsed.sc-shell--right-collapsed .editor-shell {
+  grid-template-columns: 0 minmax(0, 1fr) 0 !important;
+}
+
+.editor-chrome-root .panel.navigator,
+.editor-chrome-root .panel.inspector {
+  background: var(--hos-surface-panel);
+  border-color: var(--hos-border-subtle);
+  min-width: 0;
+  overflow: auto;
+}
+
+/*
+ * 折叠侧栏：绝不能 display:none / [hidden]。
+ * Grid 会把该项移出轨道，workspace 掉进第 1 列(0宽)、inspector 占满 1fr ——
+ * 正是「属性铺满中间、右侧黑条」的故障形态。
+ * 保留占位，仅压扁内容。
+ */
+.editor-chrome-root .panel.navigator.is-collapsed,
+.editor-chrome-root .panel.inspector.is-collapsed,
+.editor-chrome-root.sc-shell--left-collapsed .panel.navigator,
+.editor-chrome-root.sc-shell--right-collapsed .panel.inspector {
+  display: block !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
+.editor-chrome-root .workspace-panel {
+  background: var(--hos-surface-0);
+}
+
+.studio-chrome-root .studio-shell {
+  /* 列宽跟随原 studio.css（204 | 1fr | ~29vw），只校正顶栏高度占用 */
+  grid-template-areas: "library plan details";
+  height: calc(100vh - var(--sc-header-height));
+  height: calc(100dvh - var(--sc-header-height));
+  min-height: 480px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.studio-chrome-root .studio-shell > .library-panel {
+  grid-area: library;
+  min-width: 0;
+}
+
+.studio-chrome-root .studio-shell > .plan-panel {
+  grid-area: plan;
+  min-width: 0;
+}
+
+.studio-chrome-root .studio-shell > .details-panel {
+  grid-area: details;
+  min-width: 0;
+}
+
+/*
+ * 3D 交互舞台 / 自动导图嵌入：StudioView 与创作页共用，但舞台必须回到
+ * 「只剩 #preview-3d」的旧观感。新壳层的三栏 grid / 顶栏高度 / 面板底色
+ * 不能压过 stage.css 的全屏裁剪。
+ * `.sc-embed-stage` 由 StudioView 按路由同步挂上，不依赖 body class 时序。
+ */
+body.interaction3d-stage .studio-chrome-root,
+body.auto-diagram-embedded .studio-chrome-root,
+.studio-chrome-root.sc-embed-stage {
+  --sc-header-height: 0px;
+  min-height: 0;
+  height: 100%;
+  color: inherit;
+  background: transparent;
+}
+
+body.interaction3d-stage .studio-chrome-root .studio-shell,
+body.auto-diagram-embedded .studio-chrome-root .studio-shell,
+.studio-chrome-root.sc-embed-stage .studio-shell {
+  display: block !important;
+  position: absolute !important;
+  inset: 0 !important;
+  grid-template-columns: none !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  background: transparent !important;
+}
+
+.studio-chrome-root.sc-embed-stage > :not(.studio-shell):not(.i3d-climate-picker-menu) {
+  display: none !important;
+}
+
+/* 嵌入舞台：预览卡去掉 panel 底色/圆角，画布真正铺满；透明底透出总览背景图 */
+body.interaction3d-stage .details-panel,
+body.interaction3d-stage .preview-card,
+body.interaction3d-stage .preview-card.panel-surface,
+body.interaction3d-stage #preview-3d,
+.studio-chrome-root.sc-embed-stage .details-panel,
+.studio-chrome-root.sc-embed-stage .preview-card,
+.studio-chrome-root.sc-embed-stage .preview-card.panel-surface,
+.studio-chrome-root.sc-embed-stage #preview-3d {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+html:has(body.interaction3d-stage.is-background-hidden),
+body.interaction3d-stage.is-background-hidden,
+body.interaction3d-stage.is-background-hidden .app-container,
+body.interaction3d-stage.is-background-hidden .route-transition-root,
+body.interaction3d-stage.is-background-hidden .studio-chrome-root,
+body.interaction3d-stage.is-background-hidden .studio-shell,
+body.interaction3d-stage.is-background-hidden .details-panel,
+body.interaction3d-stage.is-background-hidden .preview-card,
+body.interaction3d-stage.is-background-hidden .preview-card.panel-surface,
+body.interaction3d-stage.is-background-hidden #preview-3d {
+  background: transparent !important;
+}
+
+.studio-chrome-root.sc-shell--library-rail .studio-shell {
+  grid-template-columns: 0 minmax(400px, 1fr) minmax(420px, var(--details-panel-width, 29vw)) !important;
+}
+
+.studio-chrome-root.sc-shell--plan-focus .studio-shell {
+  grid-template-columns: 204px minmax(400px, 1fr) 0 !important;
+}
+
+.studio-chrome-root.sc-shell--library-rail.sc-shell--plan-focus .studio-shell {
+  grid-template-columns: 0 minmax(400px, 1fr) 0 !important;
+}
+
+/*
+ * 折叠库/详情：保留 grid 占位，禁止 display:none（否则列重排：平面画布掉进窄列）。
+ */
+.studio-chrome-root .library-panel.is-collapsed,
+.studio-chrome-root.sc-shell--library-rail .library-panel,
+.studio-chrome-root .details-panel.is-collapsed,
+.studio-chrome-root.sc-shell--plan-focus .details-panel {
+  display: block !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  min-width: 0 !important;
+}
+
+/* 画布缩放层 */
+.workspace-zoom-host {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  transform-origin: center center;
+}
+
+#editor-canvas.sc-canvas-zoom,
+#dashboard-preview.sc-canvas-zoom {
+  transform: scale(var(--sc-canvas-zoom, 1));
+  transform-origin: center center;
+}
+
+.sc-marquee {
+  position: absolute;
+  z-index: 20;
+  pointer-events: none;
+  border: 1px solid rgba(var(--page-accent-rgb), 0.85);
+  background: rgba(var(--page-accent-rgb), 0.12);
+  border-radius: 2px;
+}
+
+.sc-align-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: var(--hos-space-sm);
+  padding: 2px;
+  border: var(--hos-hairline) solid var(--hos-border-subtle);
+  border-radius: var(--hos-radius-card);
+  background: var(--hos-surface-1);
+}
+
+.sc-align-bar[hidden] {
+  display: none !important;
+}
+
+/* 户型：压缩预览顶栏 */
+.studio-chrome-root .preview-heading {
+  min-height: 0;
+  max-height: none;
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+.studio-chrome-root .preview-heading-copy .eyebrow {
+  display: none;
+}
+
+.studio-chrome-root .preview-heading-tip {
+  display: none;
+}
+
+.studio-chrome-root .preview-heading-actions {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.studio-chrome-root .preview-heading-actions .preview-control-row {
+  flex-wrap: wrap;
+}
+
+/* 户型导入错误：人话主文案优先，诊断折叠 */
+.studio-chrome-root #background-import-error {
+  border: var(--hos-hairline) solid rgba(248, 113, 113, 0.35);
+  border-radius: var(--hos-radius-card);
+  background: rgba(127, 29, 29, 0.28);
+  padding: 10px 12px;
+}
+
+.studio-chrome-root #background-import-error details {
+  margin-top: 8px;
+}
+
+.studio-chrome-root #background-import-error summary {
+  cursor: pointer;
+  color: var(--hos-text-secondary);
+  font-size: 12px;
+}
+
+/* 总览 Display 辅助条 */
+.sc-display-bar {
+  position: absolute;
+  left: 50%;
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: var(--hos-hairline) solid var(--hos-border-subtle);
+  border-radius: var(--hos-radius-panel);
+  background: var(--hos-surface-panel);
+  box-shadow: var(--hos-shadow-card);
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+
+.sc-display-bar__hint {
+  color: var(--hos-text-faint);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* AFH 与场景导航叠层约定 */
+.afh-root {
+  z-index: 40;
+  pointer-events: none;
+}
+
+.afh-root .afh-widget,
+.afh-root [data-afh-widget] {
+  pointer-events: auto;
+}
+
+/* 楼层条 / marker 安全区：默认避开底边中央 */
+.i3d-floor-tabs {
+  z-index: 45;
+}
+
+@media (max-width: 1180px) {
+  .editor-chrome-root,
+  .studio-chrome-root,
+  .editor-chrome-root body,
+  .studio-chrome-root body {
+    min-width: 0 !important;
+  }
+
+  .editor-chrome-root .editor-shell,
+  .studio-chrome-root .studio-shell {
+    min-width: 0;
+  }
+}

@@ -83,6 +83,8 @@ class RealtimeGateway:
         self._sid_pinned: dict[str, set[str]] = {}
         self.state_store: StateStore = StateStore()
         self._state_cfg_at = 0.0
+        self._ws_cfg_cache: Any | None = None
+        self._ws_cfg_at = 0.0
         self._register_handlers()
 
     # ------------------------------------------------------------------ #

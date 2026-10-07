@@ -923,6 +923,11 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   padding-bottom: 56px;
 }
 
+.hb-section-head h2,
+#home-tiers-title {
+  scroll-margin-top: calc(var(--hb-topbar-h) + 18px);
+}
+
 .hb-section-head h2 {
   font-size: clamp(20px, 2.4vw, 26px);
   font-weight: 660;
@@ -968,12 +973,31 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 }
 
 /* 卡片标题左侧一条能力色竖线：比整卡染底更安静，但足够让四张卡彼此可辨。 */
+.hb-cap__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .hb-cap h3 {
   padding-left: 10px;
   border-left: 2px solid var(--hb-tone-line);
   color: var(--hb-ink);
   font-size: 14.5px;
   font-weight: 650;
+}
+
+.hb-cap__badge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border: 1px solid var(--hb-tone-line);
+  border-radius: var(--hb-radius-pill);
+  color: var(--hb-tone-text);
+  background: var(--hb-tone-soft);
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .hb-cap p {
@@ -1352,15 +1376,232 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   line-height: 1.6;
 }
 
+.hb-module-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));
+  gap: 12px;
+}
+
+.hb-module {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-lg);
+  background: var(--hb-card-bg);
+  transition: var(--hb-transition);
+}
+
+.hb-module:hover {
+  border-color: var(--hb-tone-line);
+  transform: translateY(-1px);
+}
+
+.hb-module--featured {
+  border-color: var(--hb-tone-line);
+  background: linear-gradient(180deg, var(--hb-tone-soft), transparent 40%), var(--hb-card-bg);
+}
+
+.hb-module__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.hb-module__icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--hb-tone-line);
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-tone-text);
+  background: var(--hb-tone-soft);
+  font-size: 14px;
+}
+
+.hb-module__badge {
+  padding: 2px 8px;
+  border: 1px solid var(--hb-tone-line);
+  border-radius: var(--hb-radius-pill);
+  color: var(--hb-tone-text);
+  background: var(--hb-tone-soft);
+  font-size: 10.5px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.hb-module__badge--soft {
+  color: var(--hb-muted);
+  border-color: var(--hb-line);
+  background: var(--hb-surface-soft);
+}
+
+.hb-module__body h3 {
+  color: var(--hb-ink);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.hb-module__body p {
+  margin-top: 6px;
+  color: var(--hb-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.hb-module__tags {
+  display: flex;
+  margin: 10px 0 0;
+  padding: 0;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+}
+
+.hb-module__tags li {
+  padding: 2px 8px;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-pill);
+  color: var(--hb-ink-soft);
+  background: var(--hb-surface-soft);
+  font-size: 10.5px;
+}
+
+.hb-module__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.hb-module__foot strong {
+  color: var(--hb-ink);
+  font-size: 14px;
+  font-weight: 680;
+  font-variant-numeric: tabular-nums;
+}
+
+.hb-module__foot small {
+  color: var(--hb-muted-dim);
+  font-size: 11px;
+}
+
+.hb-paths {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.hb-path {
+  padding: 22px;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-lg);
+  background:
+    linear-gradient(180deg, var(--hb-tone-soft), transparent 42%),
+    var(--hb-card-bg);
+}
+
+.hb-path__head {
+  margin-bottom: 16px;
+}
+
+.hb-path__kicker {
+  display: inline-block;
+  margin-bottom: 6px;
+  color: var(--hb-tone-text);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.hb-path__head h3 {
+  color: var(--hb-ink);
+  font-size: 16px;
+  font-weight: 660;
+}
+
+.hb-path__steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hb-path__steps li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 10px 0;
+}
+
+.hb-path__steps li + li {
+  border-top: 1px dashed var(--hb-line-soft);
+}
+
+.hb-path__steps span {
+  color: var(--hb-tone-text);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.hb-path__steps strong {
+  display: block;
+  color: var(--hb-ink);
+  font-size: 13px;
+  font-weight: 640;
+}
+
+.hb-path__steps small {
+  display: block;
+  margin-top: 4px;
+  color: var(--hb-muted);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+.hb-path__action {
+  margin-top: 14px;
+  width: 100%;
+  justify-content: center;
+}
+
 .hb-tiers {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(248px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
   gap: 14px;
+}
+
+.hb-tier__price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin: 12px 0 0;
+  color: var(--hb-ink);
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.hb-tier__price small {
+  color: var(--hb-muted-dim);
+  font-size: 11px;
+  font-weight: 550;
+  letter-spacing: 0;
 }
 
 /* 各档位按档分色：入门薄荷、进阶暖金、专业暖光（推荐档默认暖金，模板会挂 data-tone）。
    和「能力卡」同一套开关，所以整站的分色词汇只有一套。 */
 .hb-tier {
+  position: relative;
   display: flex;
   flex-direction: column;
   padding: 22px;
@@ -1373,6 +1614,20 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   border-color: var(--hb-tone-line);
   background: linear-gradient(180deg, var(--hb-tone-soft), transparent 46%), var(--hb-card-bg);
   box-shadow: 0 10px 26px -14px rgba(var(--hb-tone-rgb), 0.8);
+}
+
+.hb-tier__ribbon {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 3px 9px;
+  border-radius: var(--hb-radius-pill);
+  color: var(--hb-tone-text);
+  background: var(--hb-tone-soft);
+  border: 1px solid var(--hb-tone-line);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .hb-tier__head {
@@ -1430,6 +1685,52 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   color: var(--hb-muted-dim);
   font-size: 11.5px;
   text-align: center;
+}
+
+.hb-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  padding: 28px 26px;
+  border: 1px solid var(--hb-tone-line);
+  border-radius: var(--hb-radius-lg);
+  background:
+    linear-gradient(135deg, var(--hb-tone-soft), transparent 55%),
+    var(--hb-card-bg);
+}
+
+.hb-cta__copy h2 {
+  margin-top: 4px;
+  color: var(--hb-ink);
+  font-size: clamp(18px, 2.2vw, 24px);
+  font-weight: 660;
+}
+
+.hb-cta__copy p {
+  margin-top: 8px;
+  max-width: 42ch;
+  color: var(--hb-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.hb-cta__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.hb-cta__mail {
+  color: var(--hb-muted);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.hb-cta__mail:hover {
+  color: var(--hb-tone-text);
 }
 
 .hb-trust {
@@ -1547,6 +1848,12 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   }
 }
 
+@media (max-width: 900px) {
+  .hb-paths {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 720px) {
   .hb-hero {
     padding: 40px 0 36px;
@@ -1566,6 +1873,27 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 
   .hb-console__clock {
     margin-left: 0;
+  }
+
+  .hb-cap__head {
+    flex-wrap: wrap;
+  }
+
+  .hb-tier__price {
+    font-size: 20px;
+  }
+
+  .hb-cta {
+    padding: 22px 18px;
+  }
+
+  .hb-cta__actions {
+    width: 100%;
+  }
+
+  .hb-cta__actions .hb-button {
+    flex: 1 1 auto;
+    justify-content: center;
   }
 }
 

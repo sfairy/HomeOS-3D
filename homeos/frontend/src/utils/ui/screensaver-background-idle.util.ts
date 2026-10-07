@@ -33,16 +33,13 @@ function notifyIdle(idle: boolean) {
   })
 }
 
-export function isScreensaverBackgroundIdle(): boolean {
-  return screensaverBackgroundIdle.value
-}
-
 export function onScreensaverBackgroundIdle(cb: (idle: boolean) => void): () => void {
   idleListeners.add(cb)
   cb(screensaverBackgroundIdle.value)
   return () => idleListeners.delete(cb)
 }
 
+/** 注册屏保结束时需要立即补画的回调。 */
 export function registerScreensaverFlushDraw(cb: () => void): () => void {
   flushListeners.add(cb)
   return () => flushListeners.delete(cb)

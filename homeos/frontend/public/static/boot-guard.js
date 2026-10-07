@@ -330,7 +330,9 @@
   }
 
   function recoverOrReport(reasonText) {
-    if (isReady()) return
+    // 启动期：入口 chunk 404 → 清 SW/缓存后自愈重载。
+    // 已就绪后仍可能命中：dev 下 dist 重建砍掉旧 hash，或 SW 曾缓存生产外壳，
+    // StudioView / 动态 import 会 Failed to fetch …/assets/js/<old>.js —— 同样走一次自愈。
     if (!readFlag()) {
       writeFlag()
       escalate('正在重新加载…', '页面资源已更新，正在清理缓存并重新加载。')
@@ -340,8 +342,22 @@
       }, 150)
       return
     }
+    if (isReady()) return
     escalate('界面未能加载', reasonText)
   }
+
+  /**
+   * Vite HMR（8805）与生产 SW 同口共存时：旧 SW 可能仍注册在本源。
+   * 入口已是 /@vite/client 时主动卸掉 SW + 壳缓存，避免再喂生产 index/chunk。
+   */
+  ;(function purgeServiceWorkerOnViteDev() {
+    try {
+      if (!document.querySelector('script[src="/@vite/client"]')) return
+      purgeClientCaches()
+    } catch (e) {
+      /* ignore */
+    }
+  })()
 
   window.addEventListener(
     'error',

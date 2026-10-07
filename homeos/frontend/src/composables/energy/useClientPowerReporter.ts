@@ -139,7 +139,7 @@ async function postReport({
       } catch {
         stopReporter()
         logger.warn(
-          '客户端系统上报未授权,已停止上报;请使用相同 URL 协议重新登录(建议使用 https://:8443).',
+          '客户端系统上报未授权,已停止上报;请使用相同 URL 协议重新登录(建议使用 https://:8803).',
           err,
         )
         return

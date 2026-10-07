@@ -32,9 +32,8 @@ services:
       HOMEOS_PORT: "8801"
       APP_BASE_URL: ${APP_BASE_URL:-}
       # 商店的**浏览器入口**（登录页「忘记密码」「商店」按它跳转）。
-      # 留空 = 出厂默认的厂商公网商店 http://127.0.0.1:8802；自托管填客户端浏览器打得开的
-      # 地址（http://<商店IP>:8802 或反代域名）。与下面出站用的 APP_LICENSE_SERVER_URL 不同：
-      # 那条默认是 127.0.0.1，客户端浏览器点不动。
+      # 留空时前端回退到本机默认；分拆部署用 deploy.sh --license-server 时会与
+      # APP_LICENSE_SERVER_URL 一并写入（通常填同一个可达 URL）。
       APP_STORE_URL: ${APP_STORE_URL:-}
       APP_COOKIE_SECURE: ${APP_COOKIE_SECURE:-false}
       # 应用自身的可信代理网段：只有同容器回环上的内置反代能作为对端，故固定收敛到回环。

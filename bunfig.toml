@@ -1,4 +1,6 @@
 # 工作区依赖只提升到仓库根的 node_modules
 # （不在各工作区自己的 node_modules 下，如 homeos/frontend/node_modules）。
+# 子包若声明冲突主版本（如 pinia 3 vs 4），bun 仍会在该包下嵌套一份；
+# 因此各 workspace 的 typescript / pinia / vue-router 等须与根 overrides 对齐。
 [install]
 linker = "hoisted"

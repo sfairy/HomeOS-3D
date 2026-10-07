@@ -4,9 +4,6 @@
  * 职责：
  * - 维护按域区分的弹窗状态文案表（lock / cover / valve / vacuum）。
  * - 提供状态标签解析、微件自定义优先、默认标签生成、事件日志文案等工具函数。
- * - 兼容导出 entityStateLabel（state → 中文短标签映射表已合并至
- *   entity-state-meta 的 ENTITY_STATE_META 单表，本文件仅作薄 re-export 层）。
- *
  * 依赖：
  * - @homeos/shared 中的 `getEntityDomain` 用于从 entity_id 提取域。
  * - entity-state-meta 中的 `entityStateLabel` / `ENTITY_STATE_META` 单表。
@@ -18,8 +15,6 @@
  */
 import { getEntityDomain } from '@homeos/shared'
 import { entityStateLabel } from './entity-state-meta'
-
-export { entityStateLabel } from './entity-state-meta'
 
 /** 实体弹窗：按域展示的更完整状态文案 */
 const POPUP_DOMAIN_STATE_LABELS = {
@@ -51,56 +46,6 @@ const POPUP_DOMAIN_STATE_LABELS = {
     off: '关闭',
     error: '异常',
   },
-}
-
-/**
- * 部件自定义 stateLabels 优先，否则走内置中文表
- *
- * @param state - HA 实体 state 值。
- * @param stateLabels - 部件自定义的 state → 标签映射；为空时走内置表。
- * @returns 自定义标签（去首尾空白）或内置中文标签；state 为空时返回空字符串。
- */
-export function resolveWidgetStateLabel(
-  state: string | null | undefined,
-  stateLabels?: Record<string, string> | null,
-): string {
-  if (!state) return ''
-  const custom = stateLabels?.[state]?.trim()
-  if (custom) return custom
-  return entityStateLabel(state)
-}
-
-/**
- * 为一组状态生成默认中文显示名（已有自定义则保留）
- *
- * @param states - 需要生成标签的 state 值数组。
- * @param existing - 已有的自定义映射；对应 state 有值时保留。
- * @returns state → 中文标签的对象。
- */
-export function buildDefaultStateLabels(
-  states: string[],
-  existing?: Record<string, string> | null,
-): Record<string, string> {
-  const out: Record<string, string> = {}
-  for (const s of states) {
-    const prev = existing?.[s]?.trim()
-    out[s] = prev || entityStateLabel(s) || s
-  }
-  return out
-}
-
-/**
- * 设置页状态选择：中文 (raw)
- *
- * 输出形如「开启 (on)」的文案，便于用户区分中文标签与原始 state。
- *
- * @param state - HA 实体 state 值。
- * @returns 形如 `中文 (raw)` 的字符串；state 为空时返回空字符串。
- */
-export function formatEntityStateOptionLabel(state: string | null | undefined): string {
-  if (!state) return ''
-  const display = entityStateLabel(state)
-  return `${display} (${state})`
 }
 
 /**

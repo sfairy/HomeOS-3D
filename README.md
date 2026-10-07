@@ -16,6 +16,7 @@ HomeOS/
 │   │   ├── migrations/ alembic.ini   # 只在开发期用，不进构建产物
 │   │   └── requirements.txt
 │   ├── frontend/              # 前端源码（src / public，含 studio/ 3D 编辑器与 runtime）
+│   ├── deploy/run-backend.sh  # 仅源码态起后端；Docker 生产请用 ops/deploy/deploy.sh
 │   ├── data/                  # 运行时（不入库；HOMEOS_DATA_DIR）
 │   └── package.json
 ├── homeos-store/              # 授权商店（独立项目）
@@ -141,6 +142,7 @@ bun run dev:runtime
 | `bun run image` / `image:app` / `image:store` | 从根 `dist/` 组装运行镜像（镜像内不再编译后端） |
 | `bun run typecheck` | 两边 `tsc` + Python 静态检查（与 CI 的 `pyright` job 同口径，只硬拦必为 bug 的规则） |
 | `bun run typecheck:py` | 只跑 Python 静态检查（`ops/ci/pyright_gate.py`） |
+| `bun run knip` | JS/TS 未使用文件/导出/依赖扫描（`knip.config.ts`，含动态入口白名单） |
 | `bun run dev:app` / `dev:store` | 单独跑一侧 Vite HMR（需后端已在跑） |
 | `bun run dev:runtime` | runtime 模块 watch → 根 `dist/homeos/frontend/modules/runtime` |
 | `bun run verify:scene` | 校验 `design/scene` 与两端 `public/static/**/scene` 逐字节一致 |
@@ -237,12 +239,12 @@ cp .env.example .env
 
 | 变量 | 默认 | 说明 |
 | --- | --- | --- |
-| `APP_LICENSE_SERVER_URL` | 空 | `--role app` 必填；等价于 `--license-server`。同机 `--role all` 由叠加文件注入容器内网地址 |
+| `APP_LICENSE_SERVER_URL` | 空 | `--role app` 必填；等价于 `--license-server`（会同时钉住 `APP_STORE_URL`）。同机 `--role all` 由叠加文件注入容器内网地址 |
 | `APP_COOKIE_SECURE` / `STORE_COOKIE_SECURE` | `false` | 布尔，没有 `auto`。要让 HTTP(8801/8802) 与 HTTPS(8803/8804) **都能登录**就用 `false`；只走 HTTPS 设 `true` |
 | `APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES` | `127.0.0.1,::1` | 内置反代在容器回环上，**保持默认**；不要填 `*` 或 docker 网段 |
 | `UVICORN_FORWARDED_ALLOW_IPS` | `127.0.0.1,::1` | 同上，**不要填 `*`** |
 | `APP_BASE_URL` / `STORE_BASE_URL` | 空 | 局域网 IP 不固定时留空，应用按请求 `Host` 判断同源；需要固定地址时才填 |
-| `APP_STORE_URL` | `http://127.0.0.1:8802` | 商店的**浏览器入口**，登录页「忘记密码」「商店」按它跳转。自托管填客户端能访问的商店地址（`http://<商店IP>:8802` 或反代域名）；注意它和出站用的 `APP_LICENSE_SERVER_URL` 不是一回事 |
+| `APP_STORE_URL` | 空（代码默认本机商店） | 商店**浏览器入口**。分拆部署时 `--license-server` 会在其为空/本机默认时自动同步，一般不必再手改 |
 | `APP_PUBLISH_PORT` / `APP_PROXY_PUBLISH_PORT` | `8801` / `8803` | 主应用宿主发布端口 |
 | `STORE_PUBLISH_PORT` / `STORE_PROXY_PUBLISH_PORT` | `8802` / `8804` | 商店宿主发布端口 |
 | `HOMEOS_VERSION` | 仓库 `package.json` 的 `version` | 镜像 tag；等价于 `--version`。优先级：`--version` > 真实环境变量 > `.env` > `package.json`。`deploy.sh` 会把解析结果写回 `.env`（连同 `HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE`）**钉住版本**，让中心与各客户机不会漂到 `latest` |
@@ -281,7 +283,7 @@ cp .env.example .env
 | 参数 | 说明 |
 | --- | --- |
 | `--role all\|store\|app` | 部署形态，默认 `all`。生产：厂商机 `store`、每台客户机 `app`；`all`（同机）仅开发 / 自测 |
-| `--license-server URL` | 商店地址，写进 `.env` 的 `APP_LICENSE_SERVER_URL`；`--role app` 必填 |
+| `--license-server URL` | 商店地址，写进 `.env` 的 `APP_LICENSE_SERVER_URL` 与 `APP_STORE_URL`；`--role app` 必填 |
 | `--version TAG` | 镜像 tag。优先级：`--version` > 真实环境变量 > `.env` > `package.json` 的 `version` > `latest`；解析结果写回 `.env` 钉住 |
 | `--dir DIR` | compose 与 `.env` 所在目录 |
 | `--host-binds auto\|force\|skip` | 宿主标识符号链接策略，默认 `auto` |

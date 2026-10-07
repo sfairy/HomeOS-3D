@@ -103,7 +103,8 @@ cat > "$STAGE/install.sh" <<'INSTALL'
 #
 #   ./install.sh --license-server http://<中心商店>:8802
 #
-# 环境里有 APP_LICENSE_SERVER_URL 时也可省略 --license-server。
+# 环境里有 APP_LICENSE_SERVER_URL 时也可省略 --license-server
+# （传入时会同时钉住 APP_STORE_URL）。
 set -euo pipefail
 DIR=$(cd "$(dirname "$0")" && pwd)
 exec "$DIR/ops/deploy/deploy.sh" --role app "$@"

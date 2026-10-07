@@ -14,8 +14,6 @@ export const COVER_ACTION_ERRORS: Record<string, string> = {
   stop_cover: '窗帘停止操作失败',
 }
 
-export type CoverServiceAction = 'open_cover' | 'close_cover' | 'stop_cover' | 'set_cover_position'
-
 export function coverHasPositionControl(supportedFeatures: unknown): boolean {
   return (Number(supportedFeatures) & COVER_SUPPORT_SET_POSITION) !== 0
 }

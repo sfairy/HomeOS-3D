@@ -379,11 +379,6 @@ export const apiPost = <T = any>(url: string, data?: unknown, config?: ApiReques
 export const apiPut = <T = any>(url: string, data?: unknown, config?: ApiRequestConfig) =>
   apiClient.put<T>(url, data, config)
 
-/** 发起 PATCH 请求；变更类方法默认不参与 5xx 重试，需要时显式声明 _idempotent。 */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- AxiosResponse.data 的边界默认类型
-export const apiPatch = <T = any>(url: string, data?: unknown, config?: ApiRequestConfig) =>
-  apiClient.patch<T>(url, data, config)
-
 /** 发起 DELETE 请求；变更类方法默认不参与 5xx 重试，需要时显式声明 _idempotent。 */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AxiosResponse.data 的边界默认类型
 export const apiDelete = <T = any>(url: string, config?: ApiRequestConfig) =>

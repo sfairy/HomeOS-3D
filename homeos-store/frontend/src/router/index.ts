@@ -17,7 +17,7 @@ const SetupView = () => import("../views/SetupView.vue");
 /** 需要在挂载前就确认登录态的页面：`meta.requiresAuth`。 */
 const ACCOUNT_META = { storePage: "account", requiresAuth: true };
 
-export const routes: RouteRecordRaw[] = [
+const routes: RouteRecordRaw[] = [
   {
     path: "/",
     component: StoreLayout,
@@ -75,7 +75,7 @@ export const routes: RouteRecordRaw[] = [
   { path: "/:pathMatch(.*)*", redirect: "/" },
 ];
 
-export const router = createRouter({
+const router = createRouter({
   history: createWebHistory(),
   routes,
   scrollBehavior() {

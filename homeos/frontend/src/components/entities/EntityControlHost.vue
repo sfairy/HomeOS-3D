@@ -34,19 +34,13 @@
  * 使用场景：
  * - 列表/详情页中点击实体后弹出对应控制面板（与画布上的 widget 弹窗区分开）
  */
-import { computed, provide } from 'vue'
+import { computed, provide, watchEffect } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import {
   getEntityPopupProps,
   resolveEntityPopupComponent,
 } from '@/utils/entity/popup-registry'
 import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
-
-const { teleportTarget, shellTeleportPending } = useShellTeleportTarget()
-const teleportDisabled = shellTeleportPending
-
-/** 列表/详情页居中模态：禁用 AnchoredPopupShell 的二次 Teleport 与锚点偏移 */
-provide('entityPopupCentered', true)
 
 /**
  * 组件 Props 定义
@@ -63,6 +57,17 @@ const props = defineProps({
  * @emits close - 用户关闭弹窗时触发（点击遮罩或弹窗内部 close 事件）
  */
 defineEmits(['close'])
+
+const { teleportTarget, shellTeleportPending, refreshShellTeleport } = useShellTeleportTarget()
+const teleportDisabled = shellTeleportPending
+
+/** 列表/详情页居中模态：禁用 AnchoredPopupShell 的二次 Teleport 与锚点偏移 */
+provide('entityPopupCentered', true)
+
+// 打开时再探测挂载点（props 已初始化后再 watchEffect，避免 TDZ）
+watchEffect(() => {
+  if (props.open && props.entityId) refreshShellTeleport()
+})
 
 // 实体仓库，用于查询实体与解析弹窗组件
 const entitiesStore = useEntitiesStore()

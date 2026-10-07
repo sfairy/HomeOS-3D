@@ -21,6 +21,7 @@ import { getEntityDisplayName, collectIndexedEntityIds } from '@/utils/entity/de
 import { getDomainLabel } from '@/utils/device/domain-labels.util'
 import { appNotify } from '@/utils/bridge/store-bridge'
 import { coverToggleService } from '@/composables/entity/control/cover-control-core'
+import { hasEntityControlPopup } from '@/utils/entity/popup-registry'
 
 const FILTER_STORAGE_KEY = 'homeos:devices-filter'
 const TOGGLE_DOMAINS = new Set(['light', 'switch', 'fan', 'cover', 'lock', 'input_boolean'])
@@ -400,6 +401,10 @@ export function useDevicesView() {
 
   function openControl(item: DeviceListItem) {
     if (!item.entity_id || item.unavailable) return
+    if (!hasEntityControlPopup(item.entity_id, entitiesStore.entities)) {
+      chrome.notify('该设备暂无快捷控制弹窗，请打开详情查看', 'info')
+      return
+    }
     void entitiesStore.ensureEntity(item.entity_id).finally(() => {
       chrome.openEntityControl(item.entity_id)
     })

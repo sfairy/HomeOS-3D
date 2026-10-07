@@ -33,7 +33,7 @@ export function lineChartGeometry(
     points: chartPoints,
   };
 }
-export function normalizedStatePrecision(precisionSetting: any) {
+function normalizedStatePrecision(precisionSetting: any) {
   if (precisionSetting == null || precisionSetting === "" || precisionSetting === "auto")
     return "auto";
   const precisionNumber = Number(precisionSetting);
@@ -41,7 +41,7 @@ export function normalizedStatePrecision(precisionSetting: any) {
     ? precisionNumber
     : "auto";
 }
-export function automaticNumericPrecision(magnitudeInput: any) {
+function automaticNumericPrecision(magnitudeInput: any) {
   const magnitude = Math.abs(Number(magnitudeInput));
   return !Number.isFinite(magnitude) || magnitude === 0 || magnitude >= 100
     ? 0

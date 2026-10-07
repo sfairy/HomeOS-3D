@@ -4007,12 +4007,27 @@ export class PanelRenderer {
   ) {
     if (
       !this.options.editable ||
-      !this.selectedComponentIds.has(moveComponentRecord.id) ||
       moveComponentRecord.properties?.layoutMode === "fill" ||
       movePointerEvent.button !== 0 ||
       movePointerEvent.target.closest(".hb-transform-handle")
     )
       return;
+    // 画布点击：未选中则先选中（⌘/Ctrl 切换多选），再进入拖拽
+    if (!this.selectedComponentIds.has(moveComponentRecord.id)) {
+      const toggle = isPrimaryModifierPressed(movePointerEvent);
+      if (toggle) {
+        this.selectedComponentIds.add(moveComponentRecord.id);
+        this.selectedComponentId = moveComponentRecord.id;
+      } else {
+        this.selectedComponentIds = new Set([moveComponentRecord.id]);
+        this.selectedComponentId = moveComponentRecord.id;
+      }
+      this.options.onSelectionChange?.(
+        [...this.selectedComponentIds],
+        this.selectedComponentId,
+      );
+      this.setSelectedComponents([...this.selectedComponentIds], this.selectedComponentId);
+    }
     (movePointerEvent.preventDefault(), movePointerEvent.stopPropagation());
     const clientX = movePointerEvent.clientX,
       clientY = movePointerEvent.clientY,

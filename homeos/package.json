@@ -9,7 +9,6 @@
     "prep": "bun scripts/run.mjs prep",
     "build:shared": "bun run --cwd packages/shared build",
     "dev": "bun scripts/dev.mjs",
-    "dev:db": "docker compose -f docker-compose.yml -f docker-compose.local.yml up -d postgres redis",
     "dev:backend": "cd backend && HOMEOS_RELOAD=1 .venv/bin/python -m src.run",
     "dev:frontend": "bun run --cwd frontend dev",
     "dev:runtime": "bun run --cwd frontend dev:runtime",

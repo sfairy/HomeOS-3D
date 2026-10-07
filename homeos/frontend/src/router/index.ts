@@ -211,8 +211,10 @@ const routes: RouteRecordRaw[] = [
         name: 'embed',
         component: lazyView(() => import('@/views/EmbedView.vue')),
       },
-      // 未匹配路径兜底重定向到仪表盘
-      { path: ':pathMatch(.*)*', redirect: { name: 'dashboard' } },
+      // 未匹配路径兜底重定向到仪表盘。
+      // 用函数形式，避免把 catch-all 的 pathMatch 参数带到无该 param 的目标路由上
+      // （Vue Router R0100：Discarded invalid param(s) "pathMatch"）。
+      { path: ':pathMatch(.*)*', redirect: () => ({ name: 'dashboard' }) },
     ],
   },
 ]
@@ -550,13 +552,6 @@ router.beforeEach(async (to, from) => {
     }
   }
 })
-
-/**
- * 标记系统已完成初始化（供注册/初始化完成后的调用方通知守卫放行）。
- */
-export function markSystemInitialized(): void {
-  systemInitialized = true
-}
 
 /** HMR / 部署后 chunk 失效时，导航错误走一次整页刷新恢复 */
 router.onError((error) => {

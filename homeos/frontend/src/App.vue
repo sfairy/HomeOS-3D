@@ -30,7 +30,11 @@
     <!-- 路由视图，带淡入淡出过渡动画 -->
     <ErrorBoundary v-else :title="'页面加载失败'">
       <router-view v-slot="{ Component }">
-        <transition name="fade" mode="out-in">
+        <!--
+          不用 mode="out-in"：与 MainLayout 内 keep-alive、以及 DisplayView 命令式改 DOM
+          叠在一起时，out-in 离开阶段容易触发 insertBefore(null)（设置页注释里已踩过）。
+        -->
+        <transition name="fade">
           <!-- 顶层 matched 作 key：/devices ↔ /scenes 等子路由切换不重建 MainLayout -->
           <div :key="shellRouteKey" class="route-transition-root">
             <!-- 动态渲染当前路由匹配的组件，v-if 防止 Component 为空时报错 -->

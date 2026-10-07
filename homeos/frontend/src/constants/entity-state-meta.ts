@@ -79,14 +79,3 @@ export function entityStateLabel(state: string | null | undefined): string {
   if (!state) return ''
   return ENTITY_STATE_META[state]?.label ?? state
 }
-
-/**
- * 根据 HA 实体 state 查询语义色。
- *
- * @param state - HA 实体 state 值（如 `on`、`heat`、`unavailable`）。
- * @returns 对应的 HEX 颜色字符串；未命中映射或 state 为空时返回 null。
- */
-export function entityStateColor(state: string | null | undefined): string | null {
-  if (!state) return null
-  return ENTITY_STATE_META[state]?.color ?? null
-}

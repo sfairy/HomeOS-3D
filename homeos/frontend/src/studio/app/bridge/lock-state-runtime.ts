@@ -348,4 +348,3 @@ export function doorModels(config: any) {
     },
   );
 }
-export const entryDoorModels = doorModels;

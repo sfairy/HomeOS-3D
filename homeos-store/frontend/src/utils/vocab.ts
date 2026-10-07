@@ -26,8 +26,3 @@ export const PRODUCT_TYPE: Record<string, string> = {
   module: "增量包",
   template: "模板",
 };
-
-export function vocab(map: Record<string, string>, key: unknown): string {
-  const raw = String(key || "");
-  return map[raw] || raw;
-}

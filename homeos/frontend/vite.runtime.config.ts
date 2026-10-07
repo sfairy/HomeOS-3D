@@ -147,7 +147,8 @@ const entries = discoverRuntimeEntries();
 export default defineConfig({
   root: frontendRoot,
   // 独立子缓存目录：runtime 的 build/watch 与主应用 dev server 可能同时跑，分开避免抢占缓存。
-  cacheDir: path.join(frontendRoot, "node_modules", ".vite", "homeos-runtime"),
+  // 落在工作区根 node_modules/.vite，避免在 homeos/frontend 下再长出 node_modules。
+  cacheDir: path.join(path.resolve(frontendRoot, "../.."), "node_modules", ".vite", "homeos-runtime"),
   customLogger: quietLogger(),
   publicDir: false,
   resolve: {

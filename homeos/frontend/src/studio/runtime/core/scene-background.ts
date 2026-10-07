@@ -6,6 +6,8 @@ type BackgroundAppearanceConfig = {
   warmBackgroundTheme?: unknown;
   backgroundTheme?: unknown;
   backgroundMotion?: unknown;
+  /** 展示端会强制 false，让房子周围透出页面底图。 */
+  backgroundVisible?: unknown;
 };
 
 function backgroundFloorAnchor(
@@ -200,15 +202,19 @@ export function createSceneBackground(
       const isWarmWoodNext = config.sceneStyle === "warm-wood",
         nextWarmDusk =
           isWarmWoodNext && (config.warmBackgroundTheme || config.backgroundTheme) === "warm-dusk",
+        nextBackgroundEnabled = config.backgroundVisible !== false,
         didChange =
           isWarmWoodNext !== isWarmWood ||
           nextWarmDusk !== isWarmDusk ||
-          isMotionEnabled !== (config.backgroundMotion !== false);
+          isMotionEnabled !== (config.backgroundMotion !== false) ||
+          nextBackgroundEnabled !== isBackgroundEnabled;
       return (
         didChange && stopWarmFrames(),
         (isWarmWood = isWarmWoodNext),
         (isWarmDusk = nextWarmDusk),
         (isMotionEnabled = config.backgroundMotion !== false),
+        (isBackgroundEnabled = nextBackgroundEnabled),
+        isBackgroundEnabled || stopWarmFrames(),
         warmUniforms.warmDeep.value.set(isWarmDusk ? "#746c67" : "#d9d6cc"),
         warmUniforms.warmInk.value.set(isWarmDusk ? "#f4dfb6" : "#fff6dd"),
         warmUniforms.warmAccent.value.set(isWarmDusk ? "#9c765a" : "#b59b72"),

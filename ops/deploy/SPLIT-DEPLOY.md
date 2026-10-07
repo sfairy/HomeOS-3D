@@ -104,8 +104,9 @@ docker logs homeos | grep 授权公钥
 ## 3. 客户机：再起主应用
 
 ```bash
-# .env 至少要有这几项（其余见 .env.example 的 A 区）：
+# .env 至少要有这几项（其余见 .env.example 的 A 区）；也可用 --license-server 一次写入：
 #   APP_LICENSE_SERVER_URL=http://<中心商店IP>:8802   # 跨机就用商店 HTTP 端口（别用自签的 8804）
+#   APP_STORE_URL=http://<中心商店IP>:8802            # --license-server 会在为空时自动同步
 #   APP_COOKIE_SECURE=false                       # 要让 HTTP / HTTPS 都能登录就用 false
 #   APP_TRUSTED_PROXIES=127.0.0.1,::1             # 内置反代在容器回环上，保持默认
 #   UVICORN_FORWARDED_ALLOW_IPS=127.0.0.1,::1     # 保持默认，不要填 *
@@ -118,7 +119,9 @@ docker logs homeos | grep 授权公钥
 `docker network create` / `docker volume create`；只有同机部署（`--role all`）才通过
 `docker-compose.app.shared.yml` 加入商店的网络与公钥卷。
 
-- **`APP_LICENSE_SERVER_URL` 必须显式设置**（`deploy.sh --license-server` 或 `.env`）。未设置时启动器直接退出；同机 `--role all` 由 `docker-compose.app.shared.yml` 注入内网地址。
+- **`APP_LICENSE_SERVER_URL` 必须显式设置**（`deploy.sh --license-server` 或 `.env`）。
+  `--license-server` 会同时钉住 `APP_STORE_URL`（空/本机默认时），不必手改两处。
+  未设置时启动器直接退出；同机 `--role all` 由 `docker-compose.app.shared.yml` 注入内网地址。
 - **`APP_BASE_URL` 可留空。** 局域网 IP 不固定时留空，应用按请求 `Host` 判断同源；只有在需要固定访问地址时才填。
 - **宿主标识准备一次**（`docker-compose.app.yml` 里的两个 `/host/...` 挂载靠它生效）：
 

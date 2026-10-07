@@ -65,7 +65,6 @@ import {
   resolveDefaultSettingsTab,
   INDEPENDENT_SAVE_TABS,
   isTabFeatureGranted,
-  tabFeature,
 } from '@/utils/registry/settings-nav.util'
 import { PANEL_MAP } from '@/views/settings/panel-chunks'
 

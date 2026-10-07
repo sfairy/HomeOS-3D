@@ -17,7 +17,7 @@
 
 /** 推送给原生端的服务端访问配置 */
 export type ServerAccessConfig = {
-  /** 内网访问地址，如 http://192.168.1.10:8126 */
+  /** 内网访问地址，如 http://192.168.1.10:8801 或 https://192.168.1.10:8803 */
   internalUrl: string
   /** 远程访问地址（公网 / DDNS），可为空串表示未配置 */
   externalUrl: string

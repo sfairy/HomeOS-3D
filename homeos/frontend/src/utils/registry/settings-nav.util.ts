@@ -108,11 +108,6 @@ const TAB_FEATURES: Record<string, string> = {
   'smart-charge': 'module.energy',
 }
 
-/** 查询 Tab 所需功能码；未登记（不参与门禁）返回空串 */
-export function tabFeature(tabId: string) {
-  return TAB_FEATURES[tabId] ?? ''
-}
-
 /**
  * 判定 Tab 是否被授权放行（仅界面显隐）。
  * @param tabId Tab id

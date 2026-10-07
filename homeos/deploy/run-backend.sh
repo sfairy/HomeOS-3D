@@ -1,11 +1,12 @@
 #!/bin/sh
-# HomeOS 后端启动脚本（FastAPI / Python）。
+# 源码态启动主应用后端（非 Docker 生产路径）。
+# Docker 一键部署请用仓库根：./ops/deploy/deploy.sh
 #
 # 用法：
-#   sh deploy/run-backend.sh           # 启动 FastAPI/Python 后端
+#   sh deploy/run-backend.sh           # 或：bun run --cwd homeos start:prod
 #
 # 环境变量：
-#   PORT             监听端口，缺省 8801（与 Caddy reverse_proxy homeos:8801 一致）
+#   PORT             监听端口，缺省 8801（与镜像内置反代 :8803 → 127.0.0.1:8801 一致）
 #   HOMEOS_ENV_FILE  额外 env 文件路径（缺省自动加载 backend/.env、.env）
 set -eu
 

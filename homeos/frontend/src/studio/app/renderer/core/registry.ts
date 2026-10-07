@@ -410,20 +410,16 @@ import {
   lightStatisticsSummary,
 } from "../controls/light-statistics-runtime";
 import {
-  automaticNumericPrecision,
   formatLineChartValue,
   formatNumericValue,
   lineChartGeometry,
-  normalizedStatePrecision,
 } from "../controls/line-chart-runtime";
 import {
   doorWindowPerspectiveCorners,
   doorWindowPerspectiveMatrix,
 } from "../controls/door-window-runtime";
 import {
-  automaticThresholds,
   meteoconUrl,
-  normalizedThresholds,
   resolvedThresholds,
   smoothChartPath,
   thresholdColor,
@@ -438,16 +434,12 @@ export {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport,
   lightStatisticsSummary,
-  automaticNumericPrecision,
   formatLineChartValue,
   formatNumericValue,
   lineChartGeometry,
-  normalizedStatePrecision,
   doorWindowPerspectiveCorners,
   doorWindowPerspectiveMatrix,
   meteoconUrl,
-  automaticThresholds,
-  normalizedThresholds,
   resolvedThresholds,
   smoothChartPath,
   thresholdColor,

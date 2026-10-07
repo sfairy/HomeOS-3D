@@ -3608,6 +3608,11 @@ export function mountStage(mountOptions: any) {
             .worldPoint(editedEntry.floorId, editedEntry.x, editedEntry.y, editedEntry.height)
             ?.toArray()
         : null;
+    const documentPanEnabled = cameraInteractionConfig.panEnabled !== false;
+    const documentZoomEnabled = cameraInteractionConfig.zoomEnabled !== false;
+    // Vue 总览条经 window 旗标切换「视角锁定」，避免 runtime 包与 SPA facade 交叉依赖
+    const facadeViewLocked = !!(globalThis as any).__homeosDisplayViewLocked;
+    const viewLocked = cameraInteractionConfig.viewLocked === true || facadeViewLocked;
     mountOptions.setCameraInteraction({
       enabled:
         !activePointerDrag &&
@@ -3617,8 +3622,9 @@ export function mountStage(mountOptions: any) {
             !cameraMotionSnapshot &&
             !isIdleRotationRunning)),
       rotationMode: isFreeCameraMode ? "free" : cameraInteractionConfig.rotationMode,
-      panEnabled: isFreeCameraMode,
-      zoomEnabled: isFreeCameraMode,
+      // 总览尊重文档 interaction 配置；编辑/调层模式始终可平移缩放；显式锁定时关闭
+      panEnabled: !viewLocked && (isFreeCameraMode || documentPanEnabled),
+      zoomEnabled: !viewLocked && (isFreeCameraMode || documentZoomEnabled),
       focusEditing: panelDisplayMode === "edit",
       focusPoint: editFocusPoint,
     });
@@ -6469,6 +6475,17 @@ export function mountStage(mountOptions: any) {
         releaseFocusExit({
           pointerId: focusExitPointer.pointerId,
         });
+    }),
+    window.addEventListener("homeos:display-view-lock", () => {
+      syncCameraInteraction();
+    }),
+    window.addEventListener("homeos:display-reset-camera", () => {
+      try {
+        mountOptions.setCameraView?.("free");
+      } catch {
+        /* ignore */
+      }
+      syncCameraInteraction();
     }),
     canvasElement.addEventListener("pointerdown", (gestureStartEvent: any) => {
       pointerGesture =

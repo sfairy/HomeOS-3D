@@ -1,28 +1,81 @@
 <script setup lang="ts">
 /**
- * 模板保留全部 id / class，供既有命令式引导逻辑按 DOM 契约操作。
- *
- * 与编辑器同构：`@app/3d-studio/studio/studio-app` 导出 `bootStudio()` /
- * `teardownStudio()`，挂载时引导、卸载时释放渲染器/缓存写入器/观察器与文档级残留，
- * 于是 `/3d-studio`、`/stage` 与仪表盘总览之间可以在同一文档内互相路由。
+ * Vue 壳层（顶栏 / 工作流 / 平面聚焦 / 撤销）+ 既有 DOM 契约供 bootStudio 操作。
  */
-import { onBeforeUnmount, onMounted } from "vue";
+import { computed, onBeforeUnmount, onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { useStudioFloorplanStore } from "@/stores/studio-floorplan.store";
+import {
+  STUDIO_SHORTCUT_ROWS,
+  StudioShortcutsOverlay,
+  StudioTopBar,
+} from "@/studio/chrome";
+import "@/studio/chrome/studio-chrome.css";
+import { Undo2, Redo2, Focus, PanelsTopLeft } from "@lucide/vue";
+
+const WORKFLOW_STEPS = [
+  { id: "background", label: "导入底图" },
+  { id: "scale", label: "标定比例" },
+  { id: "walls", label: "绘制空间" },
+  { id: "items", label: "摆放物件" },
+  { id: "lights", label: "放置灯光" },
+  { id: "export", label: "保存图片" },
+] as const;
+
+const route = useRoute();
+const router = useRouter();
+const floorplanStore = useStudioFloorplanStore();
+
+/** 舞台 iframe / 自动导图嵌入态：不挂创作顶栏，避免步骤条叠进 3D 画布 */
+const showCreatorChrome = computed(
+  () =>
+    route.meta.bodyClass !== "interaction3d-stage" &&
+    route.query["auto-diagram-embed"] !== "1",
+);
+
+const rootClass = computed(() => [
+  "studio-chrome-root",
+  !showCreatorChrome.value ? "sc-embed-stage" : "",
+  floorplanStore.libraryCollapsed ? "sc-shell--library-rail" : "",
+  floorplanStore.planFocus ? "sc-shell--plan-focus" : "",
+]);
 
 let teardownStudio: (() => void) | null = null;
 let disposed = false;
 
+function goBack() {
+  router.push("/studio/editor").catch(() => {
+    router.push("/settings").catch(() => undefined);
+  });
+}
+
+function jumpStep(step: string) {
+  floorplanStore.command({ type: "setWorkflowStep", step });
+}
+
 onMounted(async () => {
-  // stage-startup 自判 pathname === stage.html：非 stage 路径下是空操作。
+  floorplanStore.bindFacade();
   await import("@app/3d-studio/stage-startup");
   const studio = await import("@app/3d-studio/studio/studio-app");
-  // 动态导入期间用户可能已经离开该路由：此时不引导，避免留下无从回收的运行时。
   if (disposed) return;
   studio.bootStudio();
   teardownStudio = studio.teardownStudio;
+  floorplanStore.command({
+    type: "setLibraryCollapsed",
+    collapsed: floorplanStore.libraryCollapsed,
+  });
+  floorplanStore.command({ type: "setPlanFocus", focus: floorplanStore.planFocus });
+  // 嵌入舞台：壳层裁成全屏后再催一次 resize，避免首帧按错误视口框相机
+  if (!showCreatorChrome.value) {
+    requestAnimationFrame(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+  }
 });
 
 onBeforeUnmount(() => {
   disposed = true;
+  floorplanStore.unbindFacade();
   const dispose = teardownStudio;
   teardownStudio = null;
   dispose?.();
@@ -30,7 +83,89 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-<header class="studio-header">
+  <div :class="rootClass">
+    <StudioTopBar
+      v-if="showCreatorChrome"
+      title="户型图绘制"
+      eyebrow="HOMEOS · 3D STUDIO"
+      back-label="返回编辑器"
+      :dirty="floorplanStore.dirty"
+      :save-state="floorplanStore.saveState"
+      show-left-toggle
+      :left-collapsed="floorplanStore.libraryCollapsed"
+      @back="goBack"
+      @toggle-left="floorplanStore.toggleLibrary()"
+      @shortcuts="floorplanStore.showShortcuts = true"
+    >
+      <template #center>
+        <ol class="sc-workflow" aria-label="制作步骤">
+          <li v-for="(step, index) in WORKFLOW_STEPS" :key="step.id">
+            <button
+              type="button"
+              class="sc-workflow__step"
+              :class="{
+                'is-active': floorplanStore.workflowStep === step.id,
+              }"
+              :data-step="step.id"
+              @click="jumpStep(step.id)"
+            >
+              <i>{{ index + 1 }}</i>{{ step.label }}
+            </button>
+          </li>
+        </ol>
+      </template>
+      <template #actions>
+        <button
+          type="button"
+          class="sc-btn sc-btn--icon"
+          title="撤销"
+          :disabled="!floorplanStore.canUndo"
+          @click="floorplanStore.command({ type: 'undo' })"
+        >
+          <Undo2 class="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          class="sc-btn sc-btn--icon"
+          title="重做"
+          :disabled="!floorplanStore.canRedo"
+          @click="floorplanStore.command({ type: 'redo' })"
+        >
+          <Redo2 class="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          class="sc-btn"
+          :class="{ 'sc-btn--active': floorplanStore.planFocus }"
+          title="平面聚焦"
+          @click="floorplanStore.togglePlanFocus()"
+        >
+          <Focus class="w-3.5 h-3.5" />
+          平面聚焦
+        </button>
+        <button
+          type="button"
+          class="sc-btn"
+          :class="{ 'sc-btn--active': !floorplanStore.libraryCollapsed }"
+          title="资源库"
+          @click="floorplanStore.toggleLibrary()"
+        >
+          <PanelsTopLeft class="w-3.5 h-3.5" />
+          资源库
+        </button>
+      </template>
+    </StudioTopBar>
+
+    <StudioShortcutsOverlay
+      v-if="showCreatorChrome"
+      :open="floorplanStore.showShortcuts"
+      title="户型图绘制快捷键"
+      :rows="STUDIO_SHORTCUT_ROWS"
+      @close="floorplanStore.showShortcuts = false"
+    />
+
+    <!-- 保留旧 header 供引擎查询 id（project-name / save-state / studio-back-link / workflow） -->
+    <header class="studio-header sc-legacy-hidden" aria-hidden="true">
         <div class="header-leading"> <img class="brand-logo"
                 src="/static/assets/icons/homeos-mark-white-orange.svg" alt="HomeOS">
             <div class="header-title">
@@ -54,7 +189,11 @@ onBeforeUnmount(() => {
         <div class="header-actions"> <span id="save-state" class="save-state"><i></i>正在载入…</span> </div>
     </header>
     <main class="studio-shell">
-        <aside class="library-panel panel-surface">
+        <aside
+          class="library-panel panel-surface"
+          :class="{ 'is-collapsed': floorplanStore.libraryCollapsed }"
+          :aria-hidden="floorplanStore.libraryCollapsed"
+        >
             <section class="start-card">
                 <div class="start-card-row">
                     <h2>户型底图</h2>
@@ -630,7 +769,11 @@ onBeforeUnmount(() => {
                 <div id="drop-hint" class="drop-hint">松开即可放置</div>
             </div>
         </section>
-        <aside class="details-panel">
+        <aside
+          class="details-panel"
+          :class="{ 'is-collapsed': floorplanStore.planFocus }"
+          :aria-hidden="floorplanStore.planFocus"
+        >
             <section class="preview-card panel-surface">
                 <div class="preview-heading">
                     <div class="preview-heading-copy"><span class="eyebrow">LIVE MODEL</span>
@@ -1354,4 +1497,5 @@ onBeforeUnmount(() => {
             data-light-group-action="delete">删除</button></div>
     <div id="floor-context-menu" class="light-group-context-menu" hidden><button type="button"
             data-floor-action="rename">重命名</button><button type="button" data-floor-action="delete">删除楼层</button></div>
+  </div>
 </template>

@@ -56,8 +56,8 @@ export const INTERACTION3D_LIGHTING_MODES = [
           popupOpacity: 74,
           interaction: {
             rotationMode: "free",
-            panEnabled: false,
-            zoomEnabled: false,
+            panEnabled: true,
+            zoomEnabled: true,
           },
           behaviorScope: "global",
           pageBehaviors: {} as Record<string, any>,

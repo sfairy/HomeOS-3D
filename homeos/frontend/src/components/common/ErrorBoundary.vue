@@ -113,9 +113,16 @@ onErrorCaptured((err, instance, info) => {
 })
 
 /**
- * 重置错误态：清空错误信息并递增 internalKey 强制子树重新挂载
+ * 重置错误态：清空错误信息并递增 internalKey 强制子树重新挂载。
+ * DOM 补丁类错误（insertBefore/null）通常是 vnode 与真实 DOM 脱节，
+ * 仅 remount 会立刻再炸，改为整页刷新才能清掉卡死的「页面加载失败」。
  */
 function reset() {
+  const message = errorMessage.value || ''
+  if (/insertBefore|Cannot read properties of null/i.test(message)) {
+    window.location.reload()
+    return
+  }
   hasError.value = false
   errorMessage.value = ''
   internalKey.value += 1

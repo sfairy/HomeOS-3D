@@ -5,7 +5,8 @@
  *   bun run dev
  *
  * 说明：
- *   - 数据库 / Redis 请先执行 `bun run dev:db`（此处不自动拉起，避免误启 Docker）。
+ *   - 后端用 SQLite（HOMEOS_DATA_DIR），无需 Docker / Postgres / Redis。
+ *   - 全仓联调优先仓库根 `bun run dev`（ops/dev.mjs）；本脚本只起 homeos 一侧。
  *   - Ctrl+C 会先终止子进程再退出；任一子进程退出则停止其余进程并透传退出码。
  */
 import { spawn } from 'node:child_process'

@@ -37,8 +37,8 @@ cd homeos-app-<版本>
 `install.sh` 就是 `ops/deploy/deploy.sh --role app` 的封装，它会：
 
 1. 缺 `.env` 时从 `.env.example` 生成；
-2. 把中心商店地址写进 `.env` 的 `APP_LICENSE_SERVER_URL`，并钉住镜像版本
-   （`HOMEOS_VERSION` / `HOMEOS_IMAGE`，避免以后升级漂到 `latest`）；
+2. 把中心商店地址写进 `.env` 的 `APP_LICENSE_SERVER_URL` **与** `APP_STORE_URL`
+   （浏览器用入口一并钉住），并钉住镜像版本（`HOMEOS_VERSION` / `HOMEOS_IMAGE`）；
 3. 尝试建宿主标识符号链接（授权实例指纹用，见第 4 节）；
 4. `docker compose pull` → `up -d`，等主应用 health；
 5. 打印注册地址与激活入口。

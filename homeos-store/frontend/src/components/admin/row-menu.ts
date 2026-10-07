@@ -10,7 +10,7 @@ interface RowMenuHandle {
 const handles: RowMenuHandle[] = [];
 let installed = false;
 
-export function closeRowMenus(): void {
+function closeRowMenus(): void {
   for (const handle of [...handles]) handle.close();
 }
 

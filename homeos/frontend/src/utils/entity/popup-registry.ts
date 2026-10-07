@@ -2,7 +2,7 @@
  * @module entity-popup-registry
  * @description 实体控制弹窗组件注册表（设备弹窗栈 A）。
  *
- * 职责边界见 `device-popup-stacks.ts`：
+ * 设备弹窗栈约定：
  * - 栈 A（本注册表 + EntityControlHost）：设备列表 / 详情「控制」/ Hub 水电通讯
  * - 栈 B：门铃、设备组、媒体全屏 MediaPlayerModal
  * - 栈 C：画布 PanelRenderer more-info / 组合弹窗
@@ -110,7 +110,16 @@ export function getEntityPopupProps(
     return { entityId }
   }
   const entity = typeof getEntity === 'function' ? getEntity(entityId) : null
-  return entity ? { entity } : {}
+  // 始终带上 entityId；store 未 hydrate 时给最小 stub，避免弹窗 v-if="liveEntity" 空白。
+  if (entity) return { entityId, entity }
+  return {
+    entityId,
+    entity: {
+      entity_id: entityId,
+      state: 'unknown',
+      attributes: {},
+    } as HaEntityState,
+  }
 }
 
 /**
@@ -123,11 +132,12 @@ export function hasEntityControlPopup(entityId: string, entities: EntitiesMap = 
 /**
  * 判断实体弹窗是否支持点击打开。
  *
- * 灯光域短按为开关操作，弹窗需长按触发；其他域支持点击直接打开弹窗。
+ * 凡注册表有控制弹窗的域（含灯光）均支持单击打开；
+ * 灯光短按开关改由行内「切换」按钮承担，避免「点不开弹窗」的发现成本。
  *
  * @param entityId 实体 ID。
- * @returns 非灯光域返回 true，灯光域返回 false。
+ * @returns 有控制弹窗则 true。
  */
 export function entityPopupOpensOnClick(entityId: string): boolean {
-  return getEntityDomain(entityId) !== 'light'
+  return hasEntityControlPopup(entityId)
 }

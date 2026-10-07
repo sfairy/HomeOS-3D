@@ -142,17 +142,20 @@ export function bootDisplayBoot(): void {
             window.dispatchEvent?.(new Event("hb-display-reveal")),
             (leaveTimer = setTimeout(
               () => {
-                const hadFocusInside = displaySplashLookup()?.contains(document.activeElement);
-                if (
-                  (displaySplashLookup()?.remove(),
-                  documentElement.classList.remove("display-booting"),
-                  (splashPhase = "done"),
-                  logBootPhase("entered"),
-                  isFirstScreenReady)
-                )
+                const splashEl = displaySplashLookup();
+                const hadFocusInside = !!splashEl?.contains(document.activeElement);
+                // 只通知 Vue（DisplayView `splashPresent=false` / v-if）卸节点。
+                // 禁止原生 `.remove()`：本仓库 Vue 无 flushSync，命令式摘节点会让父树
+                // 重渲染时对已脱离 vnode 做 insertBefore → ErrorBoundary 卡死。
+                window.dispatchEvent?.(new Event("hb-display-splash-detach"));
+                documentElement.classList.remove("display-booting");
+                splashPhase = "done";
+                logBootPhase("entered");
+                if (isFirstScreenReady) {
                   try {
                     localStorage.setItem(warmStorageKey, "1");
                   } catch {}
+                }
                 (imageByUrl.clear(),
                   hadFocusInside &&
                     shellElement?.focus({

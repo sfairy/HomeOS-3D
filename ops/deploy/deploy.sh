@@ -49,7 +49,8 @@ usage() {
                         store = 厂商机（中心）：只部署授权商店，签发授权
                         app   = 客户机：只部署主应用，指向中心商店（生产主流程）
                         all   = 同机部署两者，先商店后主应用（仅开发 / 自测）
-  --license-server URL  中心商店地址，会写进 .env 的 APP_LICENSE_SERVER_URL。
+  --license-server URL  中心商店地址，会写进 .env 的 APP_LICENSE_SERVER_URL
+                        与 APP_STORE_URL（浏览器用入口一并钉住，无需再手改第二处）。
                         --role app 必填；客户机要能访问到它（局域网 IP 或公网域名）。
                         跨机直连用商店 HTTP 端口 :8802；不要在没换成真实证书时用 :8804。
   --version TAG         镜像 tag。优先级：--version > 真实环境变量 > .env > package.json > latest；
@@ -320,6 +321,25 @@ setup_images() {
   if [ "$need_store" -eq 1 ]; then env_set HOMEOS_STORE_IMAGE "$HOMEOS_STORE_IMAGE"; fi
 }
 
+# 分拆部署时，出站授权地址与浏览器商店入口通常是同一个可达 URL。
+# 若 APP_STORE_URL 仍是空/本机默认，就跟着授权地址一起钉住，避免只改一处后
+# 「忘记密码 / 商店」链接仍指向 127.0.0.1。容器内网主机名（homeos-store）浏览器打不开，跳过。
+sync_app_store_url() {
+  url=$1
+  [ -n "$url" ] || return 0
+  case "$url" in
+    *://homeos-store*|http://127.0.0.1:*|https://127.0.0.1:*|http://localhost:*|https://localhost:*)
+      return 0
+      ;;
+  esac
+  store_current=$(env_value APP_STORE_URL)
+  case "$store_current" in
+    ""|http://127.0.0.1:8802|https://127.0.0.1:8802|http://localhost:8802|https://localhost:8802) ;;
+    *) return 0 ;;
+  esac
+  env_set APP_STORE_URL "$url"
+}
+
 require_license_server() {
   [ "$ROLE" = "app" ] || return 0
   current=$(env_value APP_LICENSE_SERVER_URL)
@@ -328,10 +348,12 @@ require_license_server() {
   esac
   if [ -n "$current" ]; then
     info "授权服务器：$current"
+    sync_app_store_url "$current"
     return 0
   fi
   if [ -n "$LICENSE_SERVER" ]; then
     env_set APP_LICENSE_SERVER_URL "$LICENSE_SERVER"
+    sync_app_store_url "$LICENSE_SERVER"
     return 0
   fi
   die "--role app（客户机）必须指定中心商店地址：--license-server http://<中心商店IP或域名>:8802，或在 .env 里写 APP_LICENSE_SERVER_URL。该地址须从本机能访问；只有换成真实证书的反代后才用 https://。"
