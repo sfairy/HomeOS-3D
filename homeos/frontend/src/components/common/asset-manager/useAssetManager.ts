@@ -42,21 +42,19 @@ interface AssetManagerProps {
   isPicker?: boolean
   /** 是否嵌入到其他容器中（影响虚拟网格启用与列数） */
   embedded?: boolean
-  /** 资源类型：icon 图标 / floorplan 平面图 / background 背景图 / room_image 房间图，决定调用的后端 API 分组 */
+  /** 资源类型：icon 图标 / background 背景图，决定调用的后端 API 分组 */
   type?: string
 }
 
 /**
  * 根据资源类型返回对应的后端 API 路径前缀。
- * icon → icons；background → backgrounds；room_image → room_images；其余默认 floorplans。
+ * icon → icons；background → backgrounds（默认）。
  * @param type 资源类型字符串
  * @returns API 路径片段
  */
 function assetApiBase(type: string) {
   if (type === 'icon') return 'icons'
-  if (type === 'background') return 'backgrounds'
-  if (type === 'room_image') return 'room_images'
-  return 'floorplans'
+  return 'backgrounds'
 }
 
 /**
@@ -95,7 +93,7 @@ export function useAssetManager(
 ) {
   const chrome = useChromeStore()
 
-  // 目录列表缓存：key 形如 "floorplan:a/b"，避免重复请求
+  // 目录列表缓存：key 形如 "background:a/b"，避免重复请求
   const listCache = new Map<string, AssetItem[]>()
   /** 当前所在目录的相对路径（空字符串表示根目录） */
   const currentPath = ref(props.initialPath || '')
@@ -154,11 +152,7 @@ export function useAssetManager(
   /** 网格列数：嵌入模式 5 列，独立模式 4 列 */
   const gridColumns = computed(() => (props.embedded ? 5 : 4))
   /** 网格行高：图片类素材较高（132），其余 118 */
-  const gridRowHeight = computed(() =>
-    props.type === 'floorplan' || props.type === 'background' || props.type === 'room_image'
-      ? 132
-      : 118,
-  )
+  const gridRowHeight = computed(() => (props.type === 'background' ? 132 : 118))
 
   /**
    * 生成缓存键，结合资源类型与当前路径。
@@ -248,7 +242,7 @@ export function useAssetManager(
 
     loading.value = true
     try {
-      const base = assetApiBase(props.type || 'floorplan')
+      const base = assetApiBase(props.type || 'background')
       const res = await listConfigAssets(base, currentPath.value)
       const data = res.data
       if (data.success) {
@@ -327,7 +321,7 @@ export function useAssetManager(
     folderModalBusy.value = true
     const dirPath = currentPath.value ? `${currentPath.value}/${name}` : name
     try {
-      const base = assetApiBase(props.type || 'floorplan')
+      const base = assetApiBase(props.type || 'background')
       const res = await mkdirConfigAsset(base, dirPath)
       const data = res.data
       if (data.success) {
@@ -432,7 +426,7 @@ export function useAssetManager(
    * @returns 成功上传的文件数与去重后的错误信息列表
    */
   async function uploadInBatches(fileList: File[]): Promise<{ uploaded: number; errors: string[] }> {
-    const base = assetApiBase(props.type || 'floorplan')
+    const base = assetApiBase(props.type || 'background')
     const url = `/config/${base}/upload?path=${encodeURIComponent(currentPath.value)}`
     const errors: string[] = []
     let uploaded = 0
@@ -494,7 +488,7 @@ ${targetPath}`,
     )
     if (!confirmed) return
     try {
-      const base = assetApiBase(props.type || 'floorplan')
+      const base = assetApiBase(props.type || 'background')
       await deleteConfigAsset(base, targetPath)
       invalidateCache()
       await loadItems()

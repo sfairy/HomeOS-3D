@@ -8,7 +8,7 @@
  * 存储键 homeos_ui_theme：'dark' | 'light' | 'system'
  * system 时跟随 prefers-color-scheme。
  */
-import { readLocalStorage, writeLocalStorage } from '@/utils/core/local-storage.util'
+import { readLocalStorage, removeLocalStorage, writeLocalStorage } from '@/utils/core/local-storage.util'
 
 /**
  * HomeOS 主题切换（浅色 / 深色）
@@ -28,11 +28,17 @@ const STORAGE_KEY = 'homeos_ui_theme'
 function readStoredMode(): HomeOsThemeMode {
   try {
     const raw = readLocalStorage(STORAGE_KEY)
-    if (raw === 'warm-amber' || raw === 'slate-navy' || raw === 'light' || raw === 'dark' || raw === 'system') return raw
+    if (raw === 'warm-amber') {
+      // 历史默认值曾被默认应用自动持久化：把 warm-amber 视为「未设置」，迁移到新的
+      // 冷色默认 slate-navy，并清掉旧键，避免老浏览器一直停留在暖色。
+      removeLocalStorage(STORAGE_KEY)
+      return 'dark'
+    }
+    if (raw === 'slate-navy' || raw === 'light' || raw === 'dark' || raw === 'system') return raw
   } catch {
     /* 忽略 */
   }
-  return 'warm-amber'
+  return 'dark'
 }
 
 function systemPrefersLight(): boolean {

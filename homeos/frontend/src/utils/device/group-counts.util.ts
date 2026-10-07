@@ -4,7 +4,7 @@
  * 职责：
  * - 同步计算 DeviceGroupModal 各分组（offline / battery / 各 domain）的实体 ID 列表，
  *   与图表筛选、角标计数共用同一份数据来源。
- * - 优先级链：自定义收藏 favoriteEntities → 统计 sensor 属性 → 楼层 widget → 域索引兜底。
+ * - 优先级链：自定义收藏 favoriteEntities → 统计 sensor 属性 → 域索引兜底。
  * - 从统计 sensor 属性解析实体列表（兼容 all_entities / entities / {domain}s_list /
  *   monitored_entities 多种字段命名与友好名→entity_id 映射）。
  *
@@ -38,11 +38,6 @@ type EntityStoreSlice = DeviceGroupEntitiesStoreLike & {
 }
 
 type UiStoreSlice = DeviceGroupUiStoreLike
-
-type FloorSlice = {
-  id?: string
-  widgets?: Array<{ id?: string }>
-}
 
 type StatsSensorEntity = HaEntityState & {
   attributes?: Record<string, unknown>
@@ -86,12 +81,11 @@ export function resolveDeviceGroupEntityIds(
   domain: string,
   entitiesStore: EntityStoreSlice,
   uiStore: UiStoreSlice,
-  floors: FloorSlice[] | { value?: FloorSlice[] } | null | undefined,
   statsSensors?: Record<string, string | undefined> | null,
 ) {
   const statsId = statsSensors || uiStore.layoutConfig.statsSensors
   if (domain === 'offline') {
-    const criticalSet = computeOfflineCriticalSet(uiStore, floors, entitiesStore)
+    const criticalSet = computeOfflineCriticalSet(uiStore, entitiesStore)
     const others = listOfflineOtherEntityIds(entitiesStore, criticalSet)
     return [...criticalSet, ...others]
   }
@@ -108,15 +102,6 @@ export function resolveDeviceGroupEntityIds(
     const fromSensor = entityIdsFromStatsSensor(sensorEnt, domain, entitiesStore)
     if (fromSensor) return fromSensor
   }
-  const floorList = Array.isArray(floors) ? floors : (floors?.value ?? [])
-  const floor = floorList.find((f: FloorSlice) => f.id === uiStore.layoutConfig.activeFloorId)
-  if (floor) {
-    return (
-      floor.widgets
-        ?.filter((w) => w.id && w.id.startsWith(`${domain}.`))
-        .map((w) => w.id as string) ?? []
-    )
-  }
   return domainIndexToArray(
     (entitiesStore as { domainEntityIndex?: Map<string, Set<string>> }).domainEntityIndex?.get(
       domain,
@@ -128,11 +113,10 @@ export function resolveDeviceGroupEntityIds(
 export function countQuickActionOffline(
   entitiesStore: EntityStoreSlice,
   uiStore: UiStoreSlice,
-  floors: FloorSlice[] | { value?: FloorSlice[] } | null | undefined,
   statsSensors?: Record<string, string | undefined> | null,
 ) {
   touchEntityStoreDisplayDeps(entitiesStore)
-  return resolveDeviceGroupEntityIds('offline', entitiesStore, uiStore, floors, statsSensors).length
+  return resolveDeviceGroupEntityIds('offline', entitiesStore, uiStore, statsSensors).length
 }
 
 /** 低电量数：与弹窗「低电量告警」分区一致 */
@@ -153,11 +137,10 @@ export function countQuickActionBatteryLow(entitiesStore: EntityStoreSlice, uiSt
 export function countQuickActionLightsOn(
   entitiesStore: EntityStoreSlice,
   uiStore: UiStoreSlice,
-  floors: FloorSlice[] | { value?: FloorSlice[] } | null | undefined,
   statsSensors?: Record<string, string | undefined> | null,
 ) {
   touchEntityStoreDisplayDeps(entitiesStore)
-  const ids = resolveDeviceGroupEntityIds('light', entitiesStore, uiStore, floors, statsSensors)
+  const ids = resolveDeviceGroupEntityIds('light', entitiesStore, uiStore, statsSensors)
   let count = 0
   for (const eid of ids) {
     const st = entitiesStore.entities[eid]?.state
@@ -170,11 +153,10 @@ export function countQuickActionLightsOn(
 export function countQuickActionClimateActive(
   entitiesStore: EntityStoreSlice,
   uiStore: UiStoreSlice,
-  floors: FloorSlice[] | { value?: FloorSlice[] } | null | undefined,
   statsSensors?: Record<string, string | undefined> | null,
 ) {
   touchEntityStoreDisplayDeps(entitiesStore)
-  const ids = resolveDeviceGroupEntityIds('climate', entitiesStore, uiStore, floors, statsSensors)
+  const ids = resolveDeviceGroupEntityIds('climate', entitiesStore, uiStore, statsSensors)
   let count = 0
   for (const eid of ids) {
     const st = entitiesStore.entities[eid]?.state
@@ -189,11 +171,10 @@ export function countQuickActionDomainActive(
   activeStates: string[],
   entitiesStore: EntityStoreSlice,
   uiStore: UiStoreSlice,
-  floors: FloorSlice[] | { value?: FloorSlice[] } | null | undefined,
   statsSensors?: Record<string, string | undefined> | null,
 ) {
   touchEntityStoreDisplayDeps(entitiesStore)
-  const ids = resolveDeviceGroupEntityIds(domain, entitiesStore, uiStore, floors, statsSensors)
+  const ids = resolveDeviceGroupEntityIds(domain, entitiesStore, uiStore, statsSensors)
   const activeSet = new Set(activeStates)
   let count = 0
   for (const eid of ids) {

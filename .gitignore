@@ -8,30 +8,26 @@ __pycache__/
 *.py[cod]
 # 运行时数据 / 私钥（各项目根下；旧路径保留以免残留被误提交）
 data/
-homeos-3d/data/
+homeos/data/
 homeos-store/data/
 homeos-store/keys/local/
 homeos-store/backend/src/data/
 homeos-store/backend/src/keys/local/
 
-# homeos 应用（目录已由 HomeOS 更名为 homeos）：与上面两个应用同一套规则。
-# data/ 已被上面的通用规则覆盖，但这里显式列出，避免将来通用规则调整后失效。
+# homeos 应用（主应用，3D Studio 与授权服务整体并入）：与商店同一套规则。
 # secrets/ 里是部署时生成的真实口令，只能提交 .gitkeep 占位。
-homeos/data/
 homeos/image/
-homeos/backend/src/_version.py
 homeos/secrets/*
 !homeos/secrets/.gitkeep
 
 # 内置素材目录（settings.built_in_assets_dir，源码运行时编辑器素材库指向它）。
 # 仓库不再带任何素材图：镜像里 Dockerfile 只 `mkdir /app/image`，素材由部署方挂卷或
 # 编辑器里上传；留在版本库里 65 张样例图只会让每次 clone 和每个业务提交都变重。
-homeos-3d/image/
 *-private.pem
 
 # 版本模块是构建期由 Dockerfile 生成的（唯一来源是仓库根 package.json 的 version），
 # 提交进来会让源码运行读到过期版本号。
-homeos-3d/backend/src/_version.py
+homeos/backend/src/_version.py
 homeos-store/backend/src/_version.py
 
 # 本地配置：.env 里是 SMTP 授权码、初始管理员密码等真实凭据，绝不能提交。
@@ -44,6 +40,13 @@ node_modules/
 dist/
 *.tsbuildinfo
 .pytest_cache/
+
+# 仓库内 pnpm 内容寻址存储（bunfig.toml 指向 .pnpm-store）：310MB+ / 1.4 万文件，
+# 属于本机包缓存，不进版本库，否则每次 clone 与每个提交都会被拖重。
+.pnpm-store/
+
+# 系统导出包（hub 备份，含真实用户与布局数据）：属于运行时产物，不进版本库。
+homeos-bundle-*.json
 
 # IDE：JetBrains 的本地索引与个人配置不参与版本管理。
 .idea/
@@ -60,4 +63,3 @@ dist/
 
 # 逆向 / 恢复出来的历史源码快照（含 .npm-cache、pyarmor runtime 等）。
 # 体积 600MB+、数万个文件，属于本地排查材料，不进版本库。
-homeos-3d/源代码/

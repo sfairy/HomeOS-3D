@@ -5,12 +5,14 @@
  * 默认同时拉起：
  *   - 主应用 / 商店后端（uvicorn --reload 与 STORE_RELOAD，改 Python 即热重载）
  *   - Vite HMR（8805 / 8806，改前端资源即热更）
+ *   - dist 自动重建监听（改 frontend/{src,public} 即重建；8801 发的是 dist 产物，不是 HMR）
  *
  * 用法：
  *   bun run dev                 # 一键 dev
  *   bun run dev -- --lan        # 绑 0.0.0.0，打印局域网地址
  *   bun run dev -- --backend-only
  *   bun run dev -- --debug      # 热重载照旧，另开 debugpy 端口给 IDE attach
+ *   bun run dev -- --no-watch-build   # 关掉 dist 自动重建
  *   bun ops/dev.mjs --prepare   # 只装 Python 环境
  *
  * 设计要点：
@@ -30,14 +32,13 @@ import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
-const HOMEOS_3D = path.join(ROOT, "homeos-3d");
+const HOMEOS_APP = path.join(ROOT, "homeos");
 const HOMEOS_STORE = path.join(ROOT, "homeos-store");
-const APP_BACKEND = path.join(HOMEOS_3D, "backend");
+const APP_BACKEND = path.join(HOMEOS_APP, "backend");
 const STORE_BACKEND = path.join(HOMEOS_STORE, "backend");
 const DIST_ROOT = path.join(ROOT, "dist");
-const APP_FRONTEND = path.join(DIST_ROOT, "homeos-3d", "frontend");
+const APP_FRONTEND = path.join(DIST_ROOT, "homeos", "frontend");
 const STORE_FRONTEND = path.join(DIST_ROOT, "homeos-store", "frontend");
-const APP_SOURCE = path.join(APP_BACKEND, "src");
 
 const IS_WINDOWS = process.platform === "win32";
 
@@ -67,7 +68,8 @@ const LAN_FLAG = "--lan";
 const BACKEND_ONLY_FLAG = "--backend-only";
 const DEBUG_FLAG = "--debug";
 const PREPARE_FLAG = "--prepare";
-const KNOWN_FLAGS = new Set([LAN_FLAG, BACKEND_ONLY_FLAG, DEBUG_FLAG, PREPARE_FLAG]);
+const NO_WATCH_FLAG = "--no-watch-build";
+const KNOWN_FLAGS = new Set([LAN_FLAG, BACKEND_ONLY_FLAG, DEBUG_FLAG, PREPARE_FLAG, NO_WATCH_FLAG]);
 
 const VENV_DIR = path.join(ROOT, ".venv-store");
 const VENV_PYTHON = IS_WINDOWS
@@ -114,7 +116,7 @@ function installRequirements() {
     "pip",
     "install",
     "-r",
-    path.join(APP_BACKEND, "src", "requirements.txt"),
+    path.join(APP_BACKEND, "requirements.txt"),
     "-r",
     path.join(STORE_BACKEND, "src", "requirements.txt"),
   ]);
@@ -261,7 +263,7 @@ function readJson(file) {
  * webmanifest 就变成 401/403。这里按种子清单反查一遍。
  */
 function anonymousWhitelistComplete() {
-  const seed = readJson(path.join(HOMEOS_3D, "frontend", "public-static.seed.json"));
+  const seed = readJson(path.join(HOMEOS_APP, "frontend", "public-static.seed.json"));
   const manifest = readJson(path.join(APP_FRONTEND, "public-static.json"));
   if (!seed || !manifest) return false;
 
@@ -271,7 +273,7 @@ function anonymousWhitelistComplete() {
     if (typeof candidate === "string") generated.add(candidate);
   }
 
-  const publicRoot = path.join(HOMEOS_3D, "frontend", "public");
+  const publicRoot = path.join(HOMEOS_APP, "frontend", "public");
   for (const item of seed.files ?? []) {
     const candidate = typeof item === "string" ? item : item?.path;
     if (typeof candidate !== "string" || !candidate.startsWith("/static/")) continue;
@@ -299,9 +301,9 @@ function storeFrontendBuildCurrent() {
 function appFrontendBuildCurrent() {
   return buildCoversSources(
     path.join(APP_FRONTEND, "public-static.json"),
-    path.join(HOMEOS_3D, "frontend", "index.html"),
-    path.join(HOMEOS_3D, "frontend", "src"),
-    path.join(HOMEOS_3D, "frontend", "public"),
+    path.join(HOMEOS_APP, "frontend", "index.html"),
+    path.join(HOMEOS_APP, "frontend", "src"),
+    path.join(HOMEOS_APP, "frontend", "public"),
   );
 }
 
@@ -322,6 +324,107 @@ function ensureFrontendBuild() {
   console.log("前端构建产物缺失或落后于源码，正在执行 bun run build:vite（开发构建，跳过混淆）…");
   runSync(BUN_BIN, ["install"]);
   runSync(BUN_BIN, ["run", "build:vite"]);
+}
+
+/**
+ * 源码改动 → 自动重建 dist。
+ *
+ * 为什么需要：8801 由后端直接下发 `dist/homeos/frontend` 的**构建产物**，只有 8805 才是
+ * Vite dev 的 HMR。改了 `frontend/{src,public}` 而不重建，8801 会一直发旧副本，表现为
+ * 「改了没效果」；dev 下 `/static/**` 同样取自 dist，所以改 `public` 里的 CSS 也一样。
+ *
+ * 用 `fs.watch` + 400ms 防抖，构建期间到达的改动合并成一次补建，避免编辑器批量落盘时
+ * 反复触发。输出只保留最后 4KB，失败时打印，便于定位。
+ */
+function startFrontendWatchBuild() {
+  // 两个前端各自负责自己的 dist（8801 ← app，8802 ← store），互不牵连：
+  // 改主应用不该顺带重建商店，否则每次保存都要多等一轮无关构建。
+  const watchGroups = [
+    {
+      label: "主应用",
+      sources: [
+        path.join(HOMEOS_APP, "frontend", "src"),
+        path.join(HOMEOS_APP, "frontend", "public"),
+      ],
+      buildArgs: ["run", "--cwd", path.join(HOMEOS_APP, "frontend"), "build"],
+      refreshPort: APP_PORT,
+    },
+    {
+      label: "授权商店",
+      sources: [path.join(HOMEOS_STORE, "frontend", "src")],
+      buildArgs: ["run", "--cwd", HOMEOS_STORE, "build"],
+      refreshPort: STORE_PORT,
+    },
+  ];
+
+  let watchedCount = 0;
+  for (const group of watchGroups) {
+    let debounceTimer = null;
+    let building = false;
+    let pendingRebuild = false;
+
+    const rebuild = () => {
+      if (building) {
+        // 构建期间又落盘：合并成一次补建，避免编辑器批量保存时排队串烧。
+        pendingRebuild = true;
+        return;
+      }
+      building = true;
+      const startedAt = Date.now();
+      const child = spawn(BUN_BIN, group.buildArgs, {
+        cwd: ROOT,
+        env: process.env,
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      let output = "";
+      const collectOutput = (chunk) => {
+        output = (output + chunk.toString()).slice(-4000);
+      };
+      child.stdout?.on("data", collectOutput);
+      child.stderr?.on("data", collectOutput);
+      child.on("exit", (code) => {
+        building = false;
+        const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
+        if (code === 0) {
+          console.log(
+            `[watch-build] ${group.label} dist 已重建（${seconds}s）—— 刷新 ${group.refreshPort} 即可看到改动。`,
+          );
+        } else {
+          console.log(
+            `[watch-build] ${group.label} 重建失败（退出码 ${code}），最后一次输出：\n${output.trim()}`,
+          );
+        }
+        if (pendingRebuild) {
+          pendingRebuild = false;
+          rebuild();
+        }
+      });
+    };
+
+    const onSourceChange = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        rebuild();
+      }, 400);
+    };
+
+    for (const target of group.sources) {
+      try {
+        // persistent: false —— 保活交给已拉起的服务子进程，监听器不额外吊住事件循环。
+        fs.watch(target, { recursive: true, persistent: false }, onSourceChange);
+        watchedCount += 1;
+      } catch (error) {
+        console.log(`[watch-build] 无法监听 ${target}：${error?.message ?? error}`);
+      }
+    }
+  }
+
+  if (watchedCount > 0) {
+    console.log(
+      "[watch-build] 已开启：改 frontend/{src,public} 会自动重建 dist（加 --no-watch-build 可关闭）。",
+    );
+  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -515,6 +618,8 @@ async function main() {
   const python = ensureVenv();
   if (options.debug) ensureDebugpy(python);
   ensureFrontendBuild();
+  // 8801 发的是 dist 构建产物（8805 才是 HMR），所以启动后持续把源码改动重建进去。
+  if (!options.backendOnly && !arguments_.includes(NO_WATCH_FLAG)) startFrontendWatchBuild();
 
   const licenseOverrides = ensureLicenseKeys(python);
   loadDotenv();
@@ -539,9 +644,13 @@ async function main() {
 
   const appEnvironment = {
     ...baseEnvironment,
-    APP_DATA_DIR: path.join(HOMEOS_3D, "data"),
+    HOMEOS_DATA_DIR: path.join(HOMEOS_APP, "data"),
+    APP_DATA_DIR: path.join(HOMEOS_APP, "data"),
     HOMEOS_FRONTEND_DIR: APP_FRONTEND,
-    PYTHONPATH: HOMEOS_3D,
+    HOMEOS_PORT: APP_PORT,
+    HOMEOS_HOST: options.host,
+    HOMEOS_RELOAD: "1",
+    PYTHONPATH: APP_BACKEND,
     ...licenseOverrides,
   };
 
@@ -557,25 +666,9 @@ async function main() {
   };
 
   const baseStoreCommand = [python, "-m", "src.run"];
-  const baseAppCommand = [
-    python,
-    "-m",
-    "uvicorn",
-    "backend.src.main:app",
-    "--host",
-    options.host,
-    "--port",
-    APP_PORT,
-    "--reload",
-    "--reload-dir",
-    APP_SOURCE,
-    // 开发期日志降噪：丢掉重载器的「检测到改动，正在重载」提示。
-    // 它走 uvicorn.error 且级别就是 WARNING，`--log-level` 压不掉（除非连带把
-    // uvicorn.access 设成 ERROR、一起丢掉请求日志与启动信息），所以改用一份只过滤
-    // 这一条的 log config。商店侧等价逻辑在 backend/src/run.py 里就地安装。
-    "--log-config",
-    path.join(HERE, "dev_logging.json"),
-  ];
+  // 主应用：`python -m src.run` 自己读 PORT / HOMEOS_PORT（默认 8801）与 HOMEOS_RELOAD，
+  // 与容器内 `start_app.py`（uvicorn 直起）共用同一份 run.py 语义。
+  const baseAppCommand = [python, "-m", "src.run"];
   // 调试前缀顶替基础命令的 `python -m` 头（slice(2)），变成
   // `python -m debugpy --listen PORT -m <module> ...`，后面的模块参数原样保留。
   const withDebugger = (command, debugPort) =>
@@ -587,13 +680,13 @@ async function main() {
 
   const children = [
     spawnChild(storeCommand, storeEnvironment, HOMEOS_STORE),
-    spawnChild(appCommand, appEnvironment, HOMEOS_3D),
+    spawnChild(appCommand, appEnvironment, APP_BACKEND),
   ];
 
   if (!options.backendOnly) {
     const frontendEnvironment = { ...baseEnvironment };
     children.push(
-      spawnChild(viteDevCommand("frontend/vite.config.ts", options.host), frontendEnvironment, HOMEOS_3D),
+      spawnChild(viteDevCommand("frontend/vite.config.ts", options.host), frontendEnvironment, HOMEOS_APP),
       spawnChild(viteDevCommand("frontend/vite.config.ts", options.host), frontendEnvironment, HOMEOS_STORE),
     );
   }
@@ -618,7 +711,7 @@ async function main() {
       console.log(`          授权商店 ${DEBUG_STORE_PORT}（IDE attach，热重载保留）`);
     }
     if (!options.backendOnly) {
-      console.log("改页面走 HMR 地址。改 runtime 另开：bun run --cwd homeos-3d dev:runtime");
+      console.log("改页面走 HMR 地址。改 runtime 另开：bun run --cwd homeos dev:runtime");
     }
     if (!LOOPBACK_BIND_HOSTS.has(options.host)) {
       const lanAddress = primaryLanAddress();

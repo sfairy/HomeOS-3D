@@ -24,6 +24,15 @@ interface ClimateSeriesPoint {
   y: number
 }
 
+/**
+ * 后端 `/ha/history` 返回的历史点。
+ * 用结构类型而非 import API 层类型，保持渲染工具层不反向依赖 services。
+ */
+export interface ClimateHistoryPoint {
+  timestamp: string
+  value: number | string
+}
+
 /** 气候图表数据系列接口 */
 export interface ClimateSeries {
   entityId: string
@@ -62,10 +71,10 @@ export function formatLegendValue(value: number | null, kind: 'temp' | 'hum') {
   return kind === 'hum' ? String(Math.round(value)) : Number(value).toFixed(1)
 }
 
-function parseHistory(entityData: Array<{ last_changed: string; state: string }>) {
-  return entityData
-    .map((e) => ({ x: new Date(e.last_changed).getTime(), y: parseFloat(e.state) }))
-    .filter((e) => !Number.isNaN(e.y))
+function parseHistory(points: ClimateHistoryPoint[]) {
+  return points
+    .map((p) => ({ x: new Date(p.timestamp).getTime(), y: parseFloat(String(p.value)) }))
+    .filter((p) => !Number.isNaN(p.y))
 }
 
 function friendlyBaseName(
@@ -80,18 +89,21 @@ function friendlyBaseName(
   )
 }
 
-/** 将历史数据映射为图表系列格式 */
+/** 将历史数据映射为图表系列格式（``pointsByEntity`` 由调用方按实体 key 组装） */
 export function mapHistorySeries(
   ids: string[],
-  byId: Map<string, Array<{ entity_id: string; last_changed: string; state: string }>>,
+  pointsByEntity: Map<string, ClimateHistoryPoint[]>,
   entities: Record<string, { state?: string; attributes?: Record<string, unknown> } | undefined>,
 ) {
   const rows = ids
-    .filter((id) => byId.has(id))
+    .filter((id) => {
+      const points = pointsByEntity.get(id)
+      return !!points && points.length > 0
+    })
     .map((id) => ({
       entityId: id,
       baseName: friendlyBaseName(id, entities),
-      data: parseHistory(byId.get(id)!),
+      data: parseHistory(pointsByEntity.get(id)!),
     }))
     .filter((s) => s.data.length > 0)
 

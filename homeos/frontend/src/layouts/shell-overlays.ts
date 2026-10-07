@@ -15,6 +15,7 @@
  * - NotificationDrawer：通知抽屉
  * - SetupChecklistBanner：初始化引导横幅
  * - ColdEntityPerfBanner：冷启动实体性能提示横幅
+ * - DeviceGroupModal：设备分组批量控制弹窗
  */
 export { default as MediaPlayerModal } from '@/components/modals/MediaPlayerModal.vue'
 export { default as DoorbellAlertModal } from '@/components/modals/DoorbellAlertModal.vue'
@@ -23,3 +24,4 @@ export { default as SettingsLockModal } from '@/components/modals/SettingsLockMo
 export { default as NotificationDrawer } from '@/components/modals/NotificationDrawer.vue'
 export { default as SetupChecklistBanner } from '@/components/setup/ChecklistBanner.vue'
 export { default as ColdEntityPerfBanner } from '@/components/setup/ColdEntityPerfBanner.vue'
+export { default as DeviceGroupModal } from '@/components/entities/device-group/DeviceGroupModal.vue'

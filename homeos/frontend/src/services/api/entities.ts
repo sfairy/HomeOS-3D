@@ -183,20 +183,37 @@ export function batchAssignEntityArea(
   return apiPost('/entities/batch/area', payload, config)
 }
 
+/** HA 历史数据点（后端已归一化为时间戳 + 数值） */
+export interface HaHistoryPoint {
+  timestamp: string
+  value: number | string
+}
+
+/** HA 单实体历史查询结果（对齐 ``GET /ha/history`` 响应） */
+export interface HaHistoryResult {
+  entityId: string
+  hours: number
+  points: HaHistoryPoint[]
+}
+
 /**
- * 获取 HA 历史数据。
+ * 获取单个实体的 HA 历史数据。
  * 对应后端 endpoint：GET /ha/history
- * @param entityIds 实体标识（单个或数组）
- * @param hours 查询时长（小时）
- * @returns 历史数据
+ * 服务端契约是**单实体**查询（`entityId` + `hours`），批量由调用方并发发起 ——
+ * 服务端以并发信号量 + 30s 结果缓存承接，这是该端点被设计成的用法。
+ * @param entityId 实体标识
+ * @param hours 查询时长（小时，1~168）
+ * @returns 该实体的历史点序列
  */
 export function fetchHaHistory(
-  entityIds: string | string[],
+  entityId: string,
   hours: number,
   config?: AxiosRequestConfig,
 ) {
-  const ids = Array.isArray(entityIds) ? entityIds.join(',') : entityIds
-  return apiGet(`/ha/history?entity_ids=${ids}&hours=${hours}`, config)
+  return apiGet<HaHistoryResult>('/ha/history', {
+    ...config,
+    params: { ...config?.params, entityId, hours },
+  })
 }
 
 /**

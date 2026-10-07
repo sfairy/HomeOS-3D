@@ -124,12 +124,6 @@ const HINT_TEXT: Record<string, string> = {
     '户型图事件浮层从 EventLog 预加载的默认回溯小时数。推荐 2',
   'settings.systemConfig.fieldHint.eventLogTimelineMax':
     'Redis 中按实体/全局 timeline 缓存保留的最大条数；系统时间线部件单次查询条数上限。推荐 500',
-  'settings.systemConfig.fieldHint.guestPassDefaultHours':
-    '新建访客临时密码的默认有效时长（小时）。推荐 24',
-  'settings.systemConfig.fieldHint.guestPassExtendHours':
-    '一键续期访客密码时延长的小时数。推荐 24',
-  'settings.systemConfig.fieldHint.guestPassRevokeOnAway':
-    '开启后检测到全员离家时自动撤销所有有效访客临时密码。默认关闭',
   'settings.systemConfig.fieldHint.frigateDedupMs':
     '同一摄像头在此时间窗口内的重复告警将被合并去重。推荐 30000（30秒）',
   'settings.systemConfig.fieldHint.frigateMaxEvents':
@@ -266,8 +260,6 @@ const HINT_TEXT: Record<string, string> = {
     'Redis 缓存批量写入的大小，一次性写入多条数据。推荐 200',
   'settings.systemConfig.fieldHint.replayChunkSize':
     '客户端断线重连后状态回放的分块大小，分批恢复避免阻塞。推荐 500',
-  'settings.systemConfig.fieldHint.restCacheTtlMs':
-    '实体 REST 接口响应缓存的有效时间（毫秒）。推荐 500',
   'settings.systemConfig.fieldHint.retentionCleanupIntervalHours':
     '数据库历史数据清理任务的执行间隔（小时）。推荐 1',
   'settings.systemConfig.fieldHint.retentionDeleteBatchSize':

@@ -49,68 +49,48 @@
         </header>
 
         <div class="eew-wizard-body">
-          <div v-if="step === 1" class="space-y-5">
-            <div>
-              <h3 class="text-base font-bold text-white mb-1">连接 Home Assistant</h3>
-              <p class="text-sm esw-text-muted">
-                配置 HA 地址与长期访问令牌，用于同步家庭坐标与设备状态。
+            <div v-if="step === 1" class="space-y-5">
+              <div>
+                <h3 class="text-base font-bold text-white mb-1">连接 Home Assistant</h3>
+                <p class="text-sm esw-text-muted">
+                  地震预警复用 HomeOS 已保存的 HA 连接（地址与令牌在「设置 → 连接」中维护）。
+                </p>
+              </div>
+              <div v-if="systemHaConfigured" class="eew-wizard-system-badge">
+                <CheckCircle2 class="w-4 h-4 shrink-0" />
+                <span>已读取系统连接配置{{ entitiesStore.connected ? '，HA 当前在线' : '' }}</span>
+              </div>
+              <label class="block">
+                <span class="text-xs font-bold esw-text-muted uppercase tracking-wider"
+                  >Home Assistant 地址</span
+                >
+                <input
+                  :value="haUrl || '—'"
+                  class="eew-wizard-input"
+                  readonly
+                  placeholder="尚未配置 HA 连接"
+                />
+              </label>
+              <p v-if="!systemHaConfigured" class="text-xs esw-text-muted">
+                尚未保存 HA 连接，请先到「设置 → 连接」填写地址与长期访问令牌。
+              </p>
+              <button
+                type="button"
+                class="eew-wizard-test-btn"
+                :disabled="testingHa || !canTestHa"
+                @click="testHa"
+              >
+                <Loader2 v-if="testingHa" class="w-4 h-4 animate-spin" />
+                <Plug v-else class="w-4 h-4" />
+                {{ testingHa ? '测试中…' : '测试 HA 连接' }}
+              </button>
+              <p v-if="haTestStatus === 'success'" class="text-xs esw-text-success">
+                连接成功{{ haVersion ? ` (v${haVersion})` : '' }}
+              </p>
+              <p v-else-if="haTestStatus === 'failed'" class="text-xs esw-text-danger">
+                {{ haTestMessage || '连接失败，请检查 HA 连接配置' }}
               </p>
             </div>
-            <div v-if="systemHaConfigured" class="eew-wizard-system-badge">
-              <CheckCircle2 class="w-4 h-4 shrink-0" />
-              <span>已读取系统连接配置{{ entitiesStore.connected ? '，HA 当前在线' : '' }}</span>
-            </div>
-            <label class="block">
-              <span class="text-xs font-bold esw-text-muted uppercase tracking-wider"
-                >Home Assistant 地址</span
-              >
-              <input
-                v-model="haUrl"
-                class="eew-wizard-input"
-                placeholder="http://192.168.100.200:8123"
-              />
-            </label>
-            <label class="block">
-              <span class="text-xs font-bold esw-text-muted uppercase tracking-wider"
-                >长期访问令牌</span
-              >
-              <div v-if="!showTokenInput && systemHaConfigured" class="eew-wizard-token-mask">
-                <span>••••••••••••••••••••••••••••••••</span>
-                <span class="eew-wizard-token-mask__badge">已安全配置</span>
-              </div>
-              <input
-                v-else
-                v-model="haToken"
-                type="password"
-                class="eew-wizard-input font-mono"
-                placeholder="eyJhbGciOi..."
-              />
-              <button
-                v-if="!showTokenInput && systemHaConfigured"
-                type="button"
-                class="eew-wizard-token-edit"
-                @click="showTokenInput = true"
-              >
-                修改密钥
-              </button>
-            </label>
-            <button
-              type="button"
-              class="eew-wizard-test-btn"
-              :disabled="testingHa || !canTestHa"
-              @click="testHa"
-            >
-              <Loader2 v-if="testingHa" class="w-4 h-4 animate-spin" />
-              <Plug v-else class="w-4 h-4" />
-              {{ testingHa ? '测试中…' : '测试 HA 连接' }}
-            </button>
-            <p v-if="haTestStatus === 'success'" class="text-xs esw-text-success">
-              连接成功{{ haVersion ? ` (v${haVersion})` : '' }}
-            </p>
-            <p v-else-if="haTestStatus === 'failed'" class="text-xs esw-text-danger">
-              {{ haTestMessage || '连接失败，请检查 URL 与 Token' }}
-            </p>
-          </div>
 
           <div v-else-if="step === 2" class="space-y-5">
             <div>
@@ -178,7 +158,7 @@
             <div class="eew-wizard-summary">
               <div>
                 <span class="esw-text-muted">HA 地址</span
-                ><span class="text-white">{{ haUrl || haCfg.url || '—' }}</span>
+                ><span class="text-white">{{ haUrl || '—' }}</span>
               </div>
               <div>
                 <span class="esw-text-muted">家庭纬度</span
@@ -255,10 +235,8 @@ const {
   open,
   step,
   haUrl,
-  haToken,
   latitude,
   longitude,
-  showTokenInput,
   testingHa,
   haTestStatus,
   haTestMessage,
@@ -267,7 +245,6 @@ const {
   saving,
   cityPresets,
   cfg,
-  haCfg,
   systemHaConfigured,
   canTestHa,
   entitiesStore,

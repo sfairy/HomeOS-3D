@@ -12,7 +12,6 @@
 import { createDefaultEnergySources } from '@/constants/energy-fields'
 import { createDefaultDashboardFooter } from '@/constants/dashboard-footer'
 import { createDefaultWholeHomeOff } from '@/constants/whole-home-off'
-import { DEFAULT_HA_URL } from '@/constants/ha'
 import { createDefaultEarthquakeConfig } from '@/types/earthquake'
 import type { UILayoutConfig } from '@/types/layout'
 
@@ -20,14 +19,13 @@ import type { UILayoutConfig } from '@/types/layout'
  * 构建默认布局
  *
  * 返回一份完整的 UILayoutConfig 默认对象，包含：
- * - 楼层与部件（floors / floatingWidgets / rightPanelWidgets）
+ * - 部件（floatingWidgets / rightPanelWidgets）
  * - 收藏实体分类（favoriteEntities）
  * - 事件日志与页脚配置（eventLogConfig / dashboardFooter）
  * - 导航标签可见性（navTabVisibility）
- * - HA 连接配置（haConfig）
+ * - HA 实体绑定配置（haConfig；连接地址/令牌单源在 stores/ha-connection.store.ts）
  * - 统计传感器映射（statsSensors）
- * - 性能与渲染模式（performanceMode / glassEffect / floorplanRenderer）
- * - 楼层切换器布局（floorSwitcherConfig）
+ * - 性能与渲染模式（performanceMode / glassEffect）
  * - 安防模式定义与联动（securityModes / securityModeLinks / securityEmergency）
  * - 地震预警配置（earthquakeConfig）
  * - AI 助手与通知渠道配置（agentConfig / channelConfig）
@@ -38,19 +36,8 @@ function createDefaultLayout(): UILayoutConfig {
   return {
     lightOnBackgroundUrl: '/backgrounds/light_on.png',
     lightOffBackgroundUrl: '/backgrounds/light_off.png',
-    floorplanAspectRatio: '1 / 1',
-    activeFloorId: 'first-floor',
-    // 默认楼层：仅包含一个「1F」楼层，无部件
-    floors: [
-      {
-        id: 'first-floor',
-        name: '1F',
-        backgroundUrl: '',
-        floorplanAspectRatio: '1 / 1',
-        widgets: [],
-        floatingWidgets: [],
-      },
-    ],
+    // 悬浮组件（顶层；原 per-floor floatingWidgets 已移除）
+    floatingWidgets: [],
     pageMaxWidth: 1366,
     siteTitle: 'HomeOS',
     rightPanelWidth: 300,
@@ -94,11 +81,9 @@ function createDefaultLayout(): UILayoutConfig {
     },
     navTabPlacement: {},
     wholeHomeOff: createDefaultWholeHomeOff(),
-    // HA 连接配置：URL/Token、门铃、安防摄像头、天气、扫地机、隐患传感器等
+    // HA 实体绑定：门铃、安防摄像头、天气、扫地机、隐患传感器等
+    // 连接地址/令牌不在这里 —— 见 stores/ha-connection.store.ts（单源 ha_connections 表）
     haConfig: {
-      url: DEFAULT_HA_URL,
-      fallbackUrl: '',
-      token: '',
       eventsPath: '',
       securityCamera: '',
       securityCameras: [],
@@ -125,19 +110,9 @@ function createDefaultLayout(): UILayoutConfig {
     performanceMode: 'high',
     smartPerformanceMode: true,
     glassEffect: 'auto',
-    floorplanRenderer: 'auto',
-    hotspotAnchorConvention: 'icon',
     moviePilotUrl: '',
     awaySimulationLightPool: [],
     customEmbeds: [],
-    // 楼层切换器：默认位于左上角外侧（-1），垂直方向，按钮 44px，锁定状态
-    floorSwitcherConfig: {
-      left: -1,
-      top: -1,
-      direction: 'vertical',
-      btnSize: 44,
-      isLocked: true,
-    },
     embeddedPages: [],
     // 设置锁：默认关闭，PIN 为空
     settingsLock: { enabled: false, pin: '' },

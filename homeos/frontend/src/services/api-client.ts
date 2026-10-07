@@ -9,8 +9,7 @@
  * - @/utils/telemetry/trace.util：注入 X-Trace-Id 链路追踪
  * - @/utils/config/frontend-config：运行期 API 超时/重试配置
  * - @/utils/core/logger、@/utils/core/error-message：日志与错误分类
- * - @/router/license-gate：许可证未激活时跳转激活页
- * 端点：baseURL = /api/v1（REST）；CSRF 走 /auth/status 下发 cookie
+ * 端点：baseURL = /api/v1（REST）；CSRF 走 /setup/status 下发 cookie
  *
  * 认证方案：HttpOnly Cookie
  * - Token 由服务端设置到 HttpOnly Cookie 中
@@ -41,7 +40,7 @@ import { getPageTraceId } from '@/utils/telemetry/trace.util'
 import { getFrontendConfig } from '@/utils/config/frontend-config'
 import { logger } from '@/utils/core/logger'
 import { isLicenseInactiveError } from '@/utils/core/error-message'
-import { markLicenseActivated } from '@/router/license-gate'
+import { installFetchCsrf } from './api/csrf'
 
 /**
  * 内部 Axios 请求配置扩展：携带重试计数、CSRF/认证重试标记、认证世代与幂等标记。
@@ -132,11 +131,11 @@ function isCsrfInvalidError(error: AxiosError): boolean {
   return message.includes('CSRF')
 }
 
-/** 进行中的 CSRF 刷新 Promise：保证并发请求共享同一次 /auth/status，避免重复 set-cookie。 */
+/** 进行中的 CSRF 刷新 Promise：保证并发请求共享同一次 /setup/status，避免重复 set-cookie。 */
 let csrfRefreshPromise: Promise<void> | null = null
 
 /**
- * GET /auth/status 在缺少 csrf_token 时下发 Cookie（登录后或页面恢复会话时可能尚未写入）。
+ * GET /setup/status 在缺少 csrf_token 时下发 Cookie（登录后或页面恢复会话时可能尚未写入）。
  * 暴露为全局可复用入口：router 里的系统初始化 / refreshSession 也必须走这同一个 Promise，
  * 避免跟首次突变请求的 bootstrap 并发触发两次 set-cookie，造成 header 与 cookie 不一致的 403。
  */
@@ -144,7 +143,7 @@ export function refreshCsrfToken(forceReset = false): Promise<void> {
   if (forceReset) clearCsrfCookie()
   if (!csrfRefreshPromise) {
     csrfRefreshPromise = apiClient
-      .get('/auth/status', {
+      .get('/setup/status', {
         skipAuthRedirect: true,
         _csrfBootstrap: true,
       } as RetryableAxiosRequestConfig)
@@ -184,7 +183,7 @@ apiClient.interceptors.request.use(async (config) => {
     if (!getCsrfToken()) {
       await refreshCsrfToken()
     }
-    // await 之后再读一次 Cookie：并发 /auth/status 可能刚写入 csrf_token
+    // await 之后再读一次 Cookie：并发 /setup/status 可能刚写入 csrf_token
     applyCsrfHeader(headers)
 
     // 强制断言：变更请求必须带 CSRF header。若仍然缺失，给出明确警告，
@@ -267,9 +266,9 @@ apiClient.interceptors.response.use(
       }
       // 未激活：跳转激活页，勿当登录过期去刷 token / 登出
       if (isLicenseInactiveError(error)) {
-        markLicenseActivated(false)
-        if (typeof window !== 'undefined' && !String(window.location.hash || '').includes('activate')) {
-          window.location.hash = '#/activate'
+        // 真实路径历史路由：直接整页跳转 `/activate`（原 hash 写法在新架构下会失效）
+        if (typeof window !== 'undefined' && !String(window.location.pathname).includes('activate')) {
+          window.location.assign('/activate')
         }
         return Promise.reject(error)
       }
@@ -318,7 +317,7 @@ apiClient.interceptors.response.use(
     ) {
       config._csrfRetried = true
       // forceReset=true 会先删除浏览器旧 csrf_token，强制后端 ensureCsrfCookie 重新下发新 token，
-      // 避免并发 /auth/status 产生过多次 set-cookie 覆盖后 cookie 与 header 对不上。
+      // 避免并发 /setup/status 产生过多次 set-cookie 覆盖后 cookie 与 header 对不上。
       await refreshCsrfToken(true)
       const headers = AxiosHeaders.from(config.headers)
       applyCsrfHeader(headers)
@@ -389,3 +388,7 @@ export const apiPatch = <T = any>(url: string, data?: unknown, config?: ApiReque
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AxiosResponse.data 的边界默认类型
 export const apiDelete = <T = any>(url: string, config?: ApiRequestConfig) =>
   apiClient.delete<T>(url, config)
+
+// 为并入的 studio 遗留裸 fetch 兜底注入 CSRF 头（幂等，仅同源 /api/** 变更类请求）。
+// 单 HTTP 栈：CSRF 逻辑全部收敛在本模块 + ./api/csrf，auth 视图不再持有 HTTP 细节。
+installFetchCsrf()

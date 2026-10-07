@@ -6,23 +6,23 @@
 # 写出的共享卷（只读）。商店那份 compose 会一直把它写全，所以这条路径不联网、也不写盘。
 
 services:
-  homeos-3d:
+  homeos:
     environment:
-      APP_LICENSE_SERVER_URL: ${APP_LICENSE_SERVER_URL:-http://homeos-3d-store:8802}
+      APP_LICENSE_SERVER_URL: ${APP_LICENSE_SERVER_URL:-http://homeos-store:8802}
       APP_CLIENT_KEYS_DIR: /shared-keys
     volumes:
-      - homeos-3d-client-keys:/shared-keys:ro
+      - homeos-client-keys:/shared-keys:ro
     networks:
-      - homeos-3d-net
+      - homeos-net
 
 networks:
   # 由商店那份 compose 创建；这里只加入，不持有。
-  homeos-3d-net:
-    name: homeos-3d-net
+  homeos-net:
+    name: homeos-net
     external: true
 
 volumes:
   # 由商店那份 compose 创建并写入；这里只读挂载，不持有。
-  homeos-3d-client-keys:
-    name: homeos-3d-client-keys
+  homeos-client-keys:
+    name: homeos-client-keys
     external: true

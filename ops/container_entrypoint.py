@@ -22,13 +22,24 @@ def sync_license_keys(environment: MutableMapping[str, str]) -> None:
         print(f"授权公钥：同步失败（{error}），交由主应用启动自检处理。", file=sys.stderr, flush=True)
 
 
+def _app_data_dir(environment: Mapping[str, str]) -> str | None:
+    """主应用数据目录：homeos 后端读 ``HOMEOS_DATA_DIR``，镜像启动器与 compose 用
+    ``APP_DATA_DIR``（旧版 ``homeos-3d`` 时代的变量名）。两者任一存在即算已声明。"""
+    for name in ("HOMEOS_DATA_DIR", "APP_DATA_DIR"):
+        value = (environment.get(name) or "").strip()
+        if value:
+            return value
+    return None
+
+
 def storage_directories(environment: Mapping[str, str]) -> tuple[Path, ...]:
     """需要校正属主的可写目录。
     """
     candidates: list[Path] = []
 
-    if "APP_DATA_DIR" in environment:
-        candidates.append(Path(environment["APP_DATA_DIR"]))
+    app_data_dir = _app_data_dir(environment)
+    if app_data_dir is not None:
+        candidates.append(Path(app_data_dir))
     elif "STORE_DATA_DIR" not in environment:
         candidates.append(Path("/data"))
 
@@ -40,17 +51,10 @@ def storage_directories(environment: Mapping[str, str]) -> tuple[Path, ...]:
         candidates.append(Path(environment["APP_CLIENT_KEYS_DIR"]))
 
     ha_credential_path = Path(environment.get("APP_HA_CREDENTIAL_FILE", "/run/secrets/ha_credentials.key"))
-    display_pairing_path = Path(
-        environment.get(
-            "APP_DISPLAY_PAIRING_KEY_FILE",
-            str(ha_credential_path.with_name("display_pairing_codes.key")),
-        )
-    )
-    if "APP_DATA_DIR" in environment or "APP_HA_CREDENTIAL_FILE" in environment:
+    if app_data_dir is not None or "APP_HA_CREDENTIAL_FILE" in environment:
         candidates.extend(
             (
                 ha_credential_path.parent,
-                display_pairing_path.parent,
                 Path(
                     environment.get(
                         "APP_LICENSE_CREDENTIAL_FILE",

@@ -58,9 +58,6 @@ BRIDGED_EVENTS: frozenset[str] = frozenset(
         "energy.anomaly",
         # 语音 / 检测
         "frigate.detection",
-        # 儿童模式
-        "childMode.changed",
-        "childMode.blocked",
         # 冷却
         "cooldown.set",
         # UI 布局

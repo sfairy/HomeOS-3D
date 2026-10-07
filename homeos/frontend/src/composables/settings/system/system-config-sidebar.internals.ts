@@ -23,7 +23,6 @@ export const SECTION_LINK_LABELS: Record<string, string> = {
   profiles: '方案备份',
   voice: '语音中心',
   weatherEffects: '天气特效',
-  childMode: '儿童模式',
 }
 
 /** DELEGATED_PANEL_LINKS：常量集合，成员语义见定义处。 */
@@ -33,8 +32,6 @@ export const DELEGATED_PANEL_LINKS = [
   { id: 'envSensorMap', to: SETTINGS_ROUTES.envHealth() },
   { id: 'clientPower', to: SETTINGS_ROUTES.smartCharge() },
   { id: 'profiles', to: SETTINGS_ROUTES.profiles() },
-  { id: 'access', to: SETTINGS_ROUTES.access() },
-  { id: 'childMode', to: SETTINGS_ROUTES.family() },
 ]
 
 /** DELEGATED_ACTION_ITEMS：常量集合，成员语义见定义处。 */

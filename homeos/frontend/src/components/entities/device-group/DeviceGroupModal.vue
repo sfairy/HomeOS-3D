@@ -45,23 +45,6 @@
                 <p class="hos-modal-subtitle">{{ `共 ${entityIds.length} 个设备` }}</p>
               </div>
             </div>
-            <div
-              v-if="floors.length > 1 && ['light', 'climate', 'switch'].includes(domain)"
-              class="dgm-floors"
-            >
-              <button
-                v-for="f in floors"
-                :key="f.id"
-                type="button"
-                :class="[
-                  'dgm-floor-btn',
-                  layoutStore.layoutConfig.activeFloorId === f.id ? 'dgm-floor-btn--active' : '',
-                ]"
-                @click="layoutStore.setActiveFloor(f.id)"
-              >
-                {{ f.name }}
-              </button>
-            </div>
             <button
               type="button"
               class="hos-modal-close"
@@ -218,8 +201,6 @@ useFocusTrap(
   computed(() => !!props.isOpen),
 )
 
-const floors = computed(() => layoutStore.layoutConfig.floors || [])
-
 const domainMap = computed(() => {
   const base = getDomainMap()
   return {
@@ -257,7 +238,7 @@ const {
   shortReason,
   timeAgo,
   batteryColor,
-} = useDeviceGroupOffline(props, entityIds, entitiesStore, layoutStore, floors, getEntity)
+} = useDeviceGroupOffline(props, entityIds, entitiesStore, layoutStore, getEntity)
 
 const { batchExecuting, batchExecResult, lastBatchPayload, batchToggle, retryFailed } =
   useDeviceGroupBatch(entityIds, entitiesStore)
@@ -279,25 +260,25 @@ watch(
       lastBatchPayload.value = null
     }
     if (open) {
-      void computeEntityIds(props, entitiesStore, layoutStore, floors)
+      void computeEntityIds(props, entitiesStore, layoutStore)
     }
   },
   { immediate: true },
 )
 
-watch([() => props.domain, () => layoutStore.layoutConfig.activeFloorId], () => {
+watch([() => props.domain, () => layoutStore.layoutConfig.floatingWidgets], () => {
   if (!props.isOpen) return
   showAudit.value = false
   batchExecResult.value = null
   lastBatchPayload.value = null
-  void computeEntityIds(props, entitiesStore, layoutStore, floors)
+  void computeEntityIds(props, entitiesStore, layoutStore)
 })
 
 watch(
   () => entitiesStore.derivedEpoch,
   () => {
     if (props.isOpen) {
-      void computeEntityIds(props, entitiesStore, layoutStore, floors)
+      void computeEntityIds(props, entitiesStore, layoutStore)
     }
   },
 )

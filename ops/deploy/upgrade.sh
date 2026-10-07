@@ -98,8 +98,8 @@ report_check() {
     [ -f "$COMPOSE_DIR/docker-compose.app.yml" ] || want_app=0
     [ -f "$COMPOSE_DIR/docker-compose.store.yml" ] || want_store=0
   fi
-  [ "$want_app" -eq 1 ] && info "主应用容器实际版本：$(container_version homeos-3d)"
-  [ "$want_store" -eq 1 ] && info "商店容器实际版本：$(container_version homeos-3d-store)"
+  [ "$want_app" -eq 1 ] && info "主应用容器实际版本：$(container_version homeos)"
+  [ "$want_store" -eq 1 ] && info "商店容器实际版本：$(container_version homeos-store)"
   if [ -f "$ENV_FILE" ]; then
     info ".env 镜像：app=$(env_value HOMEOS_IMAGE) store=$(env_value HOMEOS_STORE_IMAGE)"
   else
@@ -151,7 +151,7 @@ case "$ROLE" in
     info "通知模板见 ops/deploy/UPGRADE.md 第 3 节。"
     ;;
   app)
-    info "确认激活与心跳正常：登录后看 /license，或 docker logs homeos-3d | grep 授权"
+    info "确认激活与心跳正常：登录后看 /license，或 docker logs homeos | grep 授权"
     info "若激活报「已绑定其他设备」，说明宿主指纹变了：请厂商后台解绑后重新激活。"
     ;;
 esac

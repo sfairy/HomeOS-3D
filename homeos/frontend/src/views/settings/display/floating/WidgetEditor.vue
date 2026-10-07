@@ -195,7 +195,7 @@ const activeTone = computed(() => {
           <SecurityZoneEditorList v-model="afhConfig.zones" variant="widget" show-hint show-toolbar />
 
           <p class="afh-form__hint afh-form__hint--inline">
-            <span>{{ '保存浮动组件时将同步安防区域到后端，并镜像到所有楼层的全屋安防组件；场景联动在' }}</span>
+            <span>{{ '保存浮动组件时将同步安防区域到后端，并镜像到全屋安防组件；场景联动在' }}</span>
             <button type="button" class="afh-link-btn" @click="goSecurityModes">{{ '安防场景' }}</button>
             <span>{{ '配置。清空全部区域不会覆盖后端已有配置。' }}</span>
           </p>

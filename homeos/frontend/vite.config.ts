@@ -1,16 +1,31 @@
 /**
  * Vite 8 + Rolldown 构建配置文件
  */
-import { defineConfig, createLogger, type UserConfig } from 'vite'
+import { defineConfig, createLogger, type Plugin, type UserConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
+import fs from 'node:fs'
 import { resolve } from 'path'
 import { fileURLToPath } from 'url'
 import devNoCachePlugin from './vite-plugin-dev-no-cache.ts'
 import embedProxyFallbackPlugin from './vite-plugin-embed-fallback.ts'
 import rootAssetsPlugin from './vite-plugin-root-assets.ts'
+import {
+  THREE_VENDOR,
+  classicIifePlugin,
+  isRuntimeExternal,
+  runtimeUrlExternalPlugin,
+  runtimeVendorAssetPlugin,
+  vendorResolvePlugin,
+} from './vite-studio.ts'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
+
+/** 前端产物根目录：收敛到工作区根 `dist/homeos/frontend`（与 homeos-store 同位）。 */
+const outDir = resolve(__dirname, '../../dist/homeos/frontend')
+
+/** SPA 唯一入口。 */
+const SPA_ENTRY = 'index.html'
 
 const isProduction = process.env.NODE_ENV === 'production'
 const analyzeBundle = process.env.ANALYZE === '1'
@@ -127,22 +142,139 @@ const customLogger = {
   },
 }
 
+/**
+ * 生成 `/static` 匿名白名单（`dist/homeos/frontend/public-static.json`）。
+ *
+ * 后端用它判定「未登录也必须能加载」的静态资源：白名单**之外**的 `/static/**` 一律要求
+ * 已登录会话（见 backend/src/studio_shell.py）。种子清单是 `public-static.seed.json`。
+ *
+ * 必须排在所有产物写入插件之后：它要按「产物是否真的存在」筛种子条目，而
+ * `classicIifePlugin` 的 closeBundle 才写入 `/static/logging/client-log.js` 这类 IIFE 包。
+ * closeBundle 按插件数组顺序串行执行，所以本插件必须放在数组最后一位。
+ */
+function publicStaticManifestPlugin(): Plugin {
+  return {
+    name: 'homeos-public-static-manifest',
+    apply: 'build',
+    closeBundle() {
+      updatePublicStaticManifest()
+    },
+  }
+}
+
+function updatePublicStaticManifest(): void {
+  const seedPath = resolve(__dirname, 'public-static.seed.json')
+  const manifestPath = resolve(outDir, 'public-static.json')
+  const seed = fs.existsSync(seedPath) ? seedPath : manifestPath
+  if (!fs.existsSync(seed)) return
+  let payload: {
+    _comment?: unknown
+    files: Array<string | { path: string; why?: string }>
+    alwaysRevalidate?: Array<string | { path: string; why?: string }>
+  }
+  try {
+    payload = JSON.parse(fs.readFileSync(seed, 'utf8'))
+  } catch {
+    return
+  }
+  const discovered = new Set<string>()
+  // SPA 入口是未登录唯一会下发的 HTML：它引用的 `/static/**`（入口 chunk、其
+  // modulepreload 依赖、外壳样式、经典启动脚本）就是未登录也必须可加载的全集。
+  // 认证后视图是懒加载 chunk，不出现在这里，因此继续受登录门禁保护。
+  const htmlPath = resolve(outDir, SPA_ENTRY)
+  if (fs.existsSync(htmlPath)) {
+    const html = fs.readFileSync(htmlPath, 'utf8')
+    for (const match of html.matchAll(/(?:src|href)=["'](\/static\/[^"']+)["']/g)) {
+      discovered.add(match[1].replace(/\?v=[^"']+$/i, ''))
+    }
+  }
+  for (const stable of [
+    '/static/logging/client-log.js',
+    '/static/display/display-boot.js',
+    '/static/display/display-startup.js',
+    '/static/auth/scene/scene-depth.js',
+    // 认证页样式表由 App.vue 在运行时插入 <head>，不在 SPA 入口里，需显式登记。
+    '/static/auth/scene/fonts.css',
+    '/static/auth/scene/page.css',
+    '/static/auth/scene/scene.css',
+    '/static/auth/scene/panel.css',
+    '/static/appearance.css',
+  ]) {
+    discovered.add(stable)
+  }
+  const kept: Array<{ path: string; why: string }> = []
+  const seen = new Set<string>()
+  const pruned: string[] = []
+  for (const item of payload.files || []) {
+    const p = typeof item === 'string' ? item : item.path
+    if (!p?.startsWith('/static/')) continue
+    if (seen.has(p)) continue
+    // 种子清单记的是逻辑路径，而产物可能带内容哈希或按域归入子目录，因此按产物
+    // 实际存在与否筛一遍，只保留真正落盘的路径。
+    // 注意：被剪掉的条目**不占用 seen** —— 否则「种子缺条目 → 剪掉 → 又被 HTML
+    // 发现」的同一路径会被 seen 挡在补回分支之外，最终静默 401（见下方 discovered 循环）。
+    if (!fs.existsSync(resolve(outDir, p.replace(/^\//, '')))) {
+      pruned.push(p)
+      continue
+    }
+    seen.add(p)
+    kept.push({ path: p, why: typeof item === 'object' && item.why ? item.why : '' })
+  }
+  for (const p of [...discovered].sort()) {
+    if (seen.has(p)) continue
+    seen.add(p)
+    kept.push({ path: p, why: 'SPA 入口引用的匿名静态资源，必须匿名可加载。' })
+  }
+  payload.files = kept
+  // 记录被筛掉的种子条目，方便核对「是不是真有资源漏了」而不是被静默吞掉。
+  ;(payload as Record<string, unknown>)._prunedStaleSeed = pruned.sort()
+  if (pruned.length > 0) {
+    console.warn(
+      `[homeos] 匿名白名单筛掉 ${pruned.length} 条不存在的种子条目：\n  ${pruned.join('\n  ')}`,
+    )
+  }
+  const revalidate = new Set<string>()
+  for (const p of discovered) {
+    if (p.endsWith('.js') || p.endsWith('.css')) revalidate.add(p)
+  }
+  payload.alwaysRevalidate = [...revalidate].sort().map((p) => ({
+    path: p,
+    why: '入口页构建产物，内容变化即换 URL/必须回源。',
+  }))
+  fs.mkdirSync(outDir, { recursive: true })
+  fs.writeFileSync(manifestPath, JSON.stringify(payload, null, 2) + '\n', 'utf8')
+}
+
 export default defineConfig(async (): Promise<UserConfig> => {
   const plugins: UserConfig['plugins'] = [
     embedProxyFallbackPlugin(),
     rootAssetsPlugin(),
     devNoCachePlugin(),
+    // 3D Studio 外置契约：three → /static/vendor 绝对 URL；/api/** 运行时资源原样保留。
+    vendorResolvePlugin(),
+    runtimeUrlExternalPlugin(),
+    runtimeVendorAssetPlugin(),
     vue(),
     tailwindcss(),
+    // 构建产物写完后再落经典 IIFE（closeBundle 按数组顺序串行）。
+    classicIifePlugin(),
+    // 最后一位：匿名白名单按「产物是否真的存在」筛种子条目，必须在所有产物写完后生成。
+    publicStaticManifestPlugin(),
   ]
   if (analyzeBundle) {
     const { visualizer } = await import('rollup-plugin-visualizer')
     plugins.push(
-      visualizer({ filename: '../dist/frontend/bundle-stats.html', gzipSize: true, open: false }),
+      visualizer({ filename: resolve(outDir, 'bundle-stats.html'), gzipSize: true, open: false }),
     )
   }
 
   return {
+    // 显式固定 root。Vite 的 root 默认取 cwd（不是配置文件所在目录），而 `ops/dev.mjs`
+    // 是以 cwd=<repo>/homeos 拉起本配置的，于是站点根会变成 `homeos/` → `/`（index.html 在
+    // `frontend/` 下）与 `/src/**` 全部 404，横幅与 README 印的 8805 根地址打不开。
+    // 构建路径（`bun run --cwd frontend build`）的 cwd 本就是本目录，故这里是等值固定。
+    // 授权商店在 homeos-store/frontend/vite.config.ts 里同样显式指定了 root。
+    root: __dirname,
     customLogger,
     plugins,
     resolve: {
@@ -151,6 +283,10 @@ export default defineConfig(async (): Promise<UserConfig> => {
         vue: 'vue/dist/vue.esm-bundler.js',
         '@': resolve(__dirname, 'src'),
         '@homeos/shared': resolve(sharedRoot, 'src/index.ts'),
+        // 3D Studio 源码别名（原 homeos-3d/frontend 的 @app / @runtime）。
+        '@app': resolve(__dirname, 'src/studio/app'),
+        '@runtime': resolve(__dirname, 'src/studio/runtime'),
+        three: THREE_VENDOR,
       },
       dedupe: ['@homeos/shared'],
     },
@@ -159,7 +295,9 @@ export default defineConfig(async (): Promise<UserConfig> => {
         allow: [sharedRoot, resolve(__dirname, '..')],
       },
       host: true,
-      port: 5173,
+      // 必须与 ops/dev.mjs 的 VITE_3D_PORT / README 的 HMR 地址一致：dev.mjs 不传 --port，
+      // 完全以这里为准，而它的端口预检与启动横幅印的是 8805（授权商店为 8806）。
+      port: 8805,
       strictPort: true,
       warmup: {
         clientFiles: [
@@ -173,7 +311,7 @@ export default defineConfig(async (): Promise<UserConfig> => {
         Expires: '0',
       },
       hmr: {
-        clientPort: 5173,
+        clientPort: 8805,
         timeout: 60_000,
       },
       watch: {
@@ -189,11 +327,25 @@ export default defineConfig(async (): Promise<UserConfig> => {
           ws: true,
           ...proxyErrorHandling,
         },
-        '/api': { target: backendDevTarget, changeOrigin: true, ...proxyErrorHandling },
-        '/floorplans': { target: backendDevTarget, changeOrigin: true, ...proxyErrorHandling },
+        // 3D 运行时实时通道（/api/v1/ws/runtime）须开启 ws，否则升级请求会被代理直接关闭
+        // （前端表现为 "WebSocket is closed before the connection is established"）。
+        // 与 /api/v1/embed-proxy 同理：置于 /api 之前以优先匹配。
+        // 但绝不能开 changeOrigin：websocket_origin_allowed() 同样按 Origin↔Host 判定同源，
+        // 改写 Host 会让后端看到 127.0.0.1:8801 而浏览器 Origin 是 http://localhost:8805，
+        // 握手在 accept 之前就被 4403「页面来源未获允许」拒绝，前端只能无限重连。
+        '/api/v1/ws': {
+          target: backendDevTarget,
+          ws: true,
+          ...proxyErrorHandling,
+        },
+        // 故意不开 changeOrigin：同源写入守卫（backend/src/security/request_origin.py）在未配置
+        // APP_BASE_URL 时以 Origin↔Host 比较判定同源。改写 Host 会让浏览器 Origin
+        // （http://localhost:8805）与后端看到的 Host（http://127.0.0.1:8801）不一致，
+        // 导致所有受守卫的写请求（如 interaction3d 渲染缓存 PUT）被 403。
+        // 保留浏览器原 Host 后两侧一致，守卫按设计放行。
+        '/api': { target: backendDevTarget, ...proxyErrorHandling },
         '/backgrounds': { target: backendDevTarget, changeOrigin: true, ...proxyErrorHandling },
         '/icons': { target: backendDevTarget, changeOrigin: true, ...proxyErrorHandling },
-        '/room_images': { target: backendDevTarget, changeOrigin: true, ...proxyErrorHandling },
         '/engine.io': {
           target: backendDevTarget,
           changeOrigin: true,
@@ -211,6 +363,8 @@ export default defineConfig(async (): Promise<UserConfig> => {
     worker: {
       format: 'es',
       rollupOptions: {
+        // Worker 子构建是独立的 rollup 调用，不继承主构建的 external，必须再声明一次。
+        external: isRuntimeExternal,
         output: {
           entryFileNames: 'assets/js/[name]-[hash].js',
           chunkFileNames: 'assets/js/[name]-[hash].js',
@@ -218,7 +372,7 @@ export default defineConfig(async (): Promise<UserConfig> => {
       },
     },
     build: {
-      outDir: '../dist/frontend',
+      outDir,
       emptyOutDir: true,
       assetsDir: 'assets',
       manifest: true,
@@ -258,6 +412,8 @@ export default defineConfig(async (): Promise<UserConfig> => {
           ),
       },
       rolldownOptions: {
+        // 3D Studio 运行时资源外置：three / /static/vendor/** / /api/** 不进 bundle。
+        external: isRuntimeExternal,
         checks: {
           pluginTimings: false,
         },

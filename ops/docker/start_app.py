@@ -82,7 +82,9 @@ def main() -> None:
     environment = os.environ.copy()
     environment["PYTHONPATH"] = str(ROOT)
     environment.setdefault("APP_DATA_DIR", "/data")
+    environment.setdefault("HOMEOS_DATA_DIR", environment["APP_DATA_DIR"])
     environment.setdefault("APP_CLIENT_KEYS_DIR", "/data/client-keys")
+    environment.setdefault("HOMEOS_IMAGE_DIR", "/app/image")
     environment.setdefault("APP_UPDATE_CHANNEL", "docker")
     if not (environment.get("APP_LICENSE_SERVER_URL") or "").strip():
         raise SystemExit(
@@ -129,7 +131,8 @@ def main() -> None:
                 sys.executable,
                 "-m",
                 "uvicorn",
-                "backend.app.main:app",
+                "backend.app.app:create_asgi_app",
+                "--factory",
                 "--host",
                 "0.0.0.0",
                 "--port",

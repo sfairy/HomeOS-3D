@@ -21,7 +21,6 @@ from typing import Any
 
 from ..realtime.access import is_entity_allowed_by_restrictions
 from ..realtime.ws_auth import extract_auth_token_from_cookie, resolve_ws_user
-from ..security.tokens import verify_token
 
 logger = logging.getLogger("homeos.ws-proxy")
 
@@ -56,15 +55,19 @@ def assert_web_rtc_ws_token_allowed(payload: dict[str, Any] | None, entity_id: s
     return role in ("adult", "user")
 
 
-def verify_embed_ws_auth(token: str | None, secret: str) -> bool:
-    """对齐 Nest ``verifyEmbedWsAuth``：仅校验 JWT 与角色白名单（不做吊销/tokenVersion）。"""
-    if not token:
+def verify_embed_ws_auth(token: str | None, session: Any) -> bool:
+    """内嵌页 WS 握手鉴权：DB 会话有效 + 角色白名单。
+
+    与 HTTP / Socket.IO 侧同源：Cookie ``auth_token`` 携带的是 ``sessions`` 表里的
+    不透明会话令牌（非 JWT），因此这里只查会话表，不做任何签名校验。
+    """
+    if not token or session is None:
         return False
     try:
-        payload = verify_token(token, secret)
-    except Exception:  # noqa: BLE001 - 解析失败即拒绝
+        user = resolve_ws_user(token, session)
+    except Exception:  # noqa: BLE001 - 无效 / 过期会话即拒绝
         return False
-    role = payload.get("role") or "user"
+    role = user.get("role") or "user"
     return role in EMBED_WS_ALLOWED_ROLES
 
 
@@ -178,20 +181,10 @@ def resolve_go2rtc_ws_user(
         return None
     try:
         with app.state.database.session_factory() as session:
-            user = resolve_ws_user(
-                token,
-                _secret(app),
-                session,
-                getattr(app.state, "token_version_cache", None),
-                getattr(app.state, "session_revocation", None),
-            )
-    except Exception:  # noqa: BLE001 - 无效 / 吊销 token 一律拒绝
+            user = resolve_ws_user(token, session)
+    except Exception:  # noqa: BLE001 - 无效 / 过期会话一律拒绝
         return None
     return user if assert_web_rtc_ws_token_allowed(user, entity_id) else None
-
-
-def _secret(app: Any) -> str:
-    return app.state.settings.jwt_secret or "homeos-dev-secret"
 
 
 async def resolve_ha_base_url(app: Any) -> str:
@@ -204,7 +197,7 @@ async def resolve_ha_base_url(app: Any) -> str:
         from .ha_config import load_active_ha_endpoints  # noqa: PLC0415 - 延迟导入避免环
 
         with app.state.database.session_factory() as session:
-            endpoints = load_active_ha_endpoints(session)
+            endpoints = load_active_ha_endpoints(session, cipher=app.state.studio_ha.cipher)
         return endpoints.ha_url_primary or ""
     except Exception:  # noqa: BLE001
         return ""

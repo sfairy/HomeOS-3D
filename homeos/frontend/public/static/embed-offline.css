@@ -1,0 +1,45 @@
+/*
+ * 「内嵌页无法连接」错误页样式（backend/src/services/system/embed_proxy.py 的
+ * `_respond_upstream_unreachable` 使用）。
+ *
+ * 为什么单独一个文件，而不是写在 HTML 里的 <style>：
+ * 内嵌反代挂在 `/api/v1/embed-proxy/**` 下，属于「应用界面」路径，会被
+ * backend/src/studio_shell.py 的 `_apply_security_headers` 套上外壳页 CSP
+ * （`style-src 'self'`）。行内 <style> 会被浏览器直接拦下，那段样式等于白写，
+ * 页面只剩裸 HTML。外链到本文件即可在严格 CSP 下正常生效。
+ *
+ * 匿名可加载性：本文件由 public-static.seed.json 登记，构建期并入
+ * dist/homeos/frontend/public-static.json 的匿名白名单；漏登记的表现是未登录
+ * 场景下拿到 401、错误页又变回无样式。
+ *
+ * 作用域：这是一份独立文档（错误页自带 <html>/<body>，由 <iframe> 承载），
+ * 不进入 SPA 文档，因此这里用全局选择器不会影响应用页面。
+ */
+
+body {
+  margin: 2rem;
+  font-family: system-ui, sans-serif;
+  color: #1a1a1a;
+  background: #f6f6f6;
+}
+
+main {
+  max-width: 36rem;
+  padding: 1.25rem 1.5rem;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+}
+
+h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+}
+
+p {
+  margin: 0;
+  line-height: 1.5;
+  color: #444;
+  /* 上游地址可能是一长串无空格的 URL，给它一个断行机会，避免撑破卡片。 */
+  overflow-wrap: anywhere;
+}

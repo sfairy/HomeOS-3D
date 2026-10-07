@@ -3,7 +3,7 @@
   所属模块：frontend/src/views
   组件职责：单实体详情页。顶部 ListPageHero 展示设备友好名与 entity_id，返回按钮 + 事件历史跳转 +
     域/状态/房间/控制四项 Metrics；主体用 list-page__tabs 展示 7 个子面板 Tab：
-    概览 DeviceOverviewPanel、状态历史 DeviceStateHistoryPanel、命令审计 DeviceCommandAuditPanel、
+    概览 DeviceOverviewPanel、状态历史 DeviceStateHistoryPanel、
     关联引用 DeviceEntityReferencesPanel、用量 DeviceUsageStats、分析 DeviceAnalyticsPanel、
     属性 DeviceAttrsPanel；空态分为「未指定 id」「HA 未连接」「实体不存在」三档 VEmptyState 兜底。
   依赖关系：@homeos/shared 的 getEntityDomain/resolveEntityArea；vue-router（query.id/back 路由）；
@@ -95,10 +95,6 @@
               <DeviceStateHistoryPanel :entity-id="entityId" :visible="detailTab === 'history'" />
             </div>
 
-            <div v-show="detailTab === 'calls'" class="device-detail-view__tab-stack">
-              <DeviceCommandAuditPanel :entity-id="entityId" :visible="detailTab === 'calls'" />
-            </div>
-
             <div v-show="detailTab === 'refs'" class="device-detail-view__tab-stack">
               <DeviceEntityReferencesPanel :entity-id="entityId" :visible="detailTab === 'refs'" />
             </div>
@@ -156,7 +152,6 @@ import { getEntityDisplayName, collectIndexedEntityIds } from '@/utils/entity/de
 import { copyTextToClipboard } from '@/utils/core/clipboard.util'
 import DeviceOverviewPanel from '@/components/devices/DeviceOverviewPanel.vue'
 import DeviceStateHistoryPanel from '@/components/devices/DeviceStateHistoryPanel.vue'
-import DeviceCommandAuditPanel from '@/components/devices/DeviceCommandAuditPanel.vue'
 import DeviceEntityReferencesPanel from '@/components/devices/DeviceEntityReferencesPanel.vue'
 import DeviceUsageStats from '@/components/devices/DeviceUsageStats.vue'
 import DeviceAnalyticsPanel from '@/components/devices/DeviceAnalyticsPanel.vue'
@@ -175,7 +170,6 @@ import {
 const VALID_DETAIL_TABS = new Set([
   'overview',
   'history',
-  'calls',
   'refs',
   'usage',
   'analytics',
@@ -313,7 +307,6 @@ const detailTabs = computed(() => {
     { id: 'overview', label: '概览与健康' },
     { id: 'history', label: '状态历史' },
     { id: 'refs', label: '功能引用' },
-    { id: 'calls', label: '调用记录' },
     { id: 'usage', label: '使用统计' },
     { id: 'analytics', label: '深度分析' },
   ]

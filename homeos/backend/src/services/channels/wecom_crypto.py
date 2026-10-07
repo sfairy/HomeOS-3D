@@ -7,14 +7,14 @@ from __future__ import annotations
 
 import base64
 import hashlib
-from typing import Any
+from typing import Any, NoReturn
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 from src.core.errors import BusinessException, ErrorCode, api_error
 
 
-def _decrypt_fail(detail: str) -> None:
+def _decrypt_fail(detail: str) -> NoReturn:
     raise BusinessException(ErrorCode.EXTERNAL_ERROR, api_error("WECOM_DECRYPT_FAILED", detail))
 
 

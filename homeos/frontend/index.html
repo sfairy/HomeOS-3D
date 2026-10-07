@@ -1,43 +1,55 @@
 <!doctype html>
-<html lang="zh-Hans">
+<html lang="zh-Hans" class="hos-shell">
 
 <head>
-  <meta charset="UTF-8" />
+    <meta charset="utf-8">
+    <!-- 全局错误上报启动脚本：必须最先加载，且保持经典脚本（非 module），任何路由都需要。 -->
+    <script src="/static/logging/client-log.js"></script>
+    <!-- 启动守卫：入口 chunk 加载失败时自愈重载并显示兜底面板，避免「黑屏 + 零提示」。
+         必须早于入口 module 执行才能捕获其加载失败。 -->
+    <script src="/static/boot-guard.js"></script>
+    <!-- 逐路由页面资产（标题 / viewport / theme-color / manifest / 样式表）由
+         src/studio/page-assets.ts 在运行时同步；下列三个 meta 是它的锚点，id 不可改名。 -->
+    <meta id="spa-viewport" name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <meta id="spa-theme-color" name="theme-color" content="#050912">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="HomeOS">
+    <title>HomeOS</title>
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico" sizes="16x16 32x32 48x48">
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png" sizes="180x180">
+    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png"
+        sizes="180x180">
+    <link id="spa-manifest" rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest">
+    <!-- SPA 外壳样式：让 <div id="app"> 不生成盒子，视图根元素等价于 body 的直接子元素。 -->
+    <link rel="stylesheet" href="/static/spa-shell.css">
+    <!-- 手持档开关：普通脚本（不导出、不 defer），必须在首帧前跑完给 <html> 挂 .hos-touch。
+         该 class 只被登录场景样式消费，非场景页无副作用。 -->
+    <script src="/static/auth/scene/scene-depth.js"></script>
 
-  <!-- PWA / Standalone (iPad Add to Home Screen) -->
-  <link rel="manifest" href="/manifest.json" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="HomeOS" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="theme-color" content="#000000" />
-
-  <!-- Viewport: scale=1, no user scaling (kiosk-style) -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
-
-  <link rel="icon" type="image/svg+xml" href="/logo/logo.svg" />
-  <title>HomeOS智能家居控制系统</title>
-
-  <!-- Remove tap highlight on iOS -->
-  <style>
-    * {
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    html,
-    body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      background: #000000;
-    }
-  </style>
-
+    <!-- 机身外壳重置（margin / overflow / 背景）写在 /static/spa-shell.css 里。
+         外壳页 CSP 是 `style-src 'self'`，行内 <style> 会被浏览器拦下，别挪回这里。 -->
 </head>
 
 <body>
-  <div id="app"></div>
-  <script type="module" src="/src/main.ts"></script>
+    <!-- 启动覆盖层：**必须在 #app 之外**。
+         原因：Vue 的 app.mount('#app') 会清空 #app 的内容，而"已挂载但路由还没渲染出来"
+         （后端冷启动 / 热重载窗口里 router.beforeEach 会阻塞约 2 分钟）正好是最需要提示的
+         场景 —— 面板若放在 #app 内部就会在挂载瞬间被清掉，于是只剩纯空白 + 零报错。
+         覆盖层显隐由 /static/boot-guard.js 控制，就绪信号是 <html data-homeos-ready>。 -->
+    <div id="homeos-boot-overlay" data-state="connecting" role="status" aria-live="polite">
+        <div class="homeos-boot-overlay__panel">
+            <p class="homeos-boot-overlay__brand">HomeOS</p>
+            <p class="homeos-boot-overlay__spinner" aria-hidden="true"></p>
+            <h1 class="homeos-boot-overlay__title" id="homeos-boot-overlay-title">正在连接…</h1>
+            <p class="homeos-boot-overlay__message" id="homeos-boot-overlay-message">正在等待 HomeOS 后端就绪，首次启动或热重载期间可能需要一会儿。</p>
+            <button type="button" class="homeos-boot-overlay__action" id="homeos-boot-overlay-reload" hidden>重新加载</button>
+        </div>
+    </div>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
 </body>
 
 </html>

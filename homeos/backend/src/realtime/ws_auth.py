@@ -1,4 +1,8 @@
-"""WS 握手鉴权：从 Cookie 提取 token 并解析用户（复用 HTTP 侧 tokenVersion/吊销语义）。"""
+"""WS 握手鉴权：从 Cookie 提取令牌并按 ``sessions`` 表解析用户。
+
+会话真相源与 HTTP 侧一致（homeos-3d ``LoginSession``）：令牌落库形态为 sha256，
+会话记录即代表「已通过登录校验」，且可服务端吊销。
+"""
 
 from __future__ import annotations
 
@@ -8,10 +12,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from ..core.errors import api_error
-from ..core.models import User
-from ..security.sessions import SessionRevocation, TokenVersionCache
-from ..security.tokens import verify_token
-from ..services.auth import _prefs_of  # noqa: PLC2701 - 复用偏好解析
+from ..security.session_store import resolve_login_session
 from .access import resolve_entity_restrictions
 
 
@@ -27,60 +28,26 @@ def extract_auth_token_from_cookie(cookie_header: str | None, cookie_name: str =
     return morsel.value if morsel and morsel.value else None
 
 
-def resolve_ws_user(
-    token: str,
-    secret: str,
-    session: Session,
-    token_cache: TokenVersionCache | None,
-    revocation: SessionRevocation | None,
-) -> dict[str, Any]:
-    """解析 WS 用户；token 无效/被吊销/版本不符时抛 ``ValueError``。"""
-    payload = verify_token(token, secret)
-    role = payload.get("role") or "user"
-
-    if role == "guest":
-        return {
-            "userId": payload.get("sub"),
-            "username": payload.get("username") or "guest",
-            "role": "guest",
-            "restrictions": payload.get("restrictions") if isinstance(payload.get("restrictions"), list) else None,
-            "allowedSceneIds": payload.get("allowedSceneIds") if isinstance(payload.get("allowedSceneIds"), list) else None,
-        }
-
-    token_version = payload.get("tv") if isinstance(payload.get("tv"), int) else 0
-    cached = token_cache.get_snapshot(payload["sub"]) if token_cache is not None else None
-    if cached is not None and cached.token_version == token_version:
-        return {
-            "userId": payload["sub"],
-            "username": cached.username or payload.get("username"),
-            "role": cached.role or role,
-            "restrictions": resolve_entity_restrictions({"role": cached.role or role, "restrictions": _prefs_restrictions(cached.preferences)}),
-        }
-
-    user = session.get(User, payload["sub"])
-    if user is None or token_version != user.token_version:
-        raise ValueError(api_error("AUTH_SESSION_EXPIRED"))
-    prefs = _prefs_of(user)
-    restrictions = prefs.get("entityRestrictions") if isinstance(prefs.get("entityRestrictions"), list) else None
-    if token_cache is not None:
-        token_cache.set_snapshot(
-            payload["sub"],
-            token_version=user.token_version,
-            username=user.username,
-            role=user.role,
-            preferences=prefs,
-        )
+def resolve_db_session_user(session: Session, token: str) -> dict[str, Any] | None:
+    """按 DB 会话令牌（homeos-3d ``LoginSession``）解析 WS 用户。"""
+    user = resolve_login_session(session, token)
+    if user is None:
+        return None
+    role = user.role or "user"
     return {
-        "userId": payload["sub"],
+        "userId": user.id,
         "username": user.username,
-        "role": user.role or role,
-        "restrictions": resolve_entity_restrictions({"role": user.role or role, "restrictions": restrictions}),
+        "role": role,
+        "restrictions": resolve_entity_restrictions({"role": role, "restrictions": None}),
     }
 
 
-def _prefs_restrictions(preferences: Any) -> list[str] | None:
-    if isinstance(preferences, dict):
-        value = preferences.get("entityRestrictions")
-        if isinstance(value, list):
-            return value
-    return None
+def resolve_ws_user(token: str, session: Session) -> dict[str, Any]:
+    """解析 WS 用户；会话无效/过期时抛 ``ValueError``。
+
+    单一凭证：``sessions`` 表里的 DB 会话（无 JWT、无 tokenVersion 旁路）。
+    """
+    db_user = resolve_db_session_user(session, token)
+    if db_user is None:
+        raise ValueError(api_error("AUTH_SESSION_EXPIRED"))
+    return db_user

@@ -48,6 +48,8 @@
           <div v-show="connTab === 'credentials'">
             <ConnectionCredentialsSection
               v-model:show-token-input="showTokenInput"
+              :draft="draft"
+              :has-token="haStore.hasToken"
               :testing="testing"
               :test-result="testResult"
               :saving="saving"
@@ -123,6 +125,8 @@ const {
   connTab,
   showTokenInput,
   entitiesStore,
+  haStore,
+  draft,
   connTabs,
   redisHealth,
   redisLabel,

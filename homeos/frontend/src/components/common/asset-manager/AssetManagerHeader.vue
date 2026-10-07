@@ -132,7 +132,7 @@ import {
 
 // 组件属性：由父组件通过 useAssetManager 注入
 defineProps<{
-  /** 资源类型：icon / floorplan 等，影响徽标样式与上传限制 */
+  /** 资源类型：icon / background 等，影响徽标样式与上传限制 */
   type: string
   /** 面包屑数据：name 显示名 + path 跳转路径 */
   breadcrumbs: Array<{ name: string; path: string }>

@@ -18,7 +18,7 @@
 # 接入后：浏览器与客户机统一用 https://<STORE_DOMAIN>（443），不再用 8802 / 8804。
 
 services:
-  homeos-3d-store:
+  homeos-store:
     environment:
       # 公网访问地址：支付回调按它推导（也可另设 STORE_ALIPAY_/WECHAT_NOTIFY_URL 覆盖）。
       # 显式必填，避免忘了设导致回调地址推导成内网地址。
@@ -34,10 +34,10 @@ services:
   # 只做 TLS 终止与转发，不碰商店数据；证书落在自己的卷里。
   caddy-public:
     image: ${CADDY_IMAGE:-caddy:2.11.4-alpine}
-    container_name: homeos-3d-store-caddy
+    container_name: homeos-store-caddy
     restart: unless-stopped
     depends_on:
-      - homeos-3d-store
+      - homeos-store
     ports:
       - "80:80"
       - "443:443"
@@ -51,7 +51,7 @@ services:
       - caddy-public-data:/data
       - caddy-public-config:/config
     networks:
-      - homeos-3d-net
+      - homeos-net
 
 volumes:
   caddy-public-data:

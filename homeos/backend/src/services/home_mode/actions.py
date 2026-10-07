@@ -238,7 +238,6 @@ async def activate_home_mode(
     assert_entity_targets_execute_authorized(
         collect_home_mode_target_actions(entity_configs),
         (meta or {}).get("actor"),
-        deps.child_mode_gate,
     )
 
     hm_cfg = deps.get_home_mode_config()

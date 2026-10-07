@@ -45,7 +45,7 @@ COPY --from=caddy-bin /usr/bin/caddy /usr/bin/caddy
 
 WORKDIR /app
 
-COPY homeos-3d/backend/src/requirements.txt /tmp/requirements-app.txt
+COPY homeos/backend/requirements.txt /tmp/requirements-app.txt
 COPY homeos-store/backend/src/requirements.txt /tmp/requirements-store.txt
 #: 构建容器连不上 pypi.org 时（表现为卡在 Downloading 一动不动、且不报错）由
 #: ops/build.py 的 --pip-index / HOMEOS_PIP_INDEX 传进来，换成可达的 PyPI 镜像。
@@ -66,7 +66,7 @@ RUN if [ -n "$APT_MIRROR" ]; then \
 # ═══ 后端保护：Cython 把 Python 源码编译成原生扩展（.so），随后删除 .py 源码 ═══
 #
 # 这两段产物**不直接进运行镜像**，而是由 ops/build.py 用
-#   docker buildx build --target app-export --output type=local,dest=dist/homeos-3d/backend/linux-<arch>
+#   docker buildx build --target app-export --output type=local,dest=dist/homeos/backend/linux-<arch>
 # 导出到工作区根 dist/，再由运行阶段 COPY 回来。这样「加密后的后端」是一份可归档、
 # 可跨镜像复用的产物，运行镜像里不再编译任何后端源码。
 #
@@ -95,7 +95,7 @@ COPY ops/container_entrypoint.py ./ops/
 COPY ops/license_keys.py ./ops/
 COPY ops/docker ./ops/docker
 COPY package.json /tmp/package.json
-COPY homeos-3d/backend/src ./backend/app
+COPY homeos/backend/src ./backend/app
 # 注意这一行的**两边名字不一样**：源码目录是 backend/src（仓库约定），构建镜像里落到
 # backend/app。Cython 的模块名取自路径，所以 .so 里烤进去的是 backend.app.*，产物里
 # 不会出现 src 目录。
@@ -103,7 +103,8 @@ COPY homeos-3d/backend/src ./backend/app
 # backend.app.migrations 按 ORM 元数据直接建（基线 0001 与 Base.metadata 等价，
 # ops/check_schema.py 会比对结构指纹）。位置不是随意定的：后端落在 /app/backend/app，
 # PYTHONPATH=/app 才能同时解析 backend.app.* 与 ops.*。
-# /app/image：内置素材目录（settings.built_in_assets_dir），默认空，可另行挂载增删。
+# /app/image：内置素材目录（settings.built_in_assets_dir，由 HOMEOS_IMAGE_DIR 指到此处），
+# 默认空，可另行挂载增删。
 # backend/app/_version.py 随后与其它源码一起被编译成 .so，运行期由 config.py 读取。
 RUN mkdir -p /app/image \
     && rm -f /app/ops/docker/compile_python.py /app/ops/docker/obfuscate_javascript.mjs \
@@ -117,13 +118,15 @@ RUN mkdir -p /app/image \
     && rm -f /app/backend/app/requirements.txt \
     && python /tmp/compile_python.py /app \
     && rm -f /tmp/compile_python.py \
-    && test -f /app/backend/app/main.*.so \
+    && test -f /app/backend/app/app.*.so \
+    && test -f /app/backend/app/run.*.so \
     && test -f /app/backend/app/__init__.*.so \
     && test -f /app/backend/app/_version.*.so \
     && test -f /app/ops/container_entrypoint.*.so \
     && test -f /app/ops/license_keys.*.so \
     && test -f /app/ops/docker/start_app.*.so \
-    && test ! -f /app/backend/app/main.py \
+    && test ! -f /app/backend/app/app.py \
+    && test ! -f /app/backend/app/run.py \
     && test ! -f /app/ops/container_entrypoint.py \
     && test ! -e /app/migrations \
     && test ! -e /app/alembic.ini \
@@ -207,7 +210,11 @@ COPY --from=store-build /app/ /
 FROM base AS app
 
 ENV APP_DATA_DIR=/data \
+    HOMEOS_DATA_DIR=/data \
+    HOMEOS_PORT=8801 \
     APP_PORT=8801 \
+    HOMEOS_IMAGE_DIR=/app/image \
+    HOMEOS_FRONTEND_DIR=/app/dist \
     APP_CLIENT_KEYS_DIR=/data/client-keys \
     APP_LICENSE_SERVER_URL=\
     APP_UPDATE_CHANNEL=docker \
@@ -220,8 +227,8 @@ RUN mkdir -p /data /data/client-keys /run/secrets \
     && chown -R homeos:homeos /data /run/secrets /home/homeos
 
 # 加密后端（纯 Cython .so，无任何明文 .py）与前端产物都来自工作区根 dist/。
-COPY --chown=homeos:homeos dist/homeos-3d/backend/${BACKEND_PLATFORM} /app
-COPY --chown=homeos:homeos dist/homeos-3d/frontend /app/dist
+COPY --chown=homeos:homeos dist/homeos/backend/${BACKEND_PLATFORM} /app
+COPY --chown=homeos:homeos dist/homeos/frontend /app/dist
 # 内置素材目录：空目录可能不被 local 导出保留，这里补建。
 RUN mkdir -p /app/image && chown homeos:homeos /app/image
 # 内置反代配置（Caddy 与 uvicorn 同容器，见 ops/docker/start_app.py）。

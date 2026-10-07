@@ -56,6 +56,10 @@ def main() -> None:
         "HomeOS 后端 v%s 运行在 http://%s:%s", load_app_version(), host, port
     )
     if reload_enabled:
+        # 开发期降噪：重载提示与 watchfiles 的逐次改动日志（必须在 uvicorn.run 之前挂）。
+        from .logging_noise import install_reload_noise_filter
+
+        install_reload_noise_filter()
         uvicorn.run(
             "src.app:create_asgi_app",
             factory=True,

@@ -29,6 +29,49 @@
 
 > 镜像 tag 来自仓库根 `package.json` 的 `version`，并同时打 `latest`。**生产别用 latest**。
 
+### 只做一次：`homeos-3d` 命名迁移
+
+新版本的容器名 / 卷名 / 镜像名统一去掉了 `-3d`：
+
+| | 旧 | 新 |
+| --- | --- | --- |
+| 容器 | `homeos-3d` / `homeos-3d-store` | `homeos` / `homeos-store` |
+| 镜像 | `ghcr.io/sfairy/homeos-3d[:tag]` | `ghcr.io/sfairy/homeos[:tag]` |
+| | `ghcr.io/sfairy/homeos-3d-store[:tag]` | `ghcr.io/sfairy/homeos-store[:tag]` |
+| 网络 | `homeos-3d-net` | `homeos-net` |
+| 卷 | `homeos-3d_homeos-3d-data` | `homeos_homeos-data` |
+| | `homeos-3d_homeos-3d-secrets` | `homeos_homeos-secrets` |
+| | `homeos-3d-store_homeos-3d-store-data` | `homeos-store_homeos-store-data` |
+| | `homeos-3d-store_homeos-3d-license-keys` | `homeos-store_homeos-license-keys` |
+| | `homeos-3d-client-keys` | `homeos-client-keys` |
+| | `homeos-3d-store_caddy-public-data` | `homeos-store_caddy-public-data` |
+
+compose 的卷名带项目名前缀，项目名取自 compose 文件里的 `name:`，所以改名之后**同一个物理卷
+在新项目里就是另一个名字**。不做迁移直接 `up -d`，compose 会安静地建一组空卷 —— 症状是
+「升级完什么都在，但数据全没了」。这不是数据被删，是挂错了卷：停掉容器、把旧卷复制到新名
+即可恢复。
+
+**每台机器（厂商机 + 所有客户机）各执行一次**：
+
+```bash
+# 先看会做什么（不动任何东西）
+./ops/deploy/migrate_naming.sh --dry-run
+
+# 执行（会停旧容器、复制卷、改写 .env 里的镜像钉）
+./ops/deploy/migrate_naming.sh
+```
+
+脚本是**复制而不是移动**：旧卷原样保留，新部署验收通过后再自己删旧卷，所以随时能回滚。
+它会替你检查目标卷是否已被占用（迁移做一半就中断的情况），并且绝不会覆盖已存在的目标卷。
+
+- [ ] `migrate_naming.sh` 执行完成，7 个卷全部 `✓`；
+- [ ] 起新部署后数据在（主应用能登录，商店 `/admin` 里商品与订单还在）；
+- [ ] 公网接入的机器确认 Caddy 复用旧证书、`https://<商店域名>/healthz` 正常；
+- [ ] 验收通过后才删旧卷；删之前旧卷就是回滚凭据。
+
+> 只用 `docker run` 手工跑、没有过 compose 项目前缀的部署（自定义 `docker run -v` 名字），
+> 不受影响，跳过这一步。
+
 ---
 
 ## 1. 升中心商店
@@ -107,7 +150,7 @@ docker compose -f docker-compose.app.yml pull && docker compose -f docker-compos
 
 - [ ] 容器 `healthy`；
 - [ ] 主应用能登录，`/license` 显示已激活、心跳正常；
-- [ ] `docker logs homeos-3d | grep 授权` 没有「取回公钥失败」；
+- [ ] `docker logs homeos | grep 授权` 没有「取回公钥失败」；
 - [ ] 若报「已绑定其他设备」→ 宿主指纹变了，不是版本问题：请到商店后台解绑后重新激活
       （见 [SPLIT-DEPLOY.md](SPLIT-DEPLOY.md) 的授权身份一节）。
 
@@ -137,7 +180,7 @@ docker compose -f docker-compose.app.yml pull && docker compose -f docker-compos
   ./ops/deploy/upgrade.sh --role app --version 1.0.1
 
 升级不会动数据卷，激活状态保持不变。
-若升级后无法登录或提示设备绑定异常，请把 `docker logs homeos-3d | tail -n 50`
+若升级后无法登录或提示设备绑定异常，请把 `docker logs homeos | tail -n 50`
 的输出发给我们。
 
 回滚（如需）：./ops/deploy/upgrade.sh --role app --version <上一个版本>
@@ -172,7 +215,7 @@ docker compose -f docker-compose.app.yml pull && docker compose -f docker-compos
 
 ```bash
 mkdir -p backup
-docker run --rm -v homeos-3d_homeos-3d-data:/data -v "$PWD/backup":/backup alpine \
+docker run --rm -v homeos_homeos-data:/data -v "$PWD/backup":/backup alpine \
   tar -C /data -czf /backup/app-data-$(date +%Y%m%d).tgz .
 ```
 
@@ -181,7 +224,7 @@ docker run --rm -v homeos-3d_homeos-3d-data:/data -v "$PWD/backup":/backup alpin
 ## 5. 铁律
 
 - **不要 `docker compose down -v`**：会删卷。商店授权私钥卷
-  `homeos-3d-store_homeos-3d-license-keys` 丢了 = 所有已激活客户全部失效。
+  `homeos-store_homeos-license-keys` 丢了 = 所有已激活客户全部失效。
 - **不要跳过中心先升客户机**。
 - **不要中心与客户机用不同 tag**；`upgrade.sh --check` 可随时核对。
 - 升级只 pull + up；数据卷（含公钥缓存 `/data/client-keys`）不动。

@@ -10,8 +10,25 @@
   <!-- 应用根容器 -->
   <div class="app-container">
     <div class="homeos-theme-atmosphere" aria-hidden="true" />
+    <!--
+      整屏展示页开关灯背景图：独立整屏展示页（display / homeos）没有主布局壳，
+      整屏即布局区域，故 fixed 铺满视口，3D 场景透明叠于其上。
+      总览首页（dashboard）有主布局壳，背景层由 MainLayout 渲染在页面布局区域内
+      （导航 + 户型图 + 侧边栏 + 底部信息栏），此处不重复挂载。其它管理页保持原样。
+    -->
+    <div
+      v-if="isDisplayBackdropRoute"
+      class="homeos-light-backdrop"
+      :style="lightBackdropStyle"
+      aria-hidden="true"
+    />
+    <!--
+      授权门禁就地渲染（并入 homeos-3d App.vue 行为）：后端在返回 SPA 外壳时给 `<html>`
+      标 `data-license-blocked="1"`，此时原样保留当前地址渲染授权恢复页；恢复后重载回到原地址。
+    -->
+    <LicenseRecoveryView v-if="licenseBlocked" />
     <!-- 路由视图，带淡入淡出过渡动画 -->
-    <ErrorBoundary :title="'页面加载失败'">
+    <ErrorBoundary v-else :title="'页面加载失败'">
       <router-view v-slot="{ Component }">
         <transition name="fade" mode="out-in">
           <!-- 顶层 matched 作 key：/devices ↔ /scenes 等子路由切换不重建 MainLayout -->
@@ -33,15 +50,20 @@
  * 1. 路由视图渲染（带 fade 过渡动画）
  * 2. 认证状态监听：登录后自动连接 Socket.IO 并加载 UI 配置
  * 3. 未认证 / 未商业授权时断开 Socket.IO 连接
+ * 4. 并入 3D Studio 的页面资产调度与授权恢复就地渲染（原 studio/App.vue）
  */
-import { computed, watch } from 'vue'
+import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useAppTheme } from '@/composables/ui/useAppTheme'
+import { logger } from '@/utils/core/logger'
 import { useClientPowerReporter } from '@/composables/energy/useClientPowerReporter'
-import { isLicenseGateOpen, useLicenseActivatedRef } from '@/router/license-gate'
+import { useDisplayLightBackdropState } from '@/composables/display/display-light-backdrop'
 import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
+import { applyPageAssets, PAGE_ASSETS } from '@/studio/page-assets'
+
+const LicenseRecoveryView = defineAsyncComponent(() => import('@/studio/views/LicenseRecoveryView.vue'))
 
 // 初始化应用主题（监听并应用用户偏好的亮/暗主题）
 useAppTheme()
@@ -50,7 +72,38 @@ useClientPowerReporter()
 const authStore = useAuthStore()
 const layoutStore = useLayoutStore()
 const route = useRoute()
-const licenseActivatedRef = useLicenseActivatedRef()
+
+/**
+ * 独立整屏展示页路由名集合：只有这些页面（无主布局壳）把开关灯背景图铺满整个视口。
+ *
+ * `dashboard`（总览首页）不在此列：它挂在 MainLayout 里，背景层由 MainLayout 渲染在
+ * 「导航 + 户型图 + 侧边栏 + 底部信息栏」这一页面布局区域内，并随缩放壳层一起缩放。
+ * 若把 `dashboard` 加回来，会退回「position: fixed 铺满整个浏览器页面」的旧行为，
+ * 在缩放留白处把背景图溢出到布局区域之外。
+ */
+const DISPLAY_BACKDROP_ROUTES = new Set(['display', 'homeos'])
+const isDisplayBackdropRoute = computed(() => DISPLAY_BACKDROP_ROUTES.has(String(route.name ?? '')))
+// 独立整屏展示页的整页背景图状态（灯亮 → light_on，全关 → light_off）
+const displayLightBackdrop = useDisplayLightBackdropState()
+const lightBackdropStyle = computed(() =>
+  isDisplayBackdropRoute.value
+    ? { backgroundImage: `url('${displayLightBackdrop.value.url}')` }
+    : {},
+)
+
+/**
+ * 切换 <html data-display-backdrop>：供全局样式把展示页的外壳/视口底层背景改为透明，
+ * 让固定背景层透出；离开展示页时移除，恢复管理页原有的不透明底。
+ */
+watch(
+  isDisplayBackdropRoute,
+  (active) => {
+    if (typeof document === 'undefined') return
+    if (active) document.documentElement.dataset.displayBackdrop = '1'
+    else delete document.documentElement.dataset.displayBackdrop
+  },
+  { immediate: true },
+)
 
 /**
  * 仅顶层路由变化时重建壳（MainLayout / Login 等），子路由切换不 remount 整页。
@@ -60,6 +113,31 @@ const licenseActivatedRef = useLicenseActivatedRef()
  * - /login ↔ /dashboard 等顶层路由切换时 key 变化，触发壳重建
  */
 const shellRouteKey = computed(() => route.matched[0]?.path ?? route.path)
+
+// ── 3D Studio 页面资产调度（并入 studio/App.vue）──
+// 后端在返回 SPA 外壳时给 <html> 标 data-license-blocked="1"：此时就地渲染授权恢复页。
+const licenseBlocked = ref(
+  typeof document !== 'undefined' && document.documentElement.dataset.licenseBlocked === '1',
+)
+
+/**
+ * 按路由同步 <head> 资产（标题 / viewport / theme-color / manifest / 样式表）。
+ *
+ * 必须监听 route.name 而不是 fullPath：SPA 首次导航前 route 是 START_LOCATION
+ * （fullPath 恰好也是 "/"），当目标路由就是 "/"（编辑器）时 fullPath 不变、
+ * immediate watcher 不会再触发，页面资产就永远不会挂上。
+ */
+watch(
+  () => route.name,
+  () => {
+    if (licenseBlocked.value) {
+      applyPageAssets(PAGE_ASSETS.licenseRecovery)
+      return
+    }
+    applyPageAssets(route.meta.assets ?? PAGE_ASSETS.shell)
+  },
+  { immediate: true },
+)
 
 async function disconnectEntities() {
   const { useEntitiesStore } = await import('@/stores/entities.store')
@@ -76,16 +154,15 @@ async function disconnectEntities() {
  * - immediate: true 保证在组件挂载后立即执行一次，恢复已登录会话的连接
  */
 watch(
-  () => [authStore.isAuthenticated, route.name, licenseActivatedRef.value],
+  () => [authStore.isAuthenticated, route.name],
   async (curr, prev) => {
     const isAuth = curr?.[0]
     const wasAuth = prev?.[0]
-    const gateOpen = isLicenseGateOpen()
     const onLoginOrSetup = route.name === 'login' || route.name === 'setup'
     const onActivation = route.name === 'activation'
 
     if (isAuth) {
-      if (!gateOpen || onActivation) {
+      if (onActivation) {
         // 已登录但未授权 / 激活页：必须断开，避免未激活读通道残留
         await disconnectEntities()
         return
@@ -94,14 +171,21 @@ watch(
         // 登录成功后仍短暂停留在 login/setup：交给 auth 侧重连，离开页面后再由下方分支接管
         return
       }
-      const queryProfile = typeof route.query.profile === 'string' ? route.query.profile : undefined
-      await layoutStore.ensureActiveProfileResolved(queryProfile)
-      const { useEntitiesStore } = await import('@/stores/entities.store')
-      const entitiesStore = useEntitiesStore()
-      // ensure：已在握手/升级中则不拆掉现有 socket（避免二次 connect 打断 websocket）
-      entitiesStore.ensureWsConnected()
-      if (!layoutStore.isConfigLoaded && !layoutStore.isConfigLoading) {
-        layoutStore.loadConfig()
+      // watch 回调是 fire-and-forget：这里任何一处 rejection 都不会有调用方接住，
+      // 会变成 unhandledrejection 被 client-log 当作前端异常上报。统一兜底为 warn，
+      // 真正的错误提示仍由 api-client / toast 负责。
+      try {
+        const queryProfile = typeof route.query.profile === 'string' ? route.query.profile : undefined
+        await layoutStore.ensureActiveProfileResolved(queryProfile)
+        const { useEntitiesStore } = await import('@/stores/entities.store')
+        const entitiesStore = useEntitiesStore()
+        // ensure：已在握手/升级中则不拆掉现有 socket（避免二次 connect 打断 websocket）
+        entitiesStore.ensureWsConnected()
+        if (!layoutStore.isConfigLoaded && !layoutStore.isConfigLoading) {
+          await layoutStore.loadConfig()
+        }
+      } catch (err) {
+        logger.warn('登录后连接实时通道 / 加载 UI 配置失败', err)
       }
     } else if (wasAuth) {
       await disconnectEntities()

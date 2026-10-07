@@ -17,10 +17,6 @@ interface DiagnosticsHaInfo {
   wsLeader?: boolean
   /** 重连次数 */
   reconnectCount?: number
-  /** 队列丢弃总数 */
-  queueDroppedTotal?: number
-  /** 命令队列长度 */
-  queueLength?: number
   /** 区域注册表是否可用 */
   registryAvailable?: boolean
 }

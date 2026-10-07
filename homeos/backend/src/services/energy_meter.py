@@ -51,7 +51,11 @@ def _extract_state(state: Any) -> str | None:
 
 
 def compute_meter_delta(old_state: Any, new_state: Any) -> float:
-    """两次读数间的正向 kWh 增量；负跳变（表底重置）或不可解析返回 0。"""
+    """两次读数间的正向 kWh 增量。
+
+    表底重置（新读数小于旧读数）按「重置后累积量」计入 ``new_kwh``，而不是丢弃整段 —— 
+    否则每次清零都会漏掉一段真实用电。不可解析时返回 0。
+    """
     old_raw = _extract_state(old_state)
     new_raw = _extract_state(new_state)
     if old_raw is None or new_raw is None:
@@ -72,14 +76,27 @@ def compute_meter_delta(old_state: Any, new_state: Any) -> float:
         return 0.0
     old_kwh = reading_to_kwh(old_val, attrs)
     new_kwh = reading_to_kwh(new_val, attrs)
-    return new_kwh - old_kwh if new_kwh >= old_kwh else 0.0
+    if new_kwh >= old_kwh:
+        return new_kwh - old_kwh
+    # 负跳变 = 表底清零：把重置后的读数作为本段增量（不会为负，也不会整段丢弃）。
+    return max(0.0, new_kwh)
 
 
-def business_day_key(when: datetime) -> str:
-    tz = ZoneInfo(BUSINESS_TIME_ZONE)
+def _resolve_business_timezone(timezone_name: str | None) -> ZoneInfo:
+    normalized = str(timezone_name or "").strip()
+    if normalized:
+        try:
+            return ZoneInfo(normalized)
+        except Exception:  # noqa: BLE001 - 非法时区名回退默认，不影响计量
+            pass
+    return ZoneInfo(BUSINESS_TIME_ZONE)
+
+
+def business_day_key(when: datetime, timezone_name: str | None = None) -> str:
+    tz = _resolve_business_timezone(timezone_name)
     local = when.astimezone(tz) if when.tzinfo is not None else when.replace(tzinfo=ZoneInfo("UTC")).astimezone(tz)
     return local.strftime("%Y-%m-%d")
 
 
-def business_month_key(when: datetime) -> str:
-    return business_day_key(when)[:7]
+def business_month_key(when: datetime, timezone_name: str | None = None) -> str:
+    return business_day_key(when, timezone_name)[:7]

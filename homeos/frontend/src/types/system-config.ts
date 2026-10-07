@@ -9,7 +9,6 @@ import type {
   SharedCommandProxyConfig,
   SharedEnergyConfig,
   SharedIaqConfig,
-  SharedChildModeConfig,
   SharedExternalConfig,
   SharedFrontendConfig,
   SharedHaConnectorConfig,
@@ -36,7 +35,6 @@ export interface SystemConfig {
   envSensorMap?: EnvSensorMap
   energy?: Partial<SharedEnergyConfig>
   iaq?: Partial<SharedIaqConfig>
-  childMode?: Partial<SharedChildModeConfig>
   security?: SharedSecurityConfig
   ui?: Record<string, unknown>
   homeMode?: Partial<SharedHomeModeConfig>

@@ -6,7 +6,7 @@
 import { useSystemDiagnostics } from '@/composables/settings/useSystemDiagnostics'
 import { testHaConnection } from '@/services/api/ha'
 import { useEntitiesStore } from '@/stores/entities.store'
-import { useLayoutStore } from '@/stores/layout.store'
+import { useHaConnectionStore } from '@/stores/ha-connection.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { getApiErrorMessage } from '@/utils/core/error-message'
 import { logger } from '@/utils/core/logger'
@@ -15,7 +15,7 @@ import { validateHaUrlForDeploy } from '@/utils/ha/url'
 import { copyTextWithNotify } from '@/services/notify'
 import { buildEntitySyncRecommendations } from '@/utils/recommend/entity-sync-recommend.util'
 import { redisHealthViewFromStatus, redisStatusToLabel } from '@/utils/telemetry/redis-status'
-import { afterLayoutCancelSync, syncGlobalLayoutPendingSnapshot, useRegisterSettingsTabPending } from '@/composables/settings/pending.internals'
+import { useRegisterSettingsTabPending } from '@/composables/settings/pending.internals'
 import { useSettingsHubPending } from '@/composables/settings/pending.internals'
 import { useSettingsHubRouteSection } from '@/composables/settings/hub-ui.internals'
 import { useSettingsSave } from '@/composables/settings/hub-ui.internals'
@@ -45,6 +45,9 @@ export function useConnectionPanel(activeTab: () => string) {
 
   const credentials = useConnectionCredentials(loadHaWsMode)
   const {
+    haStore,
+    draft,
+    draftVerifyTls,
     showTokenInput,
     testing,
     testResult,
@@ -90,6 +93,8 @@ export function useConnectionPanel(activeTab: () => string) {
 
   onMounted(async () => {
     await loadSyncFilterSetting()
+    // 连接记录是权威源：先拉一次再建「未保存」基线，否则草稿会比对的空快照。
+    await haStore.load()
     snapshotHaConfigFromStore()
   })
 
@@ -105,6 +110,9 @@ export function useConnectionPanel(activeTab: () => string) {
     haWsModeBadgeMod,
     haWsModeDesc,
     connectionStatCells,
+    haStore,
+    draft,
+    draftVerifyTls,
     showTokenInput,
     testing,
     testResult,
@@ -131,8 +139,14 @@ export function useConnectionPanel(activeTab: () => string) {
 }
 
 // ── useConnectionCredentials ──
+/**
+ * HA 连接凭证面板：草稿表单 ↔ `ha_connections` 记录。
+ *
+ * 单源约定（阶段 3.3）：地址与令牌**只**经 `PUT /ha/connection` 落库，不再写进项目
+ * layout。因此这里的「未保存更改」对比的是本地草稿与服务端快照，而不是 layout JSON。
+ */
 function useConnectionCredentials(onReconnectSuccess?: () => void | Promise<void>) {
-  const layoutStore = useLayoutStore()
+  const haStore = useHaConnectionStore()
   const chrome = useChromeStore()
   const entitiesStore = useEntitiesStore()
   const showTokenInput = ref(false)
@@ -140,7 +154,11 @@ function useConnectionCredentials(onReconnectSuccess?: () => void | Promise<void
   const testResult = ref<{ ok: boolean; message: string; ha_version?: string } | null>(null)
   const { saving, runSave } = useSettingsSave()
   const saveFeedback = ref<{ ok?: boolean; message: string } | null>(null)
-  const initialHaConfig = ref<{ url: string; fallbackUrl: string; token: string } | null>(null)
+
+  /** 表单草稿：令牌输入框留空表示「沿用服务端已保存的令牌」。 */
+  const draft = ref({ url: '', fallbackUrl: '', token: '' })
+  const draftVerifyTls = ref(true)
+  const initialHaConfig = ref<unknown>(null)
 
   let reconnectPollTimer: ReturnType<typeof setTimeout> | null = null
   let reconnectStopped = false
@@ -151,71 +169,111 @@ function useConnectionCredentials(onReconnectSuccess?: () => void | Promise<void
     pendingLabel,
     takeSnapshot: snapshotHaConfig,
     confirmAndRevert,
-  } = useSettingsHubPending({
+  } = useSettingsHubPending<unknown>({
     snapshot: initialHaConfig,
     current: () => ({
-      url: layoutStore.layoutConfig.haConfig.url,
-      fallbackUrl: layoutStore.layoutConfig.haConfig.fallbackUrl || '',
-      token: layoutStore.layoutConfig.haConfig.token,
+      url: draft.value.url.trim(),
+      fallbackUrl: draft.value.fallbackUrl.trim(),
+      token: draft.value.token.trim(),
     }),
     fieldKeys: ['url', 'fallbackUrl', 'token'],
-    ready: () => layoutStore.isConfigLoaded,
+    ready: () => haStore.loaded,
   })
 
+  /** 用服务端快照重置草稿与「未保存」基线。 */
   function snapshotHaConfigFromStore() {
+    const status = haStore.status
+    draft.value = {
+      url: status?.baseUrl || '',
+      fallbackUrl: status?.externalBaseUrl || '',
+      token: '',
+    }
+    draftVerifyTls.value = status?.verifyTls !== false
+    showTokenInput.value = !status?.hasToken
     snapshotHaConfig({
-      url: layoutStore.layoutConfig.haConfig.url,
-      fallbackUrl: layoutStore.layoutConfig.haConfig.fallbackUrl || '',
-      token: layoutStore.layoutConfig.haConfig.token,
+      url: draft.value.url.trim(),
+      fallbackUrl: draft.value.fallbackUrl.trim(),
+      token: '',
     })
   }
 
   async function copyHaUrl() {
-    await copyTextWithNotify(layoutStore.layoutConfig.haConfig.url, {
+    await copyTextWithNotify(draft.value.url, {
       successMessage: 'HA 局域网地址已复制',
       emptyMessage: '暂无 HA 局域网地址可复制',
     })
   }
 
   async function copyHaFallbackUrl() {
-    await copyTextWithNotify(layoutStore.layoutConfig.haConfig.fallbackUrl || '', {
+    await copyTextWithNotify(draft.value.fallbackUrl, {
       successMessage: 'HA 外网地址已复制',
       emptyMessage: '暂无 HA 外网地址可复制',
     })
   }
 
+  /** 校验表单地址；返回错误文案，通过则返回 null。 */
+  function validateDraft(): string | null {
+    if (!draft.value.url.trim()) return '请先填写局域网 HA 地址'
+    const urlErr = validateHaUrlForDeploy(draft.value.url.trim())
+    if (urlErr) return urlErr
+    if (draft.value.fallbackUrl.trim()) {
+      const fallbackErr = validateHaUrlForDeploy(draft.value.fallbackUrl.trim())
+      if (fallbackErr) return `外网地址：${fallbackErr}`
+    }
+    if (!haStore.hasToken && !draft.value.token.trim()) return '请先填写 HA 访问令牌'
+    return null
+  }
+
+  /** 收窄后的保存载荷：令牌留空表示沿用服务端已保存的令牌。 */
+  function buildPayload(reuseToken = false) {
+    return {
+      baseUrl: draft.value.url.trim(),
+      externalBaseUrl: draft.value.fallbackUrl.trim() || null,
+      accessToken: draft.value.token.trim() || null,
+      verifyTls: draftVerifyTls.value,
+      reuseTokenForNewUrl: reuseToken,
+    }
+  }
+
+  /** 后端要求显式确认「地址变了仍复用旧令牌」时，弹确认后重发。 */
+  function isTokenReuseConflict(error: unknown): boolean {
+    if (!error || typeof error !== 'object') return false
+    const detail = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
+    return Boolean(
+      detail &&
+        typeof detail === 'object' &&
+        (detail as { code?: string }).code === 'HA_URL_CHANGED_TOKEN_REUSE',
+    )
+  }
+
   async function saveAndReconnect() {
-    const url = layoutStore.layoutConfig.haConfig.url?.trim()
-    const fallbackUrl = layoutStore.layoutConfig.haConfig.fallbackUrl?.trim() || ''
-    const token = layoutStore.layoutConfig.haConfig.token?.trim()
-    if (!url || !token) {
-      saveFeedback.value = { ok: false, message: '请先填写局域网 HA 地址与令牌' }
+    const invalid = validateDraft()
+    if (invalid) {
+      saveFeedback.value = { ok: false, message: invalid }
       return
-    }
-    const urlErr = validateHaUrlForDeploy(url)
-    if (urlErr) {
-      saveFeedback.value = { ok: false, message: urlErr }
-      return
-    }
-    if (fallbackUrl) {
-      const fallbackErr = validateHaUrlForDeploy(fallbackUrl)
-      if (fallbackErr) {
-        saveFeedback.value = { ok: false, message: `外网地址：${fallbackErr}` }
-        return
-      }
     }
     saveFeedback.value = { message: '配置已保存，正在重连…' }
     await runSave(
       async () => {
-        layoutStore.layoutConfig.haConfig.fallbackUrl = fallbackUrl
-        const ok = await layoutStore.saveConfig(false)
-        if (!ok) {
-          saveFeedback.value = { ok: false, message: '保存失败，请重试' }
-          return
+        let saved
+        try {
+          saved = await haStore.save(buildPayload())
+        } catch (error) {
+          if (!isTokenReuseConflict(error)) throw error
+          const reuse = await chrome.confirm(
+            'HA 地址已变更：确认继续沿用已保存的访问令牌？仅在新地址可信时这么做。',
+            '地址已变更',
+            { type: 'danger', confirmText: '沿用令牌', cancelText: '取消' },
+          )
+          if (!reuse) {
+            saveFeedback.value = { ok: false, message: '已取消保存：请重新输入新地址对应的令牌' }
+            return
+          }
+          saved = await haStore.save(buildPayload(true))
         }
+        // 令牌已交给服务端，草稿里不再保留明文。
+        draft.value.token = ''
         snapshotHaConfigFromStore()
-        syncGlobalLayoutPendingSnapshot(layoutStore.layoutConfig)
-        showTokenInput.value = false
         reconnectStopped = false
         for (let i = 0; i < 15; i++) {
           await new Promise<void>((r) => {
@@ -238,7 +296,9 @@ function useConnectionCredentials(onReconnectSuccess?: () => void | Promise<void
         if (reconnectStopped) return
         saveFeedback.value = {
           ok: false,
-          message: '保存成功，但 15 秒内未检测到 HA 连接，请检查地址与令牌',
+          message: `保存成功，但 15 秒内未检测到 HA 连接，请检查地址与令牌${
+            saved?.lastError ? `（${saved.lastError}）` : ''
+          }`,
         }
       },
       {
@@ -250,68 +310,30 @@ function useConnectionCredentials(onReconnectSuccess?: () => void | Promise<void
   }
 
   async function testConnection() {
-    const url = layoutStore.layoutConfig.haConfig.url?.trim()
-    const fallbackUrl = layoutStore.layoutConfig.haConfig.fallbackUrl?.trim() || ''
-    const token = layoutStore.layoutConfig.haConfig.token?.trim()
-    if (!url) {
-      testResult.value = { ok: false, message: '请填写局域网 HA 服务地址' }
+    const invalid = validateDraft()
+    if (invalid) {
+      testResult.value = { ok: false, message: invalid }
+      if (!haStore.hasToken) showTokenInput.value = true
       return
-    }
-    if (!token) {
-      testResult.value = { ok: false, message: '请先填写或保留已保存的访问令牌' }
-      if (!showTokenInput.value) showTokenInput.value = true
-      return
-    }
-    const urlErr = validateHaUrlForDeploy(url)
-    if (urlErr) {
-      testResult.value = { ok: false, message: urlErr }
-      return
-    }
-    if (fallbackUrl) {
-      const fallbackErr = validateHaUrlForDeploy(fallbackUrl)
-      if (fallbackErr) {
-        testResult.value = { ok: false, message: `外网地址：${fallbackErr}` }
-        return
-      }
     }
     testing.value = true
     testResult.value = null
     try {
-      // 探测由 HomeOS 后端发起（Docker/容器内视角），不是浏览器本机可达性
-      const primary = await testHaConnection({ url, token })
-      if (primary.data?.ok) {
-        testResult.value = {
-          ...primary.data,
-          message: primary.data.message
-            ? `局域网可达：${primary.data.message}`
-            : '局域网地址连接成功',
-        }
-        return
-      }
-      const lanFail = primary.data?.message || '失败'
-      if (fallbackUrl) {
-        const fallback = await testHaConnection({ url: fallbackUrl, token })
-        if (fallback.data?.ok) {
-          testResult.value = {
-            ...fallback.data,
-            message: fallback.data.message
-              ? `后端无法访问局域网（${lanFail}），外网可达：${fallback.data.message}`
-              : `后端无法访问局域网（${lanFail}），外网地址连接成功`,
-          }
-          return
-        }
-        testResult.value = {
-          ok: false,
-          message: `局域网与外网均不可达。局域网：${lanFail}；外网：${fallback.data?.message || '失败'}`,
-        }
-        return
-      }
-      testResult.value = primary.data || { ok: false, message: '局域网地址连接失败' }
-    } catch (e) {
+      // 探测由 HomeOS 后端发起（Docker/容器内视角），不是浏览器本机可达性。
+      // 后端会自行对局域网/外网两路各测一次，并把需要换地址续试的提示写进 lastError。
+      const { data } = await testHaConnection(buildPayload())
+      const failed = (data.endpoints || []).filter((item) => !item.ok)
       testResult.value = {
-        ok: false,
-        message: getApiErrorMessage(e, '探测失败'),
+        ok: Boolean(data.ok),
+        message: data.ok
+          ? data.version
+            ? `连接成功：HA ${data.version}`
+            : '连接成功'
+          : `地址不可达：${failed.map((item) => `${item.label}（${item.baseUrl}）`).join('；') || '请检查地址与网络'}`,
+        ha_version: data.version || undefined,
       }
+    } catch (e) {
+      testResult.value = { ok: false, message: getApiErrorMessage(e, '探测失败') }
     } finally {
       testing.value = false
     }
@@ -320,17 +342,12 @@ function useConnectionCredentials(onReconnectSuccess?: () => void | Promise<void
   async function cancelChanges() {
     await confirmAndRevert(
       chrome,
-      (baseline) => {
-        const b = baseline as { url: string; fallbackUrl?: string; token: string }
-        layoutStore.layoutConfig.haConfig.url = b.url
-        layoutStore.layoutConfig.haConfig.fallbackUrl = b.fallbackUrl || ''
-        layoutStore.layoutConfig.haConfig.token = b.token
-        showTokenInput.value = false
+      () => {
+        snapshotHaConfigFromStore()
         testResult.value = null
         saveFeedback.value = null
-        snapshotHaConfigFromStore()
       },
-      { onReverted: () => afterLayoutCancelSync(layoutStore.layoutConfig) },
+      { title: '放弃更改' },
     )
   }
 
@@ -341,7 +358,9 @@ function useConnectionCredentials(onReconnectSuccess?: () => void | Promise<void
   })
 
   return {
-    layoutStore,
+    haStore,
+    draft,
+    draftVerifyTls,
     showTokenInput,
     testing,
     testResult,

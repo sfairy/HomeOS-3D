@@ -4,24 +4,26 @@
 
 关键策略：
 - 导出附 ``kind=homeos-users``，含 username / role / preferences / tokenVersion / createdAt；
-- 导入时角色不合法回退到 adult，密码由 bcrypt 重置为随机串（不导出原密码哈希）；
-- tokenVersion 同步写入 :class:`TokenVersionCache`，确保导入后旧 token 立即失效。
+- 导入时角色不合法回退到 adult；
+- **凭据唯一权威是** :class:`AdminAccountStore`（凭据外置在账号文件里，``users.password``
+  恒为哨兵值）。因此导入新建的用户不写任何可用密码，也不生成临时密码 —— 非管理员用户
+  的身份由会话内的 ``role`` 决定，登录只对管理员凭据开放。
+- 会话是 ``sessions`` 表里的 DB 记录，导入不做任何 token 版本失效动作（无状态 JWT 概念已退役）。
 """
 
 from __future__ import annotations
 
 import json
 import logging
-import secrets
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import delete, select, update
 
+from ...admin_account import EXTERNAL_PASSWORD_SENTINEL
 from ...core.json_field import read_json_object
 from ...core.models import User
-from ...security.passwords import hash_password
 
 logger = logging.getLogger("homeos.backup.users")
 
@@ -61,13 +63,8 @@ def _iso(value: datetime | None) -> str | None:
 class UsersBackupService:
     """Nest ``UsersBackupService`` 等价实现（Users 表读写 + tokenVersion 缓存同步）。"""
 
-    def __init__(
-        self,
-        session_factory: Callable[[], Any],
-        token_version_cache: Any = None,
-    ) -> None:
+    def __init__(self, session_factory: Callable[[], Any]) -> None:
         self._session_factory = session_factory
-        self._token_version_cache = token_version_cache
 
     # ------------------------------------------------------------------ #
     # 导出
@@ -137,12 +134,9 @@ class UsersBackupService:
                         }
                     )
                     continue
-                temporary_password = secrets.token_urlsafe(12)
                 to_create.append(
                     {
                         "username": username,
-                        "password_hash": hash_password(temporary_password),
-                        "temporary_password": temporary_password,
                         "role": parse_user_role(row.get("role")),
                         "preferences": row.get("preferences") or {},
                         "token_version": int(row.get("tokenVersion") or 0),
@@ -166,30 +160,21 @@ class UsersBackupService:
                     session.add(
                         User(
                             username=item["username"],
-                            password=item["password_hash"],
+                            password=EXTERNAL_PASSWORD_SENTINEL,
                             role=item["role"],
                             preferences=_dump_json(item["preferences"]),
                             token_version=item["token_version"],
                         )
                     )
 
-        for item in to_update:
-            self._invalidate(item["id"])
         for item in to_create:
-            logger.warning("备份导入新用户 %s,已生成临时密码,请管理员重置", item["username"])
+            logger.info("备份导入新用户 %s（无登录凭据，登录仅对管理员开放）", item["username"])
 
         return {
             "created": len(to_create),
             "skipped": skipped,
             "updated": len(to_update),
             "createdUsernames": [item["username"] for item in to_create],
-            "temporaryPasswords": [
-                {
-                    "username": item["username"],
-                    "temporaryPassword": item["temporary_password"],
-                }
-                for item in to_create
-            ],
         }
 
     def rollback_users_import(
@@ -227,38 +212,11 @@ class UsersBackupService:
                         )
                     )
 
-        for prior in prior_users or []:
-            if not isinstance(prior, dict):
-                continue
-            username = str(prior.get("username") or "").strip()
-            if not username:
-                continue
-            with self._session_factory() as session:
-                row = session.execute(
-                    select(User).where(User.username == username)
-                ).scalar_one_or_none()
-            if row is not None:
-                self._invalidate(row.id)
-
         logger.warning(
             "已回滚用户导入:删除 %s 个新建账号,恢复 %s 个既有账号元数据",
             len(created_usernames or []),
             len(prior_users or []),
         )
-
-    # ------------------------------------------------------------------ #
-    # 内部工具
-    # ------------------------------------------------------------------ #
-    def _invalidate(self, user_id: str) -> None:
-        cache = self._token_version_cache
-        if cache is None:
-            return
-        try:
-            cache.invalidate(user_id)
-        except Exception:  # noqa: BLE001 - 缓存失效失败不影响导入结果
-            logger.warning("tokenVersion 缓存失效失败: %s", user_id)
-
-
 __all__ = [
     "USERS_BACKUP_KIND",
     "USER_ROLES",

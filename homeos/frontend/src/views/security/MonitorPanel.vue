@@ -171,6 +171,7 @@ import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Shield, AlertTriangle, Settings as SettingsIcon } from '@lucide/vue'
 import { useEntitiesStore } from '@/stores/entities.store'
+import { useHaConnectionStore } from '@/stores/ha-connection.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useEntityDisplayEpoch } from '@/composables/entity/useEntityDisplayEpoch'
@@ -198,8 +199,9 @@ const cameraDisplayEpoch = useEntityDisplayEpoch('camera')
 
 // 已绑定的摄像头实体 ID 列表（来自布局配置 haConfig.securityCameras）
 const allCameras = computed(() => layoutStore.layoutConfig.haConfig.securityCameras || [])
-// HA 实例地址，用于拼接摄像头快照 URL
-const haUrl = computed(() => layoutStore.layoutConfig.haConfig.url)
+// HA 实例地址（跟随 failover；连接地址单源在 stores/ha-connection.store.ts）
+const haConnectionStore = useHaConnectionStore()
+const haUrl = computed(() => haConnectionStore.baseUrl)
 // 视图模式：detail 单路 / grid 多路
 const viewMode = ref('detail')
 // 轮巡间隔（秒），0 表示关闭轮巡
@@ -314,6 +316,10 @@ function stopCarousel() {
 
 // 间隔 / 视图模式 / 摄像头列表变化时重启轮巡任务
 watch([carouselSec, viewMode, allCameras], () => startCarousel(), { deep: true })
+onMounted(() => {
+  // 连接地址是拼 HA 绝对 URL 的前提；store 内部对失败做了兜底，不阻塞页面渲染。
+  void haConnectionStore.load()
+})
 onMounted(startCarousel)
 onUnmounted(stopCarousel)
 

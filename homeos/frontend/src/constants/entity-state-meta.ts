@@ -3,7 +3,7 @@
  *
  * 职责：
  * - 维护 HA 实体 state 值到「中文短标签 + 语义色（HEX）」的一体化映射表，
- *   供部件设置、户型图热点、状态本地化共用（由原 entity-state-labels /
+ *   供部件设置、3D 热点、状态本地化共用（由原 entity-state-labels /
  *   entity-state-colors 双表合并而来，新增状态只需改这一处）。
  * - 提供状态标签 / 语义色查询函数（保持原双表的 fallback 行为）。
  *

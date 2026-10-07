@@ -25,7 +25,6 @@ CONFIG_AUDIT_STORAGE_ID = "config-audit"
 CONFIG_REPLACE_ON_UPDATE_SECTIONS: tuple[str, ...] = (
     "envSensorMap",
     "mediaPlaylists",
-    "childMode",
 )
 
 #: 分区内的 Record 字段：局部更新时整段替换（非 deep merge）。

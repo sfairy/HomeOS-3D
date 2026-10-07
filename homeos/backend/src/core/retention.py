@@ -11,28 +11,22 @@ RETENTION_DAYS_MAX = 365
 #: retention 配置分区与清理步骤共用的表键（对齐 retention-tables.ts）。
 RETENTION_TABLE_KEYS: tuple[str, ...] = (
     "eventLog",
-    "commandAudit",
     "notification",
     "securityEvent",
-    "loginAudit",
 )
 
 #: 物理表名（对齐 Prisma 模型名 / Python __tablename__ 的可读名）。
 RETENTION_TABLE_NAMES: dict[str, str] = {
     "eventLog": "EventLog",
-    "commandAudit": "CommandAudit",
     "notification": "Notification",
     "securityEvent": "SecurityEvent",
-    "loginAudit": "LoginAudit",
 }
 
 #: 中文显示名（供设置面板展示）。
 RETENTION_TABLE_LABELS: dict[str, str] = {
     "eventLog": "事件日志",
-    "commandAudit": "命令审计",
     "notification": "通知记录（按天数；条数上限另见 maxNotifications）",
     "securityEvent": "安防事件",
-    "loginAudit": "登录审计",
 }
 
 EVENT_LOG_QUERY_HOUR_STEPS = (3, 6, 12, 24, 48, 72, 168)
@@ -57,10 +51,8 @@ DEFAULT_OPS: dict[str, Any] = {
 
 DEFAULT_RETENTION: dict[str, int] = {
     "eventLog": RETENTION_DEFAULT_DAYS,
-    "commandAudit": RETENTION_DEFAULT_DAYS,
     "notification": RETENTION_DEFAULT_DAYS,
     "securityEvent": RETENTION_DEFAULT_DAYS,
-    "loginAudit": RETENTION_DEFAULT_DAYS,
 }
 
 

@@ -44,7 +44,7 @@
 #       docker compose -f docker-compose.app.yml ps
 #       curl -fsS http://127.0.0.1:8801/health/ready
 #       curl -fsS http://127.0.0.1:8802/healthz
-#       docker logs homeos-3d | head   # 取 /setup 引导密钥（桥接网络访问时需要）
+#       docker logs homeos | head   # 取 /setup 引导密钥（桥接网络访问时需要）
 #
 # [ ] 5. 内网 HTTPS（镜像内置，无需额外操作）
 #       主应用与商店的镜像各自内置 Caddy 反代，与应用同容器、同镜像 tag：
@@ -75,11 +75,11 @@
 #
 # [ ] 8. 加固
 #       备份 volume（两个 compose 文件各自带项目名前缀）：
-#                    homeos-3d_homeos-3d-data        （主应用，含自动取回的公钥缓存）
-#                    homeos-3d_homeos-3d-secrets     （主应用）
-#                    homeos-3d-store_homeos-3d-store-data    （商店）
-#                    homeos-3d-store_homeos-3d-license-keys  （授权私钥）
-#                    homeos-3d-client-keys           （共享公钥，--role all 用）
+#                    homeos_homeos-data        （主应用，含自动取回的公钥缓存）
+#                    homeos_homeos-secrets     （主应用）
+#                    homeos-store_homeos-store-data    （商店）
+#                    homeos-store_homeos-license-keys  （授权私钥）
+#                    homeos-client-keys           （共享公钥，--role all 用）
 #       GHCR 私有包：docker login ghcr.io
 #
 # [ ] 9. 升级

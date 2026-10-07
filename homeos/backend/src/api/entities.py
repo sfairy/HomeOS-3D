@@ -2,7 +2,7 @@
 
 逐条对齐 Nest ``StateStoreController``：
 
-- ``GET  entities``：实体列表（page/limit 或 cursor/limit 分页 + 500ms 短时缓存）；
+- ``GET  entities``：实体列表（page/limit 或 cursor/limit 分页，直读 StateStore 单读模型）；
 - ``GET  entities/changed``：增量变更（基于 recentChanges 环形缓冲）；
 - ``GET  entities/areas/list``：HA 区域列表（area_registry）；
 - ``GET  entities/:entity_id/references``：查询引用该实体的功能配置；
@@ -14,7 +14,6 @@
 
 from __future__ import annotations
 
-import time
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
@@ -39,9 +38,6 @@ from ..security.auth_context import require_roles, require_user
 from .router import NestRouter
 
 router = NestRouter(prefix="/entities", tags=["connect"])
-
-#: ``GET /entities`` 单槽短时缓存（对齐 Nest 控制器实例字段 ``restCache``）。
-_REST_CACHE: dict[str, Any] = {"key": None, "data": None, "at": 0.0}
 
 
 class StrictModel(BaseModel):
@@ -104,23 +100,6 @@ def _references(request: Request):
     return request.app.state.entity_references
 
 
-def _rest_cache_ttl_ms(request: Request) -> int:
-    try:
-        section = request.app.state.app_config.get("stateStore") or {}
-        return int(section.get("restCacheTtlMs", 500))
-    except Exception:  # noqa: BLE001
-        return 500
-
-
-def _restrictions_cache_key(user: dict[str, Any]) -> str:
-    restrictions = resolve_entity_restrictions(user)
-    if restrictions is None:
-        return "*"
-    if not restrictions:
-        return ""
-    return ",".join(sorted(str(item) for item in restrictions))
-
-
 def _iso_now() -> str:
     now = datetime.now(UTC)
     return now.strftime("%Y-%m-%dT%H:%M:%S.") + f"{now.microsecond // 1000:03d}Z"
@@ -140,27 +119,8 @@ async def get_all_entities(
     limit: str | None = Query(default=None),
     cursor: str | None = Query(default=None),
 ):
-    role = user.get("role") or "anon"
-    cache_key = "|".join(
-        [
-            role,
-            _restrictions_cache_key(user),
-            domain or "",
-            search or "",
-            status or "",
-            area or "",
-            sort or "",
-            controllable or "",
-            page or "",
-            limit or "",
-            cursor or "",
-        ]
-    )
-    now_ms = time.monotonic() * 1000
-    cached = _REST_CACHE
-    if cached["key"] == cache_key and now_ms - cached["at"] < _rest_cache_ttl_ms(request):
-        return cached["data"]
-
+    # 单读模型：不做 REST 层缓存，直接由 StateStore（唯一事实源）实时组装，
+    # 避免出现「缓存与状态库各持一份」的双读模型与陈旧响应。
     store = _store(request)
     entities = filter_entities_by_access(store.get_all(domain), user)
 
@@ -224,7 +184,6 @@ async def get_all_entities(
                 "storeTotal": store.get_count(),
             }
 
-    _REST_CACHE.update({"key": cache_key, "data": result, "at": now_ms})
     return result
 
 
@@ -362,7 +321,6 @@ async def batch_update_entity_area(
         except Exception:  # noqa: BLE001
             errors.append(entity_id)
 
-    _REST_CACHE["key"] = None
     entity_area = _entity_area(request)
     entity_area.invalidate()
     await entity_area.publish_entity_area_updates(updated_ids)

@@ -12,7 +12,7 @@ def _default_env_file() -> Path:
     here = Path(__file__).resolve()
     project = here.parents[3]
     repo = project.parent
-    if (repo / "homeos-3d").is_dir() or (repo / "homeos-store").is_dir():
+    if (repo / "homeos").is_dir() or (repo / "homeos-store").is_dir():
         return repo / ".env"
     return project / ".env"
 

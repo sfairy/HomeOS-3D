@@ -12,6 +12,7 @@ import {
   computeNotificationAnalyticsSummary,
   formatHourOption,
   formatNotificationCount,
+  formatPercent,
   levelFilterLabel,
   NOTIFICATION_HOUR_OPTIONS,
   type NotificationStatsPayload,
@@ -82,7 +83,7 @@ export function useNotificationsView() {
   )
 
   const pageHint = computed(() => {
-    const parts = [`分析近 ${formatHourOption(hours.value)} 内持久化通知（PostgreSQL）与实时消息`]
+    const parts = [`分析近 ${formatHourOption(hours.value)} 内持久化通知（SQLite）与实时消息`]
     const dnd = dndSettings.value as
       | { dndActive?: boolean; dndStart?: number | string; dndEnd?: number | string }
       | null
@@ -103,7 +104,7 @@ export function useNotificationsView() {
       { key: 'total', value: formatNotificationCount(s.total), label: '统计总量', tone: 'sky' },
       {
         key: 'read-rate',
-        value: `${s.readRate}%`,
+        value: formatPercent(s.readRate),
         label: '已读率',
         tone: s.readRate >= 80 ? 'green' : 'amber',
       },
@@ -113,7 +114,7 @@ export function useNotificationsView() {
         label: '紧急',
         tone: s.dangerCount > 0 ? 'red' : 'muted',
       },
-      { key: 'delivery', value: `${s.deliveryRate}%`, label: '推送送达', tone: 'amber' },
+      { key: 'delivery', value: formatPercent(s.deliveryRate), label: '推送送达', tone: 'amber' },
     ]
     if (lanPushReady.value) {
       cells.push({ key: 'lan', value: '已连接', label: '局域网推送', tone: 'green' })

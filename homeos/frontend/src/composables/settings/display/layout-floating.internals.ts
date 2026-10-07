@@ -62,17 +62,7 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
     visibleTabs: [] as string[],
   })
 
-  const selectedFloorId = ref(layoutConfig.value.activeFloorId)
-
-  const effectiveFloorId = computed(() => {
-    const exists = layoutConfig.value.floors.some((f) => f.id === selectedFloorId.value)
-    return exists ? selectedFloorId.value : layoutConfig.value.activeFloorId
-  })
-
-  const activeFloorFloatingWidgets = computed(() => {
-    const floor = layoutConfig.value.floors.find((f) => f.id === effectiveFloorId.value)
-    return floor?.floatingWidgets || []
-  })
+  const floatingWidgets = computed(() => layoutConfig.value.floatingWidgets || [])
 
   async function toggleAfhLock() {
     const prev = layoutConfig.value.isAfhLocked
@@ -113,7 +103,7 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
         ...extraConfig,
       },
     }
-    layoutStore.addFloatingWidget(widget, effectiveFloorId.value)
+    layoutStore.addFloatingWidget(widget)
     showAddFloating.value = false
     chrome.notify('已添加新的浮动组件', 'success')
   }
@@ -174,7 +164,7 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
       customColorLabel?: string
       customColorValue?: string
     }
-    const widget = activeFloorFloatingWidgets.value.find((w) => w.id === afhEditId.value)
+    const widget = floatingWidgets.value.find((w) => w.id === afhEditId.value)
     if (widget) {
       widget.xPct = snap.xPct
       widget.yPct = snap.yPct
@@ -211,7 +201,7 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
 
   const isAfhEditorDirty = computed(() => {
     if (!afhEditId.value || !afhEditSnapshot.value) return false
-    const widget = activeFloorFloatingWidgets.value.find((w) => w.id === afhEditId.value)
+    const widget = floatingWidgets.value.find((w) => w.id === afhEditId.value)
     if (!widget) return false
     return afhEditSnapshot.value !== buildAfhEditSnapshot(widget)
   })
@@ -231,7 +221,7 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
       afhEditSnapshot.value = null
       return
     }
-    const widget = activeFloorFloatingWidgets.value.find((w) => w.id === widgetId)
+    const widget = floatingWidgets.value.find((w) => w.id === widgetId)
     if (widget) {
       const cfg = (widget.config || {}) as Record<string, unknown>
       afhConfig.entityId = String(cfg.entityId || '')
@@ -298,7 +288,7 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
 
   async function saveAfhConfigAsync() {
     if (!afhEditId.value) return
-    const widget = activeFloorFloatingWidgets.value.find((w) => w.id === afhEditId.value)
+    const widget = floatingWidgets.value.find((w) => w.id === afhEditId.value)
     const widgetType = widget?.type || ''
     const { normalizeZonesForApi } = await import('@/utils/security/zones-api.util')
     const zonesForSave = normalizeZonesForApi(
@@ -340,13 +330,9 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
       Object.assign(nextConfig, tabFields)
       if (!('visibleTabs' in tabFields)) delete nextConfig.visibleTabs
     }
-    layoutStore.updateFloatingWidget(
-      afhEditId.value,
-      {
-        config: nextConfig,
-      },
-      effectiveFloorId.value,
-    )
+    layoutStore.updateFloatingWidget(afhEditId.value, {
+      config: nextConfig,
+    })
     afhEditSnapshot.value = null
     closeEdit()
 
@@ -390,7 +376,7 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
   }
 
   async function removeFloatingWidgetById(id: string) {
-    const fw = activeFloorFloatingWidgets.value.find((w) => w.id === id)
+    const fw = floatingWidgets.value.find((w) => w.id === id)
     const title = fw?.config?.title || fw?.type || '组件'
     const ok = await confirmRemoveWidget(chrome, {
       message: `确定删除浮动组件「${title}」？`,
@@ -398,7 +384,7 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
       confirmOptions: { confirmText: '删除', type: 'danger' },
     })
     if (!ok) return
-    layoutStore.removeFloatingWidget(id, effectiveFloorId.value)
+    layoutStore.removeFloatingWidget(id)
     if (afhEditId.value === id) closeEdit()
   }
 
@@ -412,17 +398,6 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
 
   function goSecurityModes() {
     router.push(SETTINGS_ROUTES.securityModes())
-  }
-
-  function selectFloatingFloor(floorId: string) {
-    if (!layoutConfig.value.floors.some((f) => f.id === floorId)) return
-    selectedFloorId.value = floorId
-    closeEdit()
-  }
-
-  function floatingWidgetCount(floorId: string) {
-    const floor = layoutConfig.value.floors.find((f) => f.id === floorId)
-    return floor?.floatingWidgets?.length || 0
   }
 
   watch(
@@ -441,10 +416,7 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
     afhConfig,
     afhHubTabs,
     isAfhEditorDirty,
-    effectiveFloorId,
-    activeFloorFloatingWidgets,
-    selectFloatingFloor,
-    floatingWidgetCount,
+    floatingWidgets,
     toggleAfhLock,
     addFloatingWidgetByType,
     toggleAfhEditor,
@@ -495,22 +467,16 @@ export function getFloatingCategoryLabel(type: string) {
 
 interface FloatingPanelDisplayOptions {
   layoutStore: ReturnType<typeof useLayoutStore>
-  effectiveFloorId: Ref<string>
   afhEditId: Ref<string | null>
 }
 
 export function useFloatingPanelDisplay({
   layoutStore,
-  effectiveFloorId,
   afhEditId,
 }: FloatingPanelDisplayOptions) {
   const openSection = ref('layout')
 
   const floatingCatalogGroups = computed(() => getFloatingCatalogGroups())
-
-  const currentFloorName = computed(
-    () => layoutStore.layoutConfig.floors.find((f) => f.id === effectiveFloorId.value)?.name || '—',
-  )
 
   watch(afhEditId, (id) => {
     if (id) openSection.value = 'layout'
@@ -523,7 +489,6 @@ export function useFloatingPanelDisplay({
   return {
     openSection,
     floatingCatalogGroups,
-    currentFloorName,
     toggleFloatingVisible,
   }
 }

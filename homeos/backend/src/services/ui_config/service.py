@@ -1,7 +1,7 @@
 """UI 配置服务（对齐 ``modules/ui-config/service.ts``）。
 
 负责项目布局配置（ProjectConfig 表）的 CRUD、导入导出、终端 display profile 绑定，
-以及平面图 / 背景图 / 房间图 / 图标静态资源的委托操作。
+以及背景图 / 图标静态资源的委托操作。
 
 说明：SQLite 端口把 Prisma ``Json`` 字段以 TEXT 存储，对外仍返回解析后的对象，
 保证 HTTP 契约与 Nest 一致。
@@ -25,11 +25,10 @@ from ...core.errors import (
 )
 from ...core.json_field import read_json_object, to_input_json
 from ...core.models import ProjectConfig
-from ..ha_config import allow_ha_localhost, validate_ha_url_for_deploy
 from .layout_secrets import (
-    extract_ha_config_fingerprint,
     mask_layout_for_role,
     merge_layout_secrets_on_save,
+    strip_legacy_ha_connection,
 )
 from .static_assets import UiConfigStaticAssetService
 
@@ -78,7 +77,8 @@ class UiConfigService:
         return {
             "id": row.id,
             "projectId": row.project_id,
-            "layout": read_json_object(row.layout),
+            # 读路径统一清掉历史 layout.haConfig 里的连接凭据（3.3 起单源到 ha_connections）。
+            "layout": strip_legacy_ha_connection(read_json_object(row.layout)),
             "createdAt": _iso(row.created_at),
             "updatedAt": _iso(row.updated_at),
         }
@@ -103,14 +103,6 @@ class UiConfigService:
                 return {}, True
             return (parsed, False) if isinstance(parsed, dict) else ({}, True)
         return {}, True
-
-    def _validate_ha_url(self, layout: dict[str, Any]) -> None:
-        ha_config = layout.get("haConfig")
-        url = ha_config.get("url") if isinstance(ha_config, dict) else None
-        if isinstance(url, str) and url.strip():
-            error = validate_ha_url_for_deploy(url, allow_localhost=allow_ha_localhost())
-            if error:
-                bad_request(error)
 
     def _profiles(self) -> dict[str, Any]:
         profiles = self._app_config.get("profiles")
@@ -361,13 +353,16 @@ class UiConfigService:
     # 保存 / 删除 / 导入 / 导出
     # ------------------------------------------------------------------ #
     def save_config(self, project_id: str, layout: Any) -> dict[str, Any]:
-        """保存或更新项目配置（保存后广播 SYSTEM_CONFIG_UPDATED 供 HA 连接器热更新）。"""
+        """保存或更新项目配置（保存后广播 SYSTEM_CONFIG_UPDATED 供旁路消费者热更新）。
+
+        3.3 起 layout 不再承载 HA 连接配置，因此保存布局**不会**改变 HA 连接：地址与
+        令牌的变更路径是 ``PUT /ha/connection``（由它自己重启连接器）。这里照旧广播
+        ``SYSTEM_CONFIG_UPDATED``，供其它读 layout 的消费者（安防事件路径、绑定等）刷新。
+        """
         logger.info("正在保存项目布局配置:%s", project_id)
-        layout_json = to_input_json(layout, {})
+        layout_json = strip_legacy_ha_connection(to_input_json(layout, {}))
         with self._session_factory() as session:
             row = self._find(session, project_id)
-            old_fp = extract_ha_config_fingerprint(row.layout if row is not None else None)
-            new_fp = extract_ha_config_fingerprint(layout_json)
             now = datetime.now(UTC)
             if row is None:
                 row = ProjectConfig(
@@ -385,15 +380,12 @@ class UiConfigService:
             result = self._record(row)
 
         self._emit_config_updated()
-        if old_fp != new_fp:
-            logger.info("检测到 HA 连接配置变更,已触发 SYSTEM_CONFIG_UPDATED")
         return result
 
     async def save_config_from_body(self, project_id: str, body: dict[str, Any]) -> dict[str, Any]:
         layout_raw, parse_error = self.parse_layout_field((body or {}).get("layout"))
         if parse_error:
             bad_request(api_error("UI_CONFIG_DATA_INVALID"))
-        self._validate_ha_url(layout_raw)
 
         existing_layout: Any = None
         with self._session_factory() as session:
@@ -498,10 +490,6 @@ class UiConfigService:
             if parse_error:
                 logger.warning("跳过损坏的布局配置 projectId=%s", item.get("projectId"))
                 continue
-            try:
-                self._validate_ha_url(layout_obj)
-            except Exception:  # noqa: BLE001 - 非法 HA 地址跳过该条
-                continue
             project_id = str(item["projectId"])
             layout_for_merge = existing.get(project_id) or active_layout
             merged = merge_layout_secrets_on_save(layout_obj, layout_for_merge)
@@ -532,62 +520,32 @@ class UiConfigService:
     # ------------------------------------------------------------------ #
     # 静态资源委托
     # ------------------------------------------------------------------ #
-    def get_safe_path(self, sub_path: str = ""):
-        return self._static_assets.get_safe_path(sub_path)
-
     def get_safe_background_path(self, sub_path: str = ""):
         return self._static_assets.get_safe_background_path(sub_path)
 
     def get_safe_icon_path(self, sub_path: str = ""):
         return self._static_assets.get_safe_icon_path(sub_path)
 
-    def get_safe_room_image_path(self, sub_path: str = ""):
-        return self._static_assets.get_safe_room_image_path(sub_path)
-
-    def list_floorplans(self, sub_path: str = ""):
-        return self._static_assets.list_floorplans(sub_path)
-
     def list_backgrounds(self, sub_path: str = ""):
         return self._static_assets.list_backgrounds(sub_path)
-
-    def list_room_images(self, sub_path: str = ""):
-        return self._static_assets.list_room_images(sub_path)
 
     def list_icons(self, sub_path: str = ""):
         return self._static_assets.list_icons(sub_path)
 
-    def create_directory(self, sub_path: str):
-        return self._static_assets.create_directory(sub_path)
-
     def create_background_directory(self, sub_path: str):
         return self._static_assets.create_background_directory(sub_path)
-
-    def create_room_image_directory(self, sub_path: str):
-        return self._static_assets.create_room_image_directory(sub_path)
 
     def create_icon_directory(self, sub_path: str):
         return self._static_assets.create_icon_directory(sub_path)
 
-    def save_floorplan(self, filename: str, buffer: bytes, sub_path: str = ""):
-        return self._static_assets.save_floorplan(filename, buffer, sub_path)
-
     def save_background(self, filename: str, buffer: bytes, sub_path: str = ""):
         return self._static_assets.save_background(filename, buffer, sub_path)
-
-    def save_room_image(self, filename: str, buffer: bytes, sub_path: str = ""):
-        return self._static_assets.save_room_image(filename, buffer, sub_path)
 
     def save_icon(self, filename: str, buffer: bytes, sub_path: str = ""):
         return self._static_assets.save_icon(filename, buffer, sub_path)
 
-    def delete_floorplan(self, full_path: str):
-        return self._static_assets.delete_floorplan(full_path)
-
     def delete_background(self, full_path: str):
         return self._static_assets.delete_background(full_path)
-
-    def delete_room_image(self, full_path: str):
-        return self._static_assets.delete_room_image(full_path)
 
     def delete_icon(self, full_path: str):
         return self._static_assets.delete_icon(full_path)

@@ -22,7 +22,6 @@ import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { createDefaultEarthquakeConfig } from '@/types/earthquake'
 import type { HaConfig, StatsSensorsConfig, UILayoutConfig } from '@/types/layout'
-import { isAutoAspectRatio, probeImageAspectRatio } from '@/utils/floorplan/aspect.util'
 import { EMBED_ICON_LABELS, embedIconMap, embedLucidIcons, resolveEmbedIconByIndex } from '@/utils/layout/embed-icons.util'
 import { EMBED_TAB_ACCENTS, resolveEmbedIconAccent, resolveEmbedTabAccent } from '@/utils/layout/embed-nav-theme.util'
 import { getEmbedBlockReason } from '@/utils/layout/embed-url.util'
@@ -358,114 +357,6 @@ export function useDashboardFooterEditor(layoutConfig: Ref<UILayoutConfig>) {
     colorOptions,
     presetOptions,
     buildItemTabs,
-  }
-}
-
-// ── useFloorManager ──
-export function useFloorManager(layoutConfig: Ref<UILayoutConfig>) {
-  const chrome = useChromeStore()
-  const showAssetPicker = ref(false)
-  const pickingFloorId = ref<string | null>(null)
-
-  const floorSwitcherCfg = computed(() => {
-    if (!layoutConfig.value.floorSwitcherConfig) {
-      layoutConfig.value.floorSwitcherConfig = {
-        left: -1,
-        top: -1,
-        direction: 'vertical',
-        btnSize: 44,
-        isLocked: true,
-      }
-    }
-    return layoutConfig.value.floorSwitcherConfig
-  })
-
-  function addFloor() {
-    layoutConfig.value.floors.push({
-      id: `floor-${Date.now()}`,
-      name: `${layoutConfig.value.floors.length + 1}F`,
-      backgroundUrl: '/floorplans/lights_off.png',
-      floorplanAspectRatio: '1556 / 1313',
-      widgets: [],
-      floatingWidgets: [],
-      statsSensors: { lights: '', climates: '', battery: '', offline: '' },
-    })
-  }
-
-  async function onDeleteFloor(id: string) {
-    if (layoutConfig.value.floors.length <= 1) {
-      chrome.notify('必须保留至少一个楼层！', 'warning')
-      return
-    }
-    const confirmed = await chrome.confirm(
-      '确定要删除该楼层吗？该楼层下的所有热区布局将永久丢失！',
-      '删除楼层',
-      { type: 'danger' },
-    )
-    if (confirmed) {
-      layoutConfig.value.floors = layoutConfig.value.floors.filter((f) => f.id !== id)
-      if (layoutConfig.value.activeFloorId === id) {
-        layoutConfig.value.activeFloorId = layoutConfig.value.floors[0].id
-      }
-    }
-  }
-
-  function openFloorAssetPick(floorId: string) {
-    pickingFloorId.value = floorId
-    showAssetPicker.value = true
-  }
-
-  async function onSelectFloorAsset(url: string) {
-    if (pickingFloorId.value) {
-      const floor = layoutConfig.value.floors.find((f) => f.id === pickingFloorId.value)
-      if (floor) {
-        floor.backgroundUrl = url
-        if (isAutoAspectRatio(floor.floorplanAspectRatio, floor.floorplanAspectRatioManual)) {
-          try {
-            floor.floorplanAspectRatio = await probeImageAspectRatio(url)
-          } catch {
-            /* 保留原比例 */
-          }
-        }
-        chrome.notify('路径已自动填入', 'success')
-      }
-    }
-    showAssetPicker.value = false
-    pickingFloorId.value = null
-  }
-
-  function getSwitcherConfig() {
-    if (!layoutConfig.value.floorSwitcherConfig) {
-      layoutConfig.value.floorSwitcherConfig = {
-        left: -1,
-        top: -1,
-        direction: 'vertical',
-        btnSize: 44,
-        isLocked: true,
-      }
-    }
-    return layoutConfig.value.floorSwitcherConfig
-  }
-
-  function toggleSwitcherLock() {
-    const cfg = getSwitcherConfig()
-    cfg.isLocked = !cfg.isLocked
-  }
-
-  function setSwitcherDir(dir: string) {
-    getSwitcherConfig().direction = dir
-  }
-
-  return {
-    showAssetPicker,
-    pickingFloorId,
-    floorSwitcherCfg,
-    addFloor,
-    onDeleteFloor,
-    openFloorAssetPick,
-    onSelectFloorAsset,
-    toggleSwitcherLock,
-    setSwitcherDir,
   }
 }
 

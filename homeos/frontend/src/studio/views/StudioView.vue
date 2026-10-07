@@ -1,16 +1,31 @@
 <script setup lang="ts">
 /**
  * 模板保留全部 id / class，供既有命令式引导逻辑按 DOM 契约操作。
+ *
+ * 与编辑器同构：`@app/3d-studio/studio/studio-app` 导出 `bootStudio()` /
+ * `teardownStudio()`，挂载时引导、卸载时释放渲染器/缓存写入器/观察器与文档级残留，
+ * 于是 `/3d-studio`、`/stage` 与仪表盘总览之间可以在同一文档内互相路由。
  */
-import { onMounted } from "vue";
-import { useHardExit } from "../composables/useLegacyPage";
+import { onBeforeUnmount, onMounted } from "vue";
 
-useHardExit();
+let teardownStudio: (() => void) | null = null;
+let disposed = false;
 
 onMounted(async () => {
   // stage-startup 自判 pathname === stage.html：非 stage 路径下是空操作。
   await import("@app/3d-studio/stage-startup");
-  await import("@app/3d-studio/studio/studio-app");
+  const studio = await import("@app/3d-studio/studio/studio-app");
+  // 动态导入期间用户可能已经离开该路由：此时不引导，避免留下无从回收的运行时。
+  if (disposed) return;
+  studio.bootStudio();
+  teardownStudio = studio.teardownStudio;
+});
+
+onBeforeUnmount(() => {
+  disposed = true;
+  const dispose = teardownStudio;
+  teardownStudio = null;
+  dispose?.();
 });
 </script>
 

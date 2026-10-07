@@ -124,14 +124,25 @@ def enrich_entities_areas(
 
 
 class EntityAreaEnrichmentService:
-    """HA 注册表 → 实体区域索引（带 TTL 缓存与并发去重）。"""
+    """HA 注册表 → 实体区域索引（带 TTL 缓存与并发去重）。
 
-    def __init__(self, connector: Any, state_store: Any = None, event_bus: Any = None) -> None:
+    单读模型：区域清单不在这里缓存，而是直接读 3D ``ha_areas`` 表（``session_factory``
+    注入）。原先用 HTTP ``config/area_registry/list`` 拉取并另存一份 ``_ha_areas``，
+    与连接器写入的表构成「两份区域事实源」，已收敛。
+    """
+
+    def __init__(
+        self,
+        connector: Any,
+        state_store: Any = None,
+        event_bus: Any = None,
+        session_factory: Any = None,
+    ) -> None:
         self._connector = connector
         self._state_store = state_store
         self._event_bus = event_bus
+        self._session_factory = session_factory
         self._index: dict[str, dict[str, str]] = {}
-        self._ha_areas: list[dict[str, str]] = []
         self._index_at = 0.0
         self._inflight: asyncio.Task[dict[str, dict[str, str]]] | None = None
         self._load_gen = 0
@@ -145,7 +156,6 @@ class EntityAreaEnrichmentService:
 
     def invalidate(self) -> None:
         self._index = {}
-        self._ha_areas = []
         self._index_at = 0.0
         self._load_gen += 1
         self._inflight = None
@@ -226,7 +236,8 @@ class EntityAreaEnrichmentService:
         return await task
 
     def get_cached_ha_areas(self) -> list[dict[str, str]]:
-        return [dict(area) for area in self._ha_areas]
+        """区域清单（单读模型）：直接读 3D ``ha_areas`` 表，不再维护本地副本。"""
+        return self._load_areas_from_catalog()
 
     def has_index(self) -> bool:
         return bool(self._index)
@@ -250,20 +261,13 @@ class EntityAreaEnrichmentService:
         try:
             registry, areas, devices = await asyncio.gather(
                 self._fetch_entity_registry(),
-                self._fetch_registry("config/area_registry/list"),
+                self._fetch_areas(),
                 self._fetch_registry("config/device_registry/list"),
             )
             if gen != self._load_gen:
                 return self._index
             area_name_by_id = build_area_name_map(areas)
             device_area_by_id = build_device_area_map(devices)
-            self._ha_areas = [
-                {
-                    "id": str((area or {}).get("area_id") or ""),
-                    "name": str((area or {}).get("name") or (area or {}).get("area_id") or ""),
-                }
-                for area in areas or []
-            ]
             self._index = build_entity_area_index(registry, area_name_by_id, device_area_by_id)
             self._index_at = time.monotonic() * 1000
             if self._index:
@@ -275,6 +279,36 @@ class EntityAreaEnrichmentService:
             self._index = {}
             self._index_at = time.monotonic() * 1000
         return self._index
+
+    def _load_areas_from_catalog(self) -> list[dict[str, str]]:
+        """从 3D ``ha_areas`` 表读取区域清单（连接器的注册表同步结果）。"""
+        factory = self._session_factory
+        if factory is None:
+            return []
+        try:
+            from sqlalchemy import select  # noqa: PLC0415
+
+            from ...core.models import HAArea  # noqa: PLC0415 - 避免模块级循环依赖
+
+            with factory() as session:
+                rows = session.execute(
+                    select(HAArea.area_id, HAArea.name).where(HAArea.sync_status != "missing")
+                ).all()
+        except Exception as exc:  # noqa: BLE001 - 表未就绪时降级为空清单
+            logger.debug("读取 ha_areas 汇总失败: %s", exc)
+            return []
+        return [
+            {"id": str(area_id or ""), "name": str(name or area_id or "")}
+            for area_id, name in rows
+            if str(area_id or "").strip()
+        ]
+
+    async def _fetch_areas(self) -> list[dict[str, Any]]:
+        """区域清单来源：优先 3D ``ha_areas`` 表，表不可用时回退 HTTP 注册表。"""
+        catalog = await asyncio.to_thread(self._load_areas_from_catalog)
+        if catalog:
+            return [{"area_id": area["id"], "name": area["name"]} for area in catalog]
+        return await self._fetch_registry("config/area_registry/list")
 
     async def _fetch_entity_registry(self) -> list[dict[str, Any]]:
         try:

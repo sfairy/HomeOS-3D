@@ -15,8 +15,7 @@
     "preview": "vite preview",
     "lint": "eslint \"src/**/*.{ts,vue}\" --fix",
     "lint:ci": "eslint \"src/**/*.{ts,vue}\" --max-warnings 0",
-    "typecheck": "node scripts/run-vue-tsc.mjs -p tsconfig.json --noEmit",
-    "typecheck:studio": "node scripts/run-vue-tsc.mjs -p tsconfig.studio.json --noEmit"
+    "typecheck": "node scripts/run-vue-tsc.mjs -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@homeos/shared": "workspace:*",

@@ -167,7 +167,6 @@ const interactPanels = {
 const systemPanels = {
   profiles: lazyPanel('profiles', () => import('@/views/settings/system/SettingsProfilesPanel.vue')),
   family: lazyPanel('family', () => import('@/views/settings/system/SettingsFamilyPanel.vue')),
-  access: lazyPanel('access', () => import('@/views/settings/system/SettingsAccessPanel.vue')),
   diagnostics: lazyPanel(
     'diagnostics',
     () => import('@/views/settings/system/SettingsDiagnosticsPanel.vue'),

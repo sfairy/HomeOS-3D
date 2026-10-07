@@ -149,7 +149,6 @@ class HomeToolsService:
         area_service: Any,
         ui_config: Any,
         app_config: Any,
-        child_mode: Any,
         ha_connector: Any,
         home_mode: Any,
         session_factory: Any,
@@ -161,7 +160,6 @@ class HomeToolsService:
         self._area_service = area_service
         self._ui_config = ui_config
         self._app_config = app_config
-        self._child_mode = child_mode
         self._ha_connector = ha_connector
         self._home_mode = home_mode
         self._session_factory = session_factory
@@ -221,7 +219,6 @@ class HomeToolsService:
             await assert_command_proxy_authorized(
                 dto,
                 actor.to_auth_user(),
-                self._child_mode,
                 self._command_proxy_target_resolver(),
             )
             return {"ok": True}

@@ -4,7 +4,7 @@
 与 ``ops/dev.mjs``（本地联调）互补，本脚本负责**分发级构建**：
 
   dist/
-    homeos-3d/
+    homeos/
       frontend/                 # 前端产物（宿主机构建并混淆）
       backend/linux-<arch>/     # Cython 编译后的后端（.so，无 .py 源码）
     homeos-store/
@@ -13,16 +13,16 @@
 
 子命令：
 
-  backend [--arch ARCH] [--project 3d|store|all]
+  backend [--arch ARCH] [--project app|store|all]
       用 Docker 的 ``app-export`` / ``store-export`` 阶段把加密后端导出到
       ``dist/<proj>/backend/linux-<arch>``。Cython 产物与平台绑定，必须在
       Linux 容器内按目标架构编译（宿主是 macOS 时尤其如此）。
 
-  image [--arch ARCH] [--project 3d|store|all] [--tag TAG] [--push]
+  image [--arch ARCH] [--project app|store|all] [--tag TAG] [--push]
       从工作区根 ``dist/`` 组装运行镜像（``--target app`` / ``--target store``）。
       镜像内不编译后端：后端 .so 与前端产物都直接 COPY 自 dist/。
 
-  clean [--project 3d|store|all]
+  clean [--project app|store|all]
       删除工作区根 ``dist/`` 下对应项目的产物。
 
 前端（含混淆）由宿主机执行 ``bun run build:frontend`` 产出；本脚本只管后端与镜像。
@@ -80,9 +80,12 @@ class Project(NamedTuple):
 
 
 PROJECTS: dict[str, Project] = {
-    '3d': Project('3d', 'homeos-3d', 'app-export', 'app'),
+    'app': Project('app', 'homeos', 'app-export', 'app'),
     'store': Project('store', 'homeos-store', 'store-export', 'store'),
 }
+
+#: 兼容旧脚本 / 文档里的 ``--project 3d``（主应用已并入 homeos，键名随之改名）。
+LEGACY_PROJECT_ALIASES = {'3d': 'app'}
 
 ARCH_ALIASES = {
     'x86_64': 'amd64',
@@ -128,6 +131,7 @@ def host_arch() -> str:
 
 
 def selected_projects(value: str) -> list[Project]:
+    value = LEGACY_PROJECT_ALIASES.get(value, value)
     if value == 'all':
         return list(PROJECTS.values())
     return [PROJECTS[value]]
@@ -239,9 +243,9 @@ def clean(args: argparse.Namespace) -> None:
 def _add_common_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         '--project',
-        choices=['3d', 'store', 'all'],
+        choices=['app', 'store', 'all', '3d'],
         default='all',
-        help='目标项目（默认 all）',
+        help='目标项目（默认 all）；app 即主应用（旧名 3d）',
     )
 
 

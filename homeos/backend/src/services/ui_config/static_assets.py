@@ -1,6 +1,6 @@
 """UI 静态资源服务（对齐 ``modules/ui-config/static-asset.service.ts``）。
 
-管理平面图 / 背景图 / 房间图 / 图标四类静态资源的文件系统操作，
+管理背景图 / 图标两类静态资源的文件系统操作，
 所有路径操作经 :func:`resolve_safe_path` 防止目录穿越。
 """
 
@@ -14,9 +14,7 @@ from typing import Any
 from ...core.asset_paths import (
     ALLOWED_IMAGE_EXTS,
     get_backgrounds_dir,
-    get_floorplans_dir,
     get_icons_dir,
-    get_room_images_dir,
     public_asset_url,
     resolve_safe_path,
     sanitize_uploaded_svg,
@@ -26,20 +24,12 @@ from ...core.errors import api_error, bad_request
 logger = logging.getLogger("homeos.ui_config.assets")
 
 
-def _floorplan_url(*segments: str) -> str:
-    return public_asset_url("floorplans", *segments)
-
-
 def _background_url(*segments: str) -> str:
     return public_asset_url("backgrounds", *segments)
 
 
 def _icon_url(*segments: str) -> str:
     return public_asset_url("icons", *segments)
-
-
-def _room_image_url(*segments: str) -> str:
-    return public_asset_url("room_images", *segments)
 
 
 def _ensure_dir(target: Path) -> None:
@@ -58,7 +48,7 @@ def list_image_assets(
     log_label: str,
     allowed_exts: frozenset[str] = ALLOWED_IMAGE_EXTS,
 ) -> list[dict[str, Any]]:
-    """列出图片资源目录下的文件与子目录（平面图 / 背景图 / 房间图共用）。"""
+    """列出图片资源目录下的文件与子目录（背景图共用）。"""
     try:
         target_dir = resolve_safe_path(root_dir, sub_path) if sub_path else Path(root_dir).resolve()
         _ensure_dir(target_dir)
@@ -135,13 +125,11 @@ def delete_image_asset(root_dir: Path, full_path: str, log_label: str) -> None:
 
 
 class UiConfigStaticAssetService:
-    """平面图 / 背景图 / 房间图 / 图标静态资源服务。"""
+    """背景图 / 图标静态资源服务。"""
 
     def ensure_dirs(self) -> None:
         for label, directory in (
-            ("平面图", get_floorplans_dir()),
             ("背景图", get_backgrounds_dir()),
-            ("房间图", get_room_images_dir()),
         ):
             logger.info("%s资源目录:%s", label, directory)
             if not Path(directory).exists():
@@ -151,62 +139,28 @@ class UiConfigStaticAssetService:
     # ------------------------------------------------------------------ #
     # 安全路径
     # ------------------------------------------------------------------ #
-    def get_safe_path(self, sub_path: str = "") -> Path:
-        return resolve_safe_path(get_floorplans_dir(), sub_path)
-
     def get_safe_background_path(self, sub_path: str = "") -> Path:
         return resolve_safe_path(get_backgrounds_dir(), sub_path)
 
     def get_safe_icon_path(self, sub_path: str = "") -> Path:
         return resolve_safe_path(get_icons_dir(), sub_path)
 
-    def get_safe_room_image_path(self, sub_path: str = "") -> Path:
-        return resolve_safe_path(get_room_images_dir(), sub_path)
-
     # ------------------------------------------------------------------ #
-    # 平面图 / 背景图 / 房间图
+    # 背景图
     # ------------------------------------------------------------------ #
-    def list_floorplans(self, sub_path: str = "") -> list[dict[str, Any]]:
-        return list_image_assets(get_floorplans_dir(), _floorplan_url, sub_path, "平面图")
-
     def list_backgrounds(self, sub_path: str = "") -> list[dict[str, Any]]:
         return list_image_assets(get_backgrounds_dir(), _background_url, sub_path, "背景图")
 
-    def list_room_images(self, sub_path: str = "") -> list[dict[str, Any]]:
-        return list_image_assets(get_room_images_dir(), _room_image_url, sub_path, "房间图")
-
-    def create_directory(self, sub_path: str) -> dict[str, Any]:
-        return create_image_directory(get_floorplans_dir(), sub_path, "平面图")
-
     def create_background_directory(self, sub_path: str) -> dict[str, Any]:
         return create_image_directory(get_backgrounds_dir(), sub_path, "背景图")
-
-    def create_room_image_directory(self, sub_path: str) -> dict[str, Any]:
-        return create_image_directory(get_room_images_dir(), sub_path, "房间图")
-
-    def save_floorplan(self, filename: str, buffer: bytes, sub_path: str = "") -> dict[str, Any]:
-        return save_image_asset(
-            get_floorplans_dir(), _floorplan_url, filename, buffer, sub_path, "平面图"
-        )
 
     def save_background(self, filename: str, buffer: bytes, sub_path: str = "") -> dict[str, Any]:
         return save_image_asset(
             get_backgrounds_dir(), _background_url, filename, buffer, sub_path, "背景图"
         )
 
-    def save_room_image(self, filename: str, buffer: bytes, sub_path: str = "") -> dict[str, Any]:
-        return save_image_asset(
-            get_room_images_dir(), _room_image_url, filename, buffer, sub_path, "房间图"
-        )
-
-    def delete_floorplan(self, full_path: str) -> None:
-        delete_image_asset(get_floorplans_dir(), full_path, "平面图")
-
     def delete_background(self, full_path: str) -> None:
         delete_image_asset(get_backgrounds_dir(), full_path, "背景图")
-
-    def delete_room_image(self, full_path: str) -> None:
-        delete_image_asset(get_room_images_dir(), full_path, "房间图")
 
     # ------------------------------------------------------------------ #
     # 图标（仅 SVG）

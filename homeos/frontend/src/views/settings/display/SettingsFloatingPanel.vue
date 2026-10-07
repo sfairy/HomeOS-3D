@@ -1,14 +1,14 @@
 <!--
 组件：SettingsFloatingPanel.vue
 所属模块：frontend / src / views / settings / display
-职责：浮动组件面板。管理各楼层浮动组件（添加/移除/显隐/编辑），并集成安防区域编辑入口
+职责：浮动组件面板。管理浮动组件（添加/移除/显隐/编辑），并集成安防区域编辑入口
       （AFH 编辑器锁定、Hub Tabs、保存/取消）。
 关键依赖：
   - SettingsPageShell / SettingsCard：页面骨架
-  - FloatingPanelHeaderSection：面板头部（楼层切换、添加组件）
+  - FloatingPanelHeaderSection：面板头部（添加组件、拖拽锁定）
   - FloatingWidgetRow：浮动组件行（含 AFH 编辑器）
   - useFloatingWidgets / useFloatingPanelDisplay：浮动组件逻辑与展示派生
-数据来源：layoutStore.layoutConfig（floors / floatingWidgets / afhConfig 等）
+数据来源：layoutStore.layoutConfig（浮窗 / afhConfig 等）
 -->
 <template>
   <SettingsPageShell
@@ -25,16 +25,10 @@
       <SettingsCard full static extra-class="fp-overview-card overflow-visible">
         <FloatingPanelHeaderSection
           v-model:show-add-floating="showAddFloating"
-          :current-floor-name="currentFloorName"
-          :widget-count="activeFloorFloatingWidgets.length"
+          :widget-count="floatingWidgets.length"
           :is-afh-locked="isAfhLocked"
-          :show-multi-floor-tabs="showMultiFloorTabs"
-          :floors="layoutConfig.floors"
-          :effective-floor-id="effectiveFloorId"
           :floating-catalog-groups="floatingCatalogGroups"
-          :floating-widget-count="floatingWidgetCount"
           @toggle-afh-lock="toggleAfhLock"
-          @select-floor="selectFloatingFloor"
           @add-widget="addFloatingWidgetByType"
         />
       </SettingsCard>
@@ -42,17 +36,17 @@
       <SettingsCard full static extra-class="fp-workspace-card overflow-visible">
         <div class="fp-workspace-card__body">
           <div
-            v-if="activeFloorFloatingWidgets.length === 0"
+            v-if="floatingWidgets.length === 0"
             class="settings-premium-empty settings-premium-empty--violet"
           >
             <Grip class="settings-premium-empty__icon" />
-            <p class="settings-premium-empty__title">{{ '本层暂无浮动组件' }}</p>
-            <p class="settings-premium-empty__desc">{{ '点击上方「添加浮动组件」开始配置' }}</p>
+            <p class="settings-premium-empty__title">{{ '暂无浮动组件' }}</p>
+            <p class="settings-premium-empty__desc">{{ '点击上方「添加组件」开始配置' }}</p>
           </div>
 
           <div v-else class="fp-widget-list">
             <FloatingWidgetRow
-              v-for="fw in activeFloorFloatingWidgets"
+              v-for="fw in floatingWidgets"
               :key="fw.id"
               v-model:open-section="openSection"
               v-model:afh-config="afhConfig"
@@ -93,16 +87,13 @@ defineProps({ activeTab: { type: String, default: 'floating' } })
 
 const { layoutStore, layoutConfig } = useLayoutConfigRef()
 
-// 浮动组件相关状态与方法（编辑 id、Hub Tabs、楼层切换、添加/移除等）
+// 浮动组件相关状态与方法（编辑 id、Hub Tabs、添加/移除等）
 const {
   showAddFloating,
   afhEditId,
   afhConfig,
   afhHubTabs,
-  effectiveFloorId,
-  activeFloorFloatingWidgets,
-  selectFloatingFloor,
-  floatingWidgetCount,
+  floatingWidgets,
   toggleAfhLock,
   addFloatingWidgetByType,
   toggleAfhEditor,
@@ -116,14 +107,14 @@ const {
   goSecurityModes,
 } = useFloatingWidgets(layoutConfig)
 
-// 浮动面板展示派生：展开区段、目录分组、当前楼层名、切换显隐
-const { openSection, floatingCatalogGroups, currentFloorName, toggleFloatingVisible } =
-  useFloatingPanelDisplay({ layoutStore, effectiveFloorId, afhEditId })
+// 浮动面板展示派生：展开区段、目录分组、切换显隐
+const { openSection, floatingCatalogGroups, toggleFloatingVisible } = useFloatingPanelDisplay({
+  layoutStore,
+  afhEditId,
+})
 
 // AFH 编辑器是否锁定（默认锁定）
 const isAfhLocked = computed(() => layoutConfig.value.isAfhLocked !== false)
-// 是否展示多楼层 Tab（楼层 > 1 时）
-const showMultiFloorTabs = computed(() => layoutConfig.value.floors.length > 1)
 </script>
 
 <style>

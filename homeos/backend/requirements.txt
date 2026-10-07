@@ -12,13 +12,22 @@ python-multipart>=0.0.9
 sqlalchemy>=2.0
 alembic>=1.13
 httpx>=0.27
-websockets>=12
+# HA 实时订阅：并入 homeos-3d 的 ha/client.py 后需要较新的 API。
+websockets>=17
 redis>=5
 PyJWT>=2.8
+# 管理员密码哈希：bcrypt 保留用于存量用户校验（登录成功即重哈希为 argon2）。
 bcrypt>=4.1
+argon2-cffi>=25.1
 pyotp>=2.9
 cryptography>=42
 prometheus-client>=0.20
 APScheduler>=3.10
 qrcode>=7.4
 python-dotenv>=1.0
+# HA 走 SOCKS 代理时 websockets 必需（websockets 17 不再提供 extras，只能单独装）。
+python-socks[asyncio]>=2.4.3,<3
+# 图片素材缩放/缩略图与 interaction3d 渲染缓存。
+Pillow>=12
+# api/ha.py 的跨线程调度。
+anyio>=4.6

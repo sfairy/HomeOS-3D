@@ -142,12 +142,6 @@ const LABEL_TEXT: Record<string, string> = {
     '摄像头事件保留条数',
   'settings.systemConfig.field.frigatePersonAlarmModes':
     '摄像头人物告警生效模式（逗号分隔，none=关闭）',
-  'settings.systemConfig.field.guestPassDefaultHours':
-    '访客密码默认有效期（小时）',
-  'settings.systemConfig.field.guestPassExtendHours':
-    '访客密码续期时长（小时）',
-  'settings.systemConfig.field.guestPassRevokeOnAway':
-    '离家时撤销访客通行证',
   'settings.systemConfig.field.haDisconnectDebounceMs':
     'Home Assistant 断连防抖（毫秒）',
   'settings.systemConfig.field.haHistoryCacheMin':
@@ -278,8 +272,6 @@ const LABEL_TEXT: Record<string, string> = {
     '缓存批量写入大小',
   'settings.systemConfig.field.replayChunkSize':
     '断线状态回放分块大小',
-  'settings.systemConfig.field.restCacheTtlMs':
-    '实体接口缓存有效时间（毫秒）',
   'settings.systemConfig.field.retentionCleanupIntervalHours':
     '数据库清理间隔（小时）',
   'settings.systemConfig.field.retentionDeleteBatchSize':

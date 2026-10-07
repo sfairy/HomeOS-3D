@@ -51,14 +51,19 @@ def _read_json_array(raw: Any) -> list[Any]:
 
 
 def can_fire_home_mode_trigger(cooldown_map: dict[str, int], key: str, cooldown_ms: int) -> bool:
+    """只做冷却判定，不消费冷却。动作真正执行后才调用 ``mark_home_mode_trigger_fired``。"""
     import time
 
     last = cooldown_map.get(key) or 0
     now = int(time.time() * 1000)
-    if now - last < cooldown_ms:
-        return False
-    cooldown_map[key] = now
-    return True
+    return now - last >= cooldown_ms
+
+
+def mark_home_mode_trigger_fired(cooldown_map: dict[str, int], key: str) -> None:
+    """动作成功后消费一次冷却窗口。"""
+    import time
+
+    cooldown_map[key] = int(time.time() * 1000)
 
 
 def prune_home_mode_trigger_cooldown(
@@ -132,7 +137,13 @@ async def _fire_triggered_home_mode(
         same_group = (incoming.get("exclusiveGroup") or "default") == (
             active.get("exclusiveGroup") or "default"
         )
-        if same_group and (incoming.get("priority") or 50) <= (active.get("priority") or 50):
+        incoming_priority = incoming.get("priority")
+        active_priority = active.get("priority")
+        if same_group and (50 if incoming_priority is None else incoming_priority) <= (
+            50 if active_priority is None else active_priority
+        ):
+            # 已评估但按优先级让位，同样消费冷却，避免每个状态变更都重复查库。
+            mark_home_mode_trigger_fired(state.trigger_cooldown, key)
             return
     deps.log(f"触发器激活模式 [{binding.mode_name}]: {reason}")
     await deps.activate(
@@ -142,6 +153,8 @@ async def _fire_triggered_home_mode(
             "reason": (meta or {}).get("reason", reason),
         },
     )
+    # 冷却只在动作真正执行后消费：activate 抛错时可立即重试，不被冷却挡住。
+    mark_home_mode_trigger_fired(state.trigger_cooldown, key)
 
 
 async def check_home_mode_time_triggers(state: HomeModeTriggersState, deps: Any) -> None:
@@ -152,7 +165,6 @@ async def check_home_mode_time_triggers(state: HomeModeTriggersState, deps: Any)
     minute_key = home_mode_minute_key(now, timezone_name)
     if minute_key == state.last_time_trigger_minute:
         return
-    state.last_time_trigger_minute = minute_key
     weekday = zoned_date_parts(now, timezone_name)["weekday"]
 
     for binding in state.trigger_bindings:
@@ -167,6 +179,8 @@ async def check_home_mode_time_triggers(state: HomeModeTriggersState, deps: Any)
         at = normalize_home_mode_time_at(trigger["at"].strip())
         if at and at == minute_key:
             await _fire_triggered_home_mode(state, deps, binding, f"time@{at}")
+    # 只有整轮求值完成后才标记该分钟已处理：中途异常不会吞掉本分钟的触发机会。
+    state.last_time_trigger_minute = minute_key
 
 
 async def handle_home_mode_state_trigger(

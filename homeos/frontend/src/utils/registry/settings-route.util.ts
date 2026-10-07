@@ -104,7 +104,6 @@ export const SETTINGS_ROUTES = {
     settingsRoute({ tab: 'connection', ...(section ? { section } : {}) }),
   setupWizard: (section?: string) =>
     settingsRoute({ tab: 'setup-wizard', ...(section ? { section } : {}) }),
-  access: (section?: string) => settingsRoute({ tab: 'access', ...(section ? { section } : {}) }),
   widgets: () => settingsRoute({ tab: 'widgets' }),
   assets: () => settingsRoute({ tab: 'assets' }),
   embeds: (section?: string) => settingsRoute({ tab: 'embeds', ...(section ? { section } : {}) }),

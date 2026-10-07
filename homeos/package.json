@@ -3,26 +3,6 @@
   "private": true,
   "version": "2026.09.22.08",
   "description": "HomeOS 智能家居中央控制平台 — Home Assistant 上层 UI 网关，提供 Dashboard、户型图可视化、设备触控、安防、能源管理与语音交互",
-  "workspaces": [
-    "frontend",
-    "packages/*"
-  ],
-  "overrides": {
-    "form-data": "4.0.6",
-    "ws": "8.21.3",
-    "body-parser": "2.3.0",
-    "brace-expansion": "5.0.12",
-    "js-yaml": "5.4.2",
-    "valibot": "1.4.2",
-    "find-my-way": "9.9.0",
-    "fast-uri": "3.1.7",
-    "file-type": "22.1.1",
-    "socket.io-parser": "4.2.7",
-    "multer": "2.4.0",
-    "nanoid": "3.3.18",
-    "pg": "8.23.0",
-    "postcss": "8.5.28"
-  },
   "scripts": {
     "bump": "bun scripts/bump-version.mjs",
     "clean:local": "bun scripts/clean-local.mjs",
@@ -32,11 +12,13 @@
     "dev:db": "docker compose -f docker-compose.yml -f docker-compose.local.yml up -d postgres redis",
     "dev:backend": "cd backend && HOMEOS_RELOAD=1 .venv/bin/python -m src.run",
     "dev:frontend": "bun run --cwd frontend dev",
+    "dev:runtime": "bun run --cwd frontend dev:runtime",
     "build": "bun scripts/run.mjs build",
     "build:frontend": "bun scripts/run.mjs build:frontend",
     "start:prod": "sh deploy/run-backend.sh python",
     "lint": "bun scripts/run.mjs lint",
     "typecheck": "bun scripts/run.mjs typecheck",
+  "typecheck:py": "bun scripts/run.mjs typecheck:py",
     "check": "bun scripts/run.mjs check"
   }
 }

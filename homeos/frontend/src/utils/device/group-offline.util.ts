@@ -2,8 +2,8 @@
  * 设备分组：离线实体集合计算
  *
  * 职责：
- * - 计算 offline 分组的 critical 集合：自定义收藏 offline + 当前楼层 state=unavailable
- *   的 widget 实体，这些实体在弹窗中前置展示并标记为 critical。
+ * - 计算 offline 分组的 critical 集合：自定义收藏 offline + 顶层浮动组件中 state=unavailable
+ *   的实体，这些实体在弹窗中前置展示并标记为 critical。
  * - 列出其他离线实体：扫描 offlineDevices 派生索引或域索引，按 DOMAIN_LIST 过滤、
  *   排除系统监控实体与 critical 实体。
  * - 提供 critical / others 拆分工具，供离线分组按重要性排序展示。
@@ -25,33 +25,24 @@ import type {
 } from '@/utils/device/group-battery.util'
 import { domainIndexToArray } from '@/utils/entity/derived.util'
 
-type FloorSlice = {
-  id?: string
-  widgets?: Array<{ id?: string }>
-}
-
 function isMonitoredExcludedEntity(entityId: string) {
   return MONITORED_ENTITY_IDS.some((x) => entityId.toLowerCase().includes(x))
 }
-/** 离线设备：收藏 + 当前楼层不可用 widget 构成的 critical 集合 */
+/** 离线设备：收藏 + 顶层浮动组件中不可用实体构成的 critical 集合 */
 export function computeOfflineCriticalSet(
   uiStore: DeviceGroupUiStoreLike,
-  floors: FloorSlice[] | { value?: FloorSlice[] } | null | undefined,
   entitiesStore: DeviceGroupEntitiesStoreLike,
 ) {
   const favIds = uiStore.layoutConfig.favoriteEntities?.offline || []
-  const floorList: FloorSlice[] = Array.isArray(floors)
-    ? floors
-    : ((floors && 'value' in floors ? floors.value : undefined) ?? [])
-  const floor = floorList.find((f: FloorSlice) => f.id === uiStore.layoutConfig.activeFloorId)
-  const floorCritical =
-    floor?.widgets
-      ?.filter(
-        (w) =>
-          w.id && w.id.includes('.') && entitiesStore.entities[w.id]?.state === 'unavailable',
-      )
-      .map((w) => w.id as string) || []
-  return new Set([...favIds, ...floorCritical])
+  const floatingCritical: string[] = []
+  for (const widget of uiStore.layoutConfig.floatingWidgets || []) {
+    const raw = widget?.config?.entityId ?? widget?.config?.entity_id
+    const eid = raw == null ? '' : String(raw)
+    if (eid.includes('.') && entitiesStore.entities[eid]?.state === 'unavailable') {
+      floatingCritical.push(eid)
+    }
+  }
+  return new Set([...favIds, ...floatingCritical])
 }
 export function splitOfflineEntityIds(criticalSet: Set<string>, entityIds: string[]) {
   const critical = [...criticalSet]

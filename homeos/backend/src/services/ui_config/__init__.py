@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from .layout_secrets import (
-    extract_ha_config_fingerprint,
     mask_layout_for_role,
     merge_layout_secrets_on_save,
+    strip_legacy_ha_connection,
 )
 from .service import UiConfigService
 from .static_assets import UiConfigStaticAssetService
@@ -15,5 +15,5 @@ __all__ = [
     "UiConfigStaticAssetService",
     "mask_layout_for_role",
     "merge_layout_secrets_on_save",
-    "extract_ha_config_fingerprint",
+    "strip_legacy_ha_connection",
 ]

@@ -20,7 +20,8 @@ homeos-store/backend/src/keys/local
 
 # 内置素材目录：仓库不带素材图，Dockerfile 只 `mkdir /app/image`，素材由卷 / 宿主机注入。
 # 若将来要随镜像分发素材，删掉这行并在 Dockerfile 里加 COPY。
-homeos-3d/image
+homeos/image
+homeos/backend/image
 
 # 授权公钥不进构建上下文：主应用启动时从授权服务器 `GET /v2/keys` 取回并落到数据卷，
 # 同机部署则由商店写出的共享卷注入，不在镜像里烘焙。

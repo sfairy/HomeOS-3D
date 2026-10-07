@@ -1,25 +1,23 @@
 """语音命令执行 helper（对齐 ``awareness/voice-command-execute.helper.ts``）。
 
 将解析后的语音意图（自然语言映射或 HA Assist 返回）经家庭模式 / 命令代理下发，
-统一执行鉴权（命令代理授权、儿童模式门禁、实体 ACL），并写入命令审计。
+统一执行鉴权（命令代理授权、实体 ACL）。
 
 关键策略：
 - ACL 前移：进入 HA conversation 前先校验，避免 guest/child 绕过 HomeOS ACL；
 - 受限账户（child / guest / 带白名单的非 admin）不走 HA Assist 自动执行；
 - HomeOS 本地场景 / 自动化已下线：对应 kind 抛不支持异常（改由 HA 场景 / 脚本承担）；
-- 每动作审计，失败汇总返回给 VoiceService。
+- 失败汇总返回给 VoiceService。
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
 from ...core.errors import BusinessException, ErrorCode, api_error, bad_request, forbidden
-from ...core.models import CommandAudit
 from ..command_proxy_auth import assert_command_proxy_authorized
 from .voice_commands import (
     extract_ha_assist_speech,
@@ -37,7 +35,6 @@ class VoiceCommandExecuteDeps:
 
     session_factory: Any
     command_proxy: Any
-    child_mode: Any
     home_mode: Any
     get_voice_commands: Callable[[], list[dict[str, Any]]]
     get_entities: Callable[[], list[dict[str, Any]]]
@@ -73,48 +70,6 @@ def _as_actor(user: dict[str, Any] | None) -> dict[str, Any] | None:
     if not user:
         return None
     return {"role": user.get("role"), "restrictions": user.get("restrictions")}
-
-
-def _log_voice_command_audit(
-    session_factory: Any,
-    user: dict[str, Any] | None,
-    action: dict[str, Any],
-    phrase: str,
-    success: bool,
-    error: str | None = None,
-    deps_logger: logging.Logger | None = None,
-) -> None:
-    """写入语音命令审计（对齐 Nest ``logVoiceCommandAudit``，username 追加 ``[voice:phrase]``）。"""
-    username = (user or {}).get("username")
-    audit_username = f"{username} [voice:{phrase}]" if username else f"voice:{phrase}"
-    try:
-        loop: asyncio.AbstractEventLoop | None = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
-
-    def _write() -> None:
-        try:
-            with session_factory() as session:
-                session.add(
-                    CommandAudit(
-                        user_id=(user or {}).get("userId"),
-                        username=audit_username,
-                        role=(user or {}).get("role"),
-                        domain=str(action.get("domain") or ""),
-                        service=str(action.get("service") or ""),
-                        entity_id=str(action.get("entityId") or ""),
-                        success=bool(success),
-                        error=error,
-                    )
-                )
-                session.commit()
-        except Exception as exc:  # noqa: BLE001 - 审计失败不影响主流程
-            (deps_logger or logger).warning("语音命令审计写入失败: %s", exc)
-
-    if loop is not None:
-        loop.run_in_executor(None, _write)
-    else:
-        _write()
 
 
 async def _execute_homeos_voice_action(
@@ -187,7 +142,6 @@ async def execute_voice_command(
 
     errors: list[str] = []
     skipped = 0
-    phrase = plan.get("phrase") or trimmed
 
     for action in plan.get("actions") or []:
         kind = action.get("kind")
@@ -200,17 +154,11 @@ async def execute_voice_command(
             if denied:
                 skipped += 1
                 errors.append(denied)
-                _log_voice_command_audit(deps.session_factory, user, action, phrase, False, denied, deps.logger)
                 continue
             try:
                 await _execute_homeos_voice_action(action, user, deps)
-                _log_voice_command_audit(deps.session_factory, user, action, phrase, True, None, deps.logger)
             except Exception as exc:  # noqa: BLE001
-                err_msg = str(exc)
-                errors.append(err_msg)
-                _log_voice_command_audit(
-                    deps.session_factory, user, action, phrase, False, err_msg, deps.logger
-                )
+                errors.append(str(exc))
             continue
 
         dto = {
@@ -220,26 +168,16 @@ async def execute_voice_command(
             "service_data": action.get("serviceData") or {},
         }
         try:
-            await assert_command_proxy_authorized(dto, _as_actor(user), deps.child_mode)
+            await assert_command_proxy_authorized(dto, _as_actor(user))
         except Exception as exc:  # noqa: BLE001
             denied = str(exc) or "无权操作该设备"
             skipped += 1
             errors.append(f"{action.get('entityId')}: {denied}")
-            _log_voice_command_audit(
-                deps.session_factory, user, action, phrase, False, denied, deps.logger
-            )
             continue
         try:
             await deps.command_proxy.call_service(dto)
-            _log_voice_command_audit(
-                deps.session_factory, user, action, phrase, True, None, deps.logger
-            )
         except Exception as exc:  # noqa: BLE001
-            err_msg = str(exc)
-            errors.append(f"{action.get('entityId')}: {err_msg}")
-            _log_voice_command_audit(
-                deps.session_factory, user, action, phrase, False, err_msg, deps.logger
-            )
+            errors.append(f"{action.get('entityId')}: {exc}")
 
     total = len(plan.get("actions") or [])
     if skipped == total and len(errors) == skipped:

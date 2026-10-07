@@ -35,12 +35,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 APPS: dict[str, tuple[Path, str, str]] = {
-    "app": (ROOT / "homeos-3d", "APP_DATA_DIR", "主应用"),
+    "app": (ROOT / "homeos" / "backend", "HOMEOS_DATA_DIR", "主应用"),
     "store": (ROOT / "homeos-store", "STORE_DATA_DIR", "授权商店"),
 }
 
 LAYOUT: dict[str, tuple[Path, str, str, Path]] = {
-    "app": (ROOT / "homeos-3d", "backend.src", "backend.src.migrations", Path("migrations")),
+    "app": (ROOT / "homeos" / "backend", "src", "src.core.migrations", Path("migrations")),
     "store": (
         ROOT / "homeos-store" / "backend",
         "src",

@@ -115,7 +115,7 @@ defineProps<{
   gridRowHeight: number
   /** 是否为选择器模式（点击文件即触发 select 事件） */
   isPicker?: boolean
-  /** 资源类型：icon 图标 / floorplan 平面图等 */
+  /** 资源类型：icon 图标 / background 背景图等 */
   type: string
   /** 判断指定条目是否可预览 */
   canPreview: (item: AssetItem) => boolean

@@ -1,5 +1,5 @@
 <!--
-  SetupWizardDashboardStep：户型图 / 热点入口 / 常用设备（可跳过）
+  SetupWizardDashboardStep：3D 户型图绘制 / 仪表盘编辑 / 常用设备（可跳过）
 -->
 <script setup>
 /**
@@ -10,7 +10,7 @@
  */
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import { LayoutTemplate, MapPinned, Star, ArrowRight, CheckCircle2, Circle } from '@lucide/vue'
+import { Boxes, LayoutTemplate, Star, ArrowRight, CheckCircle2, Circle } from '@lucide/vue'
 import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
 
 const props = defineProps({
@@ -22,18 +22,18 @@ const hint = computed(() => props.status?.steps?.dashboard?.hint || '')
 
 const links = [
   {
-    id: 'assets',
-    icon: LayoutTemplate,
-    title: '上传户型图',
-    desc: '素材库上传楼层背景，总览才有真实平面',
-    to: SETTINGS_ROUTES.assets(),
+    id: 'studio-3d',
+    icon: Boxes,
+    title: '绘制 3D 户型图',
+    desc: '在 3D 编辑器中绘制墙体、房间与设备模型',
+    to: '/3d-studio',
   },
   {
     id: 'layout',
-    icon: MapPinned,
-    title: '摆放设备热点',
-    desc: '仪表板布局 → 楼层管理，对齐实体位置',
-    to: SETTINGS_ROUTES.layout('floors'),
+    icon: LayoutTemplate,
+    title: '配置仪表盘布局',
+    desc: '在仪表盘编辑器中摆放面板部件与浮动组件',
+    to: '/studio/editor',
   },
   {
     id: 'favorites',
@@ -53,7 +53,7 @@ const links = [
 
     <div class="sw-dashboard-step__status" :class="done ? 'is-done' : 'is-pending'">
       <component :is="done ? CheckCircle2 : Circle" class="w-4 h-4 shrink-0" />
-      <span>{{ done ? '仪表板基础已就绪' : hint || '建议上传户型或收藏至少 1 个常用设备' }}</span>
+      <span>{{ done ? '仪表板基础已就绪' : hint || '建议绘制 3D 户型或收藏至少 1 个常用设备' }}</span>
     </div>
 
     <ul class="sw-dashboard-step__links">

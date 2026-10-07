@@ -67,22 +67,6 @@ export function createEditModeActions(deps: EditModeActionsDeps) {
   } = deps
 
   /**
-   * 切换当前激活楼层。
-   * 临时抑制 dirty 跟踪以避免楼层切换被误判为修改；
-   * 编辑模式下立即推送历史快照，便于撤销回到切换前状态。
-   * @param id 目标楼层 ID；与当前相同则跳过
-   */
-  function setActiveFloor(id: string): void {
-    if (!id || layoutConfig.activeFloorId === id) return
-    setSuppressDirtyTracking(true)
-    layoutConfig.activeFloorId = id
-    if (isEditMode.value) pushEditHistory(true)
-    nextTick(() => {
-      setSuppressDirtyTracking(false)
-    })
-  }
-
-  /**
    * 切换编辑模式开关。
    * 退出时若有未保存修改，弹出退出确认框而不直接退出；
    * 进入时清空历史并推送初始快照；正常退出时重置选中/放置/脏标志。
@@ -153,7 +137,6 @@ export function createEditModeActions(deps: EditModeActionsDeps) {
   }
 
   return {
-    setActiveFloor,
     toggleEditMode,
     confirmExitEditMode,
     setPlacementEntity,

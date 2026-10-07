@@ -16,7 +16,7 @@
 #
 #   2) 手工在镜像外再起一个 Caddy（本文件就是给这种场景的示例）：
 #        # 前提：应用容器已把 8801 / 8802 发布到宿主机
-#        docker run -d --name homeos-3d-caddy --restart unless-stopped \
+#        docker run -d --name homeos-caddy --restart unless-stopped \
 #          --add-host=host.docker.internal:host-gateway \
 #          -p 8803:8803 -p 8804:8804 \
 #          -v "$PWD/ops/deploy/Caddyfile.intranet.example:/etc/caddy/Caddyfile:ro" \

@@ -30,6 +30,7 @@ import {
   buildSourceBuckets,
   buildSourceBucketsFromStats,
   buildTimeBucketsFromNotifications,
+  formatPercent,
   type NotificationAnalyticsSummary,
   type NotificationStatsPayload,
 } from '@/utils/notification/analytics.util'
@@ -134,7 +135,7 @@ export function useNotificationsViewAnalytics(
       {
         key: 'read-rate',
         label: '已读率',
-        value: `${s.readRate}%`,
+        value: formatPercent(s.readRate),
         hint: `已读 ${formatCount(s.read)}`,
         tone: s.readRate >= 80 ? 'sky' : 'warn',
       },

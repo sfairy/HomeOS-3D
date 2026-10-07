@@ -43,7 +43,7 @@
       <section class="nc-analytics__chart-card">
         <header class="nc-analytics__chart-head">
           <span class="nc-analytics__chart-title">已读 / 未读</span>
-          <span class="nc-analytics__chart-hint">已读率 {{ summary.readRate }}%</span>
+          <span class="nc-analytics__chart-hint">已读率 {{ formatPercent(summary.readRate) }}</span>
         </header>
         <div ref="readChartRef" class="nc-analytics__chart" />
       </section>
@@ -67,7 +67,7 @@
       <section class="nc-analytics__chart-card nc-analytics__chart-card--wide">
         <header class="nc-analytics__chart-head">
           <span class="nc-analytics__chart-title">来源排行</span>
-          <span class="nc-analytics__chart-hint">推送送达 {{ summary.deliveryRate }}%</span>
+          <span class="nc-analytics__chart-hint">推送送达 {{ formatPercent(summary.deliveryRate) }}</span>
         </header>
         <div ref="rankChartRef" class="nc-analytics__chart" />
       </section>
@@ -78,6 +78,7 @@
 <script setup lang="ts">
 import { toRefs } from 'vue'
 import { useNotificationsViewAnalytics } from '@/composables/notifications/useNotificationsViewAnalytics'
+import { formatPercent } from '@/utils/notification/analytics.util'
 import type {
   NotificationAnalyticsSummary,
   NotificationStatsPayload,

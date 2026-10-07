@@ -258,7 +258,7 @@ export const useEntitiesStore = defineStore('entities', () => {
 
   /** 清空内存实体与派生索引 */
   function clearAllEntities() {
-    // 通过响应式代理删除，确保已渲染的 computed（户型图热点等）能感知清空
+    // 通过响应式代理删除，确保已渲染的 computed（部件 / 热点等）能感知清空
     for (const key of Object.keys(entities)) delete entities[key]
     for (const key of Object.keys(friendlyNamesMap)) delete friendlyNamesMap[key]
     batteryDevices.splice(0, batteryDevices.length)
@@ -406,7 +406,6 @@ export const useEntitiesStore = defineStore('entities', () => {
     ensureWsConnected,
     wsTransportEpoch,
     onHomeModeEvent,
-    onChildModeEvent,
   } = wsState
 
   // 乐观更新（Optimistic UI，毫秒级感知反馈）
@@ -618,7 +617,6 @@ export const useEntitiesStore = defineStore('entities', () => {
     setEntityProjectionScope: setProjectionScope,
     rollbackAllOptimistic,
     onHomeModeEvent,
-    onChildModeEvent,
     remoteNotifications,
     clearRemoteNotifications,
     batteryDevices,

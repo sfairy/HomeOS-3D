@@ -14,7 +14,7 @@ import { fetchEarthquakeLatest } from '@/services/api/earthquake'
 import { useEarthquakeStore } from '@/stores/earthquake.store'
 import { isEarthquakeAlertEnabled } from '@/utils/earthquake/util'
 import { useLayoutStore } from '@/stores/layout.store'
-import { DEFAULT_HA_URL } from '@/constants/ha'
+import { useHaConnectionStore } from '@/stores/ha-connection.store'
 import { logger } from '@/utils/core/logger'
 
 /**
@@ -39,22 +39,24 @@ const WIZARD_DONE_KEY = 'eew_wizard_completed'
  *
  * 判定逻辑（任一成立即提示）：
  *  1. localStorage 未标记已完成向导；
- *  2. HOME ASSISTANT 配置为默认占位（url 为空或等于默认占位地址，或 token 为空）；
+ *  2. HOME ASSISTANT 连接未配置（无连接记录或未保存令牌）；
  *  3. 地震配置中缺少经纬度坐标。
  *
  * 若用户已在配置中填写了经纬度且启用地震预警，则跳过提示。
  *
  * @param layoutStore UI 状态存储实例
+ * @param haConfigured 是否已保存 HA 连接（单源：stores/ha-connection.store.ts）
  * @returns true 表示应当弹出向导
  */
-function shouldPromptWizard(layoutStore: ReturnType<typeof useLayoutStore>): boolean {
+function shouldPromptWizard(
+  layoutStore: ReturnType<typeof useLayoutStore>,
+  haConfigured: boolean,
+): boolean {
   if (readLocalStorageFlag(WIZARD_DONE_KEY)) return false
   const cfg = layoutStore.layoutConfig?.earthquakeConfig
-  const ha = layoutStore.layoutConfig?.haConfig
   if (cfg?.enabled && cfg.latitude && cfg.longitude) return false
-  const haDefault = !ha?.url || ha.url === DEFAULT_HA_URL || !ha?.token
   const noCoords = !cfg?.latitude || !cfg?.longitude
-  return haDefault || noCoords
+  return !haConfigured || noCoords
 }
 
 /**
@@ -101,10 +103,13 @@ export function useEarthquakeBootstrap() {
    * 延迟是为了避免首屏初始化期间弹窗抢夺焦点。
    * @param layoutStore UI 状态存储实例
    */
-  function scheduleWizardIfNeeded(layoutStore: ReturnType<typeof useLayoutStore>) {
+  function scheduleWizardIfNeeded(
+    layoutStore: ReturnType<typeof useLayoutStore>,
+    haConfigured: boolean,
+  ) {
     clearWizardTimer()
     if (!layoutStore.isConfigLoaded) return
-    if (!shouldPromptWizard(layoutStore)) return
+    if (!shouldPromptWizard(layoutStore, haConfigured)) return
     wizardTimer = setTimeout(() => {
       showSetupWizard.value = true
       wizardTimer = null
@@ -128,11 +133,21 @@ export function useEarthquakeBootstrap() {
     }
 
     const layoutStore = useLayoutStore()
+    const haConnectionStore = useHaConnectionStore()
     stopConfigWatch = watch(
-      () => layoutStore.isConfigLoaded,
-      () => scheduleWizardIfNeeded(layoutStore),
+      () => [layoutStore.isConfigLoaded, haConnectionStore.loaded] as const,
+      ([configLoaded]) => {
+        if (!configLoaded) return
+        // 连接状态是「是否需要引导」的判定输入之一，等它加载完成再决定弹不弹。
+        if (!haConnectionStore.loaded) {
+          void haConnectionStore.load()
+          return
+        }
+        scheduleWizardIfNeeded(layoutStore, haConnectionStore.configured && haConnectionStore.hasToken)
+      },
       { immediate: true },
     )
+    void haConnectionStore.load()
   })
 
   onUnmounted(() => {

@@ -4,15 +4,15 @@
 #
 # 与商店同机部署时叠加 docker-compose.app.shared.yml（deploy.sh --role all 会自动加）。
 
-name: homeos-3d
+name: homeos
 
 services:
-  homeos-3d:
-    image: ${HOMEOS_IMAGE:-ghcr.io/sfairy/homeos-3d:latest}
-    container_name: homeos-3d
+  homeos:
+    image: ${HOMEOS_IMAGE:-ghcr.io/sfairy/homeos:latest}
+    container_name: homeos
     # 固定 hostname：授权实例指纹在缺少机器/主板标识时会把容器 hostname 编进去，
     # 换掉它等于换设备。
-    hostname: homeos-3d
+    hostname: homeos
     restart: unless-stopped
     # 容器内先转 SIGTERM 给 uvicorn（优雅关连接）再停 Caddy，最多各 10s；
     # 比 docker 默认的 10s 宽裕，避免收尾未完成就被 SIGKILL。
@@ -23,7 +23,13 @@ services:
       - "${APP_PROXY_PUBLISH_PORT:-8803}:8803"
     environment:
       APP_DATA_DIR: /data
+      # homeos 后端读 HOMEOS_* 口径；APP_* 是镜像内启动器与 compose 的既有变量名，
+      # 两者指向同一处，避免升级时因为改名而换错数据目录。
+      HOMEOS_DATA_DIR: /data
+      HOMEOS_FRONTEND_DIR: /app/dist
+      HOMEOS_IMAGE_DIR: /app/image
       APP_PORT: "8801"
+      HOMEOS_PORT: "8801"
       APP_BASE_URL: ${APP_BASE_URL:-}
       # 商店的**浏览器入口**（登录页「忘记密码」「商店」按它跳转）。
       # 留空 = 出厂默认的厂商公网商店 http://127.0.0.1:8802；自托管填客户端浏览器打得开的
@@ -49,8 +55,8 @@ services:
       # 任何容器都能改写来源 IP，限流与审计会一起失效。
       UVICORN_FORWARDED_ALLOW_IPS: ${UVICORN_FORWARDED_ALLOW_IPS:-127.0.0.1,::1}
     volumes:
-      - homeos-3d-data:/data
-      - homeos-3d-secrets:/run/secrets
+      - homeos-data:/data
+      - homeos-secrets:/run/secrets
       # 授权公钥：主应用启动时从授权服务器 `GET /v2/keys` 取回，
       # 落到数据卷 /data/client-keys；同机部署由 docker-compose.app.shared.yml
       # 挂商店写出的共享卷（只读）。
@@ -74,5 +80,5 @@ services:
       start_period: 60s
 
 volumes:
-  homeos-3d-data:
-  homeos-3d-secrets:
+  homeos-data:
+  homeos-secrets:

@@ -104,6 +104,13 @@ class HAConnectorService:
         self._database_lock = asyncio.Lock()
         self._connected = False
         self._runtime_error = None
+        # 连接生命周期外发通道：homeos 侧据此维护 app.state.ha_connected 与 ha.* 事件。
+        # 融合后本连接器是唯一 HA 连接，因此它也是「HA 是否在线」的唯一事实源。
+        self._connection_listener: Any = None
+        self._last_connection_status: str | None = None
+        # homeos 状态监听：接收全量快照与全量增量。StateHub 只承载 3D 侧 watched
+        # 子集，而 homeos 读模型与 socket.io 广播需要全部实体，所以两者分开走。
+        self._state_listener: Any = None
         self._known_entity_ids = set()
         self._incremental_flushed_at = { }
         self._persistent_entity_ids = set()
@@ -315,6 +322,53 @@ class HAConnectorService:
             if not pending:
                 break
 
+    # ------------------------------------------------------------------ #
+    # 连接生命周期外发：homeos 侧（app.py）依赖它维护 ``app.state.ha_connected``
+    # 与 ``ha.connected`` / ``ha.disconnected`` / ``ha.reconnecting`` 事件。
+    # 融合后本连接器是唯一 HA 连接，所以它必须是「HA 是否在线」的唯一事实源。
+    # ------------------------------------------------------------------ #
+    def set_connection_listener(self, listener: Any) -> None:
+        """注册连接生命周期监听（``listener(status, payload)``，可为同步或协程）。"""
+        self._connection_listener = listener
+
+    def set_state_listener(self, listener: Any) -> None:
+        """注册状态监听（``listener(kind, payload)``）：``initial`` 收全量、``change`` 收增量。
+
+        对齐原 homeos ``HaConnectorService`` 的同名契约：homeos 读模型
+        （``StateStore``）的 ``set_all`` / ``apply_change``、``ha.initial_states`` /
+        ``ha.state_changed.batch`` 事件总线与 socket.io 广播，全部由这条流驱动。
+        """
+        self._state_listener = listener
+
+    async def _notify_state(self, kind: str, payload: Any) -> None:
+        """外发一次状态（失败不拖垮连接循环：状态外发是旁路，不是主链路）。"""
+        listener = self._state_listener
+        if listener is None:
+            return
+        try:
+            result = listener(kind, payload)
+            if hasattr(result, '__await__'):
+                await result
+        except Exception:  # noqa: BLE001 - 单个状态外发失败不能中断 HA 事件流
+            LOGGER.debug('HA 状态外发失败: %s', kind, exc_info = True)
+
+    async def _notify_connection(self, status: str, **extra: Any) -> None:
+        """外发一次连接状态变化。
+
+        连续相同的状态去重：重连风暴里每个失败周期都会走同一条路径，
+        不去重会把前端横幅刷成高频重连提示。
+        """
+        listener = self._connection_listener
+        if listener is None or status == self._last_connection_status:
+            return
+        self._last_connection_status = status
+        try:
+            result = listener(status, extra)
+            if hasattr(result, '__await__'):
+                await result
+        except Exception:  # noqa: BLE001 - 状态外发失败不能拖垮连接循环
+            LOGGER.debug('HA 连接状态外发失败: %s', status, exc_info = True)
+
     def invalidate_endpoint(self) -> None:
         self._endpoint = None
         self._endpoint_signature = None
@@ -519,6 +573,7 @@ class HAConnectorService:
 
     async def _run(self) -> None:
         backoff = 1
+        attempt = 0
         while True:
             connection_id = None
             try:
@@ -532,17 +587,21 @@ class HAConnectorService:
                 await self.sync_once(connection_id)
                 await self._live_connection(connection_id)
                 backoff = 1
+                attempt = 0
             except asyncio.CancelledError:
                 raise
             except Exception as error:
                 self._connected = False
                 self._runtime_error = str(error)
                 self.invalidate_endpoint()
+                attempt += 1
+                await self._notify_connection('disconnected', error = str(error))
                 self._log_event('error', '连接', f'Home Assistant 连接异常：{error}', details = traceback.format_exc())
                 LOGGER.error('HA connector cycle failed\n%s', _safe_text(traceback.format_exc(), limit = 12000))
                 if connection_id:
                     await self._run_database(self._safe_record_error, connection_id, str(error))
                 await asyncio.sleep(backoff)
+                await self._notify_connection('reconnecting', attempt = attempt)
                 backoff = min(backoff * 2, 60)
 
     def _load_connection(self, connection_id: str) -> HAConnection:
@@ -568,6 +627,10 @@ class HAConnectorService:
                 async with self.state_hub.track_fetch_changes() as invalidated:
                     snapshot = await (await self.client_for(connection)).fetch_snapshot()
                     counts = await self._run_database(self._apply_snapshot, connection.id, snapshot, reconciled = reconciled)
+                    # homeos 读模型的全量来源：StateHub 只保留 3D「watched」实体
+                    # （见 refresh_persistent_entity_ids 的 retain），拿不到全量；
+                    # 所以全量直接交给 homeos 状态监听去 set_all。
+                    await self._notify_state('initial', list(snapshot.states))
                     await self.refresh_persistent_entity_ids(ensure_states = False)
                     watched = await self.watched_entity_ids()
                     await self.state_hub.replace(
@@ -598,6 +661,9 @@ class HAConnectorService:
             self._connected = True
             self._runtime_error = None
             self._log_event('success', '连接', '已连接 Home Assistant，实时状态同步正常')
+            await self._notify_connection(
+                'connected', ha_version = getattr(connection, 'ha_version', None)
+            )
             for message in buffered_events:
                 await self._handle_live_event(connection_id, message)
             reconcile_at = time.monotonic() + self.settings.ha_reconcile_interval_seconds
@@ -615,6 +681,7 @@ class HAConnectorService:
                     reconcile_at = time.monotonic() + self.settings.ha_reconcile_interval_seconds
         finally:
             self._connected = False
+            await self._notify_connection('disconnected')
             await websocket.close()
 
     async def _handle_live_event(self, connection_id: str, message: dict[str, Any]) -> None:
@@ -623,6 +690,15 @@ class HAConnectorService:
         event = message.get('event') or { }
         event_type = event.get('event_type')
         event_data = event.get('data') or { }
+        if event_type == 'state_changed' and isinstance(event_data, dict):
+            # 全量增量转发给 homeos 状态监听：读模型与广播不能只覆盖 3D watched 子集。
+            new_state = event_data.get('new_state')
+            await self._notify_state('change', {
+                'entity_id': (new_state or { }).get('entity_id') if isinstance(new_state, dict) else None,
+                'old_state': event_data.get('old_state'),
+                'new_state': new_state,
+                'time_fired': event.get('time_fired'),
+            })
         if event_type == 'state_changed':
             new_state = event_data.get('new_state')
             if isinstance(new_state, dict):

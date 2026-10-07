@@ -273,11 +273,11 @@ export function computeNotificationAnalyticsSummary(
     unread,
     read,
     delivered,
-    readRate: useStats ? stats.readRate : total ? Math.round((read / total) * 1000) / 10 : 0,
+    readRate: useStats ? stats.readRate : total ? Math.round((read / total) * 10000) / 100 : 0,
     deliveryRate: useStats
       ? stats.deliveryRate
       : total
-        ? Math.round((delivered / total) * 1000) / 10
+        ? Math.round((delivered / total) * 10000) / 100
         : 0,
     dangerCount: useStats
       ? stats.byLevel.danger || 0
@@ -302,6 +302,13 @@ export function formatNotificationCount(n: number) {
   if (n >= 10000) return `${(n / 1000).toFixed(1)}k`
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
   return String(n)
+}
+
+/** 百分比格式化：统一保留 2 位小数，规避浮点尾差（如 81.82000000000001%）。 */
+export function formatPercent(value: number) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return '0.00%'
+  return `${n.toFixed(2)}%`
 }
 
 export function levelFilterLabel(level: string) {

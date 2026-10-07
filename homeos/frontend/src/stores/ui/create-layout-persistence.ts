@@ -24,14 +24,16 @@ import { normalizeDashboardFooter } from '@/constants/dashboard-footer'
 import { normalizeSecurityEmergency } from '@/constants/security-emergency'
 import { normalizeWholeHomeOff } from '@/constants/whole-home-off'
 import { logger } from '@/utils/core/logger'
-import { getApiErrorMessage, isLicenseInactiveError } from '@/utils/core/error-message'
+import {
+  getApiErrorMessage,
+  isLicenseInactiveError,
+  isUnauthorizedError,
+} from '@/utils/core/error-message'
 import { applyTabletDefaultPerformanceMode } from '@/utils/perf/tablet-default-perf.util'
 import type { NotifyType } from '@/types/notify'
 import { KNOWN_PANEL_WIDGET_TYPES } from './create-layout-state'
 import { WIDGET_REGISTRY_META, FLOATING_HUB_TYPE_SET } from '@/utils/registry/widget-registry-meta'
-import { prepareLayoutHotspotAnchorsForSave } from '@/utils/floorplan/hotspot-layout.util'
 import { ensureDoorbellList } from '@/utils/layout/doorbell.util'
-import { validateHaUrlForDeploy } from '@/utils/ha/url'
 import { clonePlain } from '@/utils/core/clone-plain.util'
 import { pushServerAccessConfig } from '@/utils/bridge/native-bridge'
 import { fetchSystemNetworkInfo } from '@/services/api/system'
@@ -259,28 +261,37 @@ export function createLayoutPersistence({
    * @param layout 远端原始布局
    * @returns 合并默认值后的布局对象
    */
-  function mergeLayoutWithDefaults(layout: Record<string, unknown>) {
-    const floors = (Array.isArray(layout.floors) ? layout.floors : getDefaultLayout().floors).map(
-      (f: Record<string, unknown>) => ({
-        ...f,
-        statsSensors: f.statsSensors || { lights: '', climates: '', battery: '', offline: '' },
-        floatingWidgets: sanitizeFloatingWidgets(f.floatingWidgets),
-        widgets: Array.isArray(f.widgets) ? f.widgets : [],
-      }),
-    )
+  /**
+   * 把旧 2D 楼层模型迁移到顶层浮动组件。
+   *
+   * - 顶层 `floatingWidgets` 非空视为已迁移，直接采用；
+   * - 否则拍平各楼层的 `floatingWidgets`（安防面板 zones 就存在其中的 config.zones，随组件一起上提）；
+   * - 同 id 去重，先出现者胜。
+   */
+  function migrateLayoutFloors(layout: Record<string, unknown>): FloatingWidget[] {
+    const topLevel = sanitizeFloatingWidgets(layout.floatingWidgets)
+    if (topLevel.length > 0) return topLevel
+    const floors = Array.isArray(layout.floors) ? (layout.floors as Record<string, unknown>[]) : []
+    const merged: FloatingWidget[] = []
+    const seen = new Set<string>()
+    for (const floor of floors) {
+      for (const widget of sanitizeFloatingWidgets(floor?.floatingWidgets)) {
+        if (seen.has(widget.id)) continue
+        seen.add(widget.id)
+        merged.push(widget)
+      }
+    }
+    return merged
+  }
 
+  function mergeLayoutWithDefaults(layout: Record<string, unknown>) {
     const securityEmergency = layout.securityEmergency as Record<string, unknown> | undefined
     const haConfig = layout.haConfig as Record<string, unknown> | undefined
 
     const merged: Record<string, unknown> = {
       ...getDefaultLayout(),
       ...layout,
-      hotspotAnchorConvention: 'icon',
-      activeFloorId:
-        layout.activeFloorId ||
-        (floors[0] as Record<string, unknown> | undefined)?.id ||
-        getDefaultLayout().activeFloorId,
-      floors,
+      floatingWidgets: migrateLayoutFloors(layout),
       rightPanelWidgets: sanitizePanelWidgets(layout.rightPanelWidgets),
       securityEmergency: normalizeSecurityEmergency({
         ...getDefaultLayout().securityEmergency,
@@ -309,12 +320,6 @@ export function createLayoutPersistence({
         (layout.dashboardFooter as Parameters<typeof normalizeDashboardFooter>[0]) ??
           getDefaultLayout().dashboardFooter,
       ),
-      floorSwitcherConfig: layout.floorSwitcherConfig
-        ? {
-            ...(layout.floorSwitcherConfig as object),
-            isLocked: (layout.floorSwitcherConfig as { isLocked?: boolean }).isLocked ?? true,
-          }
-        : { ...getDefaultLayout().floorSwitcherConfig },
       settingsLock: layout.settingsLock
         ? {
             ...(layout.settingsLock as object),
@@ -370,6 +375,13 @@ export function createLayoutPersistence({
     delete merged.energyFooter
     delete merged.widgets
     delete merged.rightPanelCards
+    // 退役 2D 楼层字段（数据已在 migrateLayoutFloors 提升到顶层 floatingWidgets）
+    delete merged.floors
+    delete merged.activeFloorId
+    delete merged.floorSwitcherConfig
+    delete merged.floorplanAspectRatio
+    delete merged.floorplanRenderer
+    delete merged.hotspotAnchorConvention
     ensureDoorbellList(merged.haConfig as HaConfig)
     // 修复内嵌页与导航标签历史双前缀 / 删除残留的孤儿引用
     normalizeEmbedNavTabLayoutFields(merged)
@@ -463,6 +475,17 @@ export function createLayoutPersistence({
               isConfigLoaded.value = false
               return
             }
+            if (isUnauthorizedError(err)) {
+              // 401 已由 api-client 统一处理（清登录态 + 跳登录页）：
+              // 这里不再弹「加载配置失败」，也不把 Promise 抛给调用方——
+              // App.vue 的 watch 是 fire-and-forget，抛出会变成 unhandledrejection，
+              // 被 client-log 当成前端异常上报（用户看到的就是一条红色的
+              // 「加载UI配置失败 / Uncaught (in promise) AxiosError」）。
+              logger.debug('登录状态已失效，跳过 UI 配置加载（已交由认证流程处理）')
+              isConfigLoaded.value = false
+              applyTabletDefaultPerformanceMode(layoutConfig)
+              return
+            }
             logger.error('加载UI配置失败', err)
             notify(
               `加载配置失败: ${getApiErrorMessage(err, err instanceof Error ? err.message : undefined)}`,
@@ -524,25 +547,8 @@ export function createLayoutPersistence({
       return ok
     }
 
-    // HA URL 部署前校验（失败始终提示，避免 silent 路径下用户无感知）
-    const haCfg = layoutConfig.haConfig as { url?: string; fallbackUrl?: string } | undefined
-    const haUrl = haCfg?.url
-    if (haUrl?.trim()) {
-      const urlErr = validateHaUrlForDeploy(haUrl)
-      if (urlErr) {
-        notify(urlErr, 'error')
-        return false
-      }
-    }
-    const fallbackUrl = haCfg?.fallbackUrl?.trim()
-    if (fallbackUrl) {
-      const fallbackErr = validateHaUrlForDeploy(fallbackUrl)
-      if (fallbackErr) {
-        notify(`外网地址：${fallbackErr}`, 'error')
-        return false
-      }
-    }
-
+    // HA 连接地址/令牌由 PUT /ha/connection 在服务端校验并落库，
+    // 项目 layout 只保存实体绑定，因此这里不再做部署地址校验。
     saveConfigQueuedSilent = silent
     saveConfigNeedsResave = false
 
@@ -554,7 +560,6 @@ export function createLayoutPersistence({
           saveConfigNeedsResave = false
           try {
             const layout = cloneLayoutForApi(layoutConfig)
-            prepareLayoutHotspotAnchorsForSave(layout)
             await saveProject(activeProfileId.value, { layout })
             if (!runSilent) notify('布局配置已保存', 'success')
             // 保存成功后推送远程访问地址，原生端无需重启即可拿到新入口

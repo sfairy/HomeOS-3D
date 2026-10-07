@@ -149,10 +149,9 @@ interface EntitySocketActions {
   appNotify: (message: string, type?: string) => void // 应用内通知
 }
 
-/** 模式相关监听器集合（home / child 模式切换） */
+/** 模式相关监听器集合（home 模式切换） */
 interface EntitySocketModeListeners {
   homeModeListeners: Array<(payload: unknown) => void> // 回家模式监听器列表
-  childModeListeners: Array<(payload: unknown) => void> // 儿童模式监听器列表
 }
 
 /** socket 处理器上下文（注入 store 状态与动作） */

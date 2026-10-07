@@ -6,9 +6,9 @@
 - 首推序列：ha_status(early) → initial_states(单条/分片 begin/chunk/end) → state_replay → ha_status(final) → redis_status；
 - 客户端事件 ``update_subscription`` / ``ha_sync_fe_latency``；
 - 广播 API：ha_status / redis_status / state_changed_batch / entities_stale / ha_queue_dropped /
-  notification / home_mode / child_mode / automation_executed / security_* / presence_* /
+  notification / home_mode / automation_executed / security_* / presence_* /
   energy_anomaly / frigate_detection / room_presence / tts_speak / earthquake_*；
-- HA connector 事件接入 + Redis 跨副本桥接 + 领域事件 fan-out（见 ``services/ha_connector.py``、
+- HA connector 事件接入 + Redis 跨副本桥接 + 领域事件 fan-out（见 ``services/studio_ha_compat.py``、
   ``services/event_bus_bridge.py``、``realtime/domain_events.py``）。
 """
 
@@ -96,10 +96,6 @@ class RealtimeGateway:
     def settings(self) -> Any:
         return self.app.state.settings
 
-    @property
-    def secret(self) -> str:
-        return self.settings.jwt_secret or "homeos-dev-secret"
-
     def _ha_configured(self) -> bool:
         if getattr(self.app.state, "ha_configured", None) is not None:
             return bool(self.app.state.ha_configured)
@@ -150,22 +146,19 @@ class RealtimeGateway:
     # 握手 / 断开
     # ------------------------------------------------------------------ #
     async def _on_connect(self, sid: str, environ: dict[str, Any], auth: Any) -> None:
-        token = extract_auth_token_from_cookie(
-            environ.get("HTTP_COOKIE"), self.settings.cookie_name
+        cookie_header = environ.get("HTTP_COOKIE")
+        # DB 会话 Cookie（homeos-3d LoginSession）为唯一登录凭证。
+        session_token = extract_auth_token_from_cookie(
+            cookie_header, self.settings.cookie_name
         )
+        token = session_token
         if not token:
             raise socketio.exceptions.ConnectionRefusedError("auth required")
 
         database = self.app.state.database
         try:
             with database.session_factory() as session:
-                user = resolve_ws_user(
-                    token,
-                    self.secret,
-                    session,
-                    getattr(self.app.state, "token_version_cache", None),
-                    getattr(self.app.state, "session_revocation", None),
-                )
+                user = resolve_ws_user(token, session)
         except Exception:  # noqa: BLE001 - 鉴权失败一律拒绝握手
             raise socketio.exceptions.ConnectionRefusedError("unauthorized") from None
 
@@ -651,14 +644,6 @@ class RealtimeGateway:
     async def broadcast_room_presence(self, data: dict[str, Any]) -> None:
         """房间级在场检测：携带房间名/是否有人/触发传感器。"""
         await self._emit_domain("room_presence", {"type": "room_presence", **data})
-
-    async def broadcast_child_mode_changed(self, data: dict[str, Any]) -> None:
-        """儿童模式开关变更：前端据此限制可用实体。"""
-        await self._emit_domain("child_mode", {"type": "child_mode_changed", **data})
-
-    async def broadcast_child_mode_blocked(self, data: dict[str, Any]) -> None:
-        """儿童模式拦截：通知前端展示拦截提示。"""
-        await self._emit_domain("child_mode", {"type": "child_mode_blocked", **data})
 
     async def broadcast_tts_speak(self, data: dict[str, Any], tts_speak: Any) -> None:
         """TTS 播报：调用 ``TtsSpeakService`` 选路播报，并广播播报结果。"""

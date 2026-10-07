@@ -1,16 +1,17 @@
 /* knip: used by PWA runtime; frontend/src/utils/core/pwa-update.ts navigator.serviceWorker.register('/sw.js'), backend spa-fallback middleware serves /sw.js, shared embed fallback whitelist includes /sw.js — 静态 PWA SW 文件非 ESM import 所以 knip 漏识别 */
 /* HomeOS Service Worker：离线壳缓存 + 非哈希静态资源 */
-const CACHE_SHELL = 'homeos-shell-v5'
-const CACHE_STATIC = 'homeos-static-v4'
+// 版本号变更即代表「旧缓存整体作废」：activate 会删掉非当前名的所有缓存。
+// v5 -> v6 的原因：此前把 no-store 的 SPA 外壳也写进了 homeos-shell-v5，
+// 旧的 `/setup?xxx` 导航副本会引用重建后已删除的旧 chunk，离线兜底命中即白屏。
+const CACHE_SHELL = 'homeos-shell-v6'
+const CACHE_STATIC = 'homeos-static-v5'
 const SHELL_URLS = ['/', '/index.html', '/manifest.json', '/logo/logo.svg']
 /** 由 SW 接管的静态资源前缀；`/assets/` 是内容哈希 + immutable，故意不在其中（见 fetch 处理器） */
 const STATIC_PREFIXES = [
   '/icons/',
-  '/room_images/',
-  '/logo/',
-  '/sounds/',
   '/backgrounds/',
-  '/floorplans/',
+  '/sounds/',
+  '/logo/',
 ]
 
 self.addEventListener('install', (event) => {
@@ -63,10 +64,13 @@ self.addEventListener('activate', (event) => {
 
 /** Cache API 不支持 206 Partial；res.ok 含 200–299，必须显式要求 200 */
 function putIfCacheable(cache, request, res) {
-  if (res.status === 200 && !request.headers.get('range')) {
-    return cache.put(request, res.clone()).catch(() => undefined)
-  }
-  return Promise.resolve()
+  if (res.status !== 200 || request.headers.get('range')) return Promise.resolve()
+  // 尊重服务端显式的 no-store：SPA 外壳（`/`、`/setup` 等）正是这样下发的。
+  // 之前照样写缓存，会让每个访问过的 URL（含 query）都留下一个外壳副本，
+  // 而旧外壳引用的是重建后已删除的 chunk —— 一旦离线兜底命中它就是白屏。
+  // 离线外壳改由 install 阶段的 SHELL_URLS 显式预热，粒度可控。
+  if ((res.headers.get('cache-control') || '').includes('no-store')) return Promise.resolve()
+  return cache.put(request, res.clone()).catch(() => undefined)
 }
 
 function cacheThenNetwork(request, cacheName) {

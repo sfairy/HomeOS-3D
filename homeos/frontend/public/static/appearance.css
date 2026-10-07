@@ -1,0 +1,69 @@
+/* HomeOS 站点配色（「暖居琥珀」预设的展开结果）
+ *
+ * 这份文件就是站点配色的**唯一来源**：首页与各认证页共用一套 `--hos-*` / `--hb-*` 令牌，
+ * 要改站点配色，改这一个文件即可，不必翻四片场景样式。
+ *
+ * 历史：迁移前的版本由后端按站点配置把配色展开成一张样式表、塞进入口页的
+ * `<!--{{APPEARANCE}}-->` 插槽，生成器（`appearance.ts` 的 `appearanceTokens()`）没有随
+ * 迁移并入，插槽机制也不再使用 —— 所以这里留的是一份静态展开结果。下面是它当初的展开规则，
+ * 改配色时按同一套规则推，别只改一半导致亮/暗态失衡：
+ *     colors = { accent:#ffc46a, lumen:#ff9d4d, aura:#c9a0ff, eco:#5fd0a8 }
+ *     shades = { accent:[#ffd9a0,#e09523], lumen:[#ffba83,#c96a1d],
+ *                aura:[#e7d6ff,#9253e6],  eco:[#88dcbf,#3b8e71] }
+ * 四个基色各展开成 hos-<name> / -rgb / -bright / -deep 与 hb-<name> 同名的四枚，
+ * 再加 hb-<name>-soft(0.13) / -line(0.32) / -text(=bright)，最后补 --hb-accent-grad-hover。
+ *
+ * 顺序：必须排在 fonts/page/scene/panel 之后。本文件与 scene/page.css 都在 :root 上声明
+ * 同名令牌，同为「作者 + :root」，后加载的赢；插错位置就等于这份覆盖不生效。
+ * 顺序由 `frontend/src/studio/page-assets.ts` 的样式表数组在运行时决定（数组顺序即加载顺序），
+ * 改动时别把它挪到 auth/scene 四片之前。
+ *
+ * 默认态是空操作：与 page.css 的 :root 逐字相同（--hb-* 那组派生令牌 page.css 不定义，
+ * 只给商店侧用，所以它们在这里是新增而非覆盖）。 */
+:root {
+  --hos-accent: #ffc46a;
+  --hos-accent-rgb: 255, 196, 106;
+  --hos-accent-bright: #ffd9a0;
+  --hos-accent-deep: #e09523;
+  --hb-accent: #ffc46a;
+  --hb-accent-rgb: 255, 196, 106;
+  --hb-accent-bright: #ffd9a0;
+  --hb-accent-deep: #e09523;
+  --hb-accent-soft: rgba(255, 196, 106, 0.13);
+  --hb-accent-line: rgba(255, 196, 106, 0.32);
+  --hb-accent-text: #ffd9a0;
+  --hos-lumen: #ff9d4d;
+  --hos-lumen-rgb: 255, 157, 77;
+  --hos-lumen-bright: #ffba83;
+  --hos-lumen-deep: #c96a1d;
+  --hb-lumen: #ff9d4d;
+  --hb-lumen-rgb: 255, 157, 77;
+  --hb-lumen-bright: #ffba83;
+  --hb-lumen-deep: #c96a1d;
+  --hb-lumen-soft: rgba(255, 157, 77, 0.13);
+  --hb-lumen-line: rgba(255, 157, 77, 0.32);
+  --hb-lumen-text: #ffba83;
+  --hos-aura: #c9a0ff;
+  --hos-aura-rgb: 201, 160, 255;
+  --hos-aura-bright: #e7d6ff;
+  --hos-aura-deep: #9253e6;
+  --hb-aura: #c9a0ff;
+  --hb-aura-rgb: 201, 160, 255;
+  --hb-aura-bright: #e7d6ff;
+  --hb-aura-deep: #9253e6;
+  --hb-aura-soft: rgba(201, 160, 255, 0.13);
+  --hb-aura-line: rgba(201, 160, 255, 0.32);
+  --hb-aura-text: #e7d6ff;
+  --hos-eco: #5fd0a8;
+  --hos-eco-rgb: 95, 208, 168;
+  --hos-eco-bright: #88dcbf;
+  --hos-eco-deep: #3b8e71;
+  --hb-eco: #5fd0a8;
+  --hb-eco-rgb: 95, 208, 168;
+  --hb-eco-bright: #88dcbf;
+  --hb-eco-deep: #3b8e71;
+  --hb-eco-soft: rgba(95, 208, 168, 0.13);
+  --hb-eco-line: rgba(95, 208, 168, 0.32);
+  --hb-eco-text: #88dcbf;
+  --hb-accent-grad-hover: linear-gradient(180deg, #ffd9a0, #ffc46a);
+}

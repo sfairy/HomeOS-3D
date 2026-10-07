@@ -205,8 +205,6 @@ async def get_diagnostics(request: Request, user: dict[str, Any] = Depends(requi
             "version": ha.get("ha_version"),
             "wsLeader": ha.get("ha_ws_leader"),
             "wsMode": ha.get("ha_ws_mode"),
-            "queueLength": ha.get("queue_length") or 0,
-            "queueDroppedTotal": ha.get("queue_dropped_total") or 0,
             "reconnectCount": ha.get("reconnect_count") or 0,
             "registryAvailable": bool(ha.get("connected"))
             and not app.state.ha_connector.is_registry_degraded(),

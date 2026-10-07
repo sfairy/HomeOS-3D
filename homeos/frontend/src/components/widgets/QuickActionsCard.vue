@@ -90,8 +90,6 @@ const emit = defineEmits(['open-group'])
 const entitiesStore = useEntitiesStore()
 const layoutStore = useLayoutStore()
 
-const floors = computed(() => layoutStore.layoutConfig.floors || [])
-
 const statsSensors = computed(() => ({
   ...layoutStore.layoutConfig.statsSensors,
   ...props.config?.statsSensors,
@@ -100,15 +98,15 @@ const statsSensors = computed(() => ({
 const batteryCount = computed(() => countQuickActionBatteryLow(entitiesStore, layoutStore))
 
 const offlineCount = computed(() =>
-  countQuickActionOffline(entitiesStore, layoutStore, floors, statsSensors.value),
+  countQuickActionOffline(entitiesStore, layoutStore, statsSensors.value),
 )
 
 const lightCount = computed(() =>
-  countQuickActionLightsOn(entitiesStore, layoutStore, floors, statsSensors.value),
+  countQuickActionLightsOn(entitiesStore, layoutStore, statsSensors.value),
 )
 
 const climateCount = computed(() =>
-  countQuickActionClimateActive(entitiesStore, layoutStore, floors, statsSensors.value),
+  countQuickActionClimateActive(entitiesStore, layoutStore, statsSensors.value),
 )
 
 /** 用户配置的按钮集合（默认四项，可在「设置 → 面板部件 → 配置统计源」自定义） */
@@ -127,7 +125,6 @@ function buttonCount(id) {
     meta.activeStates || ['on'],
     entitiesStore,
     layoutStore,
-    floors,
     statsSensors.value,
   )
 }

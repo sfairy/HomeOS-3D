@@ -33,7 +33,7 @@
           <p class="conn-redis-title">{{ 'Redis 缓存与消息总线' }}</p>
           <p class="conn-redis-desc">
             {{
-              '与 HomeOS 同机部署 Redis 可启用能源 timeline、Pub/Sub 与 L2 缓存。无 Redis 时降级为内存/PG，能源趋势与部分分析不可用。'
+              '与 HomeOS 同机部署 Redis 可启用能源 timeline、Pub/Sub 与 L2 缓存。无 Redis 时降级为进程内内存，能源趋势与部分分析不可用。'
             }}
           </p>
         </div>

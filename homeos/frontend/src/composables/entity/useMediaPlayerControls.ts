@@ -13,7 +13,7 @@
  */
 import { ref, computed, watch, onUnmounted, unref, type MaybeRef, type Ref } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
-import { useLayoutStore } from '@/stores/layout.store'
+import { useHaConnectionStore } from '@/stores/ha-connection.store'
 import { notifyError } from '@/services/notify'
 import { resolveHaEntityPicture } from '@/utils/ha/media-url.util'
 import { useSliderCommit } from '@/composables/entity/useSliderCommit'
@@ -40,7 +40,7 @@ export function useMediaPlayerControls(
   source: MaybeRef<MediaPlayerSource> | (() => MediaPlayerSource) | Ref<MediaPlayerSource>,
 ) {
   const entitiesStore = useEntitiesStore()
-  const layoutStore = useLayoutStore()
+  const haConnectionStore = useHaConnectionStore()
   /** 解析数据源（兼容 ref/getter/ref 值） */
   function resolveSource() {
     if (typeof source === 'function') return source()
@@ -115,7 +115,7 @@ export function useMediaPlayerControls(
     const pic = attrs.value.entity_picture
     if (!pic) return null
     return resolveHaEntityPicture(
-      layoutStore.layoutConfig?.haConfig?.url,
+      haConnectionStore.baseUrl,
       String(pic),
     )
   })

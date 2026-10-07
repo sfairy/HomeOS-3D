@@ -34,12 +34,10 @@ class NotificationSettingsHelper:
         session_factory: Callable[[], Any],
         get_cfg: Callable[[], dict[str, Any]],
         is_dnd_active: Callable[[], bool],
-        invalidate_user_auth: Callable[[str], None] | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._get_cfg = get_cfg
         self._is_dnd_active = is_dnd_active
-        self._invalidate_user_auth = invalidate_user_auth
 
     # ------------------------------------------------------------------ #
     # 读取
@@ -173,11 +171,6 @@ class NotificationSettingsHelper:
                 return user_id
 
         await asyncio.to_thread(_write)
-        if self._invalidate_user_auth is not None:
-            try:
-                self._invalidate_user_auth(user_id)
-            except Exception as exc:  # noqa: BLE001
-                logger.debug("作废用户 JWT 缓存失败: %s", exc)
         return await self.get_settings(user_id)
 
 

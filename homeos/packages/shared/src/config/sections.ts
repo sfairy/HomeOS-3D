@@ -61,7 +61,6 @@ export type SharedStateStoreConfig = {
   /** 近期状态变更环形缓冲的最大条数（诊断页/故障回溯用） */
   maxRecentChanges: number
   /** REST 实体查询接口的缓存 TTL（毫秒）；命中缓存时跳过数据库查询 */
-  restCacheTtlMs: number
   /** 实体状态过期阈值（毫秒）；超过该时长未更新的实体标记为 stale */
   staleThresholdMs: number
   /** 初始同步是否启用关键域优先；true 时按 entity/sync-priority 排序后推，缩短控制类首屏等待 */

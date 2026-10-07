@@ -56,18 +56,6 @@ const SECTION_FIELD_GROUPS: Record<string, FieldGroupDef[]> = {
       match: ['iaq*', 'moldAlertCooldownMin'],
     },
   ],
-  childMode: [
-    {
-      id: 'limits',
-      label: '开关与时长',
-      match: ['enabled', 'dailyMediaLimitMin'],
-    },
-    {
-      id: 'windows',
-      label: '白名单与时间窗',
-      match: ['deviceWhitelist', 'timeWindows'],
-    },
-  ],
   water: [
     {
       id: 'threshold',
@@ -243,11 +231,6 @@ const SECTION_FIELD_GROUPS: Record<string, FieldGroupDef[]> = {
       id: 'retention',
       label: '历史保留',
       match: ['eventlogRetention*', 'haHistory*'],
-    },
-    {
-      id: 'guest',
-      label: '访客通行',
-      match: ['guestPass*'],
     },
   ],
   notification: [

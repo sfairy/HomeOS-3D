@@ -33,7 +33,7 @@
 	encode zstd gzip
 
 	# 上游固定为同项目内的商店服务名（compose 网络内解析）。
-	reverse_proxy homeos-3d-store:8802 {
+	reverse_proxy homeos-store:8802 {
 		header_up Host {host}
 		header_up X-Real-IP {remote_host}
 		header_up X-Forwarded-Proto {scheme}

@@ -80,7 +80,7 @@
     -5px 0;
 }
 
-.agi-item--floorplan .agi-preview__inner {
+.agi-item--image .agi-preview__inner {
   min-height: 84px;
   max-height: 104px;
 }

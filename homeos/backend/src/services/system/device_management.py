@@ -2,7 +2,7 @@
 
 职责：
 - 扫描「HA 中已不存在但仍被引用」的僵尸绑定，来源覆盖：
-    layoutWidget —— 仪表板布局 Widget（户型图热点 / 右侧与浮动面板部件 / 收藏）
+    layoutWidget —— 仪表板布局 Widget（浮动组件 / 右侧面板部件 / 收藏）
     alertRule    —— 告警规则（AlertRule.entityId）
   存活判定 = 状态库 ∪ HA 实体注册表（含禁用/隐藏）。不得只用过滤后的状态库，
   否则「仅同步已启用实体」会把隐藏诊断实体全部误判成僵尸。
@@ -101,7 +101,7 @@ class DeviceManagementService:
     # 僵尸绑定收集
     # ------------------------------------------------------------------ #
     def collect_layout_widget_bindings(self, items: list[dict[str, Any]]) -> None:
-        """布局 Widget 实体绑定：户型图热点（floors[].widgets）、右侧/浮动面板部件、收藏。"""
+        """布局 Widget 实体绑定：右侧/浮动面板部件、收藏。"""
         try:
             with self._session_factory() as session:
                 row = session.execute(
@@ -110,37 +110,6 @@ class DeviceManagementService:
             if not row:
                 return
             layout = self.parse_layout(row)
-
-            # 户型图热点：widget.id = entity_id
-            floors = layout.get("floors")
-            if not isinstance(floors, list):
-                floors = []
-            for floor_idx, floor in enumerate(floors):
-                if not isinstance(floor, dict):
-                    continue
-                floor_name = str(floor.get("name") or floor.get("id") or f"楼层{floor_idx + 1}")
-                widgets = floor.get("widgets")
-                if not isinstance(widgets, list):
-                    continue
-                for widget_idx, widget in enumerate(widgets):
-                    if not isinstance(widget, dict):
-                        continue
-                    entity_id = str(widget.get("id") or "")
-                    if "." not in entity_id:
-                        continue
-                    label = widget.get("label")
-                    items.append(
-                        {
-                            "source": "layoutWidget",
-                            "entityId": entity_id,
-                            "entityName": str(label or ""),
-                            "refId": f"floor:{floor_idx}:{widget_idx}",
-                            "location": (
-                                f"仪表板布局 · {floor_name}热点"
-                                + (f"「{label}」" if label else "")
-                            ),
-                        }
-                    )
 
             # 右侧 / 浮动面板部件
             for list_name in ("rightPanelWidgets", "floatingWidgets"):
@@ -347,40 +316,10 @@ class DeviceManagementService:
     def remove_widget_from_layout(self, layout: dict[str, Any], item: dict[str, Any]) -> bool:
         """按 refId 从 layout 对象中移除对应 Widget 引用（原地修改）。
 
-        支持：``floor:{fi}:{wi}`` 热点、``widget:{id 或 listName:idx}`` 面板部件、
-        ``favorite:{domain}`` 收藏。
+        支持：``widget:{id 或 listName:idx}`` 面板部件、``favorite:{domain}`` 收藏。
         """
         ref_id = str(item.get("refId") or "")
         entity_id = item.get("entityId")
-
-        if ref_id.startswith("floor:"):
-            parts = ref_id.split(":")
-            floors = layout.get("floors")
-            floors = floors if isinstance(floors, list) else []
-            try:
-                floor = floors[int(parts[1])]
-            except (IndexError, ValueError):
-                return False
-            if not isinstance(floor, dict) or not isinstance(floor.get("widgets"), list):
-                return False
-            widgets = floor["widgets"]
-
-            def matches_entity(widget: Any) -> bool:
-                return isinstance(widget, dict) and str(widget.get("id") or "") == str(entity_id)
-
-            try:
-                idx = int(parts[2])
-            except (IndexError, ValueError):
-                idx = -1
-            target_idx = idx if 0 <= idx < len(widgets) and matches_entity(widgets[idx]) else None
-            if target_idx is None:
-                target_idx = next(
-                    (i for i, widget in enumerate(widgets) if matches_entity(widget)), -1
-                )
-            if target_idx < 0:
-                return False
-            widgets.pop(target_idx)
-            return True
 
         if ref_id.startswith("favorite:"):
             domain = ref_id[len("favorite:") :]

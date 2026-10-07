@@ -20,10 +20,8 @@
 /** HomeOS 前端自有静态资源路径：绝不应被内嵌反代兜底重定向劫持 */
 const HOMEOS_FRONTEND_RESOURCE_PREFIXES = [
   '/assets/',
-  '/floorplans/',
   '/backgrounds/',
   '/icons/',
-  '/room_images/',
   '/sounds/',
   '/logo/',
 ] as const;

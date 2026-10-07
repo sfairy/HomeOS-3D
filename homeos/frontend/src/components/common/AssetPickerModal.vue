@@ -18,13 +18,7 @@
               </div>
               <div>
                 <h3 class="hos-modal-title">{{
-                  type === 'icon'
-                    ? '图标拾取器'
-                    : type === 'background'
-                      ? '背景图拾取器'
-                      : type === 'room_image'
-                        ? '房间图拾取器'
-                        : '素材拾取器'
+                  type === 'icon' ? '图标拾取器' : type === 'background' ? '背景图拾取器' : '素材拾取器'
                 }}</h3>
                 <p class="hos-modal-subtitle">
                   {{
@@ -32,9 +26,7 @@
                       ? '从 icons 目录点选 SVG 状态图标'
                       : type === 'background'
                         ? '浏览并点选仪表盘背景图素材'
-                        : type === 'room_image'
-                          ? '浏览并点选本地房间背景图素材'
-                          : '浏览并点选您想要配置到楼层底图的素材文件'
+                        : '浏览并点选您想要配置的素材文件'
                   }}
                 </p>
               </div>
@@ -103,7 +95,7 @@ const props = defineProps({
   /** 是否打开 */
   isOpen: { type: Boolean },
   /** 资源类型：'icon' 拾取图标，其它拾取素材图片 */
-  type: { default: 'floorplan' },
+  type: { default: 'background' },
 })
 
 const emit = defineEmits(['close', 'select'])

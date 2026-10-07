@@ -75,6 +75,7 @@ import { getEntityDomain } from '@homeos/shared'
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
 import { useEntitiesStore } from '@/stores/entities.store'
+import { useHaConnectionStore } from '@/stores/ha-connection.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { logger } from '@/utils/core/logger'
@@ -94,6 +95,7 @@ const emit = defineEmits(['close'])
 
 const entitiesStore = useEntitiesStore()
 const layoutStore = useLayoutStore()
+const haConnectionStore = useHaConnectionStore()
 const chrome = useChromeStore()
 const panelRef = ref(null)
 useFocusTrap(
@@ -128,7 +130,7 @@ watch(
   },
 )
 
-const haUrl = computed(() => layoutStore.layoutConfig.haConfig.url)
+const haUrl = computed(() => haConnectionStore.baseUrl)
 
 const cameraEntity = computed(() => {
   const eid = props.cameraId

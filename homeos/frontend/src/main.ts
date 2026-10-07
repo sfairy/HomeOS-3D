@@ -71,6 +71,9 @@ import VEmptyState from './components/common/base/VEmptyState.vue'
 import VPanelSkeleton from './components/common/base/VPanelSkeleton.vue'
 import { swipeClose } from './swipe-close.directive'
 
+// CSRF 兜底注入已收敛到单 HTTP 栈：`services/api-client` 在模块求值时调用
+// `services/api/csrf.ts#installFetchCsrf()`，覆盖 studio 遗留的裸 fetch 写请求。
+
 // CustomHtmlWidget 可用的最小 Vue 运行时 API 导出
 window.__homeos_vue__ = {
   ref,
@@ -94,6 +97,50 @@ app.component('VPanelSkeleton', VPanelSkeleton)
 app.directive('swipe-close', swipeClose)
 app.use(createPinia())
 app.use(router)
+
+/** 渲染 DisplayView 的路由名：这些页面按整屏大屏语义给 <html> 加 display-embedded。 */
+const DISPLAY_FAMILY_ROUTES = new Set(['dashboard', 'display', 'homeos'])
+/** 渲染 3D 编辑器 / 绘制台的路由名：这些页面按 1020px 基准缩放并加 editor-viewport-fit。 */
+const EDITOR_FAMILY_ROUTES = new Set(['studio', 'studio-editor', 'stage'])
+
+// 首个路由成功渲染后置就绪标记：外壳的启动覆盖层（/static/boot-guard.js）据此收起，
+// 从而把「后端冷启动窗口里 router.beforeEach 阻塞约 2 分钟」的纯空白页变成可见的等待态。
+// 只在导航成功（无 failure）时置位 —— 被守卫中止的导航不算「已渲染」。
+router.afterEach((to, _from, failure) => {
+  if (failure) return
+  document.documentElement.setAttribute('data-homeos-ready', '1')
+  // 按路由同步「页面档位」body class：声明了 meta.bodyClass 的页面加上，其余页面移除。
+  //
+  // 3D 舞台（.interaction3d-stage）与导出嵌入态（.auto-diagram-embedded）都会给 body 加
+  // class，而 spa-shell.css 里这两条规则会隐藏 `#app` 的**全部**子元素
+  // （见 public/static/spa-shell.css）。SPA 下模块只加载一次、class 只加不删，离开该页后
+  // class 仍残留 —— 再导航到普通页面就会整页不可见：全黑、且零报错。
+  // 反向也成立：后端已把 `interaction3d-stage` 写进 stage 页的 HTML，若这里只做「移除」，
+  // 首次导航后 class 就没了，舞台会退回带绘制工具的全量界面。
+  const stageClass = 'interaction3d-stage'
+  const isStageRoute = to.meta?.bodyClass === stageClass
+  if (isStageRoute) document.body.classList.add(stageClass)
+  else document.body.classList.remove(stageClass)
+  // 与 body class 同步「本页是 3D 舞台」标记：boot-guard.js 据此把舞台的 interaction3d-stage
+  // 视为页面档位（永不当作残留 class 移除），避免总览舞台退回带绘制工具的全量编辑器界面。
+  if (isStageRoute) document.documentElement.setAttribute('data-homeos-stage', '1')
+  else document.documentElement.removeAttribute('data-homeos-stage')
+  // 导出嵌入态由 studio 模块在加载时按 `auto-diagram-embed=1` 自行加上，这里只负责回收。
+  if (to.query?.['auto-diagram-embed'] !== '1') {
+    document.body.classList.remove('auto-diagram-embedded')
+  }
+  // 回收只在整屏大屏 / 编辑器里成立的 html 档位与内联尺寸变量：SPA 导航离开后残留会污染
+  // 普通页面（display-embedded 让 #display-shell 走嵌入布局；editor-viewport-fit 会把内容
+  // 按 1020px 缩放）。display.ts / editor home.ts 只加不删，这里按路由名反向回收。
+  if (!DISPLAY_FAMILY_ROUTES.has(String(to.name || ''))) {
+    document.documentElement.classList.remove('display-embedded')
+  }
+  if (!EDITOR_FAMILY_ROUTES.has(String(to.name || ''))) {
+    document.documentElement.classList.remove('editor-viewport-fit')
+    document.documentElement.style.removeProperty('--editor-viewport-scale')
+    document.documentElement.style.removeProperty('--editor-layout-height')
+  }
+})
 
 // 注册跨层桥接处理器（将非 Vue 模块的回调桥接到 Pinia store）
 // 401 未授权时触发认证 store 的登出处理
@@ -157,6 +204,9 @@ loadFrontendConfig().then(() => {
   // 智能性能模式（根据设备能力动态调整渲染策略）
   setupSmartPerformanceMode(() => useLayoutStore().layoutConfig)
   app.mount('#app')
+  // 挂载完成标记：与 data-homeos-ready（首个路由解析完成）区分开。
+  // boot-guard.js 用它判断「#app 为空」是仍在正常启动（等配置加载）还是真的没渲染出来。
+  document.documentElement.setAttribute('data-homeos-mounted', '1')
   // 挂载后启动 FPS 自适应监控，低帧率时自动降级
   import('@/utils/perf/adaptive-perf.util').then(({ startFpsAdaptiveMonitor }) => {
     startFpsAdaptiveMonitor()

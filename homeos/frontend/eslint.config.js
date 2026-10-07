@@ -23,7 +23,12 @@ const baseRules = {
 }
 
 export default [
-  { ignores: ['dist', 'node_modules', '.vite'] },
+  {
+    // `src/studio` 是从 homeos-3d 整体并入的 3D Studio 运行时（大量机器生成/压缩还原
+    // 风格的代码，上游没有 eslint 配置），不套用 homeos 的风格规则；其类型正确性由
+    // `bun run typecheck`（单一 tsconfig.json，含 src/studio）把关。
+    ignores: ['dist', 'node_modules', '.vite', 'src/studio/**'],
+  },
   js.configs.recommended,
   ...pluginVue.configs['flat/essential'],
   {

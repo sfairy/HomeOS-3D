@@ -1,11 +1,12 @@
 <!--
 组件：SettingsLayoutEditSection.vue
 所属模块：frontend / src / views / settings / display / layout
-职责：布局编辑区段。展示编辑模式状态（LIVE/DEV），提供开启/退出编辑按钮，
-      并以流程概览展示编辑流程（开启编辑 → 放置热区 → 保存布局）。
+职责：仪表盘创作入口区段。总览首页已改为「只读 3D 展示」，编辑与户型图绘制
+      不再出现在总览，统一从这里（管理员后台设置 → 布局）进入。
+      两张入口卡：仪表盘编辑器（页面/控件/实体绑定）与 3D 户型图绘制。
 关键依赖：
   - SettingsCard / SettingsFlowBand / SettingsFlowStat：卡片与流程概览
-数据来源：父级透传的 isEditMode
+数据来源：无（纯入口，跳转到 /studio/editor 与 /3d-studio，二者均为 admin-only 路由）
 -->
 <template>
   <div class="settings-hub-section">
@@ -16,50 +17,69 @@
         band-class="layout-edit-flow-band__shell"
         collapsible
         default-collapsed
-        toggle-label="编辑流程"
+        toggle-label="创作流程"
         :collapsed-summary="layoutEditFlowSummary"
       >
         <template #stats>
           <SettingsFlowStat
-            :label="'编辑层'"
-            :value="isEditMode ? '开启' : '关闭'"
-            :tone="isEditMode ? 'emerald' : 'secondary'"
-            :val-tone="isEditMode ? 'emerald' : 'secondary'"
+            :label="'总览'"
+            :value="'只读展示'"
+            tone="secondary"
+            val-tone="secondary"
           />
         </template>
       </SettingsFlowBand>
 
-      <div :class="['layout-edit-hero', isEditMode && 'layout-edit-hero--live']">
+      <div class="layout-edit-hero">
         <div class="layout-edit-hero__mesh" aria-hidden="true" />
         <div class="layout-edit-hero__glow" aria-hidden="true" />
         <div class="layout-edit-hero__body">
           <div class="layout-edit-hero__info">
-            <div
-              :class="['layout-edit-hero__badge', isEditMode && 'layout-edit-hero__badge--live']"
-            >
+            <div class="layout-edit-hero__badge">
               <span class="layout-edit-hero__badge-dot" />
-              {{ isEditMode ? 'LIVE' : 'DEV' }}
+              EDITOR
             </div>
             <div class="min-w-0">
-              <p class="layout-edit-hero__title">
-                {{ isEditMode ? '编辑模式已激活' : '一键进入户型热区编辑' }}
-              </p>
+              <p class="layout-edit-hero__title">仪表盘编辑器</p>
               <p class="layout-edit-hero__hint">
-                {{
-                  isEditMode
-                    ? '主页顶部指挥台可保存或退出编辑'
-                    : '开启后跳转主页，拖拽实体并微调热区坐标'
-                }}
+                编辑页面、控件、主题与实体绑定；保存后总览首页立即生效
               </p>
             </div>
           </div>
           <button
             type="button"
-            :class="['layout-edit-hero__cta', isEditMode && 'layout-edit-hero__cta--live']"
-            @click.stop="$emit('toggle-edit-mode')"
+            class="layout-edit-hero__cta"
+            @click.stop="openDashboardEditor"
           >
-            <component :is="isEditMode ? Square : PenLine" class="w-4 h-4" />
-            {{ isEditMode ? '退出编辑' : '开启编辑' }}
+            <PenLine class="w-4 h-4" />
+            {{ '打开编辑器' }}
+          </button>
+        </div>
+      </div>
+
+      <div class="layout-edit-hero layout-edit-hero--studio">
+        <div class="layout-edit-hero__mesh" aria-hidden="true" />
+        <div class="layout-edit-hero__glow" aria-hidden="true" />
+        <div class="layout-edit-hero__body">
+          <div class="layout-edit-hero__info">
+            <div class="layout-edit-hero__badge layout-edit-hero__badge--studio">
+              <span class="layout-edit-hero__badge-dot" />
+              DRAW
+            </div>
+            <div class="min-w-0">
+              <p class="layout-edit-hero__title">3D 户型图绘制</p>
+              <p class="layout-edit-hero__hint">
+                绘制户型、家具、灯光与灯组，并生成三维视角与设备热区
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="layout-edit-hero__cta layout-edit-hero__cta--studio"
+            @click.stop="openFloorplanStudio"
+          >
+            <Shapes class="w-4 h-4" />
+            {{ '打开绘制工具' }}
           </button>
         </div>
       </div>
@@ -69,45 +89,48 @@
 
 <script setup>
 import { computed } from 'vue'
-import { PenLine, Square, ToggleRight, MousePointerClick, CloudUpload } from '@lucide/vue'
+import { useRouter } from 'vue-router'
+import { PenLine, Shapes, ToggleRight, PencilRuler, CloudUpload } from '@lucide/vue'
 import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
 import SettingsFlowBand from '@/views/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/views/settings/shared/layout/SettingsFlowStat.vue'
 
-// 入参：是否处于编辑模式
-const props = defineProps({
-  isEditMode: { type: Boolean, default: false },
-})
+const router = useRouter()
 
-// 对外事件：切换编辑模式
-defineEmits(['toggle-edit-mode'])
+/** 打开仪表盘编辑器（管理员专属路由，守卫层二次校验角色）。 */
+function openDashboardEditor() {
+  router.push('/studio/editor')
+}
 
-// 编辑流程步骤：开启编辑 → 放置热区 → 保存布局
+/** 打开 3D 户型图绘制工具（管理员专属路由）。 */
+function openFloorplanStudio() {
+  router.push('/3d-studio')
+}
+
+// 创作流程步骤：进入编辑器 → 编辑 / 绘制 → 保存后总览展示
 const layoutEditFlowSteps = computed(() => [
   {
-    label: '开启编辑',
-    meta: props.isEditMode ? '已激活' : '待开启',
+    label: '进入编辑器',
+    meta: '仅管理员',
     icon: ToggleRight,
     tone: 'in',
   },
   {
-    label: '放置热区',
-    meta: '拖入实体 / 微调',
-    icon: MousePointerClick,
+    label: '编辑 / 绘制',
+    meta: '页面 · 控件 · 户型图',
+    icon: PencilRuler,
     tone: 'sky',
   },
   {
-    label: '保存布局',
-    meta: '指挥台写入',
+    label: '保存并展示',
+    meta: '总览只读渲染',
     icon: CloudUpload,
     tone: 'out',
   },
 ])
 
-// 编辑流程折叠态摘要文案
-const layoutEditFlowSummary = computed(() =>
-  props.isEditMode ? '编辑层开启 · 主页户型图' : '编辑层关闭 · 点击下方开启',
-)
+// 创作流程折叠态摘要文案
+const layoutEditFlowSummary = computed(() => '管理员入口 · 编辑与绘制均在此进入')
 </script>
 
 <style scoped src="./styles/settings-layout-edit-section.css"></style>

@@ -211,8 +211,8 @@ def build_notification_stats(
         "byLevel": by_level,
         "byTime": build_notification_time_series(time_rows, window_hours),
         "topSources": top_sources,
-        "deliveryRate": _round_half_up(delivered / total * 1000) / 10 if total else 0,
-        "readRate": _round_half_up(read / total * 1000) / 10 if total else 0,
+        "deliveryRate": _round_half_up(delivered / total * 100, 2) if total else 0,
+        "readRate": _round_half_up(read / total * 100, 2) if total else 0,
     }
 
 

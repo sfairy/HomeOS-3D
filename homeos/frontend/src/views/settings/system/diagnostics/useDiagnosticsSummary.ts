@@ -391,15 +391,6 @@ export function useDiagnosticsSummary(deps: {
         ),
       })
     }
-    if ((diag.value?.ha?.queueDroppedTotal ?? 0) > 0) {
-      hints.push({
-        tone: 'amber',
-        text: '命令队列已丢弃 {n} 条，可在高级参数调大队列或排查 HA 延迟。'.replace(
-          '{n}',
-          String(diag.value?.ha?.queueDroppedTotal ?? 0),
-        ),
-      })
-    }
     if (memPct.value >= BACKEND_MEM_WARN_PCT) {
       const est = memoryDetail.value?.estimatedEntityStoreMb
       hints.push({

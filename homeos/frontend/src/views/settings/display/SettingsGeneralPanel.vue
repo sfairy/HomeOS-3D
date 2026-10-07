@@ -109,6 +109,36 @@
       </SettingsCard>
     </div>
 
+    <div v-show="generalSection === 'theme'" class="settings-hub-section general-theme-section">
+      <SettingsCard static>
+        <SettingsCardIntro
+          :icon="Sparkles"
+          icon-class="general-intro-icon--amber"
+          orb-class="orb-amber"
+          eyebrow="中控主题"
+          :description="'选择当前终端的微晶氛围主题，切换立即生效。'"
+        />
+        <div class="general-theme-grid" role="radiogroup" aria-label="中控主题">
+          <button
+            v-for="option in themeOptions"
+            :key="option.id"
+            type="button"
+            class="general-theme-choice"
+            :class="{ 'general-theme-choice--active': activeTheme === option.id }"
+            role="radio"
+            :aria-checked="activeTheme === option.id"
+            @click="setTheme(option.id)"
+          >
+            <span class="general-theme-swatch" :class="option.swatch" aria-hidden="true" />
+            <span>
+              <strong>{{ option.label }}</strong>
+              <small>{{ option.tagline }}</small>
+            </span>
+          </button>
+        </div>
+      </SettingsCard>
+    </div>
+
     <div v-show="generalSection === 'runtime'" class="settings-hub-section">
       <SettingsCard static>
         <SettingsCardIntro
@@ -172,7 +202,7 @@
           >
             {{ '天气特效' }}
           </button>
-          {{ '子页；PostgreSQL 历史保留见' }}
+          {{ '子页；SQLite 历史保留见' }}
           <button
             type="button"
             class="general-link--warn underline font-bold"
@@ -280,6 +310,7 @@ import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
 import NavTabEditor from './NavTabEditor.vue'
 import { markPerformanceModeUserSet } from '@/utils/perf/tablet-default-perf.util'
 import { applyGlassEffectDocument } from '@/utils/ui/glass-effect.util'
+import { applyHomeOsTheme } from '@/utils/ui/theme.util'
 import { useSettingsSidebarReentryReset } from '@/composables/ui/hub-viewport.internals'
 import { useSettingsHubRouteSection } from '@/composables/settings/hub-ui.internals'
 import { useSettingsPendingChanges } from '@/composables/settings/pending.internals'
@@ -292,6 +323,39 @@ const chrome = useChromeStore()
 const { layoutStore, layoutConfig } = useLayoutConfigRef()
 // 当前激活的子导航区段
 const generalSection = ref('brand')
+
+// 中控主题：读取当前生效项（不写回，避免仅打开面板就持久化）
+const activeTheme = ref(applyHomeOsTheme(undefined, false))
+
+/**
+ * 主题选项：computed 渲染（不再硬编码两个按钮），为「随系统语言切换实时刷新文案」留出响应式入口。
+ * id 与 swatch 类名一一对应，新增主题只需在此追加一条（并同步 hos-design-system.css 的 html[data-theme]）。
+ */
+const themeOptions = computed(() => [
+  {
+    id: 'warm-amber',
+    label: '琥珀暖意',
+    tagline: 'Warm Amber',
+    swatch: 'general-theme-swatch--amber',
+  },
+  {
+    id: 'slate-navy',
+    label: '石板深蓝',
+    tagline: 'Slate Navy',
+    swatch: 'general-theme-swatch--navy',
+  },
+])
+
+/** 主题显示名：通知文案不再硬编码，随 themeOptions 变化自动跟随 */
+function themeLabel(mode) {
+  return themeOptions.value.find((o) => o.id === mode)?.label || mode
+}
+
+function setTheme(mode) {
+  activeTheme.value = mode
+  applyHomeOsTheme(mode)
+  chrome.notify(`已切换为${themeLabel(mode)}主题`, 'success')
+}
 
 const initialLayoutConfig = ref(null)
 const { pendingCount: pendingChanges, takeSnapshot } = useSettingsPendingChanges({
@@ -315,6 +379,7 @@ watch(
 const generalSubnavSections = computed(() => {
   return [
     { id: 'brand', label: '站点品牌', emoji: '🎨' },
+    { id: 'theme', label: '中控主题', emoji: '✨' },
     { id: 'nav', label: '导航标签', emoji: '🧭' },
     { id: 'footer', label: '底部信息栏', emoji: '📊' },
     { id: 'weather-effects', label: '天气特效', emoji: '🌦️' },
@@ -538,3 +603,17 @@ async function onLogout() {
 </script>
 
 <style src="./styles/settings-general-panel.css"></style>
+
+<style scoped>
+/* 中控主题选择器：两列卡片 + 色卡；选中环跟随当前主题的 page-accent，切到哪套主题就亮哪套色 */
+.general-theme-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:16px; }
+.general-theme-choice { display:flex; align-items:center; gap:12px; padding:12px; border-radius:14px; border:1px solid var(--hos-border-subtle); background:var(--hos-surface-1); color:var(--hos-text-primary); text-align:left; cursor:pointer; box-shadow:inset 0 1px 0 rgba(255,255,255,.08); transition:border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+.general-theme-choice:hover { transform:translateY(-1px); border-color:var(--hos-border-strong); }
+.general-theme-choice--active { border-color:rgba(var(--page-accent-rgb),.55); box-shadow:0 0 0 1px rgba(var(--page-accent-rgb),.22), inset 0 1px 0 rgba(255,255,255,.16); }
+.general-theme-choice strong,.general-theme-choice small { display:block; }
+.general-theme-choice small { margin-top:3px; color:var(--hos-text-tertiary); font-size:11px; }
+.general-theme-swatch { width:32px; height:32px; border-radius:10px; flex:none; box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 0 0 1px rgba(var(--page-accent-rgb),.22); }
+.general-theme-swatch--amber { background:linear-gradient(135deg,#f97316,#451a03); }
+.general-theme-swatch--navy { background:linear-gradient(135deg,#60a5fa,#0f172a); }
+@media (max-width:639px) { .general-theme-grid { grid-template-columns:1fr; } }
+</style>

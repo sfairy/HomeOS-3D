@@ -18,6 +18,7 @@ import sys
 from datetime import UTC, datetime
 from typing import Any
 
+from .access_log_noise import MODE_OFF, install_http_access_log_filter
 from .observability import get_trace_id
 from .status_log_dedupe import StatusLogDedupeFilter
 
@@ -143,7 +144,6 @@ _CONTEXT_ZH: dict[str, str] = {
     "homeos.backup.bundle": "系统包备份",
     # 指令代理
     "homeos.command_proxy": "指令代理",
-    "homeos.command_audit": "指令审计",
     # 安防 / 存在
     "homeos.security": "安防",
     "homeos.security.service": "安防",
@@ -158,9 +158,8 @@ _CONTEXT_ZH: dict[str, str] = {
     "homeos.security.away_sim": "离家模拟",
     "homeos.security.frigate": "Frigate",
     "homeos.security.layout": "安防布局",
-    # 家庭模式 / 儿童模式
+    # 家庭模式
     "homeos.home_mode": "家庭模式",
-    "homeos.child_mode": "儿童模式",
     # 智能管家
     "homeos.agent.service": "智能管家",
     "homeos.agent.config": "智能管家配置",
@@ -465,6 +464,11 @@ def configure_app_logging() -> logging.Logger:
     _attach_handler(logger, level, color)
     for name in _UVICORN_LOGGERS:
         _attach_handler(logging.getLogger(name), level, color)
+    # HTTP 访问日志降噪：默认丢掉 2xx/3xx（成功与重定向），保留 4xx/5xx 等异常请求。
+    access_filter = install_http_access_log_filter()
+    if access_filter.mode == MODE_OFF:
+        # 全静默：直接抬高访问日志器级别，连格式化都省掉
+        logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     return logger
 
 

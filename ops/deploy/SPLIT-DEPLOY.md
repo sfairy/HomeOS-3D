@@ -8,19 +8,19 @@
 
 | 文件 | 项目名 | 角色 | 部署到 |
 | --- | --- | --- | --- |
-| `docker-compose.store.yml` | `homeos-3d-store` | 授权商店（中心，唯一）：网络与公钥卷的持有者 | 厂商机 |
-| `docker-compose.app.yml` | `homeos-3d` | 主应用：**可单独运行**，启动时从中心取回公钥 | 每台客户机 |
-| `docker-compose.app.shared.yml` | 叠加到 `homeos-3d` | 仅同机（开发 / 自测）时用：加入商店的网络与公钥卷 | 开发机 |
+| `docker-compose.store.yml` | `homeos-store` | 授权商店（中心，唯一）：网络与公钥卷的持有者 | 厂商机 |
+| `docker-compose.app.yml` | `homeos` | 主应用：**可单独运行**，启动时从中心取回公钥 | 每台客户机 |
+| `docker-compose.app.shared.yml` | 叠加到 `homeos` | 仅同机（开发 / 自测）时用：加入商店的网络与公钥卷 | 开发机 |
 | `docker-compose.store.public.yml` | 叠加到商店 | 仅跨公网时用：真实域名 + 可信证书 HTTPS | 厂商机（公网） |
 
 ```
                   ┌────────────── 厂商机（唯一）──────────────┐
-                  │  homeos-3d-store   :8802 / :8804          │
+                  │  homeos-store   :8802 / :8804          │
                   └───────────────────┬───────────────────────┘
                       /v2/keys  ⟵─────┼─────⟶  /v2/activate /v2/heartbeat
       ┌───────────────────────────────┼───────────────────────────────┐
       ▼                               ▼                               ▼
- 客户机 A  homeos-3d            客户机 B  homeos-3d            客户机 C  homeos-3d
+ 客户机 A  homeos            客户机 B  homeos            客户机 C  homeos
   :8801 / :8803                  :8801 / :8803                  :8801 / :8803
 ```
 
@@ -38,7 +38,7 @@ ops/deploy/deploy.sh --role all
 > **跨机直连用 `http://<中心商店>:8802`，不要用 `https://<中心商店>:8804`。** 商店内置反代用的是
 > Caddy 内部 CA 的自签证书（`skip_install_trust`，不写系统信任库），主应用容器的 httpx / 取公钥
 > 的 urllib 都会按系统 CA 校验而失败 —— 表现是「无法连接授权服务器」+「取回授权公钥超时」。
-> 同机部署（`--role all`）走容器内网 `http://homeos-3d-store:8802`，不受此限。
+> 同机部署（`--role all`）走容器内网 `http://homeos-store:8802`，不受此限。
 
 **要跨公网 / 要卖授权**：别用自签，见 [PUBLIC-ACCESS.md](PUBLIC-ACCESS.md)（域名 + 真实证书
 反代，支付宝 / 微信回调也要求它）。**客户机分发**见 [pack-customer.sh](pack-customer.sh) 与
@@ -58,8 +58,8 @@ ops/deploy/deploy.sh --role all
 # 首次部署后打开 http://<厂商机IP>:8802/setup 创建管理员
 ```
 
-- 授权私钥**只在这台机器上**：镜像不含私钥（`.dockerignore` 排除了 `homeos-store/keys/local/`），首次启动生成到卷 `homeos-3d-store_homeos-3d-license-keys`。**这个卷丢了等于所有已激活客户端失效**，单独备份。
-- **商店首次启动是随机生成密钥对**（`Ed25519PrivateKey.generate()`），所以它的公钥和仓库里 `keys/` 的开发公钥**不一样**。公钥会同步到共享卷 `homeos-3d-client-keys`（同机 overlay 直接挂它）；分拆部署时由客户机启动时通过 `GET /v2/keys` 自动取回，见下一节。
+- 授权私钥**只在这台机器上**：镜像不含私钥（`.dockerignore` 排除了 `homeos-store/keys/local/`），首次启动生成到卷 `homeos-store_homeos-license-keys`。**这个卷丢了等于所有已激活客户端失效**，单独备份。
+- **商店首次启动是随机生成密钥对**（`Ed25519PrivateKey.generate()`），所以它的公钥和仓库里 `keys/` 的开发公钥**不一样**。公钥会同步到共享卷 `homeos-client-keys`（同机 overlay 直接挂它）；分拆部署时由客户机启动时通过 `GET /v2/keys` 自动取回，见下一节。
 - 站点配置（邮件 / 支付 / 文案）在 `/admin` 改，不走环境变量。
 
 ## 2. 客户机的公钥：全自动，无需人工投放
@@ -87,10 +87,10 @@ ops/deploy/deploy.sh --role all
 
 ```bash
 # 中心商店：看一眼当前公钥
-docker exec homeos-3d-store sha256sum /data/client-keys/*.pem
+docker exec homeos-store sha256sum /data/client-keys/*.pem
 
 # 客户机：看一眼取回结果（启动日志）
-docker logs homeos-3d | grep 授权公钥
+docker logs homeos | grep 授权公钥
 ```
 
 **要手工指定公钥**（离线盘点、或从别处恢复数据卷）时，把两个 PEM 放进
@@ -111,7 +111,7 @@ docker logs homeos-3d | grep 授权公钥
 #   UVICORN_FORWARDED_ALLOW_IPS=127.0.0.1,::1     # 保持默认，不要填 *
 
 ./ops/deploy/deploy.sh --role app --license-server http://<中心商店IP>:8802
-docker logs homeos-3d | head     # 取首次设置引导密钥（容器内 /data/setup-token）
+docker logs homeos | head     # 取首次设置引导密钥（容器内 /data/setup-token）
 ```
 
 独立部署用的 `docker-compose.app.yml` **不再**声明 external 网络与共享卷，所以不需要先
@@ -192,7 +192,7 @@ sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
 ## 6. 可信代理与限流
 
 - 反代在**同容器回环**上，所以两个可信代理列表都收敛到回环：`APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES=127.0.0.1,::1`（compose 的默认值，`.env` 不写就是它），`UVICORN_FORWARDED_ALLOW_IPS` 同样保持 `127.0.0.1,::1`。
-- **不要**改成 `*`：那等于把来源 IP 交给客户端自己填，登录限流、配对码枚举预算与审计一起失效。
+- **不要**改成 `*`：那等于把来源 IP 交给客户端自己填，登录限流与审计一起失效。
 - **不要**把 `172.16.0.0/12` 之类的 docker 网段填进来：反代在容器回环上，这个值会让 uvicorn 连回环都不信，所有请求的来源退化成同一个 `127.0.0.1`，限流桶合并、审计里的 IP 失真。
 - 留空**也能跑**（uvicorn 的 proxy-headers 会先把对端改写成真实客户端），但 `APP_TRUSTED_PROXIES` 为空时启动与首个带转发头的请求都会各记一条「未配置可信代理」告警，且应用层不会自己解析转发链 —— 所以别留空。
 - 只有把反代放到**镜像之外**（自建 Caddy / Nginx，见 `Caddyfile.intranet.example`）时，才需要把它改成那一层代理的地址或网段。
@@ -208,11 +208,11 @@ sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
 
 | 卷 | 归属 |
 | --- | --- |
-| `homeos-3d_homeos-3d-data` | 客户机主应用数据（含自动取回的公钥缓存 `/data/client-keys`） |
-| `homeos-3d_homeos-3d-secrets` | 客户机 HA / 配对 / 授权凭据密钥 |
-| `homeos-3d-store_homeos-3d-store-data` | 中心商店数据库与商品图 |
-| `homeos-3d-store_homeos-3d-license-keys` | 中心商店授权私钥（最关键，单独备） |
-| `homeos-3d-client-keys` | 共享公钥卷（同机 `--role all` 用；分拆部署不依赖它） |
+| `homeos_homeos-data` | 客户机主应用数据（含自动取回的公钥缓存 `/data/client-keys`） |
+| `homeos_homeos-secrets` | 客户机 HA / 授权凭据签名密钥 |
+| `homeos-store_homeos-store-data` | 中心商店数据库与商品图 |
+| `homeos-store_homeos-license-keys` | 中心商店授权私钥（最关键，单独备） |
+| `homeos-client-keys` | 共享公钥卷（同机 `--role all` 用；分拆部署不依赖它） |
 
 升级照旧是拉新镜像 + `up -d`，**先中心商店、后客户机**（完整清单、通知模板与回滚见
 [UPGRADE.md](UPGRADE.md)）：

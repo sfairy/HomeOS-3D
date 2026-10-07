@@ -1,8 +1,12 @@
 """UI 布局密钥脱敏与合并（对齐 ``modules/ui-config/ha.util.ts``）。
 
-- :func:`mask_layout_for_role`：按角色脱敏 HA token / Agent 密钥 / 通道密钥；
+阶段 3.3 起 layout 里**不再保存 HA 连接凭据**（地址 / 令牌单源在 ``ha_connections``
+表，经 ``GET/PUT /ha/connection`` 读写），因此原先针对 ``haConfig.url/token`` 的
+脱敏、回填与指纹逻辑整体删除。剩下的职责只有两类：
+
+- :func:`mask_layout_for_role`：按角色脱敏 Agent 密钥 / 通道密钥；
 - :func:`merge_layout_secrets_on_save`：保存时若密钥为占位符 / 空值，保留库中真实值；
-- :func:`extract_ha_config_fingerprint`：提取 HA 连接指纹用于判断是否需要重连。
+- :func:`strip_legacy_ha_connection`：清掉历史 layout 里遗留的 HA 连接字段。
 """
 
 from __future__ import annotations
@@ -15,6 +19,9 @@ from ..app_config.constants import CONFIG_MASK_PLACEHOLDER
 from ..app_config.mask import is_masked_value
 
 _CHANNEL_SECRET_KEYS = ("corpSecret", "callbackToken", "callbackAesKey")
+
+#: 旧版 layout.haConfig 中属于「连接凭据」的字段（3.3 起由 ``ha_connections`` 表持有）。
+LEGACY_HA_CONNECTION_KEYS = ("url", "fallbackUrl", "token")
 
 
 def _is_sensitive_value_skippable(value: Any) -> bool:
@@ -66,45 +73,39 @@ def _mask_channel_secrets(channel_config: Any) -> None:
                 wecom[key] = CONFIG_MASK_PLACEHOLDER
 
 
-def _mask_layout_secrets(layout: dict[str, Any]) -> dict[str, Any]:
-    out = copy.deepcopy(layout)
+def strip_legacy_ha_connection(layout: Any) -> dict[str, Any]:
+    """删除 layout.haConfig 中遗留的连接凭据字段，其余字段原样保留。
+
+    这些键在 3.3 之前由 ``load_ha_endpoints`` 读取，现在只剩「迷惑后来者」和
+    「把明文令牌继续留在库里」两个作用：读 / 写路径都过一遍这里，历史数据会在下次
+    保存时自然消失（启动期另有一次性导入，见 ``services/ha_config.py``）。
+    """
+    out = copy.deepcopy(layout) if isinstance(layout, dict) else {}
     ha_config = out.get("haConfig")
-    if isinstance(ha_config, dict) and ha_config.get("token") is not None and str(ha_config["token"]) != "":
-        ha_config["token"] = CONFIG_MASK_PLACEHOLDER
+    if isinstance(ha_config, dict):
+        for key in LEGACY_HA_CONNECTION_KEYS:
+            ha_config.pop(key, None)
+    return out
+
+
+def mask_layout_for_role(layout: dict[str, Any], role: str | None = None) -> dict[str, Any]:
+    """输出给前端的 layout：清掉历史 HA 连接字段，并按角色脱敏其余密钥。
+
+    Agent / 通道密钥一律脱敏（防止前端回写写穿）；HA 连接信息不在 layout 里，
+    无需再区分角色。
+    """
+    out = strip_legacy_ha_connection(layout)
     _mask_agent_secrets(out.get("agentConfig"))
     _mask_channel_secrets(out.get("channelConfig"))
     return out
 
 
-def mask_layout_for_role(layout: dict[str, Any], role: str | None = None) -> dict[str, Any]:
-    """按角色决定是否脱敏 layout 中的密钥。
-
-    admin 保留 HA token 明文以便连接配置编辑；Agent / 通道密钥一律脱敏（防止前端回写写穿）。
-    """
-    if role == "admin":
-        out = copy.deepcopy(layout)
-        _mask_agent_secrets(out.get("agentConfig"))
-        _mask_channel_secrets(out.get("channelConfig"))
-        return out
-    return _mask_layout_secrets(layout)
-
-
 def merge_layout_secrets_on_save(incoming: Any, existing_layout: Any) -> dict[str, Any]:
     """保存时合并密钥：incoming 中为占位符 / 空值的敏感字段保留库中真实值。"""
-    merged = copy.deepcopy(incoming) if isinstance(incoming, dict) else {}
+    merged = strip_legacy_ha_connection(incoming)
     existing = _as_layout_object(existing_layout)
     if existing is None:
         return merged
-
-    incoming_ha = merged.get("haConfig")
-    existing_ha = existing.get("haConfig")
-    if (
-        isinstance(incoming_ha, dict)
-        and _is_sensitive_value_skippable(incoming_ha.get("token"))
-        and isinstance(existing_ha, dict)
-        and existing_ha.get("token")
-    ):
-        incoming_ha["token"] = existing_ha["token"]
 
     incoming_agent = merged.get("agentConfig")
     existing_agent = existing.get("agentConfig")
@@ -143,26 +144,9 @@ def merge_layout_secrets_on_save(incoming: Any, existing_layout: Any) -> dict[st
     return merged
 
 
-def extract_ha_config_fingerprint(layout: Any) -> str:
-    """从 layout 提取 HA 连接指纹（``url|fallback|token``）；空 / 非法返回空串。"""
-    if layout is None or layout == "":
-        return ""
-    parsed = _as_layout_object(layout)
-    if parsed is None:
-        return ""
-    ha = parsed.get("haConfig")
-    if not isinstance(ha, dict):
-        return ""
-    url = ha.get("url")
-    token = ha.get("token")
-    if not url or not token:
-        return ""
-    fallback = str(ha.get("fallbackUrl") or "").strip().rstrip("/")
-    return f"{str(url).rstrip('/')}|{fallback}|{token}"
-
-
 __all__ = [
-    "extract_ha_config_fingerprint",
+    "LEGACY_HA_CONNECTION_KEYS",
     "mask_layout_for_role",
     "merge_layout_secrets_on_save",
+    "strip_legacy_ha_connection",
 ]

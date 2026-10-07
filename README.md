@@ -2,19 +2,21 @@
 
 面向 [Home Assistant](https://www.home-assistant.io/) 的本机仪表盘与中控，当前版本见仓库根 `package.json` 的 `version`。
 
-两个**相互独立**的项目：主应用 `homeos-3d` 与授权商店 `homeos-store`。各自含前后端源码，互不 import 后端包，可同机或分机部署。两者的构建产物统一收敛到工作区根 `dist/`，与源码树彻底分开。
+两个**相互独立**的项目：主应用 `homeos` 与授权商店 `homeos-store`。各自含前后端源码，互不 import 后端包，可同机或分机部署。两者的构建产物统一收敛到工作区根 `dist/`，与源码树彻底分开。
 
-两个项目互不依赖、可**分别构建与部署**（`bun run build:3d` / `build:store`、`python3 ops/build.py --project 3d|store`、Docker 的 `--target app|store` 都是单侧操作）。前端依赖只在工作区根装一份（见根 `bunfig.toml` 的 hoisted linker）：项目目录内不再有 `node_modules`，也不再有各自的 lockfile，全仓以根 `bun.lock` 为唯一依赖来源。
+两个项目互不依赖、可**分别构建与部署**（`bun run build:app` / `build:store`、`python3 ops/build.py --project app|store`、Docker 的 `--target app|store` 都是单侧操作）。前端依赖只在工作区根装一份（见根 `bunfig.toml` 的 hoisted linker）：项目目录内不再有 `node_modules`，也不再有各自的 lockfile，全仓以根 `bun.lock` 为唯一依赖来源。
 
 ## 目录
 
 ```text
 HomeOS/
-├── homeos-3d/                 # 主应用（独立项目）
-│   ├── backend/src/           # 后端（import 根是项目根，源码包名 backend.src）
-│   ├── frontend/              # 前端源码（pages / src / public）
-│   ├── data/                  # 运行时（不入库；APP_DATA_DIR）
-│   ├── migrations/ alembic.ini   # 只在开发期用，不进构建产物
+├── homeos/                    # 主应用（独立项目）
+│   ├── backend/               # 后端（import 根是 backend/，源码包名 src）
+│   │   ├── src/               # FastAPI 应用（含并入的 3D Studio 数据面与授权服务）
+│   │   ├── migrations/ alembic.ini   # 只在开发期用，不进构建产物
+│   │   └── requirements.txt
+│   ├── frontend/              # 前端源码（src / public，含 studio/ 3D 编辑器与 runtime）
+│   ├── data/                  # 运行时（不入库；HOMEOS_DATA_DIR）
 │   └── package.json
 ├── homeos-store/              # 授权商店（独立项目）
 │   ├── backend/src/           # 后端（源码包名 src）
@@ -24,7 +26,7 @@ HomeOS/
 │   ├── keys/local/            # 本地联调用的授权私钥（不入库）
 │   └── package.json
 ├── dist/                      # 构建产物（与源码彻底分开，不入库）
-│   ├── homeos-3d/
+│   ├── homeos/
 │   │   ├── frontend/          # Vite 产物（已混淆）
 │   │   └── backend/linux-<arch>/   # Cython 编译后的后端（.so，无 .py 源码）
 │   └── homeos-store/
@@ -52,8 +54,13 @@ HomeOS/
 
 | 项目 | 容器名 | HTTP | 镜像内置 HTTPS | 说明 |
 | --- | --- | --- | --- | --- |
-| homeos-3d | `homeos-3d` | 8801 | 8803 | 编辑器、展示、配对、HA、3D |
-| homeos-store | `homeos-3d-store` | 8802 | 8804 | 商店前台、运营后台、授权签发 |
+| homeos | `homeos` | 8801 | 8803 | 3D 户型展示、编辑器（管理员后台进入）、HA、授权 |
+| homeos-store | `homeos-store` | 8802 | 8804 | 商店前台、运营后台、授权签发 |
+
+> **容器名 / 镜像名 / 卷名里的 `homeos` 是刻意保留的**：主应用源码目录已由 `homeos`
+> 并入 `homeos`，但 compose 项目名、容器名、镜像名与数据卷名换了就等于**换了一套卷**
+> （存量部署的数据会看起来「丢了」），而且容器 hostname 会参与授权实例指纹。所以运行期
+> 身份一律不动，只改源码路径与构建产物路径。
 
 商店细节见 [homeos-store/backend/src/README.md](homeos-store/backend/src/README.md)。
 
@@ -102,10 +109,10 @@ bun run dev -- --lan          # 绑 0.0.0.0，终端会打印局域网地址
 bun run dev:backend
 ```
 
-改 3D runtime 模块（`homeos-3d/frontend/src/runtime`）时另开终端：
+改 3D runtime 模块（`homeos/frontend/src/studio/runtime`）时另开终端：
 
 ```bash
-bun run --cwd homeos-3d dev:runtime
+bun run dev:runtime
 ```
 
 ### 断点调试（保留热重载）
@@ -128,13 +135,14 @@ bun run --cwd homeos-3d dev:runtime
 | `bun run build` | 完整构建：前端 → 根 `dist/`（含混淆）+ 后端 Cython 导出到根 `dist/` |
 | `bun run build:frontend` | 只构建前端（Vite + 混淆）→ 根 `dist/<项目>/frontend/` |
 | `bun run build:backend` | 只导出加密后端（Cython `.so`）→ 根 `dist/<项目>/backend/linux-<arch>/` |
-| `bun run build:3d` / `build:store` | 只构建一侧前端（含混淆） |
+| `bun run build:app` / `build:store` | 只构建一侧前端（含混淆） |
 | `bun run build:vite` | 仅 Vite 构建，跳过混淆（调试用，产出到根 `dist/`） |
 | `bun run obfuscate` | 对已有根 `dist/` 前端再跑一遍混淆 |
-| `bun run image` / `image:3d` / `image:store` | 从根 `dist/` 组装运行镜像（镜像内不再编译后端） |
-| `bun run typecheck` | 两边 `tsc` |
-| `bun run dev:3d` / `dev:store` | 单独跑一侧 Vite HMR（需后端已在跑） |
-| `bun run --cwd homeos-3d dev:runtime` | runtime 模块 watch → 根 `dist/homeos-3d/frontend/modules/runtime` |
+| `bun run image` / `image:app` / `image:store` | 从根 `dist/` 组装运行镜像（镜像内不再编译后端） |
+| `bun run typecheck` | 两边 `tsc` + Python 静态检查（与 CI 的 `pyright` job 同口径，只硬拦必为 bug 的规则） |
+| `bun run typecheck:py` | 只跑 Python 静态检查（`ops/ci/pyright_gate.py`） |
+| `bun run dev:app` / `dev:store` | 单独跑一侧 Vite HMR（需后端已在跑） |
+| `bun run dev:runtime` | runtime 模块 watch → 根 `dist/homeos/frontend/modules/runtime` |
 
 ### 首次联调流程
 
@@ -170,12 +178,12 @@ bun run --cwd homeos-3d dev:runtime
 
 ```text
       ┌──────────── 厂商机（唯一）────────────┐
-      │  homeos-3d-store  :8802 / :8804       │
+      │  homeos-store  :8802 / :8804       │
       └──────────────────┬────────────────────┘
    /v2/keys ⟵────────────┼────────────⟶ /v2/activate · /v2/heartbeat
      ┌───────────────────┼───────────────────┐
      ▼                   ▼                   ▼
-客户机 homeos-3d    客户机 homeos-3d    客户机 homeos-3d
+客户机 homeos    客户机 homeos    客户机 homeos
   :8801 / :8803       :8801 / :8803       :8801 / :8803
 客户机 → 商店：APP_LICENSE_SERVER_URL=http://<中心商店>:8802   ← 跨机直连用商店 HTTP 端口；
         商店内置反代 https://<中心商店>:8804 是自签证书，容器之间默认不互信，别拿它当授权地址
@@ -186,7 +194,7 @@ bun run --cwd homeos-3d dev:runtime
 `ops/deploy/pack-customer.sh` 产出**只含主应用侧文件**的压缩包（不含商店源码与密钥）：
 
 ```bash
-./ops/deploy/pack-customer.sh     # → build/customer-pack/homeos-3d-app-<版本>.tar.gz
+./ops/deploy/pack-customer.sh     # → build/customer-pack/homeos-app-<版本>.tar.gz
 ```
 
 客户机解包后一条命令安装：`./install.sh --license-server http://<中心商店>:8802`。
@@ -267,7 +275,7 @@ cp .env.example .env
 
 1. **商店**：浏览器打开 `http://<商店IP>:8802/setup`（HTTPS：`https://<商店IP>:8804/setup`）创建运营管理员。
 2. **商店后台**：`/admin` 配置邮件 SMTP、支付渠道（支付宝 / 微信）、站点文案。真实收款必须填真实凭据；未配置时下单会 503（刻意 fail-closed）。
-3. **主应用**：`http://<主机IP>:8801/setup`（HTTPS：`https://<主机IP>:8803/setup`）创建管理员；首次设置的引导密钥可用 `docker logs homeos-3d | head` 查看（桥接网络访问时需要）。
+3. **主应用**：`http://<主机IP>:8801/setup`（HTTPS：`https://<主机IP>:8803/setup`）创建管理员；首次设置的引导密钥可用 `docker logs homeos | head` 查看（桥接网络访问时需要）。
 4. **激活**：主应用 `/license` 用商店发放的激活码激活；再到编辑器配 HA、`/3d-studio` 保存户型。
 
 ### 四、健康检查与访问地址
@@ -280,7 +288,7 @@ curl -fsS http://127.0.0.1:8802/healthz             # 商店
 # 查看容器与日志
 docker compose -f docker-compose.store.yml ps
 docker compose -f docker-compose.app.yml ps
-docker logs homeos-3d | head
+docker logs homeos | head
 ```
 
 | 服务 | HTTP 直连 | 内置 HTTPS（自签） |
@@ -314,19 +322,19 @@ bun run build:frontend
 python3 ops/build.py backend          # 默认跟随宿主 Docker 架构
 
 # 2) 从根 dist/ 组装镜像（等价于 bun run image，走 Dockerfile 的 app / store 目标）
-python3 ops/build.py image --project 3d    --tag homeos-3d:local
-python3 ops/build.py image --project store --tag homeos-3d-store:local
+python3 ops/build.py image --project app   --tag homeos:local
+python3 ops/build.py image --project store --tag homeos-store:local
 
 # 让 deploy.sh 用本地镜像（也可写进 .env）
-HOMEOS_IMAGE=homeos-3d:local HOMEOS_STORE_IMAGE=homeos-3d-store:local \
+HOMEOS_IMAGE=homeos:local HOMEOS_STORE_IMAGE=homeos-store:local \
   ./ops/deploy/deploy.sh
 ```
 
 Cython `.so` 与架构绑定：`dist/<项目>/backend/linux-<arch>/` 一份只对应一个架构；`--arch amd64|arm64` 可与宿主不同，但跨架构依赖 QEMU，会慢很多。
 
-**产物里的包名是 `app`，不是 `src`**：源码目录按仓库约定叫 `backend/src`，但构建阶段用 `COPY homeos-3d/backend/src ./backend/app`（商店是 `./app`）把它映射过去再交给 Cython —— Cython 的模块名取自文件路径，映射之后 `.so` 里烤进去的就是 `backend.app.*` / `app.*`，`dist/` 里因此不存在任何名为 `src` 的目录。
+**产物里的包名是 `app`，不是 `src`**：源码目录按约定叫 `homeos/backend/src`，但构建阶段用 `COPY homeos/backend/src ./backend/app`（商店是 `./app`）把它映射过去再交给 Cython —— Cython 的模块名取自文件路径，映射之后 `.so` 里烤进去的就是 `backend.app.*` / `app.*`，`dist/` 里因此不存在任何名为 `src` 的目录。
 
-产物里**没有任何明文 `.py`**：后端包之外，`migrations/`、`db/` 与 `alembic.ini` 也都不进 `dist/`（Dockerfile 的构建阶段用 `find /app \( -name '*.py' -o -name '*.pyc' \)` 兜底断言）。发行版不需要 Alembic —— 全新库由后端按 ORM 元数据直接建，再写入基线版本号 `0001`（见 `backend/src/migrations.py` 与 `src/core/migrations.py` 的 `_create_schema`）；老库接管、备份这些行为不变。`ops/check_schema.py` 会额外验证「ORM 建库」与「迁移脚本建库」结构等价，所以少了迁移脚本也不会让新库缺表。
+产物里**没有任何明文 `.py`**：后端包之外，`migrations/`、`db/` 与 `alembic.ini` 也都不进 `dist/`（Dockerfile 的构建阶段用 `find /app \( -name '*.py' -o -name '*.pyc' \)` 兜底断言）。发行版不需要 Alembic —— 全新库由后端按 ORM 元数据直接建，再写入结构基线版本号（见 `homeos/backend/src/core/migrations.py` 的 `_create_schema` 与 `SCHEMA_REVISION`）；老库接管、备份这些行为不变。`ops/check_schema.py` 会额外验证「ORM 建库」与「迁移脚本建库」结构等价，所以少了迁移脚本也不会让新库缺表。
 
 编译后编译脚本会自动对每个 `.so` 执行 `strip --strip-all`（见 `ops/docker/compile_python.py` 的 `_strip_extensions`）：去掉 DWARF 调试信息与 `.symtab` 静态符号，保留 `.dynsym`（动态加载靠它，删了 `import` 就失败）。这样 `strings` 里不再出现 `__pyx_pf_*` 内部函数名与原始路径。
 
@@ -354,19 +362,19 @@ bun run build
 
 | 卷 | 归属 | 说明 |
 | --- | --- | --- |
-| `homeos-3d_homeos-3d-data` | 主应用 | 数据（含自动取回的授权公钥缓存 `/data/client-keys`） |
-| `homeos-3d_homeos-3d-secrets` | 主应用 | HA / 配对 / 授权凭据密钥 |
-| `homeos-3d-store_homeos-3d-store-data` | 商店 | 库与商品资源 |
-| `homeos-3d-store_homeos-3d-license-keys` | 商店 | **授权私钥（最关键，单独备份）** |
-| `homeos-3d-client-keys` | 共享（固定名） | 公钥卷（仅同机 `--role all` 使用；分拆部署不需要它） |
-| `homeos-3d-store_caddy-public-data` | 商店公网接入（overlay） | Caddy 证书与 ACME 账号数据（用了 `docker-compose.store.public.yml` 才有） |
+| `homeos_homeos-data` | 主应用 | 数据（含自动取回的授权公钥缓存 `/data/client-keys`） |
+| `homeos_homeos-secrets` | 主应用 | HA / 授权凭据密钥 |
+| `homeos-store_homeos-store-data` | 商店 | 库与商品资源 |
+| `homeos-store_homeos-license-keys` | 商店 | **授权私钥（最关键，单独备份）** |
+| `homeos-client-keys` | 共享（固定名） | 公钥卷（仅同机 `--role all` 使用；分拆部署不需要它） |
+| `homeos-store_caddy-public-data` | 商店公网接入（overlay） | Caddy 证书与 ACME 账号数据（用了 `docker-compose.store.public.yml` 才有） |
 
 ```bash
 # 示例：备份主应用数据卷（各卷按需重复）
 mkdir -p backup
-docker run --rm -v homeos-3d_homeos-3d-data:/data \
+docker run --rm -v homeos_homeos-data:/data \
   -v "$PWD/backup":/backup alpine \
-  tar -C /data -czf /backup/homeos-3d-data.tgz .
+  tar -C /data -czf /backup/homeos-data.tgz .
 ```
 
 授权私钥卷丢了等于所有已激活客户端失效，务必单独备份；公钥丢了不用慌 —— 主应用下次启动会自己从商店取回，详见 SPLIT-DEPLOY.md。

@@ -1,0 +1,191 @@
+/*
+ * SPA 外壳样式。
+ *
+ * 所有视图都渲染进 <div id="app">。`display: contents` 让 #app 不生成盒子，其子元素在
+ * 布局上等价于 body 的直接子元素，因此原有 CSS 的布局/定位/百分比高度链路一字不改。
+ *
+ * 纯静态文件放在 /static/ 下，由 SPA 入口 <link> 引用，构建期自动并入匿名白名单。
+ *
+ * 本文件是 SPA 入口里**最早**加载的样式表（紧跟在 meta 之后、其余样式表之前），
+ * 所以「机身外壳」级别的默认值都写在这里；各页自己的样式表（`display.css` /
+ * `app.css` / `3d-studio/studio.css` 等）由 `src/studio/page-assets.ts` 挂在本文件
+ * 之后，可以按加载顺序覆盖下面的默认值。
+ */
+#app {
+  display: contents;
+}
+
+/*
+ * 机身外壳：墙屏常驻页面不滚动，滚动全部发生在各页自己的可滚动容器里。
+ *
+ * 这段原本是 SPA 入口 `index.html` 里的一段行内 <style>。外壳页下发的是
+ * `style-src 'self'`（见 backend/src/studio_shell.py 的 `_csp_header`），行内样式会被
+ * 浏览器直接拦下（"Refused to apply inline style"），那段重置其实一次都没生效过。
+ * 移到这里既保住严格 CSP，也让外壳默认值与其余外壳规则待在同一份文件里。
+ *
+ * 注意别把 `overflow` / `background` 写成更高优先级：3d-studio 的页面背景是
+ * studio.css 里的 radial-gradient，压过它会让户型图绘制页变成一块纯色。
+ */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #050912;
+}
+
+/*
+ * stage 页的例外：interaction3d/core/stage.css 用
+ *   `.interaction3d-stage > :not(.studio-shell):not(.i3d-climate-picker-menu) { display: none !important; }`
+ * 隐藏除舞台外壳以外的所有 body 直接子元素（多页版里 header/dialog/toast 都挂在 body 下）。
+ * SPA 下 body 的直接子元素只剩 `#app`，这条规则会把整个应用连同 3D 舞台一起隐藏，
+ * 表现为「3D 图不显示」。这里用更高优先级（含 id 选择器）让 `#app` 自身保持
+ * display:contents 不被隐藏。
+ */
+body.interaction3d-stage > #app {
+  display: contents !important;
+}
+
+/*
+ * 「只留 .studio-shell」这条过滤不能像多页版那样作用在 `#app` 的直接子元素上。
+ *
+ * 多页版的 `.studio-shell` 是 body 的直接子元素，所以「其余一律隐藏」等价于「只留舞台」。
+ * 合并后 App.vue 的层级是
+ *   body > #app > .app-container > .error-boundary-root > .route-transition-root > .studio-shell，
+ * `.studio-shell` 被包在自家外壳里，同一条过滤就会隐藏 `.app-container` —— 整站（含 3D 舞台）
+ * 一起不可见；boot-guard 的残留保护随即把 body class 当垃圾摘掉，舞台于是退回**带绘制工具、
+ * 属性面板与模型库的全量界面**，总览里的 3D 户型图就变成了户型图绘制页。
+ * 因此这里改为精确丢弃舞台页真正多余的壳层：StudioView 的两个模板根里只留 `.studio-shell`，
+ * 以及应用根的氛围光层（多页版舞台页并不存在）。
+ */
+body.interaction3d-stage .studio-header,
+body.interaction3d-stage #app > .app-container > .homeos-theme-atmosphere {
+  display: none !important;
+}
+
+/*
+ * 同一类问题的第二处：3d-studio/studio.css 的导出嵌入态（`/3d-studio?auto-diagram-embed=1`，
+ * 由仪表盘「自动图」组件以 iframe 打开，见 app/renderer/core/registry.ts）用
+ *   `body.auto-diagram-embedded
+ *      > :not(#export-dialog):not(#export-overwrite-dialog):not(#export-complete-dialog):not(#toast)`
+ * 隐藏除导出对话框以外的所有 body 直接子元素。SPA 下 body 只有 `#app` 一个直接子元素，
+ * 整站连同导出界面一起被隐藏（白屏）。
+ *
+ * 注意优先级：这条规则有 4 个 `:not(#id)`，specificity 是 (4,1,1)；
+ * 单纯写 `body.auto-diagram-embedded > #app` 只有 (1,1,1)，即使加 `!important` 也压不住。
+ * 所以必须把同样的 `:not()` 链原样镜像过来，把 id 计数提到 5。
+ * 后半条再把「只留导出对话框」的过滤下推到 `#app` 的子元素上，复刻多页版观感。
+ */
+body.auto-diagram-embedded > #app:not(#export-dialog):not(#export-overwrite-dialog):not(#export-complete-dialog):not(#toast) {
+  display: contents !important;
+}
+
+body.auto-diagram-embedded > #app > :not(#export-dialog):not(#export-overwrite-dialog):not(#export-complete-dialog):not(#toast) {
+  display: none !important;
+}
+
+/*
+ * 启动覆盖层（配合 /static/boot-guard.js）。
+ *
+ * 入口资源加载失败、或路由在后端冷启动窗口里长时间不渲染时，以前是**纯空白 + 零报错**。
+ * 本层从 HTML 静态可见（不依赖 JS），JS 只负责「就绪后隐藏」与「超时后升级提示」。
+ *
+ * 必须放在 `#app` 之外：Vue 挂载会清空 `#app`，而"已挂载但路由未渲染"正是最需要提示的场景。
+ * 就绪信号 = <html data-homeos-ready="1">。
+ */
+#homeos-boot-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #050912;
+  color: #e8eef8;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei',
+    sans-serif;
+  text-align: center;
+}
+
+/* 按 id 设了 display，会盖掉 UA 的 [hidden] 规则，必须显式让位。 */
+#homeos-boot-overlay[hidden] {
+  display: none;
+}
+
+.homeos-boot-overlay__panel {
+  max-width: 440px;
+}
+
+.homeos-boot-overlay__brand {
+  margin: 0 0 14px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  font-size: 12px;
+  color: #7d8ba3;
+}
+
+/* 「正在连接」态的转圈；升级为 failed 后收起，避免失败的界面还在转。 */
+.homeos-boot-overlay__spinner {
+  width: 22px;
+  height: 22px;
+  margin: 0 auto 16px;
+  border: 2px solid #22304a;
+  border-top-color: #6f8fc9;
+  border-radius: 50%;
+  animation: homeos-boot-spin 0.9s linear infinite;
+}
+
+#homeos-boot-overlay[data-state='failed'] .homeos-boot-overlay__spinner {
+  display: none;
+}
+
+@keyframes homeos-boot-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 尊重系统的「减少动态效果」偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .homeos-boot-overlay__spinner {
+    animation: none;
+  }
+}
+
+.homeos-boot-overlay__title {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.homeos-boot-overlay__message {
+  margin: 0 0 20px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #9aa8bf;
+  word-break: break-word;
+}
+
+.homeos-boot-overlay__action {
+  min-width: 128px;
+  padding: 10px 20px;
+  border: 1px solid #2f415f;
+  border-radius: 8px;
+  background: #16233a;
+  color: #e8eef8;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.homeos-boot-overlay__action:hover {
+  background: #1d2d4a;
+}
+
+.homeos-boot-overlay__action[hidden] {
+  display: none;
+}

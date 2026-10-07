@@ -185,11 +185,10 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
   function setConnected(status: boolean): void {
     connected.value = status
   }
-  // 创建家庭模式 / 儿童模式事件注册表（监听器列表 + 订阅/退订函数）
+  // 创建家庭模式事件注册表（监听器列表 + 订阅/退订函数）
   const {
     listeners: modeEventListeners,
     onHomeModeEvent,
-    onChildModeEvent,
   } = createEntityModeEventRegistry()
 
   // 创建订阅助手：远程通知列表 + 状态监听器派发 + onStateChanged 订阅
@@ -554,6 +553,5 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
     ensureWsConnected,
     wsTransportEpoch,
     onHomeModeEvent,
-    onChildModeEvent,
   }
 }

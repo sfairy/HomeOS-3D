@@ -1,18 +1,14 @@
 <!--
 组件：SettingsFamilyPanel.vue
 所属模块：frontend / src / views / settings / system
-职责：家庭面板。展示当前家庭模式与通知设置，内嵌 ChildModePanel 管理儿童模式（覆盖/解除），
-      支持加载家庭模式与通知配置。
+职责：家庭面板。展示当前家庭模式与通知设置，支持加载家庭模式与通知配置。
 Props：
   - activeTab：当前 Tab
 关键依赖：
   - SettingsPageShell / SettingsCard / ApiQueryState：页面骨架与加载态
-  - ChildModePanel：儿童模式组件
-  - fetchActiveHomeMode / fetchChildMode / overrideChildMode：家庭模式与儿童模式 API
+  - fetchActiveHomeMode：家庭模式 API
   - fetchNotificationSettings：通知设置 API
-  - CHILD_MODE_OVERRIDE_*：儿童模式文案
-  - useRegisterSettingsTabPending：Tab 级离开拦截
-数据来源：fetchActiveHomeMode / fetchChildMode / fetchNotificationSettings
+数据来源：fetchActiveHomeMode / fetchNotificationSettings
 -->
 <template>
   <SettingsPageShell
@@ -67,9 +63,9 @@ Props：
           <p class="fam-hero__hint">
             <Eye class="fam-hero__hint-icon" />
             {{
-              canConfigureChild
-                ? '下方查看各模块详情；儿童模式可在下方配置，家庭模式与勿扰请到对应设置页修改'
-                : '成员只读 · 修改家庭模式、勿扰或儿童模式请联系管理员'
+              canManageHousehold
+                ? '下方查看各模块详情；家庭模式与勿扰请到对应设置页修改'
+                : '成员只读 · 修改家庭模式或勿扰请联系管理员'
             }}
           </p>
         </SettingsCard>
@@ -174,75 +170,6 @@ Props：
                 </ul>
               </article>
 
-              <article
-                :class="[
-                  'family-status-card',
-                  'family-status-card--child',
-                  childMode?.enabled && 'family-status-card--active',
-                ]"
-              >
-                <header class="family-status-card__head">
-                  <div class="family-status-card__icon">
-                    <Shield class="w-4 h-4" />
-                  </div>
-                  <div class="family-status-card__meta">
-                    <p class="family-status-card__label">{{ '儿童模式' }}</p>
-                    <span
-                      v-if="
-                        childMode?.enabled &&
-                        (childMode?.deviceWhitelist || []).length > 0 &&
-                        !childMode?.inAllowedWindow
-                      "
-                      class="family-status-card__badge family-status-card__badge--warn"
-                    >
-                      {{ '非允许时段' }}
-                    </span>
-                    <span
-                      v-else-if="childMode?.enabled"
-                      class="family-status-card__badge family-status-card__badge--on"
-                    >
-                      {{ '已启用' }}
-                    </span>
-                  </div>
-                </header>
-                <p class="family-status-card__value">{{ childModeLabel }}</p>
-                <p class="family-status-card__hint">
-                  {{
-                    canConfigureChild
-                      ? '完整配置见下方编辑区'
-                      : childMode?.enabled
-                        ? '白名单设备仅在允许时段内可用'
-                        : '儿童模式未启用'
-                  }}
-                </p>
-                <button
-                  v-if="childMode?.enabled && canOverride"
-                  type="button"
-                  class="family-status-card__action"
-                  @click="requestOverride"
-                >
-                  <Unlock class="w-3.5 h-3.5" />
-                  {{ CHILD_MODE_OVERRIDE_ACTION }}
-                </button>
-              </article>
-            </div>
-          </SettingsCard>
-
-          <!-- 儿童模式配置（管理员） -->
-          <SettingsCard v-if="canConfigureChild" static extra-class="fam-child-workspace">
-            <header class="acc-section-head">
-              <div class="acc-section-head__orb fam-child-workspace__orb">
-                <Shield class="w-4 h-4" />
-              </div>
-              <div class="acc-section-head__copy">
-                <h3 class="acc-section-head__title">{{ '儿童模式配置' }}</h3>
-                <p class="acc-section-head__meta">
-                  {{ '设备白名单与可用时段、媒体限时；运行态也可在浮动图层「关爱中心」查看' }}
-                </p>
-              </div>
-            </header>
-            <div class="fam-child-workspace__body">
-              <ChildModePanel embedded dense @update:dirty="childModeDirty = $event" />
             </div>
           </SettingsCard>
         </div>
@@ -257,45 +184,29 @@ import {
   Sparkles,
   Moon,
   Bell,
-  Shield,
   Check,
   X,
-  Unlock,
   Eye,
 } from '@lucide/vue'
 import SettingsPageShell from '@/components/common/page-shell/SettingsPageShell.vue'
 import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
 import ApiQueryState from '@/components/common/ApiQueryState.vue'
-import ChildModePanel from '@/components/widgets/care/ChildModePanel.vue'
 import { fetchActiveHomeMode } from '@/services/api/home-modes'
-import { fetchChildMode, overrideChildMode } from '@/services/api/system'
-import {
-  CHILD_MODE_OVERRIDE_ACTION,
-  CHILD_MODE_OVERRIDE_TOAST,
-} from '@/utils/care/child-mode-copy'
 import { fetchNotificationSettings } from '@/services/api/notifications'
-import { useRegisterSettingsTabPending } from '@/composables/settings/pending.internals'
 import { useAuthStore } from '@/stores/auth.store'
-import { useChromeStore } from '@/stores/chrome.store'
 import { logger } from '@/utils/core/logger'
 import { formatShortDateTime } from '@/utils/format/locale-format.util'
 
 defineProps({ activeTab: { type: String, default: 'family' } })
 
 const authStore = useAuthStore()
-const chrome = useChromeStore()
 const loading = ref(false)
 const loadError = ref('')
 const activeMode = ref(null)
 const notifySettings = ref(null)
-const childMode = ref(null)
-const childModeDirty = ref(false)
 let familyLoaded = false
 
-useRegisterSettingsTabPending('family', () => childModeDirty.value)
-
-const canOverride = computed(() => ['admin', 'adult'].includes(authStore.role || ''))
-const canConfigureChild = computed(() => authStore.role === 'admin')
+const canManageHousehold = computed(() => authStore.canManageHousehold())
 
 const activeModeName = computed(() => {
   const m = activeMode.value?.mode
@@ -324,15 +235,6 @@ const dndShortLabel = computed(() => {
   return `${String(s.dndStart ?? 0).padStart(2, '0')}–${String(s.dndEnd ?? 0).padStart(2, '0')}`
 })
 
-const childModeLabel = computed(() => {
-  if (!childMode.value?.enabled) return '未启用'
-  const wl = Array.isArray(childMode.value.deviceWhitelist) ? childMode.value.deviceWhitelist : []
-  if (wl.length > 0) {
-    return childMode.value.inAllowedWindow ? '已启用 · 允许时段中' : '已启用 · 非允许时段'
-  }
-  return '已启用'
-})
-
 const notifyPrefs = computed(() => [
   {
     key: 'global',
@@ -357,7 +259,6 @@ const activeFeatureCount = computed(() => {
   let count = 0
   if (isModeActive.value) count++
   if (notifySettings.value?.dndActive) count++
-  if (childMode.value?.enabled) count++
   return count
 })
 
@@ -373,14 +274,12 @@ async function load(options = {}) {
     loadError.value = ''
   }
   try {
-    const [modeRes, notifyRes, childRes] = await Promise.all([
+    const [modeRes, notifyRes] = await Promise.all([
       fetchActiveHomeMode(),
       fetchNotificationSettings(),
-      fetchChildMode(),
     ])
     activeMode.value = modeRes.data
     notifySettings.value = notifyRes.data
-    childMode.value = childRes.data
     familyLoaded = true
     loadError.value = ''
   } catch (e) {
@@ -394,16 +293,6 @@ async function load(options = {}) {
     }
   } finally {
     if (showLoading) loading.value = false
-  }
-}
-
-async function requestOverride() {
-  try {
-    await overrideChildMode(30)
-    chrome.notify(CHILD_MODE_OVERRIDE_TOAST, 'success')
-    await load({ silent: true })
-  } catch {
-    chrome.notify('操作失败', 'error')
   }
 }
 

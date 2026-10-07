@@ -25,11 +25,20 @@ DEFAULT_COMMAND_PROXY = {"idempotencyTtlMs": 3000, "idempotencyCleanupIntervalMs
 
 def _load_section(session, key: str, defaults: dict[str, Any]) -> dict[str, Any]:
     raw = load_raw_config(session)
-    section = raw.get(key) if isinstance(raw.get(key), dict) else {}
+    candidate = raw.get(key)
+    section: dict[str, Any] = dict(candidate) if isinstance(candidate, dict) else {}
     return {**defaults, **section}
 
 
 class CommandProxyService:
+    """homeos 命令通道：ACL/去重/队列 + 唯一 HA 下发出口。
+
+    **A6 收敛**：``/services/call``、``/ha/services/call`` 与
+    ``/modules/interaction3d/control`` 三条 HTTP 入口不再各自实现下发逻辑，
+    统一走 ``dispatch`` —— 校验（鉴权、服务白名单、实体授权）留在各入口，
+    执行只此一处：幂等去重 → HA 未连接时拦截高风险 → 连接器下发。
+    """
+
     def __init__(self, session_factory, connector, redis=None) -> None:
         self._session_factory = session_factory
         self._connector = connector
@@ -139,17 +148,30 @@ class CommandProxyService:
     async def test_ha_connection(self, url: str, token: str) -> dict[str, Any]:
         return await self._connector.test_ha_connection(url, token)
 
-    async def fetch_media_image(self, path: str) -> tuple[bytes, str]:
-        return await self._connector.fetch_media_image(path)
 
-    def open_media_stream(self, path: str):
-        return self._connector.open_media_stream(path)
+def build_service_call_dto(
+    *,
+    domain: str,
+    service: str,
+    entity_id: str,
+    service_data: dict[str, Any] | None = None,
+    return_response: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    """构造命令通道 DTO（三条 HTTP 入口共用的规范化形状）。"""
+    return {
+        "domain": str(domain or ""),
+        "service": str(service or ""),
+        "entity_id": str(entity_id or ""),
+        "service_data": dict(service_data or {}),
+        "return_response": bool(return_response),
+        "idempotency_key": idempotency_key,
+    }
 
-    def get_dropped_commands(self) -> list[dict[str, Any]]:
-        return self._connector.get_dropped_commands()
 
-    async def retry_dropped_commands(self) -> dict[str, int]:
-        return await self._connector.retry_dropped_commands()
+async def dispatch_service_call(proxy: Any, dto: dict[str, Any]) -> dict[str, Any]:
+    """唯一 HA 下发出口：DTO → ``CommandProxyService.call_service``。"""
+    return await proxy.call_service(dto)
 
 
 def _format_service_call_error(error: Exception) -> str:

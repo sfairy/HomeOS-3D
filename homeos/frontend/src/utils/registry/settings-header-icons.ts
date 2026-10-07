@@ -94,7 +94,6 @@ export const SETTINGS_TAB_HEADER_ICONS = {
   general: Settings,
   family: Home,
   profiles: Monitor,
-  access: UserCog,
   params: SlidersHorizontal,
   diagnostics: Activity,
   'execution-history': History,

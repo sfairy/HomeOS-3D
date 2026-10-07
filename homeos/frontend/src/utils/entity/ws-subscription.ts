@@ -4,7 +4,7 @@
  * entity WebSocket domain 订阅解析：按路由与布局计算订阅白名单 / pinned 实体收集
  * （含本机人来亮屏充电器开关，避免冷实体漏推）。
  */
-import type { FloorConfig, PanelWidget, UILayoutConfig } from '@/types/layout'
+import type { PanelWidget, UILayoutConfig } from '@/types/layout'
 import { getEntityDomain, resolveChargerSwitchWakeEntityIdForDevice } from '@homeos/shared'
 import { getClientDeviceId } from '@/utils/client/system.util'
 import { getConfigSection } from '@/utils/config/frontend-config'
@@ -16,7 +16,7 @@ import { getConfigSection } from '@/utils/config/frontend-config'
 
 const BASE_DOMAINS = ['sun', 'weather', 'person', 'zone']
 
-/** Dashboard 常驻控制域（不含高频 sensor/binary_sensor，由布局热点与 Widget 按需追加） */
+/** Dashboard 常驻控制域（不含高频 sensor/binary_sensor，由浮窗与侧栏 Widget 按需追加） */
 const DASHBOARD_CORE_DOMAINS = [
   'light',
   'switch',
@@ -85,27 +85,22 @@ type EntityRefWidget = {
 
 type LayoutWidgetRef = PanelWidget & EntityRefWidget
 
-type FloorWidgetRef = {
+/** 顶层悬浮组件（实体引用统一走 config.entityId / config.entity_id） */
+type LayoutFloatingWidgetRef = {
   id?: string
-  entityId?: string
-  entity_id?: string
+  type?: string
+  config?: Record<string, unknown> | null
 }
 
-type LayoutHotspotRef = {
-  entityId?: string
-  entity_id?: string
-  id?: string
-}
-
-type LayoutFloorRef = FloorConfig & {
-  hotspots?: LayoutHotspotRef[]
-  leftPanelWidgets?: LayoutWidgetRef[]
-}
-
-type LayoutSubscriptionConfig = Pick<UILayoutConfig, 'floors'> & {
-  rightPanelWidgets?: LayoutWidgetRef[]
-  leftPanelWidgets?: LayoutWidgetRef[]
-  floors?: LayoutFloorRef[]
+/**
+ * 订阅计算所需的布局切片（结构类型，兼容完整 UILayoutConfig 与局部投影）。
+ * 2D 楼层/热点字段已退役，实体引用只来自顶层浮窗、侧栏组件与顶层统计传感器。
+ */
+type LayoutSubscriptionConfig = {
+  floatingWidgets?: LayoutFloatingWidgetRef[] | null
+  statsSensors?: object | null
+  rightPanelWidgets?: LayoutWidgetRef[] | null
+  leftPanelWidgets?: LayoutWidgetRef[] | null
 }
 
 export function resolveSubscribeDomains(
@@ -142,9 +137,8 @@ export function resolveSubscribeDomains(
       }
       const entityId = ref.entityId
       if (!entityId) return
-      // 与历史行为一致：楼层部件/浮窗/统计传感器的引用需形如 domain.entity 才计入域订阅
-      const needsEntityDot =
-        ref.source === 'floorWidget' || ref.source === 'floatingWidget' || ref.source === 'statSensor'
+      // 与历史行为一致：浮窗/统计传感器的引用需形如 domain.entity 才计入域订阅
+      const needsEntityDot = ref.source === 'floatingWidget' || ref.source === 'statSensor'
       if (needsEntityDot && !entityId.includes('.')) return
       domains.add(getEntityDomain(entityId))
     })
@@ -154,12 +148,7 @@ export function resolveSubscribeDomains(
 }
 
 /** 布局实体引用来源 */
-type LayoutEntityRefSource =
-  | 'panelWidget'
-  | 'floorWidget'
-  | 'hotspot'
-  | 'floatingWidget'
-  | 'statSensor'
+type LayoutEntityRefSource = 'panelWidget' | 'floatingWidget' | 'statSensor'
 
 /** forEachLayoutEntityRef 迭代出的实体引用（snake/camel 双命名已按来源既有优先级归一） */
 interface LayoutEntityRef {
@@ -170,8 +159,8 @@ interface LayoutEntityRef {
 }
 
 /**
- * 统一遍历布局中的实体引用位：侧栏组件 / 楼层部件 / 热点 / 浮窗 / 统计传感器。
- * 各来源的 ID 提取优先级与历史行为保持一致（楼层部件 id 优先，热点 entityId 优先）。
+ * 统一遍历布局中的实体引用位：侧栏组件 / 顶层浮窗 / 顶层统计传感器。
+ * 各来源的 ID 提取优先级与历史行为保持一致。
  */
 function forEachLayoutEntityRef(
   layoutConfig: LayoutSubscriptionConfig | undefined | null,
@@ -184,68 +173,41 @@ function forEachLayoutEntityRef(
   for (const w of layoutConfig.leftPanelWidgets || []) {
     cb({ source: 'panelWidget', entityId: w?.entityId || w?.entity_id, type: w?.type })
   }
-  for (const floor of layoutConfig.floors || []) {
-    if (!floor) continue
-    for (const w of (floor.widgets || []) as FloorWidgetRef[]) {
-      cb({ source: 'floorWidget', entityId: w?.id || w?.entityId || w?.entity_id, type: undefined })
-    }
-    for (const h of floor.hotspots || []) {
-      cb({ source: 'hotspot', entityId: h?.entityId || h?.entity_id || h?.id, type: undefined })
-    }
-    for (const w of floor.floatingWidgets || []) {
-      const cfg = (w as { config?: Record<string, unknown> })?.config
-      const rawId = cfg?.entityId || cfg?.entity_id
-      cb({
-        source: 'floatingWidget',
-        entityId: rawId == null ? undefined : String(rawId),
-        type: w?.type,
-      })
-    }
-    const stats = (
-      floor as { statsSensors?: Record<string, string> | null }
-    )?.statsSensors
-    if (stats && typeof stats === 'object') {
-      for (const v of Object.values(stats)) {
-        if (v != null) cb({ source: 'statSensor', entityId: String(v), type: undefined })
-      }
+  for (const w of layoutConfig.floatingWidgets || []) {
+    const cfg = (w?.config || {}) as { entityId?: unknown; entity_id?: unknown }
+    const rawId = cfg.entityId ?? cfg.entity_id
+    cb({
+      source: 'floatingWidget',
+      entityId: rawId == null || rawId === '' ? undefined : String(rawId),
+      type: w?.type,
+    })
+  }
+  const stats = layoutConfig.statsSensors
+  if (stats && typeof stats === 'object') {
+    for (const v of Object.values(stats)) {
+      if (typeof v === 'string' && v) cb({ source: 'statSensor', entityId: v, type: undefined })
     }
   }
 }
 
-type LayoutSubscriptionKeyConfig = LayoutSubscriptionConfig & {
-  activeFloorId?: string
-  floors?: LayoutFloorRef[]
-}
-
-/** 布局订阅指纹：热点/部件变化时触发 WS 域重算 */
+/** 布局订阅指纹：浮窗/统计传感器/侧栏组件变化时触发 WS 域重算 */
 export function buildLayoutSubscriptionKey(
-  layoutConfig: LayoutSubscriptionKeyConfig | null | undefined,
+  layoutConfig: LayoutSubscriptionConfig | null | undefined,
   activePopupEntityId: string | null | undefined,
 ): string {
   if (!layoutConfig) return ''
-  const floors = (layoutConfig.floors || []).map((floor: LayoutFloorRef) => ({
-    id: floor.id,
-    hotspots: (floor.hotspots || []).map(
-      (h: LayoutHotspotRef) => h?.entityId || h?.entity_id || h?.id || '',
-    ),
-    widgets: (floor.widgets || []).map(
-      (w: FloorWidgetRef) => w?.id || w?.entityId || w?.entity_id || '',
-    ),
-    floatingWidgets: (floor.floatingWidgets || []).map((w) => {
-      const cfg = (w as { config?: Record<string, unknown> })?.config
-      return String(cfg?.entityId || cfg?.entity_id || w?.id || '')
-    }),
-    statsSensors: (floor as { statsSensors?: Record<string, string> }).statsSensors || null,
-  }))
   return JSON.stringify({
-    activeFloorId: layoutConfig.activeFloorId,
+    floatingWidgets: (layoutConfig.floatingWidgets || []).map((w) => {
+      const cfg = (w?.config || {}) as { entityId?: unknown; entity_id?: unknown }
+      return String(cfg.entityId || cfg.entity_id || w?.id || '')
+    }),
+    statsSensors: layoutConfig.statsSensors || null,
     rightPanelWidgets: (layoutConfig.rightPanelWidgets || []).map(
       (w) => w?.entityId || w?.entity_id || w?.id || w?.type || '',
     ),
     leftPanelWidgets: (layoutConfig.leftPanelWidgets || []).map(
       (w) => w?.entityId || w?.entity_id || w?.id || w?.type || '',
     ),
-    floors,
     activePopupEntityId: activePopupEntityId || '',
   })
 }
@@ -266,7 +228,7 @@ function addPinnedId(ids: Set<string>, raw: unknown): void {
 }
 
 /**
- * 收集布局上「可见」实体 ID（冷实体 WS pinned：热点/楼层部件/浮窗/侧栏）
+ * 收集布局上「可见」实体 ID（冷实体 WS pinned：浮窗/统计传感器/侧栏）
  */
 export function collectPinnedEntityIds(
   layoutConfig: LayoutSubscriptionConfig | undefined,

@@ -39,8 +39,8 @@ export type DeviceGroupEntitiesStoreLike = {
 export type DeviceGroupUiStoreLike = {
   layoutConfig: {
     favoriteEntities?: Record<string, string[] | undefined>
-    activeFloorId?: string
     statsSensors?: Record<string, unknown>
+    floatingWidgets?: Array<{ config?: Record<string, unknown> | null }>
   }
 }
 

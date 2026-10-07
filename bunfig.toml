@@ -1,4 +1,4 @@
 # 工作区依赖只提升到仓库根的 node_modules
-# （不在 homeos-3d/node_modules 或 homeos-store/node_modules 下）。
+# （不在各工作区自己的 node_modules 下，如 homeos/frontend/node_modules）。
 [install]
 linker = "hoisted"

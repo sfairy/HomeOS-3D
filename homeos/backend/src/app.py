@@ -84,7 +84,6 @@ from .security.cookies import is_https_deploy_mode
 from .security.cors import CorsMiddleware
 from .security.csrf import CsrfMiddleware
 from .security.session_store import resolve_login_session
-from .security.sessions import SessionRevocation, TokenVersionCache
 from .services.agent.area_service import AgentAreaService
 from .services.agent.command_cache import CommandCacheService
 from .services.agent.config_service import AgentConfigService
@@ -122,7 +121,7 @@ from .services.earthquake import (
 )
 from .services.event_bus_bridge import EventBusBridge
 from .services.event_log import EventLogService
-from .services.ha_config import HaEndpointSelector, load_active_ha_endpoints, load_ha_endpoints
+from .services.ha_config import load_active_ha_endpoints, load_ha_endpoints
 from .services.ha_filters import AlertRuleWatchIndex, HaStateChangeRouter
 from .services.home_mode.service import HomeModeService
 from .services.jobs import JobRegistryService
@@ -471,8 +470,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.license_service = license_service
 
         # 3D Studio 后端平面：HA 单连接（3D ``HAConnectorService`` + ``StateHub``）+ 数据面服务。
-        # 必须早于下方 homeos HA 块，以便把 ``app.state.ha_connector`` 指向 3D 兼容适配器。
-        await studio3d_plane.install(app, app_settings)
+        # 显式注入 database；global_log 由本平面自行创建。必须早于下方 homeos HA 块，
+        # 以便把 ``app.state.ha_connector`` 指向 3D 兼容适配器。
+        await studio3d_plane.install(app, app_settings, app.state.database)
 
         # 数据保留：策略面板 + 分批清理（首次延迟 + 周期调度在此接入）
         database_retention = DatabaseRetentionService(
@@ -490,8 +490,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.distributed_lock = distributed_lock
         database_retention.lock = distributed_lock
         database_retention.redis = redis
-        app.state.session_revocation = SessionRevocation(redis)
-        app.state.token_version_cache = TokenVersionCache(redis)
         # Phase 3+ 会在此装配 license / ha-connector / socketio 网关。
         # 事件日志：订阅 HA 冷批状态变更，内存缓冲后批量落库（socketio 网关在广播时喂入）。
         event_log_service = EventLogService(app.state.database, redis)
@@ -499,27 +497,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.event_log = event_log_service
 
         # -------------------------------------------------------------- #
-        # HA 连接器：REST + WebSocket + 断连命令队列 + WebRTC 信令
+        # HA 端点解析：连接器（3D HAConnectorService）为唯一 HA 通道，
+        # 这里只保留静态端点读取，供旁路消费者（语音 / 摄像头 WS / 安防）取用。
         # -------------------------------------------------------------- #
         def _endpoint_loader():
             with app.state.database.session_factory() as session:
-                return load_ha_endpoints(session)
+                # 传 cipher：令牌只以密文存在连接记录里，不传就解不出来，ha_configured 会误判为未配置。
+                return load_ha_endpoints(session, cipher=app.state.studio_ha.cipher)
 
-        # 主/备故障转移选择器：REST 与 WS 共用，保证始终打到当前 active 地址。
-        ha_endpoint_selector = HaEndpointSelector(_endpoint_loader)
-        app.state.ha_endpoints = ha_endpoint_selector
 
         async def _voice_rest_config() -> dict[str, Any]:
             """HA Assist 对话接口所需的 ``{haUrl, token}``（对齐 ``getConfigForRest``）。
 
             跟随连接器的活跃端点而不是静态的「内网优先」配置：内网不可达、连接器已切到外网时，
-            Assist 若还打内网地址就会整段不可用。加密令牌的读取路径与连接器不同，这里仍沿用
-            ``layout.haConfig`` 里的 token（``load_active_ha_endpoints`` 只换地址不换令牌）。
+            Assist 若还打内网地址就会整段不可用。地址与令牌都取自连接记录（单源
+            ``ha_connections``），令牌在解析时由同一处解密。
             """
 
             def _load() -> dict[str, Any]:
                 with app.state.database.session_factory() as session:
-                    endpoints_now = load_active_ha_endpoints(session)
+                    endpoints_now = load_active_ha_endpoints(
+                        session, cipher=app.state.studio_ha.cipher
+                    )
                 return {"haUrl": endpoints_now.ha_url_primary, "token": endpoints_now.token}
 
             return await asyncio.to_thread(_load)
@@ -536,9 +535,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ha_connector = StudioHAConnectorCompat(
             app.state.studio_ha, app.state.database, state_store=state_store
         )
-        ha_connector.set_state_listener(_make_state_listener(app, gateway, state_store))
+        ha_state_listener = _make_state_listener(app, gateway, state_store)
+        ha_connector.set_state_listener(ha_state_listener)
         app.state.ha_connector = ha_connector
-        app.state.entity_area = EntityAreaEnrichmentService(ha_connector, state_store)
+        app.state.entity_area = EntityAreaEnrichmentService(
+            ha_connector, state_store, session_factory=app.state.database.session_factory
+        )
         ha_connector.attach_sync_filter(
             entity_sync_filter,
             lambda: bool((app_config.get("haConnector") or {}).get("syncOnlyEnabledEntities", True)),
@@ -600,6 +602,41 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         }.items():
             security_bus.on(event, handler)
 
+        # -------------------------------------------------------------- #
+        # 唯一 HA 连接的状态出口（融合点）
+        # -------------------------------------------------------------- #
+        # 连接器（3D ``HAConnectorService``）是唯一 HA 连接，所以它的连接生命周期就是
+        # ``app.state.ha_connected`` 与 ``ha.connected`` / ``ha.disconnected`` /
+        # ``ha.reconnecting`` 的唯一事实源。缺了这一环，gateway 的 ha_status 快照会
+        # 永远报「未连接」，前端横幅就常驻「正在重连 Home Assistant…」。
+        # 这里必须晚于上面的处理器注册：事件发出去时订阅方得已经在位。
+        studio_connector = getattr(app.state, "studio_ha", None)
+        if studio_connector is not None:
+
+            async def _on_connector_connection(status: str, payload: dict[str, Any]) -> None:
+                if status == "connected":
+                    app.state.ha_connected = True
+                    version = payload.get("ha_version")
+                    if version:
+                        app.state.ha_version = version
+                    await security_bus.emit("ha.connected", {"ha_version": app.state.ha_version})
+                elif status == "disconnected":
+                    app.state.ha_connected = False
+                    await security_bus.emit("ha.disconnected", {})
+                elif status == "reconnecting":
+                    app.state.ha_reconnect_attempt = payload.get("attempt")
+                    await security_bus.emit(
+                        "ha.reconnecting", {"attempt": payload.get("attempt")}
+                    )
+
+            studio_connector.set_connection_listener(_on_connector_connection)
+
+            # homeos 状态监听接管读模型：本连接器是唯一 HA 连接，所以它的全量快照与
+            # 全量增量都直接走这里（``_make_state_listener`` → StateStore 的 set_all /
+            # apply_change + ``ha.initial_states`` / ``ha.state_changed.batch`` 事件总线
+            # + socket.io 广播）。StateHub 仍只承载 3D 侧 watched 子集，供 /ws/runtime。
+            studio_connector.set_state_listener(ha_state_listener)
+
         # Redis 连接状态就绪后广播一次（对齐 Nest REDIS_STATUS 桥接事件）
         await security_bus.emit("redis.status", {"configured": redis.is_configured(), "ready": redis.is_ready()})
 
@@ -615,7 +652,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             mmwave,
             jobs=app.state.jobs,
         )
-        security_service = SecurityService(app.state.database.session_factory)
+        security_service = SecurityService(
+            app.state.database.session_factory, cipher=app.state.studio_ha.cipher
+        )
         away_sim = AwaySimulationService(
             app.state.database.session_factory, ha_connector, security_bus, redis, security_config.get
         )
@@ -675,9 +714,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # -------------------------------------------------------------- #
         # 备份与还原：完整备份包 / 服务器备份文件 / 定时自动备份
         # -------------------------------------------------------------- #
-        users_backup = UsersBackupService(
-            app.state.database.session_factory, app.state.token_version_cache
-        )
+        users_backup = UsersBackupService(app.state.database.session_factory)
         bundle_backup = SystemBundleBackupService(
             ui_config,
             app.state.app_config_backup,
@@ -723,9 +760,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if fingerprint == _ha_fingerprint["value"]:
                 return
             _ha_fingerprint["value"] = fingerprint
-            # HA 地址/令牌变更：失效端点缓存并从局域网重新试起（对齐 Nest resetFailover）
-            ha_endpoint_selector.invalidate_cache()
-            ha_endpoint_selector.reset_failover()
             app.state.ha_configured = bool(endpoints_now.ha_url_primary and endpoints_now.token)
             if not app.state.ha_configured:
                 return
@@ -920,7 +954,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             event_bus=security_bus,
             redis=redis,
             cooldown_service=cooldown,
-            token_version_cache=app.state.token_version_cache,
             channels_service=channels_service,  # Phase 6：Email / WebPush / 企微 外部通知
             ha_areas_provider=lambda: (app.state.entity_area.get_cached_ha_areas() if hasattr(app.state, "entity_area") else []),
         )
@@ -1026,6 +1059,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             leader=eew_leader,
             jobs=app.state.jobs,
             get_ha_rest_config=_voice_rest_config,
+            cipher=app.state.studio_ha.cipher,
         )
         app.state.earthquake = earthquake
 
@@ -1052,8 +1086,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         endpoints = _endpoint_loader()
         app.state.ha_configured = bool(endpoints.ha_url_primary and endpoints.token)
-        app.state.ha_connected = False
-        app.state.ha_version = None
+        # 连接器在 studio3d_plane.install 阶段已启动：这里必须沿用它的真实状态，否则会把
+        # 可能已经置上的「已连接」按回 False（socket.io 首推快照与 /metrics 都读该字段）。
+        app.state.ha_connected = bool(getattr(ha_connector, "connected", False))
+        if not hasattr(app.state, "ha_version"):
+            app.state.ha_version = None
         if app.state.ha_configured:
             try:
                 await ha_connector.start()
@@ -1519,22 +1556,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         raise HTTPException(status_code=404)
 
-    # 可替换静态资源（平面图 / 图标 / 背景图 / 房间图 / 音效 / Logo）。
+    # 可替换静态资源（图标 / 背景图 / 音效 / Logo）。
     # 与 Nest ServeStaticModule 的 fallthrough:false 一致：文件不存在直接 404，不落入 SPA。
     from .core.asset_paths import (
         get_backgrounds_dir,
-        get_floorplans_dir,
         get_icons_dir,
         get_logo_dir,
-        get_room_images_dir,
         get_sounds_dir,
     )
 
     for mount_path, asset_dir in (
-        ("/floorplans", get_floorplans_dir()),
         ("/icons", get_icons_dir()),
         ("/backgrounds", get_backgrounds_dir()),
-        ("/room_images", get_room_images_dir()),
         ("/sounds", get_sounds_dir()),
         ("/logo", get_logo_dir()),
     ):

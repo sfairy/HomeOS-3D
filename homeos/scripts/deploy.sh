@@ -160,7 +160,7 @@ cmd_bundle() {
 
   local name="homeos-deploy"
   local stage="$tmp/$name"
-  mkdir -p "$stage/deploy/caddy" "$stage/assets/floorplans" "$stage/assets/backgrounds" "$stage/assets/icons" "$stage/assets/room_images" "$stage/assets/logo" "$stage/assets/sounds" "$stage/backups" "$stage/secrets" "$stage/scripts"
+  mkdir -p "$stage/deploy/caddy" "$stage/assets/backgrounds" "$stage/assets/icons" "$stage/assets/logo" "$stage/assets/sounds" "$stage/backups" "$stage/secrets" "$stage/scripts"
 
   cp "$ROOT/docker-compose.yml" "$stage/"
   cp "$ROOT/.env.docker.example" "$stage/"
@@ -170,7 +170,7 @@ cmd_bundle() {
   cp "$ROOT/scripts/deploy.sh" "$stage/scripts/"
   chmod +x "$stage/scripts/deploy.sh" "$stage/deploy/init-layout.sh"
   [[ -f "$stage/deploy/ensure-secrets.sh" ]] && chmod +x "$stage/deploy/ensure-secrets.sh"
-  touch "$stage/assets/floorplans/.gitkeep" "$stage/assets/backgrounds/.gitkeep" "$stage/assets/icons/.gitkeep" "$stage/assets/room_images/.gitkeep" "$stage/assets/logo/.gitkeep" "$stage/assets/sounds/.gitkeep" "$stage/backups/.gitkeep"
+  touch "$stage/assets/backgrounds/.gitkeep" "$stage/assets/icons/.gitkeep" "$stage/assets/logo/.gitkeep" "$stage/assets/sounds/.gitkeep" "$stage/backups/.gitkeep"
 
   cat >"$stage/README-deploy.txt" <<EOF
 HomeOS 部署包 v${version}

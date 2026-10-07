@@ -96,9 +96,10 @@ async def embed_proxy_ws(websocket: WebSocket, embed_id: str, sub_path: str) -> 
 async def _embed_proxy_ws(websocket: WebSocket, embed_id: str, sub_path: str) -> None:
     """内嵌页 WebSocket 同源反代（对齐 Nest ``attachEmbedWsProxy``）。"""
     app = websocket.app
-    secret = app.state.settings.jwt_secret or "homeos-dev-secret"
     token = websocket.cookies.get("auth_token")
-    if not verify_embed_ws_auth(token, secret):
+    with app.state.database.session_factory() as session:
+        authorized = verify_embed_ws_auth(token, session)
+    if not authorized:
         await _reject(websocket, CLOSE_UNAUTHORIZED)
         return
 

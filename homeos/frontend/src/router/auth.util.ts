@@ -2,6 +2,9 @@
  * 路由鉴权导航决策（纯函数，供 router 与单测复用）
  *
  * 职责：根据商业授权、系统初始化状态、认证状态、设置锁状态，决策目标路由。
+ *
+ * 收敛到 homeos-3d 机制后：不再有访客（guest）路由 —— 3D 只存在单一管理员会话，
+ * 未登录一律回登录页。
  */
 import type { NavigationContext, NavigationDecision, RoutableLocation } from '@/types/router'
 
@@ -14,13 +17,12 @@ import type { NavigationContext, NavigationDecision, RoutableLocation } from '@/
  * 3. 已激活但仍在 activate → 首页
  * 4. 系统状态未确定 → 中止
  * 5. 离线态 → 仅放行 login/setup/activate
- * 6. guest 路由 → 放行
- * 7. 未初始化 → 跳转 setup
- * 8. 已初始化但仍在 setup → 按认证状态跳转
- * 9. 需认证但未登录 → 登录
- * 10. 已登录访问 login → 首页
- * 11. 设置锁 → 拦截
- * 12. 默认放行
+ * 6. 未初始化 → 跳转 setup
+ * 7. 已初始化但仍在 setup → 按认证状态跳转
+ * 8. 需认证但未登录 → 登录
+ * 9. 已登录访问 login → 首页
+ * 10. 设置锁 → 拦截
+ * 11. 默认放行
  */
 export function resolveNavigationTarget(
   to: RoutableLocation,
@@ -60,24 +62,21 @@ export function resolveNavigationTarget(
     return false
   }
 
-  // 6. guest
-  if (to.name === 'guest') return null
-
-  // 7. 未初始化 → setup
+  // 6. 未初始化 → setup
   if (!systemInitialized && to.name !== 'setup') return '/setup'
 
-  // 8. 已初始化仍在 setup
+  // 7. 已初始化仍在 setup
   if (to.name === 'setup' && systemInitialized) {
     return isAuthenticated ? '/' : '/login'
   }
 
-  // 9. 需认证未登录
+  // 8. 需认证未登录
   if (to.meta?.requiresAuth && !isAuthenticated) return '/login'
 
-  // 10. 已登录访问 login
+  // 9. 已登录访问 login
   if (to.name === 'login' && isAuthenticated) return '/'
 
-  // 11. 设置锁
+  // 10. 设置锁
   if (
     (to.path?.startsWith('/settings') || to.name === 'builder') &&
     settingsLockEnabled &&

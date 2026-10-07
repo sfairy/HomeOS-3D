@@ -59,7 +59,6 @@ class NotificationService:
         event_bus: Any,
         redis: Any = None,
         cooldown_service: Any = None,
-        token_version_cache: Any = None,
         channels_service: Any = None,
         ha_areas_provider: Callable[[], list[Any]] | None = None,
     ) -> None:
@@ -67,7 +66,6 @@ class NotificationService:
         self._event_bus = event_bus
         self._redis = redis
         self._cooldown = cooldown_service
-        self._token_version_cache = token_version_cache
         self._channels_service = channels_service
         self._ha_areas_provider = ha_areas_provider or (lambda: [])
 
@@ -80,7 +78,6 @@ class NotificationService:
             session_factory=session_factory,
             get_cfg=self._cfg,
             is_dnd_active=self.is_dnd_active,
-            invalidate_user_auth=self._invalidate_user_auth,
         )
         self._rules_helper = NotificationRulesHelper(
             session_factory=session_factory,
@@ -146,11 +143,6 @@ class NotificationService:
         if self._cooldown is None:
             return
         self._cooldown.set_cooldown("notify", key, minutes)
-
-    def _invalidate_user_auth(self, user_id: str) -> None:
-        invalidate = getattr(self._token_version_cache, "invalidate", None)
-        if invalidate is not None:
-            invalidate(user_id)
 
     # ------------------------------------------------------------------ #
     # 生命周期

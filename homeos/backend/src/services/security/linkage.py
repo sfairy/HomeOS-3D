@@ -1,6 +1,6 @@
 """安防跨模块联动（对齐 ``SecurityLinkageService``）。
 
-挂载 presence / calendar / child-mode / security.modeChanged 等事件上的联动逻辑：
+挂载 presence / calendar / security.modeChanged 等事件上的联动逻辑：
 - 全员离家 → 自动布防 armed_away（或升级既有 armed_home/night）；
 - 首人到家 → 切换为 armed_home；
 - 日历外出时段 → 自动布防 / 恢复居家；
@@ -29,7 +29,6 @@ class SecurityLinkageService:
         panel,
         away_sim,
         home_mode,
-        child_mode,
         config_reader: Callable[[], dict[str, Any]],
     ) -> None:
         self._session_factory = session_factory
@@ -37,7 +36,6 @@ class SecurityLinkageService:
         self._panel = panel
         self._away_sim = away_sim
         self._home_mode = home_mode
-        self._child_mode = child_mode
         self._config = config_reader
 
         bus.on("presence.everyoneLeft", self._on_everyone_left)
@@ -49,13 +47,6 @@ class SecurityLinkageService:
         schedule_security_event(
             self._session_factory, event_type, detail, mode=mode or self._panel.get_mode()
         )
-
-    def _child_mode_blocks_auto_arm(self) -> bool:
-        try:
-            status = self._child_mode.get_status()
-        except Exception:  # noqa: BLE001
-            return False
-        return bool(status.get("enabled")) and not bool(status.get("overrideActive"))
 
     async def _load_security_mode_links(self) -> dict[str, str]:
         try:
@@ -84,9 +75,6 @@ class SecurityLinkageService:
         if not cfg.get("autoArmOnEveryoneLeft") and not cfg.get(
             "autoUpgradeToAwayOnEveryoneLeft"
         ):
-            return
-        if self._child_mode_blocks_auto_arm():
-            logger.info("儿童模式已启用:跳过全员离家自动布防")
             return
 
         current = self._panel.get_mode()
@@ -122,8 +110,6 @@ class SecurityLinkageService:
 
     async def _on_calendar_away(self, data: dict[str, Any] | None) -> None:
         cfg = self._config()
-        if self._child_mode_blocks_auto_arm():
-            return
         current = self._panel.get_mode()
         away = bool(isinstance(data, dict) and data.get("away"))
         try:
@@ -195,10 +181,3 @@ class SecurityLinkageService:
                 logger.info("安防 %s:已关闭离家模拟", mode)
             except Exception:  # noqa: BLE001
                 pass
-
-    async def on_child_mode_changed(self, data: dict[str, Any] | None) -> None:
-        if not isinstance(data, dict) or not data.get("enabled"):
-            return
-        if self._panel.get_mode() != "disarmed":
-            return
-        logger.info("儿童模式启用:保持撤防状态(不自动布防)")

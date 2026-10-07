@@ -27,8 +27,8 @@
 把包上传到客户机后：
 
 ```bash
-tar xzf homeos-3d-app-<版本>.tar.gz
-cd homeos-3d-app-<版本>
+tar xzf homeos-app-<版本>.tar.gz
+cd homeos-app-<版本>
 
 # 把 http://<中心商店>:8802 换成厂商给你的地址
 ./install.sh --license-server http://<中心商店>:8802
@@ -61,7 +61,7 @@ docker login ghcr.io -u <你的用户名>     # 密码填有 read:packages 的 P
 
 ```bash
 # 引导密钥（首次设置管理员时要用；桥接网络访问时需要）
-docker logs homeos-3d | head
+docker logs homeos | head
 ```
 
 浏览器打开：
@@ -160,13 +160,13 @@ docker compose -f docker-compose.app.yml pull && docker compose -f docker-compos
 
 | 卷 | 内容 |
 | --- | --- |
-| `homeos-3d_homeos-3d-data` | 主应用数据（含自动取回的公钥缓存 `/data/client-keys`） |
-| `homeos-3d_homeos-3d-secrets` | HA / 配对 / 授权凭据密钥 |
+| `homeos_homeos-data` | 主应用数据（含自动取回的公钥缓存 `/data/client-keys`） |
+| `homeos_homeos-secrets` | HA / 授权凭据签名密钥 |
 
 ```bash
 mkdir -p backup
-docker run --rm -v homeos-3d_homeos-3d-data:/data -v "$PWD/backup":/backup alpine \
-  tar -C /data -czf /backup/homeos-3d-data.tgz .
+docker run --rm -v homeos_homeos-data:/data -v "$PWD/backup":/backup alpine \
+  tar -C /data -czf /backup/homeos-data.tgz .
 ```
 
 公钥缓存丢了不用慌：下次启动会向中心商店重新取回。
@@ -191,7 +191,7 @@ docker run --rm -v homeos-3d_homeos-3d-data:/data -v "$PWD/backup":/backup alpin
 ## 8. 包内文件
 
 ```
-homeos-3d-app-<版本>/
+homeos-app-<版本>/
 ├── install.sh                    一键安装入口（= deploy.sh --role app）
 ├── docker-compose.app.yml        主应用编排
 ├── .env.example                  环境变量模板（install.sh 会复制成 .env）

@@ -5,6 +5,7 @@ from datetime import datetime
 from sqlalchemy import (
     Boolean,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -60,9 +61,9 @@ class StoreSetting(Base):
     wechat_notify_url: Mapped[str] = mapped_column(String(512), default="")
 
     referral_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
-    referral_rate_percent: Mapped[float] = mapped_column(default=10.0)
-    referral_withdrawal_fee_percent: Mapped[float] = mapped_column(default=1.0)
-    referral_withdrawal_min_points: Mapped[float] = mapped_column(default=100.0)
+    referral_rate_percent: Mapped[float] = mapped_column(Float, default=10.0)
+    referral_withdrawal_fee_percent: Mapped[float] = mapped_column(Float, default=1.0)
+    referral_withdrawal_min_points: Mapped[float] = mapped_column(Float, default=100.0)
 
     device_release_cooldown_override: Mapped[int | None] = mapped_column(Integer)
 
@@ -128,7 +129,7 @@ class Coupon(Base):
     code: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     description: Mapped[str] = mapped_column(String(255), default="")
     discount_type: Mapped[str] = mapped_column(String(16), default="percent")
-    percent: Mapped[float] = mapped_column(default=0.0)
+    percent: Mapped[float] = mapped_column(Float, default=0.0)
     amount_cents: Mapped[int] = mapped_column(Integer, default=0)
     min_amount_cents: Mapped[int] = mapped_column(Integer, default=0)
     max_redemptions: Mapped[int | None] = mapped_column(Integer)
@@ -201,6 +202,22 @@ class RecoveryToken(Base):
     license_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("licenses.id", ondelete="CASCADE"), index=True
     )
+    expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class LicenseNonce(Base):
+    """已受理过的请求随机数，用来挡重放。
+
+    只按 ``id_hash``（scope + 随机数的 sha256）判重，不存明文：这张表的用途就是
+    「见过 / 没见过」，留明文等于给一份可重放的凭据清单。行按 ``expires_at`` 惰性清理
+    —— 过期的随机数不再有重放价值（对应的会话/租约早就换过一轮）。
+    """
+
+    __tablename__ = "license_nonces"
+
+    id_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    scope: Mapped[str] = mapped_column(String(32), default="")
     expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 

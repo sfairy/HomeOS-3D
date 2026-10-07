@@ -762,55 +762,6 @@ def _validate_home_mode(section: str, p: dict[str, Any], e: list[FieldError]) ->
         num_in(section, "linkageClaimTtlMin", p["linkageClaimTtlMin"], 1, 1440, e)
 
 
-_HHMM_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
-
-
-def _validate_child_mode(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
-    if "enabled" in p:
-        require_bool(section, "enabled", p["enabled"], e)
-    if "dailyMediaLimitMin" in p:
-        num_in(section, "dailyMediaLimitMin", p["dailyMediaLimitMin"], 0, 1440, e)
-    if "deviceWhitelist" in p:
-        wl = p["deviceWhitelist"]
-        if not isinstance(wl, list):
-            e.append({"section": section, "key": "deviceWhitelist", "message": "须为数组"})
-        else:
-            for i, item in enumerate(wl):
-                if not isinstance(item, str) or not item.strip() or not is_entity_id(item.strip()):
-                    e.append({"section": section, "key": f"deviceWhitelist[{i}]", "message": "须为有效实体 ID"})
-    if "timeWindows" in p:
-        tw = p["timeWindows"]
-        if not isinstance(tw, list):
-            e.append({"section": section, "key": "timeWindows", "message": "须为数组"})
-        else:
-            for i, raw in enumerate(tw):
-                prefix = f"timeWindows[{i}]"
-                if not isinstance(raw, dict):
-                    e.append({"section": section, "key": prefix, "message": "须为对象"})
-                    continue
-                days = raw.get("days")
-                days_ok = days in ("weekday", "weekend") or (
-                    isinstance(days, list)
-                    and all(
-                        isinstance(d, int) and not isinstance(d, bool) and 0 <= d <= 6 for d in days
-                    )
-                )
-                if not days_ok:
-                    e.append(
-                        {
-                            "section": section,
-                            "key": f"{prefix}.days",
-                            "message": "须为 weekday / weekend 或 0-6 整数数组",
-                        }
-                    )
-                for k in ("start", "end"):
-                    v = raw.get(k)
-                    if v is None or v == "":
-                        continue
-                    if not isinstance(v, str) or not _HHMM_RE.match(v.strip()):
-                        e.append({"section": section, "key": f"{prefix}.{k}", "message": "须为 HH:mm"})
-
-
 def _validate_ops(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
     if "retentionCleanupIntervalHours" in p:
         num_in(section, "retentionCleanupIntervalHours", p["retentionCleanupIntervalHours"], 1, 168, e)
@@ -937,8 +888,6 @@ def _validate_state_store(section: str, p: dict[str, Any], e: list[FieldError]) 
         num_in(section, "redisIncrementalFlushMs", p["redisIncrementalFlushMs"], 10, 60_000, e)
     if "maxRecentChanges" in p:
         num_in(section, "maxRecentChanges", p["maxRecentChanges"], 100, 50_000, e)
-    if "restCacheTtlMs" in p:
-        num_in(section, "restCacheTtlMs", p["restCacheTtlMs"], 100, 3_600_000, e)
     if "staleThresholdMs" in p:
         num_in(section, "staleThresholdMs", p["staleThresholdMs"], 10_000, 3_600_000, e)
     if "initialStatesPriorityEnabled" in p:
@@ -1007,12 +956,6 @@ def _validate_other(section: str, p: dict[str, Any], e: list[FieldError]) -> Non
         num_in(section, "speakCooldownMin", p["speakCooldownMin"], 0, 1440, e)
     if "tipCooldownHours" in p:
         num_in(section, "tipCooldownHours", p["tipCooldownHours"], 0, 72, e)
-    if "guestPassDefaultHours" in p:
-        num_in(section, "guestPassDefaultHours", p["guestPassDefaultHours"], 1, 168, e)
-    if "guestPassExtendHours" in p:
-        num_in(section, "guestPassExtendHours", p["guestPassExtendHours"], 1, 168, e)
-    if "guestPassRevokeOnAway" in p:
-        require_bool(section, "guestPassRevokeOnAway", p["guestPassRevokeOnAway"], e)
     if p.get("advisorTipActions") is not None and "advisorTipActions" in p:
         aa = p["advisorTipActions"]
         if not isinstance(aa, dict):
@@ -1273,7 +1216,6 @@ _SECTION_VALIDATORS: dict[str, Any] = {
     "haConnector": _validate_ha_connector,
     "stateStore": _validate_state_store,
     "homeMode": _validate_home_mode,
-    "childMode": _validate_child_mode,
     "other": _validate_other,
     "retention": _validate_retention,
     "external": _validate_external,

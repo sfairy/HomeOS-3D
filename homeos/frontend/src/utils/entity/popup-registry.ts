@@ -4,7 +4,7 @@
  *
  * 职责：
  * - 按域注册各实体的控制弹窗组件（懒加载）。
- * - 根据 entity_id 解析对应的弹窗组件（与户型图热点一致）。
+ * - 根据 entity_id 解析对应的弹窗组件（与部件点击行为一致）。
  * - 生成弹窗 props，判断实体是否支持控制弹窗及触发方式。
  *
  * 保留范围（其余域不再弹窗）：
@@ -57,7 +57,7 @@ const popupComponentMap: Record<string, Component> = {
 }
 
 /**
- * 根据 entity_id 解析控制弹窗组件（与户型图热点一致）。
+ * 根据 entity_id 解析控制弹窗组件（与部件点击行为一致）。
  *
  * 解析顺序：
  * 1. 域映射表（light / climate / cover / media_player）。

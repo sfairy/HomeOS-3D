@@ -59,8 +59,8 @@ const AssetManager = defineAsyncComponent(() => import('@/components/common/Asse
 const props = defineProps({
   /** 是否打开 */
   isOpen: { type: Boolean, default: false },
-  /** 资源类型：'floorplan' / 'icon' / 'background' / 'room_image' */
-  type: { type: String, default: 'floorplan' },
+  /** 资源类型：'icon' / 'background' */
+  type: { type: String, default: 'background' },
   /** 弹窗标题 */
   title: { type: String, required: true },
   /** 副标题描述 */

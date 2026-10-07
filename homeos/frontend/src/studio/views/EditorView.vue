@@ -1,12 +1,17 @@
 <script setup lang="ts">
 /**
  * 模板保留全部 id / class，供既有命令式引导逻辑按 DOM 契约操作。
+ *
+ * 引导逻辑不再是「模块求值即执行」：`@app/editor/home` 导出 `bootEditor()` /
+ * `teardownEditor()`，由本视图在挂载/卸载时成对调用，因此可以直接用 shell 内路由
+ * 进出编辑器（不再整页跳转）。引导体期间登记的全局监听、定时器与观察器由
+ * `createLegacyScope` 统一登记，卸载时一并释放。
  */
-import { onMounted } from "vue";
-import { loadClassicScript, useHardExit } from "../composables/useLegacyPage";
+import { onBeforeUnmount, onMounted } from "vue";
+import { loadClassicScript } from "../composables/useLegacyPage";
 
-// 重型视图：离开时整页跳转，完整回收一次性引导模块（three.js / WebSocket / 全局监听）。
-useHardExit();
+let teardownEditor: (() => void) | null = null;
+let disposed = false;
 
 onMounted(async () => {
   await loadClassicScript("/static/vendor/hls.js/1.7.3/hls.min.js");
@@ -14,7 +19,18 @@ onMounted(async () => {
   await import("@app/updates/update-notice");
   const storeLinks = await import("@app/shared/store-links");
   void storeLinks.applyStoreLinks();
-  await import("@app/editor/home");
+  const editor = await import("@app/editor/home");
+  // 动态导入期间用户可能已经离开该路由：此时不引导，避免留下无从回收的运行时。
+  if (disposed) return;
+  editor.bootEditor();
+  teardownEditor = editor.teardownEditor;
+});
+
+onBeforeUnmount(() => {
+  disposed = true;
+  const dispose = teardownEditor;
+  teardownEditor = null;
+  dispose?.();
 });
 </script>
 

@@ -93,10 +93,8 @@ EMBED_STATIC_ASSET_EXT = (
 
 _HOMEOS_FRONTEND_RESOURCE_PREFIXES = (
     "/assets/",
-    "/floorplans/",
     "/backgrounds/",
     "/icons/",
-    "/room_images/",
     "/sounds/",
     "/logo/",
 )

@@ -31,7 +31,7 @@ def _detect_project_root() -> Path:
 PROJECT_ROOT = _detect_project_root()
 REPO_ROOT = (
     PROJECT_ROOT.parent
-    if (PROJECT_ROOT.parent / "homeos-3d").is_dir()
+    if (PROJECT_ROOT.parent / "homeos").is_dir()
     else PROJECT_ROOT
 )
 

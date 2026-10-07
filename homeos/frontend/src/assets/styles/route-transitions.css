@@ -21,6 +21,25 @@
   overflow: hidden;
 }
 
+/**
+ * ErrorBoundary 包装层高度透传。
+ *
+ * App.vue 用 <ErrorBoundary> 包住 router-view，而 ErrorBoundary 默认（未加
+ * --fill / --compact 修饰类）只有 min-width:0，不携带任何高度语义。于是
+ * .route-transition-root 的 height:100% 与 3D 认证页的 min-height:100% 都失去
+ * 可解析的父级高度，整条链塌成 0 高 —— 内容其实已挂载（#app 里有完整 DOM、
+ * data-homeos-ready=1、零报错），但屏幕全黑；只有改变窗口尺寸触发重排才偶然恢复。
+ *
+ * 原 homeos-3d 外壳没有这一层包装，认证页的百分比高度直接挂在 .app-container 上，
+ * 因此该断层是两套外壳合并后新增的，需要在这里补齐高度透传（限定 .app-container
+ * 直属，避免影响设置页/侧栏等依赖 --fill 的嵌套用法）。
+ */
+.app-container > .error-boundary-root,
+.app-container > .error-boundary-root > .error-boundary-root__content {
+  height: 100%;
+  min-height: 0;
+}
+
 @media (pointer: coarse), (hover: none) {
   .fade-enter-active,
   .fade-leave-active {
@@ -56,4 +75,99 @@
 @media (prefers-reduced-motion: reduce) {
   .homeos-theme-atmosphere::before,
   .homeos-theme-atmosphere::after { will-change: auto; }
+}
+
+/**
+ * 整屏展示页开关灯背景层（App.vue 仅在 `display` / `homeos` 独立整屏路由挂载）。
+ * 这些页面没有主布局壳，整屏即布局区域：fixed 铺满视口，顶栏 / 侧栏 / 浮层 / 3D 场景叠在其上；
+ * cover 铺满 + 轻微压暗（0.9），保证上层文字与 3D 场景可读。
+ */
+.homeos-light-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  opacity: 0.9;
+  transition: background-image 0.6s ease, opacity 0.6s ease;
+}
+
+/**
+ * 主布局壳内变体（MainLayout 在总览首页 `dashboard` 渲染）。
+ *
+ * `.app-shell__content` 已经 `position: relative`，本层改为绝对定位后，
+ * 覆盖范围正好是页面布局区域 —— 导航（tab-bar）+ 户型图（main-content）+
+ * 侧边栏（shell-right-sidebar）+ 底部信息栏（shell-footer），并随 `.app-shell`
+ * 的等比缩放一起缩放。
+ *
+ * 不要改回 `fixed`：那会铺满整个浏览器页面，在缩放留白处溢出到布局区域之外。
+ */
+.homeos-light-backdrop--layout {
+  position: absolute;
+}
+
+/**
+ * 总览首页：让「导航 + 户型图 + 侧边栏 + 底部信息栏」四块区域都透出背景图。
+ *
+ * 背景层已铺满布局区域，但这三块区域默认是高不透明度毛玻璃
+ * （tab-bar 0.78 / info-panel 0.82~0.88 / power-panel 0.82）配大半径模糊
+ * （72px / 40px / 80px），图几乎被完全挡住。仅在总览首页生效：
+ * MainLayout 按 `route.name === 'dashboard'` 给 `.app-shell` 挂
+ * `--light-backdrop`，其它页面保持原有玻璃质感。
+ *
+ * 三条约定（改动时勿破坏）：
+ *  1. 必须放在这个**非 scoped** 的全局表里：`.info-panel` / `.info-card` 是子组件
+ *     内部元素，挂在 `<style scoped>` 的 main-layout.css 里会被 scope 变换丢弃。
+ *  2. 选择器权重保持三档（`.app-shell--light-backdrop` + 容器/元素/复合类），
+ *     以压过组件 scoped 样式（`.power-panel[data-v-*]` 等为 0,2,0 权重）。
+ *  3. 全部限定在 `.app-shell--light-backdrop` 下，只影响总览首页。
+ *
+ * 调参提示：alpha 越小、模糊半径越小 → 背景图越清晰、文字对比度越低，反之越糊。
+ * 下面是「图能明显透出、文字仍可读」的折中值。
+ */
+.app-shell--light-backdrop .app-shell__content .tab-bar {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, transparent 38%),
+    rgba(8, 8, 14, 0.58);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
+}
+
+.app-shell--light-backdrop .shell-right-sidebar .info-panel {
+  background: linear-gradient(180deg, rgba(14, 16, 26, 0.34) 0%, rgba(8, 10, 18, 0.42) 100%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  backdrop-filter: blur(14px) saturate(150%);
+}
+
+.app-shell--light-backdrop .shell-right-sidebar .info-card {
+  -webkit-backdrop-filter: blur(8px) saturate(150%);
+  backdrop-filter: blur(8px) saturate(150%);
+}
+
+.app-shell--light-backdrop .shell-footer.power-panel {
+  background: rgba(10, 10, 18, 0.66);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+}
+
+/* 触控 / 窄屏：沿用全局重毛玻璃退化策略，直接去掉模糊（背景图反而更清楚） */
+@media (pointer: coarse), (hover: none), (max-width: 900px) {
+  .app-shell--light-backdrop .app-shell__content .tab-bar,
+  .app-shell--light-backdrop .shell-right-sidebar .info-panel,
+  .app-shell--light-backdrop .shell-right-sidebar .info-card,
+  .app-shell--light-backdrop .shell-footer.power-panel {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/**
+ * 展示页专用：让整页缩放视口壳层透明，露出上面的整页背景图。
+ * 仅在 <html data-display-backdrop="1">（展示页）时生效，管理页保持原有不透明底。
+ * （独立整屏大屏不带 .viewport-frame，其 #display-shell 本身已透明。）
+ */
+html[data-display-backdrop='1'] .viewport-frame {
+  background: transparent !important;
 }

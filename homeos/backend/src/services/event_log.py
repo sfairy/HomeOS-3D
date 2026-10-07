@@ -23,14 +23,12 @@ from sqlalchemy.orm import Session
 from ..core.app_config import load_raw_config
 from ..core.entity_domain import get_entity_domain
 from ..core.models import (
-    CommandAudit,
     DeviceUsageStat,
     EnergyCandidateEntity,
     EnergyUsageDaily,
     EnergyUsageMonthly,
     EnvironmentRecord,
     EventLog,
-    LoginAudit,
     Notification,
     SecurityEvent,
 )
@@ -291,6 +289,7 @@ class EventLogService:
         self._dropped_events = 0
         self._timeline_max = DEFAULT_OPS["eventLogTimelineMax"]
         self._pending_timeline: list[tuple[str, str, str, int]] = []
+        self._ops: dict[str, Any] = dict(DEFAULT_OPS)
         self._load_ops()
 
     # ---- 配置 ----
@@ -494,6 +493,8 @@ class EventLogService:
         )
         day_totals: dict[tuple[str, str], dict[str, float]] = {}
         month_totals: dict[tuple[str, str], dict[str, float]] = {}
+        # 日切/月切跟随家庭时区（ops.homeTimezone），与前端报表口径一致。
+        timezone_name = str(self._ops.get("homeTimezone") or "").strip() or None
         for row in batch:
             if not is_energy_meter_entity(row["entity_id"]):
                 continue
@@ -503,8 +504,8 @@ class EventLogService:
             if delta <= 0:
                 continue
             created_at = row["created_at"]
-            day = business_day_key(created_at)
-            month = business_month_key(created_at)
+            day = business_day_key(created_at, timezone_name)
+            month = business_month_key(created_at, timezone_name)
             day_entry = day_totals.setdefault((row["entity_id"], day), {"kwh": 0.0, "count": 0})
             day_entry["kwh"] += delta
             day_entry["count"] += 1
@@ -806,10 +807,8 @@ class EventLogService:
         cutoff = datetime.now(UTC) - timedelta(days=base_days)
         steps = [
             ("eventLog", EventLog),
-            ("commandAudit", CommandAudit),
             ("notification", Notification),
             ("securityEvent", SecurityEvent),
-            ("loginAudit", LoginAudit),
         ]
         deleted: dict[str, int] = {}
         for key, model in steps:

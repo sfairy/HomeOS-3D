@@ -26,7 +26,7 @@ from alembic.script import ScriptDirectory
 from ..config import Settings
 
 #: 结构基线版本号。发行产物不带迁移脚本，新库直接按 ORM 元数据建好后写入这个版本号。
-SCHEMA_REVISION = "0001"
+SCHEMA_REVISION = "0006"
 
 _SIDECAR_SUFFIXES = ("-journal", "-wal", "-shm")
 

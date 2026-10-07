@@ -17,6 +17,32 @@ _MEDIA_PATTERNS = (
 )
 
 
+class RegistryTargetResolver:
+    """间接目标解析：注册表（area/device/label）+ 状态内存（属性谓词）。
+
+    ``assert_command_proxy_authorized`` 需要把「区域 / 设备 / 标签」这类间接目标
+    展开成实体 id 才能做白名单判定（对齐 Nest ``resolveTargets``）。HTTP 命令通道
+    （``/services/call``）与 ``/ha/services/call`` 共用本解析器，避免两套实现漂移。
+    """
+
+    def __init__(self, request: Any) -> None:
+        self._request = request
+
+    async def get_registry(self) -> list[dict[str, Any]]:
+        return await self._request.app.state.ha_connector.fetch_entity_registry()
+
+    def find_entity_ids(self, predicate: Callable[[dict[str, Any]], bool]) -> list[str]:
+        gateway = getattr(self._request.app.state, "realtime", None)
+        store = getattr(gateway, "state_store", None)
+        if store is None:
+            return []
+        return [
+            entity["entity_id"]
+            for entity in store.get_all()
+            if entity.get("entity_id") and predicate(entity.get("attributes") or {})
+        ]
+
+
 def _to_id_array(value: Any) -> list[str]:
     if isinstance(value, str) and value:
         return [value]
@@ -87,7 +113,7 @@ async def collect_target_entities(dto: dict[str, Any], resolver: Any) -> list[st
 
 
 async def assert_command_proxy_authorized(
-    dto: dict[str, Any], user: dict[str, Any] | None, gate: Any, resolver: Any = None
+    dto: dict[str, Any], user: dict[str, Any] | None, resolver: Any = None
 ) -> None:
     role = (user or {}).get("role")
     if role == "guest":
@@ -101,15 +127,9 @@ async def assert_command_proxy_authorized(
     targets = await collect_target_entities(dto, resolver)
     if role != "admin" and restrictions and not _all_allowed(targets, restrictions):
         forbidden(api_error("ACCESS_ENTITY_DENIED"))
-    for entity_id in targets:
-        check = gate.can_control(entity_id)
-        if not check.get("allowed"):
-            forbidden(check.get("reason") or "儿童模式限制")
 
 
-def assert_history_authorized(
-    entity_ids: list[str], user: dict[str, Any] | None, gate: Any
-) -> None:
+def assert_history_authorized(entity_ids: list[str], user: dict[str, Any] | None) -> None:
     if (user or {}).get("role") == "guest":
         forbidden(api_error("ACCESS_GUEST_DEVICE_DENIED"))
     restrictions = (user or {}).get("restrictions")
@@ -119,13 +139,9 @@ def assert_history_authorized(
     role = (user or {}).get("role")
     if role != "admin" and restrictions and not _all_allowed(entity_ids, restrictions):
         forbidden(api_error("ACCESS_ENTITY_DENIED"))
-    for entity_id in entity_ids:
-        check = gate.can_control(entity_id)
-        if not check.get("allowed"):
-            forbidden(check.get("reason") or "儿童模式限制")
 
 
-def assert_webrtc_authorized(entity_id: str, user: dict[str, Any] | None, gate: Any) -> None:
+def assert_webrtc_authorized(entity_id: str, user: dict[str, Any] | None) -> None:
     if not entity_id or not entity_id.startswith("camera."):
         forbidden("仅允许访问 camera 实体")
     role = (user or {}).get("role")
@@ -143,9 +159,6 @@ def assert_webrtc_authorized(entity_id: str, user: dict[str, Any] | None, gate: 
         forbidden(api_error("ACCESS_CHILD_NO_WHITELIST"))
     if role != "admin" and restrictions and not is_entity_allowed(entity_id, restrictions):
         forbidden(api_error("ACCESS_ENTITY_DENIED"))
-    check = gate.can_control(entity_id)
-    if not check.get("allowed"):
-        forbidden(check.get("reason") or "儿童模式限制")
 
 
 def extract_entity_id_from_media_path(path: str) -> str | None:
@@ -162,7 +175,7 @@ def extract_entity_id_from_media_path(path: str) -> str | None:
     return None
 
 
-def _assert_entity_access_for_media(entity_id: str, user: dict[str, Any] | None, gate: Any) -> None:
+def _assert_entity_access_for_media(entity_id: str, user: dict[str, Any] | None) -> None:
     role = (user or {}).get("role")
     if role == "guest":
         forbidden(api_error("ACCESS_GUEST_DEVICE_DENIED"))
@@ -172,18 +185,15 @@ def _assert_entity_access_for_media(entity_id: str, user: dict[str, Any] | None,
         forbidden(api_error("ACCESS_CHILD_NO_WHITELIST"))
     if role != "admin" and restrictions and not is_entity_allowed(entity_id, restrictions):
         forbidden(api_error("ACCESS_ENTITY_DENIED"))
-    check = gate.can_control(entity_id)
-    if not check.get("allowed"):
-        forbidden(check.get("reason") or "儿童模式限制")
 
 
-def assert_ha_media_path_authorized(path: str, user: dict[str, Any] | None, gate: Any) -> None:
+def assert_ha_media_path_authorized(path: str, user: dict[str, Any] | None) -> None:
     entity_id = extract_entity_id_from_media_path(path)
     if entity_id and entity_id.startswith("camera."):
-        assert_webrtc_authorized(entity_id, user, gate)
+        assert_webrtc_authorized(entity_id, user)
         return
     if entity_id:
-        _assert_entity_access_for_media(entity_id, user, gate)
+        _assert_entity_access_for_media(entity_id, user)
         return
     if (user or {}).get("role") == "guest":
         forbidden(api_error("ACCESS_GUEST_DEVICE_DENIED"))
@@ -217,6 +227,7 @@ def is_dangerous_ha_control(domain: str, service: str, entity_id: str) -> bool:
 
 
 __all__ = [
+    "RegistryTargetResolver",
     "collect_target_entities",
     "assert_command_proxy_authorized",
     "assert_history_authorized",

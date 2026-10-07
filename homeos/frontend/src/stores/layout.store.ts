@@ -6,8 +6,8 @@
  * 职责：
  * - 持有 UILayoutConfig 主状态（楼层/部件/收藏/事件日志/HA 配置/统计传感器/安防/地震/AI 等）
  * - 维护布局脏标记（layoutDirty）：深 watch layoutConfig，配置未加载完成或被抑制时跳过
- * - 楼层部件 CRUD：热点部件（FloorWidget）与浮动部件（FloatingWidget）的增删改
- * - 编辑模式生命周期：进入/退出、放置实体指针、退出确认、撤销/重做（按楼层分栈）
+ * - 浮动部件 CRUD：顶层浮动部件（FloatingWidget）的增删改
+ * - 编辑模式生命周期：进入/退出、放置实体指针、退出确认、撤销/重做（单栈）
  * - 布局方案管理：方案列表拉取/创建/删除/切换、家庭模式自动激活、本机终端绑定
  * - 持久化：loadConfig（200ms 防抖 + 请求去重 + requestId 竞态保护）、saveConfig（HA URL 校验 + 并发 coalesce）
  * - 未保存草稿：localStorage 抢救式持久化（beforeunload 钩子）
@@ -33,9 +33,7 @@
  * - 各功能切片均拆分至 ui/ 子目录的工厂函数，本文件仅作 Pinia setup 容器与组合入口
  */
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, nextTick } from 'vue'
-import type { ComputedRef } from 'vue'
-import type { FloorConfig, FloorWidget } from '@/types/layout'
+import { nextTick } from 'vue'
 import { logger } from '@/utils/core/logger'
 import { getApiErrorMessage } from '@/utils/core/error-message'
 import { useChromeStore } from '@/stores/chrome.store'
@@ -99,26 +97,13 @@ export const useLayoutStore = defineStore('layout', () => {
     }
   }
 
-  // 当前选中的楼层部件（编辑模式高亮使用，基于 activeFloorId 与 selectedWidgetId 派生）
-  const selectedWidget: ComputedRef<FloorWidget | null> = computed(() => {
-    const floor = layoutConfig.floors.find((f: FloorConfig) => f.id === layoutConfig.activeFloorId)
-    return floor?.widgets.find((w: FloorWidget) => w.id === selectedWidgetId.value) || null
-  })
-
-  // 编辑历史切片：按楼层分栈的撤销/重做（past/future 双栈，300ms 防抖）
+  // 编辑历史切片：单栈撤销/重做（past/future 双栈，300ms 防抖）
   const { pushEditHistory, undoEdit, redoEdit, canUndoEdit, canRedoEdit, clearEditHistory } =
     createEditHistoryState({ layoutConfig, layoutDirty, clonePlain })
 
-  // 楼层部件 CRUD 切片：热点部件与浮动部件的增删改，所有写操作均推送历史并标记 dirty
-  const {
-    addWidget,
-    updateWidget,
-    removeWidget,
-    replaceWidgetId,
-    addFloatingWidget,
-    updateFloatingWidget,
-    removeFloatingWidget,
-  } = createFloorWidgetActions({ layoutConfig, layoutDirty, pushEditHistory })
+  // 浮动部件 CRUD 切片：顶层 floatingWidgets 的增删改，所有写操作均标记 dirty
+  const { addFloatingWidget, updateFloatingWidget, removeFloatingWidget } =
+    createFloorWidgetActions({ layoutConfig, layoutDirty, pushEditHistory })
 
   /**
    * 统一 API 错误处理：记录日志 + 区分 403（仅管理员可修改）与其他错误提示
@@ -180,9 +165,8 @@ export const useLayoutStore = defineStore('layout', () => {
     layoutDirty,
   })
 
-  // 编辑模式行为切片：楼层切换、进入/退出、放置实体控制、退出确认（脏数据时拦截）
+  // 编辑模式行为切片：进入/退出、放置实体控制、退出确认（脏数据时拦截）
   const {
-    setActiveFloor,
     toggleEditMode,
     confirmExitEditMode,
     setPlacementEntity,
@@ -258,15 +242,10 @@ export const useLayoutStore = defineStore('layout', () => {
     selectedWidgetId,
     placementEntity,
     showExitEditConfirm,
-    selectedWidget,
     isSettingsUnlocked,
     unlockSettings,
     lockSettings,
     ensureActiveProfileResolved,
-    addWidget,
-    updateWidget,
-    removeWidget,
-    replaceWidgetId,
     addFloatingWidget,
     updateFloatingWidget,
     removeFloatingWidget,
@@ -290,7 +269,6 @@ export const useLayoutStore = defineStore('layout', () => {
     canUndoEdit,
     canRedoEdit,
     clearEditHistory,
-    setActiveFloor,
     toggleEditMode,
     confirmExitEditMode,
     setPlacementEntity,

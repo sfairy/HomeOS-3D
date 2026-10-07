@@ -260,7 +260,6 @@ const SECTION_LABELS: Record<string, string> = {
   webrtc: 'WebRTC / TURN',
   homeMode: '家庭模式引擎',
   circadian: '昼夜节律照明',
-  childMode: '儿童模式',
 }
 
 const SECTION_DESCS: Record<string, string> = {
@@ -268,7 +267,6 @@ const SECTION_DESCS: Record<string, string> = {
   security: '安防检测与异常阈值（presence 自动布防等在安防联动页）',
   water: '漏水与超量用水监控',
   iaq: '霉变预警冷却与空气质量联动',
-  childMode: '白名单、时间窗与每日媒体时长',
   energy: '能耗监测与基线学习（电表绑定见首装向导）',
   pricing: '峰谷时段、年阶梯或固定单价',
   other: '通用运行参数（保留天数统一在「数据保留」页管理）',
@@ -361,10 +359,10 @@ const SECTION_CATEGORY_DEFS = [
   {
     id: 'interact',
     label: '感知交互',
-    desc: '通知、儿童模式与外部集成',
+    desc: '通知与外部集成',
     accent: '#fbbf24',
     icon: Brain,
-    sections: ['notification', 'childMode', 'external'],
+    sections: ['notification', 'external'],
   },
   {
     id: 'system',

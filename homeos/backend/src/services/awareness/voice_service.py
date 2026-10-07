@@ -44,7 +44,6 @@ class VoiceService:
         app_config: Any,
         ha_connector: Any,
         command_proxy: Any,
-        child_mode: Any,
         home_mode: Any,
         state_store: Any,
         entity_area: Any,
@@ -57,7 +56,6 @@ class VoiceService:
         self._app_config = app_config
         self._ha_connector = ha_connector
         self._command_proxy = command_proxy
-        self._child_mode = child_mode
         self._home_mode = home_mode
         self._state_store = state_store
         self._entity_area = entity_area
@@ -209,7 +207,6 @@ class VoiceService:
         deps = VoiceCommandExecuteDeps(
             session_factory=self._session_factory,
             command_proxy=self._command_proxy,
-            child_mode=self._child_mode,
             home_mode=self._home_mode,
             get_voice_commands=self._get_voice_commands,
             get_entities=lambda: self._state_store.get_all() if self._state_store is not None else [],

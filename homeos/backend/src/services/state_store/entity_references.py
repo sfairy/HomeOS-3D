@@ -31,7 +31,6 @@ ENTITY_REFERENCE_KINDS = (
     "home_mode",
     "alert_rule",
     "favorite",
-    "hotspot",
     "widget",
     "binding",
     "security_mode",
@@ -342,31 +341,6 @@ def _scan_layout_object(
                     },
                     seen,
                 )
-
-    # 户型图热点（widget.id = entity_id）
-    floors = layout.get("floors") if isinstance(layout.get("floors"), list) else []
-    for floor_idx, floor in enumerate(floors):
-        if not isinstance(floor, dict):
-            continue
-        floor_name = str(floor.get("name") or floor.get("id") or f"楼层{floor_idx + 1}")
-        widgets = floor.get("widgets") if isinstance(floor.get("widgets"), list) else []
-        for widget_idx, widget in enumerate(widgets):
-            if not isinstance(widget, dict):
-                continue
-            if str(widget.get("id") or "") != entity_id:
-                continue
-            _push(
-                items,
-                {
-                    "kind": "hotspot",
-                    "id": f"hotspot:{floor_idx}:{widget_idx}",
-                    "name": f"{floor_name} · 热点",
-                    "role": "display",
-                    "detail": str(widget.get("label") or entity_id),
-                    "path": "/settings?tab=layout",
-                },
-                seen,
-            )
 
     # 右侧 / 浮动面板组件
     panel_widgets = [
@@ -789,43 +763,6 @@ def _unlink_favorite(deps: dict[str, Any], item_id: str, entity_id: str) -> dict
     return _ok("filtered", "已从收藏移除", True)
 
 
-def _unlink_hotspot(deps: dict[str, Any], item_id: str, entity_id: str) -> dict[str, Any]:
-    layout = dict(deps["load_layout"]())
-    floors = list(layout.get("floors")) if isinstance(layout.get("floors"), list) else []
-    changed = False
-    match = re.fullmatch(r"hotspot:(\d+):(\d+)", item_id)
-    next_floors: list[Any] = []
-    for floor_idx, floor in enumerate(floors):
-        if not isinstance(floor, dict):
-            next_floors.append(floor)
-            continue
-        f = dict(floor)
-        widgets = list(f.get("widgets")) if isinstance(f.get("widgets"), list) else []
-        next_widgets: list[Any] = []
-        for widget_idx, widget in enumerate(widgets):
-            if not isinstance(widget, dict):
-                next_widgets.append(widget)
-                continue
-            if match is not None:
-                keep = not (floor_idx == int(match.group(1)) and widget_idx == int(match.group(2)))
-                if not keep:
-                    changed = True
-                if keep:
-                    next_widgets.append(widget)
-                continue
-            if str(widget.get("id") or "") == entity_id:
-                changed = True
-                continue
-            next_widgets.append(widget)
-        f["widgets"] = next_widgets
-        next_floors.append(f)
-    if not changed:
-        return _fail("未找到对应热点")
-    layout["floors"] = next_floors
-    deps["save_layout"](layout)
-    return _ok("deleted_widget", "已移除户型图热点", True)
-
-
 def _unlink_layout_json_field(
     deps: dict[str, Any], kind: str, item_id: str, entity_id: str
 ) -> dict[str, Any]:
@@ -962,7 +899,7 @@ def _unlink_layout_json_field(
     if not changed:
         return _fail("未找到可移除的布局引用")
     deps["save_layout"](layout)
-    action = "deleted_widget" if kind in ("hotspot", "widget") else "cleared"
+    action = "deleted_widget" if kind == "widget" else "cleared"
     return _ok(action, "已从布局配置移除", True)
 
 
@@ -1062,8 +999,6 @@ def unlink_entity_reference(
         return _unlink_alert_rule(deps, item_id)
     if kind == "favorite":
         return _unlink_favorite(deps, item_id, entity_id)
-    if kind == "hotspot":
-        return _unlink_hotspot(deps, item_id, entity_id)
     if kind in ("widget", "binding", "footer", "whole_home_off", "security_mode", "security_zone"):
         return _unlink_layout_json_field(deps, kind, item_id, entity_id)
     if kind in ("env_sensor", "system_config", "media"):

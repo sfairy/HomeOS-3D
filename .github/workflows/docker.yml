@@ -37,6 +37,10 @@ jobs:
       # 版本号唯一来源：仓库根 package.json 的 version。
       # 发布标签只有两个：该版本号（如 1.0.0）与 latest，且只在默认分支推送，
       # 避免分支构建覆盖发布指针；非默认分支退化为 sha-<short>。
+      # 镜像基名与仓库名解耦：仓库名里的 `-3d` 后缀不再出现在镜像上。
+      #   主应用 ghcr.io/<namespace>/homeos
+      #   授权商店 ghcr.io/<namespace>/homeos-store   （由矩阵 suffix: "-store" 拼出）
+      # namespace 默认取仓库属主（小写）；需要推到别处时用仓库变量 IMAGE_NAMESPACE 覆盖。
       - id: meta
         run: |
           version="$(sed -n 's/^  "version":[[:space:]]*"\([^"]*\)".*/\1/p' package.json | head -n 1)"
@@ -44,7 +48,12 @@ jobs:
             echo "::error::package.json 里没有 version，无法确定镜像 tag"
             exit 1
           fi
-          base="${REGISTRY}/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          namespace="${{ vars.IMAGE_NAMESPACE }}"
+          if [ -z "$namespace" ]; then
+            namespace='${{ github.repository_owner }}'
+          fi
+          namespace="$(echo "$namespace" | tr '[:upper:]' '[:lower:]')"
+          base="${REGISTRY}/${namespace}/homeos"
           if [ "${{ github.ref_name }}" = "${{ github.event.repository.default_branch }}" ]; then
             tag="$version"
             release=true
@@ -80,7 +89,7 @@ jobs:
           leftovers="$(
             grep -RIlE --include='*.ts' --exclude-dir=node_modules --exclude-dir=dist \
               '^[[:space:]]*//[[:space:]]*@ts-nocheck' \
-              homeos-3d/frontend homeos-store/frontend || true
+              homeos/frontend homeos-store/frontend || true
           )"
           if [ -n "$leftovers" ]; then
             count="$(printf '%s\n' "$leftovers" | wc -l | tr -d ' ')"
@@ -133,7 +142,7 @@ jobs:
           python -m venv .venv-store
           .venv-store/bin/python -m pip install --upgrade pip
           .venv-store/bin/python -m pip install \
-            -r homeos-3d/backend/src/requirements.txt \
+            -r homeos/backend/requirements.txt \
             -r homeos-store/backend/src/requirements.txt
 
       - name: Install basedpyright
@@ -163,7 +172,7 @@ jobs:
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r homeos-3d/backend/src/requirements.txt \
+          pip install -r homeos/backend/requirements.txt \
                       -r homeos-store/backend/src/requirements.txt
 
       - name: Check schema
@@ -180,19 +189,19 @@ jobs:
       matrix:
         include:
           - target: app
-            project: 3d
+            project: app
             suffix: ""
             platform: linux/amd64
             arch: amd64
             runner: ubuntu-24.04
-            smoke_module: backend.app.main  # 镜像里的包名是 app（源码目录是 src，构建时映射）
+            smoke_module: backend.app.app  # 镜像里的包名是 app（源码目录是 src，构建时映射）
           - target: app
-            project: 3d
+            project: app
             suffix: ""
             platform: linux/arm64
             arch: arm64
             runner: ubuntu-24.04-arm
-            smoke_module: backend.app.main  # 镜像里的包名是 app（源码目录是 src，构建时映射）
+            smoke_module: backend.app.app  # 镜像里的包名是 app（源码目录是 src，构建时映射）
           - target: store
             project: store
             suffix: "-store"
@@ -220,12 +229,12 @@ jobs:
           bun install --frozen-lockfile
           bun run build:frontend
           # 混淆与产物结构断言。
-          grep -q '_0x' dist/homeos-3d/frontend/static/logging/client-log.js
+          grep -q '_0x' dist/homeos/frontend/static/logging/client-log.js
           grep -q '_0x' dist/homeos-store/frontend/static/auth-bootstrap.js
-          test -f dist/homeos-3d/frontend/static/vendor/three/0.186.0/three.module.min.js
-          test -f dist/homeos-store/frontend/static/jquery.min.js
-          test -f dist/homeos-3d/frontend/index.html
-          test -f dist/homeos-store/frontend/templates/store.html
+          test -f dist/homeos/frontend/static/vendor/three/0.186.0/three.module.min.js
+          test -f dist/homeos-store/frontend/static/store.css
+          test -f dist/homeos/frontend/index.html
+          test -f dist/homeos-store/frontend/templates/index.html
 
       - uses: docker/setup-buildx-action@v4
 

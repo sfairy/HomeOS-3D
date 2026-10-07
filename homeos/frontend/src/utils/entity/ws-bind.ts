@@ -463,10 +463,6 @@ export function bindEntitySocketHandlers(
     dispatchToModeListeners(listeners.homeModeListeners, data, 'home_mode')
   })
 
-  socket.on(WS_CLIENT_EVENTS.CHILD_MODE, (data: unknown) => {
-    dispatchToModeListeners(listeners.childModeListeners, data, 'child_mode')
-  })
-
   socket.on(WS_CLIENT_EVENTS.NOTIFICATION, (data: Record<string, unknown>) => {
     actions.addRemoteNotification(data)
     if (shouldSkipNotificationToast(data)) return

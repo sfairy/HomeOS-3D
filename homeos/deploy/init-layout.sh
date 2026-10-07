@@ -48,12 +48,10 @@ write_caddyfile() {
 EOF
 }
 
-mkdir -p "$ROOT/assets/floorplans" "$ROOT/assets/backgrounds" "$ROOT/assets/icons" "$ROOT/assets/room_images" "$ROOT/assets/logo" "$ROOT/assets/sounds" "$ROOT/license" "$ROOT/backups" "$ROOT/secrets" "$CADDY_DIR"
+mkdir -p "$ROOT/assets/backgrounds" "$ROOT/assets/icons" "$ROOT/assets/logo" "$ROOT/assets/sounds" "$ROOT/license" "$ROOT/backups" "$ROOT/secrets" "$CADDY_DIR"
 chmod 0775 \
-  "$ROOT/assets/floorplans" \
   "$ROOT/assets/backgrounds" \
   "$ROOT/assets/icons" \
-  "$ROOT/assets/room_images" \
   "$ROOT/assets/logo" \
   "$ROOT/assets/sounds" \
   "$ROOT/license" \

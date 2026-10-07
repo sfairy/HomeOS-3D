@@ -34,6 +34,41 @@
   display: flex;
   flex-direction: column;
 }
+
+/* ── 仪表盘壳层（总览首页 `/`）───────────────────────────────────────────────
+   等价原 DashboardView 的结构：内容行（内容区 + 右栏）在上，页脚横跨底部，
+   浮动组件作为覆盖层。此前 `.shell-right-sidebar` / `.shell-footer` 只有类名、
+   没有规则，二者作为 .app-shell__content 的列内项被 flex:1 的内容区挤出可视区，
+   视觉上表现为「侧边栏 / 底部信息栏缺失」。 */
+.dashboard-shell {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* 仪表盘路由：内容区与右栏并排 */
+.dashboard-shell--dashboard {
+  flex-direction: row;
+}
+.dashboard-shell--dashboard > .main-content {
+  /* 关键：作为 #display-shell（position: absolute）的定位祖先。
+     否则它会对齐到 .app-shell__content，用 100vw×100vh 把顶栏/右栏/页脚一起盖住。 */
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+}
+.shell-right-sidebar {
+  flex-shrink: 0;
+  z-index: 20;
+}
+/* 底部能耗页脚（.power-panel）横跨内容区 + 右栏下方 */
+.shell-footer {
+  flex-shrink: 0;
+}
+/* 浮动组件覆盖层（.afh-root）：挂在 .main-content 内，由自身 CSS 做 absolute inset:0，
+   坐标基准即内容区，与 .shell-right-sidebar / .shell-footer 互不重叠。 */
+
 .route-transition-root {
   flex: 1;
   min-height: 0;

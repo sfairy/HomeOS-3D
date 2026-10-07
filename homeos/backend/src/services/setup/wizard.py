@@ -10,17 +10,18 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from ...core.errors import api_error, bad_request
 from ...core.json_field import read_json_object
-from ...core.models import ProjectConfig, SecurityEvent
+from ...core.models import Project, ProjectConfig, SecurityEvent
 from ..setup.bindings_gaps import collect_binding_gaps
 
 logger = logging.getLogger("homeos.setup.wizard")
@@ -31,7 +32,7 @@ ENV_ROOM_MIN = 3
 ENV_SENSOR_KEYS = ("temperature", "humidity", "pm25", "co2", "tvoc")
 
 #: 首装后引导任务清单项 ID
-CHECKLIST_ITEM_IDS = ("floorplan", "favorites", "voice")
+CHECKLIST_ITEM_IDS = ("studio3d", "favorites", "voice")
 
 #: 配置健康评分缓存 TTL（毫秒）
 HEALTH_CACHE_TTL_MS = 60_000
@@ -109,20 +110,13 @@ class SetupWizardService:
                 total += sum(1 for item in ids if item)
         return total
 
-    @staticmethod
-    def _has_custom_floorplan(layout: dict[str, Any] | None) -> bool:
-        if not layout:
+    def _has_studio_project(self) -> bool:
+        """是否已存在 3D 户型项目（旧 2D 楼层底图判定已退役）。"""
+        try:
+            with self._session_factory() as session:
+                return bool(session.scalar(select(func.count()).select_from(Project)))
+        except Exception:  # noqa: BLE001 - 检测失败按未完成处理
             return False
-        floors = layout.get("floors")
-        if not isinstance(floors, list) or not floors:
-            return False
-        for floor in floors:
-            if not isinstance(floor, dict):
-                continue
-            url = str(floor.get("backgroundUrl") or "").strip()
-            if url and "lights_off.png" not in url:
-                return True
-        return False
 
     @staticmethod
     def _count_env_rooms(env_map: Any) -> int:
@@ -150,8 +144,8 @@ class SetupWizardService:
 
         layout = self._get_project_layout()
         favorite_count = self._count_favorite_entities(layout)
-        has_floorplan = self._has_custom_floorplan(layout)
-        dashboard_done = has_floorplan or favorite_count >= 1
+        has_studio_project = await asyncio.to_thread(self._has_studio_project)
+        dashboard_done = has_studio_project or favorite_count >= 1
 
         connection_done = bool(ha_status.get("connected")) and entity_count > 0
         energy_done = bool(str(energy.get("meterEntityId") or "").strip())
@@ -178,7 +172,7 @@ class SetupWizardService:
                 "hint": (
                     None
                     if dashboard_done
-                    else "可选：上传户型图，或在常用设备中收藏至少 1 个实体"
+                    else "可选：绘制 3D 户型图，或在常用设备中收藏至少 1 个实体"
                 ),
             },
             "complete": {
@@ -314,11 +308,11 @@ class SetupWizardService:
 
         items = [
             {
-                "id": "floorplan",
-                "label": "上传户型图",
-                "done": self._has_custom_floorplan(layout),
-                "hint": "设置 → 仪表板布局 → 楼层管理",
-                "route": "/settings?tab=layout&section=floors",
+                "id": "studio3d",
+                "label": "绘制 3D 户型图",
+                "done": await asyncio.to_thread(self._has_studio_project),
+                "hint": "设置 → 布局 → 3D 户型图绘制",
+                "route": "/settings?tab=layout",
             },
             {
                 "id": "favorites",

@@ -87,7 +87,7 @@ docker compose -f docker-compose.store.yml -f docker-compose.store.public.yml up
 
 叠加文件会做三件事：
 
-1. 起 `caddy-public`，按 `STORE_DOMAIN` 自动签发并续期证书，反代到 `homeos-3d-store:8802`；
+1. 起 `caddy-public`，按 `STORE_DOMAIN` 自动签发并续期证书，反代到 `homeos-store:8802`；
 2. 把 `STORE_BASE_URL` 设为公网域名（支付回调按它推导）；
 3. 放宽商店的可信代理到 docker 网段（反代在容器之外了），并强制
    `STORE_COOKIE_SECURE=true`。
@@ -162,10 +162,10 @@ STORE_COOKIE_SECURE=true
 
 ## 5. 证书与备份
 
-- Caddy 的证书与 ACME 账号数据落在卷 `homeos-3d-store_caddy-public-data`（overlay 里定义，
-  compose 项目名 `homeos-3d-store` 前缀）。容器重建不丢；删了这个卷会重新申请证书，
+- Caddy 的证书与 ACME 账号数据落在卷 `homeos-store_caddy-public-data`（overlay 里定义，
+  compose 项目名 `homeos-store` 前缀）。容器重建不丢；删了这个卷会重新申请证书，
   频繁删除可能触发 Let's Encrypt 的签发限流，别当日常操作。
-- 商店授权私钥仍在 `homeos-3d-store_homeos-3d-license-keys`，**单独备份**，公网化不改变这条。
+- 商店授权私钥仍在 `homeos-store_homeos-license-keys`，**单独备份**，公网化不改变这条。
 
 ---
 

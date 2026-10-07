@@ -1,0 +1,110 @@
+:root {
+  color-scheme: dark;
+  background: var(--display-surface-background, #070b0e);
+}
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+html,
+body {
+  width: 100%;
+  min-width: 100%;
+  height: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  outline: 0;
+  background: var(--display-surface-background, #070b0e);
+}
+body {
+  position: relative;
+  overscroll-behavior: none;
+}
+#display-shell {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  outline: 0;
+  /* 3D 展示要透出下层开关灯背景图：外壳本身不铺暗底。 */
+  background: transparent;
+}
+/* 总览首页（`/`）把展示页嵌进 MainLayout 的内容区：改为按父容器铺满，否则
+   100vw×100vh 会盖住顶栏、右侧栏与页脚。独立整屏大屏（`/display/:projectId`、
+   `/homeos/:name`）不带 html.display-embedded，仍保持整屏定尺。 */
+html.display-embedded #display-shell {
+  width: 100%;
+  height: 100%;
+}
+/* 加载闪屏同理：独立大屏整屏覆盖，嵌入总览时只覆盖内容区，不遮挡应用骨架。 */
+html.display-embedded #display-splash {
+  position: absolute;
+  inset: 0;
+}
+#display-root {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: grid;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  place-items: center;
+  touch-action: manipulation;
+}
+#display-root > .hb-renderer-viewport,
+#display-root .hb-renderer-canvas {
+  border: 0;
+  outline: 0;
+}
+/* 覆盖 renderer 给画布写的内联暗底（renderer.ts setDocument 会按 canvas.background 设
+   style.background）：WebGL 已是 alpha 合成，画布必须透明才能透出下方的背景图。 */
+#display-root .hb-renderer-canvas {
+  background: transparent !important;
+  background-image: none !important;
+}
+/* 开关灯背景层由应用根 App.vue 的 .homeos-light-backdrop 承担（整页覆盖），
+   此处只保证 3D 画布透明以透出下层背景。 */
+.display-error {
+  color: #d78d89;
+  font:
+    13px system-ui,
+    sans-serif;
+}
+.capture-preview .hb-camera-component {
+  isolation: isolate;
+}
+.capture-preview .hb-camera-image,
+.capture-preview .hb-camera-video {
+  filter: blur(24px) brightness(0.48) saturate(0.45);
+  transform: scale(1.08);
+}
+.capture-preview .hb-camera-component:after {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  display: grid;
+  border-radius: inherit;
+  color: #ebeff1c7;
+  background: #070b0e2e;
+  font:
+    600 12px system-ui,
+    sans-serif;
+  letter-spacing: 0.12em;
+  content: "\9690\79c1\753b\9762";
+  place-items: center;
+  pointer-events: none;
+}

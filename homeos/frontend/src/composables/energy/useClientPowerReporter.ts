@@ -16,7 +16,6 @@ import {
 } from '@/utils/client/system.util'
 import { logger } from '@/utils/core/logger'
 import { isLicenseInactiveError } from '@/utils/core/error-message'
-import { isLicenseGateOpen } from '@/router/license-gate'
 import { schedulePoll } from '@/utils/core/poll-scheduler'
 
 /**
@@ -307,7 +306,6 @@ export function useClientPowerReporter() {
 
   watch(
     () =>
-      isLicenseGateOpen() &&
       authStore.isAuthenticated &&
       !authStore.isGuest() &&
       route.name !== 'activation' &&

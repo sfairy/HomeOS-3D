@@ -1,11 +1,11 @@
 # HomeOS 授权商店 —— 独立 compose 项目
 
-name: homeos-3d-store
+name: homeos-store
 
 services:
-  homeos-3d-store:
-    image: ${HOMEOS_STORE_IMAGE:-ghcr.io/sfairy/homeos-3d-store:latest}
-    container_name: homeos-3d-store
+  homeos-store:
+    image: ${HOMEOS_STORE_IMAGE:-ghcr.io/sfairy/homeos-store:latest}
+    container_name: homeos-store
     restart: unless-stopped
     # 容器内先转 SIGTERM 给商店进程（优雅关连接）再停 Caddy，最多各 10s；
     # 比 docker 默认的 10s 宽裕，避免收尾未完成就被 SIGKILL。
@@ -32,11 +32,11 @@ services:
       STORE_GITHUB_TOKEN: ${STORE_GITHUB_TOKEN:-}
       # 管理员首次部署请通过浏览器 /setup 页面设置（不支持环境变量 seed）
     volumes:
-      - homeos-3d-store-data:/data
-      - homeos-3d-license-keys:/data/license-keys
-      - homeos-3d-client-keys:/data/client-keys
+      - homeos-store-data:/data
+      - homeos-license-keys:/data/license-keys
+      - homeos-client-keys:/data/client-keys
     networks:
-      - homeos-3d-net
+      - homeos-net
     healthcheck:
       # 与镜像内 HEALTHCHECK 对齐：商店和镜像内置反代都要活着才算健康
       # （HTTP 直连端口此时可能仍然可用，所以必须单独探一次 HTTPS）。
@@ -48,12 +48,12 @@ services:
 
 networks:
   # 固定名字、由本项目创建；主应用以 external 方式加入同一网络。
-  homeos-3d-net:
-    name: homeos-3d-net
+  homeos-net:
+    name: homeos-net
 
 volumes:
-  homeos-3d-store-data:
-  homeos-3d-license-keys:
+  homeos-store-data:
+  homeos-license-keys:
   # 固定名字、由本项目创建；主应用以 external 方式只读挂载。
-  homeos-3d-client-keys:
-    name: homeos-3d-client-keys
+  homeos-client-keys:
+    name: homeos-client-keys

@@ -1,49 +1,44 @@
 /**
- * 认证状态管理 Store
+ * 认证状态管理 Store（homeos-3d 会话模型）
  *
- * HttpOnly Cookie 方案：Token 由服务端设置和管理，前端不接触敏感令牌。
+ * HttpOnly Cookie 方案：会话令牌由服务端设置和管理，前端不接触敏感令牌。
  *
  * 职责：
- * - 维护当前登录用户名、角色（HomeRole）、实体访问限制列表
+ * - 维护当前登录用户、角色（HomeRole）与实体访问限制列表
  * - 持久化登录态到 localStorage（auth_user / auth_role / auth_restrictions）
- * - 提供登录 / MFA 二次验证 / 登出 / 会话刷新 / 初始化向导 / 资料更新 / 修改密码等动作
- * - 维护会话保活定时器（按 frontend.sessionRefreshHours 周期刷新）
- * - 暴露实体访问鉴权工具：isEntityAllowed / canControl / isGuest / isReadOnly
+ * - 提供登录 / 登出 / 会话保活 / 初始化状态检查
+ * - 暴露实体访问鉴权工具：isEntityAllowed / canControl
+ *
+ * 与 homeos-3d 契约对应关系：
+ * - 系统初始化状态 → ``GET /api/v1/setup/status``
+ * - 登录 → ``POST /api/v1/auth/login``
+ * - 登出 → ``POST /api/v1/auth/logout``
+ * - 当前身份 / 会话保活 → ``GET /api/v1/auth/me``（服务端据此滑动续期）
  *
  * 依赖：
- * - @/services/api/auth：HTTP 接口（login、verifyMfa、logout、getAuthStatus 等）
+ * - @/services/api/auth：HTTP 接口
  * - @/utils/config/frontend-config：读取 frontend 配置段及监听变更
  * - @homeos/shared：实体鉴权工具 canControlEntity / isEntityAllowed
  * - @/utils/bridge/store-bridge：认证变化时通知实体 store 重建 WS 连接
- * - @/utils/core/error-message：统一 API 错误消息提取
  */
 import { readLocalStorage, readLocalStorageJson, removeLocalStorage, writeLocalStorage, writeLocalStorageJson } from '@/utils/core/local-storage.util'
 
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import {
+  getMe,
+  getSetupStatus as apiGetSetupStatus,
   login as apiLogin,
-  verifyMfa as apiVerifyMfa,
   logout as apiLogout,
-  getAuthStatus,
-  refreshSession as apiRefreshSession,
-  setupAuth,
-  updateAuthProfile,
+  setupAdmin,
 } from '@/services/api/auth'
 import { getConfigSection, onConfigChange } from '@/utils/config/frontend-config'
 import { canControlEntity, isEntityAllowed as checkEntityAllowed } from '@homeos/shared'
 import { notifyAuthChanged } from '@/utils/bridge/store-bridge'
 import { bumpAuthGeneration } from '@/services/api-client'
-import { getApiErrorMessage } from '@/utils/core/error-message'
 import { logger } from '@/utils/core/logger'
 import { schedulePoll } from '@/utils/core/poll-scheduler'
-import type {
-  AuthUserPayload,
-  ChangePasswordResult,
-  GuestLoginPayload,
-  HomeRole,
-  LoginResult,
-} from '@/types/auth'
+import type { AuthUserPayload, HomeRole } from '@/types/auth'
 
 /**
  * 从 localStorage 读取当前用户的实体访问限制列表
@@ -59,37 +54,16 @@ function loadRestrictions(): string[] {
  * 状态域：user / role / restrictions / isAuthenticated
  * 通过 setup 语法保持响应式 ref，所有动作均同步 localStorage 以支持刷新恢复。
  */
-function loadAllowedSceneIds(): string[] {
-  try {
-    const raw = sessionStorage.getItem('homeos_guest_allowed_scenes')
-    return raw ? (JSON.parse(raw) as string[]) : []
-  } catch {
-    return []
-  }
-}
-
-/** useAuthStore：Pinia store 工厂，状态与动作见定义。 */
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<string | null>(readLocalStorage('auth_user') || null)
-  const role = ref<HomeRole | string>(readLocalStorage('auth_role') || 'guest')
+  const role = ref<HomeRole | string>(readLocalStorage('auth_role') || 'admin')
   const restrictions = ref<string[]>(loadRestrictions())
-  const allowedSceneIds = ref<string[]>(loadAllowedSceneIds())
   const isAuthenticated = ref(false)
-
-  /** 儿童模式门闩：与后端 ChildModeService.canControl 对齐 */
-  const childModeGate = ref<{
-    enabled: boolean
-    overrideActive: boolean
-    inAllowedWindow: boolean
-    deviceWhitelist: string[]
-    dailyMediaLimitMin: number
-    mediaUsedMin: number
-  } | null>(null)
 
   /**
    * 设置当前登录用户并同步到 localStorage
    * @param username - 用户名；传 null 表示登出，会清空所有认证相关 localStorage
-   * @param userRole - 角色；登出时回退为 'guest'
+   * @param userRole - 角色；登出时回退为 'admin'
    */
   function setUser(username: string | null, userRole?: HomeRole | string): void {
     user.value = username
@@ -103,11 +77,8 @@ export const useAuthStore = defineStore('auth', () => {
       removeLocalStorage('auth_user')
       removeLocalStorage('auth_role')
       removeLocalStorage('auth_restrictions')
-      sessionStorage.removeItem('homeos_guest_allowed_scenes')
-      role.value = 'guest'
+      role.value = 'admin'
       restrictions.value = []
-      allowedSceneIds.value = []
-      childModeGate.value = null
     }
   }
 
@@ -118,15 +89,6 @@ export const useAuthStore = defineStore('auth', () => {
   function setRestrictions(list: string[]): void {
     restrictions.value = Array.isArray(list) ? list : []
     writeLocalStorageJson('auth_restrictions', restrictions.value)
-  }
-
-  function setAllowedSceneIds(list: string[]): void {
-    allowedSceneIds.value = Array.isArray(list) ? list.map(String).filter(Boolean) : []
-    try {
-      sessionStorage.setItem('homeos_guest_allowed_scenes', JSON.stringify(allowedSceneIds.value))
-    } catch {
-      /* sessionStorage 不可用时仅保留内存 */
-    }
   }
 
   /**
@@ -152,42 +114,15 @@ export const useAuthStore = defineStore('auth', () => {
    * @returns 是否允许控制
    */
   function canControl(entityId: string): boolean {
-    if (!canControlEntity(entityId, accessUser())) return false
-    const g = childModeGate.value
-    if (!g?.enabled || g.overrideActive) return true
-    if (g.deviceWhitelist.length > 0) {
-      if (!g.deviceWhitelist.includes(entityId)) return false
-      if (!g.inAllowedWindow) return false
-    }
-    if (g.dailyMediaLimitMin > 0 && entityId.startsWith('media_player.')) {
-      if (g.mediaUsedMin >= g.dailyMediaLimitMin) return false
-    }
-    return true
+    return canControlEntity(entityId, accessUser())
   }
 
-  /** 同步儿童模式状态到门闩（主布局轮询 / WS 推送） */
-  function setChildModeGate(status: Record<string, unknown> | null | undefined): void {
-    if (!status) {
-      childModeGate.value = null
-      return
-    }
-    childModeGate.value = {
-      enabled: status.enabled === true,
-      overrideActive: status.overrideActive === true,
-      inAllowedWindow: status.inAllowedWindow === true,
-      deviceWhitelist: Array.isArray(status.deviceWhitelist)
-        ? status.deviceWhitelist.map(String)
-        : [],
-      dailyMediaLimitMin: Number(status.dailyMediaLimitMin) || 0,
-      mediaUsedMin: Number(status.mediaUsedMin) || 0,
-    }
-  }
-  /** 当前是否为访客角色 */
+  /** 当前是否为访客角色（homeos-3d 模型下恒为 false，保留以兼容既有调用点） */
   function isGuest(): boolean {
     return role.value === 'guest'
   }
 
-  /** 访客只读（地震关闭 / 白名单场景由后端 GuestWrite 开口，UI 单独放行） */
+  /** 只读视角（homeos-3d 单一管理员模型下恒为 false） */
   function isReadOnly(): boolean {
     return isGuest()
   }
@@ -198,7 +133,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * 从登录 / 刷新接口响应同步用户信息到本 store
+   * 从登录 / 身份接口响应同步用户信息到本 store
    * @param data - 后端返回的用户信息；为空时直接返回
    */
   function syncAuthFromResponse(data: AuthUserPayload | null | undefined): void {
@@ -209,12 +144,9 @@ export const useAuthStore = defineStore('auth', () => {
       writeLocalStorage('auth_role', data.role)
     }
     if (Array.isArray(data.restrictions)) setRestrictions(data.restrictions)
-    // 未携带 restrictions 时重置为默认权限集（空数组）：
-    // admin 空集放行全部；guest/child 空集默认不可见不可控；adult 空集由 shared 层按无限制处理。
-    // 避免角色降级（如 admin→普通用户）后上一会话的 restrictions 残留导致 canControl 按旧权限放行。
+    // 未携带 restrictions 时重置为默认权限集（空数组）：admin 空集放行全部。
+    // 避免角色变化后上一会话的 restrictions 残留导致 canControl 按旧权限放行。
     else setRestrictions([])
-    if (Array.isArray(data.allowedSceneIds)) setAllowedSceneIds(data.allowedSceneIds)
-    else if (data.role !== 'guest') setAllowedSceneIds([])
   }
 
   /**
@@ -229,51 +161,17 @@ export const useAuthStore = defineStore('auth', () => {
    * 用户名 + 密码登录
    * @param username - 用户名
    * @param password - 密码
-   * @returns 登录结果；若需要 MFA 则返回 requiresMfa=true
+   * @returns 后端返回的用户信息
    * @throws 当后端接口异常时抛出
    */
-  async function login(username: string, password: string): Promise<LoginResult> {
+  async function login(username: string, password: string): Promise<AuthUserPayload> {
     const res = await apiLogin(username, password)
-    if (res.data?.requiresMfa) {
-      return { requiresMfa: true, username: res.data.username || username }
-    }
     bumpAuthGeneration()
     syncAuthFromResponse(res.data)
     isAuthenticated.value = true
     startSessionRefresh()
     reconnectEntitiesAfterAuthChange()
     return res.data
-  }
-
-  /**
-   * 通过 MFA 验证码完成登录
-   * @param username - 用户名
-   * @param password - 密码
-   * @param code - MFA 验证码
-   * @returns 后端登录响应数据
-   */
-  async function loginWithMfa(username: string, password: string, code: string) {
-    const res = await apiVerifyMfa(username, password, code)
-    bumpAuthGeneration()
-    syncAuthFromResponse(res.data)
-    isAuthenticated.value = true
-    startSessionRefresh()
-    reconnectEntitiesAfterAuthChange()
-    return res.data
-  }
-
-  /**
-   * 应用访客登录态。仅允许在 `guestLogin` / `exchangeGuestCode` **成功之后**调用。
-   * @param payload - 访客登录载荷，可携带实体访问限制
-   */
-  function applyGuestLogin(payload?: GuestLoginPayload): void {
-    bumpAuthGeneration()
-    setRestrictions(payload?.restrictions || [])
-    setAllowedSceneIds(payload?.allowedSceneIds || [])
-    setUser('访客', 'guest')
-    isAuthenticated.value = true
-    startSessionRefresh()
-    reconnectEntitiesAfterAuthChange()
   }
 
   /**
@@ -309,29 +207,68 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * 获取系统初始化状态与当前认证状态
-   * @returns 系统是否已初始化（undefined 表示后端未返回）
+   * 进行中的登录态探测。
+   *
+   * ``GET /auth/me`` 同时是会话续期端点，并发触发会重复续期、并把 401 重复打进控制台，
+   * 因此并发调用共用同一个 Promise（与 api-client 的 CSRF bootstrap 同一思路）。
+   */
+  let probePromise: Promise<void> | null = null
+
+  /**
+   * 探测当前登录态
+   *
+   * 未登录时的 401 属正常分支：只落 ``isAuthenticated=false``，不触发全局登出流程。
+   */
+  async function probeSession(): Promise<void> {
+    if (!probePromise) {
+      probePromise = getMe({ skipAuthRedirect: true })
+        .then((me) => {
+          isAuthenticated.value = true
+          syncAuthFromResponse(me.data)
+        })
+        .catch(() => {
+          isAuthenticated.value = false
+          setUser(null)
+        })
+        .finally(() => {
+          probePromise = null
+        })
+    }
+    return probePromise
+  }
+
+  /**
+   * 获取系统初始化状态与当前登录态（homeos-3d 语义）
+   *
+   * ``GET /setup/status`` 只回 ``initialized``；是否已登录用 ``GET /auth/me`` 探测。
+   *
+   * 未初始化时**不探测**：这台机器上还没有任何账号，任何会话都不可能成立，
+   * ``GET /auth/me`` 必然 401，只会凭空在控制台留一条误导性的 Unauthorized。
+   *
+   * @returns 系统是否已初始化
    */
   async function getSetupStatus(): Promise<boolean | undefined> {
-    const res = await getAuthStatus()
-    isAuthenticated.value = res.data.authenticated === true
-    if (res.data.authenticated) {
-      syncAuthFromResponse(res.data)
-    } else if (res.data.username && !user.value) {
-      setUser(res.data.username)
+    const res = await apiGetSetupStatus()
+    if (res.data.initialized) {
+      await probeSession()
+    } else {
+      isAuthenticated.value = false
+      setUser(null)
     }
     return res.data.initialized
   }
 
   /**
-   * 刷新当前会话（按定时器周期调用）
-   * 未认证时跳过；接口失败时由 401 流程处理，避免重复弹窗
+   * 刷新当前会话
+   *
+   * ``GET /auth/me`` 同时是会话保活入口：服务端在 ``lastSeenAt`` 超过阈值时滑动续期。
+   * 未认证时跳过；401 时静默返回（由 401 流程统一处理），避免重复弹窗。
    */
   async function refreshSession(): Promise<void> {
     if (!isAuthenticated.value) return
     try {
-      const res = await apiRefreshSession()
-      syncAuthFromResponse(res?.data)
+      const res = await getMe({ skipAuthRedirect: true })
+      syncAuthFromResponse(res.data)
     } catch (e: unknown) {
       const status =
         e && typeof e === 'object' && 'response' in e
@@ -392,10 +329,15 @@ export const useAuthStore = defineStore('auth', () => {
    * 系统首次初始化向导：创建管理员账号
    * @param usernameParam - 管理员用户名
    * @param passwordParam - 管理员密码
+   * @param passwordConfirmationParam - 二次输入的管理员密码
    * @returns 后端响应数据
    */
-  async function setup(usernameParam: string, passwordParam: string) {
-    const res = await setupAuth(usernameParam, passwordParam)
+  async function setup(
+    usernameParam: string,
+    passwordParam: string,
+    passwordConfirmationParam: string,
+  ) {
+    const res = await setupAdmin(usernameParam, passwordParam, passwordConfirmationParam)
     bumpAuthGeneration()
     syncAuthFromResponse(res.data)
     isAuthenticated.value = true
@@ -404,62 +346,23 @@ export const useAuthStore = defineStore('auth', () => {
     return res.data
   }
 
-  /**
-   * 更新当前用户资料（用户名）
-   * @param data - 待更新字段；包含 username 时同步本地
-   * @returns 后端响应数据
-   */
-  async function updateProfile(data: { username?: string }) {
-    const res = await updateAuthProfile(data)
-    if (data.username) setUser(data.username)
-    return res.data
-  }
-
-  /**
-   * 修改当前用户密码
-   * @param currentPassword - 当前密码
-   * @param newPassword - 新密码
-   * @returns 修改结果对象：{ ok: boolean, message?: string }
-   */
-  async function changePassword(
-    currentPassword: string,
-    newPassword: string,
-  ): Promise<ChangePasswordResult> {
-    try {
-      await updateAuthProfile({ currentPassword, password: newPassword })
-      return { ok: true }
-    } catch (e) {
-      const message = getApiErrorMessage(e, '')
-      return {
-        ok: false,
-        message: Array.isArray(message) ? String(message[0]) : message || '密码修改失败',
-      }
-    }
-  }
-
   return {
     user,
     role,
     restrictions,
-    allowedSceneIds,
     isAuthenticated,
     login,
-    loginWithMfa,
     logout,
     getSetupStatus,
     setup,
-    updateProfile,
-    changePassword,
     refreshSession,
     startSessionRefresh,
     stopSessionRefresh,
     handleUnauthorized,
     setUser,
     setRestrictions,
-    applyGuestLogin,
     isEntityAllowed,
     canControl,
-    setChildModeGate,
     isGuest,
     isReadOnly,
     canManageHousehold,

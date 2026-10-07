@@ -417,7 +417,6 @@ export function useFavoritesHub() {
   const layoutStore = useLayoutStore()
   const filter = ref<FavoriteFilter>('all')
 
-  const floors = computed(() => layoutStore.layoutConfig.floors || [])
   const statsSensors = computed(() => layoutStore.layoutConfig.statsSensors || {})
   const quickActionStats = computed(() => {
     const s = statsSensors.value
@@ -438,7 +437,6 @@ export function useFavoritesHub() {
       const n = countQuickActionLightsOn(
         entitiesStore as unknown as QuickActionEntities,
         layoutStore as unknown as QuickActionUi,
-        floors,
         quickActionStats.value,
       )
       return n > 0 ? { label: '开', count: n } : { label: '', count: 0 }
@@ -447,7 +445,6 @@ export function useFavoritesHub() {
       const n = countQuickActionClimateActive(
         entitiesStore as unknown as QuickActionEntities,
         layoutStore as unknown as QuickActionUi,
-        floors,
         quickActionStats.value,
       )
       return n > 0 ? { label: '运行', count: n } : { label: '', count: 0 }
@@ -463,7 +460,6 @@ export function useFavoritesHub() {
       const n = countQuickActionOffline(
         entitiesStore as unknown as QuickActionEntities,
         layoutStore as unknown as QuickActionUi,
-        floors,
         quickActionStats.value,
       )
       return n > 0 ? { label: '离线', count: n } : { label: '', count: 0 }
@@ -476,7 +472,6 @@ export function useFavoritesHub() {
         meta.activeStates,
         entitiesStore as unknown as QuickActionEntities,
         layoutStore as unknown as QuickActionUi,
-        floors,
         quickActionStats.value,
       )
       const labelMap: Record<string, string> = {

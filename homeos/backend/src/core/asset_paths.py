@@ -33,11 +33,6 @@ def _asset_dir(env_name: str, default_name: str) -> Path:
     return _assets_root() / default_name
 
 
-def get_floorplans_dir() -> Path:
-    """平面图目录（对外 URL ``/floorplans/...``）。"""
-    return _asset_dir("FLOORPLANS_DIR", "floorplans")
-
-
 def get_icons_dir() -> Path:
     """图标目录（对外 URL ``/icons/...``）。"""
     return _asset_dir("ICONS_DIR", "icons")
@@ -46,11 +41,6 @@ def get_icons_dir() -> Path:
 def get_backgrounds_dir() -> Path:
     """仪表盘背景图目录（对外 URL ``/backgrounds/...``）。"""
     return _asset_dir("BACKGROUNDS_DIR", "backgrounds")
-
-
-def get_room_images_dir() -> Path:
-    """竖屏房间背景图目录（对外 URL ``/room_images/...``）。"""
-    return _asset_dir("ROOM_IMAGES_DIR", "room_images")
 
 
 def get_logo_dir() -> Path:
@@ -114,10 +104,8 @@ def sanitize_uploaded_svg(raw: bytes) -> bytes:
 __all__ = [
     "ALLOWED_IMAGE_EXTS",
     "get_backgrounds_dir",
-    "get_floorplans_dir",
     "get_icons_dir",
     "get_logo_dir",
-    "get_room_images_dir",
     "get_sounds_dir",
     "public_asset_url",
     "resolve_safe_path",

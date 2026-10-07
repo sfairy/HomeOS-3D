@@ -23,9 +23,8 @@ from ..core.errors import BusinessException, ErrorCode, api_error
 #: ``main.ts`` 中挂 1MB 解析器的公共端点前缀（精确匹配或 ``prefix/`` 子路径）。
 PUBLIC_BODY_LIMIT_PATHS: tuple[str, ...] = (
     "/api/v1/auth/login",
-    "/api/v1/auth/setup",
-    "/api/v1/auth/guest-login",
-    "/api/v1/auth/status",
+    "/api/v1/setup/admin",
+    "/api/v1/setup/status",
     "/api/v1/system/config/public",
     "/api/v1/ha/status",
     "/api/v1/entities",

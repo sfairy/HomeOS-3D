@@ -1,4 +1,7 @@
 {
+  "//": "单一类型工程：主应用与并入的 3D Studio 源码（src/studio/**）共用同一严格档。",
+  "//2": "历史上 studio 走独立的宽松档（tsconfig.studio.json，strict:false）+ 路由 glob 类型隔离，",
+  "//3": "导致两套严格度互相污染；阶段 3.2 起合并为一个工程，studio 与主应用同档检查。",
   "compilerOptions": {
     "target": "ES2022",
 
@@ -20,16 +23,61 @@
 
     "isolatedModules": true,
 
+    "resolveJsonModule": true,
+
+    "esModuleInterop": true,
+
+    "allowSyntheticDefaultImports": true,
+
+    "forceConsistentCasingInFileNames": true,
+
     "jsx": "preserve",
 
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@app/*": ["./src/studio/app/*"],
+      "@runtime/*": ["./src/studio/runtime/*"],
+      "three": ["./src/studio/shims/vendor-three-core.ts"],
+
+      "/static/vendor/three/0.186.0/three.module.min.js": [
+        "./src/studio/shims/vendor-three-core.ts"
+      ],
+      "/static/vendor/three/0.186.0/OrbitControls.js": [
+        "./src/studio/shims/vendor-three-addons.ts"
+      ],
+      "/static/vendor/three/0.186.0/RoundedBoxGeometry.js": [
+        "./src/studio/shims/vendor-three-addons.ts"
+      ],
+      "/static/vendor/three/0.186.0/BufferGeometryUtils.js": [
+        "./src/studio/shims/vendor-three-addons.ts"
+      ],
+      "/static/vendor/three/0.186.0/GLTFLoader.js": [
+        "./src/studio/shims/vendor-three-addons.ts"
+      ],
+      "/static/vendor/three/0.186.0/DRACOLoader.js": ["./src/studio/shims/draco-loader.ts"],
+      "/static/vendor/qrcode-generator/qrcode.js": ["./src/studio/shims/qrcode.ts"],
+      "/static/vendor/meshoptimizer/0.25/meshopt_simplifier.module.js": [
+        "./src/studio/shims/meshopt.ts"
+      ],
+
+      "/api/v1/modules/interaction3d/core/runtime.js": [
+        "./src/studio/shims/interaction3d-runtime.ts"
+      ],
+      "/api/v1/modules/interaction3d/core/stage.js": [
+        "./src/studio/shims/interaction3d-stage.ts"
+      ],
+      "/api/v1/modules/interaction3d/editor/config-editor.js": [
+        "./src/studio/shims/interaction3d-config-editor.ts"
+      ],
+      "/api/v1/modules/interaction3d/security/security-editor.js": [
+        "./src/studio/shims/interaction3d-security-editor.ts"
+      ]
     },
 
     "types": ["vite/client"]
   },
 
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "src/env.d.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "src/**/*.d.ts", "src/env.d.ts"],
 
   "exclude": ["node_modules", "dist"]
 }

@@ -1,7 +1,7 @@
 <!--
   组件文件：EventLogRecordFilterSection.vue
   所属模块：frontend/src/views/settings/connect/connection
-  组件职责：系统连接大类下的事件日志记录过滤配置面板，控制 HomeOS 要持久化到 PG 的
+  组件职责：系统连接大类下的事件日志记录过滤配置面板，控制 HomeOS 要持久化到 SQLite 的
     HA 事件实体范围与域名白/黑名单。顶部为开/关大开关，中部为 allow_domains /
     block_domains 两档模式切换、域名快速预设、多选实体屏蔽，并展示近期记录数量
     与性能洞察推荐卡。

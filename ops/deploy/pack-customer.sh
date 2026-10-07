@@ -2,8 +2,8 @@
 #
 # 打包「客户精简分发」：只含主应用（app）侧文件，不含商店源码、授权私钥与公钥。
 #
-#   ops/deploy/pack-customer.sh                 # 产出 build/customer-pack/homeos-3d-app-<version>/
-#                                               #   与 homeos-3d-app-<version>.tar.gz(.sha256)
+#   ops/deploy/pack-customer.sh                 # 产出 build/customer-pack/homeos-app-<version>/
+#                                               #   与 homeos-app-<version>.tar.gz(.sha256)
 #   ops/deploy/pack-customer.sh --version 1.0.0 # 覆盖包内版本号（默认取仓库 package.json）
 #   ops/deploy/pack-customer.sh --out /tmp/pack # 自定义输出目录
 #   ops/deploy/pack-customer.sh --dir-only      # 只产出目录，不压缩
@@ -35,9 +35,9 @@ usage() {
   -h, --help      显示本帮助
 
 产物（客户机只需这两个文件之一）：
-  homeos-3d-app-<version>/            解包目录，内含 install.sh
-  homeos-3d-app-<version>.tar.gz      上传到客户机后解包的压缩包
-  homeos-3d-app-<version>.tar.gz.sha256
+  homeos-app-<version>/            解包目录，内含 install.sh
+  homeos-app-<version>.tar.gz      上传到客户机后解包的压缩包
+  homeos-app-<version>.tar.gz.sha256
 
 包内文件（只有主应用部署所需的这些）：
   docker-compose.app.yml   .env.example   package.json   install.sh
@@ -82,7 +82,7 @@ for rel in "${required_files[@]}"; do
   [ -f "$REPO_DIR/$rel" ] || die "缺少源文件：${rel}（请在仓库根运行，或先 git pull 补全）"
 done
 
-PACK_NAME="homeos-3d-app-$VERSION"
+PACK_NAME="homeos-app-$VERSION"
 STAGE="$OUT_DIR/$PACK_NAME"
 
 # 输出目录可能就在仓库里（默认 build/），先清掉上一次的残留，避免旧文件混进包里。
@@ -128,7 +128,7 @@ sha256_of() {
   if commit=$(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null); then
     echo "commit: $commit"
   fi
-  echo "image_app: ghcr.io/sfairy/homeos-3d:$VERSION"
+  echo "image_app: ghcr.io/sfairy/homeos:$VERSION"
   echo
   echo "files:"
   ( cd "$STAGE" && find . -type f ! -name MANIFEST.txt | LC_ALL=C sort | while read -r f; do

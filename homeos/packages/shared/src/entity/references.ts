@@ -21,7 +21,7 @@
  * 实体引用来源类型。
  *  - automation / scene / script / template：HA 原生配置实体
  *  - home_mode / alert_rule / security_*：HomeOS 业务功能
- *  - favorite / hotspot / widget / footer：前端布局类引用
+ *  - favorite / widget / footer：前端布局类引用
  *  - binding / system_config / env_sensor / media / whole_home_off：系统级配置
  */
 export type EntityReferenceKind =
@@ -32,7 +32,6 @@ export type EntityReferenceKind =
   | 'home_mode'
   | 'alert_rule'
   | 'favorite'
-  | 'hotspot'
   | 'widget'
   | 'binding'
   | 'security_mode'
@@ -151,7 +150,6 @@ export const ENTITY_REFERENCE_KIND_LABELS: Record<EntityReferenceKind, string> =
   home_mode: '家庭模式',
   alert_rule: '告警规则',
   favorite: '收藏',
-  hotspot: '户型图热点',
   widget: '面板组件',
   binding: '系统绑定',
   security_mode: '安防模式',
@@ -193,7 +191,6 @@ export const ENTITY_REFERENCE_KIND_ORDER: EntityReferenceKind[] = [
   'security_mode',
   'security_zone',
   'favorite',
-  'hotspot',
   'widget',
   'footer',
   'whole_home_off',
@@ -205,7 +202,6 @@ export const ENTITY_REFERENCE_KIND_ORDER: EntityReferenceKind[] = [
 /** 布局类引用（移除后需前端重载 layout） */
 export const LAYOUT_ENTITY_REFERENCE_KINDS: ReadonlySet<EntityReferenceKind> = new Set([
   'favorite',
-  'hotspot',
   'widget',
   'binding',
   'security_mode',
@@ -230,7 +226,6 @@ export const UNLINKABLE_ENTITY_REFERENCE_KINDS: ReadonlySet<EntityReferenceKind>
   'home_mode',
   'alert_rule',
   'favorite',
-  'hotspot',
   'widget',
   'binding',
   'footer',

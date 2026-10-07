@@ -20,19 +20,32 @@ from ..core.errors import api_error, resolve_api_error_code
 CSRF_COOKIE = "csrf_token"
 CSRF_HEADER = "x-csrf-token"
 
-#: 公开预认证端点 / 实时通道豁免表（逐条对齐 Nest）。
+#: 公开预认证端点 / 实时通道豁免表（逐条对齐 Nest，另见下方匿名上报端点）。
+#: 收敛到 homeos-3d 机制后，初始化 / 登录 / 登出与授权激活系列端点改为公开预认证语义
+#: （3D 前端不带 CSRF 头），因此整体豁免；其余业务写请求仍受双提交校验保护。
+#:
+#: 授权端点中只有**变更类**才需要列在这里：``/license/status``、``/license/availability``
+#: 是 GET，已被 ``SAFE_METHODS`` 覆盖。``/license/activate|reactivate|retry`` 的写保护由
+#: ``security/request_origin.py#require_same_origin_write``（``Sec-Fetch-Site`` + ``Origin``
+#: / ``Referer`` 同源校验）在同一端点内承担 —— 激活页在未激活时可能还没有会话，拿不到
+#: ``csrf_token`` Cookie，双提交校验会把唯一的修复入口锁死。
 CSRF_SKIP_PATHS = frozenset(
     {
         "/health",
-        "/api/v1/auth/status",
-        "/api/v1/auth/setup",
+        "/api/v1/setup/admin",
         "/api/v1/auth/login",
-        "/api/v1/auth/mfa/verify",
-        "/api/v1/auth/guest-login",
-        "/api/v1/auth/guest-exchange",
-        "/api/v1/license/status",
+        "/api/v1/auth/logout",
         "/api/v1/license/activate",
+        "/api/v1/license/reactivate",
+        "/api/v1/license/retry",
         "/api/v1/channels/wecom/callback",
+        # 未登录页面的异常上报（并入 homeos-3d）：上报方是构建期产出的经典 IIFE
+        # `/static/logging/client-log.js`，用裸 fetch 发送、只带 Content-Type，**不会**
+        # 也不能带 X-CSRF-Token（首屏可能尚无 csrf_token Cookie）。路由自身已做同源
+        # Origin/Host 校验 + 仅允许 error/warning + 页面白名单 + 匿名限流，跨站写入被
+        # 同源校验挡住，CSRF 在此无额外保护价值；若不放行，未登录页的异常上报恒定 403
+        # 并被客户端静默丢弃（用户报错时恰恰拿不到日志）。
+        "/api/v1/logs/public-events",
     }
 )
 

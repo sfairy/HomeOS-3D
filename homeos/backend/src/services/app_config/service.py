@@ -347,10 +347,6 @@ class AppConfigService:
         out["eventLog"] = _build_event_log_public_meta(event_log_days, ops)
         out["energy"] = build_energy_public_meta((self._config.get("energy") or {}).get("learningPeriodDays"))
         out["orchestrator"] = {"executionHistoryLimit": resolve_orchestrator_history_limit(ops)}
-        out["guest"] = {
-            "defaultHours": other.get("guestPassDefaultHours"),
-            "extendHours": other.get("guestPassExtendHours"),
-        }
         security = self._config.get("security") or {}
         out["security"] = {
             "sensorAlertCooldownSec": security.get("sensorAlertCooldownSec"),

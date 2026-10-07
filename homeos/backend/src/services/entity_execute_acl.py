@@ -2,7 +2,7 @@
 
 在「按实体下发动作」的执行入口（家庭模式动作、语音命令、Agent 工具等）前，
 对目标实体做与 command-proxy 一致的 ACL：
-- 儿童域黑名单（is_child_domain_access_denied）+ ChildModeGate；
+- 儿童域黑名单（is_child_domain_access_denied）；
 - child 无白名单直接拒绝；
 - restrictions 白名单（全部命中才放行）。
 
@@ -37,7 +37,6 @@ def _dedup_targets(targets: list[dict[str, Any]] | None) -> list[tuple[str, str]
 def assert_entity_targets_execute_authorized(
     targets: list[dict[str, Any]] | None,
     actor: dict[str, Any] | None,
-    gate: Any,
 ) -> None:
     if not actor:
         return
@@ -51,12 +50,9 @@ def assert_entity_targets_execute_authorized(
         forbidden(api_error("ACCESS_CHILD_NO_WHITELIST"))
 
     dedup = _dedup_targets(targets)
-    for entity_id, domain in dedup:
+    for _entity_id, domain in dedup:
         if is_child_domain_access_denied(role, domain):
             forbidden(api_error("ACCESS_ROLE_DEVICE_DENIED"))
-        check = gate.can_control(entity_id) if gate is not None else {"allowed": True}
-        if not check.get("allowed"):
-            forbidden(check.get("reason") or "儿童模式限制")
 
     if restrictions and dedup:
         if not all(is_entity_allowed(entity_id, restrictions) for entity_id, _ in dedup):

@@ -1,35 +1,19 @@
 /**
- * HomeOS 用户角色（与后端 JWT role 一致）。
+ * HomeOS 用户角色与认证载荷类型。
  * 依赖：@homeos/shared（HomeRole 角色枚举）。
  */
 import type { HomeRole } from '@homeos/shared'
 
 export type { HomeRole }
 
-/** 认证用户载荷（JWT 解码后的前端可见字段） */
+/**
+ * 认证用户载荷：对齐 homeos-3d 的 ``UserResponse``（``id`` / ``username`` / ``role``）。
+ *
+ * homeos-3d 为单一管理员模型，不再有 MFA / 访客 / 用户偏好等字段。
+ */
 export interface AuthUserPayload {
+  id?: string // 用户标识
   username?: string // 登录用户名
-  role?: HomeRole | string // 用户角色（与后端 JWT role claim 一致）
-  restrictions?: string[] // 实体访问白名单（entity_id 列表）
-  allowedSceneIds?: string[] // 访客可执行的 HomeOS 场景 ID
-  authenticated?: boolean // 是否已认证
-  initialized?: boolean // 系统是否已完成首装初始化
-  requiresMfa?: boolean // 是否需要多因素认证
-}
-
-/** 登录结果（扩展 AuthUserPayload） */
-export interface LoginResult extends AuthUserPayload {
-  requiresMfa?: boolean // 是否需要多因素认证（登录流程分支用）
-}
-
-/** 访客登录载荷 */
-export interface GuestLoginPayload {
-  restrictions?: string[] // 访客实体访问白名单
-  allowedSceneIds?: string[] // 访客可执行的 HomeOS 场景
-}
-
-/** 修改密码结果 */
-export interface ChangePasswordResult {
-  ok: boolean // 是否修改成功
-  message?: string // 结果描述或错误信息
+  role?: HomeRole | string // 用户角色
+  restrictions?: string[] // 实体访问白名单（3D 模型下恒为空，保留字段以兼容既有工具函数）
 }

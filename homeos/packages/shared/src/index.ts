@@ -214,11 +214,6 @@ export {
   buildPublicRoomMetaFromHaAreas,
 } from './room/ha-area-env-map';
 export {
-  type RoomBackgroundPreset,
-  ROOM_BACKGROUND_PRESETS,
-  resolveRoomBackgroundUrl,
-} from './room/background';
-export {
   type BindingGapItem,
   type BindingGapSection,
   type CollectBindingGapsInput,

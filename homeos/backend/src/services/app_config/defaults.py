@@ -148,12 +148,6 @@ def build_default_app_config() -> dict[str, Any]:
         "circadian": {
             "weatherEntityId": "",
         },
-        "childMode": {
-            "enabled": False,
-            "dailyMediaLimitMin": 0,
-            "deviceWhitelist": [],
-            "timeWindows": [],
-        },
         "iaq": {
             "moldAlertCooldownMin": 10,
         },
@@ -192,9 +186,6 @@ def build_default_app_config() -> dict[str, Any]:
             "haHistoryCacheMin": 5,
             "speakCooldownMin": 10,
             "tipCooldownHours": 2,
-            "guestPassDefaultHours": 24,
-            "guestPassExtendHours": 24,
-            "guestPassRevokeOnAway": False,
             "advisorTipActions": {},
             "setupChecklistDismissedAt": None,
         },
@@ -359,7 +350,6 @@ def build_default_app_config() -> dict[str, Any]:
             "redisWriteBatch": 200,
             "redisIncrementalFlushMs": 100,
             "maxRecentChanges": 3000,
-            "restCacheTtlMs": 500,
             "staleThresholdMs": 12_000,
             "initialStatesPriorityEnabled": True,
         },

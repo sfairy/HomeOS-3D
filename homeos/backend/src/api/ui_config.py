@@ -3,7 +3,7 @@
 覆盖：
 - 激活方案 / 新终端默认策略 / 终端绑定解析与绑定（``/config/project*``、``/config/terminal*``）；
 - 项目 UI 配置读取 / 保存 / 删除 / 列表 / 导入导出（``/config/project/:id``、``/config/profiles``、``/config/all/*``）；
-- 平面图 / 背景图 / 房间图 / 图标静态资源的列表 / 建目录 / 上传 / 删除。
+- 背景图 / 图标静态资源的列表 / 建目录 / 上传 / 删除。
 """
 
 from __future__ import annotations
@@ -176,14 +176,6 @@ async def _list_assets(request: Request, kind: str, sub_path: str | None) -> dic
     lister = getattr(service, f"list_{kind}")
     return {"success": True, "data": await asyncio.to_thread(lister, sub)}
 
-@router.get("/floorplans")
-async def list_floorplans(
-    request: Request,
-    path: str | None = Query(default=None),
-    user: dict[str, Any] = Depends(require_user),
-):
-    return await _list_assets(request, "floorplans", path)
-
 @router.get("/backgrounds")
 async def list_backgrounds(
     request: Request,
@@ -200,14 +192,6 @@ async def list_icons(
 ):
     return await _list_assets(request, "icons", path)
 
-@router.get("/room_images")
-async def list_room_images(
-    request: Request,
-    path: str | None = Query(default=None),
-    user: dict[str, Any] = Depends(require_user),
-):
-    return await _list_assets(request, "room_images", path)
-
 # ---------------------------------------------------------------------- #
 # 静态资源：建目录
 # ---------------------------------------------------------------------- #
@@ -221,14 +205,6 @@ def _mkdir(request: Request, method_name: str, payload: MkdirDto) -> dict[str, A
     sub_path = _require_sub_path(payload)
     return {"success": True, "data": getattr(_service(request), method_name)(sub_path)}
 
-@router.post("/floorplans/mkdir")
-async def create_directory(
-    payload: MkdirDto,
-    request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
-):
-    return _mkdir(request, "create_directory", payload)
-
 @router.post("/backgrounds/mkdir")
 async def create_background_directory(
     payload: MkdirDto,
@@ -236,14 +212,6 @@ async def create_background_directory(
     user: dict[str, Any] = Depends(require_roles("admin")),
 ):
     return _mkdir(request, "create_background_directory", payload)
-
-@router.post("/room_images/mkdir")
-async def create_room_image_directory(
-    payload: MkdirDto,
-    request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
-):
-    return _mkdir(request, "create_room_image_directory", payload)
 
 @router.post("/icons/mkdir")
 async def create_icon_directory(
@@ -286,15 +254,6 @@ def _suffix(name: str) -> str:
     index = name.rfind(".")
     return name[index:].lower() if index >= 0 else ""
 
-@router.post("/floorplans/upload")
-async def upload_floorplans(
-    request: Request,
-    files: list[UploadFile] = File(default=[]),
-    path: str | None = Query(default=None),
-    user: dict[str, Any] = Depends(require_roles("admin")),
-):
-    return await _upload(request, files[:MAX_UPLOAD_FILES], path, "save_floorplan")
-
 @router.post("/backgrounds/upload")
 async def upload_backgrounds(
     request: Request,
@@ -303,15 +262,6 @@ async def upload_backgrounds(
     user: dict[str, Any] = Depends(require_roles("admin")),
 ):
     return await _upload(request, files[:MAX_UPLOAD_FILES], path, "save_background")
-
-@router.post("/room_images/upload")
-async def upload_room_images(
-    request: Request,
-    files: list[UploadFile] = File(default=[]),
-    path: str | None = Query(default=None),
-    user: dict[str, Any] = Depends(require_roles("admin")),
-):
-    return await _upload(request, files[:MAX_UPLOAD_FILES], path, "save_room_image")
 
 @router.post("/icons/upload")
 async def upload_icons(
@@ -331,14 +281,6 @@ def _delete(request: Request, method_name: str, full_path: str | None) -> dict[s
     getattr(_service(request), method_name)(full_path)
     return {"success": True, "deleted": full_path}
 
-@router.delete("/floorplans")
-async def delete_floorplan(
-    request: Request,
-    path: str | None = Query(default=None),
-    user: dict[str, Any] = Depends(require_roles("admin")),
-):
-    return _delete(request, "delete_floorplan", path)
-
 @router.delete("/backgrounds")
 async def delete_background(
     request: Request,
@@ -346,14 +288,6 @@ async def delete_background(
     user: dict[str, Any] = Depends(require_roles("admin")),
 ):
     return _delete(request, "delete_background", path)
-
-@router.delete("/room_images")
-async def delete_room_image(
-    request: Request,
-    path: str | None = Query(default=None),
-    user: dict[str, Any] = Depends(require_roles("admin")),
-):
-    return _delete(request, "delete_room_image", path)
 
 @router.delete("/icons")
 async def delete_icon(

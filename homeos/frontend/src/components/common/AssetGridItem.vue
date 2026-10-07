@@ -3,8 +3,7 @@
     class="agi-item group"
     :class="{
       'agi-item--picker': isPicker,
-      'agi-item--floorplan':
-        type === 'floorplan' || type === 'background' || type === 'room_image',
+      'agi-item--image': type === 'background',
     }"
     @click="$emit('click')"
   >
@@ -74,8 +73,8 @@ const props = defineProps({
   item: { type: Object, required: true },
   /** 是否为拾取器模式（影响视觉与交互） */
   isPicker: { type: Boolean },
-  /** 资源类型，'floorplan' 或 'icon'，影响默认样式 */
-  type: { type: String, default: 'floorplan' },
+  /** 资源类型，'background' / 'icon'，影响默认样式 */
+  type: { type: String, default: 'background' },
 })
 
 defineEmits(['click', 'copy', 'delete', 'previewError'])

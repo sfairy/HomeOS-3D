@@ -14,12 +14,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import time
 from typing import Any
 
 import httpx
 
+from ..ha_config import load_active_ha_endpoints
 from ..security.layout import load_active_project_layout
 from .eew_diagnostics import EewDiagnosticsBuffer
 from .eew_eval import evaluate_eew_for_alert
@@ -87,6 +87,7 @@ class EarthquakeService:
         leader: Any,
         jobs: Any = None,
         get_ha_rest_config: Any = None,
+        cipher: Any = None,
     ) -> None:
         self._bus = event_bus
         self._redis = redis
@@ -95,6 +96,8 @@ class EarthquakeService:
         self._jobs = jobs
         #: 可选的 HA 端点解析回调（走主/备故障转移选择器，返回 ``{haUrl, token}``）
         self._get_ha_rest_config = get_ha_rest_config
+        #: 凭证解密器：兜底路径要直接读连接记录，必须能解开密文令牌。
+        self._cipher = cipher
         self._destroyed = False
 
         self._active_event_id = ""
@@ -278,17 +281,23 @@ class EarthquakeService:
                     return {"haUrl": ha_url.rstrip("/"), "token": token}
             except Exception as exc:  # noqa: BLE001
                 logger.error("读取 HA 配置失败: %s", exc)
-        ha_url = os.getenv("HA_URL", "").strip()
-        token = os.getenv("HA_TOKEN", "").strip()
+        # 兜底与其余旁路消费者共用同一解析：单源 ha_connections 表（无记录时环境变量引导）。
         try:
-            _, layout = await asyncio.to_thread(load_active_project_layout, self._session_factory)
-            ha_config = layout.get("haConfig") if isinstance(layout, dict) else None
-            if isinstance(ha_config, dict) and ha_config.get("url") and ha_config.get("token"):
-                ha_url = str(ha_config["url"])
-                token = str(ha_config["token"])
+            endpoints = await asyncio.to_thread(self._load_ha_endpoints)
         except Exception as exc:  # noqa: BLE001
-            logger.error("读取 HA 配置失败: %s", exc)
-        return {"haUrl": ha_url.rstrip("/"), "token": token}
+            logger.error("读取 HA 连接记录失败: %s", exc)
+            endpoints = None
+        if endpoints is None:
+            return {"haUrl": "", "token": ""}
+        return {
+            "haUrl": endpoints.ha_url_primary.rstrip("/"),
+            "token": endpoints.token,
+        }
+
+    def _load_ha_endpoints(self):
+        """在自有 session 里解析 HA 端点（跟随连接器当前活跃地址）。"""
+        with self._session_factory() as database:
+            return load_active_ha_endpoints(database, cipher=self._cipher)
 
     async def fetch_ha_coordinates(self) -> dict[str, float] | None:
         credentials = await self.resolve_ha_credentials()

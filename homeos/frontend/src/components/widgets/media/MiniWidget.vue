@@ -144,6 +144,7 @@
 import { ref, computed, watch, defineAsyncComponent } from 'vue'
 import { Music, Pause, Play, SkipBack, SkipForward } from '@lucide/vue'
 import { useEntitiesStore } from '@/stores/entities.store'
+import { useHaConnectionStore } from '@/stores/ha-connection.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useEntityDisplayEpoch } from '@/composables/entity/useEntityDisplayEpoch'
@@ -201,6 +202,7 @@ watch(
 const entitiesStore = useEntitiesStore()
 // UI 仓库（布局配置）
 const layoutStore = useLayoutStore()
+const haConnectionStore = useHaConnectionStore()
 // Chrome 仓库（打开播放器等）
 const chrome = useChromeStore()
 // 媒体展示纪元：随 media_player 域变化自增，用于强制刷新派生计算
@@ -228,17 +230,17 @@ const sliderRef = ref(null)
 
 // 辅助函数
 
-/**
- * 解析实体的封面图片 URL（兼容 HA 相对路径，拼接 HA 实例地址）。
- * @param {string} eid - media_player 实体 ID
- * @returns {string|null} 完整封面 URL 或 null
- */
-function entityArt(eid) {
-  // 引用 mediaDisplayEpoch 触发响应式依赖，确保封面随域更新刷新
-  void mediaDisplayEpoch.value
-  const url = entitiesStore.entities[eid]?.attributes?.entity_picture
-  return resolveHaEntityPicture(layoutStore.layoutConfig?.haConfig?.url, url)
-}
+  /**
+   * 解析实体的封面图片 URL（兼容 HA 相对路径，拼接 HA 实例地址）。
+   * @param {string} eid - media_player 实体 ID
+   * @returns {string|null} 完整封面 URL 或 null
+   */
+  function entityArt(eid) {
+    // 引用 mediaDisplayEpoch 触发响应式依赖，确保封面随域更新刷新
+    void mediaDisplayEpoch.value
+    const url = entitiesStore.entities[eid]?.attributes?.entity_picture
+    return resolveHaEntityPicture(haConnectionStore.baseUrl, url)
+  }
 
 /**
  * 根据实体播放状态返回状态圆点的 CSS 类名（含光晕效果）。

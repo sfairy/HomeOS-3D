@@ -1,0 +1,610 @@
+<script setup lang="ts">
+/**
+ * 授权激活页（单 HTTP 栈）。
+ *
+ * 状态机与迁移前的命令式实现一一对应：轮询 `/license/availability`，终态或用户点击
+ * 「重新激活」时才交还表单；`/license/retry` 是「不用等下一拍轮询」的手动重试。
+ *
+ * 轮询为什么不再读 `/license/status`：该端点要求登录会话，而本页允许匿名访问
+ * （门禁会把未登录用户也送到这里）。`/availability` 是公开脱敏接口，门禁判定所需的
+ * `status` / `allowed` / `editorAllowed` / `canRetry` 都在其中。
+ */
+import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+
+import {
+  LICENSE_INSTANCE_MISMATCH_HINT,
+  LICENSE_TERMINAL_STATUSES,
+  activateLicense,
+  getLicenseAvailability,
+  licenseErrorMessage,
+  licenseMessage,
+  retryLicense,
+  type LicenseMessageState,
+} from "@/services/api/license";
+import { useAuthStore } from "@/stores/auth.store";
+import { isUnauthorizedError } from "@/utils/core/error-message";
+
+/** 状态轮询周期：与后端租约心跳同量级，够快但不至于把授权后台打满。 */
+const STATUS_POLL_INTERVAL_MS = 5000;
+
+const authStore = useAuthStore();
+
+const email = ref("");
+const activationCode = ref("");
+const emailInput = ref<HTMLInputElement | null>(null);
+
+const statusText = ref("正在读取授权状态…");
+/** 状态句的语气：需要用户动手时（绑定冲突）用珊瑚色，其余用常规色。 */
+const statusTone = ref<"lumen" | "alert">("lumen");
+const recoveryHint = ref("");
+const errorMessage = ref("");
+
+const loadingStatus = ref(false);
+const formVisible = ref(false);
+const reactivateVisible = ref(false);
+const retryVisible = ref(false);
+/** 用户点过「重新激活」后，表单必须一直留着，即使状态码不是终态。 */
+let reactivateRequested = false;
+
+let navigating = false;
+let pageHidden = false;
+let statusTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** 已进入编辑器：停止一切轮询与跳转竞争。 */
+function enterEditor(): void {
+  if (navigating) return;
+  navigating = true;
+  clearTimeout(statusTimer);
+  window.location.replace("/");
+}
+
+/**
+ * 只有「已绑定其他设备」需要一段可执行的处理步骤，其余状态靠状态码文案即可说明白。
+ */
+function setRecoveryHint(statusCode: string): void {
+  recoveryHint.value = statusCode === "INSTANCE_MISMATCH" ? LICENSE_INSTANCE_MISMATCH_HINT : "";
+}
+
+/** 把一次状态响应渲染成界面：文案、语气、表单/按钮可见性。 */
+function applyStatus(payload: LicenseMessageState & { allowed?: boolean; editorAllowed?: boolean; canRetry?: boolean }): void {
+  if (payload.status === "ACTIVE" && payload.editorAllowed) {
+    enterEditor();
+    return;
+  }
+  if (payload.editorAllowed) {
+    statusText.value =
+      (payload.lastError || "").trim() || "授权连接异常，请重新连接授权后台后再进入编辑器。";
+    statusTone.value = "lumen";
+    setRecoveryHint(String(payload.status || ""));
+  } else if (payload.allowed) {
+    statusText.value = "当前授权有效，但未包含编辑器权益，请联系授权管理员。";
+    statusTone.value = "lumen";
+    setRecoveryHint("");
+  } else {
+    statusText.value = licenseMessage(payload, (payload.lastError || "").trim());
+    statusTone.value = payload.status === "INSTANCE_MISMATCH" ? "alert" : "lumen";
+    setRecoveryHint(String(payload.status || ""));
+  }
+
+  const isTerminalStatus = LICENSE_TERMINAL_STATUSES.has(String(payload.status || ""));
+  formVisible.value = reactivateRequested || isTerminalStatus;
+  reactivateVisible.value = !formVisible.value;
+  retryVisible.value = Boolean(payload.canRetry);
+}
+
+/** 下一拍轮询；页面隐藏或已跳转时不再排期。 */
+function scheduleStatusPoll(): void {
+  clearTimeout(statusTimer);
+  if (!pageHidden && !navigating) {
+    statusTimer = setTimeout(() => void refreshStatus(), STATUS_POLL_INTERVAL_MS);
+  }
+}
+
+/**
+ * 拉取授权状态。
+ * @param manual 为 true 时先走 `/license/retry`（显式重试），随后都读公开可用性
+ */
+async function refreshStatus(manual = false): Promise<void> {
+  if (loadingStatus.value || pageHidden || navigating) return;
+  loadingStatus.value = true;
+  clearTimeout(statusTimer);
+  if (manual) statusText.value = "正在重新连接授权后台…";
+  try {
+    if (manual) await requestRetry();
+    applyStatus((await getLicenseAvailability()).data);
+  } catch (statusError) {
+    statusText.value = licenseErrorMessage(statusError, "读取授权状态失败，请稍后重试。");
+    statusTone.value = "alert";
+    retryVisible.value = true;
+    formVisible.value = true;
+    reactivateVisible.value = false;
+  } finally {
+    loadingStatus.value = false;
+    scheduleStatusPoll();
+  }
+}
+
+/**
+ * 手动「重新连接授权后台」。
+ *
+ * `/license/retry` 要求登录会话，而本页允许匿名：未登录时不再整页跳登录页 ——
+ * 门禁会把未登录的 `/login` 原样送回本页，来回跳既没有出路也看不清原因。改成把
+ * 「先登录」写进页面提示，然后继续读公开可用性把当前状态显示出来。
+ */
+async function requestRetry(): Promise<void> {
+  try {
+    await retryLicense();
+  } catch (retryError) {
+    if (!isUnauthorizedError(retryError)) throw retryError;
+    errorMessage.value = "请先登录本机管理员账号，再点「重新连接授权后台」。";
+    statusTone.value = "alert";
+  }
+}
+
+async function onSubmit(): Promise<void> {
+  if (loadingStatus.value || navigating) return;
+  loadingStatus.value = true;
+  clearTimeout(statusTimer);
+  errorMessage.value = "";
+  try {
+    const payload = (await activateLicense(email.value.trim(), activationCode.value.trim())).data;
+    if (payload.status !== "ACTIVE" || !payload.editorAllowed) {
+      throw new Error(
+        payload.allowed || payload.editorAllowed
+          ? payload.status === "ACTIVE"
+            ? "激活成功，但当前商品未包含编辑器权益。"
+            : "激活后授权仍未就绪，请点击重新激活或稍后再试。"
+          : "激活后授权状态尚未生效，请稍后再试。",
+      );
+    }
+    enterEditor();
+  } catch (activateError) {
+    errorMessage.value = licenseErrorMessage(activateError, "激活失败，请稍后重试。");
+  } finally {
+    loadingStatus.value = false;
+    scheduleStatusPoll();
+  }
+}
+
+/** 「重新激活」只是把表单交还给用户：真正的无码重激活入口在编辑器首页。 */
+function onReactivate(): void {
+  reactivateRequested = true;
+  reactivateVisible.value = false;
+  formVisible.value = true;
+  void nextTick(() => emailInput.value?.focus());
+}
+
+/** 退出的是本机管理员会话，不等于解绑商店授权。 */
+async function onLogout(): Promise<void> {
+  await authStore.logout();
+  window.location.replace("/login");
+}
+
+function onOnline(): void {
+  void refreshStatus();
+}
+function onPageHide(): void {
+  pageHidden = true;
+  clearTimeout(statusTimer);
+}
+function onPageShow(): void {
+  pageHidden = false;
+  void refreshStatus();
+}
+
+onMounted(() => {
+  window.addEventListener("online", onOnline);
+  window.addEventListener("pagehide", onPageHide);
+  window.addEventListener("pageshow", onPageShow);
+  void refreshStatus();
+});
+
+onBeforeUnmount(() => {
+  navigating = true;
+  clearTimeout(statusTimer);
+  window.removeEventListener("online", onOnline);
+  window.removeEventListener("pagehide", onPageHide);
+  window.removeEventListener("pageshow", onPageShow);
+});
+</script>
+
+<template>
+<div class="hos-page hos-tone--eco">
+        <div class="hos-scene">
+            <div class="hos-scene__stage" aria-hidden="true">
+              <div class="hos-scene__sky"></div>
+              <div class="hos-scene__aurora hos-scene__aurora--a"></div>
+              <div class="hos-scene__aurora hos-scene__aurora--b"></div>
+              <div class="hos-scene__stars hos-scene__stars--far"></div>
+              <div class="hos-scene__stars hos-scene__stars--near"></div>
+              <div class="hos-scene__hex"></div>
+              <div class="hos-scene__hex hos-scene__hex--fine"></div>
+              <div class="hos-scene__dawn"></div>
+              <div class="hos-scene__orbit hos-scene__orbit--outer">
+                <i class="hos-scene__orbit-node"></i>
+                <i class="hos-scene__orbit-node hos-scene__orbit-node--opp"></i>
+                <i class="hos-scene__orbit-tick"></i>
+              </div>
+              <div class="hos-scene__orbit hos-scene__orbit--mid">
+                <i class="hos-scene__orbit-node"></i>
+                <i class="hos-scene__orbit-node hos-scene__orbit-node--trail"></i>
+                <i class="hos-scene__orbit-arc"></i>
+              </div>
+              <div class="hos-scene__orbit hos-scene__orbit--inner">
+                <i class="hos-scene__orbit-node"></i>
+                <i class="hos-scene__orbit-node hos-scene__orbit-node--opp"></i>
+              </div>
+              <div class="hos-scene__orbit-core"></div>
+              <div class="hos-scene__radar"></div>
+              <div class="hos-scene__scan"></div>
+              <div class="hos-scene__ambient"></div>
+              <div class="hos-scene__motes">
+                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              </div>
+
+              <svg class="hos-scene__mountains" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMax slice">
+                <defs>
+                  <linearGradient id="hosMtFar" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#5f7396" stop-opacity="0.38" />
+                    <stop offset="100%" stop-color="#1e2b46" stop-opacity="0.55" />
+                  </linearGradient>
+                  <linearGradient id="hosMtMid" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#3c5074" stop-opacity="0.82" />
+                    <stop offset="100%" stop-color="#131d33" stop-opacity="0.96" />
+                  </linearGradient>
+                  <linearGradient id="hosMtNear" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#293a55" />
+                    <stop offset="50%" stop-color="#0d1420" />
+                    <stop offset="100%" stop-color="#050a13" />
+                  </linearGradient>
+                  <linearGradient id="hosSnow" x1="0" y1="0" x2="0.25" y2="1">
+                    <stop offset="0%" stop-color="#e4eef8" stop-opacity="0.45" />
+                    <stop offset="100%" stop-color="#e4eef8" stop-opacity="0" />
+                  </linearGradient>
+                  <linearGradient id="hosHomeBody" x1="0" y1="0" x2="0.4" y2="1">
+                    <stop offset="0%" stop-color="#33475f" />
+                    <stop offset="38%" stop-color="#1c2a3d" />
+                    <stop offset="100%" stop-color="#090f18" />
+                  </linearGradient>
+                  <linearGradient id="hosHomeTower" x1="0" y1="0" x2="0.25" y2="1">
+                    <stop offset="0%" stop-color="#2a4060" />
+                    <stop offset="55%" stop-color="#16243a" />
+                    <stop offset="100%" stop-color="#091019" />
+                  </linearGradient>
+                  <linearGradient id="hosHomeRoof" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#46607a" />
+                    <stop offset="100%" stop-color="#182438" />
+                  </linearGradient>
+                  <linearGradient id="hosHomeDoor" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#111a26" />
+                    <stop offset="100%" stop-color="#050a12" />
+                  </linearGradient>
+
+                  <linearGradient id="hosWinWarm" x1="0" y1="0" x2="0.15" y2="1">
+                    <stop offset="0%" stop-color="#fff0c8" />
+                    <stop offset="40%" stop-color="#f5cb8a" />
+                    <stop offset="100%" stop-color="#c8893f" />
+                  </linearGradient>
+                  <linearGradient id="hosWinEco" x1="0" y1="0" x2="0.15" y2="1">
+                    <stop offset="0%" stop-color="#e8fff6" />
+                    <stop offset="42%" stop-color="#8fe6c5" />
+                    <stop offset="100%" stop-color="#33a97e" />
+                  </linearGradient>
+                  <linearGradient id="hosWinAura" x1="0" y1="0" x2="0.15" y2="1">
+                    <stop offset="0%" stop-color="#f2ecff" />
+                    <stop offset="42%" stop-color="#bfa8ff" />
+                    <stop offset="100%" stop-color="#7a63d8" />
+                  </linearGradient>
+                  <linearGradient id="hosWinCool" x1="0" y1="0" x2="0.1" y2="1">
+                    <stop offset="0%" stop-color="#e8fbff" />
+                    <stop offset="45%" stop-color="#7ee8ff" />
+                    <stop offset="100%" stop-color="#2f96c4" />
+                  </linearGradient>
+                  <radialGradient id="hosHomePad" cx="50%" cy="45%" r="55%">
+                    <stop offset="0%" stop-color="rgba(255,184,110,0.26)" />
+                    <stop offset="35%" stop-color="rgba(255,196,106,0.12)" />
+                    <stop offset="100%" stop-color="rgba(5,9,18,0)" />
+                  </radialGradient>
+                  <radialGradient id="hosWarmSpill" cx="50%" cy="15%" r="75%">
+                    <stop offset="0%" stop-color="rgba(255,196,128,0.55)" />
+                    <stop offset="100%" stop-color="rgba(255,196,128,0)" />
+                  </radialGradient>
+                  <radialGradient id="hosCoolSpill" cx="50%" cy="15%" r="75%">
+                    <stop offset="0%" stop-color="rgba(88,196,255,0.5)" />
+                    <stop offset="100%" stop-color="rgba(88,196,255,0)" />
+                  </radialGradient>
+                  <radialGradient id="hosWarmBloom" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="rgba(255,206,138,0.95)" />
+                    <stop offset="45%" stop-color="rgba(255,178,96,0.45)" />
+                    <stop offset="100%" stop-color="rgba(255,178,96,0)" />
+                  </radialGradient>
+                  <radialGradient id="hosEcoBloom" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="rgba(190,255,232,0.9)" />
+                    <stop offset="45%" stop-color="rgba(78,214,168,0.42)" />
+                    <stop offset="100%" stop-color="rgba(78,214,168,0)" />
+                  </radialGradient>
+                  <radialGradient id="hosAuraBloom" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="rgba(226,214,255,0.9)" />
+                    <stop offset="45%" stop-color="rgba(156,138,255,0.42)" />
+                    <stop offset="100%" stop-color="rgba(156,138,255,0)" />
+                  </radialGradient>
+                  <radialGradient id="hosCoolBloom" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="rgba(190,232,255,0.95)" />
+                    <stop offset="45%" stop-color="rgba(88,196,255,0.4)" />
+                    <stop offset="100%" stop-color="rgba(88,196,255,0)" />
+                  </radialGradient>
+                  <filter id="hosWindowGlow" x="-140%" y="-140%" width="380%" height="380%">
+                    <feGaussianBlur stdDeviation="1.4" result="tight" />
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="5.5" result="soft" />
+                    <feMerge>
+                      <feMergeNode in="soft" />
+                      <feMergeNode in="tight" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                  <filter id="hosBeaconGlow" x="-250%" y="-250%" width="600%" height="600%">
+                    <feGaussianBlur stdDeviation="3" result="b" />
+                    <feMerge>
+                      <feMergeNode in="b" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                  <filter id="hosHomeShadow" x="-20%" y="-10%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000" flood-opacity="0.45" />
+                  </filter>
+                </defs>
+
+                <g class="hos-scene__ridge hos-scene__ridge--far">
+                  <path
+                    fill="url(#hosMtFar)"
+                    d="M0 560 L160 400 L260 470 L400 300 L500 390 L620 230 L730 360 L860 270 L1000 420 L1140 310 L1280 400 L1440 340 L1440 900 L0 900 Z"
+                  />
+                </g>
+                <g class="hos-scene__ridge hos-scene__ridge--mid">
+                  <path
+                    fill="url(#hosMtMid)"
+                    d="M0 620 L100 530 L220 590 L360 430 L460 520 L600 340 L700 450 L840 300 L960 410 L1100 360 L1240 490 L1360 420 L1440 480 L1440 900 L0 900 Z"
+                  />
+                  <path fill="url(#hosSnow)" d="M600 340 L650 390 L620 375 L700 450 L600 340 Z M840 300 L900 370 L870 345 L960 410 L840 300 Z" />
+                </g>
+                <g class="hos-scene__ridge hos-scene__ridge--near">
+                  <path
+                    fill="url(#hosMtNear)"
+                    d="M0 720 L140 590 L240 650 L380 510 L500 610 L660 430 L800 570 L940 470 L1080 590 L1220 530 L1440 640 L1440 900 L0 900 Z"
+                  />
+                </g>
+
+
+                <g transform="translate(357 570) scale(1.5)">
+                  <g class="hos-scene__home">
+                    <path
+                      class="hos-scene__home-aura"
+                      d="M110 -20 L190 70 L110 150 L30 70 Z"
+                      fill="rgba(255,196,106,0.05)"
+                    />
+
+                    <ellipse class="hos-scene__home-pad" cx="110" cy="140" rx="160" ry="32" fill="url(#hosHomePad)" />
+                    <ellipse class="hos-scene__home-spill hos-scene__home-spill--warm" cx="78" cy="130" rx="64" ry="18" fill="url(#hosWarmSpill)" />
+                    <ellipse class="hos-scene__home-spill hos-scene__home-spill--cool" cx="172" cy="128" rx="42" ry="16" fill="url(#hosCoolSpill)" />
+
+                    <g filter="url(#hosHomeShadow)">
+                      <rect x="18" y="48" width="152" height="86" rx="3" fill="url(#hosHomeBody)" />
+                      <rect x="148" y="18" width="50" height="116" rx="3" fill="url(#hosHomeTower)" />
+                    </g>
+
+                    <rect x="20" y="50" width="2.5" height="82" fill="rgba(255,255,255,0.07)" />
+                    <rect x="18" y="88" width="152" height="1" fill="rgba(255,255,255,0.035)" />
+                    <rect x="150" y="20" width="2.5" height="112" fill="rgba(88,196,255,0.1)" />
+                    <rect x="148" y="74" width="50" height="1" fill="rgba(255,255,255,0.04)" />
+
+                    <rect x="10" y="42" width="168" height="9" rx="2" fill="url(#hosHomeRoof)" />
+                    <rect x="10" y="42" width="168" height="1.8" fill="rgba(210,230,245,0.22)" />
+                    <rect x="12" y="50" width="164" height="2.5" fill="rgba(0,0,0,0.28)" />
+                    <rect x="142" y="14" width="62" height="7" rx="1.5" fill="url(#hosHomeRoof)" />
+                    <rect x="142" y="14" width="62" height="1.5" fill="rgba(210,230,245,0.25)" />
+                    <rect x="144" y="20" width="58" height="2" fill="rgba(0,0,0,0.3)" />
+
+                    <ellipse class="hos-scene__win-bloom hos-scene__win-bloom--warm" cx="47" cy="77" rx="22" ry="20" fill="url(#hosWarmBloom)" />
+                    <ellipse class="hos-scene__win-bloom hos-scene__win-bloom--eco hos-scene__win-bloom--d1" cx="81" cy="77" rx="22" ry="20" fill="url(#hosEcoBloom)" />
+                    <ellipse class="hos-scene__win-bloom hos-scene__win-bloom--aura hos-scene__win-bloom--d2" cx="115" cy="77" rx="22" ry="20" fill="url(#hosAuraBloom)" />
+                    <ellipse class="hos-scene__win-bloom hos-scene__win-bloom--cool" cx="173" cy="50" rx="18" ry="16" fill="url(#hosCoolBloom)" />
+                    <ellipse class="hos-scene__win-bloom hos-scene__win-bloom--cool hos-scene__win-bloom--d3" cx="173" cy="80" rx="18" ry="16" fill="url(#hosCoolBloom)" />
+
+                    <g filter="url(#hosWindowGlow)">
+                      <g class="hos-scene__win">
+                        <rect x="36" y="64" width="22" height="26" rx="2" fill="url(#hosWinWarm)" />
+                        <path d="M47 64 V90 M36 77 H58" stroke="rgba(18,28,36,0.38)" stroke-width="1.1" />
+                      </g>
+                      <g class="hos-scene__win hos-scene__win--soft">
+                        <rect x="70" y="64" width="22" height="26" rx="2" fill="url(#hosWinEco)" />
+                        <path d="M81 64 V90 M70 77 H92" stroke="rgba(14,32,28,0.38)" stroke-width="1.1" />
+                      </g>
+                      <g class="hos-scene__win hos-scene__win--delay">
+                        <rect x="104" y="64" width="22" height="26" rx="2" fill="url(#hosWinAura)" />
+                        <path d="M115 64 V90 M104 77 H126" stroke="rgba(22,20,40,0.38)" stroke-width="1.1" />
+                      </g>
+                    </g>
+
+                    <g filter="url(#hosWindowGlow)">
+                      <g class="hos-scene__win hos-scene__win--cool">
+                        <rect x="160" y="40" width="20" height="20" rx="1.5" fill="url(#hosWinCool)" />
+                        <path d="M170 40 V60 M160 50 H180" stroke="rgba(8,20,30,0.34)" stroke-width="1" />
+                      </g>
+                      <g class="hos-scene__win hos-scene__win--cool hos-scene__win--cool-delay">
+                        <rect x="160" y="70" width="20" height="20" rx="1.5" fill="url(#hosWinCool)" />
+                        <path d="M170 70 V90 M160 80 H180" stroke="rgba(8,20,30,0.34)" stroke-width="1" />
+                      </g>
+                    </g>
+
+                    <rect x="118" y="96" width="20" height="38" rx="2" fill="url(#hosHomeDoor)" />
+                    <rect x="119.5" y="97.5" width="17" height="1.2" fill="rgba(88,196,255,0.16)" />
+                    <rect x="122" y="104" width="12" height="22" rx="1" fill="rgba(255,255,255,0.025)" />
+                    <circle cx="134" cy="116" r="1.4" fill="rgba(255,184,110,0.7)" />
+
+                    <path
+                      class="hos-scene__home-beam hos-scene__home-beam--warm"
+                      d="M34 90 L24 132 L118 132 L128 90 Z"
+                      fill="rgba(255,184,110,0.1)"
+                    />
+                    <path
+                      class="hos-scene__home-beam hos-scene__home-beam--cool"
+                      d="M158 90 L150 130 L196 130 L182 90 Z"
+                      fill="rgba(255,217,160,0.1)"
+                    />
+
+                    <line x1="173" y1="14" x2="173" y2="8" stroke="rgba(255,217,160,0.55)" stroke-width="1.6" stroke-linecap="round" />
+                    <g filter="url(#hosBeaconGlow)">
+                      <path
+                        class="hos-scene__uplink"
+                        d="M173 8 L173 -52"
+                        stroke="rgba(255,217,160,0.78)"
+                        stroke-width="1.6"
+                        stroke-dasharray="3.5 5.5"
+                        stroke-linecap="round"
+                        fill="none"
+                      />
+                      <circle class="hos-scene__uplink-packet" cx="173" cy="-8" r="1.8" fill="#ffd9a0" />
+                      <circle class="hos-scene__uplink-node" cx="173" cy="-56" r="3.2" fill="#ffd9a0" />
+                      <circle class="hos-scene__beacon-ring" cx="173" cy="-56" r="8" fill="none" stroke="rgba(255,217,160,0.6)" stroke-width="1.1" />
+                      <circle class="hos-scene__beacon-ring hos-scene__beacon-ring--lag" cx="173" cy="-56" r="8" fill="none" stroke="rgba(255,217,160,0.35)" stroke-width="1" />
+                    </g>
+                    <circle cx="173" cy="12" r="2" fill="rgba(255,217,160,0.85)" />
+                  </g>
+                </g>
+              </svg>
+
+            <div class="hos-scene__mist hos-scene__mist--a"></div>
+            <div class="hos-scene__mist hos-scene__mist--b"></div>
+            <div class="hos-scene__horizon"></div>
+            <div class="hos-scene__haze"></div>
+            <div class="hos-scene__vignette"></div>
+            <div class="hos-scene__shade"></div>
+          </div>
+
+
+          <div class="hos-scene__tint" aria-hidden="true"></div>
+
+
+          <div class="hos-scene__nodes" aria-hidden="true">
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          </div>
+
+
+          <header class="hos-scene__head">
+            <div class="hos-scene__lockup">
+              <div class="hos-scene__mark-wrap">
+                <span class="hos-scene__mark-sheen" aria-hidden="true"></span>
+                <img src="/static/assets/icons/homeos-mark-white-orange.svg" alt="" class="hos-scene__mark" />
+              </div>
+              <div class="hos-scene__lockup-text">
+                <span class="hos-scene__wordmark">
+                  <span class="hos-scene__name">HomeOS</span>
+
+                  <i class="hos-scene__wordmark-sep" aria-hidden="true"></i>
+                  <span class="hos-scene__label">全屋智能家居</span>
+                </span>
+                <span class="hos-scene__accent" aria-hidden="true"></span>
+              </div>
+            </div>
+            <div class="hos-scene__head-status">
+              <span class="hos-scene__live">
+                <i class="hos-scene__live-dot" aria-hidden="true"></i>
+                <span class="hos-scene__live-label">等待激活</span>
+              </span>
+              <span class="hos-scene__ver" title="HomeOS 本机中控">
+                <span class="hos-scene__ver-name">本机中控</span>
+                <span class="hos-scene__ver-sep" aria-hidden="true"></span>
+                <span class="hos-scene__ver-num">v1.0.0</span>
+              </span>
+            </div>
+          </header>
+
+
+          <div class="hos-scene__brand">
+            <p class="hos-scene__title">还缺一张授权凭证</p>
+            <p class="hos-scene__tag">
+              <span class="hos-scene__tag-line">把凭证交给这台机器，授权校验从此刻开始</span>
+            </p>
+            <div class="hos-scene__dossier">
+              <p class="hos-scene__dossier-head">
+                <i class="hos-scene__dossier-dot" aria-hidden="true"></i>
+                <span>本机档案</span>
+              </p>
+              <dl class="hos-scene__dossier-list"><div class="hos-scene__dossier-row"><dt>绑定</dt><dd>首次激活认本机硬件指纹</dd></div><div class="hos-scene__dossier-row"><dt>换机</dt><dd>先在此重新激活，提示已绑定其他设备时再去商店解绑</dd></div><div class="hos-scene__dossier-row"><dt>离线</dt><dd>租约期内照常可用</dd></div><div class="hos-scene__dossier-row"><dt>之后</dt><dd>回中控配房间与设备</dd></div></dl>
+            </div>
+          </div>
+        </div>
+
+        <main class="hos-dock">
+            <section class="hos-panel hos-rise">
+                <span class="hos-panel__edge" aria-hidden="true"></span>
+                <span class="hos-panel__corner hos-panel__corner--tl" aria-hidden="true"></span>
+                <span class="hos-panel__corner hos-panel__corner--tr" aria-hidden="true"></span>
+                <span class="hos-panel__corner hos-panel__corner--bl" aria-hidden="true"></span>
+                <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
+
+                <div class="hos-panel__head">
+                    <div class="hos-eyebrow-row">
+                        <p class="hos-eyebrow">授权激活 · 03/05</p>
+                        <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>一机一码</span>
+                    </div>
+                    <h1>绑定这台机器</h1>
+                    <p id="license-status-text" class="hos-panel__desc" :class="'hos-tone--' + statusTone">{{ statusText }}</p>
+                    <!-- 提示条留在抬头块里：它说的是「当前授权状态要你做什么」，
+                         与上面的状态句是同一件事的两句，隔开会被读成两件事。 -->
+                    <p id="license-recovery-hint" class="hos-notice" :class="'hos-tone--' + statusTone" role="note"
+                        v-show="recoveryHint">{{ recoveryHint }}</p>
+                </div>
+
+                <form id="license-form" class="hos-form" v-show="formVisible" @submit.prevent="onSubmit">
+                    <div class="hos-field">
+                        <div class="hos-label-row"><label for="license-email">授权邮箱</label></div>
+                        <div class="hos-control">
+                            <input id="license-email" name="email" type="email" v-model="email" ref="emailInput"
+                                :disabled="loadingStatus" maxlength="255" autocomplete="email"
+                                placeholder="购买授权时使用的邮箱" required>
+                        </div>
+                        <!-- 邮箱口径要写清楚：这一格不是本机管理员账号。 -->
+                        <small>填商店下单时的账号邮箱，不是本机管理员账号。</small>
+                    </div>
+
+                    <div class="hos-field">
+                        <div class="hos-label-row"><label for="license-code">激活码</label></div>
+                        <div class="hos-control">
+                            <input id="license-code" name="activationCode" v-model="activationCode"
+                                :disabled="loadingStatus" class="hos-mono" maxlength="128"
+                                autocomplete="off" placeholder="HOMEOS-XXXX-XXXX-XXXX" spellcheck="false" required>
+                        </div>
+                    </div>
+
+                    <p v-if="errorMessage" id="message" class="hos-msg is-err" role="alert">{{ errorMessage }}</p>
+
+                    <div class="hos-actions">
+                        <button class="hos-btn-primary" type="submit" :disabled="loadingStatus">激活当前安装</button>
+                        <!-- 「重新连接」的定位是「不用等下一拍轮询」，不是替代填激活码。 -->
+                        <button id="license-retry" class="hos-btn-ghost" type="button" v-show="retryVisible"
+                            :disabled="loadingStatus" @click="refreshStatus(true)">重新连接授权后台</button>
+                    </div>
+                </form>
+
+                <!-- 表单藏起来时（授权已生效或正在等状态）才轮到它出场：点击只是把上面的表单交还给用户，
+                     真正的自动重激活走编辑器首页那颗按钮 —— 那里有完整上下文。 -->
+                <div class="hos-actions">
+                    <button id="license-reactivate" class="hos-btn-ghost" type="button" v-show="reactivateVisible"
+                        @click="onReactivate">重新激活</button>
+                </div>
+
+                <div class="hos-panel__copy">
+                    <div class="hos-panel__meta">
+                        <span>首次激活绑定本机指纹</span>
+                        <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+                        <span>激活后自动进编辑器</span>
+                    </div>
+                    <button id="logout" class="hos-text-button" type="button" @click="onLogout">退出本机登录</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 手持档开关：普通脚本（不导出、不 defer），必须在首帧前跑完给 <html> 挂 .hos-touch。 -->
+</template>

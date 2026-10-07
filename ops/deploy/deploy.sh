@@ -298,8 +298,8 @@ setup_images() {
 
   if [ "$reuse" -eq 1 ]; then
     info "沿用已钉住的镜像（.env / 环境变量）"
-    HOMEOS_IMAGE=${pinned_app:-${HOMEOS_IMAGE_BASE:-ghcr.io/sfairy/homeos-3d}:$TAG}
-    HOMEOS_STORE_IMAGE=${pinned_store:-${HOMEOS_STORE_IMAGE_BASE:-ghcr.io/sfairy/homeos-3d-store}:$TAG}
+    HOMEOS_IMAGE=${pinned_app:-${HOMEOS_IMAGE_BASE:-ghcr.io/sfairy/homeos}:$TAG}
+    HOMEOS_STORE_IMAGE=${pinned_store:-${HOMEOS_STORE_IMAGE_BASE:-ghcr.io/sfairy/homeos-store}:$TAG}
     export HOMEOS_IMAGE HOMEOS_STORE_IMAGE
     return 0
   fi
@@ -309,8 +309,8 @@ setup_images() {
     info "版本变更：$pinned_version → $TAG"
   fi
 
-  HOMEOS_IMAGE="${HOMEOS_IMAGE_BASE:-ghcr.io/sfairy/homeos-3d}:$TAG"
-  HOMEOS_STORE_IMAGE="${HOMEOS_STORE_IMAGE_BASE:-ghcr.io/sfairy/homeos-3d-store}:$TAG"
+  HOMEOS_IMAGE="${HOMEOS_IMAGE_BASE:-ghcr.io/sfairy/homeos}:$TAG"
+  HOMEOS_STORE_IMAGE="${HOMEOS_STORE_IMAGE_BASE:-ghcr.io/sfairy/homeos-store}:$TAG"
   export HOMEOS_IMAGE HOMEOS_STORE_IMAGE
 
   # 钉版本：把解析结果写回 .env。升级 / 回滚文档里「直接 docker compose ... up -d」的写法
@@ -324,7 +324,7 @@ require_license_server() {
   [ "$ROLE" = "app" ] || return 0
   current=$(env_value APP_LICENSE_SERVER_URL)
   case "$current" in
-    ""|http://homeos-3d-store:8802|http://127.0.0.1:8802) current="" ;;
+    ""|http://homeos-store:8802|http://127.0.0.1:8802) current="" ;;
   esac
   if [ -n "$current" ]; then
     info "授权服务器：$current"
@@ -341,7 +341,7 @@ require_license_server() {
 announce_activation() {
   [ "$ROLE" = "app" ] || return 0
   info "激活：登录主应用后打开 /license，填入中心商店发放的激活码"
-  info "公钥取回结果：docker logs homeos-3d | grep 授权公钥"
+  info "公钥取回结果：docker logs homeos | grep 授权公钥"
 }
 
 # ---------------------------------------------------------------- 授权公钥
@@ -560,7 +560,7 @@ resolve_store_overlay() {
   # --role all 都警告一遍会把警告训成噪音。只在**有证据表明这台机器曾经公网部署过**
   # （overlay 起出的 caddy-public 数据卷还在）时才提示——那才是真会踩到的场景。
   if [ "$DRY_RUN" -eq 0 ] && command -v docker >/dev/null 2>&1 \
-    && docker volume inspect homeos-3d-store_caddy-public-data >/dev/null 2>&1; then
+    && docker volume inspect homeos-store_caddy-public-data >/dev/null 2>&1; then
     warn "这台机器有公网接入的数据卷，但 .env 里没有 STORE_DOMAIN：本次不会加载 ${overlay}，重建商店会退回内网设置（回调地址、Cookie Secure、可信代理一起失效）。请补齐 STORE_DOMAIN / STORE_BASE_URL / ACME_EMAIL。"
   fi
   return 0
@@ -602,10 +602,10 @@ wait_healthy() {
 }
 
 deploy_store() {
-  log "① 授权商店（homeos-3d-store）"
+  log "① 授权商店（homeos-store）"
   if ! run_log docker compose -f docker-compose.store.yml $STORE_EXTRA_FILES pull; then diagnose_pull_failure; return 1; fi
   run docker compose -f docker-compose.store.yml $STORE_EXTRA_FILES up -d
-  wait_healthy homeos-3d-store 180 || return 1
+  wait_healthy homeos-store 180 || return 1
   store_http=$(publish_port STORE_PUBLISH_PORT 8802)
   store_https=$(publish_port STORE_PROXY_PUBLISH_PORT 8804)
   public_domain=${STORE_DOMAIN:-$(env_value STORE_DOMAIN)}
@@ -617,7 +617,7 @@ deploy_store() {
   fi
   if [ "$DRY_RUN" -eq 0 ]; then
     info "授权公钥指纹（主应用会自动取回；跨机部署可用它核对）："
-    docker exec homeos-3d-store sha256sum /data/client-keys/license-public.pem /data/client-keys/license-transport-public.pem 2>/dev/null | sed 's/^/    /' || true
+    docker exec homeos-store sha256sum /data/client-keys/license-public.pem /data/client-keys/license-transport-public.pem 2>/dev/null | sed 's/^/    /' || true
   fi
   # 中心商店跑完，把客户机该执行的命令照抄给运维，避免手抄写错地址 / 端口。
   # 地址就是客户机要能访问到的那个：公网接入用域名，内网用 HTTP 端口。
@@ -632,11 +632,11 @@ deploy_store() {
 }
 
 deploy_app() {
-  log "② 主应用（homeos-3d）"
+  log "② 主应用（homeos）"
   if [ "$ROLE" = "app" ]; then
     APP_EXTRA_FILES=""
     if [ "$DRY_RUN" -eq 0 ]; then
-      if docker network inspect homeos-3d-net >/dev/null 2>&1 || docker volume inspect homeos-3d-client-keys >/dev/null 2>&1; then
+      if docker network inspect homeos-net >/dev/null 2>&1 || docker volume inspect homeos-client-keys >/dev/null 2>&1; then
         warn "这台机器上有商店的共享网络 / 公钥卷：如果商店也在本机，请改用 --role all"
       fi
     fi
@@ -645,7 +645,7 @@ deploy_app() {
   fi
   if ! run_log docker compose -f docker-compose.app.yml $APP_EXTRA_FILES pull; then diagnose_pull_failure; return 1; fi
   run docker compose -f docker-compose.app.yml $APP_EXTRA_FILES up -d
-  wait_healthy homeos-3d 300 || return 1
+  wait_healthy homeos 300 || return 1
   return 0
 }
 
@@ -675,7 +675,7 @@ summary() {
     app_https=$(publish_port APP_PROXY_PUBLISH_PORT 8803)
     app_http=$(publish_port APP_PUBLISH_PORT 8801)
     info "主应用 setup：https://<主机>:${app_https}/setup（HTTP 备用 http://<主机>:${app_http}/setup）"
-    info "首次设置的引导密钥：docker logs homeos-3d | head （容器内 /data/setup-token）"
+    info "首次设置的引导密钥：docker logs homeos | head （容器内 /data/setup-token）"
     if [ "$ROLE" = "app" ]; then
       # dry-run 下 env_set 不落盘，env_value 读不到，就用本次传入的 --license-server 兜底，
       # 否则预演里最该看清的一项反而是空的。

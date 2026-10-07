@@ -7,23 +7,6 @@ import type { WholeHomeOffConfig } from '@/types/whole-home-off'
 import type { EarthquakeConfig } from '@/types/earthquake'
 import type { DoorbellConfig } from '@/types/setup-wizard'
 
-/** 户型图楼层上的设备热点 */
-export interface FloorWidget {
-  id: string // 热点唯一 ID
-  type?: string // 热点类型
-  xPct: number // X 坐标百分比（0-100）
-  yPct: number // Y 坐标百分比（0-100）
-  /** icon = 图标/圆点中心 */
-  hotspotAnchor?: 'icon'
-  overlayImage?: string | null // 叠加图片 URL
-  label?: string // 热点标签文案
-  stateIcons?: Record<string, string> // 状态图标映射（state -> icon）
-  /** 原始 state -> 界面显示名（如 cool -> 制冷）；缺省走内置中文表 */
-  stateLabels?: Record<string, string>
-  iconScale?: number // 图标缩放倍数
-  iconRotate?: number // 图标旋转角度
-}
-
 /** 悬浮组件配置 */
 export interface FloatingWidgetConfig {
   title?: string // 组件标题
@@ -49,18 +32,6 @@ export interface FloatingWidget {
   visible?: boolean // 是否可见
 }
 
-/** 楼层配置 */
-export interface FloorConfig {
-  id: string // 楼层唯一 ID
-  name?: string // 楼层名称
-  backgroundUrl?: string // 楼层背景图 URL
-  floorplanAspectRatio?: string // 户型图宽高比
-  floorplanAspectRatioManual?: boolean // 是否手动指定宽高比
-  statsSensors?: { lights: string; climates: string; battery: string; offline: string } // 统计传感器实体 ID
-  widgets: FloorWidget[] // 楼层热点列表
-  floatingWidgets?: FloatingWidget[] // 悬浮组件列表
-}
-
 /** 侧栏面板组件 */
 export interface PanelWidget {
   id: string // 组件唯一 ID
@@ -81,16 +52,14 @@ interface EventLogConfig {
   displayDuration: number // 展示时长（毫秒）
 }
 
-/** HA 连接与设备配置 */
+/**
+ * HA 实体绑定与设备配置。
+ *
+ * 阶段 3.3 起这里**不再包含连接凭据**（`url` / `fallbackUrl` / `token`）：
+ * 连接地址与令牌是 `ha_connections` 表的单源数据，经 `GET/PUT /ha/connection` 读写
+ * （前端见 `stores/ha-connection.store.ts`）。本结构只承载与项目布局绑定的实体引用。
+ */
 export interface HaConfig {
-  /** 局域网 / 首选 HA 地址（优先连接） */
-  url: string
-  /**
-   * 外网 HA 地址。
-   * 局域网不可达时后端自动切换到此地址；恢复后周期探测并切回 url。
-   */
-  fallbackUrl?: string
-  token: string // HA 长期访问令牌
   eventsPath: string // 事件路径
   securityCamera: string // 安防摄像头实体 ID
   securityCameras: string[] // 安防摄像头实体 ID 列表
@@ -122,15 +91,6 @@ export interface StatsSensorsConfig {
   battery: string // 电池统计传感器实体 ID
   offline: string // 离线统计传感器实体 ID
   energySources: Record<string, unknown> // 能耗数据源配置
-}
-
-/** 楼层切换器配置 */
-interface FloorSwitcherConfig {
-  left: number // 左偏移（像素）
-  top: number // 顶偏移（像素）
-  direction: string // 排列方向
-  btnSize: number // 按钮尺寸（像素）
-  isLocked: boolean // 是否锁定
 }
 
 /** 自定义嵌入页面 */
@@ -174,9 +134,8 @@ export interface UILayoutConfig {
   lightOnBackgroundUrl: string
   /** 仪表盘关灯氛围背景图 URL（全部灯光关闭时） */
   lightOffBackgroundUrl: string
-  floorplanAspectRatio: string // 户型图宽高比
-  activeFloorId: string // 当前激活楼层 ID
-  floors: FloorConfig[] // 楼层列表
+  /** 悬浮组件（顶层；原 per-floor floatingWidgets 已迁移到此处） */
+  floatingWidgets: FloatingWidget[]
   pageMaxWidth: number // 页面最大宽度（像素）
   siteTitle: string // 站点标题
   rightPanelWidth: number // 右侧面板宽度（像素）
@@ -195,13 +154,9 @@ export interface UILayoutConfig {
   performanceMode: string // 性能模式
   smartPerformanceMode: boolean // 是否智能性能模式
   glassEffect: string // 玻璃效果
-  floorplanRenderer: string // 户型图渲染器
-  /** 户型图热点坐标系：icon = 图标中心 */
-  hotspotAnchorConvention?: 'icon'
   moviePilotUrl: string // MoviePilot 地址
   awaySimulationLightPool: string[] // 离家模拟灯光池
   customEmbeds: CustomEmbed[] // 自定义嵌入页面列表
-  floorSwitcherConfig: FloorSwitcherConfig // 楼层切换器配置
   embeddedPages: unknown[] // 嵌入页面列表
   settingsLock: { enabled: boolean; pin: string } // 设置锁定（启用与否 + PIN 码）
   isAfhLocked: boolean // 是否锁定 AFH

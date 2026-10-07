@@ -28,9 +28,6 @@ import type {
 import type { HaEntityState } from '@/types/entity-store'
 import type { Component } from 'vue'
 
-/** 楼层切片形状：用于从 layout 配置中提取 widget 列表 */
-type FloorSlice = { id?: string; widgets?: Array<{ id?: string }> }
-
 /** 各 domain 的离线长原因文案 */
 const OFFLINE_REASON: Record<string, string> = {
   binary_sensor: '无响应，链路质量可能较差。',
@@ -69,7 +66,6 @@ const offlineIconMap: Record<string, Component> = {
  * @param entityIds 当前分组实体 ID 列表
  * @param entitiesStore 实体 store
  * @param uiStore UI store（layoutConfig 等）
- * @param floors 楼层列表
  * @param getEntity 按 ID 取实体的函数
  * @returns offlineStats 离线统计；batteryStats 低电量统计；offlineIcon/offlineReason/shortReason/timeAgo/batteryColor 辅助方法
  */
@@ -78,13 +74,12 @@ export function useDeviceGroupOffline(
   entityIds: Ref<string[]>,
   entitiesStore: DeviceGroupEntitiesStoreLike,
   uiStore: DeviceGroupUiStoreLike,
-  floors: FloorSlice[] | { value?: FloorSlice[] },
   getEntity: (eid: string) => HaEntityState | null | undefined,
 ) {
   // 离线统计：仅 domain === 'offline' 时计算，按关键集合与当前 entityIds 求交并拆分
   const offlineStats = computed(() => {
     if (props.domain !== 'offline') return null
-    const criticalSet = computeOfflineCriticalSet(uiStore, floors, entitiesStore)
+    const criticalSet = computeOfflineCriticalSet(uiStore, entitiesStore)
     return splitOfflineEntityIds(criticalSet, entityIds.value)
   })
   // 低电量统计：仅 domain === 'battery' 时计算，按电量升序排序后分临界 / 正常两组

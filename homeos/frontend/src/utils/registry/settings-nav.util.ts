@@ -24,7 +24,6 @@ const NAV_GROUP_LABELS: Record<string, string> = {
 }
 
 const TAB_LABELS: Record<string, string> = {
-  access: '账户与安全',
   alerts: '告警规则',
   bindings: '集成绑定',
   rooms: '房间配置',
@@ -36,7 +35,7 @@ const TAB_LABELS: Record<string, string> = {
   favorites: '常用设备库',
   embeds: '内嵌网页管理',
   general: '基础设置',
-  layout: '仪表板布局',
+  layout: '仪表板编辑',
   assets: '素材库',
   'home-mode': '家庭模式',
   params: '高级参数',
@@ -63,7 +62,6 @@ const PAGE_TITLE_LABELS: Record<string, string> = {
 }
 
 const PAGE_DESC_LABELS: Record<string, string> = {
-  access: '大屏访客分享（非门锁临时密码）、管理员凭证与家庭成员',
   alerts: '应用内通知、语音播报、地震预警与免打扰',
   bindings: '天气、摄像与安防实体映射',
   rooms: '全屋房间目录与应用范围',
@@ -72,10 +70,10 @@ const PAGE_DESC_LABELS: Record<string, string> = {
   diagnostics: '系统健康、HA 连接与诊断导出',
   embeds: '在顶部导航嵌入外部网页',
   favorites: '常用设备写入布局，供总览快捷弹窗',
-  floating: '户型图浮动层：芯片与安防/环境/门锁等中心面板',
+  floating: '浮动层：芯片与安防/环境/门锁等中心面板',
   general: '站点品牌、导航标签、底部信息栏、天气特效与显示缩放',
-  layout: '仪表板结构、楼层管理与布局编辑',
-  assets: '户型图、房间图、背景图与状态图标素材管理',
+  layout: '仪表盘编辑器与 3D 户型图绘制入口（总览为只读展示）',
+  assets: '背景图与状态图标素材管理',
   'smart-charge': '按电量自动开关充电器；屏保时开关关→开可亮屏',
   'life-accounts': '电力、燃气、水务与运营商账户绑定',
   'home-mode': '全屋模式、动作序列与自动触发',
@@ -103,7 +101,6 @@ export const NAV_STRUCTURE = [
     id: 'system',
     tabs: [
       'family',
-      'access',
       'profiles',
       'retention',
       'diagnostics',

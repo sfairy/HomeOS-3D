@@ -87,7 +87,7 @@ export function useEventsView() {
 
   const pageHint = computed(() => {
     const { retentionDays, maxQueryHours } = eventLogMeta.value
-    return `浏览近 ${retentionDays} 天（最多 ${maxQueryHours} 小时）内持久化的实体状态变更（PostgreSQL EventLog，超期自动清理）`
+    return `浏览近 ${retentionDays} 天（最多 ${maxQueryHours} 小时）内持久化的实体状态变更（SQLite EventLog，超期自动清理）`
   })
 
   function syncHoursToRetention() {

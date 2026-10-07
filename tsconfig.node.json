@@ -7,6 +7,7 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,
@@ -14,8 +15,8 @@
     "types": ["node"]
   },
   "include": [
-    "homeos-3d/frontend/vite.config.ts",
-    "homeos-3d/frontend/vite.runtime.config.ts",
+    "homeos/frontend/vite.config.ts",
+    "homeos/frontend/vite.runtime.config.ts",
     "homeos-store/frontend/vite.config.ts"
   ]
 }

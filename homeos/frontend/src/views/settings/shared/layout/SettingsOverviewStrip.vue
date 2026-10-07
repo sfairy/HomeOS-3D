@@ -51,7 +51,6 @@ const TAB_DEEP_LINKS: Record<string, () => string> = {
   diagnostics: () => SETTINGS_ROUTES.diagnostics(),
   connection: () => SETTINGS_ROUTES.connection(),
   'setup-wizard': () => SETTINGS_ROUTES.setupWizard(),
-  access: () => SETTINGS_ROUTES.access(),
   widgets: () => SETTINGS_ROUTES.widgets(),
   assets: () => SETTINGS_ROUTES.assets(),
   embeds: () => SETTINGS_ROUTES.embeds(),

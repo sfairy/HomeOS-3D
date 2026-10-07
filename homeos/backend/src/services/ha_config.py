@@ -1,11 +1,18 @@
-"""HA 动态配置解析与主备故障转移（对齐 HaConfigService）。
+"""HA 连接凭据解析（**单源**：``ha_connections`` 表）。
 
-读取顺序：激活 profile 的 ``layout.haConfig``（DB 优先）→ 环境变量 ``HA_URL`` /
-``HA_URL_FALLBACK`` / ``HA_TOKEN`` 回退。
+阶段 3.3 收敛前的读取顺序是三段式：``layout.haConfig``（ProjectConfig JSON）→ 环境变量
+→ 连接记录，三处各自实现，改一处地址要考虑另外两处。现在只有一条读路径：
 
-故障转移（对齐 Nest ``HaConfigService``）：局域网优先，连续建连失败 ``FAIL_BEFORE_FAILOVER``
-次后切外网；使用外网期间每 ``PRIMARY_PROBE_EVERY`` 次重连探测一次局域网以便切回。
-REST / WS 共用同一 :class:`HaEndpointSelector`，确保始终打到当前 active 地址。
+1. ``ha_connections`` 表的活跃记录（`PUT /ha/connection` 的唯一写入方）；
+2. 没有记录时回落到部署期环境变量 ``HA_URL`` / ``HA_URL_FALLBACK`` / ``HA_TOKEN`` ——
+   这只是**首次连接前的引导**（``scripts/deploy.sh`` 写 ``.env``），不是第二份配置源：
+   一旦用户在设置页保存过连接，记录即生效，环境变量不再参与。
+
+:func:`load_ha_endpoints` 返回静态的「内网优先」配置；:func:`load_active_ha_endpoints`
+在其之上换成连接记录里连接器当前实际使用的那一侧。
+
+旁路消费者（语音 Assist、摄像头 WebRTC WS、安防事件、地震预警坐标）统一改用
+:func:`load_active_ha_endpoints`；连接与 failover 由 3D 的 ``HAConnectorService`` 独占。
 """
 
 from __future__ import annotations
@@ -13,17 +20,14 @@ from __future__ import annotations
 import json
 import logging
 import os
-import threading
-import time
-from collections.abc import Callable
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
+from typing import Any
 from urllib.parse import urlparse
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..core.app_config import load_raw_config
-from ..core.models import HAConnection, ProjectConfig
+from ..core.models import HAConnection
 from ..ha.crypto import CredentialCipher, CredentialCipherError
 from ..ha.endpoints import ENDPOINT_EXTERNAL
 
@@ -85,21 +89,11 @@ def describe_ha_url_for_deploy_error(url: str) -> str | None:
     return validate_ha_url_for_deploy(url, allow_localhost=allow_ha_localhost())
 
 
-def _read_json_object(raw: str | None) -> dict:
-    if not raw:
-        return {}
-    try:
-        value = json.loads(raw)
-    except (TypeError, ValueError):
-        return {}
-    return value if isinstance(value, dict) else {}
-
-
 def _decrypted_connection_token(session: Session, cipher: CredentialCipher) -> str | None:
-    """活跃连接记录里的**加密**令牌（``keep_crypto``）；无记录 / 解不开返回 ``None``。
+    """活跃连接记录里的**加密**令牌；无记录 / 解不开返回 ``None``。
 
     解不开时返回 ``None`` 而不是抛异常：启动期不能因为一个坏令牌就整个起不来，
-    调用方会退回 ``layout.haConfig`` / 环境变量的旧解析结果。
+    调用方会退回环境变量的引导值。
     """
     try:
         encrypted = session.scalars(
@@ -107,38 +101,36 @@ def _decrypted_connection_token(session: Session, cipher: CredentialCipher) -> s
             .where(HAConnection.is_active.is_(True))
             .limit(1)
         ).first()
-    except Exception:  # noqa: BLE001 - 表未就绪时退回旧路径
+    except Exception:  # noqa: BLE001 - 表未就绪时退回环境变量
         return None
     if not encrypted:
         return None
     try:
         return cipher.decrypt(encrypted)
     except CredentialCipherError:
-        logger.warning("HA 连接记录的加密令牌无法解密，回退到 layout/app_config 中的令牌")
+        logger.warning("HA 连接记录的加密令牌无法解密，回退到环境变量中的令牌")
         return None
 
 
 def load_ha_endpoints(session: Session, *, cipher: CredentialCipher | None = None) -> HaEndpoints:
+    """解析当前生效的 HA 地址与令牌。
+
+    唯一配置源是 ``ha_connections`` 的活跃记录；环境变量只在「还没有任何连接记录」时
+    充当部署期引导。这样设置页保存一次之后，后端各处读到的一定是同一份地址。
+    """
     ha_url_primary = os.getenv("HA_URL", "").strip()
     ha_url_fallback = os.getenv("HA_URL_FALLBACK", "").strip()
     token = os.getenv("HA_TOKEN", "").strip()
     try:
-        config = load_raw_config(session)
-        profiles = config.get("profiles") if isinstance(config.get("profiles"), dict) else {}
-        active_profile_id = str(profiles.get("activeProfileId") or "").strip() or "default"
-        record = session.execute(
-            select(ProjectConfig).where(ProjectConfig.project_id == active_profile_id)
-        ).scalar_one_or_none()
-        if record is not None and record.layout:
-            layout = _read_json_object(record.layout)
-            ha_config = layout.get("haConfig") if isinstance(layout.get("haConfig"), dict) else {}
-            if ha_config.get("url") and ha_config.get("token"):
-                ha_url_primary = str(ha_config["url"])
-                ha_url_fallback = str(ha_config.get("fallbackUrl") or "")
-                token = str(ha_config["token"])
-    except Exception:  # noqa: BLE001 - 配置读取失败回退 env
-        pass
-    # keep_crypto：连接记录里的 Fernet 加密令牌优先于 layout 明文 token。
+        connection = session.scalars(
+            select(HAConnection).where(HAConnection.is_active.is_(True)).limit(1)
+        ).first()
+    except Exception:  # noqa: BLE001 - 表未就绪时退回环境变量
+        connection = None
+    if connection is not None:
+        ha_url_primary = connection.base_url or ""
+        ha_url_fallback = connection.external_base_url or ""
+    # keep_crypto：连接记录里的 Fernet 加密令牌优先于环境变量明文 token。
     if cipher is not None:
         decrypted = _decrypted_connection_token(session, cipher)
         if decrypted:
@@ -153,8 +145,8 @@ def load_ha_endpoints(session: Session, *, cipher: CredentialCipher | None = Non
 def load_active_ha_endpoints(session: Session, *, cipher: CredentialCipher | None = None) -> HaEndpoints:
     """在 :func:`load_ha_endpoints` 之上，把地址换成「连接器当前正在使用的那一侧」。
 
-    ``layout.haConfig`` / 环境变量给的是静态的「内网优先」配置，而 3D 连接器每次探测后会把
-    结果写回 ``ha_connections.active_endpoint``。语音 Assist、摄像头 WebRTC WS、安防事件
+    连接记录给的是静态的「内网优先」配置，而 3D 连接器每次探测后会把结果写回
+    ``ha_connections.active_endpoint``。语音 Assist、摄像头 WebRTC WS、安防事件
     读取这些旁路消费者原来一律取 ``ha_url_primary``（内网），一旦内网不可达、连接器已经
     切到外网，它们就会全部连不上 —— 而它们并不属于连接器，无法复用连接器的 ``client_for``。
 
@@ -183,123 +175,75 @@ def load_active_ha_endpoints(session: Session, *, cipher: CredentialCipher | Non
     return HaEndpoints(ha_url_primary=primary, ha_url_fallback=fallback, token=endpoints.token)
 
 
-class HaEndpointSelector:
-    """HA 主/备地址选择器（故障转移），对齐 Nest ``HaConfigService``。
+def backfill_ha_connection_from_layout(database: Any, cipher: CredentialCipher) -> str | None:
+    """一次性数据迁移：把旧版 ``layout.haConfig`` 的连接凭据导入 ``ha_connections``。
 
-    - 局域网（primary）优先；连续建连失败 ``FAIL_BEFORE_FAILOVER`` 次后切外网（fallback）；
-    - 使用外网期间，每 ``PRIMARY_PROBE_EVERY`` 次重连探测一次局域网以便切回；
-    - 建连成功后若命中局域网则退出 failover；
-    - :meth:`resolve` 返回「把落地地址填到 ``ha_url_primary``」的副本，REST / WS 共用，
-      因此所有既有 ``endpoints.ha_url_primary`` 调用点自动跟随当前 active 地址。
+    阶段 3.3 之前，HA 地址与令牌保存在激活 profile 的 layout JSON 里，``load_ha_endpoints``
+    会从那里读。3.3 起连接只有 ``ha_connections`` 一个源，layout 里的 ``url`` / ``token``
+    不再是读路径 —— 老安装若不做这一步，升级后连接器会「找不到连接记录」而整体掉线。
+
+    只在**完全没有连接记录**时执行，并且只在旧 layout 里确实存过地址与令牌时才写入。
+    整个过程吞掉异常：启动不该因为一条历史数据而失败。
+
+    :param database: ``core.database.Database``（提供 ``session_factory``）
+    :param cipher: Fernet 凭证加密器，用于把旧明文令牌转成库内的加密存储
+    :return: 实际导入的 HA 地址；什么都没做时返回 ``None``
     """
-
-    #: 局域网连续失败多少次后切到外网（对齐 Nest FAIL_BEFORE_FAILOVER）
-    FAIL_BEFORE_FAILOVER = 2
-    #: 使用外网期间，每隔多少次重连尝试探测一次局域网（对齐 Nest PRIMARY_PROBE_EVERY）
-    PRIMARY_PROBE_EVERY = 5
-    #: 端点缓存时长（毫秒），对齐 Nest CONFIG_CACHE_MS
-    CONFIG_CACHE_MS = 5_000
-
-    def __init__(self, loader: Callable[[], HaEndpoints]) -> None:
-        self._loader = loader
-        self._lock = threading.Lock()
-        self._cached: HaEndpoints | None = None
-        self._cached_at = 0.0
-        #: 最近一次解析出的端点（invalidate 不清，供比对与失败判定）
-        self._last_loaded: HaEndpoints | None = None
-        self._prefer_fallback = False
-        self._fail_streak = 0
-
-    # ------------------------------------------------------------------ #
-    # 选择
-    # ------------------------------------------------------------------ #
-    def resolve(self, *, reconnect_attempt: int | None = None) -> HaEndpoints:
-        """返回当前应使用的端点（``ha_url_primary`` 已按要求的主/备选择填好）。"""
-        endpoints = self._load_cached()
-        probe_primary = (
-            self._prefer_fallback
-            and bool(endpoints.ha_url_fallback)
-            and bool(endpoints.ha_url_primary)
-            and isinstance(reconnect_attempt, int)
-            and reconnect_attempt > 0
-            and reconnect_attempt % self.PRIMARY_PROBE_EVERY == 0
-        )
-        use_fallback = (not probe_primary) and self._prefer_fallback and bool(endpoints.ha_url_fallback)
-        if not use_fallback:
-            return endpoints
-        return replace(endpoints, ha_url_primary=endpoints.ha_url_fallback)
-
-    @property
-    def active_source(self) -> str:
-        """当前选用来源：``"primary"``（局域网）或 ``"fallback"``（外网）。"""
-        return "fallback" if self._prefer_fallback else "primary"
-
-    def has_fallback(self) -> bool:
-        endpoints = self._last_loaded
-        return bool(endpoints and endpoints.ha_url_fallback)
-
-    def is_expected_lan_failover(self) -> bool:
-        """局域网失败且已配置外网 → 属预期切换，日志降级为普通级别。"""
-        return self.active_source != "fallback" and self.has_fallback()
-
-    # ------------------------------------------------------------------ #
-    # 事件回调
-    # ------------------------------------------------------------------ #
-    def notify_connect_failure(self) -> None:
-        """建连失败：累计失败次数，达到阈值后切外网（对齐 Nest notifyConnectFailure）。"""
-        with self._lock:
-            self._fail_streak += 1
-            if self._prefer_fallback:
-                return
-            endpoints = self._last_loaded
-            if endpoints is None:
-                endpoints = self._load_cached()
-            if endpoints.ha_url_fallback and self._fail_streak >= self.FAIL_BEFORE_FAILOVER:
-                self._prefer_fallback = True
-                logger.warning(
-                    "局域网HA连续失败%s次,切换到外网地址:%s",
-                    self._fail_streak,
-                    endpoints.ha_url_fallback,
+    try:
+        with database.session_factory() as session:
+            existing = session.scalars(select(HAConnection).limit(1)).first()
+            if existing is not None:
+                return None
+            legacy = _legacy_layout_ha_config(session)
+        if legacy is None:
+            return None
+        base_url, external_url, token = legacy
+        with database.session_factory() as session:
+            session.add(
+                HAConnection(
+                    name='Home Assistant',
+                    base_url=normalize_ha_url(base_url),
+                    external_base_url=normalize_ha_url(external_url) or None,
+                    encrypted_access_token=cipher.encrypt(token),
+                    verify_tls=True,
+                    external_verify_tls=True,
                 )
+            )
+            session.commit()
+        logger.info('已把 layout.haConfig 中的 HA 连接迁移到 ha_connections：%s', base_url)
+        return base_url
+    except Exception as error:  # noqa: BLE001 - 迁移失败只记日志，不阻塞启动
+        logger.warning('HA 连接迁移失败（保留旧数据，可稍后在设置页重新保存）：%s', error)
+        return None
 
-    def notify_connect_success(self, connected_url: str) -> None:
-        """建连成功：清零失败计数；若回到局域网则退出 failover（对齐 Nest notifyConnectSuccess）。"""
-        with self._lock:
-            self._fail_streak = 0
-        normalized = (connected_url or "").rstrip("/")
-        endpoints = self._last_loaded
-        if not normalized or endpoints is None or not endpoints.ha_url_primary:
-            return
-        if normalized != endpoints.ha_url_primary:
-            return
-        if self._prefer_fallback:
-            self._prefer_fallback = False
-            logger.info("局域网HA已恢复,切回优先地址:%s", endpoints.ha_url_primary)
 
-    # ------------------------------------------------------------------ #
-    # 缓存 / 复位
-    # ------------------------------------------------------------------ #
-    def _load_cached(self) -> HaEndpoints:
-        now = time.monotonic()
-        cached = self._cached
-        if cached is not None and (now - self._cached_at) * 1000 < self.CONFIG_CACHE_MS:
-            return cached
-        resolved = self._loader()
-        self._cached = resolved
-        self._cached_at = now
-        self._last_loaded = resolved
-        return resolved
+def _legacy_layout_ha_config(session: Session) -> tuple[str, str, str] | None:
+    """读取激活 profile 的 layout 里遗留的 ``haConfig.url / fallbackUrl / token``。
 
-    def loaded_snapshot(self) -> HaEndpoints | None:
-        """最近一次已解析的端点（未加载过则为 ``None``）。"""
-        return self._last_loaded
+    地址与令牌必须同时存在才算一份可用配置（缺任一都无法建连接），否则返回 ``None``。
+    """
+    from ..core.app_config import load_raw_config
+    from ..core.models import ProjectConfig
 
-    def invalidate_cache(self) -> None:
-        """仅失效端点缓存。不断开当前外网会话、不重置 failover。"""
-        self._cached = None
-
-    def reset_failover(self) -> None:
-        """HA 地址/令牌确实变更后：从局域网重新试起。"""
-        with self._lock:
-            self._prefer_fallback = False
-            self._fail_streak = 0
+    try:
+        config = load_raw_config(session)
+        profiles = config.get('profiles') if isinstance(config.get('profiles'), dict) else {}
+        active_profile_id = str(profiles.get('activeProfileId') or '').strip() or 'default'
+        record = session.execute(
+            select(ProjectConfig).where(ProjectConfig.project_id == active_profile_id)
+        ).scalar_one_or_none()
+        if record is None or not record.layout:
+            return None
+        layout = json.loads(record.layout) if isinstance(record.layout, str) else record.layout
+        if not isinstance(layout, dict):
+            return None
+        ha_config = layout.get('haConfig')
+        if not isinstance(ha_config, dict):
+            return None
+        base_url = str(ha_config.get('url') or '').strip()
+        token = str(ha_config.get('token') or '').strip()
+        if not base_url or not token:
+            return None
+        return base_url, str(ha_config.get('fallbackUrl') or '').strip(), token
+    except Exception:  # noqa: BLE001 - 旧数据不可解析等同「没有遗留配置」
+        return None

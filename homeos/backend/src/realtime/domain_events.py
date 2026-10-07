@@ -11,7 +11,6 @@
  - ``presence.changed`` / ``everyoneLeft`` / ``roomChanged`` → ``presence_*`` / ``room_presence``；
  - ``energy.anomaly`` → ``energy_anomaly``；
  - ``frigate.detection`` → ``frigate_detection``；
- - ``childMode.changed`` / ``childMode.blocked`` → ``child_mode``；
  - ``tts.speak`` → 选路播报后广播 ``tts_speak``；
  - ``earthquake.alert`` / ``earthquake.confirmation`` → 地震全屏预警 / 公报弹层。
 """
@@ -50,8 +49,6 @@ class DomainEventBridge:
             "presence.roomChanged": self._handle_room_presence,
             "energy.anomaly": self._handle_energy_anomaly,
             "frigate.detection": self._handle_frigate_detection,
-            "childMode.changed": self._handle_child_mode_changed,
-            "childMode.blocked": self._handle_child_mode_blocked,
             "tts.speak": self._handle_tts_speak,
             "earthquake.alert": self._handle_earthquake_alert,
             "earthquake.confirmation": self._handle_earthquake_confirmation,
@@ -130,12 +127,6 @@ class DomainEventBridge:
 
     async def _handle_frigate_detection(self, data: Any) -> None:
         await self._safe("Frigate 检测", self._gateway.broadcast_frigate_detection, data)
-
-    async def _handle_child_mode_changed(self, data: Any) -> None:
-        await self._safe("儿童模式", self._gateway.broadcast_child_mode_changed, data)
-
-    async def _handle_child_mode_blocked(self, data: Any) -> None:
-        await self._safe("儿童模式拦截", self._gateway.broadcast_child_mode_blocked, data)
 
     # ------------------------------------------------------------------ #
     # TTS / 地震

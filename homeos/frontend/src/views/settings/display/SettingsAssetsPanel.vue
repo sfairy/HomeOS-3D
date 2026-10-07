@@ -1,7 +1,7 @@
 <!--
 组件：SettingsAssetsPanel.vue
 所属模块：frontend / src / views / settings / display
-职责：素材库面板。管理户型图 / 背景图 / 房间图 / 状态图标四类素材，并提供仪表盘开灯/关灯
+职责：素材库面板。管理背景图 / 状态图标两类素材，并提供仪表盘开灯/关灯
       背景图配置（手动填写路径或从背景图库拾取）。
 关键依赖：
   - SettingsPageShell / SettingsCard / SettingsCardIntro：页面骨架
@@ -31,7 +31,7 @@
         :collapsed-summary="flowCollapsedSummary"
       >
         <template #stats>
-          <SettingsFlowStat label="素材库" value="4 类" tone="sky" val-tone="sky" />
+          <SettingsFlowStat label="素材库" value="2 类" tone="sky" val-tone="sky" />
           <SettingsFlowStat
             :label="'布局变更'"
             :value="pending ? '待保存' : '已同步'"
@@ -128,27 +128,11 @@
       </div>
 
       <AssetManagerModal
-        :is-open="floorplanModalOpen"
-        type="floorplan"
-        title="户型图素材库"
-        description="浏览、上传与管理户型图，支持子文件夹"
-        @close="floorplanModalOpen = false"
-      />
-
-      <AssetManagerModal
         :is-open="backgroundModalOpen"
         type="background"
         title="背景图素材库"
         description="浏览、上传与管理仪表盘开/关灯背景图"
         @close="backgroundModalOpen = false"
-      />
-
-      <AssetManagerModal
-        :is-open="roomImageModalOpen"
-        type="room_image"
-        title="房间图素材库"
-        description="浏览、上传与管理本地房间背景图"
-        @close="roomImageModalOpen = false"
       />
 
       <AssetManagerModal
@@ -172,7 +156,6 @@
 <script setup>
 import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import {
-  Image,
   Sparkles,
   ChevronRight,
   FolderOpen,
@@ -181,7 +164,6 @@ import {
   Monitor,
   SunMoon,
   Search,
-  Home,
   Lightbulb,
   Moon,
 } from '@lucide/vue'
@@ -210,10 +192,8 @@ const { layoutConfig } = storeToRefs(layoutStore)
 // 布局是否有未保存更改：与侧栏全局保存/取消共用 layoutDirty 标记
 const pending = computed(() => layoutStore.layoutDirty)
 
-// 四类素材管理弹窗的开关状态
-const floorplanModalOpen = ref(false)
+// 两类素材管理弹窗的开关状态
 const backgroundModalOpen = ref(false)
-const roomImageModalOpen = ref(false)
 const iconModalOpen = ref(false)
 // 背景图拾取弹窗开关
 const bgPickerOpen = ref(false)
@@ -226,16 +206,6 @@ const bgPreviewBroken = ref(/** @type {Set<'on' | 'off'>} */ (new Set()))
 // 素材库卡片配置（id / tone / icon / 文案）
 const libraries = [
   {
-    id: 'floorplan',
-    tone: 'sky',
-    icon: Image,
-    iconClass: 'ah-icon-sky',
-    orbClass: 'ah-orb-sky',
-    eyebrow: '大屏户型',
-    title: '户型图',
-    description: '楼层底图与热点分层',
-  },
-  {
     id: 'background',
     tone: 'amber',
     icon: SunMoon,
@@ -244,16 +214,6 @@ const libraries = [
     eyebrow: '大屏氛围',
     title: '背景图',
     description: '开灯 / 关灯切换',
-  },
-  {
-    id: 'room_image',
-    tone: 'emerald',
-    icon: Home,
-    iconClass: 'ah-icon-emerald',
-    orbClass: 'ah-orb-emerald',
-    eyebrow: 'Rooms',
-    title: '房间图',
-    description: '房间实景背景',
   },
   {
     id: 'icon',
@@ -291,7 +251,7 @@ const bgSlots = computed(() => {
 })
 
 const flowCollapsedSummary = computed(() =>
-  pending.value ? '4 类素材 · 有未保存布局' : '4 类素材 · 布局已同步',
+  pending.value ? '2 类素材 · 有未保存布局' : '2 类素材 · 布局已同步',
 )
 
 // 开/关灯背景 URL 变化时重置坏图标记
@@ -304,9 +264,7 @@ watch(
 
 // 打开对应素材库弹窗
 function openLibrary(id) {
-  if (id === 'floorplan') floorplanModalOpen.value = true
-  else if (id === 'background') backgroundModalOpen.value = true
-  else if (id === 'room_image') roomImageModalOpen.value = true
+  if (id === 'background') backgroundModalOpen.value = true
   else if (id === 'icon') iconModalOpen.value = true
 }
 

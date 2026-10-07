@@ -1,350 +1,218 @@
-"""认证路由（``/api/v1/auth/*``），逐条对齐 Nest AuthController。"""
+"""认证与初始化接口（homeos-3d 原生契约）。
+
+对外路径为 ``/api/v1/setup/*`` 与 ``/api/v1/auth/*``，分别对应前端的设置页与登录页。
+逐条对齐 homeos-3d 的 ``api/auth.py``：单一管理员账号 + 凭据外置文件（``admin_account``）
++ 可服务端吊销的 ``sessions`` 表会话。
+"""
 
 from __future__ import annotations
 
-import json
-from typing import Any
-
-from fastapi import Depends, Request, Response
+from fastapi import Depends, HTTPException, Request, Response, status
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from ..admin_account import EXTERNAL_PASSWORD_SENTINEL
 from ..core.deps import get_session
-from ..core.errors import api_error, bad_request, forbidden, unauthorized
-from ..security.auth_context import require_roles, require_user
-from ..security.cookies import (
-    clear_auth_cookies,
-    ensure_csrf_cookie,
-    resolve_cookie_secure_for_request,
-    set_auth_cookie,
-    set_csrf_cookie,
-)
-from ..security.limiter import rate_limit
-from ..services import auth as auth_service
+from ..core.models import LoginSession, User
+from ..dependencies import CurrentUser
+from ..security.cookies import ensure_csrf_cookie
+from ..security.login_limiter import LoginAttemptLimiter, retry_after_headers
+from ..security.passwords import hash_password, verify_password
+from ..security.session_store import create_login_session, set_session_cookie
 from .router import NestRouter
 from .schemas.auth import (
-    CreateUserDto,
-    GuestExchangeDto,
-    GuestLoginDto,
-    GuestTokenDto,
-    LoginDto,
-    MfaSetupConfirmDto,
-    MfaVerifyDto,
-    SetupDto,
-    UpdateProfileDto,
-    UpdateUserDto,
-    UpdateUserPreferencesDto,
+    LoginRequest,
+    SetupAdminRequest,
+    SetupStatusResponse,
+    UserResponse,
 )
 
-router = NestRouter(prefix="/auth", tags=["auth"])
+router = NestRouter(tags=["authentication"])
 
-_SECRET_FALLBACK = "homeos-dev-secret"
+#: CSRF Cookie 有效期（30 天）：沿用原 ``/auth/status`` 引导端点的口径。
+CSRF_MAX_AGE_MS = 30 * 24 * 3600 * 1000
 
-def _secret(request: Request) -> str:
-    return request.app.state.settings.jwt_secret or _SECRET_FALLBACK
 
-def _cookie_name(request: Request) -> str:
-    return request.app.state.settings.cookie_name
+def public_user(user: User) -> UserResponse:
+    return UserResponse(id=user.id, username=user.username, role=user.role)
 
-def _csrf_cookie_name(request: Request) -> str:
-    return request.app.state.settings.csrf_cookie_name
 
-def _client_ip(request: Request) -> str | None:
-    forwarded = request.headers.get("x-forwarded-for", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else None
+def request_metadata(request: Request) -> tuple[str, str]:
+    ip_address = request.client.host if request.client else ""
+    return (ip_address[:64], request.headers.get("user-agent", "")[:512])
 
-def _user_agent(request: Request) -> str | None:
-    ua = request.headers.get("user-agent")
-    return ua[:256] if ua else None
 
-def _cache(request: Request) -> Any:
-    return getattr(request.app.state, "token_version_cache", None)
+def _session_max_age(request: Request) -> int:
+    return request.app.state.settings.session_max_age_seconds
 
-def _revocation(request: Request) -> Any:
-    return getattr(request.app.state, "session_revocation", None)
 
-@router.get("/status")
-async def get_status(request: Request, response: Response, session: Session = Depends(get_session)):
-    ensure_csrf_cookie(
-        response, request, _csrf_cookie_name(request), auth_service.cookie_max_age_ms(session)
-    )
-    count = auth_service.count_users(session)
-    token = request.cookies.get(_cookie_name(request))
-    authenticated = False
-    username = ""
-    role = ""
-    restrictions: list[str] = []
-    if token:
-        try:
-            payload = auth_service.verify_token(token, _secret(request))
-            authenticated = True
-            username = payload.get("username", "")
-            role = payload.get("role", "")
-            restrictions = payload.get("restrictions") or []
-        except Exception:  # noqa: BLE001 - token 无效时忽略
-            authenticated = False
-    return {
-        "initialized": count > 0,
-        "authenticated": authenticated,
-        "username": username,
-        "role": role,
-        "restrictions": restrictions,
-        "external_url": auth_service.get_external_url(session) if count > 0 else "",
-    }
+@router.get("/setup/status", response_model=SetupStatusResponse)
+def setup_status(request: Request, response: Response) -> SetupStatusResponse:
+    """系统初始化状态；同时兼作 CSRF 引导端点。
 
-@router.post("/setup", status_code=201, dependencies=[Depends(rate_limit(10))])
-async def setup(
-    body: SetupDto,
+    每次启动首屏都会调用本端点，正是原 ``/auth/status`` 承担的角色：缺少 ``csrf_token``
+    时下发 Cookie，供 homeos 业务侧的 double-submit 校验使用（3D 前端不发 CSRF 头，
+    且初始化 / 登录 / 登出 / 授权系列端点已在豁免表内，因此不受影响）。
+    """
+    settings = request.app.state.settings
+    ensure_csrf_cookie(response, request, settings.csrf_cookie_name, CSRF_MAX_AGE_MS)
+    return SetupStatusResponse(initialized=request.app.state.admin_account.initialized)
+
+
+@router.post("/setup/admin", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def setup_admin(
+    payload: SetupAdminRequest,
     request: Request,
     response: Response,
     session: Session = Depends(get_session),
-):
-    if auth_service.count_users(session) > 0:
-        forbidden(api_error("AUTH_SYSTEM_INITIALIZED"))
-    user = auth_service.register_first_user(session, body.username, body.password)
-    result = auth_service.login_response(session, _secret(request), user)
-    set_auth_cookie(response, request, result["access_token"], _cookie_name(request), auth_service.cookie_max_age_ms(session))
-    set_csrf_cookie(response, request, _csrf_cookie_name(request), auth_service.cookie_max_age_ms(session))
-    return {
-        "username": result["username"],
-        "role": result["role"],
-        "restrictions": result["restrictions"],
-        "external_url": result["external_url"],
-    }
-
-@router.post("/login", status_code=200, dependencies=[Depends(rate_limit(15))])
-async def login(
-    body: LoginDto,
-    request: Request,
-    response: Response,
-    session: Session = Depends(get_session),
-):
-    if not body.username:
-        bad_request("username 不能为空")
-    if len(body.password) < 8:
-        bad_request("password 至少 8 位")
-    user = auth_service.validate_user(session, body.username, body.password, _client_ip(request), _user_agent(request))
-    if auth_service.user_requires_mfa(user):
-        return {"requiresMfa": True, "username": user.username}
-    result = auth_service.login_response(session, _secret(request), user)
-    set_auth_cookie(response, request, result["access_token"], _cookie_name(request), auth_service.cookie_max_age_ms(session))
-    set_csrf_cookie(response, request, _csrf_cookie_name(request), auth_service.cookie_max_age_ms(session))
-    return {
-        "username": result["username"],
-        "role": result["role"],
-        "restrictions": result["restrictions"],
-        "external_url": result["external_url"],
-    }
-
-@router.post("/refresh", status_code=200)
-async def refresh(
-    request: Request,
-    response: Response,
-    session: Session = Depends(get_session),
-    user: dict[str, Any] = Depends(require_roles("admin", "adult", "child")),
-):
-    result = auth_service.refresh_session(session, _secret(request), user)
-    set_auth_cookie(response, request, result["access_token"], _cookie_name(request), auth_service.cookie_max_age_ms(session))
-    ensure_csrf_cookie(response, request, _csrf_cookie_name(request), auth_service.cookie_max_age_ms(session))
-    return {
-        "username": result["username"],
-        "role": result["role"],
-        "restrictions": result["restrictions"],
-    }
-
-@router.post("/logout", status_code=200)
-async def logout(
-    request: Request, response: Response, session: Session = Depends(get_session)
-):
-    token = request.cookies.get(_cookie_name(request))
-    if token:
-        await auth_service.revoke_session_by_token(
-            session, _secret(request), token, _revocation(request), _cache(request)
+) -> UserResponse:
+    password_hash = hash_password(payload.password)
+    account_store = request.app.state.admin_account
+    staged_credentials = None
+    try:
+        if account_store.initialized:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="系统已经完成初始化。",
+            )
+        recovery_user = (
+            session.get(User, account_store.recovery_user_id)
+            if account_store.recovery_user_id
+            else None
         )
-    clear_auth_cookies(response, request, _cookie_name(request), _csrf_cookie_name(request))
-    return {"message": "已登出"}
-
-@router.patch("/profile")
-async def update_profile(
-    body: UpdateProfileDto,
-    request: Request,
-    session: Session = Depends(get_session),
-    user: dict[str, Any] = Depends(require_roles("admin", "adult", "child")),
-):
-    return auth_service.update_profile(
-        session, user["userId"], body.model_dump(exclude_none=True), _cache(request)
+        if recovery_user is not None:
+            conflict = session.scalar(
+                select(User).where(
+                    User.username == payload.username,
+                    User.id != recovery_user.id,
+                )
+            )
+            if conflict is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="这个账号名已被使用。",
+                )
+            user = recovery_user
+            user.username = payload.username
+            user.role = "admin"
+            user.is_active = True
+        else:
+            if session.scalar(select(User.id).limit(1)) is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="现有账号无法安全重置，请检查账号文件。",
+                )
+            user = User(
+                username=payload.username,
+                password=EXTERNAL_PASSWORD_SENTINEL,
+                role="admin",
+                auth_externalized=True,
+            )
+            session.add(user)
+        session.flush()
+        session.execute(delete(LoginSession))
+        staged_credentials = account_store.stage(user, password_hash)
+        user.password = EXTERNAL_PASSWORD_SENTINEL
+        user.auth_externalized = True
+        token = create_login_session(
+            session, request, user.id, max_age_seconds=_session_max_age(request)
+        )
+        session.commit()
+    except HTTPException:
+        session.rollback()
+        raise
+    except Exception:
+        session.rollback()
+        if staged_credentials is not None:
+            account_store.abort(staged_credentials)
+        raise
+    account_store.activate(staged_credentials)
+    set_session_cookie(
+        response, request.app.state.settings, token, max_age_seconds=_session_max_age(request)
     )
-
-@router.post("/guest-token", status_code=201)
-async def create_guest_token(
-    body: GuestTokenDto,
-    request: Request,
-    session: Session = Depends(get_session),
-    user: dict[str, Any] = Depends(require_roles("admin")),
-):
-    return auth_service.generate_guest_token(
-        session,
-        _secret(request),
-        user["userId"],
-        body.validHours or 8,
-        body.restrictions,
-        body.allowedSceneIds,
+    action = "重新设置" if recovery_user else "首次初始化"
+    request.app.state.global_log.append(
+        "success", "系统后台", "账号", f"管理员 {user.username} 完成{action}"
     )
+    return public_user(user)
 
-@router.post("/guest-exchange", status_code=200, dependencies=[Depends(rate_limit(10))])
-async def guest_exchange(
-    body: GuestExchangeDto,
+
+@router.post("/auth/login", response_model=UserResponse, status_code=status.HTTP_200_OK)
+def login(
+    payload: LoginRequest,
     request: Request,
     response: Response,
     session: Session = Depends(get_session),
-):
-    result = auth_service.exchange_guest_code(session, _secret(request), body.code)
-    from datetime import UTC, datetime
+) -> UserResponse:
+    username = payload.username.strip()
+    (ip_address, _user_agent) = request_metadata(request)
+    limiter_keys = (f"ip:{ip_address}", f"account:{ip_address}:{username.casefold()}")
+    limiter: LoginAttemptLimiter = request.app.state.login_limiter
+    retry_after = max(limiter.retry_after(key) for key in limiter_keys)
+    if any(limiter.blocked(key) for key in limiter_keys):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="登录失败次数过多，请稍后再试。",
+            headers=retry_after_headers(retry_after),
+        )
+    credentials = request.app.state.admin_account.credentials
+    user = session.get(User, credentials.user_id) if credentials else None
+    if (
+        credentials is None
+        or username != credentials.username
+        or user is None
+        or not user.is_active
+        or not verify_password(payload.password, credentials.password_hash)
+    ):
+        for key in limiter_keys:
+            limiter.record_failure(key)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="账号或密码错误。",
+        )
+    for key in limiter_keys:
+        limiter.reset(key)
+    token = create_login_session(
+        session, request, user.id, max_age_seconds=_session_max_age(request)
+    )
+    session.commit()
+    set_session_cookie(
+        response, request.app.state.settings, token, max_age_seconds=_session_max_age(request)
+    )
+    request.app.state.global_log.append(
+        "success", "系统后台", "账号", f"管理员 {user.username} 已登录"
+    )
+    return public_user(user)
 
-    expires_at = datetime.fromisoformat(result["expiresAt"].replace("Z", "+00:00"))
-    max_age = max(int((expires_at - datetime.now(UTC)).total_seconds() * 1000), 60_000)
-    set_auth_cookie(response, request, result["access_token"], _cookie_name(request), max_age)
-    set_csrf_cookie(response, request, _csrf_cookie_name(request), auth_service.cookie_max_age_ms(session))
-    return {"role": result["role"], "restrictions": result["restrictions"], "expiresAt": result["expiresAt"]}
 
-@router.post("/guest-login", status_code=200, dependencies=[Depends(rate_limit(10))])
-async def guest_login(
-    body: GuestLoginDto,
+@router.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(
     request: Request,
     response: Response,
     session: Session = Depends(get_session),
-):
-    result = auth_service.guest_login(_secret(request), body.token)
-    from datetime import UTC, datetime
+) -> None:
+    settings = request.app.state.settings
+    token = request.cookies.get(settings.cookie_name, "")
+    username = "管理员"
+    if token:
+        from ..security.session_store import session_token_hash
 
-    expires_at = datetime.fromisoformat(result["expiresAt"].replace("Z", "+00:00"))
-    max_age = max(int((expires_at - datetime.now(UTC)).total_seconds() * 1000), 60_000)
-    set_auth_cookie(response, request, result["access_token"], _cookie_name(request), max_age)
-    set_csrf_cookie(response, request, _csrf_cookie_name(request), auth_service.cookie_max_age_ms(session))
-    return {"role": result["role"], "restrictions": result["restrictions"], "expiresAt": result["expiresAt"]}
-
-@router.get("/users")
-async def list_users(
-    session: Session = Depends(get_session),
-    _user: dict[str, Any] = Depends(require_roles("admin")),
-):
-    return auth_service.list_users(session)
-
-@router.get("/login-audit")
-async def get_login_audit(
-    limit: str | None = None,
-    page: str | None = None,
-    session: Session = Depends(get_session),
-    _user: dict[str, Any] = Depends(require_roles("admin")),
-):
-    return auth_service.get_login_audit(
-        session, int(limit) if limit else 20, int(page) if page else 1
+        token_hash = session_token_hash(token)
+        record = session.scalar(
+            select(LoginSession).where(LoginSession.id_hash == token_hash)
+        )
+        if record is not None:
+            user = session.get(User, record.user_id)
+            if user is not None:
+                username = user.username
+        session.execute(delete(LoginSession).where(LoginSession.id_hash == token_hash))
+        session.commit()
+    request.app.state.global_log.append(
+        "info", "系统后台", "账号", f"{username} 已退出登录"
     )
+    response.delete_cookie(settings.cookie_name, path="/")
 
-@router.post("/mfa/verify", status_code=200, dependencies=[Depends(rate_limit(5))])
-async def mfa_verify(
-    body: MfaVerifyDto,
-    request: Request,
-    response: Response,
-    session: Session = Depends(get_session),
-):
-    result = auth_service.login_with_mfa(
-        session,
-        _secret(request),
-        body.username,
-        body.password,
-        body.code,
-        _client_ip(request),
-        _user_agent(request),
-    )
-    set_auth_cookie(response, request, result["access_token"], _cookie_name(request), auth_service.cookie_max_age_ms(session))
-    set_csrf_cookie(response, request, _csrf_cookie_name(request), auth_service.cookie_max_age_ms(session))
-    return {
-        "username": result["username"],
-        "role": result["role"],
-        "restrictions": result["restrictions"],
-        "external_url": result["external_url"],
-    }
 
-@router.get("/mfa/status")
-async def mfa_status(
-    session: Session = Depends(get_session),
-    user: dict[str, Any] = Depends(require_roles("admin")),
-):
-    return auth_service.get_mfa_status(session, user["userId"])
-
-@router.post("/mfa/setup", status_code=201)
-async def mfa_setup(
-    session: Session = Depends(get_session),
-    user: dict[str, Any] = Depends(require_roles("admin")),
-):
-    return auth_service.start_mfa_setup(session, user["userId"])
-
-@router.post("/mfa/confirm", status_code=201)
-async def mfa_confirm(
-    body: MfaSetupConfirmDto,
-    request: Request,
-    session: Session = Depends(get_session),
-    user: dict[str, Any] = Depends(require_roles("admin")),
-):
-    return auth_service.confirm_mfa_setup(session, user["userId"], body.code, _cache(request))
-
-@router.post("/mfa/disable", status_code=201)
-async def mfa_disable(
-    body: MfaSetupConfirmDto,
-    request: Request,
-    session: Session = Depends(get_session),
-    user: dict[str, Any] = Depends(require_roles("admin")),
-):
-    return auth_service.disable_mfa(session, user["userId"], body.code, _cache(request))
-
-@router.post("/users", status_code=201)
-async def create_user(
-    body: CreateUserDto,
-    session: Session = Depends(get_session),
-    _user: dict[str, Any] = Depends(require_roles("admin")),
-):
-    return auth_service.create_user(session, body.model_dump(exclude_none=True))
-
-@router.patch("/users/{user_id}")
-async def update_user(
-    user_id: str,
-    body: UpdateUserDto,
-    request: Request,
-    session: Session = Depends(get_session),
-    user: dict[str, Any] = Depends(require_roles("admin")),
-):
-    return auth_service.update_user(
-        session, user_id, body.model_dump(exclude_none=True), user["role"], _cache(request)
-    )
-
-@router.delete("/users/{user_id}")
-async def delete_user(
-    user_id: str,
-    request: Request,
-    session: Session = Depends(get_session),
-    user: dict[str, Any] = Depends(require_roles("admin")),
-):
-    return auth_service.delete_user(session, user_id, user["userId"], _cache(request))
-
-@router.get("/preferences")
-async def get_preferences(
-    session: Session = Depends(get_session),
-    user: dict[str, Any] = Depends(require_user),
-):
-    return auth_service.get_user_preferences(session, user["userId"])
-
-@router.put("/preferences")
-async def update_preferences(
-    body: UpdateUserPreferencesDto,
-    request: Request,
-    session: Session = Depends(get_session),
-    user: dict[str, Any] = Depends(require_roles("admin", "adult", "child")),
-):
-    return auth_service.update_user_preferences(
-        session, user["userId"], body.model_dump(exclude_none=True), _cache(request)
-    )
-
-# 供 main.ts 等其它模块复用的辅助（保持模块内聚，避免重复实现）。
-_ = (unauthorized, resolve_cookie_secure_for_request, json)
+@router.get("/auth/me", response_model=UserResponse)
+def me(user: CurrentUser) -> UserResponse:
+    return public_user(user)

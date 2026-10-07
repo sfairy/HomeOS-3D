@@ -16,10 +16,10 @@ import { ref, watch, computed } from 'vue'
 import { testHaConnection } from '@/services/api/ha'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
+import { useHaConnectionStore } from '@/stores/ha-connection.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { EEW_CITY_PRESETS, createDefaultEarthquakeConfig } from '@/types/earthquake'
-import { DEFAULT_HA_URL } from '@/constants/ha'
 import { syncEarthquakeHomeCoordsFromHa } from '@/utils/earthquake/ha-coords.util'
 import { getApiErrorMessage } from '@/utils/core/error-message'
 
@@ -59,6 +59,7 @@ export function useEarthquakeSetupWizard(
   const chrome = useChromeStore()
   const authStore = useAuthStore()
   const entitiesStore = useEntitiesStore()
+  const haConnectionStore = useHaConnectionStore()
 
   // v-model 代理：读写 props.modelValue
   const open = computed({
@@ -77,20 +78,16 @@ export function useEarthquakeSetupWizard(
     return layoutStore.layoutConfig.earthquakeConfig
   }
 
-  /** 从 layoutConfig 读取 haConfig，缺失时返回空对象 */
-  function getHaConfigFromStore() {
-    return layoutStore.layoutConfig?.haConfig || {}
-  }
+  /** 当前生效的 HA 地址（只读展示；连接地址单源在 stores/ha-connection.store.ts）。 */
+  const haUrl = computed(() => haConnectionStore.baseUrl)
 
   /**
-   * 判断系统中是否已配置 HOME ASSISTANT（url 与 token 均非空）。
-   * @returns true 表示已配置
+   * 判断系统中是否已配置 HOME ASSISTANT（有连接记录且保存过令牌）。
+   *
+   * 阶段 3.3 起不再读 `layoutConfig.haConfig.url/token` —— 那是第二份连接配置源。
    */
   function isHaConfiguredInSystem() {
-    const ha = getHaConfigFromStore()
-    const url = String(ha.url || '').trim()
-    const token = String(ha.token || '').trim()
-    return Boolean(url && token)
+    return haConnectionStore.configured && haConnectionStore.hasToken
   }
 
   /**
@@ -107,16 +104,10 @@ export function useEarthquakeSetupWizard(
   // —— 表单响应式状态 ——
   /** 当前向导步骤（1=HA 配置，2=坐标，3=完成） */
   const step = ref(1)
-  /** HA 服务地址输入 */
-  const haUrl = ref('')
-  /** HA 长期访问令牌输入 */
-  const haToken = ref('')
   /** 纬度输入 */
   const latitude = ref('')
   /** 经度输入 */
   const longitude = ref('')
-  /** 是否显示 token 输入框（HA 未配置时显示，已配置时隐藏以避免覆盖） */
-  const showTokenInput = ref(false)
   /** HA 连接测试进行中 */
   const testingHa = ref(false)
   /** HA 测试状态：'' | 'success' | 'failed' */
@@ -133,38 +124,24 @@ export function useEarthquakeSetupWizard(
   const cityPresets = EEW_CITY_PRESETS
 
   const cfg = computed(() => ensureEarthquakeConfig())
-  const haCfg = computed(() => getHaConfigFromStore())
   const systemHaConfigured = computed(() => isHaConfiguredInSystem())
 
-  /**
-   * 计算用于测试 HA 连接的 token。
-   * 优先使用表单输入的 token；若表单为空则回退到系统中已保存的 token。
-   * 这样在 HA 已配置的情况下用户无需重新输入 token 即可测试。
-   */
-  const effectiveHaToken = computed(() => {
-    const local = haToken.value.trim()
-    if (local) return local
-    return String(getHaConfigFromStore().token || '').trim()
-  })
+  /** 是否可以发起 HA 连接测试（有地址即可；令牌留在服务端，无需前端持有）。 */
+  const canTestHa = computed(() => Boolean(haUrl.value.trim()))
 
-  /** 是否可以发起 HA 连接测试（url 与 token 均非空） */
-  const canTestHa = computed(() => Boolean(haUrl.value.trim() && effectiveHaToken.value))
   /**
-   * 从系统中加载现有配置到表单状态。
-   *  - HA url 默认填充 DEFAULT_HA_URL；
+   * 从服务端与本店配置加载向导初始状态。
+   *  - HA 地址只读展示（来自连接记录），不再由向导编辑；
    *  - 若 HA 实体已连接，直接标记测试状态为 success；
-   *  - 根据系统是否已配置 HA 决定是否显示 token 输入框；
    *  - 通过 resolveInitialStep 决定起始步骤。
    */
-  function loadFromSystem() {
-    const ha = getHaConfigFromStore()
+  async function loadFromSystem() {
     const eq = ensureEarthquakeConfig()
 
-    haUrl.value = String(ha.url || '').trim() || DEFAULT_HA_URL
-    haToken.value = String(ha.token || '').trim()
+    // 连接记录是地址的唯一来源；向导只读展示，编辑入口在「设置 → 连接」。
+    await haConnectionStore.load()
     latitude.value = String(eq.latitude || '')
     longitude.value = String(eq.longitude || '')
-    showTokenInput.value = !isHaConfiguredInSystem()
     haTestStatus.value = ''
     haTestMessage.value = ''
     haVersion.value = ''
@@ -190,7 +167,7 @@ export function useEarthquakeSetupWizard(
         /* 使用内存中已有配置 */
       }
     }
-    loadFromSystem()
+    await loadFromSystem()
   })
 
   /**
@@ -212,18 +189,18 @@ export function useEarthquakeSetupWizard(
     haTestStatus.value = ''
     haTestMessage.value = ''
     try {
-      const { data } = await testHaConnection({
-        url: haUrl.value.trim(),
-        token: effectiveHaToken.value,
-      })
-      if (data?.ok) {
-        haVersion.value = data.ha_version || ''
+      // 令牌留在服务端：只发地址，后端用已保存的令牌探测（/ha/test 的 accessToken 可省略）。
+      const { data } = await testHaConnection({ baseUrl: haUrl.value.trim() })
+      if (data.endpoints?.some((item) => item.ok)) {
+        haVersion.value = data.version || ''
         haTestStatus.value = 'success'
       } else {
         haTestStatus.value = 'failed'
-        // 后端诊断接口会返回具体原因（地址不合法 / 认证失败 / 容器内不可达等），
-        // 透传给用户，避免把「地址问题」笼统误报为「连接失败」
-        haTestMessage.value = data?.message || ''
+        // 后端返回不可达端点与原因，透传给用户，避免笼统误报为「连接失败」
+        const failed = (data.endpoints || []).filter((item) => !item.ok)
+        haTestMessage.value = failed.length
+          ? `地址不可达：${failed.map((item) => `${item.label}（${item.error || '失败'}）`).join('；')}`
+          : ''
       }
     } catch (e: unknown) {
       haTestStatus.value = 'failed'
@@ -235,15 +212,13 @@ export function useEarthquakeSetupWizard(
 
   /**
    * 从 HOME ASSISTANT 同步家庭坐标。
-   *  1. 先将表单中的 HA 配置写入 store；
-   *  2. 调用 syncEarthquakeHomeCoordsFromHa 拉取 HA 中的家庭坐标；
-   *  3. 回填到表单的 latitude / longitude。
+   *  1. 调用 syncEarthquakeHomeCoordsFromHa 拉取 HA 中的家庭坐标（后端从连接记录取地址）；
+   *  2. 回填到表单的 latitude / longitude。
    * 失败时通过 chrome.notify 提示用户。
    */
   async function syncFromHa() {
     syncing.value = true
     try {
-      applyHaFormToStore()
       await syncEarthquakeHomeCoordsFromHa((lat, lon) => {
         latitude.value = lat
         longitude.value = lon
@@ -300,25 +275,12 @@ export function useEarthquakeSetupWizard(
   }
 
   /**
-   * 将表单中的 HA 配置（url / token）写入 store.layoutConfig.haConfig。
-   * 注意：仅当表单中 token 非空时才覆盖 store 中的 token，避免空值覆盖已有 token。
-   */
-  function applyHaFormToStore() {
-    const ha = layoutStore.layoutConfig.haConfig
-    ha.url = haUrl.value.trim()
-    if (haToken.value.trim()) {
-      ha.token = haToken.value.trim()
-    }
-  }
-
-  /**
    * 进入下一步。
-   *  - step 1 → 2：先保存 HA 表单到 store，再进入坐标步骤；
+   *  - step 1 → 2：直接进入坐标步骤（HA 连接已在「设置 → 连接」保存，向导不再写连接配置）；
    *  - step 2 → 3：保存坐标到 cfg，若坐标有效则启用地震预警，进入完成步骤。
    */
   function nextStep() {
     if (step.value === 1) {
-      applyHaFormToStore()
       step.value = 2
       // 进入坐标步骤时静默同步一次家庭坐标，省去用户手动点击
       void maybeAutoSyncCoords()
@@ -346,7 +308,6 @@ export function useEarthquakeSetupWizard(
   async function finish() {
     saving.value = true
     try {
-      applyHaFormToStore()
       cfg.value.latitude = latitude.value
       cfg.value.longitude = longitude.value
       cfg.value.enabled = true
@@ -385,10 +346,8 @@ export function useEarthquakeSetupWizard(
     open,
     step,
     haUrl,
-    haToken,
     latitude,
     longitude,
-    showTokenInput,
     testingHa,
     haTestStatus,
     haTestMessage,
@@ -397,10 +356,10 @@ export function useEarthquakeSetupWizard(
     saving,
     cityPresets,
     cfg,
-    haCfg,
     systemHaConfigured,
     canTestHa,
     entitiesStore,
+    haConnectionStore,
     selectCity,
     testHa,
     syncFromHa,

@@ -18,7 +18,6 @@ ColdPathConsumer = Literal[
     "energy",
     "water",
     "environment",
-    "child_mode",
     "camera",
     "smart_advisor_usage",
 ]
@@ -54,10 +53,6 @@ def is_water_relevant_state_change(entity_id: str) -> bool:
 
 def is_environment_relevant_state_change(entity_id: str) -> bool:
     return get_entity_domain(entity_id) in ("sensor", "climate", "binary_sensor")
-
-
-def is_child_mode_media_entity(entity_id: str) -> bool:
-    return get_entity_domain(entity_id) == "media_player"
 
 
 def is_camera_relevant_state_change(entity_id: str) -> bool:
@@ -121,8 +116,6 @@ class HaStateChangeRouter:
             return is_water_relevant_state_change(entity_id)
         if consumer == "environment":
             return is_environment_relevant_state_change(entity_id)
-        if consumer == "child_mode":
-            return is_child_mode_media_entity(entity_id)
         if consumer == "camera":
             return is_camera_relevant_state_change(entity_id)
         if consumer == "smart_advisor_usage":
@@ -139,7 +132,6 @@ __all__ = [
     "is_energy_relevant_state_change",
     "is_water_relevant_state_change",
     "is_environment_relevant_state_change",
-    "is_child_mode_media_entity",
     "is_camera_relevant_state_change",
     "is_advisor_usage_entity",
 ]

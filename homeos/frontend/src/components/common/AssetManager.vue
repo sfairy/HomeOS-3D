@@ -49,7 +49,7 @@
       </span>
     </div>
 
-    <!-- 拖拽上传落点提示：多楼层切片可一次性拖入，超过单次上限时会在提交阶段提示 -->
+    <!-- 拖拽上传落点提示：可一次性拖入多张图片，超过单次上限时会在提交阶段提示 -->
     <div v-if="dragActive" class="asset-drop-hint">
       <UploadCloud class="w-6 h-6" />
       <span class="asset-drop-hint__text">{{ '松开即可上传到当前目录' }}</span>
@@ -109,8 +109,8 @@ const props = defineProps({
   isPicker: { type: Boolean },
   /** 是否嵌入到非模态容器（影响样式） */
   embedded: { type: Boolean, default: false },
-  /** 资源类型：'floorplan' / 'icon' / 'background' / 'room_image' */
-  type: { default: 'floorplan' },
+  /** 资源类型：'icon' / 'background' */
+  type: { default: 'background' },
 })
 
 const emit = defineEmits(['select'])

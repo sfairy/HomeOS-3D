@@ -26,7 +26,7 @@
           </div>
           <div class="conn-cred-field-row">
             <input
-              v-model="layoutStore.layoutConfig.haConfig.url"
+              v-model="draft.url"
               type="text"
               class="settings-field conn-cred-input"
               :placeholder="'例如: http://192.168.1.100:8123'"
@@ -50,7 +50,7 @@
           </div>
           <div class="conn-cred-field-row">
             <input
-              v-model="fallbackUrlModel"
+              v-model="draft.fallbackUrl"
               type="text"
               class="settings-field conn-cred-input"
               :placeholder="'例如: https://ha.example.com'"
@@ -81,8 +81,8 @@
       </header>
 
       <div
-        v-if="!showTokenInput && layoutStore.layoutConfig.haConfig.token"
         class="conn-cred-token-secure"
+        v-if="!showTokenInput && hasToken"
       >
         <div class="conn-cred-token-secure__shield">
           <ShieldCheck class="w-4 h-4" />
@@ -108,10 +108,10 @@
 
       <textarea
         v-else
-        v-model="layoutStore.layoutConfig.haConfig.token"
+        v-model="draft.token"
         rows="2"
         class="settings-field conn-cred-textarea resize-none font-mono"
-        :placeholder="'在此粘贴 HA 生成的 Token...'"
+        :placeholder="hasToken ? '留空表示沿用已保存的令牌' : '在此粘贴 HA 生成的 Token...'"
       />
     </section>
 
@@ -124,7 +124,7 @@
           <p class="conn-cred-test__title">{{ '连接探测' }}</p>
           <p class="conn-cred-test__hint">
             {{
-              !showTokenInput && layoutStore.layoutConfig.haConfig.token
+              hasToken
                 ? '从后端探测：先测局域网，不通再测外网（与浏览器本机可达无关）'
                 : '填写地址与令牌后可由后端探测连通性'
             }}
@@ -178,7 +178,6 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
 import {
   PlugZap,
   Loader2,
@@ -190,18 +189,12 @@ import {
   Pencil,
   ShieldCheck,
 } from '@lucide/vue'
-import { useLayoutStore } from '@/stores/layout.store'
-
-const layoutStore = useLayoutStore()
-
-const fallbackUrlModel = computed({
-  get: () => layoutStore.layoutConfig.haConfig.fallbackUrl || '',
-  set: (v) => {
-    layoutStore.layoutConfig.haConfig.fallbackUrl = v
-  },
-})
 
 defineProps({
+  /** 表单草稿（url / fallbackUrl / token），由 useConnectionCredentials 持有 */
+  draft: { type: Object, required: true },
+  /** 服务端是否已保存令牌（令牌明文不下发） */
+  hasToken: { type: Boolean, default: false },
   showTokenInput: { type: Boolean, required: true },
   testing: { type: Boolean, default: false },
   testResult: { type: Object, default: null },

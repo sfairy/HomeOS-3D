@@ -3,7 +3,7 @@
  * @module composables/ui/useMainLayoutChrome
  *
  * 职责：
- *  - 聚合主布局壳层所需的全部状态与操作：导航菜单、HA 连接状态、儿童模式、门铃、天气导航。
+ *  - 聚合主布局壳层所需的全部状态与操作：导航菜单、HA 连接状态、门铃、天气导航。
  *  - 提供全屋关闭、HA 重连、设置锁、升级备份提醒等功能。
  *  - 暴露 lucide 图标组件供模板使用。
  *
@@ -20,7 +20,7 @@
  *  - settings-route.util 的 SETTINGS_ROUTES。
  *  - nav-tabs.util 的 DEFAULT_BRAND_LOGO_URL。
  *  - main-layout-nav.util 的 mainLayoutIconMap。
- *  - useMainLayoutNavMenu / useMainLayoutChildMode / useMainLayoutDoorbell / useMainLayoutWeatherNav。
+ *  - useMainLayoutNavMenu / useMainLayoutDoorbell / useMainLayoutWeatherNav。
  */
 import { readLocalStorage, writeLocalStorage } from '@/utils/core/local-storage.util'
 
@@ -30,6 +30,7 @@ import { Loader2, Maximize2, PowerOff, Settings } from '@lucide/vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useChromeStore } from '@/stores/chrome.store'
+import { useHaConnectionStore } from '@/stores/ha-connection.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { turnOffWholeHome } from '@/utils/home/batch-actions'
 import {
@@ -44,7 +45,6 @@ import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
 import { DEFAULT_BRAND_LOGO_URL } from '@/utils/layout/nav-tabs.util'
 import { mainLayoutIconMap } from '@/utils/ui/main-layout-nav.util'
 import { useMainLayoutNavMenu } from '@/composables/ui/useMainLayoutNavMenu'
-import { useMainLayoutChildMode } from '@/composables/ui/useMainLayoutChildMode'
 import { useMainLayoutDoorbell } from '@/composables/ui/useMainLayoutDoorbell'
 import { useMainLayoutWeatherNav } from '@/composables/ui/useMainLayoutWeatherNav'
 import { hapticAlert } from '@/utils/ui/haptics.util'
@@ -56,6 +56,7 @@ export function useMainLayoutChrome() {
   const authStore = useAuthStore()
   const entitiesStore = useEntitiesStore()
   const layoutStore = useLayoutStore()
+  const haConnectionStore = useHaConnectionStore()
   const chrome = useChromeStore()
 
   // 导航菜单子 composable
@@ -64,15 +65,6 @@ export function useMainLayoutChrome() {
     authStore,
     route,
   })
-
-  // 儿童模式子 composable
-  const {
-    childModeStatus,
-    showChildModeBar,
-    childModeBarText,
-    canChildOverride,
-    childModeOverride,
-  } = useMainLayoutChildMode({ authStore, entitiesStore, chrome })
 
   // 门铃子 composable
   const { doorbellCameraId, doorbellTriggerEntityId, doorbellLockEntityId, doorbellLabel } =
@@ -120,9 +112,9 @@ export function useMainLayoutChrome() {
   const isReconnecting = computed(() => entitiesStore.reconnecting)
   /** 实体数据是否已过期 */
   const isEntitiesStale = computed(() => entitiesStore.entitiesStale)
-  /** 是否已配置 HA（url + token） */
+  /** 是否已配置 HA（连接记录存在且保存过令牌） */
   const hasHAConfigured = computed(
-    () => !!(layoutStore.layoutConfig.haConfig?.url && layoutStore.layoutConfig.haConfig?.token),
+    () => haConnectionStore.configured && haConnectionStore.hasToken,
   )
   /** HA 断线 / 陈旧 / 重连中：禁止危险批量控制与模式切换入口 */
   const haControlBlocked = computed(
@@ -312,21 +304,16 @@ export function useMainLayoutChrome() {
 
   return {
     iconMap: mainLayoutIconMap,
-    childModeStatus,
-    showChildModeBar,
-    childModeBarText,
     router,
     route,
     authStore,
     entitiesStore,
     layoutStore,
     chrome,
-    canChildOverride,
     canWholeHomeOff,
     showWholeHomeOff,
     haControlBlocked,
     onWholeHomeOff,
-    childModeOverride,
     siteTitle,
     brandLogoUrl,
     isSettingsLockOpen,

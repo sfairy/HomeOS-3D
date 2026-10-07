@@ -83,7 +83,6 @@ export const FIELD_APPLY_SCOPE = {
   redisWriteBatch: 'backendOnly',
   redisIncrementalFlushMs: 'backendOnly',
   maxRecentChanges: 'backendOnly',
-  restCacheTtlMs: 'backendOnly',
   staleThresholdMs: 'backendOnly',
   initialStatesPriorityEnabled: 'backendOnly',
   ingressCoalesceEnabled: 'backendOnly',

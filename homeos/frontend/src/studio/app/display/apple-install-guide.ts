@@ -1,3 +1,12 @@
+/**
+ * Apple 移动端「添加到主屏幕」引导条。
+ *
+ * 由 `DisplayView.vue` 在 `onMounted` 调 `bootAppleInstallGuide()`、`onBeforeUnmount` 调
+ * `teardownAppleInstallGuide()`。**已从纯副作用脚本改为可重入引导**：它把触发按钮与说明
+ * `<dialog>` 直接挂到 `document.body`（在 Vue 树之外），视图是 shell 内可重入路由，卸载时
+ * 必须摘掉，否则每进出一次就多一套引导条，且弹窗会残留到其它路由。
+ */
+
 /** Apple 移动端判定：iPhone/iPad/iPod，或伪装成 Mac 的触屏 iPad。 */
 function isAppleMobile(navigatorObject: Navigator = navigator) {
   return (
@@ -16,23 +25,29 @@ function needsAppleInstallGuide(navigatorSource: Navigator = navigator, isStanda
   );
 }
 
-const pageUrl = new URL(location.href),
-  shouldAutoOpen = pageUrl.searchParams.get("addToHome") === "1";
-if (
-  (shouldAutoOpen &&
-    (pageUrl.searchParams.delete("addToHome"),
-    history.replaceState(null, "", pageUrl.pathname + pageUrl.search + pageUrl.hash)),
-  needsAppleInstallGuide(navigator, matchMedia("(display-mode: standalone)").matches))
-) {
-  const isChromeIos = /CriOS\//.test(navigator.userAgent),
-    triggerButton = document.createElement("button");
-  ((triggerButton.className = "apple-install-trigger"),
-    (triggerButton.type = "button"),
-    (triggerButton.textContent = "添加到主屏幕"));
-  const dialogElement = document.createElement("dialog");
-  ((dialogElement.className = "apple-install-dialog"),
-    dialogElement.setAttribute("aria-labelledby", "apple-install-title"),
-    (dialogElement.innerHTML = `
+let disposeActiveGuide: (() => void) | null = null;
+
+/** 引导「添加到主屏幕」提示条（重复调用会先回收上一次）。 */
+export function bootAppleInstallGuide(): void {
+  teardownAppleInstallGuide();
+
+  const pageUrl = new URL(location.href),
+    shouldAutoOpen = pageUrl.searchParams.get("addToHome") === "1";
+  if (
+    (shouldAutoOpen &&
+      (pageUrl.searchParams.delete("addToHome"),
+      history.replaceState(null, "", pageUrl.pathname + pageUrl.search + pageUrl.hash)),
+    needsAppleInstallGuide(navigator, matchMedia("(display-mode: standalone)").matches))
+  ) {
+    const isChromeIos = /CriOS\//.test(navigator.userAgent),
+      triggerButton = document.createElement("button");
+    ((triggerButton.className = "apple-install-trigger"),
+      (triggerButton.type = "button"),
+      (triggerButton.textContent = "添加到主屏幕"));
+    const dialogElement = document.createElement("dialog");
+    ((dialogElement.className = "apple-install-dialog"),
+      dialogElement.setAttribute("aria-labelledby", "apple-install-title"),
+      (dialogElement.innerHTML = `
     <img class="apple-install-icon" src="/static/assets/icons/homeos-icon-180-h5.png" alt="">
     <p class="apple-install-eyebrow">IPHONE \xB7 IPAD</p>
     <h2 id="apple-install-title">\u628A HomeOS \u653E\u5230\u4E3B\u5C4F\u5E55</h2>
@@ -44,30 +59,43 @@ if (
     </ol>
     <p class="apple-install-footnote">\u9996\u6B21\u6253\u5F00\u82E5\u9700\u767B\u5F55\uFF0C\u4F7F\u7528\u8FD9\u53F0\u8BBE\u5907\u7684\u5BB6\u5EAD\u8D26\u53F7\u767B\u5F55\u5373\u53EF\u3002</p>
     <button class="apple-install-done" type="button">\u77E5\u9053\u4E86\uFF0C\u8FDB\u5165\u9762\u677F</button>`),
-    document.body.append(triggerButton, dialogElement));
-  const openDialog = () => {
-    dialogElement.open || dialogElement.showModal();
-  };
-  if (
-    (triggerButton.addEventListener("click", openDialog),
-    dialogElement
-      .querySelector(".apple-install-done")
-      .addEventListener("click", () => dialogElement.close()),
-    shouldAutoOpen)
-  )
-    if (!document.documentElement.classList.contains("display-booting")) openDialog();
-    else {
-      const bootObserver = new MutationObserver(() => {
-        document.documentElement.classList.contains("display-booting") ||
-          (bootObserver.disconnect(), openDialog());
-      });
-      bootObserver.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ["class"],
-      });
-    }
+      document.body.append(triggerButton, dialogElement));
+    const openDialog = () => {
+      dialogElement.open || dialogElement.showModal();
+    };
+    const handleDone = () => dialogElement.close();
+    let bootObserver: MutationObserver | null = null;
+    if (
+      (triggerButton.addEventListener("click", openDialog),
+      dialogElement.querySelector(".apple-install-done")!.addEventListener("click", handleDone),
+      shouldAutoOpen)
+    )
+      if (!document.documentElement.classList.contains("display-booting")) openDialog();
+      else {
+        bootObserver = new MutationObserver(() => {
+          document.documentElement.classList.contains("display-booting") ||
+            (bootObserver?.disconnect(), openDialog());
+        });
+        bootObserver.observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ["class"],
+        });
+      }
+
+    disposeActiveGuide = () => {
+      bootObserver?.disconnect();
+      triggerButton.removeEventListener("click", openDialog);
+      dialogElement.querySelector(".apple-install-done")?.removeEventListener("click", handleDone);
+      dialogElement.close();
+      triggerButton.remove();
+      dialogElement.remove();
+    };
+  }
 }
 
-// 纯副作用脚本（仅被 `import("@app/display/apple-install-guide")` 引入）。
-// 显式导出空对象把它标记为模块，否则 TS 报 “is not a module”。
-export {};
+/** 回收引导条：摘掉挂在 body 上的按钮与弹窗，断开首帧观察器。 */
+export function teardownAppleInstallGuide(): void {
+  const dispose = disposeActiveGuide;
+  disposeActiveGuide = null;
+  dispose?.();
+}

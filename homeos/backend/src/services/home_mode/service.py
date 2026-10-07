@@ -101,7 +101,6 @@ class HomeModeService:
         state_store,
         *,
         notification=None,
-        child_mode_gate=None,
         set_security_mode=None,
         emit_event=None,
         is_leader=None,
@@ -111,7 +110,6 @@ class HomeModeService:
         self._ha_connector = ha_connector
         self._state_store = state_store
         self._notification = notification
-        self._child_mode_gate = child_mode_gate
         self._security_mode_setter = set_security_mode
         self._emit_event = emit_event
         self._is_leader = is_leader or (lambda: True)
@@ -716,10 +714,6 @@ class _HomeModeDeps:
     @property
     def linkage_arbiter(self) -> HomeModeLinkageArbiter:
         return self._service.linkage_arbiter
-
-    @property
-    def child_mode_gate(self):
-        return self._service._child_mode_gate
 
     def get_home_mode_config(self) -> dict[str, Any]:
         return self._service._home_mode_cfg

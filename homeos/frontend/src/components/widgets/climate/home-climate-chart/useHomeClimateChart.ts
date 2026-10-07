@@ -22,7 +22,7 @@ import { useScheduledPoll } from '@/composables/widget/useScheduledPoll'
 import type * as EchartsModuleNS from '@/utils/chart/echarts'
 import { useAuthStore } from '@/stores/auth.store'
 import { useEntitiesStore } from '@/stores/entities.store'
-import { fetchHaHistory } from '@/services/api/entities'
+import { fetchHaHistory, type HaHistoryPoint } from '@/services/api/entities'
 import { notifyError } from '@/services/notify'
 import {
   observeChartResize,
@@ -257,16 +257,23 @@ export function useHomeClimateChart(options: UseHomeClimateChartOptions) {
     const token = bumpGeneration()
     try {
       loading.value = true
-      const res = await fetchHaHistory(allIds.join(','), HOME_CLIMATE_CHART_HOURS)
+      // 单实体契约：并发拉取（服务端有并发信号量 + 30s 结果缓存承接）。单个实体失败
+      // 只丢该条曲线，不让整图报错 —— 对齐原批量接口「缺席实体返回空序列」的语义。
+      const settled = await Promise.allSettled(
+        allIds.map((id) => fetchHaHistory(id, HOME_CLIMATE_CHART_HOURS)),
+      )
       if (isStale(token)) return
-      const byId = new Map<
-        string,
-        Array<{ entity_id: string; last_changed: string; state: string }>
-      >()
-      for (const entityData of res.data || []) {
-        if (!entityData?.length) continue
-        byId.set(entityData[0].entity_id, entityData)
+      const byId = new Map<string, HaHistoryPoint[]>()
+      let firstError: unknown
+      for (const item of settled) {
+        if (item.status === 'fulfilled') {
+          const result = item.value.data
+          if (result?.entityId && result.points?.length) byId.set(result.entityId, result.points)
+        } else if (firstError === undefined) {
+          firstError = item.reason
+        }
       }
+      if (byId.size === 0 && firstError !== undefined) throw firstError
       temperatureSeries.value = mapHistorySeries(tempIds, byId, entitiesStore.entities)
       humiditySeries.value = mapHistorySeries(humIds, byId, entitiesStore.entities)
       legendHidden.value = legendItems.value.map(() => false)

@@ -58,8 +58,7 @@ const GUIDE_BY_SECTION = {
     links: [{ to: SETTINGS_ROUTES.widgets(), label: '能源组件' }],
   },
   frontend: {
-    text: '会话刷新间隔在访问控制页；此处为列表与缓存阈值。',
-    links: [{ to: SETTINGS_ROUTES.access(), label: '访问控制' }],
+    text: '会话刷新间隔与前端列表、缓存阈值在此配置。',
   },
   external: {
     text: 'TTS 音箱在语音中心；此处为 OpenWeather、天气预警联动场景/模式与日历。气象实体在集成绑定。',

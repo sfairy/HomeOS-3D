@@ -38,7 +38,6 @@ const EXCLUDED_SECTIONS = new Set([
   'profiles',
   'clientPower',
   'weatherEffects',
-  'childMode',
   'auth',
 ])
 

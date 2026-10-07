@@ -207,9 +207,9 @@ class EmbedProxyService:
         logger.warning("内嵌代理上游不可达 %s: %s", upstream_url, raw)
         html = (
             '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>内嵌页不可达</title>'
-            "<style>body{font-family:system-ui,sans-serif;margin:2rem;color:#1a1a1a;background:#f6f6f6}"
-            "main{max-width:36rem;padding:1.25rem 1.5rem;background:#fff;border-radius:8px;"
-            "border:1px solid #e5e5e5}h1{font-size:1.1rem;margin:0 0 .75rem}p{margin:0;line-height:1.5;color:#444}</style>"
+            # 样式必须外链：本路径受外壳页 CSP 的 `style-src 'self'` 约束，行内 <style>
+            # 会被浏览器拦下（见 frontend/public/static/embed-offline.css 的说明）。
+            '<link rel="stylesheet" href="/static/embed-offline.css">'
             f"</head><body><main><h1>内嵌页无法连接</h1><p>{safe_msg}</p></main></body></html>"
         )
         return HTMLResponse(content=html, status_code=502)

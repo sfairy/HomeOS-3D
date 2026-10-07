@@ -5,7 +5,7 @@
       展示 KPI、流水线节点、配置健康评分与缺口、连接服务卡片。数据由 useDiagnosticsSection 注入。
 关键依赖：
   - SettingsCard / SettingsCardIntro / SettingsOrchTabs / SettingsFlowBand：卡片与流程
-  - VProgressBar / FloorplanRendererBenchmark：进度条与渲染基准
+  - VProgressBar：进度条
   - useEntitiesStore：实体数量统计
   - useDiagnosticsSection：注入总览数据
   - BACKEND_MEM_WARN_PCT：内存告警阈值
@@ -517,16 +517,6 @@
         </div>
       </SettingsCard>
 
-      <SettingsCard full static extra-class="diag-section-card">
-        <SettingsCardIntro
-          :icon="LayoutGrid"
-          icon-class="do-icon-info"
-          orb-class="do-orb-info"
-          eyebrow="户型图渲染基准"
-          :description="'DOM 热点 vs Canvas2D 并排 FPS 对比'"
-        />
-        <FloorplanRendererBenchmark class="mt-5" />
-      </SettingsCard>
     </div>
     </div>
   </div>
@@ -539,16 +529,13 @@ import {
   RefreshCw,
   AlertCircle,
   Database,
-  LayoutGrid,
   Cpu,
   Copy,
 } from '@lucide/vue'
 import { RouterLink } from 'vue-router'
 import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
-import SettingsCardIntro from '@/components/common/page-shell/SettingsCardIntro.vue'
 import SettingsOrchTabs from '@/views/settings/shared/layout/SettingsOrchTabs.vue'
 import SettingsFlowBand from '@/views/settings/shared/layout/SettingsFlowBand.vue'
-import FloorplanRendererBenchmark from '@/views/settings/display/FloorplanRendererBenchmark.vue'
 import VProgressBar from '@/components/common/base/VProgressBar.vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useDiagnosticsSection } from './useDiagnosticsSection'

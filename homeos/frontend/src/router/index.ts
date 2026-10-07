@@ -3,12 +3,12 @@
  *
  * 职责：
  * 1. 定义全部前端路由表（含认证页、主布局子路由、部件构建器）
- * 2. 注册全局前置守卫 beforeEach：处理系统初始化状态检查、认证拦截、访客模式、profile 解析
+ * 2. 注册全局前置守卫 beforeEach：处理系统初始化状态检查、认证拦截、商业授权与 profile 解析
  * 3. 提供 markSystemInitialized 供 SetupView 完成初始化后通知路由放行
  *
  * 依赖：vue-router、auth.store、layout.store、chrome.store、logger、api-boot-retry、lazy-component、router-auth.util
  */
-import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useChromeStore } from '@/stores/chrome.store'
@@ -17,15 +17,16 @@ import { getBackendUnreachableHint, isBackendUnreachableError } from '@/utils/co
 import { withBackendBootRetry } from '@/utils/core/api-boot-retry.util'
 import { isDynamicImportFailure, lazyView, reloadOnceForStaleChunk } from '@/utils/core/lazy-component'
 import { resolveNavigationTarget } from './auth.util'
+import { registerShellNavigation } from '@/studio/runtime/shell-navigation'
 import {
   getLicenseActivated,
   setLicenseActivated,
   shouldRefreshLicenseStatus,
 } from './license-gate'
 import type { SystemInitState } from '@/types/router'
-import { getLicenseStatus } from '@/services/api/license'
-import { refreshCsrfToken } from '@/services/api-client'
+import { getLicenseAvailability } from '@/services/api/license'
 import { defaultTabForRole, isAdminOnlyTab } from '@/utils/registry/settings-nav.util'
+import { PAGE_ASSETS as STUDIO_ASSETS } from '@/studio/page-assets'
 
 /** 系统初始化状态缓存：null=未检查、true=已初始化、false=未初始化、'offline'=后端不可达 */
 let systemInitialized: SystemInitState = null
@@ -46,28 +47,76 @@ async function fetchSetupStatusWithBootRetry(auth: ReturnType<typeof useAuthStor
 
 const routes: RouteRecordRaw[] = [
   {
-    // 登录页
+    // 登录页（并入 homeos-3d 授权场景 UI）
     path: '/login',
     name: 'login',
-    component: lazyView(() => import('@/views/LoginView.vue')),
+    component: lazyView(() => import('@/studio/views/LoginView.vue')),
+    meta: { assets: STUDIO_ASSETS.login },
   },
   {
     // 初始化引导页（首次使用时创建管理员账户）
     path: '/setup',
     name: 'setup',
-    component: lazyView(() => import('@/views/SetupView.vue')),
+    component: lazyView(() => import('@/studio/views/SetupView.vue')),
+    meta: { assets: STUDIO_ASSETS.setup },
   },
   {
-    // 商业授权激活（离线永久 JWT）
+    // 商业授权激活（并入 homeos-3d 授权场景 UI）
     path: '/activate',
     name: 'activation',
-    component: lazyView(() => import('@/views/ActivationView.vue')),
+    component: lazyView(() => import('@/studio/views/LicenseView.vue')),
+    meta: { assets: STUDIO_ASSETS.license },
   },
   {
-    // 访客模式页（无需登录的受限视图）
-    path: '/guest',
-    name: 'guest',
-    component: lazyView(() => import('@/views/GuestView.vue')),
+    // 授权恢复页（独立路由；授权门禁也会在任意地址就地渲染同一视图）
+    path: '/license-recovery',
+    name: 'license-recovery',
+    component: lazyView(() => import('@/studio/views/LicenseRecoveryView.vue')),
+    meta: { assets: STUDIO_ASSETS.licenseRecovery },
+  },
+  // ── 3D Studio 视图（并入 homeos-3d 的 SPA 路由；hash 历史）──
+  // 展示页（渲染 3D 仪表盘）
+  {
+    path: '/display/:projectId',
+    name: 'display',
+    component: lazyView(() => import('@/studio/views/DisplayView.vue')),
+    meta: { assets: STUDIO_ASSETS.display },
+  },
+  {
+    // 后端是 `/homeos/{project_name:path}`，display.ts 按 `pathname.slice("/homeos/".length)`
+    // 整体取用，因此参数必须吃下斜杠。
+    path: '/homeos/:name(.*)',
+    name: 'homeos',
+    component: lazyView(() => import('@/studio/views/DisplayView.vue')),
+    meta: { assets: STUDIO_ASSETS.display },
+  },
+  // 户型图绘制工具（管理员专属；仅从「设置 → 布局」进入）
+  {
+    path: '/3d-studio',
+    name: 'studio',
+    component: lazyView(() => import('@/studio/views/StudioView.vue')),
+    meta: { assets: STUDIO_ASSETS.studio, requiresAuth: true, requiresAdmin: true },
+  },
+  // 仪表盘编辑器（管理员专属；仅从「设置 → 布局」进入）。
+  // 总览首页已经改为只读展示，创作能力集中在这里。
+  {
+    path: '/studio/editor',
+    name: 'studio-editor',
+    component: lazyView(() => import('@/studio/views/EditorView.vue')),
+    meta: { assets: STUDIO_ASSETS.editor, requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    // 后端 get_stage() 直接把 SPA 入口作为 stage 页下发；同一 StudioView 在此路径下以
+    // `interaction3d-stage` 模式渲染。
+    //
+    // `bodyClass` 必须声明：`body.interaction3d-stage` 是 stage.css 的开关，用于把舞台裁成
+    // 「只剩 #preview-3d」的只读 3D 视图（隐藏绘制工具、属性面板、模型库）。后端已按该
+    // 路径把 class 写进 HTML body，但 main.ts 的 afterEach 会按 meta 回收未声明的 body class
+    // ——漏声明时 class 会在首次导航后被摘掉，总览里的 3D 部件就会退化成整套户型图绘制页。
+    path: '/api/v1/modules/interaction3d/stage.html',
+    name: 'stage',
+    component: lazyView(() => import('@/studio/views/StudioView.vue')),
+    meta: { assets: STUDIO_ASSETS.studio, bodyClass: 'interaction3d-stage' },
   },
   {
     // 主布局壳：包含侧边栏/顶栏，子路由在内部 <router-view> 渲染
@@ -76,10 +125,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
     children: [
       {
-        // 仪表盘首页（默认着陆页）
+        // 总览首页 = 3D 仪表盘「只读展示」（display）。
+        // 编辑 / 户型图绘制等创作能力不再出现在总览，只能从「设置 → 布局」进入。
         path: '',
         name: 'dashboard',
-        component: lazyView(() => import('@/views/DashboardView.vue')),
+        component: lazyView(() => import('@/studio/views/DisplayView.vue')),
+        meta: { assets: STUDIO_ASSETS.display },
       },
       {
         // 设备列表页
@@ -204,8 +255,11 @@ function restoreScrollPositions(remembered: RememberedScroll) {
 }
 
 const router = createRouter({
-  // 使用 hash 路由，避免后端需要配置 history fallback
-  history: createWebHashHistory(),
+  // 使用真实路径历史路由：与 homeos-3d 架构一致，studio 应用内含大量
+  // `window.location.assign("/3d-studio" | "/display/*" | "/license" | ...)` 的整页
+  // 跳转，hash 路由会把这些路径解析错。
+  // 后端已注册 SPA fallback（非 /api/* 的未命中路径返回 index.html），无需额外配置。
+  history: createWebHistory('/'),
   routes,
   // keep-alive 页面返回（后退/前进）时恢复滚动位置；新进入页面保持回到顶部
   scrollBehavior(to, from, savedPosition) {
@@ -232,6 +286,12 @@ const router = createRouter({
   },
 })
 
+// 把外壳导航入口交给 studio 内的旧命令式运行时：编辑器 / 户型图绘制 / 展示页之间的
+// 跳转原本是 `window.location.assign(...)` 整页导航（那些模块只能求值一次），现在它们
+// 具备 boot/teardown 生命周期，可以同文档内路由；未注册时 `navigateInShell` 仍退回整页
+// 跳转，保证嵌入式 stage 壳等场景行为不变。
+registerShellNavigation((path) => router.push(path))
+
 // 导航渲染完成后恢复内层可滚动容器的滚动位置（window 滚动由 scrollBehavior 返回值处理）
 router.afterEach(() => {
   if (!pendingScrollRestore) return
@@ -244,8 +304,7 @@ router.afterEach(() => {
  * 1. 首次导航时检查系统初始化状态（带后端启动重试）
  * 2. 后端不可达时进入 offline 模式并提示用户
  * 3. 调用 resolveNavigationTarget 决策目标路由
- * 4. 访客模式下拦截 embed 访问
- * 5. 已认证用户解析 URL 中的 profile 参数并清理
+ * 4. 已认证用户解析 URL 中的 profile 参数并清理
  *
  * @param to 目标路由
  * @param from 来源路由
@@ -256,14 +315,19 @@ router.beforeEach(async (to, from) => {
   const layout = useLayoutStore()
   const chrome = useChromeStore()
 
-  // 商业授权：首次 / TTL 过期 / 进入激活页时拉取（避免每次子路由导航都打 status）
+  // 商业授权：首次 / TTL 过期 / 进入激活页时拉取（避免每次子路由导航都打一次探测）
+  //
+  // 走 `/license/availability` 而不是 `/license/status`：后者要求登录会话，而门禁探测
+  // 恰恰发生在「会话可能还不存在」的首屏 —— 用 `/status` 的 401 会被下面的 catch 误判成
+  // 「未激活」，把已激活实例的未登录用户送到激活页。`/availability` 是公开脱敏的，
+  // 同样返回 `required` / `allowed`。
   const forceLicenseRefresh = to.name === 'activation'
   if (shouldRefreshLicenseStatus(forceLicenseRefresh)) {
     try {
       const status =
         getLicenseActivated() === null
-          ? await withBackendBootRetry(() => getLicenseStatus())
-          : await getLicenseStatus()
+          ? await withBackendBootRetry(() => getLicenseAvailability())
+          : await getLicenseAvailability()
       setLicenseActivated(!status.data.required || status.data.allowed)
     } catch (err) {
       logger.error('商业授权状态检查失败:', err)
@@ -306,17 +370,13 @@ router.beforeEach(async (to, from) => {
           : await fetchSetupStatusWithBootRetry(auth)
       systemInitialized = initialized ?? false
       offlineNotified = false
-      // 已认证状态下启动会话刷新，避免 token 过期
+      // CSRF 引导已由上面这发 GET /setup/status 完成（该端点兼任引导，见后端 api/auth.py）：
+      // 此处不必再叠一次 refreshCsrfToken，否则同一次首屏会打两发 /setup/status。
+      // 首个突变请求若仍缺 token，api-client 会自行 bootstrap 并在 403 时强制重置。
       if (auth.isAuthenticated) {
-        void auth.refreshSession()
-        // 走 api-client 共享的 CSRF bootstrap Promise：与首个突变请求的 refreshCsrfToken 合并，
-        // 防止并发两次 GET /auth/status → 两次 set-cookie 覆盖造成 header/cookie 对不上的 403。
-        void refreshCsrfToken()
-        // 已显式刷新一次，轮询跳过首跑，避免双发 refresh 与 CSRF 竞态
+        // getSetupStatus 内已探测过一次 /auth/me（即续期端点），不必再补一发 refreshSession；
+        // 轮询跳过首跑，避免紧随其后的双发与 CSRF 竞态。
         auth.startSessionRefresh({ runImmediately: false })
-      } else {
-        // 访客 / 未登录用户也需要一个 CSRF cookie（登录表单 POST、初始 POST 交互等）
-        void refreshCsrfToken()
       }
     } catch (err) {
       logger.error('系统初始化状态检查失败:', err)
@@ -366,17 +426,9 @@ router.beforeEach(async (to, from) => {
   // 非 null 的 target 表示需要重定向
   if (target !== null) return target
 
-  // 访客用户不可访问 embed 嵌入页，回退到首页
-  if (auth.isGuest() && to.name === 'embed') {
-    return '/'
-  }
-
-  // 角色硬拦设置页：guest 一律回首页；非 admin 直链 admin-only Tab 时归一到默认 Tab
+  // 角色硬拦设置页：非 admin 直链 admin-only Tab 时归一到默认 Tab
   // （SettingsView 内仍有 resolvedTab 回退兜底，此处为守卫层防御纵深）
   if (to.path?.startsWith('/settings')) {
-    if (auth.isGuest()) {
-      return '/'
-    }
     if (auth.role !== 'admin') {
       const tab = typeof to.query.tab === 'string' ? to.query.tab : undefined
       if (tab && isAdminOnlyTab(tab)) {
@@ -389,13 +441,19 @@ router.beforeEach(async (to, from) => {
     }
   }
 
-  // 已认证用户（非 login/setup/guest/activation 路由）解析 profile 参数
+  // 创作类路由（仪表盘编辑器 / 户型图绘制）：仅管理员可从「设置 → 布局」进入，
+  // 普通家庭成员直链一律回总览（总览是只读展示，不会误改仪表盘）。
+  if (to.meta?.requiresAdmin && auth.role !== 'admin') {
+    chrome.notify('仅管理员可以进入仪表盘编辑与户型图绘制', 'warning')
+    return { name: 'dashboard' }
+  }
+
+  // 已认证用户（非 login/setup/activation 路由）解析 profile 参数
   if (
     auth.isAuthenticated &&
     to.name !== 'login' &&
     to.name !== 'setup' &&
-    to.name !== 'activation' &&
-    to.name !== 'guest'
+    to.name !== 'activation'
   ) {
     const queryProfile = typeof to.query.profile === 'string' ? to.query.profile : undefined
     // 同 path 仅改 query（Hub Tab 等）时跳过 profile 解析，避免 await 拖慢并造成 replace 竞态

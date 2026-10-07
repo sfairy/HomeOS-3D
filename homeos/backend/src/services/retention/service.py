@@ -24,9 +24,7 @@ from sqlalchemy import literal_column, select, text
 
 from ...core.errors import BusinessException, ErrorCode, api_error
 from ...core.models import (
-    CommandAudit,
     EventLog,
-    LoginAudit,
     Notification,
     SecurityEvent,
 )
@@ -49,10 +47,8 @@ DB_MAINTENANCE_LOCK_TTL_MS = 30 * 60_000
 
 _RETENTION_MODELS: dict[str, Any] = {
     "eventLog": (EventLog, "event_logs"),
-    "commandAudit": (CommandAudit, "command_audits"),
     "notification": (Notification, "notifications"),
     "securityEvent": (SecurityEvent, "security_events"),
-    "loginAudit": (LoginAudit, "login_audits"),
 }
 
 
@@ -365,13 +361,6 @@ class DatabaseRetentionService:
         # EventLog 大批量删除后 ANALYZE / VACUUM（对齐 Nest：>=1000 行时执行）
         self._vacuum_event_log(deleted.get("eventLog", 0))
 
-        # 软引用孤儿：审计表失效 userId 置空（保留审计行）
-        try:
-            for key, count in self._prune_soft_reference_orphans().items():
-                deleted[key] = count
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("孤儿引用清理失败: %s", exc)
-
         # 通知冷却 prune（与表清理独立，失败仅告警）
         try:
             cooldown = self._cooldown
@@ -399,27 +388,6 @@ class DatabaseRetentionService:
     # ------------------------------------------------------------------ #
     # 附加清理步骤
     # ------------------------------------------------------------------ #
-    def _prune_soft_reference_orphans(self) -> dict[str, int]:
-        """审计表失效 ``userId`` 置空（对齐 Nest ``pruneSoftReferenceOrphans``）。"""
-        deleted: dict[str, int] = {}
-        steps = (
-            ("command_audits", "commandAuditUserIdCleared"),
-            ("login_audits", "loginAuditUserIdCleared"),
-        )
-        for table, key in steps:
-            statement = text(
-                f'UPDATE "{table}" SET "userId" = NULL '
-                f'WHERE "userId" IS NOT NULL '
-                f'AND NOT EXISTS (SELECT 1 FROM "users" AS u WHERE u.id = "{table}"."userId")'
-            )
-            with self._session_factory() as session:
-                result = session.execute(statement)
-                session.commit()
-                count = int(result.rowcount or 0)
-            if count > 0:
-                deleted[key] = count
-        return deleted
-
     def _vacuum_event_log(self, deleted_count: int) -> None:
         """EventLog 删除 >=1000 行后 VACUUM + ANALYZE；失败回退 ANALYZE（对齐 Nest）。"""
         if deleted_count < 1000:

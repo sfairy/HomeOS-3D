@@ -314,35 +314,6 @@ export function restoreServerBackupFile(
   return apiPost('/system/backup/files/restore', body, config)
 }
 
-/**
- * 获取儿童模式状态。
- * 对应后端 endpoint：GET /system/child-mode
- * @returns 儿童模式状态
- */
-export function fetchChildMode(config?: AxiosRequestConfig) {
-  return apiGet('/system/child-mode', config)
-}
-
-/**
- * 更新儿童模式配置。
- * 对应后端 endpoint：PUT /system/child-mode
- * @param payload 待更新字段
- * @returns 操作结果
- */
-export function updateChildMode(payload: Record<string, unknown>, config?: AxiosRequestConfig) {
-  return apiPut('/system/child-mode', payload, config)
-}
-
-/**
- * 临时覆盖儿童模式若干分钟。
- * 对应后端 endpoint：POST /system/child-mode/override
- * @param minutes 覆盖时长（分钟）
- * @returns 操作结果
- */
-export function overrideChildMode(minutes: number, config?: AxiosRequestConfig) {
-  return apiPost('/system/child-mode/override', { minutes }, config)
-}
-
 
 
 

@@ -19,8 +19,10 @@ logger = logging.getLogger("homeos.security.service")
 
 
 class SecurityService:
-    def __init__(self, session_factory) -> None:
+    def __init__(self, session_factory, *, cipher=None) -> None:
         self._session_factory = session_factory
+        # 凭证解密器（可选）：HA 令牌只以密文存在连接记录里，注入后这里才能取到明文令牌。
+        self._cipher = cipher
         self._cache: dict[str, Any] | None = None
         self._cache_at = 0.0
 
@@ -33,7 +35,7 @@ class SecurityService:
 
         with self._session_factory() as session:
             # 跟随连接器的活跃端点，否则安防事件在「内网不可达已切外网」时会取不到。
-            endpoints = load_active_ha_endpoints(session)
+            endpoints = load_active_ha_endpoints(session, cipher=self._cipher)
             live_url = (
                 endpoints.ha_url_primary or os.getenv("HA_URL", "") or "http://localhost:8123"
             ).rstrip("/")
