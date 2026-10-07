@@ -118,7 +118,7 @@ async function onSubmit(): Promise<void> {
               <div class="hos-label-row"><label for="register-username">账号</label></div>
               <div class="hos-control">
                 <input id="register-username" name="username" v-model="username" :disabled="submitting"
-                  placeholder="登录用账号，至少 3 位" autocomplete="username" minlength="3" maxlength="64"
+                  placeholder="登录用账号" autocomplete="username" minlength="3" maxlength="64"
                   pattern="[^@\s]{3,64}" title="账号至少 3 位，不能包含 @ 或空格（@ 保留给邮箱登录）" required>
               </div>
             </div>

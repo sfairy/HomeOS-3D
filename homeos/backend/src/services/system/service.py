@@ -22,7 +22,7 @@ from typing import Any
 
 import httpx
 
-from ..._version import load_app_version
+from ... import load_app_version
 from ...core.process_memory import get_process_memory_health
 
 logger = logging.getLogger("homeos.system")

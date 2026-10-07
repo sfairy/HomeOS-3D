@@ -26,7 +26,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.gzip import GZipMiddleware
 
 from . import studio3d_plane, studio_shell
-from ._version import load_app_version
+from . import load_app_version
 from .api.advisor_usage import router as advisor_usage_router
 from .api.agent import router as agent_router
 from .api.assets import read_builtin_asset
@@ -39,6 +39,7 @@ from .api.earthquake import router as earthquake_router
 from .api.embed_proxy import router as embed_proxy_router
 from .api.entities import router as entities_router
 from .api.events import router as events_router
+from .api.ha_webrtc import router as ha_webrtc_router
 from .api.home_mode import router as home_mode_router
 from .api.license import router as license_router
 from .api.mcp import router as mcp_router
@@ -55,7 +56,6 @@ from .api.system_setup import router as system_setup_router
 from .api.ui_config import router as ui_config_router
 from .api.voice import router as voice_router
 from .api.ws_proxy import router as ws_proxy_router
-from .api.ha_webrtc import router as ha_webrtc_router
 from .config import Settings, load_settings
 from .core import migrations
 from .core.database import Database

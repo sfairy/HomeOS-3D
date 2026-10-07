@@ -24,8 +24,8 @@ from typing import Any
 
 import socketio
 
-from ..core.observability import record_ha_sync_fe_latency_samples, record_ha_sync_latency
 from ..core.entity_domain import get_entity_domain
+from ..core.observability import record_ha_sync_fe_latency_samples, record_ha_sync_latency
 from .access import filter_entities_by_access, sort_entities_by_sync_priority
 from .msgpack_compat import install_msgpack_ext_hook
 from .payloads import (

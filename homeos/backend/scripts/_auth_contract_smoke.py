@@ -24,16 +24,15 @@ os.environ["UPDATE_CHECKS_ENABLED"] = "0"
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from fastapi.testclient import TestClient  # noqa: E402
-
-from src.app import create_app  # noqa: E402
-
 from _smoke_auth_support import (  # noqa: E402
     FAKE_CODE,
     csrf_headers,
     install_fake_verification,
     register_local_user,
 )
+from fastapi.testclient import TestClient  # noqa: E402
+
+from src.app import create_app  # noqa: E402
 
 USERNAME = "smokeuser"
 EMAIL = "smoke@example.com"

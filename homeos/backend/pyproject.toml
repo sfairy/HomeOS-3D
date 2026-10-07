@@ -6,7 +6,7 @@ requires-python = ">=3.11"
 dynamic = ["version"]
 
 [tool.setuptools.dynamic]
-version = { attr = "src._version.__version__" }
+version = { attr = "src.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["."]

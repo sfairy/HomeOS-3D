@@ -25,7 +25,6 @@ from __future__ import annotations
 import importlib.util
 import json
 import re
-import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -106,7 +105,7 @@ def _validate(catalog: dict) -> list[str]:
     if duplicates:
         problems.append(f"存在重复功能码：{duplicates}")
     for item in canonical:
-        code, _label, group, _desc, _base, granted_by_all, implied_by = item
+        code, _label, group, _desc, _base, _granted_by_all, implied_by = item
         if not code:
             problems.append("存在空功能码")
         if group not in declared:

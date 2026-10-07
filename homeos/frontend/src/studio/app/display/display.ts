@@ -442,9 +442,9 @@ async function refreshDisplay() {
               return;
           }
         }
-        const title = project.name || draftResponse.document?.name || "HomeOS";
+        const title = project.name || draftResponse.document?.name || "全屋智能家居";
         if (
-          ((document.title = title + " · HomeOS"),
+          ((document.title = title + " · 全屋智能家居"),
           panelRenderer ||
             ((panelRenderer = new PanelRenderer(displayRootElement!, {
               scaleMode: "contain",

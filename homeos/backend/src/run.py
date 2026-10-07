@@ -17,7 +17,7 @@ import os
 
 import uvicorn
 
-from ._version import load_app_version
+from . import load_app_version
 from .app import create_asgi_app
 
 

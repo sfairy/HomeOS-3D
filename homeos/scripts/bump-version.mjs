@@ -1,8 +1,8 @@
 /**
  * 按北京时间生成 YYYY.MM.DD.HH，同步根/frontend/shared package.json 与 README 页眉版本。
  *
- * Python 后端版本经 ``backend/src/_version.py`` 回退读取仓库根 package.json，
- * 因此无需单独写入后端版本文件。
+ * Python 后端版本经 ``backend/src/__init__.py``（``load_app_version``）回退读取仓库根
+ * package.json；构建期另由 Dockerfile 烘入 ``_version.py``。因此无需单独写入后端版本文件。
  */
 import fs from 'node:fs'
 import { absFromRoot, relFromRoot } from './lib/repo.mjs'

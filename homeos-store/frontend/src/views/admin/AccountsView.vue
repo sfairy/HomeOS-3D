@@ -256,7 +256,7 @@ async function removeAccount(account: Account) {
                 minlength="3"
                 maxlength="64"
                 pattern="[^@\s]{3,64}"
-                placeholder="登录用账号（老账号可留空暂不填）"
+                placeholder="登录用账号"
               />
             </label>
             <label class="hb-field">

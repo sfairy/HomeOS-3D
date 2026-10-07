@@ -330,7 +330,7 @@ async function submitForget() {
                   id="store-register-username"
                   v-model="register.username"
                   autocomplete="username"
-                  placeholder="登录用账号，至少 3 位"
+                  placeholder="登录用账号"
                   minlength="3"
                   maxlength="64"
                   pattern="[^@\s]{3,64}"
