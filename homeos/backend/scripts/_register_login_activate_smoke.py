@@ -30,6 +30,16 @@ os.environ["LICENSE_SERVER_URL"] = "http://127.0.0.1:1"
 os.environ["STORE_URL"] = "http://127.0.0.1:1"
 os.environ["HA_BASE_URL"] = ""
 os.environ["UPDATE_CHECKS_ENABLED"] = "0"
+# CI smoke job 不构建前端：没有 index.html 时 ``GET /`` 会走 JSON 健康兜底（仍 200），
+# 而 ``/register`` 等 SPA fallback 会 404 —— 冒烟要测的是「门禁下外壳仍可下发」，
+# 不是 vite 产物，所以自备最小 HTML 桩。
+frontend_dir = data_dir / "frontend"
+frontend_dir.mkdir()
+(frontend_dir / "index.html").write_text(
+    "<!doctype html><html><head><title>HomeOS smoke</title></head><body></body></html>\n",
+    encoding="utf-8",
+)
+os.environ["HOMEOS_FRONTEND_DIR"] = str(frontend_dir)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -61,7 +71,12 @@ with TestClient(app) as client:
     print("1) 未激活时 SPA 外壳仍可下发")
     for path in ("/", "/register", "/login", "/activate", "/license"):
         r = client.get(path)
-        check(f"GET {path} 200（可渲染注册 / 登录 / 激活页）", r.status_code == 200, r.status_code)
+        content_type = (r.headers.get("content-type") or "").split(";", 1)[0].strip().lower()
+        check(
+            f"GET {path} 200（可渲染注册 / 登录 / 激活页）",
+            r.status_code == 200 and content_type == "text/html",
+            f"{r.status_code} {content_type}",
+        )
 
     print("2) 授权可用性匿名可读")
     r = client.get("/api/v1/license/availability")

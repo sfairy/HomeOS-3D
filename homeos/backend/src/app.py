@@ -22,11 +22,12 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.datastructures import Headers, MutableHeaders
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.gzip import GZipMiddleware
+from starlette.types import ASGIApp, Receive, Scope, Send
 
-from . import studio3d_plane, studio_shell
-from . import load_app_version
+from . import load_app_version, studio3d_plane, studio_shell
 from .api.advisor_usage import router as advisor_usage_router
 from .api.agent import router as agent_router
 from .api.assets import read_builtin_asset
@@ -360,7 +361,8 @@ def _make_state_listener(app: FastAPI, gateway: Any, store: Any):
                 await bus.emit("ha.initial_states", {"entities": entities})
             return
         event = payload if isinstance(payload, dict) else {}
-        data = event.get("data") if isinstance(event.get("data"), dict) else event
+        raw_data = event.get("data")
+        data = raw_data if isinstance(raw_data, dict) else event
         if not data.get("entity_id"):
             return
         change = {
@@ -1333,65 +1335,99 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     # ------------------------------------------------------------------ #
-    # 中间件（由内到外：先注册的在最内层）
+    # 中间件（纯 ASGI，避免多层 BaseHTTPMiddleware 在客户端断开时的
+    # ``RuntimeError: No response returned`` 竞态；后注册者在外层）
     # ------------------------------------------------------------------ #
-    @app.middleware("http")
-    async def record_request_diagnostics(request: Request, call_next):
-        started = time.monotonic()
-        trace_id = request.headers.get("x-trace-id") or new_request_id()
-        token = set_trace_id(trace_id)
-        request.state.trace_id = trace_id
-        try:
-            response = await call_next(request)
-        finally:
-            reset_trace_id(token)
-        response.headers["X-Request-ID"] = trace_id
-        _ = round((time.monotonic() - started) * 1000, 1)
-        return response
+    class RequestDiagnosticsMiddleware:
+        """写入 trace id / ``X-Request-ID``（对齐原 ``record_request_diagnostics``）。"""
 
-    # 商业授权门禁（等价 Nest APP_GUARD LicenseGuard）：LICENSE_REQUIRED=1 时，
-    # 除白名单外所有 HTTP 请求必须处于激活有效期；中间件内直接输出 Nest 错误信封。
-    @app.middleware("http")
-    async def license_guard(request: Request, call_next):
-        service = getattr(request.app.state, "license_service", None)
-        if service is not None and app_settings.license_required:
-            if not is_license_exempt_path(request.url.path, request.method):
-                # 用 ``api`` 能力码而不是裸 ``allows()``：按商店的能力目录，``api`` 就是
-                # 「登录后读写业务数据的通用接口，其余能力码的前置条件」。以前这里只判
-                # 「租约整体有效」，于是 ``api`` 这个码在全仓库只有 HA 代理的流式循环里被
-                # 查过一次 —— 未购买接口访问的授权照样能打满所有业务 API。
-                #
-                # 判定成本与原先一致：都是「读一次状态 + 验一次签名租约」，这里只是把
-                # feature 从 None 换成 ``api``，不多一次 DB 读、不多一次验签。
-                # 同步 SQLAlchemy 读写放到线程池，避免阻塞事件循环。
-                if not await asyncio.to_thread(service.allows, feature_codes.FEATURE_API):
-                    return _business_exception_json(
-                        request,
-                        BusinessException(
-                            ErrorCode.UNAUTHORIZED, api_error("LICENSE_INACTIVE"), 401
-                        ),
-                    )
-        return await call_next(request)
+        def __init__(self, app: ASGIApp) -> None:
+            self.app = app
 
-    @app.middleware("http")
-    async def security_headers(request: Request, call_next):
-        response = await call_next(request)
-        # 对齐 Nest Helmet 配置（contentSecurityPolicy/crossOriginOpenerPolicy/
-        # crossOriginEmbedderPolicy/originAgentCluster 关闭；CSP 关闭；CORP=cross-origin）。
-        response.headers.setdefault("X-Content-Type-Options", "nosniff")
-        response.headers.setdefault("X-DNS-Prefetch-Control", "off")
-        response.headers.setdefault("X-Download-Options", "noopen")
-        response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
-        response.headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
-        response.headers.setdefault("X-XSS-Protection", "0")
-        response.headers.setdefault("Referrer-Policy", "no-referrer")
-        response.headers.setdefault("Cross-Origin-Resource-Policy", "cross-origin")
-        # HTTPS 反代部署（COOKIE_SECURE=true）时启用 HSTS，与 Nest 一致
-        if is_https_deploy_mode():
-            response.headers.setdefault(
-                "Strict-Transport-Security", "max-age=15552000; includeSubDomains"
-            )
-        return response
+        async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+            if scope["type"] != "http":
+                await self.app(scope, receive, send)
+                return
+            headers = Headers(scope=scope)
+            trace_id = headers.get("x-trace-id") or new_request_id()
+            token = set_trace_id(trace_id)
+            scope.setdefault("state", {})
+            scope["state"]["trace_id"] = trace_id
+
+            async def send_wrapper(message: Any) -> None:
+                if message["type"] == "http.response.start":
+                    response_headers = MutableHeaders(scope=message)
+                    response_headers["X-Request-ID"] = trace_id
+                await send(message)
+
+            try:
+                await self.app(scope, receive, send_wrapper)
+            finally:
+                reset_trace_id(token)
+
+    class LicenseGuardMiddleware:
+        """商业授权门禁（等价 Nest ``LicenseGuard``）：未激活时白名单外直接 401。"""
+
+        def __init__(self, app: ASGIApp) -> None:
+            self.app = app
+
+        async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+            if scope["type"] != "http":
+                await self.app(scope, receive, send)
+                return
+            request = Request(scope, receive)
+            service = getattr(request.app.state, "license_service", None)
+            if service is not None and app_settings.license_required:
+                if not is_license_exempt_path(request.url.path, request.method):
+                    # 用 ``api`` 能力码而不是裸 ``allows()``：按商店的能力目录，``api`` 就是
+                    # 「登录后读写业务数据的通用接口，其余能力码的前置条件」。
+                    # 同步 SQLAlchemy 读写放到线程池，避免阻塞事件循环。
+                    if not await asyncio.to_thread(service.allows, feature_codes.FEATURE_API):
+                        response = _business_exception_json(
+                            request,
+                            BusinessException(
+                                ErrorCode.UNAUTHORIZED, api_error("LICENSE_INACTIVE"), 401
+                            ),
+                        )
+                        await response(scope, receive, send)
+                        return
+            await self.app(scope, receive, send)
+
+    class SecurityHeadersMiddleware:
+        """对齐 Nest Helmet 的基线安全头（CSP 等由 studio_shell 按页面再收紧）。"""
+
+        def __init__(self, app: ASGIApp) -> None:
+            self.app = app
+
+        async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+            if scope["type"] != "http":
+                await self.app(scope, receive, send)
+                return
+
+            async def send_wrapper(message: Any) -> None:
+                if message["type"] == "http.response.start":
+                    headers = MutableHeaders(scope=message)
+                    headers.setdefault("X-Content-Type-Options", "nosniff")
+                    headers.setdefault("X-DNS-Prefetch-Control", "off")
+                    headers.setdefault("X-Download-Options", "noopen")
+                    headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+                    headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
+                    headers.setdefault("X-XSS-Protection", "0")
+                    headers.setdefault("Referrer-Policy", "no-referrer")
+                    headers.setdefault("Cross-Origin-Resource-Policy", "cross-origin")
+                    if is_https_deploy_mode():
+                        headers.setdefault(
+                            "Strict-Transport-Security",
+                            "max-age=15552000; includeSubDomains",
+                        )
+                await send(message)
+
+            await self.app(scope, receive, send_wrapper)
+
+    # 注册顺序：先内后外（add_middleware 每次插到最外）。
+    app.add_middleware(RequestDiagnosticsMiddleware)
+    app.add_middleware(LicenseGuardMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
 
     # ------------------------------------------------------------------ #
     # 根路径健康检查 / 指标（无 /api/v1 前缀）

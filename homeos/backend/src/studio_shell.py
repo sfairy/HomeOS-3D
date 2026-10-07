@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Request, Response
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 #: 构建产物里「匿名可读静态资源」清单（vite 插件产出）。
 PUBLIC_STATIC_MANIFEST_NAME = "public-static.json"
@@ -291,6 +292,83 @@ def _apply_cache_headers(request: Request, response: Response) -> None:
         response.headers.update(NO_STORE_HEADERS)
 
 
+class ProtectAssetsMiddleware:
+    """静态资源门禁 + 页面安全头 / 缓存头（纯 ASGI，避免 BaseHTTPMiddleware 竞态）。"""
+
+    def __init__(
+        self,
+        app: ASGIApp,
+        *,
+        load_public_static_files: Callable[[], frozenset[str]],
+        is_authorized: Callable[[Request], Awaitable[bool]],
+    ) -> None:
+        self.app = app
+        self._load_public_static_files = load_public_static_files
+        self._is_authorized = is_authorized
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        request = Request(scope, receive)
+        path = request.url.path
+        if is_premium_asset(path, self._load_public_static_files()):
+            if not await self._is_authorized(request):
+                response = Response(
+                    "请先登录后再访问该资源。",
+                    status_code=401,
+                    media_type="text/plain",
+                    headers=dict(NO_STORE_HEADERS),
+                )
+                await response(scope, receive, send)
+                return
+
+        suppress_body = False
+
+        async def send_wrapper(message: Message) -> None:
+            nonlocal suppress_body
+            if message["type"] == "http.response.start":
+                response = Response(status_code=int(message["status"]))
+                response.raw_headers = list(message.get("headers", []))
+                if is_app_surface(path):
+                    _apply_security_headers(request, response)
+                _apply_cache_headers(request, response)
+                if _etag_matches(request, response) and response.headers.get(
+                    "cache-control", ""
+                ).startswith("private, no-cache"):
+                    headers = {
+                        key: value
+                        for key, value in response.headers.items()
+                        if key.lower() not in {"content-length", "content-type"}
+                    }
+                    not_modified = Response(status_code=304, headers=headers)
+                    await send(
+                        {
+                            "type": "http.response.start",
+                            "status": 304,
+                            "headers": not_modified.raw_headers,
+                        }
+                    )
+                    await send(
+                        {"type": "http.response.body", "body": b"", "more_body": False}
+                    )
+                    suppress_body = True
+                    return
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": response.status_code,
+                        "headers": response.raw_headers,
+                    }
+                )
+                return
+            if suppress_body:
+                return
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
+
+
 def install(
     app: FastAPI,
     settings: Any,
@@ -304,33 +382,11 @@ def install(
     """
     # 白名单随构建产物变动（见 make_public_static_loader 的说明），不能只读一次。
     load_public_static_files_now = make_public_static_loader(settings)
-
-    @app.middleware("http")
-    async def protect_assets_and_add_security_headers(
-        request: Request, call_next: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
-        path = request.url.path
-        if is_premium_asset(path, load_public_static_files_now()):
-            if not await is_authorized(request):
-                return Response(
-                    "请先登录后再访问该资源。",
-                    status_code=401,
-                    media_type="text/plain",
-                    headers=dict(NO_STORE_HEADERS),
-                )
-        response = await call_next(request)
-        if is_app_surface(path):
-            _apply_security_headers(request, response)
-        _apply_cache_headers(request, response)
-        if _etag_matches(request, response) and response.headers.get(
-            "cache-control", ""
-        ).startswith("private, no-cache"):
-            headers = dict(response.headers)
-            headers.pop("content-length", None)
-            headers.pop("content-type", None)
-            return Response(status_code=304, headers=headers)
-        return response
-
+    app.add_middleware(
+        ProtectAssetsMiddleware,
+        load_public_static_files=load_public_static_files_now,
+        is_authorized=is_authorized,
+    )
     return load_public_static_files_now()
 
 
@@ -339,6 +395,7 @@ __all__ = [
     "NO_STORE_HEADERS",
     "SPA_PAGE_PATHS",
     "SPA_PAGE_PREFIXES",
+    "ProtectAssetsMiddleware",
     "install",
     "is_app_surface",
     "is_model_asset",
