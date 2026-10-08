@@ -33,7 +33,12 @@
 
   --uc-backdrop: rgba(var(--hos-sky-deep-rgb, 5, 9, 18), 0.72);
 
+  position: fixed;
+  inset: 0;
+  margin: auto;
   width: min(420px, calc(100vw - 40px));
+  height: fit-content;
+  max-height: calc(100dvh - 40px);
   padding: 0;
   border: 1px solid var(--uc-line);
   border-radius: 9px;

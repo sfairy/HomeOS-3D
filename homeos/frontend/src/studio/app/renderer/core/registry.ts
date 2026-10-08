@@ -2795,16 +2795,44 @@ function createSmokeSensorView(smokeProperties: any, smokeState: any) {
     smokeSensorElement
   );
 }
+function naturalGasPresentationLabel(naturalGasState: any) {
+  const rawState = String(
+    naturalGasState?.raw?.state ?? naturalGasState?.state ?? naturalGasState?.label ?? "",
+  ).trim();
+  const token = rawState.toLowerCase();
+  const xiaomiLabels: Record<string, string> = {
+    preheat: "预热",
+    preheating: "预热",
+    预热: "预热",
+    monitoring: "监测正常",
+    normal: "监测正常",
+    监测正常: "监测正常",
+    self_check: "自检",
+    selfcheck: "自检",
+    自检: "自检",
+    sensor_expired: "传感器寿命到期",
+    lifetime_expired: "传感器寿命到期",
+    传感器寿命到期: "传感器寿命到期",
+    fault: "设备故障",
+    failure: "设备故障",
+    设备故障: "设备故障",
+    gas_leak: "天然气泄漏报警",
+    leak: "天然气泄漏报警",
+    天然气泄漏报警: "天然气泄漏报警",
+  };
+  if (xiaomiLabels[token]) return xiaomiLabels[token];
+  if (xiaomiLabels[rawState]) return xiaomiLabels[rawState];
+  if (naturalGasState.key === "occupied") return "天然气泄漏报警";
+  if (naturalGasState.key === "clear") return "监测正常";
+  if (naturalGasState.key === "unavailable") return "离线";
+  return rawState || "未知";
+}
 function createNaturalGasSensorView(naturalGasProperties: any, naturalGasState: any) {
   const naturalGasColor = normalizeCssColor(naturalGasProperties.naturalGasColor, "#ffb347"),
-    isNaturalGasAlert = naturalGasState.key === "occupied",
-    naturalGasStateLabel = isNaturalGasAlert
-      ? "检测到天然气"
-      : naturalGasState.key === "clear"
-        ? "正常"
-        : naturalGasState.key === "unavailable"
-          ? "离线"
-          : "未知",
+    isNaturalGasAlert =
+      naturalGasState.key === "occupied" ||
+      naturalGasPresentationLabel(naturalGasState) === "天然气泄漏报警",
+    naturalGasStateLabel = naturalGasPresentationLabel(naturalGasState),
     naturalGasSensorElement = document.createElement("div");
   ((naturalGasSensorElement.className =
     "hb-natural-gas-sensor is-" + (isNaturalGasAlert ? "alert" : naturalGasState.key)),
@@ -3341,7 +3369,7 @@ const CAMERA_SOURCE_CACHE_TTL_MS = 30000,
   CAMERA_MAX_SOURCES = 4,
   cameraSourceByEntityId = new Map(),
   pendingSourceRequestByEntityId = new Map();
-async function resolveCameraStreamSource(sourceEntityId: any) {
+async function resolveCameraStreamSource(sourceEntityId: any, options: { signal?: AbortSignal } = {}) {
   const normalizedCameraEntityId = String(sourceEntityId || "").trim();
   if (!normalizedCameraEntityId) throw new Error("Camera entity is required");
   const requestTimestampMs = Date.now(),
@@ -3356,6 +3384,9 @@ async function resolveCameraStreamSource(sourceEntityId: any) {
   const sourceRequestPromise = (async () => {
     const cameraHlsResponse = await fetch(
       "/api/camera_hls/" + encodeURIComponent(normalizedCameraEntityId),
+      {
+        signal: options.signal,
+      },
     );
     if (!cameraHlsResponse.ok)
       throw new Error("Camera HLS request failed: " + cameraHlsResponse.status);
@@ -3605,9 +3636,12 @@ export function mountCameraMedia({
     hlsPlayer: any = null,
     hasVideoStarted = false,
     transportGeneration = 0,
+    hlsPlaybackAbortController: AbortController | null = null,
     isPageHidden = document.visibilityState === "hidden";
   const disposeCameraTransport = () => {
-      ((transportGeneration += 1),
+      (hlsPlaybackAbortController?.abort(),
+        (hlsPlaybackAbortController = null),
+        (transportGeneration += 1),
         window.clearTimeout(hlsManifestTimerId),
         window.clearTimeout(hlsStartTimerId),
         window.clearTimeout(legacyProbeTimerId),
@@ -3701,18 +3735,23 @@ export function mountCameraMedia({
     }),
     legacyContainerElement.prepend(cameraVideoElement));
   const startHlsPlayback = async (playbackGeneration: any) => {
+      hlsPlaybackAbortController?.abort();
+      const playbackAbortController = new AbortController();
+      hlsPlaybackAbortController = playbackAbortController;
       try {
-        const hlsSourceUrl = await resolveCameraStreamSource(legacySnapshotEntityId),
+        const hlsSourceUrl = await resolveCameraStreamSource(legacySnapshotEntityId, {
+          signal: playbackAbortController.signal,
+        }),
           hlsRuntime = window.Hls as HlsRuntime | undefined;
         if (isTransportDisposed || isPageHidden || playbackGeneration !== transportGeneration)
           return;
         ((legacyContainerElement.dataset.cameraHlsSource = hlsSourceUrl),
           (legacyContainerElement.dataset.cameraTransport = "hls"),
           hlsRuntime?.isSupported?.()
-            ? ((hlsPlayer = new hlsRuntime({
+            ? ((              hlsPlayer = new hlsRuntime({
                 lowLatencyMode: true,
-                backBufferLength: 15,
-                maxBufferLength: 15,
+                backBufferLength: 8,
+                maxBufferLength: 10,
               })),
               hlsPlayer.on(hlsRuntime.Events.MEDIA_ATTACHED, () =>
                 hlsPlayer?.loadSource(hlsSourceUrl),

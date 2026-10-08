@@ -1,65 +1,66 @@
 /**
  * @file VPromptModal.vue
  * @module components/common/base
- * @description 全局输入对话框组件。通过 Teleport 渲染到 body 层级，提供单行文本输入、
- *  必填校验与确认/取消交互。打开时自动聚焦并全选输入框，关闭时锁定/恢复 body 滚动。
- *  依赖：vue（ref/computed/watch/nextTick/onMounted/onUnmounted）、@lucide/vue、
- *  chrome.store（提示弹窗状态）、useFocusTrap（焦点陷阱）。
+ * @description 全局输入对话框组件。Teleport 到缩放壳 #teleport-target（未就绪时回退 body），
+ *  提供单行文本输入、必填校验与确认/取消。打开时自动聚焦并全选输入框。
+ *  依赖：vue、@lucide/vue、chrome.store、useFocusTrap、useShellTeleportTarget。
  */
 <template>
-  <Transition name="hos-modal">
-    <div v-if="chrome.activePrompt" class="hos-modal-root" @click.self="cancel">
-      <div class="hos-modal-backdrop" />
-      <div
-        ref="panelRef"
-        class="hos-modal-panel hos-modal-panel--sm hos-modal-panel--purple"
-        role="dialog"
-        aria-modal="true"
-      >
-        <div class="hos-modal-head">
-          <div class="hos-modal-head-left">
-            <div class="hos-modal-head-icon">
-              <PencilLine class="w-5 h-5" />
+  <Teleport :to="teleportTarget" :disabled="teleportDisabled">
+    <Transition name="hos-modal">
+      <div v-if="chrome.activePrompt" class="hos-modal-root" @click.self="cancel">
+        <div class="hos-modal-backdrop" />
+        <div
+          ref="panelRef"
+          class="hos-modal-panel hos-modal-panel--sm hos-modal-panel--purple"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div class="hos-modal-head">
+            <div class="hos-modal-head-left">
+              <div class="hos-modal-head-icon">
+                <PencilLine class="w-5 h-5" />
+              </div>
+              <div>
+                <h3 class="hos-modal-title">{{ chrome.activePrompt.title }}</h3>
+                <p v-if="chrome.activePrompt.message" class="hos-modal-subtitle">
+                  {{ chrome.activePrompt.message }}
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 class="hos-modal-title">{{ chrome.activePrompt.title }}</h3>
-              <p v-if="chrome.activePrompt.message" class="hos-modal-subtitle">
-                {{ chrome.activePrompt.message }}
-              </p>
-            </div>
+            <button type="button" class="hos-modal-close" :aria-label="'取消'" @click="cancel">
+              &times;
+            </button>
           </div>
-          <button type="button" class="hos-modal-close" :aria-label="'取消'" @click="cancel">
-            &times;
-          </button>
-        </div>
-        <div class="hos-modal-body">
-          <label v-if="chrome.activePrompt.label" class="hos-modal-label" :for="inputId">
-            {{ chrome.activePrompt.label }}
-          </label>
-          <input
-            :id="inputId"
-            ref="inputRef"
-            v-model="inputValue"
-            type="text"
-            class="hos-modal-input"
-            :placeholder="chrome.activePrompt.placeholder"
-            autocomplete="off"
-            @keydown.enter.prevent="submit"
-          />
-          <!-- 校验错误提示 -->
-          <p v-if="validationError" class="hos-modal-prompt-error">{{ validationError }}</p>
-        </div>
-        <div class="hos-modal-footer">
-          <button type="button" class="hos-modal-btn hos-modal-btn--ghost" @click="cancel">
-            {{ chrome.activePrompt.cancelText }}
-          </button>
-          <button type="button" class="hos-modal-btn hos-modal-btn--primary" @click="submit">
-            {{ chrome.activePrompt.confirmText }}
-          </button>
+          <div class="hos-modal-body">
+            <label v-if="chrome.activePrompt.label" class="hos-modal-label" :for="inputId">
+              {{ chrome.activePrompt.label }}
+            </label>
+            <input
+              :id="inputId"
+              ref="inputRef"
+              v-model="inputValue"
+              type="text"
+              class="hos-modal-input"
+              :placeholder="chrome.activePrompt.placeholder"
+              autocomplete="off"
+              @keydown.enter.prevent="submit"
+            />
+            <!-- 校验错误提示 -->
+            <p v-if="validationError" class="hos-modal-prompt-error">{{ validationError }}</p>
+          </div>
+          <div class="hos-modal-footer">
+            <button type="button" class="hos-modal-btn hos-modal-btn--ghost" @click="cancel">
+              {{ chrome.activePrompt.cancelText }}
+            </button>
+            <button type="button" class="hos-modal-btn hos-modal-btn--primary" @click="submit">
+              {{ chrome.activePrompt.confirmText }}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  </Transition>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup>
@@ -75,7 +76,10 @@ import { useChromeStore } from '@/stores/chrome.store'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
 import { useBodyScrollLock } from '@/composables/ui/useBodyScrollLock'
 import { useEscLayer } from '@/composables/ui/useEscStack'
+import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
 const chrome = useChromeStore()
+const { teleportTarget, shellTeleportPending } = useShellTeleportTarget()
+const teleportDisabled = shellTeleportPending
 const panelRef = ref(null)
 // 焦点陷阱激活条件：存在激活的提示弹窗
 const trapActive = computed(() => !!chrome.activePrompt)

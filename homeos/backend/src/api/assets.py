@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import math
@@ -17,6 +18,13 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from fastapi.responses import FileResponse
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import select
+
+try:
+    from pillow_heif import register_heif_opener
+
+    register_heif_opener()
+except Exception:  # noqa: BLE001 - 无 heif 扩展时仍支持常规格式
+    pass
 
 from ..core.models import Project, ProjectDraft
 from ..dependencies import (
@@ -40,19 +48,51 @@ SUPPORTED_IMAGE_SUFFIXES = {
     '.png',
     '.svg',
     '.jpeg',
-    '.webp'}
+    '.webp',
+    '.bmp',
+    '.tif',
+    '.tiff',
+    '.ico',
+    '.avif',
+    '.heic',
+    '.heif'}
 UPLOAD_IMAGE_SUFFIXES = {
     '.jpg',
     '.png',
     '.svg',
     '.jpeg',
-    '.webp'}
+    '.webp',
+    '.gif',
+    '.bmp',
+    '.tif',
+    '.tiff',
+    '.ico',
+    '.avif',
+    '.heic',
+    '.heif'}
 UPLOAD_CONTENT_TYPES = {
     '.png': 'image/png',
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
     '.webp': 'image/webp',
-    '.svg': 'image/svg+xml' }
+    '.svg': 'image/svg+xml',
+    '.gif': 'image/gif',
+    '.bmp': 'image/bmp',
+    '.tif': 'image/tiff',
+    '.tiff': 'image/tiff',
+    '.ico': 'image/x-icon',
+    '.avif': 'image/avif',
+    '.heic': 'image/heic',
+    '.heif': 'image/heif'}
+NORMALIZE_UPLOAD_SUFFIXES = {
+    '.gif',
+    '.bmp',
+    '.tif',
+    '.tiff',
+    '.ico',
+    '.avif',
+    '.heic',
+    '.heif'}
 MAX_UPLOAD_PIXELS = 10000000
 MAX_UPLOAD_DIMENSION = 8192
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
@@ -382,26 +422,45 @@ def validate_and_sanitize_uploaded_svg(path: Path) -> tuple[int, int]:
 def validate_uploaded_image(suffix: str, path: Path) -> tuple[int, int]:
     if suffix == '.svg':
         return validate_and_sanitize_uploaded_svg(path)
-    expected_format = {
+    strict_format = {
         '.png': 'PNG',
         '.jpg': 'JPEG',
         '.jpeg': 'JPEG',
-        '.webp': 'WEBP' }[suffix]
+        '.webp': 'WEBP',
+    }.get(suffix)
     try:
         with warnings.catch_warnings():
             warnings.simplefilter('error', Image.DecompressionBombWarning)
             with Image.open(path) as image:
-                if image.format != expected_format:
+                if strict_format and image.format != strict_format:
                     raise ValueError('图片内容与文件扩展名不一致。')
                 (width, height) = image.size
                 if width <= 0 or height <= 0 or width > MAX_UPLOAD_DIMENSION or height > MAX_UPLOAD_DIMENSION or width * height > MAX_UPLOAD_PIXELS:
                     raise ValueError('图片像素尺寸过大，请压缩后重试。')
                 image.load()
+                if suffix in NORMALIZE_UPLOAD_SUFFIXES:
+                    # 动图取第一帧；统一落盘为 PNG，避免浏览器无法预览 HEIC。
+                    if getattr(image, 'is_animated', False):
+                        image.seek(0)
+                    frame = image.convert('RGBA')
+                    normalized = path.with_suffix('.png')
+                    frame.save(normalized, format='PNG', optimize=True)
+                    if normalized.resolve() != path.resolve():
+                        path.unlink(missing_ok=True)
+                    return frame.size
                 return (width, height)
     except ValueError:
         raise
     except (Image.DecompressionBombError, Image.DecompressionBombWarning, UnidentifiedImageError, OSError) as error:
         raise ValueError('图片文件已损坏或无法完整解码。') from error
+
+
+def _finalize_normalized_upload(path: Path, suffix: str) -> Path:
+    """若校验阶段把异格式转成了同目录 ``.png``，返回最终路径。"""
+    if suffix not in NORMALIZE_UPLOAD_SUFFIXES:
+        return path
+    png_path = path.with_suffix('.png')
+    return png_path if png_path.is_file() else path
 
 class AssetCatalog:
     '进程本地的资源目录；客户部署只运行一个 app worker。'
@@ -578,6 +637,19 @@ class AssetCatalog:
             self._user_revision = uuid4().hex
         return dict(payload)
 
+    def reload_user(self) -> None:
+        """业务恢复后强制重扫用户 / studio3d 素材目录。"""
+        with self.mutation_lock:
+            self._user_loaded = False
+            self._user_items = {}
+            self._effect_variant_paths = {
+                key: path
+                for key, path in self._effect_variant_paths.items()
+                if key.startswith("builtin:")
+            }
+            self._user_revision = uuid4().hex
+        self._load_user()
+
     def remove_user(self, full_asset_id: str) -> None:
         self._load_user()
         with self.mutation_lock:
@@ -604,11 +676,13 @@ class AssetCatalog:
         return path if path is not None and path.is_file() else None
 
 def document_uses_asset(value, asset_id: str) -> bool:
+    """``asset_id`` 可为 ``user:<hex>`` 或裸 hex（电视 ``posterAssetId``）。"""
+    bare = asset_id.removeprefix('user:')
     if isinstance(value, dict):
         return any(document_uses_asset(item, asset_id) for item in value.values())
     if isinstance(value, list):
         return any(document_uses_asset(item, asset_id) for item in value)
-    return value == asset_id
+    return value == asset_id or value == bare
 
 @router.get('/builtin')
 def list_builtin_assets(request: Request, _viewer: LicensedViewer) -> dict:
@@ -651,7 +725,10 @@ async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:
         raise HTTPException(status_code = 422, detail = '图片文件名无效，请保留普通文件名后重试。')
     suffix = Path(filename).suffix.lower()
     if suffix not in UPLOAD_IMAGE_SUFFIXES:
-        raise HTTPException(status_code = 422, detail = '仅支持 PNG、JPG、JPEG、WebP 和 SVG 图片。')
+        raise HTTPException(
+            status_code=422,
+            detail='仅支持 PNG、JPG/JPEG、WebP、SVG、GIF、BMP、TIFF、AVIF、HEIC/HEIF 和 ICO 图片。',
+        )
     root = request.app.state.settings.user_assets_dir.resolve()
     asset_id = uuid4().hex
     directory = root / asset_id
@@ -673,13 +750,18 @@ async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:
         if not has_content:
             raise HTTPException(status_code = 422, detail = '请选择需要上传的图片。')
         try:
-            dimensions = validate_uploaded_image(suffix, path)
+            # Pillow/HEIF 解码放到线程池，避免阻塞事件循环（0.7.1 修复）。
+            dimensions = await asyncio.to_thread(validate_uploaded_image, suffix, path)
         except ValueError as error:
             raise HTTPException(status_code = 422, detail = str(error)) from error
+        path = _finalize_normalized_upload(path, suffix)
         path.chmod(384)
     except Exception:
         if path.exists():
             path.unlink()
+        png_fallback = directory / (Path(filename).stem + '.png')
+        if png_fallback.exists():
+            png_fallback.unlink()
         directory.rmdir()
         raise
     return request.app.state.asset_catalog.register_user(asset_id, path, dimensions)

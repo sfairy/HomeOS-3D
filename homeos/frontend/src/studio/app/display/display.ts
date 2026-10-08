@@ -489,6 +489,11 @@ function refreshIfVisible() {
     (window.HomeOSDisplayBoot?.failed || refreshDisplay().catch(handleDisplayError));
 }
 function handleLifecycleResume() {
+  if (document.visibilityState === "hidden") {
+    panelRenderer?.suspendCameraMedia?.();
+    return;
+  }
+  panelRenderer?.resumeCameraMedia?.();
   document.visibilityState === "visible" && ((lastAssetsCheckAt = 0), refreshIfVisible());
 }
 function handleDisplayError(displayError: any) {

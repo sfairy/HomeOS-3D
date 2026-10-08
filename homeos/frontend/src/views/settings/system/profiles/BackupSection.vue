@@ -222,6 +222,22 @@
       </div>
     </SettingsCard>
 
+    <SettingsCard v-if="isAdmin" static class="mt-4">
+      <p class="text-xs font-bold ps-label mb-1">{{ '备份与恢复' }}</p>
+      <p class="text-[12px] pb-desc mb-3">
+        {{
+          '对齐 0.7.1 加密业务备份：含 HA 连接（Token）、仪表盘、户型与素材；不含账号与激活密钥。密码加密，恢复自动保留本机回退副本。'
+        }}
+      </p>
+      <div class="pb-bundle-group__actions">
+        <button type="button" class="settings-btn-accent text-xs" @click="openEncryptedBackupDialog">
+          <Archive class="w-3.5 h-3.5" />
+          {{ '打开备份与恢复' }}
+        </button>
+      </div>
+      <BackupRestoreDialog ref="encryptedBackupDialogRef" />
+    </SettingsCard>
+
     <SettingsCard static class="mt-4">
       <p class="text-[12px] mb-3 pb-desc">{{ '按级别单独导出 / 还原：' }}</p>
 
@@ -348,10 +364,12 @@ import {
   Server,
   Save,
   Clock,
+  Archive,
 } from '@lucide/vue'
 import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
 import SettingsFlowBand from '@/views/settings/shared/layout/SettingsFlowBand.vue'
 import HosSelect from '@/components/common/base/HosSelect.vue'
+import BackupRestoreDialog from '@/components/backup/BackupRestoreDialog.vue'
 import { useProfilesSection } from './useProfilesSection'
 
 const {
@@ -449,6 +467,11 @@ const backupFlowSteps = computed(() => [
   { label: '完整备份包', meta: '单文件', icon: Package, tone: 'exec' },
   { label: '还原/导入', meta: '整包或分级', icon: Upload, tone: 'out' },
 ])
+
+const encryptedBackupDialogRef = ref(null)
+function openEncryptedBackupDialog() {
+  encryptedBackupDialogRef.value?.open?.()
+}
 </script>
 
 <style scoped src="./styles/profiles-theme.css"></style>

@@ -55,6 +55,11 @@ function jumpStep(step: string) {
 
 onMounted(async () => {
   floorplanStore.bindFacade();
+  const { setupBackupRestoreUi } = await import("@app/backup/backup-restore-ui");
+  setupBackupRestoreUi({
+    root: document.querySelector(".studio-chrome-root"),
+    canExport: () => !floorplanStore.dirty && floorplanStore.saveState !== "saving",
+  });
   await import("@app/3d-studio/stage-startup");
   const studio = await import("@app/3d-studio/studio/studio-app");
   if (disposed) return;
@@ -152,6 +157,15 @@ onBeforeUnmount(() => {
         >
           <PanelsTopLeft class="w-3.5 h-3.5" />
           资源库
+        </button>
+        <button
+          id="backup-open"
+          type="button"
+          class="sc-btn sc-btn--icon global-log-open"
+          title="备份与恢复"
+          aria-label="备份与恢复"
+        >
+          备份
         </button>
       </template>
     </StudioTopBar>

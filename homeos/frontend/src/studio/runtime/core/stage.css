@@ -2211,6 +2211,132 @@ body.interaction3d-stage.is-background-hidden,
   pointer-events: none;
   cursor: default;
 }
+.interaction3d-stage .i3d-marker.is-alarm-card {
+  --i3d-marker-anchor-y: -100%;
+  min-width: 0;
+  border-radius: 14px;
+  pointer-events: none;
+  cursor: default;
+  transform: translate(-50%, -100%);
+  transform-origin: 50% 100%;
+}
+.interaction3d-stage .i3d-marker.is-alarm-card:before {
+  display: none;
+}
+.interaction3d-stage .i3d-marker.is-alarm-card.is-offline {
+  opacity: 1;
+}
+.interaction3d-stage .i3d-marker.is-editable-alarm-card {
+  pointer-events: auto;
+  cursor: grab;
+}
+.interaction3d-stage .i3d-alarm-card {
+  --meter-top: #303d4b;
+  --meter-bottom: #222d38;
+  position: relative;
+  isolation: isolate;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #697581;
+  border-radius: 14px;
+  background: transparent;
+  color: #f4f7f8;
+  text-align: left;
+  font-family: Helvetica Neue, sans-serif;
+  line-height: 1.4;
+}
+.interaction3d-stage .i3d-alarm-card:before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(145deg, var(--meter-top), var(--meter-bottom));
+  box-shadow: 0 8px 22px #0006, inset 0 1px #ffffff20;
+  opacity: var(--label-background-opacity, 1);
+  pointer-events: none;
+}
+.interaction3d-stage .i3d-alarm-card:after {
+  content: "";
+  position: absolute;
+  bottom: -5px;
+  left: calc(50% - 4px);
+  width: 8px;
+  height: 8px;
+  background: var(--meter-bottom);
+  opacity: var(--label-background-opacity, 1);
+  z-index: -1;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  transform: rotate(45deg);
+}
+.interaction3d-stage .i3d-alarm-icon {
+  display: block;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  background: currentColor;
+  mask: center / contain no-repeat;
+  -webkit-mask: center / contain no-repeat;
+}
+.interaction3d-stage .i3d-alarm-card-text {
+  display: grid;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.interaction3d-stage .i3d-alarm-card-title {
+  font-size: 1em;
+  font-weight: 650;
+}
+.interaction3d-stage .i3d-alarm-card-detail,
+.interaction3d-stage .i3d-alarm-card-battery {
+  opacity: 0.8;
+}
+.interaction3d-stage
+  .i3d-alarm-card:is([data-status="alarm"], [data-status="fault"], [data-status="expired"]) {
+  border-color: currentColor;
+  color: #eeb0a0;
+}
+.interaction3d-stage
+  .i3d-alarm-card:is(
+    [data-status="unknown"],
+    [data-status="unavailable"],
+    [data-status="unbound"],
+    [data-status="warming"],
+    [data-status="testing"]
+  ) {
+  color: #aab6bf;
+}
+.interaction3d-stage .i3d-alarm-card [hidden] {
+  display: none !important;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-alarm-card {
+  --meter-top: #fcf8f0;
+  --meter-bottom: #eee7db;
+  color: #4e4438;
+  border-color: #b7a489;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-alarm-card:before {
+  box-shadow: 0 8px 20px #59492940, inset 0 1px #fff;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  .i3d-alarm-card:is([data-status="alarm"], [data-status="fault"], [data-status="expired"]) {
+  border-color: currentColor;
+  color: #a13f2c;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  .i3d-alarm-card:is(
+    [data-status="unknown"],
+    [data-status="unavailable"],
+    [data-status="unbound"],
+    [data-status="warming"],
+    [data-status="testing"]
+  ) {
+  color: #716657;
+}
 .interaction3d-stage .i3d-security-label {
   position: absolute;
   left: 50%;

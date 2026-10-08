@@ -34,19 +34,18 @@
           不用 mode="out-in"：与 MainLayout 内 keep-alive、以及 DisplayView 命令式改 DOM
           叠在一起时，out-in 离开阶段容易触发 insertBefore(null)（设置页注释里已踩过）。
         -->
-        <transition name="fade">
+        <transition :name="routeTransitionName" @after-leave="flushDeferredPageAssets">
           <!-- 顶层 matched 作 key：/devices ↔ /scenes 等子路由切换不重建 MainLayout -->
           <div :key="shellRouteKey" class="route-transition-root">
-            <!-- 动态渲染当前路由匹配的组件，v-if 防止 Component 为空时报错 -->
             <component :is="Component" v-if="Component" />
           </div>
         </transition>
       </router-view>
     </ErrorBoundary>
     <!--
-      全局 chrome 原语：确认 / 输入 / 媒体全屏挂在 App 根，编辑器 / 户型图 / 展示页 /
-      入户页都能用（它们不在 MainLayout 内）。Toast 在主壳里仍由 ScaledViewport
-      承载（随缩放），其它路由用本层 fixed 宿主。
+      全局 chrome 原语：确认 / 输入 / 媒体全屏挂在 App 根（组件内 Teleport 到
+      #teleport-target，无壳时回退 body）。Toast 在主壳里由 ScaledViewport 承载，
+      其它路由用本层 fixed 宿主。
     -->
     <VConfirmModal />
     <VPromptModal />
@@ -72,8 +71,8 @@
  * 3. 未认证 / 未商业授权时断开 Socket.IO 连接
  * 4. 并入 3D Studio 的页面资产调度与授权恢复就地渲染（原 studio/App.vue）
  */
-import { computed, defineAsyncComponent, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useAppTheme } from '@/composables/ui/useAppTheme'
@@ -85,7 +84,7 @@ import VConfirmModal from '@/components/common/base/VConfirmModal.vue'
 import VPromptModal from '@/components/common/base/VPromptModal.vue'
 import VNotification from '@/components/common/base/VNotification.vue'
 import { useChromeStore } from '@/stores/chrome.store'
-import { applyPageAssets, PAGE_ASSETS } from '@/studio/page-assets'
+import { applyPageAssets, listManagedStylesheets, PAGE_ASSETS } from '@/studio/page-assets'
 
 const LicenseRecoveryView = defineAsyncComponent(() => import('@/studio/views/LicenseRecoveryView.vue'))
 const MediaPlayerModal = defineAsyncComponent(() =>
@@ -100,6 +99,7 @@ const authStore = useAuthStore()
 const layoutStore = useLayoutStore()
 const chrome = useChromeStore()
 const route = useRoute()
+const router = useRouter()
 
 /**
  * 独立整屏展示页路由名集合：只有这些页面（无主布局壳）把开关灯背景图铺满整个视口。
@@ -143,6 +143,24 @@ watch(
 const shellRouteKey = computed(() => route.matched[0]?.path ?? route.path)
 
 /**
+ * 创作面（仪表编辑器 / 户型图绘制）各有一套互斥的 static 全局 CSS。
+ * 旧行为是 `location.assign` 整页换装；SPA 滑动会让两页并存 + 两套 CSS 叠层，
+ * 背景里会出现无样式文字或样式串味。凡进出创作面都切成瞬时换页（route-cut）。
+ */
+const STUDIO_CREATOR_ROUTES = new Set(['studio', 'studio-editor'])
+/** `fade`：普通壳切换滑动；`route-cut`：创作面相关瞬时切换。 */
+const routeTransitionName = ref('fade')
+
+const removeRouteTransitionGuard = router.beforeEach((to, from) => {
+  const toName = String(to.name ?? '')
+  const fromName = String(from.name ?? '')
+  const involvesCreator =
+    STUDIO_CREATOR_ROUTES.has(toName) || STUDIO_CREATOR_ROUTES.has(fromName)
+  routeTransitionName.value = involvesCreator ? 'route-cut' : 'fade'
+})
+onBeforeUnmount(removeRouteTransitionGuard)
+
+/**
  * 主壳（MainLayout）路由：matched 至少两层（壳 + 子页）。
  * 其它顶层路由（编辑器 / 户型图 / 整屏展示 / 入户页）不在缩放壳内，需要 App 层 toast 宿主。
  */
@@ -162,15 +180,44 @@ const licenseBlocked = ref(
  * 必须监听 route.name 而不是 fullPath：SPA 首次导航前 route 是 START_LOCATION
  * （fullPath 恰好也是 "/"），当目标路由就是 "/" 时 fullPath 不变、immediate watcher
  * 不会再触发，页面资产就永远不会挂上。
+ *
+ * `fade` 壳切换会短暂双页并存：先保留旧表 + 装新表，after-leave 再严格收敛。
+ * `route-cut`（创作面）离开页立刻隐藏，必须马上严格换装，不能两套全局 CSS 叠在一起。
  */
+let previousShellRouteKey = shellRouteKey.value
+/** 是否有一次「等 leave 结束再卸旧 CSS」的挂起收敛。 */
+let pageAssetsFlushPending = false
+
+function resolveRoutePageAssets() {
+  if (licenseBlocked.value) return PAGE_ASSETS.licenseRecovery
+  return route.meta.assets ?? PAGE_ASSETS.shell
+}
+
+function flushDeferredPageAssets() {
+  if (!pageAssetsFlushPending) return
+  pageAssetsFlushPending = false
+  applyPageAssets(resolveRoutePageAssets())
+}
+
 watch(
   () => route.name,
   () => {
-    if (licenseBlocked.value) {
-      applyPageAssets(PAGE_ASSETS.licenseRecovery)
+    const nextAssets = resolveRoutePageAssets()
+    const nextShellKey = shellRouteKey.value
+    const shellKeyChanged = nextShellKey !== previousShellRouteKey
+    previousShellRouteKey = nextShellKey
+
+    const deferStyles =
+      shellKeyChanged && routeTransitionName.value === 'fade'
+
+    if (deferStyles) {
+      applyPageAssets(nextAssets, { keepStylesheets: listManagedStylesheets() })
+      pageAssetsFlushPending = true
       return
     }
-    applyPageAssets(route.meta.assets ?? PAGE_ASSETS.shell)
+
+    pageAssetsFlushPending = false
+    applyPageAssets(nextAssets)
   },
   { immediate: true },
 )

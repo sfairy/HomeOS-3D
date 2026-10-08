@@ -185,7 +185,11 @@ export function bootEditor(): void {
   const scope = createLegacyScope('editor-home');
   const innerCleanup = scope.run(() => {
 
-const findElement = (selectorState: any) => document.querySelector(selectorState);
+// 路由 fade 过渡期间户型页与编辑器会短暂共存；限定在本页根节点内查询，避免撞 id。
+  const editorRootElement =
+    document.querySelector(".editor-chrome-root") || document;
+  const findElement = (selectorState: any) =>
+    editorRootElement.querySelector(selectorState);
 installSettingsDialogBackdropGuard2();
 const EDITOR_DESIGN_WIDTH = 1020,
   AUTO_DIAGRAM_LAYOUT_VERSION = 2,

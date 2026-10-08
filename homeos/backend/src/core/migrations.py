@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import sqlite3
 from contextlib import closing
@@ -27,8 +28,10 @@ from ..config import Settings
 from .file_lock import locked_file
 
 #: 结构基线版本号。发行产物不带迁移脚本，新库直接按 ORM 元数据建好后写入这个版本号。
-SCHEMA_REVISION = "0001"
+SCHEMA_REVISION = "0002"
 MIGRATION_LOCK_SUFFIX = ".migrate.lock"
+DATA_COMPATIBILITY_FILE = "data-compatibility.json"
+DATA_COMPATIBILITY_FORMAT = 1
 
 _SIDECAR_SUFFIXES = ("-journal", "-wal", "-shm")
 
@@ -39,6 +42,10 @@ class MigrationBackupError(RuntimeError):
 
 class LegacyDatabaseError(RuntimeError):
     """库是压缩基线之前的老结构，不能直升，也不会被自动改写。"""
+
+
+class DataCompatibilityError(RuntimeError):
+    """数据目录要求的最低程序版本高于当前二进制，拒绝启动以免破坏数据。"""
 
 
 def _migrations_dir(settings: Settings) -> Path | None:
@@ -258,12 +265,118 @@ def restore_database_backup(database_path: Path, backup_path: Path) -> None:
         _remove_sidecars(restore_path)
 
 
+def _version_tuple(raw: str) -> tuple[int, ...]:
+    parts: list[int] = []
+    for chunk in re.split(r"[^0-9]+", (raw or "").strip()):
+        if chunk:
+            parts.append(int(chunk))
+    return tuple(parts) if parts else (0,)
+
+
+def compare_application_versions(left: str, right: str) -> int:
+    """比较应用版本号：``left < right`` 为 -1，相等 0，大于 1。"""
+    a, b = _version_tuple(left), _version_tuple(right)
+    width = max(len(a), len(b))
+    a = a + (0,) * (width - len(a))
+    b = b + (0,) * (width - len(b))
+    if a < b:
+        return -1
+    if a > b:
+        return 1
+    return 0
+
+
+def data_compatibility_marker_path(settings: Settings) -> Path:
+    return settings.data_dir / DATA_COMPATIBILITY_FILE
+
+
+def check_data_compatibility(settings: Settings) -> None:
+    """启动持久化写入前：若数据地板高于当前程序，拒启。"""
+    marker_path = data_compatibility_marker_path(settings)
+    if not marker_path.is_file():
+        return
+    try:
+        payload = json.loads(marker_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise DataCompatibilityError(
+            f"无法读取数据兼容标记 {marker_path.name}：{error}"
+        ) from error
+    if not isinstance(payload, dict):
+        raise DataCompatibilityError("unsupported compatibility marker")
+    if int(payload.get("formatVersion") or 0) != DATA_COMPATIBILITY_FORMAT:
+        raise DataCompatibilityError("unsupported compatibility marker")
+    minimum = str(payload.get("minimumApplicationVersion") or "").strip()
+    if not minimum:
+        raise DataCompatibilityError("unsupported compatibility marker")
+    current = settings.version
+    if compare_application_versions(current, minimum) < 0:
+        raise DataCompatibilityError(
+            f"当前程序版本 {current} 低于此数据要求的最低版本 {minimum}，已停止启动。"
+            "请使用相同或更高版本的程序；如需回退，请同时恢复旧版本程序和升级前完整备份。"
+        )
+
+
+def write_data_compatibility_marker(settings: Settings, *, minimum: str | None = None) -> None:
+    """把当前（或指定）程序版本写入数据目录地板与数据库单例行。"""
+    floor = (minimum or settings.version).strip() or "0.0.0"
+    settings.data_dir.mkdir(parents=True, exist_ok=True)
+    marker = {
+        "product": "HomeOS",
+        "formatVersion": DATA_COMPATIBILITY_FORMAT,
+        "minimumApplicationVersion": floor,
+    }
+    marker_path = data_compatibility_marker_path(settings)
+    temporary = marker_path.with_suffix(f".{uuid4().hex}.tmp")
+    temporary.write_text(
+        json.dumps(marker, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    os.replace(temporary, marker_path)
+    try:
+        from sqlalchemy import create_engine, text
+
+        engine = create_engine(settings.database_url)
+        try:
+            with engine.begin() as connection:
+                exists = connection.execute(
+                    text(
+                        "SELECT 1 FROM sqlite_master WHERE type='table' "
+                        "AND name='data_compatibility'"
+                    )
+                ).fetchone()
+                if exists is None:
+                    return
+                connection.execute(
+                    text(
+                        "INSERT INTO data_compatibility "
+                        "(id, minimum_application_version, updated_at) "
+                        "VALUES (1, :version, CURRENT_TIMESTAMP) "
+                        "ON CONFLICT(id) DO UPDATE SET "
+                        "minimum_application_version=excluded.minimum_application_version, "
+                        "updated_at=excluded.updated_at"
+                    ),
+                    {"version": floor},
+                )
+        finally:
+            engine.dispose()
+    except Exception:  # noqa: BLE001 - 标记文件已写；DB 行可在下次迁移补齐
+        return
+
+
+def prepare_data_directory(settings: Settings) -> None:
+    """迁移之后：校验地板并把当前版本写入兼容标记。"""
+    check_data_compatibility(settings)
+    write_data_compatibility_marker(settings)
+
+
 def run_migrations(settings: Settings) -> Path | None:
     """把数据库带到 head 结构，返回升级前备份的路径（没动结构时为 None）。"""
+    check_data_compatibility(settings)
     database_path = settings.database_path
     lock_path = database_path.parent / f"{database_path.name}{MIGRATION_LOCK_SUFFIX}"
     with locked_file(lock_path):
-        return _run_migrations_locked(settings)
+        backup = _run_migrations_locked(settings)
+    prepare_data_directory(settings)
+    return backup
 
 
 def _run_migrations_locked(settings: Settings) -> Path | None:

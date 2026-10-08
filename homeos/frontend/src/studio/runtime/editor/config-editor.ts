@@ -3869,24 +3869,55 @@ export async function openInteraction3dEditor({
           });
         }
         if (isAirerMode) {
-          const airerMotionSectionElement = createConfigSection("升降动画"),
-            airerReversedInputElement = createElement("input");
-          (Object.assign(airerReversedInputElement, {
-            type: "checkbox",
-            checked: vector.animationReversed === true,
-          }),
-            airerReversedInputElement.addEventListener("change", () => {
-              ((vector.animationReversed = airerReversedInputElement.checked),
-                refreshEditorPreview());
-            }),
-            createSettingRow(airerMotionSectionElement, "动画方向反向", airerReversedInputElement),
-            airerMotionSectionElement.append(
-              createElement(
-                "p",
-                "i3d-note",
-                "模型升降与实物相反时开启，仅反转动画，不改变升降按钮的控制方向。顶部安装高度和最大伸展距离在户型图中调整。",
-              ),
-            ));
+          const airerMotionSectionElement = createConfigSection("升降动画");
+          if (
+            vector.positionInverted === undefined &&
+            (vector.positionReversed === true || vector.animationReversed === true)
+          )
+            vector.positionInverted = true;
+          if (vector.commandInverted === undefined && vector.liftReversed === true)
+            vector.commandInverted = true;
+          createSelectRow(
+            airerMotionSectionElement,
+            "位置方向",
+            [
+              ["normal", "0% 最低，100% 最高"],
+              ["inverted", "0% 最高，100% 最低"],
+            ],
+            vector.positionInverted === true || vector.positionReversed === true
+              ? "inverted"
+              : "normal",
+            (nextValue: string) => {
+              const inverted = nextValue === "inverted";
+              vector.positionInverted = inverted;
+              vector.positionReversed = inverted;
+              refreshEditorPreview();
+            },
+          );
+          createSelectRow(
+            airerMotionSectionElement,
+            "升降指令",
+            [
+              ["normal", "打开对应上升，关闭对应下降"],
+              ["inverted", "打开对应下降，关闭对应上升"],
+            ],
+            vector.commandInverted === true || vector.liftReversed === true
+              ? "inverted"
+              : "normal",
+            (nextValue: string) => {
+              const inverted = nextValue === "inverted";
+              vector.commandInverted = inverted;
+              vector.liftReversed = inverted;
+              refreshEditorPreview();
+            },
+          );
+          airerMotionSectionElement.append(
+            createElement(
+              "p",
+              "i3d-note",
+              "按实物选择。模型、图标和弹窗统一显示实际高低及升降；弹窗高度以 100% 为最高。位置方向与升降指令可分别设置。",
+            ),
+          );
           const airerTravelSecondsInputElement = createElement("input");
           ((airerTravelSecondsInputElement.type = "number"),
             (airerTravelSecondsInputElement.min = "5"),
@@ -4530,9 +4561,115 @@ export async function openInteraction3dEditor({
               createElement(
                 "p",
                 "i3d-note",
-                "可绑定任意能提供开关状态的实体：开启显示 HOMEOS 海报，关闭黑屏。上方绑定媒体播放器后，有节目封面时优先显示封面；不单独绑定电源时，跟随媒体播放器的开关状态。",
+                "可绑定能提供开关状态的实体；不单独绑定电源时跟随媒体播放器状态。电视开启时优先显示可用节目封面，没有封面时显示自定义图片；未上传图片则显示当前播放状态，关闭时显示深色玻璃。",
               ),
             ));
+          const posterAssetSection = createConfigSection("电视自定义图片"),
+            posterAssetStatusElement = createElement("p", "i3d-note", "无封面时的图片"),
+            posterAssetUploadInput = createElement("input");
+          ((posterAssetUploadInput.type = "file"),
+            (posterAssetUploadInput.accept =
+              "image/png,image/jpeg,image/jpg,image/webp,image/svg+xml,image/gif,image/bmp,image/tiff,image/avif,image/heic,image/heif,image/x-icon,.png,.jpg,.jpeg,.webp,.svg,.gif,.bmp,.tif,.tiff,.ico,.avif,.heic,.heif"),
+            (posterAssetUploadInput.hidden = true));
+          let isPosterUploading = false;
+          const normalizePosterAssetId = (rawId: any) =>
+              String(rawId || "")
+                .trim()
+                .toLowerCase()
+                .replace(/^user:/, ""),
+            refreshPosterAssetUi = () => {
+              const hasPoster = /^[0-9a-f]{32}$/.test(normalizePosterAssetId(vector.posterAssetId));
+              posterAssetStatusElement.textContent = isPosterUploading
+                ? "上传中…"
+                : hasPoster
+                  ? "无封面时的图片（已设置）"
+                  : "无封面时的图片";
+            },
+            uploadPosterAsset = async (selectedFile: any) => {
+              if (!selectedFile || isPosterUploading) return;
+              isPosterUploading = true;
+              refreshPosterAssetUi();
+              try {
+                const uploadResponse = await fetch("/api/v1/assets/user", {
+                  method: "POST",
+                  credentials: "same-origin",
+                  body: selectedFile,
+                  headers: {
+                    "Content-Type": selectedFile.type || "application/octet-stream",
+                    "X-File-Name": encodeURIComponent(selectedFile.name),
+                  },
+                });
+                const uploadPayload = await uploadResponse.json().catch(() => ({}));
+                if (!uploadResponse.ok)
+                  throw new Error(
+                    uploadPayload.detail ||
+                      uploadPayload.message ||
+                      uploadPayload.error ||
+                      "图片上传失败，请重试。",
+                  );
+                const uploadedAssetId = normalizePosterAssetId(
+                  uploadPayload.assetId || uploadPayload.data?.assetId,
+                );
+                if (!/^[0-9a-f]{32}$/.test(uploadedAssetId))
+                  throw new Error("图片上传结果无效，请重试。");
+                vector.posterAssetId = uploadedAssetId;
+                refreshEditorPreview();
+              } catch (uploadError: any) {
+                posterAssetStatusElement.textContent =
+                  uploadError?.message || "图片上传失败，请重试。";
+                isPosterUploading = false;
+                return;
+              }
+              isPosterUploading = false;
+              refreshPosterAssetUi();
+              rebuildPosterActions();
+            };
+          const posterActionsRow = createElement("div", "i3d-focus-actions");
+          const rebuildPosterActions = () => {
+            posterActionsRow.replaceChildren();
+            const posterId = normalizePosterAssetId(vector.posterAssetId);
+            const hasPoster = /^[0-9a-f]{32}$/.test(posterId);
+            const uploadButton = createButton(hasPoster ? "替换图片" : "上传图片", () => {
+              if (!isPosterUploading) posterAssetUploadInput.click();
+            });
+            uploadButton.className = "i3d-picker-button";
+            uploadButton.disabled = isPosterUploading;
+            posterActionsRow.append(uploadButton);
+            if (hasPoster) {
+              const deleteButton = createButton("删除图片", async () => {
+                if (isPosterUploading) return;
+                try {
+                  await fetch("/api/v1/assets/user/" + posterId, {
+                    method: "DELETE",
+                    credentials: "same-origin",
+                  });
+                } catch {}
+                delete vector.posterAssetId;
+                refreshPosterAssetUi();
+                rebuildPosterActions();
+                refreshEditorPreview();
+              });
+              posterActionsRow.append(deleteButton);
+            }
+          };
+          refreshPosterAssetUi();
+          rebuildPosterActions();
+          (posterAssetUploadInput.addEventListener("change", () => {
+            const selectedPosterFile = posterAssetUploadInput.files?.[0];
+            posterAssetUploadInput.value = "";
+            uploadPosterAsset(selectedPosterFile);
+          }),
+            posterAssetSection.append(
+              posterAssetStatusElement,
+              posterActionsRow,
+              posterAssetUploadInput,
+              createElement(
+                "p",
+                "i3d-note",
+                "支持 PNG、JPG/JPEG、WebP、SVG、GIF、BMP、TIFF、AVIF、HEIC/HEIF 和 ICO。动图使用第一帧；图片保持原比例。删除后恢复默认显示，保存配置后生效。",
+              ),
+            ),
+            currentContainer.append(posterAssetSection));
         }
         if (
           isNasMode &&

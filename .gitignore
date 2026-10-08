@@ -66,3 +66,4 @@ ops/cleanup-reports/
 
 # 逆向 / 恢复出来的历史源码快照（含 .npm-cache、pyarmor runtime 等）。
 # 体积 600MB+、数万个文件，属于本地排查材料，不进版本库。
+源代码/

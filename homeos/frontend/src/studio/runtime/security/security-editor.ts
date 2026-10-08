@@ -14,6 +14,12 @@ import {
 } from "@app/bridge/lock-state-runtime";
 import { CARD_TEXT_SIZE_PX } from "@app/bridge/card-text-size";
 import { DEFAULT_BUTTON_SIZE, buttonIconSize } from "@app/bridge/button-icon-size";
+import { temperatureHumidityFloorCenter } from "@app/bridge/temperature-humidity";
+import {
+  SECURITY_ALARM_TYPES,
+  createSecurityAlarmOverlay,
+  securityAlarmKindLabel,
+} from "./security-alarm";
 const LOCK_ENTITY_FIELDS = ["doorEntityId", "batteryEntityId"],
   LOCK_BATCH_APPEARANCE_FIELDS = [
     ["icon", "图标"],
@@ -44,6 +50,7 @@ export async function openSecurityEditor({
     locks: draftProperties.security?.locks || [],
     cameras: draftProperties.security?.cameras || [],
     presenceSensors: draftProperties.security?.presenceSensors || [],
+    alarms: draftProperties.security?.alarms || [],
   };
   const createElement = (tagName: any, className = "", textContent = "") =>
       domElement(document, tagName, className, textContent),
@@ -96,15 +103,45 @@ export async function openSecurityEditor({
     pickerGeneration = 0,
     presenceEditorHandle: any = null,
     isPresenceEditorOpen = false,
-    batchDialogHandle: any = null;
+    batchDialogHandle: any = null,
+    alarmPreviewOverlay: any = null;
+  function stopAlarmPreview() {
+    alarmPreviewOverlay?.dispose();
+    alarmPreviewOverlay = null;
+  }
   const previouslyFocusedElement = document.activeElement,
     deviceEntitiesByItemId = new Map();
   let renderedPanelSignature = "";
-  const getCollectionKey = () =>
-      securityKind === "lock" ? "locks" : securityKind === "camera" ? "cameras" : "presenceSensors",
+  const isAlarmKindValue = (value: any) =>
+      value === "moisture" || value === "smoke" || value === "gas",
+    getSecurityCategory = () => securityKind,
+    setSecurityCategory = (nextCategory: any) => {
+      securityKind = nextCategory;
+    },
+    getCollectionKey = () =>
+      securityKind === "lock"
+        ? "locks"
+        : securityKind === "camera"
+          ? "cameras"
+          : isAlarmKindValue(securityKind)
+            ? "alarms"
+            : "presenceSensors",
     getKindLabel = () =>
-      securityKind === "lock" ? "门" : securityKind === "camera" ? "摄像头" : "人体传感器",
-    getItemList = () => draftProperties.security[getCollectionKey()],
+      securityKind === "lock"
+        ? "门"
+        : securityKind === "camera"
+          ? "摄像头"
+          : isAlarmKindValue(securityKind)
+            ? securityAlarmKindLabel(securityKind)
+            : "人体传感器",
+    getCollection = () => draftProperties.security[getCollectionKey()],
+    getItemList = () => {
+      const collection = getCollection();
+      if (!isAlarmKindValue(securityKind)) return collection;
+      return collection.filter(
+        (alarmItem: any) => (alarmItem.kind || "smoke") === securityKind,
+      );
+    },
     findSelectedItem = () =>
       getItemList().find(
         (candidateItem: any) =>
@@ -142,7 +179,11 @@ export async function openSecurityEditor({
   const getFloorModelList = () =>
       securityKind === "lock"
         ? getFloorDoorModels().filter((doorModel: any) => doorModel.doorType !== "frame-only")
-        : findSelectedFloor()?.[getCollectionKey()] || [],
+        : securityKind === "presence"
+          ? findSelectedFloor()?.presenceSensors || []
+          : isAlarmKindValue(securityKind)
+            ? []
+            : findSelectedFloor()?.[getCollectionKey()] || [],
     toItemKey = (configItem: any) => securityKind + ":" + configItem.id,
     buildEditorProperties = () => ({
       ...draftProperties,
@@ -261,6 +302,7 @@ export async function openSecurityEditor({
     isDisposed ||
       ((isDisposed = true),
       closeActivePicker(),
+      stopAlarmPreview(),
       presenceEditorHandle?.close(),
       editorRuntime?.(),
       previewResizeObserver.disconnect(),
@@ -597,25 +639,85 @@ export async function openSecurityEditor({
           ["camera", "摄像头"],
           ["presence", "人体传感器"],
           ["lock", "门"],
+          ["moisture", "水浸"],
+          ["smoke", "烟雾"],
+          ["gas", "天然气"],
         ],
-        securityKind,
+        getSecurityCategory(),
         (nextSecurityKind: any) => {
           (closeActivePicker(),
-            (securityKind = nextSecurityKind),
+            stopAlarmPreview(),
+            setSecurityCategory(nextSecurityKind),
             (selectedItemId = ""),
             syncEditorRuntime(),
             renderPanel());
         },
       ));
-    const modelListSectionElement = createSectionHeading("模型列表");
-    ((modelListSectionElement.className += " i3d-security-model-list"),
-      (currentContainerElement = modelListSectionElement));
     const itemsInSelectedFloor = getItemList().filter(
       (floorBoundItem: any) => floorBoundItem.floorId === selectedFloorId,
     );
-    (itemsInSelectedFloor.some((itemProbe: any) => itemProbe.id === selectedItemId) ||
-      (selectedItemId = itemsInSelectedFloor[0]?.id || ""),
-      createSelectField(
+    itemsInSelectedFloor.some((itemProbe: any) => itemProbe.id === selectedItemId) ||
+      (selectedItemId = itemsInSelectedFloor[0]?.id || "");
+
+    if (isAlarmKindValue(securityKind)) {
+      const cardSectionElement = createSectionHeading(getKindLabel() + "卡片");
+      currentContainerElement = cardSectionElement;
+      const addCardButton = createButton("添加" + getKindLabel() + "卡片", () => {
+        if (!selectedFloorId || !isAccessAllowed || draftProperties.security.alarms.length >= 100)
+          return;
+        const floorCenter = temperatureHumidityFloorCenter(findSelectedFloor() || {});
+        const newItem = {
+          id: randomUuid(),
+          kind: securityKind,
+          floorId: selectedFloorId,
+          entityId: "",
+          label: getKindLabel() + "传感器",
+          x: floorCenter.x,
+          y: floorCenter.y,
+          height: 1.8,
+          size: 180,
+          fontSize: 12,
+          opacity: 1,
+          visible: true,
+          overlay: true,
+        };
+        (draftProperties.security.alarms.push(newItem),
+          (selectedItemId = newItem.id),
+          markPropertiesDirty(),
+          renderPanel());
+      });
+      ((addCardButton.className = "primary i3d-alarm-add-card"),
+        (addCardButton.disabled = !selectedFloorId || !isAccessAllowed),
+        currentContainerElement.append(addCardButton),
+        currentContainerElement.append(
+          createElement(
+            "p",
+            "i3d-note",
+            "卡片可独立放置，也可在预览画面中拖动。报警提示覆盖整个仪表盘，与当前分类和楼层无关。",
+          ),
+        ));
+      if (itemsInSelectedFloor.length) {
+        createSelectField(
+          "当前报警卡片",
+          itemsInSelectedFloor.map((itemOption: any) => [
+            itemOption.id,
+            itemOption.label || getKindLabel(),
+          ]),
+          selectedItemId,
+          (nextSelectedItemId: any) => {
+            (closeActivePicker(),
+              nextSelectedItemId !== selectedItemId && stopAlarmPreview(),
+              (selectedItemId = nextSelectedItemId),
+              syncEditorRuntime(),
+              renderPanel());
+          },
+        );
+      }
+    } else {
+    const modelListSectionElement = createSectionHeading("模型列表");
+    ((modelListSectionElement.className += " i3d-security-model-list"),
+      (currentContainerElement = modelListSectionElement));
+    (createSelectField(
         getKindLabel() + "列表",
         itemsInSelectedFloor.map((itemOption: any) => [
           itemOption.id,
@@ -631,12 +733,12 @@ export async function openSecurityEditor({
       ),
       (currentContainerElement = createDisclosure(
         "添加" + getKindLabel(),
-        "add:" + securityKind + ":" + selectedFloorId,
+        "add:" + getSecurityCategory() + ":" + selectedFloorId,
         modelListSectionElement,
       )));
     const addableModelList = getFloorModelList().filter(
         (modelProbe: any) =>
-          !getItemList().some(
+          !getCollection().some(
             (boundItemProbe: any) =>
               boundItemProbe.floorId === selectedFloorId &&
               boundItemProbe.modelId === getCandidateModelId(modelProbe),
@@ -655,7 +757,7 @@ export async function openSecurityEditor({
         );
         if (
           !addableModel ||
-          getItemList().some(
+          getCollection().some(
             (existingItemProbe: any) =>
               existingItemProbe.floorId === selectedFloorId &&
               existingItemProbe.modelId === getCandidateModelId(addableModel),
@@ -697,9 +799,9 @@ export async function openSecurityEditor({
                   hitPadding: 8,
                 }),
         };
-        (getItemList().push(newItem),
+        (getCollection().push(newItem),
           (selectedItemId = newItem.id),
-          expandedDisclosureKeySet.delete("add:" + securityKind + ":" + selectedFloorId),
+          expandedDisclosureKeySet.delete("add:" + getSecurityCategory() + ":" + selectedFloorId),
           markPropertiesDirty(),
           renderPanel());
       });
@@ -714,8 +816,217 @@ export async function openSecurityEditor({
           ),
         ),
       (currentContainerElement = modelListSectionElement));
+    }
     const selectedItem = findSelectedItem();
-    if (selectedItem) {
+    if (selectedItem && isAlarmKindValue(securityKind)) {
+      currentContainerElement = createSectionHeading("显示内容");
+      const nameInputElement = createElement("input");
+      ((nameInputElement.value = selectedItem.label || ""),
+        (nameInputElement.maxLength = 128),
+        nameInputElement.setAttribute("aria-label", "名称"),
+        nameInputElement.addEventListener("input", () => {
+          ((selectedItem.label = nameInputElement.value), markPropertiesDirty());
+        }));
+      const nameFieldElement = createElement("label");
+      (nameFieldElement.append(createElement("span", "", "名称"), nameInputElement),
+        currentContainerElement.append(nameFieldElement));
+      const alarmEntityButton = createButton(
+        selectedItem.entityId || "选择" + getKindLabel() + "报警实体",
+        async () => {
+          const pickerRequestGeneration = ++pickerGeneration;
+          try {
+            const alarmPickerHandle = await pickers.alarm?.({
+              trigger: alarmEntityButton,
+              kind: securityKind,
+              current: selectedItem.entityId || "",
+              onSelect(_device: any, entity: any) {
+                isDisposed ||
+                  !isAccessAllowed ||
+                  pickerRequestGeneration !== pickerGeneration ||
+                  findSelectedItem() !== selectedItem ||
+                  ((selectedItem.entityId = entity?.entityId || ""),
+                  markPropertiesDirty(),
+                  renderPanel());
+              },
+            });
+            isDisposed || pickerRequestGeneration !== pickerGeneration
+              ? alarmPickerHandle?.close()
+              : (activePickerHandle = alarmPickerHandle);
+          } catch (alarmPickerError: any) {
+            showError(alarmPickerError);
+          }
+        },
+      );
+      ((alarmEntityButton.className = "i3d-picker-button"),
+        currentContainerElement.append(
+          (() => {
+            const field = createElement("label");
+            return (
+              field.append(
+                createElement("span", "", getKindLabel() + "报警实体"),
+                alarmEntityButton,
+              ),
+              field
+            );
+          })(),
+        ));
+      const batteryEntityButton = createButton(
+        selectedItem.batteryEntityId || "选择电量实体（可选）",
+        async () => {
+          const pickerRequestGeneration = ++pickerGeneration;
+          try {
+            const batteryPickerHandle = await pickers.entity({
+              trigger: batteryEntityButton,
+              deviceKind: "sensor",
+              current: selectedItem.batteryEntityId || "",
+              onSelect(_device: any, entity: any) {
+                isDisposed ||
+                  !isAccessAllowed ||
+                  pickerRequestGeneration !== pickerGeneration ||
+                  findSelectedItem() !== selectedItem ||
+                  ((selectedItem.batteryEntityId = entity?.entityId || ""),
+                  markPropertiesDirty(),
+                  renderPanel());
+              },
+            });
+            isDisposed || pickerRequestGeneration !== pickerGeneration
+              ? batteryPickerHandle?.close()
+              : (activePickerHandle = batteryPickerHandle);
+          } catch (batteryPickerError: any) {
+            showError(batteryPickerError);
+          }
+        },
+      );
+      ((batteryEntityButton.className = "i3d-picker-button"),
+        currentContainerElement.append(
+          (() => {
+            const field = createElement("label");
+            return (
+              field.append(
+                createElement("span", "", "电量实体（可选）"),
+                batteryEntityButton,
+              ),
+              field
+            );
+          })(),
+        ),
+        currentContainerElement.append(
+          createElement(
+            "p",
+            "i3d-note",
+            securityKind === "gas"
+              ? "on 或“天然气泄漏报警”触发报警；off 或“监测正常”恢复。预热、自检、故障和寿命到期单独显示。"
+              : "on：报警；off：正常。状态未知与设备不可用会单独显示。",
+          ),
+        ));
+      const appearanceSection = createSectionHeading("位置与外观"),
+        coordinateGrid = createElement("div", "i3d-coordinate-grid");
+      (appearanceSection.append(coordinateGrid), (currentContainerElement = coordinateGrid));
+      for (const [fieldKey, fieldLabel, minValue, maxValue, stepSize, defaultValue] of [
+        ["x", "位置 X", -1000000, 1000000, 1, 0],
+        ["y", "位置 Y", -1000000, 1000000, 1, 0],
+        ["height", "离地高度（米）", 0, 20, 0.1, 1.8],
+        ["size", "卡片宽度（px）", 100, 600, 1, 180],
+        ["fontSize", "文字大小（px）", 9, 24, 1, 12],
+      ] as const) {
+        createNumberField(
+          fieldLabel,
+          selectedItem[fieldKey] ?? defaultValue,
+          minValue,
+          maxValue,
+          (nextValue: any) => {
+            selectedItem[fieldKey] = nextValue;
+          },
+          stepSize,
+          true,
+        );
+      }
+      ((currentContainerElement = appearanceSection),
+        appendBackgroundOpacityControl(
+          appearanceSection,
+          selectedItem,
+          "opacity",
+          markPropertiesDirty,
+        ));
+      // 对齐 0.7.1 schema：visible 控制卡片；HomeOS 扩展 overlay 控制全屏遮罩参与。
+      for (const [flagKey, flagLabel, defaultOn] of [
+        ["visible", "显示卡片", true],
+        ["overlay", "参与全屏报警提示", true],
+      ] as const) {
+        if (selectedItem[flagKey] === undefined) selectedItem[flagKey] = defaultOn;
+        const flagCheckbox = createElement("input");
+        ((flagCheckbox.type = "checkbox"),
+          (flagCheckbox.checked = selectedItem[flagKey] !== false),
+          flagCheckbox.addEventListener("change", () => {
+            selectedItem[flagKey] = flagCheckbox.checked;
+            markPropertiesDirty();
+            syncEditorRuntime();
+          }));
+        const flagRow = createElement("label", "i3d-toggle");
+        flagRow.append(createElement("span", "", flagLabel), flagCheckbox);
+        appearanceSection.append(flagRow);
+      }
+      const previewSection = createSectionHeading("报警效果预览");
+      const alarmProfile =
+        SECURITY_ALARM_TYPES[securityKind] || SECURITY_ALARM_TYPES.smoke;
+      const previewButton = createButton(
+        alarmPreviewOverlay ? "结束预览" : "预览报警",
+        () => {
+          const wasRunning = previewButton.dataset.running === "true";
+          // 对齐 0.7.1：每次点击先 dispose 再建，避免关闭提示后状态残留。
+          alarmPreviewOverlay?.dispose();
+          alarmPreviewOverlay = createSecurityAlarmOverlay(stageHostElement, {
+            onDismiss() {
+              previewButton.dataset.running = "false";
+              previewButton.textContent = "预览报警";
+              alarmPreviewOverlay = null;
+            },
+          });
+          alarmPreviewOverlay.update(
+            wasRunning
+              ? []
+              : [
+                  {
+                    id: selectedItem.id,
+                    entityId: "preview:" + selectedItem.id + ":" + Date.now(),
+                    label: selectedItem.label || alarmProfile.label,
+                    detail: alarmProfile.alarm,
+                    icon: alarmProfile.icon,
+                  },
+                ],
+            true,
+            draftProperties.sceneStyle === "warm-wood" ? "warm-wood" : "default",
+          );
+          previewButton.dataset.running = String(!wasRunning);
+          previewButton.textContent = wasRunning ? "预览报警" : "结束预览";
+          if (wasRunning) {
+            alarmPreviewOverlay.dispose();
+            alarmPreviewOverlay = null;
+          }
+        },
+      );
+      if (alarmPreviewOverlay) previewButton.dataset.running = "true";
+      (previewSection.append(
+        previewButton,
+        createElement(
+          "p",
+          "i3d-note",
+          "这里的预览仅覆盖左侧画面；运行时覆盖整个仪表盘屏幕。",
+        ),
+      ),
+        createSectionHeading("卡片管理").append(
+          createButton("删除报警卡片", () => {
+            (closeActivePicker(),
+              stopAlarmPreview(),
+              (draftProperties.security.alarms = draftProperties.security.alarms.filter(
+                (remaining: any) => remaining !== selectedItem,
+              )),
+              (selectedItemId = ""),
+              markPropertiesDirty(),
+              renderPanel());
+          }),
+        ));
+    } else if (selectedItem) {
       const bindingSectionElement = createSectionHeading("基础绑定"),
         bindingGridElement = createElement("div", "i3d-security-scope-grid");
       (bindingSectionElement.append(bindingGridElement),
@@ -732,7 +1043,7 @@ export async function openSecurityEditor({
         currentContainerElement.append(nameFieldElement));
       const modelChoices = getFloorModelList().filter(
           (modelCandidate: any) =>
-            !getItemList().some(
+            !getCollection().some(
               (otherBoundItem: any) =>
                 otherBoundItem !== selectedItem &&
                 otherBoundItem.floorId === selectedFloorId &&
@@ -1662,7 +1973,7 @@ export async function openSecurityEditor({
       const bindingManagementSectionElement = createSectionHeading("绑定管理"),
         removeBindingButtonElement = createButton("移除" + getKindLabel() + "绑定", () => {
           (closeActivePicker(),
-            (draftProperties.security[getCollectionKey()] = getItemList().filter(
+            (draftProperties.security[getCollectionKey()] = getCollection().filter(
               (remainingItem: any) => remainingItem !== selectedItem,
             )),
             (selectedItemId = ""),
@@ -1672,7 +1983,8 @@ export async function openSecurityEditor({
       ((removeBindingButtonElement.className = "i3d-remove-light"),
         bindingManagementSectionElement.append(removeBindingButtonElement));
     }
-    const currentPanelSignature = securityKind + ":" + selectedFloorId + ":" + selectedItemId;
+    const currentPanelSignature =
+      getSecurityCategory() + ":" + selectedFloorId + ":" + selectedItemId;
     if (
       (currentPanelSignature !== renderedPanelSignature &&
         ((renderedPanelSignature = currentPanelSignature), (panelElement.scrollTop = 0)),
@@ -1722,18 +2034,22 @@ export async function openSecurityEditor({
         onEdit(editEvent: any) {
           if (!(isDisposed || !isAccessAllowed)) {
             if (editEvent.action === "position") {
-              const positionTargetMatch = /^(camera|lock):(.+)$/.exec(editEvent.id || ""),
-                positionTargetList =
-                  positionTargetMatch?.[1] === "lock"
-                    ? "locks"
-                    : positionTargetMatch?.[1] === "camera"
-                      ? "cameras"
-                      : "",
-                editedPositionItem =
-                  positionTargetList &&
-                  draftProperties.security[positionTargetList].find(
-                    (positionMatch: any) => positionMatch.id === positionTargetMatch![2],
-                  );
+              const positionTargetMatch =
+                /^(camera|lock|moisture|smoke|gas):(.+)$/.exec(editEvent.id || "");
+              const positionKind = positionTargetMatch?.[1] || "";
+              const positionTargetList =
+                positionKind === "lock"
+                  ? "locks"
+                  : positionKind === "camera"
+                    ? "cameras"
+                    : isAlarmKindValue(positionKind)
+                      ? "alarms"
+                      : "";
+              const editedPositionItem =
+                positionTargetList &&
+                draftProperties.security[positionTargetList].find(
+                  (positionMatch: any) => positionMatch.id === positionTargetMatch![2],
+                );
               editedPositionItem &&
                 Number.isFinite(editEvent.x) &&
                 Number.isFinite(editEvent.y) &&
@@ -1743,12 +2059,13 @@ export async function openSecurityEditor({
             }
             if (
               (editEvent.action === "focus-exited" && ((isCameraEditing = false), renderPanel()),
-              editEvent.action === "select" && /^(camera|presence|lock):/.test(editEvent.id || ""))
+              editEvent.action === "select" &&
+                /^(camera|presence|lock|moisture|smoke|gas):/.test(editEvent.id || ""))
             ) {
               const separatorIndex = editEvent.id.indexOf(":");
-              ((securityKind = editEvent.id.slice(0, separatorIndex)),
-                (selectedItemId = editEvent.id.slice(separatorIndex + 1)),
-                renderPanel());
+              const nextKind = editEvent.id.slice(0, separatorIndex);
+              const nextItemId = editEvent.id.slice(separatorIndex + 1);
+              ((securityKind = nextKind), (selectedItemId = nextItemId), renderPanel());
             }
           }
         },

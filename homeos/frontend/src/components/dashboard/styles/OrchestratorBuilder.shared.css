@@ -69,11 +69,6 @@
   backdrop-filter: blur(4px);
 }
 
-#teleport-target > .wr-modal-shade,
-.teleport-target > .wr-modal-shade {
-  position: absolute;
-}
-
 .wr-modal-box {
   background: #111620;
   border: 1px solid var(--premium-glass-bg-hover);

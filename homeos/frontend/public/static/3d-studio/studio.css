@@ -41,6 +41,14 @@ body {
   background:
     radial-gradient(circle at 50% -10%, rgba(66, 93, 118, 0.16), transparent 45%), var(--bg);
 }
+
+dialog:modal {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px);
+}
 button,
 input {
   font: inherit;
@@ -2950,7 +2958,12 @@ select option:disabled {
   display: none;
 }
 .scale-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
   width: min(510px, calc(100vw - 40px));
+  height: fit-content;
+  max-height: calc(100dvh - 40px);
   padding: 0;
   border: 1px solid var(--line-strong);
   border-radius: 16px;
@@ -3310,6 +3323,9 @@ select option:disabled {
   }
 }
 .export-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
   width: calc(100vw - 28px);
   max-width: none;
   height: calc(100vh - 28px);

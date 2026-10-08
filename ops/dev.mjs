@@ -339,6 +339,7 @@ function ensureFrontendBuild() {
 function startFrontendWatchBuild() {
   // 两个前端各自负责自己的 dist（8801 ← app，8802 ← store），互不牵连：
   // 改主应用不该顺带重建商店，否则每次保存都要多等一轮无关构建。
+  const studioRuntimeSrc = path.join(HOMEOS_APP, "frontend", "src", "studio", "runtime");
   const watchGroups = [
     {
       label: "主应用",
@@ -346,10 +347,16 @@ function startFrontendWatchBuild() {
         path.join(HOMEOS_APP, "frontend", "src"),
         path.join(HOMEOS_APP, "frontend", "public"),
       ],
-      // 只重建主应用：`build` 还会顺带跑 runtime，且 runtime 的 emptyOutDir 会短暂
-      // 清空 modules/runtime，导致 interaction3d 动态 import 在 watch 窗口内 404。
-      // runtime 改动请另开 `bun run dev:runtime`（与 README 一致）。
+      // studio/runtime 由下方独立组走原子替换的 build:runtime，避免 emptyOutDir 闪断。
+      ignoreRelativePrefixes: ["studio/runtime" + path.sep, "studio/runtime/"],
       buildArgs: ["run", "--cwd", path.join(HOMEOS_APP, "frontend"), "build:app"],
+      refreshPort: APP_PORT,
+    },
+    {
+      label: "3D runtime",
+      sources: [studioRuntimeSrc],
+      // 非 watch 构建写旁路目录再 rename，不会清空线上 modules/runtime。
+      buildArgs: ["run", "--cwd", path.join(HOMEOS_APP, "frontend"), "build:runtime"],
       refreshPort: APP_PORT,
     },
     {
@@ -404,7 +411,12 @@ function startFrontendWatchBuild() {
       });
     };
 
-    const onSourceChange = () => {
+    const onSourceChange = (_eventType, filename) => {
+      const relative = String(filename || "").replace(/\\/g, "/");
+      const ignored = group.ignoreRelativePrefixes?.some(
+        (prefix) => relative === prefix.replace(/\\/g, "/").replace(/\/$/, "") || relative.startsWith(prefix.replace(/\\/g, "/")),
+      );
+      if (ignored) return;
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         debounceTimer = null;
@@ -425,7 +437,7 @@ function startFrontendWatchBuild() {
 
   if (watchedCount > 0) {
     console.log(
-      "[watch-build] 已开启：改 frontend/{src,public} 会自动重建 dist（加 --no-watch-build 可关闭）。",
+      "[watch-build] 已开启：改 frontend/{src,public} 与 studio/runtime 会自动重建 dist（加 --no-watch-build 可关闭）。",
     );
   }
 }

@@ -133,11 +133,93 @@ def validate_config(properties: dict) -> None:
     if not isinstance(security, dict) or set(security) - {
         'presenceSensors',
         'cameras',
-        'locks'}:
+        'locks',
+        'alarms'}:
         fail()
     from .lock import validate_lock_bindings
 
     validate_lock_bindings(security.get('locks', []), validate_camera)
+    alarms = security.get('alarms', [])
+    if not isinstance(alarms, list) or len(alarms) > 100:
+        fail()
+    alarm_ids = set()
+    for item in alarms:
+        # 对齐 0.7.1：独立浮动卡片字段；兼容历史 modelId / theme / workStateEntityId
+        fields = {
+            'id',
+            'kind',
+            'floorId',
+            'x',
+            'y',
+            'height',
+            'size',
+            'fontSize',
+            'opacity',
+            'label',
+            'entityId',
+            'batteryEntityId',
+            'visible',
+            'modelId',
+            'workStateEntityId',
+            'theme',
+            'overlay',
+            'icon',
+            'iconSize',
+            'hitSize',
+            'buttonHidden',
+            'hiddenClickable',
+            'focusCamera',
+            'cardWidth',
+        }
+        if not isinstance(item, dict) or set(item) - fields:
+            fail()
+        if item.get('kind') not in {'moisture', 'smoke', 'gas'}:
+            fail()
+        if any(not text(item.get(key, '')) for key in ('id', 'floorId', 'label')):
+            fail()
+        if item['floorId'] == 'all' or item['id'] in alarm_ids:
+            fail()
+        alarm_ids.add(item['id'])
+        entity = item.get('entityId', '')
+        kind = item.get('kind')
+        if entity:
+            if kind == 'gas':
+                if not re.fullmatch('(?:binary_sensor|sensor)\\.[a-z0-9_]+', entity):
+                    fail()
+            elif not re.fullmatch('binary_sensor\\.[a-z0-9_]+', entity):
+                fail()
+        battery = item.get('batteryEntityId', '')
+        if battery and not re.fullmatch('sensor\\.[a-z0-9_]+', battery):
+            fail()
+        work_state = item.get('workStateEntityId', '')
+        if work_state and not re.fullmatch('(?:sensor|binary_sensor)\\.[a-z0-9_]+', work_state):
+            fail()
+        theme = item.get('theme', 'default')
+        if theme not in {'default', 'warm-wood'}:
+            fail()
+        model_id = item.get('modelId', '')
+        if model_id and not text(model_id):
+            fail()
+        if any(
+            key in item and not number(item[key], low, high)
+            for key, low, high in (
+                ('x', -1000000, 1000000),
+                ('y', -1000000, 1000000),
+                ('height', 0, 20),
+                ('size', 100, 600),
+                ('fontSize', 9, 24),
+                ('opacity', 0, 1),
+                ('cardWidth', 80, 480),
+            )
+        ):
+            fail()
+        if any(key in item and not positive_number(item[key]) for key in ('iconSize', 'hitSize')):
+            fail()
+        if any(key in item and not isinstance(item[key], bool) for key in ('visible', 'overlay', 'buttonHidden', 'hiddenClickable')):
+            fail()
+        if 'icon' in item and (not isinstance(item['icon'], str) or not re.fullmatch('mdi:[a-z0-9][a-z0-9-]{0,119}', item['icon'])):
+            fail()
+        validate_camera(item.get('focusCamera'))
     cameras = security.get('cameras', [])
     if not isinstance(cameras, list):
         fail()
@@ -714,12 +796,19 @@ def validate_config(properties: dict) -> None:
                 'extraControls',
                 'hiddenClickable'}
             if collection == 'airers':
-                # 晾衣架的专属字段：行程时间（秒）与升降动画方向是否反向。
-                fields.update({'travelSeconds', 'animationReversed'})
+                # 晾衣架：行程时间；位置高低方向与升降指令方向可分别设置。
+                # animationReversed 为旧字段：读写兼容，等同同时反转两方向。
+                fields.update({
+                    'travelSeconds',
+                    'animationReversed',
+                    'positionInverted',
+                    'commandInverted',
+                })
                 if 'travelSeconds' in item and not number(item['travelSeconds'], 5, 180):
                     fail()
-                if 'animationReversed' in item and not isinstance(item['animationReversed'], bool):
-                    fail()
+                for flag in ('animationReversed', 'positionInverted', 'commandInverted'):
+                    if flag in item and not isinstance(item[flag], bool):
+                        fail()
             if collection == 'waterHeaters':
                 fields.update({'deviceId', 'deviceName', 'statusRules', 'workingState'})
             if collection == 'airPurifiers':
@@ -1013,7 +1102,8 @@ def validate_config(properties: dict) -> None:
             'focusCamera',
             'buttonHidden',
             'powerEntityId',
-            'hiddenClickable'}
+            'hiddenClickable',
+            'posterAssetId'}
         if not isinstance(item, dict) or set(item) - fields:
             fail()
         if any(not text(item.get(key, '')) for key in ('id', 'floorId', 'modelId', 'entityId', 'powerEntityId', 'label')):
@@ -1028,6 +1118,9 @@ def validate_config(properties: dict) -> None:
         if item.get('entityId') and not re.fullmatch('media_player\\.[a-z0-9_]+', item['entityId']):
             fail()
         if item.get('powerEntityId') and not re.fullmatch('[a-z_]+\\.[a-z0-9_]+', item['powerEntityId']):
+            fail()
+        poster = item.get('posterAssetId', '')
+        if poster and not re.fullmatch('[0-9a-f]{32}', poster):
             fail()
         if any(key in item and not number(item[key], low, high) for key, low, high in (('x', -1000000, 1000000), ('y', -1000000, 1000000), ('height', 0, 20))):
             fail()

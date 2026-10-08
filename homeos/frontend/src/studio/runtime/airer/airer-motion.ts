@@ -1,4 +1,5 @@
 import { coverState } from "../cover/cover-state";
+import { airerVisualPosition, migrateAirerDirectionFields, normalizeAirerDirection } from "./airer-direction";
 export function createAirerMotion({
   requestFrame: requestFrame = () => {},
   now: now = () => performance.now(),
@@ -17,7 +18,7 @@ export function createAirerMotion({
       progress === 1 && (entry.motion = null));
   }
   const visualPositionOf = (airerEntry: any) =>
-    airerEntry.animationReversed ? 100 - airerEntry.position : airerEntry.position;
+    airerVisualPosition(airerEntry.position, airerEntry.directionBinding || {});
   function applyPose(posedEntry: any) {
     const visualPosition = visualPositionOf(posedEntry);
     (posedEntry.rig.pose(visualPosition),
@@ -65,11 +66,11 @@ export function createAirerMotion({
           ),
           cover = coverState(airerBinding?.entityId || "", states[airerBinding?.entityId]),
           entityId = airerBinding?.entityId || "";
-        airerEntry.animationReversed = !!(entityId && airerBinding?.animationReversed === true);
+        migrateAirerDirectionFields(airerBinding);
+        airerEntry.directionBinding = airerBinding || {};
+        const direction = normalizeAirerDirection(airerBinding);
         const unboundPosition = airerBinding?.unboundPosition ?? airerEntry.rig.preview ?? 55,
-          visualPosition = airerEntry.animationReversed
-            ? 100 - unboundPosition
-            : unboundPosition,
+          visualPosition = airerVisualPosition(unboundPosition, airerBinding),
           signature = JSON.stringify([
             entityId,
             cover.available,
@@ -77,7 +78,8 @@ export function createAirerMotion({
             cover.position,
             airerBinding?.travelSeconds,
             airerBinding?.unboundPosition,
-            airerEntry.animationReversed,
+            direction.positionInverted,
+            direction.commandInverted,
             preparing,
           ]);
         if (signature !== airerEntry.signature) {

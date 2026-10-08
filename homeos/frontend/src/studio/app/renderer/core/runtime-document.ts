@@ -50,6 +50,14 @@ export function collectEntityIds(
         presenceSensor.entityId &&
           !isVirtualEntityId(presenceSensor.entityId) &&
           entityIdSet.add(presenceSensor.entityId);
+      for (const securityAlarm of component.properties?.security?.alarms || []) {
+        securityAlarm.entityId &&
+          !isVirtualEntityId(securityAlarm.entityId) &&
+          entityIdSet.add(securityAlarm.entityId);
+        securityAlarm.batteryEntityId &&
+          !isVirtualEntityId(securityAlarm.batteryEntityId) &&
+          entityIdSet.add(securityAlarm.batteryEntityId);
+      }
     }
     if (component.type === "light-statistics") {
       for (const statisticsEntityId of Array.isArray(component.properties?.entityIds)

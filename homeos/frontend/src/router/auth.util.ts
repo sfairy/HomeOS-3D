@@ -81,9 +81,13 @@ export function resolveNavigationTarget(
     return isAuthenticated ? '/activate' : '/login'
   }
 
-  // 8. 已授权仍在入户页 → 首页
-  if (routeName === 'activation' || routeName === 'login') {
-    return '/'
+  // 8. 已登录且已授权仍停在入户页 → 首页。
+  // 未登录时必须能停留在 /login（否则会 /login → / → /login 死循环，启动覆盖层永不收起）。
+  if (routeName === 'login') {
+    return isAuthenticated ? '/' : null
+  }
+  if (routeName === 'activation') {
+    return isAuthenticated ? '/' : '/login'
   }
 
   // 9. 设置锁

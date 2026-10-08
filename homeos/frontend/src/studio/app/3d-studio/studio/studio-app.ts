@@ -409,7 +409,12 @@ type StudioControlElement = HTMLElement & {
   onclick?: (...args: any[]) => any;
 };
 
-const selectElement = (selectorText: any) => document.querySelector(selectorText),
+// 路由 fade 过渡期间编辑器与户型页会短暂共存；必须限定在本页根节点内查询，
+  // 否则 #inspector-empty / #backup-open 等撞 id 会拿到对方 DOM（例如编辑器空态没有 <strong>）。
+  const studioRootElement =
+    document.querySelector(".studio-chrome-root") || document;
+  const selectElement = (selectorText: any) =>
+    studioRootElement.querySelector(selectorText),
   isEmbeddedStage =
     window.location.pathname ===
     "/api/v1/modules/interaction3d/stage.html",

@@ -11,6 +11,7 @@ import {
   ENVIRONMENT_SENSORS,
 } from "./temperature-humidity";
 import type { HaEntityEntry } from "@app/utils/ha-entity";
+import { alarmDeviceProfiles } from "@/studio/runtime/security/security-alarm-profile";
 const DEFAULT_LIGHT_ICON = "mdi:lightbulb-outline",
   isValidIconId = (iconId: any) =>
     typeof iconId == "string" && /^mdi:[a-z0-9][a-z0-9-]{0,119}$/.test(iconId),
@@ -323,6 +324,93 @@ export function createInteraction3dEditorPickers({
                   }
                 : null,
             );
+        },
+      });
+    },
+    async alarm({
+      trigger: alarmTrigger,
+      current: currentAlarmEntityId = "",
+      kind: alarmKind = "smoke",
+      onSelect: onAlarmSelect,
+    }: any) {
+      await ensureEntities!();
+      const alarmDevices = (await fetchDevices?.()) || [];
+      const alarmProfiles = alarmDeviceProfiles(
+        alarmKind,
+        getEntities!() as HaEntityEntry[],
+        alarmDevices,
+      );
+      const alarmOptions = alarmProfiles.flatMap((alarmProfile: any) =>
+        (alarmProfile.entities || []).map((alarmEntity: HaEntityEntry) => ({
+          entityId: alarmEntity.entityId,
+          name: alarmEntity.name || alarmProfile.name,
+          roomName: resolveRoomName(alarmProfile, alarmDevices),
+          integrationName: resolveIntegrationName(alarmProfile, alarmDevices),
+          icon:
+            alarmKind === "moisture"
+              ? "mdi:water-alert"
+              : alarmKind === "gas"
+                ? "mdi:fire-alert"
+                : "mdi:smoke-detector-alert",
+          domain: alarmEntity.entityId?.split(".")[0] || "binary_sensor",
+          profile: alarmProfile,
+          entity: alarmEntity,
+        })),
+      );
+      return openPicker!({
+        kind: "entity",
+        title:
+          alarmKind === "moisture"
+            ? "选择水浸传感器实体"
+            : alarmKind === "gas"
+              ? "选择天然气传感器实体"
+              : "选择烟雾传感器实体",
+        searchPlaceholder: "搜索设备或实体",
+        triggerButton: alarmTrigger,
+        pageSize: EDITOR_PICKER_PAGE_SIZES.entity,
+        itemClass: "entity-list",
+        emptyText:
+          alarmKind === "moisture"
+            ? "没有匹配的水浸传感器实体"
+            : alarmKind === "gas"
+              ? "没有匹配的天然气传感器实体"
+              : "没有匹配的烟雾传感器实体",
+        getPage: ({ query: alarmQuery, page: alarmPage }: any) =>
+          editorEntityPickerPage(
+            alarmOptions.filter((alarmSearchOption: any) =>
+              (
+                alarmSearchOption.name +
+                " " +
+                (alarmSearchOption.roomName || "") +
+                " " +
+                alarmSearchOption.entityId
+              )
+                .toLowerCase()
+                .includes(String(alarmQuery || "").toLowerCase()),
+            ),
+            alarmPage,
+            null,
+          ),
+        renderSelectedContent: () => [
+          elements.createEditorPickerCurrentEntity(
+            alarmOptions.find(
+              (selectedOption: any) => selectedOption.entityId === currentAlarmEntityId,
+            ) || {
+              entityId: currentAlarmEntityId,
+              name: currentAlarmEntityId,
+            },
+          ),
+        ],
+        renderSelectedActions: () => [
+          elements.editorPickerClearAction("不绑定实体", !currentAlarmEntityId),
+        ],
+        renderItem: (alarmOptionItem: any) =>
+          elements.createEditorEntityPickerOption(alarmOptionItem, currentAlarmEntityId),
+        onSelect: (selectedAlarmEntityId: any) => {
+          const selectedOption = alarmOptions.find(
+            (option: any) => option.entityId === selectedAlarmEntityId,
+          );
+          onAlarmSelect(selectedOption?.profile || null, selectedOption?.entity || null);
         },
       });
     },

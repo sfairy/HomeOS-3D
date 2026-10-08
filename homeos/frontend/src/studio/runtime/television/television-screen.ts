@@ -171,6 +171,7 @@ export function createTelevisionScreens({
               glows: glows,
               generation: 0,
               artwork: "",
+              customPoster: "",
               signature: "",
               image: null as any,
             }));
@@ -192,6 +193,8 @@ export function createTelevisionScreens({
             deviceState.app,
             deviceState.name,
             deviceState.artwork,
+            deviceState.customPosterUrl,
+            bindingEntry.posterAssetId || "",
           ]);
         screenEntry.state = deviceState;
         const colorLevel =
@@ -202,27 +205,56 @@ export function createTelevisionScreens({
             requestFrame([screenEntry.floorId])),
           screenEntry.signature !== signature)
         ) {
-          if (((screenEntry.signature = signature), screenEntry.artwork !== deviceState.artwork)) {
-            ((screenEntry.artwork = deviceState.artwork), (screenEntry.image = null));
+          const nextScreenImageUrl =
+            deviceState.artwork || (deviceState.on ? deviceState.customPosterUrl : "");
+          if (
+            ((screenEntry.signature = signature),
+            screenEntry.artwork !== deviceState.artwork ||
+              screenEntry.customPoster !== deviceState.customPosterUrl)
+          ) {
+            ((screenEntry.artwork = deviceState.artwork),
+              (screenEntry.customPoster = deviceState.customPosterUrl),
+              (screenEntry.image = null));
             const generation = ++screenEntry.generation;
-            if (deviceState.artwork) {
-              const loadedImage = new Image();
-              ((loadedImage.onload = () => {
-                !isDisposed &&
-                  generation === screenEntry.generation &&
-                  screensByLocation.get(location) === screenEntry &&
-                  ((screenEntry.image = loadedImage), renderScreen(screenEntry));
-              }),
-                (loadedImage.onerror = () => {
+            if (nextScreenImageUrl) {
+              let retryCount = 0;
+              const loadScreenImage = () => {
+                if (
+                  isDisposed ||
+                  generation !== screenEntry.generation ||
+                  screensByLocation.get(location) !== screenEntry
+                )
+                  return;
+                const loadedImage = new Image();
+                loadedImage.onload = () => {
                   !isDisposed &&
                     generation === screenEntry.generation &&
                     screensByLocation.get(location) === screenEntry &&
-                    ((screenEntry.image = null), renderScreen(screenEntry));
-                }),
-                (loadedImage.src = deviceState.artwork));
-            }
-          }
-          renderScreen(screenEntry);
+                    ((screenEntry.image = loadedImage), renderScreen(screenEntry));
+                };
+                loadedImage.onerror = () => {
+                  if (
+                    isDisposed ||
+                    generation !== screenEntry.generation ||
+                    screensByLocation.get(location) !== screenEntry
+                  )
+                    return;
+                  if (retryCount < 2 && (typeof navigator == "undefined" || navigator.onLine !== false)) {
+                    retryCount += 1;
+                    setTimeout(loadScreenImage, 400 * retryCount);
+                    return;
+                  }
+                  ((screenEntry.image = null), renderScreen(screenEntry));
+                };
+                loadedImage.src =
+                  nextScreenImageUrl +
+                  (nextScreenImageUrl.includes("?") ? "&" : "?") +
+                  "hb_retry=" +
+                  retryCount;
+              };
+              loadScreenImage();
+            } else renderScreen(screenEntry);
+          } else renderScreen(screenEntry);
         }
       }
       for (const [staleLocation, staleEntry] of screensByLocation)

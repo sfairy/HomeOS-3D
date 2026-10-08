@@ -4,12 +4,39 @@
   /* 路由壳保持实体渲染，避免 out-in 的透明度熄灭/点亮闪烁。 */
   transition: transform 0.42s cubic-bezier(0.22, 0.8, 0.2, 1);
   will-change: transform;
+  /*
+   * 默认同进出（无 mode="out-in"）：进出两页会短暂并存。若不脱离文档流，
+   * 两个 height:100% 的 .route-transition-root 会纵向叠成约 200% 高，
+   * 仪表编辑器 ↔ 户型图绘制这类整屏页切换瞬间就会闪一下错位/双页。
+   * Vue 文档对同时进出过渡的标准做法就是绝对定位叠层。
+   */
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.fade-enter-active {
+  z-index: 2;
+}
+.fade-leave-active {
+  z-index: 1;
+  pointer-events: none;
 }
 .fade-enter-from { transform: translate3d(100%, 0, 0); }
 .fade-leave-to { transform: translate3d(-100%, 0, 0); }
+
+/**
+ * 创作面（编辑器 / 户型图）瞬时换页：离开页立刻从布局摘掉，
+ * 对齐旧版整页跳转，避免双页滑动 + 互斥全局 CSS 叠层。
+ */
+.route-cut-leave-active {
+  display: none !important;
+}
+
 .route-transition-root { width: 100%; }
 
 .app-container {
+  position: relative;
   height: 100%;
   min-width: 0;
   overflow: hidden;
@@ -33,11 +60,15 @@
  * 原 homeos-3d 外壳没有这一层包装，认证页的百分比高度直接挂在 .app-container 上，
  * 因此该断层是两套外壳合并后新增的，需要在这里补齐高度透传（限定 .app-container
  * 直属，避免影响设置页/侧栏等依赖 --fill 的嵌套用法）。
+ *
+ * position:relative + overflow:hidden：给同时进出的绝对定位路由壳提供定位与裁切上下文。
  */
 .app-container > .error-boundary-root,
 .app-container > .error-boundary-root > .error-boundary-root__content {
+  position: relative;
   height: 100%;
   min-height: 0;
+  overflow: hidden;
 }
 
 @media (pointer: coarse), (hover: none) {
@@ -45,6 +76,11 @@
   .fade-leave-active {
     transition: none !important;
     transform: none !important;
+    /* 触控端关掉动画后仍不要留下 absolute，避免稳态布局被改坏 */
+    position: static !important;
+    inset: auto !important;
+    z-index: auto !important;
+    pointer-events: auto !important;
   }
   .fade-enter-from,
   .fade-leave-to { transform: none !important; }

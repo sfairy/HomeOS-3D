@@ -23,6 +23,7 @@ COLLECTIONS = (
     ('security', 'cameras'),
     ('security', 'presenceSensors'),
     ('security', 'locks'),
+    ('security', 'alarms'),
 )
 
 def identities(scene):

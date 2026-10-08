@@ -51,8 +51,9 @@ import {
   provide,
   nextTick,
 } from 'vue'
-import { Bell, LayoutDashboard, ChevronDown, MessageCircle } from '@lucide/vue'
+import { Archive, Bell, LayoutDashboard, ChevronDown, MessageCircle } from '@lucide/vue'
 import { useAuthStore } from '@/stores/auth.store'
+import BackupRestoreDialog from '@/components/backup/BackupRestoreDialog.vue'
 import { useNotificationCenter } from '@/composables/widget/useNotificationCenter'
 import { NOTIFICATION_CENTER_KEY } from '@/composables/widget/notification-center.context'
 import { useTeleportTargetGuard } from '@/composables/ui/useTeleportTargetGuard'
@@ -152,6 +153,13 @@ const {
 } = useMainLayoutChrome()
 
 const authStore = useAuthStore()
+const showBackupChrome = computed(
+  () => authStore.isAuthenticated && authStore.role === 'admin',
+)
+const backupDialogRef = ref(null)
+function openBackupSettings() {
+  backupDialogRef.value?.open?.()
+}
 // 三类全屏/抽屉浮层互斥开关：同一时刻只能打开一个，打开新面板时主动关闭其余两个
 const showNotificationDrawer = ref(false)
 const notificationCenterState = useNotificationCenter()
@@ -569,6 +577,16 @@ watch(
           >
             <MessageCircle class="w-4 h-4" />
           </button>
+          <button
+            v-if="showBackupChrome"
+            type="button"
+            class="icon-btn"
+            title="备份与恢复"
+            aria-label="备份与恢复"
+            @click="openBackupSettings"
+          >
+            <Archive class="w-4 h-4" />
+          </button>
           <div v-if="showNotificationChrome" class="notify-anchor">
             <button
               type="button"
@@ -737,6 +755,7 @@ watch(
         />
       </div>
     </ScaledViewport>
+    <BackupRestoreDialog v-if="showBackupChrome" ref="backupDialogRef" />
   </div>
 </template>
 

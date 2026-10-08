@@ -6,11 +6,11 @@
 压缩后不再存在逐步 ``0008→0009`` 修复链；结构落后于 ORM 的中途库走
 ``LegacyDatabaseError``（要求 bak / 导出导入）。本脚本验证：
 
-1. 全新库升到 head（``0001``）结构完整；
+1. 全新库升到 head（``SCHEMA_REVISION``，当前 ``0002``）结构完整；
 2. head + 缺列 → 启动失败且信息明确；
 3. head + 结构匹配 → noop；
 4. 多余列不触发漂移；
-5. 未知旧 revision（如 ``0009``）且结构已匹配 ORM → stamp 到 ``0001``。
+5. 未知旧 revision（如 ``0009``）且结构已匹配 ORM → stamp 到 head。
 
 用法：``python scripts/_schema_drift_guard_smoke.py``（在 homeos/backend 下执行）。
 """
@@ -114,10 +114,10 @@ def main() -> int:
         backup = migrations.run_migrations(settings)
         check("一致时不动库（返回 None）", backup is None, backup)
 
-        print("3. 旧 revision 标签 + 结构已匹配 → stamp 到 0001")
+        print("3. 旧 revision 标签 + 结构已匹配 → stamp 到 head")
         set_revision(database_path, "0009")
         migrations.run_migrations(settings)
-        check("stamp 后 revision 为 0001", revision(database_path) == target, revision(database_path))
+        check("stamp 后 revision 为 head", revision(database_path) == target, revision(database_path))
 
         print("4. 护栏不会误报：库里多一列不算漂移")
         with closing(sqlite3.connect(database_path)) as connection:

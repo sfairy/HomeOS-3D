@@ -20,11 +20,9 @@
 <template>
   <!-- DeviceGroupModal 设备组模态框：管理和查看设备组详情 -->
   <Teleport :to="teleportTarget" :disabled="teleportDisabled">
-    <Transition name="fade" appear>
-      <div v-if="isOpen" class="hos-modal-backdrop" @click.self="$emit('close')" />
-    </Transition>
-    <Transition name="modal-pop" appear>
-      <div v-if="isOpen" class="hos-modal-root">
+    <Transition name="hos-modal" appear>
+      <div v-if="isOpen" class="hos-modal-root" @click.self="$emit('close')">
+        <div class="hos-modal-backdrop" @click="$emit('close')" />
         <div
           ref="panelRef"
           :class="[

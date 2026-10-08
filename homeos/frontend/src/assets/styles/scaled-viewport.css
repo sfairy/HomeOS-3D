@@ -159,12 +159,40 @@
 .teleport-target > .saw-overlay,
 .teleport-target > .hos-modal-root,
 .teleport-target > .wr-modal-shade,
-.teleport-target > .oph-wizard-root {
+.teleport-target > .oph-wizard-root,
+.teleport-target > .entity-control-backdrop,
+.teleport-target > .eew-wizard-backdrop,
+.teleport-target > .media-pl-modal,
+.teleport-target > .device-batch__modal-overlay {
   z-index: var(--z-overlay);
 }
 /* 同上，放宽至后代匹配（防止异步组件/抽象节点中间插入 wrapper 导致 > 直子匹配失效） */
 .teleport-target .hos-modal-root {
   z-index: var(--z-overlay);
+}
+
+/**
+ * 缩放壳内：fixed 相对 transform 根定位时，部分浏览器会把未显式 absolute 化的
+ * 全屏遮罩算成「内容尺寸」贴在左上角。与 .wr-modal-shade 同样改为 absolute，
+ * 铺满 .teleport-target（inset:0）后再用 flex/grid 居中面板。
+ */
+#teleport-target > .hos-modal-root,
+.teleport-target > .hos-modal-root,
+#teleport-target > .wr-modal-shade,
+.teleport-target > .wr-modal-shade,
+#teleport-target > .saw-overlay,
+.teleport-target > .saw-overlay,
+#teleport-target > .entity-control-backdrop,
+.teleport-target > .entity-control-backdrop,
+#teleport-target > .eew-wizard-backdrop,
+.teleport-target > .eew-wizard-backdrop,
+#teleport-target > .media-pl-modal,
+.teleport-target > .media-pl-modal,
+#teleport-target > .oph-wizard-root,
+.teleport-target > .oph-wizard-root,
+#teleport-target > .device-batch__modal-overlay,
+.teleport-target > .device-batch__modal-overlay {
+  position: absolute;
 }
 
 /* 离开动画中的遮罩不得拦截下层点击（生活/联动 Tab 常见误伤） */

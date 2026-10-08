@@ -32,6 +32,12 @@ function detectBackgroundFormat(imageBytes: any) {
   if (decodeAsciiRange(0, 4) === "RIFF" && decodeAsciiRange(8, 12) === "WEBP") return "webp";
   if (["GIF87a", "GIF89a"].includes(decodeAsciiRange(0, 6))) return "gif";
   if (matchesSignatureBytes(66, 77)) return "bmp";
+  // ISO BMFF brands：heic/heif/avif（ftyp box）。浏览器本地常无法解码，仍交给服务端 pillow-heif。
+  if (imageBytes.length >= 12 && decodeAsciiRange(4, 8) === "ftyp") {
+    const brand = decodeAsciiRange(8, 12);
+    if (["heic", "heix", "hevc", "hevx", "mif1", "msf1", "heif"].includes(brand)) return "heic";
+    if (["avif", "avis"].includes(brand)) return "avif";
+  }
   const decodedText = new TextDecoder().decode(imageBytes).replace(/^\uFEFF/, "");
   return /^\s*(?:<\?xml[\s\S]*?\?>\s*|<!--[\s\S]*?-->\s*|<!DOCTYPE[\s\S]*?>\s*)*<svg[\s>]/i.test(
     decodedText,
@@ -100,7 +106,7 @@ export async function prepareBackground(
     (importDiagnostics.extension === "svg" ? "svg" : null);
   if (((importDiagnostics.format = detectedFormat || "无法识别"), !detectedFormat))
     throw createCodedError(
-      "无法识别此图片格式，请另存为 PNG/JPG 后重试。PDF、CAD 和 HEIC 暂不支持直接导入。",
+      "无法识别此图片格式，请另存为 PNG/JPG 后重试。PDF 与 CAD 暂不支持；HEIC 需服务端开启转换后再导入。",
       "IMAGE_FORMAT",
     );
   const mimeType = detectedFormat === "svg" ? "image/svg+xml" : "image/" + detectedFormat,
@@ -121,11 +127,26 @@ export async function prepareBackground(
         ? !["jpg", "jpeg"].includes(importDiagnostics.extension!)
         : importDiagnostics.extension !== targetExtension;
   let file1 = new File([sourceFile], baseFileName + "." + targetExtension, {
-    type: mimeType,
+    type:
+      detectedFormat === "heic"
+        ? "image/heic"
+        : detectedFormat === "avif"
+          ? "image/avif"
+          : mimeType,
   });
   const adjustments = isFormatCorrected ? ["已识别并修正图片格式"] : [];
   if (detectedFormat === "svg")
     return (
+      (importDiagnostics.uploadBytes = file1.size),
+      {
+        file: file1,
+        adjustments: adjustments,
+      }
+    );
+  // HEIC/AVIF：浏览器常无法解码，直接上传由后端 pillow-heif / Pillow 转 PNG/JPEG。
+  if (detectedFormat === "heic" || detectedFormat === "avif")
+    return (
+      adjustments.push("将由服务端转换为 PNG/JPEG"),
       (importDiagnostics.uploadBytes = file1.size),
       {
         file: file1,

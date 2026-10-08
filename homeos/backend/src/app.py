@@ -48,6 +48,7 @@ from .api.moviepilot_proxy import router as moviepilot_proxy_router
 from .api.notification import router as notification_router
 from .api.security import router as security_router
 from .api.security_panel import router as security_panel_router
+from .api.backups import router as backups_router
 from .api.system_backup import router as system_backup_router
 from .api.system_config import router as system_config_router
 from .api.system_core import router as system_core_router
@@ -99,6 +100,7 @@ from .services.agent.short_term_memory import AgentShortTermMemoryService
 from .services.agent.tools.home_tools_service import HomeToolsService
 from .services.app_config import AppConfigBackupService, AppConfigService
 from .services.awareness import AdvisorUsageService, TtsSpeakService, VoiceService
+from .services.backup.business_backup import BackupCoordinator
 from .services.backup import (
     AutoBackupService,
     ServerBackupService,
@@ -732,6 +734,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.server_backup = server_backup
         app.state.auto_backup = auto_backup
         auto_backup.start()
+
+        business_backup = BackupCoordinator(app)
+        business_backup.cleanup_startup()
+        app.state.business_backup = business_backup
 
         # -------------------------------------------------------------- #
         # 首装向导：进度 / 引导清单 / 绑定缺口 / 配置健康评分
@@ -1554,6 +1560,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(security_router, prefix="/api/v1")
     app.include_router(security_panel_router, prefix="/api/v1")
     app.include_router(system_backup_router, prefix="/api/v1")
+    app.include_router(backups_router, prefix="/api/v1")
     app.include_router(system_config_router, prefix="/api/v1")
     app.include_router(system_core_router, prefix="/api/v1")
     app.include_router(system_lifestyle_router, prefix="/api/v1")
@@ -1568,6 +1575,40 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # 3D Studio 数据面路由（displays 配对路由已随配对码机制移除）。
     studio3d_plane.mount(app, app_settings)
+
+    # 业务备份恢复期间拦其他 API；纯 ASGI，避免 BaseHTTPMiddleware。
+    class BackupMaintenanceASGI:
+        def __init__(self, asgi_app: ASGIApp) -> None:
+            self.app = asgi_app
+
+        async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+            if scope["type"] != "http":
+                await self.app(scope, receive, send)
+                return
+            path = scope.get("path") or ""
+            coordinator = getattr(app.state, "business_backup", None)
+            if coordinator is not None:
+                if coordinator.maintenance and path.startswith("/api/v1/") and not path.startswith(
+                    "/api/v1/backups"
+                ):
+                    response = JSONResponse(
+                        status_code=503,
+                        content={"detail": "正在恢复业务数据，请稍候…"},
+                    )
+                    await response(scope, receive, send)
+                    return
+                if coordinator.recovery_required and path.startswith("/api/v1/backups"):
+                    response = JSONResponse(
+                        status_code=503,
+                        content={
+                            "detail": "恢复回退尚未完成，请重启服务或联系管理员后再试备份操作。"
+                        },
+                    )
+                    await response(scope, receive, send)
+                    return
+            await self.app(scope, receive, send)
+
+    app.add_middleware(BackupMaintenanceASGI)
 
     # 中间件顺序（后注册者在外层）：CSRF 内层、压缩 / 请求体门禁 / CORS 依次在外。
     app.add_middleware(

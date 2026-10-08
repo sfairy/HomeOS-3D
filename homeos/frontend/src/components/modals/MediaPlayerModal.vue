@@ -1,5 +1,6 @@
 <template>
   <!-- MediaPlayerModal 媒体播放器模态框：全屏的媒体播放控制器 -->
+  <Teleport :to="teleportTarget" :disabled="teleportDisabled">
   <Transition name="hos-modal">
     <div v-if="isOpen && entityId" class="hos-modal-root" @click.self="closeAll">
       <div class="hos-modal-backdrop">
@@ -96,6 +97,7 @@
       </article>
     </div>
   </Transition>
+  </Teleport>
 </template>
 
 <script setup>
@@ -117,9 +119,13 @@ import MediaPlayerModalArt from '@/components/modals/media-player/MediaPlayerMod
 import MediaPlayerModalHeader from '@/components/modals/media-player/MediaPlayerModalHeader.vue'
 import MediaPlayerModalTransport from '@/components/modals/media-player/MediaPlayerModalTransport.vue'
 import { useMediaPlayerControls } from '@/composables/entity/useMediaPlayerControls'
+import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
 import { useMediaPlayerModalDisplay } from '@/composables/entity/useMediaPlayerModalDisplay'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
 import './media-player/modal.css'
+
+const { teleportTarget, shellTeleportPending } = useShellTeleportTarget()
+const teleportDisabled = shellTeleportPending
 
 const props = defineProps({
   isOpen: { type: Boolean },

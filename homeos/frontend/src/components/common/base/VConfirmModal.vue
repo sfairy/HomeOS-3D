@@ -1,68 +1,70 @@
 /**
  * @file VConfirmModal.vue
  * @module components/common/base
- * @description 全局确认对话框组件。通过 Teleport 渲染到 body 层级，与 VNotification 配合使用。
- *  支持键盘快捷键：Enter 确认、Escape 取消。模态框打开时锁定 body 滚动。
+ * @description 全局确认对话框组件。Teleport 到缩放壳 #teleport-target（未就绪时回退 body），
+ *  与 VNotification 配合使用。支持键盘快捷键：Enter 确认、Escape 取消。打开时锁定 body 滚动。
  *  依赖：vue（ref/computed/watch/onMounted/onUnmounted）、chrome.store（确认弹窗状态）、
- *  useFocusTrap（焦点陷阱，辅助无障碍）、useBodyScrollLock（引用计数滚动锁）。
+ *  useFocusTrap、useBodyScrollLock、useShellTeleportTarget。
  */
 <template>
-  <Transition name="hos-modal">
-    <div
-      v-if="chrome.activeConfirm"
-      class="hos-modal-root"
-      @click.self="chrome.resolveConfirm(false)"
-    >
-      <div class="hos-modal-backdrop" />
+  <Teleport :to="teleportTarget" :disabled="teleportDisabled">
+    <Transition name="hos-modal">
       <div
-        ref="panelRef"
-        class="hos-modal-panel hos-modal-panel--sm"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="hos-confirm-title"
-        aria-describedby="hos-confirm-message"
-        :class="chrome.activeConfirm.type === 'danger' ? 'hos-modal-panel--danger' : ''"
+        v-if="chrome.activeConfirm"
+        class="hos-modal-root"
+        @click.self="chrome.resolveConfirm(false)"
       >
-        <div class="hos-modal-head">
-          <h3 id="hos-confirm-title" class="hos-modal-title">{{ chrome.activeConfirm.title }}</h3>
-          <button
-            type="button"
-            class="hos-modal-close"
-            :aria-label="'关闭'"
-            @click="chrome.resolveConfirm(false)"
-          >
-            &times;
-          </button>
-        </div>
-        <div class="hos-modal-body">
-          <p id="hos-confirm-message">{{ chrome.activeConfirm.message }}</p>
-        </div>
-        <div class="hos-modal-footer">
-          <!-- 取消按钮：点击即拒绝 -->
-          <button
-            type="button"
-            class="hos-modal-btn hos-modal-btn--ghost"
-            @click="chrome.resolveConfirm(false)"
-          >
-            {{ chrome.activeConfirm.cancelText }}
-          </button>
-          <!-- 确认按钮：danger 类型使用红色样式强调风险 -->
-          <button
-            type="button"
-            class="hos-modal-btn"
-            :class="
-              chrome.activeConfirm.type === 'danger'
-                ? 'hos-modal-btn--danger'
-                : 'hos-modal-btn--primary'
-            "
-            @click="chrome.resolveConfirm(true)"
-          >
-            {{ chrome.activeConfirm.confirmText }}
-          </button>
+        <div class="hos-modal-backdrop" />
+        <div
+          ref="panelRef"
+          class="hos-modal-panel hos-modal-panel--sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="hos-confirm-title"
+          aria-describedby="hos-confirm-message"
+          :class="chrome.activeConfirm.type === 'danger' ? 'hos-modal-panel--danger' : ''"
+        >
+          <div class="hos-modal-head">
+            <h3 id="hos-confirm-title" class="hos-modal-title">{{ chrome.activeConfirm.title }}</h3>
+            <button
+              type="button"
+              class="hos-modal-close"
+              :aria-label="'关闭'"
+              @click="chrome.resolveConfirm(false)"
+            >
+              &times;
+            </button>
+          </div>
+          <div class="hos-modal-body">
+            <p id="hos-confirm-message">{{ chrome.activeConfirm.message }}</p>
+          </div>
+          <div class="hos-modal-footer">
+            <!-- 取消按钮：点击即拒绝 -->
+            <button
+              type="button"
+              class="hos-modal-btn hos-modal-btn--ghost"
+              @click="chrome.resolveConfirm(false)"
+            >
+              {{ chrome.activeConfirm.cancelText }}
+            </button>
+            <!-- 确认按钮：danger 类型使用红色样式强调风险 -->
+            <button
+              type="button"
+              class="hos-modal-btn"
+              :class="
+                chrome.activeConfirm.type === 'danger'
+                  ? 'hos-modal-btn--danger'
+                  : 'hos-modal-btn--primary'
+              "
+              @click="chrome.resolveConfirm(true)"
+            >
+              {{ chrome.activeConfirm.confirmText }}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  </Transition>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup>
@@ -77,7 +79,10 @@ import { useChromeStore } from '@/stores/chrome.store'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
 import { useBodyScrollLock } from '@/composables/ui/useBodyScrollLock'
 import { useEscLayer } from '@/composables/ui/useEscStack'
+import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
 const chrome = useChromeStore()
+const { teleportTarget, shellTeleportPending } = useShellTeleportTarget()
+const teleportDisabled = shellTeleportPending
 const panelRef = ref(null)
 // 焦点陷阱激活条件：存在激活的确认弹窗
 const trapActive = computed(() => !!chrome.activeConfirm)

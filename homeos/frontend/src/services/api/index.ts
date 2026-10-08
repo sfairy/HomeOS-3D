@@ -29,3 +29,5 @@ export * from './auth'
 export * from './media'
 
 export * from './agent'
+
+export * from './backups'

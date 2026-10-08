@@ -105,6 +105,13 @@ const MANAGED_ATTR = "data-spa-managed";
 // 后缀匹配把受管样式表锚定在 SPA 外壳样式之后，两种环境下顺序都成立。
 const ANCHOR_SELECTOR = 'link[href$="/static/spa-shell.css"]';
 
+/** 当前 <head> 里由本模块挂载的受管样式表 href 列表（文档顺序）。 */
+export function listManagedStylesheets(): string[] {
+  return [...document.head.querySelectorAll<HTMLLinkElement>(`link[${MANAGED_ATTR}]`)]
+    .map((el) => el.getAttribute("href") || "")
+    .filter(Boolean);
+}
+
 /** 让受管样式表按 `urls` 的顺序、紧跟在 SPA 外壳样式之后挂载。 */
 function applyStylesheets(urls: readonly string[]): void {
   const anchor = document.head.querySelector(ANCHOR_SELECTOR);
@@ -136,13 +143,29 @@ function setMeta(id: string, attr: "content", value: string): void {
   if (el) el.setAttribute(attr, value);
 }
 
+export type ApplyPageAssetsOptions = {
+  /**
+   * 过渡期间额外保留的样式表（通常是离开页仍在 DOM 里时的旧清单）。
+   * 新路由样式会立刻装上，旧表延后到 leave 结束再卸，避免滑动背景里露出无样式 HTML。
+   */
+  keepStylesheets?: readonly string[];
+};
+
 /** 把一组页面资产应用到当前文档。 */
-export function applyPageAssets(assets: PageAssets | undefined): void {
+export function applyPageAssets(
+  assets: PageAssets | undefined,
+  options?: ApplyPageAssetsOptions,
+): void {
   if (!assets) return;
   document.title = assets.title;
   setMeta("spa-viewport", "content", assets.viewport);
   setMeta("spa-theme-color", "content", assets.themeColor);
   const manifest = document.getElementById("spa-manifest");
   if (manifest) manifest.setAttribute("href", assets.manifest);
-  applyStylesheets(assets.stylesheets);
+  const keep = options?.keepStylesheets ?? [];
+  applyStylesheets(
+    keep.length > 0
+      ? [...new Set([...keep, ...assets.stylesheets])]
+      : assets.stylesheets,
+  );
 }

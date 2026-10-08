@@ -687,6 +687,23 @@ class HAArea(Base):
     missing_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class DataCompatibility(Base):
+    """数据目录最低程序版本地板（单例行 ``id=1``）。
+
+    用于阻止旧版二进制读写已被新版写入的数据目录；与 ``data-compatibility.json`` 联动。
+    """
+
+    __tablename__ = "data_compatibility"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    minimum_application_version: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="0.0.0"
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now
+    )
+
+
 class HASyncState(Base):
     """HA 目录同步游标（一行一连接）。"""
 

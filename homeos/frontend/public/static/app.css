@@ -42,6 +42,15 @@ body {
   margin: 0;
   background: var(--bg);
 }
+
+/* showModal 的 UA 居中（margin:auto + inset:0）一旦被其它 reset 冲掉就会贴左上角 */
+dialog:modal {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px);
+}
 button,
 input,
 select,
@@ -1318,19 +1327,24 @@ h2 {
 }
 .workspace-modes {
   display: grid;
-  grid-template-columns: repeat(3, 52px);
-  align-items: center;
+  /* 仅「编辑 / 仪表盘」两档；旧版 3×52px 会多出一列空白，右侧文字显得左偏 */
+  grid-template-columns: repeat(2, minmax(64px, 1fr));
+  align-items: stretch;
   gap: 0;
+  min-width: 128px;
   overflow: hidden;
   border: 1px solid #39424a;
-  border-radius: 5px;
+  border-radius: 6px;
 }
 .workspace-modes button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   min-width: 0;
   height: 30px;
   min-height: 30px;
-  padding: 4px 3px;
+  padding: 0 10px;
   border: 0;
   border-right: 1px solid #39424a;
   border-radius: 0;
@@ -1339,6 +1353,9 @@ h2 {
   font-size: 11px;
   font-weight: 560;
   line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  text-align: center;
 }
 .workspace-modes button:last-child {
   border-right: 0;
@@ -2277,11 +2294,13 @@ h2 {
   font-size: 10px;
 }
 .editor-paged-picker-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
   width: min(980px, calc(100vw - 32px));
   max-width: none;
   height: min(760px, calc(100vh - 32px));
   max-height: none;
-  margin: auto;
   padding: 0;
   overflow: hidden;
   border: 1px solid rgba(133, 151, 162, 0.3);
@@ -3048,10 +3067,13 @@ h2 {
   font: 15px/1 sans-serif;
 }
 .popup-related-entity-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
   width: min(520px, 86vw);
   max-width: none;
+  height: fit-content;
   max-height: min(680px, 84vh);
-  margin: auto;
   padding: 0;
   overflow: hidden;
   border: 1px solid rgba(133, 151, 162, 0.26);
@@ -4107,7 +4129,13 @@ h2 {
   background: #303941;
 }
 .settings-dialog {
+  /* showModal 在部分 WebView / 缩放壳下会掉 UA 居中，显式固定到视口中央 */
+  position: fixed;
+  inset: 0;
+  margin: auto;
   width: min(620px, calc(100vw - 40px));
+  height: fit-content;
+  max-height: calc(100dvh - 40px);
   padding: 0;
   border: 1px solid #3a444c;
   border-radius: 9px;
@@ -4121,6 +4149,50 @@ h2 {
 }
 .settings-dialog.floorplan-auto-diagram-dialog {
   width: min(720px, calc(100vw - 40px));
+}
+.backup-body {
+  max-height: calc(100dvh - 130px);
+  overflow-y: auto;
+  padding: 20px;
+}
+.backup-guide {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+.backup-guide p {
+  margin: 0 0 7px;
+}
+.backup-tabs {
+  margin-top: 16px;
+}
+.backup-tabs button {
+  min-height: 32px;
+  font-size: 11px;
+}
+.backup-body .settings-form {
+  padding: 18px 0 0;
+}
+.backup-body .settings-form input[type="file"] {
+  padding: 8px;
+  height: auto;
+}
+.backup-preview {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.backup-body label.backup-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.6;
+}
+.backup-confirm input {
+  flex: none;
+  margin: 3px 0 0;
+}
+.backup-body > .settings-message {
+  margin-bottom: 0;
 }
 .floorplan-auto-diagram-guide {
   display: grid;
@@ -6151,7 +6223,11 @@ h2 {
 }
 .display-pairing-qr-dialog {
   box-sizing: border-box;
+  position: fixed;
+  inset: 0;
+  margin: auto;
   width: min(440px, calc(100vw - 32px));
+  height: fit-content;
   max-height: calc(100dvh - 40px);
   overflow: auto;
   padding: 26px;

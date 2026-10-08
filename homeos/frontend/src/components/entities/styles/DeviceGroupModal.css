@@ -7,16 +7,6 @@
   opacity: 0;
 }
 
-.modal-pop-enter-active,
-.modal-pop-leave-active {
-  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.modal-pop-enter-from,
-.modal-pop-leave-to {
-  opacity: 0;
-  transform: scale(0.96) translateY(30px);
-}
-
 /* === 外壳与顶栏 === */
 .dgm-shell {
   position: relative;

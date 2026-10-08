@@ -845,7 +845,7 @@ export function createRegionLightController({
         : Math.min(1, Math.max(0, (performance.now() - motionFadeStartMs) / 280));
     (motionFadeProgress < 1 ? requestFrame() : (motionFadeStartMs = null), (stats.active = 0));
     let shouldUpdateUniforms = false;
-    const updatedNodeSet = matricesUpToDate && !isMotionEnabled ? null : new Set();
+    const updatedNodeSet = matricesUpToDate ? null : new Set();
     for (const [loopFloorId, loopRegistrations] of registrationsByFloorId) {
       const loopGroups = REGION_KINDS.map((groupKind) =>
           groupsByKey.get(loopFloorId + "\0" + groupKind),

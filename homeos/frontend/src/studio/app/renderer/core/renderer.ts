@@ -830,11 +830,13 @@ export class PanelRenderer {
       }),
       (this.boundVisibilityChange = () => {
         if (document.visibilityState === "hidden") {
+          this.suspendCameraMedia();
           for (const runtimeAbortController of this.historyAbortControllers)
             runtimeAbortController.abort("lifecycle");
           (window.clearTimeout(this.historyRetryTimer), (this.historyRetryTimer = 0));
         }
         if (document.visibilityState === "visible") {
+          this.resumeCameraMedia();
           const now = Date.now();
           (this.document &&
             now - this.lastRuntimeResumeAt >= 1500 &&
@@ -2058,6 +2060,16 @@ export class PanelRenderer {
       window.addEventListener("pointerup", rotateEndHandler, true),
       window.addEventListener("pointercancel", rotateEndHandler, true),
       window.addEventListener("blur", rotateEndHandler));
+  }
+  ["suspendCameraMedia"]() {
+    if (this.destroyed) return;
+    for (const cameraCleanupList of this.cameraCleanups.values())
+      for (const cameraCleanupCallback of cameraCleanupList.splice(0)) cameraCleanupCallback();
+    this.cameraCleanups.clear();
+  }
+  ["resumeCameraMedia"]() {
+    if (this.destroyed || !this.document || document.visibilityState === "hidden") return;
+    this.renderComponents(true);
   }
   ["cleanupComponents"](shouldPreserveSelection = false, retainedComponentIds = new Set()) {
     (clearTimeout(this.stagePrewarmTimer ?? undefined),

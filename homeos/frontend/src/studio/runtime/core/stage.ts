@@ -48,6 +48,14 @@ import {
 import { createLockPanel as createLockPanel2 } from "../security/lock-panel";
 import { createLockMotion as createLockMotion2 } from "../security/lock-motion";
 import {
+  createSecurityAlarmOverlay,
+  isSecurityAlarmKind,
+  overlayEligibleAlarms,
+  renderSecurityAlarmCard,
+  securityAlarmReading,
+  securityAlarmReadings,
+} from "../security/security-alarm";
+import {
   doorModels as doorModels2,
   lockState as lockState2,
 } from "../security/lock-state";
@@ -206,7 +214,8 @@ function configuredModuleKinds(moduleConfigSource: Record<string, any> = {}) {
     ...(moduleConfigSource.devices?.vacuums?.length ? ["vacuum"] : []),
     ...(moduleConfigSource.security?.locks?.length ||
     moduleConfigSource.security?.cameras?.length ||
-    moduleConfigSource.security?.presenceSensors?.length
+    moduleConfigSource.security?.presenceSensors?.length ||
+    moduleConfigSource.security?.alarms?.length
       ? ["security"]
       : []),
   ];
@@ -524,6 +533,7 @@ export function mountStage(mountOptions: any) {
   const scratchQuaternion = new three.Quaternion();
   let lastQuaternionMs: any = null;
   const presentationLayerElement = createStageElement("div", "i3d-presentation");
+  const securityAlarmOverlay = createSecurityAlarmOverlay(presentationLayerElement);
   let mediaViewportSize: any = null,
     containerViewportSize: any = null,
     mediaScale = 1;
@@ -1803,6 +1813,10 @@ export function mountStage(mountOptions: any) {
         lock: "门",
         camera: "摄像头",
         presence: "人体传感器",
+        alarm: "安防传感器",
+        moisture: "水浸",
+        smoke: "烟雾",
+        gas: "天然气",
       },
       editorSelectionKind = activeModule === "security" ? selectedSecurityKind : activeModule,
       editorSelectionFloor = mountOptions.document.floors.find(
@@ -2948,6 +2962,28 @@ export function mountStage(mountOptions: any) {
               (Number(securityCameraModel?.height) || 0.3) / 2,
         };
       }),
+    alarmBindings = () =>
+      (options.security?.alarms || []).map((alarmSourceEntry: any) => {
+        const kind = isSecurityAlarmKind(alarmSourceEntry.kind)
+          ? alarmSourceEntry.kind
+          : "smoke";
+        return {
+          ...alarmSourceEntry,
+          kind,
+          id: kind + ":" + alarmSourceEntry.id,
+          deviceKind: kind,
+          securityAlarm: true,
+          clickAction: "focus",
+          x: Number.isFinite(alarmSourceEntry.x) ? alarmSourceEntry.x : 0,
+          y: Number.isFinite(alarmSourceEntry.y) ? alarmSourceEntry.y : 0,
+          height: Number.isFinite(alarmSourceEntry.height) ? alarmSourceEntry.height : 1.8,
+          size: Number.isFinite(alarmSourceEntry.size) ? alarmSourceEntry.size : 180,
+          fontSize: Number.isFinite(alarmSourceEntry.fontSize)
+            ? alarmSourceEntry.fontSize
+            : 12,
+          opacity: Number.isFinite(alarmSourceEntry.opacity) ? alarmSourceEntry.opacity : 1,
+        };
+      }),
     presenceBindings = () =>
       (options.security?.presenceSensors || []).map((presenceSourceEntry: any) => {
         const presenceModel = stageModelIndex.item(
@@ -2974,13 +3010,18 @@ export function mountStage(mountOptions: any) {
     const securityBindingEntries = [
       ...lockBindings(),
       ...securityCameraBindings(),
+      ...alarmBindings(),
       ...presenceBindings().filter(
         (securityBinding: any) => (isEditing && securityBinding.modelId) || !isEditing,
       ),
     ];
     return isEditing && selectedSecurityKind
       ? securityBindingEntries.filter(
-          (filteredSecurityBinding) => filteredSecurityBinding.deviceKind === selectedSecurityKind,
+          (filteredSecurityBinding) =>
+            filteredSecurityBinding.deviceKind === selectedSecurityKind ||
+            (isSecurityAlarmKind(selectedSecurityKind) &&
+              filteredSecurityBinding.securityAlarm &&
+              filteredSecurityBinding.kind === selectedSecurityKind),
         )
       : securityBindingEntries;
   }
@@ -3029,7 +3070,8 @@ export function mountStage(mountOptions: any) {
     ) ||
     presenceBindings().find(
       (presenceLookupBinding: any) => presenceLookupBinding.id === bindingLookupId,
-    );
+    ) ||
+    alarmBindings().find((alarmLookupBinding: any) => alarmLookupBinding.id === bindingLookupId);
   function refreshStageUi() {
     (updateEditorSelection(),
       configureIdleBehaviors(),
@@ -5549,6 +5591,7 @@ export function mountStage(mountOptions: any) {
       if (((hasMarkerChange = true), !syncMarkerElement)) {
         ((syncMarkerElement = createStageElement(
           syncMarkerItem.passiveSensor ||
+            syncMarkerItem.securityAlarm ||
             ["temperature-humidity", "smallcar", "lock"].includes(syncMarkerItem.deviceKind)
             ? "div"
             : "button",
@@ -5628,6 +5671,7 @@ export function mountStage(mountOptions: any) {
       } else {
         if (
           !isVacuumDevice &&
+          !syncMarkerItem.securityAlarm &&
           syncMarkerItem.deviceKind !== "smallcar" &&
           syncMarkerItem.deviceKind !== "temperature-humidity" &&
           syncMarkerElement.dataset.icon !== icon2
@@ -5983,6 +6027,17 @@ export function mountStage(mountOptions: any) {
           (markerPresentationState.on = vacuumPresentation.active),
           (markerPresentationState.available = vacuumPresentation.available));
       }
+      if (syncMarkerItem.securityAlarm) {
+        const alarmReading = securityAlarmReading(syncMarkerItem, deviceStates);
+        (syncMarkerElement.classList.toggle("is-alarm-card", true),
+          syncMarkerElement.classList.toggle("is-editable-alarm-card", isEditing),
+          (syncMarkerElement.style.pointerEvents = isEditing ? "auto" : "none"),
+          renderSecurityAlarmCard(syncMarkerElement, syncMarkerItem, deviceStates),
+          (markerPresentationState.available =
+            alarmReading.available || alarmReading.status === "unbound"),
+          (markerPresentationState.on = alarmReading.on),
+          (syncMarkerElement.title = alarmReading.label + " · " + alarmReading.detail));
+      }
       if (
         syncMarkerItem.deviceKind === "lock" ||
         syncMarkerItem.deviceKind === "camera" ||
@@ -6163,6 +6218,15 @@ export function mountStage(mountOptions: any) {
         syncMarkerElement.classList.toggle("is-nas", syncMarkerItem.deviceKind === "nas"),
         syncMarkerElement.classList.toggle("is-selected", isEditing && text === syncMarkerItem.id));
     }
+    // 全屏报警由父页 runtime 挂到 document.body；iframe 内仅保留卡片，避免只盖住 3D 区域。
+    securityAlarmOverlay.update(
+      securityAlarmReadings(
+        overlayEligibleAlarms(options.security?.alarms || []),
+        deviceStates,
+      ),
+      false,
+      options.sceneStyle === "warm-wood" ? "warm-wood" : "default",
+    );
     ((!markerChange || markerChange.lighting) && applyLightStates(undefined, markerChange),
       (!markerChange || markerChange.environment) && refreshStageUi());
     const isPanelAffected =
@@ -6296,7 +6360,15 @@ export function mountStage(mountOptions: any) {
                     (curtainGroupCollectionItem: any) =>
                       curtainGroupEntryId2(curtainGroupCollectionItem) === draggedMarkerItem.id,
                   )
-                : draggedMarkerItem.deviceKind === "camera"
+                : draggedMarkerItem.securityAlarm
+                  ? options.security?.alarms?.find(
+                      (alarmCollectionItem: any) =>
+                        (alarmCollectionItem.kind || "smoke") +
+                          ":" +
+                          alarmCollectionItem.id ===
+                        draggedMarkerItem.id,
+                    )
+                  : draggedMarkerItem.deviceKind === "camera"
                   ? options.security?.cameras?.find(
                       (cameraCollectionItem: any) =>
                         "camera:" + cameraCollectionItem.id === draggedMarkerItem.id,
@@ -6711,7 +6783,10 @@ export function mountStage(mountOptions: any) {
             mountOptions.finishFloorTransition?.(),
             mountOptions.endCameraMotion()));
         const editingSecurityKind =
-          data.editing === true && ["camera", "presence", "lock"].includes(data.editingSecurityKind)
+          data.editing === true &&
+          ["camera", "presence", "lock", "moisture", "smoke", "gas"].includes(
+            data.editingSecurityKind,
+          )
             ? data.editingSecurityKind
             : "";
         ((data.editing !== true ||
@@ -7503,6 +7578,7 @@ export function mountStage(mountOptions: any) {
         lockMotion.dispose(),
         mountOptions.setLockMoving?.(false),
         lockPanel.dispose(),
+        securityAlarmOverlay.dispose(),
         sceneBackgroundController.dispose(),
         mountOptions.setBackgroundTheme?.(null),
         moduleTabsAnimation?.cancel(),

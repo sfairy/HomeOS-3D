@@ -53,6 +53,12 @@ onMounted(async () => {
   document.documentElement.style.setProperty("--sc-canvas-zoom", String(editorStore.canvasZoom));
   await loadClassicScript("/static/vendor/hls.js/1.7.3/hls.min.js");
   await import("@app/logging/global-log-boot");
+  const { setupBackupRestoreUi } = await import("@app/backup/backup-restore-ui");
+  setupBackupRestoreUi({
+    root: document.querySelector(".editor-chrome-root"),
+    // 对齐 0.7.1：未保存或保存中禁止导出加密备份
+    canExport: () => !editorStore.dirty && editorStore.saveState !== "saving",
+  });
   await import("@app/updates/update-notice");
   const storeLinks = await import("@app/shared/store-links");
   void storeLinks.applyStoreLinks();
@@ -139,6 +145,15 @@ watch(
           @click="editorStore.command({ type: 'save' })"
         >
           保存
+        </button>
+        <button
+          id="backup-open"
+          type="button"
+          class="sc-btn sc-btn--icon global-log-open"
+          title="备份与恢复"
+          aria-label="备份与恢复"
+        >
+          备份
         </button>
       </template>
     </StudioTopBar>

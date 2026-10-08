@@ -4,6 +4,11 @@ import {
 } from "./popup-preview";
 import { createLightStream } from "../light/light-stream";
 import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from "../device/device-profiles";
+import {
+  createSecurityAlarmOverlay,
+  overlayEligibleAlarms,
+  securityAlarmReadings,
+} from "../security/security-alarm";
 
 type HostLogger = HomeOSLog & {
   report?: (
@@ -893,6 +898,21 @@ export function mountInteraction3d(
       ...collectEnvironmentExtraEntities(),
       ...(componentProperties.security?.cameras || []),
       ...(componentProperties.security?.presenceSensors || []),
+      ...(componentProperties.security?.alarms || [])
+        .filter((alarmEntry: any) => alarmEntry.entityId)
+        .map((alarmEntry: any) => ({
+          entityId: alarmEntry.entityId,
+        })),
+      ...(componentProperties.security?.alarms || [])
+        .filter((alarmEntry: any) => alarmEntry.batteryEntityId)
+        .map((alarmBatteryEntry: any) => ({
+          entityId: alarmBatteryEntry.batteryEntityId,
+        })),
+      ...(componentProperties.security?.alarms || [])
+        .filter((alarmEntry: any) => alarmEntry.workStateEntityId)
+        .map((alarmWorkStateEntry: any) => ({
+          entityId: alarmWorkStateEntry.workStateEntityId,
+        })),
       ...collectVacuumEntries(),
       ...collectVacuumEntries().flatMap((vacuumConfigEntry: any) =>
         [
@@ -942,6 +962,9 @@ export function mountInteraction3d(
           (componentProperties.security?.presenceSensors || []).some(
             (presenceSensorEntry: any) => selectionId === "presence:" + presenceSensorEntry.id,
           ) ||
+          (componentProperties.security?.alarms || []).some(
+            (alarmEntry: any) => selectionId === "alarm:" + alarmEntry.id,
+          ) ||
           (componentProperties.environment?.curtainGroups || []).some(
             (curtainGroupEntry: any) => selectionId === "cover:curtain-group:" + curtainGroupEntry.id,
           )
@@ -988,25 +1011,50 @@ export function mountInteraction3d(
               trackedEntry.entityId,
               runtimeContext.states?.get(trackedEntry.entityId) || null,
             ]),
-          ),
-    publishStates = (incomingPatch: any = null) => {
-      if (isPreviewSuspended || isPageHidden) return;
-      const currentStates = getCurrentStates();
-      if (lightStream && currentStates === lastPublishedStates) return;
-      const shouldSendPatch = !!lightStream && supportsStatePatches && incomingPatch !== null;
-      (postToStageFrame({
-        type: "states",
-        states: mergeMotorReverseStates(currentStates, shouldSendPatch ? incomingPatch : null),
-        ...(shouldSendPatch
-          ? {
-              patch: true,
-            }
-          : {}),
-      }),
-        (lastPublishedStates = currentStates),
-        lightStream || (focusDevicePopup?.updateStates?.(), onStatesUpdate?.(currentStates)));
-    },
-    registeredStateEntityIdsSet = new Set();
+          );
+  let securityAlarmOverlay: any = null;
+  const syncSecurityAlarmOverlay = (states: any = null) => {
+    if (isDisposed) return;
+    // 对齐 0.7.1：仪表盘挂 document.body；编辑画布挂宿主。编辑模块内由 security-editor 自管预览。
+    if (isEditing || !isAuthorized) {
+      securityAlarmOverlay?.update([], false);
+      return;
+    }
+    const overlayHost = runtimeContext.editable
+      ? hostElement
+      : hostElement.ownerDocument?.body || document.body;
+    if (!overlayHost) return;
+    if (!securityAlarmOverlay) {
+      securityAlarmOverlay = createSecurityAlarmOverlay(overlayHost);
+    }
+    securityAlarmOverlay.update(
+      securityAlarmReadings(
+        overlayEligibleAlarms(componentProperties.security?.alarms || []),
+        states ?? getCurrentStates(),
+      ),
+      true,
+      componentProperties.sceneStyle === "warm-wood" ? "warm-wood" : "default",
+    );
+  };
+  const publishStates = (incomingPatch: any = null) => {
+    const currentStates = getCurrentStates();
+    syncSecurityAlarmOverlay(currentStates);
+    if (isPreviewSuspended || isPageHidden) return;
+    if (lightStream && currentStates === lastPublishedStates) return;
+    const shouldSendPatch = !!lightStream && supportsStatePatches && incomingPatch !== null;
+    (postToStageFrame({
+      type: "states",
+      states: mergeMotorReverseStates(currentStates, shouldSendPatch ? incomingPatch : null),
+      ...(shouldSendPatch
+        ? {
+            patch: true,
+          }
+        : {}),
+    }),
+      (lastPublishedStates = currentStates),
+      lightStream || (focusDevicePopup?.updateStates?.(), onStatesUpdate?.(currentStates)));
+  };
+  const registeredStateEntityIdsSet = new Set();
   function configureStateSubscriptions() {
     if (lightStream) {
       (lightStream.configure(
@@ -1827,6 +1875,8 @@ export function mountInteraction3d(
           closeCameraPreview(),
           closeVacuumPopup(),
           lightStream?.dispose(),
+          securityAlarmOverlay?.dispose(),
+          (securityAlarmOverlay = null),
           editSubscribersSet.clear(),
           (isRangeEditing = false),
           hostElement.classList.remove("is-range-editing"),
@@ -1873,7 +1923,9 @@ export function mountInteraction3d(
       ((componentDescriptor = nextDescriptor),
         isEditing && nextEditing && nextEditing.module === "security"
           ? ((editingModuleKind = "security"),
-            (editingSecurityKind = ["camera", "presence", "lock"].includes(nextEditing.securityKind)
+            (editingSecurityKind = ["camera", "presence", "lock", "alarm"].includes(
+              nextEditing.securityKind,
+            )
               ? nextEditing.securityKind
               : ""),
             (editingVacuumId = ""))

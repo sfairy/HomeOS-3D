@@ -1,22 +1,72 @@
 import { attributesOf, featureFlags, haNumber } from "../device/entity-capabilities";
+import {
+  airerVisualPosition,
+  normalizeAirerDirection,
+} from "../airer/airer-direction";
 const stateLabelByState = {
     open: "已打开",
     closed: "已关闭",
     opening: "正在打开",
     closing: "正在关闭",
   };
-export function coverStateLabel(stateKey: any) {
+export function coverStateLabel(stateKey: any, options: { airer?: boolean } = {}) {
+  if (options.airer) {
+    const airerLabelByState = {
+      open: "已放下",
+      closed: "已收起",
+      opening: "正在放下",
+      closing: "正在收起",
+    };
+    return Object.hasOwn(airerLabelByState, stateKey)
+      ? (airerLabelByState as any)[stateKey]
+      : Object.hasOwn(stateLabelByState, stateKey)
+        ? (stateLabelByState as any)[stateKey]
+        : "设备不可用";
+  }
   return Object.hasOwn(stateLabelByState, stateKey) ? (stateLabelByState as any)[stateKey] : "设备不可用";
+}
+/** 对齐 0.7.1 airerState：位置反向 + 升降指令反向时交换 opening/capabilities。 */
+export function airerState(coverStatus: any, binding: any = {}) {
+  const direction = normalizeAirerDirection(binding);
+  const source = coverStatus?.airerAdapted
+    ? {
+        position: coverStatus.devicePosition,
+        opening: coverStatus.deviceOpening,
+        closing: coverStatus.deviceClosing,
+        openSupported: coverStatus.deviceOpenSupported,
+        closeSupported: coverStatus.deviceCloseSupported,
+      }
+    : coverStatus;
+  const visualPosition = airerVisualPosition(source.position, binding);
+  const opening = direction.commandInverted ? source.closing : source.opening;
+  const closing = direction.commandInverted ? source.opening : source.closing;
+  return {
+    ...coverStatus,
+    airerAdapted: true,
+    devicePosition: source.position,
+    deviceOpening: source.opening,
+    deviceClosing: source.closing,
+    deviceOpenSupported: source.openSupported,
+    deviceCloseSupported: source.closeSupported,
+    position: visualPosition,
+    visualPosition,
+    opening,
+    closing,
+    moving: !!(opening || closing),
+    openSupported: direction.commandInverted ? source.closeSupported : source.openSupported,
+    closeSupported: direction.commandInverted ? source.openSupported : source.closeSupported,
+  };
 }
 export function coverIconIsOn(component: any, coverFeedback: any) {
   if (!coverFeedback?.available) return false;
-  const isCoverOn =
-    component?.airer || component?.coverKind === "airer"
-      ? coverFeedback.closing ||
-        (coverFeedback.position !== null && coverFeedback.position !== undefined
-          ? coverFeedback.position < 100
-          : coverFeedback.state === "closed")
-      : coverFeedback.on;
+  const isAirer = !!(component?.airer || component?.coverKind === "airer");
+  const adapted = isAirer ? airerState(coverFeedback, component) : coverFeedback;
+  const isCoverOn = isAirer
+    ? adapted.closing ||
+      (adapted.position !== null && adapted.position !== undefined
+        ? adapted.position < 100
+        : false)
+    : coverFeedback.on;
   return !!(component?.iconStateReversed === true ? !isCoverOn : isCoverOn);
 }
 export function coverState(entityId: any, stateChange: any, options: { coverKind?: string } = {}) {

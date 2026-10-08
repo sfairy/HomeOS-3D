@@ -29,5 +29,7 @@ python-dotenv>=1.0
 python-socks[asyncio]>=2.4.3,<3
 # 图片素材缩放/缩略图与 interaction3d 渲染缓存。
 Pillow>=12
+# HEIC/HEIF 解码（素材上传；由 Pillow 注册 opener）。
+pillow-heif>=1.8
 # api/ha.py 的跨线程调度。
 anyio>=4.6

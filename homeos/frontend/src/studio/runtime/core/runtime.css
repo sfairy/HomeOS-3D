@@ -227,6 +227,7 @@
   overflow: hidden;
 }
 .i3d-editor-stage {
+  position: relative;
   width: 100%;
   height: 100%;
 }
@@ -487,10 +488,17 @@
   gap: 8px;
   margin-bottom: 10px;
 }
+/* 仅一个控件时（如电视「上传图片」）拉满整行，与下方 select 同宽 */
+.i3d-focus-actions > :only-child {
+  grid-column: 1 / -1;
+}
 .i3d-focus-actions button {
   min-width: 0;
   min-height: 30px;
   padding: 4px;
+}
+.i3d-focus-actions .i3d-picker-button {
+  width: 100%;
 }
 .i3d-focus-actions button[aria-pressed="true"] {
   border-color: var(--accent, #f2a20d);
@@ -1238,6 +1246,29 @@
   width: 100%;
   min-height: 30px;
 }
+/* 烟雾 / 水浸 / 天然气「添加*卡片」：橙色实心主按钮 */
+.i3d-security-settings > button.primary.i3d-alarm-add-card {
+  width: 100%;
+  min-height: 40px;
+  margin: 0 0 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--accent, #f2a20d);
+  border-radius: 8px;
+  background: var(--accent, #f2a20d);
+  color: #181c23;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.i3d-security-settings > button.primary.i3d-alarm-add-card:hover:not(:disabled) {
+  background: var(--accent-bright, #f5bd53);
+  border-color: var(--accent-bright, #f5bd53);
+}
+.i3d-security-settings > button.primary.i3d-alarm-add-card:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
 .i3d-editor .i3d-security-size-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -1759,4 +1790,170 @@
 .i3d-device-change-dialog > .dialog-actions {
   padding: 0 24px 24px;
   gap: 12px;
+}
+
+/* 0.7.1 全屏/预览报警遮罩 */
+.i3d-alarm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  overflow: hidden;
+}
+.i3d-alarm-overlay[hidden] {
+  display: none !important;
+}
+.i3d-alarm-overlay[data-scope="preview"] {
+  position: absolute;
+  z-index: 100;
+}
+.i3d-alarm-overlay.is-alarming {
+  opacity: 1;
+}
+.i3d-alarm-glow {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to right,
+      rgba(255, 42, 54, 0.72),
+      transparent 22%,
+      transparent 78%,
+      rgba(255, 42, 54, 0.72)
+    ),
+    linear-gradient(
+      to bottom,
+      rgba(255, 42, 54, 0.65),
+      transparent 22%,
+      transparent 78%,
+      rgba(255, 42, 54, 0.65)
+    );
+  animation: i3d-alarm-breathe 2s ease-in-out infinite;
+  animation-play-state: paused;
+}
+.i3d-alarm-overlay.is-alarming .i3d-alarm-glow {
+  animation-play-state: running;
+}
+@keyframes i3d-alarm-breathe {
+  0%,
+  to {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 0.16;
+  }
+}
+.i3d-alarm-messages {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  width: max-content;
+  max-width: min(420px, calc(100% - 40px));
+  max-height: calc(100% - 40px);
+  overflow: auto;
+  pointer-events: auto;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}
+.i3d-alarm-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 14px 20px;
+  border: 1px solid #ff626b88;
+  border-radius: 16px;
+  background: #1e090eeb;
+  color: #fff1f1;
+  box-shadow: 0 12px 50px #0005;
+  font: 16px / 1.45 system-ui, sans-serif;
+}
+.i3d-alarm-message > .i3d-alarm-icon {
+  width: 36px;
+  height: 36px;
+  color: #ff646e;
+}
+.i3d-alarm-message > span {
+  display: grid;
+  min-width: 0;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.i3d-alarm-message strong {
+  font-size: 20px;
+}
+.i3d-alarm-message > span > span {
+  color: #ffc3c6;
+}
+.i3d-alarm-overlay .i3d-alarm-icon {
+  display: block;
+  flex: 0 0 auto;
+  background: currentColor;
+  mask: center / contain no-repeat;
+  -webkit-mask: center / contain no-repeat;
+}
+.i3d-alarm-dismiss {
+  pointer-events: auto;
+  justify-self: center;
+  padding: 9px 18px;
+  border: 1px solid #ffc3c655;
+  border-radius: 999px;
+  background: #1e090eeb;
+  color: #fff1f1;
+  font: 14px / 1.5 system-ui;
+  cursor: pointer;
+}
+.i3d-alarm-dismiss:hover {
+  background: #542128;
+}
+.i3d-alarm-dismiss:focus-visible {
+  outline: 2px solid #fff1f1;
+  outline-offset: 3px;
+}
+@media (max-width: 480px) {
+  .i3d-alarm-message {
+    padding: 14px 16px;
+    gap: 12px;
+  }
+  .i3d-alarm-message strong {
+    font-size: 17px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .i3d-alarm-glow {
+    animation: none;
+    opacity: 0.4;
+  }
+}
+.i3d-alarm-overlay[data-scene-style="warm-wood"] .i3d-alarm-message {
+  border-color: #b7a489;
+  background: linear-gradient(145deg, #fcf8f0, #eee7db);
+  color: #4e4438;
+  box-shadow: 0 8px 20px #59492940, inset 0 1px #fff;
+  font-family: PingFang SC, sans-serif;
+}
+.i3d-alarm-overlay[data-scene-style="warm-wood"] .i3d-alarm-message > .i3d-alarm-icon {
+  color: #a13f2c;
+}
+.i3d-alarm-overlay[data-scene-style="warm-wood"] .i3d-alarm-message > span > span {
+  color: #716657;
+}
+.i3d-alarm-overlay[data-scene-style="warm-wood"] .i3d-alarm-dismiss {
+  border-color: #bca98c;
+  background: #f6f0e5;
+  color: #554632;
+  font-family: PingFang SC, sans-serif;
+  box-shadow: 0 8px 20px #59492940, inset 0 1px #fff;
+}
+.i3d-alarm-overlay[data-scene-style="warm-wood"] .i3d-alarm-dismiss:hover {
+  background: #e6d5b8;
+}
+.i3d-alarm-overlay[data-scene-style="warm-wood"] .i3d-alarm-dismiss:focus-visible {
+  outline-color: #a13f2c;
 }

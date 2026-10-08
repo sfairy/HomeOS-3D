@@ -372,14 +372,23 @@ export function createGroundReflections({
     (clearTimeout(insideExpiryTimer), (insideExpiryTimer = null));
   }
   function disposeRecord(recordToDispose: any) {
+    if (!recordToDispose || recordToDispose.dead) return;
+    recordToDispose.dead = true;
+    try {
+      recordToDispose.geometry?.removeEventListener?.(
+        "dispose",
+        recordToDispose.onSourceDispose,
+      );
+    } catch {
+      /* geometry 可能已销毁 */
+    }
     (recordToDispose.pendingSnapshot?.release(),
-      recordToDispose.geometry.removeEventListener("dispose", recordToDispose.onSourceDispose),
-      recordToDispose.overlay.removeFromParent(),
-      recordToDispose.overlay.geometry.dispose(),
-      recordToDispose.overlay.material.dispose(),
-      recordToDispose.restoredTexture?.dispose(),
-      recordToDispose.map.dispose(),
-      recordToDispose.scratch?.dispose(),
+      recordToDispose.overlay?.removeFromParent?.(),
+      recordToDispose.overlay?.geometry?.dispose?.(),
+      recordToDispose.overlay?.material?.dispose?.(),
+      recordToDispose.restoredTexture?.dispose?.(),
+      recordToDispose.map?.dispose?.(),
+      recordToDispose.scratch?.dispose?.(),
       recordsBySource.delete(recordToDispose.source));
   }
   function trimRecordCache(forceExpireInside = false) {
@@ -597,10 +606,20 @@ export function createGroundReflections({
       let record = recordsBySource.get(sourceMesh);
       if (
         (record &&
-          (record.dead || record.key !== sourceKey) &&
+          (record.dead ||
+            record.key !== sourceKey ||
+            record.geometry !== sourceMesh.geometry) &&
           (disposeRecord(record), (record = null)),
         record)
       ) {
+        const reflectionUniform = record.overlay?.material?.uniforms?.reflection;
+        if (
+          reflectionUniform &&
+          record.map?.texture &&
+          reflectionUniform.value !== record.map.texture
+        ) {
+          reflectionUniform.value = record.map.texture;
+        }
         ((record.height = sourceHeight),
           (record.used = ++usageCounter),
           (record.hasCapture = false),
@@ -664,7 +683,8 @@ export function createGroundReflections({
           hasCapture: false,
         }),
         (record.onSourceDispose = () => {
-          ((record.dead = true), (overlayMesh.visible = false));
+          // 源几何被销毁时立刻释放整条记录，避免贴图/克隆几何悬空（0.7.1 修复）。
+          disposeRecord(record);
         }),
         sourceMesh.geometry.addEventListener("dispose", record.onSourceDispose),
         recordsBySource.set(sourceMesh, record),
@@ -1259,8 +1279,15 @@ export function createGroundReflections({
         }
         (captureRecord.pendingSnapshot?.map === captureRecord.map &&
           ((captureRecord.map = createReflectionTarget(currentResolution)),
-          (captureRecord.overlay.material.uniforms.reflection.value = captureRecord.map.texture)),
+          (captureRecord.overlay.material.uniforms.reflection.value =
+            captureRecord.restoredTexture || captureRecord.map.texture)),
           captureRecord.restoredTexture &&
+            captureRecord.map &&
+            !captureRecord.pendingSnapshot &&
+            (captureRecord.overlay.material.uniforms.reflection.value =
+              captureRecord.restoredTexture),
+          captureRecord.restoredTexture &&
+            captureRecord.pendingSnapshot &&
             (captureRecord.restoredTexture.dispose(),
             (captureRecord.restoredTexture = null),
             (captureRecord.overlay.material.uniforms.reflection.value =

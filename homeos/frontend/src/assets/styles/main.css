@@ -22,6 +22,15 @@
 @config "../../../tailwind.config.js";
 @import "./hos-dropdown-theme.css";
 
+/* 覆盖 Tailwind / 全局 reset 对 <dialog> 的 margin:0，避免 showModal 贴左上角 */
+dialog:modal {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px);
+}
+
 /* ==========================================================================
    1. 全局 CSS Reset & 基础排版
    ========================================================================== */

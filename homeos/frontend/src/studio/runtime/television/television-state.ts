@@ -1,5 +1,12 @@
 const readEntityState = (stateSource: any, entityId: any) =>
   stateSource instanceof Map ? stateSource.get(entityId) : stateSource?.[entityId];
+function televisionPosterAssetUrl(posterAssetId: any) {
+  const normalized = String(posterAssetId || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^user:/, "");
+  return /^[0-9a-f]{32}$/.test(normalized) ? "/api/v1/assets/user/" + normalized : "";
+}
 function televisionArtwork(
   artworkAttributes: {
     entity_picture_local?: any;
@@ -45,6 +52,7 @@ export function televisionState(televisionConfig: any, entityStateStore: Record<
         ? Math.max(0, (nowMs - mediaPositionUpdatedAtMs) / 1000)
         : 0;
   let artworkUrl = isOn && !isIdle ? televisionArtwork(stateAttributes) : "";
+  const customPosterUrl = televisionPosterAssetUrl(televisionConfig.posterAssetId);
   if (artworkUrl) {
     const artworkIdentityJson = JSON.stringify([
       stateAttributes.media_content_id,
@@ -101,6 +109,8 @@ export function televisionState(televisionConfig: any, entityStateStore: Record<
     app: String(stateAttributes.app_name || stateAttributes.source || ""),
     artist: String(stateAttributes.media_artist || ""),
     artwork: artworkUrl,
+    customPosterUrl: customPosterUrl,
+    screenImageUrl: artworkUrl || (isOn ? customPosterUrl : ""),
     duration: mediaDurationSeconds! > 0 ? mediaDurationSeconds : null,
     position:
       mediaPositionSeconds !== null
