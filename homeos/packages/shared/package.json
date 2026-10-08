@@ -1,6 +1,6 @@
 {
   "name": "@homeos/shared",
-  "version": "2026.09.22.08",
+  "version": "0.7.1",
   "private": true,
   "type": "module",
   "main": "./dist/cjs/index.js",

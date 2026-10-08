@@ -264,7 +264,7 @@ cp .env.example .env
 ./ops/deploy/deploy.sh
 
 # 钉版本 / 只看将执行的命令（不写文件、不调用 docker）
-./ops/deploy/deploy.sh --version 1.0.0
+./ops/deploy/deploy.sh --version 0.7.1
 ./ops/deploy/deploy.sh --dry-run
 ```
 
@@ -373,7 +373,7 @@ bun run build
 也可以直接把基础镜像钉到任意镜像站 / 私有仓库：`--python-image <ref>`、`--caddy-image <ref>`。
 
 可用构建参数：`--build-arg CYTHON_VERSION=3.2.9`、`--build-arg PYTHON_IMAGE=...`、`--build-arg CADDY_IMAGE=...`。
-不传 `--build-arg HOMEOS_VERSION=1.0.0` 时，构建阶段会自己从 `package.json` 读版本号（镜像内没有 VERSION 文件，版本号由构建期生成的 `src/_version.py` 携带）。
+不传 `--build-arg HOMEOS_VERSION=0.7.1` 时，构建阶段会自己从 `package.json` 读版本号（镜像内没有 VERSION 文件，版本号由构建期生成的 `src/_version.py` 携带）。
 
 ### 七、数据卷与备份
 

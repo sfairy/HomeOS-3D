@@ -193,8 +193,8 @@ docker compose -f docker-compose.app.yml pull && docker compose -f docker-compos
 把版本换成上一个 tag 重跑同一条命令即可（镜像仍在 GHCR，卷不动）：
 
 ```bash
-./ops/deploy/upgrade.sh --role store --version 1.0.0     # 中心
-./ops/deploy/upgrade.sh --role app   --version 1.0.0     # 客户机
+./ops/deploy/upgrade.sh --role store --version 0.7.1     # 中心
+./ops/deploy/upgrade.sh --role app   --version 0.7.1     # 客户机
 ```
 
 回滚顺序与升级**相反**：先回滚客户机，再回滚中心商店（避免新商店 + 旧客户端的组合停留太久）。

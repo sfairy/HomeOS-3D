@@ -80,7 +80,7 @@ install.sh（等价于「--role app」）。中心 / 客户机的完整流程见
   # 中心商店（厂商机）
   ./ops/deploy/deploy.sh --role store
   # 客户机（每台一次）
-  ./ops/deploy/deploy.sh --role app --license-server http://192.168.1.20:8802 --version 1.0.0
+  ./ops/deploy/deploy.sh --role app --license-server http://192.168.1.20:8802 --version 0.7.1
   # 开发 / 自测（同机）
   ./ops/deploy/deploy.sh --role all
 USAGE
@@ -239,8 +239,8 @@ package_version() {
 
 resolve_tag() {
   # 优先级与 docker compose 一致：显式 --version > 真实环境变量 > .env > 仓库默认。
-  # 必须把 .env 算进来 —— 否则「.env 钉住 1.0.0、package.json 已是 1.0.2」时，脚本会
-  # 打印「镜像 tag：1.0.2」却沿用 1.0.0 的镜像，报告与事实对不上。
+  # 必须把 .env 算进来 —— 否则「.env 钉住 0.7.1、package.json 已是 0.7.2」时，脚本会
+  # 打印「镜像 tag：0.7.2」却沿用 0.7.1 的镜像，报告与事实对不上。
   if [ -n "$VERSION_ARG" ]; then printf '%s' "$VERSION_ARG"; return; fi
   if [ -n "${HOMEOS_VERSION:-}" ]; then printf '%s' "$HOMEOS_VERSION"; return; fi
   pinned=$(env_value HOMEOS_VERSION)

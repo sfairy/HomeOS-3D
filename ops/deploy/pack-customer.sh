@@ -4,7 +4,7 @@
 #
 #   ops/deploy/pack-customer.sh                 # 产出 build/customer-pack/homeos-app-<version>/
 #                                               #   与 homeos-app-<version>.tar.gz(.sha256)
-#   ops/deploy/pack-customer.sh --version 1.0.0 # 覆盖包内版本号（默认取仓库 package.json）
+#   ops/deploy/pack-customer.sh --version 0.7.1 # 覆盖包内版本号（默认取仓库 package.json）
 #   ops/deploy/pack-customer.sh --out /tmp/pack # 自定义输出目录
 #   ops/deploy/pack-customer.sh --dir-only      # 只产出目录，不压缩
 #
