@@ -272,7 +272,7 @@ const SECTION_DESCS: Record<string, string> = {
   other: '通用运行参数（保留天数统一在「数据保留」页管理）',
   frontend: '渲染帧率与加载性能（会话刷新在访问控制页）',
   ui: '墙板展示与交互',
-  screensaver: '锁屏元素尺寸、显隐与预览',
+  screensaver: '锁屏启用开关、空闲超时、元素尺寸与显隐',
   external: '第三方 API 集成（TTS 音箱在语音中心）',
   haConnector: '重连退避、命令队列、入口合并与断连 REST 补同步',
   ops: '数据库清理节奏与 EventLog 时间线缓存（持久化筛选在连接页）',

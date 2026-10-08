@@ -26,13 +26,18 @@ export interface FrontendSection {
   apiRetryDelayMs: number // API 重试间隔（毫秒）
 }
 
-/** UI 分区（缩放与屏保） */
+/** UI 分区（缩放与强调色） */
 interface UiSection {
   scaleBaseWidth: number // 缩放基准宽度（像素）
   scaleBaseHeight: number // 缩放基准高度（像素）
+  accentColor: string // 主题强调色
+}
+
+/** 屏保分区（启用、空闲超时与视觉参数） */
+interface ScreensaverSection {
   screensaverEnabled: boolean // 是否启用屏保
   screensaverIdleMs: number // 屏保触发空闲时间（毫秒）
-  accentColor: string // 主题强调色
+  [key: string]: unknown // 其余视觉参数透传
 }
 
 /** 事件日志分区 */
@@ -107,7 +112,7 @@ interface OtherPublicSection {
 export interface AppPublicConfig {
   frontend: FrontendSection // 前端运行参数
   ui: UiSection // UI 参数
-  screensaver: Record<string, unknown> // 屏保配置（透传）
+  screensaver: ScreensaverSection // 屏保配置
   weatherEffects: WeatherEffectsSection // 天气特效
   voice: Record<string, unknown> // 语音配置（透传）
   voiceCommands: unknown[] // 语音命令列表

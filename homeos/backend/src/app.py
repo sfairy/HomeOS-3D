@@ -32,6 +32,7 @@ from .api.advisor_usage import router as advisor_usage_router
 from .api.agent import router as agent_router
 from .api.assets import read_builtin_asset
 from .api.auth import router as auth_router
+from .api.backups import router as backups_router
 from .api.channels import router as channels_router
 from .api.channels import wecom_router as channels_wecom_router
 from .api.client_power import router as client_power_router
@@ -48,7 +49,6 @@ from .api.moviepilot_proxy import router as moviepilot_proxy_router
 from .api.notification import router as notification_router
 from .api.security import router as security_router
 from .api.security_panel import router as security_panel_router
-from .api.backups import router as backups_router
 from .api.system_backup import router as system_backup_router
 from .api.system_config import router as system_config_router
 from .api.system_core import router as system_core_router
@@ -100,13 +100,13 @@ from .services.agent.short_term_memory import AgentShortTermMemoryService
 from .services.agent.tools.home_tools_service import HomeToolsService
 from .services.app_config import AppConfigBackupService, AppConfigService
 from .services.awareness import AdvisorUsageService, TtsSpeakService, VoiceService
-from .services.backup.business_backup import BackupCoordinator
 from .services.backup import (
     AutoBackupService,
     ServerBackupService,
     SystemBundleBackupService,
     UsersBackupService,
 )
+from .services.backup.business_backup import BackupCoordinator
 from .services.channels import (
     ChannelConfigService,
     ChannelsService,

@@ -221,12 +221,12 @@ def build_default_app_config() -> dict[str, Any]:
         "ui": {
             "scaleBaseWidth": 1366,
             "scaleBaseHeight": 1024,
-            "screensaverEnabled": True,
-            "screensaverIdleMs": 120000,
             "accentColor": "#3b82f6",
         },
-        # 屏保配置
+        # 屏保配置（含启用开关与空闲超时）
         "screensaver": {
+            "screensaverEnabled": True,
+            "screensaverIdleMs": 120000,
             "scale": 1.35,
             "defaultMode": "random",
             "enableWeatherMode": False,

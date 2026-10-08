@@ -231,14 +231,14 @@ export type SharedFrontendConfig = {
 export type SharedUiConfig = {
   scaleBaseWidth?: number
   scaleBaseHeight?: number
-  screensaverEnabled?: boolean
-  screensaverIdleMs?: number
   accentColor?: string
   [key: string]: unknown
 }
 
-/** 锁屏 / 屏保视觉（后端 AppConfig.screensaver） */
+/** 锁屏 / 屏保（启用开关、空闲超时与视觉；后端 AppConfig.screensaver） */
 export type SharedScreensaverConfig = {
+  screensaverEnabled?: boolean
+  screensaverIdleMs?: number
   scale?: number
   defaultMode?: string
   enableWeatherMode?: boolean

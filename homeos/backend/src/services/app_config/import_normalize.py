@@ -19,6 +19,10 @@ _FRONTEND_LAYOUT_ONLY_KEYS = ("glassEffect", "floorplanRenderer", "performanceMo
 #: 当前 schema 允许的顶层分区。
 _KNOWN_APP_CONFIG_SECTIONS = set(DEFAULT_APP_CONFIG.keys())
 
+#: 曾挂在 ui 分区的屏保开关/空闲，现迁入 screensaver。
+_UI_SCREENSAVER_LEGACY_KEYS = ("screensaverEnabled", "screensaverIdleMs")
+
+
 #: schema v17 下线的字段 → 从持久化/备份中剥离。
 _REMOVED_CONFIG_KEYS: dict[str, tuple[str, ...]] = {
     "security": (
@@ -153,11 +157,32 @@ def _strip_unknown_sections(config: dict[str, Any], changes: list[str]) -> None:
         changes.append(f"{key}: 已忽略未知配置分区")
 
 
+def _migrate_ui_screensaver_keys(config: dict[str, Any], changes: list[str]) -> None:
+    """将 ui.screensaverEnabled / ui.screensaverIdleMs 迁入 screensaver 分区。"""
+    ui = config.get("ui")
+    if not isinstance(ui, dict):
+        return
+    ss = config.get("screensaver")
+    if not isinstance(ss, dict):
+        ss = {}
+        config["screensaver"] = ss
+    for key in _UI_SCREENSAVER_LEGACY_KEYS:
+        if key not in ui:
+            continue
+        if key not in ss:
+            ss[key] = ui[key]
+            changes.append(f"ui.{key} → screensaver.{key}")
+        else:
+            changes.append(f"ui.{key}: 已移除（screensaver 分区已有同名字段）")
+        ui.pop(key, None)
+
+
 def normalize_app_config_for_import(config: dict[str, Any]) -> dict[str, Any]:
     """备份/导入前规范化运行参数；返回 ``{"config", "changes"}``（原地修改 config）。"""
     changes: list[str] = []
     _strip_unknown_sections(config, changes)
     _strip_removed_config_keys(config, changes)
+    _migrate_ui_screensaver_keys(config, changes)
     frontend = config.get("frontend")
     if isinstance(frontend, dict):
         _normalize_rebuild_debounce_ms(frontend, changes)

@@ -142,6 +142,7 @@ watch(
         <button
           type="button"
           class="sc-btn sc-btn--primary"
+          :disabled="!editorStore.dirty || editorStore.saveState === 'saving'"
           @click="editorStore.command({ type: 'save' })"
         >
           保存
@@ -165,11 +166,12 @@ watch(
       @close="editorStore.showShortcuts = false"
     />
 
-    <!-- 保留旧 header 节点供引擎查询，视觉由 Vue 顶栏接管 -->
+    <!-- 保留旧 header / #save 供引擎查询，视觉由 Vue 顶栏接管 -->
     <header class="editor-header sc-legacy-hidden" aria-hidden="true">
         <div class="brand-lockup"><img class="brand-icon"
                 src="/static/assets/icons/homeos-mark-white-orange.svg" alt=""><strong>HomeOS</strong><span
                 class="version">0.7.1</span></div>
+        <button id="save" class="primary editor-save" type="button" disabled>保存</button>
     </header>
     <main class="editor-shell">
         <aside
@@ -260,8 +262,6 @@ watch(
                                 id="show-editor-preview" class="active" type="button" role="tab"
                                 aria-selected="true">编辑</button><button id="show-dashboard-preview" type="button"
                                 role="tab" aria-selected="false">仪表盘</button></div>
-                        <div class="workspace-save-actions"><button id="save" class="primary editor-save workspace-save"
-                                type="button" disabled>保存</button></div>
                     </div>
                 </div>
             </div>

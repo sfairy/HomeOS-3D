@@ -2,7 +2,7 @@
 组件：SettingsGeneralPanel.vue
 所属模块：frontend / src / views / settings / display
 职责：通用设置面板。按子导航切换：站点品牌（siteTitle）、导航标签（NavTabEditor）、
-      底部信息栏、天气特效、显示缩放（整页等比缩放 + 布局尺寸与停靠）、
+      底部信息栏、天气特效、锁屏屏保、显示缩放（整页等比缩放 + 布局尺寸与停靠）、
       性能调试（高/中/低三档）、全屋关闭；并提供安全登出入口。中控风格固定石板深蓝。
 关键依赖：
   - SettingsPageShell / SettingsCard / SettingsCardIntro：页面骨架
@@ -189,6 +189,10 @@
       <SettingsWeatherEffectsSection />
     </div>
 
+    <div v-show="generalSection === 'screensaver'" class="settings-hub-section">
+      <SettingsScreensaverSection />
+    </div>
+
     <div v-show="generalSection === 'scaling'" class="settings-hub-section">
       <SettingsLayoutDisplaySection
         :scaling-enabled="scalingEnabled"
@@ -265,6 +269,7 @@ import {
 } from '@lucide/vue'
 import SettingsWholeHomeOffSection from '@/views/settings/display/SettingsWholeHomeOffSection.vue'
 import SettingsWeatherEffectsSection from '@/views/settings/display/SettingsWeatherEffectsSection.vue'
+import SettingsScreensaverSection from '@/views/settings/display/SettingsScreensaverSection.vue'
 import SettingsLayoutDisplaySection from '@/views/settings/display/layout/SettingsLayoutDisplaySection.vue'
 import SettingsLayoutFooterSection from '@/views/settings/display/layout/SettingsLayoutFooterSection.vue'
 import { useDashboardFooterEditor } from '@/composables/settings/display/layout-dashboard.internals'
@@ -318,6 +323,7 @@ const generalSubnavSections = computed(() => {
     { id: 'nav', label: '导航标签', emoji: '🧭' },
     { id: 'footer', label: '底部信息栏', emoji: '📊' },
     { id: 'weather-effects', label: '天气特效', emoji: '🌦️' },
+    { id: 'screensaver', label: '锁屏屏保', emoji: '🌙' },
     { id: 'scaling', label: '显示缩放', emoji: '🖥️' },
     { id: 'runtime', label: '性能调试', emoji: '⚡' },
     { id: 'whole-home-off', label: '全屋关闭', emoji: '🔌' },

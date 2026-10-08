@@ -266,6 +266,53 @@ import {
   resetStudioFacade,
 } from '../../../engine';
 import { buildStudioHistoryPatch } from './studio-history';
+import type {
+  MeshMaterialOptions,
+  BoxMeshOptions,
+  CylinderMeshOptions,
+  ArchitectureMeshOptions,
+  WallSurfaceMaterialOptions,
+  WallBandOptions,
+  WallTopSurfaceOptions,
+  WallSpanPadding,
+  SceneRebuildOptions,
+  ExportImageOptions,
+  ExportImageResult,
+  CameraSnapshotOptions,
+  CameraModeOptions,
+  CameraViewChangeOptions,
+  ExportDialogOptions,
+  ApplyExportOptions,
+  UpdateCameraViewOptions,
+  LightEffectOptions,
+  CameraInteractionOptions,
+  StudioControlElement,
+  ListDragDropTarget,
+  ListDragDropResult,
+  ListDragRowSession,
+  PlanEditPreviewFlags,
+  StudioApiRequestOptions,
+  DoorPartMaterial,
+  SceneItemSizeOverrides,
+  SceneRefreshOptions,
+} from './studio-app-types';
+import {
+  isTurntableRoundTable,
+  floorDisplayName,
+  generateId,
+  composeKey,
+  composeItemKey,
+  materialSlabLabel,
+} from './studio-app-helpers';
+import {
+  lightPresetCatalog,
+  lightIntensityFactor,
+  lightAngleLimit,
+  lightAngleLimitForType,
+  lightPropertyFields,
+  normalizeLightPropertyValue,
+  formatLightPropertyValue,
+} from './studio-app-light-data';
 
 let disposeActiveStudio: (() => void) | null = null;
 
@@ -280,134 +327,6 @@ let disposeActiveStudio: (() => void) | null = null;
 export function bootStudio(): void {
   const scope = createLegacyScope('studio-app');
   const innerCleanup = scope.run(() => {
-
-/** 面板控件元素。 */
-/** 网格材质通用选项：盒体 / 圆柱 / 建筑体块 / 墙侧墙顶都复用这一组。 */
-type MeshMaterialOptions = {
-  roughness?: number;
-  metalness?: number;
-  transparent?: boolean;
-  opacity?: number;
-  depthWrite?: boolean;
-  /** three 的 DepthFunc 常量。 */
-  depthFunc?: number;
-  /** three 的 Side 常量。 */
-  side?: number;
-  emissive?: number;
-  emissiveIntensity?: number;
-  polygonOffset?: boolean;
-  polygonOffsetFactor?: number;
-  polygonOffsetUnits?: number;
-  castShadow?: boolean;
-  receiveShadow?: boolean;
-  renderOrder?: number;
-  /** 顶面色 / 顶面透明度（墙顶材质用）。 */
-  topColor?: number;
-  topOpacity?: number;
-};
-
-/** 盒体网格选项。 */
-type BoxMeshOptions = MeshMaterialOptions & {
-  /** 圆角半径（未显式给时按最小边长推算）。 */
-  radius?: number;
-  /** 显式关闭圆角。 */
-  rounded?: boolean;
-  /** 圆角细分段数。 */
-  segments?: number;
-};
-
-/** 圆柱网格选项。 */
-type CylinderMeshOptions = MeshMaterialOptions & {
-  segments?: number;
-  rotationX?: number;
-  rotationZ?: number;
-};
-
-/** 建筑体块（合并盒几何）选项。 */
-type ArchitectureMeshOptions = MeshMaterialOptions & {
-  radius?: number;
-  rounded?: boolean;
-  segments?: number;
-};
-
-/** 墙侧 / 墙顶材质选项。 */
-type WallSurfaceMaterialOptions = MeshMaterialOptions;
-
-/** 墙裙网格选项。 */
-type WallBandOptions = MeshMaterialOptions & {
-  /** 是否把墙裙放进灯具图层，作为遮光体。 */
-  lightOccluder?: boolean;
-};
-
-/** 墙顶盖面选项。 */
-type WallTopSurfaceOptions = MeshMaterialOptions;
-
-/** 墙跨度的收放边距（米，两端各自可调）。 */
-type WallSpanPadding = { start?: number; end?: number };
-
-/** 场景重建选项。 */
-type SceneRebuildOptions = {
-  /** 强制重建，跳过缓存判断。 */
-  force?: boolean;
-  /** 只重建外模型（家具模型就绪后走这条）。 */
-  externalModelsOnly?: boolean;
-  /** 重建范围； */
-  scope?: string | string[];
-  /** 瞬时重建：不改脏文档状态。 */
-  transient?: boolean;
-  /** 重建后立刻编译着色器。 */
-  precompile?: boolean;
-  /** 保留灯光缓存。 */
-  preserveLightCache?: boolean;
-};
-
-/** 导出位图选项。 */
-type ExportImageOptions = { pixels?: boolean; blob?: boolean };
-
-/** 导出位图结果：按请求的开关选择性带上 imageData / blob。 */
-type ExportImageResult = { imageData?: ImageData; blob?: Blob };
-
-/** 应用相机快照的选项。 */
-type CameraSnapshotOptions = { recordChange?: boolean; silent?: boolean };
-
-/** 切换相机模式的选项。 */
-type CameraModeOptions = { preserveView?: boolean; deferControlUpdate?: boolean };
-
-/** 切换相机视角的选项。 */
-type CameraViewChangeOptions = { force?: boolean };
-
-/** 打开导出弹窗的选项。 */
-type ExportDialogOptions = { silent?: boolean };
-
-/** 应用导出存档的选项。 */
-type ApplyExportOptions = { silent?: boolean };
-
-/** 更新相机视角的选项。 */
-type UpdateCameraViewOptions = { view?: string };
-
-/** 灯光效果刷新选项。 */
-type LightEffectOptions = { partial?: boolean; immediate?: boolean };
-
-/** 相机交互设置（setCameraInteraction）。 */
-type CameraInteractionOptions = {
-  rotationMode?: string;
-  enabled?: boolean;
-  panEnabled?: boolean;
-  zoomEnabled?: boolean;
-  focusEditing?: boolean;
-  focusPoint?: number[];
-};
-
-type StudioControlElement = HTMLElement & {
-  value?: any;
-  disabled?: boolean;
-  checked?: any;
-  step?: string;
-  min?: string;
-  max?: string;
-  /** 事件处理器：多处直接 onclick?.() 触发，所以参数放宽成任意长度。 */
-  onclick?: (...args: any[]) => any;
-};
 
 // 路由 fade 过渡期间编辑器与户型页会短暂共存；必须限定在本页根节点内查询，
   // 否则 #inspector-empty / #backup-open 等撞 id 会拿到对方 DOM（例如编辑器空态没有 <strong>）。
@@ -2383,43 +2302,7 @@ const saveCameraViewButton = selectElement("#save-camera-view"),
     depth: 0.55,
     height: 1.55,
   });
-function isTurntableRoundTable(roundTableItem: any) {
-  return (
-    roundTableItem?.type === "rounddiningtableturntable" ||
-    roundTableItem?.roundTableTurntable === true
-  );
-}
-const lightPresetCatalog = {
-    downlight: {
-      temperature: 3000,
-      brightness: 48,
-      range: 3.2,
-      angle: 48,
-    },
-    ceilinglight: {
-      temperature: 3500,
-      brightness: 62,
-      range: 5,
-      angle: 110,
-    },
-    striplight: {
-      temperature: 3000,
-      brightness: 42,
-      range: 3.5,
-      angle: 100,
-    },
-  },
-  lightIntensityFactor = Object.freeze({
-    downlight: 1.1,
-    ceilinglight: 0.792,
-    striplight: 1.3,
-  }),
-  lightAngleLimit = {
-    downlight: 120,
-    ceilinglight: 150,
-    striplight: 120,
-  },
-  maxTextureUnitLimit = 8,
+const maxTextureUnitLimit = 8,
   planLabelDefaultColor = "#e8eef6",
   planLabelAccentAlpha = 0.72,
   shadowTextureUnits = 2,
@@ -2456,9 +2339,6 @@ const lightPresetCatalog = {
       height: 2.1,
     },
   };
-function lightAngleLimitForType(lightTypeKey: any) {
-  return (lightAngleLimit as any)[lightTypeKey] || 120;
-}
 function checkModelInUse(modelKey: any) {
   return !!studioProject?.floors?.some((floorSelection: any) =>
     floorSelection.scene?.items?.some((floorItem: any) => {
@@ -3005,58 +2885,6 @@ function applyItemOptimization(
   );
   return (publishModelLoadState(), addExternalItemModel);
 }
-const lightPropertyFields = {
-  lightTemperature: {
-    label: "色温",
-    input: "#light-temperature",
-    unit: "K",
-  },
-  lightBrightness: {
-    label: "亮度",
-    input: "#light-brightness",
-    unit: "%",
-  },
-  lightRange: {
-    label: "照射范围",
-    input: "#light-range",
-    unit: "m",
-  },
-  lightAngle: {
-    label: "光束角",
-    input: "#light-angle",
-    unit: "°",
-  },
-  elevation: {
-    label: "离地高度",
-    input: "#item-elevation",
-    unit: "m",
-  },
-};
-function normalizeLightPropertyValue(lightPropertyName: any, propertyValue: any, maxAngleLimit: any) {
-  return lightPropertyName === "lightTemperature"
-    ? Math.round(clamp2(finite2(propertyValue, 3000), 2200, 6500))
-    : lightPropertyName === "lightBrightness"
-      ? Math.round(clamp2(finite2(propertyValue, 50), 0, 100))
-      : lightPropertyName === "lightRange"
-        ? Math.round(clamp2(finite2(propertyValue, 3.5), 0.5, 10) * 10) / 10
-        : lightPropertyName === "lightAngle"
-          ? Math.round(
-              clamp2(finite2(propertyValue, 90), 15, lightAngleLimitForType(maxAngleLimit)),
-            )
-          : lightPropertyName === "elevation"
-            ? Math.round(clamp2(finite2(propertyValue, 2.7), 0, 6) * 100) / 100
-            : finite2(propertyValue);
-}
-function formatLightPropertyValue(fieldName: any, fieldValue: any) {
-  const fieldSpec = (lightPropertyFields as any)[fieldName];
-  if (!fieldSpec) return String(fieldValue);
-  const fixed = ["lightRange", "elevation"].includes(fieldName)
-    ? Number(fieldValue).toFixed(fieldName === "elevation" ? 2 : 1)
-    : Math.round(fieldValue);
-  return ["%", "°"].includes(fieldSpec.unit)
-    ? "" + fixed + fieldSpec.unit
-    : fixed + " " + fieldSpec.unit;
-}
 const toolHelpMessages = {
     "courtyard-area": [
       "庭院地面",
@@ -3305,12 +3133,6 @@ function createStudioDocument() {
     ],
     items: [] as any[],
   };
-}
-function floorDisplayName(floorIndex: any) {
-  return (
-    ["一层", "二层", "三层", "四层", "五层", "六层", "七层", "八层", "九层", "十层"][floorIndex] ||
-    floorIndex + 1 + "层"
-  );
 }
 function createFloorRecord(floorElevationIndex = 0, documentSnapshot = createStudioDocument()) {
   const jd2 = normalizeScenePayload(documentSnapshot),
@@ -4460,12 +4282,6 @@ function normalizeScenePayload(rawScene: any) {
     items: sceneItemRecords,
   };
 }
-function generateId(idPrefix: any) {
-  const randomIdSuffix =
-    globalThis.crypto?.randomUUID?.() ||
-    Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
-  return idPrefix + "-" + randomIdSuffix;
-}
 function captureUndoSnapshot(snapshotSource = studioState) {
   return structuredClone(snapshotSource);
 }
@@ -4513,12 +4329,6 @@ function floorElevationFor(elevationFloorRef: any) {
     (elevationFloorMatch: any) => elevationFloorMatch.id === elevationFloorRef?.id,
   );
   return Math.max(elevationFloorIndex, 0) * finite2(studioProject.exportFloorGap, 3);
-}
-function composeKey(keyPrefix: any, keySuffix: any) {
-  return keyPrefix + ":" + keySuffix;
-}
-function composeItemKey(keyFloorId: any, keyGroupId: any) {
-  return (keyFloorId || "floor") + ":" + keyGroupId;
 }
 function composeLightGroupKey(groupKeyFloor: any, groupKeyGroup: any) {
   return getPreviewFloorMode() === "all" ? composeKey(groupKeyFloor, groupKeyGroup) : groupKeyGroup;
@@ -4766,37 +4576,6 @@ const LIST_DRAG_TOUCH_HOLD_MS = 280,
   LIST_DRAG_START_DISTANCE = 6,
   LIST_DRAG_TOUCH_GIVE_UP_DISTANCE = 8,
   LIST_DRAG_CLICK_SUPPRESS_MS = 240;
-type ListDragDropTarget = {
-  kind: string;
-  id: string;
-  areaId: string;
-  rowElement: HTMLElement;
-  rowRect: DOMRect;
-  sectionRect: DOMRect;
-};
-type ListDragDropResult = {
-  kind: string;
-  targetId?: string;
-  anchorGroupId?: string;
-  areaId?: string;
-  insertAfter?: boolean;
-};
-type ListDragRowSession = {
-  kind: string;
-  id: string;
-  name: string;
-  rowElement: HTMLElement;
-  pointerId: number;
-  pointerType: string;
-  startX: number;
-  startY: number;
-  armed: boolean;
-  active: boolean;
-  holdTimeoutId: ReturnType<typeof setTimeout> | null;
-  ghostElement: HTMLElement | null;
-  dropTargets: ListDragDropTarget[];
-  pendingDrop: ListDragDropResult | null;
-};
 let activeListDragSession: (ListDragRowSession) | null = null,
   listDragEndedAt = 0;
 const isPointOverRect = (pointX: any, pointY: any, targetRect: any, verticalPadding = 2) =>
@@ -5657,12 +5436,6 @@ function rebuildWallIndex() {
 function getPixelsPerMeter() {
   return studioState.calibration?.pixelsPerMeter || 0;
 }
-/** PlanEditPreviewFlags：平面图重绘时标记“这是预览态”，用于换色 / 隐藏标注。 */
-type PlanEditPreviewFlags = { preview?: boolean };
-
-/** fetchStudioApi 的请求选项：RequestInit + HomeOS 日志上下文。 */
-type StudioApiRequestOptions = RequestInit & { hbLogContext?: Record<string, any> };
-
 class StudioApiError extends Error {
   /** HTTP 状态码，调用方按它分支（409 冲突 / 428 需要交互确认）。 */
   status: number;
@@ -10067,32 +9840,6 @@ function materialSlotMetaText(slotEntry: any) {
     metaParts.push("自发光 " + Math.round(slotEntry.emissiveIntensity * 100) + "%");
   return metaParts.join(" · ");
 }
-/** 石材板色号 → 面板上的中文名（空串 = 不是石材板）。 */
-function materialSlabLabel(slabFlavor: any) {
-  return (
-    ({ marble: "大理石", "marble-dark": "黑金大理石" } as any)[slabFlavor] || ""
-  );
-}
-
-
-/** 门部件的解析结果（出图与面板共用的那一份）。 */
-type DoorPartMaterial = {
-  role: string;
-  /** 逐门覆盖色 / 表面参数在 `door.materialOverrides` 里用的键（`door-material-<n>`）。 */
-  materialName: string;
-  /** 画面用色：逐门覆盖色 > 档位配方 > 主题键（不含选中高亮）。 */
-  colorValue: number;
-  overrideColor: string;
-  /** 只有档位 / 逐门表面参数给过才有值； */
-  roughness?: number;
-  metalness?: number;
-  transparent: boolean;
-  opacity: number;
-  depthWrite: boolean;
-  emissiveValue?: number;
-  emissiveIntensity?: number;
-};
-
 /** 门的材质部件表（部件顺序 `DOOR_MATERIAL_PARTS` / 各门型部件 / 部件索引）统一放在`materials/studio-model-material-roles.ts`：运行时出图、材质面板与 CI 校验脚本共用同一份事实（门没有 GLB 可扫，槽位全靠这张表定义），门型增删部件时不会两边各… */
 
 
@@ -11371,19 +11118,6 @@ async function importBackgroundFile(backgroundFile: any) {
 }
 /** 当前主题下的视图 / 光照设置：默认值再叠 WARM_WOOD_STYLE（含 warmWood 标记）。 */
 type BackgroundViewSettings = typeof defaultViewSettings & Record<string, any>;
-
-/** createSceneItem 的尺寸覆盖（拖动排序 / 拖拽生成洞口时用）。 */
-type SceneItemSizeOverrides = { width?: number; depth?: number };
-
-/** refreshSceneRender 的重建范围。 */
-type SceneRefreshOptions = {
-  /** 重建场景内容（地面 / 家具等）。 */
-  scene?: boolean;
-  /** 重建阴影贴图。 */
-  shadows?: boolean;
-  /** 保留已有灯光缓存。 */
-  preserveLightCache?: boolean;
-};
 
 function backgroundSettings(): BackgroundViewSettings {
   return sceneStyle === "warm-wood"

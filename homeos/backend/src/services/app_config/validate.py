@@ -555,10 +555,6 @@ def _validate_ui(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
         num_in(section, "scaleBaseWidth", p["scaleBaseWidth"], 800, 7680, e)
     if "scaleBaseHeight" in p:
         num_in(section, "scaleBaseHeight", p["scaleBaseHeight"], 600, 4320, e)
-    if "screensaverEnabled" in p:
-        require_bool(section, "screensaverEnabled", p["screensaverEnabled"], e)
-    if "screensaverIdleMs" in p:
-        num_in(section, "screensaverIdleMs", p["screensaverIdleMs"], 10_000, 3_600_000, e)
     if "accentColor" in p:
         val = p["accentColor"]
         if not isinstance(val, str) or not re.match(r"^#[0-9a-fA-F]{6}$", val.strip()):
@@ -571,6 +567,10 @@ _SCREENSAVER_MODES = {"clock", "weather", "random"}
 
 
 def _validate_screensaver(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
+    if "screensaverEnabled" in p:
+        require_bool(section, "screensaverEnabled", p["screensaverEnabled"], e)
+    if "screensaverIdleMs" in p:
+        num_in(section, "screensaverIdleMs", p["screensaverIdleMs"], 10_000, 3_600_000, e)
     if "scale" in p:
         num_in(section, "scale", p["scale"], 0.5, 5, e)
     if "defaultMode" in p:

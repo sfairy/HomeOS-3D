@@ -75,7 +75,8 @@ def _normalized_date(value: object) -> str:
     if not text:
         return ""
     try:
-        return datetime.fromisoformat(text.replace("Z", "+00:00")).date().isoformat()
+        # Python 3.11+ 的 fromisoformat 已能直接解析 "Z" 后缀，无需手工替换。
+        return datetime.fromisoformat(text).date().isoformat()
     except ValueError:
         return text[:32]
 
@@ -114,17 +115,16 @@ def fetch_latest_release(
     避免仓库被人塞进超大 release body 时把商店拖住。
     """
     url = f"{GITHUB_API_BASE}/repos/{repo}/releases/latest"
-    with httpx.Client(timeout=timeout, transport=transport, follow_redirects=False) as client:
-        with client.stream("GET", url, headers=_release_headers(token)) as response:
-            if response.status_code == 404:
-                logger.info("GitHub 仓库 %s 还没有已发布的 Release。", repo)
-                return None
-            response.raise_for_status()
-            body = bytearray()
-            for chunk in response.iter_bytes():
-                body.extend(chunk)
-                if len(body) > MAX_RESPONSE_BYTES:
-                    raise ValueError("GitHub Release 响应过大")
+    with httpx.Client(timeout=timeout, transport=transport, follow_redirects=False) as client, client.stream("GET", url, headers=_release_headers(token)) as response:
+        if response.status_code == 404:
+            logger.info("GitHub 仓库 %s 还没有已发布的 Release。", repo)
+            return None
+        response.raise_for_status()
+        body = bytearray()
+        for chunk in response.iter_bytes():
+            body.extend(chunk)
+            if len(body) > MAX_RESPONSE_BYTES:
+                raise ValueError("GitHub Release 响应过大")
     payload = json.loads(body)
     if not isinstance(payload, dict):
         raise ValueError("GitHub Release 响应不是对象")

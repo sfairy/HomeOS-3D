@@ -85,7 +85,6 @@ import {
   GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2,
   genericDeviceProfile as genericDeviceProfile2,
   isGenericDeviceKind as isGenericDeviceKind2,
-  genericDeviceMetadata as genericDeviceMetadata2,
 } from "../device/device-profiles";
 import { createNasPanel as createNasPanel2 } from "../nas/nas-panel";
 import {
@@ -151,138 +150,21 @@ import {
   createIdleIconVisibility as createIdleIconVisibility2,
   createIdleFocusExit as createIdleFocusExit2,
 } from "./idle-rotation";
-const lampIconSvgMarkup =
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 15c0-2-3-3-3-7a7 7 0 0 1 14 0c0 4-3 5-3 7l-1 3H9l-1-3Z"/><path d="M9 21h6M9 15h6"/></svg>',
-  lightPresetEntries = [
-    {
-      label: "柔和",
-      brightness: 25,
-      temperaturePercent: 10,
-    },
-    {
-      label: "日常",
-      brightness: 60,
-      temperaturePercent: 50,
-    },
-    {
-      label: "明亮",
-      brightness: 100,
-      temperaturePercent: 100,
-    },
-  ];
-/** 普通按钮的图标尺寸：按固定的「图标 / 按钮」比例（见 @app/bridge/button-icon-size），让按钮放大时图标跟着放大，又不会顶到圆形描边。 */
-function resolveMarkerIconSize(markerItem: any, markerSize: any, isVacuumDevice: any, buttonIconSize: any) {
-  const rawIconSize =
-      Number.isFinite(markerItem.iconSize) && markerItem.iconSize > 0 ? markerItem.iconSize : 0,
-    usesIconSizeAsFont =
-      isVacuumDevice ||
-      markerItem.deviceKind === "temperature-humidity" ||
-      ["lock", "camera", "presence"].includes(markerItem.deviceKind);
-
-
-  if (rawIconSize > 0 && usesIconSizeAsFont) return rawIconSize;
-  if (markerItem.deviceKind === "temperature-humidity") {
-    return Math.min(markerSize, Math.max(4, markerSize - 18));
-  }
-  return buttonIconSize(markerSize);
-}
-
-function configuredModuleKinds(moduleConfigSource: Record<string, any> = {}) {
-  return [
-
-    "overview",
-    "light",
-    ...(moduleConfigSource.environment?.airConditioners?.length ||
-    moduleConfigSource.environment?.fans?.length ||
-    moduleConfigSource.environment?.airPurifiers?.length ||
-    moduleConfigSource.environment?.curtains?.length ||
-    moduleConfigSource.environment?.temperatureHumidity?.length
-      ? ["environment"]
-      : []),
-    ...(GENERIC_DEVICE_KINDS2.some(
-      (metricsDeviceKindName) =>
-        moduleConfigSource.devices?.[genericDeviceProfile2(metricsDeviceKindName).collection]
-          ?.length,
-    ) ||
-    moduleConfigSource.environment?.airers?.length ||
-    moduleConfigSource.environment?.waterHeaters?.length ||
-    moduleConfigSource.devices?.nas?.length ||
-    moduleConfigSource.devices?.speakers?.length ||
-    moduleConfigSource.devices?.televisions?.length
-      ? ["devices"]
-      : []),
-    ...(moduleConfigSource.devices?.vacuums?.length ? ["vacuum"] : []),
-    ...(moduleConfigSource.security?.locks?.length ||
-    moduleConfigSource.security?.cameras?.length ||
-    moduleConfigSource.security?.presenceSensors?.length ||
-    moduleConfigSource.security?.alarms?.length
-      ? ["security"]
-      : []),
-  ];
-}
-export function createStageModelIndex(mountOptions: any) {
-  let indexedDocument: any,
-    indexedModelRoot: any,
-    indexedSceneRevision: any,
-    indexedEnvironmentRevision: any,
-    indexedFloors: any,
-    indexedFloorCount: any,
-    floorsById = new Map();
-  function floorEntryFor(floorId: any) {
-    const document2 = mountOptions.document,
-      floors = document2?.floors || [];
-    if (
-      indexedDocument !== document2 ||
-      indexedModelRoot !== mountOptions.modelRoot ||
-      indexedSceneRevision !== mountOptions.sceneRevision ||
-      indexedEnvironmentRevision !== mountOptions.environmentRevision ||
-      indexedFloors !== floors ||
-      indexedFloorCount !== floors.length
-    ) {
-      ((indexedDocument = document2),
-        (indexedModelRoot = mountOptions.modelRoot),
-        (indexedSceneRevision = mountOptions.sceneRevision),
-        (indexedEnvironmentRevision = mountOptions.environmentRevision),
-        (indexedFloors = floors),
-        (indexedFloorCount = floors.length),
-        (floorsById = new Map()));
-      for (const floorRecord of floors)
-        floorsById.has(floorRecord.id) || floorsById.set(floorRecord.id, { floor: floorRecord });
-    }
-    return floorsById.get(floorId);
-  }
-  return {
-    item(floorId: any, modelId: any, modelTypes: any = undefined) {
-      const floorEntry = floorEntryFor(floorId);
-      if (!floorEntry) return;
-      const items = floorEntry.floor.scene?.items || [];
-      if (floorEntry.items !== items || floorEntry.count !== items.length) {
-        ((floorEntry.items = items), (floorEntry.count = items.length), (floorEntry.byId = new Map()));
-        for (const floorItem of items) {
-          const itemId = floorItem.id;
-          (floorEntry.byId.has(itemId) || floorEntry.byId.set(itemId, []), floorEntry.byId.get(itemId).push(floorItem));
-        }
-      }
-      return floorEntry.byId
-        .get(modelId)
-        ?.find(
-          (candidateItem: any) =>
-            modelTypes === undefined ||
-            (Array.isArray(modelTypes) ? modelTypes.includes(candidateItem.type) : candidateItem.type === modelTypes),
-        );
-    },
-    invalidate() {
-      ((indexedDocument =
-        indexedModelRoot =
-        indexedSceneRevision =
-        indexedEnvironmentRevision =
-        indexedFloors =
-        indexedFloorCount =
-          undefined),
-        floorsById.clear());
-    },
-  };
-}
+import {
+  lampIconSvgMarkup,
+  lightPresetEntries,
+  resolveMarkerIconSize,
+  configuredModuleKinds,
+  createStageModelIndex,
+  postHostMessage,
+  createStageElement,
+  coverGeometryOverrides,
+  expandGroupMembers,
+  isSameCameraPose,
+} from "./stage/_shared";
+export { createStageModelIndex } from "./stage/_shared";
+import { buildMetadata } from "./stage/build-metadata";
+import { buildFloorCameraConfig as buildFloorCameraConfigExternal } from "./stage/floor-camera-config";
 export function mountStage(mountOptions: any) {
   const { THREE: three, container: element, canvas: canvasElement } = mountOptions;
   let value: any = null;
@@ -408,117 +290,12 @@ export function mountStage(mountOptions: any) {
     applyDefaultCamera = () =>
       transformFloorCamera(mountOptions.cameraState(true), options.floorSelection, true);
   function buildFloorCameraConfig(rawFloorConfig: any) {
-    const as2 = applyPageAppearancePreset(structuredClone(rawFloorConfig));
-    if (
-      ((as2.camera = transformFloorCamera(
-        as2.floorCameras?.[as2.floorSelection] || as2.camera,
-        as2.floorSelection,
-      )),
-      (as2.lights = (as2.lights || []).map((configLightEntry: any) => ({
-        ...configLightEntry,
-        ...(configLightEntry.focusCamera
-          ? {
-              focusCamera: transformFloorCamera(configLightEntry.focusCamera, as2.floorSelection),
-            }
-          : {}),
-      }))),
-      as2.security?.cameras &&
-        (as2.security.cameras = (as2.security.cameras || []).map((configCameraEntry: any) => ({
-          ...configCameraEntry,
-          ...(configCameraEntry.focusCamera
-            ? {
-                focusCamera: transformFloorCamera(
-                  configCameraEntry.focusCamera,
-                  as2.floorSelection,
-                ),
-              }
-            : {}),
-        }))),
-      as2.security?.presenceSensors &&
-        (as2.security.presenceSensors = as2.security.presenceSensors.map((configPresenceEntry: any) => ({
-          ...configPresenceEntry,
-          ...(configPresenceEntry.focusCamera
-            ? {
-                focusCamera: transformFloorCamera(
-                  configPresenceEntry.focusCamera,
-                  as2.floorSelection,
-                ),
-              }
-            : {}),
-        }))),
-      as2.environment)
-    ) {
-      for (const environmentGroupName of [
-        "airConditioners",
-        "airers",
-        "fans",
-        "airPurifiers",
-        "waterHeaters",
-        "curtains",
-        "curtainGroups",
-        "temperatureHumidity",
-      ])
-        as2.environment[environmentGroupName] = (as2.environment[environmentGroupName] || []).map(
-          (environmentGroupEntry: any) => ({
-            ...environmentGroupEntry,
-            ...(environmentGroupEntry.focusCamera
-              ? {
-                  focusCamera: transformFloorCamera(
-                    environmentGroupEntry.focusCamera,
-                    as2.floorSelection,
-                  ),
-                }
-              : {}),
-          }),
-        );
-    }
-    for (const deviceGroupName of [
-      "nas",
-      "speakers",
-      "televisions",
-      "vacuums",
-      ...GENERIC_DEVICE_KINDS2.map(
-        (profileDeviceKindName) => genericDeviceProfile2(profileDeviceKindName).collection,
-      ),
-    ])
-      as2.devices?.[deviceGroupName] &&
-        (as2.devices[deviceGroupName] = as2.devices[deviceGroupName].map((configDeviceEntry: any) => ({
-          ...configDeviceEntry,
-          ...(configDeviceEntry.focusCamera
-            ? {
-                focusCamera: transformFloorCamera(
-                  configDeviceEntry.focusCamera,
-                  as2.floorSelection,
-                ),
-              }
-            : {}),
-        })));
-    if (as2.devices?.vacuums) {
-      for (const configVacuumEntry of as2.devices.vacuums)
-        configVacuumEntry.followCamera &&
-          (configVacuumEntry.followCamera = transformFloorCamera(
-            configVacuumEntry.followCamera,
-            as2.floorSelection,
-          ));
-    }
-    return as2;
+    return buildFloorCameraConfigExternal(
+      rawFloorConfig,
+      applyPageAppearancePreset,
+      transformFloorCamera,
+    );
   }
-  const postHostMessage = (hostMessage: any) =>
-      window.parent.postMessage(
-        {
-          channel: "hb-i3d-v1",
-          ...hostMessage,
-        },
-        location.origin,
-      ),
-    createStageElement = (elementTagName: any, elementClassName = "", elementTextContent = "") => {
-      const createdElement = document.createElement(elementTagName);
-      return (
-        (createdElement.className = elementClassName || ""),
-        elementTextContent && (createdElement.textContent = elementTextContent),
-        createdElement
-      );
-    };
   let startupProgress = mountOptions.onStartupEffectsProgress ? 0 : 1;
   const markerLayerElement = createStageElement("div", "i3d-markers"),
     vacuumWorkingLayerElement = createStageElement("div", "i3d-vacuum-working-layer");
@@ -1907,45 +1684,6 @@ export function mountStage(mountOptions: any) {
       };
     });
   }
-  function coverGeometryOverrides(
-    coverModelSource: any,
-    coverOverrides: {
-      curtainFabricOverride?: boolean;
-      curtainFabric?: string;
-      coverKindOverride?: boolean;
-      coverKind?: string;
-      unboundPosition?: number;
-    } = {},
-  ) {
-    return {
-      curtainWidth: Number(coverModelSource?.width) || 1.8,
-      curtainPosition: coverModelSource?.curtainPosition || "split",
-      curtainTrack: coverModelSource?.curtainTrack || "straight",
-      curtainCorner: coverModelSource?.curtainCorner,
-      curtainLeftLength: coverModelSource?.curtainLeftLength,
-      curtainRightLength: coverModelSource?.curtainRightLength,
-      curtainMeet: coverModelSource?.curtainMeet,
-      curtainFabric:
-        coverOverrides.curtainFabricOverride === true
-          ? coverOverrides.curtainFabric === "sheer"
-            ? "sheer"
-            : "cloth"
-          : coverModelSource?.curtainFabric || coverOverrides.curtainFabric || "cloth",
-      coverKind:
-        coverOverrides.coverKindOverride === true
-          ? ["dream", "roller"].includes(coverOverrides.coverKind!)
-            ? coverOverrides.coverKind
-            : "standard"
-          : coverModelSource?.curtainForm === "roller"
-            ? "roller"
-            : ["dream", "roller"].includes(coverOverrides.coverKind!)
-              ? coverOverrides.coverKind
-              : "standard",
-      unboundPosition: Number.isFinite(coverOverrides.unboundPosition)
-        ? coverOverrides.unboundPosition
-        : Number(coverModelSource?.curtainPreview) || 0,
-    };
-  }
   function collectCoverBindings() {
     return [...(options.environment?.curtains || []), ...(options.environment?.airers || [])].map(
       (coverSourceEntry) => {
@@ -2040,20 +1778,6 @@ export function mountStage(mountOptions: any) {
         (groupedCoverEntry) => !groupMemberIdSet.has(groupedCoverEntry.id),
       ),
     ];
-  }
-  function expandGroupMembers(groupEntryList: any) {
-    return groupEntryList.flatMap((groupEntry: any) =>
-      groupEntry.isCurtainGroup
-        ? groupEntry.memberItems.map((groupMemberEntry: any) => ({
-            ...groupMemberEntry,
-            id: groupEntry.id + ":member:" + groupMemberEntry.id,
-            entryId: groupEntry.id,
-            visible: groupEntry.visible,
-            buttonHidden: groupEntry.buttonHidden,
-            hiddenClickable: groupEntry.hiddenClickable,
-          }))
-        : [groupEntry],
-    );
   }
   function computeGroupBounds(boundsGroup: any) {
     const memberPoseList = boundsGroup.memberItems
@@ -4286,27 +4010,6 @@ export function mountStage(mountOptions: any) {
       advanceCameraMotion(cameraMotionSnapshot.started),
       cameraMotionSnapshot && (cameraMotionSnapshot.firstFrame = true),
       wakeSceneBackground());
-  }
-  function isSameCameraPose(cameraPoseA: any, cameraPoseB: any) {
-    return (
-      cameraPoseA.mode === cameraPoseB.mode &&
-      Math.abs(cameraPoseA.zoom - cameraPoseB.zoom) < 0.000001 &&
-      ["position", "target", "up"].every((poseVectorFieldKey) =>
-        (cameraPoseA[poseVectorFieldKey] || [0, 1, 0]).every(
-          (poseComponentValue: any, poseComponentIndex: any) =>
-            Math.abs(
-              poseComponentValue -
-                (cameraPoseB[poseVectorFieldKey] || [0, 1, 0])[poseComponentIndex],
-            ) < 0.000001,
-        ),
-      ) &&
-      ["frameSize", "focalLength"].every(
-        (poseScalarFieldKey) =>
-          Math.abs(
-            (cameraPoseA[poseScalarFieldKey] || 0) - (cameraPoseB[poseScalarFieldKey] || 0),
-          ) < 0.000001,
-      )
-    );
   }
   const idleRotationControl = createIdleRotation2({
       returnToBase(returnCallback: any) {
@@ -7369,7 +7072,7 @@ export function mountStage(mountOptions: any) {
         isControlBusy ||
           (postHostMessage({
             type: "model-metadata",
-            metadata: buildMetadata(),
+            metadata: buildMetadata(mountOptions, transformFloorCamera, options.floorSelection),
           }),
           reportLifecycle("source-adopt-complete")));
     } catch (sceneAdoptError: any) {
@@ -7656,266 +7359,9 @@ export function mountStage(mountOptions: any) {
         lightGroupByKey.forEach((pendingCommandEntry) => clearTimeout(pendingCommandEntry.timeout)),
         lightGroupByKey.clear());
     }));
-  function buildMetadata() {
-    const floorElevationByFloorId = new Map(
-      floorNavigationChoices2(mountOptions.document.floors)
-        .filter(([buildMetadataFloorChoiceId]) => buildMetadataFloorChoiceId !== "all")
-        .map(([floorId, floorNumberLabel]) => [
-          floorId,
-          floorNumberLabel.startsWith("B")
-            ? -Number(floorNumberLabel.slice(1))
-            : Number(floorNumberLabel.slice(0, -1)),
-        ]),
-    );
-    return (
-      mountOptions.regionLighting?.sync?.(mountOptions.camera),
-      {
-        floorGap: mountOptions.document.previewFloorGap,
-        uniformOverviewStack: mountOptions.document.uniformOverviewStack === true,
-        appearanceCapabilities: {
-          detailedLighting: (mountOptions.regionLighting?.stats?.detailedMaterials || 0) > 0,
-        },
-        camera: transformFloorCamera(
-          mountOptions.cameraState(),
-          options.floorSelection || mountOptions.document.activeFloorId,
-          true,
-        ),
-        baseLighting: mountOptions.document.baseLighting,
-        defaults: mountOptions.defaults,
-        floors: mountOptions.document.floors.map((metadataFloorItem: any) => {
-          const wallHeightSetting = metadataFloorItem.scene.settings?.wallHeight,
-            filteredWallHeights = metadataFloorItem.scene.walls
-              .map((wallHeightItem: any) => wallHeightItem.height)
-              .filter((wallHeightValue: any) => Number.isFinite(wallHeightValue) && wallHeightValue > 0),
-            resolvedWallHeight = Math.max(
-              0.01,
-              Math.min(
-                6,
-                Number.isFinite(wallHeightSetting) && wallHeightSetting > 0
-                  ? wallHeightSetting
-                  : Math.max(0, ...filteredWallHeights) || 2.8,
-              ),
-            ),
-            doorModelEntries = doorModels2(metadataFloorItem).map((doorModel: any) => ({
-              id: doorModel.modelId,
-              name: doorModel.name,
-              doorType: doorModel.doorType,
-              doorLabel: doorModel.doorLabel,
-            }));
-          return {
-            id: metadataFloorItem.id,
-            name: metadataFloorItem.name,
-            elevation: metadataFloorItem.elevation,
-            number: floorElevationByFloorId.get(metadataFloorItem.id),
-            wallHeight: resolvedWallHeight,
-            doors: doorModelEntries,
-            entryDoors: doorModelEntries,
-            plan: {
-              pixelsPerMeter: metadataFloorItem.scene.calibration?.pixelsPerMeter || 1,
-              walls: metadataFloorItem.scene.walls.map((planWallItem: any) => ({
-                start: planWallItem.start,
-                end: planWallItem.end,
-                thickness: planWallItem.thickness,
-              })),
-              items: metadataFloorItem.scene.items.map(
-                ({
-                  id: planItemId,
-                  type: planItemType,
-                  name: planItemName,
-                  x: planItemX,
-                  y: planItemY,
-                  width: planItemWidth,
-                  depth: planItemDepth,
-                  rotation: planItemRotation,
-                  color: planItemColor,
-                }: any) => ({
-                  id: planItemId,
-                  type: planItemType,
-                  name: planItemName,
-                  x: planItemX,
-                  y: planItemY,
-                  width: planItemWidth,
-                  depth: planItemDepth,
-                  rotation: planItemRotation,
-                  color: planItemColor,
-                }),
-              ),
-            },
-            cameras: metadataFloorItem.scene.items
-              .filter((cameraSceneItem: any) => cameraSceneItem.type === "camera")
-              .map((cameraMetadataItem: any, cameraMetadataIndex: any) => ({
-                id: cameraMetadataItem.id,
-                name: cameraMetadataItem.name || "摄像头 " + (cameraMetadataIndex + 1),
-                x: cameraMetadataItem.x,
-                y: cameraMetadataItem.y,
-                height:
-                  (Number(cameraMetadataItem.elevation) || 0) +
-                  (Number(cameraMetadataItem.height) || 0.3) / 2,
-              })),
-            presenceSensors: metadataFloorItem.scene.items
-              .filter((sensorSceneItem: any) => sensorSceneItem.type === "presence")
-              .map((sensorMetadataItem: any, sensorMetadataIndex: any) => ({
-                id: sensorMetadataItem.id,
-                name: sensorMetadataItem.name || "人体传感器 " + (sensorMetadataIndex + 1),
-              })),
-            vacuums: metadataFloorItem.scene.items
-              .filter(
-                (buildMetadataVacuumSceneItem: any) =>
-                  buildMetadataVacuumSceneItem.type === "robotvacuum",
-              )
-              .map((vacuumMetadataItem: any, vacuumMetadataIndex: any) => ({
-                id: vacuumMetadataItem.id,
-                name: vacuumMetadataItem.name || "扫地机 " + (vacuumMetadataIndex + 1),
-                x: vacuumMetadataItem.x,
-                y: vacuumMetadataItem.y,
-                height:
-                  (Number(vacuumMetadataItem.elevation) || 0) +
-                  (Number(vacuumMetadataItem.height) || 0.85) / 2,
-              })),
-            speakers: metadataFloorItem.scene.items
-              .filter(
-                (buildMetadataSpeakerSceneItem: any) => buildMetadataSpeakerSceneItem.type === "speaker",
-              )
-              .map((speakerMetadataItem: any, speakerMetadataIndex: any) => ({
-                id: speakerMetadataItem.id,
-                name: speakerMetadataItem.name || "智能音响 " + (speakerMetadataIndex + 1),
-                type: speakerMetadataItem.type,
-                x: speakerMetadataItem.x,
-                y: speakerMetadataItem.y,
-                height:
-                  (Number(speakerMetadataItem.elevation) || 0) +
-                  (Number(speakerMetadataItem.height) || 0.2336) / 2,
-              })),
-            televisions: metadataFloorItem.scene.items
-              .filter(
-                (buildMetadataTelevisionSceneItem: any) =>
-                  buildMetadataTelevisionSceneItem.type === "tv",
-              )
-              .map((televisionMetadataItem: any, televisionMetadataIndex: any) => ({
-                id: televisionMetadataItem.id,
-                name: televisionMetadataItem.name || "电视 " + (televisionMetadataIndex + 1),
-                type: televisionMetadataItem.type,
-                x: televisionMetadataItem.x,
-                y: televisionMetadataItem.y,
-                height:
-                  (Number(televisionMetadataItem.elevation) || 0) +
-                  (Number(televisionMetadataItem.height) || 0.92) * 0.62,
-              })),
-            ...genericDeviceMetadata2(metadataFloorItem.scene.items),
-            nas: metadataFloorItem.scene.items
-              .filter((buildMetadataNasSceneItem: any) => buildMetadataNasSceneItem.type === "nas")
-              .map((nasMetadataItem: any, nasMetadataIndex: any) => ({
-                id: nasMetadataItem.id,
-                name: nasMetadataItem.name || "NAS " + (nasMetadataIndex + 1),
-                type: nasMetadataItem.type,
-                x: nasMetadataItem.x,
-                y: nasMetadataItem.y,
-                height:
-                  (Number(nasMetadataItem.elevation) || 0) +
-                  (Number(nasMetadataItem.height) || 0.34) / 2,
-              })),
-            curtains: metadataFloorItem.scene.items
-              .filter((curtainSceneItem: any) => curtainSceneItem.type === "curtain")
-              .map((curtainMetadataItem: any, curtainMetadataIndex: any) => ({
-                id: curtainMetadataItem.id,
-                name: curtainMetadataItem.name || "窗帘 " + (curtainMetadataIndex + 1),
-                type: curtainMetadataItem.type,
-                x: curtainMetadataItem.x,
-                y: curtainMetadataItem.y,
-                height:
-                  (Number(curtainMetadataItem.elevation) || 0) +
-                  (Number(curtainMetadataItem.height) || 2.4) / 2,
-                curtainPosition: curtainMetadataItem.curtainPosition || "split",
-                curtainTrack: curtainMetadataItem.curtainTrack || "straight",
-                curtainForm: curtainMetadataItem.curtainForm === "roller" ? "roller" : "standard",
-                curtainFabric: curtainMetadataItem.curtainFabric,
-              })),
-            waterHeaters: metadataFloorItem.scene.items
-              .filter((waterHeaterSceneItem: any) =>
-                ["storagewaterheater", "gaswaterheater"].includes(waterHeaterSceneItem.type),
-              )
-              .map((waterHeaterMetadataItem: any, waterHeaterMetadataIndex: any) => ({
-                ...waterHeaterMetadataItem,
-                name: waterHeaterMetadataItem.name || "热水器 " + (waterHeaterMetadataIndex + 1),
-              })),
-            airers: metadataFloorItem.scene.items
-              .filter((airerSceneItem: any) => airerSceneItem.type === "airer")
-              .map((airerMetadataItem: any, airerMetadataIndex: any) => ({
-                ...airerMetadataItem,
-                height:
-                  (Number(airerMetadataItem.elevation) || 2.7) -
-                  (Number(airerMetadataItem.airerExtension) || 1.2) / 2,
-                name: airerMetadataItem.name || "晾衣架 " + (airerMetadataIndex + 1),
-              })),
-            fans: metadataFloorItem.scene.items
-              .filter((fanSceneItem: any) => fanSceneItem.type === "fan")
-              .map((fanMetadataItem: any, fanMetadataIndex: any) => ({
-                ...fanMetadataItem,
-                name: fanMetadataItem.name || "电风扇 " + (fanMetadataIndex + 1),
-              })),
-            airPurifiers: metadataFloorItem.scene.items
-              .filter((purifierSceneItem: any) => purifierSceneItem.type === "airpurifier")
-              .map((purifierMetadataItem: any, purifierMetadataIndex: any) => ({
-                ...purifierMetadataItem,
-                name: purifierMetadataItem.name || "空气净化器 " + (purifierMetadataIndex + 1),
-              })),
-            airConditioners: metadataFloorItem.scene.items
-              .filter((airConditionerSceneItem: any) =>
-                ["wallac", "floorac", "airoutlet"].includes(airConditionerSceneItem.type),
-              )
-              .map((airConditionerMetadataItem: any, airConditionerMetadataIndex: any) => ({
-                id: airConditionerMetadataItem.id,
-                name:
-                  airConditionerMetadataItem.name ||
-                  (airConditionerMetadataItem.type === "airpurifier"
-                    ? "空气净化器"
-                    : airConditionerMetadataItem.type === "airoutlet"
-                      ? "出风口"
-                      : airConditionerMetadataItem.type === "wallac"
-                        ? "挂机空调"
-                        : "柜机空调") +
-                    " " +
-                    (airConditionerMetadataIndex + 1),
-                type: airConditionerMetadataItem.type,
-                x: airConditionerMetadataItem.x,
-                y: airConditionerMetadataItem.y,
-                height:
-                  (Number(airConditionerMetadataItem.elevation) || 0) +
-                  (Number(airConditionerMetadataItem.height) || 0.28) / 2,
-              })),
-            groups: metadataFloorItem.scene.lightGroups.map((lightGroup: any) => {
-              const groupLightItems = metadataFloorItem.scene.items.filter(
-                  (groupLightSceneItem: any) => groupLightSceneItem.lightGroupId === lightGroup.id,
-                ),
-                groupAnchorPoints = groupLightItems.length
-                  ? groupLightItems
-                  : metadataFloorItem.scene.walls.map((groupWallItem: any) => groupWallItem.start);
-              return {
-                id: lightGroup.id,
-                name: lightGroup.name,
-                height: resolvedWallHeight,
-                x: groupAnchorPoints.length
-                  ? groupAnchorPoints.reduce(
-                      (accumulatedX: any, xAnchorPoint: any) => accumulatedX + xAnchorPoint.x,
-                      0,
-                    ) / groupAnchorPoints.length
-                  : 0,
-                y: groupAnchorPoints.length
-                  ? groupAnchorPoints.reduce(
-                      (accumulatedY: any, yAnchorPoint: any) => accumulatedY + yAnchorPoint.y,
-                      0,
-                    ) / groupAnchorPoints.length
-                  : 0,
-              };
-            }),
-          };
-        }),
-      }
-    );
-  }
   postHostMessage({
     type: "ready",
     statePatches: true,
-    metadata: buildMetadata(),
+    metadata: buildMetadata(mountOptions, transformFloorCamera, options.floorSelection),
   });
 }

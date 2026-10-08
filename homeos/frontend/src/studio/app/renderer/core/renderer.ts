@@ -76,7 +76,6 @@ import {
   isVirtualEntityId as isVirtualEntityId2,
   parseVirtualEntityId as parseVirtualEntityId2,
 } from "../../shared/virtual-entities";
-import { componentActionIsSupported as componentActionIsSupported2 } from "../../shared/action-rules";
 import {
   airflowCanvasOffsetBounds as airflowCanvasOffsetBounds2,
   airflowLayerGeometry as airflowLayerGeometry2,
@@ -184,6 +183,36 @@ import {
 } from "./runtime-document";
 import { navigateInShell } from "../../../runtime/shell-navigation";
 import { shellConfirm, shellOpenMediaPlayer } from "../../../runtime/shell-chrome";
+import {
+  type PanelRendererOptions,
+  type RendererDetailsStateSync,
+  type ComponentControllerElement,
+  type ComponentDialogElement,
+  type ComponentPayload,
+  type ClimateVisualSyncPayload,
+  type DraggedComponentEntry,
+  type EntityStateControlElement,
+} from "./renderer-types";
+import {
+  maxRuntimeEntitySubscriptions,
+  defaultTargetOccupancy,
+  compactTargetOccupancy,
+  COVER_CLOSED_POSITION_EPSILON,
+  runtimeDialogLayout,
+  runtimeDialogViewport,
+  assignComponentIdentifiers,
+  isPrimaryModifierPressed,
+  componentSupportsAction,
+  componentDialogTitle,
+  popupModuleDialogTitle,
+  createAirerVisual,
+  entityStateText,
+  createSwitchVisual,
+  mixHexColor,
+  clickFocusedElement,
+  isDocumentHidden,
+} from "./renderer-helpers";
+import * as geometryMethods from "./renderer-geometry";
 export { setBuiltinAssetVersions2 as setBuiltinAssetVersions };
 export {
   airflowCanvasOffsetBounds2 as airflowCanvasOffsetBounds,
@@ -264,374 +293,18 @@ export {
   lineChartRuntimeStateNeedsHydration2 as lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties2 as syncedLineChartProperties,
 };
-const maxRuntimeEntitySubscriptions = 1000,
-  defaultTargetOccupancy = 0.76,
-  compactTargetOccupancy = 0.7,
-  maxPreferredScale = 1.6,
-  fillMaxScale = 2,
-  tightFillMaxScale = 2.12;
-
-/** 门帘位置死区：位置值大于该阈值即视为「已张开」，否则视为停在闭合端（0）。 */
-const COVER_CLOSED_POSITION_EPSILON = 0.01;
-function runtimeDialogLayout({
-  layerWidth: layoutLayerWidth,
-  layerHeight: layoutLayerHeight,
-  layoutWidth: layoutWidth,
-  layoutHeight: layoutHeight,
-  fillAvailable: isFillAvailable = false,
-  tightFill: isTightFill = false,
-  targetOccupancy: targetOccupancy = defaultTargetOccupancy,
-}: any) {
-  const max = Math.max(1, Number(layoutLayerWidth) || 1),
-    dialogLayerHeight = Math.max(1, Number(layoutLayerHeight) || 1),
-    dialogLayoutWidth = Math.max(1, Number(layoutWidth) || 1),
-    dialogLayoutHeight = Math.max(1, Number(layoutHeight) || 1),
-    min = isTightFill
-      ? Math.min(40, Math.max(24, Math.min(max, dialogLayerHeight) * 0.03))
-      : isFillAvailable
-        ? Math.min(80, Math.max(32, Math.min(max, dialogLayerHeight) * 0.075))
-        : Math.min(64, Math.max(24, Math.min(max, dialogLayerHeight) * 0.05)),
-    dialogAvailableWidth = Math.max(1, max - min * 2),
-    dialogAvailableHeight = Math.max(1, dialogLayerHeight - min * 2),
-    dialogFitScale = Math.min(
-      dialogAvailableWidth / dialogLayoutWidth,
-      dialogAvailableHeight / dialogLayoutHeight,
-    ),
-    clampedTargetOccupancy = Math.max(
-      0.2,
-      Math.min(1, Number(targetOccupancy) || defaultTargetOccupancy),
-    ),
-    requestedOccupancyScale = Math.min(
-      (max * clampedTargetOccupancy) / dialogLayoutWidth,
-      (dialogLayerHeight * clampedTargetOccupancy) / dialogLayoutHeight,
-    ),
-    cappedPreferredScale = Math.min(maxPreferredScale, requestedOccupancyScale),
-    dialogFinalScale = Math.min(
-      isFillAvailable ? (isTightFill ? tightFillMaxScale : fillMaxScale) : cappedPreferredScale,
-      dialogFitScale,
-    );
-  return {
-    availableWidth: dialogAvailableWidth,
-    availableHeight: dialogAvailableHeight,
-    fitScale: dialogFitScale,
-    preferredScale: cappedPreferredScale,
-    safeInset: min,
-    scale: Math.max(0.08, dialogFinalScale),
-  };
+export interface PanelRenderer {
+  componentParentTransform(transformChainComponentId: any): any;
+  componentTransformChain(chainStartComponentId: any): any;
+  componentWorldTransform(worldTransformComponentId: any): any;
+  worldPointToComponentLocal(localPointComponentId: any, worldPointX: any, worldPointY: any): any;
+  componentLocalPointToWorld(worldPointComponentKey: any, localPointX: any, localPointY: any): any;
+  componentVisualBounds(boundsComponentRecord: any, boundsHostElement?: any): any;
+  scaleRecordsBounds(componentSelectionEntries: any): any;
+  refreshMultiSelectionBounds(): any;
+  updateMultiSelectionHandleScale(multiSelectionHandleElement: any): any;
+  appendMultiSelectionBounds(): any;
 }
-function runtimeDialogViewport({
-  layerLeft: viewportLayerLeft = 0,
-  layerTop: viewportLayerTop = 0,
-  layerWidth: viewportLayerWidth,
-  layerHeight: viewportLayerHeight,
-  dashboardLeft: dashboardLeft,
-  dashboardTop: dashboardTop,
-  dashboardWidth: dashboardWidth,
-  dashboardHeight: dashboardHeight,
-}: any) {
-  const num = Number(viewportLayerLeft) || 0,
-    viewportLayerTopPx = Number(viewportLayerTop) || 0,
-    viewportLayerWidthPx = Math.max(1, Number(viewportLayerWidth) || 1),
-    viewportLayerHeightPx = Math.max(1, Number(viewportLayerHeight) || 1),
-    viewportLayerRightPx = num + viewportLayerWidthPx,
-    viewportLayerBottomPx = viewportLayerTopPx + viewportLayerHeightPx,
-    dashboardLeftPx = Number.isFinite(Number(dashboardLeft)) ? Number(dashboardLeft) : num,
-    dashboardTopPx = Number.isFinite(Number(dashboardTop))
-      ? Number(dashboardTop)
-      : viewportLayerTopPx,
-    dashboardWidthPx = Math.max(1, Number(dashboardWidth) || viewportLayerWidthPx),
-    dashboardHeightPx = Math.max(1, Number(dashboardHeight) || viewportLayerHeightPx),
-    dashboardLeftLimitPx = Math.max(num, dashboardLeftPx),
-    dashboardTopLimitPx = Math.max(viewportLayerTopPx, dashboardTopPx),
-    dashboardRightLimitPx = Math.min(viewportLayerRightPx, dashboardLeftPx + dashboardWidthPx),
-    dashboardBottomLimitPx = Math.min(viewportLayerBottomPx, dashboardTopPx + dashboardHeightPx),
-    viewportBodyWidthPx = Math.max(1, dashboardRightLimitPx - dashboardLeftLimitPx),
-    viewportBodyHeightPx = Math.max(1, dashboardBottomLimitPx - dashboardTopLimitPx);
-  return {
-    width: viewportBodyWidthPx,
-    height: viewportBodyHeightPx,
-    centerX: dashboardLeftLimitPx - num + viewportBodyWidthPx / 2,
-    centerY: dashboardTopLimitPx - viewportLayerTopPx + viewportBodyHeightPx / 2,
-  };
-}
-function assignComponentIdentifiers(componentNodeRecord: any) {
-  componentNodeRecord.id = "component-" + randomUuid2();
-  for (const childNodeRecord of componentNodeRecord.children || [])
-    assignComponentIdentifiers(childNodeRecord);
-  return componentNodeRecord;
-}
-function isPrimaryModifierPressed(keyboardEvent: any) {
-  const platformName = navigator.userAgentData?.platform || navigator.platform || "",
-    test = /mac|iphone|ipad|ipod/i.test(platformName);
-  return keyboardEvent.altKey || keyboardEvent.ctrlKey || (test && keyboardEvent.metaKey);
-}
-function componentSupportsAction(actionComponentRecord: any, actionSpec: any) {
-  return componentActionIsSupported2(actionComponentRecord, actionSpec);
-}
-function componentDialogTitle(titleComponentRecord: any, fallbackTitleText: any) {
-  const options = titleComponentRecord?.properties || {};
-  return String(options.label || "").trim() || fallbackTitleText;
-}
-function popupModuleDialogTitle(
-  popupModuleRecord: any,
-  popupEntityRecord: any,
-  fallbackTitleLabel = "",
-) {
-  return (
-    String(popupModuleRecord?.title || "").trim() ||
-    String(fallbackTitleLabel || "").trim() ||
-    String(popupEntityRecord?.attributes?.friendly_name || "").trim() ||
-    String(popupModuleRecord?.entityId || "").trim()
-  );
-}
-function createAirerVisual(airerHostElement: any) {
-  const ownerDocument = airerHostElement.ownerDocument,
-    element = ownerDocument.createElement("span");
-  element.className = "hb-airer-visual";
-  const airerGlowElement = ownerDocument.createElement("i");
-  airerGlowElement.className = "hb-airer-visual-glow";
-  const airerBodyElement = ownerDocument.createElement("span");
-  airerBodyElement.className = "hb-airer-visual-body";
-  const airerLampElement = ownerDocument.createElement("i");
-  ((airerLampElement.className = "hb-airer-visual-lamp"),
-    airerBodyElement.append(airerLampElement));
-  const airerLiftsElement = ownerDocument.createElement("span");
-  ((airerLiftsElement.className = "hb-airer-visual-lifts"),
-    airerLiftsElement.append(ownerDocument.createElement("i"), ownerDocument.createElement("i")));
-  const airerRackElement = ownerDocument.createElement("span");
-  airerRackElement.className = "hb-airer-visual-rack";
-  for (let rackShelfIndex = 0; rackShelfIndex < 4; rackShelfIndex += 1)
-    airerRackElement.append(ownerDocument.createElement("i"));
-  (element.append(airerGlowElement, airerBodyElement, airerLiftsElement, airerRackElement),
-    airerHostElement.append(element));
-}
-function entityStateText(stateKey: any) {
-  return (
-    ({
-      open: "已升起",
-      closed: "已下降",
-      opening: "正在升起",
-      closing: "正在下降",
-    } as any)[stateKey] || ""
-  );
-}
-function createSwitchVisual({
-  label: switchLabelText = "开关",
-  interactive: isInteractive = true,
-  onToggle: toggleHandler = null,
-  compact: isCompact = false,
-  momentary: isMomentary = false,
-}: any = {}) {
-  const switchButtonElement = document.createElement("button");
-  ((switchButtonElement.type = "button"),
-    (switchButtonElement.className = "hb-switch-visual"),
-    switchButtonElement.classList.toggle("is-momentary", isMomentary),
-    (switchButtonElement.inert = !isInteractive),
-    switchButtonElement.setAttribute("aria-disabled", String(!isInteractive)));
-  const switchAuraElement = document.createElement("i");
-  switchAuraElement.className = "hb-switch-visual-aura";
-  const switchPlateElement = document.createElement("span");
-  switchPlateElement.className = "hb-switch-visual-plate";
-  const switchIndicatorElement = document.createElement("i");
-  switchIndicatorElement.className = "hb-switch-visual-indicator";
-  const switchRockerElement = document.createElement("span");
-  switchRockerElement.className = "hb-switch-visual-rocker";
-  const switchOffMarkElement = document.createElement("i");
-  ((switchOffMarkElement.className = "hb-switch-visual-mark off"),
-    (switchOffMarkElement.textContent = "○"));
-  const switchOnMarkElement = document.createElement("i");
-  ((switchOnMarkElement.className = "hb-switch-visual-mark on"),
-    (switchOnMarkElement.textContent = "┃"),
-    switchRockerElement.append(switchOffMarkElement, switchOnMarkElement),
-    switchPlateElement.append(switchIndicatorElement, switchRockerElement),
-    switchButtonElement.append(switchAuraElement, switchPlateElement));
-  const switchCopyElement = isCompact ? document.createElement("span") : null,
-    switchCopyLabelElement = isCompact ? document.createElement("strong") : null,
-    switchCopyStateElement = isCompact ? document.createElement("output") : null;
-  isCompact &&
-    ((switchCopyElement!.className = "hb-switch-visual-copy"),
-    (switchCopyLabelElement!.className = "hb-switch-visual-copy-label"),
-    (switchCopyStateElement!.className = "hb-switch-visual-copy-state"),
-    (switchCopyLabelElement!.textContent = switchLabelText),
-    switchCopyElement!.append(switchCopyLabelElement!, switchCopyStateElement!),
-    switchButtonElement.append(switchCopyElement!),
-    switchButtonElement.classList.add("is-compact"));
-  const syncSwitchVisual = (
-    isSwitchOn: any,
-    {
-      unavailable: isUnavailable = false,
-      pending: isPending = false,
-      success: isSuccess = false,
-    } = {},
-  ) => {
-    const isSwitchPressed = (isMomentary ? isPending : !!isSwitchOn) && !isUnavailable;
-    (switchButtonElement.classList.toggle("is-on", isSwitchPressed),
-      switchButtonElement.classList.toggle("is-unavailable", isUnavailable),
-      switchButtonElement.classList.toggle("is-pending", isPending),
-      switchButtonElement.classList.toggle("is-success", isSuccess),
-      switchButtonElement.setAttribute("aria-pressed", String(isSwitchPressed)),
-      switchButtonElement.setAttribute("aria-busy", String(isPending)),
-      switchButtonElement.setAttribute(
-        "aria-label",
-        isUnavailable
-          ? switchLabelText + "当前不可用"
-          : isMomentary
-            ? "" +
-              switchLabelText +
-              (isSuccess ? "执行成功" : isPending ? "正在执行" : "，点击执行")
-            : "" + switchLabelText + (isSwitchPressed ? "已开启，点击关闭" : "已关闭，点击开启"),
-      ),
-      switchCopyStateElement &&
-        (switchCopyStateElement.textContent = isUnavailable
-          ? "当前不可用"
-          : isMomentary
-            ? isSuccess
-              ? "执行成功"
-              : isPending
-                ? "执行中"
-                : "点击执行"
-            : isSwitchPressed
-              ? "运行中"
-              : "已关闭"));
-  };
-  return (
-    switchButtonElement.addEventListener("click", () => {
-      isInteractive &&
-        !switchButtonElement.classList.contains("is-pending") &&
-        !switchButtonElement.classList.contains("is-unavailable") &&
-        toggleHandler?.();
-    }),
-    {
-      visual: switchButtonElement,
-      sync: syncSwitchVisual,
-    }
-  );
-}
-function mixHexColor(fromHexColor: any, toHexColor: any, blendAmount = 0) {
-  const normalizeHexColor = (rawColor: any) => {
-      const trim = String(rawColor || "").trim(),
-        expandedHexColor = /^#[0-9a-f]{3}$/i.test(trim)
-          ? "#" +
-            trim
-              .slice(1)
-              .split("")
-              .map((doubledHexDigit) => "" + doubledHexDigit + doubledHexDigit)
-              .join("")
-          : trim;
-      return /^#[0-9a-f]{6}$/i.test(expandedHexColor) ? expandedHexColor : null;
-    },
-    sourceHexColor = normalizeHexColor(fromHexColor),
-    targetHexColor = normalizeHexColor(toHexColor);
-  if (!sourceHexColor || !targetHexColor) return fromHexColor;
-  const clampedBlendAmount = Math.max(0, Math.min(1, Number(blendAmount) || 0)),
-    parseHexChannel = (hexColorText: any, channelOffset: any) =>
-      Number.parseInt(hexColorText.slice(channelOffset, channelOffset + 2), 16);
-  return (
-    "#" +
-    [1, 3, 5]
-      .map((channelOffsetIndex) =>
-        Math.round(
-          parseHexChannel(sourceHexColor, channelOffsetIndex) +
-            (parseHexChannel(targetHexColor, channelOffsetIndex) -
-              parseHexChannel(sourceHexColor, channelOffsetIndex)) *
-              clampedBlendAmount,
-        ),
-      )
-      .map((channelByteValue) => channelByteValue.toString(16).padStart(2, "0"))
-      .join("")
-  );
-}
-/** renderer 构造选项：一直是开放结构，只有少数几个字段有固定语义。 */
-type PanelRendererOptions = {
-  editable?: boolean;
-  onError?: (error: any) => void;
-  onRuntimeButtonPress?: (element: Element) => void;
-  [key: string]: any;
-};
-
-/** 详情对话框的状态同步句柄（对话框形态随组件类型而变）。 */
-type RendererDetailsStateSync = {
-  dialog?: any;
-  [key: string]: any;
-};
-
-/** 组件详情 / 可视化控制器元素。 */
-type ComponentControllerHooks = {
-  syncCapabilityState?: (...args: any[]) => any;
-  cleanupCapabilityDetails?: () => void;
-  resizeInteraction3d?: (...args: any[]) => any;
-  stateHandlers?: any;
-  relatedEntityIds?: any;
-  syncClimateState?: (...args: any[]) => any;
-  syncClimateGrid?: (...args: any[]) => any;
-  cleanupClimateDetails?: () => void;
-  syncLightState?: (...args: any[]) => any;
-  cleanupLightDetails?: () => void;
-  syncBathLightState?: (...args: any[]) => any;
-  toggleBathLight?: (...args: any[]) => any;
-  syncLineChartState?: (...args: any[]) => any;
-  cleanupLineChartHover?: () => void;
-  setDreamCurtainRetracted?: (...args: any[]) => any;
-  isDreamCurtainRetracted?: () => boolean;
-  beginCoverMotion?: (...args: any[]) => any;
-  cancelCoverMotion?: (...args: any[]) => any;
-  stopCoverMotion?: () => void;
-  holdCoverPosition?: (...args: any[]) => any;
-  syncCoverState?: (...args: any[]) => any;
-  syncCoverPositionState?: (...args: any[]) => any;
-  syncCoverPositionCommandState?: (...args: any[]) => any;
-  syncAirerMotorState?: (...args: any[]) => any;
-  beginDreamCurtainMotion?: (...args: any[]) => any;
-  cancelDreamCurtainMotion?: (...args: any[]) => any;
-  cleanupCoverDetails?: () => void;
-  waterHeaterControlPanel?: any;
-}
-
-/** 普通容器元素（section/div 等）承载组件控制钩子。 */
-type ComponentControllerElement = HTMLElement & ComponentControllerHooks;
-
-/** 对话框元素（dialog）承载组件控制钩子。 */
-type ComponentDialogElement = HTMLDialogElement & ComponentControllerHooks;
-
-/** 组件属性 / 状态载荷。 */
-type ComponentPayload = Record<string, any>;
-
-/** 键盘 Enter/Space 触发时，模拟点击当前聚焦的控件（非 HTMLElement 时忽略）。 */
-function clickFocusedElement(): void {
-  const focusedElement = document.activeElement;
-  focusedElement instanceof HTMLElement && focusedElement.click();
-}
-
-/** 页面是否处于后台。 */
-function isDocumentHidden(): boolean {
-  return document.visibilityState === "hidden";
-}
-
-/** 气候可视化同步载荷（视觉模式 / 运行态 / 强调色 / 目标温度）。 */
-type ClimateVisualSyncPayload = {
-  mode?: string;
-  visualMode?: string;
-  running?: boolean;
-  accentColor?: string;
-  targetTemperature?: number | string;
-};
-
-/** 拖拽条目：首次手势复用宿主条目，复制手势时使用复制出来的条目。 */
-type DraggedComponentEntry = {
-  component: any;
-  host?: HTMLElement;
-  initialX: number;
-  initialY: number;
-  width: number;
-  height: number;
-  parentId?: any;
-  parentTransform: any;
-  worldCenter?: { x: number; y: number };
-};
-
-/** 实体状态控件：可点击时创建 button、只读时创建 div，这里用两者的交集描述「同一位置在不同分支下的两种形态」。 */
-type EntityStateControlElement = HTMLButtonElement & HTMLDivElement;
-
 export class PanelRenderer {
 
 
@@ -1537,268 +1210,6 @@ export class PanelRenderer {
       )
       ? []
       : selectionEntries;
-  }
-  ["componentParentTransform"](transformChainComponentId: any) {
-    let ancestorComponentId = this.componentParentIds?.get(transformChainComponentId) || null,
-      accumulatedRotation = 0,
-      accumulatedScale = 1;
-    const set = new Set();
-    for (; ancestorComponentId && !set.has(ancestorComponentId);) {
-      set.add(ancestorComponentId);
-      const ancestorComponentRecord = this.componentRecords.get(ancestorComponentId);
-      if (!ancestorComponentRecord) break;
-      ((accumulatedRotation += Number(ancestorComponentRecord.position?.rotation || 0)),
-        (accumulatedScale *= Math.max(
-          0.01,
-          Math.min(5, Number(ancestorComponentRecord.style?.scale || 1)),
-        )),
-        (ancestorComponentId = this.componentParentIds?.get(ancestorComponentId) || null));
-    }
-    return {
-      rotation: accumulatedRotation,
-      scale: accumulatedScale,
-    };
-  }
-  ["componentTransformChain"](chainStartComponentId: any) {
-    const transformChainRecords: any[] = [];
-    let chainComponentId = chainStartComponentId;
-    const visitedChainComponentIdSet = new Set();
-    for (; chainComponentId && !visitedChainComponentIdSet.has(chainComponentId);) {
-      visitedChainComponentIdSet.add(chainComponentId);
-      const chainComponentRecord = this.componentRecords.get(chainComponentId);
-      if (!chainComponentRecord) break;
-      (transformChainRecords.push(chainComponentRecord),
-        (chainComponentId = this.componentParentIds?.get(chainComponentId) || null));
-    }
-    return transformChainRecords;
-  }
-  ["componentWorldTransform"](worldTransformComponentId: any) {
-    return this.componentTransformChain(worldTransformComponentId).reduce(
-      (accumulatedTransform, chainEntryRecord) => ({
-        rotation: accumulatedTransform.rotation + Number(chainEntryRecord.position?.rotation || 0),
-        scale:
-          accumulatedTransform.scale *
-          Math.max(0.01, Math.min(5, Number(chainEntryRecord.style?.scale || 1))),
-      }),
-      {
-        rotation: 0,
-        scale: 1,
-      },
-    );
-  }
-  ["worldPointToComponentLocal"](localPointComponentId: any, worldPointX: any, worldPointY: any) {
-    let localPoint = {
-      x: Number(worldPointX || 0),
-      y: Number(worldPointY || 0),
-    };
-    const reverse = this.componentTransformChain(localPointComponentId).reverse();
-    for (const reverseChainEntry of reverse) {
-      const entryPosition = reverseChainEntry.position || {},
-        entryWidth = Number(entryPosition.width || 100),
-        entryHeight = Number(entryPosition.height || 100),
-        entryScale = Math.max(0.01, Math.min(5, Number(reverseChainEntry.style?.scale || 1))),
-        entryRotationRad = (Number(entryPosition.rotation || 0) * Math.PI) / 180,
-        cos = Math.cos(entryRotationRad),
-        sin = Math.sin(entryRotationRad),
-        entryCenterX = Number(entryPosition.x || 0) + entryWidth / 2,
-        entryCenterY = Number(entryPosition.y || 0) + entryHeight / 2,
-        offsetAlongX = (localPoint.x - entryCenterX) / entryScale,
-        offsetAlongY = (localPoint.y - entryCenterY) / entryScale;
-      localPoint = {
-        x: entryWidth / 2 + offsetAlongX * cos + offsetAlongY * sin,
-        y: entryHeight / 2 - offsetAlongX * sin + offsetAlongY * cos,
-      };
-    }
-    return localPoint;
-  }
-  ["componentLocalPointToWorld"](worldPointComponentKey: any, localPointX: any, localPointY: any) {
-    let worldPoint = {
-      x: Number(localPointX || 0),
-      y: Number(localPointY || 0),
-    };
-    for (const forwardChainEntry of this.componentTransformChain(worldPointComponentKey)) {
-      const forwardEntryPosition = forwardChainEntry.position || {},
-        forwardEntryWidth = Number(forwardEntryPosition.width || 100),
-        forwardEntryHeight = Number(forwardEntryPosition.height || 100),
-        forwardEntryScale = Math.max(
-          0.01,
-          Math.min(5, Number(forwardChainEntry.style?.scale || 1)),
-        ),
-        forwardEntryRotationRad = (Number(forwardEntryPosition.rotation || 0) * Math.PI) / 180,
-        forwardOffsetX = (worldPoint.x - forwardEntryWidth / 2) * forwardEntryScale,
-        forwardOffsetY = (worldPoint.y - forwardEntryHeight / 2) * forwardEntryScale;
-      worldPoint = {
-        x:
-          Number(forwardEntryPosition.x || 0) +
-          forwardEntryWidth / 2 +
-          forwardOffsetX * Math.cos(forwardEntryRotationRad) -
-          forwardOffsetY * Math.sin(forwardEntryRotationRad),
-        y:
-          Number(forwardEntryPosition.y || 0) +
-          forwardEntryHeight / 2 +
-          forwardOffsetX * Math.sin(forwardEntryRotationRad) +
-          forwardOffsetY * Math.cos(forwardEntryRotationRad),
-      };
-    }
-    return worldPoint;
-  }
-  ["componentVisualBounds"](boundsComponentRecord: any, boundsHostElement: any = null) {
-    const boundsPosition = boundsComponentRecord.position || {},
-      boundsWidth = Math.max(0.01, Number(boundsPosition.width || 100)),
-      boundsHeight = Math.max(0.01, Number(boundsPosition.height || 100));
-    let layerWidth = boundsWidth,
-      layerHeight = boundsHeight,
-      layerOffsetX = 0,
-      layerOffsetY = 0;
-    if (boundsComponentRecord.type === "light-statistics" && boundsHostElement) {
-      const selectionBoundsElement = boundsHostElement.querySelector(
-          ":scope > .hb-selection-bounds",
-        ),
-        boundsInsetValues = selectionBoundsElement
-          ? [
-              Number.parseFloat(selectionBoundsElement.style.left),
-              Number.parseFloat(selectionBoundsElement.style.top),
-              Number.parseFloat(selectionBoundsElement.style.width),
-              Number.parseFloat(selectionBoundsElement.style.height),
-            ]
-          : [];
-      boundsInsetValues.every(Number.isFinite) &&
-        boundsInsetValues[2] > 0 &&
-        boundsInsetValues[3] > 0 &&
-        ([layerOffsetX, layerOffsetY, layerWidth, layerHeight] = boundsInsetValues);
-    }
-    const boundsScale = Math.max(
-        0.01,
-        Math.min(5, Number(boundsComponentRecord.style?.scale || 1)),
-      ),
-      boundsRotationRad = (Number(boundsPosition.rotation || 0) * Math.PI) / 180,
-      scaledWidth = layerWidth * boundsScale,
-      scaledHeight = layerHeight * boundsScale,
-      rotatedHalfWidth =
-        (Math.abs(Math.cos(boundsRotationRad)) * scaledWidth +
-          Math.abs(Math.sin(boundsRotationRad)) * scaledHeight) /
-        2,
-      rotatedHalfHeight =
-        (Math.abs(Math.sin(boundsRotationRad)) * scaledWidth +
-          Math.abs(Math.cos(boundsRotationRad)) * scaledHeight) /
-        2,
-      boundsCenterX = Number(boundsPosition.x || 0) + boundsWidth / 2,
-      boundsCenterY = Number(boundsPosition.y || 0) + boundsHeight / 2,
-      layerCenterX = Number(boundsPosition.x || 0) + layerOffsetX + layerWidth / 2,
-      layerCenterY = Number(boundsPosition.y || 0) + layerOffsetY + layerHeight / 2,
-      centerDeltaX = (layerCenterX - boundsCenterX) * boundsScale,
-      centerDeltaY = (layerCenterY - boundsCenterY) * boundsScale,
-      rotatedCenterX =
-        boundsCenterX +
-        centerDeltaX * Math.cos(boundsRotationRad) -
-        centerDeltaY * Math.sin(boundsRotationRad),
-      rotatedCenterY =
-        boundsCenterY +
-        centerDeltaX * Math.sin(boundsRotationRad) +
-        centerDeltaY * Math.cos(boundsRotationRad);
-    return {
-      left: rotatedCenterX - rotatedHalfWidth,
-      top: rotatedCenterY - rotatedHalfHeight,
-      right: rotatedCenterX + rotatedHalfWidth,
-      bottom: rotatedCenterY + rotatedHalfHeight,
-    };
-  }
-  ["scaleRecordsBounds"](componentSelectionEntries: any) {
-    const boundsEntries = componentSelectionEntries.map((selectionEntryRecord: any) =>
-      this.componentVisualBounds(selectionEntryRecord.component, selectionEntryRecord.host),
-    );
-    return {
-      left: Math.min(...boundsEntries.map((leftBoundEntry: any) => leftBoundEntry.left)),
-      top: Math.min(...boundsEntries.map((topBoundEntry: any) => topBoundEntry.top)),
-      right: Math.max(...boundsEntries.map((rightBoundEntry: any) => rightBoundEntry.right)),
-      bottom: Math.max(...boundsEntries.map((bottomBoundEntry: any) => bottomBoundEntry.bottom)),
-    };
-  }
-  ["refreshMultiSelectionBounds"]() {
-    const existingMultiBoundsElement =
-      this.canvas?.querySelector<HTMLElement>(".hb-multi-selection-bounds");
-    if (
-      !existingMultiBoundsElement ||
-      !this.selectedComponentIds ||
-      this.selectedComponentIds.size < 2
-    )
-      return;
-    const edScaleRecords = this.selectedScaleRecords();
-    if (!edScaleRecords.length) {
-      existingMultiBoundsElement.remove();
-      return;
-    }
-    const scaleRecordsBounds = this.scaleRecordsBounds(edScaleRecords);
-    (Object.assign(existingMultiBoundsElement.style, {
-      left: scaleRecordsBounds.left + "px",
-      top: scaleRecordsBounds.top + "px",
-      width: Math.max(1, scaleRecordsBounds.right - scaleRecordsBounds.left) + "px",
-      height: Math.max(1, scaleRecordsBounds.bottom - scaleRecordsBounds.top) + "px",
-    }),
-      this.updateMultiSelectionHandleScale(existingMultiBoundsElement));
-  }
-  ["updateMultiSelectionHandleScale"](multiSelectionHandleElement: any) {
-    if (!multiSelectionHandleElement) return;
-    const appliedMinScale = Math.min(this.appliedScaleX || 1, this.appliedScaleY || 1),
-      handleComponentId = multiSelectionHandleElement.parentElement?.dataset?.componentId || null,
-      scale = handleComponentId ? this.componentWorldTransform(handleComponentId).scale : 1,
-      multiHandleUiScale = 1 / Math.max(0.001, appliedMinScale * scale);
-    (multiSelectionHandleElement.style.setProperty("--hb-ui-scale", String(multiHandleUiScale)),
-      multiSelectionHandleElement.style.setProperty(
-        "--hb-handle-outset",
-        30 * multiHandleUiScale + "px",
-      ));
-    const boundingClientRect = multiSelectionHandleElement.getBoundingClientRect();
-    multiSelectionHandleElement.classList.toggle(
-      "handles-outside",
-      boundingClientRect.width < 132 || boundingClientRect.height < 112,
-    );
-  }
-  ["appendMultiSelectionBounds"]() {
-    const edScaleRecords2 = this.selectedScaleRecords();
-    if (!edScaleRecords2.length) return;
-    const scaleRecordsBounds2 = this.scaleRecordsBounds(edScaleRecords2),
-      multiSelectionBoundsElement = document.createElement("div");
-    ((multiSelectionBoundsElement.className = "hb-selection-bounds hb-multi-selection-bounds"),
-      Object.assign(multiSelectionBoundsElement.style, {
-        left: scaleRecordsBounds2.left + "px",
-        top: scaleRecordsBounds2.top + "px",
-        width: Math.max(1, scaleRecordsBounds2.right - scaleRecordsBounds2.left) + "px",
-        height: Math.max(1, scaleRecordsBounds2.bottom - scaleRecordsBounds2.top) + "px",
-      }));
-    for (const cornerName of ["top-left", "top-right", "bottom-left", "bottom-right"]) {
-      const cornerMarkerElement = document.createElement("i");
-      ((cornerMarkerElement.className = "hb-corner-marker hb-corner-" + cornerName),
-        cornerMarkerElement.setAttribute("aria-hidden", "true"),
-        multiSelectionBoundsElement.append(cornerMarkerElement));
-    }
-    const multiResizeHandleElement = document.createElement("button");
-    ((multiResizeHandleElement.type = "button"),
-      (multiResizeHandleElement.className = "hb-transform-handle hb-resize-handle"),
-      (multiResizeHandleElement.title = "拖动整体缩放"),
-      multiResizeHandleElement.addEventListener("pointerdown", (resizePointerEvent) =>
-        this.startComponentsScale(
-          resizePointerEvent,
-          edScaleRecords2,
-          scaleRecordsBounds2,
-          multiSelectionBoundsElement,
-        ),
-      ));
-    const multiRotateHandleElement = document.createElement("button");
-    ((multiRotateHandleElement.type = "button"),
-      (multiRotateHandleElement.className = "hb-transform-handle hb-rotate-handle"),
-      (multiRotateHandleElement.title = "拖动整体旋转"),
-      multiRotateHandleElement.addEventListener("pointerdown", (rotatePointerEvent) =>
-        this.startComponentsRotate(
-          rotatePointerEvent,
-          edScaleRecords2,
-          scaleRecordsBounds2,
-          multiSelectionBoundsElement,
-        ),
-      ),
-      multiSelectionBoundsElement.append(multiResizeHandleElement, multiRotateHandleElement),
-      (edScaleRecords2[0]?.host?.parentElement || this.canvas).append(multiSelectionBoundsElement),
-      this.updateMultiSelectionHandleScale(multiSelectionBoundsElement));
   }
   ["previewComponentsTransform"](
     componentTransforms: any,
@@ -18392,3 +17803,5 @@ export class PanelRenderer {
       this.container.replaceChildren());
   }
 }
+
+Object.assign(PanelRenderer.prototype, geometryMethods as any);

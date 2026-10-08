@@ -1,0 +1,611 @@
+/** registry 相机媒体子模块：从 registry.ts 抽出，负责摄像头快照/HLS 实时预览挂载。 */
+import { EntityRequestPolicy } from "../runtime-caches";
+import { clampNumber, normalizeCssColor, createSvgElement, resolveStatePayload } from "./_shared";
+/** 渲染环境 / 属性袋：由 renderer 按组件类型动态组装（states、editable、document、cleanup、callEntityService、airflow* …），registry 侧只读取其中的可选字段； */
+type RenderPropertyBag = any;
+/** hls.js 运行时：外部脚本注入 window.Hls，vite-env.d.ts 的 Window 只有索引签名，这里按本文件实际用到的 API 补一份局部类型。 */
+type HlsRuntime = {
+  isSupported?: () => boolean;
+  Events: {
+    MEDIA_ATTACHED: string;
+    MANIFEST_PARSED: string;
+    ERROR: string;
+  };
+  new (hlsPlayerConfig?: {
+    lowLatencyMode?: boolean;
+    backBufferLength?: number;
+    maxBufferLength?: number;
+  }): {
+    on: (hlsEventName: string, hlsEventHandler: (...hlsEventArgs: any[]) => void) => void;
+    loadSource: (hlsSourceUrl: string) => void;
+  };
+};
+export function cameraRadiusRatio(rawRadiusRatio: any, fallbackRadiusRatio = 0.04) {
+  const numericRadiusRatio = Number(rawRadiusRatio);
+  return Number.isFinite(numericRadiusRatio)
+    ? clampNumber(
+        numericRadiusRatio > 0.5 ? numericRadiusRatio / 100 : numericRadiusRatio,
+        0,
+        0.5,
+        fallbackRadiusRatio,
+      )
+    : fallbackRadiusRatio;
+}
+export function appendCameraFrame(
+  frameHostElement: any,
+  targetEntityFrame: any,
+  cameraFrameOptions: RenderPropertyBag = {},
+  frameIdPrefix = "renderer",
+) {
+  if (!frameHostElement || cameraFrameOptions.frameVisible === false) return null;
+  const viewportPixelWidth = Math.max(
+      20,
+      Number(targetEntityFrame?.position?.width || frameHostElement.clientWidth || 320),
+    ),
+    viewportPixelHeight = Math.max(
+      20,
+      Number(targetEntityFrame?.position?.height || frameHostElement.clientHeight || 180),
+    ),
+    cameraFrameStrokeWidth = clampNumber(cameraFrameOptions.frameWidth, 0, 20, 1);
+  if (cameraFrameStrokeWidth <= 0) return null;
+  const frameStrokeInset = Math.max(0.5, cameraFrameStrokeWidth / 2 + 0.5),
+    frameInnerWidth = Math.max(1, viewportPixelWidth - frameStrokeInset * 2),
+    frameInnerHeight = Math.max(1, viewportPixelHeight - frameStrokeInset * 2),
+    cornerRadiusRatio = cameraRadiusRatio(cameraFrameOptions.radius),
+    frameCornerRadius = Math.min(frameInnerWidth, frameInnerHeight) * cornerRadiusRatio,
+    cameraFrameOpacity = clampNumber(cameraFrameOptions.frameOpacity, 0, 1, 0.9),
+    cameraFrameColor = normalizeCssColor(cameraFrameOptions.frameColor, "#d4d4d4"),
+    cameraFrameId =
+      frameIdPrefix +
+      "-camera-frame-" +
+      String(targetEntityFrame?.id || "").replace(/[^a-z0-9_-]/gi, ""),
+    cameraFrameSvgElement = createSvgElement(frameHostElement, "svg", {
+      class: "hb-camera-frame",
+      viewBox: "0 0 " + viewportPixelWidth + " " + viewportPixelHeight,
+      preserveAspectRatio: "none",
+      "aria-hidden": "true",
+    }),
+    cameraFrameDefsElement = createSvgElement(cameraFrameSvgElement, "defs"),
+    cameraFrameGradientElement = createSvgElement(cameraFrameDefsElement, "linearGradient", {
+      id: cameraFrameId + "-edge",
+      gradientUnits: "userSpaceOnUse",
+      x1: 0,
+      y1: viewportPixelHeight / 2,
+      x2: viewportPixelWidth,
+      y2: viewportPixelHeight / 2,
+      gradientTransform:
+        "rotate(" +
+        clampNumber(cameraFrameOptions.frameAngle, 0, 360, 45) +
+        " " +
+        viewportPixelWidth / 2 +
+        " " +
+        viewportPixelHeight / 2 +
+        ")",
+    });
+  for (const [gradientStopOffset, gradientStopOpacity] of [
+    [0, 0.96],
+    [0.22, 0.72],
+    [0.52, 0.3],
+    [0.78, 0.66],
+    [1, 0.42],
+  ])
+    createSvgElement(cameraFrameGradientElement, "stop", {
+      offset: gradientStopOffset,
+      "stop-color": cameraFrameColor,
+      "stop-opacity": gradientStopOpacity * cameraFrameOpacity,
+    });
+  return (
+    createSvgElement(cameraFrameSvgElement, "rect", {
+      x: frameStrokeInset,
+      y: frameStrokeInset,
+      width: frameInnerWidth,
+      height: frameInnerHeight,
+      rx: frameCornerRadius,
+      fill: "none",
+      stroke: "url(#" + cameraFrameId + "-edge)",
+      "stroke-width": cameraFrameStrokeWidth,
+      "vector-effect": "non-scaling-stroke",
+    }),
+    cameraFrameSvgElement
+  );
+}
+const CAMERA_SOURCE_CACHE_TTL_MS = 30000,
+  CAMERA_MAX_SOURCES = 4,
+  cameraSourceByEntityId = new Map(),
+  pendingSourceRequestByEntityId = new Map();
+async function resolveCameraStreamSource(sourceEntityId: any, options: { signal?: AbortSignal } = {}) {
+  const normalizedCameraEntityId = String(sourceEntityId || "").trim();
+  if (!normalizedCameraEntityId) throw new Error("Camera entity is required");
+  const requestTimestampMs = Date.now(),
+    cachedSourceRecord = cameraSourceByEntityId.get(normalizedCameraEntityId);
+  if (
+    cachedSourceRecord &&
+    requestTimestampMs - cachedSourceRecord.createdAt < CAMERA_SOURCE_CACHE_TTL_MS
+  )
+    return cachedSourceRecord.source;
+  const pendingSourceRequest = pendingSourceRequestByEntityId.get(normalizedCameraEntityId);
+  if (pendingSourceRequest) return pendingSourceRequest;
+  const sourceRequestPromise = (async () => {
+    const cameraHlsResponse = await fetch(
+      "/api/camera_hls/" + encodeURIComponent(normalizedCameraEntityId),
+      {
+        signal: options.signal,
+      },
+    );
+    if (!cameraHlsResponse.ok)
+      throw new Error("Camera HLS request failed: " + cameraHlsResponse.status);
+    const cameraHlsPayload = await cameraHlsResponse.json(),
+      cameraStreamUrl = typeof cameraHlsPayload?.url == "string" ? cameraHlsPayload.url.trim() : "";
+    if (!cameraStreamUrl.startsWith("/")) throw new Error("Camera HLS response has no proxy URL");
+    return (
+      cameraSourceByEntityId.set(normalizedCameraEntityId, {
+        source: cameraStreamUrl,
+        createdAt: Date.now(),
+      }),
+      cameraStreamUrl
+    );
+  })();
+  pendingSourceRequestByEntityId.set(normalizedCameraEntityId, sourceRequestPromise);
+  try {
+    return await sourceRequestPromise;
+  } finally {
+    pendingSourceRequestByEntityId.get(normalizedCameraEntityId) === sourceRequestPromise &&
+      pendingSourceRequestByEntityId.delete(normalizedCameraEntityId);
+  }
+}
+export async function prewarmCameraMedia(cameraEntityIds: any[] = []) {
+  if (document.visibilityState === "hidden") return;
+  const uniqueCameraEntityIds = [
+    ...new Set(
+      (cameraEntityIds || [])
+        .map((cameraEntityIdCandidate) => String(cameraEntityIdCandidate || "").trim())
+        .filter(Boolean),
+    ),
+  ].slice(0, CAMERA_MAX_SOURCES);
+  await Promise.allSettled(
+    uniqueCameraEntityIds.map((prewarmEntityId) => resolveCameraStreamSource(prewarmEntityId)),
+  );
+}
+export function mountCameraSnapshot({
+  container: cameraContainerElement,
+  entityId: snapshotEntityId,
+  label: cameraLabel,
+  objectFit: cameraObjectFit = "cover",
+  refreshInterval: refreshIntervalSeconds = 10,
+  placeholder: placeholderElement,
+  cleanup: registerCleanup = (_cleanupRegistration: any) => {},
+}: any) {
+  const cameraImageElement = document.createElement("img");
+  ((cameraImageElement.className = "hb-camera-image"),
+    (cameraImageElement.alt = cameraLabel || snapshotEntityId),
+    (cameraImageElement.draggable = false),
+    (cameraImageElement.style.objectFit = cameraObjectFit));
+  const rawRefreshInterval = Number(refreshIntervalSeconds),
+    refreshInterval = Number.isFinite(rawRefreshInterval)
+      ? Math.max(6, Math.round(rawRefreshInterval))
+      : 10,
+    refreshIntervalMs = Math.min(2147483000, refreshInterval * 1000);
+  let isSnapshotLoading = false,
+    isDocumentHidden = document.visibilityState === "hidden",
+    refreshTimerId = 0,
+    hasLoadedSnapshot = false,
+    currentObjectUrl: any = null,
+    activeAbortController: any = null;
+  const entityRequestPolicy1 = new EntityRequestPolicy(),
+    clearRefreshTimer = () => {
+      (window.clearTimeout(refreshTimerId), (refreshTimerId = 0));
+    },
+    scheduleRefresh = (refreshDelayMs = refreshIntervalMs) => {
+      (clearRefreshTimer(),
+        !(isSnapshotLoading || isDocumentHidden || !Number.isFinite(refreshDelayMs)) &&
+          (refreshTimerId = window.setTimeout(loadCameraSnapshot, refreshDelayMs)));
+    },
+    loadCameraSnapshot = async () => {
+      if (isSnapshotLoading || isDocumentHidden || activeAbortController) return;
+      if (!entityRequestPolicy1.canRequest(snapshotEntityId)) {
+        entityRequestPolicy1.authBlocked ||
+          scheduleRefresh(
+            Math.max(
+              0,
+              (entityRequestPolicy1.entries.get(snapshotEntityId)?.nextAt ?? Infinity) - Date.now(),
+            ),
+          );
+        return;
+      }
+      clearRefreshTimer();
+      const snapshotAbortController = new AbortController();
+      activeAbortController = snapshotAbortController;
+      const abortTimeoutHandle = window.setTimeout(() => snapshotAbortController.abort(), 12000);
+      try {
+        cameraContainerElement.dataset.cameraState = "snapshot-loading";
+        const snapshotResponse = await fetch(
+          "/api/camera_proxy/" + encodeURIComponent(snapshotEntityId) + "?hb=" + Date.now(),
+          {
+            credentials: "same-origin",
+            signal: snapshotAbortController.signal,
+          },
+        );
+        if (
+          isSnapshotLoading ||
+          isDocumentHidden ||
+          activeAbortController !== snapshotAbortController
+        )
+          return;
+        if (!snapshotResponse.ok) {
+          const failureRetryDelayMs = entityRequestPolicy1.failure(
+            snapshotEntityId,
+            snapshotResponse.status,
+          );
+          (hasLoadedSnapshot ||
+            ((placeholderElement.hidden = false),
+            (placeholderElement.textContent =
+              snapshotResponse.status === 404
+                ? "摄像头实体不可用，请检查绑定"
+                : snapshotResponse.status === 401
+                  ? "请登录后查看摄像头"
+                  : "摄像头快照不可用")),
+            (cameraContainerElement.dataset.cameraState = hasLoadedSnapshot
+              ? "snapshot-stale"
+              : "snapshot-unavailable"),
+            scheduleRefresh(
+              Number.isFinite(failureRetryDelayMs)
+                ? Math.max(refreshIntervalMs, failureRetryDelayMs)
+                : failureRetryDelayMs,
+            ));
+          return;
+        }
+        const snapshotBlob = await snapshotResponse.blob();
+        if (
+          isSnapshotLoading ||
+          isDocumentHidden ||
+          activeAbortController !== snapshotAbortController
+        )
+          return;
+        if (!snapshotBlob.size) throw new Error("Empty camera snapshot");
+        const snapshotObjectUrl = URL.createObjectURL(snapshotBlob),
+          previousObjectUrl = currentObjectUrl;
+        ((currentObjectUrl = snapshotObjectUrl),
+          (cameraImageElement.src = snapshotObjectUrl),
+          previousObjectUrl && URL.revokeObjectURL(previousObjectUrl));
+      } catch {
+        if (
+          isSnapshotLoading ||
+          isDocumentHidden ||
+          activeAbortController !== snapshotAbortController
+        )
+          return;
+        const unavailableRetryDelayMs = entityRequestPolicy1.failure(snapshotEntityId);
+        ((cameraContainerElement.dataset.cameraState = hasLoadedSnapshot
+          ? "snapshot-stale"
+          : "snapshot-unavailable"),
+          hasLoadedSnapshot ||
+            ((placeholderElement.hidden = false),
+            (placeholderElement.textContent = "摄像头快照不可用")),
+          scheduleRefresh(Math.max(refreshIntervalMs, unavailableRetryDelayMs)));
+      } finally {
+        (window.clearTimeout(abortTimeoutHandle),
+          activeAbortController === snapshotAbortController && (activeAbortController = null));
+      }
+    };
+  (cameraImageElement.addEventListener("load", () => {
+    isSnapshotLoading ||
+      isDocumentHidden ||
+      (entityRequestPolicy1.success(snapshotEntityId),
+      (hasLoadedSnapshot = true),
+      (placeholderElement.hidden = true),
+      (cameraContainerElement.dataset.cameraState = "snapshot-ready"),
+      scheduleRefresh());
+  }),
+    cameraImageElement.addEventListener("error", () => {
+      isSnapshotLoading ||
+        isDocumentHidden ||
+        ((cameraContainerElement.dataset.cameraState = "snapshot-unavailable"),
+        (placeholderElement.hidden = false),
+        (placeholderElement.textContent = "摄像头快照不可用"),
+        scheduleRefresh(
+          Math.max(refreshIntervalMs, entityRequestPolicy1.failure(snapshotEntityId)),
+        ));
+    }));
+  const suspendSnapshotRefresh = () => {
+      (activeAbortController?.abort(), (activeAbortController = null), clearRefreshTimer());
+    },
+    handleRuntimeResume = (resumeEvent: any) => {
+      isSnapshotLoading ||
+        (resumeEvent?.type === "hb-runtime-ready"
+          ? (entityRequestPolicy1.authenticated(),
+            resumeEvent.detail?.entityIds?.includes(snapshotEntityId) &&
+              entityRequestPolicy1.success(snapshotEntityId))
+          : entityRequestPolicy1.resume(),
+        !isDocumentHidden && loadCameraSnapshot());
+    },
+    handleVisibilityChange = () => {
+      ((isDocumentHidden = document.visibilityState === "hidden"),
+        isDocumentHidden
+          ? (suspendSnapshotRefresh(),
+            (cameraContainerElement.dataset.cameraState = "snapshot-suspended"))
+          : loadCameraSnapshot());
+    };
+  return (
+    (cameraContainerElement.dataset.cameraTransport = "snapshot"),
+    cameraContainerElement.prepend(cameraImageElement),
+    document.addEventListener("visibilitychange", handleVisibilityChange),
+    window.addEventListener("online", handleRuntimeResume),
+    window.addEventListener("hb-runtime-ready", handleRuntimeResume),
+    isDocumentHidden
+      ? (cameraContainerElement.dataset.cameraState = "snapshot-suspended")
+      : loadCameraSnapshot(),
+    registerCleanup(() => {
+      ((isSnapshotLoading = true),
+        suspendSnapshotRefresh(),
+        document.removeEventListener("visibilitychange", handleVisibilityChange),
+        window.removeEventListener("online", handleRuntimeResume),
+        window.removeEventListener("hb-runtime-ready", handleRuntimeResume),
+        cameraImageElement.removeAttribute("src"),
+        currentObjectUrl && URL.revokeObjectURL(currentObjectUrl));
+    }),
+    {
+      image: cameraImageElement,
+    }
+  );
+}
+export function mountCameraMedia({
+  container: legacyContainerElement,
+  entityId: legacySnapshotEntityId,
+  label: legacyCameraLabel,
+  objectFit: legacyObjectFit = "cover",
+  placeholder: legacyPlaceholderElement,
+  onReady: onTransportReady = () => {},
+  onUnavailable: onTransportUnavailable = () => {},
+  cleanup: registerLegacyCleanup = (_cleanupRegistration: () => void) => {},
+}: any) {
+  const cameraVideoElement = document.createElement("video");
+  ((cameraVideoElement.className = "hb-camera-video"),
+    cameraVideoElement.setAttribute("aria-label", legacyCameraLabel || legacySnapshotEntityId),
+    (cameraVideoElement.autoplay = true),
+    (cameraVideoElement.muted = true),
+    (cameraVideoElement.playsInline = true),
+    (cameraVideoElement.disablePictureInPicture = true),
+    (cameraVideoElement.style.objectFit = legacyObjectFit));
+  const fallbackImageElement = document.createElement("img");
+  ((fallbackImageElement.className = "hb-camera-image"),
+    (fallbackImageElement.alt = legacyCameraLabel || legacySnapshotEntityId),
+    (fallbackImageElement.draggable = false),
+    (fallbackImageElement.style.objectFit = legacyObjectFit));
+  let isTransportDisposed = false,
+    isLegacyTransport = false,
+    hasRequestedFallbackImage = false,
+    hlsManifestTimerId = 0,
+    hlsStartTimerId = 0,
+    legacyProbeTimerId = 0,
+    hlsPlayer: any = null,
+    hasVideoStarted = false,
+    transportGeneration = 0,
+    hlsPlaybackAbortController: AbortController | null = null,
+    isPageHidden = document.visibilityState === "hidden";
+  const disposeCameraTransport = () => {
+      (hlsPlaybackAbortController?.abort(),
+        (hlsPlaybackAbortController = null),
+        (transportGeneration += 1),
+        window.clearTimeout(hlsManifestTimerId),
+        window.clearTimeout(hlsStartTimerId),
+        window.clearTimeout(legacyProbeTimerId),
+        (hlsManifestTimerId = 0),
+        (hlsStartTimerId = 0),
+        (legacyProbeTimerId = 0),
+        hlsPlayer?.destroy(),
+        (hlsPlayer = null),
+        cameraVideoElement.pause(),
+        cameraVideoElement.removeAttribute("src"),
+        cameraVideoElement.load(),
+        fallbackImageElement.removeAttribute("src"),
+        (isLegacyTransport = false),
+        (hasRequestedFallbackImage = false),
+        (hasVideoStarted = false));
+    },
+    restoreVideoElement = () => {
+      (fallbackImageElement.remove(),
+        cameraVideoElement.isConnected || legacyContainerElement.prepend(cameraVideoElement));
+    },
+    handleTransportReady = () => {
+      isTransportDisposed ||
+        isPageHidden ||
+        hasVideoStarted ||
+        ((hasVideoStarted = true),
+        window.clearTimeout(hlsStartTimerId),
+        window.clearTimeout(legacyProbeTimerId),
+        (legacyPlaceholderElement.hidden = true),
+        onTransportReady());
+    },
+    reportTransportUnavailable = () => {
+      isTransportDisposed ||
+        isPageHidden ||
+        ((hasVideoStarted = false),
+        (legacyPlaceholderElement.hidden = false),
+        (legacyPlaceholderElement.textContent = "摄像头实时预览不可用"),
+        onTransportUnavailable());
+    },
+    loadFallbackSnapshot = () => {
+      !isTransportDisposed &&
+        !isPageHidden &&
+        (fallbackImageElement.src =
+          "/api/camera_proxy/" + encodeURIComponent(legacySnapshotEntityId) + "?hb=" + Date.now());
+    },
+    scheduleFallbackRequest = (fallbackGeneration = transportGeneration) => {
+      isTransportDisposed ||
+        isPageHidden ||
+        fallbackGeneration !== transportGeneration ||
+        hasRequestedFallbackImage ||
+        ((hasRequestedFallbackImage = true),
+        window.clearTimeout(legacyProbeTimerId),
+        loadFallbackSnapshot());
+    },
+    switchToLegacyTransport = (legacyGeneration = transportGeneration) => {
+      isTransportDisposed ||
+        isPageHidden ||
+        legacyGeneration !== transportGeneration ||
+        isLegacyTransport ||
+        ((isLegacyTransport = true),
+        (legacyContainerElement.dataset.cameraTransport = "legacy"),
+        window.clearTimeout(hlsStartTimerId),
+        hlsPlayer?.destroy(),
+        (hlsPlayer = null),
+        cameraVideoElement.pause(),
+        cameraVideoElement.removeAttribute("src"),
+        cameraVideoElement.load(),
+        cameraVideoElement.remove(),
+        legacyContainerElement.prepend(fallbackImageElement),
+        (fallbackImageElement.src =
+          "/api/camera_proxy_stream/" + encodeURIComponent(legacySnapshotEntityId)),
+        (legacyProbeTimerId = window.setTimeout(() => {
+          fallbackImageElement.naturalWidth || scheduleFallbackRequest(legacyGeneration);
+        }, 7000)));
+    };
+  (cameraVideoElement.addEventListener("loadeddata", handleTransportReady),
+    cameraVideoElement.addEventListener("playing", handleTransportReady),
+    cameraVideoElement.addEventListener(
+      "error",
+      () => {
+        hlsPlayer || switchToLegacyTransport();
+      },
+      {
+        once: true,
+      },
+    ),
+    fallbackImageElement.addEventListener("load", handleTransportReady),
+    fallbackImageElement.addEventListener("error", () => {
+      isTransportDisposed ||
+        isPageHidden ||
+        (hasRequestedFallbackImage ? reportTransportUnavailable() : scheduleFallbackRequest());
+    }),
+    legacyContainerElement.prepend(cameraVideoElement));
+  const startHlsPlayback = async (playbackGeneration: any) => {
+      hlsPlaybackAbortController?.abort();
+      const playbackAbortController = new AbortController();
+      hlsPlaybackAbortController = playbackAbortController;
+      try {
+        const hlsSourceUrl = await resolveCameraStreamSource(legacySnapshotEntityId, {
+          signal: playbackAbortController.signal,
+        }),
+          hlsRuntime = window.Hls as HlsRuntime | undefined;
+        if (isTransportDisposed || isPageHidden || playbackGeneration !== transportGeneration)
+          return;
+        ((legacyContainerElement.dataset.cameraHlsSource = hlsSourceUrl),
+          (legacyContainerElement.dataset.cameraTransport = "hls"),
+          hlsRuntime?.isSupported?.()
+            ? ((              hlsPlayer = new hlsRuntime({
+                lowLatencyMode: true,
+                backBufferLength: 8,
+                maxBufferLength: 10,
+              })),
+              hlsPlayer.on(hlsRuntime.Events.MEDIA_ATTACHED, () =>
+                hlsPlayer?.loadSource(hlsSourceUrl),
+              ),
+              hlsPlayer.on(hlsRuntime.Events.MANIFEST_PARSED, () => {
+                ((legacyContainerElement.dataset.cameraState = "manifest-parsed"),
+                  cameraVideoElement.play().catch(() => {}));
+              }),
+              hlsPlayer.on(hlsRuntime.Events.ERROR, (_hlsEventName: any, hlsErrorPayload: any) => {
+                isTransportDisposed ||
+                  isPageHidden ||
+                  playbackGeneration !== transportGeneration ||
+                  (hlsErrorPayload?.fatal &&
+                    (cameraSourceByEntityId.delete(String(legacySnapshotEntityId || "").trim()),
+                    (legacyContainerElement.dataset.cameraState = "hls-failed"),
+                    (legacyContainerElement.dataset.cameraError = [
+                      hlsErrorPayload.type,
+                      hlsErrorPayload.details,
+                      hlsErrorPayload.url || hlsErrorPayload.response?.url || "",
+                      hlsErrorPayload.response?.code || 0,
+                      hlsErrorPayload.reason || hlsErrorPayload.error?.message || "",
+                    ].join(" | ")),
+                    window.HomeOSLog?.report!(
+                      "error",
+                      "摄像头",
+                      "摄像头播放失败：" +
+                        (hlsErrorPayload.type || "") +
+                        " / " +
+                        (hlsErrorPayload.details || ""),
+                      {
+                        entityId: legacySnapshotEntityId,
+                        phase: "hls-playback",
+                        status: hlsErrorPayload.response?.code || 0,
+                        path: hlsErrorPayload.url || hlsErrorPayload.response?.url || "",
+                      },
+                    )!,
+                    console.warn("[HomeOS camera] HLS playback failed", {
+                      entityId: legacySnapshotEntityId,
+                      type: hlsErrorPayload.type,
+                      details: hlsErrorPayload.details,
+                      url: hlsErrorPayload.url || hlsErrorPayload.response?.url || "",
+                      status: hlsErrorPayload.response?.code || 0,
+                      reason: hlsErrorPayload.reason || hlsErrorPayload.error?.message || "",
+                    }),
+                    switchToLegacyTransport(playbackGeneration)));
+              }),
+              hlsPlayer.attachMedia(cameraVideoElement))
+            : ((cameraVideoElement.src = hlsSourceUrl), cameraVideoElement.play().catch(() => {})));
+      } catch (hlsPlaybackError: any) {
+        if (isTransportDisposed || isPageHidden || playbackGeneration !== transportGeneration)
+          return;
+        ((legacyContainerElement.dataset.cameraState = "setup-failed"),
+          (legacyContainerElement.dataset.cameraError = String(hlsPlaybackError)),
+          window.HomeOSLog?.error!(
+            hlsPlaybackError,
+            {
+              entityId: legacySnapshotEntityId,
+              phase: "hls-setup",
+            },
+            "摄像头连接失败：" + (hlsPlaybackError?.message || hlsPlaybackError),
+          )!,
+          console.warn("[HomeOS camera] HLS setup failed", {
+            entityId: legacySnapshotEntityId,
+            error: String(hlsPlaybackError),
+          }),
+          switchToLegacyTransport(playbackGeneration));
+      }
+    },
+    resumeDeferredPlayback = () => {
+      if (isTransportDisposed || isPageHidden) return;
+      (restoreVideoElement(),
+        (hasVideoStarted = false),
+        (legacyPlaceholderElement.hidden = false),
+        (legacyPlaceholderElement.textContent = "摄像头正在连接"));
+      const transportGenerationSnapshot = transportGeneration;
+      ((legacyContainerElement.dataset.cameraState = "starting"),
+        startHlsPlayback(transportGenerationSnapshot),
+        (hlsStartTimerId = window.setTimeout(
+          () => switchToLegacyTransport(transportGenerationSnapshot),
+          12000,
+        )));
+    },
+    handlePageHidden = () => {
+      if (document.visibilityState === "hidden") {
+        if (isPageHidden) return;
+        ((isPageHidden = true),
+          disposeCameraTransport(),
+          (legacyContainerElement.dataset.cameraState = "suspended"),
+          (legacyPlaceholderElement.hidden = false),
+          (legacyPlaceholderElement.textContent = "摄像头已在后台暂停"));
+        return;
+      }
+      isPageHidden && ((isPageHidden = false), resumeDeferredPlayback());
+    };
+  return (
+    document.addEventListener("visibilitychange", handlePageHidden),
+    isPageHidden
+      ? ((legacyContainerElement.dataset.cameraState = "suspended"),
+        (legacyPlaceholderElement.hidden = false),
+        (legacyPlaceholderElement.textContent = "摄像头已在后台暂停"))
+      : ((legacyContainerElement.dataset.cameraState = "deferred"),
+        (hlsManifestTimerId = window.setTimeout(resumeDeferredPlayback, 0))),
+    registerLegacyCleanup(() => {
+      ((isTransportDisposed = true),
+        document.removeEventListener("visibilitychange", handlePageHidden),
+        disposeCameraTransport());
+    }),
+    {
+      video: cameraVideoElement,
+      image: fallbackImageElement,
+    }
+  );
+}

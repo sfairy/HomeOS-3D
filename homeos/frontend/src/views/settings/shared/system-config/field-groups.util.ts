@@ -171,6 +171,11 @@ const SECTION_FIELD_GROUPS: Record<string, FieldGroupDef[]> = {
   ],
   screensaver: [
     {
+      id: 'power',
+      label: '开关与空闲',
+      match: ['screensaverEnabled', 'screensaverIdleMs'],
+    },
+    {
       id: 'behavior',
       label: '行为',
       match: [

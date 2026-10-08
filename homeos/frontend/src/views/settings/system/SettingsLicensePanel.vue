@@ -158,32 +158,50 @@ Props：
           <span class="license-card__hint">{{ '本机账号用于登录这台中控；商店账号用于授权绑定与售后' }}</span>
         </div>
 
-        <dl class="license-facts">
-          <div v-for="fact in accountFacts" :key="fact.label" class="license-fact">
+        <!-- 身份：两格并排，短字段一眼可读 -->
+        <div class="license-account__identity">
+          <div v-for="fact in accountIdentity" :key="fact.label" class="license-account__tile">
+            <span class="license-account__label">{{ fact.label }}</span>
+            <span class="license-account__value">{{ fact.value }}</span>
+          </div>
+        </div>
+
+        <!-- 技术标识：整行 label / value，避免长串挤成一行被截断 -->
+        <dl class="license-account__meta">
+          <div v-for="fact in accountMeta" :key="fact.label" class="license-account__row">
             <dt>{{ fact.label }}</dt>
-            <dd :class="fact.tone ? `is-${fact.tone}` : ''">{{ fact.value }}</dd>
+            <dd>
+              <code>{{ fact.value }}</code>
+            </dd>
           </div>
         </dl>
 
         <div class="license-actions">
+          <div class="license-actions__main">
+            <button
+              type="button"
+              class="settings-btn-accent"
+              :disabled="busy || !status?.canRetry"
+              @click="onRetry"
+            >
+              <PlugZap class="w-4 h-4" />
+              {{ actionBusy === 'retry' ? '连接中…' : '重新连接授权后台' }}
+            </button>
+            <button type="button" class="settings-btn-ghost" :disabled="busy" @click="goActivate">
+              <KeyRound class="w-4 h-4" />
+              {{ '重新激活' }}
+            </button>
+            <button type="button" class="settings-btn-ghost" :disabled="busy" @click="copyDiagnostics">
+              <Copy class="w-4 h-4" />
+              {{ copied ? '已复制' : '复制诊断信息' }}
+            </button>
+          </div>
           <button
             type="button"
-            class="settings-btn-accent"
-            :disabled="busy || !status?.canRetry"
-            @click="onRetry"
+            class="settings-btn-ghost settings-btn-ghost--danger license-actions__logout"
+            :disabled="busy"
+            @click="onLogout"
           >
-            <PlugZap class="w-4 h-4" />
-            {{ actionBusy === 'retry' ? '连接中…' : '重新连接授权后台' }}
-          </button>
-          <button type="button" class="settings-btn-ghost" :disabled="busy" @click="goActivate">
-            <KeyRound class="w-4 h-4" />
-            {{ '重新激活' }}
-          </button>
-          <button type="button" class="settings-btn-ghost" :disabled="busy" @click="copyDiagnostics">
-            <Copy class="w-4 h-4" />
-            {{ copied ? '已复制' : '复制诊断信息' }}
-          </button>
-          <button type="button" class="settings-btn-ghost settings-btn-ghost--danger" :disabled="busy" @click="onLogout">
             <LogOut class="w-4 h-4" />
             {{ '退出本机登录' }}
           </button>
@@ -360,9 +378,13 @@ const featureRows = computed(() =>
 const products = computed(() => status.value?.products || [])
 const entitlements = computed(() => status.value?.entitlements || [])
 
-const accountFacts = computed(() => [
+/** 账号身份（短字段）与技术标识（长串）分开排，避免挤成一行。 */
+const accountIdentity = computed(() => [
   { label: '本机账号名', value: status.value?.accountName || auth.user || '—' },
   { label: '商店账号', value: status.value?.activationEmail || '—' },
+])
+
+const accountMeta = computed(() => [
   { label: '激活码提示', value: status.value?.activationCodeHint || '—' },
   { label: '公钥指纹', value: status.value?.publicKeyFingerprint || '—' },
   { label: '激活码 ID', value: status.value?.activationCodeId || '—' },

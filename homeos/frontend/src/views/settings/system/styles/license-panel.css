@@ -14,6 +14,14 @@
   margin-bottom: 4px;
 }
 
+/* 本面板正文略放大一档，按钮跟进 */
+.license-hub .settings-btn-accent,
+.license-hub .settings-btn-ghost {
+  font-size: 15px;
+  padding-top: 11px;
+  padding-bottom: 11px;
+}
+
 /* ── 状态总览 ── */
 .license-hero {
   display: flex;
@@ -37,22 +45,22 @@
 
 .license-hero__name {
   margin: 0;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--text-primary, #e8eef7);
 }
 
 .license-hero__desc {
   margin: 10px 0 0;
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 14.5px;
+  line-height: 1.65;
   color: var(--text-secondary, #a7b4c6);
 }
 
 .license-hero__hint {
   margin: 8px 0 0;
-  font-size: 12px;
-  line-height: 1.55;
+  font-size: 13.5px;
+  line-height: 1.6;
   color: var(--text-tertiary, #8b98aa);
 }
 
@@ -70,18 +78,18 @@
 .license-gate {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+  gap: 7px;
+  padding: 7px 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 13.5px;
   color: var(--text-secondary, #a7b4c6);
   background: rgba(255, 255, 255, 0.03);
 }
 
 .license-gate__dot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: currentColor;
   opacity: 0.75;
@@ -112,9 +120,9 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 5px 11px;
+  padding: 6px 12px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 600;
   letter-spacing: 0.02em;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -150,63 +158,158 @@
 /* ── 键值表 ── */
 .license-facts {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 2px 20px;
+  /* 宽屏最多 3 列，避免 5 个长字段挤成一行 */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 2px 24px;
   margin: 16px 0 0;
   padding: 0;
 }
 
 .license-fact {
   display: flex;
-  gap: 10px;
-  align-items: baseline;
-  justify-content: space-between;
-  padding: 9px 0;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  font-size: 12.5px;
+  font-size: 14px;
 }
 
 .license-fact dt {
-  flex: 0 0 auto;
+  font-size: 13px;
   color: var(--text-tertiary, #8b98aa);
 }
 
 .license-fact dd {
   margin: 0;
   min-width: 0;
-  text-align: right;
+  font-size: 14.5px;
   color: var(--text-primary, #e8eef7);
   /* 实例标识 / 指纹是长串，允许换行，不撑破卡片 */
   overflow-wrap: anywhere;
+  word-break: break-word;
+  font-variant-numeric: tabular-nums;
 }
 
 .license-fact dd.is-warn {
   color: #e0b25c;
 }
 
+/* ── 账号与操作：身份卡片 + 技术标识行 ── */
+.license-account__identity {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+@media (max-width: 640px) {
+  .license-account__identity {
+    grid-template-columns: 1fr;
+  }
+}
+
+.license-account__tile {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.license-account__label {
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--text-tertiary, #8b98aa);
+}
+
+.license-account__value {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-primary, #e8eef7);
+  overflow-wrap: anywhere;
+}
+
+.license-account__meta {
+  display: grid;
+  gap: 0;
+  margin: 14px 0 0;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.license-account__row {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 12px 16px;
+  align-items: baseline;
+  padding: 13px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 14px;
+}
+
+.license-account__row:first-child {
+  border-top: none;
+}
+
+.license-account__row dt {
+  font-size: 13px;
+  color: var(--text-tertiary, #8b98aa);
+}
+
+.license-account__row dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.license-account__row code {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-primary, #e8eef7);
+  background: transparent;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+@media (max-width: 560px) {
+  .license-account__row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
 /* ── 卡片标题与副标题 ── */
 .license-card__head {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 14px;
-  align-items: baseline;
+  flex-direction: column;
+  gap: 5px;
+  align-items: flex-start;
 }
 
 .license-card__name {
   margin: 0;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-primary, #e8eef7);
 }
 
 .license-card__hint {
-  font-size: 12px;
+  font-size: 13.5px;
+  line-height: 1.5;
   color: var(--text-tertiary, #8b98aa);
 }
 
 .license-subtitle {
   margin: 18px 0 8px;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--text-tertiary, #8b98aa);
@@ -219,7 +322,7 @@
 .license-empty {
   margin: 0;
   padding: 10px 0;
-  font-size: 12.5px;
+  font-size: 14px;
   color: var(--text-tertiary, #8b98aa);
 }
 
@@ -237,10 +340,10 @@
   flex-wrap: wrap;
   gap: 6px 12px;
   align-items: center;
-  padding: 8px 11px;
+  padding: 10px 13px;
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 8px;
-  font-size: 12.5px;
+  font-size: 14px;
   background: rgba(255, 255, 255, 0.02);
 }
 
@@ -250,14 +353,14 @@
 }
 
 .license-code__id {
-  font-size: 11.5px;
+  font-size: 13px;
   color: var(--text-tertiary, #8b98aa);
   background: transparent;
 }
 
 .license-code__state {
   margin-left: auto;
-  font-size: 12px;
+  font-size: 13.5px;
   color: var(--text-secondary, #a7b4c6);
 }
 
@@ -295,21 +398,36 @@
 
 .license-progress__text {
   margin: 7px 0 0;
-  font-size: 12px;
+  font-size: 13.5px;
   color: var(--text-tertiary, #8b98aa);
 }
 
-/* ── 操作区 ── */
+/* ── 操作区：主操作靠左，退出登录单独靠右 ── */
 .license-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  align-items: center;
+  justify-content: space-between;
   margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.license-actions__main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+.license-actions__logout {
+  margin-left: auto;
 }
 
 .license-note {
   margin: 12px 0 0;
-  font-size: 12px;
-  line-height: 1.6;
+  font-size: 13.5px;
+  line-height: 1.65;
   color: var(--text-tertiary, #8b98aa);
 }

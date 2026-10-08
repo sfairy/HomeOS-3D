@@ -90,11 +90,10 @@ def _check_one(app: str, *, analyze: bool, wal_checkpoint: bool) -> int:
                 errors.append(f"schema drift: {drift}")
             else:
                 print(f"[{title}] ✓ schema drift clean")
+        elif not drift.clean:
+            errors.append(f"schema drift: {drift.summary()}")
         else:
-            if not drift.clean:
-                errors.append(f"schema drift: {drift.summary()}")
-            else:
-                print(f"[{title}] ✓ schema drift clean")
+            print(f"[{title}] ✓ schema drift clean")
 
         if analyze or wal_checkpoint:
             with sqlite3.connect(database_path) as connection:

@@ -54,11 +54,11 @@ const defaults: AppPublicConfig = {
   ui: {
     scaleBaseWidth: 1366,
     scaleBaseHeight: 1024,
-    screensaverEnabled: true,
-    screensaverIdleMs: 120000,
     accentColor: '#3b82f6',
   },
   screensaver: {
+    screensaverEnabled: true,
+    screensaverIdleMs: 120000,
     scale: 1.35,
     defaultMode: 'random',
     enableWeatherMode: false,

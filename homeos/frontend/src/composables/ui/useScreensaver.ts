@@ -17,7 +17,7 @@
  * - vue-router（路由跳转）
  * - entities.store / layout.store / earthquake.store
  * - lunar-calendar / lunar-display.util（农历计算与显示）
- * - frontend-config（屏保/UI/人来亮屏配置）
+ * - frontend-config（screensaver 启用/空闲与视觉；兼容旧 ui 键；人来亮屏）
  * - locale-time（时区化时间格式化）
  * - useScaling / usePerfClock / useWakeWord / useTtsSpeak
  * - system API（executeVoiceCommand）
@@ -333,10 +333,24 @@ export function useScreensaver() {
     stop: stopClockTimer,
   } = usePerfClock({ autoStart: false, forceIntervalMs: 1000 })
   let idleTimer: ReturnType<typeof setTimeout> | null = null
-  /** 读取 UI 配置段的快捷函数 */
-  const uiCfg = () => getConfigSection('ui')
+  /**
+   * 屏保启用/空闲：读 screensaver 分区；兼容旧配置仍写在 ui 的情况。
+   * ui 区段在类型上只有缩放/强调色，旧版本可能多写了 screensaverEnabled/screensaverIdleMs，
+   * 这里以索引访问兼容历史遗留。
+   */
+  type ScreensaverCompat = { screensaverEnabled?: boolean; screensaverIdleMs?: number }
+  function ssPowerCfg() {
+    const ss = (getConfigSection('screensaver') || {}) as ScreensaverCompat
+    const ui = (getConfigSection('ui') || {}) as ScreensaverCompat
+    return {
+      enabled: ss.screensaverEnabled ?? ui.screensaverEnabled ?? true,
+      idleMs: Number(ss.screensaverIdleMs ?? ui.screensaverIdleMs ?? 120000) || 120000,
+    }
+  }
   /** 空闲超时（毫秒）：取配置 screensaverIdleMs，缺省 120000（2 分钟） */
-  const IDLE_TIMEOUT = () => uiCfg().screensaverIdleMs ?? 120000
+  const IDLE_TIMEOUT = () => ssPowerCfg().idleMs
+  /** 是否启用自动屏保 */
+  const isScreensaverEnabled = () => ssPowerCfg().enabled !== false
 
   // 站点标题：取布局配置 siteTitle，缺省 HomeOS
   const siteTitle = computed(() => layoutStore.layoutConfig.siteTitle || 'HomeOS')
@@ -558,13 +572,34 @@ export function useScreensaver() {
   /** 重置空闲计时器：若屏保可见则先隐藏；禁用时不重启计时 */
   function resetIdle() {
     if (idleTimer) clearTimeout(idleTimer)
+    idleTimer = null
     if (visible.value) {
       hideScreensaver()
     }
-    if (uiCfg().screensaverEnabled === false) return
+    if (!isScreensaverEnabled()) return
     idleTimer = setTimeout(() => {
       showScreensaver()
     }, IDLE_TIMEOUT())
+  }
+
+  /**
+   * 配置热更新后同步启用态：关闭则立即退出并停表；开启则在未显示时重新武装空闲计时。
+   */
+  function syncEnableFromConfig() {
+    if (!isScreensaverEnabled()) {
+      if (idleTimer) {
+        clearTimeout(idleTimer)
+        idleTimer = null
+      }
+      if (visible.value) hideScreensaver()
+      return
+    }
+    if (!visible.value) {
+      if (idleTimer) clearTimeout(idleTimer)
+      idleTimer = setTimeout(() => {
+        showScreensaver()
+      }, IDLE_TIMEOUT())
+    }
   }
   let activityThrottle: ReturnType<typeof setTimeout> | null = null
   /** 用户活动回调：600ms 节流后重置空闲计时 */
@@ -711,14 +746,18 @@ export function useScreensaver() {
     loadFrontendConfig().then(() => {
       cfgTick.value++
     })
-    // 监听配置变化：screensaver 段变化时自增 cfgTick
+    // 监听配置变化：screensaver / ui（兼容旧键）变化时重算并同步启用态
     cfgUnsub = onConfigChange((sections) => {
       if (
         !sections ||
         sections.includes('screensaver') ||
+        sections.includes('ui') ||
         sections.includes('clientPowerWake')
       ) {
         cfgTick.value++
+      }
+      if (!sections || sections.includes('screensaver') || sections.includes('ui')) {
+        syncEnableFromConfig()
       }
     })
     window.addEventListener('mousemove', onUserActivity, { passive: true })

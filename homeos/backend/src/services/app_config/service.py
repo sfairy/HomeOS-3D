@@ -219,6 +219,25 @@ class AppConfigService:
                     changed = True
         return changed
 
+    def _migrate_ui_screensaver_keys(self) -> bool:
+        """ui.screensaverEnabled / IdleMs → screensaver（与 import_normalize 对齐）。"""
+        ui = self._config.get("ui")
+        if not isinstance(ui, dict):
+            return False
+        ss = self._config.get("screensaver")
+        if not isinstance(ss, dict):
+            ss = {}
+            self._config["screensaver"] = ss
+        changed = False
+        for key in ("screensaverEnabled", "screensaverIdleMs"):
+            if key not in ui:
+                continue
+            if key not in ss:
+                ss[key] = ui[key]
+            ui.pop(key, None)
+            changed = True
+        return changed
+
     def _migrate_missing_sections(self) -> bool:
         changed = False
         for section, default_value in DEFAULT_APP_CONFIG.items():
@@ -230,6 +249,8 @@ class AppConfigService:
             if isinstance(raw_target, dict) and isinstance(default_value, dict):
                 if self._merge_defaults_recursive(raw_target, default_value):
                     changed = True
+        if self._migrate_ui_screensaver_keys():
+            changed = True
         domains = (self._config.get("wsPush") or {}).get("criticalDomains")
         if (
             isinstance(domains, list)
