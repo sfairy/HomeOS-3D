@@ -29,10 +29,8 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from . import load_app_version, studio3d_plane, studio_shell
 from .app_state_listener import (
-    _apply_state_change,
     _make_state_bus_handlers,
     _make_state_listener,
-    _run_state_change_effects,
 )
 from .api.advisor_usage import router as advisor_usage_router
 from .api.agent import router as agent_router
