@@ -1,6 +1,6 @@
 """跨进程文件锁：POSIX 走 ``flock``，Windows 走 ``msvcrt.locking``。
 
-与主应用 ``homeos-3d/backend/src/core/file_lock.py`` 是同一实现的两个副本：两个服务
+与主应用 ``homeos/backend/src/core/file_lock.py`` 是同一实现的两个副本：两个服务
 可以各自独立部署（拆库部署时甚至不在同一台机器上），任何一侧都不该 import 另一侧的
 代码。改动其中一份时请同步另一份。
 """

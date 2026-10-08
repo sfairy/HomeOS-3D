@@ -1,6 +1,6 @@
 """HomeOS Python 后端（NestJS → FastAPI 透明替换）。
 
-包结构镜像仓库既有的 homeos-3d / homeos-store Python 约定：
+包结构镜像仓库既有的 homeos / homeos-store Python 约定：
 - ``src.config``         运行期不可变配置（env 装配）
 - ``src.core.*``         数据库、模型、错误、可观测性、迁移
 - ``src.app``            FastAPI 应用工厂（lifespan / 中间件 / 路由 / 静态资源）

@@ -1,15 +1,23 @@
 /**
  * Vite 8 + Rolldown 构建配置文件
  */
-import { defineConfig, createLogger, type Plugin, type UserConfig } from 'vite'
+import { defineConfig, createLogger, type UserConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
-import fs from 'node:fs'
 import { resolve } from 'path'
 import { fileURLToPath } from 'url'
 import devNoCachePlugin from './vite-plugin-dev-no-cache.ts'
 import embedProxyFallbackPlugin from './vite-plugin-embed-fallback.ts'
 import rootAssetsPlugin from './vite-plugin-root-assets.ts'
+import publishOutDirPlugin, { outDir } from './vite-plugin-publish-outdir.ts'
+import publicStaticManifestPlugin from './vite-plugin-public-static-manifest.ts'
+import {
+  BACKEND_DEV_TARGET,
+  isBenignProxyError,
+  logBenignProxyOnce,
+  proxyErrorHandling,
+  sanitizeChunkBaseName,
+} from './vite-build-utils.ts'
 import {
   THREE_VENDOR,
   classicIifePlugin,
@@ -21,155 +29,8 @@ import {
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
-/**
- * 线上产物目录（后端 / 8801 直接伺服）。
- * 构建先写到旁路 ``frontend.building``，closeBundle 末尾再原子替换，避免 watch-build
- * 清空窗口里 ``index.html`` / ``modules/runtime`` 失踪（stage.html 500、动态 import 404）。
- */
-const finalOutDir = resolve(__dirname, '../../dist/homeos/frontend')
-const outDir = `${finalOutDir}.building`
-
-/**
- * 把旁路 ``frontend.building`` 发布进线上 ``frontend/``，且**不删掉线上根目录**。
- *
- * 旧实现 ``rename(live→prev) + rename(building→live)`` 中间有空窗：``/assets`` mount
- * 找不到目录时请求会落到 SPA 外壳（text/html），浏览器对 ``shared-*.js`` 报 Strict MIME。
- * 这里改为：先覆盖拷贝（``index.html`` 最后），再修剪旧 hash 文件，全程根路径常在。
- */
-function publishOutDirPlugin(): Plugin {
-  const walkFiles = (root: string): string[] => {
-    const out: string[] = []
-    if (!fs.existsSync(root)) return out
-    const stack = [root]
-    while (stack.length) {
-      const dir = stack.pop()!
-      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        const full = resolve(dir, entry.name)
-        if (entry.isDirectory()) stack.push(full)
-        else if (entry.isFile()) out.push(full)
-      }
-    }
-    return out
-  }
-
-  const pruneStale = (liveRoot: string, buildRoot: string) => {
-    if (!fs.existsSync(liveRoot) || !fs.existsSync(buildRoot)) return
-    const keep = new Set(
-      walkFiles(buildRoot).map((f) => f.slice(buildRoot.length + 1).replace(/\\/g, '/')),
-    )
-    for (const file of walkFiles(liveRoot)) {
-      const rel = file.slice(liveRoot.length + 1).replace(/\\/g, '/')
-      if (!keep.has(rel)) fs.rmSync(file, { force: true })
-    }
-  }
-
-  return {
-    name: 'homeos-publish-outdir',
-    apply: 'build',
-    closeBundle() {
-      if (!fs.existsSync(outDir)) return
-      fs.mkdirSync(finalOutDir, { recursive: true })
-      const entries = fs.readdirSync(outDir).filter((name) => name !== 'modules')
-      // 先资源后外壳：避免新 index 已上线却仍缺新 hash chunk。
-      const ordered = [
-        ...entries.filter((name) => name !== 'index.html'),
-        ...entries.filter((name) => name === 'index.html'),
-      ]
-      for (const name of ordered) {
-        const from = resolve(outDir, name)
-        const to = resolve(finalOutDir, name)
-        fs.cpSync(from, to, { recursive: true, force: true })
-      }
-      for (const bucket of ['assets', 'static'] as const) {
-        pruneStale(resolve(finalOutDir, bucket), resolve(outDir, bucket))
-      }
-      fs.rmSync(outDir, { recursive: true, force: true })
-    },
-  }
-}
-
-/** SPA 唯一入口。 */
-const SPA_ENTRY = 'index.html'
-
 const isProduction = process.env.NODE_ENV === 'production'
 const analyzeBundle = process.env.ANALYZE === '1'
-/** 开发代理目标：127.0.0.1 避免 Windows 下 localhost → IPv6 导致 ECONNREFUSED */
-const backendDevTarget = 'http://127.0.0.1:8801'
-
-/** 开发代理/WebSocket 断连时的可忽略错误码（重连、刷新、后端重启均属正常） */
-const BENIGN_PROXY_ERROR_CODES = new Set(['ECONNABORTED', 'ECONNRESET', 'ECONNREFUSED'])
-
-function isBenignProxyError(err: unknown): boolean {
-  const code = (err as NodeJS.ErrnoException | undefined)?.code
-  return !!code && BENIGN_PROXY_ERROR_CODES.has(code)
-}
-
-const BACKEND_UNAVAILABLE_HINT =
-  '后端暂未就绪，请先运行 bun run dev:backend，稍后刷新'
-
-/** 后端未就绪时返回 503 JSON，避免浏览器看到含糊的 500 Internal Server Error */
-function respondBackendUnavailable(res: unknown): void {
-  const r = res as {
-    headersSent?: boolean
-    writeHead?: (code: number, headers: Record<string, string>) => void
-    end?: (body: string) => void
-  } | null
-  if (!r || r.headersSent || typeof r.writeHead !== 'function' || typeof r.end !== 'function') return
-  try {
-    r.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8' })
-    r.end(
-      JSON.stringify({
-        statusCode: 503,
-        message: BACKEND_UNAVAILABLE_HINT,
-      }),
-    )
-  } catch {
-    /* 响应可能已关闭 */
-  }
-}
-
-/** 良性代理失败节流日志，避免启动竞态时刷屏 */
-let lastBenignProxyLogAt = 0
-function logBenignProxyOnce(err: unknown): void {
-  const now = Date.now()
-  if (now - lastBenignProxyLogAt < 15_000) return
-  lastBenignProxyLogAt = now
-  const code = (err as NodeJS.ErrnoException | undefined)?.code
-  console.warn(`[vite] ${BACKEND_UNAVAILABLE_HINT}${code ? `（${code}）` : ''}`)
-}
-
-/** HTTP/WS 代理共享：抑制良性断连日志，并对 HTTP 返回可读的 503 */
-const proxyErrorHandling = {
-  configure: (proxy: any) => {
-    proxy.on('error', (err: any, _req: unknown, res: unknown) => {
-      if (isBenignProxyError(err)) {
-        logBenignProxyOnce(err)
-        respondBackendUnavailable(res)
-        return
-      }
-      console.warn('[vite proxy error]', err?.message || err)
-      respondBackendUnavailable(res)
-    })
-    proxy.on('proxyReqWs', (_proxyReq: unknown, _req: unknown, socket: NodeJS.EventEmitter) => {
-      socket.on('error', (err: NodeJS.ErrnoException) => {
-        if (isBenignProxyError(err)) return
-        console.warn('[vite ws proxy socket error]', err?.message || err)
-      })
-    })
-  },
-}
-
-const sharedRoot = resolve(__dirname, '../packages/shared')
-
-/** Rolldown entriesAware 会拼出 app-merge~A~B~C 超长名，统一收成 shared */
-function sanitizeChunkBaseName(name?: string): string {
-  if (!name) return 'chunk'
-  const base = name.replace(/\.[^.]+$/, '')
-  if (base.includes('~') || base.startsWith('app-merge') || base.startsWith('shared~')) {
-    return 'shared'
-  }
-  return base
-}
 
 const baseLogger = createLogger()
 const customLogger = {
@@ -206,125 +67,7 @@ const customLogger = {
   },
 }
 
-/**
- * 生成 `/static` 匿名白名单（`dist/homeos/frontend/public-static.json`）。
- *
- * 后端用它判定「未登录也必须能加载」的静态资源：白名单**之外**的 `/static/**` 一律要求
- * 已登录会话（见 backend/src/studio_shell.py）。种子清单是 `public-static.seed.json`。
- *
- * 必须排在所有产物写入插件之后：它要按「产物是否真的存在」筛种子条目，而
- * `classicIifePlugin` 的 closeBundle 才写入 `/static/logging/client-log.js` 这类 IIFE 包。
- * closeBundle 按插件数组顺序串行执行，所以本插件必须放在数组最后一位。
- */
-function publicStaticManifestPlugin(): Plugin {
-  return {
-    name: 'homeos-public-static-manifest',
-    apply: 'build',
-    closeBundle() {
-      updatePublicStaticManifest()
-    },
-  }
-}
-
-function updatePublicStaticManifest(): void {
-  const seedPath = resolve(__dirname, 'public-static.seed.json')
-  const manifestPath = resolve(outDir, 'public-static.json')
-  const seed = fs.existsSync(seedPath) ? seedPath : manifestPath
-  if (!fs.existsSync(seed)) return
-  let payload: {
-    _comment?: unknown
-    files: Array<string | { path: string; why?: string }>
-    alwaysRevalidate?: Array<string | { path: string; why?: string }>
-  }
-  try {
-    payload = JSON.parse(fs.readFileSync(seed, 'utf8'))
-  } catch {
-    return
-  }
-  const discovered = new Set<string>()
-  // SPA 入口是未登录唯一会下发的 HTML：它引用的 `/static/**`（入口 chunk、其
-  // modulepreload 依赖、外壳样式、经典启动脚本）就是未登录也必须可加载的全集。
-  // 认证后视图是懒加载 chunk，不出现在这里，因此继续受登录门禁保护。
-  const htmlPath = resolve(outDir, SPA_ENTRY)
-  if (fs.existsSync(htmlPath)) {
-    const html = fs.readFileSync(htmlPath, 'utf8')
-    for (const match of html.matchAll(/(?:src|href)=["'](\/static\/[^"']+)["']/g)) {
-      discovered.add(match[1].replace(/\?v=[^"']+$/i, ''))
-    }
-  }
-  for (const stable of [
-    '/static/logging/client-log.js',
-    '/static/display/display-boot.js',
-    '/static/display/display-startup.js',
-    '/static/auth/scene/scene-depth.js',
-    // 认证页样式表由 App.vue 在运行时插入 <head>，不在 SPA 入口里，需显式登记。
-    '/static/auth/scene/fonts.css',
-    '/static/auth/scene/page.css',
-    '/static/auth/scene/scene.css',
-    '/static/auth/scene/panel.css',
-    '/static/appearance.css',
-  ]) {
-    discovered.add(stable)
-  }
-  const kept: Array<{ path: string; why: string }> = []
-  const seen = new Set<string>()
-  const pruned: string[] = []
-  for (const item of payload.files || []) {
-    const p = typeof item === 'string' ? item : item.path
-    if (!p?.startsWith('/static/')) continue
-    if (seen.has(p)) continue
-    // 种子清单记的是逻辑路径，而产物可能带内容哈希或按域归入子目录，因此按产物
-    // 实际存在与否筛一遍，只保留真正落盘的路径。
-    // 注意：被剪掉的条目**不占用 seen** —— 否则「种子缺条目 → 剪掉 → 又被 HTML
-    // 发现」的同一路径会被 seen 挡在补回分支之外，最终静默 401（见下方 discovered 循环）。
-    if (!fs.existsSync(resolve(outDir, p.replace(/^\//, '')))) {
-      pruned.push(p)
-      continue
-    }
-    seen.add(p)
-    kept.push({ path: p, why: typeof item === 'object' && item.why ? item.why : '' })
-  }
-  // index.html 与登记清单引用的静态资源是**硬要求**：产物缺失就是每个页面稳定 404
-  // （静态处理回 JSON 错误信封，浏览器还会再报一次「MIME 类型不可执行」）。
-  // 这类缺口不能只 warn —— 曾经 ``auth/scene/scene-depth.ts`` 在应用树合并时随
-  // ``app/auth/**`` 一并丢失，``vite-studio.ts`` 的入口指向不存在的文件却**不报错、
-  // 只是不产出**，白名单照样登记，于是登录页首帧前 404、``hos-touch`` 手持档全失效。
-  const missing: string[] = []
-  for (const p of [...discovered].sort()) {
-    if (!fs.existsSync(resolve(outDir, p.replace(/^\//, '')))) {
-      missing.push(p)
-      continue
-    }
-    if (seen.has(p)) continue
-    seen.add(p)
-    kept.push({ path: p, why: 'SPA 入口引用的匿名静态资源，必须匿名可加载。' })
-  }
-  if (missing.length > 0) {
-    throw new Error(
-      `以下匿名静态资源被 index.html 或登记清单引用，但构建产物里不存在（线上会稳定 404）：\n  ${missing.join('\n  ')}\n` +
-        '常见原因：vite-studio.ts / vite.config.ts 的入口指向了不存在的源文件 —— ' +
-        '这不会让构建报错，只会不产出该产物。请补齐源文件或移除引用。',
-    )
-  }
-  payload.files = kept
-  // 记录被筛掉的种子条目，方便核对「是不是真有资源漏了」而不是被静默吞掉。
-  ;(payload as Record<string, unknown>)._prunedStaleSeed = pruned.sort()
-  if (pruned.length > 0) {
-    console.warn(
-      `[homeos] 匿名白名单筛掉 ${pruned.length} 条不存在的种子条目：\n  ${pruned.join('\n  ')}`,
-    )
-  }
-  const revalidate = new Set<string>()
-  for (const p of discovered) {
-    if (p.endsWith('.js') || p.endsWith('.css')) revalidate.add(p)
-  }
-  payload.alwaysRevalidate = [...revalidate].sort().map((p) => ({
-    path: p,
-    why: '入口页构建产物，内容变化即换 URL/必须回源。',
-  }))
-  fs.mkdirSync(outDir, { recursive: true })
-  fs.writeFileSync(manifestPath, JSON.stringify(payload, null, 2) + '\n', 'utf8')
-}
+const sharedRoot = resolve(__dirname, '../packages/shared')
 
 export default defineConfig(async (): Promise<UserConfig> => {
   const plugins: UserConfig['plugins'] = [
@@ -368,7 +111,7 @@ export default defineConfig(async (): Promise<UserConfig> => {
         vue: 'vue/dist/vue.esm-bundler.js',
         '@': resolve(__dirname, 'src'),
         '@homeos/shared': resolve(sharedRoot, 'src/index.ts'),
-        // 3D Studio 源码别名（原 homeos-3d/frontend 的 @app / @runtime）。
+        // 3D Studio 源码别名（源自原 homeos-3d/frontend 的 @app / @runtime）。
         '@app': resolve(__dirname, 'src/studio/app'),
         '@runtime': resolve(__dirname, 'src/studio/runtime'),
         three: THREE_VENDOR,
@@ -404,10 +147,10 @@ export default defineConfig(async (): Promise<UserConfig> => {
         interval: 800,
       },
       proxy: {
-        '/health': { target: backendDevTarget, changeOrigin: true, ...proxyErrorHandling },
+        '/health': { target: BACKEND_DEV_TARGET, changeOrigin: true, ...proxyErrorHandling },
         // 内嵌反代既走 HTTP（资源/登录）又走 WS（实时通道），须开启 ws；置于 /api 之前以优先匹配
         '/api/v1/embed-proxy': {
-          target: backendDevTarget,
+          target: BACKEND_DEV_TARGET,
           changeOrigin: true,
           ws: true,
           ...proxyErrorHandling,
@@ -419,7 +162,7 @@ export default defineConfig(async (): Promise<UserConfig> => {
         // 改写 Host 会让后端看到 127.0.0.1:8801 而浏览器 Origin 是 http://localhost:8805，
         // 握手在 accept 之前就被 4403「页面来源未获允许」拒绝，前端只能无限重连。
         '/api/v1/ws': {
-          target: backendDevTarget,
+          target: BACKEND_DEV_TARGET,
           ws: true,
           ...proxyErrorHandling,
         },
@@ -428,17 +171,17 @@ export default defineConfig(async (): Promise<UserConfig> => {
         // （http://localhost:8805）与后端看到的 Host（http://127.0.0.1:8801）不一致，
         // 导致所有受守卫的写请求（如 interaction3d 渲染缓存 PUT）被 403。
         // 保留浏览器原 Host 后两侧一致，守卫按设计放行。
-        '/api': { target: backendDevTarget, ...proxyErrorHandling },
-        '/backgrounds': { target: backendDevTarget, changeOrigin: true, ...proxyErrorHandling },
-        '/icons': { target: backendDevTarget, changeOrigin: true, ...proxyErrorHandling },
+        '/api': { target: BACKEND_DEV_TARGET, ...proxyErrorHandling },
+        '/backgrounds': { target: BACKEND_DEV_TARGET, changeOrigin: true, ...proxyErrorHandling },
+        '/icons': { target: BACKEND_DEV_TARGET, changeOrigin: true, ...proxyErrorHandling },
         '/engine.io': {
-          target: backendDevTarget,
+          target: BACKEND_DEV_TARGET,
           changeOrigin: true,
           ws: true,
           ...proxyErrorHandling,
         },
         '/socket.io': {
-          target: backendDevTarget,
+          target: BACKEND_DEV_TARGET,
           changeOrigin: true,
           ws: true,
           ...proxyErrorHandling,

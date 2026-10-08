@@ -1,6 +1,6 @@
 # HomeOS Python 后端运行期依赖。
 #
-# 对齐仓库既有 Python 后端（homeos-3d / homeos-store）的版本区间；SQLite 走标准库，
+# 对齐仓库既有 Python 后端（homeos / homeos-store）的版本区间；SQLite 走标准库，
 # 无需额外驱动。生产部署用 requirements.txt，本地开发可用 pip install -e .。
 
 fastapi>=0.115

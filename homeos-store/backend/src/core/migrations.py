@@ -1,6 +1,6 @@
 """启动时的数据库迁移。
 
-与主应用 ``homeos-3d/backend/src/migrations.py`` 同一套约定（锁 → 备份 → upgrade）。
+与主应用 ``homeos/backend/src/core/migrations.py`` 同一套约定（锁 → 备份 → upgrade）。
 """
 from __future__ import annotations
 

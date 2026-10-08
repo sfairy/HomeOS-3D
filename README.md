@@ -1,6 +1,6 @@
 # HomeOS
 
-面向 [Home Assistant](https://www.home-assistant.io/) 的本机仪表盘与中控，当前版本见仓库根 `package.json` 的 `version`。
+面向 [Home Assistant](https://www.home-assistant.io/) 的本机仪表盘与中控，当前版本见 `homeos/package.json` 的 `version`（主应用走日期版本号；根与商店各自独立 semver）。
 
 两个**相互独立**的项目：主应用 `homeos` 与授权商店 `homeos-store`。各自含前后端源码，互不 import 后端包，可同机或分机部署。两者的构建产物统一收敛到工作区根 `dist/`，与源码树彻底分开。
 
@@ -46,7 +46,9 @@ HomeOS/
                                # 项目目录内不再有 node_modules，构建缓存落在其 .vite/ 下）
 ├── package.json / bun.lock    # 单体仓库编排 + 全仓唯一的依赖锁
 ├── bunfig.toml                # 依赖 hoist 到根 node_modules（两个项目不各自安装）
-                               # package.json 的 version 也是全仓唯一的版本号来源
+                               # 主应用版本号：以 homeos/package.json 的 version 为唯一来源
+                               # （scripts/bump-version.mjs 同步 homeos/ + frontend/ + packages/shared）；
+                               # 根与 homeos-store 各走独立的 semver，不随主应用日期版本号联动
 ├── docker-compose.app.yml     # 主应用编排（可单独部署）
 ├── docker-compose.store.yml   # 商店编排
 ├── docker-compose.app.shared.yml  # 同机部署时叠加到主应用
