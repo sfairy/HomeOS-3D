@@ -26,6 +26,7 @@
       :ha-url="haUrl"
       :active="active"
       :prefer-webrtc="preferWebrtc"
+      :low-latency="lowLatency"
       object-fit="cover"
       @error="emit('stream-error', camId)"
     />
@@ -71,7 +72,13 @@ const props = defineProps({
   activeSlot: { type: Number, default: -1 },
   focused: { type: Boolean, default: false },
   streamsEnabled: { type: Boolean, default: true },
+  /**
+   * 本机摄像头：go2rtc 常不支持源（WebRTC 必败），HLS 又是 H.265（Chrome 黑屏）。
+   * 默认关 WebRTC；与 lowLatency 配合走 MJPEG。
+   */
   preferWebrtc: { type: Boolean, default: false },
+  /** MJPEG 优先于 HLS，避免 H.265 播放列表假成功 */
+  lowLatency: { type: Boolean, default: true },
 })
 
 // 对外事件：选中摄像头、流错误、重试流、可见性变化（供父级调度同时拉流的槽位）

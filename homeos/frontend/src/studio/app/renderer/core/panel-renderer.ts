@@ -1996,17 +1996,11 @@ export class PanelRenderer {
             },
           ),
         onError: (renderErrorObject: any) => this.options.onError?.(renderErrorObject),
-        openEntityDetails: (eventLogWallEntityId: any) =>
-          this.showActionPopup(
-            {
-              id: "event-log-wall:" + String(eventLogWallEntityId || ""),
-              type: "device-button",
-              bindings: { entity: { entityId: String(eventLogWallEntityId || "") } },
-              actions: {} as Record<string, any>,
-              properties: {} as Record<string, any>,
-            },
-            { type: "more-info", data: { popupSource: "current" } },
-          ),
+        openEntityDetails: (eventLogWallEntityId: any) => {
+          const entityId = String(eventLogWallEntityId || "").trim();
+          if (!entityId) return;
+          navigateInShell(`/device?id=${encodeURIComponent(entityId)}`);
+        },
         registerRuntimeStateHandler: (stateHandlerEntityKey: any, stateHandlerCallback: any) =>
           this.registerRuntimeStateHandler(
             stateHandlerEntityKey,

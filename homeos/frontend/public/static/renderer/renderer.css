@@ -12688,13 +12688,25 @@
   color: rgba(255, 255, 255, 0.58);
 }
 .hb-event-log-wall__footer {
+  display: block;
+  width: 100%;
+  margin: 0;
   padding: 0.3em 0.55em;
   text-align: center;
+  font: inherit;
   font-size: 0.62em;
   font-weight: 600;
   color: rgba(147, 197, 253, 0.52);
+  border: 0;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
   background: rgba(0, 0, 0, 0.22);
+  cursor: default;
+}
+.hb-event-log-wall__footer.is-clickable {
+  cursor: pointer;
+}
+.hb-event-log-wall__footer.is-clickable:hover {
+  color: rgba(147, 197, 253, 0.85);
 }
 .hb-event-log-wall.is-editing .hb-event-log-wall__panel {
   border-style: dashed;

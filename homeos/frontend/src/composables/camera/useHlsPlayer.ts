@@ -25,23 +25,21 @@ export async function startHlsPlayback(
   if (!url?.trim()) throw new Error('HLS URL 为空')
   if (!videoEl) throw new Error('HLS 播放器尚未挂载')
 
-  // 路径一：浏览器原生支持 HLS（Safari / iOS），直接设置 src
-  if (canPlayNativeHls()) {
-    videoEl.src = url
-    await videoEl.play()
-    return () => {
-      videoEl.pause()
-      videoEl.removeAttribute('src')
-      videoEl.load()
-    }
-  }
-
-  // 路径二：动态加载 hls.js
+  // 与 3D 一致：hls.js 优先。Chromium 会对 mpegurl 报 maybe，但不能播 H.265。
   const { default: Hls } = await import('hls.js')
-  if (!videoEl.isConnected) throw new Error('HLS 播放器已卸载')
   if (!Hls.isSupported()) {
+    if (canPlayNativeHls()) {
+      videoEl.src = url
+      await videoEl.play()
+      return () => {
+        videoEl.pause()
+        videoEl.removeAttribute('src')
+        videoEl.load()
+      }
+    }
     throw new Error('当前浏览器不支持 HLS 播放')
   }
+  if (!videoEl.isConnected) throw new Error('HLS 播放器已卸载')
 
   const hls = new Hls({
     enableWorker: true,

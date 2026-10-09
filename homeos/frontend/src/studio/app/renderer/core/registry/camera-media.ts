@@ -576,10 +576,12 @@ export function mountCameraMedia({
         (legacyPlaceholderElement.textContent = "摄像头正在连接"));
       const transportGenerationSnapshot = transportGeneration;
       ((legacyContainerElement.dataset.cameraState = "starting"),
+        // 立刻 MJPEG 预览，与 HLS 并行；HLS 出帧后 loadeddata/playing 会盖住占位
+        switchToLegacyTransport(transportGenerationSnapshot),
         startHlsPlayback(transportGenerationSnapshot),
         (hlsStartTimerId = window.setTimeout(
           () => switchToLegacyTransport(transportGenerationSnapshot),
-          12000,
+          2500,
         )));
     },
     handlePageHidden = () => {

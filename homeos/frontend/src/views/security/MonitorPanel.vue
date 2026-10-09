@@ -161,13 +161,7 @@
             @click="activeCameraId = cam"
           >
             <!-- 仅当前选中路拉实时流，其余侧栏缩略图用单帧快照，避免同时打开多路 MJPEG 流压垮平板/HA -->
-            <img
-              :src="getSnapshotUrl(cam)"
-              alt=""
-              aria-hidden="true"
-              class="w-full h-full object-cover"
-              loading="lazy"
-            />
+            <span class="block w-full h-full bg-[#111]" aria-hidden="true" />
             <span
               class="absolute inset-x-0 bottom-0 block bg-gradient-to-t from-black to-transparent p-1.5"
             >
@@ -194,7 +188,6 @@ import { useChromeStore } from '@/stores/chrome.store'
 import { useEntityDisplayEpoch } from '@/composables/entity/useEntityDisplayEpoch'
 import SecurityCameraTile from '@/views/security/CameraTile.vue'
 import HaCameraStream from '@/components/HaCameraStream.vue'
-import { getCameraSnapshotUrl } from '@/utils/ha/camera-stream.util'
 import { getEntityDisplayName } from '@/utils/entity/derived.util'
 import { primaryDoorbellCameraId } from '@/utils/layout/doorbell.util'
 import { schedulePoll } from '@/utils/core/poll-scheduler'
@@ -281,25 +274,17 @@ const gridActiveSlots = computed(() => {
   return slots
 })
 
-// 拼接摄像头单帧快照 URL，供网格缩略图与离线占位使用
-function getSnapshotUrl(camId) {
-  void cameraDisplayEpoch.value
-  if (!camId || !haUrl.value) return ''
-  const entity = entitiesStore.entities[camId]
-  if (!entity) return ''
-  return getCameraSnapshotUrl(haUrl.value, entity)
-}
-
 // 单路模式当前主摄像头 ID：优先用户选择，其次首路，再次全局配置兜底
 const mainCameraId = computed(
   () => activeCameraId.value || allCameras.value[0] || layoutStore.layoutConfig.haConfig.securityCamera,
 )
 
-// 当前主摄像头实体（依赖 camera 域 epoch 以响应实体更新）
+// 当前主摄像头实体（依赖 camera 域 epoch 以响应实体更新）。
+// 拉流走同源 /api/camera_hls，不依赖 haUrl；haUrl 空时仍应挂载播放器。
 const mainCameraEntity = computed(() => {
   void cameraDisplayEpoch.value
   const camId = mainCameraId.value
-  if (!camId || !haUrl.value) return null
+  if (!camId) return null
   return entitiesStore.entities[camId] || null
 })
 
@@ -309,7 +294,7 @@ const pipCameraId = computed(() => primaryDoorbellCameraId(layoutStore.layoutCon
 const pipCameraEntity = computed(() => {
   void cameraDisplayEpoch.value
   const id = pipCameraId.value
-  if (!id || !haUrl.value) return null
+  if (!id) return null
   return entitiesStore.entities[id] || null
 })
 

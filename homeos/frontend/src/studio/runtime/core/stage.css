@@ -2,6 +2,7 @@
 @import "../nas/nas-panel.css?v=20260909-nas-scroll-v1";
 @import "../climate/climate-panel.css?v=20260929-picker-press-overflow-v1";
 @import "../cover/cover-panel.css?v=20260909-curtain-action-v15-20260926-airer-v2";
+@import "./stage-device-visual.css?v=20261009-device-visual-v1";
 .interaction3d-stage.is-render-suspended *,
 .interaction3d-stage.is-render-suspended *:before,
 .interaction3d-stage.is-render-suspended *:after {

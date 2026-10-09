@@ -14,6 +14,10 @@ import { purifierState as purifierState2 } from "../purifier/purifier-state";
 import { resolveFanBindingState } from "../fan/fan-state";
 import { domElement } from "@app/utils/dom-factory";
 import { syncHtmlRangeProgress } from "@app/utils/range-progress";
+import {
+  createStageDeviceVisual,
+  resolveClimateVisualKind,
+} from "../core/stage-device-visual";
 const formatSwingModeLabel = (swingModeKey: any, swingDirection: any = undefined) =>
     (
       {
@@ -405,11 +409,16 @@ export function createClimatePanel({
     headingElement = createElement("div", "i3d-climate-heading"),
     titleElement = createElement("h3", "", "空调"),
     statusElement = createElement("p", "", "尚未绑定设备"),
-    powerButton = createElement("button", "i3d-climate-power");
+    powerButton = createElement("button", "i3d-climate-power is-visual-replaced");
   powerButton.type = "button";
   const headingTextElement = createElement("div", "i3d-climate-heading-text");
+  const deviceVisual = createStageDeviceVisual({
+    kind: "climate",
+    document,
+    onActivate: () => togglePower(),
+  });
   (headingTextElement.append(titleElement, statusElement),
-    headingElement.append(headingTextElement, powerButton));
+    headingElement.append(headingTextElement, powerButton, deviceVisual.root));
   const thermostatSlotElement = createElement("div", "i3d-climate-thermostat-slot"),
     thermostatElement = createElement("section", "hb-climate-thermostat"),
     decreaseButton = createElement("button", "hb-climate-temperature-step", "−"),
@@ -1004,6 +1013,29 @@ export function createClimatePanel({
                   ? "空气净化器"
                   : "空调"),
       ),
+      deviceVisual.sync({
+        kind: resolveClimateVisualKind(activeItem, deviceState),
+        on: !!(displayState.available && (fanStatus ? fanStatus.on : displayState.on)),
+        running: !!(displayState.available && displayState.running),
+        available: !!displayState.available,
+        disabled: !!powerButton.disabled,
+        interactive: !powerButton.hidden && !powerButton.disabled,
+        hidden: !!powerButton.hidden,
+        label: titleElement.textContent || "设备",
+        accent:
+          rootElement.style.getPropertyValue("--i3d-climate-accent") ||
+          getComputedStyle(rootElement).getPropertyValue("--i3d-climate-accent") ||
+          "#c9a26d",
+        mode: String(
+          rootElement.dataset.climateMode || displayState.visualMode || (displayState.on ? "on" : "off"),
+        ),
+        visualMode: String(
+          rootElement.dataset.climateMode || displayState.visualMode || (displayState.on ? "on" : "off"),
+        ),
+        targetTemperature:
+          typeof deviceState.temperature === "number" ? deviceState.temperature : null,
+        displayText: statusElement.textContent || "",
+      }),
       (thermostatSlotElement.hidden = targetOutputElement.hidden =
         !deviceState.temperatureSupported || deviceState.useTemperatureRange),
       (temperatureRangeElement.hidden = !deviceState.useTemperatureRange),
@@ -1225,6 +1257,7 @@ export function createClimatePanel({
       clearPendingState(),
       feedbackTracker.dispose(),
       purifierExtrasController.dispose(),
+      deviceVisual.dispose(),
       replaceChildren(rootElement));
   }
   return (

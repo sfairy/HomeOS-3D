@@ -412,17 +412,11 @@ export function renderComponent(this: PanelRenderer,
           },
         ),
       onError: (actionErrorObject: any) => this.options.onError?.(actionErrorObject),
-      openEntityDetails: (eventLogWallEntityId: any) =>
-        this.showActionPopup(
-          {
-            id: "event-log-wall:" + String(eventLogWallEntityId || ""),
-            type: "device-button",
-            bindings: { entity: { entityId: String(eventLogWallEntityId || "") } },
-            actions: {} as Record<string, any>,
-            properties: {} as Record<string, any>,
-          },
-          { type: "more-info", data: { popupSource: "current" } },
-        ),
+      openEntityDetails: (eventLogWallEntityId: any) => {
+        const entityId = String(eventLogWallEntityId || "").trim();
+        if (!entityId) return;
+        navigateInShell(`/device?id=${encodeURIComponent(entityId)}`);
+      },
       registerRuntimeStateHandler: (componentStateEntityId: any, componentStateHandler: any) =>
         this.registerRuntimeStateHandler(
           componentStateEntityId,

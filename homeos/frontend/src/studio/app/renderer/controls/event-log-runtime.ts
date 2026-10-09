@@ -291,6 +291,36 @@ export function buildEventLogFingerprint(
   return `${entityId}|state|${oldStateValue}|${newStateValue}`;
 }
 
+/** 从实体元数据取出设备 id。 */
+export function eventLogWallDeviceId(metadata: Record<string, unknown> | null | undefined): string {
+  const deviceId = metadata?.deviceId ?? metadata?.device_id;
+  return typeof deviceId === "string" ? deviceId.trim() : "";
+}
+
+/**
+ * 窗口期去重键：同一实体、同一设备、同一展示名在短时间内的相同标签只保留一条。
+ * 灯实体常与同设备 switch 各推一次 state_changed，仅按 entityId 会显示成两行。
+ */
+export function eventLogWallDedupKeys(options: {
+  entityId: string;
+  label: string;
+  fingerprint: string | null;
+  displayName: string;
+  deviceId?: string;
+}): string[] {
+  const keys: string[] = [];
+  const label = String(options.label || "").trim();
+  if (options.fingerprint) keys.push(options.fingerprint);
+  if (options.entityId && label) keys.push(`entity:${options.entityId}|${label}`);
+  const deviceId = String(options.deviceId || "").trim();
+  if (deviceId && label) keys.push(`device:${deviceId}|${label}`);
+  const displayName = String(options.displayName || "")
+    .trim()
+    .toLowerCase();
+  if (displayName && label) keys.push(`name:${displayName}|${label}`);
+  return keys;
+}
+
 /** 状态颜色分类 token（渲染器映射为 CSS 类）。 */
 export function resolveStateColorToken(state: string, attrText: string | null): string {
   if (attrText) return "attr";
@@ -359,9 +389,8 @@ export function createEventLogEntry(
 /**
  * 即时消息墙去重缓冲：负责窗口期去重、头插与条数截断。
  *
- * 去重语义与源保持一致：
- * - 相同「实体 + 标签」在窗口期内只显示一次；
- * - 相同事件指纹在窗口期内只记一条。
+ * 去重语义：
+ * - 相同事件指纹 / 实体+标签 / 设备+标签 / 展示名+标签，窗口期内只显示一次。
  */
 export class EventLogWallBuffer {
   entries: EventLogWallEntry[] = [];
@@ -392,12 +421,13 @@ export class EventLogWallBuffer {
     if (this.entries.length > this.maxEntries) this.entries.length = this.maxEntries;
   }
 
-  /** 尝试写入一条事件；被去重或写入成功返回 false / true。 */
-  push(entry: EventLogWallEntry, fingerprint: string | null, displayKey: string): boolean {
-    if (displayKey && this.seenRecently(displayKey)) return false;
-    if (fingerprint && this.seenRecently(fingerprint)) return false;
-    if (displayKey) this.mark(displayKey);
-    if (fingerprint) this.mark(fingerprint);
+  /** 尝试写入一条事件；被去重返回 false，写入成功返回 true。 */
+  push(entry: EventLogWallEntry, dedupKeys: readonly string[]): boolean {
+    const keys = [...new Set(dedupKeys.filter(Boolean))];
+    for (const key of keys) {
+      if (this.seenRecently(key)) return false;
+    }
+    for (const key of keys) this.mark(key);
     this.entries.unshift(entry);
     if (this.entries.length > this.maxEntries) this.entries.length = this.maxEntries;
     return true;

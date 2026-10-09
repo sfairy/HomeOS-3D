@@ -1,4 +1,5 @@
 import { domElement } from "@app/utils/dom-factory";
+import { createStageDeviceVisual } from "../core/stage-device-visual";
 export function nasGroups(nasConfig: any) {
   const groupLabels = {
     system: "系统",
@@ -85,7 +86,13 @@ export function createNasPanel() {
     statusElement = createStyledElement("p", "i3d-nas-status"),
     metricsElement = createStyledElement("div", "i3d-nas-metrics"),
     metaElement = createStyledElement("p", "i3d-nas-meta");
-  (headingElement.append(titleElement, metaElement),
+  const deviceVisual = createStageDeviceVisual({
+    kind: "nas",
+    onActivate: undefined,
+  });
+  const headingTextElement = createStyledElement("div", "i3d-popup-heading-text");
+  (headingTextElement.append(titleElement, metaElement),
+    headingElement.append(headingTextElement, deviceVisual.root),
     panelElement.append(headingElement, statusElement, metricsElement),
     (panelElement.hidden = true));
   let renderedSignature = "",
@@ -151,6 +158,9 @@ export function createNasPanel() {
       Number.isFinite(stateTimestampMs) &&
         (latestTimestampMs = Math.max(latestTimestampMs, stateTimestampMs));
     }
+    const hasWarning = metricRows.some((metricRow: any) =>
+      metricRow.card.classList.contains("is-warning"),
+    );
     ((statusElement.hidden = metricRows.length > 0),
       (statusElement.textContent = statusSource
         ? statusSource.metrics?.length
@@ -163,13 +173,22 @@ export function createNasPanel() {
           ? new Date(latestTimestampMs).toLocaleTimeString("zh-CN", {
               hour12: false,
             })
-          : "—")));
+          : "—")),
+      deviceVisual.sync({
+        kind: "nas",
+        on: !!statusSource && metricRows.length > 0 && !hasWarning,
+        available: !!statusSource,
+        interactive: false,
+        disabled: true,
+        status: hasWarning ? "warning" : metricRows.length ? "normal" : "off",
+        label: titleElement.textContent || "NAS",
+      }));
   }
   return {
     root: panelElement,
     update: updateNasPanel,
     dispose() {
-      panelElement.remove();
+      (deviceVisual.dispose(), panelElement.remove());
     },
   };
 }

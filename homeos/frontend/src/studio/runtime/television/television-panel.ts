@@ -5,6 +5,7 @@ import {
   televisionMediaControl,
 } from "./television-state";
 import { domElement } from "@app/utils/dom-factory";
+import { createStageDeviceVisual } from "../core/stage-device-visual";
 export function createTelevisionPanel({
   onControl: onControl = async () => {},
 }: { onControl?: (command?: any) => any } = {}) {
@@ -63,9 +64,19 @@ export function createTelevisionPanel({
     }));
   const headingTextElement = createElement("div", "i3d-popup-heading-text"),
     powerActionsElement = createElement("div", "i3d-popup-power-actions");
+  const deviceVisual = createStageDeviceVisual({
+    kind: "television",
+    onActivate: () => {
+      if (!viewModel || isDisposed) return;
+      const powerState = televisionPower(viewModel.item, viewModel.states);
+      if (!powerState.available || !powerState.supported) return;
+      sendPower(!powerState.on);
+    },
+  });
   (headingTextElement.append(titleElement, statusElement),
     powerActionsElement.append(powerOnButton, powerOffButton),
-    headingElement.append(headingTextElement, powerActionsElement),
+    powerActionsElement.classList.add("is-visual-replaced"),
+    headingElement.append(headingTextElement, powerActionsElement, deviceVisual.root),
     detailsElement.append(mediaTitleElement, mediaMetaElement, progressElement, timeElement),
     contentElement.append(artworkElement, detailsElement));
   const bodyElement = createElement("div", "i3d-popup-body");
@@ -186,6 +197,23 @@ export function createTelevisionPanel({
       !state.playing &&
         progressTimerId !== null &&
         (clearInterval(progressTimerId), (progressTimerId = null)));
+    const canTogglePower =
+      powerState.available &&
+      powerState.supported &&
+      !viewModel.editing &&
+      pendingPower === null &&
+      !isBusy;
+    deviceVisual.sync({
+      kind: "television",
+      on: !!state.on,
+      available: !!powerState.available,
+      playing: !!state.playing,
+      busy: pendingPower !== null || isBusy,
+      disabled: !canTogglePower,
+      interactive: canTogglePower,
+      label: state.name || "电视",
+      artworkUrl: state.artwork || null,
+    });
   }
   return {
     root: rootElement,
@@ -210,6 +238,7 @@ export function createTelevisionPanel({
         this.hide(),
         (viewModel = null),
         artworkElement.removeAttribute("src"),
+        deviceVisual.dispose(),
         rootElement.remove());
     },
   };

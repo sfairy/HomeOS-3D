@@ -2,11 +2,14 @@ import {
   EventLogWallBuffer,
   buildEventLogFingerprint,
   createEventLogEntry,
+  eventLogWallDedupKeys,
+  eventLogWallDeviceId,
   eventLogWallEntityName,
   isEventLogWallDomain,
   resolveEntityStateChangeMessage,
   resolveStateSnapshot,
 } from "../../controls/event-log-runtime";
+import { navigateInShell } from "@/studio/platform/shell-navigation";
 import { clampNumber, applyTextOutline, resolveStatePayload, normalizeCssColor } from "./_shared";
 import { componentContentUnitsPx } from "./content-units";
 
@@ -101,9 +104,16 @@ export function renderEventLogWall(eventLogWallComponent: any, eventLogWallRende
   eventLogWallRootElement.append(eventLogWallPanelElement);
 
   if (eventLogWallProperties.showFooter === true) {
-    const eventLogWallFooterElement = document.createElement("div");
-    eventLogWallFooterElement.className = "hb-event-log-wall__footer";
-    eventLogWallFooterElement.textContent = String(eventLogWallProperties.footerText || "");
+    const eventLogWallFooterElement = document.createElement("button");
+    eventLogWallFooterElement.type = "button";
+    eventLogWallFooterElement.className = "hb-event-log-wall__footer is-clickable";
+    eventLogWallFooterElement.textContent = String(
+      eventLogWallProperties.footerText || "查看全部事件历史",
+    );
+    eventLogWallFooterElement.addEventListener("click", (event) => {
+      event.stopPropagation();
+      navigateInShell("/events");
+    });
     eventLogWallPanelElement.append(eventLogWallFooterElement);
   }
 
@@ -182,25 +192,36 @@ export function renderEventLogWall(eventLogWallComponent: any, eventLogWallRende
         eventLogWallNextSnapshot,
       );
     if (!eventLogWallResolvedChange) return;
-    const eventLogWallFingerprint = buildEventLogFingerprint(
+    const eventLogWallEntityMetadata =
+        eventLogWallRenderEnvironment.entityMetadata?.get?.(eventLogWallResolvedEntityId),
+      eventLogWallFingerprint = buildEventLogFingerprint(
         eventLogWallResolvedEntityId,
         eventLogWallPreviousSnapshot,
         eventLogWallNextSnapshot,
         eventLogWallResolvedChange,
       ),
-      eventLogWallDisplayKey =
-        eventLogWallResolvedEntityId + "|" + eventLogWallResolvedChange.label,
       eventLogWallDisplayName = eventLogWallEntityName(
         eventLogWallResolvedEntityId,
         eventLogWallNextSnapshot,
-        eventLogWallRenderEnvironment.entityMetadata?.get?.(eventLogWallResolvedEntityId),
+        eventLogWallEntityMetadata,
       ),
       eventLogWallEntry = createEventLogEntry(
         eventLogWallResolvedEntityId,
         eventLogWallResolvedChange,
         eventLogWallDisplayName,
       );
-    if (!eventLogWallBuffer.push(eventLogWallEntry, eventLogWallFingerprint, eventLogWallDisplayKey))
+    if (
+      !eventLogWallBuffer.push(
+        eventLogWallEntry,
+        eventLogWallDedupKeys({
+          entityId: eventLogWallResolvedEntityId,
+          label: eventLogWallResolvedChange.label,
+          fingerprint: eventLogWallFingerprint,
+          displayName: eventLogWallDisplayName,
+          deviceId: eventLogWallDeviceId(eventLogWallEntityMetadata),
+        }),
+      )
+    )
       return;
     eventLogWallListElement.prepend(createEventLogWallEntryElement(eventLogWallEntry));
     while (eventLogWallListElement.children.length > eventLogWallMaxEntries)

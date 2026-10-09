@@ -1243,7 +1243,7 @@ export function mountInteraction3d(
         open: false,
       }),
       setRangeEditingState(false),
-      activeRequestsSet.forEach((abortableController) => abortableController.abort()),
+      activeRequestsSet.forEach((abortableController) => abortableController.abort("stale")),
       rejectPendingEdits("户型加载失败，请重新载入后调整视角。"),
       dismissFocus(true),
       clearTimeout(loadingTimeoutId),
@@ -1272,7 +1272,7 @@ export function mountInteraction3d(
         (stageFrameElement = createStageFrameElement()),
         hostElement.replaceChildren(stageFrameElement, loadingElement)),
       setRangeEditingState(false),
-      activeRequestsSet.forEach((staleController) => staleController.abort()),
+      activeRequestsSet.forEach((staleController) => staleController.abort("stale")),
       rejectPendingEdits("户型已切换，请在新户型中重新调整视角。"),
       rejectPendingRangeRequests("户型已切换，请在新户型中重新调整照射范围。"),
       (isFocusPanelOpen = false),
@@ -1742,15 +1742,20 @@ export function mountInteraction3d(
           requestId: stageMessage.requestId,
         });
       } catch (controlError: any) {
-        postFrameMessage({
-          type: "control-result",
-          requestId: stageMessage.requestId,
-          error:
-            controlError.name === "AbortError"
-              ? "请求超时，请检查设备状态。"
-              : controlError.message,
-          timedOut: controlError.name === "AbortError",
-        });
+        const abortReason = controlAbortController.signal.reason,
+          isLifecycleAbort =
+            controlError.name === "AbortError" &&
+            (isDisposed || abortReason === "lifecycle" || abortReason === "stale");
+        isLifecycleAbort ||
+          postFrameMessage({
+            type: "control-result",
+            requestId: stageMessage.requestId,
+            error:
+              controlError.name === "AbortError"
+                ? "请求超时，请检查设备状态。"
+                : controlError.message,
+            timedOut: controlError.name === "AbortError",
+          });
       } finally {
         (clearTimeout(controlTimeoutId), activeRequestsSet.delete(controlAbortController));
       }
@@ -1927,7 +1932,7 @@ export function mountInteraction3d(
           window.removeEventListener("pagehide", handlePageHide),
           window.removeEventListener("pageshow", handlePageShow),
           window.removeEventListener("blur", handleWindowBlur),
-          activeRequestsSet.forEach((abortedRequest) => abortedRequest.abort()),
+          activeRequestsSet.forEach((abortedRequest) => abortedRequest.abort("lifecycle")),
           stageFrameElement.removeAttribute("src"),
           hostElement.replaceChildren());
       }
@@ -2204,7 +2209,7 @@ export function mountInteraction3d(
           runtimeHandle.closeRangeEditor(),
           rejectPendingEdits("授权验证暂不可用，请恢复后重新调整。"),
           dismissFocus(true),
-          activeRequestsSet.forEach((activeRequest) => activeRequest.abort())),
+          activeRequestsSet.forEach((activeRequest) => activeRequest.abort("stale"))),
         authorizedChanged && (isEditing || runtimeContext.editable) && sendConfigUpdate());
     }),
     Object.defineProperty(runtimeHandle, "metadata", {

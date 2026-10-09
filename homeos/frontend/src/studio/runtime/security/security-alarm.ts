@@ -60,10 +60,15 @@ function moistureSourceDetail(status: string) {
   return "状态未知";
 }
 
+/** 超过此时长的烟雾事件只作卡片「最近事件」，不再全屏弹窗 / 红卡报警 */
+const SMOKE_EVENT_ALERT_MAX_AGE_MS = 30 * 60 * 1000;
+
 /**
  * 0.7.2：烟雾 event 实体的 state 本身是 ISO 时间戳。
- * 解析成功返回 { key, label }；label 用 zh-CN 本地化（如 2026/10/3 09:13:19）。
+ * 解析成功返回 { key, label, ms }；label 用 zh-CN 本地化（如 2026/10/3 09:13:19）。
+ * HA event.* 会长期保留「最近一次」时间戳与 event_type，不能把历史记录当成正在报警。
  */
+
 function parseSmokeEventTime(rawState: any) {
   if (typeof rawState !== "string") return null;
   const match =
@@ -80,7 +85,14 @@ function parseSmokeEventTime(rawState: any) {
       (match[2] || "").padEnd(9, "0") +
       "Z",
     label: new Date(parsedMs).toLocaleString("zh-CN", { hour12: false }),
+    ms: parsedMs,
   };
+}
+
+function isFreshSmokeEvent(parsed: { ms: number } | null | undefined) {
+  if (!parsed || !Number.isFinite(parsed.ms)) return false;
+  const ageMs = Date.now() - parsed.ms;
+  return ageMs >= 0 && ageMs <= SMOKE_EVENT_ALERT_MAX_AGE_MS;
 }
 
 export function securityAlarmReading(alarmConfig: any, stateSource: any = {}) {
@@ -100,6 +112,7 @@ export function securityAlarmReading(alarmConfig: any, stateSource: any = {}) {
   let immersionStatus = "";
   let sprayStatus = "";
   let sources: { name: string; detail: string; status: string }[] | null = null;
+  let smokeEventParsed: ReturnType<typeof parseSmokeEventTime> = null;
 
   if (kind === "moisture") {
     // 0.7.2：浸没 = entityId，淋水 = secondaryEntityId（可选）；任一个 on 即报警
@@ -139,17 +152,18 @@ export function securityAlarmReading(alarmConfig: any, stateSource: any = {}) {
   } else if (alarmConfig?.entityId) {
     const eventType =
       entityState?.attributes?.event_type || entityState?.attributes?.eventType || null;
-    const smokeEventParsed =
+    smokeEventParsed =
       mode === "smoke-event" && eventType === SMOKE_EVENT_TYPE
         ? parseSmokeEventTime(rawState)
         : null;
     if (mode === "smoke-event") {
-      // event.*：有可解析的高浓度烟雾事件 → event；其余一律无最新事件。
+      // event.*：新鲜高浓度烟雾 → event（可弹窗）；过期/空闲 → event-idle。
+      // HA 会长期保留上次事件时间戳，必须按年龄区分，否则几天前的事件会反复全屏报警。
       // HA / 小米常把空闲标成 state=unavailable 且不带 availabilityReason=event-idle，
       // 若按普通 unavailable 处理会误显示「设备不可用」（电量仍 100%）。
       if (smokeEventParsed) {
         eventStamp = smokeEventParsed.key;
-        status = "event";
+        status = isFreshSmokeEvent(smokeEventParsed) ? "event" : "event-idle";
       } else {
         status = "event-idle";
       }
@@ -180,15 +194,13 @@ export function securityAlarmReading(alarmConfig: any, stateSource: any = {}) {
       ? String(rawState)
       : null;
 
-  // 烟雾 event：事件说明与时间分行（时间单独一行，避免「烟雾」被拆开）
-  const smokeEventTime =
-    mode === "smoke-event" && status === "event" ? parseSmokeEventTime(rawState) : null;
+  // 烟雾 event：有 event_type+时间戳时展示「最近事件」（含过期，卡片不标红）；否则「无最新事件」
   let detail: string | null = null;
   let detailLines: string[] | null = null;
   if (kind === "moisture" && sources?.length) {
     detail = sources.map((source) => source.name + "：" + source.detail).join("；");
-  } else if (mode === "smoke-event" && status === "event" && smokeEventTime) {
-    detailLines = ["最近事件：" + SMOKE_EVENT_TYPE, smokeEventTime.label];
+  } else if (mode === "smoke-event" && smokeEventParsed) {
+    detailLines = ["最近事件：" + SMOKE_EVENT_TYPE, smokeEventParsed.label];
     detail = detailLines.join("\n");
   } else if (mode === "smoke-event" && status === "event-idle") {
     detail = "无最新事件";
@@ -240,16 +252,17 @@ export function securityAlarmReading(alarmConfig: any, stateSource: any = {}) {
     ...(isEventSource
       ? {
           eventSource: true,
-          eventTimeKey: status === "event" ? smokeEventTime?.key || null : null,
+          // 过期事件也带上时间戳，供 overlay 建档；仅新鲜事件带 incidentKey 才会弹窗
+          eventTimeKey: smokeEventParsed?.key || eventStamp || null,
           incidentKey:
-            status === "event"
+            status === "event" && (smokeEventParsed?.key || eventStamp)
               ? (alarmConfig?.entityId || "") +
                 ":" +
-                (smokeEventTime?.key || eventStamp || "")
+                (smokeEventParsed?.key || eventStamp)
               : null,
           alarmDetail:
-            status === "event" && smokeEventTime
-              ? SMOKE_EVENT_TYPE + " · " + smokeEventTime.label
+            status === "event" && smokeEventParsed
+              ? SMOKE_EVENT_TYPE + " · " + smokeEventParsed.label
               : null,
         }
       : {}),
@@ -537,7 +550,9 @@ export function createSecurityAlarmOverlay(
       : reading?.on === true || reading?.status === "alarm" || !reading?.status;
 
   function refresh() {
-    // 追踪各 event 实体最新时间戳；首次见到只建档不弹（避免历史事件进页就弹）
+    // 追踪各 event 实体最新时间戳。
+    // 历史/过期事件：reading.incidentKey 为空，只建档不弹。
+    // 新鲜事件：首见或时间推进时带上 incidentKey，才会全屏报警。
     const latestByEntity = new Map<string, any>();
     for (const reading of [...shared.owners.values()].flat()) {
       if (
@@ -554,13 +569,17 @@ export function createSecurityAlarmOverlay(
         latestByEntity.set(reading.entityId, reading);
       }
     }
+    // 仅在仍有启用中的 event 源时裁剪已移除的实体；
+    // 编辑态 / 未授权时的 update([], false) 会暂时清空 eventSources，不能因此丢掉追踪与已确认。
     const liveEntityIds = new Set(
       [...shared.eventSources.values()].flatMap((ids: Set<string>) => [...ids]),
     );
-    for (const [entityId, tracked] of shared.events) {
-      if (!liveEntityIds.has(entityId)) {
-        if (tracked.incidentKey) shared.acknowledged.delete(tracked.incidentKey);
-        shared.events.delete(entityId);
+    if (liveEntityIds.size) {
+      for (const [entityId, tracked] of shared.events) {
+        if (!liveEntityIds.has(entityId)) {
+          if (tracked.incidentKey) shared.acknowledged.delete(tracked.incidentKey);
+          shared.events.delete(entityId);
+        }
       }
     }
     for (const [entityId, reading] of latestByEntity) {
@@ -570,10 +589,15 @@ export function createSecurityAlarmOverlay(
         if (nextTime > tracked.time) {
           if (tracked.incidentKey) shared.acknowledged.delete(tracked.incidentKey);
           tracked.time = nextTime;
+          // 空闲→时间戳：过期事件 incidentKey 为空（只建档）；新鲜事件才会弹
           tracked.incidentKey = reading.incidentKey || null;
         }
       } else {
-        shared.events.set(entityId, { time: nextTime, incidentKey: null });
+        // 首见：新鲜事件直接采用 incidentKey（进页时仍在报警窗口内应弹出）
+        shared.events.set(entityId, {
+          time: nextTime,
+          incidentKey: reading.incidentKey || null,
+        });
       }
     }
 

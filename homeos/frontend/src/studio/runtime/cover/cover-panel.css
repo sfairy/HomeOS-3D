@@ -18,7 +18,10 @@
 }
 .i3d-cover-heading {
   flex: none;
-  height: 38px;
+  min-height: 48px;
+}
+.i3d-cover-heading-text {
+  min-width: 0;
 }
 .i3d-cover-heading h3 {
   margin: 0;

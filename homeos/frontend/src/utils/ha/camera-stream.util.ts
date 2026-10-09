@@ -60,9 +60,11 @@ function cameraHaPath(entity: CameraEntity, endpoint: string) {
   return `/api/${endpoint}/${eid}`
 }
 
-/** 浏览器是否原生支持 HLS（Safari 等）；Chrome/Firefox 通常需 hls.js */
+/** 仅 Safari 走原生 HLS。Chromium 会对 mpegurl 返回 maybe，但播不了 H.265。 */
 export function canPlayNativeHls(): boolean {
-  if (typeof document === 'undefined') return false
+  if (typeof document === 'undefined' || typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent
+  if (!/safari/i.test(ua) || /chrome|crios|fxios|edg/i.test(ua)) return false
   const v = document.createElement('video')
   return (
     v.canPlayType('application/vnd.apple.mpegurl') !== '' ||

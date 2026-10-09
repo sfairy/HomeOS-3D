@@ -64,18 +64,27 @@
 
   // 已知第三方扩展（图片助手 ImageAssistant）会在 document_start 往页面注入脚本并 patch window.fetch：
   // 给每次请求挂 .catch，失败时 console.error("Fetch request failed:", error) 再原样抛出。
+  // 同一类扩展还会在响应体上读 response.text()，abort 时打
+  // "Error processing response text:"（Chrome 归到 client-log 的 console.error 包装器）。
   // 业务主动 abort 在途请求时拒绝值可能是 AbortError，也可能是字符串 reason（如 "stale" / "lifecycle"），
   // 二者都与业务无关（真正的网络故障由本文件的 fetch 包装器按业务口径上报），这里按特征一并丢弃。
-  function isIgnorableThirdPartyConsoleError(consoleArguments: any) {
-    const [consoleMessage, consoleCause] = consoleArguments;
-    if (typeof consoleMessage != "string") return false;
-    if (consoleMessage.startsWith("Error processing XMLHttpRequest response:")) return true;
-    if (consoleMessage !== "Fetch request failed:") return false;
+  function isAbortLikeConsoleCause(consoleCause: any) {
     return (
       consoleCause == null ||
       typeof consoleCause == "string" ||
       consoleCause?.name === "AbortError"
     );
+  }
+  function isIgnorableThirdPartyConsoleError(consoleArguments: any) {
+    const [consoleMessage, consoleCause] = consoleArguments;
+    if (typeof consoleMessage != "string") return false;
+    if (consoleMessage.startsWith("Error processing XMLHttpRequest response:")) return true;
+    if (consoleMessage.startsWith("Error processing response text:"))
+      return consoleArguments.length < 2
+        ? /AbortError/.test(consoleMessage)
+        : isAbortLikeConsoleCause(consoleCause);
+    if (consoleMessage !== "Fetch request failed:") return false;
+    return isAbortLikeConsoleCause(consoleCause);
   }
   function suppressThirdPartyConsoleNoise() {
     const consoleObject = bridgeWindow.console;
