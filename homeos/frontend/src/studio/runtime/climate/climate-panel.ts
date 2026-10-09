@@ -470,7 +470,7 @@ export function createClimatePanel({
     fanSpeedRangeElement.addEventListener("change", () =>
       requestControl("set_percentage", Number(fanSpeedRangeElement.value)),
     ));
-  const speedLevelsElement = createElement("div", "i3d-climate-choices");
+  const speedLevelsElement = createElement("div", "i3d-climate-choices i3d-climate-speed-levels");
   (speedLevelsElement.setAttribute("role", "group"),
     speedLevelsElement.setAttribute("aria-label", "净化器风速档位"),
     fanSpeedGroupElement.append(fanSpeedLabelElement, fanSpeedRangeElement, speedLevelsElement));
@@ -558,6 +558,7 @@ export function createClimatePanel({
     draftTemperature: any = null,
     draftPowerOn: boolean | null = null,
     draftMode: string | null = null,
+    draftPresetMode: string | null = null,
     temperatureTimeoutId: any = null,
     renderedGroupsSignature = "",
     choiceButtons: any = [],
@@ -569,7 +570,7 @@ export function createClimatePanel({
       ((draftTemperature = null), (pendingRangeValues = null));
     },
     clearModeDraft = () => {
-      ((draftPowerOn = null), (draftMode = null));
+      ((draftPowerOn = null), (draftMode = null), (draftPresetMode = null));
     },
     clearPendingState = () => {
       (temperatureTimeoutId !== null && clearTimeout(temperatureTimeoutId),
@@ -582,6 +583,26 @@ export function createClimatePanel({
       temperatureTimeoutId = setTimeout(() => {
         ((temperatureTimeoutId = null), clearTemperatureDraft(), clearModeDraft(), isDisposed || render());
       }, 8000);
+    },
+    resolvePresetLabel = (presetValue: any) => {
+      const key = String(presetValue || "").trim();
+      if (!key) return "";
+      return (purifierPresetLabels as any)[key.toLowerCase()] || key;
+    },
+    resolveDisplayPowerOn = () => {
+      if (draftPowerOn !== null) return !!draftPowerOn;
+      if (viewModel?.item?.airPurifier)
+        return !!purifierState2(viewModel.item, viewModel.states || {}).on;
+      if (viewModel?.item?.pedestalFan) {
+        const fanSnap = resolveFanBindingState(viewModel.item, {
+          ...(viewModel.states || {}),
+          ...(deviceState.entityId && deviceState.raw
+            ? { [deviceState.entityId]: deviceState.raw }
+            : {}),
+        });
+        return !!fanSnap?.on;
+      }
+      return !!deviceState.on;
     },
     resolveClimateVisualMode = (modeValue: any, isPoweredOn: any) =>
       !isPoweredOn || modeValue === "off"
@@ -622,6 +643,20 @@ export function createClimatePanel({
       if (nextMode) {
         ((draftMode = nextMode), (draftPowerOn = nextMode !== "off"), armPendingTimeout());
       }
+      return;
+    }
+    if (command.service === "set_preset_mode") {
+      const nextPreset = String(command.data?.preset_mode || "").trim();
+      if (nextPreset) {
+        // 净化器/新风：选运行模式即表示要开机
+        ((draftPresetMode = nextPreset), (draftPowerOn = true), armPendingTimeout());
+      }
+      return;
+    }
+    if (command.service === "set_percentage") {
+      ((draftPresetMode = null),
+        (draftPowerOn = true),
+        armPendingTimeout());
       return;
     }
     if (command.service === "turn_off") {
@@ -728,8 +763,8 @@ export function createClimatePanel({
       }
   }
   function togglePower({ toggle: shouldToggle = true } = {}) {
-    // 乐观草稿优先：否则第一次点开后 HA 未回报时，二次点击仍按旧状态重复发同一指令
-    const currentOn = !!(draftPowerOn ?? deviceState.on);
+    // 与角标/状态同一套电源判定（含新风 airflow 实体），避免连点发重复指令
+    const currentOn = resolveDisplayPowerOn();
     if (!canControl() || (!shouldToggle && currentOn)) return Promise.resolve(false);
     try {
       return sendControl(
@@ -742,6 +777,23 @@ export function createClimatePanel({
     } catch (powerError: any) {
       return ((errorText = powerError.message), render(), Promise.resolve(false));
     }
+  }
+  function requestPresetOrMode(serviceName: any, optionValue: any) {
+    const needStart =
+      deviceState.purifier &&
+      serviceName === "set_preset_mode" &&
+      !resolveDisplayPowerOn();
+    const queued = requestControl(serviceName, optionValue);
+    // 停机时点运行模式：再补发开机（不能走 togglePower，草稿已把电源标成 on）
+    if (needStart && canControl())
+      try {
+        void sendControl(
+          climatePowerControl2(deviceState, true, modeHistory.get(deviceState.entityId)),
+        );
+      } catch (powerError: any) {
+        ((errorText = powerError.message), render());
+      }
+    return queued;
   }
   (powerButton.addEventListener("click", () => togglePower()),
     decreaseButton.addEventListener("click", () =>
@@ -855,7 +907,9 @@ export function createClimatePanel({
               ))))
       ) {
         const groupPicker = je2.create(groupLabel, optionValues, optionLabels, (pickedValue: any) =>
-          requestControl(service, pickedValue),
+          deviceState.purifier && service === "set_preset_mode"
+            ? requestPresetOrMode(service, pickedValue)
+            : requestControl(service, pickedValue),
         );
         (choiceButtons.push(
           Object.assign(groupPicker, {
@@ -880,7 +934,11 @@ export function createClimatePanel({
           optionLabels[optionValue] || optionValue,
         );
         ((optionButton.type = "button"),
-          optionButton.addEventListener("click", () => requestControl(service, optionValue)),
+          optionButton.addEventListener("click", () =>
+            deviceState.purifier && service === "set_preset_mode"
+              ? requestPresetOrMode(service, optionValue)
+              : requestControl(service, optionValue),
+          ),
           choiceButtons.push({
             element: optionButton,
             field: field,
@@ -950,10 +1008,11 @@ export function createClimatePanel({
       deviceState.purifier &&
         deviceState.available &&
         !viewModel.editing &&
-        (statusElement.textContent = deviceState.on
+        !activeItem.airPurifier &&
+        (statusElement.textContent = (draftPowerOn ?? deviceState.on)
           ? activeItem.pedestalFan
             ? "运行中"
-            : "净化中"
+            : resolvePresetLabel(draftPresetMode ?? deviceState.presetMode) || "净化中"
           : "已关闭"),
       deviceState.waterHeater &&
         deviceState.available &&
@@ -983,10 +1042,23 @@ export function createClimatePanel({
     const purifierStatus = activeItem.airPurifier
       ? purifierState2(activeItem, viewModel.states)
       : null;
+    const effectivePresetMode = String(
+      draftPresetMode ?? deviceState.presetMode ?? "",
+    ).trim();
     (fanStatus &&
       !viewModel.editing &&
       (statusElement.textContent = fanStatus.label || statusElement.textContent),
-      purifierStatus && !viewModel.editing && (statusElement.textContent = purifierStatus.label),
+      // 新风/净化器：状态跟草稿电源，开机时优先显示运行模式名
+      purifierStatus &&
+        !viewModel.editing &&
+        (statusElement.textContent = !hasEntity
+          ? "各功能独立控制"
+          : !purifierStatus.available
+            ? "状态未知"
+            : (draftPowerOn ?? purifierStatus.on)
+              ? resolvePresetLabel(effectivePresetMode) ||
+                (purifierStatus.running || draftPowerOn ? "运行中" : "已开启")
+              : "已停止"),
       rootElement.classList.toggle(
         "is-air-conditioner-panel",
         !deviceState.purifier && !deviceState.waterHeater,
@@ -1010,21 +1082,26 @@ export function createClimatePanel({
           : "净化器风速档位",
       ));
     const displayState = fanStatus || purifierStatus || deviceState,
-      effectiveOn = !!(
-        displayState.available &&
-        (draftPowerOn ?? (fanStatus ? fanStatus.on : displayState.on))
-      ),
+      effectiveOn = !!(displayState.available && resolveDisplayPowerOn()),
       effectiveMode = String(draftMode ?? deviceState.mode ?? "off"),
       effectiveVisualMode = fanStatus
         ? effectiveOn && (fanStatus.running || draftPowerOn === true)
           ? "fan"
           : "off"
-        : resolveClimateVisualMode(effectiveMode, effectiveOn),
+        : purifierStatus
+          ? effectiveOn
+            ? "other"
+            : "off"
+          : resolveClimateVisualMode(effectiveMode, effectiveOn),
       effectiveAccent = resolveClimateAccent(effectiveVisualMode),
       effectiveTemperature = resolveTemperature(),
       effectiveRunning = !!(
         displayState.available &&
-        (effectiveOn && (displayState.running || draftPowerOn === true || draftMode !== null))
+        (effectiveOn &&
+          (displayState.running ||
+            draftPowerOn === true ||
+            draftMode !== null ||
+            draftPresetMode !== null))
       );
     ((rootElement.dataset.climateMode = displayState.available ? effectiveVisualMode : "off"),
       rootElement.style.setProperty("--i3d-climate-accent", effectiveAccent),
@@ -1130,9 +1207,9 @@ export function createClimatePanel({
         (fanSpeedLabelElement.textContent =
           activeSpeedIndex >= 0
             ? "风速 · " + speedLevels[activeSpeedIndex].label
-            : deviceState.presetMode
+            : effectivePresetMode
               ? "风速 · 由模式控制"
-              : deviceState.on
+              : resolveDisplayPowerOn()
                 ? "风速 " + (deviceState.percentage ?? "--") + "%"
                 : "风速 · 已关闭"),
       list.forEach(({ button: speedButton }: any, speedIndex: any) => {
@@ -1212,8 +1289,11 @@ export function createClimatePanel({
         controlEntry.element.setAttribute(
           "aria-pressed",
           String(
-            (controlEntry.field === "mode" ? effectiveMode : (deviceState as any)[controlEntry.field]) ===
-              controlEntry.value,
+            (controlEntry.field === "mode"
+              ? effectiveMode
+              : controlEntry.field === "presetMode"
+                ? effectivePresetMode
+                : (deviceState as any)[controlEntry.field]) === controlEntry.value,
           ),
         );
     ((emptyStateElement.hidden =
@@ -1310,11 +1390,22 @@ export function createClimatePanel({
       draftMode !== null &&
         ((!deviceState.on && draftMode === "off") ||
           (deviceState.on && deviceState.mode === draftMode)) &&
-        clearModeDraft(),
+        (draftMode = null),
+      draftPresetMode !== null &&
+        deviceState.presetMode === draftPresetMode &&
+        (draftPresetMode = null),
       draftPowerOn !== null &&
-        draftMode === null &&
         deviceState.on === draftPowerOn &&
-        clearModeDraft(),
+        (!viewModel.item?.airPurifier ||
+          purifierState2(viewModel.item, viewModel.states || {}).on === draftPowerOn) &&
+        (draftPowerOn = null),
+      draftMode === null &&
+        draftPresetMode === null &&
+        draftPowerOn === null &&
+        draftTemperature === null &&
+        !pendingRangeValues &&
+        temperatureTimeoutId !== null &&
+        (clearTimeout(temperatureTimeoutId), (temperatureTimeoutId = null)),
       render());
   }
   function dispose() {

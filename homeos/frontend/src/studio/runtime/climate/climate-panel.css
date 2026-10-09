@@ -639,6 +639,17 @@
   box-sizing: border-box;
   overflow-wrap: anywhere;
 }
+/* 风速档位：等分网格，避免最后一档单独撑满整行 */
+.i3d-climate-speed-levels {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 6px;
+}
+.i3d-climate-speed-levels > .i3d-climate-choice {
+  flex: none;
+  width: 100%;
+  min-width: 0;
+}
 .i3d-climate-choice,
 .i3d-climate-power {
   min-height: 34px;
