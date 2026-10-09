@@ -150,47 +150,55 @@ def _snapshot_state_matches(current: dict[str, Any] | None, snap: dict[str, Any]
 
 async def _restore_entity_from_snapshot_if_not_changed(
     deps: Any, entity_id: str, snap: dict[str, Any]
-) -> bool:
+) -> str:
+    """把实体恢复到快照状态；返回 ``unchanged``（已一致）/ ``restored``（已回写）。"""
     try:
         current = await deps.fetch_entity_state(entity_id)
     except Exception:
         current = None
     if _snapshot_state_matches(current, snap):
-        return False
+        return "unchanged"
     await _restore_entity_from_snapshot(deps, entity_id, snap)
-    return True
+    return "restored"
 
 
 async def _restore_mode_snapshot(deps: Any, mode: dict[str, Any]) -> dict[str, Any]:
-    restored = 0
-    incomplete = False
+    outcome: dict[str, Any] = {"restored": 0, "unchanged": 0, "failed": 0, "incomplete": False}
     snapshot = _read_snapshot(mode.get("deviceSnapshot"))
     if not snapshot:
-        return {"restored": restored, "incomplete": incomplete}
+        return outcome
     try:
         status = await deps.get_ha_status()
         if not status.get("connected"):
-            return {"restored": restored, "incomplete": True}
+            outcome["incomplete"] = True
+            return outcome
         entries = list(snapshot.items())
         if not entries:
-            return {"restored": restored, "incomplete": incomplete}
+            return outcome
 
         semaphore = asyncio.Semaphore(HA_ENTITY_FETCH_CONCURRENCY)
-        results: list[bool] = []
+        results: list[str] = []
 
         async def _run(entity_id: str, snap: dict[str, Any]) -> None:
             async with semaphore:
                 try:
-                    results.append(await _restore_entity_from_snapshot_if_not_changed(deps, entity_id, snap))
-                except Exception:
-                    results.append(False)
+                    results.append(
+                        await _restore_entity_from_snapshot_if_not_changed(deps, entity_id, snap)
+                    )
+                except Exception as exc:
+                    # 恢复失败必须与「本就一致」区分开，否则会误判回滚完整而丢弃快照。
+                    deps.warn(f"恢复设备 {entity_id} 到快照失败: {exc}")
+                    results.append("failed")
 
         await asyncio.gather(*(_run(entity_id, snap) for entity_id, snap in entries))
-        restored = sum(1 for ok in results if ok)
+        outcome["restored"] = sum(1 for result in results if result == "restored")
+        outcome["unchanged"] = sum(1 for result in results if result == "unchanged")
+        outcome["failed"] = sum(1 for result in results if result == "failed")
+        outcome["incomplete"] = outcome["failed"] > 0
     except Exception as exc:
-        incomplete = True
+        outcome["incomplete"] = True
         deps.warn(f"解析设备快照失败: {exc}")
-    return {"restored": restored, "incomplete": incomplete}
+    return outcome
 
 
 async def _fetch_entity_state(deps: Any, entity_id: str) -> dict[str, Any] | None:
@@ -365,8 +373,17 @@ async def activate_home_mode(
 
     if results and final_success == 0:
         deps.warn(f"模式 {mode['name']} 全部动作失败,回滚快照并取消激活")
-        await _restore_mode_snapshot(deps, {"deviceSnapshot": snapshot})
-        await deps.deactivate_in_db(mode_id)
+        rollback = await _restore_mode_snapshot(deps, {"deviceSnapshot": snapshot})
+        # 回滚不完整（HA 断连 / 部分实体恢复失败）时必须保留快照：
+        # 否则用户失去唯一的手动恢复依据，设备将停留在半执行状态。
+        rollback_incomplete = bool(rollback.get("incomplete"))
+        await deps.deactivate_in_db(mode_id, keep_snapshot=rollback_incomplete)
+        if rollback_incomplete:
+            await deps.notify(
+                "warning",
+                f"模式 {mode['name']} 激活失败且状态回滚不完整，已保留设备快照，请检查 HA 连接后手动恢复",
+                "home-mode",
+            )
         if state.get_active_mode_id() == mode_id:
             state.set_active_mode_id(None)
         deps.linkage_arbiter.release()

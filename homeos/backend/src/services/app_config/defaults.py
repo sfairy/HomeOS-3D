@@ -123,6 +123,7 @@ def build_default_app_config() -> dict[str, Any]:
         "security": {
             "sensorAlertCooldownSec": 60,
             "awayConfirmMin": 5,
+            "homeConfirmMin": 2,
             "requireConfiguredPersons": True,
             "presencePersons": [],
             "mmWaveFusePresence": True,

@@ -36,6 +36,8 @@ const LABEL_TEXT: Record<string, string> = {
     '备份保留天数',
   'settings.systemConfig.field.awayConfirmMin':
     '离家确认等待（分钟）',
+  'settings.systemConfig.field.homeConfirmMin':
+    '回家驻留确认（分钟）',
   'settings.systemConfig.field.awaySimBrightnessMin':
     '离家模拟最低亮度（%）',
   'settings.systemConfig.field.awaySimBrightnessRange':

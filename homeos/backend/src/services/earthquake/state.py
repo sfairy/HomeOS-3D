@@ -479,6 +479,7 @@ def should_notify_catalog_event(item: dict[str, Any], opts: dict[str, Any]) -> b
                     "latitude": item.get("latitude"),
                     "longitude": item.get("longitude"),
                     "distanceKm": item.get("distanceKm"),
+                    "depthKm": item.get("depth"),
                 },
                 {
                     "minMagnitude": opts["minMagnitude"],

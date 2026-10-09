@@ -20,7 +20,13 @@ from typing import Any
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session
 
-from .energy_meter import business_day_key, business_month_key, compute_meter_delta
+from .energy_meter import (
+    business_day_key,
+    business_month_key,
+    compute_meter_delta,
+    is_meter_reset,
+    resolve_business_timezone,
+)
 from .event_log_tier import (
     build_record_filter,
     extract_event_log_state,
@@ -218,6 +224,20 @@ def _build_compare_row(
     if prev is not None:
         delta_pct = _round1(delta / prev * 100) if prev != 0 else (None if cur != 0 else 0)
     return {"key": key, "current": cur, "previous": prev, "delta": delta, "deltaPct": delta_pct}
+
+
+def _timezone_offset_minutes(timezone_name: str | None) -> int:
+    offset = datetime.now(resolve_business_timezone(timezone_name)).utcoffset()
+    return int(offset.total_seconds() // 60) if offset is not None else 0
+
+
+def _resolve_ops_timezone_name(ops: dict[str, Any] | None) -> str | None:
+    return str((ops or {}).get("homeTimezone") or "").strip() or None
+
+
+def _report_now(ops: dict[str, Any] | None) -> datetime:
+    """报表周期基准时间：取家庭时区的「现在」，避免 UTC 容器下日切错位。"""
+    return datetime.now(resolve_business_timezone(_resolve_ops_timezone_name(ops)))
 
 
 def _build_comparison_periods(granularity: str, now: datetime | None = None) -> dict[str, Any]:
@@ -494,12 +514,17 @@ class EventLogService:
         day_totals: dict[tuple[str, str], dict[str, float]] = {}
         month_totals: dict[tuple[str, str], dict[str, float]] = {}
         # 日切/月切跟随家庭时区（ops.homeTimezone），与前端报表口径一致。
-        timezone_name = str(self._ops.get("homeTimezone") or "").strip() or None
+        timezone_name = _resolve_ops_timezone_name(self._ops)
+        reset_count: dict[str, int] = {}
         for row in batch:
             if not is_energy_meter_entity(row["entity_id"]):
                 continue
             if not row["old_state"] or not row["new_state"]:
                 continue
+            if is_meter_reset(row["old_state"], row["new_state"]):
+                # 表底重置会让该区间增量等于「重置后累积量」，属预期口径，
+                # 但必须留下痕迹，避免报表出现无法解释的用电跳变时无据可查。
+                reset_count[row["entity_id"]] = reset_count.get(row["entity_id"], 0) + 1
             delta = compute_meter_delta(row["old_state"], row["new_state"])
             if delta <= 0:
                 continue
@@ -514,6 +539,11 @@ class EventLogService:
             )
             month_entry["kwh"] += delta
             month_entry["count"] += 1
+        if reset_count:
+            logger.info(
+                "检测到电量表底重置: %s（该区间按重置后累积量计入日/月用电）",
+                ", ".join(f"{entity_id}×{count}" for entity_id, count in reset_count.items()),
+            )
         if not energy_ids and not day_totals and not month_totals:
             return
         try:
@@ -718,7 +748,7 @@ class EventLogService:
         window_hours = self._clamp_query_hours(hours, 24)
         since = datetime.now(UTC) - timedelta(hours=window_hours)
         granularity = resolve_event_log_time_granularity(window_hours)
-        bucket_expr = func.substr(EventLog.created_at, 1, 13 if granularity == "hour" else 10)
+        bucket_expr = self._bucket_expr(EventLog.created_at, 13 if granularity == "hour" else 10)
         conditions: list[Any] = [EventLog.created_at >= _naive_utc(since)]
         conditions.extend(_restriction_conditions(restrictions))
         if entity_id:
@@ -860,7 +890,7 @@ class EventLogService:
         field = payload.get("field") if payload.get("field") in ("humidity", "iaq") else "temperature"
         entity_ids = payload.get("entityIds")
         restrictions = payload.get("restrictions")
-        periods = _build_comparison_periods(granularity)
+        periods = _build_comparison_periods(granularity, _report_now(self._ops))
         if metric == "environment":
             return self._build_environment_report(periods, granularity, field)
         if metric == "energy":
@@ -886,7 +916,7 @@ class EventLogService:
 
     def _aggregate_event_series(self, session, period, entity_ids, restrictions) -> list[dict[str, Any]]:
         conditions = self._period_conditions(period, entity_ids, restrictions)
-        day_expr = func.substr(EventLog.created_at, 1, 10)
+        day_expr = self._bucket_expr(EventLog.created_at, 10)
         rows = session.execute(
             select(day_expr, func.count()).where(*conditions).group_by(day_expr)
         ).all()
@@ -945,8 +975,23 @@ class EventLogService:
             ids = [eid for eid in ids if is_entity_allowed(eid, restrictions)]
         return ids
 
+    def _bucket_expr(self, column: Any, length: int) -> Any:
+        """按家庭时区取分桶键（SQLite 下先平移再截取 ISO 文本）。
+
+        存储值是 UTC ISO 文本，直接 ``substr(col,1,N)`` 得到的是 UTC 分桶；
+        家庭时区非 UTC 时需先平移（``datetime(col, '+480 minutes')``）再截取，
+        否则东八区 00:00–08:00 的数据会被算进前一天，与能源日聚合、报表标签全都对不上。
+        时区偏移为 0 时保持原样，避免对 UTC 部署产生任何 SQL 差异。
+        """
+        offset_minutes = _timezone_offset_minutes(_resolve_ops_timezone_name(self._ops))
+        if offset_minutes == 0:
+            return func.substr(column, 1, length)
+        shifted = func.datetime(column, f"{offset_minutes:+d} minutes")
+        return func.substr(shifted, 1, length)
+
     def _read_energy_deltas(self, session, period, ids) -> list[dict[str, Any]]:
         window_start = period["start"] - timedelta(days=7)
+        timezone_name = _resolve_ops_timezone_name(self._ops)
         rows = (
             session.execute(
                 select(EventLog.entity_id, EventLog.created_at, EventLog.state_diff)
@@ -970,7 +1015,7 @@ class EventLogService:
                 value = float(new_part)
             except (TypeError, ValueError):
                 continue
-            day = str(day_expr_value(created_at))[:10]
+            day = str(day_expr_value(created_at, timezone_name))[:10]
             last_by_day[(entity_id, day)] = value
         grouped: dict[str, list[tuple[str, float]]] = {}
         for (entity_id, day), value in last_by_day.items():
@@ -1012,7 +1057,7 @@ class EventLogService:
         )
 
     def _aggregate_env_series(self, session, period, column) -> list[dict[str, Any]]:
-        day_expr = func.substr(EnvironmentRecord.recorded_at, 1, 10)
+        day_expr = self._bucket_expr(EnvironmentRecord.recorded_at, 10)
         rows = session.execute(
             select(day_expr, func.avg(column))
             .where(
@@ -1232,8 +1277,13 @@ def _load_json(raw: str | None) -> Any:
         return None
 
 
-def day_expr_value(created_at: datetime) -> str:
-    return _naive_utc(created_at).strftime("%Y-%m-%d")
+def day_expr_value(created_at: datetime, timezone_name: str | None = None) -> str:
+    """报表日键：按家庭时区（``ops.homeTimezone``）计算，与能源日聚合口径一致。
+
+    原先固定按 UTC 分桶，会让 00:00–08:00（东八区）的读数落到前一天，
+    与 ``EnergyUsageDaily``（家庭时区）对不上，日/周/月曲线整体错位。
+    """
+    return business_day_key(created_at, timezone_name)
 
 
 def _empty_series(period) -> list[dict[str, Any]]:

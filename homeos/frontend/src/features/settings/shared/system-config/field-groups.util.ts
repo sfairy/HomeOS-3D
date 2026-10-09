@@ -22,6 +22,7 @@ const SECTION_FIELD_GROUPS: Record<string, FieldGroupDef[]> = {
         'sensorAlertCooldownSec',
         'emergencyCooldownSec',
         'awayConfirmMin',
+        'homeConfirmMin',
         'bathroom*',
         'bedroom*',
         'kitchen*',

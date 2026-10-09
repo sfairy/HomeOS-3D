@@ -29,6 +29,9 @@ from ...core.models import Notification
 
 logger = logging.getLogger("homeos.notification.dispatch")
 
+#: 外部通道（邮件 / 企微 / webpush）最大投递尝试次数（含首次）
+_EXTERNAL_MAX_ATTEMPTS = 3
+
 _ID_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz"
 
 
@@ -54,12 +57,14 @@ class NotificationDispatchHelper:
         get_cfg: Callable[[], dict[str, Any]],
         schedule_prune: Callable[[], None],
         channels_service: Any = None,
+        get_timezone: Callable[[], str | None] | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._event_bus = event_bus
         self._get_cfg = get_cfg
         self._schedule_prune = schedule_prune
         self._channels_service = channels_service
+        self._get_timezone = get_timezone or (lambda: None)
 
     async def notify(
         self,
@@ -80,7 +85,7 @@ class NotificationDispatchHelper:
             level != "danger"
             and not opts.get("bypassDnd")
             and not life_safety
-            and is_dnd_active_now(cfg)
+            and is_dnd_active_now(cfg, timezone_name=self._get_timezone())
         ):
             return None
 
@@ -128,7 +133,7 @@ class NotificationDispatchHelper:
         if "in_app" in channels:
             self._schedule_prune()
 
-        self._send_external_notifications(channels, message, opts.get("title"))
+        self._send_external_notifications(channels, message, opts.get("title"), notification.get("id"))
 
         return notification
 
@@ -169,29 +174,64 @@ class NotificationDispatchHelper:
             payload["channels"] = channels
             return payload
 
+    def _mark_delivered(self, notification_id: str | None) -> None:
+        """记录外部通道投递成功时间（``deliveredAt`` 为空即代表未投递成功）。"""
+        if not notification_id:
+            return
+        try:
+            with self._session_factory() as session:
+                record = session.get(Notification, notification_id)
+                if record is not None:
+                    record.delivered_at = datetime.now(UTC)
+                    session.commit()
+        except Exception as exc:
+            logger.debug("标记通知投递时间失败: %s", exc)
+
     def _send_external_notifications(
-        self, channels: list[str], message: str, title: str | None
+        self, channels: list[str], message: str, title: str | None, notification_id: str | None = None
     ) -> None:
         if self._channels_service is None:
             return
         sender = getattr(self._channels_service, "send_external_alert", None)
         if sender is None:
             return
-        try:
-            result = sender(channels, message, title)
-        except Exception as exc:
-            logger.error("发送外部通知失败: %s", exc)
-            return
-        if not inspect.isawaitable(result):
-            return
 
-        async def _await_result() -> None:
+        async def _deliver_with_retry() -> None:
+            last_error: Exception | None = None
+            for attempt in range(1, _EXTERNAL_MAX_ATTEMPTS + 1):
+                try:
+                    result = sender(channels, message, title)
+                    if inspect.isawaitable(result):
+                        await result
+                except Exception as exc:
+                    last_error = exc
+                    if attempt < _EXTERNAL_MAX_ATTEMPTS:
+                        await asyncio.sleep(min(2 ** (attempt - 1), 8))
+                    continue
+                await asyncio.to_thread(self._mark_delivered, notification_id)
+                try:
+                    await self._event_bus.emit(
+                        "notification.delivered",
+                        {"id": notification_id, "channels": channels},
+                    )
+                except Exception as exc:
+                    logger.debug("广播投递成功事件失败: %s", exc)
+                return
+            # 外部通道（邮件/企微/webpush）全部重试失败：留下未投递记录并广播，便于排查
+            logger.error("发送外部通知失败(已重试 %s 次): %s", _EXTERNAL_MAX_ATTEMPTS, last_error)
             try:
-                await result
+                await self._event_bus.emit(
+                    "notification.deliveryFailed",
+                    {
+                        "id": notification_id,
+                        "channels": channels,
+                        "error": str(last_error) if last_error else "unknown",
+                    },
+                )
             except Exception as exc:
-                logger.error("发送外部通知失败: %s", exc)
+                logger.debug("广播投递失败事件失败: %s", exc)
 
-        spawn_background(_await_result())
+        spawn_background(_deliver_with_retry())
 
 
 __all__ = ["NotificationDispatchHelper"]

@@ -60,6 +60,9 @@ class WeatherWatchService:
         self._event_bus = event_bus
         self._stop = False
         self._task: asyncio.Task[Any] | None = None
+        #: Redis 不可用时的进程内去重回退：否则每轮轮询都会把同一条预警
+        #: 重新推送并重复触发天气联动（空调/关窗等）。
+        self._memory_seen: list[str] = []
 
     # ------------------------------------------------------------------ #
     # 生命周期
@@ -113,8 +116,8 @@ class WeatherWatchService:
                     {"description": "天气预警轮询监听", "intervalMs": self.poll_ms()},
                     self._tick,
                 )
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("天气预警轮询任务调度失败: %s", exc)
 
     async def _tick(self) -> None:
         try:
@@ -182,27 +185,31 @@ class WeatherWatchService:
     # ------------------------------------------------------------------ #
     async def load_seen_ids(self) -> set[str]:
         if not self._redis.is_ready():
-            return set()
+            return set(self._memory_seen)
         try:
             raw = await self._redis.get(SEEN_KEY)
             if not raw:
-                return set()
+                return set(self._memory_seen)
             text = raw.decode("utf-8") if isinstance(raw, (bytes, bytearray)) else str(raw)
             parsed = json.loads(text)
             if not isinstance(parsed, list):
-                return set()
-            return {item for item in parsed if isinstance(item, str) and item.strip()}
+                return set(self._memory_seen)
+            stored = {item for item in parsed if isinstance(item, str) and item.strip()}
         except Exception:
-            return set()
+            return set(self._memory_seen)
+        # 与进程内回退合并：Redis 曾不可用期间记录过的预警，恢复后不得重复推送
+        return stored | set(self._memory_seen)
 
     async def save_seen_ids(self, ids: Any) -> None:
-        if not self._redis.is_ready():
-            return
         unique: list[str] = []
         for item in ids or []:
             if item and item not in unique:
                 unique.append(item)
         trimmed = unique[-SEEN_MAX:]
+        # 无论 Redis 是否可用都维护进程内回退集合
+        self._memory_seen = trimmed
+        if not self._redis.is_ready():
+            return
         try:
             await self._redis.set(SEEN_KEY, json.dumps(trimmed), 7 * 24 * 3600)
         except Exception as exc:

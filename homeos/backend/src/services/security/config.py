@@ -17,6 +17,7 @@ from ...core.app_config import load_raw_config
 DEFAULT_SECURITY_CONFIG: dict[str, Any] = {
     "sensorAlertCooldownSec": 60,
     "awayConfirmMin": 5,
+    "homeConfirmMin": 2,
     "requireConfiguredPersons": True,
     "presencePersons": [],
     "mmWaveFusePresence": True,
@@ -82,7 +83,7 @@ def load_notification_config(session: Session) -> dict[str, Any]:
 
 def load_home_timezone(session: Session) -> str | None:
     raw = load_raw_config(session)
-    tz = raw.get("homeTimezone")
+    tz = _section(raw, "ops").get("homeTimezone")
     return tz.strip() if isinstance(tz, str) and tz.strip() else None
 
 

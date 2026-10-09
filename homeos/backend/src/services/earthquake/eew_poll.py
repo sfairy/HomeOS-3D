@@ -52,8 +52,8 @@ class EewPollService:
         self._task: asyncio.Task[None] | None = None
         self._usgs_task: asyncio.Task[None] | None = None
         self._stopped = False
-        self._last_sc_event_id = ""
-        self._last_cenc_event_id = ""
+        self._last_sc_report: tuple[str, float, float] | None = None
+        self._last_cenc_report: tuple[str, float, float] | None = None
         self._last_usgs_ids: list[str] = []
 
     # ------------------------------------------------------------------ #
@@ -155,9 +155,11 @@ class EewPollService:
             eew = parse_wolfx_eew_http_json(body, "sc_eew")
             if eew is None:
                 return
-            if eew.event_id == self._last_sc_event_id:
+            # 以 (event_id, report_id, 震级) 去重：同一事件的震级升级（新报告）必须放行。
+            key = (eew.event_id, eew.report_id, round(float(eew.magnitude or 0.0), 1))
+            if key == self._last_sc_report:
                 return
-            self._last_sc_event_id = eew.event_id
+            self._last_sc_report = key
             self._earthquake.ingest_eew(eew)
         except Exception as exc:
             message = str(exc)
@@ -171,9 +173,11 @@ class EewPollService:
             eew = parse_wolfx_eew_http_json(body, "cenc_eew")
             if eew is None:
                 return
-            if eew.event_id == self._last_cenc_event_id:
+            # 以 (event_id, report_id, 震级) 去重：同一事件的震级升级（新报告）必须放行。
+            key = (eew.event_id, eew.report_id, round(float(eew.magnitude or 0.0), 1))
+            if key == self._last_cenc_report:
                 return
-            self._last_cenc_event_id = eew.event_id
+            self._last_cenc_report = key
             self._earthquake.ingest_eew(eew)
         except Exception as exc:
             message = str(exc)

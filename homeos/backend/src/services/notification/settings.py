@@ -14,7 +14,7 @@ from collections.abc import Callable
 from typing import Any
 
 from .config import merge_notification_settings
-from ..alerts.dnd import DEFAULT_DND_END, DEFAULT_DND_START, is_dnd_active
+from ..alerts.dnd import DEFAULT_DND_END, DEFAULT_DND_START, current_hour_in, is_dnd_active
 from ...core.models import User
 
 logger = logging.getLogger("homeos.notification.settings")
@@ -34,10 +34,12 @@ class NotificationSettingsHelper:
         session_factory: Callable[[], Any],
         get_cfg: Callable[[], dict[str, Any]],
         is_dnd_active: Callable[[], bool],
+        get_timezone: Callable[[], str | None] | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._get_cfg = get_cfg
         self._is_dnd_active = is_dnd_active
+        self._get_timezone = get_timezone or (lambda: None)
 
     # ------------------------------------------------------------------ #
     # 读取
@@ -79,12 +81,13 @@ class NotificationSettingsHelper:
             dnd_end = global_settings.get("dndEnd")
         if dnd_end is None:
             dnd_end = DEFAULT_DND_END
-        from datetime import datetime
 
         return {
             "dndStart": dnd_start,
             "dndEnd": dnd_end,
-            "dndActive": is_dnd_active(datetime.now().hour, int(dnd_start), int(dnd_end)),
+            "dndActive": is_dnd_active(
+                current_hour_in(self._get_timezone()), int(dnd_start), int(dnd_end)
+            ),
             "globalNotifyEnabled": _coalesce(
                 user_prefs.get("globalNotifyEnabled"), global_settings.get("globalNotifyEnabled")
             ),

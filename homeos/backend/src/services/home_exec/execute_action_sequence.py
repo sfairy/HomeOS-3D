@@ -57,6 +57,11 @@ async def execute_action_sequence(
             wait_ms = delay_to_ms(item.get("delay"), delay_unit)
             if wait_ms > 0:
                 await asyncio.sleep(wait_ms / 1000)
-            results.append(await execute_one(item))
+            # 单条失败不得中断后续步骤（与无延时批次的 allSettled 语义保持一致），
+            # 否则一个异常动作会让整条「回家/离家」序列半途而废。
+            try:
+                results.append(await execute_one(item))
+            except Exception as exc:
+                results.append(_fallback_result(exc))
             index += 1
     return results

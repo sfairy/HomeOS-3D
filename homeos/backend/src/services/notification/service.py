@@ -11,13 +11,14 @@ import json
 import logging
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, TypeVar
 
 from sqlalchemy import func, or_, select
 
 from .config import (
     load_energy_config,
     load_env_sensor_map,
+    load_home_timezone,
     load_iaq_config,
     load_notification_config,
     load_other_config,
@@ -37,13 +38,16 @@ from .stats import (
     map_notification_row,
     resolve_notification_time_granularity,
 )
-from ..alerts.dnd import is_dnd_active
+from ..alerts.dnd import current_hour_in, is_dnd_active
 from ..alerts.sources import is_life_safety_notification  # noqa: F401 - 供外部/测试引用
 from ..ha_filters import AlertRuleWatchIndex, HaStateChangeRouter
 from ..rooms import resolve_room_label_from_ha_areas
 from ...core.models import Notification
 
 logger = logging.getLogger("homeos.notification")
+
+#: 配置分区加载器返回类型（``_load`` 的透传泛型，避免把非 dict 分区标成 dict）
+_T = TypeVar("_T")
 
 #: 告警规则边沿匹配态的 Redis 键（7 天 TTL）。
 ALERT_EDGE_REDIS_KEY = "homeos:alert:rule-edge"
@@ -78,6 +82,7 @@ class NotificationService:
             session_factory=session_factory,
             get_cfg=self._cfg,
             is_dnd_active=self.is_dnd_active,
+            get_timezone=self._get_timezone,
         )
         self._rules_helper = NotificationRulesHelper(
             session_factory=session_factory,
@@ -96,6 +101,7 @@ class NotificationService:
             get_cfg=self._cfg,
             schedule_prune=self._prune_helper.schedule_prune_old_notifications,
             channels_service=channels_service,
+            get_timezone=self._get_timezone,
         )
         self._event_handlers = NotificationEventHandlersHelper(
             state_router=self._router,
@@ -116,7 +122,7 @@ class NotificationService:
     # ------------------------------------------------------------------ #
     # 配置 / 冷却辅助
     # ------------------------------------------------------------------ #
-    def _load(self, loader: Callable[[Any], dict[str, Any]]) -> dict[str, Any]:
+    def _load(self, loader: Callable[[Any], _T]) -> _T:
         with self._session_factory() as session:
             return loader(session)
 
@@ -129,7 +135,12 @@ class NotificationService:
         dnd_end = cfg.get("dndEnd")
         if dnd_start is None or dnd_end is None:
             return False
-        return is_dnd_active(datetime.now().hour, int(dnd_start), int(dnd_end))
+        # 免打扰窗口按家庭当地时间判定（服务器多为 UTC 容器，直接用本机小时会错 8 小时）。
+        return is_dnd_active(current_hour_in(self._get_timezone()), int(dnd_start), int(dnd_end))
+
+    def _get_timezone(self) -> str | None:
+        """家庭时区（``ops.homeTimezone``）。"""
+        return self._load(load_home_timezone)
 
     def _is_alert_bypass_dnd(self) -> bool:
         return self._load(load_security_section).get("alertBypassDnd") is True

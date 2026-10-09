@@ -51,39 +51,57 @@ def _extract_state(state: Any) -> str | None:
     return None if value is None else str(value)
 
 
-def compute_meter_delta(old_state: Any, new_state: Any) -> float:
-    """两次读数间的正向 kWh 增量。
-
-    表底重置（新读数小于旧读数）按「重置后累积量」计入 ``new_kwh``，而不是丢弃整段 —— 
-    否则每次清零都会漏掉一段真实用电。不可解析时返回 0。
-    """
+def _meter_values(old_state: Any, new_state: Any) -> tuple[float, float, dict[str, Any] | None] | None:
     old_raw = _extract_state(old_state)
     new_raw = _extract_state(new_state)
     if old_raw is None or new_raw is None:
-        return 0.0
+        return None
     try:
         old_val = float(old_raw)
         new_val = float(new_raw)
     except (TypeError, ValueError):
-        return 0.0
+        return None
     if math.isnan(old_val) or math.isnan(new_val):  # NaN
-        return 0.0
+        return None
     attrs = None
     if isinstance(new_state, dict) and isinstance(new_state.get("attributes"), dict):
         attrs = new_state["attributes"]
     elif isinstance(old_state, dict) and isinstance(old_state.get("attributes"), dict):
         attrs = old_state["attributes"]
     if attrs is not None and not is_cumulative_energy_meter(attrs):
+        return None
+    return reading_to_kwh(old_val, attrs), reading_to_kwh(new_val, attrs), attrs
+
+
+def is_meter_reset(old_state: Any, new_state: Any) -> bool:
+    """是否发生表底重置/换表（新读数小于旧读数）。"""
+    values = _meter_values(old_state, new_state)
+    if values is None:
+        return False
+    old_kwh, new_kwh, _attrs = values
+    return new_kwh < old_kwh
+
+
+def compute_meter_delta(old_state: Any, new_state: Any) -> float:
+    """两次读数间的正向 kWh 增量。
+
+    表底重置（新读数小于旧读数）按「重置后累积量」计入 ``new_kwh``，而不是丢弃整段 ——
+    否则每次清零都会漏掉一段真实用电。累加口径上是自洽的：重置后首段取 ``new_kwh``，
+    后续再走正常差分，总和恰等于重置后的最终读数；调用方如需感知重置可配合
+    :func:`is_meter_reset`（用于告警/标注，而非篡改数值）。不可解析时返回 0。
+    """
+    values = _meter_values(old_state, new_state)
+    if values is None:
         return 0.0
-    old_kwh = reading_to_kwh(old_val, attrs)
-    new_kwh = reading_to_kwh(new_val, attrs)
+    old_kwh, new_kwh, _attrs = values
     if new_kwh >= old_kwh:
         return new_kwh - old_kwh
     # 负跳变 = 表底清零：把重置后的读数作为本段增量（不会为负，也不会整段丢弃）。
     return max(0.0, new_kwh)
 
 
-def _resolve_business_timezone(timezone_name: str | None) -> ZoneInfo:
+def resolve_business_timezone(timezone_name: str | None) -> ZoneInfo:
+    """解析家庭业务时区；无效或未配置时回落到默认 ``Asia/Shanghai``。"""
     normalized = str(timezone_name or "").strip()
     if normalized:
         try:
@@ -94,7 +112,7 @@ def _resolve_business_timezone(timezone_name: str | None) -> ZoneInfo:
 
 
 def business_day_key(when: datetime, timezone_name: str | None = None) -> str:
-    tz = _resolve_business_timezone(timezone_name)
+    tz = resolve_business_timezone(timezone_name)
     local = when.astimezone(tz) if when.tzinfo is not None else when.replace(tzinfo=ZoneInfo("UTC")).astimezone(tz)
     return local.strftime("%Y-%m-%d")
 

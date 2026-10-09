@@ -61,6 +61,7 @@ export const SYSTEM_CONFIG_FIELD_KEYS = new Set([
   'disconnectRestPollTimeoutMs',
   'emergencyCooldownSec',
   'enableWeatherMode',
+  'homeConfirmMin',
   'entityCacheEnabled',
   'entityCacheMaxAgeMs',
   'entityCacheSaveDebounceMs',

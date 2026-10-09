@@ -42,6 +42,8 @@ const HINT_TEXT: Record<string, string> = {
     '自动备份产物的保留天数，超出后自动清理。推荐 7',
   'settings.systemConfig.fieldHint.awayConfirmMin':
     '检测到全员离家后等待此时长再做布防，避免短暂出门误触发。推荐 5',
+  'settings.systemConfig.fieldHint.homeConfirmMin':
+    '有人被判定回家后需持续在此时长才降级为居家布防，避免定位漂移误撤销外出布防。推荐 2',
   'settings.systemConfig.fieldHint.awaySimBrightnessMin':
     '离家模拟灯光的最低亮度百分比，避免夜间全亮暴露无人状态。推荐 40',
   'settings.systemConfig.fieldHint.awaySimBrightnessRange':

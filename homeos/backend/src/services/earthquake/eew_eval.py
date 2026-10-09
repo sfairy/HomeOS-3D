@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .geo import compute_s_wave_countdown, haversine_distance_km
+from .geo import compute_s_wave_countdown, haversine_distance_km, hypocentral_distance_km
 from .threshold import evaluate_local_quake_thresholds
 from .types import (
     EarthquakeAlertPayload,
@@ -105,6 +105,7 @@ def evaluate_eew_for_alert(
             "magnitude": eew.magnitude,
             "latitude": eew.latitude,
             "longitude": eew.longitude,
+            "depthKm": eew.depth,
         },
         {
             "minMagnitude": cfg.min_magnitude,
@@ -116,7 +117,10 @@ def evaluate_eew_for_alert(
     )
     distance = gate["distanceKm"]
     local_intensity = gate["localIntensity"]
-    countdown = compute_s_wave_countdown(distance, eew.origin_time, _now_ms())
+    # 倒计时按震源距（含深度）：忽略深度会低估传播距离、倒计时偏短。
+    countdown = compute_s_wave_countdown(
+        hypocentral_distance_km(distance, eew.depth), eew.origin_time, _now_ms()
+    )
 
     analysis_log = f"📊 EEW 分析:距离={distance:.1f}km 倒计时={countdown:.1f}s 烈度={local_intensity}"
 

@@ -120,6 +120,20 @@ class StateStore:
     def get_latest_change_id(self) -> int:
         return self._change_seq
 
+    def is_replay_truncated(self, since_ms: float, last_event_id: int) -> bool:
+        """请求的 replay 起点是否已被环形缓冲淘汰（此时增量不可信，应建议全量 resync）。
+
+        - ``last_event_id`` 早于当前保留的最旧记录：中间变更已被丢弃；
+        - ``since_ms`` 早于最旧记录的变更时刻：同上（时间窗已滚出缓冲）。
+        """
+        if not self._recent:
+            # 缓冲为空但已有变更历史，说明早期变更全部被淘汰
+            return self._change_seq > 0
+        oldest = self._recent[0]
+        if last_event_id and last_event_id < int(oldest["id"]) - 1:
+            return True
+        return bool(since_ms and since_ms < float(oldest["at"]))
+
     def apply_state_changed_hot(self, event: dict[str, Any]) -> bool:
         """热路径写入（对齐 Nest ``applyStateChangedHot``）。
 

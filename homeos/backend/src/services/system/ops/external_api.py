@@ -36,6 +36,7 @@ from ....core.icalendar import (
     is_away_during_calendar,
     parse_icalendar,
 )
+from ....core.zoned_time import zoned_date_parts
 
 logger = logging.getLogger("homeos.system.ops.external_api")
 
@@ -561,8 +562,10 @@ class ExternalApiService:
         schedule = self._dynamic_price_schedule["schedule"]
         if not schedule:
             return None
-        now = datetime.now()
-        now_min = now.hour * 60 + now.minute
+        # 电价时段按家庭当地时间匹配：动态电价表（多为国内运营商）用的是当地钟点，
+        # 用服务器（常见 UTC）分钟数比对会整体错 8 小时，峰谷判断全反。
+        parts = zoned_date_parts(datetime.now(UTC), self._home_timezone())
+        now_min = parts["hour"] * 60 + parts["minute"]
         current: dict[str, Any] | None = None
         for entry in schedule:
             if self._to_minutes(entry["start"]) <= now_min:

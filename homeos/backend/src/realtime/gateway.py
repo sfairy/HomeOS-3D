@@ -48,9 +48,9 @@ logger = logging.getLogger("homeos.realtime.gateway")
 WS_PUSH_BACKPRESSURE_WRITE_BUFFER = 512
 
 
-def _resync_suggested_payload() -> dict[str, Any]:
-    """背压全量重同步建议负载（对齐 ``emitResyncSuggested``）。"""
-    return {"type": "resync_suggested", "reason": "backpressure", "timestamp": _iso_now()}
+def _resync_suggested_payload(reason: str = "backpressure") -> dict[str, Any]:
+    """全量重同步建议负载（对齐 ``emitResyncSuggested``）。"""
+    return {"type": "resync_suggested", "reason": reason, "timestamp": _iso_now()}
 
 
 def _iso_now() -> str:
@@ -239,33 +239,41 @@ class RealtimeGateway:
         since_ms, last_event_id = parse_state_replay_params(since_raw, last_event_raw)
         if should_replay_state(since_ms, last_event_id):
             handled_since = True
-            replay = [
-                record
-                for record in self.state_store.get_recent_changes_since(since_ms, last_event_id)
-                if _entity_visible(user, record["entity_id"])
-            ]
-            if replay:
+            if self.state_store.is_replay_truncated(since_ms, last_event_id):
+                # 环形缓冲已淘汰部分变更：此时下发增量会漏掉状态，
+                # 前端已有完整快照，直接建议重同步（会回滚乐观更新并软重拉）。
+                logger.info("state_replay 起点已淘汰,建议客户端重同步 sid=%s", sid)
                 await self.sio.emit(
-                    "state_replay",
-                    {
-                        "type": "state_replay",
-                        "changes": [
-                            to_ws_state_change_payload(
-                                {
-                                    "entity_id": record["entity_id"],
-                                    "old_state": None,
-                                    "new_state": record["new_state"],
-                                    "changed_at": _ms_to_iso(record["at"]),
-                                }
-                            )
-                            for record in replay
-                        ],
-                        "count": len(replay),
-                        "lastEventId": self.state_store.get_latest_change_id(),
-                        "timestamp": _iso_now(),
-                    },
-                    to=sid,
+                    "resync_suggested", _resync_suggested_payload("replay_truncated"), to=sid
                 )
+            else:
+                replay = [
+                    record
+                    for record in self.state_store.get_recent_changes_since(since_ms, last_event_id)
+                    if _entity_visible(user, record["entity_id"])
+                ]
+                if replay:
+                    await self.sio.emit(
+                        "state_replay",
+                        {
+                            "type": "state_replay",
+                            "changes": [
+                                to_ws_state_change_payload(
+                                    {
+                                        "entity_id": record["entity_id"],
+                                        "old_state": None,
+                                        "new_state": record["new_state"],
+                                        "changed_at": _ms_to_iso(record["at"]),
+                                    }
+                                )
+                                for record in replay
+                            ],
+                            "count": len(replay),
+                            "lastEventId": self.state_store.get_latest_change_id(),
+                            "timestamp": _iso_now(),
+                        },
+                        to=sid,
+                    )
         _ = handled_since
 
         final = self._ha_status_snapshot()

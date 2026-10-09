@@ -14,6 +14,7 @@ from ..security.config import (
     DEFAULT_FRONTEND_CONFIG,
     DEFAULT_SECURITY_CONFIG,
     load_frontend_config,
+    load_home_timezone,
 )
 from ...core.app_config import load_raw_config, merge_raw_config_section
 
@@ -114,6 +115,7 @@ __all__ = [
     "load_energy_config",
     "load_env_sensor_map",
     "load_frontend_config",
+    "load_home_timezone",
     "load_iaq_config",
     "load_notification_config",
     "load_other_config",

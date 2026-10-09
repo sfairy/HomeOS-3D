@@ -11,12 +11,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections.abc import Callable
 from typing import Any
 
 from .bus import LocalEventBus
 from .layout import load_active_project_layout, schedule_security_event
 from .zones import resolve_home_mode_link_for_security_change
+from ...core.background import spawn_background
 
 logger = logging.getLogger("homeos.security.linkage")
 
@@ -37,6 +39,9 @@ class SecurityLinkageService:
         self._away_sim = away_sim
         self._home_mode = home_mode
         self._config = config_reader
+        #: 成员首次被判定「在家」的时间戳（毫秒），用于驻留确认
+        self._home_since: dict[str, float] = {}
+        self._home_dwell_task: asyncio.Task[Any] | None = None
 
         bus.on("presence.everyoneLeft", self._on_everyone_left)
         bus.on("presence.changed", self._on_presence_changed)
@@ -72,6 +77,7 @@ class SecurityLinkageService:
     # ------------------------------------------------------------------ #
     async def _on_everyone_left(self, _payload: Any = None) -> None:
         cfg = self._config()
+        self._home_since.clear()
         if not cfg.get("autoArmOnEveryoneLeft") and not cfg.get(
             "autoUpgradeToAwayOnEveryoneLeft"
         ):
@@ -92,11 +98,51 @@ class SecurityLinkageService:
         except Exception as exc:
             self._log_linkage_failure("linkage_auto_arm_failed", f"全员离家自动布防失败: {exc}")
 
+    def _home_confirm_ms(self) -> float:
+        """首人到家降级为居家前所需的驻留确认时长（毫秒）。"""
+        try:
+            return max(0.0, float(self._config().get("homeConfirmMin") or 0) * 60_000)
+        except (TypeError, ValueError):
+            return 0.0
+
     async def _on_presence_changed(self, data: dict[str, Any] | None) -> None:
-        if not isinstance(data, dict) or not data.get("atHome"):
+        if not isinstance(data, dict):
             return
+        member_id = str(data.get("memberId") or "_any")
+        if not data.get("atHome"):
+            self._home_since.pop(member_id, None)
+            return
+        now = time.time() * 1000
+        self._home_since.setdefault(member_id, now)
         if not self._config().get("autoDisarmOnFirstHome"):
             return
+        # 单条 GPS/追踪器「在家」可能是定位漂移或短暂经过，无驻留确认就撤销
+        # armed_away / armed_night 会让家人在真正离家的情形下被误降级为居家布防。
+        dwell_ms = self._home_confirm_ms()
+        elapsed = now - min(self._home_since.values())
+        if elapsed < dwell_ms:
+            self._schedule_home_dwell_check(dwell_ms - elapsed)
+            return
+        await self._downgrade_to_home()
+
+    def _schedule_home_dwell_check(self, delay_ms: float) -> None:
+        existing = self._home_dwell_task
+        if existing is not None and not existing.done():
+            return
+        self._home_dwell_task = spawn_background(self._run_home_dwell_check(delay_ms))
+
+    async def _run_home_dwell_check(self, delay_ms: float) -> None:
+        self._home_dwell_task = None
+        await asyncio.sleep(max(0.0, delay_ms) / 1000)
+        if not self._config().get("autoDisarmOnFirstHome") or not self._home_since:
+            return
+        remaining = self._home_confirm_ms() - (time.time() * 1000 - min(self._home_since.values()))
+        if remaining > 0:
+            self._schedule_home_dwell_check(remaining)
+            return
+        await self._downgrade_to_home()
+
+    async def _downgrade_to_home(self) -> None:
         current = self._panel.get_mode()
         if current in ("armed_home", "disarmed"):
             return

@@ -272,9 +272,20 @@ class PresenceService:
     # ------------------------------------------------------------------ #
     async def handle_state_change(self, event: dict[str, Any]) -> None:
         entity_id = str(event.get("entity_id") or "")
+        new_state = (event.get("new_state") or {}).get("state")
+
+        # 门锁/门磁开启是「有人到家」的强证据，用于取消离家确认倒计时。
+        # 该分支必须先于 should_track_entity 早退：后者只放行 person./device_tracker，
+        # 否则 lock/door 事件永远不可达，自动模式下无法用开锁快速取消离家。
+        if entity_id.startswith(("lock.", "binary_sensor.door")) and new_state in (
+            "unlocked",
+            "on",
+        ):
+            self.confirm_home()
+            logger.debug("门锁事件:%s → %s", entity_id, new_state)
+
         if not self.should_track_entity(entity_id):
             return
-        new_state = (event.get("new_state") or {}).get("state")
 
         if entity_id.startswith("person."):
             self._handle_person_update(entity_id, new_state or "unknown", event.get("new_state"))
@@ -283,11 +294,6 @@ class PresenceService:
             attrs = (event.get("new_state") or {}).get("attributes") or {}
             name = attrs.get("friendly_name") or entity_id.split(".")[1] or "unknown"
             self._apply_presence_entity_update(entity_id, str(name), "device_tracker", new_state)
-
-        if entity_id.startswith(("lock.", "binary_sensor.door")):
-            if new_state in ("unlocked", "on"):
-                self.confirm_home()
-                logger.debug("门锁事件:%s → %s", entity_id, new_state)
 
     def seed_from_state_store(self) -> None:
         configured = self.get_configured_entity_ids()

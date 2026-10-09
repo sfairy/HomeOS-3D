@@ -183,7 +183,8 @@ class HomeModeService:
         security = raw.get("security") if isinstance(raw.get("security"), dict) else {}
         self._home_mode_cfg = {**HOME_MODE_DEFAULT_CONFIG, **home_mode}
         self._security_cfg = {**SECURITY_DEFAULT_CONFIG, **security}
-        tz = raw.get("homeTimezone")
+        ops = raw.get("ops") if isinstance(raw.get("ops"), dict) else {}
+        tz = ops.get("homeTimezone")
         self._home_timezone = tz.strip() if isinstance(tz, str) and tz.strip() else None
 
     def on_config_updated(self, sections: list[str] | None = None) -> None:
@@ -510,11 +511,19 @@ class HomeModeService:
         await handle_home_mode_everyone_left(self._trigger_state, self._deps)
 
     async def handle_activate_request(self, data: dict[str, Any]) -> None:
+        """外部自动化（HA / Node-RED / 事件总线）请求激活家庭模式。
+
+        固定以 ``automation`` 来源记账：若记成 ``manual`` 会误占 30 分钟用户锁，
+        导致其后安防 / 天气 / 作息等低优先级联动全部被仲裁器拦截。
+        """
         mode_id = data.get("mode_id") or data.get("modeId")
         if not mode_id:
             return
         try:
-            await self.activate(mode_id, {"source": "manual", "reason": "automation"})
+            await self.activate(
+                mode_id,
+                {"source": "automation", "reason": data.get("reason") or "自动化请求"},
+            )
         except Exception as exc:
             logger.warning("自动化请求激活家庭模式失败: %s", exc)
 
@@ -572,12 +581,13 @@ class HomeModeService:
             )
             session.commit()
 
-    def _deactivate_in_db(self, mode_id: str) -> None:
+    def _deactivate_in_db(self, mode_id: str, *, keep_snapshot: bool = False) -> None:
         with self._session_factory() as session:
             row = session.get(HomeMode, mode_id)
             if row is not None:
                 row.is_active = False
-                row.device_snapshot = None
+                if not keep_snapshot:
+                    row.device_snapshot = None
                 session.commit()
 
     def _clear_group_active(self, group_ids: list[str], incomplete: bool) -> None:
@@ -671,8 +681,8 @@ class _HomeModeDeps:
     ) -> None:
         self._service._switch_active_group(conflicting_modes, conflict_restore, mode_id, snapshot)
 
-    async def deactivate_in_db(self, mode_id: str) -> None:
-        self._service._deactivate_in_db(mode_id)
+    async def deactivate_in_db(self, mode_id: str, *, keep_snapshot: bool = False) -> None:
+        self._service._deactivate_in_db(mode_id, keep_snapshot=keep_snapshot)
 
     async def clear_group_active(self, group_ids: list[str], incomplete: bool) -> None:
         self._service._clear_group_active(group_ids, incomplete)

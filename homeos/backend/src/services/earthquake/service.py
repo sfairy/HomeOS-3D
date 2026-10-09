@@ -661,6 +661,7 @@ class EarthquakeService:
                 "latitude": item.get("latitude"),
                 "longitude": item.get("longitude"),
                 "distanceKm": item.get("distanceKm"),
+                "depthKm": item.get("depth"),
             },
             {
                 "minMagnitude": cfg.min_magnitude,

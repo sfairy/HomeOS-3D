@@ -234,6 +234,8 @@ def _validate_security(
         num_in(section, "sensorAlertCooldownSec", p["sensorAlertCooldownSec"], 0, 86400, e)
     if "awayConfirmMin" in p:
         num_in(section, "awayConfirmMin", p["awayConfirmMin"], 1, 120, e)
+    if "homeConfirmMin" in p:
+        num_in(section, "homeConfirmMin", p["homeConfirmMin"], 0, 120, e)
     if "emergencyCooldownSec" in p:
         num_in(section, "emergencyCooldownSec", p["emergencyCooldownSec"], 0, 86400, e)
     if "armExitGraceSeconds" in p:

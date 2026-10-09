@@ -76,6 +76,37 @@ def is_ipv6_literal(base_url: str) -> bool:
         return False
 
 
+def _response_reports_unavailable(body: Any, entity_id: str) -> bool:
+    """判断服务调用响应是否显示目标实体处于 ``unavailable``。
+
+    HA 的 ``/api/services`` 对不可用实体同样返回 200，只是把该实体跳过；响应体是
+    「受本次调用影响的实体」状态列表（元素可能包在 ``states`` / ``changed_states`` 键里）。
+    """
+    if not entity_id:
+        return False
+
+    def _iter_states(value: Any):
+        if isinstance(value, list):
+            for item in value:
+                yield from _iter_states(item)
+        elif isinstance(value, dict):
+            for key in ("states", "changed_states"):
+                nested = value.get(key)
+                if isinstance(nested, list):
+                    yield from _iter_states(nested)
+            if "entity_id" in value or "state" in value:
+                yield value
+
+    for state in _iter_states(body):
+        if not isinstance(state, dict) or state.get("entity_id") != entity_id:
+            continue
+        # 仅把 unavailable 视为失败：button/script 等实体的正常态就是 unknown，
+        # 一律判失败会误伤合法调用。
+        if str(state.get("state") or "").lower() == "unavailable":
+            return True
+    return False
+
+
 def bypass_env_proxy(base_url: str) -> bool:
     """返回该目标是否必须绕过环境代理直连。
 
@@ -544,13 +575,19 @@ class HAClient:
             async with self._control_http_client() as client:
                 response = await client.post(url, json=payload)
                 response.raise_for_status()
-                return response.json()
+                body = response.json()
         except httpx.HTTPStatusError as error:
             raise HAClientError(
                 f'Home Assistant 服务调用返回 HTTP {error.response.status_code}。'
             ) from error
         except (httpx.HTTPError, ValueError) as error:
             raise HAClientError(f'Home Assistant 服务调用失败：{error}') from error
+        # HA 对不可用实体同样返回 HTTP 200（只是把该实体跳过），仅看状态码会把
+        # 「设备离线、指令根本没执行」误判为成功；这里按响应中的实体状态复核，
+        # 命中 unavailable 直接判失败，交由上层重试/回滚/提示。
+        if _response_reports_unavailable(body, entity_id):
+            raise HAClientError(f'实体 {entity_id} 当前不可用（unavailable），服务 {domain}.{service} 未生效。')
+        return body
 
     async def browse_media(
         self,

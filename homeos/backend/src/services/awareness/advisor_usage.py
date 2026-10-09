@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -29,9 +30,11 @@ from ..app_config.room_meta import (
     list_visible_env_sensor_map_room_ids,
 )
 from ..rooms import DEFAULT_ROOM_CATALOG, entity_matches_env_room
+from ..security.config import load_home_timezone
 from ...core.background import spawn_background
 from ...core.entity_domain import get_entity_domain
 from ...core.models import DeviceUsageStat
+from ...core.zoned_time import zoned_date_parts
 
 logger = logging.getLogger("homeos.awareness.advisor_usage")
 
@@ -47,10 +50,30 @@ _ON_STATES = frozenset({"on", "home", "playing"})
 _OFF_STATES = frozenset({"off", "idle", "standby", "paused"})
 
 
-def local_date_key(moment: datetime | None = None) -> str:
-    """本地日期键 ``YYYY-MM-DD``（对齐 ``localDateKey`` 无时区参数分支）。"""
-    value = moment or datetime.now()
-    return f"{value.year:04d}-{value.month:02d}-{value.day:02d}"
+def local_date_key(moment: datetime | None = None, timezone_name: str | None = None) -> str:
+    """家庭时区下的日期键 ``YYYY-MM-DD``（对齐 ``localDateKey`` 语义）。
+
+    使用统计按「家里的自然日」分桶：容器时区通常是 UTC，直接用本机日期会让
+    08:00（东八区）前后的统计落到错误的一天，7 天窗口也会整体偏移。
+    """
+    value = moment or datetime.now(UTC)
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    tz = _resolve_tz(timezone_name)
+    local = value.astimezone(tz) if tz is not None else value.astimezone()
+    return f"{local.year:04d}-{local.month:02d}-{local.day:02d}"
+
+
+def _resolve_tz(timezone_name: str | None):
+    from zoneinfo import ZoneInfo
+
+    name = str(timezone_name or "").strip()
+    if not name:
+        return None
+    try:
+        return ZoneInfo(name)
+    except Exception:
+        return None
 
 
 def _iso_utc(value: datetime | None) -> str | None:
@@ -70,6 +93,32 @@ class SmartAdvisorUsageHelper:
         self.device_usage: dict[str, dict[str, Any]] = {}
         #: 房间 → 设备 ID 列表（用于「忘了关...」检测）
         self.room_device_map: dict[str, list[str]] = {}
+        #: 家庭时区缓存（状态变更热路径，避免每条事件都读一次配置）
+        self._tz_cache_at = 0.0
+        self._tz_cache_value: str | None = None
+
+    # ------------------------------------------------------------------ #
+    # 家庭时区
+    # ------------------------------------------------------------------ #
+    def _timezone(self) -> str | None:
+        """家庭时区（``ops.homeTimezone``），带 60s 缓存。"""
+        now = time.monotonic()
+        if self._tz_cache_at and now - self._tz_cache_at < 60.0:
+            return self._tz_cache_value
+        try:
+            session_factory = self._deps["session_factory"]
+            with session_factory() as session:
+                self._tz_cache_value = load_home_timezone(session)
+        except Exception:
+            self._tz_cache_value = None
+        self._tz_cache_at = now
+        return self._tz_cache_value
+
+    def _local_day(self, days_ago: int = 0) -> str:
+        return local_date_key(datetime.now(UTC) - timedelta(days=days_ago), self._timezone())
+
+    def _local_hour(self) -> int:
+        return int(zoned_date_parts(datetime.now(UTC), self._timezone())["hour"])
 
     # ------------------------------------------------------------------ #
     # 房间设备映射
@@ -205,7 +254,9 @@ class SmartAdvisorUsageHelper:
     ) -> list[dict[str, Any]]:
         """检测遗忘设备：房间灯全关但空调/媒体仍运行（仅 06:00–23:00）。"""
         forgotten: list[dict[str, Any]] = []
-        hour = datetime.now().hour
+        # 遗忘提醒只在家庭当地 06:00–23:00 生效：容器 UTC 下直接取本机小时会
+        # 让提醒在家人睡觉时弹出、白天却静默。
+        hour = self._local_hour()
         if hour < 6 or hour > 23:
             return forgotten
 
@@ -343,7 +394,7 @@ class SmartAdvisorUsageHelper:
             entry = {"onCount": 0, "lastOn": 0, "totalRuntime": 0}
             self.device_usage[str(entity_id)] = entry
 
-        day = local_date_key()
+        day = self._local_day()
         now = datetime.now(UTC)
         now_ms = now.timestamp() * 1000
 
@@ -413,7 +464,7 @@ class SmartAdvisorUsageHelper:
 
     async def get_entity_usage(self, entity_id: str, days: int = 7) -> dict[str, Any]:
         safe_days = min(max(int(days), 1), 90)
-        since = local_date_key(datetime.now() - timedelta(days=safe_days))
+        since = self._local_day(safe_days)
         session_factory = self._deps["session_factory"]
         with session_factory() as session:
             rows = (
@@ -452,7 +503,7 @@ class SmartAdvisorUsageHelper:
 
     async def get_usage_summary(self, days: int = 7) -> dict[str, Any]:
         safe_days = min(max(int(days), 1), 90)
-        since = local_date_key(datetime.now() - timedelta(days=safe_days))
+        since = self._local_day(safe_days)
         session_factory = self._deps["session_factory"]
 
         with session_factory() as session:

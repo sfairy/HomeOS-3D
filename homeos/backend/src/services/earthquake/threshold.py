@@ -8,7 +8,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from .geo import estimate_local_intensity, haversine_distance_km
+from .geo import estimate_local_intensity, haversine_distance_km, hypocentral_distance_km
 
 
 def _to_float(value: Any) -> float:
@@ -45,9 +45,22 @@ def evaluate_local_quake_thresholds(
             _to_float(input_data.get("longitude")),
         )
 
+    # 震中位置/距离无效时不得按「0km」通过阈值（否则会误报「就在家门口」）。
+    if not math.isfinite(distance_km):
+        return {
+            "pass": False,
+            "distanceKm": distance_km,
+            "localIntensity": 1.0,
+            "reason": "震中位置或距离无效，无法评估本地影响",
+        }
+
+    # 本地烈度按震源距（含深度）估算：忽略深度会高估近场烈度。
+    depth_km = _to_float(input_data.get("depthKm")) if input_data.get("depthKm") is not None else 0.0
+    hypocenter_km = hypocentral_distance_km(distance_km, depth_km)
+
     local_intensity = estimate_local_intensity(
         mag,
-        distance_km,
+        hypocenter_km,
         {
             "homeLat": cfg["homeLat"],
             "homeLon": cfg["homeLon"],

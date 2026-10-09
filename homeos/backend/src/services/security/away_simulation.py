@@ -10,14 +10,18 @@ import contextlib
 import json
 import logging
 import random
+import time
 from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
 
 from .bus import LocalEventBus
+from .config import load_home_timezone
 from .layout import schedule_security_event
 from ...core.models import AwayPatternBucket
+from ...core.zoned_time import zoned_date_parts
 
 logger = logging.getLogger("homeos.security.away_sim")
 
@@ -51,6 +55,9 @@ class AwaySimulationService:
         self._pattern_buckets: dict[str, dict[str, Any]] = {}
         self._active_start_hour = 18
         self._active_end_hour = 23
+        #: 家庭时区缓存（tick 内会被多次调用，避免反复读配置）
+        self._tz_cache_at = 0.0
+        self._tz_cache_value: str | None = None
 
         bus.on(AWAY_SIM_SYNC_EVENT, self.handle_away_sim_sync)
 
@@ -228,13 +235,27 @@ class AwaySimulationService:
         except Exception as exc:
             logger.warning("加载 AwayPatternBucket 失败: %s", exc)
 
-    def _current_bucket(self) -> dict[str, Any] | None:
-        from datetime import datetime
+    def _timezone(self) -> str | None:
+        """家庭时区（``ops.homeTimezone``），带 60s 缓存。"""
+        now = time.monotonic()
+        if self._tz_cache_at and now - self._tz_cache_at < 60.0:
+            return self._tz_cache_value
+        try:
+            with self._session_factory() as session:
+                self._tz_cache_value = load_home_timezone(session)
+        except Exception:
+            self._tz_cache_value = None
+        self._tz_cache_at = now
+        return self._tz_cache_value
 
-        now = datetime.now()
-        # JS getDay(): 0=周日；Python weekday(): 0=周一 → 对齐转换
-        dow = (now.weekday() + 1) % 7
-        return self._pattern_buckets.get(f"{dow}|{now.hour}")
+    def _local_parts(self) -> dict[str, int]:
+        """家庭当地的墙上时钟部件（活跃时段与模式桶都以家里的作息为准）。"""
+        return zoned_date_parts(datetime.now(UTC), self._timezone())
+
+    def _current_bucket(self) -> dict[str, Any] | None:
+        parts = self._local_parts()
+        # zoned_date_parts 的 weekday 已对齐 JS getDay()（0=周日）
+        return self._pattern_buckets.get(f"{parts['weekday']}|{parts['hour']}")
 
     # ------------------------------------------------------------------ #
     # 启用 / 停用
@@ -357,9 +378,7 @@ class AwaySimulationService:
             logger.warning("离家模拟执行失败: %s", exc)
 
     def _is_active_hour(self) -> bool:
-        from datetime import datetime
-
-        hour = datetime.now().hour
+        hour = self._local_parts()["hour"]
         if self._active_start_hour <= self._active_end_hour:
             return self._active_start_hour <= hour < self._active_end_hour
         return hour >= self._active_start_hour or hour < self._active_end_hour

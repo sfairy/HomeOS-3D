@@ -1,9 +1,8 @@
 """地震地理计算工具（对齐 ``@homeos/shared/earthquake/geo.util`` + ``eew-countdown-lead``）。
 
-- Haversine 大圆距离；
+- Haversine 大圆距离与震源距；
 - S 波到达倒计时；
 - 本地烈度估算（含四川盆地软土放大修正）；
-- EEW payload 的距离/倒计时/烈度精细化；
 - 演练倒计时阈值归一化与演练事件判定。
 """
 
@@ -24,7 +23,13 @@ EEW_COUNTDOWN_LEAD_OPTIONS = (60, 30, 0)
 
 
 def haversine_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Haversine 大圆距离（km）；浮点误差夹紧到 [0,1] 保证极值仍返回有限距离。"""
+    """Haversine 大圆距离（km）；浮点误差夹紧到 [0,1] 保证极值仍返回有限距离。
+
+    任一坐标为非有限数（NaN/Inf）时返回 ``NaN``，交由调用方判定，
+    避免 ``min/max`` 夹紧把无效坐标静默变成 0km（会误判为「就在家门口」）。
+    """
+    if not all(math.isfinite(v) for v in (lat1, lon1, lat2, lon2)):
+        return float("nan")
     d_lat = math.radians(lat2 - lat1)
     d_lon = math.radians(lon2 - lon1)
     a = (
@@ -44,6 +49,18 @@ def compute_s_wave_countdown(distance_km: float, origin_time_ms: float, now_ms: 
     travel_time = distance_km / S_WAVE_SPEED_KM_S
     elapsed = (now_ms - origin_time_ms) / 1000
     return travel_time - elapsed
+
+
+def hypocentral_distance_km(epicentral_km: float, depth_km: float) -> float:
+    """由震中距与震源深度求震源距（km）：``sqrt(epi² + depth²)``。
+
+    忽略深度会低估地震波传播距离，导致倒计时偏短、本地烈度偏高。
+    非法/负深度按 0 处理；震中距非有限时返回 ``NaN``。
+    """
+    if not math.isfinite(epicentral_km):
+        return float("nan")
+    depth = depth_km if math.isfinite(depth_km) and depth_km > 0 else 0.0
+    return math.sqrt(epicentral_km * epicentral_km + depth * depth)
 
 
 def is_in_sichuan_basin(lat: Any, lon: Any) -> bool:
@@ -101,34 +118,6 @@ def estimate_local_intensity(
     return max(1.0, min(12.0, round(raw * 10) / 10))
 
 
-def refine_alert_countdown(
-    payload: dict[str, Any],
-    home_lat: float,
-    home_lon: float,
-    now_ms: float,
-) -> dict[str, float]:
-    """基于 EEW payload 与家庭坐标计算距离 / 倒计时 / 本地烈度（各保留 1 位小数）。"""
-    distance = haversine_distance_km(
-        home_lat, home_lon, float(payload["latitude"]), float(payload["longitude"])
-    )
-    countdown = compute_s_wave_countdown(distance, float(payload["originTime"]), now_ms)
-    local_intensity = estimate_local_intensity(
-        float(payload["magnitude"]),
-        distance,
-        {
-            "homeLat": home_lat,
-            "homeLon": home_lon,
-            "epicenterLat": payload["latitude"],
-            "epicenterLon": payload["longitude"],
-        },
-    )
-    return {
-        "distance": round(distance * 10) / 10,
-        "countdown": round(countdown * 10) / 10,
-        "localIntensity": local_intensity,
-    }
-
-
 def normalize_eew_countdown_lead(raw: Any) -> int:
     """规范化演练 lead 秒数；缺失/非法回退 60（0 表示横波已到达）。"""
     if raw is None or raw is False:
@@ -162,9 +151,9 @@ __all__ = [
     "compute_s_wave_countdown",
     "estimate_local_intensity",
     "haversine_distance_km",
+    "hypocentral_distance_km",
     "is_eew_simulation_event_id",
     "is_in_sichuan_basin",
     "is_valid_home_coordinate",
     "normalize_eew_countdown_lead",
-    "refine_alert_countdown",
 ]

@@ -57,6 +57,10 @@ NONCE_TTL_SECONDS = 24 * 3600
 #: 「上一次其实已经受理了、只是响应丢了」，改文案会让它把可自愈的重发当成授权失败。
 NONCE_REPLAY_DETAIL = "请求随机数已使用，请重新发起请求。"
 
+#: 惰性清理的最小间隔（秒）。随机数按 ``expires_at`` 过期，清理动作没必要每个请求都跑：
+#: 心跳是高频接口，逐次 DELETE 会给每次授权请求都压一次写事务（SQLite 下尤为明显）。
+NONCE_CLEANUP_INTERVAL_SECONDS = 3600
+
 
 class LicenseAuthority:
     """持有密钥环，负责全部租约签发逻辑。"""
@@ -70,6 +74,8 @@ class LicenseAuthority:
         self.settings = settings
         self.database = database
         self.keyring = keyring
+        #: 上次清理过期随机数的时间（节流用，见 ``_maybe_cleanup_nonces``）
+        self._last_nonce_cleanup_at: datetime | None = None
 
     def activate(
         self,
@@ -314,8 +320,8 @@ class LicenseAuthority:
                 code="NONCE_MISSING",
             )
         key = token_hash(f"{NONCE_HASH_PREFIX}\x00{scope}\x00{nonce}")
-        # 惰性清理：每次受理顺手删掉已过期的行，省掉一个定时任务。
-        session.execute(delete(LicenseNonce).where(LicenseNonce.expires_at <= now))
+        # 惰性清理已过期行：按最小间隔节流，避免每次请求都压一次全表 DELETE。
+        self._maybe_cleanup_nonces(session, now)
         if session.get(LicenseNonce, key) is not None:
             logger.info("授权请求随机数被重放 scope=%s", scope)
             raise LicenseServerError(
@@ -329,6 +335,18 @@ class LicenseAuthority:
             )
         )
         session.flush()
+
+    def _maybe_cleanup_nonces(self, session: Session, now: datetime) -> None:
+        """按最小间隔清理过期随机数（把逐请求的全表 DELETE 移出请求热路径）。"""
+        last = self._last_nonce_cleanup_at
+        if last is not None and (now - last).total_seconds() < NONCE_CLEANUP_INTERVAL_SECONDS:
+            return
+        # 先记时间再执行：即便清理失败也不必让每个后续请求反复重试同一条 DELETE。
+        self._last_nonce_cleanup_at = now
+        try:
+            session.execute(delete(LicenseNonce).where(LicenseNonce.expires_at <= now))
+        except Exception as exc:
+            logger.warning("清理过期授权随机数失败: %s", exc)
 
     @staticmethod
     def reported_lease_sequence(payload: dict) -> int:
