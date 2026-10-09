@@ -2,6 +2,7 @@
 @import "../nas/nas-panel.css?v=20260909-nas-scroll-v1";
 @import "../climate/climate-panel.css?v=20260929-picker-press-overflow-v1";
 @import "../cover/cover-panel.css?v=20260909-curtain-action-v15-20260926-airer-v2";
+@import "./stage-device-visual.css?v=20261010-device-visual-dream-v3";
 .interaction3d-stage.is-render-suspended *,
 .interaction3d-stage.is-render-suspended *:before,
 .interaction3d-stage.is-render-suspended *:after {
@@ -365,16 +366,23 @@ body.interaction3d-stage.is-background-hidden,
 }
 .interaction3d-stage .i3d-light-panel header {
   position: relative;
+  z-index: 1;
   flex: 0 0 112px;
   display: block;
   min-width: 0;
   padding: 10px 132px 12px 0;
   box-sizing: border-box;
+  overflow: visible;
 }
 .interaction3d-stage .i3d-light-heading-text {
   position: relative;
   z-index: 2;
   min-width: 0;
+}
+.interaction3d-stage .i3d-light-controls,
+.interaction3d-stage .i3d-control-error {
+  position: relative;
+  z-index: 3;
 }
 .interaction3d-stage .i3d-light-panel header strong {
   display: -webkit-box;
@@ -408,11 +416,13 @@ body.interaction3d-stage.is-background-hidden,
   --i3d-lamp-opacity: 0.8;
   --i3d-lamp-scale: 1;
   position: absolute;
-  top: -8px;
-  right: -10px;
+  z-index: 1;
+  top: 0;
+  right: 0;
+  bottom: 0;
   display: block;
-  width: 144px;
-  height: 128px;
+  width: 120px;
+  height: auto;
   min-width: 0;
   min-height: 0;
   margin: 0;

@@ -9,6 +9,7 @@ import {
 import { airerMapControlPosition, airerMapControlService } from "../airer/airer-direction";
 import { domElement } from "@app/utils/dom-factory";
 import { applyRangeProgressCss } from "@app/utils/range-progress";
+import { createStageDeviceVisual } from "../core/stage-device-visual";
 /** cover 面板的宿主元素与回调； */
 type CoverPanelOptions = {
   element?: any;
@@ -50,8 +51,49 @@ export function createCoverPanel({
   rootElement.classList.add("i3d-cover-panel");
   const headingElement = createElement("div", "i3d-cover-heading"),
     titleElement = createElement("h3", "", "窗帘"),
-    statusElement = createElement("p", "", "尚未绑定设备");
-  headingElement.append(titleElement, statusElement);
+    statusElement = createElement("p", "", "尚未绑定设备"),
+    headingTextElement = createElement("div", "i3d-cover-heading-text");
+  const deviceVisual = createStageDeviceVisual({
+    kind: "cover",
+    document: ownerDocument,
+    onActivate: () => {
+      if (!canControl()) return;
+      const presentation = resolvePresentation();
+      if (
+        presentation.moving ||
+        deviceState.moving ||
+        (pendingIntent &&
+          !pendingIntent.confirmed &&
+          ["open_cover", "close_cover", "set_cover_position"].includes(pendingIntent.service))
+      ) {
+        deviceState.stopSupported && requestControl("stop_cover");
+        return;
+      }
+      // 梦幻帘点击角标切换整体轨道开合，不用叶片角度判断
+      const isDream = viewModel.item?.coverKind === "dream";
+      const currentPosition =
+        draftPosition ??
+        presentation.position ??
+        deviceState.position ??
+        (presentation.on ? 100 : 0);
+      const isOpen = isDream
+        ? !!(
+            presentation.on ||
+            presentation.state === "open" ||
+            presentation.state === "opening" ||
+            (presentation.position ?? 0) > 0
+          )
+        : !!(
+            presentation.on ||
+            currentPosition > 0 ||
+            presentation.state === "open" ||
+            presentation.state === "opening"
+          );
+      requestControl(isOpen ? "close_cover" : "open_cover");
+    },
+  });
+  (headingTextElement.append(titleElement, statusElement),
+    headingElement.append(headingTextElement, deviceVisual.root));
   const bladeHintElement = createElement("p", "i3d-cover-blade-hint", "叶片角度 · 50% 为 90°打开");
   bladeHintElement.hidden = true;
   const controlsSlotElement = createElement("div", "i3d-cover-controls-slot"),
@@ -511,13 +553,68 @@ export function createCoverPanel({
         : isDreamCover
           ? "反向闭合"
           : "打开"));
-    const displayPosition =
-      draftPosition ??
+    // 普通帘：开合位；梦幻帘滑杆是叶片角度，轨道开合另算
+    const displayPosition = isDreamCover
+      ? (draftPosition ?? resolveDreamBladePosition())
+      : resolveTargetPosition();
+    const railPending =
+      !!pendingIntent &&
+      !pendingIntent.confirmed &&
+      !pendingIntent.blade &&
+      ["open_cover", "close_cover", "set_cover_position"].includes(pendingIntent.service);
+    const bladePending =
+      !!pendingIntent &&
+      !pendingIntent.confirmed &&
+      (!!pendingIntent.blade ||
+        pendingIntent.service === "set_cover_tilt_position");
+    const visualMoving = !!(
+      presentation.moving ||
+      deviceState.moving ||
+      railPending ||
+      bladePending ||
+      (isDreamCover && draftPosition !== null)
+    );
+    const visualRailPosition = isDreamCover
+      ? railPending
+        ? pendingIntent!.service === "open_cover"
+          ? 100
+          : pendingIntent!.service === "close_cover"
+            ? 0
+            : (pendingIntent!.target ?? presentation.position ?? 0)
+        : (presentation.position ??
+          (presentation.on ||
+          presentation.state === "open" ||
+          presentation.state === "opening"
+            ? 100
+            : 0))
+      : (displayPosition ??
+        presentation.position ??
+        (presentation.on || pendingIntent?.service === "open_cover" ? 100 : 0));
+    const visualTiltPosition = isDreamCover
+      ? (displayPosition ?? deviceState.tiltPosition ?? 50)
+      : null;
+    const visualOn = !!(
+      deviceState.available &&
       (isDreamCover
-        ? resolveDreamBladePosition()
-        : presentation.estimated
-          ? deviceState.position
-          : presentation.position);
+        ? railPending
+          ? pendingIntent!.service === "open_cover" ||
+            (pendingIntent!.service === "set_cover_position" && (pendingIntent!.target ?? 0) > 0)
+          : pendingIntent?.service === "close_cover" && !pendingIntent.blade
+            ? false
+            : presentation.on ||
+              presentation.state === "open" ||
+              presentation.state === "opening" ||
+              (presentation.position ?? 0) > 0
+        : pendingIntent?.service === "open_cover" ||
+          (pendingIntent?.service === "set_cover_position" && (pendingIntent.target ?? 0) > 0) ||
+          (pendingIntent?.service === "close_cover"
+            ? false
+            : presentation.on ||
+              presentation.position > 0 ||
+              presentation.state === "open" ||
+              presentation.state === "opening" ||
+              (visualRailPosition ?? 0) > 0))
+    );
     ((positionOutputElement.textContent =
       displayPosition === null ? "未知" : Math.round(displayPosition) + "%"),
       (positionOutputElement.title = isAirerItem
@@ -607,6 +704,35 @@ export function createCoverPanel({
       ),
       syncSlider(),
       syncTiltSection());
+    const lightExtra =
+        viewModel.item?.extraControls?.find(
+          (extraControl: any) =>
+            extraControl?.domain === "light" ||
+            String(extraControl?.entityId || "").startsWith("light."),
+        ) || null,
+      lightStateEntry = lightExtra?.entityId
+        ? viewModel.states?.[lightExtra.entityId] ||
+          (viewModel.states instanceof Map
+            ? viewModel.states.get(lightExtra.entityId)
+            : null)
+        : null,
+      lightStateValue = String(
+        lightStateEntry?.newState?.state ?? lightStateEntry?.state ?? "",
+      ).toLowerCase();
+    deviceVisual.sync({
+      kind: isAirerItem ? "airer" : "cover",
+      dream: isDreamCover,
+      on: visualOn,
+      available: !!deviceState.available,
+      disabled: !canControl(),
+      interactive: canControl(),
+      label: titleElement.textContent || (isAirerItem ? "晾衣架" : "窗帘"),
+      position: visualRailPosition,
+      tiltPosition: visualTiltPosition,
+      moving: visualMoving,
+      coverDirection: viewModel.item?.coverDirection || viewModel.item?.direction || "split",
+      lightOn: lightStateValue === "on",
+    });
   }
   function update(nextViewModel: CoverPanelViewModel = {}) {
     if (isDisposed) return;
@@ -714,6 +840,7 @@ export function createCoverPanel({
       instanceId++,
       clearPendingIntent(),
       purifierExtrasController.dispose(),
+      deviceVisual.dispose(),
       replaceChildren(rootElement));
   }
   return (

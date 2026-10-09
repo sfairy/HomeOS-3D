@@ -2,6 +2,7 @@ import { speakerState, speakerCommand } from "./speaker-state";
 import { televisionTime } from "../television/television-state";
 import { domElement } from "@app/utils/dom-factory";
 import { syncHtmlRangeProgress } from "@app/utils/range-progress";
+import { createStageDeviceVisual } from "../core/stage-device-visual";
 export function createSpeakerPanel({
   onControl: sendCommand = async (_commandArgs: any) => {},
   fetchMedia: fetchMedia = (fetchUrl: any, fetchInit: any) => fetch(fetchUrl, fetchInit),
@@ -14,8 +15,20 @@ export function createSpeakerPanel({
     titleElement = createElement("h3"),
     statusElement = createElement("span", "i3d-tv-status"),
     headingTextElement = createElement("div", "i3d-popup-heading-text");
+  const deviceVisual = createStageDeviceVisual({
+    kind: "speaker",
+    onActivate: () => {
+      if (!activeEntity || isDisposed) return;
+      const entityState = speakerState(activeEntity.item, activeEntity.states);
+      if (!entityState.available) return;
+      const effectiveOn = draftPowerOn ?? !!entityState.on;
+      const targetService = effectiveOn ? "turn_off" : "turn_on";
+      if (!entityState.supports(targetService)) return;
+      void executeCommand(targetService);
+    },
+  });
   (headingTextElement.append(titleElement, statusElement),
-    headingElement.append(headingTextElement));
+    headingElement.append(headingTextElement, deviceVisual.root));
   const contentElement = createElement("div", "i3d-tv-content"),
     artworkImage = createElement("img", "i3d-tv-artwork"),
     detailsElement = createElement("div", "i3d-tv-details"),
@@ -53,11 +66,26 @@ export function createSpeakerPanel({
     refreshIntervalId: any = null,
     browseAbortController: any = null,
     breadcrumbPath: any = [],
-    artworkUrl = "";
+    artworkUrl = "",
+    draftPowerOn: boolean | null = null,
+    draftPlaying: boolean | null = null,
+    draftTimeoutId: any = null;
   const controlBindings: any = [],
     pendingCommandMap = new Map(),
+    clearVisualDraft = () => {
+      (draftTimeoutId !== null && clearTimeout(draftTimeoutId),
+        (draftTimeoutId = null),
+        (draftPowerOn = null),
+        (draftPlaying = null));
+    },
+    armVisualDraftTimeout = () => {
+      draftTimeoutId !== null && clearTimeout(draftTimeoutId);
+      draftTimeoutId = setTimeout(() => {
+        ((draftTimeoutId = null), (draftPowerOn = null), (draftPlaying = null), isDisposed || renderPanel());
+      }, 8000);
+    },
     resolveServiceGroup = (serviceName: any) =>
-      ["media_play", "media_pause"].includes(serviceName)
+      ["media_play", "media_pause", "media_stop"].includes(serviceName)
         ? "playback"
         : ["volume_set", "volume_up", "volume_down"].includes(serviceName)
           ? "volume"
@@ -72,8 +100,14 @@ export function createSpeakerPanel({
       !stateSnapshot.available ||
       (guardService && isServicePending(guardService));
   async function executeCommand(targetService: any, serviceData: Record<string, any> = {}, messageElement = errorElement) {
-    if (!activeEntity || isDisposed || activeEntity.editing || isServicePending(targetService))
-      return;
+    if (!activeEntity || isDisposed || activeEntity.editing) return;
+    const serviceGroup = resolveServiceGroup(targetService);
+    // 电源组允许反向连点；同向重复则忽略
+    if (isServicePending(targetService)) {
+      if (serviceGroup !== "power") return;
+      const wantOn = targetService === "turn_on";
+      if (draftPowerOn !== null && draftPowerOn === wantOn) return;
+    }
     const commandSpec = speakerCommand(
       activeEntity.item,
       activeEntity.states,
@@ -82,9 +116,16 @@ export function createSpeakerPanel({
     );
     if (!commandSpec.enabled) return;
     const revisionAtStart = revisionCount,
-      serviceGroup = resolveServiceGroup(targetService),
       pendingToken: Record<string, any> = {};
-    (pendingCommandMap.set(serviceGroup, pendingToken),
+    (targetService === "turn_on"
+      ? ((draftPowerOn = true), armVisualDraftTimeout())
+      : targetService === "turn_off"
+        ? ((draftPowerOn = false), (draftPlaying = false), armVisualDraftTimeout())
+        : targetService === "media_play"
+          ? ((draftPlaying = true), (draftPowerOn = true), armVisualDraftTimeout())
+          : (targetService === "media_pause" || targetService === "media_stop") &&
+            ((draftPlaying = false), armVisualDraftTimeout()),
+      pendingCommandMap.set(serviceGroup, pendingToken),
       (messageElement.textContent = ""),
       renderPanel());
     try {
@@ -96,7 +137,8 @@ export function createSpeakerPanel({
       return (
         revisionAtStart === revisionCount &&
           !isDisposed &&
-          (messageElement.textContent = controlError?.message || "媒体控制失败，请重试。"),
+          (clearVisualDraft(),
+          (messageElement.textContent = controlError?.message || "媒体控制失败，请重试。")),
         false
       );
     } finally {
@@ -131,7 +173,7 @@ export function createSpeakerPanel({
       controlButton
     );
   }
-  const powerActionsElement = createElement("div", "i3d-popup-power-actions");
+  const powerActionsElement = createElement("div", "i3d-popup-power-actions is-visual-replaced");
   (headingElement.append(powerActionsElement),
     (createControlButton("开机", "turn_on", null, powerActionsElement).className = "i3d-tv-power"),
     (createControlButton("关机", "turn_off", null, powerActionsElement).className = "i3d-tv-power"),
@@ -527,12 +569,36 @@ export function createSpeakerPanel({
         refreshIntervalId === null &&
         !panelElement.hidden &&
         (refreshIntervalId = setInterval(renderPanel, 1000)));
+    draftPowerOn !== null && entityState.on === draftPowerOn && (draftPowerOn = null);
+    draftPlaying !== null && entityState.playing === draftPlaying && (draftPlaying = null);
+    draftPowerOn === null &&
+      draftPlaying === null &&
+      draftTimeoutId !== null &&
+      (clearTimeout(draftTimeoutId), (draftTimeoutId = null));
+    const effectiveOn = draftPowerOn ?? !!entityState.on,
+      effectivePlaying = draftPlaying ?? !!entityState.playing;
+    const canTogglePower =
+      entityState.available &&
+      !activeEntity.editing &&
+      (entityState.supports("turn_on") || entityState.supports("turn_off"));
+    deviceVisual.sync({
+      kind: "speaker",
+      on: effectiveOn,
+      available: !!entityState.available,
+      playing: effectivePlaying,
+      busy: isServicePending("turn_on") || isServicePending("turn_off"),
+      disabled: !canTogglePower,
+      interactive: canTogglePower,
+      label: entityState.name || "音响",
+      artworkUrl: entityState.artwork || null,
+    });
   }
   function resetPanel() {
     (revisionCount++,
       closeLibrary(),
       (currentLibrary = null),
       pendingCommandMap.clear(),
+      clearVisualDraft(),
       refreshIntervalId !== null && clearInterval(refreshIntervalId),
       (refreshIntervalId = null),
       (breadcrumbPath = []),
@@ -559,7 +625,7 @@ export function createSpeakerPanel({
         ((panelElement.hidden = true), resetPanel(), (activeEntity = null));
     },
     dispose() {
-      isDisposed || (this.hide(), (isDisposed = true), panelElement.remove());
+      isDisposed || (this.hide(), (isDisposed = true), deviceVisual.dispose(), panelElement.remove());
     },
   };
 }

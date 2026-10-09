@@ -2,6 +2,7 @@ import { createPurifierExtras } from "../climate/purifier-extras";
 import { carState } from "../vehicle/car-state";
 import { deviceStatus } from "./device-status";
 import { genericDeviceProfile } from "./generic-device-catalog";
+import { createStageDeviceVisual } from "../core/stage-device-visual";
 export function createDevicePanel({ onControl: onControl, onLayout: onLayout = () => {} }: any) {
   const rootElement = document.createElement("div");
   ((rootElement.className = "i3d-climate-panel i3d-nas-panel i3d-device-panel"),
@@ -16,10 +17,14 @@ export function createDevicePanel({ onControl: onControl, onLayout: onLayout = (
   const headingElement = document.createElement("div");
   headingElement.className = "i3d-climate-heading i3d-nas-heading";
   const headingTextElement = document.createElement("div");
+  const deviceVisual = createStageDeviceVisual({
+    kind: "generic",
+    onActivate: undefined,
+  });
   ((headingTextElement.className = "i3d-climate-heading-text"),
     (badgeElement.hidden = true),
     headingTextElement.append(titleElement, statusElement),
-    headingElement.append(headingTextElement, badgeElement));
+    headingElement.append(headingTextElement, badgeElement, deviceVisual.root));
   const bodyElement = document.createElement("div");
   ((bodyElement.className = "i3d-popup-body"),
     bodyElement.append(extraGridElement, hintElement),
@@ -71,9 +76,19 @@ export function createDevicePanel({ onControl: onControl, onLayout: onLayout = (
             },
           }));
       } else purifierExtras.update(incomingState);
+      deviceVisual.sync({
+        kind: "generic",
+        on: status.status === "normal",
+        available: status.status !== "unknown",
+        interactive: false,
+        disabled: true,
+        status: status.status || "unknown",
+        accent: status.color || "#c9a26d",
+        label: titleElement.textContent || "设备",
+      });
     },
     dispose() {
-      (purifierExtras.dispose(), rootElement.remove());
+      (purifierExtras.dispose(), deviceVisual.dispose(), rootElement.remove());
     },
   };
 }

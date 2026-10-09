@@ -7677,11 +7677,19 @@ export function showVacuumDetails(this: PanelRenderer,
       vacuumBatteryCaption = document.createElement("small");
     ((vacuumBatteryCaption.textContent = "电量"),
       vacuumBatteryElement.append(vacuumBatteryPercentLabel, vacuumBatteryCaption),
-      vacuumBatteryRingElement.append(vacuumRobotElement),
-      vacuumHeading.append(vacuumBatteryElement));
+      vacuumBatteryRingElement.append(vacuumRobotElement));
     const vacuumStatusLabel = document.createElement("span");
-    ((vacuumStatusLabel.className = "hb-vacuum-visual-status"),
-      vacuumVisualElement.append(vacuumBatteryRingElement, vacuumStatusLabel));
+    vacuumStatusLabel.className = "hb-vacuum-visual-status";
+    // 栈 D（3D）：标题右上角只挂机器人+电量角标；加专用 class，避免标题 > div 样式误套。
+    if (interaction3dInstance) {
+      (vacuumVisualElement.classList.add("i3d-vacuum-visual"),
+        vacuumVisualElement.append(vacuumBatteryRingElement, vacuumBatteryElement),
+        vacuumHeading.append(vacuumVisualElement));
+    } else {
+      (vacuumVisualElement.append(vacuumBatteryRingElement, vacuumStatusLabel),
+        vacuumHeading.append(vacuumBatteryElement),
+        vacuumOverviewSection.append(vacuumVisualElement));
+    }
     const vacuumStatsElement = document.createElement("div");
     vacuumStatsElement.className = "hb-vacuum-details-stats";
     const createVacuumStat = (statLabel: any, statIcon: any) => {
@@ -7703,8 +7711,7 @@ export function showVacuumDetails(this: PanelRenderer,
       },
       vacuumAreaStatElement = createVacuumStat("本次面积", "◇"),
       vacuumTimeStatElement = createVacuumStat("清扫时长", "◷");
-    (interaction3dInstance || vacuumOverviewSection.append(vacuumVisualElement),
-      vacuumOverviewSection.append(vacuumStatsElement));
+    vacuumOverviewSection.append(vacuumStatsElement);
     const vacuumControlsSection = document.createElement("section");
     vacuumControlsSection.className = "hb-vacuum-details-controls";
     const vacuumActions = document.createElement("div");
@@ -8116,13 +8123,56 @@ export function showVacuumDetails(this: PanelRenderer,
         vacuumActionService2(vacuumStateOptions, "start"),
         vacuumEntityId,
         {},
+        {
+          ...vacuumStateOptions,
+          state: "cleaning",
+          attributes: {
+            ...(vacuumStateOptions.attributes || {}),
+            status: "cleaning",
+            vacuum_state: "cleaning",
+            paused: false,
+            returning: false,
+          },
+        },
       ),
     ),
       pauseAction!.button.addEventListener("click", () =>
-        callVacuumService("vacuum", "pause", vacuumEntityId, {}),
+        callVacuumService(
+          "vacuum",
+          "pause",
+          vacuumEntityId,
+          {},
+          {
+            ...vacuumStateOptions,
+            state: "paused",
+            attributes: {
+              ...(vacuumStateOptions.attributes || {}),
+              status: "paused",
+              vacuum_state: "paused",
+              paused: true,
+              returning: false,
+            },
+          },
+        ),
       ),
       returnToBaseAction!.button.addEventListener("click", () =>
-        callVacuumService("vacuum", "return_to_base", vacuumEntityId, {}),
+        callVacuumService(
+          "vacuum",
+          "return_to_base",
+          vacuumEntityId,
+          {},
+          {
+            ...vacuumStateOptions,
+            state: "returning",
+            attributes: {
+              ...(vacuumStateOptions.attributes || {}),
+              status: "returning",
+              vacuum_state: "returning",
+              paused: false,
+              returning: true,
+            },
+          },
+        ),
       ),
       stopAction!.button.addEventListener("click", () =>
         callVacuumService(
@@ -8130,13 +8180,40 @@ export function showVacuumDetails(this: PanelRenderer,
           vacuumActionService2(vacuumStateOptions, "stop"),
           vacuumEntityId,
           {},
+          {
+            ...vacuumStateOptions,
+            state: "idle",
+            attributes: {
+              ...(vacuumStateOptions.attributes || {}),
+              status: "idle",
+              vacuum_state: "idle",
+              paused: false,
+              returning: false,
+            },
+          },
         ),
       ),
       locateAction!.button.addEventListener("click", () =>
         callVacuumService("vacuum", "locate", vacuumEntityId, {}),
       ),
       cleanSpotAction!.button.addEventListener("click", () =>
-        callVacuumService("vacuum", "clean_spot", vacuumEntityId, {}),
+        callVacuumService(
+          "vacuum",
+          "clean_spot",
+          vacuumEntityId,
+          {},
+          {
+            ...vacuumStateOptions,
+            state: "cleaning",
+            attributes: {
+              ...(vacuumStateOptions.attributes || {}),
+              status: "cleaning",
+              vacuum_state: "cleaning",
+              paused: false,
+              returning: false,
+            },
+          },
+        ),
       ),
       applyVacuumState(vacuumStateOptions));
     const vacuumOverlay = document.createElement("div");

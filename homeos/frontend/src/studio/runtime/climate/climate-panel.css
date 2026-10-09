@@ -28,6 +28,10 @@
 .i3d-climate-panel[data-climate-mode="heat"] {
   --i3d-climate-accent: #ff8a65;
 }
+.i3d-climate-panel[data-climate-mode="fan"],
+.i3d-climate-panel[data-climate-mode="other"] {
+  --i3d-climate-accent: #c9a26d;
+}
 .i3d-climate-panel[data-climate-mode="off"] {
   --i3d-climate-accent: #65717a;
 }

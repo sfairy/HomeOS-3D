@@ -5,6 +5,7 @@ import {
   televisionMediaControl,
 } from "./television-state";
 import { domElement } from "@app/utils/dom-factory";
+import { createStageDeviceVisual } from "../core/stage-device-visual";
 export function createTelevisionPanel({
   onControl: onControl = async () => {},
 }: { onControl?: (command?: any) => any } = {}) {
@@ -63,9 +64,20 @@ export function createTelevisionPanel({
     }));
   const headingTextElement = createElement("div", "i3d-popup-heading-text"),
     powerActionsElement = createElement("div", "i3d-popup-power-actions");
+  const deviceVisual = createStageDeviceVisual({
+    kind: "television",
+    onActivate: () => {
+      if (!viewModel || isDisposed) return;
+      const powerState = televisionPower(viewModel.item, viewModel.states);
+      if (!powerState.available || !powerState.supported) return;
+      const effectiveOn = pendingPower !== null ? !!pendingPower : !!powerState.on;
+      sendPower(!effectiveOn);
+    },
+  });
   (headingTextElement.append(titleElement, statusElement),
     powerActionsElement.append(powerOnButton, powerOffButton),
-    headingElement.append(headingTextElement, powerActionsElement),
+    powerActionsElement.classList.add("is-visual-replaced"),
+    headingElement.append(headingTextElement, powerActionsElement, deviceVisual.root),
     detailsElement.append(mediaTitleElement, mediaMetaElement, progressElement, timeElement),
     contentElement.append(artworkElement, detailsElement));
   const bodyElement = createElement("div", "i3d-popup-body");
@@ -88,11 +100,14 @@ export function createTelevisionPanel({
       (isPowerConfirmed = false));
   }
   async function sendPower(powerOn: any) {
-    if (!viewModel || isDisposed || viewModel.editing || isBusy || pendingPower !== null) return;
+    if (!viewModel || isDisposed || viewModel.editing || isBusy) return;
+    // 已在朝该目标切换时忽略；允许反向再点一次（取消/改发对面状态）
+    if (pendingPower !== null && pendingPower === powerOn) return;
     const powerControl = televisionPower(viewModel.item, viewModel.states, powerOn);
     if (!powerControl.available || !powerControl.supported) return;
     const powerInstanceAtSend = instanceId;
-    ((pendingPower = powerOn),
+    (powerTimeoutId !== null && clearTimeout(powerTimeoutId),
+      (pendingPower = powerOn),
       (isPowerConfirmed = false),
       (errorElement.textContent = ""),
       render(),
@@ -101,10 +116,14 @@ export function createTelevisionPanel({
       }, 14000)));
     try {
       (await onControl(powerControl.command),
-        !isDisposed && powerInstanceAtSend === instanceId && ((isPowerConfirmed = true), render()));
+        !isDisposed &&
+          powerInstanceAtSend === instanceId &&
+          pendingPower === powerOn &&
+          ((isPowerConfirmed = true), render()));
     } catch (powerError: any) {
       !isDisposed &&
         powerInstanceAtSend === instanceId &&
+        pendingPower === powerOn &&
         (clearPendingPower(),
         (errorElement.textContent = powerError?.message || "开关机失败，请重试。"),
         render());
@@ -121,6 +140,8 @@ export function createTelevisionPanel({
       pendingPower === powerState.on &&
       powerState.available &&
       clearPendingPower();
+    const effectiveOn = pendingPower !== null ? !!pendingPower : !!state.on,
+      effectivePlaying = effectiveOn && !!state.playing;
     for (const [powerButton, desiredOn] of [
       [powerOnButton, true],
       [powerOffButton, false],
@@ -138,7 +159,7 @@ export function createTelevisionPanel({
         (powerButton.disabled =
           !!viewModel.editing ||
           isBusy ||
-          pendingPower !== null ||
+          (pendingPower !== null && pendingPower === desiredOn) ||
           !buttonControl.available ||
           !buttonControl.supported),
         (powerButton.title = viewModel.editing ? "编辑预览不可控制设备" : buttonControl.reason));
@@ -155,7 +176,7 @@ export function createTelevisionPanel({
           ? "上一集"
           : mediaAction === "next"
             ? "下一集"
-            : state.playing
+            : effectivePlaying
               ? "暂停"
               : "播放"),
         mediaButton.setAttribute("aria-label", mediaButton.textContent),
@@ -164,8 +185,13 @@ export function createTelevisionPanel({
         (mediaButton.title = mediaControlState.enabled ? "" : "当前设备状态或播放器不支持此操作"));
     }
     ((titleElement.textContent = state.name),
-      (statusElement.textContent = state.status),
-      (mediaTitleElement.textContent = state.on ? state.title : state.status),
+      (statusElement.textContent =
+        pendingPower !== null
+          ? pendingPower
+            ? "开机中…"
+            : "关机中…"
+          : state.status),
+      (mediaTitleElement.textContent = effectiveOn ? state.title : state.status),
       (mediaMetaElement.textContent = [state.app, state.artist].filter(Boolean).join(" · ") || "—"),
       (mediaMetaElement.hidden = false),
       state.artwork !== artworkUrl &&
@@ -183,9 +209,22 @@ export function createTelevisionPanel({
       (progressElement.value = state.position || 0),
       (timeElement.textContent =
         televisionTime(state.position) + " / " + televisionTime(state.duration)),
-      !state.playing &&
+      !effectivePlaying &&
         progressTimerId !== null &&
         (clearInterval(progressTimerId), (progressTimerId = null)));
+    const canTogglePower =
+      powerState.available && powerState.supported && !viewModel.editing && !isBusy;
+    deviceVisual.sync({
+      kind: "television",
+      on: effectiveOn,
+      available: !!powerState.available,
+      playing: effectivePlaying,
+      busy: pendingPower !== null || isBusy,
+      disabled: !canTogglePower,
+      interactive: canTogglePower,
+      label: state.name || "电视",
+      artworkUrl: state.artwork || null,
+    });
   }
   return {
     root: rootElement,
@@ -210,6 +249,7 @@ export function createTelevisionPanel({
         this.hide(),
         (viewModel = null),
         artworkElement.removeAttribute("src"),
+        deviceVisual.dispose(),
         rootElement.remove());
     },
   };
