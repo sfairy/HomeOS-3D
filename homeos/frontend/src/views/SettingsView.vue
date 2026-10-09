@@ -103,10 +103,10 @@ import { useEntitiesStore } from '@/stores/entities.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useAuthStore } from '@/stores/auth.store'
-import { useSettingsSave } from '@/composables/settings/hub-ui.internals'
-import { useSettingsPendingChanges } from '@/composables/settings/pending.internals'
-import SettingsSidebar from '@/views/settings/shared/layout/SettingsSidebar.vue'
-import SettingsOverviewStrip from '@/views/settings/shared/layout/SettingsOverviewStrip.vue'
+import { useSettingsSave } from '@/features/settings/composables/hub-ui.internals'
+import { useSettingsPendingChanges } from '@/features/settings/composables/pending.internals'
+import SettingsSidebar from '@/features/settings/shared/layout/SettingsSidebar.vue'
+import SettingsOverviewStrip from '@/features/settings/shared/layout/SettingsOverviewStrip.vue'
 import {
   PANEL_MAP,
   buildNavGroups,
@@ -117,29 +117,29 @@ import {
   defaultTabForRole,
   resolveDefaultSettingsTab,
   INDEPENDENT_SAVE_TABS,
-} from '@/views/settings/nav'
+} from '@/features/settings/nav'
 import { isTabFeatureGranted } from '@/utils/registry/settings-nav.util'
 import { useLicenseFeatureAccess } from '@/router/license-gate'
 import {
   hasIndependentSettingsPending,
   getIndependentPendingTabIds,
   isSettingsTabPending,
-} from '@/composables/settings/pending.internals'
+} from '@/features/settings/composables/pending.internals'
 import {
   registerGlobalLayoutPendingSnapshot,
   registerGlobalPendingPause,
-} from '@/composables/settings/pending.internals'
+} from '@/features/settings/composables/pending.internals'
 import { tabLabel } from '@/utils/registry/settings-nav.util'
-import { countNavTabs, resolveNavTabContext } from '@/views/settings/nav-search.util'
+import { countNavTabs, resolveNavTabContext } from '@/features/settings/nav-search.util'
 import {
   SETTINGS_KEEP_ALIVE_MAX,
   SETTINGS_KEEP_ALIVE_INCLUDE,
-} from '@/views/settings/keep-alive.util'
+} from '@/features/settings/keep-alive.util'
 import { settingsPageShareUrl } from '@/utils/registry/settings-route.util'
 import { recordSettingsTabVisit } from '@/utils/registry/settings-recent-tabs.util'
 import { copyTextWithNotify } from '@/services/notify'
 import pkg from '../../package.json'
-import '@/views/settings/shared/settings-theme.css'
+import '@/features/settings/shared/settings-theme.css'
 
 const appVersion = pkg.version
 

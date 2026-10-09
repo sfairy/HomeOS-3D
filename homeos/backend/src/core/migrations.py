@@ -1,10 +1,10 @@
 """启动时的数据库迁移（SQLite）。
 
-沿用 homeos-3d 的「锁 → 备份 → upgrade」约定，并保留升级前快照与失败自动回滚：
+约定：锁 → 备份 → upgrade；升级前快照，失败自动回滚。
 
-- 发行产物不带迁移脚本时（``migrations/`` 不存在），按 ORM 元数据建库并写入基线版本号；
-- 开发期存在脚本目录时校验其 head 与常量 ``SCHEMA_REVISION`` 一致；
-- 老结构（有业务表却无 ``alembic_version``）拒绝自动改写，提示先备份/导出。
+- 发行产物不带迁移脚本时按 ORM 元数据建库并写入基线版本号；
+- 开发期校验脚本 head 与 ``SCHEMA_REVISION`` 一致；
+- 有业务表却无 ``alembic_version`` 的库拒绝自动改写。
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ from ..config import Settings
 from .file_lock import locked_file
 
 #: 结构基线版本号。发行产物不带迁移脚本，新库直接按 ORM 元数据建好后写入这个版本号。
-SCHEMA_REVISION = "0002"
+SCHEMA_REVISION = "0001"
 MIGRATION_LOCK_SUFFIX = ".migrate.lock"
 DATA_COMPATIBILITY_FILE = "data-compatibility.json"
 DATA_COMPATIBILITY_FORMAT = 1

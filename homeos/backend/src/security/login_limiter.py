@@ -1,8 +1,7 @@
-"""登录失败限流：内存滑动窗口 + 封禁（对齐 homeos-3d ``auth_limiter.py``）。
+"""登录失败限流：内存滑动窗口 + 封禁。
 
-homeos 既有的 ``security.limiter.rate_limit`` 是「按 IP + 路由」的固定窗口粗粒度节流；
-本模块补齐 **按账号 + IP 的失败计数与封禁**，用于登录、授权激活这类需要
-「连续失败即封禁、成功即清零」语义的场景。
+``security.limiter.rate_limit`` 是按 IP + 路由的固定窗口节流；本模块补齐按账号 + IP
+的失败计数与封禁，用于登录、授权激活等「连续失败即封禁、成功即清零」场景。
 """
 
 from __future__ import annotations

@@ -9,12 +9,12 @@ from urllib.parse import parse_qsl
 
 from fastapi import APIRouter, BackgroundTasks, Body, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
-from sqlalchemy import select, update
+from sqlalchemy import select
 
 from ..api.page_shell import APPEARANCE_PLACEHOLDER, inject_scene
 from ..commerce import delivery, fulfill
 from ..core.deps import DbSession
-from ..core.models import Order, Product
+from ..core.models import Order
 from ..core.static_revision import file_revision
 from ..ops import incidents
 from ..ops import site_settings as site_config
@@ -24,7 +24,7 @@ from ..payments.reconcile import reconcile_channel_order
 from ..payments.settlement import settle_paid_order
 from ..security.limiter import SlidingWindowLimiter
 from ..security.request_security import resolve_client_ip
-from ..security.security import token_matches, utcnow
+from ..security.security import token_matches
 
 logger = logging.getLogger("src.api.alipay")
 
@@ -49,30 +49,6 @@ def _alipay_provider_for_callback(request: Request, session=None):
     except PaymentError as error:
         logger.warning("按渠道名解析支付宝失败，按「非支付宝通知」处理：%s", error)
         return None
-
-
-def _close_pending_after_channel_close(session, *, order: Order) -> bool:
-    """渠道已明确关单（TRADE_CLOSED）时，把本地待支付订单推进终态。
-
-    不这么做的话订单会一直停在 pending：库存预留与优惠码名额继续被占着，直到本地
-    TTL 或巡检才回收 —— 而生产环境建议的订单 TTL 是十几分钟到几十分钟，那段时间里
-    这些名额对别的买家是不可见的。
-    """
-    product = session.get(Product, order.product_id) if order.product_id else None
-    closed = fulfill.close_pending_order(
-        session, order=order, product=product, status="expired"
-    )
-    if not closed:
-        return False
-    session.execute(
-        update(Order)
-        .where(Order.id == order.id)
-        .values(channel_closed_at=utcnow())
-        .execution_options(synchronize_session=False)
-    )
-    session.flush()
-    logger.warning("渠道已关单，本地订单同步过期 order=%s", order.order_no)
-    return True
 
 
 @router.post(NOTIFY_PATH, include_in_schema=False)
@@ -158,7 +134,7 @@ def alipay_notify(
 
     if not notification.is_success:
         if notification.trade_status == "TRADE_CLOSED":
-            _close_pending_after_channel_close(session, order=order)
+            fulfill.close_pending_after_channel_close(session, order=order)
         logger.info(
             "支付宝异步通知交易未成功 order=%s trade_status=%s",
             order.order_no,

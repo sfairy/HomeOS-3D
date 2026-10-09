@@ -1,7 +1,4 @@
-"""启动时的数据库迁移。
-
-与主应用 ``homeos-3d/backend/src/migrations.py`` 同一套约定（锁 → 备份 → upgrade）。
-"""
+"""启动时的数据库迁移（锁 → 备份 → upgrade）。"""
 from __future__ import annotations
 
 import logging
@@ -29,9 +26,9 @@ MIGRATION_BACKUP_LABEL = "migrate"
 MIGRATION_BACKUP_KEEP = 3
 
 #: 结构基线版本号。发行产物不带迁移脚本，新库直接按 ORM 元数据建好后
-#: 写入这个版本号；开发期存在 ``db/migrations`` 时，会校验它与 Alembic head 一致，
+#: 写入这个版本号；开发期存在 ``backend/migrations`` 时，会校验它与 Alembic head 一致，
 #: 防止有人加了新 revision 却忘了同步这个常量（产物会退回「只建旧基线」，缺表）。
-SCHEMA_REVISION = "0006"
+SCHEMA_REVISION = "0001"
 
 
 class MigrationBackupError(RuntimeError):
@@ -43,16 +40,14 @@ class LegacyDatabaseError(RuntimeError):
 
 
 def _migrations_dir(settings: StoreSettings) -> Path | None:
-    """Alembic 脚本目录；源码/开发布局有，发行产物里没有（那时改走 ORM 建库）。
-    """
-    candidate = settings.project_root / "db" / "migrations"
+    """Alembic 脚本目录；源码/开发布局有，发行产物里没有（那时改走 ORM 建库）。"""
+    candidate = settings.project_root / "backend" / "migrations"
     return candidate if candidate.is_dir() else None
 
 
 def _migration_config(settings: StoreSettings, script_dir: Path) -> Config:
-    """构造 Alembic 配置：脚本目录与数据库 URL 都从 Settings 推导。
-    """
-    config = Config(str(settings.project_root / "alembic.ini"))
+    """构造 Alembic 配置：脚本目录与数据库 URL 都从 Settings 推导。"""
+    config = Config(str(settings.project_root / "backend" / "alembic.ini"))
     config.set_main_option("script_location", str(script_dir))
     config.set_main_option("sqlalchemy.url", settings.database_url)
     return config
@@ -66,8 +61,7 @@ def _head_revision(config: Config) -> str:
 def _create_schema(settings: StoreSettings) -> None:
     """按 ORM 元数据建出全新库，并打上基线版本号。
 
-    ``0001`` 基线是照着 ``Base.metadata`` 自动生成的，两者结构等价（``ops/check_schema.py``
-    会比对结构指纹），所以 create_all 与跑一次迁移得到的是同一个库。
+    ``0001`` 基线与 ``Base.metadata`` 等价（``ops/check_schema.py`` 比对结构指纹）。
     """
     from . import models, models_engagement  # noqa: F401  # 注册到 Base.metadata  # pyright: ignore[reportUnusedImport]
     from .database import Base, create_store_engine

@@ -1,0 +1,18 @@
+{
+  "$comment": "Golden keys for TS↔Python twins. Parser is regex-only; keep lists ordered.",
+  "childRestrictedDomains": [
+    "lock",
+    "alarm_control_panel",
+    "siren",
+    "valve"
+  ],
+  "roomCatalogIds": [
+    "living",
+    "dining",
+    "master_bedroom",
+    "elder_bedroom",
+    "kids_bedroom",
+    "master_bath",
+    "guest_bath"
+  ]
+}

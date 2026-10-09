@@ -6,7 +6,7 @@
  * 编辑器里那一处冲突确认不用改调用点。
  */
 
-import { shellConfirm } from '../../runtime/shell-chrome'
+import { shellConfirm } from '@/studio/platform/shell-chrome'
 
 type ConfirmOptions = {
   kicker?: string

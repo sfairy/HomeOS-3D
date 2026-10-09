@@ -5,6 +5,7 @@ import { computed, ref } from "vue";
 import { useRoute } from "vue-router";
 import PanelHead from "../../components/admin/PanelHead.vue";
 import DataTable from "../../components/admin/DataTable.vue";
+import { asListItems } from "../../store-types.js";
 import { useToastStore } from "../../stores/toast.js";
 import { useAdminDialogsStore } from "../../stores/adminDialogs.js";
 import { dt } from "../../utils/format.js";
@@ -48,10 +49,6 @@ const kindLabels = computed(() =>
   Object.fromEntries(kinds.value.map((item) => [item.value, item.label])),
 );
 
-function asEntries(items: unknown[]): LedgerEntry[] {
-  return items as LedgerEntry[];
-}
-
 const params = computed<Record<string, string>>(() => {
   const next: Record<string, string> = {};
   if (accountId.value.trim()) next.account_id = accountId.value.trim();
@@ -63,7 +60,7 @@ function reload() {
   return table.value?.search();
 }
 
-function onLoaded(data: { kinds?: unknown }) {
+function onLoaded(data: { kinds?: unknown; [key: string]: unknown }) {
   if (!Array.isArray(data.kinds) || !data.kinds.length) return;
   kinds.value = data.kinds as LedgerKind[];
 }
@@ -115,7 +112,7 @@ function kindLabel(entry: LedgerEntry): string {
       @loaded="onLoaded"
     >
       <template #default="{ items }">
-        <tr v-for="entry in asEntries(items)" :key="`${entry.createdAt}-${entry.accountId}-${entry.kind}`">
+        <tr v-for="entry in asListItems<LedgerEntry>(items)" :key="`${entry.createdAt}-${entry.accountId}-${entry.kind}`">
           <td class="nowrap">{{ dt(entry.createdAt) }}</td>
           <td>
             <span v-if="entry.accountEmail || entry.accountId" :title="String(entry.accountEmail || entry.accountId)">

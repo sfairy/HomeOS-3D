@@ -12,32 +12,9 @@
 import { entityDomainColor } from '@/constants/entity-domain-meta'
 
 /** 监控型实体 ID 后缀白名单：用于在分组中识别监测类成员（消耗、运行时间、CPU、内存等） */
-export const MONITORED_ENTITY_IDS = [
-  '_consumption',
-  '_uptime',
-  '_cpu_',
-  '_memory_',
-  '_version',
-  '_ip_',
-  '_monitor',
-  '_num',
-  '_count',
-]
+export { MONITORED_ENTITY_IDS } from '@/constants/device-group'
 /** 设备分组支持的 HA domain 白名单 */
-export const DOMAIN_LIST = [
-  'light',
-  'switch',
-  'sensor',
-  'binary_sensor',
-  'climate',
-  'lock',
-  'cover',
-  'fan',
-  'water_heater',
-  'vacuum',
-  'camera',
-  'media_player',
-]
+export { DOMAIN_LIST } from '@/constants/device-group'
 /**
  * 随语言切换返回最新标签（勿在模块顶层缓存）。
  * 标签中含 emoji 与中文说明，颜色取自 entity-domain-meta。

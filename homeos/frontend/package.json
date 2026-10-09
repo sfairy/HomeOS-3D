@@ -15,6 +15,9 @@
     "preview": "vite preview",
     "lint": "eslint \"src/**/*.{ts,vue}\" --fix",
     "lint:ci": "eslint \"src/**/*.{ts,vue}\" --max-warnings 0",
+    "check:studio-deps": "node scripts/check-studio-deps.mjs",
+    "check:frontend-deps": "node scripts/check-frontend-deps.mjs",
+    "check:deps": "node scripts/check-frontend-deps.mjs && node scripts/check-studio-deps.mjs",
     "typecheck": "node scripts/run-vue-tsc.mjs -p tsconfig.json --noEmit"
   },
   "dependencies": {

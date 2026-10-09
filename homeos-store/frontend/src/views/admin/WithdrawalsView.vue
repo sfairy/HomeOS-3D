@@ -7,7 +7,7 @@ import DataTable from "../../components/admin/DataTable.vue";
 import RowMenu from "../../components/admin/RowMenu.vue";
 import StatusPill from "../../components/admin/StatusPill.vue";
 import { adminApi } from "../../api/http.js";
-import { errorMessage } from "../../store-types.js";
+import { asListItems, errorMessage } from "../../store-types.js";
 import { useToastStore } from "../../stores/toast.js";
 import { useConfirmStore } from "../../stores/confirm.js";
 import { useAdminRefreshStore } from "../../stores/adminRefresh.js";
@@ -42,10 +42,6 @@ const refresh = useAdminRefreshStore();
 const table = ref<InstanceType<typeof DataTable> | null>(null);
 const status = ref("");
 const keyword = ref("");
-
-function asWithdrawals(items: unknown[]): Withdrawal[] {
-  return items as Withdrawal[];
-}
 
 const params = computed<Record<string, string>>(() => {
   const next: Record<string, string> = {};
@@ -140,7 +136,7 @@ async function remove(item: Withdrawal) {
       empty-text="没有任何提现申请"
     >
       <template #default="{ items }">
-        <tr v-for="item in asWithdrawals(items)" :key="item.id">
+        <tr v-for="item in asListItems<Withdrawal>(items)" :key="item.id">
           <td class="nowrap">{{ who(item) }}</td>
           <td class="nowrap">{{ item.points }}</td>
           <td class="nowrap">{{ item.feePoints }}</td>

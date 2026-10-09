@@ -3,6 +3,7 @@ import {
   createVacuumMapImageLoader,
 } from "./vacuum-map";
 import { domElement } from "@app/utils/dom-factory";
+import { createSvgElement as createSvgElementFromFactory } from "@app/utils/svg-factory";
 function planFurniture(
   plan: {
     pixelsPerMeter?: number | string;
@@ -51,15 +52,10 @@ export function openVacuumMapEditor({
   getMapState: getMapState = () => null,
 }: any) {
   const documentRef = window.document,
-    svgXmlns = "http://www.w3.org/2000/svg",
     createHtmlElement = (tagName: any, textContent = "") =>
       domElement(documentRef, tagName, "", textContent),
-    createSvgElement = (svgTagName: any, svgAttributes: Record<string, any> = {}) => {
-      const createdSvgElement = documentRef.createElementNS(svgXmlns, svgTagName);
-      for (const [svgAttributeName, svgAttributeValue] of Object.entries(svgAttributes))
-        createdSvgElement.setAttribute(svgAttributeName, svgAttributeValue);
-      return createdSvgElement;
-    },
+    createSvgElement = (svgTagName: any, svgAttributes: Record<string, any> = {}) =>
+      createSvgElementFromFactory(svgTagName, svgAttributes, undefined, documentRef),
     walls = floor?.plan?.walls || [],
     furnitureItems = planFurniture(floor?.plan),
     planPoints = [

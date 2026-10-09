@@ -134,13 +134,38 @@ export default [
     ignores: APP_IGNORES,
     rules: {
       'no-restricted-imports': [
-        'warn',
+        'error',
         {
           patterns: [
             {
-              group: ['@/views/**', '@/views/*'],
+              group: ['@/views/**', '@/views/*', '@/features/**', '@/features/*'],
               message:
-                'components/stores/utils/composables 禁止 import @/views/**；跨页常量请放 @/utils/registry 或 composables',
+                'components/stores/utils/composables 禁止 import @/views/** 与 @/features/**；跨页常量请放 @/utils/registry 或 composables',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // utils 叶子层：禁止回指 composables / stores / components
+  {
+    files: ['src/utils/**/*.{js,ts}'],
+    ignores: APP_IGNORES,
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                '@/composables/**',
+                '@/stores/**',
+                '@/components/**',
+                '@/views/**',
+                '@/features/**',
+              ],
+              message:
+                'utils 禁止 import composables/stores/components/views/features；见 npm run check:frontend-deps 白名单清零计划',
             },
           ],
         },
@@ -165,6 +190,52 @@ export default [
       // 历史 studio 大量解构占位；只卡未使用 import，避免 max-warnings 0 被淹没
       'unused-imports/no-unused-imports': 'error',
       'unused-imports/no-unused-vars': 'off',
+    },
+  },
+  // studio/shared：禁止回指 editor/renderer（叶子层）
+  {
+    files: ['src/studio/app/shared/**/*.{js,ts}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/editor/**', '../editor/**', '../../editor/**', '@app/editor/**'],
+              message: 'app/shared 禁止 import app/editor；下沉到 editor 或 platform',
+            },
+            {
+              group: ['**/renderer/**', '../renderer/**', '../../renderer/**', '@app/renderer/**'],
+              message: 'app/shared 禁止 import app/renderer；下沉到 renderer 或 platform',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // studio/platform：真叶子
+  {
+    files: ['src/studio/platform/**/*.{js,ts}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                '@app/editor/**',
+                '@app/renderer/**',
+                '@app/3d-studio/**',
+                '@app/display/**',
+                '**/app/editor/**',
+                '**/app/renderer/**',
+                '**/app/3d-studio/**',
+              ],
+              message: 'platform 禁止 import creator/panel 应用层',
+            },
+          ],
+        },
+      ],
     },
   },
   {

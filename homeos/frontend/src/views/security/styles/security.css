@@ -1,6 +1,6 @@
 /* 合并自：安防域样式 */
 /* token 仍通过下方 @import 共享 */
-@import '../../settings/shared/styles/settings-tokens.css';
+@import '../../../features/settings/shared/styles/settings-tokens.css';
 
 /* ── security-layout.css ── */
 /* 安防中心 — 内容区布局（头标签对齐 list-page / 生活中心） */

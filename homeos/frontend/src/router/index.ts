@@ -16,7 +16,7 @@ import { getBackendUnreachableHint, isBackendUnreachableError } from '@/utils/co
 import { withBackendBootRetry } from '@/utils/core/api-boot-retry.util'
 import { isDynamicImportFailure, lazyView, reloadOnceForStaleChunk } from '@/utils/core/lazy-component'
 import { resolveNavigationTarget } from './auth.util'
-import { registerShellNavigation } from '@/studio/runtime/shell-navigation'
+import { registerShellNavigation } from '@/studio/platform/shell-navigation'
 import {
   getLicenseActivated,
   hasLicenseFeatureAccess,

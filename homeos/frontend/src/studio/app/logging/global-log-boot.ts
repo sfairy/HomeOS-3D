@@ -1,5 +1,5 @@
 import { setupGlobalLog } from "./global-log";
-import { navigateInShell } from "../../runtime/shell-navigation";
+import { navigateInShell } from "@/studio/platform/shell-navigation";
 async function apiFetch(
   path: any,
   options: { body?: any; headers?: Record<string, string> } = {},

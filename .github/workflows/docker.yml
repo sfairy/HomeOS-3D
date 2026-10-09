@@ -85,6 +85,9 @@ jobs:
         run: |
           bun install --frozen-lockfile
           bun run typecheck
+          # 前端分层依赖门禁（主应用 + studio + store）。
+          bun run --cwd homeos/frontend check:deps
+          bun run --cwd homeos-store check:store-deps
           # 三条 vite 配置不在两个子项目 tsconfig 的 include 里，单独用根 tsconfig.node.json
           # 按 strict 检查一遍（此前完全没被任何门禁覆盖）。
           bun run typecheck:node
@@ -107,6 +110,12 @@ jobs:
           # Esc 层级栈回归：静态扫描全部 overlay 是否都走 useEscLayer，并跑一遍栈行为
           # （压栈/出栈/优先级/defaultPrevented 旁路）。纯源码扫描，不需要构建后端。
           bun run homeos/frontend/scripts/_esc_stack_smoke.ts
+          # 未使用 JS/TS、功能码镜像、场景资源副本、TS↔Python 黄金契约。
+          # 放在 typecheck 里是为了和 bun install 共用一次，并在 build 之前失败。
+          bun run knip
+          bun run verify:features
+          bun run verify:scene
+          bun run verify:contracts
 
   # Python 静态检查硬门禁。规则集与本地 `.venv-store/bin/ruff` 逐条核对过，当前全仓 0 条。
   # 这里不跑 `--fix`：CI 修不了东西，`--fix` 是提交前的动作；格式化的东西也不在这里拦，
@@ -152,7 +161,7 @@ jobs:
           .venv-store/bin/python -m pip install --upgrade pip
           .venv-store/bin/python -m pip install \
             -r homeos/backend/requirements.txt \
-            -r homeos-store/backend/src/requirements.txt
+            -r homeos-store/backend/requirements.txt
 
       - name: Install basedpyright
         run: pip install "basedpyright==1.40.1"
@@ -182,7 +191,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r homeos/backend/requirements.txt \
-                      -r homeos-store/backend/src/requirements.txt
+                      -r homeos-store/backend/requirements.txt
 
       - name: Check schema
         run: python ops/check_schema.py
@@ -203,9 +212,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r homeos/backend/requirements.txt \
-                      -r homeos-store/backend/src/requirements.txt
+                      -r homeos-store/backend/requirements.txt
 
-      # 认证契约、注册→登录→激活、**无凭据老行接管**、HA 白名单、HA 取状态容错、结构漂移护栏。
+      # 与根 package.json 的 `verify:smoke:app` 对齐：认证契约、注册→登录→激活、
+      # HA 白名单、HA 取状态容错、结构漂移护栏、增量模块功能码门禁、授权激活 e2e。
+      # `_legacy_account_claim_smoke.py` 已删除，不要加回来。
       #
       # 漂移护栏守护的是 check_schema 覆盖不到的那条路径：「版本号已在 head、结构却没到」
       # （迁移文件被应用之后又被追加内容时就是这样）。2026-10-07 主应用正栽在这里：0008
@@ -213,21 +224,22 @@ jobs:
       # 永远补不上，直到业务查询报 no such column、应用启动失败，对外全是 503。
       # 两个执行器的等版本快路径现在都会先做结构对账。
       #
-      # 注意 `_register_login_activate_smoke.py` 用的是**假商店**：真实商店那条腿
-      # （/store/v1/verifications 发码与验码）不在 CI 覆盖内，只有本地联调会走到。
+      # `_register_login_activate_smoke.py` 用的是**假商店**。`_license_activation_e2e_smoke.py`
+      # 在商店未跑时 SKIP 并 0 退出，CI 里不会无故变红；真实发码验码仍以本地联调为准。
       - name: App smokes
         run: |
           python homeos/backend/scripts/_auth_contract_smoke.py
           python homeos/backend/scripts/_register_login_activate_smoke.py
-          python homeos/backend/scripts/_legacy_account_claim_smoke.py
           python homeos/backend/scripts/_p51_ha_whitelist_smoke.py
           python homeos/backend/scripts/_ha_fetch_resilience_smoke.py
           python homeos/backend/scripts/_schema_drift_guard_smoke.py
+          python homeos/backend/scripts/_module_feature_gate_smoke.py
+          python homeos/backend/scripts/_license_activation_e2e_smoke.py
 
       - name: Store smokes
         run: |
-          python homeos-store/tools/smoke_store.py
-          python homeos-store/tools/_schema_drift_guard_smoke.py
+          python homeos-store/scripts/smoke_store.py
+          python homeos-store/scripts/_schema_drift_guard_smoke.py
 
   # 两个架构各跑在**原生** runner 上，不用 QEMU：构建期要用 Cython + gcc 把 Python
   # 编译成 per-arch 的 .so，模拟执行会慢到不可用。

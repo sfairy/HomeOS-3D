@@ -16,7 +16,7 @@ import asyncio
 from typing import Annotated, Any
 
 from fastapi import Depends, Query, Request
-from pydantic import BaseModel, BeforeValidator, ConfigDict
+from pydantic import BeforeValidator, ConfigDict
 from sqlalchemy.orm import Session
 
 from ..core.app_config import load_raw_config
@@ -27,6 +27,7 @@ from ..security.auth_context import get_current_user, require_roles
 from ..services.alerts.channels import resolve_notification_fetch_limit
 from ..services.license import features as feature_codes
 from .router import NestRouter
+from .schemas.base import StrictModel as _StrictModel
 
 router = NestRouter(
     prefix="/notifications",
@@ -43,8 +44,8 @@ _LEVEL_MESSAGE = "level 须为 info / warn / danger"
 def _service(request: Request):
     return request.app.state.notification
 
-class StrictModel(BaseModel):
-    """等价 Nest ``ValidationPipe({ whitelist, forbidNonWhitelisted })``：拒绝未知字段。"""
+class StrictModel(_StrictModel):
+    """通知 DTO：在共享 StrictModel 上额外开启 pydantic strict。"""
 
     model_config = ConfigDict(extra="forbid", strict=True)
 

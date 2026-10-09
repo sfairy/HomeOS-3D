@@ -17,24 +17,19 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 from fastapi import Depends, Request
-from pydantic import BaseModel, BeforeValidator, ConfigDict
+from pydantic import BeforeValidator
 
 from ..dependencies import license_feature
 from ..security.auth_context import require_roles, require_user
 from ..services.license import features as feature_codes
 from .router import NestRouter
+from .schemas.base import StrictModel
 
 router = NestRouter(
     prefix="/system",
     tags=["system"],
     dependencies=[license_feature(feature_codes.FEATURE_VOICE)],
 )
-
-
-class StrictModel(BaseModel):
-    """等价 Nest ``ValidationPipe({ whitelist, forbidNonWhitelisted })``：拒绝未知字段。"""
-
-    model_config = ConfigDict(extra="forbid")
 
 
 def _string_value(message: str):

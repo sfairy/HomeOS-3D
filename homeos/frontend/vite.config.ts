@@ -12,80 +12,153 @@ import embedProxyFallbackPlugin from './vite-plugin-embed-fallback.ts'
 import rootAssetsPlugin from './vite-plugin-root-assets.ts'
 import {
   THREE_VENDOR,
-  classicIifePlugin,
   isRuntimeExternal,
   runtimeUrlExternalPlugin,
   runtimeVendorAssetPlugin,
   vendorResolvePlugin,
+  writeClassicIifeBundles,
 } from './vite-studio.ts'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
 /**
  * 线上产物目录（后端 / 8801 直接伺服）。
- * 构建先写到旁路 ``frontend.building``，closeBundle 末尾再原子替换，避免 watch-build
- * 清空窗口里 ``index.html`` / ``modules/runtime`` 失踪（stage.html 500、动态 import 404）。
+ * 构建先写到旁路 ``frontend.building.<pid>``，closeBundle 末尾再覆盖进线上目录，避免
+ * watch-build 清空窗口里 ``index.html`` / ``modules/runtime`` 失踪（stage.html 500、
+ * 动态 import 404）。旁路目录带 pid：watch-build 与手工 ``vite build`` 并发时互不
+ * ``emptyOutDir``，否则会出现「经典 IIFE 还在、public CSS 已被另一进程清掉」的假缺失。
  */
 const finalOutDir = resolve(__dirname, '../../dist/homeos/frontend')
-const outDir = `${finalOutDir}.building`
+const outDir = `${finalOutDir}.building.${process.pid}`
+
+function walkFiles(root: string): string[] {
+  const out: string[] = []
+  if (!fs.existsSync(root)) return out
+  const stack = [root]
+  while (stack.length) {
+    const dir = stack.pop()!
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = resolve(dir, entry.name)
+      if (entry.isDirectory()) stack.push(full)
+      else if (entry.isFile()) out.push(full)
+    }
+  }
+  return out
+}
+
+function pruneStale(liveRoot: string, buildRoot: string): void {
+  if (!fs.existsSync(liveRoot) || !fs.existsSync(buildRoot)) return
+  const keep = new Set(
+    walkFiles(buildRoot).map((f) => f.slice(buildRoot.length + 1).replace(/\\/g, '/')),
+  )
+  for (const file of walkFiles(liveRoot)) {
+    const rel = file.slice(liveRoot.length + 1).replace(/\\/g, '/')
+    if (!keep.has(rel)) fs.rmSync(file, { force: true })
+  }
+}
+
+/** 清掉崩溃残留的旁路目录 / 发布锁（超过 30 分钟）；不动其他仍在跑的 pid 旁路。 */
+function cleanStaleStagingDirs(): void {
+  const parent = resolve(finalOutDir, '..')
+  const liveName = finalOutDir.slice(parent.length + 1).replace(/\\/g, '/')
+  const stagingPrefix = `${liveName}.building`
+  const maxAgeMs = 30 * 60 * 1000
+  const now = Date.now()
+  if (!fs.existsSync(parent)) return
+  for (const name of fs.readdirSync(parent)) {
+    const isStaging = name === stagingPrefix || name.startsWith(`${stagingPrefix}.`)
+    const isLock =
+      name === `${liveName}.publish.lock` || name === `${liveName}.build.lock`
+    if (!isStaging && !isLock) continue
+    if (name === `${stagingPrefix}.${process.pid}`) continue
+    const full = resolve(parent, name)
+    try {
+      const age = now - fs.statSync(full).mtimeMs
+      if (age < maxAgeMs) continue
+      fs.rmSync(full, { recursive: true, force: true })
+    } catch {
+      /* 仍被占用则跳过 */
+    }
+  }
+}
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+
+/** 跨进程互斥：`wx` 创建锁文件，持有期间执行 fn（或 await 异步 fn）。 */
+async function withFileLock(lockPath: string, fn: () => void | Promise<void>): Promise<void> {
+  const deadline = Date.now() + 180_000
+  while (true) {
+    try {
+      const fd = fs.openSync(lockPath, 'wx')
+      try {
+        await fn()
+      } finally {
+        fs.closeSync(fd)
+        try {
+          fs.unlinkSync(lockPath)
+        } catch {
+          /* ignore */
+        }
+      }
+      return
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code
+      if (code !== 'EEXIST') throw err
+      if (Date.now() > deadline) {
+        throw new Error(`等待锁超时：${lockPath}（可能有崩溃残留，删掉后重试）`)
+      }
+      await sleep(50)
+    }
+  }
+}
 
 /**
- * 把旁路 ``frontend.building`` 发布进线上 ``frontend/``，且**不删掉线上根目录**。
+ * 整次主应用构建互斥（watch-build 与手工 ``vite build`` 不能重叠）。
+ * 旁路目录虽已按 pid 隔离，Rolldown 多环境 / 工具链仍可能踩到同一 live 树；
+ * 重叠时最常见症状就是 closeBundle 里只剩经典 IIFE、public CSS 全丢。
+ */
+const buildLockPath = `${finalOutDir}.build.lock`
+
+/**
+ * 跨进程发布锁：覆盖进线上 ``frontend/`` + ``pruneStale`` 必须互斥，否则会出现
+ * EEXIST / 「A 的 prune 删掉 B 刚拷进去的 CSS」。
+ */
+const publishLockPath = `${finalOutDir}.publish.lock`
+
+/**
+ * 把旁路 ``frontend.building.<pid>`` 发布进线上 ``frontend/``，且**不删掉线上根目录**。
  *
  * 旧实现 ``rename(live→prev) + rename(building→live)`` 中间有空窗：``/assets`` mount
  * 找不到目录时请求会落到 SPA 外壳（text/html），浏览器对 ``shared-*.js`` 报 Strict MIME。
  * 这里改为：先覆盖拷贝（``index.html`` 最后），再修剪旧 hash 文件，全程根路径常在。
  */
-function publishOutDirPlugin(): Plugin {
-  const walkFiles = (root: string): string[] => {
-    const out: string[] = []
-    if (!fs.existsSync(root)) return out
-    const stack = [root]
-    while (stack.length) {
-      const dir = stack.pop()!
-      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        const full = resolve(dir, entry.name)
-        if (entry.isDirectory()) stack.push(full)
-        else if (entry.isFile()) out.push(full)
-      }
+async function publishStagingToLive(): Promise<void> {
+  if (!fs.existsSync(outDir)) return
+  await withFileLock(publishLockPath, () => {
+    fs.mkdirSync(finalOutDir, { recursive: true })
+    const entries = fs.readdirSync(outDir).filter((name) => name !== 'modules')
+    // 先资源后外壳：避免新 index 已上线却仍缺新 hash chunk。
+    const ordered = [
+      ...entries.filter((name) => name !== 'index.html'),
+      ...entries.filter((name) => name === 'index.html'),
+    ]
+    for (const name of ordered) {
+      const from = resolve(outDir, name)
+      const to = resolve(finalOutDir, name)
+      fs.cpSync(from, to, { recursive: true, force: true })
     }
-    return out
-  }
-
-  const pruneStale = (liveRoot: string, buildRoot: string) => {
-    if (!fs.existsSync(liveRoot) || !fs.existsSync(buildRoot)) return
-    const keep = new Set(
-      walkFiles(buildRoot).map((f) => f.slice(buildRoot.length + 1).replace(/\\/g, '/')),
-    )
-    for (const file of walkFiles(liveRoot)) {
-      const rel = file.slice(liveRoot.length + 1).replace(/\\/g, '/')
-      if (!keep.has(rel)) fs.rmSync(file, { force: true })
+    for (const bucket of ['assets', 'static'] as const) {
+      pruneStale(resolve(finalOutDir, bucket), resolve(outDir, bucket))
     }
-  }
+    fs.rmSync(outDir, { recursive: true, force: true })
+  })
+}
 
-  return {
-    name: 'homeos-publish-outdir',
-    apply: 'build',
-    closeBundle() {
-      if (!fs.existsSync(outDir)) return
-      fs.mkdirSync(finalOutDir, { recursive: true })
-      const entries = fs.readdirSync(outDir).filter((name) => name !== 'modules')
-      // 先资源后外壳：避免新 index 已上线却仍缺新 hash chunk。
-      const ordered = [
-        ...entries.filter((name) => name !== 'index.html'),
-        ...entries.filter((name) => name === 'index.html'),
-      ]
-      for (const name of ordered) {
-        const from = resolve(outDir, name)
-        const to = resolve(finalOutDir, name)
-        fs.cpSync(from, to, { recursive: true, force: true })
-      }
-      for (const bucket of ['assets', 'static'] as const) {
-        pruneStale(resolve(finalOutDir, bucket), resolve(outDir, bucket))
-      }
-      fs.rmSync(outDir, { recursive: true, force: true })
-    },
-  }
+/** Vite 已在 renderStart 拷过 public；收尾前再镜像一次，抵消并发/半残旁路。 */
+function mirrorPublicDirIntoStaging(): void {
+  const publicDir = resolve(__dirname, 'public')
+  if (!fs.existsSync(publicDir)) return
+  fs.cpSync(publicDir, outDir, { recursive: true, force: true })
 }
 
 /** SPA 唯一入口。 */
@@ -207,25 +280,149 @@ const customLogger = {
 }
 
 /**
- * 生成 `/static` 匿名白名单（`dist/homeos/frontend/public-static.json`）。
+ * 构建收尾（必须在同一 ``closeBundle`` 内严格串行）：
+ *   1. 经典 IIFE → `/static/**.js`
+ *   2. 按产物实存生成匿名白名单 `public-static.json`
+ *   3. 旁路目录覆盖发布到线上 `dist/homeos/frontend`
  *
- * 后端用它判定「未登录也必须能加载」的静态资源：白名单**之外**的 `/static/**` 一律要求
- * 已登录会话（见 backend/src/studio_shell.py）。种子清单是 `public-static.seed.json`。
- *
- * 必须排在所有产物写入插件之后：它要按「产物是否真的存在」筛种子条目，而
- * `classicIifePlugin` 的 closeBundle 才写入 `/static/logging/client-log.js` 这类 IIFE 包。
- * closeBundle 按插件数组顺序串行执行，所以本插件必须放在数组最后一位。
+ * 拆成多个插件时，Rolldown/Vite 可能并行跑各自的 closeBundle；再叠加 watch-build
+ * 与手工构建共用固定旁路名时的 emptyOutDir，就会出现「只缺 appearance / auth/scene
+ * CSS」这种假阴性（IIFE 被本进程重写，public 拷贝被另一进程清掉）。
  */
-function publicStaticManifestPlugin(): Plugin {
+function isClientBuildEnvironment(pluginCtx: { environment?: { name?: string } }): boolean {
+  // Vite 8 多环境：worker 子构建也会跑 apply:'build' 的插件。收尾 / 锁只跟 client。
+  const name = pluginCtx.environment?.name
+  return !name || name === 'client'
+}
+
+function pidAlive(pid: number): boolean {
+  if (!Number.isFinite(pid) || pid <= 0) return false
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function releaseBuildLock(fd: number | null): null {
+  if (fd === null) return null
+  try {
+    fs.closeSync(fd)
+  } catch {
+    /* ignore */
+  }
+  try {
+    fs.unlinkSync(buildLockPath)
+  } catch {
+    /* ignore */
+  }
+  return null
+}
+
+/** 同步拿锁：Rolldown 若未 await 异步 buildStart，异步锁会失效。 */
+function acquireBuildLockSync(): number {
+  const deadline = Date.now() + 180_000
+  while (true) {
+    try {
+      const fd = fs.openSync(buildLockPath, 'wx')
+      try {
+        fs.writeSync(fd, `${process.pid}\n`)
+      } catch {
+        /* 锁文件有 fd 即可 */
+      }
+      return fd
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err
+      try {
+        const holder = Number(fs.readFileSync(buildLockPath, 'utf8').trim())
+        if (!pidAlive(holder)) fs.unlinkSync(buildLockPath)
+      } catch {
+        /* 读/删失败则继续等 */
+      }
+      if (Date.now() > deadline) {
+        throw new Error(`等待构建锁超时：${buildLockPath}（删掉残留锁后重试）`)
+      }
+      try {
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
+      } catch {
+        // SharedArrayBuffer/Atomics 不可用时退化为空转片刻
+        const end = Date.now() + 50
+        while (Date.now() < end) {
+          /* spin */
+        }
+      }
+    }
+  }
+}
+
+function finalizeBuildPlugin(): Plugin {
+  let buildLockFd: number | null = null
+  let finalized = false
+
+  async function tryFinalize(): Promise<void> {
+    if (finalized) return
+    const indexPath = resolve(outDir, SPA_ENTRY)
+    if (!fs.existsSync(indexPath)) return
+    finalized = true
+    mirrorPublicDirIntoStaging()
+    await writeClassicIifeBundles(outDir)
+    updatePublicStaticManifest()
+    await publishStagingToLive()
+  }
+
   return {
-    name: 'homeos-public-static-manifest',
+    name: 'homeos-finalize-build',
     apply: 'build',
-    closeBundle() {
-      updatePublicStaticManifest()
+    buildStart() {
+      if (!isClientBuildEnvironment(this)) return
+      cleanStaleStagingDirs()
+      finalized = false
+      buildLockFd = acquireBuildLockSync()
+    },
+    buildEnd(error) {
+      // 未产出时可能不会走 writeBundle；失败路径释放锁。
+      if (error && isClientBuildEnvironment(this) && !finalized) {
+        buildLockFd = releaseBuildLock(buildLockFd)
+      }
+    },
+    // index.html 可能在 writeBundle 之后才由 html 插件落盘，故两处都试。
+    async writeBundle() {
+      if (!isClientBuildEnvironment(this)) return
+      try {
+        await tryFinalize()
+      } finally {
+        if (finalized) buildLockFd = releaseBuildLock(buildLockFd)
+      }
+    },
+    async closeBundle() {
+      if (!isClientBuildEnvironment(this)) return
+      try {
+        await tryFinalize()
+        if (!finalized) {
+          const hasAssets =
+            fs.existsSync(resolve(outDir, 'assets')) &&
+            fs.readdirSync(resolve(outDir, 'assets')).length > 0
+          if (hasAssets) {
+            throw new Error(
+              `构建旁路缺少 ${SPA_ENTRY}（${outDir}）。` +
+                '产物不完整；请重跑 bun run build:app。',
+            )
+          }
+        }
+      } finally {
+        buildLockFd = releaseBuildLock(buildLockFd)
+      }
     },
   }
 }
 
+/**
+ * 生成 `/static` 匿名白名单（`dist/homeos/frontend/public-static.json`）。
+ *
+ * 后端用它判定「未登录也必须能加载」的静态资源：白名单**之外**的 `/static/**` 一律要求
+ * 已登录会话（见 backend/src/studio_shell.py）。种子清单是 `public-static.seed.json`。
+ */
 function updatePublicStaticManifest(): void {
   const seedPath = resolve(__dirname, 'public-static.seed.json')
   const manifestPath = resolve(outDir, 'public-static.json')
@@ -302,8 +499,8 @@ function updatePublicStaticManifest(): void {
   if (missing.length > 0) {
     throw new Error(
       `以下匿名静态资源被 index.html 或登记清单引用，但构建产物里不存在（线上会稳定 404）：\n  ${missing.join('\n  ')}\n` +
-        '常见原因：vite-studio.ts / vite.config.ts 的入口指向了不存在的源文件 —— ' +
-        '这不会让构建报错，只会不产出该产物。请补齐源文件或移除引用。',
+        '常见原因：① 源文件缺失（vite 入口指向不存在的文件时不会报错、只是不产出）；' +
+        '② 并发构建清空了旁路 dist（应已由 frontend.building.<pid> 隔离）。请补齐源文件或重跑构建。',
     )
   }
   payload.files = kept
@@ -337,19 +534,16 @@ export default defineConfig(async (): Promise<UserConfig> => {
     runtimeVendorAssetPlugin(),
     vue(),
     tailwindcss(),
-    // 构建产物写完后再落经典 IIFE（closeBundle 按数组顺序串行）。
-    classicIifePlugin(),
-    // 匿名白名单按「产物是否真的存在」筛种子条目，必须在 IIFE 写完后、发布前。
-    publicStaticManifestPlugin(),
-    // 最后：旁路目录覆盖发布到线上 dist（保留 modules/runtime，根目录不消失）。
-    publishOutDirPlugin(),
   ]
   if (analyzeBundle) {
     const { visualizer } = await import('rollup-plugin-visualizer')
+    // 必须在 finalize 之前写入旁路目录，否则 publish 后 staging 已删。
     plugins.push(
       visualizer({ filename: resolve(outDir, 'bundle-stats.html'), gzipSize: true, open: false }),
     )
   }
+  // 最后：IIFE → 匿名白名单 → 发布到线上 dist（同一 closeBundle 内串行）。
+  plugins.push(finalizeBuildPlugin())
 
   return {
     // 显式固定 root。Vite 的 root 默认取 cwd（不是配置文件所在目录），而 `ops/dev.mjs`

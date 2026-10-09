@@ -194,8 +194,8 @@ import { ref, computed, onMounted } from 'vue'
 import { History } from '@lucide/vue'
 import ApiQueryState from '@/components/common/ApiQueryState.vue'
 import { fetchHomeModeTriggerLogs } from '@/services/api/home-modes'
-import ListPageHero from '@/components/common/list-page/ListPageHero.vue'
-import ListPageMetrics from '@/components/common/list-page/ListPageMetrics.vue'
+import ListPageHero from '@/components/page-shell/ListPageHero.vue'
+import ListPageMetrics from '@/components/page-shell/ListPageMetrics.vue'
 import ModeLogsAnalyticsRail from '@/views/ModeLogsAnalyticsRail.vue'
 import {
   EMPTY_MODE_LOG_ANALYTICS,

@@ -4,6 +4,7 @@
 import { computed, ref } from "vue";
 import PanelHead from "../../components/admin/PanelHead.vue";
 import DataTable from "../../components/admin/DataTable.vue";
+import { asListItems } from "../../store-types.js";
 import { d, num } from "../../utils/format.js";
 
 interface Customer {
@@ -25,13 +26,12 @@ const COLUMNS = [
 const table = ref<InstanceType<typeof DataTable> | null>(null);
 const keyword = ref("");
 
-function asCustomers(items: unknown[]): Customer[] {
-  return items as Customer[];
-}
-
-const params = computed<Record<string, string>>(() =>
-  keyword.value.trim() ? { keyword: keyword.value.trim() } : {},
-);
+const params = computed<Record<string, string>>(() => {
+  const next: Record<string, string> = {};
+  const value = keyword.value.trim();
+  if (value) next.keyword = value;
+  return next;
+});
 
 function reload() {
   return table.value?.search();
@@ -51,7 +51,7 @@ function reload() {
 
     <DataTable ref="table" path="/customers" :columns="COLUMNS" :params="params" empty-text="暂无客户档案">
       <template #default="{ items }">
-        <tr v-for="customer in asCustomers(items)" :key="`${customer.email}-${customer.name}`">
+        <tr v-for="customer in asListItems<Customer>(items)" :key="`${customer.email}-${customer.name}`">
           <td>
             <span v-if="customer.email" :title="customer.email">{{ customer.email }}</span>
             <template v-else>—</template>

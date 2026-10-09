@@ -6,7 +6,7 @@ import DataTable from "../../components/admin/DataTable.vue";
 import RowMenu from "../../components/admin/RowMenu.vue";
 import StatusPill from "../../components/admin/StatusPill.vue";
 import { adminApi } from "../../api/http.js";
-import { errorMessage } from "../../store-types.js";
+import { asListItems, errorMessage } from "../../store-types.js";
 import { useToastStore } from "../../stores/toast.js";
 import { useConfirmStore } from "../../stores/confirm.js";
 import { useAdminRefreshStore } from "../../stores/adminRefresh.js";
@@ -60,10 +60,6 @@ const refresh = useAdminRefreshStore();
 
 const table = ref<InstanceType<typeof DataTable> | null>(null);
 const statusMeta = ref<OrderStatusMeta | null>(null);
-
-function asOrders(items: unknown[]): AdminOrder[] {
-  return items as AdminOrder[];
-}
 
 const status = ref(String(route.query.status_filter || ""));
 const keyword = ref(String(route.query.keyword || ""));
@@ -321,7 +317,7 @@ loadMeta();
       empty-text="没有符合条件的订单"
     >
       <template #default="{ items }">
-        <tr v-for="order in asOrders(items)" :key="order.orderNo">
+        <tr v-for="order in asListItems<AdminOrder>(items)" :key="order.orderNo">
           <td class="mono">
             <span :title="order.orderNo">{{ order.orderNo }}</span>
           </td>

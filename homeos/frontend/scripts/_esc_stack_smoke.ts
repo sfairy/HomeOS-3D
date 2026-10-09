@@ -218,8 +218,8 @@ const KEYDOWN_ALLOWLIST: Record<string, string> = {
   'composables/ui/useScreensaver.ts': '任意按键唤醒屏保（不消费 Esc 语义）',
   'components/common/base/VConfirmModal.vue': '只处理 Enter 确认；Esc 已走 useEscLayer',
   'composables/settings/system/system-config-sidebar.internals.ts': '“/” 聚焦搜索框',
-  'views/settings/shared/layout/useSettingsSidebar.ts': '“/” 聚焦 + Esc 清空搜索（已 preventDefault）',
-  'views/settings/system/system-config/useSystemConfigPanelShell.ts': 'Alt+方向键切换分区',
+  'features/settings/shared/layout/useSettingsSidebar.ts': '“/” 聚焦 + Esc 清空搜索（已 preventDefault）',
+  'features/settings/system/system-config/useSystemConfigPanelShell.ts': 'Alt+方向键切换分区',
 }
 
 const KEYDOWN_PATTERN = /(?:window|document)\.addEventListener\(\s*['"]keydown/

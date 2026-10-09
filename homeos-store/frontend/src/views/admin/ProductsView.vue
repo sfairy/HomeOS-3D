@@ -9,7 +9,7 @@ import DataTable from "../../components/admin/DataTable.vue";
 import RowMenu from "../../components/admin/RowMenu.vue";
 import FeaturePicker from "../../components/admin/FeaturePicker.vue";
 import { adminApi } from "../../api/http.js";
-import { errorMessage } from "../../store-types.js";
+import { asListItems, errorMessage } from "../../store-types.js";
 import { useToastStore } from "../../stores/toast.js";
 import { useConfirmStore } from "../../stores/confirm.js";
 import { useAdminRefreshStore } from "../../stores/adminRefresh.js";
@@ -85,13 +85,8 @@ const refresh = useAdminRefreshStore();
 const catalog = useFeatureCatalogStore();
 
 const table = ref<InstanceType<typeof DataTable> | null>(null);
-const rows = ref<Product[]>([]);
 const keyword = ref("");
 const status = ref("");
-
-function asProducts(items: unknown[]): Product[] {
-  return items as Product[];
-}
 
 const params = computed<Record<string, string>>(() => {
   const next: Record<string, string> = {};
@@ -171,10 +166,6 @@ function editProduct(product: Product | null) {
 
 function closeEditor() {
   editorOpen.value = false;
-}
-
-function findProduct(id: string): Product | undefined {
-  return rows.value.find((item) => item.id === id);
 }
 
 function reload() {
@@ -356,7 +347,7 @@ void catalog.load().catch(() => {});
 
       <DataTable ref="table" path="/products" :columns="COLUMNS" :params="params" empty-text="没有符合条件的商品">
         <template #default="{ items }">
-          <tr v-for="product in asProducts(items)" :key="product.id">
+          <tr v-for="product in asListItems<Product>(items)" :key="product.id">
             <td>
               <span v-if="product.name" :title="product.name">{{ product.name }}</span>
               <template v-else>—</template>

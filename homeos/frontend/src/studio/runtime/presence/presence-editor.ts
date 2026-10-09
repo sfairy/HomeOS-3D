@@ -9,6 +9,7 @@ import {
 import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character";
 import { randomUuid } from "@app/utils/random-id";
 import { domElement } from "@app/utils/dom-factory";
+import { createSvgElement as createSvgNode } from "@app/utils/svg-factory";
 export async function openPresenceEditor({
   component: component,
   panelDocument: panelDocument,
@@ -46,12 +47,8 @@ export async function openPresenceEditor({
       }));
   const createDomElement = (tagName: any, textValue = "", classNameValue = "") =>
       domElement(ownerDocument, tagName, classNameValue, textValue),
-    createSvgElement = (svgTagName: any, svgAttributes: Record<string, any> = {}) => {
-      const svgElement = ownerDocument.createElementNS("http://www.w3.org/2000/svg", svgTagName);
-      for (const [attributeName, attributeValue] of Object.entries(svgAttributes || {}))
-        svgElement.setAttribute(attributeName, attributeValue);
-      return svgElement;
-    },
+    createSvgElement = (svgTagName: any, svgAttributes: Record<string, any> = {}) =>
+      createSvgNode(svgTagName, svgAttributes, null, ownerDocument),
     stylesheetLink = createDomElement("link");
   ((stylesheetLink.rel = "stylesheet"),
     (stylesheetLink.href =

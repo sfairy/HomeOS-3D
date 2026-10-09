@@ -2,7 +2,7 @@
   "_comment": [
     "未初始化 / 未登录 / 未激活时也必须能匿名加载的 /static 资源白名单（种子）。",
     "只登记公开页 HTML 不会直接引用、因此构建期无法自动发现的资源（字体、图标、webmanifest、运行时启动脚本等）；",
-    "公开页 HTML 直接引用的构建产物由 frontend/vite.config.ts 的 publicStaticManifestPlugin 自动并入。",
+    "公开页 HTML 直接引用的构建产物由 frontend/vite.config.ts 的 finalizeBuildPlugin 自动并入。",
     "构建期按产物是否真实存在筛一遍后生成 dist/homeos/frontend/public-static.json，后端只读该文件做匿名放行判定。"
   ],
   "files": [

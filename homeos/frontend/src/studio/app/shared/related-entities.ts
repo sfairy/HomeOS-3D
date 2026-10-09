@@ -1,4 +1,4 @@
-import { resolveXiaomiDeviceProfile } from "../renderer/core/device-profiles";
+import { resolveXiaomiDeviceProfile } from "@/studio/platform/entity-role-profiles";
 const RELATED_ENTITY_MODE_SELECTED = "selected",
   RELATED_POPUP_LABELS = Object.freeze({
     "water-heater": "热水器",

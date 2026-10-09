@@ -18,9 +18,9 @@
  */
 import { Bell } from '@lucide/vue'
 
-import ListPageHero from '@/components/common/list-page/ListPageHero.vue'
+import ListPageHero from '@/components/page-shell/ListPageHero.vue'
 
-import ListPageMetrics from '@/components/common/list-page/ListPageMetrics.vue'
+import ListPageMetrics from '@/components/page-shell/ListPageMetrics.vue'
 
 import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
 

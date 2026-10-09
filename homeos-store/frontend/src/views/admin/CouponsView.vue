@@ -9,7 +9,7 @@ import PanelHead from "../../components/admin/PanelHead.vue";
 import DataTable from "../../components/admin/DataTable.vue";
 import RowMenu from "../../components/admin/RowMenu.vue";
 import { adminApi } from "../../api/http.js";
-import { errorMessage } from "../../store-types.js";
+import { asListItems, errorMessage } from "../../store-types.js";
 import { useToastStore } from "../../stores/toast.js";
 import { useConfirmStore } from "../../stores/confirm.js";
 import { useAdminRefreshStore } from "../../stores/adminRefresh.js";
@@ -69,10 +69,6 @@ const refresh = useAdminRefreshStore();
 const table = ref<InstanceType<typeof DataTable> | null>(null);
 const keyword = ref("");
 const status = ref("");
-
-function asCoupons(items: unknown[]): Coupon[] {
-  return items as Coupon[];
-}
 
 const params = computed<Record<string, string>>(() => {
   const next: Record<string, string> = {};
@@ -273,7 +269,7 @@ async function removeCoupon(coupon: Coupon) {
 
       <DataTable ref="table" path="/coupons" :columns="COLUMNS" :params="params" empty-text="没有符合条件的优惠码">
         <template #default="{ items }">
-          <tr v-for="coupon in asCoupons(items)" :key="coupon.id">
+          <tr v-for="coupon in asListItems<Coupon>(items)" :key="coupon.id">
             <td class="mono">
               <span v-if="coupon.code" :title="coupon.code">{{ coupon.code }}</span>
               <template v-else>—</template>

@@ -312,7 +312,7 @@ export function setupGlobalLog({ api: apiRequest }: any) {
         downloadLink.remove());
     }),
     globalLogClearButton!.addEventListener("click", async () => {
-      const { shellConfirm } = await import("../../runtime/shell-chrome");
+      const { shellConfirm } = await import("@/studio/platform/shell-chrome");
       if (
         !(await shellConfirm({
           title: "清空全局日志",

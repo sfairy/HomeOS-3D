@@ -105,7 +105,6 @@ const openGroups = reactive<Record<string, boolean>>(
   Object.fromEntries(GROUPS.map((group) => [group.key, true])),
 );
 
-const pwOpen = ref(false);
 const pwForm = reactive({ oldPassword: "", newPassword: "", confirmPassword: "" });
 const pwError = ref("");
 const pwDialog = ref<HTMLDialogElement | null>(null);

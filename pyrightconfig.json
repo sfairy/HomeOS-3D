@@ -44,7 +44,7 @@
   //
   // 两个应用的约定**不一样**，这里必须分开写：
   //   - 主应用：import 根是 backend/，包名就是 src（见 homeos/backend/migrations/env.py）；
-  //   - 商店：import 根是 backend，包名就是 src（见 homeos-store/db/migrations/env.py）。
+  //   - 商店：import 根是 backend，包名就是 src（见 homeos-store/backend/migrations/env.py）。
   // 每条只挂自己需要的那一个根：两个后端都有同名的 src 包，全局放开的话，后端代码里写错的
   // src.* 导入会被另一边的同名模块“接住”而不再报错；同理，两个迁移目录也各自只挂自己的根。
   // ops 的 "." 是为了让 ops.docker.* 仍按仓库根解析；ops 侧直接 import 的只有商店后端。
@@ -54,14 +54,13 @@
       "extraPaths": [".", "homeos-store/backend"]
     },
     {
-      "root": "homeos-store/db",
+      "root": "homeos-store/backend/migrations",
       "extraPaths": ["homeos-store/backend"]
     },
     {
-      // 冒烟脚本自己把 homeos-store/backend 插进 sys.path（见 smoke_store.py:106），
-      // 静态分析看不到这一步，于是整个文件 29 条 src.* 导入全报无法解析，把 91 条
-      // 存量 error 里的三分之一变成纯噪音。口径与上面的商店迁移目录一致。
-      "root": "homeos-store/tools",
+      // 冒烟脚本自己把 homeos-store/backend 插进 sys.path，
+      // 静态分析看不到这一步，于是整个文件 src.* 导入会报无法解析。
+      "root": "homeos-store/scripts",
       "extraPaths": ["homeos-store/backend"]
     },
     {

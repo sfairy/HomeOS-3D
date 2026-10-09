@@ -161,6 +161,7 @@ import {
   DEVICE_CHART_COLORS,
   chartVerticalGradient,
 } from '@/utils/chart/device-chart-theme'
+import { ensureDeviceChartOnElement } from '@/utils/chart/device-chart-boot.util'
 
 /** 图表实例类型：来自按需加载 echarts 入口模块的 init 返回值 */
 type EchartsModule = typeof EchartsModuleNS
@@ -260,12 +261,6 @@ function formatRuntime(ms: number): string {
   return mins > 0 ? `${hours}时${mins}分` : `${hours}时`
 }
 
-function chartDomReady(el: HTMLElement | null): el is HTMLElement {
-  if (!el) return false
-  const { clientWidth, clientHeight } = el
-  return clientWidth > 0 && clientHeight > 0
-}
-
 function scheduleRender() {
   if (renderScheduled) return
   renderScheduled = true
@@ -309,13 +304,8 @@ async function fetchDomainMedian() {
  */
 async function renderUsageChart() {
   if (!props.visible || !usageReport.value?.daily.length) return
-  if (!chartDomReady(usageChartRef.value)) return
-  if (!usageChart) {
-    const echarts = (await import('@/utils/chart/echarts')).default
-    if (!props.visible || !chartDomReady(usageChartRef.value)) return
-    // 并发调用可能已在 await 期间完成初始化
-    if (!usageChart) usageChart = echarts.init(usageChartRef.value)
-  }
+  usageChart = await ensureDeviceChartOnElement(usageChartRef.value, usageChart, () => props.visible)
+  if (!usageChart) return
   const daily = usageReport.value.daily
   const labels = daily.map((d) => d.day.slice(5))
   const option: EChartsCoreOption = {
@@ -359,13 +349,8 @@ async function renderUsageChart() {
 
 async function renderHourlyChart() {
   if (!props.visible || eventLoading.value) return
-  if (!chartDomReady(hourlyChartRef.value)) return
-  if (!hourlyChart) {
-    const echarts = (await import('@/utils/chart/echarts')).default
-    if (!props.visible || !chartDomReady(hourlyChartRef.value)) return
-    // 并发调用可能已在 await 期间完成初始化
-    if (!hourlyChart) hourlyChart = echarts.init(hourlyChartRef.value)
-  }
+  hourlyChart = await ensureDeviceChartOnElement(hourlyChartRef.value, hourlyChart, () => props.visible)
+  if (!hourlyChart) return
   const hours = Array.from({ length: 24 }, (_, i) => `${i}:00`)
   const option: EChartsCoreOption = {
     ...deviceChartBase(),
@@ -400,13 +385,8 @@ async function renderHourlyChart() {
 
 async function renderRadarChart() {
   if (!props.visible) return
-  if (!chartDomReady(radarChartRef.value)) return
-  if (!radarChart) {
-    const echarts = (await import('@/utils/chart/echarts')).default
-    if (!props.visible || !chartDomReady(radarChartRef.value)) return
-    // 并发调用可能已在 await 期间完成初始化
-    if (!radarChart) radarChart = echarts.init(radarChartRef.value)
-  }
+  radarChart = await ensureDeviceChartOnElement(radarChartRef.value, radarChart, () => props.visible)
+  if (!radarChart) return
   const { onCount: deviceOn, runtimeMs, eventCount: deviceEvents } = analyticsMetrics.value
   const deviceRuntime = Math.round(runtimeMs / 60000)
   const maxOn = Math.max(deviceOn, domainMedian.value.onCount, 1)

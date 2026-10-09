@@ -1,7 +1,7 @@
 import { createPurifierExtras } from "../climate/purifier-extras";
 import { carState } from "../vehicle/car-state";
 import { deviceStatus } from "./device-status";
-import { genericDeviceProfile } from "./device-profiles";
+import { genericDeviceProfile } from "./generic-device-catalog";
 export function createDevicePanel({ onControl: onControl, onLayout: onLayout = () => {} }: any) {
   const rootElement = document.createElement("div");
   ((rootElement.className = "i3d-climate-panel i3d-nas-panel i3d-device-panel"),

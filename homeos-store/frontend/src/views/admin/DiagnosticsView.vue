@@ -8,7 +8,7 @@ import { useAdminTabs } from "../../composables/useAdminTabs.js";
 import PanelHead from "../../components/admin/PanelHead.vue";
 import DataTable from "../../components/admin/DataTable.vue";
 import { adminApi } from "../../api/http.js";
-import { errorMessage } from "../../store-types.js";
+import { asListItems, errorMessage } from "../../store-types.js";
 import { useToastStore } from "../../stores/toast.js";
 import { useConfirmStore } from "../../stores/confirm.js";
 import { useAdminDialogsStore } from "../../stores/adminDialogs.js";
@@ -173,13 +173,11 @@ const { active, pick } = useAdminTabs("diagnostics", computed(() => tabs));
 const couponId = computed(() => String(route.query.coupon_id || ""));
 const couponCode = computed(() => String(route.query.coupon_code || route.query.coupon_id || ""));
 
-const redemptionParams = computed<Record<string, string>>(() =>
-  couponId.value ? { coupon_id: couponId.value } : {},
-);
-
-function asRows(items: unknown[]): Record<string, unknown>[] {
-  return items as Record<string, unknown>[];
-}
+const redemptionParams = computed<Record<string, string>>(() => {
+  const next: Record<string, string> = {};
+  if (couponId.value) next.coupon_id = couponId.value;
+  return next;
+});
 
 async function reloadAll() {
   await Promise.all(
@@ -340,7 +338,7 @@ function clearCouponFilter() {
       </div>
       <DataTable ref="sessionTable" path="/sessions" :columns="COLUMNS.sessions" empty-text="暂无登录会话">
         <template #default="{ items }">
-          <tr v-for="(row, index) in asRows(items)" :key="`${String(row.ref)}-${index}`">
+          <tr v-for="(row, index) in asListItems<Record<string, unknown>>(items)" :key="`${String(row.ref)}-${index}`">
             <td class="nowrap mono">{{ row.ref }}</td>
             <td>
               <span v-if="row.accountEmail || row.accountId" :title="String(row.accountEmail || row.accountId)">
@@ -393,7 +391,7 @@ function clearCouponFilter() {
         empty-text="暂无客户端会话"
       >
         <template #default="{ items }">
-          <tr v-for="(row, index) in asRows(items)" :key="`${String(row.ref)}-${index}`">
+          <tr v-for="(row, index) in asListItems<Record<string, unknown>>(items)" :key="`${String(row.ref)}-${index}`">
             <td class="nowrap mono">{{ row.ref }}</td>
             <td class="nowrap mono">
               <span v-if="row.codeHint" :title="String(row.codeHint)">{{ row.codeHint }}</span>
@@ -438,7 +436,7 @@ function clearCouponFilter() {
         empty-text="暂无找回令牌"
       >
         <template #default="{ items }">
-          <tr v-for="(row, index) in asRows(items)" :key="`${String(row.ref)}-${index}`">
+          <tr v-for="(row, index) in asListItems<Record<string, unknown>>(items)" :key="`${String(row.ref)}-${index}`">
             <td class="nowrap mono">{{ row.ref }}</td>
             <td class="nowrap mono">
               <span v-if="row.codeHint" :title="String(row.codeHint)">{{ row.codeHint }}</span>
@@ -483,7 +481,7 @@ function clearCouponFilter() {
         empty-text="暂无登录尝试记录"
       >
         <template #default="{ items }">
-          <tr v-for="(row, index) in asRows(items)" :key="index">
+          <tr v-for="(row, index) in asListItems<Record<string, unknown>>(items)" :key="index">
             <td class="nowrap">{{ dt(row.createdAt) }}</td>
             <td class="mono">
               <span v-if="row.scope" :title="String(row.scope)">{{ row.scope }}</span>
@@ -517,7 +515,7 @@ function clearCouponFilter() {
         empty-text="暂无邮箱验证码记录"
       >
         <template #default="{ items }">
-          <tr v-for="(row, index) in asRows(items)" :key="index">
+          <tr v-for="(row, index) in asListItems<Record<string, unknown>>(items)" :key="index">
             <td class="nowrap">{{ dt(row.createdAt) }}</td>
             <td>
               <span v-if="row.email" :title="String(row.email)">{{ row.email }}</span>
@@ -558,7 +556,7 @@ function clearCouponFilter() {
         empty-text="暂无解绑历史"
       >
         <template #default="{ items }">
-          <tr v-for="(row, index) in asRows(items)" :key="index">
+          <tr v-for="(row, index) in asListItems<Record<string, unknown>>(items)" :key="index">
             <td class="nowrap">{{ dt(row.createdAt) }}</td>
             <td class="nowrap mono">
               <span v-if="row.codeHint" :title="String(row.codeHint)">{{ row.codeHint }}</span>
@@ -602,7 +600,7 @@ function clearCouponFilter() {
         empty-text="暂无优惠码核销记录"
       >
         <template #default="{ items }">
-          <tr v-for="(row, index) in asRows(items)" :key="`${String(row.id)}-${index}`">
+          <tr v-for="(row, index) in asListItems<Record<string, unknown>>(items)" :key="`${String(row.id)}-${index}`">
             <td class="nowrap">{{ dt(row.createdAt) }}</td>
             <td class="nowrap mono">
               <span v-if="row.couponCode" :title="String(row.couponCode)">{{ row.couponCode }}</span>
@@ -614,7 +612,7 @@ function clearCouponFilter() {
               </span>
               <template v-else>—</template>
             </td>
-            <td class="nowrap">{{ money(row.discountCents) }}</td>
+            <td class="nowrap">{{ money(Number(row.discountCents || 0)) }}</td>
             <td class="nowrap mono">
               <span v-if="row.orderNo || row.orderId" :title="String(row.orderNo || row.orderId)">
                 {{ row.orderNo || row.orderId }}

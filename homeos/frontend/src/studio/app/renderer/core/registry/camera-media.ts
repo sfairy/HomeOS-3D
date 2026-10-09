@@ -1,5 +1,5 @@
 /** registry 相机媒体子模块：从 registry.ts 抽出，负责摄像头快照/HLS 实时预览挂载。 */
-import { EntityRequestPolicy } from "../runtime-caches";
+import { EntityRequestPolicy } from "../panel-caches";
 import { clampNumber, normalizeCssColor, createSvgElement, resolveStatePayload } from "./_shared";
 /** 渲染环境 / 属性袋：由 renderer 按组件类型动态组装（states、editable、document、cleanup、callEntityService、airflow* …），registry 侧只读取其中的可选字段； */
 type RenderPropertyBag = any;

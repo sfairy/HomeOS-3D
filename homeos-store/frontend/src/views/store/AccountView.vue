@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useSessionStore } from "../../stores/session.js";
 import { useCatalogStore } from "../../stores/catalog.js";
-import { useOrderStore, orderCountdownText, orderRemainingSeconds } from "../../stores/order.js";
+import { useOrderStore, orderCountdownText } from "../../stores/order.js";
 import { useSiteStore } from "../../stores/site.js";
 import { useConfirmStore } from "../../stores/confirm.js";
 import { useStoreToast } from "../../stores/toast.js";
@@ -104,11 +104,6 @@ function orderStatusLabel(item: StoreOrder) {
 function orderCountdown(item: StoreOrder) {
   void now.value;
   return orderCountdownText(item.expiresAt);
-}
-
-function orderRemaining(item: StoreOrder) {
-  void now.value;
-  return orderRemainingSeconds(item.expiresAt);
 }
 
 function policyDeadlineMs(policy: NonNullable<StoreLicense["deviceReleasePolicy"]>): number | null {

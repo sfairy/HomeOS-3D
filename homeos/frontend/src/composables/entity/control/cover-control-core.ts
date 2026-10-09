@@ -6,9 +6,9 @@
 import { clampInRange } from '@/utils/ui/progress-bar.util'
 
 /** HA cover supported_features：bit 2 = SET_POSITION */
-export const COVER_SUPPORT_SET_POSITION = 4
+const COVER_SUPPORT_SET_POSITION = 4
 
-export const COVER_ACTION_ERRORS: Record<string, string> = {
+const COVER_ACTION_ERRORS: Record<string, string> = {
   open_cover: '窗帘打开操作失败',
   close_cover: '窗帘关闭操作失败',
   stop_cover: '窗帘停止操作失败',

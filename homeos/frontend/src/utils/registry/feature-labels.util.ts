@@ -9,18 +9,18 @@
  */
 
 /** 功能码分组：与真源 ``groups[].key`` 对齐。 */
-export type FeatureGroup = 'base' | 'module'
+type FeatureGroup = 'base' | 'module'
 
 /** 单个功能码的展示信息。 */
-export interface FeatureLabelEntry {
+interface FeatureLabelEntry {
   /** 中文名。 */
   label: string
   /** 所属分组。 */
   group: FeatureGroup
 }
 
-/** 功能码展示表（顺序与真源一致）。 */
-export const FEATURE_LABELS: Record<string, FeatureLabelEntry> = {
+/** 功能码展示表（顺序与真源一致；供 featureLabel 与 ops/check_feature_codes 解析）。 */
+const FEATURE_LABELS: Record<string, FeatureLabelEntry> = {
   api: { label: '接口访问', group: 'base' },
   assets: { label: '素材资源', group: 'base' },
   editor: { label: '仪表盘编辑器', group: 'base' },

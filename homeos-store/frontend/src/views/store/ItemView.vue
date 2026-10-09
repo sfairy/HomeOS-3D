@@ -8,8 +8,8 @@ import { useSiteStore } from "../../stores/site.js";
 import { useConfirmStore } from "../../stores/confirm.js";
 import { useStoreToast } from "../../stores/toast.js";
 import { api } from "../../api/http.js";
-import { formatCents as money, formatCentsPlain as moneyAmount } from "../../money.js";
-import { errorMessage, type StoreLicense } from "../../store-types.js";
+import { formatCents as money } from "../../money.js";
+import type { StoreLicense } from "../../store-types.js";
 
 const route = useRoute();
 const router = useRouter();

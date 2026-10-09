@@ -46,7 +46,7 @@ COPY --from=caddy-bin /usr/bin/caddy /usr/bin/caddy
 WORKDIR /app
 
 COPY homeos/backend/requirements.txt /tmp/requirements-app.txt
-COPY homeos-store/backend/src/requirements.txt /tmp/requirements-store.txt
+COPY homeos-store/backend/requirements.txt /tmp/requirements-store.txt
 #: 构建容器连不上 pypi.org 时（表现为卡在 Downloading 一动不动、且不报错）由
 #: ops/build.py 的 --pip-index / HOMEOS_PIP_INDEX 传进来，换成可达的 PyPI 镜像。
 ARG PIP_INDEX_URL=""

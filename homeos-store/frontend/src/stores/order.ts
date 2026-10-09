@@ -28,7 +28,7 @@ const STATUS_LABELS: Record<string, string> = {
   fulfillment_failed: "已支付，正在人工处理",
 };
 
-export function orderRemainingSeconds(expiresAt?: string | null) {
+function orderRemainingSeconds(expiresAt?: string | null) {
   if (!expiresAt) return 0;
   return Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000));
 }

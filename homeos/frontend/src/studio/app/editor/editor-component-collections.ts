@@ -1,4 +1,5 @@
 import { newId } from "./editor-utils";
+import { componentDirectLocation as componentDirectLocation2 } from "./component-tree";
 export function componentLabel(component: any) {
   const typeLabel =
       component.type === "image"
@@ -141,4 +142,23 @@ export function ensureSharedComponentReference(collectionConfig: any, sharedComp
         ...pageSharedIds.filter((otherSharedId: any) => otherSharedId !== sharedComponentId),
       ]),
       true);
+}
+
+/** 所选控件是否可合并为组（同页 / 同侧边栏集合且非 fill 布局）。 */
+export function canGroupComponents(componentIdList: any, groupingDocument: any) {
+  const componentLocations = [...new Set(componentIdList || [])];
+  if (componentLocations.length < 2 || !groupingDocument) return false;
+  const map = componentLocations.map((componentIdItem) =>
+    componentDirectLocation2(groupingDocument, componentIdItem),
+  );
+  if (map.some((locationEntry) => !locationEntry || locationEntry.component.type === "group"))
+    return false;
+  const firstComponentLocation = map[0];
+  return map.every(
+    (sameScopeLocation) =>
+      sameScopeLocation.scope === firstComponentLocation.scope &&
+      sameScopeLocation.page?.path === firstComponentLocation.page?.path &&
+      sameScopeLocation.collection === firstComponentLocation.collection &&
+      sameScopeLocation.component.properties?.layoutMode !== "fill",
+  );
 }

@@ -45,7 +45,7 @@ LAYOUT: dict[str, tuple[Path, str, str, Path]] = {
         ROOT / "homeos-store" / "backend",
         "src",
         "src.core.migrations",
-        Path("db") / "migrations",
+        Path("migrations"),
     ),
 }
 
@@ -85,17 +85,16 @@ def _check_one(app: str) -> int:
         return _run_checks(app, title, data_env)
 
 
-def _alembic_config(project_root: Path, script_dir: Path, database_url: str):
-    """按仓库约定拼出 Alembic 配置。
+def _alembic_config(backend_root: Path, script_dir: Path, database_url: str):
+    """按仓库约定拼出 Alembic 配置（``backend_root`` = ``*/backend``）。
 
     刻意**不**复用应用里的 ``_migration_config``：门禁的作用是独立验证应用的行为，
-    调用被测方的私有实现会让两边一起错还一起通过。这里只用公开的 alembic API 与
-    ``StoreSettings`` / ``Settings`` 上公开的路径字段。
+    调用被测方的私有实现会让两边一起错还一起通过。
     """
     from alembic.config import Config
 
-    config = Config(str(project_root / "alembic.ini"))
-    config.set_main_option("script_location", str(project_root / script_dir))
+    config = Config(str(backend_root / "alembic.ini"))
+    config.set_main_option("script_location", str(backend_root / script_dir))
     config.set_main_option("sqlalchemy.url", database_url)
     return config
 
@@ -188,12 +187,12 @@ def _divergence_note(allowed_hits: list) -> str:
     return f"（已放行 {len(allowed_hits)} 项已知历史分歧：{listed}）"
 
 
-def _head_revision(app: str, project_root: Path, database_url: str) -> str:
+def _head_revision(app: str, backend_root: Path, database_url: str) -> str:
     from alembic.script import ScriptDirectory
 
     return str(
         ScriptDirectory.from_config(
-            _alembic_config(project_root, LAYOUT[app][3], database_url)
+            _alembic_config(backend_root, LAYOUT[app][3], database_url)
         ).get_current_head()
     )
 
@@ -264,7 +263,7 @@ def _describe_structure_diff(left: dict, right: dict) -> str:
 
 
 def _run_checks(app: str, title: str, data_env: str) -> int:
-    project_root = APPS[app][0]
+    backend_root = LAYOUT[app][0]
     prefix = LAYOUT[app][1]
 
     load_settings = importlib.import_module(f"{prefix}.config").load_settings
@@ -283,13 +282,13 @@ def _run_checks(app: str, title: str, data_env: str) -> int:
         return 1
 
     recorded = _recorded_revision(database_path)
-    head = _head_revision(app, project_root, database_url)
+    head = _head_revision(app, backend_root, database_url)
     if recorded != head:
         failures.append(f"迁移结束后 revision 是 {recorded!r}，期望 head {head!r}")
     else:
         print(f"[{title}] ✓ 全新库迁移到 {recorded}")
 
-    config = _alembic_config(project_root, LAYOUT[app][3], database_url)
+    config = _alembic_config(backend_root, LAYOUT[app][3], database_url)
     try:
         diffs = _alembic_diffs(config)
         unexpected = _unexpected_diffs(app, diffs)

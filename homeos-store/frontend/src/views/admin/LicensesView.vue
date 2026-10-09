@@ -9,7 +9,7 @@ import PanelHead from "../../components/admin/PanelHead.vue";
 import DataTable from "../../components/admin/DataTable.vue";
 import RowMenu from "../../components/admin/RowMenu.vue";
 import { adminApi } from "../../api/http.js";
-import { errorMessage } from "../../store-types.js";
+import { asListItems, errorMessage } from "../../store-types.js";
 import { useToastStore } from "../../stores/toast.js";
 import { useConfirmStore } from "../../stores/confirm.js";
 import { useAdminRefreshStore } from "../../stores/adminRefresh.js";
@@ -60,10 +60,6 @@ const products = ref<ProductOption[]>([]);
 const keyword = ref("");
 const status = ref("");
 const expiring = ref("");
-
-function asLicenses(items: unknown[]): License[] {
-  return items as License[];
-}
 
 const params = computed<Record<string, string>>(() => {
   const next: Record<string, string> = {};
@@ -308,7 +304,7 @@ async function removeLicense(license: License) {
 
       <DataTable ref="table" path="/licenses" :columns="COLUMNS" :params="params" empty-text="没有符合条件的激活码">
         <template #default="{ items }">
-          <tr v-for="license in asLicenses(items)" :key="license.activationCodeId">
+          <tr v-for="license in asListItems<License>(items)" :key="license.activationCodeId">
             <td class="mono">
               <span>{{ license.activationCode }}</span>
               <button

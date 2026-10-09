@@ -18,6 +18,7 @@
 import { Clock, Filter } from '@lucide/vue'
 
 import HosSelect from '@/components/common/base/HosSelect.vue'
+import ListPageQueryToolbar from '@/components/page-shell/ListPageQueryToolbar.vue'
 
 // 入参：分析窗口小时数、小时选项、当前级别、级别筛选选项、loading 状态与小时格式化函数
 defineProps({
@@ -39,9 +40,7 @@ const emit = defineEmits(['update:hours', 'update:active-level', 'reload'])
 </script>
 
 <template>
-  <div class="notifications-view__toolbar">
-    <div class="notifications-view__query-card">
-      <div class="notifications-view__query-grid">
+  <ListPageQueryToolbar view-prefix="notifications-view">
         <label class="notifications-view__field notifications-view__field--hours">
           <span class="notifications-view__label">
             <Clock class="notifications-view__label-icon" aria-hidden="true" />
@@ -98,7 +97,5 @@ const emit = defineEmits(['update:hours', 'update:active-level', 'reload'])
             {{ loading ? '刷新中…' : '刷新数据' }}
           </button>
         </div>
-      </div>
-    </div>
-  </div>
+  </ListPageQueryToolbar>
 </template>

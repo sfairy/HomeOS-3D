@@ -9,12 +9,12 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import Depends, Query, Request
-from pydantic import BaseModel, ConfigDict
 
 from ..dependencies import license_feature
 from ..security.auth_context import require_roles, require_user
 from ..services.license import features as feature_codes
 from .router import NestRouter
+from .schemas.base import StrictModel
 
 router = NestRouter(
     prefix="/modes",
@@ -24,9 +24,6 @@ router = NestRouter(
 
 def _service(request: Request):
     return request.app.state.home_mode
-
-class StrictModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
 
 class InstallPresetDto(StrictModel):
     entityOverrides: dict[str, str] | None = None

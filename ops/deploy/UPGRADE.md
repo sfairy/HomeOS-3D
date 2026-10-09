@@ -107,7 +107,7 @@ docker compose -f docker-compose.store.yml -f docker-compose.store.public.yml up
 ### 商店启动即迁移（结构变更都在这一步发生）
 
 结构改动都在**容器启动时**同步执行，不再有「启动时按 ORM 补列」。发行镜像里不带迁移脚本
-（`db/migrations` 只在开发期存在），全新库直接按 ORM 元数据建出基线 `0001`；开发期或自带
+（`backend/migrations` 只在开发期存在），全新库直接按 ORM 元数据建出基线 `0001`；开发期或自带
 迁移脚本的部署则跑 Alembic，两者结构一致由 `ops/check_schema.py` 把关。运维只需要知道三件事：
 
 1. **动结构前一定先留快照**。迁移开始前会在商店数据目录写一份

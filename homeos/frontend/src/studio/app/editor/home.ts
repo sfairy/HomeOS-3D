@@ -46,6 +46,7 @@ import {
   roundField as roundField2,
   clampNumber as clampNumber2,
   normalizedFontWeight as normalizedFontWeight2,
+  visibilityIconSvg as visibilityIconSvg2,
 } from "./editor-utils";
 import {
   packPopupModules as packPopupModules2,
@@ -116,6 +117,7 @@ import {
   nextTemplateInstanceName as nextTemplateInstanceName2,
   refreshComponentIds as refreshComponentIds2,
   syncSharedComponentReferenceOrder as syncSharedComponentReferenceOrder2,
+  canGroupComponents as canGroupComponents2,
 } from "./editor-component-collections";
 import {
   fitInspectorComponentToDimensions as fitInspectorComponentToDimensions2,
@@ -135,6 +137,7 @@ import {
   popupModuleTypeLabel as popupModuleTypeLabel2,
   reorderedPopupModules as reorderedPopupModules2,
   uniquePagePath as uniquePagePath2,
+  getDocumentCanvasSize as getDocumentCanvasSize2,
 } from "./editor-document-management";
 import {
   createRecoveryWriter as createRecoveryWriter2,
@@ -155,8 +158,8 @@ import {
   updateInteraction3dCard as updateInteraction3dCard2,
   renderInteraction3dInspector as renderInteraction3dInspector2,
 } from "../bridge/editor";
-import { createLegacyScope } from '../../runtime/legacy-scope';
-import { navigateInShell } from '../../runtime/shell-navigation';
+import { createLegacyScope } from '@/studio/platform/legacy-scope';
+import { navigateInShell } from '@/studio/platform/shell-navigation';
 import {
   patchEditorFacadeState,
   registerEditorCommandHandler,
@@ -166,11 +169,47 @@ import { applyEditorZoomCss } from './editor-canvas-navigation';
 import { setupEventLogWallInspector } from "./home-event-log-wall";
 import { setupPanelFrameInspector } from "./home-panel-frame";
 import {
+  syncIconButtonInspector as syncIconButtonInspectorExternal,
+  type IconButtonInspectorContext,
+} from "./home-icon-button-inspector";
+import {
+  syncNavigationInspector as syncNavigationInspectorExternal,
+  type NavigationInspectorContext,
+} from "./home-navigation-inspector";
+import {
+  syncLineChartInspector as syncLineChartInspectorExternal,
+  type LineChartInspectorContext,
+} from "./home-line-chart-inspector";
+import {
+  syncAirConditionerInspector as syncAirConditionerInspectorExternal,
+  type AirConditionerInspectorContext,
+} from "./home-air-conditioner-inspector";
+import {
+  coverMotorButtonElement as coverMotorButtonElementSync,
+  runExtraLocal as runExtraLocalCover,
+  clearCoverMotorDirectionValueById,
+  type CoverMotorInspectorContext,
+} from "./home-cover-motor-inspector";
+import { setupRelatedPopup, updateRelatedPopup } from "./home-related-popup";
+import {
+  renderCustomPopupEditor as renderCustomPopupEditorExternal,
+  syncCustomPopupStage as syncCustomPopupStageExternal,
+  applyPopupModuleReorder as applyPopupModuleReorderExternal,
+  type CustomPopupEditorContext,
+} from "./home-custom-popup-editor";
+import { syncTimeInspector as syncTimeInspectorExternal } from "./home-time-inspector";
+import { syncWeatherInspector as syncWeatherInspectorExternal } from "./home-weather-inspector";
+import { syncTitleButtonInspector as syncTitleButtonInspectorExternal } from "./home-title-button-inspector";
+import { syncLightStatisticsInspector as syncLightStatisticsInspectorExternal } from "./home-light-statistics-inspector";
+import { syncCameraInspector as syncCameraInspectorExternal } from "./home-camera-inspector";
+import { syncVacuumMapInspector as syncVacuumMapInspectorExternal } from "./home-vacuum-map-inspector";
+import {
   clientPointToCanvas,
   computeAlignedPositions,
   normalizeMarquee,
   pickComponentsInMarquee,
   type AlignMode,
+  componentBounds as componentBounds2,
 } from './editor-selection-tools';
 
 let disposeActiveEditor: (() => void) | null = null;
@@ -1208,7 +1247,8 @@ let editorMode = "edit",
   imageAlignSourceComponentId: any = null;
 const pendingAssetProbeKeysSet = new Set();
 let selectedComponentIdsSet = new Set<string>(),
-  selectionAnchorComponentId: any = null;
+  selectionAnchorComponentId: any = null,
+  coverMotorDirectionValue: any = null;
 const { syncEventLogWallInspector } = setupEventLogWallInspector({
   eventLogWallInspectorElement, eventLogWallTypeElement, eventLogWallLabelElement,
   eventLogWallEnabledElement, eventLogWallTitleElement, eventLogWallTitleVisibleElement,
@@ -1287,6 +1327,330 @@ const navigationPreviewStateByComponentId = new Map(),
   customSelectsBySelectElement = new Map(),
   colorPickerBoundInputById = new Map(),
   enhancedNumberInputsSet = new WeakSet();
+const iconButtonInspectorContext: IconButtonInspectorContext = {
+  get activeProject() {
+    return activeProject;
+  },
+  get selectedComponentIdsSet() {
+    return selectedComponentIdsSet;
+  },
+  doorWindowPerspectiveEditIdsSet,
+  iconButtonPreviewStateByComponentId,
+  get editorRenderer() {
+    return editorRenderer;
+  },
+  findReplaceableComponents,
+  appliedStylePropertyKey,
+  syncComponentActionControls,
+  loadNavigationIconOptions,
+  runExtraFallback,
+  runSplit,
+  iconButtonTypeElement,
+  iconButtonTypeLabelElement,
+  presenceSensorKindLabelElement,
+  presenceSensorKindElement,
+  iconButtonMainHeadingElement,
+  iconButtonSecondaryHeadingElement,
+  iconButtonMainContentLabelElement,
+  iconButtonSecondaryContentLabelElement,
+  iconButtonMainTextElement,
+  iconButtonSecondaryTextElement,
+  iconButtonPreviewControlElement,
+  iconButtonActionSectionElement,
+  iconButtonPreviewDetailsElement,
+  presenceMotionSectionElement,
+  doorWindowPerspectiveSectionElement,
+  doorWindowPerspectiveEditElement,
+  doorWindowPerspectiveSaveElement,
+  iconButtonIconButtonElement,
+  iconButtonFillSectionElement,
+  iconButtonFrameSectionElement,
+  iconButtonSoftLightSectionElement,
+  iconButtonGlowSectionElement,
+  iconButtonIconColorLabelElement,
+  deviceButtonIconVisibleElement,
+  deviceButtonMainVisibleElement,
+  deviceButtonSecondaryVisibleElement,
+  deviceButtonIconOnColorLabelElement,
+  deviceButtonBadgeColorLabelElement,
+  deviceButtonBadgeOpacityLabelElement,
+  iconButtonIconSizeLabelElement,
+  deviceButtonSymbolSizeLabelElement,
+  deviceButtonBadgeSizeLabelElement,
+  deviceButtonStatePrecisionLabelElement,
+  iconButtonIconLeftElement,
+  iconButtonIconTopElement,
+  iconButtonIconOffOpacityLabelElement,
+  iconButtonIconOnOpacityLabelElement,
+  iconButtonMainOffOpacityLabelElement,
+  iconButtonMainOnOpacityLabelElement,
+  iconButtonSecondaryOffOpacityLabelElement,
+  iconButtonSecondaryOnOpacityLabelElement,
+  iconButtonLabelElement,
+  iconButtonIconColorElement,
+  deviceButtonIconOnColorElement,
+  deviceButtonBadgeColorElement,
+  deviceButtonBadgeOpacityElement,
+  deviceButtonBadgeSizeElement,
+  deviceButtonSymbolSizeElement,
+  deviceButtonStatePrecisionElement,
+  presenceHaloScaleXElement,
+  presenceHaloScaleYElement,
+  presenceHaloRotationElement,
+  presenceHaloOpacityElement,
+  presencePersonScaleElement,
+  presencePersonRotationElement,
+  presencePersonOpacityElement,
+  presenceOrbitDurationElement,
+  presenceHaloVisibleElement,
+  presencePersonVisibleElement,
+  iconButtonIconSizeElement,
+  iconButtonIconOffOpacityElement,
+  iconButtonIconOnOpacityElement,
+  iconButtonMainColorElement,
+  iconButtonSecondaryColorElement,
+  iconButtonMainOffOpacityElement,
+  iconButtonMainOnOpacityElement,
+  iconButtonSecondaryOffOpacityElement,
+  iconButtonSecondaryOnOpacityElement,
+  iconButtonMainSizeElement,
+  iconButtonSecondarySizeElement,
+  iconButtonMainWeightElement,
+  iconButtonSecondaryWeightElement,
+  iconButtonMainSpacingElement,
+  iconButtonSecondarySpacingElement,
+  iconButtonMainLeftElement,
+  iconButtonMainTopElement,
+  iconButtonSecondaryLeftElement,
+  iconButtonSecondaryTopElement,
+  iconButtonOnFillVisibleElement,
+  iconButtonOnFillColorElement,
+  iconButtonOnFillStrengthElement,
+  iconButtonOnFillFadeDurationElement,
+  iconButtonFrameVisibleElement,
+  iconButtonFrameWidthElement,
+  iconButtonFrameAngleElement,
+  iconButtonFrameOffOpacityElement,
+  iconButtonFrameOnOpacityElement,
+  iconButtonCutCornerElement,
+  iconButtonSoftLightVisibleElement,
+  iconButtonSoftLightColorElement,
+  iconButtonSoftLightStrengthElement,
+  iconButtonSoftLightSizeElement,
+  iconButtonSoftLightAngleElement,
+  iconButtonGlowVisibleElement,
+  iconButtonGlowColorElement,
+  iconButtonGlowStrengthElement,
+  iconButtonGlowSizeElement,
+  iconButtonGlowAngleElement,
+  iconButtonLeftElement,
+  iconButtonTopElement,
+  iconButtonWidthElement,
+  iconButtonHeightElement,
+  iconButtonScaleElement,
+  iconButtonRotationElement,
+  iconButtonPreviewStateElement,
+  iconButtonApplyStyleElement,
+  iconButtonApplyCountElement,
+  iconButtonActionControlsElement,
+};
+function syncIconButtonInspector(iconButtonComponent: any) {
+  syncIconButtonInspectorExternal(iconButtonInspectorContext, iconButtonComponent);
+}
+const navigationInspectorContext: NavigationInspectorContext = {
+  get activeProject() {
+    return activeProject;
+  },
+  findReplaceableComponents,
+  navigationActionControlsElement,
+  navigationApplyCountElement,
+  navigationApplyStyleElement,
+  navigationEntityButtonElement,
+  navigationFrameActiveOpacityElement,
+  navigationFrameAngleElement,
+  navigationFrameColorElement,
+  navigationFrameIdleOpacityElement,
+  navigationFrameVisibleElement,
+  navigationFrameWidthElement,
+  navigationGlowActiveSizeElement,
+  navigationGlowActiveStrengthElement,
+  navigationGlowAngleElement,
+  navigationGlowColorElement,
+  navigationGlowIdleSizeElement,
+  navigationGlowIdleStrengthElement,
+  navigationGlowVisibleElement,
+  navigationHeightElement,
+  navigationIconActiveOpacityElement,
+  navigationIconColorElement,
+  navigationIconIdleOpacityElement,
+  navigationIconLeftElement,
+  navigationIconSizeElement,
+  navigationIconTopElement,
+  navigationIconVisibleElement,
+  navigationInspectorFormElement,
+  navigationLabelElement,
+  navigationLeftElement,
+  navigationMainColorElement,
+  navigationMainSizeElement,
+  navigationMainSpacingElement,
+  navigationMainTextElement,
+  navigationMainTextLeftElement,
+  navigationMainTextTopElement,
+  navigationMainVisibleElement,
+  navigationMainWeightElement,
+  navigationPreviewStateByComponentId,
+  navigationPreviewStateElement,
+  navigationRadiusElement,
+  navigationRotationElement,
+  navigationScaleElement,
+  navigationSecondaryColorElement,
+  navigationSecondarySizeElement,
+  navigationSecondarySpacingElement,
+  navigationSecondaryTextElement,
+  navigationSecondaryTextLeftElement,
+  navigationSecondaryTextTopElement,
+  navigationSecondaryVisibleElement,
+  navigationSecondaryWeightElement,
+  navigationTextActiveOpacityElement,
+  navigationTextIdleOpacityElement,
+  navigationTopElement,
+  navigationTypeElement,
+  navigationWidthElement,
+  runClone,
+  runExtraFallback,
+  runVariantTwin,
+  sceneModeControlElement,
+  sceneModeHintElement,
+  get selectedComponentIdsSet() {
+    return selectedComponentIdsSet;
+  },
+  syncComponentActionControls,
+};
+function syncNavigationInspector(navigationComponent: any) {
+  syncNavigationInspectorExternal(navigationInspectorContext, navigationComponent);
+}
+const lineChartInspectorContext: LineChartInspectorContext = {
+  get activeProject() {
+    return activeProject;
+  },
+  findReplaceableComponents,
+  lineChartActionControlsElement,
+  lineChartApplyCountElement,
+  lineChartApplyStyleButtonElement,
+  lineChartCurveRadiusInputElement,
+  lineChartHeightInputElement,
+  lineChartHoursInputElement,
+  lineChartLabelElement,
+  lineChartLeftInputElement,
+  lineChartRotationInputElement,
+  lineChartScaleInputElement,
+  lineChartStatePrecisionSelectElement,
+  lineChartThresholdModeSelectElement,
+  lineChartTopInputElement,
+  lineChartTypeElement,
+  lineChartUpdateIntervalInputElement,
+  lineChartValueColorInputElement,
+  lineChartValueOffsetXInputElement,
+  lineChartValueOffsetYInputElement,
+  lineChartValueScaleInputElement,
+  lineChartValueVisibleElement,
+  lineChartThresholdInputs,
+  lineChartWidthInputElement,
+  runAltBackup,
+  runExtraFallback,
+  get selectedComponentIdsSet() {
+    return selectedComponentIdsSet;
+  },
+  syncComponentActionControls,
+};
+function syncLineChartInspector(lineChartComponent: any) {
+  syncLineChartInspectorExternal(lineChartInspectorContext, lineChartComponent);
+}
+const airConditionerInspectorContext: AirConditionerInspectorContext = {
+  get activeProject() {
+    return activeProject;
+  },
+  airConditionerActionControlsElement,
+  airConditionerActionSectionElement,
+  airConditionerAirflowAngleElement,
+  airConditionerAirflowBlurElement,
+  airConditionerAirflowCoolColorElement,
+  airConditionerAirflowCurveElement,
+  airConditionerAirflowDensityElement,
+  airConditionerAirflowFadeElement,
+  airConditionerAirflowHeatColorElement,
+  airConditionerAirflowHeightElement,
+  airConditionerAirflowIrregularityElement,
+  airConditionerAirflowLengthElement,
+  airConditionerAirflowMotionElement,
+  airConditionerAirflowOffsetXElement,
+  airConditionerAirflowOffsetYElement,
+  airConditionerAirflowOtherColorElement,
+  airConditionerAirflowRotationElement,
+  airConditionerAirflowScaleElement,
+  airConditionerAirflowSectionElement,
+  airConditionerAirflowSpeedElement,
+  airConditionerAirflowSpreadElement,
+  airConditionerAirflowStrengthElement,
+  airConditionerAirflowThicknessElement,
+  airConditionerAirflowVisibleElement,
+  airConditionerAirflowWidthElement,
+  airConditionerApplyCountElement,
+  airConditionerApplyStyleElement,
+  airConditionerBadgeColorElement,
+  airConditionerBadgeOpacityElement,
+  airConditionerBadgeSizeElement,
+  airConditionerButtonSectionElement,
+  airConditionerDeviceTypeElement,
+  airConditionerHeightElement,
+  airConditionerIconLeftElement,
+  airConditionerIconOffColorElement,
+  airConditionerIconOnColorElement,
+  airConditionerIconTopElement,
+  airConditionerIconVisibleElement,
+  airConditionerLabelElement,
+  airConditionerLayerByComponentId,
+  airConditionerLayerOptionsElement,
+  airConditionerLeftElement,
+  airConditionerMainColorElement,
+  airConditionerMainLeftElement,
+  airConditionerMainSizeElement,
+  airConditionerMainSpacingElement,
+  airConditionerMainTextElement,
+  airConditionerMainTopElement,
+  airConditionerMainVisibleElement,
+  airConditionerMainWeightElement,
+  airConditionerPreviewDetailsElement,
+  airConditionerPreviewStateByComponentId,
+  airConditionerPreviewStateElement,
+  airConditionerRotationElement,
+  airConditionerScaleElement,
+  airConditionerSecondaryColorElement,
+  airConditionerSecondaryLeftElement,
+  airConditionerSecondarySizeElement,
+  airConditionerSecondarySpacingElement,
+  airConditionerSecondaryTextElement,
+  airConditionerSecondaryTopElement,
+  airConditionerSecondaryVisibleElement,
+  airConditionerSecondaryWeightElement,
+  airConditionerSymbolSizeElement,
+  airConditionerTopElement,
+  airConditionerTransformSectionElement,
+  airConditionerWidthElement,
+  get editorRenderer() {
+    return editorRenderer;
+  },
+  findReplaceableComponents,
+  runAltLeft,
+  runExtraFallback,
+  get selectedComponentIdsSet() {
+    return selectedComponentIdsSet;
+  },
+  syncComponentActionControls,
+};
+function syncAirConditionerInspector(airConditionerComponent: any) {
+  syncAirConditionerInspectorExternal(airConditionerInspectorContext, airConditionerComponent);
+}
 let openCustomSelect: any = null,
   activeColorInputElement: any = null,
   activeColorHex = "",
@@ -2271,26 +2635,9 @@ function currentPage() {
     null
   );
 }
-function canGroupComponents(componentIdList: any, groupingDocument = activeProject?.document) {
-  const componentLocations = [...new Set(componentIdList || [])];
-  if (componentLocations.length < 2 || !groupingDocument) return false;
-  const map = componentLocations.map((componentIdItem) =>
-    componentDirectLocation2(groupingDocument, componentIdItem),
-  );
-  if (map.some((locationEntry) => !locationEntry || locationEntry.component.type === "group"))
-    return false;
-  const firstComponentLocation = map[0];
-  return map.every(
-    (sameScopeLocation) =>
-      sameScopeLocation.scope === firstComponentLocation.scope &&
-      sameScopeLocation.page?.path === firstComponentLocation.page?.path &&
-      sameScopeLocation.collection === firstComponentLocation.collection &&
-      sameScopeLocation.component.properties?.layoutMode !== "fill",
-  );
-}
 function groupSelectedComponents(requestedComponentIds: any) {
   const groupedComponentIds = [...new Set(requestedComponentIds || [])];
-  if (!canGroupComponents(groupedComponentIds)) {
+  if (!canGroupComponents2(groupedComponentIds, activeProject?.document)) {
     handleOperationError(new Error("请选择同一页面或同一侧边栏中的两个或更多控件后再成组。"));
     return;
   }
@@ -2312,7 +2659,7 @@ function groupSelectedComponents(requestedComponentIds: any) {
             (componentA, componentB) =>
               collection.indexOf(componentA) - collection.indexOf(componentB),
           ),
-        memberBounds = sort.map((boundsMemberComponent) => componentBounds(boundsMemberComponent)),
+        memberBounds = sort.map((boundsMemberComponent) => componentBounds2(boundsMemberComponent)),
         groupMinLeft = Math.min(...memberBounds.map((minLeftBounds) => minLeftBounds.left)),
         groupMinTop = Math.min(...memberBounds.map((minTopBounds) => minTopBounds.top)),
         groupMaxRight = Math.max(...memberBounds.map((maxRightBounds) => maxRightBounds.right)),
@@ -2722,6 +3069,19 @@ function mutateDocument(
     throwOnWriteError ? caughtError : writeQueuePromise
   );
 }
+setupRelatedPopup({
+  get entities() {
+    return entities;
+  },
+  get devices() {
+    return devices;
+  },
+  getSelectedComponentId: () => selectedComponentId,
+  removedComponent,
+  mutateDocument,
+  runAlt,
+  runSnapshot,
+});
 function nudgeDeltaX(nudgeDeltaY: any, nudgedComponentIds: any) {
   const nl2 = removalPageEntry([...selectedComponentIdsSet]);
   !nl2.length ||
@@ -2843,29 +3203,6 @@ function nudgeDeltaX(nudgeDeltaY: any, nudgedComponentIds: any) {
       }
     });
 }
-function componentBounds(boundsComponent: any) {
-  const boundsPosition = boundsComponent.position || {},
-    boundsWidth = Math.max(0.01, Number(boundsPosition.width || 100)),
-    boundsHeight = Math.max(0.01, Number(boundsPosition.height || 100)),
-    boundsScale = Math.max(0.01, Math.min(5, Number(boundsComponent.style?.scale || 1))),
-    boundsRotationRad = (Number(boundsPosition.rotation || 0) * Math.PI) / 180,
-    boundsHalfWidth =
-      (Math.abs(Math.cos(boundsRotationRad)) * boundsWidth * boundsScale +
-        Math.abs(Math.sin(boundsRotationRad)) * boundsHeight * boundsScale) /
-      2,
-    boundsHalfHeight =
-      (Math.abs(Math.sin(boundsRotationRad)) * boundsWidth * boundsScale +
-        Math.abs(Math.cos(boundsRotationRad)) * boundsHeight * boundsScale) /
-      2,
-    boundsCenterX = Number(boundsPosition.x || 0) + boundsWidth / 2,
-    boundsCenterY = Number(boundsPosition.y || 0) + boundsHeight / 2;
-  return {
-    left: boundsCenterX - boundsHalfWidth,
-    top: boundsCenterY - boundsHalfHeight,
-    right: boundsCenterX + boundsHalfWidth,
-    bottom: boundsCenterY + boundsHalfHeight,
-  };
-}
 function scaledSelectionPlacements(targetSelectionScale: any) {
   if (selectedComponentIdsSet.size < 2 || !activeProject || !selectedComponentId) return [];
   const selectedComponentsList = [...selectedComponentIdsSet]
@@ -2902,7 +3239,7 @@ function scaledSelectionPlacements(targetSelectionScale: any) {
       ),
     ),
     appliedScaleRatio = clampNumber2(requestedScaleRatio, minAllowedRatio, maxAllowedRatio),
-    selectionBoundsList = selectedComponentsList.map(componentBounds),
+    selectionBoundsList = selectedComponentsList.map(componentBounds2),
     selectionAnchorX =
       (Math.min(...selectionBoundsList.map((leftBoundsItem) => leftBoundsItem.left)) +
         Math.max(...selectionBoundsList.map((rightBoundsItem) => rightBoundsItem.right))) /
@@ -2956,11 +3293,6 @@ function setComponentsRotation(
         rotation: rotationDegrees,
       });
   }
-}
-function visibilityIconSvg(visibilityIconVisible: any) {
-  return visibilityIconVisible
-    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.8"/></svg>'
-    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 4 16 16M2.5 12s3.5-6 9.5-6c2 0 3.7.7 5.1 1.6M21.5 12s-3.5 6-9.5 6c-2 0-3.7-.7-5.1-1.6"/></svg>';
 }
 function setComponentsVisibility(visibilityComponentIds: any, visibilityTarget: any) {
   const nl3 = removalPageEntry(visibilityComponentIds);
@@ -3036,7 +3368,7 @@ function openComponentMenu(menuEvent: any, openedMenuComponentId: any) {
     (visibilityMenuButtonElement.title = every
       ? ""
       : "选中的控件包含隐藏和显示状态，无法批量处理"));
-  const hasOtherProject = canGroupComponents(menuCount);
+  const hasOtherProject = canGroupComponents2(menuCount, activeProject?.document);
   ((groupMenuButtonElement.hidden = !hasOtherProject),
     (ungroupMenuButtonElement.hidden =
       menuComponent?.type !== "group" || copyMenuButtonElement !== 1),
@@ -3446,7 +3778,7 @@ function renderComponentList(componentListElement: any, listComponents: any, lis
           ? "隐藏" + componentLabel2(listComponent)
           : "显示" + componentLabel2(listComponent),
       ),
-      (itemVisibilityButtonElement.innerHTML = visibilityIconSvg(isItemIsVisible)));
+      (itemVisibilityButtonElement.innerHTML = visibilityIconSvg2(isItemIsVisible)));
     const stopItemEventPropagation = (itemEvent: any) => {
       ((lastComponentClick = {
         componentId: listComponent.id,
@@ -5238,273 +5570,6 @@ function runExtraFallback(runExtraBackup: any) {
       ao3.relatedSettings === false ? null : ao3.button.closest(".inspector-picker"),
     ));
 }
-let relatedPopupElement: any = null,
-  relatedPopupTitleElement: any = null,
-  relatedPopupSummaryElement: any = null,
-  relatedPopupHintElement: any = null,
-  relatedPopupListElement: any = null,
-  relatedPopupOpenButtonElement: any = null,
-  relatedPopupDialogElement: any = null,
-  relatedPopupDialogTitleElement: any = null,
-  relatedPopupSearchInputElement: any = null;
-function entitiesByEntityId() {
-  return new Map(
-    entities
-      .map((entityRecord: any) => [String(entityRecord.entityId || ""), entityRecord] as const)
-      .filter(([entityValue]: any) => entityValue),
-  );
-}
-function devicesByDeviceId() {
-  return new Map(
-    devices
-      .map((deviceRecord: any) => [String(deviceRecord.deviceId || ""), deviceRecord] as const)
-      .filter(([deviceValue]: any) => deviceValue),
-  );
-}
-function filterRelatedEntityOptions() {
-  const searchTerm = String(relatedPopupSearchInputElement?.value || "")
-    .trim()
-    .toLocaleLowerCase("zh-CN");
-  let visibleCount = 0;
-  for (const optionElement of relatedPopupListElement?.querySelectorAll(
-    "[data-related-entity-id]",
-  ) || []) {
-    const isVisible =
-      !searchTerm || String(optionElement.dataset.relatedEntitySearch || "").includes(searchTerm);
-    ((optionElement.hidden = !isVisible), isVisible && (visibleCount += 1));
-  }
-  const filterEmptyElement = relatedPopupListElement?.querySelector(
-    ".popup-related-entity-filter-empty",
-  );
-  filterEmptyElement && (filterEmptyElement.hidden = visibleCount > 0);
-}
-function ensureRelatedPopupElement() {
-  if (relatedPopupElement) return relatedPopupElement;
-  ((relatedPopupElement = document.createElement("div")),
-    (relatedPopupElement.id = "popup-related-entity-settings"),
-    (relatedPopupElement.className = "popup-related-entity-settings"),
-    (relatedPopupTitleElement = document.createElement("strong")),
-    (relatedPopupSummaryElement = document.createElement("span")),
-    (relatedPopupOpenButtonElement = document.createElement("button")),
-    (relatedPopupOpenButtonElement.type = "button"),
-    (relatedPopupOpenButtonElement.className = "popup-related-entity-open"));
-  const arrowIconElement = document.createElement("i");
-  (arrowIconElement.setAttribute("aria-hidden", "true"),
-    (arrowIconElement.textContent = "›"),
-    relatedPopupOpenButtonElement.append(relatedPopupSummaryElement, arrowIconElement),
-    (relatedPopupHintElement = document.createElement("p")),
-    relatedPopupElement.append(
-      relatedPopupTitleElement,
-      relatedPopupOpenButtonElement,
-      relatedPopupHintElement,
-    ),
-    (relatedPopupDialogElement = document.createElement("dialog")),
-    (relatedPopupDialogElement.id = "popup-related-entity-dialog"),
-    (relatedPopupDialogElement.className = "popup-related-entity-dialog"));
-  const dialogCardElement = document.createElement("div");
-  dialogCardElement.className = "popup-related-entity-dialog-card";
-  const dialogHeadingElement = document.createElement("div");
-  dialogHeadingElement.className = "popup-related-entity-dialog-heading";
-  const headingTextElement = document.createElement("div");
-  relatedPopupDialogTitleElement = document.createElement("strong");
-  const headingHintElement = document.createElement("span");
-  ((headingHintElement.textContent = "选择要放进设备弹窗的功能"),
-    headingTextElement.append(relatedPopupDialogTitleElement, headingHintElement));
-  const closeButtonElement = document.createElement("button");
-  ((closeButtonElement.type = "button"),
-    closeButtonElement.setAttribute("aria-label", "关闭关联功能选择"),
-    (closeButtonElement.textContent = "×"),
-    dialogHeadingElement.append(headingTextElement, closeButtonElement));
-  const searchLabelElement = document.createElement("label");
-  ((searchLabelElement.className = "popup-related-entity-dialog-search"),
-    (relatedPopupSearchInputElement = document.createElement("input")),
-    (relatedPopupSearchInputElement.type = "search"),
-    (relatedPopupSearchInputElement.name = "popup-related-entity-search"),
-    (relatedPopupSearchInputElement.placeholder = "搜索功能名称或实体 ID"),
-    (relatedPopupSearchInputElement.autocomplete = "off"),
-    searchLabelElement.append(relatedPopupSearchInputElement),
-    (relatedPopupListElement = document.createElement("div")),
-    (relatedPopupListElement.className = "popup-related-entity-list"));
-  const dialogFooterElement = document.createElement("div");
-  dialogFooterElement.className = "popup-related-entity-dialog-footer";
-  const doneButtonElement = document.createElement("button");
-  return (
-    (doneButtonElement.type = "button"),
-    (doneButtonElement.textContent = "完成"),
-    dialogFooterElement.append(doneButtonElement),
-    dialogCardElement.append(
-      dialogHeadingElement,
-      searchLabelElement,
-      relatedPopupListElement,
-      dialogFooterElement,
-    ),
-    relatedPopupDialogElement.append(dialogCardElement),
-    document.body.append(relatedPopupDialogElement),
-    relatedPopupOpenButtonElement.addEventListener("click", () => {
-      relatedPopupDialogElement.open ||
-        ((relatedPopupSearchInputElement.value = ""),
-        filterRelatedEntityOptions(),
-        relatedPopupDialogElement.showModal(),
-        window.requestAnimationFrame(() =>
-          relatedPopupSearchInputElement.focus({
-            preventScroll: true,
-          }),
-        ));
-    }),
-    relatedPopupSearchInputElement.addEventListener("input", filterRelatedEntityOptions),
-    closeButtonElement.addEventListener("click", () => relatedPopupDialogElement.close()),
-    doneButtonElement.addEventListener("click", () => relatedPopupDialogElement.close()),
-    relatedPopupDialogElement.addEventListener("click", (dialogClickEvent: any) => {
-      dialogClickEvent.target === relatedPopupDialogElement && relatedPopupDialogElement.close();
-    }),
-    relatedPopupListElement.addEventListener("click", (listClickEvent: any) => {
-      const relatedOptionElement = listClickEvent.target.closest("[data-related-entity-id]"),
-        activeComponentId = selectedComponentId;
-      if (!relatedOptionElement || !activeComponentId || relatedOptionElement.disabled) return;
-      const entityMap = String(relatedOptionElement.dataset.relatedEntityId || ""),
-        deviceMap = removedComponent(),
-        rs2 = entitiesByEntityId(),
-        as2 = devicesByDeviceId();
-      if (!relatedPopupContext2(deviceMap, rs2, as2)) return;
-      const configuredRelatedIds = selectedRelatedEntityIds2(deviceMap),
-        selectedIdSet = new Set(
-          configuredRelatedIds === null ? [] : configuredRelatedIds,
-        ),
-        popup = relatedPopupContext2(deviceMap, rs2, as2),
-        selectionLimit = relatedPopupSelectionLimit2(popup);
-      if (selectedIdSet.has(entityMap)) selectedIdSet.delete(entityMap);
-      else {
-        if (!selectionLimit || selectedIdSet.size < selectionLimit) selectedIdSet.add(entityMap);
-        else return;
-      }
-      mutateDocument((draftDocument: any) => {
-        const targetComponent = findComponent2(draftDocument, activeComponentId)?.component;
-        targetComponent &&
-          (targetComponent.properties = {
-            ...(targetComponent.properties || {}),
-            relatedEntities: manualRelatedEntityConfig2([...selectedIdSet]),
-          });
-      });
-    }),
-    relatedPopupElement
-  );
-}
-function updateRelatedPopup(editedComponent: any, anchorElement: any) {
-  const lL2 = ensureRelatedPopupElement(),
-    rs3 = entitiesByEntityId(),
-    as3 = devicesByDeviceId(),
-    related = relatedPopupContext2(editedComponent, rs3, as3);
-  if (!related || !anchorElement) {
-    ((lL2.hidden = true), relatedPopupDialogElement?.open && relatedPopupDialogElement.close());
-    return;
-  }
-  (lL2.previousElementSibling !== anchorElement &&
-    anchorElement.insertAdjacentElement("afterend", lL2),
-    (lL2.hidden = false));
-  const storedRelatedIds = selectedRelatedEntityIds2(editedComponent),
-    isAutomaticSelection = storedRelatedIds === null,
-    currentRelatedIdSet = new Set(
-      isAutomaticSelection ? [] : storedRelatedIds,
-    ),
-    popupSelectionLimit = relatedPopupSelectionLimit2(related),
-    isLimitReached = popupSelectionLimit > 0 && currentRelatedIdSet.size >= popupSelectionLimit,
-    candidateEntities = relatedPopupCandidates2(editedComponent, rs3, as3),
-    knownEntityIdSet = new Set(
-      candidateEntities.map((candidateEntityRecord) => candidateEntityRecord.entityId),
-    );
-  for (const relatedEntityId of currentRelatedIdSet)
-    knownEntityIdSet.has(relatedEntityId) ||
-      candidateEntities.push({
-        entityId: relatedEntityId,
-        domain: String(relatedEntityId).split(".", 1)[0],
-        name: relatedEntityId,
-        status: "missing",
-      });
-  ((relatedPopupTitleElement.textContent = related.deviceLabel + "弹窗功能"),
-    (relatedPopupSummaryElement.textContent = isAutomaticSelection
-      ? "自动适配"
-      : "已选 " +
-        currentRelatedIdSet.size +
-        (popupSelectionLimit ? " / " + popupSelectionLimit : "") +
-        " 项"),
-    relatedPopupSummaryElement.classList.toggle("is-automatic", isAutomaticSelection),
-    (relatedPopupHintElement.textContent = isAutomaticSelection
-      ? "当前沿用原来的自动适配，点击可改为手动选择。"
-      : "只显示已勾选的关联功能" +
-        (popupSelectionLimit ? "，最多 " + popupSelectionLimit + " 项" : "") +
-        "。"),
-    (relatedPopupDialogTitleElement.textContent =
-      related.deviceLabel +
-      "弹窗功能 · " +
-      (isAutomaticSelection
-        ? "自动适配"
-        : "已选 " +
-          currentRelatedIdSet.size +
-          (popupSelectionLimit ? " / " + popupSelectionLimit : "") +
-          " 项")));
-  const optionButtons: HTMLElement[] = candidateEntities.map((candidate) => {
-    const isSelected = currentRelatedIdSet.has(candidate.entityId),
-      isAvailable = relatedEntityIsAvailable2(candidate),
-      candidateButton = document.createElement("button");
-    candidateButton.type = "button";
-    const isDisabledByLimit = isLimitReached && !isSelected;
-    ((candidateButton.className =
-      "popup-related-entity-option" +
-      (isSelected ? " selected" : "") +
-      (isAvailable ? "" : " unavailable") +
-      (isDisabledByLimit ? " limit-reached" : "")),
-      (candidateButton.dataset.relatedEntityId = candidate.entityId),
-      candidateButton.setAttribute("aria-pressed", String(isSelected)),
-      (candidateButton.disabled = (!isAvailable && !isSelected) || isDisabledByLimit));
-    const iconElement = document.createElement("i");
-    iconElement.setAttribute("aria-hidden", "true");
-    const labelElement = document.createElement("span"),
-      entityNameElement = document.createElement("strong"),
-      entityLabel = relatedEntityLabel2(related, candidate);
-    entityNameElement.textContent = runSnapshot(candidate, entityLabel);
-    const metaElement = document.createElement("small"),
-      metaParts = [
-        (RELATED_ENTITY_DOMAIN_LABELS2 as any)[
-          String(candidate.domain || candidate.entityId || "").split(".", 1)[0]
-        ] || "实体",
-        candidate.entityId,
-      ];
-    return (
-      isAvailable
-        ? isDisabledByLimit
-          ? metaParts.push("最多选择 " + popupSelectionLimit + " 项")
-          : relatedEntityNeedsConfirmation2(candidate) && metaParts.push("点击时需确认")
-        : metaParts.push("暂时不可用"),
-      (metaElement.textContent = metaParts.join(" · ")),
-      (candidateButton.dataset.relatedEntitySearch = (
-        entityNameElement.textContent +
-        " " +
-        (candidate.name || "") +
-        " " +
-        (candidate.originalName || "") +
-        " " +
-        metaElement.textContent
-      ).toLocaleLowerCase("zh-CN")),
-      runAlt(candidateButton, entityNameElement),
-      labelElement.append(entityNameElement, metaElement),
-      candidateButton.append(iconElement, labelElement),
-      candidateButton
-    );
-  });
-  if (optionButtons.length) {
-    const noMatchElement = document.createElement("div");
-    ((noMatchElement.className = "popup-related-entity-empty popup-related-entity-filter-empty"),
-      (noMatchElement.textContent = "没有匹配的关联功能。"),
-      (noMatchElement.hidden = true),
-      optionButtons.push(noMatchElement));
-  } else {
-    const emptyMessageElement = document.createElement("div");
-    ((emptyMessageElement.className = "popup-related-entity-empty"),
-      (emptyMessageElement.textContent = "这个 HA 设备暂时没有可选择的关联实体。"),
-      optionButtons.push(emptyMessageElement));
-  }
-  (relatedPopupListElement.replaceChildren(...optionButtons), filterRelatedEntityOptions());
-}
 function resolveAssetPreviewUrl(asset = "image") {
   const ao4 = runExtraAlt(asset);
   if (ao4.menu.hidden) return;
@@ -6435,60 +6500,6 @@ function weatherProperties(
     dateComponentDimensions2,
   );
 }
-function syncTimeInspector(timeComponent: any) {
-  const availablePropertiesRef = timeComponent.properties || {},
-    {
-      left: fitDateComponentToDimensions,
-      top: fitDateComponentToDimensionsState,
-      scale: dateFitComponent,
-      rotation: dateFitProperties,
-    }: any = inspectorComponentMetrics2(timeComponent, activeProject.document);
-  ((dateTypeElement.value = "日期"), (dateLabelElement.value = availablePropertiesRef.label || ""));
-  for (const syncDateInspectorElement of dateWeekdayElement.querySelectorAll("[data-date-weekday]"))
-    syncDateInspectorElement.classList.toggle(
-      "active",
-      syncDateInspectorElement.dataset.dateWeekday ===
-        (availablePropertiesRef.showWeekday === false ? "off" : "on"),
-    );
-  for (const dateComponentElement of dateLunarElement.querySelectorAll("[data-date-lunar]"))
-    dateComponentElement.classList.toggle(
-      "active",
-      dateComponentElement.dataset.dateLunar ===
-        (availablePropertiesRef.showLunar === true ? "on" : "off"),
-    );
-  ((datePrimaryColorElement.value = availablePropertiesRef.primaryColor || "#8d9296"),
-    (datePrimarySizeElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesRef.primarySize ?? 36), 12, 500),
-    )),
-    (datePrimaryWeightElement.value = roundField2(
-      normalizedFontWeight2(availablePropertiesRef.primaryWeight),
-    )),
-    (datePrimarySpacingElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesRef.primarySpacing ?? 1), -20, 100),
-    )),
-    (dateLunarColorElement.value = availablePropertiesRef.lunarColor || "#7f878c"),
-    (dateLunarSizeElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesRef.lunarSize ?? 24), 10, 500),
-    )),
-    (dateLunarWeightElement.value = roundField2(
-      normalizedFontWeight2(availablePropertiesRef.lunarWeight),
-    )),
-    (dateLunarSpacingElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesRef.lunarSpacing ?? 1), -20, 100),
-    )),
-    (dateLineGapElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesRef.lineGap ?? 8), 0, 200),
-    )),
-    (dateOpacityElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesRef.opacity ?? 1) * 100, 0, 100),
-    )),
-    (dateLeftElement.value = fitDateComponentToDimensions),
-    (dateTopElement.value = fitDateComponentToDimensionsState),
-    (dateScaleElement.value = dateFitComponent),
-    (dateRotationElement.value = dateFitProperties),
-    (dateScaleElement.disabled = false),
-    (dateRotationElement.disabled = false));
-}
 function fitWeatherComponentToDimensions(
   weatherFitComponent: any,
   weatherFitProperties = weatherFitComponent?.properties || {},
@@ -6499,2109 +6510,456 @@ function fitWeatherComponentToDimensions(
     weatherComponentDimensions2,
   );
 }
+function entitiesByEntityId() {
+  return new Map(
+    entities
+      .map((entityRecord: any) => [String(entityRecord.entityId || ""), entityRecord] as const)
+      .filter(([entityValue]: any) => entityValue),
+  );
+}
+function devicesByDeviceId() {
+  return new Map(
+    devices
+      .map((deviceRecord: any) => [String(deviceRecord.deviceId || ""), deviceRecord] as const)
+      .filter(([deviceValue]: any) => deviceValue),
+  );
+}
+function buildCustomPopupEditorContext(): CustomPopupEditorContext {
+  return {
+    get editorMode() {
+      return editorMode;
+    },
+    get activeProject() {
+      return activeProject;
+    },
+    get selectedPopupId() {
+      return selectedPopupId;
+    },
+    customPopupEditorElement,
+    mutateDocument,
+    handleOperationError,
+    currentPage,
+    deviceNameValue,
+    openPopupModuleDialog,
+  };
+}
+function renderCustomPopupEditor() {
+  renderCustomPopupEditorExternal(buildCustomPopupEditorContext());
+}
+function syncCustomPopupStage() {
+  syncCustomPopupStageExternal(buildCustomPopupEditorContext());
+}
+function buildTimeInspectorContext() {
+  return {
+    get activeProject() {
+      return activeProject;
+    },
+    dateTypeElement,
+    dateLabelElement,
+    dateWeekdayElement,
+    dateLunarElement,
+    datePrimaryColorElement,
+    datePrimarySizeElement,
+    datePrimaryWeightElement,
+    datePrimarySpacingElement,
+    dateLunarColorElement,
+    dateLunarSizeElement,
+    dateLunarWeightElement,
+    dateLunarSpacingElement,
+    dateLineGapElement,
+    dateOpacityElement,
+    dateLeftElement,
+    dateTopElement,
+    dateScaleElement,
+    dateRotationElement,
+  };
+}
+function syncTimeInspector(timeComponent: any) {
+  syncTimeInspectorExternal(buildTimeInspectorContext(), timeComponent);
+}
+function buildWeatherInspectorContext() {
+  return {
+    get activeProject() {
+      return activeProject;
+    },
+    runExtraFallback,
+    weatherTypeElement,
+    weatherLabelElement,
+    weatherIconVisibleElement,
+    weatherTemperatureVisibleElement,
+    weatherConditionVisibleElement,
+    weatherHumidityVisibleElement,
+    weatherIconSizeElement,
+    weatherIconGapElement,
+    weatherTemperatureColorElement,
+    weatherTemperatureSizeElement,
+    weatherTemperatureWeightElement,
+    weatherTemperatureSpacingElement,
+    weatherSecondaryColorElement,
+    weatherSecondarySizeElement,
+    weatherSecondaryWeightElement,
+    weatherSecondarySpacingElement,
+    weatherLineGapElement,
+    weatherOpacityElement,
+    weatherLeftElement,
+    weatherTopElement,
+    weatherScaleElement,
+    weatherRotationElement,
+  };
+}
 function syncWeatherInspector(weatherComponent: any) {
-  const availablePropertiesEntry = weatherComponent.properties || {},
-    {
-      left: LINE_CHART_DEFAULT_THRESHOLD_VALUES,
-      top: LINE_CHART_DEFAULT_THRESHOLD_VALUESState,
-      scale: LINE_CHART_DEFAULT_THRESHOLD_TOKENS,
-      rotation: LINE_CHART_DEFAULT_THRESHOLD_TOKENSState,
-    }: any = inspectorComponentMetrics2(weatherComponent, activeProject.document);
-  (runExtraFallback(weatherComponent),
-    (weatherTypeElement.value = "天气"),
-    (weatherLabelElement.value = availablePropertiesEntry.label || ""));
-  const LINE_CHART_DEFAULT_THRESHOLD_FALLBACKS = [
-    [
-      weatherIconVisibleElement,
-      "weatherIconVisible",
-      availablePropertiesEntry.iconVisible !== false,
-    ],
-    [
-      weatherTemperatureVisibleElement,
-      "weatherTemperatureVisible",
-      availablePropertiesEntry.temperatureVisible !== false,
-    ],
-    [
-      weatherConditionVisibleElement,
-      "weatherConditionVisible",
-      availablePropertiesEntry.conditionVisible !== false,
-    ],
-    [
-      weatherHumidityVisibleElement,
-      "weatherHumidityVisible",
-      availablePropertiesEntry.humidityVisible !== false,
-    ],
-  ];
-  for (const [
-    LINE_CHART_DEFAULT_THRESHOLD_TOKENSElement,
-    LINE_CHART_DEFAULT_THRESHOLD_FALLBACKSState,
-    defaultLineChartThresholds,
-  ] of LINE_CHART_DEFAULT_THRESHOLD_FALLBACKS)
-    for (const thresholdValueElement of LINE_CHART_DEFAULT_THRESHOLD_TOKENSElement.querySelectorAll(
-      "[data-" +
-        LINE_CHART_DEFAULT_THRESHOLD_FALLBACKSState.replace(
-          /[A-Z]/g,
-          (thresholdIndexState: any) => "-" + thresholdIndexState.toLowerCase(),
-        ) +
-        "]",
-    )) {
-      const syncLineChartInspectorState =
-        thresholdValueElement.dataset[LINE_CHART_DEFAULT_THRESHOLD_FALLBACKSState];
-      (thresholdValueElement.classList.toggle(
-        "active",
-        syncLineChartInspectorState === (defaultLineChartThresholds ? "on" : "off"),
-      ),
-        thresholdValueElement.setAttribute(
-          "aria-pressed",
-          String(syncLineChartInspectorState === (defaultLineChartThresholds ? "on" : "off")),
-        ));
-    }
-  ((weatherIconSizeElement.value = roundField2(
-    clampNumber2(Number(availablePropertiesEntry.iconSize ?? 64), 12, 500),
-  )),
-    (weatherIconGapElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesEntry.iconGap ?? 22), 0, 300),
-    )),
-    (weatherTemperatureColorElement.value = availablePropertiesEntry.temperatureColor || "#aeb3b7"),
-    (weatherTemperatureSizeElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesEntry.temperatureSize ?? 32), 12, 500),
-    )),
-    (weatherTemperatureWeightElement.value = roundField2(
-      normalizedFontWeight2(availablePropertiesEntry.temperatureWeight),
-    )),
-    (weatherTemperatureSpacingElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesEntry.temperatureSpacing ?? 1), -20, 100),
-    )),
-    (weatherSecondaryColorElement.value = availablePropertiesEntry.secondaryColor || "#8d9296"),
-    (weatherSecondarySizeElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesEntry.secondarySize ?? 18), 10, 500),
-    )),
-    (weatherSecondaryWeightElement.value = roundField2(
-      normalizedFontWeight2(availablePropertiesEntry.secondaryWeight),
-    )),
-    (weatherSecondarySpacingElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesEntry.secondarySpacing ?? 1), -20, 100),
-    )),
-    (weatherLineGapElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesEntry.lineGap ?? 7), 0, 200),
-    )),
-    (weatherOpacityElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesEntry.opacity ?? 1) * 100, 0, 100),
-    )),
-    (weatherLeftElement.value = LINE_CHART_DEFAULT_THRESHOLD_VALUES),
-    (weatherTopElement.value = LINE_CHART_DEFAULT_THRESHOLD_VALUESState),
-    (weatherScaleElement.value = LINE_CHART_DEFAULT_THRESHOLD_TOKENS),
-    (weatherRotationElement.value = LINE_CHART_DEFAULT_THRESHOLD_TOKENSState),
-    (weatherScaleElement.disabled = false),
-    (weatherRotationElement.disabled = false));
+  syncWeatherInspectorExternal(buildWeatherInspectorContext(), weatherComponent);
 }
-function syncLineChartInspector(lineChartComponent: any) {
-  const chartProperties = lineChartComponent.properties || {},
-    chartPosition = lineChartComponent.position || {},
-    chartCanvasWidthPx = Number(activeProject.document.canvas.width || 2778),
-    chartCanvasHeightPx = Number(activeProject.document.canvas.height || 1940),
-    chartWidthPx = Number(chartPosition.width || 100),
-    chartHeightPx = Number(chartPosition.height || 100);
-  (runExtraFallback(lineChartComponent),
-    (lineChartTypeElement.value = "折线图"),
-    (lineChartLabelElement.value = chartProperties.label || ""));
-  for (const valueVisibleToggleElement of lineChartValueVisibleElement.querySelectorAll(
-    "[data-line-chart-value-visible]",
-  )) {
-    const isValueVisible =
-      valueVisibleToggleElement.dataset.lineChartValueVisible ===
-      (chartProperties.valueVisible === false ? "off" : "on");
-    (valueVisibleToggleElement.classList.toggle("active", isValueVisible),
-      valueVisibleToggleElement.setAttribute("aria-pressed", String(isValueVisible)));
-  }
-  ((lineChartValueScaleInputElement.value = roundField2(
-    clampNumber2(Number(chartProperties.valueScale ?? 100), 10, 500),
-  )),
-    (lineChartValueColorInputElement.value = chartProperties.valueColor || "#dce1e5"),
-    (lineChartStatePrecisionSelectElement.value = ["0", "1", "2", "3", "4"].includes(
-      String(chartProperties.statePrecision),
-    )
-      ? String(chartProperties.statePrecision)
-      : "auto"),
-    (lineChartValueOffsetXInputElement.value = roundField2(
-      clampNumber2(Number(chartProperties.valueOffsetX ?? 0), -100, 100),
-    )),
-    (lineChartValueOffsetYInputElement.value = roundField2(
-      clampNumber2(Number(chartProperties.valueOffsetY ?? 0), -100, 100),
-    )),
-    (lineChartUpdateIntervalInputElement.value = roundField2(
-      clampNumber2(Number(chartProperties.updateInterval ?? 600), 30, 86400),
-    )),
-    (lineChartHoursInputElement.value = roundField2(
-      clampNumber2(Number(chartProperties.hours ?? 24), 1, 168),
-    )),
-    (lineChartCurveRadiusInputElement.value = roundField2(
-      clampNumber2(Number(chartProperties.cornerRadius ?? 10), 0, 50),
-    )));
-  const hasCustomThresholds = [
-      {
-        value: 0,
-        color: "#ddffc2",
-      },
-      {
-        value: 13,
-        color: "#68cc3e",
-      },
-      {
-        value: 27,
-        color: "#ff8e52",
-      },
-      {
-        value: 40,
-        color: "#ff1a1a",
-      },
-    ],
-    some3 =
-      Array.isArray(chartProperties.thresholds) &&
-      chartProperties.thresholds.some((threshold: any) => Number.isFinite(Number(threshold?.value))),
-    thresholdMode =
-      chartProperties.thresholdMode === "auto" ||
-      (!some3 && chartProperties.thresholdMode !== "manual")
-        ? "auto"
-        : "manual";
-  lineChartThresholdModeSelectElement.value = thresholdMode;
-  const thresholds = some3 ? chartProperties.thresholds : hasCustomThresholds;
-  (lineChartThresholdInputs.forEach((thresholdInput, thresholdSlotIndex) => {
-    ((thresholdInput.value.value = roundField2(
-      Number(
-        thresholds[thresholdSlotIndex]?.value ?? hasCustomThresholds[thresholdSlotIndex].value,
-      ),
-    )),
-      (thresholdInput.color.value =
-        thresholds[thresholdSlotIndex]?.color || hasCustomThresholds[thresholdSlotIndex].color),
-      (thresholdInput.value.disabled = thresholdMode === "auto"),
-      (thresholdInput.color.disabled = thresholdMode === "auto"));
-  }),
-    (lineChartLeftInputElement.value = roundField2(
-      clampNumber2(
-        ((Number(chartPosition.x || 0) + chartWidthPx / 2) / chartCanvasWidthPx) * 100,
-        0,
-        100,
-      ),
-    )),
-    (lineChartTopInputElement.value = roundField2(
-      clampNumber2(
-        ((Number(chartPosition.y || 0) + chartHeightPx / 2) / chartCanvasHeightPx) * 100,
-        0,
-        100,
-      ),
-    )),
-    (lineChartWidthInputElement.value = roundField2(
-      clampNumber2((chartWidthPx / chartCanvasWidthPx) * 100, 0.1, 100),
-    )),
-    (lineChartHeightInputElement.value = roundField2(
-      clampNumber2((chartHeightPx / chartCanvasHeightPx) * 100, 0.1, 100),
-    )),
-    (lineChartScaleInputElement.value = roundField2(
-      clampNumber2(Number(lineChartComponent.style?.scale || 1) * 100, 1, 500),
-    )),
-    (lineChartRotationInputElement.value = roundField2(
-      clampNumber2(Number(chartPosition.rotation || 0), -360, 360),
-    )));
-  const isMultiSelection = selectedComponentIdsSet.size > 1;
-  ((lineChartWidthInputElement.disabled = isMultiSelection),
-    (lineChartHeightInputElement.disabled = isMultiSelection),
-    (lineChartScaleInputElement.disabled = false),
-    (lineChartRotationInputElement.disabled = false));
-  const replaceableCount = findReplaceableComponents(lineChartComponent).length,
-    applyTargetCount = runAltBackup(lineChartComponent).length;
-  ((lineChartApplyStyleButtonElement.disabled = !replaceableCount || !applyTargetCount),
-    (lineChartApplyCountElement.textContent = applyTargetCount + " 项修改"),
-    (lineChartApplyStyleButtonElement.textContent = "一键应用到同类型控件"),
-    syncComponentActionControls(lineChartComponent, lineChartActionControlsElement));
-}
-function syncNavigationInspector(navigationComponent: any) {
-  const availablePropertiesRecord = navigationComponent.properties || {},
-    navigationProperties = navigationComponent.position || {},
-    measuredBoundsText = Number(activeProject.document.canvas.width || 2778),
-    navigationCanvasWidthPx = Number(activeProject.document.canvas.height || 1940),
-    navigationCanvasHeightPx = Number(navigationProperties.width || 100),
-    navigationWidthPx = Number(navigationProperties.height || 100),
-    isNavigationWidthPx = navigationComponent.type === "scene-mode";
-  ((navigationTypeElement.value = isNavigationWidthPx ? "情景模式" : "导航按钮"),
-    (navigationEntityButtonElement
-      .closest(".inspector-picker")
-      .querySelector(".inspector-picker-title").textContent = isNavigationWidthPx
-      ? "绑定实体"
-      : "关联实体（可选）"),
-    navigationInspectorFormElement.classList.toggle("is-scene-mode", isNavigationWidthPx),
-    (sceneModeControlElement.closest(".inspector-section").hidden = !isNavigationWidthPx));
-  const navigationHeightPxState = navigationComponent.bindings?.entity?.entityId || "",
-    navigationHeightPx = resolveSceneControlMode2(
-      availablePropertiesRecord.controlMode,
-      navigationHeightPxState,
-    );
-  for (const navigationHeightPxElement of sceneModeControlElement.querySelectorAll(
-    "[data-scene-control-mode]",
-  )) {
-    const isPreviewState =
-      navigationHeightPxElement.dataset.sceneControlMode === navigationHeightPx;
-    (navigationHeightPxElement.classList.toggle("active", isPreviewState),
-      navigationHeightPxElement.setAttribute("aria-pressed", String(isPreviewState)));
-  }
-  ((sceneModeHintElement.textContent =
-    navigationHeightPx === "switch" ? "点击切换，状态跟随设备。" : "点击执行，轻弹反馈。"),
-    (navigationFrameVisibleElement.closest(".inspector-section").hidden = isNavigationWidthPx),
-    (navigationGlowVisibleElement.closest(".inspector-section").hidden = isNavigationWidthPx),
-    (navigationActionControlsElement.closest(".inspector-section").hidden = isNavigationWidthPx));
-  for (const previewStateElement of [
-    navigationMainVisibleElement,
-    navigationSecondaryVisibleElement,
-    navigationIconVisibleElement,
-  ])
-    previewStateElement.hidden = isNavigationWidthPx;
-  ((navigationLabelElement.value = availablePropertiesRecord.label || ""),
-    runExtraFallback(navigationComponent));
-  const previewState = navigationPreviewStateByComponentId.get(navigationComponent.id) || "auto";
-  for (const previewStateButtonElement of navigationPreviewStateElement.querySelectorAll(
-    "[data-navigation-preview]",
-  ))
-    (previewStateButtonElement.classList.toggle(
-      "active",
-      previewStateButtonElement.dataset.navigationPreview === previewState,
-    ),
-      (previewStateButtonElement.textContent =
-        previewStateButtonElement.dataset.navigationPreview === "auto"
-          ? "自动跟随"
-          : previewStateButtonElement.dataset.navigationPreview === "on"
-            ? isNavigationWidthPx
-              ? "激活"
-              : "选择后"
-            : isNavigationWidthPx
-              ? "默认"
-              : "选择前"));
-  ((navigationMainTextElement.value = availablePropertiesRecord.mainText || "页面导航"),
-    (navigationSecondaryTextElement.value =
-      availablePropertiesRecord.secondaryText || "NAVIGATION"),
-    setInspectorToggle2(
-      navigationMainVisibleElement,
-      availablePropertiesRecord.mainTextVisible !== false,
-    ),
-    setInspectorToggle2(
-      navigationSecondaryVisibleElement,
-      availablePropertiesRecord.secondaryTextVisible !== false,
-    ),
-    setInspectorToggle2(
-      navigationIconVisibleElement,
-      availablePropertiesRecord.iconVisible !== false,
-    ),
-    setInspectorToggle2(
-      navigationFrameVisibleElement,
-      availablePropertiesRecord.frameVisible !== false,
-    ),
-    setInspectorToggle2(
-      navigationGlowVisibleElement,
-      availablePropertiesRecord.glowVisible !== false,
-    ),
-    runClone(availablePropertiesRecord.icon || ""),
-    (navigationMainColorElement.value = availablePropertiesRecord.mainColor || "#e9edf0"),
-    (navigationSecondaryColorElement.value = availablePropertiesRecord.secondaryColor || "#e9edf0"),
-    (navigationMainSizeElement.value = roundField2(
-      Number(availablePropertiesRecord.mainSize ?? 30),
-    )),
-    (navigationSecondarySizeElement.value = roundField2(
-      Number(availablePropertiesRecord.secondarySize ?? 11),
-    )),
-    (navigationMainWeightElement.value = roundField2(
-      Number(availablePropertiesRecord.mainWeight ?? 0),
-    )),
-    (navigationSecondaryWeightElement.value = roundField2(
-      Number(availablePropertiesRecord.secondaryWeight ?? 0),
-    )),
-    (navigationMainSpacingElement.value = roundField2(
-      Number(availablePropertiesRecord.mainSpacing ?? 8),
-    )),
-    (navigationSecondarySpacingElement.value = roundField2(
-      Number(availablePropertiesRecord.secondarySpacing ?? 3),
-    )));
-  const navigationTextLeft = Number(availablePropertiesRecord.textLeft ?? 27.5),
-    navigationTextTop = Number(availablePropertiesRecord.textTop ?? 81.5);
-  ((navigationMainTextLeftElement.value = roundField2(
-    Number(availablePropertiesRecord.mainTextLeft ?? navigationTextLeft),
-  )),
-    (navigationMainTextTopElement.value = roundField2(
-      Number(availablePropertiesRecord.mainTextTop ?? navigationTextTop - 1800 / 64.36),
-    )),
-    (navigationSecondaryTextLeftElement.value = roundField2(
-      Number(availablePropertiesRecord.secondaryTextLeft ?? navigationTextLeft),
-    )),
-    (navigationSecondaryTextTopElement.value = roundField2(
-      Number(availablePropertiesRecord.secondaryTextTop ?? navigationTextTop),
-    )),
-    (navigationTextIdleOpacityElement.value = roundField2(
-      clampNumber2(
-        Number(
-          availablePropertiesRecord.textIdleOpacity ?? availablePropertiesRecord.idleOpacity ?? 0.3,
-        ) * 100,
-        0,
-        100,
-      ),
-    )),
-    (navigationTextActiveOpacityElement.value = roundField2(
-      clampNumber2(
-        Number(
-          availablePropertiesRecord.textActiveOpacity ??
-            availablePropertiesRecord.activeOpacity ??
-            0.96,
-        ) * 100,
-        0,
-        100,
-      ),
-    )),
-    (navigationIconColorElement.value = availablePropertiesRecord.iconColor || "#e9edf0"),
-    (navigationIconSizeElement.value = roundField2(
-      Number(availablePropertiesRecord.iconSize ?? 50),
-    )),
-    (navigationIconLeftElement.value = roundField2(
-      Number(availablePropertiesRecord.iconLeft ?? 14),
-    )),
-    (navigationIconTopElement.value = roundField2(Number(availablePropertiesRecord.iconTop ?? 50))),
-    (navigationIconIdleOpacityElement.value = roundField2(
-      clampNumber2(
-        Number(
-          availablePropertiesRecord.iconIdleOpacity ?? availablePropertiesRecord.idleOpacity ?? 0.3,
-        ) * 100,
-        0,
-        100,
-      ),
-    )),
-    (navigationIconActiveOpacityElement.value = roundField2(
-      clampNumber2(
-        Number(
-          availablePropertiesRecord.iconActiveOpacity ??
-            availablePropertiesRecord.activeOpacity ??
-            0.96,
-        ) * 100,
-        0,
-        100,
-      ),
-    )),
-    (navigationFrameColorElement.value = availablePropertiesRecord.frameColor || "#d9e0e6"),
-    (navigationFrameWidthElement.value = roundField2(
-      Number(availablePropertiesRecord.frameWidth ?? 2),
-    )),
-    (navigationFrameIdleOpacityElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesRecord.frameIdleOpacity ?? 0.48) * 100, 0, 100),
-    )),
-    (navigationFrameActiveOpacityElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesRecord.frameActiveOpacity ?? 0.98) * 100, 0, 100),
-    )),
-    (navigationFrameAngleElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesRecord.frameAngle ?? 45), 0, 360),
-    )),
-    (navigationGlowColorElement.value = availablePropertiesRecord.glowColor || "#f2f6fa"),
-    (navigationGlowAngleElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesRecord.glowAngle ?? 45), 0, 360),
-    )),
-    (navigationGlowIdleStrengthElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesRecord.glowIdleStrength ?? 0.5) * 100, 0, 500),
-    )),
-    (navigationGlowIdleSizeElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesRecord.glowIdleSize ?? 1.5) * 100, 0, 300),
-    )),
-    (navigationGlowActiveStrengthElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesRecord.glowActiveStrength ?? 2.2) * 100, 0, 500),
-    )),
-    (navigationGlowActiveSizeElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesRecord.glowActiveSize ?? 3) * 100, 0, 300),
-    )),
-    (navigationRadiusElement.value = roundField2(
-      clampNumber2(Number(availablePropertiesRecord.radius ?? 0.5) * 100, 0, 50),
-    )),
-    (navigationLeftElement.value = roundField2(
-      clampNumber2(
-        ((Number(navigationProperties.x || 0) + navigationCanvasHeightPx / 2) /
-          measuredBoundsText) *
-          100,
-        0,
-        100,
-      ),
-    )),
-    (navigationTopElement.value = roundField2(
-      clampNumber2(
-        ((Number(navigationProperties.y || 0) + navigationWidthPx / 2) / navigationCanvasWidthPx) *
-          100,
-        0,
-        100,
-      ),
-    )),
-    (navigationWidthElement.value = roundField2(
-      clampNumber2((navigationCanvasHeightPx / measuredBoundsText) * 100, 0.1, 100),
-    )),
-    (navigationHeightElement.value = roundField2(
-      clampNumber2((navigationWidthPx / navigationCanvasWidthPx) * 100, 0.1, 100),
-    )),
-    (navigationScaleElement.value = roundField2(
-      clampNumber2(Number(navigationComponent.style?.scale || 1) * 100, 1, 500),
-    )),
-    (navigationRotationElement.value = roundField2(Number(navigationProperties.rotation || 0))));
-  const isNavigationMultiSelection = selectedComponentIdsSet.size > 1;
-  ((navigationWidthElement.disabled = isNavigationMultiSelection),
-    (navigationHeightElement.disabled = isNavigationMultiSelection),
-    (navigationScaleElement.disabled = false),
-    (navigationRotationElement.disabled = false));
-  const navigationReplaceableCount = findReplaceableComponents(navigationComponent).length,
-    navigationApplyTargetCount = runVariantTwin(navigationComponent).length;
-  ((navigationApplyStyleElement.disabled =
-    !navigationReplaceableCount || !navigationApplyTargetCount),
-    (navigationApplyCountElement.textContent = navigationApplyTargetCount + " 项修改"),
-    (navigationApplyStyleElement.textContent = "一键应用到同类型控件"),
-    syncComponentActionControls(navigationComponent, navigationActionControlsElement));
+function buildTitleButtonInspectorContext() {
+  return {
+    get activeProject() {
+      return activeProject;
+    },
+    get selectedComponentIdsSet() {
+      return selectedComponentIdsSet;
+    },
+    titleButtonLabelElement,
+    runExtraFallback,
+    titleButtonMainVisibleElement,
+    titleButtonSecondaryVisibleElement,
+    titleButtonFrameVisibleElement,
+    titleButtonIconVisibleElement,
+    titleButtonMainTextElement,
+    titleButtonSecondaryLine1Element,
+    titleButtonSecondaryLine2Element,
+    titleButtonMainColorElement,
+    titleButtonSecondaryColorElement,
+    titleButtonMainSizeElement,
+    titleButtonSecondarySizeElement,
+    titleButtonMainWeightElement,
+    titleButtonSecondaryWeightElement,
+    titleButtonMainSpacingElement,
+    titleButtonSecondarySpacingElement,
+    titleButtonSecondaryLineGapElement,
+    titleButtonMainLeftElement,
+    titleButtonMainTopElement,
+    titleButtonSecondaryLeftElement,
+    titleButtonSecondaryTopElement,
+    renderLightStatisticsIconPreview,
+    titleButtonIconColorElement,
+    titleButtonIconSizeElement,
+    titleButtonIconLeftElement,
+    titleButtonIconTopElement,
+    titleButtonFrameColorElement,
+    titleButtonFrameWidthElement,
+    titleButtonFrameSizeElement,
+    titleButtonFrameSpacingElement,
+    titleButtonFrameOffsetXElement,
+    titleButtonFrameOffsetYElement,
+    titleButtonMarkerColorElement,
+    titleButtonMarkerSizeElement,
+    titleButtonMarkerLeftElement,
+    titleButtonMarkerTopElement,
+    titleButtonMarkerVisibleElement,
+    titleButtonLeftElement,
+    titleButtonTopElement,
+    titleButtonWidthElement,
+    titleButtonHeightElement,
+    titleButtonScaleElement,
+    titleButtonRotationElement,
+    findReplaceableComponents,
+    runAltOuter,
+    titleButtonApplyStyleElement,
+    titleButtonApplyCountElement,
+    syncComponentActionControls,
+    titleButtonActionControlsElement,
+  };
 }
 function syncTitleButtonInspector(titleButtonComponent: any) {
-  const titleProperties = titleButtonComponent.properties || {},
-    titlePosition = titleButtonComponent.position || {},
-    titleCanvasWidthPx = Number(activeProject.document.canvas.width || 2778),
-    titleCanvasHeightPx = Number(activeProject.document.canvas.height || 1940),
-    titleWidthPx = Number(titlePosition.width || 100),
-    titleHeightPx = Number(titlePosition.height || 100);
-  ((titleButtonLabelElement.value = titleProperties.label || ""),
-    runExtraFallback(titleButtonComponent),
-    setInspectorToggle2(titleButtonMainVisibleElement, titleProperties.mainTextVisible !== false),
-    setInspectorToggle2(
-      titleButtonSecondaryVisibleElement,
-      titleProperties.secondaryTextVisible !== false,
-    ),
-    setInspectorToggle2(titleButtonFrameVisibleElement, titleProperties.frameVisible !== false),
-    setInspectorToggle2(titleButtonIconVisibleElement, titleProperties.iconVisible !== false),
-    (titleButtonMainTextElement.value = titleProperties.mainText || ""));
-  const slice3 = String(titleProperties.secondaryText || "")
-    .split(/\r?\n/)
-    .slice(0, 2);
-  ((titleButtonSecondaryLine1Element.value = slice3[0] || ""),
-    (titleButtonSecondaryLine2Element.value = slice3[1] || ""),
-    (titleButtonMainColorElement.value = titleProperties.mainColor || "#b9bbc0"),
-    (titleButtonSecondaryColorElement.value = titleProperties.secondaryColor || "#70737b"),
-    (titleButtonMainSizeElement.value = roundField2(Number(titleProperties.mainSize ?? 34))),
-    (titleButtonSecondarySizeElement.value = roundField2(
-      Number(titleProperties.secondarySize ?? 12),
-    )),
-    (titleButtonMainWeightElement.value = roundField2(
-      normalizedFontWeight2(titleProperties.mainWeight, 0.3),
-    )),
-    (titleButtonSecondaryWeightElement.value = roundField2(
-      normalizedFontWeight2(titleProperties.secondaryWeight, 0.2),
-    )),
-    (titleButtonMainSpacingElement.value = roundField2(Number(titleProperties.mainSpacing ?? 1))),
-    (titleButtonSecondarySpacingElement.value = roundField2(
-      Number(titleProperties.secondarySpacing ?? 2),
-    )),
-    (titleButtonSecondaryLineGapElement.value = roundField2(
-      Number(titleProperties.secondaryLineGap ?? 2),
-    )),
-    (titleButtonMainLeftElement.value = roundField2(Number(titleProperties.mainTextLeft ?? 5.5))),
-    (titleButtonMainTopElement.value = roundField2(Number(titleProperties.mainTextTop ?? 45))),
-    (titleButtonSecondaryLeftElement.value = roundField2(
-      Number(titleProperties.secondaryTextLeft ?? 54),
-    )),
-    (titleButtonSecondaryTopElement.value = roundField2(
-      Number(titleProperties.secondaryTextTop ?? 43),
-    )),
-    renderLightStatisticsIconPreview(titleProperties.icon || ""),
-    (titleButtonIconColorElement.value = titleProperties.iconColor || "#b9bbc0"),
-    (titleButtonIconSizeElement.value = roundField2(Number(titleProperties.iconSize ?? 30))),
-    (titleButtonIconLeftElement.value = roundField2(Number(titleProperties.iconLeft ?? 50))),
-    (titleButtonIconTopElement.value = roundField2(Number(titleProperties.iconTop ?? 45))),
-    (titleButtonFrameColorElement.value = titleProperties.frameColor || "#60636a"),
-    (titleButtonFrameWidthElement.value = roundField2(Number(titleProperties.frameWidth ?? 1.5))),
-    (titleButtonFrameSizeElement.value = roundField2(Number(titleProperties.frameSize ?? 100))),
-    (titleButtonFrameSpacingElement.value = roundField2(
-      Number(titleProperties.frameSpacing ?? 100),
-    )),
-    (titleButtonFrameOffsetXElement.value = roundField2(Number(titleProperties.frameOffsetX ?? 0))),
-    (titleButtonFrameOffsetYElement.value = roundField2(Number(titleProperties.frameOffsetY ?? 0))),
-    (titleButtonMarkerColorElement.value = titleProperties.markerColor || "#f2a20d"),
-    (titleButtonMarkerSizeElement.value = roundField2(Number(titleProperties.markerSize ?? 10))),
-    (titleButtonMarkerLeftElement.value = roundField2(Number(titleProperties.markerLeft ?? 1.8))),
-    (titleButtonMarkerTopElement.value = roundField2(Number(titleProperties.markerTop ?? 84))));
-  const isMarkerVisible = titleProperties.markerVisible !== false;
-  (setInspectorToggle2(titleButtonMarkerVisibleElement, isMarkerVisible),
-    (titleButtonLeftElement.value = roundField2(
-      clampNumber2(
-        ((Number(titlePosition.x || 0) + titleWidthPx / 2) / titleCanvasWidthPx) * 100,
-        0,
-        100,
-      ),
-    )),
-    (titleButtonTopElement.value = roundField2(
-      clampNumber2(
-        ((Number(titlePosition.y || 0) + titleHeightPx / 2) / titleCanvasHeightPx) * 100,
-        0,
-        100,
-      ),
-    )),
-    (titleButtonWidthElement.value = roundField2((titleWidthPx / titleCanvasWidthPx) * 100)),
-    (titleButtonHeightElement.value = roundField2((titleHeightPx / titleCanvasHeightPx) * 100)),
-    (titleButtonScaleElement.value = roundField2(
-      Number(titleButtonComponent.style?.scale || 1) * 100,
-    )),
-    (titleButtonRotationElement.value = roundField2(Number(titlePosition.rotation || 0))));
-  const isTitleMultiSelection = selectedComponentIdsSet.size > 1;
-  for (const titleSizeInputElement of [titleButtonWidthElement, titleButtonHeightElement])
-    titleSizeInputElement.disabled = isTitleMultiSelection;
-  ((titleButtonRotationElement.disabled = false), (titleButtonScaleElement.disabled = false));
-  const titleReplaceableCount = findReplaceableComponents(titleButtonComponent).length,
-    titleApplyTargetCount = runAltOuter(titleButtonComponent).length;
-  ((titleButtonApplyStyleElement.disabled = !titleReplaceableCount || !titleApplyTargetCount),
-    (titleButtonApplyCountElement.textContent = titleApplyTargetCount + " 项修改"),
-    (titleButtonApplyStyleElement.textContent = "一键应用到同类型控件"),
-    syncComponentActionControls(titleButtonComponent, titleButtonActionControlsElement));
+  syncTitleButtonInspectorExternal(buildTitleButtonInspectorContext(), titleButtonComponent);
+}
+function buildLightStatisticsInspectorContext() {
+  return {
+    get activeProject() {
+      return activeProject;
+    },
+    get statisticsComponentId() {
+      return statisticsComponentId;
+    },
+    set statisticsComponentId(value: any) {
+      statisticsComponentId = value;
+    },
+    runLimit,
+    lightStatisticsLabelElement,
+    lightStatisticsTitleElement,
+    runExtraFallback,
+    lightStatisticsIconVisibleElement,
+    lightStatisticsTitleVisibleElement,
+    lightStatisticsCountVisibleElement,
+    runLocal,
+    lightStatisticsIconColorElement,
+    lightStatisticsIconActiveColorElement,
+    lightStatisticsIconSizeElement,
+    lightStatisticsTitleColorElement,
+    lightStatisticsTitleSizeElement,
+    lightStatisticsTitleWeightElement,
+    lightStatisticsTitleSpacingElement,
+    lightStatisticsCountColorElement,
+    lightStatisticsCountActiveColorElement,
+    lightStatisticsCountSizeElement,
+    lightStatisticsCountWeightElement,
+    lightStatisticsCountSpacingElement,
+    lightStatisticsIconGapElement,
+    lightStatisticsCountGapElement,
+    lightStatisticsLeftElement,
+    lightStatisticsTopElement,
+    lightStatisticsWidthElement,
+    lightStatisticsHeightElement,
+    lightStatisticsScaleElement,
+    lightStatisticsRotationElement,
+    get selectedComponentIdsSet() {
+      return selectedComponentIdsSet;
+    },
+    runBackup,
+    lightStatisticsEntityButtonElement,
+    statisticsReplaceIndex,
+    runZone,
+    lightStatisticsEntityMenuElement,
+    runAmount,
+    lightStatisticsEntitySearchElement,
+    syncComponentActionControls,
+    lightStatisticsActionControlsElement,
+  };
 }
 function syncLightStatisticsInspector(lightStatisticsComponent: any) {
-  const statisticsProperties = lightStatisticsComponent.properties || {},
-    statisticsPosition = lightStatisticsComponent.position || {},
-    statisticsCanvasWidthPx = Number(activeProject.document.canvas.width || 2778),
-    statisticsCanvasHeightPx = Number(activeProject.document.canvas.height || 1940),
-    statisticsWidthPx = Number(statisticsPosition.width || 100),
-    statisticsHeightPx = Number(statisticsPosition.height || 100);
-  (statisticsComponentId && statisticsComponentId !== lightStatisticsComponent.id && runLimit(),
-    (lightStatisticsLabelElement.value = statisticsProperties.label || ""),
-    (lightStatisticsTitleElement.value = statisticsProperties.title || "数量"),
-    runExtraFallback(lightStatisticsComponent),
-    setInspectorToggle2(
-      lightStatisticsIconVisibleElement,
-      statisticsProperties.iconVisible !== false,
-    ),
-    setInspectorToggle2(
-      lightStatisticsTitleVisibleElement,
-      statisticsProperties.titleVisible !== false,
-    ),
-    setInspectorToggle2(
-      lightStatisticsCountVisibleElement,
-      statisticsProperties.countVisible !== false,
-    ),
-    runLocal(statisticsProperties.icon ?? "mdi:lightbulb-group-outline"),
-    (lightStatisticsIconColorElement.value = statisticsProperties.iconColor || "#8b9298"),
-    (lightStatisticsIconActiveColorElement.value =
-      statisticsProperties.iconActiveColor || "#f2a20d"),
-    (lightStatisticsIconSizeElement.value = roundField2(
-      Number(statisticsProperties.iconSize ?? 42),
-    )),
-    (lightStatisticsTitleColorElement.value = statisticsProperties.titleColor || "#b9bbc0"),
-    (lightStatisticsTitleSizeElement.value = roundField2(
-      Number(statisticsProperties.titleSize ?? 32),
-    )),
-    (lightStatisticsTitleWeightElement.value = roundField2(
-      normalizedFontWeight2(statisticsProperties.titleWeight, 0.3),
-    )),
-    (lightStatisticsTitleSpacingElement.value = roundField2(
-      Number(statisticsProperties.titleSpacing ?? 1.2),
-    )),
-    (lightStatisticsCountColorElement.value = statisticsProperties.countColor || "#b9bbc0"),
-    (lightStatisticsCountActiveColorElement.value =
-      statisticsProperties.countActiveColor || "#f2a20d"),
-    (lightStatisticsCountSizeElement.value = roundField2(
-      Number(statisticsProperties.countSize ?? 34),
-    )),
-    (lightStatisticsCountWeightElement.value = roundField2(
-      normalizedFontWeight2(statisticsProperties.countWeight, 0.35),
-    )),
-    (lightStatisticsCountSpacingElement.value = roundField2(
-      Number(statisticsProperties.countSpacing ?? 0),
-    )),
-    (lightStatisticsIconGapElement.value = roundField2(
-      Number(statisticsProperties.iconGap ?? 4.5),
-    )),
-    (lightStatisticsCountGapElement.value = roundField2(
-      Number(statisticsProperties.countGap ?? 4.5),
-    )),
-    (lightStatisticsLeftElement.value = roundField2(
-      clampNumber2(
-        ((Number(statisticsPosition.x || 0) + statisticsWidthPx / 2) / statisticsCanvasWidthPx) *
-          100,
-        0,
-        100,
-      ),
-    )),
-    (lightStatisticsTopElement.value = roundField2(
-      clampNumber2(
-        ((Number(statisticsPosition.y || 0) + statisticsHeightPx / 2) / statisticsCanvasHeightPx) *
-          100,
-        0,
-        100,
-      ),
-    )),
-    (lightStatisticsWidthElement.value = roundField2(
-      (statisticsWidthPx / statisticsCanvasWidthPx) * 100,
-    )),
-    (lightStatisticsHeightElement.value = roundField2(
-      (statisticsHeightPx / statisticsCanvasHeightPx) * 100,
-    )),
-    (lightStatisticsScaleElement.value = roundField2(
-      Number(lightStatisticsComponent.style?.scale || 1) * 100,
-    )),
-    (lightStatisticsRotationElement.value = roundField2(Number(statisticsPosition.rotation || 0))));
-  const isStatisticsMultiSelection = selectedComponentIdsSet.size > 1;
-  ((lightStatisticsWidthElement.disabled = isStatisticsMultiSelection),
-    (lightStatisticsHeightElement.disabled = isStatisticsMultiSelection),
-    (lightStatisticsScaleElement.disabled = false),
-    (lightStatisticsRotationElement.disabled = false),
-    runBackup(
-      lightStatisticsEntityButtonElement,
-      statisticsReplaceIndex >= 0 ? "选择替换实体" : "选择一个实体",
-    ),
-    runZone(lightStatisticsComponent),
-    lightStatisticsEntityMenuElement.hidden || runAmount(lightStatisticsEntitySearchElement.value),
-    syncComponentActionControls(lightStatisticsComponent, lightStatisticsActionControlsElement));
+  syncLightStatisticsInspectorExternal(
+    buildLightStatisticsInspectorContext(),
+    lightStatisticsComponent,
+  );
 }
-function syncIconButtonInspector(iconButtonComponent: any) {
-  const iconButtonProperties = iconButtonComponent.properties || {},
-    isPresenceSensor = iconButtonComponent.type === "presence-sensor",
-    sensorKind = ["presence", "door-window", "water-leak", "smoke", "natural-gas"].includes(
-      iconButtonProperties.sensorKind,
-    )
-      ? iconButtonProperties.sensorKind
-      : "presence",
-    sensorKindLabel = ({
-      presence: "人体/人在传感器",
-      "door-window": "门窗传感器",
-      "water-leak": "水浸传感器",
-      smoke: "烟雾传感器",
-      "natural-gas": "天然气传感器",
-    } as any)[sensorKind],
-    isDeviceButton = iconButtonComponent.type === "device-button" || isPresenceSensor,
-    iconButtonPosition = iconButtonComponent.position || {},
-    iconButtonCanvasWidthPx = Number(activeProject.document.canvas.width || 2778),
-    iconButtonCanvasHeightPx = Number(activeProject.document.canvas.height || 1940),
-    iconButtonWidthPx = Number(iconButtonPosition.width || 100),
-    iconButtonHeightPx = Number(iconButtonPosition.height || 100);
-  ((iconButtonTypeElement.value = isPresenceSensor
-    ? sensorKindLabel
-    : isDeviceButton
-      ? "设备按钮"
-      : "图标按钮"),
-    iconButtonTypeLabelElement.classList.remove("inspector-full-row"),
-    (presenceSensorKindLabelElement.hidden = !isPresenceSensor),
-    presenceSensorKindLabelElement.classList.toggle("inspector-full-row", isPresenceSensor),
-    (presenceSensorKindElement.value = sensorKind),
-    loadNavigationIconOptions(presenceSensorKindElement),
-    (iconButtonMainHeadingElement.textContent = isDeviceButton ? "标题" : "中文标题"),
-    (iconButtonSecondaryHeadingElement.textContent = isDeviceButton ? "状态" : "英文标题"),
-    (iconButtonMainContentLabelElement.textContent = isDeviceButton ? "自定义标题" : "内容"),
-    (iconButtonSecondaryContentLabelElement.textContent = isDeviceButton ? "自定义状态" : "内容"),
-    (iconButtonMainTextElement.placeholder = isDeviceButton ? "留空跟随实体名称" : ""),
-    (iconButtonSecondaryTextElement.placeholder = isDeviceButton ? "留空跟随实体状态" : ""),
-    (iconButtonPreviewControlElement.hidden = isDeviceButton),
-    (iconButtonActionSectionElement.hidden = isPresenceSensor),
-    (iconButtonPreviewDetailsElement.hidden = true),
-    (presenceMotionSectionElement.hidden = !isPresenceSensor || sensorKind !== "presence"),
-    (doorWindowPerspectiveSectionElement.hidden =
-      !isPresenceSensor || sensorKind !== "door-window"));
-  const isEditingPerspective = doorWindowPerspectiveEditIdsSet.has(iconButtonComponent.id);
-  (doorWindowPerspectiveEditElement.classList.toggle("active", isEditingPerspective),
-    doorWindowPerspectiveEditElement.setAttribute("aria-pressed", String(isEditingPerspective)),
-    (doorWindowPerspectiveEditElement.textContent = "编辑透视"),
-    (doorWindowPerspectiveSaveElement.disabled = !isEditingPerspective),
-    (iconButtonMainHeadingElement.closest(".inspector-section").hidden = isPresenceSensor));
-  const iconButtonSectionElement = iconButtonIconButtonElement.closest(".inspector-section");
-  iconButtonSectionElement.querySelector("h3").textContent = isPresenceSensor ? "显示颜色" : "图标";
-  const iconPickerElement = iconButtonIconButtonElement.closest(".inspector-picker");
-  ((iconPickerElement.hidden = isPresenceSensor),
-    (iconPickerElement.style.display = isPresenceSensor ? "none" : ""),
-    (iconButtonFillSectionElement.hidden = isDeviceButton),
-    (iconButtonFrameSectionElement.hidden = isDeviceButton),
-    (iconButtonSoftLightSectionElement.hidden = isDeviceButton),
-    (iconButtonGlowSectionElement.hidden = isDeviceButton),
-    (iconButtonIconColorLabelElement.hidden = isPresenceSensor),
-    (iconButtonIconColorLabelElement.firstChild.textContent = isDeviceButton ? "关闭颜色" : "颜色"),
-    (deviceButtonIconVisibleElement.hidden = !isDeviceButton || isPresenceSensor),
-    (deviceButtonMainVisibleElement.hidden = !isDeviceButton),
-    (deviceButtonSecondaryVisibleElement.hidden = !isDeviceButton),
-    (deviceButtonIconOnColorLabelElement.hidden = !isDeviceButton),
-    (deviceButtonIconOnColorLabelElement.firstChild.textContent = isPresenceSensor
-      ? ({
-          presence: "有人颜色",
-          "door-window": "打开颜色",
-          "water-leak": "水浸颜色",
-          smoke: "烟雾颜色",
-          "natural-gas": "天然气颜色",
-        } as any)[sensorKind]
-      : "开启颜色"),
-    (deviceButtonBadgeColorLabelElement.hidden = !isDeviceButton || isPresenceSensor),
-    (deviceButtonBadgeOpacityLabelElement.hidden = !isDeviceButton || isPresenceSensor),
-    (iconButtonIconSizeLabelElement.hidden = isDeviceButton),
-    (deviceButtonSymbolSizeLabelElement.hidden = !isDeviceButton || isPresenceSensor),
-    (deviceButtonBadgeSizeLabelElement.hidden = !isDeviceButton || isPresenceSensor),
-    (deviceButtonStatePrecisionLabelElement.hidden = !isDeviceButton || isPresenceSensor),
-    (iconButtonIconLeftElement.closest("label").hidden = isPresenceSensor),
-    (iconButtonIconTopElement.closest("label").hidden = isPresenceSensor),
-    (iconButtonIconOffOpacityLabelElement.hidden = isDeviceButton),
-    (iconButtonIconOnOpacityLabelElement.hidden = isDeviceButton),
-    (iconButtonMainOffOpacityLabelElement.hidden = isDeviceButton),
-    (iconButtonMainOnOpacityLabelElement.hidden = isDeviceButton),
-    (iconButtonSecondaryOffOpacityLabelElement.hidden = isDeviceButton),
-    (iconButtonSecondaryOnOpacityLabelElement.hidden = isDeviceButton),
-    (iconButtonLabelElement.value = iconButtonProperties.label || ""),
-    runExtraFallback(iconButtonComponent),
-    runSplit(iconButtonProperties.icon || ""),
-    (iconButtonIconColorElement.value =
-      iconButtonProperties.iconColor ||
-      (isPresenceSensor ? iconButtonProperties.clearColor : "") ||
-      iconButtonProperties.iconOffColor ||
-      iconButtonProperties.iconOnColor ||
-      "#d7d8da"),
-    setInspectorToggle2(deviceButtonIconVisibleElement, iconButtonProperties.iconVisible !== false),
-    (deviceButtonIconOnColorElement.value =
-      sensorKind === "water-leak"
-        ? iconButtonProperties.waterLeakColor || "#42c8ff"
-        : sensorKind === "smoke"
-          ? iconButtonProperties.smokeColor || "#ffffff"
-          : sensorKind === "natural-gas"
-            ? iconButtonProperties.naturalGasColor || "#ffb347"
-            : iconButtonProperties.iconOnColor ||
-              (isPresenceSensor ? iconButtonProperties.occupiedColor : "") ||
-              "#379bff"),
-    (deviceButtonBadgeColorElement.value = iconButtonProperties.badgeColor || "#5b5e66"),
-    (deviceButtonBadgeOpacityElement.value = roundField2(
-      Number(iconButtonProperties.badgeOpacity ?? 0.58) * 100,
-    )),
-    (deviceButtonBadgeSizeElement.value = roundField2(
-      Number(iconButtonProperties.badgeSize ?? iconButtonProperties.iconSize ?? 28),
-    )),
-    (deviceButtonSymbolSizeElement.value = roundField2(
-      Number(iconButtonProperties.symbolSize ?? Number(iconButtonProperties.iconSize ?? 28) * 0.5),
-    )),
-    (deviceButtonStatePrecisionElement.value = ["0", "1", "2", "3", "4"].includes(
-      String(iconButtonProperties.statePrecision),
-    )
-      ? String(iconButtonProperties.statePrecision)
-      : "auto"),
-    (presenceHaloScaleXElement.value = roundField2(
-      Number(iconButtonProperties.haloScaleX ?? iconButtonProperties.haloScale ?? 1) * 100,
-    )),
-    (presenceHaloScaleYElement.value = roundField2(
-      Number(iconButtonProperties.haloScaleY ?? iconButtonProperties.haloScale ?? 1) * 100,
-    )),
-    (presenceHaloRotationElement.value = roundField2(
-      Number(iconButtonProperties.haloRotation ?? 0),
-    )),
-    (presenceHaloOpacityElement.value = roundField2(
-      Number(iconButtonProperties.haloOpacity ?? 1) * 100,
-    )),
-    (presencePersonScaleElement.value = roundField2(
-      Number(iconButtonProperties.personScale ?? 1) * 100,
-    )),
-    (presencePersonRotationElement.value = roundField2(
-      Number(iconButtonProperties.personRotation ?? 0),
-    )),
-    (presencePersonOpacityElement.value = roundField2(
-      Number(iconButtonProperties.personOpacity ?? 1) * 100,
-    )),
-    (presenceOrbitDurationElement.value = roundField2(
-      Number(iconButtonProperties.orbitDuration ?? 8),
-    )),
-    setInspectorToggle2(presenceHaloVisibleElement, iconButtonProperties.haloVisible !== false),
-    setInspectorToggle2(presencePersonVisibleElement, iconButtonProperties.personVisible !== false),
-    (iconButtonIconSizeElement.value = roundField2(Number(iconButtonProperties.iconSize ?? 42))),
-    (iconButtonIconOffOpacityElement.value = roundField2(
-      Number(iconButtonProperties.iconOffOpacity ?? 1) * 100,
-    )),
-    (iconButtonIconOnOpacityElement.value = roundField2(
-      Number(iconButtonProperties.iconOnOpacity ?? 1) * 100,
-    )),
-    (iconButtonIconLeftElement.value = roundField2(Number(iconButtonProperties.iconLeft ?? 50))),
-    (iconButtonIconTopElement.value = roundField2(Number(iconButtonProperties.iconTop ?? 34))),
-    (iconButtonMainTextElement.value = iconButtonProperties.mainText || ""),
-    setInspectorToggle2(
-      deviceButtonMainVisibleElement,
-      iconButtonProperties.mainTextVisible !== false,
-    ),
-    (iconButtonSecondaryTextElement.value = iconButtonProperties.secondaryText || ""),
-    setInspectorToggle2(
-      deviceButtonSecondaryVisibleElement,
-      iconButtonProperties.secondaryTextVisible !== false,
-    ),
-    (iconButtonMainColorElement.value =
-      iconButtonProperties.mainColor ||
-      iconButtonProperties.mainOffColor ||
-      iconButtonProperties.mainOnColor ||
-      "#c7c8cb"),
-    (iconButtonSecondaryColorElement.value =
-      iconButtonProperties.secondaryColor ||
-      iconButtonProperties.secondaryOffColor ||
-      iconButtonProperties.secondaryOnColor ||
-      "#75777d"),
-    (iconButtonMainOffOpacityElement.value = roundField2(
-      Number(iconButtonProperties.mainOffOpacity ?? 1) * 100,
-    )),
-    (iconButtonMainOnOpacityElement.value = roundField2(
-      Number(iconButtonProperties.mainOnOpacity ?? 1) * 100,
-    )),
-    (iconButtonSecondaryOffOpacityElement.value = roundField2(
-      Number(iconButtonProperties.secondaryOffOpacity ?? 1) * 100,
-    )),
-    (iconButtonSecondaryOnOpacityElement.value = roundField2(
-      Number(iconButtonProperties.secondaryOnOpacity ?? 1) * 100,
-    )),
-    (iconButtonMainSizeElement.value = roundField2(Number(iconButtonProperties.mainSize ?? 25))),
-    (iconButtonSecondarySizeElement.value = roundField2(
-      Number(iconButtonProperties.secondarySize ?? 10),
-    )),
-    (iconButtonMainWeightElement.value = roundField2(
-      normalizedFontWeight2(iconButtonProperties.mainWeight, 0.25),
-    )),
-    (iconButtonSecondaryWeightElement.value = roundField2(
-      normalizedFontWeight2(iconButtonProperties.secondaryWeight, 0.18),
-    )),
-    (iconButtonMainSpacingElement.value = roundField2(
-      Number(iconButtonProperties.mainSpacing ?? 1),
-    )),
-    (iconButtonSecondarySpacingElement.value = roundField2(
-      Number(iconButtonProperties.secondarySpacing ?? 0.7),
-    )),
-    (iconButtonMainLeftElement.value = roundField2(Number(iconButtonProperties.mainTextLeft ?? 9))),
-    (iconButtonMainTopElement.value = roundField2(Number(iconButtonProperties.mainTextTop ?? 78))),
-    (iconButtonSecondaryLeftElement.value = roundField2(
-      Number(iconButtonProperties.secondaryTextLeft ?? 9),
-    )),
-    (iconButtonSecondaryTopElement.value = roundField2(
-      Number(iconButtonProperties.secondaryTextTop ?? 91),
-    )),
-    setInspectorToggle2(
-      iconButtonOnFillVisibleElement,
-      iconButtonProperties.onFillVisible !== false,
-    ),
-    (iconButtonOnFillColorElement.value = iconButtonProperties.onFillColor || "#dfb64f"),
-    (iconButtonOnFillStrengthElement.value = roundField2(
-      Number(iconButtonProperties.onFillStrength ?? 1) * 100,
-    )),
-    (iconButtonOnFillFadeDurationElement.value = roundField2(
-      Number(iconButtonProperties.onFillFadeDuration ?? 0.3),
-    )),
-    setInspectorToggle2(iconButtonFrameVisibleElement, iconButtonProperties.frameVisible !== false),
-    (iconButtonFrameWidthElement.value = roundField2(Number(iconButtonProperties.frameWidth ?? 1))),
-    (iconButtonFrameAngleElement.value = roundField2(
-      Number(iconButtonProperties.frameAngle ?? 45),
-    )),
-    (iconButtonFrameOffOpacityElement.value = roundField2(
-      Number(iconButtonProperties.frameOffOpacity ?? 0.8) * 100,
-    )),
-    (iconButtonFrameOnOpacityElement.value = roundField2(
-      Number(iconButtonProperties.frameOnOpacity ?? 1) * 100,
-    )),
-    (iconButtonCutCornerElement.value = roundField2(Number(iconButtonProperties.cutCorner ?? 20))),
-    setInspectorToggle2(
-      iconButtonSoftLightVisibleElement,
-      iconButtonProperties.softLightVisible !== false,
-    ),
-    (iconButtonSoftLightColorElement.value = iconButtonProperties.softLightColor || "#ffffff"),
-    (iconButtonSoftLightStrengthElement.value = roundField2(
-      Number(iconButtonProperties.softLightStrength ?? 1) * 100,
-    )),
-    (iconButtonSoftLightSizeElement.value = roundField2(
-      Number(iconButtonProperties.softLightSize ?? 1) * 100,
-    )),
-    (iconButtonSoftLightAngleElement.value = roundField2(
-      Number(iconButtonProperties.softLightAngle ?? 45),
-    )),
-    setInspectorToggle2(iconButtonGlowVisibleElement, iconButtonProperties.glowVisible !== false),
-    (iconButtonGlowColorElement.value = iconButtonProperties.glowColor || "#ffffff"),
-    (iconButtonGlowStrengthElement.value = roundField2(
-      Number(iconButtonProperties.glowStrength ?? 1) * 100,
-    )),
-    (iconButtonGlowSizeElement.value = roundField2(
-      Number(iconButtonProperties.glowSize ?? 1) * 100,
-    )),
-    (iconButtonGlowAngleElement.value = roundField2(Number(iconButtonProperties.glowAngle ?? 220))),
-    (iconButtonLeftElement.value = roundField2(
-      clampNumber2(
-        ((Number(iconButtonPosition.x || 0) + iconButtonWidthPx / 2) / iconButtonCanvasWidthPx) *
-          100,
-        0,
-        100,
-      ),
-    )),
-    (iconButtonTopElement.value = roundField2(
-      clampNumber2(
-        ((Number(iconButtonPosition.y || 0) + iconButtonHeightPx / 2) / iconButtonCanvasHeightPx) *
-          100,
-        0,
-        100,
-      ),
-    )),
-    (iconButtonWidthElement.value = roundField2(
-      (iconButtonWidthPx / iconButtonCanvasWidthPx) * 100,
-    )),
-    (iconButtonHeightElement.value = roundField2(
-      (iconButtonHeightPx / iconButtonCanvasHeightPx) * 100,
-    )),
-    (iconButtonScaleElement.value = roundField2(
-      Number(iconButtonComponent.style?.scale || 1) * 100,
-    )),
-    (iconButtonRotationElement.value = roundField2(Number(iconButtonPosition.rotation || 0))),
-    isPresenceSensor &&
-      !iconButtonPreviewStateByComponentId.has(iconButtonComponent.id) &&
-      (iconButtonPreviewStateByComponentId.set(iconButtonComponent.id, "on"),
-      editorRenderer?.setComponentPreviewState(iconButtonComponent.id, "on")));
-  const iconPreviewState =
-    iconButtonPreviewStateByComponentId.get(iconButtonComponent.id) || "auto";
-  for (const iconPreviewStateButtonElement of iconButtonPreviewStateElement.querySelectorAll(
-    "[data-icon-button-preview]",
-  )) {
-    const isPreviewStateActive =
-      iconPreviewStateButtonElement.dataset.iconButtonPreview === iconPreviewState;
-    (iconPreviewStateButtonElement.classList.toggle("active", isPreviewStateActive),
-      iconPreviewStateButtonElement.setAttribute("aria-pressed", String(isPreviewStateActive)));
-  }
-  const isIconButtonMultiSelection = selectedComponentIdsSet.size > 1;
-  for (const iconSizeInputElement of [iconButtonWidthElement, iconButtonHeightElement])
-    iconSizeInputElement.disabled = isIconButtonMultiSelection;
-  ((iconButtonRotationElement.disabled = false), (iconButtonScaleElement.disabled = false));
-  const iconButtonReplaceableCount = findReplaceableComponents(iconButtonComponent).length,
-    iconButtonApplyTargetCount = appliedStylePropertyKey(iconButtonComponent).length;
-  ((iconButtonApplyStyleElement.disabled =
-    !iconButtonReplaceableCount || !iconButtonApplyTargetCount),
-    (iconButtonApplyCountElement.textContent = iconButtonApplyTargetCount + " 项修改"),
-    (iconButtonApplyStyleElement.textContent = "一键应用到同类型控件"),
-    syncComponentActionControls(iconButtonComponent, iconButtonActionControlsElement));
+function buildCameraInspectorContext() {
+  return {
+    get activeProject() {
+      return activeProject;
+    },
+    cameraLabelElement,
+    runExtraFallback,
+    cameraMediaVisibleElement,
+    cameraDisplayModeOptionsElement,
+    cameraRefreshIntervalElement,
+    cameraRefreshIntervalFieldElement,
+    cameraFitOptionsElement,
+    cameraFrameVisibleElement,
+    cameraFrameColorElement,
+    cameraFrameWidthElement,
+    cameraRadiusElement,
+    cameraFrameAngleElement,
+    cameraFrameOpacityElement,
+    cameraLeftElement,
+    cameraTopElement,
+    cameraWidthElement,
+    cameraHeightElement,
+    cameraScaleElement,
+    cameraRotationElement,
+    get selectedComponentIdsSet() {
+      return selectedComponentIdsSet;
+    },
+    findReplaceableComponents,
+    runAuxLower,
+    cameraApplyStyleElement,
+    cameraApplyCountElement,
+    syncComponentActionControls,
+    cameraActionControlsElement,
+  };
 }
 function syncCameraInspector(cameraComponent: any) {
-  const cameraProperties = cameraComponent.properties || {},
-    cameraPosition = cameraComponent.position || {},
-    cameraCanvasWidthPx = Number(activeProject.document.canvas.width || 2778),
-    cameraCanvasHeightPx = Number(activeProject.document.canvas.height || 1940),
-    cameraWidthPx = Number(cameraPosition.width || 100),
-    cameraHeightPx = Number(cameraPosition.height || 100);
-  ((cameraLabelElement.value = cameraProperties.label || ""),
-    runExtraFallback(cameraComponent),
-    setInspectorToggle2(cameraMediaVisibleElement, cameraProperties.mediaVisible !== false));
-  const displayMode = cameraProperties.displayMode === "snapshot" ? "snapshot" : "live";
-  for (const displayModeButtonElement of cameraDisplayModeOptionsElement.querySelectorAll(
-    "[data-camera-display-mode]",
-  )) {
-    const isDisplayModeActive = displayModeButtonElement.dataset.cameraDisplayMode === displayMode;
-    (displayModeButtonElement.classList.toggle("active", isDisplayModeActive),
-      displayModeButtonElement.setAttribute("aria-pressed", String(isDisplayModeActive)));
-  }
-  const refreshIntervalValue = Number(cameraProperties.refreshInterval),
-    refreshIntervalSeconds = Number.isFinite(refreshIntervalValue)
-      ? Math.max(6, Math.round(refreshIntervalValue))
-      : 10;
-  ((cameraRefreshIntervalElement.value = String(refreshIntervalSeconds)),
-    (cameraRefreshIntervalFieldElement.hidden = displayMode !== "snapshot"),
-    (cameraRefreshIntervalElement.disabled = displayMode !== "snapshot"));
-  const fitMode = cameraProperties.fit === "contain" ? "contain" : "fill";
-  for (const fitModeButtonElement of cameraFitOptionsElement.querySelectorAll(
-    "[data-camera-fit]",
-  )) {
-    const isFitModeActive = fitModeButtonElement.dataset.cameraFit === fitMode;
-    (fitModeButtonElement.classList.toggle("active", isFitModeActive),
-      fitModeButtonElement.setAttribute("aria-pressed", String(isFitModeActive)));
-  }
-  (setInspectorToggle2(cameraFrameVisibleElement, cameraProperties.frameVisible !== false),
-    (cameraFrameColorElement.value = cameraProperties.frameColor || "#d4d4d4"),
-    (cameraFrameWidthElement.value = roundField2(Number(cameraProperties.frameWidth ?? 1))));
-  const cornerRadiusValue = Number(cameraProperties.radius ?? 0.04);
-  ((cameraRadiusElement.value = roundField2(
-    clampNumber2(cornerRadiusValue > 0.5 ? cornerRadiusValue : cornerRadiusValue * 100, 0, 50),
-  )),
-    (cameraFrameAngleElement.value = roundField2(Number(cameraProperties.frameAngle ?? 45))),
-    (cameraFrameOpacityElement.value = roundField2(
-      Number(cameraProperties.frameOpacity ?? 0.9) * 100,
-    )),
-    (cameraLeftElement.value = roundField2(
-      clampNumber2(
-        ((Number(cameraPosition.x || 0) + cameraWidthPx / 2) / cameraCanvasWidthPx) * 100,
-        0,
-        100,
-      ),
-    )),
-    (cameraTopElement.value = roundField2(
-      clampNumber2(
-        ((Number(cameraPosition.y || 0) + cameraHeightPx / 2) / cameraCanvasHeightPx) * 100,
-        0,
-        100,
-      ),
-    )),
-    (cameraWidthElement.value = roundField2((cameraWidthPx / cameraCanvasWidthPx) * 100)),
-    (cameraHeightElement.value = roundField2((cameraHeightPx / cameraCanvasHeightPx) * 100)),
-    (cameraScaleElement.value = roundField2(Number(cameraComponent.style?.scale || 1) * 100)),
-    (cameraRotationElement.value = roundField2(Number(cameraPosition.rotation || 0))));
-  const isCameraMultiSelection = selectedComponentIdsSet.size > 1;
-  ((cameraWidthElement.disabled = isCameraMultiSelection),
-    (cameraHeightElement.disabled = isCameraMultiSelection),
-    (cameraRotationElement.disabled = false),
-    (cameraScaleElement.disabled = false));
-  const cameraReplaceableCount = findReplaceableComponents(cameraComponent).length,
-    cameraApplyTargetCount = runAuxLower(cameraComponent).length;
-  ((cameraApplyStyleElement.disabled = !cameraReplaceableCount || !cameraApplyTargetCount),
-    (cameraApplyCountElement.textContent = cameraApplyTargetCount + " 项修改"),
-    (cameraApplyStyleElement.textContent = "一键应用到同类型控件"));
-  const componentWithTapAction = Object.prototype.hasOwnProperty.call(
-    cameraComponent.actions || {},
-    "tap",
-  )
-    ? cameraComponent
-    : {
-        ...cameraComponent,
-        actions: {
-          tap: {
-            type: "more-info",
-            data: {
-              popupSource: "current",
-            },
-          },
-          ...(cameraComponent.actions || {}),
-        },
-      };
-  syncComponentActionControls(componentWithTapAction, cameraActionControlsElement);
+  syncCameraInspectorExternal(buildCameraInspectorContext(), cameraComponent);
 }
-function syncAirConditionerInspector(airConditionerComponent: any) {
-  const airConditionerProperties = airConditionerComponent.properties || {},
-    airConditionerPosition = airConditionerComponent.position || {},
-    airConditionerCanvasWidthPx = Number(activeProject.document.canvas.width || 2778),
-    airConditionerCanvasHeightPx = Number(activeProject.document.canvas.height || 1940),
-    airConditionerWidthPx = Number(airConditionerPosition.width || 100),
-    airConditionerHeightPx = Number(airConditionerPosition.height || 100);
-  airConditionerLabelElement.value = airConditionerProperties.label || "";
-  const deviceType2 = ["air-conditioner", "bath-heater"].includes(
-    airConditionerProperties.deviceType,
-  )
-    ? airConditionerProperties.deviceType
-    : "auto";
-  for (const deviceTypeButtonElement of airConditionerDeviceTypeElement.querySelectorAll(
-    "[data-air-conditioner-device-type]",
-  )) {
-    const isDeviceTypeActive =
-      deviceTypeButtonElement.dataset.airConditionerDeviceType === deviceType2;
-    (deviceTypeButtonElement.classList.toggle("active", isDeviceTypeActive),
-      deviceTypeButtonElement.setAttribute("aria-pressed", String(isDeviceTypeActive)));
-  }
-  ((airConditionerPreviewDetailsElement.textContent =
-    deviceType2 === "bath-heater" ? "预览浴霸详情" : "预览空调 / 浴霸详情"),
-    runExtraFallback(airConditionerComponent),
-    (airConditionerPreviewDetailsElement.disabled =
-      !airConditionerComponent.bindings?.entity?.entityId),
-    (airConditionerIconOffColorElement.value = airConditionerProperties.iconOffColor || "#9aa5ad"),
-    (airConditionerIconOnColorElement.value = airConditionerProperties.iconOnColor || "#73c8ff"),
-    (airConditionerBadgeColorElement.value = airConditionerProperties.badgeColor || "#5b5e66"),
-    (airConditionerBadgeOpacityElement.value = roundField2(
-      Number(airConditionerProperties.badgeOpacity ?? 0.58) * 100,
-    )),
-    (airConditionerSymbolSizeElement.value = roundField2(
-      Number(airConditionerProperties.symbolSize ?? 14),
-    )),
-    (airConditionerBadgeSizeElement.value = roundField2(
-      Number(airConditionerProperties.badgeSize ?? 28),
-    )),
-    (airConditionerIconLeftElement.value = roundField2(
-      Number(airConditionerProperties.iconLeft ?? 20),
-    )),
-    (airConditionerIconTopElement.value = roundField2(
-      Number(airConditionerProperties.iconTop ?? 50),
-    )),
-    setInspectorToggle2(
-      airConditionerIconVisibleElement,
-      airConditionerProperties.iconVisible !== false,
-    ),
-    (airConditionerMainTextElement.value = airConditionerProperties.mainText || ""),
-    (airConditionerMainColorElement.value = airConditionerProperties.mainColor || "#c7c8cb"),
-    (airConditionerMainSizeElement.value = roundField2(
-      Number(airConditionerProperties.mainSize ?? 21),
-    )),
-    (airConditionerMainWeightElement.value = roundField2(
-      normalizedFontWeight2(airConditionerProperties.mainWeight, 0.24),
-    )),
-    (airConditionerMainSpacingElement.value = roundField2(
-      Number(airConditionerProperties.mainSpacing ?? 0.5),
-    )),
-    (airConditionerMainLeftElement.value = roundField2(
-      Number(airConditionerProperties.mainTextLeft ?? 39),
-    )),
-    (airConditionerMainTopElement.value = roundField2(
-      Number(airConditionerProperties.mainTextTop ?? 40),
-    )),
-    setInspectorToggle2(
-      airConditionerMainVisibleElement,
-      airConditionerProperties.mainTextVisible !== false,
-    ),
-    (airConditionerSecondaryTextElement.value = airConditionerProperties.secondaryText || ""),
-    (airConditionerSecondaryColorElement.value =
-      airConditionerProperties.secondaryColor || "#75777d"),
-    (airConditionerSecondarySizeElement.value = roundField2(
-      Number(airConditionerProperties.secondarySize ?? 12),
-    )),
-    (airConditionerSecondaryWeightElement.value = roundField2(
-      normalizedFontWeight2(airConditionerProperties.secondaryWeight, 0.12),
-    )),
-    (airConditionerSecondarySpacingElement.value = roundField2(
-      Number(airConditionerProperties.secondarySpacing ?? 0.3),
-    )),
-    (airConditionerSecondaryLeftElement.value = roundField2(
-      Number(airConditionerProperties.secondaryTextLeft ?? 39),
-    )),
-    (airConditionerSecondaryTopElement.value = roundField2(
-      Number(airConditionerProperties.secondaryTextTop ?? 67),
-    )),
-    setInspectorToggle2(
-      airConditionerSecondaryVisibleElement,
-      airConditionerProperties.secondaryTextVisible !== false,
-    ),
-    setInspectorToggle2(
-      airConditionerAirflowVisibleElement,
-      airConditionerProperties.airflowVisible !== false,
-    ));
-  const airflowMotionMode =
-    airConditionerProperties.airflowMotion === "static" ? "static" : "dynamic";
-  for (const airflowMotionButtonElement of airConditionerAirflowMotionElement.querySelectorAll(
-    "[data-airflow-motion]",
-  )) {
-    const isAirflowMotionActive =
-      airflowMotionButtonElement.dataset.airflowMotion === airflowMotionMode;
-    (airflowMotionButtonElement.classList.toggle("active", isAirflowMotionActive),
-      airflowMotionButtonElement.setAttribute("aria-pressed", String(isAirflowMotionActive)));
-  }
-  ((airConditionerAirflowCoolColorElement.value =
-    airConditionerProperties.airflowCoolColor || "#73c8ff"),
-    (airConditionerAirflowHeatColorElement.value =
-      airConditionerProperties.airflowHeatColor || "#ff8a65"),
-    (airConditionerAirflowOtherColorElement.value =
-      airConditionerProperties.airflowOtherColor || "#dce2e6"),
-    (airConditionerAirflowAngleElement.value = roundField2(
-      Number(airConditionerProperties.airflowAngle ?? 7),
-    )),
-    (airConditionerAirflowCurveElement.value = roundField2(
-      Number(airConditionerProperties.airflowCurve ?? 20),
-    )),
-    (airConditionerAirflowLengthElement.value = roundField2(
-      Number(airConditionerProperties.airflowLength ?? 200),
-    )),
-    (airConditionerAirflowFadeElement.value = roundField2(
-      Number(airConditionerProperties.airflowFadePosition ?? 50),
-    )),
-    (airConditionerAirflowSpreadElement.value = roundField2(
-      Number(airConditionerProperties.airflowSpread ?? 100),
-    )),
-    (airConditionerAirflowDensityElement.value = roundField2(
-      Number(airConditionerProperties.airflowDensity ?? 60),
-    )),
-    (airConditionerAirflowIrregularityElement.value = roundField2(
-      Number(airConditionerProperties.airflowIrregularity ?? 50),
-    )),
-    (airConditionerAirflowThicknessElement.value = roundField2(
-      Number(airConditionerProperties.airflowThickness ?? 40),
-    )),
-    (airConditionerAirflowStrengthElement.value = roundField2(
-      Number(airConditionerProperties.airflowStrength ?? 200),
-    )),
-    (airConditionerAirflowBlurElement.value = roundField2(
-      Number(airConditionerProperties.airflowBlur ?? 6),
-    )),
-    (airConditionerAirflowSpeedElement.value = roundField2(
-      Number(airConditionerProperties.airflowSpeed ?? 1),
-    )),
-    (airConditionerAirflowSpeedElement.disabled = airflowMotionMode === "static"));
-  const airflowOffsetLimits = airflowCanvasOffsetBounds2(
-    airConditionerComponent,
-    activeProject.document.canvas,
-  );
-  ((airConditionerAirflowOffsetXElement.min = String(roundField2(airflowOffsetLimits.minX))),
-    (airConditionerAirflowOffsetXElement.max = String(roundField2(airflowOffsetLimits.maxX))),
-    (airConditionerAirflowOffsetYElement.min = String(roundField2(airflowOffsetLimits.minY))),
-    (airConditionerAirflowOffsetYElement.max = String(roundField2(airflowOffsetLimits.maxY))),
-    (airConditionerAirflowOffsetXElement.value = roundField2(
-      Number(airConditionerProperties.airflowOffsetX ?? -75),
-    )),
-    (airConditionerAirflowOffsetYElement.value = roundField2(
-      Number(airConditionerProperties.airflowOffsetY ?? 34),
-    )),
-    (airConditionerAirflowWidthElement.value = roundField2(
-      Number(airConditionerProperties.airflowWidth ?? 64),
-    )),
-    (airConditionerAirflowHeightElement.value = roundField2(
-      Number(airConditionerProperties.airflowHeight ?? 125),
-    )),
-    (airConditionerAirflowScaleElement.value = roundField2(
-      Number(airConditionerProperties.airflowScale ?? 1) * 100,
-    )),
-    (airConditionerAirflowRotationElement.value = roundField2(
-      Number(airConditionerProperties.airflowRotation ?? -3),
-    )),
-    (airConditionerLeftElement.value = roundField2(
-      clampNumber2(
-        ((Number(airConditionerPosition.x || 0) + airConditionerWidthPx / 2) /
-          airConditionerCanvasWidthPx) *
-          100,
-        0,
-        100,
-      ),
-    )),
-    (airConditionerTopElement.value = roundField2(
-      clampNumber2(
-        ((Number(airConditionerPosition.y || 0) + airConditionerHeightPx / 2) /
-          airConditionerCanvasHeightPx) *
-          100,
-        0,
-        100,
-      ),
-    )),
-    (airConditionerWidthElement.value = roundField2(
-      (airConditionerWidthPx / airConditionerCanvasWidthPx) * 100,
-    )),
-    (airConditionerHeightElement.value = roundField2(
-      (airConditionerHeightPx / airConditionerCanvasHeightPx) * 100,
-    )),
-    (airConditionerScaleElement.value = roundField2(
-      Number(airConditionerComponent.style?.scale || 1) * 100,
-    )),
-    (airConditionerRotationElement.value = roundField2(
-      Number(airConditionerPosition.rotation || 0),
-    )));
-  const activeLayerName =
-    airConditionerLayerByComponentId.get(airConditionerComponent.id) === "airflow"
-      ? "airflow"
-      : "button";
-  if (!airConditionerPreviewStateByComponentId.has(airConditionerComponent.id)) {
-    const layerPreviewState = activeLayerName === "airflow" ? "on" : "off";
-    (airConditionerPreviewStateByComponentId.set(airConditionerComponent.id, layerPreviewState),
-      editorRenderer?.setComponentPreviewState(airConditionerComponent.id, layerPreviewState));
-  }
-  const airConditionerPreviewState =
-    airConditionerPreviewStateByComponentId.get(airConditionerComponent.id) || "auto";
-  for (const acPreviewStateButtonElement of airConditionerPreviewStateElement.querySelectorAll(
-    "[data-air-conditioner-preview]",
-  )) {
-    const isAcPreviewStateActive =
-      acPreviewStateButtonElement.dataset.airConditionerPreview === airConditionerPreviewState;
-    (acPreviewStateButtonElement.classList.toggle("active", isAcPreviewStateActive),
-      acPreviewStateButtonElement.setAttribute("aria-pressed", String(isAcPreviewStateActive)));
-  }
-  editorRenderer?.setComponentSelectionLayer(airConditionerComponent.id, activeLayerName);
-  for (const layerOptionElement of airConditionerLayerOptionsElement.querySelectorAll(
-    "[data-air-conditioner-layer]",
-  )) {
-    const isLayerSelected = layerOptionElement.dataset.airConditionerLayer === activeLayerName;
-    (layerOptionElement.classList.toggle("active", isLayerSelected),
-      layerOptionElement.setAttribute("aria-pressed", String(isLayerSelected)));
-  }
-  const isAirflowLayer = activeLayerName === "airflow";
-  ((airConditionerButtonSectionElement.hidden = isAirflowLayer),
-    (airConditionerTransformSectionElement.hidden = isAirflowLayer),
-    (airConditionerActionSectionElement.hidden = isAirflowLayer),
-    (airConditionerAirflowSectionElement.hidden = !isAirflowLayer));
-  const isAirConditionerMultiSelection = selectedComponentIdsSet.size > 1;
-  for (const acSizeInputElement of [airConditionerWidthElement, airConditionerHeightElement])
-    acSizeInputElement.disabled = isAirConditionerMultiSelection;
-  ((airConditionerRotationElement.disabled = false), (airConditionerScaleElement.disabled = false));
-  const airConditionerReplaceableCount = findReplaceableComponents(airConditionerComponent).length,
-    airConditionerApplyTargetCount = runAltLeft(airConditionerComponent).length;
-  ((airConditionerApplyStyleElement.disabled =
-    !airConditionerReplaceableCount || !airConditionerApplyTargetCount),
-    (airConditionerApplyCountElement.textContent = airConditionerApplyTargetCount + " 项修改"),
-    syncComponentActionControls(airConditionerComponent, airConditionerActionControlsElement));
+function buildVacuumMapInspectorContext() {
+  return {
+    get activeProject() {
+      return activeProject;
+    },
+    vacuumMapLabelElement,
+    runExtraFallback,
+    vacuumMapOpacityElement,
+    vacuumMapLeftElement,
+    vacuumMapTopElement,
+    vacuumMapScaleElement,
+    vacuumMapRotationElement,
+  };
 }
 function syncVacuumMapInspector(vacuumMapComponent: any) {
-  const vacuumMapProperties = vacuumMapComponent.properties || {},
-    vacuumMapPosition = vacuumMapComponent.position || {},
-    vacuumMapCanvasWidthPx = Number(activeProject.document.canvas.width || 2778),
-    vacuumMapCanvasHeightPx = Number(activeProject.document.canvas.height || 1940),
-    vacuumMapWidthPx = Number(vacuumMapPosition.width || 100),
-    vacuumMapHeightPx = Number(vacuumMapPosition.height || 100);
-  ((vacuumMapLabelElement.value = vacuumMapProperties.label || ""),
-    runExtraFallback(vacuumMapComponent),
-    (vacuumMapOpacityElement.value = roundField2(Number(vacuumMapProperties.opacity ?? 0.5) * 100)),
-    (vacuumMapLeftElement.value = roundField2(
-      clampNumber2(
-        ((Number(vacuumMapPosition.x || 0) + vacuumMapWidthPx / 2) / vacuumMapCanvasWidthPx) * 100,
-        0,
-        100,
-      ),
-    )),
-    (vacuumMapTopElement.value = roundField2(
-      clampNumber2(
-        ((Number(vacuumMapPosition.y || 0) + vacuumMapHeightPx / 2) / vacuumMapCanvasHeightPx) *
-          100,
-        0,
-        100,
-      ),
-    )),
-    (vacuumMapScaleElement.value = roundField2(Number(vacuumMapComponent.style?.scale || 1) * 100)),
-    (vacuumMapRotationElement.value = roundField2(Number(vacuumMapPosition.rotation || 0))),
-    (vacuumMapRotationElement.disabled = false),
-    (vacuumMapScaleElement.disabled = false));
+  syncVacuumMapInspectorExternal(buildVacuumMapInspectorContext(), vacuumMapComponent);
 }
-function syncCoverSettingsInspector(coverComponent: any) {
-  const visibleInspectorSection = [
-    imageInspectorElement,
-    iconButtonEffectInspectorElement,
-    titleButtonInspectorElement,
-    iconButtonInspectorElement,
-    vacuumMapInspectorElement,
-    cameraInspectorElement,
+function buildCoverMotorInspectorContext(): CoverMotorInspectorContext {
+  return {
+    activeProject,
+    airConditionerEntityMenuElement,
     airConditionerInspectorElement,
-    timeInspectorElement,
+    airConditionerPreviewStateByComponentId,
+    cameraEntityMenuElement,
+    cameraInspectorElement,
+    componentActionControlsElement,
+    coverSettingsDirectionElement,
+    coverSettingsInspectorElement,
+    coverSettingsKindElement,
+    coverSettingsMotorDirectionElement,
     dateInspectorElement,
-    weatherInspectorElement,
+    destroyDashboardPreview,
+    displayDeviceCountElement,
+    editorCanvasElement,
+    editorMode,
+    editorPickers,
+    editorRenderer,
+    entities,
+    eventLogWallInspectorElement,
+    findReplaceableComponents,
+    floorplanAutoDiagramBindingListElement,
+    floorplanAutoDiagramBindingsElement,
+    floorplanAutoDiagramCameraModeElement,
+    floorplanAutoDiagramCameraViewElement,
+    floorplanAutoDiagramFloorSelectElement,
+    floorplanAutoDiagramFocalLengthInputElement,
+    floorplanAutoDiagramFolderTextInputElement,
+    floorplanAutoDiagramHeightInputElement,
+    floorplanAutoDiagramInspectorFormElement,
+    floorplanAutoDiagramLabelTextInputElement,
+    floorplanAutoDiagramLayoutElement,
+    floorplanAutoDiagramLeftInputElement,
+    floorplanAutoDiagramOpenBaseLightingButtonElement,
+    floorplanAutoDiagramOpenStudioButtonElement,
+    floorplanAutoDiagramRotateTopButtonElement,
+    floorplanAutoDiagramRotationInputElement,
+    floorplanAutoDiagramScaleInputElement,
+    floorplanAutoDiagramStateByComponentId,
+    floorplanAutoDiagramStatusElement,
+    floorplanAutoDiagramTopInputElement,
+    floorplanAutoDiagramViewToggleButtonElement,
+    floorplanAutoDiagramWidthInputElement,
+    formatLastSeen,
+    handleOperationError,
+    hasActiveProject,
+    ibeActionControlsElement,
+    ibeActionSectionElement,
+    ibeApplyCountElement,
+    ibeApplyStyleElement,
+    ibeAssetMenuElement,
+    ibeBrightnessRealtimeElement,
+    ibeButtonOffColorElement,
+    ibeButtonOnColorElement,
+    ibeButtonOpacityElement,
+    ibeButtonSectionElement,
+    ibeButtonTransformSectionElement,
+    ibeButtonVisibleElement,
+    ibeColorTemperatureRealtimeElement,
+    ibeEffectFadeDurationElement,
+    ibeEffectLayoutOptionsElement,
+    ibeEffectLeftElement,
+    ibeEffectOpacityElement,
+    ibeEffectRotationElement,
+    ibeEffectScaleElement,
+    ibeEffectSectionElement,
+    ibeEffectSizeHintElement,
+    ibeEffectTopElement,
+    ibeEffectVisibleElement,
+    ibeEntityMenuElement,
+    ibeFrameColorElement,
+    ibeFrameOpacityElement,
+    ibeFrameWidthElement,
+    ibeGlowColorElement,
+    ibeGlowOffStrengthElement,
+    ibeGlowOnStrengthElement,
+    ibeHeightElement,
+    ibeIconMenuElement,
+    ibeIconOffColorElement,
+    ibeIconOnColorElement,
+    ibeIconSizeElement,
+    ibeLabelElement,
+    ibeLayerOptionsElement,
+    ibeLeftElement,
+    ibePreviewStateElement,
+    ibeRadiusElement,
+    ibeRotationElement,
+    ibeScaleElement,
+    ibeTopElement,
+    ibeWidthElement,
+    iconButtonEffectInspectorElement,
+    iconButtonEffectLayerByComponentId,
+    iconButtonEffectPreviewStateByComponentId,
+    iconButtonEntityMenuElement,
+    iconButtonIconMenuElement,
+    iconButtonInspectorElement,
+    iconButtonPreviewStateByComponentId,
+    imageAssetPointerOverEvent,
+    imageInspectorElement,
+    imageLabelElement,
+    imageLayoutOptionsElement,
+    imageLeftInputElement,
+    imageOpacityInputElement,
+    imageRotationInputElement,
+    imageScaleInputElement,
+    imageTopInputElement,
+    imageTypeElement,
+    inspectorEmptyElement,
+    lightStatisticsActionEntityMenuElement,
+    lightStatisticsEntityMenuElement,
+    lightStatisticsIconMenuElement,
+    lightStatisticsInspectorElement,
     lineChartInspectorElement,
-    panelFrameInspectorFormElement,
+    loadNavigationIconOptions,
+    mutateDocument,
+    navigationIconMenuElement,
     navigationInspectorFormElement,
-  ]
-    .find((inspectorForm) => inspectorForm && !inspectorForm.hidden)
-    ?.querySelector(":scope > .inspector-section");
-  visibleInspectorSection &&
-    visibleInspectorSection.nextElementSibling !== coverSettingsInspectorElement &&
-    visibleInspectorSection.insertAdjacentElement("afterend", coverSettingsInspectorElement);
-  const coverKindValue = coverComponent.properties || {},
-    coverKind = ["standard", "dream", "airer"].includes(coverKindValue.coverKind)
-      ? coverKindValue.coverKind
-      : "auto";
-  for (const coverKindButtonElement of coverSettingsKindElement.querySelectorAll(
-    "[data-cover-kind]",
-  )) {
-    const isCoverKindActive = coverKindButtonElement.dataset.coverKind === coverKind;
-    (coverKindButtonElement.classList.toggle("active", isCoverKindActive),
-      coverKindButtonElement.setAttribute("aria-pressed", String(isCoverKindActive)));
-  }
-  const coverDirection = ["left", "right"].includes(coverKindValue.coverDirection)
-    ? coverKindValue.coverDirection
-    : "split";
-  for (const coverDirectionButtonElement of coverSettingsDirectionElement.querySelectorAll(
-    "[data-cover-direction]",
-  )) {
-    const isCoverDirectionActive =
-      coverDirectionButtonElement.dataset.coverDirection === coverDirection;
-    (coverDirectionButtonElement.classList.toggle("active", isCoverDirectionActive),
-      coverDirectionButtonElement.setAttribute("aria-pressed", String(isCoverDirectionActive)));
-  }
-  const coverMotorDirection = ["normal", "reversed"].includes(coverKindValue.coverMotorDirection)
-    ? coverKindValue.coverMotorDirection
-    : "auto";
-  for (const coverDirectionButtonElementElement of coverSettingsMotorDirectionElement.querySelectorAll(
-    "[data-cover-motor-direction]",
-  )) {
-    const isCoverDirectionActiveActive =
-      coverDirectionButtonElementElement.dataset.coverMotorDirection === coverMotorDirection;
-    (coverDirectionButtonElementElement.classList.toggle("active", isCoverDirectionActiveActive),
-      coverDirectionButtonElementElement.setAttribute(
-        "aria-pressed",
-        String(isCoverDirectionActiveActive),
-      ));
-  }
-}
-const coverMotorDirectionValueById = new Map();
-let coverMotorDirectionValue: any;
-function runExtraLocal(runExtraInner: any) {
-  const coverMotorDirectionValueState = normalizeFlowLine2(runExtraInner?.properties);
-  return [...(coverMotorDirectionValueById.get(runExtraInner?.id) || [])]
-    .filter(
-      ([filteredItemsState, filteredItemsValue]) =>
-        JSON.stringify((coverMotorDirectionValueState as any)[filteredItemsState]) !==
-        JSON.stringify(filteredItemsValue),
-    )
-    .map(([mappedItemsStore]) => mappedItemsStore);
+    navigationLabelTextInputElement,
+    navigationPreviewStateByComponentId,
+    navigatorContentElement,
+    navigatorElement,
+    onGlobalColorPickerHexTextInputInput,
+    onSessionsRevokeOthersConfirmButtonClick,
+    pageSelectElement,
+    panelFrameInspectorFormElement,
+    readEffectNaturalSize,
+    removedComponent,
+    renderComponentLists,
+    renderNavigationIconPreview,
+    renderTitleButtonIconPreview,
+    resizeWorkspaceCanvas,
+    runAuxAlt,
+    runExtraFallback,
+    runExtraPeer,
+    runMode,
+    runShadow,
+    selectableEntities,
+    selectedComponentIdsSet,
+    setComponentsRotation,
+    setEditorMode,
+    stopHoverScroll,
+    syncAirConditionerInspector,
+    syncCameraInspector,
+    syncComponentActionControls,
+    syncEffectAssetSelection,
+    syncEventLogWallInspector,
+    syncIconButtonInspector,
+    syncImageAssetSelection,
+    syncLightStatisticsInspector,
+    syncLineChartInspector,
+    syncNavigationInspector,
+    syncPanelFrameInspector,
+    syncRendererSelection,
+    syncTimeInspector,
+    syncTitleButtonInspector,
+    syncVacuumMapInspector,
+    syncWeatherInspector,
+    timeInspectorElement,
+    titleButtonEntityMenuElement,
+    titleButtonIconMenuElement,
+    titleButtonInspectorElement,
+    vacuumMapEntityMenuElement,
+    vacuumMapInspectorElement,
+    weatherInspectorElement,
+  };
 }
 function coverMotorButtonElement() {
-  window.requestAnimationFrame(hasActiveProject);
-  const createdInstanceConfig = removedComponent(),
-    isCoverMotorActive = createdInstanceConfig?.type === "flow-line";
-  renderFlowLineInspector2(navigatorElement, createdInstanceConfig, {
-    document: activeProject?.document,
-    entities: entities,
-    pickEntity: (isCoverMotorActiveState: any, isCoverMotorActiveValue: any, isCoverMotorActiveConfig: any) =>
-      onSessionsRevokeOthersConfirmButtonClick(
-        isCoverMotorActiveState,
-        createdInstanceConfig.id,
-        isCoverMotorActiveValue,
-        isCoverMotorActiveConfig,
-      ),
-    multipleSelected: selectedComponentIdsSet.size > 1,
-    styleChangeCount: isCoverMotorActive ? runExtraLocal(createdInstanceConfig).length : 0,
-    hasStyleChanges:
-      isCoverMotorActive &&
-      runExtraLocal(createdInstanceConfig).length > 0 &&
-      findReplaceableComponents(createdInstanceConfig).length > 0,
-    enhanceControls: (isCoverMotorActiveElement: any) => {
-      (selectableEntities(isCoverMotorActiveElement),
-        destroyDashboardPreview(isCoverMotorActiveElement),
-        formatLastSeen(isCoverMotorActiveElement));
-      for (const isCoverMotorActiveRef of isCoverMotorActiveElement.querySelectorAll("select"))
-        isCoverMotorActiveRef.tabIndex = -1;
-    },
-    syncControls: (syncInspectorElement: any) => {
-      for (const syncInspectorState of syncInspectorElement.querySelectorAll("select"))
-        loadNavigationIconOptions(syncInspectorState);
-    },
-    onError: handleOperationError,
-    onApplyStyle: imageAssetPointerOverEvent,
-    pathEditorContext: () => (
-      editorMode !== "edit" && setEditorMode("edit"),
-      {
-        canvas: editorRenderer?.canvas,
-        host: editorRenderer?.componentHosts.get(createdInstanceConfig.id),
-        container: displayDeviceCountElement,
-        states: editorRenderer?.states,
-        enhancePathSelect: stopHoverScroll,
-        onLayoutChange: () => {
-          (resizeWorkspaceCanvas(), editorRenderer?.resize());
-        },
-        lockTargets: [
-          editorCanvasElement,
-          navigatorContentElement.closest("aside"),
-          navigatorElement,
-          document.querySelector(".workspace-heading"),
-          document.querySelector("body > header"),
-        ],
-      }
-    ),
-    onPreview: (syncInspectorValue: any, syncInspectorConfig: any) => {
-      (syncInspectorConfig.properties &&
-        editorRenderer?.previewComponentProperties(
-          syncInspectorValue,
-          syncInspectorConfig.properties,
-        ),
-        (syncInspectorConfig.position || syncInspectorConfig.style?.scale) &&
-          editorRenderer?.previewComponentTransform(syncInspectorValue, {
-            ...syncInspectorConfig.position,
-            ...(syncInspectorConfig.style?.scale
-              ? {
-                  scale: syncInspectorConfig.style.scale,
-                }
-              : {}),
-          }));
-    },
-    onChange: (syncInspectorRef: any, syncInspectorEntry: any) =>
-      mutateDocument(
-        (syncInspector: any) => {
-          const syncInspectorRecord = findComponent2(syncInspector, syncInspectorRef)?.component;
-          if (!syncInspectorRecord || syncInspectorRecord.type !== "flow-line")
-            throw new Error("流水线条控件已不存在。");
-          const inspectedComponentState = normalizeFlowLine2(syncInspectorRecord.properties);
-          let inspectedComponent = coverMotorDirectionValueById.get(syncInspectorRef);
-          inspectedComponent ||
-            ((inspectedComponent = new Map()),
-            coverMotorDirectionValueById.set(syncInspectorRef, inspectedComponent));
-          for (const availablePropertiesName of Object.keys(syncInspectorEntry.properties || {}))
-            Object.hasOwn(FLOW_LINE_FIELDS2, availablePropertiesName) &&
-              !inspectedComponent.has(availablePropertiesName) &&
-              inspectedComponent.set(
-                availablePropertiesName,
-                (inspectedComponentState as any)[availablePropertiesName],
-              );
-          const inspectedComponentValue = syncInspectorEntry.position?.rotation;
-          for (const [isImageComponentState, isImageComponentValue] of Object.entries(
-            syncInspectorEntry,
-          )) {
-            const isImageComponentConfig = {
-              ...(isImageComponentValue as Record<string, unknown>),
-            };
-            (isImageComponentState === "position" &&
-              Number.isFinite(inspectedComponentValue) &&
-              delete isImageComponentConfig.rotation,
-              (syncInspectorRecord[isImageComponentState] = {
-                ...syncInspectorRecord[isImageComponentState],
-                ...isImageComponentConfig,
-              }));
-          }
-          Number.isFinite(inspectedComponentValue) &&
-            setComponentsRotation(syncInspector, syncInspectorRef, inspectedComponentValue);
-        },
-        pageSelectElement.value,
-        {
-          throwOnError: true,
-        },
-      ),
-  });
-  const isImageComponent = createdInstanceConfig?.type === "image",
-    isInteraction3dComponent = createdInstanceConfig?.type === "interaction3d";
-  renderInteraction3dInspector2(navigatorElement, createdInstanceConfig, {
-    document: activeProject?.document,
-    entities: entities,
-    states: editorRenderer?.states,
-    pickers: editorPickers,
-    enhanceControls: (controlsRoot: any) => {
-      (selectableEntities(controlsRoot),
-        destroyDashboardPreview(controlsRoot),
-        formatLastSeen(controlsRoot));
-    },
-    prepareCanvas: () => {
-      const activeProjectComponent = findComponent2(
-        activeProject?.document,
-        createdInstanceConfig.id,
-      );
-      if (!activeProjectComponent) throw new Error("3D 控件已不存在。");
-      const componentPagePath = activeProjectComponent.page?.path || pageSelectElement.value,
-        needsEditMode = editorMode !== "edit" || editorRenderer?.page?.path !== componentPagePath;
-      ((pageSelectElement.value = componentPagePath),
-        loadNavigationIconOptions(pageSelectElement),
-        needsEditMode && setEditorMode("edit"),
-        renderComponentLists(),
-        syncRendererSelection());
-    },
-    onError: handleOperationError,
-    onChange: (changes: any, { replaceProperties: shouldReplaceProperties = false } = {}) =>
-      mutateDocument(
-        (inspectorDraft: any) => {
-          const updatedComponent = findComponent2(
-            inspectorDraft,
-            createdInstanceConfig.id,
-          )?.component;
-          if (!updatedComponent || updatedComponent.type !== "interaction3d")
-            throw new Error("3D 控件已不存在。");
-          for (const [changedPropertyKey, propertyValue] of Object.entries(changes))
-            updatedComponent[changedPropertyKey] =
-              changedPropertyKey === "properties" && shouldReplaceProperties
-                ? propertyValue
-                : {
-                    ...updatedComponent[changedPropertyKey],
-                    ...(propertyValue as Record<string, unknown>),
-                  };
-        },
-        pageSelectElement.value,
-        {
-          throwOnError: true,
-        },
-      ),
-  });
-  const isFloorplanAutoDiagram = createdInstanceConfig?.type === "floorplan-auto-diagram",
-    isIconButtonEffect = createdInstanceConfig?.type === "icon-button-effect",
-    isTitleButton = createdInstanceConfig?.type === "title-button",
-    isLightStatisticsComponent = createdInstanceConfig?.type === "light-statistics",
-    isIconButtonLike = ["icon-button", "device-button", "presence-sensor"].includes(
-      createdInstanceConfig?.type,
-    ),
-    isVacuumMap = createdInstanceConfig?.type === "vacuum-map",
-    isCamera = createdInstanceConfig?.type === "camera",
-    isAirConditioner = createdInstanceConfig?.type === "air-conditioner",
-    isTime = createdInstanceConfig?.type === "time",
-    isDate = createdInstanceConfig?.type === "date",
-    isWeather = createdInstanceConfig?.type === "weather",
-    isLineChart = createdInstanceConfig?.type === "line-chart",
-    isEventLogWall = createdInstanceConfig?.type === "event-log-wall",
-    isPanelFrame = createdInstanceConfig?.type === "percentage-bar";
-  renderPercentageBarInspector2(
-    navigatorElement,
-    createdInstanceConfig,
-    onGlobalColorPickerHexTextInputInput(createdInstanceConfig),
-  );
-  const isNavigationButton = createdInstanceConfig?.type === "panel-frame",
-    re2 = navigationLabelTextInputElement(createdInstanceConfig),
-    isGroup = createdInstanceConfig?.type === "group";
-  for (const staleNavigationPreviewId of [...navigationPreviewStateByComponentId.keys()])
-    (re2 && staleNavigationPreviewId === createdInstanceConfig.id) ||
-      (navigationPreviewStateByComponentId.delete(staleNavigationPreviewId),
-      editorRenderer?.setComponentPreviewState(staleNavigationPreviewId, "auto"));
-  for (const staleEffectPreviewId of [...iconButtonEffectPreviewStateByComponentId.keys()])
-    (isIconButtonEffect && staleEffectPreviewId === createdInstanceConfig.id) ||
-      (iconButtonEffectPreviewStateByComponentId.delete(staleEffectPreviewId),
-      editorRenderer?.setComponentPreviewState(staleEffectPreviewId, "auto"));
-  for (const staleIconPreviewId of [...iconButtonPreviewStateByComponentId.keys()])
-    (isIconButtonLike && staleIconPreviewId === createdInstanceConfig.id) ||
-      (iconButtonPreviewStateByComponentId.delete(staleIconPreviewId),
-      editorRenderer?.setComponentPreviewState(staleIconPreviewId, "auto"));
-  for (const staleAirConditionerPreviewId of [...airConditionerPreviewStateByComponentId.keys()])
-    (isAirConditioner && staleAirConditionerPreviewId === createdInstanceConfig.id) ||
-      (airConditionerPreviewStateByComponentId.delete(staleAirConditionerPreviewId),
-      editorRenderer?.setComponentPreviewState(staleAirConditionerPreviewId, "auto"));
-  const hasInspector =
-    isPanelFrame ||
-    isCoverMotorActive ||
-    isInteraction3dComponent ||
-    isGroup ||
-    isImageComponent ||
-    isFloorplanAutoDiagram ||
-    isIconButtonEffect ||
-    isTitleButton ||
-    isLightStatisticsComponent ||
-    isIconButtonLike ||
-    isVacuumMap ||
-    isCamera ||
-    isAirConditioner ||
-    isTime ||
-    isDate ||
-    isWeather ||
-    isLineChart ||
-    isEventLogWall ||
-    isNavigationButton ||
-    re2;
-  ((inspectorEmptyElement.hidden = hasInspector),
-    isGroup &&
-      (inspectorEmptyElement.querySelector("p").textContent =
-        "组合支持整体移动、复制、旋转和缩放；双击组合可进入组内编辑。"),
-    (imageInspectorElement.hidden = !isImageComponent),
-    (floorplanAutoDiagramInspectorFormElement.hidden = !isFloorplanAutoDiagram),
-    (iconButtonEffectInspectorElement.hidden = !isIconButtonEffect),
-    (titleButtonInspectorElement.hidden = !isTitleButton),
-    (lightStatisticsInspectorElement.hidden = !isLightStatisticsComponent),
-    (iconButtonInspectorElement.hidden = !isIconButtonLike),
-    (vacuumMapInspectorElement.hidden = !isVacuumMap),
-    (cameraInspectorElement.hidden = !isCamera),
-    (airConditionerInspectorElement.hidden = !isAirConditioner),
-    (timeInspectorElement.hidden = !isTime),
-    (dateInspectorElement.hidden = !isDate),
-    (weatherInspectorElement.hidden = !isWeather),
-    (lineChartInspectorElement.hidden = !isLineChart),
-    (eventLogWallInspectorElement.hidden = !isEventLogWall),
-    (panelFrameInspectorFormElement.hidden = !isNavigationButton),
-    (navigationInspectorFormElement.hidden = !re2));
-  const startsWith = String(createdInstanceConfig?.bindings?.entity?.entityId || "").startsWith(
-    "cover.",
-  );
-  if (((coverSettingsInspectorElement.hidden = !hasInspector || !startsWith), !hasInspector)) {
-    (runShadow(),
-      (inspectorEmptyElement.querySelector("p").textContent = createdInstanceConfig
-        ? "“" + componentLabel2(createdInstanceConfig) + "”的专属属性尚未实现。"
-        : "选择一个控件开始编辑。"));
-    return;
-  }
-  if ((startsWith && syncCoverSettingsInspector(createdInstanceConfig), isFloorplanAutoDiagram)) {
-    const diagramProperties = createdInstanceConfig.properties || {},
-      diagramPosition = createdInstanceConfig.position || {},
-      diagramCanvasWidthPx = Number(activeProject.document.canvas.width || 2778),
-      diagramCanvasHeightPx = Number(activeProject.document.canvas.height || 1940),
-      diagramWidthPx = Number(diagramPosition.width || 100),
-      diagramHeightPx = Number(diagramPosition.height || 100),
-      lightLayerCount = Array.isArray(diagramProperties.lightLayers)
-        ? diagramProperties.lightLayers.length
-        : 0,
-      isPreviewReady =
-        diagramProperties.previewReady === true &&
-        (diagramProperties.generated !== true || diagramProperties.previewing === true);
-    ((floorplanAutoDiagramStatusElement.textContent = diagramProperties.generating
-      ? "正在后台生成底图和灯组效果，请稍候…"
-      : diagramProperties.generated && lightLayerCount
-        ? "已生成导图，包含 " + lightLayerCount + " 个灯组。"
-        : isPreviewReady
-          ? "3D画面已置入仪表盘，请先确定位置、大小和视角。"
-          : "尚未载入3D画面。"),
-      (floorplanAutoDiagramViewToggleButtonElement.hidden = !isPreviewReady));
-    const isViewMode = diagramProperties.interactionMode === "view";
-    (floorplanAutoDiagramViewToggleButtonElement.classList.toggle("active", isViewMode),
-      floorplanAutoDiagramViewToggleButtonElement.setAttribute("aria-pressed", String(isViewMode)),
-      (floorplanAutoDiagramViewToggleButtonElement.textContent = isViewMode
-        ? "完成3D视角调整"
-        : "调整3D视角"),
-      (floorplanAutoDiagramLabelTextInputElement.value =
-        diagramProperties.label || diagramProperties.instanceName || ""),
-      (floorplanAutoDiagramFolderTextInputElement.value = diagramProperties.exportFolder || ""));
-    const diagramLayoutMode = diagramProperties.layoutMode === "fill" ? "fill" : "free";
-    for (const layoutOptionElement of floorplanAutoDiagramLayoutElement.querySelectorAll(
-      "[data-floorplan-layout]",
-    )) {
-      const isLayoutOptionActive =
-        layoutOptionElement.dataset.floorplanLayout === diagramLayoutMode;
-      (layoutOptionElement.classList.toggle("active", isLayoutOptionActive),
-        layoutOptionElement.setAttribute("aria-pressed", String(isLayoutOptionActive)));
-    }
-    ((floorplanAutoDiagramLeftInputElement.value = roundField2(
-      clampNumber2(
-        ((Number(diagramPosition.x || 0) + diagramWidthPx / 2) / diagramCanvasWidthPx) * 100,
-        0,
-        100,
-      ),
-    )),
-      (floorplanAutoDiagramTopInputElement.value = roundField2(
-        clampNumber2(
-          ((Number(diagramPosition.y || 0) + diagramHeightPx / 2) / diagramCanvasHeightPx) * 100,
-          0,
-          100,
-        ),
-      )),
-      (floorplanAutoDiagramWidthInputElement.value = roundField2(
-        (diagramWidthPx / diagramCanvasWidthPx) * 100,
-      )),
-      (floorplanAutoDiagramHeightInputElement.value = roundField2(
-        (diagramHeightPx / diagramCanvasHeightPx) * 100,
-      )),
-      (floorplanAutoDiagramScaleInputElement.value = roundField2(
-        Number(createdInstanceConfig.style?.scale || 1) * 100,
-      )),
-      (floorplanAutoDiagramRotationInputElement.value = roundField2(
-        Number(diagramPosition.rotation || 0),
-      )));
-    const diagramState = floorplanAutoDiagramStateByComponentId.get(createdInstanceConfig.id),
-      floors = Array.isArray(diagramState?.floors) ? diagramState.floors : [],
-      selectedFloorId =
-        String(diagramProperties.floorSelection || "") || String(diagramState?.selected || "");
-    if (floors.length) {
-      const floorOptionElements = floors.map((floor: any) =>
-        Object.assign(document.createElement("option"), {
-          value: floor.id,
-          textContent: floor.name,
-        }),
-      );
-      (floors.length > 1 &&
-        floorOptionElements.unshift(
-          Object.assign(document.createElement("option"), {
-            value: "all",
-            textContent: "全楼",
-          }),
-        ),
-        floorplanAutoDiagramFloorSelectElement.replaceChildren(...floorOptionElements),
-        (floorplanAutoDiagramFloorSelectElement.value = floorOptionElements.some(
-          (floorOption: any) => floorOption.value === selectedFloorId,
-        )
-          ? selectedFloorId
-          : floorOptionElements[0].value));
-    } else
-      floorplanAutoDiagramFloorSelectElement.replaceChildren(
-        Object.assign(document.createElement("option"), {
-          value: "",
-          textContent: isPreviewReady ? "正在读取楼层…" : "载入3D画面后选择",
-        }),
-      );
-    floorplanAutoDiagramFloorSelectElement.disabled =
-      !isPreviewReady || floors.length === 0 || diagramProperties.generating === true;
-    const cameraViewMode = diagramProperties.cameraView === "top" ? "top" : "free",
-      cameraModeValue =
-        diagramProperties.cameraMode === "perspective" ? "perspective" : "orthographic";
-    for (const cameraViewButtonElement of floorplanAutoDiagramCameraViewElement.querySelectorAll(
-      "[data-floorplan-camera-view]",
-    )) {
-      const isCameraViewActive =
-        cameraViewButtonElement.dataset.floorplanCameraView === cameraViewMode;
-      (cameraViewButtonElement.classList.toggle("active", isCameraViewActive),
-        cameraViewButtonElement.setAttribute("aria-pressed", String(isCameraViewActive)));
-    }
-    for (const cameraModeButtonElement of floorplanAutoDiagramCameraModeElement.querySelectorAll(
-      "[data-floorplan-camera-mode]",
-    )) {
-      const isCameraModeActive =
-        cameraModeButtonElement.dataset.floorplanCameraMode === cameraModeValue;
-      (cameraModeButtonElement.classList.toggle("active", isCameraModeActive),
-        cameraModeButtonElement.setAttribute("aria-pressed", String(isCameraModeActive)));
-    }
-    ((floorplanAutoDiagramFocalLengthInputElement.value = roundField2(
-      clampNumber2(Number(diagramProperties.cameraFocalLength || 50), 18, 120),
-    )),
-      (floorplanAutoDiagramFocalLengthInputElement.disabled =
-        cameraModeValue !== "perspective" || !isPreviewReady),
-      (floorplanAutoDiagramRotateTopButtonElement.disabled =
-        cameraViewMode !== "top" || !isPreviewReady),
-      (floorplanAutoDiagramOpenBaseLightingButtonElement.disabled = !isPreviewReady));
-    for (const diagramInputElement of [
-      floorplanAutoDiagramLeftInputElement,
-      floorplanAutoDiagramTopInputElement,
-      floorplanAutoDiagramWidthInputElement,
-      floorplanAutoDiagramHeightInputElement,
-      floorplanAutoDiagramScaleInputElement,
-      floorplanAutoDiagramRotationInputElement,
-    ])
-      diagramInputElement.disabled = diagramLayoutMode === "fill";
-    ((floorplanAutoDiagramOpenStudioButtonElement.disabled = diagramProperties.generating === true),
-      (floorplanAutoDiagramOpenStudioButtonElement.textContent =
-        diagramProperties.generated && !diagramProperties.previewing
-          ? "重新调整位置和视角"
-          : diagramProperties.generating
-            ? "正在后台生成…"
-            : isPreviewReady
-              ? "确定位置大小并后台生成"
-              : "载入3D画面"),
-      (floorplanAutoDiagramBindingsElement.hidden = lightLayerCount === 0));
-    const lightEntities = entities.filter(
-        (lightEntityRecord: any) => renderNavigationIconPreview(lightEntityRecord) === "light",
-      ),
-      lightGroupRows = (diagramProperties.lightLayers || []).map((lightLayer: any) => {
-        const layerLabelElement = document.createElement("label");
-        layerLabelElement.textContent = lightLayer.note || lightLayer.name || "灯组";
-        const entitySelectElement = document.createElement("select");
-        entitySelectElement.dataset.floorplanLightGroupId = lightLayer.id;
-        const boundLightEntityId =
-            createdInstanceConfig.bindings?.["lightGroup:" + lightLayer.id]?.entityId || "",
-          placeholderOptionElement = document.createElement("option");
-        ((placeholderOptionElement.value = ""),
-          (placeholderOptionElement.textContent = "选择实体"),
-          entitySelectElement.append(placeholderOptionElement));
-        for (const lightEntity of lightEntities) {
-          const entityOptionElement = document.createElement("option");
-          ((entityOptionElement.value = lightEntity.entityId),
-            (entityOptionElement.textContent = runMode(lightEntity)),
-            entitySelectElement.append(entityOptionElement));
-        }
-        if (
-          boundLightEntityId &&
-          !lightEntities.some(
-            (lightEntityOption: any) => lightEntityOption.entityId === boundLightEntityId,
-          )
-        ) {
-          const missingEntityOptionElement = document.createElement("option");
-          ((missingEntityOptionElement.value = boundLightEntityId),
-            (missingEntityOptionElement.textContent = boundLightEntityId),
-            entitySelectElement.append(missingEntityOptionElement));
-        }
-        return (
-          (entitySelectElement.value = boundLightEntityId),
-          layerLabelElement.append(entitySelectElement),
-          layerLabelElement
-        );
-      });
-    floorplanAutoDiagramBindingListElement.replaceChildren(...lightGroupRows);
-    return;
-  }
-  if (isIconButtonEffect) {
-    const openMenuName = ibeEntityMenuElement.hidden
-      ? ibeAssetMenuElement.hidden
-        ? ibeIconMenuElement.hidden
-          ? null
-          : "ibe-icon"
-        : "ibe-asset"
-      : "ibe-entity";
-    runShadow(openMenuName);
-    const effectProperties = createdInstanceConfig.properties || {},
-      effectPosition = createdInstanceConfig.position || {},
-      effectCanvasWidthPx = Number(activeProject.document.canvas.width || 2778),
-      effectCanvasHeightPx = Number(activeProject.document.canvas.height || 1940),
-      effectWidthPx = Number(effectPosition.width || 100),
-      effectHeightPx = Number(effectPosition.height || 100);
-    ((ibeLabelElement.value = effectProperties.label || ""),
-      setInspectorToggle2(ibeButtonVisibleElement, effectProperties.buttonVisible !== false),
-      setInspectorToggle2(ibeEffectVisibleElement, effectProperties.effectVisible !== false),
-      (ibeColorTemperatureRealtimeElement.checked =
-        effectProperties.effectColorTemperatureRealtime !== false),
-      (ibeBrightnessRealtimeElement.checked = effectProperties.effectBrightnessRealtime !== false));
-    for (const realtimeCheckboxElement of [
-      ibeColorTemperatureRealtimeElement,
-      ibeBrightnessRealtimeElement,
-    ])
-      ((realtimeCheckboxElement.disabled = false),
-        (realtimeCheckboxElement.title = ""),
-        realtimeCheckboxElement.closest(".check-row")?.classList.remove("is-disabled"));
-    (runExtraFallback(createdInstanceConfig),
-      syncEffectAssetSelection(createdInstanceConfig),
-      renderTitleButtonIconPreview(effectProperties.icon || ""),
-      (ibeIconOffColorElement.value = effectProperties.iconOffColor || "#9aa5ad"),
-      (ibeIconOnColorElement.value = effectProperties.iconOnColor || "#ffffff"),
-      (ibeIconSizeElement.value = roundField2(Number(effectProperties.iconSize ?? 44))),
-      (ibeButtonOffColorElement.value = effectProperties.buttonOffColor || "#17242d"),
-      (ibeButtonOnColorElement.value = effectProperties.buttonOnColor || "#1f91b8"),
-      (ibeButtonOpacityElement.value = roundField2(
-        Number(effectProperties.buttonOpacity ?? 0.92) * 100,
-      )),
-      (ibeFrameColorElement.value = effectProperties.frameColor || "#dcebf2"),
-      (ibeFrameWidthElement.value = roundField2(Number(effectProperties.frameWidth ?? 1.5))),
-      (ibeFrameOpacityElement.value = roundField2(
-        Number(effectProperties.frameOpacity ?? 0.72) * 100,
-      )),
-      (ibeRadiusElement.value = roundField2(Number(effectProperties.radius ?? 50))),
-      (ibeGlowColorElement.value = effectProperties.glowColor || "#43c8f0"),
-      (ibeGlowOffStrengthElement.value = roundField2(
-        Number(effectProperties.glowOffStrength ?? 0) * 100,
-      )),
-      (ibeGlowOnStrengthElement.value = roundField2(
-        Number(effectProperties.glowOnStrength ?? 1) * 100,
-      )),
-      (ibeEffectOpacityElement.value = roundField2(
-        Number(effectProperties.effectOpacity ?? 1) * 100,
-      )),
-      (ibeEffectFadeDurationElement.value = roundField2(
-        Number(effectProperties.effectFadeDuration ?? 0.52),
-      )),
-      (ibeEffectLeftElement.value = roundField2(Number(effectProperties.effectLeft ?? 50))),
-      (ibeEffectTopElement.value = roundField2(Number(effectProperties.effectTop ?? 50))),
-      (ibeEffectScaleElement.value = roundField2(Number(effectProperties.effectScale ?? 1) * 100)),
-      (ibeEffectRotationElement.value = roundField2(Number(effectProperties.effectRotation ?? 0))),
-      (ibeLeftElement.value = roundField2(
-        clampNumber2(
-          ((Number(effectPosition.x || 0) + effectWidthPx / 2) / effectCanvasWidthPx) * 100,
-          0,
-          100,
-        ),
-      )),
-      (ibeTopElement.value = roundField2(
-        clampNumber2(
-          ((Number(effectPosition.y || 0) + effectHeightPx / 2) / effectCanvasHeightPx) * 100,
-          0,
-          100,
-        ),
-      )),
-      (ibeWidthElement.value = roundField2((effectWidthPx / effectCanvasWidthPx) * 100)),
-      (ibeHeightElement.value = roundField2((effectHeightPx / effectCanvasHeightPx) * 100)),
-      (ibeScaleElement.value = roundField2(Number(createdInstanceConfig.style?.scale || 1) * 100)),
-      (ibeRotationElement.value = roundField2(Number(effectPosition.rotation || 0))));
-    const isEffectMultiSelection = selectedComponentIdsSet.size > 1;
-    ((ibeWidthElement.disabled = isEffectMultiSelection),
-      (ibeHeightElement.disabled = isEffectMultiSelection),
-      (ibeScaleElement.disabled = false),
-      (ibeRotationElement.disabled = false));
-    const effectLayoutMode = effectProperties.effectLayoutMode === "fill" ? "fill" : "free";
-    for (const effectLayoutOptionElement of ibeEffectLayoutOptionsElement.querySelectorAll(
-      "[data-ibe-layout]",
-    )) {
-      const isEffectLayoutActive = effectLayoutOptionElement.dataset.ibeLayout === effectLayoutMode;
-      (effectLayoutOptionElement.classList.toggle("active", isEffectLayoutActive),
-        effectLayoutOptionElement.setAttribute("aria-pressed", String(isEffectLayoutActive)));
-    }
-    for (const effectSizeInputElement of [
-      ibeEffectLeftElement,
-      ibeEffectTopElement,
-      ibeEffectScaleElement,
-      ibeEffectRotationElement,
-    ])
-      effectSizeInputElement.disabled = effectLayoutMode === "fill";
-    const bL2 = readEffectNaturalSize(effectProperties);
-    ibeEffectSizeHintElement.textContent = bL2
-      ? "原始尺寸：" +
-        roundField2(bL2.width) +
-        " × " +
-        roundField2(bL2.height) +
-        "；仅支持等比缩放。"
-      : "效果图片将按原始尺寸等比缩放。";
-    const effectLayerName = iconButtonEffectInspectorLayer2(
-      createdInstanceConfig,
-      iconButtonEffectLayerByComponentId.get(createdInstanceConfig.id),
-    );
-    (editorRenderer?.setComponentSelectionLayer(createdInstanceConfig.id, effectLayerName),
-      iconButtonEffectPreviewStateByComponentId.has(createdInstanceConfig.id) ||
-        (iconButtonEffectPreviewStateByComponentId.set(createdInstanceConfig.id, "on"),
-        editorRenderer?.setComponentPreviewState(createdInstanceConfig.id, "on")));
-    const effectPreviewState =
-      iconButtonEffectPreviewStateByComponentId.get(createdInstanceConfig.id) || "auto";
-    for (const effectPreviewStateButtonElement of ibePreviewStateElement.querySelectorAll(
-      "[data-ibe-preview]",
-    )) {
-      const isEffectPreviewActive =
-        effectPreviewStateButtonElement.dataset.ibePreview === effectPreviewState;
-      (effectPreviewStateButtonElement.classList.toggle("active", isEffectPreviewActive),
-        effectPreviewStateButtonElement.setAttribute(
-          "aria-pressed",
-          String(isEffectPreviewActive),
-        ));
-    }
-    for (const effectLayerOptionElement of ibeLayerOptionsElement.querySelectorAll(
-      "[data-ibe-layer]",
-    )) {
-      const isEffectLayerSelected = effectLayerOptionElement.dataset.ibeLayer === effectLayerName;
-      (effectLayerOptionElement.classList.toggle("active", isEffectLayerSelected),
-        effectLayerOptionElement.setAttribute("aria-pressed", String(isEffectLayerSelected)));
-    }
-    const isEffectLayer = effectLayerName === "effect";
-    ((ibeButtonSectionElement.hidden = isEffectLayer),
-      (ibeButtonTransformSectionElement.hidden = isEffectLayer),
-      (ibeActionSectionElement.hidden = isEffectLayer),
-      (ibeEffectSectionElement.hidden = !isEffectLayer));
-    const effectReplaceableCount = findReplaceableComponents(createdInstanceConfig).length,
-      effectApplyTargetCount = runAuxAlt(createdInstanceConfig).length;
-    ((ibeApplyStyleElement.disabled = !effectReplaceableCount || !effectApplyTargetCount),
-      (ibeApplyCountElement.textContent = effectApplyTargetCount + " 项修改"),
-      (ibeApplyStyleElement.textContent = "一键应用到同类型控件"),
-      syncComponentActionControls(createdInstanceConfig, ibeActionControlsElement));
-    return;
-  }
-  if (isAirConditioner) {
-    (runShadow(airConditionerEntityMenuElement.hidden ? null : "air-conditioner-entity"),
-      syncAirConditionerInspector(createdInstanceConfig));
-    return;
-  }
-  if (isTitleButton) {
-    const titleMenuName = titleButtonEntityMenuElement.hidden
-      ? titleButtonIconMenuElement.hidden
-        ? null
-        : "title-button-icon"
-      : "title-button-entity";
-    (runShadow(titleMenuName), syncTitleButtonInspector(createdInstanceConfig));
-    return;
-  }
-  if (isLightStatisticsComponent) {
-    const statisticsMenuName = lightStatisticsEntityMenuElement.hidden
-      ? lightStatisticsActionEntityMenuElement.hidden
-        ? lightStatisticsIconMenuElement.hidden
-          ? null
-          : "light-statistics-icon"
-        : "light-statistics-action-entity"
-      : "light-statistics-entity";
-    (runShadow(statisticsMenuName), syncLightStatisticsInspector(createdInstanceConfig));
-    return;
-  }
-  if (isIconButtonLike) {
-    const iconButtonMenuName = iconButtonEntityMenuElement.hidden
-      ? iconButtonIconMenuElement.hidden
-        ? null
-        : "icon-button-icon"
-      : "icon-button-entity";
-    (runShadow(iconButtonMenuName), syncIconButtonInspector(createdInstanceConfig));
-    return;
-  }
-  if (isCamera) {
-    (runShadow(cameraEntityMenuElement.hidden ? null : "camera-entity"),
-      syncCameraInspector(createdInstanceConfig));
-    return;
-  }
-  if (isVacuumMap) {
-    (runShadow(vacuumMapEntityMenuElement.hidden ? null : "vacuum-map-entity"),
-      syncVacuumMapInspector(createdInstanceConfig));
-    return;
-  }
-  if (re2) {
-    (runShadow(navigationIconMenuElement.hidden ? null : "navigation-icon"),
-      syncNavigationInspector(createdInstanceConfig));
-    return;
-  }
-  if (isTime) {
-    (runShadow(), runExtraPeer(createdInstanceConfig));
-    return;
-  }
-  if (isDate) {
-    (runShadow(), syncTimeInspector(createdInstanceConfig));
-    return;
-  }
-  if (isWeather) {
-    (runShadow(), syncWeatherInspector(createdInstanceConfig));
-    return;
-  }
-  if (isPanelFrame) {
-    runShadow();
-    return;
-  }
-  if (isLineChart) {
-    (runShadow(), syncLineChartInspector(createdInstanceConfig));
-    return;
-  }
-  if (isEventLogWall) {
-    (runShadow(), syncEventLogWallInspector(createdInstanceConfig));
-    return;
-  }
-  if (isNavigationButton) {
-    (runShadow(), syncPanelFrameInspector(createdInstanceConfig));
-    return;
-  }
-  const imageProperties = createdInstanceConfig.properties || {},
-    imagePosition = createdInstanceConfig.position || {},
-    imageCanvasWidthPx = Number(activeProject.document.canvas.width || 2778),
-    imageCanvasHeightPx = Number(activeProject.document.canvas.height || 1940),
-    imageWidthPx = Number(imagePosition.width || 100),
-    imageHeightPx = Number(imagePosition.height || 100);
-  ((imageTypeElement.value = "图片"),
-    (imageLabelElement.value = imageProperties.label || ""),
-    runExtraFallback(createdInstanceConfig),
-    syncImageAssetSelection(createdInstanceConfig),
-    (imageOpacityInputElement.value = roundField2(Number(imageProperties.opacity ?? 1) * 100)),
-    (imageLeftInputElement.value = roundField2(
-      clampNumber2(
-        ((Number(imagePosition.x || 0) + imageWidthPx / 2) / imageCanvasWidthPx) * 100,
-        0,
-        100,
-      ),
-    )),
-    (imageTopInputElement.value = roundField2(
-      clampNumber2(
-        ((Number(imagePosition.y || 0) + imageHeightPx / 2) / imageCanvasHeightPx) * 100,
-        0,
-        100,
-      ),
-    )),
-    (imageScaleInputElement.value = roundField2(
-      clampNumber2(Number(createdInstanceConfig.style?.scale || 1) * 100, 1, 500),
-    )),
-    (imageRotationInputElement.value = roundField2(Number(imagePosition.rotation || 0))));
-  const imageLayoutMode = imageProperties.layoutMode === "fill" ? "fill" : "free";
-  for (const imageLayoutOptionElement of imageLayoutOptionsElement.querySelectorAll(
-    "[data-image-layout]",
-  )) {
-    const isImageLayoutActiveActive =
-      imageLayoutOptionElement.dataset.imageLayout === imageLayoutMode;
-    (imageLayoutOptionElement.classList.toggle("active", isImageLayoutActiveActive),
-      imageLayoutOptionElement.setAttribute("aria-pressed", String(isImageLayoutActiveActive)));
-  }
-  const isImageLayoutActive = imageLayoutMode === "fill";
-  ((imageLeftInputElement.disabled = isImageLayoutActive),
-    (imageTopInputElement.disabled = isImageLayoutActive),
-    (imageScaleInputElement.disabled = isImageLayoutActive),
-    (imageRotationInputElement.disabled = isImageLayoutActive),
-    syncComponentActionControls(createdInstanceConfig, componentActionControlsElement));
+  coverMotorButtonElementSync(buildCoverMotorInspectorContext());
+}
+function runExtraLocal(runExtraInner: any) {
+  return runExtraLocalCover(buildCoverMotorInspectorContext(), runExtraInner);
 }
 async function reloadAssetCatalog({ refreshInspector: refreshInspector = true } = {}) {
   const [all, all2] = await Promise.all([
@@ -8894,760 +7252,6 @@ function runExtraRight(runExtraFirst = popupModuleEntitySearchElement.value) {
 function closePopupModuleEntityMenu() {
   ((popupModuleEntityMenuElement.hidden = true),
     popupModuleEntityButtonElement.setAttribute("aria-expanded", "false"));
-}
-function syncCustomPopupStage() {
-  if (editorMode !== "popup") return;
-  const editedPopup = findCustomPopup2(activeProject?.document, selectedPopupId),
-    stageWrapElement = customPopupEditorElement.querySelector(".custom-popup-stage-wrap"),
-    viewportElement = customPopupEditorElement.querySelector(".custom-popup-viewport"),
-    stageElement = customPopupEditorElement.querySelector(".custom-popup-stage"),
-    editorToolbarElement = customPopupEditorElement.querySelector(".custom-popup-editor-toolbar");
-  if (
-    !editedPopup ||
-    !stageWrapElement ||
-    !viewportElement ||
-    !stageElement ||
-    !editorToolbarElement
-  )
-    return;
-  const layoutMetrics = popupLayoutMetrics2(editedPopup.modules || [], editedPopup.layout),
-    gridWidth = layoutMetrics.gridWidth,
-    gridHeight = layoutMetrics.gridHeight,
-    stageScale = Math.max(
-      0.2,
-      Math.min(
-        stageWrapElement.clientWidth / gridWidth,
-        stageWrapElement.clientHeight / gridHeight,
-      ),
-    ),
-    viewportWidthPx = Math.max(1, gridWidth * stageScale),
-    viewportHeightPx = Math.max(1, gridHeight * stageScale);
-  ((viewportElement.style.width = viewportWidthPx + "px"),
-    (viewportElement.style.height = viewportHeightPx + "px"),
-    (stageElement.style.width = gridWidth + "px"),
-    (stageElement.style.height = gridHeight + "px"),
-    (stageElement.style.transform = "scale(" + stageScale + ")"),
-    (editorToolbarElement.style.width = stageWrapElement.clientWidth + "px"));
-}
-function applyPopupModuleReorder(
-  popupIdValue: any,
-  moduleId: any,
-  beforeModuleId: any = null,
-  placeAfter = false,
-) {
-  const popupDefinition = (activeProject?.document?.customPopups || []).find(
-    (candidatePopupModule: any) => candidatePopupModule.id === popupIdValue,
-  );
-  if (!popupDefinition) return;
-  const reorderedModules = reorderedPopupModules2(
-    popupDefinition.modules,
-    moduleId,
-    beforeModuleId,
-    placeAfter,
-  );
-  if (!(
-    reorderedModules.length === (popupDefinition.modules || []).length &&
-    reorderedModules.every(
-      (moduleEntry, moduleIndex) => moduleEntry.id === popupDefinition.modules[moduleIndex]?.id,
-    )
-  )) {
-    if (!packPopupModules2(reorderedModules, popupDefinition.layout).fits) {
-      handleOperationError(new Error("这个排序会使当前布局超过 3 行。"));
-      return;
-    }
-    mutateDocument((reorderDraft: any) => {
-      const draftPopup = (reorderDraft.customPopups || []).find(
-        (draftPopupCandidate: any) => draftPopupCandidate.id === popupIdValue,
-      );
-      draftPopup &&
-        (draftPopup.modules = reorderedPopupModules2(
-          draftPopup.modules,
-          moduleId,
-          beforeModuleId,
-          placeAfter,
-        ));
-    });
-  }
-}
-function createPopupCoverSettings(popupIdentifier: any, coverModule: any) {
-  const containerElement = document.createElement("div");
-  containerElement.className = "popup-cover-settings";
-  const coverSettings = [
-    {
-      label: "窗帘类型",
-      property: "coverKind",
-      fallback: "auto",
-      allowed: ["auto", "standard", "dream", "airer"],
-      options: [
-        ["auto", "自动识别"],
-        ["standard", "普通窗帘"],
-        ["dream", "梦幻帘"],
-        ["airer", "晾衣机"],
-      ],
-    },
-    {
-      label: "开合方向",
-      property: "coverDirection",
-      fallback: "split",
-      allowed: ["split", "left", "right"],
-      options: [
-        ["split", "双开"],
-        ["left", "向左"],
-        ["right", "向右"],
-      ],
-    },
-    {
-      label: "电机方向",
-      property: "coverMotorDirection",
-      fallback: "auto",
-      allowed: ["auto", "normal", "reversed"],
-      options: [
-        ["auto", "跟随 HA"],
-        ["normal", "正常"],
-        ["reversed", "反向"],
-      ],
-    },
-  ];
-  for (const settingRow of coverSettings) {
-    const rowElement = document.createElement("div");
-    rowElement.className = "popup-cover-setting-row";
-    const rowLabelElement = document.createElement("span");
-    rowLabelElement.textContent = settingRow.label;
-    const optionsGroupElement = document.createElement("div");
-    ((optionsGroupElement.className = "popup-cover-setting-options"),
-      optionsGroupElement.setAttribute("role", "group"),
-      optionsGroupElement.setAttribute("aria-label", settingRow.label));
-    const activeValue = coverModule.properties?.[settingRow.property],
-      fallback = settingRow.allowed.includes(activeValue) ? activeValue : settingRow.fallback;
-    for (const [optionValue, optionLabel] of settingRow.options) {
-      const settingOptionButton = document.createElement("button");
-      ((settingOptionButton.type = "button"),
-        (settingOptionButton.textContent = optionLabel),
-        settingOptionButton.classList.toggle("active", optionValue === fallback),
-        settingOptionButton.setAttribute("aria-pressed", String(optionValue === fallback)),
-        settingOptionButton.addEventListener("click", (optionClickEvent) => {
-          (optionClickEvent.stopPropagation(),
-            optionValue !== fallback &&
-              mutateDocument((popupDraft: any) => {
-                const updatedModule = (popupDraft.customPopups || [])
-                  .find((popupEntryCandidate: any) => popupEntryCandidate.id === popupIdentifier)
-                  ?.modules?.find((moduleCandidate: any) => moduleCandidate.id === coverModule.id);
-                !updatedModule ||
-                  updatedModule.type !== "cover" ||
-                  (updatedModule.properties = {
-                    ...(updatedModule.properties || {}),
-                    [settingRow.property]: optionValue,
-                  });
-              }));
-        }),
-        optionsGroupElement.append(settingOptionButton));
-    }
-    (rowElement.append(rowLabelElement, optionsGroupElement), containerElement.append(rowElement));
-  }
-  return containerElement;
-}
-function createPopupClimateSettings(popupKey: any, climateModule: any) {
-  const climateContainerElement = document.createElement("div");
-  climateContainerElement.className = "popup-climate-settings";
-  const deviceTypeRowElement = document.createElement("div");
-  deviceTypeRowElement.className = "popup-cover-setting-row";
-  const deviceTypeLabelElement = document.createElement("span");
-  deviceTypeLabelElement.textContent = "设备类型";
-  const deviceTypeOptionsElement = document.createElement("div");
-  ((deviceTypeOptionsElement.className = "popup-cover-setting-options"),
-    deviceTypeOptionsElement.setAttribute("role", "group"),
-    deviceTypeOptionsElement.setAttribute("aria-label", "设备类型"));
-  const deviceType3 = climateModule.properties?.deviceType || climateModule.deviceType,
-    normalizedClimateType = normalizedPopupClimateDeviceType2(deviceType3);
-  for (const [deviceTypeOption, deviceTypeOptionLabel] of [
-    ["auto", "自动识别"],
-    ["air-conditioner", "空调"],
-    ["bath-heater", "浴霸"],
-  ]) {
-    const deviceTypeOptionButton = document.createElement("button");
-    ((deviceTypeOptionButton.type = "button"),
-      (deviceTypeOptionButton.textContent = deviceTypeOptionLabel),
-      deviceTypeOptionButton.classList.toggle("active", deviceTypeOption === normalizedClimateType),
-      deviceTypeOptionButton.setAttribute(
-        "aria-pressed",
-        String(deviceTypeOption === normalizedClimateType),
-      ),
-      deviceTypeOptionButton.addEventListener("click", (deviceTypeClickEvent) => {
-        (deviceTypeClickEvent.stopPropagation(),
-          deviceTypeOption !== normalizedClimateType &&
-            mutateDocument((climateDraft: any) => {
-              const updatedClimateModule = (climateDraft.customPopups || [])
-                .find((climatePopupCandidate: any) => climatePopupCandidate.id === popupKey)
-                ?.modules?.find(
-                  (climateModuleCandidate: any) => climateModuleCandidate.id === climateModule.id,
-                );
-              !updatedClimateModule ||
-                updatedClimateModule.type !== "climate" ||
-                ((updatedClimateModule.properties = {
-                  ...(updatedClimateModule.properties || {}),
-                  deviceType: deviceTypeOption,
-                }),
-                delete updatedClimateModule.deviceType);
-            }));
-      }),
-      deviceTypeOptionsElement.append(deviceTypeOptionButton));
-  }
-  return (
-    deviceTypeRowElement.append(deviceTypeLabelElement, deviceTypeOptionsElement),
-    climateContainerElement.append(deviceTypeRowElement),
-    climateContainerElement
-  );
-}
-function resolveLineChartThresholds(thresholdSourceModule: any) {
-  const configuredThresholds = [
-      {
-        value: 0,
-        color: "#ddffc2",
-      },
-      {
-        value: 13,
-        color: "#68cc3e",
-      },
-      {
-        value: 27,
-        color: "#ff8e52",
-      },
-      {
-        value: 40,
-        color: "#ff1a1a",
-      },
-    ],
-    thresholds2 = Array.isArray(thresholdSourceModule.properties?.thresholds)
-      ? thresholdSourceModule.properties.thresholds
-      : [];
-  return configuredThresholds.map((defaultThreshold, thresholdPosition) => ({
-    value: Number.isFinite(Number(thresholds2[thresholdPosition]?.value))
-      ? Number(thresholds2[thresholdPosition].value)
-      : defaultThreshold.value,
-    color: String(thresholds2[thresholdPosition]?.color || defaultThreshold.color),
-  }));
-}
-function createPopupLineChartSettings(lineChartPopupId: any, lineChartModule: any) {
-  const chartSettingsElement = document.createElement("div");
-  chartSettingsElement.className = "popup-line-chart-settings";
-  const precisionRowElement = document.createElement("div");
-  precisionRowElement.className = "popup-line-chart-setting-row";
-  const precisionLabelElement = document.createElement("span");
-  precisionLabelElement.textContent = "数值小数位";
-  const precisionSelectElement = document.createElement("select");
-  precisionSelectElement.setAttribute("aria-label", "组合弹窗折线图数值小数位");
-  for (const [precisionOptionValue, precisionOptionLabel] of [
-    ["auto", "自动"],
-    ["0", "0 位"],
-    ["1", "1 位"],
-    ["2", "2 位"],
-    ["3", "3 位"],
-    ["4", "4 位"],
-  ])
-    precisionSelectElement.append(new Option(precisionOptionLabel, precisionOptionValue));
-  const syncedProperties = syncedLineChartProperties2(
-    activeProject?.document,
-    currentPage(),
-    lineChartModule.entityId,
-    lineChartModule.properties,
-  );
-  ((precisionSelectElement.value = ["0", "1", "2", "3", "4"].includes(
-    String(syncedProperties.statePrecision),
-  )
-    ? String(syncedProperties.statePrecision)
-    : "auto"),
-    precisionSelectElement.addEventListener("pointerdown", (pointerEvent) =>
-      pointerEvent.stopPropagation(),
-    ),
-    precisionSelectElement.addEventListener("click", (selectClickEvent) =>
-      selectClickEvent.stopPropagation(),
-    ),
-    precisionSelectElement.addEventListener("change", (precisionChangeEvent) => {
-      precisionChangeEvent.stopPropagation();
-      const precisionValue = ["0", "1", "2", "3", "4"].includes(precisionSelectElement.value)
-        ? precisionSelectElement.value
-        : "auto";
-      mutateDocument((precisionDraft: any) => {
-        const updatedChartModule = (precisionDraft.customPopups || [])
-          .find((chartPopupCandidate: any) => chartPopupCandidate.id === lineChartPopupId)
-          ?.modules?.find((chartModuleCandidate: any) => chartModuleCandidate.id === lineChartModule.id);
-        !updatedChartModule ||
-          updatedChartModule.type !== "line-chart" ||
-          (updatedChartModule.properties = {
-            ...(updatedChartModule.properties || {}),
-            statePrecision: precisionValue,
-          });
-      });
-    }),
-    precisionRowElement.append(precisionLabelElement, precisionSelectElement),
-    chartSettingsElement.append(precisionRowElement));
-  const addColorRow = (rowTitle: any, colorValues: any, onColorChange: any, isDisabled = false) => {
-    const colorRowElement = document.createElement("div");
-    colorRowElement.className = "popup-line-chart-setting-row";
-    const rowTitleElement = document.createElement("span");
-    rowTitleElement.textContent = rowTitle;
-    const colorInputsElement = document.createElement("div");
-    ((colorInputsElement.className = "popup-line-chart-colors"),
-      colorValues.forEach((colorValue: any, colorIndex: any) => {
-        const colorPickerInput = document.createElement("input");
-        ((colorPickerInput.type = "color"),
-          (colorPickerInput.value = colorValue),
-          (colorPickerInput.disabled = isDisabled),
-          colorPickerInput.setAttribute(
-            "aria-label",
-            "" + rowTitle + (colorValues.length > 1 ? " " + (colorIndex + 1) : ""),
-          ),
-          colorPickerInput.addEventListener("pointerdown", (inputPointerEvent) =>
-            inputPointerEvent.stopPropagation(),
-          ),
-          colorPickerInput.addEventListener("click", (inputClickEvent) =>
-            inputClickEvent.stopPropagation(),
-          ),
-          colorPickerInput.addEventListener("change", (colorChangeEvent) => {
-            (colorChangeEvent.stopPropagation(), onColorChange(colorPickerInput.value, colorIndex));
-          }),
-          colorInputsElement.append(colorPickerInput));
-      }),
-      colorRowElement.append(rowTitleElement, colorInputsElement),
-      chartSettingsElement.append(colorRowElement));
-  };
-  addColorRow(
-    "数值颜色",
-    [String(lineChartModule.properties?.valueColor || "#dce1e5")],
-    (nextColor: any) => {
-      mutateDocument((colorDraft: any) => {
-        const updatedColorRowModule = (colorDraft.customPopups || [])
-          .find((colorRowPopupCandidate: any) => colorRowPopupCandidate.id === lineChartPopupId)
-          ?.modules?.find(
-            (colorRowModuleCandidate: any) => colorRowModuleCandidate.id === lineChartModule.id,
-          );
-        !updatedColorRowModule ||
-          updatedColorRowModule.type !== "line-chart" ||
-          (updatedColorRowModule.properties = {
-            ...(updatedColorRowModule.properties || {}),
-            valueColor: nextColor,
-          });
-      });
-    },
-  );
-  const thresholdModeRowElement = document.createElement("div");
-  thresholdModeRowElement.className = "popup-line-chart-setting-row";
-  const thresholdModeLabelElement = document.createElement("span");
-  thresholdModeLabelElement.textContent = "阈值模式";
-  const thresholdModeSelectElement = document.createElement("select");
-  (thresholdModeSelectElement.setAttribute("aria-label", "组合弹窗折线图阈值模式"),
-    thresholdModeSelectElement.append(
-      new Option("自动（按历史范围）", "auto"),
-      new Option("手动设置", "manual"),
-    ));
-  const some4 =
-    Array.isArray(lineChartModule.properties?.thresholds) &&
-    lineChartModule.properties.thresholds.some((thresholdEntry: any) =>
-      Number.isFinite(Number(thresholdEntry?.value)),
-    );
-  ((thresholdModeSelectElement.value =
-    lineChartModule.properties?.thresholdMode === "auto" ||
-    (!some4 && lineChartModule.properties?.thresholdMode !== "manual")
-      ? "auto"
-      : "manual"),
-    thresholdModeSelectElement.addEventListener("pointerdown", (selectPointerEvent) =>
-      selectPointerEvent.stopPropagation(),
-    ),
-    thresholdModeSelectElement.addEventListener("click", (modeClickEvent) =>
-      modeClickEvent.stopPropagation(),
-    ),
-    thresholdModeSelectElement.addEventListener("change", (modeChangeEvent) => {
-      modeChangeEvent.stopPropagation();
-      const nextThresholdMode = thresholdModeSelectElement.value === "manual" ? "manual" : "auto";
-      mutateDocument((modeDraft: any) => {
-        const updatedModeModule = (modeDraft.customPopups || [])
-          .find((modePopupCandidate: any) => modePopupCandidate.id === lineChartPopupId)
-          ?.modules?.find((modeModuleCandidate: any) => modeModuleCandidate.id === lineChartModule.id);
-        if (!updatedModeModule || updatedModeModule.type !== "line-chart") return;
-        const nextProperties = {
-          ...(updatedModeModule.properties || {}),
-          thresholdMode: nextThresholdMode,
-        };
-        (nextThresholdMode === "manual" &&
-          !Array.isArray(nextProperties.thresholds) &&
-          (nextProperties.thresholds = resolveLineChartThresholds(updatedModeModule)),
-          (updatedModeModule.properties = nextProperties));
-      });
-    }),
-    thresholdModeRowElement.append(thresholdModeLabelElement, thresholdModeSelectElement),
-    chartSettingsElement.append(thresholdModeRowElement));
-  const gl2 = resolveLineChartThresholds(lineChartModule),
-    thresholdRowElement = document.createElement("div");
-  thresholdRowElement.className = "popup-line-chart-setting-row";
-  const thresholdLabelElement = document.createElement("span");
-  thresholdLabelElement.textContent = "阈值";
-  const thresholdValuesElement = document.createElement("div");
-  return (
-    (thresholdValuesElement.className = "popup-line-chart-threshold-values"),
-    gl2.forEach((thresholdRow, thresholdSlot) => {
-      const thresholdInputElement = document.createElement("input");
-      ((thresholdInputElement.type = "number"),
-        (thresholdInputElement.step = "any"),
-        (thresholdInputElement.value = roundField2(thresholdRow.value)),
-        (thresholdInputElement.disabled = thresholdModeSelectElement.value === "auto"),
-        thresholdInputElement.setAttribute("aria-label", "折线阈值 " + (thresholdSlot + 1)),
-        thresholdInputElement.addEventListener("pointerdown", (valuePointerEvent) =>
-          valuePointerEvent.stopPropagation(),
-        ),
-        thresholdInputElement.addEventListener("click", (valueClickEvent) =>
-          valueClickEvent.stopPropagation(),
-        ),
-        thresholdInputElement.addEventListener("change", (valueChangeEvent) => {
-          valueChangeEvent.stopPropagation();
-          const nextThresholdValue = Number(thresholdInputElement.value);
-          Number.isFinite(nextThresholdValue) &&
-            ((thresholdInputElement.value = roundField2(nextThresholdValue)),
-            mutateDocument((thresholdDraft: any) => {
-              const updatedThresholdModule = (thresholdDraft.customPopups || [])
-                .find((thresholdPopupCandidate: any) => thresholdPopupCandidate.id === lineChartPopupId)
-                ?.modules?.find(
-                  (thresholdModuleCandidate: any) => thresholdModuleCandidate.id === lineChartModule.id,
-                );
-              if (!updatedThresholdModule || updatedThresholdModule.type !== "line-chart") return;
-              const gl3 = resolveLineChartThresholds(updatedThresholdModule);
-              ((gl3[thresholdSlot] = {
-                ...gl3[thresholdSlot],
-                value: nextThresholdValue,
-              }),
-                (updatedThresholdModule.properties = {
-                  ...(updatedThresholdModule.properties || {}),
-                  thresholdMode: "manual",
-                  thresholds: gl3,
-                }));
-            }));
-        }),
-        thresholdValuesElement.append(thresholdInputElement));
-    }),
-    thresholdRowElement.append(thresholdLabelElement, thresholdValuesElement),
-    chartSettingsElement.append(thresholdRowElement),
-    addColorRow(
-      "折线颜色",
-      gl2.map((colorThresholdRow) => colorThresholdRow.color),
-      (nextColorValue: any, colorSlot: any) => {
-        mutateDocument((colorRowDraft: any) => {
-          const updatedColorThresholdModule = (colorRowDraft.customPopups || [])
-            .find(
-              (colorThresholdPopupCandidate: any) =>
-                colorThresholdPopupCandidate.id === lineChartPopupId,
-            )
-            ?.modules?.find(
-              (colorThresholdModuleCandidate: any) =>
-                colorThresholdModuleCandidate.id === lineChartModule.id,
-            );
-          if (!updatedColorThresholdModule || updatedColorThresholdModule.type !== "line-chart")
-            return;
-          const gl4 = resolveLineChartThresholds(updatedColorThresholdModule);
-          ((gl4[colorSlot] = {
-            ...gl4[colorSlot],
-            color: nextColorValue,
-          }),
-            (updatedColorThresholdModule.properties = {
-              ...(updatedColorThresholdModule.properties || {}),
-              thresholdMode: "manual",
-              thresholds: gl4,
-            }));
-        });
-      },
-      thresholdModeSelectElement.value === "auto",
-    ),
-    chartSettingsElement
-  );
-}
-function renderCustomPopupEditor() {
-  if (editorMode !== "popup") return;
-  const activePopup = findCustomPopup2(activeProject?.document, selectedPopupId);
-  if ((customPopupEditorElement.replaceChildren(), !activePopup)) {
-    const popupEmptyStateElement = document.createElement("div");
-    ((popupEmptyStateElement.className = "custom-popup-empty"),
-      (popupEmptyStateElement.innerHTML =
-        "<div><strong>还没有组合弹窗</strong><p>从左侧新建后，可以混合添加灯光、空调、空气净化器、窗帘、摄像头和折线图。</p></div>"),
-      customPopupEditorElement.append(popupEmptyStateElement));
-    return;
-  }
-  const popupEditorShellElement = document.createElement("div");
-  popupEditorShellElement.className = "custom-popup-editor-shell";
-  const toolbarElement = document.createElement("div");
-  toolbarElement.className = "custom-popup-editor-toolbar";
-  const titleGroupElement = document.createElement("div"),
-    popupNameElement = document.createElement("strong");
-  popupNameElement.textContent = activePopup.name;
-  const layoutSummaryElement = document.createElement("span"),
-    metrics = popupLayoutMetrics2(activePopup.modules || [], activePopup.layout);
-  ((layoutSummaryElement.textContent =
-    metrics.columns + " 列 × " + metrics.rows + " 行·行数自适应"),
-    titleGroupElement.append(popupNameElement, layoutSummaryElement));
-  const toolbarActionsElement = document.createElement("div");
-  toolbarActionsElement.className = "custom-popup-toolbar-actions";
-  const columnToggleElement = document.createElement("span");
-  columnToggleElement.className = "custom-popup-layout-toggle";
-  for (const columnCount of [2, 3, 4]) {
-    const columnButtonElement = document.createElement("button");
-    ((columnButtonElement.type = "button"),
-      (columnButtonElement.textContent = columnCount + " 列"),
-      columnButtonElement.classList.toggle(
-        "active",
-        popupLayoutColumns2(activePopup.layout) === columnCount,
-      ),
-      columnButtonElement.addEventListener("click", () => {
-        if (popupLayoutColumns2(activePopup.layout) === columnCount) return;
-        const nextState = {
-          ...(activePopup.layout || {}),
-          columns: columnCount,
-        };
-        if (!packPopupModules2(activePopup.modules || [], nextState).fits) {
-          handleOperationError(new Error("当前模块在 " + columnCount + " 列布局中会超过 3 行。"));
-          return;
-        }
-        mutateDocument((layoutDraft: any) => {
-          const layoutPopup = (layoutDraft.customPopups || []).find(
-            (layoutPopupCandidate: any) => layoutPopupCandidate.id === activePopup.id,
-          );
-          layoutPopup &&
-            (layoutPopup.layout = {
-              ...(layoutPopup.layout || {}),
-              columns: columnCount,
-            });
-        });
-      }),
-      columnToggleElement.append(columnButtonElement));
-  }
-  const addModuleButtonElement = document.createElement("button");
-  ((addModuleButtonElement.type = "button"),
-    (addModuleButtonElement.textContent = "＋ 添加模块"),
-    addModuleButtonElement.addEventListener("click", () => openPopupModuleDialog()),
-    toolbarActionsElement.append(columnToggleElement, addModuleButtonElement),
-    toolbarElement.append(titleGroupElement, toolbarActionsElement));
-  const editorStageWrapElement = document.createElement("div");
-  editorStageWrapElement.className = "custom-popup-stage-wrap";
-  const viewportWrapElement = document.createElement("div");
-  viewportWrapElement.className = "custom-popup-viewport";
-  const stageGridElement = document.createElement("div");
-  ((stageGridElement.className = "custom-popup-stage"),
-    (stageGridElement.style.width = metrics.gridWidth + "px"),
-    (stageGridElement.style.height = metrics.gridHeight + "px"),
-    stageGridElement.style.setProperty("--popup-columns", String(metrics.columns)),
-    stageGridElement.style.setProperty("--popup-rows", String(metrics.rows)),
-    (stageGridElement.style.gridTemplateColumns =
-      "repeat(" + metrics.columns + ", minmax(0, 1fr))"),
-    (stageGridElement.style.gridTemplateRows = "repeat(" + metrics.rows + ", minmax(0, 1fr))"));
-  let draggedModuleId: any = null;
-  const clearDropIndicators = () => {
-    stageGridElement.classList.remove("popup-module-append-target");
-    for (const dropIndicatorElement of stageGridElement.querySelectorAll(
-      ".popup-module-drop-top,.popup-module-drop-right,.popup-module-drop-bottom,.popup-module-drop-left",
-    ))
-      dropIndicatorElement.classList.remove(
-        "popup-module-drop-top",
-        "popup-module-drop-right",
-        "popup-module-drop-bottom",
-        "popup-module-drop-left",
-      );
-  };
-  (stageGridElement.addEventListener("dragover", (dragEvent) => {
-    !draggedModuleId ||
-      (dragEvent.target as Element).closest(".popup-module-card") ||
-      (dragEvent.preventDefault(),
-      clearDropIndicators(),
-      stageGridElement.classList.add("popup-module-append-target"),
-      dragEvent.dataTransfer && (dragEvent.dataTransfer.dropEffect = "move"));
-  }),
-    stageGridElement.addEventListener("drop", (dropEvent) => {
-      if (!draggedModuleId || (dropEvent.target as Element).closest(".popup-module-card")) return;
-      dropEvent.preventDefault();
-      const movedModuleId = draggedModuleId;
-      (clearDropIndicators(), applyPopupModuleReorder(activePopup.id, movedModuleId));
-    }));
-  for (const [moduleSlotIndex, popupModuleEntry] of (activePopup.modules || []).entries()) {
-    const placement = metrics.placements[moduleSlotIndex] || {
-        x: 0,
-        y: moduleSlotIndex,
-        width: 1,
-        height: 1,
-      },
-      columnSpan = [
-        "climate",
-        "air-purifier",
-        "water-heater",
-        "media-player",
-        "camera",
-        "line-chart",
-      ].includes(popupModuleEntry.type)
-        ? 2
-        : placement.width,
-      moduleCardElement = document.createElement("article");
-    ((moduleCardElement.className = "popup-module-card"),
-      (moduleCardElement.dataset.popupModuleId = popupModuleEntry.id),
-      (moduleCardElement.draggable = true),
-      moduleCardElement.setAttribute(
-        "aria-label",
-        (popupModuleEntry.title || deviceNameValue(popupModuleEntry.entityId)) + "，可拖动排序",
-      ),
-      (moduleCardElement.style.gridColumn = placement.x + 1 + " / span " + columnSpan),
-      (moduleCardElement.style.gridRow = placement.y + 1 + " / span " + placement.height));
-    const cardHeadingElement = document.createElement("div");
-    cardHeadingElement.className = "popup-module-card-heading";
-    const cardTitleWrapElement = document.createElement("div"),
-      cardTitleElement = document.createElement("strong");
-    ((cardTitleElement.textContent =
-      popupModuleEntry.title || deviceNameValue(popupModuleEntry.entityId)),
-      cardTitleWrapElement.append(cardTitleElement));
-    const cardActionsElement = document.createElement("span");
-    cardActionsElement.className = "popup-module-card-actions";
-    const editModuleButtonElement = document.createElement("button");
-    ((editModuleButtonElement.type = "button"),
-      (editModuleButtonElement.textContent = "✎"),
-      (editModuleButtonElement.title = "编辑模块"),
-      editModuleButtonElement.addEventListener("click", () =>
-        openPopupModuleDialog(popupModuleEntry),
-      ));
-    const duplicateModuleButtonElement = document.createElement("button");
-    ((duplicateModuleButtonElement.type = "button"),
-      (duplicateModuleButtonElement.textContent = "⎘"),
-      (duplicateModuleButtonElement.title = "复制模块"),
-      duplicateModuleButtonElement.addEventListener("click", () => {
-        const duplicatedModules = [
-          ...(activePopup.modules || []),
-          {
-            ...clone2(popupModuleEntry),
-            id: "candidate",
-          },
-        ];
-        if (!packPopupModules2(duplicatedModules, activePopup.layout).fits) {
-          handleOperationError(new Error("当前布局已放不下这个复制模块。"));
-          return;
-        }
-        mutateDocument((duplicateDraft: any) => {
-          const duplicatePopup = (duplicateDraft.customPopups || []).find(
-              (duplicatePopupCandidate: any) => duplicatePopupCandidate.id === activePopup.id,
-            ),
-            sourceModule = duplicatePopup?.modules?.find(
-              (duplicatedModuleCandidate: any) => duplicatedModuleCandidate.id === popupModuleEntry.id,
-            );
-          sourceModule &&
-            duplicatePopup.modules.push({
-              ...clone2(sourceModule),
-              id: newId2("popup-module"),
-            });
-        });
-      }));
-    const deleteModuleButtonElement = document.createElement("button");
-    ((deleteModuleButtonElement.type = "button"),
-      (deleteModuleButtonElement.textContent = "×"),
-      (deleteModuleButtonElement.title = "删除模块"),
-      deleteModuleButtonElement.addEventListener("click", () =>
-        mutateDocument((deleteDraft: any) => {
-          const deletePopup = (deleteDraft.customPopups || []).find(
-            (deletePopupCandidate: any) => deletePopupCandidate.id === activePopup.id,
-          );
-          deletePopup &&
-            (deletePopup.modules = deletePopup.modules.filter(
-              (moduleToRemove: any) => moduleToRemove.id !== popupModuleEntry.id,
-            ));
-        }),
-      ),
-      cardActionsElement.append(
-        editModuleButtonElement,
-        duplicateModuleButtonElement,
-        deleteModuleButtonElement,
-      ),
-      moduleCardElement.addEventListener("pointerdown", (pointerDownEvent) => {
-        moduleCardElement.dataset.dragBlocked = String(
-          !!(pointerDownEvent.target as Element).closest(
-            ".popup-module-card-actions,.popup-cover-settings,.popup-climate-settings,.popup-line-chart-settings",
-          ),
-        );
-      }),
-      moduleCardElement.addEventListener("pointerup", () => {
-        delete moduleCardElement.dataset.dragBlocked;
-      }),
-      moduleCardElement.addEventListener("pointercancel", () => {
-        delete moduleCardElement.dataset.dragBlocked;
-      }),
-      moduleCardElement.addEventListener("dragstart", (dragStartEvent) => {
-        if (moduleCardElement.dataset.dragBlocked === "true") {
-          (dragStartEvent.preventDefault(), delete moduleCardElement.dataset.dragBlocked);
-          return;
-        }
-        ((draggedModuleId = popupModuleEntry.id),
-          moduleCardElement.classList.add("popup-module-dragging"),
-          moduleCardElement.setAttribute("aria-grabbed", "true"),
-          dragStartEvent.dataTransfer &&
-            ((dragStartEvent.dataTransfer.effectAllowed = "move"),
-            dragStartEvent.dataTransfer.setData("text/plain", popupModuleEntry.id)));
-      }),
-      moduleCardElement.addEventListener("dragover", (cardDragOverEvent) => {
-        if (!draggedModuleId || draggedModuleId === popupModuleEntry.id) return;
-        (cardDragOverEvent.preventDefault(),
-          cardDragOverEvent.stopPropagation(),
-          clearDropIndicators());
-        const { edge: dropEdge } = popupModuleDropPosition2(moduleCardElement, cardDragOverEvent);
-        (moduleCardElement.classList.add("popup-module-drop-" + dropEdge),
-          cardDragOverEvent.dataTransfer && (cardDragOverEvent.dataTransfer.dropEffect = "move"));
-      }),
-      moduleCardElement.addEventListener("drop", (cardDropEvent) => {
-        if (!draggedModuleId || draggedModuleId === popupModuleEntry.id) return;
-        (cardDropEvent.preventDefault(), cardDropEvent.stopPropagation());
-        const sourceModuleId = draggedModuleId,
-          { placeAfter: placeAfterModule } = popupModuleDropPosition2(
-            moduleCardElement,
-            cardDropEvent,
-          );
-        (clearDropIndicators(),
-          applyPopupModuleReorder(
-            activePopup.id,
-            sourceModuleId,
-            popupModuleEntry.id,
-            placeAfterModule,
-          ));
-      }),
-      moduleCardElement.addEventListener("dragend", () => {
-        ((draggedModuleId = null),
-          delete moduleCardElement.dataset.dragBlocked,
-          moduleCardElement.classList.remove("popup-module-dragging"),
-          moduleCardElement.removeAttribute("aria-grabbed"),
-          clearDropIndicators());
-      }),
-      cardHeadingElement.append(cardTitleWrapElement, cardActionsElement));
-    const placeholderElement = document.createElement("div");
-    placeholderElement.className = "popup-module-placeholder";
-    const placeholderTitleElement = document.createElement("strong");
-    placeholderTitleElement.textContent = popupModuleTypeLabel2(popupModuleEntry.type) + "交互模块";
-    const placeholderEntityElement = document.createElement("span");
-    placeholderEntityElement.textContent = deviceNameValue(popupModuleEntry.entityId);
-    const placeholderIdElement = document.createElement("small");
-    ((placeholderIdElement.textContent = popupModuleEntry.entityId),
-      placeholderElement.append(
-        placeholderTitleElement,
-        placeholderEntityElement,
-        placeholderIdElement,
-      ),
-      popupModuleEntry.type === "cover" &&
-        placeholderElement.append(createPopupCoverSettings(activePopup.id, popupModuleEntry)),
-      popupModuleEntry.type === "climate" &&
-        placeholderElement.append(createPopupClimateSettings(activePopup.id, popupModuleEntry)),
-      popupModuleEntry.type === "line-chart" &&
-        placeholderElement.append(createPopupLineChartSettings(activePopup.id, popupModuleEntry)),
-      moduleCardElement.append(cardHeadingElement, placeholderElement),
-      stageGridElement.append(moduleCardElement));
-  }
-  if (!(activePopup.modules || []).length) {
-    const stageEmptyElement = document.createElement("div");
-    ((stageEmptyElement.className = "custom-popup-empty"),
-      (stageEmptyElement.style.gridColumn = "1 / -1"),
-      (stageEmptyElement.style.gridRow = "1 / -1"),
-      (stageEmptyElement.textContent = "点击“添加模块”开始组合弹窗"),
-      stageGridElement.append(stageEmptyElement));
-  }
-  (viewportWrapElement.append(stageGridElement),
-    editorStageWrapElement.append(viewportWrapElement),
-    popupEditorShellElement.append(toolbarElement, editorStageWrapElement),
-    customPopupEditorElement.append(popupEditorShellElement),
-    window.requestAnimationFrame(syncCustomPopupStage));
 }
 function openPopupModuleDialog(popupModule: any = null) {
   if (!findCustomPopup2(activeProject?.document, selectedPopupId)) return;
@@ -10500,7 +8104,7 @@ async function historyEntry(prunedEntry: any, pruneCandidate: any = null) {
       projectId: prunedEntry,
     })!,
     navigationButtonSavedSettingsByComponentId.clear(),
-    coverMotorDirectionValueById.clear(),
+    clearCoverMotorDirectionValueById(),
     panelFrameBaselineByComponentId.clear(),
     lineChartBaselineByComponentId.clear(),
     iconButtonEffectBaselineByComponentId.clear(),
@@ -10551,7 +8155,7 @@ async function initialPagePath(loadProjects: any = null) {
       runSlot(),
       (activeProject = null),
       navigationButtonSavedSettingsByComponentId.clear(),
-      coverMotorDirectionValueById.clear(),
+      clearCoverMotorDirectionValueById(),
       panelFrameBaselineByComponentId.clear(),
       lineChartBaselineByComponentId.clear(),
       iconButtonEffectBaselineByComponentId.clear(),

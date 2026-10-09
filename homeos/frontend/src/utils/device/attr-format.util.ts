@@ -13,6 +13,7 @@
  * - 单位（°C / % / hPa / lux / μg/m³ / ...）为计量单位，不翻译。
  * - 仅面向用户的展示文案使用简体中文。
  */
+import { HVAC_MODE_LABELS as CLIMATE_HVAC_MODE_LABELS } from '@/constants/climate-labels'
 import { formatLocaleString } from '@/utils/format/locale-format.util'
 
 const MEASUREMENT_ATTR_KEYS = new Set([
@@ -101,15 +102,10 @@ const FULL_DATETIME_OPTS: Intl.DateTimeFormatOptions = {
 
 const COMPASS_8 = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'] as const
 
-/** HVAC / 运行模式 */
+/** HVAC / 运行模式（气候控件核心 + 属性展示扩展） */
 const HVAC_MODE_LABELS: Record<string, string> = {
-  auto: '自动',
-  cool: '制冷',
-  dry: '除湿',
-  fan_only: '送风',
-  heat: '制热',
+  ...CLIMATE_HVAC_MODE_LABELS,
   heat_cool: '冷暖',
-  off: '关闭',
 }
 
 const HVAC_ACTION_LABELS: Record<string, string> = {

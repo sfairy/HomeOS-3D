@@ -1,7 +1,7 @@
 import {
   GENERIC_DEVICE_KINDS,
   genericDeviceProfile,
-} from "../../device/device-profiles";
+} from "../../device/generic-device-catalog";
 
 export const postHostMessage = (hostMessage: any) =>
     window.parent.postMessage(

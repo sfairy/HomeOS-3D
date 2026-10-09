@@ -111,10 +111,33 @@ export function runtimeVendorAssetPlugin(): Plugin {
 }
 
 /**
+ * 用 esbuild 把零依赖经典入口打成 IIFE，落到 ``<outDir>/static/<name>.js``。
+ * 供主应用 finalize 插件与本文件的 ``classicIifePlugin`` 共用，便于在同一
+ * ``closeBundle`` 里与白名单 / 发布步骤严格串行（Rolldown 可能并行跑多个插件的
+ * closeBundle，拆成三个插件时会出现「IIFE 已写、public CSS 已被并发构建清掉」）。
+ */
+export async function writeClassicIifeBundles(targetOutDir: string): Promise<void> {
+  for (const [name, entry] of Object.entries(classicEntries)) {
+    if (!fs.existsSync(entry)) continue;
+    const outfile = path.join(targetOutDir, "static", `${name}.js`);
+    fs.mkdirSync(path.dirname(outfile), { recursive: true });
+    await esbuildBuild({
+      entryPoints: [entry],
+      outfile,
+      bundle: true,
+      format: "iife",
+      platform: "browser",
+      target: "es2022",
+      minify: true,
+      logLevel: "silent",
+    });
+  }
+}
+
+/**
  * 用 esbuild 把零依赖经典入口打成 IIFE，落到固定路径 `/static/<name>.js`。
- * closeBundle 按插件数组顺序串行执行，所以输出顺序可预期。
  *
- * 写出目录取自 ``config.build.outDir``（主应用原子构建时是 ``frontend.building``），
+ * 写出目录取自 ``config.build.outDir``（主应用原子构建时是 ``frontend.building.<pid>``），
  * 不要写死导出的 ``outDir``，否则会绕过旁路目录、污染线上 dist。
  */
 export function classicIifePlugin(): Plugin {
@@ -126,21 +149,7 @@ export function classicIifePlugin(): Plugin {
       resolvedOutDir = path.resolve(config.root, config.build.outDir);
     },
     async closeBundle() {
-      for (const [name, entry] of Object.entries(classicEntries)) {
-        if (!fs.existsSync(entry)) continue;
-        const outfile = path.join(resolvedOutDir, "static", `${name}.js`);
-        fs.mkdirSync(path.dirname(outfile), { recursive: true });
-        await esbuildBuild({
-          entryPoints: [entry],
-          outfile,
-          bundle: true,
-          format: "iife",
-          platform: "browser",
-          target: "es2022",
-          minify: true,
-          logLevel: "silent",
-        });
-      }
+      await writeClassicIifeBundles(resolvedOutDir);
     },
   };
 }

@@ -15,8 +15,10 @@ homeos-store/backend/src/data/
 homeos-store/backend/src/keys/local/
 
 # homeos 应用（主应用，3D Studio 与授权服务整体并入）：与商店同一套规则。
-# secrets/ 里是部署时生成的真实口令，只能提交 .gitkeep 占位。
+# keys/ 里是部署时生成的真实口令，只能提交 .gitkeep 占位（旧 secrets/ 路径保留忽略）。
 homeos/image/
+homeos/keys/*
+!homeos/keys/.gitkeep
 homeos/secrets/*
 !homeos/secrets/.gitkeep
 

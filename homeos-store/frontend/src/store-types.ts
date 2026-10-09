@@ -116,3 +116,8 @@ export function errorMessage(error: unknown, fallback = '请求失败'): string 
   if (typeof error === 'string' && error) return error;
   return fallback;
 }
+
+/** DataTable 槽位 items 的类型断言（API 列表行 → 本地行类型）。 */
+export function asListItems<T>(items: unknown[]): T[] {
+  return items as T[];
+}

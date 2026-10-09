@@ -9,7 +9,7 @@ import DataTable from "../../components/admin/DataTable.vue";
 import RowMenu from "../../components/admin/RowMenu.vue";
 import FeaturePicker from "../../components/admin/FeaturePicker.vue";
 import { adminApi } from "../../api/http.js";
-import { errorMessage } from "../../store-types.js";
+import { asListItems, errorMessage } from "../../store-types.js";
 import { useToastStore } from "../../stores/toast.js";
 import { useConfirmStore } from "../../stores/confirm.js";
 import { useFeatureCatalogStore } from "../../stores/featureCatalog.js";
@@ -45,10 +45,6 @@ const catalog = useFeatureCatalogStore();
 const table = ref<InstanceType<typeof DataTable> | null>(null);
 const feature = ref("");
 const status = ref("");
-
-function asEntitlements(items: unknown[]): Entitlement[] {
-  return items as Entitlement[];
-}
 
 const params = computed<Record<string, string>>(() => {
   const next: Record<string, string> = {};
@@ -264,7 +260,7 @@ void catalog.load().catch(() => {});
         empty-text="没有符合条件的权益记录"
       >
         <template #default="{ items }">
-          <tr v-for="entry in asEntitlements(items)" :key="entry.id">
+          <tr v-for="entry in asListItems<Entitlement>(items)" :key="entry.id">
             <td>
               <span v-if="entry.featureCode" :title="featureTitle(entry)">
                 {{ catalog.label(entry.featureCode) }}

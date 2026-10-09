@@ -621,6 +621,29 @@ def close_pending_order(
     return True
 
 
+def close_pending_after_channel_close(session: Session, *, order: Order) -> bool:
+    """渠道已明确关单时，把本地待支付订单推进终态并记下 ``channel_closed_at``。
+
+    不这么做的话订单会一直停在 pending：库存预留与优惠码名额继续被占着，直到本地
+    TTL 或巡检才回收。
+    """
+    product = session.get(Product, order.product_id) if order.product_id else None
+    closed = close_pending_order(
+        session, order=order, product=product, status="expired"
+    )
+    if not closed:
+        return False
+    session.execute(
+        update(Order)
+        .where(Order.id == order.id)
+        .values(channel_closed_at=utcnow())
+        .execution_options(synchronize_session=False)
+    )
+    session.flush()
+    logger.warning("渠道已关单，本地订单同步过期 order=%s", order.order_no)
+    return True
+
+
 def recompute_reserved_stock(session: Session) -> dict[str, int]:
     """按订单表重算每个商品的 ``reserved_stock``，返回「商品 id → 修正量」。
     """

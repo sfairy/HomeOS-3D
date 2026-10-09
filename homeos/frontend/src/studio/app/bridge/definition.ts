@@ -1,4 +1,4 @@
-import { withPageAppearancePreset as withPageAppearancePreset } from "./page-appearance-presets";
+import { withPageAppearancePreset as withPageAppearancePreset } from "./presets/page-appearance-presets";
 const INTERACTION3D_TYPE = "interaction3d";
 export const INTERACTION3D_LIGHTING_MODES = [
     ["standard", "标准光影"],

@@ -2,16 +2,14 @@
 
 Revision ID: 0001
 Revises:
-Create Date: 2026-10-07
-
-开发期迁移链已压缩为单一基线：升级路径创建当前 ORM 元数据建全表。
-存量库若 revision 不在脚本图中但结构已匹配 ORM，由 ``run_migrations`` stamp 到 0001。
+Create Date: 2026-10-09
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 
+import sqlalchemy as sa
 from alembic import op
 
 revision: str = "0001"
@@ -21,12 +19,28 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # 与发行版 ``_create_schema`` 同源：按 ORM 建库，避免逐步迁移与模型再次漂移。
     from src.core import models  # noqa: F401
     from src.core.database import Base
 
     bind = op.get_bind()
     Base.metadata.create_all(bind=bind)
+    inspector = sa.inspect(bind)
+    tables = set(inspector.get_table_names())
+    if "data_compatibility" not in tables:
+        op.create_table(
+            "data_compatibility",
+            sa.Column("id", sa.Integer(), primary_key=True, nullable=False),
+            sa.Column("minimum_application_version", sa.String(length=64), nullable=False),
+            sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+            sa.CheckConstraint("id = 1", name="ck_data_compatibility_singleton"),
+        )
+    op.execute(
+        sa.text(
+            "INSERT INTO data_compatibility (id, minimum_application_version, updated_at) "
+            "VALUES (1, '0.0.0', CURRENT_TIMESTAMP) "
+            "ON CONFLICT(id) DO NOTHING"
+        )
+    )
 
 
 def downgrade() -> None:

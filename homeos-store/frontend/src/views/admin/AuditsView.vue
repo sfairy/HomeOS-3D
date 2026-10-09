@@ -5,7 +5,7 @@ import { computed, ref } from "vue";
 import PanelHead from "../../components/admin/PanelHead.vue";
 import DataTable from "../../components/admin/DataTable.vue";
 import { adminApi } from "../../api/http.js";
-import { errorMessage } from "../../store-types.js";
+import { asListItems, errorMessage } from "../../store-types.js";
 import { useToastStore } from "../../stores/toast.js";
 import { useConfirmStore } from "../../stores/confirm.js";
 import { useAdminRefreshStore } from "../../stores/adminRefresh.js";
@@ -37,10 +37,6 @@ const refresh = useAdminRefreshStore();
 const table = ref<InstanceType<typeof DataTable> | null>(null);
 const purgeDays = ref("90");
 const purging = ref(false);
-
-function asAudits(items: unknown[]): AuditItem[] {
-  return items as AuditItem[];
-}
 
 const tabs: AdminTabItem[] = [
   { key: "list", label: "审计列表" },
@@ -130,7 +126,7 @@ async function purge() {
     <div v-show="active === 'list'" class="admin-tab-pane" role="tabpanel">
       <DataTable ref="table" path="/audit-logs" :columns="COLUMNS" empty-text="暂无审计记录">
         <template #default="{ items }">
-          <tr v-for="item in asAudits(items)" :key="item.id">
+          <tr v-for="item in asListItems<AuditItem>(items)" :key="item.id">
             <td class="nowrap">{{ dt(item.createdAt) }}</td>
             <td class="nowrap">
               <span v-if="item.actor" :title="item.actor">{{ item.actor }}</span>

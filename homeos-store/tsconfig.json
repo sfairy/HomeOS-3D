@@ -13,11 +13,17 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
+    "jsx": "preserve",
     "paths": {
       "@store/*": ["./frontend/src/*"]
     },
-    "types": ["node"]
+    "types": ["node", "vite/client"]
   },
-  "include": ["frontend/src/**/*.ts", "frontend/vite.config.ts"],
+  "include": [
+    "frontend/src/**/*.ts",
+    "frontend/src/**/*.vue",
+    "frontend/src/**/*.d.ts",
+    "frontend/vite.config.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

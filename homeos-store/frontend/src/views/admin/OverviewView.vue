@@ -270,8 +270,8 @@ const revenueCards = computed<StatCard[]>(() => {
   return [
     {
       label: "净营收（累计）",
-      value: money(revenue.totalCents),
-      note: `收款 ${money(revenue.totalGrossCents)} · 退款 ${money(revenue.totalRefundCents)}${manualNote}`,
+      value: money(revenue.totalCents ?? 0),
+      note: `收款 ${money(revenue.totalGrossCents ?? 0)} · 退款 ${money(revenue.totalRefundCents ?? 0)}${manualNote}`,
       tone: "is-tone-amber",
     },
     ...(revenue.windows || []).map((bucket) => ({

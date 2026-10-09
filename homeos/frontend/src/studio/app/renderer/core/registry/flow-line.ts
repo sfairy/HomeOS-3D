@@ -4,7 +4,7 @@ import {
   flowClamp as flowClamp2,
   flowLineMotion as flowLineMotion2,
 } from "../../../shared/flow-line-model";
-import { domSvgNode } from "@app/utils/dom-factory";
+import { createSvgElement as createSvgElementFromFactory } from "@app/utils/svg-factory";
 /** 流水线条渲染时由 registry 注入的宿主能力。 */
 type FlowLineRuntimeHost = {
   /** 运行期状态是否已就绪； */
@@ -36,7 +36,7 @@ export function renderFlowLine(
   const canvasWidth = flowClamp2(component.position?.width, 1, 20000, 600),
     canvasHeight = flowClamp2(component.position?.height, 1, 20000, 300),
     createSvgNode = (tagName: any, attributes: any, parentElement = element) =>
-      domSvgNode(document, tagName, attributes, parentElement),
+      createSvgElementFromFactory(tagName, attributes, parentElement, document),
     svgElement = createSvgNode("svg", {
       viewBox: "0 0 " + canvasWidth + " " + canvasHeight,
       preserveAspectRatio: "none",

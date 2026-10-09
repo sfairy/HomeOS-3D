@@ -23,8 +23,8 @@ Emits：
   - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
  */
 import { History } from '@lucide/vue'
-import ListPageHero from '@/components/common/list-page/ListPageHero.vue'
-import ListPageMetrics from '@/components/common/list-page/ListPageMetrics.vue'
+import ListPageHero from '@/components/page-shell/ListPageHero.vue'
+import ListPageMetrics from '@/components/page-shell/ListPageMetrics.vue'
 import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
 
 defineProps({

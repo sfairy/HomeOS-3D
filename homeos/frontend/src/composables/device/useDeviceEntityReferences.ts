@@ -16,7 +16,7 @@
  *   - @/stores/chrome.store.useChromeStore：通知 / 确认弹窗。
  *   - @/stores/layout.store：布局配置加载。
  *   - @/types/entity-references：引用类型与常量（kind 标签 / 受影响的系统配置 / 布局 kind 集合）。
- *   - @/views/settings/system/composables/system-config.internals.useSystemConfig：系统配置加载。
+ *   - @/features/settings/system/composables/system-config.internals.useSystemConfig：系统配置加载。
  */
 import { ref, watch, type Ref } from 'vue'
 import { fetchEntityReferences, unlinkEntityReference } from '@/services/api/entities'

@@ -11,7 +11,6 @@ const screensaverVisible = ref(false)
 export const screensaverBackgroundIdle = ref(false)
 
 const idleListeners = new Set<(idle: boolean) => void>()
-const flushListeners = new Set<() => void>()
 
 let idleRaf1 = 0
 let idleRaf2 = 0
@@ -37,22 +36,6 @@ export function onScreensaverBackgroundIdle(cb: (idle: boolean) => void): () => 
   idleListeners.add(cb)
   cb(screensaverBackgroundIdle.value)
   return () => idleListeners.delete(cb)
-}
-
-/** 注册屏保结束时需要立即补画的回调。 */
-export function registerScreensaverFlushDraw(cb: () => void): () => void {
-  flushListeners.add(cb)
-  return () => flushListeners.delete(cb)
-}
-
-function flushScreensaverDeferredDraws(): void {
-  flushListeners.forEach((fn) => {
-    try {
-      fn()
-    } catch {
-      /* 忽略 */
-    }
-  })
 }
 
 export function setScreensaverVisible(visible: boolean): void {
@@ -81,7 +64,6 @@ export function setScreensaverVisible(visible: boolean): void {
   }
 
   notifyIdle(false)
-  flushScreensaverDeferredDraws()
   if (typeof window !== 'undefined' && typeof requestAnimationFrame === 'function') {
     requestAnimationFrame(() => {
       window.dispatchEvent(new Event('resize'))

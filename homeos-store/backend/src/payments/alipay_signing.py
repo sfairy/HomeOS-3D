@@ -4,25 +4,21 @@ from __future__ import annotations
 
 import base64
 import json
-import re
 from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
-from functools import lru_cache
 
 from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding, rsa
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
 
+from .pem import load_private_key as _parse_private_key
+from .pem import load_public_key as _parse_public_key
 from .urls import callback_url_check, url_port
 from .urls import validate_callback_url as _validate_callback_url
 from ..commerce import money
 from ..payments.base import PaymentError
 
 CHINA_TZ = timezone(timedelta(hours=8))
-
-
-_PRE_HEADER = "RSA PRIVATE KEY"
-_PKCS8_HEADER = "PRIVATE KEY"
 
 
 def yuan_from_cents(cents: int) -> str:
@@ -40,69 +36,24 @@ def cents_from_yuan(value: object) -> int | None:
         return None
 
 
-def _strip_wrapping(raw: str) -> str:
-    text = (raw or "").strip()
-    if "\\n" in text and "BEGIN" in text:
-        text = text.replace("\\n", "\n")
-    return text.strip().strip('"').strip("'")
+def _load_private_key(raw: str):
+    try:
+        return _parse_private_key(raw)
+    except ValueError as error:
+        raise PaymentError(
+            "无法解析支付宝应用私钥：请确认是 RSA 私钥（PKCS1 或 PKCS8，2048 位），"
+            "且没有把「支付宝公钥」误填成私钥。"
+        ) from error
 
 
-def _wrap(body: str, header: str) -> str:
-    compact = re.sub(r"\s+", "", body)
-    chunks = [compact[i : i + 64] for i in range(0, len(compact), 64)]
-    return f"-----BEGIN {header}-----\n" + "\n".join(chunks) + f"\n-----END {header}-----"
-
-
-@lru_cache(maxsize=8)
-def _private_key_candidates(raw: str) -> tuple[str, ...]:
-    text = _strip_wrapping(raw)
-    if not text:
-        return ()
-    if "BEGIN" in text:
-        return (text,)
-    return (_wrap(text, _PKCS8_HEADER), _wrap(text, _PRE_HEADER))
-
-
-@lru_cache(maxsize=8)
-def _public_key_candidates(raw: str) -> tuple[str, ...]:
-    text = _strip_wrapping(raw)
-    if not text:
-        return ()
-    if "BEGIN" in text:
-        return (text,)
-    return (_wrap(text, "PUBLIC KEY"),)
-
-
-@lru_cache(maxsize=8)
-def _load_private_key(raw: str) -> rsa.RSAPrivateKey:
-    for candidate in _private_key_candidates(raw):
-        try:
-            key = serialization.load_pem_private_key(
-                candidate.encode("utf-8"), password=None
-            )
-        except (ValueError, TypeError):
-            continue
-        if isinstance(key, rsa.RSAPrivateKey):
-            return key
-    raise PaymentError(
-        "无法解析支付宝应用私钥：请确认是 RSA 私钥（PKCS1 或 PKCS8，2048 位），"
-        "且没有把「支付宝公钥」误填成私钥。"
-    )
-
-
-@lru_cache(maxsize=8)
-def _load_public_key(raw: str) -> rsa.RSAPublicKey:
-    for candidate in _public_key_candidates(raw):
-        try:
-            key = serialization.load_pem_public_key(candidate.encode("utf-8"))
-        except (ValueError, TypeError):
-            continue
-        if isinstance(key, rsa.RSAPublicKey):
-            return key
-    raise PaymentError(
-        "无法解析支付宝公钥：请填写支付宝开放平台里的「支付宝公钥」，"
-        "而不是你自己的应用公钥。"
-    )
+def _load_public_key(raw: str):
+    try:
+        return _parse_public_key(raw)
+    except ValueError as error:
+        raise PaymentError(
+            "无法解析支付宝公钥：请填写支付宝开放平台里的「支付宝公钥」，"
+            "而不是你自己的应用公钥。"
+        ) from error
 
 
 MIN_RSA_BITS = 2048

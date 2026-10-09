@@ -3,7 +3,7 @@ import {
   createFocusDevicePopup,
 } from "./popup-preview";
 import { createLightStream } from "../light/light-stream";
-import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from "../device/device-profiles";
+import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from "../device/generic-device-catalog";
 import {
   createSecurityAlarmOverlay,
   overlayEligibleAlarms,

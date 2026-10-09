@@ -110,6 +110,7 @@ import {
 } from '@/utils/chart/device-chart-theme'
 import { getDomainLabel } from '@/utils/device/domain-labels.util'
 import { entityDomainColor } from '@/constants/entity-domain-meta'
+import { ensureDeviceChartOnElement } from '@/utils/chart/device-chart-boot.util'
 
 /** 图表实例类型：来自按需加载 echarts 入口模块的 init 返回值 */
 type EchartsModule = typeof EchartsModuleNS
@@ -197,12 +198,6 @@ const sortedDomains = computed(() => {
  * @param el 容器元素
  * @returns 是否可初始化
  */
-function chartDomReady(el: HTMLElement | null): el is HTMLElement {
-  if (!el) return false
-  const { clientWidth, clientHeight } = el
-  return clientWidth > 0 && clientHeight > 0
-}
-
 /**
  * 调度渲染：通过 nextTick 合并多次变更触发的渲染请求，renderScheduled 防重入。
  */
@@ -228,14 +223,8 @@ async function renderCharts() {
  * echarts vendor 通过动态 import 按需加载，保持大依赖独立分包。
  */
 async function initStatusChart() {
-  if (!chartDomReady(statusChartRef.value)) return
-  if (!statusChart) {
-    const echarts = (await import('@/utils/chart/echarts')).default
-    // 导入是异步的：期间侧栏可能隐藏或容器变化，重新校验避免僵尸实例
-    if (!props.visible || !chartDomReady(statusChartRef.value)) return
-    // 并发调用可能已在 await 期间完成初始化
-    if (!statusChart) statusChart = echarts.init(statusChartRef.value)
-  }
+  statusChart = await ensureDeviceChartOnElement(statusChartRef.value, statusChart, () => props.visible)
+  if (!statusChart) return
 
   const option: EChartsCoreOption = {
     ...deviceChartBase(),
@@ -275,14 +264,8 @@ async function initStatusChart() {
  * 初始化/更新域分布饼图：按 sortedDomains 渲染 Top 8 域，使用 entityDomainColor 统一语义色。
  */
 async function initDomainChart() {
-  if (!chartDomReady(domainChartRef.value)) return
-  if (!domainChart) {
-    const echarts = (await import('@/utils/chart/echarts')).default
-    // 导入是异步的：期间侧栏可能隐藏或容器变化，重新校验避免僵尸实例
-    if (!props.visible || !chartDomReady(domainChartRef.value)) return
-    // 并发调用可能已在 await 期间完成初始化
-    if (!domainChart) domainChart = echarts.init(domainChartRef.value)
-  }
+  domainChart = await ensureDeviceChartOnElement(domainChartRef.value, domainChart, () => props.visible)
+  if (!domainChart) return
 
   const data = sortedDomains.value.map((d) => ({
     value: d.count,

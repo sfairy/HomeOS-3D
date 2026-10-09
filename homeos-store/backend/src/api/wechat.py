@@ -19,17 +19,16 @@ import logging
 from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
-from sqlalchemy import select, update
+from sqlalchemy import select
 
 from ..commerce import delivery, fulfill
-from ..core.models import Order, Product
+from ..core.models import Order
 from ..ops import incidents
 from ..ops import site_settings as site_config
 from ..payments import normalize_provider_name
 from ..payments import wechat as wechat_module
 from ..payments.base import PaymentError
 from ..payments.settlement import settle_paid_order
-from ..security.security import utcnow
 
 logger = logging.getLogger("src.api.wechat")
 
@@ -117,7 +116,7 @@ def _handle(request: Request, background: BackgroundTasks, raw: bytes) -> JSONRe
 
         if not notification.is_success:
             if notification.trade_state in wechat_module.CLOSED_TRADE_STATES:
-                _close_pending_after_channel_close(session, order=order)
+                fulfill.close_pending_after_channel_close(session, order=order)
             logger.info(
                 "微信支付回调交易未成功 order=%s trade_state=%s",
                 order.order_no,
@@ -147,29 +146,6 @@ def _handle(request: Request, background: BackgroundTasks, raw: bytes) -> JSONRe
             order_id=order.id,
         )
         return _ok()
-
-
-def _close_pending_after_channel_close(session, *, order: Order) -> bool:
-    """渠道已明确终结时，把本地待支付订单推进终态。
-
-    不这么做的话订单会一直停在 pending：库存预留与优惠码名额继续被占着，直到本地
-    TTL 或巡检才回收。
-    """
-    product = session.get(Product, order.product_id) if order.product_id else None
-    closed = fulfill.close_pending_order(
-        session, order=order, product=product, status="expired"
-    )
-    if not closed:
-        return False
-    session.execute(
-        update(Order)
-        .where(Order.id == order.id)
-        .values(channel_closed_at=utcnow())
-        .execution_options(synchronize_session=False)
-    )
-    session.flush()
-    logger.warning("微信支付已终结该交易，本地订单同步过期 order=%s", order.order_no)
-    return True
 
 
 __all__ = ["NOTIFY_PATH", "router"]

@@ -23,7 +23,7 @@ bun run dev
 ```bash
 # 在仓库根执行；PYTHONPATH 指向本项目 backend/
 python -m venv .venv-store
-.venv-store/bin/pip install -r homeos-store/backend/src/requirements.txt
+.venv-store/bin/pip install -r homeos-store/backend/requirements.txt
 PYTHONPATH=homeos-store/backend .venv-store/bin/python -m app.run
 ```
 

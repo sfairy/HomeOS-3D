@@ -16,7 +16,6 @@ import asyncio
 from typing import Any, Literal
 
 from fastapi import Body, Depends, Query, Request
-from pydantic import BaseModel, ConfigDict
 
 from ..core.errors import api_error, bad_request
 from ..core.pagination import parse_page_limit
@@ -31,6 +30,7 @@ from ..services.app_config.room_meta import (
 from ..services.license import features as feature_codes
 from ..services.state_store.entity_area import PUBLIC_CONFIG_AREA_WAIT_MS
 from .router import NestRouter
+from .schemas.base import StrictModel
 
 router = NestRouter(prefix="/system", tags=["system"])
 
@@ -104,11 +104,6 @@ def _backup(request: Request):
 
 def _retention(request: Request):
     return request.app.state.database_retention
-
-class StrictModel(BaseModel):
-    """等价 Nest ``ValidationPipe({ whitelist, forbidNonWhitelisted })``：拒绝未知字段。"""
-
-    model_config = ConfigDict(extra="forbid")
 
 class ImportAppConfigDto(StrictModel):
     schemaVersion: float | None = None

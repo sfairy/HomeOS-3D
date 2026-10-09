@@ -1,10 +1,12 @@
 /** registry 内部共享的低级工具函数：从 registry.ts 抽出，供主文件与各子模块复用。此处不依赖任何模块级可变状态。 */
+import {
+  clampNumber as clampNumberCore,
+  finiteNumberOrCoerced,
+} from "../../../utils/number";
+
+/** 带 fallback 的夹取：非有限输入先落到 fallback，再夹到区间（口径统一到 app/utils/number）。 */
 export function clampNumber(rawNumber: any, lowerBound: any, upperBound: any, fallbackNumber: any) {
-  const finiteCandidate = Number(rawNumber);
-  return Math.max(
-    lowerBound,
-    Math.min(upperBound, Number.isFinite(finiteCandidate) ? finiteCandidate : fallbackNumber),
-  );
+  return clampNumberCore(finiteNumberOrCoerced(rawNumber, fallbackNumber), lowerBound, upperBound);
 }
 export function normalizeCssColor(colorInput: any, fallbackColor: any) {
   const trimmedColor = String(colorInput || "").trim();

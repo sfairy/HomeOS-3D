@@ -41,6 +41,7 @@ import {
 import type { useEntitiesStore } from '@/stores/entities.store'
 import type { useDeviceAnalyticsDashboard } from '@/composables/device/useDeviceAnalyticsDashboard'
 import type { useDeviceHealthTrend } from '@/composables/device/useDeviceHealthTrend'
+import { ensureDeviceChartOnElement } from '@/utils/chart/device-chart-boot.util'
 
 /** ECharts 模块类型（仅类型引用，运行时经动态 import 懒加载） */
 type EchartsModule = typeof EchartsModuleNS
@@ -148,18 +149,6 @@ export function useDeviceAnalyticsCharts(options: {
   }
 
   /**
-   * 检查图表容器是否已就绪（有实际尺寸）
-   * 
-   * @param el 图表容器元素
-   * @returns true 表示容器已就绪
-   */
-  function chartDomReady(el: HTMLElement | null): el is HTMLElement {
-    if (!el) return false
-    const { clientWidth, clientHeight } = el
-    return clientWidth > 0 && clientHeight > 0
-  }
-
-  /**
    * 调度图表渲染任务
    * 
    * 使用 nextTick 延迟执行，避免重复调度
@@ -222,8 +211,8 @@ export function useDeviceAnalyticsCharts(options: {
    * 渲染使用趋势图表（切换次数 + 运行时长）
    */
   async function renderTrendChart() {
-    if (!chartDomReady(trendChartRef.value)) return
-    if (!trendChart) trendChart = (await import('@/utils/chart/echarts')).getOrInitChart(trendChartRef.value)
+    trendChart = await ensureDeviceChartOnElement(trendChartRef.value, trendChart)
+    if (!trendChart) return
     const daily = summary.value.dailyTotals || []
     const labels = daily.map((d) => d.day.slice(5))
     trendChart.setOption(
@@ -274,8 +263,8 @@ export function useDeviceAnalyticsCharts(options: {
    * 渲染域分布饼图
    */
   async function renderDomainChart() {
-    if (!chartDomReady(domainChartRef.value)) return
-    if (!domainChart) domainChart = (await import('@/utils/chart/echarts')).getOrInitChart(domainChartRef.value)
+    domainChart = await ensureDeviceChartOnElement(domainChartRef.value, domainChart)
+    if (!domainChart) return
     const domains = summary.value.domainBreakdown || []
     domainChart.setOption(
       {
@@ -305,8 +294,9 @@ export function useDeviceAnalyticsCharts(options: {
    * 渲染设备使用热力图
    */
   async function renderHeatmapChart() {
-    if (!chartDomReady(heatmapChartRef.value) || !heatmapDevices.value.length) return
-    if (!heatmapChart) heatmapChart = (await import('@/utils/chart/echarts')).getOrInitChart(heatmapChartRef.value)
+    if (!heatmapDevices.value.length) return
+    heatmapChart = await ensureDeviceChartOnElement(heatmapChartRef.value, heatmapChart)
+    if (!heatmapChart) return
     const devices = heatmapDevices.value
     const dayLabels = (summary.value.dailyTotals || []).map((d) => d.day.slice(5))
     const data: Array<[number, number, number]> = []
@@ -375,8 +365,9 @@ export function useDeviceAnalyticsCharts(options: {
    * 渲染健康趋势图表（离线设备数 + 低电量设备数）
    */
   async function renderHealthTrendChart() {
-    if (!chartDomReady(healthTrendRef.value) || healthTrend.value.length < 2) return
-    if (!healthTrendChart) healthTrendChart = (await import('@/utils/chart/echarts')).getOrInitChart(healthTrendRef.value)
+    if (healthTrend.value.length < 2) return
+    healthTrendChart = await ensureDeviceChartOnElement(healthTrendRef.value, healthTrendChart)
+    if (!healthTrendChart) return
     const rows = healthTrend.value
     const labels = rows.map((r) => r.day.slice(5))
     healthTrendChart.setOption(
@@ -415,8 +406,9 @@ export function useDeviceAnalyticsCharts(options: {
    * 渲染事件统计柱状图
    */
   async function renderEventsChart() {
-    if (!chartDomReady(eventsChartRef.value) || !eventDomainEntries.value.length) return
-    if (!eventsChart) eventsChart = (await import('@/utils/chart/echarts')).getOrInitChart(eventsChartRef.value)
+    if (!eventDomainEntries.value.length) return
+    eventsChart = await ensureDeviceChartOnElement(eventsChartRef.value, eventsChart)
+    if (!eventsChart) return
     const entries = eventDomainEntries.value
     eventsChart.setOption(
       {

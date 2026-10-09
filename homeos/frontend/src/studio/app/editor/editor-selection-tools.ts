@@ -129,4 +129,29 @@ export function computeAlignedPositions(
   })
 }
 
+/** 控件旋转后的轴对齐包围盒（画布坐标）。 */
+export function componentBounds(boundsComponent: any) {
+  const boundsPosition = boundsComponent.position || {},
+    boundsWidth = Math.max(0.01, Number(boundsPosition.width || 100)),
+    boundsHeight = Math.max(0.01, Number(boundsPosition.height || 100)),
+    boundsScale = Math.max(0.01, Math.min(5, Number(boundsComponent.style?.scale || 1))),
+    boundsRotationRad = (Number(boundsPosition.rotation || 0) * Math.PI) / 180,
+    boundsHalfWidth =
+      (Math.abs(Math.cos(boundsRotationRad)) * boundsWidth * boundsScale +
+        Math.abs(Math.sin(boundsRotationRad)) * boundsHeight * boundsScale) /
+      2,
+    boundsHalfHeight =
+      (Math.abs(Math.sin(boundsRotationRad)) * boundsWidth * boundsScale +
+        Math.abs(Math.cos(boundsRotationRad)) * boundsHeight * boundsScale) /
+      2,
+    boundsCenterX = Number(boundsPosition.x || 0) + boundsWidth / 2,
+    boundsCenterY = Number(boundsPosition.y || 0) + boundsHeight / 2;
+  return {
+    left: boundsCenterX - boundsHalfWidth,
+    top: boundsCenterY - boundsHalfHeight,
+    right: boundsCenterX + boundsHalfWidth,
+    bottom: boundsCenterY + boundsHalfHeight,
+  };
+}
+
 export { normalizeMarquee, type MarqueeRect }

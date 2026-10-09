@@ -1,20 +1,2 @@
-/**
- * 列表行展示：优先 EntityProjection
- */
-import { getProjection } from '@/stores/entities/entity-projection'
-import type { HaEntityView } from '@/types/entity-store'
-
-export function resolveListRowEntity(
-  entityId: string,
-  fallbackEntity?: HaEntityView,
-): HaEntityView | null {
-  const proj = getProjection(entityId)
-  if (proj) {
-    return {
-      entity_id: entityId,
-      state: proj.state,
-      attributes: proj.attributes,
-    }
-  }
-  return fallbackEntity ?? null
-}
+/** @deprecated Prefer `@/composables/entity/projection-row.util`. */
+export * from '../../composables/entity/projection-row.util'

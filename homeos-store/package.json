@@ -10,7 +10,8 @@
   "scripts": {
     "dev": "vite --config frontend/vite.config.ts",
     "build": "vite build --config frontend/vite.config.ts",
-    "typecheck": "tsc -p tsconfig.json --pretty false"
+    "typecheck": "node scripts/run-vue-tsc.mjs -p tsconfig.json --pretty false --noEmit",
+    "check:store-deps": "node scripts/check-store-deps.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
@@ -18,7 +19,8 @@
     "@vitejs/plugin-vue": "^6.0.9",
     "esbuild": "^0.28.2",
     "typescript": "^6.0.3",
-    "vite": "^8.3.3"
+    "vite": "^8.3.3",
+    "vue-tsc": "^3.3.12"
   },
   "dependencies": {
     "pinia": "^4.0.3",

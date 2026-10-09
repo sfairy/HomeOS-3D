@@ -34,6 +34,7 @@ import { Activity, Clock, Flame, Search, Layers } from '@lucide/vue'
 import HosSelect from '@/components/common/base/HosSelect.vue'
 import SearchableSelect from '@/components/common/base/SearchableSelect.vue'
 import { getDomainLabel } from '@/utils/device/domain-labels.util'
+import ListPageQueryToolbar from '@/components/page-shell/ListPageQueryToolbar.vue'
 import './styles/events-toolbar.css'
 
 const props = defineProps({
@@ -92,9 +93,7 @@ function onHotEntityChange(value) {
 </script>
 
 <template>
-  <div class="events-view__toolbar">
-    <div class="events-view__query-card">
-      <div class="events-view__query-grid">
+  <ListPageQueryToolbar view-prefix="events-view">
         <label class="events-view__field events-view__field--hours">
           <span class="events-view__label">
             <Clock class="events-view__label-icon" aria-hidden="true" />
@@ -221,7 +220,5 @@ function onHotEntityChange(value) {
             </option>
           </HosSelect>
         </label>
-      </div>
-    </div>
-  </div>
+  </ListPageQueryToolbar>
 </template>

@@ -16,14 +16,17 @@ import json
 import re
 import secrets
 import string
-from functools import lru_cache
 from typing import Any
 
 from cryptography.exceptions import InvalidSignature, InvalidTag
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding, rsa
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.x509 import load_pem_x509_certificate
+
+from .pem import load_private_key as _parse_private_key
+from .pem import load_public_key as _parse_public_key
+from .pem import strip_wrapping as _strip_wrapping
 
 
 class WeChatPaymentError(RuntimeError):
@@ -43,65 +46,30 @@ def new_nonce(length: int = 32) -> str:
     return "".join(secrets.choice(_NONCE_ALPHABET) for _ in range(length))
 
 
-def _strip_wrapping(raw: str) -> str:
-    """把环境变量里常见的写法归一：字面量 \\n、外层引号、首尾空白。"""
-    text = (raw or "").strip()
-    if "\\\\n" in text and "BEGIN" in text:
-        text = text.replace("\\\\n", "\n")
-    return text.strip().strip('"').strip("'")
-
-
-def _pem_candidates(raw: str, *, label: str) -> tuple[str, ...]:
-    """把「PEM 全文」与「裸 base64 正文」两种写法都变成候选 PEM。"""
-    text = _strip_wrapping(raw)
-    if not text:
-        return ()
-    if "BEGIN" in text:
-        return (text,)
-    body = "".join(text.split())
-    wrapped = "\n".join(body[i : i + 64] for i in range(0, len(body), 64))
-    return (f"-----BEGIN {label}-----\n{wrapped}\n-----END {label}-----",)
-
-
-@lru_cache(maxsize=8)
-def _load_private_key(raw: str) -> rsa.RSAPrivateKey:
+def _load_private_key(raw: str):
     """解析商户 API 私钥（apiclient_key.pem）。支持 PKCS#8 与 PKCS#1。"""
-    for header in ("PRIVATE KEY", "RSA PRIVATE KEY"):
-        for candidate in _pem_candidates(raw, label=header):
-            try:
-                key = serialization.load_pem_private_key(candidate.encode("utf-8"), password=None)
-            except (ValueError, TypeError):
-                continue
-            if isinstance(key, rsa.RSAPrivateKey):
-                return key
-    raise WeChatPaymentError(
-        "无法解析商户 API 私钥：请填写微信支付商户平台下载的 apiclient_key.pem 内容。"
-    )
+    try:
+        return _parse_private_key(raw)
+    except ValueError as error:
+        raise WeChatPaymentError(
+            "无法解析商户 API 私钥：请填写微信支付商户平台下载的 apiclient_key.pem 内容。"
+        ) from error
 
 
-@lru_cache(maxsize=8)
-def _load_public_key(raw: str) -> rsa.RSAPublicKey:
+def _load_public_key(raw: str):
     """解析「微信支付公钥」或平台证书里的公钥。"""
-    text = _strip_wrapping(raw)
-    if "BEGIN CERTIFICATE" in text:
-        try:
-            certificate = load_pem_x509_certificate(text.encode("utf-8"))
-            public = certificate.public_key()
-        except (ValueError, TypeError) as error:
-            raise WeChatPaymentError(f"无法解析平台证书：{error}") from error
-        if isinstance(public, rsa.RSAPublicKey):
-            return public
-        raise WeChatPaymentError("平台证书里的公钥不是 RSA，无法用于验签。")
-    for candidate in _pem_candidates(text, label="PUBLIC KEY"):
-        try:
-            public = serialization.load_pem_public_key(candidate.encode("utf-8"))
-        except (ValueError, TypeError):
-            continue
-        if isinstance(public, rsa.RSAPublicKey):
-            return public
-    raise WeChatPaymentError(
-        "无法解析微信支付平台公钥：请填写商户平台「API 安全」里的微信支付公钥，或平台证书。"
-    )
+    try:
+        return _parse_public_key(raw, allow_certificate=True)
+    except ValueError as error:
+        message = str(error)
+        if "certificate public key is not RSA" in message:
+            raise WeChatPaymentError("平台证书里的公钥不是 RSA，无法用于验签。") from error
+        if message.startswith("unable to parse certificate:"):
+            detail = message.split(":", 1)[-1].strip()
+            raise WeChatPaymentError(f"无法解析平台证书：{detail}") from error
+        raise WeChatPaymentError(
+            "无法解析微信支付平台公钥：请填写商户平台「API 安全」里的微信支付公钥，或平台证书。"
+        ) from error
 
 
 def merchant_private_key_error(text: str) -> str:

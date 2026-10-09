@@ -37,6 +37,10 @@ CONFIG_REPLACE_NESTED_FIELDS: dict[str, tuple[str, ...]] = {
 #: 管理员 GET 时下发的敏感字段占位符（PUT 时原样回传则跳过更新）。
 CONFIG_MASK_PLACEHOLDER = "••••••••"
 
+#: frontend.rebuildDebounceMs 合法区间（毫秒）；validate / import_normalize 共用。
+REBUILD_DEBOUNCE_MS_MIN = 10
+REBUILD_DEBOUNCE_MS_MAX = 2000
+
 __all__ = [
     "PUBLIC_CONFIG_SECTIONS",
     "APP_CONFIG_SCHEMA_VERSION",
@@ -44,4 +48,6 @@ __all__ = [
     "CONFIG_REPLACE_ON_UPDATE_SECTIONS",
     "CONFIG_REPLACE_NESTED_FIELDS",
     "CONFIG_MASK_PLACEHOLDER",
+    "REBUILD_DEBOUNCE_MS_MIN",
+    "REBUILD_DEBOUNCE_MS_MAX",
 ]

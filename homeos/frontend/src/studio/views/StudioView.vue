@@ -61,7 +61,7 @@ onMounted(async () => {
     canExport: () => !floorplanStore.dirty && floorplanStore.saveState !== "saving",
   });
   await import("@app/3d-studio/stage-startup");
-  const studio = await import("@app/3d-studio/studio/studio-app");
+  const studio = await import("@app/3d-studio/studio/boot");
   if (disposed) return;
   studio.bootStudio();
   teardownStudio = studio.teardownStudio;

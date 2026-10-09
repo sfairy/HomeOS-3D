@@ -85,7 +85,7 @@ import {
   GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2,
   genericDeviceProfile as genericDeviceProfile2,
   isGenericDeviceKind as isGenericDeviceKind2,
-} from "../device/device-profiles";
+} from "../device/generic-device-catalog";
 import { createNasPanel as createNasPanel2 } from "../nas/nas-panel";
 import {
   createNasStatus as createNasStatus2,
@@ -164,6 +164,15 @@ import {
 } from "./stage/_shared";
 export { createStageModelIndex } from "./stage/_shared";
 import { buildMetadata } from "./stage/build-metadata";
+import {
+  createHandleHostMessage,
+  createPickMarkerAtPoint,
+  createRenderMarkerPositions,
+  createRunFrame,
+  createSyncMarkers,
+  createUpdateDevicePanel,
+  type StageHandlersHost,
+} from "./stage/stage-handlers";
 import { buildFloorCameraConfig as buildFloorCameraConfigExternal } from "./stage/floor-camera-config";
 export function mountStage(mountOptions: any) {
   const { THREE: three, container: element, canvas: canvasElement } = mountOptions;
@@ -4390,352 +4399,6 @@ export function mountStage(mountOptions: any) {
         String(0.62 + (brightnessPercent / 100) * 1.05),
       ));
   }
-  function updateDevicePanel() {
-    lightPanelSection.classList.toggle("is-airer-panel", !!getFocusedEntry()?.airer);
-    const panelItem = getFocusedEntry();
-    if (!(panelItem?.deviceKind === "lock")) lockPanel.hide();
-    else {
-      lockPanel.root.hidden = false;
-      for (const panelRootElement of [
-        lightPanelHeader,
-        lightControlsElement,
-        controlErrorElement,
-        climatePanel.root,
-        coverPanel.root,
-        coverGroupPanel.root,
-        nasPanel.root,
-        televisionPanel.root,
-        speakerPanel.root,
-        devicePanel.root,
-      ])
-        panelRootElement.hidden = true;
-      (lightPanelSection.classList.remove(
-        "is-cover-panel",
-        "is-climate-panel",
-        "is-nas-panel",
-        "is-television-panel",
-        "has-light-controls",
-      ),
-        lightPanelSection.setAttribute("aria-label", "门"),
-        lockPanel.update({
-          item: panelItem,
-          states: deviceStates,
-          editing: isEditing || !isControlReady || !panelItem.modelAvailable,
-        }));
-      return;
-    }
-    const isCurtainGroupKind = panelItem?.isCurtainGroup === true;
-    if (
-      (typeof coverGroupPanel < "u" && (coverGroupPanel.root.hidden = !isCurtainGroupKind),
-      lightPanelSection.classList.toggle("is-cover-group-panel", isCurtainGroupKind),
-      lightPanelSection.classList.toggle(
-        "is-cover-group-vertical",
-        isCurtainGroupKind && panelItem.panelLayout === "vertical",
-      ),
-      !isCurtainGroupKind && typeof coverGroupPanel < "u" && coverGroupPanel.deactivate(),
-      ["vacuum", "presence", "camera"].includes(panelItem?.deviceKind))
-    ) {
-      (lightPanelSection.classList.remove("is-open"), lightPanelSection.setAttribute("inert", ""));
-      return;
-    }
-    const isGenericDevice = isGenericDeviceKind2(panelItem?.deviceKind);
-    typeof devicePanel < "u" && (devicePanel.root.hidden = !isGenericDevice);
-    const isSpeakerDevice = panelItem?.deviceKind === "speaker";
-    !isSpeakerDevice || !lightPanelSection.classList.contains("is-open")
-      ? speakerPanel.hide()
-      : (speakerPanel.root.hidden = false);
-    const isNasDevice = panelItem?.deviceKind === "nas",
-      isTelevisionDevice = panelItem?.deviceKind === "television";
-    if (
-      (!isTelevisionDevice || !lightPanelSection.classList.contains("is-open")
-        ? televisionPanel.hide()
-        : (televisionPanel.root.hidden = false),
-      (nasPanel.root.hidden = !isNasDevice),
-      lightPanelSection.classList.toggle("is-nas-panel", isNasDevice),
-      lightPanelSection.classList.toggle(
-        "is-television-panel",
-        isTelevisionDevice || isSpeakerDevice,
-      ),
-      isNasDevice || isTelevisionDevice || isSpeakerDevice || isGenericDevice)
-    ) {
-      (lightPanelSection.classList.remove(
-        "is-cover-panel",
-        "is-climate-panel",
-        "has-light-controls",
-        "has-error",
-      ),
-        lightPanelSection.classList.toggle("is-climate-panel", isGenericDevice),
-        lightPanelSection.setAttribute(
-          "aria-label",
-          isGenericDevice
-            ? (panelItem.deviceLabel ||
-                genericDeviceProfile2(panelItem.deviceKind)?.label ||
-                "设备") + "控制"
-            : isSpeakerDevice
-              ? "智能音响控制"
-              : isTelevisionDevice
-                ? "电视状态"
-                : "NAS 状态",
-        ),
-        panelItem.clickAction === "focus" &&
-          !isEditing &&
-          (lightPanelSection.classList.remove("is-open"),
-          lightPanelSection.setAttribute("inert", "")),
-        (climatePanel.root.hidden =
-          coverPanel.root.hidden =
-          lightPanelHeader.hidden =
-          lightControlsElement.hidden =
-          controlErrorElement.hidden =
-            true),
-        isSpeakerDevice
-          ? (isEditing || panelItem.clickAction !== "focus") &&
-            lightPanelSection.classList.contains("is-open") &&
-            speakerPanel.update({
-              item: panelItem,
-              states: deviceStates,
-              editing: isEditing || !isControlReady || !panelItem.modelAvailable,
-            })
-          : isTelevisionDevice
-            ? (isEditing || panelItem.clickAction !== "focus") &&
-              lightPanelSection.classList.contains("is-open") &&
-              televisionPanel.update({
-                item: panelItem,
-                states: deviceStates,
-                editing: isEditing || !isControlReady,
-              })
-            : isGenericDevice && typeof devicePanel < "u"
-              ? devicePanel.update({
-                  item: panelItem,
-                  states: deviceStates,
-                  editing: isEditing || !isControlReady || !panelItem.modelAvailable,
-                })
-              : nasPanel.update({
-                  item: panelItem,
-                  states: deviceStates,
-                }));
-      return;
-    }
-    const isCoverDevice = panelItem?.deviceKind === "cover",
-      isClimateDevice = !!panelItem?.modelId && !isCoverDevice;
-    if (
-      ((climatePanel.root.hidden = !isClimateDevice),
-      (coverPanel.root.hidden = !isCoverDevice || isCurtainGroupKind),
-      typeof coverGroupPanel < "u" && (coverGroupPanel.root.hidden = !isCurtainGroupKind),
-      (lightPanelHeader.hidden =
-        lightControlsElement.hidden =
-        controlErrorElement.hidden =
-          isClimateDevice || isCoverDevice),
-      lightPanelSection.classList.toggle("is-cover-panel", isCoverDevice),
-      lightPanelSection.classList.toggle("is-climate-panel", isClimateDevice),
-      lightPanelSection.setAttribute(
-        "aria-label",
-        isCoverDevice
-          ? panelItem.airer
-            ? "晾衣架控制"
-            : "窗帘控制"
-          : isClimateDevice
-            ? panelItem.waterHeater
-              ? "热水器控制"
-              : panelItem.pedestalFan
-                ? "电风扇控制"
-                : panelItem.airPurifier
-                  ? "空气净化器控制"
-                  : "空调控制"
-            : "灯光控制",
-      ),
-      !panelItem)
-    )
-      return exitFocusMode();
-    if (isCoverDevice) {
-      if (
-        (lightPanelSection.classList.remove("has-light-controls", "has-error"), isCurtainGroupKind)
-      ) {
-        const coverStatesById = Object.fromEntries(
-            panelItem.memberItems.map((coverMemberEntry: any) => [
-              coverMemberEntry.id,
-              coverState2(
-                coverMemberEntry.entityId,
-                (deviceStates as any)[coverMemberEntry.entityId],
-                coverMemberEntry,
-              ),
-            ]),
-          ),
-          coverPresentationsById = Object.fromEntries(
-            panelItem.memberItems.map((presentationMemberEntry: any) => [
-              presentationMemberEntry.id,
-              readCoverFeedback(
-                presentationMemberEntry,
-                coverStatesById[presentationMemberEntry.id],
-              ),
-            ]),
-          );
-        typeof coverGroupPanel < "u" &&
-          coverGroupPanel.update({
-            item: panelItem,
-            states: coverStatesById,
-            presentations: coverPresentationsById,
-            editing: isEditing || !isControlReady,
-            errors: Object.fromEntries(
-              panelItem.memberItems.map((errorMemberEntry: any) => [
-                errorMemberEntry.id,
-                errorMemberEntry.modelAvailable
-                  ? coverPresentationsById[errorMemberEntry.id]?.error || ""
-                  : "窗帘模型已移除，请重新配置。",
-              ]),
-            ),
-          });
-      } else {
-        const coverState = coverState2(
-          panelItem.entityId,
-          (deviceStates as any)[panelItem.entityId],
-          panelItem,
-        );
-        panelItem.modelAvailable || (coverState.available = false);
-        const coverPresentation = readCoverFeedback(panelItem, coverState);
-        coverPanel.update({
-          item: panelItem,
-          state: coverState,
-          states: deviceStates,
-          presentation: coverPresentation,
-          editing: isEditing || !isControlReady,
-          error: panelItem.modelAvailable
-            ? coverPresentation.error || ""
-            : "窗帘模型已移除，请重新配置。",
-        });
-      }
-      return;
-    }
-    if (isClimateDevice) {
-      lightPanelSection.classList.remove("has-light-controls", "has-error");
-      const climateState = climateState2(panelItem.entityId, (deviceStates as any)[panelItem.entityId]);
-      (panelItem.modelAvailable || (climateState.available = false),
-        climatePanel.update({
-          item: panelItem,
-          state: climateState,
-          states: deviceStates,
-          editing: isEditing || !isControlReady || !panelItem.modelAvailable,
-          error: panelItem.modelAvailable ? "" : "设备模型已移除，请重新配置。",
-        }));
-      return;
-    }
-    const panelLightState = resolveLightState(panelItem);
-    ((lightTitleElement.textContent = panelItem.label || panelLightState.name),
-      (deviceStatusElement.textContent = panelItem.entityId
-        ? panelLightState.available
-          ? panelLightState.on
-            ? "已开启"
-            : "已关闭"
-          : "设备不可用"
-        : "尚未绑定设备"),
-      (lightTitleElement.title = lightTitleElement.textContent),
-      (controlErrorElement.title = controlErrorElement.textContent),
-      updateLampButton(panelLightState),
-      deviceStatusElement.classList.toggle(
-        "is-on",
-        panelLightState.available && panelLightState.on,
-      ));
-    const some2 = [...lightGroupByKey.values()].some(
-      (pendingLightCommand) => pendingLightCommand.entityId === panelItem.entityId,
-    );
-    (lightPanelSection.classList.toggle(
-      "is-command-pending",
-      some2 && panelLightState.available && !isEditing,
-    ),
-      lightPanelSection.setAttribute("aria-busy", String(some2)));
-    const colorSupported =
-        panelLightState.brightnessSupported ||
-        panelLightState.temperatureSupported ||
-        panelLightState.colorSupported,
-      colorModeName =
-        panelLightState.colorMode === "white"
-          ? "white"
-          : panelLightState.colorMode === "color_temp" && panelLightState.temperatureSupported
-            ? "temperature"
-            : panelLightState.colorSupported
-              ? "color"
-              : "temperature",
-      lightModeOptions = {
-        color: panelLightState.colorSupported,
-        temperature: panelLightState.temperatureSupported,
-        white: panelLightState.colorModes?.includes("white"),
-      };
-    (lightModeMenu.update({
-      modes: lightModeOptions,
-      value: colorModeName,
-      disabled: isEditing || !panelLightState.available,
-      entity: panelItem.entityId,
-    }),
-      lightColorPicker.update({
-        entityId: panelItem.entityId,
-        hs: panelLightState.colorHs,
-        visible: panelLightState.colorSupported && colorModeName === "color",
-        enabled: !isEditing && panelLightState.available,
-      }),
-      lightPanelSection.classList.toggle("has-light-controls", colorSupported),
-      lightPanelSection.classList.toggle(
-        "has-color-controls",
-        panelLightState.colorSupported && colorModeName === "color",
-      ),
-      lightPanelSection.classList.toggle("has-error", !!controlErrorElement.textContent),
-      (isEditing || !panelLightState.available || !panelLightState.on) &&
-        restoreFocusWithin(lightControlsElement, lightPanelSection),
-      colorSupported
-        ? lightControlsElement.removeAttribute("inert")
-        : (restoreFocusWithin(lightControlsElement, lightPanelSection),
-          lightControlsElement.setAttribute("inert", "")),
-      lightControlsElement.removeAttribute("aria-hidden"),
-      (powerButton.disabled = isEditing || !panelLightState.available),
-      (brightnessSlider.input.min = 0),
-      (brightnessSlider.input.max = 100),
-      (temperatureSlider.input.min = panelLightState.minimum),
-      (temperatureSlider.input.max = panelLightState.maximum));
-    for (const [lightSliderControl, isSliderEnabled, sliderValue, sliderUnitSuffix] of [
-      [brightnessSlider, panelLightState.brightnessSupported, panelLightState.brightness, "%"],
-      [
-        temperatureSlider,
-        panelLightState.temperatureSupported && colorModeName === "temperature",
-        panelLightState.kelvin,
-        " K",
-      ],
-    ])
-      ((lightSliderControl.root.hidden = !isSliderEnabled),
-        (lightSliderControl.input.disabled = isEditing || !panelLightState.available),
-        lightSliderControl === brightnessSlider &&
-          !panelLightState.on &&
-          isSliderEnabled &&
-          (lightSliderControl.input.value = "0"),
-        document.activeElement !== lightSliderControl.input &&
-          ((lightSliderControl.input.value =
-            sliderValue ??
-            (lightSliderControl === brightnessSlider ? 100 : panelLightState.minimum)),
-          (lightSliderControl.value.value =
-            sliderValue === null ? "—" : "" + sliderValue + sliderUnitSuffix)),
-        lightSliderControl.syncProgress?.());
-    lightPresetsElement.hidden =
-      panelLightState.colorSupported ||
-      (!panelLightState.brightnessSupported && !panelLightState.temperatureSupported);
-    for (const lightPreset of lightPresetRecords) {
-      const round = Math.round(
-          panelLightState.minimum +
-            ((panelLightState.maximum - panelLightState.minimum) * lightPreset.temperaturePercent) /
-              100,
-        ),
-        isPresetActive =
-          panelLightState.on &&
-          (!panelLightState.brightnessSupported ||
-            Math.abs(panelLightState.brightness - lightPreset.brightness) <= 4) &&
-          (!panelLightState.temperatureSupported ||
-            Math.abs(panelLightState.kelvin - round) <=
-              Math.max(50, (panelLightState.maximum - panelLightState.minimum) * 0.06));
-      ((lightPreset.button.disabled =
-        isEditing || !panelLightState.available || lightPresetsElement.hidden),
-        lightPreset.button.classList.toggle("is-active", isPresetActive),
-        lightPreset.button.setAttribute("aria-pressed", String(isPresetActive)),
-        (lightPreset.detail.textContent = panelLightState.brightnessSupported
-          ? lightPreset.brightness + "%"
-          : "开启"));
-    }
-  }
   function dispatchControlCommand(controlCommand: any, previewToken: any) {
     const requestId = String(++num),
       entityId2 = controlCommand.entityId;
@@ -5104,839 +4767,6 @@ export function mountStage(mountOptions: any) {
         markerLightState.available &&
         !markerLightState.on &&
         runLightCommand("power", true));
-  }
-  let lastRenderSignature = "";
-  function renderMarkerPositions(isForced = false) {
-    if (isRangeEditorOpen || isCameraMoving || isControlBusy) return;
-    ((mountOptions.floorTransitionActive || cameraMotionSnapshot) && screenOutlines.pause(),
-      screenOutlines.update(),
-      editorSelectionOutlines.update());
-    const isConcealGraceElapsed =
-      lastInteractionMs !== null && performance.now() - lastInteractionMs >= 240;
-    if (isConcealGraceElapsed && !vacuumWorkingLayerElement.childElementCount) {
-      lastRenderSignature = "";
-      return;
-    }
-    (mountOptions.camera.updateMatrixWorld(),
-      (cachedDocumentSource !== mountOptions.document ||
-        cachedDocumentFloorId !== selectedFloorId) &&
-        (sceneCacheByKey.clear(),
-        (cachedDocumentSource = mountOptions.document),
-        (cachedDocumentFloorId = selectedFloorId)));
-    const renderCanvasRect = containerViewportSize || element.getBoundingClientRect(),
-      width4 = (hasStageRect() && mediaViewportSize?.width) || renderCanvasRect.width,
-      height3 = (hasStageRect() && mediaViewportSize?.height) || renderCanvasRect.height;
-    if (outgoingGhostAnimation && mountOptions.presentationPoint)
-      for (const outgoingMarker of outgoingGhostAnimation.outgoing) {
-        if (!outgoingMarker.node) continue;
-        const presentationPoint = mountOptions.presentationPoint(
-          outgoingMarker.floorId,
-          outgoingMarker.x,
-          outgoingMarker.y,
-          outgoingMarker.height,
-        );
-        if (!presentationPoint) {
-          outgoingMarker.node.hidden = true;
-          continue;
-        }
-        const project = presentationPoint.project(mountOptions.camera);
-        ((outgoingMarker.node.hidden =
-          project.z < -1 ||
-          project.z > 1 ||
-          Math.abs(project.x) > 1.05 ||
-          Math.abs(project.y) > 1.05),
-          (outgoingMarker.node.style.left = ((project.x + 1) * width4) / 2 + "px"),
-          (outgoingMarker.node.style.top = ((1 - project.y) * height3) / 2 + "px"));
-      }
-    const isUniformOverviewStack =
-        selectedFloorId === "all" && mountOptions.document.uniformOverviewStack === true,
-      renderSignature =
-        width4 +
-        ":" +
-        height3 +
-        ":" +
-        isUniformOverviewStack +
-        ":" +
-        mountOptions.camera.matrixWorld.elements +
-        ":" +
-        mountOptions.camera.projectionMatrix.elements;
-    if (!(
-      isForced !== true &&
-      !mountOptions.floorTransitionActive &&
-      renderSignature === lastRenderSignature
-    )) {
-      lastRenderSignature = renderSignature;
-      for (const layoutMarkerItem of currentModuleBindings()) {
-        const layoutMarkerSnapshot =
-            activePointerDrag?.id === layoutMarkerItem.id
-              ? {
-                  ...layoutMarkerItem,
-                  ...activePointerDrag.point,
-                }
-              : layoutMarkerItem,
-          layoutMarkerId = layoutMarkerSnapshot.id,
-          layoutMarkerElement = map.get(layoutMarkerId);
-        if (
-          !layoutMarkerElement ||
-          (isConcealGraceElapsed && layoutMarkerElement.parentElement === markerLayerElement)
-        )
-          continue;
-        const isMarkerVisible =
-          (isEditing || layoutMarkerSnapshot.deviceKind !== "presence") &&
-          (isEditing || layoutMarkerSnapshot.visible !== false) &&
-          (isEditing || layoutMarkerSnapshot.buttonHidden !== true) &&
-          layoutMarkerSnapshot.modelAvailable !== false &&
-          (selectedFloorId === "all" || layoutMarkerSnapshot.floorId === selectedFloorId);
-        let cachedWorldPoint = sceneCacheByKey.get(layoutMarkerId);
-        isMarkerVisible &&
-          (!cachedWorldPoint ||
-            cachedWorldPoint.floorId !== layoutMarkerSnapshot.floorId ||
-            cachedWorldPoint.x !== layoutMarkerSnapshot.x ||
-            cachedWorldPoint.y !== layoutMarkerSnapshot.y ||
-            cachedWorldPoint.height !== layoutMarkerSnapshot.height) &&
-          ((cachedWorldPoint = {
-            floorId: layoutMarkerSnapshot.floorId,
-            x: layoutMarkerSnapshot.x,
-            y: layoutMarkerSnapshot.y,
-            height: layoutMarkerSnapshot.height,
-            point: mountOptions.worldPoint(
-              layoutMarkerSnapshot.floorId,
-              layoutMarkerSnapshot.x,
-              layoutMarkerSnapshot.y,
-              layoutMarkerSnapshot.height,
-            ),
-          }),
-          sceneCacheByKey.set(layoutMarkerId, cachedWorldPoint));
-        const presentationPoint2 =
-          isMarkerVisible &&
-          ((mountOptions.floorTransitionActive || isUniformOverviewStack) &&
-          mountOptions.presentationPoint
-            ? mountOptions.presentationPoint(
-                layoutMarkerSnapshot.floorId,
-                layoutMarkerSnapshot.x,
-                layoutMarkerSnapshot.y,
-                layoutMarkerSnapshot.height,
-              )
-            : cachedWorldPoint?.point);
-        if (!presentationPoint2) {
-          layoutMarkerElement.hidden = true;
-          continue;
-        }
-        const project2 = scratchVector.copy(presentationPoint2).project(mountOptions.camera);
-        ((layoutMarkerElement.hidden =
-          project2.z < -1 ||
-          project2.z > 1 ||
-          Math.abs(project2.x) > 1.05 ||
-          Math.abs(project2.y) > 1.05),
-          (layoutMarkerElement.style.left = ((project2.x + 1) * width4) / 2 + "px"),
-          (layoutMarkerElement.style.top = ((1 - project2.y) * height3) / 2 + "px"));
-      }
-    }
-  }
-  function pickMarkerAtPoint(pickPointerEvent: any, fallbackMarkerId: any) {
-    if (isEditing) return fallbackMarkerId;
-    const hitCandidates: any[] = [];
-    for (const [candidateMarkerId, candidateMarkerElement] of map) {
-      if (
-        candidateMarkerElement.hidden ||
-        candidateMarkerElement.disabled ||
-        candidateMarkerElement.closest("[inert]")
-      )
-        continue;
-      const computedStyle2 = getComputedStyle(candidateMarkerElement);
-      if (computedStyle2.pointerEvents === "none" || computedStyle2.visibility === "hidden")
-        continue;
-      const candidateMarkerRect = candidateMarkerElement.getBoundingClientRect();
-      candidateMarkerRect.width > 0 &&
-        candidateMarkerRect.height > 0 &&
-        hitCandidates.push({
-          id: candidateMarkerId,
-          rect: candidateMarkerRect,
-          width:
-            ((parseFloat(candidateMarkerElement.style.width) ||
-              candidateMarkerElement.offsetWidth) *
-              candidateMarkerRect.width) /
-            candidateMarkerElement.offsetWidth,
-          height:
-            ((parseFloat(candidateMarkerElement.style.height) ||
-              candidateMarkerElement.offsetHeight) *
-              candidateMarkerRect.height) /
-            candidateMarkerElement.offsetHeight,
-        });
-    }
-    return (
-      nearestMarkerTarget(hitCandidates, pickPointerEvent.clientX, pickPointerEvent.clientY) ||
-      fallbackMarkerId
-    );
-  }
-  function syncMarkers(markerChange: any = null) {
-    if (isCameraMoving) return;
-    (markerChange ||
-      (stateUpdatePlanner.invalidate(), stageModelIndex.invalidate()),
-      wakeSceneBackground(),
-      markerLayerElement.classList.toggle("is-editing", isEditing));
-    const syncMarkerItems = currentModuleBindings().filter(
-        (filteredMarkerItem: any) => isEditing || filteredMarkerItem.deviceKind !== "presence",
-      ),
-      visibleMarkerIdSet = new Set(
-        syncMarkerItems.map((visibleMarkerItem: any) => visibleMarkerItem.id),
-      );
-    let hasMarkerChange = false;
-    for (const [existingMarkerId, existingMarkerElement] of map)
-      visibleMarkerIdSet.has(existingMarkerId) ||
-        (existingMarkerElement.remove(),
-        map.delete(existingMarkerId),
-        sceneCacheByKey.delete(existingMarkerId),
-        (hasMarkerChange = true));
-    for (const syncMarkerItem of syncMarkerItems) {
-      let syncMarkerElement = map.get(syncMarkerItem.id);
-      if (syncMarkerElement && markerChange && !markerChange.affects(syncMarkerItem)) continue;
-      if (((hasMarkerChange = true), !syncMarkerElement)) {
-        ((syncMarkerElement = createStageElement(
-          syncMarkerItem.passiveSensor ||
-            syncMarkerItem.securityAlarm ||
-            ["temperature-humidity", "smallcar", "lock"].includes(syncMarkerItem.deviceKind)
-            ? "div"
-            : "button",
-          "i3d-marker",
-        )),
-          (syncMarkerElement.type = "button"));
-        const ms2 = createMarkerTouch((markerHitEvent: any) =>
-          pickMarkerAtPoint(markerHitEvent, syncMarkerItem.id),
-        );
-        (syncMarkerElement.addEventListener("pointerdown", (dragDownEvent: any) => {
-          isEditing || ms2.down(dragDownEvent);
-        }),
-          syncMarkerElement.addEventListener("pointermove", (dragMoveEvent: any) =>
-            ms2.move(dragMoveEvent),
-          ),
-          syncMarkerElement.addEventListener("pointerup", (dragUpEvent: any) => ms2.up(dragUpEvent)),
-          syncMarkerElement.addEventListener("pointercancel", () => ms2.cancel()),
-          syncMarkerElement.addEventListener("click", (markerClickEvent: any) => {
-            if (
-              (markerClickEvent.stopPropagation(),
-              findBindingById(syncMarkerItem.id)?.passiveSensor ||
-                isCameraMoving ||
-                isAwaitingFloorViewAdjust ||
-                panelDisplayMode === "edit" ||
-                (!isEditing && findBindingById(syncMarkerItem.id)?.buttonHidden === true))
-            )
-              return;
-            if (syncMarkerElement.dataset.dragged === "true") {
-              syncMarkerElement.dataset.dragged = "";
-              return;
-            }
-            const clickedMarkerId =
-                !isEditing && markerClickEvent.detail > 0
-                  ? pickMarkerAtPoint(markerClickEvent, syncMarkerItem.id)
-                  : syncMarkerItem.id,
-              target = isEditing
-                ? syncMarkerItem.id
-                : ms2.target(markerClickEvent, clickedMarkerId);
-            target && activateMarker(target, true);
-          }),
-          syncMarkerElement.addEventListener("pointerdown", (markerDragEvent: any) =>
-            beginMarkerDrag(markerDragEvent, syncMarkerItem.id),
-          ),
-          syncMarkerElement.addEventListener("pointermove", moveMarkerDrag),
-          syncMarkerElement.addEventListener("pointerup", endMarkerDrag),
-          syncMarkerElement.addEventListener("pointercancel", cancelMarkerDrag),
-          markerLayerElement.append(syncMarkerElement),
-          map.set(syncMarkerItem.id, syncMarkerElement));
-      }
-      const icon2 = /^mdi:[a-z0-9-]+$/.test(syncMarkerItem.icon || "") ? syncMarkerItem.icon : "",
-        isVacuumDevice = syncMarkerItem.deviceKind === "vacuum",
-        isVacuumRoomDevice = syncMarkerItem.deviceKind === "vacuum-room";
-      if (syncMarkerItem.isCurtainGroup) {
-        const memberIconList = syncMarkerItem.memberItems.map((memberIconItem: any) =>
-            /^mdi:[a-z0-9-]+$/.test(memberIconItem.icon || "")
-              ? memberIconItem.icon
-              : "mdi:curtains",
-          ),
-          join = memberIconList.join("|");
-        syncMarkerElement.dataset.groupIcons !== join &&
-          ((syncMarkerElement.dataset.groupIcons = join),
-          syncMarkerElement.replaceChildren(
-            ...memberIconList.map((memberIconName: any) => {
-              const groupIconElement = createStageElement(
-                  "span",
-                  "i3d-marker-icon i3d-curtain-group-icon",
-                ),
-                groupIconMaskUrl =
-                  'url("/static/vendor/mdi/7.4.47/svg/' + memberIconName.slice(4) + '.svg")';
-              return (
-                groupIconElement.style.setProperty("mask-image", groupIconMaskUrl),
-                groupIconElement.style.setProperty("-webkit-mask-image", groupIconMaskUrl),
-                groupIconElement
-              );
-            }),
-          ));
-      } else {
-        if (
-          !isVacuumDevice &&
-          !syncMarkerItem.securityAlarm &&
-          syncMarkerItem.deviceKind !== "smallcar" &&
-          syncMarkerItem.deviceKind !== "temperature-humidity" &&
-          syncMarkerElement.dataset.icon !== icon2
-        ) {
-          if (((syncMarkerElement.dataset.icon = icon2), icon2)) {
-            const markerIconElement = createStageElement("span", "i3d-marker-icon");
-            markerIconElement.setAttribute("aria-hidden", "true");
-            const markerIconMaskUrl =
-              'url("/static/vendor/mdi/7.4.47/svg/' + icon2.slice(4) + '.svg")';
-            (markerIconElement.style.setProperty("mask-image", markerIconMaskUrl),
-              markerIconElement.style.setProperty("-webkit-mask-image", markerIconMaskUrl),
-              syncMarkerElement.replaceChildren(markerIconElement));
-          } else syncMarkerElement.innerHTML = lampIconSvgMarkup;
-        }
-      }
-      const markerPresentationState = syncMarkerItem.isCurtainGroup
-          ? {
-              available: syncMarkerItem.memberItems.some(
-                (coverAvailabilityMember: any) =>
-                  coverState2(
-                    coverAvailabilityMember.entityId,
-                    (deviceStates as any)[coverAvailabilityMember.entityId],
-                    coverAvailabilityMember,
-                  ).available,
-              ),
-              on: syncMarkerItem.memberItems.some((coverIconMember: any) =>
-                coverIconIsOn2(
-                  coverIconMember,
-                  coverState2(
-                    coverIconMember.entityId,
-                    (deviceStates as any)[coverIconMember.entityId],
-                    coverIconMember,
-                  ),
-                ),
-              ),
-            }
-          : syncMarkerItem.deviceKind === "temperature-humidity"
-            ? {
-                available: temperatureHumidityEntities([syncMarkerItem]).some(
-                  ({ entityId: humidityEntityId }) =>
-                    readTemperatureHumidity(deviceStates[humidityEntityId]).available,
-                ),
-                on: false,
-              }
-            : syncMarkerItem.deviceKind?.startsWith("vacuum")
-              ? {
-                  available: !!(
-                    (deviceStates as any)[syncMarkerItem.entityId] &&
-                    !["unknown", "unavailable"].includes(
-                      (deviceStates as any)[syncMarkerItem.entityId].state,
-                    )
-                  ),
-                  on: (deviceStates as any)[syncMarkerItem.entityId]?.state === "cleaning",
-                }
-              : syncMarkerItem.deviceKind === "lock"
-                ? (() => {
-                    const lockState = lockState2(syncMarkerItem, deviceStates);
-                    return {
-                      available: lockState.available,
-                      on: lockState.state === "unlocked" || lockState.state === "open",
-                      name: syncMarkerItem.label || "门",
-                      lock: lockState,
-                    };
-                  })()
-                : syncMarkerItem.deviceKind === "speaker"
-                  ? speakerState2(syncMarkerItem, deviceStates)
-                  : syncMarkerItem.deviceKind === "television"
-                    ? televisionState2(syncMarkerItem, deviceStates)
-                    : syncMarkerItem.deviceKind === "smallcar"
-                      ? carState2(syncMarkerItem, deviceStates)
-                      : isGenericDeviceKind2(syncMarkerItem.deviceKind)
-                        ? deviceStatus2(syncMarkerItem, deviceStates)
-                        : syncMarkerItem.deviceKind === "nas"
-                          ? nasDeviceState2(syncMarkerItem, deviceStates)
-                          : syncMarkerItem.deviceKind === "cover"
-                            ? coverState2(
-                                syncMarkerItem.entityId,
-                                (deviceStates as any)[syncMarkerItem.entityId],
-                                syncMarkerItem,
-                              )
-                            : syncMarkerItem.modelId
-                              ? syncMarkerItem.waterHeater && !syncMarkerItem.entityId
-                                ? deviceStatus2(syncMarkerItem, deviceStates)
-                                : syncMarkerItem.airPurifier
-                                  ? purifierState2(syncMarkerItem, deviceStates)
-                                  : syncMarkerItem.climateType === "bath-heater"
-                                    ? bathHeaterState2(syncMarkerItem, deviceStates)
-                                    : climateState2(
-                                        syncMarkerItem.entityId,
-                                        (deviceStates as any)[syncMarkerItem.entityId],
-                                      )
-                              : readLightState(syncMarkerItem.entityId),
-        size =
-          Number.isFinite(syncMarkerItem.size) && syncMarkerItem.size > 0
-            ? syncMarkerItem.size
-            : defaultButtonSize,
-        iconSize = resolveMarkerIconSize(syncMarkerItem, size, isVacuumDevice, resolveButtonIconSize),
-        hitSize =
-          Number.isFinite(syncMarkerItem.hitSize) && syncMarkerItem.hitSize > 0
-            ? syncMarkerItem.hitSize
-            : Math.max(defaultButtonSize, size),
-        scaleXFactor = 1,
-        scaleYFactor = 1,
-        baseScaleFactor = scaleXFactor,
-        scaledSizeX = size * scaleXFactor,
-        scaledSizeY = size * scaleYFactor,
-        scaledIconSizeX = iconSize * scaleXFactor,
-        scaledIconSizeY = iconSize * scaleYFactor,
-        scaledHitSizeX = hitSize * scaleXFactor,
-        scaledHitSizeY = hitSize * scaleYFactor;
-      if (
-        ((syncMarkerElement.style.width = scaledHitSizeX + "px"),
-        (syncMarkerElement.style.height = scaledHitSizeY + "px"),
-        syncMarkerItem.isCurtainGroup &&
-          ((syncMarkerElement.style.width =
-            Math.max(
-              scaledHitSizeX,
-              scaledSizeX * 2 + 4 * scaleXFactor,
-              scaledIconSizeX * 2 + 12 * scaleXFactor,
-            ) + "px"),
-          (syncMarkerElement.style.height =
-            Math.max(scaledHitSizeY, scaledSizeY, scaledIconSizeY + 8 * scaleYFactor) + "px")),
-        syncMarkerElement.classList.toggle("is-vacuum-status", isVacuumDevice),
-        syncMarkerElement.classList.toggle(
-          "is-curtain-group",
-          syncMarkerItem.isCurtainGroup === true,
-        ),
-        syncMarkerElement.classList.toggle(
-          "is-overview-quip",
-          syncMarkerItem.overviewQuip === true,
-        ),
-        (syncMarkerElement.style.pointerEvents =
-          syncMarkerItem.overviewQuip ||
-          (syncMarkerItem.passiveSensor && syncMarkerItem.deviceKind !== "temperature-humidity")
-            ? "none"
-            : ""),
-        syncMarkerElement.classList.toggle(
-          "is-presence-wave",
-          syncMarkerItem.passiveSensor === true &&
-            syncMarkerItem.deviceKind !== "temperature-humidity",
-        ),
-        syncMarkerElement.classList.toggle(
-          "is-security-label",
-          syncMarkerItem.deviceKind === "lock" ||
-            syncMarkerItem.deviceKind === "camera" ||
-            syncMarkerItem.deviceKind === "presence",
-        ),
-        syncMarkerElement.classList.toggle("is-lock-label", syncMarkerItem.deviceKind === "lock"),
-        syncMarkerElement.classList.toggle(
-          "is-temperature-humidity",
-          syncMarkerItem.deviceKind === "temperature-humidity",
-        ),
-        syncMarkerElement.classList.toggle(
-          "is-editable-temperature-humidity",
-          syncMarkerItem.deviceKind === "temperature-humidity" && isEditing,
-        ),
-        syncMarkerItem.deviceKind === "temperature-humidity")
-      ) {
-        let selector = syncMarkerElement.querySelector(".i3d-temperature-humidity-card");
-        if (!selector) {
-          selector = createStageElement("span", "i3d-temperature-humidity-card");
-          const environmentHeaderElement = createStageElement("span", "i3d-environment-header"),
-            batteryRowElement = createStageElement("span", "i3d-environment-battery"),
-            batteryIconElement = createStageElement("i", "i3d-meter-icon");
-          batteryIconElement.setAttribute("aria-hidden", "true");
-          const batteryIconMaskUrl = "url('/static/vendor/mdi/7.4.47/svg/battery.svg')";
-          (batteryIconElement.style.setProperty("mask-image", batteryIconMaskUrl),
-            batteryIconElement.style.setProperty("-webkit-mask-image", batteryIconMaskUrl),
-            batteryRowElement.append(
-              batteryIconElement,
-              createStageElement("span", "i3d-meter-label", "电量"),
-              createStageElement("span", "i3d-meter-number"),
-            ),
-            environmentHeaderElement.append(
-              createStageElement("strong", "i3d-temperature-humidity-title"),
-              batteryRowElement,
-            ),
-            selector.append(
-              environmentHeaderElement,
-              createStageElement("span", "i3d-temperature-humidity-values"),
-            ));
-          for (const {
-            key: metricKey,
-            label: metricLabelText,
-            icon: metricIconName,
-          } of environmentMetricNames) {
-            const metricReadingElement = createStageElement(
-                "span",
-                "i3d-meter-reading is-" + metricKey,
-              ),
-              metricReadingIconElement = createStageElement("i", "i3d-meter-icon");
-            metricReadingIconElement.setAttribute("aria-hidden", "true");
-            const metricIconMaskUrl =
-              "url('/static/vendor/mdi/7.4.47/svg/" + metricIconName + ".svg')";
-            (metricReadingIconElement.style.setProperty("mask-image", metricIconMaskUrl),
-              metricReadingIconElement.style.setProperty("-webkit-mask-image", metricIconMaskUrl),
-              metricReadingElement.setAttribute("aria-label", metricLabelText),
-              (metricReadingElement.title = metricLabelText),
-              metricReadingElement.append(
-                metricReadingIconElement,
-                createStageElement("span", "i3d-meter-label", metricLabelText),
-                createStageElement("span", "i3d-meter-number"),
-                createStageElement("span", "i3d-meter-unit"),
-              ),
-              selector.lastElementChild.append(metricReadingElement));
-          }
-          syncMarkerElement.replaceChildren(selector);
-        }
-        const humidityTitleElement = selector.querySelector(".i3d-temperature-humidity-title");
-        ((humidityTitleElement.textContent = syncMarkerItem.label ?? "环境标签"),
-          (humidityTitleElement.hidden = !humidityTitleElement.textContent));
-        const isMetricNamesVisible = syncMarkerItem.showMetricNames !== false;
-        selector.classList.toggle("is-metric-names-hidden", !isMetricNamesVisible);
-        const batteryPanelElement = selector.querySelector(".i3d-environment-battery"),
-          ar2 = readTemperatureHumidity((deviceStates as any)[syncMarkerItem.batteryEntityId]);
-        ((batteryPanelElement.hidden = !syncMarkerItem.batteryEntityId),
-          (batteryPanelElement.querySelector(".i3d-meter-label").hidden = !isMetricNamesVisible),
-          batteryPanelElement.classList.toggle("is-unavailable", !ar2.available));
-        const batteryValueText = "" + ar2.value + (ar2.available ? ar2.unit || "%" : "");
-        ((batteryPanelElement.querySelector(".i3d-meter-number").textContent = batteryValueText),
-          batteryPanelElement.setAttribute("aria-label", "电量 " + batteryValueText),
-          (selector.querySelector(".i3d-environment-header").hidden =
-            humidityTitleElement.hidden && batteryPanelElement.hidden));
-        const some5 = environmentMetricNames.some(
-          ({ key: metricEntitySuffix }) => syncMarkerItem[metricEntitySuffix + "EntityId"],
-        );
-        selector.querySelector(".i3d-temperature-humidity-values").hidden = !some5;
-        for (const { key: metricLoopKey } of environmentMetricNames) {
-          const metricEntityId = syncMarkerItem[metricLoopKey + "EntityId"],
-            ar3 = readTemperatureHumidity((deviceStates as any)[metricEntityId]),
-            metricRowElement = selector.querySelector(".is-" + metricLoopKey);
-          ((metricRowElement.hidden = !metricEntityId),
-            (metricRowElement.querySelector(".i3d-meter-label").hidden = !isMetricNamesVisible),
-            metricRowElement.classList.toggle("is-unavailable", !ar3.available),
-            (metricRowElement.querySelector(".i3d-meter-number").textContent = ar3.value));
-          const metricUnitElement = metricRowElement.querySelector(".i3d-meter-unit");
-          ((metricUnitElement.textContent = ar3.unit), (metricUnitElement.hidden = !ar3.unit));
-        }
-
-
-        const min = Math.min(
-          maxLabelSize,
-          Math.max(minLabelSize, Number(syncMarkerItem.size) || defaultLabelSize),
-        );
-        ((selector.style.fontSize =
-          Math.min(
-            maxLabelIconSize,
-            Math.max(minLabelIconSize, Number(syncMarkerItem.iconSize) || defaultLabelIconSize),
-          ) + "px"),
-          selector.style.setProperty(
-            "--meter-background-opacity",
-            String(
-              Number.isFinite(syncMarkerItem.opacity)
-                ? Math.min(1, Math.max(0, syncMarkerItem.opacity))
-                : 1,
-            ),
-          ),
-          (selector.style.width = min + "px"),
-          layoutEnvironmentReadings(selector, syncMarkerItem.columns),
-          (selector.style.transformOrigin = "top left"),
-          (selector.style.transform = "scale(" + scaleXFactor + ", " + scaleYFactor + ")"),
-          (syncMarkerElement.style.width =
-            Math.min(
-              maxLabelSize,
-              Math.max(minLabelSize, Number(syncMarkerItem.size) || defaultLabelSize),
-            ) *
-            scaleXFactor +
-            "px"),
-          (syncMarkerElement.style.height =
-            Math.max(44, selector.offsetHeight || 48) * scaleYFactor + "px"),
-          syncMarkerElement.setAttribute("role", isEditing ? "button" : "group"),
-          isEditing
-            ? syncMarkerElement.setAttribute("tabindex", "0")
-            : syncMarkerElement.removeAttribute("tabindex"));
-      }
-      if (
-        (syncMarkerElement.classList.toggle(
-          "is-car-status",
-          syncMarkerItem.deviceKind === "smallcar",
-        ),
-        syncMarkerItem.deviceKind === "smallcar" &&
-          (updateCarCard2(syncMarkerElement, syncMarkerItem, deviceStates),
-          (syncMarkerElement.style.pointerEvents = isEditing ? "" : "none"),
-          syncMarkerElement.setAttribute("role", isEditing ? "button" : "group"),
-          isEditing
-            ? syncMarkerElement.setAttribute("tabindex", "0")
-            : syncMarkerElement.removeAttribute("tabindex")),
-        isVacuumDevice)
-      ) {
-        syncMarkerElement.style.setProperty(
-          "--label-background-opacity",
-          String(labelBackgroundOpacity(syncMarkerItem.backgroundOpacity)),
-        );
-        let vacuumStatusElement = syncMarkerElement.querySelector(".i3d-vacuum-status");
-        (!vacuumStatusElement ||
-          vacuumStatusElement.dataset.compact !== String(syncMarkerItem.overviewQuip === true)) &&
-          ((vacuumStatusElement = createStageElement("span", "i3d-vacuum-status")),
-          (vacuumStatusElement.dataset.compact = String(syncMarkerItem.overviewQuip === true)),
-          syncMarkerItem.overviewQuip ||
-            (vacuumStatusElement.append(
-              createStageElement("strong", "i3d-vacuum-status-name"),
-              createStageElement("span", "i3d-vacuum-status-detail"),
-            ),
-            vacuumStatusElement.lastElementChild.append(
-              createStageElement("span", "i3d-vacuum-status-text"),
-              createStageElement("span", "i3d-vacuum-status-battery"),
-            )),
-          vacuumStatusElement.append(createStageElement("span", "i3d-vacuum-quip")),
-          syncMarkerItem.overviewQuip &&
-            (Object.assign(vacuumStatusElement.style, {
-              opacity: ".55",
-              pointerEvents: "none",
-              background: "none",
-              border: "none",
-              boxShadow: "none",
-              backdropFilter: "none",
-              webkitBackdropFilter: "none",
-            }),
-            (vacuumStatusElement.lastElementChild.style.pointerEvents = "none")),
-          syncMarkerElement.replaceChildren(vacuumStatusElement));
-        const vacuumPresentation = vacuumStatusPresentation2(syncMarkerItem, deviceStates),
-          vacuumScaleX = scaledSizeX / 44,
-          vacuumScaleY = scaledSizeY / 44;
-        syncMarkerItem.overviewQuip ||
-          ((vacuumStatusElement.querySelector(".i3d-vacuum-status-name").textContent =
-            syncMarkerItem.label || "扫地机器人"),
-          (vacuumStatusElement.querySelector(".i3d-vacuum-status-text").textContent =
-            vacuumPresentation.status),
-          (vacuumStatusElement.querySelector(".i3d-vacuum-status-battery").textContent =
-            vacuumPresentation.battery));
-        const vacuumQuipElement = vacuumStatusElement.querySelector(".i3d-vacuum-quip");
-        ((vacuumQuipElement.textContent = vacuumPresentation.active
-          ? vacuumQuip2(syncMarkerItem, deviceStates, performance.now())
-          : ""),
-          (vacuumQuipElement.hidden = !vacuumQuipElement.textContent),
-          (vacuumStatusElement.style.transform =
-            "translate(-50%,-50%) scale(" + vacuumScaleX + "," + vacuumScaleY + ")"),
-          (vacuumStatusElement.style.fontSize = Math.max(8, iconSize / 2) + "px"));
-        const vacuumCardHeight = Math.max(
-          syncMarkerItem.overviewQuip ? 28 : 50,
-          vacuumStatusElement.offsetHeight,
-        );
-        ((syncMarkerElement.style.width = Math.max(scaledHitSizeX, 140 * vacuumScaleX) + "px"),
-          (syncMarkerElement.style.height =
-            Math.max(scaledHitSizeY, vacuumCardHeight * vacuumScaleY) + "px"),
-          (syncMarkerElement.dataset.status = vacuumPresentation.status),
-          (syncMarkerElement.title =
-            (syncMarkerItem.label || "扫地机器人") +
-            " · " +
-            vacuumPresentation.status +
-            " · " +
-            vacuumPresentation.battery),
-          (markerPresentationState.on = vacuumPresentation.active),
-          (markerPresentationState.available = vacuumPresentation.available));
-      }
-      if (syncMarkerItem.securityAlarm) {
-        const alarmReading = securityAlarmReading(syncMarkerItem, deviceStates);
-        (syncMarkerElement.classList.toggle("is-alarm-card", true),
-          syncMarkerElement.classList.toggle("is-editable-alarm-card", isEditing),
-          (syncMarkerElement.style.pointerEvents = isEditing ? "auto" : "none"),
-          renderSecurityAlarmCard(syncMarkerElement, syncMarkerItem, deviceStates),
-          (markerPresentationState.available =
-            alarmReading.available || alarmReading.status === "unbound"),
-          (markerPresentationState.on = alarmReading.on),
-          (syncMarkerElement.title = alarmReading.label + " · " + alarmReading.detail));
-      }
-      if (
-        syncMarkerItem.deviceKind === "lock" ||
-        syncMarkerItem.deviceKind === "camera" ||
-        syncMarkerItem.deviceKind === "presence"
-      ) {
-        const securityDeviceState =
-            (deviceStates as any)[syncMarkerItem.entityId]?.newState ||
-            (deviceStates as any)[syncMarkerItem.entityId],
-          lock = syncMarkerItem.deviceKind === "lock" ? markerPresentationState.lock : null,
-          available2 =
-            syncMarkerItem.deviceKind === "lock"
-              ? lock.available
-              : syncMarkerItem.deviceKind === "camera"
-                ? cameraOnline2(securityDeviceState)
-                : securityDeviceState?.available !== false &&
-                  !!securityDeviceState?.state &&
-                  !["unknown", "unavailable"].includes(securityDeviceState.state);
-        if (
-          ((markerPresentationState.available = available2),
-          (markerPresentationState.on =
-            syncMarkerItem.deviceKind === "lock"
-              ? lock.state === "unlocked" || lock.state === "open"
-              : syncMarkerItem.deviceKind === "camera"
-                ? securityDeviceState?.state === "recording"
-                : securityDeviceState?.state === "on"),
-          syncMarkerItem.passiveSensor)
-        )
-          (syncMarkerElement.querySelector(".i3d-sensor-wave") ||
-            syncMarkerElement.replaceChildren(
-              ...[0, 1, 2].map(() => createStageElement("span", "i3d-sensor-wave")),
-            ),
-            (syncMarkerElement.hidden = !available2),
-            syncMarkerElement.setAttribute("aria-hidden", "true"),
-            syncMarkerElement.classList.toggle("is-inactive", !available2));
-        else {
-          const isPresenceChoice = syncMarkerItem.deviceKind === "presence" && isEditing;
-          syncMarkerElement.classList.toggle("is-sensor-choice", isPresenceChoice);
-          let securityLabelElement = syncMarkerElement.querySelector(".i3d-security-label");
-          (securityLabelElement ||
-            ((securityLabelElement = createStageElement("span", "i3d-security-label")),
-            securityLabelElement.append(createStageElement("strong"), createStageElement("span")),
-            syncMarkerElement.append(securityLabelElement)),
-            (securityLabelElement.children[0].textContent =
-              syncMarkerItem.label ||
-              (syncMarkerItem.deviceKind === "lock"
-                ? "门"
-                : syncMarkerItem.deviceKind === "camera"
-                  ? "摄像头"
-                  : "人体传感器")));
-          const entityId3 =
-            syncMarkerItem.deviceKind === "lock" &&
-            (syncMarkerItem.doorEntityId ||
-              syncMarkerItem.doorEventEntityId ||
-              syncMarkerItem.doorOpenEntityId ||
-              syncMarkerItem.doorCloseEntityId ||
-              syncMarkerItem.batteryEntityId ||
-              syncMarkerItem.entityId);
-          if (
-            ((securityLabelElement.children[1].textContent =
-              isEditing &&
-              !(syncMarkerItem.deviceKind === "lock" ? entityId3 : syncMarkerItem.entityId)
-                ? "未绑定实体"
-                : available2
-                  ? syncMarkerItem.deviceKind === "lock"
-                    ? "" +
-
-
-                      (lock.doorOpenLabel ||
-                        (lock.doorOpen === true
-                          ? "门已打开"
-                          : lock.doorOpen === false
-                            ? "门已关闭"
-                            : "门状态未知")) +
-                      (syncMarkerItem.batteryEntityId && lock.battery !== "—"
-                        ? " · " + lock.battery
-                        : "")
-                    : syncMarkerItem.deviceKind === "presence"
-                      ? securityDeviceState.state === "on"
-                        ? "有人"
-                        : "检测中"
-                      : "在线"
-                  : "离线"),
-            (securityLabelElement.children[1].hidden = isPresenceChoice),
-            securityLabelElement.classList.toggle(
-              "is-camera-status",
-              syncMarkerItem.deviceKind === "camera",
-            ),
-            securityLabelElement.classList.toggle(
-              "is-lock-status",
-              syncMarkerItem.deviceKind === "lock",
-            ),
-            securityLabelElement.classList.toggle("is-camera-offline", !available2),
-            (securityLabelElement.hidden = !isLockLabelShown(syncMarkerItem, lock)),
-            (securityLabelElement.style.fontSize = (syncMarkerItem.fontSize || cardTextSizePx) + "px"),
-            securityLabelElement.style.setProperty(
-              "--label-background-opacity",
-              String(labelBackgroundOpacity(syncMarkerItem.backgroundOpacity)),
-            ),
-            syncMarkerItem.deviceKind === "camera" || syncMarkerItem.deviceKind === "lock")
-          ) {
-            const securityMarkerIconElement = syncMarkerElement.querySelector(".i3d-marker-icon");
-            (securityMarkerIconElement &&
-              securityMarkerIconElement.parentNode !== securityLabelElement &&
-              securityLabelElement.append(securityMarkerIconElement),
-              securityLabelElement.style.setProperty("--i3d-marker-icon-size", iconSize + "px"));
-          }
-          (syncMarkerElement.style.setProperty("--i3d-security-scale", String(scaledSizeX / 44)),
-            syncMarkerElement.style.setProperty("--i3d-security-scale-y", String(scaledSizeY / 44)),
-            (syncMarkerElement.style.width =
-              Math.max(
-                scaledHitSizeX,
-                ((syncMarkerItem.deviceKind === "camera"
-                  ? securityLabelElement.offsetWidth || 0
-                  : isPresenceChoice
-                    ? 120
-                    : 180) *
-                  scaledSizeX) /
-                  44,
-              ) + "px"),
-            (syncMarkerElement.style.height =
-              Math.max(
-                scaledHitSizeY,
-                ((syncMarkerItem.deviceKind === "camera"
-                  ? securityLabelElement.offsetHeight || 0
-                  : isPresenceChoice
-                    ? 32
-                    : 58) *
-                  scaledSizeY) /
-                  44,
-              ) + "px"));
-        }
-      }
-      if (
-        (syncMarkerElement.classList.toggle("i3d-vacuum-room", isVacuumRoomDevice),
-        syncMarkerElement.classList.toggle(
-          "is-icon-hidden",
-          isVacuumRoomDevice && syncMarkerItem.iconHidden === true,
-        ),
-        isVacuumRoomDevice)
-      ) {
-        let vacuumRoomLabelElement = syncMarkerElement.querySelector(".i3d-room-label");
-        (vacuumRoomLabelElement ||
-          ((vacuumRoomLabelElement = createStageElement("span", "i3d-room-label")),
-          syncMarkerElement.append(vacuumRoomLabelElement)),
-          (vacuumRoomLabelElement.textContent = syncMarkerItem.label || "清扫"),
-          (vacuumRoomLabelElement.hidden = syncMarkerItem.labelHidden === true),
-          (vacuumRoomLabelElement.style.fontSize =
-            (syncMarkerItem.fontSize || cardTextSizePx) * baseScaleFactor + "px"));
-      }
-      (syncMarkerElement.style.setProperty("--i3d-marker-size", scaledSizeX + "px"),
-        syncMarkerElement.style.setProperty("--i3d-marker-size-y", scaledSizeY + "px"),
-        syncMarkerElement.style.setProperty("--i3d-marker-icon-size", scaledIconSizeX + "px"),
-        syncMarkerElement.style.setProperty("--i3d-marker-icon-size-y", scaledIconSizeY + "px"),
-        syncMarkerItem.deviceKind !== "smallcar" &&
-          syncMarkerElement.setAttribute(
-            "aria-label",
-            syncMarkerItem.overviewQuip
-              ? vacuumQuip2(syncMarkerItem, deviceStates, performance.now())
-              : syncMarkerItem.label || markerPresentationState.name || "灯光",
-          ),
-        !isVacuumDevice &&
-          syncMarkerItem.deviceKind !== "smallcar" &&
-          (syncMarkerElement.title = syncMarkerItem.label || markerPresentationState.name));
-      const playing =
-        syncMarkerItem.deviceKind === "speaker"
-          ? markerPresentationState.available && markerPresentationState.playing
-          : syncMarkerItem.deviceKind === "cover"
-            ? coverIconIsOn2(syncMarkerItem, markerPresentationState)
-            : markerPresentationState.on;
-      (syncMarkerElement.classList.toggle(
-        "is-on",
-        !isVacuumDevice && syncMarkerItem.deviceKind !== "smallcar" && playing,
-      ),
-        syncMarkerElement.classList.toggle(
-          "is-offline",
-          !isEditing && !markerPresentationState.available,
-        ),
-        syncMarkerElement.classList.toggle("is-nas", syncMarkerItem.deviceKind === "nas"),
-        syncMarkerElement.classList.toggle("is-selected", isEditing && text === syncMarkerItem.id));
-    }
-    // 全屏报警由父页 runtime 挂到 document.body；iframe 内仅保留卡片，避免只盖住 3D 区域。
-    securityAlarmOverlay.update(
-      securityAlarmReadings(
-        overlayEligibleAlarms(options.security?.alarms || []),
-        deviceStates,
-      ),
-      false,
-      options.sceneStyle === "warm-wood" ? "warm-wood" : "default",
-    );
-    ((!markerChange || markerChange.lighting) && applyLightStates(undefined, markerChange),
-      (!markerChange || markerChange.environment) && refreshStageUi());
-    const isPanelAffected =
-      !markerChange || !!(focusedItemId && markerChange.affects(getFocusedEntry()));
-    (isPanelAffected && updateDevicePanel(),
-      (!markerChange || hasMarkerChange || isPanelAffected) &&
-        (syncLayoutMetrics(), syncStageVisibility(), renderMarkerPositions(true)));
   }
   function screenPointToFloor(floorPointerEvent: any, floorMarkerItem: any) {
     const worldPoint = mountOptions.worldPoint(
@@ -6374,614 +5204,260 @@ export function mountStage(mountOptions: any) {
     window.addEventListener("keydown", (stageKeydownEvent) => {
       stageKeydownEvent.key === "Escape" && exitFocusMode();
     }));
-  function handleHostMessage(hostMessageEvent: any) {
-    if (
-      hostMessageEvent.origin !== location.origin ||
-      hostMessageEvent.source !== window.parent ||
-      hostMessageEvent.data?.channel !== "hb-i3d-v1"
-    )
-      return;
-    const data = hostMessageEvent.data;
-    if ((data.type !== "states" && wakeSceneBackground(), data.type === "presentation-layout"))
-      Number.isFinite(data.width) &&
-        data.width > 0 &&
-        Number.isFinite(data.height) &&
-        data.height > 0 &&
-        ((mediaViewportSize = {
-          width: data.width,
-          height: data.height,
-        }),
-        syncLayoutMetrics());
-    else {
-      if (data.type === "config") {
-        if (isCameraMoving) {
-          pendingEditorAction = hostMessageEvent;
-          return;
-        }
-        ((isRangeEditorOnly = data.rangeEditorOnly === true),
-          (canEditLightRange = data.allowRangeEditing === true || data.editing === true),
-          isRangeEditorOpen &&
-            (!canEditLightRange ||
-              data.viewEditing === true ||
-              data.properties?.lightingMode !== "region" ||
-              data.properties?.floorSelection !== baseStageConfig.floorSelection ||
-              JSON.stringify(data.properties?.camera) !== JSON.stringify(baseStageConfig.camera) ||
-              JSON.stringify(data.properties?.lightRegionOverrides || {}) !==
-                JSON.stringify(baseStageConfig.lightRegionOverrides || {})) &&
-            rangeEditorHandle?.close(),
-          (hasIdleIconActivity = false),
-          focusedItemId.startsWith("vacuum:") &&
-            JSON.stringify(
-              (baseStageConfig.devices?.vacuums || []).find(
-                (currentVacuumEntry: any) => "vacuum:" + currentVacuumEntry.id === focusedItemId,
-              ),
-            ) !==
-              JSON.stringify(
-                (data.properties.devices?.vacuums || []).find(
-                  (nextVacuumEntry: any) => "vacuum:" + nextVacuumEntry.id === focusedItemId,
-                ),
-              ) &&
-            exitFocusMode({
-              immediate: true,
-            }),
-          (data.editing ||
-            data.viewEditing ||
-            baseStageConfig.floorSelection !== data.properties.floorSelection ||
-            JSON.stringify(baseStageConfig.floorCameras) !==
-              JSON.stringify(data.properties.floorCameras)) &&
-            ((pendingFloorId = ""), (pendingModule = "")),
-          (baseStageConfig = structuredClone(data.properties)),
-          !hasAutoSelectedFloors &&
-            !data.editing &&
-            !data.viewEditing &&
-            ((hasAutoSelectedFloors = true),
-            mountOptions.document.floors.length > 1 && (pendingFloorId = "all")),
-          pendingFloorId &&
-            pendingFloorId !== "all" &&
-            !mountOptions.document.floors.some(
-              (knownFloorEntry: any) => knownFloorEntry.id === pendingFloorId,
-            ) &&
-            (pendingFloorId = ""),
-          (data?.editing ||
-            data?.viewEditing ||
-            (baseStageConfig.floorSelection !== options.floorSelection && !pendingFloorId)) &&
-            mountOptions.finishFloorTransition?.(),
-          mountOptions.setFloorGap?.(baseStageConfig.floorGap),
-          mountOptions.setUniformOverviewStack?.(baseStageConfig.uniformOverviewStack),
-          (data.properties = buildFloorCameraConfig({
-            ...baseStageConfig,
-            ...(pendingFloorId
-              ? {
-                  floorSelection: pendingFloorId,
-                }
-              : {}),
-          })),
-          pendingFloorId && activeCameraPose
-            ? (data.properties.camera = activeCameraPose)
-            : pendingFloorId &&
-              pendingFloorId !== baseStageConfig.floorSelection &&
-              (data.properties.camera = transformFloorCamera(
-                baseStageConfig.floorCameras?.[pendingFloorId] || null,
-                pendingFloorId,
-              )),
-          idleRotationControl.activity(),
-          idleIconVisibilityControl.activity(),
-          idleFocusExitControl.activity());
-        const isCameraChanged =
-          (isAwaitingFloorViewAdjust && data.viewEditing !== true) ||
-          JSON.stringify(options.camera) !== JSON.stringify(data.properties.camera);
-        (panelDisplayMode || idleReturnCamera || cameraMotionSnapshot) &&
-          (isCameraChanged ||
-            options.sceneStyle !== data.properties.sceneStyle ||
-            options.wallOpacity !== data.properties.wallOpacity ||
-            options.floorSelection !== data.properties.floorSelection ||
-            isEditing !== (data.editing === true) ||
-            data.viewEditing === true ||
-            (isEditing && text !== (data.selectedId || ""))) &&
-          (exitFocusMode({
-            immediate: true,
-          }),
-          cameraMotionSnapshot &&
-            ((cameraMotionSnapshot = null),
-            mountOptions.finishFloorTransition?.(),
-            mountOptions.endCameraMotion()));
-        const editingSecurityKind =
-          data.editing === true &&
-          ["camera", "presence", "lock", "moisture", "smoke", "gas"].includes(
-            data.editingSecurityKind,
-          )
-            ? data.editingSecurityKind
-            : "";
-        ((data.editing !== true ||
-          editingSecurityKind !== "lock" ||
-          (text && text !== (data.selectedId || ""))) &&
-          (selectedLockEntry = null),
-          (options = structuredClone(data.properties)),
-          (isEditing = data.editing === true),
-          (selectedSecurityKind = editingSecurityKind),
-          (isAwaitingFloorViewAdjust = data.viewEditing === true),
-          (text = data.selectedId || ""),
-          (deviceStates = data.states || {}),
-          syncAirConditionerHistory(),
-          (isNavigationVisible = data.editorCanvas === true && !isEditing),
+  let lastRenderSignature = "";
+  const stageHandlersHost: StageHandlersHost = {
+    activateMarker,
+    get activeCameraPose() { return activeCameraPose; },
+    set activeCameraPose(v: any) { activeCameraPose = v; },
+    get activeModule() { return activeModule; },
+    set activeModule(v: any) { activeModule = v; },
+    activePointerDrag,
+    advanceCameraMotion,
+    airerMotion,
+    animationFrameRequestId,
+    applyDefaultCamera,
+    applyLightStates,
+    get baseStageConfig() { return baseStageConfig; },
+    set baseStageConfig(v: any) { baseStageConfig = v; },
+    beginMarkerDrag,
+    brightnessSlider,
+    buildFloorCameraConfig,
+    buildLockMotionInput,
+    get cachedDocumentFloorId() { return cachedDocumentFloorId; },
+    set cachedDocumentFloorId(v: any) { cachedDocumentFloorId = v; },
+    get cachedDocumentSource() { return cachedDocumentSource; },
+    set cachedDocumentSource(v: any) { cachedDocumentSource = v; },
+    get cameraMotionSnapshot() { return cameraMotionSnapshot; },
+    set cameraMotionSnapshot(v: any) { cameraMotionSnapshot = v; },
+    get cameraQuaternionKey() { return cameraQuaternionKey; },
+    set cameraQuaternionKey(v: any) { cameraQuaternionKey = v; },
+    get canEditLightRange() { return canEditLightRange; },
+    set canEditLightRange(v: any) { canEditLightRange = v; },
+    cancelGhostAnimation,
+    cancelMarkerDrag,
+    canvasElement,
+    carCharging,
+    climatePanel,
+    configureIdleBehaviors,
+    get configuredModuleKinds2() { return configuredModuleKinds2; },
+    set configuredModuleKinds2(v: any) { configuredModuleKinds2 = v; },
+    containerViewportSize,
+    controlErrorElement,
+    coverControlRequestsByRequestId,
+    coverFeedback,
+    coverGroupPanel,
+    coverPanel,
+    currentModuleBindings,
+    curtainMotion,
+    devicePanel,
+    get deviceStates() { return deviceStates; },
+    set deviceStates(v: any) { deviceStates = v; },
+    deviceStatusElement,
+    dreamTiltFeedback,
+    get editingVacuumId() { return editingVacuumId; },
+    set editingVacuumId(v: any) { editingVacuumId = v; },
+    editorSelectionOutlines,
+    element,
+    endMarkerDrag,
+    entries,
+    environmentAirflow,
+    environmentScene,
+    exitFocusMode,
+    failCoverRequest,
+    fanMotion,
+    findBindingById,
+    focusExitPointer,
+    focusMarkerById,
+    focusedItemId,
+    followToggleButton,
+    followVacuumId,
+    get furthestFloorOrder() { return furthestFloorOrder; },
+    set furthestFloorOrder(v: any) { furthestFloorOrder = v; },
+    getFocusedEntry,
+    get hasAutoSelectedFloors() { return hasAutoSelectedFloors; },
+    set hasAutoSelectedFloors(v: any) { hasAutoSelectedFloors = v; },
+    get hasIdleIconActivity() { return hasIdleIconActivity; },
+    set hasIdleIconActivity(v: any) { hasIdleIconActivity = v; },
+    get hasPresentedOnce() { return hasPresentedOnce; },
+    set hasPresentedOnce(v: any) { hasPresentedOnce = v; },
+    hasStageRect,
+    idleFocusExitControl,
+    get idleIconDelayUntilMs() { return idleIconDelayUntilMs; },
+    set idleIconDelayUntilMs(v: any) { idleIconDelayUntilMs = v; },
+    idleIconVisibilityControl,
+    idleReturnCamera,
+    idleRotationControl,
+    get isAwaitingFloorViewAdjust() { return isAwaitingFloorViewAdjust; },
+    set isAwaitingFloorViewAdjust(v: any) { isAwaitingFloorViewAdjust = v; },
+    isCameraMoving,
+    isControlBusy,
+    get isControlReady() { return isControlReady; },
+    set isControlReady(v: any) { isControlReady = v; },
+    get isEditing() { return isEditing; },
+    set isEditing(v: any) { isEditing = v; },
+    get isIdleIconHidden() { return isIdleIconHidden; },
+    set isIdleIconHidden(v: any) { isIdleIconHidden = v; },
+    isIdleRotationRunning,
+    isLockLabelShown,
+    get isNavigationVisible() { return isNavigationVisible; },
+    set isNavigationVisible(v: any) { isNavigationVisible = v; },
+    get isPointerHeld() { return isPointerHeld; },
+    set isPointerHeld(v: any) { isPointerHeld = v; },
+    get isPresenceEditing() { return isPresenceEditing; },
+    set isPresenceEditing(v: any) { isPresenceEditing = v; },
+    get isPresencePressed() { return isPresencePressed; },
+    set isPresencePressed(v: any) { isPresencePressed = v; },
+    get isPresentedVisible() { return isPresentedVisible; },
+    set isPresentedVisible(v: any) { isPresentedVisible = v; },
+    get isRangeEditorOnly() { return isRangeEditorOnly; },
+    set isRangeEditorOnly(v: any) { isRangeEditorOnly = v; },
+    isRangeEditorOpen,
+    get isRangeEditorSuppressingClose() { return isRangeEditorSuppressingClose; },
+    set isRangeEditorSuppressingClose(v: any) { isRangeEditorSuppressingClose = v; },
+    get isStagePresented() { return isStagePresented; },
+    set isStagePresented(v: any) { isStagePresented = v; },
+    get isStageVisible() { return isStageVisible; },
+    set isStageVisible(v: any) { isStageVisible = v; },
+    get lastIdleFloorId() { return lastIdleFloorId; },
+    set lastIdleFloorId(v: any) { lastIdleFloorId = v; },
+    get lastIdleFrameMs() { return lastIdleFrameMs; },
+    set lastIdleFrameMs(v: any) { lastIdleFrameMs = v; },
+    lastInteractionMs,
+    get lastQuaternionMs() { return lastQuaternionMs; },
+    set lastQuaternionMs(v: any) { lastQuaternionMs = v; },
+    get lastRenderSignature() { return lastRenderSignature; },
+    set lastRenderSignature(v: any) { lastRenderSignature = v; },
+    layoutPresenceHitBoxes,
+    lightColorPicker,
+    lightControlsElement,
+    get lightEditPreview() { return lightEditPreview; },
+    set lightEditPreview(v: any) { lightEditPreview = v; },
+    lightGroupByKey,
+    lightModeMenu,
+    lightPanelHeader,
+    lightPanelSection,
+    lightPresetRecords,
+    lightPresetsElement,
+    lightTitleElement,
+    list,
+    lockMotion,
+    lockPanel,
+    map,
+    markerLayerElement,
+    matchesSelectedFloor,
+    mediaControlRequestsByRequestId,
+    get mediaViewportSize() { return mediaViewportSize; },
+    set mediaViewportSize(v: any) { mediaViewportSize = v; },
+    moduleEmptyElement,
+    mountOptions,
+    moveMarkerDrag,
+    nasPanel,
+    nasStatus,
+    get navigationEditing() { return navigationEditing; },
+    set navigationEditing(v: any) { navigationEditing = v; },
+    nextCoverFeedbackDelay,
+    noopStageCallback,
+    normalizeCameraPose,
+    openRangeEditor,
+    get options() { return options; },
+    set options(v: any) { options = v; },
+    outgoingGhostAnimation,
+    pageBehavior,
+    get panelDisplayMode() { return panelDisplayMode; },
+    set panelDisplayMode(v: any) { panelDisplayMode = v; },
+    pendingControlRequestsByRequestId,
+    get pendingEditorAction() { return pendingEditorAction; },
+    set pendingEditorAction(v: any) { pendingEditorAction = v; },
+    get pendingFloorId() { return pendingFloorId; },
+    set pendingFloorId(v: any) { pendingFloorId = v; },
+    get pendingModule() { return pendingModule; },
+    set pendingModule(v: any) { pendingModule = v; },
+    powerButton,
+    presenceScene,
+    presenceWaves,
+    pruneTiltPreviews,
+    rangeEditorHandle,
+    readCoverFeedback,
+    readLightState,
+    rebuildCurtainMotion,
+    refreshStageUi,
+    releaseFocusExit,
+    resolveDeviceState,
+    resolveLightState,
+    restoreFocusWithin,
+    revealFollowCamera,
+    get sceneBackground() {
+      return sceneBackground;
+    },
+    set sceneBackground(v: any) {
+      sceneBackground = v;
+    },
+    sceneBackgroundController,
+    sceneCacheByKey,
+    scratchQuaternion,
+    scratchVector,
+    screenOutlines,
+    securityAlarmOverlay,
+    get selectedFloorId() { return selectedFloorId; },
+    set selectedFloorId(v: any) { selectedFloorId = v; },
+    get selectedLockEntry() { return selectedLockEntry; },
+    set selectedLockEntry(v: any) { selectedLockEntry = v; },
+    get selectedSecurityKind() { return selectedSecurityKind; },
+    set selectedSecurityKind(v: any) { selectedSecurityKind = v; },
+    set,
+    settleClimateRequest,
+    settleControlCommand,
+    settleMediaRequest,
+    speakerPanel,
+    speakerRings,
+    stageModelIndex,
+    startCameraMotion,
+    get startupProgress() { return startupProgress; },
+    set startupProgress(v: any) { startupProgress = v; },
+    stateUpdatePlanner,
+    stopVacuumFollow,
+    syncAirConditionerHistory,
+    syncAvailability,
+    syncCameraInteraction,
+    syncCameraOverlay,
+    syncCoverIconStates,
+    syncEnvironmentLayers,
+    syncIdleHold,
+    syncLayoutMetrics,
+    syncNasOverlay,
+    syncPanelChrome,
+    syncPresenceScene,
+    syncStageVisibility,
+    syncVacuumMap,
+    syncVacuumMotion,
+    televisionPanel,
+    temperatureSlider,
+    get text() { return text; },
+    set text(v: any) { text = v; },
+    toolbarElement,
+    transformFloorCamera,
+    updateLampButton,
+    vacuumMaps,
+    vacuumMotion,
+    vacuumOverlayByKey,
+    vacuumWorkingLayerElement,
+    vector,
+    wakeSceneBackground,
+    waterHeaterStatusByModelType,
+  };
+  const updateDevicePanel = createUpdateDevicePanel(stageHandlersHost);
+  stageHandlersHost.updateDevicePanel = updateDevicePanel;
+  const renderMarkerPositions = createRenderMarkerPositions(stageHandlersHost);
+  stageHandlersHost.renderMarkerPositions = renderMarkerPositions;
+  const pickMarkerAtPoint = createPickMarkerAtPoint(stageHandlersHost);
+  stageHandlersHost.pickMarkerAtPoint = pickMarkerAtPoint;
+  const syncMarkers = createSyncMarkers(stageHandlersHost);
+  stageHandlersHost.syncMarkers = syncMarkers;
+  const handleHostMessage = createHandleHostMessage(stageHandlersHost);
+  stageHandlersHost.handleHostMessage = handleHostMessage;
+  const runFrame = createRunFrame(stageHandlersHost);
+  stageHandlersHost.runFrame = runFrame;
 
-          (navigationEditing = data.navigationEditing === true && isNavigationVisible),
-          document.body?.dataset &&
-            (document.body.dataset.sceneStyle =
-              options.sceneStyle === "warm-wood" ? "warm-wood" : "default"),
-          sceneBackgroundController.configure(options.backgroundTheme, options),
-          (isControlReady = !isEditing && data.interactive === true),
-          (editingVacuumId = data.editingVacuumId || ""),
-          (configuredModuleKinds2 = configuredModuleKinds(options)));
-        let editingModule = isEditing
-          ? [
-              "security",
-              "climate",
-              "fan",
-              "purifier",
-              "water-heater",
-              "airer",
-              "cover",
-              "nas",
-              "television",
-              "speaker",
-              "vacuum",
-              "vacuum-shortcut",
-              "temperature-humidity",
-              ...GENERIC_DEVICE_KINDS2,
-            ].includes(data.editingModule)
-            ? data.editingModule
-            : "light"
-          : ["overview", "security", "light", "devices", "vacuum"].includes(activeModule)
-            ? activeModule
-            : [
-                  "nas",
-                  "television",
-                  "speaker",
-                  "water-heater",
-                  "airer",
-                  ...GENERIC_DEVICE_KINDS2,
-                ].includes(activeModule)
-              ? "devices"
-              : "environment";
-        (!isEditing &&
-          editingModule !== "overview" &&
-          !configuredModuleKinds2.includes(editingModule) &&
-          (editingModule = "light"),
-          pendingModule && !configuredModuleKinds2.includes(pendingModule) && (pendingModule = ""),
-          activeModule !== editingModule &&
-            (stopVacuumFollow(),
-            exitFocusMode({
-              immediate: true,
-            }),
-            cancelGhostAnimation(),
-            (activeModule = editingModule),
-            sceneCacheByKey.clear()));
-        for (const queuedCommandEntry of lightGroupByKey.values())
-          queuedCommandEntry.next &&
-            (!isControlReady ||
-              !(options.lights || []).some(
-                (configuredLightItem: any) =>
-                  configuredLightItem.entityId === queuedCommandEntry.entityId,
-              )) &&
-            (vector.reject(queuedCommandEntry.entityId, queuedCommandEntry.next.previewToken),
-            (queuedCommandEntry.next = null));
-        (configureIdleBehaviors(),
-          syncAvailability(),
-          mountOptions.appearance(
-            applyRegionLightingPreset(
-              isRangeEditorOpen
-                ? {
-                    ...options,
-                    lightRegionOverrides: mountOptions.regionLighting.getOverrides(),
-                  }
-                : options,
-            ),
-          ));
-        const floorSelection =
-          mountOptions.document.floors.some(
-            (configuredFloorEntry: any) => configuredFloorEntry.id === options.floorSelection,
-          ) || options.floorSelection === "all"
-            ? options.floorSelection
-            : mountOptions.document.floors[0].id;
-        (isEditing || (floorSelection === "all" && (activeModule = "overview")),
-          selectedFloorId !== floorSelection
-            ? (stopVacuumFollow(false),
-              (selectedFloorId = floorSelection),
-              mountOptions.setFloor(floorSelection),
-              mountOptions.restoreCamera(
-                normalizeCameraPose(
-                  options.camera || mountOptions.floorDefaultCamera?.(floorSelection),
-                ),
-              ),
-              (activeCameraPose = mountOptions.cameraState()))
-            : isCameraChanged &&
-              (mountOptions.restoreCamera(normalizeCameraPose(options.camera || activeCameraPose)),
-              (activeCameraPose = mountOptions.cameraState())),
-          syncCameraInteraction(),
-          (toolbarElement.hidden = true),
-          syncPanelChrome(),
-          (isAwaitingFloorViewAdjust || (!isEditing && !isControlReady)) &&
-            exitFocusMode({
-              immediate: true,
-            }),
-          syncMarkers());
-        const adoptGeneration = ++animationFrameRequestId;
-        (isStagePresented ? Promise.resolve() : mountOptions.whenPresented())
-          .then(() => {
-            isControlBusy ||
-              adoptGeneration !== animationFrameRequestId ||
-              (isStagePresented || (activeCameraPose = mountOptions.cameraState()),
-              (isStagePresented = true),
-              syncAvailability(),
-              renderMarkerPositions(true),
-              noopStageCallback(),
-              postHostMessage({
-                type: "presented",
-                configId: data.configId,
-                camera: transformFloorCamera(
-                  mountOptions.cameraState(),
-                  options.floorSelection,
-                  true,
-                ),
-              }));
-          })
-          .catch((adoptError: any) => {
-            !isControlBusy &&
-              adoptGeneration === animationFrameRequestId &&
-              postHostMessage({
-                type: "error",
-                message: adoptError.message || "户型画面准备失败，请重新载入。",
-              });
-          });
-      } else {
-        if (data.type === "vacuum-room-result") {
-          (clearTimeout(vacuumOverlayByKey.get(data.id)), vacuumOverlayByKey.delete(data.id));
-          const roomResultMarkerElement = map.get(data.id);
-          (roomResultMarkerElement &&
-            ((roomResultMarkerElement.disabled = false),
-            (roomResultMarkerElement.title = data.error || "")),
-            data.error &&
-              ((moduleEmptyElement.hidden = false), (moduleEmptyElement.textContent = data.error)));
-        } else {
-          if (data.type === "range-editor") {
-            if (data.flush === true) {
-              const rangeEditorFlushError =
-                !canEditLightRange || !isRangeEditorOpen ? "请先打开照射范围编辑。" : "";
-              (rangeEditorFlushError || rangeEditorHandle.flush(),
-                postHostMessage({
-                  type: "range-editor-state",
-                  active: isRangeEditorOpen,
-                  requestId: data.requestId,
-                  ...(rangeEditorFlushError
-                    ? {
-                        error: rangeEditorFlushError,
-                      }
-                    : {}),
-                }));
-            } else {
-              if (data.open === false) {
-                isRangeEditorSuppressingClose = !!data.requestId;
-                try {
-                  rangeEditorHandle?.close();
-                } finally {
-                  isRangeEditorSuppressingClose = false;
-                }
-                data.requestId &&
-                  postHostMessage({
-                    type: "range-editor-state",
-                    active: false,
-                    requestId: data.requestId,
-                  });
-              } else openRangeEditor(data.requestId);
-            }
-          } else {
-            if (data.type === "range-save-result")
-              rangeEditorHandle?.setSaveStatus?.(data.error || "");
-            else {
-              if (data.type === "activity-state")
-                ((hasPresentedOnce = true),
-                  (isStageVisible = data.visible === true),
-                  (isPresentedVisible =
-                    data.presentedVisible === undefined
-                      ? isStageVisible
-                      : data.presentedVisible === true),
-                  (!isStageVisible || !isPresentedVisible) &&
-                    focusExitPointer &&
-                    releaseFocusExit({
-                      pointerId: focusExitPointer.pointerId,
-                    }),
-                  mountOptions.setPresentedVisible?.(isPresentedVisible),
-                  syncVacuumMap(),
-                  isStageVisible || (hasIdleIconActivity = false),
-                  syncAvailability());
-              else {
-                if (data.type === "user-activity")
-                  ((hasIdleIconActivity = false),
-                    (furthestFloorOrder = performance.now()),
-                    syncStageVisibility(),
-                    (isPointerHeld = data.held === true),
-                    syncIdleHold());
-                else {
-                  if (data.type === "dismiss-focus")
-                    (idleRotationControl.activity(),
-                      idleIconVisibilityControl.activity(),
-                      stopVacuumFollow(data.immediate !== true),
-                      exitFocusMode({
-                        immediate: data.immediate === true,
-                      }));
-                  else {
-                    if (data.type === "states") {
-                      const stateUpdatePlan =
-                          data.patch === true
-                            ? stateUpdatePlanner.plan(options, data.states)
-                            : null,
-                        snapshotLightState = (patchedEntityId: any) =>
-                          JSON.stringify([
-                            resolveDeviceState(patchedEntityId),
-                            readLightState(patchedEntityId),
-                          ]),
-                        lightOnlySnapshotMap = new Map(
-                          (stateUpdatePlan?.lightOnlyIds || []).map((lightOnlyId) => [
-                            lightOnlyId,
-                            snapshotLightState(lightOnlyId),
-                          ]),
-                        );
-                      ((deviceStates =
-                        data.patch === true
-                          ? {
-                              ...deviceStates,
-                              ...(data.states || {}),
-                            }
-                          : data.states || {}),
-                        syncAirConditionerHistory(stateUpdatePlan));
-                      for (const patchedLightItem of options.lights || [])
-                        (data.patch !== true ||
-                          Object.hasOwn(data.states || {}, patchedLightItem.entityId)) &&
-                          vector.reconcile(
-                            patchedLightItem.entityId,
-                            resolveDeviceState(patchedLightItem.entityId),
-                          );
-                      for (const [trackedLightId, previousLightSnapshot] of lightOnlySnapshotMap)
-                        snapshotLightState(trackedLightId) === previousLightSnapshot &&
-                          stateUpdatePlan!.changed.delete(trackedLightId);
-                      (!stateUpdatePlan || stateUpdatePlan.changed.size) &&
-                        syncMarkers(stateUpdatePlan);
-                    } else {
-                      if (data.type === "control-result")
-                        mediaControlRequestsByRequestId.has(data.requestId)
-                          ? settleMediaRequest(data.requestId, data.error)
-                          : coverControlRequestsByRequestId.has(data.requestId)
-                            ? failCoverRequest(data.requestId, data.error)
-                            : pendingControlRequestsByRequestId.has(data.requestId)
-                              ? settleClimateRequest(data.requestId, data.error)
-                              : settleControlCommand(
-                                  data.requestId,
-                                  data.error || "",
-                                  data.timedOut === true,
-                                );
-                      else {
-                        if (data.type === "editor-command" && isEditing)
-                          try {
-                            if (data.command === "preview-lock-motion") {
-                              if (selectedSecurityKind !== "lock") throw new Error("请先选择门。");
-                              const previewLockMarkerItem = findBindingById(data.id);
-                              if (
-                                previewLockMarkerItem?.deviceKind !== "lock" ||
-                                !previewLockMarkerItem.modelAvailable
-                              )
-                                throw new Error("请选择可用的门模型。");
-                              ((selectedLockEntry = {
-                                id: data.id,
-                                open: data.value !== "closed",
-                              }),
-                                wakeSceneBackground(),
-                                syncCameraInteraction());
-                              return;
-                            } else {
-                              if (data.command === "presence-top-view") {
-                                const { floorId: presenceFloorId, box: presenceViewBox } =
-                                  data.value || {};
-                                if (
-                                  !presenceViewBox ||
-                                  ![
-                                    presenceViewBox.x,
-                                    presenceViewBox.y,
-                                    presenceViewBox.w,
-                                    presenceViewBox.h,
-                                  ].every(Number.isFinite) ||
-                                  presenceViewBox.w <= 0 ||
-                                  presenceViewBox.h <= 0
-                                )
-                                  throw new Error("顶视图范围无效。");
-                                const worldPoint2 = mountOptions.worldPoint(
-                                    presenceFloorId,
-                                    presenceViewBox.x + presenceViewBox.w / 2,
-                                    presenceViewBox.y + presenceViewBox.h / 2,
-                                    0,
-                                  ),
-                                  worldPoint3 = mountOptions.worldPoint(
-                                    presenceFloorId,
-                                    presenceViewBox.x,
-                                    presenceViewBox.y,
-                                    0,
-                                  ),
-                                  worldPoint4 = mountOptions.worldPoint(
-                                    presenceFloorId,
-                                    presenceViewBox.x + presenceViewBox.w,
-                                    presenceViewBox.y + presenceViewBox.h,
-                                    0,
-                                  );
-                                if (!worldPoint2 || !worldPoint3 || !worldPoint4)
-                                  throw new Error("请选择有效楼层。");
-                                const presenceFrameSize = Math.max(
-                                  Math.abs(worldPoint4.z - worldPoint3.z),
-                                  Math.abs(worldPoint4.x - worldPoint3.x) /
-                                    (canvasElement.clientWidth /
-                                      Math.max(1, canvasElement.clientHeight)),
-                                );
-                                (exitFocusMode({
-                                  immediate: true,
-                                }),
-                                  mountOptions.restoreCamera({
-                                    mode: "orthographic",
-                                    view: "top",
-                                    topRotation: 0,
-                                    position: [
-                                      worldPoint2.x,
-                                      worldPoint2.y + Math.max(20, presenceFrameSize * 2),
-                                      worldPoint2.z,
-                                    ],
-                                    target: worldPoint2.toArray(),
-                                    up: [0, 0, -1],
-                                    zoom: 1,
-                                    frameSize: presenceFrameSize,
-                                  }));
-                              } else {
-                                if (data.command === "presence-3d-view")
-                                  (mountOptions.setCameraView?.("free"),
-                                    mountOptions.restoreCamera(
-                                      options.camera ||
-                                        mountOptions.floorDefaultCamera?.(selectedFloorId) ||
-                                        activeCameraPose,
-                                    ));
-                                else {
-                                  if (data.command === "presence-preview-walk")
-                                    ((isPresencePressed = data.value === true),
-                                      syncPresenceScene());
-                                  else {
-                                    if (data.command === "presence-show-hit-range")
-                                      ((isPresenceEditing = data.value === true),
-                                        layoutPresenceHitBoxes());
-                                    else {
-                                      if (data.command === "edit-follow-camera") {
-                                        const followMarkerItem = findBindingById(data.id);
-                                        if (followMarkerItem?.deviceKind !== "vacuum")
-                                          throw new Error("请选择扫地机。");
-                                        focusMarkerById(data.id, "edit", true);
-                                        const followCameraTarget =
-                                          mountOptions.environmentModelPose(
-                                            followMarkerItem.floorId,
-                                            followMarkerItem.modelId,
-                                          )?.center || mountOptions.cameraState().target;
-                                        startCameraMotion(
-                                          followMarkerItem.followCamera ||
-                                            vacuumBirdCamera2(
-                                              options.camera || mountOptions.cameraState(),
-                                              followCameraTarget,
-                                            ),
-                                          false,
-                                          true,
-                                        );
-                                      } else {
-                                        if (data.command === "edit-light-camera")
-                                          focusMarkerById(data.id, "edit", true);
-                                        else {
-                                          if (data.command === "preview-light-camera")
-                                            focusMarkerById(data.id, "preview");
-                                          else {
-                                            if (data.command === "preview-device-panel")
-                                              focusMarkerById(data.id, "panel");
-                                            else {
-                                              if (data.command === "preview-light-effect") {
-                                                if (
-                                                  ![
-                                                    "brightnessMin",
-                                                    "brightnessMax",
-                                                    "temperatureMin",
-                                                    "temperatureMax",
-                                                    "defaults",
-                                                  ].includes(data.value)
-                                                )
-                                                  throw new Error("请选择要预览的效果。");
-                                                if (!findBindingById(data.id))
-                                                  throw new Error("灯光按钮已移除。");
-                                                if (!findBindingById(data.id).entityId)
-                                                  throw new Error("请先绑定实体，再预览灯光效果。");
-                                                (focusMarkerById(data.id, "preview"),
-                                                  (lightEditPreview = {
-                                                    id: data.id,
-                                                    kind: data.value,
-                                                  }),
-                                                  applyLightStates({
-                                                    preview: true,
-                                                  }),
-                                                  updateDevicePanel());
-                                              } else {
-                                                if (data.command === "cancel-light-camera")
-                                                  exitFocusMode({
-                                                    immediate: true,
-                                                  });
-                                                else {
-                                                  if (
-                                                    panelDisplayMode !== "edit" ||
-                                                    data.id !== focusedItemId
-                                                  )
-                                                    throw new Error("请先进入视角调整。");
-                                                  (data.command === "focus-projection" &&
-                                                    mountOptions.setCameraProjection(data.value),
-                                                    data.command === "focus-focal-length" &&
-                                                      mountOptions.setCameraFocalLength(
-                                                        data.value,
-                                                      ));
-                                                }
-                                              }
-                                            }
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                            syncCameraInteraction();
-                            const editCameraSnapshot = applyDefaultCamera();
-                            (postHostMessage({
-                              type: "edit",
-                              action: "focus-camera",
-                              requestId: data.requestId,
-                              id: data.id,
-                              camera: editCameraSnapshot,
-                            }),
-                              data.command === "save-light-camera" &&
-                                exitFocusMode({
-                                  immediate: true,
-                                }));
-                          } catch (editorCommandError: any) {
-                            postHostMessage({
-                              type: "edit",
-                              action: "focus-camera",
-                              requestId: data.requestId,
-                              error: editorCommandError.message,
-                            });
-                          }
-                        else
-                          data.type === "editor-command" &&
-                            isAwaitingFloorViewAdjust &&
-                            (data.command === "projection" &&
-                              mountOptions.setCameraProjection(data.value),
-                            data.command === "focal-length" &&
-                              mountOptions.setCameraFocalLength(data.value),
-                            syncCameraInteraction(),
-                            (data.command === "save-camera" || data.requestId) &&
-                              postHostMessage({
-                                type: "edit",
-                                action: "camera",
-                                requestId: data.requestId,
-                                camera: applyDefaultCamera(),
-                              }));
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
   window.addEventListener("message", handleHostMessage);
   const controls = mountOptions.controls,
     cameraChangeUnsubscribe = mountOptions.onCameraChange?.(() => {
@@ -7128,146 +5604,6 @@ export function mountStage(mountOptions: any) {
         apply: adoptSceneUpdate,
       })
     : () => {};
-  function runFrame(frameTimestamp: any) {
-    if (isControlBusy || document.hidden || isCameraMoving || startupProgress === 0)
-      return Infinity;
-    syncPresenceScene();
-    const floorTransitionActive2 =
-      mountOptions.floorTransitionActive || cameraMotionSnapshot?.owner === "floor";
-    if (
-      (mountOptions.recordFloorFrame?.(frameTimestamp, !!floorTransitionActive2),
-      !floorTransitionActive2)
-    ) {
-      (rebuildCurtainMotion(),
-        syncNasOverlay(),
-        syncCameraOverlay(),
-        syncEnvironmentLayers(),
-        syncVacuumMotion(),
-        speakerRings.tick(frameTimestamp),
-        carCharging.tick(frameTimestamp),
-        fanMotion.tick(frameTimestamp),
-        airerMotion.tick(frameTimestamp),
-        nasStatus.tick(frameTimestamp));
-      for (const stateTickerEntry of Object.values(waterHeaterStatusByModelType))
-        stateTickerEntry.tick(frameTimestamp);
-      for (const genericTickerEntry of Object.values(entries))
-        genericTickerEntry.tick(frameTimestamp);
-      ([coverFeedback.tick(frameTimestamp), dreamTiltFeedback.tick(frameTimestamp)].some(Boolean) &&
-        (pruneTiltPreviews(),
-        syncCoverIconStates(),
-        getFocusedEntry()?.deviceKind === "cover" && updateDevicePanel()),
-        curtainMotion.update(frameTimestamp));
-    }
-    (syncVacuumMap(),
-      mountOptions.curtainFrame?.({
-        key: curtainMotion.poseKey(),
-        structure: curtainMotion.structureKey(),
-        floorIds: list,
-        moving:
-          startupProgress > 0 &&
-          (curtainMotion.isMoving() || nextCoverFeedbackDelay() <= 1000 / 30),
-      }));
-    const tick = presenceWaves.tick(frameTimestamp),
-      tick2 = environmentScene.tick(frameTimestamp);
-    (floorTransitionActive2 || environmentAirflow.tick(frameTimestamp),
-      mountOptions.setEnvironmentActive?.(environmentScene.isActive),
-      advanceCameraMotion(frameTimestamp));
-    const tick3 = sceneBackgroundController.tick(frameTimestamp),
-      tick4 = vacuumMaps.tick(frameTimestamp);
-    (idleFocusExitControl.tick(frameTimestamp),
-      idleRotationControl.tick(frameTimestamp),
-      idleIconVisibilityControl.tick(frameTimestamp),
-      vector.expire() && syncMarkers());
-    const deltaSeconds = lastIdleFrameMs
-      ? Math.min(0.1, (frameTimestamp - lastIdleFrameMs) / 1000)
-      : 0;
-    lastIdleFrameMs = frameTimestamp;
-    const lightBindingFrame = buildLockMotionInput(),
-      tick5 =
-        !floorTransitionActive2 &&
-        lockMotion.tick(frameTimestamp, lightBindingFrame.bindings, lightBindingFrame.states);
-    mountOptions.setLockMoving?.(tick5);
-    const tick6 = !floorTransitionActive2 && presenceScene.tick(deltaSeconds);
-    layoutPresenceHitBoxes();
-    const tick7 = !floorTransitionActive2 && vacuumMotion.tick(deltaSeconds);
-    tick7 && ((lastRenderSignature = ""), renderMarkerPositions(true));
-    const some6 = (options.devices?.vacuums || []).some(
-        (activeVacuumItem: any) => vacuumStatusPresentation2(activeVacuumItem, deviceStates).active,
-      ),
-      floor = Math.floor(frameTimestamp / 7000);
-    (some6 && floor !== lastIdleFloorId && ((lastIdleFloorId = floor), syncMarkers()),
-      revealFollowCamera());
-    const frameTimestampCameraQuaternionKey =
-      mountOptions.camera.quaternion?.toArray?.().join(",") || "";
-    if (frameTimestampCameraQuaternionKey !== cameraQuaternionKey) {
-      const frameDeltaSeconds =
-          Math.min(100, Math.max(1, frameTimestamp - (lastQuaternionMs ?? frameTimestamp - 16.7))) /
-          1000,
-        cameraAngularSpeed =
-          scratchQuaternion.angleTo(mountOptions.camera.quaternion) / frameDeltaSeconds;
-      (cameraQuaternionKey &&
-        !cameraMotionSnapshot &&
-        !followVacuumId &&
-        (set.size || isPointerHeld || cameraAngularSpeed > 0.035) &&
-        (idleIconDelayUntilMs = frameTimestamp + 60),
-        (cameraQuaternionKey = frameTimestampCameraQuaternionKey));
-    }
-    (scratchQuaternion.copy(mountOptions.camera.quaternion), (lastQuaternionMs = frameTimestamp));
-    const isRotatingByPointer =
-        isIdleIconHidden &&
-        !cameraMotionSnapshot &&
-        !followVacuumId &&
-        (set.size > 0 || isPointerHeld),
-      shouldHideIconsWhileRotating =
-        pageBehavior.hideIconsWhileRotating === true &&
-        !isEditing &&
-        !isAwaitingFloorViewAdjust &&
-        (isIdleRotationRunning || isRotatingByPointer || frameTimestamp < idleIconDelayUntilMs);
-    shouldHideIconsWhileRotating !== isIdleIconHidden &&
-      ((isIdleIconHidden = shouldHideIconsWhileRotating), syncStageVisibility());
-    const some7 = (options.devices?.vacuums || []).some(
-      (trackedVacuumItem: any) =>
-        matchesSelectedFloor(trackedVacuumItem) && vacuumMotion.hasTracking(trackedVacuumItem.id),
-    );
-    return (
-      (followToggleButton.hidden =
-        isEditing || (!followVacuumId && (activeModule !== "vacuum" || !some7))),
-      (toolbarElement.hidden = followToggleButton.hidden),
-      (followToggleButton.disabled = !followVacuumId && !some7),
-      renderMarkerPositions(),
-      (canvasElement.dataset.stageFrameChecks = String(sceneBackground.stats.frames)),
-      Math.min(
-        carCharging.nextDelay(),
-        airerMotion.nextDelay(),
-        fanMotion.nextDelay(),
-        speakerRings.nextDelay(),
-        tick5 ? 1000 / 30 : Infinity,
-        tick3,
-        tick ? 1000 / 30 : Infinity,
-        screenOutlines.nextDelay(),
-        tick6 ? 0 : Infinity,
-        tick7 || followVacuumId ? 1000 / 30 : Infinity,
-        isIdleIconHidden ? 60 : Infinity,
-        some6 ? 7000 - (frameTimestamp % 7000) : Infinity,
-        cameraMotionSnapshot || tick2 || tick4 ? 0 : Infinity,
-        curtainMotion.isMoving() ? 1000 / 30 : Infinity,
-        Math.min(
-          coverFeedback.nextDelay(frameTimestamp),
-          dreamTiltFeedback.nextDelay(frameTimestamp),
-        ),
-        environmentAirflow.nextDelay(),
-        nasStatus.nextDelay(),
-        ...Object.values(waterHeaterStatusByModelType).map((stateTickerForDelay) =>
-          stateTickerForDelay.nextDelay(),
-        ),
-        ...Object.values(entries).map((genericTickerForDelay) => genericTickerForDelay.nextDelay()),
-        idleFocusExitControl.nextDelay(frameTimestamp),
-        idleRotationControl.nextDelay(frameTimestamp),
-        idleIconVisibilityControl.nextDelay(frameTimestamp),
-        vector.nextDelay(frameTimestamp),
-      )
-    );
-  }
   ((sceneBackground = mountOptions.createFrameLoop({
     step: (frameStepTimestamp: any) =>
       mountOptions.profileFrameWork

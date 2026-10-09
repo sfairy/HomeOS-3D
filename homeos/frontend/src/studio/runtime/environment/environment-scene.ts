@@ -3,7 +3,7 @@ import { createEnvironmentHalos as createEnvironmentHalos2 } from "./environment
 import {
   GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2,
   genericDeviceProfile as genericDeviceProfile2,
-} from "../device/device-profiles";
+} from "../device/generic-device-catalog";
 export function pageDimming(config: any, activeModule: any, isFocusMode = false) {
   const moduleKey =
     ({

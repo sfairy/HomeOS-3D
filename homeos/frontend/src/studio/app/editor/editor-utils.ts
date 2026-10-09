@@ -95,6 +95,12 @@ export function hsvToRgb(hueInput: any, saturationInput: any, brightnessInput: a
 export function roundField(numericField: any) {
   return Number.isFinite(numericField) ? String(Math.round(numericField * 100) / 100) : "0";
 }
+export function visibilityIconSvg(visibilityIconVisible: any) {
+  return visibilityIconVisible
+    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.8"/></svg>'
+    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 4 16 16M2.5 12s3.5-6 9.5-6c2 0 3.7.7 5.1 1.6M21.5 12s-3.5 6-9.5 6c-2 0-3.7-.7-5.1-1.6"/></svg>';
+}
+
 export function normalizedFontWeight(fontWeightInput: any, fallbackWeight = 0.4) {
   const numericWeight = Number(fontWeightInput);
   return Number.isFinite(numericWeight)

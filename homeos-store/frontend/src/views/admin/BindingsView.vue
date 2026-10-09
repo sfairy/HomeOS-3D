@@ -6,7 +6,7 @@ import PanelHead from "../../components/admin/PanelHead.vue";
 import DataTable from "../../components/admin/DataTable.vue";
 import RowMenu from "../../components/admin/RowMenu.vue";
 import { adminApi } from "../../api/http.js";
-import { errorMessage } from "../../store-types.js";
+import { asListItems, errorMessage } from "../../store-types.js";
 import { useToastStore } from "../../stores/toast.js";
 import { useConfirmStore } from "../../stores/confirm.js";
 import { useAdminRefreshStore } from "../../stores/adminRefresh.js";
@@ -38,10 +38,6 @@ const refresh = useAdminRefreshStore();
 const table = ref<InstanceType<typeof DataTable> | null>(null);
 const keyword = ref("");
 const activeOnly = ref(false);
-
-function asBindings(items: unknown[]): Binding[] {
-  return items as Binding[];
-}
 
 const params = computed<Record<string, string>>(() => {
   const next: Record<string, string> = {};
@@ -124,7 +120,7 @@ async function removeBinding(binding: Binding) {
 
     <DataTable ref="table" path="/bindings" :columns="COLUMNS" :params="params" empty-text="没有符合条件的设备绑定">
       <template #default="{ items }">
-        <tr v-for="binding in asBindings(items)" :key="binding.bindingId">
+        <tr v-for="binding in asListItems<Binding>(items)" :key="binding.bindingId">
           <td class="mono">
             <span v-if="binding.instanceId" :title="binding.instanceId">{{ binding.instanceId }}</span>
             <template v-else>—</template>

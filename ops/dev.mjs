@@ -118,7 +118,7 @@ function installRequirements() {
     "-r",
     path.join(APP_BACKEND, "requirements.txt"),
     "-r",
-    path.join(STORE_BACKEND, "src", "requirements.txt"),
+    path.join(STORE_BACKEND, "requirements.txt"),
   ]);
 }
 

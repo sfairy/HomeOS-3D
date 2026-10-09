@@ -1,9 +1,9 @@
 /* knip: used by PWA runtime; frontend/src/utils/core/pwa-update.ts navigator.serviceWorker.register('/sw.js'), backend spa-fallback middleware serves /sw.js, shared embed fallback whitelist includes /sw.js — 静态 PWA SW 文件非 ESM import 所以 knip 漏识别 */
 /* HomeOS Service Worker：离线壳缓存 + 非哈希静态资源 */
 // 版本号变更即代表「旧缓存整体作废」：activate 会删掉非当前名的所有缓存。
-// v5 -> v6 的原因：此前把 no-store 的 SPA 外壳也写进了 homeos-shell-v5，
-// 旧的 `/setup?xxx` 导航副本会引用重建后已删除的旧 chunk，离线兜底命中即白屏。
-const CACHE_SHELL = 'homeos-shell-v6'
+// v6 -> v7：cacheThenNetwork / staleWhileRevalidate 在网络失败且缓存未命中时
+// 曾把 undefined 交给 respondWith，触发 Failed to convert value to 'Response'。
+const CACHE_SHELL = 'homeos-shell-v7'
 const CACHE_STATIC = 'homeos-static-v5'
 const SHELL_URLS = ['/', '/index.html', '/manifest.json', '/logo/logo.svg']
 /** 由 SW 接管的静态资源前缀；`/assets/` 是内容哈希 + immutable，故意不在其中（见 fetch 处理器） */
@@ -73,6 +73,25 @@ function putIfCacheable(cache, request, res) {
   return cache.put(request, res.clone()).catch(() => undefined)
 }
 
+/** 保证 respondWith 永远拿到 Response；缓存未命中时不能返回 undefined。 */
+function offlineFallbackResponse() {
+  return new Response('HomeOS offline', {
+    status: 503,
+    statusText: 'Service Unavailable',
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  })
+}
+
+async function matchShell(cache, request) {
+  // navigate 到 `/?x` 时需忽略 search，才能命中 install 预热的 `/` / `/index.html`
+  return (
+    (await cache.match(request, { ignoreSearch: true })) ||
+    (await cache.match('/index.html')) ||
+    (await cache.match('/')) ||
+    null
+  )
+}
+
 function cacheThenNetwork(request, cacheName) {
   return caches.open(cacheName).then((cache) =>
     fetch(request)
@@ -80,7 +99,7 @@ function cacheThenNetwork(request, cacheName) {
         putIfCacheable(cache, request, res)
         return res
       })
-      .catch(() => cache.match(request)),
+      .catch(() => matchShell(cache, request).then((hit) => hit || offlineFallbackResponse())),
   )
 }
 
@@ -93,7 +112,11 @@ function staleWhileRevalidate(request, cacheName) {
         return res
       })
       .catch(() => null)
-    return cached || network.then((res) => res || caches.match('/index.html'))
+    if (cached) return cached
+    const fromNetwork = await network
+    if (fromNetwork) return fromNetwork
+    const shell = await matchShell(cache, request)
+    return shell || offlineFallbackResponse()
   })
 }
 

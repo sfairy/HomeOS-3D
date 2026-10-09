@@ -19,11 +19,14 @@ HomeOS/
 │   ├── deploy/run-backend.sh  # 仅源码态起后端；Docker 生产请用 ops/deploy/deploy.sh
 │   ├── data/                  # 运行时（不入库；HOMEOS_DATA_DIR）
 │   └── package.json
-├── homeos-store/              # 授权商店（独立项目）
-│   ├── backend/src/           # 后端（源码包名 src）
+├── homeos-store/              # 授权商店（独立项目；顶层骨架与 homeos 对齐）
+│   ├── backend/               # 后端（import 根是 backend/，源码包名 src）
+│   │   ├── src/
+│   │   ├── migrations/ alembic.ini   # 只在开发期用，不进构建产物
+│   │   └── requirements.txt
 │   ├── frontend/              # 前端源码
+│   ├── scripts/               # 冒烟与开发辅助脚本
 │   ├── data/                  # 运行时（不入库；STORE_DATA_DIR）
-│   ├── db/ alembic.ini        # 结构迁移（与主应用各自独立的一套；只在开发期用）
 │   ├── keys/local/            # 本地联调用的授权私钥（不入库）
 │   └── package.json
 ├── dist/                      # 构建产物（与源码彻底分开，不入库）
@@ -41,7 +44,7 @@ HomeOS/
 │   ├── check_schema.py        # 库结构门禁：迁移脚本 ↔ ORM 元数据一致性
 │   └── dev.mjs                # 本地开发一键启动（Bun；不是部署脚本）
 ├── keys/                      # 仅本地联调用的开发公钥（生产商店会自生成新密钥对；容器不用）
-├── packages/                  # 契约清单
+├── homeos/packages/shared/    # @homeos/shared 前端契约包
 ├── node_modules/              # 全仓唯一的依赖安装（bunfig.toml 的 hoisted linker；
                                # 项目目录内不再有 node_modules，构建缓存落在其 .vite/ 下）
 ├── package.json / bun.lock    # 单体仓库编排 + 全仓唯一的依赖锁
@@ -147,9 +150,10 @@ bun run dev:runtime
 | `bun run dev:runtime` | runtime 模块 watch → 根 `dist/homeos/frontend/modules/runtime` |
 | `bun run verify:scene` | 校验 `design/scene` 与两端 `public/static/**/scene` 逐字节一致 |
 | `bun run verify:features` | 校验功能码真源（`ops/feature_codes.json`）与两端后端 + 前端镜像一致 |
+| `bun run verify:contracts` | TS↔Python 孪生清单对账（儿童受限域、默认房间 id；`ops/contracts/shared-twins.json`） |
 | `bun run verify:schema` | 库结构门禁（`ops/check_schema.py`）：迁移脚本 ↔ ORM 元数据 ↔ 实际结构 ↔ 发行路径建库 |
 | `bun run verify:smoke` | 商店侧冒烟：端到端判定口径（`smoke_store.py`）+ 结构漂移护栏 |
-| `bun run verify:smoke:app` | 主应用侧冒烟：认证契约 + 注册→登录→激活契约 + HA 白名单 + HA 取状态容错 + 结构漂移护栏 |
+| `bun run verify:smoke:app` | 主应用侧冒烟：认证契约 + 注册→登录→激活 + HA 白名单 + HA 取状态容错 + 结构漂移护栏 + 模块功能码门禁 + 授权激活 e2e（商店未跑则 SKIP） |
 | `bun run verify:smoke:frontend` | Esc 层级栈回归（`_esc_stack_smoke.ts`）：栈行为 + 全部 overlay 静态接线扫描 |
 
 ### 首次联调流程
@@ -330,7 +334,7 @@ docker logs homeos | head
 
 ### 六、构建镜像（可选）
 
-CI 会在默认分支推送时构建并推送 `linux/amd64` + `linux/arm64` 双架构镜像到 GHCR（`.github/workflows/docker.yml`），tag 取仓库根 `package.json` 的 `version`（与 `latest`）；非默认分支退化为 `sha-<short>`。
+CI 通过 GitHub Actions **手动 `workflow_dispatch`** 构建并推送 `linux/amd64` + `linux/arm64` 双架构镜像到 GHCR（`.github/workflows/docker.yml`），tag 取仓库根 `package.json` 的 `version`（与 `latest`）。默认分支 push **不会**自动触发。
 
 本地构建是**两阶段**：先把前端与加密后端产出到工作区根 `dist/`，再从 `dist/` 组装运行镜像（镜像内不再编译后端，见 `Dockerfile` 的 app / store 目标与 `ops/build.py`）：
 
@@ -353,7 +357,7 @@ Cython `.so` 与架构绑定：`dist/<项目>/backend/linux-<arch>/` 一份只�
 
 **产物里的包名是 `app`，不是 `src`**：源码目录按约定叫 `homeos/backend/src`，但构建阶段用 `COPY homeos/backend/src ./backend/app`（商店是 `./app`）把它映射过去再交给 Cython —— Cython 的模块名取自文件路径，映射之后 `.so` 里烤进去的就是 `backend.app.*` / `app.*`，`dist/` 里因此不存在任何名为 `src` 的目录。
 
-产物里**没有任何明文 `.py`**：后端包之外，`migrations/`、`db/` 与 `alembic.ini` 也都不进 `dist/`（Dockerfile 的构建阶段用 `find /app \( -name '*.py' -o -name '*.pyc' \)` 兜底断言）。发行版不需要 Alembic —— 全新库由后端按 ORM 元数据直接建，再写入结构基线版本号（见 `homeos/backend/src/core/migrations.py` 的 `_create_schema` 与 `SCHEMA_REVISION`）；老库接管、备份这些行为不变。`ops/check_schema.py` 会额外验证「ORM 建库」与「迁移脚本建库」结构等价，所以少了迁移脚本也不会让新库缺表。
+产物里**没有任何明文 `.py`**：后端包之外，`migrations/` 与 `alembic.ini` 也都不进 `dist/`（Dockerfile 的构建阶段用 `find /app \( -name '*.py' -o -name '*.pyc' \)` 兜底断言）。发行版不需要 Alembic —— 全新库由后端按 ORM 元数据直接建，再写入结构基线版本号（见两侧 `backend/src/core/migrations.py` 的 `_create_schema` 与 `SCHEMA_REVISION`）；老库接管、备份这些行为不变。`ops/check_schema.py` 会额外验证「ORM 建库」与「迁移脚本建库」结构等价，所以少了迁移脚本也不会让新库缺表。
 
 编译后编译脚本会自动对每个 `.so` 执行 `strip --strip-all`（见 `ops/docker/compile_python.py` 的 `_strip_extensions`）：去掉 DWARF 调试信息与 `.symtab` 静态符号，保留 `.dynsym`（动态加载靠它，删了 `import` 就失败）。这样 `strings` 里不再出现 `__pyx_pf_*` 内部函数名与原始路径。
 

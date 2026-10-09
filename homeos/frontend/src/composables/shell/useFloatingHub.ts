@@ -19,7 +19,7 @@ import {
 } from '@/composables/entity/useEntityType'
 import { isFloatingPanelType, FLOATING_HUB_WIDTH_MAP } from '@/utils/registry/widget-registry'
 import type { FloatingWidget } from '@/types/layout'
-import type { FloatingHubContext } from '@/components/shell/floating-hub/context'
+import type { FloatingHubContext } from '@/types/floating-hub'
 import {
   getPanelEdgeAnchorFromRect,
   getWidgetAnchorTransform,

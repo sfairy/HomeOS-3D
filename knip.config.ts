@@ -78,9 +78,13 @@ const config: KnipConfig = {
         'src/composables/ui/useBodyScrollLock.ts': ['exports'],
         'src/utils/ui/screensaver-background-idle.util.ts': ['exports'],
         'src/studio/shims/**': ['exports', 'types', 'nsExports', 'duplicates'],
-        // Stage 4 renderer.ts 拆分子模块：导出通过 Object.assign(PanelRenderer.prototype, …)
-        // 运行时挂载（import * as geometryMethods + Object.assign），knip 不识别此消费模式
+        // renderer 拆分子模块：导出通过 Object.assign(PanelRenderer.prototype, …)
+        // 运行时挂载（import * as … + Object.assign），knip 不识别此消费模式
         'src/studio/app/renderer/core/renderer-geometry.ts': ['exports', 'types'],
+        'src/studio/app/renderer/core/renderer/panel-renderer-bulk-methods.ts': [
+          'exports',
+          'types',
+        ],
       },
     },
     'homeos/packages/shared': {

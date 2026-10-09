@@ -1,6 +1,6 @@
 import { floorNavigationChoices } from "../floor-navigation";
 import { doorModels } from "../../security/lock-state";
-import { genericDeviceMetadata } from "../../device/device-profiles";
+import { genericDeviceMetadata } from "../../device/generic-device-catalog";
 
 export function buildMetadata(
   mountOptions: any,

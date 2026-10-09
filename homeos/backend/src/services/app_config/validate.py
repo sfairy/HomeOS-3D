@@ -16,7 +16,11 @@ from typing import Any
 
 from ...core.errors import ConfigValidationError, bad_request
 from ...core.zoned_time import normalize_home_mode_time_at
-from .constants import PUBLIC_CONFIG_SECTIONS  # noqa: F401 - re-export 便利
+from .constants import (  # noqa: F401 - PUBLIC_CONFIG_SECTIONS re-export 便利
+    PUBLIC_CONFIG_SECTIONS,
+    REBUILD_DEBOUNCE_MS_MAX,
+    REBUILD_DEBOUNCE_MS_MIN,
+)
 
 FieldError = dict[str, str]
 
@@ -528,7 +532,14 @@ def _validate_frontend(section: str, p: dict[str, Any], e: list[FieldError]) -> 
     if "workerDerivedThreshold" in p:
         num_in(section, "workerDerivedThreshold", p["workerDerivedThreshold"], 500, 100000, e)
     if "rebuildDebounceMs" in p:
-        num_in(section, "rebuildDebounceMs", p["rebuildDebounceMs"], 10, 2000, e)
+        num_in(
+            section,
+            "rebuildDebounceMs",
+            p["rebuildDebounceMs"],
+            REBUILD_DEBOUNCE_MS_MIN,
+            REBUILD_DEBOUNCE_MS_MAX,
+            e,
+        )
     if "maxListeners" in p:
         num_in(section, "maxListeners", p["maxListeners"], 10, 500, e)
     if "callDedupWindowMs" in p:

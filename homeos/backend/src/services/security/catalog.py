@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from ...core.entity_area import resolve_entity_area as _resolve_entity_area_core
+
 #: 默认房间目录的 ``inferKeywords``（顺序与 shared/room/catalog.ts 一致）。
 DEFAULT_ROOM_INFER_KEYWORDS: list[tuple[str, list[str]]] = [
     ("living", ["living", "客厅", "living_room", "lounge", "起居室", "大厅"]),
@@ -35,11 +37,8 @@ def infer_room_id_from_entity_id(entity_id: str) -> str | None:
 
 
 def resolve_entity_area(attrs: dict[str, Any] | None) -> dict[str, str] | None:
-    data = attrs if isinstance(attrs, dict) else {}
-    area_id = str(data.get("area_id") or "").strip()
-    area_name = str(data.get("area_name") or "").strip()
-    if not area_id and not area_name:
+    """委托 ``core.entity_area``，返回 dict 以兼容本模块既有调用方。"""
+    area = _resolve_entity_area_core(attrs)
+    if area is None:
         return None
-    resolved_id = area_id or area_name
-    resolved_name = area_name or area_id
-    return {"id": resolved_id, "name": resolved_name, "display": resolved_name}
+    return {"id": area.id, "name": area.name, "display": area.display}

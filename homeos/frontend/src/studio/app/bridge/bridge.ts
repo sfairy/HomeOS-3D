@@ -1,6 +1,6 @@
-import { createAccessMonitor } from "./access-monitor";
+import { createAccessMonitor } from "./access/access-monitor";
 import { createInteraction3dCover } from "./cover";
-import { createInteraction3dFocusLayout } from "./focus-layout";
+import { createInteraction3dFocusLayout } from "./presets/focus-layout";
 /** 在 Error 上挂 HTTP 状态码：授权校验失败时调用方按它分支。 */
 type AccessError = Error & { status?: number };
 

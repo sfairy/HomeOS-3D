@@ -9,7 +9,7 @@ import PanelHead from "../../components/admin/PanelHead.vue";
 import DataTable from "../../components/admin/DataTable.vue";
 import RowMenu from "../../components/admin/RowMenu.vue";
 import { adminApi } from "../../api/http.js";
-import { errorMessage } from "../../store-types.js";
+import { asListItems, errorMessage } from "../../store-types.js";
 import { useToastStore } from "../../stores/toast.js";
 import { useConfirmStore } from "../../stores/confirm.js";
 import { useAdminDialogsStore } from "../../stores/adminDialogs.js";
@@ -48,10 +48,6 @@ const table = ref<InstanceType<typeof DataTable> | null>(null);
 const keyword = ref("");
 const role = ref("");
 const status = ref("");
-
-function asAccounts(items: unknown[]): Account[] {
-  return items as Account[];
-}
 
 const params = computed<Record<string, string>>(() => {
   const next: Record<string, string> = {};
@@ -206,7 +202,7 @@ async function removeAccount(account: Account) {
 
       <DataTable ref="table" path="/accounts" :columns="COLUMNS" :params="params" empty-text="没有符合条件的账号">
         <template #default="{ items }">
-          <tr v-for="account in asAccounts(items)" :key="account.id">
+          <tr v-for="account in asListItems<Account>(items)" :key="account.id">
             <td class="nowrap">
               <span v-if="account.username" :title="account.username">{{ account.username }}</span>
               <template v-else>—</template>

@@ -1,0 +1,256 @@
+
+/* 1. 外壳：顶栏 + 内容 + 页脚 */
+/* body 是纵向 flex：内容不足一屏时页脚也会贴在底部 */
+body.hb-store-body {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+/* 加载中：顶栏下方一条不定长进度条。只做视觉提示，不遮内容，
+   否则 JS 失败时页面会永远空白。 */
+body.hb-store-loading .hb-topbar::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--hb-accent-bright), transparent);
+  content: "";
+  animation: hb-loading-sweep 1.1s ease-in-out infinite;
+}
+
+@keyframes hb-loading-sweep {
+  0% {
+    opacity: 0.2;
+    transform: translateX(-40%);
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.2;
+    transform: translateX(40%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.hb-store-loading .hb-topbar::after {
+    animation: none;
+  }
+}
+
+.hb-topbar {
+  position: sticky;
+  z-index: 60;
+  top: 0;
+  border-bottom: 1px solid var(--hb-line);
+  background: color-mix(in srgb, var(--hb-bg) 86%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.hb-topbar__inner {
+  position: relative;
+  display: flex;
+  height: var(--hb-topbar-h);
+  align-items: center;
+  gap: 22px;
+}
+
+.hb-brand {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 11px;
+  color: var(--hb-ink);
+}
+
+.hb-brand:hover {
+  color: var(--hb-ink);
+}
+
+.hb-brand__text {
+  min-width: 0;
+}
+
+/* 品牌字标走 Orbitron（--hb-font-brand，= 场景的 --hos-font-brand），
+   字距放宽一点 —— Orbitron 的 O 本就很圆，再挤在一起会糊。 */
+.hb-brand__text strong {
+  display: block;
+  color: var(--hb-ink);
+  font-family: var(--hb-font-brand);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+}
+
+.hb-brand__text small {
+  display: block;
+  color: var(--hb-muted-dim);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+}
+
+.hb-nav {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 4px;
+}
+
+.hb-nav__link {
+  position: relative;
+  padding: 7px 12px;
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-muted);
+  font-size: 13px;
+  font-weight: 580;
+  white-space: nowrap;
+  transition: var(--hb-transition);
+}
+
+.hb-nav__link:hover {
+  color: var(--hb-ink);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.hb-nav__link.active {
+  color: var(--hb-accent-bright);
+  background: var(--hb-accent-soft);
+}
+
+.hb-nav__link.active::after {
+  position: absolute;
+  right: 12px;
+  bottom: 1px;
+  left: 12px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--hb-accent-grad);
+  content: "";
+}
+
+.hb-topbar__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.hb-topbar .hb-button.active {
+  border-color: var(--hb-accent-line);
+  color: var(--hb-accent-bright);
+  background: var(--hb-accent-soft);
+}
+
+/* 商店里一件主授权都没上架时（store.js 在 <html> 上切这个类），
+   注意语义是「完全没上架」，不是「你已买完」。 */
+html.hb-no-base-products .hb-nav__link[data-hb-nav="purchase"],
+html.hb-no-base-products #home-purchase-link,
+html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
+  display: none;
+}
+
+.hb-store-nav-toggle {
+  display: none;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-ink-soft);
+  background: var(--hb-surface-soft);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.hb-store-main {
+  padding: 34px 0 56px;
+}
+
+/* 有底色的整宽区块（首页 hero、页面头）自己撑满，内部再用 .hb-container 收窄 */
+.hb-store-main--flush {
+  padding-top: 0;
+}
+
+.hb-site-footer {
+  position: relative;
+  margin-top: auto;
+  background: color-mix(in srgb, var(--hb-surface) 60%, transparent);
+}
+
+/* 页脚上缘由素线换成「两端隐去、中央偏琥珀」的发丝线：整页最后一条水平线
+   与卡片上缘的那套指示灯语言。 */
+.hb-site-footer::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--hb-line-strong) 18%,
+    var(--hb-accent-line) 50%,
+    var(--hb-line-strong) 82%,
+    transparent
+  );
+  content: "";
+  pointer-events: none;
+}
+
+.hb-site-footer__inner {
+  display: flex;
+  padding: 26px 24px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.hb-site-footer__brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.hb-site-footer__brand strong {
+  display: block;
+  color: var(--hb-ink);
+  font-size: 13.5px;
+  font-weight: 640;
+}
+
+.hb-site-footer__brand p {
+  margin-top: 3px;
+  color: var(--hb-muted);
+  font-size: 12px;
+}
+
+.hb-site-footer__meta {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+}
+
+.hb-site-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.hb-site-footer__links a {
+  color: var(--hb-muted);
+  font-size: 12.5px;
+}
+
+.hb-site-footer__links a:hover {
+  color: var(--hb-accent-bright);
+}
+
+.hb-site-footer__bottom {
+  color: var(--hb-muted-dim);
+  font-size: 11.5px;
+}

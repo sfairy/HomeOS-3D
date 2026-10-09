@@ -1,9 +1,9 @@
-import { resolvePageBehavior } from "./page-behavior";
+import { resolvePageBehavior } from "./presets/page-behavior";
 import {
   performanceWarnings,
   confirmPerformanceWarning,
-} from "./performance-warning";
-import { normalizeGroundReflection } from "./reflection-settings";
+} from "./scene/performance-warning";
+import { normalizeGroundReflection } from "./scene/reflection-settings";
 import {
   requestInteraction3dAccess,
   getInteraction3dEditorView,

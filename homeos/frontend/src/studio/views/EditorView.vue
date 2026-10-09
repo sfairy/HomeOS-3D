@@ -62,7 +62,7 @@ onMounted(async () => {
   await import("@app/updates/update-notice");
   const storeLinks = await import("@app/shared/store-links");
   void storeLinks.applyStoreLinks();
-  const editor = await import("@app/editor/home");
+  const editor = await import("@app/editor/boot");
   if (disposed) return;
   editor.bootEditor();
   teardownEditor = editor.teardownEditor;

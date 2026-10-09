@@ -5,7 +5,7 @@
  *   - 基于 useHomeModeItemExpansion 复用紧凑模式下的展开/折叠逻辑
  *   - 生成区域导航项（含名称、传感器数等元信息）
  *   - 在紧凑模式下仅渲染激活区域；展开模式下渲染全部
- * @dependencies vue, ../../views/settings/automate/home-mode/home-mode.internals, @/utils/security/zone-room.util
+ * @dependencies vue, ../../features/settings/automate/home-mode/home-mode.internals, @/utils/security/zone-room.util
  */
 import { computed, type Ref } from 'vue'
 import { useHomeModeItemExpansion } from '@/composables/home-mode/editor.internals'

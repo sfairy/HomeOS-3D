@@ -5,7 +5,7 @@
  *  - .settings-inline-hint--{indigo|amber|rose|...}     单行内联提示条
  *  - .settings-deploy-note--{emerald|sky|indigo|...}   部署/重要说明卡片
  *
- * 来源：从 frontend/src/views/settings/shared/styles/settings-forms.css 抽离，
+ * 来源：从 frontend/src/features/settings/shared/styles/settings-forms.css 抽离，
  *       settings-forms.css 仍通过 `@import` 引用本文件，settings 行为保持不变。
  *   非 settings 顶层视图可直接 `@import` 此文件使用相同样式。
  * ──────────────────────────────────────────────────────────── */

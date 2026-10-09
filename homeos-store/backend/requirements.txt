@@ -1,0 +1,20 @@
+fastapi>=0.141
+uvicorn>=0.53
+sqlalchemy>=2.0.36
+# 开发期迁移（backend/migrations）；发行产物不带迁移脚本，新库由 ORM 元数据直接建。
+alembic>=1.20
+cryptography>=50
+pydantic>=2.13
+httpx>=0.28
+websockets>=17
+Pillow>=12
+# 不要加 jinja2：商店页面由 backend/src/api/pages.py 直接 read_text 下发、占位符在前端填，
+# 代码里没有任何 jinja2 引用（FastAPI 只在 standard / all extras 下才需要它，
+# 而这里装的是裸 fastapi）。SBOM 里出现过 jinja2 的需求声明纯属历史遗留。
+python-multipart>=0.0.32
+
+# 本地热重载：ops/dev.mjs 默认给商店设 STORE_RELOAD=1，backend/src/run.py 会以 uvicorn 的
+# reload 模式启动并监听 backend/src/ 目录。缺了这个包，uvicorn 的 reload 起不来——
+# 结果是改了 backend/src/api/*.py 里的模块级常量（例如模拟收银台的内联 HTML 与静态资源
+# 版本戳）后服务仍跑旧代码，只能手动重启。不参与线上的运行时逻辑。
+watchfiles>=1.2

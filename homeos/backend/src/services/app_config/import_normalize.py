@@ -7,10 +7,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from .constants import REBUILD_DEBOUNCE_MS_MAX, REBUILD_DEBOUNCE_MS_MIN
 from .defaults import DEFAULT_APP_CONFIG
 
-_REBUILD_DEBOUNCE_MIN = 10
-_REBUILD_DEBOUNCE_MAX = 2000
 _REBUILD_DEBOUNCE_DEFAULT = DEFAULT_APP_CONFIG["frontend"]["rebuildDebounceMs"]
 
 #: 历史上误写入 AppConfig.frontend 的布局字段（应在 ProjectConfig.layout）。
@@ -133,12 +132,12 @@ def _normalize_rebuild_debounce_ms(frontend: dict[str, Any], changes: list[str])
             f"frontend.rebuildDebounceMs: 无效值 {raw!r} → {_REBUILD_DEBOUNCE_DEFAULT}"
         )
         return
-    if n < _REBUILD_DEBOUNCE_MIN or n > _REBUILD_DEBOUNCE_MAX:
-        clamped = int(min(_REBUILD_DEBOUNCE_MAX, max(_REBUILD_DEBOUNCE_MIN, n)))
+    if n < REBUILD_DEBOUNCE_MS_MIN or n > REBUILD_DEBOUNCE_MS_MAX:
+        clamped = int(min(REBUILD_DEBOUNCE_MS_MAX, max(REBUILD_DEBOUNCE_MS_MIN, n)))
         frontend["rebuildDebounceMs"] = clamped
         changes.append(
             f"frontend.rebuildDebounceMs: {int(n)} → {clamped}"
-            f"（clamp 至 {_REBUILD_DEBOUNCE_MIN}–{_REBUILD_DEBOUNCE_MAX}）"
+            f"（clamp 至 {REBUILD_DEBOUNCE_MS_MIN}–{REBUILD_DEBOUNCE_MS_MAX}）"
         )
 
 
