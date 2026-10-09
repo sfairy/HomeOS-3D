@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import httpx
 
+from . import http_pool
 from .channels import display_name_for
 from ..commerce import money
 from ..config import StoreSettings
@@ -175,10 +176,12 @@ class AlipayProvider:
         params["sign"] = sign_params(params, settings.alipay_private_key_text)
 
         try:
-            response = httpx.post(
+            # 走共享连接池：同一进程内的查单 / 关单 / 退款复用连接，不再每次重新握手。
+            response = http_pool.request(
+                "POST",
                 settings.alipay_gateway_url,
                 data=params,
-                timeout=15.0,
+                timeout=http_pool.DEFAULT_TIMEOUT_SECONDS,
                 headers={"Content-Type": "application/x-www-form-urlencoded;charset=utf-8"},
             )
         except httpx.HTTPError as error:

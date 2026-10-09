@@ -125,6 +125,50 @@ export function formatTimestamp(timestampInput: any, hasTimeComponent = true) {
     .format(new Date(timestampInput))
     .replace(/\//g, "-");
 }
+/** 点集是否按时间升序（同一份 geometry.points 只判一次，WeakMap 随数组一起回收）。 */
+const ascendingPointsCache = new WeakMap<any[], boolean>();
+function pointsAreAscending(points: any[]) {
+  const cached = ascendingPointsCache.get(points);
+  if (cached !== undefined) return cached;
+  let ascending = true;
+  for (let index = 1; index < points.length; index += 1) {
+    if (Number(points[index].timestamp) < Number(points[index - 1].timestamp)) {
+      ascending = false;
+      break;
+    }
+  }
+  ascendingPointsCache.set(points, ascending);
+  return ascending;
+}
+/**
+ * 找最接近 timestamp 的点。升序点集走二分（等价于原先的 ``reduce`` 线性扫描，
+ * 距离相等时同样取更早的那个），非升序时退回线性扫描保证结果不变。
+ */
+function findNearestSeriesPoint(points: any[], timestamp: number) {
+  if (!points?.length) return points?.[0];
+  if (points.length > 8 && pointsAreAscending(points)) {
+    let low = 0,
+      high = points.length - 1;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (Number(points[middle].timestamp) < timestamp) low = middle + 1;
+      else high = middle;
+    }
+    if (low === 0) return points[0];
+    const after = points[low],
+      before = points[low - 1];
+    return Math.abs(Number(after.timestamp) - timestamp) <
+      Math.abs(Number(before.timestamp) - timestamp)
+      ? after
+      : before;
+  }
+  return points.reduce((closestPoint: any, candidatePoint: any) =>
+    Math.abs(candidatePoint.timestamp - timestamp) <
+    Math.abs(closestPoint.timestamp - timestamp)
+      ? candidatePoint
+      : closestPoint,
+  );
+}
 export function createHoverLineChart(
   chartContainer: any,
   tooltipHostElement: any,
@@ -150,117 +194,129 @@ export function createHoverLineChart(
     (hoverDotElement.hidden = true),
     tooltipHostElement.append(hoverGuideElement, hoverDotElement),
     tooltipMountElement.append(tooltipElement));
-  const handleChartPointerMove = (pointerEvent: any) => {
-      const dialogLayerElement =
+  // 悬停重算合并到每帧一次：pointermove 在高刷屏/触控板上可一帧触发多次，
+  // 而每次都要读多份 rect（读布局会强制同步布局）并重算 tooltip 位置。
+  let hoverFrame: number | null = null,
+    pendingHoverEvent: any = null;
+  const applyChartPointerMove = (pointerEvent: any) => {
+    const dialogLayerElement =
+      tooltipMountElement === tooltipHostElement
+        ? tooltipHostElement.closest(".hb-renderer-runtime-dialog-layer")
+        : null;
+    dialogLayerElement &&
+      tooltipElement.parentElement !== dialogLayerElement &&
+      dialogLayerElement.append(tooltipElement);
+    // 只量一次容器：原来同一份 rect 读了 3 次（每次都可能触发同步布局）。
+    const chartBounds = chartContainer.getBoundingClientRect();
+    if (!chartBounds.width) return;
+    const pointerRatioX = (pointerEvent.clientX - chartBounds.left) / chartBounds.width,
+      windowRatio = clampNumber(
+        (pointerRatioX - windowRange.start) /
+          Math.max(0.001, windowRange.end - windowRange.start),
+        0,
+        1,
+        0,
+      ),
+      pointerTimestamp =
+        seriesRecord.firstTime + windowRatio * (seriesRecord.lastTime - seriesRecord.firstTime),
+      nearestPoint = findNearestSeriesPoint(seriesRecord.points, pointerTimestamp),
+      projectedPoint = pointToPercent(nearestPoint),
+      hostBounds = tooltipHostElement.getBoundingClientRect(),
+      localOffsetX =
+        chartBounds.left - hostBounds.left + (projectedPoint.x / 100) * chartBounds.width,
+      localOffsetY =
+        chartBounds.top - hostBounds.top + (projectedPoint.y / 100) * chartBounds.height,
+      absoluteLeft = hostBounds.left + localOffsetX,
+      absoluteTop = hostBounds.top + localOffsetY,
+      guideLeftPercent = (localOffsetX / Math.max(1, hostBounds.width)) * 100,
+      guideTopPercent = (localOffsetY / Math.max(1, hostBounds.height)) * 100,
+      isTooltipOnHost = tooltipElement.parentElement === tooltipHostElement,
+      isTooltipOnDialogLayer =
+        dialogLayerElement && tooltipElement.parentElement === dialogLayerElement,
+      dialogLayerBounds = isTooltipOnDialogLayer
+        ? dialogLayerElement.getBoundingClientRect()
+        : null,
+      tooltipScale =
         tooltipMountElement === tooltipHostElement
-          ? tooltipHostElement.closest(".hb-renderer-runtime-dialog-layer")
-          : null;
-      dialogLayerElement &&
-        tooltipElement.parentElement !== dialogLayerElement &&
-        dialogLayerElement.append(tooltipElement);
-      const chartBounds = chartContainer.getBoundingClientRect();
-      if (!chartBounds.width) return;
-      const pointerRatioX = (pointerEvent.clientX - chartBounds.left) / chartBounds.width,
-        windowRatio = clampNumber(
-          (pointerRatioX - windowRange.start) /
-            Math.max(0.001, windowRange.end - windowRange.start),
-          0,
-          1,
-          0,
-        ),
-        pointerTimestamp =
-          seriesRecord.firstTime + windowRatio * (seriesRecord.lastTime - seriesRecord.firstTime),
-        nearestPoint = seriesRecord.points.reduce((closestPoint: any, candidatePoint: any) =>
-          Math.abs(candidatePoint.timestamp - pointerTimestamp) <
-          Math.abs(closestPoint.timestamp - pointerTimestamp)
-            ? candidatePoint
-            : closestPoint,
-        ),
-        projectedPoint = pointToPercent(nearestPoint),
-        hostBounds = tooltipHostElement.getBoundingClientRect(),
-        localOffsetX =
-          chartContainer.getBoundingClientRect().left -
-          hostBounds.left +
-          (projectedPoint.x / 100) * chartBounds.width,
-        localOffsetY =
-          chartContainer.getBoundingClientRect().top -
-          hostBounds.top +
-          (projectedPoint.y / 100) * chartBounds.height,
-        absoluteLeft = hostBounds.left + localOffsetX,
-        absoluteTop = hostBounds.top + localOffsetY,
-        guideLeftPercent = (localOffsetX / Math.max(1, hostBounds.width)) * 100,
-        guideTopPercent = (localOffsetY / Math.max(1, hostBounds.height)) * 100,
-        isTooltipOnHost = tooltipElement.parentElement === tooltipHostElement,
-        isTooltipOnDialogLayer =
-          dialogLayerElement && tooltipElement.parentElement === dialogLayerElement,
-        dialogLayerBounds = isTooltipOnDialogLayer
-          ? dialogLayerElement.getBoundingClientRect()
+          ? chartBounds.width /
+            Math.max(1, chartContainer.viewBox?.baseVal.width || chartContainer.clientWidth)
+          : hostBounds.width / Math.max(1, tooltipHostElement.offsetWidth),
+      positionContainerElement = isTooltipOnHost
+        ? tooltipHostElement
+        : isTooltipOnDialogLayer
+          ? dialogLayerElement
           : null,
-        tooltipScale =
-          tooltipMountElement === tooltipHostElement
-            ? chartBounds.width /
-              Math.max(1, chartContainer.viewBox?.baseVal.width || chartContainer.clientWidth)
-            : hostBounds.width / Math.max(1, tooltipHostElement.offsetWidth),
-        positionContainerElement = isTooltipOnHost
-          ? tooltipHostElement
-          : isTooltipOnDialogLayer
-            ? dialogLayerElement
-            : null,
-        positionContainerBounds = isTooltipOnHost ? hostBounds : dialogLayerBounds,
-        horizontalScale = positionContainerElement
-          ? positionContainerBounds.width / Math.max(1, positionContainerElement.offsetWidth)
-          : 1,
-        verticalScale = positionContainerElement
-          ? positionContainerBounds.height / Math.max(1, positionContainerElement.offsetHeight)
-          : 1,
-        dialogLocalLeft = isTooltipOnDialogLayer
-          ? (absoluteLeft - dialogLayerBounds.left) / horizontalScale
-          : absoluteLeft,
-        dialogLocalTop = isTooltipOnDialogLayer
-          ? (absoluteTop - dialogLayerBounds.top) / verticalScale
-          : absoluteTop;
-      ((tooltipElement.textContent =
-        formatTimestamp(nearestPoint.timestamp) +
-        "  " +
-        formatLineChartValue(nearestPoint.value, valueFormat) +
-        valueSuffix),
-        (tooltipElement.style.position =
-          isTooltipOnHost || isTooltipOnDialogLayer ? "absolute" : "fixed"),
-        (tooltipElement.style.left =
-          (isTooltipOnHost ? localOffsetX / horizontalScale : dialogLocalLeft) + "px"),
-        (tooltipElement.style.top =
-          (isTooltipOnHost ? localOffsetY / verticalScale : dialogLocalTop) + "px"),
-        (tooltipElement.style.transformOrigin = "0 0"),
-        (tooltipElement.hidden = false));
-      const tooltipPixelWidth = tooltipElement.offsetWidth * tooltipScale,
-        containerLeftEdge = positionContainerBounds?.left ?? 0,
-        containerRightEdge = positionContainerBounds?.right ?? window.innerWidth,
-        tooltipTranslateX =
-          absoluteLeft - tooltipPixelWidth / 2 < containerLeftEdge
-            ? "0"
-            : absoluteLeft + tooltipPixelWidth / 2 > containerRightEdge
-              ? "-100%"
-              : "-50%";
-      ((tooltipElement.style.transform =
-        "scale(" +
-        tooltipScale / horizontalScale +
-        ", " +
-        tooltipScale / verticalScale +
-        ") translate(" +
-        tooltipTranslateX +
-        ", calc(-100% - 9px))"),
-        (hoverGuideElement.style.left = guideLeftPercent + "%"),
-        (hoverDotElement.style.left = guideLeftPercent + "%"),
-        (hoverDotElement.style.top = guideTopPercent + "%"),
-        (tooltipElement.hidden = false),
-        (hoverGuideElement.hidden = false),
-        (hoverDotElement.hidden = false));
-    },
-    handleChartPointerLeave = () => {
-      ((tooltipElement.hidden = true),
-        (hoverGuideElement.hidden = true),
-        (hoverDotElement.hidden = true));
-    };
+      positionContainerBounds = isTooltipOnHost ? hostBounds : dialogLayerBounds,
+      horizontalScale = positionContainerElement
+        ? positionContainerBounds.width / Math.max(1, positionContainerElement.offsetWidth)
+        : 1,
+      verticalScale = positionContainerElement
+        ? positionContainerBounds.height / Math.max(1, positionContainerElement.offsetHeight)
+        : 1,
+      dialogLocalLeft = isTooltipOnDialogLayer
+        ? (absoluteLeft - dialogLayerBounds.left) / horizontalScale
+        : absoluteLeft,
+      dialogLocalTop = isTooltipOnDialogLayer
+        ? (absoluteTop - dialogLayerBounds.top) / verticalScale
+        : absoluteTop;
+    ((tooltipElement.textContent =
+      formatTimestamp(nearestPoint.timestamp) +
+      "  " +
+      formatLineChartValue(nearestPoint.value, valueFormat) +
+      valueSuffix),
+      (tooltipElement.style.position =
+        isTooltipOnHost || isTooltipOnDialogLayer ? "absolute" : "fixed"),
+      (tooltipElement.style.left =
+        (isTooltipOnHost ? localOffsetX / horizontalScale : dialogLocalLeft) + "px"),
+      (tooltipElement.style.top =
+        (isTooltipOnHost ? localOffsetY / verticalScale : dialogLocalTop) + "px"),
+      (tooltipElement.style.transformOrigin = "0 0"),
+      (tooltipElement.hidden = false));
+    const tooltipPixelWidth = tooltipElement.offsetWidth * tooltipScale,
+      containerLeftEdge = positionContainerBounds?.left ?? 0,
+      containerRightEdge = positionContainerBounds?.right ?? window.innerWidth,
+      tooltipTranslateX =
+        absoluteLeft - tooltipPixelWidth / 2 < containerLeftEdge
+          ? "0"
+          : absoluteLeft + tooltipPixelWidth / 2 > containerRightEdge
+            ? "-100%"
+            : "-50%";
+    ((tooltipElement.style.transform =
+      "scale(" +
+      tooltipScale / horizontalScale +
+      ", " +
+      tooltipScale / verticalScale +
+      ") translate(" +
+      tooltipTranslateX +
+      ", calc(-100% - 9px))"),
+      (hoverGuideElement.style.left = guideLeftPercent + "%"),
+      (hoverDotElement.style.left = guideLeftPercent + "%"),
+      (hoverDotElement.style.top = guideTopPercent + "%"),
+      (tooltipElement.hidden = false),
+      (hoverGuideElement.hidden = false),
+      (hoverDotElement.hidden = false));
+  };
+  const handleChartPointerMove = (pointerEvent: any) => {
+    pendingHoverEvent = pointerEvent;
+    if (hoverFrame !== null) return;
+    hoverFrame = requestAnimationFrame(() => {
+      hoverFrame = null;
+      const latestEvent = pendingHoverEvent;
+      pendingHoverEvent = null;
+      if (latestEvent) applyChartPointerMove(latestEvent);
+    });
+  };
+  const handleChartPointerLeave = () => {
+    // 离开时丢掉还没落地的那一帧，避免 tooltip 隐藏后又被补画一次。
+    if (hoverFrame !== null) {
+      cancelAnimationFrame(hoverFrame);
+      hoverFrame = null;
+    }
+    pendingHoverEvent = null;
+    ((tooltipElement.hidden = true),
+      (hoverGuideElement.hidden = true),
+      (hoverDotElement.hidden = true));
+  };
   return (
     chartContainer.addEventListener("pointermove", handleChartPointerMove),
     chartContainer.addEventListener("pointerleave", handleChartPointerLeave),

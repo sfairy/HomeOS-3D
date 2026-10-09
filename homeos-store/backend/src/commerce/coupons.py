@@ -140,13 +140,24 @@ def recompute_coupon_slots(session: Session) -> dict[str, int]:
     :func:`recount_coupon_slots`，这里是兜底入口。
     """
     changes: dict[str, int] = {}
-    for coupon_id, current in session.execute(
-        select(Coupon.id, func.coalesce(Coupon.redeemed_count, 0))
-    ).all():
-        before = int(current or 0)
-        expected = recount_coupon_slots(session, coupon_id)
+    # 真相在 coupon_redemptions：一次分组聚合拿到全部码的真实占用，再和反规范化
+    # 计数列比对。原实现对每个码都跑一次 count（1 + N 次查询），码多时是明显 N+1。
+    counted = {
+        str(coupon_id): int(total or 0)
+        for coupon_id, total in session.execute(
+            select(CouponRedemption.coupon_id, func.count(CouponRedemption.id))
+            .select_from(CouponRedemption)
+            .outerjoin(Order, Order.id == CouponRedemption.order_id)
+            .where(*holds_slot_conditions())
+            .group_by(CouponRedemption.coupon_id)
+        ).all()
+    }
+    for coupon in session.scalars(select(Coupon)):
+        before = int(coupon.redeemed_count or 0)
+        expected = counted.get(str(coupon.id), 0)
         if before != expected:
-            changes[coupon_id] = expected - before
+            coupon.redeemed_count = expected
+            changes[coupon.id] = expected - before
     session.flush()
     return changes
 

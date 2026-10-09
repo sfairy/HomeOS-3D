@@ -647,22 +647,30 @@ def close_pending_after_channel_close(session: Session, *, order: Order) -> bool
 def recompute_reserved_stock(session: Session) -> dict[str, int]:
     """按订单表重算每个商品的 ``reserved_stock``，返回「商品 id → 修正量」。
     """
-    counted = {
-        product_id: int(count or 0)
-        for product_id, count in session.execute(
-            select(Order.product_id, func.count(Order.id))
-            .where(Order.status.in_(RESERVING_STATUSES))
-            .where(Order.stock_reservation_released_at.is_(None))
-            .group_by(Order.product_id)
-        ).all()
-    }
+    reserved = (
+        select(
+            Order.product_id.label("product_id"),
+            func.count(Order.id).label("reserved"),
+        )
+        .where(Order.status.in_(RESERVING_STATUSES))
+        .where(Order.stock_reservation_released_at.is_(None))
+        .group_by(Order.product_id)
+        .subquery()
+    )
     changes: dict[str, int] = {}
-    for product in session.scalars(select(Product)):
-        expected = counted.get(product.id, 0)
+    # 只取「计数列与真实预留不一致」的商品：原实现把整个商品表读进 ORM 再逐行比对，
+    # 商品多时既慢又吃内存，而绝大多数商品本来就是一致的。
+    rows = session.execute(
+        select(Product, func.coalesce(reserved.c.reserved, 0))
+        .select_from(Product)
+        .outerjoin(reserved, reserved.c.product_id == Product.id)
+        .where(func.coalesce(Product.reserved_stock, 0) != func.coalesce(reserved.c.reserved, 0))
+    ).all()
+    for product, expected in rows:
         current = int(product.reserved_stock or 0)
-        if current != expected:
-            product.reserved_stock = expected
-            changes[product.id] = expected - current
+        target = int(expected or 0)
+        product.reserved_stock = target
+        changes[product.id] = target - current
     session.flush()
     return changes
 

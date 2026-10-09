@@ -479,7 +479,11 @@ const deleteProjectDialogElement = findElement("#delete-project-dialog"),
 let baseLightingComponentId = "",
   baseLightingSettings = normalizeBaseLighting2(DEFAULT_BASE_LIGHTING2),
   lightingPanelDragStateState: any = null,
-  lightingPanelDragState: any = null;
+  lightingPanelDragState: any = null,
+  // 光照面板拖拽：pointermove 只记录目标坐标，真正写样式合并到每帧一次（rAF），
+  // 面板尺寸与视口上限在 pointerdown 量一次，避免每次移动都强制一次同步布局。
+  lightingPanelDragFrame: number | null = null,
+  lightingPanelDragPending: { x: number; y: number } | null = null;
 const componentActionControlsElement = findElement("#component-action-controls"),
   floorplanAutoDiagramDialogElement = findElement("#floorplan-auto-diagram-dialog"),
   floorplanAutoDiagramCloseButtonElement = findElement("#floorplan-auto-diagram-close"),
@@ -10989,6 +10993,10 @@ for (const onFloorplanAutoLightingHandlePointermoveState of floorplanBaseLightEl
         startY: onFloorplanAutoLightingHandlePointermove.clientY,
         startLeft: targetBoundsEntry.left,
         startTop: targetBoundsEntry.top,
+        // 尺寸与「不越出视口」的上限只在按下时量一次：原来每次 pointermove 都重新
+        // getBoundingClientRect（拖拽中样式刚写过，这次读会强制同步布局）。
+        maxLeft: Math.max(8, window.innerWidth - targetBoundsEntry.width - 8),
+        maxTop: Math.max(8, window.innerHeight - targetBoundsEntry.height - 8),
       };
       try {
         floorplanAutoLightingHandleElement.setPointerCapture(
@@ -11004,31 +11012,50 @@ for (const onFloorplanAutoLightingHandlePointermoveState of floorplanBaseLightEl
     )
       return;
     lightingDragMoveEvent.preventDefault();
-    const movedPanelBounds = floorplanAutoLightingPanelElement.getBoundingClientRect(),
-      maxPanelLeft = Math.max(8, window.innerWidth - movedPanelBounds.width - 8),
-      maxPanelTop = Math.max(8, window.innerHeight - movedPanelBounds.height - 8);
-    ((floorplanAutoLightingPanelElement.style.right = "auto"),
-      (floorplanAutoLightingPanelElement.style.left =
-        clampNumber2(
-          lightingPanelDragStateState.startLeft +
-            lightingDragMoveEvent.clientX -
-            lightingPanelDragStateState.startX,
-          8,
-          maxPanelLeft,
-        ) + "px"),
-      (floorplanAutoLightingPanelElement.style.top =
-        clampNumber2(
-          lightingPanelDragStateState.startTop +
-            lightingDragMoveEvent.clientY -
-            lightingPanelDragStateState.startY,
-          8,
-          maxPanelTop,
-        ) + "px"));
+    // 只登记目标坐标；实际写样式在下一帧统一执行 —— pointermove 一帧可触发多次，
+    // 每次都写样式+读布局会让拖拽跟随变卡（每次两趟布局）。
+    lightingPanelDragPending = {
+      x: clampNumber2(
+        lightingPanelDragStateState.startLeft +
+          lightingDragMoveEvent.clientX -
+          lightingPanelDragStateState.startX,
+        8,
+        lightingPanelDragStateState.maxLeft,
+      ),
+      y: clampNumber2(
+        lightingPanelDragStateState.startTop +
+          lightingDragMoveEvent.clientY -
+          lightingPanelDragStateState.startY,
+        8,
+        lightingPanelDragStateState.maxTop,
+      ),
+    };
+    if (lightingPanelDragFrame !== null) return;
+    lightingPanelDragFrame = requestAnimationFrame(() => {
+      lightingPanelDragFrame = null;
+      applyLightingPanelDragMove();
+    });
   }));
+function applyLightingPanelDragMove() {
+  if (!lightingPanelDragPending) return;
+  (floorplanAutoLightingPanelElement.style.right = "auto"),
+    (floorplanAutoLightingPanelElement.style.left = lightingPanelDragPending.x + "px"),
+    (floorplanAutoLightingPanelElement.style.top = lightingPanelDragPending.y + "px");
+}
 const endLightingPanelDrag = (dragEndEvent: any) => {
-  !lightingPanelDragStateState ||
-    dragEndEvent.pointerId !== lightingPanelDragStateState.pointerId ||
-    (lightingPanelDragStateState = null);
+  if (
+    !lightingPanelDragStateState ||
+    dragEndEvent.pointerId !== lightingPanelDragStateState.pointerId
+  )
+    return;
+  // 收尾：把还没落地的那一帧补上，否则松手位置与视觉位置会差一帧。
+  if (lightingPanelDragFrame !== null) {
+    cancelAnimationFrame(lightingPanelDragFrame);
+    lightingPanelDragFrame = null;
+  }
+  applyLightingPanelDragMove();
+  lightingPanelDragPending = null;
+  lightingPanelDragStateState = null;
 };
 (floorplanAutoLightingHandleElement.addEventListener("pointerup", endLightingPanelDrag),
   floorplanAutoLightingHandleElement.addEventListener("pointercancel", endLightingPanelDrag));

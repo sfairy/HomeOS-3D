@@ -131,6 +131,29 @@ export function createTelevisionPanel({
   }
   (powerOnButton.addEventListener("click", () => sendPower(true)),
     powerOffButton.addEventListener("click", () => sendPower(false)));
+  /**
+   * 时间轴 / 进度条的独立刷新。
+   *
+   * 播放中 `position` 由 `media_position_updated_at` 推算，必须每秒重算；
+   * 秒级定时器只需重绘这一小段，而不是整个面板（标题、封面、按钮、设备视觉）。
+   */
+  function renderTimeline(state: any) {
+    ((progressElement.hidden = timeElement.hidden = false),
+      (progressElement.max = state.duration || 1),
+      (progressElement.value = state.position || 0),
+      (timeElement.textContent =
+        televisionTime(state.position) + " / " + televisionTime(state.duration)));
+  }
+  /** 秒级定时器：面板隐藏或已销毁时跳过，播放结束后自动停表。 */
+  function renderTimelineTick() {
+    if (!viewModel || isDisposed || rootElement.hidden) return;
+    const state = televisionState(viewModel.item, viewModel.states);
+    renderTimeline(state);
+    if (!state.playing && progressTimerId !== null) {
+      clearInterval(progressTimerId);
+      progressTimerId = null;
+    }
+  }
   function render() {
     if (!viewModel) return;
     const state = televisionState(viewModel.item, viewModel.states),
@@ -204,11 +227,7 @@ export function createTelevisionPanel({
             }),
             (artworkElement.src = artworkUrl))
           : artworkElement.removeAttribute("src")),
-      (progressElement.hidden = timeElement.hidden = false),
-      (progressElement.max = state.duration || 1),
-      (progressElement.value = state.position || 0),
-      (timeElement.textContent =
-        televisionTime(state.position) + " / " + televisionTime(state.duration)),
+      renderTimeline(state),
       !effectivePlaying &&
         progressTimerId !== null &&
         (clearInterval(progressTimerId), (progressTimerId = null)));
@@ -235,7 +254,7 @@ export function createTelevisionPanel({
         render(),
         televisionState(nextViewModel.item, nextViewModel.states).playing &&
           progressTimerId === null &&
-          (progressTimerId = setInterval(render, 1000)));
+          (progressTimerId = setInterval(renderTimelineTick, 1000)));
     },
     hide() {
       ((rootElement.hidden = true),

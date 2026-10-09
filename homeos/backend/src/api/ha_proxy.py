@@ -401,14 +401,11 @@ class LicensedCameraStreamingResponse(StreamingResponse):
 
             async def monitor_license() -> None:
                 nonlocal restricted
-                while await asyncio.to_thread(
-                    self.request.app.state.license_service.allows, feature_codes.FEATURE_SECURITY
-                ):
+                # 复用 `_camera_license_allows` 的进程内 TTL 缓存：原先这里每轮直接
+                # `to_thread(allows)` 两次（线程池跳 + license_state 查询），N 路摄像头
+                # 就是每秒 2N 次；现在多路流共享同一份判定，检查次数与流数解耦。
+                while await _camera_license_allows(self.request):
                     await asyncio.sleep(CAMERA_STREAM_LICENSE_CHECK_SECONDS)
-                    if not await asyncio.to_thread(
-                        self.request.app.state.license_service.allows, feature_codes.FEATURE_SECURITY
-                    ):
-                        break
                 restricted = True
                 _camera_stream_log(
                     self.request,

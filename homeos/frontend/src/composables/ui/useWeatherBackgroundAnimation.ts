@@ -348,12 +348,18 @@ export function useWeatherBackgroundAnimation(props: WeatherBackgroundProps) {
     ) {
       shootingStars.push(new ShootingStar(w, h))
     }
-    shootingStars = shootingStars.filter((ss: ShootingStar) => {
-      if (!richEffects) return false
-      const dead = ss.update(dt)
-      if (!dead && ctx) ss.draw(ctx)
-      return !dead
-    })
+    // 原地压缩存活项：原来每帧 ``filter`` 都会分配一个新数组（即使没有流星也在分配），
+    // 而这里是 60fps 的热路径。
+    let alive = 0
+    for (let index = 0; index < shootingStars.length; index += 1) {
+      const ss = shootingStars[index]
+      if (richEffects && !ss.update(dt)) {
+        if (ctx) ss.draw(ctx)
+        shootingStars[alive] = ss
+        alive += 1
+      }
+    }
+    shootingStars.length = alive
   }
 
   /** 绘制降水与效果（雨/雪/冰雹/落叶/玻璃水珠/闪电等） */

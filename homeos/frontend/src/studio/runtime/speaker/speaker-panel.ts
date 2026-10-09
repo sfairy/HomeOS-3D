@@ -436,6 +436,31 @@ export function createSpeakerPanel({
         ((browseAbortController = null), activeEntity && renderPanel());
     }
   }
+  /**
+   * 只刷新进度条与时间文本。
+   *
+   * 播放时 ``position`` 是按 ``media_position_updated_at`` 推算的，必须每秒重算；
+   * 但整面板 ``renderPanel`` 会把标题、封面、每个按钮、下拉选项都重写一遍 ——
+   * 每秒一次的定时器只需要走这一小段。
+   */
+  function renderTimeline(entityState: any) {
+    const hasTimeline = entityState.duration !== null && entityState.position !== null;
+    ((progressElement.hidden = !hasTimeline || entityState.supports("media_seek")),
+      (seekInput.hidden = !hasTimeline || !entityState.supports("media_seek")),
+      (timeElement.hidden = !hasTimeline),
+      (progressElement.max = seekInput.max = entityState.duration || 1),
+      (progressElement.value = entityState.position || 0),
+      document.activeElement !== seekInput && (seekInput.value = entityState.position || 0),
+      syncHtmlRangeProgress(seekInput),
+      (seekInput.disabled = isControlDisabled(entityState, "media_seek") || !entityState.on),
+      (timeElement.textContent =
+        televisionTime(entityState.position) + " / " + televisionTime(entityState.duration)));
+  }
+  /** 定时器专用：只按当前实体重算时间轴（面板已隐藏或已销毁时直接跳过）。 */
+  function renderTimelineTick() {
+    if (!activeEntity || isDisposed || panelElement.hidden) return;
+    renderTimeline(speakerState(activeEntity.item, activeEntity.states));
+  }
   function renderPanel() {
     if (!activeEntity || isDisposed) return;
     const entityState = speakerState(activeEntity.item, activeEntity.states);
@@ -496,17 +521,7 @@ export function createSpeakerPanel({
         "select_sound_mode",
         "repeat_set",
       ].some((supportedService) => entityState.supports(supportedService))));
-    const hasTimeline = entityState.duration !== null && entityState.position !== null;
-    ((progressElement.hidden = !hasTimeline || entityState.supports("media_seek")),
-      (seekInput.hidden = !hasTimeline || !entityState.supports("media_seek")),
-      (timeElement.hidden = !hasTimeline),
-      (progressElement.max = seekInput.max = entityState.duration || 1),
-      (progressElement.value = entityState.position || 0),
-      document.activeElement !== seekInput && (seekInput.value = entityState.position || 0),
-      syncHtmlRangeProgress(seekInput),
-      (seekInput.disabled = isControlDisabled(entityState, "media_seek") || !entityState.on),
-      (timeElement.textContent =
-        televisionTime(entityState.position) + " / " + televisionTime(entityState.duration)));
+    renderTimeline(entityState);
     const volumeLevel = entityState.attributes.volume_level;
     (document.activeElement !== volumeInput &&
       ((volumeInput.value = Number.isFinite(volumeLevel) ? volumeLevel * 100 : 0),
@@ -568,7 +583,7 @@ export function createSpeakerPanel({
       entityState.playing &&
         refreshIntervalId === null &&
         !panelElement.hidden &&
-        (refreshIntervalId = setInterval(renderPanel, 1000)));
+        (refreshIntervalId = setInterval(renderTimelineTick, 1000)));
     draftPowerOn !== null && entityState.on === draftPowerOn && (draftPowerOn = null);
     draftPlaying !== null && entityState.playing === draftPlaying && (draftPlaying = null);
     draftPowerOn === null &&

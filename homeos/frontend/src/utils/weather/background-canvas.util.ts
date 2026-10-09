@@ -691,6 +691,22 @@ export function drawSnowAccumulation(
   ctx.restore()
 }
 
+/**
+ * 按层排序的云顺序缓存。
+ *
+ * ``layer`` 只在构造时确定，云数组本身也是场景创建时一次性建好的，所以「谁在前面」
+ * 是稳定事实；原实现每帧 ``[...clouds].sort(...)`` 都在分配一份副本 + 重排，
+ * 这里按数组身份缓存一次（数组换了或长度变了才重排）。
+ */
+const sortedCloudsCache = new WeakMap<Cloud[], Cloud[]>()
+function cloudsByLayer(clouds: Cloud[]) {
+  const cached = sortedCloudsCache.get(clouds)
+  if (cached && cached.length === clouds.length) return cached
+  const sorted = [...clouds].sort((a, b) => a.layer - b.layer)
+  sortedCloudsCache.set(clouds, sorted)
+  return sorted
+}
+
 function drawDriftingClouds(
   ctx: CanvasRenderingContext2D,
   clouds: Cloud[],
@@ -704,7 +720,7 @@ function drawDriftingClouds(
   const storm = options.storm ?? false
   const alphaMul = options.alphaMul ?? 1
   const night = options.night ?? false
-  const sorted = [...clouds].sort((a, b) => a.layer - b.layer)
+  const sorted = cloudsByLayer(clouds)
   const effectiveWind = wind * windMul * driftMul
   sorted.forEach((c: Cloud) => {
     c.update(dt, effectiveWind)

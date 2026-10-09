@@ -71,13 +71,23 @@ async function reload(reset = false) {
   }
 }
 
-watch(
-  () => props.params,
-  () => {
-    void reload(true);
-  },
-  { deep: true },
+/**
+ * 参数指纹：只比较筛选值的组合。
+ *
+ * 原实现是 `watch(() => props.params, ..., { deep: true })` —— 父组件一旦改成内联对象
+ * （每次渲染都是新引用、内容却一样）就会触发一次多余的整页重拉，深监听还会把参数对象
+ * 完整遍历一遍。指纹方案下只有筛选值真的变了才会重置到第一页并重拉。
+ */
+const paramsKey = computed(() =>
+  Object.entries(props.params ?? {})
+    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+    .map(([key, value]) => `${key}=${value ?? ""}`)
+    .join("&"),
 );
+
+watch(paramsKey, () => {
+  void reload(true);
+});
 
 onMounted(() => reload());
 

@@ -111,41 +111,54 @@ class UsersBackupService:
         to_create: list[dict[str, Any]] = []
         skipped = 0
 
-        with self._session_factory() as session:
-            for row in users or []:
-                if not isinstance(row, dict):
+        prepared: list[tuple[str, dict[str, Any]]] = []
+        for row in users or []:
+            if not isinstance(row, dict):
+                continue
+            username = str(row.get("username") or "").strip()
+            if not username:
+                continue
+            prepared.append((username, row))
+
+        # 一次 IN 查询取回全部同名用户：原实现对每条导入记录各查一次库（导入 N 条就是
+        # N 次往返），而这里只需要「存在与否」和一个用于继承的 role/偏好快照。
+        existing_by_username: dict[str, User] = {}
+        if prepared:
+            with self._session_factory() as session:
+                existing_by_username = {
+                    row.username: row
+                    for row in session.execute(
+                        select(User).where(User.username.in_([name for name, _ in prepared]))
+                    ).scalars()
+                }
+
+        for username, row in prepared:
+            existing = existing_by_username.get(username)
+            if existing is not None:
+                if skip_existing:
+                    skipped += 1
                     continue
-                username = str(row.get("username") or "").strip()
-                if not username:
-                    continue
-                existing = session.execute(
-                    select(User).where(User.username == username)
-                ).scalar_one_or_none()
-                if existing is not None:
-                    if skip_existing:
-                        skipped += 1
-                        continue
-                    preferences = row.get("preferences")
-                    to_update.append(
-                        {
-                            "id": existing.id,
-                            "role": parse_user_role(row.get("role"), existing.role),
-                            "preferences": (
-                                preferences
-                                if preferences is not None
-                                else read_json_object(existing.preferences, {})
-                            ),
-                        }
-                    )
-                    continue
-                to_create.append(
+                preferences = row.get("preferences")
+                to_update.append(
                     {
-                        "username": username,
-                        "role": parse_user_role(row.get("role")),
-                        "preferences": row.get("preferences") or {},
-                        "token_version": int(row.get("tokenVersion") or 0),
+                        "id": existing.id,
+                        "role": parse_user_role(row.get("role"), existing.role),
+                        "preferences": (
+                            preferences
+                            if preferences is not None
+                            else read_json_object(existing.preferences, {})
+                        ),
                     }
                 )
+                continue
+            to_create.append(
+                {
+                    "username": username,
+                    "role": parse_user_role(row.get("role")),
+                    "preferences": row.get("preferences") or {},
+                    "token_version": int(row.get("tokenVersion") or 0),
+                }
+            )
 
         # 阶段二（单事务）：所有写入原子化，任一失败整体回滚
         with self._session_factory() as session, session.begin():
@@ -213,15 +226,28 @@ class UsersBackupService:
         with self._session_factory() as session, session.begin():
             for username in created_usernames or []:
                 session.execute(delete(User).where(User.username == username))
+            # 与 :meth:`import_users` 同款批量化：一次 IN 查询取快照，避免逐行查库。
+            prior_names = [
+                str(prior.get("username") or "").strip()
+                for prior in prior_users or []
+                if isinstance(prior, dict)
+            ]
+            prior_names = [name for name in prior_names if name]
+            existing_by_username: dict[str, User] = {}
+            if prior_names:
+                existing_by_username = {
+                    row.username: row
+                    for row in session.execute(
+                        select(User).where(User.username.in_(prior_names))
+                    ).scalars()
+                }
             for prior in prior_users or []:
                 if not isinstance(prior, dict):
                     continue
                 username = str(prior.get("username") or "").strip()
                 if not username:
                     continue
-                existing = session.execute(
-                    select(User).where(User.username == username)
-                ).scalar_one_or_none()
+                existing = existing_by_username.get(username)
                 if existing is None:
                     continue
                 session.execute(

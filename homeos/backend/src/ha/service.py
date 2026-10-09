@@ -25,7 +25,7 @@ import json
 import logging
 import time
 import traceback
-from collections import Counter
+from collections import Counter, OrderedDict
 from contextvars import copy_context
 from typing import Any
 
@@ -119,10 +119,12 @@ class HAConnectorService(HomeOSFacadeMixin):
         self._watch_lock = asyncio.Lock()
         self._registry_refresh_tasks = { }
         self._history_semaphore = asyncio.Semaphore(HISTORY_FETCH_CONCURRENCY)
-        self._history_cache = { }
-        self._history_fetches = { }
+        # 缓存用 OrderedDict 做 O(1) LRU：原实现超限时 `min(...)` 全表扫描找最旧键，
+        # 历史缓存上限 256、翻译缓存 32，虽然不常触发，但触发时是 O(n) 且持锁执行。
+        self._history_cache: OrderedDict[tuple[str, str, int], tuple[float, list[dict[str, Any]]]] = OrderedDict()
+        self._history_fetches: dict[tuple[str, str, int], asyncio.Task[list[dict[str, Any]]]] = {}
         self._history_cache_lock = asyncio.Lock()
-        self._translation_cache = { }
+        self._translation_cache: OrderedDict[tuple[str, str, tuple[str, ...]], tuple[float, dict[str, str]]] = OrderedDict()
         self._translation_lock = asyncio.Lock()
         self._initial_sync_logged = False
         self._endpoint: HAEndpoint | None = None
@@ -544,15 +546,15 @@ class HAConnectorService(HomeOSFacadeMixin):
         async with self._translation_lock:
             cached = self._translation_cache.get(cache_key)
             if cached is not None and time.monotonic() - cached[0] < TRANSLATION_CACHE_SECONDS:
+                self._translation_cache.move_to_end(cache_key)
                 return dict(cached[1])
         resources = await (await self.client_for(connection)).fetch_entity_translations(
             requested, language = language,
         )
         async with self._translation_lock:
             self._translation_cache[cache_key] = (time.monotonic(), dict(resources))
-            if len(self._translation_cache) > 32:
-                oldest_key = min(self._translation_cache, key = lambda key: self._translation_cache[key][0])
-                self._translation_cache.pop(oldest_key, None)
+            while len(self._translation_cache) > 32:
+                self._translation_cache.popitem(last = False)
         return resources
 
     async def fetch_history(self, connection: HAConnection, entity_id: str, start_time: str, hours: int) -> list[dict[str, Any]]:
@@ -562,6 +564,7 @@ class HAConnectorService(HomeOSFacadeMixin):
         async with self._history_cache_lock:
             cached = self._history_cache.get(cache_key)
             if cached and now - cached[0] < HISTORY_CACHE_SECONDS:
+                self._history_cache.move_to_end(cache_key)
                 return list(cached[1])
             fetch = self._history_fetches.get(cache_key)
             if fetch is None:
@@ -579,9 +582,8 @@ class HAConnectorService(HomeOSFacadeMixin):
             history = await (await self.client_for(connection)).fetch_history(entity_id, start_time)
         async with self._history_cache_lock:
             self._history_cache[cache_key] = (time.monotonic(), list(history))
-            if len(self._history_cache) > 256:
-                oldest_key = min(self._history_cache, key = lambda key: self._history_cache[key][0])
-                self._history_cache.pop(oldest_key, None)
+            while len(self._history_cache) > 256:
+                self._history_cache.popitem(last = False)
         return history
 
     async def _run(self) -> None:

@@ -92,13 +92,18 @@ export function useDeviceSearchOptions({
     if (useRest.value) await refreshFromApi()
     else syncFromMemory()
   }
-  // 内存模式下监听变化即时同步；REST 模式等打开下拉时再拉取
+  // 内存模式下监听变化即时同步；REST 模式等打开下拉时再拉取。
+  //
+  // 这里**不做深监听**：``memoryItems`` 是 computed，内容一变就会换成新数组
+  // （重算时机由 domain / epoch 依赖控制，见 useDevicesView），浅监听足以捕获；
+  // 而原来的 ``deep: true`` 会为这张最多 500 行、每行几十个字段的列表做一次完整深遍历，
+  // 并且任何行内字段变化都会把 500 条选项整体重算一遍。
   watch(
     [useRest, domain, memoryItems],
     () => {
       if (!useRest.value) syncFromMemory()
     },
-    { immediate: true, deep: true },
+    { immediate: true },
   )
   return { options, onDropdownOpen, refreshFromApi }
 }

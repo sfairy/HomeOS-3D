@@ -81,6 +81,11 @@ class RealtimeGateway:
         self._sub_pinned_sids: dict[str, set[str]] = {}
         self._sid_sub_domains: dict[str, set[str] | None] = {}
         self._sid_pinned: dict[str, set[str]] = {}
+        #: 会话镜像（sid → session dict）。广播是热路径：每次都对每个候选 sid 走一次
+        # ``sio.get_session``（引擎侧存储往返，Redis/企业级 manager 下是网络 IO），
+        # 客户端多、变更频繁时会成为 WS 推送的主成本。会话只在此处（connect）与
+        # ``update_subscription`` 写入，disconnect 清除，镜像与引擎会话保持同步。
+        self._sessions: dict[str, dict[str, Any]] = {}
         self.state_store: StateStore = StateStore()
         self._state_cfg_at = 0.0
         self._ws_cfg_cache: Any | None = None
@@ -180,14 +185,13 @@ class RealtimeGateway:
             raise socketio.exceptions.ConnectionRefusedError("unauthorized") from None
 
         auth_payload = auth if isinstance(auth, dict) else {}
-        await self.sio.save_session(
-            sid,
-            {
-                "user": user,
-                "subscribedDomains": auth_payload.get("subscribeDomains"),
-                "pinnedEntityIds": auth_payload.get("pinnedEntityIds"),
-            },
-        )
+        session_payload = {
+            "user": user,
+            "subscribedDomains": auth_payload.get("subscribeDomains"),
+            "pinnedEntityIds": auth_payload.get("pinnedEntityIds"),
+        }
+        await self.sio.save_session(sid, session_payload)
+        self._sessions[sid] = session_payload
         await self.sio.enter_room(sid, resolve_user_room_key(user, sid))
         self.connected.add(sid)
         self.app.state.socket_clients = len(self.connected)
@@ -295,7 +299,23 @@ class RealtimeGateway:
         self.connected.discard(sid)
         self._baseline_ready.discard(sid)
         self._unindex_subscription(sid)
+        self._sessions.pop(sid, None)
         self.app.state.socket_clients = len(self.connected)
+
+    def _session_for(self, sid: str) -> dict[str, Any]:
+        """取 sid 的会话（内存镜像优先）。镜像未命中时返回空 dict（fail-open：
+        视为无订阅限制，与 ``get_session`` 返回 None 时的既有行为一致）。"""
+        return self._sessions.get(sid) or {}
+
+    async def _load_session(self, sid: str) -> dict[str, Any]:
+        """会话读取（镜像未命中时回落到引擎存储，供连接恢复等边角场景）。"""
+        cached = self._sessions.get(sid)
+        if cached is not None:
+            return cached
+        session = dict(await self.sio.get_session(sid) or {})
+        if session:
+            self._sessions[sid] = session
+        return session
 
     def _unindex_subscription(self, sid: str) -> None:
         domains = self._sid_sub_domains.pop(sid, None)
@@ -362,11 +382,11 @@ class RealtimeGateway:
     # ------------------------------------------------------------------ #
     async def _on_update_subscription(self, sid: str, payload: Any = None) -> dict[str, Any]:
         payload = payload if isinstance(payload, dict) else {}
-        session = await self.sio.get_session(sid)
-        session = dict(session or {})
+        session = dict(await self._load_session(sid))
         session["subscribedDomains"] = payload.get("subscribeDomains")
         session["pinnedEntityIds"] = payload.get("pinnedEntityIds")
         await self.sio.save_session(sid, session)
+        self._sessions[sid] = session
         self._index_subscription(
             sid, session.get("subscribedDomains"), session.get("pinnedEntityIds")
         )
@@ -473,17 +493,26 @@ class RealtimeGateway:
         payloads = [to_ws_state_change_payload(change) for change in changes]
         timestamp = _iso_now()
         critical = set(ws_cfg.critical_domains)
+        # 可见性判定按用户缓存：同一账号可能有多个连接（多端/多标签），
+        # `is_entity_allowed` 会对每个 (连接 × 变更) 重算一次限制列表；
+        # 这里按「限制列表指纹」复用同一批次内的判定结果。
+        visibility_cache: dict[Any, dict[str, bool]] = {}
         # 先按域/钉选收窄候选，再对候选做精确可见性过滤（见 _baseline_ready 说明）
         for sid in self._candidate_sids_for_changes(changes, critical):
-            session = await self.sio.get_session(sid)
-            session = session or {}
+            session = self._session_for(sid)
             user = session.get("user") or {}
             subscribed = _as_set(session.get("subscribedDomains"))
             pinned = _as_set(session.get("pinnedEntityIds"), require_dot=True)
             visible: list[dict[str, Any]] = []
+            has_pinned = False
+            user_cache = _visibility_cache_for(visibility_cache, user)
             for change, payload in zip(changes, payloads, strict=False):
                 entity_id = change["entity_id"]
-                if not _entity_visible(user, entity_id):
+                allowed = user_cache.get(entity_id)
+                if allowed is None:
+                    allowed = _entity_visible(user, entity_id)
+                    user_cache[entity_id] = allowed
+                if not allowed:
                     continue
                 if not is_entity_visible_to_client(
                     entity_id,
@@ -494,12 +523,11 @@ class RealtimeGateway:
                 ):
                     continue
                 visible.append(payload)
+                if pinned is not None and entity_id in pinned:
+                    has_pinned = True
             if not visible:
                 continue
             # 批次含钉选实体时对该客户端可靠推送（背压下仍尝试送达）
-            has_pinned = pinned is not None and any(
-                str(change.get("entity_id")) in pinned for change in changes
-            )
             if self._is_socket_backpressured(sid):
                 if has_pinned:
                     await self.sio.emit(
@@ -577,7 +605,7 @@ class RealtimeGateway:
         else:
             rooms: set[str] = set()
             for sid in list(self.connected):
-                session = (await self.sio.get_session(sid)) or {}
+                session = self._session_for(sid)
                 user = session.get("user") or {}
                 if not _entity_visible(user, str(entity_id)):
                     continue
@@ -768,6 +796,26 @@ def _entity_visible(user: dict[str, Any], entity_id: str) -> bool:
     from .access import is_entity_allowed
 
     return is_entity_allowed(entity_id, user)
+
+
+def _visibility_cache_for(
+    cache: dict[Any, dict[str, bool]], user: dict[str, Any]
+) -> dict[str, bool]:
+    """取（或建）某个用户的可见性缓存分桶。
+
+    同一账号常有多个连接（多端 / 多标签 / 断线重连并存）；``is_entity_allowed``
+    每次都要重新解析用户的 restrictions 列表，按批次复用可省掉重复解析与正则式前缀比较。
+    分桶键用限制列表的不可变指纹：无限制 / 无可见实体 / 具体前缀集合。
+    """
+    from .access import resolve_entity_restrictions
+
+    restrictions = resolve_entity_restrictions(user)
+    key: Any = None if restrictions is None else (() if not restrictions else tuple(restrictions))
+    bucket = cache.get(key)
+    if bucket is None:
+        bucket = {}
+        cache[key] = bucket
+    return bucket
 
 
 def _ha_status_payload(status: str, snapshot: dict[str, Any]) -> dict[str, Any]:

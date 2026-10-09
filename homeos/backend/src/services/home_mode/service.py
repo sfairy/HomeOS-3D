@@ -355,12 +355,21 @@ class HomeModeService:
         )
 
     async def reorder(self, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        with self._session_factory() as session:
-            for item in items:
-                row = session.get(HomeMode, item.get("id"))
-                if row is not None:
-                    row.sort_order = int(item.get("sortOrder") or 0)
-            session.commit()
+        # 一次性 IN 查询取回全部目标模式：原实现按条目逐个 `session.get`，
+        # 拖拽排序 N 个模式就是 N 次往返（N+1）。
+        order_by_id = {
+            str(item.get('id')): int(item.get('sortOrder') or 0)
+            for item in items
+            if item.get('id')
+        }
+        if order_by_id:
+            with self._session_factory() as session:
+                rows = session.execute(select(HomeMode).where(HomeMode.id.in_(tuple(order_by_id)))).scalars()
+                for row in rows:
+                    target = order_by_id.get(str(row.id))
+                    if target is not None:
+                        row.sort_order = target
+                session.commit()
         await self.reload_trigger_bindings()
         return self.find_all()
 

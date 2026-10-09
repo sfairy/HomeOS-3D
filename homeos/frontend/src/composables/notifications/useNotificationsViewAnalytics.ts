@@ -473,14 +473,60 @@ export function useNotificationsViewAnalytics(
     stopRankResize = observeChartResize(rankChartRef.value, () => charts.rank?.resize())
   }
 
-  // 监听数据变化：notifications / stats / summary / hours / activeSource 任一变化 → 重渲染
-  watch(
-    [notifications, () => unref(props.stats), summary, hours, () => unref(props.activeSource)],
-    () => {
-      nextTick(renderCharts)
-    },
-    { deep: true },
-  )
+  // 重渲染调度：合并同一轮内的多次触发。图表 option 构建 + echarts.setOption + resize
+  // 每次都要走一遍 5 张图，重复触发（列表批量变更时很常见）不该排成 5 份渲染任务。
+  let renderInFlight = false
+  let renderPending = false
+  async function runRender() {
+    renderInFlight = true
+    try {
+      do {
+        renderPending = false
+        await renderCharts()
+      } while (renderPending)
+    } finally {
+      renderInFlight = false
+    }
+  }
+  function scheduleRender() {
+    if (renderInFlight) {
+      renderPending = true
+      return
+    }
+    void runRender()
+  }
+
+  /**
+   * 图表指纹：只取**图表真正用到**的字段（来源 / 级别 / 创建时间 + 两个小对象 + 窗口），
+   * 拼成一个字符串。
+   *
+   * 原实现对 ``[notifications, stats, summary, hours, activeSource]`` 开 ``deep: true``：
+   * 每次变更都要深遍历整个通知列表（每条通知的全部字段），而且列表里任一行的任一字段
+   * 变化（比如某条通知的已读态被打上）都会重渲染全部 5 张图。指纹方案里订阅范围收窄到
+   * 「参与聚合的字段」，且内容没变时字符串不变、watcher 不会触发。
+   */
+  const analyticsSignature = computed(() => {
+    const rows = notifications.value
+    const listKey =
+      rows.length > 0
+        ? rows
+            .map((row) => `${row.source ?? ''}\u0000${row.level ?? ''}\u0000${row.createdAt ?? row.time ?? ''}`)
+            .join('\u0001')
+        : ''
+    return [
+      hours.value,
+      unref(props.activeSource),
+      JSON.stringify(serverStats.value ?? null),
+      JSON.stringify(summary.value),
+      rows.length,
+      listKey,
+    ].join('\u0002')
+  })
+
+  // 监听数据变化：指纹变化（即图表输入真的变了）→ 合并渲染
+  watch(analyticsSignature, () => {
+    nextTick(scheduleRender)
+  })
 
   // 挂载：nextTick 等 DOM 渲染完成 → 渲染 + 绑定 resize，再延时 120ms 二次渲染兜底
   onMounted(() => {
