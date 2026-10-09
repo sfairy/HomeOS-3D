@@ -430,6 +430,11 @@ export function useDevicesView() {
     try {
       if (domain === 'cover') {
         const service = coverToggleService(state)
+        // 状态不可用/未知（unavailable / unknown）时不下发命令
+        if (!service) {
+          chrome.notify('设备状态未知，暂时无法操作', 'warning')
+          return
+        }
         await entitiesStore.callService('cover', service, item.entity_id, null, false)
       } else if (domain === 'lock') {
         const service = state === 'unlocked' ? 'lock' : 'unlock'

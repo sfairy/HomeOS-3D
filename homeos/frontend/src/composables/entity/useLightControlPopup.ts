@@ -4,14 +4,14 @@
  * 职责：
  * - 提供灯光弹窗所需的实时实体、能力属性（色温/RGB 支持、Kelvin 范围）；
  * - 亮度、色温、颜色（RGB/HS）滑块与色盘交互，并通过 HA service 下发；
- * - 颜色空间转换（HSL/RGB/Hex 互转）、过渡时间控制；
+ * - 颜色空间转换（HSV/RGB/Hex 互转）、过渡时间控制；
  * - 通过 useSliderCommit 统一处理拖拽本地值与提交，避免拖拽期间被外部更新打断。
  *
  * 依赖：vue ref/computed/watch/onMounted、useLiveEntity、useEntityPopupHeader、
  * useHaEntityService、useSliderCommit、entity-cold-fetch、progress-bar 工具、
  * `@/composables/entity/control/light-control-core`（能力/颜色/服务 data）。
  */
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useLiveEntity } from '@/composables/entity/useLiveEntity'
 import { useEntityPopupHeader } from '@/composables/entity/useEntityPopupBase'
 import { useHaEntityService } from '@/composables/entity/useHaEntityService'
@@ -34,7 +34,7 @@ import {
   lightSupportsColorTemp,
   lightBrightnessPct,
   lightBrightnessFromPct,
-  hslToRgb,
+  hsvToRgb,
   rgbToHs,
   hexToRgb,
   buildLightTurnOnData,
@@ -216,7 +216,7 @@ export function useLightControlPopup(props: {
     const rgb = liveEntity.value?.attributes?.rgb_color as number[] | undefined
     if (rgb && rgb.length >= 3) return { r: rgb[0], g: rgb[1], b: rgb[2] }
     const hs = liveEntity.value?.attributes?.hs_color as number[] | undefined
-    if (hs && hs.length >= 2) return hslToRgb(hs[0], hs[1])
+    if (hs && hs.length >= 2) return hsvToRgb(hs[0], hs[1])
     return { r: 255, g: 200, b: 100 }
   })
 
@@ -234,24 +234,53 @@ export function useLightControlPopup(props: {
    * 释放时提交颜色。
    * @param e 鼠标或触摸事件
    */
+  /**
+   * 色盘拖拽的全局监听清理句柄。
+   *
+   * 旧实现只在 mouseup/touchend 里解绑：若拖拽过程中弹窗被关闭 / 组件卸载
+   * （用户点完抬起手指前 popup 消失、路由切换、实体切换等），监听不会解绑；
+   * 之后任意一次全局 mouseup 都会触发 up() → commitPickerColor()，对已关闭的
+   * 面板下发一次多余的 light.turn_on。这里把清理句柄保留在作用域上，
+   * 由 onBeforeUnmount 兜底解绑，并禁止卸载后的意外提交。
+   */
+  let stopPicking: (() => void) | null = null
+
   function startPickColor(e: MouseEvent | TouchEvent) {
     const rect = paletteRef.value?.getBoundingClientRect()
     if (!rect) return
+    if (stopPicking) stopPicking()
     updateFromEvent(e, rect)
     const move = (ev: MouseEvent | TouchEvent) => updateFromEvent(ev, rect)
     const up = (ev: MouseEvent | TouchEvent) => {
+      stopPicking?.()
+      stopPicking = null
+      if (ev) updateFromEvent(ev, rect)
+      commitPickerColor()
+    }
+    // 卸载兜底 / 触摸被打断：只解绑监听，不提交颜色（用户没有完成这次取色）
+    stopPicking = () => {
       window.removeEventListener('mousemove', move)
       window.removeEventListener('mouseup', up)
       window.removeEventListener('touchmove', move)
       window.removeEventListener('touchend', up)
-      if (ev) updateFromEvent(ev, rect)
-      commitPickerColor()
+      window.removeEventListener('touchcancel', cancel)
+    }
+    const cancel = () => {
+      stopPicking?.()
+      stopPicking = null
     }
     window.addEventListener('mousemove', move)
     window.addEventListener('mouseup', up)
     window.addEventListener('touchmove', move)
     window.addEventListener('touchend', up)
+    // 触摸被系统打断（来电、手势返回等）时结束拖拽，避免监听残留与误提交
+    window.addEventListener('touchcancel', cancel)
   }
+
+  onBeforeUnmount(() => {
+    stopPicking?.()
+    stopPicking = null
+  })
 
   /**
    * 根据事件坐标更新色盘 hueX/satY（clamp 到 0-100）。
@@ -301,7 +330,7 @@ export function useLightControlPopup(props: {
   function commitPickerColor() {
     const h = Math.round(hueX.value * 3.6)
     const s = 100 - satY.value
-    applyRgbColor(hslToRgb(h, s))
+    applyRgbColor(hsvToRgb(h, s))
   }
 
   /**

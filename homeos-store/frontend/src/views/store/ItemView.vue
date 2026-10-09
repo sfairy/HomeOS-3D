@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useCatalogStore } from "../../stores/catalog.js";
 import { useSessionStore } from "../../stores/session.js";
@@ -9,7 +9,7 @@ import { useConfirmStore } from "../../stores/confirm.js";
 import { useStoreToast } from "../../stores/toast.js";
 import { api } from "../../api/http.js";
 import { formatCents as money } from "../../money.js";
-import type { StoreLicense } from "../../store-types.js";
+import { errorMessage, type StoreLicense } from "../../store-types.js";
 
 const route = useRoute();
 const router = useRouter();
@@ -21,7 +21,7 @@ const confirm = useConfirmStore();
 const toast = useStoreToast();
 
 const coupon = ref("");
-const couponState = ref<"idle" | "checking" | "valid" | "invalid">("idle");
+const couponState = ref<"idle" | "checking" | "valid" | "invalid" | "error">("idle");
 const couponMessage = ref("");
 const couponDiscountCents = ref(0);
 const couponOriginalCents = ref(0);
@@ -133,6 +133,30 @@ watch(
   { immediate: true },
 );
 
+/**
+ * 站点配置是异步到达的（StoreLayout 先 await site.load()），上面的 watch 首次执行时
+ * `channels` 往往还是空数组，于是单通道站点不会自动选中渠道，提交时 payload 里
+ * 缺少 paymentChannel。这里单独监听渠道列表补齐默认值，并在已选渠道下线时清空选择。
+ */
+watch(
+  channels,
+  (list) => {
+    if (list.length === 1) {
+      paymentChannel.value = list[0]!.provider;
+      return;
+    }
+    if (paymentChannel.value && !list.some((item) => item.provider === paymentChannel.value)) {
+      paymentChannel.value = "";
+    }
+  },
+  { immediate: true },
+);
+
+onBeforeUnmount(() => {
+  // 离开商品页时取消待执行的优惠码校验：否则防抖定时器仍会发出一次请求
+  window.clearTimeout(couponTimer);
+});
+
 watch(coupon, () => {
   window.clearTimeout(couponTimer);
   if (!coupon.value.trim() || isManual.value) {
@@ -171,11 +195,19 @@ async function previewCoupon() {
     couponDiscountCents.value = result.discountCents;
     couponOriginalCents.value = result.originalAmountCents;
     couponAmountCents.value = result.amountCents;
-  } catch {
+  } catch (error) {
     if (code !== coupon.value.trim()) return;
-    couponState.value = "invalid";
-    couponMessage.value = "优惠码无效";
     couponDiscountCents.value = 0;
+    const status = (error as { status?: number }).status;
+    // 只有服务端明确判定该码不可用（4xx）才算「无效」；
+    // 网络中断 / 5xx / 限流不能断言码有问题，否则用户会以为码作废而按原价下单。
+    if (status !== undefined && status >= 400 && status < 500) {
+      couponState.value = "invalid";
+      couponMessage.value = errorMessage(error, "优惠码无效");
+    } else {
+      couponState.value = "error";
+      couponMessage.value = "优惠码校验失败，请稍后重试";
+    }
   }
 }
 

@@ -7,6 +7,7 @@
  */
 import { toRaw } from 'vue'
 import { useChromeStore } from '@/stores/chrome.store'
+import { clonePlain } from '@/utils/core/clone-plain.util'
 import type { EntityOptimisticDeps, HaEntityState, OptimisticPrediction } from '@/types/entity-store'
 
 /**
@@ -209,19 +210,33 @@ export function createEntityOptimisticState({
   patchProjectionsFromChanges,
   emitStateListeners,
   bumpEntityStateRevision,
+  fetchEntityState,
 }: EntityOptimisticDeps) {
   const optimisticState = new Map<string, OptimisticEntry>()
+
+  /** TTL 回滚后按需 REST 校正：备份可能停在乐观写入之前的旧值 */
+  function refreshAfterRollback(entityId: string): void {
+    if (!fetchEntityState) return
+    void fetchEntityState(entityId)
+      .then((fetched) => {
+        // 校正期间又产生了新的乐观写入时让位，避免覆盖用户刚点的目标态
+        if (!fetched?.entity_id || entities[entityId]?._optimistic) return
+        const prev = entities[entityId] ?? null
+        entities[entityId] = fetched
+        patchDerivedChanges([{ entity_id: entityId, oldEntity: prev, newEntity: fetched }])
+        patchProjectionsFromChanges([{ entity_id: entityId }], entities)
+        emitStateListeners(entityId, fetched, prev)
+        bumpEntityStateRevision(entityId)
+      })
+      .catch(() => undefined)
+  }
 
   function applyOptimistic(entityId: string, predicted: OptimisticPrediction): void {
     const cur = entities[entityId] || null
     const existing = optimisticState.get(entityId)
-    // 乐观备份对 attributes 做浅拷贝，避免与主缓存共享引用被后续合并污染
-    const rawCur = cur ? toRaw(cur) : null
-    const backup = existing
-      ? existing.backup
-      : rawCur
-        ? { ...rawCur, attributes: { ...(rawCur.attributes || {}) } }
-        : null
+    // 备份必须深拷贝：attributes 里含嵌套数组/对象（rgb_color、hvac_modes、preset_modes 等），
+    // 浅拷贝会把引用共享给主缓存，后续合并或原地修改都会污染「快照」，回滚就复原不回去。
+    const backup = existing ? existing.backup : cur ? clonePlain(cur) : null
     if (existing?.timer) clearTimeout(existing.timer)
 
     // 累计期望目标（state/attributes 并集）：连续多次乐观调用（如先开灯再调亮度）时
@@ -258,23 +273,25 @@ export function createEntityOptimisticState({
     // 与字段说明「超时后等待服务端确认」一致，避免长期展示未确认的预测态
     const timer = setTimeout(() => {
       const c = entities[entityId]
-        if (c && c._optimistic) {
-          const prev: HaEntityState = { ...toRaw(c) }
-          if (backup) {
-            entities[entityId] = backup
-            patchDerivedChanges([{ entity_id: entityId, oldEntity: prev, newEntity: backup }])
-            patchProjectionsFromChanges([{ entity_id: entityId }], entities)
-            emitStateListeners(entityId, backup, prev)
-          } else {
-            // 与 rollbackOptimistic 语义统一：无备份（乐观新建实体）时删除实体，
-            // 而非仅剥离乐观标记残留幽灵实体，避免派生索引与实体表不一致
-            delete entities[entityId]
-            patchDerivedChanges([{ entity_id: entityId, oldEntity: prev, newEntity: null }])
-            emitStateListeners(entityId, null, prev)
-          }
-          bumpEntityStateRevision(entityId)
-          useChromeStore().notify('未生效，已恢复', 'warning')
+      if (c && c._optimistic) {
+        const prev: HaEntityState = { ...toRaw(c) }
+        if (backup) {
+          entities[entityId] = backup
+          patchDerivedChanges([{ entity_id: entityId, oldEntity: prev, newEntity: backup }])
+          patchProjectionsFromChanges([{ entity_id: entityId }], entities)
+          emitStateListeners(entityId, backup, prev)
+        } else {
+          // 与 rollbackOptimistic 语义统一：无备份（乐观新建实体）时删除实体，
+          // 而非仅剥离乐观标记残留幽灵实体，避免派生索引与实体表不一致
+          delete entities[entityId]
+          patchDerivedChanges([{ entity_id: entityId, oldEntity: prev, newEntity: null }])
+          emitStateListeners(entityId, null, prev)
         }
+        bumpEntityStateRevision(entityId)
+        useChromeStore().notify('未生效，已恢复', 'warning')
+        // 备份是「乐观写入前」的旧值，可能已被其他推送刷新；回滚后异步拉一次真值校正
+        refreshAfterRollback(entityId)
+      }
       optimisticState.delete(entityId)
     }, optimisticTtlMs())
     optimisticState.set(entityId, { backup, timer, expected })

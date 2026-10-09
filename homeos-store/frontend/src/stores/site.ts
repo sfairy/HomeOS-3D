@@ -46,9 +46,12 @@ export const useSiteStore = defineStore("site", () => {
       api<StoreConfiguration>("/configuration"),
       loadVersion(),
     ]);
-    if (config.status === "fulfilled") {
-      configuration.value = config.value;
+    if (config.status !== "fulfilled") {
+      // 拉取失败时不能置 loaded：否则本次会话内 load() 会直接短路返回，
+      // 站点名 / 公告 / 维护模式 / 支付渠道将一直停留在默认值，也不再重试。
+      return;
     }
+    configuration.value = config.value;
     loaded.value = true;
   }
 

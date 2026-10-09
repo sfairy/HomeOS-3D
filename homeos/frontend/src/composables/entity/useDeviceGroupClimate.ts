@@ -13,6 +13,7 @@
  * - @/types/entity-store：HaEntityState 实体状态类型。
  */
 import { Settings, ThermometerSnowflake, Droplets, Fan, Flame, Power } from '@lucide/vue'
+import { climateHasDualSetpoint } from '@/composables/entity/control/climate-control-core'
 import type { DeviceGroupEntitiesStoreLike } from '@/utils/device/group-battery.util'
 import type { HaEntityState } from '@/types/entity-store'
 
@@ -134,11 +135,48 @@ export function useDeviceGroupClimate(
     return 'text-emerald-400'
   }
 
+  /** 空调目标温度可调范围与步进（读实体的 min_temp / max_temp / target_temp_step，缺省 16–30/1） */
+  function climateTempRange(eid: string) {
+    const a = (getEntity(eid)?.attributes || {}) as Record<string, unknown>
+    const min = Number(a.min_temp)
+    const max = Number(a.max_temp)
+    const step = Number(a.target_temp_step)
+    const lo = Number.isFinite(min) ? min : 16
+    const hi = Number.isFinite(max) && max > lo ? max : Math.max(lo + 1, 30)
+    return {
+      min: lo,
+      max: hi,
+      step: Number.isFinite(step) && step > 0 ? step : 1,
+      dual: climateHasDualSetpoint(a),
+    }
+  }
+
   async function adjustClimateTemp(eid: string, delta: number) {
-    const entity = getEntity(eid)
-    const cur = entity?.attributes?.temperature
-    if (cur == null) return
-    const next = Math.min(30, Math.max(16, Number(cur) + delta))
+    const a = (getEntity(eid)?.attributes || {}) as Record<string, unknown>
+    const { min, max, dual } = climateTempRange(eid)
+    if (dual) {
+      // 双温区设备只接受 target_temp_low/high：混发 temperature 会被 HA 拒绝
+      const low = Number(a.target_temp_low)
+      if (!Number.isFinite(low)) return
+      const highRaw = Number(a.target_temp_high)
+      const high = Number.isFinite(highRaw) ? highRaw : max
+      const upper = Math.max(min, high - 2)
+      const next = Math.min(Math.max(low + delta, min), upper)
+      await entitiesStore.callService(
+        'climate',
+        'set_temperature',
+        eid,
+        { target_temp_low: next, target_temp_high: high },
+        false,
+      )
+      return
+    }
+    const raw = a.temperature
+    if (raw == null) return
+    const cur = Number(raw)
+    if (!Number.isFinite(cur)) return
+    // 用实体自身上下限钳制，避免把支持 12–35 的机型硬卡在 16–30
+    const next = Math.min(max, Math.max(min, cur + delta))
     await entitiesStore.callService('climate', 'set_temperature', eid, { temperature: next }, false)
   }
 

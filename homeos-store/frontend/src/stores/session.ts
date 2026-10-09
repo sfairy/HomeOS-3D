@@ -90,6 +90,27 @@ export const useSessionStore = defineStore("session", () => {
     return payload;
   }
 
+  /**
+   * 清空本地会话态（登出 / 会话失效共用）。
+   *
+   * 只清 `account` 是不够的：license 标志、许可列表、订单、设备释放策略都会留下来，
+   * 会话过期或被踢下线后 UI 仍会显示「已授权」、甚至渲染上一个账号的订单与功能码。
+   */
+  function resetSession() {
+    account.value = null;
+    hasLicense.value = false;
+    hasTemporaryLicense.value = false;
+    hasPermanentLicense.value = false;
+    hasUsedTrial.value = false;
+    licenses.value = [];
+    entitlements.value = [];
+    orders.value = [];
+    ordersTotal.value = 0;
+    ordersLoaded.value = 0;
+    deviceReleasePolicy.value = null;
+    syncAuthHint();
+  }
+
   async function fetchMe() {
     let payload: (AccountPayload & { account?: StoreAccount }) | null = null;
     try {
@@ -97,11 +118,10 @@ export const useSessionStore = defineStore("session", () => {
     } catch (error) {
       const status = (error as { status?: number }).status;
       // 会话已失效（过期 / 被踢出 / 库被重置）时，服务端会回 401/403。
-      // 此时必须清掉遗留的 hint cookie：否则外壳一直把访客当已登录，
-      // 每次进店都白打一发注定 401 的 /auth/me，还挂着已登录的导航。
+      // 此时必须清掉遗留的 hint cookie 与全部本地会话数据：否则外壳一直把访客当已登录，
+      // 每次进店都白打一发注定 401 的 /auth/me，还挂着已登录的导航与上一个账号的 license / 订单。
       if (status === 401 || status === 403) {
-        account.value = null;
-        syncAuthHint();
+        resetSession();
       }
       return null;
     }
@@ -163,14 +183,7 @@ export const useSessionStore = defineStore("session", () => {
 
   async function logout() {
     await api("/auth/logout", { method: "DELETE" }).catch(() => {});
-    account.value = null;
-    hasLicense.value = false;
-    hasTemporaryLicense.value = false;
-    hasPermanentLicense.value = false;
-    licenses.value = [];
-    entitlements.value = [];
-    orders.value = [];
-    syncAuthHint();
+    resetSession();
   }
 
   const eligiblePermanentLicenses = computed(() =>

@@ -22,6 +22,7 @@
  *
  * 实现说明：
  * - pendingCalls 用 Map 实现「同一 domain.service.entityId + serviceData」在去重窗口内复用 Promise
+ *   （toggle 等取反类服务除外，连点语义是两次独立操作，合并会吞掉第二次）
  * - pendingEntityIds 用 Set + 引用计数处理同一实体并发多服务调用，引用归零才移除
  */
 import { reactive } from 'vue'
@@ -39,6 +40,22 @@ import type { EntityActionsDeps, HaEntityState } from '@/types/entity-store'
 interface PendingCall {
   promise: Promise<unknown>
   time: number
+}
+
+/**
+ * 状态取反类服务不可去重。
+ *
+ * 去重窗口内两次同键调用会被合并成一次请求，对幂等命令（turn_on / set_temperature）无副作用，
+ * 但 toggle 这类「取反」命令连点两次的语义是「开→关」，合并后会吞掉第二次操作，
+ * 用户连点开关只生效一次，且第二次的乐观预测也被跳过。
+ */
+function isToggleLikeService(service: string): boolean {
+  return service === 'toggle' || service === 'media_play_pause' || service.endsWith('_toggle')
+}
+
+/** 该服务调用是否允许在去重窗口内复用 pending Promise */
+function shouldDedupeServiceCall(service: string): boolean {
+  return !isToggleLikeService(service)
 }
 
 /**
@@ -153,7 +170,7 @@ export function createEntityActions(deps: EntityActionsDeps) {
       throw new Error('当前账户无权操作该设备')
     }
     const dedupKey = `${domain}.${service}.${entityId}.${JSON.stringify(serviceData || {})}`
-    const existing = pendingCalls.get(dedupKey)
+    const existing = shouldDedupeServiceCall(service) ? pendingCalls.get(dedupKey) : undefined
     if (existing && Date.now() - existing.time < deps.callDedupWindowMs()) {
       return existing.promise
     }

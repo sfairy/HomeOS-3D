@@ -362,6 +362,8 @@ export interface EntityOptimisticDeps {
     oldState: HaEntityState | null,
   ) => void // 派发状态监听事件
   bumpEntityStateRevision: (entityId?: string) => void // 触发状态版本号变更
+  /** 单实体 REST 校正（TTL 回滚后拉真值，避免长期停留在陈旧备份） */
+  fetchEntityState?: (entityId: string) => Promise<HaEntityState | null>
 }
 
 /** 派生索引依赖 */

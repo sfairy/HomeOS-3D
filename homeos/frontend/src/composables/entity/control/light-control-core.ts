@@ -75,7 +75,14 @@ export function lightBrightnessFromPct(pct: number): number {
   return Math.max(1, Math.min(255, Math.round((pct / 100) * 255)))
 }
 
-export function hslToRgb(h: number, s: number): { r: number; g: number; b: number } {
+/**
+ * HSV → RGB（亮度取满 V=1）。
+ *
+ * 注意：HA 的 `hs_color` / 取色盘用的都是 **HSV**（饱和度 = d/max），不是 HSL。
+ * 旧函数名 `hslToRgb` 与 HA 语义不符，公式本身也是 HSV（c = s·v、m = v − c），
+ * 这里按真实语义改名为 hsvToRgb，避免调用方误把它当 HSL 用。
+ */
+export function hsvToRgb(h: number, s: number): { r: number; g: number; b: number } {
   const c = s / 100
   const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
   const m = 1 - c
@@ -108,18 +115,25 @@ export function hslToRgb(h: number, s: number): { r: number; g: number; b: numbe
   }
 }
 
+/**
+ * RGB → HSV（对齐 HA `hs_color`：hue 0-360、saturation 0-100、亮度取满 V=1）。
+ *
+ * 旧实现对饱和度误用了 HSL 公式（`l > 0.5 ? d/(2-max-min) : d/(max+min)`），
+ * 与 hsvToRgb 的 HSV 公式互逆性不成立：非纯色（如 rgb(200,100,100)）
+ * 回显饱和度会偏小，取色盘位置与实体实际颜色对不上。
+ */
 export function rgbToHs(r: number, g: number, b: number): { h: number; s: number } {
   r /= 255
   g /= 255
   b /= 255
   const max = Math.max(r, g, b),
     min = Math.min(r, g, b)
-  const l = (max + min) / 2
   let h = 0,
     s = 0
-  if (max !== min) {
-    const d = max - min
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+  const d = max - min
+  if (d !== 0) {
+    // HSV 饱和度：d / max（HSL 是 d / (1 - |2l - 1|)，两者仅在纯色下相等）
+    s = max === 0 ? 0 : d / max
     if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60
     else if (max === g) h = ((b - r) / d + 2) * 60
     else h = ((r - g) / d + 4) * 60

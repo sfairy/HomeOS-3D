@@ -20,6 +20,7 @@ import {
   unref,
   type MaybeRefOrGetter,
 } from 'vue'
+import { getEntityDomain } from '@homeos/shared'
 import { useEntitiesStore } from '@/stores/entities.store'
 import type { EntityStateListenerPayload } from '@/types/entity-store'
 /**
@@ -29,7 +30,8 @@ import type { EntityStateListenerPayload } from '@/types/entity-store'
  *   filter?: (payload: { entity_id: string }) => boolean
  *   entityIds?: import('vue').MaybeRefOrGetter<string | string[] | undefined | null>
  *   domains?: import('vue').MaybeRefOrGetter<string[] | undefined | null>
- * }} [options]
+ *   onResume?: () => void
+ * }} [options] onResume：全局监听（未传 entityIds/domains）时恢复后的补同步钩子
  * @returns {() => void} 手动取消订阅
  */
 export function usePausableStateListener(
@@ -40,6 +42,8 @@ export function usePausableStateListener(
     filter?: (payload: EntityStateListenerPayload) => boolean
     entityIds?: MaybeRefOrGetter<string | string[] | undefined | null>
     domains?: MaybeRefOrGetter<string[] | undefined | null>
+    /** 全局监听场景下恢复后的补同步钩子（范围已知时框架会按缓存现值自动补发） */
+    onResume?: () => void
   } = {},
 ) {
   const entitiesStore = useEntitiesStore()
@@ -113,11 +117,57 @@ export function usePausableStateListener(
   const refreshPaused = () => {
     paused = typeof document !== 'undefined' && document.hidden
   }
-  const onVisibility = () => refreshPaused()
-  onMounted(refreshPaused)
-  onActivated(() => {
+
+  /** 按缓存现值给订阅者补一次回调（不依赖网络，也不会放大成全局扇出） */
+  function emitCurrentState(entityId: string) {
+    const state = entitiesStore.getEntity(entityId)
+    if (!state) return
+    wrapped({ entity_id: entityId, new_state: state, old_state: state })
+  }
+
+  /**
+   * 恢复时补同步：暂停期间被丢弃的推送不会重放，若只等下一次推送，
+   * 常亮/壁挂屏在恢复后可能长期停留在暂停前的旧值（冷门实体可能数十分钟才有一次推送）。
+   */
+  function resyncScope() {
+    const ids = resolveEntityIds()
+    if (Array.isArray(ids)) {
+      for (const id of ids) emitCurrentState(id)
+      return
+    }
+    if (typeof ids === 'string' && ids) {
+      emitCurrentState(ids)
+      return
+    }
+    const domains = resolveDomains()
+    if (domains?.length) {
+      const wanted = new Set(domains)
+      // 仅遍历当前订阅的域，避免全局扇出
+      for (const id of Object.keys(entitiesStore.entities)) {
+        if (wanted.has(getEntityDomain(id))) emitCurrentState(id)
+      }
+      return
+    }
+    // 全局监听（无范围）：实体量级上千，逐条补发代价过高，交由调用方自定义钩子
+    options.onResume?.()
+  }
+
+  /** 退出暂停并补一次同步 */
+  function resumeListener() {
+    if (!paused) return
     paused = false
-  })
+    resyncScope()
+  }
+
+  const onVisibility = () => {
+    if (typeof document !== 'undefined' && document.hidden) {
+      paused = true
+      return
+    }
+    resumeListener()
+  }
+  onMounted(refreshPaused)
+  onActivated(resumeListener)
   onDeactivated(() => {
     paused = true
   })

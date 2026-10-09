@@ -423,6 +423,11 @@ export const useEntitiesStore = defineStore('entities', () => {
     patchProjectionsFromChanges,
     emitStateListeners,
     bumpEntityStateRevision,
+    fetchEntityState: async (entityId: string) => {
+      const { fetchEntityById } = await import('@/utils/entity/cold-fetch.util')
+      const fetched = (await fetchEntityById(entityId)) as HaEntityState | null | undefined
+      return fetched?.entity_id ? fetched : null
+    },
   })
   // 回填乐观更新引用，供 buildStateUpdateDeps / WS 事件延迟求值
   optimisticRef.optimisticState = optimisticState

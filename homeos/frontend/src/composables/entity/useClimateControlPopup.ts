@@ -168,21 +168,23 @@ export function useClimateControlPopup(props: EntityPopupBaseProps) {
 
   /**
    * 提交目标温度到 HA。
-   * 双温区场景下同步提交 target_temp_low/high，且 high 至少比 low 大 2 度。
+   *
+   * 双温区（heat_cool 类）设备只接受 `target_temp_low` / `target_temp_high`，
+   * 单温区设备只接受 `temperature`：两者混发会被 HA 判为无效参数（命令被拒或静默忽略），
+   * 因此这里按 `climateHasDualSetpoint` 二选一，且保证 high 至少比 low 大 2 度。
    * @param val 目标温度值。
    */
   async function setTempValue(val: number) {
     const domain = getEntityDomain(entityId()) || 'climate'
-    const data: Record<string, number> = { temperature: val }
-    if (liveEntity.value?.attributes?.target_temp_low !== undefined) {
+    const attrs = (liveEntity.value?.attributes || {}) as Record<string, unknown>
+    const data: Record<string, number> = {}
+    if (climateHasDualSetpoint(attrs)) {
+      const curHigh = Number(attrs.target_temp_high)
       data.target_temp_low = val
-      if (liveEntity.value?.attributes?.target_temp_high !== undefined) {
-        // 保证 high 不低于 low+2，避免温区交叉
-        data.target_temp_high = Math.max(
-          val + 2,
-          Number(liveEntity.value.attributes.target_temp_high),
-        )
-      }
+      // 保证 high 不低于 low+2，避免温区交叉
+      data.target_temp_high = Number.isFinite(curHigh) ? Math.max(val + 2, curHigh) : val + 2
+    } else {
+      data.temperature = val
     }
     try {
       await entitiesStore.callService(

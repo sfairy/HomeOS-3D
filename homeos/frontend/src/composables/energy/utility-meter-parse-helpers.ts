@@ -74,17 +74,27 @@ export const parseGasDayItem = makeUtilityMeterParser({
   labelKeys: ['readingTime', 'day', 'date'],
   ...numericUsageCost,
 })
+/**
+ * 燃气 / 水表的通用字段名。
+ *
+ * 这两类表的历史列表由供应商集成直接给出，字段名必须是「气/水」语义；
+ * 旧实现复用了电力字段名（`monthEleNum` / `monthEleCost` / `yearEleNum` / `ele`），
+ * 而 useUtilityMeterPopup 调用月/年解析器时并不传 amountKey/usageKey，
+ * 于是燃气弹窗的月度曲线会把同一份 payload 里的电力用量（kWh）当成用气量（m³）渲染。
+ */
+const FLUID_USAGE_KEYS = ['usage', 'cycleTotalVolume']
+const FLUID_COST_KEYS = ['amount', 'cycleTotalValues', 'money', 'cost']
 /** parseGasMonthItem：常量，取值语义见定义处。 */
 export const parseGasMonthItem = makeUtilityMeterParser({
-  usageKeys: ['monthEleNum', 'usage', 'ele'],
-  costKeys: ['monthEleCost', 'amount', 'cost'],
+  usageKeys: FLUID_USAGE_KEYS,
+  costKeys: FLUID_COST_KEYS,
   labelKeys: ['month', 'date'],
   ...numericUsageCost,
 })
 /** parseGasYearItem：常量，取值语义见定义处。 */
 export const parseGasYearItem = makeUtilityMeterParser({
-  usageKeys: ['usage', 'yearEleNum', 'ele'],
-  costKeys: ['amount', 'yearEleCost', 'cost'],
+  usageKeys: FLUID_USAGE_KEYS,
+  costKeys: FLUID_COST_KEYS,
   labelKeys: ['year', 'date'],
   ...numericUsageCost,
 })
@@ -115,23 +125,23 @@ export function parseWaterDayItem(
   usageKey: string = 'usage',
 ) {
   return makeUtilityMeterParser({
-    usageKeys: ['usage'],
-    costKeys: ['amount'],
+    usageKeys: FLUID_USAGE_KEYS,
+    costKeys: FLUID_COST_KEYS,
     labelKeys: ['day', 'date'],
     ...rawFieldUsageCost,
   })(x, amountKey, usageKey)
 }
 /** parseWaterMonthItem：常量，取值语义见定义处。 */
 export const parseWaterMonthItem = makeUtilityMeterParser({
-  usageKeys: ['monthEleNum', 'ele'],
-  costKeys: ['monthEleCost', 'cost'],
+  usageKeys: FLUID_USAGE_KEYS,
+  costKeys: FLUID_COST_KEYS,
   labelKeys: ['month', 'date'],
   ...rawFieldUsageCost,
 })
 /** parseWaterYearItem：常量，取值语义见定义处。 */
 export const parseWaterYearItem = makeUtilityMeterParser({
-  usageKeys: ['yearEleNum', 'ele'],
-  costKeys: ['yearEleCost', 'cost'],
+  usageKeys: FLUID_USAGE_KEYS,
+  costKeys: FLUID_COST_KEYS,
   labelKeys: ['year', 'date'],
   ...rawFieldUsageCost,
 })

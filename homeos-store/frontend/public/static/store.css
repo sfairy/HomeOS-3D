@@ -1978,6 +1978,12 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   color: var(--hb-danger-text);
 }
 
+/* 校验因网络 / 服务端故障失败（不是优惠码本身无效）时用警告色区分，
+   避免用户误以为优惠码作废而直接按原价下单。 */
+.hb-coupon-feedback.is-error {
+  color: var(--hb-warning-text, #b45309);
+}
+
 .hb-form-help {
   display: block;
   color: var(--hb-muted);

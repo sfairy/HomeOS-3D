@@ -59,8 +59,16 @@ export const useOrderStore = defineStore("order", () => {
   let pollTimer: number | null = null;
   let countdownTimer: number | null = null;
   let pendingTimer: number | null = null;
+  /**
+   * 轮询世代号：开始/关闭一次支付会话时自增。
+   * 在途的订单查询响应会带上取号时的世代，世代不一致说明弹窗已关闭或已换单，
+   * 该响应必须整体丢弃——否则会出现「用户已关闭支付弹窗，仍在途的轮询把订单写回
+   * currentOrder，并在 fulfilled 时把整页跳转到账号中心」。
+   */
+  let pollEpoch = 0;
 
   function stopPolling() {
+    pollEpoch++;
     if (pollTimer !== null) window.clearTimeout(pollTimer);
     if (countdownTimer !== null) window.clearInterval(countdownTimer);
     pollTimer = null;
@@ -99,27 +107,33 @@ export const useOrderStore = defineStore("order", () => {
     paymentOpen.value = true;
 
     stopPolling();
+    const epoch = pollEpoch;
     const updateCountdown = () => {
       const remaining = orderRemainingSeconds(currentOrder.value?.expiresAt || order.expiresAt);
       if (remaining > 0) return;
       if (countdownTimer !== null) window.clearInterval(countdownTimer);
       countdownTimer = null;
       paymentStatus.value = "正在自动关闭订单…";
-      void pollOrder(order.orderNo || "", order.lookupToken);
+      void pollOrder(order.orderNo || "", order.lookupToken, { epoch });
     };
     countdownTimer = window.setInterval(updateCountdown, 1000);
 
     const pollStartedAt = Date.now();
     const scheduleNextPoll = () => {
       if (pollTimer !== null) window.clearTimeout(pollTimer);
+      if (epoch !== pollEpoch) return;
       const status = currentOrder.value?.status;
       if (status && status !== "pending") return;
       const elapsed = Date.now() - pollStartedAt;
       const delay = elapsed < 60_000 ? 3000 : 8000;
       pollTimer = window.setTimeout(async () => {
         pollTimer = null;
+        if (epoch !== pollEpoch) return;
         if (!document.hidden) {
-          await pollOrder(order.orderNo || "", order.lookupToken, { reconcile: false });
+          await pollOrder(order.orderNo || "", order.lookupToken, {
+            reconcile: false,
+            epoch,
+          });
         }
         scheduleNextPoll();
       }, delay);
@@ -136,13 +150,16 @@ export const useOrderStore = defineStore("order", () => {
   async function pollOrder(
     orderNo: string,
     token?: string | null,
-    { reconcile = true }: { reconcile?: boolean } = {},
+    { reconcile = true, epoch }: { reconcile?: boolean; epoch?: number } = {},
   ) {
+    const startEpoch = epoch ?? pollEpoch;
     try {
       const query = reconcile ? "?reconcile=1" : "";
       const order = (await api<StoreOrder>(`/orders/${encodeURIComponent(orderNo)}${query}`, {
         headers: token ? { "X-Order-Token": token } : {},
       })) as StoreOrder;
+      // 响应到达时若支付会话已结束（用户关闭弹窗 / 换单），整体丢弃本次结果
+      if (startEpoch !== pollEpoch) return false;
       let label = STATUS_LABELS[order.status || ""] || order.statusLabel || order.status || "";
       if (order.status === "paid" && order.fulfillmentMode === "manual") {
         label = "支付成功，等待管理员发卡";

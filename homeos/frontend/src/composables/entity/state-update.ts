@@ -20,6 +20,7 @@ import type {
   EntityStateListenerPayload,
   EntityStateNotifyArgs,
   HaEntityState,
+  OptimisticPrediction,
   ResolveListenerOldStateArgs,
 } from '@/types/entity-store'
 import {
@@ -105,6 +106,47 @@ function optimisticPushMatches(
 }
 
 /**
+ * 未确认推送的字段级合并：预测字段保持乐观值，其余字段照常落地。
+ *
+ * 之前对「与预测不一致」的推送直接整条丢弃（返回 cached），代价是同实体的其它
+ * 真实变化（如空调周期性上报当前温度、灯具上报 linkquality）被一起吞掉，
+ * 界面要等下一次推送才恢复。这里改为按字段合并：只锁住乐观预测涉及的字段。
+ */
+function mergeUnconfirmedOptimistic(
+  cached: HaEntityState | null,
+  pushed: HaEntityState | null,
+  expected: OptimisticPrediction | undefined,
+): HaEntityState | null {
+  const base = cached || pushed
+  if (!base) return pushed
+  const next: HaEntityState = { ...base }
+  if (pushed) {
+    // 逐字段显式覆盖：HaEntityState 无索引签名，不能用 Record 强转
+    next.entity_id = pushed.entity_id || next.entity_id
+    next.state = pushed.state
+    if (pushed.last_changed !== undefined) next.last_changed = pushed.last_changed
+    if (pushed.last_updated !== undefined) next.last_updated = pushed.last_updated
+  }
+  const attrs: Record<string, unknown> = {
+    ...((base.attributes as Record<string, unknown>) || {}),
+    ...((pushed?.attributes as Record<string, unknown>) || {}),
+  }
+  const expectedAttrs = expected?.attributes
+  if (expectedAttrs) {
+    for (const key of Object.keys(expectedAttrs)) {
+      const value = expectedAttrs[key]
+      // 预测为「删除该属性」时同样保持删除，避免被推送值复活
+      if (value === undefined) delete attrs[key]
+      else attrs[key] = value
+    }
+  }
+  next.attributes = attrs
+  if (expected?.state !== undefined) next.state = expected.state
+  next._optimistic = true
+  return next
+}
+
+/**
  * per-entity 应用核心：规范化 → 乐观匹配 → 合并 → 写缓存 → 通知判定 → totalCount → derived patch。
  * 单条与批量共用，收敛乐观匹配、shouldNotify、derived patch、totalCount、revision 递增等约 90% 重复逻辑；
  * 派发/聚合策略（即时通知 vs 批量 rAF、逐条 bump vs 批量 bump）由两路径各自保留。
@@ -153,14 +195,9 @@ function applyEntityChange(
     if (optimisticPushMatches(entry, mergedNew)) {
       deps.clearOptimistic(data.entity_id)
     } else {
-      // 未确认：保留乐观 UI，避免无关属性推送冲掉预测态并让 TTL 失效
-      return {
-        entityId: data.entity_id,
-        mergedNew: cached,
-        notifyPayload: null,
-        derivedPatch: null,
-        countDelta: 0,
-      }
+      // 未确认：字段级合并（预测字段保持乐观值，其余字段照常落地），
+      // 由乐观 TTL 回滚 + 到期 REST 校正兜底，而不是把整条推送丢掉
+      mergedNew = mergeUnconfirmedOptimistic(cached, mergedNew, entry?.expected)
     }
   }
 
