@@ -1198,6 +1198,19 @@
   .toggle-dot.on {
     transform: translate3d(18px, 0, 0);
   }
+
+  /* 命中区补偿：轨道仍是 40×20，可点区域由透明伪元素扩到 48×44（见 main.css 同名块）。 */
+  .toggle-btn {
+    position: relative;
+    overflow: visible;
+  }
+
+  .toggle-btn::before {
+    content: "";
+    position: absolute;
+    inset: -12px -4px;
+    border-radius: inherit;
+  }
 }
 
 .profile-card {
@@ -1750,6 +1763,32 @@
 
   .toggle-dot.on {
     transform: translate3d(32px, 0, 0);
+  }
+}
+
+/*
+ * 触控端：设置页里几个 22~28px 的小按钮命中区不足（搜索清除、面包屑复制）。
+ * 轨道/图标视觉尺寸不变，透明伪元素把可点区域补到 ≥44px。
+ */
+@media (pointer: coarse), (hover: none) {
+  .sidebar-search__clear,
+  .settings-breadcrumb__copy {
+    position: relative;
+  }
+
+  /* 只向上下扩展：向左扩会盖住输入框末尾，抢走「点末尾定位光标」的点击。 */
+  .sidebar-search__clear::after {
+    content: "";
+    position: absolute;
+    inset: -10px -2px;
+    border-radius: inherit;
+  }
+
+  .settings-breadcrumb__copy::after {
+    content: "";
+    position: absolute;
+    inset: -8px;
+    border-radius: inherit;
   }
 }
 

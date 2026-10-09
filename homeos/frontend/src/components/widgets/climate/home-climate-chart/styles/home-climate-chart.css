@@ -28,6 +28,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  /* 品牌区是唯一可压缩的一侧（右侧 Tab 固定不收缩）；这里准许收缩，
+     标题自带省略号，避免窄组件下被 .hcc-card 的 overflow:hidden 生硬裁字。 */
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -75,6 +78,9 @@
   letter-spacing: -0.01em;
   line-height: 1.15;
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .hcc-card__subtitle {
@@ -82,6 +88,9 @@
   color: rgba(148, 163, 184, 0.5);
   line-height: 1.15;
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .hcc-card__tabs {

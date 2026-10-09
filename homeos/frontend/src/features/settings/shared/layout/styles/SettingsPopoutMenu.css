@@ -10,7 +10,13 @@
 .settings-popout-backdrop-layer {
   position: fixed;
   inset: 0;
-  z-index: var(--z-max);
+  /*
+   * 不再用 --z-max。本组件 teleport 进 .teleport-target 容器，与通知抽屉
+   * (--z-drawer 11000)、全局模态 (--z-modal-root 11500) 处在同一个 stacking context
+   * 里按数值比较；占顶档会盖住通知抽屉与从菜单里弹出的确认框。
+   * 「高于路由内容」由容器本身的 14000 保证，这里只需要低于抽屉/模态即可。
+   */
+  z-index: var(--z-toast);
   background: rgba(0, 0, 0, 0.48);
   -webkit-backdrop-filter: blur(2px);
   backdrop-filter: blur(2px);
@@ -18,7 +24,7 @@
 
 .settings-popout-menu-panel {
   position: fixed;
-  z-index: var(--z-max);
+  z-index: var(--z-toast);
   overflow-y: auto;
   overscroll-behavior: contain;
   background: var(--hos-dd-panel-bg);

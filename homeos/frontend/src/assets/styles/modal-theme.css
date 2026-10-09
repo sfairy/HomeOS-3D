@@ -101,7 +101,14 @@
   max-width: 580px;
   max-height: calc(85vh / var(--hos-scale, 1));
 }
-.hos-modal-panel--lg { max-width: 720px; max-height: 600px; }
+/*
+ * --lg 原本用硬 600px：平板横屏 / 高缩放（--hos-scale>1）下会高过可视区，
+ * 弹窗底部按钮被推出屏幕且无法滚动。与 --md/--xl 统一走视口高度，并给宽度加视口上限。
+ */
+.hos-modal-panel--lg {
+  max-width: min(720px, calc(90vw / var(--hos-scale, 1)));
+  max-height: min(600px, calc(85vh / var(--hos-scale, 1)));
+}
 .hos-modal-panel--xl {
   max-width: min(1100px, calc(90vw / var(--hos-scale, 1)));
   max-height: calc(85vh / var(--hos-scale, 1));
@@ -201,8 +208,10 @@
 
 .hos-modal-close {
   flex-shrink: 0;
-  width: 34px;
-  height: 34px;
+  /* 原为 width:34px + min-height:44px（热区只有 34px 宽）。统一到 44×44，
+     满足触控最小热区（WCAG 2.5.8 / iOS HIG），避免平板上关不掉弹窗。 */
+  width: 44px;
+  height: 44px;
   min-height: 44px;
   display: flex;
   align-items: center;

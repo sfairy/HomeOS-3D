@@ -2746,3 +2746,20 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .admin-boot__spinner { animation-duration: 2.4s; }
 }
+
+/*
+ * 平板 / 窄窗口：固定布局下「表宽 < 列宽之和」会按比例压缩各列（内容走省略号），
+ * 所以把最小宽度还给视口即可 —— 能放下的表格不再出现内部横向滚动条。
+ * 这些 860~1040px 的硬下限原本会把 1024 宽的平板逼出横向滚动。
+ * 必须写在各 `#panel-* .hb-table` 定义之后：媒体查询不增加特异性，靠顺序取胜。
+ */
+@media (max-width: 1024px) {
+  .table-wrap .hb-table {
+    min-width: 640px;
+  }
+
+  #panel-orders .hb-table { min-width: 760px; }
+  #panel-bindings .hb-table { min-width: 720px; }
+  #panel-licenses .hb-table { min-width: 700px; }
+  #panel-withdrawals .hb-table { min-width: 680px; }
+}

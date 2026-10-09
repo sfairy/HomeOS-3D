@@ -325,181 +325,8 @@
   color: var(--page-accent-text);
 }
 
-/* ── security-overview.css ── */
-/* ── 总览分区 ── */
-.sec-overview {
-  min-height: 0;
-}
-
-.sec-overview-alerts {
-  padding: 16px 24px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.sec-overview-command {
-  padding: 16px 24px 0;
-}
-
-.sec-overview-scroll {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
-}
-
-.sec-overview-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-
-.sec-overview-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: var(--hos-radius-pill);
-}
-
-.sec-overview-main {
-  padding: 0 24px 24px;
-}
-
-.sec-overview-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
-  gap: var(--hos-space-md, 12px);
-  align-items: start;
-  min-height: 420px;
-}
-
-.sec-overview-aside {
-  display: flex;
-  flex-direction: column;
-  gap: var(--hos-space-lg, 16px);
-  min-height: 0;
-  width: 260px;
-}
-
-.sec-overview-audit {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  padding: 12px 24px 16px;
-  max-height: min(220px, 30vh);
-  min-height: 0;
-}
-
-.sec-overview-audit .sec-audit-panel {
-  flex: 1;
-  min-height: 0;
-}
-
 /* ── security-hub.css ── */
 /* ── 指挥中枢 ── */
-.sec-hub {
-  border-radius: var(--hos-radius-panel);
-  padding: 18px 20px;
-  background:
-    radial-gradient(ellipse at 0% 0%, rgba(255, 255, 255, 0.04) 0%, rgba(0, 0, 0, 0) 55%),
-    rgba(12, 14, 22, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
-  isolation: isolate;
-}
-
-.sec-hub-grid {
-  display: grid;
-  grid-template-columns: 200px minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  gap: 14px 16px;
-  align-items: stretch;
-}
-
-.sec-hub-status {
-  position: relative;
-  overflow: hidden;
-  grid-column: 1;
-  grid-row: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 10px;
-  padding: var(--hos-panel-padding-default) 16px;
-  border-radius: var(--hos-radius-panel);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
-  min-height: 112px;
-  background: rgba(0, 0, 0, 0.2);
-}
-
-.sec-hub-status--disarmed {
-  border-color: rgba(var(--set-success-rgb), 0.28);
-  background: linear-gradient(145deg, rgba(var(--set-success-rgb), 0.08), rgba(var(--set-success-rgb), 0.02));
-}
-
-.sec-hub-status--home {
-  border-color: rgba(var(--set-warn-rgb), 0.28);
-  background: linear-gradient(145deg, rgba(var(--set-warn-rgb), 0.08), rgba(var(--set-warn-rgb), 0.02));
-}
-
-.sec-hub-status--away {
-  border-color: rgba(var(--set-danger-rgb), 0.28);
-  background: linear-gradient(145deg, rgba(var(--set-danger-rgb), 0.08), rgba(var(--set-danger-rgb), 0.02));
-}
-
-.sec-hub-status--night {
-  border-color: rgba(var(--module-accent-scenes-rgb), 0.28);
-  background: linear-gradient(145deg, rgba(var(--module-accent-scenes-rgb), 0.08), rgba(var(--module-accent-scenes-rgb), 0.02));
-}
-
-.sec-hub-status-glow {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse 120% 100% at 0% 0%, rgba(255, 255, 255, 0.07), transparent 65%);
-  pointer-events: none;
-}
-
-.sec-hub-status-icon {
-  width: 28px;
-  height: 28px;
-  position: relative;
-  z-index: 1;
-}
-
-.sec-hub-status-text {
-  position: relative;
-  z-index: 1;
-}
-
-.sec-hub-status-label {
-  font-size: var(--premium-fs-micro);
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
-}
-
-.sec-hub-status-name {
-  font-size: var(--premium-fs-stat);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: #fff;
-  line-height: 1.15;
-  margin-top: 4px;
-}
-
-.sec-hub-cooldown {
-  position: relative;
-  z-index: 1;
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
 
 .sec-cooldown-link {
   font-size: var(--premium-fs-micro);
@@ -515,22 +342,6 @@
 
 .sec-cooldown-link:hover {
   background: rgba(var(--page-accent-rgb), 0.16);
-}
-
-.sec-hub-controls {
-  grid-column: 2;
-  grid-row: 1;
-  min-width: 0;
-  display: flex;
-  align-items: stretch;
-}
-
-.sec-hub-controls-row {
-  display: flex;
-  align-items: stretch;
-  gap: 12px;
-  width: 100%;
-  min-width: 0;
 }
 
 .sec-mode-segment {
@@ -620,17 +431,6 @@
 .sec-sos-btn:hover {
   background: linear-gradient(145deg, rgba(var(--set-danger-rgb), 0.22), rgba(var(--set-danger-rgb), 0.12));
   box-shadow: 0 6px 24px rgba(var(--set-danger-rgb), 0.18);
-}
-
-.sec-hub-kpis {
-  grid-column: 1 / -1;
-  grid-row: 2;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, 112px);
-  gap: 10px;
-  justify-content: start;
-  padding-top: 12px;
-  border-top: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
 }
 
 .sec-kpi {
@@ -2863,21 +2663,6 @@
   transform: none;
 }
 
-.sec-dash-body {
-  display: grid;
-  grid-template-columns: minmax(220px, 0.34fr) minmax(420px, 0.66fr);
-  gap: var(--sec-dash-gap);
-  align-items: stretch;
-  min-height: 0;
-  flex: 1;
-}
-
-.sec-dash-body--overview {
-  --sec-dash-aside-gap: 12px;
-  min-height: 0;
-  flex: 1;
-}
-
 .sec-dash-panel--sensors {
   min-height: 320px;
   max-width: 100%;
@@ -4114,5 +3899,28 @@
   .sec-dash-status--armed .sec-dash-status-ring {
     animation: none;
     box-shadow: none;
+  }
+}
+
+/*
+ * 窄屏（平板竖屏 / 桌面分屏窗口）：安防总览是「主区 + 300~360px 侧栏」的固定两栏，
+ * 侧栏下限会在 1024 以下把主区（区域布防）压到 200px 都不到。按档位收窄侧栏，
+ * 两栏关系不变、主区仍有可用宽度（真正堆叠会破坏内部的整高滚动/画布布局）。
+ */
+@media (max-width: 1280px) {
+  .sov-workspace {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  }
+}
+
+@media (max-width: 1024px) {
+  .sov-workspace {
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+    gap: 12px;
+  }
+
+  /* 布防「主从」两栏的主列（168~210px）同步收窄，留宽给右侧编辑区 */
+  .sz-master-detail {
+    grid-template-columns: minmax(140px, 176px) minmax(0, 1fr);
   }
 }

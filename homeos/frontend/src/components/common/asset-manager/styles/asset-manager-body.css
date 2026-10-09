@@ -124,7 +124,8 @@
   transition: opacity 0.15s;
 }
 
-.asset-list-item:hover .asset-list-item__actions {
+.asset-list-item:hover .asset-list-item__actions,
+.asset-list-item:focus-within .asset-list-item__actions {
   opacity: 1;
 }
 
@@ -139,3 +140,25 @@
 }
 .asset-list-action-btn:hover { background: rgba(59,130,246,0.15); color: #93c5fd; }
 .asset-list-action-btn--danger:hover { background: rgba(239,68,68,0.15); color: #fca5a5; }
+
+/*
+ * 触控端：条目操作按钮原先只靠 :hover 显形，触屏永远等不到 hover —— 复制/删除
+ * 完全不可达。这里常显，并把 26px 的按钮放大到 34px（配透明外扩到 44px 命中区）。
+ */
+@media (pointer: coarse), (hover: none) {
+  .asset-list-item__actions {
+    opacity: 1;
+  }
+
+  .asset-list-action-btn {
+    position: relative;
+    width: 34px;
+    height: 34px;
+  }
+
+  .asset-list-action-btn::after {
+    content: "";
+    position: absolute;
+    inset: -5px;
+  }
+}

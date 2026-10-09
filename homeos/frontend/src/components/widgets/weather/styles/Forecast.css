@@ -125,6 +125,12 @@
 .wf-label {
   color: var(--text-secondary);
   flex: 1;
+  /* 长描述（如「局部雷阵雨伴冰雹」）不能把整行撑宽：列表 overflow-x:hidden
+     只会硬裁，必须在这里省略号收尾。min-width:0 是 flex 子项可收缩的前提。 */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: var(--premium-fs-caption);
   font-weight: 500;
 }

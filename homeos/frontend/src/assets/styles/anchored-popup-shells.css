@@ -107,8 +107,9 @@
   position: absolute;
   top: 10px;
   right: 10px;
-  width: 26px;
-  height: 26px;
+  /* 26px 的命中区在平板上太难点中：视觉放大到 32px，并按下文 ::after 补到 44px。 */
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -119,6 +120,16 @@
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.07);
   transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+/* 触控热区补偿：透明伪元素把命中区扩到 44×44，视觉尺寸不变。 */
+.gas-popup__close::after,
+.ele-popup__close::after,
+.comm-popup__close::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: inherit;
 }
 
 .gas-popup__close:hover,
@@ -173,8 +184,9 @@
   position: absolute;
   top: 8px;
   right: 8px;
-  width: 22px;
-  height: 22px;
+  /* 22px → 30px 视觉尺寸 + ::after 补到 44×44 命中区（触屏可达）。 */
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -184,6 +196,13 @@
   z-index: 3;
   background: none;
   border: none;
+}
+
+.w-popup__close::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border-radius: inherit;
 }
 
 .w-popup__close:hover { color: #fff; background: var(--premium-glass-bg-hover); }

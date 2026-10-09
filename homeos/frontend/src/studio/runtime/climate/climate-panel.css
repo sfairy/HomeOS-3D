@@ -325,7 +325,14 @@
   grid-row: span var(--extra-rows, 1);
   overflow: hidden;
   overflow: clip;
+  /* 固定行高 + clip 会连内层控件的聚焦环一起裁掉：留 2px 余量，
+     并在卡片内获得焦点时彻底放行（见下条 :focus-within）。 */
+  overflow-clip-margin: 2px;
   align-content: center;
+}
+.i3d-climate-panel .i3d-extra-grid > .i3d-extra-card:focus-within {
+  overflow: visible;
+  z-index: 3;
 }
 .i3d-climate-panel .i3d-extra-card > .i3d-climate-choice {
   max-width: 100%;

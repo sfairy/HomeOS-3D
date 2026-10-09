@@ -1321,6 +1321,19 @@ html[data-glass-effect="static"] .popup-shell {
 @media (pointer: coarse), (hover: none) {
   /* 允许移动端尺寸由组件本身或断点媒体查询独立控制，
      不再强制 unset，避免覆盖 settings-layout.css / Widget 的 56×32 等显式尺寸 */
+  /*
+   * 触控命中区补偿：开关的轨道视觉尺寸保持不变，用一层透明伪元素把可点区域向四周
+   * 扩 10px（触屏上 20~24px 高的开关极难命中）。
+   * 注意旧写法同时带 `pointer-events: none` 和 `.toggle-btn{overflow:hidden}` 裁剪，
+   * 伪元素既不可点也被裁掉，等于从未生效过。
+   */
+  .toggle-btn,
+  .toggle-bg,
+  .sg-toggle {
+    position: relative;
+    overflow: visible;
+  }
+
   .toggle-btn::before,
   .toggle-bg::before,
   .sg-toggle::before {
@@ -1328,7 +1341,7 @@ html[data-glass-effect="static"] .popup-shell {
     position: absolute;
     inset: -10px;
     z-index: 0;
-    pointer-events: none;
+    border-radius: inherit;
   }
 
   .toggle-btn .toggle-dot,

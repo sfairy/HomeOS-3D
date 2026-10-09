@@ -703,6 +703,19 @@ body.interaction3d-stage.is-background-hidden #preview-3d {
 }
 
 @media (max-width: 1180px) {
+  /*
+   * `3d-studio/studio.css` 的 body 曾锁 `min-width: 1180px` + `overflow: hidden`，
+   * 窄屏下右侧详情栏被裁且不可达。两份样式表的加载顺序按构建产物可能互换，
+   * 这里做同样的兜底（min-width 归零 + 溢出转为横向平移）。
+   */
+  html,
+  body {
+    min-width: 0 !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .editor-chrome-root,
   .studio-chrome-root,
   .editor-chrome-root body,

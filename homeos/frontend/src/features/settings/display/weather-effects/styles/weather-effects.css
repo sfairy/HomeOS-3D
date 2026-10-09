@@ -521,6 +521,16 @@
   .weather-fx-route-group__label::before {
     box-shadow: none;
   }
+
+  /*
+   * 触控端：开关只有 44×26，纵向热区不足。用透明覆盖层把整体命中区补到 44×44，
+   * 不改动轨道/滑块的视觉尺寸。
+   */
+  .weather-fx-switch::before {
+    content: "";
+    position: absolute;
+    inset: -9px 0;
+  }
 }
 
 /* —— WeatherEffectsOverviewCard —— */

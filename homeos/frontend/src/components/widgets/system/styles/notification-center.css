@@ -519,3 +519,22 @@
   width: 12px;
   height: 12px;
 }
+
+/*
+ * 触控端：24×24 的「清除」按钮既偏小，又依赖 :hover 才显形 —— 触屏永远等不到 hover，
+ * 通知因此无法逐条清除。这里常显并把命中区补到 44×44（视觉尺寸 30px）。
+ */
+@media (pointer: coarse), (hover: none) {
+  .nc-dismiss {
+    position: relative;
+    opacity: 1;
+    width: 30px;
+    height: 30px;
+  }
+
+  .nc-dismiss::after {
+    content: "";
+    position: absolute;
+    inset: -7px;
+  }
+}

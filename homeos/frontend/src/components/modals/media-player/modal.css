@@ -18,7 +18,9 @@
 .media-modal {
   width: min(96vw, 920px) !important;
   max-width: min(96vw, 920px) !important;
-  min-height: 440px;
+  /* 视口高度不足时 min-height 不能再大过 max-height：CSS 中 min 优先于 max，
+     两者冲突会让弹窗高出视口且无法滚动。这里把下限也夹在 88vh 内。 */
+  min-height: min(440px, 88vh);
   max-height: min(88vh, 520px) !important;
   padding: 0 !important;
   border-radius: 32px;
@@ -28,7 +30,7 @@
   position: relative;
   z-index: 1;
   display: flex;
-  min-height: 440px;
+  min-height: min(440px, 88vh);
   height: 100%;
 }
 
@@ -638,7 +640,7 @@
 
 @media (max-height: 600px) and (min-width: 640px) {
   .media-modal {
-    min-height: 380px;
+    min-height: min(380px, 92vh);
     max-height: 92vh !important;
   }
 

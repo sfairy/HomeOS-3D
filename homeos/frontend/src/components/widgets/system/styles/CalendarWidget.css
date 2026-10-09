@@ -159,6 +159,28 @@
   border-color: rgba(239, 68, 68, 0.3);
 }
 
+/*
+ * 触控端（平板 / 墙屏）：日历里的「+」只有 22px，误触率很高。
+ * 视觉尺寸小幅放大到 30px，再用透明 ::after 把命中区补到 44×44（不改变行高）。
+ */
+@media (pointer: coarse), (hover: none), (max-width: 900px) {
+  .cal-add-btn {
+    position: relative;
+    width: 30px;
+    height: 30px;
+  }
+
+  .cal-add-btn::after {
+    content: "";
+    position: absolute;
+    inset: -7px;
+  }
+
+  .cal-snooze {
+    padding: 6px 10px;
+  }
+}
+
 .cal-icon {
   color: var(--set-warn, #fb923c);
 }

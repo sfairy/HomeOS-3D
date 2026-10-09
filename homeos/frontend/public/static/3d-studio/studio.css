@@ -34,7 +34,13 @@ body {
 }
 body {
   margin: 0;
-  min-width: 1180px;
+  /*
+   * 这里曾经硬锁 `min-width: 1180px` + `overflow: hidden`：视口窄于 1180px 时
+   * （平板横屏、分屏窗口）三栏布局被裁在右边，详情栏完全无法触达。
+   * 布局下限改由 `.studio-shell` 的列最小宽 + 下方窄屏媒体查询承担，
+   * body 自身不再制造不可达溢出。
+   */
+  min-width: 0;
   overflow: hidden;
   color: var(--text);
   font-size: 12px;
@@ -399,6 +405,32 @@ button:disabled {
   border: 0 !important;
   box-shadow: none !important;
   min-width: 0 !important;
+}
+/*
+ * 窄屏（平板横屏 1024、平板竖屏 768、桌面分屏窗口）：三栏最小宽合计 1024px
+ * 会超出视口。压掉各列最小宽让布局继续成立，剩余溢出交给 body 横向平移，
+ * 保证右侧详情栏在该宽度下依然可达（此前被 body 的 min-width 直接裁掉）。
+ */
+@media (max-width: 1180px) {
+  html,
+  body {
+    min-width: 0 !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+  .studio-shell {
+    grid-template-columns: minmax(150px, 176px) minmax(320px, 1fr) minmax(300px, 36vw);
+  }
+  .studio-chrome-root.sc-shell--library-rail .studio-shell {
+    grid-template-columns: 0 minmax(320px, 1fr) minmax(300px, 36vw) !important;
+  }
+  .studio-chrome-root.sc-shell--plan-focus .studio-shell {
+    grid-template-columns: minmax(150px, 176px) minmax(320px, 1fr) 0 !important;
+  }
+  .studio-chrome-root.sc-shell--library-rail.sc-shell--plan-focus .studio-shell {
+    grid-template-columns: 0 minmax(320px, 1fr) 0 !important;
+  }
 }
 .panel-surface {
   border: 1px solid var(--line);
