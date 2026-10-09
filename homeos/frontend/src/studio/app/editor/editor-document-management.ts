@@ -24,13 +24,6 @@ export function restoredEditorProject(
     null
   );
 }
-export function getDocumentCanvasSize(canvasSizeDocument: any) {
-  return {
-    width: Number(canvasSizeDocument?.canvas?.width || 2778),
-    height: Number(canvasSizeDocument?.canvas?.height || 1940),
-  };
-}
-
 export function uniquePagePath(pages: any, pageName: any, excludedPath = "") {
   const basePagePath = slugify(pageName),
     existingPathSet = new Set(

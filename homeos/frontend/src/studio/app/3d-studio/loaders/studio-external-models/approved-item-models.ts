@@ -440,5 +440,3 @@ export const APPROVED_ITEM_MODELS = Object.freeze(
     ]),
   ),
 );
-
-export const APPROVED_ITEM_TYPES = new Set(Object.keys(APPROVED_ITEM_META));
