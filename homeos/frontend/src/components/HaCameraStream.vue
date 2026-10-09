@@ -18,8 +18,8 @@
 
 <script setup>
 /**
- * HA 摄像头播放：可选 WebRTC，随后与 3D 总览同一条通路
- * HLS（hls.js）→ camera_proxy_stream → camera_proxy。
+ * 与 3D / 0.7.2 mountCameraMedia 同一条通路：HLS → MJPEG → 快照。
+ * preferWebrtc 仅门铃等场景额外先试 WebRTC，失败后仍落入上述通路。
  */
 import { ref, watch, onUnmounted, computed, nextTick } from 'vue'
 import { getEntityDisplayName } from '@/utils/entity/derived.util'
@@ -32,7 +32,7 @@ const props = defineProps({
   haUrl: { type: String, default: '' },
   active: { type: Boolean, default: true },
   objectFit: { type: String, default: 'cover' },
-  preferWebrtc: { type: Boolean, default: true },
+  preferWebrtc: { type: Boolean, default: false },
   preferHls: { type: Boolean, default: true },
   lowLatency: { type: Boolean, default: false },
   snapshotIntervalMs: { type: Number, default: 3000 },
@@ -78,6 +78,22 @@ function stopStream() {
   }
 }
 
+async function startLegacyCascade(entityId, els, generation) {
+  stopPlayback = await startCameraMediaTransport(
+    entityId,
+    els.video,
+    els.image,
+    () => {
+      if (generation !== streamGeneration) return
+      emit('error', new Error('摄像头实时预览不可用'))
+    },
+    (mode) => {
+      if (generation !== streamGeneration) return
+      emit('ready', mode)
+    },
+  )
+}
+
 async function startStream() {
   const generation = ++streamGeneration
   stopStream()
@@ -108,23 +124,18 @@ async function startStream() {
       return
     } catch (error) {
       if (generation !== streamGeneration) return
-      logger.warn('[HaCameraStream] WebRTC 失败，改走 3D HLS/MJPEG 通路', error)
+      logger.warn('[HaCameraStream] WebRTC 失败，改走 0.7.2 HLS/MJPEG 通路', error)
       skipWebRtc.value = true
       emit('fallback', 'webrtc')
     }
   }
 
   try {
-    stopPlayback = await startCameraMediaTransport(entityId, els.video, els.image, () => {
-      if (generation !== streamGeneration) return
-      emit('error', new Error('摄像头实时预览不可用'))
-    })
+    await startLegacyCascade(entityId, els, generation)
     if (generation !== streamGeneration) {
       stopPlayback?.()
       stopPlayback = null
-      return
     }
-    emit('ready', 'hls')
   } catch (error) {
     if (generation !== streamGeneration) return
     logger.warn('[HaCameraStream] 媒体通路失败', error)

@@ -122,7 +122,7 @@
               compact
               tone="rose"
               :title="'视频流不可用'"
-              :description="'WebRTC/HLS/MJPEG 均已尝试失败，请检查摄像头与 HA 连接'"
+              :description="'HLS/MJPEG 均已尝试失败，请检查摄像头与 HA 连接'"
             />
             <button type="button" class="sec-config-btn" @click="retryStream(mainCameraId)">
               {{ '点击重试' }}

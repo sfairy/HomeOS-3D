@@ -5,7 +5,6 @@
  */
 import { lockState } from "./lock-state";
 import { domElement } from "@app/utils/dom-factory";
-import { createStageDeviceVisual } from "../core/stage-device-visual";
 export function createLockPanel({ onControl: onControl }: any) {
   const createTextElement = (tagName: any, textContent = "") =>
       domElement(document, tagName, "", textContent),
@@ -18,11 +17,6 @@ export function createLockPanel({ onControl: onControl }: any) {
     actionsElement = createTextElement("div"),
     codeInputElement = createTextElement("input"),
     messageElement = createTextElement("p");
-  const deviceVisual = createStageDeviceVisual({
-    kind: "lock",
-    // 门锁不通过角标直接开锁，避免绕过二次确认。
-    onActivate: undefined,
-  });
   ((panelElement.className = "i3d-lock-panel i3d-nas-panel"),
     (headingElement.className = "i3d-nas-heading"),
     (metaElement.className = "i3d-nas-meta"),
@@ -116,23 +110,9 @@ export function createLockPanel({ onControl: onControl }: any) {
           !lockSnapshot.available ||
           lockSnapshot.busy ||
           (actionKey === "lock" && lockSnapshot.state === "locked")));
-    deviceVisual.sync({
-      kind: "lock",
-      on: lockSnapshot.state !== "locked",
-      locked: lockSnapshot.state === "locked",
-      jammed: /jam/i.test(String(lockSnapshot.state || "")),
-      available: !!lockSnapshot.available,
-      busy: !!lockSnapshot.busy || isSubmitting,
-      interactive: false,
-      disabled: true,
-      label: titleElement.textContent || "门",
-    });
   }
-  const headingTextElement = createTextElement("div");
-  headingTextElement.className = "i3d-popup-heading-text";
   return (
-    headingTextElement.append(titleElement, metaElement),
-    headingElement.append(headingTextElement, deviceVisual.root),
+    headingElement.append(titleElement, metaElement),
     panelElement.append(
       headingElement,
       statusElement,
@@ -165,10 +145,7 @@ export function createLockPanel({ onControl: onControl }: any) {
           (panelElement.hidden = true));
       },
       dispose() {
-        ((isDisposed = true),
-          (codeInputElement.value = ""),
-          deviceVisual.dispose(),
-          panelElement.remove());
+        ((isDisposed = true), (codeInputElement.value = ""), panelElement.remove());
       },
     }
   );

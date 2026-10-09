@@ -9,7 +9,6 @@ import {
 import { airerMapControlPosition, airerMapControlService } from "../airer/airer-direction";
 import { domElement } from "@app/utils/dom-factory";
 import { applyRangeProgressCss } from "@app/utils/range-progress";
-import { createStageDeviceVisual } from "../core/stage-device-visual";
 /** cover 面板的宿主元素与回调； */
 type CoverPanelOptions = {
   element?: any;
@@ -51,28 +50,8 @@ export function createCoverPanel({
   rootElement.classList.add("i3d-cover-panel");
   const headingElement = createElement("div", "i3d-cover-heading"),
     titleElement = createElement("h3", "", "窗帘"),
-    statusElement = createElement("p", "", "尚未绑定设备"),
-    headingTextElement = createElement("div", "i3d-cover-heading-text");
-  const deviceVisual = createStageDeviceVisual({
-    kind: "cover",
-    document: ownerDocument,
-    onActivate: () => {
-      if (!canControl()) return;
-      const presentation = resolvePresentation();
-      if (presentation.moving || deviceState.moving) {
-        deviceState.stopSupported && requestControl("stop_cover");
-        return;
-      }
-      const isOpen =
-        presentation.on ||
-        presentation.position > 0 ||
-        presentation.state === "open" ||
-        presentation.state === "opening";
-      requestControl(isOpen ? "close_cover" : "open_cover");
-    },
-  });
-  (headingTextElement.append(titleElement, statusElement),
-    headingElement.append(headingTextElement, deviceVisual.root));
+    statusElement = createElement("p", "", "尚未绑定设备");
+  headingElement.append(titleElement, statusElement);
   const bladeHintElement = createElement("p", "i3d-cover-blade-hint", "叶片角度 · 50% 为 90°打开");
   bladeHintElement.hidden = true;
   const controlsSlotElement = createElement("div", "i3d-cover-controls-slot"),
@@ -628,41 +607,6 @@ export function createCoverPanel({
       ),
       syncSlider(),
       syncTiltSection());
-    const lightExtra =
-        viewModel.item?.extraControls?.find(
-          (extraControl: any) =>
-            extraControl?.domain === "light" ||
-            String(extraControl?.entityId || "").startsWith("light."),
-        ) || null,
-      lightStateEntry = lightExtra?.entityId
-        ? viewModel.states?.[lightExtra.entityId] ||
-          (viewModel.states instanceof Map
-            ? viewModel.states.get(lightExtra.entityId)
-            : null)
-        : null,
-      lightStateValue = String(
-        lightStateEntry?.newState?.state ?? lightStateEntry?.state ?? "",
-      ).toLowerCase();
-    deviceVisual.sync({
-      kind: isAirerItem ? "airer" : "cover",
-      on:
-        !!(deviceState.available &&
-          (presentation.on ||
-            presentation.position > 0 ||
-            presentation.state === "open" ||
-            presentation.state === "opening")),
-      available: !!deviceState.available,
-      disabled: !canControl(),
-      interactive: canControl(),
-      label: titleElement.textContent || (isAirerItem ? "晾衣架" : "窗帘"),
-      position:
-        displayPosition ??
-        presentation.position ??
-        (presentation.on ? 100 : 0),
-      moving: !!(presentation.moving || deviceState.moving),
-      coverDirection: viewModel.item?.coverDirection || viewModel.item?.direction || "split",
-      lightOn: lightStateValue === "on",
-    });
   }
   function update(nextViewModel: CoverPanelViewModel = {}) {
     if (isDisposed) return;
@@ -770,7 +714,6 @@ export function createCoverPanel({
       instanceId++,
       clearPendingIntent(),
       purifierExtrasController.dispose(),
-      deviceVisual.dispose(),
       replaceChildren(rootElement));
   }
   return (

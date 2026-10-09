@@ -121,11 +121,15 @@ def upstream_path(request: Request) -> str:
 
     摄像头快照/流代理一律用服务端 Bearer，丢弃浏览器附带的实体 ``token``：
     过期或错误的 access_token 转发给 HA 会 500，而无 token 的同源请求正常。
+
+    ``camera_proxy_stream`` 额外丢弃 ``hb``：0.7.2 前端从不给 MJPEG 流加 query，
+    把缓存破坏参数原样转给 HA 会打断 multipart 流。
     """
     path = request.url.path
     query = request.url.query
     if query and path.startswith(('/api/camera_proxy/', '/api/camera_proxy_stream/')):
-        pairs = [(k, v) for k, v in parse_qsl(query, keep_blank_values=True) if k != 'token']
+        drop = {'token', 'hb'} if path.startswith('/api/camera_proxy_stream/') else {'token'}
+        pairs = [(k, v) for k, v in parse_qsl(query, keep_blank_values=True) if k not in drop]
         query = urlencode(pairs)
     return f'{path}?{query}' if query else path
 

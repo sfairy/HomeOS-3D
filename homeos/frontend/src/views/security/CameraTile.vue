@@ -4,7 +4,7 @@
 职责：安防监控「单格摄像头」组件。按需挂载 HaCameraStream 实时流，并通过
       IntersectionObserver 仅在视口内拉流；流失败时显示重试占位。
 关键依赖：
-  - HaCameraStream：HA 摄像头实时流渲染（WebRTC/HLS/MJPEG 自适应）
+  - HaCameraStream：HA 摄像头实时流（HLS → MJPEG → 快照，与 3D 总览同序）
   - useEntitiesStore：读取 camera 实体与域级 epoch（驱动显示名/快照刷新）
   - getEntityDisplayName：从实体派生可读名称
 数据来源：entitiesStore 中的 camera 实体、父级透传的 camId / streamErrors / activeSlot
@@ -26,7 +26,6 @@
       :ha-url="haUrl"
       :active="active"
       :prefer-webrtc="preferWebrtc"
-      :low-latency="lowLatency"
       object-fit="cover"
       @error="emit('stream-error', camId)"
     />
@@ -72,13 +71,8 @@ const props = defineProps({
   activeSlot: { type: Number, default: -1 },
   focused: { type: Boolean, default: false },
   streamsEnabled: { type: Boolean, default: true },
-  /**
-   * 本机摄像头：go2rtc 常不支持源（WebRTC 必败），HLS 又是 H.265（Chrome 黑屏）。
-   * 默认关 WebRTC；与 lowLatency 配合走 MJPEG。
-   */
+  /** 与 0.7.2 / 3D 一致：默认关 WebRTC，走 HLS → MJPEG → 快照 */
   preferWebrtc: { type: Boolean, default: false },
-  /** MJPEG 优先于 HLS，避免 H.265 播放列表假成功 */
-  lowLatency: { type: Boolean, default: true },
 })
 
 // 对外事件：选中摄像头、流错误、重试流、可见性变化（供父级调度同时拉流的槽位）

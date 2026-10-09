@@ -2,7 +2,6 @@ import { speakerState, speakerCommand } from "./speaker-state";
 import { televisionTime } from "../television/television-state";
 import { domElement } from "@app/utils/dom-factory";
 import { syncHtmlRangeProgress } from "@app/utils/range-progress";
-import { createStageDeviceVisual } from "../core/stage-device-visual";
 export function createSpeakerPanel({
   onControl: sendCommand = async (_commandArgs: any) => {},
   fetchMedia: fetchMedia = (fetchUrl: any, fetchInit: any) => fetch(fetchUrl, fetchInit),
@@ -15,19 +14,8 @@ export function createSpeakerPanel({
     titleElement = createElement("h3"),
     statusElement = createElement("span", "i3d-tv-status"),
     headingTextElement = createElement("div", "i3d-popup-heading-text");
-  const deviceVisual = createStageDeviceVisual({
-    kind: "speaker",
-    onActivate: () => {
-      if (!activeEntity || isDisposed) return;
-      const entityState = speakerState(activeEntity.item, activeEntity.states);
-      if (!entityState.available) return;
-      const targetService = entityState.on ? "turn_off" : "turn_on";
-      if (!entityState.supports(targetService)) return;
-      void executeCommand(targetService);
-    },
-  });
   (headingTextElement.append(titleElement, statusElement),
-    headingElement.append(headingTextElement, deviceVisual.root));
+    headingElement.append(headingTextElement));
   const contentElement = createElement("div", "i3d-tv-content"),
     artworkImage = createElement("img", "i3d-tv-artwork"),
     detailsElement = createElement("div", "i3d-tv-details"),
@@ -143,7 +131,7 @@ export function createSpeakerPanel({
       controlButton
     );
   }
-  const powerActionsElement = createElement("div", "i3d-popup-power-actions is-visual-replaced");
+  const powerActionsElement = createElement("div", "i3d-popup-power-actions");
   (headingElement.append(powerActionsElement),
     (createControlButton("开机", "turn_on", null, powerActionsElement).className = "i3d-tv-power"),
     (createControlButton("关机", "turn_off", null, powerActionsElement).className = "i3d-tv-power"),
@@ -539,23 +527,6 @@ export function createSpeakerPanel({
         refreshIntervalId === null &&
         !panelElement.hidden &&
         (refreshIntervalId = setInterval(renderPanel, 1000)));
-    const canTogglePower =
-      entityState.available &&
-      !activeEntity.editing &&
-      (entityState.supports("turn_on") || entityState.supports("turn_off")) &&
-      !isServicePending("turn_on") &&
-      !isServicePending("turn_off");
-    deviceVisual.sync({
-      kind: "speaker",
-      on: !!entityState.on,
-      available: !!entityState.available,
-      playing: !!entityState.playing,
-      busy: isServicePending("turn_on") || isServicePending("turn_off"),
-      disabled: !canTogglePower,
-      interactive: canTogglePower,
-      label: entityState.name || "音响",
-      artworkUrl: entityState.artwork || null,
-    });
   }
   function resetPanel() {
     (revisionCount++,
@@ -588,7 +559,7 @@ export function createSpeakerPanel({
         ((panelElement.hidden = true), resetPanel(), (activeEntity = null));
     },
     dispose() {
-      isDisposed || (this.hide(), (isDisposed = true), deviceVisual.dispose(), panelElement.remove());
+      isDisposed || (this.hide(), (isDisposed = true), panelElement.remove());
     },
   };
 }
