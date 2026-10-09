@@ -24,19 +24,22 @@ os.environ["UPDATE_CHECKS_ENABLED"] = "0"
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from _smoke_auth_support import (  # noqa: E402
+from _smoke_auth_support import (
     FAKE_CODE,
     csrf_headers,
     install_fake_verification,
     register_local_user,
 )
-from fastapi.testclient import TestClient  # noqa: E402
-
-from src.app import create_app  # noqa: E402
+from fastapi.testclient import TestClient
+from src.app import create_app
 
 USERNAME = "smokeuser"
 EMAIL = "smoke@example.com"
 PASSWORD = "SmokePass123"
+# 冒烟专用输入（非真实凭据）：弱口令/含非法字符口令用于断言校验分支。
+OTHER_PASSWORD = "OtherPass123"
+WEAK_PASSWORD = "short"
+BAD_NAME_PASSWORD = "BadName12345"
 
 failures: list[str] = []
 
@@ -98,7 +101,7 @@ with TestClient(app) as client:
         app,
         username="other",
         email="other@example.com",
-        password="OtherPass123",
+        password=OTHER_PASSWORD,
         headers=headers,
     )
     check("已有用户时再注册 409", r.status_code == 409, f"{r.status_code} {r.text}")
@@ -123,7 +126,7 @@ with TestClient(app) as client:
         app,
         username="weak",
         email="weak@example.com",
-        password="short",
+        password=WEAK_PASSWORD,
         headers=headers,
     )
     check("弱口令 400/422", r.status_code in (400, 422), f"{r.status_code} {r.text[:200]}")
@@ -134,7 +137,7 @@ with TestClient(app) as client:
         app,
         username="bad@name",
         email="bad@example.com",
-        password="BadName12345",
+        password=BAD_NAME_PASSWORD,
         headers=headers,
     )
     check("账号含 @ 400/422", r.status_code in (400, 422), f"{r.status_code} {r.text[:200]}")
@@ -143,7 +146,7 @@ with TestClient(app) as client:
         app,
         username="bad name",
         email="bad@example.com",
-        password="BadName12345",
+        password=BAD_NAME_PASSWORD,
         headers=headers,
     )
     check("账号含空格 400/422", r.status_code in (400, 422), f"{r.status_code} {r.text[:200]}")

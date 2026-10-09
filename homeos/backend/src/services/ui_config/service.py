@@ -17,6 +17,12 @@ from typing import Any
 
 from sqlalchemy import select
 
+from .layout_secrets import (
+    mask_layout_for_role,
+    merge_layout_secrets_on_save,
+    strip_legacy_ha_connection,
+)
+from .static_assets import UiConfigStaticAssetService
 from ...core.errors import (
     BusinessException,
     ErrorCode,
@@ -25,12 +31,6 @@ from ...core.errors import (
 )
 from ...core.json_field import read_json_object, to_input_json
 from ...core.models import ProjectConfig
-from .layout_secrets import (
-    mask_layout_for_role,
-    merge_layout_secrets_on_save,
-    strip_legacy_ha_connection,
-)
-from .static_assets import UiConfigStaticAssetService
 
 logger = logging.getLogger("homeos.ui_config")
 
@@ -70,7 +70,7 @@ class UiConfigService:
             if callable(emit_soon):
                 try:
                     emit_soon(name)
-                except Exception as exc:  # noqa: BLE001 - 广播失败不影响主流程
+                except Exception as exc:
                     logger.debug("广播 %s 失败: %s", name, exc)
 
     def _record(self, row: ProjectConfig) -> dict[str, Any]:
@@ -132,7 +132,7 @@ class UiConfigService:
                     "layoutParseError": parse_error,
                 },
             }
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             if isinstance(exc, BusinessException):
                 raise
             raise BusinessException(

@@ -18,11 +18,11 @@ from typing import Any
 
 from sqlalchemy import select
 
-from ...core.errors import api_error, bad_request
-from ...core.models import EventLog
+from .users_backup import UsersBackupService
 from ..app_config import AppConfigBackupService
 from ..ui_config import UiConfigService
-from .users_backup import UsersBackupService
+from ...core.errors import api_error, bad_request
+from ...core.models import EventLog
 
 logger = logging.getLogger("homeos.backup.bundle")
 
@@ -245,7 +245,7 @@ class SystemBundleBackupService:
                         (snapshot.get("users") or {}).get("users") or [],
                         snapshot.get("usersCreated") or [],
                     )
-            except Exception as err:  # noqa: BLE001 - 回滚失败仅记日志
+            except Exception as err:
                 logger.error("备份回滚 %s 失败: %s", section, err)
         logger.warning("备份包导入失败,已尝试回滚: %s", ", ".join(applied))
 

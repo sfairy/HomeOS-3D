@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 
 WS_BUFFER_MIN_BYTES = 8 * 1024 * 1024
@@ -32,7 +33,7 @@ def resolve_ws_max_buffer_bytes(entity_count: int = 0) -> int:
             env_mb = float(raw.strip())
         except ValueError:
             env_mb = float("nan")
-        if env_mb == env_mb and 8 <= env_mb <= 50:
+        if not math.isnan(env_mb) and 8 <= env_mb <= 50:
             return round(env_mb * 1024 * 1024)
     return compute_ws_max_buffer_bytes(entity_count)
 

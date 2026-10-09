@@ -132,7 +132,7 @@ class TtsSpeakService:
                 await self._speak_via_xiaomi_home(media_player, text)
                 logger.info("TTS 已播报 [Xiaomi Home → %s]", media_player)
                 return {"success": True, "message": "已播报"}
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 errors.append(f"小米官方集成: {exc}")
 
         # 路径 2：HA tts 域 speak 服务
@@ -144,7 +144,7 @@ class TtsSpeakService:
                 )
                 logger.info("TTS 已播报 [%s → %s]", tts_entity, media_player)
                 return {"success": True, "message": "已播报"}
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 errors.append(f"tts 实体 {tts_entity}: {exc}")
 
         # 路径 3：Xiaomi Miot Auto 集成
@@ -153,7 +153,7 @@ class TtsSpeakService:
                 await self._speak_via_xiaomi_miot(media_player, text)
                 logger.info("TTS 已播报 [Xiaomi Miot → %s]", media_player)
                 return {"success": True, "message": "已播报"}
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 errors.append(f"Xiaomi Miot: {exc}")
 
         # 路径 4：默认 tts 引擎（仅当不是 Xiaomi Home 音箱时，避免重复尝试）
@@ -164,7 +164,7 @@ class TtsSpeakService:
                 )
                 logger.info("TTS 已播报 [默认引擎 → %s]", media_player)
                 return {"success": True, "message": "已播报"}
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 errors.append(f"默认 TTS → {media_player}: {exc}")
 
         detail = "；".join(errors)

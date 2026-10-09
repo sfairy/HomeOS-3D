@@ -24,5 +24,5 @@ def persist_dismissed_id_set(
 ) -> None:
     try:
         persist_runtime_kv(session_factory, config_id, {"ids": list(ids)})
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("%s 失败: %s", label, exc)

@@ -287,8 +287,6 @@ import type {
   LightEffectOptions,
   CameraInteractionOptions,
   StudioControlElement,
-  ListDragDropTarget,
-  ListDragDropResult,
   ListDragRowSession,
   PlanEditPreviewFlags,
   StudioApiRequestOptions,
@@ -307,7 +305,6 @@ import {
 import {
   lightPresetCatalog,
   lightIntensityFactor,
-  lightAngleLimit,
   lightAngleLimitForType,
   lightPropertyFields,
   normalizeLightPropertyValue,

@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from .constants import REBUILD_DEBOUNCE_MS_MAX, REBUILD_DEBOUNCE_MS_MIN
@@ -126,7 +127,7 @@ def _normalize_rebuild_debounce_ms(frontend: dict[str, Any], changes: list[str])
             f"frontend.rebuildDebounceMs: 无效值 {raw!r} → {_REBUILD_DEBOUNCE_DEFAULT}"
         )
         return
-    if n != n:
+    if math.isnan(n):
         frontend["rebuildDebounceMs"] = _REBUILD_DEBOUNCE_DEFAULT
         changes.append(
             f"frontend.rebuildDebounceMs: 无效值 {raw!r} → {_REBUILD_DEBOUNCE_DEFAULT}"

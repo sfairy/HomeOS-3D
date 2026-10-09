@@ -10,7 +10,7 @@ import {
   resolveStateSnapshot,
 } from "../../controls/event-log-runtime";
 import { navigateInShell } from "@/studio/platform/shell-navigation";
-import { clampNumber, applyTextOutline, resolveStatePayload, normalizeCssColor } from "./_shared";
+import { clampNumber, normalizeCssColor } from "./_shared";
 import { componentContentUnitsPx } from "./content-units";
 
 type ComponentControllerHooks = {

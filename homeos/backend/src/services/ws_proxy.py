@@ -65,7 +65,7 @@ def verify_embed_ws_auth(token: str | None, session: Any) -> bool:
         return False
     try:
         user = resolve_ws_user(token, session)
-    except Exception:  # noqa: BLE001 - 无效 / 过期会话即拒绝
+    except Exception:
         return False
     role = user.get("role") or "user"
     return role in EMBED_WS_ALLOWED_ROLES
@@ -158,14 +158,14 @@ async def bridge_websockets(
                     raise exc
     except asyncio.CancelledError:
         raise
-    except BaseException as exc:  # noqa: BLE001 - 记录后交回路由收尾
+    except BaseException as exc:
         _cleanup(exc)
         raise
     finally:
         _cleanup(None)
         try:
             await client.close()
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
 
@@ -182,7 +182,7 @@ def resolve_go2rtc_ws_user(
     try:
         with app.state.database.session_factory() as session:
             user = resolve_ws_user(token, session)
-    except Exception:  # noqa: BLE001 - 无效 / 过期会话一律拒绝
+    except Exception:
         return None
     return user if assert_web_rtc_ws_token_allowed(user, entity_id) else None
 
@@ -194,12 +194,12 @@ async def resolve_ha_base_url(app: Any) -> str:
     摄像头 WebRTC 信令再打到内网地址就会一直连不上。
     """
     try:
-        from .ha_config import load_active_ha_endpoints  # noqa: PLC0415 - 延迟导入避免环
+        from .ha_config import load_active_ha_endpoints
 
         with app.state.database.session_factory() as session:
             endpoints = load_active_ha_endpoints(session, cipher=app.state.studio_ha.cipher)
         return endpoints.ha_url_primary or ""
-    except Exception:  # noqa: BLE001
+    except Exception:
         return ""
 
 

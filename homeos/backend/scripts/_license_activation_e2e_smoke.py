@@ -76,12 +76,11 @@ _apply_key_env()
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import httpx  # noqa: E402
-from _smoke_auth_support import csrf_headers, install_fake_verification, register_local_user  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
-
-from src.app import create_app  # noqa: E402
-from src.services.license import features as feature_codes  # noqa: E402
+import httpx
+from _smoke_auth_support import csrf_headers, install_fake_verification, register_local_user
+from fastapi.testclient import TestClient
+from src.app import create_app
+from src.services.license import features as feature_codes
 
 #: 目录里全部增量模块码：featureAccess 必须逐个下发，前端才能按标志显隐入口。
 MODULE_FEATURE_CODES = sorted(feature_codes.MODULE_FEATURES)

@@ -17,12 +17,12 @@ from typing import Any
 
 from sqlalchemy import delete, select
 
-from ...core.models import EarthquakeAlertHistory
-from ..push_time import format_time_only
 from .feeds import is_valid_home_coordinate
 from .geo import compute_s_wave_countdown, is_eew_simulation_event_id, normalize_eew_countdown_lead
 from .threshold import evaluate_local_quake_thresholds
 from .types import EarthquakeAlertPayload, EarthquakeRuntimeConfig, EewDedupeState, EewEventFingerprint
+from ..push_time import format_time_only
+from ...core.models import EarthquakeAlertHistory
 
 logger = logging.getLogger("homeos.earthquake")
 
@@ -263,7 +263,7 @@ async def save_dedupe_state_redis(
         await client.eval(
             DEDUPE_SET_SCRIPT, 1, EEW_REDIS["dedupe"], value, str(int(stamp)), str(DEDUPE_TTL_SEC)
         )
-    except Exception:  # noqa: BLE001 - 老版本 Redis 无 eval/cjson 时降级为普通 set
+    except Exception:
         await redis.set(EEW_REDIS["dedupe"], value, DEDUPE_TTL_SEC)
 
 
@@ -558,9 +558,9 @@ __all__ = [
     "mark_event_dismissed_redis",
     "parse_earthquake_layout",
     "resolve_catalog_notify_level",
+    "s_wave_countdown_for",
     "save_dedupe_state_redis",
     "save_latest_alert_redis",
     "should_notify_catalog_event",
-    "s_wave_countdown_for",
     "touch_wolfx_leader_active",
 ]

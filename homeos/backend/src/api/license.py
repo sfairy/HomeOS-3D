@@ -30,12 +30,12 @@ from typing import Any
 from fastapi import Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict
 
+from .router import NestRouter
 from ..dependencies import CurrentUser
 from ..security.limiter import rate_limit
 from ..security.request_origin import require_same_origin_write
 from ..services.license import LicenseClientError
 from ..services.license import features as feature_codes
-from .router import NestRouter
 
 router = NestRouter(prefix="/license", tags=["license"])
 

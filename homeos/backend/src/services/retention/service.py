@@ -120,7 +120,7 @@ class DatabaseRetentionService:
         try:
             with self._session_factory() as session:
                 self._last_cleanup_stats = load_runtime_kv(session, RETENTION_STATS_STORAGE_ID)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("加载上次清理统计失败: %s", exc)
         logger.info("数据库历史保留: %s 天", self._retention_days)
 
@@ -181,7 +181,7 @@ class DatabaseRetentionService:
             self._task.cancel()
             try:
                 await self._task
-            except (asyncio.CancelledError, Exception):  # noqa: BLE001
+            except (asyncio.CancelledError, Exception):
                 pass
             self._task = None
 
@@ -209,7 +209,7 @@ class DatabaseRetentionService:
                 await self._jobs.run("data-retention", options, self.run_cleanup_locked)
             else:
                 await self.run_cleanup_locked()
-        except Exception as exc:  # noqa: BLE001 - 单次清理失败不终止调度
+        except Exception as exc:
             logger.warning("数据库历史保留清理失败: %s", exc)
 
     # ------------------------------------------------------------------ #
@@ -260,13 +260,13 @@ class DatabaseRetentionService:
         return self._last_cleanup_stats
 
     def estimate_table_rows(self) -> dict[str, int]:
-        result = {key: 0 for key in RETENTION_TABLE_KEYS}
+        result = dict.fromkeys(RETENTION_TABLE_KEYS, 0)
         with self._session_factory() as session:
             for key, (_model, table) in _RETENTION_MODELS.items():
                 try:
-                    row = session.execute(text(f'SELECT COUNT(*) FROM "{table}"')).scalar()
+                    row = session.execute(text(f'SELECT COUNT(*) FROM "{table}"')).scalar()  # noqa: S608 - table 来自内部常量
                     result[key] = int(row or 0)
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     logger.debug("估算 %s 行数失败: %s", key, exc)
         return result
 
@@ -338,7 +338,7 @@ class DatabaseRetentionService:
         self._last_cleanup_stats = stats
         try:
             persist_runtime_kv(self._session_factory, RETENTION_STATS_STORAGE_ID, stats)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("持久化清理统计失败: %s", exc)
 
     def run_cleanup(self) -> dict[str, Any]:
@@ -355,7 +355,7 @@ class DatabaseRetentionService:
                 )
                 if count > 0:
                     deleted[key] = count
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("清理 %s 失败: %s", key, exc)
 
         # EventLog 大批量删除后 ANALYZE / VACUUM（对齐 Nest：>=1000 行时执行）
@@ -368,7 +368,7 @@ class DatabaseRetentionService:
                 pruned = int(cooldown.prune_expired() or 0)
                 if pruned > 0:
                     deleted["notificationCooldownPruned"] = pruned
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("通知冷却 prune 失败: %s", exc)
 
         total = sum(deleted.values())
@@ -395,7 +395,7 @@ class DatabaseRetentionService:
         with self._session_factory() as session:
             try:
                 engine = session.get_bind()
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("获取数据库引擎失败: %s", exc)
                 return
         try:
@@ -403,7 +403,7 @@ class DatabaseRetentionService:
                 conn.exec_driver_sql("VACUUM")
                 conn.exec_driver_sql('ANALYZE "event_logs"')
             logger.info("EventLog 已 VACUUM + ANALYZE(本次删除 %s 行)", deleted_count)
-        except Exception as vacuum_err:  # noqa: BLE001
+        except Exception as vacuum_err:
             try:
                 with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
                     conn.exec_driver_sql('ANALYZE "event_logs"')
@@ -412,13 +412,13 @@ class DatabaseRetentionService:
                     vacuum_err,
                     deleted_count,
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("EventLog ANALYZE 失败: %s", exc)
 
     async def _prune_redis_timeline_safe(self) -> int:
         try:
             return await self._prune_redis_timeline()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("Redis 时间线清理失败: %s", exc)
             return 0
 
@@ -447,21 +447,21 @@ class DatabaseRetentionService:
                 removed += int(await client.zremrangebyscore("timeline:all", 0, max_score) or 0)
             elif main_type not in ("none", None):
                 logger.warning("时间线总键类型为 %s,跳过清理", main_type)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("时间线总键类型检查失败: %s", exc)
 
         cursor: Any = 0
         while True:
             try:
                 cursor, keys = await client.scan(cursor=cursor, match="timeline:entity:*", count=200)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.debug("实体时间线扫描失败: %s", exc)
                 break
             for raw_key in keys or []:
                 key = raw_key.decode("utf-8", "ignore") if isinstance(raw_key, bytes) else str(raw_key)
                 try:
                     removed += int(await client.zremrangebyscore(key, 0, max_score) or 0)
-                except Exception:  # noqa: BLE001 - 非 zset 键（类型不符）跳过
+                except Exception:
                     pass
             if int(cursor or 0) == 0:
                 break
@@ -488,4 +488,4 @@ class DatabaseRetentionService:
         return total
 
 
-__all__ = ["DatabaseRetentionService", "RETENTION_STATS_STORAGE_ID", "resolve_positive_int"]
+__all__ = ["RETENTION_STATS_STORAGE_ID", "DatabaseRetentionService", "resolve_positive_int"]

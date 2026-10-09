@@ -17,10 +17,6 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from ...core.runtime_kv import load_runtime_kv, persist_runtime_kv
-from ..app_config.pricing import is_peak_time
-from ..app_config.service import APP_CONFIG_UPDATED
-from ..security.layout import schedule_security_event
 from .linkage import evaluate_self_charge_actions
 from .normalize import normalize_client_system_report
 from .types import (
@@ -31,6 +27,10 @@ from .types import (
     PendingClientState,
     SwitchLinkageAction,
 )
+from ..app_config.pricing import is_peak_time
+from ..app_config.service import APP_CONFIG_UPDATED
+from ..security.layout import schedule_security_event
+from ...core.runtime_kv import load_runtime_kv, persist_runtime_kv
 
 logger = logging.getLogger("homeos.client_power")
 
@@ -60,7 +60,7 @@ def _parse_iso_ms(value: Any) -> float:
     if not isinstance(value, str) or not value:
         return -1.0
     try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value)
     except ValueError:
         return -1.0
     if parsed.tzinfo is None:
@@ -145,12 +145,12 @@ class ClientPowerService:
                 result = fn()
                 if inspect.isawaitable(result):
                     await result
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("客户端电量作业失败 [%s]: %s", name, exc)
             return
         try:
             await self._jobs.run(name, options, fn)
-        except Exception as exc:  # noqa: BLE001 - 单轮作业失败不终止循环
+        except Exception as exc:
             logger.warning("客户端电量作业失败 [%s]: %s", name, exc)
 
     # ------------------------------------------------------------------ #
@@ -339,7 +339,7 @@ class ClientPowerService:
             return
         try:
             await self._bus.emit(name, payload)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("广播事件失败 [%s]: %s", name, exc)
 
     # ------------------------------------------------------------------ #
@@ -570,7 +570,7 @@ class ClientPowerService:
                     "客户端电量联动:%s %s(%s)", action.entity_id, action.service, action.reason
                 )
                 return
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 last_error = exc
                 logger.warning(
                     "客户端电量联动失败 [%s] 第 %s/%s 次: %s",
@@ -647,7 +647,7 @@ class ClientPowerService:
                     ),
                     last_report_at=str(pending.get("lastReportAt") or _iso_now()),
                 )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("加载客户端系统信息运行时状态失败: %s", exc)
 
     def _read_runtime_kv(self) -> Any:
@@ -681,7 +681,7 @@ class ClientPowerService:
             )
             for cid in flushed_purge_ids:
                 self._purged_runtime_ids.discard(cid)
-        except Exception as exc:  # noqa: BLE001 - 写库失败恢复 dirty 以便下轮重试
+        except Exception as exc:
             self._dirty = True
             logger.warning("持久化客户端系统信息状态失败: %s", exc)
 

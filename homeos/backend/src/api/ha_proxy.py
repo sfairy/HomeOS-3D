@@ -31,12 +31,12 @@ from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from starlette.requests import ClientDisconnect
 
+from .ha import active_connection
 from ..core.database import Database
 from ..dependencies import ShortLivedLicensedViewer, ViewerPrincipal, require_viewer_entity
 from ..ha.client import HAClientError
 from ..ha.crypto import CredentialCipherError
 from ..services.license import features as feature_codes
-from .ha import active_connection
 
 router = APIRouter(include_in_schema=False)
 ALLOWED_MEDIA_PROXY_PREFIXES = (

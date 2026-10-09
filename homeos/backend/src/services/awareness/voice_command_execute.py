@@ -17,14 +17,14 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
-from ...core.errors import BusinessException, ErrorCode, api_error, bad_request, forbidden
-from ..command_proxy_auth import assert_command_proxy_authorized
 from .voice_commands import (
     extract_ha_assist_speech,
     extract_room_from_text,
     ha_assist_succeeded,
     plan_voice_commands,
 )
+from ..command_proxy_auth import assert_command_proxy_authorized
+from ...core.errors import BusinessException, ErrorCode, api_error, bad_request, forbidden
 
 logger = logging.getLogger("homeos.awareness.voice_command")
 
@@ -157,7 +157,7 @@ async def execute_voice_command(
                 continue
             try:
                 await _execute_homeos_voice_action(action, user, deps)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 errors.append(str(exc))
             continue
 
@@ -169,14 +169,14 @@ async def execute_voice_command(
         }
         try:
             await assert_command_proxy_authorized(dto, _as_actor(user))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             denied = str(exc) or "无权操作该设备"
             skipped += 1
             errors.append(f"{action.get('entityId')}: {denied}")
             continue
         try:
             await deps.command_proxy.call_service(dto)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             errors.append(f"{action.get('entityId')}: {exc}")
 
     total = len(plan.get("actions") or [])

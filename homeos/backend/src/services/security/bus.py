@@ -12,6 +12,8 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from ...core.background import spawn_background
+
 logger = logging.getLogger("homeos.security.events")
 
 Handler = Callable[[Any], Any]
@@ -47,7 +49,7 @@ class LocalEventBus:
                 result = handler(payload)
                 if inspect.isawaitable(result):
                     await result
-            except Exception as exc:  # noqa: BLE001 - 单个监听器失败不影响其他
+            except Exception as exc:
                 logger.warning("事件处理失败 [%s]: %s", name, exc)
 
     async def emit(self, name: str, payload: Any = None) -> None:
@@ -55,13 +57,13 @@ class LocalEventBus:
         if self._publisher is not None:
             try:
                 await self._publisher(name, payload if isinstance(payload, dict) else {"value": payload})
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.debug("事件外发失败 [%s]: %s", name, exc)
 
     def emit_soon(self, name: str, payload: Any = None) -> None:
         """从同步上下文触发事件（对齐 ``setImmediate``）。"""
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
         except RuntimeError:
             return
-        loop.create_task(self.emit(name, payload))
+        spawn_background(self.emit(name, payload))

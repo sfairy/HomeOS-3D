@@ -11,8 +11,8 @@ from collections.abc import Iterator
 from fastapi import Request
 from sqlalchemy.orm import Session
 
-from ..config import Settings
 from .database import Database
+from ..config import Settings
 
 
 def get_settings(request: Request) -> Settings:

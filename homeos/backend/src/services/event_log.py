@@ -20,6 +20,17 @@ from typing import Any
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session
 
+from .energy_meter import business_day_key, business_month_key, compute_meter_delta
+from .event_log_tier import (
+    build_record_filter,
+    extract_event_log_state,
+    get_changed_control_attr,
+    is_energy_meter_entity,
+    is_event_log_recordable,
+    resolve_event_log_tier,
+    serialize_event_log_states,
+    should_skip_redis_timeline,
+)
 from ..core.app_config import load_raw_config
 from ..core.entity_domain import get_entity_domain
 from ..core.models import (
@@ -40,17 +51,6 @@ from ..core.retention import (
     resolve_event_log_retention_days,
 )
 from ..realtime.access import is_entity_allowed
-from .energy_meter import business_day_key, business_month_key, compute_meter_delta
-from .event_log_tier import (
-    build_record_filter,
-    extract_event_log_state,
-    get_changed_control_attr,
-    is_energy_meter_entity,
-    is_event_log_recordable,
-    resolve_event_log_tier,
-    serialize_event_log_states,
-    should_skip_redis_timeline,
-)
 
 logger = logging.getLogger("homeos.event_log")
 
@@ -299,7 +299,7 @@ class EventLogService:
                 raw = load_raw_config(session)
             section = raw.get("ops") if isinstance(raw.get("ops"), dict) else {}
             self._ops = {**DEFAULT_OPS, **section}
-        except Exception:  # noqa: BLE001 - 配置不可用时用默认值
+        except Exception:
             self._ops = dict(DEFAULT_OPS)
         self._timeline_max = int(self._ops.get("eventLogTimelineMax") or 500)
         return self._ops
@@ -455,7 +455,7 @@ class EventLogService:
         self._buffer = []
         try:
             await asyncio.to_thread(self._write_batch, batch)
-        except Exception as error:  # noqa: BLE001
+        except Exception as error:
             max_requeue = int(self._ops.get("eventLogMaxRequeueBuffer") or 500)
             room = max(0, max_requeue - len(self._buffer))
             if room > 0:
@@ -560,7 +560,7 @@ class EventLogService:
                         row.kwh += value["kwh"]
                         row.sample_count += int(value["count"])
                 session.commit()
-        except Exception as error:  # noqa: BLE001 - 副作用失败不影响事件写入
+        except Exception as error:
             logger.warning("能源副作用维护失败: %s", error)
 
     def _queue_timeline(self, batch: list[dict[str, Any]]) -> None:
@@ -609,7 +609,7 @@ class EventLogService:
                     pipe.zremrangebyrank(key, 0, -(self._timeline_max + 1))
                 pipe.zremrangebyrank("timeline:all", 0, -(self._timeline_max * 10 + 1))
             await pipe.execute()
-        except Exception as error:  # noqa: BLE001
+        except Exception as error:
             logger.warning("事件时间线写入 Redis 失败: %s", error)
 
     # ------------------------------------------------------------------ #
@@ -793,7 +793,7 @@ class EventLogService:
             return 0
         try:
             return int(client.delete("timeline:all", "stream:ha_events"))
-        except Exception as error:  # noqa: BLE001
+        except Exception as error:
             logger.warning("事件日志 Redis 时间线清理失败: %s", error)
             return 0
 
@@ -816,7 +816,7 @@ class EventLogService:
                 count = self._batch_delete(session, model, cutoff, batch_size)
                 if count:
                     deleted[key] = count
-            except Exception as error:  # noqa: BLE001 - 单表失败不阻塞
+            except Exception as error:
                 logger.warning("清理 %s 失败: %s", key, error)
                 session.rollback()
         total = sum(deleted.values())
@@ -875,9 +875,9 @@ class EventLogService:
             prev_series = self._aggregate_event_series(session, periods["previous"], entity_ids, restrictions)
             cur_entities = self._aggregate_event_by_entity(session, periods["current"], entity_ids, restrictions)
             prev_entities = self._aggregate_event_by_entity(session, periods["previous"], entity_ids, restrictions)
-        prev_map = {eid: count for eid, count in prev_entities}
+        prev_map = dict(prev_entities)
         by_entity = [
-            _build_compare_row(eid, count, prev_map.get(eid, 0), lambda n: int(round(n)))
+            _build_compare_row(eid, count, prev_map.get(eid, 0), round)
             for eid, count in cur_entities
         ]
         return self._assemble_response(
@@ -1003,7 +1003,7 @@ class EventLogService:
             prev_series = self._aggregate_env_series(session, periods["previous"], column)
             cur_rooms = self._aggregate_env_by_room(session, periods["current"], column)
             prev_rooms = self._aggregate_env_by_room(session, periods["previous"], column)
-        prev_map = {room: avg for room, avg in prev_rooms}
+        prev_map = dict(prev_rooms)
         by_entity = [
             _build_compare_row(room, avg or 0, prev_map.get(room), _round1) for room, avg in cur_rooms
         ]
@@ -1063,7 +1063,7 @@ class EventLogService:
             prev_rows = self._aggregate_device_series(session, periods["previous"], ids)
             cur_entities = self._aggregate_device_by_entity(session, periods["current"], ids)
             prev_entities = self._aggregate_device_by_entity(session, periods["previous"], ids)
-        prev_map = {eid: ms for eid, ms in prev_entities}
+        prev_map = dict(prev_entities)
         by_entity = [
             _build_compare_row(eid, ms / 3_600_000, prev_map.get(eid, 0)) for eid, ms in cur_entities
         ]
@@ -1140,7 +1140,7 @@ class EventLogService:
 
         current_total = (mean_of(cur_series) or 0) if metric == "environment" else sum_of(cur_series)
         previous_total = mean_of(prev_series) if metric == "environment" else sum_of(prev_series)
-        rounder = (lambda n: int(round(n))) if metric == "events" else _round2
+        rounder = round if metric == "events" else _round2
         totals = _build_compare_row("total", current_total, previous_total, rounder)
         return {
             "metric": metric,
@@ -1282,7 +1282,7 @@ def _to_hours_series(rows: list[tuple[str, float]], period) -> list[dict[str, An
 
 def _build_insights(metric, cur_series, by_entity) -> dict[str, Any]:
     avg_round = (
-        (lambda n: int(round(n)))
+        round
         if metric == "events"
         else (_round1 if metric == "environment" else _round2)
     )

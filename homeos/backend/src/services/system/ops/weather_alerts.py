@@ -121,7 +121,7 @@ async def fetch_open_weather_alerts_with_cache(
             set_cached_alerts(alerts)
             set_last_alert_check(parsed.get("fetchedAt") or time.time() * 1000)
             return {"alerts": alerts, "configured": True, "cached": True}
-    except Exception as err:  # noqa: BLE001 - 缓存损坏仅降级
+    except Exception as err:
         if on_cache_read_error is not None:
             on_cache_read_error(err)
 
@@ -143,7 +143,7 @@ async def fetch_open_weather_alerts_with_cache(
             weather_alerts_ttl_sec(),
         )
         return {"alerts": alerts, "configured": True}
-    except Exception as err:  # noqa: BLE001 - 步骤 5：失败降级返回内存缓存
+    except Exception as err:
         if on_fetch_error is not None:
             on_fetch_error(err)
         return {"alerts": get_cached_alerts(), "configured": True}

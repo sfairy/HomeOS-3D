@@ -14,6 +14,7 @@ from starlette.datastructures import Headers, MutableHeaders
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+from .exception_handlers import business_exception_json, nest_error_payload
 from ..config import Settings
 from ..core.errors import BusinessException, ErrorCode, api_error
 from ..core.observability import new_request_id, reset_trace_id, set_trace_id
@@ -23,7 +24,6 @@ from ..security.cors import CorsMiddleware
 from ..security.csrf import CsrfMiddleware
 from ..services.license import features as feature_codes
 from ..services.license.guard import is_license_exempt_path
-from .exception_handlers import business_exception_json, nest_error_payload
 
 
 class RequestDiagnosticsMiddleware:

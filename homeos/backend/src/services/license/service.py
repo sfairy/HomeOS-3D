@@ -16,15 +16,15 @@ from typing import Any
 import httpx
 from sqlalchemy import select
 
-from ...config import Settings
-from ...core.database import Database
-from ...core.models import LicenseState
 from . import features as feature_codes
 from .crypto import LeaseVerifier, LicenseCryptoError, LicenseTransportCipher, SecretCipher, parse_timestamp
 from .endpoints import LICENSE_RETRY_SECONDS, LicenseEndpoint, LicenseEndpointPool
 from .hardware import hardware_instance_id
 from .process_lock import LicenseProcessLock
 from .trust import verify_license_trust_anchors
+from ...config import Settings
+from ...core.database import Database
+from ...core.models import LicenseState
 
 # 事件日志是可选的：homeos 侧由 GlobalLogStore（Phase 4 随数据面一并并入）提供，
 # 未注入时授权服务只做本地状态记录，不阻塞任何流程。
@@ -977,7 +977,7 @@ class LicenseService:
             effective_status = 'CLOCK_ROLLBACK'
             effective_error = '授权服务器签发的租约时间晚于本机时间，请校准系统时间后重试。'
         lease_expires = self._signed_timestamp(signed_payload, 'expiresAt') or aware(state.lease_expires_at)
-        if effective_status not in {'CLOCK_ROLLBACK'} and lease_expires and lease_expires <= now and effective_status in {'ACTIVE', 'CONNECTION_WARNING'}:
+        if effective_status != 'CLOCK_ROLLBACK' and lease_expires and lease_expires <= now and effective_status in {'ACTIVE', 'CONNECTION_WARNING'}:
             effective_status = 'LEASE_EXPIRED'
             if not effective_error:
                 effective_error = '授权租约已到期。'

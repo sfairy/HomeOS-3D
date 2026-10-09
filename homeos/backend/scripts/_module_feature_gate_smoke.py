@@ -31,17 +31,16 @@ os.environ["UPDATE_CHECKS_ENABLED"] = "0"
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from _smoke_auth_support import (  # noqa: E402
+from _smoke_auth_support import (
     FAKE_CODE,
     csrf_headers,
     install_fake_verification,
     register_local_user,
 )
-from fastapi.testclient import TestClient  # noqa: E402
-
-from src.api import ha_proxy  # noqa: E402
-from src.app import create_app  # noqa: E402
-from src.services.license import features as feature_codes  # noqa: E402
+from fastapi.testclient import TestClient
+from src.api import ha_proxy
+from src.app import create_app
+from src.services.license import features as feature_codes
 
 USERNAME = "gateuser"
 EMAIL = "gate@example.com"

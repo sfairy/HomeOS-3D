@@ -83,7 +83,7 @@ class EewLeaderService:
                     await self._try_acquire()
             except asyncio.CancelledError:
                 raise
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.debug("EEW 主节点选举循环异常: %s", exc)
 
     async def _try_acquire(self) -> None:
@@ -92,7 +92,7 @@ class EewLeaderService:
             return
         try:
             acquired = await client.set(EEW_LEADER_KEY, self._instance_id, nx=True, px=LEADER_TTL_MS)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("EEW 主节点选举获取失败: %s", exc)
             return
         if acquired:
@@ -127,21 +127,21 @@ class EewLeaderService:
                 current = current.decode("utf-8", "ignore")
             if current == self._instance_id:
                 await client.delete(EEW_LEADER_KEY)
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
     def _notify_leader(self) -> None:
         if self._on_leader is not None:
             try:
                 self._on_leader()
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.debug("EEW onLeader 回调失败: %s", exc)
 
     def _notify_follower(self) -> None:
         if self._on_follower is not None:
             try:
                 self._on_follower()
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.debug("EEW onFollower 回调失败: %s", exc)
 
     def is_eew_leader(self) -> bool:
@@ -151,4 +151,4 @@ class EewLeaderService:
         return {"isLeader": self._is_leader, "mode": self._mode}
 
 
-__all__ = ["EewLeaderService", "EEW_LEADER_KEY"]
+__all__ = ["EEW_LEADER_KEY", "EewLeaderService"]

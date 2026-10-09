@@ -1,5 +1,4 @@
 import { renderFlowLine } from "./registry/flow-line";
-import { renderPercentageBarControl } from "./registry/percentage-bar";
 import { renderInteraction3d } from "../../bridge/bridge";
 import {
   prewarmCameraMedia,

@@ -10,10 +10,10 @@ from typing import Any
 
 import httpx
 
+from .config import load_security_config
+from ..ha_config import load_active_ha_endpoints
 from ...core.app_config import load_raw_config
 from ...core.models import ProjectConfig
-from ..ha_config import load_active_ha_endpoints
-from .config import load_security_config
 
 logger = logging.getLogger("homeos.security.service")
 
@@ -66,7 +66,7 @@ class SecurityService:
                     ha_config = layout.get("haConfig") if isinstance(layout, dict) else None
                     if isinstance(ha_config, dict) and "eventsPath" in ha_config:
                         events_path = str(ha_config.get("eventsPath") or "").strip()
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.error("读取动态安全配置出错:%s", exc)
 
         self._cache = {"haUrl": live_url, "eventsPath": events_path}
@@ -127,7 +127,7 @@ class SecurityService:
 
             events.sort(key=_sort_key, reverse=True)
             return events
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("从 HA 获取事件失败:%s", exc)
             return []
 
@@ -168,5 +168,5 @@ class SecurityService:
                     "文件为空，尚无事件" if len(lines) == 0 else f"连通正常，约 {len(lines)} 条记录"
                 ),
             }
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return {"ok": False, "configured": True, "url": events_url, "message": str(exc)}

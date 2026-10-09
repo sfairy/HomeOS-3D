@@ -14,11 +14,11 @@ from fastapi import Depends, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, model_validator
 
+from .router import NestRouter
 from ..dependencies import license_feature
 from ..security.auth_context import require_roles
 from ..services.agent.agent_actor import AgentActor
 from ..services.license import features as feature_codes
-from .router import NestRouter
 
 router = NestRouter(
     prefix="/agent",
@@ -182,7 +182,7 @@ async def chat_stream(
                     ),
                 )
                 queue.put_nowait(_frame("done", result.to_dict()))
-            except Exception as exc:  # noqa: BLE001 - 对齐 Nest：异常也以 SSE error 帧返回
+            except Exception as exc:
                 queue.put_nowait(_frame("error", {"message": _error_message(exc)}))
             finally:
                 queue.put_nowait(None)

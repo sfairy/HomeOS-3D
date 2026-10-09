@@ -313,12 +313,12 @@ def scan_layout_and_system(deps: dict[str, Any], entity_id: str, items: list[dic
         layout = deps["load_layout"]()
         if isinstance(layout, dict) and layout:
             _scan_layout_object(entity_id, layout, items, seen)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("扫描布局引用失败: %s", exc)
 
     try:
         _scan_system_config(deps, entity_id, items, seen)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("扫描系统配置引用失败: %s", exc)
 
 
@@ -723,7 +723,7 @@ def _unlink_alert_rule(deps: dict[str, Any], rule_id: str) -> dict[str, Any]:
                 return _fail("告警规则不存在或删除失败")
             session.delete(row)
             session.commit()
-    except Exception:  # noqa: BLE001
+    except Exception:
         return _fail("告警规则不存在或删除失败")
 
     watch_index = deps.get("alert_rule_watch_index")
@@ -1070,7 +1070,7 @@ class EntityReferencesService:
             self._inverted_index = await loop.run_in_executor(
                 None, build_entity_references_inverted_index, self._session_factory
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("实体引用倒排索引构建失败: %s", exc)
             self._inverted_index = self._inverted_index or {}
         self._inverted_index_at = time.monotonic() * 1000

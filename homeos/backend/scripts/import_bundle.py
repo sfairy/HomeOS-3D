@@ -105,10 +105,10 @@ def main(argv: list[str] | None = None) -> int:
     # 目标库位置由环境变量决定，必须在导入 src.config 之前设置。
     os.environ["HOMEOS_DATA_DIR"] = str(data_dir)
 
-    from src.config import load_settings  # noqa: PLC0415 - 需先设置环境变量
-    from src.core.database import Database  # noqa: PLC0415
-    from src.services.app_config import AppConfigBackupService, AppConfigService  # noqa: PLC0415
-    from src.services.ui_config import UiConfigService  # noqa: PLC0415
+    from src.config import load_settings
+    from src.core.database import Database
+    from src.services.app_config import AppConfigBackupService, AppConfigService
+    from src.services.ui_config import UiConfigService
 
     settings = load_settings()
     print(f"  目标库：{settings.database_path}")

@@ -38,7 +38,7 @@ def resolve_active_project_id(session) -> str:
     """对齐 ``resolveActiveProjectId``：profiles.activeProfileId 缺省为 default。"""
     try:
         raw = load_raw_config(session)
-    except Exception:  # noqa: BLE001
+    except Exception:
         raw = {}
     profiles = raw.get("profiles") if isinstance(raw.get("profiles"), dict) else {}
     return str(profiles.get("activeProfileId") or "").strip() or "default"
@@ -52,7 +52,7 @@ def load_project_layout_json(session, project_id: str) -> dict[str, Any]:
         if row is None or not row.layout:
             return {}
         return _read_json_object(row.layout)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return {}
 
 
@@ -154,7 +154,7 @@ async def run_hazard_auto_actions(
             try:
                 await call_service(domain, service, entity_id)
                 return True
-            except Exception:  # noqa: BLE001
+            except Exception:
                 if attempt >= retries:
                     return False
                 await asyncio.sleep(0.4)
@@ -215,7 +215,7 @@ def persist_security_event(
                 )
             )
             session.commit()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.debug("SecurityEvent 写入失败: %s", exc)
 
 

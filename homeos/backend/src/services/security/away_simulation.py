@@ -15,9 +15,9 @@ from typing import Any
 
 from sqlalchemy import select
 
-from ...core.models import AwayPatternBucket
 from .bus import LocalEventBus
 from .layout import schedule_security_event
+from ...core.models import AwayPatternBucket
 
 logger = logging.getLogger("homeos.security.away_sim")
 
@@ -95,7 +95,7 @@ class AwaySimulationService:
                 len(self._light_pool),
                 len(self._cover_pool),
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("恢复离家模拟运行态失败: %s", exc)
 
     def _persist_state(self) -> None:
@@ -117,7 +117,7 @@ class AwaySimulationService:
     async def _write_state(self, state: dict[str, Any], ttl: int | None = None) -> None:
         try:
             await self._redis.set(AWAY_SIM_STATE_KEY, json.dumps(state, ensure_ascii=False), ttl)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("持久化离家模拟运行态失败: %s", exc)
 
     def _clear_persisted_state(self) -> None:
@@ -225,7 +225,7 @@ class AwaySimulationService:
                     "lightOnProb": row.light_on_prob,
                 }
             logger.info("离家模拟已加载 %s 个 hour×dow 模式桶", len(rows))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("加载 AwayPatternBucket 失败: %s", exc)
 
     def _current_bucket(self) -> dict[str, Any] | None:
@@ -255,7 +255,7 @@ class AwaySimulationService:
             try:
                 entities = await self._ha.fetch_entities_by_domain("light")
                 self._light_pool = [e["entity_id"] for e in entities]
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 message = str(exc)
                 logger.warning("获取灯具列表失败: %s", message)
                 schedule_security_event(
@@ -272,7 +272,7 @@ class AwaySimulationService:
             try:
                 entities = await self._ha.fetch_entities_by_domain("cover")
                 self._cover_pool = [e["entity_id"] for e in entities]
-            except Exception:  # noqa: BLE001
+            except Exception:
                 self._cover_pool = []
 
         self._enabled = True
@@ -310,7 +310,7 @@ class AwaySimulationService:
         if self._last_toggled:
             try:
                 await self._ha.call_service("light", "turn_off", self._last_toggled, {})
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 schedule_security_event(
                     self._session_factory,
                     "away_sim_action_failed",
@@ -322,7 +322,7 @@ class AwaySimulationService:
             try:
                 await self._ha.call_service("cover", "close_cover", self._last_cover_toggled, {})
                 logger.debug("离家模拟停用:关闭窗帘 %s", self._last_cover_toggled)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 schedule_security_event(
                     self._session_factory,
                     "away_sim_action_failed",
@@ -353,7 +353,7 @@ class AwaySimulationService:
             return
         try:
             await self._tick()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("离家模拟执行失败: %s", exc)
 
     def _is_active_hour(self) -> bool:
@@ -378,7 +378,7 @@ class AwaySimulationService:
                 if self._last_toggled:
                     try:
                         await self._ha.call_service("light", "turn_off", self._last_toggled, {})
-                    except Exception as exc:  # noqa: BLE001
+                    except Exception as exc:
                         schedule_security_event(
                             self._session_factory,
                             "away_sim_action_failed",
@@ -396,7 +396,7 @@ class AwaySimulationService:
                     )
                     self._last_toggled = next_light
                     logger.debug("离家模拟:点亮 %s (%s%%)", next_light, brightness)
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     schedule_security_event(
                         self._session_factory,
                         "away_sim_action_failed",
@@ -406,7 +406,7 @@ class AwaySimulationService:
             elif not self._is_active_hour() and self._last_toggled:
                 try:
                     await self._ha.call_service("light", "turn_off", self._last_toggled, {})
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     schedule_security_event(
                         self._session_factory,
                         "away_sim_action_failed",
@@ -431,7 +431,7 @@ class AwaySimulationService:
                             "cover", revert, self._last_cover_toggled, {}
                         )
                         logger.debug("离家模拟:回收 %s %s", revert, self._last_cover_toggled)
-                    except Exception as exc:  # noqa: BLE001
+                    except Exception as exc:
                         schedule_security_event(
                             self._session_factory,
                             "away_sim_action_failed",
@@ -445,7 +445,7 @@ class AwaySimulationService:
                     self._last_cover_toggled = cover
                     self._last_cover_action = service
                     logger.debug("离家模拟:%s %s", service, cover)
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     schedule_security_event(
                         self._session_factory,
                         "away_sim_action_failed",

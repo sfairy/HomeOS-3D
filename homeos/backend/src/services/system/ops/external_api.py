@@ -13,18 +13,16 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import re
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
 
-from ....core.circuit_breaker import CircuitBreaker
-from ....core.icalendar import (
-    get_upcoming_away_events,
-    is_away_during_calendar,
-    parse_icalendar,
-)
+from .calendar_sync import CalendarSyncDeps, sync_calendar_from_url
+from .upstream import DEFAULT_TIMEOUT, UpstreamResponse, fetch_raw
+from .weather_alerts import fetch_open_weather_alerts_with_cache
 from ...app_config.pricing import (
     get_period_unit_price,
     get_time_period,
@@ -32,9 +30,12 @@ from ...app_config.pricing import (
     time_period_label,
 )
 from ...app_config.service import APP_CONFIG_UPDATED
-from .calendar_sync import CalendarSyncDeps, sync_calendar_from_url
-from .upstream import DEFAULT_TIMEOUT, UpstreamResponse, fetch_raw
-from .weather_alerts import fetch_open_weather_alerts_with_cache
+from ....core.circuit_breaker import CircuitBreaker
+from ....core.icalendar import (
+    get_upcoming_away_events,
+    is_away_during_calendar,
+    parse_icalendar,
+)
 
 logger = logging.getLogger("homeos.system.ops.external_api")
 
@@ -67,7 +68,7 @@ def _to_float(value: Any, fallback: float) -> float:
         number = float(value)
     except (TypeError, ValueError):
         return fallback
-    if number != number or number == 0:  # NaN 或 0
+    if math.isnan(number) or number == 0:  # NaN 或 0
         return fallback
     return number
 
@@ -154,7 +155,7 @@ class ExternalApiService:
             return
         try:
             self._event_bus.on(APP_CONFIG_UPDATED, self.on_config_updated)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("订阅配置变更失败: %s", exc)
 
     def on_config_updated(self, keys: Any = None) -> None:
@@ -212,7 +213,7 @@ class ExternalApiService:
         if callable(getter):
             try:
                 return getter()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 return None
         return None
 
@@ -225,7 +226,7 @@ class ExternalApiService:
             self._calendar_sync_task.cancel()
         try:
             self._calendar_sync_task = asyncio.create_task(self._calendar_sync_loop())
-        except RuntimeError as exc:  # noqa: BLE001 - 无事件循环（同步上下文）时跳过
+        except RuntimeError as exc:
             logger.debug("日历同步定时器未启动: %s", exc)
 
     async def _calendar_sync_loop(self) -> None:
@@ -242,7 +243,7 @@ class ExternalApiService:
                 )
             except asyncio.CancelledError:
                 raise
-            except Exception as exc:  # noqa: BLE001 - 单轮失败继续循环
+            except Exception as exc:
                 logger.warning("日历同步任务异常: %s", exc)
             try:
                 await asyncio.sleep(max(1.0, delay_ms / 1000))
@@ -335,7 +336,7 @@ class ExternalApiService:
             return
         try:
             self._event_bus.emit_soon("calendar.awayChanged", {"away": away, "events": away_events})
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("广播外出状态失败: %s", exc)
 
     def get_calendar_events(self) -> dict[str, Any]:
@@ -453,7 +454,7 @@ class ExternalApiService:
             self._dynamic_price_task.cancel()
         try:
             self._dynamic_price_task = asyncio.create_task(self._dynamic_pricing_loop())
-        except RuntimeError as exc:  # noqa: BLE001 - 无事件循环时跳过
+        except RuntimeError as exc:
             logger.debug("动态电价定时器未启动: %s", exc)
 
     async def _dynamic_pricing_loop(self) -> None:
@@ -463,7 +464,7 @@ class ExternalApiService:
                 await self.sync_dynamic_pricing()
             except asyncio.CancelledError:
                 raise
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("动态电价周期刷新失败: %s", exc)
             try:
                 await asyncio.sleep(hours * 3600)
@@ -549,7 +550,7 @@ class ExternalApiService:
                 averages["flat"],
             )
             return {"enabled": True, "synced": True, "count": len(schedule)}
-        except Exception as err:  # noqa: BLE001 - 外部 API 失败降级为结果对象
+        except Exception as err:
             self._dynamic_price_error = str(err)
             logger.warning("动态电价同步失败: %s", self._dynamic_price_error)
             return {"enabled": True, "synced": False, "error": self._dynamic_price_error}
@@ -736,7 +737,7 @@ class ExternalApiService:
                 "condition": condition,
                 "fetchedAt": _iso_now(),
             }
-        except Exception as err:  # noqa: BLE001 - 主源异常降级 HA 实体
+        except Exception as err:
             logger.debug("当前天气获取失败,降级 HA 实体: %s", err)
             return self._get_ha_fallback_weather()
 
@@ -773,7 +774,7 @@ class ExternalApiService:
             forecast_list = raw_list if isinstance(raw_list, list) else []
             self._forecast_cache[size] = {"fetchedAt": now, "list": forecast_list}
             return {"list": forecast_list, "cached": False}
-        except Exception as err:  # noqa: BLE001 - 失败降级缓存
+        except Exception as err:
             logger.debug("OpenWeather 预报获取失败: %s", err)
             if hit:
                 return {"list": hit["list"], "cached": True}
@@ -805,7 +806,7 @@ class ExternalApiService:
         return {
             "source": "ha",
             "entityId": entity_id,
-            "temperature": temperature if temperature == temperature else None,  # NaN 判定
+            "temperature": temperature if not math.isnan(temperature) else None,  # NaN 判定
             "condition": str(attributes.get("condition") or ""),
             "fetchedAt": _iso_now(),
         }

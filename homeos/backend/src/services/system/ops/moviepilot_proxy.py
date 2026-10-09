@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import logging
+import math
 import posixpath
 import re
 import socket
@@ -20,6 +21,7 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import quote, urlparse
 
+from .upstream import UpstreamResponse, fetch_raw
 from ....core.errors import (
     BusinessException,
     ErrorCode,
@@ -27,7 +29,6 @@ from ....core.errors import (
     bad_request,
     not_found,
 )
-from .upstream import UpstreamResponse, fetch_raw
 
 logger = logging.getLogger("homeos.system.ops.moviepilot")
 
@@ -63,7 +64,7 @@ def _js_truthy(value: Any) -> bool:
     if isinstance(value, bool):
         return value
     if isinstance(value, (int, float)):
-        return value != 0 and value == value  # 0 与 NaN 为假
+        return value != 0 and not math.isnan(value)  # 0 与 NaN 为假
     if isinstance(value, str):
         return value != ""
     return True
@@ -161,7 +162,7 @@ class MoviePilotProxyService:
             return str(url).rstrip("/")
         except BusinessException:
             raise
-        except Exception as exc:  # noqa: BLE001 - 解析失败统一 500
+        except Exception as exc:
             logger.error("解析布局配置失败:%s", exc)
             raise _internal_error(api_error("SYSTEM_INVALID_LAYOUT")) from exc
 
@@ -209,7 +210,7 @@ class MoviePilotProxyService:
             response = await self._http_fetch(
                 target_url, headers=headers, timeout=10.0, follow_redirects=False
             )
-        except Exception as exc:  # noqa: BLE001 - 网络中断 → 404（对齐 Nest catch）
+        except Exception as exc:
             logger.error("从 %s 代理图像失败:%s", target_url, exc)
             raise _not_found_error(api_error("MOVIEPILOT_PROXY_IMAGE_FAILED")) from exc
         if response.status >= 400:
@@ -251,7 +252,7 @@ class MoviePilotProxyService:
                 timeout=5.0,
                 follow_redirects=False,
             )
-        except Exception as exc:  # noqa: BLE001 - 非响应型错误 → 502
+        except Exception as exc:
             logger.error("从 %s 代理 API 失败 [UNKNOWN]:%s", target_url, exc)
             raise BusinessException(
                 ErrorCode.EXTERNAL_ERROR, api_error("MOVIEPILOT_PROXY_IMAGE_FAILED")

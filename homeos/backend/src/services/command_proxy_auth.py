@@ -170,7 +170,7 @@ def extract_entity_id_from_media_path(path: str) -> str | None:
                 from urllib.parse import unquote
 
                 return unquote(match.group(1))
-            except Exception:  # noqa: BLE001
+            except Exception:
                 return match.group(1)
     return None
 
@@ -233,11 +233,11 @@ def is_dangerous_ha_control(domain: str, service: str, entity_id: str) -> bool:
 
 __all__ = [
     "RegistryTargetResolver",
-    "collect_target_entities",
     "assert_command_proxy_authorized",
+    "assert_ha_media_path_authorized",
     "assert_history_authorized",
     "assert_webrtc_authorized",
-    "assert_ha_media_path_authorized",
+    "collect_target_entities",
     "extract_entity_id_from_media_path",
     "is_dangerous_ha_control",
 ]

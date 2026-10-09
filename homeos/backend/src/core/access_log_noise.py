@@ -58,7 +58,7 @@ def _extract_status(record: logging.LogRecord) -> int | None:
             pass
     try:
         message = record.getMessage()
-    except Exception:  # noqa: BLE001 - 格式化失败时交给调用方按 fail-open 处理
+    except Exception:
         return None
     match = _STATUS_RE.search(message)
     return int(match.group(1)) if match else None

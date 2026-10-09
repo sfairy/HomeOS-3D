@@ -7,11 +7,11 @@ from typing import Any
 from fastapi import Depends, Query, Request
 from pydantic import BaseModel, ConfigDict
 
+from .router import NestRouter
 from ..core.errors import bad_request
 from ..dependencies import license_feature
 from ..security.auth_context import require_roles
 from ..services.license import features as feature_codes
-from .router import NestRouter
 
 router = NestRouter(
     prefix="/security",

@@ -1,7 +1,7 @@
 /** Inspector router + cover motor helpers (extracted from home.ts). */
 import {
   renderFlowLineInspector as renderFlowLineInspector2,
-} from "../shared/flow-line-inspector";
+} from "./inspectors/flow-line-inspector";
 import {
   normalizeFlowLine as normalizeFlowLine2,
   FLOW_LINE_FIELDS as FLOW_LINE_FIELDS2,
@@ -14,7 +14,7 @@ import {
   roundField as roundField2,
 } from "./editor-utils";
 import { setInspectorToggle as setInspectorToggle2, iconButtonEffectInspectorLayer as iconButtonEffectInspectorLayer2 } from "./editor-basic-inspectors";
-import { renderPercentageBarInspector as renderPercentageBarInspector2 } from "../shared/percentage-bar-inspector";
+import { renderPercentageBarInspector as renderPercentageBarInspector2 } from "./inspectors/percentage-bar-inspector";
 
 export interface CoverMotorInspectorContext {
   [key: string]: any;

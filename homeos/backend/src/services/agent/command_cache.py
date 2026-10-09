@@ -127,7 +127,7 @@ class CommandCacheService:
                 )
             if self._cache:
                 logger.info("已恢复指令缓存: %s 条", len(self._cache))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("恢复指令缓存失败: %s", exc)
 
     def persist(self) -> None:
@@ -162,7 +162,7 @@ class CommandCacheService:
         async def _write() -> None:
             try:
                 await self._redis.set(REDIS_KEY, payload, REDIS_TTL_SECONDS)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.debug("指令缓存持久化失败: %s", exc)
 
         def _fire() -> None:
@@ -231,7 +231,7 @@ class CommandCacheService:
             return True
         return False
 
-    def set(  # noqa: A003 - 对齐 Nest 方法名
+    def set(
         self,
         text: str,
         tool_name: str,
@@ -384,9 +384,9 @@ class CommandCacheService:
 __all__ = [
     "ANONYMOUS_SCOPE",
     "CORRECTION_WINDOW",
+    "MAX_SIZE",
+    "REDIS_KEY",
     "CacheEntry",
     "CommandCacheService",
     "LastAction",
-    "MAX_SIZE",
-    "REDIS_KEY",
 ]

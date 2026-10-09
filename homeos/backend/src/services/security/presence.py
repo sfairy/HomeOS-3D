@@ -15,9 +15,9 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from ...core.runtime_kv import load_runtime_kv, persist_runtime_kv
 from .bus import LocalEventBus
 from .mmwave import MmWavePresenceService
+from ...core.runtime_kv import load_runtime_kv, persist_runtime_kv
 
 logger = logging.getLogger("homeos.security.presence")
 
@@ -101,7 +101,7 @@ class PresenceService:
             return await self._jobs.run(
                 name, {"description": description, "intervalMs": interval_ms}, fn
             )
-        except Exception as exc:  # noqa: BLE001 - 周期任务失败仅告警，不中断循环
+        except Exception as exc:
             logger.warning("%s 执行失败: %s", description, exc)
             return None
 
@@ -154,7 +154,7 @@ class PresenceService:
 
     @staticmethod
     def _is_trackable_domain(entity_id: str) -> bool:
-        return entity_id.startswith("person.") or entity_id.startswith("device_tracker.")
+        return entity_id.startswith(("person.", "device_tracker."))
 
     def should_track_entity(self, entity_id: str) -> bool:
         if not self._is_trackable_domain(entity_id):
@@ -239,7 +239,7 @@ class PresenceService:
             return False
         try:
             return bool(self._mmwave.get_summary().get("homeOccupied"))
-        except Exception:  # noqa: BLE001
+        except Exception:
             return False
 
     def is_anyone_home(self) -> bool:
@@ -284,7 +284,7 @@ class PresenceService:
             name = attrs.get("friendly_name") or entity_id.split(".")[1] or "unknown"
             self._apply_presence_entity_update(entity_id, str(name), "device_tracker", new_state)
 
-        if entity_id.startswith("lock.") or entity_id.startswith("binary_sensor.door"):
+        if entity_id.startswith(("lock.", "binary_sensor.door")):
             if new_state in ("unlocked", "on"):
                 self.confirm_home()
                 logger.debug("门锁事件:%s → %s", entity_id, new_state)
@@ -533,7 +533,7 @@ class PresenceService:
         try:
             with self._session_factory() as session:
                 data = load_runtime_kv(session, PRESENCE_CONFIG_ID)
-        except Exception:  # noqa: BLE001
+        except Exception:
             data = None
         if not isinstance(data, dict):
             return
@@ -572,7 +572,7 @@ class PresenceService:
             await asyncio.to_thread(
                 persist_runtime_kv, self._session_factory, PRESENCE_CONFIG_ID, payload
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("人员状态写入失败,将在下次重试: %s", exc)
             self._dirty = True
 

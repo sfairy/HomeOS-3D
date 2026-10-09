@@ -1,8 +1,6 @@
 import { clampNumber, normalizeCssColor, resolveMdiIconUrl } from "./_shared";
-import { bindSceneMode } from "../scene-mode";
-import { renderPercentageBarControl } from "./percentage-bar";
 import { navigationButtonIsActive, createNavigationEffectsSvg } from "./navigation-effects";
-import { componentContentUnitsPx, navigationContentUnitPx } from "./content-units";
+import { navigationContentUnitPx } from "./content-units";
 import { isEntityComponentActive } from "./cover-climate-state";
 
 export function navigationComponentRenderer(navigationButtonComponent: any, navigationButtonRenderEnvironment: any) {

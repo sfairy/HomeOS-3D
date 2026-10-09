@@ -21,10 +21,11 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
-from ...core.models import Notification
 from ..alerts.channels import resolve_lan_channels
 from ..alerts.dnd import is_dnd_active_now
 from ..alerts.sources import is_life_safety_notification
+from ...core.background import spawn_background
+from ...core.models import Notification
 
 logger = logging.getLogger("homeos.notification.dispatch")
 
@@ -98,7 +99,7 @@ class NotificationDispatchHelper:
                     persisted_channels,
                     channels,
                 )
-            except Exception as exc:  # noqa: BLE001 - 入库失败降级为内存对象
+            except Exception as exc:
                 logger.error("通知入库失败: %s", exc)
                 notification = {
                     "id": _fallback_id(),
@@ -178,7 +179,7 @@ class NotificationDispatchHelper:
             return
         try:
             result = sender(channels, message, title)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("发送外部通知失败: %s", exc)
             return
         if not inspect.isawaitable(result):
@@ -187,10 +188,10 @@ class NotificationDispatchHelper:
         async def _await_result() -> None:
             try:
                 await result
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.error("发送外部通知失败: %s", exc)
 
-        asyncio.ensure_future(_await_result())
+        spawn_background(_await_result())
 
 
 __all__ = ["NotificationDispatchHelper"]

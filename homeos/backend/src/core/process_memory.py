@@ -26,12 +26,12 @@ def _rss_bytes() -> int:
     except (OSError, ValueError, IndexError):
         pass
     try:
-        import resource  # noqa: PLC0415 - 平台相关，按需导入
+        import resource
 
         usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         # Linux 单位为 KB，macOS 为字节
         return int(usage) * 1024 if os.uname().sysname == "Linux" else int(usage)
-    except Exception:  # noqa: BLE001 - 采集失败回退 0
+    except Exception:
         return 0
 
 

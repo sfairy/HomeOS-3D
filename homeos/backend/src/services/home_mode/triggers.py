@@ -12,8 +12,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from ...core.zoned_time import home_mode_minute_key, normalize_home_mode_time_at, zoned_date_parts
 from .presets import resolve_action_kind  # noqa: F401  (保持模块语义对齐，供调用方复用)
+from ...core.zoned_time import home_mode_minute_key, normalize_home_mode_time_at, zoned_date_parts
 
 logger = logging.getLogger("homeos.home_mode")
 
@@ -271,7 +271,7 @@ async def handle_home_mode_calendar_away(
                     deps.log(f"日历外出结束,停用模式: {away_mode['name']}")
                     await deps.deactivate()
             state.pre_away_mode_id = None
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         deps.warn(f"日历联动模式失败: {exc}")
 
 
@@ -284,5 +284,5 @@ async def handle_home_mode_everyone_left(state: HomeModeTriggersState, deps: Any
             return
         for binding in bindings:
             await _fire_triggered_home_mode(state, deps, binding, "all_leave")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         deps.warn(f"自动离家模式触发失败: {exc}")

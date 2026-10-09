@@ -20,6 +20,8 @@ from typing import Annotated, Any
 from fastapi import Depends, Query, Request
 from pydantic import BeforeValidator
 
+from .router import NestRouter
+from .schemas.base import StrictModel
 from ..core.booleans import parse_boolean_query
 from ..core.errors import api_error, forbidden, not_found
 from ..core.pagination import parse_crud_pagination
@@ -35,8 +37,6 @@ from ..realtime.state_store import (
     slice_entities_by_cursor,
 )
 from ..security.auth_context import require_roles, require_user
-from .router import NestRouter
-from .schemas.base import StrictModel
 
 router = NestRouter(prefix="/entities", tags=["connect"])
 
@@ -313,7 +313,7 @@ async def batch_update_entity_area(
             await ha_connector.update_entity_area(entity_id, area_id)
             updated += 1
             updated_ids.append(entity_id)
-        except Exception:  # noqa: BLE001
+        except Exception:
             errors.append(entity_id)
 
     entity_area = _entity_area(request)

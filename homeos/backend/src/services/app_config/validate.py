@@ -11,34 +11,35 @@
 from __future__ import annotations
 
 import copy
+import math
 import re
 from typing import Any
 
-from ...core.errors import ConfigValidationError, bad_request
-from ...core.zoned_time import normalize_home_mode_time_at
 from .constants import (  # noqa: F401 - PUBLIC_CONFIG_SECTIONS re-export 便利
     PUBLIC_CONFIG_SECTIONS,
     REBUILD_DEBOUNCE_MS_MAX,
     REBUILD_DEBOUNCE_MS_MIN,
 )
+from ...core.errors import ConfigValidationError, bad_request
+from ...core.zoned_time import normalize_home_mode_time_at
 
 FieldError = dict[str, str]
 
 __all__ = [
     "AppConfigValidationError",
     "FieldError",
+    "clock_ranges_overlap",
+    "is_entity_id",
+    "normalize_pricing_patch",
     "num_in",
     "require_bool",
-    "is_entity_id",
-    "validate_optional_entity_id",
-    "validate_entity_id_list",
-    "validate_voice_commands_array",
-    "validate_app_config_section",
-    "validate_app_config_partial",
     "validate_app_config_full",
+    "validate_app_config_partial",
     "validate_app_config_replace_import",
-    "normalize_pricing_patch",
-    "clock_ranges_overlap",
+    "validate_app_config_section",
+    "validate_entity_id_list",
+    "validate_optional_entity_id",
+    "validate_voice_commands_array",
 ]
 
 
@@ -77,7 +78,7 @@ def num_in(
         errors.append({"section": section, "key": key, "message": "必须为数字"})
         return None
     value = float(val)
-    if value != value or value in (float("inf"), float("-inf")):
+    if not math.isfinite(value):
         errors.append({"section": section, "key": key, "message": "必须为数字"})
         return None
     if value < min_val or (max_val is not None and value > max_val):
@@ -850,7 +851,7 @@ def _validate_ops(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
                 from zoneinfo import ZoneInfo
 
                 ZoneInfo(tz.strip())
-            except Exception:  # noqa: BLE001 - 无效时区
+            except Exception:
                 e.append({"section": section, "key": "homeTimezone", "message": f"无效时区: {tz}"})
 
 

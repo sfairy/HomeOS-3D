@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import time
 from datetime import UTC
 from typing import Any
@@ -27,7 +28,7 @@ def clamp_int(value: Any, minimum: int, maximum: int) -> int:
         number = float(value)
     except (TypeError, ValueError):
         return minimum
-    if number != number or number in (float("inf"), float("-inf")):
+    if not math.isfinite(number):
         return minimum
     return min(max(int(number // 1), minimum), maximum)
 
@@ -93,7 +94,7 @@ class HomeModeRuntimeLogStore:
         try:
             with self._session_factory() as session:
                 data = load_runtime_kv(session, HOME_MODE_RUNTIME_CONFIG_ID)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("加载家庭模式运行日志失败: %s", exc)
             return
         if not isinstance(data, dict):
@@ -117,7 +118,7 @@ class HomeModeRuntimeLogStore:
                     "executionHistory": self._execution_history,
                 },
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("家庭模式运行日志持久化失败: %s", exc)
 
     async def flush_now(self) -> None:
@@ -190,9 +191,7 @@ class HomeModeRuntimeLogStore:
                 return False
             if success is True and log.get("success") is False:
                 return False
-            if success is False and log.get("success") is not False:
-                return False
-            return True
+            return not (success is False and log.get("success") is not False)
 
         filtered = [log for log in self._trigger_logs if _match(log)]
         total = len(filtered)

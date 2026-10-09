@@ -148,48 +148,47 @@ class UsersBackupService:
                 )
 
         # 阶段二（单事务）：所有写入原子化，任一失败整体回滚
-        with self._session_factory() as session:
-            with session.begin():
-                for item in to_update:
-                    session.execute(
-                        update(User)
-                        .where(User.id == item["id"])
-                        .values(
-                            role=item["role"],
-                            preferences=_dump_json(item["preferences"]),
-                            token_version=User.token_version + 1,
-                        )
+        with self._session_factory() as session, session.begin():
+            for item in to_update:
+                session.execute(
+                    update(User)
+                    .where(User.id == item["id"])
+                    .values(
+                        role=item["role"],
+                        preferences=_dump_json(item["preferences"]),
+                        token_version=User.token_version + 1,
                     )
-                # 多行哨兵口令会让 ``_claimable_legacy_user`` 失效（要求恰好 1 行），
-                # 从而锁死注册+登录。仅保留一名可接管 admin；其余导入行跳过。
-                claimable = [
-                    item
-                    for item in to_create
-                    if item["role"] == "admin"
-                ] or to_create[:1]
-                skipped_extra = 0
-                for item in to_create:
-                    if item not in claimable[:1]:
-                        skipped_extra += 1
-                        logger.warning(
-                            "备份导入跳过多余无凭据用户 %s（角色 %s）："
-                            "避免多哨兵行锁死首装注册接管。",
-                            item["username"],
-                            item["role"],
-                        )
-                        continue
-                    session.add(
-                        User(
-                            username=item["username"],
-                            password=EXTERNAL_PASSWORD_SENTINEL,
-                            role=item["role"],
-                            preferences=_dump_json(item["preferences"]),
-                            token_version=item["token_version"],
-                        )
+                )
+            # 多行哨兵口令会让 ``_claimable_legacy_user`` 失效（要求恰好 1 行），
+            # 从而锁死注册+登录。仅保留一名可接管 admin；其余导入行跳过。
+            claimable = [
+                item
+                for item in to_create
+                if item["role"] == "admin"
+            ] or to_create[:1]
+            skipped_extra = 0
+            for item in to_create:
+                if item not in claimable[:1]:
+                    skipped_extra += 1
+                    logger.warning(
+                        "备份导入跳过多余无凭据用户 %s（角色 %s）："
+                        "避免多哨兵行锁死首装注册接管。",
+                        item["username"],
+                        item["role"],
                     )
-                if skipped_extra:
-                    skipped += skipped_extra
-                    to_create[:] = claimable[:1]
+                    continue
+                session.add(
+                    User(
+                        username=item["username"],
+                        password=EXTERNAL_PASSWORD_SENTINEL,
+                        role=item["role"],
+                        preferences=_dump_json(item["preferences"]),
+                        token_version=item["token_version"],
+                    )
+                )
+            if skipped_extra:
+                skipped += skipped_extra
+                to_create[:] = claimable[:1]
 
         for item in to_create:
             logger.info(
@@ -211,34 +210,33 @@ class UsersBackupService:
         created_usernames: list[str],
     ) -> None:
         """回滚用户导入：删除本次新建账号，并尽量恢复导入前已有用户的 role/preferences。"""
-        with self._session_factory() as session:
-            with session.begin():
-                for username in created_usernames or []:
-                    session.execute(delete(User).where(User.username == username))
-                for prior in prior_users or []:
-                    if not isinstance(prior, dict):
-                        continue
-                    username = str(prior.get("username") or "").strip()
-                    if not username:
-                        continue
-                    existing = session.execute(
-                        select(User).where(User.username == username)
-                    ).scalar_one_or_none()
-                    if existing is None:
-                        continue
-                    session.execute(
-                        update(User)
-                        .where(User.id == existing.id)
-                        .values(
-                            role=parse_user_role(prior.get("role"), existing.role),
-                            preferences=_dump_json(
-                                prior.get("preferences")
-                                if prior.get("preferences") is not None
-                                else read_json_object(existing.preferences, {})
-                            ),
-                            token_version=User.token_version + 1,
-                        )
+        with self._session_factory() as session, session.begin():
+            for username in created_usernames or []:
+                session.execute(delete(User).where(User.username == username))
+            for prior in prior_users or []:
+                if not isinstance(prior, dict):
+                    continue
+                username = str(prior.get("username") or "").strip()
+                if not username:
+                    continue
+                existing = session.execute(
+                    select(User).where(User.username == username)
+                ).scalar_one_or_none()
+                if existing is None:
+                    continue
+                session.execute(
+                    update(User)
+                    .where(User.id == existing.id)
+                    .values(
+                        role=parse_user_role(prior.get("role"), existing.role),
+                        preferences=_dump_json(
+                            prior.get("preferences")
+                            if prior.get("preferences") is not None
+                            else read_json_object(existing.preferences, {})
+                        ),
+                        token_version=User.token_version + 1,
                     )
+                )
 
         logger.warning(
             "已回滚用户导入:删除 %s 个新建账号,恢复 %s 个既有账号元数据",

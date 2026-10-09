@@ -86,7 +86,7 @@ class CircuitBreaker:
         self._metrics["totalCalls"] += 1
         try:
             result = await fn()
-        except BaseException as err:  # noqa: BLE001 - 记录后原样抛出
+        except BaseException as err:
             self._metrics["lastError"] = str(err).strip() or err.__class__.__name__
             self._on_failure()
             raise

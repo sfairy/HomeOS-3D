@@ -64,7 +64,7 @@ class SecurityLinkageService:
                 default_layout = await asyncio.to_thread(_load_default)
                 links = default_layout.get("securityModeLinks")
             return {str(k): str(v) for k, v in links.items()} if isinstance(links, dict) else {}
-        except Exception:  # noqa: BLE001
+        except Exception:
             return {}
 
     # ------------------------------------------------------------------ #
@@ -89,7 +89,7 @@ class SecurityLinkageService:
                     "armed_away", None, {"source": "presence", "force": True}
                 )
                 logger.info("全员离家:%s 已升级为 armed_away", current)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             self._log_linkage_failure("linkage_auto_arm_failed", f"全员离家自动布防失败: {exc}")
 
     async def _on_presence_changed(self, data: dict[str, Any] | None) -> None:
@@ -103,7 +103,7 @@ class SecurityLinkageService:
         try:
             await self._panel.arm("armed_home", None, {"source": "presence", "force": True})
             logger.info("首人到家:已自动切换安防为 armed_home(居家)")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             self._log_linkage_failure(
                 "linkage_auto_arm_home_failed", f"首人到家自动切居家失败: {exc}"
             )
@@ -129,7 +129,7 @@ class SecurityLinkageService:
                     "armed_home", None, {"source": "calendar", "force": True}
                 )
                 logger.info("日历外出结束:已恢复 armed_home 居家布防")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             self._log_linkage_failure("linkage_calendar_arm_failed", f"日历外出联动布防失败: {exc}")
 
     async def _on_security_mode_changed(self, data: dict[str, Any] | None) -> None:
@@ -161,7 +161,7 @@ class SecurityLinkageService:
                         decision["modeId"], {"source": "security", "reason": f"安防模式 {mode}"}
                     )
                     logger.info("安防 %s:已联动家庭模式 %s", mode, decision["modeId"])
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             self._log_linkage_failure("linkage_home_mode_failed", f"安防联动家庭模式失败: {exc}", mode)
 
         if cfg.get("linkAwaySimOnArmAway") and mode == "armed_away":
@@ -171,7 +171,7 @@ class SecurityLinkageService:
                 try:
                     await self._away_sim.enable()
                     logger.info("布防离家:已启用离家模拟")
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     self._log_linkage_failure(
                         "linkage_away_sim_failed", f"联动离家模拟失败: {exc}", mode
                     )
@@ -179,5 +179,5 @@ class SecurityLinkageService:
             try:
                 await self._away_sim.disable()
                 logger.info("安防 %s:已关闭离家模拟", mode)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass

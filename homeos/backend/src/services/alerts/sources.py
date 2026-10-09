@@ -148,9 +148,7 @@ def is_life_safety_notification(level: Any, source: Any) -> bool:
         return True
     if src.startswith("earthquake"):
         return True
-    if src.startswith("water"):
-        return True
-    return False
+    return bool(src.startswith("water"))
 
 
 def _advisor_source_label(source: str) -> str | None:
@@ -233,12 +231,12 @@ def build_notification_source_db_filter(filter_key: str) -> NotificationSourceDb
 
 
 __all__ = [
-    "NOTIFICATION_SOURCE_SHORT_LABELS",
     "NOTIFICATION_FILTER_PRIORITY",
+    "NOTIFICATION_SOURCE_SHORT_LABELS",
     "NotificationSourceDbFilter",
-    "normalize_notification_source",
-    "normalize_notification_filter_key",
-    "is_life_safety_notification",
-    "notification_source_label",
     "build_notification_source_db_filter",
+    "is_life_safety_notification",
+    "normalize_notification_filter_key",
+    "normalize_notification_source",
+    "notification_source_label",
 ]

@@ -15,11 +15,11 @@ from typing import Annotated, Any
 from fastapi import Depends, Query, Request
 from pydantic import BeforeValidator
 
+from .router import NestRouter
+from .schemas.base import StrictModel
 from ..dependencies import license_feature
 from ..security.auth_context import require_roles, require_user
 from ..services.license import features as feature_codes
-from .router import NestRouter
-from .schemas.base import StrictModel
 
 router = NestRouter(
     prefix="/system",

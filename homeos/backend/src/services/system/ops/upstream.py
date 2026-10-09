@@ -45,7 +45,7 @@ class UpstreamResponse:
         return None
 
     def json(self) -> Any:
-        import json  # noqa: PLC0415 - 仅反序列化时使用
+        import json
 
         if not self.body:
             return None
@@ -59,14 +59,14 @@ class UpstreamResponse:
 
 
 def _collect_headers(response: httpx.Response) -> dict[str, str]:
-    return {key: value for key, value in response.headers.items()}
+    return dict(response.headers.items())
 
 
 def _collect_set_cookies(response: httpx.Response) -> list[str]:
     """多条 ``Set-Cookie`` 必须逐条保留（合并会破坏含逗号属性的 Cookie）。"""
     try:
         return list(response.headers.get_list("set-cookie"))
-    except Exception:  # noqa: BLE001 - 老版本 httpx 无 get_list 时降级
+    except Exception:
         raw = response.headers.get("set-cookie")
         return [raw] if raw else []
 
@@ -88,7 +88,7 @@ async def fetch_raw(
     ``json_body`` 非空时序列化为 JSON 并自动补 ``Content-Type``。
     """
     if json_body is not None and content is None:
-        import json  # noqa: PLC0415 - 仅序列化时使用
+        import json
 
         content = json.dumps(json_body, ensure_ascii=False).encode("utf-8")
         headers = {**(headers or {})}
@@ -127,11 +127,10 @@ async def open_stream(
         timeout=httpx.Timeout(timeout, read=None),
         follow_redirects=False,
         verify=verify,
-    ) as client:
-        async with client.stream(
-            method.upper(), url, params=params, headers=headers, content=content
-        ) as response:
-            yield response
+    ) as client, client.stream(
+        method.upper(), url, params=params, headers=headers, content=content
+    ) as response:
+        yield response
 
 
 __all__ = [

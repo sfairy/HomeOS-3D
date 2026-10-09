@@ -13,7 +13,7 @@ from typing import Any
 
 try:  # pragma: no cover - 依赖存在时导入
     import redis.asyncio as aioredis
-except Exception:  # noqa: BLE001
+except Exception:
     aioredis = None  # type: ignore[assignment]
 
 
@@ -33,7 +33,7 @@ class RedisService:
             self._client = aioredis.from_url(self.url, decode_responses=False)
             await self._client.ping()
             self._ready = True
-        except Exception:  # noqa: BLE001 - 连接失败即降级为内存模式
+        except Exception:
             self._client = None
             self._ready = False
 
@@ -41,7 +41,7 @@ class RedisService:
         if self._client is not None:
             try:
                 await self._client.aclose()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
         self._client = None
         self._ready = False
@@ -82,7 +82,7 @@ class RedisService:
                 else message
             )
             await self._client.publish(channel, payload)
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
     async def subscribe(
@@ -97,7 +97,7 @@ class RedisService:
         try:
             pubsub = self._client.pubsub()
             await pubsub.subscribe(channel)
-        except Exception:  # noqa: BLE001
+        except Exception:
             return None
 
         async def _listen() -> None:
@@ -116,11 +116,11 @@ class RedisService:
                         result = callback(parsed)
                         if inspect.isawaitable(result):
                             await result
-                    except Exception:  # noqa: BLE001 - 单个回调失败不影响订阅循环
+                    except Exception:
                         pass
             except asyncio.CancelledError:
                 raise
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
 
         task = asyncio.create_task(_listen())

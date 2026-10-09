@@ -176,10 +176,10 @@ def pick_config_for_role(config: dict[str, Any], role: str | None) -> dict[str, 
 
 __all__ = [
     "SENSITIVE_FIELD_RE",
+    "apply_import_replace_preserving_secrets",
     "is_masked_value",
     "mask_sensitive_fields_by_key",
-    "restore_client_power_report_tokens",
-    "apply_import_replace_preserving_secrets",
-    "strip_masked_placeholders",
     "pick_config_for_role",
+    "restore_client_power_report_tokens",
+    "strip_masked_placeholders",
 ]

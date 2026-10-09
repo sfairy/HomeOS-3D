@@ -13,8 +13,6 @@ import re
 from collections.abc import Callable
 from typing import Any
 
-from ...core.entity_domain import get_entity_domain
-from ...core.runtime_kv import load_runtime_kv, persist_runtime_kv
 from .bus import LocalEventBus
 from .config import DEFAULT_SECURITY_EMERGENCY
 from .layout import (
@@ -27,6 +25,8 @@ from .layout import (
     summarize_hazard_action_failures,
 )
 from .zones import normalize_zone_type, should_zone_alarm_in_mode
+from ...core.entity_domain import get_entity_domain
+from ...core.runtime_kv import load_runtime_kv, persist_runtime_kv
 
 logger = logging.getLogger("homeos.security.panel")
 
@@ -152,7 +152,7 @@ class SecurityPanelStateHelper:
         try:
             with self._session_factory() as session:
                 data = load_runtime_kv(session, PANEL_RUNTIME_KEY)
-        except Exception:  # noqa: BLE001 - 首次启动无记录
+        except Exception:
             return
         if not isinstance(data, dict):
             return
@@ -192,7 +192,7 @@ class SecurityPanelStateHelper:
         }
         try:
             persist_runtime_kv(self._session_factory, PANEL_RUNTIME_KEY, payload)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("安防面板状态写入失败: %s", exc)
 
     def schedule_security_event(
@@ -266,7 +266,7 @@ class SecurityLinkageHelper:
                     domain, service, entity_id, act.get("service_data") or {}
                 )
                 executed += 1
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 failed += 1
                 message = str(exc)
                 failed_items.append({"entity_id": entity_id, "message": message})
@@ -284,7 +284,7 @@ class SecurityLinkageHelper:
     async def execute_security_mode_actions(self, mode: str) -> dict[str, Any]:
         try:
             actions = await self.load_security_mode_actions(mode)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             message = str(exc)
             logger.error("加载安防联动动作失败，拒绝布防: %s", message)
             return {
@@ -494,9 +494,7 @@ class SecurityAlarmHelper:
             action_results = await run_hazard_auto_actions(
                 bindings,
                 hazard,
-                lambda domain, service, target: self._ha.call_service_via_rest(
-                    domain, service, target
-                ),
+                self._ha.call_service_via_rest,
             )
             failures = summarize_hazard_action_failures(action_results)
             if failures:
@@ -532,7 +530,7 @@ class SecurityAlarmHelper:
                 await self._ha.call_service(
                     get_entity_domain(scene_id) or "scene", "turn_on", scene_id, {}
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("紧急场景触发失败 [%s]: %s", scene_id, exc)
 
 
@@ -567,7 +565,7 @@ class SecurityEmergencyRunnerHelper:
                 normalize_security_emergency(layout.get("securityEmergency")),
                 [item for item in light_pool if item] if isinstance(light_pool, list) else [],
             )
-        except Exception:  # noqa: BLE001
+        except Exception:
             return normalize_security_emergency(None), []
 
     async def run_builtin_emergency(
@@ -588,7 +586,7 @@ class SecurityEmergencyRunnerHelper:
             )
             results["sirens"] = siren_result["ok"]
             results["failed"] += siren_result["failed"]
-        except Exception:  # noqa: BLE001 - 无 siren 域则跳过
+        except Exception:
             pass
 
         light_ids: list[str] = []
@@ -596,7 +594,7 @@ class SecurityEmergencyRunnerHelper:
             try:
                 lights = await self._ha.fetch_entities_by_domain("light")
                 light_ids = [light["entity_id"] for light in lights]
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
         else:
             light_ids = resolve_emergency_light_pool(cfg, away_light_pool)
@@ -660,7 +658,7 @@ class SecurityEmergencyRunnerHelper:
                     },
                 )
                 logger.warning("紧急求助:已自动离家布防(跳过布防联动,避免与求救声光冲突)")
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 schedule_security_event(
                     self._session_factory,
                     "emergency_action_failed",

@@ -144,7 +144,7 @@ class StatusLogDedupeFilter(logging.Filter):
         if decided is None:
             try:
                 message = record.getMessage()
-            except Exception:  # noqa: BLE001 - 格式化失败不得吞掉日志
+            except Exception:
                 message = str(record.msg)
             decided = should_emit_status_log(
                 _LEVELNAME_TO_NEST.get(record.levelname, "log"),

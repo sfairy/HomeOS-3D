@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -65,7 +66,7 @@ def compute_meter_delta(old_state: Any, new_state: Any) -> float:
         new_val = float(new_raw)
     except (TypeError, ValueError):
         return 0.0
-    if old_val != old_val or new_val != new_val:  # NaN
+    if math.isnan(old_val) or math.isnan(new_val):  # NaN
         return 0.0
     attrs = None
     if isinstance(new_state, dict) and isinstance(new_state.get("attributes"), dict):
@@ -87,7 +88,7 @@ def _resolve_business_timezone(timezone_name: str | None) -> ZoneInfo:
     if normalized:
         try:
             return ZoneInfo(normalized)
-        except Exception:  # noqa: BLE001 - 非法时区名回退默认，不影响计量
+        except Exception:
             pass
     return ZoneInfo(BUSINESS_TIME_ZONE)
 

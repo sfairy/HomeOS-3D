@@ -9,9 +9,9 @@ import asyncio
 import logging
 from typing import Any
 
-from ...core.entity_domain import get_entity_domain
 from .bus import LocalEventBus
 from .layout import load_active_project_layout, parse_hazard_layout_bindings
+from ...core.entity_domain import get_entity_domain
 
 logger = logging.getLogger("homeos.security.drill")
 
@@ -68,7 +68,7 @@ class HazardDrillService:
                 await self._ha.call_service(
                     get_entity_domain(scene_id) or "scene", "turn_on", scene_id, {}
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("演习触发紧急场景失败 [%s]: %s", scene_id, exc)
 
         return {

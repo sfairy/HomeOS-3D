@@ -17,10 +17,10 @@ from typing import Any
 
 from sqlalchemy import select
 
-from ...core.json_field import read_json_object
-from ...core.models import ProjectConfig
 from ..app_config.constants import CONFIG_MASK_PLACEHOLDER
 from ..app_config.mask import is_masked_value
+from ...core.json_field import read_json_object
+from ...core.models import ProjectConfig
 
 logger = logging.getLogger("homeos.agent.config")
 
@@ -247,7 +247,7 @@ class AgentConfigService:
             resolved = SceneVoiceControlConfig(enabled=raw.get("enabled") is True, allow=allow)
             self._cached_scene_voice_control = resolved
             return resolved
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("读取场景语音控制配置失败,按全禁处理: %s", exc)
             return fallback
 
@@ -259,7 +259,7 @@ class AgentConfigService:
         try:
             profiles = self._app_config.get("profiles") or {}
             return str(profiles.get("activeProfileId") or "").strip() or "default"
-        except Exception:  # noqa: BLE001
+        except Exception:
             return "default"
 
     def _read_layout(self) -> dict[str, Any]:
@@ -274,7 +274,7 @@ class AgentConfigService:
             if row is None or not row.layout:
                 return {}
             return read_json_object(row.layout, {})
-        except Exception:  # noqa: BLE001
+        except Exception:
             return {}
 
     def _read_agent_config(self) -> dict[str, Any]:
@@ -310,7 +310,7 @@ class AgentConfigService:
                 language=str(agent.get("language") or "zh"),
                 system_prompt=str(system_prompt) if system_prompt else None,
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("从数据库读取 Agent 配置失败: %s", exc)
             return None
 

@@ -68,7 +68,7 @@ def signed_in(request: Request) -> bool:
                 )
                 is not None
             )
-    except Exception:  # noqa: BLE001 - 会话存储异常按未登录处理（fail-closed）
+    except Exception:
         return False
 
 
@@ -76,7 +76,7 @@ def page_license_feature(path: str) -> str | None:
     """页面路径对应的授权能力；无需判定时返回 ``None``。"""
     for prefixes, feature in _PAGE_LICENSE_FEATURE:
         for prefix in prefixes:
-            if (path == prefix) or prefix.endswith("/") and path.startswith(prefix):
+            if (path == prefix) or (prefix.endswith("/") and path.startswith(prefix)):
                 return feature
     return None
 
@@ -189,7 +189,7 @@ def mount_spa_static(app: FastAPI, settings: Settings, version: str) -> None:
             return False
         try:
             return not await asyncio.to_thread(service.allows, feature)
-        except Exception:  # noqa: BLE001 - 判定失败不阻塞外壳下发，交由前端门禁兜底
+        except Exception:
             return False
 
     async def _spa_shell(request: Request) -> HTMLResponse:

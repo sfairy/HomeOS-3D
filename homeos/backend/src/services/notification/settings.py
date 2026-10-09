@@ -13,9 +13,9 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
-from ...core.models import User
-from ..alerts.dnd import DEFAULT_DND_END, DEFAULT_DND_START, is_dnd_active
 from .config import merge_notification_settings
+from ..alerts.dnd import DEFAULT_DND_END, DEFAULT_DND_START, is_dnd_active
+from ...core.models import User
 
 logger = logging.getLogger("homeos.notification.settings")
 
@@ -63,7 +63,7 @@ class NotificationSettingsHelper:
                 prefs = _parse_object(user.preferences)
                 value = prefs.get("notification")
                 return value if isinstance(value, dict) else {}
-        except Exception:  # noqa: BLE001
+        except Exception:
             return {}
 
     def _merge_settings(

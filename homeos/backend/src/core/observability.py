@@ -272,7 +272,7 @@ MetricsAccessDecision = str  # 'allow' | 'not_found' | 'unauthorized'
 def is_loopback_remote_address(raw: str | None) -> bool:
     if not raw:
         return False
-    ip = raw[7:] if raw.startswith("::ffff:") else raw
+    ip = raw.removeprefix("::ffff:")
     return ip in {"127.0.0.1", "::1", "localhost"}
 
 

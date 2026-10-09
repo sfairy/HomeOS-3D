@@ -103,7 +103,7 @@ class AgentSessionStoreService:
                 )
             if self._sessions:
                 logger.info("已恢复 Agent 会话上下文: %s 个", len(self._sessions))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("恢复 Agent 会话上下文失败: %s", exc)
 
     def persist(self) -> None:
@@ -127,7 +127,7 @@ class AgentSessionStoreService:
         async def _write() -> None:
             try:
                 await self._redis.set(SESSIONS_KEY, payload, SESSIONS_TTL_SECONDS)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.debug("Agent 会话持久化失败: %s", exc)
 
         # 对齐 Nest 的 fire-and-forget（void this.redis.set(...)）
@@ -209,10 +209,10 @@ class AgentSessionStoreService:
 
 
 __all__ = [
-    "AgentSessionEntry",
-    "AgentSessionStoreService",
-    "AgentSessionTurn",
     "MAX_SESSIONS",
     "MAX_TURNS",
     "SESSION_TTL_MS",
+    "AgentSessionEntry",
+    "AgentSessionStoreService",
+    "AgentSessionTurn",
 ]

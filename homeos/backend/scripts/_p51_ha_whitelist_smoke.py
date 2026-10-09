@@ -18,10 +18,12 @@ os.environ["UPDATE_CHECKS_ENABLED"] = "0"
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from _smoke_auth_support import csrf_headers, install_fake_verification, register_local_user  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
+from _smoke_auth_support import csrf_headers, install_fake_verification, register_local_user
+from fastapi.testclient import TestClient
+from src.app import create_app
 
-from src.app import create_app  # noqa: E402
+# 冒烟专用固定口令（非真实凭据）。
+SMOKE_ADMIN_PASSWORD = "Passw0rd!234"
 
 failures: list[str] = []
 
@@ -42,7 +44,7 @@ with TestClient(app) as client:
         app,
         username="smokeadmin",
         email="smokeadmin@example.com",
-        password="Passw0rd!234",
+        password=SMOKE_ADMIN_PASSWORD,
     )
     print("register:", r.status_code, str(r.json())[:120])
     check("本机账号注册成功", r.status_code == 201, f"{r.status_code} {r.text[:160]}")

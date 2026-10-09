@@ -19,10 +19,10 @@ from typing import Any
 
 from sqlalchemy import func, select
 
+from ..setup.bindings_gaps import collect_binding_gaps
 from ...core.errors import api_error, bad_request
 from ...core.json_field import read_json_object
 from ...core.models import Project, ProjectConfig, SecurityEvent
-from ..setup.bindings_gaps import collect_binding_gaps
 
 logger = logging.getLogger("homeos.setup.wizard")
 
@@ -75,7 +75,7 @@ class SetupWizardService:
             if row is None or not row.layout:
                 return None
             return read_json_object(row.layout, {})
-        except Exception as err:  # noqa: BLE001 - 读取失败按未配置处理
+        except Exception as err:
             logger.debug("读取项目布局失败: %s", err)
             return None
 
@@ -115,7 +115,7 @@ class SetupWizardService:
         try:
             with self._session_factory() as session:
                 return bool(session.scalar(select(func.count()).select_from(Project)))
-        except Exception:  # noqa: BLE001 - 检测失败按未完成处理
+        except Exception:
             return False
 
     @staticmethod
@@ -227,7 +227,7 @@ class SetupWizardService:
                     valid.append(eid)
                 else:
                     missing.append(eid)
-            except Exception:  # noqa: BLE001 - 校验失败按缺失处理
+            except Exception:
                 missing.append(eid)
         return {"valid": valid, "missing": missing, "allOk": not missing}
 
@@ -265,17 +265,16 @@ class SetupWizardService:
             source = options.get("source") or "unknown"
             detail = f"用户误报反馈，冷却延长至 {next_value}s（来源: {source}）"
             try:
-                with self._session_factory() as session:
-                    with session.begin():
-                        session.add(
-                            SecurityEvent(
-                                type="false_alarm_feedback",
-                                mode="disarmed",
-                                detail=detail,
-                                zones="[]",
-                            )
+                with self._session_factory() as session, session.begin():
+                    session.add(
+                        SecurityEvent(
+                            type="false_alarm_feedback",
+                            mode="disarmed",
+                            detail=detail,
+                            zones="[]",
                         )
-            except Exception as err:  # noqa: BLE001 - 记录失败不影响反馈结果
+                    )
+            except Exception as err:
                 logger.warning("写入误报反馈事件失败: %s", err)
 
         return {"sensorAlertCooldownSec": next_value}
@@ -398,8 +397,8 @@ class SetupWizardService:
 
 
 __all__ = [
-    "CHECKLIST_ITEM_IDS",
     "CHECKLIST_CACHE_TTL_MS",
+    "CHECKLIST_ITEM_IDS",
     "ENV_ROOM_MIN",
     "ENV_SENSOR_KEYS",
     "HEALTH_CACHE_TTL_MS",

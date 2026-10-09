@@ -10,7 +10,6 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from ...core.errors import api_error, bad_request
 from .constants import APP_CONFIG_SCHEMA_VERSION, CONFIG_MASK_PLACEHOLDER
 from .import_normalize import normalize_app_config_for_import
 from .mask import mask_sensitive_fields_by_key
@@ -19,6 +18,7 @@ from .validate import (
     validate_app_config_partial,
     validate_app_config_replace_import,
 )
+from ...core.errors import api_error, bad_request
 
 logger = logging.getLogger("homeos.app_config.backup")
 
@@ -84,4 +84,4 @@ class AppConfigBackupService:
         return out
 
 
-__all__ = ["AppConfigBackupService", "APP_CONFIG_BACKUP_SCHEMA"]
+__all__ = ["APP_CONFIG_BACKUP_SCHEMA", "AppConfigBackupService"]

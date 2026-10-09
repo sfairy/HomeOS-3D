@@ -78,9 +78,7 @@ def is_license_exempt_path(path: str, method: str = "GET") -> bool:
         return True
     if path.startswith(LICENSE_EXEMPT_PREFIXES):
         return True
-    if method in ("GET", "HEAD") and path.startswith(LICENSE_EXEMPT_STATIC_PREFIX):
-        return True
-    return False
+    return bool(method in ("GET", "HEAD") and path.startswith(LICENSE_EXEMPT_STATIC_PREFIX))
 
 
 __all__ = [

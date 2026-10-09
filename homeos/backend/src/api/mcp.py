@@ -16,8 +16,8 @@ from typing import Any
 from fastapi import Body, Depends, Request
 from fastapi.responses import StreamingResponse
 
-from ..security.limiter import rate_limit
 from .router import NestRouter
+from ..security.limiter import rate_limit
 
 router = NestRouter(prefix="/mcp", tags=["mcp"])
 

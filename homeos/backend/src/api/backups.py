@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from starlette.background import BackgroundTask
 
+from .router import NestRouter
 from ..api.studio3d import _deliver_pending
 from ..core.models import User
 from ..dependencies import authenticated_short_lived_user
@@ -34,7 +35,6 @@ from ..services.backup.business_backup import (
     inspect_archive,
     restore_business,
 )
-from .router import NestRouter
 
 router = NestRouter(prefix="/backups", tags=["backups"])
 
@@ -73,7 +73,7 @@ def _flush_pending(request: Request) -> None:
     try:
         with request.app.state.database.session_factory() as database:
             _deliver_pending(request, database)
-    except Exception:  # noqa: BLE001
+    except Exception:
         pass
 
 
@@ -95,7 +95,7 @@ def _ensure_same_admin_session(
     """对齐 0.7.1 current_admin：恢复/检查前再验短会话，防止登录态中途变化。"""
     try:
         fresh = authenticated_short_lived_user(request, Response())
-    except Exception:  # noqa: BLE001
+    except Exception:
         return JSONResponse(
             status_code=401, content={"detail": "登录状态已变化，请重新登录。"}
         )
@@ -131,11 +131,11 @@ async def export_backup(
         app_config = None
         try:
             ui = request.app.state.ui_config.export_all_configs()
-        except Exception:  # noqa: BLE001
+        except Exception:
             ui = []
         try:
             app_config = request.app.state.app_config_backup.export(False)
-        except Exception:  # noqa: BLE001
+        except Exception:
             app_config = {}
         archive = await durable_work(
             lambda: create_archive(
@@ -292,7 +292,7 @@ async def restore_backup(
         if isinstance(result.get("ui"), list) and hasattr(request.app.state, "ui_config"):
             try:
                 request.app.state.ui_config.import_all_configs(result["ui"])
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
         if isinstance(result.get("appConfig"), dict) and hasattr(
             request.app.state, "app_config_backup"
@@ -308,13 +308,13 @@ async def restore_backup(
                             "confirm": True,
                         }
                     )
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
         catalog = getattr(request.app.state, "asset_catalog", None)
         if catalog is not None and hasattr(catalog, "reload_user"):
             try:
                 catalog.reload_user()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
         gate.jobs.pop(payload.ticket, None)
         gate.cleanup_job(directory)
@@ -326,7 +326,7 @@ async def restore_backup(
                 "备份",
                 "业务数据已恢复，保留当前管理员账号及授权；中控设备需重新配对",
             )
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
         return {"ok": True, "restored": True, "rePairDisplays": True}
     except BackupError as error:

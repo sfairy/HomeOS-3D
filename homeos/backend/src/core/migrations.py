@@ -24,8 +24,8 @@ from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
-from ..config import Settings
 from .file_lock import locked_file
+from ..config import Settings
 
 #: 结构基线版本号。发行产物不带迁移脚本，新库直接按 ORM 元数据建好后写入这个版本号。
 SCHEMA_REVISION = "0001"
@@ -124,7 +124,7 @@ def _script_knows_revision(config: Config, revision: str) -> bool:
     try:
         ScriptDirectory.from_config(config).get_revision(revision)
         return True
-    except Exception:  # noqa: BLE001 - revision 解析失败即视为不认识
+    except Exception:
         return False
 
 
@@ -358,7 +358,7 @@ def write_data_compatibility_marker(settings: Settings, *, minimum: str | None =
                 )
         finally:
             engine.dispose()
-    except Exception:  # noqa: BLE001 - 标记文件已写；DB 行可在下次迁移补齐
+    except Exception:
         return
 
 

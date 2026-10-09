@@ -24,12 +24,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import httpx  # noqa: E402
-
-from src.ha import client as client_mod  # noqa: E402
-from src.ha.client import HAClient, HAClientError  # noqa: E402
-from src.ha.service import STATE_FETCH_RETRY_DELAYS, HAConnectorService  # noqa: E402
-from src.ha.state_hub import StateHub  # noqa: E402
+import httpx
+from src.ha import client as client_mod
+from src.ha.client import HAClient, HAClientError
+from src.ha.service import STATE_FETCH_RETRY_DELAYS, HAConnectorService
+from src.ha.state_hub import StateHub
 
 failures: list[str] = []
 

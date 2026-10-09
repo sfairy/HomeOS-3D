@@ -12,10 +12,6 @@ import secrets
 from datetime import UTC, datetime
 from typing import Any
 
-from ...core.errors import BusinessException, ErrorCode, api_error, bad_request
-from ...core.models import SystemConfig
-from ...core.runtime_kv import load_runtime_kv, persist_runtime_kv
-from ...core.zoned_time import zoned_date_parts  # noqa: F401 - 供调用方复用
 from .constants import (
     APP_CONFIG_SCHEMA_VERSION,
     CONFIG_AUDIT_STORAGE_ID,
@@ -45,6 +41,10 @@ from .validate import (
     normalize_pricing_patch,
     validate_app_config_partial,
 )
+from ...core.errors import BusinessException, ErrorCode, api_error, bad_request
+from ...core.models import SystemConfig
+from ...core.runtime_kv import load_runtime_kv, persist_runtime_kv
+from ...core.zoned_time import zoned_date_parts  # noqa: F401 - 供调用方复用
 
 logger = logging.getLogger("homeos.app_config")
 
@@ -124,7 +124,7 @@ class AppConfigService:
     def _load_with_retry(self, attempt: int = 1, max_attempts: int = 3) -> None:
         try:
             self._load()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             if attempt < max_attempts:
                 logger.warning("加载系统配置失败(第 %s/%s 次): %s", attempt, max_attempts, exc)
                 self._load_with_retry(attempt + 1, max_attempts)
@@ -192,7 +192,7 @@ class AppConfigService:
                 stored = load_runtime_kv(session, CONFIG_AUDIT_STORAGE_ID)
             if isinstance(stored, list):
                 self._audit_log = [*stored, *self._audit_log][: self._get_max_audit()]
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("加载配置审计失败: %s", exc)
 
     def _persist_audit_log(self) -> None:
@@ -202,7 +202,7 @@ class AppConfigService:
             persist_runtime_kv(
                 self._session_factory, CONFIG_AUDIT_STORAGE_ID, self._audit_log[: self._get_max_audit()]
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("持久化配置审计失败: %s", exc)
 
     # ------------------------------------------------------------------ #
@@ -326,7 +326,7 @@ class AppConfigService:
             return cached[1]
         try:
             cloned = copy.deepcopy(value)
-        except Exception:  # noqa: BLE001
+        except Exception:
             cloned = copy.deepcopy(fallback)
         self._section_cache[section] = (self._generation, cloned)
         return cloned
@@ -561,7 +561,7 @@ class AppConfigService:
                 emit_async = getattr(self._event_bus, "emit", None)
                 if callable(emit_async):
                     emit_async(APP_CONFIG_UPDATED, sections)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("广播配置变更失败: %s", exc)
 
 
@@ -580,4 +580,4 @@ def _build_event_log_public_meta(retention_days: Any, ops: dict[str, Any]) -> di
     )
 
 
-__all__ = ["AppConfigService", "APP_CONFIG_UPDATED", "AppConfigValidationError"]
+__all__ = ["APP_CONFIG_UPDATED", "AppConfigService", "AppConfigValidationError"]

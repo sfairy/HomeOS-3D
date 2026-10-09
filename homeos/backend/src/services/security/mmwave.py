@@ -190,7 +190,7 @@ class MmWavePresenceService:
 
         sensor_name = re.sub(r"^(binary_sensor|sensor)\.", "", entity_id)
         return re.sub(
-            r"_(presence|mmwave|occupancy|motion|ld2410|ld2450|fp1|fp2)$", "", sensor_name, flags=re.I
+            r"_(presence|mmwave|occupancy|motion|ld2410|ld2450|fp1|fp2)$", "", sensor_name, flags=re.IGNORECASE
         )
 
     def get_all_room_presence(self) -> dict[str, dict[str, Any]]:

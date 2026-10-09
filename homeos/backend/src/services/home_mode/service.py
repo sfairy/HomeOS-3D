@@ -15,9 +15,6 @@ from typing import Any
 
 from sqlalchemy import func, select, update
 
-from ...core.app_config import load_raw_config
-from ...core.errors import api_error, not_found
-from ...core.models import HomeMode
 from . import presets as presets_module
 from .actions import HomeModeActivateState, activate_home_mode, deactivate_home_mode
 from .linkage import HomeModeLinkageArbiter
@@ -36,6 +33,9 @@ from .triggers import (
     parse_home_mode_trigger_bindings,
     prune_home_mode_trigger_cooldown,
 )
+from ...core.app_config import load_raw_config
+from ...core.errors import api_error, not_found
+from ...core.models import HomeMode
 
 logger = logging.getLogger("homeos.home_mode")
 
@@ -170,14 +170,14 @@ class HomeModeService:
                         {"description": "家庭模式定时触发检查", "intervalMs": 30_000},
                         lambda: check_home_mode_time_triggers(self._trigger_state, self._deps),
                     )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("时间触发器检查失败: %s", exc)
 
     def _load_config(self) -> None:
         try:
             with self._session_factory() as session:
                 raw = load_raw_config(session)
-        except Exception:  # noqa: BLE001
+        except Exception:
             raw = {}
         home_mode = raw.get("homeMode") if isinstance(raw.get("homeMode"), dict) else {}
         security = raw.get("security") if isinstance(raw.get("security"), dict) else {}
@@ -515,7 +515,7 @@ class HomeModeService:
             return
         try:
             await self.activate(mode_id, {"source": "manual", "reason": "automation"})
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("自动化请求激活家庭模式失败: %s", exc)
 
     # ------------------------------------------------------------------ #
@@ -596,7 +596,7 @@ class HomeModeService:
             result = self._notification.notify(level, message, source)
             if asyncio.iscoroutine(result):
                 await result
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("家庭模式通知发送失败: %s", exc)
 
     async def _call_service(

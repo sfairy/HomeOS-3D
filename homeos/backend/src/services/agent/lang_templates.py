@@ -255,45 +255,45 @@ EN = LangTemplate(
             service_off="turn_off",
         ),
     ),
-    turn_on_start=re.compile(r"^(turn on|switch on|open|start|activate|enable)", re.I),
-    turn_off_start=re.compile(r"^(turn off|switch off|close|stop|deactivate|disable)", re.I),
-    turn_on_end=re.compile(r"(on|open)$", re.I),
-    turn_off_end=re.compile(r"(off|close)$", re.I),
-    polite_prefix=re.compile(r"^(can you |could you |please |kindly |would you |hey |hi |ok |okay )\s*", re.I),
+    turn_on_start=re.compile(r"^(turn on|switch on|open|start|activate|enable)", re.IGNORECASE),
+    turn_off_start=re.compile(r"^(turn off|switch off|close|stop|deactivate|disable)", re.IGNORECASE),
+    turn_on_end=re.compile(r"(on|open)$", re.IGNORECASE),
+    turn_off_end=re.compile(r"(off|close)$", re.IGNORECASE),
+    polite_prefix=re.compile(r"^(can you |could you |please |kindly |would you |hey |hi |ok |okay )\s*", re.IGNORECASE),
     set_temperature=re.compile(
-        r"(set to|set temperature to|change to|adjust to|make it)\s*(\d+)\s*(degrees?|°)?", re.I
+        r"(set to|set temperature to|change to|adjust to|make it)\s*(\d+)\s*(degrees?|°)?", re.IGNORECASE
     ),
-    all_keywords=re.compile(r"all|every|entire|whole", re.I),
+    all_keywords=re.compile(r"all|every|entire|whole", re.IGNORECASE),
     whole_home=re.compile(
-        r"whole (house|home|apartment|place)|entire (house|home)|everywhere|all rooms", re.I
+        r"whole (house|home|apartment|place)|entire (house|home)|everywhere|all rooms", re.IGNORECASE
     ),
     strip_pattern=re.compile(
         r"please |the |a |an |my |our |can you |could you |would you |kindly |all of |all the |every |entire |whole |now|right now",
-        re.I,
+        re.IGNORECASE,
     ),
-    conjunctions=re.compile(r" and |,| also | as well | plus | then ", re.I),
-    second_action=re.compile(r"\b(turn on|turn off|switch on|switch off|open|close)\b", re.I),
+    conjunctions=re.compile(r" and |,| also | as well | plus | then ", re.IGNORECASE),
+    second_action=re.compile(r"\b(turn on|turn off|switch on|switch off|open|close)\b", re.IGNORECASE),
     object_marker="",
     temp_query=re.compile(
         r"^(?:what'?s|what is|how)\s*(?:the\s+)?(?:current\s+|ambient\s+)?"
         r"(?:temperature|temp)\b\s*(?:in|of|at|for|is it in)?\s*"
         r"(?P<room>[a-z0-9_.\- ]{0,20}?)\s*[?.!]?$",
-        re.I,
+        re.IGNORECASE,
     ),
     humidity_query=re.compile(
         r"^(?:what'?s|what is|how)\s*(?:the\s+)?(?:current\s+)?"
         r"humidity\b\s*(?:in|of|at|for|is it in)?\s*"
         r"(?P<room>[a-z0-9_.\- ]{0,20}?)\s*[?.!]?$",
-        re.I,
+        re.IGNORECASE,
     ),
     # 英文噪声词：时间 / 礼貌 / 冠词（「what's the temperature now?」的 now / the）
     query_noise_pattern=re.compile(
         r"\b(now|right now|currently|today|please|kindly)\b|^(?:the|a|an|my|our)\s+|\s+(?:is|are)\s*$",
-        re.I,
+        re.IGNORECASE,
     ),
     # 英文不区分「温湿度」连写，房间描述里出现查询词本身即视为切错
-    query_room_conflict_pattern=re.compile(r"temperature|humidity|degrees?", re.I),
-    correction_commands=re.compile(r"^(wrong|no that'?s wrong|that'?s not right|oops|nope)$", re.I),
+    query_room_conflict_pattern=re.compile(r"temperature|humidity|degrees?", re.IGNORECASE),
+    correction_commands=re.compile(r"^(wrong|no that'?s wrong|that'?s not right|oops|nope)$", re.IGNORECASE),
     clear_memory="clear memory",
     temp_reply_template="The temperature in {room} is {value}°C.",
     humidity_reply_template="The humidity in {room} is {value}%.",

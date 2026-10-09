@@ -13,9 +13,9 @@ from urllib.parse import quote, urlparse
 
 import httpx
 
-from ...core.errors import BusinessException, ErrorCode, api_error
 from .types import ChannelMessage, MessageHandler
 from .wecom_utils import markdown_to_wecom_text, split_wecom_text
+from ...core.errors import BusinessException, ErrorCode, api_error
 
 logger = logging.getLogger("homeos.channels.wecom")
 
@@ -140,7 +140,7 @@ class WecomService:
                 await self.send_wecom_text_single(str(to), chunk)
                 if index < len(chunks) - 1:
                     await asyncio.sleep(CHUNK_SLEEP_SECONDS)
-            except Exception as exc:  # noqa: BLE001 - 单片失败不影响其余片
+            except Exception as exc:
                 logger.error("企微消息分片发送失败 %s/%s: %s", index + 1, len(chunks), exc)
 
     async def send_alert_broadcast(self, text: str, title: str | None = None) -> None:
@@ -155,7 +155,7 @@ class WecomService:
         for to in targets:
             try:
                 await self.send_text(to, body)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.error("企微告警推送失败 (%s): %s", to, exc)
 
     # ------------------------------------------------------------------ #
@@ -186,7 +186,7 @@ class WecomService:
             result = self._message_handler(channel_msg)
             if asyncio.iscoroutine(result):
                 await result
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("企微消息处理失败: %s", exc)
             await self.send_text(from_user, "系统内部处理消息出错")
 
@@ -266,7 +266,7 @@ class WecomService:
                 target_url = f"{proxy}{original.path}"
                 if original.query:
                     target_url = f"{target_url}?{original.query}"
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.error("无效的 API URL:%s,%s", url, exc)
         return await self._http.request(
             method, target_url, json=json_body, headers=headers

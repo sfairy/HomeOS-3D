@@ -71,7 +71,7 @@ def nest_error_payload(
         payload = {
             "statusCode": status,
             "errorCode": error_code,
-            **({"apiErrorCode": api_error_code}),
+            "apiErrorCode": api_error_code,
             "error": error,
             "message": message,
             "timestamp": payload["timestamp"],

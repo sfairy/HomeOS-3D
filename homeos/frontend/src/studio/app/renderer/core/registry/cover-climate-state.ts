@@ -9,7 +9,7 @@ import {
 } from "../../controls/climate";
 import { entityPowerIsOn } from "../entity-power";
 import { lightRealtimeCapabilities } from "../../controls/light-runtime";
-import { clampNumber, normalizeCssColor, resolveStatePayload, isActiveStateText } from "./_shared";
+import { resolveStatePayload, isActiveStateText } from "./_shared";
 import { formatNumericValue } from "../../controls/line-chart-runtime";
 
 type RenderPropertyBag = any;

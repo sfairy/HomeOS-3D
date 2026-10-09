@@ -15,6 +15,8 @@ import secrets
 from datetime import UTC, datetime
 from typing import Any
 
+from ..core.background import spawn_background
+
 logger = logging.getLogger("homeos.shared.event_bus")
 
 #: Redis Pub/Sub 跨副本桥接频道名（对齐 Nest ``BRIDGE_CHANNEL``）
@@ -130,7 +132,7 @@ def enrich_slim_state_change(event: Any, get_previous_state: Any) -> Any:
         return event
     try:
         previous = get_previous_state(event.get("entity_id"))
-    except Exception:  # noqa: BLE001
+    except Exception:
         previous = None
     enriched = dict(event)
     enriched["old_state"] = previous
@@ -174,7 +176,7 @@ class EventBusBridge:
         try:
             self._unsubscribe = await self._redis.subscribe(BRIDGE_CHANNEL, self._on_message)
             self._enabled = self._unsubscribe is not None
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("事件总线 Redis 桥接订阅失败: %s", exc)
         self._bus.set_publisher(self.publish)
         if self._enabled:
@@ -184,7 +186,7 @@ class EventBusBridge:
         if self._unsubscribe is not None:
             try:
                 self._unsubscribe()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
             self._unsubscribe = None
         self._enabled = False
@@ -204,7 +206,7 @@ class EventBusBridge:
                     "origin": self.instance_id,
                 },
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("事件总线桥接发布失败 %s: %s", name, exc)
 
     def _on_message(self, message: Any) -> None:
@@ -216,15 +218,15 @@ class EventBusBridge:
             return
         payload = message.get("payload")
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
         except RuntimeError:
             return
-        loop.create_task(self._bus.dispatch_local(event, payload))
+        spawn_background(self._bus.dispatch_local(event, payload))
 
 
 __all__ = [
-    "BRIDGE_CHANNEL",
     "BRIDGED_EVENTS",
+    "BRIDGE_CHANNEL",
     "INITIAL_STATES_REF_THRESHOLD",
     "EventBusBridge",
     "enrich_slim_state_change",

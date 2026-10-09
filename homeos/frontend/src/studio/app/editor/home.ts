@@ -1,19 +1,16 @@
 import { confirmAction } from "../shared/ui-confirm";
 import { withCsrf } from "@/services/api/csrf";
 import {
-  renderFlowLineInspector as renderFlowLineInspector2,
   previewFlowLineInspectorTransform as previewFlowLineInspectorTransform2,
-} from "../shared/flow-line-inspector";
+} from "./inspectors/flow-line-inspector";
 import {
   normalizeFlowLine as normalizeFlowLine2,
   FLOW_LINE_FIELDS as FLOW_LINE_FIELDS2,
   applyFlowLineStyle as applyFlowLineStyle2,
 } from "../shared/flow-line-model";
-import { resolveSceneControlMode as resolveSceneControlMode2 } from "../renderer/core/scene-mode";
 import {
-  renderPercentageBarInspector as renderPercentageBarInspector2,
   previewPercentageBarInspector as previewPercentageBarInspector2,
-} from "../shared/percentage-bar-inspector";
+} from "./inspectors/percentage-bar-inspector";
 import {
   applyPercentageBarChange as applyPercentageBarChange2,
   percentageBarDefaults as percentageBarDefaults2,
@@ -22,7 +19,6 @@ import {
   PanelRenderer as PanelRenderer2,
   airflowCanvasOffsetBounds as airflowCanvasOffsetBounds2,
   setBuiltinAssetVersions as setBuiltinAssetVersions2,
-  syncedLineChartProperties as syncedLineChartProperties2,
 } from "../renderer/core/renderer";
 import {
   lightStatisticsEntityStateStatus as lightStatisticsEntityStateStatus2,
@@ -50,8 +46,6 @@ import {
 } from "./editor-utils";
 import {
   packPopupModules as packPopupModules2,
-  popupLayoutColumns as popupLayoutColumns2,
-  popupLayoutMetrics as popupLayoutMetrics2,
 } from "../shared/popup-layout";
 import {
   countComponentsOutsideCanvas as countComponentsOutsideCanvas2,
@@ -63,15 +57,8 @@ import {
   copyComponentsToTarget as copyComponentsToTarget2,
 } from "./component-page-copy";
 import {
-  RELATED_ENTITY_DOMAIN_LABELS as RELATED_ENTITY_DOMAIN_LABELS2,
   manualRelatedEntityConfig as manualRelatedEntityConfig2,
-  relatedEntityIsAvailable as relatedEntityIsAvailable2,
-  relatedEntityLabel as relatedEntityLabel2,
-  relatedEntityNeedsConfirmation as relatedEntityNeedsConfirmation2,
-  relatedPopupCandidates as relatedPopupCandidates2,
   relatedPopupContext as relatedPopupContext2,
-  relatedPopupSelectionLimit as relatedPopupSelectionLimit2,
-  selectedRelatedEntityIds as selectedRelatedEntityIds2,
 } from "../shared/related-entities";
 import { createIconVisibilityVirtualEntity as createIconVisibilityVirtualEntity2 } from "../shared/virtual-entities";
 import { createButtonSound as createButtonSound2 } from "../shared/sound-effects";
@@ -121,9 +108,7 @@ import {
 } from "./editor-component-collections";
 import {
   fitInspectorComponentToDimensions as fitInspectorComponentToDimensions2,
-  iconButtonEffectInspectorLayer as iconButtonEffectInspectorLayer2,
   inspectorComponentMetrics as inspectorComponentMetrics2,
-  setInspectorToggle as setInspectorToggle2,
 } from "./editor-basic-inspectors";
 import {
   rememberEditorProject as rememberEditorProject2,
@@ -132,12 +117,8 @@ import {
   findCustomPopup as findCustomPopup2,
   greatestCommonDivisor as greatestCommonDivisor2,
   normalizedPopupClimateDeviceType as normalizedPopupClimateDeviceType2,
-  popupModuleDropPosition as popupModuleDropPosition2,
   popupModuleEntityRecommended as popupModuleEntityRecommended2,
-  popupModuleTypeLabel as popupModuleTypeLabel2,
-  reorderedPopupModules as reorderedPopupModules2,
   uniquePagePath as uniquePagePath2,
-  getDocumentCanvasSize as getDocumentCanvasSize2,
 } from "./editor-document-management";
 import {
   createRecoveryWriter as createRecoveryWriter2,
@@ -156,7 +137,6 @@ import {
   guardInteraction3dChanges as guardInteraction3dChanges2,
   renderInteraction3dThumbnail as renderInteraction3dThumbnail2,
   updateInteraction3dCard as updateInteraction3dCard2,
-  renderInteraction3dInspector as renderInteraction3dInspector2,
 } from "../bridge/editor";
 import { createLegacyScope } from '@/studio/platform/legacy-scope';
 import { navigateInShell } from '@/studio/platform/shell-navigation';
@@ -194,7 +174,6 @@ import { setupRelatedPopup, updateRelatedPopup } from "./home-related-popup";
 import {
   renderCustomPopupEditor as renderCustomPopupEditorExternal,
   syncCustomPopupStage as syncCustomPopupStageExternal,
-  applyPopupModuleReorder as applyPopupModuleReorderExternal,
   type CustomPopupEditorContext,
 } from "./home-custom-popup-editor";
 import { syncTimeInspector as syncTimeInspectorExternal } from "./home-time-inspector";

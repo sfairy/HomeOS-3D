@@ -64,7 +64,7 @@ class DomainEventBridge:
             return
         try:
             await method(data)
-        except Exception as exc:  # noqa: BLE001 - 单条推送失败不影响事件总线
+        except Exception as exc:
             logger.warning("%s WS 推送失败: %s", label, exc)
 
     # ------------------------------------------------------------------ #
@@ -75,7 +75,7 @@ class DomainEventBridge:
             return
         try:
             await self._gateway.broadcast_notification(data)
-        except Exception as exc:  # noqa: BLE001 - 单条通知推送失败不影响事件总线
+        except Exception as exc:
             logger.warning("通知 WS 推送失败: %s", exc)
 
     # ------------------------------------------------------------------ #
@@ -136,7 +136,7 @@ class DomainEventBridge:
             return
         try:
             await self._gateway.broadcast_tts_speak(data, self._tts_speak)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("TTS 播报 WS 推送失败: %s", exc)
 
     async def _handle_earthquake_alert(self, data: Any) -> None:

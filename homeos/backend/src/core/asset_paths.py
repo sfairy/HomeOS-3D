@@ -9,8 +9,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from ..config import PROJECT_ROOT, REPO_ROOT
 from .errors import api_error, bad_request
+from ..config import PROJECT_ROOT, REPO_ROOT
 
 #: 允许上传的图片扩展名。
 ALLOWED_IMAGE_EXTS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"})

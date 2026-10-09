@@ -1,66 +1,27 @@
-import { purifierState as purifierState2 } from "../purifier/purifier-state";
-import { bathEffectEditor as bathEffectEditor2 } from "../bath-heater/bath-heater-editor";
-import { appendBackgroundOpacityControl as appendBackgroundOpacityControl2 } from "../core/label-appearance";
-import {
-  openBatchApply as openBatchApply2,
-  copyBatchFields as copyBatchFields2,
-} from "./batch-apply";
-import { withFixedLightEffects as withFixedLightEffects2 } from "@app/bridge/light-effect-policy";
-import {
-  DEFAULT_BUTTON_SIZE,
-  buttonIconSize,
-} from "@app/bridge/button-icon-size";
-import { CARD_TEXT_SIZE_PX } from "@app/bridge/card-text-size";
-import { vacuumMapIdentity as vacuumMapIdentity2 } from "../vacuum/vacuum-map";
-import { openInteraction3dRangeEditor as openInteraction3dRangeEditor2 } from "./range-dialog";
+
+
+
+
 import { mountInteraction3d as mountInteraction3d2 } from "../core/runtime";
-import { openVacuumMapEditor as openVacuumMapEditor2 } from "../vacuum/vacuum-map-editor";
-import { nasGroups as nasGroups2 } from "../nas/nas-panel";
 import {
   extraTypes as extraTypes2,
-  extraLabels as extraLabels2,
-  purifierRelatedEntities as purifierRelatedEntities2,
-  purifierDeviceChanged as purifierDeviceChanged2,
 } from "../climate/purifier-extras";
 import {
-  validCurtainGroups as validCurtainGroups2,
   curtainGroupEntryId as curtainGroupEntryId2,
-  curtainGroupCandidates as curtainGroupCandidates2,
-  createCurtainGroup as createCurtainGroup2,
 } from "../cover/cover-groups";
-import { randomUuid as randomUuid2 } from "@app/utils/random-id";
-import { interaction3dPreviewSize as interaction3dPreviewSize2 } from "@app/bridge/preview-layout";
 import {
   requestInteraction3dAccess as requestInteraction3dAccess2,
   subscribeInteraction3dAccess as subscribeInteraction3dAccess2,
 } from "@app/bridge/bridge";
-import { openInteraction3dAppearanceEditor } from "./config-editor/appearance-editor";
 export { openInteraction3dAppearanceEditor } from "./config-editor/appearance-editor";
 import { attachEditorPanelRendering } from './config-editor/panel-rendering';
-import { readNestedPath } from "./config-editor/_shared";
-import { normalizeInteraction3dLightingMode as normalizeInteraction3dLightingMode2 } from "@app/bridge/definition";
 import {
   normalizeTemperatureHumidity as normalizeTemperatureHumidity2,
-  temperatureHumidityFloorCenter as temperatureHumidityFloorCenter2,
-  ENVIRONMENT_METRICS as ENVIRONMENT_METRICS2,
-  ENVIRONMENT_BATTERY as ENVIRONMENT_BATTERY2,
-  DEFAULT_LABEL_SIZE as DEFAULT_LABEL_SIZE2,
-  DEFAULT_LABEL_ICON_SIZE as DEFAULT_LABEL_ICON_SIZE2,
-  MIN_LABEL_SIZE as MIN_LABEL_SIZE2,
-  MIN_LABEL_ICON_SIZE as MIN_LABEL_ICON_SIZE2,
-  MAX_LABEL_SIZE as MAX_LABEL_SIZE2,
-  MAX_LABEL_ICON_SIZE as MAX_LABEL_ICON_SIZE2,
 } from "@app/bridge/temperature-humidity";
-import {
-  carState as carState2,
-  carChargingMappingError as carChargingMappingError2,
-  standardCarBindings as standardCarBindings2,
-} from "../vehicle/car-state";
-import { deviceEntityCatalog as deviceEntityCatalog2 } from "./device-entity-config";
-import {
-  deviceStatusChoices as deviceStatusChoices2,
-  defaultDeviceStatusRule as defaultDeviceStatusRule2,
-} from "../device/device-status";
+
+
+
+
 import {
   GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2,
   genericDeviceProfile as genericDeviceProfile2,

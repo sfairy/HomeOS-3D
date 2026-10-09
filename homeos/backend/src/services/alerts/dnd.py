@@ -49,9 +49,9 @@ def dnd_duration_hours(dnd_start: int, dnd_end: int) -> int:
 
 
 __all__ = [
-    "DEFAULT_DND_START",
     "DEFAULT_DND_END",
+    "DEFAULT_DND_START",
+    "dnd_duration_hours",
     "is_dnd_active",
     "is_dnd_active_now",
-    "dnd_duration_hours",
 ]

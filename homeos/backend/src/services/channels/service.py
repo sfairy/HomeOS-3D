@@ -11,10 +11,10 @@ import re
 from collections import OrderedDict
 from typing import Any
 
-from ...core.json_field import read_json_object
 from .mock_guide import MOCK_AGENT_CONFIG_GUIDE
 from .reply import format_channel_reply
 from .types import ChannelMessage
+from ...core.json_field import read_json_object
 
 logger = logging.getLogger("homeos.channels.service")
 
@@ -135,19 +135,19 @@ class ChannelsService:
         if "email" in channels and status["email"].get("enabled") and status["email"].get("configured"):
             try:
                 await self._email.send_text("", text, title)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.error("Email 告警投递失败: %s", exc)
 
         if "webpush" in channels and status["webpush"].get("enabled") and status["webpush"].get("configured"):
             try:
                 await self._webpush.send_text("", text, title)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.error("WebPush 告警投递失败: %s", exc)
 
         if "wecom" in channels and status["wecom"].get("enabled"):
             try:
                 await self._wecom.send_alert_broadcast(text, title)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.error("企业微信告警投递失败: %s", exc)
 
     # ------------------------------------------------------------------ #
@@ -187,7 +187,7 @@ class ChannelsService:
             self.clear_session(msg.session_key)
             try:
                 await self._agent.chat("清除记忆")
-            except Exception:  # noqa: BLE001 - Agent 内部重置错误可忽略，本地历史已清除
+            except Exception:
                 pass
             await provider.send_text(msg.chat_id, "已清除本对话记忆。")
             return
@@ -213,7 +213,7 @@ class ChannelsService:
                 fallback = format_channel_reply({"outcome": "success", "reply": ""})
                 self._push_turn(msg.session_key, msg.content, fallback)
                 await provider.send_text(msg.chat_id, fallback)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("执行 %s 智能对话失败: %s", msg.channel, exc)
             await provider.send_text(msg.chat_id, "出了点问题，请重试。")
 

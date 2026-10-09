@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import re
 
-from ....core.entity_domain import get_entity_domain
 from .llm_provider_interface import (
     LlmChatOptions,
     LlmChatResult,
@@ -20,17 +19,18 @@ from .llm_provider_interface import (
     LlmToolCall,
     LlmToolSchema,
 )
+from ....core.entity_domain import get_entity_domain
 
 #: 控制意图：开 / 关 / 调节等关键词（中英文）
 _CONTROL_INTENT = re.compile(
-    r"(打开|关闭|开一?下|关一?下|开灯|关灯|turn on|turn off|开启|关掉|调|设为|设置)", re.I
+    r"(打开|关闭|开一?下|关一?下|开灯|关灯|turn on|turn off|开启|关掉|调|设为|设置)", re.IGNORECASE
 )
 
 #: 查询意图：状态 / 温度 / 是否等关键词
 _QUERY_INTENT = re.compile(r"(状态|多少度|温度|查询|查一?下|怎么样|是否|开着吗|关着吗)")
 
 #: “打开”类意图
-_TURN_ON = re.compile(r"(打开|开启|开灯|turn on|开一?下)", re.I)
+_TURN_ON = re.compile(r"(打开|开启|开灯|turn on|开一?下)", re.IGNORECASE)
 
 #: “关闭”类意图（反向词）
 _TURN_OFF = re.compile(r"(关闭|关掉|关灯|turn off)")
@@ -38,7 +38,7 @@ _TURN_OFF = re.compile(r"(关闭|关掉|关灯|turn off)")
 #: 抽取名词时要去掉的动词 / 语气词 / 修饰词
 _NOUN_NOISE = re.compile(
     r"(帮我|请|麻烦|一下|把|的|了|吗|呢|啊|打开|关闭|开启|关掉|开灯|关灯|查询|查看|状态|什么|怎么样|多少度|温度|是否|开着|关着|turn on|turn off)",
-    re.I,
+    re.IGNORECASE,
 )
 
 _ENTITY_ID_RE = re.compile(r'"entity_id"\s*:\s*"([^"]+)"')

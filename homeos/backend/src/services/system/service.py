@@ -65,7 +65,7 @@ class SystemService:
         try:
             data_dir = Path(self._settings.data_dir)
             data_dir.mkdir(parents=True, exist_ok=True)
-        except Exception as err:  # noqa: BLE001 - 目录创建失败仅告警
+        except Exception as err:
             logger.warning("创建数据目录失败:%s", err)
 
     # ------------------------------------------------------------------ #
@@ -116,7 +116,7 @@ class SystemService:
             if not found:
                 return "--"
             return _format_size(total)
-        except Exception as err:  # noqa: BLE001 - 体积不可读不阻塞健康检查
+        except Exception as err:
             logger.debug("查询数据库大小失败: %s", err)
             return "--"
 
@@ -135,7 +135,7 @@ class SystemService:
             )
             url = layout.get("externalUrl") if isinstance(layout, dict) else None
             return "" if url is None else str(url).strip()
-        except Exception as err:  # noqa: BLE001 - 读取失败降级为空串
+        except Exception as err:
             logger.warning("读取 externalUrl 失败: %s", err)
             return ""
 
@@ -156,7 +156,7 @@ class SystemService:
                     ip = self.extract_ip(response.text, family)
                     if ip:
                         return ip
-                except Exception as err:  # noqa: BLE001 - 探针失败尝试下一个候选
+                except Exception as err:
                     logger.debug("公网 IPv%s 探针失败 %s: %s", family, url, err)
         return None
 
@@ -196,12 +196,12 @@ class SystemService:
                 addr = str(address).split("%")[0].lower()
                 if ":" not in addr:
                     continue
-                if addr.startswith("fe80:") or addr.startswith("fc") or addr.startswith("fd"):
+                if addr.startswith(("fe80:", "fc", "fd")):
                     continue
-                if addr in ("::1",):
+                if addr == "::1":
                     continue
                 return addr
-        except Exception as err:  # noqa: BLE001 - 读取失败降级为 null
+        except Exception as err:
             logger.warning("读取本机 IPv6 失败: %s", err)
         return None
 
@@ -217,7 +217,7 @@ class SystemService:
                 if private.match(candidate):
                     return candidate
             return candidates[0] or "127.0.0.1"
-        except Exception:  # noqa: BLE001 - 读取失败回退回环
+        except Exception:
             return "127.0.0.1"
 
     def resolve_backend_port(self) -> int:
@@ -291,7 +291,7 @@ def _collect_addresses(family: int) -> list[str]:
     """收集本机非回环网卡地址（psutil 可用时优先，否则回退 getaddrinfo）。"""
     addresses: list[str] = []
     try:
-        import psutil  # noqa: PLC0415 - 可选依赖
+        import psutil
 
         for _, addrs in psutil.net_if_addrs().items():
             for addr in addrs:
@@ -299,7 +299,7 @@ def _collect_addresses(family: int) -> list[str]:
                     addresses.append(str(addr.address))
         if addresses:
             return addresses
-    except Exception:  # noqa: BLE001 - 无 psutil 时走标准库回退
+    except Exception:
         pass
 
     hostname = socket.gethostname()

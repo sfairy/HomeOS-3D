@@ -42,7 +42,7 @@ Enforced by:
 | Security hooks / pure | `composables/security/`, `utils/security/` |
 | Entity shared UI | `components/entities/`, `components/entity-ui/` |
 | Desktop widgets | `components/widgets/` (config widgets only) |
-| Page chrome (list/hero) | `components/page-shell/` (compat: `components/common/list-page/`) |
+| Page chrome (list/hero) | `components/page-shell/` |
 | 3D Studio / panel editor / stage | `studio/` — [studio/README.md](./studio/README.md) |
 | HTTP / WS clients | `services/api/` |
 

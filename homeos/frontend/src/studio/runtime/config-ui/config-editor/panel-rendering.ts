@@ -13,7 +13,6 @@ import {
 import { CARD_TEXT_SIZE_PX } from "@app/bridge/card-text-size";
 import { vacuumMapIdentity as vacuumMapIdentity2 } from "../../vacuum/vacuum-map";
 import { openInteraction3dRangeEditor as openInteraction3dRangeEditor2 } from "../range-dialog";
-import { mountInteraction3d as mountInteraction3d2 } from "../../core/runtime";
 import { openVacuumMapEditor as openVacuumMapEditor2 } from "../../vacuum/vacuum-map-editor";
 import { nasGroups as nasGroups2 } from "../../nas/nas-panel";
 import {
@@ -32,9 +31,7 @@ import { randomUuid as randomUuid2 } from "@app/utils/random-id";
 import { interaction3dPreviewSize as interaction3dPreviewSize2 } from "@app/bridge/preview-layout";
 import {
   requestInteraction3dAccess as requestInteraction3dAccess2,
-  subscribeInteraction3dAccess as subscribeInteraction3dAccess2,
 } from "@app/bridge/bridge";
-import { openInteraction3dAppearanceEditor } from "./appearance-editor";
 import { readNestedPath } from "./_shared";
 import { normalizeInteraction3dLightingMode as normalizeInteraction3dLightingMode2 } from "@app/bridge/definition";
 import {
@@ -62,7 +59,6 @@ import {
 import {
   GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2,
   genericDeviceProfile as genericDeviceProfile2,
-  isGenericDeviceKind as isGenericDeviceKind2,
 } from "../../device/generic-device-catalog";
 import {
   fanSourceAllowed,

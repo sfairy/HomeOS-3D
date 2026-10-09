@@ -70,7 +70,7 @@ class EarthquakeCatalogNotifyService:
         if self._task is not None:
             try:
                 await self._task
-            except (asyncio.CancelledError, Exception):  # noqa: BLE001
+            except (asyncio.CancelledError, Exception):
                 pass
         self._task = None
 
@@ -91,7 +91,7 @@ class EarthquakeCatalogNotifyService:
                     await self._tick()
             except asyncio.CancelledError:
                 raise
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.debug("CENC 震情通知轮询失败: %s", exc)
             try:
                 await asyncio.sleep(POLL_MS / 1000)
@@ -103,7 +103,7 @@ class EarthquakeCatalogNotifyService:
             return
         try:
             await self._check_new_cenc_events()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("CENC 震情通知轮询失败: %s", exc)
 
     async def _check_new_cenc_events(self) -> None:
@@ -176,7 +176,7 @@ class EarthquakeCatalogNotifyService:
             if notify_opts["mode"] == "aligned":
                 try:
                     await self._earthquake.record_catalog_local_alert(item)
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     logger.debug("目录震情写入本地预警失败: %s", exc)
 
         if new_ids:
@@ -204,7 +204,7 @@ class EarthquakeCatalogNotifyService:
             ids = [item for item in parsed if isinstance(item, str) and item.strip()]
             merged = list(dict.fromkeys([*ids, *mem_fallback]))
             return set(merged[-SEEN_MAX:])
-        except Exception:  # noqa: BLE001
+        except Exception:
             return mem_fallback
 
     async def _save_seen_ids(self, ids: Any) -> None:
@@ -223,13 +223,13 @@ class EarthquakeCatalogNotifyService:
             await self._redis.set(
                 SEEN_KEY, json.dumps(trimmed, ensure_ascii=False), SEEN_TTL_SEC
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("CENC 已知事件写入失败: %s", exc)
 
 
 __all__ = [
     "CATALOG_NOTIFY_COOLDOWN_MIN",
-    "EarthquakeCatalogNotifyService",
     "POLL_MS",
     "SEEN_KEY",
+    "EarthquakeCatalogNotifyService",
 ]

@@ -133,20 +133,20 @@ HTTP_STATUS_MESSAGES: dict[int, str] = {
 }
 
 _HTTP_MESSAGE_PATTERNS = {
-    "throttler": re.compile(r"throttler|too many requests", re.I),
-    "badRequest": re.compile(r"^bad request$", re.I),
-    "forbidden": re.compile(r"^forbidden$", re.I),
-    "forbiddenResource": re.compile(r"forbidden resource", re.I),
-    "notFound": re.compile(r"^not found$", re.I),
-    "conflict": re.compile(r"^conflict$", re.I),
-    "timeout": re.compile(r"timeout|timed?\s*out", re.I),
-    "internalServerError": re.compile(r"internal server error", re.I),
-    "csrf": re.compile(r"csrf", re.I),
-    "tokenExpired": re.compile(r"jwt expired|token expired|invalid token|jwt malformed", re.I),
+    "throttler": re.compile(r"throttler|too many requests", re.IGNORECASE),
+    "badRequest": re.compile(r"^bad request$", re.IGNORECASE),
+    "forbidden": re.compile(r"^forbidden$", re.IGNORECASE),
+    "forbiddenResource": re.compile(r"forbidden resource", re.IGNORECASE),
+    "notFound": re.compile(r"^not found$", re.IGNORECASE),
+    "conflict": re.compile(r"^conflict$", re.IGNORECASE),
+    "timeout": re.compile(r"timeout|timed?\s*out", re.IGNORECASE),
+    "internalServerError": re.compile(r"internal server error", re.IGNORECASE),
+    "csrf": re.compile(r"csrf", re.IGNORECASE),
+    "tokenExpired": re.compile(r"jwt expired|token expired|invalid token|jwt malformed", re.IGNORECASE),
 }
 
 _CJK = re.compile(r"[\u4e00-\u9fff]")
-_EXCEPTION_PREFIX = re.compile(r"^[A-Za-z][A-Za-z0-9]*Exception:\s*", re.I)
+_EXCEPTION_PREFIX = re.compile(r"^[A-Za-z][A-Za-z0-9]*Exception:\s*", re.IGNORECASE)
 
 
 def flatten_http_exception_message(raw: Any, fallback: str) -> str:
@@ -174,7 +174,7 @@ def localize_http_exception_message(message: str, status: int, error_name: str =
 
     if status == 429 or _HTTP_MESSAGE_PATTERNS["throttler"].search(combined):
         return HTTP_MESSAGE_TEXTS["rateLimited"]
-    if status == 401 or re.fullmatch(r"unauthorized", text, re.I):
+    if status == 401 or re.fullmatch(r"unauthorized", text, re.IGNORECASE):
         return "未登录或登录已过期"
     if (
         status == 403
@@ -191,7 +191,7 @@ def localize_http_exception_message(message: str, status: int, error_name: str =
     if status == 408 or _HTTP_MESSAGE_PATTERNS["timeout"].search(text):
         return HTTP_MESSAGE_TEXTS["timeout"]
     if status >= 500 or _HTTP_MESSAGE_PATTERNS["internalServerError"].search(text) or re.fullmatch(
-        r"internal error", text, re.I
+        r"internal error", text, re.IGNORECASE
     ):
         return HTTP_MESSAGE_TEXTS["internalServerError"]
     if _HTTP_MESSAGE_PATTERNS["csrf"].search(text):
@@ -447,7 +447,7 @@ def _build_code_indexes() -> None:
             continue
         try:
             out = str(value(_PREFIX_SENTINEL))
-        except Exception:  # noqa: BLE001 - 工厂含算术/格式化，哨兵调用失败则跳过
+        except Exception:  # noqa: S112 - 单条格式化失败不应阻断索引构建
             continue
         index = out.find(_PREFIX_SENTINEL)
         if index > 0:

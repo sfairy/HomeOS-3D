@@ -96,7 +96,7 @@ class FrigateService:
             if valid:
                 self._recent_events = valid[: self._max_events]
                 logger.info("已恢复 Frigate 检测历史: %s 条", len(self._recent_events))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("恢复 Frigate 检测历史失败: %s", exc)
 
     def _persist_recent_events(self) -> None:
@@ -114,7 +114,7 @@ class FrigateService:
                 json.dumps(self._recent_events, ensure_ascii=False, default=str),
                 48 * 3600,
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("Frigate 检测历史持久化失败: %s", exc)
 
     def _persist_dismissed(self) -> None:
@@ -285,7 +285,7 @@ def _parse_iso_ms(value: Any) -> float:
     from datetime import datetime
 
     try:
-        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).timestamp() * 1000
+        return datetime.fromisoformat(str(value)).timestamp() * 1000
     except (TypeError, ValueError):
         return 0.0
 

@@ -1,38 +1,20 @@
 import { createVacuumMapImageLoader } from "../vacuum-map-state";
 import { bindSceneMode } from "../scene-mode";
 import { renderPercentageBarControl } from "./percentage-bar";
-import { EntityRequestPolicy } from "../panel-caches";
-import { randomUuid } from "../../../utils/random-id";
 import {
   climateDefaultIcon,
-  climateEffectMode,
-  climateIsPoweredOn,
-  climateModeLabel,
-  climatePresentationMode,
-  normalizeClimateCapabilities,
   resolveClimateDeviceType,
 } from "../../controls/climate";
-import { entityPowerIsOn } from "../entity-power";
-import { lightRealtimeCapabilities } from "../../controls/light-runtime";
-import {
-  EventLogWallBuffer,
-  buildEventLogFingerprint,
-  createEventLogEntry,
-  eventLogWallEntityName,
-  isEventLogWallDomain,
-  resolveEntityStateChangeMessage,
-  resolveStateSnapshot,
-} from "../../controls/event-log-runtime";
+
+
 import {
   clampNumber,
   normalizeCssColor,
   applyTextOutline,
   resolveMdiIconUrl,
-  isActiveStateText,
   createSvgElement,
   resolveStatePayload,
   buildHistorySeries,
-  formatTimestamp,
   createHoverLineChart,
 } from "./_shared";
 import {
@@ -42,19 +24,14 @@ import {
   mountCameraMedia,
 } from "./camera-media";
 import {
-  lightStatisticsEntityStateStatus,
-  lightStatisticsEntitySupport,
   lightStatisticsSummary,
 } from "../../controls/light-statistics-runtime";
 import {
   formatLineChartValue,
-  formatNumericValue,
   lineChartGeometry,
 } from "../../controls/line-chart-runtime";
-import {
-  doorWindowPerspectiveCorners,
-  doorWindowPerspectiveMatrix,
-} from "../../controls/door-window-runtime";
+
+
 import {
   meteoconUrl,
   resolvedThresholds,
@@ -68,30 +45,17 @@ import {
   formatLunarDate,
 } from "../../controls/date-time-runtime";
 import {
-  formatPresenceDuration,
   presenceAnimationPhase,
-  presenceHistoryBuckets,
   presenceMotionEventConfig,
   presenceSensorPresentation,
   presenceStateTimestamp,
 } from "../../controls/presence-runtime";
-import { renderLineChartDetails } from "./line-chart-details";
 import { staticAssetImageSource, resolveAssetSource } from "./asset-state";
 import {
-  coverComponentIsDream,
   formatClimateStateLabel,
-  formatEntityState,
-  iconButtonEffectLightVisualAwaiting,
-  iconButtonEffectLightVisualState,
   isClimatePoweredOn,
   isCoverAuthoredActive,
-  isCoverComponentActive,
-  isEntityComponentActive,
-  resolveEntityIcon,
-  vacuumMapImageSource,
 } from "./cover-climate-state";
-import { renderAirConditionerAirflowLayer } from "./airflow";
-import { renderIconButtonEffectLayer } from "./icon-button-effect-layer";
 import { renderEventLogWall } from "./event-log-wall";
 import { buttonComponentRenderers } from "./button-renderers";
 import { isEntityStateActive } from "./entity-state-active";

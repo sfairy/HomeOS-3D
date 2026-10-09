@@ -70,7 +70,7 @@ async def sync_calendar_from_url(url: str | None, deps: CalendarSyncDeps) -> dic
             "events": events,
             "notModified": not_modified,
         }
-    except Exception as err:  # noqa: BLE001 - 同步失败降级为结果对象
+    except Exception as err:
         return {"synced": False, "error": str(err)}
 
 

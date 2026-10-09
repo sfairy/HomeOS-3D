@@ -12,7 +12,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from ..config_service import AgentConfigService, is_mock_allowed
 from .deepseek_llm_provider import DeepseekLlmProvider
 from .llm_provider_interface import (
     LlmChatOptions,
@@ -22,6 +21,7 @@ from .llm_provider_interface import (
 )
 from .mock_llm_provider import MockLlmProvider
 from .unavailable_llm_provider import UnavailableLlmProvider
+from ..config_service import AgentConfigService, is_mock_allowed
 
 logger = logging.getLogger("homeos.agent.resolving_llm")
 

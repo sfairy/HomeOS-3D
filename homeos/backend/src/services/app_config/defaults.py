@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..rooms import DEFAULT_ROOM_CATALOG
 from ...core.retention import DEFAULT_RETENTION
 from ...realtime.access import WS_PUSH_CRITICAL_DOMAINS
-from ..rooms import DEFAULT_ROOM_CATALOG
 
 #: 认证安全默认值（对齐 ``@homeos/shared`` DEFAULT_AUTH_SECURITY）。
 DEFAULT_AUTH_SECURITY: dict[str, int] = {
@@ -435,11 +435,11 @@ DEFAULT_APP_CONFIG: dict[str, Any] = build_default_app_config()
 
 __all__ = [
     "DEFAULT_APP_CONFIG",
-    "build_default_app_config",
-    "build_default_env_sensor_map",
     "DEFAULT_AUTH_SECURITY",
-    "DEFAULT_VOICE_ALERT_RULES",
     "DEFAULT_CLIENT_POWER_SETTINGS",
     "DEFAULT_EVENT_LOG_RECORD_BLOCK_DOMAINS",
     "DEFAULT_INGRESS_COALESCE_DOMAINS",
+    "DEFAULT_VOICE_ALERT_RULES",
+    "build_default_app_config",
+    "build_default_env_sensor_map",
 ]

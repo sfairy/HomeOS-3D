@@ -127,7 +127,7 @@ async def _run_state_change_effects(app: FastAPI, gateway: Any, store: Any, chan
                     "new_state": change.get("new_state"),
                 }
             )
-        except Exception:  # noqa: BLE001 - 家庭模式触发失败不影响状态广播
+        except Exception:
             pass
     for attr in ("mmwave", "presence", "frigate", "security_panel"):
         service = getattr(app.state, attr, None)
@@ -135,7 +135,7 @@ async def _run_state_change_effects(app: FastAPI, gateway: Any, store: Any, chan
             continue
         try:
             await service.handle_state_change(change)
-        except Exception:  # noqa: BLE001 - 安防域单个服务失败不影响状态广播
+        except Exception:
             pass
     notification = getattr(app.state, "notification", None)
     if notification is not None:
@@ -146,13 +146,13 @@ async def _run_state_change_effects(app: FastAPI, gateway: Any, store: Any, chan
         ):
             try:
                 handler(change)
-            except Exception:  # noqa: BLE001 - 通知冷路径失败不影响状态广播
+            except Exception:
                 pass
     advisor_usage = getattr(app.state, "advisor_usage", None)
     if advisor_usage is not None:
         try:
             advisor_usage.track_usage(change)
-        except Exception:  # noqa: BLE001 - 顾问用量统计失败不影响状态广播
+        except Exception:
             pass
     await gateway.broadcast_state_changed_batch([change])
 
@@ -183,7 +183,7 @@ def _make_state_listener(app: FastAPI, gateway: Any, store: Any):
             if presence is not None:
                 try:
                     presence.seed_from_state_store()
-                except Exception:  # noqa: BLE001 - 在场播种失败不影响状态同步
+                except Exception:
                     pass
             if bus is not None:
                 # 广播全量事件（跨副本超阈值时自动降级为引用占位符）
@@ -244,7 +244,7 @@ def _make_state_bus_handlers(app: FastAPI, gateway: Any, store: Any) -> dict[str
                 if presence is not None:
                     try:
                         presence.seed_from_state_store()
-                    except Exception:  # noqa: BLE001
+                    except Exception:
                         pass
             return
         entities = payload.get("entities") if isinstance(payload, dict) else None
@@ -509,7 +509,7 @@ def create_lifespan(app_settings: Settings, version: str):
             app_config,
             event_bus=security_bus,
         )
-        ui_config._static_assets.ensure_dirs()  # noqa: SLF001 - 启动时确保资源目录存在
+        ui_config._static_assets.ensure_dirs()
         app.state.ui_config = ui_config
 
         # -------------------------------------------------------------- #
@@ -607,7 +607,7 @@ def create_lifespan(app_settings: Settings, version: str):
                 # TypeError，而这里恰好被 except 吞掉，结果「已按新地址重连」成为假日志。
                 ha_connector.start()
                 logger.info("HA 连接配置变更，已按新地址重连")
-            except Exception as exc:  # noqa: BLE001 - 重连失败不应影响主流程
+            except Exception as exc:
                 logger.warning("HA 重连失败: %s", exc)
 
         security_bus.on("SYSTEM_CONFIG_UPDATED", _on_system_config_updated)
@@ -945,7 +945,7 @@ def create_lifespan(app_settings: Settings, version: str):
                 # 同步方法（见 ha/service.py 的 ``def start``）；连接器自身做幂等，
                 # 平面已启动过时再调一次是安全的。
                 ha_connector.start()
-            except Exception as exc:  # noqa: BLE001 - HA 不可用不应阻塞启动
+            except Exception as exc:
                 import logging as _logging
 
                 _logging.getLogger("homeos.app").warning("HA 连接器启动失败: %s", exc)
@@ -973,62 +973,62 @@ def create_lifespan(app_settings: Settings, version: str):
         finally:
             try:
                 await studio3d_plane.shutdown(app)
-            except Exception as exc:  # noqa: BLE001 - 停机清理失败不应阻断其余清理
+            except Exception as exc:
                 logger.warning("3D 平面停机失败: %s", exc)
             try:
                 await asyncio.wait_for(app.state.update_checker.stop(), timeout=5)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
             try:
                 await asyncio.wait_for(license_service.stop(), timeout=5)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
             try:
                 await asyncio.wait_for(database_retention.stop_schedule(), timeout=5)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
             try:
                 await asyncio.wait_for(external_api.stop(), timeout=5)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
             for service in (presence, mmwave, away_sim):
                 try:
                     await asyncio.wait_for(service.stop(), timeout=5)
-                except Exception:  # noqa: BLE001
+                except Exception:
                     pass
             try:
                 await asyncio.wait_for(home_mode.stop(), timeout=5)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
             try:
                 await asyncio.wait_for(notification.stop(), timeout=5)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
             try:
                 for service in (catalog_notify, eew_poll, earthquake, eew_leader):
                     await asyncio.wait_for(service.stop(), timeout=5)
-            except Exception:  # noqa: BLE001 - 启动早期失败时变量可能未定义
+            except Exception:
                 pass
             for service in (weather_watch, advisor_usage):
                 try:
                     await asyncio.wait_for(service.stop(), timeout=5)
-                except Exception:  # noqa: BLE001
+                except Exception:
                     pass
             try:
                 await asyncio.wait_for(event_bus_bridge.stop(), timeout=5)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
             try:
                 await asyncio.wait_for(ha_connector.stop(), timeout=5)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
             try:
                 await asyncio.wait_for(state_ingress_coalesce.close(), timeout=5)
-            except Exception:  # noqa: BLE001 - 关机刷新合并窗口残留事件
+            except Exception:
                 pass
             try:
                 await asyncio.wait_for(event_log_service.flush(), timeout=5)
-            except Exception:  # noqa: BLE001 - 关机 flush 失败不阻塞退出
+            except Exception:
                 pass
             await redis.close()
             auto_backup.stop()

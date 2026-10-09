@@ -1,22 +1,12 @@
 import type { PanelRenderer } from "../renderer";
 
-import { vacuumMapAvailable as vacuumMapAvailable2 } from "../vacuum-map-state";
-import { syncInteraction3dUiScale as syncInteraction3dUiScale2 } from "../../../bridge/bridge";
 import { popupPlacement as popupPlacement2 } from "../../../bridge/popup-placement";
+
+
 import {
-  cameraPopupLayout as cameraPopupLayout2,
-  cameraPreviewRatio as cameraPreviewRatio2,
-} from "../../../bridge/camera-popup-layout";
-import {
-  coverComponentIsDream as coverComponentIsDream2,
-  doorWindowPerspectiveCorners as doorWindowPerspectiveCorners2,
-  doorWindowPerspectiveMatrix as doorWindowPerspectiveMatrix2,
   formatLineChartValue as formatLineChartValue2,
   formatPresenceDuration as formatPresenceDuration2,
-  iconButtonEffectLightVisualAwaiting as iconButtonEffectLightVisualAwaiting2,
-  iconButtonEffectLightVisualState as iconButtonEffectLightVisualState2,
   mountCameraMedia as mountCameraMedia2,
-  prewarmCameraMedia as prewarmCameraMedia2,
   presenceHistoryBuckets as presenceHistoryBuckets2,
   presenceMotionEventConfig as presenceMotionEventConfig2,
   presenceSensorPresentation as presenceSensorPresentation2,
@@ -25,9 +15,6 @@ import {
   renderIconButtonEffectLayer as renderIconButtonEffectLayer2,
   renderLineChartDetails as renderLineChartDetails2,
   renderRegisteredComponent as renderRegisteredComponent2,
-  setBuiltinAssetVersions as setBuiltinAssetVersions2,
-  staticAssetImageSource as staticAssetImageSource2,
-  vacuumMapImageSource as vacuumMapImageSource2,
 } from "../registry";
 import { randomUuid as randomUuid2 } from "../../../utils/random-id";
 import {
@@ -56,7 +43,6 @@ import {
 } from "../../controls/climate";
 import {
   applyXiaomiDeviceProfile as applyXiaomiDeviceProfile2,
-  resolveXiaomiDeviceProfile as resolveXiaomiDeviceProfile2,
 } from "../entity-role-profiles";
 import {
   relatedEntityLabel as relatedEntityLabel2,
@@ -67,29 +53,19 @@ import {
   selectedRelatedEntities as selectedRelatedEntities2,
   selectedRelatedEntityIds as selectedRelatedEntityIds2,
 } from "../../../shared/related-entities";
+
+
 import {
-  entityPowerIsOn as entityPowerIsOn2,
-  entityPowerTarget as entityPowerTarget2,
-  entityToggleCommand as entityToggleCommand2,
-  optimisticToggleState as optimisticToggleState2,
-} from "../entity-power";
-import {
-  ICON_VISIBILITY_VIRTUAL_KIND as ICON_VISIBILITY_VIRTUAL_KIND2,
   isVirtualEntityId as isVirtualEntityId2,
-  parseVirtualEntityId as parseVirtualEntityId2,
 } from "../../../shared/virtual-entities";
 import {
-  airflowCanvasOffsetBounds as airflowCanvasOffsetBounds2,
   airflowLayerGeometry as airflowLayerGeometry2,
-  groupedComponentLocalDelta as groupedComponentLocalDelta2,
-  rotateMultiSelectionTransforms as rotateMultiSelectionTransforms2,
 } from "../../geometry/transform-geometry";
 import {
   componentHostZIndex as componentHostZIndex2,
   effectCropRectangle as effectCropRectangle2,
   effectCroppedLayerGeometry as effectCroppedLayerGeometry2,
   effectFadeDuration as effectFadeDuration2,
-  effectLayerDimensions as effectLayerDimensions2,
   effectReferenceImageTransform as effectReferenceImageTransform2,
   effectSourceDimensions as effectSourceDimensions2,
   normalizeIconButtonEffectComponent as normalizeIconButtonEffectComponent2,
@@ -115,7 +91,6 @@ import {
   lightSupportsColor as lightSupportsColor2,
   lightVisualValueForCapability as lightVisualValueForCapability2,
   relativeLightColorTemperature as relativeLightColorTemperature2,
-  rgbToHsColor as rgbToHsColor2,
 } from "../../controls/light-runtime";
 import { entityMetadataIsAvailable as entityMetadataIsAvailable2 } from "../entity-metadata";
 import {
@@ -129,7 +104,6 @@ import {
 import {
   airerDevicePosition as airerDevicePosition2,
   airerPositionCalibration as airerPositionCalibration2,
-  airerPresentationPosition as airerPresentationPosition2,
   airerPresentationPositionForState as airerPresentationPositionForState2,
   airerReportedPosition as airerReportedPosition2,
   airerVisualDrop as airerVisualDrop2,
@@ -138,8 +112,6 @@ import {
   coverPendingDisplayPosition as coverPendingDisplayPosition2,
   coverPositionReachedTarget as coverPositionReachedTarget2,
   coverPresentationState as coverPresentationState2,
-  coverToggleServiceForComponent as coverToggleServiceForComponent2,
-  dreamCurtainBladeLabel as dreamCurtainBladeLabel2,
   dreamCurtainIsRetracted as dreamCurtainIsRetracted2,
   dreamCurtainStatusFromRetraction as dreamCurtainStatusFromRetraction2,
   dreamCurtainStatusText as dreamCurtainStatusText2,
@@ -155,27 +127,14 @@ import {
   relatedDeviceDomainEntity as relatedDeviceDomainEntity2,
   relatedDeviceEntity as relatedDeviceEntity2,
   relatedWaterHeaterEntities as relatedWaterHeaterEntities2,
-  runtimeCoverStateIsActive as runtimeCoverStateIsActive2,
-  runtimeEntityStateIsActive as runtimeEntityStateIsActive2,
   waterHeaterRelatedEntityLabel as waterHeaterRelatedEntityLabel2,
 } from "../../controls/cover-runtime";
 import {
   playFixedDeviceDropEntrance as playFixedDeviceDropEntrance2,
   playMediaSpeakerEntrance as playMediaSpeakerEntrance2,
-  playStableRuntimeDialogEntrance as playStableRuntimeDialogEntrance2,
-  runtimeDialogUsesStableMotion as runtimeDialogUsesStableMotion2,
 } from "../panel-dialog-motion";
-import {
-  EntityRequestPolicy as EntityRequestPolicy2,
-  HISTORY_FETCH_TIMEOUT_MS as HISTORY_FETCH_TIMEOUT_MS2,
-  HistoryRefreshCoordinator as HistoryRefreshCoordinator2,
-  RuntimeEffectImageLoader as RuntimeEffectImageLoader2,
-  RuntimeStaticImageCache as RuntimeStaticImageCache2,
-  RuntimeVacuumMapImagePreloader as RuntimeVacuumMapImagePreloader2,
-  cacheHistorySeries as cacheHistorySeries2,
-  historyRequestStillRelevant as historyRequestStillRelevant2,
-  historySeriesCacheKey as historySeriesCacheKey2,
-} from "../panel-caches";
+
+
 import { EVENT_LOG_WALL_AUTO_ENTITY_LIMIT, isEventLogWallDomain } from "../../controls/event-log-runtime";
 import {
   collectComponents as collectComponents2,
@@ -184,26 +143,17 @@ import {
   syncedLineChartProperties as syncedLineChartProperties2,
 } from "../panel-document";
 import { navigateInShell } from "@/studio/platform/shell-navigation";
-import { shellConfirm, shellOpenMediaPlayer } from "@/studio/platform/shell-chrome";
+import { shellConfirm } from "@/studio/platform/shell-chrome";
 import {
-  type PanelRendererOptions,
-  type RendererDetailsStateSync,
   type ComponentControllerElement,
   type ComponentDialogElement,
   type ComponentPayload,
   type ClimateVisualSyncPayload,
-  type DraggedComponentEntry,
   type EntityStateControlElement,
 } from "../renderer-types";
 import {
   maxRuntimeEntitySubscriptions,
-  defaultTargetOccupancy,
-  compactTargetOccupancy,
   COVER_CLOSED_POSITION_EPSILON,
-  runtimeDialogLayout,
-  runtimeDialogViewport,
-  assignComponentIdentifiers,
-  isPrimaryModifierPressed,
   componentSupportsAction,
   componentDialogTitle,
   popupModuleDialogTitle,
@@ -212,9 +162,7 @@ import {
   createSwitchVisual,
   mixHexColor,
   clickFocusedElement,
-  isDocumentHidden,
 } from "../renderer-helpers";
-import * as geometryMethods from "../renderer-geometry";
 export function renderComponent(this: PanelRenderer, 
     renderComponentRecord: any,
     renderParentElement = this.canvas,

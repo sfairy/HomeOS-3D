@@ -65,14 +65,14 @@ class DistributedLockService:
     def _is_ready(redis: Any) -> bool:
         try:
             return bool(redis.is_ready())
-        except Exception:  # noqa: BLE001
+        except Exception:
             return False
 
     @staticmethod
     def _is_configured(redis: Any) -> bool:
         try:
             return bool(redis.is_configured())
-        except Exception:  # noqa: BLE001
+        except Exception:
             return False
 
     async def _set_nx_with_retry(
@@ -83,7 +83,7 @@ class DistributedLockService:
         while True:
             try:
                 return await client.set(redis_key, token, px=max(1, int(ttl_ms)), nx=True)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 if attempt >= LOCK_RETRY_COUNT:
                     raise
                 attempt += 1
@@ -109,7 +109,7 @@ class DistributedLockService:
                             client, redis_key, token, ttl_ms
                         )
                         return token if ok else None
-                    except Exception as exc:  # noqa: BLE001
+                    except Exception as exc:
                         self._warn_fallback_once(f"Redis 锁获取失败: {exc}")
 
         # ── 未配置 REDIS_URL 或 Redis 故障降级：进程内锁 ──
@@ -127,12 +127,12 @@ class DistributedLockService:
         if self._redis is not None:
             try:
                 client = self._redis.get_client()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 client = None
         if client is not None:
             try:
                 await client.eval(RELEASE_SCRIPT, 1, redis_key, token)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("Redis 锁释放失败: %s", exc)
 
         # 无论 Redis 释放是否成功/命中，都尝试清理进程内锁，避免降级期锁泄漏。

@@ -1,4 +1,4 @@
-import { clampNumber, normalizeCssColor, createSvgElement } from "./_shared";
+import { clampNumber, normalizeCssColor } from "./_shared";
 import { randomUuid } from "../../../utils/random-id";
 
 export function createNavigationEffectsSvg(

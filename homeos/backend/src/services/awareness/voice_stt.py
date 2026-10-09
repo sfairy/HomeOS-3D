@@ -100,7 +100,7 @@ async def transcribe_voice_audio(
         return {"text": text, "provider": entity_id}
     except BusinessException:
         raise
-    except Exception as exc:  # noqa: BLE001 - 统一包装为 EXTERNAL_ERROR
+    except Exception as exc:
         message = str(exc)
         deps.logger.warning("HA 语音识别失败 [%s]: %s", entity_id, message)
         detail = api_error("VOICE_STT_FAILED", message)
@@ -140,7 +140,7 @@ async def process_ha_conversation(text: str, deps: VoiceSttDeps) -> dict[str, An
                 raise BusinessException(ErrorCode.EXTERNAL_ERROR, detail)
             data = res.json()
         return {"text": trimmed, "response": data if isinstance(data, dict) else {}}
-    except Exception as exc:  # noqa: BLE001 - HA 不可用时静默跳过
+    except Exception as exc:
         deps.logger.debug("HA 对话跳过: %s", exc)
         return {"text": trimmed, "response": None}
 

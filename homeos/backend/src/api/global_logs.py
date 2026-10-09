@@ -14,9 +14,9 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
-from ..security.login_limiter import retry_after_headers
 from ..dependencies import CurrentUser, CurrentViewer, DatabaseSession, authenticated_viewer
 from ..global_log import event_context, format_log_context, safe_context
+from ..security.login_limiter import retry_after_headers
 
 router = APIRouter(prefix='/logs', tags=['global-logs'])
 

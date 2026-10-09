@@ -42,7 +42,7 @@ def validate_extra_command(extra, domain, service, data, state):
     if not extra or extra.get('entityId', '').split('.')[0] != domain or kind == 'state':
         raise HTTPException(422, detail='此实体不支持配置的控制类型。')
     # 按钮空闲时 state 常态就是 unknown，仍算可用；其它类型 unknown 按不可用处理。
-    if not state or state.get('available') is False or state.get('state') in (None, '', 'unavailable') or state.get('state') == 'unknown' and kind != 'button':
+    if not state or state.get('available') is False or state.get('state') in (None, '', 'unavailable') or (state.get('state') == 'unknown' and kind != 'button'):
         raise HTTPException(409, detail='附加实体当前不可用。')
     attrs = attributes_of(state)
     # 风扇类：整机交给净化器校验器复核同一套能力位（不只是风速那一条）。

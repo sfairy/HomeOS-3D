@@ -23,7 +23,7 @@ try:
     from pillow_heif import register_heif_opener
 
     register_heif_opener()
-except Exception:  # noqa: BLE001 - 无 heif 扩展时仍支持常规格式
+except Exception:
     pass
 
 from ..core.models import Project, ProjectDraft
@@ -682,7 +682,7 @@ def document_uses_asset(value, asset_id: str) -> bool:
         return any(document_uses_asset(item, asset_id) for item in value.values())
     if isinstance(value, list):
         return any(document_uses_asset(item, asset_id) for item in value)
-    return value == asset_id or value == bare
+    return value in (asset_id, bare)
 
 @router.get('/builtin')
 def list_builtin_assets(request: Request, _viewer: LicensedViewer) -> dict:

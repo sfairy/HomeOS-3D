@@ -91,7 +91,7 @@ def _decrypted_connection_token(session: Session, cipher: CredentialCipher) -> s
             .where(HAConnection.is_active.is_(True))
             .limit(1)
         ).first()
-    except Exception:  # noqa: BLE001 - 表未就绪时退回环境变量
+    except Exception:
         return None
     if not encrypted:
         return None
@@ -115,7 +115,7 @@ def load_ha_endpoints(session: Session, *, cipher: CredentialCipher | None = Non
         connection = session.scalars(
             select(HAConnection).where(HAConnection.is_active.is_(True)).limit(1)
         ).first()
-    except Exception:  # noqa: BLE001 - 表未就绪时退回环境变量
+    except Exception:
         connection = None
     if connection is not None:
         ha_url_primary = connection.base_url or ""
@@ -149,7 +149,7 @@ def load_active_ha_endpoints(session: Session, *, cipher: CredentialCipher | Non
         connection = session.scalars(
             select(HAConnection).where(HAConnection.is_active.is_(True)).limit(1)
         ).first()
-    except Exception:  # noqa: BLE001 - 读不到连接记录时退回静态配置
+    except Exception:
         return endpoints
     if connection is None:
         return endpoints

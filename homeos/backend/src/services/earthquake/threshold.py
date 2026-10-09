@@ -20,7 +20,7 @@ def _to_float(value: Any) -> float:
 
 def _fmt(value: float) -> str:
     """对齐 JS 数字转字符串语义（``Number.isFinite`` 判定 + 原样输出）。"""
-    if value != value or value in (float("inf"), float("-inf")):
+    if not math.isfinite(value):
         return "?"
     return str(int(value)) if float(value).is_integer() else str(value)
 

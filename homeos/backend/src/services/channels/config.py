@@ -129,7 +129,7 @@ class ChannelConfigService:
             self._layout_cache = layout
             self._cache_ttl = now + CACHE_MS
             return layout
-        except Exception as exc:  # noqa: BLE001 - 读取失败不应阻塞消息处理
+        except Exception as exc:
             logger.warning("读取通道配置失败: %s", exc)
             return None
 

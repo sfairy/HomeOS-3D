@@ -17,6 +17,8 @@ from typing import Any, Literal
 
 from fastapi import Body, Depends, Query, Request
 
+from .router import NestRouter
+from .schemas.base import StrictModel
 from ..core.errors import api_error, bad_request
 from ..core.pagination import parse_page_limit
 from ..core.retention import RETENTION_TABLE_KEYS
@@ -29,8 +31,6 @@ from ..services.app_config.room_meta import (
 )
 from ..services.license import features as feature_codes
 from ..services.state_store.entity_area import PUBLIC_CONFIG_AREA_WAIT_MS
-from .router import NestRouter
-from .schemas.base import StrictModel
 
 router = NestRouter(prefix="/system", tags=["system"])
 
@@ -133,7 +133,7 @@ async def get_public_config(request: Request):
                 raise exc
         except asyncio.CancelledError:
             raise
-        except Exception:  # noqa: BLE001 - 区域索引超时/失败时退回空索引
+        except Exception:
             pass
 
     app_config = _app_config(request)

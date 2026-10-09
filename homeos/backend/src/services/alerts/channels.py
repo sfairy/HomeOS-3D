@@ -76,7 +76,7 @@ def resolve_notification_fetch_limit(
 
 __all__ = [
     "LAN_NOTIFICATION_CHANNELS",
-    "resolve_lan_channels",
     "resolve_alert_rule_channels",
+    "resolve_lan_channels",
     "resolve_notification_fetch_limit",
 ]

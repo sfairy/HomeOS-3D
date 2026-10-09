@@ -31,12 +31,6 @@ from typing import Any
 
 from sqlalchemy import func, select
 
-from ..config import Settings
-from ..core.database import Database
-from ..core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, ProjectDraft, utc_now
-from ..global_log import GlobalLogStore, _safe_text, event_context
-from ..global_popups import global_popups
-from ..panel.entity_refs import document_entity_ids
 from .client import HAClient, HAClientError, HASnapshot, bypass_env_proxy
 from .connection_setup import HA_ENDPOINT_PROBE_TIMEOUT_SECONDS
 from .control_pool import HAControlConfiguration, HAControlPool
@@ -44,6 +38,12 @@ from .crypto import CredentialCipher, CredentialCipherError
 from .endpoints import HAEndpoint, connection_endpoints, endpoint_signature
 from .homeos_facade import HomeOSFacadeMixin
 from .state_hub import StateHub
+from ..config import Settings
+from ..core.database import Database
+from ..core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, ProjectDraft, utc_now
+from ..global_log import GlobalLogStore, _safe_text, event_context
+from ..global_popups import global_popups
+from ..panel.entity_refs import document_entity_ids
 
 LOGGER = logging.getLogger(__name__)
 HA_ENDPOINT_RECHECK_SECONDS = 60
@@ -362,7 +362,7 @@ class HAConnectorService(HomeOSFacadeMixin):
             result = listener(kind, payload)
             if hasattr(result, '__await__'):
                 await result
-        except Exception:  # noqa: BLE001 - 单个状态外发失败不能中断 HA 事件流
+        except Exception:
             LOGGER.debug('HA 状态外发失败: %s', kind, exc_info = True)
 
     async def _notify_connection(self, status: str, **extra: Any) -> None:
@@ -379,7 +379,7 @@ class HAConnectorService(HomeOSFacadeMixin):
             result = listener(status, extra)
             if hasattr(result, '__await__'):
                 await result
-        except Exception:  # noqa: BLE001 - 状态外发失败不能拖垮连接循环
+        except Exception:
             LOGGER.debug('HA 连接状态外发失败: %s', status, exc_info = True)
 
     def invalidate_endpoint(self) -> None:

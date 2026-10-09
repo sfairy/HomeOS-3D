@@ -39,7 +39,7 @@ def _to_valid_datetime(value: Any) -> datetime | None:
         if numeric is not None:
             return _to_valid_datetime(numeric)
         try:
-            parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+            parsed = datetime.fromisoformat(text)
         except ValueError:
             return None
         return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
@@ -49,7 +49,7 @@ def _to_valid_datetime(value: Any) -> datetime | None:
 def _local(value: datetime) -> datetime:
     try:
         return value.astimezone(ZoneInfo(PUSH_TIME_ZONE))
-    except Exception:  # noqa: BLE001 - 非法时区回退 UTC
+    except Exception:
         return value.astimezone(UTC)
 
 

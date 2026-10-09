@@ -14,9 +14,9 @@ from typing import Any
 
 from fastapi import Body, Depends, Request
 
+from .router import NestRouter
 from ..core.errors import BusinessException, ErrorCode, api_error
 from ..security.auth_context import require_roles
-from .router import NestRouter
 
 router = NestRouter(prefix="/system", tags=["system"])
 
@@ -83,7 +83,7 @@ async def resync_entities(
         return await request.app.state.ha_connector.resync_from_ha()
     except BusinessException:
         raise
-    except Exception as err:  # noqa: BLE001 - 非业务异常统一转 503
+    except Exception as err:
         raise BusinessException(
             ErrorCode.SERVICE_UNAVAILABLE,
             api_error("HA_STATE_RESYNC_FAILED", str(err) or "未知错误"),

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -124,7 +125,7 @@ async def _read_cached_place(
         return None
     try:
         raw = await deps.redis_get(place_localize_cache_key(latitude, longitude))
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
     text = str(raw.decode("utf-8", "ignore") if isinstance(raw, bytes) else (raw or "")).strip()
     return text or None
@@ -139,7 +140,7 @@ async def _write_cached_place(
         await deps.redis_set(
             place_localize_cache_key(latitude, longitude), place_zh, PLACE_ZH_CACHE_TTL_SEC
         )
-    except Exception:  # noqa: BLE001 - 忽略缓存写入失败
+    except Exception:
         pass
 
 
@@ -162,7 +163,7 @@ async def lookup_place_zh_remote(
         from_bdc = format_place_zh_from_bigdatacloud(result.get("data"))
         if from_bdc and has_cjk_text(from_bdc):
             return from_bdc
-    except Exception:  # noqa: BLE001 - 回退到 Nominatim
+    except Exception:
         pass
 
     try:
@@ -186,7 +187,7 @@ async def lookup_place_zh_remote(
         from_nom = format_place_zh_from_nominatim(result.get("data"))
         if from_nom and has_cjk_text(from_nom):
             return from_nom
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
     return None
@@ -297,7 +298,7 @@ def _finite(value: Any) -> float | None:
         number = float(value)
     except (TypeError, ValueError):
         return None
-    if number != number or number in (float("inf"), float("-inf")):  # NaN / Inf
+    if not math.isfinite(number):  # NaN / Inf
         return None
     return number
 

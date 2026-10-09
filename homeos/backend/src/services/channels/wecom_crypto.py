@@ -20,7 +20,7 @@ def _decrypt_fail(detail: str) -> NoReturn:
 
 def sha1(text: str) -> str:
     """计算字符串的 SHA1 摘要（hex 编码）。"""
-    return hashlib.sha1(text.encode("utf-8")).hexdigest()
+    return hashlib.sha1(text.encode("utf-8")).hexdigest()  # noqa: S324 - 企微回调签名协议强制 SHA1，非口令哈希
 
 
 def compute_msg_signature(token: str, timestamp: str, nonce: str, encrypt: str) -> str:
@@ -57,7 +57,7 @@ def decrypt_wecom(aes_key: str, cipher_text_base64: str) -> dict[str, Any]:
     iv = key[:16]
     try:
         cipher_bytes = base64.b64decode(cipher_text_base64)
-    except Exception:  # noqa: BLE001
+    except Exception:
         _decrypt_fail("密文 Base64 解码失败")
     decryptor = Cipher(algorithms.AES(key), modes.CBC(iv)).decryptor()
     plain = decryptor.update(cipher_bytes) + decryptor.finalize()

@@ -14,9 +14,9 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
+from .command_proxy_auth import is_dangerous_ha_control
 from ..core.app_config import load_raw_config
 from ..core.errors import BusinessException, ErrorCode, api_error, bad_request
-from .command_proxy_auth import is_dangerous_ha_control
 
 logger = logging.getLogger("homeos.command_proxy")
 
@@ -50,7 +50,7 @@ class CommandProxyService:
         try:
             with self._session_factory() as session:
                 self._command_proxy_cfg = _load_section(session, "commandProxy", DEFAULT_COMMAND_PROXY)
-        except Exception:  # noqa: BLE001
+        except Exception:
             self._command_proxy_cfg = DEFAULT_COMMAND_PROXY
         return self._command_proxy_cfg
 
@@ -62,7 +62,7 @@ class CommandProxyService:
                 try:
                     ok = await client.set(f"homeos:cmd-idem:{key}", "1", px=ttl, nx=True)
                     return bool(ok)
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     logger.warning("Redis 幂等键写入失败,回退内存: %s", exc)
         now = time.time() * 1000
         # 惰性清理：内存回退路径的条目按 TTL 剪枝，替代 Nest 的 setInterval 定期清理，
@@ -83,7 +83,7 @@ class CommandProxyService:
             if client is not None:
                 try:
                     await client.delete(f"homeos:cmd-idem:{key}")
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     logger.warning("Redis 幂等键释放失败: %s", exc)
 
     async def call_service(self, dto: dict[str, Any]) -> dict[str, Any]:
@@ -133,7 +133,7 @@ class CommandProxyService:
             if idempotency_key:
                 await self._release_idempotency_key(str(idempotency_key))
             raise
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             if idempotency_key:
                 await self._release_idempotency_key(str(idempotency_key))
             message = _format_service_call_error(exc)

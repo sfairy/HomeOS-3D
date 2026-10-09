@@ -24,6 +24,7 @@ import httpx
 from fastapi import Request
 from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
 
+from ..system.ops.upstream import EMBED_TIMEOUT
 from ...core.embed_proxy_util import (
     EMBED_PROXY_SKIP_REQUEST_HEADERS,
     EMBED_PROXY_STRIP_RESPONSE_HEADERS,
@@ -47,7 +48,6 @@ from ...core.embed_proxy_util import (
 )
 from ...core.errors import api_error, not_found
 from ...security.cookies import is_request_secure
-from ..system.ops.upstream import EMBED_TIMEOUT
 
 logger = logging.getLogger("homeos.system.embed_proxy")
 
@@ -102,7 +102,7 @@ class EmbedProxyService:
         try:
             project_id = self._ui_config.resolve_active_project_id()
             config = self._ui_config.get_config(project_id)
-        except Exception as exc:  # noqa: BLE001 - 布局不可用按空处理
+        except Exception as exc:
             logger.debug("读取布局失败: %s", exc)
             return {}
         if not config or not config.get("layout"):
@@ -142,7 +142,7 @@ class EmbedProxyService:
         """解析本地 dist 下的静态资源路径（防绝对路径覆盖与 ``..`` 穿越）。"""
         if not is_frontend_dist_asset_path(sub_path):
             return None
-        clean_path = sub_path.split("?")[0].split("#")[0]
+        clean_path = sub_path.split("?", maxsplit=1)[0].split("#", maxsplit=1)[0]
         relative = clean_path.lstrip("/")
         if not relative or ".." in relative:
             return None
@@ -187,7 +187,7 @@ class EmbedProxyService:
 
     def _respond_asset_not_found(self, sub_path: str) -> Response:
         """上游对静态资源返回 HTML（SPA 回退）时，返回正确 MIME 的 404。"""
-        clean_path = sub_path.split("?")[0].split("#")[0]
+        clean_path = sub_path.split("?", maxsplit=1)[0].split("#", maxsplit=1)[0]
         mime = STATIC_MIME.get(Path(clean_path).suffix.lower(), "text/plain")
         return Response(content=b"", status_code=404, media_type=mime)
 
@@ -298,7 +298,7 @@ class EmbedProxyService:
                 content=forward_body,
                 verify=not upstream_is_https,
             )
-        except Exception as err:  # noqa: BLE001 - 连接失败 / 超时 → 502 可读 HTML
+        except Exception as err:
             if client is not None:
                 await client.aclose()
             return self._respond_upstream_unreachable(upstream_url, err)
@@ -393,7 +393,7 @@ def _maybe_json(raw_body: bytes) -> Any:
     """把原始请求体解析为 JSON（用于按 content-type 重建 body）。"""
     if not raw_body:
         return None
-    import json  # noqa: PLC0415 - 仅此路径需要
+    import json
 
     try:
         return json.loads(raw_body.decode("utf-8"))
@@ -408,7 +408,7 @@ def _decode(value: Any) -> str:
 
 
 def _encode(value: str) -> str:
-    from urllib.parse import quote  # noqa: PLC0415 - 仅此路径需要
+    from urllib.parse import quote
 
     return quote(str(value), safe="")
 
@@ -450,12 +450,12 @@ async def _close_upstream(client: httpx.AsyncClient | None, response: httpx.Resp
     if response is not None:
         try:
             await response.aclose()
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
     if client is not None:
         try:
             await client.aclose()
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
 

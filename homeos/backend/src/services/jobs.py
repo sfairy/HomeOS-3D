@@ -75,7 +75,7 @@ class JobRegistryService:
             result = fn()
             if inspect.isawaitable(result):
                 result = await result
-        except BaseException as err:  # noqa: BLE001 - 记录后原样抛出
+        except BaseException as err:
             self._complete(name, started_at, _error_message(err))
             raise
         self._complete(name, started_at, None)

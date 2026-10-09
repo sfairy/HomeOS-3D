@@ -17,22 +17,12 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import re
 from typing import Any
 
 from sqlalchemy import select
 
-from ....core.entity_domain import get_entity_domain
-from ....core.errors import BusinessException
-from ....core.ha_service_catalog import agent_service_allowed
-from ....core.models import HomeMode
-from ....realtime.access import (
-    is_entity_allowed,
-    resolve_entity_restrictions,
-)
-from ...command_proxy_auth import assert_command_proxy_authorized
-from ..agent_actor import AGENT_CONTROL_TOOLS, AgentActor
-from ..config_service import AgentConfigService
 from .high_risk_denylist import (
     SAFE_BULK_CONTROL_DOMAINS,
     SceneVoiceControlGate,
@@ -44,6 +34,17 @@ from .tool_args_validator import (
     extract_domain,
     sanitize_service_data,
     validate_entity_id,
+)
+from ..agent_actor import AGENT_CONTROL_TOOLS, AgentActor
+from ..config_service import AgentConfigService
+from ...command_proxy_auth import assert_command_proxy_authorized
+from ....core.entity_domain import get_entity_domain
+from ....core.errors import BusinessException
+from ....core.ha_service_catalog import agent_service_allowed
+from ....core.models import HomeMode
+from ....realtime.access import (
+    is_entity_allowed,
+    resolve_entity_restrictions,
 )
 
 logger = logging.getLogger("homeos.agent.home_tools")
@@ -75,7 +76,7 @@ MAX_ATTRIBUTE_VALUE_LENGTH = 500
 WHOLE_HOME_QUERY = re.compile(
     r"全屋|整屋|全家|所有房间|全部房间|整个家|全部区域|所有区域|"
     r"whole house|whole home|all rooms|everywhere|entire house|entire home",
-    re.I,
+    re.IGNORECASE,
 )
 
 #: 场景 / 脚本名称解析：剥离动作词与类别后缀
@@ -189,7 +190,7 @@ class HomeToolsService:
                 ident for ident in (str(i or "").strip().lower() for i in cfg.allow) if ident
             )
             return SceneVoiceControlGate(enabled=True, allow=allow)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("读取场景语音控制配置失败,按全禁处理: %s", exc)
             return None
 
@@ -229,7 +230,7 @@ class HomeToolsService:
                 self._command_proxy_target_resolver(),
             )
             return {"ok": True}
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return {"ok": False, "message": _error_message(exc) or "无权控制该设备"}
 
     # ------------------------------------------------------------------ #
@@ -355,7 +356,7 @@ class HomeToolsService:
         lower = query.lower()
         try:
             areas = await self._area_service.find_all()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return {"error": f"房间列表加载失败: {_error_message(exc)}"}
         whitelist: dict[str, None] = {}
         entity_room: dict[str, str] = {}
@@ -382,7 +383,7 @@ class HomeToolsService:
                         ident = str(entity_id)
                         whitelist[ident] = None
                         favorites.append(ident)
-        except Exception:  # noqa: BLE001 - 布局读取失败不影响主流程
+        except Exception:
             pass
 
         # 在白名单内按关键词匹配
@@ -509,7 +510,7 @@ class HomeToolsService:
                     "service_data": service_data,
                 }
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return {"success": False, "message": _error_message(exc, "控制失败")}
 
     async def _list_areas(self) -> dict[str, Any]:
@@ -521,7 +522,7 @@ class HomeToolsService:
                     {"id": a.id, "name": a.name, "icon": a.icon} for a in (areas or [])
                 ]
             }
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return {"error": f"房间列表加载失败: {_error_message(exc)}"}
 
     async def _get_area_snapshot(
@@ -538,13 +539,13 @@ class HomeToolsService:
         restrictions = self._read_restrictions(actor)
         try:
             area = await self._area_service.find_one(area_id_or_name)
-        except Exception:  # noqa: BLE001
+        except Exception:
             area = None
         # 精确 / 模糊名称匹配兜底
         if area is None:
             try:
                 areas = await self._area_service.find_all()
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 return {"error": f"房间列表加载失败: {_error_message(exc)}"}
             lower = area_id_or_name.lower().strip()
             area = next(
@@ -558,7 +559,7 @@ class HomeToolsService:
             if area is not None:
                 try:
                     area = await self._area_service.find_one(area.id)
-                except Exception:  # noqa: BLE001 - 取不到时保留列表中的摘要
+                except Exception:
                     pass
         if area is None:
             return {"error": f"未找到房间「{area_id_or_name}」"}
@@ -603,7 +604,7 @@ class HomeToolsService:
                 he = self._state_store.get(str(room_stats["humidity"]))
                 if he:
                     humidity = _sensor(str(room_stats["humidity"]), _s(he.get("state")))
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
         # 2) 缺失时回退到 AppConfig 的 envSensorMap（按 area_id / label / 房间名匹配）
@@ -666,7 +667,7 @@ class HomeToolsService:
                         "value": _s(he.get("state")),
                     }
             return {"temp": temp, "humidity": humidity}
-        except Exception:  # noqa: BLE001
+        except Exception:
             return {"temp": None, "humidity": None}
 
     async def _control_room(
@@ -686,7 +687,7 @@ class HomeToolsService:
 
         try:
             areas = await self._area_service.find_all()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return {"error": f"房间列表加载失败: {_error_message(exc)}"}
 
         if WHOLE_HOME_QUERY.search(room_query):
@@ -749,7 +750,7 @@ class HomeToolsService:
         if not entity_ids:
             try:
                 full = await self._area_service.find_one(area.id)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("控制房间时加载区域失败 %s: %s", area.id, _error_message(exc))
                 full = None
             entity_ids = [str(ae.entity_id) for ae in ((full.entities if full else None) or [])]
@@ -824,7 +825,7 @@ class HomeToolsService:
                 results.append(
                     {"entity_id": entity_id, "ok": bool((response or {}).get("success"))}
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 results.append(
                     {"entity_id": entity_id, "ok": False, "message": _error_message(exc, "失败")}
                 )
@@ -884,7 +885,7 @@ class HomeToolsService:
                 },
             )
             return {"success": True, "mode": {"id": mode["id"], "name": mode["name"]}}
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return {"success": False, "message": _error_message(exc, "模式切换失败")}
 
     async def _resolve_mode_by_name_or_id(
@@ -893,7 +894,7 @@ class HomeToolsService:
         """按名称（精确 / 包含）或 ID 解析家庭模式。"""
         try:
             direct = self._home_mode.find_one(name_or_id)
-        except Exception:  # noqa: BLE001
+        except Exception:
             direct = None
         if direct:
             return {
@@ -917,7 +918,7 @@ class HomeToolsService:
                     .limit(5)
                 ).all()
             return [{"id": str(row[0]), "name": str(row[1])} for row in rows]
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("按名称查询家庭模式失败: %s", exc)
             return []
 
@@ -932,7 +933,7 @@ class HomeToolsService:
                     .all()
                 )
             return [str(name) for name in names]
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("读取家庭模式列表失败: %s", exc)
             return []
 
@@ -1045,7 +1046,7 @@ class HomeToolsService:
                 "type": domain,
                 "result": result,
             }
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return {"success": False, "message": _error_message(exc, "场景执行失败")}
 
     @staticmethod
@@ -1104,7 +1105,7 @@ class HomeToolsService:
         try:
             try:
                 active = self._home_mode.get_active()
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("状态概览读取家庭模式失败: %s", _error_message(exc))
                 active = None
             return {
@@ -1113,7 +1114,7 @@ class HomeToolsService:
                 ),
                 "entity_count": len(self._state_store.get_all()),
             }
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return {"error": f"状态概览获取失败: {_error_message(exc)}"}
 
     async def _get_weather(self) -> dict[str, Any]:
@@ -1149,7 +1150,7 @@ class HomeToolsService:
         """查询日历外出安排（来自外部日历源）。"""
         try:
             return self._external_api.get_calendar_summary()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return {"error": f"日历查询失败: {_error_message(exc)}"}
 
     # ------------------------------------------------------------------ #
@@ -1168,7 +1169,7 @@ class HomeToolsService:
             brightness = float("nan")
         if not entity_id.startswith("light."):
             return {"error": "entity_id 须为 light.*"}
-        if brightness != brightness or brightness < 0 or brightness > 100:  # NaN 判定
+        if math.isnan(brightness) or brightness < 0 or brightness > 100:  # NaN 判定
             return {"error": "brightness 须为 0-100"}
         return await self._control_device(
             {
@@ -1194,7 +1195,7 @@ class HomeToolsService:
             position = float("nan")
         if not entity_id.startswith("cover."):
             return {"error": "entity_id 须为 cover.*"}
-        if position != position or position < 0 or position > 100:  # NaN 判定
+        if math.isnan(position) or position < 0 or position > 100:  # NaN 判定
             return {"error": "position 须为 0-100"}
         return await self._control_device(
             {
@@ -1225,7 +1226,7 @@ class HomeToolsService:
                 volume = float(raw_volume) if raw_volume is not None else 0.0
             except (TypeError, ValueError):
                 volume = 0.0
-            if volume != volume:  # NaN → 对齐 JS Number(...) || 0
+            if math.isnan(volume):  # NaN → 对齐 JS Number(...) || 0
                 volume = 0.0
             service_data = {"volume_level": max(0.0, min(1.0, volume))}
         return await self._control_device(
@@ -1245,8 +1246,8 @@ class HomeToolsService:
 
 
 __all__ = [
-    "HomeToolsService",
     "MAX_ATTRIBUTE_VALUE_LENGTH",
     "SENSITIVE_ATTRIBUTE_KEYS",
+    "HomeToolsService",
     "sanitize_entity_attributes",
 ]

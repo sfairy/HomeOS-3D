@@ -69,7 +69,7 @@ def list_image_assets(
                 }
             )
         return _sort_entries(entries)
-    except Exception as exc:  # noqa: BLE001 - 列出失败降级为空列表
+    except Exception as exc:
         logger.error('列出%s失败,路径 "%s": %s', log_label, sub_path, exc)
         return []
 

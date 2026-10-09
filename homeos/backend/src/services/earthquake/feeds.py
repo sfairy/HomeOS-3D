@@ -311,7 +311,7 @@ def parse_wolfx_time_ms(value: Any, kind: str) -> float:
         return (moment.timestamp() - offset_hours * 3600) * 1000
 
     try:
-        iso = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        iso = datetime.fromisoformat(text)
         if iso.tzinfo is None:
             iso = iso.replace(tzinfo=UTC)
         return iso.timestamp() * 1000

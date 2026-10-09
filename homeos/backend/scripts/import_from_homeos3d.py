@@ -89,7 +89,7 @@ def _table_info(connection: sqlite3.Connection, schema: str, table: str) -> list
 
 def _has_table(connection: sqlite3.Connection, schema: str, table: str) -> bool:
     row = connection.execute(
-        f"SELECT name FROM {schema}.sqlite_master WHERE type='table' AND name=?", (table,)
+        f"SELECT name FROM {schema}.sqlite_master WHERE type='table' AND name=?", (table,)  # noqa: S608 - 内部 schema 名
     ).fetchone()
     return row is not None
 
@@ -116,15 +116,15 @@ def copy_table(
             pairs.append((column, str(int(USER_COLUMN_DEFAULTS[column]))))
     if not pairs:
         return 0
-    count = int(connection.execute(f'SELECT COUNT(*) FROM src."{table}"').fetchone()[0])
+    count = int(connection.execute(f'SELECT COUNT(*) FROM src."{table}"').fetchone()[0])  # noqa: S608 - 内部表名
     if dry_run or count == 0:
         return count
     if truncate:
-        connection.execute(f'DELETE FROM main."{table}"')
+        connection.execute(f'DELETE FROM main."{table}"')  # noqa: S608 - 内部表名
     target_list = ", ".join(f'"{column}"' for column, _ in pairs)
     source_list = ", ".join(expression for _, expression in pairs)
     connection.execute(
-        f'INSERT OR REPLACE INTO main."{table}" ({target_list}) '
+        f'INSERT OR REPLACE INTO main."{table}" ({target_list}) '  # noqa: S608 - 内部表名/列名
         f'SELECT {source_list} FROM src."{table}"'
     )
     return count

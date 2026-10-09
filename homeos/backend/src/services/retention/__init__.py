@@ -4,4 +4,4 @@ from __future__ import annotations
 
 from .service import RETENTION_STATS_STORAGE_ID, DatabaseRetentionService
 
-__all__ = ["DatabaseRetentionService", "RETENTION_STATS_STORAGE_ID"]
+__all__ = ["RETENTION_STATS_STORAGE_ID", "DatabaseRetentionService"]

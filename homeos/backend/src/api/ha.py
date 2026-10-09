@@ -1023,7 +1023,7 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
             # 未预期的异常（如取连接 / 合并阶段出错）把 send_updates 整体带崩。
             try:
                 await websocket.app.state.studio_ha.ensure_entity_states(entity_ids)
-            except Exception:  # noqa: BLE001 - 补全失败不得影响后续事件转发
+            except Exception:
                 _runtime_log(
                     websocket,
                     'warning',

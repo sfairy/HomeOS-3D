@@ -67,7 +67,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             database: Database = app.state.database
             with database.engine.connect() as connection:
                 connection.exec_driver_sql("SELECT 1")
-        except Exception:  # noqa: BLE001 - 探针失败即视为不健康
+        except Exception:
             ok = False
         app.state.db_probe = (now, ok)
         return ok

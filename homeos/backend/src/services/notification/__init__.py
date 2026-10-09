@@ -5,4 +5,4 @@
 
 from .service import ALERT_EDGE_REDIS_KEY, NotificationService
 
-__all__ = ["NotificationService", "ALERT_EDGE_REDIS_KEY"]
+__all__ = ["ALERT_EDGE_REDIS_KEY", "NotificationService"]

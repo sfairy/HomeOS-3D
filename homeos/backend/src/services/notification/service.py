@@ -15,11 +15,6 @@ from typing import Any
 
 from sqlalchemy import func, or_, select
 
-from ...core.models import Notification
-from ..alerts.dnd import is_dnd_active
-from ..alerts.sources import is_life_safety_notification  # noqa: F401 - 供外部/测试引用
-from ..ha_filters import AlertRuleWatchIndex, HaStateChangeRouter
-from ..rooms import resolve_room_label_from_ha_areas
 from .config import (
     load_energy_config,
     load_env_sensor_map,
@@ -42,6 +37,11 @@ from .stats import (
     map_notification_row,
     resolve_notification_time_granularity,
 )
+from ..alerts.dnd import is_dnd_active
+from ..alerts.sources import is_life_safety_notification  # noqa: F401 - 供外部/测试引用
+from ..ha_filters import AlertRuleWatchIndex, HaStateChangeRouter
+from ..rooms import resolve_room_label_from_ha_areas
+from ...core.models import Notification
 
 logger = logging.getLogger("homeos.notification")
 
@@ -67,7 +67,7 @@ class NotificationService:
         self._redis = redis
         self._cooldown = cooldown_service
         self._channels_service = channels_service
-        self._ha_areas_provider = ha_areas_provider or (lambda: [])
+        self._ha_areas_provider = ha_areas_provider or (list)
 
         self._alert_edge_timer: asyncio.TimerHandle | None = None
         self._watch_index = AlertRuleWatchIndex()
@@ -250,7 +250,7 @@ class NotificationService:
         async def _write() -> None:
             try:
                 await self._redis.set(ALERT_EDGE_REDIS_KEY, payload, EDGE_TTL_SECONDS)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.debug("告警边沿状态持久化失败: %s", exc)
 
         try:
@@ -270,7 +270,7 @@ class NotificationService:
             if not isinstance(parsed, list):
                 return []
             return [item for item in parsed if isinstance(item, str)]
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("恢复告警边沿状态失败: %s", exc)
             return []
 
@@ -588,4 +588,4 @@ class NotificationService:
         return resolve_room_label_from_ha_areas(text, sensor_map, areas)
 
 
-__all__ = ["NotificationService", "ALERT_EDGE_REDIS_KEY"]
+__all__ = ["ALERT_EDGE_REDIS_KEY", "NotificationService"]

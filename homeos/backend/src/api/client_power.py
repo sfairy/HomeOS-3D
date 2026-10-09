@@ -17,9 +17,9 @@ from typing import Any
 from fastapi import Depends, Request, Response
 from pydantic import BaseModel, ConfigDict, model_validator
 
+from .router import NestRouter
 from ..security.auth_context import require_roles, require_user
 from ..security.cookies import resolve_cookie_secure_for_request
-from .router import NestRouter
 
 router = NestRouter(prefix="/system", tags=["system"])
 

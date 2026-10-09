@@ -17,8 +17,8 @@ import re
 from typing import Any
 from urllib.parse import quote, unquote, urlsplit
 
-from ..security.cookies import is_lan_origin
 from .errors import api_error, bad_request
+from ..security.cookies import is_lan_origin
 
 #: 静态资源扩展名 → MIME 类型（对齐 ``STATIC_MIME``）
 STATIC_MIME: dict[str, str] = {
@@ -171,7 +171,7 @@ def is_embed_same_origin_as_request(
             url_origin(host) if "://" in host else url_origin(f"{protocol}://{host}")
         )
         return embed_origin == req_origin
-    except Exception:  # noqa: BLE001
+    except Exception:
         return False
 
 
@@ -204,7 +204,7 @@ def get_embed_upstream_origin(embed_base: str) -> str:
     """上游内嵌站的 origin（协议+主机）。"""
     try:
         return url_origin(embed_base)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return embed_base
 
 
@@ -216,7 +216,7 @@ def rewrite_embed_referer(referer: str | None, embed_base: str, proxy_prefix: st
     upstream_origin = get_embed_upstream_origin(embed_base)
     if not referer:
         return f"{upstream_origin}/"
-    prefix_no_slash = proxy_prefix[:-1] if proxy_prefix.endswith("/") else proxy_prefix
+    prefix_no_slash = proxy_prefix.removesuffix("/")
     index = referer.find(prefix_no_slash)
     if index >= 0:
         after = referer[index + len(prefix_no_slash) :]
@@ -229,26 +229,26 @@ def rewrite_embed_location(location: str, embed_base: str, proxy_prefix: str) ->
     """改写上游响应的 Location 头（同源绝对地址 → 反代前缀下的相对路径）。"""
     try:
         base_origin = url_origin(embed_base + "/")
-        proxy_root = proxy_prefix[:-1] if proxy_prefix.endswith("/") else proxy_prefix
+        proxy_root = proxy_prefix.removesuffix("/")
         try:
             loc = _resolve_url(location, embed_base + "/")
         except ValueError:
             return rewrite_embed_same_origin_urls(location, embed_base, proxy_root)
         if loc is not None and url_origin(loc) == base_origin:
             suffix = _url_suffix(loc)
-            path_part = suffix[1:] if suffix.startswith("/") else suffix
+            path_part = suffix.removeprefix("/")
             return rewrite_embed_same_origin_urls(
                 f"{proxy_prefix}{path_part}", embed_base, proxy_root
             )
         # 跨域跳转：地址本身不动，但其查询串里仍可能含上游同源地址
         return rewrite_embed_same_origin_urls(location, embed_base, proxy_root)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return location
 
 
 def rewrite_embed_set_cookie(cookie: str, proxy_prefix: str, request_secure: bool = True) -> str:
     """改写上游 Set-Cookie（去 Domain、Path 收敛到反代前缀、HTTP 下剥离 Secure）。"""
-    prefix_no_slash = proxy_prefix[:-1] if proxy_prefix.endswith("/") else proxy_prefix
+    prefix_no_slash = proxy_prefix.removesuffix("/")
     parts = [part.strip() for part in cookie.split(";") if part.strip()]
     out: list[str] = []
     has_path = False
@@ -308,14 +308,14 @@ def build_embed_forward_body(
     if raw_body is not None and len(raw_body) > 0 and "json" in ct:
         return raw_body
     if isinstance(body, str):
-        return body if body else None
+        return body or None
     if isinstance(body, (bytes, bytearray)):
         return bytes(body) if len(body) else None
     if isinstance(body, dict):
         if not body:
             return None
         if "application/x-www-form-urlencoded" in ct:
-            from urllib.parse import urlencode  # noqa: PLC0415 - 仅表单路径需要
+            from urllib.parse import urlencode
 
             encoded = urlencode(
                 {str(k): "" if v is None else str(v) for k, v in body.items()}
@@ -333,7 +333,7 @@ def rewrite_embed_same_origin_urls(content: str, embed_base: str, proxy_root: st
     try:
         origin = url_origin(embed_base + "/")
         host = url_host(embed_base + "/")
-    except Exception:  # noqa: BLE001
+    except Exception:
         return content
     out = re.sub(escape_reg_exp(origin), proxy_root, content, flags=re.IGNORECASE)
     escaped_slash_origin = origin.replace("/", "\\/")
@@ -354,7 +354,7 @@ def rewrite_embed_ws_urls(content: str, embed_base: str, ws_proxy_prefix: str) -
         parts = urlsplit(embed_base + "/")
         scheme = "wss" if parts.scheme == "https" else "ws"
         ws_origin = f"{scheme}://{url_host(embed_base + '/')}"
-    except Exception:  # noqa: BLE001
+    except Exception:
         return content
     return re.sub(
         rf"{escape_reg_exp(ws_origin)}([^\"'\s]*)",
@@ -443,8 +443,7 @@ def build_embed_doc_base_href(proxy_prefix: str, doc_sub_path: str | None) -> st
     """计算当前文档在反代下的 ``<base>`` 地址。"""
     root = proxy_prefix if proxy_prefix.endswith("/") else f"{proxy_prefix}/"
     path = (doc_sub_path or "/").split("?")[0].split("#")[0]
-    if path.startswith("/"):
-        path = path[1:]
+    path = path.removeprefix("/")
     last_slash = path.rfind("/")
     directory = path[: last_slash + 1] if last_slash >= 0 else ""
     return f"{root}{directory}"
@@ -460,7 +459,7 @@ def rewrite_embed_html(
 ) -> str:
     """注入 base + 运行时垫片并改写同源绝对 URL（HTTPS 父页加载 HTTP 内嵌站）。"""
     ws_proxy_prefix = build_embed_ws_proxy_prefix(embed_id) if embed_id else ""
-    proxy_root = proxy_prefix[:-1] if proxy_prefix.endswith("/") else proxy_prefix
+    proxy_root = proxy_prefix.removesuffix("/")
     base_href = build_embed_doc_base_href(proxy_prefix, doc_sub_path)
     base_tag = f'<base href="{base_href}">'
     referrer_meta = '<meta name="referrer" content="unsafe-url">'
@@ -504,7 +503,7 @@ def rewrite_embed_asset_content(
     """改写静态资源（JS/CSS/JSON）内容（不注入 base / 垫片）。"""
     ws_proxy_prefix = build_embed_ws_proxy_prefix(embed_id)
     proxy_root = build_embed_proxy_prefix(embed_id)
-    proxy_root = proxy_root[:-1] if proxy_root.endswith("/") else proxy_root
+    proxy_root = proxy_root.removesuffix("/")
     out = rewrite_embed_ws_urls(content, embed_base, ws_proxy_prefix)
     out = rewrite_embed_same_origin_urls(out, embed_base, proxy_root)
     out = rewrite_embed_root_relative_asset_paths(out, proxy_root)
@@ -576,7 +575,7 @@ def parse_embed_id_from_referer(referer: str) -> str | None:
     raw = match.group(1)
     try:
         return unquote(raw)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return raw
 
 
@@ -588,7 +587,7 @@ def parse_embed_id_from_context_cookie(cookie_header: str | None) -> str | None:
     raw = match.group(1)
     try:
         return unquote(raw)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return raw
 
 
@@ -630,7 +629,7 @@ def _resolve_url(location: str, base: str) -> str | None:
     parts = urlsplit(location)
     if parts.scheme and parts.hostname:
         return location
-    from urllib.parse import urljoin  # noqa: PLC0415 - 仅此路径需要
+    from urllib.parse import urljoin
 
     joined = urljoin(base, location)
     return joined if urlsplit(joined).hostname else None

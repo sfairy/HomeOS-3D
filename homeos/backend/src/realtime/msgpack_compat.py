@@ -42,9 +42,7 @@ def _install_engineio_b64_encode_cache_fix() -> None:
         cached = self.encode_cache
         if cached is not None:
             # polling（b64=True）需要 str；websocket 二进制（b64=False）需要 bytes。
-            if b64 and isinstance(cached, (bytes, bytearray)):
-                self.encode_cache = None
-            elif (not b64) and getattr(self, "binary", False) and isinstance(cached, str):
+            if (b64 and isinstance(cached, (bytes, bytearray))) or ((not b64) and getattr(self, "binary", False) and isinstance(cached, str)):
                 self.encode_cache = None
         return original_encode(self, b64=b64)
 

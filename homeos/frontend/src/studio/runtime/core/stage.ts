@@ -1,12 +1,7 @@
 import { syncHtmlRangeProgress } from "@app/utils/range-progress";
-import { bathHeaterState as bathHeaterState2 } from "../bath-heater/bath-heater";
-import { purifierState as purifierState2 } from "../purifier/purifier-state";
 import { createAirerMotion as createAirerMotion2 } from "../airer/airer-motion";
 import { createFanMotion as createFanMotion2 } from "../fan/fan-motion";
-import { carState as carState2 } from "../vehicle/car-state";
-import { updateCarCard as updateCarCard2 } from "../vehicle/car-card";
 import { createCarCharging as createCarCharging2 } from "../vehicle/car-charging";
-import { speakerState as speakerState2 } from "../speaker/speaker-state";
 import { createSpeakerPanel as createSpeakerPanel2 } from "../speaker/speaker-panel";
 import { createSpeakerRings as createSpeakerRings2 } from "../speaker/speaker-ring";
 const [
@@ -50,20 +45,14 @@ import { createLockMotion as createLockMotion2 } from "../security/lock-motion";
 import {
   createSecurityAlarmOverlay,
   isSecurityAlarmKind,
-  overlayEligibleAlarms,
-  renderSecurityAlarmCard,
-  securityAlarmReading,
-  securityAlarmReadings,
 } from "../security/security-alarm";
 import {
   doorModels as doorModels2,
-  lockState as lockState2,
 } from "../security/lock-state";
 import { createSceneBackground as createSceneBackground2 } from "./scene-background";
 import { floorNavigationChoices as floorNavigationChoices2 } from "./floor-navigation";
 import {
   createVacuumMotion as createVacuumMotion2,
-  vacuumQuip as vacuumQuip2,
   createVacuumFollowCamera as createVacuumFollowCamera2,
   vacuumBirdCamera as vacuumBirdCamera2,
   vacuumFollowPose as vacuumFollowPose2,
@@ -74,7 +63,6 @@ import {
   vacuumBindingsForMap as vacuumBindingsForMap2,
 } from "../vacuum/vacuum-map";
 import {
-  televisionState as televisionState2,
   televisionPower as televisionPower2,
 } from "../television/television-state";
 import { createTelevisionPanel as createTelevisionPanel2 } from "../television/television-panel";
@@ -89,11 +77,9 @@ import {
 import { createNasPanel as createNasPanel2 } from "../nas/nas-panel";
 import {
   createNasStatus as createNasStatus2,
-  nasDeviceState as nasDeviceState2,
 } from "../nas/nas-status";
 import {
   createCameraStatus as createCameraStatus2,
-  cameraOnline as cameraOnline2,
 } from "../camera/camera-status";
 import {
   coverState as coverState2,
@@ -151,9 +137,7 @@ import {
   createIdleFocusExit as createIdleFocusExit2,
 } from "./idle-rotation";
 import {
-  lampIconSvgMarkup,
   lightPresetEntries,
-  resolveMarkerIconSize,
   configuredModuleKinds,
   createStageModelIndex,
   postHostMessage,

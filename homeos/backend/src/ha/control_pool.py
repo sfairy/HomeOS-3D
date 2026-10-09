@@ -109,7 +109,7 @@ class HAControlPool:
             return
         try:
             await client.aclose()
-        except Exception:  # noqa: BLE001 - 旧连接关闭失败不应影响新请求
+        except Exception:
             pass
 
     @asynccontextmanager

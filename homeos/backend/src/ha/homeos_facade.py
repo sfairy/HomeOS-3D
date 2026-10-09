@@ -35,9 +35,9 @@ from typing import Any
 
 from sqlalchemy import select
 
+from .client import HAClientError
 from ..core.errors import BusinessException, ErrorCode, api_error
 from ..core.models import HAConnection
-from .client import HAClientError
 
 logger = logging.getLogger("homeos.ha.facade")
 
@@ -105,7 +105,7 @@ class HomeOSFacadeMixin:
     def _status_dict(self) -> dict[str, Any]:
         try:
             base_url = self._host.active_base_url or ""
-        except Exception:  # noqa: BLE001 - 传输细节不可用时留空
+        except Exception:
             base_url = ""
         return {
             "connected": bool(self._host.connected),

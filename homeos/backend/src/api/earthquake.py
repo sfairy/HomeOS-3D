@@ -21,11 +21,11 @@ from typing import Any
 from fastapi import Depends, Query, Request
 from pydantic import BaseModel, ConfigDict, model_validator
 
+from .router import NestRouter
 from ..core.errors import BusinessException, ErrorCode
 from ..dependencies import license_feature
 from ..security.auth_context import require_roles, require_user
 from ..services.license import features as feature_codes
-from .router import NestRouter
 
 logger = logging.getLogger("homeos.earthquake.api")
 
@@ -114,7 +114,7 @@ async def _build_status(request: Request) -> dict[str, Any]:
         if poll is not None:
             try:
                 await poll.poll_now()
-            except Exception:  # noqa: BLE001 - 状态面板不因轮询失败而报错
+            except Exception:
                 pass
     wolfx = await service.get_cluster_connection_status()
     diagnostics = service.get_diagnostics_snapshot()

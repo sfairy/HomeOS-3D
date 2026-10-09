@@ -9,13 +9,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...core.app_config import load_raw_config, merge_raw_config_section
 from ..alerts.channels import resolve_notification_fetch_limit
 from ..security.config import (
     DEFAULT_FRONTEND_CONFIG,
     DEFAULT_SECURITY_CONFIG,
     load_frontend_config,
 )
+from ...core.app_config import load_raw_config, merge_raw_config_section
 
 #: 通知分区完整默认值（逐条对齐 backend/src/shared/app-config/defaults.ts）。
 DEFAULT_NOTIFICATION_CONFIG: dict[str, Any] = {
@@ -105,20 +105,20 @@ def merge_notification_settings(session_factory, partial: dict[str, Any]) -> Non
 
 
 __all__ = [
-    "DEFAULT_NOTIFICATION_CONFIG",
     "DEFAULT_ENERGY_CONFIG",
-    "DEFAULT_WATER_CONFIG",
-    "DEFAULT_IAQ_CONFIG",
-    "DEFAULT_OTHER_CONFIG",
     "DEFAULT_FRONTEND_CONFIG",
-    "load_notification_config",
+    "DEFAULT_IAQ_CONFIG",
+    "DEFAULT_NOTIFICATION_CONFIG",
+    "DEFAULT_OTHER_CONFIG",
+    "DEFAULT_WATER_CONFIG",
     "load_energy_config",
-    "load_water_config",
-    "load_iaq_config",
-    "load_other_config",
     "load_env_sensor_map",
-    "load_security_section",
     "load_frontend_config",
-    "resolve_notification_fetch_limit",
+    "load_iaq_config",
+    "load_notification_config",
+    "load_other_config",
+    "load_security_section",
+    "load_water_config",
     "merge_notification_settings",
+    "resolve_notification_fetch_limit",
 ]

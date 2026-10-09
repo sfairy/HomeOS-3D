@@ -137,9 +137,9 @@ def time_period_label(period: str | None) -> str:
 
 
 __all__ = [
-    "is_peak_time",
-    "get_time_period",
-    "resolve_tou_unit_prices",
     "get_period_unit_price",
+    "get_time_period",
+    "is_peak_time",
+    "resolve_tou_unit_prices",
     "time_period_label",
 ]

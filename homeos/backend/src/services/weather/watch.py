@@ -86,7 +86,7 @@ class WeatherWatchService:
             self._task.cancel()
             try:
                 await self._task
-            except (asyncio.CancelledError, Exception):  # noqa: BLE001
+            except (asyncio.CancelledError, Exception):
                 pass
             self._task = None
 
@@ -113,13 +113,13 @@ class WeatherWatchService:
                     {"description": "天气预警轮询监听", "intervalMs": self.poll_ms()},
                     self._tick,
                 )
-            except Exception:  # noqa: BLE001 - jobs.run 已记录错误
+            except Exception:
                 pass
 
     async def _tick(self) -> None:
         try:
             await self.check_new_alerts()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("天气预警轮询失败: %s", exc)
 
     # ------------------------------------------------------------------ #
@@ -192,7 +192,7 @@ class WeatherWatchService:
             if not isinstance(parsed, list):
                 return set()
             return {item for item in parsed if isinstance(item, str) and item.strip()}
-        except Exception:  # noqa: BLE001
+        except Exception:
             return set()
 
     async def save_seen_ids(self, ids: Any) -> None:
@@ -205,7 +205,7 @@ class WeatherWatchService:
         trimmed = unique[-SEEN_MAX:]
         try:
             await self._redis.set(SEEN_KEY, json.dumps(trimmed), 7 * 24 * 3600)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("天气预警已通知写入失败: %s", exc)
 
 

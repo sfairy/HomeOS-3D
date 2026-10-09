@@ -15,7 +15,6 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
-from ..app_config.room_meta import resolve_voice_rooms
 from .tts_speak import TtsSpeakService
 from .voice_alerts import (
     VOICE_ALERT_CATALOG,
@@ -31,6 +30,7 @@ from .voice_stt import (
     resolve_stt_entity,
     transcribe_voice_audio,
 )
+from ..app_config.room_meta import resolve_voice_rooms
 
 logger = logging.getLogger("homeos.awareness.voice")
 
@@ -138,7 +138,7 @@ class VoiceService:
     def voice_rooms(self) -> list[dict[str, Any]]:
         try:
             ha_areas = self._entity_area.get_cached_ha_areas()
-        except Exception:  # noqa: BLE001 - 区域缓存缺失时回退默认目录
+        except Exception:
             ha_areas = []
         return resolve_voice_rooms(self._app_config.get("envSensorMap"), ha_areas)
 
@@ -229,8 +229,8 @@ class VoiceService:
     async def _agent_fallback(
         self, text: str, user: dict[str, Any] | None
     ) -> dict[str, Any]:
-        from ..agent.agent_actor import AgentActor  # noqa: PLC0415 - 打破循环依赖
-        from ..agent.service import AgentChatOptions  # noqa: PLC0415 - 打破循环依赖
+        from ..agent.agent_actor import AgentActor
+        from ..agent.service import AgentChatOptions
 
         session_id = f"voice:{(user or {}).get('userId') or 'anon'}"
         try:
@@ -255,7 +255,7 @@ class VoiceService:
                 "room": None,
                 "count": len(agent.tool_calls or []),
             }
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("语音回落智能管家失败: %s", exc)
             return {
                 "ok": False,

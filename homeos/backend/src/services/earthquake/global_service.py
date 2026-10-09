@@ -22,7 +22,6 @@ from typing import Any
 
 import httpx
 
-from ...core.errors import BusinessException, ErrorCode
 from .feeds import (
     WOLFX_CENC_EQ_LIST_URL,
     normalize_global_period,
@@ -36,6 +35,7 @@ from .feeds import (
 )
 from .geo import haversine_distance_km
 from .place_localize import PlaceLocalizeDeps, enrich_usgs_places_with_chinese
+from ...core.errors import BusinessException, ErrorCode
 
 logger = logging.getLogger("homeos.earthquake.global")
 
@@ -122,7 +122,7 @@ class EarthquakeGlobalService:
                 items = await self._fetch_usgs_items(
                     period, min_magnitude, limit, home_coordinates
                 )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             label = "中国地震台网" if source == "cenc" else "USGS"
             self._logger.warning("%s 震情拉取失败: %s", label, exc)
             stale = await self._load_cache(cache_key, allow_stale=True)
@@ -243,7 +243,7 @@ class EarthquakeGlobalService:
                     "homeLon": home_coordinates["lon"] if home_coordinates else None,
                 },
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             self._logger.debug("CEIC 直连不可用,回退 Wolfx CENC: %s", exc)
             return []
 
@@ -317,7 +317,7 @@ class EarthquakeGlobalService:
                 "fetchedAt": fetched_at,
                 "items": items,
             }
-        except Exception:  # noqa: BLE001
+        except Exception:
             return None
 
     async def _save_cache(self, key: str, result: dict[str, Any]) -> None:
@@ -332,7 +332,7 @@ class EarthquakeGlobalService:
                 "items": result.get("items"),
             }
             await self._redis.set(key, json.dumps(payload, ensure_ascii=False), CACHE_STALE_SEC)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             self._logger.debug("全球震情缓存写入失败: %s", exc)
 
 

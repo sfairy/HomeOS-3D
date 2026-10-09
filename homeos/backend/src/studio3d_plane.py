@@ -22,10 +22,10 @@ from typing import Any
 from fastapi import FastAPI
 
 from .api.assets import AssetCatalog
-from .bootstrap.router_registry import API_PREFIX, register_studio3d_routers
-from .security.login_limiter import LoginAttemptLimiter
+from .bootstrap.router_registry import register_studio3d_routers
 from .global_log import GlobalLogStore
 from .ha.service import HAConnectorService as StudioHAConnectorService
+from .security.login_limiter import LoginAttemptLimiter
 
 
 async def install(
@@ -60,7 +60,7 @@ async def install(
     ):
         try:
             directory.mkdir(parents=True, exist_ok=True)
-        except OSError as exc:  # noqa: BLE001 - 目录不可用不应阻塞启动
+        except OSError as exc:
             app.state.global_log.append(
                 "warning", "系统后台", "系统", f"目录创建失败：{directory}（{exc}）"
             )

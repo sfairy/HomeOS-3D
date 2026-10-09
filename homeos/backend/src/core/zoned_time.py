@@ -32,7 +32,7 @@ def _tzinfo(time_zone: str | None) -> ZoneInfo | None:
         return None
     try:
         return ZoneInfo(time_zone)
-    except Exception:  # noqa: BLE001 - 非法时区回退本地时间
+    except Exception:
         return None
 
 

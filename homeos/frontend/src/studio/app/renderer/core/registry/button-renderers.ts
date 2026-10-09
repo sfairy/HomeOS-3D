@@ -1,11 +1,7 @@
 import { clampNumber, normalizeCssColor, applyTextOutline, resolveMdiIconUrl, resolveStatePayload, createSvgElement } from "./_shared";
-import { resolveAssetSource, staticAssetImageSource } from "./asset-state";
 import {
-  coverComponentIsDream,
   formatEntityState,
   isCoverComponentActive,
-  isCoverAuthoredActive,
-  isEntityComponentActive,
   resolveEntityIcon,
 } from "./cover-climate-state";
 import { componentContentUnitsPx } from "./content-units";

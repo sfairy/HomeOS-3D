@@ -13,11 +13,11 @@ from typing import Any
 
 from fastapi import Depends, File, Query, Request, UploadFile
 
+from .router import NestRouter
+from .schemas.base import StrictModel
 from ..core.asset_paths import ALLOWED_IMAGE_EXTS
 from ..core.errors import api_error, bad_request
 from ..security.auth_context import require_roles, require_user
-from .router import NestRouter
-from .schemas.base import StrictModel
 
 router = NestRouter(prefix="/config", tags=["display"])
 

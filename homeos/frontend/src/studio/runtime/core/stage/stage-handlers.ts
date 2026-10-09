@@ -17,15 +17,12 @@ import { nasDeviceState as nasDeviceState2 } from "../../nas/nas-status";
 import { coverState as coverState2, coverIconIsOn as coverIconIsOn2 } from "../../cover/cover-state";
 import { climateState as climateState2 } from "../../climate/climate-state";
 import {
-  lightPresetEntries,
   resolveMarkerIconSize,
   configuredModuleKinds,
   createStageElement,
   lampIconSvgMarkup,
   postHostMessage,
 } from "./_shared";
-import { buildMetadata } from "./build-metadata";
-import { buildFloorCameraConfig as buildFloorCameraConfigExternal } from "./floor-camera-config";
 import {
   temperatureHumidityReading as readTemperatureHumidity,
   temperatureHumidityEntities,

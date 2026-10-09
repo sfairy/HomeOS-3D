@@ -362,9 +362,7 @@ def _resolve_color() -> bool:
     if (os.getenv("LOG_FORMAT") or "").strip().lower() == "json":
         return False
     force = (os.getenv("FORCE_COLOR") or "").strip()
-    if force and force.lower() in ("0", "false"):
-        return False
-    return True
+    return not (force and force.lower() in ("0", "false"))
 
 
 # --------------------------------------------------------------------------- #

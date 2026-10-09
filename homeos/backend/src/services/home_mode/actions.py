@@ -18,11 +18,11 @@ import json
 import logging
 from typing import Any
 
-from ...core.errors import api_error, bad_request, not_found
+from .presets import collect_home_mode_target_actions, resolve_action_kind
 from ..entity_execute_acl import assert_entity_targets_execute_authorized
 from ..home_exec.execute_action_sequence import execute_action_sequence
 from ..home_exec.snapshot_restore import build_snapshot_restore_calls
-from .presets import collect_home_mode_target_actions, resolve_action_kind
+from ...core.errors import api_error, bad_request, not_found
 
 logger = logging.getLogger("homeos.home_mode")
 
@@ -117,7 +117,7 @@ async def _execute_home_mode_action(
         service = action.get("service") or "turn_on"
         await deps.call_service(domain, service, ref, action.get("service_data") or {})
         return {"entity_id": ref, "service": f"{domain}.{service}", "success": True}
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return {
             "entity_id": ref,
             "service": f"{action.get('domain') or '?'}.{action.get('service') or '?'}",
@@ -153,7 +153,7 @@ async def _restore_entity_from_snapshot_if_not_changed(
 ) -> bool:
     try:
         current = await deps.fetch_entity_state(entity_id)
-    except Exception:  # noqa: BLE001
+    except Exception:
         current = None
     if _snapshot_state_matches(current, snap):
         return False
@@ -182,12 +182,12 @@ async def _restore_mode_snapshot(deps: Any, mode: dict[str, Any]) -> dict[str, A
             async with semaphore:
                 try:
                     results.append(await _restore_entity_from_snapshot_if_not_changed(deps, entity_id, snap))
-                except Exception:  # noqa: BLE001
+                except Exception:
                     results.append(False)
 
         await asyncio.gather(*(_run(entity_id, snap) for entity_id, snap in entries))
         restored = sum(1 for ok in results if ok)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         incomplete = True
         deps.warn(f"解析设备快照失败: {exc}")
     return {"restored": restored, "incomplete": incomplete}
@@ -196,7 +196,7 @@ async def _restore_mode_snapshot(deps: Any, mode: dict[str, Any]) -> dict[str, A
 async def _fetch_entity_state(deps: Any, entity_id: str) -> dict[str, Any] | None:
     try:
         return await deps.fetch_entity_state(entity_id)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
 
@@ -317,7 +317,7 @@ async def activate_home_mode(
         for row in fetched:
             if row:
                 snapshot[row[0]] = row[1]
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         deps.warn(f"采集设备快照失败: {exc}")
 
     try:

@@ -16,9 +16,9 @@ import logging
 import time
 from typing import Any
 
+from .app_config.defaults import DEFAULT_APP_CONFIG
 from ..core.app_config import load_raw_config
 from ..core.entity_domain import get_entity_domain
-from .app_config.defaults import DEFAULT_APP_CONFIG
 
 logger = logging.getLogger("homeos.state_ingress_coalesce")
 
@@ -81,7 +81,7 @@ class StateIngressCoalesceService:
             section = raw.get("wsPush")
             if isinstance(section, dict):
                 ws.update(section)
-        except Exception:  # noqa: BLE001 - DB 未就绪时用默认配置
+        except Exception:
             pass
         self._cfg_cache = {"ha": ha, "ws": ws}
         self._cfg_at = now
@@ -181,7 +181,7 @@ class StateIngressCoalesceService:
             try:
                 emit_soon("ha.state_changed.batch", payload)
                 return
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.debug("合并批量下发失败: %s", exc)
         emit = getattr(self._bus, "emit", None) or getattr(self._bus, "publish", None)
         if not callable(emit):

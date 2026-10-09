@@ -21,11 +21,11 @@ from typing import Any
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from .mcp_protocol import DEFAULT_SERVER_VERSION, McpHandlerDeps, handle_mcp_json_rpc
+from ..agent_actor import MCP_GATEWAY_ACTOR, AgentActor
 from ....core.json_field import read_json_object
 from ....core.models import User
 from ....security.auth_context import resolve_restrictions
-from ..agent_actor import MCP_GATEWAY_ACTOR, AgentActor
-from .mcp_protocol import DEFAULT_SERVER_VERSION, McpHandlerDeps, handle_mcp_json_rpc
 
 logger = logging.getLogger("homeos.agent.mcp")
 
@@ -115,13 +115,11 @@ class McpGatewayService:
                 )
             return
         normalized = (ip or "").strip()
-        if normalized.startswith("::ffff:"):
-            normalized = normalized[len("::ffff:") :]
+        normalized = normalized.removeprefix("::ffff:")
         matched = False
         for entry in allow:
             candidate = entry.strip()
-            if candidate.startswith("::ffff:"):
-                candidate = candidate[len("::ffff:") :]
+            candidate = candidate.removeprefix("::ffff:")
             if candidate == normalized or (candidate.endswith(".") and normalized.startswith(candidate)):
                 matched = True
                 break
@@ -179,7 +177,7 @@ class McpGatewayService:
                 username=user.username,
                 restrictions=resolve_restrictions(role, prefs),
             )
-        except Exception as exc:  # noqa: BLE001 - 解析失败退化为未绑定身份
+        except Exception as exc:
             logger.warning("解析 MCP 执行身份失败: %s", exc)
             return fallback_actor
 

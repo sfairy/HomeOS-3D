@@ -218,13 +218,13 @@ def build_notification_stats(
 
 __all__ = [
     "ALERT_LEVELS",
-    "parse_json_array",
+    "build_notification_source_conditions",
+    "build_notification_stats",
+    "build_notification_time_series",
+    "clamp_notification_stats_hours",
+    "combine_conditions",
     "iso_or_none",
     "map_notification_row",
+    "parse_json_array",
     "resolve_notification_time_granularity",
-    "clamp_notification_stats_hours",
-    "build_notification_source_conditions",
-    "combine_conditions",
-    "build_notification_time_series",
-    "build_notification_stats",
 ]

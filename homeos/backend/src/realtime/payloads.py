@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+import math
 import time
 from typing import Any
 
@@ -21,7 +22,7 @@ def _values_shallow_equal(a: Any, b: Any) -> bool:
     if isinstance(a, (dict, list)) or isinstance(b, (dict, list)):
         try:
             return a == b
-        except Exception:  # noqa: BLE001
+        except Exception:
             return False
     return a == b
 
@@ -187,14 +188,14 @@ def parse_state_replay_params(since_raw: Any, last_event_id_raw: Any) -> tuple[f
             from email.utils import parsedate_to_datetime
 
             since_ms = parsedate_to_datetime(str(since_raw)).timestamp() * 1000
-        except Exception:  # noqa: BLE001
+        except Exception:
             since_ms = 0.0
     if last_event_id_raw:
         try:
             last_event_id = int(str(last_event_id_raw), 10)
         except (TypeError, ValueError):
             last_event_id = 0
-    return (since_ms if since_ms == since_ms else 0.0), last_event_id
+    return (since_ms if not math.isnan(since_ms) else 0.0), last_event_id
 
 
 def should_replay_state(since_ms: float, last_event_id: int) -> bool:

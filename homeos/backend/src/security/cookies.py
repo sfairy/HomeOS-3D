@@ -61,7 +61,7 @@ def is_lan_origin(origin: str) -> bool:
         return False
     if host in {"localhost", "127.0.0.1", "::1", "::ffff:127.0.0.1"}:
         return True
-    if host.startswith("10.") or host.startswith("192.168.") or host.startswith("169.254."):
+    if host.startswith(("10.", "192.168.", "169.254.")):
         return True
     if host.startswith("172."):
         try:

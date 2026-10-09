@@ -9,61 +9,27 @@ import {
   coverComponentIsDream as coverComponentIsDream2,
   doorWindowPerspectiveCorners as doorWindowPerspectiveCorners2,
   doorWindowPerspectiveMatrix as doorWindowPerspectiveMatrix2,
-  formatLineChartValue as formatLineChartValue2,
-  formatPresenceDuration as formatPresenceDuration2,
   iconButtonEffectLightVisualAwaiting as iconButtonEffectLightVisualAwaiting2,
   iconButtonEffectLightVisualState as iconButtonEffectLightVisualState2,
   mountCameraMedia as mountCameraMedia2,
   prewarmCameraMedia as prewarmCameraMedia2,
-  presenceHistoryBuckets as presenceHistoryBuckets2,
-  presenceMotionEventConfig as presenceMotionEventConfig2,
-  presenceSensorPresentation as presenceSensorPresentation2,
-  presenceStateTimestamp as presenceStateTimestamp2,
   renderAirConditionerAirflowLayer as renderAirConditionerAirflowLayer2,
-  renderIconButtonEffectLayer as renderIconButtonEffectLayer2,
-  renderLineChartDetails as renderLineChartDetails2,
   renderRegisteredComponent as renderRegisteredComponent2,
   setBuiltinAssetVersions as setBuiltinAssetVersions2,
   staticAssetImageSource as staticAssetImageSource2,
   vacuumMapImageSource as vacuumMapImageSource2,
 } from "./registry";
 import { randomUuid as randomUuid2 } from "../../utils/random-id";
-import {
-  applyRangeProgressCss as applyRangeProgressCss2,
-  syncHtmlRangeProgress as syncHtmlRangeProgress2,
-} from "../../utils/range-progress";
-import { popupLayoutMetrics as popupLayoutMetrics2 } from "../../shared/popup-layout";
-import {
-  bathHeaterModeUsesAirflow as bathHeaterModeUsesAirflow2,
-  climateControlStructureKey as climateControlStructureKey2,
-  climateDeviceLabel as climateDeviceLabel2,
-  climateEffectMode as climateEffectMode2,
-  climateIsPoweredOn as climateIsPoweredOn2,
-  climateIsRunning as climateIsRunning2,
-  climateModeIcon as climateModeIcon2,
-  climateModeLabel as climateModeLabel2,
-  climateOperationModeValues as climateOperationModeValues2,
-  climateOptionPresentation as climateOptionPresentation2,
-  climatePowerCommand as climatePowerCommand2,
-  climatePresentationMode as climatePresentationMode2,
-  climateSwingModeLabel as climateSwingModeLabel2,
-  normalizeClimateCapabilities as normalizeClimateCapabilities2,
-  reconcileClimateTargetTemperature as reconcileClimateTargetTemperature2,
-  resolveClimateDeviceType as resolveClimateDeviceType2,
-  waterHeaterStatusLabel as waterHeaterStatusLabel2,
-} from "../controls/climate";
+
+
+
+
 import {
   applyXiaomiDeviceProfile as applyXiaomiDeviceProfile2,
   resolveXiaomiDeviceProfile as resolveXiaomiDeviceProfile2,
 } from "./entity-role-profiles";
 import {
-  relatedEntityLabel as relatedEntityLabel2,
-  relatedEntityNeedsConfirmation as relatedEntityNeedsConfirmation2,
-  relatedEntityOptions as relatedEntityOptions2,
-  relatedEntitySelectService as relatedEntitySelectService2,
   relatedPopupContext as relatedPopupContext2,
-  selectedRelatedEntities as selectedRelatedEntities2,
-  selectedRelatedEntityIds as selectedRelatedEntityIds2,
 } from "../../shared/related-entities";
 import {
   entityPowerIsOn as entityPowerIsOn2,
@@ -84,12 +50,10 @@ import {
 } from "../geometry/transform-geometry";
 import {
   componentHostZIndex as componentHostZIndex2,
-  effectCropRectangle as effectCropRectangle2,
   effectCroppedLayerGeometry as effectCroppedLayerGeometry2,
   effectFadeDuration as effectFadeDuration2,
   effectLayerDimensions as effectLayerDimensions2,
   effectReferenceImageTransform as effectReferenceImageTransform2,
-  effectSourceDimensions as effectSourceDimensions2,
   normalizeIconButtonEffectComponent as normalizeIconButtonEffectComponent2,
 } from "../geometry/effect-geometry";
 import {
@@ -117,8 +81,6 @@ import {
 } from "../controls/light-runtime";
 import { entityMetadataIsAvailable as entityMetadataIsAvailable2 } from "./entity-metadata";
 import {
-  relatedVacuumStatusEntities as relatedVacuumStatusEntities2,
-  vacuumStatus as vacuumStatus2,
   relatedVacuumBatteryEntity as relatedVacuumBatteryEntity2,
   vacuumActionService as vacuumActionService2,
   vacuumBatteryPercent as vacuumBatteryPercent2,
@@ -135,31 +97,23 @@ import {
   coverMotorIsReversedForComponent as coverMotorIsReversedForComponent2,
   coverPendingDisplayPosition as coverPendingDisplayPosition2,
   coverPositionReachedTarget as coverPositionReachedTarget2,
-  coverPresentationState as coverPresentationState2,
   coverToggleServiceForComponent as coverToggleServiceForComponent2,
   dreamCurtainBladeLabel as dreamCurtainBladeLabel2,
   dreamCurtainIsRetracted as dreamCurtainIsRetracted2,
-  dreamCurtainStatusFromRetraction as dreamCurtainStatusFromRetraction2,
   dreamCurtainStatusText as dreamCurtainStatusText2,
   dreamCurtainToggleService as dreamCurtainToggleService2,
   learnAirerPositionCalibration as learnAirerPositionCalibration2,
-  physicalCoverState as physicalCoverState2,
   relatedAirerCurrentPositionSensor as relatedAirerCurrentPositionSensor2,
   relatedAirerLightEntity as relatedAirerLightEntity2,
   relatedAirerMotorActionEntities as relatedAirerMotorActionEntities2,
   relatedAirerMotorSpeedSensor as relatedAirerMotorSpeedSensor2,
   relatedAirerPositionNumberEntity as relatedAirerPositionNumberEntity2,
-  relatedCoverMotorReverseEntity as relatedCoverMotorReverseEntity2,
-  relatedDeviceDomainEntity as relatedDeviceDomainEntity2,
-  relatedDeviceEntity as relatedDeviceEntity2,
   relatedWaterHeaterEntities as relatedWaterHeaterEntities2,
   runtimeCoverStateIsActive as runtimeCoverStateIsActive2,
   runtimeEntityStateIsActive as runtimeEntityStateIsActive2,
   waterHeaterRelatedEntityLabel as waterHeaterRelatedEntityLabel2,
 } from "../controls/cover-runtime";
 import {
-  playFixedDeviceDropEntrance as playFixedDeviceDropEntrance2,
-  playMediaSpeakerEntrance as playMediaSpeakerEntrance2,
   playStableRuntimeDialogEntrance as playStableRuntimeDialogEntrance2,
   runtimeDialogUsesStableMotion as runtimeDialogUsesStableMotion2,
 } from "./panel-dialog-motion";
@@ -174,7 +128,7 @@ import {
   historyRequestStillRelevant as historyRequestStillRelevant2,
   historySeriesCacheKey as historySeriesCacheKey2,
 } from "./panel-caches";
-import { EVENT_LOG_WALL_AUTO_ENTITY_LIMIT, isEventLogWallDomain } from "../controls/event-log-runtime";
+import { isEventLogWallDomain } from "../controls/event-log-runtime";
 import {
   collectComponents as collectComponents2,
   collectEntityIds as collectEntityIds2,
@@ -182,34 +136,24 @@ import {
   syncedLineChartProperties as syncedLineChartProperties2,
 } from "./panel-document";
 import { navigateInShell } from "@/studio/platform/shell-navigation";
-import { shellConfirm, shellOpenMediaPlayer } from "@/studio/platform/shell-chrome";
+import { shellOpenMediaPlayer } from "@/studio/platform/shell-chrome";
 import {
   type PanelRendererOptions,
   type RendererDetailsStateSync,
   type ComponentControllerElement,
   type ComponentDialogElement,
   type ComponentPayload,
-  type ClimateVisualSyncPayload,
   type DraggedComponentEntry,
-  type EntityStateControlElement,
 } from "./renderer-types";
 import {
-  maxRuntimeEntitySubscriptions,
   defaultTargetOccupancy,
   compactTargetOccupancy,
-  COVER_CLOSED_POSITION_EPSILON,
   runtimeDialogLayout,
   runtimeDialogViewport,
   assignComponentIdentifiers,
   isPrimaryModifierPressed,
   componentSupportsAction,
   componentDialogTitle,
-  popupModuleDialogTitle,
-  createAirerVisual,
-  entityStateText,
-  createSwitchVisual,
-  mixHexColor,
-  clickFocusedElement,
   isDocumentHidden,
 } from "./renderer-helpers";
 import * as geometryMethods from "./renderer-geometry";

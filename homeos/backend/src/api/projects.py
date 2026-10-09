@@ -130,7 +130,7 @@ def _active_dashboard_id(request: Request) -> str:
         return ''
     try:
         profiles = app_config.get('profiles')
-    except Exception:  # noqa: BLE001 - 偏好读不到按未设置处理，展示端回退到最近更新
+    except Exception:
         return ''
     if not isinstance(profiles, dict):
         return ''

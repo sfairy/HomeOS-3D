@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from ..rooms import (
@@ -293,7 +294,7 @@ def build_energy_public_meta(learning_period_days: Any) -> dict[str, int]:
         n = float(learning_period_days)
     except (TypeError, ValueError):
         n = 0
-    days = min(int(n), 30) if n > 0 and n == n else 7
+    days = min(int(n), 30) if n > 0 and not math.isnan(n) else 7
     return {"learningPeriodDays": days, "chartHours": min(days * 24, 168)}
 
 
@@ -303,7 +304,7 @@ def resolve_orchestrator_history_limit(ops: dict[str, Any]) -> int:
             n = float(value)
         except (TypeError, ValueError):
             return default
-        return n if n > 0 and n == n else default
+        return n if n > 0 and not math.isnan(n) else default
 
     scene_max = positive(ops.get("sceneExecHistoryMax"), 100)
     script_max = positive(ops.get("scriptExecHistoryMax"), 80)
@@ -311,20 +312,20 @@ def resolve_orchestrator_history_limit(ops: dict[str, Any]) -> int:
 
 
 __all__ = [
-    "is_room_hidden_in_map",
-    "list_visible_env_sensor_map_room_ids",
-    "sort_env_sensor_map_room_ids",
-    "resolve_device_group_label",
+    "align_env_sensor_map_to_ha_areas",
+    "build_client_power_wake_public",
     "build_device_group_label_map",
+    "build_energy_public_meta",
     "build_public_room_meta",
     "build_public_room_meta_from_ha_areas",
+    "default_voice_rooms",
     "filter_env_sensor_map_to_known_areas",
-    "align_env_sensor_map_to_ha_areas",
+    "is_room_hidden_in_map",
+    "list_visible_env_sensor_map_room_ids",
     "merge_env_entries",
+    "resolve_device_group_label",
+    "resolve_orchestrator_history_limit",
     "resolve_voice_rooms",
     "resolve_voice_rooms_from_ha_areas",
-    "default_voice_rooms",
-    "build_client_power_wake_public",
-    "build_energy_public_meta",
-    "resolve_orchestrator_history_limit",
+    "sort_env_sensor_map_room_ids",
 ]

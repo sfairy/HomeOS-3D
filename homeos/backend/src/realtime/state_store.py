@@ -220,7 +220,7 @@ class StateStore:
         raw = None
         try:
             raw = await redis.get(SHADOW_KEY)
-        except Exception:  # noqa: BLE001
+        except Exception:
             return 0
         if not raw:
             return 0
@@ -258,14 +258,14 @@ class StateStore:
                 ttl_seconds,
             )
             return True
-        except Exception:  # noqa: BLE001
+        except Exception:
             return False
 
     async def save_shadow_soon(self, redis: Any) -> None:
         """异步写入 L2 快照（失败静默，不阻塞热路径）。"""
         try:
             await self.write_shadow(redis)
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
 
@@ -378,9 +378,9 @@ def filter_entities_by_query(
 
     effective_sort = sort or "name_asc"
     if effective_sort == "name_asc":
-        return sorted(result, key=lambda e: _entity_name(e))
+        return sorted(result, key=_entity_name)
     if effective_sort == "name_desc":
-        return sorted(result, key=lambda e: _entity_name(e), reverse=True)
+        return sorted(result, key=_entity_name, reverse=True)
     if effective_sort == "status":
         return sorted(result, key=lambda e: (1 if _is_unavailable(e) else 0, _entity_name(e)))
     if effective_sort == "last_changed":

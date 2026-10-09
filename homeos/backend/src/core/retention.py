@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 RETENTION_DEFAULT_DAYS = 7
@@ -61,7 +62,7 @@ def resolve_event_log_retention_days(days: Any, fallback: int = RETENTION_DEFAUL
         value = float(days)
     except (TypeError, ValueError):
         return fallback
-    if value != value or value <= 0:
+    if math.isnan(value) or value <= 0:
         return fallback
     return min(int(value), RETENTION_DAYS_MAX)
 
@@ -80,7 +81,7 @@ def clamp_event_log_query_hours(
         fb = max_hours
     try:
         value = float(hours)
-        base = int(value) if value == value and value > 0 else fb
+        base = int(value) if not math.isnan(value) and value > 0 else fb
     except (TypeError, ValueError):
         base = fb
     return min(max(base, 1), max_hours)

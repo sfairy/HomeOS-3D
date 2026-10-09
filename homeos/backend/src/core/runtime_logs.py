@@ -45,7 +45,7 @@ def format_log_message(message: Any) -> str:
     if isinstance(message, str):
         return message
     if isinstance(message, BaseException):
-        import traceback  # noqa: PLC0415
+        import traceback
 
         return "".join(traceback.format_exception(type(message), message, message.__traceback__))
     if message is None:
@@ -128,7 +128,7 @@ class RuntimeLogBuffer:
         for listener in listeners:
             try:
                 listener(entry)
-            except Exception:  # noqa: BLE001 - 订阅方异常不影响写缓冲
+            except Exception:
                 pass
         return entry
 
@@ -217,7 +217,7 @@ class RuntimeLogHandler(logging.Handler):
                 trace_id=get_trace_id(),
                 ts=_now_iso(),
             )
-        except Exception:  # noqa: BLE001 - 日志镜像失败不得影响主流程
+        except Exception:
             pass
 
 

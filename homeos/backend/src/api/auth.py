@@ -19,6 +19,14 @@ from fastapi import Depends, HTTPException, Request, Response, status
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session
 
+from .router import NestRouter
+from .schemas.auth import (
+    LoginRequest,
+    RegisterRequest,
+    SetupStatusResponse,
+    UserResponse,
+    VerificationRequest,
+)
 from ..core.deps import get_session
 from ..core.file_lock import locked_file
 from ..core.models import LoginSession, User
@@ -36,14 +44,6 @@ from ..security.passwords import (
 from ..security.request_origin import require_same_origin_write
 from ..security.session_store import create_login_session, set_session_cookie
 from ..services.store import StoreVerificationError, verification_client_from_settings
-from .router import NestRouter
-from .schemas.auth import (
-    LoginRequest,
-    RegisterRequest,
-    SetupStatusResponse,
-    UserResponse,
-    VerificationRequest,
-)
 
 router = NestRouter(tags=["authentication"])
 

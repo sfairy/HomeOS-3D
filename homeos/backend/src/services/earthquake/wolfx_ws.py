@@ -17,7 +17,7 @@ from typing import Any
 
 try:  # pragma: no cover - 依赖存在时导入
     import websockets
-except Exception:  # noqa: BLE001
+except Exception:
     websockets = None  # type: ignore[assignment]
 
 logger = logging.getLogger("homeos.earthquake.wolfx")
@@ -93,7 +93,7 @@ class WolfxWsClient:
                 await self._read_loop()
             except asyncio.CancelledError:
                 raise
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("Wolfx WebSocket 连接异常: %s", exc)
             finally:
                 self._state = "closed"
@@ -142,7 +142,7 @@ class WolfxWsClient:
                 if self._ws is not None:
                     await self._ws.send("ping")
                     await self._touch()
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("心跳发送失败:%s", exc)
 
     async def _stop_heartbeat(self) -> None:
@@ -185,7 +185,7 @@ class WolfxWsClient:
             result = self._touch_leader_active()
             if inspect.isawaitable(result):
                 await result
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("刷新主节点活跃标记失败: %s", exc)
 
     # ------------------------------------------------------------------ #

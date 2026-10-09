@@ -25,9 +25,9 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from sqlalchemy import delete, select
 
+from .types import MessageHandler
 from ...core.errors import api_error, bad_request
 from ...core.models import WebPushSubscription
-from .types import MessageHandler
 
 logger = logging.getLogger("homeos.channels.webpush")
 
@@ -114,9 +114,7 @@ def is_blocked_webpush_host(hostname: str) -> bool:
     mapped = getattr(parsed, "ipv4_mapped", None)
     if mapped is not None:
         return is_private_ipv4(str(mapped))
-    if parsed.is_private or parsed.is_link_local:
-        return True
-    return False
+    return bool(parsed.is_private or parsed.is_link_local)
 
 
 def is_safe_webpush_endpoint(endpoint: str) -> bool:
@@ -290,7 +288,7 @@ class WebPushService:
             _b64url_decode(cfg.vapid_public_key)
             _b64url_decode(cfg.vapid_private_key)
             logger.info("WebPush 通道已热重载")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("WebPush 通道初始化失败: %s", exc)
             self._vapid = {}
 
@@ -318,7 +316,7 @@ class WebPushService:
                     created_at=row.created_at,
                 )
             logger.info("已从数据库加载 %s 条 WebPush 订阅", len(rows))
-        except Exception as exc:  # noqa: BLE001 - 表可能尚未迁移
+        except Exception as exc:
             logger.warning("加载 WebPush 订阅失败(表可能尚未迁移): %s", exc)
 
     # ------------------------------------------------------------------ #
@@ -332,7 +330,7 @@ class WebPushService:
             cfg = await self._channel_config.get_webpush_config()
             configured = bool(cfg and cfg.vapid_public_key and cfg.vapid_private_key)
             return {**base, "configured": configured, "vapidPublicKey": cfg.vapid_public_key if cfg else None}
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return {**base, "configured": False, "error": str(exc)}
 
     async def get_public_key(self) -> str | None:
@@ -367,7 +365,7 @@ class WebPushService:
                 subscription.id = row.id
                 subscription.created_at = row.created_at
                 self._subscriptions[endpoint] = subscription
-        except Exception as exc:  # noqa: BLE001 - 持久化失败仍保留内存
+        except Exception as exc:
             logger.warning("持久化 WebPush 订阅失败(仍保留内存): %s", exc)
         logger.info("已注册 WebPush 订阅: %s...", endpoint[:40])
 
@@ -405,7 +403,7 @@ class WebPushService:
 
         try:
             await asyncio.to_thread(_delete)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("删除 WebPush 订阅失败: %s", exc)
         logger.info("已取消 WebPush 订阅: %s...", endpoint[:40])
 
@@ -480,7 +478,7 @@ class WebPushService:
                 logger.error(
                     "发送 WebPush 失败: HTTP %s %s", response.status_code, response.text[:200]
                 )
-        except Exception as exc:  # noqa: BLE001 - 单订阅失败不影响其余
+        except Exception as exc:
             message = str(exc)
             logger.error("发送 WebPush 失败: %s", message)
             if any(token in message for token in ("410", "404", "expired")):

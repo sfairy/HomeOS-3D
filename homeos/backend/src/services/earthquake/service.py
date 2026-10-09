@@ -19,8 +19,6 @@ from typing import Any
 
 import httpx
 
-from ..ha_config import load_active_ha_endpoints
-from ..security.layout import load_active_project_layout
 from .eew_diagnostics import EewDiagnosticsBuffer
 from .eew_eval import evaluate_eew_for_alert
 from .feeds import is_valid_home_coordinate, is_wolfx_cancelled, parse_wolfx_message
@@ -59,6 +57,8 @@ from .types import (
     EewRawMessage,
 )
 from .wolfx_ws import WolfxWsClient
+from ..ha_config import load_active_ha_endpoints
+from ..security.layout import load_active_project_layout
 
 logger = logging.getLogger("homeos.earthquake")
 
@@ -229,7 +229,7 @@ class EarthquakeService:
                     )
                 else:
                     logger.warning("⚠️ 未配置 EEW 家庭坐标")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("加载 EEW 配置失败: %s", exc)
 
         if prev_enabled != self._runtime.enabled:
@@ -279,12 +279,12 @@ class EarthquakeService:
                 token = str((resolved or {}).get("token") or "").strip()
                 if ha_url and token:
                     return {"haUrl": ha_url.rstrip("/"), "token": token}
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.error("读取 HA 配置失败: %s", exc)
         # 兜底与其余旁路消费者共用同一解析：单源 ha_connections 表（无记录时环境变量引导）。
         try:
             endpoints = await asyncio.to_thread(self._load_ha_endpoints)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("读取 HA 连接记录失败: %s", exc)
             endpoints = None
         if endpoints is None:
@@ -318,7 +318,7 @@ class EarthquakeService:
                 data = response.json()
             if isinstance(data, dict) and data.get("latitude") is not None and data.get("longitude") is not None:
                 return {"lat": float(data["latitude"]), "lon": float(data["longitude"])}
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("获取 HA 坐标失败: %s", exc)
         return None
 
@@ -340,7 +340,7 @@ class EarthquakeService:
         if type_ == "heartbeat":
             try:
                 await self._wolfx.send_ping()
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("Wolfx 心跳 ping 失败: %s", exc)
             return
         if type_ == "pong":
@@ -384,11 +384,11 @@ class EarthquakeService:
             if prev is not None:
                 try:
                     await prev
-                except Exception:  # noqa: BLE001 - 上游已记录
+                except Exception:
                     pass
             try:
                 await self.process_eew(eew, opts)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("处理 EEW 失败: %s", exc)
 
         try:
@@ -466,13 +466,13 @@ class EarthquakeService:
         self._latest_alert_time = _now_ms()
         try:
             await save_latest_alert_redis(self._redis, alert_payload)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("[EEW] Redis 写入失败,降级为内存缓存: %s", exc)
         try:
             await asyncio.to_thread(
                 append_alert_history_prisma, self._session_factory, alert_payload
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("EEW 历史写入数据库失败: %s", exc)
 
         if is_confirmation:
@@ -486,7 +486,7 @@ class EarthquakeService:
             return
         try:
             await self._bus.emit(event, payload.to_dict())
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("EEW 领域事件广播失败 [%s]: %s", event, exc)
 
     # ------------------------------------------------------------------ #
@@ -505,9 +505,9 @@ class EarthquakeService:
                     return EewDedupeState(
                         activeEventId=remote.activeEventId,
                         lastMagnitude=remote.lastMagnitude,
-                        recent=remote.recent if remote.recent else self._recent_fingerprints,
+                        recent=remote.recent or self._recent_fingerprints,
                     )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("EEW 去重状态 Redis 读取失败,降级内存: %s", exc)
         return EewDedupeState(
             activeEventId=self._active_event_id,
@@ -533,7 +533,7 @@ class EarthquakeService:
                     recent=state.recent or self._recent_fingerprints,
                 ),
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("EEW 去重状态 Redis 写入失败,降级内存: %s", exc)
 
     def _reset_dedupe_clear_timer(self) -> None:
@@ -680,7 +680,7 @@ class EarthquakeService:
             existing = await asyncio.to_thread(self._find_catalog_history, event_id)
             if existing:
                 return False
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("目录震情去重查询失败,继续写入: %s", exc)
 
         distance = round(gate["distanceKm"] * 10) / 10
@@ -708,7 +708,7 @@ class EarthquakeService:
             await asyncio.to_thread(
                 append_alert_history_prisma, self._session_factory, payload
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("目录震情写入本地预警失败: %s", exc)
             return False
 
@@ -745,7 +745,7 @@ class EarthquakeService:
             )
             if pg_items:
                 return {"items": pg_items, "total": len(pg_items), "source": "postgres"}
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("EEW 历史读取数据库失败,回退 Redis: %s", exc)
         rows = await load_alert_history_redis(self._redis, limit)
         items = [
@@ -768,11 +768,11 @@ class EarthquakeService:
                 self._session_factory,
                 target_id or None,
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("删除演练历史(DB)失败: %s", exc)
         try:
             redis_deleted = await delete_simulation_history_redis(self._redis, target_id or None)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("删除演练历史(Redis)失败: %s", exc)
         deleted = max(pg_deleted, redis_deleted)
 

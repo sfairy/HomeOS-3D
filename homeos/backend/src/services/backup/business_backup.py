@@ -170,9 +170,9 @@ def decrypt_archive(source: Path, target: Path, password: str) -> None:
         # 0.7.1 线格式带 AAD；兼容本仓库早期无 AAD 备份。
         try:
             plain = _decrypt(with_aad=True)
-        except Exception:  # noqa: BLE001
+        except Exception:
             plain = _decrypt(with_aad=False)
-    except Exception as error:  # noqa: BLE001
+    except Exception as error:
         raise BackupError("备份密码不正确，或文件已损坏。") from error
     target.write_bytes(plain)
 
@@ -185,7 +185,7 @@ def _table_rows(connection: sqlite3.Connection, table: str) -> list[dict[str, An
     columns = _columns(connection, table)
     if not columns:
         return []
-    rows = connection.execute(f"SELECT * FROM {table}").fetchall()
+    rows = connection.execute(f"SELECT * FROM {table}").fetchall()  # noqa: S608 - table 来自内部 TABLES 常量
     return [dict(zip(columns, row, strict=True)) for row in rows]
 
 
@@ -432,7 +432,7 @@ def _replace_rows(
         ).fetchone()
         if exists is None:
             continue
-        connection.execute(f'DELETE FROM "{table}"')
+        connection.execute(f'DELETE FROM "{table}"')  # noqa: S608 - table 来自内部 TABLES 常量
     for table in TABLES:
         exists = connection.execute(
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
@@ -450,7 +450,7 @@ def _replace_rows(
             if not isinstance(row, dict):
                 continue
             connection.execute(
-                f'INSERT INTO "{table}" ({col_sql}) VALUES ({placeholders})',
+                f'INSERT INTO "{table}" ({col_sql}) VALUES ({placeholders})',  # noqa: S608 - table/columns 来自内部常量
                 [row.get(column) for column in columns],
             )
 
@@ -666,7 +666,7 @@ def restore_business(settings: Any, directory: Path, user_id: str | None = None)
                             connection.execute("PRAGMA foreign_keys=ON")
                 journal_path.unlink(missing_ok=True)
                 old_tables_path.unlink(missing_ok=True)
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.exception("业务恢复失败后的自动回滚未完成")
         raise
 
@@ -709,7 +709,7 @@ def recover_interrupted_restore(settings: Any) -> bool:
         journal_path.unlink(missing_ok=True)
         logger.warning("未完成的业务备份恢复已自动回滚（phase=%s）。", phase)
         return False
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.exception("检测到未完成的业务备份恢复（phase=%s），自动回滚失败。", phase)
         return True
 
@@ -795,11 +795,11 @@ class BackupMaintenanceMiddleware(BaseHTTPMiddleware):
 
 
 __all__ = [
+    "JOB_TTL_SECONDS",
+    "MAX_ARCHIVE",
     "BackupCoordinator",
     "BackupError",
     "BackupMaintenanceMiddleware",
-    "JOB_TTL_SECONDS",
-    "MAX_ARCHIVE",
     "create_archive",
     "decrypt_archive",
     "durable_work",

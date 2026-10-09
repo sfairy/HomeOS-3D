@@ -115,8 +115,8 @@ class BodyLimitMiddleware:
 
 
 __all__ = [
-    "BodyLimitMiddleware",
     "PAYLOAD_TOO_LARGE_STATUS",
     "PUBLIC_BODY_LIMIT_PATHS",
+    "BodyLimitMiddleware",
     "is_public_body_limit_path",
 ]

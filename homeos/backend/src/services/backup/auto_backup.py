@@ -51,9 +51,9 @@ class AutoBackupService:
     # ------------------------------------------------------------------ #
     def start(self) -> None:
         try:
-            from apscheduler.schedulers.asyncio import AsyncIOScheduler  # noqa: PLC0415
-            from apscheduler.triggers.cron import CronTrigger  # noqa: PLC0415
-        except Exception as err:  # noqa: BLE001 - 缺少调度依赖时降级为仅提供状态查询
+            from apscheduler.schedulers.asyncio import AsyncIOScheduler
+            from apscheduler.triggers.cron import CronTrigger
+        except Exception as err:
             logger.warning("自动备份调度未启动（APScheduler 不可用）: %s", err)
             return
         scheduler = AsyncIOScheduler(timezone=AUTO_BACKUP_TZ)
@@ -75,7 +75,7 @@ class AutoBackupService:
         if self._scheduler is not None:
             try:
                 self._scheduler.shutdown(wait=False)
-            except Exception as err:  # noqa: BLE001
+            except Exception as err:
                 logger.warning("关闭自动备份调度失败: %s", err)
             self._scheduler = None
 
@@ -111,7 +111,7 @@ class AutoBackupService:
             )
             self.last_error = None
             logger.info("自动备份完成:%s", name)
-        except Exception as err:  # noqa: BLE001
+        except Exception as err:
             self.last_error = str(err)
             logger.error("自动备份失败: %s", self.last_error)
         finally:
@@ -125,7 +125,7 @@ class AutoBackupService:
         for file in self._server_backup.list_files():
             try:
                 mtime_ms = datetime.fromisoformat(
-                    str(file["mtime"]).replace("Z", "+00:00")
+                    str(file["mtime"])
                 ).timestamp() * 1000
             except (TypeError, ValueError):
                 continue
@@ -133,7 +133,7 @@ class AutoBackupService:
                 try:
                     self._server_backup.delete_file(file["name"])
                     logger.info("自动清理过期备份 %s", file["name"])
-                except Exception as err:  # noqa: BLE001
+                except Exception as err:
                     logger.warning("清理过期备份 %s 失败: %s", file["name"], err)
 
     # ------------------------------------------------------------------ #
@@ -151,7 +151,7 @@ class AutoBackupService:
             ok = await client.set(
                 AUTO_BACKUP_LOCK_KEY, token, ex=AUTO_BACKUP_LOCK_TTL_SEC, nx=True
             )
-        except Exception as err:  # noqa: BLE001 - 锁异常保守放行，交由单机执行
+        except Exception as err:
             logger.warning("获取自动备份锁失败: %s", err)
             return True
         if ok:
@@ -169,7 +169,7 @@ class AutoBackupService:
             return
         try:
             await client.eval(_RELEASE_LOCK_SCRIPT, 1, AUTO_BACKUP_LOCK_KEY, self._lock_token)
-        except Exception as err:  # noqa: BLE001
+        except Exception as err:
             logger.warning("释放自动备份锁失败: %s", err)
         finally:
             self._lock_token = None

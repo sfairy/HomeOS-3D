@@ -24,8 +24,6 @@ from typing import Any
 
 import socketio
 
-from ..core.entity_domain import get_entity_domain
-from ..core.observability import record_ha_sync_fe_latency_samples, record_ha_sync_latency
 from .access import filter_entities_by_access, sort_entities_by_sync_priority
 from .msgpack_compat import install_msgpack_ext_hook
 from .payloads import (
@@ -39,6 +37,8 @@ from .subscription import is_entity_visible_to_client, resolve_user_room_key
 from .ws_auth import extract_auth_token_from_cookie, resolve_ws_user
 from .ws_buffer import resolve_ws_max_buffer_bytes
 from .ws_config import load_state_store_config, load_ws_push_config
+from ..core.entity_domain import get_entity_domain
+from ..core.observability import record_ha_sync_fe_latency_samples, record_ha_sync_latency
 
 _SERVER_TOKEN = "server"
 
@@ -143,7 +143,7 @@ class RealtimeGateway:
         self._state_cfg_at = now
         try:
             cfg = self._state_config()
-        except Exception:  # noqa: BLE001 - DB 未就绪时保持默认配置
+        except Exception:
             return
         self.state_store.apply_config(
             max_recent_changes=cfg.max_recent_changes,
@@ -176,7 +176,7 @@ class RealtimeGateway:
         try:
             with database.session_factory() as session:
                 user = resolve_ws_user(token, session)
-        except Exception:  # noqa: BLE001 - 鉴权失败一律拒绝握手
+        except Exception:
             raise socketio.exceptions.ConnectionRefusedError("unauthorized") from None
 
         auth_payload = auth if isinstance(auth, dict) else {}
@@ -223,7 +223,7 @@ class RealtimeGateway:
         handled_since = False
         try:
             await self._emit_initial_states(sid, entities, ws_cfg.replay_chunk_size)
-        except Exception:  # noqa: BLE001 - 推送失败回传 sync_error，连接保持
+        except Exception:
             await self.sio.emit(
                 "sync_error",
                 {
@@ -457,7 +457,7 @@ class RealtimeGateway:
         if event_log is not None:
             try:
                 event_log.handle_state_change_batch({"changes": changes})
-            except Exception:  # noqa: BLE001 - 日志缓冲失败不影响广播
+            except Exception:
                 pass
         started = time.monotonic()
         ws_cfg = self._ws_config()
@@ -529,7 +529,7 @@ class RealtimeGateway:
             sockets = getattr(eio, "sockets", None)
             if isinstance(sockets, dict):
                 eio_socket = sockets.get(sid)
-        except Exception:  # noqa: BLE001 - 内部结构变化时 fail-open
+        except Exception:
             return False
         if eio_socket is None:
             return False
@@ -540,7 +540,7 @@ class RealtimeGateway:
         if callable(size):
             try:
                 return int(size()) > WS_PUSH_BACKPRESSURE_WRITE_BUFFER
-            except Exception:  # noqa: BLE001
+            except Exception:
                 return False
         transport = getattr(eio_socket, "transport", None)
         buffer = getattr(transport, "write_buffer", None)
@@ -602,7 +602,7 @@ class RealtimeGateway:
 
         try:
             await asyncio.to_thread(_write)
-        except Exception:  # noqa: BLE001 - 送达标记失败不影响推送
+        except Exception:
             pass
 
     async def broadcast_entities_stale(self, reason: str = "ha_disconnected") -> None:

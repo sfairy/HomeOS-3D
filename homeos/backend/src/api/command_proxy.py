@@ -30,11 +30,11 @@ from typing import Any
 
 from fastapi import Depends, Request
 
+from .router import NestRouter
+from .schemas.command_proxy import CallServiceDto
 from ..security.auth_context import require_roles
 from ..services.command_proxy import dispatch_service_call
 from ..services.command_proxy_auth import RegistryTargetResolver, assert_command_proxy_authorized
-from .router import NestRouter
-from .schemas.command_proxy import CallServiceDto
 
 router = NestRouter(tags=["connect"])
 

@@ -148,9 +148,7 @@ def should_skip_redis_timeline(entity_id: str, *, skip_sensor_timeline: bool = T
     domain = get_entity_domain(entity_id)
     if domain not in ("sensor", "binary_sensor"):
         return False
-    if domain == "sensor" and is_energy_related_sensor(entity_id):
-        return False
-    return True
+    return not (domain == "sensor" and is_energy_related_sensor(entity_id))
 
 
 def _format_attr(value: Any) -> str:
@@ -232,9 +230,7 @@ def is_event_log_recordable(entity_id: str, cfg: dict[str, Any] | None) -> bool:
     if cfg.get("mode") == "allow_domains":
         allow = cfg.get("allowDomains") or []
         return bool(allow) and domain in allow
-    if domain in (cfg.get("blockDomains") or []):
-        return False
-    return True
+    return domain not in (cfg.get("blockDomains") or [])
 
 
 def extract_event_log_state(new_state: Any) -> str | None:

@@ -88,7 +88,7 @@ class EmailService:
         try:
             await asyncio.to_thread(self._verify_sync)
             logger.info("Email 通道已热重载")
-        except Exception as exc:  # noqa: BLE001 - 初始化失败即停用传输器（保留发件人/收件人展示）
+        except Exception as exc:
             logger.error("Email 通道初始化失败: %s", exc)
             self._smtp = {}
 
@@ -143,7 +143,7 @@ class EmailService:
         try:
             await asyncio.to_thread(self._verify_sync)
             return {**base, "configured": True}
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return {**base, "configured": False, "error": str(exc)}
 
     # ------------------------------------------------------------------ #
@@ -176,7 +176,7 @@ class EmailService:
         try:
             await asyncio.to_thread(self._send_sync, message, recipients)
             logger.info("已向 %s 个收件人发送邮件通知", len(recipients))
-        except Exception as exc:  # noqa: BLE001 - 发送失败只记录，不影响主流程
+        except Exception as exc:
             logger.error("发送邮件失败: %s", exc)
 
     def _send_sync(self, message: EmailMessage, recipients: list[str]) -> None:

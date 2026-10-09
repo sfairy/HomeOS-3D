@@ -17,20 +17,21 @@ from typing import Any
 
 from sqlalchemy import delete, func, select
 
-from ...core.entity_domain import get_entity_domain
-from ...core.models import DeviceUsageStat
-from ..app_config.room_meta import (
-    align_env_sensor_map_to_ha_areas,
-    is_room_hidden_in_map,
-    list_visible_env_sensor_map_room_ids,
-)
-from ..rooms import DEFAULT_ROOM_CATALOG, entity_matches_env_room
 from .voice_alerts import (
     apply_alert_template,
     match_custom_entity_alert,
     match_entity_tts_alert,
     resolve_voice_alert_rules,
 )
+from ..app_config.room_meta import (
+    align_env_sensor_map_to_ha_areas,
+    is_room_hidden_in_map,
+    list_visible_env_sensor_map_room_ids,
+)
+from ..rooms import DEFAULT_ROOM_CATALOG, entity_matches_env_room
+from ...core.background import spawn_background
+from ...core.entity_domain import get_entity_domain
+from ...core.models import DeviceUsageStat
 
 logger = logging.getLogger("homeos.awareness.advisor_usage")
 
@@ -82,7 +83,7 @@ class SmartAdvisorUsageHelper:
             return []
         try:
             return getter() or []
-        except Exception:  # noqa: BLE001
+        except Exception:
             return []
 
     async def build_room_device_map_from_config(self) -> bool:
@@ -148,7 +149,7 @@ class SmartAdvisorUsageHelper:
                 len(rooms),
             )
             return False
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("建立房间设备映射失败: %s", exc)
             return False
 
@@ -258,7 +259,7 @@ class SmartAdvisorUsageHelper:
             push_tip = self._deps["push_tip"]
             for item in forgotten:
                 push_tip(f"可能忘了关：{item['friendlyName']}", item["reason"], "comfort")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("离家遗忘设备检测失败: %s", exc)
 
     async def check_forgotten_cron(self) -> None:
@@ -267,7 +268,7 @@ class SmartAdvisorUsageHelper:
             push_tip = self._deps["push_tip"]
             for item in forgotten:
                 push_tip(f"可能忘了关：{item['friendlyName']}", item["reason"], "comfort")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("遗忘设备检测失败: %s", exc)
 
     # ------------------------------------------------------------------ #
@@ -284,10 +285,10 @@ class SmartAdvisorUsageHelper:
             "old_state": event.get("old_state") or None,
         }
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
         except RuntimeError:
             return
-        loop.create_task(self._handle_usage_and_alerts(snapshot))
+        spawn_background(self._handle_usage_and_alerts(snapshot))
 
     async def _handle_usage_and_alerts(self, event: dict[str, Any]) -> None:
         await self.handle_state_change(event)
@@ -394,7 +395,7 @@ class SmartAdvisorUsageHelper:
                             row.last_on = patch["lastOn"]
                         session.add(row)
                     session.commit()
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.debug("DeviceUsageStat 写入失败 [%s]: %s", entity_id, exc)
 
         await asyncio.get_running_loop().run_in_executor(None, _write)
@@ -583,7 +584,7 @@ class SmartAdvisorUsageHelper:
                         "message": item.get("reason") or "可能遗忘开启",
                     }
                 )
-        except Exception:  # noqa: BLE001 - 忽略遗忘设备查询失败
+        except Exception:
             pass
         return hints[:15]
 
@@ -640,8 +641,8 @@ class AdvisorUsageService:
                 "room_label": self._room_label,
                 "voice_config": lambda: self._app_config.get("voice"),
                 # 最小宿主：不恢复实体 / 自定义 TTS 告警（配置归一化随顾问栈移除）
-                "entity_tts_alerts": lambda: [],
-                "custom_alerts": lambda: [],
+                "entity_tts_alerts": list,
+                "custom_alerts": list,
                 "queue_speak": self._queue_speak,
             }
         )
@@ -676,7 +677,7 @@ class AdvisorUsageService:
                     return
             except asyncio.CancelledError:
                 return
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("房间设备映射构建失败(第 %s 次): %s", attempt + 1, exc)
         logger.warning("房间设备映射构建未成功,等待HA连接事件或定时任务重建")
 
@@ -688,7 +689,7 @@ class AdvisorUsageService:
                 task.cancel()
                 try:
                     await task
-                except (asyncio.CancelledError, Exception):  # noqa: BLE001
+                except (asyncio.CancelledError, Exception):
                     pass
                 setattr(self, attr, None)
 
@@ -726,7 +727,7 @@ class AdvisorUsageService:
                 if not mapped_rooms or mixed_catalog:
                     await self.usage.build_room_device_map_from_config()
                 await self.check_forgotten_cron()
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("遗忘设备检测失败: %s", exc)
 
     async def check_forgotten_cron(self) -> None:
@@ -738,7 +739,7 @@ class AdvisorUsageService:
             await self._lock.run_exclusive(
                 FORGOTTEN_LOCK_KEY, self.usage.check_forgotten_cron, 10 * 60_000
             )
-        except Exception as exc:  # noqa: BLE001 - 其他实例持锁时跳过本轮
+        except Exception as exc:
             logger.debug("遗忘设备检测跳过（锁冲突 / 失败）: %s", exc)
 
     # ------------------------------------------------------------------ #
@@ -761,11 +762,11 @@ class AdvisorUsageService:
             return []
         try:
             return self._entity_area.get_cached_ha_areas() or []
-        except Exception:  # noqa: BLE001
+        except Exception:
             return []
 
     def _room_label(self, room: str) -> str:
-        from ..rooms import resolve_room_label_from_ha_areas  # noqa: PLC0415 - 延迟导入
+        from ..rooms import resolve_room_label_from_ha_areas
 
         return resolve_room_label_from_ha_areas(
             room, self._app_config.get("envSensorMap"), self._cached_ha_areas()

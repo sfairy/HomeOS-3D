@@ -59,7 +59,7 @@ class MediaSceneService:
         }
         try:
             await _maybe_await(self._app_config.update({"mediaPlaylists": out}))
-        except Exception as err:  # noqa: BLE001 - 持久化失败不影响内存态
+        except Exception as err:
             logger.warning("播放列表持久化失败: %s", err)
 
     # ------------------------------------------------------------------ #
@@ -173,7 +173,7 @@ class MediaSceneService:
                 if attrs.get("volume_level") is not None:
                     state_entry["volume_level"] = attrs.get("volume_level")
                 states.append(state_entry)
-            except Exception as err:  # noqa: BLE001 - 单台失败跳过
+            except Exception as err:
                 logger.debug("媒体播放器状态拉取跳过 %s: %s", entity_id, err)
         return states
 
@@ -267,7 +267,7 @@ class MediaSceneService:
         try:
             entities = await self._ha_connector.fetch_entities_by_domain("media_player")
             return [str(entity.get("entity_id")) for entity in entities]
-        except Exception as err:  # noqa: BLE001 - 拉取失败退化为空列表
+        except Exception as err:
             logger.warning("获取 media_player 列表失败: %s", err)
             return []
 
@@ -278,7 +278,7 @@ class MediaSceneService:
         try:
             await self._ha_connector.call_service(domain, service, entity_id, data)
             return {"ok": True, "domain": domain, "service": service, "entityId": entity_id}
-        except Exception as err:  # noqa: BLE001 - 单次失败不抛出
+        except Exception as err:
             logger.debug("媒体动作失败 [%s.%s %s]: %s", domain, service, entity_id, err)
             return {
                 "ok": False,
@@ -300,4 +300,4 @@ async def _maybe_await(value: Any) -> Any:
     return value
 
 
-__all__ = ["MediaSceneService", "PRESETS"]
+__all__ = ["PRESETS", "MediaSceneService"]

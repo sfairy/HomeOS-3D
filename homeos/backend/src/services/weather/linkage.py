@@ -13,9 +13,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from ...core.entity_domain import get_entity_domain
-from ..security.layout import schedule_security_event
 from .watch import LEVEL_PRIORITY, alert_dedup_key
+from ..security.layout import schedule_security_event
+from ...core.entity_domain import get_entity_domain
 
 logger = logging.getLogger("homeos.weather.linkage")
 
@@ -107,7 +107,7 @@ class WeatherAutoLinkageService:
             )
             logger.info("天气联动:已执行场景 %s(%s)", scene_id, reason)
             return True
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             schedule_security_event(
                 self._session_factory,
                 "linkage_weather_scene_failed",
@@ -124,7 +124,7 @@ class WeatherAutoLinkageService:
             )
             logger.info("天气联动:已激活家庭模式 %s(%s)", mode_id, reason)
             return True
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             schedule_security_event(
                 self._session_factory,
                 "linkage_weather_mode_failed",

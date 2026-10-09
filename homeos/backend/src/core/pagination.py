@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, TypeVar
-
-T = TypeVar("T")
+import math
+from typing import Any
 
 #: JS ``Number.MAX_SAFE_INTEGER``。
 MAX_SAFE_INTEGER = 9_007_199_254_740_991
@@ -16,7 +15,7 @@ def clamp_int(value: Any, minimum: int, maximum: int) -> int:
         number = float(value)
     except (TypeError, ValueError):
         return minimum
-    if number != number or number in (float("inf"), float("-inf")):
+    if not math.isfinite(number):
         return minimum
     return min(max(int(number // 1), minimum), maximum)
 
@@ -77,7 +76,7 @@ def parse_page_limit(
     }
 
 
-def build_paginated_result(
+def build_paginated_result[T](
     items: list[T], total: int, page: int, page_size: int
 ) -> dict[str, Any]:
     """组装分页响应对象（``totalPages`` 兜底为 1）。"""

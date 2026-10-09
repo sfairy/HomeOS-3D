@@ -17,6 +17,8 @@ import time
 from datetime import UTC, datetime
 from typing import Any
 
+from ...core.background import spawn_background
+
 logger = logging.getLogger("homeos.state_store.entity_area")
 
 #: 区域索引缓存有效期（毫秒）。
@@ -167,29 +169,29 @@ class EntityAreaEnrichmentService:
         """实体注册表变更（分配区域 / 重命名 / 隐藏）→ 失效缓存并异步重建索引。"""
         self.invalidate()
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
         except RuntimeError:
             return
-        loop.create_task(self._reload_safely())
+        spawn_background(self._reload_safely())
 
     async def _reload_safely(self) -> None:
         try:
             await self.ensure_loaded()
-        except Exception:  # noqa: BLE001 - 注册表不可用不应影响主流程
+        except Exception:
             pass
 
     def on_initial_states(self, _payload: Any = None) -> None:
         """初始全量状态到达 → 后台对账 store 中各实体的区域信息。"""
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
         except RuntimeError:
             return
-        loop.create_task(self._reconcile_store_areas_safely())
+        spawn_background(self._reconcile_store_areas_safely())
 
     async def _reconcile_store_areas_safely(self) -> None:
         try:
             await self.reconcile_store_areas()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("初始状态区域对账失败: %s", exc)
 
     async def reconcile_store_areas(self) -> None:
@@ -275,7 +277,7 @@ class EntityAreaEnrichmentService:
             self._index_at = time.monotonic() * 1000
             if self._index:
                 logger.info("实体区域索引已加载: %s 条", len(self._index))
-        except Exception as exc:  # noqa: BLE001 - 注册表不可用不应影响主流程
+        except Exception as exc:
             if gen != self._load_gen:
                 return self._index
             logger.warning("实体区域索引加载失败: %s", exc)
@@ -289,15 +291,15 @@ class EntityAreaEnrichmentService:
         if factory is None:
             return []
         try:
-            from sqlalchemy import select  # noqa: PLC0415
+            from sqlalchemy import select
 
-            from ...core.models import HAArea  # noqa: PLC0415 - 避免模块级循环依赖
+            from ...core.models import HAArea
 
             with factory() as session:
                 rows = session.execute(
                     select(HAArea.area_id, HAArea.name).where(HAArea.sync_status != "missing")
                 ).all()
-        except Exception as exc:  # noqa: BLE001 - 表未就绪时降级为空清单
+        except Exception as exc:
             logger.debug("读取 ha_areas 汇总失败: %s", exc)
             return []
         return [
@@ -316,7 +318,7 @@ class EntityAreaEnrichmentService:
     async def _fetch_entity_registry(self) -> list[dict[str, Any]]:
         try:
             rows = await self._connector.fetch_entity_registry()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("拉取实体注册表失败: %s", exc)
             return []
         return rows if isinstance(rows, list) else []
@@ -324,7 +326,7 @@ class EntityAreaEnrichmentService:
     async def _fetch_registry(self, type_: str) -> list[dict[str, Any]]:
         try:
             rows = await self._connector.request_registry(type_)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("拉取 %s 失败: %s", type_, exc)
             return []
         return rows if isinstance(rows, list) else []
@@ -354,7 +356,7 @@ class EntityAreaEnrichmentService:
                 raise exc
         except asyncio.CancelledError:
             raise
-        except Exception:  # noqa: BLE001 - 超时/失败时用已有索引
+        except Exception:
             pass
         return enrich_entities_areas(entities, self._index)
 
@@ -441,6 +443,6 @@ __all__ = [
     "build_area_name_map",
     "build_device_area_map",
     "build_entity_area_index",
-    "enrich_entity_areas",
     "enrich_entities_areas",
+    "enrich_entity_areas",
 ]

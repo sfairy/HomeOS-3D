@@ -24,8 +24,6 @@ from typing import Any, TypeGuard
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from ...core.entity_domain import get_entity_domain
-from ...core.errors import BusinessException, ErrorCode, api_error
 from .agent_actor import AgentActor
 from .command_cache import CommandCacheService
 from .config_service import AgentConfigService
@@ -40,6 +38,8 @@ from .providers.llm_provider_interface import (
 from .session_store import AgentSessionStoreService
 from .short_term_memory import AgentShortTermMemoryService
 from .tools.home_tools_service import HomeToolsService
+from ...core.entity_domain import get_entity_domain
+from ...core.errors import BusinessException, ErrorCode, api_error
 
 logger = logging.getLogger("homeos.agent.service")
 
@@ -671,7 +671,7 @@ class AgentService:
             except (BusinessException, StarletteHTTPException):
                 # 业务 / HTTP 异常透传，其余包装为 LLM 上游错误
                 raise
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 raise BusinessException(
                     ErrorCode.EXTERNAL_ERROR,
                     api_error("AGENT_LLM_UPSTREAM_ERROR", "unknown", str(exc) or ""),
@@ -718,7 +718,7 @@ class AgentService:
                         effective.append(call)
                     continue
                 effective.append(call)
-            calls = effective if effective else result.tool_calls
+            calls = effective or result.tool_calls
             batch_has_control = False
             batch_all_ok = True
             batch_any_blocked = False
@@ -730,7 +730,7 @@ class AgentService:
                     tool_result = await self._tools.execute(
                         call.name, call.arguments or {}, actor
                     )
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     tool_result = {"error": str(exc) or "工具执行异常"}
                 tool_ms += now_ms() - s0
                 # 截断大工具结果后再回填 LLM 上下文，防止实体状态 / 日志撑爆 prompt
@@ -944,9 +944,6 @@ def _strip_de(text: str) -> str:
 
 
 __all__ = [
-    "AgentChatOptions",
-    "AgentChatResponse",
-    "AgentService",
     "MAX_HISTORY_MESSAGES",
     "MAX_HISTORY_MESSAGE_CHARS",
     "MAX_HISTORY_PROMPT_CHARS",
@@ -954,6 +951,9 @@ __all__ = [
     "MAX_SESSION_PROMPT_CHARS",
     "MAX_SESSION_PROMPT_TOKENS",
     "MAX_TOOL_RESULT_CHARS",
+    "AgentChatOptions",
+    "AgentChatResponse",
+    "AgentService",
     "estimate_cost_cny",
     "truncate_tool_result",
 ]

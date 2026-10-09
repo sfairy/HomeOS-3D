@@ -160,11 +160,11 @@ class AgentShortTermMemoryService:
 
 
 __all__ = [
-    "AgentShortTermMemoryService",
     "CLEANUP_BATCH",
     "MAX_SESSIONS",
     "MAX_TURNS",
     "SESSION_TTL_MS",
+    "AgentShortTermMemoryService",
     "ShortTermSession",
     "ShortTermTurn",
 ]

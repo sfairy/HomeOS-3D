@@ -15,10 +15,10 @@ from typing import Any
 from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
+from .session_store import resolve_login_session
 from ..core.app_config import get_auth_config
 from ..core.deps import get_session
 from ..core.errors import forbidden, unauthorized
-from .session_store import resolve_login_session
 
 WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
@@ -66,7 +66,7 @@ async def get_current_user(
         )
         if user is not None:
             return _user_from_db(user)
-    unauthorized("未登录或登录已过期")
+    return unauthorized("未登录或登录已过期")
 
 
 async def require_user(
@@ -88,14 +88,14 @@ def require_roles(*roles: str):
         role = user.get("role")
         if role == "admin" or role in roles:
             return user
-        forbidden("没有权限执行此操作")
+        return forbidden("没有权限执行此操作")
 
     return _dependency
 
 
 __all__ = [
-    "get_current_user",
-    "require_user",
-    "require_roles",
     "get_auth_config",
+    "get_current_user",
+    "require_roles",
+    "require_user",
 ]

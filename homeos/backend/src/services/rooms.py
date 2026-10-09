@@ -320,16 +320,16 @@ def entity_matches_env_room(
 
 
 __all__ = [
-    "RoomCatalogEntry",
     "DEFAULT_ROOM_CATALOG",
-    "HaAreaRef",
     "EnvSensorMap",
-    "lookup_ha_area",
-    "find_catalog_for_ha_area",
-    "is_ascii_slug_label",
-    "normalize_ha_areas",
+    "HaAreaRef",
+    "RoomCatalogEntry",
     "build_room_entity_matchers",
     "entity_matches_env_room",
+    "find_catalog_for_ha_area",
+    "is_ascii_slug_label",
+    "lookup_ha_area",
+    "normalize_ha_areas",
     "resolve_room_label",
     "resolve_room_label_from_ha_areas",
 ]

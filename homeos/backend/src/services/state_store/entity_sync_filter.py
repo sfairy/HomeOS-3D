@@ -35,9 +35,7 @@ def build_blocked_entity_ids(
         entity_id = str((entry or {}).get("entity_id") or "")
         if not entity_id:
             continue
-        if (entry or {}).get("disabled_by"):
-            blocked.add(entity_id)
-        elif (entry or {}).get("hidden_by") or (entry or {}).get("hidden"):
+        if (entry or {}).get("disabled_by") or (entry or {}).get("hidden_by") or (entry or {}).get("hidden"):
             blocked.add(entity_id)
     for entity_id in display_hidden or set():
         blocked.add(entity_id)

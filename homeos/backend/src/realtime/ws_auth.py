@@ -11,9 +11,9 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from .access import resolve_entity_restrictions
 from ..core.errors import api_error
 from ..security.session_store import resolve_login_session
-from .access import resolve_entity_restrictions
 
 
 def extract_auth_token_from_cookie(cookie_header: str | None, cookie_name: str = "auth_token") -> str | None:
@@ -22,7 +22,7 @@ def extract_auth_token_from_cookie(cookie_header: str | None, cookie_name: str =
     try:
         jar = SimpleCookie()
         jar.load(cookie_header)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
     morsel = jar.get(cookie_name)
     return morsel.value if morsel and morsel.value else None

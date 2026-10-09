@@ -16,8 +16,8 @@ from sqlalchemy import engine_from_config, pool
 # 允许 `alembic` 在仓库根直接执行时导入 src 包。
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.core import models  # noqa: E402,F401  # 注册所有模型到 Base.metadata
-from src.core.database import Base  # noqa: E402
+from src.core import models  # noqa: F401  # 注册所有模型到 Base.metadata
+from src.core.database import Base
 
 config = context.config
 

@@ -19,8 +19,8 @@ from typing import Any
 
 from sqlalchemy import select
 
-from ...core.models import AlertRule, ProjectConfig
 from .zombie_scan import build_alive_entity_id_set, should_skip_zombie_scan
+from ...core.models import AlertRule, ProjectConfig
 
 logger = logging.getLogger("homeos.system.device_management")
 
@@ -58,7 +58,7 @@ class DeviceManagementService:
         registry: list[dict[str, Any]] = []
         try:
             registry = await self._ha_connector.fetch_entity_registry()
-        except Exception as err:  # noqa: BLE001 - 注册表不可用仅降级比对
+        except Exception as err:
             logger.warning("加载 HA 实体注册表失败，僵尸扫描将仅对照状态库: %s", err)
 
         if should_skip_zombie_scan(
@@ -159,7 +159,7 @@ class DeviceManagementService:
                                 "location": f"常用设备 · {domain} 域收藏",
                             }
                         )
-        except Exception as err:  # noqa: BLE001 - 单来源扫描失败不阻断其余来源
+        except Exception as err:
             logger.warning("扫描布局 Widget 绑定失败: %s", err)
 
     def collect_alert_rule_bindings(self, items: list[dict[str, Any]]) -> None:
@@ -188,7 +188,7 @@ class DeviceManagementService:
                         "location": f"告警规则「{name or '未命名规则'}」{'' if enabled else '（已停用）'}",
                     }
                 )
-        except Exception as err:  # noqa: BLE001 - 单来源扫描失败不阻断其余来源
+        except Exception as err:
             logger.warning("扫描告警规则绑定失败: %s", err)
 
     # ------------------------------------------------------------------ #
@@ -246,7 +246,7 @@ class DeviceManagementService:
                     session.commit()
                 return {**base, "status": "unbound"}
             return {**base, "status": "failed", "message": f"不支持的来源: {item.get('source')}"}
-        except Exception as err:  # noqa: BLE001 - 单条失败不阻断其余
+        except Exception as err:
             logger.warning(
                 "解绑失败 [%s/%s/%s]: %s",
                 item.get("source"),
@@ -300,7 +300,7 @@ class DeviceManagementService:
                 self._ui_config.save_config("default", layout)
 
             return results
-        except Exception as err:  # noqa: BLE001 - 保存失败整批标记失败
+        except Exception as err:
             logger.warning("移除布局 Widget 失败: %s", err)
             return [
                 {
@@ -397,7 +397,7 @@ class DeviceManagementService:
                     str(entry.get("entity_id") or ""),
                     entry.get("name") or entry.get("original_name"),
                 )
-        except Exception as err:  # noqa: BLE001 - 名称缺失时保留空串展示
+        except Exception as err:
             logger.warning("加载 HA 实体注册表名称失败: %s", err)
 
         still_missing = [entity_id for entity_id in entity_ids if entity_id not in name_map][
@@ -408,7 +408,7 @@ class DeviceManagementService:
                 state = await self._ha_connector.fetch_entity_state(entity_id)
                 attributes = state.get("attributes") if isinstance(state, dict) else None
                 name = str((attributes or {}).get("friendly_name") or "")
-            except Exception:  # noqa: BLE001 - 单实体拉取失败忽略
+            except Exception:
                 name = ""
             put(entity_id, name)
         return name_map
@@ -441,7 +441,7 @@ class DeviceManagementService:
         if isinstance(layout, dict):
             return layout
         if isinstance(layout, str) and layout.strip():
-            import json  # noqa: PLC0415 - 仅解析失败路径需要
+            import json
 
             try:
                 parsed = json.loads(layout)

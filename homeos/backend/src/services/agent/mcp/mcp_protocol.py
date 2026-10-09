@@ -224,7 +224,7 @@ async def handle_mcp_json_rpc(
                 request_id,
                 {"contents": [{"uri": uri, "mimeType": mime, "text": result.get("text")}]},
             )
-        except Exception:  # noqa: BLE001 - 对齐 Nest catch {} 兜底
+        except Exception:
             return err(request_id, INTERNAL_ERROR, "资源读取失败")
 
     # prompts/list：返回固定的两类预设提示词
@@ -272,7 +272,7 @@ async def handle_mcp_json_rpc(
                     "isError": result.get("isError"),
                 },
             )
-        except Exception:  # noqa: BLE001 - 对齐 Nest catch {} 兜底
+        except Exception:
             return err(request_id, INTERNAL_ERROR, "智能家居控制失败，请稍后重试")
 
     # 未匹配的方法：返回 -32601 method not found

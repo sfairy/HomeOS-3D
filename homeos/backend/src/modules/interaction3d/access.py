@@ -13,9 +13,9 @@ from datetime import UTC, datetime
 
 from fastapi import HTTPException, Request
 
+from .config import validate_config
 from ...services.license import features as feature_codes
 from ...services.license.crypto import LicenseCryptoError
-from .config import validate_config
 
 FEATURE = feature_codes.FEATURE_INTERACTION_3D
 COMPONENT_TYPE = 'interaction3d'

@@ -56,7 +56,7 @@ BLOCKED_DEFAULT_REPLY = "出于安全考虑，这个操作被拦截了。"
 
 _CODE_BLOCK = re.compile(r"```(\w*)\n([\s\S]*?)```")
 _INLINE_CODE = re.compile(r"`([^`]+)`")
-_HEADING = re.compile(r"^#{1,3}\s+(.+)$", re.M)
+_HEADING = re.compile(r"^#{1,3}\s+(.+)$", re.MULTILINE)
 _BOLD_ITALIC = re.compile(r"\*\*\*([^*]+)\*\*\*")
 _BOLD = re.compile(r"\*\*([^*]+)\*\*")
 _ITALIC = re.compile(r"\*([^*]+)\*")

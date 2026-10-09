@@ -30,7 +30,7 @@ def _section(config: dict[str, Any], name: str) -> dict[str, Any]:
 
 def apply_adaptive_backend_perf_in_place(config: dict[str, Any], entity_count: int) -> bool:
     """超大规模安装时自动抬高 WS 批处理参数（内存热更新，不持久化覆盖用户更大值）。"""
-    global _last_applied_count, _adaptive_baseline  # noqa: PLW0603
+    global _last_applied_count, _adaptive_baseline
 
     if not entity_count or entity_count == _last_applied_count:
         return False

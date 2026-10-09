@@ -14,6 +14,7 @@ from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect
 
+from .router import NestRouter
 from ..core.embed_proxy_util import (
     build_embed_upstream_url,
     get_embed_upstream_origin,
@@ -29,7 +30,6 @@ from ..services.ws_proxy import (
     resolve_ha_base_url,
     verify_embed_ws_auth,
 )
-from .router import NestRouter
 
 logger = logging.getLogger("homeos.api.ws-proxy")
 
@@ -46,7 +46,7 @@ CLOSE_UNAVAILABLE = 1013
 async def _reject(websocket: WebSocket, code: int) -> None:
     try:
         await websocket.close(code=code)
-    except Exception:  # noqa: BLE001 - 对端已断开
+    except Exception:
         pass
 
 
@@ -76,7 +76,7 @@ async def ha_webrtc_ws(websocket: WebSocket) -> None:
             websocket,
             upstream,
             on_close=lambda exc: logger.debug(
-                "go2rtc WS 反代已关闭: %s", exc if exc else "正常"
+                "go2rtc WS 反代已关闭: %s", exc or "正常"
             ),
         )
     except WebSocketDisconnect:
@@ -143,7 +143,7 @@ async def _embed_proxy_ws(websocket: WebSocket, embed_id: str, sub_path: str) ->
             subprotocols=protocols,
             heartbeat_ms=EMBED_WS_HEARTBEAT_MS,
             on_close=lambda exc: logger.debug(
-                "内嵌页 WS 反代已关闭: %s", exc if exc else "正常"
+                "内嵌页 WS 反代已关闭: %s", exc or "正常"
             ),
         )
     except WebSocketDisconnect:

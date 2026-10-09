@@ -125,13 +125,13 @@ class HaStateChangeRouter:
 
 
 __all__ = [
-    "ColdPathConsumer",
     "AlertRuleWatchIndex",
+    "ColdPathConsumer",
     "HaStateChangeRouter",
+    "is_advisor_usage_entity",
+    "is_camera_relevant_state_change",
     "is_device_health_state_change",
     "is_energy_relevant_state_change",
-    "is_water_relevant_state_change",
     "is_environment_relevant_state_change",
-    "is_camera_relevant_state_change",
-    "is_advisor_usage_entity",
+    "is_water_relevant_state_change",
 ]

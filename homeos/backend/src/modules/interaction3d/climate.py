@@ -111,7 +111,7 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
             not supports(2 if is_range else 1, legacy)
             or not all(_number(v) for v in (minimum, maximum))
             or minimum >= maximum
-            or raw_step is not None and (step is None or step <= 0)
+            or (raw_step is not None and (step is None or step <= 0))
         ):
             raise HTTPException(409, detail='空调未提供有效的温度调节能力。')
         # 先挡越界值，再挡不在刻度上的值，两类错误分别给不同提示。
@@ -142,7 +142,7 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
     attribute, feature = options[field]
     value, choices = data[field], string_options(attributes.get(attribute))
     if (
-        feature is not None and not supports(feature, isinstance(choices, list))
+        (feature is not None and not supports(feature, isinstance(choices, list)))
         or not isinstance(value, str)
         or not isinstance(choices, list)
         or not value

@@ -74,7 +74,7 @@ class EewPollService:
                 continue
             try:
                 await task
-            except (asyncio.CancelledError, Exception):  # noqa: BLE001
+            except (asyncio.CancelledError, Exception):
                 pass
         self._task = None
         self._usgs_task = None
@@ -94,7 +94,7 @@ class EewPollService:
                 )
             except asyncio.CancelledError:
                 raise
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.debug("EEW 双源轮询任务异常: %s", exc)
             try:
                 await asyncio.sleep(DUAL_POLL_MS / 1000)
@@ -116,7 +116,7 @@ class EewPollService:
                 )
             except asyncio.CancelledError:
                 raise
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.debug("USGS 兜底轮询任务异常: %s", exc)
             try:
                 await asyncio.sleep(USGS_POLL_MS / 1000)
@@ -159,7 +159,7 @@ class EewPollService:
                 return
             self._last_sc_event_id = eew.event_id
             self._earthquake.ingest_eew(eew)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             message = str(exc)
             self._earthquake.record_source_poll("sc_eew", {"ok": False, "error": message})
             logger.warning("SC EEW 轮询失败: %s", message)
@@ -175,7 +175,7 @@ class EewPollService:
                 return
             self._last_cenc_event_id = eew.event_id
             self._earthquake.ingest_eew(eew)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             message = str(exc)
             self._earthquake.record_source_poll("cenc_eew", {"ok": False, "error": message})
             logger.warning("CENC EEW 轮询失败: %s", message)
@@ -211,10 +211,10 @@ class EewPollService:
                     break
             if len(self._last_usgs_ids) > USGS_SEEN_MAX:
                 self._last_usgs_ids = self._last_usgs_ids[-40:]
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             message = str(exc)
             self._earthquake.record_source_poll("usgs", {"ok": False, "error": message})
             logger.warning("USGS 兜底轮询失败: %s", message)
 
 
-__all__ = ["EewPollService", "CENC_EEW_URL", "SC_EEW_URL"]
+__all__ = ["CENC_EEW_URL", "SC_EEW_URL", "EewPollService"]

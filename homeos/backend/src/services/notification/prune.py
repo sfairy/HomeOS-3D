@@ -67,7 +67,7 @@ class NotificationPruneHelper:
                 await asyncio.to_thread(self._prune_old_notifications_sync)
                 if not self._needs_rerun:
                     break
-        except Exception as exc:  # noqa: BLE001 - 清理失败不影响主流程
+        except Exception as exc:
             logger.warning("清理过期通知失败: %s", exc)
         finally:
             self._in_flight = None
@@ -125,4 +125,4 @@ class NotificationPruneHelper:
             logger.info("自动清理 %s 条通知(条数软上限,优先已读)", total_deleted)
 
 
-__all__ = ["NotificationPruneHelper", "PRUNE_BATCH_SIZE", "PRUNE_DEBOUNCE_MS"]
+__all__ = ["PRUNE_BATCH_SIZE", "PRUNE_DEBOUNCE_MS", "NotificationPruneHelper"]

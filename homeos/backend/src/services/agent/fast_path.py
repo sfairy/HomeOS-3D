@@ -15,11 +15,11 @@ import logging
 import re
 from typing import Any
 
-from ...core.entity_domain import get_entity_domain
 from .area_service import AgentAreaService
 from .config_service import AgentConfigService
 from .lang_template_service import LangTemplateService
 from .tools.high_risk_denylist import SceneVoiceControlGate, is_scene_voice_allowed
+from ...core.entity_domain import get_entity_domain
 
 logger = logging.getLogger("homeos.agent.fast_path")
 
@@ -263,7 +263,7 @@ class FastPathService:
         if self._agent_config is not None:
             try:
                 cfg = await self._agent_config.get_scene_voice_control()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 cfg = None
         if cfg is None or not cfg.enabled or not cfg.allow:
             return None
@@ -355,7 +355,7 @@ class FastPathService:
         if self._area_entities_cache is None:
             try:
                 self._area_entities_cache = await self._area_service.find_all()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 self._area_entities_cache = []
         return self._area_entities_cache
 

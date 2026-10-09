@@ -176,10 +176,10 @@ def _xml_field(raw_body: str, *names: str) -> dict[str, str]:
     """从企微回调 XML 中提取首个命名字段（缺失即不返回该键）。"""
     out: dict[str, str] = {}
     try:
-        root = ET.fromstring(raw_body)
+        root = ET.fromstring(raw_body)  # noqa: S314 - 企微回调 XML 体积受限且经 msg_signature 校验
     except ET.ParseError:
         return out
-    node = root if root.tag == "xml" else root
+    node = root
     wanted = set(names)
     for child in node:
         if child.tag in wanted and child.tag not in out and child.text is not None:
@@ -209,7 +209,7 @@ async def verify_url(
     try:
         decrypted = decrypt_wecom(str(aes_key), str(echostr or ""))
         return _text(str(decrypted["msg"]))
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("解密 echostr 失败: %s", exc)
         return _text("解密失败", 500)
 
@@ -254,7 +254,7 @@ async def handle_callback(
 
             task.add_done_callback(_log_failure)
         return _text("success")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("处理企微 POST 回调失败: %s", exc)
         return _text("内部错误", 500)
 

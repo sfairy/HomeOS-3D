@@ -63,7 +63,6 @@ def revision(database_path: Path) -> str:
 
 def main() -> int:
     from alembic import command
-
     from src.config import load_settings
     from src.core import migrations
 
@@ -94,7 +93,7 @@ def main() -> int:
         try:
             migrations.run_migrations(settings)
             check("必须抛错而不是静默跳过", False, "run_migrations 正常返回了")
-        except Exception as error:  # noqa: BLE001
+        except Exception as error:
             message = str(error)
             check("抛出的错误点名了缺的列", "activated_by" in message, message[:200])
             check(
@@ -126,7 +125,7 @@ def main() -> int:
         check("多余列不触发护栏", migrations._schema_drift(settings.database_url) == [])
         check("多余列也不影响启动", migrations.run_migrations(settings) is None)
 
-    print("")
+    print()
     if failures:
         print(f"结构漂移回归失败：{len(failures)} 项")
         for label in failures:

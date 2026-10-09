@@ -411,7 +411,7 @@ def _fire_and_forget(awaitable: Awaitable[Any]) -> None:
     async def _run() -> None:
         try:
             await awaitable
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("通知异步任务失败: %s", exc)
 
     try:

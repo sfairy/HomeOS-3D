@@ -12,19 +12,20 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 from collections.abc import Awaitable, Callable
 from typing import Any
 
 from sqlalchemy import select
 
-from ...core.errors import api_error, bad_request
-from ...core.models import AlertRule
-from ...core.runtime_kv import load_runtime_kv, persist_runtime_kv
+from .stats import parse_json_array
 from ..alerts.channels import resolve_alert_rule_channels
 from ..alerts.condition import evaluate_condition
 from ..alerts.templates import format_alert_rule_message
 from ..ha_filters import AlertRuleWatchIndex
-from .stats import parse_json_array
+from ...core.errors import api_error, bad_request
+from ...core.models import AlertRule
+from ...core.runtime_kv import load_runtime_kv, persist_runtime_kv
 
 logger = logging.getLogger("homeos.notification.rules")
 
@@ -40,7 +41,7 @@ def _is_finite_number(value: Any) -> bool:
         number = float(value)
     except (TypeError, ValueError):
         return False
-    return number == number and number not in (float("inf"), float("-inf"))
+    return math.isfinite(number)
 
 
 class NotificationRulesHelper:
@@ -82,7 +83,7 @@ class NotificationRulesHelper:
 
         try:
             data = await asyncio.to_thread(_read)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("加载告警规则修订历史失败: %s", exc)
             return
         if isinstance(data, dict):
@@ -97,7 +98,7 @@ class NotificationRulesHelper:
             return
         try:
             keys = await self._restore_edge_state()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("恢复告警边沿状态失败: %s", exc)
             return
         if not keys:
@@ -114,10 +115,10 @@ class NotificationRulesHelper:
         self._persist_edge_state(matched)
 
     def _persist_condition_history(self) -> None:
-        payload = {rule_id: revisions for rule_id, revisions in self._condition_history.items()}
+        payload = dict(self._condition_history.items())
         try:
             persist_runtime_kv(self._session_factory, RULE_REVISIONS_ID, payload)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("告警规则修订历史持久化失败: %s", exc)
 
     # ------------------------------------------------------------------ #
@@ -131,7 +132,7 @@ class NotificationRulesHelper:
             self._watch_index.update_from_rules(self.rules_cache)
             self.rules_cache_stale = False
             logger.info("告警规则已加载: %s 条启用", len(self.rules_cache))
-        except Exception as exc:  # noqa: BLE001 - 保留旧缓存并标记 stale
+        except Exception as exc:
             self.rules_cache_stale = True
             logger.warning(
                 "刷新告警规则缓存失败,保留旧缓存 %s 条(标记 stale): %s",
@@ -177,7 +178,7 @@ class NotificationRulesHelper:
                 continue
             try:
                 matched = evaluate_condition(rule.get("condition") or "", state, attributes)
-            except Exception:  # noqa: BLE001 - 条件异常视为未匹配
+            except Exception:
                 matched = False
             rule_key = rule.get("id") or rule.get("name")
             edge_key = f"{rule_key}:{entity_id}"
@@ -230,7 +231,7 @@ class NotificationRulesHelper:
                         "bypassDnd": True if (bypass_dnd and rule.get("level") != "danger") else None,
                     },
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("告警规则通知失败: %s", exc)
             if delivered:
                 cooldown_minutes = rule.get("cooldownMinutes")
@@ -250,7 +251,7 @@ class NotificationRulesHelper:
     async def get_rules(self) -> list[dict[str, Any]]:
         try:
             return await asyncio.to_thread(self._fetch_rules_from_db)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("读取告警规则失败: %s", exc)
             return []
 
@@ -379,7 +380,7 @@ class NotificationRulesHelper:
 
         try:
             deleted = await asyncio.to_thread(_delete)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("删除告警规则失败: %s", exc)
             return {"success": False}
         if deleted:
@@ -414,4 +415,4 @@ def _iso_now() -> str:
     return now.strftime("%Y-%m-%dT%H:%M:%S.") + f"{now.microsecond // 1000:03d}Z"
 
 
-__all__ = ["NotificationRulesHelper", "RULE_REVISIONS_ID"]
+__all__ = ["RULE_REVISIONS_ID", "NotificationRulesHelper"]

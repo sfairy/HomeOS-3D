@@ -14,8 +14,6 @@ from typing import Any
 
 from sqlalchemy import select
 
-from ...core.errors import api_error, bad_request
-from ...core.models import SecurityEvent
 from .bus import LocalEventBus
 from .config import load_security_config, resolve_notification_fetch_limit
 from .cooldown import NotificationCooldownService
@@ -26,6 +24,8 @@ from .panel_helpers import (
     SecurityPanelStateHelper,
 )
 from .zones import normalize_zone_type
+from ...core.errors import api_error, bad_request
+from ...core.models import SecurityEvent
 
 logger = logging.getLogger("homeos.security.panel")
 
@@ -48,7 +48,7 @@ class SecurityConfigProvider:
             try:
                 with self._session_factory() as session:
                     self._cached = load_security_config(session)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 self._cached = self._cached or {}
             self._at = now
         return self._cached
@@ -378,7 +378,7 @@ class SecurityPanelService:
         self._emergency_running = True
         try:
             await self.emergency_runner.run_emergency_actions()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("紧急求助联动失败: %s", exc)
         finally:
             self._emergency_running = False

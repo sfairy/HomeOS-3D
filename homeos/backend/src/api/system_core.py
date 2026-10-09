@@ -26,6 +26,7 @@ from typing import Any
 from fastapi import Body, Depends, Query, Request
 from fastapi.responses import Response, StreamingResponse
 
+from .router import NestRouter
 from ..core.adaptive_perf import build_backend_perf_suggestions
 from ..core.observability import (
     get_ha_sync_latency_snapshots,
@@ -34,7 +35,6 @@ from ..core.observability import (
 from ..core.runtime_kv import load_runtime_kv
 from ..core.runtime_logs import DEFAULT_QUERY_LIMIT, RuntimeLogBuffer, matches_runtime_log_filter
 from ..security.auth_context import require_roles, require_user
-from .router import NestRouter
 
 logger = logging.getLogger("homeos.system.controller")
 
@@ -82,14 +82,14 @@ def _format_locale_string(moment: datetime, locale: str = "zh-CN") -> str:
 
 def _or_none(value: Any) -> Any:
     """等价 JS ``value || null``（空串 / 0 / None 都归一为 None）。"""
-    return value if value else None
+    return value or None
 
 def _load_drift_repair_last_run(request: Request) -> dict[str, Any] | None:
     database = request.app.state.database
     try:
         with database.session_factory() as session:
             row = load_runtime_kv(session, "orchestrator-drift-repair")
-    except Exception as err:  # noqa: BLE001 - 运行时 KV 不可读时视为无记录
+    except Exception as err:
         logger.debug("读取漂移修复记录失败: %s", err)
         return None
     if not isinstance(row, dict):
@@ -166,8 +166,10 @@ async def get_diagnostics(request: Request, user: dict[str, Any] = Depends(requi
         rss_mb = host.get("rssMb")
         lines = [
             f"HomeOS 诊断 {_format_locale_string(datetime.now(UTC).astimezone())}",
-            f"HA: {'已连接' if ha.get('connected') else '未连接'} "
-            f"{ha.get('ha_version') or ''} ({ha.get('ha_ws_mode') or 'standalone'})",
+            (
+                f"HA: {'已连接' if ha.get('connected') else '未连接'} "
+                f"{ha.get('ha_version') or ''} ({ha.get('ha_ws_mode') or 'standalone'})"
+            ),
             f"实体: {state_store.get_count()}",
             f"WS 客户端: {gateway.client_count()}",
             f"Redis: {'就绪' if redis.is_ready() else '未连接'}" if redis_configured else "Redis: 未配置",
@@ -182,12 +184,16 @@ async def get_diagnostics(request: Request, user: dict[str, Any] = Depends(requi
             ),
             latency_line,
             f"HA WS 延期丢弃: {deferred_dropped}",
-            f"CPU: {host.get('cpu')}% 内存: {host.get('memory')}% "
-            f"({memory_mb if memory_mb is not None else '?'}/"
-            f"{limit_mb if limit_mb is not None else '?'} MB, "
-            f"RSS {rss_mb if rss_mb is not None else '?'} MB) 运行: {host.get('uptime')}",
-            f"实体缓存估算: ~{memory_detail['estimatedEntityStoreMb']} MB · "
-            f"recentChanges {memory_detail['recentChangesCount']}/{memory_detail['recentChangesMax']}",
+            (
+                f"CPU: {host.get('cpu')}% 内存: {host.get('memory')}% "
+                f"({memory_mb if memory_mb is not None else '?'}/"
+                f"{limit_mb if limit_mb is not None else '?'} MB, "
+                f"RSS {rss_mb if rss_mb is not None else '?'} MB) 运行: {host.get('uptime')}"
+            ),
+            (
+                f"实体缓存估算: ~{memory_detail['estimatedEntityStoreMb']} MB · "
+                f"recentChanges {memory_detail['recentChangesCount']}/{memory_detail['recentChangesMax']}"
+            ),
             f"DB: {host.get('dbSize')}",
         ]
         return "\n".join(lines)

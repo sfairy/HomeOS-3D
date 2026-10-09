@@ -1,4 +1,4 @@
-import { clampNumber, normalizeCssColor, createSvgElement, resolveStatePayload } from "./_shared";
+import { normalizeCssColor } from "./_shared";
 import { doorWindowPerspectiveMatrix } from "../../controls/door-window-runtime";
 
 export function createDoorWindowSensorView(
