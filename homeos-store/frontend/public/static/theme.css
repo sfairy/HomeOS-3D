@@ -317,6 +317,13 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* iOS/手持：fixed 背景易触发合成层重绘闪烁，改为随文档滚动。 */
+@media (hover: none), (pointer: coarse) {
+  body {
+    background-attachment: scroll;
+  }
+}
+
 /* 与主程序一致：隐藏滚动条，让面板看着像一块仪表盘 */
 * {
   scrollbar-width: none;

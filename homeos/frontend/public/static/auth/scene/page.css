@@ -367,37 +367,38 @@
     overflow: auto;
   }
 
-  .hos-page > .hos-scene {
-    position: relative;
-    inset: auto;
-    flex: 0 0 auto;
-    min-height: 260px;
-  }
-
+  /* 窄屏：表单坞置顶。原先场景在上且很高，首屏只见山景/文案、表单在折叠线下，
+     看起来像「闪一下残缺入户页」。 */
   .hos-page > .hos-dock {
     position: relative;
     inset: auto;
+    order: -1;
     width: 100%;
     flex: 1 1 auto;
     align-items: flex-start;
-    /* 窄屏场景是文档流里的一段，指挥条在它内部，坞不再需要为它让位。 */
-    padding: 8px 18px 28px;
+    padding: 12px 18px 20px;
+  }
+
+  .hos-page > .hos-scene {
+    position: relative;
+    inset: auto;
+    order: 1;
+    flex: 0 0 auto;
+    min-height: 0;
+    max-height: 42vh;
+    overflow: hidden;
   }
 }
 
+/*
+ * 入户面板入场：禁止 opacity:0。
+ * fill-mode:both + from{opacity:0} 会让场景先可见、面板整段隐形，
+ * 所有入户页（登录/注册/激活/商店认证）都会闪成「只有山景」——正是用户截到的中间态。
+ */
 .hos-rise {
-  animation: hosFadeRise 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-@keyframes hosFadeRise {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 14px, 0);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
+  opacity: 1;
+  transform: none;
+  animation: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

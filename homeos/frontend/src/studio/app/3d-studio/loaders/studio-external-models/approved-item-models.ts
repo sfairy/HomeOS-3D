@@ -19,10 +19,10 @@ export const APPROVED_ITEM_META: Record<string, ApprovedItemMeta> = {
     label: "吊扇",
     glyph: "◉",
     subcategory: "environment",
-    size: [1.32, 0.35, 1.32],
+    size: [1.32, 0.306, 1.32],
     small: "1.32 × 1.32m",
     mount: "ceiling",
-    elevation: 2.55,
+    elevation: 2.8,
   },
   "table-lamp": {
     label: "台灯",

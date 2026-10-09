@@ -165,6 +165,33 @@ def register_backup_maintenance_middleware(app: FastAPI) -> None:
     app.add_middleware(BackupMaintenanceASGI, fastapi_app=app)
 
 
+# 长连接媒体绝不能走 GZip：Starlette GZipMiddleware 会缓冲 body，
+# multipart MJPEG / HLS 分片首帧到不了 <img>/<video>，表现为 naturalWidth 一直为 0。
+# 0.7.2 发布包没有对 API 开 compression，所以同实体在那边能秒出画面。
+_GZIP_SKIP_PREFIXES = (
+    "/api/camera_proxy_stream/",
+    "/api/camera_proxy/",
+    "/api/hls/",
+    "/api/media_player_proxy/",
+)
+
+
+class SelectiveGZipMiddleware:
+    """对摄像头/HLS 长连接绕过 GZip，其余路径仍走 Starlette GZipMiddleware。"""
+
+    def __init__(self, app: ASGIApp, minimum_size: int = 1024, compresslevel: int = 9) -> None:
+        self.app = app
+        self.gzip = GZipMiddleware(app, minimum_size=minimum_size, compresslevel=compresslevel)
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http":
+            path = scope.get("path") or ""
+            if any(path.startswith(prefix) for prefix in _GZIP_SKIP_PREFIXES):
+                await self.app(scope, receive, send)
+                return
+        await self.gzip(scope, receive, send)
+
+
 def register_outer_middleware(app: FastAPI, settings: Settings) -> None:
     """CSRF / CORS / GZip / 请求体门禁（后注册者在外层）。"""
     app.add_middleware(
@@ -173,8 +200,8 @@ def register_outer_middleware(app: FastAPI, settings: Settings) -> None:
         header_name=settings.csrf_header_name,
     )
     app.add_middleware(CorsMiddleware)
-    # 对齐 Nest ``compression()``：默认阈值 1KB。
-    app.add_middleware(GZipMiddleware, minimum_size=1024)
+    # 对齐 Nest ``compression()``：默认阈值 1KB；媒体流必须排除（见 SelectiveGZipMiddleware）。
+    app.add_middleware(SelectiveGZipMiddleware, minimum_size=1024)
     # 对齐 Nest body-parser limit：公共端点 1MB、其余 50MB。
     app.add_middleware(
         BodyLimitMiddleware,

@@ -29,6 +29,10 @@ import type { SystemInitState } from '@/types/router'
 import { getLicenseAvailability, getLicenseStatus } from '@/services/api/license'
 import { defaultTabForRole, isAdminOnlyTab } from '@/utils/registry/settings-nav.util'
 import { PAGE_ASSETS as STUDIO_ASSETS } from '@/studio/page-assets'
+import LoginView from '@/studio/views/LoginView.vue'
+import RegisterView from '@/studio/views/RegisterView.vue'
+import LicenseView from '@/studio/views/LicenseView.vue'
+import LicenseRecoveryView from '@/studio/views/LicenseRecoveryView.vue'
 
 /** 系统初始化状态缓存：null=未检查、true=已初始化、false=未初始化、'offline'=后端不可达 */
 let systemInitialized: SystemInitState = null
@@ -49,17 +53,17 @@ async function fetchSetupStatusWithBootRetry(auth: ReturnType<typeof useAuthStor
 
 const routes: RouteRecordRaw[] = [
   {
-    // 登录页（并入 homeos-3d 授权场景 UI）
+    // 登录页：同步入主包，避免冷开再等 lazy chunk 造成空壳一闪。
     path: '/login',
     name: 'login',
-    component: lazyView(() => import('@/studio/views/LoginView.vue')),
+    component: LoginView,
     meta: { assets: STUDIO_ASSETS.login },
   },
   {
     // 注册页（首次部署零用户时的唯一入口：账号 + 密码 + 邮箱 + 验证码）
     path: '/register',
     name: 'register',
-    component: lazyView(() => import('@/studio/views/RegisterView.vue')),
+    component: RegisterView,
     meta: { assets: STUDIO_ASSETS.register },
   },
   {
@@ -72,7 +76,7 @@ const routes: RouteRecordRaw[] = [
     // 商业授权激活（并入 homeos-3d 授权场景 UI）
     path: '/activate',
     name: 'activation',
-    component: lazyView(() => import('@/studio/views/LicenseView.vue')),
+    component: LicenseView,
     meta: { assets: STUDIO_ASSETS.license },
   },
   {
@@ -84,7 +88,7 @@ const routes: RouteRecordRaw[] = [
     // 授权恢复页（独立路由；授权门禁也会在任意地址就地渲染同一视图）
     path: '/license-recovery',
     name: 'license-recovery',
-    component: lazyView(() => import('@/studio/views/LicenseRecoveryView.vue')),
+    component: LicenseRecoveryView,
     meta: { assets: STUDIO_ASSETS.licenseRecovery },
   },
   // ── 3D Studio 视图（并入 homeos-3d 的 SPA 路由；hash 历史）──

@@ -206,9 +206,78 @@
     )
   }
 
+  var HIDE_FADE_MS = 180
+  /**
+   * 覆盖层延迟揭示：快路径（常见冷开 < 此值）只见深色底 → 入户页，不再闪「正在连接」。
+   * 慢路径（后端冷启动 / chunk 慢）到期后仍未就绪才露出提示，保留原兜底语义。
+   */
+  var SHOW_DELAY_MS = 450
+  var revealTimer = null
+  var overlayRevealed = false
+
+  function clearRevealTimer() {
+    if (revealTimer != null) {
+      window.clearTimeout(revealTimer)
+      revealTimer = null
+    }
+  }
+
+  /** 真正把覆盖层摆上屏幕（去掉 deferred / hidden）。失败升级路径也会走这里。 */
+  function revealOverlay() {
+    var box = byId(OVERLAY_ID)
+    if (!box) return
+    if (isReady() && hasVisibleContent()) return
+    overlayRevealed = true
+    clearRevealTimer()
+    box.classList.remove('is-deferred')
+    box.classList.remove('is-leaving')
+    box.removeAttribute('data-leaving')
+    box.hidden = false
+  }
+
+  function armDeferredOverlay() {
+    var box = byId(OVERLAY_ID)
+    if (!box) return
+    // HTML 已带 hidden + is-deferred；再保险一次，避免旧缓存外壳无这些属性。
+    box.classList.add('is-deferred')
+    if (!overlayRevealed) box.hidden = true
+    clearRevealTimer()
+    revealTimer = window.setTimeout(function () {
+      revealTimer = null
+      if (isReady() && hasVisibleContent()) return
+      revealOverlay()
+    }, SHOW_DELAY_MS)
+  }
+
   function hide() {
     var box = byId(OVERLAY_ID)
-    if (box) box.hidden = true
+    if (!box) return
+    clearRevealTimer()
+    // 从未揭示过：直接保持 hidden，不要先显示再淡出（那正是闪烁本身）。
+    if (!overlayRevealed && box.hidden) {
+      box.classList.add('is-deferred')
+      return
+    }
+    if (box.hidden || box.dataset.leaving === '1') return
+    var reduceMotion = false
+    try {
+      reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    } catch (e) {
+      /* ignore */
+    }
+    if (reduceMotion) {
+      box.hidden = true
+      box.classList.add('is-deferred')
+      return
+    }
+    box.dataset.leaving = '1'
+    box.classList.add('is-leaving')
+    window.setTimeout(function () {
+      box.hidden = true
+      box.classList.add('is-deferred')
+      box.classList.remove('is-leaving')
+      box.removeAttribute('data-leaving')
+    }, HIDE_FADE_MS)
   }
 
   function reloadButton() {
@@ -268,8 +337,8 @@
     var box = byId(OVERLAY_ID)
     if (!box) return
     escalated = true
+    revealOverlay()
     box.setAttribute('data-state', 'failed')
-    box.hidden = false
     var titleEl = byId(OVERLAY_ID + '-title')
     var msgEl = byId(OVERLAY_ID + '-message')
     if (titleEl && title) titleEl.textContent = title
@@ -383,6 +452,10 @@
       recoverOrReport('模块加载失败：' + (event.reason && event.reason.message))
     }
   })
+
+  // 覆盖层改为延迟揭示，避免快路径冷开闪「正在连接」。
+  if (document.body) armDeferredOverlay()
+  else document.addEventListener('DOMContentLoaded', armDeferredOverlay)
 
   // 就绪后收掉覆盖层 —— 但必须先确认**真的渲染出了可见内容**，否则会把「全黑页」当成成功。
   // 轮询持续存在：即使已升级为说明态，之后一旦内容可见（例如用户点了导航）也会自动放行。

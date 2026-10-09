@@ -195,14 +195,12 @@ if (typeof document !== 'undefined') {
 // 尽早应用主题 token（html[data-theme]），避免首屏闪色
 applyHomeOsTheme()
 
-// 加载前端配置完成后再挂载应用，保证 stores 初始化时能读取到正确配置
-loadFrontendConfig().then(() => {
-  // 建立配置可见性同步（控制台日志等仅在开发环境输出）
-  setupFrontendConfigVisibilitySync()
-  // 玻璃拟态效果同步（根据布局配置开/关毛玻璃）
-  setupGlassEffectSync(() => useLayoutStore().layoutConfig)
-  // 智能性能模式（根据设备能力动态调整渲染策略）
-  setupSmartPerformanceMode(() => useLayoutStore().layoutConfig)
+/** 入户认证页不依赖完整 public config；等配置再 mount 会空等一整段，放大首屏闪烁。 */
+const isEntryAuthRoute = /^\/(login|register|setup|activate|license)(\/|$)/.test(
+  typeof location !== 'undefined' ? location.pathname : '',
+)
+
+function mountApp(): void {
   app.mount('#app')
   // 挂载完成标记：与 data-homeos-ready（首个路由解析完成）区分开。
   // boot-guard.js 用它判断「#app 为空」是仍在正常启动（等配置加载）还是真的没渲染出来。
@@ -235,4 +233,25 @@ loadFrontendConfig().then(() => {
       })
     })
   }
-})
+}
+
+function applyPostConfigHooks(): void {
+  // 建立配置可见性同步（控制台日志等仅在开发环境输出）
+  setupFrontendConfigVisibilitySync()
+  // 玻璃拟态效果同步（根据布局配置开/关毛玻璃）
+  setupGlassEffectSync(() => useLayoutStore().layoutConfig)
+  // 智能性能模式（根据设备能力动态调整渲染策略）
+  setupSmartPerformanceMode(() => useLayoutStore().layoutConfig)
+}
+
+if (isEntryAuthRoute) {
+  // 入户页：先挂载再拉配置，避免「深色空屏 → 场景 → 表单」的可见空窗。
+  mountApp()
+  void loadFrontendConfig().then(applyPostConfigHooks)
+} else {
+  // 主应用：仍等配置完成后再挂载，保证 stores 初始化参数正确。
+  loadFrontendConfig().then(() => {
+    applyPostConfigHooks()
+    mountApp()
+  })
+}

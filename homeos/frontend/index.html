@@ -25,6 +25,12 @@
     <link id="spa-manifest" rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest">
     <!-- SPA 外壳样式：让 <div id="app"> 不生成盒子，视图根元素等价于 body 的直接子元素。 -->
     <link rel="stylesheet" href="/static/spa-shell.css">
+    <!-- 认证场景样式预装：冷开登录/注册时避免 runtime <link> 造成 FOUC。
+         带 data-spa-managed，离开认证路由时由 page-assets 幂等卸载；appearance 仍运行时后置。 -->
+    <link rel="stylesheet" href="/static/auth/scene/fonts.css" data-spa-managed="css">
+    <link rel="stylesheet" href="/static/auth/scene/page.css" data-spa-managed="css">
+    <link rel="stylesheet" href="/static/auth/scene/scene.css" data-spa-managed="css">
+    <link rel="stylesheet" href="/static/auth/scene/panel.css" data-spa-managed="css">
     <!-- 手持档开关：普通脚本（不导出、不 defer），必须在首帧前跑完给 <html> 挂 .hos-touch。
          该 class 只被登录场景样式消费，非场景页无副作用。 -->
     <script src="/static/auth/scene/scene-depth.js"></script>
@@ -39,7 +45,9 @@
          （后端冷启动 / 热重载窗口里 router.beforeEach 会阻塞约 2 分钟）正好是最需要提示的
          场景 —— 面板若放在 #app 内部就会在挂载瞬间被清掉，于是只剩纯空白 + 零报错。
          覆盖层显隐由 /static/boot-guard.js 控制，就绪信号是 <html data-homeos-ready>。 -->
-    <div id="homeos-boot-overlay" data-state="connecting" role="status" aria-live="polite">
+    <!-- 默认 hidden：避免冷开时「正在连接」整屏闪一下再切登录页。
+         boot-guard 仅在启动超过阈值后仍未就绪时再揭示；失败/升级路径也会强制显示。 -->
+    <div id="homeos-boot-overlay" class="is-deferred" hidden data-state="connecting" role="status" aria-live="polite">
         <div class="homeos-boot-overlay__panel">
             <p class="homeos-boot-overlay__brand">HomeOS</p>
             <p class="homeos-boot-overlay__spinner" aria-hidden="true"></p>

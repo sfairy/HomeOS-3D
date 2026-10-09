@@ -41,4 +41,14 @@
     'hb-unlicensed-hint',
     ['unlicensed', 'temporary'].includes(tier),
   );
+
+  // 商店前台 body class 前移：登录舞台 CSS 依赖 body.hb-store-body，
+  // 若等到 Vue 路由 watch 再挂，会出现 auth-stage 先 display:none 再弹出。
+  // 写成独立 if + 提前 return，避免 minify 把 `!a && !b && sideEffect()` 压成
+  // `!(a && b && sideEffect())` 导致副作用永远不执行。
+  const path = location.pathname || '';
+  if (path === '/admin' || path.startsWith('/admin/') || path === '/setup') {
+    return;
+  }
+  document.body?.classList.add('hb-store-body');
 })();

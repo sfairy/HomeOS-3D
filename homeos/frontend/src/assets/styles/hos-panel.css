@@ -3,8 +3,11 @@
  * 合并 ios-card / settings-card / list-page panel / sec-dash / widget-glass
  */
 
-/* ── 基础面板 ── */
-.hos-panel {
+/* ── 基础面板 ──
+ * 排除 `.hos-rise`：入户玻璃坞（login/register/activate）与设计系统同名
+ * `.hos-panel`。main.ts 后加载的本文件会冲掉 auth/scene/panel.css 的深色玻璃，
+ * 变成近乎透明的 surface，右侧只剩山景 —— 正是入户「闪一下只有场景」的根因。 */
+.hos-panel:not(.hos-rise) {
   position: relative;
   overflow: visible;
   border: var(--hos-hairline) solid var(--hos-border-subtle);

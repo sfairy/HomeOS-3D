@@ -353,11 +353,11 @@ export function mountCameraSnapshot({
   );
 }
 /**
- * 移植自 源代码/0.7.2 registry.js mountCameraMedia，并补上当前 HA 通用摄像头缺口：
- * - HLS → 12s/致命错误切 MJPEG（URL 无 query）→ 7s 无画面再试快照
- * - 清单为 HEVC / 解析后 2s 仍无画面：立刻 MJPEG（Chrome 对 H.265 假成功会拖死）
- * - 无 still_image 时快照恒 500：失败后回到 MJPEG，而不是直接「不可用」
- * - multipart 出帧轮询 naturalWidth（不单靠 load + currentSrc）
+ * 移植自 源代码/0.7.2 registry.js mountCameraMedia：
+ * HLS → 12s/致命错误切 MJPEG（URL 无 query）→ 7s 无画面再试快照。
+ *
+ * 注意：勿因 CODECS=hvc1 立刻弃 HLS。本机 Chrome 对 hvc1 报 probably，
+ * 而 HA 通用摄像头的 MJPEG 常返回 Content-Length:0 空体；过早降级反而必挂。
  */
 export function mountCameraMedia({
   container: legacyContainerElement,
@@ -391,7 +391,6 @@ export function mountCameraMedia({
   let snapshotFailures = 0;
   let hlsManifestTimerId = 0;
   let hlsStartTimerId = 0;
-  let hlsStallTimerId = 0;
   let legacyProbeTimerId = 0;
   let legacyPollTimerId = 0;
   let hlsPlayer: any = null;
@@ -403,24 +402,13 @@ export function mountCameraMedia({
   const mjpegStreamUrl = () =>
     "/api/camera_proxy_stream/" + encodeURIComponent(legacySnapshotEntityId);
 
-  const playlistLooksHevc = (manifestPayload: any) => {
-    const levels = Array.isArray(manifestPayload?.levels) ? manifestPayload.levels : [];
-    const blob = levels
-      .map((level: any) => String(level?.videoCodec || level?.codecs || level?.attrs?.CODECS || ""))
-      .join(",")
-      .toLowerCase();
-    return /hvc1|hev1|hevc/.test(blob);
-  };
-
   const clearTransportTimers = () => {
     window.clearTimeout(hlsManifestTimerId);
     window.clearTimeout(hlsStartTimerId);
-    window.clearTimeout(hlsStallTimerId);
     window.clearTimeout(legacyProbeTimerId);
     window.clearInterval(legacyPollTimerId);
     hlsManifestTimerId = 0;
     hlsStartTimerId = 0;
-    hlsStallTimerId = 0;
     legacyProbeTimerId = 0;
     legacyPollTimerId = 0;
   };
@@ -526,7 +514,6 @@ export function mountCameraMedia({
     legacyPlaceholderElement.textContent = "摄像头正在连接";
     legacyContainerElement.dataset.cameraTransport = "legacy";
     window.clearTimeout(hlsStartTimerId);
-    window.clearTimeout(hlsStallTimerId);
     hlsPlayer?.destroy();
     hlsPlayer = null;
     cameraVideoElement.pause();
@@ -534,13 +521,9 @@ export function mountCameraMedia({
     cameraVideoElement.load();
     cameraVideoElement.remove();
     legacyContainerElement.prepend(fallbackImageElement);
-    // 先让 HA 释放 HLS/RTSP 会话，再挂 MJPEG（与 0.7.2 同 URL，无 query）
-    window.setTimeout(() => {
-      if (isTransportDisposed || probeGeneration !== transportGeneration || transportMode !== "legacy")
-        return;
-      fallbackImageElement.src = mjpegStreamUrl();
-      armLegacyFrameWatch(probeGeneration);
-    }, force ? 0 : 200);
+    // 与 0.7.2 同 URL，无 query
+    fallbackImageElement.src = mjpegStreamUrl();
+    armLegacyFrameWatch(probeGeneration);
   };
 
   const onVideoProgress = () => {
@@ -607,23 +590,10 @@ export function mountCameraMedia({
         player.on(hlsRuntime.Events.MEDIA_ATTACHED, () => {
           if (isCurrent()) player.loadSource(hlsSourceUrl);
         });
-        player.on(hlsRuntime.Events.MANIFEST_PARSED, (_ev: any, manifestPayload: any) => {
+        player.on(hlsRuntime.Events.MANIFEST_PARSED, () => {
           if (!isCurrent()) return;
-          if (playlistLooksHevc(manifestPayload)) {
-            legacyContainerElement.dataset.cameraState = "hls-hevc-fallback";
-            switchToLegacyTransport(playbackGeneration);
-            return;
-          }
           legacyContainerElement.dataset.cameraState = "manifest-parsed";
           cameraVideoElement.play().catch(() => {});
-          // H.265 未标 codec 时也会黑屏不 fatal：2s 无画面就切 MJPEG
-          window.clearTimeout(hlsStallTimerId);
-          hlsStallTimerId = window.setTimeout(() => {
-            if (isCurrent() && cameraVideoElement.readyState < 2) {
-              legacyContainerElement.dataset.cameraState = "hls-stall-fallback";
-              switchToLegacyTransport(playbackGeneration);
-            }
-          }, 2000);
         });
         player.on(hlsRuntime.Events.ERROR, (_ev: any, hlsErrorPayload: any) => {
           if (!isCurrent() || !hlsErrorPayload?.fatal) return;

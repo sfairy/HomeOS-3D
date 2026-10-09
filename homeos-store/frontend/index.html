@@ -7,6 +7,7 @@
   <meta name="description" content="注册账号、购买授权与管理激活设备">
   <link rel="icon" type="image/png" href="/store-static/favicon-rounded.png">
   <title>HomeOS 授权服务 · HomeOS 授权中心</title>
+  <link rel="stylesheet" href="/store-static/store-critical.css">
   <link rel="stylesheet" href="/store-static/font.min.css">
   <link rel="stylesheet" href="/store-static/theme.css">
   <link rel="stylesheet" href="/store-static/scene/fonts.css">
@@ -15,13 +16,15 @@
   <link rel="stylesheet" href="/store-static/scene/panel.css">
   <link rel="stylesheet" href="/store-static/store-shell.css">
   <link rel="stylesheet" href="/store-static/store.css">
-  <!-- 首屏之前的登录提示：只读 cookie 给 <html> 打类，余下脚本都是 ESM。 -->
-  <script src="/store-static/auth-bootstrap.js"></script>
   <!-- 站点配色覆盖：后端把它换成 `/store-appearance.css` 的 <link>。
        必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
   <!--{{APPEARANCE}}-->
 </head>
 <body>
+  <!-- 首屏之前：登录态 hint + store body class（须在 body 内才能挂 hb-store-body）。 -->
+  <script src="/store-static/auth-bootstrap.js"></script>
+  <!-- 静态占位必须在 #app 外：mount 会清空 #app，壳若在内会在内容出现前被揭掉。 -->
+  <div id="store-boot-shell" class="hb-boot-shell" aria-hidden="true"></div>
   <div id="app"></div>
   <script type="module" src="/src/main.ts"></script>
 </body>

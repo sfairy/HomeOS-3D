@@ -2,14 +2,14 @@
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
 import { serverAuthState } from "../stores/session.js";
+import StoreLayout from "../views/store/StoreLayout.vue";
+import HomeView from "../views/store/HomeView.vue";
+import AuthView from "../views/store/AuthView.vue";
 
-const StoreLayout = () => import("../views/store/StoreLayout.vue");
-const HomeView = () => import("../views/store/HomeView.vue");
 const ProductsView = () => import("../views/store/ProductsView.vue");
 const ItemView = () => import("../views/store/ItemView.vue");
 const AccountView = () => import("../views/store/AccountView.vue");
 const ReferralsView = () => import("../views/store/ReferralsView.vue");
-const AuthView = () => import("../views/store/AuthView.vue");
 
 const AdminLayout = () => import("../views/admin/AdminLayout.vue");
 const SetupView = () => import("../views/SetupView.vue");

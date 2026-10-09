@@ -125,6 +125,20 @@ body.auto-diagram-embedded .app-chrome-toast-host {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei',
     sans-serif;
   text-align: center;
+  opacity: 1;
+  transition: opacity 180ms ease;
+}
+
+/* 就绪后淡出，避免遮罩硬切后再叠一层 hos-rise 淡入。 */
+#homeos-boot-overlay.is-leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* 延迟揭示前保持不可见（与 [hidden] 双保险）。 */
+#homeos-boot-overlay.is-deferred {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* 按 id 设了 display，会盖掉 UA 的 [hidden] 规则，必须显式让位。 */
@@ -169,6 +183,10 @@ body.auto-diagram-embedded .app-chrome-toast-host {
 @media (prefers-reduced-motion: reduce) {
   .homeos-boot-overlay__spinner {
     animation: none;
+  }
+
+  #homeos-boot-overlay {
+    transition: none;
   }
 }
 

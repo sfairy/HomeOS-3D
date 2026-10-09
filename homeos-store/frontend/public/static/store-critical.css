@@ -1,0 +1,20 @@
+/*
+ * 临界首屏：在长样式表链到达前锁住深色底，避免移动端默认白闪。
+ * 取值与 theme.css 的 --hb-sky-deep / --hb-bg 一致，不改设计色。
+ */
+html {
+  color-scheme: dark;
+  background: #050912;
+}
+
+body {
+  margin: 0;
+  background: #050912;
+}
+
+/* Vue 挂载前的占位壳：与最终画布同色，消灭空 #app 闪帧。 */
+.hb-boot-shell {
+  position: fixed;
+  inset: 0;
+  background: #050912;
+}

@@ -21,16 +21,24 @@ export interface PageAssets {
   stylesheets: string[];
 }
 
-const AUTH_STYLESHEETS = [
+/** 认证场景四片：已在 index.html 预装（data-spa-managed），冷开无 FOUC。 */
+const AUTH_SCENE_STYLESHEETS = [
   "/static/auth/scene/fonts.css",
   "/static/auth/scene/page.css",
   "/static/auth/scene/scene.css",
   "/static/auth/scene/panel.css",
+] as const;
+
+const AUTH_STYLESHEETS = [
+  ...AUTH_SCENE_STYLESHEETS,
   "/static/appearance.css",
 ];
 
 /** 认证相关页（初始化/登录/激活/恢复）共用一套场景样式与视口。 */
-function authPage(title: string, viewport = "width=device-width,initial-scale=1"): PageAssets {
+function authPage(
+  title: string,
+  viewport = "width=device-width,initial-scale=1,viewport-fit=cover",
+): PageAssets {
   return {
     title,
     viewport,
@@ -123,15 +131,20 @@ function applyStylesheets(urls: readonly string[]): void {
   }
   let cursor: Element | null = anchor;
   for (const url of urls) {
-    let el = document.head.querySelector<HTMLLinkElement>(
-      `link[${MANAGED_ATTR}][href="${url}"]`,
-    );
+    // 预装表可能已在 index.html 中（同 href）；复用节点，避免重复 <link> 与二次下载闪烁。
+    let el =
+      document.head.querySelector<HTMLLinkElement>(
+        `link[${MANAGED_ATTR}][href="${url}"]`,
+      ) ||
+      document.head.querySelector<HTMLLinkElement>(
+        `link[rel="stylesheet"][href="${url}"]`,
+      );
     if (!el) {
       el = document.createElement("link");
       el.rel = "stylesheet";
       el.href = url;
-      el.setAttribute(MANAGED_ATTR, "css");
     }
+    el.setAttribute(MANAGED_ATTR, "css");
     if (cursor) cursor.after(el);
     else document.head.appendChild(el);
     cursor = el;

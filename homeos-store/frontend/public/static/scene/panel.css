@@ -3,7 +3,8 @@
 
 /* ── 坞体 ───────────────────────────────────────────────────── */
 
-.hos-panel {
+/* 用 .hos-page 提高特异性，避免与其它全局 .hos-panel 令牌互相覆盖。 */
+.hos-page .hos-panel {
   width: 100%;
   max-height: 100%;
   /* 坞体贴内容，不再用固定下限撑到 640px。旧下限是为了让五页等高，但内容收敛后
@@ -29,6 +30,7 @@
   scrollbar-width: thin;
   scrollbar-color: rgba(var(--hos-tone-rgb), 0.28) transparent;
   box-sizing: border-box;
+  transition: none;
 }
 
 /* 弹性列下直接子块不收缩：坞体触到 max-height 时应当是滚动，而不是先把抬头 / 表单的

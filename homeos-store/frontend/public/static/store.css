@@ -2510,13 +2510,11 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 
 /* 6. 入口分页（登录 / 注册 / 找回）：整页场景壳
    维护模式下 showPage() 不会被调用，三张表单保持初始的 [hidden]，壳也就不出现。 */
+/* AuthView 只在认证路由挂载：直接显示，勿再用 display:none + :has 门闩
+   （门闩会与面板入场叠加，放大「先场景后表单」的空窗）。 */
 .hb-auth-stage {
   position: fixed;
   inset: 0;
-  display: none;
-}
-
-body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-auth-stage {
   display: block;
 }
 

@@ -56,6 +56,7 @@ const MODEL_TYPE_TO_PAGE = {
     gaswaterheater: "devices",
     airer: "devices",
     fan: "environment",
+    "ceiling-fan": "environment",
     airpurifier: "environment",
     wallac: "environment",
     floorac: "environment",
@@ -84,6 +85,7 @@ const MODEL_TYPE_TO_PAGE = {
     gaswaterheater: "climate",
     airer: "cover",
     fan: "climate",
+    "ceiling-fan": "climate",
     airpurifier: "climate",
     wallac: "climate",
     floorac: "climate",
@@ -123,7 +125,9 @@ function isModelTypeBound(modelType: any, bindingCandidate: any) {
         ? !!(bindingCandidate.entityId || bindingCandidate.statusSource?.deviceId)
         : deviceKind === "television"
           ? !!(bindingCandidate.entityId || bindingCandidate.powerEntityId)
-          : (["airpurifier", "storagewaterheater", "gaswaterheater"].includes(modelType) ||
+          : (["fan", "ceiling-fan", "airpurifier", "storagewaterheater", "gaswaterheater"].includes(
+                modelType,
+              ) ||
                 (["wallac", "floorac", "airoutlet"].includes(modelType) &&
                   bindingCandidate.climateType === "bath-heater")) &&
               bindingCandidate.deviceId

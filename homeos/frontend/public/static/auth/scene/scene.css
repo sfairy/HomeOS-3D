@@ -569,8 +569,10 @@
 }
 
 .hos-scene__home {
-  opacity: 0;
-  animation: hosHomeIn 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
+  /* 禁止 opacity:0 入场：fill-mode:both 会让小屋/左栏文案先隐形一整段，
+     入户页看起来像「闪一下只剩山景」。 */
+  opacity: 1;
+  animation: none;
 }
 
 .hos-scene__home-aura {
@@ -955,7 +957,9 @@
   bottom: auto;
   /* 右侧留出坞宽 + 一段间距：坞是玻璃面，正文压到它下面会既读不清又显脏。 */
   max-width: min(680px, calc(100% - var(--hos-dock-span) - 56px));
-  animation: hosHeroIn 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* 同 .hos-scene__home：首帧必须可见，勿从 opacity:0 淡入。 */
+  opacity: 1;
+  animation: none;
 }
 
 .hos-scene__lockup {
@@ -1163,7 +1167,8 @@
   max-width: 100%;
   /* 用自己那组关键帧（只位移 16px），不是 .hos-scene__brand 那组按 -54% 居中的 ——
      借错的那一版把整张表抬了自己高度的 54%，压到标题上。见 @keyframes hosDossierIn。 */
-  animation: hosDossierIn 1.15s cubic-bezier(0.22, 1, 0.36, 1) 0.18s both;
+  opacity: 1;
+  animation: none;
 }
 
 .hos-scene__dossier-head {

@@ -62,13 +62,14 @@ html {
   color-scheme: dark;
 }
 
-/** body 深色主题基准：纯黑视口背景 + 白色主文字 + 1.2s 丝滑过渡 */
+/** body 深色主题基准：纯黑视口背景 + 白色主文字。
+ * 不做 background-color 过渡：入户冷开时 spa-shell / auth / main 多层 CSS 先后生效，
+ * 1.2s 背景过渡会把层叠结算过程放大成「闪一下」，颜色取值保持不变。 */
 body {
   background-color: var(--bg-viewport, #000000);
   color: var(--text-primary, rgba(255,255,255,0.96));
   margin: 0; padding: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'Inter', 'Noto Sans SC', sans-serif;
-  transition: background-color 1.2s cubic-bezier(0.32, 0.72, 0, 1), color 1.2s cubic-bezier(0.32, 0.72, 0, 1);
   overflow: hidden;
 }
 
