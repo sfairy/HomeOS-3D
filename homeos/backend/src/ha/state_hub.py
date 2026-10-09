@@ -79,15 +79,25 @@ class StateHub:
             "domain": domain,
             "state": state,
             "attributes": deepcopy(raw.get("attributes") or {}),
-            # unknown 要分域看：按钮/输入按钮空闲时常态就是 unknown，仍算可用。
+            # unknown 要分域看：按钮/输入按钮/事件实体空闲时常态就是 unknown，仍算可用。
+            # event.* 无最新事件时 HA 也是 unknown，不能当成设备掉线。
             # 但同时要求原始 state 真的是字符串 "unknown" —— 字段整个缺失时也归一成
             # unknown，那种情况说明状态还没到齐，仍按不可用处理。
             "available": (
                 state != "unavailable"
                 and (
                     state != "unknown"
-                    or (domain in {"button", "input_button"} and raw.get("state") == "unknown")
+                    or (
+                        domain in {"button", "input_button", "event"}
+                        and raw.get("state") == "unknown"
+                    )
                 )
+            ),
+            # 供前端区分「事件实体空闲」与真不可用（对齐 0.7.2 availabilityReason）
+            **(
+                {"availabilityReason": "event-idle"}
+                if domain == "event" and raw.get("state") == "unknown"
+                else {}
             ),
             "lastChanged": raw.get("last_changed"),
             "updatedAt": raw.get("last_updated") or raw.get("last_changed"),

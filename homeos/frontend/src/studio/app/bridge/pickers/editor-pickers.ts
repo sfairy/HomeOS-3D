@@ -331,50 +331,89 @@ export function createInteraction3dEditorPickers({
       trigger: alarmTrigger,
       current: currentAlarmEntityId = "",
       kind: alarmKind = "smoke",
+      role: alarmRole = "primary",
       onSelect: onAlarmSelect,
     }: any) {
       await ensureEntities!();
       const alarmDevices = (await fetchDevices?.()) || [];
-      const alarmProfiles = alarmDeviceProfiles(
-        alarmKind,
-        getEntities!() as HaEntityEntry[],
-        alarmDevices,
+      const allEntities = getEntities!() as HaEntityEntry[];
+      const alarmProfiles = alarmDeviceProfiles(alarmKind, allEntities, alarmDevices);
+      const recommendedIds = new Set(
+        alarmProfiles.flatMap((alarmProfile: any) =>
+          (alarmProfile.entities || []).map((alarmEntity: HaEntityEntry) => alarmEntity.entityId),
+        ),
       );
-      const alarmOptions = alarmProfiles.flatMap((alarmProfile: any) =>
-        (alarmProfile.entities || []).map((alarmEntity: HaEntityEntry) => ({
-          entityId: alarmEntity.entityId,
-          name: alarmEntity.name || alarmProfile.name,
-          roomName: resolveRoomName(alarmProfile, alarmDevices),
-          integrationName: resolveIntegrationName(alarmProfile, alarmDevices),
-          icon:
-            alarmKind === "moisture"
-              ? "mdi:water-alert"
-              : alarmKind === "gas"
-                ? "mdi:fire-alert"
-                : "mdi:smoke-detector-alert",
-          domain: alarmEntity.entityId?.split(".")[0] || "binary_sensor",
-          profile: alarmProfile,
-          entity: alarmEntity,
-        })),
-      );
+      const isWorkStateRole = alarmRole === "work-state";
+      // 工作状态仅 sensor / binary_sensor（与后端 workStateEntityId 校验一致，不含 event）
+      const domainAllow = isWorkStateRole
+        ? /^(binary_sensor|sensor)\./
+        : alarmKind === "smoke"
+          ? /^(binary_sensor|sensor|event)\./
+          : alarmKind === "gas"
+            ? /^(binary_sensor|sensor)\./
+            : /^binary_sensor\./;
+      const iconForKind =
+        alarmKind === "moisture"
+          ? "mdi:water-alert"
+          : alarmKind === "gas"
+            ? "mdi:fire-alert"
+            : "mdi:smoke-detector-alert";
+      const toOption = (alarmEntity: HaEntityEntry, recommended: boolean) => ({
+        entityId: alarmEntity.entityId,
+        name:
+          (recommended ? "★ " : "") +
+          (alarmEntity.name || alarmEntity.entityId),
+        roomName: "",
+        integrationName: "",
+        icon: iconForKind,
+        domain: alarmEntity.entityId?.split(".")[0] || "binary_sensor",
+        recommended,
+        entity: alarmEntity,
+      });
+      // 0.7.2：完整实体目录 + 优先推荐匹配项
+      const recommendedOptions = alarmProfiles
+        .flatMap((alarmProfile: any) =>
+          (alarmProfile.entities || []).map((alarmEntity: HaEntityEntry) => ({
+            ...toOption(alarmEntity, true),
+            name: "★ " + (alarmEntity.name || alarmProfile.name),
+            roomName: resolveRoomName(alarmProfile, alarmDevices),
+            integrationName: resolveIntegrationName(alarmProfile, alarmDevices),
+            profile: alarmProfile,
+          })),
+        )
+        .filter((option: any) => domainAllow.test(option.entityId || ""));
+      const catalogOptions = allEntities
+        .filter(
+          (entityEntry) =>
+            isAvailableRecord(entityEntry) &&
+            domainAllow.test(entityEntry.entityId || "") &&
+            !recommendedIds.has(entityEntry.entityId),
+        )
+        .map((entityEntry) => toOption(entityEntry, false));
+      const alarmOptions = [...recommendedOptions, ...catalogOptions];
+      const moistureTitle =
+        alarmRole === "spray" ? "选择淋水状态实体" : "选择浸没状态实体";
+      const pickerTitle = isWorkStateRole
+        ? "选择工作状态实体"
+        : alarmKind === "moisture"
+          ? moistureTitle
+          : alarmKind === "gas"
+            ? "选择天然气传感器实体"
+            : "选择烟雾传感器实体";
       return openPicker!({
         kind: "entity",
-        title:
-          alarmKind === "moisture"
-            ? "选择水浸传感器实体"
-            : alarmKind === "gas"
-              ? "选择天然气传感器实体"
-              : "选择烟雾传感器实体",
-        searchPlaceholder: "搜索设备或实体",
+        title: pickerTitle,
+        searchPlaceholder: "搜索设备或实体（推荐项优先）",
         triggerButton: alarmTrigger,
         pageSize: EDITOR_PICKER_PAGE_SIZES.entity,
         itemClass: "entity-list",
-        emptyText:
-          alarmKind === "moisture"
-            ? "没有匹配的水浸传感器实体"
+        emptyText: isWorkStateRole
+          ? "没有可用的工作状态实体"
+          : alarmKind === "moisture"
+            ? "没有可用的水浸相关实体"
             : alarmKind === "gas"
-              ? "没有匹配的天然气传感器实体"
-              : "没有匹配的烟雾传感器实体",
+              ? "没有可用的天然气相关实体"
+              : "没有可用的烟雾相关实体",
         getPage: ({ query: alarmQuery, page: alarmPage }: any) =>
           editorEntityPickerPage(
             alarmOptions.filter((alarmSearchOption: any) =>
@@ -760,6 +799,19 @@ export function createInteraction3dEditorPickers({
             recommended: (candidateEntity: any) => {
               if (entityDeviceKind === "vacuum-room")
                 return vacuumRoomDomainRank[candidateEntity.entityId.split(".")[0]] || 0;
+              if (isLockBatteryEntity) {
+                const batteryDeviceClass =
+                  candidateEntity.deviceClass ||
+                  candidateEntity.device_class ||
+                  candidateEntity.attributes?.device_class ||
+                  getState(candidateEntity.entityId)?.attributes?.device_class;
+                if (batteryDeviceClass === "battery") return 2;
+                const batteryEntityId = String(candidateEntity.entityId || "");
+                return /battery|电量/i.test(batteryEntityId) ||
+                  /battery|电量/i.test(String(candidateEntity.name || ""))
+                  ? 1
+                  : 0;
+              }
               return isSpeakerEntity
                 ? (candidateEntity.deviceClass ||
                     candidateEntity.device_class ||

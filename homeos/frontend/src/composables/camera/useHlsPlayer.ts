@@ -18,8 +18,12 @@ type HlsStopFn = () => void
  * @returns 停止函数，调用后暂停播放、清理资源
  * @throws URL 为空、浏览器不支持 HLS、或致命播放错误时抛出
  */
-export async function startHlsPlayback(url: string, videoEl: HTMLVideoElement): Promise<HlsStopFn> {
+export async function startHlsPlayback(
+  url: string,
+  videoEl: HTMLVideoElement | null | undefined,
+): Promise<HlsStopFn> {
   if (!url?.trim()) throw new Error('HLS URL 为空')
+  if (!videoEl) throw new Error('HLS 播放器尚未挂载')
 
   // 路径一：浏览器原生支持 HLS（Safari / iOS），直接设置 src
   if (canPlayNativeHls()) {
@@ -34,6 +38,7 @@ export async function startHlsPlayback(url: string, videoEl: HTMLVideoElement): 
 
   // 路径二：动态加载 hls.js
   const { default: Hls } = await import('hls.js')
+  if (!videoEl.isConnected) throw new Error('HLS 播放器已卸载')
   if (!Hls.isSupported()) {
     throw new Error('当前浏览器不支持 HLS 播放')
   }

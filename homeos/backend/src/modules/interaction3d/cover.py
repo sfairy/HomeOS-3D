@@ -47,10 +47,13 @@ def require_curtain_model(
     raise HTTPException(409, detail='窗帘模型已失联，请在环境配置中重新选择普通窗帘模型。')
 
 
-def validate_cover_command(service: str, data: dict, state: dict | None, *, dream: bool = False) -> None:
+def validate_cover_command(
+    service: str, data: dict, state: dict | None, *, dream: bool = False, airer: bool = False
+) -> None:
     """校验一次窗帘服务调用是否被当前设备能力支持。
 
     ``data`` 按服务类型要求恰好带 ``position`` 或 ``tilt_position``，其余服务必须为空。
+    晾衣架在状态 unknown 时仍允许 open/close/stop（0.7.2 ``airer=True``）。
     """
     required_feature = COVER_SERVICES.get(service)
     # 每类服务允许出现的参数集合是固定的：位置类带一个位置值，其余服务必须不带参数。
@@ -68,17 +71,39 @@ def validate_cover_command(service: str, data: dict, state: dict | None, *, drea
         position = data['position'] if service == 'set_cover_position' else data['tilt_position']
         if not isinstance(position, int) or isinstance(position, bool) or not 0 <= position <= 100:
             raise HTTPException(422, detail='窗帘位置必须是 0 到 100 的整数。')
+    unknown_airer = (
+        airer
+        and isinstance(state, dict)
+        and state.get('available') is not False
+        and state.get('state') == 'unknown'
+        and service in {'open_cover', 'close_cover', 'stop_cover', 'set_cover_position'}
+    )
     # 状态缺失 / unknown / unavailable 一律按不可用处理，不做乐观转发。
-    if not isinstance(state, dict) or state.get('available') is False or state.get('state') in (None, '', 'unknown', 'unavailable'):
+    # 晾衣架 unknown 例外：仅允许上升、下降或暂停。
+    if not isinstance(state, dict) or state.get('available') is False or state.get('state') in (
+        None,
+        '',
+        'unavailable',
+    ):
+        raise HTTPException(409, detail='窗帘状态暂不可用，请等待设备重新连接。')
+    if state.get('state') == 'unknown' and not unknown_airer:
+        if airer:
+            raise HTTPException(
+                409, detail='晾衣架升降状态未知，暂时只能上升、下降或暂停。'
+            )
         raise HTTPException(409, detail='窗帘状态暂不可用，请等待设备重新连接。')
     attributes = attributes_of(state)
     features = feature_flags(attributes)
     # 原始能力位：用于区分「真的还没载入」与「属性结构本身不对」（负数 / 非整数）。
     raw_features = attribute_number(attributes.get('supported_features'))
     if raw_features is None or not raw_features.is_integer() or not 0 <= raw_features <= 2147483647:
+        if unknown_airer:
+            return
         raise HTTPException(409, detail='窗帘能力尚未载入，请稍后重试。')
     # 位掩码比对：请求的服务必须出现在设备声明支持的能力位里。
     if not features & required_feature:
+        if unknown_airer and required_feature in (1, 2, 4, 8):
+            return
         raise HTTPException(422, detail='窗帘当前不支持此操作。')
     if dream and service in ('set_cover_position', 'set_cover_tilt_position', 'open_cover_tilt', 'close_cover_tilt'):
         # 梦幻帘的叶片判断要做数值解析：HA 常把位置上报成数字字符串，这里统一转成有限浮点。

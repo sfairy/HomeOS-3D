@@ -131,7 +131,7 @@ class Settings:
     update_endpoints: tuple[str, ...] = ()
     # 认证
     jwt_secret: str = ""
-    jwt_expires_in_seconds: int = 28800
+    jwt_expires_in_seconds: int = 86400
     #: 会话令牌 Cookie（homeos-3d 原生口径：``sessions`` 表的不透明令牌）。
     cookie_name: str = "auth_token"
     csrf_cookie_name: str = "csrf_token"
@@ -396,7 +396,7 @@ def load_settings() -> Settings:
         update_channel=os.getenv("APP_UPDATE_CHANNEL", "docker").strip().lower() or "docker",
         update_endpoints=_environment_csv("APP_UPDATE_ENDPOINTS"),
         jwt_secret=os.getenv("JWT_SECRET", "").strip(),
-        jwt_expires_in_seconds=int(os.getenv("JWT_EXPIRES_IN_SECONDS", "28800")),
+        jwt_expires_in_seconds=int(os.getenv("JWT_EXPIRES_IN_SECONDS", "86400")),
         cookie_name=os.getenv("COOKIE_NAME", "auth_token").strip() or "auth_token",
         csrf_cookie_name=os.getenv("CSRF_COOKIE_NAME", "csrf_token").strip() or "csrf_token",
         csrf_header_name=os.getenv("CSRF_HEADER_NAME", "X-CSRF-Token").strip() or "X-CSRF-Token",

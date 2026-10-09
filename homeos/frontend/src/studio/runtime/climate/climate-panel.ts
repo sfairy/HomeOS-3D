@@ -11,6 +11,7 @@ import {
 } from "./climate-state";
 import { createPurifierExtras as createPurifierExtras2 } from "./purifier-extras";
 import { purifierState as purifierState2 } from "../purifier/purifier-state";
+import { resolveFanBindingState } from "../fan/fan-state";
 import { domElement } from "@app/utils/dom-factory";
 import { syncHtmlRangeProgress } from "@app/utils/range-progress";
 const formatSwingModeLabel = (swingModeKey: any, swingDirection: any = undefined) =>
@@ -862,9 +863,13 @@ export function createClimatePanel({
           ? "热水器控制"
           : activeItem.airPurifier
             ? "空气净化器控制"
-            : deviceState.purifier
-              ? "风扇控制"
-              : "空调控制",
+            : activeItem.pedestalFan
+              ? activeItem.ceilingFan
+                ? "吊扇控制"
+                : "风扇控制"
+              : deviceState.purifier
+                ? "风扇控制"
+                : "空调控制",
     ),
       (titleElement.textContent = activeItem.label || deviceState.name || "空调"),
       (titleElement.title = titleElement.textContent),
@@ -894,13 +899,29 @@ export function createClimatePanel({
         !viewModel.editing &&
         (activeItem.deviceId || activeItem.extraControls?.length) &&
         (statusElement.textContent = "各功能独立控制"),
+      activeItem.pedestalFan &&
+        !hasEntity &&
+        !viewModel.editing &&
+        (activeItem.deviceId || activeItem.extraControls?.length) &&
+        (statusElement.textContent = "各功能独立控制"),
       activeItem.climateType === "bath-heater" &&
         !viewModel.editing &&
         (statusElement.textContent = bathHeaterState2(activeItem, viewModel.states).label));
+    const fanStatus = activeItem.pedestalFan
+      ? resolveFanBindingState(activeItem, {
+          ...(viewModel.states || {}),
+          ...(activeItem.entityId && deviceState.raw
+            ? { [activeItem.entityId]: deviceState.raw }
+            : {}),
+        })
+      : null;
     const purifierStatus = activeItem.airPurifier
       ? purifierState2(activeItem, viewModel.states)
       : null;
-    (purifierStatus && !viewModel.editing && (statusElement.textContent = purifierStatus.label),
+    (fanStatus &&
+      !viewModel.editing &&
+      (statusElement.textContent = fanStatus.label || statusElement.textContent),
+      purifierStatus && !viewModel.editing && (statusElement.textContent = purifierStatus.label),
       rootElement.classList.toggle(
         "is-air-conditioner-panel",
         !deviceState.purifier && !deviceState.waterHeater,
@@ -909,24 +930,46 @@ export function createClimatePanel({
       (fanSpeedRangeElement.className = "i3d-control-range"),
       fanSpeedRangeElement.setAttribute(
         "aria-label",
-        activeItem.pedestalFan ? "电风扇风速" : "净化器风速",
+        activeItem.pedestalFan
+          ? activeItem.ceilingFan
+            ? "吊扇风速"
+            : "电风扇风速"
+          : "净化器风速",
       ),
       speedLevelsElement.setAttribute(
         "aria-label",
-        activeItem.pedestalFan ? "电风扇风速档位" : "净化器风速档位",
+        activeItem.pedestalFan
+          ? activeItem.ceilingFan
+            ? "吊扇风速档位"
+            : "电风扇风速档位"
+          : "净化器风速档位",
       ));
-    const displayState = purifierStatus || deviceState;
-    ((rootElement.dataset.climateMode = displayState.available ? displayState.visualMode : "off"),
+    const displayState = fanStatus || purifierStatus || deviceState;
+    ((rootElement.dataset.climateMode = displayState.available
+      ? fanStatus
+        ? fanStatus.running
+          ? "fan"
+          : "off"
+        : displayState.visualMode
+      : "off"),
       rootElement.classList.toggle("is-preview", !!viewModel.editing),
-      rootElement.classList.toggle("is-on", displayState.available && displayState.on),
-      rootElement.classList.toggle("is-running", displayState.available && displayState.running),
+      rootElement.classList.toggle(
+        "is-on",
+        !!(displayState.available && (fanStatus ? fanStatus.on : displayState.on)),
+      ),
+      rootElement.classList.toggle(
+        "is-running",
+        !!(displayState.available && displayState.running),
+      ),
       (awayModeButton.hidden = !deviceState.waterHeater || !deviceState.awaySupported),
       (awayModeButton.disabled = !isControllable || isSending),
       (awayModeButton.textContent = deviceState.away ? "离家模式 · 已开启" : "离家模式 · 已关闭"),
       awayModeButton.setAttribute("aria-pressed", String(!!deviceState.away)),
       (powerButton.hidden =
         !!(
-          (activeItem.climateType === "bath-heater" || activeItem.airPurifier) &&
+          (activeItem.climateType === "bath-heater" ||
+            activeItem.airPurifier ||
+            activeItem.pedestalFan) &&
           !activeItem.entityId
         ) || !!(deviceState.waterHeater && !deviceState.canTurnOn && !deviceState.canTurnOff)),
       (powerButton.textContent = deviceState.on ? "关闭" : "开启"),
@@ -954,7 +997,9 @@ export function createClimatePanel({
             : deviceState.waterHeater
               ? "热水器"
               : activeItem.pedestalFan
-                ? "电风扇"
+                ? activeItem.ceilingFan
+                  ? "吊扇"
+                  : "电风扇"
                 : deviceState.purifier
                   ? "空气净化器"
                   : "空调"),
@@ -1095,7 +1140,7 @@ export function createClimatePanel({
         activeItem.extraControls?.length &&
         (emptyStateElement.hidden = true),
       (emptyStateElement.textContent =
-        activeItem.waterHeater && !hasEntity && activeItem.deviceId
+        (activeItem.waterHeater || activeItem.pedestalFan) && !hasEntity && activeItem.deviceId
           ? "请在附加功能中选择要显示的功能"
           : hasEntity
             ? deviceState.raw?.state === "unavailable"
@@ -1131,6 +1176,13 @@ export function createClimatePanel({
         nextViewModel.state?.entityId === nextEntityId && Array.isArray(nextViewModel.state?.modes)
           ? nextViewModel.state
           : climateState2(nextEntityId, nextViewModel.state)),
+      nextViewModel.item?.pedestalFan &&
+        !nextEntityId &&
+        (deviceState = {
+          ...deviceState,
+          purifier: true,
+          name: nextViewModel.item?.ceilingFan ? "吊扇" : "风扇",
+        }),
       nextViewModel.item?.airPurifier &&
         !nextEntityId &&
         (deviceState = {

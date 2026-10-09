@@ -90,6 +90,7 @@
             :entity="mainCameraEntity"
             :ha-url="haUrl"
             :active="true"
+            :prefer-webrtc="false"
             object-fit="contain"
             class="w-full h-full"
             @error="onStreamError(mainCameraId)"
@@ -99,6 +100,7 @@
               :entity="pipCameraEntity"
               :ha-url="haUrl"
               :active="true"
+              :prefer-webrtc="false"
               object-fit="cover"
               class="w-full h-full"
             />

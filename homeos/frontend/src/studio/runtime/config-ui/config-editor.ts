@@ -162,7 +162,7 @@ export async function openInteraction3dEditor({
                         ? deviceKind === "water-heater"
                           ? "热水器"
                           : deviceKind === "fan"
-                            ? "电风扇"
+                            ? "风扇 / 吊扇"
                             : deviceKind === "purifier"
                               ? "空气净化器"
                               : "空调/浴霸"

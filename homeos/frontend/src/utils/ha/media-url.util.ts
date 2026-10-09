@@ -29,7 +29,7 @@ export function needsHaMediaProxy(resourceUrl: string): boolean {
  *
  * @param haPath HA 相对路径（自动补前导斜杠）
  * @param _kind 保留参数以兼容既有调用方（media / stream）
- * @returns 形如 `/api/camera_proxy/<entity>?token=...` 的同源地址
+ * @returns 形如 `/api/camera_proxy/<entity>` 的同源地址（鉴权由后端 Bearer 完成）
  */
 function buildHaProxyUrl(haPath: string, _kind: HaProxyKind = 'media'): string {
   return haPath.startsWith('/') ? haPath : `/${haPath}`

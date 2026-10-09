@@ -15,6 +15,8 @@ type HlsRuntime = {
     lowLatencyMode?: boolean;
     backBufferLength?: number;
     maxBufferLength?: number;
+    maxMaxBufferLength?: number;
+    maxBufferSize?: number;
   }): {
     on: (hlsEventName: string, hlsEventHandler: (...hlsEventArgs: any[]) => void) => void;
     loadSource: (hlsSourceUrl: string) => void;
@@ -494,8 +496,10 @@ export function mountCameraMedia({
           hlsRuntime?.isSupported?.()
             ? ((              hlsPlayer = new hlsRuntime({
                 lowLatencyMode: true,
-                backBufferLength: 8,
-                maxBufferLength: 10,
+                backBufferLength: 15,
+                maxBufferLength: 15,
+                maxMaxBufferLength: 15,
+                maxBufferSize: 0x7a1200,
               })),
               hlsPlayer.on(hlsRuntime.Events.MEDIA_ATTACHED, () =>
                 hlsPlayer?.loadSource(hlsSourceUrl),

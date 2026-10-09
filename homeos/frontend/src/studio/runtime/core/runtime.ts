@@ -904,6 +904,11 @@ export function mountInteraction3d(
           entityId: alarmEntry.entityId,
         })),
       ...(componentProperties.security?.alarms || [])
+        .filter((alarmEntry: any) => alarmEntry.secondaryEntityId)
+        .map((alarmSprayEntry: any) => ({
+          entityId: alarmSprayEntry.secondaryEntityId,
+        })),
+      ...(componentProperties.security?.alarms || [])
         .filter((alarmEntry: any) => alarmEntry.batteryEntityId)
         .map((alarmBatteryEntry: any) => ({
           entityId: alarmBatteryEntry.batteryEntityId,
@@ -926,7 +931,14 @@ export function mountInteraction3d(
       ...(componentProperties.lights || []),
       ...(componentProperties.environment?.airConditioners || []),
       ...(componentProperties.environment?.airers || []),
-      ...(componentProperties.environment?.fans || []),
+      ...(componentProperties.environment?.fans || []).flatMap((fanEntry: any) =>
+        [
+          fanEntry.entityId && { entityId: fanEntry.entityId },
+          fanEntry.runEntityId && { entityId: fanEntry.runEntityId },
+          fanEntry.speedEntityId && { entityId: fanEntry.speedEntityId },
+          fanEntry.directionEntityId && { entityId: fanEntry.directionEntityId },
+        ].filter(Boolean),
+      ),
       ...(componentProperties.environment?.airPurifiers || []),
       ...(componentProperties.environment?.waterHeaters || []),
       ...(componentProperties.environment?.curtains || []),
@@ -962,9 +974,12 @@ export function mountInteraction3d(
           (componentProperties.security?.presenceSensors || []).some(
             (presenceSensorEntry: any) => selectionId === "presence:" + presenceSensorEntry.id,
           ) ||
-          (componentProperties.security?.alarms || []).some(
-            (alarmEntry: any) => selectionId === "alarm:" + alarmEntry.id,
-          ) ||
+          (componentProperties.security?.alarms || []).some((alarmEntry: any) => {
+            const alarmKind = ["moisture", "smoke", "gas"].includes(alarmEntry.kind)
+              ? alarmEntry.kind
+              : "smoke";
+            return selectionId === alarmKind + ":" + alarmEntry.id;
+          }) ||
           (componentProperties.environment?.curtainGroups || []).some(
             (curtainGroupEntry: any) => selectionId === "cover:curtain-group:" + curtainGroupEntry.id,
           )
@@ -1088,7 +1103,12 @@ export function mountInteraction3d(
             ...(componentProperties.environment?.airers || []).map(
               (airerEntity: any) => airerEntity.entityId,
             ),
-            ...(componentProperties.environment?.fans || []).map((fanEntity: any) => fanEntity.entityId),
+            ...(componentProperties.environment?.fans || []).flatMap((fanEntity: any) => [
+              fanEntity.entityId,
+              fanEntity.speedEntityId,
+              fanEntity.directionEntityId,
+              fanEntity.runEntityId,
+            ]),
             ...(componentProperties.environment?.airPurifiers || []).map(
               (airPurifierEntity: any) => airPurifierEntity.entityId,
             ),
@@ -1923,9 +1943,15 @@ export function mountInteraction3d(
       ((componentDescriptor = nextDescriptor),
         isEditing && nextEditing && nextEditing.module === "security"
           ? ((editingModuleKind = "security"),
-            (editingSecurityKind = ["camera", "presence", "lock", "alarm"].includes(
-              nextEditing.securityKind,
-            )
+            // 0.7.2：烟雾/水浸/天然气各自为 securityKind，不能收敛成 alarm
+            (editingSecurityKind = [
+              "camera",
+              "presence",
+              "lock",
+              "moisture",
+              "smoke",
+              "gas",
+            ].includes(nextEditing.securityKind)
               ? nextEditing.securityKind
               : ""),
             (editingVacuumId = ""))

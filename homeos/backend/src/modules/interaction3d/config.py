@@ -157,6 +157,7 @@ def validate_config(properties: dict) -> None:
             'opacity',
             'label',
             'entityId',
+            'secondaryEntityId',
             'batteryEntityId',
             'visible',
             'modelId',
@@ -186,7 +187,15 @@ def validate_config(properties: dict) -> None:
             if kind == 'gas':
                 if not re.fullmatch('(?:binary_sensor|sensor)\\.[a-z0-9_]+', entity):
                     fail()
+            elif kind == 'smoke':
+                # 0.7.2：binary / enum sensor / event.* 烟雾源
+                if not re.fullmatch('(?:binary_sensor|sensor|event)\\.[a-z0-9_]+', entity):
+                    fail()
             elif not re.fullmatch('binary_sensor\\.[a-z0-9_]+', entity):
+                fail()
+        secondary = item.get('secondaryEntityId', '')
+        if secondary:
+            if kind != 'moisture' or not re.fullmatch('binary_sensor\\.[a-z0-9_]+', secondary):
                 fail()
         battery = item.get('batteryEntityId', '')
         if battery and not re.fullmatch('sensor\\.[a-z0-9_]+', battery):
@@ -796,26 +805,47 @@ def validate_config(properties: dict) -> None:
                 'extraControls',
                 'hiddenClickable'}
             if collection == 'airers':
-                # 晾衣架：行程时间；位置高低方向与升降指令方向可分别设置。
-                # animationReversed 为旧字段：读写兼容，等同同时反转两方向。
+                # 0.7.2：positionReversed / liftReversed / animationReversed / travelSeconds
+                # 兼容旧 HomeOS positionInverted / commandInverted → 规范化为官方字段
+                if 'positionReversed' not in item and item.get('positionInverted') is True:
+                    item['positionReversed'] = True
+                if 'liftReversed' not in item and item.get('commandInverted') is True:
+                    item['liftReversed'] = True
+                item.pop('positionInverted', None)
+                item.pop('commandInverted', None)
                 fields.update({
                     'travelSeconds',
                     'animationReversed',
-                    'positionInverted',
-                    'commandInverted',
+                    'positionReversed',
+                    'liftReversed',
                 })
                 if 'travelSeconds' in item and not number(item['travelSeconds'], 5, 180):
                     fail()
-                for flag in ('animationReversed', 'positionInverted', 'commandInverted'):
+                for flag in ('animationReversed', 'positionReversed', 'liftReversed'):
                     if flag in item and not isinstance(item[flag], bool):
                         fail()
+            if collection == 'fans':
+                # 0.7.2：吊扇/塔扇可绑独立风速、方向、运行实体；可绑设备与反转状态
+                fields.update({
+                    'speedEntityId',
+                    'directionEntityId',
+                    'runEntityId',
+                    'visualMode',
+                    'reverseState',
+                    'deviceId',
+                    'deviceName',
+                })
             if collection == 'waterHeaters':
                 fields.update({'deviceId', 'deviceName', 'statusRules', 'workingState'})
             if collection == 'airPurifiers':
                 fields.update({'deviceId', 'deviceName', 'airflowEntityId'})
             if not isinstance(item, dict) or set(item) - fields:
                 fail()
-            if any(not text(item.get(key, '')) for key in ('id', 'floorId', 'modelId', 'entityId', 'label')):
+            # 风扇主实体选填：有 deviceId 时允许空 entityId（纯自定义附加功能驱动动画）
+            required_text = ['id', 'floorId', 'modelId', 'label']
+            if collection != 'fans' or not text(item.get('deviceId', '')):
+                required_text.append('entityId')
+            if any(not text(item.get(key, '')) for key in required_text):
                 fail()
             if any(not item.get(key) for key in ('id', 'floorId', 'modelId')):
                 fail()
@@ -825,7 +855,36 @@ def validate_config(properties: dict) -> None:
             ids.add(item['id'])
             models.add(model)
             entity = item.get('entityId', '')
-            if entity and not re.fullmatch(f'{domain}\\.[a-z0-9_]+', entity):
+            if collection == 'fans':
+                if entity and not re.fullmatch(
+                    '(?:fan|switch|input_boolean|binary_sensor)\\.[a-z0-9_]+', entity
+                ):
+                    fail()
+                for key, pattern in (
+                    ('speedEntityId', '(?:input_number|number|fan)\\.[a-z0-9_]+'),
+                    (
+                        'directionEntityId',
+                        '(?:input_select|select|fan|switch|input_boolean)\\.[a-z0-9_]+',
+                    ),
+                    ('runEntityId', '(?:fan|switch|input_boolean|binary_sensor)\\.[a-z0-9_]+'),
+                ):
+                    value = item.get(key, '')
+                    if value and not re.fullmatch(pattern, value):
+                        fail()
+                if item.get('visualMode', 'tower') not in {'tower', 'ceiling'}:
+                    fail()
+                reverse_state = item.get('reverseState', '')
+                if reverse_state and (
+                    not isinstance(reverse_state, str)
+                    or not reverse_state.strip()
+                    or len(reverse_state) > 120
+                ):
+                    fail()
+                if any(not text(item.get(key, '')) for key in ('deviceId', 'deviceName')):
+                    # deviceId/deviceName 成对出现；仅填一个时拒绝
+                    if bool(item.get('deviceId')) != bool(item.get('deviceName')):
+                        fail()
+            elif entity and not re.fullmatch(f'{domain}\\.[a-z0-9_]+', entity):
                 fail()
             if collection == 'waterHeaters':
                 from .device import validate_device_status_rules
@@ -1084,6 +1143,15 @@ def validate_config(properties: dict) -> None:
     tv_ids = set()
     tv_models = set()
     for item in televisions:
+        # 兼容旧 HomeOS posterAssetId → 0.7.2 screenImage
+        if not isinstance(item, dict):
+            fail()
+        poster_legacy = item.get('posterAssetId', '')
+        if isinstance(poster_legacy, str) and poster_legacy and 'screenImage' not in item:
+            bare = poster_legacy.removeprefix('user:').lower()
+            if re.fullmatch('[0-9a-f]{32}', bare):
+                item['screenImage'] = {'assetId': 'user:' + bare}
+        item.pop('posterAssetId', None)
         fields = {
             'x',
             'y',
@@ -1103,10 +1171,11 @@ def validate_config(properties: dict) -> None:
             'buttonHidden',
             'powerEntityId',
             'hiddenClickable',
-            'posterAssetId'}
-        if not isinstance(item, dict) or set(item) - fields:
+            'screenImage'}
+        if set(item) - fields:
             fail()
-        if any(not text(item.get(key, '')) for key in ('id', 'floorId', 'modelId', 'entityId', 'powerEntityId', 'label')):
+        # 0.7.2：powerEntityId 可选；不单独绑定时跟随 media_player
+        if any(not text(item.get(key, '')) for key in ('id', 'floorId', 'modelId', 'entityId', 'label')):
             fail()
         if any(not item.get(key) for key in ('id', 'floorId', 'modelId')):
             fail()
@@ -1119,9 +1188,13 @@ def validate_config(properties: dict) -> None:
             fail()
         if item.get('powerEntityId') and not re.fullmatch('[a-z_]+\\.[a-z0-9_]+', item['powerEntityId']):
             fail()
-        poster = item.get('posterAssetId', '')
-        if poster and not re.fullmatch('[0-9a-f]{32}', poster):
-            fail()
+        screen_image = item.get('screenImage')
+        if screen_image is not None:
+            if not isinstance(screen_image, dict) or set(screen_image) - {'assetId'}:
+                fail()
+            asset_id = screen_image.get('assetId', '')
+            if not isinstance(asset_id, str) or not re.fullmatch('user:[0-9a-f]{32}', asset_id):
+                fail()
         if any(key in item and not number(item[key], low, high) for key, low, high in (('x', -1000000, 1000000), ('y', -1000000, 1000000), ('height', 0, 20))):
             fail()
         if any(key in item and not positive_number(item[key]) for key in ('size', 'iconSize', 'hitSize')):

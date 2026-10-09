@@ -787,7 +787,7 @@ export function coverMotorButtonElement(ctx: CoverMotorInspectorContext) {
     (ctx.imageRotationInputElement.value = roundField2(Number(imagePosition.rotation || 0))));
   const imageLayoutMode = imageProperties.layoutMode === "fill" ? "fill" : "free";
   for (const imageLayoutOptionElement of ctx.imageLayoutOptionsElement.querySelectorAll(
-    "[data-ctx.image-layout]",
+    "[data-image-layout]",
   )) {
     const isImageLayoutActiveActive =
       imageLayoutOptionElement.dataset.imageLayout === imageLayoutMode;

@@ -89,6 +89,10 @@
   display: none;
 }
 .i3d-editor {
+  /* 钉死 0.7.2 金色强调色，避免继承 HA 主题 --accent（蓝）导致滑条/勾选变色 */
+  --accent: #f2a20d;
+  --accent-bright: #f5bd53;
+  --accent-soft: #f2a20d18;
   width: min(1600px, calc(100vw - 32px));
   height: calc(100vh - 32px);
   max-width: calc(100vw - 32px);
@@ -254,12 +258,15 @@
 }
 .i3d-editor label {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   gap: 6px;
   margin-bottom: 10px;
   color: var(--muted, #89949d);
   font-size: 11px;
 }
-.i3d-editor input,
+/* range/checkbox 不走字段框样式，避免滑条被包进深色输入底 */
+.i3d-editor input:not([type="checkbox"]):not([type="range"]):not([type="radio"]),
 .i3d-editor select {
   width: 100%;
   min-width: 0;
@@ -310,10 +317,12 @@
   min-height: 26px;
 }
 .i3d-editor input[type="range"] {
+  width: 100%;
   height: 22px;
   margin: 0;
   padding: 0;
   border: 0;
+  background: transparent;
   accent-color: var(--accent, #f2a20d);
 }
 .i3d-editor .i3d-note {
@@ -422,16 +431,20 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
+  max-width: 100%;
   width: 100%;
   min-height: 32px;
   padding: 6px 8px;
+  overflow: hidden;
   text-align: left;
   color: var(--text, #e8ecef);
   background: var(--field, #171d22);
   border: 1px solid #37414a;
   border-radius: 4px;
 }
-.i3d-editor .i3d-picker-button span {
+.i3d-editor .i3d-picker-button > span {
+  flex: 1 1 0;
+  min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -1368,8 +1381,8 @@
   grid-column: 1 / -1;
 }
 .i3d-unified-settings .i3d-picker-button > span {
+  flex: 1 1 0;
   min-width: 0;
-  flex: 1;
 }
 .i3d-unified-settings .i3d-config-section details {
   margin: 8px 0 12px;

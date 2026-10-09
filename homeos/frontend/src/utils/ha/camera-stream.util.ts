@@ -48,14 +48,16 @@ function cameraToken(entity: CameraEntity) {
 /**
  * 构造 HA 摄像头代理端点的相对路径。
  * @param entity 摄像头实体
- * @param endpoint HA 端点名（如 camera_proxy / camera_proxy_stream / hls）
- * @returns 形如 `/api/<endpoint>/<entity_id>?token=<token>` 的路径；缺实体或令牌时返回空串
+ * @param endpoint HA 端点名（如 camera_proxy / camera_proxy_stream）
+ * @returns 形如 `/api/<endpoint>/<entity_id>` 的路径；缺实体时返回空串
+ *
+ * 同源代理由后端注入长期 Bearer，勿附带实体 `access_token`：
+ * 状态里的 token 易过期，转发给 HA 时常导致 500，而 3D 总览的无 token 路径正常。
  */
 function cameraHaPath(entity: CameraEntity, endpoint: string) {
   const eid = entity?.entity_id
-  const token = cameraToken(entity)
-  if (!eid || !token) return ''
-  return `/api/${endpoint}/${eid}?token=${token}`
+  if (!eid) return ''
+  return `/api/${endpoint}/${eid}`
 }
 
 /** 浏览器是否原生支持 HLS（Safari 等）；Chrome/Firefox 通常需 hls.js */
@@ -207,7 +209,8 @@ export function getCameraSnapshotUrl(
   if (!haUrl) return ''
   let path = cameraHaPath(entity, 'camera_proxy')
   if (!path) return ''
-  if (cacheBust) path += `&_=${cacheBust}`
+  // 与 3D `camera-media` 一致用 `hb` 做缓存破坏，避免依赖实体 access_token
+  if (cacheBust !== '' && cacheBust != null) path += `?hb=${cacheBust}`
   return resolveHaResourceUrl(haUrl, path, 'media')
 }
 

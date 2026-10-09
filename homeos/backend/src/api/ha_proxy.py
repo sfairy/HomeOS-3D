@@ -23,7 +23,7 @@ from collections.abc import AsyncIterator, Mapping
 from dataclasses import dataclass
 from time import monotonic
 from typing import Any
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, parse_qsl, urlencode
 
 import httpx
 from anyio import CancelScope, create_task_group, move_on_after
@@ -117,9 +117,16 @@ camera_snapshot_refreshes: dict[str, asyncio.Task[None]] = {}
 
 
 def upstream_path(request: Request) -> str:
-    """拼出要转给 HA 的路径（含查询串）；HA 侧路径与本服务完全一致。"""
+    """拼出要转给 HA 的路径（含查询串）；HA 侧路径与本服务完全一致。
+
+    摄像头快照/流代理一律用服务端 Bearer，丢弃浏览器附带的实体 ``token``：
+    过期或错误的 access_token 转发给 HA 会 500，而无 token 的同源请求正常。
+    """
     path = request.url.path
     query = request.url.query
+    if query and path.startswith(('/api/camera_proxy/', '/api/camera_proxy_stream/')):
+        pairs = [(k, v) for k, v in parse_qsl(query, keep_blank_values=True) if k != 'token']
+        query = urlencode(pairs)
     return f'{path}?{query}' if query else path
 
 

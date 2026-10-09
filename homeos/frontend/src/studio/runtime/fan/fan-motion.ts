@@ -1,18 +1,7 @@
-function fanMotionState(entityState: any) {
-  entityState = entityState?.newState || entityState || {};
-  const stateAttributes = entityState.attributes || {},
-    isOn = entityState.available !== false && entityState.state === "on",
-    speedPercentage =
-      typeof stateAttributes.percentage == "number" && Number.isFinite(stateAttributes.percentage)
-        ? Math.max(0, Math.min(100, stateAttributes.percentage))
-        : 40;
-  return {
-    on: isOn && speedPercentage > 0,
-    percentage: speedPercentage,
-    oscillating: isOn && stateAttributes.oscillating === true,
-    direction: stateAttributes.direction === "reverse" ? -1 : 1,
-  };
-}
+import { fanMotionState, resolveFanBindingState } from "./fan-state";
+
+const FAN_MODEL_TYPES = new Set(["fan", "ceiling-fan"]);
+
 export function createFanMotion({
   requestFrame: onRequestFrame = () => {},
   reducedMotion: prefersReducedMotion = () =>
@@ -34,6 +23,7 @@ export function createFanMotion({
     resetYawRotations = () =>
       fanModels.forEach((fanEntry: any) => {
         fanEntry.yaw && (fanEntry.yaw.rotation.y = 0);
+        fanEntry.rotor && fanEntry.visualMode === "ceiling" && (fanEntry.rotor.rotation.y = 0);
       });
   return {
     sync({
@@ -50,14 +40,18 @@ export function createFanMotion({
         (fanModels = []),
         (lastFrameTimestamp = null),
         currentSceneRoot?.traverse((fanNode: any) => {
-          if (fanNode.userData?.environmentModelType !== "fan") return;
+          const modelType =
+            fanNode.userData?.environmentModelType || fanNode.userData?.itemType;
+          if (!FAN_MODEL_TYPES.has(modelType)) return;
           const fanModel = {
             model: fanNode,
             swingTime: 0,
-            state: fanMotionState(null),
+            visualMode: modelType === "ceiling-fan" ? "ceiling" : "tower",
+            state: fanMotionState(null, { modelType }),
           };
           (fanNode.traverse((fanPartNode: any) => {
-            fanPartNode.userData?.fanPart && ((fanModel as any)[fanPartNode.userData.fanPart] = fanPartNode);
+            fanPartNode.userData?.fanPart &&
+              ((fanModel as any)[fanPartNode.userData.fanPart] = fanPartNode);
           }),
             fanModels.push(fanModel));
         }));
@@ -68,12 +62,26 @@ export function createFanMotion({
               binding.floorId === syncFanModel.model.userData.environmentFloorId &&
               binding.modelId === syncFanModel.model.userData.environmentModelId,
           ),
-          nextMotionState = fanMotionState(
-            matchedBinding ? statesByEntityId[matchedBinding.entityId] : null,
-          );
-        (JSON.stringify(nextMotionState) !== JSON.stringify(syncFanModel.state) &&
+          nextMotionState = matchedBinding
+            ? resolveFanBindingState(
+                {
+                  ...matchedBinding,
+                  modelType: syncFanModel.model.userData?.environmentModelType,
+                  visualMode:
+                    matchedBinding.visualMode || syncFanModel.visualMode,
+                },
+                statesByEntityId,
+              )
+            : fanMotionState(null, { visualMode: syncFanModel.visualMode });
+        // 0.7.2：动画开关跟 running；保留外观 visualMode（tower/ceiling）
+        const motionView = {
+          ...nextMotionState,
+          on: !!(nextMotionState as any).running,
+          percentage: (nextMotionState as any).percentage ?? 40,
+        };
+        (JSON.stringify(motionView) !== JSON.stringify(syncFanModel.state) &&
           (hasStateChange = true),
-          (syncFanModel.state = nextMotionState));
+          (syncFanModel.state = motionView));
       }
       hasStateChange && onRequestFrame();
     },
@@ -90,14 +98,22 @@ export function createFanMotion({
           !isNodeVisible(tickFanModel.model) ||
           ((isAnimating = true),
           tickFanModel.rotor &&
-            (tickFanModel.rotor.rotation.z =
-              (tickFanModel.rotor.rotation.z -
-                tickFanModel.state.direction *
-                  (3 + tickFanModel.state.percentage * 0.16) *
-                  frameDeltaSeconds) %
-              (Math.PI * 2)),
+            (tickFanModel.visualMode === "ceiling"
+              ? (tickFanModel.rotor.rotation.y =
+                  (tickFanModel.rotor.rotation.y +
+                    tickFanModel.state.direction *
+                      (2.2 + (tickFanModel.state.percentage || 40) * 0.12) *
+                      frameDeltaSeconds) %
+                  (Math.PI * 2))
+              : (tickFanModel.rotor.rotation.z =
+                  (tickFanModel.rotor.rotation.z -
+                    tickFanModel.state.direction *
+                      (3 + (tickFanModel.state.percentage || 40) * 0.16) *
+                      frameDeltaSeconds) %
+                  (Math.PI * 2))),
           tickFanModel.yaw &&
             tickFanModel.state.oscillating &&
+            tickFanModel.visualMode !== "ceiling" &&
             ((tickFanModel.swingTime += frameDeltaSeconds),
             (tickFanModel.yaw.rotation.y =
               (Math.sin(tickFanModel.swingTime * 0.6) * Math.PI) / 4)));

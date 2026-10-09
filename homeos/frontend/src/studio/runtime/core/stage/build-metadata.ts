@@ -198,10 +198,24 @@ export function buildMetadata(
               name: airerMetadataItem.name || "晾衣架 " + (airerMetadataIndex + 1),
             })),
           fans: metadataFloorItem.scene.items
-            .filter((fanSceneItem: any) => fanSceneItem.type === "fan")
+            .filter((fanSceneItem: any) =>
+              fanSceneItem.type === "fan" || fanSceneItem.type === "ceiling-fan",
+            )
             .map((fanMetadataItem: any, fanMetadataIndex: any) => ({
               ...fanMetadataItem,
-              name: fanMetadataItem.name || "电风扇 " + (fanMetadataIndex + 1),
+              // 0.7.2：吊扇锚点在机身中心（elevation 向下半个高度）
+              ...(fanMetadataItem.type === "ceiling-fan"
+                ? {
+                    height:
+                      (Number(fanMetadataItem.elevation) || 0) -
+                      (Number(fanMetadataItem.height) || 0.28) / 2,
+                  }
+                : {}),
+              name:
+                fanMetadataItem.name ||
+                (fanMetadataItem.type === "ceiling-fan" ? "吊扇" : "电风扇") +
+                  " " +
+                  (fanMetadataIndex + 1),
             })),
           airPurifiers: metadataFloorItem.scene.items
             .filter((purifierSceneItem: any) => purifierSceneItem.type === "airpurifier")

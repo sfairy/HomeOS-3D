@@ -297,6 +297,28 @@ onBeforeUnmount(() => {
                             1.80m</small></button> <button class="asset-card" type="button" draggable="true"
                         data-item-type="pool-table" data-asset-subcategory="living"><i>▤</i><span>台球桌</span><small>2.54
                             × 1.42m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="guitar-stand"
+                        data-asset-subcategory="living"><i>▤</i><span>吉他＋支架</span><small>0.46 × 0.48m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="cat-tree"
+                        data-asset-subcategory="living"><i>▤</i><span>猫爬架</span><small>独立模型</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="pet-bed-bowls"
+                        data-asset-subcategory="living"><i>▤</i><span>宠物窝＋食盆</span><small>独立模型</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="side-table"
+                        data-asset-subcategory="living"><i>▤</i><span>边几</span><small>独立模型</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="rocking-chair"
+                        data-asset-subcategory="living"><i>▤</i><span>摇椅</span><small>0.62 × 1.15m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="drum-kit"
+                        data-asset-subcategory="living"><i>▤</i><span>架子鼓</span><small>1.83 × 1.44m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="keyboard-stand"
+                        data-asset-subcategory="living"><i>▤</i><span>电子琴＋支架</span><small>1.03 × 0.36m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="bicycle-rack"
+                        data-asset-subcategory="living"><i>▤</i><span>自行车＋停放架</span><small>0.64 × 1.77m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="mahjong-table"
+                        data-asset-subcategory="living"><i>▤</i><span>麻将桌</span><small>0.94 × 0.94m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="ping-pong-table"
+                        data-asset-subcategory="living"><i>▤</i><span>乒乓球桌</span><small>1.68 × 2.74m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="cello-stand"
+                        data-asset-subcategory="living"><i>▤</i><span>大提琴＋支架</span><small>0.55 × 0.55m</small></button>
                     <div class="asset-group-heading" data-asset-heading-category="home">装饰</div> <button
                         class="asset-card" type="button" draggable="true" data-item-type="decor-books"
                         data-asset-subcategory="decor"><i>▤</i><span>书本组合</span><small>0.28 × 0.21m</small></button>
@@ -314,6 +336,18 @@ onBeforeUnmount(() => {
                         data-asset-subcategory="decor"><i>▨</i><span>地毯</span><small>2.00 × 1.40m</small></button>
                     <button class="asset-card" type="button" draggable="true" data-item-type="aquarium"
                         data-asset-subcategory="decor"><i>▣</i><span>鱼缸</span><small>1.50 × 0.55m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="full-length-mirror"
+                        data-asset-subcategory="decor"><i>▤</i><span>穿衣镜</span><small>0.52 × 0.35m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="round-rug"
+                        data-asset-subcategory="decor"><i>▤</i><span>圆形地毯</span><small>独立模型</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="wall-art"
+                        data-asset-subcategory="decor"><i>▤</i><span>挂画</span><small>0.64 × 0.04m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="wall-clock"
+                        data-asset-subcategory="decor"><i>▤</i><span>挂钟</span><small>0.36 × 0.06m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="desktop-frame"
+                        data-asset-subcategory="decor"><i>▤</i><span>桌面相框</span><small>0.22 × 0.13m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="dartboard"
+                        data-asset-subcategory="decor"><i>▤</i><span>飞镖靶</span><small>0.47 × 0.20m</small></button>
                     <div class="asset-group-heading" data-asset-heading-category="home">卧室与书房</div> <button
                         class="asset-card" type="button" draggable="true" data-item-type="bed"
                         data-asset-subcategory="bedroom"><i>▤</i><span>双人床</span><small>1.92 × 2.18m</small></button>
@@ -335,6 +369,16 @@ onBeforeUnmount(() => {
                         data-asset-subcategory="bedroom"><i>▤</i><span>办公椅</span><small>0.64 × 0.66m</small></button>
                     <button class="asset-card" type="button" draggable="true" data-item-type="bookcase"
                         data-asset-subcategory="bedroom"><i>▥</i><span>书架</span><small>1.20 × 0.32m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="baby-crib"
+                        data-asset-subcategory="bedroom"><i>▤</i><span>婴儿床</span><small>0.83 × 1.43m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="rocking-horse"
+                        data-asset-subcategory="bedroom"><i>▤</i><span>玩具木马</span><small>0.56 × 1.08m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="yoga-set"
+                        data-asset-subcategory="bedroom"><i>▤</i><span>瑜伽垫＋健身球</span><small>1.36 × 1.80m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="easel-board"
+                        data-asset-subcategory="bedroom"><i>▤</i><span>画架＋画板</span><small>0.75 × 0.83m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="dumbbell-rack"
+                        data-asset-subcategory="bedroom"><i>▤</i><span>哑铃架＋哑铃</span><small>1.05 × 0.60m</small></button>
                     <div class="asset-group-heading" data-asset-heading-category="home">餐厅与收纳</div> <button
                         class="asset-card" type="button" draggable="true" data-item-type="table"
                         data-asset-subcategory="dining"><i>▦</i><span>餐桌组合</span><small>2.40 × 1.80m</small></button>
@@ -360,6 +404,24 @@ onBeforeUnmount(() => {
                         data-asset-subcategory="living"><i>❏</i><span>背景墙</span><small>3.00 × 2.40m</small></button>
                     <button class="asset-card" type="button" draggable="true" data-item-type="wallcabinet"
                         data-asset-subcategory="dining"><i>▧</i><span>吊柜</span><small>1.50 × 0.35m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="coat-rack"
+                        data-asset-subcategory="dining"><i>▤</i><span>衣帽架</span><small>0.45 × 0.43m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="bar-stool"
+                        data-asset-subcategory="dining"><i>▤</i><span>吧台椅</span><small>独立模型</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="laundry-basket"
+                        data-asset-subcategory="dining"><i>▤</i><span>洗衣篮</span><small>独立模型</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="single-rail-rack"
+                        data-asset-subcategory="dining"><i>▤</i><span>单杆晾衣架</span><small>独立模型</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="drying-rack"
+                        data-asset-subcategory="dining"><i>▤</i><span>落地晾衣架</span><small>独立模型</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="storage-cart"
+                        data-asset-subcategory="dining"><i>▤</i><span>三层收纳推车</span><small>独立模型</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="storage-box"
+                        data-asset-subcategory="dining"><i>▤</i><span>收纳箱</span><small>独立模型</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="trash-bin"
+                        data-asset-subcategory="dining"><i>▤</i><span>垃圾桶</span><small>0.32 × 0.34m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="child-highchair"
+                        data-asset-subcategory="dining"><i>▤</i><span>儿童餐椅</span><small>0.59 × 0.70m</small></button>
                     <div class="asset-group-heading" data-asset-heading-category="home">厨房固定家具</div> <button
                         class="asset-card" type="button" draggable="true" data-item-type="kitchenbase"
                         data-asset-subcategory="kitchen-bath"><i>▤</i><span>厨房地柜</span><small>2.40 ×
@@ -607,6 +669,22 @@ onBeforeUnmount(() => {
                         data-asset-subcategory="environment"><i>↕</i><span>电动晾衣架</span><small>安装与伸展可调</small></button>
                     <button class="asset-card" type="button" draggable="true" data-item-type="fan"
                         data-asset-subcategory="environment"><i>◉</i><span>电风扇</span><small>杆高可调</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="ceiling-fan"
+                        data-asset-subcategory="environment"><i>◉</i><span>吊扇</span><small>1.32 × 1.32m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="table-lamp"
+                        data-asset-subcategory="environment"><i>⌁</i><span>台灯</span><small>0.28 × 0.28m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="up-down-wall-lamp"
+                        data-asset-subcategory="environment"><i>◒</i><span>上下出光壁灯</span><small>独立模型</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="aroma-diffuser"
+                        data-asset-subcategory="environment"><i>▤</i><span>香氛机</span><small>独立模型</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="pet-dryer"
+                        data-asset-subcategory="environment"><i>▤</i><span>宠物烘干机</span><small>独立模型</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="electric-valve"
+                        data-asset-subcategory="environment"><i>▤</i><span>电动阀门</span><small>独立模型</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="treadmill"
+                        data-asset-subcategory="environment"><i>▤</i><span>跑步机</span><small>0.82 × 1.78m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="elliptical"
+                        data-asset-subcategory="environment"><i>▤</i><span>椭圆机</span><small>0.82 × 1.32m</small></button>
                     <button class="asset-card" type="button" draggable="true" data-item-type="airpurifier"
                         data-asset-subcategory="environment"><i>◌</i><span>空气净化器</span><small>0.34 ×
                             0.34m</small></button> <button class="asset-card" type="button" draggable="true"
@@ -644,6 +722,10 @@ onBeforeUnmount(() => {
                         data-asset-subcategory="kitchen"><i>▭</i><span>微波炉</span><small>0.52 × 0.42m</small></button>
                     <button class="asset-card" type="button" draggable="true" data-item-type="ricecooker"
                         data-asset-subcategory="kitchen"><i>◉</i><span>电饭煲</span><small>0.28 × 0.32m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="disinfection-cabinet"
+                        data-asset-subcategory="kitchen"><i>▤</i><span>消毒柜</span><small>独立模型</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="water-purifier"
+                        data-asset-subcategory="kitchen"><i>▤</i><span>净水器主机</span><small>独立模型</small></button>
                     <div class="asset-group-heading" data-asset-heading-category="appliance">洗护</div> <button
                         class="asset-card" type="button" draggable="true" data-item-type="washer"
                         data-asset-subcategory="laundry"><i>◉</i><span>洗衣机</span><small>0.60 × 0.65m</small></button>
@@ -667,6 +749,22 @@ onBeforeUnmount(() => {
                         data-asset-subcategory="office"><i>⌨</i><span>笔记本电脑</span><small>0.36 × 0.28m</small></button>
                     <button class="asset-card" type="button" draggable="true" data-item-type="nas"
                         data-asset-subcategory="office"><i>▦</i><span>NAS</span><small>0.28 × 0.24m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="home-network-cabinet"
+                        data-asset-subcategory="office"><i>▤</i><span>家用网络机柜</span><small>0.55 × 0.46m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="smart-display"
+                        data-asset-subcategory="office"><i>▤</i><span>智慧屏</span><small>独立模型</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="ps5"
+                        data-asset-subcategory="office"><i>▤</i><span>PS5</span><small>独立模型</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="xbox-series-x"
+                        data-asset-subcategory="office"><i>▤</i><span>Xbox Series X</span><small>独立模型</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="switch-console"
+                        data-asset-subcategory="office"><i>▤</i><span>Switch 游戏机</span><small>独立模型</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="arcade-machine"
+                        data-asset-subcategory="office"><i>▤</i><span>游戏街机</span><small>0.75 × 0.80m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="3d-printer"
+                        data-asset-subcategory="office"><i>▤</i><span>3D 打印机</span><small>0.46 × 0.46m</small></button>
+                    <button class="asset-card" type="button" draggable="true" data-item-type="smart-display-wall"
+                        data-asset-subcategory="media"><i>▤</i><span>智慧屏上墙</span><small>独立模型</small></button>
                     <button class="asset-card" type="button" draggable="true" data-item-type="smart-socket-86"
                         data-asset-subcategory="office"><i>▣</i><span>86 型智能插座</span><small>86 × 86 ×
                             12mm</small></button> <button class="asset-card" type="button" draggable="true"
@@ -1096,7 +1194,7 @@ onBeforeUnmount(() => {
                                     class="inspector-group-title">安装参数</span><span
                                     class="inspector-group-count" hidden></span></button>
                             <div class="inspector-group-body">
-                        <div id="airer-model-fields" class="field-grid" hidden><label>最大伸展距离（m）<input
+                        <div id="airer-model-fields" class="field-grid" hidden><label>结构款式<select id="airer-style"><option value="double">电动晾衣架（双杆剪叉）</option><option value="single">电动单杆晾衣架（吊线）</option></select></label><label>最大伸展距离（m）<input
                                     id="airer-extension" type="number" min="0.3" max="2.4" step="0.05" value="1.2"
                                     title="从顶部安装面到晾杆；会限制在地面以上"></label><label>预览升降（%）<input id="airer-preview"
                                     type="number" min="0" max="100" step="5" value="55"

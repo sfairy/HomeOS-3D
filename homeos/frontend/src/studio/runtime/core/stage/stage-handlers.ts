@@ -208,7 +208,9 @@ export function createUpdateDevicePanel(host: StageHandlersHost) {
             ? panelItem.waterHeater
               ? "热水器控制"
               : panelItem.pedestalFan
-                ? "电风扇控制"
+                ? panelItem.ceilingFan
+                  ? "吊扇控制"
+                  : "电风扇控制"
                 : panelItem.airPurifier
                   ? "空气净化器控制"
                   : "空调控制"

@@ -1656,20 +1656,26 @@ export function mountStage(mountOptions: any) {
       ...(options.environment?.airPurifiers || []),
       ...(options.environment?.waterHeaters || []),
     ].map((climateSourceEntry) => {
-      const climateModel = stageModelIndex.item(
-        climateSourceEntry.floorId,
-        climateSourceEntry.modelId,
-        options.environment?.waterHeaters?.includes(climateSourceEntry)
-          ? ["storagewaterheater", "gaswaterheater"]
-          : options.environment?.fans?.includes(climateSourceEntry)
-            ? ["fan"]
-            : options.environment?.airPurifiers?.includes(climateSourceEntry)
-              ? ["airpurifier"]
-              : ["wallac", "floorac", "airoutlet"],
-      );
+      const isFanBinding = (options.environment?.fans || []).includes(climateSourceEntry),
+        climateModel = stageModelIndex.item(
+          climateSourceEntry.floorId,
+          climateSourceEntry.modelId,
+          options.environment?.waterHeaters?.includes(climateSourceEntry)
+            ? ["storagewaterheater", "gaswaterheater"]
+            : isFanBinding
+              ? ["fan", "ceiling-fan"]
+              : options.environment?.airPurifiers?.includes(climateSourceEntry)
+                ? ["airpurifier"]
+                : ["wallac", "floorac", "airoutlet"],
+        ),
+        isCeilingFan =
+          isFanBinding &&
+          (climateModel?.type === "ceiling-fan" ||
+            climateSourceEntry.visualMode === "ceiling");
       return {
         ...climateSourceEntry,
-        pedestalFan: (options.environment?.fans || []).includes(climateSourceEntry),
+        pedestalFan: isFanBinding,
+        ceilingFan: isCeilingFan,
         waterHeater: (options.environment?.waterHeaters || []).includes(climateSourceEntry),
         airPurifier: (options.environment?.airPurifiers || []).includes(climateSourceEntry),
         deviceKind: "climate",
@@ -1678,18 +1684,23 @@ export function mountStage(mountOptions: any) {
         height: Number.isFinite(climateSourceEntry.height)
           ? climateSourceEntry.height
           : climateModel
-            ? (Number(climateModel.elevation) || 0) + (Number(climateModel.height) || 0.28) / 2
+            ? (Number(climateModel.elevation) || 0) +
+              (climateModel.type === "ceiling-fan" ? -1 : 1) *
+                (Number(climateModel.height) || 0.28) /
+                2
             : 0,
         modelAvailable: !!climateModel,
         icon:
           climateSourceEntry.icon ||
           (options.environment?.waterHeaters?.includes(climateSourceEntry)
             ? "mdi:water-boiler"
-            : options.environment?.fans?.includes(climateSourceEntry)
-              ? "mdi:fan"
-              : options.environment?.airPurifiers?.includes(climateSourceEntry)
-                ? "mdi:air-purifier"
-                : "mdi:air-conditioner"),
+            : isCeilingFan
+              ? "mdi:ceiling-fan"
+              : isFanBinding
+                ? "mdi:fan"
+                : options.environment?.airPurifiers?.includes(climateSourceEntry)
+                  ? "mdi:air-purifier"
+                  : "mdi:air-conditioner"),
       };
     });
   }
@@ -2706,14 +2717,16 @@ export function mountStage(mountOptions: any) {
           id: kind + ":" + alarmSourceEntry.id,
           deviceKind: kind,
           securityAlarm: true,
+          // 浮动卡片不依赖场景模型；显式 true，避免被 modelAvailable===false 裁掉
+          modelAvailable: true,
           clickAction: "focus",
           x: Number.isFinite(alarmSourceEntry.x) ? alarmSourceEntry.x : 0,
           y: Number.isFinite(alarmSourceEntry.y) ? alarmSourceEntry.y : 0,
           height: Number.isFinite(alarmSourceEntry.height) ? alarmSourceEntry.height : 1.8,
-          size: Number.isFinite(alarmSourceEntry.size) ? alarmSourceEntry.size : 180,
+          size: Number.isFinite(alarmSourceEntry.size) ? alarmSourceEntry.size : 340,
           fontSize: Number.isFinite(alarmSourceEntry.fontSize)
             ? alarmSourceEntry.fontSize
-            : 12,
+            : 21,
           opacity: Number.isFinite(alarmSourceEntry.opacity) ? alarmSourceEntry.opacity : 1,
         };
       }),
@@ -3017,6 +3030,7 @@ export function mountStage(mountOptions: any) {
               ...(options.security?.locks || []),
               ...(options.security?.presenceSensors || []),
               ...(options.security?.cameras || []),
+              ...(options.security?.alarms || []),
             ].some(matchesSelectedFloor)
           : activeModule === "overview" ||
             activeModule === "light" ||

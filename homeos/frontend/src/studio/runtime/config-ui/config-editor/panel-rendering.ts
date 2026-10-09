@@ -64,6 +64,11 @@ import {
   genericDeviceProfile as genericDeviceProfile2,
   isGenericDeviceKind as isGenericDeviceKind2,
 } from "../../device/generic-device-catalog";
+import {
+  fanSourceAllowed,
+  fanReverseStateOptions,
+  resolveFanBindingState,
+} from "../../fan/fan-state";
 
 export function attachEditorPanelRendering(e: any) {
     function buildCurtainGroupOptions() {
@@ -1103,9 +1108,17 @@ export function attachEditorPanelRendering(e: any) {
             size: DEFAULT_BUTTON_SIZE,
             iconSize: buttonIconSize(DEFAULT_BUTTON_SIZE),
             visible: true,
-            icon: e.defaultIcon,
+            icon:
+              e.deviceKind === "fan" && chosenModel.group?.type === "ceiling-fan"
+                ? "mdi:ceiling-fan"
+                : e.defaultIcon,
             clickAction: e.usesStatusPanel ? "focus-panel" : "focus",
             ...(e.deviceKind === "climate" ? { climateType: selectedModelKind } : {}),
+            ...(e.deviceKind === "fan" && chosenModel.group?.type === "ceiling-fan"
+              ? { visualMode: "ceiling" }
+              : e.deviceKind === "fan"
+                ? { visualMode: "tower" }
+                : {}),
           };
           (e.usesModelBinding || Object.assign(newItem, withFixedLightEffects2(newItem)),
             e.getItemList().push(newItem),
@@ -2633,7 +2646,7 @@ export function attachEditorPanelRendering(e: any) {
               [
                 ["climate", "空调/浴霸"],
                 ["cover", "窗帘"],
-                ["fan", "电风扇"],
+                ["fan", "风扇 / 吊扇"],
                 ["purifier", "空气净化器"],
                 ["temperature-humidity", "环境标签"],
               ],
@@ -2824,7 +2837,9 @@ export function attachEditorPanelRendering(e: any) {
           const isBathHeaterMode = e.deviceKind === "climate" && vector.climateType === "bath-heater",
             isPurifierMode = e.deviceKind === "purifier",
             isWaterHeaterMode = e.deviceKind === "water-heater",
-            bindingContainer = isBathHeaterMode || isPurifierMode || isWaterHeaterMode;
+            isFanMode = e.deviceKind === "fan",
+            bindingContainer =
+              isBathHeaterMode || isPurifierMode || isWaterHeaterMode || isFanMode;
           (bindingContainer && !vector.entityId && (vector.clickAction = "focus"),
             e.deviceKind === "climate" &&
               createSelectRow(
@@ -3340,6 +3355,15 @@ export function attachEditorPanelRendering(e: any) {
                   : "选择整台 NAS，自动匹配 CPU、内存、温度、存储和网络。无需逐个选择传感器。",
               ),
             );
+            if (vector.entityId && !vector.statusSource) {
+              currentContainer.append(
+                e.createElement(
+                  "p",
+                  "i3d-note",
+                  "旧版绑定仅按 on/off 控制指示灯，不会开关 NAS 或关联整台设备。安全状态表示告警，不应作为开机依据；选择 NAS 数据来源后将替换旧绑定。",
+                ),
+              );
+            }
           }
           const boundEntityPickerButton = e.createButton(
             "",
@@ -3374,7 +3398,13 @@ export function attachEditorPanelRendering(e: any) {
                 (temperatureHumidityPickerKinds()
                   ? "跟随主实体所属设备"
                   : "选择" +
-                    (isWaterHeaterMode ? "热水器" : isPurifierMode ? "净化器" : "浴霸") +
+                    (isFanMode
+                      ? "风扇"
+                      : isWaterHeaterMode
+                        ? "热水器"
+                        : isPurifierMode
+                          ? "净化器"
+                          : "浴霸") +
                     "设备"),
               () => void openItemPicker("device", deviceBindingButton),
             );
@@ -3384,11 +3414,13 @@ export function attachEditorPanelRendering(e: any) {
                 e.createElement(
                   "p",
                   "i3d-note",
-                  isWaterHeaterMode
-                    ? "有热水器主实体可直接选择；没有就绑定设备，在附加功能中选择开关、温度、模式和状态。各功能独立控制。"
-                    : isPurifierMode
-                      ? "有主实体可直接选择；没有就绑定设备，在附加功能中选择开关、模式和状态。各功能独立控制。"
-                      : "有标准主实体时可直接选择；没有主实体时，绑定设备并在附加功能中 DIY 暖风、换气和照明等控制。两者同时选择时须属于同一设备。主实体开关只控制主实体。",
+                  isFanMode
+                    ? "主实体选填。有 fan 主实体时读取标准能力；没有就绑定设备，在附加功能中选择开关、风速、正反转等。主实体与附加功能须属于同一设备，各功能独立控制。"
+                    : isWaterHeaterMode
+                      ? "有热水器主实体可直接选择；没有就绑定设备，在附加功能中选择开关、温度、模式和状态。各功能独立控制。"
+                      : isPurifierMode
+                        ? "有主实体可直接选择；没有就绑定设备，在附加功能中选择开关、模式和状态。各功能独立控制。"
+                        : "有标准主实体时可直接选择；没有主实体时，绑定设备并在附加功能中 DIY 暖风、换气和照明等控制。两者同时选择时须属于同一设备。主实体开关只控制主实体。",
                 ),
               ));
           }
@@ -3545,53 +3577,63 @@ export function attachEditorPanelRendering(e: any) {
             });
           }
           if (e.isAirerMode) {
-            const airerMotionSectionElement = createConfigSection("升降动画");
-            if (
-              vector.positionInverted === undefined &&
-              (vector.positionReversed === true || vector.animationReversed === true)
-            )
-              vector.positionInverted = true;
-            if (vector.commandInverted === undefined && vector.liftReversed === true)
-              vector.commandInverted = true;
+            // 兼容旧 HomeOS Inverted 别名 → 0.7.2 Reversed
+            if (vector.positionReversed === undefined && vector.positionInverted === true)
+              vector.positionReversed = true;
+            if (vector.liftReversed === undefined && vector.commandInverted === true)
+              vector.liftReversed = true;
+            delete vector.positionInverted;
+            delete vector.commandInverted;
+
+            const airerDirectionSectionElement = createConfigSection("实体升降方向");
             createSelectRow(
-              airerMotionSectionElement,
+              airerDirectionSectionElement,
               "位置方向",
               [
                 ["normal", "0% 最低，100% 最高"],
-                ["inverted", "0% 最高，100% 最低"],
+                ["reversed", "0% 最高，100% 最低"],
               ],
-              vector.positionInverted === true || vector.positionReversed === true
-                ? "inverted"
-                : "normal",
+              vector.positionReversed === true ? "reversed" : "normal",
               (nextValue: string) => {
-                const inverted = nextValue === "inverted";
-                vector.positionInverted = inverted;
-                vector.positionReversed = inverted;
+                vector.positionReversed = nextValue === "reversed";
                 refreshEditorPreview();
               },
             );
             createSelectRow(
-              airerMotionSectionElement,
+              airerDirectionSectionElement,
               "升降指令",
               [
                 ["normal", "打开对应上升，关闭对应下降"],
-                ["inverted", "打开对应下降，关闭对应上升"],
+                ["reversed", "打开对应下降，关闭对应上升"],
               ],
-              vector.commandInverted === true || vector.liftReversed === true
-                ? "inverted"
-                : "normal",
+              vector.liftReversed === true ? "reversed" : "normal",
               (nextValue: string) => {
-                const inverted = nextValue === "inverted";
-                vector.commandInverted = inverted;
-                vector.liftReversed = inverted;
+                vector.liftReversed = nextValue === "reversed";
                 refreshEditorPreview();
               },
             );
-            airerMotionSectionElement.append(
+            airerDirectionSectionElement.append(
               e.createElement(
                 "p",
                 "i3d-note",
                 "按实物选择。模型、图标和弹窗统一显示实际高低及升降；弹窗高度以 100% 为最高。位置方向与升降指令可分别设置。",
+              ),
+            );
+
+            const airerMotionSectionElement = createConfigSection("升降动画");
+            const animationReversedCheckbox = e.createElement("input");
+            ((animationReversedCheckbox.type = "checkbox"),
+              (animationReversedCheckbox.checked = vector.animationReversed === true),
+              animationReversedCheckbox.addEventListener("change", () => {
+                vector.animationReversed = animationReversedCheckbox.checked;
+                refreshEditorPreview();
+              }),
+              createSettingRow(airerMotionSectionElement, "动画方向反向", animationReversedCheckbox));
+            airerMotionSectionElement.append(
+              e.createElement(
+                "p",
+                "i3d-note",
+                "模型升降与实物相反时开启，仅反转动画，不改变升降按钮的控制方向。顶部安装高度和最大伸展距离在户型图中调整。",
               ),
             );
             const airerTravelSecondsInputElement = e.createElement("input");
@@ -3612,6 +3654,167 @@ export function attachEditorPanelRendering(e: any) {
                 "无位置回传时全程耗时（秒）",
                 airerTravelSecondsInputElement,
               ));
+          }
+          if (e.deviceKind === "fan") {
+            const fanControlSection = createConfigSection("风扇控制（0.7.2）");
+            createSelectRow(
+              fanControlSection,
+              "外观模式",
+              [
+                ["tower", "电风扇 / 塔扇"],
+                ["ceiling", "吊扇"],
+              ],
+              vector.visualMode === "ceiling" ? "ceiling" : "tower",
+              (nextValue: string) => {
+                vector.visualMode = nextValue === "ceiling" ? "ceiling" : "tower";
+                refreshEditorPreview();
+              },
+            );
+            const fanDeviceId =
+              vector.deviceId ||
+              itemEntityMetadata?.deviceId ||
+              itemEntityMetadata?.device_id ||
+              "";
+            const entityRecord = (entityId: string) =>
+              (e.entities || []).find(
+                (entityProbe: any) =>
+                  (entityProbe.entityId || entityProbe.entity_id) === entityId,
+              ) || {};
+            const entityLiveState = (entityId: string) => {
+              const states = e.latestStates || e.states;
+              if (!entityId || !states) return null;
+              const entry =
+                states instanceof Map ? states.get(entityId) : states?.[entityId];
+              return entry?.newState || entry || null;
+            };
+            const makeFanFollowButton = (
+              fieldKey: "runEntityId" | "speedEntityId" | "directionEntityId",
+              followKind: "run" | "speed" | "direction",
+              emptyLabel: string,
+            ) => {
+              const button = e.createButton("", async () => {
+                const generation = ++e.pickerGeneration;
+                try {
+                  const handle = await e.pickers?.entity?.({
+                    trigger: button,
+                    deviceKind: "fan",
+                    current: vector[fieldKey] || "",
+                    onSelect(_device: any, entity: any) {
+                      if (
+                        e.isDisposed ||
+                        !e.isAccessAllowed ||
+                        generation !== e.pickerGeneration ||
+                        !e.getItemList().includes(vector)
+                      )
+                        return;
+                      const nextEntityId = entity?.entityId || "";
+                      if (
+                        nextEntityId &&
+                        !fanSourceAllowed(
+                          followKind,
+                          entity || entityRecord(nextEntityId),
+                          vector,
+                          fanDeviceId,
+                        )
+                      ) {
+                        e.errorMessageElement.textContent =
+                          "请选择当前设备已选附加功能中的有效实体。";
+                        return;
+                      }
+                      if (nextEntityId) vector[fieldKey] = nextEntityId;
+                      else delete vector[fieldKey];
+                      if (followKind === "direction") delete vector.reverseState;
+                      refreshEditorPreview();
+                      renderPanel();
+                    },
+                  });
+                  generation !== e.pickerGeneration
+                    ? handle?.close()
+                    : (e.activePickerHandle = handle);
+                } catch (error: any) {
+                  e.errorMessageElement.textContent = error?.message || String(error);
+                }
+              });
+              button.className = "i3d-picker-button";
+              button.append(e.createElement("span", "", vector[fieldKey] || emptyLabel));
+              button.title = vector[fieldKey] || emptyLabel;
+              return button;
+            };
+            const bladeSection = e.createElement("div", "i3d-config-row");
+            bladeSection.append(e.createElement("h4", "", "扇叶动画"));
+            bladeSection.append(
+              e.createElement(
+                "p",
+                "i3d-note",
+                "默认跟随主实体；纯自定义时选择运行开关和风速。这里只指定动画来源，控制仍在附加功能中。风速 0 不代替关机。",
+              ),
+            );
+            createSettingRow(
+              bladeSection,
+              "运行跟随",
+              makeFanFollowButton("runEntityId", "run", "未选择（跟随主实体）"),
+            );
+            createSettingRow(
+              bladeSection,
+              "风速跟随",
+              makeFanFollowButton("speedEntityId", "speed", "未选择（跟随主实体）"),
+            );
+            createSettingRow(
+              bladeSection,
+              "方向跟随",
+              makeFanFollowButton(
+                "directionEntityId",
+                "direction",
+                "未选择（跟随主实体）",
+              ),
+            );
+            if (vector.directionEntityId) {
+              const reverseOptions = fanReverseStateOptions(
+                vector.directionEntityId,
+                entityLiveState(vector.directionEntityId),
+              );
+              const reverseChoices: [string, string][] = [
+                ["", "请选择设备的反转状态"],
+                ...reverseOptions,
+              ];
+              if (
+                vector.reverseState &&
+                !reverseOptions.some(([value]) => value === vector.reverseState)
+              ) {
+                reverseChoices.unshift([
+                  vector.reverseState,
+                  vector.reverseState + "（当前未找到）",
+                ]);
+              }
+              createSelectRow(
+                bladeSection,
+                "反转对应状态",
+                reverseChoices,
+                vector.reverseState || "",
+                (nextValue: string) => {
+                  if (nextValue) vector.reverseState = nextValue;
+                  else delete vector.reverseState;
+                  refreshEditorPreview();
+                  renderPanel();
+                },
+              );
+            }
+            const fanPreview = resolveFanBindingState(vector, e.latestStates || e.states || {});
+            bladeSection.append(
+              e.createElement(
+                "p",
+                "i3d-note",
+                "扇叶状态：" +
+                  (fanPreview.label || "状态未知") +
+                  " · " +
+                  (fanPreview.directionKnown
+                    ? fanPreview.direction < 0
+                      ? "反转"
+                      : "正转"
+                    : "方向未知"),
+              ),
+            );
+            fanControlSection.append(bladeSection);
           }
           if (e.deviceKind === "water-heater") {
             const statusRuleSectionElement = createConfigSection("指示灯规则（可选）"),
@@ -4238,6 +4441,16 @@ export function attachEditorPanelRendering(e: any) {
                   "可绑定能提供开关状态的实体；不单独绑定电源时跟随媒体播放器状态。电视开启时优先显示可用节目封面，没有封面时显示自定义图片；未上传图片则显示当前播放状态，关闭时显示深色玻璃。",
                 ),
               ));
+            // 兼容旧 posterAssetId → 0.7.2 screenImage
+            if (!vector.screenImage?.assetId && vector.posterAssetId) {
+              const legacyBare = String(vector.posterAssetId)
+                .trim()
+                .toLowerCase()
+                .replace(/^user:/, "");
+              if (/^[0-9a-f]{32}$/.test(legacyBare))
+                vector.screenImage = { assetId: "user:" + legacyBare };
+              delete vector.posterAssetId;
+            }
             const posterAssetSection = createConfigSection("电视自定义图片"),
               posterAssetStatusElement = e.createElement("p", "i3d-note", "无封面时的图片"),
               posterAssetUploadInput = e.createElement("input");
@@ -4246,13 +4459,14 @@ export function attachEditorPanelRendering(e: any) {
                 "image/png,image/jpeg,image/jpg,image/webp,image/svg+xml,image/gif,image/bmp,image/tiff,image/avif,image/heic,image/heif,image/x-icon,.png,.jpg,.jpeg,.webp,.svg,.gif,.bmp,.tif,.tiff,.ico,.avif,.heic,.heif"),
               (posterAssetUploadInput.hidden = true));
             let isPosterUploading = false;
-            const normalizePosterAssetId = (rawId: any) =>
-                String(rawId || "")
-                  .trim()
-                  .toLowerCase()
-                  .replace(/^user:/, ""),
+            const currentScreenAssetId = () => {
+                const assetId = vector.screenImage?.assetId;
+                return typeof assetId == "string" && /^user:[0-9a-f]{32}$/i.test(assetId.trim())
+                  ? assetId.trim().toLowerCase()
+                  : "";
+              },
               refreshPosterAssetUi = () => {
-                const hasPoster = /^[0-9a-f]{32}$/.test(normalizePosterAssetId(vector.posterAssetId));
+                const hasPoster = !!currentScreenAssetId();
                 posterAssetStatusElement.textContent = isPosterUploading
                   ? "上传中…"
                   : hasPoster
@@ -4281,12 +4495,20 @@ export function attachEditorPanelRendering(e: any) {
                         uploadPayload.error ||
                         "图片上传失败，请重试。",
                     );
-                  const uploadedAssetId = normalizePosterAssetId(
-                    uploadPayload.assetId || uploadPayload.data?.assetId,
-                  );
-                  if (!/^[0-9a-f]{32}$/.test(uploadedAssetId))
+                  const uploadedRaw = String(
+                    uploadPayload.assetId || uploadPayload.data?.assetId || "",
+                  )
+                    .trim()
+                    .toLowerCase();
+                  const uploadedAssetId = uploadedRaw.startsWith("user:")
+                    ? uploadedRaw
+                    : /^[0-9a-f]{32}$/.test(uploadedRaw)
+                      ? "user:" + uploadedRaw
+                      : "";
+                  if (!/^user:[0-9a-f]{32}$/.test(uploadedAssetId))
                     throw new Error("图片上传结果无效，请重试。");
-                  vector.posterAssetId = uploadedAssetId;
+                  vector.screenImage = { assetId: uploadedAssetId };
+                  delete vector.posterAssetId;
                   refreshEditorPreview();
                 } catch (uploadError: any) {
                   posterAssetStatusElement.textContent =
@@ -4301,8 +4523,9 @@ export function attachEditorPanelRendering(e: any) {
             const posterActionsRow = e.createElement("div", "i3d-focus-actions");
             const rebuildPosterActions = () => {
               posterActionsRow.replaceChildren();
-              const posterId = normalizePosterAssetId(vector.posterAssetId);
-              const hasPoster = /^[0-9a-f]{32}$/.test(posterId);
+              const screenAssetId = currentScreenAssetId();
+              const hasPoster = !!screenAssetId;
+              const posterId = screenAssetId.slice(5);
               const uploadButton = e.createButton(hasPoster ? "替换图片" : "上传图片", () => {
                 if (!isPosterUploading) posterAssetUploadInput.click();
               });
@@ -4318,6 +4541,7 @@ export function attachEditorPanelRendering(e: any) {
                       credentials: "same-origin",
                     });
                   } catch {}
+                  delete vector.screenImage;
                   delete vector.posterAssetId;
                   refreshPosterAssetUi();
                   rebuildPosterActions();
@@ -4970,6 +5194,40 @@ export function attachEditorPanelRendering(e: any) {
     }
   e.saveButtonElement = saveButtonElement;
   e.saveStatusElement = saveStatusElement;
+  Object.assign(e, {
+    buildCurtainGroupOptions,
+    ensureItemCollections,
+    buildEditableFieldList,
+    buildItemPayload,
+    listChangedFields,
+    closeAuxDialog,
+    openMetricsDialog,
+    openCurtainGroupBatchApplyDialog,
+    syncPreviewSize,
+    disposeEditor,
+    buildRuntimeProperties,
+    refreshEditorPreview,
+    createSettingRow,
+    createSelectRow,
+    createNumberRow,
+    createSizeRow,
+    syncLinkedIconSize,
+    listAddableModels,
+    switchEditorKind,
+    closeAddDialog,
+    openAddDialog,
+    openVacuumRoomPicker,
+    renderVacuumShortcutPanel,
+    createConfigSection,
+    createConfigRow,
+    renderStatusRuleSection,
+    openCurtainGroupDialog,
+    renderCurtainGroupSection,
+    renderExtraControlsSection,
+    renderAirPurifierBindingSection,
+    openLabelBatchApplyDialog,
+    renderPanel,
+  });
   Object.defineProperty(e, "auxDialogElement", {
     get: () => auxDialogElement,
     set: (value: any) => {

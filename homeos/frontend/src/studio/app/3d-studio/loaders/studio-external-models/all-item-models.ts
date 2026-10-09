@@ -1,3 +1,4 @@
+import { APPROVED_ITEM_MODELS } from "./approved-item-models";
 import {
   EXTERNAL_ITEM_MODELS,
   createIndoorAssetDescriptor,
@@ -9,6 +10,7 @@ import {
 
 export const ALL_ITEM_MODELS = Object.freeze({
     ...EXTERNAL_ITEM_MODELS,
+    ...APPROVED_ITEM_MODELS,
     bed: createIndoorAssetDescriptor("bed", [1.92, 1.02, 2.18]),
     nightstand: createHomeAssetDescriptor("nightstand", "20260901-all-home-furniture-v1", {
       scaleBasis: [0.5, 0.55, 0.42],

@@ -13,7 +13,7 @@
     },
     "homeos": {
       "name": "homeos",
-      "version": "0.7.1",
+      "version": "0.7.2",
     },
     "homeos-store": {
       "name": "homeos-store",

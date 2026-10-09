@@ -65,7 +65,7 @@ export async function openSecurityEditor({
     styleSheetLinkElement = createElement("link");
   ((styleSheetLinkElement.rel = "stylesheet"),
     (styleSheetLinkElement.href =
-      "/api/v1/modules/interaction3d/core/runtime.css"));
+      "/api/v1/modules/interaction3d/core/runtime.css?v=20261009-opacity-range-gold-v2"));
   const editorDialogElement = createElement("dialog", "i3d-editor");
   (editorDialogElement.setAttribute("aria-label", "3D 安防配置"),
     (editorDialogElement.dataset.i3dPreviewScope = "security"));
@@ -675,11 +675,9 @@ export async function openSecurityEditor({
           x: floorCenter.x,
           y: floorCenter.y,
           height: 1.8,
-          size: 180,
-          fontSize: 12,
+          size: 340,
+          fontSize: 21,
           opacity: 1,
-          visible: true,
-          overlay: true,
         };
         (draftProperties.security.alarms.push(newItem),
           (selectedItemId = newItem.id),
@@ -831,7 +829,10 @@ export async function openSecurityEditor({
       (nameFieldElement.append(createElement("span", "", "名称"), nameInputElement),
         currentContainerElement.append(nameFieldElement));
       const alarmEntityButton = createButton(
-        selectedItem.entityId || "选择" + getKindLabel() + "报警实体",
+        selectedItem.entityId ||
+          (securityKind === "moisture"
+            ? "选择浸没状态实体"
+            : "选择" + getKindLabel() + "报警实体"),
         async () => {
           const pickerRequestGeneration = ++pickerGeneration;
           try {
@@ -839,6 +840,7 @@ export async function openSecurityEditor({
               trigger: alarmEntityButton,
               kind: securityKind,
               current: selectedItem.entityId || "",
+              role: securityKind === "moisture" ? "immersion" : "primary",
               onSelect(_device: any, entity: any) {
                 isDisposed ||
                   !isAccessAllowed ||
@@ -863,28 +865,164 @@ export async function openSecurityEditor({
             const field = createElement("label");
             return (
               field.append(
-                createElement("span", "", getKindLabel() + "报警实体"),
+                createElement(
+                  "span",
+                  "",
+                  securityKind === "moisture"
+                    ? "浸没状态实体"
+                    : getKindLabel() + "报警实体",
+                ),
                 alarmEntityButton,
               ),
               field
             );
           })(),
         ));
-      const batteryEntityButton = createButton(
-        selectedItem.batteryEntityId || "选择电量实体（可选）",
+      if (securityKind === "moisture") {
+        const sprayEntityButton = createButton(
+          selectedItem.secondaryEntityId || "选择淋水状态实体（可选）",
+          async () => {
+            const pickerRequestGeneration = ++pickerGeneration;
+            try {
+              const sprayPickerHandle = await pickers.alarm?.({
+                trigger: sprayEntityButton,
+                kind: "moisture",
+                current: selectedItem.secondaryEntityId || "",
+                role: "spray",
+                onSelect(_device: any, entity: any) {
+                  isDisposed ||
+                    !isAccessAllowed ||
+                    pickerRequestGeneration !== pickerGeneration ||
+                    findSelectedItem() !== selectedItem ||
+                    ((selectedItem.secondaryEntityId = entity?.entityId || ""),
+                    markPropertiesDirty(),
+                    renderPanel());
+                },
+              });
+              isDisposed || pickerRequestGeneration !== pickerGeneration
+                ? sprayPickerHandle?.close()
+                : (activePickerHandle = sprayPickerHandle);
+            } catch (sprayPickerError: any) {
+              showError(sprayPickerError);
+            }
+          },
+        );
+        ((sprayEntityButton.className = "i3d-picker-button"),
+          currentContainerElement.append(
+            (() => {
+              const field = createElement("label");
+              return (
+                field.append(
+                  createElement("span", "", "淋水状态实体（可选）"),
+                  sprayEntityButton,
+                ),
+                field
+              );
+            })(),
+          ),
+          currentContainerElement.append(
+            createElement(
+              "p",
+              "i3d-note",
+              "可在同一卡片分别显示浸没与淋水状态；淋水实体可选。任一个 on 即报警，两个都明确 off 才恢复；状态未知与设备不可用分别显示。",
+            ),
+            createElement(
+              "p",
+              "i3d-note",
+              "实体列表全部显示，匹配实体优先推荐；无法识别的状态显示“状态未知”。",
+            ),
+          ));
+      } else if (securityKind === "smoke") {
+        currentContainerElement.append(
+          createElement(
+            "p",
+            "i3d-note",
+            "支持开关、小米工作状态或高浓度烟雾事件，任选一个实体。工作状态按告警/正常显示；event 无最新事件显示「无最新事件」。全屏提示仅对新事件弹出，关闭本次后同一次不重弹，再来新事件才会提醒。",
+          ),
+          createElement(
+            "p",
+            "i3d-note",
+            "实体列表全部显示，匹配实体优先推荐；无法识别的状态显示“状态未知”。",
+          ),
+        );
+      } else if (securityKind === "gas") {
+        currentContainerElement.append(
+          createElement(
+            "p",
+            "i3d-note",
+            "支持开关状态与小米天然气工作状态。on 或“天然气泄漏报警”触发报警；off 或“监测正常”恢复。预热、自检、故障和寿命到期单独显示。",
+          ),
+          createElement(
+            "p",
+            "i3d-note",
+            "实体列表全部显示，匹配实体优先推荐；无法识别的状态显示“状态未知”。",
+          ),
+        );
+      }
+      const workStateEntityButton = createButton(
+        selectedItem.workStateEntityId || "选择工作状态实体（可选）",
         async () => {
           const pickerRequestGeneration = ++pickerGeneration;
           try {
-            const batteryPickerHandle = await pickers.entity({
-              trigger: batteryEntityButton,
-              deviceKind: "sensor",
-              current: selectedItem.batteryEntityId || "",
+            const workStatePickerHandle = await pickers.alarm?.({
+              trigger: workStateEntityButton,
+              kind: securityKind,
+              current: selectedItem.workStateEntityId || "",
+              role: "work-state",
               onSelect(_device: any, entity: any) {
                 isDisposed ||
                   !isAccessAllowed ||
                   pickerRequestGeneration !== pickerGeneration ||
                   findSelectedItem() !== selectedItem ||
-                  ((selectedItem.batteryEntityId = entity?.entityId || ""),
+                  ((selectedItem.workStateEntityId = entity?.entityId || ""),
+                  markPropertiesDirty(),
+                  renderPanel());
+              },
+            });
+            isDisposed || pickerRequestGeneration !== pickerGeneration
+              ? workStatePickerHandle?.close()
+              : (activePickerHandle = workStatePickerHandle);
+          } catch (workStatePickerError: any) {
+            showError(workStatePickerError);
+          }
+        },
+      );
+      ((workStateEntityButton.className = "i3d-picker-button"),
+        currentContainerElement.append(
+          (() => {
+            const field = createElement("label");
+            return (
+              field.append(
+                createElement("span", "", "工作状态实体（可选）"),
+                workStateEntityButton,
+              ),
+              field
+            );
+          })(),
+          createElement(
+            "p",
+            "i3d-note",
+            "在卡片右上角显示工作状态；监测正常/监测中为绿色，报警/故障为红色，预热/自检为琥珀色，未知与不可用为灰色。",
+          ),
+        ));
+      const batteryEntityButton = createButton(
+        selectedItem.batteryEntityId || "选择电量实体（可选）",
+        async () => {
+          const pickerRequestGeneration = ++pickerGeneration;
+          try {
+            // 0.7.2：烟感/气感/水浸电量与门锁共用 lock-battery（sensor.*），不是泛 sensor/灯光开关目录
+            const batteryPickerHandle = await pickers.entity({
+              trigger: batteryEntityButton,
+              deviceKind: "lock-battery",
+              current: selectedItem.batteryEntityId || "",
+              title: "选择电量传感器",
+              onSelect(selectedEntityId: any, entity: any) {
+                isDisposed ||
+                  !isAccessAllowed ||
+                  pickerRequestGeneration !== pickerGeneration ||
+                  findSelectedItem() !== selectedItem ||
+                  ((selectedItem.batteryEntityId =
+                    entity?.entityId || selectedEntityId || ""),
                   markPropertiesDirty(),
                   renderPanel());
               },
@@ -909,15 +1047,6 @@ export async function openSecurityEditor({
               field
             );
           })(),
-        ),
-        currentContainerElement.append(
-          createElement(
-            "p",
-            "i3d-note",
-            securityKind === "gas"
-              ? "on 或“天然气泄漏报警”触发报警；off 或“监测正常”恢复。预热、自检、故障和寿命到期单独显示。"
-              : "on：报警；off：正常。状态未知与设备不可用会单独显示。",
-          ),
         ));
       const appearanceSection = createSectionHeading("位置与外观"),
         coordinateGrid = createElement("div", "i3d-coordinate-grid");
@@ -926,8 +1055,9 @@ export async function openSecurityEditor({
         ["x", "位置 X", -1000000, 1000000, 1, 0],
         ["y", "位置 Y", -1000000, 1000000, 1, 0],
         ["height", "离地高度（米）", 0, 20, 0.1, 1.8],
-        ["size", "卡片宽度（px）", 100, 600, 1, 180],
-        ["fontSize", "文字大小（px）", 9, 24, 1, 12],
+        ["size", "卡片宽度（px）", 100, 600, 1, 340],
+        // 与后端 validate_config / 0.7.2 一致：fontSize 上限 24
+        ["fontSize", "文字大小（px）", 9, 24, 1, 21],
       ] as const) {
         createNumberField(
           fieldLabel,
@@ -948,24 +1078,7 @@ export async function openSecurityEditor({
           "opacity",
           markPropertiesDirty,
         ));
-      // 对齐 0.7.1 schema：visible 控制卡片；HomeOS 扩展 overlay 控制全屏遮罩参与。
-      for (const [flagKey, flagLabel, defaultOn] of [
-        ["visible", "显示卡片", true],
-        ["overlay", "参与全屏报警提示", true],
-      ] as const) {
-        if (selectedItem[flagKey] === undefined) selectedItem[flagKey] = defaultOn;
-        const flagCheckbox = createElement("input");
-        ((flagCheckbox.type = "checkbox"),
-          (flagCheckbox.checked = selectedItem[flagKey] !== false),
-          flagCheckbox.addEventListener("change", () => {
-            selectedItem[flagKey] = flagCheckbox.checked;
-            markPropertiesDirty();
-            syncEditorRuntime();
-          }));
-        const flagRow = createElement("label", "i3d-toggle");
-        flagRow.append(createElement("span", "", flagLabel), flagCheckbox);
-        appearanceSection.append(flagRow);
-      }
+      // 0.7.2：位置与外观仅坐标/尺寸/背景不透明度，无「显示卡片」「参与全屏」开关
       const previewSection = createSectionHeading("报警效果预览");
       const alarmProfile =
         SECURITY_ALARM_TYPES[securityKind] || SECURITY_ALARM_TYPES.smoke;

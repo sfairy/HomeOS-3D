@@ -676,7 +676,7 @@ class AssetCatalog:
         return path if path is not None and path.is_file() else None
 
 def document_uses_asset(value, asset_id: str) -> bool:
-    """``asset_id`` 可为 ``user:<hex>`` 或裸 hex（电视 ``posterAssetId``）。"""
+    """``asset_id`` 可为 ``user:<hex>`` 或裸 hex（电视 ``screenImage.assetId`` / 旧 ``posterAssetId``）。"""
     bare = asset_id.removeprefix('user:')
     if isinstance(value, dict):
         return any(document_uses_asset(item, asset_id) for item in value.values())

@@ -1,7 +1,7 @@
 {
   "name": "homeos-monorepo",
   "private": true,
-  "version": "0.7.1",
+  "version": "0.7.2",
   "packageManager": "bun@1.4.2",
   "scripts": {
     "build": "bun run build:frontend && bun run build:backend",

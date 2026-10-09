@@ -4,6 +4,7 @@ type AirerDimensionOptions = {
   elevation?: unknown;
   airerExtension?: unknown;
   airerPreview?: unknown;
+  airerStyle?: unknown;
   width?: unknown;
   depth?: unknown;
 };
@@ -19,17 +20,94 @@ export function airerDimensions(options: AirerDimensionOptions = {}) {
       toFiniteNumber(options.airerExtension, 1.2),
       0.3,
       Math.min(2.4, elevation - 0.12),
-    );
+    ),
+    airerStyle = String(options.airerStyle || "double") === "single" ? "single" : "double";
   return {
     elevation: elevation,
     airerExtension: airerExtension,
     airerPreview: clamp(toFiniteNumber(options.airerPreview, 55), 0, 100),
+    airerStyle,
     width: clamp(toFiniteNumber(options.width, 2.24), 1, 3.5),
     depth: clamp(toFiniteNumber(options.depth, 0.57), 0.4, 1),
     height: airerExtension,
   };
 }
+
+/** 0.7.2 电动单杆晾衣架（吊线）。 */
+function createSingleAirerModel(three: any, airerConfig: any, palette: any) {
+  const dimensions = airerDimensions(airerConfig),
+    materialColors = {
+      body: palette.appliance,
+      soft: palette.applianceSoft,
+      dark: palette.applianceDark,
+      metal: palette.applianceDark,
+    },
+    airerGroup = new three.Group();
+  airerGroup.name = "ceiling-single-airer";
+  const materialsByRole = Object.fromEntries(
+      ["body", "soft", "dark", "metal"].map((materialSlot) => [
+        materialSlot,
+        new three.MeshStandardMaterial({
+          color: (materialColors as any)[materialSlot],
+          roughness: materialSlot === "metal" || materialSlot === "dark" ? 0.4 : 0.72,
+          metalness: materialSlot === "metal" || materialSlot === "dark" ? 0.45 : 0.06,
+        }),
+      ]),
+    ),
+    addMesh = (meshGeometry: any, meshRole: any, meshParent = airerGroup) => {
+      const mesh = new three.Mesh(meshGeometry, materialsByRole[meshRole]);
+      return ((mesh.castShadow = true), (mesh.receiveShadow = true), meshParent.add(mesh), mesh);
+    };
+  addMesh(new RoundedBoxGeometry(dimensions.width * 0.92, 0.08, 0.14, 2, 0.02), "body").name =
+    "fixed-housing";
+  const movingRack = new three.Group();
+  ((movingRack.name = "moving-rack"), airerGroup.add(movingRack));
+  const rail = addMesh(
+    new three.CylinderGeometry(0.018, 0.018, dimensions.width * 0.85, 16),
+    "metal",
+    movingRack,
+  );
+  ((rail.rotation.z = Math.PI / 2), (rail.name = "rack-rail"));
+  for (const side of [-1, 1])
+    addMesh(new RoundedBoxGeometry(0.05, 0.05, 0.05, 2, 0.01), "soft", movingRack).position.set(
+      side * dimensions.width * 0.42,
+      0,
+      0,
+    );
+  const cableGroup = new three.Group();
+  ((cableGroup.name = "lift-cables"), airerGroup.add(cableGroup));
+  const cables = [-dimensions.width * 0.32, dimensions.width * 0.32].map((offsetX) => {
+    const cable = addMesh(new three.CylinderGeometry(0.004, 0.004, 1, 8), "dark", cableGroup);
+    return (cable.position.set(offsetX, 0, 0), cable);
+  });
+  function updateRackPose(previewPercent: any) {
+    const previewRatio = three.MathUtils.clamp(previewPercent, 0, 100) / 100,
+      extensionSpan = 0.18 + (1 - previewRatio) * (dimensions.airerExtension - 0.18);
+    movingRack.position.y = -extensionSpan;
+    for (const cable of cables) {
+      cable.scale.y = Math.max(0.05, extensionSpan);
+      cable.position.y = -extensionSpan / 2;
+    }
+  }
+  (airerGroup.scale.set(1, 1, dimensions.depth / 0.57), updateRackPose(dimensions.airerPreview));
+  for (const restShadowNode of [movingRack, ...cables])
+    (restShadowNode.updateMatrix(),
+      (restShadowNode.userData.contactShadowRestMatrix = restShadowNode.matrix.toArray()));
+  return (
+    (airerGroup.userData.airerRig = {
+      preview: dimensions.airerPreview,
+      pose: updateRackPose,
+      setLight: () => {},
+      airerStyle: "single",
+    }),
+    (airerGroup.userData.airerStyle = "single"),
+    airerGroup
+  );
+}
+
 export function createAirerModel(three: any, airerConfig: any, palette: any) {
+  if (airerDimensions(airerConfig).airerStyle === "single")
+    return createSingleAirerModel(three, airerConfig, palette);
   const dimensions = airerDimensions(airerConfig),
     armSegmentCount = Math.max(3, Math.ceil(dimensions.airerExtension / 0.4)),
     materialColors = {
@@ -40,6 +118,7 @@ export function createAirerModel(three: any, airerConfig: any, palette: any) {
     },
     airerGroup = new three.Group();
   airerGroup.name = "electric-airer";
+  airerGroup.userData.airerStyle = "double";
   const materialsByRole = Object.fromEntries(
       ["body", "soft", "dark", "trim"].map((materialSlot) => [
         materialSlot,

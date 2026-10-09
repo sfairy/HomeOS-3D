@@ -444,7 +444,12 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
                         raise ValueError('晾衣架绑定缺失。')
                     require_curtain_model([target], target['entityId'], scene, model_type='airer')
                 elif is_fan:
-                    require_air_conditioner_model([owner] if owner else bindings, owner.get('entityId', '') if owner else payload.entity_id, scene, fan_model='fan')
+                    require_air_conditioner_model(
+                        [owner] if owner else bindings,
+                        owner.get('entityId', '') if owner else payload.entity_id,
+                        scene,
+                        model_type=('fan', 'ceiling-fan'),
+                    )
                 elif is_purifier:
                     require_air_conditioner_model([owner] if owner else bindings, owner.get('entityId', '') if owner else payload.entity_id, scene, model_type='airpurifier')
                 elif is_water_heater:
@@ -502,8 +507,17 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
 
             validate_water_heater_command(payload.service, payload.data, states[0] if states else None)
         elif is_cover:
-            dream = any(item.get('entityId') == payload.entity_id and item.get('coverKind') == 'dream' for item in bindings)
-            validate_cover_command(payload.service, payload.data, states[0] if states else None, dream=dream)
+            dream = any(
+                item.get('entityId') == payload.entity_id and item.get('coverKind') == 'dream'
+                for item in bindings
+            )
+            validate_cover_command(
+                payload.service,
+                payload.data,
+                states[0] if states else None,
+                dream=dream,
+                airer=is_airer,
+            )
         elif payload.domain == 'fan':
             from .purifier import validate_purifier_command
 
@@ -532,7 +546,7 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
     html = index_path.read_text(encoding='utf-8')
     html = html.replace(
         '</head>',
-        '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css?v=20261002-light-popup-v1-20260930-warm-selection-v3-20260930-media-canvas-ratio-v4-20260930-marker-subpixel-v1-20260927-follow-ui-v1-20260926-label-opacity-v1-20260925-touch-target-v1-light-menu-v1-20260926-speaker-clean-v6-20260926-airer-v2"></head>',
+        '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css?v=20261009-alarm-event-time-line-v1"></head>',
     )
     html = html.replace(
         '<body>',

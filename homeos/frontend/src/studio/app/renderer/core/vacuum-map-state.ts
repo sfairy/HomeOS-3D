@@ -7,10 +7,17 @@ export function vacuumMapAvailable(stateEntry: any) {
   )
     return false;
   const stateAttributes = entityState.attributes || {};
-  if (stateAttributes.is_empty === true || stateAttributes.empty_map === true) return false;
+  // 0.7.2：首次地图校准尚未生成时仍允许加载地图/机器人位置（空标定不直接判不可用）
+  if (stateAttributes.is_empty === true || stateAttributes.empty_map === true) {
+    const hasRobotPosition =
+      stateAttributes.vacuum_position != null ||
+      stateAttributes.robot_position != null ||
+      stateAttributes.position != null;
+    if (!hasRobotPosition) return false;
+  }
   if (Object.hasOwn(stateAttributes, "calibration_points")) {
     const calibrationPoints = stateAttributes.calibration_points;
-    if (!Array.isArray(calibrationPoints) || calibrationPoints.length < 3) return false;
+    if (!Array.isArray(calibrationPoints) || calibrationPoints.length < 3) return true;
     const [firstCalibration, secondCalibration, thirdCalibration] = calibrationPoints;
     for (const coordinateSpace of ["map", "vacuum"]) {
       if (
@@ -20,13 +27,13 @@ export function vacuumMapAvailable(stateEntry: any) {
             Number.isFinite(calibrationPoint?.[coordinateSpace]?.y),
         )
       )
-        return false;
+        return true;
       const barycentricDeterminant =
         (secondCalibration[coordinateSpace].x - firstCalibration[coordinateSpace].x) *
           (thirdCalibration[coordinateSpace].y - firstCalibration[coordinateSpace].y) -
         (secondCalibration[coordinateSpace].y - firstCalibration[coordinateSpace].y) *
           (thirdCalibration[coordinateSpace].x - firstCalibration[coordinateSpace].x);
-      if (Math.abs(barycentricDeterminant) < 1e-9) return false;
+      if (Math.abs(barycentricDeterminant) < 1e-9) return true;
     }
   }
   return true;

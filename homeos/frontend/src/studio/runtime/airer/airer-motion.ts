@@ -1,5 +1,10 @@
 import { coverState } from "../cover/cover-state";
-import { airerVisualPosition, migrateAirerDirectionFields, normalizeAirerDirection } from "./airer-direction";
+import {
+  airerAnimationPosePosition,
+  airerVisualPosition,
+  migrateAirerDirectionFields,
+  normalizeAirerDirection,
+} from "./airer-direction";
 export function createAirerMotion({
   requestFrame: requestFrame = () => {},
   now: now = () => performance.now(),
@@ -17,15 +22,21 @@ export function createAirerMotion({
     ((entry.position = motion.from + (motion.to - motion.from) * progress),
       progress === 1 && (entry.motion = null));
   }
-  const visualPositionOf = (airerEntry: any) =>
+  /** 面板读数：positionReversed */
+  const panelVisualOf = (airerEntry: any) =>
     airerVisualPosition(airerEntry.position, airerEntry.directionBinding || {});
+  /** 3D pose：仅 animationReversed（0.7.2） */
+  const posePositionOf = (airerEntry: any) =>
+    airerAnimationPosePosition(airerEntry.position, {
+      animationReversed: airerEntry.animationReversed,
+    });
   function applyPose(posedEntry: any) {
-    const visualPosition = visualPositionOf(posedEntry);
-    (posedEntry.rig.pose(visualPosition),
-      posedEntry.outlinePosition !== visualPosition &&
+    const posePosition = posePositionOf(posedEntry);
+    (posedEntry.rig.pose(posePosition),
+      posedEntry.outlinePosition !== posePosition &&
         ((posedEntry.model.userData.environmentOutlineRevision =
           (posedEntry.model.userData.environmentOutlineRevision || 0) + 1),
-        (posedEntry.outlinePosition = visualPosition)),
+        (posedEntry.outlinePosition = posePosition)),
       (posedEntry.model.userData.environmentOutlineMoving =
         !posedEntry.preparing && !!(posedEntry.motion || posedEntry.state?.moving)));
   }
@@ -69,8 +80,11 @@ export function createAirerMotion({
         migrateAirerDirectionFields(airerBinding);
         airerEntry.directionBinding = airerBinding || {};
         const direction = normalizeAirerDirection(airerBinding);
+        // 0.7.2：有实体且开启动画反向时，pose 路径才反转
+        airerEntry.animationReversed = !!(entityId && airerBinding?.animationReversed === true);
         const unboundPosition = airerBinding?.unboundPosition ?? airerEntry.rig.preview ?? 55,
-          visualPosition = airerVisualPosition(unboundPosition, airerBinding),
+          // 无位置回传时的目标：按 animationReversed 映射（0.7.2）
+          unboundTarget = airerEntry.animationReversed ? 100 - unboundPosition : unboundPosition,
           signature = JSON.stringify([
             entityId,
             cover.available,
@@ -78,8 +92,9 @@ export function createAirerMotion({
             cover.position,
             airerBinding?.travelSeconds,
             airerBinding?.unboundPosition,
-            direction.positionInverted,
-            direction.commandInverted,
+            direction.positionReversed,
+            direction.liftReversed,
+            airerEntry.animationReversed,
             preparing,
           ]);
         if (signature !== airerEntry.signature) {
@@ -102,7 +117,7 @@ export function createAirerMotion({
                 : entityChanged &&
                   cover.available &&
                   cover.moving &&
-                  (airerEntry.position = visualPosition)
+                  (airerEntry.position = unboundTarget)
               : (airerEntry.position = airerBinding?.unboundPosition ?? airerEntry.rig.preview ?? 55);
           else {
             if (!airerBinding?.entityId)
@@ -140,7 +155,7 @@ export function createAirerMotion({
               } else {
                 if (cover.available && cover.moving) {
                   const targetPosition = cover.opening ? 100 : 0;
-                  (entityChanged && (airerEntry.position = visualPosition),
+                  (entityChanged && (airerEntry.position = unboundTarget),
                     targetPosition !== airerEntry.position &&
                       (airerEntry.motion = {
                         from: airerEntry.position,
@@ -194,7 +209,7 @@ export function createAirerMotion({
       return {
         ...baseState,
         estimated: baseState.position === null,
-        visualPosition: matchedEntry ? visualPositionOf(matchedEntry) : null,
+        visualPosition: matchedEntry ? panelVisualOf(matchedEntry) : null,
       };
     },
     nextDelay() {

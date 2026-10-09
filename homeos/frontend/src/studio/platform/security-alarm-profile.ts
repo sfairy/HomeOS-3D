@@ -13,15 +13,29 @@ const ALARM_DEVICE_CLASSES: Record<string, string[]> = {
   gas: ["gas", "carbon_monoxide"],
 };
 
-/** 小米气感 enum → 内部 status（对齐 0.7.1） */
+/** 小米气感 enum → 内部 status（对齐 0.7.2） */
 export const GAS_ENUM_STATES: Record<string, string> = {
   预热: "warming",
   监测正常: "normal",
+  监测中: "normal",
   自检: "testing",
   传感器寿命到期: "expired",
   设备故障: "fault",
   天然气泄漏报警: "alarm",
 };
+
+/** 0.7.2 烟雾 enum → 内部 status */
+export const SMOKE_ENUM_STATES: Record<string, string> = {
+  监测正常: "normal",
+  监测中: "normal",
+  烟雾告警: "alarm",
+  设备故障: "fault",
+  烟室积灰: "dirty",
+  温度过高: "alarm",
+};
+
+/** HA event.* 烟雾事件类型（0.7.2 SMOKE_EVENT_TYPE） */
+export const SMOKE_EVENT_TYPE = "检测到高浓度烟雾";
 
 export function securityAlarmEntityMode(
   kind: string,
@@ -36,17 +50,28 @@ export function securityAlarmEntityMode(
     entity?.device_class;
   const entityId = entity?.entityId || "";
   if (!["moisture", "smoke", "gas"].includes(kind)) return "";
-  if (/^binary_sensor\.[a-z0-9_]+$/.test(entityId)) {
+  if (/^binary_sensor\.[a-z0-9_]+$/.test(entityId))
     return !deviceClass || deviceClass === kind ? "binary" : "";
+  if (kind === "smoke" && /^event\.[a-z0-9_]+$/.test(entityId)) {
+    const eventTypes =
+      stateObject?.attributes?.event_types ||
+      entity?.attributes?.event_types ||
+      entity?.eventTypes;
+    return (!deviceClass || deviceClass === "smoke") &&
+      Array.isArray(eventTypes) &&
+      eventTypes.includes(SMOKE_EVENT_TYPE)
+      ? "smoke-event"
+      : "";
   }
-  if (kind !== "gas" || !/^sensor\.[a-z0-9_]+$/.test(entityId)) return "";
+  if (!["gas", "smoke"].includes(kind) || !/^sensor\.[a-z0-9_]+$/.test(entityId)) return "";
   if (deviceClass && deviceClass !== "enum") return "";
   const options =
     stateObject?.attributes?.options || entity?.attributes?.options || entity?.options;
+  const alarmOption = kind === "smoke" ? "烟雾告警" : "天然气泄漏报警";
   return Array.isArray(options) &&
     options.includes("监测正常") &&
-    options.includes("天然气泄漏报警")
-    ? "gas-enum"
+    options.includes(alarmOption)
+    ? kind + "-enum"
     : "";
 }
 
@@ -91,7 +116,7 @@ export function alarmDeviceProfiles(
   const devicesById = new Map<string, any>();
   for (const entityEntry of entities) {
     if (!isAvailableRecord(entityEntry)) continue;
-    if (!/^(binary_sensor|sensor)\.[a-z0-9_]+$/.test(entityEntry.entityId || "")) continue;
+    if (!/^(binary_sensor|sensor|event)\.[a-z0-9_]+$/.test(entityEntry.entityId || "")) continue;
     if (!entityMatchesAlarmKind(entityEntry, kind)) continue;
     const deviceId = entityEntry.deviceId || entityEntry.device_id;
     if (!deviceId) continue;

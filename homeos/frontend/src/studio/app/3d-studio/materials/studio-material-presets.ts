@@ -1286,7 +1286,7 @@ const STONE_FURNITURE_STYLES: readonly MaterialStylePreset[] = Object.freeze([
 ]);
 
 
-/** 厨房这一族（`kitchenisland` / `kitchenbase` / `kitchensink` / `kitchencooktop`）共用一组档位：它们都是「**石材台面 + 木柜体**」的橱柜，台面都是槽位 2 的 `top`——`kitchenisland`  body / **top** / do… */
+/** 厨房这一族（`kitchenisland` / `kitchenbase` / `kitchensink` / `kitchencooktop`）共用一组档位：它们都是「**石材台面 + 木柜体**」的橱柜，台面都是槽位 2 的 `top`。 */
 const KITCHEN_STYLES: readonly MaterialStylePreset[] = Object.freeze([
   definePreset(
     "kitchen-marble-white-wood",

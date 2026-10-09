@@ -1,7 +1,7 @@
 {
   "name": "homeos",
   "private": true,
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "HomeOS 智能家居中央控制平台 — Home Assistant 上层 UI 网关，提供 Dashboard、户型图可视化、设备触控、安防、能源管理与语音交互",
   "scripts": {
     "bump": "bun scripts/bump-version.mjs",

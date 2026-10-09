@@ -239,7 +239,10 @@ export function createScreenOutlines({
       })));
   }
   function collectOutlineRoots(sceneModelRoot: any) {
-    if (sceneModelRoot.userData.environmentModelType === "fan") {
+    if (
+      sceneModelRoot.userData.environmentModelType === "fan" ||
+      sceneModelRoot.userData.environmentModelType === "ceiling-fan"
+    ) {
       const fanParts: any = [];
       return (
         sceneModelRoot.traverse((fanPartObject: any) => {

@@ -25,7 +25,7 @@ export function coverStateLabel(stateKey: any, options: { airer?: boolean } = {}
   }
   return Object.hasOwn(stateLabelByState, stateKey) ? (stateLabelByState as any)[stateKey] : "设备不可用";
 }
-/** 对齐 0.7.1 airerState：位置反向 + 升降指令反向时交换 opening/capabilities。 */
+/** 对齐 0.7.2 airerState：positionReversed + liftReversed 交换 opening/capabilities。 */
 export function airerState(coverStatus: any, binding: any = {}) {
   const direction = normalizeAirerDirection(binding);
   const source = coverStatus?.airerAdapted
@@ -38,8 +38,8 @@ export function airerState(coverStatus: any, binding: any = {}) {
       }
     : coverStatus;
   const visualPosition = airerVisualPosition(source.position, binding);
-  const opening = direction.commandInverted ? source.closing : source.opening;
-  const closing = direction.commandInverted ? source.opening : source.closing;
+  const opening = direction.liftReversed ? source.closing : source.opening;
+  const closing = direction.liftReversed ? source.opening : source.closing;
   return {
     ...coverStatus,
     airerAdapted: true,
@@ -53,13 +53,15 @@ export function airerState(coverStatus: any, binding: any = {}) {
     opening,
     closing,
     moving: !!(opening || closing),
-    openSupported: direction.commandInverted ? source.closeSupported : source.openSupported,
-    closeSupported: direction.commandInverted ? source.openSupported : source.closeSupported,
+    openSupported: direction.liftReversed ? source.closeSupported : source.openSupported,
+    closeSupported: direction.liftReversed ? source.openSupported : source.closeSupported,
   };
 }
 export function coverIconIsOn(component: any, coverFeedback: any) {
   if (!coverFeedback?.available) return false;
   const isAirer = !!(component?.airer || component?.coverKind === "airer");
+  // 0.7.2：晾衣架 unknown 时图标不亮
+  if (isAirer && coverFeedback.state === "unknown") return false;
   const adapted = isAirer ? airerState(coverFeedback, component) : coverFeedback;
   const isCoverOn = isAirer
     ? adapted.closing ||
@@ -99,10 +101,19 @@ export function coverState(entityId: any, stateChange: any, options: { coverKind
           ? 100
           : null,
     computedTiltPosition = hasTiltFeedback ? currentTiltPosition : currentPosition,
-    isAvailable =
-      /^cover\.[a-z0-9_]+$/.test(entityId) &&
-      rawState.available !== false &&
-      Object.hasOwn(stateLabelByState, normalizedState);
+    isKnownRailState = Object.hasOwn(stateLabelByState, normalizedState),
+    isBoundCover = /^cover\.[a-z0-9_]+$/.test(entityId) && rawState.available !== false,
+    // 0.7.2：晾衣架需具备 open/close/stop（features & 0xb），且
+    // available!==false 或 availabilityReason==='unknown'（状态 unknown 亦可交互）
+    isAirerDevice = !!(options as any).airer || options.coverKind === "airer",
+    isAvailable = isAirerDevice
+      ? /^cover\.[a-z0-9_]+$/.test(entityId) &&
+        normalizedState !== "unavailable" &&
+        !!(supportedFeatures! & 0xb) &&
+        (rawState.available !== false ||
+          rawState.availabilityReason === "unknown" ||
+          (rawState as any).availability_reason === "unknown")
+      : isBoundCover && isKnownRailState;
   return {
     entityId: entityId,
     raw: rawState,
@@ -129,10 +140,10 @@ export function coverState(entityId: any, stateChange: any, options: { coverKind
       isAvailable &&
       (effectiveState === "opening" ||
         (effectivePosition !== null ? effectivePosition > 0 : effectiveState === "open")),
-    openSupported: !!(supportedFeatures! & 1),
-    closeSupported: !!(supportedFeatures! & 2),
-    positionSupported: !!(supportedFeatures! & 4),
-    stopSupported: !!(supportedFeatures! & 8),
+    openSupported: !!(supportedFeatures! & 1) || (isAirerDevice && !isKnownRailState && isAvailable),
+    closeSupported: !!(supportedFeatures! & 2) || (isAirerDevice && !isKnownRailState && isAvailable),
+    positionSupported: !!(supportedFeatures! & 4) || (isAirerDevice && !isKnownRailState && isAvailable),
+    stopSupported: !!(supportedFeatures! & 8) || (isAirerDevice && !isKnownRailState && isAvailable),
     tiltSupported: !!(supportedFeatures! & 128),
     tiltOpenSupported: !!(supportedFeatures! & 16),
     tiltCloseSupported: !!(supportedFeatures! & 32),
@@ -164,7 +175,12 @@ export function coverControl(coverDevice: any, serviceName: any, targetPosition:
     close_cover_tilt: "tiltCloseSupported",
     stop_cover_tilt: "tiltStopSupported",
   } as any)[serviceName];
-  if (!capabilityKey || !coverDevice[capabilityKey]) throw new Error("设备不支持此窗帘操作。");
+  // 晾衣架状态未知时 supported_features 可能尚未回报：仍允许 open/close/stop
+  const allowAirerUnknown =
+    coverDevice.state === "unknown" &&
+    ["open_cover", "close_cover", "stop_cover", "set_cover_position"].includes(serviceName);
+  if (!capabilityKey || (!coverDevice[capabilityKey] && !allowAirerUnknown))
+    throw new Error("设备不支持此窗帘操作。");
   if (
     coverDevice.dream &&
     [

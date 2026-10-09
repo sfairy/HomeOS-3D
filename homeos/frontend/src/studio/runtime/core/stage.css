@@ -2295,8 +2295,68 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-alarm-card-battery {
   opacity: 0.8;
 }
+.interaction3d-stage .i3d-alarm-card.has-work-state .i3d-alarm-card-title {
+  padding-right: 4.5em;
+}
+.interaction3d-stage .i3d-alarm-card-work {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  z-index: 1;
+  max-width: 46%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font-style: normal;
+  font-size: 0.72em;
+  font-weight: 650;
+  line-height: 1.25;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #8fd4a8;
+}
 .interaction3d-stage
-  .i3d-alarm-card:is([data-status="alarm"], [data-status="fault"], [data-status="expired"]) {
+  .i3d-alarm-card-work:is(
+    [data-status="alarm"],
+    [data-status="fault"],
+    [data-status="expired"],
+    [data-status="dirty"]
+  ) {
+  color: #eeb0a0;
+}
+.interaction3d-stage
+  .i3d-alarm-card-work:is([data-status="warming"], [data-status="testing"]) {
+  color: #e6c07b;
+}
+.interaction3d-stage
+  .i3d-alarm-card-work:is(
+    [data-status="unknown"],
+    [data-status="unavailable"],
+    [data-status="unbound"]
+  ) {
+  color: #aab6bf;
+}
+.interaction3d-stage .i3d-alarm-card-work[data-status="normal"] {
+  color: #8fd4a8;
+}
+/* 0.7.2：水浸双状态分行 */
+.interaction3d-stage .i3d-alarm-source {
+  display: block;
+}
+.interaction3d-stage .i3d-alarm-detail-line {
+  display: block;
+}
+.interaction3d-stage .i3d-alarm-detail-line.is-event-time {
+  opacity: 0.85;
+}
+.interaction3d-stage
+  .i3d-alarm-card:is(
+    [data-status="alarm"],
+    [data-status="fault"],
+    [data-status="expired"],
+    [data-status="dirty"]
+  ) {
   border-color: currentColor;
   color: #eeb0a0;
 }
@@ -2306,7 +2366,8 @@ body.interaction3d-stage.is-background-hidden,
     [data-status="unavailable"],
     [data-status="unbound"],
     [data-status="warming"],
-    [data-status="testing"]
+    [data-status="testing"],
+    [data-status="event-idle"]
   ) {
   color: #aab6bf;
 }
@@ -2322,8 +2383,37 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-alarm-card:before {
   box-shadow: 0 8px 20px #59492940, inset 0 1px #fff;
 }
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-alarm-card-work[data-status="normal"] {
+  color: #3f7a52;
+}
 .interaction3d-stage[data-scene-style="warm-wood"]
-  .i3d-alarm-card:is([data-status="alarm"], [data-status="fault"], [data-status="expired"]) {
+  .i3d-alarm-card-work:is(
+    [data-status="alarm"],
+    [data-status="fault"],
+    [data-status="expired"],
+    [data-status="dirty"]
+  ) {
+  color: #a13f2c;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  .i3d-alarm-card-work:is([data-status="warming"], [data-status="testing"]) {
+  color: #9a6b2a;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  .i3d-alarm-card-work:is(
+    [data-status="unknown"],
+    [data-status="unavailable"],
+    [data-status="unbound"]
+  ) {
+  color: #8a7d6c;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  .i3d-alarm-card:is(
+    [data-status="alarm"],
+    [data-status="fault"],
+    [data-status="expired"],
+    [data-status="dirty"]
+  ) {
   border-color: currentColor;
   color: #a13f2c;
 }
@@ -2333,7 +2423,8 @@ body.interaction3d-stage.is-background-hidden,
     [data-status="unavailable"],
     [data-status="unbound"],
     [data-status="warming"],
-    [data-status="testing"]
+    [data-status="testing"],
+    [data-status="event-idle"]
   ) {
   color: #716657;
 }

@@ -1,11 +1,21 @@
 const readEntityState = (stateSource: any, entityId: any) =>
   stateSource instanceof Map ? stateSource.get(entityId) : stateSource?.[entityId];
-function televisionPosterAssetUrl(posterAssetId: any) {
-  const normalized = String(posterAssetId || "")
+
+/** 0.7.2：screenImage.assetId = user:<32hex>；兼容旧 posterAssetId（裸 hex 或 user:） */
+export function televisionScreenAssetId(televisionConfig: any = {}) {
+  const fromScreen = televisionConfig?.screenImage?.assetId;
+  if (typeof fromScreen == "string" && /^user:[0-9a-f]{32}$/i.test(fromScreen.trim()))
+    return fromScreen.trim().toLowerCase();
+  const legacy = String(televisionConfig?.posterAssetId || "")
     .trim()
-    .toLowerCase()
-    .replace(/^user:/, "");
-  return /^[0-9a-f]{32}$/.test(normalized) ? "/api/v1/assets/user/" + normalized : "";
+    .toLowerCase();
+  const bare = legacy.replace(/^user:/, "");
+  return /^[0-9a-f]{32}$/.test(bare) ? "user:" + bare : "";
+}
+
+function televisionPosterAssetUrl(televisionConfig: any) {
+  const assetId = televisionScreenAssetId(televisionConfig);
+  return assetId ? "/api/v1/assets/user/" + assetId.slice(5) : "";
 }
 function televisionArtwork(
   artworkAttributes: {
@@ -52,7 +62,7 @@ export function televisionState(televisionConfig: any, entityStateStore: Record<
         ? Math.max(0, (nowMs - mediaPositionUpdatedAtMs) / 1000)
         : 0;
   let artworkUrl = isOn && !isIdle ? televisionArtwork(stateAttributes) : "";
-  const customPosterUrl = televisionPosterAssetUrl(televisionConfig.posterAssetId);
+  const customPosterUrl = televisionPosterAssetUrl(televisionConfig);
   if (artworkUrl) {
     const artworkIdentityJson = JSON.stringify([
       stateAttributes.media_content_id,
