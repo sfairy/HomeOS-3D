@@ -17,7 +17,7 @@
     },
     "homeos-store": {
       "name": "homeos-store",
-      "version": "0.7.1",
+      "version": "0.7.2",
       "dependencies": {
         "pinia": "^4.0.3",
         "qrcode": "^1.5.4",
@@ -36,7 +36,7 @@
     },
     "homeos/frontend": {
       "name": "homeos-dashboard",
-      "version": "0.7.1",
+      "version": "0.7.2",
       "dependencies": {
         "@homeos/shared": "workspace:*",
         "@lucide/vue": "^1.52.0",
@@ -76,7 +76,7 @@
     },
     "homeos/packages/shared": {
       "name": "@homeos/shared",
-      "version": "0.7.1",
+      "version": "0.7.2",
       "dependencies": {
         "js-yaml": "^5.4.3",
       },

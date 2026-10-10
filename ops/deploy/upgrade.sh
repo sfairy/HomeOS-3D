@@ -2,8 +2,8 @@
 #
 # HomeOS 升级 / 回滚：中心商店先升，客户机再逐个升（同一个镜像 tag）。
 #
-#   ops/deploy/upgrade.sh --role store --version 1.0.1     # 厂商机：先升中心
-#   ops/deploy/upgrade.sh --role app   --version 1.0.1     # 客户机：逐个升（.env 里已有商店地址时不必再传）
+#   ops/deploy/upgrade.sh --role store --version 0.7.2     # 厂商机：先升中心
+#   ops/deploy/upgrade.sh --role app   --version 0.7.2     # 客户机：逐个升（.env 里已有商店地址时不必再传）
 #   ops/deploy/upgrade.sh --role app --check               # 只看本机钉住的版本与容器实际版本
 #
 # 升级不动数据卷；等价于用同一个 --version 重跑 deploy.sh。完整清单见 ops/deploy/UPGRADE.md。

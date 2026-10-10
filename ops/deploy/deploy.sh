@@ -80,7 +80,7 @@ install.sh（等价于「--role app」）。中心 / 客户机的完整流程见
   # 中心商店（厂商机）
   ./ops/deploy/deploy.sh --role store
   # 客户机（每台一次）
-  ./ops/deploy/deploy.sh --role app --license-server http://192.168.1.20:8802 --version 0.7.1
+  ./ops/deploy/deploy.sh --role app --license-server http://192.168.1.20:8802 --version 0.7.2
   # 开发 / 自测（同机）
   ./ops/deploy/deploy.sh --role all
 USAGE

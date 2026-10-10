@@ -39,7 +39,7 @@
 #       开发 / 自测： ./ops/deploy/deploy.sh          # 同机 all，不要用于客户交付
 #       版本会写回 .env 钉住（HOMEOS_VERSION / HOMEOS_IMAGE），中心与各客户机用同一个 tag。
 #       内网 HTTPS 开箱即用：反代（Caddy）内置在镜像里，主应用 https://<IP>:8803、商店 https://<IP>:8804
-#       钉版本加 --version 0.7.1；只看命令加 --dry-run
+#       钉版本加 --version 0.7.2；只看命令加 --dry-run
 #
 # [ ] 4. 确认健康
 #       docker compose -f docker-compose.store.yml ps

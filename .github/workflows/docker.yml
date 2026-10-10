@@ -41,7 +41,7 @@ jobs:
       - uses: actions/checkout@v7
 
       # 版本号唯一来源：仓库根 package.json 的 version。
-      # 发布标签只有两个：该版本号（如 0.7.1）与 latest，且只在默认分支推送，
+      # 发布标签只有两个：该版本号（如 0.7.2）与 latest，且只在默认分支推送，
       # 避免分支构建覆盖发布指针；非默认分支退化为 sha-<short>。
       # 镜像基名与仓库名解耦：仓库名里的 `-3d` 后缀不再出现在镜像上。
       #   主应用 ghcr.io/<namespace>/homeos

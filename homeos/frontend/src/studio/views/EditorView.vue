@@ -170,7 +170,7 @@ watch(
     <header class="editor-header sc-legacy-hidden" aria-hidden="true">
         <div class="brand-lockup"><img class="brand-icon"
                 src="/static/assets/icons/homeos-mark-white-orange.svg" alt=""><strong>HomeOS</strong><span
-                class="version">0.7.1</span></div>
+                class="version">0.7.2</span></div>
         <button id="save" class="primary editor-save" type="button" disabled>保存</button>
     </header>
     <main class="editor-shell">

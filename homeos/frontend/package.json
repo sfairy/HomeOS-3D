@@ -1,7 +1,7 @@
 {
   "name": "homeos-dashboard",
   "private": true,
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "HomeOS 前端中控界面（Vue）— 墙面平板优先的智能家居 Dashboard",
   "type": "module",
   "scripts": {

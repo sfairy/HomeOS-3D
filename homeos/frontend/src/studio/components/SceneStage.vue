@@ -293,7 +293,7 @@ const values = computed(() => sceneValues(props.page));
         <span class="hos-scene__ver" :title="values.SHELL_TITLE">
           <span class="hos-scene__ver-name">{{ values.SHELL_NAME }}</span>
           <span class="hos-scene__ver-sep" aria-hidden="true"></span>
-          <span class="hos-scene__ver-num">v{{ version || "0.7.1" }}</span>
+          <span class="hos-scene__ver-num">v{{ version || "0.7.2" }}</span>
         </span>
       </div>
     </header>
