@@ -2,28 +2,25 @@ name: Checks
 
 # 轻检查（不构建镜像、不推 GHCR）：类型检查、ruff、pyright、库结构、端到端冒烟。
 #
-# 为什么单独成一个自动触发的工作流：
-# docker.yml 只有 `workflow_dispatch`，于是 main 上的 CI **全靠手点**。2026-10-09 的
-# 8d3be3e7（refactor(frontend): 收敛全树目录分层）把 SettingsLicensePanel.vue 从
-# `src/views/settings/system/` 搬到 `src/features/settings/system/`，但 verify:features
-# 里硬编码的门禁文件路径没跟着改 —— 这盏红灯在 main 上躺了一天多，直到下一次手动
-# dispatch 才暴露（顺带确认：这次搬家的提交跑得比 adee113d 那次绿还晚）。
-# 这些检查本身都很轻（最慢的是装两套 Python 依赖），没理由跟着镜像构建一起被手动化。
+# 这些检查原先内联在 docker.yml 里。抽出来放这里，是为了让「构建门禁」只有一份定义：
+# docker.yml 通过 `uses:` 调用本工作流，改检查只改这一处，不会出现「docker.yml 里改了、
+# 另一个地方忘了改」的漂移。这类漂移有前车之鉴：8d3be3e7（refactor(frontend): 收敛全树
+# 目录分层）把 SettingsLicensePanel.vue 从 `src/views/settings/system/` 搬到
+# `src/features/settings/system/`，但 verify:features 里硬编码的门禁文件路径没跟着改，
+# 那盏红灯在 main 上躺到下一次手动 dispatch 才暴露。
 #
-# 同一份定义既在这里自动跑，也被 docker.yml 通过 `uses:` 调用当构建门禁：
-# 复制一份定义会带来「改了一处忘了另一处」的漂移，正是上面那条 bug 的同一类成因。
+# 刻意**不挂** push / pull_request：本工作流不自动跑，只在下面两种情况下执行 ——
+#   (a) docker.yml 构建前 `uses:` 调用它（构建门的真实入口）；
+#   (b) Actions 页面手动 Run workflow（想单独跑一遍检查时用）。
 on:
   workflow_call:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# group 里带上 github.workflow：被 docker.yml 调用时它是 "Docker"，与 push/PR 直跑
-# 的 "Checks" 分属不同组，避免 cancel-in-progress 把构建正在等的那个实例掐掉。
+# group 里带上 github.workflow：被 docker.yml 调用时它是 "Docker"，手动直跑时是
+# "Checks"，分属不同组，避免 cancel-in-progress 互相掐掉。
 concurrency:
   group: checks-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
