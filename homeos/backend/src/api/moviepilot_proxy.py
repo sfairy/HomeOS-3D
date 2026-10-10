@@ -16,7 +16,7 @@ from fastapi.responses import Response
 
 from .router import NestRouter
 from ..dependencies import license_feature
-from ..security.auth_context import require_roles
+from ..security.auth_context import require_user
 from ..services.license import features as feature_codes
 
 router = NestRouter(
@@ -32,7 +32,7 @@ _METHOD_NOT_ALLOWED_BODY = {"message": "MoviePilot 代理仅支持 GET/POST"}
 
 async def proxy_moviepilot(
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """透传请求到 MoviePilot 后端（子路径从 URL 前缀之后截取）。"""
     service = request.app.state.moviepilot_proxy

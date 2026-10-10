@@ -1,11 +1,10 @@
 /**
  * 文件：internals.ts
- * 职责：诊断面板 internals。聚合常量、数据拉取（configHealth / systemDiagnostics / systemHealth / agentPing / license）、
+ * 职责：诊断面板 internals。聚合常量、数据拉取（configHealth / systemDiagnostics / systemHealth / agentPing）、
  *       数据聚合与面板入口（useDiagnosticsPanel）。较大的 Summary / Export / Perf 为同目录独立文件。
  * 关键依赖：
  *   - vue 的 ref / computed / onMounted / onUnmounted
  *   - fetchConfigHealth / fetchSystemDiagnostics / fetchSystemHealth / agentPing：诊断 API
- *   - getLicenseStatus：许可证状态
  *   - useApiQuery：API 查询
  *   - useSettingsHubRouteSection：子导航路由同步
  *   - useDiagnosticsSummary / useDiagnosticsExport / useDiagnosticsPerf：聚合子模块
@@ -14,7 +13,6 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { formatFullDateTime } from '@/utils/format/locale-format.util'
 import { fetchConfigHealth, fetchSystemDiagnostics, fetchSystemHealth } from '@/services/api/system'
 import { agentPing } from '@/services/api/agent'
-import { getLicenseStatus, type LicenseStatus } from '@/services/api/license'
 import { extractErrorMessage } from '@/utils/core/error-message'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useApiQuery } from '@/composables/api/useApiQuery'
@@ -31,14 +29,13 @@ function useDiagnosticsFetch() {
   const configHealth = ref<DiagnosticsConfigHealth | null>(null)
   const diag = ref<DiagnosticsDiag | null>(null)
   const agentStatus = ref<{ provider?: string; ready?: boolean } | null>(null)
-  const licenseStatus = ref<LicenseStatus | null>(null)
 
   const chrome = useChromeStore()
 
   const query = useApiQuery(
     async () => {
       const partialErrors: string[] = []
-      const [h, ch, d, ag, lic] = await Promise.all([
+      const [h, ch, d, ag] = await Promise.all([
         fetchSystemHealth().catch((e) => {
           partialErrors.push(extractErrorMessage(e))
           return { data: health.value }
@@ -52,13 +49,11 @@ function useDiagnosticsFetch() {
           return { data: diag.value }
         }),
         agentPing().catch(() => null),
-        getLicenseStatus().catch(() => null),
       ])
       if (h?.data) health.value = h.data
       if (ch?.data != null) configHealth.value = ch.data
       if (d?.data) diag.value = d.data
       if (ag) agentStatus.value = ag
-      if (lic?.data) licenseStatus.value = lic.data
       lastFetched.value = formatFullDateTime(new Date())
       if (partialErrors.length && !health.value && !diag.value) {
         throw new Error(partialErrors[0] || '诊断数据加载失败')
@@ -71,7 +66,6 @@ function useDiagnosticsFetch() {
         meta: {
           degraded: partialErrors.length > 0,
           reason: partialErrors[0] || undefined,
-          redisReady: d?.data?.redis?.ok === true || d?.data?.redis?.configured === false,
         },
       }
     },
@@ -114,7 +108,6 @@ function useDiagnosticsFetch() {
     configHealth,
     diag,
     agentStatus,
-    licenseStatus,
     fetchAll,
     refreshCurrentSection,
     registerSectionRefresh,
@@ -132,8 +125,6 @@ function useDiagnosticsData() {
     haOk: summary.haOk,
     entityCount: summary.entityCount,
     wsClients: summary.wsClients,
-    redisStatusLabel: summary.redisStatusLabel,
-    redisDisplay: summary.redisDisplay,
     cpuPct: summary.cpuPct,
     memPct: summary.memPct,
     memLabel: summary.memLabel,

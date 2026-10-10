@@ -13,7 +13,7 @@ from fastapi import Depends, Query, Request
 from .router import NestRouter
 from .schemas.base import StrictModel
 from ..dependencies import license_feature
-from ..security.auth_context import require_roles, require_user
+from ..security.auth_context import require_user
 from ..services.license import features as feature_codes
 
 router = NestRouter(
@@ -131,7 +131,7 @@ async def install_preset(
     preset_id: str,
     payload: InstallPresetDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _service(request).install_preset(
         preset_id, payload.entityOverrides or {}, payload.merge if payload.merge is not None else False
@@ -141,19 +141,19 @@ async def install_preset(
 async def reorder_modes(
     payload: ReorderModesDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     items = [item.model_dump() for item in payload.items]
     return await _service(request).reorder(items)
 
 @router.post("/deactivate")
 async def deactivate(
-    request: Request, user: dict[str, Any] = Depends(require_roles("admin", "adult"))
+    request: Request, user: dict[str, Any] = Depends(require_user)
 ):
     return await _service(request).deactivate()
 
 @router.post("/seed")
-async def seed(request: Request, user: dict[str, Any] = Depends(require_roles("admin"))):
+async def seed(request: Request, user: dict[str, Any] = Depends(require_user)):
     return await _service(request).seed_defaults()
 
 @router.get("/{mode_id}")
@@ -166,7 +166,7 @@ async def find_one(
 async def create_mode(
     payload: CreateHomeModeDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _service(request).create(payload.model_dump())
 
@@ -175,25 +175,25 @@ async def update_mode(
     mode_id: str,
     payload: UpdateHomeModeDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _service(request).update(mode_id, _drop_none(payload.model_dump()))
 
 @router.delete("/{mode_id}")
 async def remove_mode(
-    mode_id: str, request: Request, user: dict[str, Any] = Depends(require_roles("admin", "adult"))
+    mode_id: str, request: Request, user: dict[str, Any] = Depends(require_user)
 ):
     return await _service(request).remove(mode_id)
 
 @router.post("/{mode_id}/duplicate")
 async def duplicate_mode(
-    mode_id: str, request: Request, user: dict[str, Any] = Depends(require_roles("admin", "adult"))
+    mode_id: str, request: Request, user: dict[str, Any] = Depends(require_user)
 ):
     return await _service(request).duplicate(mode_id)
 
 @router.post("/{mode_id}/activate")
 async def activate_mode(
-    mode_id: str, request: Request, user: dict[str, Any] = Depends(require_roles("admin", "adult"))
+    mode_id: str, request: Request, user: dict[str, Any] = Depends(require_user)
 ):
     return await _service(request).activate(
         mode_id, {"source": "manual", "reason": "手动切换", "actor": user}

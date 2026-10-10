@@ -5,20 +5,18 @@
  *
  * 职责：
  * - 拉取后端 SetupChecklist 状态（条目 / 完成数 / 总数 / 是否可见）；
- * - 仅管理员角色展示横幅，并支持本地"7 天暂缓"dismiss；
+ * - 横幅支持本地"7 天暂缓"dismiss；
  * - 暴露 showBanner 是否展示、progressText 进度文案、refresh 重新拉取、dismiss 暂缓。
  *
  * 依赖：
  * - vue（ref、computed、onMounted）
  * - @/services/api/system（fetchSetupChecklist）
- * - @/stores/auth.store（角色判断）
  * - @/utils/core/logger（失败日志）
  */
 import { readLocalStorage, writeLocalStorage } from '@/utils/core/local-storage.util'
 
 import { ref, computed, onMounted } from 'vue'
 import { fetchSetupChecklist } from '@/services/api/system'
-import { useAuthStore } from '@/stores/auth.store'
 import { logger } from '@/utils/core/logger'
 
 /** 单个清单条目：id / 标签 / 是否完成 / 提示 / 跳转路由 */
@@ -67,19 +65,14 @@ function isSnoozed(): boolean {
  * @returns loading 加载中标志；checklist 清单状态；showBanner 是否展示横幅；progressText 进度文案；refresh 重新拉取；dismiss 暂缓 7 天
  */
 export function useSetupChecklist() {
-  const authStore = useAuthStore()
   const loading = ref(false)
   const checklist = ref<SetupChecklistState | null>(null)
   // 本地暂缓状态（与 localStorage 同步）
   const snoozedLocally = ref(isSnoozed())
 
-  // 横幅展示条件：管理员 + 服务端可见 + 未被本地或服务端暂缓
+  // 横幅展示条件：服务端可见 + 未被本地或服务端暂缓
   const showBanner = computed(
-    () =>
-      authStore.role === 'admin' &&
-      Boolean(checklist.value?.visible) &&
-      !snoozedLocally.value &&
-      !isSnoozed(),
+    () => Boolean(checklist.value?.visible) && !snoozedLocally.value && !isSnoozed(),
   )
 
   // 进度文案：completed/total
@@ -89,14 +82,10 @@ export function useSetupChecklist() {
   })
 
   /**
-   * 重新拉取清单：非管理员直接清空；管理员同步暂缓状态后请求后端。
+   * 重新拉取清单：同步暂缓状态后请求后端。
    * 失败时静默清空（debug 日志），不阻塞页面。
    */
   async function refresh() {
-    if (authStore.role !== 'admin') {
-      checklist.value = null
-      return
-    }
     snoozedLocally.value = isSnoozed()
     loading.value = true
     try {

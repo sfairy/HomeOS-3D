@@ -7,18 +7,14 @@
  - TTL：会话超过 SESSION_TTL_MS（10 分钟）未活动即视为过期，读取 / 写入时惰性清理；
  - LRU：会话数超过 MAX_SESSIONS 时淘汰最久未使用的会话；
  - 单会话历史最多保留 MAX_TURNS 条，避免上下文无限膨胀。
-依赖：RedisService（重启 / Leader 切换后恢复会话上下文）。
+依赖：无（纯进程内存储）。
 """
 
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
 import time
 from dataclasses import dataclass, field
-
-from ...core.redis import RedisService
 
 logger = logging.getLogger("homeos.agent.session_store")
 
@@ -28,10 +24,6 @@ MAX_SESSIONS = 200
 SESSION_TTL_MS = 10 * 60_000
 #: 单会话保留的历史条数上限（与 LLM 上下文截取上限一致）
 MAX_TURNS = 16
-#: 会话持久化 Redis 键
-SESSIONS_KEY = "homeos:agent:sessions"
-#: 会话持久化兜底 TTL（秒）
-SESSIONS_TTL_SECONDS = 48 * 3600
 
 
 @dataclass
@@ -62,79 +54,9 @@ class AgentSessionStoreService:
     通过 get / push_turn / clear 管理「sessionId → 多轮历史」映射。
     """
 
-    def __init__(self, redis: RedisService | None = None) -> None:
-        self._redis = redis
+    def __init__(self) -> None:
         #: 会话表：dict 迭代顺序即插入顺序，配合 last_at 实现 LRU 淘汰
         self._sessions: dict[str, AgentSessionEntry] = {}
-
-    async def init(self) -> None:
-        """从 Redis 恢复会话（对齐 ``onModuleInit``）。"""
-        await self.restore()
-
-    async def restore(self) -> None:
-        """从 Redis 恢复会话（过滤过期 / 无效条目）。"""
-        if self._redis is None:
-            return
-        try:
-            raw = await self._redis.get(SESSIONS_KEY)
-            if not raw:
-                return
-            text = raw.decode() if isinstance(raw, bytes) else str(raw)
-            parsed = json.loads(text)
-            if not isinstance(parsed, dict):
-                return
-            now = _now_ms()
-            for session_id, entry in parsed.items():
-                if not session_id or not isinstance(entry, dict):
-                    continue
-                history = entry.get("history")
-                last_at = entry.get("lastAt")
-                if not isinstance(history, list) or not isinstance(last_at, (int, float)):
-                    continue
-                if now - int(last_at) > SESSION_TTL_MS:
-                    continue
-                self._sessions[session_id] = AgentSessionEntry(
-                    history=[
-                        AgentSessionTurn(role=str(turn.get("role")), content=str(turn.get("content")))
-                        for turn in history[-MAX_TURNS:]
-                        if isinstance(turn, dict)
-                    ],
-                    last_at=int(last_at),
-                )
-            if self._sessions:
-                logger.info("已恢复 Agent 会话上下文: %s 个", len(self._sessions))
-        except Exception as exc:
-            logger.debug("恢复 Agent 会话上下文失败: %s", exc)
-
-    def persist(self) -> None:
-        """将有效会话写入 Redis（TTL 48h 兜底，写入前清理过期条目）。"""
-        if self._redis is None:
-            return
-        self.purge_expired()
-        payload = json.dumps(
-            {
-                session_id: {
-                    "history": [
-                        {"role": turn.role, "content": turn.content} for turn in entry.history
-                    ],
-                    "lastAt": entry.last_at,
-                }
-                for session_id, entry in self._sessions.items()
-            },
-            ensure_ascii=False,
-        )
-
-        async def _write() -> None:
-            try:
-                await self._redis.set(SESSIONS_KEY, payload, SESSIONS_TTL_SECONDS)
-            except Exception as exc:
-                logger.debug("Agent 会话持久化失败: %s", exc)
-
-        # 对齐 Nest 的 fire-and-forget（void this.redis.set(...)）
-        try:
-            asyncio.get_running_loop().create_task(_write())
-        except RuntimeError:
-            pass
 
     # ------------------------------------------------------------------ #
     # 读取 / 写入
@@ -182,14 +104,12 @@ class AgentSessionStoreService:
         # 超限截断：仅保留最近 MAX_TURNS 条
         if len(entry.history) > MAX_TURNS:
             entry.history = entry.history[-MAX_TURNS:]
-        self.persist()
 
     def clear(self, session_id: str) -> None:
         """删除指定会话（对应「清除记忆」口令 / 前端结束连续对话时）。"""
         if not session_id:
             return
         self._sessions.pop(session_id, None)
-        self.persist()
 
     @property
     def size(self) -> int:

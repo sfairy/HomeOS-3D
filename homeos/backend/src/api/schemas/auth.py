@@ -72,7 +72,6 @@ class LoginRequest(BaseModel):
 class UserResponse(BaseModel):
     id: str
     username: str
-    role: str
     email: str | None = None
 
 

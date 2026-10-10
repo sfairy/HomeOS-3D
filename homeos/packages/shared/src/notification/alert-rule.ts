@@ -5,7 +5,7 @@
  *
  * 前端以 `AlertRule as InboxAlertRule` 别名引用，字段以后端持久化结构为准。
  */
-import type { AlertLevel } from '../auth/roles';
+import type { AlertLevel } from './alert-level';
 
 /** 告警规则定义。绑定实体（可选）、条件表达式、告警级别、投递渠道与冷却时长。 */
 export interface AlertRule {

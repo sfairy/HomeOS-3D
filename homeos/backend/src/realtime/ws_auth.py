@@ -33,12 +33,10 @@ def resolve_db_session_user(session: Session, token: str) -> dict[str, Any] | No
     user = resolve_login_session(session, token)
     if user is None:
         return None
-    role = user.role or "user"
     return {
         "userId": user.id,
         "username": user.username,
-        "role": role,
-        "restrictions": resolve_entity_restrictions({"role": role, "restrictions": None}),
+        "restrictions": resolve_entity_restrictions(None),
     }
 
 

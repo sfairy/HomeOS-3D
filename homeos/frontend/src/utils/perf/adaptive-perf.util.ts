@@ -140,7 +140,6 @@ function buildPerfSuggestions(entityCount: number): string[] {
     )
   }
   if (entityCount >= xlargeEntityThreshold) {
-    tips.push('超大规模安装：建议确认 Redis maxmemory ≥ 512MB')
     tips.push('超大规模：保持 wsPush.coldEntityOnDemand，并将 latencyProfile 设为 realtime 以压低关键域延迟')
   }
   if (entityCount >= largeEntityThreshold) {

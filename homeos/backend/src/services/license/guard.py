@@ -33,7 +33,6 @@ LICENSE_EXEMPT_EXACT = frozenset(
         "/",
         "/login",
         "/register",
-        "/setup",
         "/activate",
         "/license",
         "/license-recovery",

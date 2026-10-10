@@ -12,7 +12,7 @@
  *  - 前端订阅按本表常量匹配事件名。
  *
  * 约定：
- *  - 与 Nest/Redis 进程内 HOMEOS_EVENTS 命名空间分离，本表仅对外；
+ *  - 与进程内 HOMEOS_EVENTS 命名空间分离，本表仅对外；
  *  - 事件名采用 snake_case，分组仅供阅读，不参与运行时分组逻辑。
  */
 
@@ -47,7 +47,6 @@ export const WS_CLIENT_EVENTS = {
   ROOM_PRESENCE: 'room_presence', // [人员在场] 房间级在场
   EARTHQUAKE_ALERT: 'earthquake_alert', // [地震] 地震早期预警推送（全屏）
   EARTHQUAKE_CONFIRMATION: 'earthquake_confirmation', // [地震] 台网核定速报 / 迟到确认（公报弹层）
-  REDIS_STATUS: 'redis_status', // [HA连接] Redis 连接状态
 } as const;
 
 /**

@@ -14,7 +14,6 @@ import { formatShortDateTime } from '@/utils/format/locale-format.util'
 import { validateHaUrlForDeploy } from '@/utils/ha/url'
 import { copyTextWithNotify } from '@/services/notify'
 import { buildEntitySyncRecommendations } from '@/utils/recommend/entity-sync-recommend.util'
-import { redisHealthViewFromStatus, redisStatusToLabel } from '@/utils/telemetry/redis-status'
 import { useRegisterSettingsTabPending } from '@/features/settings/composables/pending.internals'
 import { useSettingsHubPending } from '@/features/settings/composables/pending.internals'
 import { useSettingsHubRouteSection } from '@/features/settings/composables/hub-ui.internals'
@@ -24,7 +23,7 @@ import { handleSystemConfigPatchError, patchSystemConfig, useSystemConfig } from
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 // ── useConnectionPanel ──
-/** HA/Redis 连接 Tab：聚合 display / credentials / entities 状态，供 Panel 页头保存与 Section 展示共用 */
+/** HA 连接 Tab：聚合 display / credentials / entities 状态，供 Panel 页头保存与 Section 展示共用 */
 export function useConnectionPanel(activeTab: () => string) {
   const connTab = ref('credentials')
 
@@ -32,9 +31,6 @@ export function useConnectionPanel(activeTab: () => string) {
   const {
     entitiesStore,
     connTabs,
-    redisHealth,
-    redisLabel,
-    redisRefreshError,
     backendReachable,
     haWsModeLabel,
     haWsModeBadgeMod,
@@ -102,9 +98,6 @@ export function useConnectionPanel(activeTab: () => string) {
     connTab,
     entitiesStore,
     connTabs,
-    redisHealth,
-    redisLabel,
-    redisRefreshError,
     backendReachable,
     haWsModeLabel,
     haWsModeBadgeMod,
@@ -381,7 +374,6 @@ function useConnectionCredentials(onReconnectSuccess?: () => void | Promise<void
 function useConnectionDisplay() {
   const entitiesStore = useEntitiesStore()
   const { loadDiagnostics } = useSystemDiagnostics()
-  const redisRefreshError = ref('')
   const backendReachable = ref<boolean | null>(null)
   const haWsMode = ref('standalone')
 
@@ -404,19 +396,8 @@ function useConnectionDisplay() {
     }
   }
 
-  async function refreshRedisStatus() {
-    if (entitiesStore.redisStatus !== 'unknown') return
-    try {
-      await entitiesStore.refreshRedisFromHealth()
-      redisRefreshError.value = ''
-    } catch (e) {
-      redisRefreshError.value = getApiErrorMessage(e, 'Redis 状态获取失败')
-    }
-  }
-
   onMounted(async () => {
     void checkBackendReachable()
-    await refreshRedisStatus()
     await loadHaWsMode()
   })
 
@@ -429,12 +410,8 @@ function useConnectionDisplay() {
       accent: 'var(--module-accent-connection-sub)',
       count: entitiesStore.totalCount || undefined,
     },
-    { id: 'redis', label: 'Redis', emoji: '🗄️', accent: 'var(--module-accent-template)' },
     { id: 'advanced', label: '高级', emoji: '⚙️', accent: 'var(--module-accent-automation)' },
   ])
-
-  const redisHealth = computed(() => redisHealthViewFromStatus(entitiesStore.redisStatus))
-  const redisLabel = computed(() => redisStatusToLabel(redisHealth.value))
 
   const haWsModeLabel = computed(() => {
     if (haWsMode.value === 'leader') return 'Leader'
@@ -467,14 +444,6 @@ function useConnectionDisplay() {
     const haTone = entitiesStore.connected ? 'emerald' : 'rose'
     const wsTone =
       haWsMode.value === 'leader' ? 'emerald' : haWsMode.value === 'follower' ? 'amber' : 'slate'
-    const redisTone =
-      redisRefreshError.value || redisHealth.value.loading
-        ? 'slate'
-        : !redisHealth.value.configured
-          ? 'slate'
-          : redisHealth.value.ok
-            ? 'indigo'
-            : 'amber'
 
     const cells = [
       {
@@ -496,13 +465,6 @@ function useConnectionDisplay() {
         value: haWsModeLabel.value,
         tone: wsTone,
       },
-      {
-        key: 'redis',
-        label: 'Redis',
-        value: redisRefreshError.value ? '未知' : redisLabel.value,
-        title: redisRefreshError.value || undefined,
-        tone: redisTone,
-      },
     ]
     if (entitiesStore.entitiesCacheHydrated || entitiesStore.entitiesCacheSavedAt) {
       cells.push({
@@ -520,16 +482,12 @@ function useConnectionDisplay() {
   return {
     entitiesStore,
     connTabs,
-    redisHealth,
-    redisLabel,
-    redisRefreshError,
     backendReachable,
     haWsModeLabel,
     haWsModeBadgeMod,
     haWsModeDesc,
     connectionStatCells,
     loadHaWsMode,
-    refreshRedisStatus,
   }
 }
 

@@ -58,7 +58,6 @@ STORE_DB = Path(
 data_dir = Path(tempfile.mkdtemp(prefix="homeos-license-e2e-"))
 os.environ["HOMEOS_DATA_DIR"] = str(data_dir)
 os.environ["HOMEOS_DATABASE_URL"] = f"sqlite:///{data_dir / 'homeos.db'}"
-os.environ["REDIS_URL"] = ""
 os.environ["LICENSE_REQUIRED"] = "1"
 # 冒烟自己的设备身份（见模块 docstring）：合成标识 → 稳定且与开发实例不同。
 # 必须在 import src.config 之前设好：Settings 在导入期构造。

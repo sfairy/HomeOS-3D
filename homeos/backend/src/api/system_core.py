@@ -34,7 +34,7 @@ from ..core.observability import (
 )
 from ..core.runtime_kv import load_runtime_kv
 from ..core.runtime_logs import DEFAULT_QUERY_LIMIT, RuntimeLogBuffer, matches_runtime_log_filter
-from ..security.auth_context import require_roles, require_user
+from ..security.auth_context import require_user
 
 logger = logging.getLogger("homeos.system.controller")
 
@@ -114,20 +114,18 @@ def _load_drift_repair_last_run(request: Request) -> dict[str, Any] | None:
 # 调度作业 / 诊断
 # ---------------------------------------------------------------------- #
 @router.get("/jobs")
-async def get_jobs(request: Request, user: dict[str, Any] = Depends(require_roles("admin"))):
+async def get_jobs(request: Request, user: dict[str, Any] = Depends(require_user)):
     """调度作业统一仪表盘（setInterval / Cron 心跳与耗时）。"""
     _ = user
     return {"success": True, "data": _jobs(request).list()}
 
 @router.get("/diagnostics")
-async def get_diagnostics(request: Request, user: dict[str, Any] = Depends(require_roles("admin"))):
+async def get_diagnostics(request: Request, user: dict[str, Any] = Depends(require_user)):
     """聚合运维诊断（HA / 实体 / WS / 资源）。"""
     _ = user
     app = request.app
     state_store = app.state.realtime.state_store
     gateway = app.state.realtime
-    redis = app.state.redis
-    settings = app.state.settings
     app_config = app.state.app_config
     retention = app.state.database_retention
 
@@ -135,7 +133,6 @@ async def get_diagnostics(request: Request, user: dict[str, Any] = Depends(requi
         app.state.system_service.get_health(),
         app.state.ha_connector.get_status(),
     )
-    redis_configured = bool(settings.redis_url)
     retention_days = retention.resolve_retention_days()
     stale_info = state_store.get_stale_info()
     entity_count = state_store.get_count()
@@ -146,8 +143,6 @@ async def get_diagnostics(request: Request, user: dict[str, Any] = Depends(requi
     xlarge_threshold = frontend_cfg.get("workerDerivedThreshold")
     if not isinstance(xlarge_threshold, (int, float)) or xlarge_threshold <= 0:
         xlarge_threshold = DEFAULT_XLARGE_THRESHOLD
-    ops_cfg = app_config.get("ops") or {}
-    skip_sensor_timeline = ops_cfg.get("eventLogSkipSensorTimeline") is not False
 
     latency = get_ha_sync_latency_snapshots()
     deferred_dropped = get_ha_ws_deferred_dropped_total()
@@ -172,10 +167,7 @@ async def get_diagnostics(request: Request, user: dict[str, Any] = Depends(requi
             ),
             f"实体: {state_store.get_count()}",
             f"WS 客户端: {gateway.client_count()}",
-            f"Redis: {'就绪' if redis.is_ready() else '未连接'}" if redis_configured else "Redis: 未配置",
             f"历史保留: {retention_days} 天",
-            "传感器时间线: "
-            + ("跳过写入（能耗依赖 Redis/HA 降级）" if skip_sensor_timeline else "已写入 Redis"),
             (
                 f"漂移修复上次: {drift_repair_last_run['finishedAt']} · "
                 f"修复 {drift_repair_last_run['repaired']} · 失败 {drift_repair_last_run['failed']}"
@@ -234,14 +226,8 @@ async def get_diagnostics(request: Request, user: dict[str, Any] = Depends(requi
         "haWsDeferredDroppedTotal": deferred_dropped,
         "retention": {
             "days": retention_days,
-            "skipSensorTimeline": skip_sensor_timeline,
             "note": f"事件/环境/用水等历史默认保留 {retention_days} 天；"
             "查询窗口超过保留期时图表可能不完整",
-        },
-        "redis": {
-            "configured": redis_configured,
-            "ok": redis.is_ready() if redis_configured else None,
-            "timelineReady": redis.is_ready() if redis_configured else False,
         },
         "driftRepairLastRun": drift_repair_last_run,
         "copyText": copy_text(),
@@ -258,7 +244,7 @@ async def get_runtime_logs(
     q: str | None = Query(default=None),
     context: str | None = Query(default=None),
     afterId: str | None = Query(default=None),
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """后端运行日志（进程内环形缓冲）。"""
     _ = user
@@ -288,7 +274,7 @@ async def stream_runtime_logs(
     q: str | None = Query(default=None),
     context: str | None = Query(default=None),
     afterId: str | None = Query(default=None),
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """后端运行日志 SSE 推送（Cookie 鉴权）。"""
     _ = user
@@ -347,7 +333,7 @@ async def stream_runtime_logs(
     )
 
 @router.delete("/runtime-logs")
-async def delete_runtime_logs(request: Request, user: dict[str, Any] = Depends(require_roles("admin"))):
+async def delete_runtime_logs(request: Request, user: dict[str, Any] = Depends(require_user)):
     """清空后端运行日志缓冲。"""
     _ = user
     return _runtime_buffer(request).clear()
@@ -356,7 +342,7 @@ async def delete_runtime_logs(request: Request, user: dict[str, Any] = Depends(r
 # 设备管理
 # ---------------------------------------------------------------------- #
 @router.get("/devices")
-async def get_devices_overview(request: Request, user: dict[str, Any] = Depends(require_roles("admin"))):
+async def get_devices_overview(request: Request, user: dict[str, Any] = Depends(require_user)):
     """设备管理总览：僵尸绑定列表（按来源分组）。"""
     _ = user
     return await request.app.state.device_management.get_devices_overview()
@@ -365,7 +351,7 @@ async def get_devices_overview(request: Request, user: dict[str, Any] = Depends(
 async def unbind_zombies(
     request: Request,
     body: dict[str, Any] = Body(default_factory=dict),
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """批量解绑僵尸绑定（布局 Widget / 房间绑定 / 告警规则 / 寿命统计，幂等）。"""
     _ = user
@@ -387,7 +373,7 @@ async def get_health(request: Request, user: dict[str, Any] = Depends(require_us
     return await request.app.state.system_service.get_health()
 
 @router.get("/network-info")
-async def get_network_info(request: Request, user: dict[str, Any] = Depends(require_roles("admin"))):
+async def get_network_info(request: Request, user: dict[str, Any] = Depends(require_user)):
     """获取跨端网络与远程访问信息（内网地址 / 公网 IPv4·IPv6 / 端口回退）。"""
     _ = user
     headers = {key.lower(): value for key, value in request.headers.items()}

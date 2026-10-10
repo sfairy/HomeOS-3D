@@ -47,7 +47,7 @@ import { sortEntitiesBySyncPriority } from '@homeos/shared'
 export function createEntityInitHelpers(deps: EntityInitDeps) {
   // 批次 token：自增用于丢弃过期批次响应（initStates 并发 / 增量推送场景竞态保护）
   let initStatesBatchToken = 0
-  // 最近一次已接受快照时的权限指纹（role + restrictions），变化时强制接受缩小快照
+  // 最近一次已接受快照时的权限指纹（restrictions），变化时强制接受缩小快照
   let lastAcceptedRestrictionsVersion = ''
 
   /** 标记加载就绪：进度 100、阶段 'ready' */
@@ -57,7 +57,7 @@ export function createEntityInitHelpers(deps: EntityInitDeps) {
   }
 
   /**
-   * 统计实体列表中可见数量（受当前用户角色与 restrictions 约束）
+   * 统计实体列表中可见数量（受实体访问白名单 restrictions 约束）
    * @param entityList 实体列表
    * @returns 可见实体数
    */

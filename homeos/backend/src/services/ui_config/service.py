@@ -18,9 +18,10 @@ from typing import Any
 from sqlalchemy import select
 
 from .layout_secrets import (
-    mask_layout_for_role,
+    mask_layout,
     merge_layout_secrets_on_save,
     strip_legacy_ha_connection,
+    strip_retired_layout_keys,
 )
 from .static_assets import UiConfigStaticAssetService
 from ...core.errors import (
@@ -77,11 +78,34 @@ class UiConfigService:
         return {
             "id": row.id,
             "projectId": row.project_id,
-            # 读路径统一清掉历史 layout.haConfig 里的连接凭据（3.3 起单源到 ha_connections）。
-            "layout": strip_legacy_ha_connection(read_json_object(row.layout)),
+            # 读路径统一清掉历史 layout.haConfig 里的连接凭据（3.3 起单源到 ha_connections）
+            # 与已退役的结构键（角色维度）。
+            "layout": strip_retired_layout_keys(strip_legacy_ha_connection(read_json_object(row.layout))),
             "createdAt": _iso(row.created_at),
             "updatedAt": _iso(row.updated_at),
         }
+
+    def normalize_retired_layout_keys(self) -> int:
+        """一次性清掉库里 layout 中的退役键，返回被改写的项目数（启动期调用）。
+
+        前端 / 读路径只是「读到的时候不认」，键会一直躺在库里直到该项目下次保存；
+        存量安装不可能人人再保存一次，所以启动时补一遍。解析失败的 layout 原样跳过，
+        绝不用空对象覆盖。
+        """
+        changed = 0
+        with self._session_factory() as session:
+            for row in session.execute(select(ProjectConfig)).scalars().all():
+                raw = read_json_object(row.layout)
+                cleaned = strip_retired_layout_keys(raw)
+                if cleaned == raw:
+                    continue
+                row.layout = json.dumps(cleaned, ensure_ascii=False)
+                changed += 1
+            if changed:
+                session.commit()
+        if changed:
+            logger.info("已清理 %d 个布局中的退役键", changed)
+        return changed
 
     def _find(self, session, project_id: str) -> ProjectConfig | None:
         return session.execute(
@@ -119,8 +143,8 @@ class UiConfigService:
                 return {"projectId": project_id, "layout": {}}
             return self._record(row)
 
-    def get_config_for_api(self, project_id: str, role: str | None = None) -> dict[str, Any]:
-        """API：获取项目配置（含已解析 layout；非 admin 脱敏 HA token）。"""
+    def get_config_for_api(self, project_id: str) -> dict[str, Any]:
+        """API：获取项目配置（含已解析 layout；敏感字段脱敏）。"""
         try:
             data = self.get_config(project_id)
             layout, parse_error = self.parse_layout_field(data.get("layout"))
@@ -128,7 +152,7 @@ class UiConfigService:
                 "success": True,
                 "data": {
                     **data,
-                    "layout": mask_layout_for_role(layout, role),
+                    "layout": mask_layout(layout),
                     "layoutParseError": parse_error,
                 },
             }
@@ -257,61 +281,8 @@ class UiConfigService:
         self._assert_profile_exists(profile_id)
 
         caller = caller or {}
-        if caller.get("role") == "admin":
-            return await self.upsert_terminal_binding(body, caller.get("userId"))
-
-        profiles = self._profiles()
-        bindings = [dict(row) for row in (profiles.get("terminalBindings") or [])]
-        index = next(
-            (i for i, row in enumerate(bindings) if row.get("clientId") == client_id), None
-        )
-        now = datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
-
-        if index is not None:
-            existing = bindings[index]
-            if not caller.get("userId") or existing.get("boundBy") != caller.get("userId"):
-                bad_request(api_error("UI_CONFIG_TERMINAL_BINDING_FORBIDDEN"))
-            row = {
-                **existing,
-                "clientId": client_id,
-                "profileId": profile_id,
-                "label": str(body.get("label")).strip()
-                if body.get("label") is not None
-                else existing.get("label"),
-                "boundBy": caller.get("userId") or existing.get("boundBy"),
-                "updatedAt": now,
-            }
-            if row.get("label") is None:
-                row.pop("label", None)
-            bindings[index] = row
-            self._app_config.update({"profiles": {"terminalBindings": bindings}})
-            logger.warning(
-                "非 admin 用户 %s(%s) 更新终端 %s 绑定 → 方案 %s",
-                caller.get("userId") or "unknown",
-                caller.get("role"),
-                client_id,
-                profile_id,
-            )
-            return {"success": True, "data": row}
-
-        row = {
-            "clientId": client_id,
-            "profileId": profile_id,
-            "boundBy": caller.get("userId"),
-            "updatedAt": now,
-        }
-        if body.get("label") is not None:
-            row["label"] = str(body["label"]).strip()
-        bindings.append(row)
-        self._app_config.update({"profiles": {"terminalBindings": bindings}})
-        logger.warning(
-            "非 admin 用户 %s(%s) 绑定终端 %s → 方案 %s",
-            caller.get("userId") or "unknown",
-            caller.get("role"),
-            client_id,
-            profile_id,
-        )
-        return {"success": True, "data": row}
+        # 单一管理员模型：绑定即写整表，无需再区分调用者角色。
+        return await self.upsert_terminal_binding(body, caller.get("userId"))
 
     async def remove_terminal_binding(self, client_id_raw: str | None) -> dict[str, Any]:
         client_id = str(client_id_raw or "").strip()
@@ -360,7 +331,7 @@ class UiConfigService:
         ``SYSTEM_CONFIG_UPDATED``，供其它读 layout 的消费者（安防事件路径、绑定等）刷新。
         """
         logger.info("正在保存项目布局配置:%s", project_id)
-        layout_json = strip_legacy_ha_connection(to_input_json(layout, {}))
+        layout_json = strip_retired_layout_keys(strip_legacy_ha_connection(to_input_json(layout, {})))
         with self._session_factory() as session:
             row = self._find(session, project_id)
             now = datetime.now(UTC)

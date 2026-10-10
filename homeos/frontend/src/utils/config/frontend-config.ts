@@ -198,6 +198,21 @@ export function getFrontendConfig(): FrontendSection {
   return _config
 }
 
+/**
+ * 读取某个小组件的独立轮询间隔覆写（frontend.widgetPollIntervals[key]）。
+ *
+ * 用于让「高级参数 → frontend.widgetPollIntervals」真正生效：以小组件 key
+ * （如 weather / homeClimateChart）为键配置毫秒间隔，命中且为合法正数时覆盖代码内置默认值。
+ * 未配置或非法时返回 fallback，保持原行为。
+ */
+export function getWidgetPollInterval(key: string, fallback: number): number {
+  const table = getFrontendConfig().widgetPollIntervals
+  if (!table || typeof table !== 'object') return fallback
+  const raw = (table as Record<string, unknown>)[key]
+  const n = typeof raw === 'number' ? raw : Number(raw)
+  return Number.isFinite(n) && n > 0 ? n : fallback
+}
+
 /** 读取 frontend 分区数值参数（归一化类型与 fallback） */
 function getFrontendInt(key: keyof FrontendSection, fallback: number): number {
   const raw = getFrontendConfig()[key]

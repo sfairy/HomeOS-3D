@@ -124,10 +124,9 @@ def build_backend_perf_suggestions(entity_count: int, xlarge_threshold: int = 35
     """根据实体规模给出后端调优建议（运维诊断 API 使用）。"""
     if entity_count < 2000:
         return []
-    tips = [f"实体数 {entity_count}：建议 Redis maxmemory ≥ 512MB"]
+    tips = [f"实体数 {entity_count}：建议增大可用内存并关注 L1 缓存占用"]
     if entity_count >= xlarge_threshold:
         tips.append("超大规模：考虑将 ingressCoalesceWindowMs 调至 20ms+、stateBatchMax 调至 400+")
-        tips.append(f"实体缓存约 {entity_count} 条：建议启用 Redis 以减轻 L1 重启压力")
         tips.append("超大规模：确认 wsPush.coldEntityOnDemand=true，WS 仅推送关键域与热点实体")
     tips.append("可在高级参数调低 stateStore.maxRecentChanges（默认 3000）以减少 WS 补发缓冲占用")
     tips.append(

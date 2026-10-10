@@ -1,9 +1,9 @@
 /**
  * 项目配置与布局 REST API 封装
  *
- * 职责：封装项目档案、终端绑定、配置导入导出、资产文件管理等接口。
+ * 职责：封装项目档案、终端绑定、资产文件管理等接口。
  * 依赖：../api-client 提供的 apiGet / apiPost / apiPut / apiDelete。
- * 端点范围：/config/profiles、/config/project/*、/config/terminal/*、/config/all/*、/config/{base}（资产）。
+ * 端点范围：/config/profiles、/config/project/*、/config/terminal/*、/config/{base}（资产）。
  */
 import type { AxiosRequestConfig } from 'axios'
 import { apiDelete, apiGet, apiPost, apiPut } from '../api-client'
@@ -131,25 +131,6 @@ export function upsertTerminalBinding(
  */
 export function deleteTerminalBinding(clientId: string, config?: AxiosRequestConfig) {
   return apiDelete(`/config/terminal/binding/${encodeURIComponent(clientId)}`, config)
-}
-
-/**
- * 导出全部配置。
- * 对应后端 endpoint：GET /config/all/export
- * @returns 导出的配置数据
- */
-export function exportAllConfig(config?: AxiosRequestConfig) {
-  return apiGet('/config/all/export', config)
-}
-
-/**
- * 导入全部配置。
- * 对应后端 endpoint：POST /config/all/import
- * @param payload 配置数据
- * @returns 导入结果
- */
-export function importAllConfig(payload: unknown, config?: AxiosRequestConfig) {
-  return apiPost('/config/all/import', payload, config)
 }
 
 /**

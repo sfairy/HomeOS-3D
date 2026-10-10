@@ -536,7 +536,7 @@ export function useNotificationCenter() {
   })
 
   // 每 120 秒定时刷新免打扰配置，及时响应用户偏好变化
-  useScheduledPoll(fetchDnd, 120_000)
+  useScheduledPoll(fetchDnd, 120_000, { configKey: 'notificationCenter' })
 
   return {
     authStore,

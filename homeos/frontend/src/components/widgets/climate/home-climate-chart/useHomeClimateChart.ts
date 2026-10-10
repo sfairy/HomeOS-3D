@@ -370,7 +370,7 @@ export function useHomeClimateChart(options: UseHomeClimateChartOptions) {
       if (panelVisible.value) return fetchData()
     },
     5 * 60 * 1000,
-    { key: 'widget:HomeClimateChartWidget', immediate: false },
+    { key: 'widget:HomeClimateChartWidget', immediate: false, configKey: 'homeClimateChart' },
   )
 
   onUnmounted(() => {

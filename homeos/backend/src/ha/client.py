@@ -160,6 +160,8 @@ class HAClient:
         *,
         control_pool: HAControlPool | None = None,
         control_connection_id: str | None = None,
+        ws_ping_interval: float | None = None,
+        ws_ping_timeout: float | None = None,
     ) -> None:
         self.base_url = normalize_base_url(base_url)
         self.access_token = access_token
@@ -167,6 +169,11 @@ class HAClient:
         self.timeout = timeout
         self.websocket_max_size_bytes = max(int(websocket_max_size_bytes), 8388608)
         self._bypass_env_proxy = bypass_env_proxy(self.base_url)
+        # WebSocket 应用层心跳（秒），由 haConnector 高级参数注入
+        # （wsPingIntervalMs / wsPongTimeoutMs，见 HAConnectorService.client_for）。
+        # None 表示沿用 websockets 库默认（20s / 20s）。
+        self.ws_ping_interval = ws_ping_interval
+        self.ws_ping_timeout = ws_ping_timeout
         # control_pool 非空时，控制类请求（调服务）走共享连接池，由 HAControlPool 决定
         # 是否复用已有连接、何时淘汰；缺省 None 表示每次新建（测试与一次性脚本的用法）。
         self._control_pool = control_pool
@@ -334,8 +341,8 @@ class HAClient:
                 ssl=self._ssl_context(),
                 proxy=None if self._bypass_env_proxy else True,
                 open_timeout=self.timeout,
-                ping_interval=20,
-                ping_timeout=20,
+                ping_interval=20 if self.ws_ping_interval is None else self.ws_ping_interval,
+                ping_timeout=20 if self.ws_ping_timeout is None else self.ws_ping_timeout,
                 max_size=self.websocket_max_size_bytes,
                 max_queue=4,
             )

@@ -31,7 +31,6 @@ interface HomeModePanelBridge {
   showModeToolbar: ComputedRef<boolean>
   activeTab: Ref<string>
   displayModeTabs: ComputedRef<Array<Record<string, unknown>>>
-  isAdmin: ComputedRef<boolean>
   switchTab: (id: string) => void | Promise<void>
   onModeReorder: (payload: unknown) => void
   handleSeed: () => void

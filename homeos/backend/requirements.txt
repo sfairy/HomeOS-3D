@@ -14,7 +14,6 @@ alembic>=1.13
 httpx>=0.27
 # HA 实时订阅：并入 homeos-3d 的 ha/client.py 后需要较新的 API。
 websockets>=17
-redis>=5
 PyJWT>=2.8
 # 管理员密码哈希：bcrypt 保留用于存量用户校验（登录成功即重哈希为 argon2）。
 bcrypt>=4.1

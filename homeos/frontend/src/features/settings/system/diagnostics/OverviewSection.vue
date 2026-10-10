@@ -1,7 +1,7 @@
 <!--
 组件：OverviewSection.vue
 所属模块：frontend / src / views / settings / system / diagnostics
-职责：诊断总览区段。通过 OrchTabs 切换总览 / 前端性能 / HA 连接 / 配置健康 / Redis 等子页签，
+职责：诊断总览区段。通过 OrchTabs 切换总览 / 前端性能 / HA 连接 / 配置健康等子页签，
       展示 KPI、流水线节点、配置健康评分与缺口、连接服务卡片。数据由 useDiagnosticsSection 注入。
 关键依赖：
   - SettingsCard / SettingsCardIntro / SettingsOrchTabs / SettingsFlowBand：卡片与流程
@@ -195,10 +195,6 @@
             <span class="diag-kv-item__v font-mono">{{ wsClients }} {{ '客户端' }}</span>
           </div>
           <div class="diag-kv-item">
-            <span class="diag-kv-item__k">{{ 'Redis' }}</span>
-            <span class="diag-kv-item__v" :class="redisStatusClass">{{ redisStatusLabel }}</span>
-          </div>
-          <div class="diag-kv-item">
             <span class="diag-kv-item__k">{{ '前端 Trace' }}</span>
             <button
               type="button"
@@ -229,66 +225,6 @@
             '本页负责系统/HA 基建诊断；设备健康与用量热图请在仪表板「三合一滑动」中查看对应页。'
           }}
         </p>
-      </SettingsCard>
-
-      <SettingsCard
-        v-if="licenseStatus?.required"
-        full
-        static
-        extra-class="diag-section-card"
-      >
-        <h4 class="diag-section-title">{{ '商业授权' }}</h4>
-        <div class="diag-kv-grid diag-kv-grid--3">
-          <div class="diag-kv-item">
-            <span class="diag-kv-item__k">{{ '状态' }}</span>
-            <span
-              class="diag-kv-item__v"
-              :class="licenseStatus.allowed ? 'do-text-success' : 'do-text-danger'"
-            >
-              {{ licenseStatus.allowed ? '已激活' : '未激活' }}
-            </span>
-          </div>
-          <div class="diag-kv-item">
-            <span class="diag-kv-item__k">{{ '许可证 Key' }}</span>
-            <button
-              type="button"
-              class="diag-kv-item__v diag-kv-item__v--mono diag-kv-item__v--copy"
-              :title="licenseKeyFull ? '点击复制完整 Key' : ''"
-              :disabled="!licenseKeyFull"
-              @click="copyDiagValue(licenseKeyFull, 'key')"
-            >
-              {{ licenseKeyCopied ? '已复制' : licenseKeyDisplay }}
-            </button>
-          </div>
-          <div class="diag-kv-item">
-            <span class="diag-kv-item__k">{{ '设备指纹' }}</span>
-            <button
-              type="button"
-              class="diag-kv-item__v diag-kv-item__v--mono diag-kv-item__v--copy"
-              :title="licenseStatus.instanceId ? '点击复制完整指纹' : ''"
-              :disabled="!licenseStatus.instanceId"
-              @click="copyDiagValue(licenseStatus.instanceId, 'hwid')"
-            >
-              {{ licenseHwidCopied ? '已复制' : licenseHwidDisplay }}
-            </button>
-          </div>
-          <div class="diag-kv-item">
-            <span class="diag-kv-item__k">{{ '授权有效期' }}</span>
-            <span class="diag-kv-item__v">{{ licenseExpiresLabel }}</span>
-          </div>
-          <div class="diag-kv-item">
-            <span class="diag-kv-item__k">{{ '公钥指纹' }}</span>
-            <button
-              type="button"
-              class="diag-kv-item__v diag-kv-item__v--mono diag-kv-item__v--copy"
-              :title="licensePubkeyFp ? '点击复制公钥指纹' : ''"
-              :disabled="!licensePubkeyFp"
-              @click="copyDiagValue(licensePubkeyFp, 'pubkey')"
-            >
-              {{ licensePubkeyCopied ? '已复制' : licensePubkeyFp || '—' }}
-            </button>
-          </div>
-        </div>
       </SettingsCard>
     </div>
 
@@ -394,7 +330,7 @@
         </div>
         <div class="diag-quick-links">
           <RouterLink :to="SETTINGS_ROUTES.profiles('backup')" class="diag-quick-link">{{
-            '备份与还原'
+            '备份与恢复'
           }}</RouterLink>
           <RouterLink :to="SETTINGS_ROUTES.retention()" class="diag-quick-link">{{
             '保留天数'
@@ -562,8 +498,6 @@ const {
   haWsModeLabel,
   haWsModeClass,
   wsClients,
-  redisStatusLabel,
-  redisStatusClass,
   pageTraceId,
   runtimeKpis,
   runtimeMemoryLabel,
@@ -581,7 +515,6 @@ const {
   listenerStatsLabel,
   subscribeDomainsLabel,
   fpsSchedulerLabel,
-  licenseStatus,
 } = useDiagnosticsSection([
   'overviewTab',
   'overviewTabs',
@@ -600,8 +533,6 @@ const {
   'haWsModeLabel',
   'haWsModeClass',
   'wsClients',
-  'redisStatusLabel',
-  'redisStatusClass',
   'pageTraceId',
   'runtimeKpis',
   'runtimeMemoryLabel',
@@ -619,7 +550,6 @@ const {
   'listenerStatsLabel',
   'subscribeDomainsLabel',
   'fpsSchedulerLabel',
-  'licenseStatus',
 ])
 
 const HA_SYNC_STAGE_LABELS = {
@@ -655,59 +585,14 @@ const haWsDeferredDroppedLabel = computed(() => {
 })
 
 const pageTraceCopied = ref(false)
-const licenseKeyCopied = ref(false)
-const licenseHwidCopied = ref(false)
-const licensePubkeyCopied = ref(false)
 
 /** 复制反馈旗标：kind 必须与按钮一一对应，禁止共用 */
 const COPY_FLAGS = {
   trace: pageTraceCopied,
-  key: licenseKeyCopied,
-  hwid: licenseHwidCopied,
-  pubkey: licensePubkeyCopied,
 }
-
-const licenseKeyFull = computed(() => {
-  const key = licenseStatus.value?.activationCodeHint
-  if (typeof key === 'string' && key.trim()) return key.trim()
-  return ''
-})
-
-const licenseKeyDisplay = computed(() => {
-  if (licenseKeyFull.value) return licenseKeyFull.value
-  if (licenseStatus.value?.allowed) return '（无编号）'
-  return '—'
-})
-
-/** 完整指纹展示：每 4 位分组便于扫读，复制仍用原始指纹 */
-const licenseHwidDisplay = computed(() => {
-  const hwid = String(licenseStatus.value?.instanceId || '').trim()
-  if (!hwid) return '—'
-  return hwid.replace(/(.{4})(?=.)/g, '$1 ')
-})
-
-const licensePubkeyFp = computed(() =>
-  String(licenseStatus.value?.publicKeyFingerprint || '').trim(),
-)
-
-const licenseExpiresLabel = computed(() => {
-  if (!licenseStatus.value?.allowed) return '—'
-  const raw = licenseStatus.value?.leaseExpiresAt
-  if (!raw) return '永久'
-  const ms = Date.parse(raw)
-  if (!Number.isFinite(ms)) return '—'
-  try {
-    return new Date(ms).toLocaleString()
-  } catch {
-    return '—'
-  }
-})
 
 const copyResetTimers = /** @type {Record<keyof typeof COPY_FLAGS, number>} */ ({
   trace: 0,
-  key: 0,
-  hwid: 0,
-  pubkey: 0,
 })
 
 /**
@@ -753,7 +638,7 @@ const configHealthDesc = computed(() => {
 
 const diagFlowSummary = computed(() => {
   const ha = haOk.value ? 'HA 在线' : 'HA 离线'
-  return `${ha} · ${redisStatusLabel.value}`
+  return `${ha} · ${wsClients.value} 客户端`
 })
 
 const diagFlowSteps = computed(() =>

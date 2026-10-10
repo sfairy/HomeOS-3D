@@ -4,9 +4,8 @@
  * 职责：
  * - 维护设置页导航分组（NAV_GROUP_LABELS）、Tab 标签（TAB_LABELS）、
  *   页面标题（PAGE_TITLE_LABELS）、页面描述（PAGE_DESC_LABELS）。
- * - 维护导航结构（NAV_STRUCTURE）、仅管理员可见 Tab（ADMIN_ONLY_TABS）、
- *   独立保存 Tab（INDEPENDENT_SAVE_TABS）。
- * - 提供分组/Tab 文案查询、Tab 合法性校验、默认 Tab 解析等工具函数。
+ * - 维护导航结构（NAV_STRUCTURE）、独立保存 Tab（INDEPENDENT_SAVE_TABS）。
+ * - 提供分组/Tab 文案查询、Tab 合法性校验等工具函数。
  *
  * 依赖：无外部依赖，纯静态映射与纯函数。
  *
@@ -49,6 +48,7 @@ const TAB_LABELS: Record<string, string> = {
   retention: '数据保留',
   devices: '绑定清理',
   license: '授权状态',
+  access: '访问控制',
 }
 
 const PAGE_TITLE_LABELS: Record<string, string> = {
@@ -87,6 +87,7 @@ const PAGE_DESC_LABELS: Record<string, string> = {
   widgets: '右侧面板微件的添加、排序与配置',
   family: '家庭模式、勿扰、通知与儿童模式',
   license: '本机授权状态、租约与权益清单，含重连 / 重激活 / 退出',
+  access: '大屏入口设置锁：启用开关与 4–6 位访问 PIN',
 }
 
 /** DEFAULT_TAB：常量，取值语义见定义处。 */
@@ -130,6 +131,7 @@ export const NAV_STRUCTURE = [
     id: 'system',
     tabs: [
       'family',
+      'access',
       'profiles',
       'license',
       'retention',
@@ -138,33 +140,6 @@ export const NAV_STRUCTURE = [
     ],
   },
 ]
-
-/** ADMIN_ONLY_TABS：常量集合，成员语义见定义处。 */
-export const ADMIN_ONLY_TABS = new Set([
-  'favorites',
-  'layout',
-  'assets',
-  'widgets',
-  'floating',
-  'embeds',
-  'connection',
-  'rooms',
-  'bindings',
-  'voice',
-  'agent',
-  'setup-wizard',
-  'security-modes',
-  'smart-charge',
-  'life-accounts',
-  'home-mode',
-  'alerts',
-  'general',
-  'profiles',
-  'diagnostics',
-  'params',
-  'devices',
-  'license',
-])
 
 const ALL_TAB_IDS = new Set(NAV_STRUCTURE.flatMap((g) => g.tabs))
 
@@ -214,21 +189,4 @@ export function resolveTab(tab: string | undefined | null) {
 export function isValidSettingsTab(tab: string | undefined | null) {
   if (!tab) return false
   return ALL_TAB_IDS.has(tab)
-}
-
-/** 判定 Tab 是否仅管理员可见（先规范化再查集合） */
-export function isAdminOnlyTab(tabId: string) {
-  return ADMIN_ONLY_TABS.has(resolveTab(tabId))
-}
-
-/** 按角色返回默认 Tab：管理员 → setup-wizard，非管理员 → family */
-export function defaultTabForRole(isAdmin = true) {
-  if (isAdmin) return DEFAULT_TAB
-  return 'family'
-}
-
-/** 无 ?tab= 时的默认落地页：管理员 → 首装向导，非管理员 → 家庭状态 */
-export function resolveDefaultSettingsTab(opts?: { isAdmin?: boolean }): string {
-  if (opts?.isAdmin === false) return defaultTabForRole(false)
-  return DEFAULT_TAB
 }

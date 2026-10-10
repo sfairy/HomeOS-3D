@@ -2,11 +2,10 @@
 组件：SecurityZoneMonitor.vue
 所属模块：frontend / src / views / security
 职责：安防「区域运行监控」面板。展示区域总数/已布防/告警/当前模式参与统计，
-      支持管理员选择布防区域（全选/清空/单选）；卡片可展开查看传感器状态。
+      支持选择布防区域（全选/清空/单选）；卡片可展开查看传感器状态。
 关键依赖：
   - useSecurityZoneMonitor：派生区域增强信息（armed / alertCount / modeHint 等）
   - sensorStateLabel：传感器状态文案
-  - useAuthStore：判断是否可编辑（admin）
   - LayoutGrid / Shield 图标来自 @lucide/vue
 数据来源：父级透传的 liveZones / layoutZones / secCurrentMode + useSecurityZoneMonitor
 -->
@@ -31,7 +30,7 @@
       </article>
     </div>
 
-    <div v-if="canSelect && liveZones.length" class="szm-select-bar">
+    <div v-if="liveZones.length" class="szm-select-bar">
       <p class="szm-select-bar__hint">
         <Shield class="w-3.5 h-3.5 shrink-0 opacity-60" />
         <span v-if="armSelection.length">{{
@@ -70,7 +69,7 @@
         ]"
       >
         <header class="szm-card__head">
-          <label v-if="canSelect" class="szm-card__check">
+          <label class="szm-card__check">
             <input type="checkbox" :checked="isSelected(zone.id)" @change="toggleSelect(zone.id)" />
           </label>
           <div class="szm-card__title-wrap">
@@ -121,7 +120,7 @@
           </ul>
         </details>
 
-        <footer v-if="canSelect" class="szm-card__foot">
+        <footer class="szm-card__foot">
           <button type="button" class="szm-link-btn" @click="$emit('edit-zone', zone.id)">
             {{ '编辑此区域' }}
           </button>
@@ -132,11 +131,10 @@
 </template>
 
 <script setup>
-import { computed, toRef } from 'vue'
+import { toRef } from 'vue'
 import { LayoutGrid, Shield } from '@lucide/vue'
 import { useSecurityZoneMonitor } from '@/composables/security/useSecurityZoneMonitor'
 import { sensorStateLabel } from '@/utils/security/zone-mode.util'
-import { useAuthStore } from '@/stores/auth.store'
 import './styles/security.css'
 
 // 入参：实时区域、布局区域、当前安防模式、面板加载/就绪态
@@ -153,10 +151,6 @@ defineEmits(['go-config', 'edit-zone', 'filter-audit'])
 
 // 双向绑定：布防区域选择（用于选择性布防）
 const armSelection = defineModel('armSelection', { type: Array, default: () => [] })
-
-const authStore = useAuthStore()
-// 仅管理员可勾选区域进行选择性布防
-const canSelect = computed(() => authStore.role === 'admin')
 
 // 转为 ref 传入 composable，保证响应式追踪
 const liveRef = toRef(props, 'liveZones')

@@ -5,7 +5,7 @@
  这些确认短语本身不含设备与房间信息，必须依赖上一轮 assistant 的提问才能消解指代。
 
 与 AgentSessionStoreService 的分工（两者并存，互不替代）：
- - AgentSessionStoreService：10 分钟 TTL、最多 16 轮、Redis 持久化，负责长一点的连续对话上下文；
+ - AgentSessionStoreService：10 分钟 TTL、最多 16 轮、进程内会话表，负责长一点的连续对话上下文；
  - 本服务：45 秒 TTL、最多 2 轮微型滑窗、纯内存零持久化，专职「最近一次问答」的指代消解，
    且不做跨意图复用——快路径 / 缓存命中执行成功后由调用方 clear()，杜绝上一意图污染下一意图。
 
@@ -13,7 +13,7 @@
  - TTL：会话超过 SESSION_TTL_MS（45s）未活动即视为过期，读取 / 写入时惰性清理；
  - 窗口：单会话最多保留 MAX_TURNS 轮（user + assistant 各一条为 1 轮）；
  - 池上限：会话数达 MAX_SESSIONS 时按插入顺序批量淘汰最旧的 CLEANUP_BATCH 个。
-依赖：无（不注入 Redis，保持零常驻开销）。
+依赖：无（保持零常驻开销）。
 """
 
 from __future__ import annotations

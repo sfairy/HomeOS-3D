@@ -62,11 +62,7 @@ Props：
 
           <p class="fam-hero__hint">
             <Eye class="fam-hero__hint-icon" />
-            {{
-              canManageHousehold
-                ? '下方查看各模块详情；家庭模式与勿扰请到对应设置页修改'
-                : '成员只读 · 修改家庭模式或勿扰请联系管理员'
-            }}
+            {{ '下方查看各模块详情；家庭模式与勿扰请到对应设置页修改' }}
           </p>
         </SettingsCard>
 
@@ -205,8 +201,6 @@ const loadError = ref('')
 const activeMode = ref(null)
 const notifySettings = ref(null)
 let familyLoaded = false
-
-const canManageHousehold = computed(() => authStore.canManageHousehold())
 
 const activeModeName = computed(() => {
   const m = activeMode.value?.mode

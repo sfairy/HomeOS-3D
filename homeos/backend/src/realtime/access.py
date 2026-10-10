@@ -11,26 +11,31 @@ WS_PUSH_CRITICAL_DOMAINS = (*DEFAULT_CRITICAL_DOMAINS, "lock")
 
 
 def resolve_entity_restrictions(user: dict[str, Any] | None) -> list[str] | None:
-    """解析实体可见性限制：``None`` 无限制；``[]`` 无可见实体；``[..]`` 前缀列表。"""
-    if not user or not user.get("role") or user.get("role") == "admin":
+    """解析实体可见性限制：``None`` / ``[]`` 均表示无限制；``[..]`` 为前缀列表。
+
+    空列表与缺失归一为 ``None``（两者语义相同 = 无过滤），因此本函数**不会**返回 ``[]``。
+
+    HomeOS 为单一管理员模型，无角色维度；这里只认实体级白名单（``restrictions``，
+    当前恒为空，见 ``security.auth_context.resolve_restrictions``）。
+    """
+    if not user:
         return None
     restrictions = user.get("restrictions")
     if isinstance(restrictions, list) and restrictions:
         return [str(item) for item in restrictions]
-    if user.get("role") in ("guest", "child"):
-        return []
     return None
 
 
 def is_entity_allowed(entity_id: str, user_or_restrictions: Any) -> bool:
+    """判断实体是否对该用户可见；``None`` / 空白名单一律放行（无过滤）。"""
     restrictions = (
         user_or_restrictions
         if isinstance(user_or_restrictions, list)
         else resolve_entity_restrictions(user_or_restrictions)
     )
-    if restrictions is None:
+    if restrictions is None or not restrictions:
         return True
-    if not entity_id or not restrictions:
+    if not entity_id:
         return False
     if len(restrictions) <= 4:
         for prefix in restrictions:
@@ -66,11 +71,10 @@ def is_entity_allowed_by_restrictions(entity_id: str, restrictions: list[str]) -
 def filter_entities_by_access(
     entities: list[dict[str, Any]], user: dict[str, Any] | None
 ) -> list[dict[str, Any]]:
+    """按用户可见性限制过滤实体；无限制时原样返回。"""
     restrictions = resolve_entity_restrictions(user)
     if restrictions is None:
         return entities
-    if not restrictions:
-        return []
     if len(restrictions) > 4:
         domain_set = {r for r in restrictions if "." not in r}
         exact_set = {r for r in restrictions if "." in r}
@@ -83,15 +87,6 @@ def filter_entities_by_access(
             or any(str(entity.get("entity_id", "")).startswith(p) for p in prefix_set)
         ]
     return [entity for entity in entities if is_entity_allowed(str(entity.get("entity_id", "")), restrictions)]
-
-
-def can_control_entity(entity_id: str, user: dict[str, Any] | None) -> bool:
-    role = (user or {}).get("role")
-    if not role or role == "guest":
-        return False
-    if role == "child" and not (user or {}).get("restrictions"):
-        return False
-    return is_entity_allowed(entity_id, user)
 
 
 def sort_entities_by_sync_priority(

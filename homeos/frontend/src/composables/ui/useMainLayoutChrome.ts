@@ -62,7 +62,6 @@ export function useMainLayoutChrome() {
   // 导航菜单子 composable
   const { menuItems, dropdownMenuItems, navMoreOpen, navMoreActive } = useMainLayoutNavMenu({
     layoutStore,
-    authStore,
     route,
   })
 
@@ -122,12 +121,11 @@ export function useMainLayoutChrome() {
       hasHAConfigured.value &&
       (!isConnected.value || isEntitiesStale.value || isReconnecting.value),
   )
-  /** 是否展示全屋关闭按钮（角色允许；禁用态由 haControlBlocked 控制） */
-  const showWholeHomeOff = computed(() => {
-    if (!authStore.isAuthenticated) return false
-    return canUseWholeHomeOff(authStore.role, layoutStore.layoutConfig)
-  })
-  /** 是否可执行全屋关闭（角色允许且 HA 就绪） */
+  /** 是否展示全屋关闭按钮（已登录且功能启用；禁用态由 haControlBlocked 控制） */
+  const showWholeHomeOff = computed(
+    () => authStore.isAuthenticated && canUseWholeHomeOff(layoutStore.layoutConfig),
+  )
+  /** 是否可执行全屋关闭（功能启用且 HA 就绪） */
   const canWholeHomeOff = computed(() => showWholeHomeOff.value && !haControlBlocked.value)
 
   /** 全屋关闭：确认后批量关闭全部设备，并通知成功/部分失败/失败 */
@@ -190,9 +188,7 @@ export function useMainLayoutChrome() {
     if (base && drop) return `${base} · ${drop}`
     return base || drop
   })
-  /** 是否为访客模式 */
-  const isGuestMode = computed(() => authStore.isGuest())
-  /** 是否显示 HA 告警横幅（访客墙屏同样需要看到连接状态） */
+  /** 是否显示 HA 告警横幅 */
   const showHaBanner = computed(
     () => showHaDataWarning.value || !!haQueueDropHint.value,
   )
@@ -204,11 +200,10 @@ export function useMainLayoutChrome() {
   const { loadHealth } = useSystemDiagnostics()
 
   /**
-   * 升级备份提醒：admin 用户在应用版本变化时提示导出备份。
+   * 升级备份提醒：应用版本变化时提示导出备份。
    * 首次记录版本，后续版本变化时弹出确认框引导前往备份页面。
    */
   async function checkUpgradeBackupReminder() {
-    if (authStore.role !== 'admin') return
     try {
       const data = (await loadHealth()) as { version?: string } | null
       const v = data?.version
@@ -222,7 +217,7 @@ export function useMainLayoutChrome() {
       if (last === v) return
       // 版本变化：提示备份
       const go = await chrome.confirm(
-        `检测到 HomeOS 已升级至 ${v}（上次 ${last}）。建议在继续操作前导出完整备份包与 UI 布局 JSON 备份。`,
+        `检测到 HomeOS 已升级至 ${v}（上次 ${last}）。建议在继续操作前到「设置 → 方案与备份 → 备份」生成全量备份（含数据库）。`,
         '升级后请先备份',
         { confirmText: '前往备份', cancelText: '稍后', type: 'warn' },
       )
@@ -233,9 +228,9 @@ export function useMainLayoutChrome() {
     }
   }
 
-  // admin 用户就绪后检查升级备份提醒
+  // 用户就绪后检查升级备份提醒
   watch(
-    () => authStore.isAuthenticated && authStore.role === 'admin',
+    () => authStore.isAuthenticated,
     (ready) => {
       if (ready) void checkUpgradeBackupReminder()
     },
@@ -251,9 +246,9 @@ export function useMainLayoutChrome() {
   const isSettingsLocked = computed(
     () => layoutStore.layoutConfig.settingsLock?.enabled && !chrome.isSettingsUnlocked,
   )
-  /** 是否显示设置 Tab（非访客且导航菜单中无 settings 项时） */
+  /** 是否显示设置 Tab（导航菜单中无 settings 项时） */
   const showSettingsTab = computed(
-    () => !authStore.isGuest() && !menuItems.value.some((i) => i.id === 'settings'),
+    () => !menuItems.value.some((i) => i.id === 'settings'),
   )
 
   /** 设置点击：锁定时阻止跳转并打开设置锁弹窗 */
@@ -335,7 +330,6 @@ export function useMainLayoutChrome() {
     doorbellLabel,
     isSettingsLocked,
     showSettingsTab,
-    isGuestMode,
     toggleFullscreen,
     navColors,
     navFrameStyle,

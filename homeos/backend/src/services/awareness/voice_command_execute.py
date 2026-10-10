@@ -4,8 +4,8 @@
 统一执行鉴权（命令代理授权、实体 ACL）。
 
 关键策略：
-- ACL 前移：进入 HA conversation 前先校验，避免 guest/child 绕过 HomeOS ACL；
-- 受限账户（child / guest / 带白名单的非 admin）不走 HA Assist 自动执行；
+- ACL 前移：进入 HA conversation 前先校验，避免绕过 HomeOS ACL；
+- 带实体级白名单的账户不走 HA Assist 自动执行（HA Assist 不复用 HomeOS ACL）；
 - HomeOS 本地场景 / 自动化已下线：对应 kind 抛不支持异常（改由 HA 场景 / 脚本承担）；
 - 失败汇总返回给 VoiceService。
 """
@@ -45,31 +45,25 @@ class VoiceCommandExecuteDeps:
 
 
 def assert_can_execute_voice(user: dict[str, Any] | None) -> str | None:
-    """预检语音执行权限：guest 拒绝，child 必须配置白名单，否则放行。"""
-    role = (user or {}).get("role")
-    if role == "guest":
-        return "访客账户无权控制设备"
-    if role == "child":
-        restrictions = (user or {}).get("restrictions")
-        if not isinstance(restrictions, list) or len(restrictions) == 0:
-            return "儿童账户未配置设备白名单，无法操作设备"
+    """预检语音执行权限：单一管理员模型下无角色门槛，恒放行。
+
+    保留本函数以维持调用点不变；实体级白名单改由 ``assert_command_proxy_authorized``
+    在逐目标下发前校验。
+    """
     return None
 
 
 def should_skip_ha_assist(user: dict[str, Any] | None) -> bool:
-    """child / guest / 带实体白名单的非 admin：HA Assist 不会复用 HomeOS ACL，禁止自动执行。"""
-    role = (user or {}).get("role")
-    if role in ("child", "guest"):
-        return True
+    """带实体白名单的账户：HA Assist 不会复用 HomeOS ACL，禁止自动执行。"""
     restrictions = (user or {}).get("restrictions")
     restrictions = restrictions if isinstance(restrictions, list) else []
-    return role != "admin" and len(restrictions) > 0
+    return len(restrictions) > 0
 
 
 def _as_actor(user: dict[str, Any] | None) -> dict[str, Any] | None:
     if not user:
         return None
-    return {"role": user.get("role"), "restrictions": user.get("restrictions")}
+    return {"restrictions": user.get("restrictions")}
 
 
 async def _execute_homeos_voice_action(
@@ -146,15 +140,7 @@ async def execute_voice_command(
     for action in plan.get("actions") or []:
         kind = action.get("kind")
         if kind and kind != "entity":
-            # 场景/自动化/家庭模式可含任意联动，儿童与访客一律拒绝
-            role = (user or {}).get("role")
-            denied = assert_can_execute_voice(user) or (
-                "儿童账户不可通过语音触发场景/自动化/家庭模式" if role == "child" else None
-            )
-            if denied:
-                skipped += 1
-                errors.append(denied)
-                continue
+            # 场景 / 自动化 / 家庭模式：逐目标实体 ACL 在 _execute_homeos_voice_action 内校验
             try:
                 await _execute_homeos_voice_action(action, user, deps)
             except Exception as exc:

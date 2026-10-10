@@ -52,7 +52,6 @@ export {
   resolveEntityRestrictions,
   isEntityAllowed,
   filterEntitiesByAccess,
-  canControlEntity,
 } from './entity/access';
 export {
   type EntityAreaAttrs,
@@ -334,19 +333,9 @@ export {
   type GlobalEarthquakeQuery,
 } from './earthquake/types';
 export {
-  type HomeRole,
-  HOME_ROLES,
-  isHomeRole,
   type AlertLevel,
   ALERT_LEVELS,
-} from './auth/roles';
-export {
-  CHILD_RESTRICTED_DOMAIN_LIST,
-  CHILD_RESTRICTED_DOMAINS,
-  type ChildRestrictedDomain,
-  isChildRestrictedDomain,
-  isChildDomainAccessDenied,
-} from './auth/child-restricted-domains';
+} from './notification/alert-level';
 export {
   DEFAULT_DND_START,
   DEFAULT_DND_END,
@@ -371,7 +360,6 @@ export type {
   SharedHomeModeConfig,
   SharedEnergyConfig,
   SharedIaqConfig,
-  SharedChildModeConfig,
   SharedPricingConfig,
   SharedCircadianConfig,
   SharedWaterConfig,

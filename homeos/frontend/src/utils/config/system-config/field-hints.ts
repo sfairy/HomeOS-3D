@@ -37,7 +37,7 @@ const HINT_TEXT: Record<string, string> = {
   'settings.systemConfig.fieldHint.armExitGraceSeconds':
     '布防后门锁解锁在该秒数内不视为入侵（0=关闭）。推荐 30',
   'settings.systemConfig.fieldHint.autoBackupEnabled':
-    '每天 02:30（北京时间）自动生成完整备份包。推荐开启',
+    '每天 02:30（北京时间）自动生成全量备份包（含数据库）。推荐开启',
   'settings.systemConfig.fieldHint.autoBackupRetainDays':
     '自动备份产物的保留天数，超出后自动清理。推荐 7',
   'settings.systemConfig.fieldHint.awayConfirmMin':
@@ -60,10 +60,6 @@ const HINT_TEXT: Record<string, string> = {
     '日历订阅地址（iCal 格式），用于日程提醒与家庭模式联动',
   'settings.systemConfig.fieldHint.callDedupWindowMs':
     '在此时间窗口内对同一接口的重复调用将合并为一次。推荐 500',
-  'settings.systemConfig.fieldHint.commandQueueMax':
-    'HA 命令发送队列的上限，防止积压。推荐 20',
-  'settings.systemConfig.fieldHint.commandQueueTtlMs':
-    '命令队列中每条命令的有效时间，超时未发送即丢弃。推荐 60000（60秒）',
   'settings.systemConfig.fieldHint.configAuditMaxEntries':
     '配置变更审计记录的最大保留条数。推荐 100',
   'settings.systemConfig.fieldHint.configAuditPersistEnabled':
@@ -74,20 +70,8 @@ const HINT_TEXT: Record<string, string> = {
     '主内容区域垂直偏移量，正数下移、负数上移（视口高度百分比）。推荐 0',
   'settings.systemConfig.fieldHint.criticalDomains':
     '逗号分隔 domain，如 light,switch；这些域的状态变更即时推送，不进入批处理',
-  'settings.systemConfig.fieldHint.dailyMediaLimitMin':
-    '媒体播放器每日累计时长上限，0 表示不限制。推荐 0 或 60',
-  'settings.systemConfig.fieldHint.deviceWhitelist':
-    '允许儿童使用的实体 ID 列表；非空时启用白名单 + 时间窗拦截',
   'settings.systemConfig.fieldHint.defaultMode':
     '屏保唤醒后默认展示的模式。推荐「随机切换」',
-  'settings.systemConfig.fieldHint.disconnectRestPollEnabled':
-    'HA WebSocket 断连后通过 REST /api/states 补同步 L1（仅 Leader 实例）',
-  'settings.systemConfig.fieldHint.disconnectRestPollInitialDelayMs':
-    '断连后等待多久开始首次 REST 拉取。推荐 5000',
-  'settings.systemConfig.fieldHint.disconnectRestPollIntervalMs':
-    'WS 断连期间 REST 全量拉取间隔。推荐 30000',
-  'settings.systemConfig.fieldHint.disconnectRestPollTimeoutMs':
-    '单次 REST /api/states 超时。大型实例推荐 60000',
   'settings.systemConfig.fieldHint.emergencyCooldownSec':
     '紧急求助按钮触发后在此时间内重复点击不再重复发送。推荐 60',
   'settings.systemConfig.fieldHint.enableWeatherMode':
@@ -104,10 +88,6 @@ const HINT_TEXT: Record<string, string> = {
     '浏览器本地实体缓存的有效时长，过期后自动刷新。推荐 86400000（24小时）',
   'settings.systemConfig.fieldHint.entityCacheSaveDebounceMs':
     '实体缓存写入浏览器的防抖间隔，避免频繁写入影响性能。推荐 10000（10秒）',
-  'settings.systemConfig.fieldHint.entityRegistryCacheMs':
-    'HA 实体注册表的内存缓存时长（毫秒）。推荐 300000（5分钟）',
-  'settings.systemConfig.fieldHint.entityRegistryTimeoutMs':
-    '获取 HA 实体注册表的请求超时时间（毫秒）。推荐 45000（45秒）',
   'settings.systemConfig.fieldHint.eventLogFlushIntervalMs':
     '事件日志缓冲区刷写到数据库的间隔（毫秒）。修改后对下一次刷写调度生效。推荐 5000（5秒）',
   'settings.systemConfig.fieldHint.eventLogMaxBuffer':
@@ -115,7 +95,7 @@ const HINT_TEXT: Record<string, string> = {
   'settings.systemConfig.fieldHint.eventLogMaxRequeueBuffer':
     '事件日志写入失败后回灌队列的最大容量。推荐 500',
   'settings.systemConfig.fieldHint.eventLogSkipSensorTimeline':
-    '开启后 sensor 变更不写 Redis timeline，减轻 Redis 压力（默认开启；能耗时间线可回退 HA History）',
+    '开启后 sensor 变更不写事件时间线（默认开启；能耗趋势可回退 HA History）',
   'settings.systemConfig.fieldHint.eventLogTierCSampleRate':
     'C 级域（如 camera）采样率 0–1；默认 0 表示全部跳过，调高后才有实际效果',
   'settings.systemConfig.fieldHint.eventLogTierEnabled':
@@ -125,7 +105,7 @@ const HINT_TEXT: Record<string, string> = {
   'settings.systemConfig.fieldHint.eventLogOverlayHours':
     '户型图事件浮层从 EventLog 预加载的默认回溯小时数。推荐 2',
   'settings.systemConfig.fieldHint.eventLogTimelineMax':
-    'Redis 中按实体/全局 timeline 缓存保留的最大条数；系统时间线部件单次查询条数上限。推荐 500',
+    '按实体/全局 timeline 缓存保留的最大条数；系统时间线部件单次查询条数上限。推荐 500',
   'settings.systemConfig.fieldHint.frigateDedupMs':
     '同一摄像头在此时间窗口内的重复告警将被合并去重。推荐 30000（30秒）',
   'settings.systemConfig.fieldHint.frigateMaxEvents':
@@ -174,24 +154,12 @@ const HINT_TEXT: Record<string, string> = {
     '默认开启：WS 仅推送关键域、当前订阅域与钉选/热点实体，非可见实体不推、列表页 REST 按需补全',
   'settings.systemConfig.fieldHint.latencyProfile':
     'realtime=默认，禁止大实体自适应抬高 flush；balanced=均衡；bulk=偏吞吐放大窗口',
-  'settings.systemConfig.fieldHint.criticalFlushIntervalMs':
-    '灯光/开关等关键域 Socket.IO 合并窗口；0=立即推送。推荐 4',
-  'settings.systemConfig.fieldHint.pinnedSensorFlushIntervalMs':
-    '钉选传感器短窗口，避免全量 sensor 开闸。推荐 16',
   'settings.systemConfig.fieldHint.wsPingIntervalMs':
     'HA WebSocket 应用层 ping 间隔。推荐 45000',
   'settings.systemConfig.fieldHint.wsPongTimeoutMs':
     '等待 pong 超时；过短易在事件洪峰下误杀连接。推荐 25000',
   'settings.systemConfig.fieldHint.wsHeartbeatMaxMisses':
     '连续未响应达到该次数才主动断开重连。推荐 3',
-  'settings.systemConfig.fieldHint.coldBatchWindowMs':
-    '自动化/告警等 Cold Path 聚合窗口，不影响 UI Hot Path。推荐 15',
-  'settings.systemConfig.fieldHint.coldBatchMax':
-    'Cold Path 单批事件上限，达上限立即派发。推荐 256',
-  'settings.systemConfig.fieldHint.leaderTtlMs':
-    '多副本 HA WS Leader 租约；越短故障切换越快。推荐 8000',
-  'settings.systemConfig.fieldHint.leaderRenewMs':
-    'Leader 续约间隔，应明显小于 TTL。推荐 2500',
   'settings.systemConfig.fieldHint.learningPeriodDays':
     '能源异常学习期天数，期间跳过功率突增告警以建立基线。推荐 7',
   'settings.systemConfig.fieldHint.lowBatteryCooldownMin':
@@ -256,10 +224,6 @@ const HINT_TEXT: Record<string, string> = {
     '实体派生索引重建防抖间隔（毫秒），大户型可适当调高。推荐 50',
   'settings.systemConfig.fieldHint.reconnectBaseMs':
     'HA WebSocket 断连后的基础重连延迟（毫秒）。推荐 1000（1秒）',
-  'settings.systemConfig.fieldHint.redisIncrementalFlushMs':
-    '增量 STATE_CHANGED 写入 Redis 前的 debounce 毫秒数。推荐 100；保存后立即重排进行中的 flush 定时器',
-  'settings.systemConfig.fieldHint.redisWriteBatch':
-    'Redis 缓存批量写入的大小，一次性写入多条数据。推荐 200',
   'settings.systemConfig.fieldHint.replayChunkSize':
     '客户端断线重连后状态回放的分块大小，分批恢复避免阻塞。推荐 500',
   'settings.systemConfig.fieldHint.retentionCleanupIntervalHours':
@@ -287,7 +251,7 @@ const HINT_TEXT: Record<string, string> = {
   'settings.systemConfig.fieldHint.sensorAlertCooldownSec':
     '同一传感器触发告警后，在此时间内不再重复告警。推荐 60',
   'settings.systemConfig.fieldHint.sensorFlushIntervalMs':
-    '非关键域 state_changed_batch 合并间隔，未设则回退 stateFlushIntervalMs',
+    '非关键域 state_changed_batch 合并间隔（毫秒）。推荐 80',
   'settings.systemConfig.fieldHint.sepSizeVw':
     '时钟冒号分隔符大小，相对设计稿宽度百分比。推荐 17',
   'settings.systemConfig.fieldHint.showBrand':
@@ -310,8 +274,6 @@ const HINT_TEXT: Record<string, string> = {
     'HA 断连超过此毫秒数后实体影子数据视为陈旧。推荐 30000（30 秒；过久会导致 UI 假活）',
   'settings.systemConfig.fieldHint.stateBatchMax':
     '单次批量推送状态变更的最大条目数。推荐 300',
-  'settings.systemConfig.fieldHint.stateFlushIntervalMs':
-    '批量合并客户端状态推送的间隔（毫秒）。推荐 80',
   'settings.systemConfig.fieldHint.subMetaSizeVw':
     '锁屏副信息文字大小，相对设计稿宽度百分比。推荐 2',
   'settings.systemConfig.fieldHint.tier1Kwh':
@@ -324,8 +286,6 @@ const HINT_TEXT: Record<string, string> = {
     '第三阶梯电价（元/kWh），超出第二阶梯后按此计费。推荐 0.7883（北京）',
   'settings.systemConfig.fieldHint.timeSizeVw':
     '时钟数字大小，相对设计稿宽度百分比（非视口 vw）。推荐 24',
-  'settings.systemConfig.fieldHint.timeWindows':
-    '白名单设备允许使用的时间窗（工作日/周末或星期数组 + HH:mm）',
   'settings.systemConfig.fieldHint.triggerCooldownMs':
     '触发后的冷却时间（毫秒），在此期间再次满足条件不会重复执行',
   'settings.systemConfig.fieldHint.weatherAlertCooldownMin':
@@ -340,8 +300,6 @@ const HINT_TEXT: Record<string, string> = {
     '天气预警信息的自动刷新间隔（毫秒）。推荐 1800000（30分钟）',
   'settings.systemConfig.fieldHint.weatherAlertSceneId':
     '红色预警时执行的场景 ID（如关窗/拉帘/布防）；与家庭模式二选一或同时配置',
-  'settings.systemConfig.fieldHint.weatherAlertsTtlMin':
-    '天气灾害预警缓存的有效时间（分钟），过期后重新拉取。推荐 30',
   'settings.systemConfig.fieldHint.weatherFallbackEntityId':
     'OpenWeather 不可用时回退的 HA weather.* 实体；留空则自动识别',
   'settings.systemConfig.fieldHint.weatherIconSizeVw':

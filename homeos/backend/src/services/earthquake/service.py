@@ -5,8 +5,8 @@
  - 通过 :class:`WolfxWsClient` 接收实时 EEW 报文，指数退避自动重连；
  - 通过 :class:`EewPollService` 主动拉取 SC EEW / CENC 台网 / USGS（兜底）；
  - 配置来源：优先项目 layout（``earthquakeConfig``），回退 HA ``/api/config`` 坐标；
- - 去重：内存 + Redis 双写，跨源指纹（时空相近）抑制重复预警；
- - 状态持久化：最新预警、历史、dismissed、去重状态写入 Redis；历史同时写 SQLite；
+ - 去重：进程内指纹（时空相近）抑制重复预警；
+ - 状态持久化：预警历史写入 SQLite / PostgreSQL；最新预警、dismissed、去重状态保存在进程内；
  - 多实例：仅 EEW Leader 实例维护 WolfX 连接与主动轮询，避免重复预警。
 """
 
@@ -30,22 +30,10 @@ from .geo import (
 )
 from .state import (
     append_alert_history_prisma,
-    clear_dedupe_state_redis,
-    clear_latest_alert_redis,
     delete_simulation_history_prisma,
-    delete_simulation_history_redis,
-    is_event_dismissed_redis,
     is_simulation_alert_record,
-    is_wolfx_cluster_active,
     load_alert_history_prisma,
-    load_alert_history_redis,
-    load_dedupe_state_redis,
-    load_latest_alert_redis,
-    mark_event_dismissed_redis,
     parse_earthquake_layout,
-    save_dedupe_state_redis,
-    save_latest_alert_redis,
-    touch_wolfx_leader_active,
 )
 from .threshold import evaluate_local_quake_thresholds
 from .types import (
@@ -62,7 +50,7 @@ from ..security.layout import load_active_project_layout
 
 logger = logging.getLogger("homeos.earthquake")
 
-#: 本地去重状态清除延迟，与 Redis 侧 TTL（DEDUPE_TTL_SEC=120s）对齐
+#: 本地去重状态清除延迟（与去重窗口语义对齐）
 DEDUPE_CLEAR_DELAY_MS = 120_000
 LATEST_ALERT_TTL_MS = 5 * 60 * 1000
 CONFIG_CACHE_MS = 5_000
@@ -82,7 +70,6 @@ class EarthquakeService:
         self,
         *,
         event_bus: Any,
-        redis: Any,
         session_factory: Any,
         leader: Any,
         jobs: Any = None,
@@ -90,7 +77,6 @@ class EarthquakeService:
         cipher: Any = None,
     ) -> None:
         self._bus = event_bus
-        self._redis = redis
         self._session_factory = session_factory
         self._leader = leader
         self._jobs = jobs
@@ -181,10 +167,9 @@ class EarthquakeService:
         except RuntimeError:
             pass
 
-    def _touch_leader_active(self) -> Any:
+    def _touch_leader_active(self) -> None:
         self._diagnostics.touch_wolfx_activity(True)
         self._wolfx_disconnected_since = 0
-        return touch_wolfx_leader_active(self._redis)
 
     # ------------------------------------------------------------------ #
     # 运行时配置
@@ -412,13 +397,6 @@ class EarthquakeService:
                 {"source": source_label, "reason": "事件已关闭", "eventId": eew.event_id}
             )
             return
-        if await is_event_dismissed_redis(self._redis, eew.event_id):
-            self._dismissed_event_ids.add(eew.event_id)
-            logger.info("[已关闭/Redis] 忽略 eventId=%s", eew.event_id)
-            self._diagnostics.record_filter(
-                {"source": source_label, "reason": "事件已关闭(Redis)", "eventId": eew.event_id}
-            )
-            return
 
         dedupe = await self._load_dedupe_state()
         eval_result = evaluate_eew_for_alert(eew, cfg, dedupe)
@@ -465,10 +443,6 @@ class EarthquakeService:
         self._latest_alert_payload = alert_payload
         self._latest_alert_time = _now_ms()
         try:
-            await save_latest_alert_redis(self._redis, alert_payload)
-        except Exception as exc:
-            logger.warning("[EEW] Redis 写入失败,降级为内存缓存: %s", exc)
-        try:
             await asyncio.to_thread(
                 append_alert_history_prisma, self._session_factory, alert_payload
             )
@@ -493,22 +467,6 @@ class EarthquakeService:
     # 去重状态
     # ------------------------------------------------------------------ #
     async def _load_dedupe_state(self) -> EewDedupeState:
-        if self._redis is not None and self._redis.is_ready():
-            try:
-                remote = await load_dedupe_state_redis(self._redis)
-                if remote is not None:
-                    self._active_event_id = remote.activeEventId
-                    self._last_magnitude = remote.lastMagnitude
-                    self._last_event_time = _now_ms()
-                    if remote.recent:
-                        self._recent_fingerprints = remote.recent
-                    return EewDedupeState(
-                        activeEventId=remote.activeEventId,
-                        lastMagnitude=remote.lastMagnitude,
-                        recent=remote.recent or self._recent_fingerprints,
-                    )
-            except Exception as exc:
-                logger.warning("EEW 去重状态 Redis 读取失败,降级内存: %s", exc)
         return EewDedupeState(
             activeEventId=self._active_event_id,
             lastMagnitude=self._last_magnitude,
@@ -522,19 +480,6 @@ class EarthquakeService:
         if state.recent:
             self._recent_fingerprints = state.recent
         self._reset_dedupe_clear_timer()
-        if self._redis is None or not self._redis.is_ready():
-            return
-        try:
-            await save_dedupe_state_redis(
-                self._redis,
-                EewDedupeState(
-                    activeEventId=state.activeEventId,
-                    lastMagnitude=state.lastMagnitude,
-                    recent=state.recent or self._recent_fingerprints,
-                ),
-            )
-        except Exception as exc:
-            logger.warning("EEW 去重状态 Redis 写入失败,降级内存: %s", exc)
 
     def _reset_dedupe_clear_timer(self) -> None:
         if self._dedupe_clear_handle is not None:
@@ -601,25 +546,10 @@ class EarthquakeService:
         return self._latest_alert_payload.to_dict()
 
     async def resolve_latest_alert(self) -> dict[str, Any]:
-        redis_stored = await load_latest_alert_redis(self._redis)
-        if redis_stored:
-            payload = redis_stored.get("payload") or {}
-            event_id = payload.get("eventId")
-            if await is_event_dismissed_redis(self._redis, event_id) or (
-                event_id in self._dismissed_event_ids
-            ):
-                return {"isActive": False, "payload": None}
-            age = _now_ms() - float(redis_stored.get("savedAt") or 0)
-            is_active = age < LATEST_ALERT_TTL_MS
-            return {"isActive": is_active, "payload": payload if is_active else None}
-
         if self._latest_alert_payload is None:
             return {"isActive": False, "payload": None}
         event_id = self._latest_alert_payload.eventId
-        if event_id and (
-            event_id in self._dismissed_event_ids
-            or await is_event_dismissed_redis(self._redis, event_id)
-        ):
+        if event_id and event_id in self._dismissed_event_ids:
             return {"isActive": False, "payload": None}
         age = _now_ms() - self._latest_alert_time
         is_active = age < LATEST_ALERT_TTL_MS
@@ -633,8 +563,6 @@ class EarthquakeService:
         if not normalized:
             return {"success": False, "message": "缺少 eventId"}
         self._dismissed_event_ids.add(normalized)
-        await mark_event_dismissed_redis(self._redis, normalized)
-        await clear_latest_alert_redis(self._redis, normalized)
         if self._latest_alert_payload is not None and self._latest_alert_payload.eventId == normalized:
             self._latest_alert_payload = None
             self._latest_alert_time = 0.0
@@ -642,7 +570,6 @@ class EarthquakeService:
             self._active_event_id = ""
             self._last_event_time = 0.0
             self._last_magnitude = 0.0
-        await clear_dedupe_state_redis(self._redis, normalized)
         return {"success": True}
 
     async def record_catalog_local_alert(self, item: dict[str, Any]) -> bool:
@@ -744,17 +671,10 @@ class EarthquakeService:
             pg_items = await asyncio.to_thread(
                 load_alert_history_prisma, self._session_factory, limit
             )
-            if pg_items:
-                return {"items": pg_items, "total": len(pg_items), "source": "postgres"}
+            return {"items": pg_items, "total": len(pg_items), "source": "postgres"}
         except Exception as exc:
-            logger.warning("EEW 历史读取数据库失败,回退 Redis: %s", exc)
-        rows = await load_alert_history_redis(self._redis, limit)
-        items = [
-            {**(row.get("payload") or {}), "savedAt": row.get("savedAt")}
-            for row in rows
-            if isinstance(row.get("payload"), dict)
-        ]
-        return {"items": items, "total": len(items), "source": "redis"}
+            logger.warning("EEW 历史读取数据库失败: %s", exc)
+            return {"items": [], "total": 0, "source": "postgres"}
 
     async def delete_simulation_history(self, event_id: str | None = None) -> dict[str, int]:
         target_id = str(event_id or "").strip()
@@ -762,7 +682,6 @@ class EarthquakeService:
             return {"deleted": 0}
 
         pg_deleted = 0
-        redis_deleted = 0
         try:
             pg_deleted = await asyncio.to_thread(
                 delete_simulation_history_prisma,
@@ -771,11 +690,7 @@ class EarthquakeService:
             )
         except Exception as exc:
             logger.warning("删除演练历史(DB)失败: %s", exc)
-        try:
-            redis_deleted = await delete_simulation_history_redis(self._redis, target_id or None)
-        except Exception as exc:
-            logger.warning("删除演练历史(Redis)失败: %s", exc)
-        deleted = max(pg_deleted, redis_deleted)
+        deleted = pg_deleted
 
         clear_ids: list[str] = []
         if target_id:
@@ -789,8 +704,6 @@ class EarthquakeService:
                 clear_ids.append(self._active_event_id)
 
         for cid in dict.fromkeys([cid for cid in clear_ids if cid]):
-            await clear_latest_alert_redis(self._redis, cid)
-            await clear_dedupe_state_redis(self._redis, cid)
             self._dismissed_event_ids.discard(cid)
             if self._latest_alert_payload is not None and self._latest_alert_payload.eventId == cid:
                 self._latest_alert_payload = None
@@ -857,11 +770,7 @@ class EarthquakeService:
     async def get_cluster_connection_status(self) -> dict[str, Any]:
         local = self.get_connection_status()
         leader = self.get_leader_status()
-        cluster_active = (
-            bool(local.get("connected"))
-            if leader.get("isLeader")
-            else await is_wolfx_cluster_active(self._redis)
-        )
+        cluster_active = bool(local.get("connected"))
         return {
             **local,
             "isLeader": bool(leader.get("isLeader")),

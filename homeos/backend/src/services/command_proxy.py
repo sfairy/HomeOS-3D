@@ -2,7 +2,7 @@
 
 作为 HA 连接器的上层封装，保留：
 - HA 未连接时拦截高风险操作（``is_dangerous_ha_control``）；
-- 幂等键去重（Redis SET NX 优先，内存 Map 回退，失败释放）；
+- 幂等键去重（进程内 Map + TTL 剪枝，失败释放）；
 - 历史查询 / 连通性探测 / 媒体图像与流透传 / 断连队列查询与重试。
 """
 
@@ -39,10 +39,9 @@ class CommandProxyService:
     执行只此一处：幂等去重 → HA 未连接时拦截高风险 → 连接器下发。
     """
 
-    def __init__(self, session_factory, connector, redis=None) -> None:
+    def __init__(self, session_factory, connector) -> None:
         self._session_factory = session_factory
         self._connector = connector
-        self._redis = redis
         self._idempotency: dict[str, float] = {}
         self._command_proxy_cfg = DEFAULT_COMMAND_PROXY
 
@@ -56,17 +55,9 @@ class CommandProxyService:
 
     async def _claim_idempotency_key(self, key: str) -> bool:
         ttl = int(self._config().get("idempotencyTtlMs") or 3000)
-        if self._redis is not None and self._redis.is_ready():
-            client = self._redis.get_client()
-            if client is not None:
-                try:
-                    ok = await client.set(f"homeos:cmd-idem:{key}", "1", px=ttl, nx=True)
-                    return bool(ok)
-                except Exception as exc:
-                    logger.warning("Redis 幂等键写入失败,回退内存: %s", exc)
         now = time.time() * 1000
-        # 惰性清理：内存回退路径的条目按 TTL 剪枝，替代 Nest 的 setInterval 定期清理，
-        # 避免长期运行（Redis 未就绪）时幂等键表无界增长。
+        # 惰性清理：条目按 TTL 剪枝，替代 Nest 的 setInterval 定期清理，
+        # 避免长期运行时幂等键表无界增长。
         if len(self._idempotency) >= 512:
             cutoff = now - max(ttl, int(self._config().get("idempotencyTtlMs") or ttl))
             self._idempotency = {k: v for k, v in self._idempotency.items() if v > cutoff}
@@ -78,13 +69,6 @@ class CommandProxyService:
 
     async def _release_idempotency_key(self, key: str) -> None:
         self._idempotency.pop(key, None)
-        if self._redis is not None and self._redis.is_ready():
-            client = self._redis.get_client()
-            if client is not None:
-                try:
-                    await client.delete(f"homeos:cmd-idem:{key}")
-                except Exception as exc:
-                    logger.warning("Redis 幂等键释放失败: %s", exc)
 
     async def call_service(self, dto: dict[str, Any]) -> dict[str, Any]:
         idempotency_key = dto.get("idempotency_key")

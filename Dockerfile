@@ -209,8 +209,11 @@ COPY --from=store-build /app/ /
 # BACKEND_PLATFORM 选平台子目录（Cython .so 与架构绑定，amd64 / arm64 各一份）。
 FROM base AS app
 
+#: HOMEOS_BACKUPS_DIR：服务器全量备份包落到数据卷。容器里 /app 不是卷，写在那里
+#: 重建容器即丢；指到 /data 后与数据库 / 素材一起持久化。
 ENV APP_DATA_DIR=/data \
     HOMEOS_DATA_DIR=/data \
+    HOMEOS_BACKUPS_DIR=/data/backups \
     HOMEOS_PORT=8801 \
     APP_PORT=8801 \
     HOMEOS_IMAGE_DIR=/app/image \
@@ -223,7 +226,7 @@ ENV APP_DATA_DIR=/data \
 #: 后端 .so 的平台目录名（linux-amd64 / linux-arm64），由构建方按目标架构指定。
 ARG BACKEND_PLATFORM=linux-amd64
 
-RUN mkdir -p /data /data/client-keys /run/secrets \
+RUN mkdir -p /data /data/backups /data/client-keys /run/secrets \
     && chown -R homeos:homeos /data /run/secrets /home/homeos
 
 # 加密后端（纯 Cython .so，无任何明文 .py）与前端产物都来自工作区根 dist/。

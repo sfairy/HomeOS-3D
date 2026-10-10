@@ -2,7 +2,7 @@
 
 启动延迟后按配置间隔轮询 OpenWeather 预警（复用 ``ExternalApiService``）：
 
-- Redis 已通知预警 key 去重（``homeos:weather:alert-notified-ids``，cap 200）；
+- 已通知预警「级别 + 类型 + 生效时间」进程内去重（cap 200）；
 - 新预警按等级阈值（默认 ≥ 橙色）经 ``NotificationService`` 推送；
 - 广播 ``weather.alert`` 领域事件供天气联动服务消费。
 """
@@ -10,7 +10,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 from typing import Any
 
@@ -21,8 +20,7 @@ WEATHER_ALERT_EVENT = "weather.alert"
 
 #: 启动延迟（对齐 ``BOOT_DELAY_MS``）
 BOOT_DELAY_MS = 20_000
-#: 已通知预警 key 集合
-SEEN_KEY = "homeos:weather:alert-notified-ids"
+#: 已通知预警 key 集合容量上限
 SEEN_MAX = 200
 
 #: 预警等级优先级
@@ -47,21 +45,19 @@ class WeatherWatchService:
         *,
         external_api: Any,
         notification: Any,
-        redis: Any,
         jobs: Any,
         app_config: Any,
         event_bus: Any,
     ) -> None:
         self._external_api = external_api
         self._notification = notification
-        self._redis = redis
         self._jobs = jobs
         self._app_config = app_config
         self._event_bus = event_bus
         self._stop = False
         self._task: asyncio.Task[Any] | None = None
-        #: Redis 不可用时的进程内去重回退：否则每轮轮询都会把同一条预警
-        #: 重新推送并重复触发天气联动（空调/关窗等）。
+        #: 已通知预警去重集合（进程内，避免每轮轮询把同一条预警重复推送
+        #: 并重复触发天气联动：空调/关窗等）。
         self._memory_seen: list[str] = []
 
     # ------------------------------------------------------------------ #
@@ -184,43 +180,20 @@ class WeatherWatchService:
     # 去重集合
     # ------------------------------------------------------------------ #
     async def load_seen_ids(self) -> set[str]:
-        if not self._redis.is_ready():
-            return set(self._memory_seen)
-        try:
-            raw = await self._redis.get(SEEN_KEY)
-            if not raw:
-                return set(self._memory_seen)
-            text = raw.decode("utf-8") if isinstance(raw, (bytes, bytearray)) else str(raw)
-            parsed = json.loads(text)
-            if not isinstance(parsed, list):
-                return set(self._memory_seen)
-            stored = {item for item in parsed if isinstance(item, str) and item.strip()}
-        except Exception:
-            return set(self._memory_seen)
-        # 与进程内回退合并：Redis 曾不可用期间记录过的预警，恢复后不得重复推送
-        return stored | set(self._memory_seen)
+        return set(self._memory_seen)
 
     async def save_seen_ids(self, ids: Any) -> None:
         unique: list[str] = []
         for item in ids or []:
             if item and item not in unique:
                 unique.append(item)
-        trimmed = unique[-SEEN_MAX:]
-        # 无论 Redis 是否可用都维护进程内回退集合
-        self._memory_seen = trimmed
-        if not self._redis.is_ready():
-            return
-        try:
-            await self._redis.set(SEEN_KEY, json.dumps(trimmed), 7 * 24 * 3600)
-        except Exception as exc:
-            logger.debug("天气预警已通知写入失败: %s", exc)
+        self._memory_seen = unique[-SEEN_MAX:]
 
 
 __all__ = [
     "ALERT_LEVEL_TO_NOTIFY",
     "BOOT_DELAY_MS",
     "LEVEL_PRIORITY",
-    "SEEN_KEY",
     "SEEN_MAX",
     "WEATHER_ALERT_EVENT",
     "WeatherWatchService",

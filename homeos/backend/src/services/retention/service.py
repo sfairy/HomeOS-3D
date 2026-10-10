@@ -22,7 +22,7 @@ from typing import Any
 
 from sqlalchemy import literal_column, select, text
 
-from ...core.errors import BusinessException, ErrorCode, api_error
+from ...core.errors import BusinessException, ErrorCode
 from ...core.models import (
     EventLog,
     Notification,
@@ -78,7 +78,6 @@ class DatabaseRetentionService:
         self._app_config = app_config
         self._jobs = jobs
         self._lock = lock
-        self._redis: Any | None = None
         self._cooldown: Any | None = None
         self._retention_days = 7
         self._last_cleanup_stats: dict[str, Any] | None = None
@@ -93,15 +92,6 @@ class DatabaseRetentionService:
     @lock.setter
     def lock(self, value: Any) -> None:
         self._lock = value
-
-    @property
-    def redis(self) -> Any | None:
-        """Redis 服务（用于时间线过期清理；缺省 / 未就绪时跳过）。"""
-        return self._redis
-
-    @redis.setter
-    def redis(self, value: Any) -> None:
-        self._redis = value
 
     @property
     def cooldown(self) -> Any | None:
@@ -283,7 +273,7 @@ class DatabaseRetentionService:
         """带分布式锁的清理入口（对齐 Nest ``runCleanup``）。
 
         - 未接入锁服务时直接执行（单副本语义完整）；
-        - 锁被其他实例持有 / Redis 锁不可用时跳过本轮，返回空统计（不抛错）。
+        - 锁被其他实例持有时跳过本轮，返回空统计（不抛错）。
         """
         if self._lock is None:
             return await self._run_full_cleanup()
@@ -295,13 +285,7 @@ class DatabaseRetentionService:
             )
         except BusinessException as exc:
             if exc.error_code == ErrorCode.CONFLICT:
-                busy_message = str(exc)
-                logger.debug(
-                    "跳过保留清理:%s",
-                    "多副本下 Redis 锁不可用"
-                    if api_error("LOCK_REDIS_UNAVAILABLE") in busy_message
-                    else "其他实例持有锁",
-                )
+                logger.debug("跳过保留清理:其他实例持有锁")
                 cutoff = self.get_cutoff_date()
                 return {
                     "retentionDays": self._retention_days,
@@ -312,17 +296,9 @@ class DatabaseRetentionService:
             raise
 
     async def _run_full_cleanup(self) -> dict[str, Any]:
-        """完整一轮清理：DB 分批删除（线程）+ Redis 时间线过期清理（事件循环）。
-
-        Redis 时间线需异步客户端，故在 DB 部分之外单独 await；失败仅告警不中断，
-        与 Nest ``runCleanup`` 的 try/catch 语义一致。
-        """
+        """完整一轮清理：DB 分批删除（线程）。"""
         result = await asyncio.to_thread(self.run_cleanup)
-        redis_deleted = await self._prune_redis_timeline_safe()
-        if redis_deleted > 0:
-            result["deleted"]["redisTimeline"] = redis_deleted
-            result["total"] = int(result.get("total") or 0) + redis_deleted
-            self._persist_cleanup_stats(result)
+        self._persist_cleanup_stats(result)
         return result
 
     def _persist_cleanup_stats(self, result: dict[str, Any]) -> None:
@@ -331,7 +307,7 @@ class DatabaseRetentionService:
             "at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             "retentionDays": self._retention_days,
             "total": total,
-            # 保留最近一轮清理的「行数来源」，便于面板展示 Redis 时间线等非表清理
+            # 保留最近一轮清理的「行数来源」，便于面板展示各表清理明细
             "deleted": result.get("deleted", {}),
             "elapsedMs": result.get("elapsedMs", 0),
         }
@@ -414,58 +390,6 @@ class DatabaseRetentionService:
                 )
             except Exception as exc:
                 logger.warning("EventLog ANALYZE 失败: %s", exc)
-
-    async def _prune_redis_timeline_safe(self) -> int:
-        try:
-            return await self._prune_redis_timeline()
-        except Exception as exc:
-            logger.warning("Redis 时间线清理失败: %s", exc)
-            return 0
-
-    async def _prune_redis_timeline(self) -> int:
-        """清理 Redis 时间线中过期 zset 成员（对齐 Nest ``pruneRedisTimeline``）。
-
-        1. ``timeline:all`` 主键按 score 清理；
-        2. SCAN ``timeline:entity:*`` 逐键清理（非 zset 键跳过）。
-        """
-        redis = self._redis
-        if redis is None or not redis.is_ready():
-            return 0
-        client = redis.get_client()
-        if client is None:
-            return 0
-
-        cutoff_ms = int(self.get_cutoff_date().replace(tzinfo=UTC).timestamp() * 1000)
-        max_score = cutoff_ms - 1
-        removed = 0
-
-        try:
-            main_type = await client.type("timeline:all")
-            if isinstance(main_type, (bytes, bytearray)):
-                main_type = main_type.decode("utf-8", "ignore")
-            if main_type == "zset":
-                removed += int(await client.zremrangebyscore("timeline:all", 0, max_score) or 0)
-            elif main_type not in ("none", None):
-                logger.warning("时间线总键类型为 %s,跳过清理", main_type)
-        except Exception as exc:
-            logger.warning("时间线总键类型检查失败: %s", exc)
-
-        cursor: Any = 0
-        while True:
-            try:
-                cursor, keys = await client.scan(cursor=cursor, match="timeline:entity:*", count=200)
-            except Exception as exc:
-                logger.debug("实体时间线扫描失败: %s", exc)
-                break
-            for raw_key in keys or []:
-                key = raw_key.decode("utf-8", "ignore") if isinstance(raw_key, bytes) else str(raw_key)
-                try:
-                    removed += int(await client.zremrangebyscore(key, 0, max_score) or 0)
-                except Exception:
-                    pass
-            if int(cursor or 0) == 0:
-                break
-        return removed
 
     def _delete_batched(self, model: Any, cutoff: datetime, batch_size: int) -> int:
         """分批删除 ``createdAt < cutoff`` 的历史行（SQLite ``rowid`` 子查询）。"""

@@ -39,11 +39,13 @@ from .endpoints import HAEndpoint, connection_endpoints, endpoint_signature
 from .homeos_facade import HomeOSFacadeMixin
 from .state_hub import StateHub
 from ..config import Settings
+from ..core.app_config import load_raw_config
 from ..core.database import Database
 from ..core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, ProjectDraft, utc_now
 from ..global_log import GlobalLogStore, _safe_text, event_context
 from ..global_popups import global_popups
 from ..panel.entity_refs import document_entity_ids
+from ..services.app_config.defaults import DEFAULT_APP_CONFIG
 
 LOGGER = logging.getLogger(__name__)
 HA_ENDPOINT_RECHECK_SECONDS = 60
@@ -53,6 +55,8 @@ REGISTRY_REFRESH_DEBOUNCE_SECONDS = 1.5
 STATE_FETCH_RETRY_DELAYS = (0.2, 0.6)
 HISTORY_FETCH_CONCURRENCY = 2
 HISTORY_CACHE_SECONDS = 30
+#: haConnector / other 高级参数（重连退避、心跳、历史缓存上限）的读取缓存窗口（秒）。
+_HA_TUNING_TTL_SECONDS = 5.0
 # 实体翻译表只随 HA 版本变化，编辑器/墙屏每次加载都重拉一遍纯属浪费（实测 12 个集成 ~3s）。
 TRANSLATION_CACHE_SECONDS = 600
 # 并发探测端点时，先用一个的成功结果之后，再给更高优先级端点留的追赶窗口。
@@ -131,6 +135,38 @@ class HAConnectorService(HomeOSFacadeMixin):
         self._endpoint_signature: tuple | None = None
         self._endpoint_probed_at = 0.0
         self._endpoint_lock = asyncio.Lock()
+        # haConnector / other 高级参数缓存（5s TTL），供重连退避、心跳、历史缓存读取。
+        self._ha_tuning_cache: dict[str, Any] | None = None
+        self._ha_tuning_at = 0.0
+
+    # ------------------------------------------------------------------ #
+    # 高级参数（haConnector / other）
+    # ------------------------------------------------------------------ #
+    def _ha_tuning(self) -> dict[str, Any]:
+        """读取 haConnector / other 分区运行参数（缺省合并 DEFAULT_APP_CONFIG）。
+
+        5s TTL 缓存，避免重连循环与每次历史查询都读库；读写失败一律回退默认值。
+        """
+        now = time.monotonic()
+        if self._ha_tuning_cache is not None and now - self._ha_tuning_at < _HA_TUNING_TTL_SECONDS:
+            return self._ha_tuning_cache
+        connector = dict(DEFAULT_APP_CONFIG.get('haConnector') or {})
+        other = dict(DEFAULT_APP_CONFIG.get('other') or {})
+        try:
+            with self.database.session_factory() as session:
+                raw = load_raw_config(session)
+            connector_raw = raw.get('haConnector')
+            if isinstance(connector_raw, dict):
+                connector.update(connector_raw)
+            other_raw = raw.get('other')
+            if isinstance(other_raw, dict):
+                other.update(other_raw)
+        except Exception:
+            pass
+        cfg = {'haConnector': connector, 'other': other}
+        self._ha_tuning_cache = cfg
+        self._ha_tuning_at = now
+        return cfg
 
     def _log_event(self, level: str, category: str, message: str, *, details: str | None = None) -> None:
         if self.event_log is not None:
@@ -487,6 +523,16 @@ class HAConnectorService(HomeOSFacadeMixin):
     async def client_for(self, connection: HAConnection) -> HAClient:
         endpoint = await self.active_endpoint(connection)
         token = self.cipher.decrypt(connection.encrypted_access_token)
+        connector = self._ha_tuning()['haConnector']
+        try:
+            ping_interval = max(int(connector.get('wsPingIntervalMs') or 45_000), 1_000) / 1000.0
+            pong_timeout_ms = max(int(connector.get('wsPongTimeoutMs') or 25_000), 1_000)
+            max_misses = max(int(connector.get('wsHeartbeatMaxMisses') or 1), 1)
+        except (TypeError, ValueError):
+            ping_interval, pong_timeout_ms, max_misses = 45.0, 25_000, 1
+        # websockets 只暴露「单次 pong 等待窗口」，无法直接表达「连续 N 次未响应才断开」；
+        # 用 wsPongTimeoutMs × wsHeartbeatMaxMisses 近似「容忍 N 次心跳未响应」的总窗口。
+        ping_timeout = (pong_timeout_ms * max_misses) / 1000.0
         return HAClient(
             endpoint.base_url, token,
             verify_tls = endpoint.verify_tls,
@@ -494,6 +540,8 @@ class HAConnectorService(HomeOSFacadeMixin):
             websocket_max_size_bytes = self.settings.ha_websocket_max_size_bytes,
             control_pool = self._control_pool,
             control_connection_id = connection.id,
+            ws_ping_interval = ping_interval,
+            ws_ping_timeout = ping_timeout,
         )
 
     def _control_configuration(self) -> HAControlConfiguration | None:
@@ -557,13 +605,31 @@ class HAConnectorService(HomeOSFacadeMixin):
                 self._translation_cache.popitem(last = False)
         return resources
 
+    def _history_cache_limits(self) -> tuple[float, int]:
+        """历史缓存 (TTL 秒, 最大条数)。
+
+        TTL 取自 ``other.haHistoryCacheMin``（分钟 → 秒），容量取自
+        ``haConnector.historyCacheMaxSize``；非法或缺失时回退默认。
+        """
+        tuning = self._ha_tuning()
+        try:
+            ttl_seconds = max(int(tuning['other'].get('haHistoryCacheMin') or 0), 1) * 60.0
+        except (TypeError, ValueError):
+            ttl_seconds = float(HISTORY_CACHE_SECONDS)
+        try:
+            max_size = max(int(tuning['haConnector'].get('historyCacheMaxSize') or 0), 1)
+        except (TypeError, ValueError):
+            max_size = 300
+        return ttl_seconds, max_size
+
     async def fetch_history(self, connection: HAConnection, entity_id: str, start_time: str, hours: int) -> list[dict[str, Any]]:
         """限制并短暂缓存历史数据读取，避免图表大量并发请求 HA。"""
         cache_key = (str(connection.id), str(entity_id), int(hours))
+        ttl_seconds, _ = self._history_cache_limits()
         now = time.monotonic()
         async with self._history_cache_lock:
             cached = self._history_cache.get(cache_key)
-            if cached and now - cached[0] < HISTORY_CACHE_SECONDS:
+            if cached and now - cached[0] < ttl_seconds:
                 self._history_cache.move_to_end(cache_key)
                 return list(cached[1])
             fetch = self._history_fetches.get(cache_key)
@@ -582,13 +648,14 @@ class HAConnectorService(HomeOSFacadeMixin):
             history = await (await self.client_for(connection)).fetch_history(entity_id, start_time)
         async with self._history_cache_lock:
             self._history_cache[cache_key] = (time.monotonic(), list(history))
-            while len(self._history_cache) > 256:
+            _, max_size = self._history_cache_limits()
+            while len(self._history_cache) > max_size:
                 self._history_cache.popitem(last = False)
         return history
 
     async def _run(self) -> None:
-        backoff = 1
         attempt = 0
+        backoff = self._reconnect_base_backoff()
         while True:
             connection_id = None
             try:
@@ -601,7 +668,7 @@ class HAConnectorService(HomeOSFacadeMixin):
                 await self.refresh_persistent_entity_ids(ensure_states = False)
                 await self.sync_once(connection_id)
                 await self._live_connection(connection_id)
-                backoff = 1
+                backoff = self._reconnect_base_backoff()
                 attempt = 0
             except asyncio.CancelledError:
                 raise
@@ -617,7 +684,26 @@ class HAConnectorService(HomeOSFacadeMixin):
                     await self._run_database(self._safe_record_error, connection_id, str(error))
                 await asyncio.sleep(backoff)
                 await self._notify_connection('reconnecting', attempt = attempt)
-                backoff = min(backoff * 2, 60)
+                # 重连退避取自 haConnector（reconnectBaseMs / maxReconnectDelayMs），
+                # 每次失败都重读，用户改参数后下一轮即生效。
+                backoff = min(backoff * 2, self._reconnect_max_backoff())
+
+    def _reconnect_base_backoff(self) -> float:
+        """首次重连等待秒数：haConnector.reconnectBaseMs（默认 1000ms）。"""
+        connector = self._ha_tuning()['haConnector']
+        try:
+            return max(int(connector.get('reconnectBaseMs') or 0), 100) / 1000.0
+        except (TypeError, ValueError):
+            return 1.0
+
+    def _reconnect_max_backoff(self) -> float:
+        """退避上限秒数：haConnector.maxReconnectDelayMs（默认 10000ms），不小于起点。"""
+        connector = self._ha_tuning()['haConnector']
+        try:
+            value = max(int(connector.get('maxReconnectDelayMs') or 0), 100) / 1000.0
+        except (TypeError, ValueError):
+            value = 10.0
+        return max(value, self._reconnect_base_backoff())
 
     def _load_connection(self, connection_id: str) -> HAConnection:
         with self.database.session_factory() as database:

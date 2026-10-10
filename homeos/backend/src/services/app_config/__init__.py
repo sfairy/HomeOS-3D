@@ -15,7 +15,7 @@ from .constants import (
     PUBLIC_CONFIG_SECTIONS,
 )
 from .defaults import DEFAULT_APP_CONFIG, build_default_app_config
-from .mask import is_masked_value, pick_config_for_role, strip_masked_placeholders
+from .mask import is_masked_value, strip_masked_placeholders
 from .service import APP_CONFIG_UPDATED, AppConfigService
 from .validate import (
     AppConfigValidationError,
@@ -38,7 +38,6 @@ __all__ = [
     "AppConfigValidationError",
     "build_default_app_config",
     "is_masked_value",
-    "pick_config_for_role",
     "strip_masked_placeholders",
     "validate_app_config_full",
     "validate_app_config_partial",

@@ -2,15 +2,14 @@
  * 实体访问控制模块
  *
  * 职责：
- *  - 基于 JWT 用户角色与 restrictions（实体前缀白名单）判定实体可见性 / 可控性。
- *  - 提供单实体校验（isEntityAllowed / canControlEntity）与批量过滤（filterEntitiesByAccess）。
+ *  - 基于 restrictions（实体前缀白名单）判定实体可见性 / 可控性。
+ *  - 提供单实体校验（isEntityAllowed）与批量过滤（filterEntitiesByAccess）。
  *
  * 关键依赖：
  *  - getEntityDomain：从 entity_id 提取 domain，用于"仅 domain"形式的限制匹配。
  *
  * 约定：
- *  - restrictions === null  表示无过滤（admin 或无限制的 adult 用户）。
- *  - restrictions === []    表示该用户无任何可见实体（如 guest / child 默认）。
+ *  - restrictions === null 或 []  表示无过滤（放行全部实体）。
  *  - restrictions 中每项可以是 domain（如 "light"）或 entity_id / 前缀（如 "light.living" / "media_player."）。
  */
 import { getEntityDomain } from './domain';
@@ -20,9 +19,7 @@ import { getEntityDomain } from './domain';
  * 与后端鉴权中间件下发的 token claim 对齐。
  */
 export interface JwtUserLike {
-  /** 用户角色：admin / adult / guest / child 等 */
-  role?: string;
-  /** 实体可见性白名单（domain 或 entity_id 前缀），仅 adult 受限用户需要 */
+  /** 实体可见性白名单（domain 或 entity_id 前缀），为空表示不受限 */
   restrictions?: string[];
   /** HomeOS 用户 ID */
   userId?: string;
@@ -35,22 +32,12 @@ export interface JwtUserLike {
  *
  * @param user JWT 用户对象，可为空
  * @returns
- *  - `null`：无过滤（admin 或不受限 adult），调用方应放行全部实体。
- *  - `[]`：无可见实体（guest / child 默认）。
+ *  - `null`：无过滤，调用方应放行全部实体。
  *  - `string[]`：生效的限制前缀列表。
- *
- * 判定顺序：
- *  1. 无角色或 admin → 无限制；
- *  2. 显式 restrictions 非空 → 直接返回；
- *  3. guest / child 且未显式配置 → 空数组（默认无可见实体）；
- *  4. 其他角色（如 adult 未设 restrictions）→ 无限制。
  */
 export function resolveEntityRestrictions(user?: JwtUserLike | null): string[] | null {
-  if (!user?.role || user.role === 'admin') return null;
-  const r = user.restrictions;
-  if (Array.isArray(r) && r.length > 0) return r;
-  if (user.role === 'guest' || user.role === 'child') return [];
-  return null;
+  const r = user?.restrictions;
+  return Array.isArray(r) && r.length > 0 ? r : null;
 }
 
 /**
@@ -61,7 +48,7 @@ export function resolveEntityRestrictions(user?: JwtUserLike | null): string[] |
  * @returns true 表示允许该用户访问此实体
  *
  * 实现要点：
- *  - null 限制直接放行；空数组 / 空 entityId 直接拒绝；
+ *  - null / 空白名单（[] 归一为 null）直接放行；受限时仅空 entityId 拒绝；
  *  - 限制条目 ≤ 4 时走线性 some（小集合更省事，且支持 domain-only 匹配）；
  *  - 限制条目 > 4 时先取一次 domain，避免每次 indexOf，仍兼容前缀匹配。
  */
@@ -72,8 +59,8 @@ export function isEntityAllowed(
   const restrictions = Array.isArray(userOrRestrictions)
     ? userOrRestrictions
     : resolveEntityRestrictions(userOrRestrictions as JwtUserLike | null);
-  if (restrictions === null) return true;
-  if (!entityId || restrictions.length === 0) return false;
+  if (restrictions === null || restrictions.length === 0) return true;
+  if (!entityId) return false;
 
   // 小集合：直接线性扫描，并兼容 domain-only 形式的限制项
   if (restrictions.length <= 4) {
@@ -120,8 +107,7 @@ function matchesDomainOnly(entityId: string, prefix: string): boolean {
  * @returns 过滤后的实体数组（不修改原数组）
  *
  * 优化路径：
- *  - 无限制：原数组直接返回；
- *  - 空限制：返回空数组；
+ *  - 无限制（null / 空白名单）：原数组直接返回；
  *  - 限制条目 > 4：构建 domainSet / exactSet / prefixSet 三组索引一次过滤，避免对每个实体多次 indexOf；
  *  - 否则退化为逐个 isEntityAllowed。
  */
@@ -131,7 +117,6 @@ export function filterEntitiesByAccess<T extends { entity_id: string }>(
 ): T[] {
   const restrictions = resolveEntityRestrictions(user);
   if (restrictions === null) return entities;
-  if (restrictions.length === 0) return [];
 
   if (restrictions.length > 4) {
     // 预构建索引以避免 O(n*m) 的重复字符串解析
@@ -165,20 +150,3 @@ export function filterEntitiesByAccess<T extends { entity_id: string }>(
   return entities.filter((e) => isEntityAllowed(e.entity_id, restrictions));
 }
 
-/**
- * 判断用户是否可控制（调用服务）指定实体。
- *
- * @param entityId HA entity_id
- * @param user     JWT 用户对象
- * @returns true 表示允许控制
- *
- * 规则：
- *  - guest 一律禁止控制；
- *  - child 必须显式配置 restrictions 才可控制（默认禁）；
- *  - 其余角色沿用可见性判定（不可见即不可控）。
- */
-export function canControlEntity(entityId: string, user?: JwtUserLike | null): boolean {
-  if (!user?.role || user.role === 'guest') return false;
-  if (user.role === 'child' && !user.restrictions?.length) return false;
-  return isEntityAllowed(entityId, user);
-}

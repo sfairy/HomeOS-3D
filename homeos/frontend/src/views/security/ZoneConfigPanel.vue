@@ -1,19 +1,19 @@
 <!--
 组件：SecurityZoneConfigPanel.vue
 所属模块：frontend / src / views / security
-职责：安防「区域配置」面板。管理员可关联 HA 房间、绑定传感器、从房间一键生成区域、
-      保存配置（同步后端 + 镜像到布局待保存）；非管理员只读查看。
+职责：安防「区域配置」面板。可关联 HA 房间、绑定传感器、从房间一键生成区域、
+      保存配置（同步后端 + 镜像到布局待保存）。
 关键依赖：
   - SecurityZoneEditorList：内嵌的区域编辑器
   - useSecurityZoneRooms：HA 房间同步与一键生成
   - postSecurityZones / prepareZonesForSave：保存到后端
   - mirrorSecurityPanelZonesToLayout：将后端区域镜像到布局配置
-  - useChromeStore / useLayoutStore / useAuthStore：通知、布局、权限
+  - useChromeStore / useLayoutStore：通知、布局
 数据来源：layoutStore 布局配置 + 后端 backendZones，本地编辑缓存于 localZones
 -->
 <template>
   <div class="sov-config">
-    <div v-if="authStore.role === 'admin'" class="sov-config__toolbar">
+    <div class="sov-config__toolbar">
       <p class="sov-config__hint">{{ '关联 HA 房间并绑定传感器，定义布防时的告警分组' }}</p>
       <div class="sov-config__actions">
         <button
@@ -48,9 +48,6 @@
         </button>
       </div>
     </div>
-    <p v-else class="sov-config__hint sov-config__hint--readonly">
-      {{ '当前为只读视图，区域配置需管理员在安防总览中编辑' }}
-    </p>
 
     <p v-if="syncError" class="sov-config__msg sov-config__msg--err">{{ syncError }}</p>
     <p v-if="savedOk" class="sov-config__msg sov-config__msg--ok">{{ '区域配置已同步' }}</p>
@@ -58,7 +55,7 @@
     <SecurityZoneEditorList
       ref="editorRef"
       v-model="localZones"
-      :editable="authStore.role === 'admin'"
+      :editable="true"
       embedded
       fill-height
       :show-hint="false"
@@ -77,7 +74,6 @@ import { Plus, RefreshCw, Sparkles } from '@lucide/vue'
 import SecurityZoneEditorList from '@/views/security/ZoneEditorList.vue'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import { useAuthStore } from '@/stores/auth.store'
 import { getApiErrorMessage } from '@/utils/core/error-message'
 import { postSecurityZones, prepareZonesForSave } from '@/utils/security/zones-api.util'
 import {
@@ -97,7 +93,6 @@ const emit = defineEmits(['saved'])
 
 const layoutStore = useLayoutStore()
 const chrome = useChromeStore()
-const authStore = useAuthStore()
 // 内嵌编辑器实例引用，用于调用 addZone / focusZoneById
 const editorRef = ref(null)
 // 本地编辑中的区域列表（保存后才同步到后端/布局）
@@ -156,9 +151,8 @@ function handleGenerateFromRooms() {
   generateFromRooms(localZones)
 }
 
-// 保存区域配置：仅管理员可执行；成功后镜像到布局并通知用户
+// 保存区域配置：成功后镜像到布局并通知用户
 async function saveZones() {
-  if (authStore.role !== 'admin') return
   saving.value = true
   syncError.value = ''
   savedOk.value = false

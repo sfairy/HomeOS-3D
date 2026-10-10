@@ -3,14 +3,13 @@
 每天 02:30（Asia/Shanghai）生成完整备份包并保留近 N 天产物。
 
 - 开关与保留天数读取 ``ops.autoBackupEnabled`` / ``ops.autoBackupRetainDays``（系统参数热更新）；
-- 多实例部署时通过 Redis 互斥锁避免重复备份；Redis 不可用时降级为本地执行；
+- 单副本部署，调度到点直接执行；
 - 每次执行后记录 ``lastRunAt`` / ``lastError``，供 ``GET /system/backup/auto/status`` 展示。
 """
 
 from __future__ import annotations
 
 import logging
-import os
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -19,31 +18,21 @@ from ...core.zoned_time import date_from_zoned_wall_clock, zoned_date_parts
 
 logger = logging.getLogger("homeos.backup.auto")
 
-#: Redis 互斥锁 Key：多副本仅一个实例执行自动备份
-AUTO_BACKUP_LOCK_KEY = "homeos:auto-backup:lock"
-#: 锁 TTL（秒）：正常备份在秒级完成，30 分钟兜底防止异常卡死占锁
-AUTO_BACKUP_LOCK_TTL_SEC = 1800
 #: 自动备份触发时刻（与 Cron 保持一致，用于计算 nextRunAt）
 AUTO_BACKUP_HOUR = 2
 AUTO_BACKUP_MINUTE = 30
 #: 文案与 Cron 固定北京时间，避免容器 UTC 把 02:30 跑成上午 10:30
 AUTO_BACKUP_TZ = "Asia/Shanghai"
 
-_RELEASE_LOCK_SCRIPT = (
-    'if redis.call("get", KEYS[1]) == ARGV[1] then return redis.call("del", KEYS[1]) else return 0 end'
-)
-
 
 class AutoBackupService:
     """Nest ``AutoBackupService`` 等价实现（APScheduler 承载 Cron 语义）。"""
 
-    def __init__(self, app_config: Any, server_backup: Any, redis: Any) -> None:
+    def __init__(self, app_config: Any, server_backup: Any) -> None:
         self._app_config = app_config
         self._server_backup = server_backup
-        self._redis = redis
         self.last_run_at: str | None = None
         self.last_error: str | None = None
-        self._lock_token: str | None = None
         self._scheduler: Any = None
 
     # ------------------------------------------------------------------ #
@@ -100,9 +89,6 @@ class AutoBackupService:
         if not ops.get("autoBackupEnabled"):
             logger.debug("自动备份未启用,跳过")
             return
-        if not await self._acquire_lock():
-            logger.info("自动备份跳过:另一实例正在执行或锁尚未释放")
-            return
         try:
             name = self._server_backup.create_backup()["name"]
             self.prune_old_backups(int(ops.get("autoBackupRetainDays") or 0))
@@ -114,8 +100,6 @@ class AutoBackupService:
         except Exception as err:
             self.last_error = str(err)
             logger.error("自动备份失败: %s", self.last_error)
-        finally:
-            await self._release_lock()
 
     def prune_old_backups(self, retain_days: int) -> None:
         """清理超出保留天数的历史备份包（按文件 mtime 判定）。"""
@@ -135,44 +119,6 @@ class AutoBackupService:
                     logger.info("自动清理过期备份 %s", file["name"])
                 except Exception as err:
                     logger.warning("清理过期备份 %s 失败: %s", file["name"], err)
-
-    # ------------------------------------------------------------------ #
-    # Redis 互斥锁
-    # ------------------------------------------------------------------ #
-    async def _acquire_lock(self) -> bool:
-        """Redis SET NX EX 互斥锁；Redis 不可用时放行（standalone 部署无并发风险）。"""
-        if not self._redis.is_ready():
-            return True
-        client = self._redis.get_client()
-        if client is None:
-            return True
-        token = f"{os.getpid()}:{int(time.time() * 1000)}"
-        try:
-            ok = await client.set(
-                AUTO_BACKUP_LOCK_KEY, token, ex=AUTO_BACKUP_LOCK_TTL_SEC, nx=True
-            )
-        except Exception as err:
-            logger.warning("获取自动备份锁失败: %s", err)
-            return True
-        if ok:
-            self._lock_token = token
-            return True
-        return False
-
-    async def _release_lock(self) -> None:
-        if not self._lock_token or not self._redis.is_ready():
-            self._lock_token = None
-            return
-        client = self._redis.get_client()
-        if client is None:
-            self._lock_token = None
-            return
-        try:
-            await client.eval(_RELEASE_LOCK_SCRIPT, 1, AUTO_BACKUP_LOCK_KEY, self._lock_token)
-        except Exception as err:
-            logger.warning("释放自动备份锁失败: %s", err)
-        finally:
-            self._lock_token = None
 
     # ------------------------------------------------------------------ #
     # 下次执行时刻
@@ -208,7 +154,6 @@ class AutoBackupService:
 
 
 __all__ = [
-    "AUTO_BACKUP_LOCK_KEY",
     "AUTO_BACKUP_TZ",
     "AutoBackupService",
 ]

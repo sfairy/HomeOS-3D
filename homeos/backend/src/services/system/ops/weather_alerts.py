@@ -2,12 +2,11 @@
 
 - 预警类型中英文映射（OpenWeather event 关键词 → 中文）；
 - tags → 级别映射（red/extreme → red，orange/severe → orange，其余 yellow）；
-- ``fetch_open_weather_alerts_with_cache``：Redis 缓存 → 内存缓存 → 实际请求的三级策略。
+- ``fetch_open_weather_alerts_with_cache``：内存缓存 → 实际请求的两级策略。
 """
 
 from __future__ import annotations
 
-import json
 import logging
 import re
 import time
@@ -90,20 +89,15 @@ async def fetch_open_weather_alerts_with_cache(
     lon: float,
     api_key: str,
     *,
-    cache_key: str,
-    cache_get: Callable[[str], Awaitable[Any]],
-    cache_set: Callable[[str, str, int], Awaitable[Any]],
     fetch_one_call: Callable[[float, float, str], Awaitable[dict[str, Any]]],
     get_cached_alerts: Callable[[], list[dict[str, Any]]],
     set_cached_alerts: Callable[[list[dict[str, Any]]], None],
     get_last_alert_check: Callable[[], float],
     set_last_alert_check: Callable[[float], None],
     alert_refresh_ms: Callable[[], float],
-    weather_alerts_ttl_sec: Callable[[], int],
-    on_cache_read_error: Callable[[Any], None] | None = None,
     on_fetch_error: Callable[[Any], None] | None = None,
 ) -> dict[str, Any]:
-    """带缓存的预警拉取（未配置 / 命中缓存 / 内存降级 / 实际请求 / 失败降级）。"""
+    """带缓存的预警拉取（未配置 / 内存缓存 / 实际请求 / 失败降级）。"""
     if not api_key:
         return {
             "alerts": [],
@@ -111,37 +105,18 @@ async def fetch_open_weather_alerts_with_cache(
             "message": "未配置 OpenWeather API Key（高级参数 → external）",
         }
 
-    # 步骤 2：尝试 Redis 缓存
-    try:
-        cached = await cache_get(cache_key)
-        if cached:
-            text = cached.decode("utf-8") if isinstance(cached, (bytes, bytearray)) else str(cached)
-            parsed = json.loads(text)
-            alerts = parsed.get("alerts") or []
-            set_cached_alerts(alerts)
-            set_last_alert_check(parsed.get("fetchedAt") or time.time() * 1000)
-            return {"alerts": alerts, "configured": True, "cached": True}
-    except Exception as err:
-        if on_cache_read_error is not None:
-            on_cache_read_error(err)
-
-    # 步骤 3：Redis 未命中 + 距上次拉取不足间隔 + 内存有缓存 → 用内存缓存
+    # 步骤 2：距上次拉取不足间隔 + 内存有缓存 → 直接用内存缓存
     now = time.time() * 1000
     cached_alerts = get_cached_alerts()
     if now - get_last_alert_check() < alert_refresh_ms() and cached_alerts:
         return {"alerts": cached_alerts, "configured": True}
 
-    # 步骤 4：实际请求 API
+    # 步骤 3：实际请求 API
     try:
         payload = await fetch_one_call(lat, lon, api_key)
         alerts = parse_open_weather_alerts(payload)
         set_cached_alerts(alerts)
         set_last_alert_check(now)
-        await cache_set(
-            cache_key,
-            json.dumps({"alerts": alerts, "fetchedAt": now}, ensure_ascii=False),
-            weather_alerts_ttl_sec(),
-        )
         return {"alerts": alerts, "configured": True}
     except Exception as err:
         if on_fetch_error is not None:

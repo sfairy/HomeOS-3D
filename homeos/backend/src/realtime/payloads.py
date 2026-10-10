@@ -165,20 +165,6 @@ def to_ws_state_change_payload(event: dict[str, Any]) -> dict[str, Any]:
     return base
 
 
-def build_redis_ws_status_payload(configured: bool, ready: bool) -> dict[str, Any]:
-    if not configured:
-        status = "unavailable"
-    elif not ready:
-        status = "offline"
-    else:
-        status = "connected"
-    return {
-        "type": "redis_status",
-        "status": status,
-        "configured": configured,
-        "timestamp": _iso_now(),
-    }
-
 
 def parse_state_replay_params(since_raw: Any, last_event_id_raw: Any) -> tuple[float, int]:
     since_ms = 0.0

@@ -276,7 +276,7 @@ const SECTION_DESCS: Record<string, string> = {
   external: '第三方 API 集成（TTS 音箱在语音中心）',
   haConnector: '重连退避、命令队列、入口合并与断连 REST 补同步',
   ops: '数据库清理节奏与 EventLog 时间线缓存（持久化筛选在连接页）',
-  stateStore: 'L1/Redis 写入、断连陈旧阈值与 REST 缓存',
+  stateStore: 'L1 缓存写入、断连陈旧阈值与 REST 缓存',
   wsPush: '关键域即时推、sensor 批推与断线回放',
   commandProxy: '命令幂等与去重',
   webrtc: '跨网摄像头 TURN/STUN（与 HA ICE 合并）',

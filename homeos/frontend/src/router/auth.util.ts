@@ -11,7 +11,7 @@
 import type { NavigationContext, NavigationDecision, RoutableLocation } from '@/types/router'
 
 /** 未登录也允许停留的入户页路由名（后端离线时仅放行这些）。 */
-const GUEST_ROUTES = new Set(['register', 'setup', 'login', 'activation', 'license-recovery'])
+const GUEST_ROUTES = new Set(['register', 'login', 'activation', 'license-recovery'])
 
 /**
  * 根据导航上下文决策目标路由的走向。
@@ -56,11 +56,11 @@ export function resolveNavigationTarget(
 
   // 3. 未初始化：本机零用户，只能去注册页
   if (!systemInitialized) {
-    return routeName === 'register' || routeName === 'setup' ? null : '/register'
+    return routeName === 'register' ? null : '/register'
   }
 
   // 4. 已初始化仍在注册页：注册入口已关闭
-  if (routeName === 'register' || routeName === 'setup') {
+  if (routeName === 'register') {
     return isAuthenticated ? '/' : '/login'
   }
 

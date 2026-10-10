@@ -857,17 +857,6 @@
   }
 }
 
-/* —— ImportBackupModal —— */
-.ibm-icon-accent {
-  color: var(--premium-accent-violet, #c084fc);
-}
-.ibm-text-accent {
-  color: var(--premium-accent-violet, #c084fc);
-}
-.ibm-text-danger {
-  color: var(--set-danger, #fda4af);
-}
-
 /* —— WidgetPickerList —— */
 .widget-picker-virtual {
   max-height: 280px;

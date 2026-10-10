@@ -2,7 +2,7 @@
 
 职责：
 - 订阅 HA 冷批状态变更，按 tier 过滤/序列化后内存缓冲，定时或满载批量写入 EventLog；
-- 写入成功后按序执行能源副作用（候选表 + 日/月聚合），再写 Redis timeline（PG 为权威）；
+- 写入成功后按序执行能源副作用（候选表 + 日/月聚合）；
 - 提供事件历史 / 时间线 / 统计 / 周期对比报表查询，按 JWT restrictions 实施实体级 ACL；
 - 提供保留策略 meta 与全量清理。
 
@@ -29,13 +29,11 @@ from .energy_meter import (
 )
 from .event_log_tier import (
     build_record_filter,
-    extract_event_log_state,
     get_changed_control_attr,
     is_energy_meter_entity,
     is_event_log_recordable,
     resolve_event_log_tier,
     serialize_event_log_states,
-    should_skip_redis_timeline,
 )
 from ..core.app_config import load_raw_config
 from ..core.entity_domain import get_entity_domain
@@ -49,7 +47,6 @@ from ..core.models import (
     Notification,
     SecurityEvent,
 )
-from ..core.redis import RedisService
 from ..core.retention import (
     DEFAULT_OPS,
     build_event_log_public_meta,
@@ -294,21 +291,17 @@ class EventLogService:
     def __init__(
         self,
         database,
-        redis: RedisService | None = None,
         *,
         is_leader: Any = None,
         is_entity_syncable: Any = None,
     ) -> None:
         self._database = database
-        self._redis = redis
         self._is_leader = is_leader or (lambda: True)
         self._is_entity_syncable = is_entity_syncable or (lambda _entity_id: True)
         self._buffer: list[dict[str, Any]] = []
         self._flush_timer: asyncio.TimerHandle | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._dropped_events = 0
-        self._timeline_max = DEFAULT_OPS["eventLogTimelineMax"]
-        self._pending_timeline: list[tuple[str, str, str, int]] = []
         self._ops: dict[str, Any] = dict(DEFAULT_OPS)
         self._load_ops()
 
@@ -321,7 +314,6 @@ class EventLogService:
             self._ops = {**DEFAULT_OPS, **section}
         except Exception:
             self._ops = dict(DEFAULT_OPS)
-        self._timeline_max = int(self._ops.get("eventLogTimelineMax") or 500)
         return self._ops
 
     @property
@@ -329,7 +321,6 @@ class EventLogService:
         return {
             "enabled": self._ops.get("eventLogTierEnabled", True) is not False,
             "tier_c_sample_rate": float(self._ops.get("eventLogTierCSampleRate") or 0),
-            "skip_sensor_timeline": self._ops.get("eventLogSkipSensorTimeline", True) is not False,
         }
 
     def _enabled_ck(self) -> bool:
@@ -407,9 +398,6 @@ class EventLogService:
                     "new_state": new_state,
                     "state_diff": state_diff,
                     "created_at": _resolve_event_occurred_at(event),
-                    "redis": None
-                    if should_skip_redis_timeline(entity_id, skip_sensor_timeline=tier_cfg["skip_sensor_timeline"])
-                    else (old_s, new_s),
                 }
             )
             if len(self._buffer) >= int(self._ops.get("eventLogMaxBuffer") or 200):
@@ -501,7 +489,6 @@ class EventLogService:
                 )
             session.commit()
         self._apply_energy_side_effects(batch)
-        self._queue_timeline(batch)
 
     def _apply_energy_side_effects(self, batch: list[dict[str, Any]]) -> None:
         energy_ids = sorted(
@@ -592,55 +579,6 @@ class EventLogService:
                 session.commit()
         except Exception as error:
             logger.warning("能源副作用维护失败: %s", error)
-
-    def _queue_timeline(self, batch: list[dict[str, Any]]) -> None:
-        for row in batch:
-            redis_pair = row["redis"]
-            if not redis_pair:
-                continue
-            self._pending_timeline.append(
-                (row["entity_id"], redis_pair[0], redis_pair[1], int(_to_ms(row["created_at"])))
-            )
-        if self._redis is not None and self._redis.is_ready():
-            loop = self._loop
-            if loop is not None:
-                self._spawn(loop, self._flush_pending_timeline())
-            else:
-                try:
-                    self._spawn(asyncio.get_running_loop(), self._flush_pending_timeline())
-                except RuntimeError:
-                    pass
-
-    async def _flush_pending_timeline(self) -> None:
-        if self._redis is None or not self._redis.is_ready():
-            return
-        client = self._redis.get_client()
-        if client is None:
-            return
-        pending, self._pending_timeline = self._pending_timeline, []
-        if not pending:
-            return
-        try:
-            entity_keys: set[str] = set()
-            pipe = client.pipeline()
-            for entity_id, _old_s, new_s, ts in pending:
-                state = extract_event_log_state({"state": new_s})
-                if state is None:
-                    continue
-                snapshot = json.dumps(
-                    {"entity_id": entity_id, "state": state, "ts": ts}, ensure_ascii=False
-                )
-                entity_key = f"timeline:entity:{entity_id}"
-                entity_keys.add(entity_key)
-                pipe.zadd(entity_key, {snapshot: ts})
-                pipe.zadd("timeline:all", {snapshot: ts})
-            if entity_keys:
-                for key in entity_keys:
-                    pipe.zremrangebyrank(key, 0, -(self._timeline_max + 1))
-                pipe.zremrangebyrank("timeline:all", 0, -(self._timeline_max * 10 + 1))
-            await pipe.execute()
-        except Exception as error:
-            logger.warning("事件时间线写入 Redis 失败: %s", error)
 
     # ------------------------------------------------------------------ #
     # 查询
@@ -811,21 +749,7 @@ class EventLogService:
         if self._flush_timer is not None:
             self._flush_timer.cancel()
             self._flush_timer = None
-        self._pending_timeline = []
-        redis_keys_removed = self._clear_redis_timeline()
-        return {"deleted": deleted, "redisKeysRemoved": redis_keys_removed}
-
-    def _clear_redis_timeline(self) -> int:
-        if self._redis is None or not self._redis.is_ready():
-            return 0
-        client = self._redis.get_client()
-        if client is None:
-            return 0
-        try:
-            return int(client.delete("timeline:all", "stream:ha_events"))
-        except Exception as error:
-            logger.warning("事件日志 Redis 时间线清理失败: %s", error)
-            return 0
+        return {"deleted": deleted}
 
     def force_clean(self) -> dict[str, Any]:
         """执行一次保留清理（覆盖 5 张保留表），返回 RetentionCleanupResult 结构。"""

@@ -51,7 +51,7 @@ def signed_in(request: Request) -> bool:
     """是否存在有效登录会话（DB 会话）。
 
     仅为静态资源门禁服务，故不复刻完整守卫链：只要能确认「这条请求带着一个可解析的
-    登录凭证」即可，权限矩阵仍由各路由的 ``require_user`` / ``require_roles`` 把关。
+    登录凭证」即可，权限矩阵仍由各路由的 ``require_user`` 把关。
     """
     settings = request.app.state.settings
     database = getattr(request.app.state, "database", None)

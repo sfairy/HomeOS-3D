@@ -90,6 +90,47 @@ def _load_active_connection(database_manager) -> Any:
         return connection
 
 
+def _load_custom_ice_servers(database_manager) -> list[dict[str, Any]]:
+    """读取 ``webrtc`` 分区配置的自定义 ICE/TURN 服务器。
+
+    ``iceUrls`` 支持逗号或换行分隔的多个 URL；``iceUsername`` / ``iceCredential``
+    非空时作为该条服务器的 TURN 长凭证一并下发。未配置时返回空列表。
+    """
+    try:
+        from ..core.app_config import load_raw_config
+
+        with database_manager.session_factory() as database:
+            raw = load_raw_config(database)
+    except Exception:
+        return []
+    raw_section = raw.get('webrtc')
+    section: dict[str, Any] = raw_section if isinstance(raw_section, dict) else {}
+    urls = [
+        item.strip()
+        for item in str(section.get('iceUrls') or '').replace('\n', ',').split(',')
+        if item.strip()
+    ]
+    if not urls:
+        return []
+    entry: dict[str, Any] = {'urls': urls}
+    username = str(section.get('iceUsername') or '').strip()
+    credential = str(section.get('iceCredential') or '').strip()
+    if username:
+        entry['username'] = username
+    if credential:
+        entry['credential'] = credential
+    return [entry]
+
+
+def _merge_ice_servers(base: Any, extra: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """把自定义 ICE/TURN 服务器并入基线列表（按内容去重，保持基线在前）。"""
+    merged = [dict(item) for item in base if isinstance(item, dict)] if isinstance(base, list) else []
+    for entry in extra:
+        if entry not in merged:
+            merged.append(entry)
+    return merged
+
+
 async def _ha_client(request: Request):
     connection = await asyncio.to_thread(_load_active_connection, request.app.state.database)
     if connection is None:
@@ -143,7 +184,8 @@ async def webrtc_ice_servers(
     request: Request, _viewer: ShortLivedLicensedViewer
 ) -> dict[str, Any]:
     await _require_camera_license(request)
-    return {'iceServers': DEFAULT_ICE_SERVERS}
+    custom = await asyncio.to_thread(_load_custom_ice_servers, request.app.state.database)
+    return {'iceServers': _merge_ice_servers(DEFAULT_ICE_SERVERS, custom)}
 
 
 @router.get('/client-config')
@@ -163,9 +205,21 @@ async def webrtc_client_config(
         raise HTTPException(status_code=502, detail=str(error)) from error
     finally:
         await websocket.close()
+    # 把「高级参数」里配置的自定义 ICE/TURN 并进 HA 返回的客户端配置：
+    # 前端 client-config 分支会直接采用这里下发的 iceServers，跨网（需 TURN 中继）时
+    # 仅靠 HA 自带 STUN 无法打洞。
+    custom = await asyncio.to_thread(_load_custom_ice_servers, request.app.state.database)
     if not isinstance(result, dict):
-        return {'configuration': {'iceServers': DEFAULT_ICE_SERVERS}}
-    return result if 'configuration' in result else {'configuration': result}
+        return {'configuration': {'iceServers': _merge_ice_servers(DEFAULT_ICE_SERVERS, custom)}}
+    payload = result if 'configuration' in result else {'configuration': result}
+    configuration = payload.get('configuration')
+    if not isinstance(configuration, dict):
+        configuration = {}
+        payload['configuration'] = configuration
+    configuration['iceServers'] = _merge_ice_servers(
+        configuration.get('iceServers') or DEFAULT_ICE_SERVERS, custom
+    )
+    return payload
 
 
 @router.post('/negotiate')

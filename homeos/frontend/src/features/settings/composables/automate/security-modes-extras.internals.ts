@@ -7,11 +7,10 @@ import type { Component, Ref } from 'vue'
 import { pauseGlobalPendingChanges, resumeGlobalPendingChanges, syncGlobalLayoutPendingSnapshot } from '@/features/settings/composables/pending.internals'
 import { useHomeosSceneOptions } from '@/composables/home-mode/useHomeosSceneOptions'
 import { useHazardBindingStatus } from '@/composables/security/useHazardBindingStatus'
-import { WHOLE_HOME_OFF_ROLE_OPTIONS, createDefaultWholeHomeOff } from '@/constants/whole-home-off'
+import { createDefaultWholeHomeOff } from '@/constants/whole-home-off'
 import { fetchAdvisorForgotten } from '@/services/api/system'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import type { WholeHomeOffRole } from '@/types/whole-home-off'
 import { idsToSingleEntity, joinCommaEntityIds, parseCommaEntityIds, singleEntityToIds } from '@/utils/entity/comma-entity-ids.util'
 import type { RecommendChip } from '@/utils/recommend/types'
 import { buildWholeHomeOffRecommendations } from '@/utils/recommend/whole-home-off-recommend.util'
@@ -29,13 +28,6 @@ interface DomainCard {
   tone: 'amber' | 'sky' | 'cyan' | 'violet'
 }
 
-const ROLE_LABELS: Record<WholeHomeOffRole, string> = {
-  admin: '管理员',
-  adult: '成人',
-  child: '儿童',
-  guest: '访客',
-}
-
 const domainCards: DomainCard[] = [
   { key: 'lights', label: '灯光', icon: Lightbulb, tone: 'amber' },
   { key: 'covers', label: '窗帘', icon: Blinds, tone: 'violet' },
@@ -45,7 +37,6 @@ const domainCards: DomainCard[] = [
 
 export function useWholeHomeOffSection() {
   const layoutStore = useLayoutStore()
-  const chrome = useChromeStore()
   const wholeHomeOff = computed(() => layoutStore.layoutConfig.wholeHomeOff)
 
   const entityDomains = ['light', 'cover', 'climate', 'fan', 'switch'] as const
@@ -53,29 +44,6 @@ export function useWholeHomeOffSection() {
   const enabledDomainCount = computed(
     () => domainCards.filter((d) => wholeHomeOff.value[d.key]).length,
   )
-
-  function roleLabel(role: WholeHomeOffRole) {
-    return ROLE_LABELS[role] ?? role
-  }
-
-  function roleActive(role: WholeHomeOffRole) {
-    return (wholeHomeOff.value.roles || []).includes(role)
-  }
-
-  function toggleRole(role: WholeHomeOffRole) {
-    const list = [...(wholeHomeOff.value.roles || [])]
-    const idx = list.indexOf(role)
-    if (idx >= 0) {
-      if (list.length <= 1) {
-        chrome.notify('至少保留一个可用角色', 'warning')
-        return
-      }
-      list.splice(idx, 1)
-    } else {
-      list.push(role)
-    }
-    wholeHomeOff.value.roles = list
-  }
 
   watch(
     () => layoutStore.layoutConfig.wholeHomeOff,
@@ -95,10 +63,6 @@ export function useWholeHomeOffSection() {
     entityDomains,
     domainCards,
     enabledDomainCount,
-    WHOLE_HOME_OFF_ROLE_OPTIONS,
-    roleLabel,
-    roleActive,
-    toggleRole,
   }
 }
 

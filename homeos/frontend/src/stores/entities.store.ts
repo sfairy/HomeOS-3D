@@ -60,7 +60,7 @@ import {
  * 依赖：
  * - @homeos/shared：实体域解析与鉴权（getEntityDomain / isEntityAllowed）
  * - @/services/api：HTTP 客户端与实体同步接口
- * - @/stores/auth.store：用户角色与实体访问权限
+ * - @/stores/auth.store：实体访问权限
  * - @/stores/layout.store：布局配置（影响缓存 hydration 分区）
  * - @/utils/config/frontend-config：阈值与批量大小等可调参数
  * - @/stores/entities/* 拆分模块：WS 状态机 / 缓存 / 派生索引 / 动作 / 投影
@@ -68,7 +68,7 @@ import {
 /** useEntitiesStore：Pinia store 工厂，状态与动作见定义。 */
 export const useEntitiesStore = defineStore('entities', () => {
   /**
-   * 判断当前用户是否可见指定实体（受角色与限制列表约束）
+   * 判断当前用户是否可见指定实体（受限制列表约束）
    * @param entityId - 实体完整 ID
    * @returns 是否可见
    */
@@ -390,7 +390,6 @@ export const useEntitiesStore = defineStore('entities', () => {
     reconnecting,
     haQueueDroppedTotal,
     lastQueueDropAt,
-    redisStatus,
     initStates,
     updateStatesBatch,
     emitStateListeners,
@@ -401,7 +400,6 @@ export const useEntitiesStore = defineStore('entities', () => {
     connect,
     disconnect,
     getSocket,
-    refreshRedisFromHealth,
     reconnectForAuthChange,
     ensureWsConnected,
     wsTransportEpoch,
@@ -509,7 +507,7 @@ export const useEntitiesStore = defineStore('entities', () => {
     // REST 回填覆盖缓存时同步维护派生索引与投影
     patchDerivedChanges,
     patchProjectionsFromChanges: (changes) => patchProjectionsFromChanges(changes, entities),
-    canControl: (entityId: string) => useAuthStore().canControl(entityId),
+    isEntityAllowed: (entityId: string) => useAuthStore().isEntityAllowed(entityId),
     isAuthenticated: () => useAuthStore().isAuthenticated,
     isHaConnected: () => connected.value,
     callDedupWindowMs: callDedupWindow,
@@ -535,13 +533,13 @@ export const useEntitiesStore = defineStore('entities', () => {
     window.addEventListener('pagehide', flushEntityCacheIfDirty)
   }
 
-  // 权限（角色 / ACL restrictions）变化后强制重拉实体全量：
+  // 权限（ACL restrictions）变化后强制重拉实体全量：
   // 若仅靠 shouldAcceptEntitySnapshot 的 quiet 拒绝，权限收紧后已无权查看的陈旧实体将残留
   let lastAccessFingerprint = ''
   watch(
     () => {
       const auth = useAuthStore()
-      return `${auth.role}|${[...(auth.restrictions || [])].sort().join(',')}`
+      return [...(auth.restrictions || [])].sort().join(',')
     },
     (fingerprint) => {
       if (fingerprint === lastAccessFingerprint) return
@@ -594,7 +592,6 @@ export const useEntitiesStore = defineStore('entities', () => {
     lastQueueDropAt,
     entitiesCacheHydrated,
     entitiesCacheSavedAt,
-    redisStatus,
     entityLoadProgress,
     entityLoadPhase,
     entities,
@@ -614,7 +611,6 @@ export const useEntitiesStore = defineStore('entities', () => {
     fetchForecasts,
     connect,
     disconnect,
-    refreshRedisFromHealth,
     reconnectForAuthChange,
     ensureWsConnected,
     wsTransportEpoch,

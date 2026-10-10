@@ -65,7 +65,7 @@ def evaluate_eew_for_alert(
     dedupe: EewDedupeState,
     magnitude_merge_threshold: float = MAGNITUDE_MERGE_THRESHOLD,
 ) -> dict[str, Any]:
-    """评估 EEW 是否应触发预警（不含 Redis / 已关闭事件等外部状态）。"""
+    """评估 EEW 是否应触发预警（不含已关闭事件等外部状态）。"""
     if not (eew.origin_time > 0):
         return {"kind": "skip", "message": f"⚠️ EEW originTime 无效 eventId={eew.event_id}"}
 

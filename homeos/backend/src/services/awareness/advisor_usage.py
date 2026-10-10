@@ -782,7 +782,7 @@ class AdvisorUsageService:
                 logger.warning("遗忘设备检测失败: %s", exc)
 
     async def check_forgotten_cron(self) -> None:
-        """遗忘设备检测（多副本下经分布式锁串行化）。"""
+        """遗忘设备检测（单实例内存锁串行化）。"""
         if self._lock is None:
             await self.usage.check_forgotten_cron()
             return

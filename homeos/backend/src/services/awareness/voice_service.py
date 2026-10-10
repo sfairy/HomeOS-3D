@@ -239,7 +239,6 @@ class VoiceService:
                 [],
                 AgentChatOptions(
                     actor=AgentActor(
-                        role=(user or {}).get("role"),
                         restrictions=(user or {}).get("restrictions"),
                         user_id=(user or {}).get("userId"),
                         username=(user or {}).get("username"),

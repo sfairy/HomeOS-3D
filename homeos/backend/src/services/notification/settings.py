@@ -126,16 +126,7 @@ class NotificationSettingsHelper:
         self,
         settings: dict[str, Any],
         user_id: str | None = None,
-        role: str | None = None,
     ) -> dict[str, Any]:
-        is_admin = role == "admin"
-        has_toggles = any(settings.get(key) is not None for key in _TOGGLE_KEYS)
-        touches_global_dnd = settings.get("dndStart") is not None or settings.get("dndEnd") is not None
-
-        # 成人等非 admin：仅个人开关走 prefs，避免误改全屋默认值。
-        if not is_admin and user_id and has_toggles and not touches_global_dnd:
-            return await self.update_user_preferences(user_id, settings)
-
         partial: dict[str, Any] = {}
         if settings.get("dndStart") is not None:
             partial["dndStart"] = settings["dndStart"]

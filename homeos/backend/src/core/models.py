@@ -86,7 +86,6 @@ class User(Base):
         "emailVerifiedAt", DateTime(timezone=True), nullable=True
     )
     password: Mapped[str] = mapped_column(String(512), nullable=False)
-    role: Mapped[str] = mapped_column(String(16), nullable=False, default="admin")
     #: 两列都带 server_default，与迁移 0006 的 ALTER 保持一致：0006 用 server_default 给
     #: 存量行补值，若 ORM 只声明 Python 侧 default，发行路径（create_all 建库）就会少一个
     #: DEFAULT，与迁移建出的库不等价。
@@ -424,7 +423,7 @@ class EnergyCandidateEntity(Base):
 
 
 class EnergyUsageDaily(Base):
-    """能耗日聚合（Redis 不可用时的趋势查询回退源）。"""
+    """能耗日聚合（能耗趋势查询的数据源）。"""
 
     __tablename__ = "energy_usage_daily"
     __table_args__ = (UniqueConstraint("entityId", "day", name="energy_usage_daily_key"),)
@@ -440,7 +439,7 @@ class EnergyUsageDaily(Base):
 
 
 class EnergyUsageMonthly(Base):
-    """能耗月聚合（Redis 不可用时的趋势查询回退源）。"""
+    """能耗月聚合（能耗趋势查询的数据源）。"""
 
     __tablename__ = "energy_usage_monthly"
     __table_args__ = (UniqueConstraint("entityId", "month", name="energy_usage_monthly_key"),)

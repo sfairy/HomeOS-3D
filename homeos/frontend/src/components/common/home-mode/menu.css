@@ -124,8 +124,7 @@
   white-space: nowrap;
 }
 
-.home-mode-switcher__empty,
-.home-mode-switcher__hint {
+.home-mode-switcher__empty {
   padding: 10px;
   font-size: var(--premium-fs-caption);
   color: var(--hos-text-secondary);

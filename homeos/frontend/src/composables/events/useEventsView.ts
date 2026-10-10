@@ -13,7 +13,6 @@ import {
   fetchEventMeta,
 } from '@/services/api/entities'
 import { useEntitiesStore } from '@/stores/entities.store'
-import { useAuthStore } from '@/stores/auth.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useEnsureVisibleEntities } from '@/composables/entity/useEnsureVisibleEntities'
 import { logger } from '@/utils/core/logger'
@@ -40,7 +39,6 @@ const PAGE_SIZE = 8
 export function useEventsView() {
   const route = useRoute()
   const entitiesStore = useEntitiesStore()
-  const authStore = useAuthStore()
   const chrome = useChromeStore()
   const hours = ref(getEventLogConfig().maxQueryHours)
   const entityFilter = ref('')
@@ -140,8 +138,6 @@ export function useEventsView() {
       { key: 'hours', label: '回溯窗口', value: hoursLabel(hours.value), tone: 'muted' },
     ]
   })
-
-  const isAdmin = computed(() => authStore.role === 'admin')
 
   const resultSummary = computed(() => {
     const parts = []
@@ -418,7 +414,7 @@ export function useEventsView() {
 
   async function clearAllRecords() {
     const ok = await chrome.confirm(
-      '将永久删除数据库中全部事件变更日志条目（含 Redis 时间线缓存），此操作不可恢复。确定继续？',
+      '将永久删除数据库中全部事件变更日志条目（含时间线缓存），此操作不可恢复。确定继续？',
       '清除全部记录',
       { type: 'danger', confirmText: '清除' },
     )
@@ -514,7 +510,6 @@ export function useEventsView() {
     loading,
     clearing,
     error,
-    isAdmin,
     entitySelectOptions,
     entityOptionsLoading,
     hourOptions,

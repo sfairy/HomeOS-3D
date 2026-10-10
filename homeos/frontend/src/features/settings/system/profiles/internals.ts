@@ -1,11 +1,11 @@
 /**
  * 文件：internals.ts
- * 职责：档案面板 internals。聚合档案/备份/导入/服务端备份文件管理逻辑，提供 useProfilesPanel 入口。
- *       包含布局备份导出/导入、应用配置备份、服务端备份文件 CRUD 与自动备份状态。
+ * 职责：档案面板 internals。聚合显示方案管理与统一全量备份的服务器快照管理逻辑，提供 useProfilesPanel 入口。
+ *       包含显示方案 CRUD、服务端全量备份文件 CRUD 与定时自动备份状态。
  * 关键依赖：
  *   - vue 的 ref / computed / watch / onMounted / Ref
  *   - useAuthStore / useChromeStore / useLayoutStore：账户/通知/布局状态
- *   - useProfileBackup / refreshAfterBundleRestore：备份导出/导入与恢复
+ *   - useProfileManagement：显示方案 CRUD
  *   - useSettingsHubRouteSection：子导航路由同步
  *   - fetchServerBackupFiles / createServerBackup / restoreServerBackupFile 等：服务端备份 API
  */
@@ -13,17 +13,13 @@ import { ref, computed, watch, onMounted, type Ref } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import {
-  useProfileBackup,
-  refreshAfterBundleRestore,
-} from '@/features/settings/composables/hub-backup-orchestrator.internals'
+import { useProfileManagement } from '@/features/settings/composables/hub-backup-orchestrator.internals'
 import { useSettingsHubRouteSection } from '@/features/settings/composables/hub-ui.internals'
 import { getApiErrorMessage } from '@/utils/core/error-message'
 import { downloadBlob } from '@/utils/core/misc.util'
 import {
   fetchServerBackupFiles,
   downloadServerBackupFile,
-  importServerBackupFile,
   deleteServerBackupFile,
   restoreServerBackupFile,
   createServerBackup,
@@ -68,10 +64,7 @@ type TerminalBindingRow = {
 }
 
 function useProfilesServerBackups() {
-  const authStore = useAuthStore()
-  const layoutStore = useLayoutStore()
   const chrome = useChromeStore()
-  const isAdmin = computed(() => authStore.role === 'admin')
 
   const backupRunNowLoading = ref(false)
   const backupFiles = ref<
@@ -80,7 +73,6 @@ function useProfilesServerBackups() {
   const backupFilesLoading = ref(false)
   const backupFileActionName = ref('')
   const backupFileActionKind = ref<'restore' | 'export' | 'delete' | ''>('')
-  const backupImportLoading = ref(false)
 
   const autoBackup = ref<{
     enabled: boolean
@@ -93,7 +85,6 @@ function useProfilesServerBackups() {
   const autoBackupSaving = ref(false)
 
   async function loadAutoBackupStatus() {
-    if (!isAdmin.value) return
     autoBackupLoading.value = true
     try {
       const { data } = await fetchAutoBackupStatus()
@@ -157,7 +148,6 @@ function useProfilesServerBackups() {
   }
 
   async function loadBackupFiles() {
-    if (!isAdmin.value) return
     backupFilesLoading.value = true
     try {
       const { data } = await fetchServerBackupFiles()
@@ -207,26 +197,20 @@ function useProfilesServerBackups() {
 
   async function restoreBackupFile(name: string) {
     const ok = await chrome.confirm(
-      `确定从「${name}」还原完整备份包？将覆盖当前 UI 布局与系统参数（默认不含用户账号）。建议先另存一份当前备份。`,
-      '从服务器还原',
+      `确定从「${name}」还原全量备份？将用备份中的数据库、账号、授权与素材整体覆盖当前数据，无法撤销。建议先另存一份当前备份。`,
+      '全量还原',
       { confirmText: '确认还原', type: 'danger' },
     )
     if (!ok) return
     backupFileActionName.value = name
     backupFileActionKind.value = 'restore'
     try {
-      const { data } = await restoreServerBackupFile({
-        name,
-        confirm: true,
-        appConfigMode: 'replace',
-      })
-      const sections = data?.sections ?? data?.data?.sections ?? []
-      // 与客户端整包导入一致：还原后即时重载前端配置与方案，避免界面残留旧状态
-      await refreshAfterBundleRestore(layoutStore, sections)
-      await loadBackupFiles()
+      await restoreServerBackupFile({ name, confirm: true })
+      chrome.notify('全量数据已还原，正在重新加载…', 'success', 5000)
+      // 整库（含账号）已被替换，当前会话可能失效：整页重载回到干净状态
+      window.setTimeout(() => window.location.reload(), 800)
     } catch (e) {
       chrome.notify(getApiErrorMessage(e, '还原失败'), 'error')
-    } finally {
       backupFileActionName.value = ''
       backupFileActionKind.value = ''
     }
@@ -237,63 +221,15 @@ function useProfilesServerBackups() {
     backupFileActionKind.value = 'export'
     try {
       const { data } = await downloadServerBackupFile(name)
-      const payload = data?.data ?? data
-      const bundle = payload?.bundle ?? payload
-      const filename =
-        typeof payload?.name === 'string' && payload.name ? payload.name : name
-      const blob = new Blob([JSON.stringify(bundle, null, 2)], {
-        type: 'application/json',
-      })
-      downloadBlob(blob, filename)
-      chrome.notify('备份包已导出到本地', 'success')
+      const blob = data instanceof Blob ? data : new Blob([data as BlobPart])
+      downloadBlob(blob, name)
+      chrome.notify('备份包已下载到本地', 'success')
     } catch (e) {
-      chrome.notify(getApiErrorMessage(e, '导出失败'), 'error')
+      chrome.notify(getApiErrorMessage(e, '下载失败'), 'error')
     } finally {
       backupFileActionName.value = ''
       backupFileActionKind.value = ''
     }
-  }
-
-  async function importBackupFromLocalFile(file: File | null | undefined) {
-    if (!file) return
-    backupImportLoading.value = true
-    try {
-      const text = await file.text()
-      let parsed: unknown
-      try {
-        parsed = JSON.parse(text)
-      } catch {
-        chrome.notify('无效的备份包 JSON', 'error')
-        return
-      }
-      const { data } = await importServerBackupFile({
-        bundle: parsed,
-        name: file.name,
-      })
-      const saved = data?.data?.name ?? data?.name
-      chrome.notify(
-        saved ? `本地备份包已导入服务器：${saved}` : '本地备份包已导入服务器',
-        'success',
-        5000,
-      )
-      await loadBackupFiles()
-    } catch (e) {
-      chrome.notify(getApiErrorMessage(e, '本地导入失败'), 'error')
-    } finally {
-      backupImportLoading.value = false
-    }
-  }
-
-  function pickLocalBackupFile() {
-    if (backupImportLoading.value) return
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = '.json,application/json'
-    input.onchange = () => {
-      const file = input.files?.[0]
-      void importBackupFromLocalFile(file)
-    }
-    input.click()
   }
 
   return {
@@ -302,7 +238,6 @@ function useProfilesServerBackups() {
     backupFilesLoading,
     backupFileActionName,
     backupFileActionKind,
-    backupImportLoading,
     autoBackup,
     autoBackupLoading,
     autoBackupSaving,
@@ -316,7 +251,6 @@ function useProfilesServerBackups() {
     deleteBackupFile,
     restoreBackupFile,
     exportBackupFile,
-    pickLocalBackupFile,
   }
 }
 
@@ -324,7 +258,6 @@ function useProfilesTerminalBindings() {
   const authStore = useAuthStore()
   const layoutStore = useLayoutStore()
   const chrome = useChromeStore()
-  const isAdmin = computed(() => authStore.role === 'admin')
 
   const localClientId = getClientDeviceId()
   const localTerminalLabel = inferTerminalLabel()
@@ -355,7 +288,6 @@ function useProfilesTerminalBindings() {
   }
 
   async function fetchTerminalBindings() {
-    if (!isAdmin.value) return
     bindingsLoading.value = true
     bindingsError.value = ''
     try {
@@ -371,7 +303,6 @@ function useProfilesTerminalBindings() {
   }
 
   async function fetchProfileDefaults() {
-    if (!isAdmin.value) return
     defaultsLoading.value = true
     try {
       const { data } = await fetchActiveProject()
@@ -454,7 +385,6 @@ function useProfilesTerminalBindings() {
   })
 
   return {
-    isAdmin,
     localClientId,
     localTerminalLabel,
     shortClientId,
@@ -478,7 +408,6 @@ function useProfilesTerminalBindings() {
 export function useProfilesPanel(activeTab: Ref<string>) {
   const authStore = useAuthStore()
   const layoutStore = useLayoutStore()
-  const isAdmin = computed(() => authStore.role === 'admin')
   const profilesSection = ref('profiles')
 
   const profilesSubnavSections = computed(() => {
@@ -489,7 +418,7 @@ export function useProfilesPanel(activeTab: Ref<string>) {
         emoji: '🖥️',
         badge: layoutStore.availableProfiles?.length || '',
       },
-      { id: 'backup', label: '备份与还原', emoji: '💾' },
+      { id: 'backup', label: '备份与恢复', emoji: '💾' },
     ]
     return sections
   })
@@ -499,19 +428,12 @@ export function useProfilesPanel(activeTab: Ref<string>) {
     activeTab: () => activeTab.value,
   })
 
-  const backup = useProfileBackup()
+  const profile = useProfileManagement()
   const serverBackups = useProfilesServerBackups()
   const terminal = useProfilesTerminalBindings()
 
-  const importBackupType = ref('ui')
-
-  function openImport(type: string) {
-    importBackupType.value = type
-    backup.showImport.value = true
-  }
-
   async function switchToProfile(id: string) {
-    await backup.switchToProfile(id)
+    await profile.switchToProfile(id)
     await terminal.fetchTerminalBindings()
   }
 
@@ -534,11 +456,8 @@ export function useProfilesPanel(activeTab: Ref<string>) {
     (section) => {
       if (!authStore.isAuthenticated) return
       if (section === 'backup') {
-        backup.fetchBackupSummaries()
-        if (isAdmin.value) {
-          serverBackups.loadBackupFiles()
-          serverBackups.loadAutoBackupStatus()
-        }
+        serverBackups.loadBackupFiles()
+        serverBackups.loadAutoBackupStatus()
       }
     },
     { immediate: true },
@@ -551,12 +470,9 @@ export function useProfilesPanel(activeTab: Ref<string>) {
     layoutStore,
     profileLabel,
     formatLastSaved,
-    importBackupType,
-    openImport,
-    ...backup,
+    ...profile,
     ...serverBackups,
     ...terminal,
-    isAdmin,
     switchToProfile,
   }
 }

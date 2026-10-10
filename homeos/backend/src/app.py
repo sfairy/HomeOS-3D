@@ -75,9 +75,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/health", include_in_schema=False)
     async def health(request: Request):
         db_ok = await asyncio.to_thread(_probe_db, request.app)
-        redis_configured = app_settings.redis_configured
-        redis_ready = False
-        redis_degraded = redis_configured and not redis_ready
         ha_connected = bool(getattr(request.app.state, "ha_connected", False))
         ha_registry_available = ha_connected and not bool(
             getattr(request.app.state, "ha_registry_degraded", False)
@@ -86,9 +83,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from .core.migrations import SCHEMA_REVISION
 
         return {
-            "status": "ok" if db_ok and not redis_degraded else "degraded",
-            "redis_ok": redis_ready if redis_configured else None,
-            "redis": {"configured": redis_configured, "ready": redis_ready},
+            "status": "ok" if db_ok else "degraded",
             "ha_registry_available": ha_registry_available,
             "schema": {
                 "ok": db_ok,

@@ -4,10 +4,10 @@
  * HttpOnly Cookie 方案：会话令牌由服务端设置和管理，前端不接触敏感令牌。
  *
  * 职责：
- * - 维护当前登录用户、角色（HomeRole）与实体访问限制列表
- * - 持久化登录态到 localStorage（auth_user / auth_role / auth_restrictions）
+ * - 维护当前登录用户与实体访问限制列表
+ * - 持久化登录态到 localStorage（auth_user / auth_restrictions）
  * - 提供登录 / 登出 / 会话保活 / 初始化状态检查
- * - 暴露实体访问鉴权工具：isEntityAllowed / canControl
+ * - 暴露实体访问鉴权工具：isEntityAllowed
  *
  * 与 homeos-3d 契约对应关系：
  * - 系统初始化状态 → ``GET /api/v1/setup/status``
@@ -18,7 +18,7 @@
  * 依赖：
  * - @/services/api/auth：HTTP 接口
  * - @/utils/config/frontend-config：读取 frontend 配置段及监听变更
- * - @homeos/shared：实体鉴权工具 canControlEntity / isEntityAllowed
+ * - @homeos/shared：实体鉴权工具 isEntityAllowed
  * - @/utils/bridge/store-bridge：认证变化时通知实体 store 重建 WS 连接
  */
 import { readLocalStorage, readLocalStorageJson, removeLocalStorage, writeLocalStorage, writeLocalStorageJson } from '@/utils/core/local-storage.util'
@@ -35,13 +35,13 @@ import {
 } from '@/services/api/auth'
 import type { RegisterPayload } from '@/services/api/auth'
 import { getConfigSection, onConfigChange } from '@/utils/config/frontend-config'
-import { canControlEntity, isEntityAllowed as checkEntityAllowed } from '@homeos/shared'
+import { isEntityAllowed as checkEntityAllowed } from '@homeos/shared'
 import { notifyAuthChanged } from '@/utils/bridge/store-bridge'
 import { bumpAuthGeneration } from '@/services/api-client'
 import { setLicenseFeatureAccess } from '@/router/license-gate'
 import { logger } from '@/utils/core/logger'
 import { schedulePoll } from '@/utils/core/poll-scheduler'
-import type { AuthUserPayload, HomeRole } from '@/types/auth'
+import type { AuthUserPayload } from '@/types/auth'
 
 /**
  * 从 localStorage 读取当前用户的实体访问限制列表
@@ -52,35 +52,27 @@ function loadRestrictions(): string[] {
 }
 
 /**
- * 认证 Store：管理登录用户、角色、会话与实体访问权限
+ * 认证 Store：管理登录用户、会话与实体访问权限
  *
- * 状态域：user / role / restrictions / isAuthenticated
+ * 状态域：user / restrictions / isAuthenticated
  * 通过 setup 语法保持响应式 ref，所有动作均同步 localStorage 以支持刷新恢复。
  */
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<string | null>(readLocalStorage('auth_user') || null)
-  const role = ref<HomeRole | string>(readLocalStorage('auth_role') || 'admin')
   const restrictions = ref<string[]>(loadRestrictions())
   const isAuthenticated = ref(false)
 
   /**
    * 设置当前登录用户并同步到 localStorage
    * @param username - 用户名；传 null 表示登出，会清空所有认证相关 localStorage
-   * @param userRole - 角色；登出时回退为 'admin'
    */
-  function setUser(username: string | null, userRole?: HomeRole | string): void {
+  function setUser(username: string | null): void {
     user.value = username
     if (username) {
       writeLocalStorage('auth_user', username)
-      if (userRole) {
-        role.value = userRole
-        writeLocalStorage('auth_role', userRole)
-      }
     } else {
       removeLocalStorage('auth_user')
-      removeLocalStorage('auth_role')
       removeLocalStorage('auth_restrictions')
-      role.value = 'admin'
       restrictions.value = []
     }
   }
@@ -95,11 +87,11 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * 返回当前访问上下文（角色 + 限制列表），供 shared 鉴权工具使用
-   * @returns 包含 role 与 restrictions 的对象
+   * 返回当前访问上下文（限制列表），供 shared 鉴权工具使用
+   * @returns 包含 restrictions 的对象
    */
   function accessUser() {
-    return { role: role.value, restrictions: restrictions.value }
+    return { restrictions: restrictions.value }
   }
 
   /**
@@ -112,43 +104,15 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * 判断当前用户是否可以控制（操作）指定实体
-   * @param entityId - 实体完整 ID
-   * @returns 是否允许控制
-   */
-  function canControl(entityId: string): boolean {
-    return canControlEntity(entityId, accessUser())
-  }
-
-  /** 当前是否为访客角色（homeos-3d 模型下恒为 false，保留以兼容既有调用点） */
-  function isGuest(): boolean {
-    return role.value === 'guest'
-  }
-
-  /** 只读视角（homeos-3d 单一管理员模型下恒为 false） */
-  function isReadOnly(): boolean {
-    return isGuest()
-  }
-
-  /** 家庭级写操作（模式切换、设置）：仅 admin / adult */
-  function canManageHousehold(): boolean {
-    return role.value === 'admin' || role.value === 'adult'
-  }
-
-  /**
    * 从登录 / 身份接口响应同步用户信息到本 store
    * @param data - 后端返回的用户信息；为空时直接返回
    */
   function syncAuthFromResponse(data: AuthUserPayload | null | undefined): void {
     if (!data) return
-    if (data.username) setUser(data.username, data.role)
-    else if (data.role) {
-      role.value = data.role
-      writeLocalStorage('auth_role', data.role)
-    }
+    if (data.username) setUser(data.username)
     if (Array.isArray(data.restrictions)) setRestrictions(data.restrictions)
-    // 未携带 restrictions 时重置为默认权限集（空数组）：admin 空集放行全部。
-    // 避免角色变化后上一会话的 restrictions 残留导致 canControl 按旧权限放行。
+    // 未携带 restrictions 时重置为默认权限集（空数组）：空集放行全部。
+    // 避免上一会话的 restrictions 残留导致 isEntityAllowed 按旧权限放行。
     else setRestrictions([])
   }
 
@@ -362,7 +326,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     user,
-    role,
     restrictions,
     isAuthenticated,
     login,
@@ -377,10 +340,6 @@ export const useAuthStore = defineStore('auth', () => {
     setUser,
     setRestrictions,
     isEntityAllowed,
-    canControl,
-    isGuest,
-    isReadOnly,
-    canManageHousehold,
     accessUser,
   }
 })

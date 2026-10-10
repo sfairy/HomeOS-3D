@@ -2,7 +2,7 @@
 组件：AlertRulesInboxSection.vue
 所属模块：frontend / src / views / settings / interact / alert-rules
 职责：应用内告警规则收件箱。展示规则列表（名称/级别/实体/条件），提供新建、编辑、删除、测试入口，
-      并引导跳转至实体自定义播报配置。非 admin 账户仅可查看。
+      并引导跳转至实体自定义播报配置。
 关键依赖：
   - ApiQueryState：规则列表加载态/错误重试
   - SettingsCard / SettingsFlowBand / SettingsFlowStat：卡片与流程概览
@@ -11,12 +11,6 @@
 -->
 <template>
   <div class="settings-hub-section alert-inbox-hub">
-    <SettingsCard v-if="!isAdmin" extra-class="ar-admin-warn">
-      <p class="text-[12px] ar-warn-text">
-        {{ '当前账户无 admin 权限，仅可查看规则。新建、编辑与删除需管理员账户。' }}
-      </p>
-    </SettingsCard>
-
     <SettingsCard static extra-class="!py-3 !px-4 ar-inbox-workspace">
       <SettingsFlowBand
         :steps="inboxFlowSteps"
@@ -112,7 +106,6 @@
                 type="checkbox"
                 class="alert-rule-switch__input"
                 :checked="rule.enabled !== false"
-                :disabled="!isAdmin"
                 :aria-label="`${rule.name} 启用开关`"
                 @change="toggleRuleEnabled(rule, $event.target.checked)"
               />
@@ -123,7 +116,6 @@
             <button
               type="button"
               class="alert-rule-row__btn"
-              :disabled="!isAdmin"
               @click="testRule(rule)"
             >
               {{ '测试' }}
@@ -131,7 +123,6 @@
             <button
               type="button"
               class="alert-rule-row__btn alert-rule-row__btn--primary"
-              :disabled="!isAdmin"
               @click="openEdit(rule)"
             >
               {{ '编辑' }}
@@ -139,7 +130,6 @@
             <button
               type="button"
               class="alert-rule-row__btn alert-rule-row__btn--danger"
-              :disabled="!isAdmin"
               :aria-label="'删除规则'"
               @click="removeRule(rule.id)"
             >
@@ -173,7 +163,6 @@ const {
   loading,
   rulesLoadError,
   enabledVoiceAlertCount,
-  isAdmin,
   levelClass,
   loadRules,
   openCreate,
@@ -187,7 +176,6 @@ const {
   'loading',
   'rulesLoadError',
   'enabledVoiceAlertCount',
-  'isAdmin',
   'levelClass',
   'loadRules',
   'openCreate',

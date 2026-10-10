@@ -957,6 +957,24 @@ class LicenseService:
             return raw
         return f'{raw[:8]}…{raw[-8:]}'
 
+    def _public_key_fingerprint_full(self) -> str:
+        """完整公钥 SHA-256 指纹（64 位十六进制），仅供已登录的本机管理页比对。"""
+        return (self.settings.license_public_key_sha256 or '').strip()
+
+    def _full_activation_code(self, state: LicenseState) -> str | None:
+        """解密库里的完整激活码，供已登录的本机管理页展示 / 抄录。
+
+        激活码只以 Fernet 密文落库（密钥在本机 ``license_secret_key_path``），这里解密失败
+        （密钥轮换、密文损坏）时返回 ``None``，由前端回落到 ``activationCodeHint``，
+        不能让凭证问题连带把整个状态接口打挂。
+        """
+        if not state.encrypted_activation_code:
+            return None
+        try:
+            return self.cipher.decrypt(state.encrypted_activation_code)
+        except LicenseCryptoError:
+            return None
+
     def _payload(self, state: LicenseState) -> dict:
         effective_status = state.status
         effective_error = state.last_error
@@ -1043,6 +1061,10 @@ class LicenseService:
             'instanceId': state.instance_id,
             'activationCodeId': state.license_id,
             'activationCodeHint': state.activation_code_hint,
+            # 完整凭证 / 标识：只随 ``/status``（登录会话）下发，``availability()`` 会过滤掉。
+            'activationCode': self._full_activation_code(state),
+            'activationEmailFull': state.activation_email or None,
+            'publicKeyFingerprintFull': self._public_key_fingerprint_full(),
             'activationEmail': self._mask_email(state.activation_email),
             'accountName': state.activated_by,
             'publicKeyFingerprint': self._public_key_fingerprint(),

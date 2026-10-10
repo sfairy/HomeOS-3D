@@ -22,7 +22,6 @@ from pathlib import Path
 data_dir = Path(tempfile.mkdtemp(prefix="homeos-activate-smoke-"))
 os.environ["HOMEOS_DATA_DIR"] = str(data_dir)
 os.environ["HOMEOS_DATABASE_URL"] = f"sqlite:///{data_dir / 'homeos.db'}"
-os.environ["REDIS_URL"] = ""
 # 本脚本专门验证「门禁开着」的行为，因此保持授权必填。
 os.environ["LICENSE_REQUIRED"] = "1"
 # 指向一个必然连不上的授权后台：激活必须在网络边界处失败，而不是把状态推进成已授权。

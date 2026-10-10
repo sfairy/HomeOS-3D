@@ -27,7 +27,6 @@ import {
 } from './license-gate'
 import type { SystemInitState } from '@/types/router'
 import { getLicenseAvailability, getLicenseStatus } from '@/services/api/license'
-import { defaultTabForRole, isAdminOnlyTab } from '@/utils/registry/settings-nav.util'
 import { PAGE_ASSETS as STUDIO_ASSETS } from '@/studio/page-assets'
 import LoginView from '@/studio/views/LoginView.vue'
 import RegisterView from '@/studio/views/RegisterView.vue'
@@ -67,12 +66,6 @@ const routes: RouteRecordRaw[] = [
     meta: { assets: STUDIO_ASSETS.register },
   },
   {
-    // 兼容旧入口：初始化页并入注册语义，整页跳转到 /register
-    path: '/setup',
-    name: 'setup',
-    redirect: '/register',
-  },
-  {
     // 商业授权激活
     path: '/activate',
     name: 'activation',
@@ -107,20 +100,20 @@ const routes: RouteRecordRaw[] = [
     component: lazyView(() => import('@/studio/views/DisplayView.vue')),
     meta: { assets: STUDIO_ASSETS.display },
   },
-  // 户型图绘制工具（管理员专属；仅从「设置 → 布局」进入）
+  // 户型图绘制工具（仅从「设置 → 布局」进入）
   {
     path: '/3d-studio',
     name: 'studio',
     component: lazyView(() => import('@/studio/views/StudioView.vue')),
-    meta: { assets: STUDIO_ASSETS.studio, requiresAuth: true, requiresAdmin: true },
+    meta: { assets: STUDIO_ASSETS.studio, requiresAuth: true },
   },
-  // 仪表盘编辑器（管理员专属；仅从「设置 → 布局」进入）。
+  // 仪表盘编辑器（仅从「设置 → 布局」进入）。
   // 总览首页已经改为只读展示，创作能力集中在这里。
   {
     path: '/studio/editor',
     name: 'studio-editor',
     component: lazyView(() => import('@/studio/views/EditorView.vue')),
-    meta: { assets: STUDIO_ASSETS.editor, requiresAuth: true, requiresAdmin: true },
+    meta: { assets: STUDIO_ASSETS.editor, requiresAuth: true },
   },
   {
     // 后端 get_stage() 直接把 SPA 入口作为 stage 页下发；同一 StudioView 在此路径下以
@@ -383,25 +376,18 @@ router.beforeEach(async (to, from) => {
   // ── 2. 注册 → 登录（授权检测之前）──
   // 未初始化：本机零用户，只能去注册页。
   if (systemInitialized === false) {
-    if (to.name === 'register' || to.name === 'setup') return
+    if (to.name === 'register') return
     return '/register'
   }
 
   // 后端不可达：放行入户页，其余阻断（不假装已授权）
   if (systemInitialized === 'offline') {
-    if (
-      to.name === 'register' ||
-      to.name === 'setup' ||
-      to.name === 'login' ||
-      to.name === 'activation'
-    ) {
-      return
-    }
+    if (to.name === 'register' || to.name === 'login' || to.name === 'activation') return
     return false
   }
 
   // 已初始化仍在注册页：注册入口已关闭，按登录态分流
-  if (to.name === 'register' || to.name === 'setup') return auth.isAuthenticated ? '/' : '/login'
+  if (to.name === 'register') return auth.isAuthenticated ? '/' : '/login'
 
   // 需认证但未登录：先登录，登录后再谈授权
   if (!auth.isAuthenticated && to.meta?.requiresAuth) return '/login'
@@ -460,7 +446,7 @@ router.beforeEach(async (to, from) => {
         chrome.notify(getBackendUnreachableHint(), 'error')
       }
     }
-    if (to.name === 'login' || to.name === 'setup' || to.name === 'activation') return
+    if (to.name === 'login' || to.name === 'activation') return
     return false
   }
 
@@ -492,28 +478,6 @@ router.beforeEach(async (to, from) => {
   // 非 null 的 target 表示需要重定向
   if (target !== null) return target
 
-  // 角色硬拦设置页：非 admin 直链 admin-only Tab 时归一到默认 Tab
-  // （SettingsView 内仍有 resolvedTab 回退兜底，此处为守卫层防御纵深）
-  if (to.path?.startsWith('/settings')) {
-    if (auth.role !== 'admin') {
-      const tab = typeof to.query.tab === 'string' ? to.query.tab : undefined
-      if (tab && isAdminOnlyTab(tab)) {
-        return {
-          path: '/settings',
-          query: { ...to.query, tab: defaultTabForRole(false) },
-          replace: true,
-        }
-      }
-    }
-  }
-
-  // 创作类路由（仪表盘编辑器 / 户型图绘制）：仅管理员可从「设置 → 布局」进入，
-  // 普通家庭成员直链一律回总览（总览是只读展示，不会误改仪表盘）。
-  if (to.meta?.requiresAdmin && auth.role !== 'admin') {
-    chrome.notify('仅管理员可以进入仪表盘编辑与户型图绘制', 'warning')
-    return { name: 'dashboard' }
-  }
-
   // 功能码门禁：未授权模块直链一律回总览并提示，避免点进去才发现接口 403。
   // 明细未加载时 fail-closed（上面已尽量拉取；仍未加载则先挡直链，避免闪现）。
   const requiredFeature = typeof to.meta?.requiresFeature === 'string' ? to.meta.requiresFeature : ''
@@ -526,13 +490,8 @@ router.beforeEach(async (to, from) => {
     return { name: 'dashboard' }
   }
 
-  // 已认证用户（非 login/setup/activation 路由）解析 profile 参数
-  if (
-    auth.isAuthenticated &&
-    to.name !== 'login' &&
-    to.name !== 'setup' &&
-    to.name !== 'activation'
-  ) {
+  // 已认证用户（非 login/activation 路由）解析 profile 参数
+  if (auth.isAuthenticated && to.name !== 'login' && to.name !== 'activation') {
     const queryProfile = typeof to.query.profile === 'string' ? to.query.profile : undefined
     // 同 path 仅改 query（Hub Tab 等）时跳过 profile 解析，避免 await 拖慢并造成 replace 竞态
     const samePathQueryOnly =

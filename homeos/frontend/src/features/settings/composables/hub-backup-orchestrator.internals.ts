@@ -4,14 +4,13 @@
  */
 /** composables：配置与档案备份、天气特效配置 */
 import { handleSystemConfigPatchError, patchSystemConfig } from '@/composables/config/system-config-core.internals'
-import { exportBackupBundle, exportSystemConfig, fetchBackupBundleSummary, importBackupBundle, importSystemConfig } from '@/services/api/system'
+import { exportSystemConfig, importSystemConfig } from '@/services/api/system'
 import { useAuthStore } from '@/stores/auth.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { configEpoch, getConfigSection, reloadFrontendConfig } from '@/utils/config/frontend-config'
 import { downloadBlob } from '@/utils/core/misc.util'
-import { extractErrorMessage, getApiErrorMessage } from '@/utils/core/error-message'
-import { logger } from '@/utils/core/logger'
+import { getApiErrorMessage } from '@/utils/core/error-message'
 import { clonePlain } from '@/utils/core/clone-plain.util'
 import { formatRangeDisplayValue } from '@/utils/settings/range-steps.util'
 import {
@@ -101,46 +100,15 @@ export function useAppConfigBackup(options: { notify?: boolean } = {}) {
   }
 }
 
-/**
- * 完整备份包还原后的统一副作用：重载前端配置、方案列表与运行配置。
- * 客户端整包导入与服务器备份包还原共用，确保还原后界面即时反映最新状态。
- */
-export async function refreshAfterBundleRestore(
-  layoutStore: ReturnType<typeof useLayoutStore>,
-  sections: string[] = [],
-) {
-  const chrome = useChromeStore()
-  await reloadFrontendConfig()
-  await layoutStore.fetchProfiles()
-  await layoutStore.loadConfig()
-  chrome.notify(
-    sections.length ? `完整备份包已还原：${sections.join('、')}` : '完整备份包已还原',
-    'success',
-    6000,
-  )
-}
-
-// ── useProfileBackup ──
-export function useProfileBackup() {
+// ── useProfileManagement ──
+/** 显示方案管理：新建 / 切换 / 删除（备份与还原由统一的「备份与恢复」入口承载）。 */
+export function useProfileManagement() {
   const authStore = useAuthStore()
   const layoutStore = useLayoutStore()
   const chrome = useChromeStore()
-  const { appConfigExporting, appConfigImporting, exportAppConfig, importAppConfigFromText } =
-    useAppConfigBackup()
 
   const showCreateProfile = ref(false)
-  const showImport = ref(false)
   const newProfileName = ref<string>('')
-  const importFileInput = ref<HTMLInputElement | null>(null)
-  const importFile = ref<File | null>(null)
-  const importJsonText = ref<string>('')
-  const selectedFileName = ref<string>('')
-  const isImporting = ref(false)
-  const bundleExporting = ref(false)
-  /** 完整备份包导入分区多选（仅布局 / 仅系统参数） */
-  const importSections = ref<Array<'ui' | 'appConfig'>>(['ui', 'appConfig'])
-  const backupSummary = ref<Record<string, unknown> | null>(null)
-  const backupSummaryLoading = ref(false)
 
   async function switchToProfile(id: string) {
     if (!authStore.isAuthenticated) return
@@ -192,196 +160,12 @@ export function useProfileBackup() {
     }
   }
 
-  function exportBackup() {
-    if (authStore.isAuthenticated) return layoutStore.exportFullBackup()
-    return Promise.resolve()
-  }
-
-  function resetImportState() {
-    importFile.value = null
-    importJsonText.value = ''
-    selectedFileName.value = ''
-    isImporting.value = false
-    if (importFileInput.value) importFileInput.value.value = ''
-  }
-
-  watch(showImport, (val) => {
-    if (!val) resetImportState()
-  })
-
-  async function handleFileSelect(e: Event) {
-    const file = (e.target as HTMLInputElement | null)?.files?.[0]
-    if (!file) return
-    importFile.value = file
-    selectedFileName.value = file.name
-    try {
-      importJsonText.value = await file.text()
-    } catch (e) {
-      logger.warn('读取配置文件备份失败', e)
-      chrome.notify('读取文件失败', 'error')
-      resetImportState()
-    }
-  }
-
-  async function handleImport(backupType = 'ui') {
-    if (!authStore.isAuthenticated) return
-    const raw = importJsonText.value.trim()
-    if (!raw) {
-      chrome.notify('请选择备份文件或粘贴 JSON 代码', 'warning')
-      return
-    }
-    if (backupType === 'appconfig') {
-      isImporting.value = true
-      try {
-        const ok = await importAppConfigFromText(raw)
-        if (ok) {
-          showImport.value = false
-          resetImportState()
-        }
-      } finally {
-        isImporting.value = false
-      }
-      return
-    }
-    if (backupType === 'bundle') {
-      isImporting.value = true
-      try {
-        const ok = await importBundleFromText(raw, [...importSections.value])
-        if (ok) {
-          showImport.value = false
-          resetImportState()
-        }
-      } finally {
-        isImporting.value = false
-      }
-      return
-    }
-    const confirmed = await chrome.confirm(
-      '将覆盖数据库中的 UI 布局方案（ProjectConfig）。不含自动化与用户账号。确定继续？',
-      'UI 布局还原确认',
-      { type: 'danger' },
-    )
-    if (!confirmed) return
-    isImporting.value = true
-    try {
-      const parsed = JSON.parse(raw)
-      const success = await layoutStore.importFullBackup(parsed)
-      if (success) {
-        showImport.value = false
-        resetImportState()
-      } else {
-        chrome.notify('导入失败，请检查文件内容', 'error')
-      }
-    } catch (e) {
-      logger.warn('配置文件备份导入失败', e)
-      chrome.notify('导入失败，请检查文件格式', 'error')
-    } finally {
-      isImporting.value = false
-    }
-  }
-
-  async function exportBundleBackup() {
-    bundleExporting.value = true
-    try {
-      const { data } = await exportBackupBundle()
-      const bundle = data?.data ?? data
-      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' })
-      downloadBlob(blob, `homeos-bundle-${new Date().toISOString().slice(0, 10)}.json`)
-      chrome.notify('完整备份包已导出（① UI + ② 系统参数）', 'success', 5000)
-    } catch (e) {
-      chrome.notify(getApiErrorMessage(e, '完整备份包导出失败'), 'error')
-      throw e
-    } finally {
-      bundleExporting.value = false
-    }
-  }
-
-  async function importBundleFromText(
-    raw: unknown,
-    sections: string[] = ['ui', 'appConfig'],
-  ) {
-    const text = String(raw || '').trim()
-    if (!text) {
-      chrome.notify('请选择备份包文件或粘贴 JSON', 'warning')
-      return false
-    }
-    const proceed = await chrome.confirm(
-      `将按所选分区还原完整备份包（${sections.join('、')}，默认不含用户账号与数据库）。所选分区将被全量替换，未选分区保持当前配置不变，请确认已备份当前环境。`,
-      '完整备份还原',
-      { type: 'danger' },
-    )
-    if (!proceed) return false
-    const replaceAppConfig = await chrome.confirm(
-      '系统参数：确定 = 全量替换；取消 = 合并更新（推荐从本机导出的包）',
-      '系统参数导入方式',
-      { type: 'danger' },
-    )
-    try {
-      const parsed = JSON.parse(text)
-      const bundle = parsed?.data ?? parsed
-      const res = await importBackupBundle({
-        bundle,
-        confirm: true,
-        appConfigMode: replaceAppConfig ? 'replace' : 'merge',
-        sections,
-      })
-      await refreshAfterBundleRestore(layoutStore, res.data?.sections ?? [])
-      return true
-    } catch (e) {
-      chrome.notify(getApiErrorMessage(e, '完整备份包导入失败'), 'error', 8000)
-      return false
-    }
-  }
-
-  async function exportAllJsonBackups() {
-    await exportBackup()
-    await exportAppConfig()
-    chrome.notify('①② JSON 备份已全部导出', 'success', 4000)
-  }
-
-  async function fetchBackupSummaries() {
-    if (!authStore.isAuthenticated) {
-      backupSummary.value = null
-      return
-    }
-    backupSummaryLoading.value = true
-    try {
-      const { data } = await fetchBackupBundleSummary()
-      backupSummary.value = data?.data ?? data
-    } catch (e) {
-      logger.warn('备份摘要加载失败', extractErrorMessage(e))
-      backupSummary.value = null
-      chrome.notify(getApiErrorMessage(e, '备份摘要加载失败'), 'warning')
-    } finally {
-      backupSummaryLoading.value = false
-    }
-  }
-
   return {
     showCreateProfile,
-    showImport,
     newProfileName,
-    importFileInput,
-    importJsonText,
-    selectedFileName,
-    isImporting,
-    importSections,
     switchToProfile,
     onDeleteProfile,
     createNewProfile,
-    exportBackup,
-    handleFileSelect,
-    handleImport,
-    appConfigExporting,
-    appConfigImporting,
-    exportAppConfig,
-    bundleExporting,
-    exportBundleBackup,
-    importBundleFromText,
-    exportAllJsonBackups,
-    backupSummary,
-    backupSummaryLoading,
-    fetchBackupSummaries,
   }
 }
 

@@ -55,8 +55,6 @@ class NotificationRulesHelper:
         is_in_cooldown: Callable[[str], bool],
         set_cooldown: Callable[[str, float], None],
         notify: Callable[..., Awaitable[Any]],
-        persist_edge_state: Callable[[list[str]], None] | None = None,
-        restore_edge_state: Callable[[], Awaitable[list[str]]] | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._watch_index = alert_rule_watch_index
@@ -65,8 +63,6 @@ class NotificationRulesHelper:
         self._is_in_cooldown = is_in_cooldown
         self._set_cooldown = set_cooldown
         self._notify = notify
-        self._persist_edge_state = persist_edge_state
-        self._restore_edge_state = restore_edge_state
 
         self.rules_cache: list[dict[str, Any]] = []
         self.rules_cache_stale = False
@@ -92,27 +88,6 @@ class NotificationRulesHelper:
                     self._condition_history[str(rule_id)] = [
                         item for item in revisions[:MAX_REVISIONS_PER_RULE] if isinstance(item, dict)
                     ]
-
-    async def load_edge_state(self) -> None:
-        if self._restore_edge_state is None:
-            return
-        try:
-            keys = await self._restore_edge_state()
-        except Exception as exc:
-            logger.debug("恢复告警边沿状态失败: %s", exc)
-            return
-        if not keys:
-            return
-        self._match_state.clear()
-        for key in keys:
-            if key:
-                self._match_state[key] = True
-
-    def _persist_edge_state_now(self) -> None:
-        if self._persist_edge_state is None:
-            return
-        matched = [key for key, is_on in self._match_state.items() if is_on]
-        self._persist_edge_state(matched)
 
     def _persist_condition_history(self) -> None:
         payload = dict(self._condition_history.items())
@@ -185,7 +160,6 @@ class NotificationRulesHelper:
             if not matched:
                 if self._match_state.get(edge_key) is True:
                     self._match_state[edge_key] = False
-                    self._persist_edge_state_now()
                 continue
             # 电平持续匹配时不重复通知，仅在边沿（未匹配→匹配）触发
             if self._match_state.get(edge_key) is True:
@@ -200,7 +174,6 @@ class NotificationRulesHelper:
                 continue
 
             self._match_state[edge_key] = True
-            self._persist_edge_state_now()
 
             friendly_name = attributes.get("friendly_name") or entity_id
             unit = attributes.get("unit_of_measurement") or ""
@@ -243,7 +216,6 @@ class NotificationRulesHelper:
             else:
                 # 通知未投递：回滚边沿匹配状态，保证条件持续匹配期间可重试。
                 self._match_state[edge_key] = False
-                self._persist_edge_state_now()
 
     # ------------------------------------------------------------------ #
     # CRUD

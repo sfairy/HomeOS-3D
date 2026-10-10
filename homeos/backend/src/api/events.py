@@ -10,7 +10,7 @@ from .router import NestRouter
 from ..core.errors import forbidden
 from ..dependencies import require_license_feature
 from ..realtime.access import is_entity_allowed, resolve_entity_restrictions
-from ..security.auth_context import require_roles, require_user
+from ..security.auth_context import require_user
 from ..services.license import features as feature_codes
 
 router = NestRouter(prefix="/events", tags=["connect"])
@@ -129,6 +129,6 @@ async def get_report_compare(
 
 @router.delete("")
 async def clear_all(
-    request: Request, user: dict[str, Any] = Depends(require_roles("admin"))
+    request: Request, user: dict[str, Any] = Depends(require_user)
 ):
     return _service(request).clear_all_records()

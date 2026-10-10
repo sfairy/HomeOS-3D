@@ -75,8 +75,6 @@ export interface DiagnosticsDiag {
   haWsDeferredDroppedTotal?: number
   /** 数据保留配置 */
   retention?: DiagnosticsRetention
-  /** Redis 健康状态快照 */
-  redis?: RedisHealthSnapshotLike
   /** 内存详情 */
   memoryDetail?: { estimatedEntityStoreMb?: number }
   /** 编排器同步状态 */
@@ -123,16 +121,4 @@ export interface DiagnosticsConfigHealth {
   bindingGapCount?: number
   /** 其他扩展字段 */
   [key: string]: unknown
-}
-
-/** Redis 健康状态快照 */
-interface RedisHealthSnapshotLike {
-  /** 是否已配置 Redis */
-  configured?: boolean
-  /** 是否正常运行 */
-  ok?: boolean
-  /** 是否正在加载 */
-  loading?: boolean
-  /** 状态文本 */
-  status?: string
 }

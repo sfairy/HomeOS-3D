@@ -153,7 +153,6 @@ import BindingsSectionInsights from '@/features/settings/connect/bindings/Sectio
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useEntitiesStore } from '@/stores/entities.store'
-import { useAuthStore } from '@/stores/auth.store'
 import { useHaBindings } from '@/features/settings/composables/connect/bindings.internals'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
 import { ensureDoorbellList, collectDoorbellCameraIds } from '@/utils/layout/doorbell.util'
@@ -191,7 +190,6 @@ const props = defineProps({ activeTab: { type: String, default: 'bindings' } })
 
 const layoutStore = useLayoutStore()
 const chrome = useChromeStore()
-const authStore = useAuthStore()
 const entitiesStore = useEntitiesStore()
 
 const bindingsSection = ref('overview')
@@ -287,7 +285,6 @@ async function runHazardDrill(kind = 'smoke') {
 const serverBindingGaps = ref([])
 
 async function loadServerBindingGaps() {
-  if (authStore.role !== 'admin') return
   try {
     const { data } = await fetchBindingsGaps()
     serverBindingGaps.value = Array.isArray(data?.gaps) ? data.gaps : []

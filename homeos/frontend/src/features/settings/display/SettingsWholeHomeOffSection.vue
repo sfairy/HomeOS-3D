@@ -1,7 +1,7 @@
 <!--
 组件：SettingsWholeHomeOffSection.vue
 所属模块：frontend / src / views / settings / display
-职责：全屋关闭区段。配置启用开关、关闭范围（设备域）、可用角色、排除实体与限定实体，
+职责：全屋关闭区段。配置启用开关、关闭范围（设备域）、排除实体与限定实体，
       并展示推荐卡片（一键添加全部排除）。
 关键依赖：
   - SettingsCard / SettingsFlowBand / SettingsFeatureMaster：卡片与总开关
@@ -9,6 +9,10 @@
   - RecommendInsightCard：推荐卡片
   - useWholeHomeOffSection / useWholeHomeOffRecommend：配置与推荐逻辑
 数据来源：useWholeHomeOffSection 派生（最终来自 layoutStore.layoutConfig.wholeHomeOff）
+
+说明：HomeOS 为单一管理员模型（后端 `security/auth_context.py`：只存在 admin 一种角色），
+      不存在非管理员账号，因此这里不再提供「可用角色」配置；能力边界由后端登录会话
+      （`require_user`）把关，前端不做可伪造的角色判断。
 -->
 <template>
   <SettingsCard full static>
@@ -43,9 +47,7 @@
       tone="rose"
       :active="wholeHomeOff.enabled"
       :title="'启用全屋关闭'"
-      :hint="
-        wholeHomeOff.enabled ? '顶栏按钮与语音指令已启用' : '关闭后隐藏按钮并禁用语音指令'
-      "
+      :hint="wholeHomeOff.enabled ? '顶栏按钮已启用' : '关闭后隐藏顶栏按钮'"
     >
       <template #actions>
         <button
@@ -102,30 +104,6 @@
           >
             {{ wholeHomeOff[domain.key] ? '已纳入' : '未纳入' }}
           </span>
-        </button>
-      </div>
-    </section>
-
-    <section class="wh-off-block wh-off-block--roles">
-      <header class="wh-off-block__head">
-        <div class="wh-off-block__icon wh-off-block__icon--amber">
-          <Users class="w-4 h-4" />
-        </div>
-        <div>
-          <h4 class="wh-off-block__title">{{ '可用角色' }}</h4>
-          <p class="wh-off-block__desc">{{ '仅被选中的角色可见顶栏按钮并可执行语音全屋关闭' }}</p>
-        </div>
-        <span class="wh-off-block__badge">{{ `${(wholeHomeOff.roles || []).length} 个角色` }}</span>
-      </header>
-      <div class="wh-off-roles">
-        <button
-          v-for="role in WHOLE_HOME_OFF_ROLE_OPTIONS"
-          :key="role"
-          type="button"
-          :class="['wh-off-role', roleActive(role) && 'wh-off-role--active']"
-          @click="toggleRole(role)"
-        >
-          {{ roleLabel(role) }}
         </button>
       </div>
     </section>
@@ -190,7 +168,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { Power, Layers, Users, ShieldOff, ListFilter, Mic } from '@lucide/vue'
+import { Power, Layers, ShieldOff, ListFilter, Mic } from '@lucide/vue'
 import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
@@ -200,20 +178,11 @@ import RecommendInsightCard from '@/components/common/RecommendInsightCard.vue'
 import { useWholeHomeOffSection } from '@/features/settings/composables/automate/security-modes-extras.internals'
 import { useWholeHomeOffRecommend } from '@/features/settings/composables/automate/security-modes-extras.internals'
 
-const {
-  wholeHomeOff,
-  entityDomains,
-  domainCards,
-  enabledDomainCount,
-  WHOLE_HOME_OFF_ROLE_OPTIONS,
-  roleLabel,
-  roleActive,
-  toggleRole,
-} = useWholeHomeOffSection()
+const { wholeHomeOff, entityDomains, domainCards, enabledDomainCount } = useWholeHomeOffSection()
 
 const { loading, recommendations, applyChip, applyAll, refresh } = useWholeHomeOffRecommend()
 
-// 全屋关闭流程步骤：启用开关 → 关闭范围 → 角色权限 → 顶栏/语音 → 排除实体
+// 全屋关闭流程步骤：启用开关 → 关闭范围 → 顶栏入口 → 排除实体
 const whOffFlowSteps = computed(() => [
   {
     label: '启用开关',
@@ -228,14 +197,8 @@ const whOffFlowSteps = computed(() => [
     tone: 'mid',
   },
   {
-    label: '角色权限',
-    meta: `${(wholeHomeOff.value.roles || []).length} 角色`,
-    icon: Users,
-    tone: 'sky',
-  },
-  {
-    label: '顶栏/语音',
-    meta: '触发入口',
+    label: '顶栏入口',
+    meta: wholeHomeOff.value.enabled ? '按钮可见' : '按钮隐藏',
     icon: Mic,
     tone: 'exec',
   },

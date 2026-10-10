@@ -178,7 +178,7 @@
           </div>
         </div>
 
-        <div v-if="isAdmin" class="settings-note-box">
+        <div class="settings-note-box">
           <p class="pd-section-eyebrow-neutral font-bold mb-2 uppercase tracking-wider text-[12px]">
             {{ '新终端默认策略' }}
           </p>
@@ -207,7 +207,7 @@
         </div>
       </div>
 
-      <div v-if="isAdmin" class="mt-4 pt-4 border-t border-white/5">
+      <div class="mt-4 pt-4 border-t border-white/5">
         <header class="profile-section__head mb-3">
           <div>
             <p class="profile-section__eyebrow">{{ '跨设备绑定' }}</p>
@@ -300,7 +300,6 @@ const profileFlowSteps = [
 
 const {
   layoutStore,
-  isAdmin,
   showCreateProfile,
   newProfileName,
   createNewProfile,
@@ -325,7 +324,6 @@ const {
   updateTerminalBindingProfile,
 } = useProfilesSection([
   'layoutStore',
-  'isAdmin',
   'showCreateProfile',
   'newProfileName',
   'createNewProfile',

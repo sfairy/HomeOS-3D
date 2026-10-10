@@ -31,7 +31,6 @@ const WEATHER_DISPLAY_ROUTE_MAP: Record<string, string[]> = {
 const WEATHER_DISPLAY_ROUTE_EXCLUDED: string[] = [
   '/settings',
   '/login',
-  '/setup',
   '/guest',
 ]
 

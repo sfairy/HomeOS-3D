@@ -36,7 +36,7 @@ const TAB_SEARCH_SYNONYMS: Record<string, string> = {
   retention: '数据保留 清理 保留天数 数据库 历史数据 删除',
   network: 'HomeOS 网络 HomeOS 远程 HomeOS 远程访问地址 HomeOS 内网 HomeOS 内网地址 HomeOS 自身 本机 远程访问 外网 公网 IP IPv6 DDNS 端口 端口映射 原生端',
   connection: 'HA 连接 Home Assistant HA 服务地址 HA 局域网 HA 局域网地址 HA 外网 HA 外网地址 令牌 Token 实体同步',
-  access: '访客密码 访客链接 门锁 临时分享',
+  access: '设置锁 访问 PIN 设置 PIN 密码 访客模式 锁屏 PIN 码 大屏入口',
   orchestrator: '场景 脚本 自动化 简易自动化',
 }
 

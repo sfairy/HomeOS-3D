@@ -319,10 +319,8 @@ export function useClientPowerReporter() {
   watch(
     () =>
       authStore.isAuthenticated &&
-      !authStore.isGuest() &&
       licenseAllowed.value &&
       route.name !== 'activation' &&
-      route.name !== 'setup' &&
       route.name !== 'login',
     (shouldReport) => {
       if (shouldReport) {

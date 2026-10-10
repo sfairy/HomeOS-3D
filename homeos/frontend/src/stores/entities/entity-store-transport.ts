@@ -49,24 +49,18 @@ export function createEntityTransport(deps: EntityTransportDeps) {
    * 建立 Socket.IO 连接。
    * 关键流程：
    * 1. 未认证直接返回；已有会话（connected / active）直接返回，勿拆掉
-   * 2. 刷新 Redis 健康状态
-   * 3. 重建 socket：清理旧实例 + removeAllListeners
-   * 4. IDB 缓存回填：首连必做，重连仅当内存空 / stale 时做
-   * 5. 缓存恢复失败或实体数 < 50 时启动并行 REST 预热
-   * 6. 构造 socketAuth（含 lastSocketEventAt / lastEventId 用于断点续传）
-   * 7. 设置 loadingFallbackTimer：12s 超时未收到全量状态则触发 REST 回退
-   * 8. bindEntitySocketHandlers 绑定所有事件处理器
-   * 9. onTransportReady 通知上层（递增 wsTransportEpoch）
+   * 2. 重建 socket：清理旧实例 + removeAllListeners
+   * 3. IDB 缓存回填：首连必做，重连仅当内存空 / stale 时做
+   * 4. 缓存恢复失败或实体数 < 50 时启动并行 REST 预热
+   * 5. 构造 socketAuth（含 lastSocketEventAt / lastEventId 用于断点续传）
+   * 6. 设置 loadingFallbackTimer：12s 超时未收到全量状态则触发 REST 回退
+   * 7. bindEntitySocketHandlers 绑定所有事件处理器
+   * 8. onTransportReady 通知上层（递增 wsTransportEpoch）
    */
   async function connect(): Promise<void> {
     if (deps.isAuthenticated && !deps.isAuthenticated()) return
     // connected / active（握手或 polling→websocket 升级中）均视为已有会话，勿拆掉
     if (socket?.connected || socket?.active) return
-
-    deps.refreshRedisFromHealth?.().catch((e: unknown) => {
-      const msg = e instanceof Error ? e.message : String(e)
-      deps.logger.debug(`Redis 健康检查刷新失败: ${msg}`)
-    })
 
     if (socket) {
       socket.removeAllListeners()

@@ -4,7 +4,7 @@
  * @description 主布局导航菜单 composable。
  *
  * 职责：
- * - 根据布局配置与当前用户身份（访客/非访客）构建导航菜单项；
+ * - 根据布局配置构建导航菜单项；
  * - 提供桌面端顶栏菜单、下拉“更多”菜单；
  * - 窄屏/平板把溢出 Tab 收到「更多」，避免隐式横向滚动；
  * - 监听布局配置变化（顺序/可见性/位置/嵌入/影视库等）自动重建菜单；
@@ -14,7 +14,7 @@
  * - vue（computed/ref/shallowRef/watch/onMounted/onUnmounted）
  * - vue-router（RouteLocationNormalizedLoaded 类型）
  * - nav-tabs.util / main-layout-nav.util（菜单构建工具）
- * - layout.store / auth.store（布局配置与访客身份）
+ * - layout.store（布局配置）
  */
 import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
@@ -24,7 +24,6 @@ import {
   capBarItemsForViewport,
 } from '@/utils/ui/main-layout-nav.util'
 import type { useLayoutStore } from '@/stores/layout.store'
-import type { useAuthStore } from '@/stores/auth.store'
 import { useLicenseFeatureAccess } from '@/router/license-gate'
 import { useExclusiveDropdown } from '@/composables/ui/useExclusiveDropdown'
 
@@ -34,16 +33,14 @@ import { useExclusiveDropdown } from '@/composables/ui/useExclusiveDropdown'
  * 调用场景：主布局组件初始化时调用，返回菜单项与下拉展开状态。
  *
  * @param options.layoutStore UI 状态 store（读取布局配置）
- * @param options.authStore 鉴权 store（判断是否访客，访客不显示嵌入项）
  * @param options.route 当前路由对象（用于高亮判断与切换收起）
  * @returns 菜单项列表与展开/高亮状态
  */
 export function useMainLayoutNavMenu(options: {
   layoutStore: ReturnType<typeof useLayoutStore>
-  authStore: ReturnType<typeof useAuthStore>
   route: RouteLocationNormalizedLoaded
 }) {
-  const { layoutStore, authStore, route } = options
+  const { layoutStore, route } = options
 
   // 功能码门禁明细（响应式 ref）：导航项按它显隐，拿到新授权后自动重建菜单
   const licenseFeatureAccess = useLicenseFeatureAccess()
@@ -61,10 +58,8 @@ export function useMainLayoutNavMenu(options: {
     window.removeEventListener('resize', onViewportResize)
   })
 
-  // 导航构建选项：访客不包含嵌入项（embeds），保护内部资源；
-  // 功能码门禁只影响界面显隐（后端仍是权威执行点）。
+  // 导航构建选项：功能码门禁只影响界面显隐（后端仍是权威执行点）。
   const navOptions = computed(() => ({
-    includeEmbeds: !authStore.isGuest(),
     featureAccess: licenseFeatureAccess.value,
   }))
   // 导航菜单整体（shallowRef：整体替换而非深层响应，避免高频 diff）
@@ -101,7 +96,6 @@ export function useMainLayoutNavMenu(options: {
       placement: layoutStore.layoutConfig.navTabPlacement,
       embeds: layoutStore.layoutConfig.customEmbeds,
       moviePilot: layoutStore.layoutConfig.moviePilotUrl,
-      includeEmbeds: navOptions.value.includeEmbeds,
       featureAccess: navOptions.value.featureAccess,
       width: viewportWidth.value,
     }),

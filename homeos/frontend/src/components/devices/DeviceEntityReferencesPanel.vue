@@ -60,11 +60,7 @@
       </div>
 
       <p class="device-refs-panel__hint">
-        {{
-          canUnlink
-            ? '扫描自动化、场景、脚本、家庭模式、告警、布局绑定等配置中对该实体的引用；可一键移除'
-            : '扫描自动化、场景、脚本、家庭模式、告警、布局绑定等配置中对该实体的引用'
-        }}
+        {{ '扫描自动化、场景、脚本、家庭模式、告警、布局绑定等配置中对该实体的引用；可一键移除' }}
       </p>
 
       <!-- 加载中：扫描引用动画 -->
@@ -152,7 +148,6 @@
               </component>
 
               <button
-                v-if="canUnlink"
                 type="button"
                 class="device-refs-panel__unlink"
                 :disabled="!!unlinkingId || !canUnlinkItem(item)"
@@ -210,7 +205,7 @@ const visibleRef = computed(() => props.visible !== false)
 // 当前激活的类型筛选，空字符串表示全部。
 const kindFilter = ref<EntityReferenceKind | ''>('')
 
-const { canUnlink, canUnlinkItem, unlinkDisabledReason, loading, unlinkingId, error, total, items, counts, refresh, unlink } =
+const { canUnlinkItem, unlinkDisabledReason, loading, unlinkingId, error, total, items, counts, refresh, unlink } =
   useDeviceEntityReferences(entityIdRef, visibleRef)
 
 /**

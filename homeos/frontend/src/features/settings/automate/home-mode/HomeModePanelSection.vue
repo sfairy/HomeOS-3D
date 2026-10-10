@@ -50,7 +50,6 @@ const homeModeAccentVars = computed(() => {
 })
 
 const {
-  isAdmin,
   loading,
   modesLoadError,
   modeTabs,
@@ -124,7 +123,6 @@ setHomeModePanelBridge({
   showModeToolbar,
   activeTab,
   displayModeTabs,
-  isAdmin,
   switchTab,
   onModeReorder,
   handleSeed,
@@ -169,7 +167,6 @@ onScopeDispose(() => setHomeModePanelBridge(null))
     >
     <HomeModeEmptyState
       v-if="!modeTabs.length"
-      :is-admin="isAdmin"
       :show-preset-sidebar="showPresetSidebar"
       :mode-presets="modePresets"
       :preset-installing="presetInstalling"
@@ -183,7 +180,6 @@ onScopeDispose(() => setHomeModePanelBridge(null))
         v-if="!props.externalModeToolbar"
         :active-tab="activeTab"
         :display-mode-tabs="displayModeTabs"
-        :is-admin="isAdmin"
         @update:active-tab="switchTab"
         @reorder="onModeReorder"
         @seed="handleSeed"

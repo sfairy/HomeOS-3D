@@ -6,11 +6,12 @@
 压缩后不再存在逐步 ``0008→0009`` 修复链；结构落后于 ORM 的中途库走
 ``LegacyDatabaseError``（要求 bak / 导出导入）。本脚本验证：
 
-1. 全新库升到 head（``SCHEMA_REVISION``，当前 ``0002``）结构完整；
+1. 全新库升到 head（``SCHEMA_REVISION``，当前 ``0001``）结构完整；
 2. head + 缺列 → 启动失败且信息明确；
 3. head + 结构匹配 → noop；
 4. 多余列不触发漂移；
-5. 未知旧 revision（如 ``0009``）且结构已匹配 ORM → stamp 到 head。
+5. 未知旧 revision（如 ``0009``）且结构已匹配 ORM → stamp 到 head；
+6. ``RETIRED_COLUMNS`` 登记的退役列（``users.role``）→ 先备份再删掉，且幂等。
 
 用法：``python scripts/_schema_drift_guard_smoke.py``（在 homeos/backend 下执行）。
 """
@@ -124,6 +125,24 @@ def main() -> int:
             connection.commit()
         check("多余列不触发护栏", migrations._schema_drift(settings.database_url) == [])
         check("多余列也不影响启动", migrations.run_migrations(settings) is None)
+
+        print("5. 退役列会被清理：先备份再删，且幂等")
+        with closing(sqlite3.connect(database_path)) as connection:
+            connection.execute(
+                "ALTER TABLE \"users\" ADD COLUMN \"role\" VARCHAR(16) NOT NULL DEFAULT 'admin'"
+            )
+            connection.commit()
+        check("已模拟出退役列 role", "role" in columns(database_path, "users"))
+        backup = migrations.run_migrations(settings)
+        check(
+            "删列前留了可回滚的快照",
+            backup is not None and backup.is_file(),
+            backup,
+        )
+        check("退役列已被删除", "role" not in columns(database_path, "users"))
+        check("删列后结构自检为干净", migrations._schema_matches_orm(settings.database_url))
+        check("删列后 revision 仍是 head", revision(database_path) == target, revision(database_path))
+        check("再跑一次不再动库", migrations.run_migrations(settings) is None)
 
     print()
     if failures:

@@ -24,7 +24,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 from .router import NestRouter
 from ..core.errors import BusinessException, ErrorCode
 from ..dependencies import license_feature
-from ..security.auth_context import require_roles, require_user
+from ..security.auth_context import require_user
 from ..services.license import features as feature_codes
 
 logger = logging.getLogger("homeos.earthquake.api")
@@ -85,7 +85,7 @@ class DismissEarthquakeDto(BaseModel):
 
 
 @router.post("/test")
-async def test_earthquake(request: Request, user: dict[str, Any] = Depends(require_roles("admin"))):
+async def test_earthquake(request: Request, user: dict[str, Any] = Depends(require_user)):
     """触发模拟演练预警（仅管理员；3 秒后触发）。"""
     _ = user
     logger.info("🧪 地震测试端点被调用.将在 3 秒后触发模拟警报...")
@@ -176,7 +176,7 @@ async def get_latest_alert(request: Request, user: dict[str, Any] = Depends(requ
 
 @router.get("/history")
 async def get_alert_history(request: Request, user: dict[str, Any] = Depends(require_user)):
-    """获取最近 50 条预警历史（数据库优先，回退 Redis）。"""
+    """获取最近 50 条预警历史（数据库）。"""
     _ = user
     return await _service(request).get_alert_history(50)
 
@@ -185,7 +185,7 @@ async def get_alert_history(request: Request, user: dict[str, Any] = Depends(req
 async def delete_simulation_history(
     request: Request,
     eventId: str | None = Query(default=None),
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """删除模拟演练本地预警；``eventId`` 指定单条，省略则清除全部演练。"""
     _ = user
@@ -238,7 +238,7 @@ async def dismiss_alert(
 
 
 @router.get("/ha-config")
-async def get_ha_config(request: Request, user: dict[str, Any] = Depends(require_roles("admin"))):
+async def get_ha_config(request: Request, user: dict[str, Any] = Depends(require_user)):
     """获取 HA 系统配置中的坐标（仅 admin）。"""
     _ = user
     coords = await _service(request).get_ha_coordinates_only()

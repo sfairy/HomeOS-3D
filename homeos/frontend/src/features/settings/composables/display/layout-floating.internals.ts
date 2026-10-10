@@ -5,7 +5,6 @@
 /** composables：浮动小组件与浮动面板展示 */
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import { useAuthStore } from '@/stores/auth.store'
 import type { FloatingWidget, UILayoutConfig } from '@/types/layout'
 import { clampPct } from '@/utils/core/misc.util'
 export { clampPct }
@@ -337,16 +336,8 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
     closeEdit()
 
     if (widgetType === 'securityPanel') {
-      const authStore = useAuthStore()
       if (zonesForSave.length) {
         mirrorSecurityPanelZonesToLayout(layoutStore, zonesForSave)
-      }
-      if (authStore.role !== 'admin') {
-        chrome.notify(
-          '浮动组件配置已更新（仅管理员可同步区域到后端），请点击侧边栏「保存全部」持久化',
-          'info',
-        )
-        return
       }
       if (!zonesForSave.length) {
         chrome.notify(

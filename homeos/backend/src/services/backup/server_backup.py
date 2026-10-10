@@ -1,41 +1,43 @@
-"""服务器备份包文件管理（对齐 ``modules/system/backup/server-backup.service.ts``）。
+"""服务器全量备份包文件管理（手动 + 定时自动备份共用）。
 
-负责手动备份包的生成、列出、下载、导入本地包、还原与删除；全部为纯手动文件级操作，
-不涉及任何定时 / cron 调度（定时自动备份见 :mod:`auto_backup`）。
+负责统一全量备份包（含数据库）在服务器 ``backups/`` 目录中的生成、列出、下载、还原与删除。
+全部为纯手动 / 定时文件级操作，包体为明文 zip（服务器本地已明文存有数据库与密钥）。
 
 关键策略：
-- 备份包写入仓库根 ``backups/`` 目录，文件名按时间戳生成（``next_bundle_name``）；
-- 手动备份保留完整密钥（不脱敏），确保还原时真实配置不被占位符覆盖；
-- 紧凑 JSON 序列化，避免 pretty-print 长时间占用事件循环拖垮 HA WS 心跳；
+- 备份包写入仓库根 ``backups/`` 目录，文件名 ``homeos-full-<时间戳>.zip``；
+- 复用 :mod:`business_backup` 的 ``create_plain_archive`` / ``stage_payload`` / ``restore_business``；
 - 还原时校验文件名格式与白名单，防止目录穿越。
 """
 
 from __future__ import annotations
 
-import json
 import logging
 import re
+import shutil
+import tempfile
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
-from .bundle_backup import SystemBundleBackupService
+from .business_backup import create_plain_archive, restore_business, stage_payload
 from ...core.errors import api_error, bad_request, not_found
 
 logger = logging.getLogger("homeos.backup.server")
 
 BACKUP_DIR = "backups"
-BUNDLE_NAME_RE = re.compile(r"^homeos-bundle-.+\.json$", re.IGNORECASE)
+BUNDLE_NAME_RE = re.compile(r"^homeos-full-.+\.zip$", re.IGNORECASE)
 
-#: 运行目录为后端子目录时，仓库根为其父目录（与 Nest ``resolveBackupDir`` 一致）
+#: 运行目录为后端子目录时，仓库根为其父目录
 _BACKEND_DIR_NAMES = {"backend"}
 
 
 class ServerBackupService:
-    """Nest ``ServerBackupService`` 等价实现（手动备份包文件管理）。"""
+    """服务器全量备份包文件管理。"""
 
-    def __init__(self, bundle_backup: SystemBundleBackupService) -> None:
-        self._bundle_backup = bundle_backup
+    def __init__(self, settings: Any) -> None:
+        self._settings = settings
 
     # ------------------------------------------------------------------ #
     # 生成 / 列出
@@ -43,16 +45,16 @@ class ServerBackupService:
     def create_backup(self) -> dict[str, str]:
         directory = self._resolve_backup_dir()
         directory.mkdir(parents=True, exist_ok=True)
-        # 手动备份保留完整密钥，确保还原时不会被脱敏占位符覆盖真实配置
-        bundle = self._bundle_backup.export_bundle(False, {"include_event_log": False})
         name = self._next_bundle_name()
-        file_path = directory / name
-        # 紧凑 JSON：pretty-print 大包会长时间占用事件循环，拖垮 HA WS 心跳
-        file_path.write_text(
-            json.dumps(bundle, ensure_ascii=False, separators=(",", ":")), encoding="utf-8"
-        )
-        logger.info("备份包已写入 %s", file_path)
-        return {"file": str(file_path), "name": name}
+        work = directory / f".work-{uuid4().hex}"
+        try:
+            built = create_plain_archive(self._settings, work, name)
+            final = directory / name
+            shutil.move(str(built), str(final))
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
+        logger.info("全量备份包已写入 %s", final)
+        return {"file": str(final), "name": name}
 
     def list_files(self) -> list[dict[str, Any]]:
         directory = self._resolve_backup_dir()
@@ -82,8 +84,15 @@ class ServerBackupService:
         return sorted(entries, key=lambda item: item["mtime"], reverse=True)
 
     # ------------------------------------------------------------------ #
-    # 下载 / 导入 / 删除 / 还原
+    # 下载 / 删除 / 还原
     # ------------------------------------------------------------------ #
+    def resolve_file_path(self, raw_name: str) -> Path:
+        name = self.assert_safe_bundle_name(raw_name)
+        full = self._resolve_backup_dir() / name
+        if not full.is_file():
+            not_found(api_error("BACKUP_FILE_NOT_FOUND"))
+        return full
+
     def delete_file(self, raw_name: str) -> dict[str, str]:
         name = self.assert_safe_bundle_name(raw_name)
         full = self._resolve_backup_dir() / name
@@ -94,55 +103,23 @@ class ServerBackupService:
         logger.info("已删除备份包 %s", name)
         return {"deleted": name}
 
-    def read_file_bundle(self, raw_name: str) -> dict[str, Any]:
-        name = self.assert_safe_bundle_name(raw_name)
-        full = self._resolve_backup_dir() / name
-        try:
-            raw = full.read_text(encoding="utf-8")
-        except FileNotFoundError:
-            not_found(api_error("BACKUP_FILE_NOT_FOUND"))
-        try:
-            bundle = json.loads(raw)
-        except (TypeError, ValueError):
-            bad_request(api_error("BACKUP_BUNDLE_INVALID_JSON"))
-        return {"name": name, "bundle": bundle}
-
-    def import_local_file(
-        self, raw_bundle: Any, preferred_name: str | None = None
-    ) -> dict[str, str]:
-        """将本地备份包写入服务器备份目录（不触发还原）。"""
-        bundle = self._bundle_backup.normalize_bundle_input(raw_bundle)
-        directory = self._resolve_backup_dir()
-        directory.mkdir(parents=True, exist_ok=True)
-
-        name = ""
-        candidate = Path(str(preferred_name or "").strip()).name
-        if BUNDLE_NAME_RE.match(candidate) and ".." not in candidate:
-            if not (directory / candidate).exists():
-                name = candidate
-        if not name:
-            name = self._next_bundle_name()
-
-        file_path = directory / name
-        file_path.write_text(
-            json.dumps(bundle, ensure_ascii=False, separators=(",", ":")), encoding="utf-8"
-        )
-        logger.info("本地备份包已导入服务器 %s", file_path)
-        return {"file": str(file_path), "name": name}
-
-    def restore_file(self, raw_name: str, opts: dict[str, Any] | None = None) -> dict[str, Any]:
+    def restore_file(
+        self,
+        raw_name: str,
+        opts: dict[str, Any] | None = None,
+        *,
+        dispose: Callable[[], None] | None = None,
+    ) -> dict[str, Any]:
         options = opts or {}
         if options.get("confirm") is not True:
-            bad_request(api_error("BACKUP_BUNDLE_CONFIRM_REQUIRED"))
-        bundle = self.read_file_bundle(raw_name)["bundle"]
-        return self._bundle_backup.import_bundle(
-            {
-                "bundle": bundle,
-                "confirm": True,
-                "appConfigMode": options.get("appConfigMode"),
-                "sections": options.get("sections"),
-            }
-        )
+            bad_request(api_error("BACKUP_CONFIRM_REQUIRED"))
+        full = self.resolve_file_path(raw_name)
+        work = Path(tempfile.mkdtemp(prefix="server-restore-", dir=str(self._resolve_backup_dir())))
+        try:
+            stage_payload(full, work, None)
+            return restore_business(self._settings, work, dispose=dispose)
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
 
     # ------------------------------------------------------------------ #
     # 内部工具
@@ -155,7 +132,7 @@ class ServerBackupService:
             .replace(":", "-")
             .replace(".", "-")
         )
-        return f"homeos-bundle-{stamp}.json"
+        return f"homeos-full-{stamp}.zip"
 
     def assert_safe_bundle_name(self, raw_name: str) -> str:
         name = Path(str(raw_name or "").strip()).name
@@ -164,6 +141,11 @@ class ServerBackupService:
         return name
 
     def _resolve_backup_dir(self) -> Path:
+        # 显式覆盖优先（容器里由 HOMEOS_BACKUPS_DIR 指到数据卷）；否则沿用 Nest 约定：
+        # 运行目录为后端子目录时取仓库根，其余取当前目录，再拼 ``backups/``。
+        override = getattr(self._settings, "backups_dir_override", None)
+        if override is not None:
+            return Path(override)
         cwd = Path.cwd()
         base = cwd.parent if cwd.name in _BACKEND_DIR_NAMES else cwd
         return base / BACKUP_DIR

@@ -20,7 +20,6 @@ from ..core import migrations
 from ..core.database import Database
 from ..core.distributed_lock import DistributedLockService
 from ..core.log import configure_app_logging
-from ..core.redis import RedisService
 from ..core.runtime_logs import RuntimeLogBuffer, install_runtime_log_handler
 from ..realtime.domain_events import DomainEventBridge
 from ..services.agent.area_service import AgentAreaService
@@ -36,13 +35,8 @@ from ..services.agent.short_term_memory import AgentShortTermMemoryService
 from ..services.agent.tools.home_tools_service import HomeToolsService
 from ..services.app_config import AppConfigBackupService, AppConfigService
 from ..services.awareness import AdvisorUsageService, TtsSpeakService, VoiceService
-from ..services.backup import (
-    AutoBackupService,
-    ServerBackupService,
-    SystemBundleBackupService,
-    UsersBackupService,
-)
-from ..services.backup.business_backup import BackupCoordinator
+from ..services.backup import AutoBackupService, ServerBackupService
+from ..services.backup.business_backup import BackupCoordinator, recover_interrupted_restore
 from ..services.channels import (
     ChannelConfigService,
     ChannelsService,
@@ -59,7 +53,6 @@ from ..services.earthquake import (
     EewLeaderService,
     EewPollService,
 )
-from ..services.event_bus_bridge import EventBusBridge
 from ..services.event_log import EventLogService
 from ..services.ha_config import load_active_ha_endpoints, load_ha_endpoints
 from ..services.ha_filters import AlertRuleWatchIndex, HaStateChangeRouter
@@ -98,7 +91,7 @@ logger = logging.getLogger("homeos.app")
 def _apply_state_change(app: FastAPI, gateway: Any, store: Any, change: dict[str, Any]) -> None:
     """把单条 HA 状态变更落到 L1（同步热路径）。
 
-    旧状态缺失（跨副本瘦负载）时从本地 L1 补全，保证副作用消费者拿到完整变更。
+    旧状态缺失时从本地 L1 补全，保证副作用消费者拿到完整变更。
     """
     entity_id = change.get("entity_id")
     if not entity_id:
@@ -158,17 +151,15 @@ async def _run_state_change_effects(app: FastAPI, gateway: Any, store: Any, chan
 
 
 def _make_state_listener(app: FastAPI, gateway: Any, store: Any):
-    """HA 状态监听：全量快照写入 L1 内存并落 L2；增量变更经事件总线路由（可跨副本）。
+    """HA 状态监听：全量快照写入 L1 内存；增量变更经事件总线路由。
 
     状态变更统一走 ``ha.state_changed.batch`` / ``ha.state_changed`` 事件：
-    本进程事件总线负责本地 fan-out，Redis 桥接负责其它副本，二者共用同一处理器，
-    避免双写与重复广播。
+    本进程事件总线负责 fan-out，避免双写与重复广播。
     """
 
     async def _listener(kind: str, payload: Any) -> None:
         bus = getattr(app.state, "security_bus", None)
         sync_filter = getattr(app.state, "entity_sync_filter", None)
-        redis = getattr(app.state, "redis", None)
         if kind == "initial":
             entities = [
                 entity for entity in (payload or []) if isinstance(entity, dict) and entity.get("entity_id")
@@ -177,8 +168,6 @@ def _make_state_listener(app: FastAPI, gateway: Any, store: Any):
                 entities = sync_filter.filter_syncable_states(entities)
             store.set_all(entities)
             app.state.ha_entity_count = len(entities)
-            # L2 快照：供其它副本 initial_states 引用占位符回拉 / 重启冷恢复
-            await store.save_shadow_soon(redis)
             presence = getattr(app.state, "presence", None)
             if presence is not None:
                 try:
@@ -186,7 +175,7 @@ def _make_state_listener(app: FastAPI, gateway: Any, store: Any):
                 except Exception:
                     pass
             if bus is not None:
-                # 广播全量事件（跨副本超阈值时自动降级为引用占位符）
+                # 广播全量事件
                 await bus.emit("ha.initial_states", {"entities": entities})
             return
         event = payload if isinstance(payload, dict) else {}
@@ -216,7 +205,7 @@ def _make_state_listener(app: FastAPI, gateway: Any, store: Any):
 
 
 def _make_state_bus_handlers(app: FastAPI, gateway: Any, store: Any) -> dict[str, Any]:
-    """构造 HA 事件总线处理器：本进程与 Redis 桥接副本共用同一入口。"""
+    """构造 HA 事件总线处理器。"""
 
     async def _handle_state_changed_batch(payload: Any) -> None:
         changes = payload.get("changes") if isinstance(payload, dict) else None
@@ -233,20 +222,6 @@ def _make_state_bus_handlers(app: FastAPI, gateway: Any, store: Any) -> dict[str
             await _run_state_change_effects(app, gateway, store, payload)
 
     async def _handle_initial_states(payload: Any) -> None:
-        # 引用占位符：从 Redis L2 快照冷恢复（对齐 Nest ``loadFromRedisShadowRef``）
-        if isinstance(payload, dict) and payload.get("_bridgeType") == "initial_states_ref":
-            redis = getattr(app.state, "redis", None)
-            sync_filter = getattr(app.state, "entity_sync_filter", None)
-            restored = await store.recover_initial_states_if_needed(redis, sync_filter)
-            if restored:
-                app.state.ha_entity_count = store.get_count()
-                presence = getattr(app.state, "presence", None)
-                if presence is not None:
-                    try:
-                        presence.seed_from_state_store()
-                    except Exception:
-                        pass
-            return
         entities = payload.get("entities") if isinstance(payload, dict) else None
         if not isinstance(entities, list):
             return
@@ -270,6 +245,9 @@ def create_lifespan(app_settings: Settings, version: str):
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app_settings.data_dir.mkdir(parents=True, exist_ok=True)
+        # 必须早于迁移：上一次还原若在换库途中崩溃，先把数据目录与数据库回滚到还原前，
+        # 再对（已回滚的）库执行迁移，避免在「还原了一半」的结构上跑升级。
+        recovery_required = recover_interrupted_restore(app_settings)
         migration_backup = migrations.run_migrations(app_settings)
         app.state.database = Database(app_settings.database_url)
         app.state.settings = app_settings
@@ -313,18 +291,13 @@ def create_lifespan(app_settings: Settings, version: str):
         database_retention.start()
         await database_retention.start_schedule()
         app.state.database_retention = database_retention
-        # 基础设施：Redis（可缺省）→ 会话吊销 / tokenVersion 缓存（内存降级）
-        redis = RedisService(app_settings.redis_url)
-        await redis.connect()
-        app.state.redis = redis
-        # 分布式锁（保留清理 / 分区维护 / 遗忘检测等跨副本互斥；Redis 不可用降级进程内锁）
-        distributed_lock = DistributedLockService(redis)
+        # 基础设施：进程内互斥锁（保留清理 / 分区维护 / 遗忘检测等）
+        distributed_lock = DistributedLockService()
         app.state.distributed_lock = distributed_lock
         database_retention.lock = distributed_lock
-        database_retention.redis = redis
         # Phase 3+ 会在此装配 license / ha-connector / socketio 网关。
         # 事件日志：订阅 HA 冷批状态变更，内存缓冲后批量落库（socketio 网关在广播时喂入）。
-        event_log_service = EventLogService(app.state.database, redis)
+        event_log_service = EventLogService(app.state.database)
         event_log_service.bind_loop(asyncio.get_running_loop())
         app.state.event_log = event_log_service
 
@@ -378,7 +351,7 @@ def create_lifespan(app_settings: Settings, version: str):
             entity_sync_filter,
             lambda: bool((app_config.get("haConnector") or {}).get("syncOnlyEnabledEntities", True)),
         )
-        app.state.command_proxy = CommandProxyService(app.state.database.session_factory, ha_connector, redis)
+        app.state.command_proxy = CommandProxyService(app.state.database.session_factory, ha_connector)
 
         # -------------------------------------------------------------- #
         # 安防域：事件总线 / 冷却 / 面板 / 在场 / Frigate / 离家模拟 / 演习
@@ -398,12 +371,8 @@ def create_lifespan(app_settings: Settings, version: str):
         # HA 连接器 / 实体区域补全：注册表变更与初始状态事件处理器
         ha_connector.attach_event_bus(security_bus)
         app.state.entity_area.attach_event_bus(security_bus)
-        # 统一事件总线：Redis Pub/Sub 跨副本桥接（对齐 Nest EventBusService）
-        event_bus_bridge = EventBusBridge(security_bus, redis)
-        await event_bus_bridge.start()
-        app.state.event_bus_bridge = event_bus_bridge
 
-        # HA 状态 / 连接事件处理器：本进程与 Redis 桥接副本共用同一入口
+        # HA 状态 / 连接事件处理器
         async def _on_ha_connected(payload: Any) -> None:
             state_store.handle_ha_connected()
             data = payload if isinstance(payload, dict) else {}
@@ -418,20 +387,12 @@ def create_lifespan(app_settings: Settings, version: str):
             data = payload if isinstance(payload, dict) else {}
             await gateway.broadcast_ha_status("reconnecting", attempt=data.get("attempt"))
 
-        async def _on_redis_status(_payload: Any = None) -> None:
-            redis_service = getattr(app.state, "redis", None)
-            await gateway.broadcast_redis_status(
-                bool(redis_service and redis_service.is_configured()),
-                bool(redis_service and redis_service.is_ready()),
-            )
-
         state_handlers = _make_state_bus_handlers(app, gateway, state_store)
         for event, handler in {
             **state_handlers,
             "ha.connected": _on_ha_connected,
             "ha.disconnected": _on_ha_disconnected,
             "ha.reconnecting": _on_ha_reconnecting,
-            "redis.status": _on_redis_status,
         }.items():
             security_bus.on(event, handler)
 
@@ -470,9 +431,6 @@ def create_lifespan(app_settings: Settings, version: str):
             # + socket.io 广播）。StateHub 仍只承载 3D 侧 watched 子集，供 /ws/runtime。
             studio_connector.set_state_listener(ha_state_listener)
 
-        # Redis 连接状态就绪后广播一次（对齐 Nest REDIS_STATUS 桥接事件）
-        await security_bus.emit("redis.status", {"configured": redis.is_configured(), "ready": redis.is_ready()})
-
         security_config = SecurityConfigProvider(app.state.database.session_factory)
         cooldown = NotificationCooldownService(security_bus)
         database_retention.cooldown = cooldown
@@ -489,13 +447,13 @@ def create_lifespan(app_settings: Settings, version: str):
             app.state.database.session_factory, cipher=app.state.studio_ha.cipher
         )
         away_sim = AwaySimulationService(
-            app.state.database.session_factory, ha_connector, security_bus, redis, security_config.get
+            app.state.database.session_factory, ha_connector, security_bus, security_config.get
         )
         security_panel = SecurityPanelService(
             app.state.database.session_factory, ha_connector, security_bus, cooldown, security_config
         )
         frigate = FrigateService(
-            app.state.database.session_factory, security_bus, security_panel, security_config.get, redis
+            app.state.database.session_factory, security_bus, security_panel, security_config.get
         )
         hazard_drill = HazardDrillService(app.state.database.session_factory, security_bus, ha_connector)
 
@@ -510,6 +468,9 @@ def create_lifespan(app_settings: Settings, version: str):
             event_bus=security_bus,
         )
         ui_config._static_assets.ensure_dirs()
+        # 存量库清理：角色体系下线后 layout.wholeHomeOff.roles 已无读取方，
+        # 读路径只是「不认」它，这里一次性把它从库里删掉，不必等用户再保存一次。
+        ui_config.normalize_retired_layout_keys()
         app.state.ui_config = ui_config
 
         # -------------------------------------------------------------- #
@@ -534,7 +495,6 @@ def create_lifespan(app_settings: Settings, version: str):
         external_api = ExternalApiService(
             app_config,
             event_bus=security_bus,
-            redis=redis,
             jobs=app.state.jobs,
             state_store=state_store,
         )
@@ -545,25 +505,18 @@ def create_lifespan(app_settings: Settings, version: str):
         app.state.embed_proxy = EmbedProxyService(ui_config, app_settings)
 
         # -------------------------------------------------------------- #
-        # 备份与还原：完整备份包 / 服务器备份文件 / 定时自动备份
+        # 备份与还原：统一全量备份（含数据库）/ 服务器备份文件 / 定时自动备份
         # -------------------------------------------------------------- #
-        users_backup = UsersBackupService(app.state.database.session_factory)
-        bundle_backup = SystemBundleBackupService(
-            ui_config,
-            app.state.app_config_backup,
-            users_backup,
-            app.state.database.session_factory,
-        )
-        server_backup = ServerBackupService(bundle_backup)
-        auto_backup = AutoBackupService(app_config, server_backup, redis)
-        app.state.users_backup = users_backup
-        app.state.bundle_backup = bundle_backup
+        server_backup = ServerBackupService(app_settings)
+        auto_backup = AutoBackupService(app_config, server_backup)
         app.state.server_backup = server_backup
         app.state.auto_backup = auto_backup
         auto_backup.start()
 
         business_backup = BackupCoordinator(app)
         business_backup.cleanup_startup()
+        if recovery_required:
+            business_backup.recovery_required = True
         app.state.business_backup = business_backup
 
         # -------------------------------------------------------------- #
@@ -574,7 +527,6 @@ def create_lifespan(app_settings: Settings, version: str):
             app.state.database.session_factory,
             ha_connector,
             state_store,
-            redis,
         )
 
         # 布局 HA 配置变更 → 按指纹重连 HA（对齐 Nest SYSTEM_CONFIG_UPDATED 监听）
@@ -628,7 +580,7 @@ def create_lifespan(app_settings: Settings, version: str):
 
         # 家庭模式：CRUD / 激活 / 触发器 / 预设 / 运行日志
         async def _emit_home_mode_event(name: str, payload: dict[str, Any]) -> None:
-            # 走统一事件总线：本进程分发（WS fan-out）+ Redis 跨副本桥接
+            # 走统一事件总线：本进程分发（WS fan-out）
             await security_bus.emit(name, payload)
 
         def _set_security_mode(mode: str, source: str) -> bool:
@@ -710,13 +662,11 @@ def create_lifespan(app_settings: Settings, version: str):
         fast_path.bind_events()
         app.state.agent_fast_path = fast_path
 
-        command_cache = CommandCacheService(redis)
-        await command_cache.init()
+        command_cache = CommandCacheService()
         app.state.agent_command_cache = command_cache
 
-        # 会话记忆分两层：10 分钟长会话（Redis 持久化）+ 45s 短时滑窗（纯内存）
-        agent_sessions = AgentSessionStoreService(redis)
-        await agent_sessions.init()
+        # 会话记忆分两层：10 分钟长会话（内存 LRU）+ 45s 短时滑窗（纯内存）
+        agent_sessions = AgentSessionStoreService()
         app.state.agent_sessions = agent_sessions
         app.state.agent_short_term = AgentShortTermMemoryService()
 
@@ -801,7 +751,6 @@ def create_lifespan(app_settings: Settings, version: str):
         notification = NotificationService(
             app.state.database.session_factory,
             event_bus=security_bus,
-            redis=redis,
             cooldown_service=cooldown,
             channels_service=channels_service,  # Phase 6：Email / WebPush / 企微 外部通知
             ha_areas_provider=lambda: (app.state.entity_area.get_cached_ha_areas() if hasattr(app.state, "entity_area") else []),
@@ -875,7 +824,6 @@ def create_lifespan(app_settings: Settings, version: str):
         weather_watch = WeatherWatchService(
             external_api=external_api,
             notification=notification,
-            redis=redis,
             jobs=app.state.jobs,
             app_config=app_config,
             event_bus=security_bus,
@@ -897,13 +845,12 @@ def create_lifespan(app_settings: Settings, version: str):
         # -------------------------------------------------------------- #
         # 地震预警（Phase 6）：Wolfx WS + SC/CENC 轮询 + 目录 + 全球目录
         # -------------------------------------------------------------- #
-        eew_leader = EewLeaderService(redis)
+        eew_leader = EewLeaderService()
         await eew_leader.start()
         app.state.eew_leader = eew_leader
 
         earthquake = EarthquakeService(
             event_bus=security_bus,
-            redis=redis,
             session_factory=app.state.database.session_factory,
             leader=eew_leader,
             jobs=app.state.jobs,
@@ -912,7 +859,7 @@ def create_lifespan(app_settings: Settings, version: str):
         )
         app.state.earthquake = earthquake
 
-        earthquake_global = EarthquakeGlobalService(redis, earthquake)
+        earthquake_global = EarthquakeGlobalService(earthquake)
         app.state.earthquake_global = earthquake_global
 
         eew_poll = EewPollService(earthquake, eew_leader, app.state.jobs)
@@ -924,7 +871,6 @@ def create_lifespan(app_settings: Settings, version: str):
             eew_leader,
             notification,
             cooldown,
-            redis,
             app.state.jobs,
         )
         app.state.earthquake_catalog_notify = catalog_notify
@@ -1015,10 +961,6 @@ def create_lifespan(app_settings: Settings, version: str):
                 except Exception:
                     pass
             try:
-                await asyncio.wait_for(event_bus_bridge.stop(), timeout=5)
-            except Exception:
-                pass
-            try:
                 await asyncio.wait_for(ha_connector.stop(), timeout=5)
             except Exception:
                 pass
@@ -1030,7 +972,6 @@ def create_lifespan(app_settings: Settings, version: str):
                 await asyncio.wait_for(event_log_service.flush(), timeout=5)
             except Exception:
                 pass
-            await redis.close()
             auto_backup.stop()
             database = getattr(app.state, "database", None)
             if database is not None:

@@ -111,7 +111,7 @@ function refresh() {
 onMounted(() => {
   refresh()
 })
-useScheduledPoll(refresh, 1800000, { key: 'widget:WeatherForecast' })
+useScheduledPoll(refresh, 1800000, { key: 'widget:WeatherForecast', configKey: 'weather' })
 watch(weatherEid, refresh)
 
 /** 天气状况 → 图标映射表（visual key） */

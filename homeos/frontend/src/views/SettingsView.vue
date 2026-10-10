@@ -16,7 +16,7 @@
       :groups="navGroups"
       :active-tab="resolvedTab"
       :saving="saving"
-      :show-save="isAdmin"
+      :show-save="true"
       :uses-independent-save="usesIndependentSave"
       :pending-changes="pendingChanges"
       :app-version="appVersion"
@@ -63,7 +63,7 @@
       </header>
       <div class="settings-main__stage">
         <SettingsOverviewStrip
-          v-if="isAdmin && resolvedTab === 'general'"
+          v-if="resolvedTab === 'general'"
           class="settings-main__overview"
         />
         <!-- keep-alive 与 Transition(out-in) 并用会在切换 Tab 时触发 insertBefore DOM 异常 -->
@@ -102,7 +102,6 @@ import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import { useAuthStore } from '@/stores/auth.store'
 import { useSettingsSave } from '@/features/settings/composables/hub-ui.internals'
 import { useSettingsPendingChanges } from '@/features/settings/composables/pending.internals'
 import SettingsSidebar from '@/features/settings/shared/layout/SettingsSidebar.vue'
@@ -112,10 +111,7 @@ import {
   buildNavGroups,
   resolveTab,
   DEFAULT_TAB,
-  isAdminOnlyTab,
   isValidSettingsTab,
-  defaultTabForRole,
-  resolveDefaultSettingsTab,
   INDEPENDENT_SAVE_TABS,
 } from '@/features/settings/nav'
 import { isTabFeatureGranted } from '@/utils/registry/settings-nav.util'
@@ -152,7 +148,6 @@ const route = useRoute()
 const entitiesStore = useEntitiesStore()
 const layoutStore = useLayoutStore()
 const chrome = useChromeStore()
-const authStore = useAuthStore()
 const { saving, onSave } = useSettingsSave()
 
 const SIDEBAR_COLLAPSED_KEY = 'homeos_settings_sidebar_collapsed'
@@ -177,26 +172,20 @@ function toggleSidebar() {
   }
 }
 
-const isAdmin = computed(() => authStore.role === 'admin')
-
 // 功能码明细（``GET /license/status`` 的 featureAccess）：只用于侧栏与落地页显隐，
 // 未加载时为空对象 → isTabFeatureGranted 一律放行，接口层 403 才是权威拦截点。
 const licenseFeatureAccess = useLicenseFeatureAccess()
 
-const navGroups = computed(() => buildNavGroups(isAdmin.value, licenseFeatureAccess.value))
+const navGroups = computed(() => buildNavGroups(licenseFeatureAccess.value))
 
 const showSettingsNav = computed(() => countNavTabs(navGroups.value) >= 1)
 
 const resolvedTab = computed(() => {
   const explicit = route.query.tab
-  const tab = explicit
-    ? resolveTab(explicit)
-    : resolveDefaultSettingsTab({ isAdmin: isAdmin.value })
-  // 非管理员访问管理员专属标签页时回退到账户与安全
-  if (!isAdmin.value && isAdminOnlyTab(tab)) return defaultTabForRole(false)
+  const tab = explicit ? resolveTab(explicit) : DEFAULT_TAB
   // 未授权增量模块的 Tab 同样回退：直接带 ?tab=voice 进来时不能渲染一个必然被 403 的配置页
   if (!isTabFeatureGranted(tab, licenseFeatureAccess.value)) {
-    return resolveDefaultSettingsTab({ isAdmin: isAdmin.value })
+    return DEFAULT_TAB
   }
   return tab
 })
@@ -330,16 +319,15 @@ onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', onSettingsBeforeUnload)
 })
 
-// 无 ?tab= 时同步 URL 为默认落地页（管理员 → 首装向导）
+// 无 ?tab= 时同步 URL 为默认落地页（首装向导）
 // 必须限定在 /settings：离开设置时 query.tab 变空会触发本 watch，若无守卫会把 tab=setup-wizard 写到 /devices、/security 等页面
 watch(
-  [() => route.query.tab, () => layoutStore.isConfigLoaded, isAdmin, () => route.path],
+  [() => route.query.tab, () => layoutStore.isConfigLoaded, () => route.path],
   ([tab]) => {
     if (!isOnSettingsRoute()) return
     if (tab) return
     if (!layoutStore.isConfigLoaded) return
-    const desired = resolveDefaultSettingsTab({ isAdmin: isAdmin.value })
-    router.replace({ path: '/settings', query: { ...route.query, tab: desired } })
+    router.replace({ path: '/settings', query: { ...route.query, tab: DEFAULT_TAB } })
   },
   { immediate: true },
 )
@@ -373,18 +361,6 @@ watch(
   { immediate: true },
 )
 
-// 非管理员越权标签页纠偏
-watch(
-  [() => route.query.tab, isAdmin, () => route.path],
-  ([tab, admin]) => {
-    if (!isOnSettingsRoute()) return
-    const resolved = resolveTab(String(tab || DEFAULT_TAB))
-    if (!admin && isAdminOnlyTab(resolved)) {
-      router.replace({ path: '/settings', query: { tab: defaultTabForRole(false) } })
-    }
-  },
-  { immediate: true },
-)
 
 const hasReconnected = ref(false)
 watch(

@@ -3,9 +3,10 @@
 阶段 3.3 起 layout 里**不再保存 HA 连接凭据**（地址 / 令牌单源在 ``ha_connections``
 表，经 ``GET/PUT /ha/connection`` 读写）。剩下的职责只有两类：
 
-- :func:`mask_layout_for_role`：按角色脱敏 Agent 密钥 / 通道密钥；
+- :func:`mask_layout`：脱敏 Agent 密钥 / 通道密钥；
 - :func:`merge_layout_secrets_on_save`：保存时若密钥为占位符 / 空值，保留库中真实值；
-- :func:`strip_legacy_ha_connection`：清掉历史 layout 里遗留的 HA 连接字段。
+- :func:`strip_legacy_ha_connection`：清掉历史 layout 里遗留的 HA 连接字段；
+- :func:`strip_retired_layout_keys`：清掉历史 layout 里已退役的结构键（角色维度）。
 """
 
 from __future__ import annotations
@@ -21,6 +22,14 @@ _CHANNEL_SECRET_KEYS = ("corpSecret", "callbackToken", "callbackAesKey")
 
 #: 旧版 layout.haConfig 中属于「连接凭据」的字段（3.3 起由 ``ha_connections`` 表持有）。
 LEGACY_HA_CONNECTION_KEYS = ("url", "fallbackUrl", "token")
+
+#: 已退役的 layout 结构键：``(父键, 子键)``。
+#:
+#: 角色体系下线后 ``layout.wholeHomeOff.roles`` 没有任何读取方（前端
+#: ``normalizeWholeHomeOff`` 也只是读的时候不认），留着只会让后来者以为「全屋关闭」
+#: 还能按角色收窄。与 :data:`LEGACY_HA_CONNECTION_KEYS` 分开管理：HA 凭据的清理与
+#: ``ha_connections`` 的导入有先后依赖，退役键没有，可以在启动期无条件落库。
+RETIRED_LAYOUT_KEYS: tuple[tuple[str, str], ...] = (("wholeHomeOff", "roles"),)
 
 
 def _is_sensitive_value_skippable(value: Any) -> bool:
@@ -87,13 +96,35 @@ def strip_legacy_ha_connection(layout: Any) -> dict[str, Any]:
     return out
 
 
-def mask_layout_for_role(layout: dict[str, Any], role: str | None = None) -> dict[str, Any]:
-    """输出给前端的 layout：清掉历史 HA 连接字段，并按角色脱敏其余密钥。
+def _drop_retired_layout_keys(target: dict[str, Any]) -> bool:
+    """就地删除 :data:`RETIRED_LAYOUT_KEYS` 登记的键；返回是否真的删掉了东西。"""
+    changed = False
+    for parent, key in RETIRED_LAYOUT_KEYS:
+        section = target.get(parent)
+        if isinstance(section, dict) and key in section:
+            section.pop(key, None)
+            changed = True
+    return changed
 
-    Agent / 通道密钥一律脱敏（防止前端回写写穿）；HA 连接信息不在 layout 里，
-    无需再区分角色。
+
+def strip_retired_layout_keys(layout: Any) -> dict[str, Any]:
+    """删除已退役的 layout 结构键（角色维度等），其余字段原样保留。
+
+    读 / 写路径都过一遍这里，历史数据会在下次保存时自然消失；存量库另外由启动期的
+    :meth:`UiConfigService.normalize_retired_layout_keys` 一次性清干净。
+    """
+    out = copy.deepcopy(layout) if isinstance(layout, dict) else {}
+    _drop_retired_layout_keys(out)
+    return out
+
+
+def mask_layout(layout: dict[str, Any]) -> dict[str, Any]:
+    """输出给前端的 layout：清掉历史 HA 连接字段与退役键，并脱敏其余密钥。
+
+    Agent / 通道密钥一律脱敏（防止前端回写写穿）；HA 连接信息不在 layout 里。
     """
     out = strip_legacy_ha_connection(layout)
+    _drop_retired_layout_keys(out)
     _mask_agent_secrets(out.get("agentConfig"))
     _mask_channel_secrets(out.get("channelConfig"))
     return out
@@ -102,6 +133,7 @@ def mask_layout_for_role(layout: dict[str, Any], role: str | None = None) -> dic
 def merge_layout_secrets_on_save(incoming: Any, existing_layout: Any) -> dict[str, Any]:
     """保存时合并密钥：incoming 中为占位符 / 空值的敏感字段保留库中真实值。"""
     merged = strip_legacy_ha_connection(incoming)
+    _drop_retired_layout_keys(merged)
     existing = _as_layout_object(existing_layout)
     if existing is None:
         return merged
@@ -145,7 +177,9 @@ def merge_layout_secrets_on_save(incoming: Any, existing_layout: Any) -> dict[st
 
 __all__ = [
     "LEGACY_HA_CONNECTION_KEYS",
-    "mask_layout_for_role",
+    "RETIRED_LAYOUT_KEYS",
+    "mask_layout",
     "merge_layout_secrets_on_save",
     "strip_legacy_ha_connection",
+    "strip_retired_layout_keys",
 ]

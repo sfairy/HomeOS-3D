@@ -83,14 +83,12 @@ class ChannelsService:
             return None
         prefs = read_json_object(user.preferences)
         restrictions = prefs.get("restrictions") if isinstance(prefs.get("restrictions"), list) else None
-        actor = AgentActor(
+        # 实体级白名单（当前恒为空）：非空时收敛该渠道身份可控制的实体。
+        return AgentActor(
             user_id=user.id,
             username=user.username,
-            role=user.role,
+            restrictions=[str(item) for item in restrictions] if restrictions else None,
         )
-        if user.role != "admin" and restrictions:
-            actor.restrictions = [str(item) for item in restrictions]
-        return actor
 
     async def _find_user(self, user_id: str) -> Any:
         from ...core.models import User

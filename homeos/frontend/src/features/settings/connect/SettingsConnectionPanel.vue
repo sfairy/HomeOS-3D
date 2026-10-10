@@ -1,12 +1,12 @@
 /**
  * 组件：SettingsConnectionPanel.vue
  *
- * 职责：HA/Redis 连接设置面板。页头保存并重连，工作区按 Tab 组织凭证 / 实体同步 / Redis /
- *      高级选项四个分区，概览区展示连接状态统计。
+ * 职责：HA 连接设置面板。页头保存并重连，工作区按 Tab 组织凭证 / 实体同步 /
+ *      高级选项三个分区，概览区展示连接状态统计。
  * 关键依赖：
  *  - useConnectionPanel：连接面板核心状态与回调
  *  - SettingsPageShell / SettingsCard / SettingsOrchTabs：页面壳层与卡片
- *  - connection 子组件：Overview / Credentials / Entities / EventLogRecordFilter / Redis / Advanced
+ *  - connection 子组件：Overview / Credentials / Entities / EventLogRecordFilter / Advanced
  * 数据来源：useConnectionPanel 内部状态 + 父级透传 activeTab
  */
 <template>
@@ -77,14 +77,6 @@
             <EventLogRecordFilterSection />
           </div>
 
-          <div v-show="connTab === 'redis'">
-            <ConnectionRedisSection
-              :redis-health="redisHealth"
-              :redis-label="redisLabel"
-              :redis-refresh-error="redisRefreshError"
-            />
-          </div>
-
           <div v-show="connTab === 'advanced'">
             <ConnectionAdvancedSection
               :ha-ws-mode-badge-mod="haWsModeBadgeMod"
@@ -113,14 +105,13 @@ import ConnectionOverviewSection from './connection/OverviewSection.vue'
 import ConnectionCredentialsSection from './connection/CredentialsSection.vue'
 import ConnectionEntitiesSection from './connection/EntitiesSection.vue'
 import EventLogRecordFilterSection from './connection/EventLogRecordFilterSection.vue'
-import ConnectionRedisSection from './connection/RedisSection.vue'
 import ConnectionAdvancedSection from './connection/AdvancedSection.vue'
 import { useConnectionPanel } from '@/features/settings/composables/connect/connection.internals'
 
 // 入参：当前激活的设置 Tab
 const props = defineProps({ activeTab: { type: String, default: 'connection' } })
 
-// 连接面板状态：当前 Tab、凭证/实体同步/Redis/高级选项的展示与回调（由 composable 统一管理）
+// 连接面板状态：当前 Tab、凭证/实体同步/高级选项的展示与回调（由 composable 统一管理）
 const {
   connTab,
   showTokenInput,
@@ -128,9 +119,6 @@ const {
   haStore,
   draft,
   connTabs,
-  redisHealth,
-  redisLabel,
-  redisRefreshError,
   backendReachable,
   haWsModeLabel,
   haWsModeBadgeMod,

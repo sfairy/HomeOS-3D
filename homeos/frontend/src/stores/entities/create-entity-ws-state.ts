@@ -13,7 +13,6 @@ import type { EntityStateUpdateDeps } from '@/utils/entity/state-update'
 import type { WsDeltaChange } from '@/utils/entity/state-delta.util'
 import { normalizeWsBatchChanges } from '@/workers/entity-ws-ingest-bridge'
 import { normalizeWsBatchChangesSync } from '@/utils/entity/state-delta.util'
-import { fetchRedisStatusFromHealth } from '@/utils/telemetry/redis-status'
 import {
   appNotify,
   refreshSecurityPanelFromSocket,
@@ -36,7 +35,6 @@ import type {
   EntitySocketTrack,
   EntityStoreLogger,
   HaEntityState,
-  RedisStatus,
 } from '@/types/entity-store'
 import type { NotifyType } from '@/types/notify'
 
@@ -130,12 +128,10 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
   const connected = ref(false)
   /** 是否正在重连（HA 断连去抖期间为 true） */
   const reconnecting = ref(false)
-  /** HA 队列累计丢弃总数（服务端 Redis 队列满时丢弃） */
+  /** HA 队列累计丢弃总数（服务端队列满时丢弃） */
   const haQueueDroppedTotal = ref(0)
   /** 上次队列丢弃时间戳 */
   const lastQueueDropAt = ref<string | null>(null)
-  /** Redis 状态：'unknown' | 'available' | 'unavailable' */
-  const redisStatus = ref<RedisStatus>('unknown')
 
   /** HA 断连去抖延迟（毫秒）：短于此时长恢复连接不标记 stale */
   const HA_DISCONNECT_DEBOUNCE_MS = () => getFrontendConfig().haDisconnectDebounceMs
@@ -227,10 +223,10 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
     clearAllEntities: deps.clearAllEntities,
     cancelPersistCacheTimer: () => deps.cachePersistBridge.cancelPersistCacheTimer(),
     persistEntityCacheNow: () => deps.cachePersistBridge.persistEntityCacheNow(),
-    // 权限指纹（role + restrictions），变化时全量快照强制接受，清掉已无权查看的陈旧实体
+    // 权限指纹（restrictions），变化时全量快照强制接受，清掉已无权查看的陈旧实体
     restrictionsVersion: () => {
       const auth = useAuthStore()
-      return `${auth.role}|${[...(auth.restrictions || [])].sort().join(',')}`
+      return [...(auth.restrictions || [])].sort().join(',')
     },
   })
   // 回填初始加载就绪桥接
@@ -421,20 +417,6 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
     void fetchEntitiesFallback('entities_stale', { force: true, quiet: true })
   }
 
-  /**
-   * 从健康检查接口刷新 Redis 状态
-   * @returns 无返回值；失败时将 redisStatus 设为 'unavailable'
-   */
-  async function refreshRedisFromHealth() {
-    try {
-      const parsed = await fetchRedisStatusFromHealth()
-      redisStatus.value = parsed.status
-    } catch (e) {
-      deps.logger.debug('从健康检查刷新 Redis 状态失败', e)
-      if (redisStatus.value === 'unknown') redisStatus.value = 'unavailable'
-    }
-  }
-
   /** initial_states 等待超时（毫秒）：超过此时间未收到全量状态则触发 REST 回退 */
   const INITIAL_STATES_WAIT_MS = () => getFrontendConfig().initialStatesWaitMs ?? 8000
   // 创建 Socket.IO 传输层：连接 / 断开 / 事件绑定 / 预热
@@ -448,7 +430,6 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
     hydrateFromEntityCache: deps.hydrateFromEntityCache,
     fetchEntitiesFallback,
     isAuthenticated: deps.isAuthenticated,
-    refreshRedisFromHealth,
     persistCacheDirty: deps.isPersistCacheDirty,
     persistEntityCacheNow: deps.persistEntityCacheNow,
     cancelPersistCacheTimer: deps.cancelPersistCacheTimer,
@@ -463,7 +444,6 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
       lastQueueDropAt,
       entitiesCacheHydrated: deps.entitiesCacheHydrated,
       entitiesCacheSavedAt: deps.entitiesCacheSavedAt,
-      redisStatus,
     },
     actions: {
       clearHaDisconnectDebounce,
@@ -542,7 +522,6 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
     reconnecting,
     haQueueDroppedTotal,
     lastQueueDropAt,
-    redisStatus,
     setConnected,
     // 对外暴露的全量初始化也走串行队列，保证缓存 hydrate / 外部调用与 WS 增量互斥
     initStates: initStatesQueued,
@@ -555,7 +534,6 @@ export function createEntityWsState(deps: EntityWsStateDeps) {
     connect,
     disconnect,
     getSocket,
-    refreshRedisFromHealth,
     reconnectForAuthChange,
     ensureWsConnected,
     wsTransportEpoch,

@@ -218,7 +218,7 @@ class HomeToolsService:
         dto: dict[str, Any],
     ) -> dict[str, Any]:
         """与 HTTP /services/call 对齐的实体 ACL；无执行身份时拒绝控制类工具。"""
-        if actor is None or not actor.role:
+        if actor is None:
             return {
                 "ok": False,
                 "message": "未绑定执行身份，禁止通过智能管家控制设备。请在通道配置中绑定 HomeOS 用户。",
@@ -240,8 +240,8 @@ class HomeToolsService:
     def _read_restrictions(actor: AgentActor | None) -> list[str] | None:
         """读路径实体可见性（与 WS 推送 / HTTP 读接口同一模型）。
 
-        - ``None``：不限制（未绑定身份，或 admin）；
-        - ``[]``：看不到任何实体（guest、无白名单的 child）；
+        - ``None``：不限制（未绑定身份，或白名单为空）；
+        - ``[]``：看不到任何实体（白名单不匹配任何实体）；
         - ``[...]``：白名单前缀 / 精确 id / domain 列表。
         """
         return resolve_entity_restrictions(actor.to_auth_user() if actor is not None else None)
@@ -393,7 +393,7 @@ class HomeToolsService:
             entity_id = str(entity.get("entity_id") or "")
             if entity_id not in whitelist:
                 continue
-            # 读路径 ACL：受限角色只能搜到自己可见的实体
+            # 读路径 ACL：受限账号只能搜到自己可见的实体
             if restrictions is not None and not is_entity_allowed(entity_id, restrictions):
                 continue
             attributes = entity.get("attributes") if isinstance(entity.get("attributes"), dict) else {}
@@ -425,7 +425,7 @@ class HomeToolsService:
         return result
 
     def _get_entity_state(self, entity_id: str, actor: AgentActor | None = None) -> dict[str, Any]:
-        """查询单个设备的当前状态（读路径 ACL：受限角色看不到白名单外实体）。"""
+        """查询单个设备的当前状态（读路径 ACL：受限账号看不到白名单外实体）。"""
         denied = self._read_denied(actor)
         if denied is not None:
             return denied
@@ -531,7 +531,7 @@ class HomeToolsService:
         """获取房间内所有设备的当前状态快照。
 
         温度 / 湿度传感器来源优先级：布局 mobileRoomStats → AppConfig 的 envSensorMap。
-        读路径 ACL：受限角色看不到白名单外实体（含温湿度传感器来源实体）。
+        读路径 ACL：受限账号看不到白名单外实体（含温湿度传感器来源实体）。
         """
         denied = self._read_denied(actor)
         if denied is not None:
@@ -860,7 +860,7 @@ class HomeToolsService:
         """切换家庭模式工具。支持按名称（模糊）或 ID 解析模式。"""
         if not name_or_id or not name_or_id.strip():
             return {"error": "activate_home_mode 需要模式名称或 ID"}
-        if actor is None or not actor.role:
+        if actor is None:
             return {
                 "success": False,
                 "blocked": True,
@@ -979,7 +979,7 @@ class HomeToolsService:
         explicit_id = _s(args.get("entity_id")).strip()
         if not query and not explicit_id:
             return {"success": False, "error": "activate_scene 需要 scene（名称）或 entity_id 参数"}
-        if actor is None or not actor.role:
+        if actor is None:
             return {
                 "success": False,
                 "blocked": True,

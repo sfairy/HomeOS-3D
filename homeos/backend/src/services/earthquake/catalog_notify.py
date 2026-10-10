@@ -2,7 +2,7 @@
 
 工作机制：
  - 每 5 分钟拉取一次 CENC「近 24 小时」目录（max 50 条）；
- - 维护 Redis 中最近 200 个已通知 eventId（7 天 TTL），Redis 不可用时回退进程内集合；
+ - 维护进程内最近 200 个已通知 eventId；
  - 启用 EEW 且配置了家庭坐标时按与 EEW 相同阈值（aligned）通知，否则按
    ``catalog_only`` 宽松规则通知；
  - 启用 EEW 时同步将达标事件记入本地预警（``recordCatalogLocalAlert``）；
@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 from typing import Any
 
@@ -27,11 +26,9 @@ logger = logging.getLogger("homeos.earthquake.catalog")
 
 POLL_MS = 5 * 60 * 1000
 BOOT_DELAY_MS = 15_000
-SEEN_KEY = "homeos:eew:cenc-notified-ids"
 SEEN_MAX = 200
 #: 目录速报的通知冷却（分钟）：与通知模块确认通报共用同一冷却键
 CATALOG_NOTIFY_COOLDOWN_MIN = 10
-SEEN_TTL_SEC = 7 * 24 * 3600
 
 
 class EarthquakeCatalogNotifyService:
@@ -44,7 +41,6 @@ class EarthquakeCatalogNotifyService:
         leader: Any,
         notification_service: Any,
         cooldown_service: Any,
-        redis: Any,
         jobs: Any = None,
     ) -> None:
         self._earthquake = earthquake_service
@@ -52,12 +48,11 @@ class EarthquakeCatalogNotifyService:
         self._leader = leader
         self._notification = notification_service
         self._cooldown = cooldown_service
-        self._redis = redis
         self._jobs = jobs
         self._task: asyncio.Task[None] | None = None
         self._stopped = False
-        #: 进程内已通知 eventId 兜底集合（Redis 不可用时保底去重）
-        self._mem_seen_ids: list[str] = []
+        #: 进程内已通知 eventId 集合
+        self._seen_ids: list[str] = []
 
     async def start(self) -> None:
         self._stopped = False
@@ -187,49 +182,15 @@ class EarthquakeCatalogNotifyService:
     # 已通知 ID 集合
     # ------------------------------------------------------------------ #
     async def _load_seen_ids(self) -> set[str]:
-        """Redis 结果与进程内兜底集合并集（Redis 故障期间不重复通知）。"""
-        mem_fallback = set(self._mem_seen_ids)
-        if self._redis is None or not self._redis.is_ready():
-            return mem_fallback
-        try:
-            raw = await self._redis.get(SEEN_KEY)
-            # 键不存在：Redis 可能刚被清空，优先信任进程内已知集合
-            if not raw:
-                return mem_fallback
-            if isinstance(raw, bytes):
-                raw = raw.decode("utf-8", "ignore")
-            parsed = json.loads(raw)
-            if not isinstance(parsed, list):
-                return mem_fallback
-            ids = [item for item in parsed if isinstance(item, str) and item.strip()]
-            merged = list(dict.fromkeys([*ids, *mem_fallback]))
-            return set(merged[-SEEN_MAX:])
-        except Exception:
-            return mem_fallback
+        return set(self._seen_ids)
 
     async def _save_seen_ids(self, ids: Any) -> None:
         unique = list(dict.fromkeys([str(item) for item in ids if item]))
-        trimmed = unique[-SEEN_MAX:]
-        for item in trimmed:
-            if item not in self._mem_seen_ids:
-                self._mem_seen_ids.append(item)
-        # 进程内集合同样按 SEEN_MAX 有界，防止长跑内存增长
-        if len(self._mem_seen_ids) > SEEN_MAX:
-            self._mem_seen_ids = self._mem_seen_ids[-SEEN_MAX:]
-
-        if self._redis is None or not self._redis.is_ready():
-            return
-        try:
-            await self._redis.set(
-                SEEN_KEY, json.dumps(trimmed, ensure_ascii=False), SEEN_TTL_SEC
-            )
-        except Exception as exc:
-            logger.debug("CENC 已知事件写入失败: %s", exc)
+        self._seen_ids = unique[-SEEN_MAX:]
 
 
 __all__ = [
     "CATALOG_NOTIFY_COOLDOWN_MIN",
     "POLL_MS",
-    "SEEN_KEY",
     "EarthquakeCatalogNotifyService",
 ]

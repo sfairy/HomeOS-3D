@@ -1,13 +1,12 @@
 """Frigate AI 摄像头集成（对齐 ``FrigateService``）。
 
 监控 HA 中的 Frigate 实体，维护检测事件历史与摄像头在线状态；配置的布防模式下
-将人物检测转换为 ``security.alarm``。检测历史写 Redis（48h TTL），已确认事件落 RuntimeKv。
+将人物检测转换为 ``security.alarm``。检测历史保存在进程内，已确认事件落 RuntimeKv。
 """
 
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 from collections.abc import Callable
 from typing import Any
@@ -18,7 +17,6 @@ from .dismissed import load_dismissed_id_set, persist_dismissed_id_set
 logger = logging.getLogger("homeos.security.frigate")
 
 FRIGATE_DISMISSED_ID = "security-frigate-dismissed"
-RECENT_EVENTS_KEY = "homeos:frigate:recentEvents"
 
 _KNOWN_LABELS = [
     "person", "car", "dog", "cat", "bicycle", "motorcycle", "bus", "truck", "bird",
@@ -47,20 +45,17 @@ class FrigateService:
         bus: LocalEventBus,
         panel,
         config_reader: Callable[[], dict[str, Any]],
-        redis,
     ) -> None:
         self._session_factory = session_factory
         self._bus = bus
         self._panel = panel
         self._config = config_reader
-        self._redis = redis
 
         self._recent_events: list[dict[str, Any]] = []
         self._camera_status: dict[str, dict[str, Any]] = {}
         self._active_detections: dict[str, dict[str, Any]] = {}
         self._dedup_timestamps: dict[str, float] = {}
         self._dismissed_ids: set[str] = set()
-        self._persist_task: asyncio.Task | None = None
 
     @property
     def _max_events(self) -> int:
@@ -74,48 +69,6 @@ class FrigateService:
         self._dismissed_ids = await asyncio.to_thread(
             load_dismissed_id_set, self._session_factory, FRIGATE_DISMISSED_ID
         )
-        await self._restore_recent_events()
-
-    async def _restore_recent_events(self) -> None:
-        if not self._redis.is_ready():
-            return
-        try:
-            raw = await self._redis.get(RECENT_EVENTS_KEY)
-            if not raw:
-                return
-            parsed = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
-            if not isinstance(parsed, list):
-                return
-            valid = [
-                item
-                for item in parsed
-                if isinstance(item, dict)
-                and isinstance(item.get("entityId"), str)
-                and isinstance(item.get("timestamp"), str)
-            ]
-            if valid:
-                self._recent_events = valid[: self._max_events]
-                logger.info("已恢复 Frigate 检测历史: %s 条", len(self._recent_events))
-        except Exception as exc:
-            logger.debug("恢复 Frigate 检测历史失败: %s", exc)
-
-    def _persist_recent_events(self) -> None:
-        if self._persist_task is not None and not self._persist_task.done():
-            return
-        self._persist_task = asyncio.get_running_loop().create_task(self._flush_recent_events())
-
-    async def _flush_recent_events(self) -> None:
-        await asyncio.sleep(2)
-        if not self._redis.is_ready():
-            return
-        try:
-            await self._redis.set(
-                RECENT_EVENTS_KEY,
-                json.dumps(self._recent_events, ensure_ascii=False, default=str),
-                48 * 3600,
-            )
-        except Exception as exc:
-            logger.debug("Frigate 检测历史持久化失败: %s", exc)
 
     def _persist_dismissed(self) -> None:
         persist_dismissed_id_set(
@@ -178,7 +131,6 @@ class FrigateService:
         self._recent_events.insert(0, snapshot)
         if len(self._recent_events) > self._max_events:
             del self._recent_events[self._max_events :]
-        self._persist_recent_events()
         self._active_detections[entity_id] = snapshot
 
         if score > 70:

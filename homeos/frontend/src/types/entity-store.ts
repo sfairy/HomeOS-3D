@@ -1,10 +1,9 @@
 /**
  * 实体 store 运行时类型：HA 实体快照、WebSocket 同步、派生索引、缓存与依赖接口。
- * 依赖：@/types/entity（EntitySnapshot）、@/types/redis-status（WsRedisStatus）、vue（Ref）。
+ * 依赖：@/types/entity（EntitySnapshot）、vue（Ref）。
  */
 import type { HaEntity } from '@homeos/shared'
 import type { EntitySnapshot } from '@/types/entity'
-import type { WsRedisStatus } from '@/types/redis-status'
 import type { Ref } from 'vue'
 
 /** 展示名/读属性用的实体形（完整 HA 状态或户型图轻量快照） */
@@ -27,9 +26,6 @@ export type EntitiesMap = Record<string, HaEntityState>
 
 /** 实体加载阶段：ready=就绪，hydrating=从缓存水合中，rebuilding=重建派生索引中 */
 export type EntityLoadPhase = 'ready' | 'hydrating' | 'rebuilding'
-
-/** Redis 连接状态（复用 WebSocket 侧的状态枚举） */
-export type RedisStatus = WsRedisStatus
 
 /** onStateChanged / dispatchStateListener 事件载荷 */
 export interface EntityStateListenerPayload {
@@ -72,7 +68,6 @@ export interface EntityCacheSnapshot {
 
 /** 缓存条目附带的用户上下文（用于权限隔离） */
 export interface EntityCacheAccessUser {
-  role?: string // 用户角色
   restrictions?: string[] // 实体访问白名单
 }
 
@@ -119,7 +114,6 @@ interface EntitySocketRefs {
   lastQueueDropAt?: Ref<string | null> // 最近一次队列丢弃时间
   entitiesCacheHydrated: Ref<boolean> // 是否已完成缓存水合
   entitiesCacheSavedAt?: Ref<number | null> // 缓存最近保存时间戳
-  redisStatus: Ref<RedisStatus> // Redis 连接状态
 }
 /** 实体 store 暴露给 socket 处理器的动作集合 */
 interface EntitySocketActions {
@@ -320,7 +314,7 @@ export interface EntityInitDeps {
   clearAllEntities: () => void // 清空所有实体
   cancelPersistCacheTimer: () => void // 取消缓存持久化定时器
   persistEntityCacheNow: () => Promise<void> // 立即持久化缓存
-  /** 当前访问权限指纹（role + restrictions），变化时强制接受缩小快照（B5 权限收紧清陈旧数据） */
+  /** 当前访问权限指纹（restrictions），变化时强制接受缩小快照（B5 权限收紧清陈旧数据） */
   restrictionsVersion?: () => string
 }
 
@@ -340,7 +334,7 @@ export interface EntityActionsDeps {
     newState: HaEntityState | null,
     oldState: HaEntityState | null,
   ) => void // 派发状态监听事件
-  canControl: (entityId: string) => boolean // 判断实体是否可控
+  isEntityAllowed: (entityId: string) => boolean // 判断实体是否可见（单一管理员模型下可见即可控）
   isAuthenticated: () => boolean // 是否已认证
   isHaConnected: () => boolean // HA 是否已连接
   callDedupWindowMs: () => number // 调用去重窗口（毫秒）
@@ -462,7 +456,6 @@ export interface EntityTransportDeps {
   hydrateFromEntityCache: () => Promise<boolean> // 从缓存水合
   fetchEntitiesFallback: (reason: string, opts?: { quiet?: boolean }) => Promise<boolean> // REST 兜底
   isAuthenticated?: () => boolean // 是否已认证
-  refreshRedisFromHealth?: () => Promise<void> // 从健康检查刷新 Redis 状态
   persistCacheDirty?: () => boolean // 缓存是否有未持久化变更
   persistEntityCacheNow: () => Promise<void> // 立即持久化缓存
   cancelPersistCacheTimer: () => void // 取消持久化定时器

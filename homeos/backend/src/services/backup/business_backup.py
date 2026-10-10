@@ -1,11 +1,28 @@
-"""加密便携业务备份（对齐 HA Bridge 0.6.9–0.7.0 ``business_backup``）。
+"""加密全量业务备份（含数据库）。
 
 归档格式：``HABACKUP\\x01`` + salt(16) + nonce(12) + ciphertext + tag(16)；
-密钥由 Scrypt(n=32768,r=8,p=1) 从密码派生。载荷为 zip，内含 ``business.json``
-与可移植目录树（assets / exports / studio3d / modules/interaction3d/scenes）。
+密钥由 Scrypt(n=32768,r=8,p=1) 从密码派生。载荷为 zip，内含：
 
-不携带：用户账号、授权密钥、中控配对。HomeOS 额外在 JSON 中附带 ``ui`` 与
-``appConfig``，以便一次恢复覆盖完整业务面。
+- ``manifest.json``：格式元数据 + 文件清单（sha256 / size）；
+- ``homeos.db``：``VACUUM INTO`` 生成的整库快照（全部表，含 users / license）；
+- 数据目录文件：除排除项以外的整个 ``data_dir``（含 ``secrets/`` 密钥、``assets/``、
+  ``studio3d/``、``exports/``、``modules/interaction3d/scenes`` 等）。
+
+``homeos.db`` 快照会**清空历史事件 / 日志 / 时序表与运行时缓存表**的数据（保留表结构），
+见 :data:`EXCLUDED_DB_TABLES`：全量备份只承载「配置与实体目录」，不承载操作日志、
+实体状态变化历史、通知/安防/地震事件、环境与能耗时序，以及登录会话与可自动重建的
+HA 目录缓存。
+
+排除项：``cache/``、``logs/``（含操作日志 JSONL）、``backup-work/``、``backup-recovery/``、
+渲染缓存、迁移备份（``*.pre-*.bak``）、``data-compatibility.json``（还原后重新写入）与
+数据库文件本身。
+
+**为什么必须带 ``secrets/``**：HA access token 与 license 凭证用 ``data_dir/secrets/*.key``
+（Fernet）加密后落库（见 :mod:`homeos.backend.src.ha.crypto`）。只备份数据库、不带密钥，
+换机后这些密文无法解密。
+
+恢复采用「整库原样还原」：先把当前数据库与数据文件留一份回退快照，再原子替换，
+最后把还原出来的库迁移到当前程序 head，全程可回滚。
 """
 
 from __future__ import annotations
@@ -19,6 +36,7 @@ import shutil
 import sqlite3
 import time
 import zipfile
+from collections.abc import Callable
 from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
@@ -28,12 +46,10 @@ from zipfile import ZipFile
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
-from fastapi import Request
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import JSONResponse
 
 from ...core.migrations import (
     compare_application_versions,
+    run_migrations,
     write_data_compatibility_marker,
 )
 from ...security.login_limiter import LoginAttemptLimiter
@@ -42,41 +58,56 @@ logger = logging.getLogger("homeos.backup.business")
 
 MAGIC = b"HABACKUP\x01"
 MAX_ARCHIVE = 512 * 1024 * 1024
-MAX_EXPANDED = 1024 * 1024 * 1024
-MAX_FILES = 20_000
+MAX_EXPANDED = 4 * 1024 * 1024 * 1024
+MAX_FILES = 50_000
 MAX_JSON = 128 * 1024 * 1024
 JOB_TTL_SECONDS = 10 * 60
-ROOTS = ("assets", "exports", "studio3d", "modules/interaction3d/scenes")
-# 官方 0.7.1 表集合；HomeOS 额外携带 project_configs。
-OFFICIAL_TABLES = (
-    "ha_connections",
-    "ha_entities",
-    "ha_devices",
-    "ha_areas",
-    "ha_sync_state",
-    "projects",
-    "project_drafts",
-    "global_custom_popup_state",
-    "studio_interaction_sync",
-)
-TABLES = (*OFFICIAL_TABLES, "project_configs")
-DELETE_ORDER = (
-    "project_configs",
-    "project_drafts",
-    "projects",
-    "ha_sync_state",
-    "ha_entities",
-    "ha_devices",
-    "ha_areas",
-    "ha_connections",
-    "global_custom_popup_state",
-    "studio_interaction_sync",
-)
-COMMIT_KEY = "_businessRestoreCommit"
+
+DB_NAME = "homeos.db"
+DB_SIDECARS = ("-wal", "-shm", "-journal")
+MANIFEST_NAME = "manifest.json"
+PAYLOAD_NAME = "payload.zip"
+
+#: 数据目录内的回退工作区（一次还原一个子目录；已被备份排除，不进包）
+RECOVERY_DIR = "backup-recovery"
+RECOVERY_JOURNAL = "journal.json"
+RECOVERY_ASIDE = "aside"
+#: 保留多少个已完成还原的回退副本（供「还原后反悔」用；超出按时间清理）
+ROLLBACK_KEEP = 1
+
 PRODUCT = "HomeOS"
-KIND = "homeos-business-backup"
-SCHEMA_VERSION = 1
-FORMAT_VERSION = 1
+KIND = "homeos-full-backup"
+SCHEMA_VERSION = 2
+FORMAT_VERSION = 2
+
+#: 数据目录中不进入备份的顶层目录（运行时产物，与业务数据无关）
+EXCLUDED_TOP_DIRS = frozenset({"cache", "logs", "backup-work", "backup-recovery"})
+#: 需要整体排除的相对路径前缀
+EXCLUDED_REL_PREFIXES = ("modules/interaction3d/render-cache",)
+#: 运行时生成的标记文件：还原后由程序重新写入，避免旧标记挡住启动
+EXCLUDED_REL_FILES = frozenset({"data-compatibility.json"})
+
+#: 不进全量备份的历史 / 日志 / 时序 / 运行时缓存表：快照后清空其数据（保留表结构）。
+#: 分三类——
+#:   历史事件与日志：实体状态变化、安防审计、通知记录、地震预警、环境与能耗时序；
+#:   运行时缓存：登录会话（还原后必须重新登录）、可随 HA 连接自动重建的实体/设备/区域目录。
+EXCLUDED_DB_TABLES: tuple[str, ...] = (
+    # 历史事件 / 日志 / 时序
+    "event_logs",
+    "security_events",
+    "notifications",
+    "earthquake_alert_history",
+    "environment_records",
+    "energy_usage_daily",
+    "energy_usage_monthly",
+    "device_usage_stats",
+    # 运行时缓存（会话 / 可重建目录）
+    "sessions",
+    "ha_entities",
+    "ha_devices",
+    "ha_areas",
+    "ha_sync_state",
+)
 
 
 class BackupError(RuntimeError):
@@ -111,15 +142,40 @@ def _sync_directory(directory: Path) -> None:
         os.close(descriptor)
 
 
-def _portable_path(name: str) -> bool:
-    if not isinstance(name, str) or "\\" in name or "\x00" in name:
-        return False
+def _remove_sidecars(database_path: Path) -> None:
+    for suffix in DB_SIDECARS:
+        Path(f"{database_path}{suffix}").unlink(missing_ok=True)
+
+
+def _safe_relative(name: str) -> str | None:
+    """校验 zip 内条目名为安全的相对 posix 路径（拒绝绝对路径 / 反斜杠 / ``..``）。"""
+    if not isinstance(name, str) or not name or "\\" in name or "\x00" in name:
+        return None
     path = PurePosixPath(name)
     if path.is_absolute() or path.as_posix() != name:
-        return False
+        return None
     if any(part in {"", ".", ".."} for part in path.parts):
-        return False
-    return any(name == root or name.startswith(root + "/") for root in ROOTS)
+        return None
+    return name
+
+
+def _is_excluded(relative: str) -> bool:
+    parts = PurePosixPath(relative).parts
+    if parts and parts[0] in EXCLUDED_TOP_DIRS:
+        return True
+    if relative in EXCLUDED_REL_FILES:
+        return True
+    if any(
+        relative == prefix or relative.startswith(prefix + "/")
+        for prefix in EXCLUDED_REL_PREFIXES
+    ):
+        return True
+    name = parts[-1] if parts else relative
+    if name == DB_NAME or name in {f"{DB_NAME}{suffix}" for suffix in DB_SIDECARS}:
+        return True
+    if ".pre-" in name and name.endswith(".bak"):
+        return True
+    return name.endswith(".migrate.lock")
 
 
 def _key(password: str | bytes, salt: bytes) -> bytes:
@@ -132,7 +188,7 @@ def encrypt_archive(source: Path, target: Path, password: str) -> None:
     nonce = os.urandom(12)
     header = MAGIC + salt + nonce
     encryptor = Cipher(algorithms.AES(_key(password, salt)), modes.GCM(nonce)).encryptor()
-    # 对齐 HA Bridge 0.7.1：GCM AAD = MAGIC + salt + nonce
+    # GCM AAD = MAGIC + salt + nonce
     encryptor.authenticate_additional_data(header)
     with source.open("rb") as reader, target.open("wb") as writer:
         writer.write(header)
@@ -167,7 +223,6 @@ def decrypt_archive(source: Path, target: Path, password: str) -> None:
         return decryptor.update(ciphertext) + decryptor.finalize()
 
     try:
-        # 0.7.1 线格式带 AAD；兼容本仓库早期无 AAD 备份。
         try:
             plain = _decrypt(with_aad=True)
         except Exception:
@@ -177,128 +232,197 @@ def decrypt_archive(source: Path, target: Path, password: str) -> None:
     target.write_bytes(plain)
 
 
-def _columns(connection: sqlite3.Connection, table: str) -> list[str]:
-    return [str(row[1]) for row in connection.execute(f"PRAGMA table_info({table})")]
+# ---------------------------------------------------------------------- #
+# 数据库快照
+# ---------------------------------------------------------------------- #
+def _validate_database_file(path: Path) -> None:
+    with closing(sqlite3.connect(f"file:{path}?mode=ro", uri=True)) as connection:
+        integrity = connection.execute("PRAGMA integrity_check").fetchone()
+        if integrity is None or integrity[0] != "ok":
+            detail = integrity[0] if integrity else "no result"
+            raise BackupError(f"数据库完整性校验失败：{detail}")
+        if connection.execute("PRAGMA foreign_key_check").fetchall():
+            raise BackupError("数据库外键校验失败。")
 
 
-def _table_rows(connection: sqlite3.Connection, table: str) -> list[dict[str, Any]]:
-    columns = _columns(connection, table)
-    if not columns:
-        return []
-    rows = connection.execute(f"SELECT * FROM {table}").fetchall()  # noqa: S608 - table 来自内部 TABLES 常量
-    return [dict(zip(columns, row, strict=True)) for row in rows]
+def snapshot_database(settings: Any, target: Path) -> None:
+    """把当前 SQLite 库以 ``VACUUM INTO`` 快照到 ``target``（不阻塞并发读写）。"""
+    source = settings.database_path
+    if not source.is_file() or source.stat().st_size == 0:
+        raise BackupError("数据库文件不存在，无法创建备份。")
+    target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    target.unlink(missing_ok=True)
+    connection = sqlite3.connect(source, isolation_level=None)
+    try:
+        connection.execute("PRAGMA busy_timeout=5000")
+        connection.execute("VACUUM INTO ?", (str(target),))
+    except sqlite3.Error as error:
+        target.unlink(missing_ok=True)
+        raise BackupError(f"生成数据库快照失败：{error}") from error
+    finally:
+        connection.close()
+    _validate_database_file(target)
 
 
-def snapshot(settings: Any, *, portable: bool) -> dict[str, Any]:
-    del portable  # HomeOS 业务备份始终便携，不含账号/授权
-    database_path = settings.database_path
-    tables: dict[str, list[dict[str, Any]]] = {}
-    with closing(sqlite3.connect(f"file:{database_path}?mode=ro", uri=True)) as connection:
-        connection.row_factory = None
-        for table in TABLES:
-            exists = connection.execute(
-                "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
-                (table,),
-            ).fetchone()
-            tables[table] = _table_rows(connection, table) if exists else []
-    ui: list[Any] = []
-    app_config: dict[str, Any] = {}
-    return {
-        "kind": KIND,
-        "product": PRODUCT,
-        "schemaVersion": SCHEMA_VERSION,
-        "version": settings.version,
-        "minimumApplicationVersion": settings.version,
-        "createdAt": _now_iso(),
-        "tables": tables,
-        "roots": list(ROOTS),
-        "ui": ui,
-        "appConfig": app_config,
-        "pairings": 0,
-    }
+def purge_excluded_tables(path: Path) -> list[str]:
+    """清空快照中历史/日志/缓存表的数据（保留表结构），并回收空间。
 
-
-def attach_homeos_bundle_slices(
-    value: dict[str, Any],
-    *,
-    ui: list[Any] | None,
-    app_config: dict[str, Any] | None,
-) -> dict[str, Any]:
-    if isinstance(ui, list):
-        value["ui"] = ui
-    if isinstance(app_config, dict):
-        value["appConfig"] = app_config
-    return value
-
-
-def create_archive(
-    settings: Any,
-    directory: Path,
-    password: str,
-    *,
-    ui: list[Any] | None = None,
-    app_config: dict[str, Any] | None = None,
-) -> Path:
-    if not (8 <= len(password) <= 128):
-        raise BackupError("备份密码长度须为 8–128 个字符。")
-    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
-    value = attach_homeos_bundle_slices(
-        snapshot(settings, portable=True), ui=ui, app_config=app_config
-    )
-    raw = directory / "payload.zip"
-    total = 0
-    file_manifest: dict[str, dict[str, Any]] = {}
-    with ZipFile(raw, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        for root in ROOTS:
-            base = settings.data_dir / root
-            if base.is_symlink():
-                raise BackupError("业务数据目录含符号链接，无法创建完整备份。")
-            if not base.is_dir():
+    只作用于备份快照副本，绝不触碰线上库；缺失的表自动跳过（兼容旧库 schema）。
+    """
+    purged: list[str] = []
+    connection = sqlite3.connect(path, isolation_level=None)
+    try:
+        connection.execute("PRAGMA busy_timeout=5000")
+        existing = {
+            str(row[0])
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        for table in EXCLUDED_DB_TABLES:
+            if table not in existing:
                 continue
-            for path in sorted(base.rglob("*")):
-                if path.is_symlink():
-                    raise BackupError("业务数据含符号链接，无法创建完整备份。")
-                if not path.is_file():
-                    continue
-                relative = path.relative_to(settings.data_dir).as_posix()
-                if not _portable_path(relative):
-                    continue
+            connection.execute(f'DELETE FROM "{table}"')  # noqa: S608 - 表名来自常量白名单
+            purged.append(table)
+        connection.execute("VACUUM")
+    except sqlite3.Error as error:
+        raise BackupError(f"清理历史数据失败：{error}") from error
+    finally:
+        connection.close()
+    return purged
+
+
+def _database_counts(path: Path) -> dict[str, int]:
+    counts = {"projects": 0, "connections": 0, "users": 0}
+    with closing(sqlite3.connect(f"file:{path}?mode=ro", uri=True)) as connection:
+        for key, table in (
+            ("projects", "projects"),
+            ("connections", "ha_connections"),
+            ("users", "users"),
+        ):
+            try:
+                row = connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()  # noqa: S608
+                counts[key] = int(row[0]) if row else 0
+            except sqlite3.Error:
+                counts[key] = 0
+    return counts
+
+
+# ---------------------------------------------------------------------- #
+# 创建备份
+# ---------------------------------------------------------------------- #
+def _data_files(settings: Any) -> list[tuple[Path, str]]:
+    base = settings.data_dir
+    collected: list[tuple[Path, str]] = []
+    if not base.is_dir():
+        return collected
+    for path in sorted(base.rglob("*")):
+        relative = path.relative_to(base).as_posix()
+        if _is_excluded(relative):
+            continue
+        if path.is_symlink():
+            raise BackupError(f"数据目录含符号链接，无法创建完整备份：{relative}")
+        if path.is_file():
+            collected.append((path, relative))
+    return collected
+
+
+def create_payload(settings: Any, directory: Path) -> Path:
+    """构建统一载荷 zip（``manifest.json`` + ``homeos.db`` + 数据文件），返回其路径。"""
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    db_snapshot = directory / DB_NAME
+    snapshot_database(settings, db_snapshot)
+    purged_tables = purge_excluded_tables(db_snapshot)
+    payload = directory / PAYLOAD_NAME
+    files: dict[str, dict[str, Any]] = {}
+    total = db_snapshot.stat().st_size
+    try:
+        with ZipFile(payload, "w", compression=zipfile.ZIP_DEFLATED, allowZip64=True) as archive:
+            archive.write(db_snapshot, arcname=DB_NAME)
+            for path, relative in _data_files(settings):
                 size = path.stat().st_size
                 total += size
-                if total > MAX_EXPANDED or len(file_manifest) >= MAX_FILES:
+                if total > MAX_EXPANDED or len(files) + 1 >= MAX_FILES:
                     raise BackupError(
-                        "业务数据超过本版备份限制（展开后 1 GB、最多 20000 个文件）。"
+                        "业务数据超过本版备份限制（展开后 4 GB、最多 50000 个文件）。"
                     )
-                file_manifest[relative] = {"sha256": _hash(path), "size": size}
+                files[relative] = {"sha256": _hash(path), "size": size}
                 archive.write(path, arcname=relative)
-        value["manifest"] = {
-            "product": PRODUCT,
-            "formatVersion": FORMAT_VERSION,
-            "applicationVersion": settings.version,
-            "minimumRestoreVersion": settings.version,
-            "createdAt": value.get("createdAt") or _now_iso(),
-            "files": file_manifest,
-        }
-        encoded = json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-        if len(encoded) > MAX_JSON or total + len(encoded) > MAX_EXPANDED:
-            raise BackupError("业务配置超过本版备份大小限制。")
-        archive.writestr("business.json", encoded)
-    if raw.stat().st_size > MAX_ARCHIVE - 64:
+            manifest = {
+                "kind": KIND,
+                "product": PRODUCT,
+                "schemaVersion": SCHEMA_VERSION,
+                "formatVersion": FORMAT_VERSION,
+                "version": settings.version,
+                "minimumApplicationVersion": settings.version,
+                "createdAt": _now_iso(),
+                "database": {
+                    "name": DB_NAME,
+                    "sha256": _hash(db_snapshot),
+                    "size": db_snapshot.stat().st_size,
+                },
+                "files": files,
+                "excludedTables": sorted(purged_tables),
+                "includesHistory": False,
+                "hasSecrets": "secrets/ha_credentials.key" in files
+                or any(name.startswith("secrets/") for name in files),
+            }
+            encoded = json.dumps(manifest, ensure_ascii=False, separators=(",", ":")).encode(
+                "utf-8"
+            )
+            if len(encoded) > MAX_JSON:
+                raise BackupError("备份清单过大。")
+            archive.writestr(MANIFEST_NAME, encoded)
+    finally:
+        db_snapshot.unlink(missing_ok=True)
+    return payload
+
+
+def create_archive(settings: Any, directory: Path, password: str) -> Path:
+    """创建加密全量备份（``.habackup``），供手动下载。"""
+    if not (8 <= len(password) <= 128):
+        raise BackupError("备份密码长度须为 8–128 个字符。")
+    payload = create_payload(settings, directory)
+    if payload.stat().st_size > MAX_ARCHIVE - 64:
         raise BackupError("生成的备份超过 512 MB，请先清理不需要的业务素材。")
     result = directory / "backup.habackup"
-    encrypt_archive(raw, result, password)
-    raw.unlink(missing_ok=True)
+    encrypt_archive(payload, result, password)
+    payload.unlink(missing_ok=True)
     return result
 
 
-def _verify_manifest_files(archive: ZipFile, files: dict[str, Any]) -> None:
-    """核对 zip 内文件与 manifest.files 的 sha256 / size（有清单时强制）。"""
-    if not files:
-        return
+def create_plain_archive(settings: Any, directory: Path, filename: str) -> Path:
+    """创建明文全量备份包（zip），供服务器本地自动备份落盘。"""
+    payload = create_payload(settings, directory)
+    target = directory / filename
+    payload.replace(target)
+    return target
+
+
+# ---------------------------------------------------------------------- #
+# 检查 / 预览
+# ---------------------------------------------------------------------- #
+def stage_payload(source: Path, directory: Path, password: str | None) -> Path:
+    """把上传的加密包或明文 zip 统一落成 ``directory/payload.zip``。"""
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    payload = directory / PAYLOAD_NAME
+    with source.open("rb") as reader:
+        head = reader.read(len(MAGIC))
+    if head.startswith(MAGIC):
+        if not password:
+            raise BackupError("该备份已加密，请提供备份密码。")
+        decrypt_archive(source, payload, password)
+    elif head[:2] == b"PK":
+        shutil.copyfile(source, payload)
+    else:
+        raise BackupError("不是有效的 HomeOS 备份文件。")
+    return payload
+
+
+def _verify_archive(archive: ZipFile, manifest: dict[str, Any]) -> None:
     names = set(archive.namelist())
-    for relative, meta in files.items():
-        if not isinstance(relative, str) or not _portable_path(relative):
-            raise BackupError("备份清单含非法路径。")
+
+    def _check(relative: str, meta: Any) -> None:
         if relative not in names:
             raise BackupError(f"备份缺少清单文件：{relative}")
         info = archive.getinfo(relative)
@@ -309,7 +433,7 @@ def _verify_manifest_files(archive: ZipFile, files: dict[str, Any]) -> None:
             str((meta or {}).get("sha256") or "").lower() if isinstance(meta, dict) else ""
         )
         if not expected_hash:
-            continue
+            return
         digest = hashlib.sha256()
         with archive.open(relative) as reader:
             while True:
@@ -320,398 +444,354 @@ def _verify_manifest_files(archive: ZipFile, files: dict[str, Any]) -> None:
         if digest.hexdigest() != expected_hash:
             raise BackupError(f"备份文件摘要与清单不符：{relative}")
 
+    database = manifest.get("database")
+    if isinstance(database, dict) and database.get("name"):
+        _check(str(database["name"]), database)
+    for relative, meta in (manifest.get("files") or {}).items():
+        if _safe_relative(relative) is None:
+            raise BackupError("备份清单含非法路径。")
+        _check(relative, meta)
 
-def inspect_archive(settings: Any, directory: Path, password: str) -> dict[str, Any]:
-    upload = directory / "upload.habackup"
-    raw = directory / "payload.zip"
-    decrypt_archive(upload, raw, password)
-    with ZipFile(raw, "r") as archive:
-        names = archive.namelist()
-        if "business.json" not in names:
-            raise BackupError("备份内容缺少 business.json。")
-        encoded = archive.read("business.json")
+
+def read_manifest(payload: Path) -> dict[str, Any]:
+    """读取并校验 zip 内 ``manifest.json`` 与文件清单。"""
+    with ZipFile(payload, "r") as archive:
+        names = set(archive.namelist())
+        if MANIFEST_NAME not in names:
+            raise BackupError("备份内容缺少 manifest.json。")
+        encoded = archive.read(MANIFEST_NAME)
         if len(encoded) > MAX_JSON:
             raise BackupError("备份元数据过大。")
-        value = json.loads(encoded.decode("utf-8"))
-        (directory / "business.json").write_bytes(encoded)
-        manifest = value.get("manifest") if isinstance(value.get("manifest"), dict) else {}
-        files = manifest.get("files") if isinstance(manifest.get("files"), dict) else {}
-        _verify_manifest_files(archive, files)
-    validate_business(settings, value)
-    manifest = value.get("manifest") if isinstance(value.get("manifest"), dict) else {}
-    files = manifest.get("files") if isinstance(manifest.get("files"), dict) else {}
-    file_count = len(files) if files else max(0, len(names) - 1)
-    tables = value.get("tables") or {}
-    version = (
-        manifest.get("applicationVersion")
-        or value.get("version")
-        or ""
+        manifest = json.loads(encoded.decode("utf-8"))
+        if not isinstance(manifest, dict):
+            raise BackupError("备份元数据无效。")
+        if DB_NAME not in names:
+            raise BackupError("备份缺少数据库快照。")
+        _verify_archive(archive, manifest)
+    return manifest
+
+
+def inspect_payload(settings: Any, directory: Path) -> dict[str, Any]:
+    """校验已落地的载荷并返回预览信息（不改动任何现有数据）。"""
+    payload = directory / PAYLOAD_NAME
+    if not payload.is_file():
+        raise BackupError("备份内容缺失。")
+    if payload.stat().st_size > MAX_ARCHIVE:
+        raise BackupError("备份文件超过 512 MB 上限。")
+    manifest = read_manifest(payload)
+    (directory / MANIFEST_NAME).write_bytes(
+        json.dumps(manifest, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     )
-    minimum = (
-        manifest.get("minimumRestoreVersion")
-        or value.get("minimumApplicationVersion")
-        or version
-        or ""
-    )
+    validate_full_backup(settings, manifest)
+
+    stats_path = directory / f"inspect-{uuid4().hex}.db"
+    try:
+        with ZipFile(payload, "r") as archive, archive.open(DB_NAME) as source, stats_path.open("wb") as target:
+            shutil.copyfileobj(source, target)
+        _validate_database_file(stats_path)
+        counts = _database_counts(stats_path)
+    finally:
+        stats_path.unlink(missing_ok=True)
+
+    database = manifest.get("database") or {}
+    files = manifest.get("files") or {}
     return {
-        "kind": value.get("kind") or KIND,
-        "product": manifest.get("product") or value.get("product") or PRODUCT,
-        "version": version,
-        "minimumApplicationVersion": minimum,
-        "createdAt": manifest.get("createdAt") or value.get("createdAt") or "",
-        "projects": len(tables.get("projects") or []),
-        "connections": len(tables.get("ha_connections") or []),
-        "files": file_count,
-        "pairings": int(value.get("pairings") or 0),
-        "hasUi": isinstance(value.get("ui"), list),
-        "hasAppConfig": isinstance(value.get("appConfig"), dict),
+        "kind": manifest.get("kind") or KIND,
+        "product": manifest.get("product") or PRODUCT,
+        "version": manifest.get("version") or "",
+        "minimumApplicationVersion": manifest.get("minimumApplicationVersion")
+        or manifest.get("version")
+        or "",
+        "createdAt": manifest.get("createdAt") or "",
+        "projects": counts["projects"],
+        "connections": counts["connections"],
+        "users": counts["users"],
+        "files": len(files),
+        "databaseSize": int(database.get("size") or 0),
+        "hasSecrets": bool(manifest.get("hasSecrets")),
+        "includesHistory": bool(manifest.get("includesHistory", True)),
+        "excludedTables": len(manifest.get("excludedTables") or []),
         "expiresIn": JOB_TTL_SECONDS,
     }
 
 
-def validate_business(settings: Any, value: dict[str, Any]) -> None:
+def inspect_archive(settings: Any, directory: Path, password: str) -> dict[str, Any]:
+    """解密并检查上传的 ``upload.habackup``，返回预览信息。"""
+    upload = directory / "upload.habackup"
+    if not upload.is_file():
+        raise BackupError("请选择备份文件。")
+    stage_payload(upload, directory, password)
+    return inspect_payload(settings, directory)
+
+
+def validate_full_backup(settings: Any, value: dict[str, Any]) -> None:
     if not isinstance(value, dict):
         raise BackupError("备份元数据无效。")
     kind = value.get("kind")
-    product = ""
-    manifest = value.get("manifest")
-    if isinstance(manifest, dict):
-        product = str(manifest.get("product") or "")
-        format_version = int(manifest.get("formatVersion") or 0)
-        if format_version and format_version > FORMAT_VERSION:
-            raise BackupError(
-                f"备份格式版本 {format_version} 高于当前程序支持的 {FORMAT_VERSION}，请先升级程序。"
-            )
-        minimum = str(manifest.get("minimumRestoreVersion") or "").strip()
-    else:
-        minimum = str(value.get("minimumApplicationVersion") or value.get("version") or "").strip()
-    if kind not in {KIND, "ha-bridge-business-backup", None} and product not in {
-        PRODUCT,
-        "HA Bridge",
-        "",
-    }:
-        if kind not in {None, KIND} and not str(kind).endswith("business-backup"):
-            raise BackupError("不是 HomeOS / 兼容的业务备份包。")
+    if kind not in {KIND, None} and not str(kind).endswith("full-backup"):
+        raise BackupError("不是 HomeOS 全量备份包。")
+    format_version = int(value.get("formatVersion") or 0)
+    if format_version and format_version > FORMAT_VERSION:
+        raise BackupError(
+            f"备份格式版本 {format_version} 高于当前程序支持的 {FORMAT_VERSION}，请先升级程序。"
+        )
     schema = int(value.get("schemaVersion") or 0)
     if schema > SCHEMA_VERSION:
         raise BackupError(
             f"备份格式版本 {schema} 高于当前程序支持的 {SCHEMA_VERSION}，请先升级程序。"
         )
+    minimum = str(
+        value.get("minimumApplicationVersion") or value.get("version") or ""
+    ).strip()
     if minimum and compare_application_versions(settings.version, minimum) < 0:
         raise BackupError(
-            f"此备份要求程序版本 ≥ {minimum}，当前为 {settings.version}。"
-            "请升级后再恢复。"
+            f"此备份要求程序版本 ≥ {minimum}，当前为 {settings.version}。请升级后再恢复。"
         )
-    tables = value.get("tables")
-    if not isinstance(tables, dict):
-        raise BackupError("备份缺少业务表数据。")
-    official_set = set(OFFICIAL_TABLES)
-    table_keys = set(tables)
-    if table_keys == official_set or official_set.issubset(table_keys):
-        return
-    required = {"ha_connections", "projects", "project_drafts"}
-    if not required.issubset(table_keys):
-        raise BackupError("备份业务数据范围不完整。")
+    database = value.get("database")
+    if not isinstance(database, dict) or not database.get("name"):
+        raise BackupError("备份缺少数据库快照。")
 
 
-def _journal_path(settings: Any) -> Path:
-    return settings.data_dir / "backup-recovery" / "journal.json"
+# ---------------------------------------------------------------------- #
+# 恢复（整库原样还原 + 数据文件替换）
+# ---------------------------------------------------------------------- #
+def _recovery_root(settings: Any) -> Path:
+    return settings.data_dir / RECOVERY_DIR
 
 
-def _replace_rows(
-    connection: sqlite3.Connection,
-    value: dict[str, Any],
+def _write_journal(rollback_dir: Path, journal: dict[str, Any]) -> None:
+    (rollback_dir / RECOVERY_JOURNAL).write_text(
+        json.dumps(journal, ensure_ascii=False), encoding="utf-8"
+    )
+
+
+def _extract_data_files(archive: ZipFile, extract_root: Path) -> None:
+    for info in archive.infolist():
+        name = info.filename
+        if name.endswith("/") or name in {DB_NAME, MANIFEST_NAME}:
+            continue
+        if _safe_relative(name) is None:
+            raise BackupError("备份含非法路径，已中止恢复。")
+        target = extract_root / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with archive.open(info) as source, target.open("wb") as destination:
+            shutil.copyfileobj(source, destination)
+
+
+def _restore_data_files(
     settings: Any,
+    payload: Path,
+    directory: Path,
+    rollback_dir: Path,
+    journal: dict[str, Any],
 ) -> None:
-    del settings
-    tables = value.get("tables") or {}
-    for table in DELETE_ORDER:
-        exists = connection.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
-            (table,),
-        ).fetchone()
-        if exists is None:
-            continue
-        connection.execute(f'DELETE FROM "{table}"')  # noqa: S608 - table 来自内部 TABLES 常量
-    for table in TABLES:
-        exists = connection.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
-            (table,),
-        ).fetchone()
-        if exists is None:
-            continue
-        rows = tables.get(table) or []
-        columns = _columns(connection, table)
-        if not rows or not columns:
-            continue
-        placeholders = ",".join("?" for _ in columns)
-        col_sql = ",".join(f'"{column}"' for column in columns)
-        for row in rows:
-            if not isinstance(row, dict):
-                continue
-            connection.execute(
-                f'INSERT INTO "{table}" ({col_sql}) VALUES ({placeholders})',  # noqa: S608 - table/columns 来自内部常量
-                [row.get(column) for column in columns],
-            )
-
-
-def _has_sync_document_column(connection: sqlite3.Connection) -> bool:
-    exists = connection.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='studio_interaction_sync'"
-    ).fetchone()
-    if exists is None:
-        return False
-    return "document_json" in _columns(connection, "studio_interaction_sync")
-
-
-def _commit_marker(connection: sqlite3.Connection) -> str | None:
-    if not _has_sync_document_column(connection):
-        return None
-    row = connection.execute(
-        "SELECT document_json FROM studio_interaction_sync WHERE id=1"
-    ).fetchone()
-    if not row or not row[0]:
-        return None
-    try:
-        document = json.loads(row[0])
-    except json.JSONDecodeError:
-        return None
-    marker = document.get(COMMIT_KEY) if isinstance(document, dict) else None
-    return str(marker) if marker else None
-
-
-def _write_commit_marker(connection: sqlite3.Connection, identifier: str) -> None:
-    if not _has_sync_document_column(connection):
-        return
-    row = connection.execute(
-        "SELECT document_json FROM studio_interaction_sync WHERE id=1"
-    ).fetchone()
-    try:
-        document = json.loads(row[0]) if row and row[0] else {}
-    except json.JSONDecodeError:
-        document = {}
-    if not isinstance(document, dict):
-        document = {}
-    document[COMMIT_KEY] = identifier
-    encoded = json.dumps(document, ensure_ascii=False, separators=(",", ":"))
-    if row:
-        connection.execute(
-            "UPDATE studio_interaction_sync SET document_json=? WHERE id=1",
-            (encoded,),
-        )
-    else:
-        connection.execute(
-            "INSERT INTO studio_interaction_sync (id, document_json) VALUES (1, ?)",
-            (encoded,),
-        )
-
-
-def _clear_commit_marker(connection: sqlite3.Connection, identifier: str) -> None:
-    if _commit_marker(connection) != identifier:
-        return
-    row = connection.execute(
-        "SELECT document_json FROM studio_interaction_sync WHERE id=1"
-    ).fetchone()
-    if not row or not row[0]:
-        return
-    try:
-        document = json.loads(row[0])
-    except json.JSONDecodeError:
-        return
-    if not isinstance(document, dict):
-        return
-    document.pop(COMMIT_KEY, None)
-    connection.execute(
-        "UPDATE studio_interaction_sync SET document_json=? WHERE id=1",
-        (json.dumps(document, ensure_ascii=False, separators=(",", ":")),),
-    )
-
-
-def _snapshot_current_tables(settings: Any, target: Path) -> None:
-    tables: dict[str, list[dict[str, Any]]] = {}
-    with closing(sqlite3.connect(f"file:{settings.database_path}?mode=ro", uri=True)) as connection:
-        for table in TABLES:
-            exists = connection.execute(
-                "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
-                (table,),
-            ).fetchone()
-            tables[table] = _table_rows(connection, table) if exists else []
-    target.write_text(
-        json.dumps({"tables": tables}, ensure_ascii=False, separators=(",", ":")),
-        encoding="utf-8",
-    )
-
-
-def _restore_files(settings: Any, directory: Path, journal: dict[str, Any]) -> None:
-    raw = directory / "payload.zip"
     extract_root = directory / "extracted"
     if extract_root.exists():
         shutil.rmtree(extract_root)
     extract_root.mkdir(parents=True, exist_ok=True)
-    business = json.loads((directory / "business.json").read_text(encoding="utf-8"))
-    manifest = business.get("manifest") if isinstance(business.get("manifest"), dict) else {}
-    files = manifest.get("files") if isinstance(manifest.get("files"), dict) else {}
-    with ZipFile(raw, "r") as archive:
-        for info in archive.infolist():
-            name = info.filename
-            if name.endswith("/") or name == "business.json":
-                continue
-            if not _portable_path(name):
-                raise BackupError("备份含非法路径，已中止恢复。")
-        _verify_manifest_files(archive, files)
-        archive.extractall(extract_root)
-    for root in ROOTS:
-        target = settings.data_dir / root
-        source = extract_root / root
-        if target.exists():
-            backup_name = journal.setdefault("existing", {}).get(root)
-            if not backup_name:
-                stamped = (
-                    settings.data_dir
-                    / "backup-recovery"
-                    / f"{root.replace('/', '_')}-{journal['id']}"
-                )
-                stamped.parent.mkdir(parents=True, exist_ok=True)
-                shutil.move(str(target), str(stamped))
-                journal["existing"][root] = str(stamped)
-                _sync_directory(stamped.parent)
-        if source.exists():
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(source), str(target))
-            _sync_directory(target.parent)
+    with ZipFile(payload, "r") as archive:
+        _extract_data_files(archive, extract_root)
 
-
-def _rollback_files(journal: dict[str, Any], settings: Any) -> None:
-    for root in reversed(ROOTS):
-        stamped = journal.get("existing", {}).get(root)
-        if not stamped:
+    created: list[str] = journal.setdefault("created", [])
+    moved: dict[str, str] = journal.setdefault("moved", {})
+    aside = rollback_dir / RECOVERY_ASIDE
+    for source in sorted(extract_root.iterdir()):
+        top = source.name
+        if top in {DB_NAME, MANIFEST_NAME}:
             continue
-        stamped_path = Path(stamped)
-        target = settings.data_dir / root
-        if not stamped_path.exists():
-            continue
-        if target.exists():
-            shutil.rmtree(target, ignore_errors=True)
+        target = settings.data_dir / top
+        # 先落盘「回退意图」再动文件：即使中途崩溃，启动期回滚也能据此还原。
+        if target.exists() or target.is_symlink():
+            stored = aside / top
+            _remove_path(stored)
+            moved[top] = str(stored)
+            _write_journal(rollback_dir, journal)
+            aside.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(target), str(stored))
+        else:
+            created.append(top)
+            _write_journal(rollback_dir, journal)
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(stamped_path), str(target))
+        shutil.move(str(source), str(target))
         _sync_directory(target.parent)
+    _write_journal(rollback_dir, journal)
 
 
-def restore_business(settings: Any, directory: Path, user_id: str | None = None) -> dict[str, Any]:
-    del user_id
-    value = json.loads((directory / "business.json").read_text(encoding="utf-8"))
-    validate_business(settings, value)
-    recovery = settings.data_dir / "backup-recovery"
+def _remove_path(path: Path) -> None:
+    if path.is_dir() and not path.is_symlink():
+        shutil.rmtree(path, ignore_errors=True)
+    elif path.exists() or path.is_symlink():
+        path.unlink(missing_ok=True)
+
+
+def _rollback_restore(
+    settings: Any,
+    rollback_dir: Path,
+    journal: dict[str, Any],
+    dispose: Callable[[], None] | None,
+) -> None:
+    """把本次还原新建的数据文件删除，并把移出副本与数据库快照搬回原位。"""
+    for top in journal.get("created", []):
+        _remove_path(settings.data_dir / top)
+    for top, stored in (journal.get("moved") or {}).items():
+        stored_path = Path(str(stored))
+        if not stored_path.exists():
+            continue
+        target = settings.data_dir / top
+        _remove_path(target)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(stored_path), str(target))
+        _sync_directory(target.parent)
+    if journal.get("dbReplaced"):
+        snapshot = rollback_dir / DB_NAME
+        if snapshot.is_file():
+            if dispose is not None:
+                try:
+                    dispose()
+                except Exception:
+                    logger.warning("释放数据库连接池失败", exc_info=True)
+            _remove_sidecars(settings.database_path)
+            os.replace(str(snapshot), str(settings.database_path))
+            os.chmod(settings.database_path, 0o600)
+
+
+def restore_business(
+    settings: Any,
+    directory: Path,
+    *,
+    dispose: Callable[[], None] | None = None,
+) -> dict[str, Any]:
+    """把 ``directory/payload.zip`` 整体还原到当前数据目录，全程可回滚。
+
+    回退材料（还原前的数据库快照 + 被替换掉的顶层数据目录项）统一放在
+    ``data_dir/backup-recovery/<id>/``。成功时保留该目录作为「还原后反悔」副本
+    （由 :meth:`BackupCoordinator.prune_rollbacks` 限量），失败时自动回滚并清掉。
+    """
+    payload = directory / PAYLOAD_NAME
+    manifest = read_manifest(payload)
+    validate_full_backup(settings, manifest)
+
+    recovery = _recovery_root(settings)
     recovery.mkdir(parents=True, exist_ok=True, mode=0o700)
     identifier = uuid4().hex
-    old_tables_path = recovery / f"{identifier}-old-tables.json"
-    journal = {
+    rollback_dir = recovery / identifier
+    rollback_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    journal: dict[str, Any] = {
         "id": identifier,
-        "phase": "files",
+        "phase": "snapshot",
         "startedAt": _now_iso(),
-        "existing": {},
-        "oldTables": str(old_tables_path),
+        "moved": {},
+        "created": [],
+        "dbReplaced": False,
     }
-    journal_path = _journal_path(settings)
-    journal_path.write_text(json.dumps(journal, ensure_ascii=False), encoding="utf-8")
+    _write_journal(rollback_dir, journal)
     try:
-        _snapshot_current_tables(settings, old_tables_path)
-        _restore_files(settings, directory, journal)
+        # 1) 当前数据库回退快照
+        snapshot_database(settings, rollback_dir / DB_NAME)
+        journal["phase"] = "files"
+        _write_journal(rollback_dir, journal)
+
+        # 2) 数据文件（不含数据库）替换
+        _restore_data_files(settings, payload, directory, rollback_dir, journal)
         journal["phase"] = "database"
-        journal_path.write_text(json.dumps(journal, ensure_ascii=False), encoding="utf-8")
-        with closing(sqlite3.connect(settings.database_path)) as connection:
-            connection.execute("PRAGMA foreign_keys=OFF")
+        _write_journal(rollback_dir, journal)
+
+        # 3) 数据库原子替换
+        restored_db = directory / "restored.db"
+        restored_db.unlink(missing_ok=True)
+        with (
+            ZipFile(payload, "r") as archive,
+            archive.open(DB_NAME) as source,
+            restored_db.open("wb") as destination,
+        ):
+            shutil.copyfileobj(source, destination)
+        _validate_database_file(restored_db)
+        os.chmod(restored_db, 0o600)
+        if dispose is not None:
             try:
-                _replace_rows(connection, value, settings)
-                _write_commit_marker(connection, identifier)
-                connection.commit()
-            finally:
-                connection.execute("PRAGMA foreign_keys=ON")
-        write_data_compatibility_marker(
-            settings,
-            minimum=str(
-                (value.get("manifest") or {}).get("minimumRestoreVersion")
-                or value.get("minimumApplicationVersion")
-                or settings.version
-            ),
-        )
-        with closing(sqlite3.connect(settings.database_path)) as connection:
-            _clear_commit_marker(connection, identifier)
-            connection.commit()
+                dispose()
+            except Exception:
+                logger.warning("释放数据库连接池失败", exc_info=True)
+        _remove_sidecars(settings.database_path)
+        os.replace(restored_db, settings.database_path)
+        os.chmod(settings.database_path, 0o600)
+        journal["dbReplaced"] = True
+        _write_journal(rollback_dir, journal)
+
+        # 4) 迁移到当前程序 head + 写数据兼容标记
+        run_migrations(settings)
+        write_data_compatibility_marker(settings)
+
         journal["phase"] = "done"
-        journal_path.write_text(json.dumps(journal, ensure_ascii=False), encoding="utf-8")
-        journal_path.unlink(missing_ok=True)
-        old_tables_path.unlink(missing_ok=True)
-        return {
-            "ok": True,
-            "ui": value.get("ui") if isinstance(value.get("ui"), list) else None,
-            "appConfig": value.get("appConfig")
-            if isinstance(value.get("appConfig"), dict)
-            else None,
-        }
+        journal["finishedAt"] = _now_iso()
+        _write_journal(rollback_dir, journal)
+        return {"ok": True, "restored": True, "rollback": str(rollback_dir)}
     except Exception:
         try:
-            with closing(sqlite3.connect(settings.database_path)) as connection:
-                committed = _commit_marker(connection) == identifier
-            if not committed:
-                _rollback_files(journal, settings)
-                if old_tables_path.is_file():
-                    old = json.loads(old_tables_path.read_text(encoding="utf-8"))
-                    with closing(sqlite3.connect(settings.database_path)) as connection:
-                        connection.execute("PRAGMA foreign_keys=OFF")
-                        try:
-                            _replace_rows(connection, old, settings)
-                            connection.commit()
-                        finally:
-                            connection.execute("PRAGMA foreign_keys=ON")
-                journal_path.unlink(missing_ok=True)
-                old_tables_path.unlink(missing_ok=True)
+            _rollback_restore(settings, rollback_dir, journal, dispose)
+            shutil.rmtree(rollback_dir, ignore_errors=True)
         except Exception:
-            logger.exception("业务恢复失败后的自动回滚未完成")
+            logger.exception("全量恢复失败后的自动回滚未完成")
         raise
 
 
 def recover_interrupted_restore(settings: Any) -> bool:
-    journal_path = _journal_path(settings)
-    if not journal_path.is_file():
+    """启动期检测未完成的恢复并回滚；回滚失败返回 True（需人工介入）。"""
+    root = _recovery_root(settings)
+    if not root.is_dir():
         return False
-    try:
-        journal = json.loads(journal_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        journal_path.unlink(missing_ok=True)
-        return False
-    phase = journal.get("phase")
-    identifier = str(journal.get("id") or "")
-    if phase == "done" or not identifier:
-        journal_path.unlink(missing_ok=True)
-        return False
-    try:
-        with closing(sqlite3.connect(settings.database_path)) as connection:
-            committed = _commit_marker(connection) == identifier
-            if committed:
-                _clear_commit_marker(connection, identifier)
-                connection.commit()
-                journal_path.unlink(missing_ok=True)
-                Path(str(journal.get("oldTables") or "")).unlink(missing_ok=True)
-                return False
-        _rollback_files(journal, settings)
-        old_tables_path = Path(str(journal.get("oldTables") or ""))
-        if old_tables_path.is_file():
-            old = json.loads(old_tables_path.read_text(encoding="utf-8"))
-            with closing(sqlite3.connect(settings.database_path)) as connection:
-                connection.execute("PRAGMA foreign_keys=OFF")
-                try:
-                    _replace_rows(connection, old, settings)
-                    connection.commit()
-                finally:
-                    connection.execute("PRAGMA foreign_keys=ON")
-            old_tables_path.unlink(missing_ok=True)
-        journal_path.unlink(missing_ok=True)
-        logger.warning("未完成的业务备份恢复已自动回滚（phase=%s）。", phase)
-        return False
-    except Exception:
-        logger.exception("检测到未完成的业务备份恢复（phase=%s），自动回滚失败。", phase)
-        return True
+    failed = False
+    for rollback_dir in sorted(path for path in root.iterdir() if path.is_dir()):
+        journal_path = rollback_dir / RECOVERY_JOURNAL
+        if not journal_path.is_file():
+            shutil.rmtree(rollback_dir, ignore_errors=True)
+            continue
+        try:
+            journal = json.loads(journal_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            shutil.rmtree(rollback_dir, ignore_errors=True)
+            continue
+        phase = journal.get("phase")
+        if phase == "done":
+            continue
+        try:
+            _rollback_restore(settings, rollback_dir, journal, None)
+            shutil.rmtree(rollback_dir, ignore_errors=True)
+            logger.warning("未完成的全量恢复已自动回滚（phase=%s）。", phase)
+        except Exception:
+            failed = True
+            logger.exception("检测到未完成的全量恢复（phase=%s），自动回滚失败。", phase)
+    return failed
+
+
+async def refresh_runtime_after_restore(app: Any) -> None:
+    """整库还原后重建内存态：系统配置、素材目录与 HA 连接。
+
+    数据库被整体替换后，进程内缓存（``AppConfigService._config``、素材目录、HA 连接）
+    仍是旧值，必须重建；登录会话已在快照中清空，管理员需重新登录。
+    """
+    app_config = getattr(app.state, "app_config", None)
+    reload_config = getattr(app_config, "reload_from_db", None)
+    if callable(reload_config):
+        try:
+            reload_config()
+        except Exception:
+            logger.warning("还原后重载系统配置失败", exc_info=True)
+
+    catalog = getattr(app.state, "asset_catalog", None)
+    if catalog is not None and hasattr(catalog, "reload_user"):
+        try:
+            catalog.reload_user()
+        except Exception:
+            logger.warning("还原后重载素材目录失败", exc_info=True)
+
+    connector = getattr(app.state, "ha_connector", None)
+    restart = getattr(connector, "restart", None)
+    if callable(restart):
+        try:
+            await restart()
+        except Exception:
+            logger.warning("还原后重连 Home Assistant 失败", exc_info=True)
 
 
 async def durable_work(function: Any, *args: Any) -> Any:
@@ -719,6 +799,8 @@ async def durable_work(function: Any, *args: Any) -> Any:
 
 
 class BackupCoordinator:
+    """业务备份会话协调器：票据、限流、维护标记与启动期清理。"""
+
     def __init__(self, app: Any) -> None:
         self.app = app
         self.jobs: dict[str, dict[str, Any]] = {}
@@ -733,12 +815,10 @@ class BackupCoordinator:
         settings = self.app.state.settings
         work = settings.data_dir / "backup-work"
         if work.is_dir():
-            for child in work.iterdir():
-                if child.is_dir():
-                    for filename in ("business.json", "upload.habackup", "payload.zip"):
-                        (child / filename).unlink(missing_ok=True)
+            shutil.rmtree(work, ignore_errors=True)
         if recover_interrupted_restore(settings):
             self.recovery_required = True
+        self.prune_rollbacks()
 
     def workspace(self) -> Path:
         root = self.app.state.settings.data_dir / "backup-work" / uuid4().hex
@@ -758,53 +838,43 @@ class BackupCoordinator:
             if job:
                 self.cleanup_job(job.get("directory"))
 
-    def prune_rollbacks(self) -> None:
-        recovery = self.app.state.settings.data_dir / "backup-recovery"
+    def prune_rollbacks(self, keep: int = ROLLBACK_KEEP) -> None:
+        """只保留最近若干个**已完成**的还原回退副本，避免磁盘无限增长。"""
+        recovery = _recovery_root(self.app.state.settings)
         if not recovery.is_dir():
             return
-        # 保留最近若干本地回退目录，避免无限膨胀。
-        dirs = sorted(
-            [path for path in recovery.iterdir() if path.is_dir()],
-            key=lambda path: path.stat().st_mtime,
-            reverse=True,
-        )
-        for stale in dirs[5:]:
+        finished = []
+        for path in recovery.iterdir():
+            if not path.is_dir():
+                continue
+            if not (path / RECOVERY_JOURNAL).is_file():
+                shutil.rmtree(path, ignore_errors=True)
+                continue
+            finished.append(path)
+        finished.sort(key=lambda path: path.stat().st_mtime, reverse=True)
+        for stale in finished[max(0, keep):]:
             shutil.rmtree(stale, ignore_errors=True)
 
 
-class BackupMaintenanceMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app: Any, coordinator: BackupCoordinator) -> None:
-        super().__init__(app)
-        self.coordinator = coordinator
-
-    async def dispatch(self, request: Request, call_next: Any):
-        path = request.url.path
-        if self.coordinator.maintenance and path.startswith("/api/v1/") and not path.startswith(
-            "/api/v1/backups"
-        ):
-            return JSONResponse(
-                status_code=503,
-                content={"detail": "正在恢复业务数据，请稍候…"},
-            )
-        if self.coordinator.recovery_required and path.startswith("/api/v1/backups"):
-            return JSONResponse(
-                status_code=503,
-                content={"detail": "恢复回退尚未完成，请重启服务或联系管理员后再试备份操作。"},
-            )
-        return await call_next(request)
-
-
 __all__ = [
+    "EXCLUDED_DB_TABLES",
     "JOB_TTL_SECONDS",
+    "KIND",
     "MAX_ARCHIVE",
     "BackupCoordinator",
     "BackupError",
-    "BackupMaintenanceMiddleware",
     "create_archive",
+    "create_payload",
+    "create_plain_archive",
     "decrypt_archive",
     "durable_work",
     "inspect_archive",
+    "inspect_payload",
+    "purge_excluded_tables",
+    "read_manifest",
     "recover_interrupted_restore",
+    "refresh_runtime_after_restore",
     "restore_business",
-    "snapshot",
+    "snapshot_database",
+    "stage_payload",
 ]

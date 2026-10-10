@@ -1,8 +1,8 @@
-"""USGS 震中坐标 → 中文地名（反向地理编码 + Redis 缓存）。
+"""USGS 震中坐标 → 中文地名（反向地理编码 + 进程内缓存）。
 
 对齐 ``earthquake/place-localize.util.ts``：
  - BigDataCloud 首选、Nominatim 兜底；
- - 内存 Map → Redis（30 天 TTL）→ 远程 API 三级缓存；
+ - 内存 Map → 远程 API 两级缓存；
  - 批量并发查询（4 并发，最多 40 个坐标）；
  - 仅保留含 CJK 字符的结果，过滤无效翻译。
 """
@@ -19,10 +19,6 @@ from typing import Any
 
 logger = logging.getLogger("homeos.earthquake.place")
 
-#: Redis 缓存键前缀
-PLACE_ZH_CACHE_PREFIX = "homeos:eew:place-zh:"
-#: Redis 缓存 TTL（秒），30 天
-PLACE_ZH_CACHE_TTL_SEC = 30 * 24 * 60 * 60
 #: 单次反向地理编码请求超时（毫秒）
 PLACE_ZH_LOOKUP_TIMEOUT_MS = 4_000
 #: 单次批量查询最多处理的坐标数
@@ -40,20 +36,13 @@ _CJK_RE = re.compile(r"[\u3400-\u9fff]")
 
 @dataclass
 class PlaceLocalizeDeps:
-    """地点本地化依赖注入（HTTP GET + Redis get/set）。"""
+    """地点本地化依赖注入（HTTP GET）。"""
 
     get: Callable[[str, dict[str, Any]], Awaitable[dict[str, Any]]]
-    redis_get: Callable[[str], Awaitable[Any]] | None = None
-    redis_set: Callable[[str, str, int], Awaitable[Any]] | None = None
 
 
 def _fixed2(value: float) -> str:
     return f"{float(value):.2f}"
-
-
-def place_localize_cache_key(latitude: float, longitude: float) -> str:
-    """坐标对应的 Redis 缓存键（精度 2 位小数）。"""
-    return f"{PLACE_ZH_CACHE_PREFIX}{_fixed2(latitude)}:{_fixed2(longitude)}"
 
 
 def coord_key(latitude: float, longitude: float) -> str:
@@ -118,32 +107,6 @@ def has_cjk_text(text: str) -> bool:
     return bool(_CJK_RE.search(text or ""))
 
 
-async def _read_cached_place(
-    deps: PlaceLocalizeDeps, latitude: float, longitude: float
-) -> str | None:
-    if deps.redis_get is None:
-        return None
-    try:
-        raw = await deps.redis_get(place_localize_cache_key(latitude, longitude))
-    except Exception:
-        return None
-    text = str(raw.decode("utf-8", "ignore") if isinstance(raw, bytes) else (raw or "")).strip()
-    return text or None
-
-
-async def _write_cached_place(
-    deps: PlaceLocalizeDeps, latitude: float, longitude: float, place_zh: str
-) -> None:
-    if deps.redis_set is None:
-        return
-    try:
-        await deps.redis_set(
-            place_localize_cache_key(latitude, longitude), place_zh, PLACE_ZH_CACHE_TTL_SEC
-        )
-    except Exception:
-        pass
-
-
 async def lookup_place_zh_remote(
     deps: PlaceLocalizeDeps, latitude: float, longitude: float
 ) -> str | None:
@@ -203,15 +166,8 @@ async def _resolve_place_zh(
     if key in memory_cache:
         return memory_cache[key]
 
-    cached = await _read_cached_place(deps, latitude, longitude)
-    if cached:
-        memory_cache[key] = cached
-        return cached
-
     remote = await lookup_place_zh_remote(deps, latitude, longitude)
     memory_cache[key] = remote
-    if remote:
-        await _write_cached_place(deps, latitude, longitude, remote)
     return remote
 
 
@@ -306,7 +262,6 @@ def _finite(value: Any) -> float | None:
 __all__ = [
     "BIGDATACLOUD_REVERSE_URL",
     "NOMINATIM_REVERSE_URL",
-    "PLACE_ZH_CACHE_TTL_SEC",
     "PlaceLocalizeDeps",
     "coord_key",
     "enrich_usgs_places_with_chinese",
@@ -315,5 +270,4 @@ __all__ = [
     "has_cjk_text",
     "lookup_place_zh_remote",
     "map_with_concurrency",
-    "place_localize_cache_key",
 ]

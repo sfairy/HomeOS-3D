@@ -51,9 +51,8 @@ import {
   provide,
   nextTick,
 } from 'vue'
-import { Archive, Bell, LayoutDashboard, ChevronDown, MessageCircle } from '@lucide/vue'
+import { Bell, LayoutDashboard, ChevronDown, MessageCircle } from '@lucide/vue'
 import { useAuthStore } from '@/stores/auth.store'
-import BackupRestoreDialog from '@/components/backup/BackupRestoreDialog.vue'
 import { useNotificationCenter } from '@/composables/widget/useNotificationCenter'
 import { NOTIFICATION_CENTER_KEY } from '@/composables/widget/notification-center.context'
 import { useTeleportTargetGuard } from '@/composables/ui/useTeleportTargetGuard'
@@ -127,7 +126,6 @@ const {
   siteTitle,
   brandLogoUrl,
   handleTripleClick,
-  isGuestMode,
   menuItems,
   dropdownMenuItems,
   navMoreOpen,
@@ -153,13 +151,6 @@ const {
 } = useMainLayoutChrome()
 
 const authStore = useAuthStore()
-const showBackupChrome = computed(
-  () => authStore.isAuthenticated && authStore.role === 'admin',
-)
-const backupDialogRef = ref(null)
-function openBackupSettings() {
-  backupDialogRef.value?.open?.()
-}
 // 三类全屏/抽屉浮层互斥开关：同一时刻只能打开一个，打开新面板时主动关闭其余两个
 const showNotificationDrawer = ref(false)
 const notificationCenterState = useNotificationCenter()
@@ -168,11 +159,7 @@ provide(NOTIFICATION_CENTER_KEY, notificationCenterState)
 
 /** 壳层入口：未授权模块收起入口（后端仍是权威 403）。明细未加载时 fail-closed，避免闪现。 */
 const showAgentChrome = computed(
-  () =>
-    authStore.isAuthenticated &&
-    !isGuestMode.value &&
-    authStore.role !== 'child' &&
-    isLicenseFeatureGranted('module.agent'),
+  () => authStore.isAuthenticated && isLicenseFeatureGranted('module.agent'),
 )
 const showHomeModeChrome = computed(() => isLicenseFeatureGranted('module.home_mode'))
 const showNotificationChrome = computed(
@@ -448,7 +435,6 @@ watch(
           </div>
           <div class="tab-bar__brand-text">
             <span class="tab-bar__title">{{ siteTitle }}</span>
-            <span v-if="isGuestMode" class="guest-readonly-badge">{{ '访客只读' }}</span>
           </div>
         </div>
         <HomeModeSwitcher v-if="showHomeModeChrome" class="tab-bar__mode-switcher" />
@@ -577,16 +563,6 @@ watch(
           >
             <MessageCircle class="w-4 h-4" />
           </button>
-          <button
-            v-if="showBackupChrome"
-            type="button"
-            class="icon-btn"
-            title="备份与恢复"
-            aria-label="备份与恢复"
-            @click="openBackupSettings"
-          >
-            <Archive class="w-4 h-4" />
-          </button>
           <div v-if="showNotificationChrome" class="notify-anchor">
             <button
               type="button"
@@ -655,8 +631,6 @@ watch(
 
       <SetupChecklistBanner />
       <ColdEntityPerfBanner />
-      <!-- HA 断连 / 重连 / 实体过期 / 丢弃指令统一走 HaStatusDegradeBanner -->
-      <HaStatusDegradeBanner class="main-layout__ha-banner" title="实时状态" />
       <div
         v-if="statusRail"
         class="ha-status-bar"
@@ -668,6 +642,13 @@ watch(
       >
         <Loader2 class="w-4 h-4 shrink-0 animate-spin" />
         <span class="ha-status-bar__text">{{ statusRail.text }}</span>
+      </div>
+
+      <!-- HA 断连 / 重连 / 实体过期 / 丢弃指令统一走 HaStatusDegradeBanner。
+           改为内容区顶部悬浮消息提醒：零高度锚点 + 绝对定位，不占用页面布局空间；
+           连接恢复（connected 且非 stale）后组件内部 v-if 自动移除，即“连接成功后自动消失”。 -->
+      <div class="main-layout__ha-anchor">
+        <HaStatusDegradeBanner class="main-layout__ha-banner" title="实时状态" />
       </div>
 
       <!-- 内容行：仪表盘路由下与右侧栏并排，
@@ -755,7 +736,6 @@ watch(
         />
       </div>
     </ScaledViewport>
-    <BackupRestoreDialog v-if="showBackupChrome" ref="backupDialogRef" />
   </div>
 </template>
 

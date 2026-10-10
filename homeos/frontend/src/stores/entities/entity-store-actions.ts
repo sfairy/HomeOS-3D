@@ -140,7 +140,7 @@ export function createEntityActions(deps: EntityActionsDeps) {
    * 调用 HA 服务（POST /services/call）。
    * 关键流程：
    * 1. HA 离线危险命令拦截（blockDangerousHaServiceWhenOffline）
-   * 2. 权限校验（canControl），非控制模式（returnResponse=true）跳过
+   * 2. 权限校验（isEntityAllowed），非控制模式（returnResponse=true）跳过
    * 3. 去重窗口内复用同一 Promise（同 dedupKey）
    * 4. 乐观更新（predictOptimistic + applyOptimistic）
    * 5. 调用 API，按响应（skipped / queued）回滚或 toast
@@ -166,7 +166,7 @@ export function createEntityActions(deps: EntityActionsDeps) {
     if (blockDangerousHaServiceWhenOffline(deps.isHaConnected(), domain, service, entityId)) {
       throw new Error(HA_OFFLINE_DANGEROUS_CONTROL_MSG)
     }
-    if (typeof entityId === 'string' && entityId && !returnResponse && !deps.canControl(entityId)) {
+    if (typeof entityId === 'string' && entityId && !returnResponse && !deps.isEntityAllowed(entityId)) {
       throw new Error('当前账户无权操作该设备')
     }
     const dedupKey = `${domain}.${service}.${entityId}.${JSON.stringify(serviceData || {})}`

@@ -52,12 +52,8 @@ export type SharedNotificationConfig = {
   lowBatteryCooldownMin: number
 }
 
-/** 状态存储分区（Redis 批量写入、增量刷新与 REST 缓存策略） */
+/** 状态存储分区（状态攒批、增量刷新与 REST 缓存策略） */
 export type SharedStateStoreConfig = {
-  /** Redis 批量写入的最大条数（状态流攒批后一次性写入，降低 RTT） */
-  redisWriteBatch: number
-  /** Redis 增量刷盘间隔（毫秒）；无状态变更时跳过刷盘 */
-  redisIncrementalFlushMs: number
   /** 近期状态变更环形缓冲的最大条数（诊断页/故障回溯用） */
   maxRecentChanges: number
   /** REST 实体查询接口的缓存 TTL（毫秒）；命中缓存时跳过数据库查询 */
@@ -69,9 +65,7 @@ export type SharedStateStoreConfig = {
 
 /** WebSocket 推送分区（实体状态下发节流与分片） */
 export type SharedWsPushConfig = {
-  /** 普通实体状态变更批量推送的刷新间隔（毫秒）；越小越实时但带宽越高 */
-  stateFlushIntervalMs: number
-  /** 传感器类（sensor/binary_sensor）独立刷新间隔（毫秒）；缺省复用 stateFlushIntervalMs */
+  /** 传感器类（sensor/binary_sensor）独立刷新间隔（毫秒）；缺省回退后端内置默认（80ms） */
   sensorFlushIntervalMs?: number
   /** 冷启动与 WS 推送时的关键 domain 清单；这些域优先推送到前端 */
   criticalDomains: string[]
@@ -87,17 +81,13 @@ export type SharedWsPushConfig = {
   coldEntityOnDemand: boolean
   /** 延迟档位：realtime=激进实时 / balanced=平衡 / bulk=批量省电 */
   latencyProfile?: 'realtime' | 'balanced' | 'bulk'
-  /** 关键域（light/switch 等）的独立刷新间隔（毫秒）；比普通域更短可提升控制反馈 */
-  criticalFlushIntervalMs?: number
-  /** 钉选（收藏/首页常驻）传感器的刷新间隔（毫秒）；可单独调密 */
-  pinnedSensorFlushIntervalMs?: number
 }
 
 /** 命令代理分区（服务调用幂等与清理） */
 export type SharedCommandProxyConfig = {
   /** 幂等令牌 TTL（毫秒）；同令牌在该窗口内重复调用仅执行首条 */
   idempotencyTtlMs: number
-  /** 过期幂等令牌的清理周期（毫秒）；避免 Redis/内存中令牌无限累积 */
+  /** 过期幂等令牌的清理周期（毫秒）；避免内存中令牌无限累积 */
   idempotencyCleanupIntervalMs: number
 }
 
@@ -137,25 +127,6 @@ export type SharedEnergyConfig = {
 export type SharedIaqConfig = {
   /** 霉变风险告警冷却（分钟）；避免高温高湿期间持续提醒 */
   moldAlertCooldownMin: number
-}
-
-/** 儿童模式（家长控制：时长 / 设备白名单 / 可用时段窗口） */
-export type SharedChildModeConfig = {
-  /** 儿童模式总开关；关闭时不做任何时长/时段限制 */
-  enabled: boolean
-  /** 每日媒体/娱乐总使用时长上限（分钟）；达到后自动触发「儿童模式结束」事件 */
-  dailyMediaLimitMin: number
-  /** 允许儿童直接操作的设备白名单（entity_id 列表；不在清单内的设备默认屏蔽） */
-  deviceWhitelist: string[]
-  /** 允许使用时段窗口（可多组）；仅在匹配窗口内允许访问白名单设备 */
-  timeWindows: Array<{
-    /** 生效日：数字数组 [0..6] 或 weekday / weekend 快捷词（0=周日 … 6=周六） */
-    days: number[] | 'weekday' | 'weekend'
-    /** 窗口开始时间（"HH:MM"，含） */
-    start: string
-    /** 窗口结束时间（"HH:MM"，不含） */
-    end: string
-  }>
 }
 
 /** 电价分区（分时 TOU 与阶梯电价双模式） */
@@ -321,10 +292,6 @@ export type SharedHaConnectorConfig = {
   wsPingIntervalMs?: number
   wsPongTimeoutMs?: number
   wsHeartbeatMaxMisses?: number
-  coldBatchWindowMs?: number
-  coldBatchMax?: number
-  leaderTtlMs?: number
-  leaderRenewMs?: number
   [key: string]: unknown
 }
 
@@ -383,7 +350,6 @@ export type SharedAppConfigSections = {
   homeMode?: Partial<SharedHomeModeConfig>
   energy?: Partial<SharedEnergyConfig>
   iaq?: Partial<SharedIaqConfig>
-  childMode?: Partial<SharedChildModeConfig>
   pricing?: Partial<SharedPricingConfig>
   circadian?: Partial<SharedCircadianConfig>
   water?: Partial<SharedWaterConfig>

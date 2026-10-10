@@ -21,7 +21,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict
 
 from ..dependencies import license_feature
-from ..security.auth_context import require_roles
+from ..security.auth_context import require_user
 from ..services.channels.wecom_crypto import compute_msg_signature, decrypt_wecom
 from ..services.license import features as feature_codes
 
@@ -84,7 +84,7 @@ def _wecom(request: Request):
 @router.get("/status")
 async def status(
     request: Request,
-    _user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    _user: dict[str, Any] = Depends(require_user),
 ):
     """智能管家消息通道状态（Email / WebPush / 企业微信）。"""
     return await _channels(request).get_status()
@@ -93,7 +93,7 @@ async def status(
 @router.get("/webpush/vapid-public-key")
 async def vapid_public_key(
     request: Request,
-    _user: dict[str, Any] = Depends(require_roles("admin", "adult", "child")),
+    _user: dict[str, Any] = Depends(require_user),
 ):
     """下发 WebPush VAPID 公钥，供前端 Service Worker 注册推送订阅。"""
     return {"publicKey": await _webpush(request).get_public_key()}
@@ -102,7 +102,7 @@ async def vapid_public_key(
 @router.get("/webpush/subscriptions")
 async def list_subscriptions(
     request: Request,
-    _user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    _user: dict[str, Any] = Depends(require_user),
 ):
     """列出已注册的 WebPush 订阅设备。"""
     return {"items": _webpush(request).list_subscriptions()}
@@ -112,7 +112,7 @@ async def list_subscriptions(
 async def subscribe(
     dto: WebPushSubscribeDto,
     request: Request,
-    _user: dict[str, Any] = Depends(require_roles("admin", "adult", "child")),
+    _user: dict[str, Any] = Depends(require_user),
 ):
     """注册 WebPush 订阅：endpoint + keys 持久化 + 内存缓存。"""
     user_agent = dto.userAgent
@@ -132,7 +132,7 @@ async def unsubscribe(
     request: Request,
     endpoint: str | None = Query(default=None),
     dto: WebPushUnsubscribeDto | None = None,
-    _user: dict[str, Any] = Depends(require_roles("admin", "adult", "child")),
+    _user: dict[str, Any] = Depends(require_user),
 ):
     """取消 WebPush 订阅：支持 query 或 body 传 endpoint；为空时静默返回 ok。"""
     target = endpoint or (dto.endpoint if dto and isinstance(dto.endpoint, str) else "") or ""
@@ -145,7 +145,7 @@ async def unsubscribe(
 async def test_push(
     request: Request,
     dto: WebPushTestDto | None = None,
-    _user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    _user: dict[str, Any] = Depends(require_user),
 ):
     """发送 WebPush 测试通知；指定 endpoint 则单设备推送，否则全部订阅者。"""
     target = dto.endpoint if dto and isinstance(dto.endpoint, str) else None

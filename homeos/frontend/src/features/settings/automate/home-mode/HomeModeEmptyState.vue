@@ -5,7 +5,7 @@
  *      入口，并复用右侧预设侧栏供一键安装预设包。
  * 关键依赖：
  *  - HomeModePresetSidebar：预设包侧栏
- * 数据来源：父级透传的 isAdmin / 预设列表 / 安装中状态
+ * 数据来源：父级透传的预设列表 / 安装中状态
  */
 <script setup>
 /**
@@ -17,9 +17,8 @@
 import { Home } from '@lucide/vue'
 import HomeModePresetSidebar from './HomeModePresetSidebar.vue'
 
-// 入参：是否管理员（控制初始化入口）、是否展示预设侧栏、预设列表、正在安装的预设 id
+// 入参：是否展示预设侧栏、预设列表、正在安装的预设 id
 defineProps({
-  isAdmin: { type: Boolean, default: false },
   showPresetSidebar: { type: Boolean, default: false },
   modePresets: { type: Array, default: () => [] },
   presetInstalling: { type: [String, null], default: null },
@@ -33,7 +32,7 @@ const emit = defineEmits(['seed', 'create', 'install-preset'])
   <div class="hm-split flex-1 min-h-0">
     <div class="hm-split__main flex flex-col overflow-y-auto px-6 py-6 gap-6">
       <div class="flex flex-wrap gap-2 justify-end shrink-0">
-        <button v-if="isAdmin" type="button" class="hm-toolbar-btn" @click="emit('seed')">
+        <button type="button" class="hm-toolbar-btn" @click="emit('seed')">
           {{ '初始化默认' }}
         </button>
         <button type="button" class="hm-toolbar-btn hm-toolbar-btn--accent" @click="emit('create')">
@@ -47,7 +46,7 @@ const emit = defineEmits(['seed', 'create', 'install-preset'])
           {{ '使用右侧预设包，或点击「初始化默认」「新建模式」' }}
         </p>
         <div class="hm-premium-empty__actions">
-          <button v-if="isAdmin" type="button" class="hm-premium-empty__btn" @click="emit('seed')">
+          <button type="button" class="hm-premium-empty__btn" @click="emit('seed')">
             {{ '初始化默认' }}
           </button>
           <button

@@ -26,7 +26,6 @@ const {
   loading,
   clearing,
   error,
-  isAdmin,
   entitySelectOptions,
   entityOptionsLoading,
   hourOptions,
@@ -113,7 +112,6 @@ const {
         <EventsViewStream
           :loading="loading"
           :clearing="clearing"
-          :is-admin="isAdmin"
           :error="error"
           :events="events"
           :entity-filter="entityFilter"

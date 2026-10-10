@@ -4,9 +4,9 @@
 - ``GET system/config/public``：登录前公开配置（跳过 JWT）；
 - ``GET system/config-audit``：配置变更审计（分页或最近 50 条，admin）；
 - ``GET system/config/export`` / ``POST system/config/import``：配置导出 / 导入（admin）；
-- ``GET system/config``：按角色读取（JWT，admin 附带 ``_configAudit``）；
-- ``PUT system/config``：局部更新（admin，支持乐观锁）；
-- ``POST system/config/reset``：重置分区 / 全量（admin）；
+- ``GET system/config``：读取完整配置（JWT，附带 ``_configAudit``）；
+- ``PUT system/config``：局部更新（支持乐观锁）；
+- ``POST system/config/reset``：重置分区 / 全量；
 - ``GET`` / ``PUT system/config/retention``：数据保留策略与清理统计（admin）。
 """
 
@@ -23,7 +23,7 @@ from ..core.errors import api_error, bad_request
 from ..core.pagination import parse_page_limit
 from ..core.retention import RETENTION_TABLE_KEYS
 from ..dependencies import require_license_feature
-from ..security.auth_context import require_roles, require_user
+from ..security.auth_context import require_user
 from ..services.app_config.room_meta import (
     build_public_room_meta_from_ha_areas,
     filter_env_sensor_map_to_known_areas,
@@ -68,7 +68,7 @@ _UPDATE_SECTIONS = (
 #: 需为数组（而非对象）的键。
 _ARRAY_SECTIONS = ("voiceCommands",)
 
-#: 配置分区 → 增量模块功能码：写入这些分区时要求对应授权（读路径仍走角色脱敏）。
+#: 配置分区 → 增量模块功能码：写入这些分区时要求对应授权。
 _SECTION_LICENSE_FEATURES: dict[str, str] = {
     "energy": feature_codes.FEATURE_ENERGY,
     "pricing": feature_codes.FEATURE_ENERGY,
@@ -161,7 +161,7 @@ async def get_config_audit(
     request: Request,
     page: str | None = Query(default=None),
     limit: str | None = Query(default=None),
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """获取系统配置变更审计（默认最近 50 条，可分页）。"""
     pagination = parse_page_limit(page, limit)
@@ -177,7 +177,7 @@ async def get_config_audit(
 async def export_config(
     request: Request,
     maskSecrets: str | None = Query(default=None),
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """导出系统运行参数（默认脱敏；``maskSecrets=false`` 导出原文）。"""
     return _backup(request).export(maskSecrets != "false")
@@ -186,7 +186,7 @@ async def export_config(
 async def import_config(
     payload: ImportAppConfigDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """导入系统运行参数（merge 或 replace）。"""
     _require_section_license_features(request, payload.config)
@@ -197,16 +197,14 @@ async def import_config(
 # ---------------------------------------------------------------------- #
 # 读取 / 更新 / 重置
 # ---------------------------------------------------------------------- #
-def _config_response(app_config: Any, role: str | None) -> dict[str, Any]:
-    data = app_config.get_all()
-    if role == "admin":
-        return {**data, "_configAudit": app_config.get_audit_log(50)}
-    return app_config.pick_for_role(role)
+def _config_response(app_config: Any) -> dict[str, Any]:
+    """返回完整系统配置 + 配置审计（单一管理员模型，恒为全量视图）。"""
+    return {**app_config.get_all(), "_configAudit": app_config.get_audit_log(50)}
 
 @router.get("/config")
 async def get_system_config(request: Request, user: dict[str, Any] = Depends(require_user)):
-    """获取完整系统配置（admin 附带审计；其余角色返回脱敏视图）。"""
-    return _config_response(_app_config(request), user.get("role"))
+    """获取完整系统配置（附带近期配置审计）。"""
+    return _config_response(_app_config(request))
 
 def _validate_update_payload(body: dict[str, Any]) -> dict[str, Any]:
     """等价 ``UpdateSystemConfigDto`` 的结构校验（未知键 / 类型不符 → 400）。"""
@@ -228,7 +226,7 @@ def _validate_update_payload(body: dict[str, Any]) -> dict[str, Any]:
 async def update_system_config(
     request: Request,
     body: dict[str, Any] = Body(...),
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """局部更新系统配置（支持乐观锁 ``expectedUpdatedAt``，冲突 409）。"""
     payload = _validate_update_payload(body if isinstance(body, dict) else {})
@@ -236,13 +234,13 @@ async def update_system_config(
     expected_updated_at = payload.pop("expectedUpdatedAt", None) or None
     app_config = _app_config(request)
     await asyncio.to_thread(app_config.update, payload, expected_updated_at)
-    return _config_response(app_config, user.get("role"))
+    return _config_response(app_config)
 
 @router.post("/config/reset")
 async def reset_system_config(
     request: Request,
     body: dict[str, Any] = Body(default={}),
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """重置系统配置（传 ``section`` 仅重置该分区，缺省重置全部）。"""
     payload = body if isinstance(body, dict) else {}
@@ -270,7 +268,7 @@ def _retention_overview(request: Request) -> dict[str, Any]:
 
 @router.get("/config/retention")
 async def get_retention_config(
-    request: Request, user: dict[str, Any] = Depends(require_roles("admin"))
+    request: Request, user: dict[str, Any] = Depends(require_user)
 ):
     """获取数据保留策略与最近一次清理统计。"""
     return await asyncio.to_thread(_retention_overview, request)
@@ -279,7 +277,7 @@ async def get_retention_config(
 async def update_retention_config(
     request: Request,
     body: dict[str, Any] = Body(default={}),
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """更新各表数据保留天数（白名单校验未知表键，写回配置并即时生效）。"""
     payload = body if isinstance(body, dict) else {}

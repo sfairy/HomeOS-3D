@@ -4,12 +4,12 @@
   组件职责：家庭模式总装切换器组件。根据 useHomeModeSwitcher 组合式函数产出的状态装配三个子组件：
     HomeModePresenceBadge（左侧：在场人员徽标 + 在家/离家统计，点击展开在场详情 Tip）；
     当 modeContext.calendarAway 为真时最左侧额外展示「外出」标签；
-    HomeModeSwitcherTrigger（中部：当前激活模式标签 + 图标 + 加载/动作态指示，readonly 时灰化，
+    HomeModeSwitcherTrigger（中部：当前激活模式标签 + 图标 + 加载/动作态指示，
       点击切换菜单开关）；HomeModeSwitcherMenu（Teleport 渲染的下拉菜单，含模式列表/退出/
       最近触发日志/设置跳转）。
   无 props / emits（完全由 composable 管理状态）：
     - 核心状态由 useHomeModeSwitcher 提供：rootRef/menuRef/open/menuPlacement/menuStyle/
-      menuTeleportTarget/menuTeleportDisabled/modes/activeMode/loading/acting/canControl/label/
+      menuTeleportTarget/menuTeleportDisabled/modes/activeMode/loading/acting/label/
       modeIcon/presenceHome/modeContext/presenceMembers/showPresenceBadge/showPresenceEmpty/
       presenceSummary/presenceAtHomeCount/presenceTipOpen；
     - 事件方法：selectMode/toggleOff/togglePresenceTip/toggleMenuOpen 直接绑定到子组件。
@@ -52,7 +52,6 @@ const {
   activeMode,
   loading,
   acting,
-  canControl,
   label,
   modeIcon,
   presenceHome,
@@ -108,7 +107,6 @@ function registerMenuRef(el) {
       :active-mode="activeMode"
       :loading="loading"
       :acting="acting"
-      :readonly="!canControl()"
       :label="label"
       :mode-icon="modeIcon"
       @toggle="toggleMenuOpen"
@@ -124,7 +122,6 @@ function registerMenuRef(el) {
       :loading="loading"
       :modes="modes"
       :active-mode="activeMode"
-      :can-control="canControl"
       :mode-context="modeContext"
       :register-menu-ref="registerMenuRef"
       @select-mode="selectMode"

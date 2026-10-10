@@ -17,7 +17,7 @@ from .router import NestRouter
 from .schemas.base import StrictModel
 from ..core.asset_paths import ALLOWED_IMAGE_EXTS
 from ..core.errors import api_error, bad_request
-from ..security.auth_context import require_roles, require_user
+from ..security.auth_context import require_user
 
 router = NestRouter(prefix="/config", tags=["display"])
 
@@ -54,7 +54,7 @@ class MkdirDto(StrictModel):
 async def set_active_profile(
     payload: SetActiveProfileDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _service(request).set_active_profile(payload.projectId)
 
@@ -68,7 +68,7 @@ async def get_active_profile_settings(
 async def set_new_terminal_default(
     payload: SetNewTerminalDefaultDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _service(request).set_new_terminal_default(payload.newTerminalDefault)
 
@@ -82,7 +82,7 @@ async def resolve_terminal_profile(
 
 @router.get("/terminal/bindings")
 async def list_terminal_bindings(
-    request: Request, user: dict[str, Any] = Depends(require_roles("admin"))
+    request: Request, user: dict[str, Any] = Depends(require_user)
 ):
     return _service(request).list_terminal_bindings()
 
@@ -90,7 +90,7 @@ async def list_terminal_bindings(
 async def bind_self_terminal(
     payload: TerminalBindingDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult", "child")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _service(request).bind_self_terminal(
         payload.model_dump(exclude_none=True), user
@@ -100,7 +100,7 @@ async def bind_self_terminal(
 async def upsert_terminal_binding(
     payload: TerminalBindingDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _service(request).upsert_terminal_binding(
         payload.model_dump(exclude_none=True), user.get("userId")
@@ -110,7 +110,7 @@ async def upsert_terminal_binding(
 async def remove_terminal_binding(
     clientId: str,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _service(request).remove_terminal_binding(clientId)
 
@@ -123,7 +123,7 @@ async def list_profiles(request: Request, user: dict[str, Any] = Depends(require
 
 @router.get("/all/export")
 async def export_configs(
-    request: Request, user: dict[str, Any] = Depends(require_roles("admin"))
+    request: Request, user: dict[str, Any] = Depends(require_user)
 ):
     return {"success": True, "data": await asyncio.to_thread(_service(request).export_all_configs)}
 
@@ -131,7 +131,7 @@ async def export_configs(
 async def import_configs(
     payload: ImportAllConfigsDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _service(request).import_all_configs_validated(
         payload.model_dump(exclude_none=True)
@@ -141,16 +141,16 @@ async def import_configs(
 async def get_config(
     projectId: str,
     request: Request,
-    user: dict[str, Any] = Depends(require_user),
+    _user: dict[str, Any] = Depends(require_user),
 ):
-    return _service(request).get_config_for_api(projectId, user.get("role"))
+    return _service(request).get_config_for_api(projectId)
 
 @router.post("/project/{projectId}")
 async def save_config(
     projectId: str,
     payload: SaveProjectConfigDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _service(request).save_config_from_body(
         projectId, payload.model_dump(exclude_none=True)
@@ -160,7 +160,7 @@ async def save_config(
 async def delete_profile(
     projectId: str,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _service(request).delete_profile_safe(projectId)
 
@@ -206,7 +206,7 @@ def _mkdir(request: Request, method_name: str, payload: MkdirDto) -> dict[str, A
 async def create_background_directory(
     payload: MkdirDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return _mkdir(request, "create_background_directory", payload)
 
@@ -214,7 +214,7 @@ async def create_background_directory(
 async def create_icon_directory(
     payload: MkdirDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return _mkdir(request, "create_icon_directory", payload)
 
@@ -256,7 +256,7 @@ async def upload_backgrounds(
     request: Request,
     files: list[UploadFile] = File(default=[]),
     path: str | None = Query(default=None),
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _upload(request, files[:MAX_UPLOAD_FILES], path, "save_background")
 
@@ -265,7 +265,7 @@ async def upload_icons(
     request: Request,
     files: list[UploadFile] = File(default=[]),
     path: str | None = Query(default=None),
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _upload(request, files[:MAX_UPLOAD_FILES], path, "save_icon", svg_only=True)
 
@@ -282,7 +282,7 @@ def _delete(request: Request, method_name: str, full_path: str | None) -> dict[s
 async def delete_background(
     request: Request,
     path: str | None = Query(default=None),
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return _delete(request, "delete_background", path)
 
@@ -290,7 +290,7 @@ async def delete_background(
 async def delete_icon(
     request: Request,
     path: str | None = Query(default=None),
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return _delete(request, "delete_icon", path)
 

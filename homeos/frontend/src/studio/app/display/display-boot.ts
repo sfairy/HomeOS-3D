@@ -248,6 +248,19 @@ export function bootDisplayBoot(): void {
       pollIntervalMs = isWarmBoot ? 32 : 80,
       poll = () => {
         if (splashPhase !== "waiting" && splashPhase !== "slow") return;
+        // 3D 户型 host 就绪但仍带 `.is-load-error`：说明运行时已判定加载失败，
+        // 在等待阶段就让 splash 给出「重新加载 / 先进入」，而不是干等到稳定超时。
+        if (
+          [...shellElement.querySelectorAll(".hb-interaction3d-host")].find(
+            (hostElement: any) =>
+              isVisible(hostElement) && hostElement.querySelector(".is-load-error"),
+          ) &&
+          splashPhase === "waiting"
+        ) {
+          (showError(new Error("3D 户型加载失败，请重新加载或先进入仪表盘。"), true),
+            (pollTimer = setTimeout(poll, 1000)));
+          return;
+        }
         const now = performance.now();
         (hasPendingAssets() ? (stableSinceMs = 0) : stableSinceMs || (stableSinceMs = now),
           stableSinceMs &&

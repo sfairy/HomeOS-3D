@@ -25,7 +25,6 @@ from .mask import (
     apply_import_replace_preserving_secrets,
     is_masked_value,
     mask_sensitive_fields_by_key,
-    pick_config_for_role,
     restore_client_power_report_tokens,
     strip_masked_placeholders,
 )
@@ -164,6 +163,16 @@ class AppConfigService:
             logger.info("已为既有客户端充放电策略补全 reportToken")
         self._hydrate_audit_log()
         self._bump_generation()
+
+    def reload_from_db(self) -> None:
+        """无条件从数据库重建内存配置（整库还原后调用）。
+
+        与 ``reload_from_db_if_stale`` 不同：先复位到默认值再合并，且不比较时间戳——
+        还原后的行 ``updated_at`` 可能比内存里的更旧，只靠时间戳会漏掉重建。
+        """
+        self._config = copy.deepcopy(DEFAULT_APP_CONFIG)
+        self._config_updated_at = None
+        self._load()
 
     def reload_from_db_if_stale(self) -> bool:
         with self._session_factory() as session:
@@ -383,9 +392,6 @@ class AppConfigService:
             ]
         }
         return out
-
-    def pick_for_role(self, role: str | None) -> dict[str, Any]:
-        return pick_config_for_role(self.get_all(), role)
 
     # ------------------------------------------------------------------ #
     # 审计

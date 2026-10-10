@@ -6,7 +6,6 @@ import re
 from collections.abc import Callable
 from typing import Any
 
-from ..core.entity_domain import is_child_domain_access_denied
 from ..core.errors import api_error, bad_request, forbidden
 from ..realtime.access import is_entity_allowed
 
@@ -115,49 +114,35 @@ async def collect_target_entities(dto: dict[str, Any], resolver: Any) -> list[st
 async def assert_command_proxy_authorized(
     dto: dict[str, Any], user: dict[str, Any] | None, resolver: Any = None
 ) -> None:
-    role = (user or {}).get("role")
-    if role == "guest":
-        forbidden(api_error("ACCESS_GUEST_DEVICE_DENIED"))
-    if is_child_domain_access_denied(role, str(dto.get("domain") or "")):
-        forbidden(api_error("ACCESS_ROLE_DEVICE_DENIED"))
-    restrictions = (user or {}).get("restrictions")
-    restrictions = restrictions if isinstance(restrictions, list) else []
-    if role == "child" and not restrictions:
-        forbidden(api_error("ACCESS_CHILD_NO_WHITELIST"))
+    """命令代理授权。
+
+    HomeOS 为单一管理员模型，**无角色维度**（不存在 guest / child 账号，也没有
+    ``admin`` 之外的账号可创建）。这里只剩「实体级白名单」这一个维度，而白名单当前
+    恒为空（见 ``security.auth_context.resolve_restrictions``），因此实际恒放行；
+    保留实现以便将来接入白名单时无需改调用点。
+    """
+    restrictions = _restrictions_of(user)
+    if not restrictions:
+        return
     targets = await collect_target_entities(dto, resolver)
-    if role != "admin" and restrictions and not _all_allowed(targets, restrictions):
+    if not _all_allowed(targets, restrictions):
         forbidden(api_error("ACCESS_ENTITY_DENIED"))
 
 
 def assert_history_authorized(entity_ids: list[str], user: dict[str, Any] | None) -> None:
-    if (user or {}).get("role") == "guest":
-        forbidden(api_error("ACCESS_GUEST_DEVICE_DENIED"))
-    restrictions = (user or {}).get("restrictions")
-    restrictions = restrictions if isinstance(restrictions, list) else []
-    if (user or {}).get("role") == "child" and not restrictions:
-        forbidden(api_error("ACCESS_CHILD_NO_WHITELIST"))
-    role = (user or {}).get("role")
-    if role != "admin" and restrictions and not _all_allowed(entity_ids, restrictions):
+    """历史数据授权：只认实体级白名单（当前恒为空 → 恒放行）。"""
+    restrictions = _restrictions_of(user)
+    if not restrictions:
+        return
+    if not _all_allowed(entity_ids, restrictions):
         forbidden(api_error("ACCESS_ENTITY_DENIED"))
 
 
 def assert_webrtc_authorized(entity_id: str, user: dict[str, Any] | None) -> None:
     if not entity_id or not entity_id.startswith("camera."):
         forbidden("仅允许访问 camera 实体")
-    role = (user or {}).get("role")
-    restrictions = (user or {}).get("restrictions")
-    restrictions = restrictions if isinstance(restrictions, list) else []
-    if role == "guest":
-        if not restrictions:
-            forbidden(api_error("ACCESS_GUEST_DEVICE_DENIED"))
-        if not is_entity_allowed(entity_id, restrictions):
-            forbidden(api_error("ACCESS_ENTITY_DENIED"))
-        return
-    if is_child_domain_access_denied(role, "camera"):
-        forbidden(api_error("ACCESS_ROLE_DEVICE_DENIED"))
-    if role == "child" and not restrictions:
-        forbidden(api_error("ACCESS_CHILD_NO_WHITELIST"))
-    if role != "admin" and restrictions and not is_entity_allowed(entity_id, restrictions):
+    restrictions = _restrictions_of(user)
+    if restrictions and not is_entity_allowed(entity_id, restrictions):
         forbidden(api_error("ACCESS_ENTITY_DENIED"))
 
 
@@ -175,15 +160,15 @@ def extract_entity_id_from_media_path(path: str) -> str | None:
     return None
 
 
-def _assert_entity_access_for_media(entity_id: str, user: dict[str, Any] | None) -> None:
-    role = (user or {}).get("role")
-    if role == "guest":
-        forbidden(api_error("ACCESS_GUEST_DEVICE_DENIED"))
+def _restrictions_of(user: dict[str, Any] | None) -> list[str]:
+    """取实体级白名单；非列表 / 空值一律视为「不限制」。"""
     restrictions = (user or {}).get("restrictions")
-    restrictions = restrictions if isinstance(restrictions, list) else []
-    if role == "child" and not restrictions:
-        forbidden(api_error("ACCESS_CHILD_NO_WHITELIST"))
-    if role != "admin" and restrictions and not is_entity_allowed(entity_id, restrictions):
+    return [str(item) for item in restrictions] if isinstance(restrictions, list) else []
+
+
+def _assert_entity_access_for_media(entity_id: str, user: dict[str, Any] | None) -> None:
+    restrictions = _restrictions_of(user)
+    if restrictions and not is_entity_allowed(entity_id, restrictions):
         forbidden(api_error("ACCESS_ENTITY_DENIED"))
 
 
@@ -199,11 +184,6 @@ def assert_ha_media_path_authorized(path: str, user: dict[str, Any] | None) -> N
         return
     if entity_id:
         _assert_entity_access_for_media(entity_id, user)
-        return
-    if (user or {}).get("role") == "guest":
-        forbidden(api_error("ACCESS_GUEST_DEVICE_DENIED"))
-    if (user or {}).get("role") != "admin":
-        forbidden(api_error("ACCESS_ENTITY_DENIED"))
 
 
 def _all_allowed(entity_ids: list[str], restrictions: list[str]) -> bool:

@@ -231,9 +231,9 @@ async function disconnectEntities() {
  * 监听认证 / 授权 / 路由变化，联动管理 Socket.IO 连接与 UI 配置加载。
  *
  * 行为：
- * - 登录且授权放行（非 setup/login/activation）：解析 profile、按需连接 entities、按需加载 UI 配置
+ * - 登录且授权放行（非 login/activation）：解析 profile、按需连接 entities、按需加载 UI 配置
  * - 登出、未授权、或进入 activation：断开 entities 的 Socket.IO 连接
- * - login/setup：已登录时不主动断连（避免登录瞬间 connect→disconnect 打断 polling→websocket 升级）
+ * - login：已登录时不主动断连（避免登录瞬间 connect→disconnect 打断 polling→websocket 升级）
  * - immediate: true 保证在组件挂载后立即执行一次，恢复已登录会话的连接
  */
 watch(
@@ -241,7 +241,7 @@ watch(
   async (curr, prev) => {
     const isAuth = curr?.[0]
     const wasAuth = prev?.[0]
-    const onLoginOrSetup = route.name === 'login' || route.name === 'setup'
+    const onLogin = route.name === 'login'
     const onActivation = route.name === 'activation'
 
     if (isAuth) {
@@ -250,8 +250,8 @@ watch(
         await disconnectEntities()
         return
       }
-      if (onLoginOrSetup) {
-        // 登录成功后仍短暂停留在 login/setup：交给 auth 侧重连，离开页面后再由下方分支接管
+      if (onLogin) {
+        // 登录成功后仍短暂停留在 login：交给 auth 侧重连，离开页面后再由下方分支接管
         return
       }
       // watch 回调是 fire-and-forget：这里任何一处 rejection 都不会有调用方接住，

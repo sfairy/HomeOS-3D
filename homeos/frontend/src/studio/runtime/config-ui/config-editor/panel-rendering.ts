@@ -28,7 +28,7 @@ import {
   createCurtainGroup as createCurtainGroup2,
 } from "../../cover/cover-groups";
 import { randomUuid as randomUuid2 } from "@app/utils/random-id";
-import { interaction3dPreviewSize as interaction3dPreviewSize2 } from "@app/bridge/preview-layout";
+import { interaction3dPreviewSize as interaction3dPreviewSize2, observeInteraction3dPreview } from "@app/bridge/preview-layout";
 import {
   requestInteraction3dAccess as requestInteraction3dAccess2,
 } from "@app/bridge/bridge";
@@ -694,8 +694,7 @@ export function attachEditorPanelRendering(e: any) {
           height: previewSize.height + "px",
         });
       },
-      resizeObserver = new ResizeObserver(syncPreviewSize);
-    resizeObserver.observe(e.viewElement);
+      resizeObserver = observeInteraction3dPreview(e.viewElement, syncPreviewSize);
     const disposeEditor = () => {
         e.isDisposed ||
           ((e.isDisposed = true),
@@ -3321,7 +3320,7 @@ export function attachEditorPanelRendering(e: any) {
             );
           if (e.isNasMode) {
             const nasSourceButton = e.createButton(
-              vector.statusSource?.name || "选择飞牛或群晖",
+              vector.statusSource?.name || "选择飞牛、群晖或绿联",
               () => void openItemPicker("nas", nasSourceButton),
             );
             if (

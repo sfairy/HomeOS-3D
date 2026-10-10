@@ -1,7 +1,7 @@
 """外部 API 集成服务（对齐 ``ops/external-api.service.ts``）。
 
 整合三类外部数据源：
- 1. 天气预警（OpenWeatherMap Alerts，Redis 缓存 + 熔断器）；
+ 1. 天气预警（OpenWeatherMap Alerts，内存缓存 + 熔断器）；
  2. 电价（本地 pricing 配置计算峰谷平 + 可选动态电价 API）；
  3. CalDAV 日历同步（ICS URL 拉取 + 增量 ETag + 外出状态事件）。
 
@@ -39,9 +39,6 @@ from ....core.icalendar import (
 from ....core.zoned_time import zoned_date_parts
 
 logger = logging.getLogger("homeos.system.ops.external_api")
-
-#: Redis 中天气预警缓存 key 前缀（按经纬度拼后缀）
-WEATHER_ALERTS_CACHE_KEY = "homeos:weather:alerts"
 
 #: 当前天气内存缓存 TTL（毫秒）
 WEATHER_SNAPSHOT_TTL_MS = 30 * 60_000
@@ -81,7 +78,6 @@ class ExternalApiService:
         self,
         app_config: Any,
         event_bus: Any = None,
-        redis: Any = None,
         jobs: Any = None,
         state_store: Any = None,
         *,
@@ -89,7 +85,6 @@ class ExternalApiService:
     ) -> None:
         self._app_config = app_config
         self._event_bus = event_bus
-        self._redis = redis
         self._jobs = jobs
         self._state_store = state_store
         self._http_fetch = http_fetch or fetch_raw
@@ -609,14 +604,6 @@ class ExternalApiService:
     # ------------------------------------------------------------------ #
     # 天气预警 / 当前天气 / 预报
     # ------------------------------------------------------------------ #
-    def _weather_alerts_ttl_sec(self) -> int:
-        minutes = self.external_cfg.get("weatherAlertsTtlMin")
-        try:
-            minutes_value = int(minutes)
-        except (TypeError, ValueError):
-            minutes_value = 0
-        return (minutes_value if minutes_value > 0 else 30) * 60
-
     def _alert_refresh_ms(self) -> float:
         try:
             value = float(self.external_cfg.get("weatherAlertRefreshMs") or 0)
@@ -627,18 +614,7 @@ class ExternalApiService:
     async def fetch_open_weather_alerts(
         self, lat: float, lon: float, api_key: str
     ) -> dict[str, Any]:
-        """拉取 OpenWeather 天气预警（Redis 缓存 + 熔断器 + 内存降级）。"""
-        cache_key = f"{WEATHER_ALERTS_CACHE_KEY}:{round(lat, 2):.2f}:{round(lon, 2):.2f}"
-
-        async def _cache_get(key: str) -> Any:
-            if self._redis is None:
-                return None
-            return await self._redis.get(key)
-
-        async def _cache_set(key: str, value: str, ttl_sec: int) -> Any:
-            if self._redis is None:
-                return None
-            return await self._redis.set(key, value, ttl_sec)
+        """拉取 OpenWeather 天气预警（内存缓存 + 熔断器 + 失败降级）。"""
 
         async def _fetch_one_call(fetch_lat: float, fetch_lon: float, key: str) -> dict[str, Any]:
             async def _do_fetch() -> UpstreamResponse:
@@ -662,17 +638,12 @@ class ExternalApiService:
             lat,
             lon,
             api_key,
-            cache_key=cache_key,
-            cache_get=_cache_get,
-            cache_set=_cache_set,
             fetch_one_call=_fetch_one_call,
             get_cached_alerts=lambda: self._weather_alerts,
             set_cached_alerts=self._set_weather_alerts,
             get_last_alert_check=lambda: self._last_alert_check,
             set_last_alert_check=self._set_last_alert_check,
             alert_refresh_ms=self._alert_refresh_ms,
-            weather_alerts_ttl_sec=self._weather_alerts_ttl_sec,
-            on_cache_read_error=lambda err: logger.debug("天气预警缓存读取失败: %s", err),
             on_fetch_error=lambda err: logger.warning("天气预警获取失败: %s", err),
         )
 
@@ -830,6 +801,5 @@ class ExternalApiService:
 
 
 __all__ = [
-    "WEATHER_ALERTS_CACHE_KEY",
     "ExternalApiService",
 ]

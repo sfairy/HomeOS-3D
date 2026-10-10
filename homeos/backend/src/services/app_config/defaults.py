@@ -284,7 +284,6 @@ def build_default_app_config() -> dict[str, Any]:
             "dynamicPricingUrl": "",
             "dynamicPricingApiKey": "",
             "dynamicPricingRefreshHours": 24,
-            "weatherAlertsTtlMin": 30,
             "weatherAlertRefreshMs": 30 * 60_000,
             "weatherAlertEnabled": True,
             "weatherAlertNotifyLevel": "orange",
@@ -296,26 +295,14 @@ def build_default_app_config() -> dict[str, Any]:
         "haConnector": {
             "reconnectBaseMs": 1000,
             "maxReconnectDelayMs": 10_000,
-            "entityRegistryCacheMs": 300_000,
-            "entityRegistryTimeoutMs": 45_000,
-            "commandQueueMax": 20,
-            "commandQueueTtlMs": 60_000,
             "historyCacheMaxSize": 300,
             "ingressCoalesceEnabled": True,
             "ingressCoalesceWindowMs": 8,
             "ingressCoalesceDomains": list(DEFAULT_INGRESS_COALESCE_DOMAINS),
-            "disconnectRestPollEnabled": True,
-            "disconnectRestPollInitialDelayMs": 1_000,
-            "disconnectRestPollIntervalMs": 2_000,
-            "disconnectRestPollTimeoutMs": 60_000,
             "syncOnlyEnabledEntities": True,
             "wsPingIntervalMs": 45_000,
             "wsPongTimeoutMs": 25_000,
             "wsHeartbeatMaxMisses": 3,
-            "coldBatchWindowMs": 15,
-            "coldBatchMax": 256,
-            "leaderTtlMs": 8_000,
-            "leaderRenewMs": 2_500,
         },
         # 运维配置
         "ops": {
@@ -348,15 +335,12 @@ def build_default_app_config() -> dict[str, Any]:
         "retention": dict(DEFAULT_RETENTION),
         # 状态存储配置
         "stateStore": {
-            "redisWriteBatch": 200,
-            "redisIncrementalFlushMs": 100,
             "maxRecentChanges": 3000,
             "staleThresholdMs": 12_000,
             "initialStatesPriorityEnabled": True,
         },
         # WebSocket 推送配置
         "wsPush": {
-            "stateFlushIntervalMs": 80,
             "sensorFlushIntervalMs": 120,
             "criticalDomains": list(WS_PUSH_CRITICAL_DOMAINS),
             "stateBatchMax": 300,
@@ -365,8 +349,6 @@ def build_default_app_config() -> dict[str, Any]:
             "roomBatchEmit": True,
             "coldEntityOnDemand": True,
             "latencyProfile": "realtime",
-            "criticalFlushIntervalMs": 4,
-            "pinnedSensorFlushIntervalMs": 16,
         },
         # 命令代理配置
         "commandProxy": {

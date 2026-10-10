@@ -33,6 +33,15 @@ MIGRATION_LOCK_SUFFIX = ".migrate.lock"
 DATA_COMPATIBILITY_FILE = "data-compatibility.json"
 DATA_COMPATIBILITY_FORMAT = 1
 
+#: 已退役的列：``表名 -> (列名, ...)``。启动期发现即**先备份再删除**。
+#:
+#: 退役列与 :func:`_schema_drift` 关心的「缺列」相反：ORM 已经不再映射它，留着不影响
+#: 读写，只会让后来者误以为还有这个维度（例如角色体系下线后的 ``users.role``）。
+#: 删除是可选的清理，删不掉也不影响启动。
+RETIRED_COLUMNS: dict[str, tuple[str, ...]] = {
+    "users": ("role",),
+}
+
 _SIDECAR_SUFFIXES = ("-journal", "-wal", "-shm")
 
 
@@ -134,7 +143,8 @@ def _schema_drift(database_url: str) -> list[str]:
     分成「返回明细」而不是「返回布尔」是为了能把缺什么直接写进报错里：启动期报
     ``license_state 缺列 activated_by`` 远比后面某次查询抛 ``no such column`` 有用。
 
-    只查缺口，不查多余列：库里多一列不影响 ORM 读取，历史上也确实会留下退役列。
+    只查缺口，不查多余列：库里多一列不影响 ORM 读取，而且退役列由
+    :func:`_prune_retired_columns` 单独清掉，不该在这里变成「结构不一致」的启动失败。
     """
     from sqlalchemy import create_engine, inspect
 
@@ -242,6 +252,65 @@ def prune_database_backups(database_path: Path, keep: int = 3, label: str = "mig
             continue
         removed.append(stale)
     return removed
+
+
+def _retired_columns_present(database_path: Path) -> list[str]:
+    """列出库里仍然存在、且在 :data:`RETIRED_COLUMNS` 登记过的列（``表.列``）。"""
+    if not database_path.is_file() or database_path.stat().st_size == 0:
+        return []
+    with closing(sqlite3.connect(f"file:{database_path}?mode=ro", uri=True)) as connection:
+        tables = {
+            row[0]
+            for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+        }
+        found: list[str] = []
+        for table, columns in RETIRED_COLUMNS.items():
+            if table not in tables:
+                continue
+            live = {row[1] for row in connection.execute(f'PRAGMA table_info("{table}")')}
+            found.extend(f"{table}.{column}" for column in columns if column in live)
+        return found
+
+
+def _drop_retired_columns(database_path: Path) -> list[str]:
+    """逐个 ``ALTER TABLE ... DROP COLUMN``，返回真正删掉的 ``表.列``。
+
+    单列删不掉（被索引 / 视图 / 触发器引用等）只跳过它，不影响其它列，也不阻断启动：
+    登记在这里的列都已经没有读写方，留着只是不干净。
+    """
+    connection = sqlite3.connect(database_path, isolation_level=None)
+    dropped: list[str] = []
+    try:
+        for entry in _retired_columns_present(database_path):
+            table, column = entry.split(".", 1)
+            try:
+                connection.execute(f'ALTER TABLE "{table}" DROP COLUMN "{column}"')
+            except sqlite3.Error:
+                continue
+            dropped.append(entry)
+    finally:
+        connection.close()
+    return dropped
+
+
+def _prune_retired_columns(settings: Settings, backup: Path | None) -> Path | None:
+    """删掉 :data:`RETIRED_COLUMNS` 登记的退役列，返回可回滚的快照路径。
+
+    删列会改写建表语句（结构指纹随之变化），所以**必须**先有快照：复用本次迁移已有的
+    那份，没有就现做一份。列本来就不存在时（绝大多数启动）是纯只读检查，不落盘。
+    """
+    database_path = settings.database_path
+    if not _retired_columns_present(database_path):
+        return backup
+    if sqlite3.sqlite_version_info < (3, 35, 0):
+        # 没有 ``DROP COLUMN``：保留一列 ORM 已经不读的列，比重建整张表安全得多。
+        return backup
+    if backup is None:
+        backup = backup_database(database_path)
+    prune_database_backups(database_path)
+    if _drop_retired_columns(database_path):
+        _validate_database(database_path, SCHEMA_REVISION)
+    return backup
 
 
 def restore_database_backup(database_path: Path, backup_path: Path) -> None:
@@ -369,7 +438,7 @@ def prepare_data_directory(settings: Settings) -> None:
 
 
 def run_migrations(settings: Settings) -> Path | None:
-    """把数据库带到 head 结构，返回升级前备份的路径（没动结构时为 None）。"""
+    """把数据库带到 head 结构并清掉退役列，返回事后可回滚的备份路径（没动结构时为 None）。"""
     check_data_compatibility(settings)
     database_path = settings.database_path
     lock_path = database_path.parent / f"{database_path.name}{MIGRATION_LOCK_SUFFIX}"
@@ -380,6 +449,11 @@ def run_migrations(settings: Settings) -> Path | None:
 
 
 def _run_migrations_locked(settings: Settings) -> Path | None:
+    """迁移锁内：先补结构到 head，再删退役列；两者共用同一份迁移前快照。"""
+    return _prune_retired_columns(settings, _bring_schema_to_head(settings))
+
+
+def _bring_schema_to_head(settings: Settings) -> Path | None:
     database_path = settings.database_path
     script_dir = _migrations_dir(settings)
     config = _migration_config(settings, script_dir) if script_dir is not None else None

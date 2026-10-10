@@ -10,7 +10,6 @@ from pathlib import Path
 data_dir = Path(tempfile.mkdtemp(prefix="homeos-p51-"))
 os.environ["HOMEOS_DATA_DIR"] = str(data_dir)
 os.environ["HOMEOS_DATABASE_URL"] = f"sqlite:///{data_dir / 'homeos.db'}"
-os.environ["REDIS_URL"] = ""
 os.environ["LICENSE_REQUIRED"] = "0"
 os.environ["HA_BASE_URL"] = ""
 os.environ["UPDATE_CHECKS_ENABLED"] = "0"

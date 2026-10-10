@@ -10,7 +10,6 @@ import { duplicateHomeMode, fetchHomeModeContext, fetchHomeModeExecutionHistory,
 import { collectHaSceneScriptRecords } from '@/utils/ha/scene-script.util'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { fetchPresenceHome } from '@/services/api/security'
-import { useAuthStore } from '@/stores/auth.store'
 import { downloadBlob } from '@/utils/core/misc.util'
 import { getApiErrorMessage } from '@/utils/core/error-message'
 import { logger } from '@/utils/core/logger'
@@ -18,7 +17,7 @@ import { formatPresenceBadgeSummary } from '@/utils/presence/display.util'
 import { buildHomeModeRecommendations } from '@/utils/recommend/home-mode-recommend.util'
 import { useSettingsSave } from '@/features/settings/composables/hub-ui.internals'
 import { CalendarDays, Link2, Radio, Users, Zap } from '@lucide/vue'
-import type { ComputedRef, Ref } from 'vue'
+import type { Ref } from 'vue'
 import { computed, onActivated, onMounted, ref } from 'vue'
 import type { ActionTemplate, ModeActionDraft } from '@/composables/home-mode/draft.internals'
 import { useHomeModeEditor } from '@/composables/home-mode/editor.internals'
@@ -27,7 +26,6 @@ import { useHomeModeEditor } from '@/composables/home-mode/editor.internals'
 type HomeModesApi = Pick<ReturnType<typeof useHomeModes>, 'modes' | 'fetchModes' | 'createMode'>
 
 function useHomeModePanelContext(options: {
-  isAdmin: ComputedRef<boolean>
   modes: HomeModesApi['modes']
   fetchModes: HomeModesApi['fetchModes']
   createMode: HomeModesApi['createMode']
@@ -35,7 +33,7 @@ function useHomeModePanelContext(options: {
   chrome: ReturnType<typeof useChromeStore>
   touchOrchCounts: () => void
 }) {
-  const { isAdmin, modes, fetchModes, createMode, activeTab, chrome, touchOrchCounts } = options
+  const { modes, fetchModes, createMode, activeTab, chrome, touchOrchCounts } = options
 
   const entitiesStore = useEntitiesStore()
 
@@ -56,7 +54,7 @@ function useHomeModePanelContext(options: {
     const logs = modeContext.value.triggerLogs
     return Array.isArray(logs) ? logs : []
   })
-  const showPresetSidebar = computed(() => isAdmin.value && modePresets.value.length > 0)
+  const showPresetSidebar = computed(() => modePresets.value.length > 0)
 
   let contextLoaded = false
 
@@ -292,7 +290,6 @@ function useHomeModePanelContext(options: {
 
 // ── useHomeModePanel ──
 export function useHomeModePanel() {
-  const auth = useAuthStore()
   const chrome = useChromeStore()
   const refreshOrchOverview = null as (() => void) | null
 
@@ -301,7 +298,6 @@ export function useHomeModePanel() {
   }
 
   const { saving, runSave } = useSettingsSave()
-  const isAdmin = computed(() => auth.role === 'admin')
 
   const {
     modes,
@@ -371,7 +367,6 @@ export function useHomeModePanel() {
     exportModesJson,
     onImportFile,
   } = useHomeModePanelContext({
-    isAdmin,
     modes,
     fetchModes,
     createMode,
@@ -728,7 +723,6 @@ export function useHomeModePanel() {
   })
 
   return {
-    isAdmin,
     loading,
     modesLoadError,
     modeTabs,

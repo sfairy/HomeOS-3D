@@ -24,9 +24,6 @@ from ..realtime.ws_auth import extract_auth_token_from_cookie, resolve_ws_user
 
 logger = logging.getLogger("homeos.ws-proxy")
 
-#: 内嵌页 WS 反代允许的角色（对齐 HTTP 侧 embed-proxy 的 RolesGuard）。
-EMBED_WS_ALLOWED_ROLES = frozenset({"admin", "adult", "child"})
-
 #: 双向桥接默认消息上限（None = 不限制，避免大帧被 websockets 默认 1MB 截断）。
 WS_MAX_MESSAGE_SIZE: int | None = None
 
@@ -35,28 +32,22 @@ EMBED_WS_HEARTBEAT_MS = 30_000
 
 
 def assert_web_rtc_ws_token_allowed(payload: dict[str, Any] | None, entity_id: str) -> bool:
-    """对齐 Nest ``assertWebRtcWsTokenAllowed``：camera 实体 + 角色/白名单判定。"""
+    """对齐 Nest ``assertWebRtcWsTokenAllowed``：camera 实体 + 白名单判定。
+
+    HomeOS 为单一管理员模型，无角色维度；只剩「camera 实体 + 实体级白名单」这一判定，
+    而白名单当前恒为空（见 ``security.auth_context.resolve_restrictions``），故实际恒放行。
+    """
     if not payload or not entity_id or not entity_id.startswith("camera."):
         return False
-    role = payload.get("role")
     restrictions = payload.get("restrictions")
     restrictions = [str(item) for item in restrictions] if isinstance(restrictions, list) else []
-
-    # guest / child 需显式 restrictions 白名单才可查看摄像头
-    if role in ("guest", "child"):
-        if not restrictions:
-            return False
-        return is_entity_allowed_by_restrictions(entity_id, restrictions)
-    if role == "admin":
-        return True
     if restrictions:
         return is_entity_allowed_by_restrictions(entity_id, restrictions)
-    # 家庭成员（adult / user）默认可查看
-    return role in ("adult", "user")
+    return True
 
 
 def verify_embed_ws_auth(token: str | None, session: Any) -> bool:
-    """内嵌页 WS 握手鉴权：DB 会话有效 + 角色白名单。
+    """内嵌页 WS 握手鉴权：DB 会话有效即可（单一管理员模型，无角色白名单）。
 
     与 HTTP / Socket.IO 侧同源：Cookie ``auth_token`` 携带的是 ``sessions`` 表里的
     不透明会话令牌（非 JWT），因此这里只查会话表，不做任何签名校验。
@@ -64,11 +55,10 @@ def verify_embed_ws_auth(token: str | None, session: Any) -> bool:
     if not token or session is None:
         return False
     try:
-        user = resolve_ws_user(token, session)
+        resolve_ws_user(token, session)
     except Exception:
         return False
-    role = user.get("role") or "user"
-    return role in EMBED_WS_ALLOWED_ROLES
+    return True
 
 
 def _ssl_context_for(url: str) -> ssl.SSLContext | None:
@@ -234,7 +224,6 @@ def client_subprotocols(header: str | None) -> list[str]:
 
 
 __all__ = [
-    "EMBED_WS_ALLOWED_ROLES",
     "EMBED_WS_HEARTBEAT_MS",
     "assert_web_rtc_ws_token_allowed",
     "bridge_websockets",

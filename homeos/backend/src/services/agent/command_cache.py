@@ -4,20 +4,17 @@
  采用“二次确认”策略：LLM 学到的指令需再次命中相同映射才标记为 confirmed；
  快路径学到的指令默认 confirmed（规则可信）。
  支持用户纠正（“不对/学错了”）删除最近一条，以及 30 秒窗口内同房间重新操作的自动纠正。
-依赖：RedisService（重启后恢复学过的指令）。
+依赖：无（纯进程内缓存）。
 """
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import re
 import time
 from dataclasses import dataclass, field
 from typing import Any
-
-from ...core.redis import RedisService
 
 logger = logging.getLogger("homeos.agent.command_cache")
 
@@ -27,12 +24,6 @@ MAX_SIZE = 500
 CLEANUP_SIZE = 50
 #: 自动纠正的时间窗口：最近一次操作后 30 秒内同房间重做视为纠正
 CORRECTION_WINDOW = 30_000
-#: 持久化防抖延迟（秒）
-PERSIST_DEBOUNCE_SECONDS = 0.2
-#: 缓存持久化 Redis 键
-REDIS_KEY = "homeos:agent:cmd-cache"
-#: 缓存持久化 TTL（秒）
-REDIS_TTL_SECONDS = 7 * 24 * 3600
 #: 未登录 / 匿名场景的兜底缓存命名空间
 ANONYMOUS_SCOPE = "global"
 
@@ -83,102 +74,11 @@ class CommandCacheService:
     缓存按用户 ID 隔离：同一原话在不同用户账户下独立学习 / 命中，避免共享串号。
     """
 
-    def __init__(self, redis: RedisService | None = None) -> None:
-        self._redis = redis
+    def __init__(self) -> None:
         #: 原话规范化后的缓存表
         self._cache: dict[str, CacheEntry] = {}
         #: 最近一次操作，用于纠正逻辑
         self._last_action: LastAction | None = None
-        self._persist_handle: Any = None
-
-    async def init(self) -> None:
-        """从 Redis 恢复缓存（对齐 ``onModuleInit``）。"""
-        await self.restore()
-
-    async def restore(self) -> None:
-        if self._redis is None:
-            return
-        try:
-            raw = await self._redis.get(REDIS_KEY)
-            if not raw:
-                return
-            text = raw.decode() if isinstance(raw, bytes) else str(raw)
-            parsed = json.loads(text)
-            if not isinstance(parsed, dict):
-                return
-            entries = parsed.get("entries")
-            if isinstance(entries, dict):
-                for key, entry in entries.items():
-                    if key and isinstance(entry, dict) and entry.get("toolName"):
-                        self._cache[key] = CacheEntry(
-                            tool_name=str(entry.get("toolName")),
-                            tool_args=entry.get("toolArgs") if isinstance(entry.get("toolArgs"), dict) else {},
-                            hit_count=int(entry.get("hitCount") or 0),
-                            confirmed=bool(entry.get("confirmed")),
-                        )
-            last = parsed.get("lastAction")
-            if isinstance(last, dict) and last.get("rawText"):
-                self._last_action = LastAction(
-                    timestamp=int(last.get("timestamp") or 0),
-                    raw_text=str(last.get("rawText")),
-                    tool_name=str(last.get("toolName") or ""),
-                    tool_args=last.get("toolArgs") if isinstance(last.get("toolArgs"), dict) else {},
-                    user_id=(str(last["userId"]).strip() if last.get("userId") else None),
-                )
-            if self._cache:
-                logger.info("已恢复指令缓存: %s 条", len(self._cache))
-        except Exception as exc:
-            logger.debug("恢复指令缓存失败: %s", exc)
-
-    def persist(self) -> None:
-        """防抖 200ms 后写入 Redis（对齐 Nest ``setTimeout`` + fire-and-forget）。"""
-        if self._redis is None:
-            return
-        payload = _dump(
-            {
-                "entries": {
-                    key: {
-                        "toolName": entry.tool_name,
-                        "toolArgs": entry.tool_args,
-                        "hitCount": entry.hit_count,
-                        "confirmed": entry.confirmed,
-                    }
-                    for key, entry in self._cache.items()
-                },
-                "lastAction": (
-                    {
-                        "timestamp": self._last_action.timestamp,
-                        "rawText": self._last_action.raw_text,
-                        "toolName": self._last_action.tool_name,
-                        "toolArgs": self._last_action.tool_args,
-                        "userId": self._last_action.user_id,
-                    }
-                    if self._last_action is not None
-                    else None
-                ),
-            }
-        )
-
-        async def _write() -> None:
-            try:
-                await self._redis.set(REDIS_KEY, payload, REDIS_TTL_SECONDS)
-            except Exception as exc:
-                logger.debug("指令缓存持久化失败: %s", exc)
-
-        def _fire() -> None:
-            self._persist_handle = None
-            try:
-                asyncio.get_running_loop().create_task(_write())
-            except RuntimeError:
-                pass
-
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            return
-        if self._persist_handle is not None:
-            self._persist_handle.cancel()
-        self._persist_handle = loop.call_later(PERSIST_DEBOUNCE_SECONDS, _fire)
 
     # ------------------------------------------------------------------ #
     # key
@@ -217,7 +117,6 @@ class CommandCacheService:
                 entry.tool_name,
                 _dump(entry.tool_args),
             )
-            self.persist()
         return entry
 
     def confirm(self, text: str, user_id: str | None = None) -> bool:
@@ -227,7 +126,6 @@ class CommandCacheService:
         if entry is not None and not entry.confirmed:
             entry.confirmed = True
             logger.info('缓存已确认(用户再说一次确认): "%s"', key)
-            self.persist()
             return True
         return False
 
@@ -307,7 +205,6 @@ class CommandCacheService:
             tool_args=dict(tool_args or {}),
             user_id=(user_id or "").strip() or None,
         )
-        self.persist()
 
     def correct_last(self, user_id: str | None = None) -> str | None:
         """用户主动纠正：删除最近一条缓存并返回其原话，供上层用新指令重新执行。"""
@@ -321,7 +218,6 @@ class CommandCacheService:
         deleted = self._cache.pop(key, None) is not None
         logger.info('用户纠正: %s "%s"', "已删除" if deleted else "无缓存", key)
         self._last_action = None
-        self.persist()
         return raw_text if deleted else None
 
     def try_auto_correct(
@@ -346,14 +242,12 @@ class CommandCacheService:
             prev_key = self.key_of(last.raw_text, last.user_id)
             self._cache.pop(prev_key, None)
             logger.info('自动纠正: 30s内重新操作同房间/同类型,删除旧缓存 "%s"', prev_key)
-            self.persist()
             return True
         return False
 
     def delete(self, text: str, user_id: str | None = None) -> None:
         """删除指定原话对应的缓存（用于缓存执行失败后清理），按用户隔离。"""
         self._cache.pop(self.key_of(text, user_id), None)
-        self.persist()
 
     @property
     def size(self) -> int:
@@ -368,7 +262,6 @@ class CommandCacheService:
             self._cache.clear()
             self._last_action = None
             logger.info("缓存已清空(%s条)", count)
-            self.persist()
             return
         removed = 0
         for key in list(self._cache.keys()):
@@ -378,14 +271,12 @@ class CommandCacheService:
         if self._last_action is not None and self._last_action.user_id == scope:
             self._last_action = None
         logger.info("用户 [%s] 缓存已清空(%s条)", scope, removed)
-        self.persist()
 
 
 __all__ = [
     "ANONYMOUS_SCOPE",
     "CORRECTION_WINDOW",
     "MAX_SIZE",
-    "REDIS_KEY",
     "CacheEntry",
     "CommandCacheService",
     "LastAction",

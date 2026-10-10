@@ -114,8 +114,6 @@ type LayoutNavConfig = {
 }
 
 type MainLayoutNavOptions = {
-  /** 访客账号不可访问内嵌反代，默认隐藏内嵌 Tab */
-  includeEmbeds?: boolean
   /**
    * 功能码门禁明细（来自 ``/license/status`` 的 ``featureAccess``）。
    *
@@ -147,15 +145,14 @@ function isNavTabFeatureGranted(id: string, featureAccess?: Record<string, boole
 /**
  * 构建桌面主布局导航：首项固定为总览，其余按 navTabOrder 与可见性/放置分配到顶栏或下拉。
  * @param layout 布局配置
- * @param options 选项（includeEmbeds 控制内嵌反代是否入栏）
+ * @param options 选项（featureAccess 控制功能码门禁显隐）
  * @returns { barItems, dropdownItems }
  */
 export function buildMainLayoutNavMenu(layout: LayoutNavConfig, options: MainLayoutNavOptions = {}) {
-  const includeEmbeds = options.includeEmbeds !== false
   const featureAccess = options.featureAccess
   const visibility = { ...(layout.navTabVisibility || {}) }
   const placement = { ...(layout.navTabPlacement || {}) }
-  const customEmbeds = includeEmbeds ? layout.customEmbeds || [] : []
+  const customEmbeds = layout.customEmbeds || []
   const tabDefs = new Map<string, MainLayoutNavItem>([
     [
       'devices',
@@ -222,7 +219,7 @@ export function buildMainLayoutNavMenu(layout: LayoutNavConfig, options: MainLay
         accent: resolveEmbedNavAccent(embed, idx),
       })
     })
-  } else if (includeEmbeds && layout.moviePilotUrl) {
+  } else if (layout.moviePilotUrl) {
     extraIds.push('media')
     tabDefs.set('media', {
       id: 'media',

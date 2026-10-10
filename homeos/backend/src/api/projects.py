@@ -254,10 +254,8 @@ def duplicate_project(project_id: str, payload: ProjectDuplicateRequest, request
 
 
 @router.delete('/{project_id}', status_code=status.HTTP_204_NO_CONTENT)
-def delete_project(project_id: str, payload: ProjectDeleteRequest, request: Request, background_tasks: BackgroundTasks, database: DatabaseSession, user: LicensedUser) -> None:
+def delete_project(project_id: str, payload: ProjectDeleteRequest, request: Request, background_tasks: BackgroundTasks, database: DatabaseSession, _user: LicensedUser) -> None:
     require_project_write(request)
-    if user.role != 'admin':
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='仅管理员可以删除项目。')
     project = database.get(Project, project_id)
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目不存在。')

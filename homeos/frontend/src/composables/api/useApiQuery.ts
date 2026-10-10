@@ -13,8 +13,6 @@ import { extractErrorMessage } from '@/utils/core/error-message'
  * API 查询元数据（由后端返回，用于标识降级状态等）
  */
 interface ApiQueryMeta {
-  /** Redis 是否就绪 */
-  redisReady?: boolean
   /** 是否处于降级模式 */
   degraded?: boolean
   /** 降级原因说明 */
@@ -80,10 +78,8 @@ export function useApiQuery<T>(
       if (seq !== execSeq) return
       data.value = result.data
       meta.value = result.meta ?? null
-      // 降级判定：meta 显式标记 / Redis 未就绪 / 存在 reason
-      degraded.value = Boolean(
-        result.meta?.degraded || result.meta?.redisReady === false || result.meta?.reason,
-      )
+      // 降级判定：meta 显式标记 / 存在 reason
+      degraded.value = Boolean(result.meta?.degraded || result.meta?.reason)
     } catch (err) {
       if (seq !== execSeq) return
       error.value = extractErrorMessage(err)

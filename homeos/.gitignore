@@ -7,7 +7,7 @@
 .idea/
 
 # ---- 本地配置与密钥（绝不能提交）----
-# .env 里是数据库/Redis 口令等真实凭据；keys/ 是部署时生成的真实口令（旧 secrets/ 仍忽略）。
+# .env 里是数据库口令等真实凭据；keys/ 是部署时生成的真实口令（旧 secrets/ 仍忽略）。
 .env
 .env.*
 !.env.example

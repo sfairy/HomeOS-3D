@@ -303,6 +303,7 @@ export function renderInteraction3d(
         (styleLinkElement?.remove(), (styleLinkElement = null));
         const errorElement = document.createElement("div");
         ((errorElement.className = "i3d-access-pending"),
+          errorElement.classList.add("is-load-error"),
           (errorElement.textContent = "户型暂时无法载入，请稍候重试。"),
           errorElement.setAttribute("role", "status"),
           syncInteraction3dUiScale(hostElement),

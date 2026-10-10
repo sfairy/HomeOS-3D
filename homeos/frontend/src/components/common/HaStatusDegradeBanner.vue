@@ -8,9 +8,9 @@
       class="hos-degrade-banner__icon hos-degrade-banner__icon--spin"
       aria-hidden="true"
     />
-    <!-- 数据库图标：Redis 未就绪 -->
+    <!-- 配置图标：业务未配置 -->
     <Database
-      v-else-if="redisReady === false"
+      v-else-if="configured === false"
       class="hos-degrade-banner__icon"
       aria-hidden="true"
     />
@@ -45,7 +45,7 @@
  * @description HA 状态降级提示横幅
  *  职责：
  *    - 根据 entitiesStore 的连接/重连/缓存过期状态，展示降级提示；
- *    - 支持 Redis 未就绪、业务未配置等多级降级文案；
+ *    - 支持业务未配置的多级降级文案；
  *    - 提供重试按钮触发 HA 重连。
  *  依赖：vue computed，@lucide/vue 图标，entities.store 与 chrome.store。
  *  注意：高风险控制（阀门/门锁/报警）在离线时会被业务层拦截，本组件仅做提示。
@@ -69,14 +69,10 @@ const props = defineProps({
   forceVisible: { type: Boolean, default: false },
   /** 离线时是否展示高风险控制已拦截的提示 */
   showOfflineControlHint: { type: Boolean, default: true },
-  /** Redis 时间线/缓存是否就绪；false 时展示三级降级文案 */
-  redisReady: { type: Boolean, default: null },
   /** 业务配置是否完成；false 时提示前往设置 */
   configured: { type: Boolean, default: null },
   /** 业务未配置时的提示文案 */
   configuredHint: { type: String, default: '相关绑定尚未完成，部分功能不可用' },
-  /** Redis 未就绪时的提示文案 */
-  redisHint: { type: String, default: '历史数据服务未就绪，实时状态仍可用' },
 })
 
 const entitiesStore = useEntitiesStore()
@@ -87,18 +83,17 @@ const haDegraded = computed(
   () => !entitiesStore.connected || entitiesStore.reconnecting || entitiesStore.entitiesStale,
 )
 
-/** 横幅是否可见：forceVisible 优先，其次 Redis/配置未就绪，最后回退到 HA 降级态 */
+/** 横幅是否可见：forceVisible 优先，其次配置未就绪，最后回退到 HA 降级态 */
 const visible = computed(() => {
   if (props.forceVisible) return true
-  if (props.redisReady === false || props.configured === false) return true
+  if (props.configured === false) return true
   if (entitiesStore.haQueueDroppedTotal > 0) return true
   return haDegraded.value
 })
 
-/** 解析后的标题：优先自定义，否则按 Redis/配置/默认降级推导 */
+/** 解析后的标题：优先自定义，否则按配置/默认降级推导 */
 const resolvedTitle = computed(() => {
   if (props.title) return props.title
-  if (props.redisReady === false) return '数据服务降级'
   if (props.configured === false) return '配置未完成'
   return '数据可能不完整'
 })
@@ -108,7 +103,6 @@ const resolvedMessage = computed(() => {
   if (props.message) return props.message
   const parts = []
   if (props.configured === false) parts.push(props.configuredHint)
-  if (props.redisReady === false) parts.push(props.redisHint)
   if (!entitiesStore.connected && !entitiesStore.reconnecting) {
     parts.push('Home Assistant 未连接')
     if (props.showOfflineControlHint) parts.push('阀门/门锁/报警等高风险控制已拦截')

@@ -64,7 +64,6 @@ export function useHomeModeSwitcher() {
     activeMode,
     loading,
     acting,
-    canControl,
     activate,
     deactivate,
     fetchModes,
@@ -135,7 +134,6 @@ export function useHomeModeSwitcher() {
 
   async function selectMode(mode: { id: string | number; name?: string }) {
     open.value = false
-    if (!canControl()) return
     if (activeMode.value?.id === mode.id) {
       useChromeStore().notify('已是当前模式', 'info')
       return
@@ -155,7 +153,7 @@ export function useHomeModeSwitcher() {
 
   async function toggleOff() {
     open.value = false
-    if (!canControl() || !activeMode.value) return
+    if (!activeMode.value) return
     const name = activeMode.value.name || '当前模式'
     const ok = await useChromeStore().confirm(
       `确定退出「${name}」？将尝试按激活前快照还原设备状态。`,
@@ -223,7 +221,6 @@ export function useHomeModeSwitcher() {
     activeMode,
     loading,
     acting,
-    canControl,
     label,
     modeIcon,
     presenceHome,

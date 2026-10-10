@@ -1,4 +1,4 @@
-"""应用配置脱敏与角色裁剪（对齐 ``shared/app-config/config-mask.util.ts``）。"""
+"""应用配置脱敏工具（对齐 ``shared/app-config/config-mask.util.ts``）。"""
 
 from __future__ import annotations
 
@@ -6,31 +6,10 @@ import copy
 import re
 from typing import Any
 
-from .constants import CONFIG_MASK_PLACEHOLDER, PUBLIC_CONFIG_SECTIONS
+from .constants import CONFIG_MASK_PLACEHOLDER
 
 #: 敏感字段 key 正则（password/token/secret 等）。
 SENSITIVE_FIELD_RE = re.compile(r"password|token|secret|apikey|webhook|key$", re.IGNORECASE)
-
-_ADULT_SECURITY_READ_KEYS = (
-    "sensorAlertCooldownSec",
-    "requireConfiguredPersons",
-    "autoArmOnEveryoneLeft",
-    "autoUpgradeToAwayOnEveryoneLeft",
-    "autoDisarmOnFirstHome",
-    "presencePersons",
-    "linkAwaySimOnArmAway",
-    "linkHomeModeOnSecurityChange",
-    "frigatePersonAlarmModes",
-    "frigateMaxEvents",
-    "frigateDedupMs",
-)
-
-_ADULT_ENERGY_READ_KEYS = (
-    "meterEntityId",
-    "circuitEntityIds",
-    "learningPeriodDays",
-    "learningStartedAt",
-)
 
 
 def is_masked_value(val: Any) -> bool:
@@ -139,47 +118,11 @@ def strip_masked_placeholders(partial: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def _pick_partial_section(source: Any, keys: tuple[str, ...]) -> dict[str, Any] | None:
-    if not isinstance(source, dict):
-        return None
-    out: dict[str, Any] = {}
-    for key in keys:
-        if key in source:
-            out[key] = source[key]
-    return out or None
-
-
-def pick_config_for_role(config: dict[str, Any], role: str | None) -> dict[str, Any]:
-    """按角色（admin/adult/访客/儿童）裁剪 GET /system/config 下发内容。"""
-    if role == "admin":
-        return config
-
-    public: dict[str, Any] = {}
-    for section in PUBLIC_CONFIG_SECTIONS:
-        if section in config:
-            public[section] = copy.deepcopy(config[section])
-
-    if role == "adult":
-        out = public
-        if config.get("envSensorMap"):
-            out["envSensorMap"] = copy.deepcopy(config["envSensorMap"])
-        energy = _pick_partial_section(config.get("energy"), _ADULT_ENERGY_READ_KEYS)
-        if energy:
-            out["energy"] = energy
-        security = _pick_partial_section(config.get("security"), _ADULT_SECURITY_READ_KEYS)
-        if security:
-            out["security"] = security
-        return copy.deepcopy(out)
-
-    return copy.deepcopy(public)
-
-
 __all__ = [
     "SENSITIVE_FIELD_RE",
     "apply_import_replace_preserving_secrets",
     "is_masked_value",
     "mask_sensitive_fields_by_key",
-    "pick_config_for_role",
     "restore_client_power_report_tokens",
     "strip_masked_placeholders",
 ]

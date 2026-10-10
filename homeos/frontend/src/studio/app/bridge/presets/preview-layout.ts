@@ -12,3 +12,33 @@ export function interaction3dPreviewSize(element: any, board: any, boardWidth: a
     aspectRatio: width / height,
   };
 }
+/**
+ * 统一 3D 配置预览的尺寸观察入口：ResizeObserver + rAF 节流，
+ * 避免多个编辑器各自裸用 ResizeObserver 在窗口尺寸变化时触发布局抖动 / 警告。
+ * 返回句柄的 `disconnect()` 会同时取消挂起的动画帧。
+ */
+export function observeInteraction3dPreview(
+  targetElement: any,
+  onResize: () => void,
+  view: any = globalThis,
+) {
+  let animationFrameId: number | null = null;
+  let isDisconnected = false;
+  const resizeObserver = new view.ResizeObserver(() => {
+    if (animationFrameId === null) {
+      animationFrameId = view.requestAnimationFrame(() => {
+        animationFrameId = null;
+        if (!isDisconnected) onResize();
+      });
+    }
+  });
+  resizeObserver.observe(targetElement);
+  return {
+    disconnect() {
+      isDisconnected = true;
+      resizeObserver.disconnect();
+      if (animationFrameId !== null) view.cancelAnimationFrame(animationFrameId);
+      animationFrameId = null;
+    },
+  };
+}

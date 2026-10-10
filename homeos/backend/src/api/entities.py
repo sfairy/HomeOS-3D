@@ -36,7 +36,7 @@ from ..realtime.state_store import (
     normalize_entity_status_filter,
     slice_entities_by_cursor,
 )
-from ..security.auth_context import require_roles, require_user
+from ..security.auth_context import require_user
 
 router = NestRouter(prefix="/entities", tags=["connect"])
 
@@ -246,7 +246,7 @@ async def unlink_entity_reference_route(
     entity_id: str,
     payload: UnlinkEntityReferenceDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     if not is_entity_allowed(entity_id, resolve_entity_restrictions(user)):
         forbidden(api_error("ACCESS_ENTITY_FORBIDDEN"))
@@ -293,7 +293,7 @@ async def batch_get_entities(
 async def batch_update_entity_area(
     payload: StateStoreQueryDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     entity_ids = [i for i in (payload.entity_ids or []) if i]
     area_id = str(payload.area_id or "").strip()

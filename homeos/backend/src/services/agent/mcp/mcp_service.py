@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-import copy
 import hmac
 import json
 import logging
@@ -22,7 +21,7 @@ from typing import Any
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .mcp_protocol import DEFAULT_SERVER_VERSION, McpHandlerDeps, handle_mcp_json_rpc
-from ..agent_actor import MCP_GATEWAY_ACTOR, AgentActor
+from ..agent_actor import AgentActor
 from ....core.json_field import read_json_object
 from ....core.models import User
 from ....security.auth_context import resolve_restrictions
@@ -157,29 +156,29 @@ class McpGatewayService:
     # ------------------------------------------------------------------ #
     # 执行身份
     # ------------------------------------------------------------------ #
-    async def resolve_mcp_actor(self) -> AgentActor:
-        """绑定 agentConfig.mcpActorUserId 对应的真实用户；未绑定则无 role，控制类工具拒绝。"""
-        fallback_actor = copy.copy(MCP_GATEWAY_ACTOR)
+    async def resolve_mcp_actor(self) -> AgentActor | None:
+        """绑定 agentConfig.mcpActorUserId 对应的真实用户；未绑定则返回 ``None``。
+
+        返回 ``None`` 表示「无执行身份」，控制类工具据此拒绝（「未绑定执行身份」）。
+        """
         user_id = await self._agent_config.get_mcp_actor_user_id()
         if not user_id:
-            return fallback_actor
+            return None
         try:
             with self._session_factory() as session:
                 user = session.get(User, user_id)
             if user is None:
                 logger.warning("MCP 绑定用户不存在: %s", user_id)
-                return fallback_actor
+                return None
             prefs = read_json_object(user.preferences)
-            role = user.role
             return AgentActor(
-                role=role,
                 user_id=user.id,
                 username=user.username,
-                restrictions=resolve_restrictions(role, prefs),
+                restrictions=resolve_restrictions(prefs),
             )
         except Exception as exc:
             logger.warning("解析 MCP 执行身份失败: %s", exc)
-            return fallback_actor
+            return None
 
     # ------------------------------------------------------------------ #
     # JSON-RPC 入口

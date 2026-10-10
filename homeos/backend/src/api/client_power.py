@@ -18,7 +18,7 @@ from fastapi import Depends, Request, Response
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from .router import NestRouter
-from ..security.auth_context import require_roles, require_user
+from ..security.auth_context import require_user
 from ..security.cookies import resolve_cookie_secure_for_request
 
 router = NestRouter(prefix="/system", tags=["system"])
@@ -187,7 +187,7 @@ async def report(
     dto: ClientSystemReportDto,
     request: Request,
     response: Response,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult", "child")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """上报客户端系统信息（含电量）；未配对终端仅记录为待配对，不执行联动。"""
     _ = user
@@ -222,7 +222,7 @@ async def get_status(request: Request, user: dict[str, Any] = Depends(require_us
 
 
 @router.get("/client-power/pending")
-async def get_pending(request: Request, user: dict[str, Any] = Depends(require_roles("admin"))):
+async def get_pending(request: Request, user: dict[str, Any] = Depends(require_user)):
     """获取待配对客户端列表（仅管理员）。"""
     _ = user
     return {"pending": _service(request).get_pending_clients()}
@@ -232,7 +232,7 @@ async def get_pending(request: Request, user: dict[str, Any] = Depends(require_r
 async def dismiss_pending(
     dto: DismissPendingDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """清除指定离线待配对终端的发现记录（仅管理员）。"""
     _ = user
@@ -241,7 +241,7 @@ async def dismiss_pending(
 
 @router.post("/client-power/pending/dismiss-offline")
 async def dismiss_all_offline_pending(
-    request: Request, user: dict[str, Any] = Depends(require_roles("admin"))
+    request: Request, user: dict[str, Any] = Depends(require_user)
 ):
     """批量清除所有离线待配对终端的发现记录（仅管理员）。"""
     _ = user

@@ -630,7 +630,7 @@
 }
 
 /* ── connection-panel.css ── */
-/* HA/Redis 连接页 · 概览 + 工作区（Tab + 内容）双层卡片 */
+/* HA 连接页 · 概览 + 工作区（Tab + 内容）双层卡片 */
 
 .conn-hub {
   gap: 14px;

@@ -7,8 +7,8 @@
           / LockManagementPanel / FrigateEvents 按页签 v-show 懒挂。
   依赖：services/api/security arm/disarm 模式切换 + 区域配置推后端；
         composables: useHubTabs tab 持久化 + useWidgetDeviceGroups 设备分组；
-        Pinia: useEntitiesStore + useLayoutStore + useAuthStore 权限判断。
-  注意：arm 布防区可多选可全选；canSelectZones 受 authStore 与配置开关控制。
+        Pinia: useEntitiesStore + useLayoutStore。
+  注意：arm 布防区可多选可全选。
 -->
 <template>
   <article class="sp-card widget-hub-root">
@@ -75,7 +75,7 @@
               </button>
               <span class="sp-zone-count">{{ `${armedZoneCount}/${panelZones.length} 布防` }}</span>
             </div>
-            <div v-if="canSelectZones && zonesExpanded" class="sp-zone-select-bar">
+            <div v-if="zonesExpanded" class="sp-zone-select-bar">
               <p class="sp-zone-select-hint">
                 {{
                   armZoneSelection.length
@@ -100,7 +100,7 @@
                 </button>
               </p>
               <div v-for="zone in panelZones" :key="zone.id" class="sp-zone-item">
-                <label v-if="canSelectZones" class="sp-zone-check">
+                <label class="sp-zone-check">
                   <input
                     type="checkbox"
                     :checked="isZoneSelected(zone.id)"
@@ -148,7 +148,6 @@ import { ref, computed, watch } from 'vue'
 import { ShieldCheck, Shield, ShieldOff, Home, Moon, Loader2, ChevronDown } from '@lucide/vue'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import { useAuthStore } from '@/stores/auth.store'
 import { useSecurityPanelStatus } from '@/composables/security/useSecurityPanelStatus'
 import { executeSecurityPanelArm } from '@/utils/security/panel-arm.util'
 import {
@@ -165,7 +164,6 @@ import { useHubTabs } from '@/composables/widget/useHubTabs'
 
 const chrome = useChromeStore()
 const layoutStore = useLayoutStore()
-const authStore = useAuthStore()
 const {
   currentMode,
   zones: panelZones,
@@ -192,7 +190,6 @@ const effectiveZones = computed(() => {
 })
 
 const armZoneSelection = ref([])
-const canSelectZones = computed(() => authStore.role === 'admin')
 
 const ALL_HUB_TABS = [
   { key: 'arm', label: '布防', accent: 'var(--premium-accent-red, #ff3b30)' },
@@ -273,10 +270,6 @@ const armActions = computed(() =>
 
 async function handleArm(mode) {
   if (arming.value) return
-  if (authStore.role !== 'admin') {
-    chrome.notify('仅管理员可切换安防模式', 'warning')
-    return
-  }
   if (mode !== 'disarmed' && panelZones.value.length === 0) {
     chrome.notify('请先配置安防区域', 'warning')
     return

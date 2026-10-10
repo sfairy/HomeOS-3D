@@ -204,20 +204,53 @@
   filter: drop-shadow(0 0 6px rgba(var(--premium-accent-cyan-rgb, 95, 212, 255), 0.4));
 }
 
-.guest-readonly-badge {
-  font-size: var(--premium-fs-micro);
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  padding: 2px 8px;
-  border-radius: var(--hos-radius-pill);
-  background: rgba(251, 191, 36, 0.15);
-  color: rgb(251, 191, 36);
-  border: 1px solid rgba(251, 191, 36, 0.25);
+/* ── HA 实时状态悬浮提示 ──────────────────────────────────────────────
+   原为参与文档流的整条横幅，会把下方内容整体下推。现改为「零高度锚点 + 绝对定位」：
+   - .main-layout__ha-anchor：flex-basis/height 均为 0，不占页面布局空间，
+     仅作为浮层的定位基准（紧随顶栏与引导横幅之后）；
+   - 锚点 pointer-events:none，浮层自身恢复 auto，未覆盖区域不拦截点击；
+   - 组件内部 v-if 在连接恢复后移除节点，故「连接成功后自动消失」，
+     配合入场上浮淡入动画，出现/消失都不引起布局跳动。 */
+.main-layout__ha-anchor {
+  position: relative;
+  flex: 0 0 0;
+  height: 0;
+  min-height: 0;
+  pointer-events: none;
 }
 
-.main-layout__ha-banner {
-  flex-shrink: 0;
-  margin: 8px 16px 0;
+.main-layout__ha-anchor > .main-layout__ha-banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 120;
+  width: min(560px, calc(100% - 32px));
+  margin: 0;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+  box-shadow:
+    0 12px 36px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  animation: ha-degrade-toast-in 0.28s ease-out;
+}
+
+@keyframes ha-degrade-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .main-layout__ha-anchor > .main-layout__ha-banner {
+    animation: none;
+  }
 }
 
 .ha-status-bar {

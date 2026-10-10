@@ -6,7 +6,7 @@
  *   - 提供布防操作、紧急求助、误报反馈、危险场景测试/演习等业务方法
  *   - 监听传感器状态变化推送会话事件，并同步告警确认与通知已读
  *   - 派生模式名称/颜色、过滤器、分组列表、危险配置摘要等 UI 所需结构
- * @dependencies vue, @/utils/core/logger, vue-router, @lucide/vue, @/stores/layout.store, @/stores/auth.store, @/utils/config/frontend-config, @/composables/security/*, @/utils/ui/haptics.util, @/services/api/orchestrator, @/services/api/notifications, @/services/api/security, @/utils/core/error-message, @homeos/shared, @/constants/security-emergency, @/utils/security/security-panel-arm.util, @/types/layout
+ * @dependencies vue, @/utils/core/logger, vue-router, @lucide/vue, @/stores/layout.store, @/utils/config/frontend-config, @/composables/security/*, @/utils/ui/haptics.util, @/services/api/orchestrator, @/services/api/notifications, @/services/api/security, @/utils/core/error-message, @homeos/shared, @/constants/security-emergency, @/utils/security/security-panel-arm.util, @/types/layout
  */
 import { ref, computed, watch, onMounted } from 'vue'
 import { logger } from '@/utils/core/logger'
@@ -14,7 +14,6 @@ import { useRouter } from 'vue-router'
 import { ShieldCheck, Shield, ShieldOff, Home, Moon, AlertTriangle } from '@lucide/vue'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import { useAuthStore } from '@/stores/auth.store'
 import {
   getMaxRemoteNotifications,
   configEpoch,
@@ -81,7 +80,6 @@ export function useSecurityOverview() {
   const router = useRouter()
   const layoutStore = useLayoutStore()
   const chrome = useChromeStore()
-  const authStore = useAuthStore()
 
   // 安防模式列表（来自布局配置）
   const securityModes = computed(() => layoutStore.layoutConfig.securityModes || [])
@@ -370,11 +368,6 @@ export function useSecurityOverview() {
   async function handleSecurityArm(mode: string) {
     // 已有布防进行中时跳过，防止重复触发
     if (secArming.value) return
-    // 权限校验：仅管理员可切换模式
-    if (authStore.role !== 'admin') {
-      chrome.notify('仅管理员可切换安防模式', 'warning')
-      return
-    }
     // 二次确认：布防/撤防为危险操作，仅用户手动触发路径执行（自动布防不经此函数）
     const isDisarm = mode === 'disarmed'
     const armModeName = securityModes.value.find((m: SecurityMode) => m.key === mode)?.name
@@ -440,11 +433,6 @@ export function useSecurityOverview() {
   async function handleEmergency() {
     // 进行中时跳过
     if (emergencyBusy.value) return
-    // 权限校验：仅管理员可触发
-    if (authStore.role !== 'admin') {
-      chrome.notify('仅管理员可触发紧急求助', 'warning')
-      return
-    }
     // 前端冷却 60 秒，防止误触频繁触发
     const cooldownMs = 60_000
     if (Date.now() - lastEmergencyAt.value < cooldownMs) {

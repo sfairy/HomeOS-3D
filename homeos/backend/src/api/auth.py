@@ -52,9 +52,7 @@ CSRF_MAX_AGE_MS = 30 * 24 * 3600 * 1000
 
 
 def public_user(user: User) -> UserResponse:
-    return UserResponse(
-        id=user.id, username=user.username, role=user.role, email=user.email
-    )
+    return UserResponse(id=user.id, username=user.username, email=user.email)
 
 
 def request_metadata(request: Request) -> tuple[str, str]:
@@ -197,7 +195,6 @@ async def register(
             user.username = payload.username
             user.email = payload.email
             user.password = hash_password(payload.password)
-            user.role = "admin"
             user.is_active = True
             user.email_verified_at = datetime.now(UTC)
             # 凭据已落到本地，这行不再是「外置凭据」行。
@@ -208,7 +205,6 @@ async def register(
                 username=payload.username,
                 email=payload.email,
                 password=hash_password(payload.password),
-                role="admin",
                 is_active=True,
                 email_verified_at=datetime.now(UTC),
             )

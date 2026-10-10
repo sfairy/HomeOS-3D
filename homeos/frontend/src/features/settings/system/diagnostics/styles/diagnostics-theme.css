@@ -643,7 +643,6 @@
 }
 
 .diag-pipeline__node--ha,
-.diag-pipeline__node--redis,
 .diag-pipeline__node--ws {
   --node-accent: var(--diag-emerald);
 }
@@ -829,7 +828,7 @@
 
 @container settings-scroll (min-width: 880px) {
   .diag-service-grid {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 

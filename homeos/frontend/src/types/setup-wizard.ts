@@ -23,7 +23,6 @@ export interface SetupWizardStatus {
   steps: Record<SetupWizardStepId, SetupWizardStepStatus> // 各步骤状态
   progress: number // 整体进度（0-100）
   ha: { connected: boolean; entityCount: number } // HA 连接状态与实体数
-  redis: { configured: boolean; ok: boolean | null } // Redis 配置与健康状态
   retentionDays: number // 事件日志保留天数
   circuitCount: number // 已配置电路数
   learningPeriodDays: number // 能耗学习周期天数

@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .router import NestRouter
 from ..core.errors import bad_request
 from ..dependencies import license_feature
-from ..security.auth_context import require_roles
+from ..security.auth_context import require_user
 from ..services.license import features as feature_codes
 
 router = NestRouter(
@@ -63,7 +63,7 @@ def _away_sim(request: Request):
 
 @router.get("/status")
 async def get_status(
-    request: Request, user: dict[str, Any] = Depends(require_roles("admin", "adult"))
+    request: Request, user: dict[str, Any] = Depends(require_user)
 ):
     panel = _panel(request)
     return {"mode": panel.get_mode(), "zones": panel.get_zones()}
@@ -72,7 +72,7 @@ async def get_status(
 async def arm(
     payload: ArmSecurityPanelDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     if payload.mode not in _ARMING_MODES:
         bad_request(_MODE_MESSAGE)
@@ -81,14 +81,14 @@ async def arm(
     return await _panel(request).arm(payload.mode, payload.zoneIds)
 
 @router.post("/disarm")
-async def disarm(request: Request, user: dict[str, Any] = Depends(require_roles("admin"))):
+async def disarm(request: Request, user: dict[str, Any] = Depends(require_user)):
     return await _panel(request).disarm()
 
 @router.post("/zones")
 async def configure_zones(
     payload: ConfigureSecurityZonesDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     _panel(request).configure_zones([zone.model_dump() for zone in payload.zones])
     return {"success": True}
@@ -97,7 +97,7 @@ async def configure_zones(
 async def emergency(
     payload: SecurityEmergencyDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _panel(request).trigger_emergency(payload.action or "panic")
 
@@ -106,19 +106,19 @@ async def get_events(
     request: Request,
     type: str | None = Query(default=None),
     limit: str | None = Query(default=None),
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _panel(request).get_events(type, limit)
 
 @router.get("/away-sim/status")
 async def away_sim_status(
-    request: Request, user: dict[str, Any] = Depends(require_roles("admin", "adult"))
+    request: Request, user: dict[str, Any] = Depends(require_user)
 ):
     return _away_sim(request).get_status()
 
 @router.get("/away-sim/pattern")
 async def away_sim_pattern(
-    request: Request, user: dict[str, Any] = Depends(require_roles("admin", "adult"))
+    request: Request, user: dict[str, Any] = Depends(require_user)
 ):
     return await _away_sim(request).get_learned_pattern()
 
@@ -126,13 +126,13 @@ async def away_sim_pattern(
 async def away_sim_enable(
     payload: AwaySimEnableDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     opts = payload.model_dump(exclude_none=True)
     return await _away_sim(request).enable(opts)
 
 @router.post("/away-sim/disable")
 async def away_sim_disable(
-    request: Request, user: dict[str, Any] = Depends(require_roles("admin"))
+    request: Request, user: dict[str, Any] = Depends(require_user)
 ):
     return await _away_sim(request).disable()

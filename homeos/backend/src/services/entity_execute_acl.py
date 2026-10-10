@@ -1,19 +1,19 @@
 """实体执行前访问控制（对齐 common/http-security/entity-execute-acl.util.ts）。
 
-在「按实体下发动作」的执行入口（家庭模式动作、语音命令、Agent 工具等）前，
-对目标实体做与 command-proxy 一致的 ACL：
-- 儿童域黑名单（is_child_domain_access_denied）；
-- child 无白名单直接拒绝；
-- restrictions 白名单（全部命中才放行）。
+在「按实体下发动作」的执行入口（家庭模式动作、语音命令、Agent 工具等）前，对目标实体
+做实体级白名单（``restrictions``）校验。
 
-关键：使用传入的 ``domain``（而非从 entity_id 推导）判断角色限制，避免 domain 覆写越权。
+角色维度**已移除**：HomeOS 是单一管理员模型，库里不存在 guest / child 账号，因此原先的
+「儿童域黑名单」「child 无白名单直接拒绝」等分支都不可达，已一并删除。剩下的白名单当前
+也恒为空（见 ``security.auth_context.resolve_restrictions``），故实际恒放行；保留实现以便
+将来接入白名单时无需改调用点。
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from ..core.entity_domain import get_entity_domain, is_child_domain_access_denied
+from ..core.entity_domain import get_entity_domain
 from ..core.errors import api_error, forbidden
 from ..realtime.access import is_entity_allowed
 
@@ -38,22 +38,14 @@ def assert_entity_targets_execute_authorized(
     targets: list[dict[str, Any]] | None,
     actor: dict[str, Any] | None,
 ) -> None:
+    """实体级白名单校验（当前恒放行，见模块 docstring）。"""
     if not actor:
         return
-    role = actor.get("role")
-    if role == "admin":
-        return
-
     restrictions = actor.get("restrictions")
     restrictions = restrictions if isinstance(restrictions, list) else []
-    if role == "child" and not restrictions:
-        forbidden(api_error("ACCESS_CHILD_NO_WHITELIST"))
+    if not restrictions:
+        return
 
     dedup = _dedup_targets(targets)
-    for _entity_id, domain in dedup:
-        if is_child_domain_access_denied(role, domain):
-            forbidden(api_error("ACCESS_ROLE_DEVICE_DENIED"))
-
-    if restrictions and dedup:
-        if not all(is_entity_allowed(entity_id, restrictions) for entity_id, _ in dedup):
-            forbidden(api_error("ACCESS_ENTITY_DENIED"))
+    if dedup and not all(is_entity_allowed(entity_id, restrictions) for entity_id, _ in dedup):
+        forbidden(api_error("ACCESS_ENTITY_DENIED"))

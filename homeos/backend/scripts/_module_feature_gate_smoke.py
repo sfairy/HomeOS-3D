@@ -22,7 +22,6 @@ from pathlib import Path
 data_dir = Path(tempfile.mkdtemp(prefix="homeos-feature-gate-smoke-"))
 os.environ["HOMEOS_DATA_DIR"] = str(data_dir)
 os.environ["HOMEOS_DATABASE_URL"] = f"sqlite:///{data_dir / 'homeos.db'}"
-os.environ["REDIS_URL"] = ""
 # 本脚本用 allows 替身模拟租约，不依赖真实签名；全局门禁关掉以免 lifespan 卡住。
 os.environ["LICENSE_REQUIRED"] = "0"
 os.environ["HA_BASE_URL"] = ""

@@ -22,7 +22,7 @@ from pydantic import BeforeValidator
 from .router import NestRouter
 from .schemas.base import StrictModel
 from ..dependencies import license_feature
-from ..security.auth_context import require_roles, require_user
+from ..security.auth_context import require_user
 from ..services.license import features as feature_codes
 
 router = NestRouter(
@@ -99,7 +99,7 @@ async def get_voice_stt_status(request: Request, user: dict[str, Any] = Depends(
 async def transcribe_voice(
     payload: VoiceTranscribeDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult", "child")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _voice(request).transcribe(payload.audio or "", payload.format or "webm")
 
@@ -108,7 +108,7 @@ async def transcribe_voice(
 async def process_voice_conversation(
     payload: VoiceTextDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult", "child")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _voice(request).process_conversation(payload.text or "")
 
@@ -127,7 +127,7 @@ async def get_voice_presets(request: Request, user: dict[str, Any] = Depends(req
 async def execute_voice_command(
     payload: VoiceTextDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult", "child")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _voice(request).execute_command(payload.text or "", user)
 
@@ -136,7 +136,7 @@ async def execute_voice_command(
 async def speak_voice(
     payload: VoiceSpeakDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _voice(request).speak(payload.message or "", payload.mediaPlayer)
 
@@ -145,6 +145,6 @@ async def speak_voice(
 async def speak_voice_multiple(
     payload: VoiceSpeakMultipleDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _voice(request).speak_multiple(payload.message or "", payload.mediaPlayers)

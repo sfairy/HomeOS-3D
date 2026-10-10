@@ -36,7 +36,6 @@ from ..ha.errors import connection_error_message
 from ..ha.numeric_sources import numeric_sources
 from ..ha.percentage_sources import percentage_sources
 from ..panel.action_rules import TOGGLE_ENTITY_DOMAINS
-from ..realtime.access import resolve_entity_restrictions
 from ..schemas import (
     HABrowseMediaRequest,
     HAConnectionInput,
@@ -54,11 +53,6 @@ MAX_RUNTIME_ENTITIES = 1000
 # 实时连接的授权复检间隔（秒）：连接建立后授权仍可能到期或被吊销，
 # 长连必须周期性回看，否则一份过期授权可以靠一条已建立的连接无限用下去。
 RUNTIME_LICENSE_CHECK_SECONDS = 30
-
-
-def require_admin(user: User) -> None:
-    if user.role != 'admin':
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='仅管理员可以修改 Home Assistant 连接。')
 
 
 def active_connection(database: DatabaseSession) -> HAConnection | None:
@@ -163,8 +157,7 @@ def get_connection(request: Request, database: DatabaseSession, _user: LicensedU
 
 
 @router.delete('/connection', status_code=status.HTTP_204_NO_CONTENT)
-async def delete_connection(request: Request, database: DatabaseSession, user: LicensedUser) -> None:
-    require_admin(user)
+async def delete_connection(request: Request, database: DatabaseSession, _user: LicensedUser) -> None:
     connection = active_connection(database)
     if connection is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Home Assistant 连接不存在。')
@@ -194,9 +187,8 @@ async def test_connection(
     payload: HATestRequest,
     request: Request,
     database: DatabaseSession,
-    user: LicensedUser,
+    _user: LicensedUser,
 ) -> dict[str, Any]:
-    require_admin(user)
     connection = active_connection(database)
     try:
         token = payload.access_token or (
@@ -246,11 +238,10 @@ async def save_connection(
     payload: HAConnectionInput,
     request: Request,
     database: DatabaseSession,
-    user: LicensedUser,
+    _user: LicensedUser,
 ) -> dict[str, Any]:
     if not request.app.state.license_service.allows(feature_codes.FEATURE_HA_CONFIGURE):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许配置 Home Assistant。')
-    require_admin(user)
     connector = request.app.state.studio_ha
     connection = active_connection(database)
     verify_tls = (
@@ -640,10 +631,9 @@ def sync_status(request: Request, database: DatabaseSession, _viewer: LicensedVi
 
 
 @router.post('/sync')
-async def run_sync(request: Request, _database: DatabaseSession, user: LicensedUser) -> dict[str, Any]:
+async def run_sync(request: Request, _database: DatabaseSession, _user: LicensedUser) -> dict[str, Any]:
     if not request.app.state.license_service.allows(feature_codes.FEATURE_HA_SYNC):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许同步 Home Assistant。')
-    require_admin(user)
     connection = await asyncio.to_thread(load_active_connection_snapshot, request.app.state.database)
     if connection is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='请先配置 Home Assistant 连接。')
@@ -737,8 +727,7 @@ async def call_service(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='请先配置 Home Assistant 连接。')
     if not entity_exists:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='实体不存在、已禁用或已失联。')
-    # A6 收敛：与 ``/services/call`` 共用 homeos ACL（角色 / 域 / 实体白名单判定）。
-    actor_role = getattr(getattr(viewer, 'user', None), 'role', None) or 'user'
+    # A6 收敛：与 ``/services/call`` 共用 homeos 实体级白名单（当前恒为空 → 恒放行）。
     await assert_command_proxy_authorized(
         {
             'domain': payload.domain,
@@ -746,7 +735,7 @@ async def call_service(
             'entity_id': payload.entity_id,
             'service_data': payload.data,
         },
-        {'role': actor_role, 'restrictions': resolve_entity_restrictions({'role': actor_role, 'restrictions': None})},
+        None,
         RegistryTargetResolver(request),
     )
     try:

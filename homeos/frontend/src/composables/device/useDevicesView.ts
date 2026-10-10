@@ -164,10 +164,10 @@ export function useDevicesView() {
       state: src.state || '',
       area: resolveEntityArea(mergedAttrs),
       unavailable: src.state === 'unavailable' || src.state === 'unknown',
-      toggleable: TOGGLE_DOMAINS.has(domain) && authStore.canControl(key),
+      toggleable: TOGGLE_DOMAINS.has(domain) && authStore.isEntityAllowed(key),
       // 「可控」按实体鉴权判定，与是否具备控制弹窗解耦：
       // 弹窗裁剪后，开关/传感器等仍应出现在默认设备列表中（是否弹窗由控制宿主决定）。
-      controllable: authStore.canControl(key),
+      controllable: authStore.isEntityAllowed(key),
       batteryLevel: typeof batteryLevel === 'number' ? batteryLevel : null,
       lastChanged: src.last_changed,
     }
@@ -419,7 +419,7 @@ export function useDevicesView() {
 
   async function toggleEntity(item: DeviceListItem) {
     if (!item.toggleable || item.unavailable) return
-    if (!authStore.canControl(item.entity_id)) {
+    if (!authStore.isEntityAllowed(item.entity_id)) {
       chrome.notify('当前账户无权操作该设备', 'warning')
       return
     }

@@ -14,7 +14,6 @@ import {
   deleteHomeMode,
 } from '@/services/api/home-modes'
 import { useEntitiesStore } from '@/stores/entities.store'
-import { useAuthStore } from '@/stores/auth.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { getApiErrorMessage } from '@/utils/core/error-message'
 import { normalizeCrudListResponse } from '@/utils/core/crud-list.util'
@@ -206,9 +205,6 @@ function ensureInitialized() {
 }
 
 export function useHomeModes(options: UseHomeModesOptions = {}) {
-  const auth = useAuthStore()
-  const canControl = () => auth.canManageHousehold()
-
   onMounted(async () => {
     ensureInitialized()
     const shouldFetch = subscriberCount === 0
@@ -216,7 +212,7 @@ export function useHomeModes(options: UseHomeModesOptions = {}) {
     if (shouldFetch) {
       await Promise.all([fetchModes(), fetchActive()])
     }
-    if (options.autoSeed && modes.value.length === 0 && auth.role === 'admin') {
+    if (options.autoSeed && modes.value.length === 0) {
       try {
         await seedDefaults()
       } catch {
@@ -241,7 +237,6 @@ export function useHomeModes(options: UseHomeModesOptions = {}) {
     loading,
     loadError,
     acting,
-    canControl,
     fetchModes,
     fetchActive,
     activate,

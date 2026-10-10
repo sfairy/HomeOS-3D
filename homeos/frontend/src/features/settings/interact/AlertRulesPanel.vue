@@ -26,7 +26,6 @@
       <button
         v-if="alertSection === 'inbox' && !editing"
         class="settings-btn-accent"
-        :disabled="!isAdmin"
         @click="openCreate"
       >
         {{ '新建规则' }}
@@ -565,7 +564,6 @@ const {
   alertSubnavSections,
   editing,
   editingDirty,
-  isAdmin,
   voiceAlertsPending,
   voiceSaving,
   voiceSaveTip,

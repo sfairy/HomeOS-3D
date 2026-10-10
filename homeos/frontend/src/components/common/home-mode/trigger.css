@@ -23,11 +23,6 @@
   background: rgba(129, 140, 248, 0.12);
 }
 
-.home-mode-switcher__btn--readonly {
-  cursor: default;
-  opacity: 0.85;
-}
-
 .home-mode-switcher__icon {
   opacity: 0.9;
 }

@@ -55,7 +55,6 @@ PUBLIC_PAGES = {
     '/pair',
     '/login',
     '/register',
-    '/setup',
     '/display',
     '/license',
     '/license-recovery',

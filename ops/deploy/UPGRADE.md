@@ -22,7 +22,7 @@
 
 发布前置（在开发机）：
 
-- [ ] 版本号已改（仓库根 `package.json` 的 `version`）→ CI 才会构建 `0.7.2` 这个 tag；
+- [ ] 版本号已改（仓库根 `package.json` 的 `version`）→ CI 才会构建 `0.7.4` 这个 tag；
 - [ ] GitHub Actions（Docker 工作流，手动 dispatch）已跑完，GHCR 里有该 tag 的
       `amd64` + `arm64` manifest（`docker buildx imagetools inspect` 可查）；
 - [ ] 记录本次的版本号与变更点，准备通知客户。
@@ -78,7 +78,7 @@ compose 的卷名带项目名前缀，项目名取自 compose 文件里的 `name
 
 ```bash
 # 厂商机
-./ops/deploy/upgrade.sh --role store --version 0.7.2
+./ops/deploy/upgrade.sh --role store --version 0.7.4
 ```
 
 等价的裸命令（脚本只是显式带上版本并写回 `.env`）：
@@ -119,6 +119,8 @@ docker compose -f docker-compose.store.yml -f docker-compose.store.public.yml up
 3. **看 `/healthz` 的 `schema` 字段**。`schema.ok=false` 表示库结构与代码期望的不一致，
    `drift` 里逐项列出差异（缺表 / 缺列 / 缺索引；不把「多余列」当漂移）。它**刻意不改**
    `status`：结构漂移重启一百次也不会变，那是要告警给人看的，不是要编排器自愈的。
+   已登记在 `RETIRED_COLUMNS` 里的**退役列**（如角色体系下线后的 `users.role`）由启动期
+   自动清理，同样会先留一份 `*.pre-migrate-*.bak` 快照；这类列不读不写，删不掉也照常启动。
 
 > 升级后如果 `/healthz` 的 `schema.ok` 是 `false`，请把该字段原样发回来 —— 那说明迁移
 > 漏了东西，属于要修代码的问题，重启和回滚都解决不了。
@@ -131,13 +133,13 @@ docker compose -f docker-compose.store.yml -f docker-compose.store.public.yml up
 
 ```bash
 # 客户机（把版本换成与中心一致的那个）
-./ops/deploy/upgrade.sh --role app --version 0.7.2
+./ops/deploy/upgrade.sh --role app --version 0.7.4
 ```
 
 首次升级若 `.env` 里还没写商店地址：
 
 ```bash
-./ops/deploy/upgrade.sh --role app --version 0.7.2 --license-server http://<中心商店>:8802
+./ops/deploy/upgrade.sh --role app --version 0.7.4 --license-server http://<中心商店>:8802
 ```
 
 裸命令（客户精简包目录里）：
@@ -159,8 +161,8 @@ docker compose -f docker-compose.app.yml pull && docker compose -f docker-compos
 
 | 顺序 | 机器 | 角色 | 命令 |
 | --- | --- | --- | --- |
-| 1 | 厂商机 | store | `upgrade.sh --role store --version 0.7.2` |
-| 2..N | 各客户机 | app | `upgrade.sh --role app --version 0.7.2` |
+| 1 | 厂商机 | store | `upgrade.sh --role store --version 0.7.4` |
+| 2..N | 各客户机 | app | `upgrade.sh --role app --version 0.7.4` |
 
 ---
 
@@ -169,7 +171,7 @@ docker compose -f docker-compose.app.yml pull && docker compose -f docker-compos
 发到客户群 / 工单里即可（把 `<>` 替换成实际值）：
 
 ```text
-【HomeOS 升级通知】版本 0.7.2
+【HomeOS 升级通知】版本 0.7.4
 
 升级内容：<一句话>
 需要时间：约 3~5 分钟（期间服务会短暂重启）
@@ -177,7 +179,7 @@ docker compose -f docker-compose.app.yml pull && docker compose -f docker-compos
 
 请在维护窗口内执行：
   cd <安装目录>
-  ./ops/deploy/upgrade.sh --role app --version 0.7.2
+  ./ops/deploy/upgrade.sh --role app --version 0.7.4
 
 升级不会动数据卷，激活状态保持不变。
 若升级后无法登录或提示设备绑定异常，请把 `docker logs homeos | tail -n 50`
@@ -193,8 +195,8 @@ docker compose -f docker-compose.app.yml pull && docker compose -f docker-compos
 把版本换成上一个 tag 重跑同一条命令即可（镜像仍在 GHCR，卷不动）：
 
 ```bash
-./ops/deploy/upgrade.sh --role store --version 0.7.2     # 中心
-./ops/deploy/upgrade.sh --role app   --version 0.7.2     # 客户机
+./ops/deploy/upgrade.sh --role store --version 0.7.4     # 中心
+./ops/deploy/upgrade.sh --role app   --version 0.7.4     # 客户机
 ```
 
 回滚顺序与升级**相反**：先回滚客户机，再回滚中心商店（避免新商店 + 旧客户端的组合停留太久）。

@@ -19,7 +19,6 @@ class AgentActor:
     与 command-proxy 的鉴权用户对齐，供工具层做同一套实体 ACL。
     """
 
-    role: str | None = None
     restrictions: list[str] | None = None
     user_id: str | None = None
     username: str | None = None
@@ -27,19 +26,13 @@ class AgentActor:
     def to_auth_user(self) -> dict[str, object]:
         """转换为 ``assert_command_proxy_authorized`` 期望的用户字典（camelCase）。"""
         return {
-            "role": self.role,
             "restrictions": self.restrictions,
             "userId": self.user_id,
             "username": self.username,
         }
 
 
-#: MCP 网关密钥已校验时的执行身份。
-#: 未绑定真实用户时不带 role，控制类工具会拒绝（「未绑定执行身份」）。
-#: 生产环境请在 agentConfig.mcpActorUserId 绑定 HomeOS 用户。
-MCP_GATEWAY_ACTOR = AgentActor(username="mcp-gateway")
-
-#: 控制类工具：无有效执行身份时一律拒绝
+#: 控制类工具：无有效执行身份（``actor is None``）时一律拒绝
 AGENT_CONTROL_TOOLS = frozenset(
     {
         "control_device",
@@ -53,4 +46,4 @@ AGENT_CONTROL_TOOLS = frozenset(
 )
 
 
-__all__ = ["AGENT_CONTROL_TOOLS", "MCP_GATEWAY_ACTOR", "AgentActor"]
+__all__ = ["AGENT_CONTROL_TOOLS", "AgentActor"]

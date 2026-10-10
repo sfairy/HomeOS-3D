@@ -1,7 +1,7 @@
 """智能管家路由（``/api/v1/agent/*``），对齐 Nest ``AgentController``。
 
 职责：暴露 ``GET /agent/ping``、``POST /agent/chat``、``POST /agent/chat/stream``（SSE）。
-鉴权：全部端点要求登录，并通过 ``@Roles('admin','adult')`` 限定角色。
+鉴权：全部端点要求登录（单一管理员模型，无角色维度）。
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 
 from .router import NestRouter
 from ..dependencies import license_feature
-from ..security.auth_context import require_roles
+from ..security.auth_context import require_user
 from ..services.agent.agent_actor import AgentActor
 from ..services.license import features as feature_codes
 
@@ -97,7 +97,6 @@ def _service(request: Request):
 def _actor_from_user(user: dict[str, Any]) -> AgentActor:
     """把鉴权用户字典转为 Agent 执行身份（携带实体级 restrictions）。"""
     return AgentActor(
-        role=user.get("role"),
         restrictions=user.get("restrictions"),
         user_id=user.get("userId"),
         username=user.get("username"),
@@ -125,7 +124,7 @@ def _error_message(exc: BaseException) -> str:
 @router.get("/ping")
 async def ping(
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """健康检查：返回 LLM 提供商名与就绪状态。"""
     _ = user
@@ -136,7 +135,7 @@ async def ping(
 async def chat(
     dto: ChatDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """自然语言对话 / 控制（支持 sessionId 实现连续对话）。"""
     from ..services.agent.service import AgentChatOptions
@@ -153,7 +152,7 @@ async def chat(
 async def chat_stream(
     dto: ChatDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """流式对话（SSE：token / tool / done / error）。"""
     from ..services.agent.service import AgentChatOptions

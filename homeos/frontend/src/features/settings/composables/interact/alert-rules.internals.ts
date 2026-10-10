@@ -50,7 +50,6 @@ function useAlertRulesPanelContext(activeTabSource: Ref<string | undefined> | st
   const layoutStore = useLayoutStore()
   const authStore = useAuthStore()
 
-  const isAdmin = computed(() => authStore.role === 'admin')
   const alertSection = ref('inbox')
 
   const {
@@ -158,7 +157,6 @@ function useAlertRulesPanelContext(activeTabSource: Ref<string | undefined> | st
   const rulesLoadError = ref<string>('')
 
   const ruleEditor = useAlertRulesPanelRuleEditor({
-    isAdmin,
     notify: (msg, type) => chrome.notify(msg, type as 'success' | 'error' | 'info'),
     confirm: (message, title, opts) => chrome.confirm(message, title, opts),
   })
@@ -266,10 +264,6 @@ function useAlertRulesPanelContext(activeTabSource: Ref<string | undefined> | st
    */
   async function toggleRuleEnabled(rule: InboxAlertRule, enabled: boolean) {
     if (!rule.id) return
-    if (!isAdmin.value) {
-      chrome.notify('切换启用状态需要 admin 权限', 'info')
-      return
-    }
     const prev = rule.enabled
     rule.enabled = enabled
     try {
@@ -388,7 +382,6 @@ function useAlertRulesPanelContext(activeTabSource: Ref<string | undefined> | st
     entitiesStore,
     layoutStore,
     authStore,
-    isAdmin,
     alertSection,
     alertSubnavSections,
     rules,
@@ -747,7 +740,6 @@ function serializeEditingForm(form: AlertRuleEditForm | null) {
 
 /** 告警规则面板：规则编辑与条件表达式 */
 function useAlertRulesPanelRuleEditor(options: {
-  isAdmin: Ref<boolean>
   notify: (msg: string, type?: string) => void
   confirm: (
     message: string,
@@ -826,10 +818,6 @@ function useAlertRulesPanelRuleEditor(options: {
   }
 
   function openCreate() {
-    if (!options.isAdmin.value) {
-      options.notify('新建规则需要 admin 权限', 'info')
-      return
-    }
     editing.value = {
       name: '',
       entityId: '',

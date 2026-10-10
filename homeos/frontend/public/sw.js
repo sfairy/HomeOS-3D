@@ -48,15 +48,23 @@ function pruneLegacyAssetEntries() {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(
+    (async () => {
+      // 先尽力接管已打开的页面：clients.claim() 只在 worker 处于 activating/activated 时合法，
+      // 若在此期间它已被更新的版本取代（开发时 DevTools「Update on reload」、连续刷新或更新检查
+      // 都会触发），会以 InvalidStateError("Only the active worker can claim clients") 拒绝。
+      // 这不影响功能——下次导航 SW 仍会自然接管，因此吞掉该拒绝，避免 unhandledrejection 刷屏。
+      const claim = self.clients.claim().catch(() => undefined)
+      try {
+        const keys = await caches.keys()
+        await Promise.all(
           keys.filter((k) => k !== CACHE_SHELL && k !== CACHE_STATIC).map((k) => caches.delete(k)),
-        ),
-      )
-      .then(() => pruneLegacyAssetEntries())
-      .then(() => self.clients.claim()),
+        )
+        await pruneLegacyAssetEntries()
+      } catch {
+        /* 缓存清理失败不应阻塞激活 */
+      }
+      await claim
+    })(),
   )
 })
 

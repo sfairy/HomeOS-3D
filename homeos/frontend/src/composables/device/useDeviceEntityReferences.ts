@@ -4,7 +4,7 @@
  * 模块：设备详情 / 实体引用关系
  * 职责：
  *   - 根据 entity_id 拉取该实体被哪些功能引用（告警规则、布局、系统配置等）。
- *   - 提供移除引用（unlink）能力：管理员或成人角色可移除，需二次确认。
+ *   - 提供移除引用（unlink）能力：需二次确认。
  *   - 移除后按需联动刷新 UI 布局配置与系统配置，保持前端状态一致。
  *   - 通过 createFetchSequence 串行化请求，过滤过期响应。
  *
@@ -12,7 +12,6 @@
  *   - @/services/api/entities.fetchEntityReferences / unlinkEntityReference：引用查询 / 移除接口。
  *   - @/utils/core/error-message.getApiErrorMessage：错误信息归一化。
  *   - @/utils/core/misc.util.createFetchSequence：请求序号守卫。
- *   - @/stores/auth.store.useAuthStore：用于判断角色权限。
  *   - @/stores/chrome.store.useChromeStore：通知 / 确认弹窗。
  *   - @/stores/layout.store：布局配置加载。
  *   - @/types/entity-references：引用类型与常量（kind 标签 / 受影响的系统配置 / 布局 kind 集合）。
@@ -22,7 +21,6 @@ import { ref, watch, type Ref } from 'vue'
 import { fetchEntityReferences, unlinkEntityReference } from '@/services/api/entities'
 import { getApiErrorMessage } from '@/utils/core/error-message'
 import { createFetchSequence } from '@/utils/core/misc.util'
-import { useAuthStore } from '@/stores/auth.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import {
@@ -33,7 +31,6 @@ import {
   type EntityReferenceItem,
   type EntityReferencesResponse,
 } from '@/types/entity-references'
-import { computed } from 'vue'
 import { useSystemConfig } from '@/composables/config/system-config-core.internals'
 
 /**
@@ -41,22 +38,18 @@ import { useSystemConfig } from '@/composables/config/system-config-core.interna
  *
  * @param entityId 目标实体 ID（响应式），变化时自动重新加载。
  * @param visible  可选的可见性开关；为 false 时跳过请求与 watch 自动触发。
- * @returns canUnlink / loading / unlinkingId / error / total / items / counts / refresh / unlink。
+ * @returns loading / unlinkingId / error / total / items / counts / refresh / unlink。
  */
 export function useDeviceEntityReferences(entityId: Ref<string>, visible?: Ref<boolean>) {
-  const authStore = useAuthStore()
   const layoutStore = useLayoutStore()
   const chrome = useChromeStore()
   const { load: loadSystemConfig } = useSystemConfig()
-  // 是否允许移除：仅 admin 或 adult 角色可操作
-  const canUnlink = computed(() => authStore.role === 'admin' || authStore.role === 'adult')
 
   function canUnlinkItem(item: EntityReferenceItem) {
-    return canUnlink.value && UNLINKABLE_ENTITY_REFERENCE_KINDS.has(item.kind)
+    return UNLINKABLE_ENTITY_REFERENCE_KINDS.has(item.kind)
   }
 
   function unlinkDisabledReason(item: EntityReferenceItem) {
-    if (!canUnlink.value) return '需要管理员或成人权限'
     if (!UNLINKABLE_ENTITY_REFERENCE_KINDS.has(item.kind)) {
       return '此类引用暂不支持在此移除，请到对应设置页编辑'
     }
@@ -139,11 +132,6 @@ export function useDeviceEntityReferences(entityId: Ref<string>, visible?: Ref<b
    * 副作用：修改 unlinkingId / items / total / counts；可能触发 layoutStore.loadConfig / loadSystemConfig；chrome.notify / chrome.confirm。
    */
   async function unlink(item: EntityReferenceItem) {
-    if (!canUnlink.value) {
-      // 翻译：Toast 文案
-      chrome.notify('需要管理员或成人权限才能移除引用', 'warning')
-      return false
-    }
     const id = entityId.value?.trim()
     if (!id) return false
 
@@ -211,7 +199,6 @@ export function useDeviceEntityReferences(entityId: Ref<string>, visible?: Ref<b
   )
 
   return {
-    canUnlink,
     canUnlinkItem,
     unlinkDisabledReason,
     loading,

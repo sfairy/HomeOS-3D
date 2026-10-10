@@ -8,12 +8,11 @@
   - HA 连接降级状态来自 useHaDegrade + useEntitiesStore（重连/断连/过期标志）。
 Props：
   - loading / clearing / error：列表加载中、清除中、错误文案。
-  - isAdmin：是否管理员，控制「清除记录」按钮显隐。
   - events：当前页事件数组；entityFilter / domainFilter 当前筛选条件。
   - resultSummary / page / totalPages / total：结果摘要与分页信息。
   - entityDisplayName / hasFriendlyName / formatCount：实体显示相关函数。
 Emits：
-  - clear-all：管理员清除全部记录。
+  - clear-all：清除全部记录。
   - retry：加载失败后重试。
   - clear-filter / clear-domain-filter：清空实体/域筛选。
   - go-page：跳转到指定页码。
@@ -42,7 +41,6 @@ import { useHaDegrade } from '@/composables/ui/useHaDegrade'
 defineProps({
   loading: { type: Boolean, default: false },
   clearing: { type: Boolean, default: false },
-  isAdmin: { type: Boolean, default: false },
   error: { type: String, default: '' },
   events: { type: Array, required: true },
   entityFilter: { type: String, default: '' },
@@ -83,7 +81,6 @@ const degradeText = computed(() => {
         </p>
       </div>
       <button
-        v-if="isAdmin"
         type="button"
         class="list-page__link-btn events-view__clear-btn"
         :disabled="loading || clearing"

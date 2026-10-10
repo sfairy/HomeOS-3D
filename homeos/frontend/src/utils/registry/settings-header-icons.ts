@@ -100,4 +100,5 @@ export const SETTINGS_TAB_HEADER_ICONS = {
   diagnostics: Activity,
   'execution-history': History,
   license: KeyRound,
+  access: UserCog,
 }

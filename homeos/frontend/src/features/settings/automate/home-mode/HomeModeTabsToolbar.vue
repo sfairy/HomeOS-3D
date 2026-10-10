@@ -4,7 +4,7 @@
  * 职责：家庭模式 Tab 工具栏。基于 SettingsOrchTabs 渲染可拖拽排序的模式 Tab，并提供
  *      初始化默认、导出、导入、新建模式等操作按钮。
  * 关键依赖：SettingsOrchTabs
- * 数据来源：父级透传的 activeTab / displayModeTabs / isAdmin
+ * 数据来源：父级透传的 activeTab / displayModeTabs
  */
 <script setup>
 /**
@@ -16,11 +16,10 @@
 import { Download, Upload, Plus, Sparkles } from '@lucide/vue'
 import SettingsOrchTabs from '@/features/settings/shared/layout/SettingsOrchTabs.vue'
 
-// 入参：当前激活 Tab、展示用模式 Tab 列表、是否管理员
+// 入参：当前激活 Tab、展示用模式 Tab 列表
 defineProps({
   activeTab: { type: String, required: true },
   displayModeTabs: { type: Array, required: true },
-  isAdmin: { type: Boolean, default: false },
 })
 
 // 对外事件：切换 Tab、拖拽排序、初始化默认、导出/导入、新建模式
@@ -44,7 +43,6 @@ function onTabChange(id) {
   >
     <template #actions>
       <button
-        v-if="isAdmin"
         type="button"
         class="orch-toolbar-btn orch-toolbar-btn--compact"
         :title="'初始化默认'"

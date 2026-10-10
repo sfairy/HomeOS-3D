@@ -131,27 +131,12 @@ const SECTION_FIELD_GROUPS: Record<string, FieldGroupDef[]> = {
       match: ['entityRegistry*', 'historyCache*'],
     },
     {
-      id: 'queue',
-      label: '命令队列',
-      match: ['commandQueue*'],
-    },
-    {
       id: 'ingress',
       label: '入口合并',
       match: ['ingress*'],
     },
-    {
-      id: 'disconnect',
-      label: '断连 REST 补同步',
-      match: ['disconnect*'],
-    },
   ],
   stateStore: [
-    {
-      id: 'redis',
-      label: 'Redis 写入',
-      match: ['redis*'],
-    },
     {
       id: 'cache',
       label: '缓存与陈旧',

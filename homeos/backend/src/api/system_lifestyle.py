@@ -18,7 +18,7 @@ from pydantic import BeforeValidator
 from .router import NestRouter
 from .schemas.base import StrictModel
 from ..dependencies import license_feature
-from ..security.auth_context import require_roles, require_user
+from ..security.auth_context import require_user
 from ..services.license import features as feature_codes
 
 router = NestRouter(
@@ -116,7 +116,7 @@ async def list_media_scene_presets(
 async def apply_media_scene(
     payload: MediaSceneApplyDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _scene_service(request).apply_scene(
         payload.preset,
@@ -127,7 +127,7 @@ async def apply_media_scene(
 async def start_playlist(
     payload: MediaPlaylistStartDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     items = [item.model_dump(exclude_none=True) for item in payload.items]
     return await _scene_service(request).start_playlist(payload.player, items)
@@ -136,7 +136,7 @@ async def start_playlist(
 async def next_track(
     payload: MediaPlayerRefDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _scene_service(request).next_track(payload.player)
 
@@ -152,7 +152,7 @@ async def get_playlist(
 async def media_group_sync(
     payload: MediaGroupPlayersDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _scene_service(request).group_sync(payload.players)
 
@@ -160,6 +160,6 @@ async def media_group_sync(
 async def media_group_unjoin(
     payload: MediaGroupPlayersDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     return await _scene_service(request).unjoin(payload.players)

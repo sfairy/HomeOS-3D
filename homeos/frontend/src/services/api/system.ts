@@ -266,21 +266,9 @@ export function fetchServerBackupFiles(config?: AxiosRequestConfig) {
 export function downloadServerBackupFile(name: string, config?: AxiosRequestConfig) {
   return apiGet('/system/backup/files/download', {
     ...config,
+    responseType: 'blob',
     params: { ...config?.params, name },
   })
-}
-
-/**
- * 导入备份文件。
- * 对应后端 endpoint：POST /system/backup/files/import
- * @param body.bundle 备份内容；body.name 可选文件名
- * @returns 操作结果
- */
-export function importServerBackupFile(
-  body: { bundle: unknown; name?: string },
-  config?: AxiosRequestConfig,
-) {
-  return apiPost('/system/backup/files/import', body, config)
 }
 
 /**
@@ -297,18 +285,13 @@ export function deleteServerBackupFile(name: string, config?: AxiosRequestConfig
 }
 
 /**
- * 还原指定备份文件，需 confirm=true，可选分区与配置合并模式。
+ * 还原指定全量备份文件（含数据库），需 confirm=true。
  * 对应后端 endpoint：POST /system/backup/files/restore
- * @param body.name 文件名；body.confirm 是否确认；body.appConfigMode 应用配置合并/替换；body.sections 限定还原分区
+ * @param body.name 文件名；body.confirm 是否确认
  * @returns 操作结果
  */
 export function restoreServerBackupFile(
-  body: {
-    name: string
-    confirm: boolean
-    appConfigMode?: 'merge' | 'replace'
-    sections?: Array<'ui' | 'appConfig' | 'users'>
-  },
+  body: { name: string; confirm: boolean },
   config?: AxiosRequestConfig,
 ) {
   return apiPost('/system/backup/files/restore', body, config)
@@ -520,35 +503,6 @@ export function fetchSetupWizardStatus<T = unknown>(config?: AxiosRequestConfig)
 export function validateSetupWizardEntities(entityIds: string[], config?: AxiosRequestConfig) {
   return apiPost('/system/setup-wizard/validate-entities', { entityIds }, config)
 }
-
-/**
- * 导出系统备份 bundle（多分区打包）。
- * 对应后端 endpoint：GET /system/backup/bundle/export
- * @returns bundle 内容
- */
-export function exportBackupBundle(config?: AxiosRequestConfig) {
-  return apiGet('/system/backup/bundle/export', config)
-}
-
-/**
- * 导入系统备份 bundle。
- * 对应后端 endpoint：POST /system/backup/bundle/import
- * @param body bundle 内容
- * @returns 操作结果
- */
-export function importBackupBundle(body: unknown, config?: AxiosRequestConfig) {
-  return apiPost('/system/backup/bundle/import', body, config)
-}
-
-/**
- * 获取备份 bundle 摘要（分区/大小/时间）。
- * 对应后端 endpoint：GET /system/backup/bundle/summary
- * @returns 摘要对象
- */
-export function fetchBackupBundleSummary(config?: AxiosRequestConfig) {
-  return apiGet('/system/backup/bundle/summary', config)
-}
-
 
 
 /**

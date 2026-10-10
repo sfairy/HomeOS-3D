@@ -18,7 +18,7 @@ from typing import Any
 from fastapi import Depends, Query, Request
 
 from .router import NestRouter
-from ..security.auth_context import require_roles, require_user
+from ..security.auth_context import require_user
 
 router = NestRouter(prefix="/system", tags=["system"])
 
@@ -77,7 +77,7 @@ async def get_advisor_entity_usage(
 
 @router.post("/advisor/report/clear")
 async def clear_advisor_usage_report(
-    request: Request, user: dict[str, Any] = Depends(require_roles("admin", "adult"))
+    request: Request, user: dict[str, Any] = Depends(require_user)
 ):
     return await _advisor(request).clear_usage_stats()
 

@@ -1,8 +1,8 @@
 """实体状态存储（L1 内存 + 最近变更环形缓冲，供 WS 首推与 state_replay 使用）。
 
-替代 Nest ``StateStoreService`` 的核心子集；Redis L2 / delta 持久化由 Phase 3 后续补充。
-本模块同时提供运维诊断所需的 ``get_stale_info`` / ``get_memory_diagnostics``，
-口径与 Nest ``computeStateStoreStaleInfo`` / ``computeStateStoreMemoryDiagnostics`` 对齐。
+替代 Nest ``StateStoreService`` 的核心子集。本模块同时提供运维诊断所需的
+``get_stale_info`` / ``get_memory_diagnostics``，口径与 Nest
+``computeStateStoreStaleInfo`` / ``computeStateStoreMemoryDiagnostics`` 对齐。
 """
 
 from __future__ import annotations
@@ -17,8 +17,6 @@ from typing import Any
 _RECENT_CHANGES_MAX = 3000
 #: 数据陈旧判定阈值（``stateStore.staleThresholdMs`` 默认值，与 Nest 一致）。
 _STALE_THRESHOLD_MS = 12_000
-#: Redis L2 实体快照键（跨副本 / 重启冷恢复）。
-SHADOW_KEY = "homeos:state:shadow"
 
 
 def _iso_now() -> str:
@@ -219,68 +217,8 @@ class StateStore:
             "estimatedEntityStoreMb": round(estimated_bytes / 1024 / 1024 * 10) / 10,
             "recentChangesCount": len(self._recent),
             "recentChangesMax": self._max_recent_changes,
-            "trackedRedisKeys": 0,
-            "redisPendingWrites": 0,
             "haInitialStatesCached": False,
         }
-
-    async def recover_initial_states_if_needed(self, redis: Any = None, sync_filter: Any = None) -> int:
-        """Redis shadow 冷恢复：store 为空时从 L2 快照恢复（对齐 Nest ``restoreFromRedis``）。
-
-        仅恢复同步白名单内且 L1 中尚不存在的实体；返回恢复条数。
-        """
-        if redis is None or not redis.is_ready() or self._ha_synced or self._states:
-            return 0
-        raw = None
-        try:
-            raw = await redis.get(SHADOW_KEY)
-        except Exception:
-            return 0
-        if not raw:
-            return 0
-        try:
-            text = raw.decode("utf-8") if isinstance(raw, (bytes, bytearray)) else str(raw)
-            entities = json.loads(text)
-        except (TypeError, ValueError):
-            return 0
-        if not isinstance(entities, list):
-            return 0
-        restored = 0
-        for entity in entities:
-            if not isinstance(entity, dict) or not entity.get("entity_id"):
-                continue
-            entity_id = str(entity["entity_id"])
-            if entity_id in self._states:
-                continue
-            if sync_filter is not None and not sync_filter.is_entity_syncable(entity_id):
-                continue
-            self._states[entity_id] = entity
-            restored += 1
-        if restored:
-            self._ha_synced = True
-            self._last_synced_at = _iso_now()
-        return restored
-
-    async def write_shadow(self, redis: Any, ttl_seconds: int = 7 * 24 * 3600) -> bool:
-        """把 L1 快照写入 Redis L2（供其它副本/重启冷恢复使用）。"""
-        if redis is None or not redis.is_ready():
-            return False
-        try:
-            await redis.set(
-                SHADOW_KEY,
-                json.dumps(list(self._states.values()), ensure_ascii=False, default=str),
-                ttl_seconds,
-            )
-            return True
-        except Exception:
-            return False
-
-    async def save_shadow_soon(self, redis: Any) -> None:
-        """异步写入 L2 快照（失败静默，不阻塞热路径）。"""
-        try:
-            await self.write_shadow(redis)
-        except Exception:
-            pass
 
 
 def _parse_iso_ms(value: str | None) -> float:

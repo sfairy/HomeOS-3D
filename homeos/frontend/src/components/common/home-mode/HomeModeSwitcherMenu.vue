@@ -2,13 +2,13 @@
   组件文件：HomeModeSwitcherMenu.vue
   所属模块：frontend/src/components/common/home-mode
   组件职责：家庭模式切换下拉菜单内容组件（配合 HomeModeSwitcherTrigger 调用方 Teleport 渲染）。
-    加载态展示骨架；列表渲染各 modes 项 + 图标 + 当前激活对勾；激活模式存在且 canControl() 时展示
-    「退出当前模式」Power 按钮；下方展示最近触发日志 4 条（modeName + 原因）；访客提示
-    「访客仅可查看」；无模式时展示「暂无模式」占位；末尾 RouterLink 跳转设置页管理模式入口。
+    加载态展示骨架；列表渲染各 modes 项 + 图标 + 当前激活对勾；激活模式存在时展示
+    「退出当前模式」Power 按钮；下方展示最近触发日志 4 条（modeName + 原因）；
+    无模式时展示「暂无模式」占位；末尾 RouterLink 跳转设置页管理模式入口。
   主要 props / emits：
     - props.open / menuPlacement / menuStyle / teleportTarget / teleportDisabled：Teleport 渲染与定位；
       props.loading / modes / activeMode：模式数据；
-      props.canControl()：权限判定函数；props.modeContext：上下文含 triggerLogs 与 calendarAway；
+      props.modeContext：上下文含 triggerLogs 与 calendarAway；
       props.registerMenuRef(el)：将菜单根节点回填给父级（用于 click-outside 关闭）。
     - emits：select-mode(mode)（点击某个模式）；toggle-off（点击退出当前模式）。
   依赖关系：@lucide/vue Home/Power/Check；vue-router RouterLink；resolveHomeModeIcon 图标解析；
@@ -28,7 +28,6 @@
  * - 显示当前激活模式
  * - 显示最近触发日志
  * - 支持退出当前模式
- * - 支持访客模式（仅查看）
  * - 跳转到设置页面管理模式
  */
 import { Home, Power, Check } from '@lucide/vue'
@@ -50,8 +49,6 @@ defineProps({
   modes: { type: Array, required: true },
   /** 当前激活的模式 */
   activeMode: { type: [Object, null], default: null },
-  /** 是否有权限控制模式 */
-  canControl: { type: Function, required: true },
   /** 模式上下文（含触发日志等） */
   modeContext: { type: Object, required: true },
   /** 菜单 DOM 注册回调 */
@@ -100,7 +97,7 @@ const emit = defineEmits(['select-mode', 'toggle-off'])
             />
           </button>
           <button
-            v-if="activeMode && canControl()"
+            v-if="activeMode"
             type="button"
             class="home-mode-switcher__item home-mode-switcher__item--off"
             @click="emit('toggle-off')"
@@ -121,9 +118,7 @@ const emit = defineEmits(['select-mode', 'toggle-off'])
               <span class="home-mode-switcher__log-reason">{{ log.reason }}</span>
             </div>
           </div>
-          <!-- 访客模式提示 -->
-          <div v-if="!canControl()" class="home-mode-switcher__hint">{{ '访客仅可查看' }}</div>
-          <div v-else-if="modes.length === 0" class="home-mode-switcher__empty">
+          <div v-if="modes.length === 0" class="home-mode-switcher__empty">
             <Home class="w-4 h-4 inline opacity-50" />
             {{ '暂无模式' }}
           </div>

@@ -65,11 +65,20 @@ export type LicenseStatus = {
   retryAttempt: number
   nextRetryAt: string | null
   startupValidationPending: boolean
+  /** 完整激活码（后端解密下发，仅登录后的 `/license/status`；解密失败为 null）。 */
+  activationCode: string | null
+  /** 激活码提示（完整码去掉末 9 位）；`activationCode` 不可用时的回落展示。 */
   activationCodeHint: string | null
+  /** 商店账号邮箱（已打码，可用于对外展示）。 */
   activationEmail: string | null
+  /** 商店账号邮箱完整值（仅登录后的 `/license/status` 下发）。 */
+  activationEmailFull: string | null
   /** 本机注册账号名（激活时上报给商店，记录在 DeviceBinding.account_name）。 */
   accountName: string | null
+  /** 公钥指纹短版（前后各 8 位），供对外展示。 */
   publicKeyFingerprint: string | null
+  /** 公钥完整 SHA-256 指纹（仅登录后的 `/license/status` 下发）。 */
+  publicKeyFingerprintFull: string | null
   rateLimitedUntil: string | null
   /** 功能码门禁明细：编辑器 / 3D 交互 / 各增量模块是否放行。 */
   featureAccess: Record<string, boolean>
@@ -120,6 +129,66 @@ const LICENSE_STATUS_MESSAGES: Record<string, string> = {
   STARTUP_VALIDATION_REQUIRED: '服务已启动，正在后台验证授权。本地有效授权可继续使用。',
   CONNECTION_WARNING: '暂时无法完成授权联网验证，后台会自动重试；仅在本地租约有效期内继续使用。',
   ACTIVE: '授权有效，正在打开页面…',
+}
+
+/**
+ * 状态码 → 中文短标签（面板徽标 / 键值表共用）。
+ * 与后端 `services/license/service.py::STATUS_LABELS` 同源；后端已下发 `statusLabel` 时优先后端值，
+ * 这张表只做兜底（旧后端字段缺失）与前端本地判定，避免直接暴露 `ACTIVE` 这类英文码。
+ */
+export const LICENSE_STATUS_LABELS: Record<string, string> = {
+  UNACTIVATED: '未激活',
+  ACTIVE: '正常',
+  CONNECTION_WARNING: '连接异常',
+  LEASE_EXPIRED: '租约已到期',
+  RECOVERY_RETRY: '授权会话重试中',
+  RECOVERY_REQUIRED: '授权会话需人工恢复',
+  REMOTE_REJECTED: '授权后台明确拒绝',
+  REVOKED: '已吊销',
+  INVALID: '校验无效',
+  INSTANCE_CHANGED: '安装标识已变化',
+  INSTANCE_MISMATCH: '安装标识不匹配',
+  CLOCK_ROLLBACK: '系统时间异常',
+  DEACTIVATED: '已停用',
+  STARTUP_VALIDATION_REQUIRED: '等待启动联网验证',
+}
+
+/** 授权状态对应的语义色调：ok（可用）/ warn（可恢复）/ alert（需人工处理）。 */
+export type LicenseTone = 'ok' | 'warn' | 'alert'
+
+/** 需要人工介入、重试网络也无效的终态：给红色警示。 */
+const LICENSE_ALERT_STATUSES: ReadonlySet<string> = new Set([
+  'INSTANCE_MISMATCH',
+  'INSTANCE_CHANGED',
+  'REVOKED',
+  'INVALID',
+  'DEACTIVATED',
+])
+
+/**
+ * 状态码 → 语义色调。仅 `ACTIVE` 为绿色放行，终态为红色，其余（含未激活 / 到期 / 联网异常）为黄色提醒。
+ * @param status 后端下发的状态码
+ */
+export function licenseStatusTone(status?: string | null): LicenseTone {
+  const state = String(status || '')
+  if (state === 'ACTIVE') return 'ok'
+  if (LICENSE_ALERT_STATUSES.has(state)) return 'alert'
+  return 'warn'
+}
+
+/**
+ * 状态码 → 中文标签：优先用后端 `statusLabel`，缺失时回落到本地映射，最后才退回原始码。
+ * @param state 授权状态（字段可缺省）
+ * @param fallback 完全无状态时的兜底文案
+ */
+export function licenseStatusLabel(
+  state: LicenseMessageState = {},
+  fallback = '正在读取授权状态',
+): string {
+  const label = String(state.statusLabel || '').trim()
+  if (label) return label
+  const code = String(state.status || '').trim()
+  return LICENSE_STATUS_LABELS[code] || code || fallback
 }
 
 /** 后端限流错误码：叠加上「授权后台请求较多」提示。 */

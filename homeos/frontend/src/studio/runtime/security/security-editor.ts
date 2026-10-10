@@ -34,7 +34,7 @@ import {
   requestInteraction3dAccess,
   subscribeInteraction3dAccess,
 } from "@app/bridge/bridge";
-import { interaction3dPreviewSize } from "@app/bridge/preview-layout";
+import { interaction3dPreviewSize, observeInteraction3dPreview } from "@app/bridge/preview-layout";
 import { domElement } from "@app/utils/dom-factory";
 export async function openSecurityEditor({
   component: component,
@@ -335,8 +335,7 @@ export async function openSecurityEditor({
     ((aspectBoxElement.style.width = previewSize.width + "px"),
       (aspectBoxElement.style.height = previewSize.height + "px"));
   }
-  const previewResizeObserver = new ResizeObserver(updatePreviewSize);
-  previewResizeObserver.observe(viewElement);
+  const previewResizeObserver = observeInteraction3dPreview(viewElement, updatePreviewSize);
   let unsubscribeAccessChange = () => {};
   const handleAccessState = (accessState: any) => {
     const isAllowed = accessState.allowed === true;

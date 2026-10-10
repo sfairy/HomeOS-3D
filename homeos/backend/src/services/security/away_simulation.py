@@ -1,13 +1,12 @@
 """离家模拟（度假防盗）（对齐 ``AwaySimulationService``）。
 
-在设定活跃时段内按学习到的 hour×dow 开灯概率随机切换灯具 / 窗帘；运行态写 Redis。
+在设定活跃时段内按学习到的 hour×dow 开灯概率随机切换灯具 / 窗帘；运行态保存在进程内。
 """
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
-import json
 import logging
 import random
 import time
@@ -25,7 +24,6 @@ from ...core.zoned_time import zoned_date_parts
 
 logger = logging.getLogger("homeos.security.away_sim")
 
-AWAY_SIM_STATE_KEY = "homeos:away-sim:state"
 AWAY_SIM_SYNC_EVENT = "security.awaySimulation"
 
 
@@ -35,13 +33,11 @@ class AwaySimulationService:
         session_factory,
         ha_connector,
         bus: LocalEventBus,
-        redis,
         config_reader: Callable[[], dict[str, Any]],
     ) -> None:
         self._session_factory = session_factory
         self._ha = ha_connector
         self._bus = bus
-        self._redis = redis
         self._config = config_reader
 
         self._enabled = False
@@ -65,7 +61,8 @@ class AwaySimulationService:
     # 生命周期
     # ------------------------------------------------------------------ #
     async def start(self) -> None:
-        await self._restore_state()
+        # 运行态保存在进程内，进程重启后离家模拟默认停用（与「度假防盗」语义一致）。
+        return
 
     async def stop(self) -> None:
         if self._timer is not None:
@@ -73,64 +70,6 @@ class AwaySimulationService:
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await self._timer
             self._timer = None
-
-    async def _restore_state(self) -> None:
-        try:
-            if not self._redis.is_ready():
-                return
-            raw = await self._redis.get(AWAY_SIM_STATE_KEY)
-            if not raw:
-                return
-            state = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
-            if not isinstance(state, dict) or not state.get("enabled"):
-                return
-            self._enabled = True
-            self._started_at = state.get("startedAt") or ""
-            if isinstance(state.get("activeStartHour"), (int, float)):
-                self._active_start_hour = int(state["activeStartHour"])
-            if isinstance(state.get("activeEndHour"), (int, float)):
-                self._active_end_hour = int(state["activeEndHour"])
-            self._light_pool = list(state.get("lightPool") or [])
-            self._cover_pool = list(state.get("coverPool") or [])
-            self._last_toggled = state.get("lastToggled")
-            self._last_cover_toggled = state.get("lastCoverToggled")
-            self._last_cover_action = state.get("lastCoverAction")
-            await self._load_pattern_buckets()
-            self._schedule_next()
-            logger.info(
-                "离家模拟已从 Redis 恢复运行态(灯具池 %s,窗帘池 %s)",
-                len(self._light_pool),
-                len(self._cover_pool),
-            )
-        except Exception as exc:
-            logger.warning("恢复离家模拟运行态失败: %s", exc)
-
-    def _persist_state(self) -> None:
-        if not self._redis.is_ready():
-            return
-        state = {
-            "enabled": self._enabled,
-            "startedAt": self._started_at,
-            "activeStartHour": self._active_start_hour,
-            "activeEndHour": self._active_end_hour,
-            "lightPool": self._light_pool,
-            "coverPool": self._cover_pool,
-            "lastToggled": self._last_toggled,
-            "lastCoverToggled": self._last_cover_toggled,
-            "lastCoverAction": self._last_cover_action,
-        }
-        asyncio.get_running_loop().create_task(self._write_state(state))
-
-    async def _write_state(self, state: dict[str, Any], ttl: int | None = None) -> None:
-        try:
-            await self._redis.set(AWAY_SIM_STATE_KEY, json.dumps(state, ensure_ascii=False), ttl)
-        except Exception as exc:
-            logger.warning("持久化离家模拟运行态失败: %s", exc)
-
-    def _clear_persisted_state(self) -> None:
-        if not self._redis.is_ready():
-            return
-        asyncio.get_running_loop().create_task(self._write_state({"enabled": False}, 60))
 
     # ------------------------------------------------------------------ #
     # 跨实例同步（单副本下等价直接调用）
@@ -306,7 +245,6 @@ class AwaySimulationService:
             self._active_end_hour,
         )
         self._schedule_next()
-        self._persist_state()
         await self._bus.emit(
             AWAY_SIM_SYNC_EVENT,
             {
@@ -353,7 +291,6 @@ class AwaySimulationService:
             self._last_cover_toggled = None
             self._last_cover_action = None
         logger.info("离家模拟已停用")
-        self._clear_persisted_state()
         await self._bus.emit(AWAY_SIM_SYNC_EVENT, {"enabled": False, "timestamp": _iso_now()})
         return self.get_status()
 

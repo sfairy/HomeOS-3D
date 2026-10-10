@@ -3,13 +3,12 @@
 已实现：
 - msgpack 解析器 + notepack ExtType 兼容；
 - 握手 JWT 鉴权（Cookie ``auth_token``）、用户房间、订阅分组；
-- 首推序列：ha_status(early) → initial_states(单条/分片 begin/chunk/end) → state_replay → ha_status(final) → redis_status；
+- 首推序列：ha_status(early) → initial_states(单条/分片 begin/chunk/end) → state_replay → ha_status(final)；
 - 客户端事件 ``update_subscription`` / ``ha_sync_fe_latency``；
-- 广播 API：ha_status / redis_status / state_changed_batch / entities_stale / ha_queue_dropped /
+- 广播 API：ha_status / state_changed_batch / entities_stale / ha_queue_dropped /
   notification / home_mode / automation_executed / security_* / presence_* /
   energy_anomaly / frigate_detection / room_presence / tts_speak / earthquake_*；
-- HA connector 事件接入 + Redis 跨副本桥接 + 领域事件 fan-out（见 ``ha/service.py``、
-  ``services/event_bus_bridge.py``、``realtime/domain_events.py``）。
+- HA connector 事件接入 + 领域事件 fan-out（见 ``ha/service.py``、``realtime/domain_events.py``）。
 """
 
 from __future__ import annotations
@@ -27,7 +26,6 @@ import socketio
 from .access import filter_entities_by_access, sort_entities_by_sync_priority
 from .msgpack_compat import install_msgpack_ext_hook
 from .payloads import (
-    build_redis_ws_status_payload,
     parse_state_replay_params,
     should_replay_state,
     to_ws_state_change_payload,
@@ -82,7 +80,7 @@ class RealtimeGateway:
         self._sid_sub_domains: dict[str, set[str] | None] = {}
         self._sid_pinned: dict[str, set[str]] = {}
         #: 会话镜像（sid → session dict）。广播是热路径：每次都对每个候选 sid 走一次
-        # ``sio.get_session``（引擎侧存储往返，Redis/企业级 manager 下是网络 IO），
+        # ``sio.get_session``（引擎侧存储往返），
         # 客户端多、变更频繁时会成为 WS 推送的主成本。会话只在此处（connect）与
         # ``update_subscription`` 写入，disconnect 清除，镜像与引擎会话保持同步。
         self._sessions: dict[str, dict[str, Any]] = {}
@@ -207,7 +205,6 @@ class RealtimeGateway:
         ws_cfg = self._ws_config()
         self._apply_state_config()
         await self._wait_for_ha_entity_sync(ws_cfg.ha_sync_wait_ms)
-        await self.state_store.recover_initial_states_if_needed()
 
         entities = sort_entities_by_sync_priority(
             filter_entities_by_access(self.state_store.get_all(), user),
@@ -284,14 +281,6 @@ class RealtimeGateway:
         await self.sio.emit(
             "ha_status",
             _ha_status_payload("connected" if final["connected"] else "disconnected", final),
-            to=sid,
-        )
-        await self.sio.emit(
-            "redis_status",
-            build_redis_ws_status_payload(
-                self.settings.redis_configured,
-                bool(getattr(self.app.state, "redis", None) and self.app.state.redis.is_ready()),
-            ),
             to=sid,
         )
 
@@ -473,9 +462,6 @@ class RealtimeGateway:
     async def broadcast_ha_status(self, status: str, **extra: Any) -> None:
         payload = _ha_status_payload(status, extra)
         await self.sio.emit("ha_status", payload)
-
-    async def broadcast_redis_status(self, configured: bool, ready: bool) -> None:
-        await self.sio.emit("redis_status", build_redis_ws_status_payload(configured, ready))
 
     async def broadcast_state_changed_batch(self, changes: list[dict[str, Any]]) -> None:
         if not changes:

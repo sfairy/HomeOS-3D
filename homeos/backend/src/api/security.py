@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict
 from .router import NestRouter
 from ..core.errors import bad_request
 from ..dependencies import license_feature
-from ..security.auth_context import require_roles
+from ..security.auth_context import require_user
 from ..services.license import features as feature_codes
 
 router = NestRouter(
@@ -45,18 +45,18 @@ def _hazard_drill(request: Request):
     return request.app.state.hazard_drill
 
 @router.get("/events")
-async def get_events(request: Request, user: dict[str, Any] = Depends(require_roles("admin", "adult"))):
+async def get_events(request: Request, user: dict[str, Any] = Depends(require_user)):
     return await _security_service(request).fetch_events()
 
 @router.get("/events/validate")
-async def validate_events(request: Request, user: dict[str, Any] = Depends(require_roles("admin"))):
+async def validate_events(request: Request, user: dict[str, Any] = Depends(require_user)):
     return await _security_service(request).validate_events_path()
 
 @router.get("/frigate/events")
 async def get_frigate_events(
     request: Request,
     limit: str | None = Query(default=None),
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     from ..services.security.config import load_security_config, parse_optional_int
 
@@ -70,7 +70,7 @@ async def get_frigate_events(
 async def ack_frigate_events(
     payload: AckIdsDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     ids = payload.ids
     if ids is not None:
@@ -82,13 +82,13 @@ async def ack_frigate_events(
 
 @router.get("/presence/home")
 async def get_home_presence(
-    request: Request, user: dict[str, Any] = Depends(require_roles("admin", "adult"))
+    request: Request, user: dict[str, Any] = Depends(require_user)
 ):
     return await _presence(request).get_home_presence_response()
 
 @router.get("/presence/summary")
 async def get_mmwave_summary(
-    request: Request, user: dict[str, Any] = Depends(require_roles("admin", "adult"))
+    request: Request, user: dict[str, Any] = Depends(require_user)
 ):
     return _mmwave(request).get_summary()
 
@@ -96,7 +96,7 @@ async def get_mmwave_summary(
 async def run_hazard_drill(
     payload: HazardDrillDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     kind_raw = payload.kind
     if kind_raw is not None and kind_raw not in ("smoke", "gas", "leak"):

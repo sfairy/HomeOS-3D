@@ -243,19 +243,6 @@ export function bindEntitySocketHandlers(
     },
   )
 
-  socket.on(
-    'redis_status',
-    (data: {
-      status: EntitySocketHandlerContext['refs']['redisStatus']['value']
-      error?: string
-    }) => {
-      refs.redisStatus.value = data.status
-      if (data.status === 'error') {
-        logger.warn('Redis 连接异常:', data.error)
-      }
-    },
-  )
-
   socket.on(WS_CLIENT_EVENTS.INITIAL_STATES, (data: { entities?: HaEntityState[]; count?: number }) => {
     sync.initialStatesReceived = true
     clearSyncTimers()

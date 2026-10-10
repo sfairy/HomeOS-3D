@@ -29,10 +29,10 @@
 
     <div class="hos-backup-dialog__body">
       <div class="hos-backup-dialog__guide">
-        <p>备份已保存的 HA 连接（含 Token）、仪表盘、户型和素材，不含账号及激活密钥。</p>
-        <p>请先登录并激活，恢复保留当前账号和授权。</p>
-        <p>备份使用密码加密，密码遗失无法恢复。低版本程序不能恢复高版本备份。</p>
-        <p>恢复会覆盖业务数据，自动保留本机回退副本，中控需重新配对。</p>
+        <p>全量备份（含数据库）：打包整库业务数据（账号、授权、HA 连接与密钥、仪表盘、户型、系统参数）与数据目录（含素材、3D 场景）。</p>
+        <p>不含操作日志与历史事件（实体状态变化、通知、安防/地震事件、环境与能耗时序），也不含登录会话与可自动重建的 HA 目录缓存。</p>
+        <p>用于换机、升级与回滚；恢复为整库原样覆盖，会覆盖当前账号与授权，跨机迁移后中控需重新配对。</p>
+        <p>备份使用密码加密，密码遗失无法恢复。恢复会自动保留本机回退副本，失败时自动回滚。</p>
       </div>
 
       <div class="hos-backup-dialog__tabs" role="tablist" aria-label="备份或恢复">
@@ -146,7 +146,7 @@
         </label>
         <label class="hos-backup-dialog__confirm">
           <input v-model="confirmOverwrite" type="checkbox" required :disabled="busy" />
-          <span>已了解：恢复会覆盖业务数据及未保存修改，中控需重新配对。</span>
+          <span>已了解：恢复会用备份中的数据库、账号与素材整体覆盖当前数据，且无法撤销。</span>
         </label>
         <div class="hos-backup-dialog__actions">
           <button type="submit" class="primary" :disabled="busy || !confirmOverwrite">
@@ -190,6 +190,13 @@ const props = defineProps({
 })
 
 const MAX_BACKUP_BYTES = 512 * 1024 * 1024
+
+function formatBackupBytes(bytes) {
+  if (!bytes || bytes < 0) return '—'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
 
 const { teleportTarget, shellTeleportPending } = useShellTeleportTarget()
 const teleportDisabled = shellTeleportPending
@@ -343,11 +350,14 @@ async function runInspect() {
       1,
       Math.round(Number(data.expiresIn || 600) / 60),
     )
+    const sizeText = formatBackupBytes(Number(data.databaseSize) || 0)
     preview.value = [
       `HomeOS ${data.version || ''} · ${
         created && !Number.isNaN(created.getTime()) ? created.toLocaleString() : data.createdAt || ''
       }`,
-      `${data.projects || 0} 个仪表盘 · ${data.connections || 0} 个 HA 连接 · ${data.files || 0} 个文件 · ${data.pairings || 0} 个中控配置`,
+      `${data.projects || 0} 个仪表盘 · ${data.connections || 0} 个 HA 连接 · ${data.users || 0} 个账号`,
+      `数据库 ${sizeText} · ${data.files || 0} 个文件${data.hasSecrets ? ' · 含连接密钥' : ''}`,
+      data.includesHistory === false ? '不含历史事件与操作日志' : '含历史事件数据',
     ].join('\n')
     restorePassword.value = ''
     setMessage(
@@ -372,7 +382,7 @@ async function runRestore() {
       confirm: true,
     })
     ticket.value = ''
-    setMessage('恢复完成，正在重新加载。中控设备请重新配对。', 'success')
+    setMessage('全量数据已恢复，正在重新加载…（如为跨机迁移，请重新配对中控设备）', 'success')
     window.location.reload()
   } catch (error) {
     setMessage(getApiErrorMessage(error, '恢复失败'), 'error')

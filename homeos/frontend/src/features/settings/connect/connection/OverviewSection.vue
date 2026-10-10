@@ -41,12 +41,7 @@
         <p class="settings-deploy-note__title">{{ '局域网 · 单 HA' }}</p>
         <p class="settings-deploy-note__text">
           {{ '仅连接一套 Home Assistant，请填同网段地址（如' }}
-          <code>http://192.168.x.x:8123</code
-          >{{ '）。可选同机 Redis 以启用能源趋势与缓存；状态见' }}
-          <RouterLink :to="SETTINGS_ROUTES.diagnostics()" class="settings-deploy-note__link">
-            {{ '运维诊断' }}
-          </RouterLink>
-          {{ '。' }}
+          <code>http://192.168.x.x:8123</code>{{ '）。' }}
         </p>
       </div>
     </div>
@@ -99,10 +94,8 @@
 
 <script setup>
 import { computed } from 'vue'
-import { RouterLink } from 'vue-router'
 import {
   PlugZap,
-  Database,
   AlertCircle,
   Loader2,
   KeyRound,
@@ -113,7 +106,6 @@ import {
 import SettingsCardIntro from '@/components/common/page-shell/SettingsCardIntro.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
 
 const props = defineProps({
   connectionStatCells: { type: Array, required: true },
@@ -141,7 +133,6 @@ const connectionFlowSteps = computed(() => {
     { label: 'HA 地址/令牌', meta: '长效访问令牌', icon: KeyRound, tone: 'in' },
     { label: 'WebSocket', meta: connected ? '已连接' : '待连接', icon: Radio, tone: 'sky' },
     { label: '实体同步', meta: `${props.entitiesStore.totalCount || 0} 个`, icon: RefreshCw, tone: 'mid' },
-    { label: 'Redis 缓存', meta: '能源·Pub/Sub', icon: Database, tone: 'exec' },
     { label: '全屋就绪', meta: connected ? '服务运行中' : '等待连接', icon: CheckCircle, tone: 'out' },
   ]
 })

@@ -3,7 +3,7 @@
 守护的故障与优化点：
 
 1. **每 sid 一次会话读**：``broadcast_state_changed_batch`` 曾对每个候选 sid 都调
-   ``sio.get_session``（引擎侧存储往返，Redis manager 下是网络 IO），客户端一多就成了
+   ``sio.get_session``（引擎侧存储往返），客户端一多就成了
    推送主成本。改为内存会话镜像（connect 写入、update_subscription 覆盖、disconnect 清除），
    本脚本断言广播期间**一次** ``get_session`` 都不会发生，且新会话仍然生效。
 2. **ACL 判定按用户复用**：同一账号多端连接时，``is_entity_allowed`` 会对每个
@@ -65,7 +65,7 @@ def add_client(
     domains: Any = None,
     pinned: Any = None,
 ) -> None:
-    session = {"user": user or {"role": "admin"}, "subscribedDomains": domains, "pinnedEntityIds": pinned}
+    session = {"user": user or {}, "subscribedDomains": domains, "pinnedEntityIds": pinned}
     gw._sessions[sid] = session
     gw.connected.add(sid)
     gw._baseline_ready.add(sid)
@@ -156,13 +156,16 @@ print("2. 收窄结果与逐条可见性判定一致")
 
 gw = build_gateway()
 emitted, _ = install_emit_recorder(gw)
-guest = {"role": "guest"}
-child = {"role": "child", "restrictions": ["light.", "switch.coffee"]}
-admin = {"role": "admin"}
-add_client(gw, "g1", user=guest, domains=None)
-add_client(gw, "c1", user=child, domains=None)
-add_client(gw, "a1", user=admin, domains=None)
-add_client(gw, "c2", user=child, domains=None)  # 同账号第二个连接（ACL 复用场景）
+# 后端已移除角色维度（单一管理员模型，见 services/entity_execute_acl.py）与 User.role 列：
+# 可见性只由实体级白名单 restrictions 决定。
+# 因此「完全不可见」用「匹配不到任何实体的白名单」表达，而不是空 restrictions。
+no_visibility = {"restrictions": ["nonexistent."]}
+restricted = {"restrictions": ["light.", "switch.coffee"]}
+unrestricted = {}
+add_client(gw, "g1", user=no_visibility, domains=None)
+add_client(gw, "c1", user=restricted, domains=None)
+add_client(gw, "a1", user=unrestricted, domains=None)
+add_client(gw, "c2", user=restricted, domains=None)  # 同白名单第二个连接（ACL 复用场景）
 
 changes = [
     change("light.kitchen", "on"),
@@ -199,13 +202,13 @@ for sid in ("g1", "c1", "a1", "c2"):
         (actual.get(sid), expected[sid]),
     )
 
-check("guest 收不到任何变更（未产生任何 emit）", actual.get("g1") is None, actual.get("g1"))
+check("白名单不匹配任何实体的客户端收不到任何变更（未产生任何 emit）", actual.get("g1") is None, actual.get("g1"))
 check(
-    "child 只收到前缀允许的实体",
+    "收窄白名单只收到前缀允许的实体",
     actual.get("c1") == ["light.kitchen", "switch.coffee"],
     actual.get("c1"),
 )
-check("admin 收到全部变更", actual.get("a1") == [c["entity_id"] for c in changes], actual.get("a1"))
+check("无 restrictions 的客户端收到全部变更", actual.get("a1") == [c["entity_id"] for c in changes], actual.get("a1"))
 
 # ---------------------------------------------------------------- #
 # 3. 钉选实体在背压下仍可靠推送

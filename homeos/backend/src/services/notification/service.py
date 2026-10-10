@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
@@ -49,11 +48,6 @@ logger = logging.getLogger("homeos.notification")
 #: 配置分区加载器返回类型（``_load`` 的透传泛型，避免把非 dict 分区标成 dict）
 _T = TypeVar("_T")
 
-#: 告警规则边沿匹配态的 Redis 键（7 天 TTL）。
-ALERT_EDGE_REDIS_KEY = "homeos:alert:rule-edge"
-EDGE_PERSIST_DEBOUNCE_MS = 200
-EDGE_TTL_SECONDS = 7 * 24 * 3600
-
 
 class NotificationService:
     def __init__(
@@ -61,19 +55,16 @@ class NotificationService:
         session_factory: Callable[[], Any],
         *,
         event_bus: Any,
-        redis: Any = None,
         cooldown_service: Any = None,
         channels_service: Any = None,
         ha_areas_provider: Callable[[], list[Any]] | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._event_bus = event_bus
-        self._redis = redis
         self._cooldown = cooldown_service
         self._channels_service = channels_service
         self._ha_areas_provider = ha_areas_provider or (list)
 
-        self._alert_edge_timer: asyncio.TimerHandle | None = None
         self._watch_index = AlertRuleWatchIndex()
         self._router = HaStateChangeRouter(self._watch_index)
 
@@ -92,8 +83,6 @@ class NotificationService:
             is_in_cooldown=self.is_in_cooldown,
             set_cooldown=self.set_cooldown,
             notify=self.notify,
-            persist_edge_state=self.schedule_persist_alert_edge,
-            restore_edge_state=self.restore_alert_edge,
         )
         self._dispatch_helper = NotificationDispatchHelper(
             session_factory=session_factory,
@@ -162,13 +151,9 @@ class NotificationService:
         logger.info("通知服务已启动 (DB 持久化)")
         await self._rules_helper.refresh_rules_cache()
         await self._rules_helper.load_condition_history()
-        await self._rules_helper.load_edge_state()
         self._prune_helper.schedule_prune_old_notifications()
 
     async def stop(self) -> None:
-        if self._alert_edge_timer is not None:
-            self._alert_edge_timer.cancel()
-            self._alert_edge_timer = None
         self._prune_helper.dispose()
 
     def bind_events(self) -> None:
@@ -237,53 +222,6 @@ class NotificationService:
         bus.on("clientPower.charged", _power_charged)
         bus.on("earthquake.alert", _eew_alert)
         bus.on("earthquake.confirmation", _eew_confirmation)
-
-    # ------------------------------------------------------------------ #
-    # 边沿状态持久化
-    # ------------------------------------------------------------------ #
-    def schedule_persist_alert_edge(self, keys: list[str]) -> None:
-        if self._alert_edge_timer is not None:
-            self._alert_edge_timer.cancel()
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            return
-        self._alert_edge_timer = loop.call_later(
-            EDGE_PERSIST_DEBOUNCE_MS / 1000, self._persist_alert_edge_now, keys
-        )
-
-    def _persist_alert_edge_now(self, keys: list[str]) -> None:
-        self._alert_edge_timer = None
-        if self._redis is None:
-            return
-        payload = json.dumps(keys, ensure_ascii=False)
-
-        async def _write() -> None:
-            try:
-                await self._redis.set(ALERT_EDGE_REDIS_KEY, payload, EDGE_TTL_SECONDS)
-            except Exception as exc:
-                logger.debug("告警边沿状态持久化失败: %s", exc)
-
-        try:
-            asyncio.get_running_loop().create_task(_write())
-        except RuntimeError:
-            return
-
-    async def restore_alert_edge(self) -> list[str]:
-        if self._redis is None:
-            return []
-        try:
-            raw = await self._redis.get(ALERT_EDGE_REDIS_KEY)
-            if not raw:
-                return []
-            text = raw.decode("utf-8") if isinstance(raw, bytes) else str(raw)
-            parsed = json.loads(text)
-            if not isinstance(parsed, list):
-                return []
-            return [item for item in parsed if isinstance(item, str)]
-        except Exception as exc:
-            logger.debug("恢复告警边沿状态失败: %s", exc)
-            return []
 
     # ------------------------------------------------------------------ #
     # 通知发送
@@ -569,9 +507,8 @@ class NotificationService:
         self,
         settings: dict[str, Any],
         user_id: str | None = None,
-        role: str | None = None,
     ) -> dict[str, Any]:
-        return await self._settings_helper.update_settings(settings, user_id, role)
+        return await self._settings_helper.update_settings(settings, user_id)
 
     async def update_user_preferences(
         self, user_id: str, settings: dict[str, Any]
@@ -599,4 +536,4 @@ class NotificationService:
         return resolve_room_label_from_ha_areas(text, sensor_map, areas)
 
 
-__all__ = ["ALERT_EDGE_REDIS_KEY", "NotificationService"]
+__all__ = ["NotificationService"]

@@ -39,7 +39,7 @@ sys.path.insert(0, str(ROOT))
 #: 与 ``services/app_config/constants.py`` 的 CONFIG_MASK_PLACEHOLDER 一致。
 MASK_PLACEHOLDER = "••••••••"
 
-#: 备份包分区白名单（与 ``bundle_backup.BUNDLE_IMPORT_SECTION_WHITELIST`` 一致）。
+#: 备份包分区白名单（历史 ``homeos-bundle`` 格式：仅布局与系统参数）。
 SECTION_WHITELIST: tuple[str, ...] = ("ui", "appConfig")
 
 

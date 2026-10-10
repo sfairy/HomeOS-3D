@@ -21,7 +21,7 @@ from .router import NestRouter
 from ..api.studio3d import _deliver_pending
 from ..core.models import User
 from ..dependencies import authenticated_short_lived_user
-from ..security.auth_context import require_roles
+from ..security.auth_context import require_user
 from ..security.login_limiter import retry_after_headers
 from ..security.passwords import verify_password
 from ..security.request_origin import require_same_origin_write
@@ -33,6 +33,7 @@ from ..services.backup.business_backup import (
     create_archive,
     durable_work,
     inspect_archive,
+    refresh_runtime_after_restore,
     restore_business,
 )
 
@@ -56,6 +57,16 @@ def _gate(request: Request):
 def _owner_key(request: Request, user: dict[str, Any]) -> str:
     token = request.cookies.get(request.app.state.settings.cookie_name, "") or ""
     return f"{user.get('userId')}:{session_token_hash(token)}"
+
+
+def _busy_response(request: Request) -> JSONResponse | None:
+    """还原进行中时拒绝其他备份操作（``/api/v1/backups`` 不受维护中间件拦截）。"""
+    if _gate(request).maintenance:
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "正在恢复业务数据，请稍候…"},
+        )
+    return None
 
 
 def _job_for(request: Request, user: dict[str, Any], ticket: str) -> dict[str, Any] | None:
@@ -103,10 +114,6 @@ def _ensure_same_admin_session(
         return JSONResponse(
             status_code=401, content={"detail": "登录状态已变化，请重新登录。"}
         )
-    if (getattr(fresh, "role", None) or "user") != "admin":
-        return JSONResponse(
-            status_code=403, content={"detail": "仅管理员可以备份与恢复。"}
-        )
     return None
 
 
@@ -114,9 +121,12 @@ def _ensure_same_admin_session(
 async def export_backup(
     payload: ExportRequest,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     require_same_origin_write(request)
+    busy = _busy_response(request)
+    if busy is not None:
+        return busy
     gate = _gate(request)
     gate.expire_jobs()
     if gate.recovery_required:
@@ -127,24 +137,11 @@ async def export_backup(
     _flush_pending(request)
     directory = gate.workspace()
     try:
-        ui = None
-        app_config = None
-        try:
-            ui = request.app.state.ui_config.export_all_configs()
-        except Exception:
-            ui = []
-        try:
-            app_config = request.app.state.app_config_backup.export(False)
-        except Exception:
-            app_config = {}
         archive = await durable_work(
-            lambda: create_archive(
-                request.app.state.settings,
-                directory,
-                payload.password,
-                ui=ui,
-                app_config=app_config,
-            )
+            create_archive,
+            request.app.state.settings,
+            directory,
+            payload.password,
         )
         version = request.app.state.settings.version.replace("/", "-")
         filename = f"HomeOS-{version}.habackup"
@@ -169,12 +166,15 @@ async def export_backup(
 @router.post("/inspect", status_code=200)
 async def inspect_backup(
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     require_same_origin_write(request)
     session_error = _ensure_same_admin_session(request, user)
     if session_error is not None:
         return session_error
+    busy = _busy_response(request)
+    if busy is not None:
+        return busy
     gate = _gate(request)
     gate.expire_jobs()
     if gate.recovery_required:
@@ -218,7 +218,7 @@ async def inspect_backup(
 async def cancel_inspection(
     ticket: str,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     require_same_origin_write(request)
     gate = _gate(request)
@@ -236,12 +236,15 @@ async def cancel_inspection(
 async def restore_backup(
     payload: RestoreRequest,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     require_same_origin_write(request)
     session_error = _ensure_same_admin_session(request, user)
     if session_error is not None:
         return session_error
+    busy = _busy_response(request)
+    if busy is not None:
+        return busy
     gate = _gate(request)
     gate.expire_jobs()
     if gate.recovery_required:
@@ -278,44 +281,16 @@ async def restore_backup(
     directory = job["directory"]
     gate.maintenance = True
     try:
-        if not (directory / "business.json").is_file() and (directory / "payload.zip").is_file():
-            import zipfile
-
-            with zipfile.ZipFile(directory / "payload.zip") as archive:
-                (directory / "business.json").write_bytes(archive.read("business.json"))
-        result = await durable_work(
-            restore_business,
-            request.app.state.settings,
-            directory,
-            user.get("userId"),
+        database = getattr(request.app.state, "database", None)
+        await durable_work(
+            lambda: restore_business(
+                request.app.state.settings,
+                directory,
+                dispose=(database.engine.dispose if database is not None else None),
+            )
         )
-        if isinstance(result.get("ui"), list) and hasattr(request.app.state, "ui_config"):
-            try:
-                request.app.state.ui_config.import_all_configs(result["ui"])
-            except Exception:
-                pass
-        if isinstance(result.get("appConfig"), dict) and hasattr(
-            request.app.state, "app_config_backup"
-        ):
-            try:
-                cfg = result["appConfig"]
-                if isinstance(cfg.get("config"), dict):
-                    request.app.state.app_config_backup.import_config(
-                        {
-                            "config": cfg["config"],
-                            "schemaVersion": cfg.get("schemaVersion"),
-                            "mode": "replace",
-                            "confirm": True,
-                        }
-                    )
-            except Exception:
-                pass
-        catalog = getattr(request.app.state, "asset_catalog", None)
-        if catalog is not None and hasattr(catalog, "reload_user"):
-            try:
-                catalog.reload_user()
-            except Exception:
-                pass
+        # 数据库已整体替换：重建系统配置 / 素材目录 / HA 连接等进程内缓存
+        await refresh_runtime_after_restore(request.app)
         gate.jobs.pop(payload.ticket, None)
         gate.cleanup_job(directory)
         gate.prune_rollbacks()
@@ -324,7 +299,7 @@ async def restore_backup(
                 "success",
                 "系统后台",
                 "备份",
-                "业务数据已恢复，保留当前管理员账号及授权；中控设备需重新配对",
+                "全量业务数据（含账号、授权、素材与数据库）已恢复；中控设备需重新配对",
             )
         except Exception:
             pass

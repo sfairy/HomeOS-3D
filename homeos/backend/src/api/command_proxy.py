@@ -1,12 +1,12 @@
 """命令代理路由（``/api/v1/services/call``）。
 
 **A6 收敛**：命令下发只有一条实现通道。``/services/call``、``/ha/services/call`` 与
-``/modules/interaction3d/control`` 三条 HTTP 入口各自保留自己的校验（角色 ACL /
+``/modules/interaction3d/control`` 三条 HTTP 入口各自保留自己的校验（实体白名单 /
 license + 服务白名单 / 3D 绑定校验），但执行统一走
 ``services.command_proxy.dispatch_service_call`` —— 幂等去重 → HA 未连接时拦截高风险
 → 连接器下发。三条入口不再各自调用连接器。
 
-逐条对齐 Nest CommandProxyController：授权（role/白名单）→ 执行。
+逐条对齐 Nest CommandProxyController：授权（白名单）→ 执行。
 
 **阶段 3 变更**：原文件还承载 homeos 自研的 HA HTTP 面（``/ha/test-connection``、
 ``/ha/history``、``/ha/queue/*``、``/ha/webrtc/*``、``/ha/camera-hls``、``/ha/media-proxy``、
@@ -32,7 +32,7 @@ from fastapi import Depends, Request
 
 from .router import NestRouter
 from .schemas.command_proxy import CallServiceDto
-from ..security.auth_context import require_roles
+from ..security.auth_context import require_user
 from ..services.command_proxy import dispatch_service_call
 from ..services.command_proxy_auth import RegistryTargetResolver, assert_command_proxy_authorized
 
@@ -50,9 +50,9 @@ def _proxy(request: Request):
 async def call_service(
     payload: CallServiceDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult", "child")),
+    user: dict[str, Any] = Depends(require_user),
 ):
-    # 唯一入口校验：homeos ACL（角色 / 域 / 白名单 / 间接目标展开）。
+    # 唯一入口校验：homeos 实体级 ACL（域 / 白名单 / 间接目标展开）。
     dto = payload.model_dump()
     await assert_command_proxy_authorized(dto, user, RegistryTargetResolver(request))
     # 唯一执行出口：CommandProxyService（幂等去重 → 高风险拦截 → HA 下发）。

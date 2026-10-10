@@ -10,7 +10,7 @@
     - props haWsModeLabel：模式简短标签
   依赖关系：引用 SETTINGS_ROUTES.params() 生成四个高级参数页面的链接；RouterLink 导航；
     无 Pinia store 或写操作。
-  注意事项：普通用户不可见部分高级参数页面（仅 admin 可编辑 Redis/运维清理项）；链接
+  注意事项：普通用户不可见部分高级参数页面（仅 admin 可编辑运维清理项）；链接
     路由失败时由 Vue Router 统一跳 404。
 -->
 <template>

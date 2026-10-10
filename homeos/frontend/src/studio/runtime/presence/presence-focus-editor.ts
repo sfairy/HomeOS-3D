@@ -1,5 +1,5 @@
 import { mountInteraction3d } from "../core/runtime";
-import { interaction3dPreviewSize } from "@app/bridge/preview-layout";
+import { interaction3dPreviewSize, observeInteraction3dPreview } from "@app/bridge/preview-layout";
 import { domElement } from "@app/utils/dom-factory";
 export function openPresenceFocusEditor({
   component: component,
@@ -41,8 +41,7 @@ export function openPresenceFocusEditor({
         height: previewSize.height + "px",
       });
     },
-    previewResizeObserver = new ResizeObserver(updatePreviewSize);
-  previewResizeObserver.observe(viewElement);
+    previewResizeObserver = observeInteraction3dPreview(viewElement, updatePreviewSize);
   let editorRuntime: any,
     isReady = false,
     isClosed = false,

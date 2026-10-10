@@ -68,10 +68,6 @@ const LABEL_TEXT: Record<string, string> = {
     '日历订阅地址',
   'settings.systemConfig.field.callDedupWindowMs':
     '调用去重窗口（毫秒）',
-  'settings.systemConfig.field.commandQueueMax':
-    'Home Assistant 命令队列上限',
-  'settings.systemConfig.field.commandQueueTtlMs':
-    'Home Assistant 命令队列有效时间（毫秒）',
   'settings.systemConfig.field.configAuditMaxEntries':
     '配置变更审计保留条数',
   'settings.systemConfig.field.configAuditPersistEnabled':
@@ -84,20 +80,8 @@ const LABEL_TEXT: Record<string, string> = {
     '客户端电量联动冷却（分钟）',
   'settings.systemConfig.field.criticalDomains':
     '关键域即时推送列表',
-  'settings.systemConfig.field.dailyMediaLimitMin':
-    '儿童模式每日媒体时长（分钟，0=不限制）',
-  'settings.systemConfig.field.deviceWhitelist':
-    '儿童模式设备白名单',
   'settings.systemConfig.field.defaultMode':
     '默认展示模式',
-  'settings.systemConfig.field.disconnectRestPollEnabled':
-    'HA 断连 REST 补同步',
-  'settings.systemConfig.field.disconnectRestPollInitialDelayMs':
-    '断连 REST 首次延迟（毫秒）',
-  'settings.systemConfig.field.disconnectRestPollIntervalMs':
-    '断连 REST 轮询间隔（毫秒）',
-  'settings.systemConfig.field.disconnectRestPollTimeoutMs':
-    '断连 REST 请求超时（毫秒）',
   'settings.systemConfig.field.emergencyCooldownSec':
     '紧急求助重复触发冷却（秒）',
   'settings.systemConfig.field.enableWeatherMode':
@@ -114,10 +98,6 @@ const LABEL_TEXT: Record<string, string> = {
     '实体缓存有效期（毫秒）',
   'settings.systemConfig.field.entityCacheSaveDebounceMs':
     '实体缓存写入防抖（毫秒）',
-  'settings.systemConfig.field.entityRegistryCacheMs':
-    '实体注册表缓存（毫秒）',
-  'settings.systemConfig.field.entityRegistryTimeoutMs':
-    '实体注册表超时（毫秒）',
   'settings.systemConfig.field.eventLogFlushIntervalMs':
     '事件日志刷盘间隔（毫秒）',
   'settings.systemConfig.field.eventLogMaxBuffer':
@@ -125,7 +105,7 @@ const LABEL_TEXT: Record<string, string> = {
   'settings.systemConfig.field.eventLogMaxRequeueBuffer':
     '事件日志失败回灌上限',
   'settings.systemConfig.field.eventLogSkipSensorTimeline':
-    '跳过 sensor Redis 时间线',
+    '跳过 sensor 时间线',
   'settings.systemConfig.field.eventLogTierCSampleRate':
     'EventLog C 级采样率',
   'settings.systemConfig.field.eventLogTierEnabled':
@@ -186,24 +166,12 @@ const LABEL_TEXT: Record<string, string> = {
     '冷实体按需 WS（非可见不推）',
   'settings.systemConfig.field.latencyProfile':
     'WS 延迟档位',
-  'settings.systemConfig.field.criticalFlushIntervalMs':
-    '关键域推送合并窗口（毫秒）',
-  'settings.systemConfig.field.pinnedSensorFlushIntervalMs':
-    '钉选传感器推送窗口（毫秒）',
   'settings.systemConfig.field.wsPingIntervalMs':
     'HA WS 心跳间隔（毫秒）',
   'settings.systemConfig.field.wsPongTimeoutMs':
     'HA WS pong 超时（毫秒）',
   'settings.systemConfig.field.wsHeartbeatMaxMisses':
     'HA WS 心跳最大连续未响应次数',
-  'settings.systemConfig.field.coldBatchWindowMs':
-    'Cold Path 批窗口（毫秒）',
-  'settings.systemConfig.field.coldBatchMax':
-    'Cold Path 单批上限',
-  'settings.systemConfig.field.leaderTtlMs':
-    'HA WS Leader 租约 TTL（毫秒）',
-  'settings.systemConfig.field.leaderRenewMs':
-    'HA WS Leader 续约间隔（毫秒）',
   'settings.systemConfig.field.learningPeriodDays':
     '能源异常学习期（天）',
   'settings.systemConfig.field.lowBatteryCooldownMin':
@@ -268,10 +236,6 @@ const LABEL_TEXT: Record<string, string> = {
     '实体索引重建防抖（毫秒）',
   'settings.systemConfig.field.reconnectBaseMs':
     'Home Assistant 重连基础延迟（毫秒）',
-  'settings.systemConfig.field.redisIncrementalFlushMs':
-    'Redis 增量写入防抖（毫秒）',
-  'settings.systemConfig.field.redisWriteBatch':
-    '缓存批量写入大小',
   'settings.systemConfig.field.replayChunkSize':
     '断线状态回放分块大小',
   'settings.systemConfig.field.retentionCleanupIntervalHours':
@@ -322,8 +286,6 @@ const LABEL_TEXT: Record<string, string> = {
     '实体影子数据陈旧阈值（毫秒）',
   'settings.systemConfig.field.stateBatchMax':
     '实时推送状态批量上限',
-  'settings.systemConfig.field.stateFlushIntervalMs':
-    '实时推送状态合并间隔（毫秒）',
   'settings.systemConfig.field.subMetaSizeVw':
     '副信息字号（vw）',
   'settings.systemConfig.field.tier1Kwh':
@@ -336,8 +298,6 @@ const LABEL_TEXT: Record<string, string> = {
     '第三阶梯电价',
   'settings.systemConfig.field.timeSizeVw':
     '时钟字号（vw）',
-  'settings.systemConfig.field.timeWindows':
-    '儿童模式允许使用时段',
   'settings.systemConfig.field.triggerCooldownMs':
     '触发冷却（毫秒）',
   'settings.systemConfig.field.weatherAlertCooldownMin':
@@ -352,8 +312,6 @@ const LABEL_TEXT: Record<string, string> = {
     '天气预警刷新间隔（毫秒）',
   'settings.systemConfig.field.weatherAlertSceneId':
     '红色预警联动场景 ID',
-  'settings.systemConfig.field.weatherAlertsTtlMin':
-    '天气预警缓存（分钟）',
   'settings.systemConfig.field.weatherIconSizeVw':
     '天气图标（vw）',
   'settings.systemConfig.field.weatherLat':

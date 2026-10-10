@@ -11,7 +11,6 @@
  * - 布局方案管理：方案列表拉取/创建/删除/切换、家庭模式自动激活、本机终端绑定
  * - 持久化：loadConfig（200ms 防抖 + 请求去重 + requestId 竞态保护）、saveConfig（HA URL 校验 + 并发 coalesce）
  * - 未保存草稿：localStorage 抢救式持久化（beforeunload 钩子）
- * - 全量备份：方案数组导入/导出（不含自动化/系统参数/用户）
  * - 设置锁：PIN 校验解锁（与 chrome.isSettingsUnlocked 共享）
  *
  * 关键依赖：
@@ -21,7 +20,6 @@
  * - @/stores/ui/create-floor-widget-actions：楼层部件 CRUD
  * - @/stores/ui/create-layout-persistence：加载/保存
  * - @/stores/ui/create-layout-profile-actions：方案 CRUD 与切换
- * - @/stores/ui/create-layout-backup-actions：全量备份导入/导出
  * - @/stores/ui/create-layout-draft-state：未保存草稿持久化
  * - @/stores/ui/create-edit-mode-actions：编辑模式行为
  * - @/utils/config/resolve-active-profile.util：解析激活方案 ID
@@ -45,7 +43,6 @@ import { createEditHistoryState } from '@/stores/ui/create-edit-history-state'
 import { createFloorWidgetActions } from '@/stores/ui/create-floor-widget-actions'
 import { createLayoutPersistence } from '@/stores/ui/create-layout-persistence'
 import { createLayoutProfileActions } from '@/stores/ui/create-layout-profile-actions'
-import { createLayoutBackupActions } from '@/stores/ui/create-layout-backup-actions'
 import { createLayoutDraftState } from '@/stores/ui/create-layout-draft-state'
 import { createEditModeActions } from '@/stores/ui/create-edit-mode-actions'
 import { applyTabletDefaultPerformanceMode } from '@/utils/perf/tablet-default-perf.util'
@@ -150,14 +147,6 @@ export const useLayoutStore = defineStore('layout', () => {
     loadConfig,
   })
 
-  // 全量备份导入/导出切片：方案数组 JSON 文件下载与还原（不含自动化/系统参数/用户）
-  const { exportFullBackup, importFullBackup } = createLayoutBackupActions({
-    notify,
-    handleApiError,
-    fetchProfiles,
-    loadConfig,
-  })
-
   // 未保存草稿切片：localStorage 抢救式持久化（beforeunload 钩子），刷新/崩溃后可恢复
   const { saveDraft, loadDraft, clearDraft } = createLayoutDraftState({
     layoutConfig,
@@ -256,8 +245,6 @@ export const useLayoutStore = defineStore('layout', () => {
     deleteProfile,
     switchProfile,
     availableProfiles,
-    exportFullBackup,
-    importFullBackup,
     saveDraft,
     loadDraft,
     clearDraft,

@@ -2,7 +2,7 @@
   @file DeviceBatchActions.vue
   @module 设备列表/批量操作工具栏
   @description 设备列表选中设备后浮现的批量操作工具栏：展示已选数量、批量开关、移动到房间、复制 ID。
-               仅 admin/adult 角色可移动设备到房间。批量开关按域分发 HA 服务（cover/lock/其余域），
+               批量开关按域分发 HA 服务（cover/lock/其余域），
                并对不可控、离线、无权限设备分别计数跳过。移动房间通过 batchAssignEntityArea API 提交。
   @dependencies vue（ref/computed）、@lucide/vue、entities.store、auth.store、chrome.store、
                 useAreaOptions、copyTextWithNotify、batchAssignEntityArea API。
@@ -39,7 +39,6 @@
       </button>
 
       <button
-        v-if="canMoveToRoom"
         type="button"
         class="list-page__btn"
         :disabled="batchLoading"
@@ -159,7 +158,7 @@ const teleportDisabled = shellTeleportPending
 
 // 实体 store：用于批量调用服务、查询实体状态。
 const entitiesStore = useEntitiesStore()
-// 鉴权 store：用于角色判定与 canControl 权限校验。
+// 鉴权 store：用于 isEntityAllowed 权限校验。
 const authStore = useAuthStore()
 // UI store：用于操作结果 toast 通知。
 const chrome = useChromeStore()
@@ -193,14 +192,6 @@ const hasToggleable = computed(() => {
     const domain = getEntityDomain(id)
     return TOGGLE_DOMAINS.has(domain)
   })
-})
-
-/**
- * 计算属性：当前角色是否允许移动设备到房间，仅 admin/adult 返回 true。
- */
-const canMoveToRoom = computed(() => {
-  const role = authStore.role
-  return role === 'admin' || role === 'adult'
 })
 
 /**
@@ -259,7 +250,7 @@ async function handleBatchToggle() {
         skippedCount++
         continue
       }
-      if (!authStore.canControl(id)) {
+      if (!authStore.isEntityAllowed(id)) {
         errors.push(id)
         continue
       }
@@ -301,14 +292,9 @@ async function handleBatchToggle() {
 
 /**
  * 批量移动到房间：调用 batchAssignEntityArea API 提交，成功后通知并关闭模态框。
- * 无权限时直接通知错误。
  */
 async function handleMoveToRoom() {
   if (!selectedRoom.value) return
-  if (!canMoveToRoom.value) {
-    chrome.notify('当前账号无权限移动设备到房间', 'error')
-    return
-  }
 
   const areaId = selectedRoom.value
   const roomLabel = batchRoomOptions.value.find((r) => r.id === areaId)?.name || areaId

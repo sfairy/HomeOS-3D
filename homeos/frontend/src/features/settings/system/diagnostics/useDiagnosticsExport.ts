@@ -7,7 +7,7 @@
  *   - formatFullDateTime：时间格式化
  *   - useChromeStore：notify
  *   - downloadBlob / copyTextWithNotify：下载与复制
- *   - RedisHealthView / DiagnosticsDiag / DiagnosticsHealth：数据类型
+ *   - DiagnosticsDiag / DiagnosticsHealth：数据类型
  */
 import { computed, type ComputedRef, type Ref } from 'vue'
 import { HeartPulse, Archive } from '@lucide/vue'
@@ -16,7 +16,6 @@ import { useChromeStore } from '@/stores/chrome.store'
 import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
 import { downloadBlob } from '@/utils/core/misc.util'
 import { copyTextWithNotify } from '@/services/notify'
-import type { RedisHealthView } from '@/types/redis-status'
 import { BACKEND_MEM_WARN_PCT } from './constants'
 import type { DiagnosticsDiag, DiagnosticsHealth } from './types'
 
@@ -27,8 +26,6 @@ export function useDiagnosticsExport(deps: {
   haOk: ComputedRef<boolean>
   entityCount: ComputedRef<unknown>
   wsClients: ComputedRef<unknown>
-  redisStatusLabel: ComputedRef<string>
-  redisDisplay: ComputedRef<RedisHealthView>
   cpuPct: ComputedRef<number>
   memPct: ComputedRef<number>
   memLabel: ComputedRef<string>
@@ -42,8 +39,6 @@ export function useDiagnosticsExport(deps: {
     haOk,
     entityCount,
     wsClients,
-    redisStatusLabel,
-    redisDisplay,
     cpuPct,
     memPct,
     memLabel,
@@ -106,15 +101,6 @@ export function useDiagnosticsExport(deps: {
       { key: 'entities', label: '实体数', value: entityCount.value },
       { key: 'ws', label: 'WS 客户端', value: wsClients.value },
       {
-        key: 'redis',
-        label: 'Redis',
-        value: redisStatusLabel.value,
-        tone:
-          redisDisplay.value?.configured && !redisDisplay.value?.ok && !redisDisplay.value?.loading
-            ? 'bad'
-            : null,
-      },
-      {
         key: 'cpu',
         label: 'CPU',
         value: h?.cpu != null ? `${h.cpu}%` : '—',
@@ -154,10 +140,10 @@ export function useDiagnosticsExport(deps: {
       id: 'backup',
       icon: Archive,
       accent: 'var(--module-accent-template)',
-      title: '完整备份包',
-      desc: '导出 UI 布局、联动器 YAML 与系统参数（不含数据库实体快照）。',
+      title: '全量备份（含数据库）',
+      desc: '一键导出整库（全部数据表、账号与授权）与数据目录（含 HA 密钥、素材、3D 场景）。',
       linkTo: SETTINGS_ROUTES.profiles('backup'),
-      linkLabel: '前往备份与还原',
+      linkLabel: '前往备份与恢复',
     },
   ]
 

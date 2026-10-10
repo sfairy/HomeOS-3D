@@ -13,7 +13,7 @@ from typing import Any
 from fastapi import Depends, Request
 
 from .router import NestRouter
-from ..security.auth_context import require_roles
+from ..security.auth_context import require_user
 
 router = NestRouter(prefix="/embed-proxy", tags=["display"])
 
@@ -23,7 +23,7 @@ _ALL_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
 async def proxy_embed(
     embed_id: str,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult", "child")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """反代内嵌页请求（根路径与子路径共用同一处理逻辑）。"""
     return await request.app.state.embed_proxy.proxy(embed_id, request)

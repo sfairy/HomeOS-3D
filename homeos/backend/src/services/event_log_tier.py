@@ -142,15 +142,6 @@ def serialize_event_log_states(event: dict[str, Any], tier: str) -> tuple[Any, A
     return None, ({"_diff": True, "state": new_state.get("state")} if new_state else None)
 
 
-def should_skip_redis_timeline(entity_id: str, *, skip_sensor_timeline: bool = True) -> bool:
-    if not skip_sensor_timeline:
-        return False
-    domain = get_entity_domain(entity_id)
-    if domain not in ("sensor", "binary_sensor"):
-        return False
-    return not (domain == "sensor" and is_energy_related_sensor(entity_id))
-
-
 def _format_attr(value: Any) -> str:
     if value is None:
         return ""

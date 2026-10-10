@@ -4,7 +4,7 @@
  *
  * 职责：
  * - 管理 IndexedDB 数据库（homeos_entity_cache）的打开、升级与修复。
- * - 按用户 + 角色 + ACL 生成隔离键，保证不同用户缓存互不污染。
+ * - 按用户 + ACL 生成隔离键，保证不同用户缓存互不污染。
  * - 提供快照的读取、写入、清除接口，支持过期判定。
  *
  * 依赖：
@@ -50,13 +50,13 @@ export function getEntityCacheSaveDebounceMs(): number {
 }
 
 /**
- * 按用户 + 角色 + ACL 生成缓存隔离键。
+ * 按用户 + ACL 生成缓存隔离键。
  *
- * 格式：`{username}|{role}|{restrictions排序后逗号拼接}`，
- * 保证不同用户 / 角色 / 权限的缓存互不污染。
+ * 格式：`{username}|{restrictions排序后逗号拼接}`，
+ * 保证不同用户 / 权限的缓存互不污染。
  *
  * @param username 用户名。
- * @param accessUser 访问用户信息（含角色与限制）。
+ * @param accessUser 访问用户信息（含限制列表）。
  * @returns 缓存隔离键字符串。
  */
 export function buildEntityCacheKey(
@@ -64,11 +64,10 @@ export function buildEntityCacheKey(
   accessUser: EntityCacheAccessUser | null | undefined,
 ): string {
   const user = username || 'anonymous'
-  const role = accessUser?.role || 'admin'
   const restrictions = Array.isArray(accessUser?.restrictions)
     ? [...accessUser.restrictions].sort().join(',')
     : ''
-  return `${user}|${role}|${restrictions}`
+  return `${user}|${restrictions}`
 }
 
 function resetDbPromise(): void {

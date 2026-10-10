@@ -180,6 +180,10 @@
 }
 
 .license-fact dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   margin: 0;
   min-width: 0;
   font-size: 14.5px;
@@ -190,8 +194,44 @@
   font-variant-numeric: tabular-nums;
 }
 
+.license-fact__dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px color-mix(in srgb, currentColor 55%, transparent);
+}
+
+.license-fact__val {
+  min-width: 0;
+}
+
+/* 原始英文状态码退成浅色附注，中文标签负责语义 */
+.license-fact__code {
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: var(--text-tertiary, #8b98aa);
+}
+
+.license-fact dd.is-ok {
+  font-weight: 600;
+  color: #4ade9f;
+}
+
 .license-fact dd.is-warn {
+  font-weight: 600;
   color: #e0b25c;
+}
+
+.license-fact dd.is-alert {
+  font-weight: 600;
+  color: #f79b9b;
+}
+
+.license-fact dd.is-muted {
+  color: var(--text-tertiary, #8b98aa);
 }
 
 /* ── 账号与操作：身份卡片 + 技术标识行 ── */
@@ -307,18 +347,6 @@
   color: var(--text-tertiary, #8b98aa);
 }
 
-.license-subtitle {
-  margin: 18px 0 8px;
-  font-size: 13.5px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--text-tertiary, #8b98aa);
-}
-
-.license-subtitle:first-of-type {
-  margin-top: 12px;
-}
-
 .license-empty {
   margin: 0;
   padding: 10px 0;
@@ -326,54 +354,219 @@
   color: var(--text-tertiary, #8b98aa);
 }
 
-/* ── 功能码 / 商品 / 权益列表 ── */
-.license-codes {
+/* ── 权益清单：概览条 + 分区 + 芯片网格 ── */
+.license-summary {
   display: grid;
-  gap: 6px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 16px 0 0;
+}
+
+.license-summary__item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.license-summary__val {
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-primary, #e8eef7);
+  font-variant-numeric: tabular-nums;
+}
+
+.license-summary__val.is-ok {
+  color: #4ade9f;
+}
+
+.license-summary__val.is-warn {
+  color: #e0b25c;
+}
+
+.license-summary__lbl {
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  color: var(--text-tertiary, #8b98aa);
+}
+
+.license-block {
+  margin-top: 22px;
+}
+
+.license-block__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.license-block__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary, #a7b4c6);
+}
+
+.license-block__meta {
+  font-size: 13px;
+  color: var(--text-tertiary, #8b98aa);
+  font-variant-numeric: tabular-nums;
+}
+
+.license-block__meta.is-ok {
+  color: #4ade9f;
+}
+
+/* 芯片网格：宽屏一行 3~4 个，短标签项不再拉成整行留白 */
+.license-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.license-code {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 12px;
+/* 带到期时间的项更长，给更宽的列 */
+.license-grid--wide {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+}
+
+.license-chip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    'dot name'
+    '.   id'
+    'state state';
+  gap: 3px 8px;
   align-items: center;
+  min-width: 0;
   padding: 10px 13px;
   border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 8px;
+  border-radius: 9px;
   font-size: 14px;
   background: rgba(255, 255, 255, 0.02);
 }
 
-.license-code__name {
-  min-width: 0;
-  color: var(--text-primary, #e8eef7);
+.license-chip__dot {
+  grid-area: dot;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
-.license-code__id {
-  font-size: 13px;
+.license-chip__name {
+  grid-area: name;
+  min-width: 0;
+  font-weight: 500;
+  color: var(--text-primary, #e8eef7);
+  overflow-wrap: anywhere;
+}
+
+.license-chip__id {
+  grid-area: id;
+  font-size: 12px;
   color: var(--text-tertiary, #8b98aa);
   background: transparent;
+  overflow-wrap: anywhere;
 }
 
-.license-code__state {
-  margin-left: auto;
-  font-size: 13.5px;
-  color: var(--text-secondary, #a7b4c6);
+.license-chip__state {
+  grid-area: state;
+  margin-top: 5px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
-.license-code.is-on .license-code__state {
+.license-chip.is-on {
+  border-color: rgba(52, 211, 153, 0.22);
+  background: rgba(52, 211, 153, 0.05);
   color: #4ade9f;
 }
 
-.license-code.is-off {
-  opacity: 0.6;
+.license-chip.is-on .license-chip__state {
+  color: #4ade9f;
 }
 
-.license-code.is-off .license-code__state {
+.license-chip.is-off {
+  border-color: rgba(248, 113, 113, 0.2);
+  background: rgba(248, 113, 113, 0.04);
   color: #f79b9b;
+}
+
+.license-chip.is-off .license-chip__dot {
+  background: #f79b9b;
+}
+
+.license-chip.is-off .license-chip__name {
+  color: var(--text-secondary, #a7b4c6);
+}
+
+.license-chip.is-off .license-chip__state {
+  color: #f79b9b;
+}
+
+/* ── 敏感字段：点击显示 + 倒计时收起 ── */
+.license-secret {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.04em;
+}
+
+.license-reveal {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: flex-start;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  font-size: 12.5px;
+  color: var(--text-secondary, #a7b4c6);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.license-reveal:hover {
+  border-color: rgba(255, 255, 255, 0.26);
+  color: var(--text-primary, #e8eef7);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.license-reveal:focus-visible {
+  outline: 2px solid var(--module-accent-admin, #6ea8fe);
+  outline-offset: 2px;
+}
+
+/* 技术标识行里的展开按钮靠右，不把长串挤窄 */
+.license-account__row dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.license-account__row dd code {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.license-account__row .license-reveal {
+  flex: none;
+  margin-left: auto;
 }
 
 /* ── 租约进度条 ── */

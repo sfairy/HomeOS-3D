@@ -5,7 +5,7 @@
 
 守卫语义与 Nest 保持一致：
 - 类级仅 ``JwtAuthGuard`` 的端点（列表 / 设置读取 / 已读 / 清空）使用 ``get_current_user``；
-- 显式 ``@UseGuards(RolesGuard) @Roles(...)`` 的端点使用 ``require_roles(...)``；
+- 显式 ``@UseGuards(RolesGuard) @Roles(...)`` 的端点使用 ``require_user``；
 - ``read-all`` / ``clear`` / ``:id/read`` 上的 ``@Roles`` 因缺少 ``RolesGuard`` 实际不生效，
   故此处同样只要求 JWT。
 """
@@ -25,7 +25,7 @@ from ..core.app_config import load_raw_config
 from ..core.deps import get_session
 from ..core.errors import api_error, forbidden
 from ..dependencies import license_feature
-from ..security.auth_context import get_current_user, require_roles
+from ..security.auth_context import get_current_user, require_user
 from ..services.alerts.channels import resolve_notification_fetch_limit
 from ..services.license import features as feature_codes
 
@@ -139,7 +139,7 @@ async def get_stats(
     request: Request,
     hours: str | None = Query(default=None),
     source: str | None = Query(default=None),
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """获取通知统计（总数 / 未读 / 已投递 / 来源 / 级别 / 时间序列）。"""
     trimmed = (source or "").strip() or None
@@ -159,22 +159,18 @@ async def get_settings(
 async def update_settings(
     payload: UpdateNotificationSettingsDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
-    """更新免打扰时段与全屋通知开关；DND 时段仅 admin 可改。"""
-    if (payload.dndStart is not None or payload.dndEnd is not None) and user.get(
-        "role"
-    ) != "admin":
-        forbidden(api_error("ACCESS_NOTIFY_DND_ADMIN"))
+    """更新免打扰时段与全屋通知开关。"""
     return await _service(request).update_settings(
-        payload.model_dump(exclude_unset=True), user.get("userId"), user.get("role")
+        payload.model_dump(exclude_unset=True), user.get("userId")
     )
 
 @router.put("/preferences")
 async def update_preferences(
     payload: UpdateUserNotificationPreferencesDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult", "child")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """更新当前用户通知开关（写入 ``User.preferences.notification``）。"""
     user_id = user.get("userId")
@@ -204,7 +200,7 @@ async def clear_all(
 @router.get("/rules")
 async def get_rules(
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """获取全部告警规则。"""
     return await _service(request).get_rules()
@@ -213,7 +209,7 @@ async def get_rules(
 async def test_rule(
     payload: TestAlertRuleDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """模拟测试告警条件（不会真正发通知）。"""
     return _service(request).test_condition(
@@ -224,7 +220,7 @@ async def test_rule(
 async def create_rule(
     payload: CreateAlertRuleDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """创建告警规则。"""
     return await _service(request).add_rule(payload.model_dump())
@@ -234,7 +230,7 @@ async def update_rule(
     rule_id: str,
     payload: UpdateAlertRuleDto,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """更新告警规则（部分字段；未提供的字段保持不变）。"""
     return await _service(request).update_rule(
@@ -245,7 +241,7 @@ async def update_rule(
 async def delete_rule(
     rule_id: str,
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """删除告警规则。"""
     return await _service(request).delete_rule(rule_id)

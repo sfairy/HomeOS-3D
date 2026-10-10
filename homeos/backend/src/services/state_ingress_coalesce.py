@@ -4,8 +4,8 @@
 关键控制域（light / switch / lock 等）直接 bypass，避免合并带来的控制延迟；
 合并时保留「首包 old_state + 末包 new_state」，供电表差分等消费方不错计增量。
 
-合并后的事件以 ``ha.state_changed.batch`` 批量事件发出，降低 Hot Path / Redis 桥接 /
-WS 扇出频率。功能未启用 / 非合并域 / 关键域 / 不可同步实体一律立即下发或丢弃。
+合并后的事件以 ``ha.state_changed.batch`` 批量事件发出，降低 Hot Path / WS 扇出频率。
+功能未启用 / 非合并域 / 关键域 / 不可同步实体一律立即下发或丢弃。
 """
 
 from __future__ import annotations

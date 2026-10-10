@@ -1,11 +1,9 @@
 /**
  * 文件：useDiagnosticsSummary.ts
- * 职责：诊断摘要 composable。聚合系统健康总览 KPI、流水线节点、连接服务卡片、配置健康评分与缺口、
- *       Redis 健康视图等，供 OverviewSection 展示。
+ * 职责：诊断摘要 composable。聚合系统健康总览 KPI、流水线节点、连接服务卡片、配置健康评分与缺口，
+ *       供 OverviewSection 展示。
  * 关键依赖：
  *   - vue 的 computed / Ref
- *   - useEntitiesStore：实体数量
- *   - mergeRedisHealthView：Redis 健康视图合并
  *   - SETTINGS_ROUTES / LINKAGE_HUB_ROUTES：跳转路由
  */
 import { computed, type Ref } from 'vue'
@@ -16,20 +14,13 @@ import {
   ShieldAlert,
   PlugZap,
   Cpu,
-  Database,
   Radio,
   Layers,
   Timer,
   HardDrive,
   RefreshCw,
 } from '@lucide/vue'
-import { useEntitiesStore } from '@/stores/entities.store'
 import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
-import {
-  mergeRedisHealthView,
-  redisStatusToLabel,
-  redisStatusClass as getRedisStatusClass,
-} from '@/utils/telemetry/redis-status'
 import { getPageTraceId } from '@/utils/telemetry/trace.util'
 import { formatAuditTimestamp } from '@/utils/format/locale-format.util'
 import { BACKEND_MEM_WARN_PCT } from './constants'
@@ -44,7 +35,6 @@ export function useDiagnosticsSummary(deps: {
   agentStatus?: Ref<{ provider?: string; ready?: boolean } | null>
 }) {
   const { loadError, loading, health, configHealth, diag, agentStatus } = deps
-  const entitiesStore = useEntitiesStore()
 
   const agentReadyHint = computed(() => {
     const st = agentStatus?.value
@@ -60,13 +50,6 @@ export function useDiagnosticsSummary(deps: {
     }
     return null
   })
-
-  const redisDisplay = computed(() =>
-    mergeRedisHealthView(entitiesStore.redisStatus, diag.value?.redis),
-  )
-
-  const redisStatusLabel = computed(() => redisStatusToLabel(redisDisplay.value))
-  const redisStatusClass = computed(() => getRedisStatusClass(redisDisplay.value))
 
   const haOk = computed(() => Boolean(diag.value?.ha?.connected))
   const haWsModeLabel = computed(() => {
@@ -162,10 +145,6 @@ export function useDiagnosticsSummary(deps: {
   })
 
   const connectServiceCards = computed(() => {
-    const redis = redisDisplay.value
-    let redisTone = 'neutral'
-    if (!redis?.loading && redis?.configured) redisTone = redis.ok ? 'ok' : 'bad'
-
     const drift = diag.value?.driftRepairLastRun
     let driftTone = 'neutral'
     let driftPrimary = '尚无记录'
@@ -192,14 +171,6 @@ export function useDiagnosticsSummary(deps: {
         secondary: diag.value?.ha?.version || haWsModeLabel.value,
       },
       {
-        id: 'redis',
-        label: 'Redis',
-        icon: Database,
-        tone: redisTone,
-        primary: redisStatusLabel.value,
-        secondary: redis?.configured ? '能源 · 实时推送' : '未配置',
-      },
-      {
         id: 'ws',
         label: 'WebSocket',
         icon: Radio,
@@ -220,12 +191,6 @@ export function useDiagnosticsSummary(deps: {
   })
 
   const pipelineNodes = computed(() => {
-    const redis = redisDisplay.value
-    let redisTone = 'neutral'
-    if (redis?.loading) redisTone = 'neutral'
-    else if (!redis?.configured) redisTone = 'neutral'
-    else redisTone = redis.ok ? 'ok' : 'bad'
-
     return [
       {
         id: 'ha',
@@ -235,13 +200,6 @@ export function useDiagnosticsSummary(deps: {
           ? `${diag.value?.ha?.version || '已连接'} · ${haWsModeLabel.value}`
           : '未连接',
         tone: haOk.value ? 'ok' : 'bad',
-      },
-      {
-        id: 'redis',
-        icon: Database,
-        label: 'Redis',
-        meta: redisStatusLabel.value,
-        tone: redisTone,
       },
       {
         id: 'ws',
@@ -284,16 +242,6 @@ export function useDiagnosticsSummary(deps: {
         label: '需要关注',
         detail: 'Home Assistant 未连接，自动化与实体同步不可用',
         icon: ShieldAlert,
-      }
-    }
-    const redisBad =
-      redisDisplay.value?.configured && !redisDisplay.value?.ok && !redisDisplay.value?.loading
-    if (redisBad) {
-      return {
-        tone: 'bad',
-        label: 'Redis 异常',
-        detail: '缓存服务已配置但未就绪，能源趋势与实时推送已降级',
-        icon: AlertTriangle,
       }
     }
     const attention =
@@ -350,12 +298,6 @@ export function useDiagnosticsSummary(deps: {
         linkLabel: 'HA 连接',
       })
     }
-    if (redisDisplay.value?.configured && !redisDisplay.value?.ok && !redisDisplay.value?.loading) {
-      hints.push({
-        tone: 'amber',
-        text: '缓存服务已配置但未就绪：请检查连接配置与同机缓存进程。能耗趋势将尝试回退 HA 历史。',
-      })
-    }
     const retentionDaysNum = Number(diag.value?.retention?.days)
     if (Number.isFinite(retentionDaysNum) && retentionDaysNum > 0) {
       hints.push({
@@ -363,14 +305,6 @@ export function useDiagnosticsSummary(deps: {
         text: `历史数据保留 ${retentionDaysNum} 天。设备历史、环境趋势若选择更长窗口，图表只覆盖保留期内的数据。`,
         linkTo: SETTINGS_ROUTES.retention(),
         linkLabel: '数据保留',
-      })
-    }
-    if (diag.value?.retention?.skipSensorTimeline === true) {
-      hints.push({
-        tone: 'sky',
-        text: '传感器功率趋势优先走缓存；不可用时前端会回退 HA 历史。',
-        linkTo: SETTINGS_ROUTES.connection(),
-        linkLabel: '连接与运维',
       })
     }
     const drift = diag.value?.driftRepairLastRun
@@ -446,9 +380,6 @@ export function useDiagnosticsSummary(deps: {
   })
 
   return {
-    redisDisplay,
-    redisStatusLabel,
-    redisStatusClass,
     haOk,
     haWsModeLabel,
     haWsModeClass,

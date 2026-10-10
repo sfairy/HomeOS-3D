@@ -3,16 +3,15 @@
   所属模块：frontend/src/features/settings/connect/setup-wizard
   组件职责：初始化向导的第三步「能源绑定」表单页。上半部分为主电表（累计电量 kWh/Wh 单
     选 EntityInput）与分路（功率分路 W 多选 EntityMultiSelect）两列绑定表单，下半
-    部分展示校验报错（实体未同步到 HA）与 Redis 未配置提示（仅影响分路曲线可视）。
+    部分展示校验报错（实体未同步到 HA）。
   主要 props / emits：
     - defineModel meterEntityId：主电表实体 ID 双向绑定
     - defineModel circuitEntityIds：分路实体 ID 逗号分隔字符串双向绑定
-    - props status：向导状态对象（含 redis.configured 判断）
+    - props status：向导状态对象
     - props validateResult：实体校验结果（missing 数组展示缺失项）
   依赖关系：引用 EntityInput / EntityMultiSelect 做实体选择；joinCommaEntityIds /
     parseCommaEntityIds 工具桥接逗号分隔字符串与多选数组。
-  注意事项：主电表必须是累计电量 sensor（不要选瞬时功率），否则能源趋势会出现负数；
-    Redis 缺失不阻止向导完成但会导致分路趋势页面空白。
+  注意事项：主电表必须是累计电量 sensor（不要选瞬时功率），否则能源趋势会出现负数。
 -->
 <script setup>
 /**
@@ -90,9 +89,6 @@ const circuitEntityIdsList = computed({
       <span>{{ `这些实体还没同步到 HA：${validateResult.missing.join(', ')}` }}</span>
     </div>
 
-    <div v-if="status?.redis?.configured === false" class="sw-alert sw-alert--info">
-      <span>{{ '💡 没有 Redis 也能完成向导，只是分路曲线暂时看不到而已' }}</span>
-    </div>
   </div>
 </template>
 

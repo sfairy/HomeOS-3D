@@ -861,27 +861,16 @@ def _validate_ha_connector(section: str, p: dict[str, Any], e: list[FieldError])
     bound_checks = {
         "reconnectBaseMs": (100, 60000),
         "maxReconnectDelayMs": (1000, 300000),
-        "commandQueueMax": (1, 100),
-        "commandQueueTtlMs": (1000, 600_000),
-        "entityRegistryCacheMs": (1000, 3_600_000),
-        "entityRegistryTimeoutMs": (1000, 120_000),
         "historyCacheMaxSize": (1, 10_000),
         "ingressCoalesceWindowMs": (0, 500),
-        "disconnectRestPollInitialDelayMs": (0, 300_000),
-        "disconnectRestPollIntervalMs": (1_000, 600_000),
-        "disconnectRestPollTimeoutMs": (5_000, 300_000),
         "wsPingIntervalMs": (5_000, 300_000),
         "wsPongTimeoutMs": (1_000, 120_000),
         "wsHeartbeatMaxMisses": (1, 10),
-        "coldBatchWindowMs": (0, 500),
-        "coldBatchMax": (1, 10_000),
-        "leaderTtlMs": (2_000, 120_000),
-        "leaderRenewMs": (500, 60_000),
     }
     for key, (lo, hi) in bound_checks.items():
         if key in p:
             num_in(section, key, p[key], lo, hi, e)
-    for k in ("ingressCoalesceEnabled", "disconnectRestPollEnabled", "syncOnlyEnabledEntities"):
+    for k in ("ingressCoalesceEnabled", "syncOnlyEnabledEntities"):
         if k in p:
             require_bool(section, k, p[k], e)
     if "ingressCoalesceDomains" in p:
@@ -896,10 +885,6 @@ def _validate_ha_connector(section: str, p: dict[str, Any], e: list[FieldError])
 
 
 def _validate_state_store(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
-    if "redisWriteBatch" in p:
-        num_in(section, "redisWriteBatch", p["redisWriteBatch"], 1, 10_000, e)
-    if "redisIncrementalFlushMs" in p:
-        num_in(section, "redisIncrementalFlushMs", p["redisIncrementalFlushMs"], 10, 60_000, e)
     if "maxRecentChanges" in p:
         num_in(section, "maxRecentChanges", p["maxRecentChanges"], 100, 50_000, e)
     if "staleThresholdMs" in p:
@@ -923,14 +908,8 @@ def _validate_command_proxy(section: str, p: dict[str, Any], e: list[FieldError]
 
 
 def _validate_ws_push(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
-    if "stateFlushIntervalMs" in p:
-        num_in(section, "stateFlushIntervalMs", p["stateFlushIntervalMs"], 10, 10_000, e)
     if "sensorFlushIntervalMs" in p:
         num_in(section, "sensorFlushIntervalMs", p["sensorFlushIntervalMs"], 10, 60_000, e)
-    if "criticalFlushIntervalMs" in p:
-        num_in(section, "criticalFlushIntervalMs", p["criticalFlushIntervalMs"], 0, 500, e)
-    if "pinnedSensorFlushIntervalMs" in p:
-        num_in(section, "pinnedSensorFlushIntervalMs", p["pinnedSensorFlushIntervalMs"], 0, 1_000, e)
     if "stateBatchMax" in p:
         num_in(section, "stateBatchMax", p["stateBatchMax"], 10, 2_000, e)
     if "haSyncWaitMs" in p:
@@ -1033,8 +1012,6 @@ def _validate_external(section: str, p: dict[str, Any], e: list[FieldError]) -> 
     if p.get("dynamicPricingUrl") not in (None, "") and "dynamicPricingUrl" in p:
         if not re.match(r"^https?://.+", str(p["dynamicPricingUrl"]).strip(), re.IGNORECASE):
             e.append({"section": section, "key": "dynamicPricingUrl", "message": "须为 http(s) URL 或留空"})
-    if "weatherAlertsTtlMin" in p:
-        num_in(section, "weatherAlertsTtlMin", p["weatherAlertsTtlMin"], 1, 1440, e)
     if "weatherAlertRefreshMs" in p:
         num_in(section, "weatherAlertRefreshMs", p["weatherAlertRefreshMs"], 60_000, 3_600_000, e)
     if "weatherAlertEnabled" in p and not isinstance(p["weatherAlertEnabled"], bool):

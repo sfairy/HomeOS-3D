@@ -9,13 +9,12 @@
 from __future__ import annotations
 
 from .calendar_sync import CalendarSyncDeps, sync_calendar_from_url
-from .external_api import WEATHER_ALERTS_CACHE_KEY, ExternalApiService
+from .external_api import ExternalApiService
 from .moviepilot_proxy import MoviePilotProxyService
 from .upstream import UpstreamResponse, fetch_raw, open_stream
 from .weather_alerts import fetch_open_weather_alerts_with_cache, parse_open_weather_alerts
 
 __all__ = [
-    "WEATHER_ALERTS_CACHE_KEY",
     "CalendarSyncDeps",
     "ExternalApiService",
     "MoviePilotProxyService",

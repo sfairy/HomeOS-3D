@@ -1,6 +1,6 @@
 """全球 / 区域地震目录服务（对齐 ``earthquake/global.service.ts``）。
 
-CENC + USGS 双源拉取、Redis 缓存与 USGS 英文地名中文翻译。
+CENC + USGS 双源拉取、进程内缓存与 USGS 英文地名中文翻译。
 
 缓存策略：
  - 新鲜窗口 5 分钟：命中则直接返回（cached=true, stale=false）
@@ -14,7 +14,6 @@ CENC + USGS 双源拉取、Redis 缓存与 USGS 英文地名中文翻译。
 
 from __future__ import annotations
 
-import json
 import logging
 import math
 import time
@@ -41,9 +40,8 @@ logger = logging.getLogger("homeos.earthquake.global")
 
 #: 新鲜缓存窗口：命中则跳过外源拉取
 CACHE_FRESH_SEC = 300
-#: Redis 保留时长：过期后仍可作为 stale 回退
+#: 缓存保留时长：过期后仍可作为 stale 回退
 CACHE_STALE_SEC = 86_400
-CACHE_PREFIX = "homeos:eew:global:"
 
 
 def _now_ms() -> float:
@@ -83,9 +81,10 @@ async def _place_localize_get(url: str, config: dict[str, Any]) -> dict[str, Any
 class EarthquakeGlobalService:
     """全球 / 区域地震目录服务。"""
 
-    def __init__(self, redis: Any, earthquake_service: Any) -> None:
-        self._redis = redis
+    def __init__(self, earthquake_service: Any) -> None:
         self._earthquake = earthquake_service
+        #: 进程内缓存：缓存键 → {"payload": dict, "fetchedAt": float}
+        self._cache: dict[str, dict[str, Any]] = {}
         self._logger = logger
 
     async def get_recent_feed(self, query: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -107,7 +106,7 @@ class EarthquakeGlobalService:
             else None
         )
 
-        cache_key = f"{CACHE_PREFIX}{source}:{period}:{min_magnitude:g}:{limit}"
+        cache_key = f"{source}:{period}:{min_magnitude:g}:{limit}"
         fresh = await self._load_cache(cache_key, allow_stale=False)
         if fresh is not None:
             return self._with_home(fresh, home_coordinates, cached=True, stale=False)
@@ -169,11 +168,7 @@ class EarthquakeGlobalService:
                 "homeLon": home_coordinates["lon"] if home_coordinates else None,
             },
         )
-        deps = PlaceLocalizeDeps(
-            get=_place_localize_get,
-            redis_get=self._redis.get if self._redis is not None else None,
-            redis_set=self._redis.set if self._redis is not None else None,
-        )
+        deps = PlaceLocalizeDeps(get=_place_localize_get)
         return await enrich_usgs_places_with_chinese(items, deps)
 
     async def _fetch_cenc_items(
@@ -288,52 +283,47 @@ class EarthquakeGlobalService:
         ]
 
     async def _load_cache(self, key: str, *, allow_stale: bool) -> dict[str, Any] | None:
-        if self._redis is None or not self._redis.is_ready():
+        entry = self._cache.get(key)
+        if entry is None:
             return None
-        try:
-            raw = await self._redis.get(key)
-            if not raw:
-                return None
-            if isinstance(raw, bytes):
-                raw = raw.decode("utf-8", "ignore")
-            parsed = json.loads(raw)
-            items = parsed.get("items") if isinstance(parsed, dict) else None
-            if not isinstance(items, list):
-                return None
-            fetched_at = _to_number(parsed.get("fetchedAt"), 0)
-            if not fetched_at:
-                return None
-            age_sec = (_now_ms() - fetched_at) / 1000
-            if age_sec < 0:
-                return None
-            if not allow_stale and age_sec > CACHE_FRESH_SEC:
-                return None
-            if allow_stale and age_sec > CACHE_STALE_SEC:
-                return None
-            return {
-                "source": parsed.get("source"),
-                "period": parsed.get("period"),
-                "minMagnitude": parsed.get("minMagnitude"),
-                "fetchedAt": fetched_at,
-                "items": items,
-            }
-        except Exception:
+        items = entry.get("items")
+        if not isinstance(items, list):
             return None
+        fetched_at = _to_number(entry.get("fetchedAt"), 0)
+        if not fetched_at:
+            return None
+        age_sec = (_now_ms() - fetched_at) / 1000
+        if age_sec < 0:
+            return None
+        if not allow_stale and age_sec > CACHE_FRESH_SEC:
+            return None
+        if allow_stale and age_sec > CACHE_STALE_SEC:
+            return None
+        return {
+            "source": entry.get("source"),
+            "period": entry.get("period"),
+            "minMagnitude": entry.get("minMagnitude"),
+            "fetchedAt": fetched_at,
+            "items": items,
+        }
 
     async def _save_cache(self, key: str, result: dict[str, Any]) -> None:
-        if self._redis is None or not self._redis.is_ready():
-            return
-        try:
-            payload = {
-                "source": result.get("source"),
-                "period": result.get("period"),
-                "minMagnitude": result.get("minMagnitude"),
-                "fetchedAt": result.get("fetchedAt"),
-                "items": result.get("items"),
-            }
-            await self._redis.set(key, json.dumps(payload, ensure_ascii=False), CACHE_STALE_SEC)
-        except Exception as exc:
-            self._logger.debug("全球震情缓存写入失败: %s", exc)
+        self._cache[key] = {
+            "source": result.get("source"),
+            "period": result.get("period"),
+            "minMagnitude": result.get("minMagnitude"),
+            "fetchedAt": result.get("fetchedAt"),
+            "items": result.get("items"),
+        }
+        # 顺带清理过期条目，避免长跑进程缓存无界增长
+        now = _now_ms()
+        stale_keys = [
+            cache_key
+            for cache_key, entry in self._cache.items()
+            if (now - _to_number(entry.get("fetchedAt"), 0)) / 1000 > CACHE_STALE_SEC
+        ]
+        for cache_key in stale_keys:
+            self._cache.pop(cache_key, None)
 
 
 def _to_number(value: Any, fallback: float = float("nan")) -> float:

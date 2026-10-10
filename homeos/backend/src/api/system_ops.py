@@ -15,7 +15,7 @@ from typing import Any
 from fastapi import Depends, Header, Query, Request
 
 from .router import NestRouter
-from ..security.auth_context import require_roles
+from ..security.auth_context import require_user
 
 router = NestRouter(prefix="/system", tags=["system"])
 
@@ -47,7 +47,7 @@ async def get_weather_alerts(
     lat: str | None = Query(default=None),
     lon: str | None = Query(default=None),
     x_openweather_key: str | None = Header(default=None, alias="x-openweather-key"),
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     service = _external_service(request)
     external = service.external_cfg
@@ -64,7 +64,7 @@ async def get_weather_alerts(
 @router.get("/external/calendar-events")
 async def get_calendar_events(
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """已同步的日历事件列表 + 当前是否外出 + 即将到来的外出事件。"""
     return _external_service(request).get_calendar_events()
@@ -72,7 +72,7 @@ async def get_calendar_events(
 @router.get("/external/electricity-price")
 async def get_electricity_price(
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """当前分时电价（峰谷平）。"""
     return _external_service(request).get_current_price()
@@ -80,7 +80,7 @@ async def get_electricity_price(
 @router.get("/external/dynamic-pricing")
 async def get_dynamic_pricing(
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """动态电价 API：今日时段表 + 当前时段（配置后可用）。"""
     return _external_service(request).get_dynamic_pricing()
@@ -88,7 +88,7 @@ async def get_dynamic_pricing(
 @router.post("/external/dynamic-pricing/sync", status_code=201)
 async def sync_dynamic_pricing(
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """立即同步一次动态电价 API。"""
     return await _external_service(request).sync_dynamic_pricing()
@@ -96,7 +96,7 @@ async def sync_dynamic_pricing(
 @router.get("/device-health/summary")
 async def get_device_health_summary(
     request: Request,
-    user: dict[str, Any] = Depends(require_roles("admin", "adult")),
+    user: dict[str, Any] = Depends(require_user),
 ):
     """设备健康摘要（离线 + 固件更新）。"""
     return request.app.state.device_health.get_summary()

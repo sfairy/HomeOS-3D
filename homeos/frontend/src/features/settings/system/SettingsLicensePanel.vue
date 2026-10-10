@@ -80,7 +80,11 @@ Props：
         <dl class="license-facts">
           <div v-for="fact in overviewFacts" :key="fact.label" class="license-fact">
             <dt>{{ fact.label }}</dt>
-            <dd :class="fact.tone ? `is-${fact.tone}` : ''">{{ fact.value }}</dd>
+            <dd :class="fact.tone ? `is-${fact.tone}` : ''">
+              <span v-if="fact.dot" class="license-fact__dot" aria-hidden="true" />
+              <span class="license-fact__val">{{ fact.value }}</span>
+              <code v-if="fact.code" class="license-fact__code">{{ fact.code }}</code>
+            </dd>
           </div>
         </dl>
       </SettingsCard>
@@ -112,43 +116,87 @@ Props：
           <span class="license-card__hint">{{ '功能码目录与授权商店同源（ops/feature_codes.json）' }}</span>
         </div>
 
-        <h4 class="license-subtitle">{{ '模块门禁' }}</h4>
-        <ul class="license-codes">
-          <li v-for="row in gateRows" :key="row.code" :class="['license-code', row.ok ? 'is-on' : 'is-off']">
-            <span class="license-code__name">{{ row.label }}</span>
-            <code class="license-code__id">{{ row.code }}</code>
-            <span class="license-code__state">{{ row.ok ? '已授权' : '未授权' }}</span>
-          </li>
-        </ul>
+        <!-- 概览条：先给「开了多少 / 还剩多久」的结论，再往下看明细 -->
+        <div class="license-summary">
+          <div v-for="item in featureSummary" :key="item.label" class="license-summary__item">
+            <span :class="['license-summary__val', item.tone && `is-${item.tone}`]">{{ item.value }}</span>
+            <span class="license-summary__lbl">{{ item.label }}</span>
+          </div>
+        </div>
 
-        <h4 class="license-subtitle">{{ '租约功能码' }}</h4>
-        <p v-if="!featureRows.length" class="license-empty">{{ '当前租约未携带功能码。' }}</p>
-        <ul v-else class="license-codes">
-          <li v-for="row in featureRows" :key="row.code" class="license-code is-on">
-            <span class="license-code__name">{{ row.label }}</span>
-            <code class="license-code__id">{{ row.code }}</code>
-          </li>
-        </ul>
+        <!-- 模块门禁：按芯片网格铺开，宽屏一行 3~4 个，不再让右侧留大片空白 -->
+        <section class="license-block">
+          <header class="license-block__head">
+            <h4 class="license-block__title">{{ '模块门禁' }}</h4>
+            <span :class="['license-block__meta', gateRows.every((row) => row.ok) && 'is-ok']">
+              {{ `已授权 ${gateGrantedCount} / ${gateRows.length}` }}
+            </span>
+          </header>
+          <ul class="license-grid">
+            <li
+              v-for="row in gateRows"
+              :key="row.code"
+              :class="['license-chip', row.ok ? 'is-on' : 'is-off']"
+            >
+              <span class="license-chip__dot" aria-hidden="true" />
+              <span class="license-chip__name">{{ row.label }}</span>
+              <code class="license-chip__id">{{ row.code }}</code>
+              <span class="license-chip__state">{{ row.ok ? '已授权' : '未授权' }}</span>
+            </li>
+          </ul>
+        </section>
 
-        <h4 class="license-subtitle">{{ '商品与到期' }}</h4>
-        <p v-if="!products.length" class="license-empty">{{ '当前租约未携带商品信息。' }}</p>
-        <ul v-else class="license-codes">
-          <li v-for="(item, index) in products" :key="`${item.name}-${index}`" class="license-code is-on">
-            <span class="license-code__name">{{ item.name }}</span>
-            <code class="license-code__id">{{ item.type }}</code>
-            <span class="license-code__state">{{ formatExpiry(item.expiresAt) }}</span>
-          </li>
-        </ul>
+        <section v-if="featureRows.length" class="license-block">
+          <header class="license-block__head">
+            <h4 class="license-block__title">{{ '租约功能码' }}</h4>
+            <span class="license-block__meta">{{ `${featureRows.length} 项` }}</span>
+          </header>
+          <ul class="license-grid">
+            <li v-for="row in featureRows" :key="row.code" class="license-chip is-on">
+              <span class="license-chip__name">{{ row.label }}</span>
+              <code class="license-chip__id">{{ row.code }}</code>
+            </li>
+          </ul>
+        </section>
 
-        <h4 class="license-subtitle">{{ '限时权益' }}</h4>
-        <p v-if="!entitlements.length" class="license-empty">{{ '没有额外的限时权益。' }}</p>
-        <ul v-else class="license-codes">
-          <li v-for="item in entitlements" :key="`${item.code}-${item.expiresAt}`" class="license-code is-on">
-            <span class="license-code__name">{{ featureLabel(String(item.code)) }}</span>
-            <code class="license-code__id">{{ item.code }}</code>
-            <span class="license-code__state">{{ formatExpiry(item.expiresAt) }}</span>
-          </li>
-        </ul>
+        <section v-if="products.length" class="license-block">
+          <header class="license-block__head">
+            <h4 class="license-block__title">{{ '商品与到期' }}</h4>
+            <span class="license-block__meta">{{ `${products.length} 项` }}</span>
+          </header>
+          <ul class="license-grid license-grid--wide">
+            <li v-for="(item, index) in products" :key="`${item.name}-${index}`" class="license-chip is-on">
+              <span class="license-chip__name">{{ item.name }}</span>
+              <code class="license-chip__id">{{ item.type }}</code>
+              <span class="license-chip__state">{{ formatExpiry(item.expiresAt) }}</span>
+            </li>
+          </ul>
+        </section>
+
+        <section v-if="entitlements.length" class="license-block">
+          <header class="license-block__head">
+            <h4 class="license-block__title">{{ '限时权益' }}</h4>
+            <span class="license-block__meta">{{ `${entitlements.length} 项` }}</span>
+          </header>
+          <ul class="license-grid license-grid--wide">
+            <li
+              v-for="item in entitlements"
+              :key="`${item.code}-${item.expiresAt}`"
+              class="license-chip is-on"
+            >
+              <span class="license-chip__name">{{ featureLabel(String(item.code)) }}</span>
+              <code class="license-chip__id">{{ item.code }}</code>
+              <span class="license-chip__state">{{ formatExpiry(item.expiresAt) }}</span>
+            </li>
+          </ul>
+        </section>
+
+        <p
+          v-if="!featureRows.length && !products.length && !entitlements.length"
+          class="license-empty"
+        >
+          {{ '当前租约未携带额外的功能码、商品或限时权益。' }}
+        </p>
       </SettingsCard>
 
       <!-- ── 账号与操作 ── -->
@@ -162,7 +210,14 @@ Props：
         <div class="license-account__identity">
           <div v-for="fact in accountIdentity" :key="fact.label" class="license-account__tile">
             <span class="license-account__label">{{ fact.label }}</span>
-            <span class="license-account__value">{{ fact.value }}</span>
+            <template v-if="fact.sensitive">
+              <span class="license-account__value">{{ revealValue(fact) }}</span>
+              <button type="button" class="license-reveal" @click="toggleReveal(fact.key)">
+                <component :is="isRevealed(fact.key) ? EyeOff : Eye" class="w-3.5 h-3.5" />
+                {{ isRevealed(fact.key) ? hideHint(fact.key) : '点击显示' }}
+              </button>
+            </template>
+            <span v-else class="license-account__value">{{ fact.value }}</span>
           </div>
         </div>
 
@@ -171,7 +226,14 @@ Props：
           <div v-for="fact in accountMeta" :key="fact.label" class="license-account__row">
             <dt>{{ fact.label }}</dt>
             <dd>
-              <code>{{ fact.value }}</code>
+              <template v-if="fact.sensitive">
+                <code class="license-secret">{{ revealValue(fact) }}</code>
+                <button type="button" class="license-reveal" @click="toggleReveal(fact.key)">
+                  <component :is="isRevealed(fact.key) ? EyeOff : Eye" class="w-3.5 h-3.5" />
+                  {{ isRevealed(fact.key) ? hideHint(fact.key) : '点击显示' }}
+                </button>
+              </template>
+              <code v-else>{{ fact.value }}</code>
             </dd>
           </div>
         </dl>
@@ -216,10 +278,12 @@ Props：
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import {
   AlertCircle,
   Copy,
+  Eye,
+  EyeOff,
   KeyRound,
   LogOut,
   PlugZap,
@@ -234,6 +298,8 @@ import {
   getLicenseStatus,
   licenseErrorMessage,
   licenseMessage,
+  licenseStatusLabel,
+  licenseStatusTone,
   reactivateLicense,
   retryLicense,
 } from '@/services/api/license'
@@ -263,14 +329,9 @@ const actionBusy = ref('')
 const copied = ref(false)
 
 /** 未授权时不该显示「已授权」的假象：状态码决定徽标颜色而非文案本身。 */
-const statusTone = computed(() => {
-  const state = String(status.value?.status || '')
-  if (state === 'ACTIVE') return 'ok'
-  if (state === 'INSTANCE_MISMATCH' || state === 'REVOKED' || state === 'INVALID') return 'alert'
-  return 'warn'
-})
+const statusTone = computed(() => licenseStatusTone(status.value?.status))
 
-const statusLabel = computed(() => status.value?.statusLabel || '正在读取授权状态')
+const statusLabel = computed(() => licenseStatusLabel(status.value || {}, '正在读取授权状态'))
 
 const statusMessage = computed(() => {
   if (!status.value) return '正在读取授权状态…'
@@ -299,19 +360,125 @@ function errorText() {
   return code || '—'
 }
 
-const overviewFacts = computed(() => [
-  { label: '状态码', value: String(status.value?.status || '—') },
-  { label: '错误码', value: errorText(), tone: status.value?.errorCode ? 'warn' : '' },
-  { label: '是否放行', value: status.value?.allowed ? '是' : '否' },
-  {
-    label: '重试',
-    value: status.value?.retrying
-      ? '正在验证…'
-      : status.value?.canRetry
-        ? `可重试（第 ${Number(status.value?.retryAttempt || 0) + 1} 次）`
-        : '当前状态不可自动重试',
-  },
-])
+/* ── 敏感字段「点击显示」：默认打码，展开 N 秒后自动收起 ── */
+
+/** 展开后保持可见的秒数。 */
+const REVEAL_HOLD_SECONDS = 8
+/** 当前处于展开态字段的 key 列表（响应式）。 */
+const revealedKeys = ref([])
+/** 各字段剩余可见秒数，用于按钮文案倒计时。 */
+const revealRemaining = ref({})
+/** key → interval 句柄（非响应式，避免把定时器塞进渲染依赖）。 */
+const revealTimers = new Map()
+
+function clearRevealTimer(key) {
+  const timer = revealTimers.get(key)
+  if (timer === undefined) return
+  window.clearInterval(timer)
+  revealTimers.delete(key)
+}
+
+function isRevealed(key) {
+  return revealedKeys.value.includes(key)
+}
+
+/** 隐藏某字段并停掉它的倒计时。 */
+function hideRevealed(key) {
+  clearRevealTimer(key)
+  revealedKeys.value = revealedKeys.value.filter((item) => item !== key)
+  if (key in revealRemaining.value) {
+    const next = { ...revealRemaining.value }
+    delete next[key]
+    revealRemaining.value = next
+  }
+}
+
+/** 展开某字段并启动倒计时，归零自动隐藏。 */
+function showRevealed(key) {
+  if (!isRevealed(key)) revealedKeys.value = [...revealedKeys.value, key]
+  revealRemaining.value = { ...revealRemaining.value, [key]: REVEAL_HOLD_SECONDS }
+  clearRevealTimer(key)
+  revealTimers.set(
+    key,
+    window.setInterval(() => {
+      const left = (revealRemaining.value[key] ?? 0) - 1
+      if (left <= 0) {
+        hideRevealed(key)
+        return
+      }
+      revealRemaining.value = { ...revealRemaining.value, [key]: left }
+    }, 1000),
+  )
+}
+
+/** 按钮点击：展开 / 立即收起。 */
+function toggleReveal(key) {
+  if (isRevealed(key)) hideRevealed(key)
+  else showRevealed(key)
+}
+
+function hideHint(key) {
+  return `隐藏（${revealRemaining.value[key] ?? REVEAL_HOLD_SECONDS}s）`
+}
+
+/** 打码：保留首尾少量字符便于辨认，其余以圆点遮蔽。 */
+function maskSecret(raw) {
+  const text = String(raw ?? '')
+  if (!text || text === '—') return '—'
+  if (text.length <= 8) return '•'.repeat(text.length)
+  const head = text.slice(0, 4)
+  const tail = text.slice(-4)
+  return `${head}${'•'.repeat(Math.min(text.length - 8, 28))}${tail}`
+}
+
+/** 敏感字段：展开时给完整值，否则给打码值。 */
+function revealValue(fact) {
+  if (!fact?.sensitive) return fact?.value ?? '—'
+  return isRevealed(fact.key) ? fact.value : maskSecret(fact.value)
+}
+
+/** 刷新 / 切区后收起所有已展开的字段，避免打码态被上一次的展开遗留绕过。 */
+function resetReveals() {
+  for (const key of [...revealTimers.keys()]) clearRevealTimer(key)
+  revealedKeys.value = []
+  revealRemaining.value = {}
+}
+
+/**
+ * 状态总览键值：能一眼读懂、且用颜色区分「可用 / 提醒 / 需人工处理」。
+ * 激活状态用中文标签 + 语义色，原始英文码退到旁边做浅色附注，便于排障时对照。
+ */
+const overviewFacts = computed(() => {
+  const current = status.value
+  return [
+    {
+      label: '激活状态',
+      value: licenseStatusLabel(current || {}),
+      code: current?.status ? String(current.status) : '',
+      tone: statusTone.value,
+      dot: true,
+    },
+    {
+      label: '错误码',
+      value: current?.errorCode ? errorText() : '无',
+      tone: current?.errorCode ? 'warn' : 'muted',
+    },
+    {
+      label: '能力放行',
+      value: current?.allowed ? '已放行' : '未放行',
+      tone: current?.allowed ? 'ok' : 'alert',
+    },
+    {
+      label: '重试',
+      value: current?.retrying
+        ? '正在验证…'
+        : current?.canRetry
+          ? `可重试（第 ${Number(current?.retryAttempt || 0) + 1} 次）`
+          : '当前状态不可自动重试',
+      tone: current?.retrying ? 'warn' : '',
+    },
+  ]
+})
 
 /** 租约进度：按已过时长占总租期的百分比。 */
 const leaseProgress = computed(() => {
@@ -378,16 +545,53 @@ const featureRows = computed(() =>
 const products = computed(() => status.value?.products || [])
 const entitlements = computed(() => status.value?.entitlements || [])
 
+/** 模块门禁已授权数量，供概览条与区块头徽标共用。 */
+const gateGrantedCount = computed(() => gateRows.value.filter((row) => row.ok).length)
+
+/** 权益概览条：先给结论（授权了几项、租约带了多少、多久到期），再看明细。 */
+const featureSummary = computed(() => {
+  const total = gateRows.value.length
+  const granted = gateGrantedCount.value
+  return [
+    {
+      label: '模块门禁已授权',
+      value: total ? `${granted} / ${total}` : '—',
+      tone: total && granted === total ? 'ok' : 'warn',
+    },
+    { label: '租约功能码', value: `${featureRows.value.length} 项` },
+    { label: '限时权益', value: `${entitlements.value.length} 项` },
+    { label: '当前版本', value: status.value?.edition || '—' },
+  ]
+})
+
 /** 账号身份（短字段）与技术标识（长串）分开排，避免挤成一行。 */
 const accountIdentity = computed(() => [
-  { label: '本机账号名', value: status.value?.accountName || auth.user || '—' },
-  { label: '商店账号', value: status.value?.activationEmail || '—' },
+  { key: 'account', label: '本机账号名', value: status.value?.accountName || auth.user || '—' },
+  {
+    key: 'email',
+    label: '商店账号',
+    // 完整邮箱优先（登录后 /status 下发）；缺失时回落打码值。
+    value: status.value?.activationEmailFull || status.value?.activationEmail || '—',
+    sensitive: true,
+  },
 ])
 
+/** 技术标识：长串默认打码，点击显示后自动收起。 */
 const accountMeta = computed(() => [
-  { label: '激活码提示', value: status.value?.activationCodeHint || '—' },
-  { label: '公钥指纹', value: status.value?.publicKeyFingerprint || '—' },
-  { label: '激活码 ID', value: status.value?.activationCodeId || '—' },
+  {
+    key: 'activation-code',
+    label: '激活码',
+    // 后端解密的完整码优先；解密不可用时回落到「去掉末 9 位」的提示。
+    value: status.value?.activationCode || status.value?.activationCodeHint || '—',
+    sensitive: true,
+  },
+  {
+    key: 'fingerprint',
+    label: '公钥指纹',
+    value: status.value?.publicKeyFingerprintFull || status.value?.publicKeyFingerprint || '—',
+    sensitive: true,
+  },
+  { key: 'code-id', label: '激活码 ID', value: status.value?.activationCodeId || '—' },
 ])
 
 function formatTime(value) {
@@ -428,6 +632,7 @@ async function load() {
   try {
     status.value = (await getLicenseStatus()).data
     syncFeatureAccessFromStatus(status.value)
+    resetReveals()
   } catch (error) {
     if (isUnauthorizedError(error)) {
       loadError.value = '此页面需要先登录本机账号。'
@@ -446,6 +651,7 @@ async function onRetry() {
   try {
     status.value = (await retryLicense()).data
     syncFeatureAccessFromStatus(status.value)
+    resetReveals()
     chrome.notify('已重新连接授权后台。', 'success')
   } catch (error) {
     chrome.notify(licenseErrorMessage(error, '重新连接授权后台失败。'), 'error')
@@ -461,6 +667,7 @@ async function goActivate() {
   try {
     status.value = (await reactivateLicense()).data
     syncFeatureAccessFromStatus(status.value)
+    resetReveals()
     chrome.notify('已用本机凭证重新激活。', 'success')
   } catch (error) {
     chrome.notify(licenseErrorMessage(error, '重新激活失败，请到激活页重新填写激活码。'), 'warning')
@@ -470,18 +677,22 @@ async function goActivate() {
   }
 }
 
-/** 复制一份诊断文本，便于排障时贴给客服。 */
+/** 复制一份诊断文本，便于排障时贴给客服。键值取完整值，避免客服拿到打码信息。 */
 async function copyDiagnostics() {
+  const current = status.value
   const lines = [
     'HomeOS 授权诊断',
     `导出时间: ${new Date().toISOString()}`,
-    `状态: ${status.value?.status} (${status.value?.statusLabel})`,
+    `状态: ${current?.status} (${licenseStatusLabel(current || {})})`,
     `错误码: ${errorText()}`,
-    `实例标识: ${status.value?.instanceId}`,
-    `租约: ${status.value?.leaseId} / seq ${status.value?.leaseSequence}`,
-    `到期: ${status.value?.leaseExpiresAt}`,
-    `账号: ${status.value?.accountName} / ${status.value?.activationEmail}`,
-    `功能码: ${(status.value?.features || []).join(', ')}`,
+    `实例标识: ${current?.instanceId}`,
+    `租约: ${current?.leaseId} / seq ${current?.leaseSequence}`,
+    `到期: ${current?.leaseExpiresAt}`,
+    `账号: ${current?.accountName} / ${current?.activationEmailFull || current?.activationEmail}`,
+    `激活码: ${current?.activationCode || current?.activationCodeHint}`,
+    `激活码 ID: ${current?.activationCodeId}`,
+    `公钥指纹: ${current?.publicKeyFingerprintFull || current?.publicKeyFingerprint}`,
+    `功能码: ${(current?.features || []).join(', ')}`,
   ]
   try {
     await navigator.clipboard.writeText(lines.join('\n'))
@@ -501,6 +712,10 @@ async function onLogout() {
 
 onMounted(() => {
   void load()
+})
+
+onUnmounted(() => {
+  resetReveals()
 })
 </script>
 

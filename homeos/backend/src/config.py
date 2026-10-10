@@ -138,7 +138,6 @@ class Settings:
     csrf_header_name: str = "X-CSRF-Token"
     cookie_secure: bool = False
     # 基础设施
-    redis_url: str = ""
     metrics_token: str = ""
     is_production: bool = False
     # 接入层
@@ -232,6 +231,15 @@ class Settings:
         return self.data_dir / "cache" / "effect-variants"
 
     @property
+    def backups_dir_override(self) -> Path | None:
+        """服务器全量备份包目录的显式覆盖（``HOMEOS_BACKUPS_DIR``）。
+
+        默认走 Nest 约定（运行目录的 ``backups/``，即源码态仓库根）。容器里 ``/app`` 不是
+        数据卷，重建即丢，故镜像设 ``HOMEOS_BACKUPS_DIR=/data/backups`` 落到持久卷。
+        """
+        return _environment_path("HOMEOS_BACKUPS_DIR")
+
+    @property
     def built_in_assets_dir(self) -> Path:
         """内置素材目录（``/assets/builtin/**`` 的来源）。
 
@@ -255,10 +263,6 @@ class Settings:
     @property
     def runtime_manifest_path(self) -> Path:
         return self.runtime_dir / "manifest.json"
-
-    @property
-    def redis_configured(self) -> bool:
-        return bool(self.redis_url)
 
     # ---- 授权服务派生路径（口径对齐 homeos-3d Settings）----
     @property
@@ -378,7 +382,7 @@ class Settings:
 def load_settings() -> Settings:
     """从环境变量装配 Settings。
 
-    环境变量命名与 Nest 侧保持一致（``JWT_SECRET`` / ``REDIS_URL`` / ``METRICS_TOKEN`` /
+    环境变量命名与 Nest 侧保持一致（``JWT_SECRET`` / ``METRICS_TOKEN`` /
     ``NODE_ENV`` / ``CORS_ORIGINS`` 等），使同一份 ``backend/.env`` 可被两套后端共用。
     """
     # 数据目录：HOMEOS_DATA_DIR（源码/dev）→ APP_DATA_DIR（镜像/compose 沿用 3D 时代变量名）
@@ -401,7 +405,6 @@ def load_settings() -> Settings:
         csrf_cookie_name=os.getenv("CSRF_COOKIE_NAME", "csrf_token").strip() or "csrf_token",
         csrf_header_name=os.getenv("CSRF_HEADER_NAME", "X-CSRF-Token").strip() or "X-CSRF-Token",
         cookie_secure=_environment_bool("COOKIE_SECURE"),
-        redis_url=os.getenv("REDIS_URL", "").strip(),
         metrics_token=os.getenv("METRICS_TOKEN", "").strip(),
         is_production=os.getenv("NODE_ENV", "").strip().lower() == "production",
         allowed_origins=_environment_csv("CORS_ORIGINS"),

@@ -16,7 +16,6 @@ from pathlib import Path
 data_dir = Path(tempfile.mkdtemp(prefix="homeos-smoke-"))
 os.environ["HOMEOS_DATA_DIR"] = str(data_dir)
 os.environ["HOMEOS_DATABASE_URL"] = f"sqlite:///{data_dir / 'homeos.db'}"
-os.environ["REDIS_URL"] = ""
 os.environ["LICENSE_REQUIRED"] = "0"
 os.environ["HA_BASE_URL"] = ""
 os.environ["UPDATE_CHECKS_ENABLED"] = "0"
@@ -83,8 +82,7 @@ with TestClient(app) as client:
     )
     check("POST /auth/register 201", r.status_code == 201, f"{r.status_code} {r.text}")
     body = r.json() if r.status_code < 300 else {}
-    check("返回 UserResponse 形状", set(body) == {"id", "username", "role", "email"}, body)
-    check("role=admin", body.get("role") == "admin", body)
+    check("返回 UserResponse 形状", set(body) == {"id", "username", "email"}, body)
     check("回传注册邮箱", body.get("email") == EMAIL, body)
     check("下发会话 Cookie", client.cookies.get("auth_token") is not None, client.cookies)
 

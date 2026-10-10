@@ -47,13 +47,11 @@ class SetupWizardService:
         session_factory: Callable[[], Any],
         ha_connector: Any,
         state_store: Any,
-        redis: Any,
     ) -> None:
         self._app_config = app_config
         self._session_factory = session_factory
         self._ha_connector = ha_connector
         self._state_store = state_store
-        self._redis = redis
         self._health_cache: dict[str, Any] | None = None
         self._checklist_cache: dict[str, Any] | None = None
 
@@ -186,7 +184,6 @@ class SetupWizardService:
                 del step["hint"]
 
         completed = sum(1 for step in steps.values() if step["done"])
-        redis_configured = bool(self._redis.is_configured())
         circuit_ids = energy.get("circuitEntityIds")
         circuit_ids = circuit_ids if isinstance(circuit_ids, list) else []
         retention = self._app_config.get("retention") or {}
@@ -195,10 +192,6 @@ class SetupWizardService:
             "steps": steps,
             "progress": round(completed / len(steps) * 100),
             "ha": {"connected": bool(ha_status.get("connected")), "entityCount": entity_count},
-            "redis": {
-                "configured": redis_configured,
-                "ok": self._redis.is_ready() if redis_configured else None,
-            },
             "retentionDays": retention.get("eventLog")
             if retention.get("eventLog") is not None
             else (other.get("eventlogRetentionDays") if other.get("eventlogRetentionDays") is not None else 7),

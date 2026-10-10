@@ -1,15 +1,13 @@
 """地震预警状态管理工具（对齐 ``earthquake/state.util.ts``）。
 
-合并 Redis 状态、Prisma 持久化、运行时配置解析、通知格式化四部分：
- - Redis 状态：最新预警、历史列表、已关闭事件、WolfX 主节点活跃标记、去重状态；
- - Prisma 持久化：预警历史写入 / 读取（PostgreSQL / SQLite）；
+合并持久化、运行时配置解析、通知格式化三部分：
+ - 持久化：预警历史写入 / 读取（PostgreSQL / SQLite）；
  - 运行时配置：从项目 layout 解析 EEW 阈值与家庭坐标；
  - 通知格式化：EEW / 目录速报文案与通知级别。
 """
 
 from __future__ import annotations
 
-import json
 import logging
 import math
 from datetime import UTC, datetime
@@ -20,41 +18,13 @@ from sqlalchemy import delete, select
 from .feeds import is_valid_home_coordinate
 from .geo import compute_s_wave_countdown, is_eew_simulation_event_id, normalize_eew_countdown_lead
 from .threshold import evaluate_local_quake_thresholds
-from .types import EarthquakeAlertPayload, EarthquakeRuntimeConfig, EewDedupeState, EewEventFingerprint
+from .types import EarthquakeAlertPayload, EarthquakeRuntimeConfig
 from ..push_time import format_time_only
 from ...core.models import EarthquakeAlertHistory
 
 logger = logging.getLogger("homeos.earthquake")
 
-# ── Redis 键名 ─────────────────────────────────────────────────────────
-EEW_REDIS = {
-    "latest": "homeos:eew:latest",
-    "history": "homeos:eew:history",
-    "dismissedPrefix": "homeos:eew:dismissed:",
-    "wolfxActive": "homeos:eew:wolfx-active",
-    "dedupe": "homeos:eew:dedupe",
-}
-
-LATEST_TTL_SEC = 300
-DISMISSED_TTL_SEC = 3600
-DEDUPE_TTL_SEC = 120
-WOLFX_ACTIVE_TTL_SEC = 30
-EEW_REDIS_HISTORY_MAX = 50
-HISTORY_TTL_SEC = 86400 * 30
 EEW_PRISMA_HISTORY_MAX = 200
-
-#: 去重状态写入 Lua 脚本：时间戳保护，防止旧实例覆盖新实例状态。
-DEDUPE_SET_SCRIPT = """
-local existing = redis.call("get", KEYS[1])
-if existing then
-  local ok, parsed = pcall(cjson.decode, existing)
-  if ok and type(parsed) == "table" and parsed.updatedAt and parsed.updatedAt > tonumber(ARGV[2]) then
-    return 0
-  end
-end
-redis.call("set", KEYS[1], ARGV[1], "ex", tonumber(ARGV[3]))
-return 1
-"""
 
 
 def _now_ms() -> float:
@@ -66,215 +36,6 @@ def is_simulation_alert_record(record: dict[str, Any]) -> bool:
     if str(record.get("source") or "").strip() == "test":
         return True
     return is_eew_simulation_event_id(record.get("eventId"))
-
-
-# ── Redis：最新预警 / 历史 / 已关闭 / 主节点活跃 / 去重 ────────────────
-
-
-async def save_latest_alert_redis(redis: Any, payload: EarthquakeAlertPayload) -> None:
-    if redis is None or not redis.is_ready():
-        return
-    data = {"payload": payload.to_dict(), "savedAt": _now_ms()}
-    await redis.set(EEW_REDIS["latest"], json.dumps(data), LATEST_TTL_SEC)
-    await _append_alert_history_redis(redis, payload)
-
-
-async def _append_alert_history_redis(redis: Any, payload: EarthquakeAlertPayload) -> None:
-    client = redis.get_client()
-    if client is None:
-        return
-    entry = {"payload": payload.to_dict(), "savedAt": _now_ms()}
-    await client.lpush(EEW_REDIS["history"], json.dumps(entry))
-    await client.ltrim(EEW_REDIS["history"], 0, EEW_REDIS_HISTORY_MAX - 1)
-    await client.expire(EEW_REDIS["history"], HISTORY_TTL_SEC)
-
-
-async def load_alert_history_redis(redis: Any, limit: int = 30) -> list[dict[str, Any]]:
-    if redis is None:
-        return []
-    client = redis.get_client()
-    if client is None:
-        return []
-    raw = await client.lrange(EEW_REDIS["history"], 0, max(0, limit - 1))
-    out: list[dict[str, Any]] = []
-    for row in raw:
-        try:
-            parsed = json.loads(row)
-        except (ValueError, TypeError):
-            continue
-        payload = parsed.get("payload") if isinstance(parsed, dict) else None
-        if isinstance(payload, dict) and payload.get("eventId"):
-            out.append(parsed)
-    return out
-
-
-async def delete_simulation_history_redis(redis: Any, event_id: str | None = None) -> int:
-    if redis is None:
-        return 0
-    client = redis.get_client()
-    if client is None:
-        return 0
-    raw = await client.lrange(EEW_REDIS["history"], 0, -1)
-    if not raw:
-        return 0
-
-    keep: list[Any] = []
-    removed = 0
-    target_id = (event_id or "").strip()
-    for row in raw:
-        try:
-            parsed = json.loads(row)
-            payload = parsed.get("payload") if isinstance(parsed, dict) else None
-            if not isinstance(payload, dict) or not payload.get("eventId"):
-                keep.append(row)
-                continue
-            match = (
-                payload["eventId"] == target_id and is_simulation_alert_record(payload)
-                if target_id
-                else is_simulation_alert_record(payload)
-            )
-            if match:
-                removed += 1
-                continue
-            keep.append(row)
-        except (ValueError, TypeError):
-            keep.append(row)
-
-    if not removed:
-        return 0
-    await client.delete(EEW_REDIS["history"])
-    if keep:
-        for row in reversed(keep):
-            await client.lpush(EEW_REDIS["history"], row)
-        await client.expire(EEW_REDIS["history"], HISTORY_TTL_SEC)
-    return removed
-
-
-async def load_latest_alert_redis(redis: Any) -> dict[str, Any] | None:
-    if redis is None or not redis.is_ready():
-        return None
-    raw = await redis.get(EEW_REDIS["latest"])
-    if not raw:
-        return None
-    try:
-        parsed = json.loads(raw)
-    except (ValueError, TypeError):
-        return None
-    payload = parsed.get("payload") if isinstance(parsed, dict) else None
-    if not isinstance(payload, dict) or not payload.get("eventId"):
-        return None
-    return parsed
-
-
-async def is_event_dismissed_redis(redis: Any, event_id: str) -> bool:
-    if redis is None or not redis.is_ready() or not event_id:
-        return False
-    val = await redis.get(f"{EEW_REDIS['dismissedPrefix']}{event_id}")
-    if isinstance(val, bytes):
-        val = val.decode("utf-8", "ignore")
-    return val == "1"
-
-
-async def mark_event_dismissed_redis(redis: Any, event_id: str) -> None:
-    if redis is None or not redis.is_ready() or not event_id:
-        return
-    await redis.set(f"{EEW_REDIS['dismissedPrefix']}{event_id}", "1", DISMISSED_TTL_SEC)
-
-
-async def clear_latest_alert_redis(redis: Any, event_id: str) -> None:
-    if redis is None or not redis.is_ready():
-        return
-    stored = await load_latest_alert_redis(redis)
-    payload = stored.get("payload") if isinstance(stored, dict) else None
-    if isinstance(payload, dict) and payload.get("eventId") == event_id:
-        client = redis.get_client()
-        if client is not None:
-            await client.delete(EEW_REDIS["latest"])
-
-
-async def touch_wolfx_leader_active(redis: Any) -> None:
-    if redis is None or not redis.is_ready():
-        return
-    await redis.set(EEW_REDIS["wolfxActive"], str(int(_now_ms())), WOLFX_ACTIVE_TTL_SEC)
-
-
-async def is_wolfx_cluster_active(redis: Any) -> bool:
-    if redis is None or not redis.is_ready():
-        return False
-    val = await redis.get(EEW_REDIS["wolfxActive"])
-    if isinstance(val, bytes):
-        val = val.decode("utf-8", "ignore")
-    return val is not None and val != ""
-
-
-async def load_dedupe_state_redis(redis: Any) -> EewDedupeState | None:
-    if redis is None or not redis.is_ready():
-        return None
-    raw = await redis.get(EEW_REDIS["dedupe"])
-    if not raw:
-        return None
-    try:
-        parsed = json.loads(raw)
-    except (ValueError, TypeError):
-        return None
-    if not isinstance(parsed, dict):
-        return None
-    if not isinstance(parsed.get("activeEventId"), str) or parsed["activeEventId"] == "":
-        return None
-    last_magnitude = _num(parsed.get("lastMagnitude"))
-    recent: list[EewEventFingerprint] = []
-    if isinstance(parsed.get("recent"), list):
-        for row in parsed["recent"]:
-            if (
-                isinstance(row, dict)
-                and isinstance(row.get("eventId"), str)
-                and math.isfinite(_num(row.get("originTime")))
-                and math.isfinite(_num(row.get("latitude")))
-                and math.isfinite(_num(row.get("longitude")))
-                and math.isfinite(_num(row.get("magnitude")))
-            ):
-                recent.append(
-                    EewEventFingerprint(
-                        eventId=row["eventId"],
-                        originTime=_num(row.get("originTime")),
-                        latitude=_num(row.get("latitude")),
-                        longitude=_num(row.get("longitude")),
-                        magnitude=_num(row.get("magnitude")),
-                    )
-                )
-    return EewDedupeState(
-        activeEventId=parsed["activeEventId"],
-        lastMagnitude=last_magnitude if math.isfinite(last_magnitude) else 0,
-        recent=recent,
-    )
-
-
-async def save_dedupe_state_redis(
-    redis: Any, state: EewDedupeState, updated_at: float | None = None
-) -> None:
-    if redis is None:
-        return
-    client = redis.get_client()
-    if client is None:
-        return
-    stamp = _now_ms() if updated_at is None else updated_at
-    value = json.dumps({**state.to_dict(), "updatedAt": stamp})
-    try:
-        await client.eval(
-            DEDUPE_SET_SCRIPT, 1, EEW_REDIS["dedupe"], value, str(int(stamp)), str(DEDUPE_TTL_SEC)
-        )
-    except Exception:
-        await redis.set(EEW_REDIS["dedupe"], value, DEDUPE_TTL_SEC)
-
-
-async def clear_dedupe_state_redis(redis: Any, event_id: str) -> None:
-    if redis is None or not redis.is_ready() or not event_id:
-        return
-    state = await load_dedupe_state_redis(redis)
-    if state is not None and state.activeEventId == event_id:
-        client = redis.get_client()
-        if client is not None:
-            await client.delete(EEW_REDIS["dedupe"])
 
 
 # ── 持久化：预警历史（SQLite / PostgreSQL） ────────────────────────────
@@ -541,27 +302,14 @@ def _num_or_none(value: Any) -> float | None:
 
 
 __all__ = [
-    "EEW_REDIS",
     "append_alert_history_prisma",
-    "clear_dedupe_state_redis",
-    "clear_latest_alert_redis",
     "delete_simulation_history_prisma",
-    "delete_simulation_history_redis",
     "format_catalog_notify_message",
     "format_eew_notify_message",
-    "is_event_dismissed_redis",
     "is_simulation_alert_record",
-    "is_wolfx_cluster_active",
     "load_alert_history_prisma",
-    "load_alert_history_redis",
-    "load_dedupe_state_redis",
-    "load_latest_alert_redis",
-    "mark_event_dismissed_redis",
     "parse_earthquake_layout",
     "resolve_catalog_notify_level",
     "s_wave_countdown_for",
-    "save_dedupe_state_redis",
-    "save_latest_alert_redis",
     "should_notify_catalog_event",
-    "touch_wolfx_leader_active",
 ]
