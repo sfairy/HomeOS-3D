@@ -5,7 +5,7 @@ import { defineConfig, createLogger, type Plugin, type UserConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 import fs from 'node:fs'
-import { resolve } from 'path'
+import { dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
 import devNoCachePlugin from './vite-plugin-dev-no-cache.ts'
 import embedProxyFallbackPlugin from './vite-plugin-embed-fallback.ts'
@@ -84,9 +84,22 @@ function cleanStaleStagingDirs(): void {
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
+/**
+ * 锁文件的父目录可能还不存在：``dist/`` 被 gitignore，干净检出（CI、全新 clone）里没有
+ * ``dist/homeos/``，此时 ``openSync(lock, 'wx')`` 抛的是 **ENOENT** 而不是 **EEXIST**，
+ * 两个锁函数都把它当「意外错误」重新抛出，构建直接失败。
+ *
+ * 这个坑只在干净检出上出现（本地通常已有历史 ``dist/`` 兜着），所以是「本地绿、CI 红」：
+ * 2026-10-10 的 Docker #14 就栽在这里，且因为 ``dist/`` 是首次构建，四个架构全挂。
+ */
+function ensureLockParent(lockPath: string): void {
+  fs.mkdirSync(dirname(lockPath), { recursive: true })
+}
+
 /** 跨进程互斥：`wx` 创建锁文件，持有期间执行 fn（或 await 异步 fn）。 */
 async function withFileLock(lockPath: string, fn: () => void | Promise<void>): Promise<void> {
   const deadline = Date.now() + 180_000
+  ensureLockParent(lockPath)
   while (true) {
     try {
       const fd = fs.openSync(lockPath, 'wx')
@@ -323,6 +336,7 @@ function releaseBuildLock(fd: number | null): null {
 /** 同步拿锁：Rolldown 若未 await 异步 buildStart，异步锁会失效。 */
 function acquireBuildLockSync(): number {
   const deadline = Date.now() + 180_000
+  ensureLockParent(buildLockPath)
   while (true) {
     try {
       const fd = fs.openSync(buildLockPath, 'wx')
