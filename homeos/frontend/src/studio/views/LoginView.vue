@@ -78,7 +78,7 @@ async function onSubmit(): Promise<void> {
                  但用 inputmode="email" 让手机弹出带 @ 的键盘。 -->
             <div class="hos-control">
               <input id="login-account" name="account" v-model="account" :disabled="submitting"
-                placeholder="用户名 / name@example.com" autocomplete="username" inputmode="email"
+                placeholder="用户名 / 邮箱" autocomplete="username" inputmode="email"
                 autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="255" required>
             </div>
           </div>

@@ -207,7 +207,7 @@ async function submitForget() {
                 v-model="login.account"
                 inputmode="email"
                 autocomplete="username"
-                placeholder="账号或 name@example.com"
+                placeholder="账号或邮箱"
                 required
               />
             </div>
