@@ -45,7 +45,7 @@ FRONTEND_MIRROR: Path = (
 FRONTEND_GATE_FILES: tuple[Path, ...] = (
     ROOT / "homeos" / "frontend" / "src" / "utils" / "ui" / "main-layout-nav.util.ts",
     ROOT / "homeos" / "frontend" / "src" / "utils" / "registry" / "settings-nav.util.ts",
-    ROOT / "homeos" / "frontend" / "src" / "views" / "settings" / "system" / "SettingsLicensePanel.vue",
+    ROOT / "homeos" / "frontend" / "src" / "features" / "settings" / "system" / "SettingsLicensePanel.vue",
 )
 
 #: 主应用前端源码根（模块码覆盖检查用；排除展示镜像本身）。
@@ -161,7 +161,11 @@ def _gate_literal_problems(truth_codes: set[str], truth: list[tuple]) -> list[st
     problems: list[str] = []
     for path in FRONTEND_GATE_FILES:
         if not path.is_file():
-            problems.append(f"找不到前端门禁映射文件：{path}")
+            # 文件被 refactor 搬走时，只报「找不到」会让人以为门禁本身坏了。
+            # 顺手把同名文件的真实位置找出来，把「路径过期」和「文件真被删了」区分开。
+            moved = sorted(FRONTEND_SRC.rglob(path.name)) if FRONTEND_SRC.is_dir() else []
+            hint = f"（同名文件现在位于 {moved[0].relative_to(ROOT)}）" if moved else "（未找到同名文件，可能已删除）"
+            problems.append(f"找不到前端门禁映射文件：{path.relative_to(ROOT)}{hint}")
             continue
         seen: set[str] = set()
         for code in _QUOTED_CODE.findall(path.read_text(encoding="utf-8")):
