@@ -102,12 +102,19 @@ function flattenApiMessage(raw: unknown): string {
   return String(raw).trim()
 }
 
-/** 商业授权未激活导致的 401（勿当登录过期处理） */
+/** 商业授权未激活导致的 401（勿当登录过期处理）
+ *
+ * 主判据是门禁下发的结构化 ``apiErrorCode``；再用信封文案兜底一层：
+ * 一旦 ``apiErrorCode`` 被代理 / 包装层丢掉，只认结构化码就会把「未激活」
+ * 误判成「登录过期」，走进刷新会话 → 重试 → 再 401 的循环。
+ */
 export function isLicenseInactiveError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false
   const e = error as AxiosLikeError
   if (e.response?.status !== 401) return false
-  return e.response?.data?.apiErrorCode === 'LICENSE_INACTIVE'
+  if (e.response?.data?.apiErrorCode === 'LICENSE_INACTIVE') return true
+  const text = flattenApiMessage(e.response?.data?.message)
+  return text.includes('LICENSE_INACTIVE') || text.includes('未激活')
 }
 
 /**

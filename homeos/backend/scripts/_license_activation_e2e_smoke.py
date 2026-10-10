@@ -21,7 +21,20 @@
 
 激活码来源（按优先级）：
     ``LICENSE_E2E_CODE`` / ``LICENSE_E2E_EMAIL`` 环境变量；
-    否则从 ``LICENSE_E2E_STORE_DB``（默认 ``homeos-store/data/store.db``）里取最近一条 active 授权。
+    否则从 ``LICENSE_E2E_STORE_DB``（默认 ``homeos-store/data/store.db``）里挑一条
+    **本冒烟可以安全占用**的授权（见 ``_pick_credentials``）。
+
+设备身份隔离（**这个脚本曾经的坑**）：
+    主应用的 instanceId 由**宿主机的硬件指纹**派生（machine-id + 主板 DMI），
+    **不受 ``HOMEOS_DATA_DIR`` 影响** —— 所以「用临时数据目录」并不等于「用临时实例」。
+    若沿用真实指纹，冒烟就是**以这台开发机的身份**去激活，而商店侧 ``ensure_binding``
+    在「同实例重新激活」分支会删掉该绑定上既有的**全部会话与恢复令牌**：正在运行的
+    开发实例会被就地踢下线（``RECOVERY_REQUIRED``），门禁随即把它所有业务接口打成
+    401 ``LICENSE_INACTIVE``。
+    因此这里钉住一组**合成**硬件标识（``APP_HARDWARE_MACHINE_ID`` /
+    ``APP_HARDWARE_BOARD_ID``，与主应用同一份 ``hardware_instance_id`` 口径），
+    让冒烟在商店眼里就是**另一台设备**；并且只挑「已绑给自己」或「还没人绑」的授权，
+    宁可 SKIP 也不抢正在服役的那条。
 """
 
 from __future__ import annotations
@@ -47,6 +60,10 @@ os.environ["HOMEOS_DATA_DIR"] = str(data_dir)
 os.environ["HOMEOS_DATABASE_URL"] = f"sqlite:///{data_dir / 'homeos.db'}"
 os.environ["REDIS_URL"] = ""
 os.environ["LICENSE_REQUIRED"] = "1"
+# 冒烟自己的设备身份（见模块 docstring）：合成标识 → 稳定且与开发实例不同。
+# 必须在 import src.config 之前设好：Settings 在导入期构造。
+os.environ.setdefault("APP_HARDWARE_MACHINE_ID", "homeos-e2e-smoke-machine")
+os.environ.setdefault("APP_HARDWARE_BOARD_ID", "homeos-e2e-smoke-board")
 os.environ["APP_LICENSE_SERVER_URL"] = STORE_URL
 os.environ["STORE_URL"] = STORE_URL
 os.environ["HA_BASE_URL"] = ""
@@ -112,33 +129,81 @@ def _store_reachable() -> bool:
         return False
 
 
-def _credentials_from_store_db() -> tuple[str, str]:
-    """取最近一条 active 授权作为激活凭据（本地开发免手工复制激活码）。"""
+def _smoke_instance_id() -> str:
+    """算出本脚本会使用的 instanceId（与主应用同一份 ``hardware_instance_id`` 口径）。
+
+    复用主应用自己的实现而不是在这里重写哈希公式：公式一改口径就会分叉，
+    而分叉的后果正是本脚本要避免的那种「认错设备」。
+    """
+    from src.services.license.hardware import hardware_instance_id
+
+    return hardware_instance_id(
+        machine_override=os.environ["APP_HARDWARE_MACHINE_ID"],
+        board_override=os.environ["APP_HARDWARE_BOARD_ID"],
+        required=False,
+    )
+
+
+def _pick_credentials(smoke_instance_id: str) -> tuple[str, str, str]:
+    """挑一条**本冒烟可以安全使用**的授权，返回 ``(激活码, 邮箱, 说明)``。
+
+    绝不占用「已绑定到别的实例且仍然活着」的授权 —— 那会删掉那条绑定上的会话与恢复
+    令牌，等于把正在运行的实例踢下线（正是本脚本踩过的坑）。优先级：
+
+    1. 已经绑定到**本冒烟实例**的授权：重复跑时幂等复用；
+    2. 没有任何活绑定的 active 授权：还没人用，安全；
+    3. 都不满足：返回空串 + 原因，由调用方 SKIP（宁可跳过，也不抢别人）。
+    """
     if not STORE_DB.is_file():
-        return "", ""
+        return "", "", f"商店库不存在：{STORE_DB}"
     try:
         connection = sqlite3.connect(f"file:{STORE_DB}?mode=ro", uri=True)
-    except sqlite3.Error:
-        return "", ""
+    except sqlite3.Error as error:
+        return "", "", f"商店库打不开：{error}"
+
     try:
-        row = connection.execute(
+        licenses = connection.execute(
             """
-            SELECT l.activation_code, COALESCE(c.email, a.email, '')
+            SELECT l.id, l.activation_code, COALESCE(c.email, a.email, '')
             FROM licenses l
             LEFT JOIN customers c ON c.id = l.customer_id
             LEFT JOIN accounts  a ON a.id = l.account_id
-            WHERE l.active = 1
+            WHERE l.active = 1 AND l.revoked_at IS NULL
             ORDER BY l.created_at DESC
-            LIMIT 1
             """
-        ).fetchone()
-    except sqlite3.Error:
-        return "", ""
+        ).fetchall()
+        try:
+            binding_rows = connection.execute(
+                "SELECT license_id, instance_id FROM device_bindings"
+                " WHERE active = 1 AND released_at IS NULL"
+            ).fetchall()
+        except sqlite3.Error:
+            # 老库/精简库可能没有绑定表：按「没有活绑定」处理会误判成可抢，
+            # 因此宁可视作「信息不足」，全部跳过。
+            binding_rows = None
+    except sqlite3.Error as error:
+        return "", "", f"读取商店库失败：{error}"
     finally:
         connection.close()
-    if not row:
-        return "", ""
-    return str(row[0] or ""), str(row[1] or "")
+
+    if binding_rows is None:
+        return "", "", "商店库缺少 device_bindings（无法判断绑定归属），不冒险占用授权"
+
+    live: dict[str, set[str]] = {}
+    for license_id, instance_id in binding_rows:
+        live.setdefault(str(license_id), set()).add(str(instance_id))
+
+    for license_id, code, email in licenses:
+        if code and email and smoke_instance_id in live.get(str(license_id), set()):
+            return str(code), str(email), "复用本冒烟实例既有的绑定"
+    for license_id, code, email in licenses:
+        if code and email and not live.get(str(license_id)):
+            return str(code), str(email), "占用尚未绑定的闲置授权"
+    return "", "", (
+        "商店里没有本冒烟能安全使用的授权：active 授权都已绑定到其他实例。"
+        f"请为冒烟单独签发一条（当前合成实例 {smoke_instance_id[:12]}…），"
+        "或用 LICENSE_E2E_CODE / LICENSE_E2E_EMAIL 显式指定一条未被占用的授权"
+    )
 
 
 def _wait_for_active(client, timeout_seconds: float = 20.0) -> dict:
@@ -177,16 +242,19 @@ def main() -> int:
     if not _store_reachable():
         skip(f"本地授权商店不可达（{STORE_URL}），本脚本需要真实商店签发租约")
 
+    smoke_instance = _smoke_instance_id()
     code = os.getenv("LICENSE_E2E_CODE", "").strip()
     email = os.getenv("LICENSE_E2E_EMAIL", "").strip().lower()
+    reason = "来自 LICENSE_E2E_CODE / LICENSE_E2E_EMAIL"
     if not code or not email:
-        code, email = _credentials_from_store_db()
+        code, email, reason = _pick_credentials(smoke_instance)
     if not code or not email:
-        skip(f"商店里没有可用授权（{STORE_DB}）；先跑 tools/issue_dev_license.py 签发一条")
+        skip(f"{reason}（商店库：{STORE_DB}）")
 
     print(f"授权商店：{STORE_URL}")
     print(f"激活邮箱：{email}")
     print(f"激活码提示：…{code[-9:]}")
+    print(f"冒烟实例：{smoke_instance[:16]}…（{reason}）")
     print()
 
     print("1) 全新库 + 门禁开启：未激活时必须是「不放行」")

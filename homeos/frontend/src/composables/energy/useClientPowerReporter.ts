@@ -2,7 +2,7 @@
  * @file useClientPowerReporter.ts
  * @module frontend/src/composables
  */
-import { onMounted, onUnmounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
 import { fetchSystemConfig, reportClientPower } from '@/services/api/system'
@@ -16,6 +16,7 @@ import {
 } from '@/utils/client/system.util'
 import { logger } from '@/utils/core/logger'
 import { isLicenseInactiveError } from '@/utils/core/error-message'
+import { getLicenseActivated } from '@/router/license-gate'
 import { schedulePoll } from '@/utils/core/poll-scheduler'
 
 /**
@@ -304,10 +305,22 @@ export function useClientPowerReporter() {
     stopReporter()
   })
 
+  /**
+   * 商业授权是否已放行。
+   *
+   * 授权未激活时，后端门禁会把 `/system/config` 与 `/system/client-power/report` 一律打成
+   * 401 ``LICENSE_INACTIVE``：这轮上报不可能成功，`postReport` 遇 401 自停只挡住当前一轮，
+   * 页面每次刷新/HMR 重载又会重来一遍，把控制台和后端访问日志刷满。
+   * 所以在此前置拦截——没放行就不启动，等激活完成（`licenseActivated` 置真）由 watch 自动开跑。
+   * ``null``（多为后端不可达）同样按未放行处理。
+   */
+  const licenseAllowed = computed(() => getLicenseActivated() === true)
+
   watch(
     () =>
       authStore.isAuthenticated &&
       !authStore.isGuest() &&
+      licenseAllowed.value &&
       route.name !== 'activation' &&
       route.name !== 'setup' &&
       route.name !== 'login',
