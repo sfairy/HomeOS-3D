@@ -267,7 +267,7 @@ onBeforeUnmount(() => {
                         <div class="hos-control">
                             <input id="license-code" name="activationCode" v-model="activationCode"
                                 :disabled="loadingStatus" class="hos-mono" maxlength="128"
-                                autocomplete="off" placeholder="HOMEOS-XXXX-XXXX-XXXX" spellcheck="false" required>
+                                autocomplete="off" placeholder="HOMEOS-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" spellcheck="false" required>
                         </div>
                     </div>
 

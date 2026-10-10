@@ -100,7 +100,7 @@ def new_verification_code() -> str:
 
 
 def new_activation_code() -> str:
-    """生成 HOMEOS-XXXX-XXXX-XXXX 形式的激活码。"""
+    """生成 HOMEOS-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX 形式的激活码。"""
     alphabet = "0123456789ABCDEF"
     groups = ["".join(secrets.choice(alphabet) for _ in range(4)) for _ in range(6)]
     return "HOMEOS-" + "-".join(groups)

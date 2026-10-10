@@ -88,7 +88,7 @@ with TestClient(app) as client:
     print("3) 未登录时激活被拒（激活改为登录态）")
     r = client.post(
         "/api/v1/license/activate",
-        json={"email": EMAIL, "activationCode": "HOMEOS-XXXX-XXXX-XXXX"},
+        json={"email": EMAIL, "activationCode": "HOMEOS-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"},
     )
     check("未登录激活 401", r.status_code == 401, f"{r.status_code} {r.text[:160]}")
 
@@ -113,13 +113,13 @@ with TestClient(app) as client:
     try:
         r = client.post(
             "/api/v1/license/activate",
-            json={"email": EMAIL, "activationCode": "HOMEOS-XXXX-XXXX-XXXX"},
+            json={"email": EMAIL, "activationCode": "HOMEOS-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"},
             headers=headers,
         )
     finally:
         LicenseService.activate = original_activate
 
-    check("activate 走到服务层", seen.get("code") == "HOMEOS-XXXX-XXXX-XXXX", seen)
+    check("activate 走到服务层", seen.get("code") == "HOMEOS-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX", seen)
     check("email 透传", seen.get("email") == EMAIL, seen)
     check(
         f"accountName 透传为本机账号（{USERNAME}）",
