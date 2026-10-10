@@ -43,17 +43,16 @@ def inject_auth_state(text: str, account) -> str:
 def inject_scene(text: str, request: Request, *, session=None) -> str:
     """把 ``text`` 里的配色插入点换成实际的 ``<link>``。
 
-    参数 ``session`` 当前未使用。
+    样式表是稳定 URL：不再带 ``?v=`` 版本戳，改由响应的 ``no-cache`` + ``ETag`` 回源校验。
     """
-    del session
+    del session, request
     if APPEARANCE_PLACEHOLDER not in text:
         raise RuntimeError(
             '模板缺少 ' + APPEARANCE_PLACEHOLDER + ' 占位符，页面不会跟随站点配色'
         )
-    revision = request.app.state.appearance.revision
     return text.replace(
         APPEARANCE_PLACEHOLDER,
-        f'<link rel="stylesheet" href="{APPEARANCE_PATH}?v={revision}">',
+        f'<link rel="stylesheet" href="{APPEARANCE_PATH}">',
     )
 
 

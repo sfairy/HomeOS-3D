@@ -1,4 +1,4 @@
-/** registry 相机媒体子模块：从 registry.ts 抽出，负责摄像头快照/HLS 实时预览挂载。 */
+/** registry 相机媒体子模块：负责摄像头快照/HLS 实时预览挂载。 */
 import { EntityRequestPolicy } from "../panel-caches";
 import { clampNumber, normalizeCssColor, createSvgElement } from "./_shared";
 /** 渲染环境 / 属性袋：由 renderer 按组件类型动态组装（states、editable、document、cleanup、callEntityService、airflow* …），registry 侧只读取其中的可选字段； */
@@ -353,7 +353,6 @@ export function mountCameraSnapshot({
   );
 }
 /**
- * 移植自 源代码/0.7.2 registry.js mountCameraMedia：
  * HLS → 12s/致命错误切 MJPEG（URL 无 query）→ 7s 无画面再试快照。
  *
  * 注意：勿因 CODECS=hvc1 立刻弃 HLS。本机 Chrome 对 hvc1 报 probably，

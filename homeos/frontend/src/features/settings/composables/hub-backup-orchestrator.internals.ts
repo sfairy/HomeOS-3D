@@ -2,7 +2,7 @@
  * @file hub-backup-orchestrator.internals.ts
  * @module frontend/src/views
  */
-/** composables：自 hub.internals.ts 拆出 — 配置与档案备份、天气特效配置 */
+/** composables：配置与档案备份、天气特效配置 */
 import { handleSystemConfigPatchError, patchSystemConfig } from '@/composables/config/system-config-core.internals'
 import { exportBackupBundle, exportSystemConfig, fetchBackupBundleSummary, importBackupBundle, importSystemConfig } from '@/services/api/system'
 import { useAuthStore } from '@/stores/auth.store'

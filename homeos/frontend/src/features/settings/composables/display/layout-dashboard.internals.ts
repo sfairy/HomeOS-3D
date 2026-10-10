@@ -2,7 +2,7 @@
  * @file layout-dashboard.internals.ts
  * @module frontend/src/views
  */
-/** composables：自 layout.internals.ts 拆出 — 嵌入页 / Dashboard 页脚 / Hero 轮播 / 楼层管理 / 小组件编辑 / 布局快照 */
+/** composables：嵌入页 / Dashboard 页脚 / Hero 轮播 / 楼层管理 / 小组件编辑 / 布局快照 */
 import { useDropdownPosition } from '@/composables/ui/useDropdownPosition'
 import { useClickOutside } from '@/composables/ui/useClickOutside'
 import { clonePlain } from '@/utils/core/clone-plain.util'

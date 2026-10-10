@@ -1,8 +1,8 @@
-@import "/static/modules/interaction3d/controls.css?v=20260909-switches-v1";
-@import "../nas/nas-panel.css?v=20260909-nas-scroll-v1";
-@import "../climate/climate-panel.css?v=20260929-picker-press-overflow-v1";
-@import "../cover/cover-panel.css?v=20260909-curtain-action-v15-20260926-airer-v2";
-@import "./stage-device-visual.css?v=20261010-device-visual-dream-v3";
+@import "/static/modules/interaction3d/controls.css";
+@import "../nas/nas-panel.css";
+@import "../climate/climate-panel.css";
+@import "../cover/cover-panel.css";
+@import "./stage-device-visual.css";
 .interaction3d-stage.is-render-suspended *,
 .interaction3d-stage.is-render-suspended *:before,
 .interaction3d-stage.is-render-suspended *:after {
@@ -15,6 +15,16 @@
   min-height: 0;
   padding-top: 4px;
   color: #e8dfd2;
+}
+/* 门锁面板的读数是逐行排列的（状态 + 锂电池 + 干电池，最多三行），
+   而 .i3d-light-panel 的基类是固定 height:160px + overflow:hidden：
+   箱体（padding 20px）只剩 120px 内容高度，最后一行会整条被裁到看不见。
+   这里照电视 / 设备面板的做法改成按内容撑高，再用 max-height 兜住实时预览视口。 */
+.interaction3d-stage .i3d-light-panel:has(> .i3d-lock-panel:not([hidden])) {
+  height: auto;
+  min-height: 160px;
+  max-height: calc((100% - var(--i3d-control-top, 24px) - 12px) / var(--i3d-control-scale, 2));
+  overflow: auto;
 }
 .interaction3d-stage .i3d-lock-panel h3 {
   margin: 0;
@@ -30,23 +40,115 @@
   overflow-wrap: anywhere;
 }
 .interaction3d-stage .i3d-lock-panel .i3d-nas-status {
-  min-height: 18px;
-}
-.interaction3d-stage .i3d-lock-details {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.interaction3d-stage .i3d-lock-detail {
+  /* 状态行按内容收窄并带一个色调圆点，避免整行留白像空输入框。 */
   display: inline-flex;
   align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  min-height: 18px;
+  padding: 6px 10px;
+  font-variant-numeric: tabular-nums;
+}
+.interaction3d-stage .i3d-lock-panel .i3d-nas-status:before {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.85;
+  content: "";
+}
+/* 未绑定锁实体等场景下不给圆点，免得把「无信息」也标成一个状态。 */
+.interaction3d-stage .i3d-lock-panel .i3d-nas-status.is-unknown:before {
+  opacity: 0.45;
+}
+.interaction3d-stage .i3d-lock-panel .i3d-nas-status.is-locked {
+  color: #6bd49c;
+}
+.interaction3d-stage .i3d-lock-panel .i3d-nas-status.is-unlocked,
+.interaction3d-stage .i3d-lock-panel .i3d-nas-status.is-warning {
+  color: #e0a35a;
+}
+.interaction3d-stage .i3d-lock-panel .i3d-nas-status.is-moving {
+  color: #c9a26d;
+}
+.interaction3d-stage .i3d-lock-panel .i3d-nas-status.is-jammed {
+  color: #e07a5a;
+}
+.interaction3d-stage .i3d-lock-panel .i3d-nas-status.is-normal {
+  color: #c9bda9;
+}
+.interaction3d-stage .i3d-lock-panel .i3d-nas-status.is-unknown {
+  color: #7f9187;
+}
+.interaction3d-stage .i3d-lock-details {
+  /* 两条电量并排等分卡片整宽；绑了门磁时门磁芯片（.is-door）单独占一行。 */
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+.interaction3d-stage .i3d-lock-details .i3d-lock-detail.is-door {
+  grid-column: 1 / -1;
+}
+/* 只有一条读数时不该只占半格：单独一条，或门磁之后只跟一条（如只绑了一路电量），
+   都让它占满整行，避免右半边空着。 */
+.interaction3d-stage .i3d-lock-details > .i3d-lock-detail:only-child,
+.interaction3d-stage .i3d-lock-details > .i3d-lock-detail.is-door + .i3d-lock-detail:last-child {
+  grid-column: 1 / -1;
+}
+.interaction3d-stage .i3d-lock-detail {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   min-height: 28px;
-  padding: 4px 8px;
+  padding: 4px 8px 6px;
+  overflow: hidden;
   border: 1px solid #ffffff10;
   border-radius: 8px;
   background: #ffffff04;
   color: #9eaba5;
   font-size: 10px;
+  /* 芯片内是「名称 + 数值」，两者都保持单行不折行。 */
+  white-space: nowrap;
+}
+.interaction3d-stage .i3d-lock-detail-name {
+  color: #7f9187;
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.interaction3d-stage .i3d-lock-detail-value {
+  margin-left: auto;
+  color: #dfe8e3;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 550;
+}
+/* 电量条：宽度由 JS 按电量百分比写入，低电量转告警色。 */
+.interaction3d-stage .i3d-lock-detail-gauge {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: #6bd49c;
+  transition: width 0.3s ease;
+}
+.interaction3d-stage .i3d-lock-detail.is-warning .i3d-lock-detail-value {
+  color: #efbd70;
+}
+.interaction3d-stage .i3d-lock-detail.is-warning .i3d-lock-detail-gauge {
+  background: #e0a35a;
+}
+.interaction3d-stage .i3d-lock-detail.is-unknown .i3d-lock-detail-value {
+  color: #68756e;
+}
+.interaction3d-stage .i3d-lock-detail.is-unknown .i3d-lock-detail-gauge {
+  background: #5b656c;
 }
 .interaction3d-stage .i3d-lock-panel input {
   width: 100%;
@@ -2502,6 +2604,8 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-security-label.is-lock-status > span:not(.i3d-marker-icon) {
   grid-column: 2;
   grid-row: 2;
+  /* 门锁状态是多行（门磁 / 锂电池 / 干电池），给一点行距免得挤成一坨。 */
+  line-height: 1.45;
 }
 .interaction3d-stage .i3d-security-label.is-lock-status > .i3d-marker-icon {
   position: static;
@@ -3369,12 +3473,51 @@ body.interaction3d-stage.is-background-hidden,
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-nas-status {
   min-height: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  padding: 6px 10px;
+  border: 1px solid #bca98c66;
+  border-radius: 8px;
+  background: #ede4d580;
   color: var(--i3d-popup-muted);
   font-size: 11px;
+}
+/* 暖木：状态行/芯片改用设计令牌里的状态色，保证浅底上的对比度。 */
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-nas-status.is-locked {
+  color: var(--i3d-device-status-normal);
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  .i3d-lock-panel
+  .i3d-nas-status:is(.is-unlocked, .is-warning) {
+  color: var(--i3d-device-status-warning);
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-nas-status.is-moving {
+  color: #815827;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-nas-status.is-jammed {
+  color: #a2411f;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  .i3d-lock-panel
+  .i3d-nas-status:is(.is-normal, .is-unknown) {
+  color: var(--i3d-popup-muted);
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-lock-detail-name {
+  color: #8a7a5e;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-lock-detail-value {
+  color: #4a4235;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-lock-detail-gauge {
+  background: var(--i3d-device-status-normal);
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  .i3d-lock-panel
+  .i3d-lock-detail:is(.is-warning, .is-jammed)
+  .i3d-lock-detail-gauge {
+  background: var(--i3d-device-status-warning);
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-lock-detail.is-warning,
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-lock-detail.is-unknown {
+  color: var(--i3d-popup-muted);
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-details {
   gap: 6px;
@@ -4233,13 +4376,21 @@ body.interaction3d-stage.is-background-hidden,
   flex-direction: column;
   flex: 0 1 auto;
   min-height: 0;
-  overflow: hidden;
+  /* 右上角设备动态图（.i3d-device-visual）是「居中在 52px 标题里、刻意向上溢出」的绝对定位
+     图形：电视/音响/净化器等的图形比标题高，上缘会伸到标题上方（面板内边距里）。
+     这里若用 overflow:hidden，图形上缘会被面板顶边齐齐裁掉（电视顶边、圆顶消失）。
+     改用 overflow:clip + 24px 余量：面板照旧裁掉真正溢出的正文，但放行角标图形伸进内边距
+     的那一段（--i3d-light-panel 内边距 20px，见 .i3d-light-panel 的 padding:20px）。 */
+  overflow: clip;
+  overflow-clip-margin: 24px;
 }
 .interaction3d-stage .i3d-light-panel > .i3d-device-panel {
   height: auto;
 }
 .interaction3d-stage .i3d-speaker-panel {
-  overflow: hidden;
+  /* 同 .i3d-television-panel：别裁掉角标图形的上缘（圆顶/顶边）。 */
+  overflow: clip;
+  overflow-clip-margin: 24px;
   padding-right: 0;
   scrollbar-gutter: auto;
 }

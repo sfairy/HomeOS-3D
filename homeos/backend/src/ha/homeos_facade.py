@@ -1,11 +1,8 @@
-"""并入 HA 层之上的 homeos 兼容门面（原 ``StudioHAConnectorCompat`` 适配器已退役）。
+"""并入 HA 层之上的 homeos 兼容门面。
 
-背景：阶段 3 的「单一 HA 连接」迁移中，homeos 侧约 190 处消费者仍在调用既有
-``HaConnectorService`` 形状的接口（``fetch_entities_by_domain`` / ``call_service`` /
-``get_status`` / ``resync_from_ha`` / 实体与区域注册表读写 …）。当时用一层适配器
-``StudioHAConnectorCompat`` 把这些调用转发到 3D 的 ``HAConnectorService``。
-
-现在适配器**整体退役**：这些门面方法直接并入 ``HAConnectorService``（本 mixin），
+homeos 侧约 190 处消费者调用 ``HaConnectorService`` 形状的接口
+（``fetch_entities_by_domain`` / ``call_service`` / ``get_status`` / ``resync_from_ha`` /
+实体与区域注册表读写 …）：这些门面方法直接并入 ``HAConnectorService``（本 mixin），
 于是 ``app.state.studio_ha`` 与 ``app.state.ha_connector`` 指向**同一个对象**，
 消费点无需改名，也不再存在第二条 HA 连接、第二个状态源或第二跳转发。
 

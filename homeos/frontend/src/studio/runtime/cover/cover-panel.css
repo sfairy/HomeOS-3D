@@ -298,7 +298,9 @@
   height: auto;
   flex: 0 1 auto;
   min-height: 0;
-  overflow: hidden;
+  /* 晾衣架/窗帘角标图形同样居中于短标题、向上溢出，别在这里裁掉它的上缘。 */
+  overflow: clip;
+  overflow-clip-margin: 24px;
 }
 .interaction3d-stage .i3d-light-panel.is-cover-group-panel {
   height: 232px;

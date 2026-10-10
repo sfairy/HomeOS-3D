@@ -1,8 +1,7 @@
 /**
  * studio-app.ts 的纯工具函数集合。
  *
- * 从 studio-app.ts 闭包内提取的不引用任何闭包变量的工具函数。
- * 这些函数仅依赖自身参数与全局 API（globalThis.crypto / Date / Math）。
+ * 仅依赖自身参数与全局 API（globalThis.crypto / Date / Math）。
  */
 
 /** 判断是否为转盘圆桌。 */

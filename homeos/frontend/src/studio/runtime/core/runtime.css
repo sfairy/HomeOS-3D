@@ -1,4 +1,4 @@
-@import "/static/modules/interaction3d/controls.css?v=20260909-switches-v1";
+@import "/static/modules/interaction3d/controls.css";
 .hb-interaction3d-runtime {
   position: relative;
   width: 100%;
@@ -324,6 +324,64 @@
   border: 0;
   background: transparent;
   accent-color: var(--accent, #f2a20d);
+}
+/* 背景不透明度滑条（label-appearance.ts）：金色胶囊轨道 + 金色圆点，
+   进度由 --progress-pct 裁切；已从 main.css 全局 range 选择器排除，避免白点拇指。 */
+.i3d-editor input[type="range"].i3d-opacity-range {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 8px;
+  margin: 7px 0;
+  padding: 0;
+  border: 0;
+  border-radius: 99px;
+  background: linear-gradient(
+    90deg,
+    var(--accent, #f2a20d) 0%,
+    var(--accent, #f2a20d) var(--progress-pct, 0%),
+    rgba(255, 255, 255, 0.08) var(--progress-pct, 0%),
+    rgba(255, 255, 255, 0.08) 100%
+  );
+  cursor: pointer;
+}
+.i3d-editor input[type="range"].i3d-opacity-range::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 99px;
+  background: transparent;
+}
+.i3d-editor input[type="range"].i3d-opacity-range::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -3px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent, #f2a20d);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+.i3d-editor input[type="range"].i3d-opacity-range::-moz-range-track {
+  height: 8px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.i3d-editor input[type="range"].i3d-opacity-range::-moz-range-progress {
+  height: 8px;
+  border-radius: 99px;
+  background: var(--accent, #f2a20d);
+}
+.i3d-editor input[type="range"].i3d-opacity-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent, #f2a20d);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+.i3d-editor input[type="range"].i3d-opacity-range:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 .i3d-editor .i3d-note {
   margin: 8px 0 12px;

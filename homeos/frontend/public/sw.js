@@ -1,12 +1,10 @@
 /* knip: used by PWA runtime; frontend/src/utils/core/pwa-update.ts navigator.serviceWorker.register('/sw.js'), backend spa-fallback middleware serves /sw.js, shared embed fallback whitelist includes /sw.js — 静态 PWA SW 文件非 ESM import 所以 knip 漏识别 */
 /* HomeOS Service Worker：离线壳缓存 + 非哈希静态资源 */
 // 版本号变更即代表「旧缓存整体作废」：activate 会删掉非当前名的所有缓存。
-// v6 -> v7：cacheThenNetwork / staleWhileRevalidate 在网络失败且缓存未命中时
-// 曾把 undefined 交给 respondWith，触发 Failed to convert value to 'Response'。
 const CACHE_SHELL = 'homeos-shell-v7'
 const CACHE_STATIC = 'homeos-static-v5'
 const SHELL_URLS = ['/', '/index.html', '/manifest.json', '/logo/logo.svg']
-/** 由 SW 接管的静态资源前缀；`/assets/` 是内容哈希 + immutable，故意不在其中（见 fetch 处理器） */
+/** 由 SW 接管的静态资源前缀；`/assets/` 由 HTTP 缓存（no-cache + ETag）负责，故意不在其中（见 fetch 处理器） */
 const STATIC_PREFIXES = [
   '/icons/',
   '/backgrounds/',
@@ -132,13 +130,13 @@ self.addEventListener('fetch', (event) => {
   /**
    * 只接管「非哈希」静态资源（图片 / 音效 / 户型图等）。
    *
-   * `/assets/*` 是内容哈希 + 后端 `Cache-Control: public, max-age=31536000, immutable`，
-   * HTTP 缓存已经完全覆盖，再由 SW 的 CacheStorage 兜一层反而有害：
-   *  1) `staleWhileRevalidate` 里 `cached` 恒优先于 `network`，让 immutable 彻底失效；
+   * `/assets/*` 是内容哈希文件名，后端下发 `Cache-Control: no-cache` + ETag 由 HTTP 缓存
+   * 回源校验（命中即 304）；再由 SW 的 CacheStorage 兜一层反而有害：
+   *  1) `staleWhileRevalidate` 里 `cached` 恒优先于 `network`，让条件请求形同虚设；
    *  2) 响应经 SW 世界返回，document 世界声明的 `<link rel="modulepreload">` 无法被采用，
    *     Chromium 会报 cross-world service worker resource mismatch / preload not used；
    *  3) 每个资源请求多一次 SW 转发。
-   * 不再接管后离线仍然可用：不可变响应可从 HTTP 缓存离线复用，壳（/ 与 /index.html）仍留在 SW 缓存。
+   * 不再接管后离线仍然可用：响应仍可从 HTTP 缓存复用，壳（/ 与 /index.html）留在 SW 缓存。
    */
   if (STATIC_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))) {
     event.respondWith(staleWhileRevalidate(request, CACHE_STATIC))

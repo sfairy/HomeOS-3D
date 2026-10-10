@@ -4037,7 +4037,7 @@ function renderComponentTemplates() {
               ((templateThumbnailElement.src =
                 "/static/component-thumbnails/" +
                 encodeURIComponent(thumbnailId) +
-                ".jpg?v=20260902-component-thumbnails-v3"),
+                ".jpg"),
                 (templateThumbnailElement.alt = ""),
                 templatePreviewElement.append(templateThumbnailElement));
             }
@@ -5605,8 +5605,7 @@ function runExtraTwin(runExtraBranch: any) {
       .map((pathSegment) => encodeURIComponent(pathSegment))
       .join("/");
   if (!join) return "";
-  const assetVersion = String(runExtraBranch?.version || "");
-  return "/assets/builtin/" + join + (assetVersion ? "?v=" + encodeURIComponent(assetVersion) : "");
+  return "/assets/builtin/" + join;
 }
 function resolveEffectAssetUrl(effectAsset: any) {
   const effectVariantUrl = effectAsset?.effectVariant?.url;
@@ -8814,7 +8813,6 @@ function documentSource() {
     ? (handleOperationError(new Error("当前有未保存修改，请先点击顶部的“保存”。")), true)
     : false;
 }
-// 编辑器内的授权按钮与弹窗已移除，授权状态只在设置页展示；
 // 保留空实现以维持上方授权门禁函数的调用契约（门禁逻辑本身不在此处）。
 function popupId(_entityLabelFor: any) {}
 async function triggerKey() {

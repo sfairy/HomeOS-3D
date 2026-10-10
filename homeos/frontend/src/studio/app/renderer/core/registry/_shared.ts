@@ -1,4 +1,4 @@
-/** registry 内部共享的低级工具函数：从 registry.ts 抽出，供主文件与各子模块复用。此处不依赖任何模块级可变状态。 */
+/** registry 内部共享的低级工具函数：供主文件与各子模块复用。此处不依赖任何模块级可变状态。 */
 import {
   clampNumber as clampNumberCore,
   finiteNumberOrCoerced,
@@ -141,8 +141,8 @@ function pointsAreAscending(points: any[]) {
   return ascending;
 }
 /**
- * 找最接近 timestamp 的点。升序点集走二分（等价于原先的 ``reduce`` 线性扫描，
- * 距离相等时同样取更早的那个），非升序时退回线性扫描保证结果不变。
+ * 找最接近 timestamp 的点。升序点集走二分（距离相等时同样取更早的那个），
+ * 非升序时退回线性扫描保证结果不变。
  */
 function findNearestSeriesPoint(points: any[], timestamp: number) {
   if (!points?.length) return points?.[0];

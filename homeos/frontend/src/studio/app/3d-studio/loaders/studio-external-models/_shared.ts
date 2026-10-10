@@ -9,16 +9,9 @@ import {
   materialStyleStoneSlabRoles,
 } from "../../materials/studio-material-presets";
 
-const homeLiteAssetVersion = "20260903-home-lite-v1",
-
-  pillarAssetVersion = "20261002-pillar-shapes-v1",
-  applianceLiteAssetVersion = "20260921-appliance-lite-clean-guides-v2",
-  sofaFamilyItemTypes = new Set(["sofa", "sofa-single", "sofa-l", "sofa-l-left"]),
+const sofaFamilyItemTypes = new Set(["sofa", "sofa-single", "sofa-l", "sofa-l-left"]),
   preparedRestoreTimeoutMs = 160;
 export {
-  homeLiteAssetVersion,
-  pillarAssetVersion,
-  applianceLiteAssetVersion,
   sofaFamilyItemTypes,
   preparedRestoreTimeoutMs,
 };
@@ -81,47 +74,24 @@ export function applyStoneSlabPlanarUv(threeLib: any, modelRoot: any, modelType:
     ensureStoneSlabPlanarUv(threeLib, modelMesh.geometry);
   });
 }
-export function createHomeAssetDescriptor(homeAssetId: any, homeFallbackVersion: any, homeAssetOverrides: any) {
+export function createHomeAssetDescriptor(homeAssetId: any, homeAssetOverrides: any) {
   return Object.freeze({
-    url: "/static/3d-studio/models/" + homeAssetId + "-lite.glb?v=" + homeLiteAssetVersion,
-    fallbackUrl: "/static/3d-studio/models/" + homeAssetId + ".glb?v=" + homeFallbackVersion,
+    url: "/static/3d-studio/models/" + homeAssetId + "-lite.glb",
+    fallbackUrl: "/static/3d-studio/models/" + homeAssetId + ".glb",
     ...homeAssetOverrides,
   });
 }
 export function createApplianceAssetDescriptor(applianceAssetId: any, applianceAssetOverrides: any) {
   return Object.freeze({
-    url:
-      "/static/3d-studio/models/" +
-      applianceAssetId +
-      "-lite.glb?v=" +
-      applianceLiteAssetVersion,
-    fallbackUrl:
-      "/static/3d-studio/models/" +
-      applianceAssetId +
-      ".glb?v=20260901-all-appliance-models-v1",
+    url: "/static/3d-studio/models/" + applianceAssetId + "-lite.glb",
+    fallbackUrl: "/static/3d-studio/models/" + applianceAssetId + ".glb",
     ...applianceAssetOverrides,
   });
 }
 export function createFurnitureAssetDescriptor(furnitureAssetId: any, furnitureAssetScaleBasis: any) {
-
-
-  const furnitureAssetShippedFresh =
-    furnitureAssetId === "coffeetable" || furnitureAssetId === "kitchenisland";
   return Object.freeze({
-    url:
-      "/static/3d-studio/models/" +
-      furnitureAssetId +
-      "-lite.glb?v=" +
-      (furnitureAssetShippedFresh
-        ? "20261001-coffeetable-island-v1"
-        : furnitureAssetId === "vanity"
-          ? "20260925-furniture-v1"
-          : "20260926-furniture-draco-v1"),
-    fallbackUrl:
-      "/static/3d-studio/models/" +
-      furnitureAssetId +
-      ".glb?v=" +
-      (furnitureAssetShippedFresh ? "20261001-coffeetable-island-v1" : "20260925-furniture-v1"),
+    url: "/static/3d-studio/models/" + furnitureAssetId + "-lite.glb",
+    fallbackUrl: "/static/3d-studio/models/" + furnitureAssetId + ".glb",
     scaleBasis: furnitureAssetScaleBasis,
     preserveOrigin: true,
   });
@@ -145,16 +115,16 @@ export const paletteOverrideItemTypes = new Set([
 ]);
 export function createIndoorAssetDescriptor(indoorAssetId: any, indoorAssetScaleBasis: any) {
   return Object.freeze({
-    url: "/static/3d-studio/models/" + indoorAssetId + "-lite.glb?v=20260928-indoor-v1",
-    fallbackUrl: "/static/3d-studio/models/" + indoorAssetId + ".glb?v=20260928-indoor-v1",
+    url: "/static/3d-studio/models/" + indoorAssetId + "-lite.glb",
+    fallbackUrl: "/static/3d-studio/models/" + indoorAssetId + ".glb",
     scaleBasis: indoorAssetScaleBasis,
     preserveOrigin: true,
   });
 }
 export function createPillarAssetDescriptor(pillarAssetId: any) {
   return Object.freeze({
-    url: "/static/3d-studio/models/" + pillarAssetId + "-lite.glb?v=" + pillarAssetVersion,
-    fallbackUrl: "/static/3d-studio/models/" + pillarAssetId + ".glb?v=" + pillarAssetVersion,
+    url: "/static/3d-studio/models/" + pillarAssetId + "-lite.glb",
+    fallbackUrl: "/static/3d-studio/models/" + pillarAssetId + ".glb",
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true,
   });
@@ -187,12 +157,8 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
       Object.entries(COURTYARD_MODELS).map(([courtyardModelId, courtyardModelDefinition]) => [
         courtyardModelId,
         Object.freeze({
-          url:
-            "/static/3d-studio/models/" +
-            courtyardModelId +
-            "-lite.glb?v=20260927-garden-v5",
-          fallbackUrl:
-            "/static/3d-studio/models/" + courtyardModelId + ".glb?v=20260927-garden-v5",
+          url: "/static/3d-studio/models/" + courtyardModelId + "-lite.glb",
+          fallbackUrl: "/static/3d-studio/models/" + courtyardModelId + ".glb",
           scaleBasis: courtyardModelDefinition.size,
           preserveOrigin: true,
         }),
@@ -202,14 +168,8 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
       ["sofa-single", "sofa-l", "sofa-l-left"].map((sofaVariantModelId) => [
         sofaVariantModelId,
         Object.freeze({
-          url:
-            "/static/3d-studio/models/" +
-            sofaVariantModelId +
-            "-lite.glb?v=20260926-sofa-variants-v1",
-          fallbackUrl:
-            "/static/3d-studio/models/" +
-            sofaVariantModelId +
-            ".glb?v=20260926-sofa-variants-v1",
+          url: "/static/3d-studio/models/" + sofaVariantModelId + "-lite.glb",
+          fallbackUrl: "/static/3d-studio/models/" + sofaVariantModelId + ".glb",
           scaleBasis: sofaVariantModelId === "sofa-single" ? [1.05, 0.82, 0.9] : [2.8, 0.82, 1.6],
           preserveOrigin: true,
         }),
@@ -219,9 +179,8 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
       Object.entries(DECOR_MODELS).map(([decorModelId, decorModelDefinition]) => [
         decorModelId,
         Object.freeze({
-          url: "/static/3d-studio/models/" + decorModelId + "-lite.glb?v=20260926-decor-v1",
-          fallbackUrl:
-            "/static/3d-studio/models/" + decorModelId + ".glb?v=20260926-decor-v1",
+          url: "/static/3d-studio/models/" + decorModelId + "-lite.glb",
+          fallbackUrl: "/static/3d-studio/models/" + decorModelId + ".glb",
           scaleBasis: decorModelDefinition.size,
           preserveOrigin: true,
         }),
@@ -232,25 +191,25 @@ export const EXTERNAL_ITEM_MODELS = Object.freeze({
     kitchenisland: createFurnitureAssetDescriptor("kitchenisland", [2.4, 0.9, 0.8]),
     squarecoffeetable: createFurnitureAssetDescriptor("squarecoffeetable", [1.4, 0.46, 0.7]),
     tvstand: createFurnitureAssetDescriptor("tvstand", [1.8, 0.48, 0.42]),
-    rug: createHomeAssetDescriptor("rug", "20260901-home-assets-v1", {
+    rug: createHomeAssetDescriptor("rug", {
       scaleBasis: [2, 0.012, 1.4],
       preserveOrigin: true,
     }),
-    plant: createHomeAssetDescriptor("plant", "20260901-home-assets-v1", {
+    plant: createHomeAssetDescriptor("plant", {
       scaleBasis: [0.75, 1.6, 0.75],
       preserveOrigin: true,
     }),
     bed: createIndoorAssetDescriptor("bed", [1.92, 1.02, 2.18]),
-    nightstand: createHomeAssetDescriptor("nightstand", "20260901-home-furniture-v1", {
+    nightstand: createHomeAssetDescriptor("nightstand", {
       scaleBasis: [0.5, 0.55, 0.42],
       preserveOrigin: true,
     }),
     vanity: createFurnitureAssetDescriptor("vanity", [1.2, 1.55, 0.5]),
-    desk: createHomeAssetDescriptor("desk", "20260901-home-furniture-v1", {
+    desk: createHomeAssetDescriptor("desk", {
       scaleBasis: [1.4, 0.76, 0.65],
       preserveOrigin: true,
     }),
-    bookcase: createHomeAssetDescriptor("bookcase", "20260901-home-furniture-v1", {
+    bookcase: createHomeAssetDescriptor("bookcase", {
       scaleBasis: [1.2, 1.9, 0.32],
       preserveOrigin: true,
     }),

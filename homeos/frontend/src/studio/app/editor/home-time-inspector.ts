@@ -1,4 +1,4 @@
-/** Date (date) inspector sync — extracted from home.ts */
+/** Date (date) inspector sync */
 import { clampNumber as clampNumber2, normalizedFontWeight as normalizedFontWeight2, roundField as roundField2 } from "./editor-utils";
 import { inspectorComponentMetrics as inspectorComponentMetrics2 } from "./editor-basic-inspectors";
 

@@ -73,7 +73,7 @@ const routes: RouteRecordRaw[] = [
     redirect: '/register',
   },
   {
-    // 商业授权激活（并入 homeos-3d 授权场景 UI）
+    // 商业授权激活
     path: '/activate',
     name: 'activation',
     component: LicenseView,

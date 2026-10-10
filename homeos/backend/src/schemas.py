@@ -9,9 +9,6 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from .ha.client import HAClientError
 from .ha.connection_setup import validate_address_input
 
-# 认证相关模型（SetupAdminRequest / LoginRequest / UserResponse / SetupStatusResponse）
-# 已随「本地管理员账户文件」方案一并退役：注册登录口径见 `src/api/schemas/auth.py`。
-
 
 class HAConnectionInput(BaseModel):
 

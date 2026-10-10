@@ -114,7 +114,7 @@ def commit_project_name(database: DatabaseSession) -> None:
 
 @router.get('')
 def list_projects(database: DatabaseSession, viewer: LicensedViewer) -> dict:
-    # 配对码机制移除后查看者恒为登录会话，可见全部仪表盘（与编辑器同权限）。
+    # 查看者恒为登录会话，可见全部仪表盘（与编辑器同权限）。
     projects = list(database.scalars(select(Project).order_by(Project.updated_at.desc())))
     drafts = {
         item.project_id: item
@@ -139,7 +139,7 @@ def _active_dashboard_id(request: Request) -> str:
 
 @router.get('/active')
 def get_active_project(request: Request, database: DatabaseSession, viewer: LicensedViewer) -> dict:
-    """展示端要展示的那一个仪表盘（单源解析，取代前端「双 id 交叉查询」）。
+    """展示端要展示的那一个仪表盘（单源解析）。
 
     解析规则只有一条、且完全落在 ``projects`` 这个 id 空间内：
 

@@ -30,6 +30,9 @@
   --i3d-cover-open: 0;
   --i3d-cover-tilt: 0.5;
   --i3d-cover-blade-open: 0;
+  /* 梦幻帘翻转角度（0° 平铺闭合 → 90° 侧立打开）与轨道收拢比例（0–1）。 */
+  --i3d-cover-slat-angle: 0deg;
+  --i3d-cover-retract-ratio: 0;
   position: absolute;
   z-index: 1;
   top: 0;
@@ -445,12 +448,13 @@
   box-shadow: 0 2px 4px #00000040;
 }
 
+/* 布帘：宽度随 --i3d-cover-open(0–1) 收窄，像真帘一样往两侧收拢（而不是整片平移出窗）。 */
 .interaction3d-stage .i3d-device-cover-panel {
   position: absolute;
   z-index: 3;
   top: 12px;
   bottom: 8px;
-  width: 46%;
+  width: calc(45.9% - var(--i3d-cover-open, 0) * 33.1%);
   background:
     repeating-linear-gradient(
       90deg,
@@ -459,22 +463,23 @@
       #1a2025 6px 8px
     );
   box-shadow: 0 4px 10px #0000004d;
-  transition: transform 0.55s cubic-bezier(0.22, 0.61, 0.36, 1);
-  will-change: transform;
+  transition:
+    width 0.55s cubic-bezier(0.22, 0.61, 0.36, 1),
+    opacity 0.4s ease;
+  will-change: width;
 }
 
 .interaction3d-stage .i3d-device-cover-panel.left {
   left: 8px;
   border-radius: 0 2px 2px 0;
-  transform: translateX(calc(var(--i3d-cover-open, 0) * -78%));
 }
 
 .interaction3d-stage .i3d-device-cover-panel.right {
   right: 8px;
   border-radius: 2px 0 0 2px;
-  transform: translateX(calc(var(--i3d-cover-open, 0) * 78%));
 }
 
+/* 单侧收拢：只留一片，宽度换成整幅口径（91.8% 起，随开合收窄）。 */
 .interaction3d-stage .i3d-device-visual.direction-left .i3d-device-cover-panel.right,
 .interaction3d-stage .i3d-device-visual.direction-right .i3d-device-cover-panel.left {
   display: none;
@@ -482,81 +487,109 @@
 
 .interaction3d-stage .i3d-device-visual.direction-left .i3d-device-cover-panel.left,
 .interaction3d-stage .i3d-device-visual.direction-right .i3d-device-cover-panel.right {
-  width: 88%;
+  width: calc(91.8% - var(--i3d-cover-open, 0) * 79%);
 }
 
-.interaction3d-stage .i3d-device-visual.direction-left .i3d-device-cover-panel.left {
-  transform: translateX(calc(var(--i3d-cover-open, 0) * -82%));
-}
-
-.interaction3d-stage .i3d-device-visual.direction-right .i3d-device-cover-panel.right {
-  transform: translateX(calc(var(--i3d-cover-open, 0) * 82%));
-}
-
+/* 叶片层：默认隐藏，只有梦幻帘才启用（普通窗帘只由布帘的开合表现）。 */
 .interaction3d-stage .i3d-device-cover-slats {
   position: absolute;
   z-index: 4;
-  inset: 14px 10px 10px;
-  display: flex;
-  gap: 2px;
+  inset: 12px 9px 9px;
+  display: none;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 1px;
   pointer-events: none;
 }
 
+/* 叶片列：外层负责「整体收拢」位移，方向由 JS 逐片写入 --i3d-cover-slat-gather。 */
 .interaction3d-stage .i3d-device-cover-slat {
-  flex: 1;
-  border-radius: 1px;
-  background: linear-gradient(180deg, #4a555d, #232b31 55%, #1c2328);
-  opacity: calc(0.22 + (1 - var(--i3d-cover-open, 0)) * 0.7);
-  transform: translateX(
-    calc((var(--i3d-cover-slat-index, 0) - 4) * var(--i3d-cover-open, 0) * -2.4px)
-  );
-  transition:
-    opacity 0.45s cubic-bezier(0.22, 0.61, 0.36, 1),
-    transform 0.55s cubic-bezier(0.22, 0.61, 0.36, 1),
-    filter 0.3s ease;
+  --i3d-cover-slat-gather: 0px;
+  position: relative;
+  display: block;
+  min-width: 0;
+  flex: 1 1 0;
+  transform: translateX(calc(var(--i3d-cover-slat-gather) * var(--i3d-cover-retract-ratio, 0)));
+  transition: transform 0.42s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-/* 梦幻帘：叶片角度驱动透光，轨道开合驱动收拢 */
+/* 叶片顶部的挂钩。 */
+.interaction3d-stage .i3d-device-cover-slat:before {
+  position: absolute;
+  z-index: 2;
+  top: -3px;
+  left: 50%;
+  width: 3px;
+  height: 5px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, #687176, #e2e5e5 52%, #60696d);
+  transform: translate(-50%);
+  content: "";
+}
+
+/* 叶片侧面的暗边（阴影面），默认在左；翻转方向时换到右侧（见 .is-tilt-reversed）。 */
+.interaction3d-stage .i3d-device-cover-slat:after {
+  position: absolute;
+  z-index: 3;
+  top: 2px;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: linear-gradient(90deg, #31383bd1, #60686b4d);
+  opacity: 0.82;
+  transition:
+    right 0.16s ease,
+    left 0.16s ease,
+    opacity 0.2s ease;
+  content: "";
+  pointer-events: none;
+}
+
+/* 叶片本体：rotateY(--i3d-cover-slat-angle) 表示翻转角度（0° 平铺闭合，90° 侧立打开）。 */
+.interaction3d-stage .i3d-device-cover-slat > i {
+  position: absolute;
+  inset: 2px 0 0;
+  display: block;
+  border: 1px solid #ffffff2e;
+  border-radius: 1px 1px 2px 2px;
+  background: linear-gradient(90deg, #6f7477 0 12%, #c8c7c2 13% 28%, #e7e4de 29% 100%);
+  box-shadow:
+    inset 1px 0 #ffffff2e,
+    0 3px 5px #0000002e;
+  opacity: calc(0.34 + (1 - var(--i3d-cover-blade-open, 0)) * 0.58);
+  transform: rotateY(var(--i3d-cover-slat-angle, 0deg));
+  transform-origin: center;
+  transition:
+    transform 0.42s cubic-bezier(0.22, 0.61, 0.36, 1),
+    opacity 0.3s ease,
+    filter 0.22s ease;
+}
+
+/* 梦幻帘：去掉窗台与布帘，只留窗洞与叶片层。 */
 .interaction3d-stage .i3d-device-drawing--cover.is-dream .i3d-device-cover-panel {
   display: none;
 }
 
 .interaction3d-stage .i3d-device-drawing--cover.is-dream .i3d-device-cover-slats {
   display: flex;
-  inset: 12px 9px 9px;
-  gap: 1px;
-  perspective: 120px;
+  perspective: 200px;
 }
 
-.interaction3d-stage .i3d-device-drawing--cover.is-dream .i3d-device-cover-slat {
-  background: linear-gradient(90deg, #6f7477 0 12%, #c8c7c2 13% 28%, #e7e4de 29% 100%);
-  box-shadow:
-    inset 1px 0 #ffffff2e,
-    0 3px 5px #0000002e;
-  opacity: calc(0.35 + (1 - var(--i3d-cover-blade-open, 0)) * 0.6);
-  transform: translateX(
-      calc(
-        (var(--i3d-cover-slat-index, 0) - 4) * (1 - var(--i3d-cover-open, 0)) * 3.2px
-      )
-    )
-    scaleX(calc(0.28 + var(--i3d-cover-blade-open, 0) * 0.72));
-  transform-origin: center;
-}
-
-.interaction3d-stage .i3d-device-visual.is-dream.is-tilt-center .i3d-device-cover-slat {
-  opacity: 0.28;
+/* 中间停位（叶片接近 90° 侧立）时收一点角度，免得完全看不见。 */
+.interaction3d-stage .i3d-device-visual.is-dream.is-tilt-center .i3d-device-cover-slat > i {
+  transform: rotateY(82deg);
   background: #ddd9d1;
 }
 
-.interaction3d-stage .i3d-device-visual.is-dream.is-tilt-reversed .i3d-device-cover-slat {
-  background: linear-gradient(270deg, #6f7477 0 12%, #c8c7c2 13% 28%, #e7e4de 29% 100%);
+/* 翻转方向取反：暗边换到右侧，渐变明暗也随之镜像。 */
+.interaction3d-stage .i3d-device-visual.is-dream.is-tilt-reversed .i3d-device-cover-slat:after {
+  right: 0;
+  left: auto;
+  background: linear-gradient(90deg, #60686b4d, #31383bd1);
 }
 
-.interaction3d-stage .i3d-device-visual.is-dream.is-cover-closed .i3d-device-cover-slat {
-  opacity: 0.92;
-  transform: translateX(
-    calc((var(--i3d-cover-slat-index, 0) - 4) * 4.5px)
-  );
+.interaction3d-stage .i3d-device-visual.is-dream.is-tilt-reversed .i3d-device-cover-slat > i {
+  background: linear-gradient(270deg, #6f7477 0 12%, #c8c7c2 13% 28%, #e7e4de 29% 100%);
 }
 
 .interaction3d-stage .i3d-device-visual.is-dream.is-cover-open .i3d-device-cover-window {
@@ -567,7 +600,7 @@
   transition-duration: 1.05s;
 }
 
-.interaction3d-stage .i3d-device-visual.is-moving .i3d-device-cover-slat {
+.interaction3d-stage .i3d-device-visual.is-moving .i3d-device-cover-slat > i {
   transition-duration: 1.05s;
   animation: i3d-device-cover-slat-shimmer 0.7s ease-in-out infinite alternate;
   animation-delay: calc(var(--i3d-cover-slat-index, 0) * 40ms);
@@ -896,9 +929,43 @@
     border-color 0.3s ease;
 }
 
-.interaction3d-stage .i3d-device-visual:not(.is-locked) .i3d-device-lock-shackle {
+/* 已解锁：锁梁抬起 + 琥珀色（这才是「开锁」的视觉）。 */
+.interaction3d-stage .i3d-device-visual[data-lock-state="unlocked"] .i3d-device-lock-shackle {
   transform: translate(-42%, -2px) rotate(-22deg);
   border-color: #c9a26d;
+}
+
+/* 上锁 / 解锁途中：锁梁保持抬起并轻微呼吸，明确表达「正在动作」，
+   而不是先摆一个静止的「已上锁」或「已解锁」骗用户。 */
+.interaction3d-stage
+  :is(
+    .i3d-device-visual[data-lock-state="locking"],
+    .i3d-device-visual[data-lock-state="unlocking"]
+  )
+  .i3d-device-lock-shackle {
+  transform: translate(-42%, -2px) rotate(-22deg);
+  border-color: var(--i3d-device-accent);
+  animation: i3d-device-lock-moving 0.85s ease-in-out infinite alternate;
+}
+
+@keyframes i3d-device-lock-moving {
+  from {
+    transform: translate(-42%, -1px) rotate(-26deg);
+  }
+  to {
+    transform: translate(-42%, -3px) rotate(-16deg);
+  }
+}
+
+/* 锁状态未知 / 未绑定锁实体 / 门锁卡住：锁梁压成灰色半抬，不冒充「已解锁」，也不冒充「已上锁」。 */
+.interaction3d-stage .i3d-device-visual[data-lock-state="unknown"] .i3d-device-lock-shackle,
+.interaction3d-stage .i3d-device-visual[data-lock-state="jammed"] .i3d-device-lock-shackle {
+  transform: translate(-46%, -1px) rotate(-10deg);
+  border-color: #6b757b;
+}
+
+.interaction3d-stage .i3d-device-visual[data-lock-state="unknown"] .i3d-device-lock-body {
+  filter: brightness(0.9) saturate(0.65);
 }
 
 .interaction3d-stage .i3d-device-visual.is-locked .i3d-device-lock-shackle {
@@ -1047,6 +1114,166 @@
   animation: i3d-nas-breathe 0.9s ease-in-out infinite;
 }
 
+/* —— Fridge —— */
+/* 对齐场景里的对开门冰箱：上冷藏室左右对开门，下冷冻室两层抽屉。 */
+.interaction3d-stage .i3d-device-drawing--fridge {
+  width: 86px;
+  height: 116px;
+  transform: translate(-50%, -50%) scale(0.84);
+  perspective: 320px;
+}
+
+.interaction3d-stage .i3d-device-fridge-body {
+  position: absolute;
+  inset: 6px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 13px;
+  background: linear-gradient(158deg, #3d4850, #1c2329 56%, #11161b);
+  box-shadow:
+    0 12px 22px #00000066,
+    inset 0 1px #ffffff26,
+    inset 0 -10px 18px #00000055;
+  transition: box-shadow 0.35s ease;
+}
+
+.interaction3d-stage .i3d-device-visual.is-on .i3d-device-fridge-body {
+  box-shadow:
+    0 12px 22px #00000066,
+    inset 0 1px #ffffff26,
+    inset 0 -10px 18px #00000055,
+    0 0 18px color-mix(in srgb, var(--i3d-device-accent) 26%, transparent);
+}
+
+.interaction3d-stage .i3d-device-fridge-compartment {
+  position: relative;
+  display: block;
+}
+
+.interaction3d-stage .i3d-device-fridge-compartment.top {
+  flex: 2 1 0;
+  transform-style: preserve-3d;
+}
+
+.interaction3d-stage .i3d-device-fridge-compartment.bottom {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 4px;
+  transform-style: preserve-3d;
+}
+
+/* 内腔：关闭时是暗腔，开门/拉抽屉时亮灯。 */
+.interaction3d-stage .i3d-device-fridge-cavity {
+  position: absolute;
+  inset: 0;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #05080b, #0d141a);
+  box-shadow: inset 0 2px 7px #000000d9;
+  transition:
+    background 0.45s ease,
+    box-shadow 0.45s ease;
+}
+
+.interaction3d-stage .i3d-device-visual.is-fridge-opening .i3d-device-fridge-cavity {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--i3d-device-accent) 26%, #eef8fc),
+    #aecbd8
+  );
+  box-shadow:
+    inset 0 2px 9px #00000059,
+    inset 0 0 14px #ffffffb3;
+}
+
+/* 上冷藏室：左右对开门，绕外侧竖边转开。 */
+.interaction3d-stage .i3d-device-fridge-door {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  border-radius: 4px;
+  background: linear-gradient(160deg, #4a565e, #232b31 58%, #171d22);
+  box-shadow: inset 0 0 0 1px #ffffff1a;
+  backface-visibility: hidden;
+  transform: rotateY(0deg);
+  transition:
+    transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1),
+    filter 0.3s ease;
+}
+
+.interaction3d-stage .i3d-device-fridge-door.left {
+  left: 0;
+  transform-origin: left center;
+}
+
+.interaction3d-stage .i3d-device-fridge-door.right {
+  right: 0;
+  transform-origin: right center;
+}
+
+.interaction3d-stage .i3d-device-visual.fridge-door-left-open .i3d-device-fridge-door.left {
+  transform: rotateY(-62deg);
+  filter: brightness(0.9);
+}
+
+.interaction3d-stage .i3d-device-visual.fridge-door-right-open .i3d-device-fridge-door.right {
+  transform: rotateY(62deg);
+  filter: brightness(0.9);
+}
+
+/* 下冷冻室：两层抽屉，向外拉出并微微前倾。 */
+.interaction3d-stage .i3d-device-fridge-drawer {
+  position: relative;
+  display: block;
+  flex: 1 1 0;
+  border-radius: 4px;
+  background: linear-gradient(160deg, #4a565e, #232b31 58%, #171d22);
+  box-shadow: inset 0 0 0 1px #ffffff1a;
+  transform: translateY(0) rotateX(0deg);
+  transition:
+    transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1),
+    filter 0.3s ease;
+}
+
+.interaction3d-stage .i3d-device-visual.fridge-drawer-top-open .i3d-device-fridge-drawer.top,
+.interaction3d-stage .i3d-device-visual.fridge-drawer-bottom-open .i3d-device-fridge-drawer.bottom {
+  transform: translateY(8px) rotateX(-18deg);
+  filter: brightness(1.06);
+}
+
+/* 把手：对开门用竖把手贴中缝，抽屉用横把手居中。 */
+.interaction3d-stage .i3d-device-fridge-handle {
+  position: absolute;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #cad1d6, #8b959c 55%, #6b757c);
+  box-shadow: 0 1px 3px #00000080;
+}
+
+.interaction3d-stage .i3d-device-fridge-door .i3d-device-fridge-handle {
+  top: 18%;
+  bottom: 18%;
+  width: 3px;
+}
+
+.interaction3d-stage .i3d-device-fridge-door.left .i3d-device-fridge-handle {
+  right: 3px;
+}
+
+.interaction3d-stage .i3d-device-fridge-door.right .i3d-device-fridge-handle {
+  left: 3px;
+}
+
+.interaction3d-stage .i3d-device-fridge-drawer .i3d-device-fridge-handle {
+  top: 3px;
+  right: 22%;
+  left: 22%;
+  height: 3px;
+  background: linear-gradient(180deg, #cad1d6, #7d878e);
+}
+
 /* —— Generic —— */
 .interaction3d-stage .i3d-device-drawing--generic {
   width: 96px;
@@ -1151,6 +1378,8 @@
   .interaction3d-stage .i3d-device-visual.is-playing .i3d-device-speaker-ring,
   .interaction3d-stage .i3d-device-visual.is-playing .i3d-device-speaker-artwork,
   .interaction3d-stage .i3d-device-visual.is-locked .i3d-device-lock-shackle,
+  .interaction3d-stage .i3d-device-visual[data-lock-state="locking"] .i3d-device-lock-shackle,
+  .interaction3d-stage .i3d-device-visual[data-lock-state="unlocking"] .i3d-device-lock-shackle,
   .interaction3d-stage .i3d-device-visual.is-jammed .i3d-device-lock-body,
   .interaction3d-stage .i3d-device-visual.is-on .i3d-device-nas-led,
   .interaction3d-stage .i3d-device-visual.is-on .i3d-device-nas-bay,

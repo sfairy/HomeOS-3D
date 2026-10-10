@@ -44,6 +44,17 @@ const {
     typeof receivedState?.position == "number" && Number.isFinite(receivedState.position)
       ? Math.max(0, Math.min(100, receivedState.position))
       : null,
+  // 取归一化状态里的「状态推断位置」：设备只报 opened / closed 而没报 current_position 时，
+  // 仍能让 3D 窗帘摆到对应的那一端，而不是一律当作全关。
+  resolveStatePositionHint = (receivedState: any) =>
+    typeof receivedState?.statePositionHint == "number" &&
+    Number.isFinite(receivedState.statePositionHint)
+      ? Math.max(0, Math.min(100, receivedState.statePositionHint))
+      : null,
+  // 位置未知时骨架该摆在哪儿（0–100），三层优先级：状态推断值 → 已绑定全关 → 未绑定配置值。
+  resolvePoseFallback = (posedRig: any) =>
+    posedRig.statePositionHint ??
+    (posedRig.binding.entityId ? 0 : resolveUnboundPosition(posedRig.binding)),
   resolveRigBasis = (rigAnchor: any) =>
     Array.isArray(rigAnchor.userData?.curtainRigBasis) &&
     rigAnchor.userData.curtainRigBasis.length === 3 &&
@@ -349,6 +360,7 @@ export function createCurtainMotion({
           target: null as any,
           motionFrom: null as any,
           motionStart: null as any,
+          statePositionHint: null as any,
         }
       );
     }
@@ -414,6 +426,7 @@ export function createCurtainMotion({
       target: null as any,
       motionFrom: null as any,
       motionStart: null as any,
+      statePositionHint: null as any,
     };
   }
   function disposeRig(discardedRig: any) {
@@ -436,10 +449,11 @@ export function createCurtainMotion({
       (resetTargetRig.motionFrom = null),
       (resetTargetRig.motionStart = null),
       (resetTargetRig.bladePosition = null),
+      (resetTargetRig.statePositionHint = null),
       applyRigPose(resetTargetRig));
   }
   function applyRigPose(posedRig: any) {
-    const positionRatio = posedRig.position ?? resolveUnboundPosition(posedRig.binding);
+    const positionRatio = posedRig.position ?? resolvePoseFallback(posedRig);
     if (posedRig.roller) {
       for (const rollerHiddenPart of posedRig.originals.keys()) rollerHiddenPart.visible = false;
       (posedRig.roller.pose(positionRatio), (isPoseKeyDirty = true));
@@ -487,17 +501,23 @@ export function createCurtainMotion({
   }
   function updateRigTarget(motionRig: any, receivedMotionState: any, immediate = false) {
     const incomingPosition = resolveStatePosition(receivedMotionState),
+      nextStatePositionHint = resolveStatePositionHint(receivedMotionState),
+      hasStatePositionHintChanged = motionRig.statePositionHint !== nextStatePositionHint,
       hasBladeChanged = motionRig.bladePosition !== receivedMotionState.bladePosition;
-    if (
-      ((motionRig.bladePosition = receivedMotionState.bladePosition),
-      incomingPosition === null)
-    ) {
+    (motionRig.bladePosition = receivedMotionState.bladePosition),
+      (motionRig.statePositionHint = nextStatePositionHint),
+      // 叶片角度变化要立即生效（梦幻帘调叶片不该有 420ms 的滞后）。
+      hasBladeChanged && motionRig.dream && applyRigPose(motionRig);
+    if (incomingPosition === null) {
+      // 位置未知（设备未上报 / 掉线）：保持在当前位置不动，而不是跳回 0。
       const hasPendingMotion = motionRig.target !== motionRig.position;
       return (
         (motionRig.target = motionRig.position),
         (motionRig.motionStart = null),
-        hasBladeChanged && motionRig.dream && applyRigPose(motionRig),
-        hasPendingMotion || hasBladeChanged
+        // 例外：骨架本来就没有位置、只能靠状态推断时，状态变了要按新推断重摆一次。
+        hasStatePositionHintChanged && motionRig.position === null
+          ? (applyRigPose(motionRig), true)
+          : hasPendingMotion || hasBladeChanged
       );
     }
     if (motionRig.position === null || immediate) {
@@ -507,12 +527,11 @@ export function createCurtainMotion({
         (motionRig.position = incomingPosition),
         (motionRig.target = incomingPosition),
         (motionRig.motionStart = null),
-        (positionChanged || (hasBladeChanged && motionRig.dream)) && applyRigPose(motionRig),
+        positionChanged && applyRigPose(motionRig),
         positionChanged || hasBladeChanged
       );
     }
     return (
-      hasBladeChanged && motionRig.dream && applyRigPose(motionRig),
       motionRig.target === incomingPosition
         ? hasBladeChanged
         : ((motionRig.target = incomingPosition),
@@ -649,6 +668,7 @@ export function createCurtainMotion({
           "motionFrom",
           "motionStart",
           "bladePosition",
+          "statePositionHint",
         ])
           nextRig[motionFieldName] = previousRig[motionFieldName];
         applyRigPose(nextRig);
@@ -686,6 +706,7 @@ export function createCurtainMotion({
     const coverBindingIdKey = String(coverBindingId),
       nextMotionState = {
         position: resolveStatePosition(receivedCoverState),
+        statePositionHint: resolveStatePositionHint(receivedCoverState),
         bladePosition: Number.isFinite(receivedCoverState?.tiltPosition)
           ? receivedCoverState.tiltPosition
           : null,
@@ -737,7 +758,7 @@ export function createCurtainMotion({
               poseRig.folds,
               poseRig.bladePosition,
               poseRig.position === null
-                ? "preview-" + resolveUnboundPosition(poseRig.binding)
+                ? "preview-" + resolvePoseFallback(poseRig)
                 : Math.round(poseRig.position * 100) / 100,
             ])
             .sort((leftPoseEntry, rightPoseEntry) =>

@@ -750,8 +750,7 @@ async def call_service(
         RegistryTargetResolver(request),
     )
     try:
-        # A6 收敛：唯一执行出口 —— CommandProxyService（幂等去重 → 高风险拦截 → HA 下发），
-        # 不再直接调用 ``studio_ha.client_for(...).call_service``。
+        # A6 收敛：唯一执行出口 —— CommandProxyService（幂等去重 → 高风险拦截 → HA 下发）。
         envelope = await dispatch_service_call(
             request.app.state.command_proxy,
             build_service_call_dto(

@@ -15,7 +15,6 @@ from ..api.page_shell import APPEARANCE_PLACEHOLDER, inject_scene
 from ..commerce import delivery, fulfill
 from ..core.deps import DbSession
 from ..core.models import Order
-from ..core.static_revision import file_revision
 from ..ops import incidents
 from ..ops import site_settings as site_config
 from ..payments.alipay import cents_from_yuan, public_key_error
@@ -180,7 +179,7 @@ _RETURN_PAGE = """<!doctype html>
      取的是 --hb-bg 的值，不跟随后台配色（与其它页面的处理一致）。 -->
 <meta name="theme-color" content="#050912">
 <title>{title} - HomeOS 授权中心</title>
-<link rel="stylesheet" href="/store-static/theme.css?v={theme_stamp}">
+<link rel="stylesheet" href="/store-static/theme.css">
 <!-- 站点配色覆盖。和商店其它页面一样走 page_shell 的注入，这里只留插入点：
      少了它，管理员在后台改的配色在用户付完款跳回来的这一屏上不生效 ——
      而这一屏恰恰是用户第一次看到「自己的」商城的地方，配色停在默认值最刺眼。
@@ -250,7 +249,6 @@ def alipay_return(
             order_block="",
             next_url="/user/dashboard/index",
             next_label="前往账号中心",
-            theme_stamp=file_revision(settings.static_dir / "theme.css"),
         )
 
     if provider is not None and provider.is_configured(settings):
@@ -305,5 +303,4 @@ def alipay_return(
         order_block=order_block,
         next_url="/user/dashboard/index",
         next_label="前往账号中心",
-        theme_stamp=file_revision(settings.static_dir / "theme.css"),
     )

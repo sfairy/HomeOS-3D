@@ -460,7 +460,7 @@ function updatePublicStaticManifest(): void {
   if (fs.existsSync(htmlPath)) {
     const html = fs.readFileSync(htmlPath, 'utf8')
     for (const match of html.matchAll(/(?:src|href)=["'](\/static\/[^"']+)["']/g)) {
-      discovered.add(match[1].replace(/\?v=[^"']+$/i, ''))
+      discovered.add(match[1])
     }
   }
   for (const stable of [
@@ -576,7 +576,7 @@ export default defineConfig(async (): Promise<UserConfig> => {
         vue: 'vue/dist/vue.esm-bundler.js',
         '@': resolve(__dirname, 'src'),
         '@homeos/shared': resolve(sharedRoot, 'src/index.ts'),
-        // 3D Studio 源码别名（原 homeos-3d/frontend 的 @app / @runtime）。
+        // 3D Studio 源码别名。
         '@app': resolve(__dirname, 'src/studio/app'),
         '@runtime': resolve(__dirname, 'src/studio/runtime'),
         three: THREE_VENDOR,

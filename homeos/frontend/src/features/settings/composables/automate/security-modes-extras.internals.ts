@@ -2,7 +2,7 @@
  * @file security-modes-extras.internals.ts
  * @module frontend/src/views
  */
-/** composables：合并自全家断电区 / 推荐 / 危险绑定区（自 security-modes.internals.ts 拆出） */
+/** composables：全家断电区 / 推荐 / 危险绑定区 */
 import type { Component, Ref } from 'vue'
 import { pauseGlobalPendingChanges, resumeGlobalPendingChanges, syncGlobalLayoutPendingSnapshot } from '@/features/settings/composables/pending.internals'
 import { useHomeosSceneOptions } from '@/composables/home-mode/useHomeosSceneOptions'

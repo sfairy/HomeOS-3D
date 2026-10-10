@@ -3,7 +3,7 @@
  *
  * 职责：
  * - 提供十六进制颜色规范化、RGB 解析、rgba 转换等工具函数。
- * - 收敛原先分散的平行实现：
+ * - 收敛分散的平行实现：
  *   - composables/ui/useAppTheme 的 hexToRgb（严格 6 位，非法返回 null）。
  *   - utils/chart/device-chart-theme 的 hexWithOpacity（严格 6 位，非法原样返回）。
  *

@@ -370,7 +370,6 @@ export function createInteraction3dEditorPickers({
         recommended,
         entity: alarmEntity,
       });
-      // 0.7.2：完整实体目录 + 优先推荐匹配项
       const recommendedOptions = alarmProfiles
         .flatMap((alarmProfile: any) =>
           (alarmProfile.entities || []).map((alarmEntity: HaEntityEntry) => ({

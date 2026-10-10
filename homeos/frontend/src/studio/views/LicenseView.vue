@@ -2,7 +2,7 @@
 /**
  * 授权激活页（单 HTTP 栈）。
  *
- * 状态机与迁移前的命令式实现一一对应：轮询 `/license/availability`，终态或用户点击
+ * 状态机：轮询 `/license/availability`，终态或用户点击
  * 「重新激活」时才交还表单；`/license/retry` 是「不用等下一拍轮询」的手动重试。
  *
  * 轮询为什么不再读 `/license/status`：该端点要求登录会话，而本页允许匿名访问

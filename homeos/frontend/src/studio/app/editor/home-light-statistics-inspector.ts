@@ -1,4 +1,4 @@
-/** Light statistics inspector sync — extracted from home.ts */
+/** Light statistics inspector sync */
 import { clampNumber as clampNumber2, normalizedFontWeight as normalizedFontWeight2, roundField as roundField2 } from "./editor-utils";
 import { setInspectorToggle as setInspectorToggle2 } from "./editor-basic-inspectors";
 

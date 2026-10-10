@@ -70,7 +70,7 @@
       </div>
     </div>
 
-    <!-- 新建文件夹：黑曜石深色微晶弹窗（替代通用输入弹窗） -->
+    <!-- 新建文件夹：黑曜石深色微晶弹窗 -->
     <VFolderCreateModal
       v-model="folderModalOpen"
       :busy="folderModalBusy"

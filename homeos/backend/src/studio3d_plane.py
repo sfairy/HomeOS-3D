@@ -71,7 +71,7 @@ async def install(
         settings.studio3d_exports_dir,
         settings.effect_variants_dir,
     )
-    # 账号快照机制已退役：单用户注册下「是否已注册」直接查 ``users`` 表，无需外置文件。
+    # 单用户注册下「是否已注册」直接查 ``users`` 表，无需外置文件。
     # 3D 登录限流器（配对码 / 授权激活等端点使用）。
     app.state.login_limiter = LoginAttemptLimiter()
 

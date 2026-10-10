@@ -98,12 +98,7 @@ export function resolveAssetSource(assetKey: any) {
     .map((pathSegment) => encodeURIComponent(pathSegment))
     .join("/");
   if (!normalizedBuiltinPath) return "";
-  const builtinAssetVersion = versionByAssetId.get(normalizedAssetKey) || "";
-  return (
-    "/assets/builtin/" +
-    normalizedBuiltinPath +
-    (builtinAssetVersion ? "?v=" + encodeURIComponent(builtinAssetVersion) : "")
-  );
+  return "/assets/builtin/" + normalizedBuiltinPath;
 }
 
 export function staticAssetImageSource(assetSourceRef: any) {

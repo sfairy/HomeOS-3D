@@ -2,7 +2,7 @@
  * @file layout-floating.internals.ts
  * @module frontend/src/views
  */
-/** composables：自 layout.internals.ts 拆出 — 浮动小组件与浮动面板展示 */
+/** composables：浮动小组件与浮动面板展示 */
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useAuthStore } from '@/stores/auth.store'

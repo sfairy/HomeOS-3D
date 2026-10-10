@@ -2,7 +2,7 @@
  * 展示页启动期预取层：在 3D 引导模块求值前，把草稿与资源清单的请求先发出去。
  *
  * 由 `DisplayView.vue` 在 `onMounted` 调 `bootDisplayStartup()`、`onBeforeUnmount` 调
- * `teardownDisplayStartup()`。**不再是模块求值即执行的 IIFE**：
+ * `teardownDisplayStartup()`：
  *  - 目标路径（`/homeos/:name` vs `/display/:projectId`）在 boot 时才读取 —— 视图现在是
  *    可重入路由，同一份模块可能先后服务不同项目，import 期定死的 `basePath` 会取到上一个；
  *  - 预取缓存（`requestsByKey`）与在途请求在 teardown 时清空/中断，避免把上一个项目的

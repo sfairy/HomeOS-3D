@@ -658,8 +658,6 @@ def recompute_reserved_stock(session: Session) -> dict[str, int]:
         .subquery()
     )
     changes: dict[str, int] = {}
-    # 只取「计数列与真实预留不一致」的商品：原实现把整个商品表读进 ORM 再逐行比对，
-    # 商品多时既慢又吃内存，而绝大多数商品本来就是一致的。
     rows = session.execute(
         select(Product, func.coalesce(reserved.c.reserved, 0))
         .select_from(Product)

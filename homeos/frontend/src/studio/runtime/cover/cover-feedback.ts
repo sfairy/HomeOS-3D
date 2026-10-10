@@ -6,6 +6,13 @@ export function createCoverFeedback({
   storage: storage,
   scope: scope,
   wallNow: wallNow = () => Date.now(),
+  /**
+   * 瞬态停滞判定窗口（ms）：设备报 opening/closing 时，若位置长时间零推进、又没有在途的乐观动画，
+   * 就认定这一轮瞬态是「卡在状态上没回收」而不是真的在走，把它降级为 unknown（界面回落「在线」）。
+   * 取 120s：一次完整行程通常不超过 1 分钟，正常开合绝不会被误判；实测卡死一次持续了 37 分钟，
+   * 两分钟后回落「在线」对用户来说仍然及时。
+   */
+  stallTimeout: stallTimeoutMs = 120000,
 }: {
   now?: () => number;
   smoothingTime?: number;
@@ -14,6 +21,7 @@ export function createCoverFeedback({
   storage?: Storage;
   scope?: string;
   wallNow?: () => number;
+  stallTimeout?: number;
 } = {}) {
   const feedbackByEntityId = new Map(),
     readLastUpdated = (state: any) => Date.parse(state.raw?.last_updated ?? state.raw?.updatedAt ?? ""),
@@ -50,6 +58,12 @@ export function createCoverFeedback({
       clearPresentation(restoredEntityId);
       return;
     }
+    // 位置本身没有可信来源时（梦幻帘拿不到叶片反馈，整体位置一律为 null），别把历史估算的
+    // 陈旧位置复活到轨道上 —— 否则会摆出一个与设备真实姿态相反的开合度。
+    if (restoredEntry.position === null) {
+      clearPresentation(restoredEntityId);
+      return;
+    }
     try {
       const readStorageKey = storageKeyFor(restoredEntityId),
         stored = readStorageKey && JSON.parse(storage?.getItem(readStorageKey) || "null"),
@@ -83,6 +97,38 @@ export function createCoverFeedback({
       }
       ((restoredEntry.estimated = true), (restoredEntry.railUnconfirmed = true));
     } catch {}
+  }
+  function trackProgress(trackedEntry: any, nextActual: any) {
+    if (!nextActual.moving) {
+      ((trackedEntry.progressAt = null), (trackedEntry.progressPosition = null), (trackedEntry.stalled = false));
+      return;
+    }
+    // 没有位置轴的设备拿不到「推进」证据，不能据此判停滞：此时宁可继续相信设备报的瞬态。
+    if (nextActual.position === null || nextActual.position === undefined) {
+      ((trackedEntry.progressAt = now()), (trackedEntry.progressPosition = null), (trackedEntry.stalled = false));
+      return;
+    }
+    // 只有「位置真的变了」才算推进。这台电机跑起来会在 closing↔opening 之间反复横跳，
+    // 拿状态变化当推进信号会把看门狗永久清零，卡死也就永远发现不了。
+    (trackedEntry.progressPosition === null ||
+      trackedEntry.progressPosition !== nextActual.position) &&
+      ((trackedEntry.progressAt = now()), (trackedEntry.progressPosition = nextActual.position));
+  }
+  function refreshStall(trackedEntry: any, timeMs: any) {
+    // 有在途乐观动画时不算停滞：那段时间的位移是本地预览在跑，设备本来就还没回报。
+    const nextStalled = !!(
+      trackedEntry.actual?.moving &&
+      !trackedEntry.motion &&
+      trackedEntry.progressAt !== null &&
+      trackedEntry.progressPosition !== null &&
+      timeMs - trackedEntry.progressAt > stallTimeoutMs
+    );
+    if (nextStalled === trackedEntry.stalled) return false;
+    trackedEntry.stalled = nextStalled;
+    // 判停就等于承认这一轮指令没有真的在走：顺手释放挂着的预览意图，
+    // 免得卡片一直按「有在途指令」显示忙碌/目标值。
+    nextStalled && (trackedEntry.intent = null);
+    return true;
   }
   function advanceMotion(trackedEntry: any, timeMs: any) {
     if (!trackedEntry.motion) return false;
@@ -144,8 +190,14 @@ export function createCoverFeedback({
         estimated: false,
         lastAvailable: nextState.available ? nextState : null,
         lastTimestamp: readLastUpdated(nextState),
+        progressAt: null as any,
+        progressPosition: null as any,
+        stalled: false,
       }),
         restorePresentation(syncedEntityId, stateEntry),
+        // 首次见到就用这一帧武装停滞计时：否则设备只在进入 opening/closing 时发一条、
+        // 之后长时间沉默的话，计时器永远不启动，卡死也就永远发现不了。
+        trackProgress(stateEntry, nextState),
         feedbackByEntityId.set(syncedEntityId, stateEntry));
       return;
     }
@@ -166,6 +218,7 @@ export function createCoverFeedback({
         !stateEntry.lastAvailable ||
         nextState.position !== stateEntry.lastAvailable.position ||
         nextState.state !== stateEntry.lastAvailable.state;
+    trackProgress(stateEntry, nextState);
     if (((stateEntry.actual = nextState), advanceMotion(stateEntry, now()), !nextState.available)) {
       ((stateEntry.motion = null),
         (stateEntry.intent = null),
@@ -175,6 +228,7 @@ export function createCoverFeedback({
         savePresentation(syncedEntityId, stateEntry));
       return;
     }
+    refreshStall(stateEntry, now());
 
 
     if (
@@ -337,22 +391,47 @@ export function createCoverFeedback({
   function read(readEntityId: any, fallbackState: any) {
     const snapshotEntry = feedbackByEntityId.get(readEntityId);
     if (!snapshotEntry) return fallbackState;
-    const hasMotionEstimate = !!(commandPreview && snapshotEntry.motion),
-      opening = hasMotionEstimate
-        ? snapshotEntry.motion.to > snapshotEntry.motion.from
-        : snapshotEntry.actual.opening,
-      closing = hasMotionEstimate
-        ? snapshotEntry.motion.to < snapshotEntry.motion.from
-        : snapshotEntry.actual.closing;
+    // 停滞（卡在 opening/closing 且位置零推进）时不假装在动，也不谎报终态：整轮降级为 unknown，
+    // 由卡片回落「在线」。位置仍按设备最后一次上报值展示，不摆出一个假的端点姿态。
+    const isStalled = !!snapshotEntry.stalled && !snapshotEntry.motion,
+      // 方向以设备为准，其次才轮到本地预览动画：
+      //   1) 设备自己在报 opening/closing → 直接用它的方向。本地预览为了对齐设备上报位置会做一次
+      //      反向微调（开启途中预览跑到 54、设备报 50，回补动画是 54→50 的下降），若按动画方向判，
+      //      卡片会在「整体正在开启」上闪一下「整体正在关闭」。
+      //   2) 设备已报出终态（open/closed）→ 位置可能还在收尾对齐，但「正在开启/关闭」已经不成立，
+      //      标签立刻采信设备终态，只有位置继续动画。
+      //   3) 设备沉默（还没回报）→ 才用本地预览动画的方向。
+      deviceMoving = !isStalled && (!!snapshotEntry.actual.opening || !!snapshotEntry.actual.closing),
+      deviceSettled =
+        !isStalled &&
+        (snapshotEntry.actual.state === "open" || snapshotEntry.actual.state === "closed"),
+      hasMotionEstimate = !!(commandPreview && snapshotEntry.motion),
+      motionOpening = hasMotionEstimate ? snapshotEntry.motion.to > snapshotEntry.motion.from : false,
+      // 设备已报终态时一般以设备为准（见 2），但用户刚下发的指令还没被设备确认时例外：
+      // 否则点了「关闭」的那一瞬间卡片仍显示「整体已开启」，要等设备回报道 closing 才变，
+      // 看起来像没反应。
+      useMotionDirection =
+        hasMotionEstimate && !deviceMoving && (!deviceSettled || !!snapshotEntry.intent),
+      opening = isStalled
+        ? false
+        : deviceMoving
+          ? !!snapshotEntry.actual.opening
+          : useMotionDirection && motionOpening,
+      closing = isStalled
+        ? false
+        : deviceMoving
+          ? !!snapshotEntry.actual.closing
+          : useMotionDirection && !motionOpening;
     return {
       ...snapshotEntry.actual,
       position: (commandPreview ? snapshotEntry.draft : null) ?? snapshotEntry.position,
       estimated: snapshotEntry.estimated,
       dragging: !!(commandPreview && snapshotEntry.draft !== null),
-      state: hasMotionEstimate ? (opening ? "opening" : "closing") : snapshotEntry.actual.state,
+      state: isStalled ? "unknown" : opening ? "opening" : closing ? "closing" : snapshotEntry.actual.state,
       opening: opening,
       closing: closing,
       moving: opening || closing,
+      stalled: isStalled,
       on:
         snapshotEntry.actual.available &&
         (shouldPersist(snapshotEntry) && snapshotEntry.estimated
@@ -374,12 +453,13 @@ export function createCoverFeedback({
   function tick(nowMs = now()) {
     let hasChanged = false;
     for (const tickEntry of feedbackByEntityId.values())
-      (tickEntry.intent?.expires <= nowMs &&
-        ((tickEntry.intent = null),
-        (hasChanged = true),
-        tickEntry.actual.axis === "blade" &&
-          ((tickEntry.motion = null),
-          (tickEntry.position = tickEntry.actual.position),
+      (refreshStall(tickEntry, nowMs) && (hasChanged = true),
+        tickEntry.intent?.expires <= nowMs &&
+          ((tickEntry.intent = null),
+          (hasChanged = true),
+          tickEntry.actual.axis === "blade" &&
+            ((tickEntry.motion = null),
+            (tickEntry.position = tickEntry.actual.position),
           (tickEntry.estimated = false),
           (tickEntry.bladeHold = null))),
         (hasChanged = advanceMotion(tickEntry, nowMs) || hasChanged));
@@ -387,12 +467,23 @@ export function createCoverFeedback({
   }
   function nextDelay(currentTimeMs = now()) {
     let delayMs = Infinity;
-    for (const delayEntry of feedbackByEntityId.values())
+    for (const delayEntry of feedbackByEntityId.values()) {
+      // 停滞是「时间到了才成立」的判断，设备一沉默就再没有 sync 把界面推醒；
+      // 这里主动排一次唤醒，保证卡死到点后弹窗能回落「在线」。
+      const stallDelay =
+        delayEntry.actual?.moving &&
+        !delayEntry.stalled &&
+        delayEntry.progressAt !== null &&
+        delayEntry.progressPosition !== null
+          ? Math.max(0, delayEntry.progressAt + stallTimeoutMs - currentTimeMs)
+          : Infinity;
       delayMs = Math.min(
         delayMs,
         delayEntry.motion ? 0 : Infinity,
         delayEntry.intent ? Math.max(0, delayEntry.intent.expires - currentTimeMs) : Infinity,
+        stallDelay,
       );
+    }
     return delayMs;
   }
   function retain(entityIds: any) {

@@ -2,7 +2,7 @@
  * @file home-mode-panel.internals.ts
  * @module frontend/src/views
  */
-/** composables：自 home-mode.internals.ts 拆出 — 合并自 home-mode-panel.context / useHomeModePanel / useHomeModeRecommend */
+/** composables：useHomeModePanel / useHomeModeRecommend */
 import { useRegisterSettingsTabPending } from '@/features/settings/composables/pending.internals'
 import { useHomeModes } from '@/composables/home/useHomeModes'
 import { useChromeStore } from '@/stores/chrome.store'

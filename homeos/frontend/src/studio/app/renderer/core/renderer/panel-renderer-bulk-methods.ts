@@ -5211,7 +5211,7 @@ export function createCoverDetailsControls(this: PanelRenderer,
       isTilt
         ? coverPositionLegend.append(
             Object.assign(document.createElement("small"), {
-              textContent: "0 · 一侧闭合",
+              textContent: "0 · 正向闭合",
             }),
             Object.assign(document.createElement("small"), {
               textContent: "50 · 90°打开",
@@ -10860,7 +10860,7 @@ export function connectRuntime(this: PanelRenderer, { force: isForcedConnect = f
           )!,
           socketCloseEvent.code === 4401)
         ) {
-          // 配对码机制已移除：会话失效一律回登录页，登录后由路由守卫放行。
+          // 会话失效一律回登录页，登录后由路由守卫放行。
           navigateInShell("/login");
           return;
         }

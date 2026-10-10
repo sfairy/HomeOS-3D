@@ -1,4 +1,4 @@
-/** Camera inspector sync — extracted from home.ts */
+/** Camera inspector sync */
 import { clampNumber as clampNumber2, roundField as roundField2 } from "./editor-utils";
 import { setInspectorToggle as setInspectorToggle2 } from "./editor-basic-inspectors";
 

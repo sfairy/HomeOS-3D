@@ -2,6 +2,7 @@ export const LOCK_ENTITY_FIELDS = [
   "entityId",
   "doorEntityId",
   "batteryEntityId",
+  "battery2EntityId",
   "lowBatteryEntityId",
   "tamperEntityId",
 ];
@@ -10,6 +11,17 @@ const normalizeStateEntry = (stateEntry: any) => stateEntry?.newState || stateEn
     usableEntry &&
     usableEntry.available !== false &&
     !["", "unknown", "unavailable"].includes(String(usableEntry.state ?? "")),
+  // 电量文案：可用时带单位（默认 %），不可用时回落 "—"（调用方据此判断是否渲染）。
+  formatBatteryText = (batteryEntry: any) =>
+    isEntityUsable(batteryEntry)
+      ? "" + batteryEntry.state + (batteryEntry.attributes?.unit_of_measurement || "%")
+      : "—",
+  // 电量百分比：仅当设备报的是纯数值（0–100）时给出，供卡片画电量条；"low"/"high" 之类文字态返回 null。
+  batteryLevelOf = (batteryEntry: any) => {
+    if (!isEntityUsable(batteryEntry)) return null;
+    const level = Number(batteryEntry.state);
+    return Number.isFinite(level) ? Math.max(0, Math.min(100, level)) : null;
+  },
   normalizeStateText = (rawText: any) =>
     typeof rawText == "string"
       ? rawText
@@ -169,7 +181,7 @@ export function lockEntityRole(roleEntity: any, field: any) {
         (["sensor", "binary_sensor"].includes(domain) &&
           hasDoorStateEnumOptions(roleEntity, entityDeviceClass)) ||
         (["sensor", "binary_sensor"].includes(domain) && isXiaomiContactSensor(roleEntity))
-      : field === "batteryEntityId"
+      : field === "batteryEntityId" || field === "battery2EntityId"
         ? domain === "sensor" && entityDeviceClass === "battery"
         : field === "lowBatteryEntityId"
           ? domain === "binary_sensor" && entityDeviceClass === "battery"
@@ -177,13 +189,56 @@ export function lockEntityRole(roleEntity: any, field: any) {
             ? domain === "binary_sensor" && entityDeviceClass === "tamper"
             : false;
 }
+/** 从实体名称/ID 里嗅探电池类型；识别不出来时返回 null，交给设备上报顺序决定。 */
+const batteryKindOf = (candidateEntity: any) => {
+  const nameText = [
+    candidateEntity?.name,
+    candidateEntity?.friendly_name,
+    candidateEntity?.original_name,
+    candidateEntity?.attributes?.friendly_name,
+    candidateEntity?.entityId,
+    candidateEntity?.entity_id,
+  ]
+    .filter((namePart) => typeof namePart === "string" && namePart)
+    .join(" ")
+    .toLowerCase();
+  if (!nameText) return null;
+  if (/锂|lithium|li-ion|li_ion|recharge|充电/.test(nameText)) return "lithium";
+  if (/干电池|干电|dry|alkaline/.test(nameText)) return "dry";
+  return null;
+};
 export function identifyLockEntities(entities: any) {
-  return Object.fromEntries(
-    LOCK_ENTITY_FIELDS.map((entityField) => {
-      const matched = entities.filter((candidateEntity: any) =>
-        lockEntityRole(candidateEntity, entityField),
+  const entityIdOf = (candidateEntity: any) =>
+      candidateEntity?.entityId || candidateEntity?.entity_id || "",
+    matchedEntities = (entityField: string) =>
+      entities.filter((candidateEntity: any) => lockEntityRole(candidateEntity, entityField)),
+    // 不少门锁同时上报两路电量：batteryEntityId 固定是锂电池、battery2EntityId 固定是干电池。
+    // 优先按实体名里的「锂 / 干电池」线索配对，认不出来再退回设备上报顺序；
+    // 只有一路时第二槽位留空，避免两槽指向同一实体。
+    batteryMatches = matchedEntities("batteryEntityId");
+  let primaryBattery = batteryMatches[0],
+    secondaryBattery = batteryMatches[1];
+  if (batteryMatches.length > 1) {
+    const lithiumBattery = batteryMatches.find(
+        (candidateEntity: any) => batteryKindOf(candidateEntity) === "lithium",
+      ),
+      dryBattery = batteryMatches.find(
+        (candidateEntity: any) => batteryKindOf(candidateEntity) === "dry",
       );
-      return [entityField, matched.length === 1 ? matched[0].entityId || matched[0].entity_id : ""];
+    // 两路都能认出类型且不冲突时才按类型配对；认不全就保持设备上报顺序，不乱猜。
+    if (lithiumBattery && dryBattery && lithiumBattery !== dryBattery) {
+      primaryBattery = lithiumBattery;
+      secondaryBattery = dryBattery;
+    }
+  }
+  return Object.fromEntries(
+    LOCK_ENTITY_FIELDS.map((entityField): [string, string] => {
+      if (entityField === "batteryEntityId")
+        return [entityField, primaryBattery ? entityIdOf(primaryBattery) : ""];
+      if (entityField === "battery2EntityId")
+        return [entityField, secondaryBattery ? entityIdOf(secondaryBattery) : ""];
+      const matched = matchedEntities(entityField);
+      return [entityField, matched.length === 1 ? entityIdOf(matched[0]) : ""];
     }),
   );
 }
@@ -240,6 +295,7 @@ export function lockState(lockItem: any, states: Record<string, any> = {}) {
     lockEntry = readState(lockItem.entityId),
     doorEntry = readState(lockItem.doorEntityId),
     batteryEntry = readState(lockItem.batteryEntityId),
+    battery2Entry = readState(lockItem.battery2EntityId),
     isEventSource = ["single-event", "dual-event"].includes(lockItem.doorSource),
     eventState = isEventSource ? doorEventState(lockItem, readState) : null,
 
@@ -262,7 +318,8 @@ export function lockState(lockItem: any, states: Record<string, any> = {}) {
     isAvailable = !!(
       isEntityUsable(lockEntry) ||
       (isEventSource ? eventState !== null : isEntityUsable(doorEntry)) ||
-      isEntityUsable(batteryEntry)
+      isEntityUsable(batteryEntry) ||
+      isEntityUsable(battery2Entry)
     ),
     state = isEntityUsable(lockEntry) ? lockEntry.state : "unavailable",
     LOCK_STATE_LABELS = {
@@ -299,9 +356,10 @@ export function lockState(lockItem: any, states: Record<string, any> = {}) {
       !!isEntityUsable(lockEntry) &&
       ((Number(lockEntry?.attributes?.supported_features) || 0) & 1) !== 0,
     codeRequired: !!lockEntry?.attributes?.code_format,
-    battery: isEntityUsable(batteryEntry)
-      ? "" + batteryEntry.state + (batteryEntry.attributes?.unit_of_measurement || "%")
-      : "—",
+    battery: formatBatteryText(batteryEntry),
+    battery2: formatBatteryText(battery2Entry),
+    batteryLevel: batteryLevelOf(batteryEntry),
+    battery2Level: batteryLevelOf(battery2Entry),
     lowBattery: isOn(lockItem.lowBatteryEntityId),
     tamper: isOn(lockItem.tamperEntityId),
   };

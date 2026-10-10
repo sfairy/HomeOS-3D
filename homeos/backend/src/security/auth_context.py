@@ -4,8 +4,8 @@
 ``settings.cookie_name`` 携带不透明令牌，落库形态为其 sha256，因而会话**可服务端吊销**，
 并自带滑动续期。
 
-函数名与返回字典形状（``userId`` / ``username`` / ``role`` / ``restrictions``）与合并前
-保持一致，使 180 余处业务路由调用点零改动；内部实现已从 legacy JWT 收敛为纯 DB 会话。
+函数名与返回字典形状（``userId`` / ``username`` / ``role`` / ``restrictions``）保持稳定，
+使 180 余处业务路由调用点零改动。
 """
 
 from __future__ import annotations

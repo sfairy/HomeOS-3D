@@ -8,7 +8,7 @@
   - SettingsPageShell / SettingsCard / SettingsCardIntro：页面骨架
   - SettingsFlowBand / SettingsFlowStat / SettingsHubSubnav：流程概览与子导航
   - NavTabEditor / SettingsLayoutFooterSection / SettingsWeatherEffectsSection / SettingsRenderingSection / SettingsWholeHomeOffSection：子区段
-  - SettingsLayoutDisplaySection：显示缩放区段（自仪表板布局移入）
+  - SettingsLayoutDisplaySection：显示缩放区段
   - useScaling：显示缩放派生
   - useDashboardFooterEditor：底部信息栏编辑逻辑
   - useSettingsPendingChanges / useSettingsSave：待保存变更与保存逻辑
@@ -330,7 +330,7 @@ const generalSubnavSections = computed(() => {
   ]
 })
 
-// 显示缩放：基于 pageMaxWidth 计算缩放比与设计尺寸（自仪表板布局面板移入）
+// 显示缩放：基于 pageMaxWidth 计算缩放比与设计尺寸
 const {
   scalingEnabled,
   toggleScaling,

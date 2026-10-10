@@ -258,7 +258,6 @@ class MoviePilotProxyService:
                 ErrorCode.EXTERNAL_ERROR, api_error("MOVIEPILOT_PROXY_IMAGE_FAILED")
             ) from exc
 
-        # 透传目标服务的状态码 + 响应体
         return ProxyResult(
             status=response.status,
             body=response.body,

@@ -7,7 +7,7 @@
 /** 内置品牌 Logo（仓库根 assets/logo/logo.svg，可替换；Nest 托管 /logo/*） */
 export const DEFAULT_BRAND_LOGO_URL = '/logo/logo.svg'
 
-/** 顶栏核心 Tab 默认顺序（不含总览/设置；rooms 已并入设置→房间配置；linkage/life 页面已下线） */
+/** 顶栏核心 Tab 默认顺序（不含总览/设置） */
 export const NAV_TAB_ORDER_DEFAULT = ['devices', 'security']
 
 /** 可选 Tab：默认隐藏，可在设置→基础设置中启用并排序 */

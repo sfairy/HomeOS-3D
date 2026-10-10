@@ -69,7 +69,7 @@ def _to_float(value: Any, fallback: float) -> float:
         number = float(value)
     except (TypeError, ValueError):
         return fallback
-    if math.isnan(number) or number == 0:  # NaN 或 0
+    if math.isnan(number) or number == 0:
         return fallback
     return number
 
@@ -809,7 +809,7 @@ class ExternalApiService:
         return {
             "source": "ha",
             "entityId": entity_id,
-            "temperature": temperature if not math.isnan(temperature) else None,  # NaN 判定
+            "temperature": temperature if not math.isnan(temperature) else None,
             "condition": str(attributes.get("condition") or ""),
             "fetchedAt": _iso_now(),
         }

@@ -1,4 +1,4 @@
-/** registry 折线图详情子模块：从 registry.ts 抽出，负责带时间轴的详细历史折线图渲染。 */
+/** registry 折线图详情子模块：负责带时间轴的详细历史折线图渲染。 */
 import {
   buildHistorySeries,
   formatTimestamp,

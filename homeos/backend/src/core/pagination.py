@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import math
-from typing import Any
+from typing import Any, TypeVar
 
 #: JS ``Number.MAX_SAFE_INTEGER``。
 MAX_SAFE_INTEGER = 9_007_199_254_740_991
+
+#: 分页条目类型参数。这里刻意不用 PEP 695 的 ``def f[T](...)`` 语法：Cython 3.2
+#: 无法解析方括号形式，构建加密后端时会以 CompileError 中断（改用传统 TypeVar）。
+T = TypeVar("T")
 
 
 def clamp_int(value: Any, minimum: int, maximum: int) -> int:
@@ -76,7 +80,7 @@ def parse_page_limit(
     }
 
 
-def build_paginated_result[T](
+def build_paginated_result(
     items: list[T], total: int, page: int, page_size: int
 ) -> dict[str, Any]:
     """组装分页响应对象（``totalPages`` 兜底为 1）。"""

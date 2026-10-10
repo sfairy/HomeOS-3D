@@ -2,7 +2,7 @@
  * 展示页启动层：splash 相位机、文档主题、首屏稳定性轮询。
  *
  * 由 `DisplayView.vue` 在 `onMounted` 调 `bootDisplayBoot()`、`onBeforeUnmount` 调
- * `teardownDisplayBoot()`。**不再是模块求值即执行的 IIFE**：视图现在是 shell 内的可重入路由
+ * `teardownDisplayBoot()`。视图现在是 shell 内的可重入路由
  * （总览 `/` 会被反复进出），因此所有状态在 boot 时重建、监听/定时器在 teardown 时回收，
  * 每次进入都能拿到干净的 splash 相位与 `window.HomeOSDisplayBoot`。
  *

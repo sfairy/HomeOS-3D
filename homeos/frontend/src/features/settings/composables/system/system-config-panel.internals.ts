@@ -2,10 +2,10 @@
  * @file system-config-panel.internals.ts
  * @module frontend/src/views
  */
-/** composables：useSystemConfigPanel（自 system-config.internals.ts 拆出） */
+/** composables：useSystemConfigPanel */
 import { readLocalStorageFlag, writeLocalStorage } from '@/utils/core/local-storage.util'
 
-/** composables：useSystemConfigPanel（自 system-config.internals.ts 拆出） */
+/** composables：useSystemConfigPanel */
 import { useSettingsHubRouteSection } from '@/features/settings/composables/hub-ui.internals'
 import { useSettingsSave } from '@/features/settings/composables/hub-ui.internals'
 import { fetchConfigAudit, resetSystemConfig } from '@/services/api/system'

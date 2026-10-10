@@ -792,8 +792,6 @@ class LicenseAuthority:
                 session, license, now, entitlements=live_entitlements
             ),
             # 结构化权益与商品：客户端据此展示「哪个功能到哪天」并在本地算最早截止时间。
-            # 以前只发扁平 ``features``，客户端里那两条读 entitlements/products 的分支
-            # 一直是死代码 —— 功能能用，但界面上永远看不到各自的有效期。
             "entitlements": self.entitlements_for(
                 session, license, now, entitlements=live_entitlements
             ),

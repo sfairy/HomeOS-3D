@@ -312,7 +312,7 @@ button.danger-quiet {
     overflow: auto;
     -webkit-overflow-scrolling: touch;
   }
-  /* 创作壳层由 .editor-chrome-root 自适应；不再强制 1020 硬锁 */
+  /* 创作壳层由 .editor-chrome-root 自适应 */
   body:not(:has(.editor-chrome-root)),
   .editor-shell {
     min-width: 0;

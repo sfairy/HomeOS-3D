@@ -2,7 +2,7 @@
  * Apple 移动端「添加到主屏幕」引导条。
  *
  * 由 `DisplayView.vue` 在 `onMounted` 调 `bootAppleInstallGuide()`、`onBeforeUnmount` 调
- * `teardownAppleInstallGuide()`。**已从纯副作用脚本改为可重入引导**：它把触发按钮与说明
+ * `teardownAppleInstallGuide()`。它把触发按钮与说明
  * `<dialog>` 直接挂到 `document.body`（在 Vue 树之外），视图是 shell 内可重入路由，卸载时
  * 必须摘掉，否则每进出一次就多一套引导条，且弹窗会残留到其它路由。
  */

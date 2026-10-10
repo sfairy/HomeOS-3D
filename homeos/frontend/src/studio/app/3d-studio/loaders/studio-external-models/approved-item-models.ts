@@ -1,6 +1,4 @@
-/** 0.7.2 approved furniture/appliance GLB catalog (assetVersion 20261009-approved-v1). */
-
-const APPROVED_ASSET_VERSION = "20261009-approved-v1";
+/** 0.7.2 approved furniture/appliance GLB catalog. */
 
 export type ApprovedItemMeta = {
   label: string;
@@ -424,8 +422,8 @@ export const APPROVED_ITEM_META: Record<string, ApprovedItemMeta> = {
 
 function createApprovedAssetDescriptor(assetId: string, scaleBasis: [number, number, number]) {
   return Object.freeze({
-    url: `/static/3d-studio/models/${assetId}-lite.glb?v=${APPROVED_ASSET_VERSION}`,
-    fallbackUrl: `/static/3d-studio/models/${assetId}.glb?v=${APPROVED_ASSET_VERSION}`,
+    url: `/static/3d-studio/models/${assetId}-lite.glb`,
+    fallbackUrl: `/static/3d-studio/models/${assetId}.glb`,
     scaleBasis,
     preserveOrigin: true,
   });

@@ -10,7 +10,7 @@
  *   - schedulePoll：统一轮询调度（页面隐藏时自动暂停）
  *   - settings-client-power-display.util：展示派生工具函数
  */
-/** composables：合并自客户端电源配置 / 面板 / 展示 */
+/** composables：客户端电源配置 / 面板 / 展示 */
 import { useRegisterSettingsTabPending, useSettingsHubPending } from '@/features/settings/composables/pending.internals'
 import { handleSystemConfigPatchError, patchSystemConfig, useSystemConfig } from '@/composables/config/system-config-core.internals'
 import { dismissClientPowerOffline, dismissClientPowerPending, fetchClientPowerStatus } from '@/services/api/system'

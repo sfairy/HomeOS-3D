@@ -1,5 +1,5 @@
 /**
- * 仪表盘编辑器画布导航辅助（从 home.ts 渐进剥离）。
+ * 仪表盘编辑器画布导航辅助。
  * Zoom 通过 CSS 变量 --sc-canvas-zoom 作用在 #editor-canvas。
  */
 

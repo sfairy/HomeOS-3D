@@ -2,7 +2,7 @@
  * @file connection.internals.ts
  * @module frontend/src/views
  */
-/** composables：合并自连接面板 / 凭证 / 展示 / 实体逻辑 */
+/** composables：连接面板 / 凭证 / 展示 / 实体逻辑 */
 import { useSystemDiagnostics } from '@/features/settings/composables/useSystemDiagnostics'
 import { testHaConnection } from '@/services/api/ha'
 import { useEntitiesStore } from '@/stores/entities.store'

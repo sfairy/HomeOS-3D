@@ -2,7 +2,7 @@
  * @file 布局编辑历史（撤销 / 重做）
  * @module stores/ui/create-edit-history-state
  * @description
- *  单栈编辑历史（2D 楼层退役后不再按楼层分栈）。
+ *  单栈编辑历史。
  *  关键路径说明：
  *  - 每个快照记录顶层 floatingWidgets（深拷贝）
  *  - pushEditHistory 默认 300ms 防抖，避免拖拽等连续操作产生过多快照；

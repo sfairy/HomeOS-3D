@@ -288,7 +288,7 @@ export function useAssetManager(
 
   /**
    * 打开「新建文件夹」弹窗。
-   * 由专用弹窗组件承载输入与快捷键，替代先前的通用输入弹窗。
+   * 由专用弹窗组件承载输入与快捷键。
    */
   function createFolder() {
     folderModalError.value = ''

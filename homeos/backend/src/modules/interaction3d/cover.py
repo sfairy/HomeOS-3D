@@ -2,7 +2,7 @@
 
 与空调模块同一套思路：配置侧确认「普通窗帘模型」仍在场景中，运行侧用 HA 上报的
 ``supported_features`` 位掩码核对这次服务调用是否被支持。梦幻帘（``coverKind=dream``）额外
-一条：只有整体完全关闭且静止时才允许调整叶片。
+一条：轨道停稳在「全开」或「全关」两端时才允许调整叶片。
 """
 from __future__ import annotations
 
@@ -112,15 +112,28 @@ def validate_cover_command(
         # 是否真有叶片能力：要么上报了 current_tilt_position，要么 240（16+32+64+128）
         # 中任意一个能力位被置起。
         has_tilt = number(attributes.get('current_tilt_position')) is not None or bool(features & 240)
-        # 没有叶片能力时只需不打断正在运行的帘：位置指令照常放行。
-        if not has_tilt:
-            if state.get('state') in ('opening', 'closing'):
-                raise HTTPException(409, detail='窗帘正在运行，请停止后再调整叶片。')
+        # 没有独立叶片反馈的设备（如 supported_features=15 的小米梦幻帘电机）只有一根轴：
+        # 仪表盘 / 3D 的滑杆都走 set_cover_position，位置本身就是「整体」行程，语义与普通
+        # 窗帘完全一致，因此不能套叶片前置条件。网关还会把 state 卡在 opening / closing
+        # 不动（同型号实测一次 closing 停了 37 分钟），一旦拦住，用户在全开位拖滑杆也会被拒。
+        if not has_tilt and service == 'set_cover_position':
             return
-        # 有叶片能力时，只有整体确实 closed 且实际行程为 0 才允许调叶片 ——
-        # 帘体未合拢时调叶片会与行程电机抢状态，HA 侧结果不确定。
-        if state.get('state') != 'closed' or (
-            attributes.get('current_position') is not None and number(attributes.get('current_position')) != 0
-        ):
-            raise HTTPException(409, detail='只有确认整体完全关闭且停止后，才能调整叶片。')
+        # 轨道还在动就别调叶片：此时行程电机与叶片电机抢状态，HA 侧结果不确定。
+        if state.get('state') in ('opening', 'closing'):
+            raise HTTPException(409, detail='窗帘正在运行，请停止后再调整叶片。')
+        # 有叶片反馈时，轨道必须停在「全开」或「全关」两端才允许调叶片：
+        # 中间位置先让轨道走到端点，否则叶片与行程的配合结果不确定。
+        # 实测（小米梦幻帘，supported_features=15）两端终态的实体属性：
+        #   全关：state="closed"  is_closed=true   current_position=0
+        #   全开：state="open"    is_closed=false  current_position=100
+        # is_closed 只有 true / false 两种取值，没有 "open" 这种文案：全开只能靠 state="open"
+        # 表态，全关则可以由 state="closed" 或 is_closed=true 表态。
+        reported_position = number(attributes.get('current_position'))
+        settled_at_end = (
+            reported_position in (0, 100)
+            if reported_position is not None
+            else attributes.get('is_closed') is True or state.get('state') in ('open', 'closed')
+        )
+        if not settled_at_end:
+            raise HTTPException(409, detail='只有整体完全开启或完全关闭后，才能调整叶片。')
     return

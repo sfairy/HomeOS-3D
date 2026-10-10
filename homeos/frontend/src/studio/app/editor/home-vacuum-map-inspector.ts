@@ -1,4 +1,4 @@
-/** Vacuum map inspector sync — extracted from home.ts */
+/** Vacuum map inspector sync */
 import { clampNumber as clampNumber2, roundField as roundField2 } from "./editor-utils";
 
 export interface VacuumMapInspectorContext { [key: string]: any }

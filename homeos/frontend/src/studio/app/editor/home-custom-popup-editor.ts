@@ -1,4 +1,4 @@
-/** Custom combined popup editor (extracted from home.ts). */
+/** Custom combined popup editor. */
 import { clone as clone2, newId as newId2, roundField as roundField2 } from "./editor-utils";
 import {
   findCustomPopup as findCustomPopup2,

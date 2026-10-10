@@ -6,7 +6,7 @@
  *
  * 生命周期：查看 `bootDisplay*` / `teardownDisplay*` 成对调用。视图是 shell 内的可重入路由，
  * 每次挂载/切换目标都重建 DOM 契约（`:key="bootKey"`）再重新引导，卸载时回收渲染循环、
- * WebSocket、全局监听与文档级残留 —— 不再用 `useHardExit()` 的整文档跳转。
+ * WebSocket、全局监听与文档级残留。
  */
 import {
   computed,

@@ -128,8 +128,9 @@ class AppearanceStore:
 
     @property
     def revision(self) -> str:
-        """版本号，用于 ``?v=`` 缓存戳。用文件 mtime 而不是自增计数：
-        多进程 / 重启后计数会从头开始，而 mtime 单调，浏览器不会把旧响应当成新的。"""
+        """配色版本号，用作 ``/store-appearance.css`` 的 ``ETag``。
+        用文件 mtime 而不是自增计数：多进程 / 重启后计数会从头开始，而 mtime 单调，
+        浏览器不会把旧响应当成新的。"""
         try:
             return str(self.path.stat().st_mtime_ns)
         except OSError:

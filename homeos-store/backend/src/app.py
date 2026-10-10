@@ -60,6 +60,7 @@ from .security.request_security import (
 )
 from .security.schema_guard import inspect_schema, log_drift
 from .security.setup_guard import SetupGuard, announce_setup_window
+from .security.static_cache import StaticAssetCacheMiddleware
 
 logger = logging.getLogger("src")
 
@@ -382,6 +383,10 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
 
     app.add_middleware(RequestBodyGuard)
 
+    # 稳定 URL 的静态 / 素材响应：no-cache + ETag 回源校验（替代 ?v= 版本戳）。
+    # 置于 GZip 内层，命中条件请求时先定 304，再交给压缩层。
+    app.add_middleware(StaticAssetCacheMiddleware)
+
     app.add_middleware(SelectiveGZipMiddleware)
 
     @app.middleware("http")
@@ -421,18 +426,16 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     @app.get("/store-appearance.css", include_in_schema=False)
     def appearance_stylesheet(request: Request) -> Response:
         """商店站点配色样式表：内容就是当前配置展开出的 ``:root{…}``。
+
+        稳定 URL：下发 ``no-cache`` + ``ETag``，由 ``StaticAssetCacheMiddleware`` 在
+        ``If-None-Match`` 命中时回 304（不再用 ``?v=`` 版本戳）。
         """
         revision = app.state.appearance.revision
-        has_version = request.query_params.get("v") == revision
-        response = Response(
+        return Response(
             content=app.state.appearance.css(),
             media_type="text/css",
-            headers={"ETag": f'"{revision}"'},
+            headers={"ETag": f'"{revision}"', "Cache-Control": "no-cache"},
         )
-        response.headers["Cache-Control"] = (
-            "public, max-age=31536000, immutable" if has_version else "no-cache"
-        )
-        return response
 
     @app.get("/healthz", include_in_schema=False)
     def healthz() -> dict:

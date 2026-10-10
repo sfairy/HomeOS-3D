@@ -367,7 +367,7 @@ def admin_upload_product_image(
     image.updated_at = utcnow()
     session.flush()
     _audit(session, _admin_actor(admin), "product.image", product.id, relative)
-    return {"id": product.id, "imageUrl": f"/store/v1/product-images/{product.id}?v={version}"}
+    return {"id": product.id, "imageUrl": f"/store/v1/product-images/{product.id}"}
 
 
 @router_extra.delete("/products/{product_id}/image")

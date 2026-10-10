@@ -2,7 +2,7 @@
  * @file alert-rules.internals.ts
  * @module frontend/src/views
  */
-/** composables：合并自告警规则面板上下文 / 面板 / DND / 规则编辑 / 推荐 */
+/** composables：告警规则面板上下文 / 面板 / DND / 规则编辑 / 推荐 */
 import { afterLayoutCancelSync, syncGlobalLayoutPendingSnapshot, useSettingsHubPending } from '@/features/settings/composables/pending.internals'
 import { useEventLogStats } from '@/composables/recommend/useEventLogStats'
 import { createNotificationRule, deleteNotificationRule, fetchNotificationRules, fetchNotificationSettings, testNotificationRule, updateNotificationRule, updateNotificationSettings } from '@/services/api/notifications'

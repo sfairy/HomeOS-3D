@@ -2,7 +2,7 @@
  * @file voice.internals.ts
  * @module frontend/src/views
  */
-/** composables：合并自语音配置 / 每日顾问 / 指令编辑 / 告警编辑 */
+/** composables：语音配置 / 每日顾问 / 指令编辑 / 告警编辑 */
 import { DEFAULT_VOICE_ALERT_RULES, getVoiceAlertCatalog, getVoiceAlertGroups, mergeVoiceAlertRules, newCustomTtsAlert, newEntityTtsAlert, normalizeCustomTtsAlerts, normalizeEntityTtsAlerts, normalizeWakeWords } from '@/constants/voice-alert-catalog'
 import { fetchVoiceMeta, fetchVoicePresets } from '@/services/api/system'
 import { useEntitiesStore } from '@/stores/entities.store'

@@ -23,8 +23,7 @@ export function needsHaMediaProxy(resourceUrl: string): boolean {
  * 构造 HomeOS 同源代理 URL。
  *
  * 阶段 3 起 `ha_proxy` 在同源挂载与 HA 相同的路径前缀
- *（`/api/camera_proxy`、`/api/camera_proxy_stream`、`/api/hls` 等），
- * 旧的 `/api/v1/ha/media-proxy?path=` / `stream-proxy` 已下线。
+ *（`/api/camera_proxy`、`/api/camera_proxy_stream`、`/api/hls` 等）。
  * `kind` 由调用方写进 HA 路径（快照 vs 流），此处仅做同源路径归一化。
  *
  * @param haPath HA 相对路径（自动补前导斜杠）

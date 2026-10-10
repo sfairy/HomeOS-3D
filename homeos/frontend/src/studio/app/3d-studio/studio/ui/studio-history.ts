@@ -1,5 +1,5 @@
 /**
- * 户型绘制历史语义别名（从 studio-app 渐进剥离的文档层）。
+ * 户型绘制历史语义别名。
  * 实际快照恢复仍由 studio-app 内闭包实现；此处仅固化命名约定，避免再误用 delete/duplicate 当 undo/redo。
  */
 

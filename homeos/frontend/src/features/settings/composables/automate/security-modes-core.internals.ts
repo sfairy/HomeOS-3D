@@ -2,7 +2,7 @@
  * @file security-modes-core.internals.ts
  * @module frontend/src/views
  */
-/** composables：合并自安防模式 / 联动 / 展示逻辑（自 security-modes.internals.ts 拆出） */
+/** composables：安防模式 / 联动 / 展示逻辑 */
 import type { Component } from 'vue'
 import { applySecurityModesLayoutSlice, liveSecurityModesLayoutSlice, pickSecurityModesLayoutSlice } from '@/features/settings/composables/display/layout-dashboard.internals'
 import { afterLayoutCancelSync, pauseGlobalPendingChanges, resumeGlobalPendingChanges, syncGlobalLayoutPendingSnapshot, useSettingsPendingChanges } from '@/features/settings/composables/pending.internals'
@@ -34,7 +34,7 @@ export function useSecurityModes() {
   )
   const isEmergencyTab = computed(() => activeSmTab.value === EMERGENCY_TAB)
 
-  // --- 脏检测：统一接入 useSettingsPendingChanges（替代直接写 layoutStore.layoutDirty） ---
+  // --- 脏检测：统一接入 useSettingsPendingChanges ---
   const initialSecurityConfig = ref(null)
   const {
     pendingCount: pendingChanges,

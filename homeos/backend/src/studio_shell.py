@@ -59,13 +59,8 @@ APP_SURFACE_PREFIXES = (
     "/projects/",
 )
 
-#: 静态 3D 模型 / 贴图后缀：带 ``?v=`` 时可长缓存。
-MODEL_ASSET_SUFFIXES = frozenset(
-    {".bin", ".glb", ".jpg", ".png", ".gltf", ".jpeg", ".ktx2", ".webp"}
-)
-
-#: 需要「私有 no-cache」的静态后缀（源码模块与字体）。
-NO_CACHE_ASSET_SUFFIXES = frozenset({".js", ".css", ".woff2"})
+#: 稳定 URL 的静态资源（模型 / 贴图 / 源码模块 / 字体）统一按「私有 no-cache」下发：
+#: 不再使用 ``?v=`` 版本戳，改由响应上的 ETag / Last-Modified 回源校验（命中即 304）。
 
 #: 交互模块（运行时按需下发）的路径前缀。
 INTERACTION_MODULE_PREFIX = "/api/v1/modules/interaction3d/"
@@ -156,20 +151,17 @@ def is_app_surface(path: str) -> bool:
     return path.startswith(APP_SURFACE_PREFIXES)
 
 
-def is_model_asset(path: str) -> bool:
-    return path.startswith("/static/3d-studio/models/") and Path(path).suffix.lower() in MODEL_ASSET_SUFFIXES
-
-
-def is_versioned_interaction_module(path: str, request: Request) -> bool:
+def is_interaction_module(path: str) -> bool:
+    """交互运行时按需下发的 JS/CSS（``stage.html`` 除外，它由页面外壳单独处理）。"""
     return (
         path.startswith(INTERACTION_MODULE_PREFIX)
         and path != f"{INTERACTION_MODULE_PREFIX}stage.html"
         and Path(path).suffix.lower() in {".js", ".css"}
-        and bool(request.query_params.get("v"))
     )
 
 
-def _is_immutable_private_asset(path: str) -> bool:
+def _is_revalidatable_private_asset(path: str) -> bool:
+    """私有素材：走 ``private, no-cache`` + ETag 校验，不能被下面的 ``no-store`` 覆盖。"""
     return path.startswith(
         (
             "/api/v1/assets/effect-variant",
@@ -249,45 +241,30 @@ def _apply_security_headers(request: Request, response: Response) -> None:
 
 def _apply_cache_headers(request: Request, response: Response) -> None:
     path = request.url.path
-    interaction_module = is_versioned_interaction_module(path, request)
-    if is_model_asset(path) and response.status_code in {200, 206, 304}:
-        response.headers["Cache-Control"] = (
-            "private, max-age=31536000, immutable"
-            if request.query_params.get("v")
-            else "private, no-cache"
-        )
-        return
-    if (
-        response.status_code in {200, 304}
-        and path.startswith("/static/")
-        and Path(path).suffix.lower() in NO_CACHE_ASSET_SUFFIXES
-    ) or (interaction_module and response.status_code in {200, 304}):
-        response.headers["Cache-Control"] = "private, no-cache"
-        return
-    # 带内容哈希的构建产物（``/assets/js|css/<name>-<hash>.<ext>``）：内容寻址、永不覆盖，
-    # 可以放心 ``immutable``。
+    interaction_module = is_interaction_module(path)
+    # 稳定 URL 的静态资源（``/static/**``、``/modules/**``）与交互运行时
+    # （``/api/v1/modules/interaction3d/*.js|.css``）：不再发 ``?v=`` 版本戳，统一
+    # 「私有 no-cache」，靠响应上的 ETag / Last-Modified 回源校验（命中即 304）。
     #
-    # 缺这个头不只是少了点性能（浏览器会按 Last-Modified 做启发式缓存，约等于 0，
-    # 于是每个 chunk 都要一次 304 往返）；更要紧的是**旧外壳的降级路径**：
-    # Service Worker 会把导航响应（含 SPA 外壳）留在 ``homeos-shell`` 里做离线兜底，
-    # 而旧外壳引用的是已被重建删除的旧 chunk。若这些 chunk 在 HTTP 缓存里是 durable 的，
-    # 旧外壳仍能正常渲染；反之就 404 白屏。``sw.js`` 的注释一直假设这里有 immutable，
-    # 实际上一直没有 —— 这里补上，让"外壳旧了"从**致命**退化为**优雅**。
-    if (
-        response.status_code in {200, 304}
-        and path.startswith("/assets/")
-        and not path.startswith("/assets/builtin/")
+    # ``/assets/**`` 的哈希产物虽是内容寻址、理论上可长期 immutable，但这里同样回源
+    # 校验：一方面统一口径，另一方面让「旧外壳引用已删除 chunk」得到明确 404，而不是
+    # 从 HTTP 缓存里取到一份陈旧副本。代价是每次多一次 304 往返。
+    if response.status_code in {200, 304} and (
+        path.startswith("/static/")
+        or path.startswith("/modules/")
+        or (path.startswith("/assets/") and not path.startswith("/assets/builtin/"))
+        or interaction_module
     ):
-        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        response.headers["Cache-Control"] = "private, no-cache"
         return
     if (
         is_page_path(path)
         or (
             path.startswith("/api/v1/")
-            and not _is_immutable_private_asset(path)
+            and not _is_revalidatable_private_asset(path)
             and not (interaction_module and response.status_code in {200, 304})
         )
-        or path.startswith(("/display/", "/homeos/", "/projects/", "/static/3d-studio/"))
+        or path.startswith(("/display/", "/homeos/", "/projects/"))
     ):
         response.headers.update(NO_STORE_HEADERS)
 
@@ -398,10 +375,9 @@ __all__ = [
     "ProtectAssetsMiddleware",
     "install",
     "is_app_surface",
-    "is_model_asset",
+    "is_interaction_module",
     "is_page_path",
     "is_premium_asset",
-    "is_versioned_interaction_module",
     "load_public_static_files",
     "make_public_static_loader",
 ]

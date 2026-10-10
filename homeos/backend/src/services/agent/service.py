@@ -54,8 +54,6 @@ MAX_TOOL_RESULT_CHARS = 4000
 #: 单条历史消息进入上下文的字符上限
 MAX_HISTORY_MESSAGE_CHARS = 2000
 #: 历史上下文（不含 system prompt 与工具 schema）的字符预算。
-#: 之前按「最近 16 条」截断，条数无法反映长度：16 条长指令可轻松超过 1.5 万字符。
-#: 改为按字符预算从新到旧累计，保证不同长度的历史都收敛到同一量级。
 MAX_HISTORY_PROMPT_CHARS = 8000
 #: 历史消息条数硬上限（兜底，避免极短消息堆满上下文）
 MAX_HISTORY_MESSAGES = 24

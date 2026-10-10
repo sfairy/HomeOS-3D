@@ -82,9 +82,7 @@ def note(
 
 
 class _KindRow(TypedDict):
-    """后台巡检列表里的一行。原先用裸 dict 拼接，取值类型被合并成联合，
-    lambda 里的 ``-item["count"]`` 与 ``sum(item["count"] ...)`` 都无法做算术。
-    """
+    """后台巡检列表里的一行。"""
 
     kind: str
     label: str

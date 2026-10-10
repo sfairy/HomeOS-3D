@@ -20,7 +20,7 @@ import {
   createSecurityAlarmOverlay,
   securityAlarmKindLabel,
 } from "./security-alarm";
-const LOCK_ENTITY_FIELDS = ["doorEntityId", "batteryEntityId"],
+const LOCK_ENTITY_FIELDS = ["doorEntityId", "batteryEntityId", "battery2EntityId"],
   LOCK_BATCH_APPEARANCE_FIELDS = [
     ["icon", "图标"],
     ["size", "卡片大小"],
@@ -65,7 +65,7 @@ export async function openSecurityEditor({
     styleSheetLinkElement = createElement("link");
   ((styleSheetLinkElement.rel = "stylesheet"),
     (styleSheetLinkElement.href =
-      "/api/v1/modules/interaction3d/core/runtime.css?v=20261009-opacity-range-gold-v2"));
+      "/api/v1/modules/interaction3d/core/runtime.css"));
   const editorDialogElement = createElement("dialog", "i3d-editor");
   (editorDialogElement.setAttribute("aria-label", "3D 安防配置"),
     (editorDialogElement.dataset.i3dPreviewScope = "security"));
@@ -1234,8 +1234,15 @@ export async function openSecurityEditor({
         const entitySlotFields = LOCK_ENTITY_FIELDS,
           entityFieldLabels = {
             doorEntityId: "开关门检测",
-            batteryEntityId: "电量",
-          };
+            batteryEntityId: "锂电池",
+            battery2EntityId: "干电池（可选）",
+          } as Record<string, string>,
+          // 选择器标题去掉「（可选）」后缀，避免出现「选择干电池（可选）实体」这种别扭文案。
+          entityFieldPickerTitles = {
+            doorEntityId: "选择开关门检测实体",
+            batteryEntityId: "选择锂电池电量实体",
+            battery2EntityId: "选择干电池电量实体",
+          } as Record<string, string>;
         for (const entityField of entitySlotFields) {
           const entityButtonElement = createButton(
             (entityFieldLabels as any)[entityField] +
@@ -1255,7 +1262,7 @@ export async function openSecurityEditor({
                     trigger: entityButtonElement,
                     current: selectedItem[entityField] || "",
                     deviceKind: slotDeviceKind,
-                    title: "选择" + (entityFieldLabels as any)[entityField] + "实体",
+                    title: entityFieldPickerTitles[entityField],
                     entityFilter: (candidateEntity: any) => {
                       const candidateEntityId =
                         candidateEntity.entityId || candidateEntity.entity_id || "";
@@ -1270,7 +1277,8 @@ export async function openSecurityEditor({
                       const candidateEntityDomain = candidateEntityId.split(".")[0];
                       return entityField === "doorEntityId"
                         ? ["binary_sensor", "sensor"].includes(candidateEntityDomain)
-                        : entityField === "batteryEntityId" && candidateEntityDomain === "sensor";
+                        : ["batteryEntityId", "battery2EntityId"].includes(entityField) &&
+                            candidateEntityDomain === "sensor";
                     },
                     onSelect(slotPickedEntityId: any) {
                       isDisposed ||

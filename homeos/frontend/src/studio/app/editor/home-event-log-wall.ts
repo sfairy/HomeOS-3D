@@ -1,9 +1,5 @@
 /**
  * 即时消息墙（event-log-wall）控件检查器子域。
- *
- * 原实现位于 `home.ts` 的 `bootEditor` 闭包内，函数与监听共享闭包内的 DOM 元素
- * 引用与可变状态。此处将其按子域抽出：DOM 元素引用与共享可变状态/函数通过
- * `EventLogWallContext` 注入，行为与原闭包实现完全一致。
  */
 import { clampNumber as clampNumber2 } from "./editor-utils";
 import { findComponent as findComponent2 } from "./component-tree";

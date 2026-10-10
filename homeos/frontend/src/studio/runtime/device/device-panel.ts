@@ -2,6 +2,7 @@ import { createPurifierExtras } from "../climate/purifier-extras";
 import { carState } from "../vehicle/car-state";
 import { deviceStatus } from "./device-status";
 import { genericDeviceProfile } from "./generic-device-catalog";
+import { resolveFridgeOpenings } from "./fridge-openings";
 import { createStageDeviceVisual } from "../core/stage-device-visual";
 export function createDevicePanel({ onControl: onControl, onLayout: onLayout = () => {} }: any) {
   const rootElement = document.createElement("div");
@@ -76,8 +77,10 @@ export function createDevicePanel({ onControl: onControl, onLayout: onLayout = (
             },
           }));
       } else purifierExtras.update(incomingState);
+      // 冰箱用专属图形（对开门 + 两层抽屉），开口开合由门磁实时驱动；其余通用设备仍是通用图形。
+      const isFridge = incomingState.item.deviceKind === "fridge";
       deviceVisual.sync({
-        kind: "generic",
+        kind: isFridge ? "fridge" : "generic",
         on: status.status === "normal",
         available: status.status !== "unknown",
         interactive: false,
@@ -85,6 +88,9 @@ export function createDevicePanel({ onControl: onControl, onLayout: onLayout = (
         status: status.status || "unknown",
         accent: status.color || "#c9a26d",
         label: titleElement.textContent || "设备",
+        fridgeOpenings: isFridge
+          ? resolveFridgeOpenings(incomingState.item, incomingState.states)
+          : null,
       });
     },
     dispose() {

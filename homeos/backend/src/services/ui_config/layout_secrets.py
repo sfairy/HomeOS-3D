@@ -1,8 +1,7 @@
 """UI 布局密钥脱敏与合并（对齐 ``modules/ui-config/ha.util.ts``）。
 
 阶段 3.3 起 layout 里**不再保存 HA 连接凭据**（地址 / 令牌单源在 ``ha_connections``
-表，经 ``GET/PUT /ha/connection`` 读写），因此原先针对 ``haConfig.url/token`` 的
-脱敏、回填与指纹逻辑整体删除。剩下的职责只有两类：
+表，经 ``GET/PUT /ha/connection`` 读写）。剩下的职责只有两类：
 
 - :func:`mask_layout_for_role`：按角色脱敏 Agent 密钥 / 通道密钥；
 - :func:`merge_layout_secrets_on_save`：保存时若密钥为占位符 / 空值，保留库中真实值；

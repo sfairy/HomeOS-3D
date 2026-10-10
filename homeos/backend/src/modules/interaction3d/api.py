@@ -546,7 +546,7 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
     html = index_path.read_text(encoding='utf-8')
     html = html.replace(
         '</head>',
-        '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css?v=20261009-alarm-event-time-line-v1"></head>',
+        '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css"></head>',
     )
     html = html.replace(
         '<body>',
@@ -617,7 +617,7 @@ def get_resource(filename: str, request: Request, _viewer: LicensedViewer) -> Fi
     path = (root / filename).resolve()
     if not path.is_relative_to(root) or not path.is_file():
         raise HTTPException(404, detail='3D 交互资源不存在。')
-    return FileResponse(path, media_type=media_types[filename], headers={'Cache-Control': 'no-store'})
+    return FileResponse(path, media_type=media_types[filename], headers={'Cache-Control': 'private, no-cache'})
 
 
 def _runtime_resource_media_types(settings: Settings) -> dict[str, str]:

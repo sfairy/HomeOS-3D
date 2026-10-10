@@ -104,7 +104,7 @@ export type LicenseMessageState = {
   retryAttempt?: number | null
 }
 
-/** 授权状态码 → 面向用户的中文说明（与迁移前 license-recovery.js 逐字一致）。 */
+/** 授权状态码 → 面向用户的中文说明。 */
 const LICENSE_STATUS_MESSAGES: Record<string, string> = {
   UNACTIVATED: '当前服务尚未激活，请管理员激活 HomeOS。',
   DEACTIVATED: '当前授权已停用，请管理员检查。',

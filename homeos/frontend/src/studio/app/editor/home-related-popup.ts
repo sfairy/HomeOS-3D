@@ -1,4 +1,4 @@
-/** Device popup related-entity picker (extracted from home.ts). */
+/** Device popup related-entity picker. */
 import { findComponent as findComponent2 } from "./component-tree";
 import {
   RELATED_ENTITY_DOMAIN_LABELS as RELATED_ENTITY_DOMAIN_LABELS2,

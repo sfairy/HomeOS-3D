@@ -95,7 +95,7 @@ def product_image(product_id: str, request: Request, session: DbSession) -> File
     target = (root / image.path).resolve()
     if target == root or root not in target.parents or not target.is_file():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="商品图不存在。")
-    return FileResponse(target, headers={"Cache-Control": "public, max-age=86400"})
+    return FileResponse(target, headers={"Cache-Control": "no-cache"})
 
 
 @router.get("/{full_path:path}", include_in_schema=False)

@@ -18,8 +18,7 @@
 
   --uc-accent: var(--hos-lumen, #ff9d4d);
   --uc-accent-strong: var(--hos-lumen-bright, #ffba83);
-  /* 面板里的次级文字（原来是 #d4b57a / #a8925f 这类压暗的暖色）：
-     直接给亮色会太跳，压到 0.8 才回到与正文同一层的观感。 */
+  /* 面板里的次级文字：直接给亮色会太跳，压到 0.8 才回到与正文同一层的观感。 */
   --uc-accent-dim: rgba(var(--hos-lumen-rgb, 255, 157, 77), 0.8);
   --uc-accent-line: rgba(var(--hos-lumen-rgb, 255, 157, 77), 0.32);
   --uc-accent-soft: rgba(var(--hos-lumen-rgb, 255, 157, 77), 0.13);

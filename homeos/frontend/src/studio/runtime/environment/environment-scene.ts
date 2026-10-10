@@ -116,6 +116,7 @@ function isModelTypeBound(modelType: any, bindingCandidate: any) {
       ? [
           "doorEntityId",
           "batteryEntityId",
+          "battery2EntityId",
           "entityId",
           "doorEventEntityId",
           "doorOpenEntityId",

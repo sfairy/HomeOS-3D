@@ -882,6 +882,7 @@ export function mountInteraction3d(
           "doorOpenEntityId",
           "doorCloseEntityId",
           "batteryEntityId",
+          "battery2EntityId",
           "lowBatteryEntityId",
           "tamperEntityId",
         ]

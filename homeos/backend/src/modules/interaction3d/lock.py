@@ -37,6 +37,7 @@ def validate_lock_bindings(items, validate_camera) -> None:
         "openDirection",
         "tamperEntityId",
         "batteryEntityId",
+        "battery2EntityId",
         "backgroundOpacity",
         "lowBatteryEntityId",
     }
@@ -107,7 +108,7 @@ def validate_lock_bindings(items, validate_camera) -> None:
                 or item["doorOpenValue"].strip() == item["doorCloseValue"].strip()
             ):
                 fail()
-        for field in ("entityId", "doorEntityId", "batteryEntityId", "lowBatteryEntityId", "tamperEntityId"):
+        for field in ("entityId", "doorEntityId", "batteryEntityId", "battery2EntityId", "lowBatteryEntityId", "tamperEntityId"):
             if not item.get(field):
                 continue
             if re.fullmatch("[a-z_]+\\.[a-z0-9_-]+", item[field]):

@@ -1,8 +1,7 @@
 /**
  * studio-app.ts 的灯光属性数据与工具函数。
  *
- * 从 studio-app.ts 闭包内提取的灯光预设 / 属性字段表与相关纯函数。
- * 这些数据与函数不引用任何闭包变量，仅依赖自身参数与导入的几何工具。
+ * 仅依赖自身参数与导入的几何工具。
  */
 
 import { clamp as clamp2 } from '../../plan/geometry';

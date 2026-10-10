@@ -656,7 +656,7 @@ function resolvePhysicalCoverState(physicalEntityState: any, isPhysicalReversed 
 export function dreamCurtainBladeLabel(bladeRawPosition: any) {
   const bladeClampedPosition = Math.max(0, Math.min(100, Number(bladeRawPosition) || 0));
   return bladeClampedPosition <= POSITION_TOLERANCE_PERCENT
-    ? "一侧闭合"
+    ? "正向闭合"
     : bladeClampedPosition >= 100 - POSITION_TOLERANCE_PERCENT
       ? "反向闭合"
       : Math.abs(bladeClampedPosition - 50) <= 2

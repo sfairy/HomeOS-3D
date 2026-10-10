@@ -104,11 +104,11 @@ import { isLicenseFeatureGranted } from '@/router/license-gate'
 import { getTeleportContainerSize } from '@/utils/ui/popup-position-shared.util'
 import Screensaver from '@/components/common/Screensaver.vue'
 const WeatherBackground = defineAsyncComponent(() => import('@/layouts/WeatherBackground.vue'))
-// 仪表盘外壳（并入 homeos-3d 后由 MainLayout 承载）：浮动组件 / 右侧栏 / 页脚。
+// 仪表盘外壳：浮动组件 / 右侧栏 / 页脚。
 const FloatingHub = defineAsyncComponent(() => import('@/components/shell/FloatingHub.vue'))
 const RightSidebar = defineAsyncComponent(() => import('@/components/dashboard/RightSidebar.vue'))
 const DashboardFooter = defineAsyncComponent(() => import('@/components/dashboard/Footer.vue'))
-// 设备分组批量弹窗（原 DashboardView 承载）：右栏 quickActions 点击设备组时打开，
+// 设备分组批量弹窗：右栏 quickActions 点击设备组时打开，
 // 状态源在 chrome store（isGroupModalOpen / groupModalDomain / groupModalSensors）。
 // 与其它壳层浮层合并进 shell-overlays chunk，避免额外小请求。
 const DeviceGroupModal = defineAsyncComponent(() =>
@@ -670,7 +670,7 @@ watch(
         <span class="ha-status-bar__text">{{ statusRail.text }}</span>
       </div>
 
-      <!-- 内容行：仪表盘路由下与右侧栏并排（等价原 DashboardView 的 .dashboard-main），
+      <!-- 内容行：仪表盘路由下与右侧栏并排，
            其余路由只渲染内容区，不改变原有几何。 -->
       <div
         class="dashboard-shell"
@@ -684,7 +684,7 @@ watch(
             </keep-alive>
           </router-view>
 
-          <!-- 浮动控制中心：与原 homeos 一致锚定在内容区（原户型图 Canvas 内）。
+          <!-- 浮动控制中心：锚定在内容区。
                部件按 xPct/yPct 相对内容区定位；若挂到外壳层，坐标基准会变成整屏，
                yPct:100 的部件（如全屋安防）就会正好压到底部页脚上。 -->
           <FloatingHub v-if="route.name === 'dashboard'" class="shell-floating-hub" />
@@ -699,7 +699,7 @@ watch(
         />
       </div>
 
-      <!-- 仪表盘外壳（并入 homeos-3d 后由 MainLayout 承载，仅仪表盘路由显示）：
+      <!-- 仪表盘外壳（仅仪表盘路由显示）：
            底部能耗页脚，横跨内容区 + 右栏下方。 -->
       <DashboardFooter v-if="route.name === 'dashboard'" class="shell-footer" />
 

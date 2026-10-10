@@ -776,7 +776,7 @@ export function mountStage(mountOptions: any) {
             )
           ) {
             (clearTimeout(coverRequestTimeoutId),
-              coverReject(new Error("只有确认整体完全关闭且停止后，才能调整叶片。")));
+              coverReject(new Error("只有整体完全开启或完全关闭后，才能调整叶片。")));
             return;
           }
           let isDreamTiltPreview = false;
@@ -2652,6 +2652,7 @@ export function mountStage(mountOptions: any) {
             lockFilterEntry.doorOpenEntityId ||
             lockFilterEntry.doorCloseEntityId ||
             lockFilterEntry.batteryEntityId ||
+            lockFilterEntry.battery2EntityId ||
             lockFilterEntry.entityId,
         ),
     labelModeOf = (labelModeEntry: any) =>

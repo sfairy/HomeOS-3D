@@ -2,7 +2,7 @@
  * @file layout-panel-widgets.internals.ts
  * @module frontend/src/views
  */
-/** composables：自 layout.internals.ts 拆出 — 面板小组件与 Widgets 面板展示 */
+/** composables：面板小组件与 Widgets 面板展示 */
 import { MAX_QUICK_BUTTONS, QUICK_BUTTON_OPTIONS, normalizeQuickButtons } from '@/components/widgets/quick-actions.config'
 import type { PanelWidget } from '@/types/layout'
 import { useChromeStore } from '@/stores/chrome.store'

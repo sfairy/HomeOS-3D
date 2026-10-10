@@ -990,8 +990,7 @@ class LicenseService:
             effective_status = 'INVALID'
             effective_error = '本地授权签名或会话记录校验失败，请联系管理员检查。'
         # 能力清单同样以**签名租约**为准（服务端签的 features/entitlements 不可被改），
-        # ``feature_set`` 只是本地缓存，租约不可读时才退回它。以前这里只读 feature_set，
-        # 而 _verified_access 读租约，两边数据源不同，才会出现「放行了但显示未开通」。
+        # ``feature_set`` 只是本地缓存，租约不可读时才退回它。
         lease_features = signed_payload.get('features')
         if not isinstance(lease_features, list):
             try:
@@ -1025,9 +1024,7 @@ class LicenseService:
         def _granted(code: str) -> bool:
             """单码判定：未验证通过（无授权 / 校验失败）时一律 false。
 
-            直接委托 ``feature_codes.granted``（路由门禁 ``require_license_feature`` 的同一实现）：
-            以前这里手写「只查租约 features」，于是单买的模块权益被后端放行、前端却按未开通
-            收起入口 —— 「后端放行、界面显示未开通」的老矛盾换了个位置复发。
+            直接委托 ``feature_codes.granted``（路由门禁 ``require_license_feature`` 的同一实现）。
             """
             if not (state.license_id and allowed):
                 return False
@@ -1170,8 +1167,6 @@ class LicenseService:
         if feature is None:
             return True
         # 判定只走 features.granted（``all`` 展开 + 蕴含 + 未过期 entitlements）。
-        # 以前这里另写了一份 ``feature in BASE_FEATURES``，与 _payload 的可见能力表
-        # 各算一遍，才会出现「后端放行、前端显示未开通」。
         return feature_codes.granted(features, payload.get('entitlements'), feature, now=now)
 
     def invalidate_allow_cache(self) -> None:

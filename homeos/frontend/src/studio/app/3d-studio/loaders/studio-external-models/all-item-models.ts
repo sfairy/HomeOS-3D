@@ -12,21 +12,21 @@ export const ALL_ITEM_MODELS = Object.freeze({
     ...EXTERNAL_ITEM_MODELS,
     ...APPROVED_ITEM_MODELS,
     bed: createIndoorAssetDescriptor("bed", [1.92, 1.02, 2.18]),
-    nightstand: createHomeAssetDescriptor("nightstand", "20260901-all-home-furniture-v1", {
+    nightstand: createHomeAssetDescriptor("nightstand", {
       scaleBasis: [0.5, 0.55, 0.42],
       preserveOrigin: true,
     }),
     vanity: createFurnitureAssetDescriptor("vanity", [1.2, 1.55, 0.5]),
-    desk: createHomeAssetDescriptor("desk", "20260901-all-home-furniture-v1", {
+    desk: createHomeAssetDescriptor("desk", {
       scaleBasis: [1.4, 0.76, 0.65],
       preserveOrigin: true,
     }),
-    bookcase: createHomeAssetDescriptor("bookcase", "20260912-cabinet-back-v4", {
+    bookcase: createHomeAssetDescriptor("bookcase", {
       url: "/static/3d-studio/models/bookcase-lite.glb",
       scaleBasis: [1.2, 1.9, 0.32],
       preserveOrigin: true,
     }),
-    aquarium: createHomeAssetDescriptor("aquarium", "20260928-aquarium-v2", {
+    aquarium: createHomeAssetDescriptor("aquarium", {
       url: "/static/3d-studio/models/aquarium-lite.glb",
       scaleBasis: [1.5, 1.4, 0.55],
       preserveOrigin: true,
@@ -34,78 +34,78 @@ export const ALL_ITEM_MODELS = Object.freeze({
     table: createFurnitureAssetDescriptor("table", [2.4, 0.82, 1.8]),
     rounddiningtable: createFurnitureAssetDescriptor("rounddiningtable", [2.2, 0.78, 2.2]),
     chair: createFurnitureAssetDescriptor("chair", [0.5, 0.86, 0.5]),
-    bar: createHomeAssetDescriptor("bar", "20260901-all-home-furniture-v1", {
+    bar: createHomeAssetDescriptor("bar", {
       scaleBasis: [2.2, 1.05, 0.65],
       preserveOrigin: true,
     }),
-    sideboard: createHomeAssetDescriptor("sideboard", "20260901-all-home-furniture-v1", {
+    sideboard: createHomeAssetDescriptor("sideboard", {
       scaleBasis: [1.6, 2.2, 0.45],
       preserveOrigin: true,
       geometryRevision: "20260925-sideboard-joints-v1",
     }),
-    shoecabinet: createHomeAssetDescriptor("shoecabinet", "20260901-all-home-furniture-v1", {
+    shoecabinet: createHomeAssetDescriptor("shoecabinet", {
       scaleBasis: [1.8, 2.25, 0.42],
       preserveOrigin: true,
     }),
-    cabinet: createHomeAssetDescriptor("cabinet", "20260901-all-home-furniture-v1", {
+    cabinet: createHomeAssetDescriptor("cabinet", {
       scaleBasis: [1.6, 1.9, 0.45],
       preserveOrigin: true,
     }),
-    glasscabinet: createHomeAssetDescriptor("glasscabinet", "20260912-cabinet-back-v2", {
+    glasscabinet: createHomeAssetDescriptor("glasscabinet", {
       url: "/static/3d-studio/models/glasscabinet-lite.glb",
       scaleBasis: [1.2, 1.9, 0.4],
       preserveOrigin: true,
     }),
-    shelf: createHomeAssetDescriptor("shelf", "20260901-all-home-furniture-v1", {
+    shelf: createHomeAssetDescriptor("shelf", {
       scaleBasis: [1.2, 1.8, 0.45],
       preserveOrigin: true,
     }),
-    wallcabinet: createHomeAssetDescriptor("wallcabinet", "20260912-cabinet-sides-v1", {
+    wallcabinet: createHomeAssetDescriptor("wallcabinet", {
       url: "/static/3d-studio/models/wallcabinet-lite.glb",
       scaleBasis: [1.5, 0.82, 0.35],
       preserveOrigin: true,
     }),
-    kitchenbase: createHomeAssetDescriptor("kitchenbase", "20260901-all-home-furniture-v1", {
+    kitchenbase: createHomeAssetDescriptor("kitchenbase", {
       scaleBasis: [2.4, 0.85, 0.6],
       preserveOrigin: true,
     }),
-    kitchensink: createHomeAssetDescriptor("kitchensink", "20260901-all-home-furniture-v1", {
+    kitchensink: createHomeAssetDescriptor("kitchensink", {
       scaleBasis: [1.2, 0.85, 0.6],
       preserveOrigin: true,
     }),
-    kitchencooktop: createHomeAssetDescriptor("kitchencooktop", "20260901-all-home-furniture-v1", {
+    kitchencooktop: createHomeAssetDescriptor("kitchencooktop", {
       scaleBasis: [1.2, 0.85, 0.6],
       preserveOrigin: true,
     }),
-    basin: createHomeAssetDescriptor("basin", "20260901-all-home-furniture-v1", {
+    basin: createHomeAssetDescriptor("basin", {
       scaleBasis: [0.9, 0.88, 0.5],
       preserveOrigin: true,
     }),
-    toilet: createHomeAssetDescriptor("toilet", "20260901-all-home-furniture-v1", {
+    toilet: createHomeAssetDescriptor("toilet", {
       scaleBasis: [0.42, 0.52, 0.7],
       preserveOrigin: true,
     }),
-    squattoilet: createHomeAssetDescriptor("squattoilet", "20260901-all-home-furniture-v1", {
+    squattoilet: createHomeAssetDescriptor("squattoilet", {
       scaleBasis: [0.45, 0.18, 0.65],
       preserveOrigin: true,
     }),
-    urinal: createHomeAssetDescriptor("urinal", "20260901-all-home-furniture-v1", {
+    urinal: createHomeAssetDescriptor("urinal", {
       scaleBasis: [0.38, 0.72, 0.34],
       preserveOrigin: true,
     }),
-    shower: createHomeAssetDescriptor("shower", "20260901-all-home-furniture-v1", {
+    shower: createHomeAssetDescriptor("shower", {
       scaleBasis: [0.9, 2.1, 0.9],
       preserveOrigin: true,
     }),
-    bathtub: createHomeAssetDescriptor("bathtub", "20260901-all-home-furniture-v1", {
+    bathtub: createHomeAssetDescriptor("bathtub", {
       scaleBasis: [1.7, 0.58, 0.78],
       preserveOrigin: true,
     }),
-    glasspartition: createHomeAssetDescriptor("glasspartition", "20260901-all-home-furniture-v1", {
+    glasspartition: createHomeAssetDescriptor("glasspartition", {
       scaleBasis: [1.2, 2, 0.08],
       preserveOrigin: true,
     }),
-    stairs: createHomeAssetDescriptor("stairs", "20260901-all-home-furniture-v1", {
+    stairs: createHomeAssetDescriptor("stairs", {
       scaleBasis: [1, 1.65, 2.8],
       preserveOrigin: true,
     }),
@@ -114,15 +114,15 @@ export const ALL_ITEM_MODELS = Object.freeze({
     pillar_semicircle: createPillarAssetDescriptor("pillar-semicircle"),
     pillar_quarter: createPillarAssetDescriptor("pillar-quarter"),
     pillar_quarterinner: createPillarAssetDescriptor("pillar-quarterinner"),
-    curtain_left: createHomeAssetDescriptor("curtain_left", "20260901-all-home-furniture-v1", {
+    curtain_left: createHomeAssetDescriptor("curtain_left", {
       scaleBasis: [1.8, 2.4, 0.18],
       preserveOrigin: true,
     }),
-    curtain_right: createHomeAssetDescriptor("curtain_right", "20260901-all-home-furniture-v1", {
+    curtain_right: createHomeAssetDescriptor("curtain_right", {
       scaleBasis: [1.8, 2.4, 0.18],
       preserveOrigin: true,
     }),
-    curtain_split: createHomeAssetDescriptor("curtain_split", "20260901-all-home-furniture-v1", {
+    curtain_split: createHomeAssetDescriptor("curtain_split", {
       scaleBasis: [1.8, 2.4, 0.18],
       preserveOrigin: true,
     }),

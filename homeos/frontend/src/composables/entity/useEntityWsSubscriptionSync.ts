@@ -24,7 +24,7 @@ import {
 import { resolveActivePopupEntityId } from '@/utils/entity/active-popup-entity'
 import { configEpoch } from '@/utils/config/frontend-config'
 
-/** 同步防抖间隔（毫秒）：略低于旧 120ms，加快换页/弹窗后的域与 pinned 生效 */
+/** 同步防抖间隔（毫秒）：加快换页/弹窗后的域与 pinned 生效 */
 const SYNC_DEBOUNCE_MS = 50
 
 /**

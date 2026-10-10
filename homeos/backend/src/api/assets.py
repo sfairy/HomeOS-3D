@@ -153,7 +153,7 @@ def user_asset_payload(root: Path, asset_id: str, path: Path, dimensions: tuple[
         'source': 'user',
         'size': stat.st_size,
         'version': version,
-        'url': f'/api/v1/assets/user/{asset_id}?v={version}' }
+        'url': f'/api/v1/assets/user/{asset_id}' }
     if dimensions:
         (payload['width'], payload['height']) = dimensions
     return payload
@@ -177,7 +177,7 @@ def effect_variant_payload(path: Path, full_asset_id: str, version: str, cache_r
             crop_height = int(metadata['height'])
             if not (original_width > 0 and original_height > 0 and left >= 0 and top >= 0 and crop_width > 0 and crop_height > 0 and left + crop_width <= original_width and top + crop_height <= original_height):
                 raise ValueError('invalid effect variant metadata')
-            metadata['url'] = f'/api/v1/assets/effect-variant?assetId={quote(full_asset_id, safe = "")}&v={quote(version, safe = "")}'
+            metadata['url'] = f'/api/v1/assets/effect-variant?assetId={quote(full_asset_id, safe = "")}'
             return (metadata, variant_path)
         except (KeyError, TypeError, ValueError, json.JSONDecodeError, OSError):
             pass
@@ -230,7 +230,7 @@ def effect_variant_payload(path: Path, full_asset_id: str, version: str, cache_r
         if temporary_metadata_path.exists():
             temporary_metadata_path.unlink()
     payload = {
-        'url': f'/api/v1/assets/effect-variant?assetId={quote(full_asset_id, safe = "")}&v={quote(version, safe = "")}',
+        'url': f'/api/v1/assets/effect-variant?assetId={quote(full_asset_id, safe = "")}',
         **metadata }
     return (payload, variant_path)
 
@@ -272,7 +272,7 @@ def studio3d_export_payload(folder_name: str, path: Path, role: str = '', export
         'source': 'studio3d-export',
         'size': stat.st_size,
         'version': version,
-        'url': f'/api/v1/assets/studio3d-export/{quote(folder_name, safe = "")}/{quote(path.name, safe = "")}?v={version}' }
+        'url': f'/api/v1/assets/studio3d-export/{quote(folder_name, safe = "")}/{quote(path.name, safe = "")}' }
     if role:
         payload['exportRole'] = role
     if export_order is not None:
@@ -517,7 +517,7 @@ class AssetCatalog:
                     'folder': resolved.parent.relative_to(self.built_in_root).as_posix() or '.',
                     'source': 'builtin',
                     'version': version,
-                    'url': '/assets/builtin/' + '/'.join(relative_path.split('/')) + f'?v={version}' }
+                    'url': '/assets/builtin/' + '/'.join(relative_path.split('/')) }
                 self._attach_effect_variant(payload, resolved)
                 self._builtin_items[asset_id] = payload
                 self._builtin_paths[relative_path] = resolved
@@ -750,7 +750,7 @@ async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:
         if not has_content:
             raise HTTPException(status_code = 422, detail = '请选择需要上传的图片。')
         try:
-            # Pillow/HEIF 解码放到线程池，避免阻塞事件循环（0.7.1 修复）。
+            # Pillow/HEIF 解码放到线程池，避免阻塞事件循环。
             dimensions = await asyncio.to_thread(validate_uploaded_image, suffix, path)
         except ValueError as error:
             raise HTTPException(status_code = 422, detail = str(error)) from error
@@ -776,7 +776,7 @@ def read_user_asset(asset_id: str, request: Request, viewer: LicensedViewer) -> 
     if path is None:
         raise HTTPException(status_code = 404, detail = '图片不存在。')
     response = FileResponse(path, media_type = UPLOAD_CONTENT_TYPES[path.suffix.lower()])
-    response.headers['Cache-Control'] = 'private, max-age=31536000, immutable'
+    response.headers['Cache-Control'] = 'private, no-cache'
     return response
 
 @router.get('/effect-variant')
@@ -797,7 +797,7 @@ def read_effect_variant(request: Request, asset_id: str = Query(alias = 'assetId
         if path is None:
             raise HTTPException(status_code = 404, detail = '效果图片不存在。')
     response = FileResponse(path, media_type = 'image/png')
-    response.headers['Cache-Control'] = 'private, max-age=31536000, immutable'
+    response.headers['Cache-Control'] = 'private, no-cache'
     for key, value in authorization_response.raw_headers:
         if key.lower() != b'set-cookie':
             continue
@@ -819,7 +819,7 @@ def read_studio3d_export(folder_name: str, filename: str, request: Request, view
         raise HTTPException(status_code = 403, detail = '该图片不属于当前中控仪表盘。')
     media_type = 'image/webp' if path.suffix.lower() == '.webp' else 'image/png'
     response = FileResponse(path, media_type = media_type)
-    response.headers['Cache-Control'] = 'private, max-age=31536000, immutable'
+    response.headers['Cache-Control'] = 'private, no-cache'
     return response
 
 @router.delete('/user/{asset_id}', status_code = status.HTTP_204_NO_CONTENT)
@@ -868,5 +868,5 @@ def read_builtin_asset(relative_path: str, request: Request) -> FileResponse:
     if path is None:
         raise HTTPException(status_code = 404, detail = '素材不存在。')
     response = FileResponse(path)
-    response.headers['Cache-Control'] = 'private, max-age=31536000, immutable' if request.query_params.get('v') else 'private, no-cache'
+    response.headers['Cache-Control'] = 'private, no-cache'
     return response

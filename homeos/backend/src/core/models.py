@@ -505,7 +505,6 @@ class LicenseState(Base):
 # 无需改写；同时便于一次性导入 homeos-3d 的 app.db 数据。
 # 注意：`User` / `LoginSession` / `LicenseState` 与 homeos-3d 同名但沿用 homeos 既有表，
 # 因此这里的 FK 指向的是 homeos 的 `users`。
-# 中控设备配对（display_pairing_codes / display_devices）已随配对码机制一并移除。
 # --------------------------------------------------------------------------- #
 class Project(Base):
     """Studio 项目（一个项目对应一套可编辑 / 可展示的 3D 仪表盘）。"""

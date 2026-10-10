@@ -1,4 +1,4 @@
-/** Inspector router + cover motor helpers (extracted from home.ts). */
+/** Inspector router + cover motor helpers. */
 import {
   renderFlowLineInspector as renderFlowLineInspector2,
 } from "./inspectors/flow-line-inspector";

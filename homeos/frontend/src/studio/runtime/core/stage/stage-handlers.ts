@@ -1106,6 +1106,7 @@ export function createSyncMarkers(host: StageHandlersHost) {
               syncMarkerItem.doorOpenEntityId ||
               syncMarkerItem.doorCloseEntityId ||
               syncMarkerItem.batteryEntityId ||
+              syncMarkerItem.battery2EntityId ||
               syncMarkerItem.entityId);
           if (
             ((securityLabelElement.children[1].textContent =
@@ -1124,7 +1125,10 @@ export function createSyncMarkers(host: StageHandlersHost) {
                             ? "门已关闭"
                             : "门状态未知")) +
                       (syncMarkerItem.batteryEntityId && lock.battery !== "—"
-                        ? " · " + lock.battery
+                        ? "\n锂电池: " + lock.battery
+                        : "") +
+                      (syncMarkerItem.battery2EntityId && lock.battery2 !== "—"
+                        ? "\n干电池: " + lock.battery2
                         : "")
                     : syncMarkerItem.deviceKind === "presence"
                       ? securityDeviceState.state === "on"
@@ -1133,6 +1137,11 @@ export function createSyncMarkers(host: StageHandlersHost) {
                       : "在线"
                   : "离线"),
             (securityLabelElement.children[1].hidden = isPresenceChoice),
+            // 门锁：门磁 / 锂电池 / 干电池 各占一行（"\n" 分行）；用 pre 而不是 pre-line，
+            // 因为 pre-line 在分行之外还允许按空格折行，会把「锂电池 94%」拆成两行。
+            // 其余设备仍是单行状态，所以这里按类型切换空白处理方式。
+            (securityLabelElement.children[1].style.whiteSpace =
+              syncMarkerItem.deviceKind === "lock" ? "pre" : ""),
             securityLabelElement.classList.toggle(
               "is-camera-status",
               syncMarkerItem.deviceKind === "camera",

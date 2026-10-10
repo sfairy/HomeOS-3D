@@ -2,7 +2,7 @@
  * 展示页引导脚本（`/`、`/display/:projectId`、`/homeos/:name`）。
  *
  * 由 `DisplayView.vue` 在 `onMounted` 调 `bootDisplay()`、`onBeforeUnmount` 调 `teardownDisplay()`。
- * **已从「模块求值即执行的一次性脚本」改为可重入引导**：视图现在是 shell 内的路由，会被反复进出，
+ * 视图现在是 shell 内的路由，会被反复进出，
  * 因此 DOM 契约查询、宿主判定（整屏 vs 嵌入总览）、全局状态都在 boot 时重建，监听/定时器/观察者
  * 与 `PanelRenderer` 在 teardown 时回收。
  *
@@ -200,7 +200,7 @@ async function apiRequest(path: any) {
               if (abortController.signal.aborted) throw parseError;
               return {};
             });
-    // 展示页与总览共用同一登录会话（配对码机制已移除）：未登录回登录页（shell 内路由）。
+    // 展示页与总览共用同一登录会话：未登录回登录页（shell 内路由）。
     if (response.status === 401) return (navigateInShell("/login"), null);
     if (response.status === 403 && payload?.detail?.code === "LICENSE_RESTRICTED") {
       navigateInShell("/activate");

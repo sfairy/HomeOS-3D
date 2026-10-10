@@ -87,10 +87,7 @@ def product_payload(
 
     image_url = None
     if image is not None and image.path:
-        version = image.version or ""
         image_url = f"/store/v1/product-images/{product.id}"
-        if version:
-            image_url = f"{image_url}?v={version}"
 
     return {
         "id": product.id,

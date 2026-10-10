@@ -61,7 +61,6 @@ export function createCoverPanel({
       const presentation = resolvePresentation();
       if (
         presentation.moving ||
-        deviceState.moving ||
         (pendingIntent &&
           !pendingIntent.confirmed &&
           ["open_cover", "close_cover", "set_cover_position"].includes(pendingIntent.service))
@@ -212,11 +211,11 @@ export function createCoverPanel({
       viewModel.presentation?.tiltTarget ??
       viewModel.presentation?.tiltPosition ??
       deviceState.tiltPosition,
+    // 梦幻帘：轨道停在「全开 / 全关」两端时才可调叶片；普通帘滑杆即整体开合位置。
     canAdjustSlider = () =>
       canControl() &&
       (viewModel.item?.coverKind === "dream"
-        ? coverCanAdjustBlades(deviceState, resolvePresentation()) &&
-          !(!viewModel.presentation && pendingIntent && !pendingIntent.blade)
+        ? coverCanAdjustBlades(deviceState, resolvePresentation())
         : deviceState.positionSupported);
   function clearPendingIntent() {
     (intentTimeoutId !== null && clearTimeout(intentTimeoutId),
@@ -339,6 +338,11 @@ export function createCoverPanel({
             {
               ...deviceState,
               ...resolvePresentation(),
+              // 门禁（coverCanAdjustBlades）以设备自报位置为准：presentation 的位置可能还在做
+              // 收尾平滑动画，别让它盖掉设备刚刚报出来的真实位置。
+              position: deviceState.positionKnown
+                ? deviceState.position
+                : resolvePresentation().position,
             },
             requestedService,
             controlValue,
@@ -491,14 +495,20 @@ export function createCoverPanel({
       ? "控制预览"
       : viewModel.item?.entityId
         ? deviceState.available
-          ? coverStateLabel(presentation.state, {
-              airer: !!viewModel.item?.airer,
-            })
+          ? // unknown 不等于「设备不可用」：瞬态被停滞看门狗降级、或尚未拿到可信整体反馈都属于这一档，
+            // 说成不可用会误导，统一回落「在线」。
+            presentation.state === "unknown"
+            ? "在线"
+            : coverStateLabel(presentation.state, {
+                airer: !!viewModel.item?.airer,
+              })
           : "设备不可用"
         : "尚未绑定设备";
     const isDreamCover = viewModel.item?.coverKind === "dream",
       isAirerItem = viewModel.item?.airer,
-
+      // 「部分开启」只看设备实际回报的位置：设备刚报 全开/100 时，本地位置还在做收尾平滑动画，
+      // 拿动画中的中间值判断会让卡片先闪一下「整体部分开启」再跳「整体已开启」。
+      railReportedPosition = deviceState.position ?? presentation.position,
 
       dreamStateLabel = ({
         open: "整体已开启",
@@ -516,8 +526,9 @@ export function createCoverPanel({
       !viewModel.editing &&
         deviceState.available &&
         presentation.state === "open" &&
-        presentation.position > 0 &&
-        presentation.position < 100 &&
+        railReportedPosition !== null &&
+        railReportedPosition > 0 &&
+        railReportedPosition < 100 &&
         (statusElement.textContent = isDreamCover ? "整体部分开启" : "部分开启"),
       isAirerItem &&
         !viewModel.editing &&
@@ -546,7 +557,7 @@ export function createCoverPanel({
       (positionLegendElement.children[0].textContent = isAirerItem
         ? "收起"
         : isDreamCover
-          ? "一侧闭合"
+          ? "正向闭合"
           : "关闭"),
       (positionLegendElement.children[1].textContent = isAirerItem
         ? "放下"
@@ -562,18 +573,9 @@ export function createCoverPanel({
       !pendingIntent.confirmed &&
       !pendingIntent.blade &&
       ["open_cover", "close_cover", "set_cover_position"].includes(pendingIntent.service);
-    const bladePending =
-      !!pendingIntent &&
-      !pendingIntent.confirmed &&
-      (!!pendingIntent.blade ||
-        pendingIntent.service === "set_cover_tilt_position");
-    const visualMoving = !!(
-      presentation.moving ||
-      deviceState.moving ||
-      railPending ||
-      bladePending ||
-      (isDreamCover && draftPosition !== null)
-    );
+    // 右上角图标只在「轨道真的在动」时播开合动画：调叶片（blade 意图 / 拖动叶片草稿）不算，
+    // 也不会因为设备卡在 closing/opening 上就一直播（看门狗会把那一档降级，presentation.moving 随之归零）。
+    const visualMoving = !!(presentation.moving || railPending);
     const visualRailPosition = isDreamCover
       ? railPending
         ? pendingIntent!.service === "open_cover"
@@ -649,9 +651,7 @@ export function createCoverPanel({
       (bladeHintElement.textContent = "叶片角度"),
       (positionSliderElement.title =
         isDreamCover && !canAdjustSlider() && deviceState.available
-          ? deviceState.overallFeedbackAvailable
-            ? "关闭到位后可调节叶片"
-            : "暂不可调节叶片"
+          ? "整体全开或全关后可调节叶片"
           : ""));
     for (const {
       button: actionButton,

@@ -171,7 +171,7 @@ import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
 import DeviceGroupBatteryPanel from '@/components/entities/device-group/DeviceGroupBatteryPanel.vue'
 import DeviceGroupMemberList from '@/components/entities/device-group/DeviceGroupMemberList.vue'
 import DeviceGroupOfflinePanel from '@/components/entities/device-group/DeviceGroupOfflinePanel.vue'
-// 设备组模态框专属样式，随组件按需加载（从 main.ts 全局导入拆分而来）
+// 设备组模态框专属样式，随组件按需加载
 import '@/components/entities/styles/DeviceGroupModal.css'
 
 const props = defineProps({

@@ -2,7 +2,7 @@
  * @file setup-wizard.internals.ts
  * @module frontend/src/views
  */
-/** composables：合并自 setup 向导面板与环境步骤 */
+/** composables：setup 向导面板与环境步骤 */
 import {
   handleSystemConfigPatchError,
   useSystemConfig,

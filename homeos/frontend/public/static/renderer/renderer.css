@@ -1,4 +1,4 @@
-@import "./percentage-bar.css?v=20260930-percentage-text-offset-v1";
+@import "./percentage-bar.css";
 .hb-renderer-viewport {
   position: relative;
   flex: none;

@@ -1,7 +1,6 @@
 /**
  * 3D Studio 构建契约（并入 homeos 前端后复用）。
  *
- * 从 `homeos-3d/frontend/vite.config.ts` 迁移而来，保留其关键约束：
  *   1. `three` 不打进 bundle，以根绝对 URL `/static/vendor/three/0.186.0/...` 外置加载；
  *   2. `/static/vendor/**` 与 `/api/**`、`/api/v1/modules/interaction3d/**` 一律外置，
  *      它们是后端下发的运行时资源，不是本地模块；

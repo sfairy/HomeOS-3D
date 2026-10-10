@@ -23,7 +23,7 @@
       aria-hidden="true"
     />
     <!--
-      授权门禁就地渲染（并入 homeos-3d App.vue 行为）：后端在返回 SPA 外壳时给 `<html>`
+      授权门禁就地渲染：后端在返回 SPA 外壳时给 `<html>`
       标 `data-license-blocked="1"`，此时原样保留当前地址渲染授权恢复页；恢复后重载回到原地址。
     -->
     <LicenseRecoveryView v-if="licenseBlocked" />
@@ -69,7 +69,7 @@
  * 1. 路由视图渲染（带 fade 过渡动画）
  * 2. 认证状态监听：登录后自动连接 Socket.IO 并加载 UI 配置
  * 3. 未认证 / 未商业授权时断开 Socket.IO 连接
- * 4. 并入 3D Studio 的页面资产调度与授权恢复就地渲染（原 studio/App.vue）
+ * 4. 并入 3D Studio 的页面资产调度与授权恢复就地渲染
  */
 import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -166,7 +166,7 @@ onBeforeUnmount(removeRouteTransitionGuard)
  */
 const isAppChromeToastHost = computed(() => route.matched.length <= 1)
 
-// ── 3D Studio 页面资产调度（并入 studio/App.vue）──
+// ── 3D Studio 页面资产调度 ──
 // 后端在返回 SPA 外壳时给 <html> 标 data-license-blocked="1"：此时就地渲染授权恢复页。
 const licenseBlocked = ref(
   typeof document !== 'undefined' && document.documentElement.dataset.licenseBlocked === '1',

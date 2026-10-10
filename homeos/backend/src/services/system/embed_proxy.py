@@ -175,7 +175,7 @@ class EmbedProxyService:
         mime = STATIC_MIME.get(local_path.suffix.lower(), "application/octet-stream")
         headers: dict[str, str] = {}
         if "/assets/" in str(local_path):
-            headers["Cache-Control"] = "public, max-age=31536000, immutable"
+            headers["Cache-Control"] = "private, no-cache"
         if is_embed_rewriteable_content_type(mime):
             text = local_path.read_text(encoding="utf-8", errors="replace")
             return Response(
