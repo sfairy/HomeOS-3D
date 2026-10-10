@@ -127,16 +127,9 @@ jobs:
           bun-version: 1.4.2
 
       - name: Build frontend to workspace dist
-        run: |
-          bun install --frozen-lockfile
-          bun run build:frontend
-          # 混淆与产物结构断言。
-          grep -q '_0x' dist/homeos/frontend/static/logging/client-log.js
-          grep -q '_0x' dist/homeos-store/frontend/static/auth-bootstrap.js
-          test -f dist/homeos/frontend/static/vendor/three/0.186.0/three.module.min.js
-          test -f dist/homeos-store/frontend/static/store.css
-          test -f dist/homeos/frontend/index.html
-          test -f dist/homeos-store/frontend/templates/index.html
+        # 定义在 ops/ci/build_frontend_verify.sh：build-check.yml 的「只构建」入口跑同一份，
+        # 免得两处的手工断言清单各自漂移。
+        run: bash ops/ci/build_frontend_verify.sh
 
       - uses: docker/setup-buildx-action@v4
 

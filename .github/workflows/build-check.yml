@@ -1,0 +1,36 @@
+name: Build Check
+
+# 「只构建、不推镜像」的手动验证入口。
+#
+# 存在的理由：前端构建的验证此前**只存在于 docker.yml 的 build job** 里，而那个 job 同时
+# 会构建并推送镜像到 GHCR。于是「这次改动会不会把构建弄挂」和「要不要往 registry 推镜像」
+# 被绑成同一件事 —— 想验证构建就得走一遍带推送的完整发布流程。
+#
+# 2026-10-10 的构建锁 ENOENT 就卡在这条缝里：本地有历史 dist/ 兜着所以是绿的，干净检出
+# 才炸；`verify:*` 那些门禁不跑构建，Docker 又太重。这个工作流把那一步单独拎出来。
+#
+# 刻意**不挂** push / pull_request，只在 Actions 页面手动 Run workflow 时执行。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      # 与 docker.yml build job 的对应步骤共用同一份定义，包括那 6 条产物结构断言。
+      # checkout 出来就是干净树（没有 gitignore 的 dist/），正是当年出错的那种状态。
+      - name: Build frontend to workspace dist
+        run: bash ops/ci/build_frontend_verify.sh
