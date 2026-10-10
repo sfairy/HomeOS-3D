@@ -3,7 +3,8 @@
 
 /* ── 坞体 ───────────────────────────────────────────────────── */
 
-/* 用 .hos-page 提高特异性：压过应用内 design-system 的裸 `.hos-panel`。 */
+/* 用 .hos-page 提高特异性：压过应用内 design-system 的裸 `.hos-panel`
+   （见 src/assets/styles/hos-panel.css），避免玻璃坞被冲成近乎透明的 surface。 */
 .hos-page .hos-panel {
   width: 100%;
   max-height: 100%;
@@ -30,6 +31,7 @@
   scrollbar-width: thin;
   scrollbar-color: rgba(var(--hos-tone-rgb), 0.28) transparent;
   box-sizing: border-box;
+  /* 禁止 design-system 的 background transition 把换肤过程放大成闪烁 */
   transition: none;
 }
 
