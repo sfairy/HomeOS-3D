@@ -158,8 +158,11 @@ jobs:
           python homeos/backend/scripts/_schema_drift_guard_smoke.py
           python homeos/backend/scripts/_module_feature_gate_smoke.py
           python homeos/backend/scripts/_license_activation_e2e_smoke.py
+          python homeos/backend/scripts/_ws_broadcast_smoke.py
+          python homeos/backend/scripts/full_backup_smoke.py
 
       - name: Store smokes
         run: |
           python homeos-store/scripts/smoke_store.py
           python homeos-store/scripts/_schema_drift_guard_smoke.py
+          python homeos-store/scripts/_commerce_recount_smoke.py

@@ -327,43 +327,6 @@ python3 ops/frontend_domain_classify.py --domain energy --bucket shared
 它的判定口径比人扫**更宽**（只看分支里有没有 `.wr-*`），所以清理脚本必须覆盖 `:is(...)` / `:deep(...)` 开头的
 选择器 —— 早先漏掉这一类，门禁一直红着却没人清（本轮已补，门禁转绿）。
 
-### 死 CSS 的严格判定器（`ops/css_dead_classes.py`）
-
-`wr-*` 只是一小片。要按类名判死，需要一个**模拟类名如何被发射**的扫描器，而不是「见前缀就删」或
-「子串搜一下」。`ops/css_dead_classes.py` 枚举发射来源（两个前端的 `src`/`public`、`packages/shared`、
-后端 `.py`、`.json`），把每个类名归入五桶：
-
-| 桶 | 含义 | 是否可删 |
-|---|---|---|
-| `literal` | 字面量里出现过该整词（`class=`、`classList.add`、`:class` 对象键…） | 否 |
-| `dynamic` | 模板串 / 字符串拼接的静态前（后）缀能拼出它（`` `dgm-modal-head--${domain}` ``） | 否 |
-| `runtime` | 框架 / 库运行期自己加上的类（Vue `<Transition name=x>` 的 `x-enter-active`、`router-link-active`、`swiper-*`） | 否 |
-| `css-only` | 只在别的 `.css` 里出现，源码发射不到 | 否（只报告） |
-| `nowhere` | 源码、动态前后缀、其它 CSS 全无 | **是** |
-
-三个必须防的坑（都真实踩过）：**词边界**（`.climate-card` 与 `dgm-climate-card` 是两个不同的 class，
-子串扫描会把死规则「救活」，而 `.climate-card` 其实已经没人发射）、**通用前后缀**（门槛设成 5 字符会
-把 `is-armed` 这种由 `` `is-${tone}` `` 拼出来的**活**状态类判死 —— 门槛必须低到 3）、**自指**
-（把死类名门禁及其自检夹具算作发射来源，`wr-` 就会被自己续命，永远清不掉）。
-
-`css-only` 桶（只在别的 `.css` 里出现、源码发射不到）本身不构成活证据 —— CSS 选择器不会把类名加到
-元素上，它只表示「这大概率是我们自己的类，值得人工确认」。开 `--treat-css-only-as-dead` 前做过一次
-全仓**反向核对**（1,398 个候选类名 × 9,400 个文件），命中 0 后才并桶。
-
-结果：94 个样式表合计 **−14976 行**（`git diff --numstat` 插入行仅 2，那 2 行是相邻空行在 diff 里的重排）。
-分两类：63 个样式表逐块删死规则（−6746 行），31 个**孤儿样式表整表删除**（−8230 行）。孤儿表的判据是
-**三条同时成立**：① 没有 `import` / `@import` / `import.meta.glob` / `sw.js` 预缓存引用它（已核 `index.html`
-与 `public/sw.js`）；② 表内规则涉及的类名要么在别的活样式表里另有定义（`list-page*`、`hcc-card`、
-`quick-actions-card`、`widget-glass-card`… 均已在 `main.css`/`list-page.css`/`QuickActionsCard.css` 等命中），
-要么已无任何组件发射（对应功能在重构中删除）；③ 反向搜索确认不是被漏掉的发射点。唯一例外是
-`event-time` 看似只在该表里定义，但它实际出现处是 `is-event-time`（状态钩子，永久保护）与
-`sec-event-time--selected`，不是独立类名 —— 同样是残留。
-
-反向核对做了两遍：并桶前对 1,398 个 `css-only` 候选类名扫了 9,400 个文件；删表后又把所有被判死的类名
-拿去未被扫描的角落（`ops/`、根文件、`design/`、文档）和第三方 `node_modules` 里各搜一遍。两次命中都是 0
-（`node_modules` 里只撞上 `active`/`empty`/`group`/`hotspot` 这类通用词，且都在 `pinia`/`echarts` 的
-**变量名或注释**语境里，不是 class）—— 说明没有漏掉的发射点。
-
 ## 跨应用共享包（`@homeos/shared`）—— 主应用 ↔ 授权商店
 
 `packages/shared`（仓库根）不只是一个纯逻辑包：**两个前端共用它的源码**，各自 Vite 直接编译。

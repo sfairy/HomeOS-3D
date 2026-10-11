@@ -14,8 +14,7 @@
 //
 // 字段名即语义面（`componentId` 而不是 `selectedComponentId`），形状在这里**单点声明**，
 // 切片模块 `import type { EditorSelection }` 回来 —— 拼错字段名 tsc 直接报，而不是在
-// `any` 里静默拿到 `undefined`。工具支持见 `ops/studio_slice_wrap.mjs --tables`，
-// 名字映射见 `ops/studio_slice_tables_home.json`。
+// `any` 里静默拿到 `undefined`。
 
 /** 一次点击的登记（用于「双击 / 连点」判定，阈值见宿主里的 600ms） */
 export interface EditorSelectionClick {

@@ -6,8 +6,7 @@
  *   bun homeos/scripts/set-version.mjs 0.7.2 --check      # 只自检，不改写（CI 可用）
  *   bun homeos/scripts/set-version.mjs 0.7.2 --prev 0.7.1 # 显式指定上一版（默认自动推断）
  *
- * 与 `bump-version.mjs` 的分工：那个按北京时间生成 `YYYY.MM.DD.HH` 并只改 3 个
- * package.json + README 页眉；本脚本面向「指定语义化版本、全仓库对齐」。
+ * 面向「指定语义化版本、全仓库对齐」。
  *
  * 设计要点
  * 1. 槽位「正则 + 改写」集中在 `SLOTS` 里声明，**改写与自检共用同一份清单**，

@@ -63,7 +63,7 @@ const config: KnipConfig = {
         // tsconfig paths → 运行期外置 shim
         'src/studio/shims/**/*.ts',
         // 编辑器选中态的**类型契约**：为「显式 state 袋」切片预置（宿主 `home.ts` 里那一族
-        // 高频可变捕获收成 `editorSelection` 门面，字段映射见 ops/studio_slice_tables_home.json）。
+        // 高频可变捕获收成 `editorSelection` 门面）。
         // 宿主接线前它还没有消费者，故显式列为根；接线完成后应从本清单移除。
         'src/studio/app/editor/selection/selection-state.ts',
       ],
