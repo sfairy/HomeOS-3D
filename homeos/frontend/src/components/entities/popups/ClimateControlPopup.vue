@@ -1,23 +1,4 @@
-/**
- * @file ClimateControlPopup.vue
- * @module components/entities/popups
- *
- * 恒温/空调控制弹窗
- *
- * 职责：
- * - 基于 EntityPopupShell 渲染温控面板（climate 域，含 fan 子类型）
- * - 目标温度调节：± 按钮 + 滑动条（useSliderCommit 防抖提交）
- * - HVAC 模式切换、风速、摆风、预设、双温区设定
- * - 当前温度展示与配色随模式变化
- *
- * 依赖：
- * - @lucide/vue: Fan / Power / Minus / Plus / Thermometer
- * - ./EntityPopupShell / ./PopupHead
- * - @/composables/entity/useEntityPopupBase: defineEntityPopupProps
- * - @/composables/entity/useClimateControlPopup: 全部业务逻辑（温度/模式/风速/摆风/预设）
- *
- * 说明：本组件为纯展示层，所有状态与行为均由 useClimateControlPopup 提供
- */
+/** 恒温/空调控制弹窗 */
 <template>
   <EntityPopupShell
     :entity="liveEntity"
@@ -292,12 +273,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 ClimateControlPopup 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 import { Fan, Power, Minus, Plus, Thermometer } from '@lucide/vue'
 import EntityPopupShell from '@/components/entities/popups/EntityPopupShell.vue'
 import PopupHead from '@/components/entities/popups/PopupHead.vue'

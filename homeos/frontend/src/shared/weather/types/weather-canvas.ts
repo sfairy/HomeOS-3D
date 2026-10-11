@@ -1,7 +1,4 @@
-/**
- * 天气背景 Canvas / 动画层共享类型。
- * 依赖：天气特效工具模块（profile / preset / particle classes）。
- */
+/** 天气背景 Canvas / 动画层共享类型。 */
 import type { WeatherEffectProfile } from '@/shared/weather/utils/effect-condition.util'
 import type {
   ResolvedWeatherEffectConfig,

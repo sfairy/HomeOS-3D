@@ -1,14 +1,4 @@
-"""实体反向引用查询与解绑（对齐 ``state-store/entity-references*.ts``）。
-
-职责：
-- 本地资源（告警规则 / 家庭模式）由倒排索引覆盖（一次全表扫描服务多次查询）；
-- 布局 / 系统配置引用按实体补扫；
-- 倒排索引 + 60s TTL 缓存抑制面板重复扫描；
-- ``remove_reference`` 按 kinds 分发到具体配置中安全移除实体引用。
-
-依赖：``session_factory``（Prisma 等价）、``app_config``、``ui_config``、
-``alert_rule_watch_index``，以及可选 ``update_home_mode`` / ``delete_alert_rule`` 回调。
-"""
+"""实体反向引用查询与解绑（对齐 ``state-store/entity-references*.ts``）。"""
 
 from __future__ import annotations
 
@@ -58,9 +48,7 @@ ENTITY_REFERENCE_ROLES = (
 )
 
 
-# ---------------------------------------------------------------------- #
 # 工具函数（对齐 entity-references.util.ts）
-# ---------------------------------------------------------------------- #
 def _escape_regexp(text: str) -> str:
     return re.escape(text)
 
@@ -199,9 +187,7 @@ def remove_entity_from_json_value(value: Any, entity_id: str) -> tuple[Any, bool
     return value, False
 
 
-# ---------------------------------------------------------------------- #
 # 倒排索引（对齐 entity-references-index.ts）
-# ---------------------------------------------------------------------- #
 def _push_reference(
     mapping: dict[str, list[dict[str, Any]]], entity_id: str, item: dict[str, Any]
 ) -> None:
@@ -295,9 +281,7 @@ def build_entity_references_inverted_index(session_factory: Any) -> dict[str, li
     return mapping
 
 
-# ---------------------------------------------------------------------- #
 # 布局 / 系统配置扫描（对齐 entity-references-scanners.helper.ts）
-# ---------------------------------------------------------------------- #
 def _push(items: list[dict[str, Any]], item: dict[str, Any], seen: set[str]) -> None:
     key = f"{item['kind']}:{item['id']}:{item['role']}:{item.get('detail') or ''}"
     if key in seen:
@@ -668,9 +652,7 @@ def _scan_system_config(
         )
 
 
-# ---------------------------------------------------------------------- #
 # 解绑执行器（对齐 entity-references-unlink.ts）
-# ---------------------------------------------------------------------- #
 def _fail(message: str) -> dict[str, Any]:
     return {"ok": False, "message": message}
 

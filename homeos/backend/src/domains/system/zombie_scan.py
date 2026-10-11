@@ -1,8 +1,4 @@
-"""僵尸绑定扫描判定工具（对齐 ``device-management.util.ts``）。
-
-职责：区分「HA 中已删除」与「仅被 HomeOS 同步过滤掉」。
-状态库在 syncOnlyEnabledEntities 开启时不含禁用/隐藏实体，不能单独作为存活依据。
-"""
+"""僵尸绑定扫描判定工具（对齐 ``device-management.util.ts``）。"""
 
 from __future__ import annotations
 

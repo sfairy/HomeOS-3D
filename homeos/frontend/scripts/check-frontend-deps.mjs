@@ -1,16 +1,13 @@
 #!/usr/bin/env node
 /**
- * Main-app (non-studio) dependency direction guard.
+ * 主应用（非 studio）依赖方向守卫。
  *
- * Rules:
- * - components|stores|utils|composables ↛ @/views/** and ↛ @/features/**
- * - utils ↛ @/composables|@/stores|@/components  (whitelist shrink-only)
- * - composables ↛ @/components  (whitelist shrink-only; warn-level via allowlist)
- * - 域边界：域到域引用只能走域根 barrel `@/features/<域>`，
- *   禁止跨域深引用（`features/a/**` ↛ `@/features/b/<子路径>`）。存量白名单只减不增。
- *   （`views/**` 按 DAG 允许 import `features/**`，不在本规则内。）
+ * - components|stores|utils|composables ↛ @/views/**、@/features/**
+ * - utils ↛ @/composables|@/stores|@/components（白名单只减不增）
+ * - composables ↛ @/components（白名单只减不增）
+ * - 域到域只能走域根 barrel `@/features/<域>`，禁止跨域深引用（views → features 允许）
  *
- * Exit 1 on violations outside whitelist.
+ * 违反白名单则退出 1。
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -29,12 +26,7 @@ const COMPOSABLES_COMPONENTS_WHITELIST = new Set([
 
 /**
  * 层违规存量白名单（key = `<引用方相对路径>|<归一化 target>`）。
- *
- * key 刻意用**归一化后的 target**（不是原始 spec）：这样 `@/components/<x>` 与
- * `../../components/<x>` 两种写法命中同一条，也不会因为有人改导入风格就让白名单静默失效。
- *
- * 每条都必须写明「为什么现在不能直接修」+「归属批次」，且有过期检测（修好即报错），
- * 所以它只减不增。
+ * key 用归一化后的 target，故两种导入写法命中同一条；每条须写明原因与归属批次，修好即报错。
  *
  * @type {Set<string>}
  */
@@ -46,14 +38,8 @@ const LAYER_WHITELIST = new Set([
 ])
 
 /**
- * 域边界存量白名单（key = `<引用方相对路径>|<import spec>`）。
- *
- * 权威清单就是这里：脚本会**检查过期条目**（已经是合规写法却还挂在白名单上 → 报错），
- * 所以它只能变小，不会慢慢腐烂。
- *
- * 规则只约束 **域到域**（`features/a/**` ↛ `features/b/<子路径>`）—— `views/` 按 DAG 本就
- * 允许 import `features/`，不在此列（视图收敛为薄壳是 P2 的目标，不由依赖门禁承担）。
- * 因此当前只剩 1 条：settings 的浮窗编辑器直接取了 security 的组件。
+ * 域边界存量白名单（key = `<引用方相对路径>|<import spec>`）；有过期检测，故只减不增。
+ * 只约束域到域（`features/a/**` ↛ `features/b/<子路径>`），views → features 允许。
  *
  * @type {Set<string>}
  */

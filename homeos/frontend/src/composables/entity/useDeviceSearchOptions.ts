@@ -1,18 +1,4 @@
-/**
- * @file useDeviceSearchOptions.ts
- * @module composables/entity
- * @description 设备搜索下拉选项 composable。
- *
- * 职责：根据是否启用 REST 模式，从内存或 REST API 解析设备搜索下拉选项；
- *      小库走内存（直接 map memoryItems），大库打开下拉时 REST 拉取建议。
- *
- * 依赖：
- * - @homeos/shared（getEntityDomain、resolveEntityArea）
- * - vue（ref、watch、Ref、ComputedRef）
- * - @/services/api/entities（fetchEntities）
- * - @/shared/entity/utils/select.util（formatEntitySelectOption）
- * - @/shared/entity/utils/derived.util（getEntityDisplayName）
- */
+/** 小库走内存（直接 map memoryItems），大库打开下拉时 REST 拉取建议。 */
 import { getEntityDomain, resolveEntityArea } from '@homeos/shared'
 import { ref, watch, type Ref, type ComputedRef } from 'vue'
 import { fetchEntities } from '@/services/api/entities'

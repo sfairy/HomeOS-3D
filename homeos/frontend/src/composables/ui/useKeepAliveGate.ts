@@ -1,14 +1,4 @@
-/**
- * @file keep-alive 激活状态 Composable
- * @module composables/ui/useKeepAliveGate
- *
- * 职责：
- *  - 提供 keep-alive 包裹下的组件激活/失活状态。
- *  - 计算 teleportDisabled，用于 Teleport :disabled 绑定，避免失活时 Teleport 残留 DOM。
- *
- * 依赖：
- *  - vue 的 computed / onActivated / onDeactivated / onMounted / ref。
- */
+/** - 提供 keep-alive 包裹下的组件激活/失活状态。 */
 import { computed, onActivated, onDeactivated, onMounted, ref } from 'vue'
 
 /**

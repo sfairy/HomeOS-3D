@@ -1,21 +1,4 @@
-/**
- * 设备分组：电池实体识别与电量解析工具
- *
- * 职责：
- * - 维护设备分组 store 共享类型（DeviceGroupEntitiesStoreLike / DeviceGroupUiStoreLike），
- *   供 group-battery / group-counts / group-offline 三件套复用。
- * - 识别电池传感器实体（device_class=battery 或 entity_id 含 battery，排除系统监控实体）。
- * - 解析实体电量（state / attributes.battery_level / 派生索引三路回退）。
- * - 提供电池实体 ID 列表查询与低电量计数，供 DeviceGroupModal 弹窗与角标展示。
- *
- * 依赖：
- * - @/composables/entity/useDeviceGroupMembers 的 MONITORED_ENTITY_IDS（系统监控排除清单）。
- * - @/shared/entity/utils/derived.util 的 domainIndexToArray（域索引转 id 数组）。
- * - @/shared/types/entity-store 的 HaEntityState。
- *
- * 注意：domain key（sensor / binary_sensor）与 entity_id 为 HA 标识符，不翻译；
- *   低电量阈值 BATTERY_LOW_THRESHOLD 为运行时常量，不翻译。
- */
+/** 设备分组：电池实体识别与电量解析工具 */
 import { MONITORED_ENTITY_IDS } from '@/shared/constants/device-group'
 import { domainIndexToArray } from '@/shared/entity/utils/derived.util'
 import type { HaEntityState } from '@/shared/types/entity-store'

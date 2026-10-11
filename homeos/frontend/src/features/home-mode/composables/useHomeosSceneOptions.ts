@@ -1,15 +1,4 @@
-/**
- * @file useHomeosSceneOptions.ts
- * @module composables/home-mode
- * @description HA 场景列表下拉选项 composable（HomeOS 编排场景已移除，直接列 HA `scene.*` 实体）。
- *
- * 职责：
- * - 从实体缓存加载 HA 场景列表；
- * - 解析为下拉选项（值为 scene entity_id），支持可选的“不联动场景”空选项；
- * - 提供 labelForSceneId / labelsForSceneIds 反查标签方法。
- *
- * 依赖：vue、@/stores/entities.store、@/shared/utils/ha/scene-script.util。
- */
+/** - 从实体缓存加载 HA 场景列表； */
 import { ref, computed, onMounted } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import {

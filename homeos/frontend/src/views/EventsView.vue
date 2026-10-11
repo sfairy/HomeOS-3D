@@ -1,11 +1,5 @@
 /** * 事件日志视图：数据分析 + 事件流双栏布局，展示 HA 实体状态变化时间线。 */
 <script setup>
-/**
- * 职责：渲染 views/EventsView 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import {
   EventsViewAnalytics,
   EventsViewHero,

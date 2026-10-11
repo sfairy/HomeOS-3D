@@ -1,15 +1,4 @@
-/**
- * @file client-power.internals.ts
- * @module frontend/src/features/settings/home/client-power
- * 职责：客户端智能充放电面板的内部 composables。聚合系统配置读写、待保存快照、状态轮询、
- *       待配对终端发现/清除、电池与设备信息派生逻辑，供 SettingsClientPowerPanel 与子 Section 复用。
- * 关键依赖：
- *   - useSettingsHubPending / useRegisterSettingsTabPending：待保存快照与 Tab 级离开拦截
- *   - useSystemConfig / patchSystemConfig：系统配置读写
- *   - fetchClientPowerStatus / dismissClientPowerPending / dismissClientPowerOffline：客户端电源 API
- *   - schedulePoll：统一轮询调度（页面隐藏时自动暂停）
- *   - settings-client-power-display.util：展示派生工具函数
- */
+/** 待配对终端发现/清除、电池与设备信息派生逻辑，供 SettingsClientPowerPanel 与子 Section 复用。 */
 /** composables：客户端电源配置 / 面板 / 展示 */
 import { useRegisterSettingsTabPending, useSettingsHubPending } from '@/composables/settings-kernel/pending.internals'
 import { handleSystemConfigPatchError, patchSystemConfig, useSystemConfig } from '@/composables/config/system-config-core.internals'

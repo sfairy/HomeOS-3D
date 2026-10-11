@@ -1,21 +1,8 @@
 <!--
-组件：EditorLayoutSection.vue
-所属模块：frontend / src / views / settings / display / floating
-职责：浮动组件编辑器 - 布局区段。配置组件在户型图上的锚点位置（X/Y 百分比）、
-      尺寸（宽高，支持步进与方向键微调）与主题色。
-关键依赖：
-  - SettingsRangeField：百分比滑块
-  - useDraftObjectField：草稿字段双向绑定（afhConfig 与 fw 两个对象）
-  - AFH_THEMES / clampPct / formatPct：主题列表与百分比工具
-数据来源：父级透传的 afhConfig（双向，含 width/height/theme）/ fw（含 xPct/yPct）
+  浮动组件编辑器 - 布局区段。配置组件在户型图上的锚点位置（X/Y 百分比）、
+  尺寸（宽高，支持步进与方向键微调）与主题色。
 -->
 <script setup>
-/**
- * 职责：渲染 views/EditorLayoutSection 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { ChevronUp, ChevronDown } from '@lucide/vue'
 import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeField.vue'
 import { AFH_THEMES, clampPct, formatPct } from '@/features/settings/composables/display/layout-floating.internals'
@@ -29,7 +16,6 @@ const props = defineProps({
   fw: { type: Object, required: true },
 })
 
-// 双向绑定：AFH 编辑器草稿配置（含 width / height / theme）
 const afhConfig = defineModel('afhConfig', { type: Object, required: true })
 
 const { field } = useDraftObjectField(() => afhConfig.value)

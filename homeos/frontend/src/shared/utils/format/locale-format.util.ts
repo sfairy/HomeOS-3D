@@ -1,16 +1,4 @@
-/**
- * 本地化日期 / 时间 / 数字格式化工具
- *
- * 职责：
- * - 收敛 Intl.DateTimeFormat / NumberFormat 的复用配置，提供面向用户的中文时间文案。
- * - 覆盖审计日志、安防事件、访问审计、事件列表、访客有效期、毫秒 / 分钟时长等场景。
- * - 统一错误兜底：传入空值或非法日期时返回空串 / 占位符，避免页面渲染异常。
- *
- * 依赖：浏览器 Intl API（无外部包依赖）。
- *
- * 注意：所有 locale 默认 zh-CN；options 中的字段名（month / day / hour ...）为
- *   Intl 标准字段，不翻译。
- */
+/** 本地化日期 / 时间 / 数字格式化工具 */
 type DateInput = Date | string | number | null | undefined
 
 /**

@@ -1,11 +1,8 @@
 """实体房间（Area）解析与筛选（对齐 ``@homeos/shared`` ``entity/area.ts``）。
 
-HomeOS 后端在实体同步阶段把 HA registry 的 ``area_id`` / ``area_name`` 合并进实体
-``attributes``，前端与 REST 过滤直接消费，无需再次查表。
-
-约定：
-- ``area_id`` 与 ``area_name`` 至少存在其一即视为有房间归属；
-- 二者可互为兜底（缺哪个用另一个补）。
+后端在实体同步阶段把 HA registry 的 ``area_id`` / ``area_name`` 合并进实体 ``attributes``，
+前端与 REST 过滤直接消费，无需再次查表。``area_id`` 与 ``area_name`` 至少存在其一即视为
+有房间归属，二者可互为兜底。
 """
 
 from __future__ import annotations

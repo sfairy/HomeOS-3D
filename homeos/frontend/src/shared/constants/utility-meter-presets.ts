@@ -1,23 +1,4 @@
-/**
- * 公用事业仪表盘弹窗预设（水 / 气 / 电）
- *
- * 职责：
- * - 维护水、燃气、电网三类公用事业详情弹窗的完整预设配置。
- * - 每类预设包含弹窗尺寸、主题色、图标、中文文案标签、解析函数等。
- * - 供 UtilityMeterPopup 组件按 kind 选用对应预设渲染。
- *
- * 依赖：
- * - @lucide/vue 图标组件。
- * - @/shared/energy/composables/utility-meter-parse-helpers 中的日 / 月 / 年明细解析函数。
- *
- * 注意：
- * - `kind` / `sourceKey`（water / gas / grid）为配置 key，不翻译。
- * - `shellClass` / `innerClass` / `closeClass` / `calClassPrefix` / `expandPrefix` 为 CSS 类名，不翻译。
- * - `unitLabelKey`（ton / cubicMeter / kwh）为能源单位 key，不翻译。
- * - `accentColor` / `theme` 中的颜色为 CSS 颜色值，不翻译。
- * - `amountKey` / `usageKey` 为明细数据字段 key，不翻译。
- * - 仅面向用户的文案字段（title / balanceLabel / priceLabel 等）使用简体中文。
- */
+/** 公用事业仪表盘弹窗预设（水 / 气 / 电） */
 import { Droplets, Flame, Zap } from '@lucide/vue'
 import {
   parseGasDayItem,

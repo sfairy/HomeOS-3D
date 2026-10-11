@@ -109,9 +109,7 @@ def escape_reg_exp(text: str) -> str:
     return re.sub(r"[.*+?^${}()|\[\]\\]", lambda m: "\\" + m.group(0), text)
 
 
-# --------------------------------------------------------------------------- #
 # URL 解析与安全校验
-# --------------------------------------------------------------------------- #
 def url_origin(url: str) -> str:
     """返回 ``scheme://host[:port]``（默认端口省略，等价 JS ``URL.origin``）。"""
     parts = urlsplit(url)
@@ -208,9 +206,7 @@ def get_embed_upstream_origin(embed_base: str) -> str:
         return embed_base
 
 
-# --------------------------------------------------------------------------- #
 # 请求头改写
-# --------------------------------------------------------------------------- #
 def rewrite_embed_referer(referer: str | None, embed_base: str, proxy_prefix: str) -> str:
     """把转发给上游的 Referer 由反代地址还原为内嵌站真实地址。"""
     upstream_origin = get_embed_upstream_origin(embed_base)
@@ -325,9 +321,7 @@ def build_embed_forward_body(
     return None
 
 
-# --------------------------------------------------------------------------- #
 # 内容改写
-# --------------------------------------------------------------------------- #
 def rewrite_embed_same_origin_urls(content: str, embed_base: str, proxy_root: str) -> str:
     """把内嵌站的同源绝对 URL（含转义/百分号/协议相对形式）改写为反代根路径。"""
     try:
@@ -528,9 +522,7 @@ def is_embed_rewriteable_content_type(content_type: str | None) -> bool:
     )
 
 
-# --------------------------------------------------------------------------- #
 # 逃逸子资源兜底（对齐 shared/embed/fallback-core.util.ts）
-# --------------------------------------------------------------------------- #
 def _header_value(value: Any) -> str:
     if isinstance(value, (list, tuple)):
         return str(value[0]) if value else ""
@@ -621,9 +613,7 @@ def resolve_embed_proxy_fallback_redirect(
     return None
 
 
-# --------------------------------------------------------------------------- #
 # 内部工具
-# --------------------------------------------------------------------------- #
 def _resolve_url(location: str, base: str) -> str | None:
     """相对 location 基于 base 解析为绝对 URL（无法解析返回 ``None``）。"""
     parts = urlsplit(location)

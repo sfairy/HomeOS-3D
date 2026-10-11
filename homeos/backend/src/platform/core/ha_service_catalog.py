@@ -1,15 +1,13 @@
 """HA 服务白名单目录（单一事实来源）。
 
-同一份 ``ALLOWED_SERVICES`` 同时被两条下发通道使用，避免两套白名单漂移：
+``ALLOWED_SERVICES`` 同时服务两条下发通道，避免两套白名单漂移：
 
-- ``api/ha.py`` 的 ``POST /ha/services/call``（原始 HA 服务代理，逐服务校验参数字段）；
-- ``services/agent/tools/home_tools_service.py`` 的 ``control_device`` / ``control_room``
-  （智能管家 LLM 工具，仅校验 ``domain.service`` 是否在册，字段级过滤由
-  ``tool_args_validator.sanitize_service_data`` 负责）。
+- ``POST /ha/services/call``（原始 HA 服务代理，逐服务校验参数字段）；
+- 智能管家 LLM 工具 ``control_device`` / ``control_room``（仅校验 ``domain.service``
+  是否在册，字段级过滤由 ``sanitize_service_data`` 负责）。
 
-为何要收敛：智能管家此前**完全绕过**服务白名单，LLM 可以说出任意
-``domain.service``（如 ``light.reload`` / ``shell_command.turn_on``）直达 HA。
-这里把白名单提到 core 层，让工具层与 HTTP 层共用同一份目录。
+LLM 若绕过白名单就能说出任意 ``domain.service``（如 ``light.reload`` /
+``shell_command.turn_on``）直达 HA，故目录必须在工具层与 HTTP 层共用。
 """
 
 from __future__ import annotations
@@ -126,10 +124,10 @@ AGENT_TOGGLE_DOMAINS = frozenset(
 #: 智能管家额外放行的 ``scene`` / ``script`` 触发（HA 场景标准动作）；
 #: 语音侧另有「场景语音控制」允许清单闸门兜底。
 #:
-#: 另外补上 ``high_risk_denylist.SAFE_BULK_CONTROL_DOMAINS`` 里但不在 HTTP 原始代理
-#: 白名单中的域（humidifier / air_purifier / dehumidifier / fan_fresh_air）。
-#: 这些域此前可由 LLM 直接开关（批量控制路径也会遍历到），若只按 HTTP 目录判定会
-#: 反而挡掉既有能力。测试脚本会校验两处清单不漂移。
+#: 补上 ``high_risk_denylist.SAFE_BULK_CONTROL_DOMAINS`` 里但不在 HTTP 原始代理
+#: 白名单中的域（humidifier / air_purifier / dehumidifier / fan_fresh_air）：
+#: 批量控制路径也会遍历这些域，只按 HTTP 目录判定会挡掉既有能力。
+#: 测试脚本会校验两处清单不漂移。
 AGENT_EXTRA_SERVICES: dict[tuple[str, str], set[str]] = {
     ('scene', 'turn_on'): set(),
     ('script', 'turn_on'): set(),

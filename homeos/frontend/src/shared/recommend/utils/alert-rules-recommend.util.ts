@@ -1,13 +1,4 @@
-/**
- * 告警规则推荐模块。
- *
- * 职责：
- * - 基于安防事件实体与 EventLog 高频实体，推荐应配置 TTS/通知规则的实体；
- * - 去重过滤已配置实体，按「安防」与高频两类生成推荐 chips；
- * - 产出 RecommendInsightResult 供设置页告警规则面板渲染。
- *
- * 依赖：getEntityDomain（@homeos/shared）、recommend.types 类型定义。
- */
+/** 告警规则推荐模块。 */
 import { getEntityDomain, getEntityLeaf } from '@homeos/shared'
 import type {
   EventLogStatsSnapshot,

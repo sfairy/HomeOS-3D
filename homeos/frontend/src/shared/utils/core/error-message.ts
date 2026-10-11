@@ -1,16 +1,4 @@
-/**
- * @module core/error-message
- * @description 统一提取与本地化后端 / Axios 错误消息的工具。
- *
- * 职责：
- *  - 识别后端不可达错误（502/503/504/网络错误/超时）；
- *  - 从 AxiosLikeError 响应体中提取后端业务文案；
- *  - 将常见英文 HTTP/网络/Nest 异常文案本地化为简体中文用户提示。
- *
- * 依赖：@homeos/shared/errors（HTTP 文案与关键词正则的共享映射表）。
- * 本文件仅保留 Axios 错误的输入解析层与前端特有逻辑
- * （动态限流等待提示、后端不可达提示、中文会话失效文案归一等）。
- */
+/** - 识别后端不可达错误（502/503/504/网络错误/超时）； */
 import { HTTP_MESSAGE_PATTERNS, HTTP_MESSAGE_TEXTS } from '@homeos/shared'
 /** Axios 风格错误的最小结构（无需引入 axios 类型） */
 type AxiosLikeError = {

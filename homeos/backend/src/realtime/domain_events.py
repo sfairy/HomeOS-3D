@@ -56,9 +56,7 @@ class DomainEventBridge:
         for event, handler in handlers.items():
             self._event_bus.on(event, handler)
 
-    # ------------------------------------------------------------------ #
     # 通用分发
-    # ------------------------------------------------------------------ #
     async def _safe(self, label: str, method: Any, data: Any) -> None:
         if not isinstance(data, dict):
             return
@@ -67,9 +65,7 @@ class DomainEventBridge:
         except Exception as exc:
             logger.warning("%s WS 推送失败: %s", label, exc)
 
-    # ------------------------------------------------------------------ #
     # 通知
-    # ------------------------------------------------------------------ #
     async def _handle_notification(self, data: Any) -> None:
         if not isinstance(data, dict):
             return
@@ -78,9 +74,7 @@ class DomainEventBridge:
         except Exception as exc:
             logger.warning("通知 WS 推送失败: %s", exc)
 
-    # ------------------------------------------------------------------ #
     # 家庭模式 / 自动化
-    # ------------------------------------------------------------------ #
     async def _handle_home_mode_activated(self, data: Any) -> None:
         await self._safe("家庭模式激活", self._gateway.broadcast_home_mode_activated, data)
 
@@ -90,9 +84,7 @@ class DomainEventBridge:
     async def _handle_automation_executed(self, data: Any) -> None:
         await self._safe("自动化执行", self._gateway.broadcast_automation_executed, data)
 
-    # ------------------------------------------------------------------ #
     # 安防
-    # ------------------------------------------------------------------ #
     async def _handle_security_mode_changed(self, data: Any) -> None:
         await self._safe("安防模式", self._gateway.broadcast_security_mode_changed, data)
 
@@ -110,9 +102,7 @@ class DomainEventBridge:
             "紧急求助结束", self._gateway.broadcast_security_emergency_completed, data
         )
 
-    # ------------------------------------------------------------------ #
     # 在场 / 能耗 / 检测 / 儿童模式
-    # ------------------------------------------------------------------ #
     async def _handle_presence_changed(self, data: Any) -> None:
         await self._safe("在场状态", self._gateway.broadcast_presence_changed, data)
 
@@ -128,9 +118,7 @@ class DomainEventBridge:
     async def _handle_frigate_detection(self, data: Any) -> None:
         await self._safe("Frigate 检测", self._gateway.broadcast_frigate_detection, data)
 
-    # ------------------------------------------------------------------ #
     # TTS / 地震
-    # ------------------------------------------------------------------ #
     async def _handle_tts_speak(self, data: Any) -> None:
         if not isinstance(data, dict) or self._tts_speak is None:
             return

@@ -56,16 +56,7 @@
 </template>
 
 <script setup>
-/**
- * @file AssetGridItem.vue
- * @module common/AssetGridItem
- * @description 资源网格项单卡片
- *  - 文件/文件夹统一展示；
- *  - 悬停操作按钮（复制路径 / 删除）；
- *  - Picker 模式视觉引导（光晕）。
- *  依赖：vue computed，@lucide/vue 图标库。
- *  调用场景：AssetManagerBody 网格视图渲染每张卡片。
- */
+/** - 文件/文件夹统一展示； */
 import { computed } from 'vue'
 import { FolderOpen, FileImage, Copy, Trash2 } from '@lucide/vue'
 

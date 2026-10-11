@@ -1,18 +1,4 @@
-/**
- * @file MediaPlayerPopup.vue
- * @module components/entities/popups
- * @brief 媒体播放器控制弹窗
- *
- * 职责：
- * - 基于 AnchoredPopupShell 渲染 media_player 域控制面板
- * - 提供播放/暂停、上一首/下一首、音量调节、循环/随机
- * - 展示当前曲目信息与播放状态
- *
- * 依赖：
- * - vue（ref/computed）、@lucide/vue（Music/SkipBack/SkipForward/Pause/Play/Volume2 等）
- * - ./AnchoredPopupShell、./PopupHead
- * - @/composables/entity/useEntityPopupBase
- */
+/** - 基于 AnchoredPopupShell 渲染 media_player 域控制面板 */
 <template>
   <!-- MediaPlayerPopup 媒体播放器弹窗：控制媒体播放器实体 -->
   <AnchoredPopupShell
@@ -217,12 +203,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 MediaPlayerPopup 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 /**
  * MediaPlayerPopup - 媒体播放器弹窗组件
  * 功能特性：

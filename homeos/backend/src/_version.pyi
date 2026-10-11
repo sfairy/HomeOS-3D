@@ -4,9 +4,6 @@
 这里只放一个类型桩，让静态分析不把 ``from ._version import __version__``
 当成缺失模块（``reportMissingImports``）；运行期的存在性由调用方的
 ``try/except ImportError`` 兜底。
-
-与商店侧 ``homeos-store/backend/src/_version.pyi`` 保持同一约定：真实版本号
-在构建期烘入，源码树里只留类型桩（``.py`` 在 ``.gitignore`` 中）。
 """
 
 __version__: str

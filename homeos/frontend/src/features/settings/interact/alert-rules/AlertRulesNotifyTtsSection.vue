@@ -1,14 +1,6 @@
 <!--
-组件：AlertRulesNotifyTtsSection.vue
-所属模块：frontend / src / views / settings / interact / alert-rules
-职责：通知播报规则区段。为自定义应用通知配置 TTS 话术，支持按级别/关键词匹配后用模板合成播报文本。
-      提供规则列表的增删、启用切换、名称编辑与变量插入。
-关键依赖：
-  - SettingsCard / SettingsFlowBand / SettingsFlowStat：卡片与流程概览
-  - VoiceSpeechComposer：话术模板编辑（预设/自定义/变量插入）
-  - HosSelect：级别/模式选择
-  - useAlertRulesSection：注入 voice（含 customTtsAlerts）及增删方法
-数据来源：useAlertRulesSection() 返回的 voice.customTtsAlerts 列表
+  通知播报规则区段。为自定义应用通知配置 TTS 话术，支持按级别/关键词匹配后用模板合成播报文本。
+  提供规则列表的增删、启用切换、名称编辑与变量插入。
 -->
 <template>
   <div class="alert-notify-tts space-y-3">

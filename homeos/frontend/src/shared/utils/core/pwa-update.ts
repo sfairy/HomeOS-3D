@@ -1,14 +1,4 @@
-/**
- * @module core/pwa-update
- * @description Service Worker 注册与 PWA 更新提示工具。
- *
- * 职责：
- *  - 注册 /sw.js 并监听 updatefound / controllerchange，在 SW 更新就绪时回调提示用户刷新；
- *  - 处理自签 / 不受信任 HTTPS 证书场景：识别 SecurityError 后在本会话内不再重试，
- *    避免反复刷屏，并在开发环境给出信任根 CA 的指引。
- *
- * 依赖：navigator.serviceWorker、sessionStorage、import.meta.env。
- */
+/** - 注册 /sw.js 并监听 updatefound / controllerchange，在 SW 更新就绪时回调提示用户刷新； */
 /** sessionStorage key：标记本会话已确认 SW 无法注册，避免反复重试刷屏 */
 const SW_SKIP_KEY = 'homeos:sw-skip'
 

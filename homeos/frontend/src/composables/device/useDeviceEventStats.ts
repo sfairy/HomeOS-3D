@@ -1,17 +1,4 @@
-/**
- * 设备事件统计 Composable
- *
- * 模块：设备详情 / 事件统计
- * 职责：
- *   - 根据 entity_id 与时间窗口（默认 168 小时 = 7 天）拉取事件统计与原始事件。
- *   - 将原始事件按小时（0~23）分桶，得到 24 维的 hourlyBuckets 数组供图表展示。
- *   - 通过 createFetchSequence 串行化请求，过滤过期响应。
- *
- * 依赖：
- *   - @/services/api/entities.fetchEventStats / fetchEvents：事件统计 / 原始事件接口。
- *   - @/shared/types/device.EventLogStats：事件统计返回类型。
- *   - @/shared/utils/core/misc.util.createFetchSequence：请求序号守卫。
- */
+/** 设备事件统计 Composable */
 import { ref, watch, type Ref } from 'vue'
 import { fetchEventStats, fetchEvents } from '@/services/api/entities'
 import type { EventLogStats } from '@/shared/types/device'

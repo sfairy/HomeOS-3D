@@ -166,9 +166,7 @@ def get_changed_control_attr(
     return None
 
 
-# --------------------------------------------------------------------------- #
 # 记录过滤（域黑白名单 + 实体屏蔽）
-# --------------------------------------------------------------------------- #
 def _normalize_domain_list(value: Any) -> list[str]:
     if not isinstance(value, list):
         return []

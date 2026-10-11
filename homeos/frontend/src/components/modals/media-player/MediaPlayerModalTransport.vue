@@ -98,19 +98,7 @@
 </template>
 
 <script setup>
-/**
- * MediaPlayerModalTransport - 媒体弹窗播控区组件
- * 职责：呈现播放进度条、播放/暂停/上一曲/下一曲按钮、随机/循环开关与音量条。
- * Props:
- * - hasProgress/progressPct：是否存在进度与进度百分比；
- * - supports：能力开关对象，控制按钮与音量条是否渲染；
- * - seekDisplayCurrent/totalTime：当前播放时间与总时长文本；
- * - attrs：播放器原始属性（用于读取 shuffle/repeat 状态）；
- * - isPlaying/isMuted/volume/volumeRange/volumeTrackStyle：播放状态、静音、音量相关；
- * - onSeekDrag/seekFromPct：进度条拖动与跳转回调；
- * - toggleShuffle/prevTrack/togglePlay/nextTrack/toggleRepeat：播放控制回调；
- * - toggleMute/onVolumeInput/onVolumeChange/commitVolume：音量相关回调。
- */
+/** MediaPlayerModalTransport - 媒体弹窗播控区组件 */
 import {
   Pause,
   Play,

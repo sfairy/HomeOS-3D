@@ -320,9 +320,7 @@ HOME_MODE_DEFAULT_MODES: list[dict[str, Any]] = [
 ]
 
 
-# --------------------------------------------------------------------------- #
 # 动作类型 / 目标收集
-# --------------------------------------------------------------------------- #
 def is_security_arming_entity_id(entity_id: str) -> bool:
     return entity_id in SECURITY_ARMING_MODES
 
@@ -367,9 +365,7 @@ def collect_home_mode_target_actions(actions: list[dict[str, Any]]) -> list[dict
     return out
 
 
-# --------------------------------------------------------------------------- #
 # 预设实体键推荐 / 安装计划
-# --------------------------------------------------------------------------- #
 def _suggest_preset_entity_overrides(preset: dict[str, Any], entity_ids: list[str]) -> dict[str, str]:
     by_domain: dict[str, list[str]] = {}
     for entity_id in entity_ids:

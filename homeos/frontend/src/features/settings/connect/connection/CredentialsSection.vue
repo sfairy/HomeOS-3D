@@ -1,7 +1,6 @@
 <!--
   ConnectionCredentials区域组件
-  所属模块：设置 - 连接凭证
-  职责：HA 局域网/外网地址与令牌录入、探测与反馈
+  HA 局域网/外网地址与令牌录入、探测与反馈
 -->
 <template>
   <div class="conn-cred">

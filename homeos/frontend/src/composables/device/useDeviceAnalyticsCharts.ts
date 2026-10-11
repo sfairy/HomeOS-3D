@@ -4,23 +4,10 @@
  */
 /**
  * 设备分析图表组合式函数模块
- * 
- * 职责：
  * - 提供设备分析仪表盘中各类图表的渲染和管理能力
  * - 支持趋势图、域分布饼图、热力图、健康趋势图、事件统计图等多种图表类型
  * - 处理图表的生命周期管理（挂载/卸载）、尺寸变化响应、交互事件绑定
  * - 提供数据导出功能（CSV 格式）
- * 
- * 依赖：
- * - vue: ref, nextTick, ComputedRef, Ref
- * - echarts: 图表渲染引擎（动态 import，分包懒加载）
- * - @/shared/entity/utils/derived.util: getEntityDisplayName
- * - @/shared/device/utils/domain-labels.util: getDomainLabel, resolveDomainId
- * - @/shared/utils/chart/device-chart-copy.util: formatDualMetricTooltip, formatHeatmapTooltip
- * - @/shared/utils/chart/device-chart-theme: 图表主题配置
- * - @/stores/entities.store: useEntitiesStore
- * - @/composables/device/useDeviceAnalyticsDashboard: useDeviceAnalyticsDashboard
- * - @/composables/device/useDeviceHealthTrend: useDeviceHealthTrend
  */
 import { ref, nextTick, type ComputedRef, type Ref } from 'vue'
 import type * as EchartsModuleNS from '@/shared/utils/chart/echarts'

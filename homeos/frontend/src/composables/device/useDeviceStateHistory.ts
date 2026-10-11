@@ -1,16 +1,4 @@
-/**
- * 设备状态历史 Composable
- *
- * 模块：设备详情 / 状态历史
- * 职责：
- *   - 根据 entity_id 与时间范围拉取状态变更事件列表。
- *   - 暴露 loading / error / events / total / truncated 五个响应式状态。
- *   - 通过 createFetchSequence 串行化请求，过滤过期响应。
- *
- * 依赖：
- *   - @/services/api/entities.fetchEvents：事件列表接口。
- *   - @/shared/utils/core/misc.util.createFetchSequence：请求序号守卫。
- */
+/** 设备状态历史 Composable */
 import { ref, watch, type Ref } from 'vue'
 import { fetchEvents } from '@/services/api/entities'
 import { createFetchSequence } from '@/shared/utils/core/misc.util'

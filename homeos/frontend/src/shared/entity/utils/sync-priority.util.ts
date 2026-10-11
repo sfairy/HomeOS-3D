@@ -1,17 +1,4 @@
-/**
- * 实体同步优先级切分工具
- *
- * 职责：
- * - 为 IndexedDB 冷启动阶段把全量实体切分为「优先同步」与「延后补全」两组，
- *   保证布局/订阅域 + pinned 热点优先就绪，其余 idle 补全，提升首屏可用性。
- *
- * 依赖：
- * - @homeos/shared 中的 getEntityDomain / DEFAULT_CRITICAL_DOMAINS / sortEntitiesBySyncPriority。
- * - @/shared/entity/utils/ws-subscription 中的 collectPinnedEntityIds / resolveSubscribeDomains。
- *
- * 注意：
- * - 切分基于 entity_id 域与 pinned 集合，不动实体本身数据。
- */
+/** 实体同步优先级切分工具 */
 import { getEntityDomain, DEFAULT_CRITICAL_DOMAINS, sortEntitiesBySyncPriority } from '@homeos/shared'
 import {
   collectPinnedEntityIds,

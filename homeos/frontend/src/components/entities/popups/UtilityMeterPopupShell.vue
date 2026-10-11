@@ -1,16 +1,4 @@
-/**
- * @file UtilityMeterPopupShell.vue
- * @module components/entities/popups
- * @brief 公事业仪表弹窗通用外壳
- *
- * 职责：
- * - 为水/电/气仪表弹窗提供统一外壳样式（主题色、标题、账户切换、余额展示）
- * - 包含标题栏、账户下拉、余额标签与默认插槽内容区
- *
- * 依赖：
- * - vue（computed）、@lucide/vue（ChevronDown）、HosSelect
- * - 外部样式 @/assets/styles/utility-meter-popup.css
- */
+/** - 为水/电/气仪表弹窗提供统一外壳样式（主题色、标题、账户切换、余额展示） */
 <template>
   <!-- UtilityMeterPopupShell 公事业仪表弹窗外壳：仪表弹窗的通用外壳容器 -->
   <div class="um-popup" :style="themeStyle">
@@ -115,12 +103,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 UtilityMeterPopupShell 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 /**
  * UtilityMeterPopupShell - 公事业仪表弹窗外壳组件
  * 功能特性：

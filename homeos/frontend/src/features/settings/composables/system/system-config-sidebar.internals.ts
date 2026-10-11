@@ -1,15 +1,4 @@
-/**
- * 系统配置参数侧边栏组合式函数。
- *
- * 职责：
- *   - 声明系统配置分区的中文标签与委托面板跳转链接（语音 / 天气特效 / 能源预算等）；
- *   - 提供侧边栏分类导航（按 category 折叠展开、搜索过滤、活跃高亮）；
- *   - 维护全局搜索输入框与导航容器的 DOM 引用，支持滚动定位到当前分区。
- * 依赖：
- *   - vue（computed / nextTick / onMounted / onUnmounted / ref / watch）
- *   - @/composables/config/system-config-core.internals（分区分类与元信息）
- *   - @/shared/utils/registry/settings-route.util（设置路由）
- */
+/** 系统配置参数侧边栏组合式函数。 */
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { categoryForSection, getSectionCategories, sectionMeta } from '@/composables/config/system-config-core.internals'

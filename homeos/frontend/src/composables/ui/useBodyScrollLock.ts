@@ -1,30 +1,4 @@
-/**
- * @file body 滚动锁（引用计数） Composable
- * @module composables/ui/useBodyScrollLock
- *
- * 职责：
- *  - 给"打开即锁滚动"的浮层提供统一的加锁 / 解锁入口。
- *  - 以引用计数解决多个浮层叠加时互相踩踏的问题：确认框（VConfirmModal）之上再打开
- *    输入框（VPromptModal）或全屏查看器时，只有**最后一个**关闭者才恢复滚动，
- *    否则先关的那一层会把 `overflow` 提前还原，背后页面被误滚。
- *  - 解锁时恢复加锁前的原始值（而不是硬写 `''`），不破坏调用方自己写过的内联样式。
- *
- * 看门狗（本模块的四条防线，按「最可能踩到」排序）：
- *  1. **取锁点落在生命周期上**：`useBodyScrollLock` 不再在 setup 里同步取锁，而是等 `onMounted`。
- *     setup 里同步取锁后若后续 setup 抛错，组件不会挂载 → `onUnmounted` 不会执行 → 锁永久残留
- *     （表现为整页再也滚不动，且没有任何浮层在场）。改到挂载点取锁后，取锁与释放一定成对。
- *  2. **重复来源检测**：同一标签同时持锁多次即视为重复注册（真实踩过的 bug：
- *     VFolderCreateModal 把 `useBodyScrollLock(modalActive)` 写了两遍），触发 `console.warn`；
- *     不按 DEV 门禁屏蔽 —— 它只在 bug 真的存在时才会响，属于该被看见的信号；
- *     诊断口径见 `getBodyScrollLockState().duplicates`。
- *  3. **诊断入口**：`getBodyScrollLockState()` 直接给出「谁还持着锁」。
- *  4. **兜底解锁**：`releaseAllBodyScrollLocks()` 用于页面已经卡死的救援场景。
- *
- * 不做的：没有「按 DOM 自动判定该不该解锁」的自动愈合 —— 「该解锁」没有可靠信号
- * （上一个存活的浮层并不等于该解锁的那个），猜错的后果是把仍在显示的浮层脚下的滚动放开。
- *
- * 依赖：vue 的 onMounted / onUnmounted / watch 与 Ref 类型。
- */
+/** - 给"打开即锁滚动"的浮层提供统一的加锁 / 解锁入口。 */
 import { onMounted, onUnmounted, watch, type Ref } from 'vue'
 
 /** 当前持有锁的浮层数量；0 表示未锁。 */

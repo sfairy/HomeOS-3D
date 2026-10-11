@@ -27,9 +27,7 @@ from collections.abc import Collection, Iterable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 
-# --------------------------------------------------------------------------- #
 # 功能码字面量
-# --------------------------------------------------------------------------- #
 #: 控制类 API（HA 代理的写操作）。
 FEATURE_API = "api"
 #: 素材（图片）读取与上传。
@@ -67,9 +65,7 @@ FEATURE_AGENT = "module.agent"
 #: 影视媒体增量包。
 FEATURE_MEDIA = "module.media"
 
-# --------------------------------------------------------------------------- #
 # 目录加载（真源 ops/feature_codes.json，回退内嵌副本）
-# --------------------------------------------------------------------------- #
 #: 内嵌的能力码目录（与 ``ops/feature_codes.json`` 逐字段一致；见模块注释）。
 _CATALOG_JSON = """
 {

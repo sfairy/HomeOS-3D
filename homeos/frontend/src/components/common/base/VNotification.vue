@@ -1,13 +1,4 @@
-/**
- * @file VNotification.vue
- * @module components/common/base
- * @description 全局通知组件。挂载于 ScaledViewport / app-shell 内，与整页等比缩放同步。
- *  从 chrome 读取通知列表并以 toast 形式渲染；点击卡片或关闭按钮移除。
- *  无障碍与交互反馈：按类型拆成 assertive（error/warning）与 polite 两档**常驻** live region，
- *  礼貌级别不再被父区域压成 polite；卡片可聚焦，Enter / Space / Esc 直接关闭；
- *  鼠标悬停与键盘聚焦期间暂停自动关闭计时（计时器由 chrome.store 的 pause/resumeNotification 管理）。
- *  依赖：chrome.store（通知状态）。
- */
+/** 从 chrome 读取通知列表并以 toast 形式渲染；点击卡片或关闭按钮移除。 */
 <template>
   <!-- 两个**常驻** live region（assertive / polite）。
        为什么不能只用一个 aria-live="polite" 包住全部卡片：live region 的礼貌级别由最近的
@@ -58,12 +49,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 VNotification 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 import { computed } from 'vue'
 
 import { useChromeStore } from '@/stores/chrome.store'

@@ -1,18 +1,14 @@
 <!--
-  组件文件：DeviceDetailView.vue
-  所属模块：frontend/src/views
-  组件职责：单实体详情页**薄壳**。顶部 ListPageHero 展示设备友好名与 entity_id，返回按钮 +
-    事件历史跳转 + 域/状态/房间/控制四项 Metrics；主体用 list-page__tabs 展示 7 个子面板 Tab：
-    概览 DeviceOverviewPanel、状态历史 DeviceStateHistoryPanel、
-    关联引用 DeviceEntityReferencesPanel、用量 DeviceUsageStats、分析 DeviceAnalyticsPanel、
-    属性 DeviceAttrsPanel；空态分为「未指定 id」「HA 未连接」「实体不存在」三档 VEmptyState 兜底。
+  单实体详情页**薄壳**。顶部 ListPageHero 展示设备友好名与 entity_id，返回按钮 +
+  事件历史跳转 + 域/状态/房间/控制四项 Metrics；主体用 list-page__tabs 展示 7 个子面板 Tab：
+  概览 DeviceOverviewPanel、状态历史 DeviceStateHistoryPanel、
+  关联引用 DeviceEntityReferencesPanel、用量 DeviceUsageStats、分析 DeviceAnalyticsPanel、
+  属性 DeviceAttrsPanel；空态分为「未指定 id」「HA 未连接」「实体不存在」三档 VEmptyState 兜底。
   视图模型：全部领域逻辑（路由 ?id= 解析、实体 hydrate、域/状态/房间派生、关联实体聚合、
-    Tab 与 query 同步、复制/控制动作）已收敛到 `@/features/device` 的 useDeviceDetailView，
-    本文件只保留模板与主题注入（--page-accent 为 devices sky 主题）。
-  依赖关系：@lucide/vue ChevronLeft/Cpu；@/features/device（useDeviceDetailView + 六个子面板）；
-    @/components/page-shell、@/components/common 的展示件。
+  Tab 与 query 同步、复制/控制动作）已收敛到 `@/features/device` 的 useDeviceDetailView，
+  本文件只保留模板与主题注入（--page-accent 为 devices sky 主题）。
   注意事项：Tab 切换不触发额外请求（按需 visible 控制子面板自更新）；
-    当 HA 未连接但实体缺失时给出「等待连接」文案而非直接报错。
+  当 HA 未连接但实体缺失时给出「等待连接」文案而非直接报错。
 -->
 <template>
   <div class="list-page device-detail-view" :style="pageAccentStyle">

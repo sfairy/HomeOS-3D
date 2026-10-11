@@ -1,8 +1,4 @@
-"""设备健康概览服务（对齐 ``modules/system/device/health.service.ts``）。
-
-职责：聚合离线状态与固件更新可用情况，产出一份面向前端的「设备健康摘要」。
-依赖：状态库（当前 HA 实体状态快照）。
-"""
+"""设备健康概览服务（对齐 ``modules/system/device/health.service.ts``）。"""
 
 from __future__ import annotations
 

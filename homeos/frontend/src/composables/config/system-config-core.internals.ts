@@ -1,19 +1,4 @@
-/**
- * 系统配置核心组合式函数
- * 
- * 职责：提供系统配置的加载、保存、元数据管理等核心功能
- * 依赖：
- *   - @/services/api/system - 系统配置 API 服务
- *   - @/shared/types/system-config - 系统配置类型定义
- *   - @/shared/utils/core/poll-scheduler - 共享请求调度
- *   - vue - 响应式系统
- * 
- * 功能模块：
- *   - useSystemConfig - 系统配置的加载与保存
- *   - getSectionMeta / getSectionLabels - 配置分区元数据
- *   - getSectionCategories - 配置分类信息
- *   - isSystemConfigConflictError - 冲突错误检测
- */
+/** 系统配置核心组合式函数 */
 import { fetchSystemConfig, updateSystemConfig } from '@/services/api/system'
 import type { NotifyType } from '@/shared/types/notify'
 import type { SystemConfig, SystemConfigLoadOptions, SystemConfigPatch, SystemConfigSaveOptions } from '@/shared/types/system-config'

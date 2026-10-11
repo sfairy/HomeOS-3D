@@ -1,15 +1,4 @@
-/**
- * 设置面板 Hub UI 组合式函数
- * 
- * 职责：提供设置面板中各类 Hub 的 UI 相关组合式函数，包括路由同步、环境传感器映射、
- *       收藏夹管理、草稿保存等功能
- * 依赖：
- *   - @/composables/config/system-config-core.internals - 系统配置读取（域名 / 字段提示）
- *   - ./env-sensor-map.internals - 环境传感器映射
- *   - @/composables/settings-kernel/pending.internals - 未保存更改管理
- *   - @/composables/ui/hub-viewport.internals - 视口相关功能
- *   - Vue / vue-router - 响应式与路由
- */
+/** 设置面板 Hub UI 组合式函数 */
 import { getEnvSensorFields, useEnvSensorMap } from './env-sensor-map.internals'
 import { useRegisterSettingsTabPending, useSettingsHubPending } from '@/composables/settings-kernel/pending.internals'
 import { useSettingsSidebarReentryReset } from '@/composables/ui/hub-viewport.internals'

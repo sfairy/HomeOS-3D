@@ -1,14 +1,4 @@
-/**
- * 通用远程校验 composable
- *
- * 模块：security（通用校验）
- * 职责：
- *  - 提供统一的本地/远程校验状态（validating/valid/message）
- *  - 支持 GET/POST 两种调用方式，可通过 buildBody/buildParams 自定义请求负载
- *  - 支持自定义 request 覆盖（走封装 API）
- *  - 支持自定义消息映射 mapMessage，适配不同后端响应结构
- * 依赖：services/api（apiGet/apiPost）
- */
+/** 通用远程校验 composable */
 import { ref } from 'vue'
 import { apiGet, apiPost } from '@/services/api/index'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'

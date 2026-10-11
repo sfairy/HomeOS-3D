@@ -1,12 +1,6 @@
 <!--
-组件：SettingsScreensaverSection.vue
-所属模块：frontend / src / views / settings / display
-职责：通用设置「锁屏屏保」区段。提供启用开关、空闲分钟数，保存到 AppConfig.screensaver；
-      细粒度视觉参数跳转高级参数 screensaver 分区。
-关键依赖：
-  - SettingsCard / SettingsCardIntro / SettingsFeatureMaster / SettingsRangeField
-  - WeatherEffectsSwitch（复用布尔开关样式）
-  - patchSystemConfig / reloadFrontendConfig / getConfigSection
+  通用设置「锁屏屏保」区段。提供启用开关、空闲分钟数，保存到 AppConfig.screensaver；
+  细粒度视觉参数跳转高级参数 screensaver 分区。
 -->
 <template>
   <div class="settings-hub-section">

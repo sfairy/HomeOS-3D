@@ -1,22 +1,4 @@
-/**
- * 实体弹窗解析（纯元数据层）——「entity_id → 弹窗种类」的判定与 props 构造。
- *
- * ## 分层：为什么和组件映射分开
- *
- * 本模块**不含任何 Vue 组件**，因此可以被 `utils/`、`composables/`、`stores/` 等下层安全引用。
- * 与之配套的「种类 → 懒加载组件」映射在 `@/components/entities/popup-registry.ts`（需要
- * `components/`，只能被上层引用）。
- *
- * 拆两层的原因：原先两者合在一个文件里，导致 `utils/entity/popup-registry.ts` 这个
- * deprecated re-export 桩被迫向上引用 `components/`（分层倒置），只能挂在
- * `check-frontend-deps.mjs` 的 `LAYER_WHITELIST` 上。拆开后纯判定函数可以真正下沉，
- * `hasEntityControlPopup` 也不再「从组件映射派生」。
- *
- * 设备弹窗栈约定见 `@/components/entities/popup-registry.ts`。
- *
- * 依赖：`@homeos/shared`（getEntityDomain）、`./entity-type.util`（生活账户判定）、
- *      `@/shared/types/entity-store`（类型）。
- */
+/** 实体弹窗解析（纯元数据层）——「entity_id → 弹窗种类」的判定与 props 构造。 */
 import { getEntityDomain } from '@homeos/shared'
 import type { HaEntityState, EntitiesMap } from '@/shared/types/entity-store'
 import {

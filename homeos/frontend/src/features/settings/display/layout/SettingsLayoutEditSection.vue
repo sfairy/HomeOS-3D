@@ -1,12 +1,7 @@
 <!--
-组件：SettingsLayoutEditSection.vue
-所属模块：frontend / src / views / settings / display / layout
-职责：仪表盘创作入口区段。总览首页已改为「只读 3D 展示」，编辑与户型图绘制
-      不再出现在总览，统一从这里（管理员后台设置 → 布局）进入。
-      两张入口卡：仪表盘编辑器（页面/控件/实体绑定）与 3D 户型图绘制。
-关键依赖：
-  - SettingsCard / SettingsFlowBand / SettingsFlowStat：卡片与流程概览
-数据来源：无（纯入口，跳转到 /studio/editor 与 /3d-studio，二者均为 admin-only 路由）
+  仪表盘创作入口区段。总览首页已改为「只读 3D 展示」，编辑与户型图绘制
+  不再出现在总览，统一从这里（管理员后台设置 → 布局）进入。
+  两张入口卡：仪表盘编辑器（页面/控件/实体绑定）与 3D 户型图绘制。
 -->
 <template>
   <div class="settings-hub-section">

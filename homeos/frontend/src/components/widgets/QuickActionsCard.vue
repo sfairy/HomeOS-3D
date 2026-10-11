@@ -2,12 +2,6 @@
   QuickActionsCard.vue / components/widgets
   快捷操作统计卡片：右侧面板聚合型网格按钮，展示设备在线、低电量、
   开灯、气候激活等计数，并作为打开对应分组详情弹窗的快捷入口。
-  Props: config 布局配置透传对象
-  Emit: open-group 点击按钮时触发，由外层打开 DeviceGroupModal
-  依赖：Pinia — useEntitiesStore 实体状态、useLayoutStore 快捷按钮选择；
-        composables/device/group-counts.util 分类计数；
-        quick-actions.config.ts 按钮图标与元数据；RouterLink 跳设置页。
-  注意：stat 数量自适应 grid 列数，按钮 active 态基于 count > 0 判断。
 -->
 <template>
   <div class="quick-actions-card">

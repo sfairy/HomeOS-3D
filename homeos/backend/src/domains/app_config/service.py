@@ -114,9 +114,7 @@ class AppConfigService:
         except RuntimeError:
             self._loop = None
 
-    # ------------------------------------------------------------------ #
     # 启动加载
-    # ------------------------------------------------------------------ #
     def start(self) -> None:
         self._load_with_retry()
 
@@ -214,9 +212,7 @@ class AppConfigService:
         except Exception as exc:
             logger.warning("持久化配置审计失败: %s", exc)
 
-    # ------------------------------------------------------------------ #
     # 默认值补全
-    # ------------------------------------------------------------------ #
     def _merge_defaults_recursive(self, target: dict[str, Any], defaults: dict[str, Any]) -> bool:
         changed = False
         for key, default_value in defaults.items():
@@ -279,9 +275,7 @@ class AppConfigService:
         self._generation += 1
         self._section_cache.clear()
 
-    # ------------------------------------------------------------------ #
     # 合并
-    # ------------------------------------------------------------------ #
     def _merge_section(
         self, target_section: dict[str, Any], patch_section: dict[str, Any], nested_replace_keys: tuple[str, ...]
     ) -> None:
@@ -307,9 +301,7 @@ class AppConfigService:
             else:
                 cfg[section_key] = section_patch
 
-    # ------------------------------------------------------------------ #
     # 读取
-    # ------------------------------------------------------------------ #
     def get_all(self) -> dict[str, Any]:
         raw = copy.deepcopy(self._config)
         mask_sensitive_fields_by_key(raw)
@@ -393,9 +385,7 @@ class AppConfigService:
         }
         return out
 
-    # ------------------------------------------------------------------ #
     # 审计
-    # ------------------------------------------------------------------ #
     def get_audit_log(self, limit: int = 50) -> list[dict[str, Any]]:
         return self._audit_log[: min(limit, self._get_max_audit())]
 
@@ -440,9 +430,7 @@ class AppConfigService:
         self._audit_log = [*entries, *self._audit_log][: self._get_max_audit()]
         self._persist_audit_log()
 
-    # ------------------------------------------------------------------ #
     # 写入
-    # ------------------------------------------------------------------ #
     def update(self, partial: dict[str, Any], expected_updated_at: str | None = None) -> None:
         before = copy.deepcopy(self._config)
         stripped = strip_masked_placeholders(partial)
@@ -523,9 +511,7 @@ class AppConfigService:
         self._emit(sections)
         return self.get_all()
 
-    # ------------------------------------------------------------------ #
     # 持久化
-    # ------------------------------------------------------------------ #
     def _persist(self, expected_updated_at: str | None = None) -> None:
         now = datetime.now(UTC)
         with self._session_factory() as session:

@@ -1,22 +1,8 @@
 <!--
-组件：SettingsOverviewStrip.vue
-所属模块：frontend / src / views / settings / shared / layout
-职责：设置总览条。两栏 hub-stat（配置健康评分 + 首装清单），整卡可跳转，不参与 stage 纵向撑满。
-      挂载时拉取配置健康评分与最近设置 Tab。
-关键依赖：
-  - fetchConfigHealth：配置健康评分 API
-  - useSetupChecklist：首装清单
-  - SETTINGS_ROUTES / getRecentSettingsTabs / tabLabel：路由与标签
-  - logger：日志
-数据来源：fetchConfigHealth 与 useSetupChecklist
+  设置总览条。两栏 hub-stat（配置健康评分 + 首装清单），整卡可跳转，不参与 stage 纵向撑满。
+  挂载时拉取配置健康评分与最近设置 Tab。
 -->
 <script setup lang="ts">
-/**
- * 职责：渲染 views/SettingsOverviewStrip 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { fetchConfigHealth } from '@/services/api/system'

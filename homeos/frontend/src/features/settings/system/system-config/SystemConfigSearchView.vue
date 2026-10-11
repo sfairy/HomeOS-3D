@@ -1,13 +1,6 @@
 <!--
-组件：SystemConfigSearchView.vue
-所属模块：frontend / src / views / settings / system / system-config
-职责：高级参数全局搜索结果视图。按分区分组展示匹配字段，点击可跳转至对应分区；
-      无匹配时展示空态引导。
-Props：
-  - results：搜索结果分组列表
-关键依赖：
-  - SettingsCard：卡片容器
-数据来源：父级透传的 results
+  高级参数全局搜索结果视图。按分区分组展示匹配字段，点击可跳转至对应分区；
+  无匹配时展示空态引导。
 -->
 <template>
   <SettingsCard flat static extra-class="!p-0 params-panel-card params-panel-card--body">

@@ -1,14 +1,4 @@
-/**
- * @file useTtsSpeak.ts
- * @module composables/voice
- * @description 统一 TTS 播报 composable（本机 SpeechSynthesis / HA 音箱）。
- *
- * 职责：
- * - 按 voice.ttsOutputMode（local | ha | auto）路由播报；
- * - local / auto：本机优先；auto 失败回退 HA；
- * - ha：仅 HA media_player；
- * - 列出可用媒体播放器实体；支持单/多音箱并行播报。
- */
+/** - 按 voice.ttsOutputMode（local | ha | auto）路由播报； */
 import { ref, computed } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { getConfigSection } from '@/shared/utils/config/frontend-config'

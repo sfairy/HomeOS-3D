@@ -1,19 +1,4 @@
-/**
- * @module useAreaOptions
- * @description HA 区域（room/area）选项组合式函数。
- *
- * 职责：
- * - 从后端 area_registry 拉取区域列表，并提供给筛选/批量操作下拉使用。
- * - 当注册表接口不可用时，回退到实体 attributes 中携带的 area_id 推导区域集合。
- *
- * 依赖：
- * - @homeos/shared：resolveEntityArea 从实体属性中解析区域。
- * - vue：ref/computed/onMounted。
- * - @/services/api/entities：fetchAreasList 拉取区域注册表。
- * - @/stores/entities.store：实体全量映射与域索引。
- * - @/shared/utils/bridge/store-bridge：appNotify 全局通知。
- * - @/shared/entity/utils/derived.util：collectIndexedEntityIds 收集索引实体 ID。
- */
+/** - 从后端 area_registry 拉取区域列表，并提供给筛选/批量操作下拉使用。 */
 import { resolveEntityArea } from '@homeos/shared'
 import { ref, computed, onMounted } from 'vue'
 import { fetchAreasList } from '@/services/api/entities'

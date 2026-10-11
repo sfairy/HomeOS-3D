@@ -1,17 +1,6 @@
 <!--
-组件：SettingsRangeField.vue
-所属模块：frontend / src / views / settings / shared / layout
-职责：设置页范围滑杆字段。双滑杆选取 [min, max] 区间，支持步进吸附、数值输入、单位显示、
-      隐藏极端值。用于免打扰时段、阈值区间等场景。
-Props：
-  - modelValue：数值（单值或区间）
-  - label / min / max / step / unit / unitSuffix：标签与范围配置
-Emits：
-  - update:modelValue：值变更
-关键依赖：
-  - sliderTrackStyle：滑杆轨道样式
-  - parseOptionalNumber / formatRangeDisplayValue / snapToRangeStep：数值解析/格式/吸附
-数据来源：父级透传的 modelValue
+  设置页范围滑杆字段。双滑杆选取 [min, max] 区间，支持步进吸附、数值输入、单位显示、
+  隐藏极端值。用于免打扰时段、阈值区间等场景。
 -->
 <template>
   <div :class="rootClass">

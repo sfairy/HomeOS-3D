@@ -1,16 +1,7 @@
 <!--
-组件：AlertRulesPanel.vue
-所属模块：frontend / src / views / settings / interact
-职责：告警规则面板入口。通过子导航切换 inbox（应用内规则收件箱+编辑弹窗）、voice（语音告警）、
-      earthquake（地震预警）、dnd（免打扰）四个区段，页头按区段提供不同保存动作。
-      编辑弹窗支持单条件/组合 AND-OR/高级 DSL 三种触发模式与多渠道推送。
-关键依赖：
-  - SettingsPageShell / SettingsHubSubnav / SettingsPendingSaveAction：页面骨架/子导航/保存条
-  - AlertRulesInboxSection / AlertRulesVoiceSection / AlertRulesEarthquakeSection / AlertRulesDndSection：四个子区段
-  - useAlertRulesPanel：聚合编辑/保存/各类待保存计数
-  - useRegisterSettingsTabPending / useSettingsSidebarReentryReset：Tab 离开拦截与重入重置
-  - ALERT_RULES_KEY：通过 provide/inject 向子区段共享状态
-数据来源：useAlertRulesPanel() 返回的 editing / voice / 各类待保存状态
+  告警规则面板入口。通过子导航切换 inbox（应用内规则收件箱+编辑弹窗）、voice（语音告警）、
+  earthquake（地震预警）、dnd（免打扰）四个区段，页头按区段提供不同保存动作。
+  编辑弹窗支持单条件/组合 AND-OR/高级 DSL 三种触发模式与多渠道推送。
 -->
 <template>
   <SettingsPageShell
@@ -517,7 +508,6 @@ import AlertRulesDndSection from './alert-rules/AlertRulesDndSection.vue'
 import AlertRulesEarthquakeSection from './alert-rules/AlertRulesEarthquakeSection.vue'
 import { ALERT_RULES_KEY } from './alert-rules/context'
 
-// 入参：当前激活的 Tab id
 const props = defineProps({ activeTab: { type: String, default: '' } })
 
 // 推送渠道选项：Email / WebPush / 企业微信

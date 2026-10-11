@@ -1,21 +1,4 @@
-/**
- * HA 实体 state → 中文标签 + 语义色单表映射
- *
- * 职责：
- * - 维护 HA 实体 state 值到「中文短标签 + 语义色（HEX）」的一体化映射表，
- *   供部件设置、3D 热点、状态本地化共用（由原 entity-state-labels /
- *   entity-state-colors 双表合并而来，新增状态只需改这一处）。
- * - 提供状态标签 / 语义色查询函数（保持原双表的 fallback 行为）。
- *
- * 依赖：无外部依赖，纯静态映射与纯函数。
- *
- * 配色约定：按状态含义配色——冷蓝、热橙、开启琥珀、告警红、安全绿等。
- *
- * 注意：
- * - 对象 key 为 HA 实体 state 值（如 on / off / heat），属于配置 key，不翻译。
- * - label 为面向用户的中文短标签，color 为 CSS HEX 颜色值，均不翻译。
- * - 仅标签表独有的状态（any / heat_cool）不带 color，查色时回退 null。
- */
+/** HA 实体 state → 中文标签 + 语义色单表映射 */
 
 /** HA 实体 state 元信息：中文短标签 + 可选语义色 */
 interface EntityStateMeta {

@@ -125,21 +125,8 @@
 <script setup>
 /**
  * 多媒体迷你控制器部件 MediaMiniWidget
- *
- * 职责：右侧信息面板中的音乐播放器缩略版控制界面，支持多播放器水平滑动切换（CSS snap 对齐），
- *       通过 WidgetHubHeader 提供「播放/场景/列表」Tab 切换。
- * 数据来源：HA media_player 实体，经 entitiesStore 读取实时状态。
- * 依赖：
- *   - vue (ref/computed/watch/defineAsyncComponent)
- *   - @lucide/vue 图标库
- *   - @/stores/entities.store（实体状态与服务调用）
- *   - @/stores/layout.store（布局配置）
- *   - @/stores/chrome.store（打开播放器）
- *   - @/composables/entity/useEntityDisplayEpoch（媒体展示纪元，强制刷新）
- *   - @/shared/utils/ha/media-url.util（解析 HA 实体图片 URL）
- *   - @/shared/entity/utils/derived.util（实体展示名）
- *   - @/composables/ui/useSwiperDraggable（拖拽滑动）
- *   - @/shared/widget/composables/useHubTabs（Tab 状态管理）
+ * 右侧信息面板中的音乐播放器缩略版控制界面，支持多播放器水平滑动切换（CSS snap 对齐），
+ * 通过 WidgetHubHeader 提供「播放/场景/列表」Tab 切换。
  */
 import { ref, computed, watch, defineAsyncComponent } from 'vue'
 import { Music, Pause, Play, SkipBack, SkipForward } from '@lucide/vue'

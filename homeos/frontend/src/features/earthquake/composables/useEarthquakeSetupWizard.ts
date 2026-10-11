@@ -1,15 +1,4 @@
-/**
- * 地震预警配置向导组合式函数
- *
- * 职责：引导用户完成 EEW（地震预警系统）配置的三步式向导——HOME ASSISTANT 连接测试 → 家庭坐标填写 → 完成；
- *      提供 HA 连接测试、城市预设选择（EEW_CITY_PRESETS）、从 HA 同步家庭坐标、跳过向导等交互能力；
- *      完成后写入 localStorage 标记避免重复弹出。
- * 交互状态：step（1/2/3）、haUrl、haToken、经纬度、testingHa、syncing、saving、haTestStatus、
- *          haTestMessage（失败原因）、haVersion。
- * 返回方法：selectCity、testHa、syncFromHa、nextStep、finish、skip 与全部响应式字段。
- * 边界：HA 已配置或已连接时自动跳过第 1 步进入坐标；进入坐标步骤时静默自动同步一次家庭坐标
- *      （失败不打断，用户仍可手动同步或选城市预设）；跳过向导禁用地震预警并异步保存布局，不阻塞 UI。
- */
+/** 地震预警配置向导组合式函数 */
 import { writeLocalStorage } from '@/shared/utils/core/local-storage.util'
 
 import { ref, watch, computed } from 'vue'
@@ -25,19 +14,9 @@ import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 
 /**
  * 地震预警配置向导 composable
- *
- * 模块职责：
- *  - 引导用户完成 EEW（地震预警）配置：HOME ASSISTANT 连接 → 坐标 → 完成；
- *  - 提供 HA 连接测试、城市预设选择、从 HA 同步坐标等交互能力；
- *  - 完成后写入 localStorage 标记，避免重复弹出。
- *
- * 依赖：
- *  - @/services/api/ha（testHaConnection 测试 HA 连接）；
- *  - @/stores/layout.store（读写 layoutConfig、保存布局）；
- *  - @/stores/chrome.store（通知）；
- *  - @/stores/auth.store（判断认证状态以决定是否拉取配置）；
- *  - @/stores/entities.store（判断 HA 是否已连接）；
- *  - ../utils/earthquake-ha-coords.util（从 HA 同步家庭坐标）。
+ * - 引导用户完成 EEW（地震预警）配置：HOME ASSISTANT 连接 → 坐标 → 完成；
+ * - 提供 HA 连接测试、城市预设选择、从 HA 同步坐标等交互能力；
+ * - 完成后写入 localStorage 标记，避免重复弹出。
  */
 
 /**

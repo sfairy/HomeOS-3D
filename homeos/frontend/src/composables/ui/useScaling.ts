@@ -1,22 +1,4 @@
-/**
- * @file useScaling.ts
- * @module composables/ui
- * @description 视口整页等比缩放 composable 与锁屏布局计算。
- *
- * 职责：
- * - 以设计稿宽高为内容区，通过 transform: scale() 实现整页等比缩放铺满视口；
- * - 维护模块级共享状态（currentScale/activeDesignWidth/activeDesignHeight/scalingEnabled），
- *   供弹窗定位、锁屏与布局统一读取；
- * - 提供 computeViewportLayout（contain 模式）与 computeScreensaverLayout（锁屏专用）布局计算；
- * - 监听 resize/orientationchange/visualViewport/scaling-change 事件，节流后同步视口尺寸；
- * - 默认关闭整页等比缩放：户型图等精度场景改由局部 pan/pinch（useFloorplanMapViewport）承担，
- *   避免「整页 scale 当地图缩放」带来的命中模糊与弹层反算。
- *
- * 依赖：
- * - vue（ref/computed/watch/onMounted/onUnmounted）
- * - frontend-config（getConfigSection/configEpoch）
- * - logger（错误日志）
- */
+/** - 以设计稿宽高为内容区，通过 transform: scale() 实现整页等比缩放铺满视口； */
 import { readLocalStorage, writeLocalStorage } from '@/shared/utils/core/local-storage.util'
 
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'

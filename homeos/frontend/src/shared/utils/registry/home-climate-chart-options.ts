@@ -1,16 +1,4 @@
-/**
- * 主页气候图表配置常量与规范化工具
- *
- * 职责：
- * - 维护主页气候图表的小时跨度、视图切换选项（综合 / 温度 / 湿度）。
- * - 提供图表配置的规范化、克隆、序列化函数，供设置页与画布组件共用。
- *
- * 依赖：无外部依赖，纯静态配置与纯函数。
- *
- * 注意：
- * - `HomeClimateChartView`（all / temperature / humidity）为视图 key，不翻译。
- * - 仅面向用户的 label（综合 / 温度 / 湿度）使用简体中文。
- */
+/** 主页气候图表配置常量与规范化工具 */
 export const HOME_CLIMATE_CHART_HOURS = 24
 
 export type HomeClimateChartView = 'all' | 'temperature' | 'humidity'

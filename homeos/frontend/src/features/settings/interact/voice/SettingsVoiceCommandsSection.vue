@@ -1,25 +1,8 @@
 <!--
-组件：SettingsVoiceCommandsSection.vue
-所属模块：frontend / src / views / settings / interact / voice
-职责：语音命令配置区段。展示短语与 HA 服务映射列表，支持追加/覆盖导入预设、添加/删除命令、
-      按域与服务选择映射目标，并对 climate 等域补充实体作用域与模式参数。
-defineModel：
+  语音命令配置区段。展示短语与 HA 服务映射列表，支持追加/覆盖导入预设、添加/删除命令、
+  按域与服务选择映射目标，并对 climate 等域补充实体作用域与模式参数。
+  defineModel：
   - voiceCommands：命令列表（双向绑定）
-Props：
-  - domainOptionsList：可选域列表
-  - phrasesText / setPhrasesText：读取/设置命令短语文本
-  - servicesForCmd：按域返回可选服务
-  - entityScope / entityInputValue / needsClimateMode：实体作用域与 climate 模式辅助
-Emits：
-  - import-presets / import-presets-replace：追加/覆盖导入预设
-  - add-command / remove-command：增删命令
-  - domain-change / service-change：域/服务变更
-  - entity-scope-change / entity-input / climate-mode：实体作用域与模式变更
-关键依赖：
-  - SettingsCard / SettingsFlowBand / SettingsFlowStat：卡片与流程概览
-  - HosSelect：域/服务下拉
-  - EntityInput：实体作用域选择
-数据来源：父级 SettingsVoicePanel 透传的 props 与 defineModel
 -->
 <template>
   <div class="settings-hub-section voice-cmd-hub">

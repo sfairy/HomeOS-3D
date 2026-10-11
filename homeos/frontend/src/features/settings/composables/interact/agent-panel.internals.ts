@@ -1,21 +1,4 @@
-/**
- * 智能管家设置面板组合式函数（SettingsAgentPanel.vue 逻辑抽取）。
- *
- * 职责：
- *   - 管理 AI 模型配置草稿（provider / apiKey / base_url / 模型选择）；
- *   - 提供密钥脱敏判定与「更换密钥」交互；
- *   - 维护通知渠道（邮件 / WebPush / 企微）配置草稿与连通性测试；
- *   - 驱动管家对话（agentChat）与快捷提示、ping 连通性检测；
- *   - 派生统计卡片色调与渠道状态展示。
- * 依赖：
- *   - vue（computed / nextTick / onMounted / reactive / ref / watch）
- *   - @lucide/vue（图标）
- *   - @/composables/voice/useSpeechToText（语音输入）
- *   - @/stores/chrome.store / layout.store
- *   - @/services/api/agent（agentChat / agentPing / channelsStatus）
- *   - @/shared/agent/utils/chat-limit.util（消息长度截断）
- *   - @/shared/utils/registry/settings-route.util（设置路由）
- */
+/** 智能管家设置面板组合式函数（SettingsAgentPanel.vue 逻辑抽取）。 */
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import {
   CircleCheck,

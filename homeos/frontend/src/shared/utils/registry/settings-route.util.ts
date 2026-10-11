@@ -1,15 +1,4 @@
-/**
- * 设置页深链 URL 构建工具
- *
- * 职责：
- * - 构建设置页深链 URL，统一 tab / section / orchTab 等 query 参数拼装。
- * - 提供深链与当前路由匹配判定，供推荐卡片避免渲染自链。
- * - 提供当前页完整可分享 URL 拼装（含 origin；SSR 时仅返回 path）。
- *
- * 依赖：无外部依赖，纯函数。
- *
- * 注意：query key（tab / section / orchTab ...）为路由参数 key，不翻译。
- */
+/** 设置页深链 URL 构建工具 */
 type SettingsRouteQuery = Record<string, string | number | boolean | undefined | null>
 
 /**

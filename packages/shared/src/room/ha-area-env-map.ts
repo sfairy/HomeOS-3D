@@ -1,21 +1,4 @@
-/**
- * @file ha-area-env-map.ts
- * @module @homeos/shared/room
- * @brief HA area_registry 与 HomeOS 房间目录的双向映射。
- *
- * 职责：
- *  - 提供 HA area → 房间目录条目的查找（按 area name / id 匹配 areaPatterns）；
- *  - 提供房间目录 → HA area 的反查（先按 id 直查，再按 areaPatterns / inferKeywords 模糊匹配）；
- *  - 合并 envSensorMap 条目，过滤仅保留已对齐 HA area 的条目。
- *
- * 关键依赖：
- *  - DEFAULT_ROOM_CATALOG / EnvSensorMap / buildPublicRoomMeta 等来自 ./catalog；
- *  - 后端在 HA area 变化时调用本模块重新对齐 envSensorMap。
- *
- * 约定：
- *  - 反查优先按 id 直接命中，未命中再走模糊匹配；
- *  - mergeEnvEntries：patch 优先，base 兜底（label / 各 sensor 字段都按 trim 后非空优先）。
- */
+/** - 提供 HA area → 房间目录条目的查找（按 area name / id 匹配 areaPatterns）； */
 import {
   DEFAULT_ROOM_CATALOG,
   type EnvSensorMap,

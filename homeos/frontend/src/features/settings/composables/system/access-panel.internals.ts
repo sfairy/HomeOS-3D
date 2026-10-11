@@ -1,11 +1,7 @@
 /**
- * @file access-panel.internals.ts
- * @module features/settings/composables/system
- * @description
- *   设置 → 访问控制面板逻辑：设置锁（PIN）读写、PIN 清洗与强度评估、启用校验。
- *   直接读写 layoutStore.layoutConfig.settingsLock，随侧栏全局「保存全部」持久化
- *   （与原 homeos 行为一致），不落任何后端接口。
- * 关键依赖：@/stores/layout.store（配置与脏标记）、@/stores/chrome.store（提示）。
+ * 设置 → 访问控制面板逻辑：设置锁（PIN）读写、PIN 清洗与强度评估、启用校验。
+ * 直接读写 layoutStore.layoutConfig.settingsLock，随侧栏全局「保存全部」持久化
+ * （与原 homeos 行为一致），不落任何后端接口。
  */
 import { computed, ref } from 'vue'
 import { useLayoutStore } from '@/stores/layout.store'

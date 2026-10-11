@@ -90,9 +90,7 @@ class RealtimeGateway:
         self._ws_cfg_at = 0.0
         self._register_handlers()
 
-    # ------------------------------------------------------------------ #
     # CORS
-    # ------------------------------------------------------------------ #
     @staticmethod
     def _is_origin_allowed(origin: str | None) -> bool:
         if not origin:
@@ -101,9 +99,7 @@ class RealtimeGateway:
 
         return is_origin_allowed(origin, resolve_allowed_origins())
 
-    # ------------------------------------------------------------------ #
     # 依赖读取（lifespan 之后才可用）
-    # ------------------------------------------------------------------ #
     @property
     def settings(self) -> Any:
         return self.app.state.settings
@@ -153,18 +149,14 @@ class RealtimeGateway:
             stale_threshold_ms=cfg.stale_threshold_ms,
         )
 
-    # ------------------------------------------------------------------ #
     # 事件注册
-    # ------------------------------------------------------------------ #
     def _register_handlers(self) -> None:
         self.sio.on("connect", self._on_connect)
         self.sio.on("disconnect", self._on_disconnect)
         self.sio.on("update_subscription", self._on_update_subscription)
         self.sio.on("ha_sync_fe_latency", self._on_ha_sync_fe_latency)
 
-    # ------------------------------------------------------------------ #
     # 握手 / 断开
-    # ------------------------------------------------------------------ #
     async def _on_connect(self, sid: str, environ: dict[str, Any], auth: Any) -> None:
         cookie_header = environ.get("HTTP_COOKIE")
         # DB 会话 Cookie（homeos-3d LoginSession）为唯一登录凭证。
@@ -211,9 +203,8 @@ class RealtimeGateway:
             list(ws_cfg.critical_domains),
         )
         # 快照已生成：此刻起该 sid 才有「基线」。
-        # 等待期（_wait_for_ha_entity_sync）内的增量其变更时刻不晚于本快照，已包含在
-        # entities 中，因此无需再以 delta 下发；此前不纳入 state_changed_batch 广播目标，
-        # 可避免前端「全量同步完成前丢弃 delta」的告警与无效带宽。
+        # 等待期（_wait_for_ha_entity_sync）内的增量不晚于本快照，已包含在 entities 中，
+        # 无需再以 delta 下发，可避免前端「全量同步完成前丢弃 delta」的告警与无效带宽。
         self._baseline_ready.add(sid)
         self._index_subscription(
             sid,
@@ -366,9 +357,7 @@ class RealtimeGateway:
             return set(self._baseline_ready)
         return candidates & self._baseline_ready
 
-    # ------------------------------------------------------------------ #
     # 客户端事件
-    # ------------------------------------------------------------------ #
     async def _on_update_subscription(self, sid: str, payload: Any = None) -> dict[str, Any]:
         payload = payload if isinstance(payload, dict) else {}
         session = dict(await self._load_session(sid))
@@ -386,9 +375,7 @@ class RealtimeGateway:
         accepted = record_ha_sync_fe_latency_samples(samples)
         return {"ok": True, "accepted": accepted}
 
-    # ------------------------------------------------------------------ #
     # 首推
-    # ------------------------------------------------------------------ #
     async def _wait_for_ha_entity_sync(self, timeout_ms: int) -> None:
         if self.state_store.is_ha_synced():
             return
@@ -452,9 +439,7 @@ class RealtimeGateway:
             to=sid,
         )
 
-    # ------------------------------------------------------------------ #
     # 广播 API（供 HA connector / state pipeline / 领域事件调用）
-    # ------------------------------------------------------------------ #
     def client_count(self) -> int:
         """当前在线 Socket.IO 客户端数（对齐 Nest ``WsPushGateway.getClientCount``）。"""
         return len(self.connected)
@@ -639,9 +624,7 @@ class RealtimeGateway:
             {"type": "ha_queue_dropped", "timestamp": _iso_now(), **payload},
         )
 
-    # ------------------------------------------------------------------ #
     # 地震预警（EEW）广播（对齐 ws-push ``handleEarthquakeAlert``）
-    # ------------------------------------------------------------------ #
     async def broadcast_earthquake_alert(self, data: dict[str, Any]) -> None:
         """地震早期预警：高优先级全屏推送，携带震感与震中信息。"""
         await self.sio.emit(
@@ -661,9 +644,7 @@ class RealtimeGateway:
             },
         )
 
-    # ------------------------------------------------------------------ #
     # 领域事件 fan-out（对齐 ws-push ``WsPushDomainEventsHelper``）
-    # ------------------------------------------------------------------ #
     async def _emit_domain(self, event: str, payload: dict[str, Any]) -> None:
         await self.sio.emit(event, payload)
 

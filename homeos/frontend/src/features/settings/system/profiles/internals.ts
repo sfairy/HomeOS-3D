@@ -1,14 +1,3 @@
-/**
- * 文件：internals.ts
- * 职责：档案面板 internals。聚合显示方案管理与统一全量备份的服务器快照管理逻辑，提供 useProfilesPanel 入口。
- *       包含显示方案 CRUD、服务端全量备份文件 CRUD 与定时自动备份状态。
- * 关键依赖：
- *   - vue 的 ref / computed / watch / onMounted / Ref
- *   - useAuthStore / useChromeStore / useLayoutStore：账户/通知/布局状态
- *   - useProfileManagement：显示方案 CRUD
- *   - useSettingsHubRouteSection：子导航路由同步
- *   - fetchServerBackupFiles / createServerBackup / restoreServerBackupFile 等：服务端备份 API
- */
 import { ref, computed, watch, onMounted, type Ref } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { useChromeStore } from '@/stores/chrome.store'

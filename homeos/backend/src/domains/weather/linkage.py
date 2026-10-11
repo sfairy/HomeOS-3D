@@ -44,9 +44,7 @@ class WeatherAutoLinkageService:
         value = self._app_config.get("external")
         return value if isinstance(value, dict) else {}
 
-    # ------------------------------------------------------------------ #
     # 事件处理
-    # ------------------------------------------------------------------ #
     async def on_weather_alert(self, payload: Any) -> None:
         """``weather.alert`` 事件处理器：门槛过滤 → 红色预警安全联动。"""
         if not isinstance(payload, dict) or not payload.get("alert"):
@@ -95,9 +93,7 @@ class WeatherAutoLinkageService:
                 {"channels": ["in_app", "socket"]},
             )
 
-    # ------------------------------------------------------------------ #
     # 联动动作
-    # ------------------------------------------------------------------ #
     async def run_scene(self, scene_id: str, reason: str) -> bool:
         if not scene_id:
             return False
@@ -132,9 +128,7 @@ class WeatherAutoLinkageService:
             )
             return False
 
-    # ------------------------------------------------------------------ #
     # 诊断快照
-    # ------------------------------------------------------------------ #
     def get_status(self) -> dict[str, Any]:
         cfg = self._external_cfg()
         gaps: list[str] = []

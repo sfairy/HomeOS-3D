@@ -1,15 +1,4 @@
-/**
- * @file 异步请求代际守卫 Composable
- * @module composables/ui/useFetchGeneration
- *
- * 职责：
- *  - 维护一个自增的「代际」计数器，用于标识当前有效的请求批次。
- *  - 切换 profile / 实体后通过 bumpGeneration 作废旧代际，使过期响应被识别并丢弃。
- *  - 组件作用域销毁时自动作废当前代际，避免卸载后回调写入已销毁的状态。
- *
- * 依赖：
- *  - vue 的 ref 响应式引用与 onScopeDispose 作用域销毁钩子。
- */
+/** - 维护一个自增的「代际」计数器，用于标识当前有效的请求批次。 */
 import { ref, onScopeDispose } from 'vue'
 
 /**

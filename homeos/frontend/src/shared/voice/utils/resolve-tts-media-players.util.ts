@@ -1,9 +1,4 @@
-/**
- * TTS 播报音箱解析工具
- *
- * 职责：从公开配置读取已配置的播报音箱列表；未配置时可选回退到首个可用 media_player。
- * 依赖：frontend-config（读取 voice 配置段）。
- */
+/** TTS 播报音箱解析工具 */
 import { getConfigSection } from '@/shared/utils/config/frontend-config'
 
 /** 实体表最小形状：entity_id → { state? } */

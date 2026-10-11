@@ -1,16 +1,4 @@
-/**
- * Display profile 维度的部件过滤工具
- *
- * 职责：
- * - 维护各 display profile 允许的侧栏 widget 类型白名单（未列出的 profile 不限制）。
- * - 提供按 profile 过滤部件列表的能力，保留原始元素类型（id / config 等字段不丢失）。
- *
- * 依赖：无外部依赖，纯静态白名单 + 纯函数。
- *
- * 注意：
- * - profile id（bedroom-tablet / living-room-wall ...）与 widget type（clock / weather ...）
- *   均为配置 key，不翻译。
- */
+/** Display profile 维度的部件过滤工具 */
 
 /** 部件选择器超过该数量时启用 VirtualList */
 export const WIDGET_PICKER_VIRTUAL_THRESHOLD = 24

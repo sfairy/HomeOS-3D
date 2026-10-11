@@ -1,0 +1,29 @@
+---
+description: HomeOS-3D 全仓库代码注释规范：只写「为什么」，不复述「做什么」
+alwaysApply: true
+---
+
+# 代码注释规范
+
+## 保留
+
+- 文件级 docstring / JSDoc：一句话说明模块职责，不超过 3 行。
+- 公共 API（export 的函数 / 类 / 组件）：一句话用途；仅当签名不显然时补 `@param` / `@returns` / `@throws`。
+- 非显然的「为什么」：约束、不变量、边界条件、workaround、性能或安全原因，不超过 2 行。
+- 指令性注释，原样保留：`// @ts-expect-error`、`// @ts-ignore`、`// @ts-check`、`/* eslint-disable */`、`# noqa`、`# type: ignore`、`# pragma: no cover`、`/// <reference>` 等。
+- 契约映射（endpoint / 事件名 / feature code）：仅当没有更权威来源且不与代码重复时保留一行。
+
+## 删除
+
+- 复述代码的注释，以及显然的 `@returns 操作结果`、`@param body 待更新的字段` 之类。
+- 文件头「职责 / 依赖 / 契约对应 / 端点范围」清单式大块头。
+- 迁移、搬迁、重构历史，以及「此前…」「前车之鉴」「漂移」「已删 / 遗留」、提交哈希叙述。
+- 大段「为什么不能那样做」的论证：只保留一句结论。
+- 注释里的完整假 `@/` 路径；保留的示例改用占位符（`@/foo/<x>`）或去掉 `@/` 前缀。
+
+## 硬约束
+
+- 只改注释，不改代码、字符串、类型或逻辑；逐文件 diff 只应包含注释行。
+- 不破坏指令性语义，不引入 `@ts-nocheck`（CI 零容忍）。
+- `ruff`（`F,E9,I,RET501,PLR1711,RUF059`）、`eslint --max-warnings 0`、`pyright` 必须保持通过。
+- 注释遵循 `check-import-refs.mjs` 的注释纪律：注释与 `.md` 里出现的 `@/…` 会被当真引用解析。

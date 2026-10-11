@@ -1,15 +1,7 @@
 <!--
-组件：SettingsBindingsEnvironmentSection.vue
-所属模块：frontend / src / views / settings / connect / bindings
-职责：环境传感器绑定分区。按 HA 区域绑定温湿度/空气质量实体，支持房间 Tab 切换、
-      显示名编辑、隐藏恢复、CSV 导入导出，并提供快捷规则设备绑定与 RoomQuickRules 草案入口。
-      showSensorFields=false 时退化为「房间目录」精简视图，仅编辑显示名与展示引用徽章。
-关键依赖：
-  - EntityInput：实体选择
-  - RoomQuickRules：房间自动化草案生成
-  - RoomReferenceBadges：房间引用徽章（环境）
-  - SettingsSectionHead / SettingsOrchTabs / SettingsCard：布局
-数据来源：父级透传的 envRoomList / sensorMap（双向）/ 各类 emit 回调
+  环境传感器绑定分区。按 HA 区域绑定温湿度/空气质量实体，支持房间 Tab 切换、
+  显示名编辑、隐藏恢复、CSV 导入导出，并提供快捷规则设备绑定与 RoomQuickRules 草案入口。
+  showSensorFields=false 时退化为「房间目录」精简视图，仅编辑显示名与展示引用徽章。
 -->
 <template>
   <div class="settings-hub-section">
@@ -334,7 +326,6 @@ import {
   roomHasEnvSensors,
 } from '@/shared/utils/settings/room-reference-badges.util'
 
-// 入参：加载态、房间列表、Tab 配置、激活房间、字段元信息、隐藏数、是否显示传感器字段、待保存计数、保存回调
 const props = defineProps({
   envLoading: Boolean,
   envRoomList: { type: Array, default: () => [] },
@@ -348,11 +339,8 @@ const props = defineProps({
   saveBindings: { type: Function, default: null },
 })
 
-// 双向绑定：环境绑定子 Tab（rooms / io）
 const bindingsEnvTab = defineModel('bindingsEnvTab', { type: String, default: 'rooms' })
-// 双向绑定：当前激活的房间 Tab id
 const envRoomTab = defineModel('envRoomTab', { type: String, default: '' })
-// 双向绑定：房间 → 传感器映射表（含显示名与各实体 id）
 const sensorMap = defineModel('sensorMap', { type: Object, required: true })
 
 // 计算房间引用徽章：环境传感器是否已绑
@@ -397,7 +385,6 @@ function isLabelOverridden(roomId) {
   return Boolean(room && label && label !== room.defaultLabel)
 }
 
-// 对外事件：智能推断映射、同步 HA 区域、恢复隐藏房间、移除房间、导出 CSV、导入 CSV 文件
 defineEmits([
   'infer-env-map',
   'sync-ha-areas',

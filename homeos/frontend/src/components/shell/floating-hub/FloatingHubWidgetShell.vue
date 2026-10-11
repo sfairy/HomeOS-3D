@@ -43,24 +43,11 @@
 
 <script setup lang="ts">
 /**
- * @file FloatingHubWidgetShell.vue
- * @module floorplan/floating-hub
- *
  * 浮动控制中心 - 单部件外壳
- *
- * 职责：
  * - 作为每个浮动部件的统一外壳，承载主题/样式/拖拽/动画
  * - 根据 widget.type 分发到 Entity / Clock / Metric / Panel 具体渲染器
  * - 编辑模式（isAfhLocked === false）下显示拖拽手柄，支持鼠标与触摸拖拽
  * - 通过 hasEntityCustomColors 判断实体部件是否使用自定义颜色配置
- *
- * 依赖：
- * - vue：computed / inject / unref
- * - @lucide/vue：Grip 拖拽手柄图标
- * - FloatingHubContextKey：父组件注入的上下文
- * - FloatingHub{Entity,Clock,Metric,Panel}Widget：具体部件渲染器
- * - @/shared/types/layout：FloatingWidget 部件类型定义
- * - @/shared/entity/utils/floating-entity-colors.util：实体自定义颜色检测
  */
 import { computed, inject, unref } from 'vue'
 import { Grip } from '@lucide/vue'

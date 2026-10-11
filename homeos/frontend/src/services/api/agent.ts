@@ -1,10 +1,4 @@
-/**
- * 智能代理与消息通道 REST API 封装
- *
- * 职责：封装 AI 代理心跳、对话、消息通道状态查询等接口。
- * 依赖：./client 提供的 apiGet / apiPost。
- * 端点范围：/agent/ping、/agent/chat、/channels/status。
- */
+/** 智能代理与消息通道 REST API 封装 */
 import { apiGet, apiPost } from './client'
 
 /** 代理心跳检测结果 */
@@ -71,24 +65,13 @@ export interface ChannelsStatusResult {
   }
 }
 
-/**
- * 探测代理服务心跳。
- * 对应后端 endpoint：GET /agent/ping
- * @returns 代理可用性与就绪状态
- */
+/** 探测代理服务心跳。 */
 export async function agentPing() {
   const res = await apiGet<AgentPingResult>('/agent/ping')
   return res.data
 }
 
-/**
- * 发送对话消息给 AI 代理。
- * 对应后端 endpoint：POST /agent/chat
- * @param message 用户输入文本
- * @param history 历史对话记录，用于多轮上下文
- * @param sessionId 连续对话会话 id：同一会话的多轮指令共享后端上下文（免重复唤醒时由前端生成）
- * @returns 代理回复及执行元数据
- */
+/** 发送对话消息给 AI 代理。 */
 export async function agentChat(
   message: string,
   history?: Array<{ role: 'user' | 'assistant'; content: string }>,
@@ -102,11 +85,7 @@ export async function agentChat(
   return res.data
 }
 
-/**
- * 查询消息通道状态。
- * 对应后端 endpoint：GET /channels/status
- * @returns 各通道连接与配置状态
- */
+/** 查询消息通道状态。 */
 export async function channelsStatus() {
   const res = await apiGet<ChannelsStatusResult>('/channels/status')
   return res.data

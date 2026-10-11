@@ -39,17 +39,7 @@
 </template>
 
 <script setup>
-/**
- * @file HaStatusDegradeBanner.vue
- * @module common/HaStatusDegradeBanner
- * @description HA 状态降级提示横幅
- *  职责：
- *    - 根据 entitiesStore 的连接/重连/缓存过期状态，展示降级提示；
- *    - 支持业务未配置的多级降级文案；
- *    - 提供重试按钮触发 HA 重连。
- *  依赖：vue computed，@lucide/vue 图标，entities.store 与 chrome.store。
- *  注意：高风险控制（阀门/门锁/报警）在离线时会被业务层拦截，本组件仅做提示。
- */
+/** - 根据 entitiesStore 的连接/重连/缓存过期状态，展示降级提示； */
 import { computed } from 'vue'
 import { WifiOff, Loader2, Database } from '@lucide/vue'
 import { useEntitiesStore } from '@/stores/entities.store'

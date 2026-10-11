@@ -1,13 +1,4 @@
-/**
- * @module entity-cold-fetch.util
- * @description 冷实体按需 REST 拉取工具模块。
- *
- * 职责：当 WS 未推送某实体状态时，通过 REST API 按需拉取实体补全缓存。
- * 内部维护 inflight Map 做请求去重；对 404 / batch missing（布局陈旧引用 / 已过滤实体）做负缓存，
- * 避免平面图 ensureVisible 反复打同一缺失 ID。
- *
- * 依赖：`services/api/entities` 提供 REST 拉取接口。
- */
+/** 内部维护 inflight Map 做请求去重；对 404 / batch missing（布局陈旧引用 / 已过滤实体）做负缓存， */
 import axios from 'axios'
 import { fetchEntity, fetchEntitiesBatchGet } from '@/services/api/entities'
 import type { HaEntityState } from '@/shared/types/entity-store'

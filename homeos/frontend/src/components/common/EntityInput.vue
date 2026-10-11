@@ -64,16 +64,7 @@
 </template>
 
 <script setup>
-/**
- * @file EntityInput.vue
- * @module common/EntityInput
- * @description HA 实体 ID 单选输入框
- *  职责：
- *    - 输入框 + 自动补全下拉（支持域过滤、分组、虚拟滚动）；
- *    - 键盘导航（上/下/回车/Esc）；
- *    - 通过 v-model 与父级双向绑定 entity_id 字符串。
- *  依赖：useEntityInput 组合式函数、EntityInputDropdown 子组件、entity-input 样式。
- */
+/** - 输入框 + 自动补全下拉（支持域过滤、分组、虚拟滚动）； */
 import { ref } from 'vue'
 import { X } from '@lucide/vue'
 import { useEntityInput } from '@/composables/entity/useEntityInput'

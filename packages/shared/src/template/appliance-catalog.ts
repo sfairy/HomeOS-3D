@@ -1,24 +1,4 @@
-/**
- * @file appliance-catalog.ts
- * @module @homeos/shared/template
- * @brief 家电模板目录（前后端单一真相源）。
- *
- * 职责：
- *  - 维护家电类型定义表（APPLIANCE_TYPES）：含 id / 平台 / 部署模式 / 槽位 / 必填槽位组；
- *  - 提供按 id 查询类型定义（getApplianceType）、内置槽位（getBuiltinSlots）、
- *    必填槽位组（getRequiredSlotGroups）；
- *  - 暴露类型 id 集合（APPLIANCE_TYPE_IDS）与 special 类型集合（trigger_sensor / yaml_import）。
- *
- * 关键依赖：
- *  - appliance-yaml-gen.ts 按本目录生成家电 template YAML；
- *  - appliance-type-infer.ts 按本目录反向推断家电类型；
- *  - entity-validate.ts 复用 getRequiredSlotGroups 做槽位完整性校验。
- *
- * 约定：
- *  - deployMode：helper（helper 模板）/ config_yaml（需 configuration.yaml）/ either（均可）；
- *  - kind：composite（聚合控制）/ display（仅展示）/ control（控制）；
- *  - requiredSlotGroups 为"或"关系（任一组满足即可），组内为"且"。
- */
+/** - 维护家电类型定义表（APPLIANCE_TYPES）：含 id / 平台 / 部署模式 / 槽位 / 必填槽位组； */
 
 /** 家电模板目录 — 前后端单一真相源 */
 

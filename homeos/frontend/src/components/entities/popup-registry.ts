@@ -1,27 +1,4 @@
-/**
- * @module entity-popup-registry
- * @description 实体控制弹窗**组件映射层**（设备弹窗栈 A）。
- *
- * 设备弹窗栈约定：
- * - 栈 A（本注册表 + EntityControlHost）：设备列表 / 详情「控制」/ Hub 水电通讯
- * - 栈 B：门铃、设备组、媒体全屏 MediaPlayerModal
- * - 栈 C：画布 PanelRenderer more-info / 组合弹窗
- * - 栈 D：3D i3d-*-panel
- *
- * 保留范围（其余域不再弹窗）：
- * - 灯光 `light`
- * - 空调 / 温控 `climate`
- * - 窗帘 `cover`
- * - 多媒体 `media_player`（紧凑锚定；全屏走栈 B）
- * - 生活账户（水 / 电 / 气 / 通讯）
- *
- * 分层：本文件只做「弹窗种类 → 懒加载组件」映射（需要 `components/`）。
- *      「entity_id → 弹窗种类」的**纯判定**在 `@/shared/entity/utils/popup-registry.util`，
- *      下层（utils/composables/stores）请直接引用那一份，不要为本文件的组件映射买单。
- *
- * 依赖：`@/shared/entity/utils/popup-registry.util`（种类判定）、
- *      `@/shared/utils/core/lazy-component`（懒加载）。
- */
+/** 设备弹窗栈约定： */
 import type { Component } from 'vue'
 import { lazyComponent } from '@/shared/utils/core/lazy-component'
 import type { EntitiesMap } from '@/shared/types/entity-store'

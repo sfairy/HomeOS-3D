@@ -1,35 +1,10 @@
 /**
- * 两个前端（`homeos/frontend` 与 `homeos-store/frontend`）共用的 ESLint 规则核（P5 抽取）。
+ * 两个前端（`homeos/frontend` 与 `homeos-store/frontend`）共用的 ESLint 规则核。
  *
- * 为什么抽：两份配置唯一的差别本该只是「文件范围 + 风格两条」，但各写一份 parser / 插件 / 规则清单
- * 时，**抓 bug 的那批规则**（未使用 import、`any`、vue 陷阱）漂移是静默的 —— 某天只在主应用加了
- * `vue/no-mutating-props`，商店就永久少一条，而没有任何门禁会说话。这类「两份配置声称同一套规则」
- * 的表格，本项目里已经栽过一次（docker.yml ↔ checks.yml，见 .github/workflows/checks.yml 顶注）。
- *
- * 刻意**没有**统一的部分 —— **风格**：
- *
- *   商店实测（把主应用规则集原样套到商店 75 个源文件上）**0 errors / 5789 warnings，且 5789 条
- *   全部是 `semi`(3107) + `quotes`(2682)** —— 换句话说商店代码在「抓 bug」口径上本来就干净，
- *   分歧只在写法：它全树是**双引号 + 分号**。所以风格两条各自按既有约定给，`--fix` 只用来抹平
- *   商店里 45 条零散单引号（4 个文件、30 行），**不**把那 5789 条按主应用风格整树重写 ——
- *   那等于重写商店前端几乎每一行：git blame 全灭、真评审被风格噪音淹掉，换来的只是
- *   「两个应用的引号一样」。差异集中在 `APP_STYLE` / `STORE_STYLE` 两个常量里 ——
- *   想统一的那天，改代码 + 改一个常量即可，不会有第二处。
- *
- * 只收**实测确有的重复**：parser/插件装配、coreRules、flat/essential 的映射方式。
- *
- * 刻意**没有**动的第三份配置 —— `packages/shared/eslint.config.mjs`：
- *
- *   它看着和这里「同一套规则」，其实两处设计目标不同：共享包必须能**独立安装、独立跑**它的
- *   lint（它是 `@homeos/shared` 的源码，会被单独 checkout / 发布），所以它的配置不能去 import
- *   一个位于包外两层的 `ops/`；而且它跑的是 `typescript-eslint` 的 recommended 全集 + 伞包
- *   （`typescript-eslint`），两个应用跑的是**挑出来**的一套（`no-explicit-any` 硬 error、
- *   风格规则按应用定）。硬合会把「两个前端的门槛」与「共享包的门槛」绑成一件事。
- *
- * 依赖归属：本文件 import 的 eslint 工具链声明在**仓库根** `package.json`（`ops/` 属根 workspace）。
- * 因此两个应用的 `package.json` 里**不再**声明 `@eslint/js` / `eslint-plugin-vue`（各自的配置
- * 只 import 本文件的工厂函数）—— 留着它们会被 `knip` 报成未使用的 devDependency，那是**对的**：
- * 应用侧真的不再直接 import 它们。这与 P3e「vue-tsc 依赖归属移到根」是同一个道理。
+ * 抽出的目的：抓 bug 的那批规则（未使用 import、`any`、vue 陷阱）写成两份会静默漂移。
+ * 风格刻意不统一：主应用单引号、商店双引号 + 分号，各自按既有约定给（差异集中在 APP_STYLE / STORE_STYLE）。
+ * `packages/shared` 的配置设计目标不同（需能独立安装并单独跑 lint），刻意不并入。
+ * 本文件 import 的 eslint 工具链声明在仓库根 `package.json`，应用侧不再声明。
  */
 import js from "@eslint/js";
 import globals from "globals";
@@ -40,10 +15,8 @@ import vueParser from "vue-eslint-parser";
 import pluginVue from "eslint-plugin-vue";
 
 /**
- * 抓 bug 的规则：两个前端逐条一致（含 `comma-dangle` —— 两边都已合规，实测 0 条）。
- *
- * 不导出：它是 `jsBlock`/`tsBlock`/`vueBlock` 的内部拼装料，调用方只该按「文件类型」取块；
- * 导出出去就会有人直接 spread 一份，那时两边的规则核又开始各自漂移（knip 也会报未使用导出）。
+ * 抓 bug 的规则：两个前端逐条一致。
+ * 不导出：它是 jsBlock/tsBlock/vueBlock 的内部拼装料，调用方只该按文件类型取块。
  */
 const coreRules = {
   "no-unused-vars": "off",

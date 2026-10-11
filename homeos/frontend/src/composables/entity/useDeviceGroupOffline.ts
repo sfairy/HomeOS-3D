@@ -1,21 +1,4 @@
-/**
- * @file useDeviceGroupOffline.ts
- * @module composables/entity
- * @description 设备分组离线 / 低电量统计与展示辅助 composable。
- *
- * 职责：
- * - 当 domain 为 'offline' 时计算离线实体集合，并拆分为关键离线项；
- * - 当 domain 为 'battery' 时计算低电量实体集合（按电量排序，分临界 / 正常两组）；
- * - 提供按 domain 取图标、长 / 短原因文案、最后变化时间相对文案、电量色阶等辅助方法。
- *
- * 依赖：
- * - @homeos/shared（getEntityDomain）
- * - vue（computed、Ref、Component）
- * - @lucide/vue（域图标）
- * - @/shared/device/utils/group-offline.util（离线关键集合计算与拆分）
- * - @/shared/device/utils/group-battery.util（电量阈值与解析、store 形状类型）
- * - @/shared/types/entity-store（HaEntityState）
- */
+/** - 当 domain 为 'offline' 时计算离线实体集合，并拆分为关键离线项； */
 import { getEntityDomain } from '@homeos/shared'
 import { computed, type Ref } from 'vue'
 import { Sun, Plug, Bell, Camera, Lock, Thermometer, Music, AlertTriangle } from '@lucide/vue'

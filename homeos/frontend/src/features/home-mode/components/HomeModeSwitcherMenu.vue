@@ -1,26 +1,10 @@
 <!--
-  组件文件：HomeModeSwitcherMenu.vue
-  所属模块：frontend/src/components/common/home-mode
-  组件职责：家庭模式切换下拉菜单内容组件（配合 HomeModeSwitcherTrigger 调用方 Teleport 渲染）。
-    加载态展示骨架；列表渲染各 modes 项 + 图标 + 当前激活对勾；激活模式存在时展示
-    「退出当前模式」Power 按钮；下方展示最近触发日志 4 条（modeName + 原因）；
-    无模式时展示「暂无模式」占位；末尾 RouterLink 跳转设置页管理模式入口。
-  主要 props / emits：
-    - props.open / menuPlacement / menuStyle / teleportTarget / teleportDisabled：Teleport 渲染与定位；
-      props.loading / modes / activeMode：模式数据；
-      props.modeContext：上下文含 triggerLogs 与 calendarAway；
-      props.registerMenuRef(el)：将菜单根节点回填给父级（用于 click-outside 关闭）。
-    - emits：select-mode(mode)（点击某个模式）；toggle-off（点击退出当前模式）。
-  依赖关系：@lucide/vue Home/Power/Check；vue-router RouterLink；resolveHomeModeIcon 图标解析；
-    SETTINGS_ROUTES 设置页路径常量。
+  家庭模式切换下拉菜单内容组件（配合 HomeModeSwitcherTrigger 调用方 Teleport 渲染）。
+  加载态展示骨架；列表渲染各 modes 项 + 图标 + 当前激活对勾；激活模式存在时展示
+  「退出当前模式」Power 按钮；下方展示最近触发日志 4 条（modeName + 原因）；
+  无模式时展示「暂无模式」占位；末尾 RouterLink 跳转设置页管理模式入口。
 -->
 <script setup>
-/**
- * 职责：实现 HomeModeSwitcherMenu 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 /**
  * HomeModeSwitcherMenu - 家庭模式切换菜单组件（内部实现说明）
  * 功能特性：

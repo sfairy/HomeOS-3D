@@ -1,13 +1,6 @@
 <!--
-组件：LogSection.vue
-所属模块：frontend / src / views / settings / system / diagnostics
-职责：诊断日志区段。展示系统诊断快照（diag），支持复制、下载 txt、查看 traceId 与同步错误、
-      跳转至联动器排查。数据由 useDiagnosticsSection 注入。
-关键依赖：
-  - SettingsCard / SettingsCardIntro：卡片容器
-  - useDiagnosticsSection：从诊断上下文注入 diag / copyDiag / downloadDiagTxt 等
-  - LINKAGE_HUB_ROUTES：联动器跳转
-数据来源：useDiagnosticsSection() 返回的 diag 快照
+  诊断日志区段。展示系统诊断快照（diag），支持复制、下载 txt、查看 traceId 与同步错误、
+  跳转至联动器排查。数据由 useDiagnosticsSection 注入。
 -->
 <template>
   <!-- Tab：诊断导出 -->

@@ -1,15 +1,4 @@
-/**
- * @module core/poll-scheduler
- * @description 全局小组件轮询调度器与共享请求缓存。
- *
- * 设计要点：
- *  - 单一 1s 刻度定时器驱动所有注册的轮询任务，页面隐藏时暂停（visibilityAware 任务）；
- *  - visibilityAware:false 的任务（会话刷新、上报心跳等后台常驻服务）页面隐藏时仍按周期运行；
- *  - 注册时按序号分批错峰（8 槽 × 350ms），避免同一刻度集中触发；
- *  - sharedFetch 提供「同 key 去重 + TTL 内存缓存」，避免短时间内重复请求。
- *
- * 依赖：浏览器 document（visibilitychange）。
- */
+/** 设计要点： */
 /** 单个轮询任务定义 */
 interface PollJob {
   fn: () => void

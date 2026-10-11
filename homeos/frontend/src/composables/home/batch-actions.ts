@@ -1,16 +1,4 @@
-/**
- * 全屋批量操作工具。
- *
- * 职责：按 domain 收集当前处于开启/打开状态的实体，并提供全屋批量关闭
- * （灯 / 窗帘 / 空调风扇 / 开关）。
- *
- * 依赖：
- * - @/stores/entities.store：实体状态读取与 service 调用
- * - @homeos/shared：getEntityDomain 提取实体 domain
- * - @/stores/layout.store：读取布局配置
- * - @/shared/constants/whole-home-off：全屋关闭默认配置
- * - @/shared/types/entity-store、@/shared/types/whole-home-off：类型定义
- */
+/** 全屋批量操作工具。 */
 import { useEntitiesStore } from '@/stores/entities.store'
 import { getEntityDomain } from '@homeos/shared'
 import { useLayoutStore } from '@/stores/layout.store'

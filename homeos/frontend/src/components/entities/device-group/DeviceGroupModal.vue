@@ -1,22 +1,4 @@
-/**
- * @file DeviceGroupModal.vue
- * @module components/entities/device-group
- * @brief 设备群组控制弹窗
- *
- * 职责：
- * - 按设备域（light/climate/switch/battery/offline 等）批量展示和控制设备组
- * - 通过 Teleport 渲染模态框，含域名标题、关闭、审计等操作
- * - 根据 domain 切换不同子面板：成员列表（DeviceGroupMemberList）、
- *   电量面板（DeviceGroupBatteryPanel）、离线面板（DeviceGroupOfflinePanel）
- * - 离线域支持系统审计模式（showAudit）
- *
- * 依赖：
- * - vue（computed/watch/ref）、@lucide/vue、vue-router（RouterLink）
- * - useFocusTrap、useShellTeleportTarget
- * - entities.store、chrome.store
- * - DeviceGroupMemberList/DeviceGroupBatteryPanel/DeviceGroupOfflinePanel 子组件
- * - useDeviceGroupModal 组合式函数（聚合群组数据与操作）
- */
+/** - 按设备域（light/climate/switch/battery/offline 等）批量展示和控制设备组 */
 <template>
   <!-- DeviceGroupModal 设备组模态框：管理和查看设备组详情 -->
   <Teleport :to="teleportTarget" :disabled="teleportDisabled">
@@ -132,12 +114,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 DeviceGroupModal 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 import { computed, watch, ref } from 'vue'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
 import { RouterLink } from 'vue-router'

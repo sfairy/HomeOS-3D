@@ -1,11 +1,8 @@
 /**
- * @module core/count-json-leaf-diff
- * @description 统计两个 JSON 可序列化值之间变更的叶子节点数量的工具。
- *
+ * 统计两个 JSON 可序列化值之间变更的叶子节点数量的工具。
  * 用途：在实体状态 / 配置 diff 场景，量化「变化幅度」而非简单相等判断，
  * 用于决定是否触发重渲染、缓存失效或事件上报。
- *
- * 依赖：无（纯函数，输入需可 JSON 序列化） */
+ */
 /** 判定值类型标签（区分 null / array / 普通 object / 标量） */
 function valueKind(value: unknown) {
   if (value === null) return 'null'

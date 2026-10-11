@@ -1,16 +1,4 @@
-/**
- * 系统配置字段中文标签表
- *
- * 职责：
- * - 维护系统配置字段 key → 中文标签的映射表（LABEL_TEXT）。
- * - 提供字段标签查询函数，优先按「分区.字段」查专属标签，回退通用标签，再回退字段 key。
- *
- * 依赖：无外部依赖，纯静态文案表与纯函数。
- *
- * 注意：
- * - 对象 key 为 i18n 文案 key（如 `settings.systemConfig.field.xxx`），不翻译。
- * - 仅面向用户的标签文案 value 使用简体中文。
- */
+/** 系统配置字段中文标签表 */
 const LABEL_TEXT: Record<string, string> = {
   'settings.systemConfig.field.accentColor':
     '强调色',

@@ -1,15 +1,7 @@
 <!--
-组件：SettingsBindingsSecuritySection.vue
-所属模块：frontend / src / views / settings / connect / bindings
-职责：安防绑定分区。按 Tab 切换门铃路由（多路触发实体/摄像头/门锁）、危险源绑定、
-      门禁事件记录路径，并以流程概览展示门铃与事件路径状态；同时给出「安防主控方案」
-      对比卡片，引导用户避免重复布防。
-关键依赖：
-  - EntityInput：实体选择
-  - HazardBindingsSection：危险源（烟/气/漏）绑定子组件
-  - SettingsFlowBand / SettingsFlowStat / SettingsOrchTabs：布局
-  - SETTINGS_ROUTES：跳转安防场景/参数页
-数据来源：父级透传的 doorbellList / eventsPath / hazard 系列双向绑定 + emit 回调
+  安防绑定分区。按 Tab 切换门铃路由（多路触发实体/摄像头/门锁）、危险源绑定、
+  门禁事件记录路径，并以流程概览展示门铃与事件路径状态；同时给出「安防主控方案」
+  对比卡片，引导用户避免重复布防。
 -->
 <template>
   <div class="settings-hub-section bind-security-hub">
@@ -261,7 +253,6 @@ import HazardBindingsSection from '@/features/settings/connect/bindings/HazardBi
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import type { DoorbellConfig } from '@/shared/types/setup-wizard'
 
-// 入参：安防子 Tab 配置、事件校验态与提示、危险源测试/演练态与提示
 defineProps({
   bindingsSecurityTabs: { type: Array, default: () => [] },
   eventsValidating: Boolean,
@@ -273,16 +264,12 @@ defineProps({
   hazardDrillOk: { type: Boolean, default: true },
 })
 
-// 双向绑定：当前安防子 Tab（doorbell / hazard / events）
 const bindingsSecurityTab = defineModel('bindingsSecurityTab', {
   type: String,
   default: 'doorbell',
 })
-// 双向绑定：门禁事件抓拍记录路径
 const eventsPath = defineModel('eventsPath', { type: String, default: '' })
-// 双向绑定：门铃配置列表（触发实体 / 摄像头 / 门锁）
 const doorbellList = defineModel<DoorbellConfig[]>('doorbellList', { default: () => [] })
-// 双向绑定：危险源系列实体（烟/气/漏/阀门/排气扇/演练模式/紧急场景）
 const hazardSmokeEntityIds = defineModel<string[]>('hazardSmokeEntityIds', { default: () => [] })
 const hazardGasEntityIds = defineModel<string[]>('hazardGasEntityIds', { default: () => [] })
 const hazardLeakEntityIds = defineModel<string[]>('hazardLeakEntityIds', { default: () => [] })
@@ -319,7 +306,6 @@ const securityFlowSteps = computed(() => [
   },
 ])
 
-// 对外事件：删除门铃、测试事件路径、测试危险源、危险源演练
 const emit = defineEmits(['remove-doorbell', 'test-events-path', 'test-hazard', 'hazard-drill'])
 
 // 转发危险源演练事件给父级（保留事件名一致）

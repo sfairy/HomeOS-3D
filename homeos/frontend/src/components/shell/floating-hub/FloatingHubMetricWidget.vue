@@ -84,22 +84,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * @file FloatingHubMetricWidget.vue
- * @module floorplan/floating-hub
- *
- * 浮动控制中心 - 指标型部件渲染器
- *
- * 职责：
- * - 根据 widget.type 渲染不同传感器指标：温度/湿度/空气质量/电池/功率
- * - 通过 hub.sensorValue / hub.aqiValue 按关键字或约定实体提取数值
- * - AQI 与电池根据数值动态着色（aqiLevel / batteryColor）
- *
- * 依赖：
- * - vue：inject
- * - FloatingHubContextKey：父组件注入的上下文
- * - @/shared/types/layout：FloatingWidget 部件类型定义
- */
+/** 浮动控制中心 - 指标型部件渲染器 */
 import { inject } from 'vue'
 import { FloatingHubContextKey } from '@/components/shell/floating-hub/context'
 import type { FloatingWidget } from '@/shared/types/layout'

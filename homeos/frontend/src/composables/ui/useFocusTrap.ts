@@ -1,15 +1,4 @@
-/**
- * @file 模态框焦点陷阱 Composable
- * @module composables/ui/useFocusTrap
- *
- * 职责：
- *  - 模态框打开时聚焦首个可聚焦元素（优先 input/textarea/autofocus）。
- *  - Tab 键循环限制在容器内部，防止焦点逃逸到模态框背后的页面。
- *  - 模态框关闭时恢复焦点到打开前的元素。
- *
- * 依赖：
- *  - vue 的 watch / nextTick / onUnmounted 生命周期钩子与 Ref 类型。
- */
+/** - 模态框打开时聚焦首个可聚焦元素（优先 input/textarea/autofocus）。 */
 import { watch, nextTick, onUnmounted, type Ref } from 'vue'
 
 /** 可聚焦元素选择器：链接、按钮、输入框、文本域、下拉框及带 tabindex 的元素 */

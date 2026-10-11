@@ -1,18 +1,4 @@
-/**
- * @module energy-account-resolve.util
- * @description 生活账户条目解析与主账户选取工具模块。
- *
- * 职责：
- * - 解析有效账户条目列表（优先 accountEntries，回退 account 逗号串）。
- * - 计算主账户索引与主账户号码（兼容 entity / multi / convention 三种模式）。
- * - 生成账户条目的展示标签。
- * - 统计原始账户行数（含空行，用于编辑场景）。
- *
- * 依赖：
- * - `energy-account-types.util`：账户类型与主账户行索引解析。
- * - `energy-account-input.util`：账户号字符串解析。
- * - `energy-account-entity.util`：实体 / 多账户条目解析。
- */
+/** - 解析有效账户条目列表（优先 accountEntries，回退 account 逗号串）。 */
 import {
   resolvePrimaryAccountRowIndex,
   type EnergyAccountEntry,

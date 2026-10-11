@@ -1,12 +1,6 @@
 <!--
-组件：HomeModeLogsSection.vue
-所属模块：frontend / src / views / settings / automate / home-mode
-职责：家庭模式编辑器「运行日志」分区。展示触发记录与最近执行结果，支持「仅当前模式」
-      过滤、执行卡片展开查看逐条动作结果，并提供跳转到完整日志页的入口。
-关键依赖：
-  - formatShortDateTime / homeModeLogSourceLabel：时间与来源文案格式化
-  - RouterLink：跳转模式触发日志页
-数据来源：父级透传的 triggerLogs / execHistory / activeModeId
+  家庭模式编辑器「运行日志」分区。展示触发记录与最近执行结果，支持「仅当前模式」
+  过滤、执行卡片展开查看逐条动作结果，并提供跳转到完整日志页的入口。
 -->
 <template>
   <div class="hm-panel__section hm-panel__section--fill hm-logs-hub">

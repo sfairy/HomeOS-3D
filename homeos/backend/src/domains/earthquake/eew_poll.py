@@ -56,9 +56,7 @@ class EewPollService:
         self._last_cenc_report: tuple[str, float, float] | None = None
         self._last_usgs_ids: list[str] = []
 
-    # ------------------------------------------------------------------ #
     # 生命周期
-    # ------------------------------------------------------------------ #
     async def start(self) -> None:
         self._stopped = False
         self._task = asyncio.create_task(self._dual_loop(), name="eew-dual-poll")
@@ -137,9 +135,7 @@ class EewPollService:
         await self.poll_dual_sources()
         await self.poll_usgs_backup()
 
-    # ------------------------------------------------------------------ #
     # 轮询实现
-    # ------------------------------------------------------------------ #
     async def poll_dual_sources(self) -> None:
         if not self._leader.is_eew_leader():
             return

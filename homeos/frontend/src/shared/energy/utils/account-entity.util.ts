@@ -1,17 +1,4 @@
-/**
- * @module energy-account-entity.util
- * @description 生活账户综合实体 / 多实体模式解析与同步工具模块。
- *
- * 职责：
- * - 解析约定模式下的 balance 实体 ID。
- * - 解析综合实体模式（accountEntities）与多实体模式（multiAccounts）的账户列表。
- * - 在编辑过程中保留空行，避免输入过程中列表抖动。
- * - 同步主账户镜像字段（entityId / entityMap / primaryAccountIndex）。
- *
- * 依赖：
- * - `energy-fields` 常量：约定式实体 ID 前缀。
- * - `energy-account-types.util`：账户类型定义与主账户行索引解析。
- */
+/** - 解析约定模式下的 balance 实体 ID。 */
 import { getEntityLeaf } from '@homeos/shared'
 import { ENERGY_CONVENTION_PREFIX } from '@/shared/energy/constants/energy-fields'
 import {

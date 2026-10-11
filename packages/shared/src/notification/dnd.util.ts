@@ -1,23 +1,4 @@
-/**
- * @file dnd.util.ts
- * @module @homeos/shared/notification
- * @brief 免打扰（DND）时段判断与默认窗口（前后端唯一源）。
- *
- * 职责：
- *  - 维护与 AppConfig notification 默认值对齐的缺省 DND 窗口；
- *  - 判断指定小时是否处于 DND 时段（覆盖跨午夜 / 全天 / 同日窗口）；
- *  - 计算勿扰持续小时数（相等视为全天 24）。
- *
- * 关键依赖：
- *  - 后端通知发送前用 isDndActiveNow 判断是否静默（生命安全类除外）；
- *  - 前端 UI 滑块预览用 isHourInDnd 同语义别名。
- *
- * 约定：
- *  - start > end：跨午夜（如 22→8），hour >= start 或 hour < end 时静默；
- *  - start === end：视为全天免打扰；
- *  - start < end：同日窗口，start <= hour < end 时静默；
- *  - dndStart / dndEnd 任一缺失视为未配置，isDndActiveNow 返回 false。
- */
+/** - 维护与 AppConfig notification 默认值对齐的缺省 DND 窗口； */
 
 /** 与 AppConfig notification 默认值对齐的缺省 DND 窗口 — 开始小时（22 点整进入免打扰） */
 export const DEFAULT_DND_START = 22;

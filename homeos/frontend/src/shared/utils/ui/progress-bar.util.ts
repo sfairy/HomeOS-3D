@@ -1,17 +1,4 @@
-/**
- * 进度条 / 滑块样式统一入口
- *
- * 职责：
- * - 转发 progress-bar-gradient.util（渐变色 / 阈值选色 / 滑块归一化等）与
- *   progress-bar-color-temp.util（色温换算）的对外能力。
- * - 提供 input[type=range] 滑块轨道与拇指的内联样式工厂（sliderTrackStyle），
- *   统一 WebKit / Firefox / 标准 spec 三套伪元素样式。
- *
- * 依赖：./progress-bar-gradient.util、./progress-bar-color-temp.util。
- *
- * 注意：variant key（accent / success / warn ...）与 CSS 伪元素名
- *   （::-webkit-slider-thumb 等）为配置 / CSS 标识符，不翻译。
- */
+/** 进度条 / 滑块样式统一入口 */
 import {
   THRESHOLD_VARIANTS,
   normalizeProgressPct,

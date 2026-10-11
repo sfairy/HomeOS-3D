@@ -1,12 +1,4 @@
-"""HA WebSocket 入口微窗口合并（对齐 ``shared/ha/state-ingress-coalesce.service.ts``）。
-
-职责：对 sensor / binary_sensor 等同 entity 连续变更做短窗口（默认 8ms）合并，
-关键控制域（light / switch / lock 等）直接 bypass，避免合并带来的控制延迟；
-合并时保留「首包 old_state + 末包 new_state」，供电表差分等消费方不错计增量。
-
-合并后的事件以 ``ha.state_changed.batch`` 批量事件发出，降低 Hot Path / WS 扇出频率。
-功能未启用 / 非合并域 / 关键域 / 不可同步实体一律立即下发或丢弃。
-"""
+"""HA WebSocket 入口微窗口合并（对齐 ``shared/ha/state-ingress-coalesce.service.ts``）。"""
 
 from __future__ import annotations
 
@@ -50,9 +42,7 @@ class StateIngressCoalesceService:
         self.flush_count = 0
         self.merged_count = 0
 
-    # ------------------------------------------------------------------ #
     # 生命周期
-    # ------------------------------------------------------------------ #
     def bind_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         self._loop = loop
 
@@ -63,9 +53,7 @@ class StateIngressCoalesceService:
             self._timer = None
         self._flush_all()
 
-    # ------------------------------------------------------------------ #
     # 配置
-    # ------------------------------------------------------------------ #
     def _cfg(self) -> dict[str, Any]:
         now = time.monotonic() * 1000
         if self._cfg_cache is not None and now - self._cfg_at < _CONFIG_TTL_MS:
@@ -92,9 +80,7 @@ class StateIngressCoalesceService:
         self._cfg_cache = None
         self._cfg_at = 0.0
 
-    # ------------------------------------------------------------------ #
     # 入队
-    # ------------------------------------------------------------------ #
     def enqueue(self, event: dict[str, Any]) -> None:
         """状态变更入队入口（由 HA 状态监听调用，同步接口）。"""
         entity_id = str(event.get("entity_id") or "")
@@ -142,9 +128,7 @@ class StateIngressCoalesceService:
             }
         self._schedule()
 
-    # ------------------------------------------------------------------ #
     # 刷新
-    # ------------------------------------------------------------------ #
     def _schedule(self) -> None:
         if self._timer is not None:
             return

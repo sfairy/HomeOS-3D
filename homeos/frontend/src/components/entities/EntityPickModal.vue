@@ -2,17 +2,6 @@
   EntityPickModal.vue / components/entities
   实体选择弹窗：通用 HA 实体批量或单选选择器 Modal，支持按 domain 过滤、
   关键词搜索、大实体量 REST 分页搜索 + 虚拟滚动（超阈值自动启用），展示复选圈。
-  Props: isOpen 开关 / title 标题 / domain 可选域过滤 / multi 多选开关
-         / value 初始已选 entity_id 数组 / zones 区域过滤
-  Emit: close 关闭（无保存）/ save(ids[]) 点击保存时回传选择结果数组
-  依赖：Pinia — useEntitiesStore 本地枚举或小体量搜索
-              + useLayoutStore；
-        services/api/entities fetchEntities 大体量 REST 分页搜索；
-        utils: derived.util 展示名 + collectIndexedEntityIds 索引构建；
-               getLargeEntityThreshold 阈值配置；
-               group-battery.util isBatterySensorEntity 电池实体筛选项；
-        lucide: X / Search / CheckCircle / Circle 图标。
-  注意：超阈值时切 useRestSearch（防本地 O(N²)）；虚拟滚动行高 ROW_STRIDE 固定。
 -->
 <template>
   <Transition name="hos-modal">

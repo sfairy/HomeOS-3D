@@ -1,14 +1,7 @@
 /**
- * 顶栏局部精修样式表（非 scoped 全局样式）
- *
- * 所属模块：frontend / src / layouts / styles
- * 作用域：MainLayout.vue 中通过 `<style src=...>`（非 scoped）引入。
- * 由于 scoped 样式无法穿透到子组件 HomeModeSwitcher 内部，故单独以全局样式表维护，
+ * 顶栏局部精修样式表（非 scoped 全局样式）。
+ * scoped 样式无法穿透到子组件 HomeModeSwitcher 内部，故单独以全局样式表维护；
  * 选择器全部以 .tab-bar__mode-switcher.home-mode-switcher 前缀约束，避免污染其他页面。
- *
- * 覆盖范围：
- * - 模式区与 Tab 托盘视觉对齐
- * - logo / 标题字号比例
  */
 .tab-bar__mode-switcher.home-mode-switcher {
   display: inline-flex;

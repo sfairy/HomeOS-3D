@@ -1,25 +1,4 @@
-/**
- * @file create-layout-core-state.ts
- * @module frontend/src/stores/ui
- * @brief 布局核心响应式状态（layoutConfig / dirty / profile 加载旗标）；由 layout.store 持有。
- *
- * 职责：
- * - 持有 layoutConfig 主状态（reactive，深 watch 触发 dirty）
- * - 维护 layoutDirty / profile 加载旗标（loading / loaded / error）
- * - 提供 setSuppressDirtyTracking：批量操作期间临时抑制 dirty 跟踪
- * - 初始化时按平板性能模式应用默认值
- *
- * 活跃设备弹窗实体的 WS pin 改由 chrome.entityControlEntityId /
- * chrome.activeMediaEntityId 提供（见 useEntityWsSubscriptionSync），不再使用
- * 从未写入的 activeFloorplanPopupId。
- *
- * 关键依赖：
- * - @/stores/defaults：getDefaultLayout 提供默认布局（深拷贝为初始值）
- * - @/stores/ui/create-layout-state：readStoredProfileId 读取本地存储方案 ID
- * - @/stores/ui/create-layout-dirty-tracking：dirty watch 跟踪
- * - @/shared/utils/perf/tablet-default-perf.util：平板性能模式
- * - @/shared/utils/core/clone-plain.util：深拷贝
- */
+/** - 持有 layoutConfig 主状态（reactive，深 watch 触发 dirty） */
 import { ref, reactive } from 'vue'
 import type { UILayoutConfig } from '@/shared/types/layout'
 import { getDefaultLayout } from '@/stores/defaults'

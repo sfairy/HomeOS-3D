@@ -1,17 +1,6 @@
 <!--
-组件：SystemConfigNestedObjectEditor.vue
-所属模块：frontend / src / views / settings / shared / system-config
-职责：高级参数嵌套对象编辑器。按字段 key 选择 record-table（键值表格）/ fixed-form（固定表单）/ json（原始文本）
-      三种编辑模式，支持原始 JSON 切换、重复键检测与固定表单范围校验。
-Props：
-  - fieldKey：字段 key（决定编辑器类型）
-  - modelValue：JSON 字符串形式的对象
-  - inputId：输入 id
-Emits：
-  - update:modelValue：值变更
-关键依赖：
-  - nested-editor.util：编辑器类型判定、记录行转换、JSON 解析/序列化、重复键与范围校验
-数据来源：父级透传的 modelValue
+  高级参数嵌套对象编辑器。按字段 key 选择 record-table（键值表格）/ fixed-form（固定表单）/ json（原始文本）
+  三种编辑模式，支持原始 JSON 切换、重复键检测与固定表单范围校验。
 -->
 <template>
   <div class="nested-obj-editor">

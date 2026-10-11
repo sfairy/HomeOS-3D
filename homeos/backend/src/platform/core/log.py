@@ -240,9 +240,7 @@ def localize_logger_context(name: str) -> str:
     return name
 
 
-# --------------------------------------------------------------------------- #
 # 控制台文案规整（对齐 Nest ``toHalfWidthPunct`` + ``compactLogSpaces``）
-# --------------------------------------------------------------------------- #
 _FULLWIDTH_PUNCT_MULTI: tuple[tuple[str, str], ...] = (("…", "..."), ("——", "--"))
 
 _FULLWIDTH_PUNCT_MAP: dict[str, str] = {
@@ -329,9 +327,7 @@ def _localize_uvicorn_message(text: str) -> str:
     return text
 
 
-# --------------------------------------------------------------------------- #
 # 时间戳
-# --------------------------------------------------------------------------- #
 def _nest_timestamp() -> str:
     """对齐 Nest ``Intl.DateTimeFormat``（``month: '2-digit', day: '2-digit'``）。
 
@@ -365,9 +361,7 @@ def _resolve_color() -> bool:
     return not (force and force.lower() in ("0", "false"))
 
 
-# --------------------------------------------------------------------------- #
 # 格式化器
-# --------------------------------------------------------------------------- #
 class NestStyleFormatter(logging.Formatter):
     """Nest ``ConsoleLogger`` 风格格式化器（可选 JSON 行）。"""
 

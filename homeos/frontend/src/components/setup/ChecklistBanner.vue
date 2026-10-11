@@ -30,11 +30,7 @@
 </template>
 
 <script setup>
-/**
- * ChecklistBanner - 首装任务条组件
- * 职责：在主界面顶部展示首装后续待办任务的进度，提供快捷跳转与 7 天内不再提示。
- * 关键依赖：useSetupChecklist 提供清单数据、进度文案与 dismiss 关闭逻辑。
- */
+/** ChecklistBanner - 首装任务条组件 */
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useSetupChecklist } from '@/shared/status'

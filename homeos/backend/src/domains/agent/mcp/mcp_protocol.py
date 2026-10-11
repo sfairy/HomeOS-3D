@@ -1,13 +1,4 @@
-"""MCP JSON-RPC 协议纯处理工具（无框架依赖）。
-
-职责：把 MCP JSON-RPC 请求按方法路由到对应的处理分支，
- 对接小智 ESP32 / 第三方 AI 等客户端。协议子集：2025-03-26。
- 支持方法：initialize / notifications/* / ping / logging/setLevel /
- tools(/list / /call) / resources(/list / /templates/list / /read) / prompts(/list / /get)。
- 以「smart_home.control」自然语言工具聚合 HomeToolsService 的细粒度工具。
-
-对齐 Nest ``mcp-protocol.util.ts``（逐分支、逐文案、逐错误码一致）。
-"""
+"""MCP JSON-RPC 协议纯处理工具（无框架依赖）。"""
 
 from __future__ import annotations
 

@@ -1,23 +1,4 @@
-/**
- * @file bindings-gaps.util.ts
- * @module @homeos/shared/setup
- * @brief 首装绑定缺口检测与子域归类（集成绑定 / 能源与环境 / 安防）。
- *
- * 职责：
- *  - 汇总各类绑定缺口项（天气 / 摄像头 / 门铃 / 危险传感器 / 燃气与漏水关阀 /
- *    环境房间 / 紧急场景 / 能源账户等）；
- *  - 提供缺口 id → 子域（BindingGapSection）归类，仅供展示过滤；
- *  - 支持按子域过滤缺口列表或返回全量（section=overview）。
- *
- * 关键依赖：
- *  - account-binding-categories.util 提供账户类别标签 / 路由 / 完整性检查；
- *  - energy-config.util 提供 hasEnergyConfig 判断；
- *  - hazard-config.util 提供危险传感器绑定摘要 / 冲突检测。
- *
- * 约定：
- *  - resolveBindingGapSection 不改检测语义，仅按 id 前缀映射展示子域；
- *  - 缺口 severity：warn（影响核心功能）/ info（可选增强）。
- */
+/** - 汇总各类绑定缺口项（天气 / 摄像头 / 门铃 / 危险传感器 / 燃气与漏水关阀 / */
 import {
   collectRequiredAccountBindingCategories,
   formatAccountBindingLabel,

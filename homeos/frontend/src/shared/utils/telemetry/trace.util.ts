@@ -1,12 +1,4 @@
-/**
- * 链路追踪工具模块。
- *
- * 职责：
- * - 生成页面级 Trace ID，随 API 请求透传至后端 X-Trace-Id header；
- * - 从响应 headers 或错误对象中提取 traceId，便于问题排查关联。
- *
- * 依赖：randomUUID（core/random-uuid.util）。
- */
+/** 链路追踪工具模块。 */
 import { randomUUID } from '@/shared/utils/core/random-uuid.util'
 
 /** 页面级 Trace ID（模块级单例，首次获取时生成） */

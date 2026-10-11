@@ -63,9 +63,7 @@ class JsonMixin:
             return default
 
 
-# --------------------------------------------------------------------------- #
 # 用户与鉴权
-# --------------------------------------------------------------------------- #
 class User(Base):
     __tablename__ = "users"
     __table_args__ = (
@@ -138,9 +136,7 @@ class LoginSession(Base):
     user: Mapped[User] = relationship(back_populates="sessions")
 
 
-# --------------------------------------------------------------------------- #
 # 配置与审计
-# --------------------------------------------------------------------------- #
 class ProjectConfig(Base):
     __tablename__ = "project_configs"
 
@@ -454,9 +450,7 @@ class EnergyUsageMonthly(Base):
     )
 
 
-# --------------------------------------------------------------------------- #
 # 商业授权（并入 homeos-3d 授权服务）
-# --------------------------------------------------------------------------- #
 class LicenseState(Base):
     """授权单例状态行（``id`` 恒为 1），与 homeos-3d 的 license_state 表逐列对齐。
 
@@ -496,7 +490,6 @@ class LicenseState(Base):
     activated_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
-# --------------------------------------------------------------------------- #
 # 3D Studio 数据面（并入 homeos-3d：项目 / HA 目录 / 全局弹窗）
 #
 # 表名与列名一律保持 homeos-3d 的 snake_case：移植来的 ha/**、panel/**、
@@ -504,7 +497,6 @@ class LicenseState(Base):
 # 无需改写；同时便于一次性导入 homeos-3d 的 app.db 数据。
 # 注意：`User` / `LoginSession` / `LicenseState` 与 homeos-3d 同名但沿用 homeos 既有表，
 # 因此这里的 FK 指向的是 homeos 的 `users`。
-# --------------------------------------------------------------------------- #
 class Project(Base):
     """Studio 项目（一个项目对应一套可编辑 / 可展示的 3D 仪表盘）。"""
 

@@ -36,22 +36,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * @file FloatingHubEntityWidget.vue
- * @module floorplan/floating-hub
- *
- * 浮动控制中心 - 实体部件
- *
- * 职责：
- * - 展示单个 HA 实体（电/气/水/通讯等公用事业）的状态值与单位
- * - 根据实体类别动态展示对应 emoji 图标
- * - 公用事业类实体可点击，触发 onWidgetClick 打开详情弹窗
- *
- * 依赖：
- * - vue：inject
- * - FloatingHubContextKey：父组件注入的上下文
- * - @/shared/types/layout：FloatingWidget 部件类型定义
- */
+/** 浮动控制中心 - 实体部件 */
 import { inject } from 'vue'
 import { FloatingHubContextKey } from '@/components/shell/floating-hub/context'
 import type { FloatingWidget } from '@/shared/types/layout'

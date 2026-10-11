@@ -1,9 +1,4 @@
-/**
- * 浏览器本机 SpeechSynthesis TTS 工具
- *
- * 职责：封装 Web Speech API 播报（中文女声优选、Chrome resume 规避、静默失败检测）。
- * 供 useTtsSpeak、地震预警等共用，避免两套本机 TTS。
- */
+/** 浏览器本机 SpeechSynthesis TTS 工具 */
 import { logger } from '@/shared/utils/core/logger'
 
 /** 偏好的中文女声 voice 关键字（按优先级排序） */

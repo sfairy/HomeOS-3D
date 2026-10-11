@@ -1,13 +1,4 @@
-/**
- * 安防面板布局配置工具模块。
- *
- * 职责：
- * - 从顶层 floatingWidgets 中查找 securityPanel 类型的小部件；
- * - 读取/同步安防面板区域配置到布局配置（zones 随布局持久化）；
- * - 供安防面板初始化与区域保存时镜像更新布局使用。
- *
- * 依赖：UILayoutConfig/FloatingWidget 布局类型、SecurityZonePayload 区域类型。
- */
+/** 安防面板布局配置工具模块。 */
 /** 从顶层 floatingWidgets 读写 securityPanel 区域配置 */
 import type { FloatingWidget, UILayoutConfig } from '@/shared/types/layout'
 import type { SecurityZonePayload } from './zones-api.util'

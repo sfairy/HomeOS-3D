@@ -1,11 +1,4 @@
-"""解析型 LLM 提供商（运行时切换）。
-
-职责：作为 LLM_PROVIDER 的实际实现，在 mock 与 DeepseekLlmProvider 间按配置切换。
- - bind_events 时先 refresh 一次，并订阅 SYSTEM_CONFIG_UPDATED 事件
- - chat 时若仍为 mock 则再 refresh 一次（兜底配置刚保存的场景）
- refresh 会先使 AgentConfigService 缓存失效，避免读到旧 mock
-依赖：AgentConfigService（配置）、LocalEventBus（事件）、DeepseekLlmProvider / MockLlmProvider。
-"""
+"""解析型 LLM 提供商（运行时切换）。"""
 
 from __future__ import annotations
 
@@ -36,9 +29,7 @@ class ResolvingLlmProvider:
         self._inner: Any = MockLlmProvider()
         self._unavailable = UnavailableLlmProvider()
 
-    # ------------------------------------------------------------------ #
     # 事件绑定
-    # ------------------------------------------------------------------ #
     def bind_events(self) -> None:
         """模块初始化：刷新一次并订阅配置变更事件（对齐 ``onModuleInit``）。"""
         if self._event_bus is not None:
@@ -48,9 +39,7 @@ class ResolvingLlmProvider:
 
             self._event_bus.on("SYSTEM_CONFIG_UPDATED", on_system_config_updated)
 
-    # ------------------------------------------------------------------ #
     # LlmProvider 接口
-    # ------------------------------------------------------------------ #
     @property
     def name(self) -> str:
         """透出当前内部提供商名。"""
@@ -75,9 +64,7 @@ class ResolvingLlmProvider:
             await self.refresh()
         return await self._inner.chat(messages, tools, opts)
 
-    # ------------------------------------------------------------------ #
     # 刷新
-    # ------------------------------------------------------------------ #
     async def refresh(self) -> None:
         """重新读取配置并切换内部提供商。
 

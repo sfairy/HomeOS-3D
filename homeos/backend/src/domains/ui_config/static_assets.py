@@ -136,18 +136,14 @@ class UiConfigStaticAssetService:
                 logger.info("正在创建资源目录:%s", directory)
                 os.makedirs(directory, mode=0o755, exist_ok=True)
 
-    # ------------------------------------------------------------------ #
     # 安全路径
-    # ------------------------------------------------------------------ #
     def get_safe_background_path(self, sub_path: str = "") -> Path:
         return resolve_safe_path(get_backgrounds_dir(), sub_path)
 
     def get_safe_icon_path(self, sub_path: str = "") -> Path:
         return resolve_safe_path(get_icons_dir(), sub_path)
 
-    # ------------------------------------------------------------------ #
     # 背景图
-    # ------------------------------------------------------------------ #
     def list_backgrounds(self, sub_path: str = "") -> list[dict[str, Any]]:
         return list_image_assets(get_backgrounds_dir(), _background_url, sub_path, "背景图")
 
@@ -162,9 +158,7 @@ class UiConfigStaticAssetService:
     def delete_background(self, full_path: str) -> None:
         delete_image_asset(get_backgrounds_dir(), full_path, "背景图")
 
-    # ------------------------------------------------------------------ #
     # 图标（仅 SVG）
-    # ------------------------------------------------------------------ #
     def create_icon_directory(self, sub_path: str) -> dict[str, Any]:
         target_dir = self.get_safe_icon_path(sub_path) if sub_path else Path(get_icons_dir()).resolve()
         if target_dir.exists():

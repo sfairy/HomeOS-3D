@@ -1,14 +1,4 @@
-/**
- * 实体投影只读展示组合式函数模块。
- *
- * 职责：
- * - 在指定实体 ID 作用域内，优先使用 EntityProjection（如本地乐观更新/路由作用域）；
- * - 当实体未在投影作用域内时，回退到 store 全量实体；
- * - 通过可暂停的状态监听按实体刷新，避免传感器风暴下的全局扇出。
- *
- * 依赖：vue shallowRef/watch/unref、entity-projection store、entities store、
- * usePausableStateListener、HaEntityState 类型。
- */
+/** 实体投影只读展示组合式函数模块。 */
 import { shallowRef, watch, unref, type MaybeRefOrGetter } from 'vue'
 import { getProjection } from '@/stores/entities/entity-projection'
 import { useEntitiesStore } from '@/stores/entities.store'

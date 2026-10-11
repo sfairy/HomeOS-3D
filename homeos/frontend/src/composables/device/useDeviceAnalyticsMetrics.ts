@@ -1,18 +1,4 @@
-/**
- * 设备分析指标派生 Composable
- *
- * 模块：设备 / 分析仪表盘 / 指标派生
- * 职责：
- *   - 基于 summary 与 eventsStats 派生一系列纯计算属性，供仪表盘 UI 与图表消费。
- *   - 包含：是否含数据、周期标签、用量汇总、Top 活跃设备、低活跃设备、异常计数、
- *     热力图设备列表、事件按域排序、Tab 配置。
- *
- * 设计说明：
- *   - 全部为 computed，无副作用，依赖响应式 summary / eventsStats 自动重算。
- *
- * 依赖：
- *   - @/composables/device/useDeviceAnalyticsDashboard：summary / eventsStats 的类型来源。
- */
+/** 设备分析指标派生 Composable */
 import { computed, type Ref } from 'vue'
 import type { useDeviceAnalyticsDashboard } from '@/composables/device/useDeviceAnalyticsDashboard'
 

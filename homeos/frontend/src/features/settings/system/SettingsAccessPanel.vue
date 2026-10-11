@@ -1,15 +1,6 @@
 <!--
-组件：SettingsAccessPanel.vue
-所属模块：frontend / src / features / settings / system
-职责：访问控制页签（恢复原 homeos「访客模式与设置锁」区块）。提供设置锁启停开关、
-     4–6 位访问 PIN 的分段输入、PIN 强度评估与弱口令提示；配置随侧栏全局「保存全部」持久化。
-Props：
-  - activeTab：当前 Tab
-关键依赖：
-  - SettingsPageShell / SettingsCard：页面骨架与卡片
-  - VProgressBar：PIN 强度进度条
-  - useAccessPanel：设置锁配置读写、PIN 清洗/强度与启用校验
-数据来源：layoutStore.layoutConfig.settingsLock（纯前端，无后端接口）
+  访问控制页签（恢复原 homeos「访客模式与设置锁」区块）。提供设置锁启停开关、
+  4–6 位访问 PIN 的分段输入、PIN 强度评估与弱口令提示；配置随侧栏全局「保存全部」持久化。
 -->
 <template>
   <SettingsPageShell

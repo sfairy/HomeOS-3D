@@ -50,9 +50,7 @@ class ChannelsService:
         #: 通道提供者注册表：名称 → 提供者实例
         self._providers: dict[str, Any] = {}
 
-    # ------------------------------------------------------------------ #
     # 生命周期
-    # ------------------------------------------------------------------ #
     def start(self) -> None:
         """模块初始化：注册各通道消息回调（Email/WebPush 为出站，企微为入站）。"""
         self._providers[getattr(self._email, "name", "email")] = self._email
@@ -61,9 +59,7 @@ class ChannelsService:
         self._wecom.on_message(lambda msg: self.handle_channel_message(msg, self._wecom))
         logger.info("消息通道分发服务已初始化(含企业微信)")
 
-    # ------------------------------------------------------------------ #
     # 渠道身份解析
-    # ------------------------------------------------------------------ #
     async def resolve_channel_actor(self, channel: str) -> Any:
         """解析渠道绑定的 HomeOS 用户作为 Agent 执行身份。
 
@@ -103,9 +99,7 @@ class ChannelsService:
 
         return await asyncio.to_thread(_query)
 
-    # ------------------------------------------------------------------ #
     # 状态 / 外部告警
-    # ------------------------------------------------------------------ #
     async def get_status(self) -> dict[str, Any]:
         """获取所有通道的运行状态（供 ``/channels/status`` 使用）。"""
         email, webpush, wecom = (
@@ -148,9 +142,7 @@ class ChannelsService:
             except Exception as exc:
                 logger.error("企业微信告警投递失败: %s", exc)
 
-    # ------------------------------------------------------------------ #
     # 会话历史
-    # ------------------------------------------------------------------ #
     def clear_session(self, session_key: str) -> None:
         """清除指定会话的历史记忆。"""
         self._sessions.pop(session_key, None)
@@ -171,9 +163,7 @@ class ChannelsService:
         while len(self._sessions) > MAX_SESSIONS:
             self._sessions.popitem(last=False)
 
-    # ------------------------------------------------------------------ #
     # 入站消息处理
-    # ------------------------------------------------------------------ #
     async def handle_channel_message(self, msg: ChannelMessage, provider: Any) -> None:
         """处理来自通道的用户消息：解析命令 → 调用 Agent → 格式化回复 → 回发。"""
         logger.info('收到来自 %s [%s] 的消息: "%s"', msg.channel, msg.from_user, msg.content)

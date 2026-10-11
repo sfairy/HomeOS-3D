@@ -1,19 +1,6 @@
 <!--
-组件：SettingsOrchTabs.vue
-所属模块：frontend / src / views / settings / shared / layout
-职责：设置页 OrchTabs 子导航。横向 Tab 按钮列表，支持激活指示条、溢出滚动、排序（左右箭头移动）、
-      工具栏模式与 plain 嵌套模式。用于设置各面板内子区段切换。
-Props：
-  - tabs：Tab 配置列表（id / label / icon / count / accent）
-  - modelValue：当前选中 id
-  - toolbar：单行工具栏模式
-  - sortable：启用排序箭头
-  - plain：去掉 dock 背景与底边（嵌套在 SettingsCard 内时使用）
-Emits：
-  - update:modelValue：切换 Tab
-  - reorder：排序变更
-关键依赖：@lucide/vue 的 ChevronLeft / ChevronRight
-数据来源：父级透传的 tabs
+  设置页 OrchTabs 子导航。横向 Tab 按钮列表，支持激活指示条、溢出滚动、排序（左右箭头移动）、
+  工具栏模式与 plain 嵌套模式。用于设置各面板内子区段切换。
 -->
 <template>
   <div

@@ -1,10 +1,4 @@
-/**
- * HA weather 实体 state → 中文天气文案与视觉分类
- *
- * 职责：
- * - 把 Home Assistant `weather` 域实体的 state 翻译为简体中文
- * - 把近义状态收敛为展示用 visual key（卡片/预报/顶栏共用）
- */
+/** HA weather 实体 state → 中文天气文案与视觉分类 */
 const WEATHER_LABELS: Record<string, string> = {
   'clear-night': '晴朗(夜)',
   cloudy: '阴天',

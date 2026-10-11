@@ -1,12 +1,4 @@
-/**
- * Vue Router 路由配置
- *
- * 职责：
- * 1. 定义全部前端路由表（含认证页、主布局子路由、部件构建器）
- * 2. 注册全局前置守卫 beforeEach：按「注册 → 登录 → 商业授权 → profile 解析」的顺序放行
- *
- * 依赖：vue-router、auth.store、layout.store、chrome.store、logger、api-boot-retry、lazy-component、router-auth.util
- */
+/** Vue Router 路由配置 */
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import { useLayoutStore } from '@/stores/layout.store'

@@ -1,14 +1,3 @@
-/**
- * 文件：useDiagnosticsExport.ts
- * 职责：诊断导出 composable。组装诊断快照文本（diag.copyText），提供复制、下载 txt、
- *       导出字段/同步错误/引导行数等导出辅助。
- * 关键依赖：
- *   - vue 的 computed / ComputedRef / Ref
- *   - formatFullDateTime：时间格式化
- *   - useChromeStore：notify
- *   - downloadBlob / copyTextWithNotify：下载与复制
- *   - DiagnosticsDiag / DiagnosticsHealth：数据类型
- */
 import { computed, type ComputedRef, type Ref } from 'vue'
 import { HeartPulse, Archive } from '@lucide/vue'
 import { formatFullDateTime } from '@/shared/utils/format/locale-format.util'

@@ -1,20 +1,4 @@
-/**
- * @file UtilityMeterInfoPopup.vue
- * @module components/entities/popups
- * @brief 公事业仪表信息弹窗（水/电/气）
- *
- * 职责：
- * - 基于 AnchoredPopupShell 渲染水电气仪表详细信息面板
- * - 展示余额、阶梯电价、用量统计与展开面板（UtilityMeterExpandPanel）
- * - 通过 useUtilityMeterPopup 聚合数据加载、图表渲染与日历逻辑
- *
- * 依赖：
- * - vue（computed）、@lucide/vue
- * - ./AnchoredPopupShell、./UtilityMeterPopupShell、./UtilityMeterTierSection、./UtilityMeterExpandPanel
- * - @/composables/energy/useUtilityMeterPopup、useUtilityBalanceFields
- * - @/shared/energy（barrel，逻辑面）、@/shared/energy/utils/popup-read.util（叶子深路径）
- * - entities.store、layout.store、utility-meter-presets、useEntityType
- */
+/** - 基于 AnchoredPopupShell 渲染水电气仪表详细信息面板 */
 <template>
   <!-- UtilityMeterInfoPopup 公事业仪表信息弹窗：展示水电气等仪表详细信息 -->
   <AnchoredPopupShell
@@ -112,12 +96,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 UtilityMeterInfoPopup 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 /**
  * UtilityMeterInfoPopup - 公事业仪表信息弹窗组件
  * 功能特性：

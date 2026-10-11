@@ -1,15 +1,4 @@
-/**
- * 系统配置字段生效范围映射表
- *
- * 职责：
- * - 维护字段 key → 生效范围（frontendHot / backendOnly / backendNext / restart）的映射。
- * - 供高级参数面板补充说明字段修改后的生效方式（前端热更新 / 后端重启 / 等）。
- *
- * 依赖：无外部依赖，纯静态映射。
- *
- * 注意：
- * - 字段 key（apiTimeoutMs / ...）与范围 value（frontendHot / backendOnly / ...）均为配置 key，不翻译。
- */
+/** 系统配置字段生效范围映射表 */
 /** 字段生效范围：用于高级参数面板补充说明 */
 export const FIELD_APPLY_SCOPE = {
   // 前端热更新（save 后 reloadFrontendConfig）

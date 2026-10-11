@@ -1,14 +1,4 @@
-/**
- * 集成绑定推荐模块。
- *
- * 职责：
- * - 推荐可绑定的危险传感器（烟雾/燃气/水浸），覆盖服务端建议与本地实体属性推断；
- * - 将绑定配置缺口（gaps）转换为推荐 chips；
- * - 按 section 过滤缺口归属，避免概览/子页重复展示；
- * - 产出 RecommendInsightResult 供绑定设置页渲染。
- *
- * 依赖：getEntityDomain、filterBindingGapsBySection（@homeos/shared）、entity-derived 显示名工具。
- */
+/** 集成绑定推荐模块。 */
 import { getEntityDomain, filterBindingGapsBySection } from '@homeos/shared'
 import type { BindingGapItem, BindingGapSection } from '@homeos/shared'
 import type { RecommendInsightResult } from '@/shared/recommend/types/recommend.types'

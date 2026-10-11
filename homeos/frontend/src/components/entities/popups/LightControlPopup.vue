@@ -1,20 +1,4 @@
-/**
- * @file LightControlPopup.vue
- * @module components/entities/popups
- * @brief 灯光控制弹窗
- *
- * 职责：
- * - 基于 EntityPopupShell 渲染 light 域控制面板
- * - 提供开/关、亮度调节、色温调节、RGB 颜色拾取（色相+饱和度面板 + 预设色）
- * - 支持渐入时间（transition）配置
- * - 滑动条防抖提交，颜色拾取支持鼠标/触摸/键盘
- *
- * 依赖：
- * - vue、@lucide/vue（Sun/Power 等）
- * - ./EntityPopupShell、./PopupHead
- * - @/composables/entity/useEntityPopupBase、useSliderCommit
- * - 外部样式 ./styles/PopupAccents.css
- */
+/** - 基于 EntityPopupShell 渲染 light 域控制面板 */
 <template>
   <!-- LightControlPopup 灯光控制弹窗：控制灯光实体，支持亮度、色温、颜色调节 -->
   <EntityPopupShell
@@ -172,12 +156,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 LightControlPopup 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 /**
  * LightControlPopup - 灯光控制弹窗组件
  * 功能特性：

@@ -1,17 +1,4 @@
-/**
- * 缩放视口布局容器
- *
- * 职责：根据配置基准宽度缩放 app-shell，或在未开启缩放时流体布局。
- * - 大屏（宽于基准宽度）：按 transform: scale 等比缩放整个 app-shell 居中显示
- * - 未开启缩放：流式布局（width:100%），不缩放
- * - 内置 teleport-target 容器与天气层插槽（weather-fx），由 ScaledViewport 决定其层级顺序
- *
- * 关键依赖：
- * - composables/ui/useScaling：核心缩放逻辑（计算 scale、shellStyle、contentStyle）
- * - stores/layout、stores/entities：读取布局配置与实体数量
- * - utils/config/frontend-config：基准宽度、性能阈值（worker 派生阈值）
- * - utils/perf/adaptive-perf.util：性能自适应档位（高帧率才显示边框微光）
- */
+/** 缩放视口布局容器 */
 <template>
   <!-- 外层 frame：承载边框微光（高帧率时显示）与外部样式注入 -->
   <div
@@ -59,11 +46,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：定义 ScaledViewport 页面布局组件，组织导航栏与内容区域。
- * 关键依赖：Vue 3 SFC、主布局插槽、路由 `<router-view>` 与 stores 主题。
- * 约定：- 公共 UI 元素组件化；子布局使用 `<slot>` + 具名插槽组合。
- */
 import { computed, toRef } from 'vue'
 import VNotification from '@/components/common/base/VNotification.vue'
 import { useLayoutStore } from '@/stores/layout.store'

@@ -9,9 +9,9 @@ const IGNORES = ['dist/**', 'node_modules/**', '**/*.test.ts'];
 /**
  * 共享包自己的 lint 配置：不继承任一前端的配置（本包必须能独立安装、独立跑）。
  *
- * `.vue` 也在这里查：`components/*.vue` 是两个前端共用的 SFC，此前各在应用侧被 eslint 覆盖，
- * 合到本包后若只留应用侧的 vue-tsc（只查类型、不查规则），它们就悄悄失去规则检查。
- * vue 段落与主应用 `homeos/frontend/eslint.config.js` 的 `.vue` 块对齐。
+ * `.vue` 也在这里查：`components/*.vue` 是两个前端共用的 SFC，若只留应用侧的 vue-tsc
+ * （只查类型、不查规则），它们会失去规则检查。vue 段落与主应用
+ * `homeos/frontend/eslint.config.js` 的 `.vue` 块对齐。
  */
 export default tseslint.config(
   js.configs.recommended,

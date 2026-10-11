@@ -1,12 +1,4 @@
-/**
- * HA 实体服务调用与离线控制守卫组合式函数模块。
- *
- * 职责：
- * - useHaControlGuard：在 HA 离线时拦截阀/锁/报警等高风险 service 调用（UI 层预检）；
- * - useHaEntityService：封装 entities store 的 callService，提供统一的错误日志输出与守卫能力。
- *
- * 依赖：entities store、getEntityDomain、logger、ha-url 离线拦截工具。
- */
+/** HA 实体服务调用与离线控制守卫组合式函数模块。 */
 import { useEntitiesStore } from '@/stores/entities.store'
 import { getEntityDomain } from '@homeos/shared'
 import { logger } from '@/shared/utils/core/logger'

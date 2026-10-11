@@ -1,17 +1,6 @@
 <!--
-组件：SettingsPopoutMenu.vue
-所属模块：frontend / src / views / settings / shared / layout
-职责：设置页弹出菜单。将内容 teleport 到 shell 容器，支持动态定位（防溢出/翻转/钳制）、
-      点击外部收起、keep-alive 期间禁用 teleport。用于设置页二级弹出面板。
-Props：
-  - modelValue：是否展开
-  - width / maxHeight / align：尺寸与对齐
-Emits：
-  - update:modelValue：展开/收起变更
-关键依赖：
-  - usePopupPosition：弹出定位计算
-  - useKeepAliveGate / useExclusiveDropdown / useShellTeleportTarget：keep-alive 与互斥弹出
-数据来源：父级透传的 props 与默认插槽内容
+  设置页弹出菜单。将内容 teleport 到 shell 容器，支持动态定位（防溢出/翻转/钳制）、
+  点击外部收起、keep-alive 期间禁用 teleport。用于设置页二级弹出面板。
 -->
 <template>
   <div class="settings-popout-wrap">

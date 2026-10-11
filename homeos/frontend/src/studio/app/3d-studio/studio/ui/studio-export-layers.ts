@@ -2,8 +2,8 @@
  * 导出面板的「图层清单」渲染：把当前项目的电视画面层 / 汽车充电层 / 灯组层逐条渲染成勾选行，
  * 外加导出文件名的净化（`sanitizeExportName`）。
  *
- * 从 studio-app.ts 单体切出（P4）。DOM 宿主元素与三个取数助手按 deps 显式传入 ——
- * 助手读到的是宿主闭包里的 `studioProject`（搬迁后宿主仍是「项目状态」的唯一持有者）。
+ * DOM 宿主元素与三个取数助手按 deps 显式传入：助手读的是宿主闭包里的 `studioProject`
+ * （宿主仍是「项目状态」的唯一持有者）。
  */
 
 import { EXPORT_IMAGE_EXTENSION as EXPORT_IMAGE_EXTENSION2 } from "../../export/export-utils";

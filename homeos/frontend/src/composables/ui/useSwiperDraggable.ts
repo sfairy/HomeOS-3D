@@ -1,11 +1,4 @@
-/**
- * @file useSwiperDraggable.ts
- * @module composables/ui
- * @description 横向 swipe 拖拽 + CSS snap + scroll 事件管理 composable。
- *
- * 依赖：
- * - vue（ref/onMounted/onUnmounted/Ref 类型）
- */
+/** - vue（ref/onMounted/onUnmounted/Ref 类型） */
 import { ref, onMounted, onUnmounted, type Ref } from 'vue'
 
 /** Swiper 拖拽选项 */

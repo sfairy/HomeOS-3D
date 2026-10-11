@@ -65,9 +65,7 @@ class VoiceService:
         self._get_ha_rest_config = get_ha_rest_config
         self._version = version
 
-    # ------------------------------------------------------------------ #
     # 配置访问
-    # ------------------------------------------------------------------ #
     def _voice(self) -> dict[str, Any]:
         value = self._app_config.get("voice")
         return value if isinstance(value, dict) else {}
@@ -90,9 +88,7 @@ class VoiceService:
             logger=logger,
         )
 
-    # ------------------------------------------------------------------ #
     # STT
-    # ------------------------------------------------------------------ #
     async def _list_stt_providers_brief(self) -> list[dict[str, Any]]:
         entities = await self._ha_connector.fetch_entities_by_domain("stt")
         return [
@@ -132,9 +128,7 @@ class VoiceService:
     async def auto_detect_stt_entity(self) -> str | None:
         return await resolve_stt_entity(self._stt_deps())
 
-    # ------------------------------------------------------------------ #
     # 房间 / 命令
-    # ------------------------------------------------------------------ #
     def voice_rooms(self) -> list[dict[str, Any]]:
         try:
             ha_areas = self._entity_area.get_cached_ha_areas()
@@ -146,9 +140,7 @@ class VoiceService:
         """全屋默认语音命令模板（深拷贝）。"""
         return [_deep_copy(item) for item in DEFAULT_WHOLE_HOME_VOICE_COMMANDS]
 
-    # ------------------------------------------------------------------ #
     # TTS
-    # ------------------------------------------------------------------ #
     async def speak(self, message: str, media_player: str | None = None) -> dict[str, Any]:
         return await self._tts_speak.speak(message, {"mediaPlayer": media_player})
 
@@ -157,9 +149,7 @@ class VoiceService:
     ) -> dict[str, Any]:
         return await self._tts_speak.speak_to_multiple(message, {"mediaPlayers": media_players})
 
-    # ------------------------------------------------------------------ #
     # 元信息
-    # ------------------------------------------------------------------ #
     async def get_voice_meta(self) -> dict[str, Any]:
         await self._entity_area.ensure_loaded()
         stt_providers = await self.list_stt_providers()
@@ -197,9 +187,7 @@ class VoiceService:
             + (len(entity_alerts) if isinstance(entity_alerts, list) else 0),
         }
 
-    # ------------------------------------------------------------------ #
     # 命令执行
-    # ------------------------------------------------------------------ #
     async def execute_command(
         self, text: str, user: dict[str, Any] | None = None
     ) -> dict[str, Any]:

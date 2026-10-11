@@ -1,11 +1,4 @@
-"""智能顾问设备用量统计与遗忘检测（对齐 ``smart-advisor-usage.helper`` + ``advisor-usage.service``）。
-
-职责：
-- 订阅 HA 冷批状态变更，跟踪设备开关次数与运行时长并持久化到 ``DeviceUsageStat``；
-- 基于房间设备映射检测「灯关了但空调/媒体还开着」的遗忘场景（06:00–23:00）；
-- 暴露使用报告 / 单设备统计 / 使用汇总 / 遗忘设备 / 清除统计等查询入口；
-- 宿主服务负责定时（15 分钟）检测与多副本分布式锁串行化。
-"""
+"""智能顾问设备用量统计与遗忘检测（对齐 ``smart-advisor-usage.helper`` + ``advisor-usage.service``）。"""
 
 from __future__ import annotations
 
@@ -97,9 +90,7 @@ class SmartAdvisorUsageHelper:
         self._tz_cache_at = 0.0
         self._tz_cache_value: str | None = None
 
-    # ------------------------------------------------------------------ #
     # 家庭时区
-    # ------------------------------------------------------------------ #
     def _timezone(self) -> str | None:
         """家庭时区（``ops.homeTimezone``），带 60s 缓存。"""
         now = time.monotonic()
@@ -120,9 +111,7 @@ class SmartAdvisorUsageHelper:
     def _local_hour(self) -> int:
         return int(zoned_date_parts(datetime.now(UTC), self._timezone())["hour"])
 
-    # ------------------------------------------------------------------ #
     # 房间设备映射
-    # ------------------------------------------------------------------ #
     def register_room_devices(self, room: str, entity_ids: list[str]) -> None:
         self.room_device_map[room] = list(entity_ids)
 
@@ -246,9 +235,7 @@ class SmartAdvisorUsageHelper:
                     }
         return out
 
-    # ------------------------------------------------------------------ #
     # 遗忘检测
-    # ------------------------------------------------------------------ #
     def detect_forgotten_devices(
         self, entities: dict[str, dict[str, Any]]
     ) -> list[dict[str, Any]]:
@@ -322,9 +309,7 @@ class SmartAdvisorUsageHelper:
         except Exception as exc:
             logger.warning("遗忘设备检测失败: %s", exc)
 
-    # ------------------------------------------------------------------ #
     # 状态跟踪
-    # ------------------------------------------------------------------ #
     def track_usage(self, event: dict[str, Any]) -> None:
         """冷批状态变更入口（同步）：校验消费者过滤后异步处理。"""
         state_router = self._deps["state_router"]
@@ -451,9 +436,7 @@ class SmartAdvisorUsageHelper:
 
         await asyncio.get_running_loop().run_in_executor(None, _write)
 
-    # ------------------------------------------------------------------ #
     # 查询
-    # ------------------------------------------------------------------ #
     async def get_usage_report(self) -> dict[str, Any]:
         summary = await self.get_usage_summary(7)
         return {
@@ -698,9 +681,7 @@ class AdvisorUsageService:
             }
         )
 
-    # ------------------------------------------------------------------ #
     # 生命周期
-    # ------------------------------------------------------------------ #
     async def start(self) -> None:
         # HA 全量状态拉取可能长时间阻塞（局域网不可达时受 HTTP 超时约束），
         # 不能占用启动关键路径：放到后台任务，失败仅告警。
@@ -793,9 +774,7 @@ class AdvisorUsageService:
         except Exception as exc:
             logger.debug("遗忘设备检测跳过（锁冲突 / 失败）: %s", exc)
 
-    # ------------------------------------------------------------------ #
     # 事件出口
-    # ------------------------------------------------------------------ #
     def _push_tip(self, title: str, message: str, category: str) -> None:
         logger.info("💡 建议: [%s] %s - %s", category, title, message)
         if self._event_bus is not None:
@@ -823,9 +802,7 @@ class AdvisorUsageService:
             room, self._app_config.get("envSensorMap"), self._cached_ha_areas()
         )
 
-    # ------------------------------------------------------------------ #
     # 转发
-    # ------------------------------------------------------------------ #
     def track_usage(self, event: dict[str, Any]) -> None:
         self.usage.track_usage(event)
 

@@ -30,18 +30,7 @@
 </template>
 
 <script setup>
-/**
- * @file ApiQueryState.vue
- * @module common/ApiQueryState
- * @description REST 查询状态壳：统一处理 loading / error / degraded / retry 四种态。
- *  职责：
- *    - 加载中渲染骨架屏（VPanelSkeleton）；
- *    - 出错时渲染空态（VEmptyState）并提供重试按钮；
- *    - 降级（部分数据可用）时在内容上方渲染提示条；
- *    - 正常态通过默认插槽透传业务内容。
- *  依赖：vue 的 computed/unref，base/VEmptyState 组件。
- *  注意：Props 经 unref 规范化，避免父级传入 Ref（如 query.loading）时在渲染期读 .value 崩溃。
- */
+/** - 加载中渲染骨架屏（VPanelSkeleton）； */
 import { computed, unref } from 'vue'
 import VEmptyState from '@/components/common/base/VEmptyState.vue'
 import VListSkeleton from '@/components/common/base/VListSkeleton.vue'

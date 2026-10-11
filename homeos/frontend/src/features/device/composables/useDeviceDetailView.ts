@@ -1,21 +1,4 @@
-/**
- * 设备详情页视图模型 —— `views/DeviceDetailView.vue` 的薄壳后端。
- *
- * ## 为什么在这里而不在 view
- *
- * 详情页承载了相当多的**领域逻辑**：路由 `?id=` 解析、实体按需 hydrate、域/状态/房间派生、
- * 关联实体聚合、属性条目构建、Tab 与 query 双向同步。这些与「设备」域强相关，留在一个
- * ~265 行的 `<script setup>` 里会让 `views/` 变成逻辑宿主（与「视图收敛为薄壳」相悖）。
- * 故收敛到本 composable，view 只保留模板与主题注入。
- *
- * ## 归位依据
- *
- * 位于 `features/device/composables/` 而非 `composables/device/`：视图模型的消费者只有
- * `views/DeviceDetailView.vue`，且它依赖本域组件语义（Tab 集合、属性面板计数），属域内自持；
- * 而 `composables/device/*` 是跨域共享的设备逻辑池。
- *
- * 依赖：`@/stores/*`、`@/composables/entity/*`、`@/services/*`、`@/shared/{entity,device}/utils/*`。
- */
+/** 设备详情页视图模型 —— `views/DeviceDetailView.vue` 的薄壳后端。 */
 import { getEntityDomain, resolveEntityArea } from '@homeos/shared'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'

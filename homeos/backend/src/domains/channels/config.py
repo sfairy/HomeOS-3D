@@ -98,9 +98,7 @@ class ChannelConfigService:
         #: 当前缓存到期时间戳（ms）；0 表示无缓存
         self._cache_ttl = 0
 
-    # ------------------------------------------------------------------ #
     # 事件绑定
-    # ------------------------------------------------------------------ #
     def bind_events(self) -> None:
         """订阅系统配置更新事件（对齐 ``onModuleInit``）。"""
         if self._event_bus is None:
@@ -112,9 +110,7 @@ class ChannelConfigService:
 
         self._event_bus.on("SYSTEM_CONFIG_UPDATED", on_system_config_updated)
 
-    # ------------------------------------------------------------------ #
     # layout 读取
-    # ------------------------------------------------------------------ #
     async def get_layout(self) -> dict[str, Any] | None:
         """获取通道 layout 配置（带缓存）；失败返回 None，不抛出。"""
         now = time.monotonic() * 1000
@@ -138,9 +134,7 @@ class ChannelConfigService:
         self._layout_cache = None
         self._cache_ttl = 0
 
-    # ------------------------------------------------------------------ #
     # 各通道配置
-    # ------------------------------------------------------------------ #
     async def get_channel_config(self) -> ChannelConfig:
         """解析聚合通道配置（缺失分区为 None）。"""
         layout = await self.get_layout()

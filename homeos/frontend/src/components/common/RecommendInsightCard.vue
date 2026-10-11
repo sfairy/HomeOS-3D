@@ -1,33 +1,11 @@
 <!--
-  组件文件：RecommendInsightCard.vue
-  所属模块：frontend/src/components/common
-  组件职责：智能推荐洞察卡片组件。头部 orb 发光图标 + 系统分析标题 + 元信息（近 7 天等）+ 刷新按钮；
-    Info 摘要文案；中部分组芯片 groups：「域统计类」variant=domain 且 meta 可解析为百分比时渲染进度条
-    带 share 数字，「实体类」渲染友好名 + 实体徽标；横幅 banners 渲染可点击操作；
-    底部：已在当前深链页时隐藏跳转 linkTo，否则展示 RouterLink 查看详情 + 一键应用推荐按钮。
-  主要 props / emits：
-    - props.title/meta/summary：标题/元信息/摘要；
-      props.loading/loadingText/actionable/showApply/applyLabel：加载态与可操作配置；
-      props.linkTo/linkLabel：查看详情深链；props.groups/banners/visible：芯片/横幅/整体显隐。
-    - emits：refresh（刷新按钮点击）/ apply（一键应用）/ chip-click（点击芯片，payload chip）/
-      banner-action（横幅操作，payload banner 项）。
-  依赖关系：Pinia useEntitiesStore（实体友好名查询）；vue-router RouterLink + useRoute（判断是否已在目标页）；
-    @lucide/vue Sparkles/Loader2/RefreshCw/ArrowRight/Info；
-    utils：entity/derived.util getEntityDisplayName、registry/settings-route.util isDeepLinkCurrent。
+  智能推荐洞察卡片组件。头部 orb 发光图标 + 系统分析标题 + 元信息（近 7 天等）+ 刷新按钮；
+  Info 摘要文案；中部分组芯片 groups：「域统计类」variant=domain 且 meta 可解析为百分比时渲染进度条
+  带 share 数字，「实体类」渲染友好名 + 实体徽标；横幅 banners 渲染可点击操作；
+  底部：已在当前深链页时隐藏跳转 linkTo，否则展示 RouterLink 查看详情 + 一键应用推荐按钮。
 -->
 <script setup>
-/**
- * @file RecommendInsightCard.vue（内部实现说明）
- * @module common/RecommendInsightCard
- * @description 智能推荐洞察卡片
- *  职责：
- *    - 展示系统分析标题、元信息、摘要与可操作入口（刷新/查看详情/一键应用）；
- *    - 渲染横幅（banner）与分组芯片（chip）；
- *    - 区分「实体类」「域统计类」芯片：前者展示中文友好名，后者渲染百分比与进度条；
- *    - 已在目标深链页时隐藏跳转，避免「点了没反应」。
- *  依赖：vue computed，vue-router，@lucide/vue 图标，
- *    entities.store（实体友好名查询），shared/entity/utils/derived.util，utils/registry/settings-route.util。
- */
+/** - 展示系统分析标题、元信息、摘要与可操作入口（刷新/查看详情/一键应用）； */
 import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { Sparkles, Loader2, RefreshCw, ArrowRight, Info } from '@lucide/vue'

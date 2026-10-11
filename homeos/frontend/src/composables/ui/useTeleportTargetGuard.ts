@@ -1,16 +1,7 @@
-/**
- * @file useTeleportTargetGuard.ts
- * @module composables/ui
- * @description 路由切换时清理 keep-alive / body Teleport 残留遮罩的守卫 composable。
- *
- * 依赖：
- * - vue（nextTick/watch）
- * - vue-router（useRoute 获取当前路由）
- */
+/** - vue（nextTick/watch） */
 import { nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
-/** 约定：带此 class 或 data-hos-overlay="scrub" 的层在路由切换时可安全移除 */
 const OVERLAY_SCRUB_ATTR = '[data-hos-overlay="scrub"]'
 const OVERLAY_SCRUB_CLASS = '.hos-overlay-scrub'
 

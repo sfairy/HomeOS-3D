@@ -1,14 +1,3 @@
-/**
- * 文件：internals.ts
- * 职责：诊断面板 internals。聚合常量、数据拉取（configHealth / systemDiagnostics / systemHealth / agentPing）、
- *       数据聚合与面板入口（useDiagnosticsPanel）。较大的 Summary / Export / Perf 为同目录独立文件。
- * 关键依赖：
- *   - vue 的 ref / computed / onMounted / onUnmounted
- *   - fetchConfigHealth / fetchSystemDiagnostics / fetchSystemHealth / agentPing：诊断 API
- *   - useApiQuery：API 查询
- *   - useSettingsHubRouteSection：子导航路由同步
- *   - useDiagnosticsSummary / useDiagnosticsExport / useDiagnosticsPerf：聚合子模块
- */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { formatFullDateTime } from '@/shared/utils/format/locale-format.util'
 import { fetchConfigHealth, fetchSystemDiagnostics, fetchSystemHealth } from '@/services/api/system'

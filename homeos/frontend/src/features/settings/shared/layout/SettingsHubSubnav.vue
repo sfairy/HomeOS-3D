@@ -1,13 +1,5 @@
 <!--
-组件：SettingsHubSubnav.vue
-所属模块：frontend / src / views / settings / shared / layout
-职责：设置 Hub 子导航。横向 Tab 按钮列表，支持图标、emoji 与徽章，按 accent 着色激活项。
-Props：
-  - modelValue：当前选中 id
-  - sections：Tab 配置列表（id / label / icon / emoji / count / accent）
-  - navClass：附加样式类
-关键依赖：无外部依赖，纯展示组件
-数据来源：父级透传的 sections
+  设置 Hub 子导航。横向 Tab 按钮列表，支持图标、emoji 与徽章，按 accent 着色激活项。
 -->
 <template>
   <nav :class="['settings-hub-subnav', navClass]">

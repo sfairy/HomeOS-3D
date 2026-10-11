@@ -2,12 +2,6 @@
   SetupWizardDashboardStep：3D 户型图绘制 / 仪表盘编辑 / 常用设备（可跳过）
 -->
 <script setup>
-/**
- * 职责：渲染 views/SetupWizardDashboardStep 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Boxes, LayoutTemplate, Star, ArrowRight, CheckCircle2, Circle } from '@lucide/vue'

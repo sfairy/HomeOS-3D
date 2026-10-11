@@ -1,19 +1,4 @@
-/**
- * @file useWebPushSubscribe.ts
- * @module composables/ui
- * @description WebPush 订阅 composable：申请权限 → PushManager.subscribe → 上报后端。
- *
- * 职责：
- * - 申请浏览器通知权限并使用 VAPID 公钥创建推送订阅；
- * - 把订阅 endpoint/keys 上报后端，并提供测试推送能力；
- * - 在不支持 ServiceWorker / PushManager 的浏览器上友好降级提示。
- *
- * 依赖：
- * - vue（ref）
- * - @/services/api/notifications（VAPID 公钥拉取、订阅上报、测试推送）
- * - @/services/notify（异常文案兜底）
- * - @/stores/chrome.store（用户通知）
- */
+/** - 申请浏览器通知权限并使用 VAPID 公钥创建推送订阅； */
 import { ref } from 'vue'
 import {
   fetchWebPushVapidPublicKey,

@@ -1,10 +1,4 @@
-"""语言模板定义（zh / en）。
-
-职责：为快路径解析、纠正口令、系统提示等提供语言相关的正则 / 关键词 / 模板字符串。
- LangTemplateService 会按当前 language 在 ZH / EN 间切换。
- ZH 模板面向中文用户，EN 模板面向英文用户（其用户可见文案保留英文，属英文语言包内容）。
-依赖：被 LangTemplateService / FastPathService / AgentService 消费。
-"""
+"""语言模板定义（zh / en）。"""
 
 from __future__ import annotations
 

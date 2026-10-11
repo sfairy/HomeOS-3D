@@ -1,14 +1,4 @@
-/**
- * WS 批次规范化 Worker 主线程桥：大批次 delta 合并 + old_state 拷贝移入 Worker，减轻主线程阻塞。
- *
- * 关键依赖：comlink（Worker RPC wrap）、@/shared/entity/utils/state-delta.util（同步规范化实现与回退路径）、
- *   @/shared/types/entity-store（EntitiesMap）、@/shared/utils/core/logger（降级 / 重试告警）。
- *
- * 消息协议（comlink RPC，无 postMessage 显式事件）：
- * - 出站调用 api.normalizeBatch(changes, snapshots) -> NormalizedWsBatchItem[]
- *     仅在批次大小 ≥ WORKER_THRESHOLD 时走 Worker；小批次直接同步更快；
- * - 超时 / 失败策略：偶发超时回退主线程同步实现，连续失败达阈值后停用 Worker 并按周期重试。
- */
+/** WS 批次规范化 Worker 主线程桥：大批次 delta 合并 + old_state 拷贝移入 Worker，减轻主线程阻塞。 */
 import type { EntitiesMap } from '@/shared/types/entity-store'
 import {
   normalizeWsBatchChangesSync,

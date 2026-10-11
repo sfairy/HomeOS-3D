@@ -44,9 +44,7 @@ class EmailService:
         self._smtp: dict[str, Any] = {}
         self._message_handler: MessageHandler | None = None
 
-    # ------------------------------------------------------------------ #
     # 事件绑定
-    # ------------------------------------------------------------------ #
     def bind_events(self) -> None:
         """订阅配置更新事件，热重载 SMTP 配置（对齐 ``onModuleInit``）。"""
         if self._event_bus is None:
@@ -59,9 +57,7 @@ class EmailService:
 
         self._event_bus.on("SYSTEM_CONFIG_UPDATED", on_system_config_updated)
 
-    # ------------------------------------------------------------------ #
     # 配置加载
-    # ------------------------------------------------------------------ #
     async def reload(self) -> None:
         """重新加载 Email 通道配置并初始化 SMTP 传输器。"""
         cfg = await self._channel_config.get_email_config()
@@ -121,9 +117,7 @@ class EmailService:
         finally:
             client.quit()
 
-    # ------------------------------------------------------------------ #
     # 状态
-    # ------------------------------------------------------------------ #
     async def get_status(self) -> dict[str, Any]:
         """查询通道运行状态（供 ``/channels/status`` 使用）。"""
         if not self._enabled:
@@ -146,9 +140,7 @@ class EmailService:
         except Exception as exc:
             return {**base, "configured": False, "error": str(exc)}
 
-    # ------------------------------------------------------------------ #
     # ChannelProvider
-    # ------------------------------------------------------------------ #
     def on_message(self, handler: MessageHandler) -> None:
         """注册消息处理回调。Email 为单向通知通道，此方法仅保存回调。"""
         self._message_handler = handler

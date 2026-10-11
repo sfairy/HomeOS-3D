@@ -1,18 +1,4 @@
-/**
- * @file floating-hub-context.ts
- * @module floorplan/floating-hub
- *
- * 浮动控制中心（AFH - Always Floating Hub）上下文定义
- *
- * 职责：
- * - 定义 FloatingHub 父组件向各子部件（Clock/Entity/Metric/Panel）注入的依赖契约
- * - 通过 provide/inject 解耦父组件与子部件，避免 prop drilling
- * - 集中暴露 UI Store、启用部件列表、拖拽状态、实体查询工具等共享能力
- *
- * 依赖：
- * - vue：ComputedRef / Ref / InjectionKey 类型
- * - @/shared/types/layout：FloatingWidget 部件类型、UILayoutConfig 布局配置类型
- */
+/** 浮动控制中心（AFH - Always Floating Hub）上下文定义 */
 import type { ComputedRef, InjectionKey, Ref } from 'vue'
 import type { FloatingWidget, UILayoutConfig } from '@/shared/types/layout'
 

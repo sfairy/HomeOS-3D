@@ -1,18 +1,4 @@
-/**
- * @file EewSlideUnlock.vue
- * @module components/earthquake
- * @brief 地震预警滑动解锁组件
- *
- * 职责：
- * - 在地震预警覆盖层底部提供"滑动解锁"交互，确认用户已避险后关闭警报
- * - 通过 pointer 事件把拖拽起点与轨道 DOM 透传给父组件（EarthquakeAlertOverlay），
- *   由父组件统一管理拖拽进度与解锁判定，避免在子组件维护冗余状态
- * - 进度可视化由 CSS 变量 --progress 驱动（0~1），配合 fill / glow / handle 表现拖拽反馈
- *
- * 依赖：
- * - @lucide/vue：图标库（ChevronRight / ShieldCheck）
- * - 外部样式 ./styles/EewSlideUnlock.css
- */
+/** - 在地震预警覆盖层底部提供"滑动解锁"交互，确认用户已避险后关闭警报 */
 <template>
   <!-- 滑动解锁外层容器，承接 $attrs.class 用于父组件布局微调 -->
   <div class="eew-slide-wrap" :class="$attrs.class">
@@ -69,12 +55,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 EewSlideUnlock 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 import { ref } from 'vue'
 import { ChevronRight, ShieldCheck } from '@lucide/vue'
 

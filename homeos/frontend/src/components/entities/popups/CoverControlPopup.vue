@@ -1,19 +1,4 @@
-/**
- * @file CoverControlPopup.vue
- * @module components/entities/popups
- * @brief 窗帘/盖板控制弹窗
- *
- * 职责：
- * - 基于 EntityPopupShell 渲染 cover 域控制面板（窗帘、卷帘、车库门等）
- * - 提供打开/关闭/停止操作，支持位置调节（current_position 滑动条）
- *
- * 依赖：
- * - vue（computed）、@lucide/vue（ArrowUpFromLine/Square/ArrowDownToLine）
- * - ./EntityPopupShell、./PopupHead
- * - @/composables/entity/useEntityPopupBase（defineEntityPopupProps/useEntityPopupBase/useEntityPopupHeader）
- * - @/composables/entity/useSliderCommit（位置滑动防抖提交）
- * - @/shared/utils/ui/progress-bar.util（clampInRange）
- */
+/** - 基于 EntityPopupShell 渲染 cover 域控制面板（窗帘、卷帘、车库门等） */
 <template>
   <!-- CoverControlPopup 窗帘/盖板控制弹窗：控制窗帘、卷帘等 cover 实体 -->
   <EntityPopupShell
@@ -90,12 +75,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 CoverControlPopup 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 /**
  * CoverControlPopup - 窗帘/盖板控制弹窗组件
  * 功能特性：

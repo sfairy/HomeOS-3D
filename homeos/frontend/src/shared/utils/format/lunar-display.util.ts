@@ -1,16 +1,4 @@
-/**
- * 农历展示文案格式化工具（屏保 / 日历组件共用）
- *
- * 职责：
- * - 维护生肖、农历月、农历日的中文标签映射表。
- * - 提供农历年份行（干支 + 生肖）、月日行、完整农历行的格式化函数。
- *
- * 依赖：@/shared/utils/format/lunar-calendar 的 LunarDate 类型。
- *
- * 注意：
- * - 对象 key 为农历月/日的数值字符串或生肖 key（如 dog / dragon），属于配置 key，不翻译。
- * - 仅面向用户的文案 value 使用简体中文。
- */
+/** 农历展示文案格式化工具（屏保 / 日历组件共用） */
 import type { LunarDate } from '@/shared/utils/format/lunar-calendar'
 
 const ZODIAC_LABELS: Record<string, string> = {

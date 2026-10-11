@@ -1,6 +1,5 @@
 <!--
-组件：BackupRestoreDialog.vue
-职责：对齐 HA Bridge 0.7.1「备份与恢复」弹窗（创建 / 恢复双 Tab、密码加密 .habackup）。
+  对齐 HA Bridge 0.7.1「备份与恢复」弹窗（创建 / 恢复双 Tab、密码加密 .habackup）。
 -->
 <template>
   <Teleport :to="teleportTarget" :disabled="teleportDisabled">

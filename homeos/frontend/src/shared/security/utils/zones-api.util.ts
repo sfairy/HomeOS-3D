@@ -1,13 +1,4 @@
-/**
- * 安防区域后端同步工具模块。
- *
- * 职责：
- * - 将安防区域配置规范化后同步到后端；
- * - 提供保存前清洗、API 归一化、安全提交（不抛异常）等能力；
- * - postSecurityZonesSafe 包装异常为统一错误消息，供 UI 层直接展示。
- *
- * 依赖：updateSecurityPanelZones（services/api/security）、getApiErrorMessage。
- */
+/** 安防区域后端同步工具模块。 */
 /** 将安防区域配置同步到后端 */
 import { updateSecurityPanelZones } from '@/services/api/security'
 import { getApiErrorMessage, isUnauthorizedError } from '@/shared/utils/core/error-message'

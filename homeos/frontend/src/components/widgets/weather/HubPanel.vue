@@ -1,11 +1,9 @@
 <!--
   WeatherHubPanel.vue
-  所属模块：天气中心 Hub 面板
-  职责：作为「天气中心」的容器面板，通过 WidgetHubHeader 提供多 Tab 切换，
-        聚合展示当前天气（WeatherWidget）、气象预报（WeatherForecast）、
-        生活指数（LifeIndices）与日出日落（SunInfo）。
-        其中 Forecast / LifeIndices / SunInfo 采用异步加载以减小首屏体积。
-  依赖：WeatherWidget / WidgetHubHeader / useHubTabs / 异步子部件。
+  作为「天气中心」的容器面板，通过 WidgetHubHeader 提供多 Tab 切换，
+  聚合展示当前天气（WeatherWidget）、气象预报（WeatherForecast）、
+  生活指数（LifeIndices）与日出日落（SunInfo）。
+  其中 Forecast / LifeIndices / SunInfo 采用异步加载以减小首屏体积。
 -->
 <template>
   <div class="widget-hub-root weather-hub-root">

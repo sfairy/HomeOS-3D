@@ -1,10 +1,8 @@
 <!--
   数据保留面板：各业务表历史数据保留策略 + 最近一次清理统计
-  所属模块：设置 - 系统与账户
-  职责：展示 EventLog / EnvironmentRecord / WaterRecord 等 11 张表的数据保留天数、
-    估算数据量与最近一次清理统计（删除行数、耗时），并允许调整保留天数（1–365 天）
-    支持批量设置：输入天数一键应用到全部表
-  依赖：fetchRetentionConfig / updateRetentionConfig（system API）、chrome.notify 提示
+  展示 EventLog / EnvironmentRecord / WaterRecord 等 11 张表的数据保留天数、
+  估算数据量与最近一次清理统计（删除行数、耗时），并允许调整保留天数（1–365 天）
+  支持批量设置：输入天数一键应用到全部表
 -->
 <template>
   <SettingsPageShell

@@ -1,14 +1,4 @@
-/**
- * UI 布局默认配置数据模块
- *
- * 职责：提供 UILayoutConfig 类型的完整默认对象工厂，
- *      不依赖 Pinia/Vue 响应式 API；包含楼层/部件/收藏实体/事件日志/页脚/导航/HA 配置/统计传感器/
- *      性能模式/楼层切换器/安防模式/地震预警/AI 助手/消息通道等全部默认字段。
- * 导出：
- *   - getDefaultLayout()：惰性缓存的默认布局实例（首次调用求值，后续同引用返回）
- * 依赖：constants 下的 energy-fields / dashboard-footer / whole-home-off / ha，
- *      types/earthquake（默认地震配置），types/layout（UILayoutConfig 类型）。
- */
+/** UI 布局默认配置数据模块 */
 import { createDefaultEnergySources } from '@/shared/energy/constants/energy-fields'
 import { createDefaultDashboardFooter } from '@/shared/constants/dashboard-footer'
 import { createDefaultWholeHomeOff } from '@/shared/constants/whole-home-off'

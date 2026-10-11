@@ -1,17 +1,4 @@
-/**
- * @file 弹窗位置自适应 Composable（百分比锚点模式）
- * @module composables/ui/popup-position-percent
- *
- * 职责：
- *  - 根据锚点百分比坐标（0-100）与弹窗尺寸，计算弹窗的方向 class 与百分比定位样式。
- *  - 兼容整页等比缩放画布：当 scalingEnabled 为 true 时使用 teleport 容器尺寸进行方向选择。
- *
- * 依赖：
- *  - vue 的 computed 计算属性。
- *  - useScaling 的 scalingEnabled（是否启用缩放）。
- *  - popup-position-shared.util 的 getTeleportContainerSize / resolvePopupNumeric / PopupNumericInput。
- *  - popup-placement.util 的 pickPopupPlacementDirection（方向选择算法）。
- */
+/** - 根据锚点百分比坐标（0-100）与弹窗尺寸，计算弹窗的方向 class 与百分比定位样式。 */
 import { computed } from 'vue'
 import { scalingEnabled } from '@/composables/ui/useScaling'
 import {

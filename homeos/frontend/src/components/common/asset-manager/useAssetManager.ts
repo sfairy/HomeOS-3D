@@ -1,14 +1,4 @@
-/**
- * @file useAssetManager.ts
- * @module components/common/asset-manager
- * @description 资源管理器核心组合式函数。封装资源（图标、平面图等）的列表加载、
- *  目录导航、分批上传、新建文件夹、删除、复制路径等全部业务逻辑，并提供给视图组件消费。
- *  上传支持一次性选择/拖入至多 MAX_UPLOAD_FILES 个文件，内部按 UPLOAD_BATCH_SIZE
- *  分批串行提交（后端为 memoryStorage，串行可避免内存峰值叠加），并通过 uploadProgress
- *  暴露进度；新建文件夹走专用微晶弹窗，创建失败原因内联展示而非仅弹通知。
- *  依赖：vue（响应式）、chrome.store（toast）、@/services/notify（复制与错误通知）、
- *  services/api/config（后端资源 API）。
- */
+/** 目录导航、分批上传、新建文件夹、删除、复制路径等全部业务逻辑，并提供给视图组件消费。 */
 import { ref, computed, onMounted, watch } from 'vue'
 import { useChromeStore } from '@/stores/chrome.store'
 import { copyTextWithNotify, notifyError } from '@/services/notify'

@@ -26,14 +26,7 @@
 
 <script setup>
 import { readLocalStorage, writeLocalStorage } from '@/shared/utils/core/local-storage.util'
-/**
- * ColdEntityPerfBanner - 冷实体性能提示条组件
- * 职责：当实体总数超过阈值且未开启「冷实体按需 WS」时，提示用户开启以降低推送负载。
- * 关键依赖：
- * - useEntitiesStore：读取实体总数；
- * - getLargeEntityThreshold / getWsPushPublicConfig：判断是否需要提示。
- * 关闭状态：localStorage 中 STORAGE_KEY 标记，点击「不再提示」后持久化忽略。
- */
+/** ColdEntityPerfBanner - 冷实体性能提示条组件 */
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { storeToRefs } from 'pinia'

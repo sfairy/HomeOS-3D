@@ -1,27 +1,13 @@
 #!/usr/bin/env bun
 /**
- * HomeOS 本地开发启动器 —— package.json 的 `bun run dev` / `bun run dev:backend` 入口。
+ * HomeOS 本地开发启动器：package.json 的 `bun run dev` / `dev:backend` 入口。
  *
- * 默认同时拉起：
- *   - 主应用 / 商店后端（uvicorn --reload 与 STORE_RELOAD，改 Python 即热重载）
- *   - Vite HMR（8805 / 8806，改前端资源即热更）
- *   - dist 自动重建监听（改 frontend/{src,public} 即重建；8801 发的是 dist 产物，不是 HMR）
+ * 默认拉起主应用/商店后端（uvicorn --reload）、Vite HMR（8805/8806）、dist 自动重建监听。
+ * 用法：`bun run dev [--lan|--backend-only|--debug|--no-watch-build]`。
  *
- * 用法：
- *   bun run dev                 # 一键 dev
- *   bun run dev -- --lan        # 绑 0.0.0.0，打印局域网地址
- *   bun run dev -- --backend-only
- *   bun run dev -- --debug      # 热重载照旧，另开 debugpy 端口给 IDE attach
- *   bun run dev -- --no-watch-build   # 关掉 dist 自动重建
- *   bun ops/dev.mjs --prepare   # 只装 Python 环境
- *
- * 设计要点：
- *   - `package.json` 是唯一入口，本脚本只做「起进程 + 环境编排」，不承担构建 / 部署。
- *   - 授权公钥是**动态**的：商店首次启动随机生成密钥对，主应用启动自检会无条件
- *     核对 transport 公钥的 sha256（backend/src/license/trust.py），所以必须现算
- *     指纹再注入。这一步交给 `python -m ops.license_keys dev-env`（单行 JSON）。
- *   - dist 被 git 忽略，换分支 / 回滚后会留下「自洽但过时」的产物，因此预检不只看
- *     产物在不在，还按 mtime 判断它是否落后于 frontend/{pages,src}。
+ * - 授权公钥是动态的：商店首次启动随机生成密钥对，主应用自检会核对 transport 公钥 sha256，
+ *   故须现算指纹再注入（`python -m ops.license_keys dev-env`）。
+ * - dist 被 git 忽略，换分支后会留「自洽但过时」的产物，故预检按 mtime 判断是否落后于源码。
  */
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";

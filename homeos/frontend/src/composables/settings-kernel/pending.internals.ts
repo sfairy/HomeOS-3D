@@ -1,20 +1,4 @@
-/**
- * 设置未保存更改管理组合式函数
- * 
- * 职责：统一管理设置页面中各类未保存更改的检测、提示和同步逻辑
- * 依赖：
- *   - @/stores/chrome.store - 确认弹窗、通知
- *   - @/stores/layout.store - 布局配置与保存
- *   - @/shared/types/layout - 布局配置类型
- *   - @/shared/utils/core/count-json-leaf-diff.util - JSON 差异计算
- *   - vue - 响应式系统
- * 
- * 功能模块：
- *   - 全局布局快照管理
- *   - 独立 Tab 未保存状态管理
- *   - Hub 面板未保存检测
- *   - 布局保存/取消同步
- */
+/** 设置未保存更改管理组合式函数 */
 import type { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import type { UILayoutConfig } from '@/shared/types/layout'

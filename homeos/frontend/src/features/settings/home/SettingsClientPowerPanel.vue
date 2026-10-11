@@ -1,13 +1,6 @@
 <!--
-组件：SettingsClientPowerPanel.vue
-所属模块：frontend / src / views / settings / home
-职责：客户端智能充放电设置面板入口。基于 SettingsPageShell 组合 Hero（总开关/本机 ID/心跳间隔）、
-      Pending（待配对终端列表）、Devices（充放电策略列表）三个区段，页头提供保存与取消。
-关键依赖：
-  - SettingsPageShell / SettingsPendingSaveAction：页面骨架与保存条
-  - ClientPowerHeroSection / ClientPowerPendingSection / ClientPowerDevicesSection：三个子区段
-  - useClientPowerPanel：聚合配置读写、状态轮询、待配对管理、展示派生
-数据来源：useClientPowerPanel() 返回的 config / status / pending 及派生状态
+  客户端智能充放电设置面板入口。基于 SettingsPageShell 组合 Hero（总开关/本机 ID/心跳间隔）、
+  Pending（待配对终端列表）、Devices（充放电策略列表）三个区段，页头提供保存与取消。
 -->
 <template>
   <SettingsPageShell
@@ -97,7 +90,6 @@ import ClientPowerPendingSection from './client-power/ClientPowerPendingSection.
 import ClientPowerDevicesSection from './client-power/ClientPowerDevicesSection.vue'
 import { useClientPowerPanel } from '@/features/settings/home/client-power/internals'
 
-// 入参：当前激活的 Tab id
 defineProps({ activeTab: { type: String, default: 'smart-charge' } })
 
 const {

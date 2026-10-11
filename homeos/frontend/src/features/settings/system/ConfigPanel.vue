@@ -1,17 +1,6 @@
 <!--
-组件：ConfigPanel.vue
-所属模块：frontend / src / views / settings / system
-职责：高级参数（系统配置）面板入口。整合参数侧栏、工作区、校验横幅、审计卡片与操作栏，
-      支持全局搜索、专家模式、开发 key 显示、保存/重置与导出。
-Props：
-  - activeTab：当前 Tab
-关键依赖：
-  - SettingsPageShell：页面骨架
-  - SystemConfigParamsSidebar / SystemConfigWorkspace / SystemConfigValidationBanner / SystemConfigSearchView：子组件
-  - SystemConfigActionsBar / SettingsPendingSaveAction / SystemConfigAuditCard：操作栏与审计
-  - useSystemConfigPanel / useSystemConfigPanelShell：配置面板逻辑
-  - useRegisterSettingsTabPending：Tab 级离开拦截
-数据来源：useSystemConfigPanel() 返回的配置/审计/搜索状态
+  高级参数（系统配置）面板入口。整合参数侧栏、工作区、校验横幅、审计卡片与操作栏，
+  支持全局搜索、专家模式、开发 key 显示、保存/重置与导出。
 -->
 <template>
   <SettingsPageShell

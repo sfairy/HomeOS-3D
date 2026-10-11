@@ -1,37 +1,12 @@
 #!/usr/bin/env node
 /**
- * 死 CSS 门禁（`wr-*` 命名空间专项）：任何「整块 wr- 死规则」都不许再出现。
+ * 死 CSS 门禁（`wr-*` 命名空间专项）：`wr-*` 是更早的 widget-renderer 遗留前缀，全仓零引用，
+ * 凡每条逗号分支都硬依赖 `.wr-*` 的规则块恒不匹配，即纯死代码。
  *
- * ## 为什么需要它
+ * 只拦「整块死」：`:is()/:not()/:has()/:where()` 内、恒真的 `:not(.wr-x)`、混合列表里的活分支都保留。
+ * `wr-` 被重新启用时直接放行并提示；扫不到 .css / 规则块视为门禁失效（退出码 2）。
  *
- * `wr-*` 是更早的 widget-renderer 外壳遗留的类名前缀：全仓（`.vue/.ts/.js`、`public/`、
- * 后端模板）零引用 —— 即在真实运行期**没有任何元素会带上 wr- 类**。因此一个规则块只要
- * 它的**每条逗号分支**都硬依赖 `.wr-*`，就永远匹配不到、是纯死代码。
- *
- * 本轮已按此口径清掉 800 余行死 CSS（见 `src/README.md`）。清理是「逐块判定 + 纯删除」，
- * 不是「见 wr- 就删」：`:not(.wr-x)` 恒真、混合列表里另有活分支的选择器都**保留**。
- * 这条门禁固化的正是同一条口径 —— 只拦「整块死」，不碰活选择器，故零误报。
- *
- * ## 判定
- *
- * * 分号/逗号切出的**每条分支**里，`.wr-*` 只要出现在 `:is()/:not()/:has()/:where()` **之外**
- *   （即真正参与该分支的匹配条件）→ 该分支恒不匹配；
- * * 一整块的分支**全部**恒不匹配 → 该规则块可判死 → 报错；
- * * `@keyframes wr-*` 同理可判死 → 报错。
- *
- * ## 边界 / 防瞎
- *
- * * `wr-` 命名空间若被**重新启用**（代码里又出现 `wr-` 字样），本启发式不再成立 —— 直接放行
- *   并打印提示（避免把真实用到的规则误判为死）；此时应改用「类名→使用点」扫描，而非本门禁。
- * * 扫不到任何 `.css` 或任何规则块 → 判门禁自身失效（退出码 2），免得解析漂移伪装成全绿。
- *
- * ## 用法
- *
- *     node scripts/check-css-classes.mjs            # 检查本应用 src/ 下全部 .css
- *     node scripts/check-css-classes.mjs --root <d> # 检查任意根（自检用）
- *     node scripts/check-css-classes.mjs --quiet    # 仅在失败时输出
- *
- * 负向自检见 `scripts/_css_classes_selftest.mjs`。
+ * 用法：``node scripts/check-css-classes.mjs [--root <d>] [--quiet]``；负向自检见 _css_classes_selftest.mjs。
  */
 import fs from 'node:fs'
 import path from 'node:path'

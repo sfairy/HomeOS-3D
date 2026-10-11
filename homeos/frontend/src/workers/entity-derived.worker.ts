@@ -1,24 +1,4 @@
-/**
- * Derived 索引 Worker 端重建 / 增量 patch。
- *
- * 关键依赖：comlink（RPC 暴露）、@/shared/entity/utils/derived.util（累加器与快照转换）、
- *   @homeos/shared（getEntityDomain 解析域）、@/shared/types/entity-store（派生索引类型）。
- *
- * 消息协议（comlink RPC，无 postMessage 显式事件）：
- * - 入站方法 rebuildDerivedSnapshot(entities, opts) -> { epoch, snapshot }
- *     全量重建 derived 索引，建立新基线并自增 epoch，返回 epoch + 全量快照；
- * - 入站方法 patchDerivedSnapshot(patches, { deferSecondary, expectedEpoch }) -> DerivedSnapshotPatch | null
- *     基于已有基线增量应用补丁，返回受影响域/实体的增量片段；失步时返回 null；
- * - 主线程桥 entity-derived-bridge.ts 负责超时控制、基线版本同步与失败回退。
- *
- * 基线策略（T22 真增量优化）：
- * - worker 端维护模块级基线累加器 lastAcc 与版本号 epoch（跨 comlink 调用保留）；
- * - 全量重建（rebuildDerivedSnapshot）建立基线并自增 epoch，返回「epoch + 全量快照」；
- * - 增量 patch（patchDerivedSnapshot）基于 lastAcc 原地 O(p) 应用，仅返回受影响域/实体的
- *   增量变化（DerivedSnapshotPatch），避免「每次全量克隆 + 全量快照往返」的 O(n) 开销；
- * - 无基线（worker 刚启动未重建）或主线程基线失步（expectedEpoch 不匹配）时返回 null，
- *   主线程回退全量重建以重新同步基线。
- */
+/** Derived 索引 Worker 端重建 / 增量 patch。 */
 import { expose } from 'comlink'
 import {
   applyEntityDerivedKey,

@@ -2,13 +2,6 @@
   SecurityPanelWidget.vue / components/widgets/security
   全屋安防 Hub 总面板：顶部页签式 WidgetHubHeader，主 tab 分布防操作
   （在家/离家/睡眠/撤防）+ 区域勾选 + 告警事件列表与安防策略统计。
-  Props: defaultTab 默认激活页签 / tabSelectToken 外部切页令牌 / config 配置
-  子组件：SensorAlertPanel / AwaySimulationPanel / AnomalyDetectionPanel
-          / LockManagementPanel / FrigateEvents 按页签 v-show 懒挂。
-  依赖：services/api/security arm/disarm 模式切换 + 区域配置推后端；
-        composables: useHubTabs tab 持久化 + useWidgetDeviceGroups 设备分组；
-        Pinia: useEntitiesStore + useLayoutStore。
-  注意：arm 布防区可多选可全选。
 -->
 <template>
   <article class="sp-card widget-hub-root">
@@ -134,12 +127,10 @@
 <script setup>
 /**
  * 全屋安防布撤防面板（浮动图层版）
- *
  * 接入后端 SecurityPanelService，提供：
  * 1. 一键布防/撤防（离家/在家/夜间）
  * 2. 安防区域状态展示
  * 3. 最近安防事件记录
- *
  * API 端点：/api/v1/security-panel
  * zones 配置通过 FloatingHub 父组件传入；后端无区域时会自动 bootstrap 同步。
  * config.showZones 仅控制布防 Tab 区域明细是否展示，不影响布防/同步逻辑。

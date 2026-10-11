@@ -14,13 +14,7 @@
 </template>
 
 <script setup>
-/**
- * @file VListSkeleton.vue
- * @module components/common/base
- * @description 列表型骨架屏：按行重复「标题 + 两行文本」占位，贴合通知 / 告警 / 设备等列表项
- *   的真实排版。用于替代面板型 VPanelSkeleton 在列表场景下「只有一个大色块」的失真表现。
- *  依赖：VSkeleton 子组件。
- */
+/** 的真实排版。用于替代面板型 VPanelSkeleton 在列表场景下「只有一个大色块」的失真表现。 */
 import VSkeleton from './VSkeleton.vue'
 
 defineProps({

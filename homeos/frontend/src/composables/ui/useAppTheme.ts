@@ -1,17 +1,4 @@
-/**
- * @file 应用主题 Composable（强调色）
- * @module composables/ui/useAppTheme
- *
- * 职责：
- *  - 读取后台 ui 配置中的 accentColor，将其应用到 document.documentElement 的 CSS 变量。
- *  - 监听配置变更，实时刷新强调色相关 CSS 变量（--accent-color / --accent / --accent-rgb 等）。
- *
- * 依赖：
- *  - vue 的 onMounted / onUnmounted 生命周期钩子。
- *  - frontend-config 的 getConfigSection / onConfigChange。
- *  - frontend-config 类型 ConfigChangeListener。
- *  - ui/color.util 的 hexToRgb（强调色 RGB 解析）。
- */
+/** - 读取后台 ui 配置中的 accentColor，将其应用到 document.documentElement 的 CSS 变量。 */
 import { onMounted, onUnmounted } from 'vue'
 import { getConfigSection, onConfigChange } from '@/shared/utils/config/frontend-config'
 import type { ConfigChangeListener } from '@/shared/types/frontend-config'

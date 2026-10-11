@@ -50,9 +50,7 @@ class NotificationEventHandlersHelper:
         self._get_iaq_cfg = get_iaq_cfg
         self._get_other_cfg = get_other_cfg
 
-    # ------------------------------------------------------------------ #
     # 安防
-    # ------------------------------------------------------------------ #
     def _resolve_security_alert_channels(self) -> list[str] | None:
         raw = self._get_security_cfg().get("alertChannels")
         if not isinstance(raw, list) or not raw:
@@ -117,9 +115,7 @@ class NotificationEventHandlersHelper:
             return
         self._set_cooldown(cooldown_key, 1)
 
-    # ------------------------------------------------------------------ #
     # 能耗 / 用水
-    # ------------------------------------------------------------------ #
     async def handle_energy_anomaly(self, data: dict[str, Any] | None) -> None:
         data = data or {}
         cooldown_key = f"energy_anomaly:{data.get('entityId') or data.get('type') or 'global'}"
@@ -178,9 +174,7 @@ class NotificationEventHandlersHelper:
             cooldown_key, float(self._get_water_cfg().get("anomalyCooldownMin") or 30)
         )
 
-    # ------------------------------------------------------------------ #
     # 环境
-    # ------------------------------------------------------------------ #
     async def handle_mold_risk(self, data: dict[str, Any] | None) -> None:
         data = data or {}
         cooldown_key = f"mold:{data.get('roomId') or 'global'}"
@@ -222,9 +216,7 @@ class NotificationEventHandlersHelper:
             cooldown_key, float(self._get_iaq_cfg().get("moldAlertCooldownMin") or 10)
         )
 
-    # ------------------------------------------------------------------ #
     # 自动化
-    # ------------------------------------------------------------------ #
     async def handle_homeos_automation_notify(self, data: dict[str, Any] | None) -> None:
         data = data or {}
         text = data.get("message") or data.get("title") or "自动化通知"
@@ -266,9 +258,7 @@ class NotificationEventHandlersHelper:
             return
         self._set_cooldown(cooldown_key, 30)
 
-    # ------------------------------------------------------------------ #
     # 地震
-    # ------------------------------------------------------------------ #
     async def handle_earthquake_eew_alert(self, data: dict[str, Any] | None) -> None:
         data = data or {}
         cooldown_key = f"earthquake_eew:{data.get('eventId')}"
@@ -301,9 +291,7 @@ class NotificationEventHandlersHelper:
             return
         self._set_cooldown(cooldown_key, 10)
 
-    # ------------------------------------------------------------------ #
     # 顾问 / 墙面板
-    # ------------------------------------------------------------------ #
     async def handle_advisor_tip(self, data: dict[str, Any] | None) -> None:
         data = data or {}
         cooldown_key = f"tip:{data.get('title')}:{data.get('category') or ''}"
@@ -358,9 +346,7 @@ class NotificationEventHandlersHelper:
             return
         self._set_cooldown(cooldown_key, 30)
 
-    # ------------------------------------------------------------------ #
     # HA 状态变更（冷路径）
-    # ------------------------------------------------------------------ #
     def handle_state_changed(self, event: dict[str, Any] | None) -> None:
         if not self._state_router.should_process("notification_health", event):
             return

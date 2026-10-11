@@ -1,17 +1,8 @@
 name: Checks
 
 # 轻检查（不构建镜像、不推 GHCR）：类型检查、ruff、pyright、库结构、端到端冒烟。
-#
-# 这些检查原先内联在 docker.yml 里。抽出来放这里，是为了让「构建门禁」只有一份定义：
-# docker.yml 通过 `uses:` 调用本工作流，改检查只改这一处，不会出现「docker.yml 里改了、
-# 另一个地方忘了改」的漂移。这类漂移有前车之鉴：8d3be3e7（refactor(frontend): 收敛全树
-# 目录分层）把 SettingsLicensePanel.vue 从 `src/views/settings/system/` 搬到
-# `src/features/settings/system/`，但 verify:features 里硬编码的门禁文件路径没跟着改，
-# 那盏红灯在 main 上躺到下一次手动 dispatch 才暴露。
-#
-# 刻意**不挂** push / pull_request：本工作流不自动跑，只在下面两种情况下执行 ——
-#   (a) docker.yml 构建前 `uses:` 调用它（构建门的真实入口）；
-#   (b) Actions 页面手动 Run workflow（想单独跑一遍检查时用）。
+# 单一来源：docker.yml 通过 `uses:` 调用本工作流，改检查只改这一处。
+# 不挂 push / pull_request，仅由 docker.yml 构建前调用或 Actions 手动 dispatch。
 on:
   workflow_call:
   workflow_dispatch:
@@ -19,8 +10,7 @@ on:
 permissions:
   contents: read
 
-# group 里带上 github.workflow：被 docker.yml 调用时它是 "Docker"，手动直跑时是
-# "Checks"，分属不同组，避免 cancel-in-progress 互相掐掉。
+# group 带 github.workflow：调用方与手动直跑分属不同组，避免 cancel-in-progress 互相掐掉。
 concurrency:
   group: checks-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -36,32 +26,19 @@ jobs:
       - name: Install and typecheck
         run: |
           bun install --frozen-lockfile
-          # 注意：根 `typecheck` 会先跑 `build:shared` —— 主应用从 `@homeos/shared` 的 `dist/`
-          # 取类型，而 `dist/` 被 gitignore，干净检出上不先建就是一片 TS2307。
+          # 根 `typecheck` 先跑 `build:shared`：dist/ 被 gitignore，干净检出上不先建就是一片 TS2307。
           bun run typecheck
-          # 前端门禁：分层依赖方向（主应用 + studio）＋ 引用可解析性（import spec 与注释里的 `@/`
-          # 都真去文件系统解析；含它自己的负向自检）。store 侧现同样跑「分层方向 + 引用可解析」
-          # 两条（`check:deps` = check-store-deps + check-import-refs --alias @store/），
-          # 此前商店只有分层方向一条，相对导入指向已删文件这类事故在商店无人拦。
+          # 前端门禁：分层依赖方向 + 引用可解析性（含注释里的 `@/`）；store 侧同样两条。
           bun run --cwd homeos/frontend check:deps
           bun run --cwd homeos-store check:deps
-          # ESLint：两个前端各一套配置，但规则核只有一个真源（ops/eslint/frontend-core.mjs）。
-          # 商店此前**完全没有** lint 配置（75 个源文件裸奔），P5 补上并一起进 CI。
-          # `--max-warnings 0` 是刻意的：风格规则也当硬失败，否则「新加的单引号」会慢慢攒成
-          # 第二批存量 —— 商店那 45 条零散单引号就是这么来的，已经 `--fix` 抹平。
+          # ESLint：两前端共用规则核（ops/eslint/frontend-core.mjs）；--max-warnings 0 让风格问题也硬失败。
           bun run --cwd homeos/frontend lint:ci
           bun run --cwd homeos-store lint:ci
-          # studio 度量 KPI（单体余量 / 域清单 / 同名冲突三条，纯静态解析的 Python 脚本）：
-          # 此前**只在本地手动跑**，而它的作用正是「防拆分成果悄悄退化」—— 不进 CI 等于没有。
+          # studio 度量 KPI：防拆分成果悄悄退化。
           bun run kpi:studio
-          # 三条 vite 配置不在两个子项目 tsconfig 的 include 里，单独用根 tsconfig.node.json
-          # 按 strict 检查一遍（此前完全没被任何门禁覆盖）。
+          # 三条 vite 配置用根 tsconfig.node.json 单独 strict 检查。
           bun run typecheck:node
-          # 零 @ts-nocheck 门禁（硬失败）。
-          # 不用 rg：runner 默认不保证装了 ripgrep，grep 更稳。
-          # 扫 frontend 全目录而非仅 src：vite.config.ts / vite-studio.ts / vite-plugin-*.ts
-          # 等同样在 tsconfig 内。
-          # 允许前导空白，避免缩进写的 pragma 逃过检查。
+          # 零 @ts-nocheck 门禁（硬失败）；扫 frontend 全目录，允许前导空白。
           leftovers="$(
             grep -RIlE --include='*.ts' --exclude-dir=node_modules --exclude-dir=dist \
               '^[[:space:]]*//[[:space:]]*@ts-nocheck' \
@@ -74,33 +51,19 @@ jobs:
             exit 1
           fi
           echo "零 @ts-nocheck：通过"
-          # 前端纯逻辑冒烟：与根 package.json 的 `verify:smoke:frontend` 同一组，只加一半会留下缺口。
-          # Esc 层级栈（静态扫全部 overlay 是否都走 useEscLayer + 栈行为）、实体控制内核
-          # （cover 方向 / HSV 饱和 / 水电燃气字段不串 / 乐观推送合并）、场景更新计划。
-          # 编辑器请求面（401/403 跳转分支 + 认证跳转闩「每实例一份」+ 超时/中止 + CSRF 头）。
-          # 纯源码扫描与直调内核，不需要构建、不需要后端。
-          # 这一组此前**只在本地手动跑**，后果实打实：`_entity_control_logic_smoke.ts` 的相对导入在
-          # entity/device 批次后指向了已迁走的文件，它就一直 RED —— 而没有任何门禁执行过它。
+          # 前端纯逻辑冒烟：与 `verify:smoke:frontend` 同一组，纯源码扫描，不需构建/后端。
           bun run homeos/frontend/scripts/_esc_stack_smoke.ts
           bun run homeos/frontend/scripts/_entity_control_logic_smoke.ts
           bun run homeos/frontend/scripts/_scene_update_plan_smoke.ts
           bun run homeos/frontend/scripts/_request_json_smoke.ts
           # 未使用 JS/TS、功能码镜像、场景资源副本、TS↔Python 黄金契约 + 独立部署护栏。
-          # 黄金契约里还链着 `check_shared_contracts_selftest.py`：给门禁注入各类漂移，
-          # 确认它真的会拦 —— 解析型门禁最常见的死法是「匹配不到就跳过」，此后永远报绿。
-          # 独立部署护栏（`verify:contracts` 链内的 `verify:independence`）同理，自带 33 项注入式
-          # 断言：两后端 / 两前端 / 两份 package.json 互不引用；Dockerfile 统一构建阶段只装
-          # `${PROJECT}` 的源码、`ARG PROJECT` 不许有默认值、case 分支与 ops/build.py 的项目表
-          # 双向对账（改一边忘另一边会立刻红）、运行阶段不得装进对方的产物。
-          # 放在 typecheck 里是为了和 bun install 共用一次，并在 build 之前失败。
+          # 各门禁自带注入式自检，确保漂移真的会被拦下；放在 build 之前失败。
           bun run knip
           bun run verify:features
           bun run verify:scene
           bun run verify:contracts
 
-  # Python 静态检查硬门禁。规则集与本地 `.venv-store/bin/ruff` 逐条核对过，当前全仓 0 条。
-  # 这里不跑 `--fix`：CI 修不了东西，`--fix` 是提交前的动作；格式化的东西也不在这里拦，
-  # 否则一升级 ruff 就会因为无关的格式差异把所有人的 PR 变红。
+  # Python 静态检查硬门禁（规则集与本地 .venv-store/bin/ruff 对齐）。不跑 --fix。
   ruff:
     runs-on: ubuntu-24.04
     steps:
@@ -111,20 +74,15 @@ jobs:
           python-version: '3.14'
 
       - name: Install ruff
-        # 与本地 `.venv-store/bin/ruff --version` 对齐，避免规则集随上游漂移。
+        # 与本地 ruff 版本对齐，避免规则集随上游漂移。
         run: pip install "ruff==0.16.8"
 
       - name: Ruff check
         run: |
           ruff check --select F,E9,I,RET501,PLR1711,RUF059 .
 
-  # 类型检查门禁（basedpyright）。
-  # `error == 0` 现在还做不到：pyrightconfig.json 的 error 级里还有一批存量误报（模型标注偏窄
-  # 导致的 reportOptionalMemberAccess / reportArgumentType 等），实测 72 条。所以这里只把
-  # 「一定会炸」的三条规则当硬失败，其余打成直方图让人一直看得见；口径与 rationale 写在
-  # ops/ci/pyright_gate.py 顶部。
-  # （tools/ 下 src.* 的 reportMissingImports 已通过 pyrightconfig.json 的 executionEnvironments
-  #   修掉：静态分析看不到 smoke_store.py 自己往 sys.path 插 backend，官方办法就是声明执行环境。）
+  # 类型检查门禁（basedpyright）。存量误报未清零，只把「一定会炸」的三条规则当硬失败，
+  # 其余打成直方图；口径见 ops/ci/pyright_gate.py 顶部。
   pyright:
     runs-on: ubuntu-24.04
     steps:
@@ -134,8 +92,7 @@ jobs:
         with:
           python-version: '3.14'
 
-      # pyrightconfig.json 点名用仓库根的 .venv-store 解析第三方包；CI 里得自己把它建出来，
-      # 否则 fastapi / sqlalchemy / cryptography 全部解析不了，error 数会凭空翻好几倍。
+      # pyrightconfig.json 指向仓库根 .venv-store；CI 里须自建，否则第三方包解析不到。
       - name: Create .venv-store with backend dependencies
         run: |
           python -m venv .venv-store
@@ -153,11 +110,8 @@ jobs:
           basedpyright --outputjson > basedpyright.json || true
           python ops/ci/pyright_gate.py basedpyright.json
 
-  # 库结构门禁：确认「迁移脚本 = ORM 元数据 = 实际结构 = 发行路径建出来的结构」
-  # （ops/check_schema.py；最后一项验证产物里没有 Alembic 时按 ORM 建库是否等价）。
-  # 放在 build 之前是刻意的：结构漂移的表现是「本地全新库一切正常、存量部署才报错」，
-  # 它不会在任何一条类型检查或前端检查里露头，而一旦随镜像发出去，用户是唯一的
-  # 发现者。坏迁移在这里拦下，就不会被推成镜像。
+  # 库结构门禁（ops/check_schema.py）：验证迁移脚本 = ORM 元数据 = 实际结构。
+  # 放在 build 之前：结构漂移只在存量部署暴露，坏迁移必须在推镜像前拦下。
   schema:
     runs-on: ubuntu-24.04
     steps:
@@ -177,9 +131,7 @@ jobs:
       - name: Check schema
         run: python ops/check_schema.py
 
-  # 冒烟门禁：这些脚本此前**只在本地手动跑**，CI 完全不覆盖（`verify:smoke*` 是本地脚本）。
-  # 漂移护栏与 Esc 扫描分别挂在 schema / typecheck job；这里补齐两侧的端到端契约冒烟。
-  # 全部离线自足：进程内假商店、被替换的 httpx、临时数据目录，不连真实 HA / 商店 / SMTP。
+  # 端到端契约冒烟（离线自足：进程内假商店、被替换的 httpx、临时数据目录）。
   smoke:
     runs-on: ubuntu-24.04
     steps:
@@ -195,18 +147,8 @@ jobs:
           pip install -r homeos/backend/requirements.txt \
                       -r homeos-store/backend/requirements.txt
 
-      # 与根 package.json 的 `verify:smoke:app` 对齐：认证契约、注册→登录→激活、
-      # HA 白名单、HA 取状态容错、结构漂移护栏、增量模块功能码门禁、授权激活 e2e。
-      # `_legacy_account_claim_smoke.py` 已删除，不要加回来。
-      #
-      # 漂移护栏守护的是 check_schema 覆盖不到的那条路径：「版本号已在 head、结构却没到」
-      # （迁移文件被应用之后又被追加内容时就是这样）。2026-10-07 主应用正栽在这里：0008
-      # 应用后又被追加了 license_state.activated_by，版本号早已打上、不会再回退，那一列
-      # 永远补不上，直到业务查询报 no such column、应用启动失败，对外全是 503。
-      # 两个执行器的等版本快路径现在都会先做结构对账。
-      #
-      # `_register_login_activate_smoke.py` 用的是**假商店**。`_license_activation_e2e_smoke.py`
-      # 在商店未跑时 SKIP 并 0 退出，CI 里不会无故变红；真实发码验码仍以本地联调为准。
+      # 与根 package.json 的 `verify:smoke:app` 对齐（全部离线自足）。
+      # `_license_activation_e2e_smoke.py` 在商店未跑时 SKIP 并 0 退出。
       - name: App smokes
         run: |
           python homeos/backend/scripts/_auth_contract_smoke.py

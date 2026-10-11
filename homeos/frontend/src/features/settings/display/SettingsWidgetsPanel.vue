@@ -1,14 +1,6 @@
 <!--
-组件：SettingsWidgetsPanel.vue
-所属模块：frontend / src / views / settings / display
-职责：微件面板。管理侧栏/仪表盘/右侧面板微件的添加/移除/显隐/排序/配置，
-      集成高度配置、Hero 轮播编辑、快捷按钮配置与自定义 HTML 草案。
-关键依赖：
-  - SettingsPageShell / SettingsPendingSaveAction：页面骨架与待保存动作
-  - WidgetsHubSection：微件主区段
-  - usePanelWidgets / useQuickButtonConfig：微件与快捷按钮逻辑
-  - WIDGET_PANEL_CONFIG_KEY：向子组件 provide 微件配置
-数据来源：layoutStore.layoutConfig（rightPanelWidgets / dashboardWidgets 等）
+  微件面板。管理侧栏/仪表盘/右侧面板微件的添加/移除/显隐/排序/配置，
+  集成高度配置、Hero 轮播编辑、快捷按钮配置与自定义 HTML 草案。
 -->
 <template>
   <SettingsPageShell

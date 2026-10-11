@@ -1,19 +1,9 @@
 <!--
-  组件文件：RightSidebar.vue
-  所属模块：frontend/src/components/dashboard
-  组件职责：仪表板右侧（或左侧）信息面板停靠区。折叠按钮箭头根据停靠位置切换左右方向，
-    折叠状态写入 localStorage（homeos.right-sidebar.collapsed）刷新后保留；
-    展开时按 visiblePanelWidgets 顺序渲染 WidgetPanelSlot 容器（支持自定义高度/样式/类），
-    内嵌 clock/weather/weatherForecast/quickActions/customHtml/systemTimeline/tempChart/
-    climateCard/heroSwiper/mediaMini 等部件类型，所有部件通过 ErrorBoundary 隔离异常。
-  主要 props / emits：
-    - props.panelPosition：'right' 或 'left'，决定停靠方向与折叠箭头。
-    - emit open-group(domain, sensors)：quickActions 类部件点击设备组时向父级透传展开事件，
-      payload 为域名与传感器组。
-  依赖关系：Pinia useLayoutStore（读 layoutConfig 与部件列表）；composable useScaling（视口缩放）；
-    ErrorBoundary/WidgetPanelSlot 子组件；utils：viewport-breakpoints（平板紧凑视口）、
-    widget/profile-filter.util（按用户角色/家庭模式过滤部件）、registry/widget-registry
-    （getWidgetComponent/getWidgetProps/getSidebarWidgetClass）、resolveSidebarWidgetHeightPx。
+  仪表板右侧（或左侧）信息面板停靠区。折叠按钮箭头根据停靠位置切换左右方向，
+  折叠状态写入 localStorage（homeos.right-sidebar.collapsed）刷新后保留；
+  展开时按 visiblePanelWidgets 顺序渲染 WidgetPanelSlot 容器（支持自定义高度/样式/类），
+  内嵌 clock/weather/weatherForecast/quickActions/customHtml/systemTimeline/tempChart/
+  climateCard/heroSwiper/mediaMini 等部件类型，所有部件通过 ErrorBoundary 隔离异常。
 -->
 <template>
   <div
@@ -74,12 +64,6 @@
 
 <script setup lang="ts">
 import { readLocalStorageFlag, writeLocalStorage } from '@/shared/utils/core/local-storage.util'
-/**
- * 职责：实现 RightSidebar 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 /**
  * 右侧信息面板
  * 仪表板右侧区域，以部件（Widget）形式展示天气、时钟、快捷操作等信息。

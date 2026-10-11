@@ -1,18 +1,4 @@
-/**
- * HA 实体 state → 中文标签工具函数
- *
- * 职责：
- * - 维护按域区分的弹窗状态文案表（lock / cover / valve / vacuum）。
- * - 提供状态标签解析、微件自定义优先、默认标签生成、事件日志文案等工具函数。
- * 依赖：
- * - @homeos/shared 中的 `getEntityDomain` 用于从 entity_id 提取域。
- * - entity-state-meta 中的 `entityStateLabel` / `ENTITY_STATE_META` 单表。
- *
- * 注意：
- * - 对象 key 为 HA 实体 state 值（如 on / off / locked）或域名（如 lock / cover），
- *   属于配置 key，不翻译。
- * - 仅 value（面向用户的中文文案）使用简体中文。
- */
+/** HA 实体 state → 中文标签工具函数 */
 import { getEntityDomain } from '@homeos/shared'
 import { entityStateLabel } from './entity-state-meta'
 

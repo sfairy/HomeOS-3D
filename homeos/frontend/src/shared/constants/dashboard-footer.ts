@@ -1,21 +1,4 @@
-/**
- * 仪表盘底栏配置常量与工厂函数
- *
- * 职责：
- * - 维护底栏卡片可选图标、配色与高亮色映射。
- * - 提供底栏项的创建工厂、默认项生成、配置规范化等工具。
- * - 提供底栏卡片主 / 副字段显示名解析（优先自定义 label，否则按字段定义）。
- *
- * 依赖：
- * - @/shared/types/dashboard-footer 类型定义。
- * - @/shared/energy/utils/source.util 与 @/shared/energy/utils/account.util 用于主账户行解析。
- * - @/shared/constants/account-binding-meta 账户绑定元数据。
- *
- * 注意：
- * - `kind`（binding / entity）、`source`（grid / gas / ...）、`color`（yellow / purple / ...）、
- *   `primaryField` / `secondaryField` 等均为配置 key，不翻译。
- * - `icon` 为 emoji，`accent` 为 CSS 颜色值，不翻译。
- */
+/** 仪表盘底栏配置常量与工厂函数 */
 import { getEntityLeaf } from '@homeos/shared'
 import type {
   DashboardFooterColor,

@@ -1,11 +1,6 @@
 <!--
-组件：AccountListEditor.vue
-所属模块：frontend / src / views / settings / connect / bindings
-职责：能源账户列表编辑器。支持多账户行编辑、设主账户、粘贴逗号分隔号码自动拆行，
-      按户号后 4 位检测命名冲突，并同步到 source 的 accountEntries / accountString。
-关键依赖：
-  - account.util：账户输入清洗、拆行、冲突检测与字符串同步
-数据来源：父级透传的 source（账户配置对象，直接读写其 accountEntries）
+  能源账户列表编辑器。支持多账户行编辑、设主账户、粘贴逗号分隔号码自动拆行，
+  按户号后 4 位检测命名冲突，并同步到 source 的 accountEntries / accountString。
 -->
 <template>
   <div class="account-list-editor">
@@ -87,7 +82,6 @@ import {
 } from '@/shared/energy/utils/account.util'
 import { useBindingAccountListEditor } from './useBindingAccountListEditor'
 
-// 入参：账户配置对象（直接读写）、标签/占位符/样式类与命名前缀
 const props = defineProps({
   source: { type: Object, required: true },
   accountLabel: { type: String, default: '账户' },

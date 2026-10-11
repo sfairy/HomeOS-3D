@@ -1,11 +1,4 @@
-/**
- * @file EntityMultiSelect.vue
- * @module common/EntityMultiSelect
- * @description HA 实体多选输入框
- *  组合触发器（EntityMultiSelectTrigger）与下拉面板（EntityMultiSelectDropdown），
- *  支持域过滤、分组展示、键盘导航与虚拟滚动。
- *  依赖：entity-multi-select 子目录下的 Trigger/Dropdown 子组件与 useEntityMultiSelect composable。
- */
+/** 组合触发器（EntityMultiSelectTrigger）与下拉面板（EntityMultiSelectDropdown）， */
 <template>
   <div :ref="bindWrapRef" :class="['ems-wrap', wrapperClass]">
     <!-- 触发器：展示已选项 chips、placeholder，点击展开下拉 -->
@@ -57,12 +50,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 EntityMultiSelect 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 import EntityMultiSelectTrigger from '@/components/common/entity-multi-select/EntityMultiSelectTrigger.vue'
 import EntityMultiSelectDropdown from '@/components/common/entity-multi-select/EntityMultiSelectDropdown.vue'
 import { useEntityMultiSelect } from '@/components/common/entity-multi-select/useEntityMultiSelect'

@@ -4,15 +4,6 @@
   顶部 ListPageHero（模式专色 accent）+ ListPageMetrics 聚合统计，
   中部复用 ModeLogsAnalyticsRail 三个 ECharts 分析图，下方按触发源分页日志表。
   路由：Vue Router /logs/home-modes 挂载；登录后可访问，管理员可查看全家庭日志。
-  数据来源：services/api/home-modes fetchHomeModeTriggerLogs 触发日志 REST。
-  依赖：composables/home/useModeLogsAnalytics 汇总分析（buildModeSourcePieOption 等）；
-        composables/life/useLifeChartHost（useHubChart）图表托管；
-        Pinia：useAuthStore 权限；
-        子组件：HosSelect / ApiQueryState / ListPageHero / ListPageMetrics
-                / ModeLogsAnalyticsRail；
-        SETTINGS_ROUTES 跳转模式与触发配置；locale-format 详细时间格式化。
-        支持按触发源/状态过滤；分页由 useModeLogsAnalytics.results$ 驱动。
-  注意：手动触发 vs 自动触发（geo-fence/时段/实体联动）按 source 徽章区分颜色。
 -->
 <template>
   <div

@@ -109,9 +109,7 @@ class EarthquakeService:
             can_connect=self._can_connect,
         )
 
-    # ------------------------------------------------------------------ #
     # 生命周期
-    # ------------------------------------------------------------------ #
     async def start(self) -> None:
         if self._bus is not None:
             self._bus.on(SYSTEM_CONFIG_UPDATED_EVENT, self._on_system_config_updated)
@@ -171,9 +169,7 @@ class EarthquakeService:
         self._diagnostics.touch_wolfx_activity(True)
         self._wolfx_disconnected_since = 0
 
-    # ------------------------------------------------------------------ #
     # 运行时配置
-    # ------------------------------------------------------------------ #
     async def ensure_runtime_config(self, force: bool = False) -> EarthquakeRuntimeConfig:
         now = _now_ms()
         prev_enabled = self._runtime.enabled
@@ -250,9 +246,7 @@ class EarthquakeService:
             if not was_connected and not self._wolfx.is_connected() and not self._wolfx_disconnected_since:
                 self._wolfx_disconnected_since = _now_ms()
 
-    # ------------------------------------------------------------------ #
     # HA 坐标
-    # ------------------------------------------------------------------ #
     async def resolve_ha_credentials(self) -> dict[str, str]:
         # 优先走故障转移选择器：HA 已在局域网失败后切外网时，EEW 坐标抓取也要打到当前 active 地址
         if self._get_ha_rest_config is not None:
@@ -317,9 +311,7 @@ class EarthquakeService:
             return {"latitude": ha_coords["lat"], "longitude": ha_coords["lon"]}
         return {"latitude": None, "longitude": None}
 
-    # ------------------------------------------------------------------ #
     # Wolfx 报文入口
-    # ------------------------------------------------------------------ #
     async def handle_message(self, msg: dict[str, Any]) -> None:
         type_ = str(msg.get("type") or "").lower()
         if type_ == "heartbeat":
@@ -463,9 +455,7 @@ class EarthquakeService:
         except Exception as exc:
             logger.warning("EEW 领域事件广播失败 [%s]: %s", event, exc)
 
-    # ------------------------------------------------------------------ #
     # 去重状态
-    # ------------------------------------------------------------------ #
     async def _load_dedupe_state(self) -> EewDedupeState:
         return EewDedupeState(
             activeEventId=self._active_event_id,
@@ -499,9 +489,7 @@ class EarthquakeService:
         self._last_event_time = 0.0
         self._last_magnitude = 0.0
 
-    # ------------------------------------------------------------------ #
     # 模拟演练
-    # ------------------------------------------------------------------ #
     async def try_fire_simulated_alert(self) -> dict[str, Any]:
         await self.ensure_runtime_config(force=True)
         home_lat = self._runtime.home_lat
@@ -537,9 +525,7 @@ class EarthquakeService:
         )
         return {"ok": True}
 
-    # ------------------------------------------------------------------ #
     # 最新预警 / 关闭 / 历史
-    # ------------------------------------------------------------------ #
     def get_latest_alert(self) -> dict[str, Any] | None:
         if self._latest_alert_payload is None:
             return None
@@ -723,9 +709,7 @@ class EarthquakeService:
 
         return {"deleted": deleted}
 
-    # ------------------------------------------------------------------ #
     # 状态 / 诊断
-    # ------------------------------------------------------------------ #
     def should_use_usgs_backup(self, down_for_ms: int) -> bool:
         if self._wolfx.is_connected():
             self._wolfx_disconnected_since = 0

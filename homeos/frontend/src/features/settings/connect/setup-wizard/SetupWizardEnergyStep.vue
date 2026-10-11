@@ -1,25 +1,10 @@
 <!--
-  组件文件：SetupWizardEnergyStep.vue
-  所属模块：frontend/src/features/settings/connect/setup-wizard
-  组件职责：初始化向导的第三步「能源绑定」表单页。上半部分为主电表（累计电量 kWh/Wh 单
-    选 EntityInput）与分路（功率分路 W 多选 EntityMultiSelect）两列绑定表单，下半
-    部分展示校验报错（实体未同步到 HA）。
-  主要 props / emits：
-    - defineModel meterEntityId：主电表实体 ID 双向绑定
-    - defineModel circuitEntityIds：分路实体 ID 逗号分隔字符串双向绑定
-    - props status：向导状态对象
-    - props validateResult：实体校验结果（missing 数组展示缺失项）
-  依赖关系：引用 EntityInput / EntityMultiSelect 做实体选择；joinCommaEntityIds /
-    parseCommaEntityIds 工具桥接逗号分隔字符串与多选数组。
+  初始化向导的第三步「能源绑定」表单页。上半部分为主电表（累计电量 kWh/Wh 单
+  选 EntityInput）与分路（功率分路 W 多选 EntityMultiSelect）两列绑定表单，下半
+  部分展示校验报错（实体未同步到 HA）。
   注意事项：主电表必须是累计电量 sensor（不要选瞬时功率），否则能源趋势会出现负数。
 -->
 <script setup>
-/**
- * 职责：渲染 views/SetupWizardEnergyStep 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { computed } from 'vue'
 import { Gauge, GitBranch, AlertTriangle } from '@lucide/vue'
 import EntityInput from '@/components/common/EntityInput.vue'

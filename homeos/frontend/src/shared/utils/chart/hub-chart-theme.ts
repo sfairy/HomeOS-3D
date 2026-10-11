@@ -1,13 +1,4 @@
-/**
- * 各独立 Hub（安防 / 模式日志 / 生活 / 设备）共用的 ECharts 主题。
- * ECharts 无法读取 CSS 变量，模块 accent 以 RGB 字面量映射。
- *
- * 职责：在 device-chart-theme 基础上扩展 Hub 专用 accent 色；
- *   透传设备页主题工厂函数，避免各 Hub 重复引用。
- * 说明：HUB_CHART_COLORS / hubAccentColor 为 Hub 域的真实扩展（非透传），
- *   故保留本模块作为 Hub 主题分层，不并入 device-chart-theme。
- * 依赖：echarts/core 类型、device-chart-theme。
- */
+/** 各独立 Hub（安防 / 模式日志 / 生活 / 设备）共用的 ECharts 主题。 */
 import type { EChartsCoreOption } from 'echarts/core'
 import {
   DEVICE_CHART_COLORS,

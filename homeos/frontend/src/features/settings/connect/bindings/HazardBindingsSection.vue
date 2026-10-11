@@ -1,23 +1,10 @@
 <!--
-  组件文件：HazardBindingsSection.vue
-  所属模块：frontend/src/features/settings/connect/bindings
-  组件职责：联动绑定大类下的 Hazards（火灾/燃气/水漏）危险传感器绑定面板。左栏绑定
-    烟感/燃气/水漏三类 binary_sensor，右栏绑定紧急场景、燃气阀、水阀、排风扇动作实体。
-    底部提供测试紧急场景联动与多种演习模式（烟雾/燃气/水漏）触发按钮，以及绑定状态
-    汇总表格。顶部高亮显示绑定冲突（如烟感与紧急场景互不关联）。
-  主要 props / emits：
-    - props hazardTesting / hazardDrillBusy：测试与演习中加载状态
-    - props hazardDrillTip / hazardDrillOk：演习反馈文案与是否成功
-    - 8 个 defineModel：hazardSmokeEntityIds / hazardGasEntityIds / hazardLeakEntityIds
-      / hazardEmergencySceneId / hazardGasValveEntityId / hazardWaterValveEntityId
-      / hazardExhaustFanEntityIds / hazardDrillMode
-    - emit test-hazard：点击「测试紧急场景联动」按钮
-    - emit hazard-drill：点击某一演习模式按钮，payload 为演习 kind
-  依赖关系：引用 useHazardBindingsSection composable 计算 bindingConflicts /
-    sensorFields / actionFields / drillButtons / statusRows 派生数据；
-    EntityMultiSelect 做实体多选；SETTINGS_ROUTES 与 LINKAGE_HUB_ROUTES 跳转。
+  联动绑定大类下的 Hazards（火灾/燃气/水漏）危险传感器绑定面板。左栏绑定
+  烟感/燃气/水漏三类 binary_sensor，右栏绑定紧急场景、燃气阀、水阀、排风扇动作实体。
+  底部提供测试紧急场景联动与多种演习模式（烟雾/燃气/水漏）触发按钮，以及绑定状态
+  汇总表格。顶部高亮显示绑定冲突（如烟感与紧急场景互不关联）。
   注意事项：测试与演习均会真实调用联动引擎（演习模式不通知用户、只跑内部流），
-    建议非家庭时间使用；绑定冲突检测为前端启发式，仅作提醒。
+  建议非家庭时间使用；绑定冲突检测为前端启发式，仅作提醒。
 -->
 <template>
   <div class="hazard-bind">
@@ -211,7 +198,6 @@ import HazardBindingStatusPanel from '@/features/settings/connect/bindings/Hazar
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import { useHazardBindingsSection } from '@/features/settings/composables/automate/security-modes-extras.internals'
 
-// 入参：测试中、演习中、演习提示文案与是否成功
 defineProps({
   hazardTesting: Boolean,
   hazardDrillBusy: Boolean,
@@ -219,7 +205,6 @@ defineProps({
   hazardDrillOk: { type: Boolean, default: true },
 })
 
-// 对外事件：测试紧急场景联动、触发演习
 defineEmits(['test-hazard', 'hazard-drill'])
 
 // 各 hazard 探测器/阀门/排风/紧急场景/演习模式的双向绑定

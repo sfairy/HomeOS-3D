@@ -1,17 +1,4 @@
-/**
- * @module useDeviceGroupClimate
- * @description DeviceGroupModal 空调控制与展示辅助组合式函数。
- *
- * 职责：
- * - 提供分组内 climate 实体的当前/目标温度读取、温度色调与背景色映射。
- * - 封装温度调节、HVAC 模式、风扇模式等服务调用。
- * - 维护模式/状态/风扇模式的中文标签与图标 emoji 映射。
- *
- * 依赖：
- * - @lucide/vue：模式图标组件。
- * - @/shared/device/utils/group-battery.util：DeviceGroupEntitiesStoreLike 类型。
- * - @/shared/types/entity-store：HaEntityState 实体状态类型。
- */
+/** - 提供分组内 climate 实体的当前/目标温度读取、温度色调与背景色映射。 */
 import { Settings, ThermometerSnowflake, Droplets, Fan, Flame, Power } from '@lucide/vue'
 import { climateHasDualSetpoint } from '@/shared/entity/utils/control/climate-control-core'
 import type { DeviceGroupEntitiesStoreLike } from '@/shared/device/utils/group-battery.util'

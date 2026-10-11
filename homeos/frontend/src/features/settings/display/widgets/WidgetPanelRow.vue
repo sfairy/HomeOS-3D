@@ -1,25 +1,10 @@
 <!--
-  组件文件：WidgetPanelRow.vue
-  所属模块：frontend/src/features/settings/display/widgets
-  组件职责：右侧面板微件列表的单行操作组件，展示微件名称/图标/描述与隐藏状态，提供
-    上/下移、开关可见、打开配置、高度编辑、删除等操作按钮。展开时内嵌对应类型的
-    配置子面板（QuickActions / HubTabsConfig / WeatherHub / HomeClimateChart 等）。
-  主要 props / emits：
-    - props widget：微件实例对象
-    - props index / total：当前行序号与总行数（用于禁用首/末移动按钮）
-    - props widgetEditId / heightEditId：当前编辑的实例 ID
-    - props heightDraft / heightPreset / quickButtonOptions 等：高度与快捷按钮配置
-    - emit open-config / open-height / move / toggle-visible / delete / save-config /
-      reset-height / save-height / toggle-quick-button / update-height-draft：所有操作
-  依赖关系：inject(WIDGET_PANEL_CONFIG_KEY) 读写 widgetConfig 上下文；
-    引用 widgetHasConfigPanel / isHubTabsOnlyConfig / hubTabSetFor / widgetConfigBtnLabel /
-    widgetConfigDescription 等内部工具函数判断展示内容。
+  右侧面板微件列表的单行操作组件，展示微件名称/图标/描述与隐藏状态，提供
+  上/下移、开关可见、打开配置、高度编辑、删除等操作按钮。展开时内嵌对应类型的
+  配置子面板（QuickActions / HubTabsConfig / WeatherHub / HomeClimateChart 等）。
   注意事项：高度编辑与配置编辑互斥，一次只允许展开一行；删除实例没有二次确认弹窗。
 -->
 <script setup>
-/**
- * 职责：渲染 views/WidgetPanelRow 页面视图，整合子组件与业务数据。
- */
 import { computed, inject } from 'vue'
 import { Trash2, Eye, EyeOff, Ruler, ChevronUp, ChevronDown } from '@lucide/vue'
 import { getWidgetIcon, getWidgetName } from '@/shared/utils/registry/widget-catalog'

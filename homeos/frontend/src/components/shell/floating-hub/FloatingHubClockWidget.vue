@@ -9,19 +9,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * @file FloatingHubClockWidget.vue
- * @module floorplan/floating-hub
- *
- * 浮动控制中心 - 时钟部件
- *
- * 职责：
- * - 在浮动面板中展示当前时间（HH:mm），每分钟自动刷新
- *
- * 依赖：
- * - vue：computed / inject / unref
- * - FloatingHubContextKey：父组件注入的上下文（提供 nowTime）
- */
+/** 浮动控制中心 - 时钟部件 */
 import { computed, inject, unref } from 'vue'
 import { FloatingHubContextKey } from '@/components/shell/floating-hub/context'
 

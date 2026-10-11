@@ -1,13 +1,3 @@
-/**
- * 文件：useSettingsSidebar.ts
- * 职责：设置侧栏 composable。提供分组展开/折叠、搜索过滤、未保存快捷入口（pendingTray）、
- *       搜索结果高亮等逻辑，供 SettingsSidebar 复用。
- * 关键依赖：
- *   - vue 的 computed / ref / watch / onMounted / onUnmounted
- *   - filterNavGroupsBySearch / flattenNavSearchResults / countNavTabs / highlightSearchParts：导航搜索
- *   - tabLabel：Tab 标签
- *   - getIndependentPendingTabIds：独立保存 Tab 的未保存标记
- */
 import { computed, ref, watch, onMounted, onUnmounted, type Ref } from 'vue'
 import {
   filterNavGroupsBySearch,

@@ -1,21 +1,4 @@
-/**
- * @file geo.util.ts
- * @module @homeos/shared/earthquake
- * @brief Haversine 大圆距离、S 波倒计时与本地烈度估算（含四川盆地缓衰修正）。
- *
- * 职责：
- *  - 计算震中到家庭坐标的距离（km）；
- *  - 基于发震时间与 S 波速度估算横波到达倒计时；
- *  - 基于震级 + 距离估算本地烈度，并对四川盆地软土放大效应做修正。
- *
- * 关键依赖：
- *  - 后端 earthquake 模块在收到 EEW 推送时调用 refineAlertCountdown 计算 distance / countdown / localIntensity；
- *  - 前端仅在测试 / 调试时直接调用本模块。
- *
- * 约定：
- *  - 距离与倒计时保留 1 位小数；烈度限制在 [1.0, 12.0]；
- *  - 盆地修正仅在家庭坐标落入盆地 bbox 时启用。
- */
+/** - 计算震中到家庭坐标的距离（km）； */
 
 /** 地球平均半径（km，Haversine 公式用） */
 const EARTH_RADIUS_KM = 6371;

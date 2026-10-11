@@ -1,12 +1,4 @@
-/**
- * HA 场景 / 脚本实体工具。
- *
- * 职责：
- * - 从记录解析 HA `scene.*` / `script.*` 实体 ID（兼容旧 HomeOS 场景记录的 haConfigId / name）。
- * - 从实体缓存中收集 scene / script 记录，供设置页下拉选择。
- *
- * 依赖：@/shared/entity/utils/derived.util（实体展示名）。
- */
+/** HA 场景 / 脚本实体工具。 */
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import type { EntitySnapshot } from '@/shared/types/entity'
 

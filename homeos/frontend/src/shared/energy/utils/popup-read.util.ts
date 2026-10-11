@@ -1,16 +1,4 @@
-/**
- * @module energy-popup-read.util
- * @description 能源弹窗字段读取工具模块。
- *
- * 职责：在能源弹窗中根据当前激活的实体 ID（activeEntityId）读取字段值或属性值，
- * 兼容用户点击非主实体（如分账户实体、图表实体）的场景。
- *
- * 依赖：
- * - `energy-fields`：字段定义与能源类别。
- * - `energy-entity-read.util`：实体属性读取。
- * - `energy-account.util`：账户索引反查。
- * - `energy-source.util`：能源源规范化、字段解析、余额实体 ID 解析等。
- */
+/** 兼容用户点击非主实体（如分账户实体、图表实体）的场景。 */
 import { getFieldDef, balanceAttrCandidatesForField, type EnergyCategory } from '@/shared/energy/constants/energy-fields'
 import { readEntityAttr } from '@/shared/energy/utils/entity-read.util'
 import { resolveAccountIndexForEntityId } from '@/shared/energy/utils/account.util'

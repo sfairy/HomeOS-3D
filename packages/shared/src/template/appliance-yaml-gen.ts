@@ -1,25 +1,4 @@
-/**
- * @file appliance-yaml-gen.ts
- * @module @homeos/shared/template
- * @brief 家电 template YAML 生成器（按家电类型 + 槽位 mapping 输出 HA template 配置）。
- *
- * 职责：
- *  - 按家电类型（range_hood / washing_machine / air_conditioner 等）生成对应平台的
- *    template YAML（switch / sensor / fan / climate / vacuum / cover / lock / media_player /
- *    water_heater / humidifier）；
- *  - 处理 state / turn_on/off / set_percentage / open_cover / lock 等动作块与 attributes；
- *  - 自定义槽位（非内置 key）按 domain 生成对应 attributes 表达式；
- *  - 附带 extraUnit / extraDeviceClass / extraIcon 顶层字段。
- *
- * 关键依赖：
- *  - appliance-catalog 提供 getApplianceType / getBuiltinSlots / ApplianceSlotDef；
- *  - 前端编辑器与后端持久化调用 buildApplianceTemplateYaml 生成 YAML。
- *
- * 约定：
- *  - 现代 HA template action 语法（- action: domain.service + target.entity_id）；
- *  - attributes 用 "{{ states('id') }}" / "{{ is_state('id','on') }}" 模板；
- *  - 未知家电类型返回 '# 未知家电类型'，不支持的类型返回 '# 不支持的家电类型'。
- */
+/** - 按家电类型（range_hood / washing_machine / air_conditioner 等）生成对应平台的 */
 import { getApplianceType, getBuiltinSlots, type ApplianceSlotDef } from './appliance-catalog';
 
 /**

@@ -96,9 +96,7 @@ class RuntimeLogBuffer:
         self._listeners: set[Callable[[dict[str, Any]], None]] = set()
         self._lock = threading.Lock()
 
-    # ------------------------------------------------------------------ #
     # 写入 / 订阅
-    # ------------------------------------------------------------------ #
     def push(
         self,
         *,
@@ -141,9 +139,7 @@ class RuntimeLogBuffer:
 
         return _unsubscribe
 
-    # ------------------------------------------------------------------ #
     # 查询 / 元信息 / 清空
-    # ------------------------------------------------------------------ #
     def meta(self) -> dict[str, int]:
         with self._lock:
             newest = self._buffer[-1]["id"] if self._buffer else 0

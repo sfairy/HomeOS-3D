@@ -1,13 +1,4 @@
-/**
- * 主布局导航（桌面顶栏）构建工具。
- *
- * 职责：
- * - 维护导航标签中文文案（MAIN_LAYOUT_NAV_LABELS）与各 Tab 主题色（TAB_ACCENTS）
- * - 维护图标名 → 组件映射（mainLayoutIconMap，含内嵌反代图标）
- * - 按布局配置（顺序/可见性/放置/内嵌）构建顶栏与下拉；窄屏溢出收到「更多」
- *
- * 依赖：@lucide/vue 图标；nav-tabs.util / embed-* 布局工具。
- */
+/** 主布局导航（桌面顶栏）构建工具。 */
 
 import {
   Home,

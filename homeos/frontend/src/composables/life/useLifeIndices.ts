@@ -1,22 +1,4 @@
-/**
- * @file useLifeIndices.ts
- * @module composables/life
- * @description 天启生活指数 composable：按已绑定 weather.* 解析 sensor.{station}_* 指数实体。
- *
- * 职责：
- * - 解析当前 weather 实体对应的气象站生活指数（穿衣、舒适度、带伞等）；
- * - 当开启 coldEntityOnDemand 时按需拉取缺失的可选指数实体；
- * - 暴露主指数/可选指数/关注指数/实时指标/预警/头条索引等计算属性。
- *
- * 依赖：
- * - vue（computed、watch、MaybeRef、unref）
- * - @/stores/entities.store（实体状态与 ensureEntities 按需拉取）
- * - @/composables/entity/useWeatherEntity（已绑定 weather 实体解析）
- * - @/composables/entity/useEnsureVisibleEntities（按需可见性上报）
- * - @/shared/utils/config/frontend-config（WS 推送公共配置）
- * - @/shared/entity/utils/cold-fetch.util（冷拉取缺失记录，避免重复探测）
- * - @/shared/weather/utils/life-indices.util（指数解析与天气站工具）
- */
+/** - 解析当前 weather 实体对应的气象站生活指数（穿衣、舒适度、带伞等）； */
 import { computed, watch, type MaybeRef, unref } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useWeatherEntity } from '@/composables/entity/useWeatherEntity'

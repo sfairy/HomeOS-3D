@@ -1,18 +1,6 @@
 <!--
-组件：AlertRulesEntityTtsSection.vue
-所属模块：frontend / src / views / settings / interact / alert-rules
-职责：实体自定义播报规则区段。展示推荐规则卡片，提供实体选择器添加 entity_id，
-      为每个实体配置独立 TTS 话术（状态变化时朗读），支持变量插入与规则增删。
-关键依赖：
-  - RecommendInsightCard：推荐规则卡片（一键添加全部）
-  - EntityInput：实体搜索选择
-  - VoiceSpeechComposer：话术模板编辑（预设/自定义/变量）
-  - SettingsCard / SettingsFlowBand / SettingsFlowStat：卡片与流程概览
-  - useAlertRulesSection：注入 voice 及实体播报相关方法
-  - useAlertRulesRecommend：推荐规则与统计
-  - useEntitiesStore：实体显示名解析
-  - getEntityTtsQuickDomains：实体播报快捷域过滤
-数据来源：useAlertRulesSection() 返回的 voice（含 entityTtsAlerts）；useEntitiesStore 的实体列表
+  实体自定义播报规则区段。展示推荐规则卡片，提供实体选择器添加 entity_id，
+  为每个实体配置独立 TTS 话术（状态变化时朗读），支持变量插入与规则增删。
 -->
 <template>
   <div class="alert-entity-tts">

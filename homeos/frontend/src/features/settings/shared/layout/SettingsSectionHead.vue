@@ -1,14 +1,5 @@
 <!--
-组件：SettingsSectionHead.vue
-所属模块：frontend / src / views / settings / shared / layout
-职责：设置区块标题栏。展示图标圆环、眉题、标题、描述与 #actions 插槽，支持边框与 iconKey 图标解析。
-Props：
-  - title / description / eyebrow：标题/描述/眉题
-  - bordered：是否显示底边
-  - icon / iconKey / iconClass / orbClass：图标配置
-关键依赖：
-  - SETTINGS_HEADER_ICONS：按 iconKey 解析图标
-数据来源：父级透传的 props
+  设置区块标题栏。展示图标圆环、眉题、标题、描述与 #actions 插槽，支持边框与 iconKey 图标解析。
 -->
 <template>
   <div :class="['settings-section-head', bordered && 'settings-section-head--bordered']">

@@ -1,19 +1,4 @@
-/**
- * @file 下拉定位 Composable
- * @module composables/ui/useDropdownPosition
- *
- * 职责：
- *  - useDropdownPosition：实体/搜索下拉的 Teleport 定位，兼容整页等比缩放画布，自动上下翻转。
- *
- * 依赖：
- *  - vue 的 ref / computed / onMounted / onUnmounted / watch / nextTick / Ref。
- *  - usePopupPosition 的 rectToDropdownPosition / buildDropdownFixedStyle / expandDropdownMaxHeight / measureDropdownFitWidth。
- *    锚定下拉挂 #teleport-target，关闭 viewportCoords，走画布坐标换算以与主 UI 同比例缩放。
- *  - popup-position-shared.util 的 collectOverflowScrollParents。
- *  - popup-position-dropdown.util 的 DropdownPosition 类型。
- *  - useKeepAliveGate / useShellTeleportTarget（壳挂载点就绪后再 Teleport）
- *  - useExclusiveDropdown（全局同时仅一个锚定下拉打开）。
- */
+/** - useDropdownPosition：实体/搜索下拉的 Teleport 定位，兼容整页等比缩放画布，自动上下翻转。 */
 import { ref, computed, onMounted, onUnmounted, watch, nextTick, type Ref } from 'vue'
 import {
   rectToDropdownPosition,

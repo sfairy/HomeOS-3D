@@ -32,9 +32,7 @@ def _auto(request: Request):
     return request.app.state.auto_backup
 
 
-# ---------------------------------------------------------------------- #
 # 自动备份状态
-# ---------------------------------------------------------------------- #
 @router.get("/auto/status")
 async def auto_backup_status(
     request: Request, user: dict[str, Any] = Depends(require_user)
@@ -42,9 +40,7 @@ async def auto_backup_status(
     return {"success": True, "data": _auto(request).get_status()}
 
 
-# ---------------------------------------------------------------------- #
 # 服务器全量备份包文件
-# ---------------------------------------------------------------------- #
 @router.post("/files/create")
 async def create_server_backup(
     request: Request, user: dict[str, Any] = Depends(require_user)

@@ -1,23 +1,11 @@
 <!--
-  组件文件：SetupWizardConnectionStep.vue
-  所属模块：frontend/src/features/settings/connect/setup-wizard
-  组件职责：初始化向导的第一步「连接」状态展示页（非输入表单，只读型）。顶部两张
-    状态卡：HA 连接是否成功（✅/🔌）与实体数量；中部根据 steps.connection.done 显示
-    未完成提示并提供前往 HA 连接设置的跳转按钮。
-  主要 props / emits：
-    - props status：向导状态对象（含 ha.connected / ha.entityCount / steps.connection 等字段）
-  依赖关系：引用 SETTINGS_ROUTES.connection() 与 RouterLink 跳转连接设置；
-    AlertTriangle / ExternalLink 图标组件；无写操作。
+  初始化向导的第一步「连接」状态展示页（非输入表单，只读型）。顶部两张
+  状态卡：HA 连接是否成功（✅/🔌）与实体数量；中部根据 steps.connection.done 显示
+  未完成提示并提供前往 HA 连接设置的跳转按钮。
   注意事项：本步骤不直接修改任何配置，只提供状态可视化与跳转入口；用户需到连接页配置
-    后再返回本页，status 会自动刷新。
+  后再返回本页，status 会自动刷新。
 -->
 <script setup>
-/**
- * 职责：渲染 views/SetupWizardConnectionStep 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { AlertTriangle, ExternalLink } from '@lucide/vue'
 import { RouterLink } from 'vue-router'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'

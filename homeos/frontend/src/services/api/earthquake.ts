@@ -1,11 +1,4 @@
-/**
- * 地震预警模块 REST API 封装
- *
- * 职责：封装地震预警连接状态、HA 坐标配置、历史事件、全球地震查询等接口。
- * 依赖：./client 提供的 apiGet / apiPost / apiDelete。
- * 端点范围：/earthquake/status、/earthquake/ha-config、/earthquake/latest、/earthquake/history、
- *           /earthquake/history/simulation、/earthquake/test、/earthquake/dismiss、/earthquake/global。
- */
+/** 地震预警模块 REST API 封装 */
 import type { AxiosRequestConfig } from 'axios'
 import { apiDelete, apiGet, apiPost } from './client'
 
@@ -53,81 +46,48 @@ export interface EarthquakeHaConfigResponse {
   data?: { latitude?: number; longitude?: number }
 }
 
-/**
- * 获取地震预警模块运行状态。
- * 对应后端 endpoint：GET /earthquake/status
- * @returns 连接状态、阈值与家庭坐标
- */
+/** 获取地震预警模块运行状态。 */
 export async function fetchEarthquakeStatus(): Promise<EarthquakeStatusPayload> {
   const res = await apiGet('/earthquake/status')
   return (res.data?.data ?? res.data) as EarthquakeStatusPayload
 }
 
-/**
- * 获取 Home Assistant 地震坐标配置。
- * 对应后端 endpoint：GET /earthquake/ha-config
- * @returns HA 坐标配置响应
- */
+/** 获取 Home Assistant 地震坐标配置。 */
 export async function fetchEarthquakeHaConfig(): Promise<EarthquakeHaConfigResponse> {
   const res = await apiGet('/earthquake/ha-config')
   return res.data as EarthquakeHaConfigResponse
 }
 
-/**
- * 获取最新地震事件。
- * 对应后端 endpoint：GET /earthquake/latest
- * @returns 最新事件数据
- */
+/** 获取最新地震事件。 */
 export async function fetchEarthquakeLatest(config?: AxiosRequestConfig) {
   return apiGet('/earthquake/latest', config)
 }
 
-/**
- * 获取地震历史事件列表。
- * 对应后端 endpoint：GET /earthquake/history
- * @returns 历史事件列表
- */
+/** 获取地震历史事件列表。 */
 export async function fetchEarthquakeHistory(config?: AxiosRequestConfig) {
   return apiGet('/earthquake/history', config)
 }
 
-/**
- * 删除模拟演练本地预警记录。
- * 对应后端 endpoint：DELETE /earthquake/history/simulation
- * @param eventId 指定演练事件；省略则清除全部演练
- */
+/** 删除模拟演练本地预警记录。 */
 export async function deleteEarthquakeSimulationHistory(eventId?: string) {
   return apiDelete('/earthquake/history/simulation', {
     params: eventId ? { eventId } : undefined,
   })
 }
 
-/**
- * 触发地震预警测试。
- * 对应后端 endpoint：POST /earthquake/test
- * @returns 测试结果
- */
+/** 触发地震预警测试。 */
 export async function triggerEarthquakeTest(): Promise<{ success?: boolean; message?: string }> {
   const res = await apiPost('/earthquake/test')
   return res.data
 }
 
-/**
- * 忽略指定地震告警。
- * 对应后端 endpoint：POST /earthquake/dismiss
- * @param eventId 事件标识
- * @returns 操作结果
- */
+/** 忽略指定地震告警。 */
 export async function dismissEarthquakeAlert(eventId: string) {
   const res = await apiPost('/earthquake/dismiss', { eventId })
   return res.data
 }
 
-/**
- * 查询全球地震事件。
- * 对应后端 endpoint：GET /earthquake/global
- * @returns 全球地震列表
- */
+/** 查询全球地震事件。 */
 export async function fetchGlobalEarthquakes(
   params?: {
     source?: string

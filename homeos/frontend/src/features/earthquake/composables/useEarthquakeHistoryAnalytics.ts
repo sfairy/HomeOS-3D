@@ -22,17 +22,10 @@ import { formatEarthquakeMagnitude } from '@/composables/earthquake/earthquake-l
 
 /**
  * 地震预警历史分析 composable
- *
- * 模块职责：
- *  - 接收地震事件列表（本地 EEW 记录或远端筛选结果），派生统计摘要与分桶数据；
- *  - 渲染 4 个 ECharts 图表：震级分布、距离分布、时间分布、附加维度（深度/震中 Top）；
- *  - 提供 KPI 单元格数据供模板渲染（事件总数、最大震级、强震数、近距事件等）；
- *  - 自动响应容器尺寸变化与可见性变化，重渲染图表。
- *
- * 依赖：
- *  - @/composables/ui/useEchartsHost（图表实例生命周期、渲染调度、重试与 resize 观察）；
- *  - ../utils/earthquake-history-analytics.util（统计与分桶逻辑）；
- *  - ../utils/earthquake.util（震级格式化）。
+ * - 接收地震事件列表（本地 EEW 记录或远端筛选结果），派生统计摘要与分桶数据；
+ * - 渲染 4 个 ECharts 图表：震级分布、距离分布、时间分布、附加维度（深度/震中 Top）；
+ * - 提供 KPI 单元格数据供模板渲染（事件总数、最大震级、强震数、近距事件等）；
+ * - 自动响应容器尺寸变化与可见性变化，重渲染图表。
  */
 
 /**

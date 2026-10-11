@@ -1,17 +1,7 @@
 <!--
-  组件文件：FooterIconPicker.vue
-  所属模块：frontend/src/components/common
-  组件职责：底栏 / 表单用 emoji 图标选择器。触发器显示当前图标 + 文字标签「图标」（紧凑模式隐藏标签）+
-    ChevronDown；点击展开后 Teleport 传送图标网格面板（minWidth 248px，maxHeight 280px），
-    网格内预置图标列表 DASHBOARD_FOOTER_ICONS 可点击选择，末尾自定义 emoji 输入（最多 8 字符）。
-  主要 props / emits：
-    - props.modelValue：当前 emoji（v-model 绑定），默认 '⚡'；
-      props.compact：紧凑模式（隐藏「图标」文字）；props.icons：自定义图标列表；
-      props.fallbackIcon：modelValue 为空时的回退图标，默认 '⚡'。
-    - emit update:modelValue：选择网格项或自定义输入时回传 emoji 字符串。
-  依赖关系：vue computed/ref；@lucide/vue ChevronDown；constants/dashboard-footer DASHBOARD_FOOTER_ICONS；
-    composables：useClickOutside（外部点击关闭面板）、useDropdownPosition（智能定位面板防止溢出视口，
-    根据触发器位置计算 dropdownStyle 与 teleportTarget）。
+  底栏 / 表单用 emoji 图标选择器。触发器显示当前图标 + 文字标签「图标」（紧凑模式隐藏标签）+
+  ChevronDown；点击展开后 Teleport 传送图标网格面板（minWidth 248px，maxHeight 280px），
+  网格内预置图标列表 DASHBOARD_FOOTER_ICONS 可点击选择，末尾自定义 emoji 输入（最多 8 字符）。
 -->
 <template>
   <div ref="rootRef" class="ef-icon-picker" :class="compact && 'ef-icon-picker--compact'">
@@ -61,18 +51,7 @@
 </template>
 
 <script setup>
-/**
- * @file FooterIconPicker.vue
- * @module common/FooterIconPicker
- * @description 底栏图标选择器（v-model 双向绑定 emoji）
- *  职责：
- *    - 触发器展示当前 emoji 与下拉箭头；
- *    - 点击展开图标网格（默认使用底栏图标集 DASHBOARD_FOOTER_ICONS）；
- *    - 支持自定义 emoji 输入（最多 8 字符）；
- *    - 通过 useDropdownPosition 智能定位面板，useClickOutside 实现外部点击关闭。
- *  依赖：vue computed/ref，@lucide/vue ChevronDown，constants/dashboard-footer，
- *    composables/ui 的 useClickOutside 与 useDropdownPosition。
- */
+/** - 触发器展示当前 emoji 与下拉箭头； */
 import { computed, ref } from 'vue'
 import { ChevronDown } from '@lucide/vue'
 import { DASHBOARD_FOOTER_ICONS } from '@/shared/constants/dashboard-footer'

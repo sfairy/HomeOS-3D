@@ -1,17 +1,6 @@
 <!--
-组件：SettingsVoiceOverviewSection.vue
-所属模块：frontend / src / views / settings / interact / voice
-职责：语音概览区段。通过 FlowBand 展示语音子系统配置摘要与运行状态，含交互方式、每日问候、
-      识别/播报引擎、音箱数量、语音命令数等指标。
-Props：
-  - sttModeLabel / intentLabel / ttsSpeakerLabel：引擎与意图文案
-  - voiceCommandsCount：语音命令数量
-  - entityStats：实体统计（tts / stt / media）
-  - voice：语音配置对象
-  - voiceRooms：语音房间列表
-关键依赖：
-  - SettingsCard / SettingsSectionHead / SettingsFlowBand / SettingsFlowStat：卡片与流程
-数据来源：父级 SettingsVoicePanel 透传的 props
+  语音概览区段。通过 FlowBand 展示语音子系统配置摘要与运行状态，含交互方式、每日问候、
+  识别/播报引擎、音箱数量、语音命令数等指标。
 -->
 <template>
   <div class="settings-hub-section">

@@ -1,14 +1,6 @@
 <!--
-组件：SettingsHomeModePanel.vue
-所属模块：frontend / src / views / settings / automate
-职责：「居家模式」设置面板入口。以 SettingsPageShell 单列布局承载 HomeModePanel，
-      并在页头保存条上挂载 SettingsPendingSaveAction，桥接到 home-mode 编辑器。
-关键依赖：
-  - SettingsPageShell：通用设置页壳（标题/图标/操作槽/滚动控制）
-  - SettingsPendingSaveAction：待保存操作条
-  - useHomeModePanelBridge：获取 home-mode 面板的待保存/保存中状态与保存/取消回调
-  - HomeModePanelSection：实际的居家模式编辑器
-数据来源：useHomeModePanelBridge 返回的响应式状态
+  「居家模式」设置面板入口。以 SettingsPageShell 单列布局承载 HomeModePanel，
+  并在页头保存条上挂载 SettingsPendingSaveAction，桥接到 home-mode 编辑器。
 -->
 <template>
   <SettingsPageShell
@@ -45,7 +37,6 @@ import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendin
 import { useHomeModePanelBridge } from '@/features/home-mode'
 import { HomeModePanel } from '@/features/home-mode'
 
-// 入参：当前激活的 Tab ID（默认 home-mode）
 defineProps({ activeTab: { type: String, default: 'home-mode' } })
 
 // 桥接到 home-mode 编辑器的待保存状态与保存/取消回调

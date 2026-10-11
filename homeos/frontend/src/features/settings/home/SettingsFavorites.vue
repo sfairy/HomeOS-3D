@@ -1,15 +1,6 @@
 <!--
-组件：SettingsFavorites.vue
-所属模块：frontend / src / views / settings / home
-职责：收藏实体面板入口。按 domain 分类展示收藏设备卡片，支持配置进度、推荐纳入、
-      过滤（全部/已配置/待配置），点击卡片打开实体选择弹窗。页头提供保存/取消。
-关键依赖：
-  - SettingsPageShell / SettingsCard / SettingsPendingSaveAction：页面骨架与保存条
-  - SettingsFlowBand / SettingsFlowStat：流程概览与统计
-  - RecommendInsightCard：推荐设备卡片
-  - EntityPickModal（异步）：实体选择弹窗
-  - useFavoritesHub：分类视图、推荐、过滤等派生
-数据来源：useFavoritesHub() 返回的 categoryViews / recommendations / 过滤选项
+  收藏实体面板入口。按 domain 分类展示收藏设备卡片，支持配置进度、推荐纳入、
+  过滤（全部/已配置/待配置），点击卡片打开实体选择弹窗。页头提供保存/取消。
 -->
 <template>
   <SettingsPageShell
@@ -185,7 +176,6 @@ const EntityPickModal = defineAsyncComponent(
 )
 
 
-// 入参：当前激活的 Tab id
 defineProps({ activeTab: { type: String, default: 'favorites' } })
 
 const {

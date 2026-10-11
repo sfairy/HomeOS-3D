@@ -1,18 +1,4 @@
-/**
- * @file account-binding-categories.util.ts
- * @module @homeos/shared/setup
- * @brief 生活账户绑定类别标签 / 通信运营商分类 / 底栏账户引用聚合（首装健康检查共用）。
- *
- * 职责：
- *  - 维护 source key → 简短中文标签（电网 / 燃气 / 水务 / 电信 / 联通）；
- *  - 区分通信账户（COMM_*）与能源公用事业账户（ENERGY_*）；
- *  - 提供底栏项启用且使用账户绑定的 source 集合（collectFooterAccountSources）；
- *  - 提供完整性检查所需账户类别（默认电网 + 底栏引用）与深链路由解析。
- *
- * 关键依赖：
- *  - bindings-gaps.util.ts 调用本模块统计能源账户缺口；
- *  - 底栏项 DashboardFooterItemLike 为最小接口，由调用方传入完整结构。
- */
+/** - 维护 source key → 简短中文标签（电网 / 燃气 / 水务 / 电信 / 联通）； */
 
 /** 底栏项最小接口（绑定缺口 / 账户类别推断） */
 export interface DashboardFooterItemLike {

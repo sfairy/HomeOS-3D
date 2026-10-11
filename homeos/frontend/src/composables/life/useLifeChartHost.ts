@@ -1,12 +1,4 @@
-/**
- * 各独立 Hub / 模块页通用的 ECharts 挂载：init / resize / dispose，
- * 内置尺寸为 0 时的重试与 ResizeObserver 绑定。
- *
- * 职责：在指定 DOM 元素上初始化 ECharts 实例，监听依赖变化重绘，监听容器尺寸变化 resize，
- *   并在尺寸为 0 时通过调度器重试，组件卸载时 dispose。
- *
- * 依赖：vue、echarts（动态 import）、chart-resize.util。
- */
+/** 各独立 Hub / 模块页通用的 ECharts 挂载：init / resize / dispose， */
 import { onMounted, onUnmounted, watch, nextTick, type Ref, type WatchSource } from 'vue'
 import type * as EchartsModuleNS from '@/shared/utils/chart/echarts'
 import {

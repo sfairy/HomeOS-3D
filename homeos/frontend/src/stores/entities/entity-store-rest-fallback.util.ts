@@ -1,23 +1,4 @@
-/**
- * @file entity-store-rest-fallback.util.ts
- * @module frontend/src/stores
- * 实体 store REST 回退与增量同步（从 entity-store-support.ts 拆回）。
- *
- * 职责：
- * - fetchAllEntitiesViaRest：分页拉取全量实体（cursor 翻页，最多 50 轮保护）
- * - fetchEntitiesFallback：WS 同步失败时通过 REST 全量回退；复用在途 Promise 避免并发拉取
- * - fetchEntitiesChangedSince：REST 增量同步（页面恢复可见时拉取离线期间变更）
- * - bindVisibilityFallbackHandler：注册页面可见性回调，恢复可见时优先增量同步，失败则全量回退
- *
- * 关键依赖：
- * - @/services/api/entities：fetchEntitiesChanged（增量同步接口）
- * - @/shared/entity/utils/state-listener：setStateListenerVisibilityHandler（注册可见性回调）
- * - @/shared/entity/utils/sync-failure.util：handleEntityFallbackFailure（统一失败处理 + stale 标记）
- *
- * 实现说明：
- * - restFetchInFlight 用于并发去重：在途期间复用同一 Promise，避免重复发请求
- * - 增量同步通过 socketTrack.lastSocketEventAt / lastEventId 作为 since 参数
- */
+/** 实体 store REST 回退与增量同步（从 entity-store-support.ts 拆回）。 */
 import type { EntityRestFallbackDeps, HaEntityState } from '@/shared/types/entity-store'
 import { setStateListenerVisibilityHandler } from '@/shared/entity/utils/state-listener'
 import { handleEntityFallbackFailure } from '@/shared/entity/utils/sync-failure.util'

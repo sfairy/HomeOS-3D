@@ -1,14 +1,6 @@
 <!--
-组件：SettingsSecurityModesEmergencySection.vue
-所属模块：frontend / src / views / settings / automate
-职责：安防模式「紧急求助 SOS」配置卡片。展示预设档位、重点灯池选择、灯光亮度、
-      自动离家布防开关与自定义联动动作列表；支持批量添加与单条添加。
-关键依赖：
-  - HosSelect / EntityInput / SettingsRangeField：下拉、实体输入、范围滑块
-  - normalizeSecurityEmergency：归一化紧急求助配置
-  - useLayoutStore：读写 securityEmergency 配置
-  - Zap / Plus / Layers / Trash2 / AlertTriangle 图标来自 @lucide/vue
-数据来源：layoutStore.securityEmergency + 父级透传的预设、灯池、域/服务列表与回调
+  安防模式「紧急求助 SOS」配置卡片。展示预设档位、重点灯池选择、灯光亮度、
+  自动离家布防开关与自定义联动动作列表；支持批量添加与单条添加。
 -->
 <template>
   <section
@@ -304,7 +296,6 @@ import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import { useLayoutStore } from '@/stores/layout.store'
 import { normalizeSecurityEmergency } from '@/shared/constants/security-emergency'
 
-// 入参：是否嵌入、当前激活预设、预设列表、汇总文案、灯池相关数据与批量/动作回调函数
 const props = defineProps({
   embedded: { type: Boolean, default: false },
   activeEmergencyPresetId: { type: String, default: '' },
@@ -344,7 +335,6 @@ function ensureSecurityEmergency() {
 // 紧急求助配置对象（响应式引用，依赖 ensureSecurityEmergency）
 const emergencyConfig = computed(() => ensureSecurityEmergency())
 
-// 双向绑定：批量面板的展开态、域、服务、勾选实体
 const emShowBatch = defineModel('emShowBatch', { type: Boolean, default: false })
 const emBatchDomain = defineModel('emBatchDomain', { type: String, default: '' })
 const emBatchService = defineModel('emBatchService', { type: String, default: '' })

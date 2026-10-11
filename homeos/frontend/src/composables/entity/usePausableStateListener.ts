@@ -1,16 +1,4 @@
-/**
- * 可暂停实体状态监听器组合式函数
- *
- * 职责：在页面隐藏（document.hidden）或 keep-alive 组件停用时自动暂停实体状态变更回调，
- *      页面恢复时自动恢复，减少后台期间大量批更新的扇出开销；支持按 entityIds / domains
- *      精确过滤监听范围，避免全局监听引发不必要的重渲染。
- * 入参：
- *   - callback：实体状态变更回调（接收 entity_id / new_state / old_state payload）
- *   - options.filter：自定义过滤器函数；options.entityIds：指定监听实体 ID；options.domains：指定监听域
- * 返回：手动取消订阅函数
- * 内部副作用：注册 visibilitychange 事件监听；卸载自动清理。
- * 性能：实体/域列表变更以 join 指纹替代 deep watch，避免大型数组逐元素比较。
- */
+/** 可暂停实体状态监听器组合式函数 */
 import {
   onMounted,
   onUnmounted,

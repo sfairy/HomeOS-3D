@@ -1,24 +1,4 @@
-/**
- * IndexedDB 实体缓存读写（从 entities.store 抽离）
- *
- * 职责：
- * - markEntityCacheDirty：标记脏实体（按 entity_id 增量收集）
- * - schedulePersistEntityCache：调度持久化（requestIdleCallback 优先，setTimeout 兜底）
- *   含 30s 最小写入间隔节流，防止高频状态推送导致 IDB 写放大
- * - persistEntityCacheNow：立即持久化（页面隐藏 / 即将卸载时强制调用）
- *   按 dirty 占比选择「增量分片写」或「全量分片写」
- * - hydrateFromEntityCache：从 IDB 恢复到内存，含懒加载分流（priority 立即 + deferred idle 补全）
- * - cancelPersistCacheTimer / isPersistCacheDirty：定时器与脏标志管理
- *
- * 关键依赖：
- * - @/shared/entity/utils/idb-cache：IDB 分片读写、缓存 key 构造、特性开关
- * - @/shared/entity/utils/sync-priority.util：按布局配置对实体做优先级分流
- * - @homeos/shared：getEntityDomain（按域分组分片）
- *
- * 实现说明：
- * - 用脏实体占比 0.8 作为「增量 / 全量」分片写入切换阈值
- * - 乐观态实体（_optimistic=true）不写入缓存
- */
+/** IndexedDB 实体缓存读写（从 entities.store 抽离） */
 import { toRaw, type Ref } from 'vue'
 import { getEntityDomain } from '@homeos/shared'
 import {

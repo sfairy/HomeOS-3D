@@ -1,13 +1,4 @@
-/**
- * @file Screensaver.vue
- * @module common/Screensaver
- * @description 全屏屏保 overlay
- *  职责：
- *    - 支持时钟/天气两种模式，响应缩放布局与点击/触摸唤醒；
- *    - 渲染背景、品牌、时钟/天气面板；
- *    - 通过 useScreensaver 统一管理可见性、模式、布局度量与 dismissing。
- *  依赖：composables/ui/useScreensaver，screensaver 子目录下的 Background/Brand/ClockPanel/WeatherPanel。
- */
+/** - 支持时钟/天气两种模式，响应缩放布局与点击/触摸唤醒； */
 <template>
   <Teleport to="body">
     <Transition name="ss-overlay">
@@ -74,12 +65,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 Screensaver 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 import { useScreensaver } from '@/composables/ui/useScreensaver'
 import ScreensaverBackground from '@/components/common/screensaver/Background.vue'
 import ScreensaverBrand from '@/components/common/screensaver/Brand.vue'

@@ -434,8 +434,8 @@ def main() -> int:
 
     # ── 6. 共享包边界：`packages/shared` 不得反向引用任一应用 ──────────────────
     #
-    # 这一组补的是**依赖方向的另一半**：第 2 组只看两个应用的 frontend，从不看共享包自身。
-    # 所以「共享包 import 应用的东西」此前没有任何门禁。
+    # 这一组补的是**依赖方向的另一半**：第 2 组只看两个应用的 frontend，不看共享包自身，
+    # 故「共享包 import 应用的东西」在此之外没有门禁。
     def shared_boundary_clean(root: Path) -> None:
         expect_clean(run_gate(root), "共享包边界干净")
 

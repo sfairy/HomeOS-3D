@@ -1,17 +1,4 @@
-/**
- * 设备使用统计 Composable
- *
- * 模块：设备详情 / 使用统计
- * 职责：
- *   - 根据 entity_id 与时间窗口（默认 7 天）拉取设备使用报告（DeviceUsageReport）。
- *   - 暴露 loading / error / report 三个响应式状态供组件消费。
- *   - 通过 createFetchSequence 串行化请求，避免快速切换设备时旧请求覆盖新结果。
- *
- * 依赖：
- *   - @/services/api/system.fetchAdvisorUsage：HomeAdvisor 用量统计接口。
- *   - @/shared/utils/core/misc.util.createFetchSequence：请求序号守卫，过滤过期响应。
- *   - @/shared/types/device.DeviceUsageReport：用量统计返回类型。
- */
+/** 设备使用统计 Composable */
 import { ref, watch, type Ref } from 'vue'
 import { fetchAdvisorUsage } from '@/services/api/system'
 import type { DeviceUsageReport } from '@/shared/types/device'

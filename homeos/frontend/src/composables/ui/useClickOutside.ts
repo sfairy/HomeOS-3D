@@ -1,14 +1,4 @@
-/**
- * @file 点击外部检测 Composable
- * @module composables/ui/useClickOutside
- *
- * 职责：
- *  - 在 document 上监听指定事件（默认 click），当点击发生在目标元素外部时触发回调。
- *  - 组件卸载时自动移除监听，避免内存泄漏。
- *
- * 依赖：
- *  - vue 的 onMounted / onUnmounted 生命周期钩子与 Ref 类型。
- */
+/** - 在 document 上监听指定事件（默认 click），当点击发生在目标元素外部时触发回调。 */
 import { onMounted, onUnmounted, type Ref } from 'vue'
 
 /** 目标引用类型：可为 Ref<HTMLElement> / Ref<HTMLElement[]> / 取值函数 */

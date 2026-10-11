@@ -1,17 +1,4 @@
-/**
- * 系统配置字段提示文案表（含生效范围后缀）
- *
- * 职责：
- * - 维护 SystemConfig 字段 key → 面向用户的中文提示文案映射表（HINT_TEXT）。
- * - 在高级参数面板中按字段 key 追加提示文案与生效范围后缀，帮助用户理解
- *   每项参数的语义、推荐取值与修改后的生效方式（前端热更新 / 后端重启 / 等）。
- *
- * 依赖：./field-apply.util 的 FIELD_APPLY_SCOPE 提供「字段 → 生效范围」映射。
- *
- * 注意：
- * - 对象 key（settings.systemConfig.fieldHint.{fieldKey}）为 i18n 风格 key，不翻译。
- * - 仅面向用户的提示文案 value 使用简体中文。
- */
+/** 系统配置字段提示文案表（含生效范围后缀） */
 import { FIELD_APPLY_SCOPE } from './field-apply.util'
 
 /** 字段 key → 中文提示文案映射（i18n 风格 key，与设置页查表对齐） */

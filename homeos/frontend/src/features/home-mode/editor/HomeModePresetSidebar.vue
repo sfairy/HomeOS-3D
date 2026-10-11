@@ -1,10 +1,6 @@
 <!--
-组件：HomeModePresetSidebar.vue
-所属模块：frontend / src / views / settings / automate / home-mode
-职责：家庭模式预设包侧栏容器。包头部介绍与滚动区，内部复用 HomeModePresetCards 以
-      单列堆叠形式展示预设卡片，安装事件向上透传。
-关键依赖：HomeModePresetCards
-数据来源：父级透传的 presets / installing
+  家庭模式预设包侧栏容器。包头部介绍与滚动区，内部复用 HomeModePresetCards 以
+  单列堆叠形式展示预设卡片，安装事件向上透传。
 -->
 <template>
   <aside class="hm-preset-sidebar" :aria-label="'全屋场景预设包'">

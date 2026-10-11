@@ -1,28 +1,12 @@
 <!--
-  组件文件：SetupWizardCompleteStep.vue
-  所属模块：frontend/src/features/settings/connect/setup-wizard
-  组件职责：初始化向导的最后一步「完成」页。上部展示前 5 步完成情况时间线（对勾/圆圈
-    /叉号图标表示 done/active/idle 状态），中部展示能源学习期提示与首装清单建议
-    （可点击打开对应设置项或整体关闭清单），底部提供「打开使用文档」与「进入首页」
-    RouterLink 按钮，错误时顶部展示清单加载错误 alert。
-  主要 props / emits：
-    - props wizardSteps：步骤元信息数组（用于渲染前 5 步时间线）
-    - props status：向导状态对象（判断每步 done）
-    - props learningDays：能源学习期天数（默认 7）
-  依赖关系：引用 useChromeStore Pinia store 触发 toast 通知；fetchSetupChecklist /
-    dismissSetupChecklist API 拉取与关闭首装清单；fetchSystemConfigFresh 关闭清单后
-    刷新系统配置；SETTINGS_ROUTES.setupWizard/itemRoute 生成深链；logger 与
-    getApiErrorMessage 做错误日志与友好消息转换。
+  初始化向导的最后一步「完成」页。上部展示前 5 步完成情况时间线（对勾/圆圈
+  /叉号图标表示 done/active/idle 状态），中部展示能源学习期提示与首装清单建议
+  （可点击打开对应设置项或整体关闭清单），底部提供「打开使用文档」与「进入首页」
+  RouterLink 按钮，错误时顶部展示清单加载错误 alert。
   注意事项：首装清单由后端返回（可为空），dismiss 后调用 fetchSystemConfigFresh
-    同步顶栏徽标；onMounted 自动触发 loadChecklist 加载。
+  同步顶栏徽标；onMounted 自动触发 loadChecklist 加载。
 -->
 <script setup>
-/**
- * 职责：渲染 views/SetupWizardCompleteStep 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { ref, onMounted, computed } from 'vue'
 import {
   CheckCircle2,

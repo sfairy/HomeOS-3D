@@ -1,16 +1,4 @@
-/**
- * 商业授权 REST API（单 HTTP 栈）
- *
- * 职责：查询联网租约授权状态、用「购买邮箱 + 激活码」激活、显式重试续租 / 恢复，
- *       以及把授权状态码 / 错误信封翻译成面向用户的中文文案。
- * 依赖：./client 提供的 apiGet / apiPost；@/shared/utils/core/error-message 的统一错误文案。
- * 端点：GET /license/status、GET /license/availability、POST /license/activate、
- *       POST /license/reactivate、POST /license/retry。
- *
- * 鉴权口径：`/availability` 公开脱敏；`/status`、`/activate`、`/reactivate`、`/retry`
- * 均要求登录会话（激活会上报本机账号名）。因此**门禁探测一律走 `/availability`**
- * （未登录也能读），`/status` 只用于已登录的管理面（编辑器诊断）。
- */
+/** 商业授权 REST API（单 HTTP 栈） */
 import { apiGet, apiPost } from './client'
 import { getApiErrorMessage, isUnauthorizedError } from '@/shared/utils/core/error-message'
 
@@ -277,22 +265,12 @@ export function getLicenseStatus() {
   return apiGet<LicenseStatus>('/license/status', { dedupe: false })
 }
 
-/**
- * 获取当前实例的授权可用性。对应后端 endpoint：GET /license/availability
- *
- * 公开脱敏接口：返回门禁判定所需的 `required` / `allowed` / `editorAllowed` /
- * `displayAllowed` 与状态码，不含实例标识与凭证。路由门禁与未登录页面都读它。
- */
+/** 获取当前实例的授权可用性。对应后端 endpoint：GET /license/availability */
 export function getLicenseAvailability() {
   return apiGet<LicenseAvailability>('/license/availability', { dedupe: false })
 }
 
-/**
- * 提交「购买邮箱 + 激活码」完成激活。
- * 对应后端 endpoint：POST /license/activate
- * @param email 商店下单账号邮箱
- * @param activationCode 商店发放的激活码
- */
+/** 提交「购买邮箱 + 激活码」完成激活。 */
 export function activateLicense(email: string, activationCode: string) {
   return apiPost<LicenseStatus>('/license/activate', { email, activationCode })
 }

@@ -1,27 +1,10 @@
 <!--
-  组件文件：WidgetConfigQuickActions.vue
-  所属模块：frontend/src/features/settings/display/widgets
-  组件职责：小部件配置面板中的快捷操作（顶部快捷按钮）子面板，提供 1~4 个按钮的启用/
-    禁用切换（已激活按钮按点击顺序排列显示序号），以及灯光/温控/电池/离线四个统计源
-    汇总传感器的 EntityInput 绑定。
-  主要 props / emits：
-    - props quickButtonOptions：可选按钮配置数组
-    - props maxQuickButtons：最大允许激活数（4）
-    - props quickSelectedCount / quickButtonsFull：当前选中数与是否已满
-    - props isQuickButtonOn / quickButtonOrder：回调函数判断按钮开关与排序序号
-    - emit save：保存草稿到编辑态
-    - emit toggle-quick-button：点击某按钮切换开关，payload 为按钮 id
-  依赖关系：通过 inject(WIDGET_PANEL_CONFIG_KEY) 读取/写入 lights/climates/battery/
-    offline 四个统计源字段；使用 EntityInput 做实体绑定。
+  小部件配置面板中的快捷操作（顶部快捷按钮）子面板，提供 1~4 个按钮的启用/
+  禁用切换（已激活按钮按点击顺序排列显示序号），以及灯光/温控/电池/离线四个统计源
+  汇总传感器的 EntityInput 绑定。
   注意事项：至少须保留 1 个按钮激活（满员时未选中按钮自动禁用）；保存仍须经过「保存布局」。
 -->
 <script setup>
-/**
- * 职责：渲染 views/WidgetConfigQuickActions 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { Zap } from '@lucide/vue'
 import { inject } from 'vue'
 import EntityInput from '@/components/common/EntityInput.vue'

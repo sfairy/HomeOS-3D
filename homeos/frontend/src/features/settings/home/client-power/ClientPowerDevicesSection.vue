@@ -1,30 +1,15 @@
 <!--
-组件：ClientPowerDevicesSection.vue
-所属模块：frontend / src / views / settings / home / client-power
-职责：充放电策略区段。展示已配置终端列表，每台终端含设备类型/在线状态/电量条/规格 chip、
-      充电器 Switch 实体绑定、低/高/应急电量阈值、峰谷错峰与人来亮屏开关，并提供保存。
-      本机 ID 与已配置终端不一致时，人来亮屏旁提示单机回退或请从待配对添加。
-关键依赖：
-  - SettingsCard / SettingsCardIntro：卡片与头部
-  - EntityInput：充电器 Switch 实体输入
-  - ClientPowerBatteryBar：电量条
-  - lucide 图标
-数据来源：父级透传的 config / pending / 各类派生函数
+  充放电策略区段。展示已配置终端列表，每台终端含设备类型/在线状态/电量条/规格 chip、
+  充电器 Switch 实体绑定、低/高/应急电量阈值、峰谷错峰与人来亮屏开关，并提供保存。
+  本机 ID 与已配置终端不一致时，人来亮屏旁提示单机回退或请从待配对添加。
 -->
 <script setup>
-/**
- * 职责：渲染 views/ClientPowerDevicesSection 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { Loader2, Monitor, Plus, PlugZap, Save, Smartphone, Tablet, Trash2 } from '@lucide/vue'
 import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
 import SettingsCardIntro from '@/components/common/page-shell/SettingsCardIntro.vue'
 import EntityInput from '@/components/common/EntityInput.vue'
 import ClientPowerBatteryBar from './ClientPowerBatteryBar.vue'
 
-// 入参：配置/待配对/加载保存状态/统计数/各类派生函数（实时行/设备类型/标题/校验/电量/规格）
 defineProps({
   config: { type: Object, required: true },
   pending: { type: Array, default: () => [] },

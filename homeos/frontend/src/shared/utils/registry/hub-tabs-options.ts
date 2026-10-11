@@ -1,19 +1,4 @@
-/**
- * 顶层 Hub 微件 Tab 选项与配置规范化
- *
- * 职责：
- * - 维护各 Hub 微件（环境 / 气候 / 日程 / 看护 / 门锁 / 智能建议 / 多媒体 / 能源 /
- *   安防 / 场景 / 运维 / 开关分组 / 场景脚本）的可选 Tab 注册表。
- * - 提供 Tab 集查询、默认 Tab 解析、配置规范化、可见 Tab 过滤、草稿克隆与序列化工具。
- *
- * 依赖：
- * - @/shared/utils/registry/floating-hub-tab-options 的默认 Tab 表。
- * - @/shared/utils/registry/weather-hub-options 的天气 Hub Tab 与类型判定。
- *
- * 注意：
- * - `id`（overview / life / ...）为 Tab 配置 key，不翻译。
- * - 仅 `label`（面向用户的 Tab 文案）使用简体中文。
- */
+/** 顶层 Hub 微件 Tab 选项与配置规范化 */
 import { FLOATING_HUB_DEFAULT_TAB } from '@/shared/utils/registry/floating-hub-tab-options'
 import { WEATHER_HUB_TABS, isWeatherHubWidgetType } from '@/shared/utils/registry/weather-hub-options'
 

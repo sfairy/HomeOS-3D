@@ -1,14 +1,4 @@
-/**
- * 设备页深链 URL 构建工具（与 settingsRoute 对称）
- *
- * 职责：
- * - 构建设备页深链 URL，统一 list / analytics / offline / favorites / domain / search 等
- *   场景的 query 拼装，省略空值 / false，避免重复参数模板。
- *
- * 依赖：无外部依赖，纯函数 + URLSearchParams。
- *
- * 注意：query key（view / status / controllable / favorites / domain / q）为路由参数 key，不翻译。
- */
+/** 设备页深链 URL 构建工具（与 settingsRoute 对称） */
 type DevicesRouteQuery = Record<string, string | number | boolean | undefined | null>
 
 function devicesRoute(query: DevicesRouteQuery = {}) {

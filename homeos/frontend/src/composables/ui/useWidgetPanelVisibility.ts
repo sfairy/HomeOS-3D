@@ -1,11 +1,4 @@
-/**
- * @file useWidgetPanelVisibility.ts
- * @module composables/ui
- * @description 监听面板 widget 是否在视口内的 composable（用于侧栏滚动时暂停图表）。
- *
- * 依赖：
- * - vue（ref/onUnmounted/Ref 类型）
- */
+/** - vue（ref/onUnmounted/Ref 类型） */
 import { ref, onUnmounted, type Ref } from 'vue'
 /** 侧栏需视口门控的 widget（图表 / 轮播 / 媒体 / 天气动画） */
 export const PANEL_VISIBILITY_WIDGET_TYPES = new Set([

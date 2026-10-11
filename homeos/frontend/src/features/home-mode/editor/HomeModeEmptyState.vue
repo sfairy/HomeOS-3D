@@ -1,30 +1,13 @@
-/**
- * 组件：HomeModeEmptyState.vue
- *
- * 职责：家庭模式「空状态」。无任何模式时展示引导卡片，提供「初始化默认」「新建模式」
- *      入口，并复用右侧预设侧栏供一键安装预设包。
- * 关键依赖：
- *  - HomeModePresetSidebar：预设包侧栏
- * 数据来源：父级透传的预设列表 / 安装中状态
- */
 <script setup>
-/**
- * 职责：渲染 views/HomeModeEmptyState 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { Home } from '@lucide/vue'
 import HomeModePresetSidebar from './HomeModePresetSidebar.vue'
 
-// 入参：是否展示预设侧栏、预设列表、正在安装的预设 id
 defineProps({
   showPresetSidebar: { type: Boolean, default: false },
   modePresets: { type: Array, default: () => [] },
   presetInstalling: { type: [String, null], default: null },
 })
 
-// 对外事件：初始化默认、新建模式、安装预设
 const emit = defineEmits(['seed', 'create', 'install-preset'])
 </script>
 

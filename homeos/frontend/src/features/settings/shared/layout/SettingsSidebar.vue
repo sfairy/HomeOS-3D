@@ -1,21 +1,6 @@
 <!--
-组件：SettingsSidebar.vue
-所属模块：frontend / src / views / settings / shared / layout
-职责：设置页桌面端侧栏。分组折叠导航 + 搜索过滤 + 未保存快捷入口（pendingTray），
-      顶部含保存/取消按钮与版本号。搜索、分组展开等逻辑由 useSettingsSidebar 提供。
-Props：
-  - groups：导航分组列表
-  - activeTab：当前激活 Tab id
-  - saving / showSave / usesIndependentSave：保存按钮状态
-  - pendingChanges：未保存修改数
-  - searchQuery：搜索关键词
-  - appVersion：应用版本号
-Emits：
-  - navigate / save / cancel / toggle-collapse / update:searchQuery
-关键依赖：
-  - useSettingsSidebar：分组展开、搜索、未保存快捷入口
-  - @lucide/vue 的 Loader2 / Save / ChevronDown / PanelLeftClose / Search / X
-数据来源：父级透传的 groups / activeTab 等
+  设置页桌面端侧栏。分组折叠导航 + 搜索过滤 + 未保存快捷入口（pendingTray），
+  顶部含保存/取消按钮与版本号。搜索、分组展开等逻辑由 useSettingsSidebar 提供。
 -->
 <template>
   <aside class="settings-sidebar">

@@ -104,9 +104,7 @@ def install_emit_recorder(gw: RealtimeGateway) -> tuple[list[tuple[str, dict[str
     return emitted, get_session_calls
 
 
-# ---------------------------------------------------------------- #
 # 1. 会话镜像：广播期间不再读引擎会话
-# ---------------------------------------------------------------- #
 
 print("1. 会话镜像避免逐 sid get_session")
 
@@ -148,9 +146,7 @@ emitted.clear()
 asyncio.run(gw.broadcast_state_changed_batch([change("sensor.hall", "on")]))
 check("断开后镜像清除（不再推送）", "s-power" not in {to for _, _, to in emitted})
 
-# ---------------------------------------------------------------- #
 # 2. 可见性与逐条判定一致（含 ACL 复用）
-# ---------------------------------------------------------------- #
 
 print("2. 收窄结果与逐条可见性判定一致")
 
@@ -210,9 +206,7 @@ check(
 )
 check("无 restrictions 的客户端收到全部变更", actual.get("a1") == [c["entity_id"] for c in changes], actual.get("a1"))
 
-# ---------------------------------------------------------------- #
 # 3. 钉选实体在背压下仍可靠推送
-# ---------------------------------------------------------------- #
 
 print("3. 背压下钉选实体仍可靠送达")
 

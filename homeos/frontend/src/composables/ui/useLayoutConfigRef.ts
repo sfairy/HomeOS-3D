@@ -1,16 +1,4 @@
-/**
- * @file 布局配置引用 Composable
- * @module composables/ui/useLayoutConfigRef
- *
- * 职责：
- *  - 提供与 layoutStore.layoutConfig 保持深同步的 shallowRef。
- *  - 统一替代各面板重复的 watch(() => layoutStore.layoutConfig, ..., { deep: true })。
- *
- * 依赖：
- *  - vue 的 shallowRef / watch / ShallowRef 类型。
- *  - layout.store 的 useLayoutStore。
- *  - layout 类型的 UILayoutConfig。
- */
+/** - 提供与 layoutStore.layoutConfig 保持深同步的 shallowRef。 */
 import { shallowRef, watch, type ShallowRef } from 'vue'
 import { useLayoutStore } from '@/stores/layout.store'
 import type { UILayoutConfig } from '@/shared/types/layout'

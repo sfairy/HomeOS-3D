@@ -1,11 +1,8 @@
 <!--
-组件：WeatherBackground.vue
-所属模块：frontend / src / layouts
-职责：根据传入的质量档位渲染天气动态背景：
+  根据传入的质量档位渲染天气动态背景：
   - static：纯 CSS 静态渐变（无动画，最低开销）
   - full/lite：双 Canvas 渲染（环境光层 + 粒子层），由 useWeatherBackgroundAnimation 驱动动画
   - off：父组件已在外层 v-show 过滤，不会进入本组件
-关键依赖：composables/ui/useWeatherBackgroundAnimation（Canvas 动画循环、粒子绘制、resize 适配）
 -->
 <template>
   <!-- 天气背景容器：根据质量档位切换 static 与 Canvas 渲染分支 -->
@@ -26,11 +23,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：定义 WeatherBackground 页面布局组件，组织导航栏与内容区域。
- * 关键依赖：Vue 3 SFC、主布局插槽、路由 `<router-view>` 与 stores 主题。
- * 约定：- 公共 UI 元素组件化；子布局使用 `<slot>` + 具名插槽组合。
- */
 /**
  * 天气动态背景 — 单层 Canvas 完整渲染（环境光 + 粒子）
  *

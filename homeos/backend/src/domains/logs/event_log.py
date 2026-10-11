@@ -1,13 +1,4 @@
-"""事件日志服务（对齐 Nest ``event-log/service.ts`` + ``query.service.ts`` + ``report.service.ts``）。
-
-职责：
-- 订阅 HA 冷批状态变更，按 tier 过滤/序列化后内存缓冲，定时或满载批量写入 EventLog；
-- 写入成功后按序执行能源副作用（候选表 + 日/月聚合）；
-- 提供事件历史 / 时间线 / 统计 / 周期对比报表查询，按 JWT restrictions 实施实体级 ACL；
-- 提供保留策略 meta 与全量清理。
-
-SQLite 适配：无分区/``date_trunc``，按 ``substr(createdAt, 1, N)`` 分桶（列为 ISO 文本）。
-"""
+"""事件日志服务（对齐 Nest ``event-log/service.ts`` + ``query.service.ts`` + ``report.service.ts``）。"""
 
 from __future__ import annotations
 
@@ -61,9 +52,7 @@ DAY_MS = 86_400_000
 BY_ENTITY_LIMIT = 20
 
 
-# --------------------------------------------------------------------------- #
 # stateDiff 解析（对齐 util.ts parseStateDiff / mapEventLogHistoryRow）
-# --------------------------------------------------------------------------- #
 def parse_state_diff(state_diff: str | None) -> dict[str, str | None]:
     if not state_diff:
         return {"state": "", "oldState": "", "attrText": None}
@@ -170,9 +159,7 @@ def _format_time_label(ts: int, granularity: str) -> str:
     return f"{dt.month}/{dt.day}"
 
 
-# --------------------------------------------------------------------------- #
 # 周期对比报表辅助（对齐 report.service.ts）
-# --------------------------------------------------------------------------- #
 def _start_of_day(d: datetime) -> datetime:
     return d.replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -348,9 +335,7 @@ class EventLogService:
     def _clamp_query_hours(self, hours: Any, fallback: int) -> int:
         return clamp_event_log_query_hours(hours, self.get_retention_days(), fallback)
 
-    # ------------------------------------------------------------------ #
     # 写入流水线
-    # ------------------------------------------------------------------ #
     def handle_state_change_batch(self, payload: Any) -> None:
         changes = self._extract_changes(payload)
         if not changes:
@@ -580,9 +565,7 @@ class EventLogService:
         except Exception as error:
             logger.warning("能源副作用维护失败: %s", error)
 
-    # ------------------------------------------------------------------ #
     # 查询
-    # ------------------------------------------------------------------ #
     def query_history(
         self,
         entity_id: str | None = None,
@@ -724,9 +707,7 @@ class EventLogService:
             ]
         return build_event_log_stats(domain_rows, entity_rows, time_rows, window_hours)
 
-    # ------------------------------------------------------------------ #
     # 清理
-    # ------------------------------------------------------------------ #
     def clear_all_records(self) -> dict[str, Any]:
         batch_size = int(self._ops.get("retentionDeleteBatchSize") or 800)
         deleted = 0
@@ -803,9 +784,7 @@ class EventLogService:
                 break
         return total
 
-    # ------------------------------------------------------------------ #
     # 周期对比报表
-    # ------------------------------------------------------------------ #
     def report_compare(self, payload: dict[str, Any]) -> dict[str, Any]:
         metric = payload.get("metric") or "events"
         if metric not in ("events", "energy", "environment", "device"):
@@ -1135,9 +1114,7 @@ class EventLogService:
         }
 
 
-# --------------------------------------------------------------------------- #
 # 工具函数
-# --------------------------------------------------------------------------- #
 def _state_text(state: Any) -> str:
     if not isinstance(state, dict):
         return "null"

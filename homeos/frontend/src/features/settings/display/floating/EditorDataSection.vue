@@ -1,22 +1,8 @@
 <!--
-组件：EditorDataSection.vue
-所属模块：frontend / src / views / settings / display / floating
-职责：浮动组件编辑器 - 数据绑定区段。关联 HA 实体（entityId）、显示标题、图标显隐，
-      并提供自定义颜色（强调色/标题色/数值色）与预设色板。
-关键依赖：
-  - EntityInput：实体选择
-  - useDraftObjectField：草稿字段双向绑定
-  - AFH_THEMES / AFH_SEMANTIC_COLOR_PRESETS：主题与语义色预设
-  - normalizeHexColor：颜色值规范化
-数据来源：父级透传的 afhConfig（双向）/ fw（组件类型）
+  浮动组件编辑器 - 数据绑定区段。关联 HA 实体（entityId）、显示标题、图标显隐，
+  并提供自定义颜色（强调色/标题色/数值色）与预设色板。
 -->
 <script setup>
-/**
- * 职责：渲染 views/EditorDataSection 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { computed } from 'vue'
 import { Eye, EyeOff, Palette, Zap } from '@lucide/vue'
 import EntityInput from '@/components/common/EntityInput.vue'
@@ -27,12 +13,10 @@ import {
   normalizeHexColor,
 } from '@/shared/entity/utils/floating-entity-colors.util'
 
-// 入参：浮动组件对象（含 type 用于区分实体/ AQI 等）
 defineProps({
   fw: { type: Object, required: true },
 })
 
-// 双向绑定：AFH 编辑器草稿配置（含 entityId / title / 自定义颜色等）
 const afhConfig = defineModel('afhConfig', { type: Object, required: true })
 
 const { field } = useDraftObjectField(() => afhConfig.value)

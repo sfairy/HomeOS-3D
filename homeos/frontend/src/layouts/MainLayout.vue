@@ -1,46 +1,18 @@
 <!--
-  组件文件：MainLayout.vue
-  所属模块：frontend/src/layouts
-  组件职责：横屏大屏主布局外壳。顶部 Tab 导航栏（品牌 Logo、连接状态点、家庭模式切换 HomeModeSwitcher、
-    导航 Tab、门铃/管家/通知按钮），中部 router-view + keep-alive(max=8) 缓存页面视图，
-    全屏装配全局浮层：门铃 DoorbellAlertModal、地震预警
-    EarthquakeAlertOverlay/SetupWizard、设置锁 SettingsLockModal、Entity 控制 EntityControlHost、
-    （媒体全屏 MediaPlayerModal 挂在 App.vue 根，供画布 more-info / 展示页共用）
-    屏保 Screensaver、引导 GuidedTourOverlay、智能管家 AgentChatPalette、
-    通知抽屉 NotificationDrawer，以及 HA 实时降级横幅 HaStatusDegradeBanner +
-    SetupChecklistBanner + ColdEntityPerfBanner，另有天气动态背景 WeatherBackground
-    按性能自适应档位（full/lite/static/off）渲染。
-  依赖关系：composables：useMainLayoutChrome（壳层状态/行为核心）、useEntityWsSubscriptionSync（HA 实体 WS 订阅）、
-    useEarthquakeBootstrap（地震引导向导）、useTeleportTargetGuard/useShellTeleportTarget（浮层传送目标）、
-    useNotificationCenter（注入通知中心上下文）；stores：auth/layout/chrome/entities；
-    utils：adaptive-perf（性能自适应 class 派生）、weather 质量与展示决策、glass-effect 毛玻璃开关、
-    popup-position-dropdown/derived-route 派生路由同步、config 读取前端配置。
+  横屏大屏主布局外壳。顶部 Tab 导航栏（品牌 Logo、连接状态点、家庭模式切换 HomeModeSwitcher、
+  导航 Tab、门铃/管家/通知按钮），中部 router-view + keep-alive(max=8) 缓存页面视图，
+  全屏装配全局浮层：门铃 DoorbellAlertModal、地震预警
+  EarthquakeAlertOverlay/SetupWizard、设置锁 SettingsLockModal、Entity 控制 EntityControlHost、
+  （媒体全屏 MediaPlayerModal 挂在 App.vue 根，供画布 more-info / 展示页共用）
+  屏保 Screensaver、引导 GuidedTourOverlay、智能管家 AgentChatPalette、
+  通知抽屉 NotificationDrawer，以及 HA 实时降级横幅 HaStatusDegradeBanner +
+  SetupChecklistBanner + ColdEntityPerfBanner，另有天气动态背景 WeatherBackground
+  按性能自适应档位（full/lite/static/off）渲染。
   注意事项：壳层浮层（MediaPlayer/Doorbell/Earthquake 等 8 项）统一懒加载 shell-overlays 合并 chunk，
-    减少首屏请求；横屏 ≥1280px 桌面断点启用；地震/设置锁/儿童模式优先级高于普通浮层。
+  减少首屏请求；横屏 ≥1280px 桌面断点启用；地震/设置锁/儿童模式优先级高于普通浮层。
 -->
 <script setup>
-/**
- * HomeOS 主布局（横屏大屏外壳）- 内部实现说明
- *
- * 职责：
- * 1. 渲染顶部 Tab 导航栏（含品牌 Logo、连接状态点、模式切换、导航 Tab、操作区按钮）
- * 2. 渲染主内容区（router-view + keep-alive 缓存，max=8）
- * 3. 装配全局浮层（媒体播放器、门铃、地震预警、设置锁、Entity 控制、屏保、引导、智能管家、通知抽屉）
- * 4. 装配 HA 实时状态降级横幅、儿童模式顶栏、Setup 引导横幅、冷启动性能横幅
- * 5. 装配天气动态背景（按性能模式/实体数量/帧率档位决定 full/lite/static/off）
- * 6. 装配性能自适应 class、玻璃拟态开关、派生路由同步、地震引导向导
- *
- * 关键依赖：
- * - composables/ui/useMainLayoutChrome：壳层状态/行为（导航、连接、访客模式、门铃、设置锁等）
- * - layouts/ScaledViewport：缩放视口容器（按基准宽度缩放或流体布局）
- * - layouts/shell-overlays：壳层浮层合并 chunk（按需懒加载，减少首屏请求数）
- * - stores：auth / layout / chrome / entities
- * - composables：useNotificationCenter、useTeleportTargetGuard、useEntityWsSubscriptionSync、useEarthquakeBootstrap、useShellTeleportTarget
- * - utils/perf/adaptive-perf.util：性能自适应档位
- * - shared/weather/*：天气背景显示决策与质量解析
- *
- * 详细的壳层逻辑（菜单项计算、访客模式、门铃触发、设置锁等）封装在 useMainLayoutChrome 中。
- */
+/** HomeOS 主布局（横屏大屏外壳）- 内部实现说明 */
 import {
   computed,
   defineAsyncComponent,

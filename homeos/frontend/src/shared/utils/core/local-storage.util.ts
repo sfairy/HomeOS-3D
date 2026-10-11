@@ -1,15 +1,8 @@
 /**
- * @module core/local-storage
- * @description 浏览器 localStorage 的安全读写封装（前端唯一入口）。
- *
- * 背景：Safari 隐私模式、企业策略禁用存储、配额写满等场景下，localStorage 的读写会直接抛出
- * `SecurityError` / `QuotaExceededError`；业务代码此前散落 30+ 处裸调用，一旦抛错会中断
- * store 首次 hydrate 等初始化流程。此处统一收敛并提供 JSON 便捷方法。
- *
- * 约定：
- * - 读失败返回 fallback / null，写失败返回 false，一律静默降级，由调用方决定是否兜底提示；
- * - 仅负责字符串与 JSON 存取，不做 schema 校验与数据迁移；
- * - 需要监听跨标签页变更时直接使用 `window.addEventListener('storage', ...)`，本模块不代理事件。
+ * 浏览器 localStorage 的安全读写封装（前端唯一入口）。
+ * Safari 隐私模式、企业策略禁用存储、配额写满等场景下读写会直接抛出
+ * `SecurityError` / `QuotaExceededError`，一旦抛出会中断 store 首次 hydrate 等初始化流程，
+ * 故统一收敛并提供 JSON 便捷方法。
  */
 
 /** 读取字符串：键不存在、存储不可用或抛错时返回 fallback（默认 null） */

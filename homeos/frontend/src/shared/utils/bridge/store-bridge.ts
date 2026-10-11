@@ -1,11 +1,4 @@
-/**
- * Store 桥接：打破 api / auth / entities / ui 之间的循环依赖。
- * 在 main.ts 安装 Pinia 后注册具体实现。
- *
- * 职责：以注册回调的方式，让非 store 模块（如 api 拦截器、socket 处理器）能够
- *   间接调用 store / router / UI 通知等能力，避免直接 import 导致的循环依赖。
- * 依赖：vue（ref）、notify 类型、core/logger。
- */
+/** Store 桥接：打破 api / auth / entities / ui 之间的循环依赖。 */
 import { ref } from 'vue'
 import type { NotifyType } from '@/shared/types/notify'
 import { logger } from '@/shared/utils/core/logger'

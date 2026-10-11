@@ -1,15 +1,4 @@
-/**
- * 系统配置字段 key 白名单（编辑/应用时使用的规范集合）
- *
- * 职责：
- * - 维护进入通用编辑器的系统配置字段 key 集合（SYSTEM_CONFIG_FIELD_KEYS）。
- * - 供编辑器过滤非白名单字段、保存时校验字段合法性。
- *
- * 依赖：无外部依赖，纯静态集合。
- *
- * 注意：
- * - 集合元素为字段 key（如 `accentColor` / `maxRecentChanges`），属于配置 key，不翻译。
- */
+/** 系统配置字段 key 白名单（编辑/应用时使用的规范集合） */
 export const SYSTEM_CONFIG_FIELD_KEYS = new Set([
   'accentColor',
   'alertBypassDnd',

@@ -1,15 +1,4 @@
-/**
- * home-climate-chart-echarts.util - 家庭气候图表 ECharts 工具函数
- * 功能特性：
- * - 构建 ECharts 配置选项
- * - 处理温湿度历史数据映射
- * - 格式化图例数值
- * - 判断图表容器是否就绪
- * - 生成系列名称
- * 依赖：
- * - kiosk-animation: 图表动画选项（echarts vendor 本身由调用方动态加载）
- * - chart-primitives: 渐变原语（替代 echarts.graphic.LinearGradient，避免静态引入 echarts）
-*/
+/** home-climate-chart-echarts.util - 家庭气候图表 ECharts 工具函数 */
 import { getEntityLeaf } from '@homeos/shared'
 import { pad2 } from '@/shared/utils/format/locale-format.util'
 import { getKioskAnimationOptions } from '@/composables/ui/kiosk-animation'

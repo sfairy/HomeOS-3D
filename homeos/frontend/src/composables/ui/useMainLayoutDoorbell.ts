@@ -1,21 +1,4 @@
-/**
- * @file useMainLayoutDoorbell.ts
- * @module composables/ui
- * @description 主布局门铃（Doorbell）状态聚合 composable。
- *
- * 职责：
- * - 解析当前布局配置中的门铃路由（摄像头/触发器/锁实体）；
- * - 监听门铃触发实体状态变化（普通 on/off 触发器与瞬时触发器 button/input_button）；
- * - 在检测到门铃触发时弹出全屏门铃模态框，并触发触觉反馈；
- * - 维护“已忽略”“已响铃”“已稳定”等集合，避免重复弹窗或漏报。
- *
- * 依赖：
- * - vue（computed/ref/watch/onMounted/onUnmounted）
- * - @homeos/shared（getEntityDomain 取实体 domain）
- * - haptics.util（触觉反馈）
- * - doorbell.util（解析门铃路由配置）
- * - entities.store / layout.store（布局）/ chrome.store（门铃模态）
- */
+/** - 解析当前布局配置中的门铃路由（摄像头/触发器/锁实体）； */
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getEntityDomain } from '@homeos/shared'
 import { hapticAlert } from '@/shared/utils/ui/haptics.util'

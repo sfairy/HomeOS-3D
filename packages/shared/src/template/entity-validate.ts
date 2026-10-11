@@ -1,23 +1,4 @@
-/**
- * @file entity-validate.ts
- * @module @homeos/shared/template
- * @brief 模板实体占位符校验与槽位映射验证。
- *
- * 职责：
- *  - isPlaceholderEntityId：判定 entity_id 是否为占位符（空字符串、xxx/example、placeholder 关键字、orchestrator 占位标记）；
- *  - findPlaceholderEntityIdsInYaml：在 YAML 文本中扫描 entity_id 字段与模板函数引用，收集占位实体 ID；
- *  - validateApplianceSlotMapping：校验家电模板槽位映射是否满足必填组，且不含占位符；
- *  - yamlHasNonStandardTemplateAttributes：检测模板传感器 YAML 是否含非标准自定义属性（非白名单的 *_template 键或 attributes: 段落）。
- *
- * 关键依赖：
- *  - appliance-catalog：家电类型与必填槽位组；
- *  - orchestrator/placeholder-marker.util：联动器占位符标记识别；
- *  - slot-schema：槽位载荷规范化。
- *
- * 约定：
- *  - 前后端共用；后端用于保存前校验，前端用于表单提交前与 YAML 编辑器实时校验；
- *  - 所有判定为纯函数，不修改输入；错误通过返回消息字符串传递，不抛异常。
- */
+/** - isPlaceholderEntityId：判定 entity_id 是否为占位符（空字符串、xxx/example、placeholder 关键字、orchestrator 占位标记）； */
 import { APPLIANCE_TYPE_IDS, getRequiredSlotGroups } from './appliance-catalog';
 import { hasOrchestratorPlaceholder } from './placeholder-marker.util';
 

@@ -1,16 +1,4 @@
-/**
- * 通知中心列表数据聚合与统计
- *
- * 职责：
- * - 把通知列表按来源分桶聚合，生成来源统计与图表序列。
- * - 提供通知未读数、分级、时间分布等聚合工具，供通知中心与图表组件渲染。
- *
- * 依赖：@homeos/shared 的 notificationSourceLabel / normalizeNotificationSource。
- *
- * 注意：
- * - 来源 key 为通知源标识符，不翻译。
- * - 仅面向用户的来源标签 / 分桶标签使用简体中文。
- */
+/** 通知中心列表数据聚合与统计 */
 import { notificationSourceLabel, normalizeNotificationSource } from '@homeos/shared'
 
 /** 通知来源分桶：按来源聚合计数 + 展示标签 + 语义色 */

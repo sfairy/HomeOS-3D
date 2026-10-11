@@ -1,15 +1,4 @@
-/**
- * @module energy-account-input.util
- * @description 生活账户户号输入解析与逗号拆行工具模块。
- *
- * 职责：
- * - 规范化户号输入（全角逗号转半角）。
- * - 检测分隔符、拆分多账户户号字符串。
- * - 在输入框粘贴 / 输入逗号时自动拆成多行，并计算聚焦行索引。
- * - 检测户号后 4 位冲突（约定命名实体 ID 会碰撞）。
- *
- * 依赖：`energy-account-types.util` 提供账户条目类型。
- */
+/** - 规范化户号输入（全角逗号转半角）。 */
 import type { EnergyAccountEntry } from '@/shared/energy/utils/account-types.util'
 
 /** 账户号码分隔符正则：匹配半角 `,` 与全角 `，` */

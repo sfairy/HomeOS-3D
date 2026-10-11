@@ -1,29 +1,4 @@
-/**
- * @file entity-store-init.util.ts
- * @module frontend/src/stores
- * 实体 store 初始化与全量/分批 hydrate（从 entity-store-support.ts 拆回）。
- *
- * 职责：
- * - initStates：全量/分批写入实体（来自 WS initial_states 或 REST 回退）
- * - beginIncrementalInitialStates / mergeInitialStatesChunk / finishIncrementalInitialStates：
- *   渐进式 initial_states 同步（多 chunk 合并 + token 防过期）
- * - applyDeferredCacheHydrate：IDB 缓存余量 idle 补全（懒加载分流 deferred 部分）
- * - shouldAcceptEntitySnapshot：快照接受策略（防缩小快照污染 + 权限收紧强制接受）
- * - finishEntityInit：完成加载后调用性能自适应、派生重建、缓存持久化
- *
- * 关键依赖：
- * - @homeos/shared：sortEntitiesBySyncPriority（按布局优先级排序）
- * - @/shared/utils/config/frontend-config：Worker 派生阈值、poll tick 调整
- * - @/shared/utils/perf/adaptive-perf.util：自适应前端性能模式
- * - @/shared/utils/perf/tablet-default-perf.util：平板默认性能模式
- * - @/shared/entity/utils/derived.util：实体显示名
- * - @/stores/layout.store：平板性能模式应用时读取 layoutConfig
- *
- * 实现说明：
- * - B5：权限（ACL/restrictions）变化后的首个全量快照强制接受并记录指纹，
- *   保证权限收紧时已无权查看的陈旧实体被清除
- * - initStatesBatchToken 自增用于丢弃过期批次响应（并发场景竞态保护）
- */
+/** 实体 store 初始化与全量/分批 hydrate（从 entity-store-support.ts 拆回）。 */
 import { useLayoutStore } from '@/stores/layout.store'
 import type {
   EntityInitDeps,

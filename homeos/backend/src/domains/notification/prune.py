@@ -34,9 +34,7 @@ class NotificationPruneHelper:
         self._needs_rerun = False
         self._debounce_handle: asyncio.TimerHandle | None = None
 
-    # ------------------------------------------------------------------ #
     # 调度
-    # ------------------------------------------------------------------ #
     def schedule_prune_old_notifications(self) -> None:
         """调度通知条数软上限清理（防抖 500ms）。"""
         if self._debounce_handle is not None:
@@ -81,9 +79,7 @@ class NotificationPruneHelper:
             self._debounce_handle.cancel()
             self._debounce_handle = None
 
-    # ------------------------------------------------------------------ #
     # 执行
-    # ------------------------------------------------------------------ #
     def _prune_old_notifications_sync(self) -> None:
         maximum = int(self._get_cfg().get("maxNotifications") or 500)
         batch = PRUNE_BATCH_SIZE

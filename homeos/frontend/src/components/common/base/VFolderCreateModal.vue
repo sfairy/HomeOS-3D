@@ -1,23 +1,13 @@
 <!--
-  组件文件：VFolderCreateModal.vue
-  所属模块：frontend/src/components/common/base
-  组件职责：「黑曜石深色微晶」新建文件夹弹窗，承载
-    资源库（背景图 / 图标）新建文件夹的命名交互。
-    提供更精致的微晶质感输入体验，并支持键盘快捷键：
-      - Enter 提交创建
-      - Esc   取消关闭
-    名称合法性（非空、不含路径分隔符）在提交前本地校验，失败信息内联展示且不关闭弹窗，
-    便于用户直接改名重试。
-  主要 props / emits：
-    - props.modelValue：是否打开（v-model）
-    - props.busy：提交中（禁用按钮与关闭，防重复提交）
-    - props.error：父级传入的失败原因（如后端"目录已存在"）
-    - props.defaultName：打开时回填的名称
-    - emits update:modelValue / confirm(name)
-  依赖关系：@lucide/vue（图标）、useFocusTrap（焦点陷阱）、useBodyScrollLock（引用计数滚动锁）、
-    ./styles/VFolderCreateModal.css（微晶样式）。
+  「黑曜石深色微晶」新建文件夹弹窗，承载
+  资源库（背景图 / 图标）新建文件夹的命名交互。
+  提供更精致的微晶质感输入体验，并支持键盘快捷键：
+  - Enter 提交创建
+  - Esc   取消关闭
+  名称合法性（非空、不含路径分隔符）在提交前本地校验，失败信息内联展示且不关闭弹窗，
+  便于用户直接改名重试。
   注意事项：本组件只负责命名与校验，实际创建请求由父级 useAssetManager 发起；
-    因此组件在 busy 期间保持打开，父级成功后自行关闭。
+  因此组件在 busy 期间保持打开，父级成功后自行关闭。
 -->
 <template>
   <Transition name="hos-modal">
@@ -90,12 +80,6 @@
 </template>
 
 <script setup lang="ts">
-/**
- * 职责：实现 VFolderCreateModal 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Lucide 图标、useFocusTrap、微晶样式表。
- * 约定：- 本组件不发起网络请求，只做命名校验并 emit confirm；
- *      - 关闭动作统一走 cancel/close，避免重复 emit。
- */
 import { computed, nextTick, ref, watch } from 'vue'
 import { FolderOpen, FolderPlus, Loader2 } from '@lucide/vue'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'

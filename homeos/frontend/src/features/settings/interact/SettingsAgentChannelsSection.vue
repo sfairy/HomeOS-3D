@@ -1,15 +1,7 @@
 <!--
-组件：SettingsAgentChannelsSection.vue
-所属模块：frontend / src / views / settings / interact
-职责：智能管家消息通道区段。通过 OrchTabs 切换 Email / WebPush / 企业微信 / MCP 四个通道，
-      每通道含启用开关、凭据配置（SMTP/VAPID/企微密钥/回调校验）、WebPush 订阅管理（测推/删除）。
-      布局对齐语音交互「播报输出」：FlowBand 状态卡 → OrchTabs → FeatureMaster + 表单。
-关键依赖：
-  - SettingsCard / SettingsFlowBand / SettingsFlowStat / SettingsFeatureMaster / SettingsOrchTabs：卡片与流程
-  - fetchWebPushSubscriptions / testWebPush / unsubscribeWebPush：WebPush 订阅 API
-  - useChromeStore：notify / confirm
-  - defineModel：channelDraft / agentDraft 双向绑定
-数据来源：父级透传的 channelDraft / agentDraft / channelStatus
+  智能管家消息通道区段。通过 OrchTabs 切换 Email / WebPush / 企业微信 / MCP 四个通道，
+  每通道含启用开关、凭据配置（SMTP/VAPID/企微密钥/回调校验）、WebPush 订阅管理（测推/删除）。
+  布局对齐语音交互「播报输出」：FlowBand 状态卡 → OrchTabs → FeatureMaster + 表单。
 -->
 <template>
   <section class="settings-hub-section">

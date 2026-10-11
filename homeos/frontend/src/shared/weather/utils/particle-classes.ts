@@ -1,19 +1,4 @@
-/**
- * 天气背景粒子类集合（雨 / 雪 / 雹 / 玻璃雨滴）
- *
- * 职责：
- * - 定义雨滴、雪花、冰雹、玻璃近景雨滴等粒子类，封装各自初始化、运动、绘制逻辑。
- * - 由 weather/background-canvas 等渲染层按天气效果实例化与调度。
- *
- * 依赖：
- * - @/shared/weather/utils/effect-condition.util 的降水判定与强度量化。
- * - @/shared/weather/utils/effect-presets.util 的效果场景参数。
- * - @/shared/weather/utils/animation.util 的雨滴倾角解析。
- *
- * 注意：
- * - 粒子坐标 / 半径 / 速度为数值运行时状态，不翻译。
- * - 类名（GlassDrop / Raindrop / Snowflake / ...）为内部标识符，不翻译。
- */
+/** 天气背景粒子类集合（雨 / 雪 / 雹 / 玻璃雨滴） */
 import type { WeatherEffectProfile } from '@/shared/weather/utils/effect-condition.util'
 import type { WeatherEffectSceneParams } from '@/shared/weather/utils/effect-presets.util'
 import { resolveRainTiltAngle } from '@/shared/weather/utils/animation.util'

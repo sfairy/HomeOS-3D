@@ -1,17 +1,4 @@
-/**
- * 抄表弹窗余额与阶梯统计字段组合式函数
- *
- * 职责：为水/电/气/综合抄表弹窗提供统一的余额、阶梯、统计类 computed 字段组装，
- *      涵盖当前余额、数据日期相对标签、计费标准（固定单价/阶梯价）、当前阶梯档、
- *      阶梯价目、当前单价、预估剩余天数、月/年/上月/日用量与费用等展示字段。
- * 入参（UtilityBalanceFieldsOpts）：
- *   - popField/popNum：弹窗字段读取器（字符串/数字）
- *   - ent：HA 实体引用（用于属性回退）
- *   - amountKey/usageKey：日消费/用量字段名映射
- *   - tierFieldMap：阶梯字段名的中英文自定义映射
- * 返回：二十余个 computed 字段，供弹窗模板直接绑定。
- * 依赖：useUtilityMeter（相对日期 + 剩余天数）、utility-entity-helpers（属性解析）。
- */
+/** 抄表弹窗余额与阶梯统计字段组合式函数 */
 import { computed, type ComputedRef, type Ref } from 'vue'
 import { useRelativeDateLabel, useRemainingDays } from '@/shared/energy/composables/useUtilityMeter'
 import {

@@ -1,20 +1,4 @@
-/**
- * 实体 WebSocket（Socket.IO）连接构建工具
- *
- * 职责：
- * - 构建前端实体同步 Socket.IO 连接所需的 URL / auth / options。
- * - 重连前刷新握手游标（since / lastEventId），使服务端 state_replay 增量补发更精确。
- * - 注入订阅域与 pinned 实体 ID，减少无关节点流量。
- *
- * 依赖：
- * - socket.io-client / socket.io-msgpack-parser 传输层。
- * - pinia + layout.store 提供布局配置（用于 pinned 实体）。
- * - @/shared/entity/utils/ws-subscription 提供订阅域与 pinned 收集。
- *
- * 注意：
- * - transports 固定 polling 优先：先经 HTTP 握手再升级 WebSocket，
- *   避免后端未就绪时浏览器级 WebSocket 报错噪音。
- */
+/** 实体 WebSocket（Socket.IO）连接构建工具 */
 import msgpackParser from 'socket.io-msgpack-parser'
 import type { Socket } from 'socket.io-client'
 import { getActivePinia } from 'pinia'

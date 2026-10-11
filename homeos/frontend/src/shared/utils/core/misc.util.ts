@@ -1,9 +1,4 @@
-/**
- * @module core/misc
- * @description 前端通用杂项工具：数值钳制、Blob 下载、请求竞态序号、宽松 JSON 解析等。
- *
- * 依赖：浏览器 DOM（downloadBlob）。
- */
+/** 前端通用杂项工具：数值钳制、Blob 下载、请求竞态序号、宽松 JSON 解析等。 */
 
 /**
  * 解析用户输入的数值。

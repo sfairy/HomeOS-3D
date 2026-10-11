@@ -1,17 +1,4 @@
-/**
- * 日出日落时间解析与昼夜相位计算工具
- *
- * 职责：
- * - 把 HA `sun.sun` 实体的 next_rising / next_setting 解析为「当日」日出、日落。
- * - 计算白昼进度百分比、日照时长文案、距下次日出/日落倒计时文案。
- * - 用 sin 曲线计算昼夜过渡相位（0=深夜，1=正午），供天气背景平滑过渡。
- *
- * 依赖：HA `sun.sun` 实体属性（next_rising / next_setting）。
- *
- * 注意：
- * - 白昼时 next_rising 为次日日出，需回退一天与当日 next_setting 配对。
- * - 过渡窗固定 30 分钟，避免昼夜切换视觉跳变。
- */
+/** 日出日落时间解析与昼夜相位计算工具 */
 interface SunTimes {
   sunrise: Date | null
   sunset: Date | null

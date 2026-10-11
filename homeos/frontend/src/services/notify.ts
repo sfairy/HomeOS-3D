@@ -1,18 +1,4 @@
-/**
- * 统一错误反馈：将异常转换为用户可见 toast，并记录日志。
- *
- * 职责：
- * - 提取异常消息与 traceId 拼装用户可见文案；
- * - 提供带反馈的剪贴板复制。
- *
- * 依赖：
- * - @/shared/utils/core/logger：日志记录
- * - @/shared/utils/core/error-message：异常消息提取
- * - @/shared/utils/telemetry/trace.util：traceId 提取
- * - @/shared/utils/bridge/store-bridge：toast 通知
- * - @/stores/chrome.store：Chrome store 通知
- * - @homeos/shared/utils/clipboard：剪贴板复制（主应用与商店共用内核）
- */
+/** 统一错误反馈：将异常转换为用户可见 toast，并记录日志。 */
 import { logger } from '@/shared/utils/core/logger'
 import { extractErrorMessage } from '@/shared/utils/core/error-message'
 import { extractTraceIdFromError } from '@/shared/utils/telemetry/trace.util'

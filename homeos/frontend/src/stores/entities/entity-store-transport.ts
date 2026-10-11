@@ -1,24 +1,4 @@
-/**
- * Socket.IO 传输层（从 entities.store 抽离）
- *
- * 职责：
- * - connect：建立 Socket.IO 连接（含 IDB 缓存回填、并行预热、loading 超时回退、事件绑定）
- * - disconnect：断开连接、清理定时器、最终落盘缓存、清除 HA 断连去抖
- * - startParallelPreload：并行 REST 预热，与 WS 全量同步竞速
- * - getSocket：暴露 socket 实例供上层读取连接状态
- *
- * 关键依赖：
- * - socket.io-client：Socket.IO 客户端
- * - @/composables/entity/socket.util：socket URL / 鉴权 / 选项构造
- * - @/composables/entity/ws-bind：绑定事件处理器（initial_states / state_changed / 重连等）
- * - @/shared/entity/utils/ws-sync：连接级同步状态（loadingFallbackTimer 等）
- * - @/shared/entity/utils/sync-failure.util：失败处理
- *
- * 实现说明：
- * - hydratedOnce 标记：首连必做 IDB hydrate，重连仅在内存空 / stale 时重做
- * - loadingFallbackTimer：12s 超时未收到全量状态则触发 REST 回退并解除加载遮罩
- * - preloadPromise 并发去重，避免重复预热
- */
+/** Socket.IO 传输层（从 entities.store 抽离） */
 import { io, type Socket } from 'socket.io-client'
 import {
   buildEntitySocketAuth,

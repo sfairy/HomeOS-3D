@@ -1,8 +1,4 @@
-"""智能管家路由（``/api/v1/agent/*``），对齐 Nest ``AgentController``。
-
-职责：暴露 ``GET /agent/ping``、``POST /agent/chat``、``POST /agent/chat/stream``（SSE）。
-鉴权：全部端点要求登录（单一管理员模型，无角色维度）。
-"""
+"""智能管家路由（``/api/v1/agent/*``），对齐 Nest ``AgentController``。"""
 
 from __future__ import annotations
 

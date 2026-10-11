@@ -1,14 +1,4 @@
-/**
- * @module entity-derived-route.util
- * @description 路由感知的派生索引 debounce / patch 过滤工具模块。
- *
- * 职责：
- * - 根据当前路由路径动态调整派生 patch 的 debounce 倍率。
- * - 按路由过滤与热点无关的域变更，减少 Dashboard / 安全页面等场景的无效重建。
- * - 维护域纪元（domain epoch），用于派生分片的失效判定。
- *
- * 依赖：`@homeos/shared` 提供 getEntityDomain。
- */
+/** - 根据当前路由路径动态调整派生 patch 的 debounce 倍率。 */
 import { getEntityDomain } from '@homeos/shared'
 
 /** 安全相关域集合：安全页面仅处理这些域的派生变更。 */

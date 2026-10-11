@@ -1,22 +1,4 @@
-/**
- * 能源字段静态映射表（attr keys / aliases / field defs）
- *
- * 职责：
- * - 维护能源统计类别（grid / gas / water / ct / cu）的约定命名前缀。
- * - 维护综合 balance 实体上的属性键映射表（ENERGY_BALANCE_ATTR_KEYS）。
- * - 维护字段推断别名表（ENERGY_FIELD_ALIASES），用于从实体后缀 / 属性名 / friendly_name 推断字段。
- * - 维护各类别的逻辑字段定义表（ENERGY_FIELD_DEFS），含 label / unit / conventionSuffix / defaultAttr。
- *
- * 依赖：无外部依赖，纯静态映射表。
- *
- * 注意：
- * - 类别 key（grid / gas / water / ct / cu）为能源类别配置 key，不翻译。
- * - `ENERGY_CONVENTION_PREFIX` value（ele / gas / ...）为 HA entity_id 前缀片段，不翻译。
- * - `ENERGY_BALANCE_ATTR_KEYS` / `defaultAttr` 中的中文属性名（如「账户余额」）为 HA 集成返回的
- *   属性 key，不翻译。
- * - `conventionSuffix` 为 HA entity_id 后缀（小写），不翻译。
- * - 仅 `label`（面向用户的字段显示名）使用简体中文。
- */
+/** 能源字段静态映射表（attr keys / aliases / field defs） */
 /** 能源统计类别 ID */
 
 export const ENERGY_CATEGORIES = ['grid', 'gas', 'water', 'ct', 'cu'] as const

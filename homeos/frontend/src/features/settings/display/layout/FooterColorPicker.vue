@@ -1,12 +1,5 @@
 <!--
-组件：FooterColorPicker.vue
-所属模块：frontend / src / views / settings / display / layout
-职责：底部信息栏项配色选择器。弹出面板展示预设色板，选中后向上抛出 update:modelValue。
-关键依赖：
-  - DASHBOARD_FOOTER_COLORS / DASHBOARD_FOOTER_COLOR_ACCENT：色板与强调色常量
-  - useClickOutside：点击外部关闭
-  - useDropdownPosition：下拉位置计算（含 Teleport）
-数据来源：父级透传的 modelValue（v-model）
+  底部信息栏项配色选择器。弹出面板展示预设色板，选中后向上抛出 update:modelValue。
 -->
 <template>
   <div ref="rootRef" class="ef-color-picker">

@@ -1,7 +1,4 @@
-/**
- * 设备列表与分析相关类型。
- * 依赖：@homeos/shared（EntityAreaInfo 实体所属区域信息）。
- */
+/** 设备列表与分析相关类型。 */
 import type { EntityAreaInfo } from '@homeos/shared'
 
 /** 设备列表项（设备页展示用） */

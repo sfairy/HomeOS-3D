@@ -1,11 +1,4 @@
-"""Agent 执行体封装。
-
-职责：
- - 定义 Agent / MCP / 渠道执行身份（AgentActor），与 command-proxy 的鉴权用户对齐；
- - 声明需要实体 ACL 的控制类工具集合。
-约定：
- - 对外方法遇非法输入显式抛错。
-"""
+"""Agent 执行体封装。"""
 
 from __future__ import annotations
 

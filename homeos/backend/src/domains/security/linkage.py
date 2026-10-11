@@ -72,9 +72,7 @@ class SecurityLinkageService:
         except Exception:
             return {}
 
-    # ------------------------------------------------------------------ #
     # 事件处理
-    # ------------------------------------------------------------------ #
     async def _on_everyone_left(self, _payload: Any = None) -> None:
         cfg = self._config()
         self._home_since.clear()

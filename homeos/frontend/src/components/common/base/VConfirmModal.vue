@@ -1,11 +1,4 @@
-/**
- * @file VConfirmModal.vue
- * @module components/common/base
- * @description 全局确认对话框组件。Teleport 到缩放壳 #teleport-target（未就绪时回退 body），
- *  与 VNotification 配合使用。支持键盘快捷键：Enter 确认、Escape 取消。打开时锁定 body 滚动。
- *  依赖：vue（ref/computed/watch/onMounted/onUnmounted）、chrome.store（确认弹窗状态）、
- *  useFocusTrap、useBodyScrollLock、useShellTeleportTarget。
- */
+/** 与 VNotification 配合使用。支持键盘快捷键：Enter 确认、Escape 取消。打开时锁定 body 滚动。 */
 <template>
   <Teleport :to="teleportTarget" :disabled="teleportDisabled">
     <Transition name="hos-modal">
@@ -68,12 +61,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 VConfirmModal 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'

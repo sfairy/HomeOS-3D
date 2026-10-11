@@ -1,8 +1,4 @@
-/**
- * EventLog 记录筛选状态读取
- *
- * 职责：从 GET /system/config 的 ops 段解析 EventLog 筛选开关与域名/实体名单。
- */
+/** EventLog 记录筛选状态读取 */
 import type { SystemConfig } from '@/shared/types/system-config'
 import type { SharedOpsConfig } from '@homeos/shared'
 

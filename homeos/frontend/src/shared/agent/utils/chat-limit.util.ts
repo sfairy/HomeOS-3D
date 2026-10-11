@@ -1,9 +1,4 @@
-/**
- * 智能体聊天消息长度限制
- *
- * 职责：约束用户输入的聊天文本长度，与后端 ChatDto 的 @MaxLength(500) 校验对齐，
- *   避免超长请求被后端拒绝。
- */
+/** 智能体聊天消息长度限制 */
 
 /** 与后端 ChatDto @MaxLength(500) 对齐 */
 export const AGENT_CHAT_MAX_LENGTH = 500

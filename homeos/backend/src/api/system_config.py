@@ -111,9 +111,7 @@ class ImportAppConfigDto(StrictModel):
     mode: Literal["merge", "replace"] | None = None
     confirm: bool | None = None
 
-# ---------------------------------------------------------------------- #
 # 公开配置（登录前）
-# ---------------------------------------------------------------------- #
 @router.get("/config/public")
 async def get_public_config(request: Request):
     """获取公开系统配置（HA 区域索引最多等待 2s，避免慢注册表拖慢登录）。"""
@@ -153,9 +151,7 @@ async def get_public_config(request: Request):
         "roomMeta": build_public_room_meta_from_ha_areas(ha_areas, env_sensor_map),
     }
 
-# ---------------------------------------------------------------------- #
 # 配置变更审计
-# ---------------------------------------------------------------------- #
 @router.get("/config-audit")
 async def get_config_audit(
     request: Request,
@@ -170,9 +166,7 @@ async def get_config_audit(
         return app_config.get_audit_log_paginated(pagination["pageNum"], pagination["pageSize"])
     return app_config.get_audit_log(50)
 
-# ---------------------------------------------------------------------- #
 # 导出 / 导入
-# ---------------------------------------------------------------------- #
 @router.get("/config/export")
 async def export_config(
     request: Request,
@@ -194,9 +188,7 @@ async def import_config(
         _backup(request).import_config, payload.model_dump(exclude_none=True)
     )
 
-# ---------------------------------------------------------------------- #
 # 读取 / 更新 / 重置
-# ---------------------------------------------------------------------- #
 def _config_response(app_config: Any) -> dict[str, Any]:
     """返回完整系统配置 + 配置审计（单一管理员模型，恒为全量视图）。"""
     return {**app_config.get_all(), "_configAudit": app_config.get_audit_log(50)}
@@ -255,9 +247,7 @@ async def reset_system_config(
     app_config = _app_config(request)
     return await asyncio.to_thread(app_config.reset, section)
 
-# ---------------------------------------------------------------------- #
 # 数据保留
-# ---------------------------------------------------------------------- #
 def _retention_overview(request: Request) -> dict[str, Any]:
     retention = _retention(request)
     return {

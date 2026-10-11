@@ -1,10 +1,4 @@
-/**
- * 客户端电量展示工具
- *
- * 职责：从客户端 systemInfo 解析电量百分比；按电量区间生成三段渐变色谱；
- *   提供进度条 / 标签的内联样式与 CSS 类名，供墙屏充电卡等组件使用。
- * 依赖：client-system-display.util（从 row 提取 systemInfo）。
- */
+/** 客户端电量展示工具 */
 import { getSystemInfoFromClientRow } from '@/shared/client/utils/system-display.util'
 
 /**

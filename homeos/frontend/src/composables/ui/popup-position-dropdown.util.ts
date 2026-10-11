@@ -1,23 +1,4 @@
-/**
- * 锚点下拉菜单的定位计算工具。
- *
- * 职责：
- * - 解析 Teleport 挂载点与 #teleport-target 参考矩形
- * - 在等比缩放（shell 含 transform）时把视口坐标换算为画布坐标系
- * - 按视口剩余空间选择下拉展开方向并计算 fixed 坐标、宽度与最大高度
- *
- * 坐标契约：
- * - getBoundingClientRect() 得到的锚点为视口像素，换算时以 #teleport-target 为原点并 / liveScale
- * - liveScale 优先取 DOM 实测（visualWidth / offsetWidth），避免 currentScale 与 CSS transition 失步
- * - gap / margin / minWidth / estimatedHeight / chrome* / maxHeight 均为画布（设计稿）单位，不再 / scale
- * - 若调用方持有视口像素宽度，须先自行 / scale 再传入 minWidth
- *
- * Teleport 约定：
- * - 应用内弹窗/锚定下拉 → #teleport-target（随整页等比缩放）
- * - 有意例外挂 body：屏保（自建 scale）、地震预警/向导、引导蒙层、跟手拖拽 ghost
- *
- * 依赖：@/composables/ui/useScaling 的 currentScale / scalingEnabled。
- */
+/** 锚点下拉菜单的定位计算工具。 */
 
 import { currentScale, scalingEnabled } from '@/composables/ui/useScaling'
 

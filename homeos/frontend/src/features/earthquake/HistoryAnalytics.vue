@@ -1,18 +1,4 @@
-/**
- * @file EarthquakeHistoryAnalytics.vue
- * @module components/earthquake
- * @brief 地震历史数据分析面板
- *
- * 职责：
- * - 渲染地震历史数据的 KPI 摘要与多张 ECharts 图表
- * - 依据 tab 切换 global（全球）/ local（本地附近）两种数据视角
- * - 图表容器 ref 通过 composable 注入并初始化 ECharts 实例
- *
- * 依赖：
- * - vue：toRefs 用于保持 props 响应性
- * - ./composables/useEarthquakeHistoryAnalytics：聚合 KPI/图表逻辑
- * - 外部样式 ./styles/HistoryAnalytics.css
- */
+/** - 渲染地震历史数据的 KPI 摘要与多张 ECharts 图表 */
 <template>
   <div class="eq-analytics">
     <!-- 装饰性辉光，仅作背景视觉，aria-hidden 避免读屏干扰 -->
@@ -80,12 +66,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 HistoryAnalytics 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 import { toRefs } from 'vue'
 import { useEarthquakeHistoryAnalytics } from './composables/useEarthquakeHistoryAnalytics'
 

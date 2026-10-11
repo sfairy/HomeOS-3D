@@ -1,13 +1,3 @@
-/**
- * 文件：useSystemConfigPanelShell.ts
- * 职责：高级参数面板 shell composable。管理分区导航（上一组/下一组）、搜索模式、
- *       字段分组（buildGroupedFieldEntries）、滚动定位与专家/开发 key 开关。
- * 关键依赖：
- *   - vue 的 ref / computed / watch / onMounted / onUnmounted / nextTick
- *   - useLayoutStore / useChromeStore：布局与通知
- *   - useRouter：路由
- *   - buildGroupedFieldEntries：字段分组
- */
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import type { Ref } from 'vue'
 import { buildGroupedFieldEntries } from '@/features/settings/shared/system-config/field-groups.util'

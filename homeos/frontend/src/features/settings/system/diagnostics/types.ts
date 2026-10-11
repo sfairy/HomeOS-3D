@@ -1,9 +1,4 @@
-/**
- * 设置诊断 API 负载共享类型定义
- * 
- * 职责：定义诊断相关的数据接口类型，避免使用 any
- * 依赖：无外部依赖，纯类型定义
- */
+/** 设置诊断 API 负载共享类型定义 */
 
 /** Home Assistant 连接信息 */
 interface DiagnosticsHaInfo {

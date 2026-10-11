@@ -1,30 +1,10 @@
 <!--
-  组件文件：WidgetsHubSection.vue
-  所属模块：frontend/src/features/settings/display/widgets
-  组件职责：小部件引擎主面板（Section 级），负责左侧微件目录挑选、右侧面板实例排布
-    （移动/删除/开关可见/打开配置/高度调节）、Hero 三页联动配置。顶部含四步流程条与
-    实例/目录数量统计，使用弹出菜单操作各个实例行。
-  主要 props / emits：
-    - props sidebarWidgetGroups / dashboardWidgetGroups：侧边栏与仪表盘目录分组
-    - props rightPanelWidgets：右侧面板实例列表
-    - props widgetEditId / heightEditId：当前配置/高度编辑中的实例 ID
-    - props quickButtonOptions / maxQuickButtons / quickSelectedCount 等：快捷按钮配置
-    - props isCustomHtmlDraftDirty：自定义 HTML 草稿脏态
-    - emit add-widget / open-builder / open-config / eject / open-height / move /
-      toggle-visible / delete / save-config / cancel-config / set-hero-slide-type /
-      move-hero-slide / reset-height / save-height / toggle-quick-button /
-      update-height-draft：各类实例与草稿操作事件
-  依赖关系：使用 defineModel('showAddWidget') 双向绑定添加弹窗开关；
-    引用 catalogTierClass 工具计算目录层级样式。
+  小部件引擎主面板（Section 级），负责左侧微件目录挑选、右侧面板实例排布
+  （移动/删除/开关可见/打开配置/高度调节）、Hero 三页联动配置。顶部含四步流程条与
+  实例/目录数量统计，使用弹出菜单操作各个实例行。
   注意事项：快捷按钮至少保留 1 个最多 4 个；高度编辑与配置编辑互斥（仅允许展开一行）。
 -->
 <script setup>
-/**
- * 职责：渲染 views/WidgetsHubSection 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { computed } from 'vue'
 import { LayoutGrid, Monitor, Puzzle, Sidebar } from '@lucide/vue'
 import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'

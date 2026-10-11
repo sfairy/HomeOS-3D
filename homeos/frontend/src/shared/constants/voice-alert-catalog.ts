@@ -1,14 +1,4 @@
-/**
- * 语音播报警报目录与工厂
- *
- * 职责：
- * - 转发 @homeos/shared 中的语音播报警报常量与规范化函数。
- * - 提供语音播报配置页所需的分组标签、规则目录、每日播报模板等访问入口。
- * - 提供唤醒词文本解析、自定义 / 实体 TTS 警报规则构造工厂。
- * - 提供实体播报快捷域筛选列表，用于 EntityInput 的 domain 过滤。
- *
- * 依赖：@homeos/shared 中的语音播报警报基础常量与工具函数。
- */
+/** 语音播报警报目录与工厂 */
 import {
   DEFAULT_VOICE_ALERT_RULES,
   VOICE_ALERT_CATALOG,

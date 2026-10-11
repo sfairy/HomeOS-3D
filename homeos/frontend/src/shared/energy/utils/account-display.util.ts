@@ -1,18 +1,4 @@
-/**
- * @module energy-account-display.util
- * @description 生活账户展示行、标签与索引反查工具模块。
- *
- * 职责：
- * - 根据账户配置（实体模式 / 多账户模式 / 传统账户号模式）生成展示行。
- * - 在弹窗或底栏中，根据当前选中的实体 ID 反查账户索引与备注。
- * - 计算已配置账户的索引列表，供下拉选择等场景使用。
- *
- * 依赖：
- * - `energy-account-types.util`：账户展示行与源数据类型。
- * - `energy-account-input.util`：账户号字符串解析。
- * - `energy-account-entity.util`：实体 / 多账户条目解析。
- * - `energy-account-resolve.util`：账户条目聚合与主账户索引解析。
- */
+/** - 根据账户配置（实体模式 / 多账户模式 / 传统账户号模式）生成展示行。 */
 import { getEntityLeaf } from '@homeos/shared'
 import type {
   AccountDisplayRow,

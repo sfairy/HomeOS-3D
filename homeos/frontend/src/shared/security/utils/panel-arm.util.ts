@@ -1,13 +1,4 @@
-/**
- * 安防面板布防/撤防工具模块。
- *
- * 职责：
- * - 调用后端 armSecurityPanel API 执行布防/撤防；
- * - 根据响应结果本地 patch 安防模式状态（供总览页与浮动 widget 共用）；
- * - 撤防时清空区域列表，布防时按传入 zoneIds 或全量 zones 更新状态。
- *
- * 依赖：armSecurityPanel（services/api/security）、SecurityModeSocketPayload 类型。
- */
+/** 安防面板布防/撤防工具模块。 */
 /** 安防面板布防/撤防 API + 本地状态 patch（总览页与浮动 widget 共用） */
 import { armSecurityPanel, disarmSecurityPanel } from '@/services/api/security'
 import { hapticAlert } from '@/shared/utils/ui/haptics.util'

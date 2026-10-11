@@ -1,18 +1,4 @@
-/**
- * 实体属性值友好格式化工具
- *
- * 职责：
- * - 把 HA 实体属性值格式化为面向用户的展示文本。
- * - 覆盖枚举中文、数组、时间戳、百分比、时长、计量单位（温度 / 湿度 / 气压 / 风速 / 照度 / 空气质量等）。
- * - 维护需计量单位化的属性 key 集合，避免裸数值展示。
- *
- * 依赖：@/shared/utils/format/locale-format.util 的本地化格式化。
- *
- * 注意：
- * - 属性 key（temperature / current_temperature / pm25 / ...）为 HA 属性名，不翻译。
- * - 单位（°C / % / hPa / lux / μg/m³ / ...）为计量单位，不翻译。
- * - 仅面向用户的展示文案使用简体中文。
- */
+/** 实体属性值友好格式化工具 */
 import { HVAC_MODE_LABELS as CLIMATE_HVAC_MODE_LABELS } from '@/shared/constants/climate-labels'
 import { formatLocaleString } from '@/shared/utils/format/locale-format.util'
 

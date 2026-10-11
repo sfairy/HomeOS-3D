@@ -1,15 +1,9 @@
 <!--
-  组件文件：WeatherEffectsOverviewCard.vue
-  所属模块：frontend/src/features/settings/display/weather-effects
-  组件职责：天气动效设置的总览卡片，属于显示主题大类下的特效配置。提供特效预设
-    （逼真/柔和/关闭等）的切换按钮和显示范围的路由分组勾选（全局/首页/设备/联动等），
-    并汇总已启用的页面数量。
-  主要 props / emits：无 props / emits（独立 Card，依赖 composable 上下文）。
-  依赖关系：通过 useWeatherEffectsSection composable 注入上下文，获取 form 响应式表单
-    数据、presetOptions 预设选项、routeOptionGroups 路由分组、isRouteActive/toggleRoute
-    显示范围切换方法。
+  天气动效设置的总览卡片，属于显示主题大类下的特效配置。提供特效预设
+  （逼真/柔和/关闭等）的切换按钮和显示范围的路由分组勾选（全局/首页/设备/联动等），
+  并汇总已启用的页面数量。
   注意事项：切换预设后分场景的手动覆盖会被重置；「逼真」预设会联动读取 HA 天气实体
-    的风速、湿度、降水强度数据实时微调场景强度。
+  的风速、湿度、降水强度数据实时微调场景强度。
 -->
 <template>
   <div class="weather-fx-overview-panel">

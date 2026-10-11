@@ -1,24 +1,4 @@
-/**
- * @file useWeatherBackgroundAnimation.ts
- * @module composables/ui
- * @description 天气动态背景 Canvas 动画 composable。
- *
- * 职责：
- * - 管理天气背景 Canvas 与粒子 Canvas 的渲染循环（RAF / 低频定时器）；
- * - 按性能档位（high/medium/low）调整帧率与效果丰富度；
- * - 初始化并同步粒子（雨/雪/冰雹/落叶/玻璃水珠/星星/流星/云朵）与闪电状态；
- * - 可选启用 OffscreenCanvas Worker 加速粒子计算，失败时回退主线程；
- * - 监听页面可见性、容器尺寸、配置变化、屏保空闲等事件，动态启停动画。
- *
- * 依赖：
- * - vue（ref/onMounted/onUnmounted/watch/nextTick）
- * - logger（警告日志）
- * - entities.store / layout.store
- * - useWeatherEffectConfig（天气效果配置）
- * - weather-*-*.util（粒子/场景/降水/性能/动画工具）
- * - adaptive-perf.util（自适应性能档位）
- * - screensaver-background-idle.util（屏保空闲联动）
- */
+/** - 管理天气背景 Canvas 与粒子 Canvas 的渲染循环（RAF / 低频定时器）； */
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { logger } from '@/shared/utils/core/logger'
 import { useEntitiesStore } from '@/stores/entities.store'

@@ -139,9 +139,7 @@ class HAConnectorService(HomeOSFacadeMixin):
         self._ha_tuning_cache: dict[str, Any] | None = None
         self._ha_tuning_at = 0.0
 
-    # ------------------------------------------------------------------ #
     # 高级参数（haConnector / other）
-    # ------------------------------------------------------------------ #
     def _ha_tuning(self) -> dict[str, Any]:
         """读取 haConnector / other 分区运行参数（缺省合并 DEFAULT_APP_CONFIG）。
 
@@ -373,11 +371,9 @@ class HAConnectorService(HomeOSFacadeMixin):
             if not pending:
                 break
 
-    # ------------------------------------------------------------------ #
     # 连接生命周期外发：homeos 侧（app.py）依赖它维护 ``app.state.ha_connected``
     # 与 ``ha.connected`` / ``ha.disconnected`` / ``ha.reconnecting`` 事件。
     # 融合后本连接器是唯一 HA 连接，所以它必须是「HA 是否在线」的唯一事实源。
-    # ------------------------------------------------------------------ #
     def set_connection_listener(self, listener: Any) -> None:
         """注册连接生命周期监听（``listener(status, payload)``，可为同步或协程）。"""
         self._connection_listener = listener

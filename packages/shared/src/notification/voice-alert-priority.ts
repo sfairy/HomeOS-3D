@@ -1,20 +1,4 @@
-/**
- * @file voice-alert-priority.ts
- * @module @homeos/shared/notification
- * @brief TTS / 告警播报优先级表与比较函数（前后端单一真相源）。
- *
- * 职责：
- *  - 维护告警 key → 优先级数值（数值越大越优先）；
- *  - 提供 compareVoiceAlertPriority 比较函数，供 tts-route 排序使用。
- *
- * 关键依赖：
- *  - voice-alert.ts 的 VoiceAlertRules key 与本表对齐（决定播报优先级）；
- *  - tts-route.util.ts 调用 compareVoiceAlertPriority 排序待播报告警。
- *
- * 约定：
- *  - 地震预警优先级最高（100），全员离家提示最低（10）；
- *  - 未在表中登记的 key 缺省按 0 处理（最低优先级）。
- */
+/** - 维护告警 key → 优先级数值（数值越大越优先）； */
 /** TTS / 告警播报优先级（数值越大越优先） */
 export const VOICE_ALERT_PRIORITY: Record<string, number> = {
   earthquake: 100,

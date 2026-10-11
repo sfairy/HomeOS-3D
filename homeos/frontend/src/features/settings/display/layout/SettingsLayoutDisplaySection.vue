@@ -1,14 +1,6 @@
 <!--
-组件：SettingsLayoutDisplaySection.vue
-所属模块：frontend / src / views / settings / display / layout
-职责：显示与缩放区段。配置整页等比缩放开关、侧边栏停靠位置（左/右）、页面最大宽度、
-      右侧信息栏宽度，并提供宽度预设与匹配当前屏幕。
-关键依赖：
-  - SettingsCard / SettingsCardIntro / SettingsSectionHead：卡片与头部
-  - SettingsRangeField：滑块输入
-  - SETTINGS_RANGE_STEP：滑块步进常量
-  - useLayoutStore：读写 layoutConfig
-数据来源：layoutStore.layoutConfig（panelPosition / pageMaxWidth / rightPanelWidth）+ 父级透传的缩放派生
+  显示与缩放区段。配置整页等比缩放开关、侧边栏停靠位置（左/右）、页面最大宽度、
+  右侧信息栏宽度，并提供宽度预设与匹配当前屏幕。
 -->
 <template>
   <div class="settings-hub-section">
@@ -172,7 +164,6 @@ import { useLayoutStore } from '@/stores/layout.store'
 const layoutStore = useLayoutStore()
 const layoutConfig = layoutStore.layoutConfig
 
-// 入参：缩放开关、缩放比、设计宽高、视口宽高、宽度预设、屏幕宽高提示
 defineProps({
   scalingEnabled: { type: Boolean, default: false },
   scale: { type: Number, default: 1 },
@@ -185,7 +176,6 @@ defineProps({
   screenHeightHint: { type: Number, required: true },
 })
 
-// 对外事件：切换缩放、应用宽度预设、匹配当前屏幕
 defineEmits(['toggle-scaling', 'apply-width-preset', 'auto-match-resolution'])
 </script>
 

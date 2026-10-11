@@ -55,9 +55,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_exception_handlers(app, app_settings)
     register_early_middleware(app, app_settings)
 
-    # ------------------------------------------------------------------ #
     # 根路径健康检查 / 指标（无 /api/v1 前缀）
-    # ------------------------------------------------------------------ #
     def _probe_db(app: FastAPI) -> bool:
         now = time.monotonic()
         cached = getattr(app.state, "db_probe", None)
@@ -140,18 +138,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # 中间件顺序（后注册者在外层）：CSRF 内层、压缩 / 请求体门禁 / CORS 依次在外。
     register_outer_middleware(app, app_settings)
 
-    # ------------------------------------------------------------------ #
     # 实时网关（Socket.IO + msgpack）：实例挂在 app.state，供 create_asgi_app 包装
-    # ------------------------------------------------------------------ #
     from .realtime.gateway import create_realtime_gateway
 
     app.state.realtime = create_realtime_gateway(app)
 
     mount_spa_static(app, app_settings, version)
 
-    # ------------------------------------------------------------------ #
     # 静态资源门禁 / SPA 外壳安全头（并入 homeos-3d main.py 的保护层）
-    # ------------------------------------------------------------------ #
     # 注册在最外层：授权判定要在任何业务中间件之前短路，未登录请求不会触达下游。
     install_studio_shell(
         app,

@@ -1,14 +1,4 @@
-/**
- * @module core/clone-plain
- * @description 深拷贝可序列化纯数据工具。
- *
- * 背景与选型：
- *  - 优先 structuredClone(toRaw())，避免 Proxy / 大图 JSON 往返开销；
- *  - 失败时回退 JSON 序列化（兼容不可 clone 的边角值）。
- *  - 仅适用于可被结构化克隆 / JSON 表达的数据（无函数 / Symbol / 循环引用等）。
- *
- * 依赖：vue（toRaw）。
- */
+/** 背景与选型： */
 import { toRaw } from 'vue'
 
 /**

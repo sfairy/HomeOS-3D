@@ -1,10 +1,4 @@
-"""未配置 LLM 时的占位提供商。
-
-职责：在生产环境（production）且未配置真实 API Key、且 AGENT_ALLOW_MOCK=false
- 时由 ResolvingLlmProvider 选中，保证 ResolvingLlmProvider 永不返回 mock。
- 任何 chat 调用均抛 CONFIG_ERROR，让上层感知「智能管家不可用」并提示用户配置 LLM。
-依赖：llm_provider_interface（接口）、BusinessException / api_error（错误归一化）。
-"""
+"""未配置 LLM 时的占位提供商。"""
 
 from __future__ import annotations
 

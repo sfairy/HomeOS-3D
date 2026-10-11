@@ -47,9 +47,7 @@ class ImportAllConfigsDto(StrictModel):
 class MkdirDto(StrictModel):
     path: str
 
-# ---------------------------------------------------------------------- #
 # 激活方案 / 终端绑定
-# ---------------------------------------------------------------------- #
 @router.put("/project/active")
 async def set_active_profile(
     payload: SetActiveProfileDto,
@@ -114,9 +112,7 @@ async def remove_terminal_binding(
 ):
     return await _service(request).remove_terminal_binding(clientId)
 
-# ---------------------------------------------------------------------- #
 # 方案列表 / 导入导出
-# ---------------------------------------------------------------------- #
 @router.get("/profiles")
 async def list_profiles(request: Request, user: dict[str, Any] = Depends(require_user)):
     return {"success": True, "data": await asyncio.to_thread(_service(request).list_profiles)}
@@ -164,9 +160,7 @@ async def delete_profile(
 ):
     return await _service(request).delete_profile_safe(projectId)
 
-# ---------------------------------------------------------------------- #
 # 静态资源：列表
-# ---------------------------------------------------------------------- #
 async def _list_assets(request: Request, kind: str, sub_path: str | None) -> dict[str, Any]:
     service = _service(request)
     sub = sub_path or ""
@@ -189,9 +183,7 @@ async def list_icons(
 ):
     return await _list_assets(request, "icons", path)
 
-# ---------------------------------------------------------------------- #
 # 静态资源：建目录
-# ---------------------------------------------------------------------- #
 def _require_sub_path(payload: MkdirDto) -> str:
     sub_path = (payload.path or "").strip()
     if not sub_path:
@@ -218,9 +210,7 @@ async def create_icon_directory(
 ):
     return _mkdir(request, "create_icon_directory", payload)
 
-# ---------------------------------------------------------------------- #
 # 静态资源：上传
-# ---------------------------------------------------------------------- #
 async def _upload(
     request: Request,
     files: list[UploadFile],
@@ -269,9 +259,7 @@ async def upload_icons(
 ):
     return await _upload(request, files[:MAX_UPLOAD_FILES], path, "save_icon", svg_only=True)
 
-# ---------------------------------------------------------------------- #
 # 静态资源：删除
-# ---------------------------------------------------------------------- #
 def _delete(request: Request, method_name: str, full_path: str | None) -> dict[str, Any]:
     if not full_path:
         bad_request(api_error("UI_CONFIG_PATH_REQUIRED"))

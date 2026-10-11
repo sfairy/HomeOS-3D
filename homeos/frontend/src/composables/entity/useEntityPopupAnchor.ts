@@ -1,16 +1,4 @@
-/**
- * @file useEntityPopupAnchor.ts
- * @module composables/entity
- * @description 实体控制弹窗锚点定位 composable（户型图像素锚点 / 百分比锚点）。
- *
- * 职责：根据 props 中是否提供 anchorX/anchorY 决定走"固定像素锚点"还是"百分比锚点"，
- *      统一输出弹窗 style、popupClass、箭头 style。
- *
- * 依赖：
- * - vue（computed）
- * - @/composables/ui/usePopupPosition（useFixedPopupPosition / usePopupPosition）
- * - @/composables/ui/popup-position-shared.util（PopupNumericInput）
- */
+/** 统一输出弹窗 style、popupClass、箭头 style。 */
 import { computed } from 'vue'
 import { useFixedPopupPosition, usePopupPosition } from '@/composables/ui/usePopupPosition'
 import type { PopupNumericInput } from '@/composables/ui/popup-position-shared.util'

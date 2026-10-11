@@ -1,21 +1,4 @@
-/**
- * 天气特效 UI 常量（滑块 / 预设 / 场景分组）
- *
- * 职责：
- * - 维护天气特效设置页的全局滑块定义（粒子密度 / 风速 / 属性混合权重 等）。
- * - 维护特效预设档位（逼真 / 均衡 / 电影）与展示路由分组。
- * - 维护天气场景字段与场景分组，供设置页天气特效面板渲染。
- *
- * 依赖：
- * - @/shared/weather/utils/display-routes.util 的展示路由分组。
- * - @/shared/utils/settings/range-steps.util 的滑块步长与场景字段定义。
- * - @lucide/vue 图标组件。
- *
- * 注意：
- * - `id` / `key`（realistic / densityMultiplier / ...）为配置 key，不翻译。
- * - `accent` 为 CSS 颜色值，不翻译。
- * - 仅面向用户的 label / desc / hint 使用简体中文。
- */
+/** 天气特效 UI 常量（滑块 / 预设 / 场景分组） */
 /** 天气特效 UI 常量（滑块/预设/场景分组） */
 import { SETTINGS_RANGE_STEP, weatherSceneField } from '@/shared/utils/settings/range-steps.util'
 import { Clapperboard, Scale, Sun } from '@lucide/vue'

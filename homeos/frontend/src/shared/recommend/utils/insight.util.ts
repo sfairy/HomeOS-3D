@@ -1,9 +1,4 @@
-/**
- * 推荐结果组装工具。
- *
- * 职责：把各推荐子模块已算好的 chips/groups/banners 组装为 RecommendInsightResult，
- * 消除「hasActionable + 双摘要 + 固定字段」的重复样板。
- */
+/** 推荐结果组装工具。 */
 import type {
   RecommendBanner,
   RecommendGroup,

@@ -1,17 +1,4 @@
-/**
- * 实体属性中文标签表与属性面板展示工具
- *
- * 职责：
- * - 维护 HA 常见实体属性 → 中文含义映射（EXTRA_ATTR_LABELS）。
- * - 合并控制事件属性标签（ATTR_CHANGE_LABELS），供属性面板按属性 key 展示中文标签。
- * - 提供属性排序、展示名解析、属性值友好格式化等工具。
- *
- * 依赖：@/shared/entity/utils/control-attr-change.util 的 ATTR_CHANGE_LABELS。
- *
- * 注意：
- * - 属性 key（state / last_changed / ...）为 HA 属性名，不翻译。
- * - 仅面向用户的属性含义标签使用简体中文。
- */
+/** 实体属性中文标签表与属性面板展示工具 */
 import { ATTR_CHANGE_LABELS } from '@/shared/entity/utils/control-attr-change.util'
 
 /** Home Assistant 常见实体属性 → 中文含义（属性面板优先本表，避免控制事件标签污染） */

@@ -1,18 +1,4 @@
-/**
- * @file usePaginatedEntityList.ts
- * @module composables/entity
- * @description 大户型设备列表分页查询 composable。
- *
- * 职责：通过 REST 分页拉取设备列表，避免前端遍历全量 entities Map；
- *      支持域过滤、关键字搜索（防抖）、状态过滤、房间过滤、排序；
- *      使用序号守卫丢弃过期响应，避免快速切换时旧响应覆盖新列表。
- *
- * 依赖：
- * - vue（ref、watch、Ref）
- * - @/services/api/entities（fetchEntities）
- * - @/shared/utils/core/error-message（API 错误文案兜底）
- * - @/shared/types/device（DeviceFilterState）
- */
+/** 支持域过滤、关键字搜索（防抖）、状态过滤、房间过滤、排序； */
 import { ref, watch, type Ref } from 'vue'
 import { fetchEntities } from '@/services/api/entities'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'

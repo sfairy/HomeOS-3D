@@ -1,8 +1,6 @@
 <!--
   设备管理面板：僵尸实体绑定清理向导
-  所属模块：设置 - 入门与连接
-  职责：扫描并批量解绑 HA 中已不存在的僵尸绑定。设备 OTA 请到 Home Assistant 中操作。
-  依赖：fetchDevicesOverview / unbindZombieBindings（system API）、chrome.confirm 确认弹窗
+  扫描并批量解绑 HA 中已不存在的僵尸绑定。设备 OTA 请到 Home Assistant 中操作。
 -->
 <template>
   <SettingsPageShell
@@ -112,7 +110,6 @@ import VEmptyState from '@/components/common/base/VEmptyState.vue'
 import { useChromeStore } from '@/stores/chrome.store'
 import { fetchDevicesOverview, unbindZombieBindings } from '@/services/api/system'
 
-// 入参：当前激活的设置 Tab
 defineProps({ activeTab: { type: String, default: 'devices' } })
 
 const chrome = useChromeStore()

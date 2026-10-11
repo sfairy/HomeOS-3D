@@ -1,13 +1,6 @@
 <!--
-组件：HomeModeBasicSection.vue
-所属模块：frontend / src / views / settings / automate / home-mode
-职责：家庭模式编辑器「基础信息」分区。编辑模式名称、图标、互斥组与触发优先级，
-      并展示推荐动作模板卡片供快速加入动作列表。
-关键依赖：
-  - HosSelect：图标/互斥组下拉
-  - ENTITY_DOMAIN_COLORS：域配色，用于模板卡片着色
-  - isHomeModeEmojiIcon / resolveHomeModeIcon：图标为 emoji 或 lucide 组件的判定与解析
-数据来源：父级透传的 activeDraft（双向）+ 图标/互斥组/动作模板选项
+  家庭模式编辑器「基础信息」分区。编辑模式名称、图标、互斥组与触发优先级，
+  并展示推荐动作模板卡片供快速加入动作列表。
 -->
 <template>
   <div class="hm-panel__section hm-panel__section--fill hm-basic-section">
@@ -116,17 +109,14 @@ import HosSelect from '@/components/common/base/HosSelect.vue'
 import { ENTITY_DOMAIN_COLORS } from '@/shared/constants/entity-domain-meta'
 import { isHomeModeEmojiIcon, resolveHomeModeIcon } from '@/shared/home-mode'
 
-// 入参：图标选项、互斥组选项、推荐动作模板列表
 const props = defineProps({
   homeModeIconOptions: { type: Array, default: () => [] },
   exclusiveGroupOptions: { type: Array, default: () => [] },
   actionTemplates: { type: Array, default: () => [] },
 })
 
-// 双向绑定：当前编辑的家庭模式草稿
 const activeDraft = defineModel('activeDraft', { type: Object, required: true })
 
-// 对外事件：点击推荐动作模板时向上透传，由父级追加到动作列表
 defineEmits(['apply-template'])
 
 // 模板卡片数据：将模板 label 按「上下文 · 动作」拆分，便于卡片分层展示

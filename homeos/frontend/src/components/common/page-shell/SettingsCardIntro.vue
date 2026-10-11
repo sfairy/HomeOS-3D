@@ -1,13 +1,4 @@
-/**
- * @file SettingsCardIntro.vue
- * @module common/page-shell
- * @description 卡片引言区（原 settings/shared/layout/SettingsCardIntro.vue）
- *  职责：
- *    - 统一渲染图标球、眉标、标题、描述；
- *    - 提供 desc / actions 两个具名插槽；
- *    - 通过 bordered 控制是否带底部分隔。
- *  依赖：vue，外部传入的 icon 组件。
- */
+/** - 统一渲染图标球、眉标、标题、描述； */
 <template>
   <div :class="['settings-card-intro', bordered && 'settings-card-intro--bordered', extraClass]">
     <div :class="['settings-icon-orb shrink-0', orbClass]">
@@ -28,12 +19,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 SettingsCardIntro 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 defineProps({
   /** 头部图标组件或渲染函数 */
   icon: { type: [Object, Function], required: true },

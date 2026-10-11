@@ -1,14 +1,6 @@
 <!--
-组件：SecurityMonitorPanel.vue
-所属模块：frontend / src / views / security
-职责：安防「监控」面板。提供单路 / 多路切换、轮巡间隔选择、绑定摄像头入口，
-      单路模式展示主路实时流与门铃画中画；多路模式以网格 + 快照缩略图方式呈现。
-关键依赖：
-  - HaCameraStream / SecurityCameraTile：实时流与单格摄像头组件
-  - useEntitiesStore / useLayoutStore / useChromeStore：实体、布局与门铃弹窗状态
-  - schedulePoll：全局轮巡调度（页面隐藏时暂停）
-  - primaryDoorbellCameraId：派生门铃主摄像头 ID
-数据来源：layoutStore 的 securityCameras 配置、entitiesStore 的 camera 实体
+  安防「监控」面板。提供单路 / 多路切换、轮巡间隔选择、绑定摄像头入口，
+  单路模式展示主路实时流与门铃画中画；多路模式以网格 + 快照缩略图方式呈现。
 -->
 <template>
   <div v-if="active" class="flex-1 flex flex-col overflow-hidden animate-fade-in">
@@ -192,13 +184,11 @@ import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import { primaryDoorbellCameraId } from '@/shared/utils/layout/doorbell.util'
 import { schedulePoll } from '@/shared/utils/core/poll-scheduler'
 
-// 入参：面板是否激活、当前告警传感器数量
 defineProps({
   active: { type: Boolean, default: true },
   alertCount: { type: Number, default: 0 },
 })
 
-// 对外事件：返回安防总览
 const emit = defineEmits(['back'])
 
 const router = useRouter()

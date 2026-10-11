@@ -1,11 +1,4 @@
-/**
- * 地震预警状态管理 Store
- *
- * 职责：
- * - EEW early：全屏倒计时 + 滑动解锁
- * - confirmation / CENC：平静公报弹层 + 轻量关闭
- * - 同震去重：EEW 响应后 30 分钟内抑制同震公报弹层
- */
+/** 地震预警状态管理 Store */
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { EarthquakeAlertPayload } from '@/shared/types/earthquake'

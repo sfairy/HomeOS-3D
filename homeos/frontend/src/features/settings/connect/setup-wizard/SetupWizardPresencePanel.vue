@@ -1,31 +1,12 @@
 <!--
-  组件文件：SetupWizardPresencePanel.vue
-  所属模块：frontend/src/features/settings/connect/setup-wizard
-  组件职责：初始化向导「安防步」内嵌的人员在家判定面板子组件。顶部显示当前在家人数
-    （全员在家/全员离家/X 人在家）与刷新按钮；中部分两列显示在家人员和离家人员
-    （头像配色 + 姓名 + 最后在线时间），下方两个大开关：自动布防（全员离家切换为安防
-    布防模式）与自动升级（有人回家自动撤防），右上角提供跳转到安防联动页的外链按钮。
-  主要 props / emits：
-    - props presenceMembers：人员对象数组
-    - props presenceLoading / presenceLoaded：加载状态与是否加载过
-    - props presenceAutoMode：是否自动跟踪模式
-    - props presenceAtHomeCount：当前在家人数（用于配色）
-    - props autoArmEnabled / autoUpgradeEnabled：两个开关状态
-    - props presenceFlagSaving：开关保存加载态
-    - props loadPresence / toggleAutoArm / toggleAutoUpgrade / memberInitial /
-      memberTone：回调函数
-  依赖关系：引用 SETTINGS_ROUTES.securityModes('linkage') 跳转安防联动页；
-    RouterLink 组件；纯 UI + 回调驱动，无独立 API 调用。
+  初始化向导「安防步」内嵌的人员在家判定面板子组件。顶部显示当前在家人数
+  （全员在家/全员离家/X 人在家）与刷新按钮；中部分两列显示在家人员和离家人员
+  （头像配色 + 姓名 + 最后在线时间），下方两个大开关：自动布防（全员离家切换为安防
+  布防模式）与自动升级（有人回家自动撤防），右上角提供跳转到安防联动页的外链按钮。
   注意事项：presenceMembers 为空时显示「暂无人员」占位；人员最后在线时间通过内部
-    Date.parse 计算（刚刚/X 分钟前/X 小时前/X 天前），异常时间字符串不显示。
+  Date.parse 计算（刚刚/X 分钟前/X 小时前/X 天前），异常时间字符串不显示。
 -->
 <script setup>
-/**
- * 职责：渲染 views/SetupWizardPresencePanel 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { computed } from 'vue'
 import { Users, RefreshCw, Loader2, ExternalLink, ChevronRight } from '@lucide/vue'
 import { RouterLink } from 'vue-router'

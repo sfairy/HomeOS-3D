@@ -1,20 +1,4 @@
-/**
- * 能源字段：查询 / 推断逻辑（静态表见 energy-attr-maps）
- *
- * 职责：
- * - 转发 energy-attr-maps 中的静态映射表与类别常量。
- * - 提供能源来源（energySources）的默认配置工厂。
- * - 提供字段定义查询、可映射字段筛选、entity_id 前缀提取等工具。
- * - 提供从综合实体 / 同设备兄弟传感器推断字段映射的核心算法 inferEnergyMapping。
- *
- * 依赖：
- * - ./energy-attr-maps 静态映射表。
- * - @/shared/entity/utils/derived.util 中的 getEntityDisplayName。
- *
- * 注意：
- * - `mode`（convention / entity / multi）为能源来源模式 key，不翻译。
- * - 字段 key（balance / dailyNum / ...）为配置 key，不翻译。
- */
+/** 能源字段：查询 / 推断逻辑（静态表见 energy-attr-maps） */
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 export {
   type EnergyCategory,

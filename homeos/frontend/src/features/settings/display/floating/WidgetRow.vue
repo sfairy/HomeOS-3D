@@ -1,34 +1,18 @@
 <!--
-组件：WidgetRow.vue
-所属模块：frontend / src / views / settings / display / floating
-职责：浮动组件列表行。展示组件预览（点位、图标、标题、类型徽章、坐标）、显隐/配置/删除按钮，
-      并在编辑态展开 FloatingWidgetEditor。
-关键依赖：
-  - FloatingWidgetEditor：编辑器主体
-  - getAfhTypeTone / getFloatingCategoryLabel / clampPct / formatPct：类型色调与百分比工具
-数据来源：父级透传的 fw / afhEditId / isAfhEditorDirty / 各类回调函数
+  浮动组件列表行。展示组件预览（点位、图标、标题、类型徽章、坐标）、显隐/配置/删除按钮，
+  并在编辑态展开 FloatingWidgetEditor。
 -->
 <script setup>
-/**
- * 职责：渲染 views/WidgetRow 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { computed } from 'vue'
 import { Settings as SettingsIcon, Trash2, Eye, EyeOff } from '@lucide/vue'
 import { clampPct, formatPct, getAfhTypeTone, getFloatingCategoryLabel } from '@/features/settings/composables/display/layout-floating.internals'
 import FloatingWidgetEditor from './WidgetEditor.vue'
 import './styles/floating.css'
 
-// 双向绑定：当前展开的分区 id（透传给编辑器）
 const openSection = defineModel('openSection', { type: [String, null], default: 'layout' })
-// 双向绑定：AFH 编辑器草稿配置
 const afhConfig = defineModel('afhConfig', { type: Object, required: true })
-// 双向绑定：Hub Tabs 配置
 const afhHubTabs = defineModel('afhHubTabs', { type: Object, required: true })
 
-// 入参：浮动组件对象、编辑 id、是否脏、图标/类型校验/切换/显隐/移除/安防等回调
 const props = defineProps({
   fw: { type: Object, required: true },
   afhEditId: { type: [String, null], default: null },

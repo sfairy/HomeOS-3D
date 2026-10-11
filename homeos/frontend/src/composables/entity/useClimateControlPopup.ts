@@ -1,23 +1,4 @@
-/**
- * @module useClimateControlPopup
- * @description 温控弹窗（climate / fan）控制逻辑组合式函数。
- *
- * 职责：
- * - 基于 useEntityPopupBase 获取实时实体，并派生模式/温度/湿度等展示信息。
- * - 提供温度滑块、双温区、HVAC 模式、风扇模式、摆风、预设等交互动作。
- * - 通过 entitiesStore.callService 直连服务调用，失败时统一 notifyError。
- *
- * 依赖：
- * - vue：computed 响应式计算。
- * - @homeos/shared：getEntityDomain 解析 domain。
- * - @lucide/vue：模式图标组件。
- * - @/composables/entity/useEntityPopupBase：弹窗基座与实时实体。
- * - @/stores/entities.store：实体 store 与服务调用。
- * - @/composables/entity/useSliderCommit：温度滑块提交封装。
- * - @/shared/utils/ui/progress-bar.util：clampInRange 数值钳制。
- * - @/services/notify：notifyError 错误提示。
- * - @/shared/entity/utils/derived.util：getEntityDisplayName 显示名。
- */
+/** - 基于 useEntityPopupBase 获取实时实体，并派生模式/温度/湿度等展示信息。 */
 import { computed } from 'vue'
 import { getEntityDomain } from '@homeos/shared'
 import { Settings, ThermometerSnowflake, Droplets, Fan, Flame, Power } from '@lucide/vue'

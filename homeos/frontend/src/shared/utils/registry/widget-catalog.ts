@@ -1,16 +1,4 @@
-/**
- * 微件目录与 Builder 域服务工具
- *
- * 职责：
- * - 转发 widget-registry-meta 中的微件元数据 / 目录分组 / 图标 / 类名等查询能力。
- * - 维护 HA domain → service 列表映射表（DOMAIN_SERVICES），供微件 Builder
- *   在「按域选服务」时使用，避免对未知域下发空列表。
- *
- * 依赖：./widget-registry-meta。
- *
- * 注意：domain key（light / switch / cover ...）与 service 名（turn_on /
- *   set_temperature ...）为 HA 标识符，不翻译。
- */
+/** 微件目录与 Builder 域服务工具 */
 export {
   getWidgetCategoryLabelForType,
   getSidebarWidgetCatalogGroups,

@@ -1,12 +1,5 @@
 <!--
-组件：SettingsLayoutPanel.vue
-所属模块：frontend / src / views / settings / display
-职责：布局面板。整合仪表盘编辑器入口与 3D 户型图绘制入口（旧 2D 楼层管理已随楼层模型移除）。
-关键依赖：
-  - SettingsPageShell：页面骨架
-  - SettingsLayoutEditSection：布局编辑入口区段
-  - useSettingsPendingChanges：待保存变更快照
-数据来源：layoutStore.layoutConfig
+  布局面板。整合仪表盘编辑器入口与 3D 户型图绘制入口（旧 2D 楼层管理已随楼层模型移除）。
 -->
 <template>
   <SettingsPageShell

@@ -1,12 +1,6 @@
 <!--
-组件：SecurityZoneHub.vue
-所属模块：frontend / src / views / security
-职责：安防区域中心。顶部 Tab 在「运行监控」与「区域配置」间切换，并负责从监控态
-      跳转到配置态聚焦某个区域、配置保存后回到监控态。
-关键依赖：
-  - SecurityZoneMonitor / SecurityZoneConfigPanel：监控与配置子组件
-  - Shield / Activity / Settings2 图标来自 @lucide/vue
-数据来源：父级 Overview 透传的 liveZones / layoutZones / backendZones 与安防模式
+  安防区域中心。顶部 Tab 在「运行监控」与「区域配置」间切换，并负责从监控态
+  跳转到配置态聚焦某个区域、配置保存后回到监控态。
 -->
 <template>
   <section class="sov-zones glass-shine">
@@ -77,7 +71,6 @@ import { Shield, Activity, Settings2 } from '@lucide/vue'
 import SecurityZoneMonitor from '@/features/security/ZoneMonitor.vue'
 import SecurityZoneConfigPanel from '@/features/security/ZoneConfigPanel.vue'
 
-// 入参：实时区域、布局区域、后端区域、当前安防模式、面板加载/就绪态
 const props = defineProps({
   liveZones: { type: Array, default: () => [] },
   layoutZones: { type: Array, default: () => [] },
@@ -87,10 +80,8 @@ const props = defineProps({
   secPanelReady: Boolean,
 })
 
-// 对外事件：配置保存后向上冒泡、请求按区域筛选审计
 const emit = defineEmits(['saved', 'filter-audit'])
 
-// 双向绑定：布防区域选择（用于选择性布防）
 const armSelection = defineModel('armSelection', { type: Array, default: () => [] })
 
 // 当前视图：monitor 运行监控 / config 区域配置

@@ -1,22 +1,4 @@
-/**
- * @file catalog.ts
- * @module @homeos/shared/room
- * @brief 全屋默认房间目录与环境传感器映射（前后端单一真相源）。
- *
- * 职责：
- *  - 维护"房间 ID → 中文标签 / emoji / 语音关键词 / 推断关键词 / HA area 匹配模式"的目录；
- *  - 提供 EnvSensorMapEntry 结构（环境传感器到房间的绑定）；
- *  - 暴露按 area / 语音 / 关键词推断房间 ID 的工具函数。
- *
- * 关键依赖：
- *  - 语音控制 / Widget 卡片 / 环境健康页均按本目录渲染房间标签与图标；
- *  - ha-area-env-map.ts 反查 HA area_registry 与本目录的对应关系。
- *
- * 约定：
- *  - fixed: true 的房间不可被用户删除（基础房间）；
- *  - _hidden: true 的 env 条目仅用于绑定，不展示在房间列表；
- *  - inferKeywords 用于从 entity_id 反推房间，voiceKeywords 用于语音解析。
- */
+/** - 维护"房间 ID → 中文标签 / emoji / 语音关键词 / 推断关键词 / HA area 匹配模式"的目录； */
 
 /**
  * 单个房间目录条目。

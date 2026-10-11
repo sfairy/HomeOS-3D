@@ -1,18 +1,6 @@
 <!--
-组件：SettingsWholeHomeOffSection.vue
-所属模块：frontend / src / views / settings / display
-职责：全屋关闭区段。配置启用开关、关闭范围（设备域）、排除实体与限定实体，
-      并展示推荐卡片（一键添加全部排除）。
-关键依赖：
-  - SettingsCard / SettingsFlowBand / SettingsFeatureMaster：卡片与总开关
-  - EntityMultiSelect：实体多选
-  - RecommendInsightCard：推荐卡片
-  - useWholeHomeOffSection / useWholeHomeOffRecommend：配置与推荐逻辑
-数据来源：useWholeHomeOffSection 派生（最终来自 layoutStore.layoutConfig.wholeHomeOff）
-
-说明：HomeOS 为单一管理员模型（后端 `security/auth_context.py`：只存在 admin 一种角色），
-      不存在非管理员账号，因此这里不再提供「可用角色」配置；能力边界由后端登录会话
-      （`require_user`）把关，前端不做可伪造的角色判断。
+  全屋关闭区段。配置启用开关、关闭范围（设备域）、排除实体与限定实体，
+  并展示推荐卡片（一键添加全部排除）。
 -->
 <template>
   <SettingsCard full static>

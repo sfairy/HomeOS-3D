@@ -1,14 +1,4 @@
-/**
- * 路由/布局变更时同步 WebSocket domain 订阅；重连后补发 pinned（生产环境关键）
- *
- * 职责：
- * - 监听路由 path、布局配置与公开配置变化，重新解析并下发 WebSocket 订阅域与 pinned 实体；
- * - 使用浅指纹 + debounce 避免编辑布局时 deep watch 抖动频繁刷 update_subscription；
- * - 监听 wsTransportEpoch 与 connected，在 socket 重连/恢复时强制补发一次订阅。
- *
- * 依赖：vue watch/onUnmounted、vue-router useRoute、ui store、entities store、
- * entity-ws 工具（域解析/pinned 收集/布局订阅 key）。
- */
+/** 路由/布局变更时同步 WebSocket domain 订阅；重连后补发 pinned（生产环境关键） */
 import { watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useLayoutStore } from '@/stores/layout.store'

@@ -1,19 +1,4 @@
-/**
- * 原生桥（Native Bridge）——把服务端访问配置推送给移动端外壳。
- *
- * 职责：在 WebView 中把「服务端访问配置」（内网 / 远程访问地址、端口）推送给宿主原生 App，
- *  使已配对的移动端在切换网络（家里 ⇄ 外网）后能直接取回入口，免去手工改地址。
- *
- * 设计原则（宽容探测，绝不报错）：
- *  - HomeOS 自身没有原生壳，因此三种常见桥接通道全部做 `typeof === 'function'` 守卫：
- *     1) `window.AuraNative.syncServerConfig`（上游 Aura Grid 血统壳，兼容同名桥）
- *     2) `window.HomeOSNative.postToNative`（HomeOS 约定的对象式桥）
- *     3) `window.webkit.messageHandlers.HomeOSNative.postMessage`（iOS WKWebView）
- *  - fire-and-forget：任何通道缺失或抛错都只记 debug 日志，不影响 Web 端功能；
- *  - 纯探测，不做 hydration 之外的任何副作用。
- *
- * 依赖：无（只访问全局对象）。
- */
+/** 原生桥（Native Bridge）——把服务端访问配置推送给移动端外壳。 */
 
 /** 推送给原生端的服务端访问配置 */
 export type ServerAccessConfig = {

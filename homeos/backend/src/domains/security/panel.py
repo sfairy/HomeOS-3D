@@ -115,9 +115,7 @@ class SecurityPanelService:
             ),
         )
 
-    # ------------------------------------------------------------------ #
     # 状态访问
-    # ------------------------------------------------------------------ #
     def _set_mode_value(self, mode: str) -> None:
         self._mode = mode
 
@@ -139,9 +137,7 @@ class SecurityPanelService:
     def get_armed_at(self) -> int | None:
         return self._armed_at
 
-    # ------------------------------------------------------------------ #
     # 区域配置
-    # ------------------------------------------------------------------ #
     def configure_zones(self, zones: list[dict[str, Any]] | None) -> None:
         if not isinstance(zones, list) or not zones:
             self._zones = []
@@ -188,9 +184,7 @@ class SecurityPanelService:
         )
         logger.info("已配置 %s 个安防区域", len(zones))
 
-    # ------------------------------------------------------------------ #
     # 布防 / 撤防
-    # ------------------------------------------------------------------ #
     async def set_mode(self, mode: str, source: str = "home-mode") -> dict[str, Any]:
         """家庭模式联动入口：等价 ``security.panel.setMode`` 事件。"""
         if mode == "disarmed":
@@ -342,16 +336,12 @@ class SecurityPanelService:
             "failedItems": action_result["failedItems"],
         }
 
-    # ------------------------------------------------------------------ #
     # 传感器事件
-    # ------------------------------------------------------------------ #
     async def handle_state_change(self, change: dict[str, Any]) -> None:
         await self.alarm_helper.handle_sensor_trigger(change)
         await self.alarm_helper.handle_safety_sensor(change)
 
-    # ------------------------------------------------------------------ #
     # 紧急求助
-    # ------------------------------------------------------------------ #
     async def trigger_emergency(self, action: str = "panic") -> dict[str, Any]:
         now = time.time() * 1000
         cooldown_ms = int(self._config.get().get("emergencyCooldownSec") or 0) * 1000
@@ -383,9 +373,7 @@ class SecurityPanelService:
         finally:
             self._emergency_running = False
 
-    # ------------------------------------------------------------------ #
     # 事件历史
-    # ------------------------------------------------------------------ #
     async def get_events(self, event_type: str | None = None, limit: Any = None) -> list[dict[str, Any]]:
         with self._session_factory() as session:
             from .config import load_frontend_config, load_notification_config

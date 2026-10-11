@@ -1,21 +1,6 @@
 <!--
-组件：SystemConfigWorkspace.vue
-所属模块：frontend / src / views / settings / system / system-config
-职责：高级参数工作区。按分区渲染开关字段与输入字段，内嵌 SystemConfigFieldCell 与 SystemConfigSectionDock，
-      支持开发 key 显示。
-Props：
-  - section：当前分区对象
-  - displayFieldCount / filteredFieldCount：显示/过滤后字段数
-  - booleanFields / inputFields / inputFieldEntries：开关与输入字段
-  - showDevKeys：显示开关
-  - fieldId / fieldLabel / fieldHint / isFieldPending：字段元数据函数
-Emits：
-  - field-value / field-masked：字段值与掩码变更
-关键依赖：
-  - SettingsCard：卡片容器
-  - SystemConfigFieldCell / SystemConfigSectionDock：字段单元格与分区委派
-  - sectionMeta：分区元数据
-数据来源：父级 ConfigPanel 透传的分区与字段
+  高级参数工作区。按分区渲染开关字段与输入字段，内嵌 SystemConfigFieldCell 与 SystemConfigSectionDock，
+  支持开发 key 显示。
 -->
 <template>
   <SettingsCard

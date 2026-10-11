@@ -69,9 +69,7 @@ class NotificationRulesHelper:
         self._condition_history: dict[str, list[dict[str, str]]] = {}
         self._match_state: dict[str, bool] = {}
 
-    # ------------------------------------------------------------------ #
     # 初始化
-    # ------------------------------------------------------------------ #
     async def load_condition_history(self) -> None:
         def _read() -> Any:
             with self._session_factory() as session:
@@ -96,9 +94,7 @@ class NotificationRulesHelper:
         except Exception as exc:
             logger.debug("告警规则修订历史持久化失败: %s", exc)
 
-    # ------------------------------------------------------------------ #
     # 规则缓存
-    # ------------------------------------------------------------------ #
     async def refresh_rules_cache(self) -> None:
         """刷新告警规则缓存（仅保留启用的规则），并更新 HA 实体订阅索引。"""
         try:
@@ -135,9 +131,7 @@ class NotificationRulesHelper:
     def get_rule_condition_history(self, rule_id: str) -> list[dict[str, str]]:
         return list(self._condition_history.get(rule_id) or [])
 
-    # ------------------------------------------------------------------ #
     # 条件求值（边沿触发）
-    # ------------------------------------------------------------------ #
     async def evaluate_rules(
         self,
         entity_id: str,
@@ -217,9 +211,7 @@ class NotificationRulesHelper:
                 # 通知未投递：回滚边沿匹配状态，保证条件持续匹配期间可重试。
                 self._match_state[edge_key] = False
 
-    # ------------------------------------------------------------------ #
     # CRUD
-    # ------------------------------------------------------------------ #
     async def get_rules(self) -> list[dict[str, Any]]:
         try:
             return await asyncio.to_thread(self._fetch_rules_from_db)

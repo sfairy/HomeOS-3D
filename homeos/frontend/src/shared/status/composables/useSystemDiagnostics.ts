@@ -1,17 +1,4 @@
-/**
- * @file useSystemDiagnostics.ts
- * @module composables/settings
- * @description 系统健康与诊断 composable：对 GET /system/health 与 /system/diagnostics 做轻量缓存。
- *
- * 职责：
- * - 提供 health / diagnostics 两个接口的并发安全加载（inflight 去重）；
- * - 缓存 10 秒，避免设置面板频繁切换时重复请求；
- * - 用引用计数管理 loading，避免并发请求任一完成时误关另一仍在途请求的 loading。
- *
- * 依赖：
- * - vue（computed、ref）
- * - @/services/api/system（fetchSystemHealth / fetchSystemDiagnostics）
- */
+/** - 提供 health / diagnostics 两个接口的并发安全加载（inflight 去重）； */
 import { computed, ref } from 'vue'
 import { fetchSystemHealth, fetchSystemDiagnostics } from '@/services/api/system'
 

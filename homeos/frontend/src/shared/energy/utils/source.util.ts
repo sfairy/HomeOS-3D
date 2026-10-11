@@ -1,19 +1,4 @@
-/**
- * @module energy-source.util
- * @description 能源统计绑定解析器（纯函数），支持 convention / entity / multi 三种模式。
- *
- * 职责：
- * - 从 layoutConfig.statsSensors 解析各类别能源的有效配置。
- * - 按字段定义从 HA 实体映射中读取原始字段值（含多账户合计）。
- * - 解析主实体 ID、功率实体 ID、多账户选项、实体前缀等。
- * - 收集能源模块需订阅的实体 ID 集合（供 WS 订阅使用）。
- *
- * 依赖：
- * - `energy-fields`：能源类别、字段定义、约定前缀等常量。
- * - `energy-entity-read.util`：实体属性读取。
- * - `energy-account.util`：账户条目解析与索引选取。
- * - `core/misc.util`：JSON 宽松解析。
- */
+/** - 从 layoutConfig.statsSensors 解析各类别能源的有效配置。 */
 import {
   ENERGY_CONVENTION_PREFIX,
   createDefaultEnergySource,

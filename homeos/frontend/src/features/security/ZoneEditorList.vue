@@ -1,14 +1,6 @@
 <!--
-组件：SecurityZoneEditorList.vue
-所属模块：frontend / src / views / security
-职责：安防区域编辑器。渲染区域卡片列表（关联房间 / 告警名称 / 类型 / 绑定传感器），
-      支持紧凑模式（master-detail 导航）、手动 entity_id 编辑、空态引导与房间同步。
-关键依赖：
-  - useSecurityZoneRooms：房间选项、可选传感器、房间到区域的同步
-  - useSecurityZoneEditorList：紧凑模式下的导航与渲染逻辑
-  - HosSelect / EntityMultiSelect / HomeModeItemNav：下拉、实体多选与导航子组件
-  - X / Map / Sparkles / Plus 图标来自 @lucide/vue
-数据来源：v-model 绑定的 zones 列表 + useSecurityZoneRooms 提供的房间与传感器
+  安防区域编辑器。渲染区域卡片列表（关联房间 / 告警名称 / 类型 / 绑定传感器），
+  支持紧凑模式（master-detail 导航）、手动 entity_id 编辑、空态引导与房间同步。
 -->
 <template>
   <div
@@ -242,7 +234,6 @@ import { useSecurityZoneRooms } from '@/features/security/composables/useSecurit
 import { useSecurityZoneEditorList } from '@/features/security/composables/useSecurityZoneEditorList'
 import './styles/security.css'
 
-// 入参：变体（dash/widget）、是否可编辑、是否嵌入、各类显示开关、是否撑满高度
 const props = defineProps({
   variant: { type: String, default: 'dash' },
   editable: { type: Boolean, default: true },
@@ -254,10 +245,8 @@ const props = defineProps({
   fillHeight: { type: Boolean, default: false },
 })
 
-// 双向绑定：当前编辑的区域列表
 const zones = defineModel({ type: Array, default: () => [] })
 
-// 对外事件：空态按钮在禁用内置行为时向父级请求生成 / 添加
 const emit = defineEmits(['request-generate', 'request-add'])
 
 const {

@@ -1,25 +1,12 @@
 <!--
-  组件文件：WidgetConfigForms.vue
-  所属模块：frontend/src/features/settings/display/widgets
-  组件职责：多变体微件配置聚合子面板，根据 variant 值渲染不同类型的配置表单：
-    hubTabs（Hub Tab 视图）、security（安防面板 Tab）、mediaMini（媒体播放器）、
-    height（高度微调滑块）。各自使用 WidgetConfigShell 外壳包裹并复用
-    HubTabsConfigField 与 SettingsRangeField 组件。
-  主要 props / emits：
-    - props variant：变体类型字符串（必填，决定渲染哪个分支）
-    - props tabSet / title / description：Hub Tab 类分支的元信息与标题描述
-    - props heightDraft / heightPreset / currentHeight：高度变体的数值参数
-    - emit save：所有变体底部保存按钮触发
-    - emit reset：高度变体的「重置为默认」按钮
-    - emit update-height-draft：高度滑块变化时触发
-  依赖关系：inject(WIDGET_PANEL_CONFIG_KEY) 读写各变体字段（playerEntities 等）。
+  多变体微件配置聚合子面板，根据 variant 值渲染不同类型的配置表单：
+  hubTabs（Hub Tab 视图）、security（安防面板 Tab）、mediaMini（媒体播放器）、
+  height（高度微调滑块）。各自使用 WidgetConfigShell 外壳包裹并复用
+  HubTabsConfigField 与 SettingsRangeField 组件。
   注意事项：variant 必须匹配其中一个分支，否则无内容渲染；实体字符串字段在内部桥接为
-    多选数组方便与 EntityMultiSelect 对接。
+  多选数组方便与 EntityMultiSelect 对接。
 -->
 <script setup>
-/**
- * 职责：渲染 views/WidgetConfigForms 页面视图，整合子组件与业务数据。
- */
 import { LayoutGrid, Music2, Ruler, Shield } from '@lucide/vue'
 import { computed, inject } from 'vue'
 import EntityMultiSelect from '@/components/common/EntityMultiSelect.vue'

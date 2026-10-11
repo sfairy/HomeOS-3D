@@ -4,14 +4,6 @@
   顶部 ListPageHero 标题 + 指标条、ListPageMetrics KPI、中部 Analytics 折线/柱状分析图，
   下方表格展示事件详情，支持按强度/时间筛选、清空本地、模拟演练事件标注。
   路由：由 Vue Router /earthquake-history 挂载；登录态用户进入，访客受限只读。
-  依赖：services/api/earthquake 历史/本地/全局 + 清空 接口；
-        utils：earthquake/util 烈度与震级格式化 + history-analytics.util 分析聚合；
-        Pinia：useChromeStore 全局通知；
-        子组件：HosSelect / ApiQueryState / ListPageHero / ListPageMetrics
-                / EarthquakeHistoryAnalytics；
-        SETTINGS_ROUTES 跳转地震预警参数页。
-        @homeos/shared：isEewSimulationEventId 标识演练事件（带样式区分）。
-  注意：本地 EEW Tab 显示分析图；global Tab 展示全球 USGS/EMS 数据空态时回退。
 -->
 <template>
   <div class="list-page earthquake-history-view">

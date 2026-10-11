@@ -46,24 +46,7 @@
 </template>
 
 <script setup>
-/**
- * @file DeviceGroupOfflinePanel.vue
- * @module components/entities/device-group
- * @description 设备群组离线状态面板
- *
- * 职责：
- * - 按「严重告警」「系统审计」两个分组展示离线设备
- * - 严重告警：以卡片网格形式展示，含域标签、脉冲告警点、离线原因与时长
- * - 系统审计：以紧凑列表形式展示次要连接问题，可由父组件控制展开/收起
- *
- * 依赖：
- * - @homeos/shared 的 getEntityDomain 用于从 entity_id 解析域
- * - @/shared/entity/utils/derived.util 的 getEntityDisplayName 用于渲染友好名称
- * - 父组件通过 props 传入 stats、各类回调函数（offlineIcon/offlineReason/shortReason/timeAgo/getEntity）
- *
- * 使用场景：
- * - DeviceGroupModal 在 domain === 'offline' 时渲染此面板
- */
+/** - 按「严重告警」「系统审计」两个分组展示离线设备 */
 import { getEntityDomain } from '@homeos/shared'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 
@@ -86,7 +69,6 @@ defineProps({
 })
 
 /**
- * 双向绑定：是否展开「系统审计」分组
  * 通过 defineModel 与父组件 v-model:show-audit 同步状态
  * @type {import('vue').ModelRef<boolean>}
  */

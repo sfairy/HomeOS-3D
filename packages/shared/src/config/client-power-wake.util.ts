@@ -1,24 +1,4 @@
-/**
- * @file client-power-wake.util.ts
- * @module @homeos/shared/config
- * @brief 终端充电器开关「人来亮屏」屏保唤醒判定与公开配置抽取。
- *
- * 职责：
- *  - 判定充电器开关由关变开（isSwitchOffToOn，仅认明确 off→on）；
- *  - 判定屏保可见时是否应因充电器开关 off→on 退出屏保；
- *  - 从完整客户端电源配置抽取公开（无密钥）的"人来亮屏"绑定子集；
- *  - 按 clientId 解析其充电器开关 entity_id（精确匹配；单机可回退）。
- *
- * 关键依赖：
- *  - config/client-power 提供完整 ClientPowerSettings 结构（含 reportToken 等私密字段）；
- *  - 后端屏保管理器按本模块决定是否退出屏保，并按 buildClientPowerWakePublic 暴露给前端。
- *
- * 约定：
- *  - 不写入 reportToken；非屏保时不产生任何开关控制动作；
- *  - 首次快照 / unavailable / 保持 on 都不算 off→on；
- *  - presenceWakeEnabled 显式为 false 的客户端在抽取时被过滤；
- *  - 本机 clientId 对不上且仅一台启用了人来亮屏时，回退订阅那台的开关。
- */
+/** - 判定充电器开关由关变开（isSwitchOffToOn，仅认明确 off→on）； */
 import type { ClientPowerSettings } from './client-power';
 
 /** 抽取人来亮屏公开配置时只需 id / 充电器实体 / 开关；其余字段可缺省 */

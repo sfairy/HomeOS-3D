@@ -1,21 +1,8 @@
 <!--
-组件：PanelHeaderSection.vue
-所属模块：frontend / src / views / settings / display / floating
-职责：浮动组件面板头部。展示组件数概览、流程概览、拖拽锁定开关、添加组件菜单，
-      并提供跳转到生活账户/环境健康/安防场景等业务配置的链接。
-关键依赖：
-  - SettingsSectionHead / SettingsFlowBand / SettingsFlowStat：头部与流程概览
-  - SettingsPopoutMenu + FloatingWidgetPickerMenu：添加组件菜单
-  - SETTINGS_ROUTES：业务配置跳转
-数据来源：父级透传的组件数、锁定态与目录分组
+  浮动组件面板头部。展示组件数概览、流程概览、拖拽锁定开关、添加组件菜单，
+  并提供跳转到生活账户/环境健康/安防场景等业务配置的链接。
 -->
 <script setup>
-/**
- * 职责：渲染 views/PanelHeaderSection 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { computed } from 'vue'
 import { Grip, Layers, Layout, Lock, Monitor, Unlock, Plus } from '@lucide/vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
@@ -26,17 +13,14 @@ import FloatingWidgetPickerMenu from './FloatingWidgetPickerMenu.vue'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import './styles/floating.css'
 
-// 双向绑定：是否展开「添加组件」菜单
 const showAddFloating = defineModel('showAddFloating', { type: Boolean, required: true })
 
-// 入参：组件数、拖拽锁定态、目录分组
 const props = defineProps({
   widgetCount: { type: Number, required: true },
   isAfhLocked: { type: Boolean, required: true },
   floatingCatalogGroups: { type: Array, required: true },
 })
 
-// 对外事件：切换拖拽锁定、添加组件
 const emit = defineEmits(['toggle-afh-lock', 'add-widget'])
 
 // 概述文案：组件总数为 0 时给出引导

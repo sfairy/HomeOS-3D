@@ -1,11 +1,4 @@
-"""MoviePilot 透明代理服务（对齐 ``ops/system-moviepilot-proxy.service.ts``）。
-
-职责：把前端的图片 / 接口请求透明转发到外部 MoviePilot 服务，解决跨域问题。
-安全：代理路径防目录穿越 + 图片 URL 防 SSRF（DNS 解析后逐地址校验私网/回环）。
-
-与 Nest 的差异：Nest 直接写 Express ``res``；此处返回 ``ProxyResult``，由路由层
-转成 Starlette ``Response``，保持服务层不依赖具体 Web 框架。
-"""
+"""MoviePilot 透明代理服务（对齐 ``ops/system-moviepilot-proxy.service.ts``）。"""
 
 from __future__ import annotations
 
@@ -139,9 +132,7 @@ class MoviePilotProxyService:
         self._http_fetch = http_fetch or fetch_raw
         self._resolve_host = resolve_host or _default_resolve_host
 
-    # ------------------------------------------------------------------ #
     # 目标解析
-    # ------------------------------------------------------------------ #
     def get_moviepilot_url(self) -> str:
         """读取 UI 配置 ``layout.moviePilotUrl``（去末尾斜杠）。"""
         project_id = self._ui_config.resolve_active_project_id()
@@ -190,9 +181,7 @@ class MoviePilotProxyService:
             return False
         return all(not is_unsafe_ip(address) for address in addresses)
 
-    # ------------------------------------------------------------------ #
     # 代理
-    # ------------------------------------------------------------------ #
     async def proxy_image(
         self, img_url: str, incoming_headers: dict[str, Any] | None = None
     ) -> ProxyResult:

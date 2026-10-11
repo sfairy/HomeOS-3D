@@ -1,27 +1,4 @@
-/**
- * @file 主布局壳层 Composable
- * @module composables/ui/useMainLayoutChrome
- *
- * 职责：
- *  - 聚合主布局壳层所需的全部状态与操作：导航菜单、HA 连接状态、门铃、天气导航。
- *  - 提供全屋关闭、HA 重连、设置锁、升级备份提醒等功能。
- *  - 暴露 lucide 图标组件供模板使用。
- *
- * 依赖：
- *  - vue 的 computed / ref / watch。
- *  - vue-router 的 useRouter / useRoute。
- *  - @lucide/vue 的图标组件。
- *  - auth.store / entities.store / layout.store + chrome.store。
- *  - home-batch-actions 的 turnOffWholeHome。
- *  - whole-home-off 常量与配置。
- *  - useSystemDiagnostics 的 useSystemDiagnostics。
- *  - useHaDegrade 的 HA 重连封装。
- *  - core/logger 的 logger。
- *  - settings-route.util 的 SETTINGS_ROUTES。
- *  - nav-tabs.util 的 DEFAULT_BRAND_LOGO_URL。
- *  - main-layout-nav.util 的 mainLayoutIconMap。
- *  - useMainLayoutNavMenu / useMainLayoutDoorbell / useMainLayoutWeatherNav。
- */
+/** - 聚合主布局壳层所需的全部状态与操作：导航菜单、HA 连接状态、门铃、天气导航。 */
 import { readLocalStorage, writeLocalStorage } from '@/shared/utils/core/local-storage.util'
 
 import { computed, ref, watch } from 'vue'

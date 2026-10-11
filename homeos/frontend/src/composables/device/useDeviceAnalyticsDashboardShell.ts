@@ -1,22 +1,4 @@
-/**
- * 设备分析仪表盘 Shell Composable
- *
- * 模块：设备 / 分析仪表盘 / 外壳装配
- * 职责：
- *   - 作为分析仪表盘的装配入口，聚合以下子 composable：
- *       · useDeviceAnalyticsDashboard：拉取摘要与事件统计。
- *       · useDeviceHealthTrend：本地健康趋势。
- *       · useDeviceAnalyticsMetrics：派生指标。
- *       · useDeviceAnalyticsCharts：ECharts 图表生命周期。
- *   - 维护 Tab 状态、时间窗口选择、根元素 ref 与图表 ref 绑定回调。
- *   - 暴露 formatDeviceRuntime / hintTypeLabel / hintClass 等纯函数供模板使用。
- *
- * 依赖：
- *   - @/stores/entities.store.useEntitiesStore：实体来源（用于名称解析）。
- *   - @/shared/entity/utils/derived.util.getEntityDisplayName：实体显示名解析。
- *   - @/shared/device/utils/domain-labels.util.getDomainLabel：域标签。
- *   - 各子 composable（见 import）。
- */
+/** 设备分析仪表盘 Shell Composable */
 import {
   ref,
   computed,

@@ -231,9 +231,7 @@ def _parse_iso_ms(value: str | None) -> float:
         return 0.0
 
 
-# ---------------------------------------------------------------------- #
 # 实体查询工具（对齐 Nest ``state-store/internals.ts``）
-# ---------------------------------------------------------------------- #
 def slice_entities_by_cursor(
     entities: list[dict[str, Any]], cursor: str | None, limit: int
 ) -> dict[str, Any]:

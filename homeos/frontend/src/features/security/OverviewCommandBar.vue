@@ -1,13 +1,6 @@
 <!--
-组件：SecurityOverviewCommandBar.vue
-所属模块：frontend / src / views / security
-职责：安防总览顶部命令栏。展示当前安防状态、模式切换按钮、紧急求助（带二次确认
-      与冷却倒计时）、联动失败查看入口，以及告警/传感器分类 chip。
-关键依赖：
-  - useChromeStore：调用 confirm 弹窗做紧急求助二次确认
-  - schedulePoll：SOS 冷却倒计时（页面隐藏时暂停）
-  - ShieldCheck / Shield / Loader2 / Siren / AlertTriangle / WifiOff 图标来自 @lucide/vue
-数据来源：父级 Overview 透传的安防模式、状态、告警、传感器 chip、布防区域等状态
+  安防总览顶部命令栏。展示当前安防状态、模式切换按钮、紧急求助（带二次确认
+  与冷却倒计时）、联动失败查看入口，以及告警/传感器分类 chip。
 -->
 <template>
   <section
@@ -155,7 +148,6 @@ import { schedulePoll } from '@/shared/utils/core/poll-scheduler'
 
 const chrome = useChromeStore()
 
-// 入参：安防模式列表、当前模式/名称/颜色、冷却秒数、布防中标记、图标映射、传感器 chip、告警等
 const props = defineProps({
   securityModes: { type: Array, default: () => [] },
   secCurrentMode: { type: String, default: 'disarmed' },
@@ -177,7 +169,6 @@ const props = defineProps({
   reducingSensitivity: Boolean,
 })
 
-// 对外事件：布防/撤防、紧急求助、切换传感器筛选、跳转参数、查看联动、确认告警、误报降敏
 const emit = defineEmits([
   'arm',
   'emergency',

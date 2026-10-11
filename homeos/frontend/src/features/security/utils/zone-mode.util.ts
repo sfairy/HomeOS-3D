@@ -1,13 +1,4 @@
-/**
- * 安防区域模式工具模块。
- *
- * 职责：
- * - 前端镜像后端 zoneType × mode 告警逻辑，判定来源委托 @homeos/shared；
- * - 提供区域模式提示文案、传感器告警状态判定、传感器状态标签；
- * - 重新导出共享的 ArmingMode/SecurityZoneType 类型与 shouldZoneAlarmInMode 函数。
- *
- * 依赖：SecurityArmingMode、SecurityZoneType、shouldZoneAlarmInMode（@homeos/shared）。
- */
+/** 安防区域模式工具模块。 */
 /** 前端镜像后端 zoneType × mode 告警逻辑 — 判定自 @homeos/shared */
 import {
   type SecurityArmingMode,

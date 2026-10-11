@@ -1,18 +1,4 @@
-/**
- * 实体房间（Area）解析模块
- *
- * 职责：
- *  - 从 HA 实体 attributes 中解析所属房间（area_id / area_name）。
- *  - 提供基于 area_id 的房间筛选匹配。
- *
- * 关键依赖：
- *  - HA area_registry：HomeOS 后端在实体同步阶段会把 registry 中的 area_id / area_name
- *    合并到实体 attributes，前端可直接消费，无需再次查表。
- *
- * 约定：
- *  - area_id 与 area_name 至少存在其一即视为有房间归属；
- *  - 二者可互为兜底（缺哪个就用另一个补）。
- */
+/** 实体房间（Area）解析模块 */
 
 /**
  * 实体 attributes 中与房间相关的字段（弱类型，来自 HA 原始数据）。

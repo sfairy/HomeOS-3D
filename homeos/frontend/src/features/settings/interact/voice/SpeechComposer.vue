@@ -1,25 +1,6 @@
 <!--
-组件：SpeechComposer.vue
-所属模块：frontend / src / views / settings / interact / voice
-职责：语音合成模板编辑器。提供预设话术选择、自定义模板编辑、变量插入与播报预览，
-      供语音命令、告警规则、每日问候等场景复用。
-Props：
-  - presets：预设话术列表（id / label / desc）
-  - activePreset：当前选中的预设 id
-  - customText：自定义模板文本
-  - previewTemplate / previewVars：预览模板与变量
-  - defaultPreview：默认预览文案
-  - customLabel / customPlaceholder：自定义输入标签与占位
-  - showVarChips / varChips：是否显示变量插入按钮及变量列表
-  - compact：紧凑模式
-  - showCustomField：强制显示自定义输入
-Emits：
-  - update:activePreset：切换预设
-  - update:customText：自定义文本变更
-  - insert-var：插入变量
-关键依赖：
-  - applyTemplatePreview：模板变量渲染为预览文本
-数据来源：父级透传的 props
+  语音合成模板编辑器。提供预设话术选择、自定义模板编辑、变量插入与播报预览，
+  供语音命令、告警规则、每日问候等场景复用。
 -->
 <template>
   <div class="vsc-root" :class="{ 'vsc-root--compact': compact }">

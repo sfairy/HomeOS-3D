@@ -1,20 +1,4 @@
-/**
- * 天气背景星空 / 云 / 闪电 / 流星粒子与场景管理
- *
- * 职责：
- * - 定义星星、云朵、闪电、流星等粒子类与初始化工厂。
- * - 提供粒子场景的统一初始化、更新与绘制入口，供天气背景画布调用。
- *
- * 依赖：
- * - @/shared/weather/utils/particle-classes 的降水粒子初始化。
- * - @/shared/weather/utils/effect-presets.util 的已解析效果配置。
- * - @/shared/weather/utils/effect-condition.util 的效果判定。
- * - @/shared/weather/types/weather-canvas 的云 / 闪电 / 流星轨迹类型。
- *
- * 注意：
- * - 粒子坐标 / 速度 / 相位为运行时数值状态，不翻译。
- * - 类名（Star / CloudPuff / ...）为内部标识符，不翻译。
- */
+/** 天气背景星空 / 云 / 闪电 / 流星粒子与场景管理 */
 import { initWeatherParticles } from '@/shared/weather/utils/particle-classes'
 import type { ResolvedWeatherEffectConfig } from '@/shared/weather/utils/effect-presets.util'
 import type { WeatherEffectProfile } from '@/shared/weather/utils/effect-condition.util'

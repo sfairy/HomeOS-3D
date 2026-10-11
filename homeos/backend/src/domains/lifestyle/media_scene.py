@@ -1,12 +1,4 @@
-"""影音场景服务（对齐 ``MediaSceneService``）。
-
-职责：
-- 预设场景（观影 / 音乐 / 派对 / 睡眠 / 游戏 / 晨间 / 关闭）一键应用：调光 + 调音量 + 多房间同步；
-- 播放列表管理：start / next / getPlaylist，持久化到 appConfig ``mediaPlaylists``；
-- 多房间媒体同步：groupSync（join）/ unjoin。
-
-JS 侧 ``errors: undefined`` 在 JSON 中会被省略，本实现同样按需省略该字段。
-"""
+"""影音场景服务（对齐 ``MediaSceneService``）。"""
 
 from __future__ import annotations
 
@@ -36,9 +28,7 @@ class MediaSceneService:
         #: 播放器 entity_id → { items, index }
         self._playlists: dict[str, dict[str, Any]] = {}
 
-    # ------------------------------------------------------------------ #
     # 生命周期
-    # ------------------------------------------------------------------ #
     def start(self) -> None:
         """对齐 ``onModuleInit``：从 appConfig.mediaPlaylists 恢复播放列表。"""
         stored = self._app_config.get("mediaPlaylists") or {}
@@ -62,9 +52,7 @@ class MediaSceneService:
         except Exception as err:
             logger.warning("播放列表持久化失败: %s", err)
 
-    # ------------------------------------------------------------------ #
     # 场景
-    # ------------------------------------------------------------------ #
     def list_presets(self) -> list[dict[str, Any]]:
         return [dict(preset) for preset in PRESETS]
 
@@ -177,9 +165,7 @@ class MediaSceneService:
                 logger.debug("媒体播放器状态拉取跳过 %s: %s", entity_id, err)
         return states
 
-    # ------------------------------------------------------------------ #
     # 播放列表
-    # ------------------------------------------------------------------ #
     async def start_playlist(self, player: str, items: list[dict[str, Any]]) -> dict[str, Any]:
         if not items:
             return {"ok": False, "reason": "播放列表为空"}
@@ -214,9 +200,7 @@ class MediaSceneService:
     def get_playlist(self, player: str) -> dict[str, Any] | None:
         return self._playlists.get(player)
 
-    # ------------------------------------------------------------------ #
     # 多房间同步
-    # ------------------------------------------------------------------ #
     async def group_sync(self, players: list[str]) -> dict[str, Any]:
         if len(players) < 2:
             return {"ok": False, "reason": "至少需要 2 个播放器"}
@@ -236,9 +220,7 @@ class MediaSceneService:
             out["errors"] = errors
         return out
 
-    # ------------------------------------------------------------------ #
     # 内部
-    # ------------------------------------------------------------------ #
     async def _play_current(self, player: str) -> dict[str, Any]:
         playlist = self._playlists.get(player)
         if playlist is None:

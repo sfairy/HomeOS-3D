@@ -1,19 +1,5 @@
 import { logger } from '@/shared/utils/core/logger'
-/**
- * @file useMainLayoutWeatherNav.ts
- * @module composables/ui
- * @description 主布局天气导航 composable：根据天气状态切换导航栏配色与主题。
- *
- * 职责：
- * - 读取 HA 天气实体状态，映射为天气主题；
- * - 根据天气主题计算导航栏 brand/glow/tint 配色方案；
- * - 生成响应式导航栏内联样式（CSS 变量 --nav-brand/--nav-glow/--nav-tint）；
- * - 提供浏览器全屏切换函数。
- *
- * 依赖：
- * - vue（computed/ref/watch）
- * - entities.store / layout.store（天气实体与布局配置）
- */
+/** - 读取 HA 天气实体状态，映射为天气主题； */
 import { computed, ref, watch } from 'vue'
 import { weatherVisualKey } from '@/shared/weather/constants/weather-labels'
 import { domainIndexToArray } from '@/shared/entity/utils/derived.util'

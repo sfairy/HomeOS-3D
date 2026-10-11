@@ -1,11 +1,4 @@
-/**
- * 内嵌页 URL 工具。
- *
- * 职责：判断内嵌目标是否可嵌入、是否需走同源反代，构造 iframe src，
- * 检测 Chrome 错误页，并管理 embed_ctx 标记 Cookie。
- *
- * 依赖：无外部依赖，纯函数工具。
- */
+/** 内嵌页 URL 工具。 */
 /** 归一化主机名，便于比较 localhost / 127.0.0.1 / ::1 */
 
 type LocationLike = Pick<Location, 'hostname' | 'protocol'>

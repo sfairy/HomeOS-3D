@@ -46,14 +46,7 @@
 </template>
 
 <script setup>
-/**
- * @file ExitEditConfirmDialog.vue
- * @module common/ExitEditConfirmDialog
- * @description 退出编辑模式确认弹窗
- *  职责：当用户在编辑模式中存在未保存的热区/坐标修改时，弹出二次确认，
- *    避免误触退出导致修改丢失。
- *  依赖：stores/layout.store（showExitEditConfirm / cancelExitEditMode / confirmExitEditMode）。
- */
+/** 避免误触退出导致修改丢失。 */
 import { useLayoutStore } from '@/stores/layout.store'
 import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
 const layoutStore = useLayoutStore()

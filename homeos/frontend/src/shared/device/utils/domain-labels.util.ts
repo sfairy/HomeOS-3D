@@ -1,17 +1,4 @@
-/**
- * 设备域中文标签工具
- *
- * 职责：
- * - 在 @/shared/constants/entity-domain-meta 收录的核心域基础上，补充设备页扩展域
- *   （notify / sun / zone / group / timer / ... 等）的中文标签。
- * - 提供域 → 中文标签查询与「中文标签 → 域 id」反查工具，供设备列表 / 详情 /
- *   分析页与图表筛选共用。
- *
- * 依赖：@/shared/constants/entity-domain-meta 的 ENTITY_DOMAIN_LABELS。
- *
- * 注意：domain key（light / switch / cover ...）为 HA 标识符，不翻译；
- *   仅面向用户的标签 value 使用简体中文。
- */
+/** 设备域中文标签工具 */
 import { ENTITY_DOMAIN_LABELS } from '@/shared/constants/entity-domain-meta'
 
 /** 设备页补充域（集成/扩展域，entity-domain-meta 未收录） */

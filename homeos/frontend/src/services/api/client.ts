@@ -1,27 +1,7 @@
 /**
  * API 客户端 - Axios 实例配置
- *
- * 服务职责：统一封装 HomeOS 后端 REST API 的 HTTP 请求，覆盖认证、CSRF、重试、并发去重、
- *           会话刷新与全局错误路由；同时承载 401/403/5xx 的统一处理逻辑。
- * 关键依赖：
- * - axios：HTTP 客户端
- * - @/shared/utils/bridge/store-bridge：注入 401 处理器、跳转登录、会话刷新等原生桥接回调
- * - @/shared/utils/telemetry/trace.util：注入 X-Trace-Id 链路追踪
- * - @/shared/utils/config/frontend-config：运行期 API 超时/重试配置
- * - @/shared/utils/core/logger、@/shared/utils/core/error-message：日志与错误分类
- * 端点：baseURL = /api/v1（REST）；CSRF 走 /setup/status 下发 cookie
- *
- * 认证方案：HttpOnly Cookie
- * - Token 由服务端设置到 HttpOnly Cookie 中
- * - 前端无需手动注入 Authorization 头
- * - Cookie 随请求自动发送，防止 XSS 窃取 Token
- *
- * 关键机制：
- * - CSRF：变更类请求自动注入 X-CSRF-Token；遇 403 CSRF_INVALID 时刷新 cookie 并重试一次
- * - 401 重试：登录/刷新/激活接口的 401 视为凭据错误直接拒绝；其余先无感刷新会话再重试一次
- * - 5xx/网络错误重试：幂等（GET 或显式 _idempotent）请求按指数退避 + 抖动重试
- * - GET 并发去重：相同 method/url/params 的 GET 共享 Promise，避免短时间重复请求
- * - 认证世代（authGeneration）：登录/登出/刷新后递增，用于丢弃过期请求的 401
+ * 统一封装 HomeOS 后端 REST API 的 HTTP 请求，覆盖认证、CSRF、重试、并发去重、
+ * 会话刷新与全局错误路由；同时承载 401/403/5xx 的统一处理逻辑。
  */
 import axios, {
   AxiosHeaders,

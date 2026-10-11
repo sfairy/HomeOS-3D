@@ -1,12 +1,4 @@
-/**
- * @file usePerfClock.ts
- * @module composables/ui
- * @description 按性能模式分档、并对齐墙钟整点间隔刷新的时钟 composable。
- *
- * 依赖：
- * - vue（ref/computed/watch/onMounted/onUnmounted）
- * - layout.store（读取 performanceMode 性能档位）
- */
+/** - vue（ref/computed/watch/onMounted/onUnmounted） */
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useLayoutStore } from '@/stores/layout.store'
 

@@ -1,9 +1,4 @@
-"""语言模板服务（热更新）。
-
-职责：根据 AgentConfigService 当前语言（zh / en）选择对应的 LangTemplate，
- 并在 SYSTEM_CONFIG_UPDATED 事件后自动刷新，使快路径正则、纠正口令、系统提示随配置切换。
-依赖：AgentConfigService（取 language）、LocalEventBus（监听配置变更）、lang_templates（模板源）。
-"""
+"""语言模板服务（热更新）。"""
 
 from __future__ import annotations
 

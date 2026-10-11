@@ -1,13 +1,4 @@
-"""快路径解析服务（免 LLM 直接控制）。
-
-职责：用规则正则把"打开客厅灯""把空调调到 24 度"这类高频、确定性强的指令，
- 在不调用 LLM 的情况下直接解析成 control_device / control_room 工具调用，降低延迟与成本；
- 白名单内的 HA scene.* / script.* 走 activate_scene 快路径。
- 监听 SYSTEM_CONFIG_UPDATED / AREA_UPDATED / HA_ENTITY_REGISTRY_UPDATED 事件清空房间缓存，
- 保证名称变更后及时刷新。
-依赖：AgentAreaService（房间/设备查询）、StateStore（实体状态）、LangTemplateService（语言模板）、
- AgentConfigService（场景语音控制允许清单）、LocalEventBus（事件）。
-"""
+"""快路径解析服务（免 LLM 直接控制）。"""
 
 from __future__ import annotations
 
@@ -241,9 +232,7 @@ class FastPathService:
         logger.info('快路径命中(整房间): "%s" → %s/%s/%s', text, room["name"], dk.domain, service)
         return {"kind": "room", "service": service, "roomName": room["name"], "domain": dk.domain}
 
-    # ------------------------------------------------------------------ #
     # 场景 / 脚本
-    # ------------------------------------------------------------------ #
     async def _match_scene_fast_path(self, text: str) -> dict[str, Any] | None:
         """场景 / 脚本快路径：把「执行回家模式」这类指令直接解析为 activate_scene 调用。
 
@@ -340,9 +329,7 @@ class FastPathService:
                 return entity
         return None
 
-    # ------------------------------------------------------------------ #
     # 房间 / 设备
-    # ------------------------------------------------------------------ #
     async def _get_areas(self) -> list[dict[str, str]]:
         """获取房间列表（带缓存）。"""
         if len(self._area_cache) == 0:

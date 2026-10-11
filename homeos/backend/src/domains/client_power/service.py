@@ -1,11 +1,4 @@
-"""客户端系统信息与充电器开关滞回联动服务（对齐 ``client-power/service.ts``）。
-
-职责：
- - 接收客户端上报系统信息（含电量），归一化后落内存态并周期持久化到 RuntimeKv；
- - 通过 reportToken 实现配对鉴权：未配对终端仅入待配对列表，已配对校验 token 后才允许联动；
- - 电量低于低阈值 / 达到高阈值时，调用 HaConnector 执行开关滞回联动；
- - 维护在线状态、待配对记录的发现 / 清除，并发布电量事件供通知模块消费。
-"""
+"""客户端系统信息与充电器开关滞回联动服务（对齐 ``client-power/service.ts``）。"""
 
 from __future__ import annotations
 
@@ -97,9 +90,7 @@ class ClientPowerService:
         self._persist_task: asyncio.Task[None] | None = None
         self._stale_task: asyncio.Task[None] | None = None
 
-    # ------------------------------------------------------------------ #
     # 生命周期
-    # ------------------------------------------------------------------ #
     async def start(self) -> None:
         """加载持久化状态、对账待配对、刷新在线标志并启动周期任务。"""
         if self._bus is not None:
@@ -153,9 +144,7 @@ class ClientPowerService:
         except Exception as exc:
             logger.warning("客户端电量作业失败 [%s]: %s", name, exc)
 
-    # ------------------------------------------------------------------ #
     # 配置
-    # ------------------------------------------------------------------ #
     def cfg(self) -> ClientPowerConfig:
         raw = self._app_config.get("clientPower")
         raw = raw if isinstance(raw, dict) else {}
@@ -185,9 +174,7 @@ class ClientPowerService:
         if "clientPower" in keys:
             self._reconcile_pending_with_config()
 
-    # ------------------------------------------------------------------ #
     # reportToken 鉴权
-    # ------------------------------------------------------------------ #
     @staticmethod
     def _tokens_match(expected: str, provided: str) -> bool:
         """常量时间比较两个 token，避免时序侧信道泄露。"""
@@ -227,9 +214,7 @@ class ClientPowerService:
 
         return {"linkageAllowed": False, "deliverToken": expected}
 
-    # ------------------------------------------------------------------ #
     # 上报处理
-    # ------------------------------------------------------------------ #
     async def report(self, dto: dict[str, Any]) -> dict[str, Any]:
         """处理客户端系统信息上报。"""
         client_id = str((dto or {}).get("clientId") or "").strip()
@@ -342,9 +327,7 @@ class ClientPowerService:
         except Exception as exc:
             logger.debug("广播事件失败 [%s]: %s", name, exc)
 
-    # ------------------------------------------------------------------ #
     # 跨实例同步
-    # ------------------------------------------------------------------ #
     async def handle_reported_event(self, payload: dict[str, Any] | None) -> None:
         """跨实例同步客户端上报状态（幂等 + 防旧事件覆盖）。"""
         if not isinstance(payload, dict):
@@ -388,9 +371,7 @@ class ClientPowerService:
         )
         self._dirty = True
 
-    # ------------------------------------------------------------------ #
     # 状态查询
-    # ------------------------------------------------------------------ #
     def get_status_snapshot(self) -> dict[str, Any]:
         """返回所有客户端状态快照与待配对列表，供前端状态面板渲染。"""
         cfg = self.cfg()
@@ -426,9 +407,7 @@ class ClientPowerService:
         rows.sort(key=lambda p: p.last_report_at, reverse=True)
         return [row.to_public() for row in rows]
 
-    # ------------------------------------------------------------------ #
     # 待配对清除
-    # ------------------------------------------------------------------ #
     def _try_dismiss_pending_record(self, client_id: str) -> dict[str, Any]:
         if not client_id:
             return {"dismissed": False, "reason": "invalid"}
@@ -471,9 +450,7 @@ class ClientPowerService:
             logger.info("已批量清除 %s 个离线待配对终端发现记录", len(dismissed))
         return {"dismissed": len(dismissed), "clientIds": dismissed}
 
-    # ------------------------------------------------------------------ #
     # 对账 / 在线刷新 / 容量控制
-    # ------------------------------------------------------------------ #
     def _reconcile_pending_with_config(self) -> None:
         """将已注册终端移出 pending，未注册但有上报记录的终端恢复为待配对。"""
         configured_ids = {c.get("id") for c in self.cfg().clients}
@@ -543,9 +520,7 @@ class ClientPowerService:
         if changed:
             self._dirty = True
 
-    # ------------------------------------------------------------------ #
     # 联动执行
-    # ------------------------------------------------------------------ #
     def _in_cooldown(self, key: str) -> bool:
         return bool(self._cooldown.is_in_cooldown("clientPower", key))
 
@@ -610,9 +585,7 @@ class ClientPowerService:
         for action in actions:
             await self._execute_action(action)
 
-    # ------------------------------------------------------------------ #
     # 持久化
-    # ------------------------------------------------------------------ #
     async def _load_persisted_runtime(self) -> None:
         try:
             data = await asyncio.to_thread(self._read_runtime_kv)

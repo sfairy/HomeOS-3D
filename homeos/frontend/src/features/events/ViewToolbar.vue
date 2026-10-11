@@ -1,34 +1,8 @@
 <!--
-组件：EventsViewToolbar.vue
-所属模块：frontend / src / views
-职责：事件历史页顶部「查询工具栏」——回溯窗口、实体类型、实体筛选、查询按钮，
-      以及活跃域/高频实体两个快速筛选下拉。
-数据来源：所有选项由父级透传（domainFilterOptions / domainStatsPreview /
-         topEntitiesPreview / entitySelectOptions 均来自后端聚合 + 实体缓存）。
-Props：
-  - hours / hourOptions：回溯窗口值与可选值列表。
-  - entityFilter / domainFilter：当前实体/域筛选值。
-  - domainFilterOptions / domainStatsPreview：域维度下拉选项与活跃域预览。
-  - topEntitiesPreview / entitySelectOptions：高频实体预览与可搜索实体选项。
-  - entityOptionsLoading：实体可搜索选项加载中标志。
-  - loading：查询按钮加载态。
-  - formatHourOption / formatCount / entityDisplayName：格式化与显示名函数。
-Emits：
-  - update:hours / update:domain-filter：窗口与域筛选 v-model 同步。
-  - reload：触发重新查询。
-  - entity-select-open / entity-select-search / entity-select：实体搜索打开、搜索、选中。
-  - filter-by-entity：从高频实体快速筛选时抛出。
-关键交互：
-  - 改窗口或类型后立即触发 reload；
-  - 高频实体下拉清空时回退为清除筛选，非空时直接触发 filter-by-entity。
+  事件历史页顶部「查询工具栏」——回溯窗口、实体类型、实体筛选、查询按钮，
+  以及活跃域/高频实体两个快速筛选下拉。
 -->
 <script setup>
-/**
- * 职责：渲染 views/ViewToolbar 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { computed } from 'vue'
 import { Activity, Clock, Flame, Search, Layers } from '@lucide/vue'
 import HosSelect from '@/components/common/base/HosSelect.vue'

@@ -1,14 +1,6 @@
 <!--
-组件：SettingsFloatingPanel.vue
-所属模块：frontend / src / views / settings / display
-职责：浮动组件面板。管理浮动组件（添加/移除/显隐/编辑），并集成安防区域编辑入口
-      （AFH 编辑器锁定、Hub Tabs、保存/取消）。
-关键依赖：
-  - SettingsPageShell / SettingsCard：页面骨架
-  - FloatingPanelHeaderSection：面板头部（添加组件、拖拽锁定）
-  - FloatingWidgetRow：浮动组件行（含 AFH 编辑器）
-  - useFloatingWidgets / useFloatingPanelDisplay：浮动组件逻辑与展示派生
-数据来源：layoutStore.layoutConfig（浮窗 / afhConfig 等）
+  浮动组件面板。管理浮动组件（添加/移除/显隐/编辑），并集成安防区域编辑入口
+  （AFH 编辑器锁定、Hub Tabs、保存/取消）。
 -->
 <template>
   <SettingsPageShell

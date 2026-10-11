@@ -1,21 +1,4 @@
-/**
- * @file fallback-core.util.ts
- * @module @homeos/shared/embed
- * @brief 内嵌反代逃逸子资源兜底核心逻辑（与 HTTP 框架无关）。
- *
- * 职责：
- *  - 识别 HomeOS 前端自有静态资源路径（绝不应被内嵌反代兜底重定向劫持）；
- *  - 识别顶层文档 / 子框架导航请求（不应被兜底劫持）；
- *  - 从 Referer / embed_ctx__ Cookie 解析 embedId，并解析兜底重定向目标 URL。
- *
- * 关键依赖：
- *  - spa-fallback.middleware 与 Vite dev 插件共用本模块，保持 dev/prod 行为一致。
- *
- * 约定：
- *  - 仅对"非导航 + 非 HomeOS 自有资源 + 来自内嵌页面"的子资源做兜底重定向；
- *  - embedId 优先从 Referer 的 /api/v1/embed-proxy/:id 解析，其次从 embed_ctx__ Cookie；
- *  - Referer 存在但未命中 embedId 时不再查 Cookie（避免跨页串扰）。
- */
+/** - 识别 HomeOS 前端自有静态资源路径（绝不应被内嵌反代兜底重定向劫持）； */
 
 /** HomeOS 前端自有静态资源路径：绝不应被内嵌反代兜底重定向劫持 */
 const HOMEOS_FRONTEND_RESOURCE_PREFIXES = [

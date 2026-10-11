@@ -1,16 +1,7 @@
 <!--
-  组件文件：WeatherHubConfigPanel.vue
-  所属模块：frontend/src/features/settings/display/widgets
-  组件职责：天气中心 Hub 小部件配置面板，配置显示 Tab（实况/预报/雷达/空气质量/预警）
-    的可见性与排序、默认 Tab 与预报天数；可选绑定天气实体与显示在家人员。
-    支持独立面板与嵌入 Hero Swiper 两种模式。
-  主要 props / emits：
-    - defineModel draft：双向绑定配置草稿（defaultTab/visibleTabs/forecastDays/
-      weatherEntityId/showPresence/presencePersonIds）
-    - props embedded：是否嵌入 Hero Swiper 中（独立模式使用 SettingsCard 包裹）
-    - emit save：点击保存按钮写入草稿到编辑态
-  依赖关系：引用 WEATHER_HUB_TABS 常量定义 Tab 列表；usePresenceHome composable 拉取
-    在家人员；引用 WidgetConfigFooter 统一的保存按钮壳。
+  天气中心 Hub 小部件配置面板，配置显示 Tab（实况/预报/雷达/空气质量/预警）
+  的可见性与排序、默认 Tab 与预报天数；可选绑定天气实体与显示在家人员。
+  支持独立面板与嵌入 Hero Swiper 两种模式。
   注意事项：至少保留 1 个可见 Tab；embedded=true 时 footer 提示需额外点「保存布局」。
 -->
 <template>

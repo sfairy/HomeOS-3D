@@ -1,13 +1,4 @@
-/**
- * @file events-analytics.util.ts
- * @module frontend/src/views
- * 职责：事件历史「分析」面板的纯数据加工工具——把后端聚合统计结果
- *       规整为图表可用的桶（域分布 / 时序 / 实体频次）并产出 KPI 汇总。
- * 关键依赖：
- *   - events-display.util#normalizeByDomain：将后端 byDomain 结构归一为 {domain,count} 行；
- *   - entity-domain-meta：实体域主题色映射（统一各页配色）。
- * 说明：本文件不含 Vue 响应式，纯函数便于单测与在多视图复用。
- */
+/** 规整为图表可用的桶（域分布 / 时序 / 实体频次）并产出 KPI 汇总。 */
 import { normalizeByDomain } from '@/shared/events/utils/events-display.util'
 import { ENTITY_DOMAIN_COLORS, entityDomainColor } from '@/shared/constants/entity-domain-meta'
 

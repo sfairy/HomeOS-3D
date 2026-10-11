@@ -275,7 +275,6 @@ for (const rel of ESC_LAYER_USERS) {
   check(`${rel} 已接入 useEscLayer`, text.includes('useEscLayer('))
 }
 
-/* ------------------------------------------------------------------ */
 
 console.log('')
 if (failures.length > 0) {

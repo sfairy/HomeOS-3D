@@ -1,13 +1,4 @@
-/**
- * @module derived.util
- * @description 实体派生数据公共 API 入口（聚合桶模块）。
- *
- * 职责：
- * - 从 `entity-derived-internals` re-export 派生数据核心 API 与类型。
- * - 提供按域 / 分组从 domainEntityIndex 收集候选 entity_id 的工具函数。
- *
- * 依赖：`entity-derived-internals` 提供全部实现。
- */
+/** - 从 `entity-derived-internals` re-export 派生数据核心 API 与类型。 */
 export {
   hasEntityFriendlyName,
   getEntityDisplayName,

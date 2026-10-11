@@ -1,10 +1,4 @@
-/**
- * 设置侧栏搜索工具
- *
- * 职责：提供设置侧栏的关键词搜索能力，包括搜索别名、按标题/分组/描述过滤、
- *      结果摊平、计数、高亮片段拆分与 tab 上下文解析。
- * 关键依赖：settings-nav.util 中的 pageDescription / tabLabel / groupLabel
- */
+/** 设置侧栏搜索工具 */
 
 import { pageDescription, tabLabel, groupLabel } from '@/shared/utils/registry/settings-nav.util'
 

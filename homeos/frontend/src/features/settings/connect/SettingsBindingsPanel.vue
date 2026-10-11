@@ -1,14 +1,6 @@
 <!--
-组件：SettingsBindingsPanel.vue
-所属模块：frontend / src / views / settings / connect
-职责：HA 绑定配置面板根容器。组合天气/监控/安防传感器与门铃等绑定子分区，
-      管理待保存计数、保存/取消、绑定缺口洞察推荐与一键应用；测试事件通路与安全演习。
-关键依赖：
-  - useHaBindings / useBindingsRecommend：绑定数据与缺口推荐
-  - useLayoutStore / useSystemConfig：布局与系统配置读写
-  - useSettingsPendingChanges：待保存快照与回退
-  - fetchBindingsGaps / runHazardDrill / executeScene：缺口加载、演习与场景执行
-数据来源：layoutStore.layoutConfig.haConfig + 服务端绑定缺口 + 父级透传 activeTab
+  HA 绑定配置面板根容器。组合天气/监控/安防传感器与门铃等绑定子分区，
+  管理待保存计数、保存/取消、绑定缺口洞察推荐与一键应用；测试事件通路与安全演习。
 -->
 <template>
   <SettingsPageShell
@@ -185,7 +177,6 @@ import {
 
 const { load: loadSystemConfig } = useSystemConfig()
 
-// 入参：当前激活的设置 Tab
 const props = defineProps({ activeTab: { type: String, default: 'bindings' } })
 
 const layoutStore = useLayoutStore()

@@ -1,20 +1,8 @@
 <!--
-组件：ClientPowerHeroSection.vue
-所属模块：frontend / src / views / settings / home / client-power
-职责：智能充放电总览区段。展示流程概览（终端电量→滞回阈值→Switch 控制）、
-      总开关、本机 ID（可复制）、电量读取提示（HTTPS/Battery API）与心跳间隔设置。
-关键依赖：
-  - SettingsCard / SettingsSectionHead / SettingsFlowBand / SettingsFlowStat：卡片与流程
-  - lucide 图标
-数据来源：父级透传的 config / 各类统计数 / localClientId / copyClientId
+  智能充放电总览区段。展示流程概览（终端电量→滞回阈值→Switch 控制）、
+  总开关、本机 ID（可复制）、电量读取提示（HTTPS/Battery API）与心跳间隔设置。
 -->
 <script setup>
-/**
- * 职责：渲染 views/ClientPowerHeroSection 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { computed } from 'vue'
 import {
   Activity,
@@ -28,7 +16,6 @@ import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSecti
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 
-// 入参：配置对象、加载/保存状态、各类统计数、本机 ID 与电量提示、复制函数
 const props = defineProps({
   config: { type: Object, required: true },
   loading: { type: Boolean, default: false },
@@ -44,7 +31,6 @@ const props = defineProps({
   copyClientId: { type: Function, required: true },
 })
 
-// 对外事件：补丁配置（总开关/心跳间隔）、刷新状态
 const emit = defineEmits(['patch-config', 'refresh-status'])
 
 // 充电流程步骤：终端电量 → 滞回阈值 → Switch 控制（联动状态随总开关切换）

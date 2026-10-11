@@ -1,17 +1,4 @@
-"""智能管家工具集服务。
-
-职责：实现 LLM 可调用的全部家居工具（search_entities / get_entity_state / control_device /
- list_areas / get_area_snapshot / control_room / activate_scene …），并统一执行入口。
- - 仅在 HomeOS 白名单（房间映射 + 常用监控列表）内搜索设备
- - 控制前用 is_high_risk 做安全校验，高危设备（门锁 / 安防 / 燃气阀 / 车库门）拦截
- - 控制前用 agent_service_allowed 校验 domain.service 白名单（与 HTTP /ha/services/call 同源）
- - 读工具（get_entity_state / get_area_snapshot / search_entities / query_camera）
-   按同一套实体可见性模型过滤（realtime.access.resolve_entity_restrictions）
- - HA 的 scene.* / script.* 走「场景语音控制」允许清单闸门，默认全禁（fail-closed）
- - control_room 支持“全屋”语义，自动遍历所有房间
-依赖：StateStore（状态）、CommandProxyService（下发 HA 调用）、AgentAreaService（房间）、
- UiConfigService（布局）、AppConfigService（环境传感器映射）。
-"""
+"""智能管家工具集服务。"""
 
 from __future__ import annotations
 
@@ -174,9 +161,7 @@ class HomeToolsService:
         self._external_api = external_api
         self._agent_config = agent_config
 
-    # ------------------------------------------------------------------ #
     # 场景语音白名单闸门 / ACL
-    # ------------------------------------------------------------------ #
     async def _scene_voice_gate(self) -> SceneVoiceControlGate | None:
         """构造场景 / 脚本语音控制白名单闸门。
 
@@ -233,9 +218,7 @@ class HomeToolsService:
         except Exception as exc:
             return {"ok": False, "message": _error_message(exc) or "无权控制该设备"}
 
-    # ------------------------------------------------------------------ #
     # 读路径 ACL / 服务白名单
-    # ------------------------------------------------------------------ #
     @staticmethod
     def _read_restrictions(actor: AgentActor | None) -> list[str] | None:
         """读路径实体可见性（与 WS 推送 / HTTP 读接口同一模型）。
@@ -271,9 +254,7 @@ class HomeToolsService:
             ),
         }
 
-    # ------------------------------------------------------------------ #
     # schema / 执行入口
-    # ------------------------------------------------------------------ #
     def get_tool_schemas(self) -> list[Any]:
         """返回暴露给 LLM 的工具 schema 列表（定义见 home_tools_schemas.py）。"""
         return build_home_tool_schemas()
@@ -345,9 +326,7 @@ class HomeToolsService:
             return self._query_camera(_s(args.get("entity_id")), actor)
         return {"error": f"未知工具: {name}"}
 
-    # ------------------------------------------------------------------ #
     # 搜索 / 查询
-    # ------------------------------------------------------------------ #
     async def _search_entities(self, query: str, actor: AgentActor | None = None) -> dict[str, Any]:
         """搜索设备：仅在 HomeOS 白名单内匹配（房间映射 + 常用监控列表 favoriteEntities）。"""
         denied = self._read_denied(actor)
@@ -447,9 +426,7 @@ class HomeToolsService:
             result["attributes"] = sanitized
         return result
 
-    # ------------------------------------------------------------------ #
     # 控制
-    # ------------------------------------------------------------------ #
     async def _control_device(
         self,
         args: dict[str, Any],
@@ -840,18 +817,14 @@ class HomeToolsService:
             "results": results,
         }
 
-    # ------------------------------------------------------------------ #
     # 布局
-    # ------------------------------------------------------------------ #
     async def _read_layout(self) -> dict[str, Any]:
         """读取当前激活方案的布局配置并解析 layout 字段。"""
         cfg = self._ui_config.get_config(self._ui_config.resolve_active_project_id())
         layout, _ = self._ui_config.parse_layout_field(cfg.get("layout"))
         return layout
 
-    # ------------------------------------------------------------------ #
     # 家庭模式
-    # ------------------------------------------------------------------ #
     async def _activate_home_mode(
         self,
         name_or_id: str,
@@ -937,9 +910,7 @@ class HomeToolsService:
             logger.warning("读取家庭模式列表失败: %s", exc)
             return []
 
-    # ------------------------------------------------------------------ #
     # 场景 / 脚本
-    # ------------------------------------------------------------------ #
     async def _list_scenes_detailed(self) -> dict[str, Any]:
         """list_scenes 工具实现：列出 HA 侧 scene.* / script.* 清单。"""
         gate = await self._scene_voice_gate()
@@ -1097,9 +1068,7 @@ class HomeToolsService:
         # 3) 原始关键词包含匹配
         return next((e for e in candidates if lower in name_of(e)), None)
 
-    # ------------------------------------------------------------------ #
     # 状态 / 天气 / 日历
-    # ------------------------------------------------------------------ #
     async def _get_home_status(self) -> dict[str, Any]:
         """全屋整体状态概览。"""
         try:
@@ -1153,9 +1122,7 @@ class HomeToolsService:
         except Exception as exc:
             return {"error": f"日历查询失败: {_error_message(exc)}"}
 
-    # ------------------------------------------------------------------ #
     # 快捷控制工具
-    # ------------------------------------------------------------------ #
     async def _set_light_brightness(
         self,
         args: dict[str, Any],

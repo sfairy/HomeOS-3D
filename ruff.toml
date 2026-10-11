@@ -40,7 +40,5 @@ ignore = [
 
 [lint.isort]
 relative-imports-order = "closest-to-furthest"
-# packages/shared-py 不在仓库根下（真源是 packages/shared-py/homeos_shared，见其 README），
-# ruff 的 src 自动发现看不到它，会把 `import homeos_shared.*` 判成第三方而与 alembic/fastapi 排在一起。
-# 它是本项目自己的源码，须显式点名，排序才会落在 first-party 段。
+# packages/shared-py 不在仓库根下，ruff 自动发现看不到，须显式点名才会落 first-party 段。
 known-first-party = ["homeos_shared"]

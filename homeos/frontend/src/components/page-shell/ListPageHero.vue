@@ -1,13 +1,4 @@
-/**
- * @file ListPageHero.vue
- * @module common/list-page
- * @description 列表页顶部 Hero
- *  职责：
- *    - 默认单行布局（标题·描述），不再用两行占高；
- *    - 通过 tone 切换强调色（应用于 accent 条与 glow 装饰）；
- *    - 提供 icon / aside / stats / toolbar 四个具名插槽。
- *  依赖：vue computed。
- */
+/** - 默认单行布局（标题·描述），不再用两行占高； */
 <template>
   <header
     class="premium-head premium-head--card premium-head--inline hos-panel hos-panel--hero hos-panel--glass list-page__hero"
@@ -43,12 +34,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 ListPageHero 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 import { computed } from 'vue'
 
 const props = defineProps({

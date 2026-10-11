@@ -1,21 +1,4 @@
-/**
- * 按路由/布局维护精简实体投影（组件层只读展示字段）
- *
- * 本模块维护一份「精简投影」缓存：仅包含组件渲染所需的只读字段
- *（entity_id / state / domain / friendly_name / isOn / attributes），
- * 通过 setProjectionScope 限定当前路由关心的实体 ID 集合，
- * 避免组件直接订阅完整 entities map 导致的过度重渲染。
- *
- * 数据流：
- * 1. setProjectionScope(ids) → 设定当前路由的活跃实体 ID 集合，清除非活跃投影
- * 2. WS 推送 / 乐观更新 → patchProjectionsFromChanges → upsertProjection
- * 3. 组件通过 getProjection(entityId) 读取只读投影
- *
- * 依赖：
- * - @homeos/shared：getEntityDomain（域解析）
- * - @/shared/entity/utils/derived.util：getEntityDisplayName（友好名称）
- * - @/shared/types/entity-store：类型定义
- */
+/** 按路由/布局维护精简实体投影（组件层只读展示字段） */
 import { shallowReactive, markRaw } from 'vue'
 import { getEntityDomain } from '@homeos/shared'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'

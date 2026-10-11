@@ -1,23 +1,4 @@
-/**
- * @file energy-config.util.ts
- * @module @homeos/shared/setup
- * @brief 跨端最小能源配置契约（convention / entity / multi 三模式）。
- *
- * 职责：
- *  - 定义能源源配置结构（EnergySourceConfig）与 statsSensors 形状（StatsSensorsLike）；
- *  - 从 statsSensors.energySources 解析类别配置（normalizeEnergySource）；
- *  - 判断类别是否已配置（hasEnergyConfig，覆盖三种模式与多账户条目）。
- *
- * 关键依赖：
- *  - 运行时字段解析（accountEntries 同步、attrMap 等）以 frontend `source.util` 为准；
- *  - 本模块只负责"是否已配置"与轻量 normalize，供 shared 与前后端共用；
- *  - bindings-gaps.util 通过 hasEnergyConfig 统计能源账户缺口。
- *
- * 约定：
- *  - convention 模式以 account 或 accountEntries 任一非空为准；
- *  - entity 模式以 accountEntities 任一 entityId 或顶层 entityId 非空为准；
- *  - multi 模式以 multiAccounts 任一行 entityId 或 entityMap 任一值非空为准。
- */
+/** - 定义能源源配置结构（EnergySourceConfig）与 statsSensors 形状（StatsSensorsLike）； */
 /** 能源绑定辅助函数使用的结构形状（避免 Record 索引签名摩擦）。 */
 export type StatsSensorsLike = {
   energySources?: unknown;

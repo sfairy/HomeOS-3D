@@ -1,18 +1,4 @@
-/**
- * 微件注册表：Vue 组件挂载入口
- *
- * 职责：
- * - 在 widget-registry-meta 元数据基础上挂载各微件类型对应的 Vue 组件，
- *   供侧边栏 / 浮动面板 / 楼层 widget 按 type 解析渲染。
- * - 高频默认微件采用 lazyComponent 静态分包，避免主包膨胀。
- *
- * 依赖：
- * - @/shared/utils/core/lazy-component 的 lazyComponent（按需分包工厂）。
- * - ./widget-registry-meta 的 canonicalizeWidgetType / WIDGET_REGISTRY_META。
- * - vue 的 Component 类型。
- *
- * 注意：微件 type key（clock / weather / ...）为配置 key，不翻译。
- */
+/** 微件注册表：Vue 组件挂载入口 */
 import { lazyComponent } from '@/shared/utils/core/lazy-component'
 import type { Component } from 'vue'
 import { canonicalizeWidgetType, WIDGET_REGISTRY_META } from '@/shared/utils/registry/widget-registry-meta'

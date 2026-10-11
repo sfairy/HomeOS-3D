@@ -1,14 +1,6 @@
 <!--
-组件：HomeModePresetCards.vue
-所属模块：frontend / src / views / settings / automate / home-mode
-职责：家庭模式预设包卡片网格。手风琴式展开预设详情，支持实体映射覆盖、覆盖已有模式
-      勾选与一键安装；展示动作/触发统计与未解析实体计数。
-关键依赖：
-  - EntityInput：实体映射输入
-  - useEntitiesStore：校验实体是否已解析
-  - collectPresetActionTags / entityDomainLabel：动作标签聚合与域文案
-  - isHomeModeEmojiIcon / resolveHomeModeIcon：预设图标渲染
-数据来源：父级透传的 presets / installing + 本地 localOverrides / mergeFlags
+  家庭模式预设包卡片网格。手风琴式展开预设详情，支持实体映射覆盖、覆盖已有模式
+  勾选与一键安装；展示动作/触发统计与未解析实体计数。
 -->
 <template>
   <div :class="['hm-preset-grid', stacked && 'hm-preset-grid--stack']">
@@ -125,7 +117,6 @@ import { isHomeModeEmojiIcon, resolveHomeModeIcon } from '@/shared/home-mode'
 import { collectPresetActionTags } from '@/shared/home-mode'
 import { entityDomainLabel } from '@/shared/constants/entity-domain-meta'
 
-// 入参：预设列表、正在安装的预设 id、是否单列堆叠
 const props = defineProps({
   presets: { type: Array, default: () => [] },
   installing: { type: String, default: null },

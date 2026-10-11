@@ -1,19 +1,4 @@
-/**
- * @file SetupWizard.vue
- * @module components/earthquake
- * @brief 地震预警配置向导弹窗
- *
- * 职责：
- * - 三步引导用户完成地震预警配置：连接 Home Assistant（地址/Token/测试）、
- *   选择家庭位置（经纬度/城市预设/从 HA 同步）、确认并保存
- * - 顶部进度指示（1/2/3），底部提供上一步/下一步/跳过/完成操作
- * - 所有状态与逻辑由 useEarthquakeSetupWizard 组合式函数统一管理，组件仅负责展示与事件透传
- *
- * 依赖：
- * - @lucide/vue（图标库）
- * - useEarthquakeSetupWizard（向导逻辑聚合）
- * - 外部样式 ./styles/earthquake-setup-wizard.css
- */
+/** - 三步引导用户完成地震预警配置：连接 Home Assistant（地址/Token/测试）、 */
 /**
  * 组件 Props
  * @property {boolean} modelValue - 向导开关（v-model，默认 false）
@@ -206,12 +191,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 SetupWizard 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 import {
   CheckCircle2,
   ChevronLeft,

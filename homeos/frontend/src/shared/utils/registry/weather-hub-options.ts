@@ -1,16 +1,4 @@
-/**
- * 天气 Hub 微件 Tab 选项与配置规范化
- *
- * 职责：
- * - 维护天气 Hub 的可选 Tab（实时 / 预报 / 生活 / 日出）。
- * - 提供天气 Hub 配置的规范化、克隆、序列化函数。
- *
- * 依赖：无外部依赖，纯静态配置与纯函数。
- *
- * 注意：
- * - `id`（current / forecast / life / sun）为 Tab 配置 key，不翻译。
- * - 仅 `label`（面向用户的 Tab 文案）使用简体中文。
- */
+/** 天气 Hub 微件 Tab 选项与配置规范化 */
 interface WeatherHubTabOption {
   id: string
   label: string

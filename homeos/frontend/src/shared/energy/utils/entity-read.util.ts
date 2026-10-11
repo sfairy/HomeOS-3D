@@ -1,12 +1,4 @@
-/**
- * @module energy-entity-read.util
- * @description 能源实体属性读取工具模块。
- *
- * 职责：从 HA 实体映射中读取指定实体的属性值，
- * 兼容属性位于顶层 `attributes` 或嵌套 `attributes.data` 两种结构。
- *
- * 依赖：`entity-store` 类型定义。
- */
+/** 兼容属性位于顶层 `attributes` 或嵌套 `attributes.data` 两种结构。 */
 import type { HaEntityState } from '@/shared/types/entity-store'
 
 type EntityAttrMap = Record<string, HaEntityState | undefined> | null | undefined

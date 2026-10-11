@@ -51,9 +51,7 @@ class WecomService:
         self._message_handler: MessageHandler | None = None
         self._http = httpx.AsyncClient(timeout=15.0)
 
-    # ------------------------------------------------------------------ #
     # 事件绑定
-    # ------------------------------------------------------------------ #
     def bind_events(self) -> None:
         """订阅配置更新事件，热重载企业微信通道。"""
         if self._event_bus is None:
@@ -70,9 +68,7 @@ class WecomService:
         """模块初始化：执行首次配置加载。"""
         await self.reload()
 
-    # ------------------------------------------------------------------ #
     # 配置
-    # ------------------------------------------------------------------ #
     async def reload(self) -> None:
         """重新加载企微通道配置；不完整或未启用时清空运行时状态并停用通道。"""
         cfg = await self._channel_config.get_wecom_config()
@@ -124,9 +120,7 @@ class WecomService:
             "agentId": int(cfg.agent_id or 0) if cfg else 0,
         }
 
-    # ------------------------------------------------------------------ #
     # ChannelProvider
-    # ------------------------------------------------------------------ #
     def on_message(self, handler: MessageHandler) -> None:
         """注册消息处理回调，将入站消息接入 Agent 流水线。"""
         self._message_handler = handler
@@ -158,9 +152,7 @@ class WecomService:
             except Exception as exc:
                 logger.error("企微告警推送失败 (%s): %s", to, exc)
 
-    # ------------------------------------------------------------------ #
     # 入站消息
-    # ------------------------------------------------------------------ #
     async def handle_incoming_message(self, from_user: str, content: str) -> None:
         """处理企微入站消息：白名单鉴权（fail-closed）→ 构造消息 → 调用回调。"""
         if not self._allowed_users_lower:
@@ -190,9 +182,7 @@ class WecomService:
             logger.error("企微消息处理失败: %s", exc)
             await self.send_text(from_user, "系统内部处理消息出错")
 
-    # ------------------------------------------------------------------ #
     # 出站 API
-    # ------------------------------------------------------------------ #
     async def get_access_token(self) -> str:
         """获取企微 access_token：带过期缓存 + 并发去重刷新。"""
         now_ms = time.time() * 1000

@@ -1,23 +1,8 @@
 <!--
-组件：WidgetEditor.vue
-所属模块：frontend / src / views / settings / display / floating
-职责：浮动组件编辑器主体。按组件类型动态展示分区（位置与样式 / 数据绑定 / HTML 代码 /
-      标签页视图 / 安防区域），并提供保存与取消底部操作。
-关键依赖：
-  - WidgetConfigStudioNav / WidgetConfigFooter：导航与底部操作
-  - EditorLayoutSection / EditorDataSection / EditorHubTabsSection：各分区子组件
-  - SecurityZoneEditorList：安防区域编辑
-  - useDraftObjectField：草稿字段双向绑定
-  - isEntityFloatType / canonicalizeWidgetType / hasConfigurableTabs：类型判定
-数据来源：父级透传的 fw / afhConfig / afhHubTabs（双向）+ 各类回调
+  浮动组件编辑器主体。按组件类型动态展示分区（位置与样式 / 数据绑定 / HTML 代码 /
+  标签页视图 / 安防区域），并提供保存与取消底部操作。
 -->
 <script setup>
-/**
- * 职责：渲染 views/WidgetEditor 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { computed } from 'vue'
 import {
   Crosshair,
@@ -39,14 +24,10 @@ import FloatingEditorDataSection from './EditorDataSection.vue'
 import FloatingEditorHubTabsSection from './EditorHubTabsSection.vue'
 import './styles/floating.css'
 
-// 双向绑定：当前展开的分区 id
 const openSection = defineModel('openSection', { type: [String, null], default: 'layout' })
-// 双向绑定：AFH 编辑器草稿配置
 const afhConfig = defineModel('afhConfig', { type: Object, required: true })
-// 双向绑定：Hub Tabs 配置
 const afhHubTabs = defineModel('afhHubTabs', { type: Object, required: true })
 
-// 入参：浮动组件对象、是否脏、安防区域/安防场景/保存/取消回调
 const props = defineProps({
   fw: { type: Object, required: true },
   isAfhEditorDirty: { type: Boolean, required: true },

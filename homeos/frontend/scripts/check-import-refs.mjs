@@ -1,69 +1,13 @@
 #!/usr/bin/env node
 /**
- * 引用完整性门禁（imports + 注释里的 `@/` 说明都必须能解析成真实文件）。
+ * 引用完整性门禁：import/export spec 与注释、`.md`、`.css` 里出现的 `@/`/相对路径都必须能解析成真实文件。
  *
- * ## 为什么需要它
+ * 依赖方向由 check-frontend-deps.mjs 管，本门禁只管「路径是否存在」。注释/文档里的 `@/` 同样解析，
+ * 故本仓库有一条注释纪律：注释里不要写完整的假 `@/` 路径，改用占位符（`@/foo/<x>`）或省略前缀。
  *
- * `check-frontend-deps.mjs` 管的是**依赖方向**（谁不许 import 谁），它对「这个路径到底存在吗」
- * 一无所知；而且它的 `walk()` 只从 `src/` 起步，`scripts/*.ts` 完全在管辖之外。
- * 2026-10-11 实测到了这个盲区的代价：
- *
- *     scripts/_entity_control_logic_smoke.ts
- *       } from '../src/composables/entity/control/cover-control-core'
- *
- * 那两个内核早在一个批次前就迁到了 `src/shared/entity/utils/control/`。于是这个脚本
- * `Cannot find module` 直接崩 —— 而 `check:deps` 全绿、typecheck 全绿、lint 全绿，
- * 因为**没有任何门禁真的去 lstat 这些路径**；CI 的 smoke job 又只跑 Python 冒烟，
- * 它压根没被执行过。它就这样红着，直到有人手动敲那条命令。
- *
- * 本门禁做且只做一件很窄的事：把每一个 import / export spec（`@/…` 与相对路径）
- * **真去文件系统解析一次**，解析不出来就报错。
- *
- * 另外把**注释与 `.md` 文档里出现的 `@/…`** 也一并解析：批量改路径时，注释/文档是最容易被正则
- * 「顺手套用前缀」的地方 —— 旧前缀被整套换成新前缀、尾段却仍是错的名字，于是生成一条
- * 看起来合理、实际不存在的路径（本仓库真实案例：`client-system.util` 被连同前缀换成
- * `…/shared/client/utils/client-system.util`，而真名是 `system.util`）。
- * 同一批次里这样清掉 9 处。这类腐烂没有编译器把关，只能靠门禁。
- * （`.md` 只走这一遍，不解析文档里的 `import` 示例 —— 示例是示意，不是真引用。）
- *
- * 还有一类没有编译器兜底的引用：**样式表**。`.css` 不进 TS 模块图，`@import './x.css'` /
- * `url('a.woff2')` 的路径全靠 `vite build` 兜底，而悬空时它通常只是**告警或静默跳过**
- * （样式悄悄丢一段），不是构建失败。所以 `.css` 也扫，但只解析引号形式的 `@import`/`url()`
- * 目标（理由见 `CSS_REF_RE`）。本会话删掉三个 `views/styles/*.css` 时，正是靠 build 恰好绿
- * 才没出事 —— 门禁当时看不见 `.css` 里的任何路径。
- *
- * 由此得出本仓库的一条**注释纪律**：注释里不要写完整的假 `@/` 路径，改用占位符
- * （`@/components/<x>`、`@/foo/**`）或省掉 `@/` 前缀（写 `…/shared/client/utils/system.util`）。
- * 这不是洁癖：注释里的路径一旦写成完整形式，就会被当成真引用校验。
- *
- * ## 边界
- *
- * - 不判依赖方向 —— 那是 `check-frontend-deps.mjs` 的职责；
- * - 不管裸模块名（`vue` / `node:fs` / `@homeos/shared`）—— 那是包解析，不归这里；
- * - 跳过含通配/占位的说明（`@/x/**`、`@/shared/<域>/utils/…`）—— 文档里合法的模式写法；
- * - 跳过 `import.meta.glob` 的 glob 串；
- * - **文档（`.md`）**：`@/` 字样**全查**（含行内反引号与代码块 —— 反引号里的内容就是正文，
- *   不是「字符串数据」，故文档不套用 opaque 过滤）；相对路径不查（md 里的 `./x` 相对的是文档，
- *   不对应模块图），文档里的 `import` 示例也不走第一遍 —— 避免与「`@/` 字样」这一遍重复报。
- *   文档没有编译器兜底，恰是路径说明最容易腐烂的地方（首批实测在 `src/README.md` 抓到 6 处）；
- * - **样式表（`.css`）**：只查引号形式的 `@import '…'` / `url('…')` 目标，`@/` 与相对路径
- *   都过同一套解析（`toAbsBase` + `resolves`，含 `.js`→`.ts` 映射与目录 index）。
- *   裸 URL（`url(//cdn…)`、`data:`）不问；`@import` 的 `@/` 目标会先塞进 `specs`，
- *   让「`@/` 字样」那遍不重复报同一条；
- * - **跳过落在字符串 / 模板串里的 spec** —— 那是「数据」，工具链不会去解析它：
- *   codegen 脚本模板串里的相对路径相对的是**输出文件**而非脚本自己；
- *   `l.includes('from "./x"')` 里 `from` 自己就写在引号内。生成物的正确性由
- *   「已提交的生成文件本身」兜住（它就在 `src/` 下，会被照常检查）。
- * - 认 TS/NodeNext 写法：源码写 `./x.js` 而磁盘上是 `./x.ts` 视为可解析。
- *
- * ## 用法
- *
- *     node scripts/check-import-refs.mjs                  # 检查本目录（frontend）
- *     node scripts/check-import-refs.mjs --root <dir>     # 检查任意根（自检脚本用）
- *     node scripts/check-import-refs.mjs --alias @store/  # 换源码别名前缀（商店用 @store/）
- *     node scripts/check-import-refs.mjs --quiet          # 只在失败时输出
- *
- * 负向自检见 `scripts/_import_refs_selftest.mjs`（真的把副本改坏，逐条确认会拦）。
+ * 用法：
+ *   node scripts/check-import-refs.mjs [--root <dir>] [--alias @store/] [--quiet]
+ * 负向自检见 scripts/_import_refs_selftest.mjs。
  */
 import fs from 'node:fs'
 import path from 'node:path'

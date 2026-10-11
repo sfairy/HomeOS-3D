@@ -1,19 +1,4 @@
-/**
- * @file useWakeWord.ts
- * @module composables/voice
- * @description 轻量唤醒词监听 composable（VoiceCommand / Screensaver 共用）。
- *
- * 职责：
- * - 使用浏览器 SpeechRecognition 持续监听语音；
- * - 检测唤醒词后提取后续命令并回调；
- * - 连续失败时拉长重启间隔并提示用户改用长按说话；
- * - 通过 enabled 回调动态控制启停，卸载时自动清理。
- *
- * 依赖：
- * - vue（ref/onUnmounted）
- * - frontend-config（getConfigSection 读取 voice 配置）
- * - voice-alert-catalog（normalizeWakeWords 规范化唤醒词）
- */
+/** - 使用浏览器 SpeechRecognition 持续监听语音； */
 import { ref, onUnmounted } from 'vue'
 import { getConfigSection } from '@/shared/utils/config/frontend-config'
 import { normalizeWakeWords } from '@/shared/constants/voice-alert-catalog'

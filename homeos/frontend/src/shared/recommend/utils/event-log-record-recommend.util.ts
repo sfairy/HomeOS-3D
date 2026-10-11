@@ -1,19 +1,4 @@
-/**
- * 事件日志记录筛选智能推荐
- *
- * 职责：
- * - 基于事件日志统计快照，识别高频噪声域 / 高频实体，给出筛选模式（排除/白名单）建议。
- * - 把推荐结果映射为统一 RecommendInsightCard 结构，供顾问页与事件日志页展示。
- *
- * 依赖：
- * - @homeos/shared 中的 getEntityDomain。
- * - @/shared/recommend/types/recommend.types 的推荐卡片类型。
- *
- * 注意：
- * - 域 key（sensor / light / ...）为 HA domain，不翻译。
- * - reason（noise_domain / high_volume）为推荐理由标识符，不翻译。
- * - 仅面向用户的 summary / chip label 使用简体中文。
- */
+/** 事件日志记录筛选智能推荐 */
 import { getEntityDomain, getEntityLeaf } from '@homeos/shared'
 import type {
   RecommendBanner,

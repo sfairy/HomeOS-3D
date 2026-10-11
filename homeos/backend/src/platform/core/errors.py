@@ -107,9 +107,7 @@ def unauthorized(message: str) -> NoReturn:
     raise BusinessException(ErrorCode.UNAUTHORIZED, message, 401)
 
 
-# --------------------------------------------------------------------------- #
 # HTTP 文案本地化（共享包 http-messages.ts 的等价实现）
-# --------------------------------------------------------------------------- #
 HTTP_MESSAGE_TEXTS: dict[str, str] = {
     "badRequest": "请求无效",
     "forbidden": "没有权限执行此操作",
@@ -201,9 +199,7 @@ def localize_http_exception_message(message: str, status: int, error_name: str =
     return text
 
 
-# --------------------------------------------------------------------------- #
 # apiErrorCode 正查表（api-error-messages.ts 的等价移植）
-# --------------------------------------------------------------------------- #
 _F = Callable[..., str]
 
 #: 错误码 → 文案。值为「静态字符串」或「惰性工厂（lambda，需参数）」的联合类型。

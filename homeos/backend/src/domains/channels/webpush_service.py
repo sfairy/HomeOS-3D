@@ -249,9 +249,7 @@ class WebPushService:
         self._message_handler: MessageHandler | None = None
         self._http = httpx.AsyncClient(timeout=SEND_TIMEOUT)
 
-    # ------------------------------------------------------------------ #
     # 事件绑定
-    # ------------------------------------------------------------------ #
     def bind_events(self) -> None:
         """订阅配置更新事件，热重载 VAPID 配置。"""
         if self._event_bus is None:
@@ -268,9 +266,7 @@ class WebPushService:
         await self.reload()
         await self.load_subscriptions_from_db()
 
-    # ------------------------------------------------------------------ #
     # 配置
-    # ------------------------------------------------------------------ #
     async def reload(self) -> None:
         cfg = await self._channel_config.get_webpush_config()
         self._enabled = bool(cfg and cfg.enabled)
@@ -319,9 +315,7 @@ class WebPushService:
         except Exception as exc:
             logger.warning("加载 WebPush 订阅失败(表可能尚未迁移): %s", exc)
 
-    # ------------------------------------------------------------------ #
     # 状态 / 订阅管理
-    # ------------------------------------------------------------------ #
     async def get_status(self) -> dict[str, Any]:
         if not self._enabled:
             return {"enabled": False, "configured": False, "subscriptionCount": 0}
@@ -407,9 +401,7 @@ class WebPushService:
             logger.warning("删除 WebPush 订阅失败: %s", exc)
         logger.info("已取消 WebPush 订阅: %s...", endpoint[:40])
 
-    # ------------------------------------------------------------------ #
     # ChannelProvider
-    # ------------------------------------------------------------------ #
     def on_message(self, handler: MessageHandler) -> None:
         self._message_handler = handler
 

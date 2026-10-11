@@ -1,12 +1,6 @@
 <!--
-组件：SettingsBindingsOverviewSection.vue
-所属模块：frontend / src / views / settings / connect / bindings
-职责：绑定概览分区。以流程概览展示全局绑定状态（天气、监控、安防、完整性缺口），
-      并提示用户进入对应子页完成配置。
-关键依赖：
-  - SettingsFlowBand / SettingsFlowStat：流程概览
-  - SettingsCard：卡片容器
-数据来源：父级透传的 weatherBound / cameraCount / doorbellCount / gapCount
+  绑定概览分区。以流程概览展示全局绑定状态（天气、监控、安防、完整性缺口），
+  并提示用户进入对应子页完成配置。
 -->
 <template>
   <div class="settings-hub-section bindings-overview-hub">
@@ -52,7 +46,6 @@ import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 
-// 入参：天气是否绑定、监控路数、门铃路数、完整性缺口数
 const props = defineProps({
   weatherBound: { type: Boolean, default: false },
   cameraCount: { type: Number, default: 0 },

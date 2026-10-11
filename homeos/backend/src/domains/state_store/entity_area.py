@@ -1,12 +1,4 @@
-"""实体区域（Area）补全服务（对齐 ``state-store/entity-area-enrichment.service.ts`` 的后端子集）。
-
-职责：
-- 基于 HA entity_registry / area_registry / device_registry 构建 ``entity_id -> {area_id, area_name, device_id}`` 索引；
-- 维护带 TTL 的 HA 区域列表（供 ``/system/config/public`` 的房间元信息使用）；
-- 在实体对外暴露前注入 ``attributes.area_id / area_name / device_id``。
-
-注册表拉取失败时静默降级为空索引，不影响主流程。
-"""
+"""实体区域（Area）补全服务（对齐 ``state-store/entity-area-enrichment.service.ts`` 的后端子集）。"""
 
 from __future__ import annotations
 
@@ -149,9 +141,7 @@ class EntityAreaEnrichmentService:
         self._inflight: asyncio.Task[dict[str, dict[str, str]]] | None = None
         self._load_gen = 0
 
-    # ------------------------------------------------------------------ #
     # 缓存
-    # ------------------------------------------------------------------ #
     @property
     def cache_ttl_ms(self) -> int:
         return ENTITY_AREA_CACHE_MS
@@ -162,9 +152,7 @@ class EntityAreaEnrichmentService:
         self._load_gen += 1
         self._inflight = None
 
-    # ------------------------------------------------------------------ #
     # 事件处理器（对齐 Nest @OnEvent(HA_ENTITY_REGISTRY_UPDATED / INITIAL_STATES)）
-    # ------------------------------------------------------------------ #
     def on_entity_registry_updated(self, _payload: Any = None) -> None:
         """实体注册表变更（分配区域 / 重命名 / 隐藏）→ 失效缓存并异步重建索引。"""
         self.invalidate()
@@ -258,9 +246,7 @@ class EntityAreaEnrichmentService:
             if str(info.get("area_id") or "") == ident
         ]
 
-    # ------------------------------------------------------------------ #
     # 加载
-    # ------------------------------------------------------------------ #
     async def _load_index(self) -> dict[str, dict[str, str]]:
         gen = self._load_gen
         try:
@@ -331,9 +317,7 @@ class EntityAreaEnrichmentService:
             return []
         return rows if isinstance(rows, list) else []
 
-    # ------------------------------------------------------------------ #
     # 同步增强
-    # ------------------------------------------------------------------ #
     def enrich_entity_sync(self, entity: dict[str, Any]) -> dict[str, Any]:
         if not self._index:
             return entity

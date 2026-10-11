@@ -1,16 +1,6 @@
 <!--
-组件：SettingsLicensePanel.vue
-所属模块：frontend / src / views / settings / system
-职责：授权状态面板（参考原 homeos-3d 授权页）。集中展示本机商业授权的状态、租约、权益与账号信息，
-     并提供「重新连接授权后台」「重新激活」「退出本机登录」「复制诊断信息」四类操作。
-Props：
-  - activeTab：当前 Tab
-关键依赖：
-  - SettingsPageShell / SettingsHubSubnav / SettingsCard：页面骨架与子导航
-  - services/api/license：状态读取、重试、重激活与文案映射
-  - auth.store：退出本机登录会话
-  - feature-labels.util：功能码中文名（与 ops/feature_codes.json 同源，有门禁校验）
-数据来源：GET /license/status（要求登录会话）；进入面板与点击刷新时各拉一次，不做后台常驻轮询
+  授权状态面板（参考原 homeos-3d 授权页）。集中展示本机商业授权的状态、租约、权益与账号信息，
+  并提供「重新连接授权后台」「重新激活」「退出本机登录」「复制诊断信息」四类操作。
 -->
 <template>
   <SettingsPageShell

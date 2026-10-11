@@ -1,19 +1,7 @@
 <!--
-组件：SettingsGeneralPanel.vue
-所属模块：frontend / src / views / settings / display
-职责：通用设置面板。按子导航切换：站点品牌（siteTitle）、导航标签（NavTabEditor）、
-      底部信息栏、天气特效、锁屏屏保、显示缩放（整页等比缩放 + 布局尺寸与停靠）、
-      性能调试（高/中/低三档）、全屋关闭；并提供安全登出入口。中控风格固定石板深蓝。
-关键依赖：
-  - SettingsPageShell / SettingsCard / SettingsCardIntro：页面骨架
-  - SettingsFlowBand / SettingsFlowStat / SettingsHubSubnav：流程概览与子导航
-  - NavTabEditor / SettingsLayoutFooterSection / SettingsWeatherEffectsSection / SettingsRenderingSection / SettingsWholeHomeOffSection：子区段
-  - SettingsLayoutDisplaySection：显示缩放区段
-  - useScaling：显示缩放派生
-  - useDashboardFooterEditor：底部信息栏编辑逻辑
-  - useSettingsPendingChanges / useSettingsSave：待保存变更与保存逻辑
-  - applyGlassEffectDocument：毛玻璃效果应用
-数据来源：layoutStore.layoutConfig（siteTitle / performanceMode / glassEffect 等）
+  通用设置面板。按子导航切换：站点品牌（siteTitle）、导航标签（NavTabEditor）、
+  底部信息栏、天气特效、锁屏屏保、显示缩放（整页等比缩放 + 布局尺寸与停靠）、
+  性能调试（高/中/低三档）、全屋关闭；并提供安全登出入口。中控风格固定石板深蓝。
 -->
 <template>
   <SettingsPageShell

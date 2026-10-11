@@ -1,16 +1,6 @@
 <!--
-组件：SettingsFlowBand.vue
-所属模块：frontend / src / views / settings / shared / layout
-职责：设置页流程概览条。横向展示数据流步骤（输入 → 匹配 → 执行 → 输出），支持折叠/展开、
-      摘要文案与 #stats 插槽（统计指标）。可折叠时收起为单行摘要。
-Props：
-  - steps：SettingsFlowStep[] 流程步骤
-  - hint：右侧提示文案
-  - bandClass / collapsible / defaultCollapsed / toggleLabel / collapsedSummary / collapsedSummaryTone：外观与折叠配置
-导出类型：
-  - SettingsFlowStep：流程步骤定义（label / meta / icon / tone）
-关键依赖：@lucide/vue 的 ChevronDown（折叠箭头）
-数据来源：父级透传的 steps 与 slots.stats
+  设置页流程概览条。横向展示数据流步骤（输入 → 匹配 → 执行 → 输出），支持折叠/展开、
+  摘要文案与 #stats 插槽（统计指标）。可折叠时收起为单行摘要。
 -->
 <template>
   <div

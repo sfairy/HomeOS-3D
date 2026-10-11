@@ -1,31 +1,12 @@
 <!--
-组件：SettingsVoiceTtsSection.vue
-所属模块：frontend / src / views / settings / interact / voice
-职责：语音输出配置区段。通过 OrchTabs 切换播报音箱（TTS 总开关/输出方式/多音箱/冷却）、
-      每日问候（日间/夜间话术预设与自定义模板）。支持 TTS 试听与每日顾问试听。
-defineModel：
+  语音输出配置区段。通过 OrchTabs 切换播报音箱（TTS 总开关/输出方式/多音箱/冷却）、
+  每日问候（日间/夜间话术预设与自定义模板）。支持 TTS 试听与每日顾问试听。
+  defineModel：
   - voice：语音配置对象
   - voiceOutputTab：当前输出子页签
   - ttsMediaPlayerIds：播报音箱实体列表
   - speakCooldownMin / tipCooldownHours：播报/提示冷却
   - testTtsText：TTS 试听文本
-Props：
-  - voiceOutputTabs：子页签配置
-  - dailyAdvisorDayPresets / dailyAdvisorEveningPresets：日间/夜间问候预设
-  - dailyDayPreset / dailyDayCustom / dailyDayTemplate：日间问候预设/自定义/模板
-  - dailyEveningPreset / dailyEveningCustom / dailyEveningTemplate：夜间问候预设/自定义/模板
-  - testingTts / testTtsOk / testTtsTip：TTS 试听状态
-  - testingAdvisor：每日顾问试听状态
-Emits：
-  - test-tts / test-daily-advisor：试听
-  - daily-day-preset / daily-day-custom / daily-evening-preset / daily-evening-custom：问候配置变更
-关键依赖：
-  - SettingsCard / SettingsOrchTabs / SettingsFlowBand / SettingsFlowStat / SettingsFeatureMaster / SettingsSectionHead：卡片与流程
-  - HosSelect / EntityMultiSelect：输出方式与音箱多选
-  - VoiceSpeechComposer：每日问候话术编辑
-  - useAudioDevices：本机音频设备枚举
-  - previewDailyAdvisor：每日顾问模板预览
-数据来源：父级 SettingsVoicePanel 透传的 defineModel 与 props
 -->
 <template>
   <div class="settings-hub-section">

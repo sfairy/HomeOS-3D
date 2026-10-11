@@ -1,16 +1,4 @@
-/**
- * 户型图浮动 Hub / 部件布局工具
- *
- * 职责：
- * - 维护浮动部件居中 transform 常量。
- * - 提供百分比坐标钳制（保留 1 位小数，钳制到 [0,100]）。
- * - 提供根矩形合法性判定、部件百分比净化、矩形中心 / 边缘锚点反推等工具，
- *   供浮动 Hub 拖拽与布局定位使用。
- *
- * 依赖：@/shared/utils/registry/widget-registry-meta 的 isFloatingPanelType；@/shared/types/layout。
- *
- * 注意：坐标 / 像素 / transform 字符串为运行时数值 / CSS 字面量，不翻译。
- */
+/** 户型图浮动 Hub / 部件布局工具 */
 import { isFloatingPanelType } from '@/shared/utils/registry/widget-registry-meta'
 import type { FloatingWidget } from '@/shared/types/layout'
 

@@ -1,15 +1,7 @@
 <!--
-组件：HomeModeActionsSection.vue
-所属模块：frontend / src / views / settings / automate / home-mode
-职责：家庭模式编辑器「全屋动作」分区。管理动作列表（实体/场景/脚本/通知/安防），
-      支持拖拽排序、批量添加、单条添加、复制与高级 service_data 配置；紧凑态下提供
-      主从导航与展开/收起切换。
-关键依赖：
-  - HosSelect / EntityInput：下拉与实体输入
-  - HomeModeItemNav：紧凑态下的动作主从导航
-  - useHomeModeActionsSection：派生拖拽、高级配置、渲染动作等编辑态
-  - sceneEntityIdFromRecord / scriptEntityIdFromRecord：场景/脚本记录转 entity_id
-数据来源：父级透传的 activeDraft（双向）+ 域/服务/场景/脚本列表 + composable 派生
+  家庭模式编辑器「全屋动作」分区。管理动作列表（实体/场景/脚本/通知/安防），
+  支持拖拽排序、批量添加、单条添加、复制与高级 service_data 配置；紧凑态下提供
+  主从导航与展开/收起切换。
 -->
 <template>
   <div :class="['hm-panel__section', activeDraft.actions?.length && 'hm-panel__section--fill']">
@@ -379,12 +371,10 @@ import {
   scriptEntityIdFromRecord,
 } from '@/shared/utils/ha/scene-script.util'
 
-// 双向绑定：批量添加面板的域 / 服务 / 当前编辑草稿（动作列表载体）
 const batchDomain = defineModel('batchDomain', { type: String, default: '' })
 const batchService = defineModel('batchService', { type: String, default: '' })
 const activeDraft = defineModel('activeDraft', { type: Object, required: true })
 
-// 入参：批量面板展开态、域/服务列表、勾选实体、场景/脚本记录、动作聚焦定位等
 const props = defineProps({
   showBatch: Boolean,
   allDomains: { type: Array, default: () => [] },
@@ -398,7 +388,6 @@ const props = defineProps({
   actionFocusIndex: { type: [Number, null], default: null },
 })
 
-// 对外事件：复制、批量/单条添加、批量选择、动作类型变更等
 defineEmits([
   'duplicate',
   'toggle-batch',

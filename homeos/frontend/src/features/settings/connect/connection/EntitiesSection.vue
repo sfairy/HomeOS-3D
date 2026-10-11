@@ -1,20 +1,9 @@
 <!--
-  组件文件：EntitiesSection.vue
-  所属模块：frontend/src/features/settings/connect/connection
-  组件职责：系统连接大类下的 HA 实体同步分区面板，顶部展示实体同步建议洞察卡（含刷新
-    与修复动作），中部提供「仅同步已启用且未隐藏的实体」大开关，下方为实体总数、
-    最后同步时间、缓存来源与离线设备数量的统计卡片。
-  主要 props / emits：
-    - props entitiesStore：实体缓存 store 对象（totalCount、entitiesCacheHydrated 等）
-    - props syncOnlyEnabledEntities：是否已开启启用过滤开关（布尔）
-    - props syncFilterSaving / syncFilterFeedback：过滤开关保存状态与反馈文案
-    - props refreshingEntities / refreshFeedback：实体刷新状态与反馈
-    - props saving / testing：保存与测试加载状态（联合禁用刷新按钮）
-    - props toggleSyncFilter / refreshEntities / formatCacheTime：回调函数
-  依赖关系：使用 buildEntitySyncRecommendations 工具生成实体同步推荐卡片；
-    引用 DEVICES_ROUTES 生成设备列表/离线列表跳转链接。
+  系统连接大类下的 HA 实体同步分区面板，顶部展示实体同步建议洞察卡（含刷新
+  与修复动作），中部提供「仅同步已启用且未隐藏的实体」大开关，下方为实体总数、
+  最后同步时间、缓存来源与离线设备数量的统计卡片。
   注意事项：切换「仅同步已启用…」开关后建议立即点「刷新实体」生效；同步过滤开关保存
-    到后端需回调，期间按钮进入 loading 态。
+  到后端需回调，期间按钮进入 loading 态。
 -->
 <template>
   <div>

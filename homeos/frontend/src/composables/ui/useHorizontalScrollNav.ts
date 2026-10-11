@@ -1,15 +1,4 @@
-/**
- * @file 横向滚动导航 Composable
- * @module composables/ui/useHorizontalScrollNav
- *
- * 职责：
- *  - 检测横向轨道是否溢出，控制左右箭头的显隐。
- *  - 提供平滑滚动（按步长滚动）与子元素滚动入视（居中对齐）能力。
- *  - 通过 ResizeObserver 监听轨道尺寸变化，自动刷新滚动状态。
- *
- * 依赖：
- *  - vue 的 ref / watch / nextTick / onMounted / onUnmounted 与 Ref 类型。
- */
+/** - 检测横向轨道是否溢出，控制左右箭头的显隐。 */
 import { ref, watch, nextTick, onMounted, onUnmounted, type Ref } from 'vue'
 
 /**

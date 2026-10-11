@@ -1,20 +1,4 @@
-/**
- * @file index.ts
- * @module @homeos/shared
- * @brief @homeos/shared 包统一导出入口（barrel），按子域分组再导出 YAML / HA / 模板 / 房间 / 联动 / 配置等工具。
- *
- * 职责：
- *  - 作为前后端引用 @homeos/shared 的唯一入口，隐藏各子文件路径；
- *  - 按功能域（YAML / HA / 模板 / 房间 / 联动 / 通知 / 配置等）分组再导出，便于检索与 tree-shaking。
- *
- * 关键依赖：
- *  - 所有子域模块（yaml / ha / template / room / time / auth / config / setup / entity / notification 等）；
- *  - 被 backend 与 frontend 的 package.json dependencies 共同引用，须保持双端版本一致。
- *
- * 约定：
- *  - 分组使用段前注释（如 // ===== YAML 序列化 =====）标识；
- *  - 本 barrel 不对 export { x } 加 JSDoc，导出声明的 JSDoc 均位于各自的声明源文件。
- */
+/** - 作为前后端引用 @homeos/shared 的唯一入口，隐藏各子文件路径； */
 
 // YAML 序列化
 export {

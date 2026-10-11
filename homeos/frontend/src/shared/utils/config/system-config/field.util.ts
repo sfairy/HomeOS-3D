@@ -1,18 +1,4 @@
-/**
- * 系统配置字段类型推断与表单控件选项
- *
- * 职责：
- * - 维护宽字段 / HA entity_id 字段 / 嵌套 JSON 字段的正则与集合。
- * - 维护枚举类配置字段的下拉选项表（SYSTEM_CONFIG_SELECT_OPTIONS）。
- * - 提供字段类型推断（password / number / object / array / entity-list / select / ...）
- *   与选项解析工具，供编辑器渲染对应表单控件。
- *
- * 依赖：./field.meta 的字段标签与提示查询函数。
- *
- * 注意：
- * - 字段 key（mainValveEntityId / ...）为配置 key，不翻译。
- * - 选项 value 为配置值，不翻译；仅 label 使用简体中文。
- */
+/** 系统配置字段类型推断与表单控件选项 */
 import { resolveSystemConfigFieldLabel, systemConfigFieldHint } from './field.meta'
 
 const WIDE_FIELD_RE = /entity|path|url|password|dir|player|domains|logo|title|key/i

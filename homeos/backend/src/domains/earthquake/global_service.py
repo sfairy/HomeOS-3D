@@ -145,9 +145,7 @@ class EarthquakeGlobalService:
         await self._save_cache(cache_key, result)
         return result
 
-    # ------------------------------------------------------------------ #
     # 数据源拉取
-    # ------------------------------------------------------------------ #
     async def _fetch_usgs_items(
         self,
         period: str,
@@ -242,9 +240,7 @@ class EarthquakeGlobalService:
             self._logger.debug("CEIC 直连不可用,回退 Wolfx CENC: %s", exc)
             return []
 
-    # ------------------------------------------------------------------ #
     # 距离 / 缓存
-    # ------------------------------------------------------------------ #
     def _with_home(
         self,
         payload: dict[str, Any],

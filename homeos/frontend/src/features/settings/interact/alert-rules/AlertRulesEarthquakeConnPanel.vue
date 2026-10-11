@@ -1,18 +1,6 @@
 <!--
-组件：AlertRulesEarthquakeConnPanel.vue
-所属模块：frontend / src / views / settings / interact / alert-rules
-职责：地震预警 · 数据连接状态面板。展示各数据源（Wolfx / USGS）的连接状态、最近轮询/成功时间、
-      被阈值过滤的最近事件，以及未启用时的引导提示。
-Props：
-  - loading：是否正在刷新状态
-  - payload：EarthquakeStatusPayload，含 sources / recentFilters / hint / enabled
-Emits：
-  - refresh：点击「刷新」按钮时触发，由父级重新拉取状态
-关键依赖：
-  - SettingsCard / SettingsSectionHead：卡片容器与区段标题
-  - EarthquakeStatusPayload：地震状态数据类型
-  - formatLocaleString：时间戳格式化（绝对/相对）
-数据来源：父级透传的 payload（由 useEarthquakeStatusQuery 拉取）
+  地震预警 · 数据连接状态面板。展示各数据源（Wolfx / USGS）的连接状态、最近轮询/成功时间、
+  被阈值过滤的最近事件，以及未启用时的引导提示。
 -->
 <template>
   <SettingsCard static extra-class="alert-eew-conn-card">

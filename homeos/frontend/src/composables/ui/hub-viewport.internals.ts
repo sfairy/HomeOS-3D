@@ -1,16 +1,4 @@
-/**
- * 设置面板视口与分页组合式函数
- * 
- * 职责：提供设置面板的侧边栏重入重置、自适应分页等功能
- * 依赖：
- *   - vue - 响应式系统与生命周期钩子
- *   - vue-router - 路由相关功能
- * 
- * 功能模块：
- *   - useSettingsSidebarReentryReset - 侧边栏重入时重置子 Tab
- *   - useAdaptiveViewportPagination - 自适应视口分页
- *   - useFixedPagePagination - 固定页数分页
- */
+/** 设置面板视口与分页组合式函数 */
 import type { MaybeRefOrGetter, Ref } from 'vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, unref, watch } from 'vue'
 import { useRoute } from 'vue-router'

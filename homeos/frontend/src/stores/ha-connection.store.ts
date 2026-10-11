@@ -1,18 +1,4 @@
-/**
- * HA 连接状态 Store（单源：`ha_connections` 表）
- *
- * 阶段 3.3 前，HA 地址与令牌散落在 `layoutConfig.haConfig`（项目 layout JSON）里：
- * 设置页写入 layout、后端 `ha_config.py` 从 layout 读、安防监控与地震向导各自再读一遍。
- * 现在唯一写入方是 `PUT /ha/connection`，前端统一从这里读当前生效的地址。
- *
- * 职责：
- * - 维护连接记录快照（`GET /ha/connection`）与加载/保存状态；
- * - 提供 `baseUrl`（跟随 failover 的实际地址）给需要拼 HA 绝对 URL 的消费者
- *   （摄像头快照/HLS、地震坐标同步）；
- * - 提供 `save()` / `load()` 两个动作，令牌始终留在服务端，前端只持有 `hasToken`。
- *
- * @module stores/ha-connection.store
- */
+/** HA 连接状态 Store（单源：`ha_connections` 表） */
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 

@@ -1,18 +1,4 @@
-/**
- * @module entity-idb-cache
- * @description IndexedDB 实体快照缓存（加速首屏、离线回显）。
- *
- * 职责：
- * - 管理 IndexedDB 数据库（homeos_entity_cache）的打开、升级与修复。
- * - 按用户 + ACL 生成隔离键，保证不同用户缓存互不污染。
- * - 提供快照的读取、写入、清除接口，支持过期判定。
- *
- * 依赖：
- * - `frontend-config`：缓存开关与过期配置。
- * - `logger`：日志输出。
- *
- * 数据库名与 README 一致：homeos_entity_cache。
- */
+/** - 管理 IndexedDB 数据库（homeos_entity_cache）的打开、升级与修复。 */
 import type {
   EntityCacheAccessUser,
   EntityCacheSnapshot,
@@ -256,12 +242,6 @@ export async function loadEntityCache(
  * 分片增量写入 IndexedDB（Task 23：IndexedDB 分片）。
  * 仅重写传入的分片（按域分组），未涉及的域分片保持不变，
  * 显著降低高频状态推送下的 IDB 写入量。
- *
- * 约定：分片值为空数组时删除该分片（该域实体已全部移除）。
- *
- * @param cacheKey 缓存隔离键。
- * @param shards 按域分组的实体表（domain -> 该域当前全量实体）。
- * @returns 写入成功返回 true，否则返回 false。
  */
 export async function saveEntityCacheShards(
   cacheKey: string,

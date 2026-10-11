@@ -1,13 +1,6 @@
 <!--
-组件：SecurityOverview.vue
-所属模块：frontend / src / views / security
-职责：安防总览页面入口。整合告警提示条、安全传感器联动（hazard）横幅、
-      模式切换命令栏与传感器 / 事件主体面板，并负责联动失败详情的筛选切换。
-关键依赖：
-  - useSecurityOverview composable：聚合安防模式、传感器、告警、审计、hazard 等状态
-  - SecurityOverviewCommandBar / SecurityOverviewBody：命令栏与主体面板子组件
-  - AlertTriangle 图标来自 @lucide/vue
-数据来源：useSecurityOverview 返回的响应式状态（传感器 / 模式 / 事件 / hazard 等）
+  安防总览页面入口。整合告警提示条、安全传感器联动（hazard）横幅、
+  模式切换命令栏与传感器 / 事件主体面板，并负责联动失败详情的筛选切换。
 -->
 <template>
   <div class="sec-dash sec-dash--overview">

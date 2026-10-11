@@ -1,15 +1,6 @@
 <!--
-组件：OverviewSection.vue
-所属模块：frontend / src / views / settings / system / diagnostics
-职责：诊断总览区段。通过 OrchTabs 切换总览 / 前端性能 / HA 连接 / 配置健康等子页签，
-      展示 KPI、流水线节点、配置健康评分与缺口、连接服务卡片。数据由 useDiagnosticsSection 注入。
-关键依赖：
-  - SettingsCard / SettingsCardIntro / SettingsOrchTabs / SettingsFlowBand：卡片与流程
-  - VProgressBar：进度条
-  - useEntitiesStore：实体数量统计
-  - useDiagnosticsSection：注入总览数据
-  - BACKEND_MEM_WARN_PCT：内存告警阈值
-数据来源：useDiagnosticsSection() 返回的 overviewTab / summaryKpis / configHealth 等
+  诊断总览区段。通过 OrchTabs 切换总览 / 前端性能 / HA 连接 / 配置健康等子页签，
+  展示 KPI、流水线节点、配置健康评分与缺口、连接服务卡片。数据由 useDiagnosticsSection 注入。
 -->
 <template>
   <!-- Tab：系统健康总览 -->

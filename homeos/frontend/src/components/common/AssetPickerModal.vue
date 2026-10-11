@@ -74,16 +74,7 @@
 </template>
 
 <script setup>
-/**
- * @file AssetPickerModal.vue
- * @module common/AssetPickerModal
- * @description 资源拾取器弹窗 — 挑选图标/素材并回传路径
- *  职责：
- *    - 以模态形式承载 AssetManager（拾取器模式）；
- *    - 监听 AssetManager 的 select 事件，统计已选数量并向上透传；
- *    - keep-alive 网关禁用传送门时主动关闭。
- *  依赖：vue ref/defineAsyncComponent/watch，@lucide/vue 图标，useKeepAliveGate。
- */
+/** - 以模态形式承载 AssetManager（拾取器模式）； */
 import { ref, computed, defineAsyncComponent, watch } from 'vue'
 import { X, Images, Sparkles, MousePointer2 } from '@lucide/vue'
 import { useKeepAliveGate } from '@/composables/ui/useKeepAliveGate'

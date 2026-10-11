@@ -1,30 +1,12 @@
 <!--
-  组件文件：SetupWizardSecurityStep.vue
-  所属模块：frontend/src/features/settings/connect/setup-wizard
-  组件职责：初始化向导的第二步「安防绑定」表单页。上部为多路门铃绑定列表（每路含
-    自定义标签、触发实体、摄像头实体三个字段与删除按钮，支持新增/删除多路），下部
-    为 SetupWizardPresencePanel 人员在家判定面板（含自动布防/升级开关），以及独立的
-    运动传感器绑定输入框。
-  主要 props / emits：
-    - defineModel doorbellList：门铃列表双向绑定
-    - defineModel motionEntityId：运动传感器实体双向绑定
-    - props addDoorbell / removeDoorbell / reduceSensitivity：门铃操作回调
-    - props presenceMembers / presenceLoading / presenceLoaded / presenceAutoMode 等一整套
-      presence 面板 props 透传给子组件
-    - props loadPresence / toggleAutoArm / toggleAutoUpgrade / memberInitial /
-      memberTone：presence 回调函数透传
-  依赖关系：引用 SetupWizardPresencePanel 子组件；EntityInput 做实体绑定；Plus/Trash2
-    / Bell / Radio 图标组件。
+  初始化向导的第二步「安防绑定」表单页。上部为多路门铃绑定列表（每路含
+  自定义标签、触发实体、摄像头实体三个字段与删除按钮，支持新增/删除多路），下部
+  为 SetupWizardPresencePanel 人员在家判定面板（含自动布防/升级开关），以及独立的
+  运动传感器绑定输入框。
   注意事项：至少添加一路门铃即可继续下一步；触发实体支持 input_boolean/binary_sensor/
-    switch/button/input_button 多域。
+  switch/button/input_button 多域。
 -->
 <script setup>
-/**
- * 职责：渲染 views/SetupWizardSecurityStep 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { Plus, Trash2, Bell, Radio } from '@lucide/vue'
 import EntityInput from '@/components/common/EntityInput.vue'
 import SetupWizardPresencePanel from './SetupWizardPresencePanel.vue'

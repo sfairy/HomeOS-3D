@@ -48,14 +48,7 @@
 </template>
 
 <script setup>
-/**
- * PowerCardBody.vue
- *
- * 职责：展示单张能源卡片主体内容。包含主数值（带单位）、副数值（如剩余金额）、
- *      标签与进度条（balance variant）。当余额 < 50 / 50-100 时为主数值附加
- *      danger / warn 样式。单位经 formatUnit 转换（¥ → 元）。
- * 依赖：vue、VProgressBar（balance variant 进度条）。
- */
+/** PowerCardBody.vue */
 import VProgressBar from '@/components/common/base/VProgressBar.vue'
 
 /**

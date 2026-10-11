@@ -1,16 +1,7 @@
 /**
- * MainLayout 主布局样式表（scoped 引入）
- *
- * 所属模块：frontend / src / layouts / styles
- * 作用域：MainLayout.vue 中通过 `<style scoped>` 引入，仅作用于当前组件 DOM。
- * 覆盖范围：
- * - 无障碍跳转链接（.skip-link）
- * - 顶栏 tab-bar 结构与品牌/导航 Tab/操作区布局
- * - app-shell / main-content 主内容区
- * - HA 状态横幅、儿童模式顶栏样式覆盖
- *
- * 注意：覆盖子组件（如 HomeModeSwitcher）的样式在 tab-bar-mode-switcher.css 中维护，
- * 该文件为非 scoped 全局样式，仅作用于 .tab-bar 作用域。
+ * MainLayout 主布局样式表（scoped 引入）。
+ * 覆盖无障碍跳转链接、顶栏 tab-bar、app-shell / main-content 主内容区与 HA 状态横幅。
+ * 子组件（如 HomeModeSwitcher）的样式覆盖在 tab-bar-mode-switcher.css 维护（非 scoped）。
  */
 
 .skip-link {
@@ -36,10 +27,9 @@
 }
 
 /* ── 仪表盘壳层（总览首页 `/`）───────────────────────────────────────────────
-   等价原 DashboardView 的结构：内容行（内容区 + 右栏）在上，页脚横跨底部，
-   浮动组件作为覆盖层。此前 `.shell-right-sidebar` / `.shell-footer` 只有类名、
-   没有规则，二者作为 .app-shell__content 的列内项被 flex:1 的内容区挤出可视区，
-   视觉上表现为「侧边栏 / 底部信息栏缺失」。 */
+   内容行（内容区 + 右栏）在上，页脚横跨底部，浮动组件作为覆盖层。
+   `.shell-right-sidebar` / `.shell-footer` 是 .app-shell__content 的列内项，
+   缺规则时会被 flex:1 的内容区挤出可视区（表现为侧边栏 / 底部信息栏缺失）。 */
 .dashboard-shell {
   flex: 1;
   min-height: 0;

@@ -1,11 +1,6 @@
 <!--
-组件：JobsSection.vue
-所属模块：frontend / src / views / settings / system / diagnostics
-职责：调度作业统一仪表盘。展示后端 setInterval / Cron 作业的心跳、耗时与错误（admin，只读）。
-      数据由 useDiagnosticsSection 注入。
-关键依赖：
-  - useDiagnosticsSection：注入 jobs / loading / fetchAll 等
-数据来源：useDiagnosticsSection() 返回的 jobs 列表
+  调度作业统一仪表盘。展示后端 setInterval / Cron 作业的心跳、耗时与错误（admin，只读）。
+  数据由 useDiagnosticsSection 注入。
 -->
 <template>
   <div class="settings-hub-section diag-page">

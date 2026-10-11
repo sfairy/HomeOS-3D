@@ -1,15 +1,6 @@
 <!--
-组件：AlertRulesDndSection.vue
-所属模块：frontend / src / views / settings / interact / alert-rules
-职责：告警规则 · 免打扰（DND）区段。展示当前静默状态与时间线，配置静默时段（起止小时）、
-      按预设快速套用，并在未保存时挂起保存条。仅在静默时段内抑制 info/warn 级别告警。
-关键依赖：
-  - ApiQueryState：免打扰配置加载态/错误重试
-  - SettingsCard / SettingsOrchTabs / SettingsFlowBand / SettingsFlowStat：卡片、流程概览与状态指标
-  - SettingsRangeField：小时范围滑杆
-  - SettingsPendingSaveAction：未保存修改的保存/取消条
-  - useAlertRulesSection：从告警规则上下文注入 dnd 相关状态与方法
-数据来源：useAlertRulesSection() 返回的 dndSettings / dndForm / dndPreviewActive 等
+  告警规则 · 免打扰（DND）区段。展示当前静默状态与时间线，配置静默时段（起止小时）、
+  按预设快速套用，并在未保存时挂起保存条。仅在静默时段内抑制 info/warn 级别告警。
 -->
 <template>
   <div class="settings-hub-section alert-dnd-section">

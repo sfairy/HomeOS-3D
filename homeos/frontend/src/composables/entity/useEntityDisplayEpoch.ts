@@ -1,13 +1,4 @@
-/**
- * 实体展示 Epoch 依赖注入工具
- *
- * 职责：在 computed 或渲染函数中建立实体 store 的响应式依赖锚点，
- *      使模板内非响应式的 getEntity / 全表扫描能随 WebSocket 更新正确触发重绘；
- *      优先按 domain 维度的 epoch 收窄依赖，未指定域时依赖全局 derivedEpoch。
- * 导出：
- *   - touchEntityStoreDisplayDeps(store, domains?)：手动触达 epoch 建立依赖（直接调用）
- *   - useEntityDisplayEpoch(domains?)：返回 computed<epoch>，组件中读取 .value 即可建立依赖
- */
+/** 实体展示 Epoch 依赖注入工具 */
 import { computed } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 /**

@@ -1,23 +1,4 @@
-/**
- * 系统配置可编辑视图构建工具
- *
- * 职责：
- * - 把后端 SystemConfig 转换为可编辑分节视图（EditableConfigSection[]）。
- * - 字段值适配为表单展示值（object→JSON 文本，array→逗号串）。
- * - 密码类字段识别掩码占位（•••••••• / ********），避免覆盖回写。
- * - 处理草稿差异、待保存字段收集与回写补全。
- *
- * 依赖：
- * - @/composables/config/system-config-core.internals 的 getSectionLabels。
- * - ./field.util 的字段类型推断。
- * - ./field.meta 的字段白名单。
- * - @/shared/types/system-config、@/shared/types/system-config-editor 类型。
- *
- * 注意：
- * - EXCLUDED_SECTIONS 中的配置段（voice / envSensorMap / ...）由专属页面维护，
- *   不进入通用编辑器，避免误编辑。
- * - CONFIG_MASK 为密码掩码占位，不翻译。
- */
+/** 系统配置可编辑视图构建工具 */
 import { getSectionLabels } from '@/composables/config/system-config-core.internals'
 import { inferSystemConfigFieldType, NESTED_JSON_FIELDS } from '@/shared/utils/config/system-config/field.util'
 import { SYSTEM_CONFIG_FIELD_KEYS } from '@/shared/utils/config/system-config/field.meta'

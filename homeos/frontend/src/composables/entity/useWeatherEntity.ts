@@ -1,16 +1,4 @@
-/**
- * 天气实体解析组合式函数
- *
- * 职责：按优先级解析当前应使用的天气实体，支持 widget 覆盖 > 集成绑定（与 circadian 同步）> 首个 weather.* 域实体三级策略；
- *      派生是否为兜底命中、天气实体是否可用等状态。
- * 返回结构：
- *   - boundEid：配置中绑定的天气实体 ID（含覆盖与集成）
- *   - resolvedEid：最终解析出的有效实体 ID
- *   - entity：解析出的 HA 实体快照（computed）
- *   - isFallback：是否命中兜底（未配置绑定，自动取首个 weather.*）
- *   - hasWeather：实体存在且状态非 unavailable
- * 性能：通过 getDomainEpoch 建立域级响应式依赖，仅在 weather 域索引重建时重算。
- */
+/** 天气实体解析组合式函数 */
 import { computed, unref, type MaybeRef } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useLayoutStore } from '@/stores/layout.store'

@@ -1,15 +1,4 @@
-/**
- * 浮动 Hub Tab 选项与默认值
- *
- * 职责：
- * - 转发 hub-tabs-options 的 Tab 集合查询（按 Hub 类型取可选 Tab）。
- * - 维护各 Hub 类型添加时的 defaultTab 默认值。
- *
- * 依赖：@/shared/utils/registry/hub-tabs-options 的 getHubTabSet。
- *
- * 注意：Hub 类型 key（securityPanel ...）与 Tab key（arm ...）
- *   均为配置 key，不翻译。
- */
+/** 浮动 Hub Tab 选项与默认值 */
 import { getHubTabSet } from '@/shared/utils/registry/hub-tabs-options'
 
 /**

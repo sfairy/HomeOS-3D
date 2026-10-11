@@ -44,16 +44,7 @@
 </template>
 
 <script setup>
-/**
- * NotificationDrawer - 通知中心抽屉组件
- * 职责：右侧侧拉式通知中心面板，内部委托 NotificationCenter 渲染通知列表。
- * 关键依赖：
- * - useShellTeleportTarget：将面板传送到 shell 容器以避免裁剪；
- * - useFocusTrap：在面板打开期间捕获焦点，无障碍支持；
- * - NOTIFICATION_CENTER_KEY：注入未读数等通知中心上下文。
- * Emits:
- * - close：关闭抽屉（点击遮罩或按 Esc）。
- */
+/** NotificationDrawer - 通知中心抽屉组件 */
 import { computed, inject, ref, toRef, watch } from 'vue'
 import { Bell, X } from '@lucide/vue'
 import NotificationCenter from '@/components/widgets/system/NotificationCenter.vue'

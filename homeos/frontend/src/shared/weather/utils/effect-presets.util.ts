@@ -1,16 +1,4 @@
-/**
- * 天气特效预设与运行时合并
- *
- * 职责：
- * - 维护天气特效预设档位（逼真 / 均衡 / 电影）与场景参数模型。
- * - 把预设与用户运行时配置合并为已解析的 ResolvedWeatherEffectConfig。
- *
- * 依赖：@/shared/weather/utils/display-routes.util 的路由规范化。
- *
- * 注意：
- * - `WeatherEffectPreset`（realistic / balanced / cinematic）为预设 key，不翻译。
- * - 场景参数（sunGlow / heatHaze / ...）为数值配置 key，不翻译。
- */
+/** 天气特效预设与运行时合并 */
 /** 天气特效预设与运行时合并 */
 
 import { normalizeDisplayRoutes } from '@/shared/weather/utils/display-routes.util'

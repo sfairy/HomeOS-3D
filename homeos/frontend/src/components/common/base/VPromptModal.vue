@@ -1,10 +1,4 @@
-/**
- * @file VPromptModal.vue
- * @module components/common/base
- * @description 全局输入对话框组件。Teleport 到缩放壳 #teleport-target（未就绪时回退 body），
- *  提供单行文本输入、必填校验与确认/取消。打开时自动聚焦并全选输入框。
- *  依赖：vue、@lucide/vue、chrome.store、useFocusTrap、useShellTeleportTarget。
- */
+/** 提供单行文本输入、必填校验与确认/取消。打开时自动聚焦并全选输入框。 */
 <template>
   <Teleport :to="teleportTarget" :disabled="teleportDisabled">
     <Transition name="hos-modal">
@@ -64,12 +58,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 VPromptModal 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 import { ref, computed, watch, nextTick } from 'vue'
 import { PencilLine } from '@lucide/vue'
 import { useChromeStore } from '@/stores/chrome.store'

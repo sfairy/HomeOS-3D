@@ -251,31 +251,12 @@
 </template>
 <script setup>
 /**
- * @file DeviceGroupMemberList.vue
- * @module components/entities/device-group
- * @description 设备群组成员列表组件
- *
- * 职责：
+ * 设备群组成员列表组件
  * - 按域（light/switch/climate/其它）渲染不同的实体卡片布局
  * - light/switch 紧凑网格卡片，点击直接切换开关
  * - climate 卡片含当前/设定温度、HVAC 模式与风速档位控制
  * - 通用域仅展示名称与状态文案
  * - 顶部嵌入批量操作工具条与执行结果展示
- *
- * 依赖：
- * - vue 的 computed/ref
- * - @lucide/vue 的 Minus/Plus/Power 图标
- * - @/stores/entities.store 提供实体集合与服务调用
- * - @/stores/chrome.store 提供 notify 用于错误提示
- * - @/composables/entity/usePausableStateListener 监听实体状态变化（可暂停）
- * - @/composables/entity/useDeviceGroupMembers 的 getEntityFromStore 工具
- * - @/composables/entity/useDeviceGroupClimate 提供 climate 域专用逻辑
- * - @/shared/entity/utils/derived.util 的 getEntityDisplayName
- * - @/shared/constants/entity-state-labels 的 displayEntityStateLabel
- * - @/shared/utils/core/error-message 的 getApiErrorMessage
- *
- * 使用场景：
- * - DeviceGroupModal 在 domain 非 battery/offline 时渲染此列表
  */
 import { computed, ref } from 'vue'
 import { Minus, Plus, Power } from '@lucide/vue'

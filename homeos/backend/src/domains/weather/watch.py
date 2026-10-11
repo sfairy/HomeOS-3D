@@ -60,9 +60,7 @@ class WeatherWatchService:
         #: 并重复触发天气联动：空调/关窗等）。
         self._memory_seen: list[str] = []
 
-    # ------------------------------------------------------------------ #
     # 生命周期
-    # ------------------------------------------------------------------ #
     def _external_cfg(self) -> dict[str, Any]:
         value = self._app_config.get("external")
         return value if isinstance(value, dict) else {}
@@ -121,9 +119,7 @@ class WeatherWatchService:
         except Exception as exc:
             logger.debug("天气预警轮询失败: %s", exc)
 
-    # ------------------------------------------------------------------ #
     # 核心
-    # ------------------------------------------------------------------ #
     async def check_new_alerts(self) -> None:
         """拉取 → 去重 → 阈值过滤 → 通知 + 广播 ``weather.alert``。"""
         cfg = self._external_cfg()
@@ -176,9 +172,7 @@ class WeatherWatchService:
             await self.save_seen_ids([*seen, *new_keys])
             logger.info("天气预警监听:发现 %s 条新预警", len(new_keys))
 
-    # ------------------------------------------------------------------ #
     # 去重集合
-    # ------------------------------------------------------------------ #
     async def load_seen_ids(self) -> set[str]:
         return set(self._memory_seen)
 

@@ -4,26 +4,13 @@
  */
 /**
  * HA 服务调用与预报（从 entities.store 抽离）
- *
- * 职责：
  * - callService：调用 Home Assistant 服务（domain + service + entityId + serviceData）
- *   提供「乐观更新 + 去重窗口 + 权限校验 + HA 离线危险命令拦截 + 失败回滚」
+ * 提供「乐观更新 + 去重窗口 + 权限校验 + HA 离线危险命令拦截 + 失败回滚」
  * - fetchForecasts：调用 weather.get_forecasts 获取天气预报数组，缓存到 forecasts
- *   提供 10 分钟失败冷却，避免 HA 断连时反复刷屏
+ * 提供 10 分钟失败冷却，避免 HA 断连时反复刷屏
  * - isEntityCallPending：查询实体是否处于服务调用中（按钮 loading 态）
  * - refreshEntityAfterService：服务调用后 REST 拉取最新实体状态，按 state + 时间戳
- *   判断是否真实变化以避免无意义覆盖；同步维护派生索引与投影
- *
- * 关键依赖：
- * - @/stores/entities/entity-store-optimistic.util：predictOptimistic / applyOptimistic / rollbackOptimistic
- * - @/shared/utils/config/frontend-config：coldEntityOnDemand / callDedupWindowMs
- * - @/shared/utils/ha/url：HA 离线时危险服务调用拦截
- * - @/shared/utils/core/error-message：统一 API 错误消息提取
- *
- * 实现说明：
- * - pendingCalls 用 Map 实现「同一 domain.service.entityId + serviceData」在去重窗口内复用 Promise
- *   （toggle 等取反类服务除外，连点语义是两次独立操作，合并会吞掉第二次）
- * - pendingEntityIds 用 Set + 引用计数处理同一实体并发多服务调用，引用归零才移除
+ * 判断是否真实变化以避免无意义覆盖；同步维护派生索引与投影
  */
 import { reactive } from 'vue'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'

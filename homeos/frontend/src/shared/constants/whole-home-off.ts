@@ -1,22 +1,4 @@
-/**
- * 全屋关闭配置常量与工具函数
- *
- * 职责：
- * - 维护「全屋关闭」功能的默认配置（`layout.wholeHomeOff`）。
- * - 提供配置创建、规范化与确认文案生成等工具函数。
- * - 供顶栏「全屋关闭」按钮与设置页全屋关闭区段共用。
- *
- * 依赖：`@/shared/types/whole-home-off` 中的相关类型定义。
- *
- * 角色口径：HomeOS 是**单一管理员模型**，账号体系里**没有角色维度** ——
- * 后端 `security/auth_context.py` 已删除 `require_roles`，`users` 表也不再有 `role` 列
- * （退役列由启动期迁移清理）。因此这里**不设角色维度**：是否可用只由 `enabled` 决定，
- * 能力边界由后端登录会话（`require_user`）把关。历史 layout JSON 中遗留的 `roles`
- * 字段会被本模块的 `normalizeWholeHomeOff` 丢弃，后端 `strip_retired_layout_keys`
- * 也会在启动期把它从库里清掉。
- *
- * 注意：域 key（lights / covers / climate / switches）为配置 key，不翻译。
- */
+/** 全屋关闭配置常量与工具函数 */
 import type { LayoutWithWholeHomeOff, WholeHomeOffConfig } from '@/shared/types/whole-home-off'
 /** 全屋关闭默认配置（layout.wholeHomeOff） */
 const DEFAULT_WHOLE_HOME_OFF: WholeHomeOffConfig = {

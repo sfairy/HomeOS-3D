@@ -1,16 +1,4 @@
-/**
- * @module entity-cold-refresh.util
- * @description 冷实体模式：断线 / entities_stale 后补全 pinned 热点实体。
- *
- * 职责：当 WS 断线或收到 entities_stale 事件后，收集当前布局中 pinned 的热点实体 ID
- * 与活跃投影 ID，批量调用 ensureEntity 补全缓存，保证用户可见区域的数据可用。
- *
- * 依赖：
- * - `entity-ws-subscription`：收集 pinned 实体 ID。
- * - `entity-projection` store：获取活跃投影 ID。
- * - `frontend-config`：读取冷实体按需拉取开关。
- * - `logger`：日志输出。
- */
+/** 与活跃投影 ID，批量调用 ensureEntity 补全缓存，保证用户可见区域的数据可用。 */
 import { collectPinnedEntityIds } from '@/shared/entity/utils/ws-subscription'
 import { getActiveProjectionIds } from '@/stores/entities/entity-projection'
 import { getWsPushPublicConfig } from '@/shared/utils/config/frontend-config'

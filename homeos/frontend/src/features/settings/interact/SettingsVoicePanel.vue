@@ -1,17 +1,7 @@
 <!--
-组件：SettingsVoicePanel.vue
-所属模块：frontend / src / views / settings / interact
-职责：语音面板入口。通过子导航切换 overview（概览）、output（播报输出+每日问候）、
-      input（语音交互+唤醒词+识别引擎）、commands（命令映射+导入模板）四个区段。
-      页头提供保存/取消；支持 TTS/顾问问候试听与全屋模板导入。
-关键依赖：
-  - SettingsPageShell / SettingsHubSubnav / SettingsPendingSaveAction / ApiQueryState：页面骨架/子导航/保存条/加载态
-  - SettingsVoiceOverviewSection / SettingsVoiceTtsSection / SettingsVoiceSttSection / SettingsVoiceCommandsSection：四个子区段
-  - useVoiceConfig / useVoiceCommandEditor / useVoiceDailyAdvisorPanel：配置/命令编辑/每日问候
-  - useTtsSpeak：TTS 试听
-  - useSettingsPendingChanges / useRegisterSettingsTabPending：待保存快照与离开拦截
-  - useSettingsHubRouteSection / useSettingsSidebarReentryReset：子导航路由同步与重入重置
-数据来源：useVoiceConfig() 返回的 voice / voiceCommands / 各类试听状态
+  语音面板入口。通过子导航切换 overview（概览）、output（播报输出+每日问候）、
+  input（语音交互+唤醒词+识别引擎）、commands（命令映射+导入模板）四个区段。
+  页头提供保存/取消；支持 TTS/顾问问候试听与全屋模板导入。
 -->
 <template>
   <SettingsPageShell

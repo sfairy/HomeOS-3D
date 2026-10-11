@@ -1,11 +1,4 @@
-/**
- * @file settings-client-power-display.util.ts
- * @module frontend/src/features/settings/home
- * 职责：客户端智能充放电面板的纯展示工具函数。封装实时状态索引、阈值校验与卡片标题生成逻辑，
- *       供 useClientPowerPanel / useClientPowerDisplay 与 Section 组件复用。
- * 关键依赖：
- *   - getClientDeviceKindLabel / getSystemInfoFromClientRow：读取设备类型与系统信息
- */
+/** 供 useClientPowerPanel / useClientPowerDisplay 与 Section 组件复用。 */
 import {
   getClientDeviceKindLabel,
   getSystemInfoFromClientRow,

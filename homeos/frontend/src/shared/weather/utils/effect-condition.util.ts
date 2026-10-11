@@ -1,17 +1,4 @@
-/**
- * HA 天气状态 → 统一效果档案
- *
- * 职责：
- * - 定义天气效果种类（WeatherEffectKind）与效果档案（WeatherEffectProfile）。
- * - 提供 HA 天气状态 / 实体属性 → 效果档案的解析与降水判定（雨 / 雪 / 雹 / 闪电）。
- * - 提供降水强度量化，供粒子系统调度。
- *
- * 依赖：HA weather 实体 state 与属性。
- *
- * 注意：
- * - `WeatherEffectKind`（clear-day / cloudy / rain / ...）为效果 key，不翻译。
- * - 降水 / 闪电判定布尔字段为内部状态，不翻译。
- */
+/** HA 天气状态 → 统一效果档案 */
 /** HA 天气状态 → 统一效果档案 */
 
 export type WeatherEffectKind =

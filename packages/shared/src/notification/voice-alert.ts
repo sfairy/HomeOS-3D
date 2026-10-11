@@ -1,23 +1,4 @@
-/**
- * @file voice-alert.ts
- * @module @homeos/shared/notification
- * @brief 语音告警（TTS）规则与自定义 / 实体播报（前后端共享）。
- *
- * 职责：
- *  - 维护语音告警开关矩阵（VoiceAlertRules）与默认值；
- *  - 维护告警类型目录（VOICE_ALERT_CATALOG）含中文标签 / 描述 / 分组；
- *  - 提供自定义 TTS 规则与按实体精确匹配 TTS 规则的归一化；
- *  - 提供唤醒词归一化与每日顾问播报默认话术。
- *
- * 关键依赖：
- *  - 后端 voice-alert 服务按本类型持久化与执行；
- *  - 前端语音告警设置页按 VOICE_ALERT_CATALOG 渲染开关列表。
- *
- * 约定：
- *  - 规则 key 与 VOICE_ALERT_PRIORITY 的 key 对齐（决定播报优先级）；
- *  - 自定义规则 id 缺省时由前缀 + idx + 时间戳生成；
- *  - isExactEntityId 用于校验"按实体精确匹配"形式的 entity_id（domain.object_id）。
- */
+/** - 维护语音告警开关矩阵（VoiceAlertRules）与默认值； */
 
 /**
  * 语音告警开关矩阵（每个 key 对应一类告警是否启用 TTS 播报）。

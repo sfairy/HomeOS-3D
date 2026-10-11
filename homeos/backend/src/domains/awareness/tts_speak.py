@@ -34,9 +34,7 @@ class TtsSpeakService:
         #: Xiaomi Home play_text 实体缓存：mediaPlayer stem → entity_id / None
         self._cached_xiaomi_home_play_text: dict[str, str | None] = {}
 
-    # ------------------------------------------------------------------ #
     # 配置
-    # ------------------------------------------------------------------ #
     def _external(self) -> dict[str, Any]:
         value = self._app_config.get("external")
         return value if isinstance(value, dict) else {}
@@ -69,9 +67,7 @@ class TtsSpeakService:
         if isinstance(sections, list) and any(s in ("external", "voice") for s in sections):
             self.clear_cache()
 
-    # ------------------------------------------------------------------ #
     # 播报入口
-    # ------------------------------------------------------------------ #
     async def speak(self, message: str, opts: dict[str, Any] | None = None) -> dict[str, Any]:
         """向单个默认音箱播报文本。"""
         text = str(message or "").strip()
@@ -171,9 +167,7 @@ class TtsSpeakService:
         logger.warning("TTS 播报失败: %s", detail)
         return {"success": False, "message": detail or "TTS 播报失败"}
 
-    # ------------------------------------------------------------------ #
     # 音箱类型判定
-    # ------------------------------------------------------------------ #
     @staticmethod
     def _media_player_stem(media_player: str) -> str:
         stem = str(media_player or "")
@@ -190,9 +184,7 @@ class TtsSpeakService:
             return False
         return "xiaomi" in stem or "xiaoai" in stem
 
-    # ------------------------------------------------------------------ #
     # 各路径实现
-    # ------------------------------------------------------------------ #
     async def _speak_via_xiaomi_home(self, media_player: str, text: str) -> None:
         """小米官方集成播报：notify/text 域 ``play_text`` 实体，参数为 ``["文本"]``。"""
         payload = json.dumps([text], ensure_ascii=False)

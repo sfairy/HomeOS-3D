@@ -1,13 +1,4 @@
-/**
- * 全屋关闭推荐模块。
- *
- * 职责：
- * - 识别执行「全屋关闭」时可能被误关的常开设备；
- * - 建议将其加入排除列表，避免一键关闭影响常驻设备（如冰箱、路由器）；
- * - 产出 RecommendInsightResult 供设置页全屋关闭 tab 渲染。
- *
- * 依赖：recommend.types 类型。
- */
+/** 全屋关闭推荐模块。 */
 import { getEntityLeaf } from '@homeos/shared'
 import type { RecommendInsightResult } from '@/shared/recommend/types/recommend.types'
 

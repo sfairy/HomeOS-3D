@@ -1,11 +1,3 @@
-/**
- * 文件：useDiagnosticsSummary.ts
- * 职责：诊断摘要 composable。聚合系统健康总览 KPI、流水线节点、连接服务卡片、配置健康评分与缺口，
- *       供 OverviewSection 展示。
- * 关键依赖：
- *   - vue 的 computed / Ref
- *   - SETTINGS_ROUTES / LINKAGE_HUB_ROUTES：跳转路由
- */
 import { computed, type Ref } from 'vue'
 import {
   Activity,

@@ -1,9 +1,3 @@
-/**
- * 文件：nested-editor.util.ts
- * 职责：高级参数中 JSON 嵌套字段的可视化编辑器配置与工具。提供编辑器类型判定（record-table / fixed-form / json）、
- *       记录行与对象互转、JSON 解析/序列化、重复键检测与固定表单范围校验。
- * 关键依赖：无外部依赖，纯工具函数
- */
 
 type NestedObjectEditorKind = 'record-table' | 'fixed-form' | 'json'
 

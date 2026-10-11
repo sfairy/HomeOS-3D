@@ -1,26 +1,4 @@
-/**
- * 认证状态管理 Store（homeos-3d 会话模型）
- *
- * HttpOnly Cookie 方案：会话令牌由服务端设置和管理，前端不接触敏感令牌。
- *
- * 职责：
- * - 维护当前登录用户与实体访问限制列表
- * - 持久化登录态到 localStorage（auth_user / auth_restrictions）
- * - 提供登录 / 登出 / 会话保活 / 初始化状态检查
- * - 暴露实体访问鉴权工具：isEntityAllowed
- *
- * 与 homeos-3d 契约对应关系：
- * - 系统初始化状态 → ``GET /api/v1/setup/status``
- * - 登录 → ``POST /api/v1/auth/login``
- * - 登出 → ``POST /api/v1/auth/logout``
- * - 当前身份 / 会话保活 → ``GET /api/v1/auth/me``（服务端据此滑动续期）
- *
- * 依赖：
- * - @/services/api/auth：HTTP 接口
- * - @/shared/utils/config/frontend-config：读取 frontend 配置段及监听变更
- * - @homeos/shared：实体鉴权工具 isEntityAllowed
- * - @/shared/utils/bridge/store-bridge：认证变化时通知实体 store 重建 WS 连接
- */
+/** 认证状态管理 Store（homeos-3d 会话模型） */
 import { readLocalStorage, readLocalStorageJson, removeLocalStorage, writeLocalStorage, writeLocalStorageJson } from '@/shared/utils/core/local-storage.util'
 
 import { defineStore } from 'pinia'

@@ -1,18 +1,4 @@
-/**
- * @file useSetupChecklist.ts
- * @module composables/settings
- * @description 安装引导清单 composable：拉取后端设置清单并控制横幅展示。
- *
- * 职责：
- * - 拉取后端 SetupChecklist 状态（条目 / 完成数 / 总数 / 是否可见）；
- * - 横幅支持本地"7 天暂缓"dismiss；
- * - 暴露 showBanner 是否展示、progressText 进度文案、refresh 重新拉取、dismiss 暂缓。
- *
- * 依赖：
- * - vue（ref、computed、onMounted）
- * - @/services/api/system（fetchSetupChecklist）
- * - @/shared/utils/core/logger（失败日志）
- */
+/** - 拉取后端 SetupChecklist 状态（条目 / 完成数 / 总数 / 是否可见）； */
 import { readLocalStorage, writeLocalStorage } from '@/shared/utils/core/local-storage.util'
 
 import { ref, computed, onMounted } from 'vue'

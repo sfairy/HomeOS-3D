@@ -1,21 +1,4 @@
-/**
- * @file useWeatherEffectConfig.ts
- * @module composables/ui
- * @description 天气效果配置 composable：解析天气实体状态为渲染用效果配置。
- *
- * 职责：
- * - 合并默认配置与配置文件 weatherEffects 段，解析为完整效果配置；
- * - 判断当前是否夜间（sun.sun 实体状态）；
- * - 读取天气实体状态与属性（风速/湿度/温度/降水）；
- * - 综合状态/夜间/属性解析出天气效果 profile（粒子类型/强度/风等）；
- * - 解析当前天气对应的场景参数与粒子数量，生成最终渲染配置。
- *
- * 依赖：
- * - vue（computed/ref/watch）
- * - entities.store / chrome.store / useWeatherEntity
- * - frontend-config（getConfigSection/configEpoch）
- * - weather-effect-condition.util / weather-effect-presets.util / weather-effect-scene-resolver.util
- */
+/** - 合并默认配置与配置文件 weatherEffects 段，解析为完整效果配置； */
 import { computed, ref, watch } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useWeatherEntity } from '@/composables/entity/useWeatherEntity'

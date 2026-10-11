@@ -1,13 +1,4 @@
-/**
- * Widget Hub 头部组件
- *
- * 职责：展示 Hub 的图标、标题、元信息与 Tab 子导航，
- *       支持徽章（badge）计数与主题色 accent 样式覆盖，
- *       通过 v-model 与父组件双向同步当前激活 Tab。
- * 依赖：
- *   - vue 的 computed（派生 hasBrandRow / accentStyle）与 useSlots（判断插槽存在性）
- *   - 由父组件传入 tabs/title/meta/accent 等 props
- */
+/** Widget Hub 头部组件 */
 <template>
   <!-- 头部根元素：根据是否存在品牌行与 stacked 模式切换布局类 -->
   <header

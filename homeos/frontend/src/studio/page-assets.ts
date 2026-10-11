@@ -52,10 +52,9 @@ export const PAGE_ASSETS = {
   /**
    * 普通 homeos 路由（设备/事件/安防/设置…）的默认档位。
    *
-   * 这些路由不声明 `meta.assets`，此前 `applyPageAssets(undefined)` 直接 return，导致从
-   * 3D 展示或编辑器切回来时 studio 的样式表（display.css / renderer.css / app.css）与
-   * 1020px viewport 全部残留。这里给出一份「零额外样式表 + 标准移动端 viewport」的档位，
-   * 让非 studio 路由每次都把 <head> 复位到干净状态。
+   * 这些路由不声明 `meta.assets`，必须回落到「零额外样式表 + 标准移动端 viewport」
+   * 的档位，否则 studio 的样式表（display.css / renderer.css / app.css）与 1020px
+   * viewport 会残留到非 studio 页面。
    */
   shell: {
     title: "HomeOS",

@@ -23,20 +23,7 @@
 </template>
 
 <script setup>
-/**
- * @file DeviceGroupActions.vue
- * @module components/entities/device-group
- * @description 设备群组批量操作执行结果展示组件
- *
- * 职责：
- * - 展示批量服务调用的执行汇总（成功/失败数量、对应服务名）
- * - 列出失败实体及错误原因
- * - 提供「重试失败项」入口，由父组件重新发起批量调用
- *
- * 依赖：
- * - vue 的 computed 用于派生失败项列表
- * - 父组件通过 props 传入 result 与 executing 状态
- */
+/** - 展示批量服务调用的执行汇总（成功/失败数量、对应服务名） */
 import { computed } from 'vue'
 
 /**

@@ -1,7 +1,4 @@
-"""智能管家 LLM 工具 schema 定义（纯数据，从 HomeToolsService 抽离）。
-
-职责：集中维护暴露给 LLM 的工具描述与参数 JSON Schema；不含任何运行时依赖。
-"""
+"""智能管家 LLM 工具 schema 定义（纯数据，从 HomeToolsService 抽离）。"""
 
 from __future__ import annotations
 

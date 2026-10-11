@@ -1,20 +1,4 @@
-/**
- * @file ha-yaml.ts
- * @module @homeos/shared/yaml
- * @brief Home Assistant YAML 解析 / 序列化统一入口（前后端单一真相源）。
- *
- * 职责：
- *  - 统一 HA YAML 的 schema（YAML 1.1，保留 !!merge 等标签）与 dump 选项；
- *  - 提供安全加载：解析失败返回 null（不抛异常），避免上层未捕获。
- *
- * 关键依赖：
- *  - js-yaml：load / dump / YAML11_SCHEMA；
- *  - 自动化 / 脚本 / 场景 YAML 解析（orchestrator/*）、家电模板（template/*）共用本模块。
- *
- * 约定：
- *  - 必须保留 YAML 1.1：HA 自身配置仍依赖 !!merge（anchor 合并）；
- *  - dump 时 lineWidth 120 与 HA 风格对齐，避免长字段被强制换行。
- */
+/** - 统一 HA YAML 的 schema（YAML 1.1，保留 !!merge 等标签）与 dump 选项； */
 import { dump, load, YAML11_SCHEMA } from 'js-yaml';
 
 /**

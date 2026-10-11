@@ -1,17 +1,4 @@
-/**
- * @file useEchartsHost.ts
- * @module frontend/src/composables
- *
- * 多图表 ECharts 宿主 composable：收敛各视图手写的
- * charts 字典 + chartDomReady + ensureChart（重试）+ renderCharts 调度 +
- * resize 观察绑定/解绑 + dispose 清理样板。
- *
- * 职责边界：宿主只管实例生命周期与渲染调度；option 构建（数据/样式）留在调用方。
- * echarts 通过动态 import 惰性加载（模块级缓存），保留调用方的分包语义；
- * 动画选项等轻量配置从 @/composables/ui/kiosk-animation 静态导入。
- *
- * 依赖：vue、chart-resize.util（调度与 ResizeObserver）、kiosk-animation（动画开关）。
- */
+/** 多图表 ECharts 宿主 composable：收敛各视图手写的 */
 import { onMounted, onUnmounted, nextTick } from 'vue'
 import {
   observeChartResize,

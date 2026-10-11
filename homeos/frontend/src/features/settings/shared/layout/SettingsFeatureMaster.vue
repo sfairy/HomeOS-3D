@@ -1,16 +1,6 @@
 <!--
-组件：SettingsFeatureMaster.vue
-所属模块：frontend / src / views / settings / shared / layout
-职责：设置页功能总开关条。位于 FlowBand 下方，展示功能图标、标题、提示文案与 #actions 插槽（开关/按钮），
-      按色调（tone）与激活态（active）高亮。勿放入 SettingsFlowBand 内。
-Props：
-  - title：功能标题
-  - hint：提示文案
-  - icon：功能图标组件
-  - active：开启态高亮（勿命名为 on，会与 Vue 事件对象冲突）
-  - tone：色调（sky / rose / amber / info / accent / emerald）
-关键依赖：vue 的 Component 类型
-数据来源：父级透传的 props 与 #actions 插槽
+  设置页功能总开关条。位于 FlowBand 下方，展示功能图标、标题、提示文案与 #actions 插槽（开关/按钮），
+  按色调（tone）与激活态（active）高亮。勿放入 SettingsFlowBand 内。
 -->
 <template>
   <div

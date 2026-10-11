@@ -1,15 +1,6 @@
 <!--
-组件：SettingsProfilesPanel.vue
-所属模块：frontend / src / views / settings / system
-职责：用户档案面板入口。通过子导航切换显示方案（终端方案克隆/绑定）与备份（统一全量备份与恢复）
-      两个区段。provide 档案上下文，页头提供新建方案入口。
-Props：
-  - activeTab：当前 Tab
-关键依赖：
-  - SettingsPageShell / SettingsHubSubnav：页面骨架与子导航
-  - DisplaySection / BackupSection：两个子区段
-  - PROFILES_KEY / useProfilesPanel：上下文 provide
-数据来源：useProfilesPanel() 返回的档案/备份数据
+  用户档案面板入口。通过子导航切换显示方案（终端方案克隆/绑定）与备份（统一全量备份与恢复）
+  两个区段。provide 档案上下文，页头提供新建方案入口。
 -->
 <template>
   <SettingsPageShell

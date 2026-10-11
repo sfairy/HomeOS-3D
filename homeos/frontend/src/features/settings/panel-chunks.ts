@@ -1,13 +1,4 @@
-/**
- * Settings 面板 lazy import（按 NAV_STRUCTURE 六组组织）
- *
- * 职责：用 lazyPanel 工厂按 Tab ID 创建懒加载面板组件，固定页（pinned）使用
- *      keep-alive 命名组件并自管理加载态，非固定页复用通用 lazyComponent。
- * 关键依赖：
- *  - lazyComponent：通用异步组件工厂
- *  - ErrorBoundary：包裹面板，捕获渲染异常
- *  - keep-alive.util：pinned 判定与组件名生成
- */
+/** Settings 面板 lazy import（按 NAV_STRUCTURE 六组组织） */
 import { defineComponent, h, shallowRef, type Component } from 'vue'
 import { lazyComponent } from '@/shared/utils/core/lazy-component'
 import ErrorBoundary from '@/components/common/ErrorBoundary.vue'

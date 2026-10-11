@@ -1,17 +1,4 @@
-/**
- * 实体访问控制模块
- *
- * 职责：
- *  - 基于 restrictions（实体前缀白名单）判定实体可见性 / 可控性。
- *  - 提供单实体校验（isEntityAllowed）与批量过滤（filterEntitiesByAccess）。
- *
- * 关键依赖：
- *  - getEntityDomain：从 entity_id 提取 domain，用于"仅 domain"形式的限制匹配。
- *
- * 约定：
- *  - restrictions === null 或 []  表示无过滤（放行全部实体）。
- *  - restrictions 中每项可以是 domain（如 "light"）或 entity_id / 前缀（如 "light.living" / "media_player."）。
- */
+/** 实体访问控制模块 */
 import { getEntityDomain } from './domain';
 
 /**

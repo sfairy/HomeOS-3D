@@ -1,18 +1,4 @@
-/**
- * 设备分析仪表盘 Composable
- *
- * 模块：设备 / 分析仪表盘（总览）
- * 职责：
- *   - 根据时间窗口（days，默认 7 天）并行拉取设备使用统计摘要与事件统计。
- *   - 暴露 loading / error / summary / eventsStats 四个响应式状态。
- *   - 通过 createFetchSequence 串行化请求，过滤过期响应。
- *
- * 依赖：
- *   - @/services/api/system.fetchAdvisorUsageSummary：用量统计摘要接口。
- *   - @/services/api/entities.fetchEventStats：事件统计接口。
- *   - @/shared/types/device.DeviceAnalyticsSummary / EventLogStats：返回类型。
- *   - @/shared/utils/core/misc.util.createFetchSequence：请求序号守卫。
- */
+/** 设备分析仪表盘 Composable */
 import { ref, watch, type Ref } from 'vue'
 import { fetchAdvisorUsageSummary } from '@/services/api/system'
 import { fetchEventStats } from '@/services/api/entities'

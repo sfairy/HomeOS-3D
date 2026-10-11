@@ -122,15 +122,7 @@
 <script setup>
 /**
  * SettingsLockModal - 设置锁 PIN 码验证弹窗组件
- * 职责：访客模式下访问受限设置前，要求用户输入 PIN 验证。
- * 关键依赖：
- * - useFocusTrap：弹窗打开期间锁定焦点；
- * - useLayoutStore：读取设置锁配置（PIN 长度）并执行 unlockSettings 验证。
- * Props:
- * - isOpen：弹窗是否打开。
- * Emits:
- * - close：关闭弹窗；
- * - success：PIN 验证通过后触发。
+ * 访客模式下访问受限设置前，要求用户输入 PIN 验证。
  */
 import { ref, watch, computed, onUnmounted } from 'vue'
 import { useLayoutStore } from '@/stores/layout.store'

@@ -81,17 +81,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * @file AssetManager.vue
- * @module common/AssetManager
- * @description 资源管理器组件 — 文件浏览器 / 图标拾取器
- *  职责：
- *    - 通过 useAssetManager 组合式函数管理目录列表、搜索、视图、上传、删除等状态；
- *    - 将 Header/Body 拆分为子组件，本组件仅做编排；
- *    - 拾取器模式（isPicker）下点击文件会向上 emit('select')；
- *    - 承载拖拽上传落点、分批上传进度与「新建文件夹」微晶弹窗。
- *  依赖：asset-manager 子目录下的 Header/Body 子组件与 useAssetManager composable、VFolderCreateModal。
- */
+/** - 通过 useAssetManager 组合式函数管理目录列表、搜索、视图、上传、删除等状态； */
 import { ref, type ComponentPublicInstance } from 'vue'
 import { Loader2, UploadCloud } from '@lucide/vue'
 import AssetManagerHeader from './asset-manager/AssetManagerHeader.vue'

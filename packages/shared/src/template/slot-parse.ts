@@ -1,24 +1,4 @@
-/**
- * @file slot-parse.ts
- * @module @homeos/shared/template
- * @brief 家电 template YAML → 槽位 entity_id 反向解析（编辑 / 导入补全槽位）。
- *
- * 职责：
- *  - 从 YAML 文本提取所有引用的 entity_id（extractEntityIdsFromTemplateYaml）；
- *  - 按 attributes 字段名 / climate 顶层字段 / 主 state 块 / pwr 动作块等
- *    多种正则模式反向匹配槽位 key → entity_id（mapYamlToSlotsByKey）；
- *  - 支持按家电类型覆盖 attributes 字段映射（如冰箱 temperature → fridgeTemp）；
- *  - 槽位优先按 key 命中，未命中再按 domain 兜底匹配剩余 entity_id。
- *
- * 关键依赖：
- *  - entity/domain 提供 getEntityDomain 校验槽位 domain 一致性；
- *  - appliance-type-infer 调用 mapYamlToSlotsByKey 反向解析槽位。
- *
- * 约定：
- *  - 同一 entity_id 只能绑定到一个槽位（used 集合去重）；
- *  - tryAssign 要求槽位 def 的 domain 与 entity_id 的 domain 一致才赋值；
- *  - 正则均忽略大小写 / 多行，匹配首个命中即停止该槽位。
- */
+/** - 从 YAML 文本提取所有引用的 entity_id（extractEntityIdsFromTemplateYaml）； */
 import { getEntityDomain } from '../entity/domain';
 
 /**

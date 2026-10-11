@@ -1,15 +1,3 @@
-/**
- * 文件：useDiagnosticsPerf.ts
- * 职责：诊断性能 composable。采集前端 FPS/内存、自适应性能档位、WS 订阅域与最大监听数，
- *       提供性能基线采样启停与指标复制。
- * 关键依赖：
- *   - vue 的 ref / computed / watch / onUnmounted
- *   - useEntitiesStore / useLayoutStore：实体与布局状态
- *   - startFrontendPerfMonitor / stopFrontendPerfMonitor：前端性能监控
- *   - adaptiveTier：自适应性能档位
- *   - fps-scheduler.util：FPS 调度器
- *   - startPerfBaselineSampling：性能基线采样
- */
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useChromeStore } from '@/stores/chrome.store'

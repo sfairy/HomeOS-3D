@@ -1,12 +1,4 @@
-/**
- * 门铃配置工具。
- *
- * 职责：维护 HaConfig.doorbells[] 列表的增删，解析门铃路由与摄像头绑定关系。
- *
- * 依赖：
- * - @/shared/types/setup-wizard：门铃配置类型
- * - @/shared/types/layout：HA 配置类型
- */
+/** 门铃配置工具。 */
 import type { DoorbellConfig } from '@/shared/types/setup-wizard'
 import type { HaConfig } from '@/shared/types/layout'
 

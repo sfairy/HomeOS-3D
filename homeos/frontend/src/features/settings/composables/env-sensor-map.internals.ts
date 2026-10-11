@@ -1,19 +1,4 @@
-/**
- * 环境传感器映射组合式函数。
- *
- * 职责：
- *   - 提供 HA 环境传感器（温度/湿度/PM2.5/CO2/TVOC）与人体感应器的字段定义；
- *   - 根据实体 ID/device_class/area_id 推断传感器类型与所属房间；
- *   - 维护 envSensorMap 单例状态（房间列表、HA 区域、映射表、隐藏房间等）；
- *   - 合并 HA 区域与本地映射，输出环境健康 Widget 所需的房间展示列表；
- *   - 持久化映射到 systemConfig，处理乐观锁冲突并自动重试。
- * 依赖：
- *   - vue（ref / computed）
- *   - @/composables/config/system-config-core.internals（系统配置读写与冲突处理）
- *   - @/stores/chrome.store / entities.store / layout.store
- *   - @homeos/shared（房间关键词、区域列表构建、映射过滤等工具）
- *   - @/services/api/entities（HA 区域列表拉取）
- */
+/** 环境传感器映射组合式函数。 */
 import { useSettingsSave } from '@/composables/settings-kernel/save.internals'
 import {
   fetchSystemConfigFresh,

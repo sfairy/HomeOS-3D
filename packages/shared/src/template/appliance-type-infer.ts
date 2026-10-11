@@ -1,27 +1,4 @@
-/**
- * @file appliance-type-infer.ts
- * @module @homeos/shared/template
- * @brief 家电模板实体类型推断与槽位反向解析（编辑 / 导入共用）。
- *
- * 职责：
- *  - 从 YAML / 名称 / unique_id 推断模板实体类型（trigger_sensor / 家电类型 / yaml_import）；
- *  - 识别"占位 stub + 功率类命名"避免误判为洗衣机等 platform 默认；
- *  - 推断类型后从 YAML 反向解析槽位 mapping（inferTemplateEntityImportMeta）；
- *  - 合并 slotMapping 与 YAML 反向解析补全槽位（hydrateTemplateEntitySlots）。
- *
- * 关键依赖：
- *  - appliance-catalog 提供类型目录 / 内置槽位 / 类型 id 集合；
- *  - yaml-blocks 提供 trigger-based 判定与首个平台实体项提取；
- *  - slot-schema 提供 payload 归一化与槽位恢复；
- *  - slot-parse 提供 mapYamlToSlotsByKey 反向解析；
- *  - yaml/ha-yaml 提供 YAML 解析。
- *
- * 约定：
- *  - 推断优先级：storedType(trigger_sensor) > 占位stub+功率命名 > storedType(家电) >
- *    trigger-based > 家电聚合 YAML 平台推断 > 关键词命中 > 兜底 storedType/yaml_import；
- *  - 裸 sensor stub 禁止默认成洗衣机，须有关键词或家电聚合 YAML 特征；
- *  - 电视功率/状态类命名（含拼音 dian_shi）归为 trigger_sensor。
- */
+/** - 从 YAML / 名称 / unique_id 推断模板实体类型（trigger_sensor / 家电类型 / yaml_import）； */
 import { loadHaYamlObject } from '../yaml/ha-yaml';
 import { APPLIANCE_TYPE_IDS, APPLIANCE_TYPES, getBuiltinSlots } from './appliance-catalog';
 import {

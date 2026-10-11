@@ -1,15 +1,6 @@
 <!--
-组件：HomeModeTriggersSection.vue
-所属模块：frontend / src / views / settings / automate / home-mode
-职责：家庭模式编辑器「自动触发器」分区。管理触发器列表（定时/门锁/状态变化/日历外出），
-      支持启用禁用、紧凑态主从导航、聚焦定位与触发推荐洞察展示。
-关键依赖：
-  - HosSelect / EntityInput / RecommendInsightCard：下拉、实体输入、推荐卡片
-  - HomeModeItemNav：紧凑态主从导航
-  - useHomeModeItemExpansion / useHomeModeItemFocus：展开态与聚焦脉冲
-  - useHomeModeRecommend：触发推荐洞察
-  - normalizeHomeModeTimeAt：归一化定时时间
-数据来源：父级透传的 activeDraft（双向）+ 触发类型选项/日志/模式对象 + composable 派生
+  家庭模式编辑器「自动触发器」分区。管理触发器列表（定时/门锁/状态变化/日历外出），
+  支持启用禁用、紧凑态主从导航、聚焦定位与触发推荐洞察展示。
 -->
 <template>
   <div
@@ -207,10 +198,8 @@ import { useHomeModeItemExpansion, useHomeModeItemFocus } from '@/features/home-
 import { useHomeModeRecommend } from '../composables/home-mode-panel.internals'
 import { normalizeHomeModeTimeAt } from '@homeos/shared'
 
-// 双向绑定：当前编辑的家庭模式草稿（触发器列表载体）
 const activeDraft = defineModel('activeDraft', { type: Object, required: true })
 
-// 入参：触发类型选项、聚焦定位 epoch/index、触发日志、当前模式对象
 const props = defineProps({
   triggerTypeOptions: { type: Array, default: () => [] },
   triggerFocusEpoch: { type: Number, default: 0 },

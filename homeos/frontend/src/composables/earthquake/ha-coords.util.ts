@@ -1,11 +1,4 @@
-/**
- * @module earthquake/earthquake-ha-coords
- * @description 从 Home Assistant 同步家庭经纬度用于地震距离计算的工具。
- *
- * 流程：调用 fetchEarthquakeHaConfig 获取 HA 中的家庭坐标 → 通过 applyCoords 回调写入 → 弹出通知。
- *
- * 依赖：@/services/api/earthquake、@/stores/chrome.store。
- */
+/** 流程：调用 fetchEarthquakeHaConfig 获取 HA 中的家庭坐标 → 通过 applyCoords 回调写入 → 弹出通知。 */
 import { fetchEarthquakeHaConfig } from '@/services/api/earthquake'
 import { useChromeStore } from '@/stores/chrome.store'
 

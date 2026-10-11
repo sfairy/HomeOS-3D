@@ -1,14 +1,4 @@
-/**
- * 通知偏好与 WebSocket 通知同步工具。
- *
- * 职责：
- * - 将 HomeOS 通知偏好同步到 HA input_boolean 实体（兼容既有自动化）；
- * - 对 Socket 重推/双通道到达的通知做 toast 去重；
- * - 将通知级别映射为 toast 类型。
- *
- * 依赖：
- * - @/shared/types/notify：通知类型
- */
+/** 通知偏好与 WebSocket 通知同步工具。 */
 import type { NotifyType } from '@/shared/types/notify'
 
 /** 防止同一通知在 Socket 重推或双通道到达时重复弹 toast */

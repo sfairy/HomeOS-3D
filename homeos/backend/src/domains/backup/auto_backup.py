@@ -35,9 +35,7 @@ class AutoBackupService:
         self.last_error: str | None = None
         self._scheduler: Any = None
 
-    # ------------------------------------------------------------------ #
     # 调度生命周期
-    # ------------------------------------------------------------------ #
     def start(self) -> None:
         try:
             from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -68,9 +66,7 @@ class AutoBackupService:
                 logger.warning("关闭自动备份调度失败: %s", err)
             self._scheduler = None
 
-    # ------------------------------------------------------------------ #
     # 状态
-    # ------------------------------------------------------------------ #
     def get_status(self) -> dict[str, Any]:
         ops = self._app_config.get("ops") or {}
         return {
@@ -81,9 +77,7 @@ class AutoBackupService:
             "nextRunAt": self.compute_next_run_at(),
         }
 
-    # ------------------------------------------------------------------ #
     # 执行
-    # ------------------------------------------------------------------ #
     async def run_auto_backup(self) -> None:
         ops = self._app_config.get("ops") or {}
         if not ops.get("autoBackupEnabled"):
@@ -120,9 +114,7 @@ class AutoBackupService:
                 except Exception as err:
                     logger.warning("清理过期备份 %s 失败: %s", file["name"], err)
 
-    # ------------------------------------------------------------------ #
     # 下次执行时刻
-    # ------------------------------------------------------------------ #
     def compute_next_run_at(self) -> str:
         """计算下一个执行时刻（当日/次日 02:30 Asia/Shanghai 的 ISO 时间）。"""
         now = datetime.now(UTC)

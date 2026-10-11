@@ -1,21 +1,9 @@
 <!--
-  组件文件：SectionInsights.vue
-  所属模块：frontend/src/features/settings/connect/bindings
-  组件职责：联动绑定大类各子页（Hazards/场景/房间等）的顶部推荐与缺口洞察聚合组件。
-    上半部分为 RecommendInsightCard：当存在 hazard-sensors 推荐组时展示「一键添加传感器
-    绑定」推荐卡；下半部分为缺口卡片：列出当前绑定分区仍缺失的关键配置项并提供跳转。
-  主要 props / emits：
-    - props section：当前分区 ID（用于缺口路由匹配的深链判断）
-    - props recommendations：推荐对象（title/meta/summary/groups/linkTo/linkLabel）
-    - props gapItems：缺口项数组（id/label/route）
-    - props showLink：是否展示「打开绑定设置」外链（概览页显示，绑定本页隐藏）
-    - emit apply：点击一键应用推荐按钮
-    - emit chip-click：点击推荐卡片内的标签，payload 为 chip 对象
-  依赖关系：使用 useRoute 与 isDeepLinkCurrent 判断缺口项是否自链（避免跳到当前页）；
-    RouterLink 做跨分区跳转；RecommendInsightCard / SettingsCard / SettingsSectionHead
-    通用布局组件。
+  联动绑定大类各子页（Hazards/场景/房间等）的顶部推荐与缺口洞察聚合组件。
+  上半部分为 RecommendInsightCard：当存在 hazard-sensors 推荐组时展示「一键添加传感器
+  绑定」推荐卡；下半部分为缺口卡片：列出当前绑定分区仍缺失的关键配置项并提供跳转。
   注意事项：当 recommendations 没有 hazard-sensors 组或 gapItems 为空时整个组件不渲染
-    （v-if showRecommend || showGaps），不占据垂直空间。
+  （v-if showRecommend || showGaps），不占据垂直空间。
 -->
 <template>
   <div v-if="showRecommend || showGaps" class="bindings-section-insights">
@@ -72,7 +60,6 @@ import { isDeepLinkCurrent } from '@/shared/utils/registry/settings-route.util'
 
 const route = useRoute()
 
-// 入参：当前分区、推荐对象、缺口项列表、是否展示链接
 const props = defineProps({
   section: { type: String, required: true },
   recommendations: { type: Object, default: () => ({}) },
@@ -81,7 +68,6 @@ const props = defineProps({
   showLink: { type: Boolean, default: false },
 })
 
-// 对外事件：一键应用推荐、点击推荐卡片标签
 defineEmits(['apply', 'chip-click'])
 
 // 是否展示传感器推荐卡片（仅当存在 hazard-sensors 推荐组时）

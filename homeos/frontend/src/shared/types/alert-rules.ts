@@ -1,7 +1,4 @@
-/**
- * 应用内告警规则与条件编辑器类型。
- * 依赖：@homeos/shared（AlertLevel 告警级别枚举、AlertRule 规则契约）。
- */
+/** 应用内告警规则与条件编辑器类型。 */
 import type { AlertLevel, AlertRule } from '@homeos/shared'
 
 export type { AlertLevel }

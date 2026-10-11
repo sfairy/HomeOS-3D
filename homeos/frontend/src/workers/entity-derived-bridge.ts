@@ -1,16 +1,4 @@
-/**
- * Derived 索引 Worker 主线程桥：发起 Worker 重建 / 增量 patch，并把结果回写主线程索引。
- *
- * 关键依赖：comlink（Worker RPC wrap）、@/shared/types/entity-store（派生索引与补丁类型）、
- *   @/shared/utils/core/logger（失败 / 超时告警）。
- *
- * 消息协议（comlink RPC，无 postMessage 显式事件）：
- * - 出站调用 api.rebuildDerivedSnapshot(entities, opts) -> { epoch, snapshot }
- *     全量重建，结果由 applyDerivedSnapshot 写回主线程 derived 索引；
- * - 出站调用 api.patchDerivedSnapshot(patches, { deferSecondary, expectedEpoch }) -> DerivedSnapshotPatch | null
- *     增量补丁，结果由 applyDerivedSnapshotPatch 写回主线程索引；
- * - 通过 appliedEpoch 与 Worker 端 epoch 协同失步校验：失步 / 超时 / 失败时回退主线程全量重建。
- */
+/** Derived 索引 Worker 主线程桥：发起 Worker 重建 / 增量 patch，并把结果回写主线程索引。 */
 import type { Remote } from 'comlink'
 import type {
   DerivedBatteryEntry,

@@ -1,13 +1,4 @@
-/**
- * 实体同步推荐模块。
- *
- * 职责：
- * - 基于实体总数与同步策略，生成实体同步优化建议（banners + groups）；
- * - 识别实体过多需开启 registry 过滤、实体偏少需刷新、规模过大需调参等场景；
- * - 产出 RecommendInsightResult 供设置页连接 tab 渲染。
- *
- * 依赖：recommend.types 类型、locale-format 数字格式化工具。
- */
+/** 实体同步推荐模块。 */
 import type { RecommendInsightResult } from '@/shared/recommend/types/recommend.types'
 import { formatLocaleNumber } from '@/shared/utils/format/locale-format.util'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'

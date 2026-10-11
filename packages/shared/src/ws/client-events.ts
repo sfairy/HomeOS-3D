@@ -1,20 +1,4 @@
-/**
- * @file client-events.ts
- * @module @homeos/shared/ws
- * @brief Socket.IO 客户端线协议事件名与核心 payload（前后端共用）。
- *
- * 职责：
- *  - 收敛所有下发到前端（App / Web / 客户端）的 WS 事件名常量（WS_CLIENT_EVENTS）；
- *  - 定义 HA 连接状态与实体增量推送的 payload 结构。
- *
- * 关键依赖：
- *  - 后端 Socket 网关按本表 emit 事件；
- *  - 前端订阅按本表常量匹配事件名。
- *
- * 约定：
- *  - 与进程内 HOMEOS_EVENTS 命名空间分离，本表仅对外；
- *  - 事件名采用 snake_case，分组仅供阅读，不参与运行时分组逻辑。
- */
+/** - 收敛所有下发到前端（App / Web / 客户端）的 WS 事件名常量（WS_CLIENT_EVENTS）； */
 
 export const WS_CLIENT_EVENTS = {
   // 语义分组（仅注释，不改顺序）：HA 连接健康 / 实体同步 / 通知语音 /

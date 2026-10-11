@@ -1,23 +1,4 @@
-/**
- * @file hazard-config.util.ts
- * @module @homeos/shared/setup
- * @brief 危险传感器（烟感 / 燃气 / 水浸）绑定解析与安防告警消息构造。
- *
- * 职责：
- *  - 解析 haConfig 中复数数组形式的危险传感器实体 ID（hazardSmokeEntityIds 等）；
- *  - 汇总绑定摘要（HazardBindingSummary）与 entityId → kind 映射；
- *  - 检测同一实体被绑定到多个类别的冲突；
- *  - 构造安防告警消息文本与联动失败描述；
- *  - 收集安防页需实时订阅的实体（传感器 + 关阀 + 排风）。
- *
- * 关键依赖：
- *  - bindings-gaps.util.ts 调用本模块检测危险传感器绑定缺口与冲突；
- *  - 后端安防页按 collectHazardWatchedEntityIds 订阅实体状态。
- *
- * 约定：
- *  - 仅识别复数数组字段（hazardSmokeEntityIds / hazardGasEntityIds / hazardLeakEntityIds）；
- *  - 关阀 / 排风字段为单值或逗号分隔字符串，由本模块归一化为数组。
- */
+/** - 解析 haConfig 中复数数组形式的危险传感器实体 ID（hazardSmokeEntityIds 等）； */
 
 /** 危险传感器实体 ID 解析（仅复数数组字段） */
 

@@ -1,12 +1,9 @@
 /**
- * @file frontend\src\components\widgets\climate\home-climate-chart\useHomeClimateChart.ts
- * @module src
- * @description 家居气候图表业务逻辑 composable：
- *  - 拉取温度/湿度实体近 24h HA 历史，映射为图表系列；
- *  - 维护 ECharts 实例生命周期：双轴/单轴切换时销毁重建，容器不可见时 dispose；
- *  - 提供图例数据、切换、空态文案，并响应可见性、认证、WS 重连与配置变化；
- *  - 通过 scheduleEchartsTask 队列化渲染任务，避免高频更新抢占主线程。
- * 关键依赖：useScheduledPoll、@/shared/utils/chart/echarts（动态加载）、useEntitiesStore、useFetchGeneration。
+ * 家居气候图表业务逻辑 composable：
+ * - 拉取温度/湿度实体近 24h HA 历史，映射为图表系列；
+ * - 维护 ECharts 实例生命周期：双轴/单轴切换时销毁重建，容器不可见时 dispose；
+ * - 提供图例数据、切换、空态文案，并响应可见性、认证、WS 重连与配置变化；
+ * - 通过 scheduleEchartsTask 队列化渲染任务，避免高频更新抢占主线程。
  */
 import {
   ref,
@@ -51,7 +48,6 @@ import {
 type EchartsModule = typeof EchartsModuleNS
 type ChartInst = ReturnType<EchartsModule['default']['init']>
 
-/** composable 入参：图表配置、面板可见性与图表容器 ref */
 interface UseHomeClimateChartOptions {
   config: ComputedRef<Record<string, unknown>>
   panelVisible: ComputedRef<boolean>

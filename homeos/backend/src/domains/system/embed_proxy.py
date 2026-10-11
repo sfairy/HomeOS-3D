@@ -94,9 +94,7 @@ class EmbedProxyService:
         else:
             self._frontend_dist_path = Path("dist")
 
-    # ------------------------------------------------------------------ #
     # 目标解析
-    # ------------------------------------------------------------------ #
     def load_layout(self) -> dict[str, Any]:
         """读取当前工程布局（解析失败返回空布局）。"""
         try:
@@ -135,9 +133,7 @@ class EmbedProxyService:
     def resolve_embed_base_url(self, embed_id: str) -> str:
         return self.resolve_embed_configured_url(embed_id).origin
 
-    # ------------------------------------------------------------------ #
     # 本地 dist 资源
-    # ------------------------------------------------------------------ #
     def resolve_local_asset_path(self, sub_path: str) -> Path | None:
         """解析本地 dist 下的静态资源路径（防绝对路径覆盖与 ``..`` 穿越）。"""
         if not is_frontend_dist_asset_path(sub_path):
@@ -249,9 +245,7 @@ class EmbedProxyService:
                 out[key] = str(value[0])
         return out
 
-    # ------------------------------------------------------------------ #
     # 代理主流程
-    # ------------------------------------------------------------------ #
     async def proxy(self, embed_id: str, request: Request) -> Response:
         target = self.resolve_embed_configured_url(embed_id)
         embed_base = target.origin

@@ -1,12 +1,4 @@
-/**
- * 触觉反馈（震动）工具。
- *
- * 职责：
- * - 综合系统偏好（减少动效）与本地开关判断是否启用震动
- * - 提供告警/安防场景的震动反馈 helper
- *
- * 说明：仅在支持 navigator.vibrate 的环境生效；偏好或开关关闭时静默跳过。
- */
+/** 触觉反馈（震动）工具。 */
 
 /** localStorage 中震动开关的存储键（'0' / 'false' 视为关闭） */
 import { readLocalStorage } from '@/shared/utils/core/local-storage.util'

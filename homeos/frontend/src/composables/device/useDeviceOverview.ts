@@ -1,19 +1,4 @@
-/**
- * 设备概览 Composable
- *
- * 模块：设备详情 / 概览
- * 职责：
- *   - 并行拉取单个设备的 7 天用量报告与最近 8 条事件。
- *   - 暴露 usageLoading / eventsLoading / usageReport / recentEvents / recentTotal。
- *   - 通过 createFetchSequence 串行化请求，过滤过期响应。
- *
- * 依赖：
- *   - @/services/api/system.fetchAdvisorUsage：HomeAdvisor 用量接口。
- *   - @/services/api/entities.fetchEvents：事件列表接口。
- *   - @/shared/types/device.DeviceUsageReport：用量报告类型。
- *   - @/composables/device/useDeviceStateHistory.DeviceStateHistoryEvent：事件类型。
- *   - @/shared/utils/core/misc.util.createFetchSequence：请求序号守卫。
- */
+/** 设备概览 Composable */
 import { ref, watch, type Ref } from 'vue'
 import { fetchAdvisorUsage } from '@/services/api/system'
 import { fetchEvents } from '@/services/api/entities'

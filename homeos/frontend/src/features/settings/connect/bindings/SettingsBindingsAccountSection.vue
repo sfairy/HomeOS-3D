@@ -1,13 +1,6 @@
 <!--
-组件：SettingsBindingsAccountSection.vue
-所属模块：frontend / src / views / settings / connect / bindings
-职责：能源账户绑定分区。按数据源模式（约定命名/综合实体/多实体）展示对应账户编辑器与
-      字段映射，提供从实体推断字段、填充默认属性等操作，并以流程概览展示绑定状态。
-关键依赖：
-  - AccountListEditor / EntityAccountListEditor / MultiAccountListEditor
-  - useBindingsAccountSection：派生编辑索引、激活源与字段映射
-  - SettingsFlowBand / SettingsOrchTabs / EntityInput
-数据来源：父级透传的 categoryTabs/modeOptions/字段元信息 + composable 派生
+  能源账户绑定分区。按数据源模式（约定命名/综合实体/多实体）展示对应账户编辑器与
+  字段映射，提供从实体推断字段、填充默认属性等操作，并以流程概览展示绑定状态。
 -->
 <template>
   <div class="settings-hub-section bind-energy-hub">
@@ -288,7 +281,6 @@ import EntityAccountListEditor from './EntityAccountListEditor.vue'
 import MultiAccountListEditor from './MultiAccountListEditor.vue'
 import { useBindingsAccountSection } from '@/features/settings/composables/connect/bindings.internals'
 
-// 入参：数据源分类 tabs、模式选项、激活分类元信息、可映射字段、图表字段、综合实体属性候选
 const props = defineProps({
   categoryTabs: { type: Array, default: () => [] },
   modeOptions: { type: Array, default: () => [] },
@@ -298,10 +290,8 @@ const props = defineProps({
   compositeEntityAttrs: { type: Array, default: () => [] },
 })
 
-// 双向绑定：当前激活的数据源分类
 const categoryTab = defineModel('categoryTab', { type: String, default: 'grid' })
 
-// 对外事件：切换绑定模式、填充默认属性、从实体推断字段
 defineEmits(['set-binding-mode', 'fill-default-attrs', 'infer-from-entity'])
 
 // 派生编辑索引、激活源、字段映射与配置完成态（由 composable 统一管理）

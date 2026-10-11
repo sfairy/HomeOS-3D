@@ -1,13 +1,6 @@
 <!--
-组件：SecurityAuditLogPanel.vue
-所属模块：frontend / src / views / security
-职责：安防「审计日志」面板。按筛选维度展示安全事件流，支持分页与刷新；
-      支持 embedded 模式嵌入其它面板（隐藏头部并改用紧凑刷新按钮）。
-关键依赖：
-  - useFixedPagePagination composable：固定页容量的分页切片逻辑
-  - securityEventCssKey：将事件 css 标记转换为样式后缀
-  - ApiQueryState / VEmptyState：加载/错误/空态展示
-数据来源：父级透传的 displayedSecEvents（已筛选事件）、secEventFilters / secEventIconMap
+  安防「审计日志」面板。按筛选维度展示安全事件流，支持分页与刷新；
+  支持 embedded 模式嵌入其它面板（隐藏头部并改用紧凑刷新按钮）。
 -->
 <template>
   <section
@@ -134,7 +127,6 @@ const AUDIT_PAGE_SIZE = 8
 // 列表行间距，配合 CSS 变量 --audit-row-gap 实现固定行高布局
 const AUDIT_ROW_GAP = 6
 
-// 入参：是否嵌入模式、待展示事件、加载/错误态、筛选选项与图标映射
 const props = defineProps({
   embedded: Boolean,
   displayedSecEvents: { type: Array, default: () => [] },
@@ -144,10 +136,8 @@ const props = defineProps({
   secEventIconMap: { type: Object, default: () => ({}) },
 })
 
-// 双向绑定：当前事件筛选维度（all / zone:* / linkage 等）
 const secEventFilter = defineModel('secEventFilter', { type: String, default: 'all' })
 
-// 对外事件：请求父级重新拉取审计日志
 defineEmits(['refresh'])
 
 const auditCount = computed(() => props.displayedSecEvents.length)

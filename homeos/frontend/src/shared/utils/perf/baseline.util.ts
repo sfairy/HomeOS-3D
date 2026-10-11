@@ -1,15 +1,4 @@
-/**
- * 性能基线采样模块（诊断面板 / 手动导出）。
- *
- * 职责：
- * - 在采样窗口内收集 FPS、堆内存、派生重建数、WebSocket 批次数、监听器峰值等运行时指标。
- * - 提供快照查询与 JSON 导出，供诊断面板展示与问题排查使用。
- *
- * 依赖：
- * - poll-scheduler：读取轮询调度器统计信息，纳入基线快照。
- *
- * 注意：perf metric key（fps / heapMb 等）按规则不翻译，保持原样。
- */
+/** 性能基线采样模块（诊断面板 / 手动导出）。 */
 import { getPollSchedulerStats, schedulePoll } from '@/shared/utils/core/poll-scheduler'
 
 /** 性能基线采样数据结构。各字段为采样窗口内累计 / 缓存的指标值。 */

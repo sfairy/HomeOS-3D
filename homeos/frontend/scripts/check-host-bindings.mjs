@@ -1,46 +1,12 @@
 #!/usr/bin/env node
 /**
- * 宿主薄绑定的**裸值传递**门禁：把「函数被当成裸值交出去」和「该函数多了一个 deps 首参」这两件事
- * 撞在一起拦下来。
+ * 宿主薄绑定的裸值传递门禁：拦住「函数被当裸值交出」+「该函数多一个 deps 首参」的叠加。
  *
- * ## 为什么需要它
+ * deps 袋 core 若以原名被宿主裸值传递（简写属性 / 属性值 / 实参），deps 形参会顶掉调用方的第一个实参。
+ * 判据跨文件：相对 import 进来的绑定 X 在导入处有裸值引用，且 X 定义模块首参是 deps/ctx/context → 报错。
+ * 正解：保留原签名的宿主薄绑定，或该调用点显式传 deps。
  *
- * P4 切片把函数搬进域模块时，带外部依赖的那些会变成「第一参数是 deps 袋」的 core：
- *
- *     export function formatLastSeen(deps: NumberStepperDeps, ts = document) { ... }
- *
- * 宿主**必须**保留同名薄绑定（原签名 + 内部 `core(deps())` 转发）。但有一类调用点是薄绑定救不了的：
- * **裸值传递** —— 函数被当成值塞进别的结构，由**对方**决定怎么调用：
- *
- *     buildSomeContext() 里： { ..., formatLastSeen, ... }      // 简写属性
- *     someSetup({ onTick: formatLastSeen })                     // 属性值
- *     registerCallback(formatLastSeen)                          // 实参
- *
- * 这时若把 core（多一个 deps 首参）直接以原名导出并被宿主 import，那个 deps 形参就会**顶掉**
- * 调用方原本的第一个实参。两个真实案例：
- *   - `closeAuxDialog`（6d-3）：`e.createButton("取消", closeAuxDialog)` —— deps 会吃到 `Event`；
- *   - `formatLastSeen`（6i）：塞进 `CustomPopupEditorContext`（`{ [key: string]: any }`），
- *     **类型全丢**，`tsc` 一声不吭，只在运行时把 `document` 当成 deps 传进去。
- *
- * 所以判据是跨文件的（单看宿主看不出问题）：
- *
- *   对任何一个「从相对路径 import 进来的绑定 X」：
- *     A. 若 X 在导入文件里出现**裸值引用**；且
- *     B. X 在其定义模块里的首参是依赖袋（`deps` / `ctx` / `context`）；
- *   则报错 —— 该调用点的第一个实参会被 deps 吃掉。
- *
- * 正解只有两条：保留原签名的宿主薄绑定（内部 `core(deps())`），或改写那个调用点显式传 deps。
- *
- * ## 防瞎（解析型门禁的通病）
- *
- * 1. 扫描到的 studio 文件数为 0、或相对 import 解析不到定义文件 → 直接判门禁自身失效（退出码 2）；
- * 2. 解析过程中「找不到导出声明」要区分「有导出但不是函数」与「真找不到」——后者算失效；
- * 3. 自检 `_host_bindings_selftest.mjs` 用合成文本注入每一种裸值形态，确认都会拦。
- *
- * ## 豁免
- *
- * 每条豁免必须写 `why`，并且**必须真被命中一次**（写过期的豁免会报错），与仓库其余白名单同口径。
- *
+ * 扫到 0 个文件 / 解析不到定义文件视为门禁失效（退出码 2）；豁免须写 why 且必须真被命中。
  * 用法：``node scripts/check-host-bindings.mjs``
  */
 import fs from 'node:fs'

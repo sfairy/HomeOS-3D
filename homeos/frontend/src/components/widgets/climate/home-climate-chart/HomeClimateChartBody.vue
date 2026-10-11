@@ -14,10 +14,7 @@
 <script setup>
 /**
  * HomeClimateChartBody - 家居气候图表主体组件
- * 职责：仅渲染曲线绘制区与双轴标签，图表实例由父级通过 setChartRef 注入。
- * Props:
- * - activeView：当前视图（'all' / 'temperature' / 'humidity'），决定是否显示双轴标签；
- * - setChartRef：父级提供的 ref 回调，用于挂载 ECharts 容器。
+ * 仅渲染曲线绘制区与双轴标签，图表实例由父级通过 setChartRef 注入。
  */
 import './styles/home-climate-chart.css'
 

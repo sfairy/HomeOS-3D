@@ -1,21 +1,4 @@
-/**
- * @file create-layout-dirty-tracking.ts
- * @module frontend/src/stores/ui
- * @brief layoutConfig 深 watch 脏标记（从 layout 拆出，便于拖拽 suppress / 后续浅层坐标缓冲）。
- *
- * 职责：
- * - 深 watch layoutConfig，任何修改（含设置页 v-model）都标记 layoutDirty=true
- * - 抑制场景：isSuppressing() 返回 true 时跳过（楼层切换 / 批量覆盖等临时关闭）
- * - 加载未完成跳过：isConfigLoaded=false 时跳过，避免初始默认值被误标脏
- *
- * 关键依赖：
- * - vue watch / Ref 类型
- * - @/shared/types/layout：UILayoutConfig
- *
- * 实现说明：
- * - 拖拽热点应写浅层 preview，松手再提交，避免本 watch 每帧扇出
- * - 返回 stopLayoutDirtyWatch 用于卸载场景（单例 store 通常不调用）
- */
+/** - 深 watch layoutConfig，任何修改（含设置页 v-model）都标记 layoutDirty=true */
 import { watch, type Ref } from 'vue'
 import type { UILayoutConfig } from '@/shared/types/layout'
 

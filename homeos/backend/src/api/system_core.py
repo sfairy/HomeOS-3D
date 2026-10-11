@@ -45,9 +45,7 @@ SSE_HEARTBEAT_MS = 15_000
 #: 默认大实体阈值（``frontend.workerDerivedThreshold`` 缺失时）
 DEFAULT_XLARGE_THRESHOLD = 3500
 
-# ---------------------------------------------------------------------- #
 # 依赖读取
-# ---------------------------------------------------------------------- #
 def _runtime_buffer(request: Request) -> RuntimeLogBuffer:
     return request.app.state.runtime_logs
 
@@ -110,9 +108,7 @@ def _load_drift_repair_last_run(request: Request) -> dict[str, Any] | None:
         "errorCount": len(errors) if isinstance(errors, list) else 0,
     }
 
-# ---------------------------------------------------------------------- #
 # 调度作业 / 诊断
-# ---------------------------------------------------------------------- #
 @router.get("/jobs")
 async def get_jobs(request: Request, user: dict[str, Any] = Depends(require_user)):
     """调度作业统一仪表盘（setInterval / Cron 心跳与耗时）。"""
@@ -233,9 +229,7 @@ async def get_diagnostics(request: Request, user: dict[str, Any] = Depends(requi
         "copyText": copy_text(),
     }
 
-# ---------------------------------------------------------------------- #
 # 运行日志（REST + SSE）
-# ---------------------------------------------------------------------- #
 @router.get("/runtime-logs")
 async def get_runtime_logs(
     request: Request,
@@ -338,9 +332,7 @@ async def delete_runtime_logs(request: Request, user: dict[str, Any] = Depends(r
     _ = user
     return _runtime_buffer(request).clear()
 
-# ---------------------------------------------------------------------- #
 # 设备管理
-# ---------------------------------------------------------------------- #
 @router.get("/devices")
 async def get_devices_overview(request: Request, user: dict[str, Any] = Depends(require_user)):
     """设备管理总览：僵尸绑定列表（按来源分组）。"""
@@ -357,9 +349,7 @@ async def unbind_zombies(
     _ = user
     return await request.app.state.device_management.unbind_zombies(body or {})
 
-# ---------------------------------------------------------------------- #
 # 版本 / 健康 / 网络
-# ---------------------------------------------------------------------- #
 @router.get("/info")
 async def get_system_info(request: Request, user: dict[str, Any] = Depends(require_user)):
     """获取系统版本信息。"""

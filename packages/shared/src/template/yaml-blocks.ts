@@ -1,22 +1,4 @@
-/**
- * @file yaml-blocks.ts
- * @module @homeos/shared/template
- * @brief HA template YAML 块结构与 trigger-based 判定（前后端共用）。
- *
- * 职责：
- *  - 归一化 template 根为块数组（collectTemplateBlocks，兼容数组 / 单对象）；
- *  - 判断已解析 YAML 是否为 trigger-based template（isTriggerBasedTemplateParsed）；
- *  - 从 trigger-based 或普通 template 块提取首个平台实体项（extractFirstTemplateItemFromParsed）；
- *  - 归一化 template 根为 { sensor: [...], fan: [...] }（剔除 trigger 段）。
- *
- * 关键依赖：
- *  - meta-keys 提供 TEMPLATE_META_KEYS 用于跳过非平台段；
- *  - appliance-type-infer 调用本模块判定 trigger-based 与提取平台项。
- *
- * 约定：
- *  - 跳过 TEMPLATE_META_KEYS 中的键，剩余键视为平台段（sensor / fan / switch 等）；
- *  - normalizeTemplateRoot 在缺少 template 根节点时抛出"缺少 template 根节点"。
- */
+/** - 归一化 template 根为块数组（collectTemplateBlocks，兼容数组 / 单对象）； */
 import { TEMPLATE_META_KEYS } from './meta-keys';
 
 type TemplateBlock = Record<string, unknown>;

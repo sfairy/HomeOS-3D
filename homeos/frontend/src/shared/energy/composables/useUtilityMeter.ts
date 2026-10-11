@@ -1,15 +1,4 @@
-/**
- * 水电燃气抄表相对日期与剩余天数计算工具
- *
- * 职责：为水/电/气/综合抄表类 widget 与弹窗提供日期相对标签（今天/昨天/前天/近一周等）
- *      与预估余额可用天数的计算逻辑；统一处理多种日期格式解析与兜底估算策略。
- * 导出函数：
- *   - useRelativeDateLabel：基于数据日期计算相对标签与 CSS 类名
- *   - parseDateParts：解析 YYYY-MM-DD 或 M.D 格式日期
- *   - useRemainingDays：结合余额与近 30 天日均消费预估剩余可用天数
- * 边界：日期解析失败时返回空标签；不足 30 天数据时取全部有消费记录的日期求均值；
- *      无法估算时返回 '--' 占位。
- */
+/** 水电燃气抄表相对日期与剩余天数计算工具 */
 import { computed, type ComputedRef, type Ref } from 'vue'
 import type { HaEntityState } from '@/shared/types/entity-store'
 /**

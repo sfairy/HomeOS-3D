@@ -18,9 +18,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-# --------------------------------------------------------------------------- #
 # traceId（contextvars，等价 AsyncLocalStorage）
-# --------------------------------------------------------------------------- #
 _trace_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("trace_id", default=None)
 
 
@@ -36,9 +34,7 @@ def reset_trace_id(token: contextvars.Token) -> None:
     _trace_id.reset(token)
 
 
-# --------------------------------------------------------------------------- #
 # 状态日志去重（同一「key + 状态」在窗口内只打印一次，避免 HA 断连刷屏）
-# --------------------------------------------------------------------------- #
 class StatusLogDeduper:
     """按 ``key`` 记忆上次日志状态与时间，抑制重复输出。"""
 
@@ -61,9 +57,7 @@ class StatusLogDeduper:
             self._seen.clear()
 
 
-# --------------------------------------------------------------------------- #
 # 结构化日志（含 traceId）
-# --------------------------------------------------------------------------- #
 _LEVEL_ORDER = {"debug": 10, "info": 20, "warn": 30, "error": 40}
 _configured_level = os.getenv("LOG_LEVEL", "info").strip().lower()
 
@@ -85,9 +79,7 @@ def log(level: str, message: str, **context: Any) -> None:
         pass
 
 
-# --------------------------------------------------------------------------- #
 # HA 同步延迟快照（供 /metrics）
-# --------------------------------------------------------------------------- #
 @dataclass
 class LatencySnapshot:
     stage: str
@@ -197,9 +189,7 @@ def get_ha_sync_latency_snapshots() -> list[LatencySnapshot]:
     return out
 
 
-# --------------------------------------------------------------------------- #
 # Prometheus 文本指标（指标名与 Nest 版逐字对齐）
-# --------------------------------------------------------------------------- #
 def format_homeos_prometheus_metrics(
     *,
     ha_connected: bool,
@@ -263,9 +253,7 @@ def _metric_number(value: float) -> str:
     return repr(float(value))
 
 
-# --------------------------------------------------------------------------- #
 # /metrics 访问判定
-# --------------------------------------------------------------------------- #
 MetricsAccessDecision = str  # 'allow' | 'not_found' | 'unauthorized'
 
 
@@ -298,9 +286,7 @@ def decide_metrics_access(
     return "allow" if provided == token else "unauthorized"
 
 
-# --------------------------------------------------------------------------- #
 # 请求 ID 生成
-# --------------------------------------------------------------------------- #
 def new_request_id() -> str:
     return hashlib.sha256(os.urandom(16)).hexdigest()[:32]
 

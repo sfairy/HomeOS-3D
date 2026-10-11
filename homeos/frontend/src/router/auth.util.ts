@@ -1,13 +1,4 @@
-/**
- * 路由鉴权导航决策（纯函数，供 router 与单测复用）
- *
- * 首装流程顺序：**注册 → 登录 → 授权检测**。
- * 1. 本机尚无账号（未初始化）→ 注册页（`/register`）
- * 2. 已有账号但无会话 → 登录页（`/login`，仅需认证的路由强制）
- * 3. 已登录 → 授权检测（未激活 → `/activate`）
- *
- * 依赖：@/shared/types/router 的导航上下文类型。
- */
+/** 路由鉴权导航决策（纯函数，供 router 与单测复用） */
 import type { NavigationContext, NavigationDecision, RoutableLocation } from '@/shared/types/router'
 
 /** 未登录也允许停留的入户页路由名（后端离线时仅放行这些）。 */

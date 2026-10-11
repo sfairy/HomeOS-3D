@@ -55,9 +55,7 @@ class SetupWizardService:
         self._health_cache: dict[str, Any] | None = None
         self._checklist_cache: dict[str, Any] | None = None
 
-    # ------------------------------------------------------------------ #
     # 内部工具
-    # ------------------------------------------------------------------ #
     def resolve_active_project_id(self) -> str:
         profiles = self._app_config.get("profiles") or {}
         return str(profiles.get("activeProfileId") or "").strip() or "default"
@@ -128,9 +126,7 @@ class SetupWizardService:
                 count += 1
         return count
 
-    # ------------------------------------------------------------------ #
     # 向导状态
-    # ------------------------------------------------------------------ #
     async def get_status(self) -> dict[str, Any]:
         ha_status = await self._ha_connector.get_status()
         entity_count = self._state_store.get_count()
@@ -272,9 +268,7 @@ class SetupWizardService:
 
         return {"sensorAlertCooldownSec": next_value}
 
-    # ------------------------------------------------------------------ #
     # 首装后引导清单
-    # ------------------------------------------------------------------ #
     async def get_post_setup_checklist(self) -> dict[str, Any]:
         now = time.monotonic() * 1000
         if self._checklist_cache and now - self._checklist_cache["at"] < CHECKLIST_CACHE_TTL_MS:
@@ -343,9 +337,7 @@ class SetupWizardService:
         self._checklist_cache = None
         return {"dismissedAt": at}
 
-    # ------------------------------------------------------------------ #
     # 绑定缺口 / 健康评分
-    # ------------------------------------------------------------------ #
     async def get_binding_gaps(self) -> dict[str, Any]:
         layout = self._get_project_layout() or {}
         ha_config = layout.get("haConfig") if isinstance(layout.get("haConfig"), dict) else {}

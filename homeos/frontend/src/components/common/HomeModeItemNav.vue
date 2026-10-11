@@ -1,15 +1,6 @@
 <!--
-  组件文件：HomeModeItemNav.vue
-  所属模块：features/home-mode/editor
-  组件职责：家庭模式设置子页的侧边条目导航子组件，以按钮行列出全部模式条目并高亮当前
-    选中项，支持激活切换后将对应行平滑滚入可视区。头部显示条目计数与单位文案。
-  主要 props / emits：
-    - props items：模式条目数组（含 index、label、meta、placeholder 字段）
-    - props activeIndex：当前激活条目的索引（可为 null）
-    - props ariaLabel：无障碍标签，默认「条目导航」
-    - props headLabel：计数单位文案，默认「条」
-    - emit select：点击条目时触发，payload 为 item.index
-  依赖关系：仅使用 Vue 内建的 ref/watch/nextTick，无 Pinia store 或外部 API 调用。
+  家庭模式设置子页的侧边条目导航子组件，以按钮行列出全部模式条目并高亮当前
+  选中项，支持激活切换后将对应行平滑滚入可视区。头部显示条目计数与单位文案。
   注意事项：激活索引变化后通过 scrollIntoView 平滑滚动；placeholder 条目样式会弱化。
 -->
 <template>
@@ -47,7 +38,6 @@
 <script setup>
 import { ref, watch, nextTick } from 'vue'
 
-// 入参：条目列表、激活索引、无障碍标签、表头计数单位文案
 const props = defineProps({
   items: { type: Array, default: () => [] },
   activeIndex: { type: [Number, null], default: null },

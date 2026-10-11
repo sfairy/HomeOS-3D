@@ -1,14 +1,4 @@
-/**
- * 安防区域房间分组工具模块。
- *
- * 职责：
- * - 将 binary_sensor 实体按传感器类型分类（烟感/燃气/CO/水浸/门窗/移动）；
- * - 按房间分组组织传感器，支持通过 area_id 或名称匹配房间；
- * - 从房间分组自动生成安防区域草稿，推断区域类型（外围/室内/全部）；
- * - 提供区域合并、房间推断、传感器选择等辅助能力。
- *
- * 依赖：getEntityDisplayName、isSecurityUtilityNoise、EntitiesMap、RoomListItem 类型。
- */
+/** 安防区域房间分组工具模块。 */
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import { isSecurityUtilityNoise } from '@/features/security/utils/sensor-filter.util'
 import type { EntitiesMap } from '@/shared/types/entity-store'

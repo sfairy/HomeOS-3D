@@ -1,13 +1,4 @@
-/**
- * @file useSpeechToText.ts
- * @module composables/voice
- * @description 点按说话的语音转写（不执行命令）。
- *
- * 职责：
- * - 按设置 voice.sttMode 走浏览器 Web Speech、HA STT 或自动回退；
- * - 先 getUserMedia 申请麦克风，再启动识别，避免 Chrome 直接报 not-allowed；
- * - 浏览器在线识别失败（墙 / 非 HTTPS）时回退 HA 录音转写。
- */
+/** - 按设置 voice.sttMode 走浏览器 Web Speech、HA STT 或自动回退； */
 import { computed, onUnmounted, ref } from 'vue'
 import { transcribeVoice } from '@/services/api/system'
 import { getConfigSection, onConfigChange } from '@/shared/utils/config/frontend-config'

@@ -1,17 +1,4 @@
-/**
- * @module entity-control-attr-change.util
- * @description 实体控制类属性变更检测与展示文案生成。
- *
- * 职责：
- * - 定义各域（climate / light / fan 等）"控制 / 设定类"属性白名单。
- * - 比较新旧属性，返回首个变化的控制属性描述（如"风速 自动 → 高"）。
- * - 解析 EventLog stateDiff 中的属性变更字符串。
- * - 生成实体状态变更的展示文案，供即时消息墙与时间线共用。
- *
- * 依赖：
- * - `@homeos/shared`：getEntityDomain 域名解析。
- * - `entity-state-labels`：state 中文标签。
- */
+/** - 定义各域（climate / light / fan 等）"控制 / 设定类"属性白名单。 */
 import { getEntityDomain } from '@homeos/shared'
 import type { EntitySnapshot } from '@/shared/types/entity'
 import { formatEntityAttrValueText } from '@/shared/device/utils/attr-format.util'

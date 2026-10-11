@@ -1,10 +1,4 @@
-"""高危设备拦截规则。
-
-职责：定义语音控制场景下严禁直接操作的设备域 / 服务 / 实体特征，
- 供 HomeToolsService 在 control_device / control_room 前做安全校验。
-设计原则：门锁、安防撤防、燃气阀、车库门/大门等不应被一句话直接控制，
- 需引导用户在手机 App 上二次确认。
-"""
+"""高危设备拦截规则。"""
 
 from __future__ import annotations
 

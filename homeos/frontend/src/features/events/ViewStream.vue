@@ -1,32 +1,8 @@
 <!--
-组件：EventsViewStream.vue
-所属模块：frontend / src / views
-职责：事件历史页「事件流」子视图——卡片化展示实体状态变更事件，含降级横幅、
-      空态、加载/错误态与上下页分页。
-数据来源：
-  - 事件列表来自父级透传 props.events（由后端分页接口返回）；
-  - HA 连接降级状态来自 useHaDegrade + useEntitiesStore（重连/断连/过期标志）。
-Props：
-  - loading / clearing / error：列表加载中、清除中、错误文案。
-  - events：当前页事件数组；entityFilter / domainFilter 当前筛选条件。
-  - resultSummary / page / totalPages / total：结果摘要与分页信息。
-  - entityDisplayName / hasFriendlyName / formatCount：实体显示相关函数。
-Emits：
-  - clear-all：清除全部记录。
-  - retry：加载失败后重试。
-  - clear-filter / clear-domain-filter：清空实体/域筛选。
-  - go-page：跳转到指定页码。
-关键交互：
-  - 卡片点击跳转到设备详情；降级时优先展示 HaDegradeBanner 区分「离线」与「无事件」；
-  - 分页器在 totalPages > 1 时显示。
+  事件历史页「事件流」子视图——卡片化展示实体状态变更事件，含降级横幅、
+  空态、加载/错误态与上下页分页。
 -->
 <script setup>
-/**
- * 职责：渲染 views/ViewStream 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { computed } from 'vue'
 import ApiQueryState from '@/components/common/ApiQueryState.vue'
 import HaDegradeBanner from '@/components/common/HaDegradeBanner.vue'

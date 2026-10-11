@@ -40,14 +40,7 @@
 </template>
 
 <script setup>
-/**
- * @file AssetManagerModal.vue
- * @module common/AssetManagerModal
- * @description 资源管理器模态弹窗
- *  职责：以模态形式承载 AssetManager，用于在设置页等场景中浏览/管理素材与图标。
- *  依赖：vue defineAsyncComponent/watch，@lucide/vue 图标，useKeepAliveGate 控制传送门。
- *  注意：AssetManager 以异步组件方式引入，降低首屏体积；开启 keep-alive 网关时关闭弹窗。
- */
+/** 注意：AssetManager 以异步组件方式引入，降低首屏体积；开启 keep-alive 网关时关闭弹窗。 */
 import { defineAsyncComponent, computed, watch } from 'vue'
 import { X, Images, Sparkles } from '@lucide/vue'
 import { useKeepAliveGate } from '@/composables/ui/useKeepAliveGate'

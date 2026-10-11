@@ -1,17 +1,4 @@
-/**
- * 设置页标题栏图标映射表
- *
- * 职责：
- * - 维护设置页标题栏可选图标键 → @lucide/vue 组件的映射（SETTINGS_HEADER_ICONS）。
- * - 维护设置页各 Tab id → 标题图标组件的映射（SETTINGS_TAB_HEADER_ICONS）。
- * - 供设置页标题栏按用户选择的图标键或 Tab 渲染对应图标。
- *
- * 依赖：@lucide/vue 图标组件库。
- *
- * 注意：
- * - 对象 key 为图标键 / Tab id（如 star、favorites、layout），属于配置 key，不翻译。
- * - value 为图标组件引用，不翻译。
- */
+/** 设置页标题栏图标映射表 */
 import {
   Star,
   Settings,

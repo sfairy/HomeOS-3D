@@ -1,12 +1,4 @@
-/**
- * 地震预警应用启动引导模块
- *
- * 职责：应用启动时完成两项初始化工作——(1) 从后端恢复最近一次地震预警状态，若仍处于活动期且用户未 dismissal 则立即触发预警；
- *      (2) 检测 EEW 配置缺失情况（localStorage 未完成向导、HA 占位默认或缺少经纬度），延迟 1.2 秒弹出配置向导。
- * 导出：useEarthquakeBootstrap() 返回 showSetupWizard 响应式引用供父组件绑定向导弹窗；
- *      reopenEarthquakeWizard() 清除"已完成"标记，下次启动重新弹出向导。
- * 副作用：挂载时注册 window 'homeos:eew-wizard-open' 事件；启动期间会拉取后端预警接口。
- */
+/** 地震预警应用启动引导模块 */
 import { readLocalStorageFlag, removeLocalStorage } from '@/shared/utils/core/local-storage.util'
 
 import { onMounted, onUnmounted, ref, watch } from 'vue'
@@ -19,16 +11,8 @@ import { logger } from '@/shared/utils/core/logger'
 
 /**
  * 地震预警应用启动引导模块
- *
- * 模块职责：
- *  - 应用启动时从后端恢复最近一次地震预警状态（若仍处于活动期）；
- *  - 检测 EEW（地震预警）配置缺失情况，必要时延迟弹出 EEW 配置向导。
- *
- * 依赖：
- *  - @/services/api/earthquake（获取最新预警）；
- *  - @/stores/earthquake.store（预警状态管理）；
- *  - @/stores/layout.store（读取 layoutConfig 中的地震/HOME ASSISTANT 配置）；
- *  - ../utils/earthquake.util（判断预警是否启用）。
+ * - 应用启动时从后端恢复最近一次地震预警状态（若仍处于活动期）；
+ * - 检测 EEW（地震预警）配置缺失情况，必要时延迟弹出 EEW 配置向导。
  */
 
 /** localStorage 中标记"已完成后端 EEW 配置向导"的 key */

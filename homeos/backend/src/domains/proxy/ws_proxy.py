@@ -159,9 +159,7 @@ async def bridge_websockets(
             pass
 
 
-# --------------------------------------------------------------------------- #
 # 鉴权包装（供路由复用）
-# --------------------------------------------------------------------------- #
 def resolve_go2rtc_ws_user(
     app: Any, cookie_header: str | None, entity_id: str
 ) -> dict[str, Any] | None:

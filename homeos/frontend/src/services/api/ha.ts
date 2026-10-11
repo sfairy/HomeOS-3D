@@ -1,15 +1,4 @@
-/**
- * HA 连接 / WebRTC 信令 API
- *
- * 职责：封装 HA 连接记录（`ha_connections` 表）的读取、保存与探测，以及 HA 摄像头
- *       WebRTC 信令端点。
- * 依赖：./client 提供的 apiGet / apiPost / apiPut。
- * 端点范围：GET /ha/connection、PUT /ha/connection、POST /ha/test、
- *           POST /ha/webrtc/candidate、POST /ha/webrtc/close
- *
- * 阶段 3.3 起 HA 连接只有这一条读写路径：设置页不再把 url/token 写进项目 layout，
- * 后端也不再从 layout 读连接凭据（见 `backend/src/domains/ha/config/ha_config.py`）。
- */
+/** HA 连接 / WebRTC 信令 API */
 import type { AxiosRequestConfig } from 'axios'
 import { apiDelete, apiGet, apiPost, apiPut } from './client'
 
@@ -77,10 +66,7 @@ export function getHaConnection(config?: AxiosRequestConfig) {
   return apiGet<HaConnectionStatus>('/ha/connection', config)
 }
 
-/**
- * 保存 HA 连接（后端会先探测可达性，再落库并重启连接器）。
- * 对应后端 endpoint：PUT /ha/connection
- */
+/** 保存 HA 连接（后端会先探测可达性，再落库并重启连接器）。 */
 export function saveHaConnection(payload: HaConnectionInput, config?: AxiosRequestConfig) {
   return apiPut<HaConnectionTestResult>('/ha/connection', payload, config)
 }
@@ -90,31 +76,17 @@ export function deleteHaConnection(config?: AxiosRequestConfig) {
   return apiDelete('/ha/connection', config)
 }
 
-/**
- * 探测 HA 地址可达性（不落库）。
- * 对应后端 endpoint：POST /ha/test
- * @param payload baseUrl / externalBaseUrl 必填其一；accessToken 留空时用已保存的令牌
- */
+/** 探测 HA 地址可达性（不落库）。 */
 export function testHaConnection(payload: HaConnectionInput, config?: AxiosRequestConfig) {
   return apiPost<HaConnectionTestResult>('/ha/test', payload, config)
 }
 
-/**
- * 发送 WebRTC ICE Candidate（HA 摄像头/WebRTC 信令）。
- * 对应后端 endpoint：POST /ha/webrtc/candidate
- * @param payload 信令载荷
- * @returns 操作结果
- */
+/** 发送 WebRTC ICE Candidate（HA 摄像头/WebRTC 信令）。 */
 export function sendWebRtcCandidate(payload: Record<string, unknown>, config?: AxiosRequestConfig) {
   return apiPost('/ha/webrtc/candidate', payload, config)
 }
 
-/**
- * 关闭 HA WebRTC 会话。
- * 对应后端 endpoint：POST /ha/webrtc/close
- * @param payload 会话标识
- * @returns 操作结果
- */
+/** 关闭 HA WebRTC 会话。 */
 export function closeWebRtcSession(payload: Record<string, unknown>, config?: AxiosRequestConfig) {
   return apiPost('/ha/webrtc/close', payload, config)
 }

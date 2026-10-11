@@ -1,11 +1,4 @@
-"""Mock LLM 提供商（开发 / 未配置时回退）。
-
-职责：在未配置真实 API Key 时提供一个“能跑通链路”的假 LLM。
- - 通过正则识别控制 / 查询意图，先调 search_entities 再调 control_device
- - 对工具结果做模板化回复，便于前端联调
- - 永远返回 is_ready=True，保证未配置时智能管家仍可演示
-依赖：llm_provider_interface（接口）。
-"""
+"""Mock LLM 提供商（开发 / 未配置时回退）。"""
 
 from __future__ import annotations
 

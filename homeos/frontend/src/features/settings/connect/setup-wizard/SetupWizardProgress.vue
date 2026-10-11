@@ -1,30 +1,12 @@
 <!--
-  组件文件：SetupWizardProgress.vue
-  所属模块：frontend/src/features/settings/connect/setup-wizard
-  组件职责：初始化向导整页顶部的欢迎横幅 + 进度环形 + 时间线总览组件。顶部欢迎语
-    「欢迎开启你的智能家居之旅」与当前步骤文案「第 X/Y 步 · 步骤名」；右侧 SVG 圆环
-    显示当前整体进度百分比；中间展示能源学习期提示（如果已开始）；底部为可点击时间线
-    节点（6 步：连接/安防/能源/环境/墙屏/完成），按状态着色并支持点击跳转已完成步骤。
-  主要 props / emits：
-    - props progress：整体百分比（0~100，驱动环形）
-    - props learningStartedAt / learningDays：能源学习期起始日期与天数（可选）
-    - props wizardSteps：步骤数组（含 id/label 等，渲染时间线）
-    - props currentStep：当前步骤索引 0 起始
-    - props status：向导状态对象（steps[stepId].done 判断节点完成状态）
-    - props formatDate：格式化学习期日期的回调函数
-    - emit go-to-step：点击已完成的时间线节点触发，payload 为步骤索引
-  依赖关系：无 Pinia store；纯 UI 由 props 驱动；使用 Wifi/Shield/Zap/Thermometer/
-    LayoutTemplate/PartyPopper 图标区分步骤类型，按 STEP_TONES 匹配颜色。
+  初始化向导整页顶部的欢迎横幅 + 进度环形 + 时间线总览组件。顶部欢迎语
+  「欢迎开启你的智能家居之旅」与当前步骤文案「第 X/Y 步 · 步骤名」；右侧 SVG 圆环
+  显示当前整体进度百分比；中间展示能源学习期提示（如果已开始）；底部为可点击时间线
+  节点（6 步：连接/安防/能源/环境/墙屏/完成），按状态着色并支持点击跳转已完成步骤。
   注意事项：只有状态为 done 的时间线节点才可点击跳回；active/idle 状态节点不可点击；
-    CSS 通过 --sw-pct 变量驱动 SVG 圆环 strokeDashoffset 百分比。
+  CSS 通过 --sw-pct 变量驱动 SVG 圆环 strokeDashoffset 百分比。
 -->
 <script setup>
-/**
- * 职责：渲染 views/SetupWizardProgress 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { computed } from 'vue'
 import { Wifi, Shield, Zap, Thermometer, LayoutTemplate, PartyPopper } from '@lucide/vue'
 

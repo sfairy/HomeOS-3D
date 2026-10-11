@@ -1,21 +1,4 @@
-/**
- * 微件注册表条目与类型标签
- *
- * 职责：
- * - 维护各微件类型（Widget Type）的注册元数据（名称、图标、可用展示面、
- *   浮动模式、浮动宽度、侧边栏类名、微件/浮动 props 工厂）。
- * - 维护微件类型 → 中文显示名映射（WIDGET_TYPE_LABELS）。
- * - 供微件目录、侧边栏、浮动面板按类型解析组件与配置。
- *
- * 依赖：
- * - @lucide/vue 图标组件。
- * - vue 的 Component 类型。
- *
- * 注意：
- * - 微件 type key（weather / clock / ...）为配置 key，不翻译。
- * - `surfaces` / `floatingMode` / `sidebarClass` 为配置值，不翻译。
- * - 仅面向用户的 name / 标签 value 使用简体中文。
- */
+/** 微件注册表条目与类型标签 */
 import { Clock, Cloud, Music, ShieldCheck, Thermometer, Wrench, Zap } from '@lucide/vue'
 import type { Component } from 'vue'
 

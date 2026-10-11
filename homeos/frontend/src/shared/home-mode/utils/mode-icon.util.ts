@@ -1,10 +1,4 @@
-/**
- * 家庭模式图标工具。
- *
- * 职责：在 emoji 字符、lucide 图标 key 与 Vue 图标组件之间做映射与解析。
- *
- * 依赖：@lucide/vue 提供图标组件。
- */
+/** 家庭模式图标工具。 */
 import {
   Home,
   Moon,

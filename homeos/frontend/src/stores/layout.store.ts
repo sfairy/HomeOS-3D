@@ -1,35 +1,4 @@
-/**
- * @file layout.store.ts
- * @module frontend/src/stores
- * @brief 布局域 Store：layoutConfig、脏标记、部件 CRUD、方案/持久化/草稿、编辑态。
- *
- * 职责：
- * - 持有 UILayoutConfig 主状态（楼层/部件/收藏/事件日志/HA 配置/统计传感器/安防/地震/AI 等）
- * - 维护布局脏标记（layoutDirty）：深 watch layoutConfig，配置未加载完成或被抑制时跳过
- * - 浮动部件 CRUD：顶层浮动部件（FloatingWidget）的增删改
- * - 编辑模式生命周期：进入/退出、放置实体指针、退出确认、撤销/重做（单栈）
- * - 布局方案管理：方案列表拉取/创建/删除/切换、家庭模式自动激活、本机终端绑定
- * - 持久化：loadConfig（200ms 防抖 + 请求去重 + requestId 竞态保护）、saveConfig（HA URL 校验 + 并发 coalesce）
- * - 未保存草稿：localStorage 抢救式持久化（beforeunload 钩子）
- * - 设置锁：PIN 校验解锁（与 chrome.isSettingsUnlocked 共享）
- *
- * 关键依赖：
- * - @/stores/chrome.store：UI chrome 状态切片（编辑模式 / 选中部件 / 弹窗 / 通知），经 useChromeStore() 组合
- * - @/stores/ui/create-layout-core-state：核心响应式状态 + dirty 跟踪
- * - @/stores/ui/create-edit-history-state：编辑历史（撤销/重做）
- * - @/stores/ui/create-floor-widget-actions：楼层部件 CRUD
- * - @/stores/ui/create-layout-persistence：加载/保存
- * - @/stores/ui/create-layout-profile-actions：方案 CRUD 与切换
- * - @/stores/ui/create-layout-draft-state：未保存草稿持久化
- * - @/stores/ui/create-edit-mode-actions：编辑模式行为
- * - @/composables/config/resolve-active-profile.util：解析激活方案 ID
- * - @/shared/utils/perf/tablet-default-perf.util：平板默认性能模式
- * - @/shared/utils/core/clone-plain.util：深拷贝工具
- *
- * 实现说明：
- * - 新代码直接 useLayoutStore()。Pinia store 已是单例；chrome 经 useChromeStore() 组合
- * - 各功能切片均拆分至 ui/ 子目录的工厂函数，本文件仅作 Pinia setup 容器与组合入口
- */
+/** - 持有 UILayoutConfig 主状态（楼层/部件/收藏/事件日志/HA 配置/统计传感器/安防/地震/AI 等） */
 import { defineStore, storeToRefs } from 'pinia'
 import { nextTick } from 'vue'
 import { logger } from '@/shared/utils/core/logger'

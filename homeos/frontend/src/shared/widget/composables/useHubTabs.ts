@@ -1,12 +1,4 @@
-/**
- * Widget Hub Tab 状态管理：根据布局配置过滤可见 Tab 并解析默认/当前激活项。
- *
- * 职责：在 Hub 类面板（如智能管家面板、生活面板等）中，依据用户配置的 visibleTabs 与 defaultTab，
- *      结合传入的全量 Tab 列表，派生「实际可见 Tab 列表」与「当前激活 Tab」，并在配置变化时自动回退。
- * 依赖：
- *   - vue（ref / computed / watch / toValue / MaybeRefOrGetter）
- *   - @/shared/utils/registry/hub-tabs-options（Tab 配置归一化、过滤、默认值解析）
- */
+/** Widget Hub Tab 状态管理：根据布局配置过滤可见 Tab 并解析默认/当前激活项。 */
 import { ref, computed, watch, toValue, type MaybeRefOrGetter } from 'vue'
 import {
   normalizeHubTabConfig,

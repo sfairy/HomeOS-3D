@@ -1,13 +1,6 @@
 <!--
-组件：SettingsAssetsPanel.vue
-所属模块：frontend / src / views / settings / display
-职责：素材库面板。管理背景图 / 状态图标两类素材，并提供仪表盘开灯/关灯
-      背景图配置（手动填写路径或从背景图库拾取）。
-关键依赖：
-  - SettingsPageShell / SettingsCard / SettingsCardIntro：页面骨架
-  - SettingsFlowBand / SettingsFlowStat：流程概览
-  - AssetManagerModal / AssetPickerModal：素材管理与拾取弹窗（懒加载）
-数据来源：layoutStore.layoutConfig（lightOn/OffBackgroundUrl 等背景字段）
+  素材库面板。管理背景图 / 状态图标两类素材，并提供仪表盘开灯/关灯
+  背景图配置（手动填写路径或从背景图库拾取）。
 -->
 <template>
   <SettingsPageShell

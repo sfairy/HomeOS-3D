@@ -38,9 +38,7 @@ class JobRegistryService:
         self._jobs: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self._lock = threading.Lock()
 
-    # ------------------------------------------------------------------ #
     # 登记
-    # ------------------------------------------------------------------ #
     def register(self, name: str, options: dict[str, Any] | None = None) -> None:
         """登记作业元数据（纯登记，不启动任何定时器）。"""
         opts = options or {}
@@ -56,9 +54,7 @@ class JobRegistryService:
                 "lastError": existing["lastError"] if existing else None,
             }
 
-    # ------------------------------------------------------------------ #
     # 执行
-    # ------------------------------------------------------------------ #
     async def run(
         self,
         name: str,
@@ -95,9 +91,7 @@ class JobRegistryService:
             if opts.get("intervalMs"):
                 entry["intervalMs"] = opts["intervalMs"]
 
-    # ------------------------------------------------------------------ #
     # 查询
-    # ------------------------------------------------------------------ #
     def list(self) -> list[dict[str, Any]]:
         """全部作业快照（按登记时间排序，供诊断面板只读展示）。"""
         with self._lock:

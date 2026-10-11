@@ -1,15 +1,4 @@
-/**
- * @file SettingsPageShell.vue
- * @module common/page-shell
- * @description 页面壳层通用组件（原 settings/shared/layout/SettingsPageShell.vue）
- *  职责：
- *    - 统一渲染顶部 Hero 头部、子导航、tabs 与主体；
- *    - 标题/描述可由 props 显式传入，或按 tab 从 settings-nav 注册表解析；
- *    - 通过 activeTab 控制显隐（非当前 tab 时 v-show 隐藏以保留状态）；
- *    - 主体支持滚动容器（scrollBody）或舞台布局（stage）；
- *    - 宽屏栏数布局由 layout 控制（stack/single/triple）。
- *  依赖：vue computed/useSlots，page-shell/SettingsPageHeader，utils/registry/settings-nav.util。
- */
+/** - 统一渲染顶部 Hero 头部、子导航、tabs 与主体； */
 <template>
   <div
     v-show="active"
@@ -68,12 +57,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 SettingsPageShell 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 import { computed, useSlots } from 'vue'
 import SettingsPageHeader from '@/components/common/page-shell/SettingsPageHeader.vue'
 import { pageTitle, pageDescription } from '@/shared/utils/registry/settings-nav.util'

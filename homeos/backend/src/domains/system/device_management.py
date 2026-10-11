@@ -1,16 +1,4 @@
-"""设备管理与僵尸绑定清理服务（对齐 ``modules/system/device/device-management.service.ts``）。
-
-职责：
-- 扫描「HA 中已不存在但仍被引用」的僵尸绑定，来源覆盖：
-    layoutWidget —— 仪表板布局 Widget（浮动组件 / 右侧面板部件 / 收藏）
-    alertRule    —— 告警规则（AlertRule.entityId）
-  存活判定 = 状态库 ∪ HA 实体注册表（含禁用/隐藏）。不得只用过滤后的状态库，
-  否则「仅同步已启用实体」会把隐藏诊断实体全部误判成僵尸。
-- 提供批量解绑（删除或清理对应绑定，幂等，单条失败不阻断其余）。
-
-依赖：Session 工厂、状态库（现有实体集合）、UiConfigService（布局读写）、
-     HaConnectorService（注册表中文名）。
-"""
+"""设备管理与僵尸绑定清理服务（对齐 ``modules/system/device/device-management.service.ts``）。"""
 
 from __future__ import annotations
 
@@ -43,9 +31,7 @@ class DeviceManagementService:
         self._ui_config = ui_config
         self._ha_connector = ha_connector
 
-    # ------------------------------------------------------------------ #
     # 总览
-    # ------------------------------------------------------------------ #
     async def get_devices_overview(self) -> dict[str, Any]:
         return {"zombieBindings": await self.collect_zombie_bindings()}
 
@@ -97,9 +83,7 @@ class DeviceManagementService:
             )
         return zombies
 
-    # ------------------------------------------------------------------ #
     # 僵尸绑定收集
-    # ------------------------------------------------------------------ #
     def collect_layout_widget_bindings(self, items: list[dict[str, Any]]) -> None:
         """布局 Widget 实体绑定：右侧/浮动面板部件、收藏。"""
         try:
@@ -191,9 +175,7 @@ class DeviceManagementService:
         except Exception as err:
             logger.warning("扫描告警规则绑定失败: %s", err)
 
-    # ------------------------------------------------------------------ #
     # 批量解绑
-    # ------------------------------------------------------------------ #
     async def unbind_zombies(self, req: dict[str, Any] | None) -> dict[str, Any]:
         """批量解绑僵尸绑定。
 
@@ -370,9 +352,7 @@ class DeviceManagementService:
 
         return False
 
-    # ------------------------------------------------------------------ #
     # 展示名
-    # ------------------------------------------------------------------ #
     async def load_zombie_friendly_name_map(
         self, entity_ids: list[str], registry_rows: list[dict[str, Any]] | None = None
     ) -> dict[str, str]:
@@ -432,9 +412,7 @@ class DeviceManagementService:
         """实体展示名：优先 HA 属性/注册表中文名，不要用 object_id 冒充。"""
         return self.usable_friendly_name(entity_id, hint) or names.get(entity_id, "") or ""
 
-    # ------------------------------------------------------------------ #
     # 工具
-    # ------------------------------------------------------------------ #
     @staticmethod
     def parse_layout(layout: Any) -> dict[str, Any]:
         """解析 layout 字段为对象（JSON TEXT 列读出值可能为字符串）。"""

@@ -25,16 +25,7 @@
 </template>
 
 <script setup>
-/**
- * @file ErrorBoundary.vue
- * @module common/ErrorBoundary
- * @description 应用级错误边界：捕获子组件渲染错误，避免整页白屏
- *  职责：
- *    - 通过 onErrorCaptured 捕获子树渲染异常；
- *    - 错误时展示友好卡片与重试入口；
- *    - reset 通过递增 internalKey 强制子树重新挂载，规避遗留状态。
- *  依赖：vue ref/onErrorCaptured，@lucide/vue 图标，utils/core/logger。
- */
+/** - 通过 onErrorCaptured 捕获子树渲染异常； */
 import { ref, onErrorCaptured } from 'vue'
 import { AlertTriangle } from '@lucide/vue'
 import { logger } from '@/shared/utils/core/logger'

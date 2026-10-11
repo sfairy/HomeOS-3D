@@ -1,7 +1,4 @@
-"""应用 lifespan：服务装配与停机清理。
-
-从 ``app.create_app`` 原样抽出，行为不变。
-"""
+"""应用 lifespan：服务装配与停机清理。"""
 
 from __future__ import annotations
 
@@ -195,8 +192,7 @@ def _make_state_listener(app: FastAPI, gateway: Any, store: Any):
             return
         coalesce = getattr(app.state, "state_ingress_coalesce", None)
         if coalesce is not None:
-            # 入口微窗口合并（对齐 Nest HaStateIngressCoalesceService）：
-            # 同 entity 连续变更在窗口内合并，关键域 / 非合并域立即下发。
+            # 入口微窗口合并：同 entity 连续变更在窗口内合并，关键/非合并域立即下发。
             coalesce.enqueue(change)
             return
         await bus.emit("ha.state_changed.batch", {"changes": [change]})
@@ -245,8 +241,7 @@ def create_lifespan(app_settings: Settings, version: str):
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app_settings.data_dir.mkdir(parents=True, exist_ok=True)
-        # 必须早于迁移：上一次还原若在换库途中崩溃，先把数据目录与数据库回滚到还原前，
-        # 再对（已回滚的）库执行迁移，避免在「还原了一半」的结构上跑升级。
+        # 必须早于迁移：先回滚中断的还原，避免在半还原的结构上跑升级。
         recovery_required = recover_interrupted_restore(app_settings)
         migration_backup = migrations.run_migrations(app_settings)
         app.state.database = Database(app_settings.database_url)
@@ -255,9 +250,7 @@ def create_lifespan(app_settings: Settings, version: str):
         app.state.started_at = time.monotonic()
         app.state.db_probe = None  # (at, ok)
 
-        # -------------------------------------------------------------- #
         # 运行日志环形缓冲：镜像 homeos 日志树，供 /system/runtime-logs 查询
-        # -------------------------------------------------------------- #
         configure_app_logging()
         app.state.runtime_logs = RuntimeLogBuffer()
         install_runtime_log_handler(app.state.runtime_logs)
@@ -265,23 +258,19 @@ def create_lifespan(app_settings: Settings, version: str):
         # 调度作业注册中心：/system/jobs 诊断面板数据源
         app.state.jobs = JobRegistryService()
 
-        # -------------------------------------------------------------- #
         # 应用配置（运行参数）：内存缓存 + DB 持久化 + 脱敏 + 审计
-        # -------------------------------------------------------------- #
         app_config = AppConfigService(app.state.database.session_factory)
         app_config.start()
         app.state.app_config = app_config
         app.state.app_config_backup = AppConfigBackupService(app_config)
 
-        # 商业授权：并入 homeos-3d 授权服务（Ed25519 验签租约 + X25519 加密传输 +
-        # 本地 Fernet 凭证加密 + 进程锁）。构造期即做公钥自检，指纹不符会直接启动失败。
+        # 授权服务：构造期即做公钥自检，指纹不符直接启动失败。
         license_service = LicenseService(app_settings, app.state.database, transport=None)
         app.state.license = license_service
         app.state.license_service = license_service
 
-        # 3D Studio 后端平面：HA 单连接（3D ``HAConnectorService`` + ``StateHub``）+ 数据面服务。
-        # 显式注入 database；global_log 由本平面自行创建。必须早于下方 homeos HA 块，
-        # 以便把 ``app.state.ha_connector`` 指向 3D HA 连接器本身。
+        # 3D Studio 后端平面：必须早于下方 HA 块，以把 ``app.state.ha_connector``
+        # 指向 3D HA 连接器本身。
         await studio3d_plane.install(app, app_settings, app.state.database)
 
         # 数据保留：策略面板 + 分批清理（首次延迟 + 周期调度在此接入）
@@ -295,16 +284,13 @@ def create_lifespan(app_settings: Settings, version: str):
         distributed_lock = DistributedLockService()
         app.state.distributed_lock = distributed_lock
         database_retention.lock = distributed_lock
-        # Phase 3+ 会在此装配 license / ha-connector / socketio 网关。
-        # 事件日志：订阅 HA 冷批状态变更，内存缓冲后批量落库（socketio 网关在广播时喂入）。
+        # 事件日志：订阅 HA 冷批状态变更，内存缓冲后批量落库。
         event_log_service = EventLogService(app.state.database)
         event_log_service.bind_loop(asyncio.get_running_loop())
         app.state.event_log = event_log_service
 
-        # -------------------------------------------------------------- #
         # HA 端点解析：连接器（3D HAConnectorService）为唯一 HA 通道，
         # 这里只保留静态端点读取，供旁路消费者（语音 / 摄像头 WS / 安防）取用。
-        # -------------------------------------------------------------- #
         def _endpoint_loader():
             with app.state.database.session_factory() as session:
                 # 传 cipher：令牌只以密文存在连接记录里，不传就解不出来，ha_configured 会误判为未配置。
@@ -312,12 +298,7 @@ def create_lifespan(app_settings: Settings, version: str):
 
 
         async def _voice_rest_config() -> dict[str, Any]:
-            """HA Assist 对话接口所需的 ``{haUrl, token}``（对齐 ``getConfigForRest``）。
-
-            跟随连接器的活跃端点而不是静态的「内网优先」配置：内网不可达、连接器已切到外网时，
-            Assist 若还打内网地址就会整段不可用。地址与令牌都取自连接记录（单源
-            ``ha_connections``），令牌在解析时由同一处解密。
-            """
+            """HA Assist 所需的 ``{haUrl, token}``：取连接器活跃端点，避免内网不可达时打错地址。"""
 
             def _load() -> dict[str, Any]:
                 with app.state.database.session_factory() as session:
@@ -330,15 +311,11 @@ def create_lifespan(app_settings: Settings, version: str):
 
         gateway = app.state.realtime
         state_store = gateway.state_store
-        # 实体同步过滤共享视图：由 HaConnector 在注册表加载后 configure（对齐 Nest）。
+        # 实体同步过滤共享视图：由 HaConnector 在注册表加载后 configure。
         entity_sync_filter = HaEntitySyncFilterService()
         app.state.entity_sync_filter = entity_sync_filter
 
-        # 单一 HA 连接：连接与 StateHub 由并入的 3D ``HAConnectorService`` 持有（见上方
-        # ``studio3d_plane.install``）。homeos 既有连接器接口已**并入连接器本身**
-        # （``ha.homeos_facade.HomeOSFacadeMixin``），因此这里不再包一层适配器：
-        # ``app.state.ha_connector`` 与 ``app.state.studio_ha`` 是同一个对象，
-        # 业务消费者与 3D 数据面共用同一条连接，调用点无需改写。
+        # 单条 HA 连接：``ha_connector`` 与 ``studio_ha`` 是同一对象，业务与 3D 数据面共用。
         ha_connector = app.state.studio_ha
         ha_connector.attach_state_store(state_store)
         ha_state_listener = _make_state_listener(app, gateway, state_store)
@@ -353,13 +330,11 @@ def create_lifespan(app_settings: Settings, version: str):
         )
         app.state.command_proxy = CommandProxyService(app.state.database.session_factory, ha_connector)
 
-        # -------------------------------------------------------------- #
         # 安防域：事件总线 / 冷却 / 面板 / 在场 / Frigate / 离家模拟 / 演习
-        # -------------------------------------------------------------- #
         security_bus = LocalEventBus()
         # 回填事件总线：让 app_config 更新后广播 app.config.updated（各域热更新订阅依赖）
         app_config.set_event_bus(security_bus)
-        # HA 入口微窗口合并（对齐 Nest HaStateIngressCoalesceService）
+        # HA 入口微窗口合并
         state_ingress_coalesce = StateIngressCoalesceService(
             app.state.database.session_factory,
             security_bus,
@@ -396,14 +371,8 @@ def create_lifespan(app_settings: Settings, version: str):
         }.items():
             security_bus.on(event, handler)
 
-        # -------------------------------------------------------------- #
-        # 唯一 HA 连接的状态出口（融合点）
-        # -------------------------------------------------------------- #
-        # 连接器（3D ``HAConnectorService``）是唯一 HA 连接，所以它的连接生命周期就是
-        # ``app.state.ha_connected`` 与 ``ha.connected`` / ``ha.disconnected`` /
-        # ``ha.reconnecting`` 的唯一事实源。缺了这一环，gateway 的 ha_status 快照会
-        # 永远报「未连接」，前端横幅就常驻「正在重连 Home Assistant…」。
-        # 这里必须晚于上面的处理器注册：事件发出去时订阅方得已经在位。
+        # 连接器是唯一 HA 连接，其生命周期即 ``ha_connected`` 与 ha.connected / disconnected /
+        # reconnecting 的唯一事实源。必须晚于上面的处理器注册，事件发出时订阅方已在位。
         studio_connector = getattr(app.state, "studio_ha", None)
         if studio_connector is not None:
 
@@ -425,10 +394,7 @@ def create_lifespan(app_settings: Settings, version: str):
 
             studio_connector.set_connection_listener(_on_connector_connection)
 
-            # homeos 状态监听接管读模型：本连接器是唯一 HA 连接，所以它的全量快照与
-            # 全量增量都直接走这里（``_make_state_listener`` → StateStore 的 set_all /
-            # apply_change + ``ha.initial_states`` / ``ha.state_changed.batch`` 事件总线
-            # + socket.io 广播）。StateHub 仍只承载 3D 侧 watched 子集，供 /ws/runtime。
+            # 全量快照与增量直接走状态监听；StateHub 只承载 3D 侧 watched 子集，供 /ws/runtime。
             studio_connector.set_state_listener(ha_state_listener)
 
         security_config = SecurityConfigProvider(app.state.database.session_factory)
@@ -459,39 +425,30 @@ def create_lifespan(app_settings: Settings, version: str):
 
         app.state.security_bus = security_bus
 
-        # -------------------------------------------------------------- #
         # UI 配置域：布局方案 / 终端绑定 / 静态资源
-        # -------------------------------------------------------------- #
         ui_config = UiConfigService(
             app.state.database.session_factory,
             app_config,
             event_bus=security_bus,
         )
         ui_config._static_assets.ensure_dirs()
-        # 存量库清理：角色体系下线后 layout.wholeHomeOff.roles 已无读取方，
-        # 读路径只是「不认」它，这里一次性把它从库里删掉，不必等用户再保存一次。
+        # 一次性清理已下线的 layout.wholeHomeOff.roles，避免等用户再次保存才删除。
         ui_config.normalize_retired_layout_keys()
         app.state.ui_config = ui_config
 
-        # -------------------------------------------------------------- #
         # 系统域：版本 / 健康 / 网络信息 + 设备管理（僵尸绑定扫描与解绑）
-        # -------------------------------------------------------------- #
         app.state.system_service = SystemService(app_settings, ui_config)
         app.state.device_health = DeviceHealthService(state_store)
         app.state.device_management = DeviceManagementService(
             app.state.database.session_factory, state_store, ui_config, ha_connector
         )
 
-        # -------------------------------------------------------------- #
         # 生活方式域：影音场景
-        # -------------------------------------------------------------- #
         media_scene = MediaSceneService(ha_connector, app_config)
         media_scene.start()
         app.state.media_scene = media_scene
 
-        # -------------------------------------------------------------- #
         # 系统运维域：外部数据源（天气/电价/日历）+ MoviePilot 透明代理 + 内嵌反代
-        # -------------------------------------------------------------- #
         external_api = ExternalApiService(
             app_config,
             event_bus=security_bus,
@@ -504,9 +461,7 @@ def create_lifespan(app_settings: Settings, version: str):
         app.state.moviepilot_proxy = MoviePilotProxyService(ui_config)
         app.state.embed_proxy = EmbedProxyService(ui_config, app_settings)
 
-        # -------------------------------------------------------------- #
         # 备份与还原：统一全量备份（含数据库）/ 服务器备份文件 / 定时自动备份
-        # -------------------------------------------------------------- #
         server_backup = ServerBackupService(app_settings)
         auto_backup = AutoBackupService(app_config, server_backup)
         app.state.server_backup = server_backup
@@ -519,9 +474,7 @@ def create_lifespan(app_settings: Settings, version: str):
             business_backup.recovery_required = True
         app.state.business_backup = business_backup
 
-        # -------------------------------------------------------------- #
         # 首装向导：进度 / 引导清单 / 绑定缺口 / 配置健康评分
-        # -------------------------------------------------------------- #
         app.state.setup_wizard = SetupWizardService(
             app_config,
             app.state.database.session_factory,
@@ -529,7 +482,7 @@ def create_lifespan(app_settings: Settings, version: str):
             state_store,
         )
 
-        # 布局 HA 配置变更 → 按指纹重连 HA（对齐 Nest SYSTEM_CONFIG_UPDATED 监听）
+        # 布局 HA 配置变更 → 按指纹重连 HA
         _boot_endpoints = _endpoint_loader()
         _ha_fingerprint = {
             "value": "|".join(
@@ -554,9 +507,7 @@ def create_lifespan(app_settings: Settings, version: str):
                 return
             try:
                 await ha_connector.stop()
-                # ``HAConnectorService.start`` 是**同步**方法（内部只建任务，见 domains/ha/integration/service.py）。
-                # 适配器时代它是 async 空实现，折进后必须按同步调用：await None 会抛
-                # TypeError，而这里恰好被 except 吞掉，结果「已按新地址重连」成为假日志。
+                # ``HAConnectorService.start`` 是同步方法：await None 会抛 TypeError 并被吞掉。
                 ha_connector.start()
                 logger.info("HA 连接配置变更，已按新地址重连")
             except Exception as exc:
@@ -621,9 +572,7 @@ def create_lifespan(app_settings: Settings, version: str):
         )
         app.state.security_linkage = security_linkage
 
-        # -------------------------------------------------------------- #
         # 智能管家域：LLM 工具调用 / 快路径 / 命令缓存 / 会话记忆 + MCP 网关
-        # -------------------------------------------------------------- #
         agent_config = AgentConfigService(
             app.state.database.session_factory,
             app_config,
@@ -696,9 +645,7 @@ def create_lifespan(app_settings: Settings, version: str):
             server_version=version,
         )
 
-        # -------------------------------------------------------------- #
         # 消息通道：Email / WebPush / 企业微信（Phase 6）
-        # -------------------------------------------------------------- #
         channel_config = ChannelConfigService(ui_config, event_bus=security_bus)
         channel_config.bind_events()
         app.state.channel_config = channel_config
@@ -731,9 +678,7 @@ def create_lifespan(app_settings: Settings, version: str):
         channels_service.start()
         app.state.channels_service = channels_service
 
-        # -------------------------------------------------------------- #
         # 客户端电量联动（Phase 6）
-        # -------------------------------------------------------------- #
         client_power = ClientPowerService(
             app_config,
             app.state.database.session_factory,
@@ -745,9 +690,7 @@ def create_lifespan(app_settings: Settings, version: str):
         await client_power.start()
         app.state.client_power = client_power
 
-        # -------------------------------------------------------------- #
         # 通知域：站内通知 / 告警规则 / 偏好 / 领域事件订阅
-        # -------------------------------------------------------------- #
         notification = NotificationService(
             app.state.database.session_factory,
             event_bus=security_bus,
@@ -759,9 +702,7 @@ def create_lifespan(app_settings: Settings, version: str):
         await notification.start()
         app.state.notification = notification
 
-        # -------------------------------------------------------------- #
         # 实体反向引用：布局 / 家庭模式 / 告警规则 / 系统配置 的「哪些功能引用了该实体」
-        # -------------------------------------------------------------- #
         alert_rule_watch_index = AlertRuleWatchIndex()
         app.state.alert_rule_watch_index = alert_rule_watch_index
         app.state.entity_references = EntityReferencesService(
@@ -783,9 +724,7 @@ def create_lifespan(app_settings: Settings, version: str):
         domain_events.bind()
         app.state.domain_events = domain_events
 
-        # -------------------------------------------------------------- #
         # 语音 / 智能顾问用量（Phase 6：awareness）
-        # -------------------------------------------------------------- #
         voice_service = VoiceService(
             app_config=app_config,
             ha_connector=ha_connector,
@@ -818,9 +757,7 @@ def create_lifespan(app_settings: Settings, version: str):
         # HA 连上后重建房间设备映射：启动期 HA 未就绪会拿到空映射（见 build_room_device_map_from_config）
         security_bus.on("ha.connected", advisor_usage.on_ha_connected)
 
-        # -------------------------------------------------------------- #
         # 天气预警监听 + 极端天气安全联动（Phase 6：weather）
-        # -------------------------------------------------------------- #
         weather_watch = WeatherWatchService(
             external_api=external_api,
             notification=notification,
@@ -842,9 +779,7 @@ def create_lifespan(app_settings: Settings, version: str):
         security_bus.on("weather.alert", weather_linkage.on_weather_alert)
         app.state.weather_linkage = weather_linkage
 
-        # -------------------------------------------------------------- #
         # 地震预警（Phase 6）：Wolfx WS + SC/CENC 轮询 + 目录 + 全球目录
-        # -------------------------------------------------------------- #
         eew_leader = EewLeaderService()
         await eew_leader.start()
         app.state.eew_leader = eew_leader

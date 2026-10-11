@@ -1,19 +1,7 @@
 <!--
-组件：AlertRulesEarthquakeSection.vue
-所属模块：frontend / src / views / settings / interact / alert-rules
-职责：地震预警配置区段。整合主开关（EarthquakeHero）、数据连接状态（EarthquakeConnPanel）、
-      家庭坐标录入/HA 同步/城市预设、震级·距离·烈度阈值、S 波倒计时演练与测试触发。
-      进入该区段时轮询 Wolfx 状态，离开时停止；未保存时挂起保存条。
-关键依赖：
-  - AlertRulesEarthquakeHero / AlertRulesEarthquakeConnPanel：主开关与连接状态子组件
-  - SettingsCard / SettingsSectionHead / SettingsPendingSaveAction：卡片与保存条
-  - HosSelect：阈值/城市预设下拉
-  - useLayoutStore：读写 layoutConfig.earthquakeConfig
-  - useEarthquakeStatusQuery / schedulePoll：状态拉取与可见性调度轮询
-  - syncEarthquakeHomeCoordsFromHa：从 HA 同步家庭坐标
-  - triggerEarthquakeTest：测试触发
-  - EEW_*_OPTIONS / createDefaultEarthquakeConfig：阈值选项与默认配置
-数据来源：useLayoutStore 的 earthquakeConfig；useEarthquakeStatusQuery 的连接状态
+  地震预警配置区段。整合主开关（EarthquakeHero）、数据连接状态（EarthquakeConnPanel）、
+  家庭坐标录入/HA 同步/城市预设、震级·距离·烈度阈值、S 波倒计时演练与测试触发。
+  进入该区段时轮询 Wolfx 状态，离开时停止；未保存时挂起保存条。
 -->
 <template>
   <div class="settings-hub-section alert-eew-hub">

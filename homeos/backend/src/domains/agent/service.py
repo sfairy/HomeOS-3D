@@ -1,17 +1,4 @@
-"""智能管家核心编排服务。
-
-职责：把用户自然语言指令按以下优先级流转：
- 1) 纠正 / 清除记忆（口令匹配）→ 直接回复
- 2) 命令缓存命中（已确认）→ 直接执行工具
- 3) 查询快路径（温度 / 湿度）→ get_area_snapshot 直接回复
- 4) 控制快路径（开 / 关 / 设温度）→ control_device / control_room
- 5) LLM tool-calling 多轮循环（最多 maxRounds 轮）
-并在成功路径上回写命令缓存，失败路径上清理缓存。
-依赖：LlmProvider（注入）、HomeToolsService、FastPathService、CommandCacheService、
- LangTemplateService、AgentConfigService。
-会话上下文分两层：AgentSessionStoreService（10 分钟 / 16 轮，连续对话长上下文）
-与 AgentShortTermMemoryService（45s / 2 轮，反问闭环与指代消解）。
-"""
+"""智能管家核心编排服务。"""
 
 from __future__ import annotations
 
@@ -262,9 +249,7 @@ class AgentService:
         """当前语言模板（口令、回复模板、系统提示）。"""
         return self._lang_templates.current
 
-    # ------------------------------------------------------------------ #
     # 提供商信息
-    # ------------------------------------------------------------------ #
     def get_provider_info(self) -> dict[str, Any]:
         """返回当前 LLM 提供商信息（名称 + 就绪状态），不触发刷新。"""
         return {"provider": self._llm.name, "ready": self._llm.is_ready()}
@@ -279,9 +264,7 @@ class AgentService:
                 await result
         return self.get_provider_info()
 
-    # ------------------------------------------------------------------ #
     # 会话 key
-    # ------------------------------------------------------------------ #
     def _scope_session_id(self, options: AgentChatOptions | None) -> str | None:
         """把客户端自带的 session_id 收敛为「按登录身份隔离」的服务端会话 key。
 
@@ -297,9 +280,7 @@ class AgentService:
         owner = (actor.user_id if actor else None) or (actor.username if actor else None) or "anon"
         return f"{owner}:{raw}"
 
-    # ------------------------------------------------------------------ #
     # 主入口
-    # ------------------------------------------------------------------ #
     async def chat(
         self,
         user_message: str,
@@ -392,9 +373,7 @@ class AgentService:
             return f"（已执行）{summary}" if summary else None
         return None
 
-    # ------------------------------------------------------------------ #
     # 核心流程
-    # ------------------------------------------------------------------ #
     async def _chat_internal(
         self,
         user_message: str,
@@ -837,9 +816,7 @@ class AgentService:
             },
         )
 
-    # ------------------------------------------------------------------ #
     # 辅助
-    # ------------------------------------------------------------------ #
     async def _resolve_system_prompt(self) -> str:
         """解析系统提示：默认模板 + 用户自定义补充（来自 AgentConfig）。"""
         cfg = await self._agent_config.get_config()

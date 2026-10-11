@@ -1,17 +1,4 @@
-/**
- * @module useDeviceGroupBatch
- * @description DeviceGroupModal 批量执行与重试组合式函数。
- *
- * 职责：
- * - 对设备分组中的实体集合执行批量开/关、批量温控关机等操作。
- * - 记录最近一次批量调用的 payload，支持对失败项一键重试。
- * - climate 域走 set_hvac_mode(off)，其它域走 turn_on/turn_off。
- *
- * 依赖：
- * - vue：ref/computed 响应式状态。
- * - @/shared/device/utils/group-battery.util：DeviceGroupEntitiesStoreLike 类型。
- * - @/shared/types/entity-store：HaEntityState 实体状态类型。
- */
+/** - 对设备分组中的实体集合执行批量开/关、批量温控关机等操作。 */
 import { ref, computed, type Ref } from 'vue'
 import type { DeviceGroupEntitiesStoreLike } from '@/shared/device/utils/group-battery.util'
 import type { HaEntityState } from '@/shared/types/entity-store'

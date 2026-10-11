@@ -1,25 +1,4 @@
-/**
- * 实体派生索引绑定（从 entities.store 抽离）
- *
- * 职责：
- * - 维护派生索引：onlineCount / lightCount / climateCount / sensorIndex / domainCounts /
- *   domainEntityIndex / batteryDevices / offlineDevices / cachedDomains / domainEpochs
- * - rebuildDerivedData：全量重建派生索引（按需切换 Worker / 主线程路径）
- * - patchDerivedChanges：增量应用 WS 推送变更（O(p) 而非 O(n)）
- * - scheduleRebuildDerived：debounce 调度全量重建
- * - resetDerivedIndexes：清空所有派生索引并失效 Worker 基线
- * - 页面可见性监听：恢复可见时立即全量重建，避免标签页隐藏期间累积陈旧数据
- *
- * 关键依赖：
- * - @/shared/entity/utils/derived-internals：主线程派生重建器（rebuild / patch）
- * - @/workers/entity-derived-bridge：Worker 派生重建与增量 patch（大实体阈值启用）
- * - @/shared/entity/utils/derived-route.util：路由级 patch 过滤、debounce 倍率、域 epoch 递增
- *
- * 实现说明：
- * - Pinia setup store 无组件实例，不可用 onMounted/onUnmounted；单例 store 生命周期等同应用
- * - Worker 模式下隐藏期间 patchDerivedChanges 被跳过，恢复可见时统一走 rebuildDerivedData()
- *   保证 Worker 基线与主线程索引重新同步
- */
+/** 实体派生索引绑定（从 entities.store 抽离） */
 import { ref, reactive } from 'vue'
 import { createEntityDerivedRebuilder } from '@/shared/entity/utils/derived-internals'
 import {

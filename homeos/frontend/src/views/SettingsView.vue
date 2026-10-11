@@ -1,7 +1,3 @@
-<!--
-组件：SettingsView.vue
-所属模块：frontend / src / views
--->
 <template>
   <div
     class="settings-shell"
@@ -86,12 +82,6 @@
 
 <script setup>
 import { readLocalStorageFlag, writeLocalStorage } from '@/shared/utils/core/local-storage.util'
-/**
- * 职责：渲染 views/SettingsView 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 /**
  * 系统设置页面 — 薄壳入口
  * 侧边栏分组导航 + 动态面板加载，样式见 settings/shared/settings-theme.css

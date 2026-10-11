@@ -39,9 +39,7 @@ class ServerBackupService:
     def __init__(self, settings: Any) -> None:
         self._settings = settings
 
-    # ------------------------------------------------------------------ #
     # 生成 / 列出
-    # ------------------------------------------------------------------ #
     def create_backup(self) -> dict[str, str]:
         directory = self._resolve_backup_dir()
         directory.mkdir(parents=True, exist_ok=True)
@@ -83,9 +81,7 @@ class ServerBackupService:
             return []
         return sorted(entries, key=lambda item: item["mtime"], reverse=True)
 
-    # ------------------------------------------------------------------ #
     # 下载 / 删除 / 还原
-    # ------------------------------------------------------------------ #
     def resolve_file_path(self, raw_name: str) -> Path:
         name = self.assert_safe_bundle_name(raw_name)
         full = self._resolve_backup_dir() / name
@@ -121,9 +117,7 @@ class ServerBackupService:
         finally:
             shutil.rmtree(work, ignore_errors=True)
 
-    # ------------------------------------------------------------------ #
     # 内部工具
-    # ------------------------------------------------------------------ #
     def _next_bundle_name(self) -> str:
         stamp = (
             datetime.now(UTC)

@@ -1,16 +1,6 @@
 <!--
-组件：MediaPlaylistSettingsModal.vue
-所属模块：frontend / src / views / settings / shared / system-config
-职责：媒体播放列表设置弹窗。在高级参数中配置媒体播放列表部件的播放项，内嵌 PlaylistWidget 编辑器，
-      支持焦点陷阱与 teleport 到 shell。
-Props：
-  - open：是否打开
-Emits：
-  - close：关闭弹窗
-关键依赖：
-  - MediaPlaylistWidget：播放列表编辑组件
-  - useFocusTrap / useShellTeleportTarget：焦点陷阱与 teleport
-数据来源：PlaylistWidget 内部状态
+  媒体播放列表设置弹窗。在高级参数中配置媒体播放列表部件的播放项，内嵌 PlaylistWidget 编辑器，
+  支持焦点陷阱与 teleport 到 shell。
 -->
 <template>
   <Teleport :to="teleportTarget" :disabled="teleportDisabled">

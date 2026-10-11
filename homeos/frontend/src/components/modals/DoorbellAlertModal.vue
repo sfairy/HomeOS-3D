@@ -1,8 +1,6 @@
 <!--
   DoorbellAlertModal.vue / components/modals
   可视门铃提醒：紧凑三行结构——标题栏 / 纯净视频 / 操作说明。
-  Props: isOpen / cameraId / triggerId / lockEntityId / label
-  Emit: close
 -->
 <template>
   <Transition name="doorbell-pop">

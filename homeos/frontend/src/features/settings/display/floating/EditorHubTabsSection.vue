@@ -1,23 +1,8 @@
 <!--
-组件：EditorHubTabsSection.vue
-所属模块：frontend / src / views / settings / display / floating
-职责：浮动组件编辑器 - 标签页视图区段。配置面板默认 Tab 与可见视图，并按组件类型提供
-      趋势传感器、播放器实体、快捷开关实体的多选绑定。
-关键依赖：
-  - HubTabsConfigField：Hub Tabs 配置字段
-  - EntityMultiSelect：实体多选
-  - useDraftObjectField：草稿字段双向绑定
-  - hubTabOptions：按组件类型派生可用 Tab 集合
-  - joinCommaEntityIds / parseCommaEntityIds：逗号分隔实体 id 与数组互转
-数据来源：父级透传的 afhConfig / afhHubTabs（双向）/ fw（组件类型）
+  浮动组件编辑器 - 标签页视图区段。配置面板默认 Tab 与可见视图，并按组件类型提供
+  趋势传感器、播放器实体、快捷开关实体的多选绑定。
 -->
 <script setup>
-/**
- * 职责：渲染 views/EditorHubTabsSection 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { computed } from 'vue'
 import { Settings2 } from '@lucide/vue'
 import HubTabsConfigField from '../widgets/HubTabsConfigField.vue'
@@ -26,15 +11,12 @@ import { hubTabOptions } from '@/features/settings/composables/display/layout-fl
 import { useDraftObjectField } from '@/features/settings/composables/hub-ui.internals'
 import { joinCommaEntityIds, parseCommaEntityIds } from '@/shared/entity/utils/comma-entity-ids.util'
 
-// 双向绑定：Hub Tabs 配置（defaultTab + visibleTabs）
 const afhHubTabs = defineModel('afhHubTabs', { type: Object, required: true })
 
-// 入参：浮动组件对象（含 type 用于区分 climateHub/mediaMini/switchGroup 等）
 defineProps({
   fw: { type: Object, required: true },
 })
 
-// 双向绑定：AFH 编辑器草稿配置（含 sensorIds / playerEntities 等）
 const afhConfig = defineModel('afhConfig', { type: Object, required: true })
 
 const { field } = useDraftObjectField(() => afhConfig.value)

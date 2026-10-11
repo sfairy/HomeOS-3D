@@ -1,15 +1,4 @@
-/**
- * @module entity-derived-internals
- * @description 实体派生数据：key 索引 + 重建器。
- *
- * 职责：
- * - 维护实体派生累加器（在线数 / 灯数 / 空调数 / 电池列表 / 离线列表 / 传感器索引 / 域计数）。
- * - 提供全量分片重建（基于 requestIdleCallback 分片执行，避免阻塞主线程）。
- * - 提供增量 patch（单实体新增 / 移除，合并 debounce 后批量应用）。
- * - 支持延迟二级索引（电池 / 离线 / 传感器）重建，优先保证主计数快速就绪。
- *
- * 依赖：`@homeos/shared` 提供 getEntityDomain。
- */
+/** - 维护实体派生累加器（在线数 / 灯数 / 空调数 / 电池列表 / 离线列表 / 传感器索引 / 域计数）。 */
 import type { DerivedSnapshot, EntitiesMap, HaEntityState, HaEntityView } from '@/shared/types/entity-store'
 import { getEntityDomain } from '@homeos/shared'
 

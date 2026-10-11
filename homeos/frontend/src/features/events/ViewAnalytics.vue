@@ -1,20 +1,6 @@
 <!--
-组件：EventsViewAnalytics.vue
-所属模块：frontend / src / views
-职责：事件历史「分析」子视图——渲染 KPI 卡 + 三个 ECharts 图表
-      （域分布饼图 / 事件时序折线 / 高频实体横向条形）。
-数据来源：父级透传 props.stats（后端聚合统计）；图表由本组件用 ECharts 直接渲染。
-Props：
-  - stats：后端聚合统计对象（byDomain / byTime / topEntities / total），可空。
-  - hours：回溯窗口小时数，影响 KPI 均值与时间粒度（≤48h 按小时 / 否则按天）。
-  - entityFilter / domainFilter：当前筛选条件，变化时触发图表重渲。
-  - entityDisplayName / formatCount：实体友好名与计数格式化函数（由父级注入复用）。
-Emits：
-  - filter-by-domain：用户点击域饼图扇区时抛出，供父级联动筛选。
-  - filter-by-entity：用户点击实体条形时抛出，供父级联动筛选。
-关键交互：
-  - 三张图表通过 useEchartsHost 统一调度渲染（schedule + onRendered 回调绑定点击事件）；
-  - watch stats/hours/筛选 变化时调用 schedule 触发重渲。
+  事件历史「分析」子视图——渲染 KPI 卡 + 三个 ECharts 图表
+  （域分布饼图 / 事件时序折线 / 高频实体横向条形）。
 -->
 <template>
   <div class="ev-analytics">

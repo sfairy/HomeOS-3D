@@ -1,7 +1,6 @@
 <!--
   ConnectionOverview区域组件
-  所属模块：设置 - 连接
-  职责：HA 连接总览、流程带与部署提示
+  HA 连接总览、流程带与部署提示
 -->
 <template>
   <SettingsCardIntro

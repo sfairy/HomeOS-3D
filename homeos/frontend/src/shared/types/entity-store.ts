@@ -1,7 +1,4 @@
-/**
- * 实体 store 运行时类型：HA 实体快照、WebSocket 同步、派生索引、缓存与依赖接口。
- * 依赖：@/shared/types/entity（EntitySnapshot）、vue（Ref）。
- */
+/** 实体 store 运行时类型：HA 实体快照、WebSocket 同步、派生索引、缓存与依赖接口。 */
 import type { HaEntity } from '@homeos/shared'
 import type { EntitySnapshot } from '@/shared/types/entity'
 import type { Ref } from 'vue'

@@ -1,14 +1,4 @@
-/**
- * 公用事业实体辅助函数：从 HA 实体读取并解析弹窗属性值。
- *
- * 模块职责：
- *  - 提供 HA 实体 attributes / 嵌套 data 字段的统一读取入口；
- *  - 提供宽松 JSON 与数值解析工具，供水/电/气/通信弹窗复用。
- *
- * 依赖：
- *  - @/shared/utils/core/misc.util 中的 parseJsonLoose（容忍非标准 JSON）；
- *  - @/shared/types/entity-store 中的 HaEntityState 类型。
- */
+/** 公用事业实体辅助函数：从 HA 实体读取并解析弹窗属性值。 */
 import { parseJsonLoose } from '@/shared/utils/core/misc.util'
 import type { HaEntityState } from '@/shared/types/entity-store'
 

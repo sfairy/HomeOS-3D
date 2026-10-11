@@ -1,16 +1,6 @@
 <!--
-组件：SystemConfigAuditCard.vue
-所属模块：frontend / src / views / settings / shared / system-config
-职责：高级参数审计卡片。展示配置变更审计日志（时间、分区、字段、新旧值），按分区标签与字段标签
-      本地化渲染。
-Props：
-  - entries：审计日志条目列表
-  - sectionLabel：分区标签渲染函数
-  - fieldLabel：字段标签渲染函数
-  - showHead：是否显示表头
-关键依赖：
-  - formatAuditTimestamp：审计时间戳格式化
-数据来源：父级透传的 entries
+  高级参数审计卡片。展示配置变更审计日志（时间、分区、字段、新旧值），按分区标签与字段标签
+  本地化渲染。
 -->
 <template>
   <div class="config-audit">

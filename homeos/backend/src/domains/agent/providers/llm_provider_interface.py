@@ -1,9 +1,4 @@
-"""LLM 提供商接口与消息类型定义。
-
-职责：定义智能管家与大语言模型之间的统一抽象（LlmProvider），
- 让 AgentService 不感知具体是 deepseek 还是 mock，由 ResolvingLlmProvider 在运行时切换。
-依赖：被 deepseek_llm_provider / mock_llm_provider / resolving_llm_provider 实现。
-"""
+"""LLM 提供商接口与消息类型定义。"""
 
 from __future__ import annotations
 

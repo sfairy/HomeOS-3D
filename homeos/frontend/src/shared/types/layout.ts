@@ -1,7 +1,4 @@
-/**
- * 仪表盘 / 侧栏布局配置类型：楼层、热点、悬浮组件、安防、地震、智能管家等。
- * 依赖：@/shared/types/dashboard-footer、@/shared/types/whole-home-off、@/shared/types/earthquake、@/shared/types/setup-wizard。
- */
+/** 仪表盘 / 侧栏布局配置类型：楼层、热点、悬浮组件、安防、地震、智能管家等。 */
 import type { DashboardFooterConfig } from '@/shared/types/dashboard-footer'
 import type { WholeHomeOffConfig } from '@/shared/types/whole-home-off'
 import type { EarthquakeConfig } from '@/shared/types/earthquake'

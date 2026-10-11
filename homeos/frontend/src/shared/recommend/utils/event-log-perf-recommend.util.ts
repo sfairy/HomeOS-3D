@@ -1,14 +1,4 @@
-/**
- * EventLog 性能调优推荐模块。
- *
- * 职责：
- * - 基于 EventLog 统计快照与当前配置，识别写入性能瓶颈；
- * - 针对传感器占比过高、高频变更、保留期过短等场景给出 banner 建议；
- * - 识别高写入域（noisy domains）生成 chips 供筛选参考；
- * - 产出 RecommendInsightResult 供设置页连接 tab 渲染。
- *
- * 依赖：recommend.types 类型、event-log-record-recommend 格式化工具、locale-format 数字格式化。
- */
+/** EventLog 性能调优推荐模块。 */
 import type {
   EventLogStatsSnapshot,
   RecommendInsightResult,

@@ -1,27 +1,13 @@
 <!--
-组件：ClientPowerPendingSection.vue
-所属模块：frontend / src / views / settings / home / client-power
-职责：待配对终端区段。展示已发现但未配置策略的终端列表，每台含设备类型/在线状态/电量条/规格 chip，
-      提供「添加设备」与「清除」（仅离线可清除），并支持批量清除所有离线终端。
-关键依赖：
-  - SettingsCard / SettingsCardIntro：卡片与头部
-  - ClientPowerBatteryBar：电量条
-  - lucide 图标
-数据来源：父级透传的 pending / 各类派生函数 / 离线计数
+  待配对终端区段。展示已发现但未配置策略的终端列表，每台含设备类型/在线状态/电量条/规格 chip，
+  提供「添加设备」与「清除」（仅离线可清除），并支持批量清除所有离线终端。
 -->
 <script setup>
-/**
- * 职责：渲染 views/ClientPowerPendingSection 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { Monitor, Plus, Smartphone, Tablet, Trash2 } from '@lucide/vue'
 import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
 import SettingsCardIntro from '@/components/common/page-shell/SettingsCardIntro.vue'
 import ClientPowerBatteryBar from './ClientPowerBatteryBar.vue'
 
-// 入参：待配对列表、设备类型/标题/实时行/电量/规格派生函数、添加/清除/批量清除回调
 defineProps({
   pending: { type: Array, required: true },
   deviceKind: { type: Function, required: true },

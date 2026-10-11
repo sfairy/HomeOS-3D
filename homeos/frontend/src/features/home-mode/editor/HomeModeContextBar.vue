@@ -1,22 +1,6 @@
-/**
- * 组件：HomeModeContextBar.vue
- *
- * 职责：家庭模式编辑器顶部「上下文概览」条。以 pill 形式展示当前模式的关键上下文
- *      （如动作数、触发数、激活态等），嵌入设置页时包装为可折叠 DockPanel。
- * 关键依赖：
- *  - OrchestratorDockPanel：嵌入态下的可折叠面板容器
- * 数据来源：父级透传的 contextPills / contextLoadWarnings
- */
 <script setup>
-/**
- * 职责：渲染 views/HomeModeContextBar 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { computed } from 'vue'
 
-// 入参：上下文加载告警列表、上下文 pills、是否嵌入设置页
 const props = defineProps({
   contextLoadWarnings: { type: Array, default: () => [] },
   contextPills: { type: Array, required: true },

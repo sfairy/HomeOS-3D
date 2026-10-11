@@ -43,9 +43,7 @@ def _proxy(request: Request):
     return request.app.state.command_proxy
 
 
-# ---------------------------------------------------------------------- #
 # services/call
-# ---------------------------------------------------------------------- #
 @router.post("/services/call")
 async def call_service(
     payload: CallServiceDto,

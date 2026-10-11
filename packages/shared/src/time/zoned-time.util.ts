@@ -1,21 +1,4 @@
-/**
- * @file zoned-time.util.ts
- * @module @homeos/shared/time
- * @brief 时区感知日期拆解与墙上时钟换算（前后端共用）。
- *
- * 职责：
- *  - zonedDateParts：按可选 IANA 时区拆解日期部件（weekday 0=周日 对齐 JS Date.getDay）；
- *  - dateFromZonedWallClock：将「某时区墙上时钟」换算为 UTC 瞬时 Date；
- *  - dateFromZonedHourFraction：将某日小数小时（如 6.5=06:30）换算为对应 Date；
- *  - matchCronExpression：判定某 Date 是否命中 5 段 cron 表达式（分 时 日 月 周）。
- *
- * 关键依赖：
- *  - 家庭模式定时触发、自动备份、峰谷时段边界计算等。
- *
- * 约定：
- *  - cron 字段支持：*、数字、*\/N 步进、逗号列表、a-b 区间、a-b/n 区间步进、?（等价 *）；
- *  - 周字段：0=周日 … 6=周六；月字段：1-12；日字段：1-31。
- */
+/** - zonedDateParts：按可选 IANA 时区拆解日期部件（weekday 0=周日 对齐 JS Date.getDay）； */
 
 /**
  * 时区感知的日期拆分项（年/月/日均按目标时区的"墙上时钟"取值）。

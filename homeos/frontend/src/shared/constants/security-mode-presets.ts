@@ -1,18 +1,4 @@
-/**
- * 安防模式全屋预设
- *
- * 职责：
- * - 维护四种安防模式（armed_away / armed_home / armed_night / disarmed）的
- *   预设元数据（名称、描述）与动作模板。
- * - 供设置页「安防模式」一键套用预设，写入 `layout.securityModes[].actions`。
- *
- * 依赖：无外部依赖，纯静态预设。
- *
- * 注意：
- * - 生活方式相关的设备动作已迁移至「家庭模式」管理，安防场景预设默认动作留空，
- *   避免与家庭模式重复配置（双写）。
- * - 模式 key（armed_away 等）为 HA `alarm_control_panel` 标准 state 值，不翻译。
- */
+/** 安防模式全屋预设 */
 type SecurityModePresetMeta = { name: string; description: string }
 /** 安防模式预设动作：对应一条 HA service 调用 */
 type SecurityModePresetAction = {

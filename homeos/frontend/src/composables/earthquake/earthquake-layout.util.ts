@@ -1,14 +1,4 @@
-/**
- * @module earthquake/earthquake
- * @description 地震预警前端开关与展示格式化工具。
- *
- * 职责：
- *  - 判断前端是否应接受 EEW（Early Earthquake Warning）告警（须 layout 已启用）；
- *  - 同步用户关闭的预警到后端；
- *  - 格式化震级展示与颜色分级。
- *
- * 依赖：@/stores/layout.store、@/services/api/earthquake、@/shared/utils/core/logger。
- */
+/** - 判断前端是否应接受 EEW（Early Earthquake Warning）告警（须 layout 已启用）； */
 import { useLayoutStore } from '@/stores/layout.store'
 import { dismissEarthquakeAlert } from '@/services/api/earthquake'
 import { logger } from '@/shared/utils/core/logger'

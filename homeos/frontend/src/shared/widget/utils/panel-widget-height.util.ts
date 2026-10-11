@@ -1,14 +1,4 @@
-/**
- * 面板 / 侧栏微件卡片高度工具
- *
- * 职责：
- * - 解析用户配置的微件卡片高度（兼容 number / "240" / "240px" 等输入形式）。
- * - 钳制到与设置页滑块 min/max 对齐的合法范围，避免越界值。
- * - 在侧栏场景下融合「自定义高度优先、否则回退类型预设」的解析逻辑
- *   （时钟回退 0 表示内容自适应）。
- *
- * 依赖：@/shared/utils/registry/widget-registry-meta 提供微件类型规范化与默认高度查询。
- */
+/** 面板 / 侧栏微件卡片高度工具 */
 import {
   canonicalizeWidgetType,
   getSidebarWidgetDefaultHeight,

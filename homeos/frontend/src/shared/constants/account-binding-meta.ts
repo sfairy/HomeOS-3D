@@ -1,19 +1,4 @@
-/**
- * 生活账户绑定元数据
- *
- * 职责：
- * - 转发 @homeos/shared 中的账户绑定常量与工具函数（标签、分类、路由解析等）。
- * - 维护生活账户页面的子 Tab 配置（电网 / 燃气 / 水务 / 电信 / 联通）。
- * - 提供各类账户在 UI 上的字段元数据（标签、占位提示、约定 entity_id 前缀等）。
- * - 暴露便捷函数，用于把账户源 ID 翻译为中文展示文案，或拼装缺失账户的提示信息。
- *
- * 依赖：@homeos/shared 中维护的账户绑定基础常量与工具函数。
- *
- * 注意：
- * - Tab `id` 与字段映射的 key（grid / gas / water / ct / cu）为能源类别配置 key，不翻译。
- * - `prefix` 为 HA entity_id 约定前缀，`labelClass` / `prefixClass` 为 CSS 类名，均不翻译。
- * - `accent` 为 CSS 颜色值，不翻译。
- */
+/** 生活账户绑定元数据 */
 import { ACCOUNT_BINDING_SOURCE_LABELS } from '@homeos/shared'
 import { ENERGY_CONVENTION_PREFIX } from '@/shared/energy/constants/energy-fields'
 

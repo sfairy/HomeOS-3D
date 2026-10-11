@@ -1,16 +1,4 @@
-/**
- * 实体 domain 提取模块
- *
- * 职责：
- *  - 从 HA entity_id 中提取 domain 部分（点号前缀）。
- *
- * 关键依赖：
- *  - HA entity_id 格式约定："<domain>.<object_id>"，如 "light.living_room"。
- *
- * 约定：
- *  - 输入为空或不含 "." 时返回空字符串（不抛异常）；
- *  - 不校验 domain 合法性，仅做字符串切分。
- */
+/** 实体 domain 提取模块 */
 
 /** 从 entity_id 提取 domain（如 light.living → light） */
 export function getEntityDomain(entityId: string): string {

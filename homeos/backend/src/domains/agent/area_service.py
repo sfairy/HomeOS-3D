@@ -1,12 +1,4 @@
-"""智能管家房间视图服务。
-
-职责：从 HA area_registry（经 EntityAreaEnrichmentService 补全的实体区域索引）构建
- 房间 → 设备视图，供 HomeToolsService / FastPathService 使用。
-依赖：EntityAreaEnrichmentService、StateStore。
-
-说明：原「本地 DB Area 优先、HA 回退」的双真相源已移除；房间目录统一以 HA 为准，
- 避免本地影子数据盖住 HA 中更新的区域绑定。
-"""
+"""智能管家房间视图服务。"""
 
 from __future__ import annotations
 

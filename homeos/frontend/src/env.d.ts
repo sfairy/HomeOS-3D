@@ -1,14 +1,4 @@
-/**
- * 全局环境类型声明文件
- *
- * 职责：
- * 1. 引用 Vite 客户端类型（import.meta.env 等）
- * 2. 声明 .vue 单文件组件模块类型，使 TS 能正确识别 Vue 组件导入
- * 3. 扩展 Window 接口，暴露 HomeOS 专有的全局变量（Vue 运行时 API、语音识别等）
- * 4. 补充浏览器实验性 API 的类型声明（SpeechRecognition、Navigator 扩展、Performance.memory）
- *
- * 依赖：vue（DefineComponent 类型）、vite/client（环境变量类型）
- */
+/** 全局环境类型声明文件 */
 
 /// <reference types="vite/client" />
 

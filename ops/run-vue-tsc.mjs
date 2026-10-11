@@ -1,8 +1,8 @@
 /**
  * vue-tsc 启动器（**全仓唯一一份**）：为 vue-tsc 指定它该用的 TypeScript。
  *
- * 两个前端（`homeos/frontend` 与 `homeos-store`）的 `typecheck` 都调本文件 —— 此前它们各自在
- * `<app>/scripts/run-vue-tsc.mjs` 存了一份**字节级相同**的副本，改一处忘另一处就会两边行为漂移。
+ * 两个前端（`homeos/frontend` 与 `homeos-store`）的 `typecheck` 都调本文件；副本各自维护会
+ * 两边行为漂移，故收敛为一份。
  *
  * 全仓统一 TypeScript 6.x（vue-tsc 只支持到 6.x：它按 `typescript/lib/tsc` 子路径
  * 定位 tsc，而 7.x 的 `exports` 不再导出该子路径）。依赖经 bunfig.toml 的 hoisted

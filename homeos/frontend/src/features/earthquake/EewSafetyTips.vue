@@ -1,17 +1,4 @@
-/**
- * @file EewSafetyTips.vue
- * @module components/earthquake
- * @brief 地震预警避险提示卡片组件
- *
- * 职责：
- * - 在地震预警覆盖层中展示四条核心避险要领（保持冷静 / 躲避桌底 / 远离窗户 / 严禁电梯）
- * - 支持紧凑模式（compact），用于竖屏布局下节省纵向空间
- * - 每条提示由图标、文案与彩色边框组成，颜色按危险等级区分
- *
- * 依赖：
- * - @lucide/vue：图标库（Heart / Shield / TriangleAlert / Ban）
- * - 外部样式 ./styles/EewSafetyTips.css
- */
+/** - 在地震预警覆盖层中展示四条核心避险要领（保持冷静 / 躲避桌底 / 远离窗户 / 严禁电梯） */
 <template>
   <!-- 避险提示容器：紧凑模式下整体缩小，便于竖屏展示 -->
   <div class="eew-safety" :class="{ 'eew-safety--compact': compact }">
@@ -28,12 +15,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 EewSafetyTips 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 import { Ban, Heart, Shield, TriangleAlert } from '@lucide/vue'
 
 /**

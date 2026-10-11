@@ -1,27 +1,4 @@
-/**
- * @file AnchoredPopupShell.vue
- * @module components/entities/popups
- *
- * 锚定弹窗外壳（底层承载组件）
- *
- * 职责：
- * - 提供两种渲染模式：
- *   1) centered 模式（由上层通过 provide('entityPopupCentered') 注入）：直接内联渲染，不 Teleport
- *   2) 默认模式：Teleport 到 #teleport-target，依据锚点坐标定位
- * - 计算并应用锚点定位样式（useEntityPopupAnchor）、箭头样式与 wrapper/inner 类名
- * - 阻断点击/触摸事件的冒泡，避免误触发背景关闭；支持滑动关闭指令 v-swipe-close
- * - 通过 useKeepAliveGate 感知 keep-alive 场景，必要时禁用 Teleport 以避免被缓存
- *
- * 依赖：
- * - vue: computed / inject / useAttrs
- * - @lucide/vue: X（关闭按钮图标）
- * - @/composables/entity/useEntityPopupAnchor: 锚点定位计算
- * - @/composables/ui/useKeepAliveGate: keep-alive 门控
- *
- * 设计说明：
- * - inheritAttrs 关闭，手动透传非 class/style 的 attrs 到 wrapper，避免落到根元素
- * - pointerOnInner 控制锚点箭头/指针挂载位置（媒体弹窗挂在 inner，普通弹窗挂在 wrapper）
- */
+/** 锚定弹窗外壳（底层承载组件） */
 <template>
   <!-- centered 模式：内联渲染，不经过 Teleport -->
   <div
@@ -91,12 +68,6 @@
   </Teleport>
 </template>
 <script setup>
-/**
- * 职责：实现 AnchoredPopupShell 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 import { computed, inject, onBeforeUnmount, onMounted, ref, useAttrs } from 'vue'
 import { X } from '@lucide/vue'
 import { useEntityPopupAnchor } from '@/composables/entity/useEntityPopupAnchor'

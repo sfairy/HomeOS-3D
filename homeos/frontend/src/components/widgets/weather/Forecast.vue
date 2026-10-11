@@ -2,14 +2,6 @@
   WeatherForecast.vue / components/widgets/weather
   天气预报扩展卡：展示 HA weather 实体未来多日最高/最低温、天气状态图标、
   降水概率与风力，支持按天点击展开 3 小时间隔细分。
-  Props: embedded 嵌入态隐藏标题栏 / weather-entity-override 覆盖默认天气实体 ID
-  依赖：composables: useWeatherEntity 解析优先天气实体
-                    + useScheduledPoll 30min 轮询；
-        Pinia: useEntitiesStore 快照订阅；
-        constants: weatherStateLabel + weatherVisualKey 图标与中文字段；
-        RouterLink 跳转设置向导绑定天气实体；
-        lucide: Cloud/Sun/Droplets/Wind/Moon/CloudRain 等图标组。
-  注意：当 forecast 数组 >= 5 时展示按日循环；缺字段用横杠占位。
 -->
 <template>
   <div class="weather-forecast widget-glass-card">

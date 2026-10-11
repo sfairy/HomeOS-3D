@@ -1,11 +1,4 @@
-/**
- * 图表公共原语：共享轴样式常量、空态占位 graphic、深色 tooltip 工厂、线性渐变。
- *
- * 职责：收敛各图表构建器重复手写的 axisLine / splitLine / axisLabel 常量、
- *   空态占位 graphic、tooltip 深色骨架与 colorStops 渐变对象；
- *   所有工厂不改变既有 option 值（色值、字号、字重逐字保留）。
- * 依赖：无（纯数据 / 纯函数，勿引入 echarts 运行时，保持模块轻量）。
- */
+/** 图表公共原语：共享轴样式常量、空态占位 graphic、深色 tooltip 工厂、线性渐变。 */
 
 /** 共享轴线样式（类目轴 axisLine，低透明度） */
 export const axisLineStyle = { lineStyle: { color: 'rgba(255,255,255,0.07)' } }

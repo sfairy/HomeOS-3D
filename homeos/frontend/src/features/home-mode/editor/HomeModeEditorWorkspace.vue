@@ -1,21 +1,4 @@
-/**
- * 组件：HomeModeEditorWorkspace.vue
- *
- * 职责：家庭模式编辑器主工作区。组合基础信息、动作、触发、日志四个分区，并提供
- *      分区切换、保存/取消、立即激活/退出/删除等运行态操作；嵌入设置页时保存走壳层。
- * 关键依赖：
- *  - HomeModePresetSidebar / HomeModeBasicSection / HomeModeActionsSection /
- *    HomeModeTriggersSection / HomeModeLogsSection：各分区子组件
- *  - isHomeModeEmojiIcon / resolveHomeModeIcon：头部图标渲染
- * 数据来源：父级透传的 activeDraft（双向）+ 各分区所需的选项/列表/回调
- */
 <script setup>
-/**
- * 职责：渲染 views/HomeModeEditorWorkspace 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { Play, Power } from '@lucide/vue'
 import HomeModePresetSidebar from './HomeModePresetSidebar.vue'
 import HomeModeBasicSection from './HomeModeBasicSection.vue'
@@ -24,13 +7,11 @@ import HomeModeTriggersSection from './HomeModeTriggersSection.vue'
 import HomeModeLogsSection from './HomeModeLogsSection.vue'
 import { isHomeModeEmojiIcon, resolveHomeModeIcon } from '@/shared/home-mode'
 
-// 双向绑定：当前激活分区、批量面板域/服务、当前编辑草稿
 const activeSection = defineModel('activeSection', { type: String, required: true })
 const batchDomain = defineModel('batchDomain', { type: String, required: true })
 const batchService = defineModel('batchService', { type: String, required: true })
 const activeDraft = defineModel('activeDraft', { type: Object, required: true })
 
-// 入参：当前模式 tab、模式对象、分区 tabs、预设、域/服务/场景/脚本列表、触发与日志、保存/运行态等
 defineProps({
   activeTab: { type: String, required: true },
   activeMode: { type: Object, default: null },

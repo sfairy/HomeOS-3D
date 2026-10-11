@@ -1,9 +1,6 @@
 <!--
-  组件文件：App.vue
-  所属模块：frontend/src / 应用根
-  组件职责：单页应用最顶层根组件，包裹 ErrorBoundary（全局异常边界）与 router-view（路由视图容器），
-    通过顶层匹配路由 key 实现 MainLayout 在子路由切换时的复用，并为所有页面切换提供统一淡入淡出过渡动画。
-  依赖关系：Vue Router、全局 <ErrorBoundary> 组件（页面加载失败兜底展示）、useRoute composable 取 shellRouteKey。
+  单页应用最顶层根组件，包裹 ErrorBoundary（全局异常边界）与 router-view（路由视图容器），
+  通过顶层匹配路由 key 实现 MainLayout 在子路由切换时的复用，并为所有页面切换提供统一淡入淡出过渡动画。
   注意事项：App.vue 不包含任何业务布局，只负责错误兜底 + 路由切换过渡 + 顶层容器样式。
 -->
 <template>
@@ -62,15 +59,7 @@
 </template>
 
 <script setup>
-/**
- * HomeOS 应用根组件
- *
- * 职责：
- * 1. 路由视图渲染（带 fade 过渡动画）
- * 2. 认证状态监听：登录后自动连接 Socket.IO 并加载 UI 配置
- * 3. 未认证 / 未商业授权时断开 Socket.IO 连接
- * 4. 并入 3D Studio 的页面资产调度与授权恢复就地渲染
- */
+/** HomeOS 应用根组件 */
 import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'

@@ -1,17 +1,4 @@
-/**
- * @module energy-account-sync.util
- * @description 生活账户源对象 bootstrap 与 accountEntries 同步工具模块。
- *
- * 职责：
- * - 打开设置页时按模式补齐缺失的多账户结构（convention / entity / multi）。
- * - 将 accountEntries 写回顶层 account 镜像字段。
- * - 维护 primaryAccountIndex 字段的一致性。
- *
- * 依赖：
- * - `energy-account-input.util`：账户号字符串解析与序列化。
- * - `energy-account-entity.util`：entity / multi 模式初始化。
- * - `energy-account-types.util`：主账户行索引解析。
- */
+/** - 打开设置页时按模式补齐缺失的多账户结构（convention / entity / multi）。 */
 import type {
   EnergyAccountEntry,
   EnergyAccountSourceLike,

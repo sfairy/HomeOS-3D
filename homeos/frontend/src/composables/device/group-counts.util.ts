@@ -1,21 +1,4 @@
-/**
- * 设备分组：实体列表与计数同步解析
- *
- * 职责：
- * - 同步计算 DeviceGroupModal 各分组（offline / battery / 各 domain）的实体 ID 列表，
- *   与图表筛选、角标计数共用同一份数据来源。
- * - 优先级链：自定义收藏 favoriteEntities → 统计 sensor 属性 → 域索引兜底。
- * - 从统计 sensor 属性解析实体列表（兼容 all_entities / entities / {domain}s_list /
- *   monitored_entities 多种字段命名与友好名→entity_id 映射）。
- *
- * 依赖：
- * - @/shared/device/utils/group-offline.util 提供 offline 分组的 critical 集合与其他离线实体。
- * - @/shared/device/utils/group-battery.util 提供 battery 分组查询与 DeviceGroup*StoreLike 共享类型。
- * - @/composables/entity/useEntityDisplayEpoch 触摸派生 epoch，确保读取最新派生索引。
- * - @/shared/entity/utils/derived.util 的 domainIndexToArray。
- *
- * 注意：domain key（offline / battery / climate / light ...）为分组标识符，不翻译。
- */
+/** 设备分组：实体列表与计数同步解析 */
 import { computeOfflineCriticalSet, listOfflineOtherEntityIds } from '@/shared/device/utils/group-offline.util'
 import {
   BATTERY_LOW_THRESHOLD,

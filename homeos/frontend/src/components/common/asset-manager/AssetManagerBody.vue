@@ -1,11 +1,4 @@
-/**
- * @file AssetManagerBody.vue
- * @module components/common/asset-manager
- * @description 资源管理器主体区域组件。负责根据当前视图模式（网格/列表）和加载状态
- *  渲染资源条目，并处理条目的点击、复制、删除等交互事件。
- *  依赖：VirtualGrid（虚拟网格）、AssetGridItem（网格单元）、AssetManagerListItem（列表项）、
- *  useAssetManager 中的 AssetItem 类型定义。
- */
+/** 渲染资源条目，并处理条目的点击、复制、删除等交互事件。 */
 <template>
   <div class="asset-body">
     <!-- 加载中且尚无数据时显示加载指示器 -->
@@ -83,12 +76,6 @@
 </template>
 
 <script setup lang="ts">
-/**
- * 职责：实现 AssetManagerBody 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 import { Loader2, FolderOpen } from '@lucide/vue'
 import VirtualGrid from '@/components/common/base/VirtualGrid.vue'
 import AssetGridItem from '@/components/common/AssetGridItem.vue'

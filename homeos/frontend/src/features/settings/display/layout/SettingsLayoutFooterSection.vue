@@ -1,16 +1,6 @@
 <!--
-组件：SettingsLayoutFooterSection.vue
-所属模块：frontend / src / views / settings / display / layout
-职责：底部信息栏区段。配置首页底栏显示项（账户绑定字段或 HA 实体），支持增删/排序、
-      图标与配色、主副字段及单位覆盖，并提供与首页底栏一致的实时预览。
-关键依赖：
-  - SettingsCard / SettingsCardIntro / SettingsOrchTabs：卡片、头部与可排序标签
-  - HosSelect：分类下拉
-  - EntityInput：实体 ID 输入
-  - FooterIconPicker / FooterColorPicker：图标与配色选择器（本目录子组件）
-  - useLayoutStore / useEntitiesStore：读取 footer 配置与实体状态
-  - resolveFooterItemValue / resolveFooterItemLabel 等：复用首页底栏取值/取标签逻辑
-数据来源：layoutStore.layoutConfig.dashboardFooter + entitiesStore.entities（用于预览）
+  底部信息栏区段。配置首页底栏显示项（账户绑定字段或 HA 实体），支持增删/排序、
+  图标与配色、主副字段及单位覆盖，并提供与首页底栏一致的实时预览。
 -->
 <template>
   <div class="settings-hub-section">
@@ -414,7 +404,6 @@ const footerCfg = computed(() => layoutStore.layoutConfig.dashboardFooter)
 const presetToAdd = defineModel('presetToAdd', { type: String, default: '' })
 const activeFooterItemId = defineModel('activeFooterItemId', { type: String, default: '' })
 
-// 入参：预设/账户类别选项、底栏项标签、排序 key、字段选项取数函数
 const props = defineProps({
   presetOptions: { type: Array, default: () => [] },
   sourceOptions: { type: Array, default: () => [] },
@@ -542,7 +531,6 @@ const previewAccent = computed(() => {
   return DASHBOARD_FOOTER_COLOR_ACCENT[color] || DASHBOARD_FOOTER_COLOR_ACCENT.yellow
 })
 
-// 对外事件：开关底栏、重置默认、添加预设、添加模板实体、底栏项排序、移除底栏项
 defineEmits([
   'toggle-dashboard-footer',
   'reset-dashboard-footer',

@@ -1,11 +1,4 @@
-/**
- * HA 资源 URL 工具。
- *
- * 职责：浏览器无法直连 HA 媒体时，将资源改走 HomeOS 同源代理；
- * 同时提供 HA 绝对地址构造、相对路径提取与 entity_picture 解析能力。
- *
- * 依赖：@homeos/shared 的 normalizeHaUrl 用于归一化 HA 基地址。
- */
+/** HA 资源 URL 工具。 */
 import { normalizeHaUrl } from '@homeos/shared'
 
 /** HA 代理端点类型：media（媒体/快照）/ stream（流） */

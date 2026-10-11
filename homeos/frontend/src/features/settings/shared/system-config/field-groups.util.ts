@@ -1,9 +1,3 @@
-/**
- * 文件：field-groups.util.ts
- * 职责：高级参数字段分组工具。按分区内语义插入组标题，未命中任何组的字段落入末尾「其它」。
- *       提供 buildGroupedFieldEntries（构建分组字段条目）与 groupSearchResultsBySection（按分区聚合搜索结果）。
- * 关键依赖：无外部依赖，纯工具函数
- */
 
 type FieldGroupDef = {
   id: string

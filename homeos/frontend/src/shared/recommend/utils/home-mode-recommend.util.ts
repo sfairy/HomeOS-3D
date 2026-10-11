@@ -1,13 +1,4 @@
-/**
- * 家庭模式推荐模块。
- *
- * 职责：
- * - 识别未配置自动触发的家庭模式，提示用户补充触发条件；
- * - 统计近期触发来源，「全员离家」频繁时建议配置自动触发；
- * - 产出 RecommendInsightResult 供设置页家庭模式 tab 渲染。
- *
- * 依赖：recommend.types 类型、homeModeLogSourceLabel（@homeos/shared）。
- */
+/** 家庭模式推荐模块。 */
 import type { RecommendInsightResult } from '@/shared/recommend/types/recommend.types'
 import { homeModeLogSourceLabel, type HomeModeTriggerLogLike } from '@homeos/shared'
 

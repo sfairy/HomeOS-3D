@@ -56,9 +56,7 @@ class PresenceService:
     def _away_threshold_ms(self) -> float:
         return float(self._config().get("awayConfirmMin") or 5) * 60_000
 
-    # ------------------------------------------------------------------ #
     # 生命周期
-    # ------------------------------------------------------------------ #
     async def start(self) -> None:
         await self._load_persisted_state()
         self._prune_untracked_entities()
@@ -105,9 +103,7 @@ class PresenceService:
             logger.warning("%s 执行失败: %s", description, exc)
             return None
 
-    # ------------------------------------------------------------------ #
     # 配置视图
-    # ------------------------------------------------------------------ #
     def get_presence_persons(self) -> list[dict[str, Any]]:
         raw = self._config().get("presencePersons")
         if not isinstance(raw, list):
@@ -164,9 +160,7 @@ class PresenceService:
             return self.is_auto_track_mode()
         return entity_id in configured
 
-    # ------------------------------------------------------------------ #
     # 成员视图
-    # ------------------------------------------------------------------ #
     @staticmethod
     def _parse_at_home_state(state: Any) -> bool | None:
         value = str(state if state is not None else "").lower().strip()
@@ -251,9 +245,7 @@ class PresenceService:
     def is_room_occupied(self, room: str) -> bool:
         return bool((self._mmwave.get_room_presence(room) or {}).get("occupied"))
 
-    # ------------------------------------------------------------------ #
     # HTTP 响应
-    # ------------------------------------------------------------------ #
     async def get_home_presence_response(self) -> dict[str, Any]:
         members = self.get_all_members()
         mmwave_enabled = bool(self._config().get("mmWaveFusePresence"))
@@ -267,9 +259,7 @@ class PresenceService:
             "rooms": self._mmwave.get_all_room_presence() if mmwave_enabled else {},
         }
 
-    # ------------------------------------------------------------------ #
     # 状态变更
-    # ------------------------------------------------------------------ #
     async def handle_state_change(self, event: dict[str, Any]) -> None:
         entity_id = str(event.get("entity_id") or "")
         new_state = (event.get("new_state") or {}).get("state")
@@ -529,9 +519,7 @@ class PresenceService:
         self._sync_person_aggregates(False)
         self.seed_from_state_store()
 
-    # ------------------------------------------------------------------ #
     # 持久化
-    # ------------------------------------------------------------------ #
     def _mark_dirty(self) -> None:
         self._dirty = True
 

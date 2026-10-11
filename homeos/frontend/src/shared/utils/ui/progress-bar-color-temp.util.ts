@@ -1,17 +1,4 @@
-/**
- * 灯光色温（Kelvin / mireds）换算与 UI 滑块样式工具。
- *
- * 职责：
- * - Kelvin ↔ mireds 互转（1e6 / K）
- * - 从 HA LightEntity attributes 解析设备真实色温范围，识别 HA 平台占位范围并忽略
- * - 钳制 UI 展示色温（0–6500K）与下发色温（设备实际范围）
- * - 按色温在暖光↔冷光间插值，生成滑块轨道填充色
- *
- * 关键算法：resolveKelvinBounds 按非通用 Kelvin → 非通用 mired → HA 占位 Kelvin → mired → 兜底 优先级解析；
- * mired 与 Kelvin 反向（max_mireds=暖端低 K，min_mireds=冷端高 K）。
- *
- * 依赖：./progress-bar-gradient.util 的滑块值归一化 helper。
- */
+/** 灯光色温（Kelvin / mireds）换算与 UI 滑块样式工具。 */
 
 import {
   normalizeProgressPct,

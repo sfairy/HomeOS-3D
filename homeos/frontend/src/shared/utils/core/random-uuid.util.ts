@@ -1,14 +1,4 @@
-/**
- * @module core/random-uuid
- * @description 生成 RFC4122 v4 UUID 的工具，兼容非 HTTPS 等无 crypto.randomUUID 的环境。
- *
- * 实现优先级：
- *  1) crypto.randomUUID（现代浏览器原生，首选）；
- *  2) crypto.getRandomValues 手动组装 v4（兼容安全上下文但无 randomUUID 的环境）；
- *  3) Math.random 兜底（非安全上下文，仅用于非密钥场景）。
- *
- * 依赖：Web Crypto API（可选）、Math.random（兜底）。
- */
+/** 实现优先级： */
 
 /**
  * 生成 RFC4122 v4 UUID，兼容非 HTTPS 等无 crypto.randomUUID 的环境。

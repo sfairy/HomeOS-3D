@@ -1,17 +1,6 @@
 /**
  * 天气雨雪粒子 OffscreenCanvas Worker（P3）。
  * 主线程仅保留静态场景合成，粒子层在 Worker 内 rAF 更新，避免主线程繁忙时丢帧。
- *
- * 关键依赖：@/shared/weather/utils/particle-classes（粒子初始化与绘制）、
- *   @/shared/weather/utils/effect-condition.util（profile）、@/shared/weather/utils/effect-presets.util（scene）、
- *   @/shared/weather/types/weather-canvas（Worker 消息类型）。
- *
- * 消息协议（标准 postMessage / self.onmessage，单向接收主线程指令，无回传）：
- * - init: 携带 OffscreenCanvas 句柄与初始参数，初始化画布并按需启动渲染循环；
- * - resize: 画布尺寸 / dpr 变化，按新尺寸重置画布并重建粒子；
- * - state: 仅更新参数（profile / wind / rainAngle / counts / intensity / scene / active），
- *     不重建画布；active 控制渲染循环启停；
- * - stop: 停止渲染循环并清空画布。
  */
 import {
   initWeatherParticles,

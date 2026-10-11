@@ -1,22 +1,11 @@
 <!--
-组件：RoomReferenceBadges.vue
-所属模块：frontend / src / views / settings / home
-职责：房间引用范围徽章。按 key（env 环境）渲染不同配色的徽章标签，
-      用于在房间列表中标识该房间被哪些消费方引用。
-关键依赖：无（纯展示组件）
-数据来源：父级透传的 badges 数组（key/label/title）
+  房间引用范围徽章。按 key（env 环境）渲染不同配色的徽章标签，
+  用于在房间列表中标识该房间被哪些消费方引用。
 -->
 <script setup lang="ts">
-/**
- * 职责：渲染 views/RoomReferenceBadges 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 // 徽章 key 类型：env 环境
 type RoomRefBadgeKey = 'env'
 
-// 入参：徽章列表，每项含 key、显示文案与可选 title
 defineProps<{
   badges: Array<{ key: RoomRefBadgeKey; label: string; title?: string }>
 }>()

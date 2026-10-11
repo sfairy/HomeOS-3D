@@ -1,13 +1,4 @@
-/**
- * 安防面板区域 bootstrap 去重模块。
- *
- * 职责：
- * - 防止多个 SecurityPanelWidget 实例重复 bootstrap 区域到后端；
- * - 通过模块级 flag + 共享 Promise 保证仅执行一次 bootstrap。
- *
- * 设计说明：多个安防面板小部件可能同时挂载并触发 bootstrap，
- * 此模块确保首个调用执行后续调用复用同一 Promise，成功后标记完成。
- */
+/** 安防面板区域 bootstrap 去重模块。 */
 
 /** 防止多个 SecurityPanelWidget 实例重复 bootstrap 区域到后端 */
 let bootstrapDone = false

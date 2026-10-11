@@ -1,16 +1,13 @@
 <!--
-  组件文件：EntityMultiSelectDomainFilter.vue
-  所属模块：frontend/src/components/common/entity-multi-select
-  组件职责：实体多选下拉面板的域名筛选条（与 EntityInputDomainFilter 结构相似但更精简）。
-    左：「全部类型/域」按钮 + Teleport 菜单；右：「已选 N」计数展示；
-    菜单展开/折叠与菜单项点击通过 props 传入的 toggleDomainMenu / selectFilterDomain 回调执行。
+  实体多选下拉面板的域名筛选条（与 EntityInputDomainFilter 结构相似但更精简）。
+  左：「全部类型/域」按钮 + Teleport 菜单；右：「已选 N」计数展示；
+  菜单展开/折叠与菜单项点击通过 props 传入的 toggleDomainMenu / selectFilterDomain 回调执行。
   主要 props：
-    - props.domainMenuAnchor / domainMenuPanelRef：函数式 ref 绑定（供父级定位）；
-      props.showDomainFilter / selectedDomain / domainMenuOpen / domainMenuPlacement /
-      domainMenuStyle / domainMenuTeleportTarget / domainMenuTeleportDisabled：显隐与定位；
-      props.availableDomains：可用域名列表；props.selectedCount：已选实体数量（展示文案）；
-      props.selectFilterDomain(domain) / toggleDomainMenu()：父级回调。
-  依赖关系：@lucide/vue ChevronDown 图标；无 stores 或 composables。
+  - props.domainMenuAnchor / domainMenuPanelRef：函数式 ref 绑定（供父级定位）；
+  props.showDomainFilter / selectedDomain / domainMenuOpen / domainMenuPlacement /
+  domainMenuStyle / domainMenuTeleportTarget / domainMenuTeleportDisabled：显隐与定位；
+  props.availableDomains：可用域名列表；props.selectedCount：已选实体数量（展示文案）；
+  props.selectFilterDomain(domain) / toggleDomainMenu()：父级回调。
 -->
 <template>
   <div v-if="showDomainFilter" class="ems-filter-bar">
@@ -55,16 +52,7 @@
 </template>
 
 <script setup>
-/**
- * @file EntityMultiSelectDomainFilter.vue
- * @module common/entity-multi-select
- * @description 实体多选下拉面板的域名筛选器
- *  职责：
- *    - 渲染「全部类型 / 各域」下拉按钮，点击切换域名筛选；
- *    - 通过 Teleport 渲染菜单面板，由父级负责定位；
- *    - 展示已选实体数量。
- *  依赖：@lucide/vue ChevronDown 图标。
- */
+/** - 渲染「全部类型 / 各域」下拉按钮，点击切换域名筛选； */
 import { ChevronDown } from '@lucide/vue'
 
 defineProps({

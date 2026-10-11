@@ -1,14 +1,4 @@
-/**
- * 实体状态更新核心逻辑（从 entities.store 抽离）
- *
- * 职责：封装单条实体写入与批量实体写入的共享核心 applyEntityChange，
- *      规范化 → 乐观匹配 → 合并 → 写缓存 → 通知判定 → totalCount → derived patch 全流程；
- *      单条路径即时通知、批量路径按 immediate 域分流即时 + rAF 聚合通知，两路径仅保留
- *      派发与聚合策略差异，收敛约 90% 重复逻辑。
- * 关键常量：IMMEDIATE_DOMAINS（事件日志白名单域，即时通知）
- * 导出接口：applyEntityStateUpdate（单条）、applyEntityStatesBatch（批量）、EntityStateUpdateDeps（依赖注入契约）
- * 依赖：state-delta.util（WS 增量合并）、state-listener（监听器派发与聚合）、event-log-domains.util（即时域集）。
- */
+/** 实体状态更新核心逻辑（从 entities.store 抽离） */
 import { attrValueEquals, getEntityDomain } from '@homeos/shared'
 import type { Ref } from 'vue'
 import type { OptimisticEntry } from '@/stores/entities/entity-store-optimistic.util'

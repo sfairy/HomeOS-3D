@@ -1,14 +1,5 @@
 <!--
-组件：RegistryDegradedGuide.vue
-所属模块：frontend / src / views / settings / shared
-职责：注册中心降级引导。在设置注册中心异常时展示原因与刷新按钮，并引导跳转至高级参数配置。
-Props：
-  - reason：降级原因文案
-  - refreshing：是否正在刷新
-关键依赖：
-  - AlertTriangle：警示图标
-  - RouterLink / SETTINGS_ROUTES：跳转路由
-数据来源：父级透传的 reason / refreshing
+  注册中心降级引导。在设置注册中心异常时展示原因与刷新按钮，并引导跳转至高级参数配置。
 -->
 <template>
   <div class="registry-degraded-guide settings-deploy-note settings-deploy-note--amber !mt-4">

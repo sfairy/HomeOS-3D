@@ -1,14 +1,4 @@
-"""Agent 会话上下文存储（内存 LRU + TTL）。
-
-职责：为「连续对话」提供服务端会话上下文——前端在唤醒后一段时间内免重复唤醒，
- 后续指令携带同一 sessionId，本服务按会话保存多轮 user/assistant 历史，
- 使 LLM 能基于上一轮的实体 / 意图补全当前指令（如「开灯」后「再调暗一点」）。
-清理策略：
- - TTL：会话超过 SESSION_TTL_MS（10 分钟）未活动即视为过期，读取 / 写入时惰性清理；
- - LRU：会话数超过 MAX_SESSIONS 时淘汰最久未使用的会话；
- - 单会话历史最多保留 MAX_TURNS 条，避免上下文无限膨胀。
-依赖：无（纯进程内存储）。
-"""
+"""Agent 会话上下文存储（内存 LRU + TTL）。"""
 
 from __future__ import annotations
 
@@ -58,9 +48,7 @@ class AgentSessionStoreService:
         #: 会话表：dict 迭代顺序即插入顺序，配合 last_at 实现 LRU 淘汰
         self._sessions: dict[str, AgentSessionEntry] = {}
 
-    # ------------------------------------------------------------------ #
     # 读取 / 写入
-    # ------------------------------------------------------------------ #
     def get(self, session_id: str) -> list[AgentSessionTurn]:
         """读取会话历史（惰性清理过期会话），截取最近 MAX_TURNS 条。"""
         if not session_id:

@@ -1,15 +1,9 @@
 <!--
-  组件文件：WeatherEffectsSceneParamsCard.vue
-  所属模块：frontend/src/features/settings/display/weather-effects
-  组件职责：天气动效分场景参数微调卡片，按天气类型（晴/多云/雨/雪/雾等）以 Tab 分组
-    展示可调参数。每个场景使用 SettingsRangeField 滑块调节粒子密度、强度等数值，并
-    提供雨天水洼反光开关；顶部设有「恢复预设」按钮清除当前场景的手动覆盖。
-  主要 props / emits：无 props / emits（独立 Card，依赖 composable 上下文）。
-  依赖关系：通过 useWeatherEffectsSection composable 获取 activeScene 当前场景、
-    sceneTabs 场景 Tab 列表、activeSceneGroup 场景参数组、puddleEnabled 水洼开关、
-    getSceneField/setSceneField/hasSceneOverrides/resetScene 参数操作方法。
+  天气动效分场景参数微调卡片，按天气类型（晴/多云/雨/雪/雾等）以 Tab 分组
+  展示可调参数。每个场景使用 SettingsRangeField 滑块调节粒子密度、强度等数值，并
+  提供雨天水洼反光开关；顶部设有「恢复预设」按钮清除当前场景的手动覆盖。
   注意事项：分场景参数仅持久化手动调整过的项（overrides），其余项始终继承当前预设的
-    默认值；切换全局预设会清空所有场景 overrides。
+  默认值；切换全局预设会清空所有场景 overrides。
 -->
 <template>
   <div class="weather-fx-panel-section">

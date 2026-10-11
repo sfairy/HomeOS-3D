@@ -1,20 +1,6 @@
 <!--
-组件：SystemConfigParamsSidebar.vue
-所属模块：frontend / src / views / settings / shared / system-config
-职责：高级参数侧栏。展示分区列表、全局搜索、分类切换、专家模式与开发 key 开关，
-      搜索命中高亮与分区未保存标记；底部提供分区委派入口与媒体播放列表设置。
-Props：
-  - sectionList：分区列表
-  - searchResultCount / searchMatchMap：搜索命中数与映射
-  - globalSearch / activeSection / activeCategory：搜索词与当前分区/分类
-  - expertMode / showDevKeys：专家模式与开发 key 开关
-  - sectionPendingMap：分区未保存标记
-Emits：
-  - update:globalSearch / update:activeSection / update:activeCategory / update:expertMode / update:showDevKeys
-关键依赖：
-  - SECTION_LINK_LABELS / DELEGATED_* / useSystemConfigParamsSidebar：侧栏常量与逻辑
-  - MediaPlaylistSettingsModal：媒体播放列表设置弹窗
-数据来源：父级透传的 sectionList 与各类状态
+  高级参数侧栏。展示分区列表、全局搜索、分类切换、专家模式与开发 key 开关，
+  搜索命中高亮与分区未保存标记；底部提供分区委派入口与媒体播放列表设置。
 -->
 <template>
   <aside class="params-sidebar">

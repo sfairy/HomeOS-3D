@@ -1,14 +1,6 @@
 <!--
-组件：SetupWizardPanel.vue
-所属模块：frontend / src / views / settings / connect
-职责：入门向导面板根容器。按流程编排连接 HA / 安防 / 能源 / 环境 / 户型 / 完成六步，
-      通过 useSetupWizardPanel 管理步骤状态、进度与各步表单，并向环境步骤 provide 上下文。
-关键依赖：
-  - useSetupWizardPanel：向导核心状态与回调
-  - SETUP_WIZARD_ENV_STEP_KEY：环境步骤 provide/inject 键
-  - setup-wizard 子组件：Progress / StepHero / 各步骤 / Navigation
-  - SettingsFlowBand / SettingsFlowStat：流程概览
-数据来源：useSetupWizardPanel 内部状态 + 父级透传 activeTab
+  入门向导面板根容器。按流程编排连接 HA / 安防 / 能源 / 环境 / 户型 / 完成六步，
+  通过 useSetupWizardPanel 管理步骤状态、进度与各步表单，并向环境步骤 provide 上下文。
 -->
 <template>
   <SettingsPageShell
@@ -160,7 +152,6 @@ import SetupWizardNavigation from '@/features/settings/connect/setup-wizard/Setu
 import { SETUP_WIZARD_ENV_STEP_KEY } from '@/features/settings/connect/setup-wizard/context'
 import { useSetupWizardPanel } from '@/features/settings/composables/connect/setup-wizard.internals'
 
-// 入参：当前激活的设置 Tab
 const props = defineProps({
   activeTab: { type: String, default: 'setup-wizard' },
 })

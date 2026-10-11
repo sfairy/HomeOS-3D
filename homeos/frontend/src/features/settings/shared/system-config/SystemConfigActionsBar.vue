@@ -1,9 +1,5 @@
 <!--
-组件：SystemConfigActionsBar.vue
-所属模块：frontend / src / views / settings / shared / system-config
-职责：高级参数操作栏。左侧展示保存状态提示（成功/失败），右侧提供保存/取消按钮与工具插槽。
-关键依赖：@lucide/vue 的 Check / Loader2
-数据来源：父级透传的 savedTip / savedTipOk 等状态
+  高级参数操作栏。左侧展示保存状态提示（成功/失败），右侧提供保存/取消按钮与工具插槽。
 -->
 <template>
   <div class="config-actions">

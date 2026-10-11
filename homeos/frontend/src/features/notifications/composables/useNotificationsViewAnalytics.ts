@@ -1,25 +1,4 @@
-/**
- * @file useNotificationsViewAnalytics.ts
- * @module composables/notifications
- * @description 通知中心分析视图 composable：5 张 ECharts（来源 / 级别 / 排行 / 时段 / 已读）+
- * KPI 指标卡 + 点击下钻过滤。
- *
- * 职责：
- * - 接收宿主 props（notifications / stats / summary / hours / activeSource / formatCount）的 ToRefs；
- * - 派生来源 / 级别 / 时段 buckets（优先服务端 stats，回退到本地 notifications 聚合）；
- * - 构建 5 张图表 option 并在 onMounted / watch 触发渲染；
- * - 绑定 ResizeObserver 自适应尺寸；
- * - 点击来源 / 级别 / 排行图表元素 → emit 过滤事件；
- * - onUnmounted 释放所有图表与 observer。
- *
- * 依赖：
- * - vue（ref、computed、watch、onMounted、onUnmounted、nextTick、ToRefs、unref）
- * - echarts（ECharts、ECElementEvent、EChartsCoreOption；echarts 实例经动态 import 懒加载）
- * - @/shared/utils/chart/echarts（echarts 实例，动态 import）
- * - @/composables/ui/kiosk-animation（getKioskAnimationOptions 动画开关）
- * - @/shared/utils/ui/chart-resize.util（observeChartResize）
- * - @/shared/notifications/utils/analytics.util（buckets 构建与 summary / stats 类型）
- */
+/** KPI 指标卡 + 点击下钻过滤。 */
 import { ref, computed, watch, onMounted, onUnmounted, nextTick, type ToRefs, unref } from 'vue'
 import { getKioskAnimationOptions } from '@/composables/ui/kiosk-animation'
 import type { ECharts, ECElementEvent, EChartsCoreOption } from 'echarts'

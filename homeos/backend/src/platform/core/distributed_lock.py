@@ -27,9 +27,7 @@ class DistributedLockService:
         #: key → {token, until(秒, 单调时钟)}
         self._locks: dict[str, dict[str, float | str]] = {}
 
-    # ------------------------------------------------------------------ #
     # 加锁 / 释放
-    # ------------------------------------------------------------------ #
     async def acquire(self, key: str, ttl_ms: int = 60_000) -> str | None:
         """获取锁，成功返回 token（释放时回传），失败返回 ``None``。"""
         token = secrets.token_hex(12)

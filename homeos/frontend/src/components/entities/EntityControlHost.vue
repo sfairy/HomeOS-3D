@@ -16,24 +16,7 @@
 </template>
 
 <script setup>
-/**
- * @file EntityControlHost.vue
- * @module components/entities
- * @description 实体弹窗宿主组件
- *
- * 职责：
- * - 列表/详情页中以居中模态形式承载单个实体的弹窗组件
- * - 通过 entity-popup-registry 解析实体对应的弹窗组件及其 props
- * - 通过 provide('entityPopupCentered', true) 禁用 AnchoredPopupShell 的二次 Teleport 与锚点偏移
- *
- * 依赖：
- * - vue 的 computed、provide
- * - @/stores/entities.store 提供实体集合与按 ID 查询
- * - @/components/entities/popup-registry 提供弹窗组件解析；纯判定与 props 构造在 @/shared/entity/utils/popup-registry.util
- *
- * 使用场景：
- * - 列表/详情页中点击实体后弹出对应控制面板（与画布上的 widget 弹窗区分开）
- */
+/** - 列表/详情页中以居中模态形式承载单个实体的弹窗组件 */
 import { computed, provide, watchEffect } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { resolveEntityPopupComponent } from '@/components/entities/popup-registry'

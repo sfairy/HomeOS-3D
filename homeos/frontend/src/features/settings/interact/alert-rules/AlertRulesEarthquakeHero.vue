@@ -1,21 +1,6 @@
 <!--
-组件：AlertRulesEarthquakeHero.vue
-所属模块：frontend / src / views / settings / interact / alert-rules
-职责：地震预警 · 主开关与链路概览。通过 FlowBand 展示「数据源 → 阈值 → 震中距 → 全屏倒计时」流程，
-      用 FeatureMaster 提供启用开关与刷新入口，并汇总 Wolfx 连接、坐标配置、启用状态三项指标。
-Props：
-  - enabled / pending / statusLoading / statusConnected / statusConnecting：启用与连接状态
-  - coordsConfigured：家庭坐标是否就绪
-  - enableTts：是否启用 TTS 播报
-  - wolfxStatusLabel：Wolfx 连接状态文案
-  - minMagnitude / maxDistance / minLocalIntensity：触发阈值
-Emits：
-  - refresh：点击「刷新状态」时触发
-  - update:enabled：切换启用开关时回传新值
-关键依赖：
-  - SettingsCard / SettingsFlowBand / SettingsFlowStat / SettingsFeatureMaster：卡片与流程组件
-  - SettingsFlowStep：流程步骤类型
-数据来源：父级 AlertRulesEarthquakeSection 透传的 props
+  地震预警 · 主开关与链路概览。通过 FlowBand 展示「数据源 → 阈值 → 震中距 → 全屏倒计时」流程，
+  用 FeatureMaster 提供启用开关与刷新入口，并汇总 Wolfx 连接、坐标配置、启用状态三项指标。
 -->
 <template>
   <SettingsCard

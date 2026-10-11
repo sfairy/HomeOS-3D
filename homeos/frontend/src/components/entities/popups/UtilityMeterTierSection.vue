@@ -1,15 +1,4 @@
-/**
- * @file UtilityMeterTierSection.vue
- * @module components/entities/popups
- * @brief 公事业仪表阶梯电价区块
- *
- * 职责：
- * - 展示阶梯电价档位（一档/二档）的用量与单价，高亮当前所处档位
- * - 纯展示组件，所有数据通过 props 透传
- *
- * 依赖：
- * - 外部样式 ./styles/UtilityMeterTierSection.css
- */
+/** - 展示阶梯电价档位（一档/二档）的用量与单价，高亮当前所处档位 */
 <template>
   <section class="um-tier-section">
     <div class="um-tier-head">
@@ -52,12 +41,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 UtilityMeterTierSection 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 defineProps({
   title: { type: String, required: true },
   tierLabel: { type: String, default: '' },

@@ -1,18 +1,4 @@
-/**
- * 设置页 Tab emoji 图标工具
- *
- * 职责：
- * - 维护安防模式 Tab 的 emoji 映射（按 HA alarm state 取图标）。
- * - 维护家庭模式 Tab 的 emoji 映射（兼容 lucide key 与旧 emoji 配置）。
- * - 转发 @homeos/shared 的房间 Tab emoji 解析。
- *
- * 依赖：@homeos/shared 的 roomTabEmoji。
- *
- * 注意：
- * - 对象 key（armed_away / door-open / moon ...）为 HA state 或 lucide 图标 key，
- *   属于配置 key，不翻译。
- * - value 为 emoji 字符，不翻译。
- */
+/** 设置页 Tab emoji 图标工具 */
 
 import { roomTabEmoji as sharedRoomTabEmoji } from '@homeos/shared'
 

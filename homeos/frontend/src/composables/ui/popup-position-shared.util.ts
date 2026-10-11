@@ -1,15 +1,4 @@
-/**
- * 弹窗定位共享工具。
- *
- * 职责：
- * - 读取 #teleport-target 在定位坐标系中的尺寸（处理等比缩放）
- * - 读取户型图显示区在同一坐标系中的安全边界
- * - 收集锚点的可滚动祖先（用于监听非冒泡的 scroll 事件）
- * - 把 ref / computed / 函数 / 纯数字等多种形态统一解析为数字
- *
- * 依赖：@/composables/ui/useScaling 的 currentScale / activeDesignWidth / activeDesignHeight；
- *       popup-position-dropdown.util 的 getTeleportLiveScale（DOM 实测 scale）。
- */
+/** 弹窗定位共享工具。 */
 
 import { currentScale, activeDesignWidth, activeDesignHeight } from '@/composables/ui/useScaling'
 import {

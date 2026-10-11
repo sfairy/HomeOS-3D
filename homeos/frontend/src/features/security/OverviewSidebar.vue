@@ -1,13 +1,6 @@
 <!--
-组件：SecurityOverviewSidebar.vue
-所属模块：frontend / src / views / security
-职责：安防总览侧栏。提供「传感器 / 审计日志」双 Tab，传感器 Tab 支持搜索、
-      按类型/区域分组、告警/危险绑定筛选与视口自适应分页；审计 Tab 嵌入 AuditLogPanel。
-关键依赖：
-  - useAdaptiveViewportPagination：根据视口高度动态计算每页条数的分页 composable
-  - SecurityAuditLogPanel：嵌入式审计日志面板
-  - VEmptyState / Activity / Bell / Search 图标
-数据来源：父级透传的传感器列表、分组、筛选选项、审计事件与 liveZones
+  安防总览侧栏。提供「传感器 / 审计日志」双 Tab，传感器 Tab 支持搜索、
+  按类型/区域分组、告警/危险绑定筛选与视口自适应分页；审计 Tab 嵌入 AuditLogPanel。
 -->
 <template>
   <section class="sov-sidebar glass-shine">
@@ -203,7 +196,6 @@ import VEmptyState from '@/components/common/base/VEmptyState.vue'
 import SecurityAuditLogPanel from '@/features/security/AuditLogPanel.vue'
 import { useAdaptiveViewportPagination } from '@/composables/ui/hub-viewport.internals'
 
-// 入参：传感器列表/分组、筛选选项、危险绑定数、liveZones、审计事件、加载/错误态
 const props = defineProps({
   listSensors: { type: Array, default: () => [] },
   groupedListSensors: { type: Array, default: () => [] },
@@ -218,10 +210,8 @@ const props = defineProps({
   secEventIconMap: { type: Object, default: () => ({}) },
 })
 
-// 对外事件：切换传感器筛选、刷新审计日志
 defineEmits(['toggle-sensor-filter', 'refresh-audit'])
 
-// 双向绑定：仅看告警 / 仅看已绑定 / 事件筛选维度
 const alertsOnly = defineModel('alertsOnly', { type: Boolean, default: false })
 const boundOnly = defineModel('boundOnly', { type: Boolean, default: false })
 const secEventFilter = defineModel('secEventFilter', { type: String, default: 'all' })

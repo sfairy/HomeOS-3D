@@ -47,13 +47,7 @@
 <script setup>
 /**
  * HomeClimateChartChrome - 家居气候图表外壳组件
- * 职责：渲染图表标题栏、视图切换标签与加载/无实体/无数据三种空态。
- * Props:
- * - viewOptions：视图标签按钮列表（id + label）；
- * - stateVariant：状态枚举（'loading' / 'no-entities' / 'no-data' / null）；
- * - emptyTitle：无数据态展示文案。
- * v-model:
- * - activeView：当前激活视图，双向绑定到父级状态。
+ * 渲染图表标题栏、视图切换标签与加载/无实体/无数据三种空态。
  */
 import { Thermometer, Droplets } from '@lucide/vue'
 import './styles/home-climate-chart.css'

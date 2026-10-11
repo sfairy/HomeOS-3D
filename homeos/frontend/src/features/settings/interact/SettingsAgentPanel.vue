@@ -1,17 +1,8 @@
 <!--
-组件：SettingsAgentPanel.vue
-所属模块：frontend / src / views / settings / interact
-职责：智能管家面板入口。通过子导航切换 model（大模型接口配置+凭据+检测）、
-      scene-voice（HA 场景 / 脚本语音控制允许清单，默认全禁）、
-      channels（消息通道，委托给 SettingsAgentChannelsSection）、chat（管家对话调试）四个区段。
-      页头提供保存/取消；演示模式（未配置密钥）禁用对话并提示。
-关键依赖：
-  - SettingsPageShell / SettingsHubSubnav / SettingsPendingSaveAction：页面骨架/子导航/保存条
-  - SettingsCard / SettingsCardIntro / SettingsFlowBand / SettingsFlowStat / SettingsSectionHead：卡片与流程
-  - SettingsAgentChannelsSection：消息通道子区段
-  - useSettingsAgentPanel：聚合模型配置/对话/语音输入/检测
-  - useRegisterSettingsTabPending：Tab 级离开拦截
-数据来源：useSettingsAgentPanel() 返回的 agentDraft / channelDraft / chatLog 等
+  智能管家面板入口。通过子导航切换 model（大模型接口配置+凭据+检测）、
+  scene-voice（HA 场景 / 脚本语音控制允许清单，默认全禁）、
+  channels（消息通道，委托给 SettingsAgentChannelsSection）、chat（管家对话调试）四个区段。
+  页头提供保存/取消；演示模式（未配置密钥）禁用对话并提示。
 -->
 <template>
   <SettingsPageShell

@@ -1,15 +1,6 @@
 <!--
-  组件文件：HomeClimateChartConfigPanel.vue
-  所属模块：frontend/src/features/settings/display/widgets
-  组件职责：全屋温湿度图表小部件的配置面板，允许用户选择默认视图（综合/温度/湿度）、
-    多路温度传感器实体与多路湿度传感器实体；底部汇总选择情况并提供保存按钮。
-  主要 props / emits：
-    - defineModel<HomeClimateChartConfig> draft：双向绑定配置草稿对象
-      （defaultView、temperatureEntities、humidityEntities）
-    - props embedded：是否嵌入 Hero Swiper 中（影响底部提示文案）
-    - emit save：点击保存按钮，写入草稿到编辑态
-  依赖关系：引用 HOME_CLIMATE_CHART_VIEW_OPTIONS 常量与 HomeClimateChartConfig TS 类型；
-    使用 EntityMultiSelect 组件做多实体选择。
+  全屋温湿度图表小部件的配置面板，允许用户选择默认视图（综合/温度/湿度）、
+  多路温度传感器实体与多路湿度传感器实体；底部汇总选择情况并提供保存按钮。
   注意事项：当 embedded=true 时，保存仅写入布局草稿，仍须点击页头「保存布局」持久化。
 -->
 <template>

@@ -1,14 +1,4 @@
-/**
- * 安防事件展示工具模块。
- *
- * 职责：
- * - 将后端 SecurityEvent 行映射为安防页展示项（图标 key、CSS 类、标签、时间）；
- * - 识别联动失败类事件类型，统一标记为「联动失败」；
- * - 提供事件过滤（按类型/区域/联动失败）与近期联动失败筛选能力；
- * - 映射事件 CSS 类到审计日志 modifier key。
- *
- * 依赖：formatSecurityTime（locale-format 时间格式化）。
- */
+/** 安防事件展示工具模块。 */
 /** 安防 SecurityEvent 类型 → 展示元数据（图标 key 由视图层映射为组件） */
 import { formatSecurityTime } from '@/shared/utils/format/locale-format.util'
 

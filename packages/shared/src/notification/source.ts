@@ -1,23 +1,4 @@
-/**
- * @file source.ts
- * @module @homeos/shared/notification
- * @brief 通知来源的中文标签 / 筛选 Tab 排序 / 来源归一化与匹配（前后端共用）。
- *
- * 职责：
- *  - 维护通知 source key → 简短中文标签映射；
- *  - 维护筛选 Tab 排序优先级（NOTIFICATION_FILTER_PRIORITY）；
- *  - 提供统计图表用归一化（合并相近来源）与筛选 Tab 用归一化（保留更细粒度）；
- *  - 提供生命安全类通知识别（不受 DND 静音与"重要通知"开关影响）。
- *
- * 关键依赖：
- *  - 后端通知列表 / 统计 API 用本表渲染 source 与 filter；
- *  - 前端通知中心抽屉 / 筛选 Tab 共用本表与排序。
- *
- * 约定：
- *  - source 可为任意字符串（advisor-* / earthquake-* 等带前缀变体）；
- *  - normalizeNotificationSource 用于图表合并；normalizeNotificationFilterKey 用于筛选 Tab；
- *  - isLifeSafetyNotification 是 DND / 重要通知开关的"硬通道路径"。
- */
+/** - 维护通知 source key → 简短中文标签映射； */
 
 /**
  * 通知来源 → 简短中文标签（列表 / 抽屉 / 筛选 Tab）。

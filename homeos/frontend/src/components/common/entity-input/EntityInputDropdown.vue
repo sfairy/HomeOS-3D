@@ -98,18 +98,7 @@
 </template>
 
 <script setup lang="ts">
-/**
- * EntityInputDropdown - 实体输入下拉面板组件
- * 功能特性：
- * - 展示实体列表，支持按 domain 分组
- * - 支持虚拟滚动（大量实体时性能优化）
- * - 支持域名筛选器
- * - 支持键盘导航激活状态
- * - 使用 Teleport 渲染，避免被父容器裁剪
- * 依赖：
- * - VirtualList: 虚拟滚动列表组件
- * - EntityInputDomainFilter: 域名筛选器组件
- */
+/** EntityInputDropdown - 实体输入下拉面板组件 */
 import type { CSSProperties, VNodeRef } from 'vue'
 import VirtualList from '@/components/common/base/VirtualList.vue'
 import EntityInputDomainFilter from '@/components/common/entity-input/EntityInputDomainFilter.vue'

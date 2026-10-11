@@ -1,23 +1,9 @@
-/**
- * 设置面板导航元数据与图标注册表
- *
- * 职责：组装设置页侧栏导航分组（含分组与 Tab 图标）、
- *      聚合导出默认 Tab、Tab 有效性校验、独立保存 Tab 集合与 PANEL_MAP lazy 组件映射等元数据，
- *      供设置页容器 SettingsContainer 统一消费。
- * 导出：DEFAULT_TAB / resolveTab / isValidSettingsTab /
- *      INDEPENDENT_SAVE_TABS / PANEL_MAP / buildNavGroups(featureAccess?)
- * 依赖：settings-nav.util（导航结构常量与标签工具）、panel-chunks（PANEL_MAP lazy 组件）、@lucide/vue（图标库）。
- */
+/** 设置面板导航元数据与图标注册表 */
 import type { Component } from 'vue'
 /**
  * Settings 面板注册表与导航元数据
- *
- * 职责：组装设置侧栏导航分组（含图标），并转出
- *      默认 Tab、有效性校验、独立保存集合与 PANEL_MAP 等元数据供容器消费。
- * 关键依赖：
- *  - settings-nav.util：NAV_STRUCTURE / groupLabel / tabLabel 等导航常量与工具
- *  - panel-chunks：PANEL_MAP（按 Tab ID 查询 lazy 面板组件）
- *  - @lucide/vue：Tab 与分组图标
+ * 组装设置侧栏导航分组（含图标），并转出
+ * 默认 Tab、有效性校验、独立保存集合与 PANEL_MAP 等元数据供容器消费。
  */
 import {
   Star,

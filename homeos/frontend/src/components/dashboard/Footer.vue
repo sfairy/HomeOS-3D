@@ -66,13 +66,7 @@
 </template>
 
 <script setup>
-/**
- * DashboardFooter.vue
- *
- * 职责：仪表盘底部的多卡片信息栏。根据用户在布局设置中的配置渲染账户用量卡片
- *      或任意 HA 实体卡片；并在缺少配置、缺少账户绑定、配置无效时给出对应空态。
- * 依赖：vue、vue-router、useDashboardFooter 组合式函数、account-binding-meta 常量。
- */
+/** DashboardFooter.vue */
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { CircleSlash, LayoutGrid, Unlink } from '@lucide/vue'

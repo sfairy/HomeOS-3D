@@ -1,13 +1,6 @@
 <!--
-组件：DisplaySection.vue
-所属模块：frontend / src / views / settings / system / profiles
-职责：显示方案区段。展示 UI 布局方案列表，支持新建/切换/删除方案、终端绑定与默认值配置，
-      展示方案克隆流程概览。数据由 useProfilesSection 注入。
-关键依赖：
-  - SettingsCard / SettingsFlowBand / SettingsFlowStat / ApiQueryState：卡片与流程
-  - HosSelect：方案选择
-  - useProfilesSection：注入方案/绑定相关状态与方法
-数据来源：useProfilesSection() 返回的 layoutStore / terminalBindings / createNewProfile 等
+  显示方案区段。展示 UI 布局方案列表，支持新建/切换/删除方案、终端绑定与默认值配置，
+  展示方案克隆流程概览。数据由 useProfilesSection 注入。
 -->
 <template>
   <div class="settings-hub-section">

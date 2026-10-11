@@ -1,14 +1,5 @@
 <!--
-组件：SettingsFamilyPanel.vue
-所属模块：frontend / src / views / settings / system
-职责：家庭面板。展示当前家庭模式与通知设置，支持加载家庭模式与通知配置。
-Props：
-  - activeTab：当前 Tab
-关键依赖：
-  - SettingsPageShell / SettingsCard / ApiQueryState：页面骨架与加载态
-  - fetchActiveHomeMode：家庭模式 API
-  - fetchNotificationSettings：通知设置 API
-数据来源：fetchActiveHomeMode / fetchNotificationSettings
+  家庭面板。展示当前家庭模式与通知设置，支持加载家庭模式与通知配置。
 -->
 <template>
   <SettingsPageShell

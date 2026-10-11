@@ -1,12 +1,6 @@
 <!--
-组件：NotificationsViewAnalytics.vue
-所属模块：frontend / src / views / notifications
-职责：通知中心「分析」面板。渲染 KPI 指标卡及多张统计图表（通知时序 / 已读未读 /
-      来源分布 / 级别分布 / 来源排行），并对外暴露按来源、级别筛选的事件。
-关键依赖：
-  - useNotificationsViewAnalytics composable：负责图表 DOM 挂载、KPI 汇总与点击回调分发
-  - NotificationStatsPayload / NotificationAnalyticsSummary：后端聚合数据契约
-数据来源：父级页面传入的 notifications 列表、stats 统计与 summary 汇总对象
+  通知中心「分析」面板。渲染 KPI 指标卡及多张统计图表（通知时序 / 已读未读 /
+  来源分布 / 级别分布 / 来源排行），并对外暴露按来源、级别筛选的事件。
 -->
 <template>
   <div class="nc-analytics">
@@ -92,7 +86,6 @@ type NotificationRow = {
   time?: string | null
 }
 
-// 组件入参：通知列表、聚合统计、KPI 汇总及筛选上下文
 const props = defineProps<{
   notifications: NotificationRow[]
   stats: NotificationStatsPayload | null
@@ -102,7 +95,6 @@ const props = defineProps<{
   formatCount: (n: number) => string
 }>()
 
-// 对外事件：用户点击图表后请求父级按来源或级别筛选通知列表
 const emit = defineEmits<{
   'filter-by-source': [key: string]
   'filter-by-level': [level: string]

@@ -1,10 +1,4 @@
-/**
- * 内嵌页导航主题色工具。
- *
- * 职责：按图标 key 或内嵌页序号解析 Tab 主题色（accent），并复用 embed-icons 的标签与配色。
- *
- * 依赖：@/shared/utils/layout/embed-icons.util 提供图标 accent 与 label 映射。
- */
+/** 内嵌页导航主题色工具。 */
 import { EMBED_ICON_ACCENTS } from '@/shared/utils/layout/embed-icons.util'
 
 /** 内嵌页列表序号 → Tab 主题色（按序循环） */

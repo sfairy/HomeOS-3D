@@ -1,15 +1,4 @@
-/**
- * @module core/logger
- * @description 前端统一日志工具。
- *
- * 输出策略：
- *  - dev：全级别输出到 console（error/warn/info/debug）；
- *  - prod：仅 error 输出（便于大屏现场排障，避免生产环境噪声）。
- *
- * 所有日志统一加 [HomeOS:LEVEL] 前缀，便于在浏览器控制台过滤。
- *
- * 依赖：import.meta.env（Vite 环境变量）。
- */
+/** 输出策略： */
 /* eslint-disable no-console -- 本模块为 console 封装层 */
 
 /** 是否为开发环境（生产环境下降级只输出 error） */

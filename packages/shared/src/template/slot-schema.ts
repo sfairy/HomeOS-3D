@@ -1,23 +1,4 @@
-/**
- * @file slot-schema.ts
- * @module @homeos/shared/template
- * @brief 槽位持久化 payload 结构与归一化 / 恢复（前后端共用）。
- *
- * 职责：
- *  - 定义槽位 payload 结构（SlotSchemaPayload）：mapping（key→entity_id）+ slotsMeta（槽位元信息）；
- *  - 提供类型守卫 isSlotSchemaPayload 与归一化 normalizeSlotPayload（非法结构归一为空）；
- *  - 由 mapping + slotsList 构建 payload（buildSlotPayload，仅保留非空值并标记 custom）；
- *  - 从持久化 payload 恢复 slotsList + slots 映射（restoreSlotsFromPayload，内置槽位在前）。
- *
- * 关键依赖：
- *  - appliance-catalog 提供 ApplianceSlotDef 与 getBuiltinSlots（恢复时合并内置槽位）；
- *  - appliance-type-infer 调用 buildSlotPayload / restoreSlotsFromPayload 处理槽位。
- *
- * 约定：
- *  - slotsMeta 中的 custom 槽位以 _key 标识，custom_ 前缀自动判定为 custom；
- *  - restoreSlotsFromPayload 先放内置槽位，再追加未与内置 key 冲突的 custom 槽位；
- *  - slots 映射仅保留 slotsList 中存在且 mapping 有值的条目。
- */
+/** - 定义槽位 payload 结构（SlotSchemaPayload）：mapping（key→entity_id）+ slotsMeta（槽位元信息）； */
 import type { ApplianceSlotDef } from './appliance-catalog';
 import { getBuiltinSlots } from './appliance-catalog';
 

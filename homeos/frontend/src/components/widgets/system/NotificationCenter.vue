@@ -2,14 +2,6 @@
   NotificationCenter.vue / components/widgets/system
   系统通知中心：聚合多源通知（HA persistent_notification、Frigate、系统告警、
   策略触发），支持按 source 过滤、单条/全部标记已读、分页/虚拟滚动、跳转设置。
-  Props: variant 展示模式（popover 弹窗 / hub 面板 / rail 侧栏）
-         / inline 是否内联（非全局层）
-  依赖：composables: useNotificationCenter 数据源 + inject NOTIFICATION_CENTER_KEY
-                      + useFixedPagePagination 分页；
-        RouterLink 跳转通知设置；
-        子组件：ApiQueryState / VirtualList / VEmptyState；
-        @homeos/shared notificationSourceLabel 源标签中文化。
-  注意: inject 注入优先（外层 <NotificationCenterProvider>）；否则自举 useNotificationCenter。
 -->
 <template>
   <div :class="['nc-root', variantClass]">

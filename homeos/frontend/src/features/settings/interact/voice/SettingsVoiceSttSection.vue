@@ -1,21 +1,10 @@
 <!--
-组件：SettingsVoiceSttSection.vue
-所属模块：frontend / src / views / settings / interact / voice
-职责：语音输入配置区段。通过 OrchTabs 切换交互模式（长按/唤醒词）、唤醒词配置、识别引擎与对话调试。
-      支持麦克风权限申请、输入设备选择、STT 状态查询与对话处理测试。
-defineModel：
+  语音输入配置区段。通过 OrchTabs 切换交互模式（长按/唤醒词）、唤醒词配置、识别引擎与对话调试。
+  支持麦克风权限申请、输入设备选择、STT 状态查询与对话处理测试。
+  defineModel：
   - voice：语音配置对象
   - voiceInputTab：当前输入子页签
   - wakeWordsText：唤醒词文本
-Props：
-  - voiceInputTabs：子页签配置
-关键依赖：
-  - SettingsCard / SettingsOrchTabs / SettingsFlowBand / SettingsFlowStat：卡片与流程
-  - HosSelect / EntityInput：引擎与实体选择
-  - fetchVoiceSttStatus / processVoiceConversation：STT 状态与对话 API
-  - useAudioDevices：音频设备枚举与麦克风权限
-  - useChromeStore：notify
-数据来源：父级 SettingsVoicePanel 透传的 defineModel 与 props
 -->
 <template>
   <div class="settings-hub-section">

@@ -1,13 +1,4 @@
-/**
- * 内嵌页图标注册表工具。
- *
- * 职责：维护内嵌页可选图标的注册表（key / label / accent / icon 组件），
- * 并提供按 key 或序号解析图标组件、主题色与标签的能力。
- *
- * 注意：EMBED_ICON_REGISTRY 的 key 会持久化到 layoutConfig，勿随意改名。
- *
- * 依赖：@lucide/vue 提供图标组件。
- */
+/** 内嵌页图标注册表工具。 */
 import {
   Monitor,
   Video,

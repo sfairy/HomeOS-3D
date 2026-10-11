@@ -86,9 +86,7 @@ class HomeModeRuntimeLogStore:
         self._execution_history: list[dict[str, Any]] = []
         self._persist_task: asyncio.Task | None = None
 
-    # ------------------------------------------------------------------ #
     # 持久化
-    # ------------------------------------------------------------------ #
     async def load(self) -> None:
         limits = self._get_limits()
         try:
@@ -140,9 +138,7 @@ class HomeModeRuntimeLogStore:
         self._persist_task = None
         await asyncio.to_thread(self._persist)
 
-    # ------------------------------------------------------------------ #
     # 写入
-    # ------------------------------------------------------------------ #
     def push_trigger_log(self, entry: dict[str, Any]) -> None:
         limits = self._get_limits()
         self._trigger_logs.insert(
@@ -171,9 +167,7 @@ class HomeModeRuntimeLogStore:
             del self._execution_history[limits["maxExecHistory"] :]
         self._schedule_persist()
 
-    # ------------------------------------------------------------------ #
     # 读取
-    # ------------------------------------------------------------------ #
     def get_trigger_logs(self, limit: int = 20) -> list[dict[str, Any]]:
         limits = self._get_limits()
         return self._trigger_logs[: clamp_int(limit, 1, limits["maxTriggerLogs"])]

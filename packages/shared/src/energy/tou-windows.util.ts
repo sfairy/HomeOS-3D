@@ -1,20 +1,4 @@
-/**
- * @file tou-windows.util.ts
- * @module @homeos/shared/energy
- * @brief 分时电价（峰 / 谷）时段窗口交叉校验与半开区间重叠判定。
- *
- * 职责：
- *  - validateTouWindows：校验峰段 1 / 峰段 2 / 谷段三个窗口的合法性与两两互不重叠（含跨日谷段）；
- *  - clockRangesOverlap：通用半开区间重叠判定（供调用方对任意两个时钟窗口做预检）。
- *
- * 关键依赖：
- *  - home/mode-time.util#normalizeHomeModeTimeAt：将 "8:00" / "08:00" 等写法统一为 "HH:MM"。
- *
- * 约定：
- *  - 窗口采用半开区间 [start, end)；起止相同视为无效（需返回报错）；
- *  - 谷段允许跨日（如 23:00–07:00），内部拆为 [23:00, 24:00) + [00:00, 07:00) 两段做重叠判定；
- *  - 峰段 2 start/end 均为空时视为未配置，不参与校验；任一侧非空则要求双侧完整。
- */
+/** - validateTouWindows：校验峰段 1 / 峰段 2 / 谷段三个窗口的合法性与两两互不重叠（含跨日谷段）； */
 import { normalizeHomeModeTimeAt } from '../home/mode-time.util';
 
 /** 峰谷时段窗口字段（峰段 2 可省略） */

@@ -1,9 +1,4 @@
-/**
- * 通用列表响应归一化工具。
- *
- * 职责：把后端 CRUD 列表响应的多种形态（数组 / { items } / { data }）统一为 { rows, total }。
- * 依赖：无。
- */
+/** 通用列表响应归一化工具。 */
 
 /** CRUD 列表归一化结果 */
 export interface CrudListNormalized {

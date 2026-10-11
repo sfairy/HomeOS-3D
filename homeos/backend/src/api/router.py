@@ -1,14 +1,8 @@
-"""FastAPI 路由基类：默认状态码对齐 NestJS。
+"""FastAPI 路由基类：POST 默认返回 201 Created。
 
-NestJS 约定：
-- ``@Post()`` 默认返回 **201 Created**（仅显式 ``@HttpCode(200)`` 时例外）；
-- 其余方法（GET / PUT / PATCH / DELETE / HEAD / OPTIONS）默认 **200 OK**。
-
-FastAPI 默认所有方法均为 200，直接用 ``APIRouter`` 会导致 POST 状态码与 Nest 不一致
-（前端在「零改动透明替换」前提依赖该契约）。因此统一使用本模块的 ``NestRouter``：
-只要路由包含 POST 且未显式指定 ``status_code``，即注入 201。
-
-显式传入的 ``status_code``（如 auth 的登录类端点 200、创建类端点 201）始终保持不变。
+GET / PUT / PATCH / DELETE / HEAD / OPTIONS 默认 200 OK。FastAPI 默认所有方法均为 200，
+故统一使用 ``NestRouter``：路由包含 POST 且未显式指定 ``status_code`` 时注入 201；
+显式传入的 ``status_code``（如登录类端点 200、创建类端点 201）始终保持不变。
 """
 
 from __future__ import annotations

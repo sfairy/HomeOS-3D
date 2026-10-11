@@ -1,12 +1,4 @@
-"""工具参数安全校验。
-
-职责：对 LLM 返回的工具参数做基本安全校验，防止 prompt injection 诱导恶意参数。
- - entity_id 格式校验（必须为 domain.entity 格式）
- - service_data 白名单字段过滤（仅允许已知安全字段，阻止 token/password 等敏感字段注入）
-
-实体级 ACL（角色 / 儿童限制）由 home_tools_service 在执行 control_* 前通过
-assert_command_proxy_authorized 接入，与 HTTP /services/call 对齐。
-"""
+"""工具参数安全校验。"""
 
 from __future__ import annotations
 

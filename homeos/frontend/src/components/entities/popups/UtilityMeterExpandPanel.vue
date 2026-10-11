@@ -1,17 +1,4 @@
-/**
- * @file UtilityMeterExpandPanel.vue
- * @module components/entities/popups
- * @brief 公事业仪表展开面板
- *
- * 职责：
- * - 仪表弹窗的展开视图：按日/月/年 Tab 切换用量与费用图表
- * - 日历视图：按日单元格展示用量热力，支持月份切换与「今天」跳转
- * - 顶部展示汇总用量与费用；所有数据与图表 ref 由父组件透传，本身仅负责展示与事件冒泡
- *
- * 依赖：
- * - @lucide/vue（X 图标）
- * - 父组件通过 props 传入汇总、日历、图表 ref 与回调
- */
+/** - 仪表弹窗的展开视图：按日/月/年 Tab 切换用量与费用图表 */
 <template>
   <div :class="`${prefix}-expand`">
     <div :class="`${prefix}-expand-tabs`">
@@ -120,12 +107,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 UtilityMeterExpandPanel 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 import { X } from '@lucide/vue'
 defineProps({
   prefix: { type: String, required: true },

@@ -21,18 +21,10 @@ import { schedulePoll } from '@/shared/utils/core/poll-scheduler'
 
 /**
  * 客户端电量与系统信息实时上报 composable
- *
- * 模块职责：
- *  - 在用户认证后启动客户端系统信息（电量、CPU、内存等）的周期性上报；
- *  - 监听电池变化与页面可见性，动态调整上报间隔；
- *  - 处理 401 鉴权失败时刷新会话并重试；
- *  - 多次失败后停止上报并警告。
- *
- * 依赖：
- *  - @/services/api/system（fetchSystemConfig 拉取配置 / reportClientPower 上报）；
- *  - @/stores/auth.store（判断认证状态、刷新会话）；
- *  - @/shared/client/utils/system.util（构建上报 payload、BatteryManager 管理）；
- *  - axios（识别 401 错误）。
+ * - 在用户认证后启动客户端系统信息（电量、CPU、内存等）的周期性上报；
+ * - 监听电池变化与页面可见性，动态调整上报间隔；
+ * - 处理 401 鉴权失败时刷新会话并重试；
+ * - 多次失败后停止上报并警告。
  */
 
 /** 默认上报间隔（秒）：未拉取到后端配置时的回退值 */
@@ -309,9 +301,9 @@ export function useClientPowerReporter() {
    * 商业授权是否已放行。
    *
    * 授权未激活时，后端门禁会把 `/system/config` 与 `/system/client-power/report` 一律打成
-   * 401 ``LICENSE_INACTIVE``：这轮上报不可能成功，`postReport` 遇 401 自停只挡住当前一轮，
-   * 页面每次刷新/HMR 重载又会重来一遍，把控制台和后端访问日志刷满。
-   * 所以在此前置拦截——没放行就不启动，等激活完成（`licenseActivated` 置真）由 watch 自动开跑。
+   * 401 ``LICENSE_INACTIVE``；只靠 `postReport` 遇 401 自停挡不住页面刷新/HMR 重载的反复
+   * 重试，会刷满控制台与后端访问日志，故在此前置拦截：未放行就不启动，
+   * 待激活完成（`licenseActivated` 置真）由 watch 自动开跑。
    * ``null``（多为后端不可达）同样按未放行处理。
    */
   const licenseAllowed = computed(() => getLicenseActivated() === true)

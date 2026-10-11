@@ -36,24 +36,7 @@
 </template>
 
 <script setup>
-/**
- * @file DeviceGroupBatchBar.vue
- * @module components/entities/device-group
- * @description 设备群组批量操作工具条
- *
- * 职责：
- * - 提供「全部开启 / 全部关闭」批量按钮
- * - 显示当前已开启（或运行中）的实体数量与总数
- * - 在批量执行期间禁用按钮，避免重复触发
- *
- * 依赖：
- * - @lucide/vue 的 Power 图标
- * - 父组件通过 props 控制 show/executing/onCount/total/offOnly/statLabel
- *
- * 使用场景：
- * - light/switch 域：显示开启/关闭按钮，统计「已开启」数量
- * - climate 域：仅显示关闭按钮（offOnly=true），统计「运行中」数量
- */
+/** - 提供「全部开启 / 全部关闭」批量按钮 */
 import { Power } from '@lucide/vue'
 
 /**

@@ -1,9 +1,7 @@
 <!--
   WidgetPanelSlot.vue
-  所属模块：dashboard（仪表板部件面板可见性插槽容器）
-  职责：按 widgetType 绑定 IntersectionObserver，向子插槽传递 panel-visible 标志，
-        让内部部件（如媒体迷你控制器）感知自身是否可见以决定暂停/恢复加载。
-  依赖：vue、useWidgetPanelVisibility、PANEL_VISIBILITY_WIDGET_TYPES。
+  按 widgetType 绑定 IntersectionObserver，向子插槽传递 panel-visible 标志，
+  让内部部件（如媒体迷你控制器）感知自身是否可见以决定暂停/恢复加载。
 -->
 <template>
   <div
@@ -17,14 +15,7 @@
 </template>
 
 <script setup>
-/**
- * WidgetPanelSlot.vue
- *
- * 职责：按 widgetType 绑定 IntersectionObserver，向子插槽传递 panel-visible 标志，
- *      让内部部件（如媒体迷你控制器）感知自身是否可见以决定暂停/恢复加载。
- *      仅 PANEL_VISIBILITY_WIDGET_TYPES 集合中的类型才会启用可见性追踪。
- * 依赖：vue、useWidgetPanelVisibility、PANEL_VISIBILITY_WIDGET_TYPES。
- */
+/** WidgetPanelSlot.vue */
 import { ref, watch } from 'vue'
 import {
   useWidgetPanelVisibility,

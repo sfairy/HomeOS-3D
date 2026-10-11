@@ -102,9 +102,7 @@ class DatabaseRetentionService:
     def cooldown(self, value: Any) -> None:
         self._cooldown = value
 
-    # ------------------------------------------------------------------ #
     # 启动
-    # ------------------------------------------------------------------ #
     def start(self) -> None:
         self._retention_days = self.resolve_retention_days()
         try:
@@ -122,9 +120,7 @@ class DatabaseRetentionService:
         if "ops" in sections and self._task is not None:
             self.restart_schedule()
 
-    # ------------------------------------------------------------------ #
     # 定时调度（首次延迟 + 周期，对齐 Nest restartCleanupSchedule）
-    # ------------------------------------------------------------------ #
     def cleanup_interval_ms(self) -> int:
         """周期性清理间隔毫秒数，默认 1 小时；配置 <= 0 时退回 1 小时兜底。"""
         raw = self._ops().get("retentionCleanupIntervalHours")
@@ -202,9 +198,7 @@ class DatabaseRetentionService:
         except Exception as exc:
             logger.warning("数据库历史保留清理失败: %s", exc)
 
-    # ------------------------------------------------------------------ #
     # 保留天数解析
-    # ------------------------------------------------------------------ #
     def _ops(self) -> dict[str, Any]:
         return self._app_config.get("ops") or {}
 
@@ -232,9 +226,7 @@ class DatabaseRetentionService:
     def get_cutoff_date(self) -> datetime:
         return self.cutoff_for_days(self._retention_days)
 
-    # ------------------------------------------------------------------ #
     # 面板数据
-    # ------------------------------------------------------------------ #
     def get_retention_policies(self) -> list[dict[str, Any]]:
         return [
             {
@@ -266,9 +258,7 @@ class DatabaseRetentionService:
         logger.info("数据保留策略已更新: %s", days)
         return self.get_retention_policies()
 
-    # ------------------------------------------------------------------ #
     # 清理
-    # ------------------------------------------------------------------ #
     async def run_cleanup_locked(self) -> dict[str, Any]:
         """带分布式锁的清理入口（对齐 Nest ``runCleanup``）。
 
@@ -361,9 +351,7 @@ class DatabaseRetentionService:
             logger.info("已清理 %s 条超期历史记录: %s", total, deleted)
         return result
 
-    # ------------------------------------------------------------------ #
     # 附加清理步骤
-    # ------------------------------------------------------------------ #
     def _vacuum_event_log(self, deleted_count: int) -> None:
         """EventLog 删除 >=1000 行后 VACUUM + ANALYZE；失败回退 ANALYZE（对齐 Nest）。"""
         if deleted_count < 1000:

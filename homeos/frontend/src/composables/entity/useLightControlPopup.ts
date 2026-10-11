@@ -1,16 +1,4 @@
-/**
- * 灯光控制弹窗组合式函数模块。
- *
- * 职责：
- * - 提供灯光弹窗所需的实时实体、能力属性（色温/RGB 支持、Kelvin 范围）；
- * - 亮度、色温、颜色（RGB/HS）滑块与色盘交互，并通过 HA service 下发；
- * - 颜色空间转换（HSV/RGB/Hex 互转）、过渡时间控制；
- * - 通过 useSliderCommit 统一处理拖拽本地值与提交，避免拖拽期间被外部更新打断。
- *
- * 依赖：vue ref/computed/watch/onMounted、useLiveEntity、useEntityPopupHeader、
- * useHaEntityService、useSliderCommit、entity-cold-fetch、progress-bar 工具、
- * `@/shared/entity/utils/control/light-control-core`（能力/颜色/服务 data）。
- */
+/** 灯光控制弹窗组合式函数模块。 */
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useLiveEntity } from '@/composables/entity/useLiveEntity'
 import { useEntityPopupHeader } from '@/composables/entity/useEntityPopupBase'

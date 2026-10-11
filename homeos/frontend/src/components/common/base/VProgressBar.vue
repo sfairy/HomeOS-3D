@@ -1,10 +1,4 @@
-/**
- * @file VProgressBar.vue
- * @module components/common/base
- * @description 通用进度条组件。支持静态展示与交互式拖拽（slider 模式），
- *  支持多种配色变体、危险/警告态自动发光、键盘控制（方向键/Home/End）与 ARIA 无障碍。
- *  依赖：vue（computed/ref）、progress-bar.util（归一化与填充样式计算）。
- */
+/** 支持多种配色变体、危险/警告态自动发光、键盘控制（方向键/Home/End）与 ARIA 无障碍。 */
 <template>
   <div
     :class="[
@@ -39,12 +33,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 VProgressBar 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 import { computed, ref } from 'vue'
 import { normalizeProgressPct, progressFillStyle } from '@/shared/utils/ui/progress-bar.util'
 

@@ -1,12 +1,4 @@
-/**
- * 地震预警语音播报（TTS）模块
- *
- * 职责：在地震预警倒计时阶段执行分级语音播报——长相位（>15 秒）每 15 秒/循环播报完整预警文案，
- *      短相位（0~15 秒）每秒播报倒计时，横波到达时触发蜂鸣警示音与到达提示；
- *      TTS 模式优先浏览器本地 SpeechSynthesis，本地静默失败或无语音时自动回退到后端 HA 媒体播放器播报。
- * 状态机：ttsMode 'unknown' → 首次探测 → 'local' 或 'backend'；本地连续失败 2 次切换后端。
- * 内部副作用：使用模块级共享定时器与状态变量，同一时刻仅应存在一个活动实例；卸载调用 stopSpeech 清理。
- */
+/** 地震预警语音播报（TTS）模块 */
 import { watch, onUnmounted } from 'vue'
 import type { Ref } from 'vue'
 import type { EarthquakeAlertPayload } from '@/shared/types/earthquake'
@@ -25,20 +17,9 @@ import {
 
 /**
  * 地震预警 TTS（文本转语音）模块
- *
- * 模块职责：
- *  - 在地震预警倒计时阶段进行语音播报（震级、横波到达倒计时、烈度等）；
- *  - 优先使用浏览器本地 SpeechSynthesis API，失败时回退到后端 HA 媒体播放器播报；
- *  - 自动探测 TTS 模式（local/backend），避免每次播报都做静默失败的判定开销。
- *
- * 依赖：
- *  - @/shared/voice/utils/local-speech.util（本机 SpeechSynthesis）；
- *  - @/services/api/system 的 speakVoiceMultiple（后端 TTS）；
- *  - @/shared/voice/utils/resolve-tts-media-players.util 解析媒体播放器 entity_id。
- *
- * 注意：
- *  - 模块级变量（loopTimer 等）在多个 composable 调用之间共享，
- *    因此同一时刻只应有一个 useEarthquakeTts 实例处于活动状态。
+ * - 在地震预警倒计时阶段进行语音播报（震级、横波到达倒计时、烈度等）；
+ * - 优先使用浏览器本地 SpeechSynthesis API，失败时回退到后端 HA 媒体播放器播报；
+ * - 自动探测 TTS 模式（local/backend），避免每次播报都做静默失败的判定开销。
  */
 
 /** 本地 TTS 静默失败判定窗口（毫秒） */

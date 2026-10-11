@@ -1,24 +1,12 @@
 <!--
-  组件文件：EventLogRecordFilterSection.vue
-  所属模块：frontend/src/features/settings/connect/connection
-  组件职责：系统连接大类下的事件日志记录过滤配置面板，控制 HomeOS 要持久化到 SQLite 的
-    HA 事件实体范围与域名白/黑名单。顶部为开/关大开关，中部为 allow_domains /
-    block_domains 两档模式切换、域名快速预设、多选实体屏蔽，并展示近期记录数量
-    与性能洞察推荐卡。
-  主要 props / emits：无 props / emits（独立 Section 级，使用 composable 自给自足）。
-  依赖关系：引用 useEventLogRecordFilter composable 获取 enabled/mode/blockEntityIds/
-    entityDomains/summaryParts/saving/feedback/load/save/toggleEnabled/toggleDomain/
-    applyPreset 等全部响应式状态与方法；useRecommendInsight 渲染推荐卡。
+  系统连接大类下的事件日志记录过滤配置面板，控制 HomeOS 要持久化到 SQLite 的
+  HA 事件实体范围与域名白/黑名单。顶部为开/关大开关，中部为 allow_domains /
+  block_domains 两档模式切换、域名快速预设、多选实体屏蔽，并展示近期记录数量
+  与性能洞察推荐卡。
   注意事项：allow_domains 模式仅会保存勾选的域名（白名单），block_domains 模式为
-    黑名单排除；调整后需点击底部保存按钮才会持久化到后端。
+  黑名单排除；调整后需点击底部保存按钮才会持久化到后端。
 -->
 <script setup>
-/**
- * 职责：渲染 views/EventLogRecordFilterSection 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { computed, onMounted } from 'vue'
 import {
   FileText,

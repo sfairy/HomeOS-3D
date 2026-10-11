@@ -1,18 +1,4 @@
-/**
- * 设置页侧边栏导航结构与文案映射
- *
- * 职责：
- * - 维护设置页导航分组（NAV_GROUP_LABELS）、Tab 标签（TAB_LABELS）、
- *   页面标题（PAGE_TITLE_LABELS）、页面描述（PAGE_DESC_LABELS）。
- * - 维护导航结构（NAV_STRUCTURE）、独立保存 Tab（INDEPENDENT_SAVE_TABS）。
- * - 提供分组/Tab 文案查询、Tab 合法性校验等工具函数。
- *
- * 依赖：无外部依赖，纯静态映射与纯函数。
- *
- * 注意：
- * - 对象 key 为分组 id / Tab id（如 connect、setup-wizard、layout），属于配置 key，不翻译。
- * - 仅面向用户的文案 value 使用简体中文。
- */
+/** 设置页侧边栏导航结构与文案映射 */
 const NAV_GROUP_LABELS: Record<string, string> = {
   connect: '入门与连接',
   home: '家居配置',

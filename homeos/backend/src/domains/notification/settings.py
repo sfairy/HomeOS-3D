@@ -41,9 +41,7 @@ class NotificationSettingsHelper:
         self._is_dnd_active = is_dnd_active
         self._get_timezone = get_timezone or (lambda: None)
 
-    # ------------------------------------------------------------------ #
     # 读取
-    # ------------------------------------------------------------------ #
     def _get_global_settings(self) -> dict[str, Any]:
         cfg = self._get_cfg()
         return {
@@ -119,9 +117,7 @@ class NotificationSettingsHelper:
         )
         return self._merge_settings(global_settings, user_prefs or {})
 
-    # ------------------------------------------------------------------ #
     # 写入
-    # ------------------------------------------------------------------ #
     async def update_settings(
         self,
         settings: dict[str, Any],

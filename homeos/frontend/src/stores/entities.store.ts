@@ -47,28 +47,17 @@ import {
 
 /**
  * 实体状态管理 Store
- *
  * HomeOS 前端最核心的数据层，负责管理所有 Home Assistant 实体的实时状态。
  * 通过 Socket.IO 长连接接收 HA 状态推送，并提供服务调用（如开关灯、调节温度）的能力。
- *
  * 核心架构：
  * - **Socket.IO 连接**：与服务端 WebSocket 网关建立长连接，接收 initial_states（全量）和 state_changed（增量）
  * - **即时更新**：每条 state_changed 立即写入 entities 并通知监听器
  * - **Weather 预报**：支持 weather 实体的 get_forecasts 服务调用，缓存预报数据
- *
  * 数据流：
  * 1. connect(token) → 建立 Socket.IO 连接
  * 2. 'initial_states' → 全量写入 entities 对象
  * 3. 'state_changed' → 即时更新实体状态
  * 4. callService() → HTTP POST /services/call
- *
- * 依赖：
- * - @homeos/shared：实体域解析与鉴权（getEntityDomain / isEntityAllowed）
- * - @/services/api：HTTP 客户端与实体同步接口
- * - @/stores/auth.store：实体访问权限
- * - @/stores/layout.store：布局配置（影响缓存 hydration 分区）
- * - @/shared/utils/config/frontend-config：阈值与批量大小等可调参数
- * - @/stores/entities/* 拆分模块：WS 状态机 / 缓存 / 派生索引 / 动作 / 投影
  */
 /** useEntitiesStore：Pinia store 工厂，状态与动作见定义。 */
 export const useEntitiesStore = defineStore('entities', () => {

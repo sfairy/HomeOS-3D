@@ -99,21 +99,7 @@
 </template>
 
 <script setup>
-/**
- * MediaPlayerModalHeader - 媒体弹窗顶栏组件
- * 职责：展示播放器名称与状态、提供随机/循环/音源切换与 TTS 输入的更多菜单、关闭按钮。
- * Props:
- * - deviceName/stateLabelUpper/stateDotClass：设备名、状态文案与状态点样式；
- * - attrs：播放器原始属性对象，用于读取 shuffle/repeat/source 等；
- * - supports：能力开关对象，决定菜单项是否渲染；
- * - repeatLabel/sourceList/hasTts：循环文案、可选音源列表、是否支持 TTS；
- * - toggleShuffle/toggleRepeat/setSource/speakTts：父级传入的事件回调。
- * v-model:
- * - showMore：下拉菜单展开状态；
- * - ttsText：TTS 输入框文本。
- * Emits:
- * - close：关闭弹窗。
- */
+/** MediaPlayerModalHeader - 媒体弹窗顶栏组件 */
 import { nextTick, reactive, ref, watch } from 'vue'
 import { X, Volume2, Repeat, Shuffle, MoreHorizontal } from '@lucide/vue'
 

@@ -1,16 +1,4 @@
-/**
- * 进度条 / 滑块轨道渐变色工具。
- *
- * 职责：
- * - 维护 variant → 渐变色映射表（PROGRESS_VARIANTS）
- * - 维护 Builder 单色 → 渐变映射、PIN 强度 class → variant、阈值类 variant 集合
- * - 提供百分比归一化、滑块步进吸附、数值钳制与按阈值选色等 helper
- *
- * 关键算法：normalizeProgressPct / snapToSliderStep 保证滑块拇指与轨道填充使用同一数值；
- * resolveProgressGradient 按预算/余额/资源等阈值动态选色。
- *
- * 依赖：vue 的 isRef/Ref；@/shared/utils/core/misc.util 的 clampNum。
- */
+/** 进度条 / 滑块轨道渐变色工具。 */
 
 import { isRef, type Ref } from 'vue'
 

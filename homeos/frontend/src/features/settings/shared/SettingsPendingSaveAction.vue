@@ -1,16 +1,5 @@
 <!--
-组件：SettingsPendingSaveAction.vue
-所属模块：frontend / src / views / settings / shared
-职责：设置页未保存修改操作条。展示待保存项数与文案，提供保存/取消按钮，保存中禁用并切换文案。
-Props：
-  - pending：待保存修改数（为 0 时隐藏）
-  - saving：是否保存中
-  - saveText / savingText / cancelText：按钮文案
-  - pendingLabel：待保存项描述
-Emits：
-  - save / cancel
-关键依赖：computed（计算是否显示）
-数据来源：父级透传的 pending / saving
+  设置页未保存修改操作条。展示待保存项数与文案，提供保存/取消按钮，保存中禁用并切换文案。
 -->
 <template>
   <span v-if="pending > 0" class="config-actions__pending">{{ pendingLabel }}</span>

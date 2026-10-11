@@ -1,21 +1,4 @@
-/**
- * 前端公共配置（AppPublicConfig）状态管理
- *
- * 职责：
- * - 维护前端公共配置的默认值（frontend / wsPush / eventLog / 等）。
- * - 提供配置的拉取、缓存、按分区订阅与变更通知（ConfigChangeListener）。
- * - 提供运行时配置查询入口（如 eventLog 运行时配置、wsPush 公共分区）。
- *
- * 依赖：
- * - vue 的 ref 响应式。
- * - @/services/api/system 的 fetchPublicSystemConfig。
- * - @/shared/utils/core/logger 的日志。
- * - @homeos/shared 的 ClientPowerWakePublic 类型。
- * - @/shared/types/frontend-config 的公共配置类型。
- *
- * 注意：
- * - 配置 key（apiTimeoutMs / widgetPollIntervals / ...）为配置 key，不翻译。
- */
+/** 前端公共配置（AppPublicConfig）状态管理 */
 import { ref } from 'vue'
 import { fetchPublicSystemConfig } from '@/services/api/system'
 import { logger } from '@/shared/utils/core/logger'

@@ -60,9 +60,7 @@ class AppConfigValidationError(ConfigValidationError):
         self.message = summary
 
 
-# --------------------------------------------------------------------------- #
 # 原子校验工具（primitives.util.ts）
-# --------------------------------------------------------------------------- #
 _ENTITY_ID_RE = re.compile(r"^[a-z_]+\.[a-z0-9_]+$", re.IGNORECASE)
 
 
@@ -124,9 +122,7 @@ def validate_entity_id_list(
             break
 
 
-# --------------------------------------------------------------------------- #
 # 分时电价窗口校验（@homeos/shared energy/tou-windows.util.ts）
-# --------------------------------------------------------------------------- #
 def _clock_to_minutes(raw: str) -> int | None:
     normalized = normalize_home_mode_time_at(raw)
     if not normalized:
@@ -190,9 +186,7 @@ def validate_tou_windows(input_: dict[str, Any]) -> list[str]:
     return errors
 
 
-# --------------------------------------------------------------------------- #
 # 分区校验函数
-# --------------------------------------------------------------------------- #
 def _validate_auth(section: str, p: dict[str, Any], e: list[FieldError]) -> None:
     if "lockoutMaxAttempts" in p:
         num_in(section, "lockoutMaxAttempts", p["lockoutMaxAttempts"], 3, 20, e)

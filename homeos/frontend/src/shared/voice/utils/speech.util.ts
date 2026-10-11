@@ -1,21 +1,4 @@
-/**
- * 语音播报风格与每日顾问 TTS 配置工具
- *
- * 职责：
- * - 维护内置告警播报风格表（系统默认 / 简短提醒 / 朗读详情 / 区域告警 / 自定义）。
- * - 维护各内置告警规则适用的风格集合，供语音播报配置页筛选。
- * - 提供每日顾问 TTS（白天 / 傍晚）的默认配置与规范化工具。
- *
- * 依赖：
- * - @/shared/constants/voice-alert-catalog 的每日顾问 TTS 默认配置。
- * - @/shared/entity/utils/derived.util 的 getEntityDisplayName。
- *
- * 注意：
- * - 风格 id（default / short / detail / zone / custom）为配置 key，不翻译。
- * - 规则 key（securityZone / safetySmoke / ...）为配置 key，不翻译。
- * - 模板字符串中的 `{{name}}` / `{{zones}}` / `{{message}}` 为占位符，不翻译。
- * - 仅面向用户的 label 使用简体中文。
- */
+/** 语音播报风格与每日顾问 TTS 配置工具 */
 import {
   getDefaultDailyAdvisorTtsDaytime,
   getDefaultDailyAdvisorTtsEvening,

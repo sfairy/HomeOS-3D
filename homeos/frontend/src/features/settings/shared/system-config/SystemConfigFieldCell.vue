@@ -1,22 +1,6 @@
 <!--
-组件：SystemConfigFieldCell.vue
-所属模块：frontend / src / views / settings / shared / system-config
-职责：高级参数字段单元格。按字段类型渲染对应输入控件（文本/数字/开关/选择/实体/多选/嵌套对象），
-      支持掩码切换、开发 key 显示、修改标记与紧凑模式。
-Props：
-  - field：字段定义对象（含 value / type）
-  - inputId / label / hint：输入 id、标签、提示
-  - showDevKey / sectionTag / allowObject / compact / modified：显示与行为开关
-Emits：
-  - update:value：值变更
-  - update:isMasked：掩码切换
-关键依赖：
-  - HosSelect / EntityInput / EntityMultiSelect：各类输入控件
-  - SystemConfigNestedObjectEditor：嵌套对象编辑
-  - haEntityDomainFilter / systemConfigCellClass / systemConfigSelectOptions：字段元数据
-  - joinCommaEntityIds / parseCommaEntityIds：逗号分隔实体 id
-  - getNestedObjectEditorKind：嵌套编辑器类型判定
-数据来源：父级透传的 field
+  高级参数字段单元格。按字段类型渲染对应输入控件（文本/数字/开关/选择/实体/多选/嵌套对象），
+  支持掩码切换、开发 key 显示、修改标记与紧凑模式。
 -->
 <template>
   <div

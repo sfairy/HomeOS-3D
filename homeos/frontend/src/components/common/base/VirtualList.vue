@@ -1,11 +1,4 @@
-/**
- * @file VirtualList.vue
- * @module components/common/base
- * @description 固定行高虚拟列表组件，基于 @vueuse/core 的 useVirtualList 实现。
- *  - itemGap：行间距计入步长（stride = itemHeight + itemGap），避免滚到底部高度抖动；
- *  - virtualThreshold：条目数不超过该值时全量渲染，规避小列表固定行高误差导致的底部闪烁。
- *  依赖：vue（toRef/computed）、@vueuse/core useVirtualList。
- */
+/** - itemGap：行间距计入步长（stride = itemHeight + itemGap），避免滚到底部高度抖动； */
 <template>
   <div
     v-bind="isVirtual ? containerProps : staticContainerProps"
@@ -47,12 +40,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 VirtualList 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 import { toRef, computed } from 'vue'
 import { useVirtualList } from '@vueuse/core'
 

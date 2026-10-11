@@ -1,14 +1,7 @@
 <!--
-组件：BackupSection.vue
-所属模块：frontend / src / views / settings / system / profiles
-职责：档案「备份与恢复」区段（系统设置内唯一入口）。统一全量备份（含数据库）：
-      导出/还原加密备份包（.habackup）、服务器全量快照管理、定时自动备份状态。
-      数据由 useProfilesSection 注入。
-关键依赖：
-  - SettingsCard / SettingsFlowBand：卡片与流程
-  - HosSelect：保留天数选择
-  - BackupRestoreDialog：加密全量备份包导出/还原弹窗
-数据来源：useProfilesSection() 返回的 backupFiles / autoBackup / runBackupNow 等
+  档案「备份与恢复」区段（系统设置内唯一入口）。统一全量备份（含数据库）：
+  导出/还原加密备份包（.habackup）、服务器全量快照管理、定时自动备份状态。
+  数据由 useProfilesSection 注入。
 -->
 <template>
   <div class="settings-hub-section">

@@ -1,7 +1,4 @@
-/**
- * 地震预警配置与告警数据结构。
- * 依赖：@homeos/shared（EEW 倒计时选项、全球地震源/周期/事件类型）。
- */
+/** 地震预警配置与告警数据结构。 */
 import {
   EEW_COUNTDOWN_LEAD_OPTIONS,
   type EewCountdownLeadSec,

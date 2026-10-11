@@ -78,9 +78,7 @@ def _wecom(request: Request):
     return request.app.state.wecom_service
 
 
-# --------------------------------------------------------------------------- #
 # 通道状态 / WebPush 订阅管理
-# --------------------------------------------------------------------------- #
 @router.get("/status")
 async def status(
     request: Request,
@@ -152,9 +150,7 @@ async def test_push(
     return await _webpush(request).send_test(target)
 
 
-# --------------------------------------------------------------------------- #
 # 企业微信回调（@Public）
-# --------------------------------------------------------------------------- #
 def _signature_matches(local: str | None, remote: str | None) -> bool:
     """恒定时间比较企微签名；长度不等直接判不匹配。"""
     import hmac

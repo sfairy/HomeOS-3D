@@ -1,15 +1,6 @@
 <!--
-组件：SettingsWeatherEffectsSection.vue
-所属模块：frontend / src / views / settings / display
-职责：天气特效区块。链路概览 + 工作区卡（总开关 + Tab + 面板 + 保存）。
-      Tab 切换：基础配置、全局参数（粒子密度/风速/星空云层）、分场景参数。
-关键依赖：
-  - SettingsCard / SettingsFlowBand / SettingsFeatureMaster：卡片与总开关
-  - SettingsOrchTabs / SettingsRangeField / SettingsSectionHead：Tab 与滑块
-  - WeatherEffectsSwitch / WeatherEffectsOverviewCard / WeatherEffectsSceneParamsCard：子组件
-  - useWeatherEffectsConfig：天气特效配置表单与保存逻辑
-  - WEATHER_EFFECTS_KEY：向子组件 provide 配置
-数据来源：useWeatherEffectsConfig 派生（最终来自系统配置）
+  天气特效区块。链路概览 + 工作区卡（总开关 + Tab + 面板 + 保存）。
+  Tab 切换：基础配置、全局参数（粒子密度/风速/星空云层）、分场景参数。
 -->
 <template>
   <div class="settings-hub-section weather-effects-hub">

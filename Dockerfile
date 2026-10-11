@@ -1,23 +1,10 @@
-# 刻意**不写** `# syntax=docker/dockerfile:1`：那一行会让每次构建都先去 Docker Hub
-# 拉一次前端镜像（实测 120s，网络差时直接超时失败），而本文件没有用到任何超越内置
-# 前端的语法（多阶段 / scratch / ARG before FROM / COPY --chown 都是内置支持）。
+# 刻意不写 `# syntax=docker/dockerfile:1`：会额外出网拉前端镜像，且本文件未用到超出内置的语法。
 
-# ─── 基础镜像（可用镜像站覆盖）─────────────────────────────────────
-#
-# Docker Hub 在部分网络下拉不动（auth.docker.io 超时）。这两个 ARG 让整个基础镜像
-# 可以整体指向镜像站 / 私有仓库，而不必改本文件：
-#
-#   docker buildx build \
-#     --build-arg PYTHON_IMAGE=docker.m.daocloud.io/library/python:3.14-slim-bookworm \
-#     --build-arg CADDY_IMAGE=docker.m.daocloud.io/library/caddy:2.11.4-alpine ...
-#
-# ops/build.py 的 --base-mirror（或 HOMEOS_BASE_MIRROR 环境变量）会自动拼出这两个引用，
-# 例如 `HOMEOS_BASE_MIRROR=docker.m.daocloud.io bun run build:backend`。
+# 基础镜像：两个 ARG 可整体指向镜像站/私有仓库（ops/build.py 的 --base-mirror）。
 ARG PYTHON_IMAGE=python:3.14-slim-bookworm
 ARG CADDY_IMAGE=caddy:2.11.4-alpine
 
-#: 镜像版本号来自仓库根 package.json 的 version（CI 用 --build-arg HOMEOS_VERSION 传同一个值）：
-#: 构建期写成 <包>/_version.py 再随源码一起编译，镜像里不再有 VERSION 文件。
+#: 版本号来自仓库根 package.json，构建期写成 <包>/_version.py 随源码编译。
 ARG CYTHON_VERSION=3.2.9
 
 # ─── 内置反代：只取 caddy 静态二进制，运行镜像不依赖这个基础镜像 ─────
@@ -47,46 +34,26 @@ WORKDIR /app
 
 COPY homeos/backend/requirements.txt /tmp/requirements-app.txt
 COPY homeos-store/backend/requirements.txt /tmp/requirements-store.txt
-#: 构建容器连不上 pypi.org 时（表现为卡在 Downloading 一动不动、且不报错）由
-#: ops/build.py 的 --pip-index / HOMEOS_PIP_INDEX 传进来，换成可达的 PyPI 镜像。
+#: 构建容器连不上 pypi.org 时，由 ops/build.py 的 --pip-index 换成可达镜像。
 ARG PIP_INDEX_URL=""
 RUN pip install --upgrade pip ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} \
     && pip install ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} \
         -r /tmp/requirements-app.txt -r /tmp/requirements-store.txt \
     && rm /tmp/requirements-app.txt /tmp/requirements-store.txt
 
-#: Debian 包源同上：deb.debian.org 直连时单个包能等 30–80 秒，换成就近镜像
-#: （如 mirrors.tuna.tsinghua.edu.cn 或 mirrors.aliyun.com），由 ops/build.py 传入。
+#: Debian 包源同上，由 ops/build.py 换成就近镜像。
 ARG APT_MIRROR=""
 RUN if [ -n "$APT_MIRROR" ]; then \
         sed -i "s|deb.debian.org|$APT_MIRROR|g" /etc/apt/sources.list.d/debian.sources; \
     fi
 
 
-# ═══ 后端保护：Cython 把 Python 源码编译成原生扩展（.so），随后删除 .py 源码 ═══
-#
-# 主应用与商店**共用这一段编译流程**（P5 合并）：两者的差异只有三处 —— 源码目录、启动器
-# 模块名（start_app / start_store）、不得进产物的遗留目录（migrations / db）—— 全部由
-# ARG PROJECT 派生，见下方那个 case。合并前是两份逐行复制的 app-build / store-build，
-# 「改了一处忘了另一处」是迟早的事（共享包的 COPY 与 find 断言当时就各写了一遍）。
-#
-# 产物**不直接进运行镜像**，而是由 ops/build.py 用
-#   docker buildx build --target backend-export --build-arg PROJECT=<项目目录> \
-#     --output type=local,dest=dist/<项目名>/backend/linux-<arch>
-# 导出到工作区根 dist/，再由运行阶段 COPY 回来。这样「加密后的后端」是一份可归档、
-# 可跨镜像复用的产物，运行镜像里不再编译任何后端源码。
-#
-# 「哪个项目配哪个 PROJECT」由 ops/build.py 的 PROJECTS 表唯一决定：ops/check_deploy_
-# independence.py 会核对那张表与下面 case 的分支一致、且应用侧只能取 homeos。给错值是
-# 编出了**另一个项目**的后端 —— 镜像层面无法自证（单阶段 + ARG 是同一个模板），只能靠
-# 这道门禁 + 全绿的冒烟来钉。
-#
-# 前端（Vite 构建 + JS 混淆）改由宿主机的 `bun run build:frontend` 产出，也落在根 dist/，
-# 本文件不再承担前端构建。
+# 后端保护：Cython 编译成 .so 后删除 .py 源码。
+# 主应用与商店共用这段流程，差异（源码目录、启动器、遗留目录）全部由 ARG PROJECT 派生；
+# 「哪个项目配哪个 PROJECT」由 ops/build.py 的 PROJECTS 表与 ops/check_deploy_independence.py 对账。
+# 产物经 --target backend-export 导出到根 dist/ 再 COPY 回运行阶段；前端不在本文件构建。
 FROM base AS backend-build
-#: **必传、无默认值**：仓库内的项目目录名（homeos / homeos-store）。刻意不给默认值 ——
-#: 漏传时下面的 `COPY ${PROJECT}/backend/src` 直接找不到源而失败；一旦给了默认值，
-#: 「忘了传」就会静默编出另一个项目的后端，那种错只在运行期才暴露。
+#: 必传、无默认值：漏传时下面的 COPY 找不到源而失败；给默认值会静默编出另一个项目的后端。
 ARG PROJECT
 ARG CYTHON_VERSION
 #: 版本号唯一来源是仓库根 package.json 的 version；CI 用 build-arg 传同一个值。
@@ -95,8 +62,7 @@ ARG HOMEOS_VERSION=""
 #: 同 base 阶段：构建容器连不上 pypi.org / deb.debian.org 时换成可达的镜像。
 ARG PIP_INDEX_URL=""
 ARG APT_MIRROR=""
-#: apt 的超时 + 重试是必要的：直连 deb.debian.org 时会「连上但不传数据」，
-#: 表现为构建卡死在某个 Get 上无限等；设了超时它才会自己重试或快速失败。
+#: apt 超时+重试：直连 deb.debian.org 会「连上但不传数据」而无限卡住。
 RUN if [ -n "$APT_MIRROR" ]; then \
         sed -i "s|deb.debian.org|$APT_MIRROR|g" /etc/apt/sources.list.d/debian.sources; \
     fi \
@@ -110,11 +76,8 @@ COPY ops/container_entrypoint.py ./ops/
 COPY ops/license_keys.py ./ops/
 COPY ops/docker ./ops/docker
 COPY package.json /tmp/package.json
-# 源码目录（仓库约定 `<项目>/backend/src`）在镜像里一律落到 ./app：Cython 的模块名取自路径，
-# 所以 .so 里烤进去的是 app.*，产物里不会出现 src 目录。两个项目同层数、同包名 —— 它们只在
-# 「装什么、跑什么」上不同，不再有 backend/ 这一层的差异。
-# 左边由 ARG 拼出：写死任何一个项目名，另一个镜像就会装错源码（下面那个 case 与
-# ops/check_deploy_independence.py 第 4 项都在防这件事）。
+# 源码目录一律落到 ./app：Cython 模块名取自路径，产物里不会出现 src 目录。
+# 左边由 ARG 拼出，写死任一个项目名会让另一个镜像装错源码。
 COPY ${PROJECT}/backend/src ./app
 # 共享 Python 包（真源 packages/shared-py，见其 README）：本阶段自己 COPY 一份再编译，
 # 于是两个镜像里各有一份自己编译的 homeos_shared/*.so —— 是「源码共享 + 各自内联」，
@@ -152,8 +115,7 @@ RUN case "$PROJECT" in \
     && test -f /app/app/_version.*.so \
     && test -f /app/ops/container_entrypoint.*.so \
     && test -f /app/ops/license_keys.*.so \
-    # 启动器按项目取（start_app / start_store）。ops/docker/ 是仓库级目录，两个启动器都会进
-    # 两个镜像，所以这里只断言「本项目的那个真的编译出来了」。
+    # 启动器按项目取（start_app / start_store）；两个启动器都进两个镜像，只断言本项目那个。
     && test -f /app/ops/docker/start_${start}.*.so \
     && test ! -f /app/app/app.py \
     && test ! -f /app/app/run.py \
@@ -163,30 +125,19 @@ RUN case "$PROJECT" in \
     && test ! -e /app/alembic.ini \
     # 共享包必须真的编译到位。只断言 __init__（每个共享包都有），新增模块不必改这一行。
     && test -f /app/homeos_shared/__init__.*.so \
-    # 产物里只允许有原生扩展：多一个 .py/.pyc/.pyi/.md/requirements.txt 都算加密没做完整。
-    # src/ 下的非 .py 残留（README.md / _version.pyi）已由 .dockerignore 的 `**/*.md`、
-    # `**/*.pyi` 挡在构建上下文外，这里再兜一层 —— 报出具体文件名而不是只给一个非零退出码，
-    # 否则排查得重新解包镜像。
+    # 产物里只允许有原生扩展：多一个 .py/.pyc/.pyi/.md 都算加密没做完整；报出具体文件名便于排查。
     && stray="$(find /app/app /app/ops /app/homeos_shared -type f ! -name '*.so' -print)" \
     && test -z "$stray" || { echo "产物里混入了非 .so 文件：$stray" >&2; exit 1; }
 
-# 导出阶段：FROM scratch + 只 COPY /app，令 --output type=local 得到干净的 /app 内容，
-# 而不是整个 Debian rootfs（见 ops/build.py 的 export_backend）。PROJECT 由调用方按项目
-# 传入，与上面那个阶段是同一次构建的同一个值 —— 阶段名不再区分项目，正是为了避免
-# 「target 名与 PROJECT 值各说各话」。
+# 导出阶段：FROM scratch + 只 COPY /app，令 --output type=local 得到干净 /app 而非整个 rootfs。
 FROM scratch AS backend-export
 COPY --from=backend-build /app/ /
 
 
-# ═══ 运行镜像：组装工作区根 dist/ 里已构建好的加密后端与前端产物 ═══
-#
-# 两阶段构建（先 `bun run build:frontend` + `ops/build.py backend`，再 `ops/build.py image`）：
-# 本阶段不再编译任何后端源码，只 COPY dist/，因此构建极快、且拿到的就是被审计过的那份产物。
-# BACKEND_PLATFORM 选平台子目录（Cython .so 与架构绑定，amd64 / arm64 各一份）。
+# 运行镜像：组装工作区根 dist/ 里已构建好的加密后端与前端产物（本阶段不编译后端源码）。
 FROM base AS app
 
-#: HOMEOS_BACKUPS_DIR：服务器全量备份包落到数据卷。容器里 /app 不是卷，写在那里
-#: 重建容器即丢；指到 /data 后与数据库 / 素材一起持久化。
+#: HOMEOS_BACKUPS_DIR：备份包落到数据卷 /data，重建容器不丢。
 ENV APP_DATA_DIR=/data \
     HOMEOS_DATA_DIR=/data \
     HOMEOS_BACKUPS_DIR=/data/backups \

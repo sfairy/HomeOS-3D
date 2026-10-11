@@ -1,12 +1,4 @@
-/**
- * 实时实体快照组合式函数模块。
- *
- * 职责：
- * - 弹窗/卡片内实时实体快照：优先 WS store 实时值，fallback 仅作 entity_id 来源与初始回退；
- * - 依赖 useEntity 的按实体监听，避免全局 entityStateRevision 扇出。
- *
- * 依赖：vue computed/unref、useEntity、entities store、HaEntityState 类型。
- */
+/** 实时实体快照组合式函数模块。 */
 import { computed, unref, type MaybeRefOrGetter } from 'vue'
 import { useEntity } from '@/composables/entity/useEntity'
 import { useEntitiesStore } from '@/stores/entities.store'

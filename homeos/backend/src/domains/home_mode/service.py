@@ -1,9 +1,4 @@
-"""家庭模式服务（对齐 HomeModeService）。
-
-职责：家庭模式 CRUD、激活 / 停用、设备快照恢复、触发器绑定与自动触发、预设包安装、
-运行日志缓冲与防抖持久化。激活 / 停用经进程内串行锁串行化，避免并发切换导致互斥组与
-快照状态错乱。
-"""
+"""家庭模式服务（对齐 HomeModeService）。"""
 
 from __future__ import annotations
 
@@ -131,9 +126,7 @@ class HomeModeService:
             lambda: self._active_mode_id, self._set_active_mode_id
         )
 
-    # ------------------------------------------------------------------ #
     # 生命周期
-    # ------------------------------------------------------------------ #
     def _set_active_mode_id(self, mode_id: str | None) -> None:
         self._active_mode_id = mode_id
 
@@ -212,9 +205,7 @@ class HomeModeService:
         prune_home_mode_trigger_cooldown(self._trigger_state.trigger_cooldown)
         logger.info("全屋模式触发器已加载: %s 条", len(self._trigger_state.trigger_bindings))
 
-    # ------------------------------------------------------------------ #
     # CRUD
-    # ------------------------------------------------------------------ #
     def find_all(self) -> list[dict[str, Any]]:
         with self._session_factory() as session:
             rows = (
@@ -393,9 +384,7 @@ class HomeModeService:
         logger.info("已创建 %s 个默认全屋模式", len(presets_module.HOME_MODE_DEFAULT_MODES))
         return {"created": len(presets_module.HOME_MODE_DEFAULT_MODES)}
 
-    # ------------------------------------------------------------------ #
     # 预设 / 模板
-    # ------------------------------------------------------------------ #
     def get_action_templates(self) -> list[dict[str, Any]]:
         return presets_module.HOME_MODE_ACTION_TEMPLATES
 
@@ -458,9 +447,7 @@ class HomeModeService:
         )
         return {**row, "unresolvedActions": plan["unresolvedActions"]}
 
-    # ------------------------------------------------------------------ #
     # 激活 / 停用
-    # ------------------------------------------------------------------ #
     async def activate(self, mode_id: str, meta: dict[str, Any] | None = None) -> dict[str, Any]:
         async with self._transition_lock:
             return await activate_home_mode(self._activate_state, self._deps, mode_id, meta)
@@ -472,9 +459,7 @@ class HomeModeService:
     def get_active_mode_id(self) -> str | None:
         return self._active_mode_id
 
-    # ------------------------------------------------------------------ #
     # 运行日志
-    # ------------------------------------------------------------------ #
     def get_trigger_logs(self, limit: int = 20) -> list[dict[str, Any]]:
         return self._runtime_logs.get_trigger_logs(limit)
 
@@ -504,9 +489,7 @@ class HomeModeService:
             "lastActivation": last or self._runtime_logs.get_latest_execution(),
         }
 
-    # ------------------------------------------------------------------ #
     # 触发器事件入口
-    # ------------------------------------------------------------------ #
     async def handle_state_trigger(self, event: dict[str, Any]) -> None:
         await handle_home_mode_state_trigger(self._trigger_state, self._deps, event)
 
@@ -536,9 +519,7 @@ class HomeModeService:
         except Exception as exc:
             logger.warning("自动化请求激活家庭模式失败: %s", exc)
 
-    # ------------------------------------------------------------------ #
     # 底层数据库操作（供 deps 调用）
-    # ------------------------------------------------------------------ #
     def _find_mode_row(self, mode_id: str) -> dict[str, Any] | None:
         return self.find_one(mode_id)
 
@@ -646,9 +627,7 @@ class HomeModeService:
         if asyncio.iscoroutine(result):
             await result
 
-    # ------------------------------------------------------------------ #
     # deps 视图
-    # ------------------------------------------------------------------ #
     @property
     def deps(self) -> _HomeModeDeps:
         return self._deps

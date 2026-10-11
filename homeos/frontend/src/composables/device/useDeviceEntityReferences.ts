@@ -1,22 +1,4 @@
-/**
- * 设备实体引用 Composable
- *
- * 模块：设备详情 / 实体引用关系
- * 职责：
- *   - 根据 entity_id 拉取该实体被哪些功能引用（告警规则、布局、系统配置等）。
- *   - 提供移除引用（unlink）能力：需二次确认。
- *   - 移除后按需联动刷新 UI 布局配置与系统配置，保持前端状态一致。
- *   - 通过 createFetchSequence 串行化请求，过滤过期响应。
- *
- * 依赖：
- *   - @/services/api/entities.fetchEntityReferences / unlinkEntityReference：引用查询 / 移除接口。
- *   - @/shared/utils/core/error-message.getApiErrorMessage：错误信息归一化。
- *   - @/shared/utils/core/misc.util.createFetchSequence：请求序号守卫。
- *   - @/stores/chrome.store.useChromeStore：通知 / 确认弹窗。
- *   - @/stores/layout.store：布局配置加载。
- *   - @/shared/types/entity-references：引用类型与常量（kind 标签 / 受影响的系统配置 / 布局 kind 集合）。
- *   - @/composables/config/system-config-core.internals：系统配置加载。
- */
+/** 设备实体引用 Composable */
 import { ref, watch, type Ref } from 'vue'
 import { fetchEntityReferences, unlinkEntityReference } from '@/services/api/entities'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'

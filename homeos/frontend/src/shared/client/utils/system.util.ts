@@ -1,10 +1,4 @@
-/**
- * 打开前端的客户端系统信息采集（电量为其中一项）
- *
- * 职责：采集本机浏览器环境下的硬件 / 平台 / 显示 / 能力 / 网络 / 电量信息；
- *   管理 Battery API 的初始化与事件监听；构建上报 payload（含 clientId + systemInfo + reportToken）。
- * 依赖：adaptive-perf.util（设备画像）、viewport-breakpoints.util（视口形态判定）。
- */
+/** 打开前端的客户端系统信息采集（电量为其中一项） */
 import { readLocalStorage, writeLocalStorage } from '@/shared/utils/core/local-storage.util'
 
 import { probeDeviceProfile } from '@/shared/utils/perf/adaptive-perf.util'

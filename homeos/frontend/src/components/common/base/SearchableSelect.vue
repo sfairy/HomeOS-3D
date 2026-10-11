@@ -81,18 +81,7 @@
 </template>
 
 <script setup>
-/**
- * SearchableSelect - 可搜索的下拉选择组件
- * 功能特性：
- * - 带输入框的下拉选择器，支持实时搜索过滤
- * - 支持 selectOnly 模式（仅能从列表选择，输入不回写）
- * - 支持加载状态显示
- * - 完整的键盘导航（上下箭头、回车、Esc）
- * - 使用 Teleport 渲染下拉面板
- * 依赖：
- * - useClickOutside: 点击外部关闭下拉
- * - useDropdownPosition: 下拉面板定位计算
- */
+/** SearchableSelect - 可搜索的下拉选择组件 */
 import { ref, computed, nextTick, watch } from 'vue'
 import { X, ChevronDown } from '@lucide/vue'
 import { useClickOutside } from '@/composables/ui/useClickOutside'

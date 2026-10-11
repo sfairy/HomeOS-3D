@@ -1,17 +1,4 @@
-/**
- * HA 实体域（domain）元数据
- *
- * 职责：
- * - 维护 HA 实体域到中文显示名的映射表（ENTITY_DOMAIN_LABELS）。
- * - 维护域 → 主题色映射。
- *
- * 依赖：无外部依赖，纯静态映射。
- *
- * 注意：
- * - 对象 key 为 HA 实体域名（如 light / switch / sensor），属于配置 key，不翻译。
- * - 颜色 value 为 CSS HEX 颜色值，不翻译。
- * - 仅面向用户的标签 value 使用简体中文。
- */
+/** HA 实体域（domain）元数据 */
 export const ENTITY_DOMAIN_LABELS = {
   alarm_control_panel: '安防',
   automation: '自动化',

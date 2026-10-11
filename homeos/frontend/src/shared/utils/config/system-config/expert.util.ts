@@ -1,16 +1,4 @@
-/**
- * 系统配置专家模式工具
- *
- * 职责：
- * - 维护专家模式关闭时需隐藏的分区集合（连接层 + 运维采样）。
- * - 维护专家模式关闭时需隐藏的单字段集合（屏保像素级 / 前端性能细调）。
- * - 提供按专家模式开关过滤可见分区的能力。
- *
- * 依赖：@/shared/types/system-config-editor 的 EditableConfigSection 类型。
- *
- * 注意：分区 key（haConnector / stateStore ...）与字段 key（brandSizePx /
- *   widgetPollIntervals ...）均为配置 key，不翻译。
- */
+/** 系统配置专家模式工具 */
 
 /** 专家模式关闭时隐藏的分区（连接层 + 运维采样） */
 const EXPERT_ONLY_SECTIONS = new Set([

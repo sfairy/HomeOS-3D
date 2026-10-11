@@ -54,9 +54,7 @@ class HomeOSFacadeMixin:
         """宿主视图：本 mixin 与 ``HAConnectorService`` 同体，宿主成员据此按 ``Any`` 访问。"""
         return self
 
-    # ------------------------------------------------------------------ #
     # 装配期注入（app.py 在 lifespan 中调用）
-    # ------------------------------------------------------------------ #
     def attach_sync_filter(self, sync_filter: Any, get_sync_only: Any) -> None:
         """注入实体同步过滤器。
 
@@ -87,9 +85,7 @@ class HomeOSFacadeMixin:
             return entities
         return sync_filter.filter_syncable_states(entities)
 
-    # ------------------------------------------------------------------ #
     # 连接状态
-    # ------------------------------------------------------------------ #
     def is_connected(self) -> bool:
         return bool(self._host.connected)
 
@@ -121,9 +117,7 @@ class HomeOSFacadeMixin:
     async def get_status(self) -> dict[str, Any]:
         return self._status_dict()
 
-    # ------------------------------------------------------------------ #
     # 连接 / 客户端解析
-    # ------------------------------------------------------------------ #
     def _active_connection(self) -> HAConnection | None:
         with self._host.database.session_factory() as database:
             return database.scalar(
@@ -140,9 +134,7 @@ class HomeOSFacadeMixin:
         if not self.is_connected():
             raise BusinessException(ErrorCode.SERVICE_UNAVAILABLE, api_error("HA_NOT_CONNECTED"))
 
-    # ------------------------------------------------------------------ #
     # 服务调用
-    # ------------------------------------------------------------------ #
     async def call_service(
         self,
         domain: str,
@@ -186,9 +178,7 @@ class HomeOSFacadeMixin:
         return_response = data.pop("return_response", False) is True
         return await self.call_service(domain, service, entity_id, data, return_response)
 
-    # ------------------------------------------------------------------ #
     # 状态 / 注册表
-    # ------------------------------------------------------------------ #
     async def fetch_all_states(self) -> list[dict[str, Any]]:
         client = await self._facade_client()
         if client is None:
@@ -298,18 +288,14 @@ class HomeOSFacadeMixin:
             "haSynced": True,
         }
 
-    # ------------------------------------------------------------------ #
     # WS 生命周期钩子（连接状态已由连接器自身维护，这里保留为兼容空实现）
-    # ------------------------------------------------------------------ #
     async def on_ws_connected(self) -> None:
         return None
 
     def on_ws_disconnected(self) -> None:
         return None
 
-    # ------------------------------------------------------------------ #
     # 连接测试
-    # ------------------------------------------------------------------ #
     async def test_ha_connection(self, url: str, token: str) -> dict[str, Any]:
         """兼容接口：连接测试走 ``HAClient.test_connection``（不落库、不影响活跃连接）。"""
         from .client import HAClient

@@ -1,28 +1,14 @@
 <!--
-  组件文件：SetupWizardEnvironmentStep.vue
-  所属模块：frontend/src/features/settings/connect/setup-wizard
-  组件职责：初始化向导的第四步「环境绑定」页。顶部显示已绑定房间进度条（要求至少 3 间
-    达标才能继续下一步）与提示；紧接着「智能推断传感器」大按钮（按 HA 实体的 area_id
-    与 device_class 自动匹配各房间温湿度/PM2.5/CO2）；加载中显示全局 loading；
-    随后按房间 Tab 分组展示 SettingsOrchTabs，每个 Tab 内列出该房间可绑定的传感器
-    字段（温度/湿度/PM2.5/CO2/VOC 等）。底部显示 RegistryDegradedGuide 当实体注册表
-    未就绪时的重试提示。
-  主要 props / emits：
-    - props status：向导状态对象（env step 提示）
-    - props inferEnvMap：点击「智能推断」按钮的回调函数
-  依赖关系：通过 inject(SETUP_WIZARD_ENV_STEP_KEY) 注入上下文获取 sensorMap、envRoomTabs、
-    envProgressPct、envConfiguredRoomCount、refreshAreas 等一整套状态与方法；
-    引用 SettingsOrchTabs / EntityInput / VProgressBar / RegistryDegradedGuide 子组件。
+  初始化向导的第四步「环境绑定」页。顶部显示已绑定房间进度条（要求至少 3 间
+  达标才能继续下一步）与提示；紧接着「智能推断传感器」大按钮（按 HA 实体的 area_id
+  与 device_class 自动匹配各房间温湿度/PM2.5/CO2）；加载中显示全局 loading；
+  随后按房间 Tab 分组展示 SettingsOrchTabs，每个 Tab 内列出该房间可绑定的传感器
+  字段（温度/湿度/PM2.5/CO2/VOC 等）。底部显示 RegistryDegradedGuide 当实体注册表
+  未就绪时的重试提示。
   注意事项：进度达标要求至少 3 间房，否则下一步按钮会被父级禁用；智能推断依赖
-    HA 实体注册表，注册表异常时会被 RegistryDegradedGuide 拦截并提示刷新。
+  HA 实体注册表，注册表异常时会被 RegistryDegradedGuide 拦截并提示刷新。
 -->
 <script setup>
-/**
- * 职责：渲染 views/SetupWizardEnvironmentStep 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { inject } from 'vue'
 import { Sparkles, Loader2 } from '@lucide/vue'
 import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'

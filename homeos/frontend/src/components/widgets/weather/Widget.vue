@@ -2,14 +2,6 @@
   WeatherWidget.vue / components/widgets/weather
   天气主卡片：仪表盘或首页紧凑展示当前温度、体感温度、湿度/气压/风速/AQI 等指标，
   下嵌 5 日预报；可切换 compact/标准两种尺寸，点击可跳设置绑定天气实体。
-  Props: compact 是否紧凑布局（隐藏辅助指标）/ weather-entity-override 覆盖 ID
-  依赖：composables: useWeatherEntity 返回 resolvedEid 与 fallback；
-        Pinia: useEntitiesStore 快照；
-        shared/weather/utils/weather-metric.util celsiusToDisplayTemp/formatHumidity 格式化；
-        constants: weatherStateLabel + weatherVisualKey（@/shared/weather/constants/weather-labels）；
-        RouterLink 跳转首装向导；
-        lucide: 同 Forecast 的图标集 + Eye + Gauge + Leaf 扩展指标。
-  注意：未绑定天气实体时出 VEmptyState 引导首装向导；温度单位跟随 locale-format。
 -->
 <template>
   <div

@@ -1,9 +1,4 @@
-/**
- * 顶栏导航 Tab 工具。
- *
- * 职责：定义顶栏核心 Tab 默认顺序、路径映射、可见性与展示位置（顶栏/下拉）的解析与切换，
- * 以及顶栏 Tab 激活判定。
- */
+/** 顶栏导航 Tab 工具。 */
 /** 内置品牌 Logo（仓库根 assets/logo/logo.svg，可替换；Nest 托管 /logo/*） */
 export const DEFAULT_BRAND_LOGO_URL = '/logo/logo.svg'
 

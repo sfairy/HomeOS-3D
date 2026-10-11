@@ -1,16 +1,4 @@
-/**
- * 媒体播放列表组件 MediaPlaylistWidget
- *
- * 职责：展示与控制 HA media_player 的播放队列，支持刷新、查看当前曲目、开始播放与下一首；
- *       支持两种展示形态（widget 微件 / settings 设置面板），通过 variant 切换。
- * 依赖：
- *   - vue (ref/computed/onMounted/watch)
- *   - @/components/common/base/HosSelect 下拉选择器
- *   - @/components/common/ApiQueryState 加载/错误状态容器
- *   - @/stores/entities.store、@/stores/chrome.store
- *   - @/services/api/media（fetchMediaPlaylist / nextMediaPlaylist / startMediaPlaylist）
- *   - @/shared/utils/core/error-message、@/services/notify、@/shared/entity/utils/derived.util
- */
+/** 媒体播放列表组件 MediaPlaylistWidget */
 <template>
   <div :class="['media-playlist', variant === 'settings' && 'media-playlist--settings']">
     <!-- 微件模式头部：标题与刷新按钮 -->
@@ -107,12 +95,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 PlaylistWidget 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 import HosSelect from '@/components/common/base/HosSelect.vue'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import ApiQueryState from '@/components/common/ApiQueryState.vue'

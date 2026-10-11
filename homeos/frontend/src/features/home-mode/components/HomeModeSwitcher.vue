@@ -1,33 +1,19 @@
 <!--
-  组件文件：HomeModeSwitcher.vue
-  所属模块：frontend/src/components/common
-  组件职责：家庭模式总装切换器组件。根据 useHomeModeSwitcher 组合式函数产出的状态装配三个子组件：
-    HomeModePresenceBadge（左侧：在场人员徽标 + 在家/离家统计，点击展开在场详情 Tip）；
-    当 modeContext.calendarAway 为真时最左侧额外展示「外出」标签；
-    HomeModeSwitcherTrigger（中部：当前激活模式标签 + 图标 + 加载/动作态指示，
-      点击切换菜单开关）；HomeModeSwitcherMenu（Teleport 渲染的下拉菜单，含模式列表/退出/
-      最近触发日志/设置跳转）。
+  家庭模式总装切换器组件。根据 useHomeModeSwitcher 组合式函数产出的状态装配三个子组件：
+  HomeModePresenceBadge（左侧：在场人员徽标 + 在家/离家统计，点击展开在场详情 Tip）；
+  当 modeContext.calendarAway 为真时最左侧额外展示「外出」标签；
+  HomeModeSwitcherTrigger（中部：当前激活模式标签 + 图标 + 加载/动作态指示，
+  点击切换菜单开关）；HomeModeSwitcherMenu（Teleport 渲染的下拉菜单，含模式列表/退出/
+  最近触发日志/设置跳转）。
   无 props / emits（完全由 composable 管理状态）：
-    - 核心状态由 useHomeModeSwitcher 提供：rootRef/menuRef/open/menuPlacement/menuStyle/
-      menuTeleportTarget/menuTeleportDisabled/modes/activeMode/loading/acting/label/
-      modeIcon/presenceHome/modeContext/presenceMembers/showPresenceBadge/showPresenceEmpty/
-      presenceSummary/presenceAtHomeCount/presenceTipOpen；
-    - 事件方法：selectMode/toggleOff/togglePresenceTip/toggleMenuOpen 直接绑定到子组件。
-  依赖关系：composable useHomeModeSwitcher（所有状态与行为统一封装）；
-    子组件：HomeModePresenceBadge/HomeModeSwitcherTrigger/HomeModeSwitcherMenu；
-    样式：switcher-base.css + presence.css + trigger.css + menu.css 四模块分别加载。
+  - 核心状态由 useHomeModeSwitcher 提供：rootRef/menuRef/open/menuPlacement/menuStyle/
+  menuTeleportTarget/menuTeleportDisabled/modes/activeMode/loading/acting/label/
+  modeIcon/presenceHome/modeContext/presenceMembers/showPresenceBadge/showPresenceEmpty/
+  presenceSummary/presenceAtHomeCount/presenceTipOpen；
+  - 事件方法：selectMode/toggleOff/togglePresenceTip/toggleMenuOpen 直接绑定到子组件。
 -->
 <script setup>
-/**
- * @file HomeModeSwitcher.vue（内部实现说明）
- * @module features/home-mode/components/HomeModeSwitcher
- * @description 在家/离家模式切换器
- *  职责：
- *    - 通过 useHomeModeSwitcher 组合式函数管理模式列表、当前模式、在场人员等状态；
- *    - 渲染 PresenceBadge（在场人员徽标）、Trigger（触发器）、Menu（下拉菜单）三个子组件；
- *    - 日历标记外出时在左侧展示「外出」标签。
- *  依赖：home-mode 子目录下的子组件与 useHomeModeSwitcher composable，以及对应样式。
- */
+/** - 通过 useHomeModeSwitcher 组合式函数管理模式列表、当前模式、在场人员等状态； */
 import { useHomeModeSwitcher } from '@/features/home-mode/composables/useHomeModeSwitcher'
 import HomeModePresenceBadge from '@/features/home-mode/components/HomeModePresenceBadge.vue'
 import HomeModeSwitcherTrigger from '@/features/home-mode/components/HomeModeSwitcherTrigger.vue'

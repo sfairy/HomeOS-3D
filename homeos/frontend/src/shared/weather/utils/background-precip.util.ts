@@ -1,21 +1,4 @@
-/**
- * 天气背景降水与特效绘制
- *
- * 职责：
- * - 绘制雨 / 雪 / 冰雹 / 飘叶等降水粒子，并管理其生命周期与强度。
- * - 绘制闪电闪烁（含 leader / stroke / afterglow 相位）与场景层合成。
- * - 合成水洼涟漪、雨雾、雪霾、积雪等场景层效果。
- *
- * 依赖：
- * - @/shared/weather/utils/particle-classes 的粒子绘制与类型。
- * - @/shared/weather/utils/effect-condition.util 的效果判定。
- * - @/shared/weather/utils/effect-presets.util 的已解析效果配置。
- * - @/shared/weather/utils/background-canvas.util 的闪电与场景层绘制工具。
- *
- * 注意：
- * - `lightningPhase`（idle / leader / stroke / afterglow）为相位标识符，不翻译。
- * - 坐标 / 计时为运行时数值状态，不翻译。
- */
+/** 天气背景降水与特效绘制 */
 import { drawWeatherParticles } from '@/shared/weather/utils/particle-classes'
 import type {
   FastRain,

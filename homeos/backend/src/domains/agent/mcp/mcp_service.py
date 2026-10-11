@@ -1,13 +1,4 @@
-"""MCP 网关服务（对齐 Nest ``mcp.service.ts``）。
-
-职责：
- - MCP 网关密钥 / IP 白名单鉴权；
- - 把 AgentService 与 HomeToolsService 注入为 JSON-RPC 协议处理器的依赖回调；
- - 解析 MCP 绑定执行身份（agentConfig.mcpActorUserId → HomeOS 用户 ACL）。
-
-约定：
- - 对外方法遇非法输入显式抛出 HttpException（403 / 401），响应结构与 Nest 一致。
-"""
+"""MCP 网关服务（对齐 Nest ``mcp.service.ts``）。"""
 
 from __future__ import annotations
 
@@ -88,9 +79,7 @@ class McpGatewayService:
     def _env_get(self, name: str) -> str:
         return str(self._env_map.get(name) or "")
 
-    # ------------------------------------------------------------------ #
     # IP 白名单
-    # ------------------------------------------------------------------ #
     def _resolve_ip_allowlist(self) -> list[str]:
         """MCP_GATEWAY_ALLOW_IPS 白名单（逗号分隔，支持精确 IP 与网段前缀，如 192.168.1.）。"""
         raw = self._env_get("MCP_GATEWAY_ALLOW_IPS")
@@ -125,9 +114,7 @@ class McpGatewayService:
         if not matched:
             raise _forbidden("MCP 网关 IP 不在白名单")
 
-    # ------------------------------------------------------------------ #
     # 网关密钥
-    # ------------------------------------------------------------------ #
     async def assert_gateway_key(self, api_key: str | None) -> None:
         """校验 MCP 网关密钥。
 
@@ -153,9 +140,7 @@ class McpGatewayService:
                     "建议优先使用环境变量并定期轮换密钥"
                 )
 
-    # ------------------------------------------------------------------ #
     # 执行身份
-    # ------------------------------------------------------------------ #
     async def resolve_mcp_actor(self) -> AgentActor | None:
         """绑定 agentConfig.mcpActorUserId 对应的真实用户；未绑定则返回 ``None``。
 
@@ -180,9 +165,7 @@ class McpGatewayService:
             logger.warning("解析 MCP 执行身份失败: %s", exc)
             return None
 
-    # ------------------------------------------------------------------ #
     # JSON-RPC 入口
-    # ------------------------------------------------------------------ #
     async def handle(self, body: dict[str, Any], ip: str | None = None) -> dict[str, Any]:
         """处理一次 MCP JSON-RPC 请求。
 

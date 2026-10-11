@@ -1,19 +1,4 @@
-/**
- * 事件中心展示工具
- *
- * 职责：
- * - 把后端返回的「按域聚合」数据归一化为统一的 { domain, count } 列表。
- * - 提供小时窗口选项的短标签（h / d）与中文展示文案。
- * - 提供事件计数的本地化格式化（千 / 万 / M 缩写）。
- * - 从 entity_id 提取 domain / object_id；展示状态列优先用属性变更的中文描述。
- *
- * 依赖：
- * - @homeos/shared 提供 getEntityDomain。
- * - @/shared/constants/entity-state-labels 提供 displayEntityStateLabel。
- * - @/shared/entity/utils/control-attr-change.util 提供 parseAttrStateDiff。
- *
- * 注意：domain / object_id 为 HA 标识符片段，不翻译；缩写 h / d / k / M 为单位，不翻译。
- */
+/** 事件中心展示工具 */
 import { getEntityDomain } from '@homeos/shared'
 import { displayEntityStateLabel } from '@/shared/constants/entity-state-labels'
 import { parseAttrStateDiff } from '@/shared/entity/utils/control-attr-change.util'

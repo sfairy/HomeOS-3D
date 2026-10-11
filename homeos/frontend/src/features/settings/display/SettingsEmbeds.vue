@@ -1,13 +1,6 @@
 <!--
-组件：SettingsEmbeds.vue
-所属模块：frontend / src / views / settings / display
-职责：内嵌网页面板。管理 MoviePilot URL 与多个自定义内嵌页面（名称、地址、图标、排序），
-      支持添加/移除/重排，并通过 iframe 嵌入到大屏 Tab。
-关键依赖：
-  - SettingsPageShell / SettingsFlowBand / SettingsFlowStat：页面骨架与流程概览
-  - SettingsOrchTabs：内嵌页 Tab 切换与排序
-  - useSettingsEmbeds：内嵌页编辑逻辑（图标、地址校验、复制等）
-数据来源：useSettingsEmbeds composable 派生（最终来自 layoutStore.layoutConfig）
+  内嵌网页面板。管理 MoviePilot URL 与多个自定义内嵌页面（名称、地址、图标、排序），
+  支持添加/移除/重排，并通过 iframe 嵌入到大屏 Tab。
 -->
 <template>
   <SettingsPageShell

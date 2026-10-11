@@ -1,16 +1,4 @@
-/**
- * 媒体播放器控制组合式函数模块。
- *
- * 职责：
- * - 为 MediaPlayerModal 与 MediaPlayerPopup 提供共享的媒体播放器控制逻辑；
- * - 解析实体与属性（state、supported_features 特性位掩码、媒体元数据、歌词）；
- * - 提供播放/暂停、上一曲/下一曲、静音、随机/循环、音源切换、进度拖拽（带预览）、音量控制；
- * - 通过 requestAnimationFrame 维护实时播放进度，seek 期间暂停外部更新以避免抖动；
- * - 通过 useSliderCommit 处理音量滑块的拖拽本地值与提交。
- *
- * 依赖：vue ref/computed/watch/onUnmounted/unref、entities store、ui store、notifyError、
- * ha-media-url 工具、useSliderCommit、progress-bar 工具、HaEntityState 类型。
- */
+/** 媒体播放器控制组合式函数模块。 */
 import { ref, computed, watch, onUnmounted, unref, type MaybeRef, type Ref } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useHaConnectionStore } from '@/stores/ha-connection.store'

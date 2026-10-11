@@ -1,14 +1,3 @@
-/**
- * 文件：useRuntimeLogs.ts
- * 职责：后端运行日志 composable。首拉 + SSE 实时推送；SSE 失败时降级为增量轮询。
- *       提供日志列表、级别过滤、容量与丢弃统计、清空与导出。
- * 关键依赖：
- *   - vue 的 computed / onUnmounted / ref / watch
- *   - fetchRuntimeLogs / openRuntimeLogsStream / clearRuntimeLogs：日志 API
- *   - extractErrorMessage：错误消息
- *   - useChromeStore：notify
- *   - schedulePoll：可见性调度轮询
- */
 import { computed, onUnmounted, ref, watch } from 'vue'
 import {
   clearRuntimeLogs,

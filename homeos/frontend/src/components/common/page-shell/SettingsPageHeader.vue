@@ -1,13 +1,4 @@
-/**
- * @file SettingsPageHeader.vue
- * @module common/page-shell
- * @description 页面顶部 Hero 头部（原 settings/shared/layout/SettingsPageHeader.vue）
- *  职责：
- *    - 默认单行布局：图标 + 标题 · 描述，不再两行占高；
- *    - 支持 eyebrow 眉标、actions 操作插槽；
- *    - 图标可由 props.icon 直接传入，或按 iconKey / tab 从注册表解析。
- *  依赖：vue computed，utils/registry/settings-header-icons。
- */
+/** - 默认单行布局：图标 + 标题 · 描述，不再两行占高； */
 <template>
   <header
     :class="[
@@ -45,12 +36,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 SettingsPageHeader 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 import { computed } from 'vue'
 import {
   SETTINGS_HEADER_ICONS,

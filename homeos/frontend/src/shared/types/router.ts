@@ -1,7 +1,4 @@
-/**
- * 路由守卫相关类型：系统初始化状态、导航上下文与决策。
- * 依赖：vue-router（RouteLocationNormalized）。
- */
+/** 路由守卫相关类型：系统初始化状态、导航上下文与决策。 */
 import type { RouteLocationNormalized } from 'vue-router'
 
 /** 系统初始化状态：null=未检查，offline=后端不可达 */

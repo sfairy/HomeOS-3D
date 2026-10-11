@@ -3,13 +3,6 @@
   模式日志分析轨道：ModeTriggerLogsView 的内嵌分析区（非独立路由页面），
   横向 3 联 ECharts 图表：触发源分布饼图 + 按日柱状时间线 + 触发时段 24h 热力柱状，
   下方触发模式 Top 列表与平均耗时卡片。
-  Props：analytics 分析结果（由 useModeLogsAnalytics 返回的 Ref 对象）
-  Slot：无
-  依赖：composables: useHubChart（useLifeChartHost）图表实例托管；
-        useModeLogsAnalytics.buildModeSourcePieOption/buildModeTimelineOption
-                /buildModeHourHeatOption 三个 option 构造器；
-        vue computed/ref 响应式包装。
-  注意：analytics.total 为空时整段隐藏（v-if），避免空图占位；三张图表按屏幕宽度换行。
 -->
 <template>
   <section v-if="analytics.total" class="mode-logs-analytics" aria-label="触发日志分析">

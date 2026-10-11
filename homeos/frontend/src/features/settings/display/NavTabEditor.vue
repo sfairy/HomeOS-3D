@@ -1,14 +1,9 @@
 <!--
-  组件文件：NavTabEditor.vue
-  所属模块：frontend/src/features/settings/display
-  组件职责：显示主题大类下的顶栏导航编辑器，提供桌面端顶栏 Tab 的可见性、顺序与放置
-    位置（顶栏/更多下拉菜单/隐藏）可视化配置。上部为实时预览区，中部为拖拽排序列表，
-    工具栏提供「全部显示」「重置默认」操作。
-  主要 props / emits：无 props / emits（独立 Section 级面板，直接读写 store）。
-  依赖关系：通过 useLayoutStore Pinia store 读取与写入 navTabs 顺序、可见性与下拉配置；
-    引用 nav-tabs.util、embed-nav-theme.util、embed-icons.util 等工具函数计算预览与排序。
+  显示主题大类下的顶栏导航编辑器，提供桌面端顶栏 Tab 的可见性、顺序与放置
+  位置（顶栏/更多下拉菜单/隐藏）可视化配置。上部为实时预览区，中部为拖拽排序列表，
+  工具栏提供「全部显示」「重置默认」操作。
   注意事项：「总览」主页始终固定在顶栏不可移除；修改
-    后须点击设置页顶部「保存布局」按钮持久化到服务端。
+  后须点击设置页顶部「保存布局」按钮持久化到服务端。
 -->
 <template>
   <div class="nav-tab-editor">

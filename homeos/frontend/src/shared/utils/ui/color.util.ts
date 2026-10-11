@@ -1,14 +1,4 @@
-/**
- * HEX 颜色工具（全局唯一实现）
- *
- * 职责：
- * - 提供十六进制颜色规范化、RGB 解析、rgba 转换等工具函数。
- * - 收敛分散的平行实现：
- *   - composables/ui/useAppTheme 的 hexToRgb（严格 6 位，非法返回 null）。
- *   - utils/chart/device-chart-theme 的 hexWithOpacity（严格 6 位，非法原样返回）。
- *
- * 依赖：无外部依赖，纯函数。
- */
+/** HEX 颜色工具（全局唯一实现） */
 
 /** RGB 通道值对象 */
 export interface Rgb {

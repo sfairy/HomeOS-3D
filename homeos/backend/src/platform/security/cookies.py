@@ -46,9 +46,7 @@ def is_https_deploy_mode() -> bool:
     return get_cookie_secure_mode() == "true"
 
 
-# --------------------------------------------------------------------------- #
 # CORS 来源判定（与 Nest cookie-cors.util 等价）
-# --------------------------------------------------------------------------- #
 def resolve_allowed_origins() -> list[str]:
     raw = os.getenv("CORS_ORIGINS", "")
     return [item.strip() for item in raw.split(",") if item.strip()] if raw else []
@@ -81,9 +79,7 @@ def is_origin_allowed(origin: str, allowed_origins: list[str]) -> bool:
     return is_lan_origin(origin)
 
 
-# --------------------------------------------------------------------------- #
 # Cookie 写入 / 清除
-# --------------------------------------------------------------------------- #
 def set_auth_cookie(
     response: Response,
     request: Request,

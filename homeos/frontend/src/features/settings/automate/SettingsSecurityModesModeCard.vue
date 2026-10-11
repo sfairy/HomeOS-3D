@@ -1,15 +1,6 @@
 <!--
-组件：SettingsSecurityModesModeCard.vue
-所属模块：frontend / src / views / settings / automate
-职责：单个安防模式（如 armed_away / armed_home 等）配置卡片。编辑场景名称、图标、
-      联动家庭模式，并管理联动动作列表（域/服务/实体），支持批量与单条添加。
-关键依赖：
-  - HosSelect / EntityInput：下拉与实体输入
-  - useLayoutStore：读写 securityModes / securityModeLinks 配置
-  - useChromeStore / useEntitiesStore：通知与实体索引
-  - fetchHomeModes：加载家庭模式列表用于联动选择
-  - Zap / Plus / Layers / Trash2 图标来自 @lucide/vue
-数据来源：layoutStore.securityModes 中匹配 modeKey 的模式 + 父级透传的回调
+  单个安防模式（如 armed_away / armed_home 等）配置卡片。编辑场景名称、图标、
+  联动家庭模式，并管理联动动作列表（域/服务/实体），支持批量与单条添加。
 -->
 <template>
   <section v-if="mode" :class="['sm-mode-card', props.embedded && 'sm-mode-card--embedded']">
@@ -260,7 +251,6 @@ const layoutStore = useLayoutStore()
 const chrome = useChromeStore()
 const entitiesStore = useEntitiesStore()
 
-// 入参：是否嵌入、模式 key、动作数、预设映射、域列表、各展示函数与 servicesForDomain
 const props = defineProps({
   embedded: { type: Boolean, default: false },
   modeKey: { type: String, required: true },
@@ -274,7 +264,6 @@ const props = defineProps({
   servicesForDomain: { type: Function, required: true },
 })
 
-// 对外事件：应用预设、添加单条动作
 defineEmits(['applyPreset', 'addAction'])
 
 // 批量面板的展开态、域、服务、勾选实体

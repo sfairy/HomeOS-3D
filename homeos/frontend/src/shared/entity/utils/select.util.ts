@@ -1,15 +1,4 @@
-/**
- * 实体下拉选项构建工具
- *
- * 职责：
- * - 把 HA entity_id + 实体状态解析为下拉选项（value / label / hint）。
- * - label 优先使用实体的预计算 name，否则回退 getEntityDisplayName 推断的友好名。
- * - hint 优先使用显式 hint，否则对合法 HA entity_id 显示完整 ID。
- *
- * 依赖：@/shared/entity/utils/derived.util 提供实体友好名推断；@/shared/types/entity-store。
- *
- * 注意：entity_id（domain.object_id）为 HA 标识符，不翻译。
- */
+/** 实体下拉选项构建工具 */
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import type { HaEntityState } from '@/shared/types/entity-store'
 

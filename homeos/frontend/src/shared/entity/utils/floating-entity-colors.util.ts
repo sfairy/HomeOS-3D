@@ -1,21 +1,4 @@
-/**
- * 户型图浮动实体卡片配色工具
- *
- * 职责：
- * - 维护浮动卡片主题（AfhThemeId）及其强调色 / 渐变定义。
- * - 提供主题色、实体语义色、自定义字段色的合成与解析工具。
- * - 处理 HEX 颜色规范化、透明度叠加与亮度判定，供浮动卡片渲染共用。
- *
- * 依赖：
- * - @homeos/shared 的 getEntityDomain。
- * - @/shared/constants/entity-domain-meta 的 entityDomainColor 域语义色。
- * - @/shared/entity/utils/entity-type.util 的能源类别判定。
- *
- * 注意：
- * - `AfhThemeId`（glass / auto / neon-purple / ...）为主题 key，不翻译。
- * - `accent` / `gradient` / HEX 颜色值为 CSS 颜色，不翻译。
- * - 仅面向用户的 label 使用简体中文。
- */
+/** 户型图浮动实体卡片配色工具 */
 import { getEntityDomain } from '@homeos/shared'
 import type { FloatingWidget, FloatingWidgetConfig } from '@/shared/types/layout'
 import { entityDomainColor } from '@/shared/constants/entity-domain-meta'

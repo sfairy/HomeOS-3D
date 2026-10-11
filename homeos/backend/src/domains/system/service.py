@@ -68,9 +68,7 @@ class SystemService:
         except Exception as err:
             logger.warning("创建数据目录失败:%s", err)
 
-    # ------------------------------------------------------------------ #
     # 版本 / 健康
-    # ------------------------------------------------------------------ #
     async def get_system_info(self) -> dict[str, Any]:
         """获取系统版本信息（启动时缓存）。"""
         return {"version": self._cached_version or "unknown", "timestamp": _iso_now()}
@@ -120,9 +118,7 @@ class SystemService:
             logger.debug("查询数据库大小失败: %s", err)
             return "--"
 
-    # ------------------------------------------------------------------ #
     # 跨端网络与远程访问
-    # ------------------------------------------------------------------ #
     async def get_external_url(self) -> str:
         """读取远程访问地址（layout.externalUrl）。
 

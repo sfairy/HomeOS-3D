@@ -1,14 +1,4 @@
-/**
- * 常用设备（收藏）推荐模块。
- *
- * 职责：
- * - 基于命令统计与 EventLog 高频实体，推荐应加入常用设备的实体；
- * - 仅推荐可控设备域（light/switch/climate/cover/fan/media_player/lock）；
- * - 按域分组展示，去重已收藏实体；
- * - 产出 RecommendInsightResult 供设置页常用设备 tab 渲染。
- *
- * 依赖：getEntityDomain（@homeos/shared）、recommend.types 类型。
- */
+/** 常用设备（收藏）推荐模块。 */
 import { getEntityDomain, getEntityLeaf } from '@homeos/shared'
 import type {
   EventLogStatsSnapshot,

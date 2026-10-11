@@ -1,17 +1,11 @@
 <!--
-  组件文件：DevicesView.vue
-  所属模块：frontend/src/views
-  组件职责：全部实体列表总览页。顶部 ListPageHero 展示标题「全部实体」与搜索框、
-    设备列表/数据分析双模式切换；列表模式分左右双栏，左侧 DeviceStatsDashboard 统计卡片 +
-    DeviceFilterPanel 筛选面板，右侧域 Tab 横滑 + 全选切换 + VirtualList 虚拟滚动渲染
-    设备行（每行支持选中、跳转详情、打开控制）；分析模式切换到 DeviceAnalyticsDashboard
-    多维图表分析面板，底部支持库分页与批量操作栏 DeviceBatchActions。
-  依赖关系：vue（computed/ref/watch）、@lucide/vue 图标；
-    composables：useDevicesView（筛选/搜索/分页/全选核心状态）、useHorizontalScrollNav（域 Tab 横滑）；
-    子组件：SearchableSelect、VirtualList、ListPageHero/Metrics、ApiQueryState、VEmptyState、
-    DeviceAnalyticsDashboard/DeviceRow/DeviceStatsDashboard/DeviceFilterPanel/DeviceBatchActions。
+  全部实体列表总览页。顶部 ListPageHero 展示标题「全部实体」与搜索框、
+  设备列表/数据分析双模式切换；列表模式分左右双栏，左侧 DeviceStatsDashboard 统计卡片 +
+  DeviceFilterPanel 筛选面板，右侧域 Tab 横滑 + 全选切换 + VirtualList 虚拟滚动渲染
+  设备行（每行支持选中、跳转详情、打开控制）；分析模式切换到 DeviceAnalyticsDashboard
+  多维图表分析面板，底部支持库分页与批量操作栏 DeviceBatchActions。
   注意事项：DeviceRow 行高固定 72px 供 VirtualList 使用；搜索/筛选/分页/批量选择均由
-    useDevicesView 统一管理，避免视图层堆积状态；--page-accent 为 devices sky 主题。
+  useDevicesView 统一管理，避免视图层堆积状态；--page-accent 为 devices sky 主题。
 -->
 <template>
   <div class="list-page devices-view" :style="pageAccentStyle">

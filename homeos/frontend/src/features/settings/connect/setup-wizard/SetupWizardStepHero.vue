@@ -1,23 +1,11 @@
 <!--
-  组件文件：SetupWizardStepHero.vue
-  所属模块：frontend/src/features/settings/connect/setup-wizard
-  组件职责：初始化向导每一步顶部统一的 Hero 横幅（纯展示小组件），根据 stepId 匹配
-    对应表情包/emoji、主题色 tone、标题、副标题与小提示；渲染统一的光晕 + emoji +
-    标题区三段式布局。
-  主要 props / emits：
-    - props stepId：当前步骤 ID（connection/security/energy/environment/dashboard/
-      complete），用于查找 STEP_HERO 映射
-  依赖关系：无外部 store/API；仅依赖内置 computed 与 Sparkles 图标组件。
+  初始化向导每一步顶部统一的 Hero 横幅（纯展示小组件），根据 stepId 匹配
+  对应表情包/emoji、主题色 tone、标题、副标题与小提示；渲染统一的光晕 + emoji +
+  标题区三段式布局。
   注意事项：传入未知 stepId 时自动回退到「连接」步骤的 Hero 配置，避免空白；
-    CSS 按 tone（sky/rose/amber/teal/emerald）提供差异化光晕配色。
+  CSS 按 tone（sky/rose/amber/teal/emerald）提供差异化光晕配色。
 -->
 <script setup>
-/**
- * 职责：渲染 views/SetupWizardStepHero 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { computed } from 'vue'
 import { Sparkles } from '@lucide/vue'
 

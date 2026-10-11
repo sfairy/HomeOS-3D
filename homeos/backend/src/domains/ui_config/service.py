@@ -60,9 +60,7 @@ class UiConfigService:
         self._static_assets = static_assets or UiConfigStaticAssetService()
         self._event_bus = event_bus
 
-    # ------------------------------------------------------------------ #
     # 内部工具
-    # ------------------------------------------------------------------ #
     def _emit_config_updated(self) -> None:
         if self._event_bus is None:
             return
@@ -132,9 +130,7 @@ class UiConfigService:
         profiles = self._app_config.get("profiles")
         return profiles if isinstance(profiles, dict) else {}
 
-    # ------------------------------------------------------------------ #
     # 读取
-    # ------------------------------------------------------------------ #
     def get_config(self, project_id: str = "default") -> dict[str, Any]:
         """获取项目配置（不存在时返回 ``{projectId, layout: {}}``）。"""
         with self._session_factory() as session:
@@ -163,9 +159,7 @@ class UiConfigService:
                 ErrorCode.CONFIG_ERROR, api_error("UI_CONFIG_LOAD_FAILED", str(exc))
             ) from exc
 
-    # ------------------------------------------------------------------ #
     # 激活方案 / 终端绑定
-    # ------------------------------------------------------------------ #
     async def set_active_profile(self, project_id_raw: str | None) -> dict[str, Any]:
         project_id = str(project_id_raw or "").strip()
         if not project_id:
@@ -295,9 +289,7 @@ class UiConfigService:
         self._app_config.update({"profiles": {"terminalBindings": bindings}})
         return {"success": True, "removed": client_id}
 
-    # ------------------------------------------------------------------ #
     # 方案存在性
-    # ------------------------------------------------------------------ #
     def _ensure_default_profile(self) -> None:
         with self._session_factory() as session:
             if self._find(session, "default") is None:
@@ -320,9 +312,7 @@ class UiConfigService:
         if not self._profile_exists(project_id):
             bad_request(api_error("UI_CONFIG_PROFILE_NOT_FOUND", project_id))
 
-    # ------------------------------------------------------------------ #
     # 保存 / 删除 / 导入 / 导出
-    # ------------------------------------------------------------------ #
     def save_config(self, project_id: str, layout: Any) -> dict[str, Any]:
         """保存或更新项目配置（保存后广播 SYSTEM_CONFIG_UPDATED 供旁路消费者热更新）。
 
@@ -488,9 +478,7 @@ class UiConfigService:
         self._emit_config_updated()
         return {"success": True, "count": len(rows_to_write)}
 
-    # ------------------------------------------------------------------ #
     # 静态资源委托
-    # ------------------------------------------------------------------ #
     def get_safe_background_path(self, sub_path: str = ""):
         return self._static_assets.get_safe_background_path(sub_path)
 

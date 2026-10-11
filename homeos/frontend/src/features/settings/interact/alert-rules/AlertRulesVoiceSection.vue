@@ -1,17 +1,7 @@
 <!--
-组件：AlertRulesVoiceSection.vue
-所属模块：frontend / src / views / settings / interact / alert-rules
-职责：语音告警配置区段。总开关控制自动语音告警，通过子导航切换内置规则（按事件类型展开配置话术/样式）、
-      实体自定义播报（AlertRulesEntityTtsSection）与通知播报（AlertRulesNotifyTtsSection）。
-      未保存时挂起保存条；未配置默认音箱时给出引导。
-关键依赖：
-  - ApiQueryState：语音告警配置加载态/错误重试
-  - SettingsCard / SettingsOrchTabs / SettingsFlowBand / SettingsFlowStat / SettingsFeatureMaster：卡片与流程
-  - VoiceSpeechComposer：内置规则话术编辑
-  - AlertRulesEntityTtsSection / AlertRulesNotifyTtsSection：实体/通知播报子区段
-  - SettingsPendingSaveAction：未保存修改的保存/取消条
-  - useAlertRulesSection：注入 voice / voiceFlowSteps / 各类规则编辑方法
-数据来源：useAlertRulesSection() 返回的 voice 配置与规则操作方法
+  语音告警配置区段。总开关控制自动语音告警，通过子导航切换内置规则（按事件类型展开配置话术/样式）、
+  实体自定义播报（AlertRulesEntityTtsSection）与通知播报（AlertRulesNotifyTtsSection）。
+  未保存时挂起保存条；未配置默认音箱时给出引导。
 -->
 <template>
   <div class="settings-hub-section">

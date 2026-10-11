@@ -1,12 +1,6 @@
 <!--
-组件：HazardBindingStatusPanel.vue
-所属模块：frontend / src / views / settings / connect / bindings
-职责：安全绑定实体状态面板。展示已绑定探测器/阀门/排风实体的当前状态（告警/离线/正常），
-      并确保相关实体可见以获取实时状态。
-关键依赖：
-  - useHazardBindingStatus：派生状态行与告警/离线计数
-  - useEnsureVisibleEntities：确保实体在可见集合中以获取状态
-数据来源：父级透传的各 hazard 实体 id 列表 + composable 派生
+  安全绑定实体状态面板。展示已绑定探测器/阀门/排风实体的当前状态（告警/离线/正常），
+  并确保相关实体可见以获取实时状态。
 -->
 <template>
   <section v-if="rows.length" class="hazard-status-panel">
@@ -46,7 +40,6 @@ import { computed } from 'vue'
 import { useEnsureVisibleEntities } from '@/composables/entity/useEnsureVisibleEntities'
 import { useHazardBindingStatus } from '@/features/security'
 
-// 入参：各 hazard 探测器/阀门/排风实体 id 列表
 const props = defineProps({
   hazardSmokeEntityIds: { type: Array, default: () => [] },
   hazardGasEntityIds: { type: Array, default: () => [] },

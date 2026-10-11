@@ -1,11 +1,4 @@
-/**
- * 毛玻璃渲染策略：native（实时 blur）| static（伪毛玻璃）| auto（触屏/static）
- *
- * 职责：
- * - 综合配置项 override 与性能模式 performanceMode 决定最终 glass 策略
- * - 写入 documentElement 的 data-glass-effect，供 CSS 选择器切换实现
- * - 启动全局 glass 策略同步并返回销毁函数
- */
+/** 毛玻璃渲染策略：native（实时 blur）| static（伪毛玻璃）| auto（触屏/static） */
 
 /**
  * 检测当前环境是否为粗指针（触屏设备）。触屏通常不具备实时 blur 性能。

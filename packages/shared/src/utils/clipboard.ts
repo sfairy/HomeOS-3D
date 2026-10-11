@@ -1,16 +1,4 @@
-/**
- * @module shared/clipboard
- * @description 跨 HTTP/HTTPS 复制文本工具（主应用与授权商店共用）。
- *
- * 策略：
- *  - 优先使用 Clipboard API（需安全上下文 window.isSecureContext）；
- *  - HTTP 非安全上下文下降级到 execCommand('copy')（通过隐藏 textarea）。
- *
- * 依赖：浏览器 navigator.clipboard / document.execCommand。
- *
- * 这是**纯内核**（只返回成败，不弹提示）：主应用把它接在自己的 `Toast` 封装上，
- * 商店把它接在 `useToast` 上，提示文案留在各自应用。
- */
+/** 策略： */
 /**
  * 跨 HTTP/HTTPS 复制文本：优先 Clipboard API，HTTP 非安全上下文降级 execCommand。
  * @param text 待复制文本

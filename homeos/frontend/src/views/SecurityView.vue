@@ -1,7 +1,3 @@
-<!--
-组件：SecurityView.vue
-所属模块：frontend / src / views
--->
 <template>
   <div
     v-if="layoutStore.isConfigLoaded"

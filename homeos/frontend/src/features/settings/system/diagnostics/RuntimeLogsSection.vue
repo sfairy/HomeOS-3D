@@ -1,11 +1,6 @@
 <!--
-组件：RuntimeLogsSection.vue
-所属模块：frontend / src / views / settings / system / diagnostics
-职责：后端运行日志区段。展示 Nest 进程内环形缓冲日志（admin），支持级别过滤、清空与导出。
-      实时优先 SSE，失败时降级轮询。数据由 useDiagnosticsSection 注入。
-关键依赖：
-  - useDiagnosticsSection：注入 runtimeLogs / clearRuntimeLogs 等
-数据来源：useDiagnosticsSection() 返回的 runtimeLogs 列表
+  后端运行日志区段。展示 Nest 进程内环形缓冲日志（admin），支持级别过滤、清空与导出。
+  实时优先 SSE，失败时降级轮询。数据由 useDiagnosticsSection 注入。
 -->
 <template>
   <div class="settings-hub-section settings-hub-section--fill diag-page">

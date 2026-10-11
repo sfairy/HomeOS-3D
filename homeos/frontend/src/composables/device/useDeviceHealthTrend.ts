@@ -1,20 +1,4 @@
-/**
- * 设备健康趋势 Composable
- *
- * 模块：设备 / 健康趋势
- * 职责：
- *   - 每天采样一次当前所有实体的健康快照（离线数、低电量数、总数）。
- *   - 将最近 MAX_DAYS（14 天）的快照写入 localStorage，持久化跨会话保留。
- *   - 暴露 trend（历史快照数组）与 current（当前快照）两个响应式状态。
- *
- * 设计说明：
- *   - 该 composable 不发起任何 HTTP 请求，全部依赖 entitiesStore 的派生状态。
- *   - 通过 entitiesStore.derivedEpoch 触发响应式依赖收集，确保 current 随 store 变化更新。
- *
- * 依赖：
- *   - @/stores/entities.store.useEntitiesStore：实体状态来源。
- *   - localStorage（STORAGE_KEY）：持久化历史快照。
- */
+/** 设备健康趋势 Composable */
 import { readLocalStorage, writeLocalStorageJson } from '@/shared/utils/core/local-storage.util'
 
 import { computed, onMounted, ref } from 'vue'

@@ -127,13 +127,11 @@ LicensedUser = Annotated[User, Depends(licensed_user)]
 def require_license_feature(request: Request, feature: str) -> None:
     """路由级功能码门禁：登录之上再判一次「这张租约有没有开通这个能力」。
 
-    ``LicensedUser`` / ``LicensedViewer`` 只判「授权整体是否可用」，不判**具体能力**。
-    素材、展示数据这类路由此前就只挂了前者，于是「只买了基础版不含素材」的客户照样能读
-    素材库 —— 能力码签了却没人查。这里把判定收成一处，路由里一行调用即可，并且与
-    ``LicenseService.allows`` 走同一份 ``features.granted``（含 ``all`` 展开与蕴含关系），
-    不会再出现「路由器放行、状态页显示未开通」。
+    ``LicensedUser`` / ``LicensedViewer`` 只判「授权整体是否可用」，不判具体能力，
+    因此素材、展示数据这类路由必须显式调用本依赖，否则只买基础版的租约也能读到。
+    判定与 ``LicenseService.allows`` 共用同一份 ``features.granted``（含 ``all`` 展开与蕴含）。
 
-    ``feature`` 一律传 ``services.license.features`` 里的常量，不要写字面串。
+    ``feature`` 一律传 ``domains.license.features`` 里的常量，不要写字面串。
     """
     if not request.app.state.license_service.allows(feature):
         raise _license_restricted(request)

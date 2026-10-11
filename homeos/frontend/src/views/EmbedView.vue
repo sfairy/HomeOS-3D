@@ -1,7 +1,3 @@
-<!--
-组件：EmbedView.vue
-所属模块：frontend / src / views
--->
 <template>
   <div
     class="embed-page"

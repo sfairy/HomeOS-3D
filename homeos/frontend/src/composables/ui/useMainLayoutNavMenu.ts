@@ -1,21 +1,4 @@
-/**
- * @file useMainLayoutNavMenu.ts
- * @module composables/ui
- * @description 主布局导航菜单 composable。
- *
- * 职责：
- * - 根据布局配置构建导航菜单项；
- * - 提供桌面端顶栏菜单、下拉“更多”菜单；
- * - 窄屏/平板把溢出 Tab 收到「更多」，避免隐式横向滚动；
- * - 监听布局配置变化（顺序/可见性/位置/嵌入/影视库等）自动重建菜单；
- * - 监听路由变化，切换页面时自动收起“更多”下拉。
- *
- * 依赖：
- * - vue（computed/ref/shallowRef/watch/onMounted/onUnmounted）
- * - vue-router（RouteLocationNormalizedLoaded 类型）
- * - nav-tabs.util / main-layout-nav.util（菜单构建工具）
- * - layout.store（布局配置）
- */
+/** - 根据布局配置构建导航菜单项； */
 import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import { isNavTabRouteActive } from '@/shared/utils/layout/nav-tabs.util'

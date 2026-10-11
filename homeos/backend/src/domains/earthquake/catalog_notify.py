@@ -178,9 +178,7 @@ class EarthquakeCatalogNotifyService:
             await self._save_seen_ids([*seen, *new_ids])
             logger.info("CENC 震情通知: 发现 %s 条新事件", len(new_ids))
 
-    # ------------------------------------------------------------------ #
     # 已通知 ID 集合
-    # ------------------------------------------------------------------ #
     async def _load_seen_ids(self) -> set[str]:
         return set(self._seen_ids)
 

@@ -1,19 +1,4 @@
-/**
- * 人员在家判定配置模块（security.presencePersons）
- *
- * 职责：
- *  - 维护"人员 → 关联实体"的映射，作为"全员离家"等家庭模式触发器的事实来源。
- *  - 提供配置归一化、ID 生成、聚合 entity_id 与"是否在家"判定。
- *
- * 关键依赖：
- *  - HA device_tracker / person 实体：通常作为 entityIds 的来源；
- *  - 家庭模式触发器、安防布防逻辑消费 computePersonAtHome 的结果。
- *
- * 约定：
- *  - 一名人员可绑定多个实体（多设备 / 手机 + 手表等），任一在家即视为在家；
- *  - 缺失 id 时按 defaultPresencePersonId 生成稳定 ID，避免配置漂移；
- *  - name 与 entityIds 任一缺失视为无效条目，归一化时直接丢弃。
- */
+/** 人员在家判定配置模块（security.presencePersons） */
 
 /**
  * 单个人员的在家判定配置。
@@ -101,13 +86,9 @@ export function collectPresenceEntityIds(persons: PresencePerson[]): string[] {
 
 /**
  * 计算指定人员当前是否在家。
- *
  * @param person            人员对象（仅需 entityIds）
  * @param entityAtHome      实体在家状态查询回调（返回 undefined 视为无数据）
  * @returns 任一关联实体在家即视为在家；无关联实体或全部未知视为不在家
- *
- * 约定：entityAtHome 返回 undefined 表示传感器数据缺失，按"不在家"处理，
- *  避免"数据未就绪即误判全员离家触发模式切换"。
  */
 export function computePersonAtHome(
   person: { entityIds?: string[] },

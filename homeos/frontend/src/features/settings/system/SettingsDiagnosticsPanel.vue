@@ -1,15 +1,6 @@
 <!--
-组件：SettingsDiagnosticsPanel.vue
-所属模块：frontend / src / views / settings / system
-职责：诊断面板入口。通过子导航切换总览、运行日志、调度作业、诊断日志四个区段。
-      provide 诊断上下文，页头提供刷新/复制入口。
-Props：
-  - activeTab：当前 Tab
-关键依赖：
-  - SettingsPageShell / SettingsHubSubnav：页面骨架与子导航
-  - OverviewSection / RuntimeLogsSection / JobsSection / LogSection：四个子区段
-  - DIAGNOSTICS_KEY / useDiagnosticsPanel：上下文 provide
-数据来源：useDiagnosticsPanel() 返回的诊断数据
+  诊断面板入口。通过子导航切换总览、运行日志、调度作业、诊断日志四个区段。
+  provide 诊断上下文，页头提供刷新/复制入口。
 -->
 <template>
   <SettingsPageShell

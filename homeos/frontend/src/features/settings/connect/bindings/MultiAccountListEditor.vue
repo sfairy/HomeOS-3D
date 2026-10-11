@@ -1,12 +1,6 @@
 <!--
-组件：MultiAccountListEditor.vue
-所属模块：frontend / src / views / settings / connect / bindings
-职责：多实体账户列表编辑器。每行绑定一个锚点 sensor 实体与备注，支持设主账户、增删行，
-      并为每行维护 entityMap 字段映射，同步到 source 的 multiAccounts。
-关键依赖：
-  - EntityInput：实体选择
-  - account.util：syncMultiAccounts 同步
-数据来源：父级透传的 source（账户配置对象，直接读写其 multiAccounts）
+  多实体账户列表编辑器。每行绑定一个锚点 sensor 实体与备注，支持设主账户、增删行，
+  并为每行维护 entityMap 字段映射，同步到 source 的 multiAccounts。
 -->
 <template>
   <div class="account-list-editor">
@@ -71,7 +65,6 @@ import EntityInput from '@/components/common/EntityInput.vue'
 import { syncMultiAccounts } from '@/shared/energy/utils/account.util'
 import { useBindingAccountListEditor } from './useBindingAccountListEditor'
 
-// 入参：账户配置对象（直接读写）、账户标签
 const props = defineProps({
   source: { type: Object, required: true },
   accountLabel: { type: String, default: '多实体账户' },

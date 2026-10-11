@@ -1,11 +1,4 @@
-/**
- * HA URL 部署校验：封装 @homeos/shared 校验逻辑，开发环境允许 localhost。
- * HA 离线高风险控制拦截。
- *
- * 依赖：
- * - @homeos/shared：提供 HA URL 部署校验与高风险控制判定
- * - @/shared/utils/bridge/store-bridge：提供 toast 通知能力
- */
+/** HA URL 部署校验：封装 @homeos/shared 校验逻辑，开发环境允许 localhost。 */
 import { isDangerousHaControl, validateHaUrlForDeploy as validateHaUrlForDeployShared } from '@homeos/shared'
 import { appNotify } from '@/shared/utils/bridge/store-bridge'
 

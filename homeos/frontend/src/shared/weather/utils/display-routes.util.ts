@@ -1,17 +1,4 @@
-/**
- * 天气背景显示范围路由匹配
- *
- * 职责：
- * - 维护页面路由 → 天气背景显示范围 key 的映射表。
- * - 提供当前路由的显示范围解析与规范化，供天气背景按页面控制是否渲染。
- *
- * 依赖：
- * - @/shared/utils/ui/main-layout-nav.util 的主布局导航标签。
- *
- * 注意：
- * - 显示范围 key（dashboard / devices / ...）为配置 key，不翻译。
- * - 仅面向用户的页面标签使用简体中文。
- */
+/** 天气背景显示范围路由匹配 */
 /** 天气背景显示范围路由匹配 */
 
 import { MAIN_LAYOUT_NAV_LABELS } from '@/shared/utils/ui/main-layout-nav.util'

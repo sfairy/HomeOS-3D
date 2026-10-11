@@ -1,14 +1,4 @@
-"""DeepSeek LLM 提供商。
-
-职责：把 LlmProvider 接口适配到 DeepSeek 兼容的 OpenAI 风格 /chat/completions 接口。
- - 把 LlmMessage 转成 OpenAI 消息格式（含 tool_calls / tool 结果）
- - 把 LlmToolSchema 转成 OpenAI function tool 描述
- - 解析 choices / usage，归一化返回 LlmChatResult
- - 支持 prompt 缓存命中 token 统计（用于成本估算）
- - 显式超时 + 有限重试（超时 / 连接失败 / 408 / 429 / 5xx），避免单次上游抖动
-   把整轮工具循环拖死；流式已输出 token 后不再重试，防止重复播报
-依赖：llm_provider_interface（接口）、BusinessException / api_error（错误归一化）。
-"""
+"""DeepSeek LLM 提供商。"""
 
 from __future__ import annotations
 
@@ -37,7 +27,7 @@ _DEFAULT_MODEL = "deepseek-chat"
 _DEFAULT_BASE_URL = "https://api.deepseek.com"
 
 #: 网络超时（秒）：连接/写入/取连接池都短；读取给足 LLM 生成时间。
-#: 此前为 ``timeout=None``（无超时），一次上游卡死会让整轮 tool-calling 永久挂起。
+#: 无超时时一次上游卡死会让整轮 tool-calling 永久挂起，故必须设置。
 LLM_CONNECT_TIMEOUT = 10.0
 LLM_READ_TIMEOUT = 60.0
 LLM_WRITE_TIMEOUT = 15.0

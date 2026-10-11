@@ -1,8 +1,4 @@
-"""通知服务（对齐 ``modules/notification/service.ts``）。
-
-职责：通知的创建、持久化、跨实例分发；告警规则的 CRUD 与条件求值；设备健康监控；
-全屋 / 用户级通知偏好管理；订阅领域事件并转为通知。
-"""
+"""通知服务（对齐 ``modules/notification/service.ts``）。"""
 
 from __future__ import annotations
 
@@ -108,9 +104,7 @@ class NotificationService:
             get_other_cfg=lambda: self._load(load_other_config),
         )
 
-    # ------------------------------------------------------------------ #
     # 配置 / 冷却辅助
-    # ------------------------------------------------------------------ #
     def _load(self, loader: Callable[[Any], _T]) -> _T:
         with self._session_factory() as session:
             return loader(session)
@@ -144,9 +138,7 @@ class NotificationService:
             return
         self._cooldown.set_cooldown("notify", key, minutes)
 
-    # ------------------------------------------------------------------ #
     # 生命周期
-    # ------------------------------------------------------------------ #
     async def start(self) -> None:
         logger.info("通知服务已启动 (DB 持久化)")
         await self._rules_helper.refresh_rules_cache()
@@ -223,9 +215,7 @@ class NotificationService:
         bus.on("earthquake.alert", _eew_alert)
         bus.on("earthquake.confirmation", _eew_confirmation)
 
-    # ------------------------------------------------------------------ #
     # 通知发送
-    # ------------------------------------------------------------------ #
     async def notify(
         self,
         level: str,
@@ -264,9 +254,7 @@ class NotificationService:
             return
         self.set_cooldown(cooldown_key, float(cfg.get("lowBatteryCooldownMin") or 120))
 
-    # ------------------------------------------------------------------ #
     # 持久化查询
-    # ------------------------------------------------------------------ #
     async def get_notifications(
         self,
         limit: int = 50,
@@ -470,9 +458,7 @@ class NotificationService:
             logger.info("已清理 %s 条来源为 [%s] 的通知", count, ", ".join(sources))
         return {"deleted": count}
 
-    # ------------------------------------------------------------------ #
     # 告警规则
-    # ------------------------------------------------------------------ #
     def get_rule_condition_history(self, rule_id: str) -> list[dict[str, str]]:
         return self._rules_helper.get_rule_condition_history(rule_id)
 
@@ -495,9 +481,7 @@ class NotificationService:
     async def delete_rule(self, rule_id: str) -> dict[str, Any]:
         return await self._rules_helper.delete_rule(rule_id)
 
-    # ------------------------------------------------------------------ #
     # 通知设置
-    # ------------------------------------------------------------------ #
     async def get_settings(
         self, user_id: str | None = None, preloaded_prefs: dict[str, Any] | None = None
     ) -> dict[str, Any]:
@@ -515,18 +499,14 @@ class NotificationService:
     ) -> dict[str, Any]:
         return await self._settings_helper.update_user_preferences(user_id, settings)
 
-    # ------------------------------------------------------------------ #
     # 状态变更入口（冷路径）
-    # ------------------------------------------------------------------ #
     def handle_state_change(self, event: dict[str, Any] | None) -> None:
         self._event_handlers.handle_state_changed(event)
 
     def handle_alert_rule_state_change(self, event: dict[str, Any] | None) -> None:
         self._event_handlers.handle_alert_rule_state_changed(event)
 
-    # ------------------------------------------------------------------ #
     # 房间标签
-    # ------------------------------------------------------------------ #
     def resolve_notification_room_label(self, room_id: str | None) -> str:
         text = (room_id or "").strip()
         if not text:

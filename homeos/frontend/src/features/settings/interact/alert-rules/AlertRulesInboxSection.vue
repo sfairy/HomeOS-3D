@@ -1,13 +1,6 @@
 <!--
-组件：AlertRulesInboxSection.vue
-所属模块：frontend / src / views / settings / interact / alert-rules
-职责：应用内告警规则收件箱。展示规则列表（名称/级别/实体/条件），提供新建、编辑、删除、测试入口，
-      并引导跳转至实体自定义播报配置。
-关键依赖：
-  - ApiQueryState：规则列表加载态/错误重试
-  - SettingsCard / SettingsFlowBand / SettingsFlowStat：卡片与流程概览
-  - useAlertRulesSection：注入 rules / loading / loadRules / openCreate / openEdit / testRule / removeRule 等
-数据来源：useAlertRulesSection() 返回的 rules 列表与规则操作方法
+  应用内告警规则收件箱。展示规则列表（名称/级别/实体/条件），提供新建、编辑、删除、测试入口，
+  并引导跳转至实体自定义播报配置。
 -->
 <template>
   <div class="settings-hub-section alert-inbox-hub">

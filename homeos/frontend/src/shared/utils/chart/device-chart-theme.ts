@@ -1,10 +1,4 @@
-/**
- * 设备页 ECharts 主题：颜色常量 + tooltip / grid / legend / axis 工厂函数。
- *
- * 职责：集中维护设备页图表的颜色、tooltip、网格、图例、坐标轴等共享配置，
- *   保证各图表视觉一致；ECharts 不支持 CSS 变量，颜色以字面量映射。
- * 依赖：echarts/core 类型、ui/color.util 的 hexWithOpacity。
- */
+/** 设备页 ECharts 主题：颜色常量 + tooltip / grid / legend / axis 工厂函数。 */
 import type { EChartsCoreOption } from 'echarts/core'
 import { createChartTooltip } from '@/shared/utils/chart/chart-primitives'
 import { hexWithOpacity } from '@/shared/utils/ui/color.util'

@@ -1,28 +1,12 @@
-/**
- * 组件：HomeModeTabsToolbar.vue
- *
- * 职责：家庭模式 Tab 工具栏。基于 SettingsOrchTabs 渲染可拖拽排序的模式 Tab，并提供
- *      初始化默认、导出、导入、新建模式等操作按钮。
- * 关键依赖：SettingsOrchTabs
- * 数据来源：父级透传的 activeTab / displayModeTabs
- */
 <script setup>
-/**
- * 职责：渲染 views/HomeModeTabsToolbar 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import { Download, Upload, Plus, Sparkles } from '@lucide/vue'
 import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 
-// 入参：当前激活 Tab、展示用模式 Tab 列表
 defineProps({
   activeTab: { type: String, required: true },
   displayModeTabs: { type: Array, required: true },
 })
 
-// 对外事件：切换 Tab、拖拽排序、初始化默认、导出/导入、新建模式
 const emit = defineEmits(['update:activeTab', 'reorder', 'seed', 'export', 'import', 'create'])
 
 // Tab 切换时向上透传新激活 id

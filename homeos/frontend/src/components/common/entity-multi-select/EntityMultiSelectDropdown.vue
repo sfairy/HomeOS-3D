@@ -50,18 +50,7 @@
 </template>
 
 <script setup>
-/**
- * EntityMultiSelectDropdown - 实体多选下拉面板组件
- * 功能特性：
- * - 支持多选实体
- * - 支持域名筛选
- * - 支持搜索过滤
- * - 支持推荐实体高亮
- * - 分组显示实体
- * 依赖：
- * - EntityMultiSelectDomainFilter: 域名筛选组件
- * - VirtualList: 虚拟滚动列表
- */
+/** EntityMultiSelectDropdown - 实体多选下拉面板组件 */
 import { Search } from '@lucide/vue'
 import EntityMultiSelectDomainFilter from './EntityMultiSelectDomainFilter.vue'
 import EntityMultiSelectItemList from './EntityMultiSelectItemList.vue'

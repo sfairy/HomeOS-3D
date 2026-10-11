@@ -23,9 +23,7 @@ router = NestRouter(prefix="/system", tags=["system"])
 def _wizard(request: Request):
     return request.app.state.setup_wizard
 
-# ---------------------------------------------------------------------- #
 # 首装向导
-# ---------------------------------------------------------------------- #
 @router.get("/setup-wizard/status")
 async def get_setup_wizard_status(
     request: Request, user: dict[str, Any] = Depends(require_user)
@@ -71,9 +69,7 @@ async def dismiss_setup_checklist(
 ):
     return await _wizard(request).dismiss_post_setup_checklist()
 
-# ---------------------------------------------------------------------- #
 # 实体同步
-# ---------------------------------------------------------------------- #
 @router.post("/entities/resync")
 async def resync_entities(
     request: Request, user: dict[str, Any] = Depends(require_user)
@@ -89,9 +85,7 @@ async def resync_entities(
             api_error("HA_STATE_RESYNC_FAILED", str(err) or "未知错误"),
         ) from err
 
-# ---------------------------------------------------------------------- #
 # 配置健康
-# ---------------------------------------------------------------------- #
 @router.get("/bindings/gaps")
 async def get_binding_gaps(
     request: Request, user: dict[str, Any] = Depends(require_user)

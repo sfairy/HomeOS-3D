@@ -1,13 +1,6 @@
 <!--
-组件：SecurityCameraTile.vue
-所属模块：frontend / src / views / security
-职责：安防监控「单格摄像头」组件。按需挂载 HaCameraStream 实时流，并通过
-      IntersectionObserver 仅在视口内拉流；流失败时显示重试占位。
-关键依赖：
-  - HaCameraStream：HA 摄像头实时流（HLS → MJPEG → 快照，与 3D 总览同序）
-  - useEntitiesStore：读取 camera 实体与域级 epoch（驱动显示名/快照刷新）
-  - getEntityDisplayName：从实体派生可读名称
-数据来源：entitiesStore 中的 camera 实体、父级透传的 camId / streamErrors / activeSlot
+  安防监控「单格摄像头」组件。按需挂载 HaCameraStream 实时流，并通过
+  IntersectionObserver 仅在视口内拉流；流失败时显示重试占位。
 -->
 <template>
   <div
@@ -63,7 +56,6 @@ import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 // 多路网格默认最多 2 路实时流（WebRTC/HLS），超出部分仅快照占位，避免平板/HA 过载
 const GRID_MAX_ACTIVE = 2
 
-// 入参：摄像头实体 ID、HA 地址、流错误映射、网格槽位、聚焦态、是否启用拉流、是否优先 WebRTC
 const props = defineProps({
   camId: { type: String, required: true },
   haUrl: { type: String, default: '' },
@@ -75,7 +67,6 @@ const props = defineProps({
   preferWebrtc: { type: Boolean, default: false },
 })
 
-// 对外事件：选中摄像头、流错误、重试流、可见性变化（供父级调度同时拉流的槽位）
 const emit = defineEmits(['select', 'stream-error', 'retry', 'visibility'])
 
 const entitiesStore = useEntitiesStore()

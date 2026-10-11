@@ -203,7 +203,6 @@ applyEntityStateUpdate(deps as unknown as Parameters<typeof applyEntityStateUpda
 check('命中预测的推送清除乐观条目', cleared === 1, cleared)
 check('命中预测后剥离 _optimistic 标记', entities['light.desk']?._optimistic !== true)
 
-/* ------------------------------------------------------------------ */
 
 console.log('')
 if (failures.length > 0) {

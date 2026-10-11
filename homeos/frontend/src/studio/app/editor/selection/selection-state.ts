@@ -1,7 +1,6 @@
 // 编辑器**选中态**的显式 state 袋（P4 studio 拆分：单例显式化）。
 //
 // 为什么是「袋」而不是把变量搬进来
-// ------------------------------
 // `home.ts` 里这一族名字（`selectedComponentId` / `selectedComponentIdsSet` /
 // `selectionAnchorComponentId` / `activeGroupId` / `lastComponentClick`）被几百处**直接读写**：
 // 选中态渗透在渲染、事件、文档变更判定里。把它们搬进模块意味着改写宿主全部引用点 ——

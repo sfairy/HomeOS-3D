@@ -1,15 +1,6 @@
 <!--
-组件：SecurityZoneConfigPanel.vue
-所属模块：frontend / src / views / security
-职责：安防「区域配置」面板。可关联 HA 房间、绑定传感器、从房间一键生成区域、
-      保存配置（同步后端 + 镜像到布局待保存）。
-关键依赖：
-  - SecurityZoneEditorList：内嵌的区域编辑器
-  - useSecurityZoneRooms：HA 房间同步与一键生成
-  - postSecurityZones / prepareZonesForSave：保存到后端
-  - mirrorSecurityPanelZonesToLayout：将后端区域镜像到布局配置
-  - useChromeStore / useLayoutStore：通知、布局
-数据来源：layoutStore 布局配置 + 后端 backendZones，本地编辑缓存于 localZones
+  安防「区域配置」面板。可关联 HA 房间、绑定传感器、从房间一键生成区域、
+  保存配置（同步后端 + 镜像到布局待保存）。
 -->
 <template>
   <div class="sov-config">
@@ -82,13 +73,11 @@ import {
 } from '@/shared/security/utils/panel-layout.util'
 import { useSecurityZoneRooms } from '@/features/security/composables/useSecurityZoneRooms'
 
-// 入参：后端区域列表、需聚焦的区域 ID
 const props = defineProps({
   backendZones: { type: Array, default: () => [] },
   focusZoneId: { type: String, default: '' },
 })
 
-// 对外事件：保存成功后通知父级（通常触发刷新）
 const emit = defineEmits(['saved'])
 
 const layoutStore = useLayoutStore()

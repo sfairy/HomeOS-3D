@@ -1,22 +1,4 @@
-/**
- * @file useEntityPickerSession.ts
- * @module composables/entity
- * @description 实体选择器共用会话 composable。
- *
- * 职责：
- * - 提供下拉与域菜单的定位（基于 useDropdownPosition）；
- * - 大数据集时启用 REST 搜索（debounce 250ms），小数据集走内存；
- * - 通过 domainEntityIndex 或 entities 兜底提供候选实体 ID 列表。
- *
- * 依赖：
- * - @homeos/shared（getEntityDomain）
- * - vue（ref、computed、watch、onUnmounted、Ref、ComputedRef）
- * - @/stores/entities.store（实体状态与索引）
- * - @/services/api/entities（fetchEntities REST 搜索）
- * - @/composables/ui/useDropdownPosition（下拉定位）
- * - @/shared/entity/utils/derived.util（collectIndexedEntityIds 索引收集）
- * - @/shared/utils/config/frontend-config（getLargeEntityThreshold 大库阈值）
- */
+/** - 提供下拉与域菜单的定位（基于 useDropdownPosition）； */
 import { getEntityDomain } from '@homeos/shared'
 import { ref, computed, watch, onUnmounted, type Ref, type ComputedRef } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'

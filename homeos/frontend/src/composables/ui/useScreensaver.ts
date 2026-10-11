@@ -1,29 +1,4 @@
-/**
- * @file useScreensaver.ts
- * @module composables/ui
- * @description 屏保（Screensaver）composable：时钟/天气大屏与空闲触发。
- *
- * 职责：
- * - 管理屏保显隐、模式（clock/weather）与预览模式（管理端预览）；
- * - 监听用户活动（鼠标/触摸/键盘）重置空闲计时器，超时自动进入屏保；
- * - 计算屏保布局（scaled/fluid）与 CSS 变量样式，适配缩放与视口；
- * - 派生当前时间（时/分/秒）、日期（星期/月日/年）、农历与天气信息；
- * - 屏保可见时启动唤醒词监听，识别后关闭屏保并执行语音命令；
- * - 本机充电器开关由关变开时退出屏保（保持开启不阻止空闲进入屏保；本地边沿检测，不暂停）。
- * - 监听地震覆盖层与预览请求，必要时强制隐藏屏保。
- *
- * 依赖：
- * - vue（ref/computed/watch/onMounted/onUnmounted）
- * - vue-router（路由跳转）
- * - entities.store / layout.store / earthquake.store
- * - lunar-calendar / lunar-display.util（农历计算与显示）
- * - frontend-config（screensaver 启用/空闲与视觉；兼容旧 ui 键；人来亮屏）
- * - locale-time（时区化时间格式化）
- * - useScaling / usePerfClock / useWakeWord / useTtsSpeak
- * - system API（executeVoiceCommand）
- * - screensaver-background-idle.util（屏保空闲联动背景）
- * - clientPowerWake（本机充电器开关关→开退出屏保；单机 ID 可回退）
- */
+/** - 管理屏保显隐、模式（clock/weather）与预览模式（管理端预览）； */
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useEntitiesStore } from '@/stores/entities.store'

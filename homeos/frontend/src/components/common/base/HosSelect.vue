@@ -94,20 +94,7 @@
 </template>
 
 <script setup>
-/**
- * HosSelect - 自定义选择器组件
- * 功能特性：
- * - 支持 props.options 数组或默认 slot <option>/<optgroup> 子元素
- * - 支持搜索过滤（自动或强制开启）
- * - 支持选项分组显示
- * - 完整的键盘导航（上下箭头、回车、Esc）
- * - 使用 Teleport 渲染下拉面板，避免被父容器裁剪
- * - 支持多种尺寸、变体和样式配置
- * 依赖：
- * - useClickOutside: 点击外部关闭下拉
- * - useDropdownPosition: 下拉面板定位计算
- * - entitySelectHint: 实体选项提示文本生成
- */
+/** HosSelect - 自定义选择器组件 */
 import { ref, computed, watch, nextTick, useSlots, onUpdated } from 'vue'
 import { ChevronDown, Check, Search } from '@lucide/vue'
 import { useClickOutside } from '@/composables/ui/useClickOutside'

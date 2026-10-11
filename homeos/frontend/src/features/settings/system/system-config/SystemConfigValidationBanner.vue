@@ -1,15 +1,5 @@
 <!--
-组件：SystemConfigValidationBanner.vue
-所属模块：frontend / src / views / settings / system / system-config
-职责：高级参数校验错误横幅。展示字段校验错误列表，点击可跳转至对应分区。
-Props：
-  - errors：校验错误列表
-  - sectionLabel：分区标签渲染函数
-  - fieldLabel：字段标签渲染函数
-Emits：
-  - navigate：跳转分区
-关键依赖：无外部依赖
-数据来源：父级透传的 errors
+  高级参数校验错误横幅。展示字段校验错误列表，点击可跳转至对应分区。
 -->
 <template>
   <div class="params-validation-banner params-main__banner">

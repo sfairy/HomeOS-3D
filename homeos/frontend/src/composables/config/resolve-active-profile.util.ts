@@ -1,15 +1,4 @@
-/**
- * @module config/resolve-active-profile
- * @description 解析当前终端应使用的 display profile（布局方案）的工具。
- *
- * 解析优先级：URL ?profile= > localStorage > 服务端终端绑定 > 新终端默认策略 > default。
- *
- * 依赖：
- *  - @/services/api/config（项目 / 终端绑定接口）；
- *  - @/shared/client/utils/system.util（客户端设备 ID）；
- *  - @/stores/ui/create-layout-state（本地 profileId 持久化）；
- *  - @/shared/utils/core/logger。
- */
+/** 解析优先级：URL ?profile= > localStorage > 服务端终端绑定 > 新终端默认策略 > default。 */
 import {
   fetchProject,
   resolveTerminalProfile,

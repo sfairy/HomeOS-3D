@@ -1,11 +1,5 @@
 <!--
-组件：SystemConfigSectionDock.vue
-所属模块：frontend / src / views / settings / shared / system-config
-职责：高级参数分区委派引导。当某分区由独立面板承载时，展示紧凑 callout 与跳转链接。
-Props：
-  - guide：引导配置（text / links）
-关键依赖：vue-router 的 RouterLink
-数据来源：父级透传的 guide
+  高级参数分区委派引导。当某分区由独立面板承载时，展示紧凑 callout 与跳转链接。
 -->
 <template>
   <div v-if="guide" class="section-dock section-dock--callout">

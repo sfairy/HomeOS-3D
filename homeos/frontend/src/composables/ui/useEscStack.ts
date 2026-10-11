@@ -1,29 +1,4 @@
-/**
- * @file 全局 Esc 层级栈（只关最上层）
- * @module composables/ui/useEscStack
- *
- * 解决的故障：浮层各自在 `window` 上加 keydown 监听，一次 Esc 会被**所有**在场浮层收到。
- * 结果是「全屏查看器 + 全局确认框同时在场上时，按一次 Esc 两层一起关」。
- * 注意 `stopPropagation()` 挡不住这种叠加：同一目标（window）上的多个监听器只受
- * `stopImmediatePropagation` 影响，而那又取决于注册顺序，不可依赖。
- *
- * 做法：把「谁响应 Esc」收敛成一个栈 ——
- *  - 浮层在自己可见时压栈（`useEscLayer`），不可见时出栈，卸载时兜底出栈；
- *  - 全模块只挂一个 `window` keydown 监听，只把事件派发给**栈顶**那一层。
- *
- * 两条约定，缺一不可：
- *  1. **压栈顺序即视觉叠放顺序**：后打开的浮层后压栈 → 位于栈顶。浮层按打开顺序叠放时成立；
- *     若某处出现「后打开的反而在下面」，那一层就不该用压栈顺序表达，需要显式指定层级。
- *  2. **已被处理的事件不重复处理**：监听器遇到 `event.defaultPrevented === true` 直接返回。
- *     这条让**不**入栈的处理器天然拥有更高优先级 —— 典型是下拉框：Vue 的
- *     `@keydown.escape.prevent` 会先 `preventDefault()`，于是「下拉里的 Esc 只关下拉，
- *     不会顺带把装着它的弹窗也关掉」，这些组件一行都不用改。
- *
- * 未入栈的处理器仍然可能抢事件（它自己不 `preventDefault` / `stopPropagation`），
- * 因此「只关最上层」的成立范围 = 所有 window 级 Esc 处理器都已入栈或会 preventDefault。
- *
- * 依赖：vue 的 watch / onUnmounted 与 Ref 类型。
- */
+/** 解决的故障：浮层各自在 `window` 上加 keydown 监听，一次 Esc 会被**所有**在场浮层收到。 */
 import { onUnmounted, watch, type Ref } from 'vue'
 
 /** 栈中的一层浮层。 */

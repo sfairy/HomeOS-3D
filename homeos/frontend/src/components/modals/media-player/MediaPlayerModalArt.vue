@@ -27,16 +27,7 @@
 </template>
 
 <script setup>
-/**
- * MediaPlayerModalArt - 媒体弹窗封面区组件
- * 职责：在媒体播放器弹窗左侧呈现封面图或歌词文本，并提供封面/歌词视图切换。
- * Props:
- * - albumArt：专辑封面 URL，缺省时显示占位图标；
- * - isPlaying：是否正在播放，用于驱动封面动效；
- * - modalTitle：弹窗标题，作为封面 img 的 alt 文本；
- * - hasLyrics/lyricsLines：是否拥有歌词及歌词行数组；
- * - viewMode（v-model）：当前视图模式 'cover' | 'lyrics'。
- */
+/** MediaPlayerModalArt - 媒体弹窗封面区组件 */
 import { Music, AlignLeft, Image } from '@lucide/vue'
 
 const viewMode = defineModel('viewMode', { type: String, default: 'cover' })

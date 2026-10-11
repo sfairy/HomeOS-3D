@@ -1,16 +1,4 @@
-/**
- * @file useDeviceGroupEntityIds.ts
- * @module composables/entity
- * @description 设备分组实体 ID 列表计算 composable。
- *
- * 职责：基于设备 domain 与统计传感器配置，解析 DeviceGroupModal 应展示的实体 ID 列表，
- *      并维护"是否显示审计面板"开关。
- *
- * 依赖：
- * - vue（ref）
- * - @/composables/device/group-counts.util（resolveDeviceGroupEntityIds 实体 ID 解析）
- * - @/shared/device/utils/group-battery.util（设备分组 store 形状类型）
- */
+/** 并维护"是否显示审计面板"开关。 */
 import { ref } from 'vue'
 import { resolveDeviceGroupEntityIds } from '@/composables/device/group-counts.util'
 import type {

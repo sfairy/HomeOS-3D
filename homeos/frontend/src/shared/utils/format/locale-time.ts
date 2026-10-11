@@ -1,15 +1,4 @@
-/**
- * 带时区的本地化时间部件提取与格式化
- *
- * 职责：
- * - 提供「按浏览器 / 系统本地时区」拆解的日期部件（hour / minute / second / weekday / ...）。
- * - 提供按 locale + 时区格式化日期字符串的薄封装，供屏保时钟等场景使用。
- *
- * 依赖：浏览器 Intl API。
- *
- * 注意：当前实现使用浏览器本地时区（getAppTimezone 返回 undefined 即使用系统时区），
- *   如需固定时区可在 getAppTimezone 中返回 IANA 时区名（如 'Asia/Shanghai'）。
- */
+/** 带时区的本地化时间部件提取与格式化 */
 
 /** 获取应用时区：当前返回 undefined，表示使用浏览器 / 系统本地时区 */
 function getAppTimezone() {

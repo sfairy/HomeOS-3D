@@ -1,16 +1,7 @@
 <!--
-组件：SettingsRoomsPanel.vue
-所属模块：frontend / src / views / settings / home
-职责：房间面板入口。通过子导航切换两个区段：
-      catalog（HA 区域目录 + 传感器绑定）、scopes（房间配置消费方说明）。
-      页头提供「同步 HA 区域」与保存/取消。
-关键依赖：
-  - SettingsPageShell / SettingsCard / SettingsPendingSaveAction：页面骨架与保存条
-  - SettingsFlowBand / SettingsFlowStat / SettingsSectionHead / SettingsHubSubnav：流程/头部/子导航
-  - SettingsBindingsEnvironmentSection：房间目录 + 传感器绑定子区段
-  - RegistryDegradedGuide：注册中心降级提示
-  - useSettingsEnvHub / useSettingsHubRouteSection：房间 hub 与子导航路由同步
-数据来源：useSettingsEnvHub()
+  房间面板入口。通过子导航切换两个区段：
+  catalog（HA 区域目录 + 传感器绑定）、scopes（房间配置消费方说明）。
+  页头提供「同步 HA 区域」与保存/取消。
 -->
 <template>
   <SettingsPageShell
@@ -153,7 +144,6 @@ import { useSettingsEnvHub } from '@/features/settings/composables/hub-ui.intern
 import { useSettingsHubRouteSection } from '@/features/settings/composables/hub-ui.internals'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 
-// 入参：当前激活的 Tab id
 const props = defineProps({ activeTab: { type: String, default: 'rooms' } })
 
 // 房间 hub：聚合 HA 区域列表、传感器映射、保存/取消等

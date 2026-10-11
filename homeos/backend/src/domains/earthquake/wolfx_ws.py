@@ -56,9 +56,7 @@ class WolfxWsClient:
         self._state = "closed"
         self._heartbeat_task: asyncio.Task[None] | None = None
 
-    # ------------------------------------------------------------------ #
     # 生命周期
-    # ------------------------------------------------------------------ #
     def mark_destroyed(self) -> None:
         self._destroyed = True
         self._stop.set()
@@ -188,9 +186,7 @@ class WolfxWsClient:
         except Exception as exc:
             logger.debug("刷新主节点活跃标记失败: %s", exc)
 
-    # ------------------------------------------------------------------ #
     # 状态
-    # ------------------------------------------------------------------ #
     def is_connected(self) -> bool:
         return self._ws is not None and self._state == "open"
 

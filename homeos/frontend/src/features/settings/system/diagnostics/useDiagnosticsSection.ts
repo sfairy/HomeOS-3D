@@ -1,9 +1,3 @@
-/**
- * 文件：useDiagnosticsSection.ts
- * 职责：诊断分区 inject 辅助。从 DIAGNOSTICS_KEY 上下文中按需选取字段；
- *       panel 为普通对象，ref/computed 与函数须直接透传，其余用 toRef 包裹。
- * 关键依赖：vue 的 inject / isRef / toRef
- */
 import { inject, isRef, toRef } from 'vue'
 import { DIAGNOSTICS_KEY } from './context'
 

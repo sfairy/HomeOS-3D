@@ -1,14 +1,4 @@
-/**
- * 实体弹窗通用基础组合式函数模块。
- *
- * 职责：
- * - 提供实体弹窗头部（名称、状态标签、状态颜色、活跃脉冲）的派生计算；
- * - 定义实体弹窗组件通用 props 与类型；
- * - 组装 liveEntity、entityName 与 HA service 调用入口，作为弹窗组件的统一基座。
- *
- * 依赖：vue 计算属性、entity-derived 名称解析、useLiveEntity、useHaEntityService、
- * 实体状态标签常量、HaEntityState 类型。
- */
+/** 实体弹窗通用基础组合式函数模块。 */
 import { computed, type ComputedRef, type Ref, type PropType } from 'vue'
 import { popupDomainStateLabel } from '@/shared/constants/entity-state-labels'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'

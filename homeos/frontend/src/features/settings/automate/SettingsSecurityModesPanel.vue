@@ -1,17 +1,10 @@
 <!--
-  组件文件：SettingsSecurityModesPanel.vue
-  所属模块：frontend/src/features/settings/automate
-  组件职责：家庭自动化大类下的安防模式总控面板，包含「场景联动」和「全屋联动」两个
-    Hub 子分区。场景联动下提供布防/撤防/夜间等安全预设切换、紧急场景卡片及导入导出；
-    全屋联动下渲染联动逻辑编辑区。顶部有导入/导出按钮与未保存提示条，中部为模式 Tab
-    与表单，底部依赖 SettingsPendingSaveAction 触发保存。
-  主要 props / emits：
-    - props activeTab：上级 Tab 路由名，用于同步 Hub 子分区路由
-  依赖关系：调用 useSecurityModes composable 获取安防模式数据与联动配置（布防预设、紧急
-    场景动作、awayLightPool 等）；依赖 useSettingsHubRouteSection 管理子分区路由；
-    useRegisterSettingsTabPending 注册未保存提示。
+  家庭自动化大类下的安防模式总控面板，包含「场景联动」和「全屋联动」两个
+  Hub 子分区。场景联动下提供布防/撤防/夜间等安全预设切换、紧急场景卡片及导入导出；
+  全屋联动下渲染联动逻辑编辑区。顶部有导入/导出按钮与未保存提示条，中部为模式 Tab
+  与表单，底部依赖 SettingsPendingSaveAction 触发保存。
   注意事项：保存按钮调用 composable 内部的安全布局持久化逻辑；导入会校验 JSON 格式并
-    覆盖当前草稿；切换场景联动与全屋联动时草稿仍保留在内存，需显式点击保存或取消。
+  覆盖当前草稿；切换场景联动与全屋联动时草稿仍保留在内存，需显式点击保存或取消。
 -->
 <template>
   <SettingsPageShell

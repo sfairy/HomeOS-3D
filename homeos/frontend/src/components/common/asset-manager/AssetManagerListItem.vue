@@ -1,10 +1,4 @@
-/**
- * @file AssetManagerListItem.vue
- * @module components/common/asset-manager
- * @description 资源管理器列表视图下的单个条目组件。负责渲染条目图标/缩略图、名称、类型标签，
- *  以及复制、删除等操作按钮。条目类型支持文件与目录。
- *  依赖：@lucide/vue 图标、AssetItem 类型。
- */
+/** 以及复制、删除等操作按钮。条目类型支持文件与目录。 */
 <template>
   <!-- 条目根容器：点击触发 click 事件（进入目录或选择文件） -->
   <div class="asset-list-item group" @click="emit('click')">
@@ -56,12 +50,6 @@
 </template>
 
 <script setup lang="ts">
-/**
- * 职责：实现 AssetManagerListItem 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 import { FolderOpen, FileImage, Copy, Trash2 } from '@lucide/vue'
 import type { AssetItem } from './useAssetManager'
 

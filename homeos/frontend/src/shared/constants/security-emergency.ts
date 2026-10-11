@@ -1,16 +1,4 @@
-/**
- * 紧急求助（SOS）预设与默认配置
- *
- * 职责：
- * - 维护紧急求助 SOS 的默认配置（`layout.securityEmergency`）。
- * - 提供四种预设档位：全屋声光 / 重点区域 / 静默通知 / 完全自定义。
- * - 提供配置规范化函数，用于把用户输入合并为合法的 SecurityEmergencyConfig。
- *
- * 依赖：`@/shared/types/layout` 中的 `SecurityEmergencyConfig` 类型。
- *
- * 注意：
- * - `mode` 取值（full_home / key_areas / notify_only / custom）为配置 key，不翻译。
- */
+/** 紧急求助（SOS）预设与默认配置 */
 import type { SecurityEmergencyConfig } from '@/shared/types/layout'
 /** 紧急求助 SOS 默认配置（layout.securityEmergency） */
 const DEFAULT_SECURITY_EMERGENCY: SecurityEmergencyConfig = {

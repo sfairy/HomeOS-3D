@@ -1,13 +1,4 @@
-/**
- * @module core/lazy-component
- * @description 异步组件加载工具，开发环境 HMR / dep 预构建期间 import() 可能短暂失败，自动重试。
- *
- * 提供两个能力：
- *  - lazyView：包裹 Vue Router 路由懒加载 () => import()，HMR 期间失败自动重试；
- *  - lazyComponent：包裹 defineAsyncComponent，按动态 import 失败特征触发重试。
- *
- * 依赖：vue（defineAsyncComponent / Component）。
- */
+/** 提供两个能力： */
 import { defineAsyncComponent, type Component } from 'vue'
 
 /** 动态 import 失败的错误特征正则（覆盖主流浏览器与 Vite 文案） */

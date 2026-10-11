@@ -1,21 +1,4 @@
-/**
- * @file AlertOverlay.vue
- * @module components/earthquake
- * @brief 地震预警全屏警报覆盖层
- *
- * 职责：
- * - 当 earthquakeStore 触发 isAlerting 时，通过 Teleport 渲染全屏警报覆盖层
- * - 横屏/竖屏自适应布局：横屏展示倒计时与状态，竖屏展示震源、震中、烈度与避险提示
- * - 倒计时、震动计时、TTS 语音播报均由 store 与 useEarthquakeTts 驱动
- * - 底部嵌入 EewSlideUnlock 滑动解锁交互，由本组件统一管理拖拽进度与解锁判定
- *
- * 依赖：
- * - vue（computed/ref/watch/onMounted/onUnmounted）
- * - @lucide/vue、pinia（storeToRefs）
- * - earthquake.store（预警状态与事件）、layout.store（TTS 开关）
- * - useEarthquakeTts（语音播报）、EewSafetyTips、EewSlideUnlock 子组件
- * - 外部样式 ./styles/AlertOverlay.css
- */
+/** - 当 earthquakeStore 触发 isAlerting 时，通过 Teleport 渲染全屏警报覆盖层 */
 <template>
   <Teleport to="body">
     <div
@@ -142,12 +125,6 @@
 </template>
 
 <script setup>
-/**
- * 职责：实现 AlertOverlay 组件的界面渲染、用户交互与 props/emit 通信。
- * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
- * 约定：- 所有对外属性统一走 defineProps 泛型，emit 使用 defineEmits<...>()；
-  - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
- */
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { Activity, ArrowUpDown, MapPin, Radio } from '@lucide/vue'
 import { storeToRefs } from 'pinia'

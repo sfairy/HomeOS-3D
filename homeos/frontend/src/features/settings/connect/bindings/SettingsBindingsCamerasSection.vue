@@ -1,12 +1,6 @@
 <!--
-组件：SettingsBindingsCamerasSection.vue
-所属模块：frontend / src / views / settings / connect / bindings
-职责：摄像头绑定分区。展示监控列表，支持标记门铃画面与安防首选，并以流程概览展示
-      路数与首选状态。
-关键依赖：
-  - EntityInput：摄像头实体选择
-  - SettingsFlowBand / SettingsFlowStat：流程概览
-数据来源：父级透传的 securityCameras（双向）/ doorbellCameras / securityCamera
+  摄像头绑定分区。展示监控列表，支持标记门铃画面与安防首选，并以流程概览展示
+  路数与首选状态。
 -->
 <template>
   <div class="settings-hub-section bind-cameras-hub">
@@ -116,16 +110,13 @@ import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import EntityInput from '@/components/common/EntityInput.vue'
 
-// 双向绑定：监控摄像头实体 id 列表
 const securityCameras = defineModel('securityCameras', { type: Array, default: () => [] })
 
-// 入参：门铃画面列表、安防首选摄像头 id
 const props = defineProps({
   doorbellCameras: { type: Array, default: () => [] },
   securityCamera: { type: String, default: '' },
 })
 
-// 对外事件：切换门铃画面标记、设默认摄像头、移除摄像头
 defineEmits(['toggle-doorbell-cam', 'set-default-camera', 'remove-camera'])
 
 // 流程概览折叠态摘要文案

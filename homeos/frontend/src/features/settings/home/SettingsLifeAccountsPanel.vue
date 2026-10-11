@@ -1,13 +1,6 @@
 <!--
-组件：SettingsLifeAccountsPanel.vue
-所属模块：frontend / src / views / settings / home
-职责：生活账户面板入口。基于 SettingsBindingsAccountSection 展示账户分类、绑定模式、
-      可映射字段与图表字段，支持从实体推断与填充默认属性。页头链接阶梯电价并提供保存/取消。
-关键依赖：
-  - SettingsPageShell / SettingsPendingSaveAction：页面骨架与保存条
-  - SettingsBindingsAccountSection：账户绑定子区段
-  - useSettingsLifeAccountsHub：聚合分类、字段、保存/取消
-数据来源：useSettingsLifeAccountsHub() 返回的 categoryTabs / activeMappableFields 等
+  生活账户面板入口。基于 SettingsBindingsAccountSection 展示账户分类、绑定模式、
+  可映射字段与图表字段，支持从实体推断与填充默认属性。页头链接阶梯电价并提供保存/取消。
 -->
 <template>
   <SettingsPageShell
@@ -81,7 +74,6 @@ import SettingsBindingsAccountSection from '@/features/settings/connect/bindings
 import { useSettingsLifeAccountsHub } from '@/features/settings/composables/connect/bindings.internals'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 
-// 入参：当前激活的 Tab id
 const props = defineProps({ activeTab: { type: String, default: 'life-accounts' } })
 
 const {

@@ -1,11 +1,4 @@
-"""智能管家配置服务。
-
-职责：读取并缓存 LLM 配置（provider / apiKey / apiBase / model / language / systemPrompt），
- 以及 HA 场景 / 脚本语音控制允许清单（layout.agentConfig.sceneVoiceControl，默认全禁）。
- 读取顺序：数据库 ProjectConfig.layout.agentConfig → .env 回退 → 默认 mock。
- 监听 SYSTEM_CONFIG_UPDATED 事件自动失效缓存，下次 get_config 重新读 DB。
-依赖：Database.SessionFactory（DB）、环境变量、LocalEventBus（事件）。
-"""
+"""智能管家配置服务。"""
 
 from __future__ import annotations
 
@@ -109,9 +102,7 @@ class AgentConfigService:
         """配置来源（默认进程环境变量，测试可注入）。"""
         return self._env if self._env is not None else os.environ
 
-    # ------------------------------------------------------------------ #
     # 事件绑定
-    # ------------------------------------------------------------------ #
     def bind_events(self) -> None:
         """订阅系统配置更新事件，使缓存失效（对齐 ``onModuleInit``）。"""
         if self._event_bus is None:
@@ -123,17 +114,13 @@ class AgentConfigService:
 
         self._event_bus.on("SYSTEM_CONFIG_UPDATED", on_system_config_updated)
 
-    # ------------------------------------------------------------------ #
     # 缓存
-    # ------------------------------------------------------------------ #
     def invalidate_cache(self) -> None:
         """强制下次 get_config 重新读 DB / .env。"""
         self._cached_config = None
         self._cached_scene_voice_control = None
 
-    # ------------------------------------------------------------------ #
     # 配置读取
-    # ------------------------------------------------------------------ #
     async def get_config(self) -> AgentLlmConfig:
         return await self.get_runtime_config()
 
@@ -193,9 +180,7 @@ class AgentConfigService:
         cfg = await self.get_config()
         return cfg.language or "zh"
 
-    # ------------------------------------------------------------------ #
     # MCP 网关
-    # ------------------------------------------------------------------ #
     async def get_mcp_gateway_secret(self) -> str:
         """读取 MCP 网关专用密钥（明文，仅服务端校验用）。"""
         agent = self._read_agent_config()
@@ -214,9 +199,7 @@ class AgentConfigService:
         ident = agent.get("mcpActorUserId")
         return "" if ident is None else str(ident).strip()
 
-    # ------------------------------------------------------------------ #
     # 场景语音控制
-    # ------------------------------------------------------------------ #
     async def get_scene_voice_control(self) -> SceneVoiceControlConfig:
         """读取 HA 场景 / 脚本的语音控制允许清单（layout.agentConfig.sceneVoiceControl）。
 
@@ -251,9 +234,7 @@ class AgentConfigService:
             logger.warning("读取场景语音控制配置失败,按全禁处理: %s", exc)
             return fallback
 
-    # ------------------------------------------------------------------ #
     # 内部工具
-    # ------------------------------------------------------------------ #
     def resolve_active_project_id(self) -> str:
         """当前激活 display profile（与 HA / UI 保存目标一致）。"""
         try:

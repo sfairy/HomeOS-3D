@@ -1,21 +1,4 @@
-/**
- * @file eew-countdown-lead.util.ts
- * @module @homeos/shared/earthquake
- * @brief 模拟演练全屏预警倒计时阈值与演练事件判定。
- *
- * 职责：
- *  - 维护模拟演练可选的倒计时阈值（60s / 30s / 0=横波已到达）；
- *  - 判定 eventId 是否为演练事件（前缀 test_）；
- *  - 提供倒计时阈值 → 中文展示标签。
- *
- * 关键依赖：
- *  - 后端 /earthquake/test 接口生成 test_ 前缀 eventId；
- *  - 前端预警弹窗用 shouldShowEewCountdown 决定是否全屏倒计时。
- *
- * 约定：
- *  - 真实 EEW 不受 leadSec 阈值限制，仅模拟演练场景使用本阈值；
- *  - 横波到达模式（leadSec=0）仅在 countdown ≤ 0 时展示，避免提前误报。
- */
+/** - 维护模拟演练可选的倒计时阈值（60s / 30s / 0=横波已到达）； */
 
 /** 模拟演练全屏预警倒计时形态：60s / 30s 倒计时，或横波已到达（真实预警不受此限制） */
 export const EEW_COUNTDOWN_LEAD_OPTIONS = [60, 30, 0] as const;

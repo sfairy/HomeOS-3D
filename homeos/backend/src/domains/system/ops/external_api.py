@@ -126,9 +126,7 @@ class ExternalApiService:
             "region": "北京 (默认)",
         }
 
-    # ------------------------------------------------------------------ #
     # 生命周期
-    # ------------------------------------------------------------------ #
     def start(self) -> None:
         """模块初始化：同步电价配置 + 启动日历同步 + 启动动态电价刷新。"""
         self.sync_pricing_from_config()
@@ -163,9 +161,7 @@ class ExternalApiService:
             self._schedule_calendar_sync()
             self._schedule_dynamic_pricing_refresh()
 
-    # ------------------------------------------------------------------ #
     # 配置读取
-    # ------------------------------------------------------------------ #
     def _section(self, name: str) -> dict[str, Any]:
         value = self._app_config.get(name)
         return value if isinstance(value, dict) else {}
@@ -213,9 +209,7 @@ class ExternalApiService:
                 return None
         return None
 
-    # ------------------------------------------------------------------ #
     # 日历同步
-    # ------------------------------------------------------------------ #
     def _schedule_calendar_sync(self) -> None:
         self._calendar_sync_stopped = False
         if self._calendar_sync_task is not None and not self._calendar_sync_task.done():
@@ -352,9 +346,7 @@ class ExternalApiService:
             "total_events": len(data["events"]),
         }
 
-    # ------------------------------------------------------------------ #
     # 电价
-    # ------------------------------------------------------------------ #
     def sync_pricing_from_config(self) -> None:
         """从后台 pricing 配置同步峰谷平电价到内存快照。"""
         p = self.pricing_cfg()
@@ -440,9 +432,7 @@ class ExternalApiService:
             "allPeriods": tou["periodPrices"],
         }
 
-    # ------------------------------------------------------------------ #
     # 动态电价 API
-    # ------------------------------------------------------------------ #
     def _schedule_dynamic_pricing_refresh(self) -> None:
         if not self.external_cfg.get("dynamicPricingEnabled"):
             return
@@ -601,9 +591,7 @@ class ExternalApiService:
             "lastError": self._dynamic_price_error or None,
         }
 
-    # ------------------------------------------------------------------ #
     # 天气预警 / 当前天气 / 预报
-    # ------------------------------------------------------------------ #
     def _alert_refresh_ms(self) -> float:
         try:
             value = float(self.external_cfg.get("weatherAlertRefreshMs") or 0)
@@ -785,9 +773,7 @@ class ExternalApiService:
             "fetchedAt": _iso_now(),
         }
 
-    # ------------------------------------------------------------------ #
     # 委托工具（保持 Nest 服务同日历工具方法）
-    # ------------------------------------------------------------------ #
     def parse_icalendar(self, ics_content: str) -> list[dict[str, Any]]:
         return parse_icalendar(ics_content)
 

@@ -57,9 +57,7 @@ class AwaySimulationService:
 
         bus.on(AWAY_SIM_SYNC_EVENT, self.handle_away_sim_sync)
 
-    # ------------------------------------------------------------------ #
     # 生命周期
-    # ------------------------------------------------------------------ #
     async def start(self) -> None:
         # 运行态保存在进程内，进程重启后离家模拟默认停用（与「度假防盗」语义一致）。
         return
@@ -71,9 +69,7 @@ class AwaySimulationService:
                 await self._timer
             self._timer = None
 
-    # ------------------------------------------------------------------ #
     # 跨实例同步（单副本下等价直接调用）
-    # ------------------------------------------------------------------ #
     async def handle_away_sim_sync(self, payload: dict[str, Any] | None) -> None:
         if not isinstance(payload, dict) or not isinstance(payload.get("enabled"), bool):
             return
@@ -105,9 +101,7 @@ class AwaySimulationService:
             self._last_cover_toggled = None
             self._last_cover_action = None
 
-    # ------------------------------------------------------------------ #
     # 状态查询
-    # ------------------------------------------------------------------ #
     def _interval_range_ms(self) -> tuple[float, float]:
         sec = self._config()
         window = sec.get("awaySimIntervalMinMax")
@@ -196,9 +190,7 @@ class AwaySimulationService:
         # zoned_date_parts 的 weekday 已对齐 JS getDay()（0=周日）
         return self._pattern_buckets.get(f"{parts['weekday']}|{parts['hour']}")
 
-    # ------------------------------------------------------------------ #
     # 启用 / 停用
-    # ------------------------------------------------------------------ #
     async def enable(self, opts: dict[str, Any] | None = None) -> dict[str, Any]:
         opts = opts or {}
         if opts.get("activeStartHour") is not None:
@@ -294,9 +286,7 @@ class AwaySimulationService:
         await self._bus.emit(AWAY_SIM_SYNC_EVENT, {"enabled": False, "timestamp": _iso_now()})
         return self.get_status()
 
-    # ------------------------------------------------------------------ #
     # 定时切换
-    # ------------------------------------------------------------------ #
     def _schedule_next(self) -> None:
         if self._timer is not None:
             self._timer.cancel()

@@ -1,12 +1,6 @@
 <!--
-组件：SettingsBindingsWeatherSection.vue
-所属模块：frontend / src / views / settings / connect / bindings
-职责：天气绑定分区。绑定 HA 气象实体（weather.*），大屏据此读取天气，并按同前缀自动
-      匹配 AQI、生活指数与预警传感器；以流程概览展示绑定状态。
-关键依赖：
-  - EntityInput：weather 域实体选择
-  - SettingsFlowBand / SettingsFlowStat：流程概览
-数据来源：父级透传的 weatherEntityId（双向）
+  天气绑定分区。绑定 HA 气象实体（weather.*），大屏据此读取天气，并按同前缀自动
+  匹配 AQI、生活指数与预警传感器；以流程概览展示绑定状态。
 -->
 <template>
   <div class="settings-hub-section weather-bind-hub">
@@ -79,7 +73,6 @@ import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import EntityInput from '@/components/common/EntityInput.vue'
 
-// 双向绑定：HA 气象实体 ID（weather.*）
 const weatherEntityId = defineModel('weatherEntityId', { type: String, default: '' })
 
 // 流程概览折叠态摘要文案：已绑定显示实体 id，未绑定显示提示

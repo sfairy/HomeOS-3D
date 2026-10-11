@@ -1,17 +1,4 @@
-/**
- * 可控实体域判定模块
- *
- * 职责：
- *  - 维护"可在控制弹窗 / 服务调用中操作"的 HA domain 白名单。
- *  - 提供 domain 级与 entity_id 级的可控判定。
- *
- * 关键依赖：
- *  - 与前端 entity-popup-registry 对齐：弹窗组件按此清单决定是否渲染控制 UI。
- *
- * 约定：
- *  - 白名单内的 domain 才允许出现在控制面板、语音指令、自动化动作等场景；
- *  - 传感器类（sensor / binary_sensor）默认不可控，仅作展示。
- */
+/** 可控实体域判定模块 */
 
 /** 支持控制弹窗 / 服务调用的实体域（与前端 entity-popup-registry 对齐） */
 const CONTROLLABLE_DOMAINS = new Set([

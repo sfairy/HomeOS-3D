@@ -1,51 +1,17 @@
 #!/usr/bin/env node
 /**
- * Studio 单体「切片搬运」执行器 —— `studio_slice_analyze.mjs` 挑出候选后，把切片真的搬出去。
+ * Studio 单体切片搬运执行器：studio_slice_analyze.mjs 挑出候选后，把切片真的搬出去。
  *
- * 为什么需要它
- * ------------
- * `studio-app.ts` 里的函数是**扁平闭包里的直系声明**，搬一个函数的真实动作是四步：
+ * 搬一个函数分四步：① 按 AST 精确切走声明（含 --also 助手）；② 目标文件重建 import 并按目标目录
+ * 重算相对路径；③ 源文件原位置插回同名 import（调用点零改写）；④ 把残留自由引用列成清单待显式传参。
+ * 本脚本只做这四步与报告，不猜业务。
  *
- * 1. 按 AST 精确切走声明（含 `--also=` 的助手）—— 正则切会被「同名属性名 / 字符串里的同名」坑掉；
- * 2. 在目标文件里重建它用到的 import，**按目标目录重算相对路径**（`./types/x` 搬进 `items/`
- *    必须变成 `../types/x`；漏改在 TS 里常常不报错、只在运行期炸）；
- * 3. 在源文件原位置插一条 `import { ... } from "<目标>"` —— **名字保持不变**，所以调用点
- *    「零改写」（`addBoxMesh` 有 271 处调用，改名就是 271 处风险）；
- * 4. 把「既不在切片里、也不是 import」的自由引用列成**残留依赖清单** —— 那些才必须显式传参。
- *
- * 本脚本只做 1~4 与报告，不猜业务：残留依赖没清干净时它不会替你编参数。
- *
- * 用法
- * ----
- *   # 只看报告（默认 dry-run，不写盘）
- *   node ops/studio_slice_extract.mjs --file=<源> --out=<目标> --names=fnA,fnB [--also=helper]
- *
- *   # 真的搬（源文件删声明 + 插回引；目标文件建 import 块 + 追加正文）
- *   node ops/studio_slice_extract.mjs --file=<源> --out=<目标> --names=fnA --also=helper --apply
- *
- *   --also=...    随切片一起搬的同宿主助手（帮切片闭合，省得传参）
- *   --header=...  目标文件不存在时的文件头注释（换行写 \n）
- *   --apply       写盘（缺省 dry-run）
- *
- *   # 语句级切片（`--names` 只认函数/变量声明，事件注册这种「语句」进不来）
- *   node ops/studio_slice_extract.mjs --file=<源> --out=<目标> --range=8546-9359
- *
- *   # 方法形态（class 方法外迁成同名顶层函数，类侧原地留转发薄成员）
- *   node ops/studio_slice_extract.mjs --file=<源> --out=<目标> --names=renderComponent --method-form
- *
- *   --method-form  `--names` 从「顶层函数/变量」改认**类方法**：方法搬成
- *                  `export function name(self: Host, ...原形参) {…}`（正文 `this` → `self`），
- *                  类侧原地留一行 `name(...原形参) { return name(this, ...); }` —— 签名逐字保留，
- *                  类自己的 `interface` 合并面不动，tsc 会替我们核对签名。模块侧的
- *                  `self: Host` 需要把宿主类**类型 import** 回来，工具自动补。
- *
- *   --range=START-END  按**行区间**搬一条完整语句（1-based、含端点、换行写 START-END）。
- *                      它比 `--names` 多一道「区间 ↔ 语句边界」对账：区间必须正好框住**一条**
- *                      语句（起止行与某条 statement 的 AST 区间一致），否则拒绝执行 ——
- *                      这样 `--force` 就不会把「跨语句」的误框悄悄放过去。
- *                      搬走的语句没有名字，所以**不回引**（源文件里那些名字由调用点自己留着）。
- *
- * 退出码：0 正常；1 找不到声明 / 声明重名 / 区间对不上语句；2 参数错。
+ * 用法：
+ *   node ops/studio_slice_extract.mjs --file=<源> --out=<目标> --names=fnA[,fnB] [--also=helper] [--apply]
+ *   --range=START-END   按行区间搬一条完整语句（区间须正好框住一条语句）
+ *   --method-form       把 class 方法外迁成同名顶层函数，类侧留转发薄成员
+ *   --header=...        目标文件不存在时的文件头注释
+ *   缺省 dry-run。退出码：0 正常；1 声明问题；2 参数错。
  */
 import ts from "typescript";
 import fs from "node:fs";

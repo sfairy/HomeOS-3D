@@ -1,12 +1,4 @@
-/**
- * 小组件轮询调度组合式函数：走全局调度器，页面隐藏时暂停。
- *
- * 职责：在组件内以「全局调度器」方式注册定时回调，避免每个组件各自维护 setInterval；
- *      支持立即执行、页面隐藏暂停、key 复用与 onUnmounted 自动取消。
- * 依赖：
- *   - vue（onMounted / onUnmounted / unref / isRef / Ref）
- *   - @/shared/utils/core/poll-scheduler（全局轮询调度器）
- */
+/** 小组件轮询调度组合式函数：走全局调度器，页面隐藏时暂停。 */
 import { onMounted, onUnmounted, unref, isRef, watch, type Ref } from 'vue'
 import { schedulePoll } from '@/shared/utils/core/poll-scheduler'
 import { getWidgetPollInterval, configEpoch } from '@/shared/utils/config/frontend-config'

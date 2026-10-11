@@ -1,20 +1,4 @@
-/**
- * 微件目录元数据：分级 / 分组 / 标签 / 名称解析
- *
- * 职责：
- * - 维护微件目录分级（WIDGET_CATALOG_TIERS：常用 / 高级 / 管理员）。
- * - 维护微件选型功能域分组标签与顺序（与设置六组对齐）。
- * - 提供微件中文名查询、规范化 widgetType、目录/侧边栏微件列表生成等工具。
- *
- * 依赖：
- * - vue 的 Component 类型。
- * - @lucide/vue 图标（仅用于 customHtml 占位组件）。
- *
- * 注意：
- * - 微件 type key（clock / weather / heroSwiper / ...）为配置 key，不翻译。
- * - `core` / `advanced` / `admin` 为分级 key，不翻译。
- * - 仅面向用户的中文标签使用简体中文。
- */
+/** 微件目录元数据：分级 / 分组 / 标签 / 名称解析 */
 import type { Component } from 'vue'
 import { Code } from '@lucide/vue'
 

@@ -1,13 +1,6 @@
 <!--
-组件：SecurityZoneMonitor.vue
-所属模块：frontend / src / views / security
-职责：安防「区域运行监控」面板。展示区域总数/已布防/告警/当前模式参与统计，
-      支持选择布防区域（全选/清空/单选）；卡片可展开查看传感器状态。
-关键依赖：
-  - useSecurityZoneMonitor：派生区域增强信息（armed / alertCount / modeHint 等）
-  - sensorStateLabel：传感器状态文案
-  - LayoutGrid / Shield 图标来自 @lucide/vue
-数据来源：父级透传的 liveZones / layoutZones / secCurrentMode + useSecurityZoneMonitor
+  安防「区域运行监控」面板。展示区域总数/已布防/告警/当前模式参与统计，
+  支持选择布防区域（全选/清空/单选）；卡片可展开查看传感器状态。
 -->
 <template>
   <div class="szm">
@@ -137,7 +130,6 @@ import { useSecurityZoneMonitor } from '@/features/security/composables/useSecur
 import { sensorStateLabel } from '@/features/security/utils/zone-mode.util'
 import './styles/security.css'
 
-// 入参：实时区域、布局区域、当前安防模式、面板加载/就绪态
 const props = defineProps({
   liveZones: { type: Array, default: () => [] },
   layoutZones: { type: Array, default: () => [] },
@@ -146,10 +138,8 @@ const props = defineProps({
   panelReady: Boolean,
 })
 
-// 对外事件：跳转配置、编辑某区域、按区域筛选审计
 defineEmits(['go-config', 'edit-zone', 'filter-audit'])
 
-// 双向绑定：布防区域选择（用于选择性布防）
 const armSelection = defineModel('armSelection', { type: Array, default: () => [] })
 
 // 转为 ref 传入 composable，保证响应式追踪

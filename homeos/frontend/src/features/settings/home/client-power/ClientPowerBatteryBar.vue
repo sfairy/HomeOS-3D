@@ -1,25 +1,13 @@
 <!--
-组件：ClientPowerBatteryBar.vue
-所属模块：frontend / src / views / settings / home / client-power
-职责：客户端电量条。展示当前电量百分比、充电进度条与低/高阈值标记。
-关键依赖：
-  - batteryBarClass / batteryBarStyle / batteryLabelStyle：电量条样式派生
-数据来源：父级透传的 percent / charging / lowPercent / highPercent
+  客户端电量条。展示当前电量百分比、充电进度条与低/高阈值标记。
 -->
 <script setup>
-/**
- * 职责：渲染 views/ClientPowerBatteryBar 页面视图，整合子组件与业务数据。
- * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
- * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
-  - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
- */
 import {
   batteryBarClass,
   batteryBarStyle,
   batteryLabelStyle,
 } from '@/shared/client/utils/power-battery-display.util'
 
-// 入参：电量百分比、是否充电中、低/高阈值
 defineProps({
   percent: { type: Number, default: null },
   charging: { type: Boolean, default: false },

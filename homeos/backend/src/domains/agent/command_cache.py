@@ -1,11 +1,4 @@
-"""指令缓存服务（学习式）。
-
-职责：把“用户原话 → 工具调用”的映射缓存起来，下次同句直接命中执行，跳过 LLM 调用。
- 采用“二次确认”策略：LLM 学到的指令需再次命中相同映射才标记为 confirmed；
- 快路径学到的指令默认 confirmed（规则可信）。
- 支持用户纠正（“不对/学错了”）删除最近一条，以及 30 秒窗口内同房间重新操作的自动纠正。
-依赖：无（纯进程内缓存）。
-"""
+"""指令缓存服务（学习式）。"""
 
 from __future__ import annotations
 
@@ -80,9 +73,7 @@ class CommandCacheService:
         #: 最近一次操作，用于纠正逻辑
         self._last_action: LastAction | None = None
 
-    # ------------------------------------------------------------------ #
     # key
-    # ------------------------------------------------------------------ #
     def key_of(self, text: str, user_id: str | None = None) -> str:
         """用户级缓存 key：``scope::原话``，未提供用户时退化为全局命名空间。"""
         scope = (user_id or "").strip() or ANONYMOUS_SCOPE
@@ -98,9 +89,7 @@ class CommandCacheService:
         out = _FILLER_WORDS.sub("", out)
         return _SOFT_WORDS.sub("", out)
 
-    # ------------------------------------------------------------------ #
     # 读写
-    # ------------------------------------------------------------------ #
     def get(self, text: str, user_id: str | None = None) -> CacheEntry | None:
         """查询缓存（含未确认条目，由调用方检查 confirmed 决定是否执行）。"""
         key = self.key_of(text, user_id)

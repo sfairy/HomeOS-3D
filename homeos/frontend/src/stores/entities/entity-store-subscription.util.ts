@@ -1,25 +1,5 @@
 import { logger } from '@/shared/utils/core/logger'
-/**
- * @file entity-store-subscription.util.ts
- * @module frontend/src/stores
- * 实体 store 状态订阅与远程通知（从 entity-store-support.ts 拆回）。
- *
- * 职责：
- * - onStateChanged：组件订阅实体状态变化（基于 registerStateListener 的全局监听器表）
- *   含上限保护（达上限时尝试热重载配置并提示，30s 节流警告）
- * - emitStateListeners：状态变更时派发到所有匹配的监听器
- * - addRemoteNotification：接收后端推送的远程通知（按 id 去重 + 原地合并保留已读）
- * - clearRemoteNotifications：清空通知列表
- *
- * 关键依赖：
- * - @/shared/entity/utils/state-listener：监听器注册 / 派发 / 计数 / 统计
- * - @/shared/utils/config/frontend-config：maxStateListeners / maxRemoteNotifications / 热重载
- * - @/shared/utils/format/locale-format.util：时间格式化
- *
- * 实现说明：
- * - 同一通知可能经 Socket 即时推送与 REST 重新拉取（如重连刷新）多次到达，按 id 去重避免重复
- * - 监听器上限保护：达上限时先 reloadFrontendConfig 重读（5s 节流），再判定，仍超限则警告（30s 节流）
- */
+/** 实体 store 状态订阅与远程通知（从 entity-store-support.ts 拆回）。 */
 import { shallowReactive } from 'vue'
 import type {
   EntityStateListenerFn,

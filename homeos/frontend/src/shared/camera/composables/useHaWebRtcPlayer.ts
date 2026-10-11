@@ -1,14 +1,4 @@
-/**
- * @file HomeOS 摄像头 WebRTC 播放器 Composable
- * @module shared/camera/composables/useHaWebRtcPlayer
- * @description
- *   封装通过 Home Assistant WebRTC 信令拉取摄像头实时画面的能力，
- *   支持两种信令路径：
- *   1. HA 原生 camera/webbrtc/* 信令（经 HomeOS REST 转发）
- *   2. go2rtc / HA /api/webrtc/ws WebSocket 信令
- *   内置 ICE 服务器缓存、连接超时控制、候选交换与会话关闭。
- *   依赖：@/services/api 的 apiGet/apiPost、@/shared/utils/core/logger。
- */
+/** 封装通过 Home Assistant WebRTC 信令拉取摄像头实时画面的能力， */
 import { apiGet, apiPost } from '@/services/api'
 import { sendWebRtcCandidate, closeWebRtcSession } from '@/services/api/ha'
 import { logger } from '@/shared/utils/core/logger'

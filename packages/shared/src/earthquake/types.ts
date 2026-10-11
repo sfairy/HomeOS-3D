@@ -1,21 +1,4 @@
-/**
- * @file types.ts
- * @module @homeos/shared/earthquake
- * @brief 地震预警 / 全球震情目录线协议类型（前后端共用）。
- *
- * 职责：
- *  - 定义本地预警推送 payload 与全球目录查询 / 返回结构；
- *  - 收敛预警形态（early / confirmation）与数据源标识枚举。
- *
- * 关键依赖：
- *  - 后端 earthquake 模块按本类型推送 WS 事件、暴露 REST 查询；
- *  - 前端预警弹窗与震情列表共用本类型。
- *
- * 约定：
- *  - originTime / updatedTime / fetchedAt 为 epoch 毫秒；
- *  - 缺省 alertKind 按 early 处理（前端兼容旧数据）；
- *  - distance / distanceKm / localIntensity 由后端按家庭坐标计算后下发，前端不再二次估算。
- */
+/** - 定义本地预警推送 payload 与全球目录查询 / 返回结构； */
 
 /**
  * 预警形态。

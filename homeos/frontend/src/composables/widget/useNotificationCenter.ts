@@ -1,25 +1,4 @@
-/**
- * 通知中心组合式函数（widget 内嵌）。
- *
- * 职责：聚合远程通知与本地通知，提供按级别/来源过滤、键盘导航、点击跳转、
- *      标记已读、清空、免打扰（DND）配置加载、远程通知定时刷新等完整能力，
- *      面向通知中心面板组件暴露统一状态与方法。
- * 依赖：
- *   - vue（ref / computed / onMounted / onUnmounted / watch / ComponentPublicInstance）
- *   - vue-router（点击通知后跳转）
- *   - @lucide/vue（图标组件）
- *   - @/stores/entities.store（实体与远程通知状态）
- *   - @/stores/auth.store（鉴权状态）
- *   - @/shared/utils/bridge/store-bridge（注册通知刷新处理器）
- *   - @/services/api/notifications（通知远程 API）
- *   - @/services/notify（错误提示）
- *   - @/shared/widget/composables/useScheduledPoll（DND 定时刷新）
- *   - @/shared/notifications/utils/dnd.util（免打扰配置解析）
- *   - @/shared/utils/config/frontend-config（远程通知拉取条数上限）
- *   - @/shared/utils/core/logger & error-message（日志与错误信息提取）
- *   - @/shared/utils/registry/settings-route.util（通知跳转目标路由解析）
- *   - @homeos/shared（来源过滤构造）
- */
+/** 通知中心组合式函数（widget 内嵌）。 */
 import { ref, computed, onMounted, onUnmounted, watch, type ComponentPublicInstance } from 'vue'
 import { useRouter } from 'vue-router'
 import { Bell, AlertTriangle, Info, CheckCircle2 } from '@lucide/vue'

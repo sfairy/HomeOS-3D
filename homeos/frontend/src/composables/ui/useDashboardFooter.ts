@@ -1,17 +1,4 @@
-/**
- * 仪表板底部信息栏组合式函数。
- *
- * 职责：
- *   - 解析仪表板底部信息栏配置项并读取绑定/实体数值；
- *   - 按能源字段定义与账户绑定解析每项的标签与格式化数值；
- *   - 派生可见项列表供底部信息栏组件渲染。
- * 依赖：
- *   - vue（computed）
- *   - @/stores/entities.store / layout.store
- *   - @/shared/energy/constants/energy-fields / @/shared/constants/dashboard-footer / @/shared/constants/account-binding-meta
- *   - @/shared/energy/utils/* 与 @/shared/entity/utils/derived.util（数值解析与显示名）
- *   - @homeos/shared（hasEnergyConfig）
- */
+/** 仪表板底部信息栏组合式函数。 */
 import { computed } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useLayoutStore } from '@/stores/layout.store'

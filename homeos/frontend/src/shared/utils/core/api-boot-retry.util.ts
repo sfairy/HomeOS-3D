@@ -1,12 +1,4 @@
-/**
- * @module core/api-boot-retry
- * @description 后端冷启动 / Nest 热重载窗口内的请求重试工具。
- *
- * 场景：页面首次加载时，后端可能尚未就绪（网关返回 502/503/504 或网络错误）。
- * 该工具在确认错误属于「后端不可达」时按固定间隔重试，直至成功或达到上限。
- *
- * 依赖：@/shared/utils/core/error-message（识别后端不可达错误）。
- */
+/** 场景：页面首次加载时，后端可能尚未就绪（网关返回 502/503/504 或网络错误）。 */
 import { isBackendUnreachableError } from '@/shared/utils/core/error-message'
 
 /** 后端冷启动 / Nest 热重载窗口内，网关 502 时的重试上限与间隔（约 2 分钟） */

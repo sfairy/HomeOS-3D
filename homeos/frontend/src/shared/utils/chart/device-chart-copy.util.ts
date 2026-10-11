@@ -1,14 +1,4 @@
-/**
- * 设备页图表说明文案（统一维护，便于理解曲线含义）
- *
- * 职责：集中维护设备页各类图表的标题与说明文字，供组件直接引用。
- * 依赖：``chart-tooltip.css``（tooltip 内容的类名样式，非 scoped）。
- *
- * 为什么 tooltip 用类名而不是行内 style：外壳页 CSP 是 ``style-src 'self'``，
- * formatter 拼出的 ``style="..."`` 会被浏览器拦下，且 tooltip 是运行时注入的 DOM，
- * 组件的 ``<style scoped>`` 也选不中它 —— 样式只能来自这份非 scoped 的独立文件。
- * 唯一的动态值（序列颜色）走 SVG 的 ``fill`` 呈现属性，不受 style-src 约束。
- */
+/** 设备页图表说明文案（统一维护，便于理解曲线含义） */
 import './chart-tooltip.css'
 
 export const DEVICE_CHART_COPY = {

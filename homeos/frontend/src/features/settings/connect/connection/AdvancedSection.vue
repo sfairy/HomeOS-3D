@@ -1,17 +1,9 @@
 <!--
-  组件文件：AdvancedSection.vue
-  所属模块：frontend/src/features/settings/connect/connection
-  组件职责：系统连接大类下的 HA WebSocket 集群角色高级入口展示卡，显示当前连接模式
-    （standalone/主节点/只读从节点）与徽标，下方提供 4 个跳转到细颗粒高级参数页面的
-    RouterLink：HA 连接器、WebSocket 推送、状态缓存、运维清理。
-  主要 props / emits：
-    - props haWsModeBadgeMod：徽标 CSS 修饰符（ok/warn/muted 等）
-    - props haWsModeDesc：模式中文详细说明
-    - props haWsModeLabel：模式简短标签
-  依赖关系：引用 SETTINGS_ROUTES.params() 生成四个高级参数页面的链接；RouterLink 导航；
-    无 Pinia store 或写操作。
+  系统连接大类下的 HA WebSocket 集群角色高级入口展示卡，显示当前连接模式
+  （standalone/主节点/只读从节点）与徽标，下方提供 4 个跳转到细颗粒高级参数页面的
+  RouterLink：HA 连接器、WebSocket 推送、状态缓存、运维清理。
   注意事项：普通用户不可见部分高级参数页面（仅 admin 可编辑运维清理项）；链接
-    路由失败时由 Vue Router 统一跳 404。
+  路由失败时由 Vue Router 统一跳 404。
 -->
 <template>
   <div class="settings-conn-advanced">

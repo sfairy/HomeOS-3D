@@ -232,9 +232,7 @@ def decrypt_archive(source: Path, target: Path, password: str) -> None:
     target.write_bytes(plain)
 
 
-# ---------------------------------------------------------------------- #
 # 数据库快照
-# ---------------------------------------------------------------------- #
 def _validate_database_file(path: Path) -> None:
     with closing(sqlite3.connect(f"file:{path}?mode=ro", uri=True)) as connection:
         integrity = connection.execute("PRAGMA integrity_check").fetchone()
@@ -308,9 +306,7 @@ def _database_counts(path: Path) -> dict[str, int]:
     return counts
 
 
-# ---------------------------------------------------------------------- #
 # 创建备份
-# ---------------------------------------------------------------------- #
 def _data_files(settings: Any) -> list[tuple[Path, str]]:
     base = settings.data_dir
     collected: list[tuple[Path, str]] = []
@@ -399,9 +395,7 @@ def create_plain_archive(settings: Any, directory: Path, filename: str) -> Path:
     return target
 
 
-# ---------------------------------------------------------------------- #
 # 检查 / 预览
-# ---------------------------------------------------------------------- #
 def stage_payload(source: Path, directory: Path, password: str | None) -> Path:
     """把上传的加密包或明文 zip 统一落成 ``directory/payload.zip``。"""
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -552,9 +546,7 @@ def validate_full_backup(settings: Any, value: dict[str, Any]) -> None:
         raise BackupError("备份缺少数据库快照。")
 
 
-# ---------------------------------------------------------------------- #
 # 恢复（整库原样还原 + 数据文件替换）
-# ---------------------------------------------------------------------- #
 def _recovery_root(settings: Any) -> Path:
     return settings.data_dir / RECOVERY_DIR
 
