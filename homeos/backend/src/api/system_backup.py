@@ -16,10 +16,10 @@ from fastapi import Body, Depends, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
 
 from .router import NestRouter
-from ..core.errors import BusinessException
-from ..security.auth_context import require_user
-from ..security.request_origin import require_same_origin_write
-from ..services.backup.business_backup import BackupError, refresh_runtime_after_restore
+from ..domains.backup.business_backup import BackupError, refresh_runtime_after_restore
+from ..platform.core.errors import BusinessException
+from ..platform.security.auth_context import require_user
+from ..platform.security.request_origin import require_same_origin_write
 
 router = NestRouter(prefix="/system/backup", tags=["system"])
 

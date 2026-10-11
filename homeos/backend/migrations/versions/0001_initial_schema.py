@@ -19,8 +19,8 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    from src.core import models  # noqa: F401
-    from src.core.database import Base
+    from src.platform.core import models  # noqa: F401
+    from src.platform.core.database import Base
 
     bind = op.get_bind()
     Base.metadata.create_all(bind=bind)
@@ -44,8 +44,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    from src.core import models  # noqa: F401
-    from src.core.database import Base
+    from src.platform.core import models  # noqa: F401
+    from src.platform.core.database import Base
 
     bind = op.get_bind()
     Base.metadata.drop_all(bind=bind)

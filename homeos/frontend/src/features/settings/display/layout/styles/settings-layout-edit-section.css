@@ -1,13 +1,5 @@
 /* 从 SettingsLayoutEditSection.vue 抽出 */
-.le-icon-accent {
-  color: var(--page-accent, #818cf8);
-}
 
-.layout-edit-intro-orb {
-  background: rgba(99, 102, 241, 0.14);
-  border: var(--hos-hairline) solid rgba(129, 140, 248, 0.3);
-  box-shadow: none;
-}
 
 .layout-edit-hero {
   position: relative;
@@ -258,98 +250,18 @@
   min-width: 0;
 }
 
-.layout-edit-flow__card {
-  flex: 1;
-  min-width: 0;
-  padding: 12px 12px 11px;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--set-border-subtle);
-  background: rgba(0, 0, 0, 0.22);
-  transition:
-    transform 0.2s ease,
-    border-color 0.2s ease;
-}
 
-.layout-edit-flow__item--indigo .layout-edit-flow__card {
-  background: linear-gradient(155deg, rgba(99, 102, 241, 0.14) 0%, rgba(0, 0, 0, 0.28) 100%);
-  border-color: rgba(129, 140, 248, 0.22);
-}
 
-.layout-edit-flow__item--violet .layout-edit-flow__card {
-  background: linear-gradient(155deg, rgba(var(--page-accent-rgb, 126, 184, 255), 0.14) 0%, rgba(0, 0, 0, 0.28) 100%);
-  border-color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.22);
-}
 
-.layout-edit-flow__item--cyan .layout-edit-flow__card {
-  background: linear-gradient(155deg, rgba(34, 211, 238, 0.12) 0%, rgba(0, 0, 0, 0.28) 100%);
-  border-color: rgba(34, 211, 238, 0.2);
-}
 
-.layout-edit-flow__card:hover {
-  transform: translateY(-2px);
-}
 
-.layout-edit-flow__icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: var(--hos-radius-card);
-  margin-bottom: 8px;
-}
 
-.layout-edit-flow__icon--indigo {
-  color: #a5b4fc;
-  background: rgba(99, 102, 241, 0.18);
-  border: var(--hos-hairline) solid rgba(129, 140, 248, 0.28);
-}
 
-.layout-edit-flow__icon--violet {
-  color: var(--page-accent, #7eb8ff);
-  background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.18);
-  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb, 126, 184, 255), 0.28);
-}
 
-.layout-edit-flow__icon--cyan {
-  color: #67e8f9;
-  background: rgba(34, 211, 238, 0.16);
-  border: var(--hos-hairline) solid rgba(34, 211, 238, 0.26);
-}
 
-.layout-edit-flow__num {
-  display: inline-block;
-  font-size: var(--set-fs-micro, 12px);
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  color: var(--hos-text-secondary);
-  margin-bottom: 4px;
-}
 
-.layout-edit-flow__title {
-  margin: 0;
-  font-size: var(--set-fs-body-sm);
-  font-weight: 800;
-  color: #fff;
-  line-height: 1.25;
-}
 
-.layout-edit-flow__desc {
-  margin: 4px 0 0;
-  font-size: var(--set-fs-caption);
-  color: var(--hos-text-secondary);
-  line-height: 1.35;
-}
 
-.layout-edit-flow__connector {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  color: rgba(129, 140, 248, 0.55);
-  filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.35));
-}
 
 @media (max-width: 900px) {
   .layout-edit-flow {
@@ -361,9 +273,6 @@
     width: 100%;
   }
 
-  .layout-edit-flow__connector {
-    display: none;
-  }
 }
 
 @media (max-width: 639px) {
@@ -390,18 +299,5 @@
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-}
-.el-icon-accent {
-  color: var(--premium-accent-violet, #c084fc);
-}
-.el-orb-accent {
-  background: var(--page-accent-bg, rgba(124, 58, 237, 0.12));
-  border: var(--hos-hairline) solid var(--page-accent-border, rgba(124, 58, 237, 0.22));
-}
-.el-border-accent {
-  border-color: var(--page-accent-border, rgba(124, 58, 237, 0.22));
-}
-.el-focus-accent:focus {
-  border-color: rgba(168, 85, 247, 0.5);
 }
 

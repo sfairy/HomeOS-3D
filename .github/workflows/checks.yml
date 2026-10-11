@@ -40,9 +40,11 @@ jobs:
           # 取类型，而 `dist/` 被 gitignore，干净检出上不先建就是一片 TS2307。
           bun run typecheck
           # 前端门禁：分层依赖方向（主应用 + studio）＋ 引用可解析性（import spec 与注释里的 `@/`
-          # 都真去文件系统解析；含它自己的负向自检）。store 侧另有一条。
+          # 都真去文件系统解析；含它自己的负向自检）。store 侧现同样跑「分层方向 + 引用可解析」
+          # 两条（`check:deps` = check-store-deps + check-import-refs --alias @store/），
+          # 此前商店只有分层方向一条，相对导入指向已删文件这类事故在商店无人拦。
           bun run --cwd homeos/frontend check:deps
-          bun run --cwd homeos-store check:store-deps
+          bun run --cwd homeos-store check:deps
           # ESLint：两个前端各一套配置，但规则核只有一个真源（ops/eslint/frontend-core.mjs）。
           # 商店此前**完全没有** lint 配置（75 个源文件裸奔），P5 补上并一起进 CI。
           # `--max-warnings 0` 是刻意的：风格规则也当硬失败，否则「新加的单引号」会慢慢攒成

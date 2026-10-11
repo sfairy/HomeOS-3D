@@ -75,7 +75,6 @@
        这里仅保留二级色与 rgb 派生（兼容历史 --dev-accent-rgb 引用）。 */
 .devices-view { --page-accent: var(--module-accent-devices); --page-accent-secondary: var(--module-accent-devices-sub); --dev-accent-rgb: var(--module-accent-devices-rgb); }
 .device-detail-view { --page-accent: var(--module-accent-devices); --page-accent-secondary: var(--module-accent-devices-sub); --dev-accent-rgb: var(--module-accent-devices-rgb); }
-.life-view { --page-accent: var(--module-accent-life); --page-accent-secondary: var(--module-accent-life-sub); --page-accent-rgb: var(--module-accent-life-rgb); }
 .security-view { --page-accent: var(--module-accent-security); --page-accent-secondary: var(--module-accent-security-sub); --page-accent-rgb: var(--module-accent-security-rgb); }
 .rooms-view { --page-accent: #fb923c; --page-accent-secondary: #f97316; }
 .scenes-view { --page-accent: var(--module-accent-scenes); --page-accent-secondary: var(--module-accent-scenes-sub); }
@@ -302,7 +301,6 @@
 }
 .scenes-view__ha-panel { flex: 1; min-height: 280px; }
 .scenes-view__ha-body { display: flex; flex-direction: column; min-height: 240px; }
-.scenes-view__ha-body .ssp-card { flex: 1; min-height: 220px; }
 
 /* ── 设备 ── */
 .devices-view__hero-toolbar {

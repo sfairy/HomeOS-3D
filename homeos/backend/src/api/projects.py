@@ -11,7 +11,6 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
-from ..core.models import GlobalCustomPopupState, Project, ProjectDraft
 from ..dependencies import (
     DatabaseSession,
     LicensedUser,
@@ -19,18 +18,19 @@ from ..dependencies import (
     require_license_feature,
     require_viewer_project,
 )
-from ..modules.interaction3d.access import require_document_changes as require_interaction3d_changes
-from ..panel.documents import create_blank_project
-from ..panel.schema import validate_panel_document
-from ..schemas import ProjectCreateRequest, ProjectDeleteRequest, ProjectDraftUpdate, ProjectDuplicateRequest
-from ..services.license import features as feature_codes
-from ..services.ui_config.global_popups import (
+from ..domains.license import features as feature_codes
+from ..domains.ui_config.global_popups import (
     clear_popup_references,
     global_popup_state,
     global_popups,
     hydrate_document_popups,
     strip_document_popups,
 )
+from ..modules.interaction3d.access import require_document_changes as require_interaction3d_changes
+from ..panel.documents import create_blank_project
+from ..panel.schema import validate_panel_document
+from ..platform.core.models import GlobalCustomPopupState, Project, ProjectDraft
+from ..schemas import ProjectCreateRequest, ProjectDeleteRequest, ProjectDraftUpdate, ProjectDuplicateRequest
 
 router = APIRouter(prefix='/projects', tags=['projects'])
 

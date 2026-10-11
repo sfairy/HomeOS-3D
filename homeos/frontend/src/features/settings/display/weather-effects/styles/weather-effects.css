@@ -80,25 +80,7 @@
   gap: 14px;
 }
 
-.weather-fx-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: var(--hos-radius-pill);
-  font-size: var(--premium-fs-micro);
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--set-text-label);
-  background: var(--set-glass-bg);
-  border: var(--hos-hairline) solid var(--premium-border-strong);
-}
 
-.weather-fx-badge--on {
-  color: var(--set-info);
-  background: rgba(14, 165, 233, 0.12);
-  border-color: rgba(56, 189, 248, 0.28);
-}
 
 @keyframes weather-fx-panel-in {
   from {
@@ -162,36 +144,10 @@
   border-color: rgba(56, 189, 248, 0.16);
 }
 
-.weather-fx-overview-head__icon {
-  color: var(--set-info, #7dd3fc);
-}
 
-.weather-fx-overview-head__orb {
-  background: rgba(56, 189, 248, 0.12);
-  border: var(--hos-hairline) solid rgba(56, 189, 248, 0.22);
-}
 
-.weather-fx-overview-head__desc {
-  display: block;
-  margin-top: 4px;
-  font-size: var(--premium-fs-micro);
-  line-height: 1.5;
-  color: var(--hos-text-secondary);
-  font-weight: 400;
-}
 
-.weather-fx-overview-head__status {
-  font-size: var(--premium-fs-micro);
-  color: var(--set-text-faint);
-}
 
-.weather-fx-overview-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 10px;
-}
 
 .weather-fx-workspace-card.settings-card--static {
   padding: 0;
@@ -251,10 +207,6 @@
     padding: 16px;
   }
 
-  .weather-fx-overview-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
 }
 
 /* ── weather-effects-overview.css ── */

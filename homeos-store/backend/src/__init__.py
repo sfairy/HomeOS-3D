@@ -1,6 +1,6 @@
 """HomeOS 授权商店与授权服务器（独立服务，默认端口 8802）。
 
-与主应用共用的两个叶子模块（``logging_noise`` / ``core.file_lock``）**不在本包内**：它们在
+与主应用共用的三个叶子模块（``logging_noise`` / ``file_lock`` / ``migrations_core``）**不在本包内**：它们在
 ``packages/shared-py/homeos_shared``，由本包导入时挂好 ``sys.path``（见下）。
 """
 

@@ -22,9 +22,10 @@ from pydantic import BeforeValidator
 
 from .router import NestRouter
 from .schemas.base import StrictModel
-from ..core.booleans import parse_boolean_query
-from ..core.errors import api_error, forbidden, not_found
-from ..core.pagination import parse_crud_pagination
+from ..platform.core.booleans import parse_boolean_query
+from ..platform.core.errors import api_error, forbidden, not_found
+from ..platform.core.pagination import parse_crud_pagination
+from ..platform.security.auth_context import require_user
 from ..realtime.access import (
     filter_entities_by_access,
     is_entity_allowed,
@@ -36,7 +37,6 @@ from ..realtime.state_store import (
     normalize_entity_status_filter,
     slice_entities_by_cursor,
 )
-from ..security.auth_context import require_user
 
 router = NestRouter(prefix="/entities", tags=["connect"])
 

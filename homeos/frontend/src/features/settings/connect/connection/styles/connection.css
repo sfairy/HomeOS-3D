@@ -35,32 +35,9 @@
   background: rgba(0, 0, 0, 0.14);
 }
 
-.el-record-filter__recommend--actionable {
-  border-color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.28);
-  background: linear-gradient(155deg, rgba(var(--page-accent-rgb, 126, 184, 255), 0.1) 0%, rgba(0, 0, 0, 0.18) 100%);
-}
 
-.el-record-filter__recommend-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
 
-.el-record-filter__recommend-title-wrap {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  min-width: 0;
-}
 
-.el-record-filter__recommend-icon {
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-  margin-top: 2px;
-  color: var(--page-accent, #7eb8ff);
-}
 
 .el-record-filter__recommend-title {
   margin: 0;
@@ -69,30 +46,9 @@
   color: rgba(255, 255, 255, 0.9);
 }
 
-.el-record-filter__recommend-meta {
-  margin: 3px 0 0;
-  font-size: var(--premium-fs-micro);
-  color: var(--hos-text-secondary);
-}
 
-.el-record-filter__recommend-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
 
-.el-record-filter__recommend-link {
-  font-size: var(--premium-fs-micro);
-  font-weight: 600;
-  color: #a5b4fc;
-  text-decoration: none;
-  white-space: nowrap;
-}
 
-.el-record-filter__recommend-link:hover {
-  color: #c7d2fe;
-}
 
 .el-record-filter__recommend-loading {
   display: flex;
@@ -102,19 +58,7 @@
   color: var(--hos-text-secondary);
 }
 
-.el-record-filter__recommend-summary {
-  margin: 0;
-  font-size: var(--premium-fs-caption);
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.58);
-}
 
-.el-record-filter__recommend-mode {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
 
 .el-record-filter__recommend-mode-label {
   font-size: var(--premium-fs-micro);
@@ -134,36 +78,9 @@
   color: var(--hos-text-secondary);
 }
 
-.el-record-filter__recommend-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
 
-.el-record-filter__recommend-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 100%;
-  padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
-  border-radius: var(--hos-radius-pill);
-  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb, 126, 184, 255), 0.24);
-  background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.1);
-  color: rgba(255, 255, 255, 0.78);
-  font-size: var(--premium-fs-micro);
-  font-weight: 600;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, transform 0.1s;
-}
 
-.el-record-filter__recommend-chip:hover {
-  border-color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.42);
-  background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.18);
-}
 
-.el-record-filter__recommend-chip:active {
-  transform: scale(0.97);
-}
 
 .el-record-filter__recommend-chip--entity {
   border-color: rgba(251, 113, 133, 0.24);
@@ -175,42 +92,9 @@
   background: rgba(251, 113, 133, 0.14);
 }
 
-.el-record-filter__recommend-chip-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 180px;
-}
 
-.el-record-filter__recommend-chip-meta {
-  flex-shrink: 0;
-  padding: 1px 6px;
-  border-radius: var(--hos-radius-pill);
-  background: rgba(0, 0, 0, 0.22);
-  color: var(--hos-text-secondary);
-  font-size: var(--set-fs-micro, 12px);
-  font-weight: 700;
-}
 
-.el-record-filter__recommend-apply {
-  align-self: flex-start;
-  margin-top: 2px;
-  padding: var(--hos-chip-pad-y, 6px) var(--hos-chip-pad-x, 12px);
-  border-radius: var(--hos-radius-pill);
-  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb, 126, 184, 255), 0.35);
-  background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.16);
-  color: var(--page-accent, #7eb8ff);
-  font-size: var(--premium-fs-caption);
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-}
 
-.el-record-filter__recommend-apply:hover {
-  border-color: rgba(var(--page-accent-rgb, 126, 184, 255), 0.5);
-  background: rgba(var(--page-accent-rgb, 126, 184, 255), 0.24);
-}
 
 .el-record-filter__toggle-main {
   display: flex;

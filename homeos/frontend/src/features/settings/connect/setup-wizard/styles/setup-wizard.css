@@ -158,20 +158,12 @@
   background: rgba(0, 0, 0, 0.14);
 }
 
-.sw-section--sky {
-  background: linear-gradient(155deg, var(--sw-sky-bg) 0%, var(--sw-surface) 100%);
-  border-color: var(--sw-sky-border);
-}
 
 .sw-section--rose {
   background: linear-gradient(155deg, var(--sw-rose-bg) 0%, var(--sw-surface) 100%);
   border-color: var(--sw-rose-border);
 }
 
-.sw-section--amber {
-  background: linear-gradient(155deg, var(--sw-amber-bg) 0%, var(--sw-surface) 100%);
-  border-color: var(--sw-amber-border);
-}
 
 .sw-section--orange,
 .sw-section--teal {
@@ -179,15 +171,7 @@
   border-color: var(--sw-teal-border);
 }
 
-.sw-section--emerald {
-  background: linear-gradient(155deg, var(--sw-emerald-bg) 0%, var(--sw-surface) 100%);
-  border-color: var(--sw-emerald-border);
-}
 
-.sw-section--violet {
-  background: linear-gradient(155deg, var(--sw-violet-bg) 0%, var(--sw-surface) 100%);
-  border-color: var(--sw-violet-border);
-}
 
 .sw-section__head {
   display: flex;
@@ -206,11 +190,6 @@
   flex-shrink: 0;
 }
 
-.sw-section__icon--sky {
-  color: var(--sw-sky-light);
-  background: var(--sw-sky-bg-icon);
-  border: var(--hos-hairline) solid var(--sw-sky-border-icon);
-}
 
 .sw-section__icon--rose {
   color: var(--sw-rose-light);
@@ -231,11 +210,6 @@
   border: var(--hos-hairline) solid var(--sw-teal-border-icon);
 }
 
-.sw-section__icon--emerald {
-  color: var(--sw-emerald-light);
-  background: var(--sw-emerald-bg-icon);
-  border: var(--hos-hairline) solid var(--sw-emerald-border-icon);
-}
 
 .sw-section__title {
   margin: 0;
@@ -251,11 +225,6 @@
   color: var(--hos-text-secondary);
 }
 
-.sw-section__sub {
-  margin: 2px 0 0;
-  font-size: var(--set-fs-micro);
-  color: var(--hos-text-secondary);
-}
 
 .sw-alert {
   display: flex;
@@ -335,16 +304,7 @@
   color: #fff;
 }
 
-.sw-btn--amber {
-  border-color: var(--sw-amber-border);
-  background: var(--sw-amber-bg);
-  color: var(--sw-amber-text);
-}
 
-.sw-btn--amber:hover:not(:disabled) {
-  background: rgba(251, 191, 36, 0.18);
-  border-color: var(--sw-amber-border-strong);
-}
 
 .sw-btn:disabled {
   opacity: 0.45;

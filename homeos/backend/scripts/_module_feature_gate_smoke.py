@@ -39,7 +39,7 @@ from _smoke_auth_support import (
 from fastapi.testclient import TestClient
 from src.api import ha_proxy
 from src.app import create_app
-from src.services.license import features as feature_codes
+from src.domains.license import features as feature_codes
 
 USERNAME = "gateuser"
 EMAIL = "gate@example.com"

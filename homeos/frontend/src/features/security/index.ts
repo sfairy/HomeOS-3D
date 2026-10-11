@@ -11,8 +11,9 @@
  * `features/settings/composables/display/layout-floating.internals.ts`）改走共享面
  * `@/shared/security/utils/*` —— 因为 `components/` 不许 import `@/features/**`，
  * 这 4 个纯函数必须落在 shared 侧才够得着。
- * 唯一残留 compat barrel 是 `@/composables/security/*`（因 `PanelWidget.vue` 也要
- * `useSecurityPanelStatus`，而它带 store 依赖不能进 shared）。
+ * `useSecurityPanelStatus` 带 store 依赖（`@/stores/auth.store`），进不了 `shared/`，故它的
+ * **真源**落在 `@/composables/security/useSecurityPanelStatus`（「store 耦合件留 composables/」
+ * 的既有规则），本 barrel 仅转出。原先的 `@/composables/security/*` 兼容桩已全部删除。
  */
 
 // ── 域入口组件 ──
@@ -28,7 +29,7 @@ export * from './composables/useHazardBindingStatus'
 export * from './composables/useReduceSecuritySensitivity'
 export * from './composables/useSecurityAuditEvents'
 export * from './composables/useSecurityOverview'
-export * from './composables/useSecurityPanelStatus'
+export * from '@/composables/security/useSecurityPanelStatus'
 export * from './composables/useSecuritySensors'
 export * from './composables/useSecurityView'
 export * from './composables/useSecurityZoneEditorList'

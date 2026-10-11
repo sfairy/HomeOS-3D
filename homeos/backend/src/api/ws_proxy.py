@@ -15,13 +15,7 @@ from typing import Any
 from fastapi import WebSocket, WebSocketDisconnect
 
 from .router import NestRouter
-from ..core.embed_proxy_util import (
-    build_embed_upstream_url,
-    get_embed_upstream_origin,
-    strip_homeos_cookies,
-)
-from ..core.errors import BusinessException
-from ..services.proxy.ws_proxy import (
+from ..domains.proxy.ws_proxy import (
     EMBED_WS_HEARTBEAT_MS,
     bridge_websockets,
     build_ha_webrtc_ws_url,
@@ -30,6 +24,12 @@ from ..services.proxy.ws_proxy import (
     resolve_ha_base_url,
     verify_embed_ws_auth,
 )
+from ..platform.core.embed_proxy_util import (
+    build_embed_upstream_url,
+    get_embed_upstream_origin,
+    strip_homeos_cookies,
+)
+from ..platform.core.errors import BusinessException
 
 logger = logging.getLogger("homeos.api.ws-proxy")
 

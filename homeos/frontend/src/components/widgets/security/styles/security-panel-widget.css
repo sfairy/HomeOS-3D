@@ -81,13 +81,3 @@
 }
 
 /* 嵌入子面板：由 sp-card__body 统一留白 */
-.sp-card__body .sa-root,
-.sp-card__body .ad-root,
-.sp-card__body .as-root,
-.sp-card__body .fr-card {
-  padding: 0;
-  gap: 10px;
-  min-height: 0;
-  height: auto;
-  overflow: visible;
-}

@@ -363,7 +363,7 @@ Cython `.so` 与架构绑定：`dist/<项目>/backend/linux-<arch>/` 一份只�
 
 **产物里的包名是 `app`，不是 `src`**：源码目录按约定叫 `homeos/backend/src`，构建阶段用 `COPY homeos/backend/src ./app` 把它映射过去再交给 Cython —— Cython 的模块名取自文件路径，映射之后 `.so` 里烤进去的就是 `app.*`，`dist/` 里因此不存在任何名为 `src` 的目录。主应用与商店用**同一条**映射（`.../src → ./app`），镜像里都是 `/app/app`，区别只在装什么、以什么入口启动。
 
-产物里**没有任何明文 `.py`**：后端包之外，`migrations/` 与 `alembic.ini` 也都不进 `dist/`（Dockerfile 的构建阶段用 `find /app \( -name '*.py' -o -name '*.pyc' \)` 兜底断言）。发行版不需要 Alembic —— 全新库由后端按 ORM 元数据直接建，再写入结构基线版本号（见两侧 `backend/src/core/migrations.py` 的 `_create_schema` 与 `SCHEMA_REVISION`）；老库接管、备份这些行为不变。`ops/check_schema.py` 会额外验证「ORM 建库」与「迁移脚本建库」结构等价，所以少了迁移脚本也不会让新库缺表。
+产物里**没有任何明文 `.py`**：后端包之外，`migrations/` 与 `alembic.ini` 也都不进 `dist/`（Dockerfile 的构建阶段用 `find /app \( -name '*.py' -o -name '*.pyc' \)` 兜底断言）。发行版不需要 Alembic —— 全新库由后端按 ORM 元数据直接建，再写入结构基线版本号（见主应用 `backend/src/platform/core/migrations.py` 与商店 `backend/src/core/migrations.py` 的 `_create_schema` 与 `SCHEMA_REVISION`）；老库接管、备份这些行为不变。`ops/check_schema.py` 会额外验证「ORM 建库」与「迁移脚本建库」结构等价，所以少了迁移脚本也不会让新库缺表。
 
 编译后编译脚本会自动对每个 `.so` 执行 `strip --strip-all`（见 `ops/docker/compile_python.py` 的 `_strip_extensions`）：去掉 DWARF 调试信息与 `.symtab` 静态符号，保留 `.dynsym`（动态加载靠它，删了 `import` 就失败）。这样 `strings` 里不再出现 `__pyx_pf_*` 内部函数名与原始路径。
 

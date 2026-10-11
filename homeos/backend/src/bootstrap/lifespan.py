@@ -16,74 +16,74 @@ from fastapi import FastAPI
 
 from . import studio3d_plane
 from ..config import Settings
-from ..core import migrations
-from ..core.database import Database
-from ..core.distributed_lock import DistributedLockService
-from ..core.log import configure_app_logging
-from ..core.runtime_logs import RuntimeLogBuffer, install_runtime_log_handler
-from ..realtime.domain_events import DomainEventBridge
-from ..services.agent.area_service import AgentAreaService
-from ..services.agent.command_cache import CommandCacheService
-from ..services.agent.config_service import AgentConfigService
-from ..services.agent.fast_path import FastPathService
-from ..services.agent.lang_template_service import LangTemplateService
-from ..services.agent.mcp.mcp_service import McpGatewayService
-from ..services.agent.providers.resolving_llm_provider import ResolvingLlmProvider
-from ..services.agent.service import AgentService
-from ..services.agent.session_store import AgentSessionStoreService
-from ..services.agent.short_term_memory import AgentShortTermMemoryService
-from ..services.agent.tools.home_tools_service import HomeToolsService
-from ..services.app_config import AppConfigBackupService, AppConfigService
-from ..services.awareness import AdvisorUsageService, TtsSpeakService, VoiceService
-from ..services.backup import AutoBackupService, ServerBackupService
-from ..services.backup.business_backup import BackupCoordinator, recover_interrupted_restore
-from ..services.channels import (
+from ..domains.agent.area_service import AgentAreaService
+from ..domains.agent.command_cache import CommandCacheService
+from ..domains.agent.config_service import AgentConfigService
+from ..domains.agent.fast_path import FastPathService
+from ..domains.agent.lang_template_service import LangTemplateService
+from ..domains.agent.mcp.mcp_service import McpGatewayService
+from ..domains.agent.providers.resolving_llm_provider import ResolvingLlmProvider
+from ..domains.agent.service import AgentService
+from ..domains.agent.session_store import AgentSessionStoreService
+from ..domains.agent.short_term_memory import AgentShortTermMemoryService
+from ..domains.agent.tools.home_tools_service import HomeToolsService
+from ..domains.app_config import AppConfigBackupService, AppConfigService
+from ..domains.awareness import AdvisorUsageService, TtsSpeakService, VoiceService
+from ..domains.backup import AutoBackupService, ServerBackupService
+from ..domains.backup.business_backup import BackupCoordinator, recover_interrupted_restore
+from ..domains.channels import (
     ChannelConfigService,
     ChannelsService,
     EmailService,
     WebPushService,
     WecomService,
 )
-from ..services.client_power import ClientPowerService
-from ..services.earthquake import (
+from ..domains.client_power import ClientPowerService
+from ..domains.earthquake import (
     EarthquakeCatalogNotifyService,
     EarthquakeGlobalService,
     EarthquakeService,
     EewLeaderService,
     EewPollService,
 )
-from ..services.ha.ha_config import load_active_ha_endpoints, load_ha_endpoints
-from ..services.ha.ha_filters import AlertRuleWatchIndex, HaStateChangeRouter
-from ..services.ha.state_ingress_coalesce import StateIngressCoalesceService
-from ..services.home_mode.service import HomeModeService
-from ..services.license import LicenseService
-from ..services.license import features as feature_codes
-from ..services.lifestyle import MediaSceneService
-from ..services.logs.event_log import EventLogService
-from ..services.notification.service import NotificationService
-from ..services.proxy.command_proxy import CommandProxyService
-from ..services.retention.service import DatabaseRetentionService
-from ..services.security.away_simulation import AwaySimulationService
-from ..services.security.bus import LocalEventBus
-from ..services.security.cooldown import NotificationCooldownService
-from ..services.security.frigate import FrigateService
-from ..services.security.hazard_drill import HazardDrillService
-from ..services.security.linkage import SecurityLinkageService
-from ..services.security.mmwave import MmWavePresenceService
-from ..services.security.panel import SecurityConfigProvider, SecurityPanelService
-from ..services.security.presence import PresenceService
-from ..services.security.service import SecurityService
-from ..services.setup import SetupWizardService
-from ..services.state_store.entity_area import EntityAreaEnrichmentService
-from ..services.state_store.entity_references import EntityReferencesService
-from ..services.state_store.entity_sync_filter import HaEntitySyncFilterService
-from ..services.system import DeviceHealthService, DeviceManagementService, SystemService
-from ..services.system.embed_proxy import EmbedProxyService
-from ..services.system.jobs import JobRegistryService
-from ..services.system.ops import ExternalApiService, MoviePilotProxyService
-from ..services.system.updates import STORE_UPDATES_PATH, UpdateChecker
-from ..services.ui_config import UiConfigService
-from ..services.weather import WeatherAutoLinkageService, WeatherWatchService
+from ..domains.ha.config.ha_config import load_active_ha_endpoints, load_ha_endpoints
+from ..domains.ha.config.ha_filters import AlertRuleWatchIndex, HaStateChangeRouter
+from ..domains.ha.config.state_ingress_coalesce import StateIngressCoalesceService
+from ..domains.home_mode.service import HomeModeService
+from ..domains.license import LicenseService
+from ..domains.license import features as feature_codes
+from ..domains.lifestyle import MediaSceneService
+from ..domains.logs.event_log import EventLogService
+from ..domains.notification.service import NotificationService
+from ..domains.proxy.command_proxy import CommandProxyService
+from ..domains.retention.service import DatabaseRetentionService
+from ..domains.security.away_simulation import AwaySimulationService
+from ..domains.security.bus import LocalEventBus
+from ..domains.security.cooldown import NotificationCooldownService
+from ..domains.security.frigate import FrigateService
+from ..domains.security.hazard_drill import HazardDrillService
+from ..domains.security.linkage import SecurityLinkageService
+from ..domains.security.mmwave import MmWavePresenceService
+from ..domains.security.panel import SecurityConfigProvider, SecurityPanelService
+from ..domains.security.presence import PresenceService
+from ..domains.security.service import SecurityService
+from ..domains.setup import SetupWizardService
+from ..domains.state_store.entity_area import EntityAreaEnrichmentService
+from ..domains.state_store.entity_references import EntityReferencesService
+from ..domains.state_store.entity_sync_filter import HaEntitySyncFilterService
+from ..domains.system import DeviceHealthService, DeviceManagementService, SystemService
+from ..domains.system.embed_proxy import EmbedProxyService
+from ..domains.system.jobs import JobRegistryService
+from ..domains.system.ops import ExternalApiService, MoviePilotProxyService
+from ..domains.system.updates import STORE_UPDATES_PATH, UpdateChecker
+from ..domains.ui_config import UiConfigService
+from ..domains.weather import WeatherAutoLinkageService, WeatherWatchService
+from ..platform.core import migrations
+from ..platform.core.database import Database
+from ..platform.core.distributed_lock import DistributedLockService
+from ..platform.core.log import configure_app_logging
+from ..platform.core.runtime_logs import RuntimeLogBuffer, install_runtime_log_handler
+from ..realtime.domain_events import DomainEventBridge
 
 logger = logging.getLogger("homeos.app")
 
@@ -554,7 +554,7 @@ def create_lifespan(app_settings: Settings, version: str):
                 return
             try:
                 await ha_connector.stop()
-                # ``HAConnectorService.start`` 是**同步**方法（内部只建任务，见 ha/service.py）。
+                # ``HAConnectorService.start`` 是**同步**方法（内部只建任务，见 domains/ha/integration/service.py）。
                 # 适配器时代它是 async 空实现，折进后必须按同步调用：await None 会抛
                 # TypeError，而这里恰好被 except 吞掉，结果「已按新地址重连」成为假日志。
                 ha_connector.start()
@@ -888,7 +888,7 @@ def create_lifespan(app_settings: Settings, version: str):
             app.state.ha_version = None
         if app.state.ha_configured:
             try:
-                # 同步方法（见 ha/service.py 的 ``def start``）；连接器自身做幂等，
+                # 同步方法（见 domains/ha/integration/service.py 的 ``def start``）；连接器自身做幂等，
                 # 平面已启动过时再调一次是安全的。
                 ha_connector.start()
             except Exception as exc:

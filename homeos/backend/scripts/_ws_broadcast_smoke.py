@@ -156,7 +156,7 @@ print("2. 收窄结果与逐条可见性判定一致")
 
 gw = build_gateway()
 emitted, _ = install_emit_recorder(gw)
-# 后端已移除角色维度（单一管理员模型，见 services/security/entity_execute_acl.py）与 User.role 列：
+# 后端已移除角色维度（单一管理员模型，见 domains/security/entity_execute_acl.py）与 User.role 列：
 # 可见性只由实体级白名单 restrictions 决定。
 # 因此「完全不可见」用「匹配不到任何实体的白名单」表达，而不是空 restrictions。
 no_visibility = {"restrictions": ["nonexistent."]}

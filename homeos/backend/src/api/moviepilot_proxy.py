@@ -16,8 +16,8 @@ from fastapi.responses import Response
 
 from .router import NestRouter
 from ..dependencies import license_feature
-from ..security.auth_context import require_user
-from ..services.license import features as feature_codes
+from ..domains.license import features as feature_codes
+from ..platform.security.auth_context import require_user
 
 router = NestRouter(
     prefix="/system/moviepilot",

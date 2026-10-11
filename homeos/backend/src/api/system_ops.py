@@ -15,7 +15,7 @@ from typing import Any
 from fastapi import Depends, Header, Query, Request
 
 from .router import NestRouter
-from ..security.auth_context import require_user
+from ..platform.security.auth_context import require_user
 
 router = NestRouter(prefix="/system", tags=["system"])
 

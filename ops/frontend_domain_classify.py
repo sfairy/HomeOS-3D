@@ -27,6 +27,11 @@ python3 ops/frontend_domain_classify.py --bucket composables # 只看某个层�
 
 本脚本是**分析工具**（advisory），不参与 CI 拦截；硬拦截在
 `homeos/frontend/scripts/check-frontend-deps.mjs` 与 `eslint.config.js`。
+
+**判定 ≠ 归宿**：本脚本只做「入边测试」，看不到「`components → features` 被门禁禁止」「是壳层装配点」
+「消费者跨多个视图 + 多个域」这类约束，因此会对一些**有意留位**的桶给出 `LEAF` 的错误建议：
+`components/{dashboard,page-shell,setup}`、`composables/{life,widget,api,auth,security,settings-kernel}`。
+最终归宿以 `homeos/frontend/src/README.md` 的「Where to edit」表为准（输出末尾也会再提醒一次）。
 """
 
 from __future__ import annotations
@@ -198,6 +203,10 @@ def main() -> int:
     print(f"\n汇总：共享域 {len(shared)} 个，叶子域 {len(leaf)} 个")
     if leaf:
         print("叶子域（可进 features/）：" + "、".join(r["prefix"] for r in leaf))
+    print("\n注：以上只是入边测试的启发式结论，未考虑「components → features 被门禁禁止」「壳层装配点」")
+    print("    「消费者跨多个视图 + 多个域」等约束。故 components/{dashboard,page-shell,setup} 与")
+    print("    composables/{life,widget,api,auth,security,settings-kernel} 被判成 LEAF，实为**有意留位**。")
+    print("    最终归宿以 homeos/frontend/src/README.md 的「Where to edit」表为准。")
     return 0
 
 

@@ -24,16 +24,7 @@
 }
 
 /* 智能推断传感器卡片：sky 主色点缀 */
-.bind-env-infer-card {
-  border-color: var(--page-accent-border) !important;
-  background: var(--page-accent-bg) !important;
-  cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease;
-}
 
-.bind-env-infer-card:hover {
-  background: var(--page-accent-bg-strong) !important;
-}
 
 /* 安防主控方案卡片：amber 子色点缀 + 双入口布局 */
 .bind-sec-overview-card {
@@ -691,26 +682,7 @@
   border: var(--hos-hairline) solid rgba(251, 191, 36, 0.28);
 }
 
-.bind-card-intro {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-}
 
-.bind-cam-badge {
-  width: 26px;
-  height: 26px;
-  border-radius: 9px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--premium-fs-body);
-  font-weight: 800;
-  color: var(--module-accent-bindings-sub);
-  background: rgba(var(--module-accent-bindings-sub-rgb), 0.1);
-  border: var(--hos-hairline) solid rgba(var(--module-accent-bindings-sub-rgb), 0.22);
-  flex-shrink: 0;
-}
 
 .bind-energy-dock {
   overflow: hidden;
@@ -943,9 +915,6 @@
   min-height: 56px;
 }
 
-.rooms-overview__stats--compact .hub-stat__icon {
-  display: none;
-}
 
 .rooms-overview__stats--compact .hub-stat__val {
   font-size: 20px;
@@ -999,9 +968,6 @@
   border-color: var(--set-success-border);
 }
 
-.rooms-stat--emerald .hub-stat__icon {
-  color: var(--set-success);
-}
 
 .rooms-stat--emerald:hover {
   border-color: rgba(52, 211, 153, 0.38);
@@ -1013,9 +979,6 @@
   border-color: var(--set-info-border);
 }
 
-.rooms-stat--sky .hub-stat__icon {
-  color: var(--set-info);
-}
 
 .rooms-stat--sky:hover {
   border-color: rgba(56, 189, 248, 0.38);
@@ -1291,37 +1254,8 @@
 }
 
 /* —— SettingsEnvHealthPanel —— */
-.env-health-intro-icon {
-  color: var(--page-accent);
-}
-.env-health-intro-orb {
-  background: rgba(var(--page-accent-rgb), 0.1);
-  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb), 0.2);
-}
-.env-health-link {
-  color: var(--module-accent-energy-sub);
-}
-.env-health-link:hover {
-  color: var(--module-accent-energy-sub);
-}
 
 /* —— SettingsRoomsPanel —— */
-.rp-icon-accent {
-  color: var(--page-accent, #38bdf8);
-}
-.rp-orb-accent {
-  background: var(--page-accent-bg, rgba(14, 165, 233, 0.12));
-  border: var(--hos-hairline) solid var(--page-accent-border, rgba(56, 189, 248, 0.22));
-}
-.rp-orb-compact {
-  width: 36px !important;
-  height: 36px !important;
-  border-radius: 11px !important;
-}
-.rp-orb-compact svg {
-  width: 18px !important;
-  height: 18px !important;
-}
 .rooms-flow-band {
   padding-top: 4px;
 }

@@ -38,13 +38,7 @@
 }
 
 /* 开关控制 Hub：单行头时 Tab 自适应靠右（不再用 stacked 双行） */
-.sc-hub.widget-hub-root .widget-hub-subnav {
-  margin-left: auto;
-}
 
-.sc-hub.widget-hub-root .widget-hub-subnav__btn {
-  flex: 0 0 auto;
-}
 
 .widget-hub-head__row {
   display: flex;

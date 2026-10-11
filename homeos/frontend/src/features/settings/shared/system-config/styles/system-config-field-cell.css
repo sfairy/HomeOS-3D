@@ -1,7 +1,4 @@
 /* 从 SystemConfigFieldCell.vue 抽出 */
-.sc-text-violet {
-  color: var(--premium-accent-violet, #c084fc);
-}
 
 .params-cell {
   display: flex;

@@ -6,7 +6,7 @@
 import type { Component, Ref } from 'vue'
 import { pauseGlobalPendingChanges, resumeGlobalPendingChanges, syncGlobalLayoutPendingSnapshot } from '@/composables/settings-kernel/pending.internals'
 import { useHomeosSceneOptions } from '@/features/home-mode'
-import { useHazardBindingStatus } from '@/composables/security/useHazardBindingStatus'
+import { useHazardBindingStatus } from '@/features/security'
 import { createDefaultWholeHomeOff } from '@/shared/constants/whole-home-off'
 import { fetchAdvisorForgotten } from '@/services/api/system'
 import { useChromeStore } from '@/stores/chrome.store'

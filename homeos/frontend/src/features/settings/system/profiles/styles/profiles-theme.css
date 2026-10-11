@@ -292,13 +292,6 @@
 }
 
 /* —— ProfilesBackupSection —— */
-.pb-intro-icon {
-  color: var(--page-accent-text);
-}
-.pb-intro-orb {
-  background: var(--page-accent-bg);
-  border: var(--hos-hairline) solid var(--page-accent-border);
-}
 .pb-note-box {
   background: var(--page-accent-bg);
   border: var(--hos-hairline) solid var(--page-accent-border);
@@ -307,9 +300,6 @@
 }
 .pb-c-text {
   color: var(--set-text-secondary);
-}
-.pb-desc {
-  color: var(--set-text-label);
 }
 .pb-flow-band__shell {
   --flow-glow-a: rgba(129, 140, 248, var(--flow-glow-alpha-strong));
@@ -472,16 +462,6 @@
 }
 
 /* —— ProfilesScheduleSection —— */
-.ps-intro-icon {
-  color: var(--set-info);
-}
-.ps-intro-orb {
-  background: var(--set-info-bg);
-  border: var(--hos-hairline) solid var(--set-info-border);
-}
-.ps-toggle-on {
-  color: var(--set-info);
-}
 .ps-toggle-off {
   color: var(--set-text-faint);
 }
@@ -490,12 +470,6 @@
 }
 .ps-label {
   color: var(--set-text-secondary);
-}
-.ps-run-ok {
-  color: var(--set-success);
-}
-.ps-run-fail {
-  color: var(--set-danger);
 }
 .ps-meta {
   color: var(--set-text-secondary);
@@ -527,8 +501,4 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 6px;
-}
-.ps-flow-band__shell {
-  --flow-glow-a: rgba(56, 189, 248, var(--flow-glow-alpha-strong));
-  --flow-glow-b: rgba(129, 140, 248, var(--flow-glow-alpha-b));
 }

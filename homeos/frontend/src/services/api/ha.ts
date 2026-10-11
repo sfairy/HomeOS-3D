@@ -8,7 +8,7 @@
  *           POST /ha/webrtc/candidate、POST /ha/webrtc/close
  *
  * 阶段 3.3 起 HA 连接只有这一条读写路径：设置页不再把 url/token 写进项目 layout，
- * 后端也不再从 layout 读连接凭据（见 `backend/src/services/ha/ha_config.py`）。
+ * 后端也不再从 layout 读连接凭据（见 `backend/src/domains/ha/config/ha_config.py`）。
  */
 import type { AxiosRequestConfig } from 'axios'
 import { apiDelete, apiGet, apiPost, apiPut } from './client'

@@ -25,10 +25,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import httpx
-from src.ha import client as client_mod
-from src.ha.client import HAClient, HAClientError
-from src.ha.service import STATE_FETCH_RETRY_DELAYS, HAConnectorService
-from src.ha.state_hub import StateHub
+from src.domains.ha.integration import client as client_mod
+from src.domains.ha.integration.client import HAClient, HAClientError
+from src.domains.ha.integration.service import STATE_FETCH_RETRY_DELAYS, HAConnectorService
+from src.domains.ha.integration.state_hub import StateHub
 
 failures: list[str] = []
 

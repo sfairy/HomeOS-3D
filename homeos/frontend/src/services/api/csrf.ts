@@ -1,7 +1,7 @@
 /**
  * CSRF 与裸 fetch 辅助（单一 HTTP 栈）。
  *
- * homeos 后端启用了 CSRF 双提交校验（`backend/src/security/csrf.py`）：变更类请求必须
+ * homeos 后端启用了 CSRF 双提交校验（`backend/src/platform/security/csrf.py`）：变更类请求必须
  * 携带 `X-CSRF-Token` 头，值与 `csrf_token` Cookie 一致。axios（`api-client`）在请求
  * 拦截器里自动注入；但并入的 studio 遗留代码仍大量使用**裸 `fetch`**，无法走拦截器，
  * 因此这里提供两件事：

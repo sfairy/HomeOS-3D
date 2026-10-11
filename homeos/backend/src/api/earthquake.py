@@ -22,10 +22,10 @@ from fastapi import Depends, Query, Request
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from .router import NestRouter
-from ..core.errors import BusinessException, ErrorCode
 from ..dependencies import license_feature
-from ..security.auth_context import require_user
-from ..services.license import features as feature_codes
+from ..domains.license import features as feature_codes
+from ..platform.core.errors import BusinessException, ErrorCode
+from ..platform.security.auth_context import require_user
 
 logger = logging.getLogger("homeos.earthquake.api")
 
@@ -189,7 +189,7 @@ async def delete_simulation_history(
 ):
     """删除模拟演练本地预警；``eventId`` 指定单条，省略则清除全部演练。"""
     _ = user
-    from ..services.earthquake.geo import is_eew_simulation_event_id
+    from ..domains.earthquake.geo import is_eew_simulation_event_id
 
     target = str(eventId or "").strip()
     if target and not is_eew_simulation_event_id(target):

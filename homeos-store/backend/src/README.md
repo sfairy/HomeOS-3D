@@ -121,10 +121,13 @@ homeos-store/
 └── dist/                   # index.html + static
 ```
 
-> 与主应用共用的两个叶子模块（`logging_noise` 开发期重载提示降噪、`core/file_lock` 跨进程文件锁）
+> 与主应用共用的三个叶子模块（`logging_noise` 开发期重载提示降噪、`file_lock` 跨进程文件锁、
+> `migrations_core` 读写 `alembic_version` / 迁移前快照 / 升级后核对等与库结构和 ORM 无关的迁移叶子逻辑）
 > **不在本包内**：真源是 `packages/shared-py/homeos_shared`（两个后端唯一的共享源码包）。源码态由本包
 > `src/__init__.py` 挂好 `sys.path`，镜像态由构建阶段各自 COPY 后内联编译（见该目录 README 与
 > `ops/check_deploy_independence.py` 第 5 项）。原先两端「各存一份 + 孪生清单比对」的形态已收拢为唯一真源。
+> `core/migrations.py` 的**编排**（备份标签文案、脚本目录布局、迁移编排）与本包 `database.py` / `run.py`
+> 经复核判定**不共享**，理由见该 README 的「分诊台账」。
 
 ## 前端约定
 

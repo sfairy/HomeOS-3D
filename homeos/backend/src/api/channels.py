@@ -21,9 +21,9 @@ from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict
 
 from ..dependencies import license_feature
-from ..security.auth_context import require_user
-from ..services.channels.wecom_crypto import compute_msg_signature, decrypt_wecom
-from ..services.license import features as feature_codes
+from ..domains.channels.wecom_crypto import compute_msg_signature, decrypt_wecom
+from ..domains.license import features as feature_codes
+from ..platform.security.auth_context import require_user
 
 logger = logging.getLogger("homeos.api.channels")
 

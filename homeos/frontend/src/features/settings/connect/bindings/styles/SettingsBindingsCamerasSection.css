@@ -182,11 +182,4 @@
   color: var(--hos-text-secondary);
 }
 
-.bind-cam-intro__icon {
-  color: var(--page-accent);
-}
 
-.bind-cam-intro__orb {
-  background: var(--page-accent-bg);
-  border: var(--hos-hairline) solid var(--page-accent-border);
-}

@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 import logging
-import sqlite3
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -12,6 +10,16 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 
 from homeos_shared.file_lock import locked_file
+from homeos_shared.migrations_core import (
+    MIGRATION_LOCK_SUFFIX,
+    LegacyDatabaseError,
+    backup_database,
+    prune_database_backups,
+    read_recorded_revision,
+    script_knows_revision,
+    set_recorded_revision,
+    validate_database,
+)
 
 from ..config import StoreSettings
 
@@ -22,22 +30,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("src.migrations")
 
-MIGRATION_LOCK_SUFFIX = ".migrate.lock"
-MIGRATION_BACKUP_LABEL = "migrate"
-MIGRATION_BACKUP_KEEP = 3
-
 #: 结构基线版本号。发行产物不带迁移脚本，新库直接按 ORM 元数据建好后
 #: 写入这个版本号；开发期存在 ``backend/migrations`` 时，会校验它与 Alembic head 一致，
 #: 防止有人加了新 revision 却忘了同步这个常量（产物会退回「只建旧基线」，缺表）。
 SCHEMA_REVISION = "0001"
-
-
-class MigrationBackupError(RuntimeError):
-    """迁移前的快照写不出来，因此拒绝继续迁移。"""
-
-
-class LegacyDatabaseError(RuntimeError):
-    """库是压缩基线之前的老结构，不能直升，也不会被自动改写。"""
 
 
 def _migrations_dir(settings: StoreSettings) -> Path | None:
@@ -84,75 +80,6 @@ def _create_schema(settings: StoreSettings) -> None:
         engine.dispose()
 
 
-def _has_business_tables(connection: sqlite3.Connection) -> bool:
-    """库里除 Alembic 自己的版本表之外，还有没有别的表。"""
-    row = connection.execute(
-        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
-        "AND name != 'alembic_version' LIMIT 1"
-    ).fetchone()
-    return row is not None
-
-
-def _recorded_revision(database_path: Path) -> str | None:
-    """读取库内记录的 revision。
-
-    ``None`` 表示全新安装（没有库文件，或文件里连业务表都没有）；``"unversioned"`` 表示
-    Alembic 之前的老结构（有业务表，却没有 alembic_version 记录）。
-    """
-    if not database_path.is_file() or database_path.stat().st_size == 0:
-        return None
-    with sqlite3.connect(f"file:{database_path}?mode=ro", uri=True) as connection:
-        table = connection.execute(
-            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'alembic_version'"
-        ).fetchone()
-        if table is None:
-            return "unversioned" if _has_business_tables(connection) else None
-        row = connection.execute("SELECT version_num FROM alembic_version LIMIT 1").fetchone()
-        if row:
-            return str(row[0])
-        return "unversioned" if _has_business_tables(connection) else None
-
-
-def _set_recorded_revision(database_path: Path, revision: str) -> None:
-    """直接改写 ``alembic_version``。
-
-    库内记录的旧 revision 已不在脚本目录里，``alembic stamp`` 会因为解析不了它而失败，所以这里
-    只改那一行记录 —— 前提是调用方已经确认过库结构与 ORM 一致（见 :func:`_schema_matches_orm`）。
-    """
-    with sqlite3.connect(database_path) as connection:
-        connection.execute("DELETE FROM alembic_version")
-        connection.execute("INSERT INTO alembic_version (version_num) VALUES (?)", (revision,))
-        connection.commit()
-
-
-def _script_knows_revision(config: Config, revision: str) -> bool:
-    """当前脚本目录里是否存在这个 revision。"""
-    try:
-        ScriptDirectory.from_config(config).get_revision(revision)
-        return True
-    except Exception:
-        return False
-
-
-def _validate_database(database_path: Path, expected_revision: str) -> None:
-    """升级后完整性 + 外键检查 + 版本号核对。"""
-    if not database_path.is_file():
-        raise RuntimeError(f"Database missing after migration: {database_path}")
-    with sqlite3.connect(f"file:{database_path}?mode=ro", uri=True) as connection:
-        integrity = connection.execute("PRAGMA integrity_check").fetchone()
-        if integrity is None or integrity[0] != "ok":
-            detail = integrity[0] if integrity else "no result"
-            raise RuntimeError(f"SQLite integrity check failed: {detail}")
-        fk_violations = connection.execute("PRAGMA foreign_key_check").fetchall()
-        if fk_violations:
-            sample = "; ".join(str(row) for row in fk_violations[:5])
-            raise RuntimeError(f"SQLite foreign_key_check failed: {sample}")
-        row = connection.execute("SELECT version_num FROM alembic_version LIMIT 1").fetchone()
-        actual = str(row[0]) if row else "unversioned"
-        if actual != expected_revision:
-            raise RuntimeError(f"Database revision is {actual}, expected {expected_revision}.")
-
-
 def _schema_drift(settings: StoreSettings) -> SchemaDrift:
     """库结构相对 ORM 元数据的缺口（缺表/缺列/缺索引）。
 
@@ -186,56 +113,6 @@ def _legacy_error(revision: str) -> LegacyDatabaseError:
     )
 
 
-def backup_database(database_path: Path) -> Path | None:
-    """迁移前留一份可还原的快照；库文件不存在时返回 None。
-    """
-    if not database_path.is_file() or database_path.stat().st_size == 0:
-        return None
-    stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
-    destination = database_path.parent / f"{database_path.name}.pre-{MIGRATION_BACKUP_LABEL}-{stamp}.bak"
-    suffix = 1
-    while destination.exists():
-        destination = (
-            database_path.parent
-            / f"{database_path.name}.pre-{MIGRATION_BACKUP_LABEL}-{stamp}-{suffix}.bak"
-        )
-        suffix += 1
-
-    connection = sqlite3.connect(database_path, isolation_level=None)
-    try:
-        connection.execute("VACUUM INTO ?", (str(destination),))
-    except sqlite3.Error as error:
-        destination.unlink(missing_ok=True)
-        raise MigrationBackupError(
-            f"迁移前备份数据库失败（{database_path} → {destination}）：{error}。"
-            "为免在没有退路的情况下改动库结构，本次启动已中止；"
-            "请确认该目录可写后重试。"
-        ) from error
-    finally:
-        connection.close()
-    logger.warning("改动库结构前已备份数据库：%s（确认结果无误后可自行删除）", destination)
-    return destination
-
-
-def prune_database_backups(
-    database_path: Path,
-    keep: int = MIGRATION_BACKUP_KEEP,
-) -> list[Path]:
-    """删掉同库同标签的旧快照，只留最近 ``keep`` 份；返回被删掉的路径。
-    """
-    pattern = f"{database_path.name}.pre-{MIGRATION_BACKUP_LABEL}-*.bak"
-    existing = sorted(database_path.parent.glob(pattern))
-    removed: list[Path] = []
-    for stale in existing[: max(0, len(existing) - keep)]:
-        try:
-            stale.unlink()
-        except OSError as error:
-            logger.warning("迁移前的旧快照删不掉（不影响本次迁移）：%s（%s）", stale, error)
-            continue
-        removed.append(stale)
-    return removed
-
-
 def run_migrations(settings: StoreSettings) -> list[str]:
     """把数据库带到 head 结构（串行化 + 动结构前留快照），返回本次做过的事。
 
@@ -258,7 +135,7 @@ def run_migrations(settings: StoreSettings) -> list[str]:
                     f"迁移脚本的 head 是 {head}，但常量 SCHEMA_REVISION 是 {SCHEMA_REVISION}："
                     "发行产物按常量建库，两者不一致会让新库缺表。请同步 core/migrations.py。"
                 )
-        recorded = _recorded_revision(database_path)
+        recorded = read_recorded_revision(database_path)
 
         if recorded == "unversioned":
             raise LegacyDatabaseError(
@@ -287,29 +164,29 @@ def run_migrations(settings: StoreSettings) -> list[str]:
                 _create_schema(settings)
                 performed.append(f"按 ORM 元数据建库并记录版本 {head}")
             else:
-                backup_database(database_path)
-                prune_database_backups(database_path)
+                backup_database(database_path, logger=logger)
+                prune_database_backups(database_path, logger=logger)
                 command.upgrade(config, "head")
                 performed.append(f"应用迁移 {recorded} → {head}")
-            _validate_database(database_path, head)
+            validate_database(database_path, head)
             return performed
 
         # 有版本号却不是 head：要么是脚本目录认识的历史节点（走正常升级），要么是旧编号
         # （结构一致才允许只改记录）。两条都会改到库文件，先留快照。
-        known = config is not None and _script_knows_revision(config, recorded)
+        known = config is not None and script_knows_revision(config, recorded)
         if not known and not _schema_matches_orm(settings):
             raise _legacy_error(str(recorded))
-        backup_database(database_path)
-        prune_database_backups(database_path)
+        backup_database(database_path, logger=logger)
+        prune_database_backups(database_path, logger=logger)
         if config is not None and known:
             command.upgrade(config, "head")
             performed.append(f"应用迁移 {recorded} → {head}")
-            _validate_database(database_path, head)
+            validate_database(database_path, head)
             return performed
-        _set_recorded_revision(database_path, head)
-        if _recorded_revision(database_path) != head:
-            raise LegacyDatabaseError(f"改写版本记录失败：仍读到 {_recorded_revision(database_path)!r}")
+        set_recorded_revision(database_path, head)
+        if read_recorded_revision(database_path) != head:
+            raise LegacyDatabaseError(f"改写版本记录失败：仍读到 {read_recorded_revision(database_path)!r}")
         performed.append(f"接管压缩前的版本记录 {recorded} → {head}（结构已与 ORM 一致，只改记录）")
-        _validate_database(database_path, head)
+        validate_database(database_path, head)
 
     return performed

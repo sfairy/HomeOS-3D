@@ -15,10 +15,6 @@ from anyio import CancelScope, create_task_group
 from fastapi import APIRouter, HTTPException, Query, Request, WebSocket, WebSocketDisconnect, status
 from sqlalchemy import func, or_, select
 
-from ..core.database import Database
-from ..core.errors import BusinessException
-from ..core.ha_service_catalog import ALLOWED_SERVICES
-from ..core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, LoginSession, User
 from ..dependencies import (
     DatabaseSession,
     LicensedUser,
@@ -27,25 +23,29 @@ from ..dependencies import (
     require_viewer_entity,
     viewer_entity_ids,
 )
-from ..ha.client import HAClientError
-from ..ha.connection_setup import addresses_label, failed_endpoint_summary, probe_endpoints
-from ..ha.crypto import CredentialCipherError
-from ..ha.endpoints import endpoint_candidates
-from ..ha.errors import connection_error_message
-from ..ha.numeric_sources import numeric_sources
-from ..ha.percentage_sources import percentage_sources
+from ..domains.ha.integration.client import HAClientError
+from ..domains.ha.integration.connection_setup import addresses_label, failed_endpoint_summary, probe_endpoints
+from ..domains.ha.integration.crypto import CredentialCipherError
+from ..domains.ha.integration.endpoints import endpoint_candidates
+from ..domains.ha.integration.errors import connection_error_message
+from ..domains.ha.integration.numeric_sources import numeric_sources
+from ..domains.ha.integration.percentage_sources import percentage_sources
+from ..domains.license import features as feature_codes
+from ..domains.logs.global_log import event_context
+from ..domains.proxy.command_proxy import build_service_call_dto, dispatch_service_call
+from ..domains.proxy.command_proxy_auth import RegistryTargetResolver, assert_command_proxy_authorized
 from ..panel.action_rules import TOGGLE_ENTITY_DOMAINS
+from ..platform.core.database import Database
+from ..platform.core.errors import BusinessException
+from ..platform.core.ha_service_catalog import ALLOWED_SERVICES
+from ..platform.core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, LoginSession, User
+from ..platform.security.session_store import session_token_hash
 from ..schemas import (
     HABrowseMediaRequest,
     HAConnectionInput,
     HAServiceCallRequest,
     HATestRequest,
 )
-from ..security.session_store import session_token_hash
-from ..services.license import features as feature_codes
-from ..services.logs.global_log import event_context
-from ..services.proxy.command_proxy import build_service_call_dto, dispatch_service_call
-from ..services.proxy.command_proxy_auth import RegistryTargetResolver, assert_command_proxy_authorized
 
 router = APIRouter(prefix='/ha', tags=['home-assistant'])
 runtime_router = APIRouter(tags=['runtime'])

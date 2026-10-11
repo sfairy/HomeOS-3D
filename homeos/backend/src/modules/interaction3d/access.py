@@ -2,7 +2,7 @@
 
 同一个功能有两条能力码：``editor``（编辑器整包）与 ``module.3d_interaction``（本增量包
 自己），任一有效即放行 —— 既能随整包售卖，也能只给 3D 交互单独授权。这个蕴含关系登记在
-``services/license/features.py`` 的 ``IMPLIED_BY`` 里，所以 ``allows(<增量包>)`` 已经包含
+``domains/license/features.py`` 的 ``IMPLIED_BY`` 里，所以 ``allows(<增量包>)`` 已经包含
 了「有 editor 就算有」这一条，这里不再各写一次 ``or``。
 """
 
@@ -14,8 +14,8 @@ from datetime import UTC, datetime
 from fastapi import HTTPException, Request
 
 from .config import validate_config
-from ...services.license import features as feature_codes
-from ...services.license.crypto import LicenseCryptoError
+from ...domains.license import features as feature_codes
+from ...domains.license.crypto import LicenseCryptoError
 
 FEATURE = feature_codes.FEATURE_INTERACTION_3D
 COMPONENT_TYPE = 'interaction3d'

@@ -19,7 +19,7 @@ import {
   configEpoch,
   getConfigSection,
 } from '@/shared/utils/config/frontend-config'
-import { useSecurityPanelStatus } from '@/features/security/composables/useSecurityPanelStatus'
+import { useSecurityPanelStatus } from '@/composables/security/useSecurityPanelStatus'
 import { useReduceSecuritySensitivity } from '@/features/security/composables/useReduceSecuritySensitivity'
 import { useSecuritySensors } from '@/features/security/composables/useSecuritySensors'
 import { useSecurityAuditEvents } from '@/features/security/composables/useSecurityAuditEvents'

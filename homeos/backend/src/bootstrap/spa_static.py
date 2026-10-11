@@ -11,8 +11,8 @@ from fastapi.staticfiles import StaticFiles
 
 from ..api.assets import read_builtin_asset
 from ..config import Settings
-from ..security.session_store import resolve_login_session
-from ..services.license import features as feature_codes
+from ..domains.license import features as feature_codes
+from ..platform.security.session_store import resolve_login_session
 
 #: 需要按「能力」判定授权状态的页面路径 → 能力名。
 _PAGE_LICENSE_FEATURE: tuple[tuple[tuple[str, ...], str], ...] = (
@@ -156,7 +156,7 @@ def mount_spa_static(app: FastAPI, settings: Settings, version: str) -> None:
 
     # 可替换静态资源（图标 / 背景图 / 音效 / Logo）。
     # 与 Nest ServeStaticModule 的 fallthrough:false 一致：文件不存在直接 404，不落入 SPA。
-    from ..core.asset_paths import (
+    from ..platform.core.asset_paths import (
         get_backgrounds_dir,
         get_icons_dir,
         get_logo_dir,

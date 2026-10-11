@@ -9,7 +9,7 @@ import {
 } from '@/composables/config/system-config-core.internals'
 import { getEnvSensorFields, useEnvSensorMap } from '@/features/settings/composables/env-sensor-map.internals'
 import { pauseGlobalPendingChanges, resumeGlobalPendingChanges, syncGlobalLayoutPendingSnapshot } from '@/composables/settings-kernel/pending.internals'
-import { useReduceSecuritySensitivity } from '@/composables/security/useReduceSecuritySensitivity'
+import { useReduceSecuritySensitivity } from '@/features/security'
 import { loadPresenceHome } from '@/shared/presence/composables/load-presence-home'
 import { completeSetupWizard, fetchSetupWizardStatus, validateSetupWizardEntities } from '@/services/api/system'
 import { useEntitiesStore } from '@/stores/entities.store'

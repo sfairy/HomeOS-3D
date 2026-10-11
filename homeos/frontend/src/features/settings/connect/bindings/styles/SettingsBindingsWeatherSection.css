@@ -48,11 +48,4 @@
   text-overflow: ellipsis;
 }
 
-.weather-bind-intro__icon {
-  color: var(--page-accent);
-}
 
-.weather-bind-intro__orb {
-  background: var(--page-accent-bg);
-  border: var(--hos-hairline) solid var(--page-accent-border);
-}

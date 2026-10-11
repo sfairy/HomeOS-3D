@@ -7,11 +7,11 @@ from typing import Any
 from fastapi import Depends, Query, Request
 
 from .router import NestRouter
-from ..core.errors import forbidden
 from ..dependencies import require_license_feature
+from ..domains.license import features as feature_codes
+from ..platform.core.errors import forbidden
+from ..platform.security.auth_context import require_user
 from ..realtime.access import is_entity_allowed, resolve_entity_restrictions
-from ..security.auth_context import require_user
-from ..services.license import features as feature_codes
 
 router = NestRouter(prefix="/events", tags=["connect"])
 

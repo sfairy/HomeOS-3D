@@ -169,18 +169,6 @@
 }
 
 /* —— DoorbellAlertModal —— */
-.dam-text-muted {
-  color: var(--set-text-secondary, rgba(255, 255, 255, 0.55));
-}
-.dam-live-bg {
-  background: rgba(var(--set-danger-rgb), 0.9);
-}
-.dam-overlay {
-  background: rgba(var(--set-info-rgb), 0);
-}
-.group:hover .dam-overlay {
-  background: rgba(var(--set-info-rgb), 0.05);
-}
 .doorbell-pop-enter-active,
 .doorbell-pop-leave-active {
   transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);

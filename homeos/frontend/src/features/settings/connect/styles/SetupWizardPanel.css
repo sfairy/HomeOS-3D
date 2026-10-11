@@ -91,25 +91,8 @@
   transform: translateY(-6px);
 }
 
-.sw-toast {
-  margin: 0 0 12px;
-  padding: 10px 12px;
-  border-radius: var(--hos-radius-card);
-  font-size: var(--set-fs-caption);
-  font-weight: 700;
-}
 
-.sw-toast--ok {
-  color: var(--sw-emerald-text);
-  background: var(--sw-emerald-bg);
-  border: var(--hos-hairline) solid var(--sw-emerald-border);
-}
 
-.sw-toast--err {
-  color: var(--sw-rose-text);
-  background: var(--sw-rose-bg);
-  border: var(--hos-hairline) solid var(--sw-rose-border);
-}
 
 .sw-toast-enter-active,
 .sw-toast-leave-active {

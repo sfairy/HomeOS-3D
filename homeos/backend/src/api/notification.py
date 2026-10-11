@@ -21,13 +21,13 @@ from sqlalchemy.orm import Session
 
 from .router import NestRouter
 from .schemas.base import StrictModel as _StrictModel
-from ..core.app_config import load_raw_config
-from ..core.deps import get_session
-from ..core.errors import api_error, forbidden
 from ..dependencies import license_feature
-from ..security.auth_context import get_current_user, require_user
-from ..services.alerts.channels import resolve_notification_fetch_limit
-from ..services.license import features as feature_codes
+from ..domains.alerts.channels import resolve_notification_fetch_limit
+from ..domains.license import features as feature_codes
+from ..platform.core.app_config import load_raw_config
+from ..platform.core.deps import get_session
+from ..platform.core.errors import api_error, forbidden
+from ..platform.security.auth_context import get_current_user, require_user
 
 router = NestRouter(
     prefix="/notifications",

@@ -23,10 +23,10 @@ from .render_cache import MAX_ENTRY_BYTES, cache_path, read_cache, write_cache
 from ...api.assets import UPLOAD_CONTENT_TYPES, user_asset_file
 from ...api.ha import active_connection, call_service
 from ...config import Settings
-from ...core.models import HAEntity, ProjectDraft
 from ...dependencies import DatabaseSession, LicensedUser, LicensedViewer, require_viewer_project
+from ...platform.core.models import HAEntity, ProjectDraft
+from ...platform.security.request_origin import require_same_origin_write
 from ...schemas import HAServiceCallRequest
-from ...security.request_origin import require_same_origin_write
 
 router = APIRouter(prefix='/modules/interaction3d', tags=['3D interaction'])
 
@@ -262,7 +262,7 @@ async def water_heater_capabilities(
     if cached and cached[0] == key and now - cached[1] < 60:
         return {'temperatureUnit': cached[2]}
 
-    from ...ha.client import HAClientError
+    from ...domains.ha.integration.client import HAClientError
 
     try:
         config = await (await request.app.state.studio_ha.client_for(connection)).test_connection(

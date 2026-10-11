@@ -60,6 +60,7 @@
  *
  *     node scripts/check-import-refs.mjs                  # 检查本目录（frontend）
  *     node scripts/check-import-refs.mjs --root <dir>     # 检查任意根（自检脚本用）
+ *     node scripts/check-import-refs.mjs --alias @store/  # 换源码别名前缀（商店用 @store/）
  *     node scripts/check-import-refs.mjs --quiet          # 只在失败时输出
  *
  * 负向自检见 `scripts/_import_refs_selftest.mjs`（真的把副本改坏，逐条确认会拦）。
@@ -77,6 +78,14 @@ const QUIET = argv.includes('--quiet')
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(flagValue('--root', path.resolve(HERE, '..')))
 const SRC = path.join(ROOT, 'src')
+/**
+ * 源码别名前缀（默认本应用的 `@/`）。商店（homeos-store）用 `@store/`，故参数化：
+ * 门禁本身只认「别名前缀 + 相对本文件的路径」两种引用形态，别名是什么由调用方决定。
+ * 末尾一律补 `/`，保证 `@store` 与 `@store/` 两种写法都按前缀匹配。
+ */
+const ALIAS_RAW = flagValue('--alias', '@/')
+const ALIAS = ALIAS_RAW.endsWith('/') ? ALIAS_RAW : `${ALIAS_RAW}/`
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /** 需要扫描的代码文件类型；`.d.ts` 是声明产物，跳过。 */
 const SCAN_EXT = /\.(ts|tsx|vue|js|mjs|cjs)$/
@@ -115,10 +124,10 @@ const isDir = (p) => {
   }
 }
 
-/** 把 `@/…` / 相对 spec 解析成绝对基准路径；不归本门禁管的返回 null。 */
+/** 把 `别名…` / 相对 spec 解析成绝对基准路径；不归本门禁管的返回 null。 */
 function toAbsBase(fromFile, spec) {
   const cleaned = spec.split('?')[0].split('#')[0]
-  if (cleaned.startsWith('@/')) return path.join(SRC, cleaned.slice(2))
+  if (cleaned.startsWith(ALIAS)) return path.join(SRC, cleaned.slice(ALIAS.length))
   if (cleaned.startsWith('.')) return path.resolve(path.dirname(fromFile), cleaned)
   return null
 }
@@ -232,8 +241,8 @@ function blankComments(text) {
 const FROM_RE = /\bfrom\s*['"]([^'"]+)['"]/g
 const DYN_RE = /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g
 const SIDE_RE = /(?:^|[\s;{(=])import\s+['"]([^'"]+)['"]/gm
-/** 注释/散文里的 `@/` 字样；`<` `>` `*` `…` 是占位符，收集后再豁免。 */
-const ALIAS_TOKEN_RE = /@\/[A-Za-z0-9_@./\-<>*…]+/g
+/** 注释/散文里的别名 `@/` 字样；`<` `>` `*` `…` 是占位符，收集后再豁免。 */
+const ALIAS_TOKEN_RE = new RegExp(`${escapeRegex(ALIAS)}[A-Za-z0-9_@./\\-<>*…]+`, 'g')
 const PLACEHOLDER = /[*<>…{}]/
 /**
  * 样式表里的引用目标：`@import 'x.css'` / `@import url('x.css')` / `url('a.woff2')`。
@@ -308,8 +317,8 @@ for (const file of walkTargets()) {
     if (specs.has(token)) continue // 已按严格规则查过
     if (inRange(opaques, t.index)) continue // 数据里的字样（codegen 模板串 / 字符串），不管
     if (PLACEHOLDER.test(token) || token.includes('...')) continue // 占位符写法
-    if (!resolves(path.join(SRC, token.slice(2)), { allowDir: true })) {
-      if (!resolvesTailStrip(token.slice(2))) {
+    if (!resolves(path.join(SRC, token.slice(ALIAS.length)), { allowDir: true })) {
+      if (!resolvesTailStrip(token.slice(ALIAS.length))) {
         violations.push({
           file: rel(file),
           rule: '注释中的 @/ 引用无法解析',
@@ -337,8 +346,8 @@ for (const file of walkTargets()) {
       if (!specs.has(target)) specs.set(target, c.index) // 让 `@/` 那遍别再重复报同一条
       const clean = target.split('?')[0].split('#')[0]
       let absBase = null
-      if (clean.startsWith('@/')) {
-        absBase = path.join(SRC, clean.slice(2))
+      if (clean.startsWith(ALIAS)) {
+        absBase = path.join(SRC, clean.slice(ALIAS.length))
       } else if (/^[a-z][a-z0-9+.-]*:/i.test(target) || target.startsWith('//') || target.startsWith('/')) {
         continue // 有 scheme / 协议相对 / 站点绝对：不归本门禁管
       } else if (isImportForm && !(clean.startsWith('./') || clean.startsWith('../'))) {

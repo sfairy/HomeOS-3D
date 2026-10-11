@@ -19,7 +19,7 @@
 
 这里用 ``CurrentUser`` 而**不是** ``LicensedUser``：这几个端点正是「授权不可用时拿来
 修复」的入口，用 ``LicensedUser`` 会在最需要它们的时候恒定 403。授权层级的限制由
-``services/license/guard.py`` 的门禁中间件承担（该中间件对这几个路径豁免，见其模块注释）。
+``domains/license/guard.py`` 的门禁中间件承担（该中间件对这几个路径豁免，见其模块注释）。
 """
 
 from __future__ import annotations
@@ -32,10 +32,10 @@ from pydantic import BaseModel, ConfigDict
 
 from .router import NestRouter
 from ..dependencies import CurrentUser
-from ..security.limiter import rate_limit
-from ..security.request_origin import require_same_origin_write
-from ..services.license import LicenseClientError
-from ..services.license import features as feature_codes
+from ..domains.license import LicenseClientError
+from ..domains.license import features as feature_codes
+from ..platform.security.limiter import rate_limit
+from ..platform.security.request_origin import require_same_origin_write
 
 router = NestRouter(prefix="/license", tags=["license"])
 

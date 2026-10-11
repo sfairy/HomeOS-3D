@@ -36,7 +36,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-#: 与 ``services/app_config/constants.py`` 的 CONFIG_MASK_PLACEHOLDER 一致。
+#: 与 ``domains/app_config/constants.py`` 的 CONFIG_MASK_PLACEHOLDER 一致。
 MASK_PLACEHOLDER = "••••••••"
 
 #: 备份包分区白名单（历史 ``homeos-bundle`` 格式：仅布局与系统参数）。
@@ -106,9 +106,9 @@ def main(argv: list[str] | None = None) -> int:
     os.environ["HOMEOS_DATA_DIR"] = str(data_dir)
 
     from src.config import load_settings
-    from src.core.database import Database
-    from src.services.app_config import AppConfigBackupService, AppConfigService
-    from src.services.ui_config import UiConfigService
+    from src.domains.app_config import AppConfigBackupService, AppConfigService
+    from src.domains.ui_config import UiConfigService
+    from src.platform.core.database import Database
 
     settings = load_settings()
     print(f"  目标库：{settings.database_path}")

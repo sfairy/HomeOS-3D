@@ -202,19 +202,8 @@
 /* ── 颜色统一：原 Tailwind color class → CSS 变量 ── */
 
 /* 引言图标 + 光晕（child component props via :deep）—— 玫红告警 */
-.ar-intro-icon {
-  color: var(--set-danger);
-}
-.ar-intro-orb {
-  background: var(--set-danger-bg);
-  border: var(--hos-hairline) solid var(--set-danger-border);
-}
 
 /* 无 admin 权限提示卡片（extra-class 注入到 SettingsCard 边框/背景） */
-.ar-admin-warn {
-  border-color: var(--set-warn-border) !important;
-  background: var(--set-warn-bg) !important;
-}
 .ar-warn-text {
   color: var(--set-warn);
   /* 窄屏下保持按语义换行，避免中文提示逐字竖排 */
@@ -224,12 +213,6 @@
 }
 
 /* 三个 hub-stat 数值（应用内规则/语音播报/自定义语音） */
-.ar-stat-rules {
-  color: var(--set-danger);
-}
-.ar-stat-voice {
-  color: var(--premium-accent-violet, #c084fc);
-}
 .ar-stat-custom {
   color: var(--set-info);
 }

@@ -1,8 +1,5 @@
 @import 'alert-rules.css';
 /* ── Tailwind 颜色类替换：scoped 引用 CSS 变量 ── */
-.eew-c-muted {
-  color: var(--set-text-faint);
-}
 .eew-c-warn-soft {
   color: var(--set-warn, rgba(251, 191, 36, 0.9));
 }
@@ -11,15 +8,6 @@
 }
 .eew-c-warn-deep {
   color: var(--set-warn-deep, #fb923c);
-}
-.eew-c-sky {
-  color: #fdba74;
-}
-.eew-c-success {
-  color: var(--set-success, #34d399);
-}
-.eew-c-danger {
-  color: var(--set-danger, #f87171);
 }
 
 .eew-ic-sky,

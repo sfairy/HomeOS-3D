@@ -213,39 +213,13 @@
   gap: 4px;
 }
 
-.hcc-card__legend-chip {
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  min-width: 0;
-  padding: 0;
-  border: var(--hos-hairline) solid var(--premium-border);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.025);
-  cursor: pointer;
-  text-align: left;
-  overflow: hidden;
-  transition:
-    opacity 0.15s,
-    background 0.15s;
-}
 
-.hcc-card__legend-chip:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
 
 .hcc-card__legend-chip--off {
   opacity: 0.38;
 }
 
-.hcc-card__legend-chip--off .hcc-card__legend-name {
-  text-decoration: line-through;
-}
 
-.hcc-card__legend-bar {
-  width: 3px;
-  flex-shrink: 0;
-}
 
 .hcc-card__legend-text {
   flex: 1;
@@ -257,22 +231,7 @@
   padding: 4px 6px 4px 5px;
 }
 
-.hcc-card__legend-name {
-  font-size: var(--premium-fs-micro);
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.62);
-  line-height: 1.25;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
-.hcc-card__legend-reading {
-  flex-shrink: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 1px;
-}
 
 .hcc-card__legend-value {
   font-size: var(--premium-fs-micro);
@@ -281,13 +240,7 @@
   color: rgba(255, 255, 255, 0.82);
 }
 
-.hcc-card__legend-chip--temp .hcc-card__legend-value {
-  color: rgba(255, 160, 160, 0.9);
-}
 
-.hcc-card__legend-chip--hum .hcc-card__legend-value {
-  color: rgba(140, 190, 255, 0.9);
-}
 
 .hcc-card__legend-unit {
   flex-shrink: 0;
@@ -296,13 +249,7 @@
   color: rgba(148, 163, 184, 0.45);
 }
 
-.hcc-card__legend-chip--temp .hcc-card__legend-unit {
-  color: rgba(255, 140, 140, 0.55);
-}
 
-.hcc-card__legend-chip--hum .hcc-card__legend-unit {
-  color: rgba(120, 180, 255, 0.55);
-}
 
 /* ── 空态 ── */
 .hcc-card__state {

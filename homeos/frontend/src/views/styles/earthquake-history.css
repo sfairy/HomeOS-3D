@@ -120,10 +120,6 @@
   background: rgba(0, 0, 0, 0.18);
 }
 
-.earthquake-history-view__filters--ghost {
-  visibility: hidden;
-  pointer-events: none;
-}
 
 .earthquake-history-view__filter {
   display: flex;

@@ -649,7 +649,7 @@ export default defineConfig(async (): Promise<UserConfig> => {
           ws: true,
           ...proxyErrorHandling,
         },
-        // 故意不开 changeOrigin：同源写入守卫（backend/src/security/request_origin.py）在未配置
+        // 故意不开 changeOrigin：同源写入守卫（backend/src/platform/security/request_origin.py）在未配置
         // APP_BASE_URL 时以 Origin↔Host 比较判定同源。改写 Host 会让浏览器 Origin
         // （http://localhost:8805）与后端看到的 Host（http://127.0.0.1:8801）不一致，
         // 导致所有受守卫的写请求（如 interaction3d 渲染缓存 PUT）被 403。

@@ -16,14 +16,14 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from .exception_handlers import business_exception_json, nest_error_payload
 from ..config import Settings
-from ..core.errors import BusinessException, ErrorCode, api_error
-from ..core.observability import new_request_id, reset_trace_id, set_trace_id
-from ..security.body_limit import BodyLimitMiddleware
-from ..security.cookies import is_https_deploy_mode
-from ..security.cors import CorsMiddleware
-from ..security.csrf import CsrfMiddleware
-from ..services.license import features as feature_codes
-from ..services.license.guard import is_license_exempt_path
+from ..domains.license import features as feature_codes
+from ..domains.license.guard import is_license_exempt_path
+from ..platform.core.errors import BusinessException, ErrorCode, api_error
+from ..platform.core.observability import new_request_id, reset_trace_id, set_trace_id
+from ..platform.security.body_limit import BodyLimitMiddleware
+from ..platform.security.cookies import is_https_deploy_mode
+from ..platform.security.cors import CorsMiddleware
+from ..platform.security.csrf import CsrfMiddleware
 
 
 class RequestDiagnosticsMiddleware:

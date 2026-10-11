@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..core.entity_domain import get_entity_domain
+from ..platform.core.entity_domain import get_entity_domain
 
 DEFAULT_CRITICAL_DOMAINS = ("light", "switch", "cover", "climate", "media_player", "fan")
 WS_PUSH_CRITICAL_DOMAINS = (*DEFAULT_CRITICAL_DOMAINS, "lock")

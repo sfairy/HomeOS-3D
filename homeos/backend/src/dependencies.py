@@ -14,9 +14,9 @@ from fastapi import Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .core.errors import unauthorized
-from .core.models import LoginSession, User
-from .security.session_store import session_token_hash
+from .platform.core.errors import unauthorized
+from .platform.core.models import LoginSession, User
+from .platform.security.session_store import session_token_hash
 
 
 def get_database_session(request: Request):

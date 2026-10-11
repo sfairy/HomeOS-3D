@@ -37,23 +37,6 @@
   );
 }
 
-/* ── 渐变文字工具类 ──
-   仅用于 14px+ 的标题 / 数值 / 重点文本；
-   正文、标签、描述保持语义色以保证小字号可读性。 */
-.text-gradient {
-  color: var(--page-accent, #34d399);
-}
-
-@supports ((-webkit-background-clip: text) or (background-clip: text)) {
-  .text-gradient {
-    background: var(--page-gradient);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
-  }
-}
-
 .text-gradient--soft {
   color: color-mix(in srgb, var(--page-accent, #34d399) 72%, white);
 }
@@ -69,29 +52,8 @@
 }
 
 /* ── 预设多彩渐变文字（复用 main.css 既有 --gradient-* 预设） ── */
-.text-gradient-aurora {
-  background: var(--gradient-aurora, linear-gradient(135deg, #00f593 0%, #00d4ff 50%, #b44dff 100%));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
 
-.text-gradient-golden {
-  background: var(--gradient-golden, linear-gradient(135deg, #ffd60a 0%, #ff9f0a 50%, #ff375f 100%));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
 
-.text-gradient-royal {
-  background: var(--gradient-royal, linear-gradient(135deg, #5856d6 0%, #bf5af2 50%, #ff2d55 100%));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
 
 .text-gradient-sunset {
   background: var(--gradient-sunset, linear-gradient(135deg, #ff6b3d 0%, #ff3b8b 50%, #bf5af2 100%));

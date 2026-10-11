@@ -34,7 +34,7 @@ class FakeStoreVerificationClient:
         return {"delivered": True, "resendAfter": 120, "deliveryMode": "smtp"}
 
     async def verify_code(self, email: str, code: str) -> dict:
-        from src.services.store import StoreVerificationError
+        from src.domains.store import StoreVerificationError
 
         if code != self._code:
             raise StoreVerificationError("验证码不正确或已过期。", status_code=422)

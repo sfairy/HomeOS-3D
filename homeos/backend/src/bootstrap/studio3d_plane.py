@@ -23,9 +23,9 @@ from fastapi import FastAPI
 
 from .router_registry import register_studio3d_routers
 from ..api.assets import AssetCatalog
-from ..ha.service import HAConnectorService as StudioHAConnectorService
-from ..security.login_limiter import LoginAttemptLimiter
-from ..services.logs.global_log import GlobalLogStore
+from ..domains.ha.integration.service import HAConnectorService as StudioHAConnectorService
+from ..domains.logs.global_log import GlobalLogStore
+from ..platform.security.login_limiter import LoginAttemptLimiter
 
 
 async def install(

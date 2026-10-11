@@ -60,10 +60,7 @@ def main() -> int:
         os.environ.pop("HOMEOS_DATABASE_URL", None)
 
         from src.config import load_settings
-        from src.core import models  # noqa: F401  注册到 Base.metadata
-        from src.core.database import Base, Database
-        from src.core.migrations import SCHEMA_REVISION
-        from src.services.backup.business_backup import (
+        from src.domains.backup.business_backup import (
             EXCLUDED_DB_TABLES,
             RECOVERY_DIR,
             RECOVERY_JOURNAL,
@@ -73,6 +70,9 @@ def main() -> int:
             recover_interrupted_restore,
             restore_business,
         )
+        from src.platform.core import models  # noqa: F401  注册到 Base.metadata
+        from src.platform.core.database import Base, Database
+        from src.platform.core.migrations import SCHEMA_REVISION
 
         settings = load_settings()
         settings.data_dir.mkdir(parents=True, exist_ok=True)
@@ -93,7 +93,7 @@ def main() -> int:
         from datetime import UTC, datetime
 
         from sqlalchemy import select
-        from src.core.models import (
+        from src.platform.core.models import (
             DeviceUsageStat,
             EarthquakeAlertHistory,
             EnergyUsageDaily,
@@ -266,7 +266,7 @@ def main() -> int:
 
         # 服务器明文包（定时自动备份 / 服务器还原共用同一载荷）：
         # create_plain_archive → stage_payload(明文分支) → restore_business
-        from src.services.backup.business_backup import create_plain_archive, stage_payload
+        from src.domains.backup.business_backup import create_plain_archive, stage_payload
 
         plain_zip = create_plain_archive(settings, tmp / "plain", "homeos-full-test.zip")
         check("明文包：生成 zip", plain_zip.is_file() and plain_zip.suffix == ".zip", plain_zip)
@@ -277,7 +277,7 @@ def main() -> int:
         # 回退副本保留策略：连续还原后只保留最近 1 份
         from types import SimpleNamespace
 
-        from src.services.backup.business_backup import BackupCoordinator
+        from src.domains.backup.business_backup import BackupCoordinator
 
         restore_business(settings, plain_stage, dispose=database.engine.dispose)
         restore_business(settings, plain_stage, dispose=database.engine.dispose)

@@ -2,11 +2,12 @@
 
 包结构镜像仓库既有的 homeos-3d / homeos-store Python 约定：
 - ``src.config``         运行期不可变配置（env 装配）
-- ``src.core.*``         数据库、模型、错误、可观测性、迁移
+- ``src.platform.core.*`` 数据库、模型、错误、可观测性、迁移
+- ``src.domains.*``      业务域（含 ``ha/{integration,config}``）
 - ``src.app``            FastAPI 应用工厂（lifespan / 中间件 / 路由 / 静态资源）
 - ``src.run``            uvicorn 启动入口
 
-与商店共用的两个叶子模块（``logging_noise`` / ``core.file_lock``）**不在本包内**：它们在
+与商店共用的三个叶子模块（``logging_noise`` / ``file_lock`` / ``migrations_core``）**不在本包内**：它们在
 ``packages/shared-py/homeos_shared``，由本包导入时挂好 ``sys.path``（见下）。
 
 版本号：构建期烘进 ``src/_version.py``（见根 Dockerfile，且该文件在 ``.gitignore`` 中）；
@@ -46,8 +47,8 @@ def _register_shared_python_root() -> Path | None:
 # 必须在任何 ``from .xxx import …`` 之前执行：下面这些子模块里会 ``import homeos_shared``。
 _register_shared_python_root()
 
-from .core.log import configure_app_logging
 from .env import load_env_files
+from .platform.core.log import configure_app_logging
 
 # 与 Nest ``import 'dotenv/config'`` 对齐：进程启动即装载 .env，
 # 保证任何子模块读取 os.environ 之前生效。

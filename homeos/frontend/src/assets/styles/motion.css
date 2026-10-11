@@ -50,17 +50,7 @@
   transform: scale(0.98);
 }
 
-.hos-panel-hover {
-  transition:
-    transform var(--hos-transition-panel, 0.25s cubic-bezier(0.32, 0.72, 0, 1)),
-    box-shadow var(--hos-transition-panel, 0.25s cubic-bezier(0.32, 0.72, 0, 1)),
-    border-color var(--hos-transition-panel, 0.25s cubic-bezier(0.32, 0.72, 0, 1));
-}
 
-.hos-panel-hover:hover {
-  transform: translateY(var(--hos-hover-lift, -1px));
-  box-shadow: var(--hos-shadow-card-hover, 0 6px 20px rgba(0, 0, 0, 0.28));
-}
 
 .accent-ring:focus-visible,
 .focus-ring:focus-visible {

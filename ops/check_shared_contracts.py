@@ -50,7 +50,7 @@ ROOT = Path(__file__).resolve().parents[1]
 GOLDEN = ROOT / "ops" / "contracts" / "shared-twins.json"
 
 TS_ROOMS = ROOT / "packages" / "shared" / "src" / "room" / "catalog.ts"
-PY_ROOMS = ROOT / "homeos" / "backend" / "src" / "services" / "app_config" / "rooms.py"
+PY_ROOMS = ROOT / "homeos" / "backend" / "src" / "domains" / "app_config" / "rooms.py"
 
 #: `COPY <src> ./<pkg>`：源码目录 → 镜像内包名。容器布局全靠这一行，改它得同步启动器。
 _DOCKER_COPY_PACKAGE = re.compile(r"^\s*COPY\s+(\S+)\s+\./(\w+)\s*$", re.MULTILINE)

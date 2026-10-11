@@ -1,31 +1,6 @@
 /* 设置 Hub 页 · 统一 workspace 壳 */
 
 /* ── 通用 workspace 变量（翡翠/琥珀双主色 + 语义左色条） ── */
-.hub-workspace.settings-card--static,
-.link-workspace.svc-workspace.settings-card--static {
-  --hub-inset-x: var(--settings-inset-x, 2rem);
-  --hub-radius: var(--hos-radius-card, 14px);
-  --hub-surface: linear-gradient(165deg, rgba(255, 255, 255, 0.038) 0%, rgba(0, 0, 0, 0.2) 100%);
-  --hub-surface-border: rgba(var(--page-accent-secondary-rgb), 0.13);
-  --hub-band-bg:
-    radial-gradient(ellipse 85% 120% at 0% 0%, rgba(var(--page-accent-rgb), 0.11) 0%, transparent 58%),
-    radial-gradient(ellipse 55% 45% at 100% 0%, rgba(var(--page-accent-secondary-rgb), 0.08) 0%, transparent 50%),
-    rgba(0, 0, 0, 0.08);
-  padding: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 0%;
-  min-height: 0;
-  align-self: stretch;
-  border-radius: var(--hos-radius-panel, 20px);
-  background:
-    radial-gradient(ellipse 90% 70% at 100% 0%, rgba(var(--page-accent-secondary-rgb), 0.06) 0%, transparent 55%),
-    radial-gradient(ellipse 80% 60% at 0% 100%, rgba(var(--page-accent-rgb), 0.05) 0%, transparent 50%),
-    var(--set-card-surface-bg);
-  border-color: var(--set-card-surface-border);
-  box-shadow: var(--set-card-surface-shadow), var(--set-card-surface-inset);
-}
 
 .hub-glance-band,
 .link-glance-band {

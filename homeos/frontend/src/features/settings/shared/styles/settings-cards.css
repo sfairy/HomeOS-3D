@@ -118,13 +118,6 @@
   background: var(--set-mini-surface-bg-hover, rgba(var(--page-accent-rgb, 148, 163, 184), 0.1));
 }
 
-.hub-stat__icon {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  margin-bottom: 2px;
-  opacity: 0.88;
-}
 
 .hub-stat__val {
   font-size: var(--premium-fs-stat);
@@ -249,34 +242,13 @@
   border-top: none;
 }
 
-.orchestrator-hub .settings-page-inset--tabs .orch-header {
-  background:
-    radial-gradient(ellipse 85% 120% at 0% 0%, rgba(var(--page-accent-rgb), 0.1) 0%, transparent 58%),
-    radial-gradient(ellipse 55% 45% at 100% 0%, rgba(var(--page-accent-secondary-rgb), 0.06) 0%, transparent 50%),
-    rgba(0, 0, 0, 0.12);
-  border-radius: var(--hos-radius-panel, var(--premium-radius-lg, 20px));
-  border: var(--hos-hairline) solid rgba(var(--page-accent-secondary-rgb), 0.12);
-  box-shadow: var(--set-card-surface-inset);
-  overflow: hidden;
-}
 
-.settings-page-inset--tabs .orch-header {
-  border-bottom: var(--hos-hairline) solid var(--set-border-subtle);
-}
 
 .settings-page-inset--tabs .settings-orch-dock--toolbar {
   border-bottom: none;
   background: transparent;
 }
 
-.settings-orchestrator-workspace .orch-builder-panel,
-.settings-orchestrator-workspace .orch-builder-panel.wr-inline,
-.settings-orchestrator-workspace .wr-inline {
-  flex: 1 1 0;
-  min-height: 0;
-  height: auto;
-  align-self: stretch;
-}
 
 /* 卡片内下拉/弹出层：保持卡片可见溢出，滚动仍由 inset--scroll 负责 */
 .settings-page-stack .settings-card.overflow-visible,

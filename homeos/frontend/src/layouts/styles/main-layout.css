@@ -703,31 +703,8 @@ a.icon-btn { color: inherit; text-decoration: none; box-sizing: border-box; }
 .toast-enter-from { opacity: 0; transform: translateY(-16px); }
 .toast-leave-to { opacity: 0; transform: translateY(-8px); }
 
-.ha-offline-toast-anchor {
-  position: fixed;
-  top: calc(var(--hos-tab-bar-offset, 56px) + env(safe-area-inset-top, 0px));
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: var(--z-toast);
-  pointer-events: none;
-}
 
-.ha-offline-toast {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 20px;
-  background: rgba(239,68,68,.88);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: var(--hos-hairline) solid rgba(239,68,68,.25);
-  border-radius: var(--hos-radius-panel);
-  color: #fff;
-  font-size: var(--premium-fs-caption); font-weight: 600;
-  box-shadow: 0 4px 24px rgba(239,68,68,.3), 0 0 40px rgba(239,68,68,.1);
-  white-space: nowrap;
-  cursor: default;
-}
 
-.ha-offline-toast svg { flex-shrink: 0; opacity: 0.9; }
 
 /* ══════════════════════════════════════════════════════════
    响应式布局适配 — 移动端 / 平板
@@ -813,10 +790,6 @@ a.icon-btn { color: inherit; text-decoration: none; box-sizing: border-box; }
     backdrop-filter: none;
   }
   .tab-bar__more-menu {
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
-  .ha-offline-toast {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }

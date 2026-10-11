@@ -59,9 +59,6 @@
 
 /* 布局设置页 layout-edit-theme（仅 settings-shell 内生效） */
 .settings-shell .layout-edit-launch-title { font-size: var(--set-fs-title-sm); }
-.settings-shell .layout-edit-launch-desc { font-size: var(--set-fs-body-sm); }
-.settings-shell .layout-edit-toggle { font-size: var(--set-fs-body-sm); }
-.settings-shell .layout-edit-step-num { font-size: var(--set-fs-micro); }
 .settings-shell .layout-edit-step-text { font-size: var(--set-fs-body-sm); }
 
 /* ==========================================================================
@@ -111,9 +108,6 @@
   font-size: 20px;
 }
 
-.settings-shell .settings-page .alert-stat__val {
-  font-size: 20px;
-}
 
 .settings-shell .settings-page .alert-stat__lbl,
 .settings-shell .settings-page .access-stat__lbl,
@@ -125,9 +119,6 @@
   font-size: var(--set-fs-body-sm);
 }
 
-.settings-shell .settings-page .voice-pipeline__meta {
-  font-size: var(--set-fs-caption);
-}
 
 .settings-shell .settings-page .hub-hero-bar__title {
   font-size: var(--set-fs-title-sm);
@@ -143,9 +134,6 @@
   font-size: var(--set-fs-caption);
 }
 
-.settings-shell .orch-history-head {
-  font-size: var(--set-fs-body);
-}
 
 /* 联动中心 Builder：密集 IDE 区略紧凑，但仍可读 */
 .settings-shell .settings-page__stage--workspace {
@@ -898,20 +886,7 @@
 }
 
 /* 楼层卡片 */
-.layout-floor-card {
-  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
-  border-radius: var(--hos-radius-card, 14px);
-  background: linear-gradient(160deg, rgba(var(--page-accent-rgb, 126, 184, 255), 0.05) 0%, rgba(0, 0, 0, 0.18) 100%);
-  border: var(--hos-hairline) solid rgba(var(--page-accent-rgb, 126, 184, 255), 0.16);
-}
 
-.layout-floor-card__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
 
 .layout-floor-card__index {
   display: inline-flex;
@@ -928,24 +903,5 @@
   border: var(--hos-hairline) solid rgba(var(--page-accent-rgb, 126, 184, 255), 0.25);
 }
 
-.layout-floor-card__name {
-  flex: 1;
-  min-width: 0;
-}
 
-.layout-floor-card__delete {
-  font-size: var(--premium-fs-micro);
-  font-weight: 600;
-  color: rgba(253, 164, 175, 0.75);
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: transparent;
-  border: var(--hos-hairline) solid transparent;
-  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-}
 
-.layout-floor-card__delete:hover {
-  color: #f87171;
-  background: rgba(239, 68, 68, 0.1);
-  border-color: rgba(239, 68, 68, 0.2);
-}

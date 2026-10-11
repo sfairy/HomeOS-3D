@@ -473,7 +473,7 @@ import {
 } from '@/features/security'
 import VPanelSkeleton from '@/components/common/base/VPanelSkeleton.vue'
 import VEmptyState from '@/components/common/base/VEmptyState.vue'
-import { useSecurityView } from '@/composables/security/useSecurityView'
+import { useSecurityView } from '@/features/security'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
 import { useBodyScrollLock } from '@/composables/ui/useBodyScrollLock'
 import { useEscLayer } from '@/composables/ui/useEscStack'

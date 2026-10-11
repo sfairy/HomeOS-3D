@@ -65,7 +65,7 @@ def revision(database_path: Path) -> str:
 def main() -> int:
     from alembic import command
     from src.config import load_settings
-    from src.core import migrations
+    from src.platform.core import migrations
 
     script_dir = BACKEND / "migrations"
     if not script_dir.is_dir():

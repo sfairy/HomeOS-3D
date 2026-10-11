@@ -28,8 +28,8 @@ from .bootstrap.router_registry import register_routers
 from .bootstrap.spa_static import mount_spa_static, register_page_asset_routes, signed_in
 from .bootstrap.studio_shell import install as install_studio_shell
 from .config import Settings, load_settings
-from .core.database import Database
-from .core.observability import decide_metrics_access, format_homeos_prometheus_metrics
+from .platform.core.database import Database
+from .platform.core.observability import decide_metrics_access, format_homeos_prometheus_metrics
 
 #: 健康检查 DB 探针缓存 TTL：/health 为公开端点，避免高频轮询击穿连接。
 DB_PROBE_TTL_SECONDS = 3.0
@@ -81,7 +81,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             getattr(request.app.state, "ha_registry_degraded", False)
         )
         # 启动期已跑迁移 + drift 守卫；此处只暴露期望 revision，不扫库列明细。
-        from .core.migrations import SCHEMA_REVISION
+        from .platform.core.migrations import SCHEMA_REVISION
 
         return {
             "status": "ok" if db_ok else "degraded",

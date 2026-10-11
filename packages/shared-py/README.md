@@ -18,7 +18,8 @@ packages/shared-py/
 └── homeos_shared/       ← 可导入的包，名字稳定，不随 src→app 改名而变
     ├── __init__.py
     ├── logging_noise.py
-    └── file_lock.py
+    ├── file_lock.py
+    └── migrations_core.py
 ```
 
 这个两层形状是被三处硬约束**同时**定出来的，不是随意选的：
@@ -53,4 +54,14 @@ packages/shared-py/
 ``COPY`` / ``find`` 断言是整目录的，门槛是「后端不得有同名文件」这种通用判据，
 ``ruff.toml`` 的 ``known-first-party`` 与 ``pyrightconfig.json`` 的 ``extraPaths`` 挂的都是
 这个包目录而不是某个模块。
+
+分诊台账：评估过、且**已判定不共享**的模块
+------------------------------------------
+台账的作用是「别下轮再评估一次」。每一项都写清**为什么不能共享**，而不只是「没做」。
+
+| 模块 | 结论 | 理由（实测） |
+|------|------|--------------|
+| `core/migrations.py` | **部分共享** → `homeos_shared/migrations_core.py` | 已下沉的与库结构/ORM 无关的叶子逻辑：读写 `alembic_version`、迁移前快照与保留、升级后 integrity/外键核对、脚本目录是否认识某 revision。**留在各自包内**的是编排与两侧确有差异的部分：主应用多出「退役列清理」「数据兼容地板」并返回备份路径，商店的备份/报错文案点名 `store.db.pre-migrate-*`；`_schema_drift`/`_schema_matches_orm` 依赖各自 `Base` 与 `security.schema_guard`；脚本目录布局不同（`migrations/` ↔ `backend/migrations/`）。 |
+| `core/database.py` | **不共享** | 真正逐字相同的只有连接级 PRAGMA 那 4 行；其余是结构性差异：构造函数一边吃 `database_url`、一边吃 `StoreSettings`（并额外提供 `create_store_engine`），会话语义一边是 FastAPI `Depends` 用的生成器、一边是自带 commit/rollback 的 `@contextmanager`，且 `busy_timeout` 一边是毫秒常量、一边是秒常量。抽那条 PRAGMA 的收益（约 6 行）小于让最热的启动路径多一个共享包依赖 —— 维持两份，PRAGMA 集合本身由 `ops/check_schema.py` / `verify:database` 在行为层面兜住。 |
+| `run.py` | **不共享** | 两边除了都调 `uvicorn.run` 之外几乎没有公共面：环境变量名（`PORT`/`HOMEOS_*` ↔ `STORE_RELOAD`/settings）、主机端口的来源（env 解析 ↔ `Settings`）、重载方式（字符串 factory + 关闭超时上限 ↔ `reload_dirs`）、以及一边要 `logging.basicConfig`、一边要首行打版本号。强行合并只会得到一个塞满 `if` 的壳。 |
 """

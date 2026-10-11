@@ -302,8 +302,8 @@ def filter_entities_by_query(
     controllable: bool = False,
 ) -> list[dict[str, Any]]:
     """按状态 / 区域 / 可控性过滤实体并排序（对齐 Nest ``filterEntitiesByQuery``）。"""
-    from ..core.controllable import is_controllable_entity_id
-    from ..core.entity_area import entity_matches_area_filter
+    from ..platform.core.controllable import is_controllable_entity_id
+    from ..platform.core.entity_area import entity_matches_area_filter
 
     result = entities
     if controllable:

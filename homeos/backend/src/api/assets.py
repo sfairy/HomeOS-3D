@@ -26,7 +26,6 @@ try:
 except Exception:
     pass
 
-from ..core.models import Project, ProjectDraft
 from ..dependencies import (
     DatabaseSession,
     LicensedUser,
@@ -37,8 +36,9 @@ from ..dependencies import (
     require_viewer_user_asset,
     viewer_user_asset_ids,
 )
-from ..services.license import features as feature_codes
-from ..services.ui_config.global_popups import global_popups
+from ..domains.license import features as feature_codes
+from ..domains.ui_config.global_popups import global_popups
+from ..platform.core.models import Project, ProjectDraft
 
 router = APIRouter(prefix = '/assets', tags = [
     'assets'])

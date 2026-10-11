@@ -187,13 +187,7 @@
   letter-spacing: 0.04em;
 }
 
-.um-rel--today { background: #10b981; color: #ecfdf5; }
-.um-rel--yesterday { background: #3b82f6; color: #eff6ff; }
 .um-rel--daybefore { background: #8b5cf6; color: #f5f3ff; }
-.um-rel--week { background: #f59e0b; color: #451a03; }
-.um-rel--2week { background: #f97316; color: #fff7ed; }
-.um-rel--month { background: #ef4444; color: #fef2f2; }
-.um-rel--old { background: #78716c; color: #fafaf9; }
 
 .um-section-title {
   margin: 0 0 6px;

@@ -60,11 +60,6 @@
   flex-direction: column;
 }
 
-.hos-panel--compact {
-  padding: var(--hos-panel-padding-compact-y) var(--hos-panel-padding-compact-x);
-  gap: var(--hos-panel-gap-compact);
-  border-radius: var(--hos-radius-card);
-}
 
 .hos-panel--flat {
   padding: 0;

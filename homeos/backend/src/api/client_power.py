@@ -18,8 +18,8 @@ from fastapi import Depends, Request, Response
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from .router import NestRouter
-from ..security.auth_context import require_user
-from ..security.cookies import resolve_cookie_secure_for_request
+from ..platform.security.auth_context import require_user
+from ..platform.security.cookies import resolve_cookie_secure_for_request
 
 router = NestRouter(prefix="/system", tags=["system"])
 

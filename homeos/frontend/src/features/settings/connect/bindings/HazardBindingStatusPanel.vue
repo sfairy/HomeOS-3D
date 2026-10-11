@@ -44,7 +44,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useEnsureVisibleEntities } from '@/composables/entity/useEnsureVisibleEntities'
-import { useHazardBindingStatus } from '@/composables/security/useHazardBindingStatus'
+import { useHazardBindingStatus } from '@/features/security'
 
 // 入参：各 hazard 探测器/阀门/排风实体 id 列表
 const props = defineProps({

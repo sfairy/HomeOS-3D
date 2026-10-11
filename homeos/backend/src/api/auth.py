@@ -29,12 +29,13 @@ from .schemas.auth import (
     UserResponse,
     VerificationRequest,
 )
-from ..core.deps import get_session
-from ..core.models import LoginSession, User
 from ..dependencies import CurrentUser
-from ..security.cookies import ensure_csrf_cookie
-from ..security.login_limiter import LoginAttemptLimiter, retry_after_headers
-from ..security.passwords import (
+from ..domains.store import StoreVerificationError, verification_client_from_settings
+from ..platform.core.deps import get_session
+from ..platform.core.models import LoginSession, User
+from ..platform.security.cookies import ensure_csrf_cookie
+from ..platform.security.login_limiter import LoginAttemptLimiter, retry_after_headers
+from ..platform.security.passwords import (
     PASSWORD_POLICY_MESSAGE,
     hash_password,
     is_credentialless,
@@ -42,9 +43,8 @@ from ..security.passwords import (
     needs_rehash,
     verify_password,
 )
-from ..security.request_origin import require_same_origin_write
-from ..security.session_store import create_login_session, set_session_cookie
-from ..services.store import StoreVerificationError, verification_client_from_settings
+from ..platform.security.request_origin import require_same_origin_write
+from ..platform.security.session_store import create_login_session, set_session_cookie
 
 router = NestRouter(tags=["authentication"])
 
@@ -288,7 +288,7 @@ def logout(
     token = request.cookies.get(settings.cookie_name, "")
     username = "用户"
     if token:
-        from ..security.session_store import session_token_hash
+        from ..platform.security.session_store import session_token_hash
 
         token_hash = session_token_hash(token)
         record = session.scalar(

@@ -31,7 +31,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CATALOG_PATH = ROOT / "ops" / "feature_codes.json"
 
 MODULES: dict[str, Path] = {
-    "主应用": ROOT / "homeos" / "backend" / "src" / "services" / "license" / "features.py",
+    "主应用": ROOT / "homeos" / "backend" / "src" / "domains" / "license" / "features.py",
     "授权商店": ROOT / "homeos-store" / "backend" / "src" / "ops" / "features.py",
 }
 

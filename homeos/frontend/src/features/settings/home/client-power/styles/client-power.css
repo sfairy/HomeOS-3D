@@ -1048,14 +1048,8 @@
   padding: 12px 16px;
   overflow: hidden;
 }
-.cph-icon-success { color: var(--set-success, #6ee7b7); }
-.cph-text-success { color: var(--set-success, #6ee7b7); }
 .cph-icon-info { color: var(--set-info, #7dd3fc); }
 .cph-text-info { color: var(--set-info, #7dd3fc); }
-.cph-icon-warn { color: var(--set-warn, #fcd34d); }
-.cph-text-warn { color: var(--set-warn, #fcd34d); }
-.cph-icon-accent { color: rgba(var(--page-accent-rgb), 0.92); }
-.cph-text-accent { color: rgba(var(--page-accent-rgb), 0.92); }
 
 /* —— SettingsClientPowerPanel —— */
 .charge-hub {

@@ -32,9 +32,9 @@ from fastapi import Depends, Request
 
 from .router import NestRouter
 from .schemas.command_proxy import CallServiceDto
-from ..security.auth_context import require_user
-from ..services.proxy.command_proxy import dispatch_service_call
-from ..services.proxy.command_proxy_auth import RegistryTargetResolver, assert_command_proxy_authorized
+from ..domains.proxy.command_proxy import dispatch_service_call
+from ..domains.proxy.command_proxy_auth import RegistryTargetResolver, assert_command_proxy_authorized
+from ..platform.security.auth_context import require_user
 
 router = NestRouter(tags=["connect"])
 

@@ -15,9 +15,9 @@ from fastapi import Depends, File, Query, Request, UploadFile
 
 from .router import NestRouter
 from .schemas.base import StrictModel
-from ..core.asset_paths import ALLOWED_IMAGE_EXTS
-from ..core.errors import api_error, bad_request
-from ..security.auth_context import require_user
+from ..platform.core.asset_paths import ALLOWED_IMAGE_EXTS
+from ..platform.core.errors import api_error, bad_request
+from ..platform.security.auth_context import require_user
 
 router = NestRouter(prefix="/config", tags=["display"])
 

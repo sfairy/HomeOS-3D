@@ -40,7 +40,7 @@ APPS: dict[str, tuple[Path, str, str]] = {
 }
 
 LAYOUT: dict[str, tuple[Path, str, str, Path]] = {
-    "app": (ROOT / "homeos" / "backend", "src", "src.core.migrations", Path("migrations")),
+    "app": (ROOT / "homeos" / "backend", "src", "src.platform.core.migrations", Path("migrations")),
     "store": (
         ROOT / "homeos-store" / "backend",
         "src",

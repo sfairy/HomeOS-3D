@@ -15,14 +15,14 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from ..config import Settings
-from ..core.errors import (
+from ..platform.core.errors import (
     BusinessException,
     ErrorCode,
     flatten_http_exception_message,
     localize_http_exception_message,
     resolve_api_error_code,
 )
-from ..core.observability import get_trace_id
+from ..platform.core.observability import get_trace_id
 
 _SENSITIVE_5XX_MESSAGE = "服务器内部错误"
 

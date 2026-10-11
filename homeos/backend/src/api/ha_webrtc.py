@@ -21,8 +21,8 @@ from pydantic import BaseModel, Field
 from .ha import active_connection
 from .ha_proxy import _camera_license_allows
 from ..dependencies import ShortLivedLicensedViewer
-from ..ha.client import HAClientError
-from ..ha.crypto import CredentialCipherError
+from ..domains.ha.integration.client import HAClientError
+from ..domains.ha.integration.crypto import CredentialCipherError
 
 logger = logging.getLogger('homeos.ha_webrtc')
 
@@ -97,7 +97,7 @@ def _load_custom_ice_servers(database_manager) -> list[dict[str, Any]]:
     非空时作为该条服务器的 TURN 长凭证一并下发。未配置时返回空列表。
     """
     try:
-        from ..core.app_config import load_raw_config
+        from ..platform.core.app_config import load_raw_config
 
         with database_manager.session_factory() as database:
             raw = load_raw_config(database)

@@ -38,7 +38,7 @@ def _check_one(app: str, *, analyze: bool, wal_checkpoint: bool) -> int:
         os.environ[env_key] = temp_dir
         if app == "app":
             from src.config import load_settings
-            from src.core import migrations
+            from src.platform.core import migrations
 
             settings = load_settings()
             migrations.run_migrations(settings)

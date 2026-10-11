@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..core.entity_domain import get_entity_domain
+from ..platform.core.entity_domain import get_entity_domain
 
 
 def resolve_user_room_key(user: dict[str, Any], fallback_id: str | None = None) -> str:

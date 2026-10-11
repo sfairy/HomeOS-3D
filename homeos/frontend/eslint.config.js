@@ -3,7 +3,6 @@
 import fs from 'node:fs'
 import globals from 'globals'
 import unusedImports from 'eslint-plugin-unused-imports'
-import tseslint from '@typescript-eslint/eslint-plugin'
 import tsparser from '@typescript-eslint/parser'
 import vueParser from 'vue-eslint-parser'
 // 规则核与商店（`homeos-store/eslint.config.js`）共用：parser/插件装配 + 「抓 bug」那批规则
@@ -23,21 +22,6 @@ const APP_FILES = ['src/**/*.{js,ts,vue}', 'scripts/**/*.{js,ts,mjs}']
 const APP_IGNORES = ['src/studio/**']
 
 /**
- * 迁移期 compat barrel 目录：整目录只放「纯 re-export 桩」（真源在新域里）。
- *
- * 这些桩天生要 `export * from '@/features/...'`，与层规则相冲，故从层规则里豁免。
- * 豁免不会被滥用 —— `check-frontend-deps.mjs` 里 `COMPAT_BARREL_DIRS` 会强制它们只能是纯 re-export。
- *
- * 只剩 `composables/security`：`components/widgets/security/PanelWidget.vue` 需要
- * `useSecurityPanelStatus`，而 `components/` 不许 import `@/features/**`，且该 composable
- * 带 store 依赖不能进 `shared/` —— 只能留这一条桩。原来的 `utils/security` 桩已在
- * P2 utils 收尾批清除（4 个纯函数真源下沉 `src/shared/security/utils/`）。
- */
-const COMPAT_BARREL_FILES = [
-  'src/composables/security/**/*.ts',
-]
-
-/**
  * 域边界（与 scripts/check-frontend-deps.mjs 同规则）。
  *
  * 自动枚举 `src/features/` 下的域，为每个域生成「禁止深引用别的域」的规则 —— 新增域无需改这里。
@@ -55,7 +39,7 @@ const CROSS_DOMAIN_EXEMPT = [
 
 const crossDomainBlocks = FEATURE_DOMAINS.map((domain) => ({
   files: [`src/features/${domain}/**/*.{js,ts,vue}`],
-  ignores: [...APP_IGNORES, ...CROSS_DOMAIN_EXEMPT, ...COMPAT_BARREL_FILES],
+  ignores: [...APP_IGNORES, ...CROSS_DOMAIN_EXEMPT],
   rules: {
     'no-restricted-imports': [
       'error',
@@ -122,7 +106,7 @@ export default [
       'src/stores/**/*.ts',
       'src/composables/**/*.ts',
     ],
-    ignores: [...APP_IGNORES, ...COMPAT_BARREL_FILES],
+    ignores: [...APP_IGNORES],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -262,22 +246,4 @@ export default [
     },
   },
   ...crossDomainBlocks,
-  // 迁移期 compat barrel：只做纯 re-export，不套层规则（仅保留最基础检查）。
-  {
-    files: COMPAT_BARREL_FILES,
-    languageOptions: {
-      ecmaVersion: 2022,
-      parser: tsparser,
-      parserOptions: { sourceType: 'module', ecmaVersion: 2022 },
-      globals: { ...globals.browser, ...globals.node },
-    },
-    plugins: {
-      '@typescript-eslint': tseslint,
-      'unused-imports': unusedImports,
-    },
-    rules: {
-      'no-undef': 'off',
-      '@typescript-eslint/no-explicit-any': 'error',
-    },
-  },
 ]

@@ -140,10 +140,6 @@
   margin: -10px 0;
 }
 
-.num-slider {
-  flex: 1;
-  height: 4px;
-}
 
 .cover-slider::-webkit-slider-runnable-track,
 .num-slider::-webkit-slider-runnable-track {
@@ -158,7 +154,6 @@
 }
 
 .cover-slider::-webkit-slider-runnable-track { height: 6px; }
-.num-slider::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; }
 
 .cover-slider::-moz-range-track,
 .num-slider::-moz-range-track {
@@ -167,7 +162,6 @@
 }
 
 .cover-slider::-moz-range-track { height: 6px; }
-.num-slider::-moz-range-track { height: 4px; border-radius: 2px; }
 
 .cover-slider::-moz-range-progress,
 .num-slider::-moz-range-progress {
@@ -178,7 +172,6 @@
 }
 
 .cover-slider::-moz-range-progress { height: 6px; }
-.num-slider::-moz-range-progress { height: 4px; border-radius: 2px; }
 
 .cover-slider::-webkit-slider-thumb,
 .num-slider::-webkit-slider-thumb {
@@ -197,13 +190,6 @@
   margin-top: -7px;
 }
 
-.num-slider::-webkit-slider-thumb {
-  width: 16px;
-  height: 16px;
-  margin-top: -6px;
-  background: var(--accent, #0A84FF);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--accent, #0A84FF) 40%, transparent);
-}
 
 .cover-slider::-moz-range-thumb,
 .num-slider::-moz-range-thumb {
@@ -219,12 +205,6 @@
   box-shadow: 0 2px 8px color-mix(in srgb, var(--accent, #0A84FF) 50%, rgba(0, 0, 0, 0));
 }
 
-.num-slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  background: var(--accent, #0A84FF);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--accent, #0A84FF) 40%, transparent);
-}
 
 /* ---- 模式/预设卡片 ---- */
 .mode-card {

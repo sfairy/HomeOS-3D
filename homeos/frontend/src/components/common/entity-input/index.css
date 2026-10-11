@@ -174,7 +174,6 @@
   padding-top: 4px;
   padding-bottom: 6px;
 }
-.ei-dropdown--empty { padding: 20px; text-align: center; }
 .ei-empty-hint { flex-shrink: 0; font-size: var(--premium-fs-micro); color: var(--hos-dd-empty-color); padding: 12px; }
 
 .ei-group { border-bottom: var(--hos-hairline) solid rgba(255,255,255,0.04); }

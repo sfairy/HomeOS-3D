@@ -19,14 +19,8 @@ from starlette.background import BackgroundTask
 
 from .router import NestRouter
 from ..api.studio3d import _deliver_pending
-from ..core.models import User
 from ..dependencies import authenticated_short_lived_user
-from ..security.auth_context import require_user
-from ..security.login_limiter import retry_after_headers
-from ..security.passwords import verify_password
-from ..security.request_origin import require_same_origin_write
-from ..security.session_store import session_token_hash
-from ..services.backup.business_backup import (
+from ..domains.backup.business_backup import (
     JOB_TTL_SECONDS,
     MAX_ARCHIVE,
     BackupError,
@@ -36,6 +30,12 @@ from ..services.backup.business_backup import (
     refresh_runtime_after_restore,
     restore_business,
 )
+from ..platform.core.models import User
+from ..platform.security.auth_context import require_user
+from ..platform.security.login_limiter import retry_after_headers
+from ..platform.security.passwords import verify_password
+from ..platform.security.request_origin import require_same_origin_write
+from ..platform.security.session_store import session_token_hash
 
 router = NestRouter(prefix="/backups", tags=["backups"])
 

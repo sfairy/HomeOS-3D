@@ -6,8 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from .ha.client import HAClientError
-from .ha.connection_setup import validate_address_input
+from .domains.ha.integration.client import HAClientError
+from .domains.ha.integration.connection_setup import validate_address_input
 
 
 class HAConnectionInput(BaseModel):

@@ -127,9 +127,6 @@
 .hos-modal-panel--danger { --hos-accent: 255, 69, 58; --hos-accent-end: 239, 68, 68; }
 .hos-modal-panel--purple { --hos-accent: 95, 212, 255; --hos-accent-end: 56, 189, 248; }
 .hos-modal-panel--amber { --hos-accent: 245, 158, 11; --hos-accent-end: 251, 146, 60; }
-.hos-modal-panel--emerald { --hos-accent: 52, 211, 153; --hos-accent-end: 16, 185, 129; }
-.hos-modal-panel--sky { --hos-accent: 56, 189, 248; --hos-accent-end: 96, 165, 250; }
-.hos-modal-panel--pink { --hos-accent: 236, 72, 153; --hos-accent-end: 219, 39, 119; }
 
 /* ---- 头部 ---- */
 .hos-modal-head {
@@ -347,10 +344,6 @@
 .hos-modal-input::placeholder,
 .hos-modal-search::placeholder { color: var(--hos-text-faint); }
 
-.hos-modal-input--compact {
-  font-size: var(--premium-fs-micro, 12px);
-  color: rgba(255, 255, 255, 0.55);
-}
 
 .hos-modal-dropzone {
   background: var(--premium-glass-bg, rgba(255,255,255,0.03));
@@ -362,13 +355,7 @@
   border-color: color-mix(in srgb, #BF5AF2 35%, rgba(0, 0, 0, 0));
 }
 
-.hos-modal-dropzone__icon {
-  background: rgba(139, 92, 246, 0.15);
-}
 
-.hos-modal-dropzone__hint {
-  color: var(--hos-text-secondary);
-}
 
 .hos-modal-search-wrap {
   position: relative;
@@ -429,42 +416,9 @@
 }
 
 /* ---- 辅助块 ---- */
-.hos-modal-alert {
-  font-size: var(--premium-fs-caption);
-  color: rgba(255, 255, 255, 0.55);
-  background: rgba(255, 69, 58, 0.08);
-  border: var(--hos-hairline) solid rgba(255, 69, 58, 0.18);
-  border-radius: var(--hos-radius-card);
-  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  line-height: 1.5;
-}
 
-.hos-modal-divider {
-  position: relative;
-  margin: 18px 0;
-}
 
-.hos-modal-divider::before {
-  content: '';
-  position: absolute;
-  inset: 50% 0 auto;
-  height: var(--hos-hairline);
-  background: var(--premium-glass-bg-hover);
-}
 
-.hos-modal-divider span {
-  position: relative;
-  display: block;
-  width: fit-content;
-  margin: 0 auto;
-  padding: 0 14px;
-  font-size: var(--premium-fs-caption);
-  color: var(--hos-text-secondary);
-  background: inherit;
-}
 
 .hos-modal-link {
   font-size: var(--premium-fs-caption);

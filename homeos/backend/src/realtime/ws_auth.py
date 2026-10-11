@@ -12,8 +12,8 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from .access import resolve_entity_restrictions
-from ..core.errors import api_error
-from ..security.session_store import resolve_login_session
+from ..platform.core.errors import api_error
+from ..platform.security.session_store import resolve_login_session
 
 
 def extract_auth_token_from_cookie(cookie_header: str | None, cookie_name: str = "auth_token") -> str | None:

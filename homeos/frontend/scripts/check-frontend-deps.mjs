@@ -68,9 +68,13 @@ const CROSS_DOMAIN_WHITELIST = new Set([
  * 这些目录里的文件是「纯 re-export 桩」，因此被 ESLint 的层规则整体放行（见 eslint.config.js）。
  * 为防放行被滥用，这里**强制**这些目录只允许纯 re-export —— 一旦有人塞进真实实现就报错。
  *
+ * 当前为空 —— 最后一个兼容 barrel（`composables/security`，5 个桩）已清除：4 个真源本在
+ * `features/security/composables/`，调用方改走域根 barrel；`useSecurityPanelStatus` 带 store
+ * 依赖，真源改落 `@/composables/security/useSecurityPanelStatus`（不再是桩）。机制保留，供将来过渡。
+ *
  * @type {string[]}
  */
-const COMPAT_BARREL_DIRS = ['composables/security']
+const COMPAT_BARREL_DIRS = []
 
 const IMPORT_RE = /(?:\bfrom\s+|\bimport\s*\(|\bimport\s+)['"]([^'"]+)['"]/g
 
@@ -90,6 +94,9 @@ const usedCrossDomain = new Set()
 
 /** 层白名单里确实被用到的条目（用于检测过期条目）。 */
 const usedLayerWhitelist = new Set()
+
+/** composables→components 白名单里确实被用到的条目（用于检测过期条目）。 */
+const usedComposablesComponents = new Set()
 
 function walk(dir, out = []) {
   if (!fs.existsSync(dir)) return out
@@ -279,6 +286,8 @@ function checkFile(file) {
           rule: 'composables must not import components',
           spec,
         })
+      } else {
+        usedComposablesComponents.add(rel)
       }
     }
 
@@ -336,6 +345,17 @@ const staleLayer = [...LAYER_WHITELIST].filter((key) => !usedLayerWhitelist.has(
 if (staleLayer.length) {
   console.error(`层违规白名单已过期（${staleLayer.length} 条）：请从 LAYER_WHITELIST 删除\n`)
   for (const key of staleLayer) console.error(`  - ${key}`)
+  process.exit(1)
+}
+
+const staleComposablesComponents = [...COMPOSABLES_COMPONENTS_WHITELIST].filter(
+  (rel) => !usedComposablesComponents.has(rel),
+)
+if (staleComposablesComponents.length) {
+  console.error(
+    `composables→components 白名单已过期（${staleComposablesComponents.length} 条）：请从 COMPOSABLES_COMPONENTS_WHITELIST 删除\n`,
+  )
+  for (const rel of staleComposablesComponents) console.error(`  - ${rel}`)
   process.exit(1)
 }
 

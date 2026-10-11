@@ -46,7 +46,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _smoke_auth_support import csrf_headers, install_fake_verification, register_local_user
 from fastapi.testclient import TestClient
 from src.app import create_app
-from src.services.license import LicenseService
+from src.domains.license import LicenseService
 
 USERNAME = "actuser"
 EMAIL = "act@example.com"

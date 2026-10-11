@@ -191,6 +191,14 @@ python3 ops/frontend_domain_classify.py --domain energy --bucket shared
 
 ## Where to edit
 
+> **`bun run classify:domains` 只是启发式，不是归宿判决。** `ops/frontend_domain_classify.py` 只做「入边测试」
+> （入边出现 `stores/` `composables/` 等下层 → SHARED，只有 `views/`/`layouts/` → LEAF），它**看不到**
+> 「`components → features` 被门禁禁止」「是壳层装配点」「消费者跨多个视图 + 多个域」这类约束，因而会对下面这些
+> **有意留位**的桶给出 `LEAF → src/features/` 的错误建议：`components/{dashboard,page-shell,setup}`（壳层装配点 / 多域消费者，
+> 且依 DAG 消费 `components/widgets`）、`composables/{life,widget,api,auth,security,settings-kernel}`（store 耦合 → 进不了 `shared/`，
+> 消费者含 `components/` → 也进不了 `features/`；`api`/`auth` 是 app 层胶水而非域）。**最终归宿以本表为准**，
+> 各条的实测理由见本表对应行。
+
 | Task | Location |
 |------|----------|
 | Settings panels / nav | `features/settings/` |
@@ -202,7 +210,7 @@ python3 ops/frontend_domain_classify.py --domain energy --bucket shared
 | Security feature UI | `features/security/` |
 | Events / Notifications feature UI（域） | `features/events/`、`features/notifications/`（各 4 个 View* 组件 + 样式 + 具名 barrel，导出名带 `Events*`/`Notifications*` 前缀以避开两域同名文件）；视图模型在 `features/*/composables/` |
 | Events / Notifications 纯逻辑 | `shared/events/utils/`（`events-display`）、`shared/notifications/utils/`（`analytics`、`dnd`、`ws-sync`）。**不能进 features**：`dnd.util` 被 `composables/widget/useNotificationCenter`、`ws-sync.util` 被 `composables/entity/ws-bind` 反向依赖 |
-| Security hooks | `composables/security/`（**唯一残留的 compat barrel 目录**：5 个纯 re-export 桩指向 `features/security/composables/`。为什么不消除：`components/widgets/security/PanelWidget.vue` 要 `useSecurityPanelStatus`，而 `components/` 禁 import `@/features/**`，且该 composable 带 store 依赖进不了 `shared/`） |
+| Security hooks | 4 个真源在 `features/security/composables/`（`useSecurityView` / `useHazardBindingStatus` / `useReduceSecuritySensitivity` / `useYamlValidation`），跨域经域根 barrel `@/features/security`。`useSecurityPanelStatus` 带 store 依赖（`@/stores/auth.store`），真源落在 `composables/security/useSecurityPanelStatus.ts`（`components/widgets/security/PanelWidget.vue` 要它，而 `components/` 禁 import `@/features/**`、它又进不了 `shared/`）。原 `composables/security/*` 的 5 个 compat 桩已全部删除，`COMPAT_BARREL_DIRS` 现为空 |
 | Security 纯函数 | `shared/security/utils/`（`panel-arm`、`panel-layout`、`panel-zones-bootstrap`、`zones-api` —— 因 `components/` 要消费故落 shared）+ `features/security/utils/`（域内自用：`event-display`、`sensor-filter`、`zone-mode`、`zone-room`） |
 | 跨域纯常量 / 纯类型池 | `shared/constants/`（14 文件）、`shared/types/`（20 文件）—— P3 从根级 `constants/`、`types/` 整体并入（205 处引用一次性改写，仓库内无配置硬编码这两个路径）。两者是**叶子池**：不得 import 域 barrel（门禁 `isLeafConsumer` 已把新前缀一并认作叶子），也不得反向依赖 stores/composables（`shared/types/floating-hub.ts` 唯一一处 store 类型引用已改成结构化声明 `{ layoutConfig: UILayoutConfig }`） |
 | 推荐系统（推荐卡算法 / 类型） | `shared/recommend/`（`utils/` 9 个 `*-recommend.util` + `insight.util`；`types/recommend.types.ts`；Vue 侧 `composables/{useRecommendInsight,useEventLogStats}`）。**无 store 耦合 → 整体进 shared**：消费者是 `features/settings/{composables/interact/alert-rules.internals,connect/connection/EventLogRecordFilterSection.vue}` |
@@ -298,10 +306,63 @@ python3 ops/frontend_domain_classify.py --domain energy --bucket shared
 注入死组 / 死分支 / 改键名，并用合成组对象压依赖组、兜底组、缺 `name`、`test` 非字面量各分支；
 两条都挂进 `check:deps`（CI 已在跑 `bun run --cwd homeos/frontend check:deps`）。
 
-与之相邻的另一类存量：`wr-*` 命名空间在 6 个**存活**样式表（`features/settings/shared/styles/*`、`assets/styles/*`、
-`features/home-mode/editor/styles/HomeMode.css`）里定义了 103 个类名，而 `.vue/.ts/.js` 中**一个都没用到**
-（`useTeleportTargetGuard` 与 `scaled-viewport.css` 里只剩选择器痕迹的 `.wr-modal-shade`，本轮已清）。
-这属于遗留待专项清理，**勿顺手删**：这些文件同时还在服务别的活类，需要逐块判定。
+与之相邻的存量本轮已清理：`wr-*` 命名空间（更早的 widget-renderer 外壳遗留）在 6 个样式表
+（`features/settings/shared/styles/*`、`assets/styles/*`、`features/home-mode/editor/styles/HomeMode.css`）
+里定义了 100+ 类名，而应用侧（`.vue/.ts/.js`、`public/`、studio、后端模板）没有任何地方把 `wr-*` 加到
+元素上 —— 唯一的「命中」是门禁自检 `_css_classes_selftest.mjs` 里的夹具类名（`wr-bar`/`wr-slider`…），
+那是工具在给这个命名空间**续命**，不算发射点。
+
+判定与删除口径：一个**规则块**只要其**每条逗号分支**都硬依赖某个**不可发射**的类名（该分支永远不会
+匹配），整块可判死、直接删除；删除是纯删除。删完复核幂等（再跑一次不再产生变化），并强制校验删除区间
+**整行对齐**、读写**原样保留 LF/CRLF**（仓库两种行尾混存，通用换行会把 CRLF 文件整篇算成改动而看不出
+真删了多少行）。实际：`orchestrator-premium.css` −749、`HomeMode.css` −108、`settings-forms.css` −99
+（这几个数字是相对 HEAD 的累计值，含批次 C 已在同一工作区里删掉的部分）。
+
+残留仅剩「活选择器里的 no-op 守卫 / 混合选择器列表里的死分支」，按「含仍存活类名的选择器不动」保留：
+`main.css` 的 `input[type="range"]:not(.wr-range)…`（`:not(.wr-x)` 恒真，删不删等价）与
+`linkage-hub.css` / `settings-cards.css` 里 `.orch-builder-workspace .linkage-builder-drawer-builder, …`
+这类混合列表（首条分支仍然活）。全仓现存 `wr-` 字样仅 14 处，全部落在这两类里。
+
+门禁 `scripts/check-css-classes.mjs` 兜底：一旦又冒出「整块 wr- 死规则」就报红（自检 `_css_classes_selftest.mjs`）。
+它的判定口径比人扫**更宽**（只看分支里有没有 `.wr-*`），所以清理脚本必须覆盖 `:is(...)` / `:deep(...)` 开头的
+选择器 —— 早先漏掉这一类，门禁一直红着却没人清（本轮已补，门禁转绿）。
+
+### 死 CSS 的严格判定器（`ops/css_dead_classes.py`）
+
+`wr-*` 只是一小片。要按类名判死，需要一个**模拟类名如何被发射**的扫描器，而不是「见前缀就删」或
+「子串搜一下」。`ops/css_dead_classes.py` 枚举发射来源（两个前端的 `src`/`public`、`packages/shared`、
+后端 `.py`、`.json`），把每个类名归入五桶：
+
+| 桶 | 含义 | 是否可删 |
+|---|---|---|
+| `literal` | 字面量里出现过该整词（`class=`、`classList.add`、`:class` 对象键…） | 否 |
+| `dynamic` | 模板串 / 字符串拼接的静态前（后）缀能拼出它（`` `dgm-modal-head--${domain}` ``） | 否 |
+| `runtime` | 框架 / 库运行期自己加上的类（Vue `<Transition name=x>` 的 `x-enter-active`、`router-link-active`、`swiper-*`） | 否 |
+| `css-only` | 只在别的 `.css` 里出现，源码发射不到 | 否（只报告） |
+| `nowhere` | 源码、动态前后缀、其它 CSS 全无 | **是** |
+
+三个必须防的坑（都真实踩过）：**词边界**（`.climate-card` 与 `dgm-climate-card` 是两个不同的 class，
+子串扫描会把死规则「救活」，而 `.climate-card` 其实已经没人发射）、**通用前后缀**（门槛设成 5 字符会
+把 `is-armed` 这种由 `` `is-${tone}` `` 拼出来的**活**状态类判死 —— 门槛必须低到 3）、**自指**
+（把死类名门禁及其自检夹具算作发射来源，`wr-` 就会被自己续命，永远清不掉）。
+
+`css-only` 桶（只在别的 `.css` 里出现、源码发射不到）本身不构成活证据 —— CSS 选择器不会把类名加到
+元素上，它只表示「这大概率是我们自己的类，值得人工确认」。开 `--treat-css-only-as-dead` 前做过一次
+全仓**反向核对**（1,398 个候选类名 × 9,400 个文件），命中 0 后才并桶。
+
+结果：94 个样式表合计 **−14976 行**（`git diff --numstat` 插入行仅 2，那 2 行是相邻空行在 diff 里的重排）。
+分两类：63 个样式表逐块删死规则（−6746 行），31 个**孤儿样式表整表删除**（−8230 行）。孤儿表的判据是
+**三条同时成立**：① 没有 `import` / `@import` / `import.meta.glob` / `sw.js` 预缓存引用它（已核 `index.html`
+与 `public/sw.js`）；② 表内规则涉及的类名要么在别的活样式表里另有定义（`list-page*`、`hcc-card`、
+`quick-actions-card`、`widget-glass-card`… 均已在 `main.css`/`list-page.css`/`QuickActionsCard.css` 等命中），
+要么已无任何组件发射（对应功能在重构中删除）；③ 反向搜索确认不是被漏掉的发射点。唯一例外是
+`event-time` 看似只在该表里定义，但它实际出现处是 `is-event-time`（状态钩子，永久保护）与
+`sec-event-time--selected`，不是独立类名 —— 同样是残留。
+
+反向核对做了两遍：并桶前对 1,398 个 `css-only` 候选类名扫了 9,400 个文件；删表后又把所有被判死的类名
+拿去未被扫描的角落（`ops/`、根文件、`design/`、文档）和第三方 `node_modules` 里各搜一遍。两次命中都是 0
+（`node_modules` 里只撞上 `active`/`empty`/`group`/`hotspot` 这类通用词，且都在 `pinia`/`echarts` 的
+**变量名或注释**语境里，不是 class）—— 说明没有漏掉的发射点。
 
 ## 跨应用共享包（`@homeos/shared`）—— 主应用 ↔ 授权商店
 

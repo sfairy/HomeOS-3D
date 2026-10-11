@@ -168,7 +168,7 @@ import {
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { fetchBindingsGaps } from '@/services/api/system'
 import { runHazardDrill as runHazardDrillApi } from '@/services/api/security'
-import { useYamlValidation } from '@/composables/security/useYamlValidation'
+import { useYamlValidation } from '@/features/security'
 import { useSettingsSidebarReentryReset } from '@/composables/ui/hub-viewport.internals'
 import { useSettingsHubRouteSection } from '@/features/settings/composables/hub-ui.internals'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'

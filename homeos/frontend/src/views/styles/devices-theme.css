@@ -27,10 +27,6 @@
   border-radius: calc(var(--acc-radius, 14px) + 2px);
 }
 
-.dev-card--compact {
-  padding: 14px;
-  border-radius: var(--hos-radius-card);
-}
 
 .dev-card__header {
   display: flex;
@@ -53,18 +49,8 @@
   letter-spacing: 0.01em;
 }
 
-.dev-card__subtitle {
-  font-size: var(--premium-fs-micro);
-  color: var(--set-text-tertiary);
-}
 
 /* ── 面板（详情 Tab 内容区） ── */
-.dev-panel {
-  padding: 0;
-  border: none;
-  background: transparent;
-  box-shadow: none;
-}
 
 /* ── 刷新按钮 ── */
 .dev-btn-refresh {
@@ -287,12 +273,6 @@
   color: var(--set-text-tertiary);
 }
 
-.dev-chart-wrap__legend-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--hos-radius-pill);
-  flex-shrink: 0;
-}
 
 .dev-chart-canvas {
   width: 100%;

@@ -19,18 +19,18 @@ from fastapi import Body, Depends, Query, Request
 
 from .router import NestRouter
 from .schemas.base import StrictModel
-from ..core.errors import api_error, bad_request
-from ..core.pagination import parse_page_limit
-from ..core.retention import RETENTION_TABLE_KEYS
 from ..dependencies import require_license_feature
-from ..security.auth_context import require_user
-from ..services.app_config.room_meta import (
+from ..domains.app_config.room_meta import (
     build_public_room_meta_from_ha_areas,
     filter_env_sensor_map_to_known_areas,
     resolve_voice_rooms,
 )
-from ..services.license import features as feature_codes
-from ..services.state_store.entity_area import PUBLIC_CONFIG_AREA_WAIT_MS
+from ..domains.license import features as feature_codes
+from ..domains.state_store.entity_area import PUBLIC_CONFIG_AREA_WAIT_MS
+from ..platform.core.errors import api_error, bad_request
+from ..platform.core.pagination import parse_page_limit
+from ..platform.core.retention import RETENTION_TABLE_KEYS
+from ..platform.security.auth_context import require_user
 
 router = NestRouter(prefix="/system", tags=["system"])
 

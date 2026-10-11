@@ -184,14 +184,6 @@ html.editor-viewport-fit body {
 }
 
 /* 可折叠三栏 */
-.sc-shell {
-  display: grid;
-  height: calc(100vh - var(--sc-header-height));
-  height: calc(100dvh - var(--sc-header-height));
-  min-height: 480px;
-  overflow: hidden;
-  grid-template-columns: var(--sc-left, 260px) 6px minmax(0, 1fr) 6px var(--sc-right, 280px);
-}
 
 /* 编辑器侧栏折叠：宽度归零（勿用 rail 窄轨，否则旧 navigator 正文会挤爆） */
 .sc-shell--left-collapsed {
@@ -211,52 +203,16 @@ html.editor-viewport-fit body {
   --sc-left: 0px;
 }
 
-.sc-splitter {
-  position: relative;
-  z-index: 2;
-  cursor: col-resize;
-  background: transparent;
-}
 
-.sc-splitter::after {
-  content: '';
-  position: absolute;
-  inset: 0 2px;
-  background: var(--hos-border-subtle);
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
 
-.sc-splitter:hover::after,
-.sc-splitter:focus-visible::after {
-  opacity: 1;
-}
 
-.sc-panel {
-  min-width: 0;
-  overflow: auto;
-  background: var(--hos-surface-panel);
-  border-color: var(--hos-border-subtle);
-}
 
 .sc-panel--left {
   border-right: var(--hos-hairline) solid var(--hos-border-subtle);
 }
 
-.sc-panel--right {
-  border-left: var(--hos-hairline) solid var(--hos-border-subtle);
-}
 
-.sc-panel--rail {
-  overflow: hidden;
-}
 
-.sc-workspace {
-  position: relative;
-  min-width: 0;
-  overflow: hidden;
-  background: var(--hos-surface-0);
-}
 
 .sc-zoom-bar {
   display: inline-flex;
@@ -580,14 +536,6 @@ body.interaction3d-stage.is-background-hidden #preview-3d {
 }
 
 /* 画布缩放层 */
-.workspace-zoom-host {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  transform-origin: center center;
-}
 
 #editor-canvas.sc-canvas-zoom,
 #dashboard-preview.sc-canvas-zoom {
@@ -663,28 +611,7 @@ body.interaction3d-stage.is-background-hidden #preview-3d {
 }
 
 /* 总览 Display 辅助条 */
-.sc-display-bar {
-  position: absolute;
-  left: 50%;
-  bottom: max(16px, env(safe-area-inset-bottom, 0px));
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border: var(--hos-hairline) solid var(--hos-border-subtle);
-  border-radius: var(--hos-radius-panel);
-  background: var(--hos-surface-panel);
-  box-shadow: var(--hos-shadow-card);
-  transform: translateX(-50%);
-  pointer-events: auto;
-}
 
-.sc-display-bar__hint {
-  color: var(--hos-text-faint);
-  font-size: 11px;
-  white-space: nowrap;
-}
 
 /* AFH 与场景导航叠层约定 */
 .afh-root {

@@ -96,7 +96,7 @@ import httpx
 from _smoke_auth_support import csrf_headers, install_fake_verification, register_local_user
 from fastapi.testclient import TestClient
 from src.app import create_app
-from src.services.license import features as feature_codes
+from src.domains.license import features as feature_codes
 
 #: 目录里全部增量模块码：featureAccess 必须逐个下发，前端才能按标志显隐入口。
 MODULE_FEATURE_CODES = sorted(feature_codes.MODULE_FEATURES)
@@ -134,7 +134,7 @@ def _smoke_instance_id() -> str:
     复用主应用自己的实现而不是在这里重写哈希公式：公式一改口径就会分叉，
     而分叉的后果正是本脚本要避免的那种「认错设备」。
     """
-    from src.services.license.hardware import hardware_instance_id
+    from src.domains.license.hardware import hardware_instance_id
 
     return hardware_instance_id(
         machine_override=os.environ["APP_HARDWARE_MACHINE_ID"],

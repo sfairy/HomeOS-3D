@@ -41,10 +41,6 @@
   background: rgba(var(--module-accent-admin-sub-rgb), 0.1);
   border: var(--hos-hairline) solid rgba(var(--module-accent-admin-sub-rgb), 0.2);
 }
-.orb-red {
-  background: rgba(var(--set-danger-rgb), 0.1);
-  border: var(--hos-hairline) solid rgba(var(--set-danger-rgb), 0.2);
-}
 
 /* ── 站点品牌 · accent 顶光（单层，不叠底壳） ── */
 .general-brand-card {

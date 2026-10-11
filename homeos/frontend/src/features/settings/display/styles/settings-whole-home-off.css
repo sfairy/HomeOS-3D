@@ -1,11 +1,4 @@
-.wh-icon-danger {
-  color: var(--set-danger, #fda4af);
-}
 
-.wh-off-intro-orb {
-  background: rgba(251, 113, 133, 0.1);
-  border: var(--hos-hairline) solid rgba(251, 113, 133, 0.22);
-}
 
 .wh-off-toggle {
   position: relative;

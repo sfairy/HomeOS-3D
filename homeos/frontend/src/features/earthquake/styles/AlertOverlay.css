@@ -129,9 +129,6 @@
   color: var(--premium-accent-amber, #ff9500);
   opacity: 0.6;
 }
-.eew-c-danger {
-  color: var(--set-danger, #fda4af);
-}
 .eew-c-danger-soft {
   color: var(--set-danger, #fda4af);
   opacity: 0.85;

@@ -8,7 +8,7 @@
 - 广播 API：ha_status / state_changed_batch / entities_stale / ha_queue_dropped /
   notification / home_mode / automation_executed / security_* / presence_* /
   energy_anomaly / frigate_detection / room_presence / tts_speak / earthquake_*；
-- HA connector 事件接入 + 领域事件 fan-out（见 ``ha/service.py``、``realtime/domain_events.py``）。
+- HA connector 事件接入 + 领域事件 fan-out（见 ``domains/ha/integration/service.py``、``realtime/domain_events.py``）。
 """
 
 from __future__ import annotations
@@ -35,8 +35,8 @@ from .subscription import is_entity_visible_to_client, resolve_user_room_key
 from .ws_auth import extract_auth_token_from_cookie, resolve_ws_user
 from .ws_buffer import resolve_ws_max_buffer_bytes
 from .ws_config import load_state_store_config, load_ws_push_config
-from ..core.entity_domain import get_entity_domain
-from ..core.observability import record_ha_sync_fe_latency_samples, record_ha_sync_latency
+from ..platform.core.entity_domain import get_entity_domain
+from ..platform.core.observability import record_ha_sync_fe_latency_samples, record_ha_sync_latency
 
 _SERVER_TOKEN = "server"
 
@@ -97,7 +97,7 @@ class RealtimeGateway:
     def _is_origin_allowed(origin: str | None) -> bool:
         if not origin:
             return True
-        from ..security.cookies import is_origin_allowed, resolve_allowed_origins
+        from ..platform.security.cookies import is_origin_allowed, resolve_allowed_origins
 
         return is_origin_allowed(origin, resolve_allowed_origins())
 
@@ -607,8 +607,8 @@ class RealtimeGateway:
         """通知送达回写（失败静默；对齐 ``markNotificationDelivered``）。"""
         from datetime import UTC, datetime
 
-        from ..core.models import Notification
-        from ..services.notification.stats import parse_json_array
+        from ..domains.notification.stats import parse_json_array
+        from ..platform.core.models import Notification
 
         def _write() -> None:
             database = self.app.state.database
