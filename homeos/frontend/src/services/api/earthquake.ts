@@ -2,12 +2,12 @@
  * 地震预警模块 REST API 封装
  *
  * 职责：封装地震预警连接状态、HA 坐标配置、历史事件、全球地震查询等接口。
- * 依赖：../api-client 提供的 apiGet / apiPost / apiDelete。
+ * 依赖：./client 提供的 apiGet / apiPost / apiDelete。
  * 端点范围：/earthquake/status、/earthquake/ha-config、/earthquake/latest、/earthquake/history、
  *           /earthquake/history/simulation、/earthquake/test、/earthquake/dismiss、/earthquake/global。
  */
 import type { AxiosRequestConfig } from 'axios'
-import { apiDelete, apiGet, apiPost } from '../api-client'
+import { apiDelete, apiGet, apiPost } from './client'
 
 /** 地震预警模块状态载荷 */
 export interface EarthquakeStatusPayload {

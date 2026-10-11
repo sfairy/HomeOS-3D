@@ -135,7 +135,7 @@ def main() -> None:
                 sys.executable,
                 "-m",
                 "uvicorn",
-                "backend.app.app:create_asgi_app",
+                "app.app:create_asgi_app",
                 "--factory",
                 "--host",
                 "0.0.0.0",

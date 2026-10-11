@@ -3,7 +3,7 @@
 **A6 收敛**：命令下发只有一条实现通道。``/services/call``、``/ha/services/call`` 与
 ``/modules/interaction3d/control`` 三条 HTTP 入口各自保留自己的校验（实体白名单 /
 license + 服务白名单 / 3D 绑定校验），但执行统一走
-``services.command_proxy.dispatch_service_call`` —— 幂等去重 → HA 未连接时拦截高风险
+``services.proxy.command_proxy.dispatch_service_call`` —— 幂等去重 → HA 未连接时拦截高风险
 → 连接器下发。三条入口不再各自调用连接器。
 
 逐条对齐 Nest CommandProxyController：授权（白名单）→ 执行。
@@ -33,8 +33,8 @@ from fastapi import Depends, Request
 from .router import NestRouter
 from .schemas.command_proxy import CallServiceDto
 from ..security.auth_context import require_user
-from ..services.command_proxy import dispatch_service_call
-from ..services.command_proxy_auth import RegistryTargetResolver, assert_command_proxy_authorized
+from ..services.proxy.command_proxy import dispatch_service_call
+from ..services.proxy.command_proxy_auth import RegistryTargetResolver, assert_command_proxy_authorized
 
 router = NestRouter(tags=["connect"])
 

@@ -14,7 +14,7 @@ from typing import Any
 
 from fastapi import FastAPI
 
-from .. import studio3d_plane
+from . import studio3d_plane
 from ..config import Settings
 from ..core import migrations
 from ..core.database import Database
@@ -45,7 +45,6 @@ from ..services.channels import (
     WecomService,
 )
 from ..services.client_power import ClientPowerService
-from ..services.command_proxy import CommandProxyService
 from ..services.earthquake import (
     EarthquakeCatalogNotifyService,
     EarthquakeGlobalService,
@@ -53,15 +52,16 @@ from ..services.earthquake import (
     EewLeaderService,
     EewPollService,
 )
-from ..services.event_log import EventLogService
-from ..services.ha_config import load_active_ha_endpoints, load_ha_endpoints
-from ..services.ha_filters import AlertRuleWatchIndex, HaStateChangeRouter
+from ..services.ha.ha_config import load_active_ha_endpoints, load_ha_endpoints
+from ..services.ha.ha_filters import AlertRuleWatchIndex, HaStateChangeRouter
+from ..services.ha.state_ingress_coalesce import StateIngressCoalesceService
 from ..services.home_mode.service import HomeModeService
-from ..services.jobs import JobRegistryService
 from ..services.license import LicenseService
 from ..services.license import features as feature_codes
 from ..services.lifestyle import MediaSceneService
+from ..services.logs.event_log import EventLogService
 from ..services.notification.service import NotificationService
+from ..services.proxy.command_proxy import CommandProxyService
 from ..services.retention.service import DatabaseRetentionService
 from ..services.security.away_simulation import AwaySimulationService
 from ..services.security.bus import LocalEventBus
@@ -74,16 +74,16 @@ from ..services.security.panel import SecurityConfigProvider, SecurityPanelServi
 from ..services.security.presence import PresenceService
 from ..services.security.service import SecurityService
 from ..services.setup import SetupWizardService
-from ..services.state_ingress_coalesce import StateIngressCoalesceService
 from ..services.state_store.entity_area import EntityAreaEnrichmentService
 from ..services.state_store.entity_references import EntityReferencesService
 from ..services.state_store.entity_sync_filter import HaEntitySyncFilterService
 from ..services.system import DeviceHealthService, DeviceManagementService, SystemService
 from ..services.system.embed_proxy import EmbedProxyService
+from ..services.system.jobs import JobRegistryService
 from ..services.system.ops import ExternalApiService, MoviePilotProxyService
+from ..services.system.updates import STORE_UPDATES_PATH, UpdateChecker
 from ..services.ui_config import UiConfigService
 from ..services.weather import WeatherAutoLinkageService, WeatherWatchService
-from ..updates import STORE_UPDATES_PATH, UpdateChecker
 
 logger = logging.getLogger("homeos.app")
 

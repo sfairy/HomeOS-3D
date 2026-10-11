@@ -22,7 +22,7 @@ from .stats import parse_json_array
 from ..alerts.channels import resolve_alert_rule_channels
 from ..alerts.condition import evaluate_condition
 from ..alerts.templates import format_alert_rule_message
-from ..ha_filters import AlertRuleWatchIndex
+from ..ha.ha_filters import AlertRuleWatchIndex
 from ...core.errors import api_error, bad_request
 from ...core.models import AlertRule
 from ...core.runtime_kv import load_runtime_kv, persist_runtime_kv

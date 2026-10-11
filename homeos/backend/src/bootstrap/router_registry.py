@@ -46,7 +46,7 @@ from ..api.ui_config import router as ui_config_router
 from ..api.voice import router as voice_router
 from ..api.ws_proxy import router as ws_proxy_router
 from ..modules.interaction3d.api import router as interaction3d_router
-from ..updates import router as updates_router
+from ..services.system.updates import router as updates_router
 
 API_PREFIX = "/api/v1"
 

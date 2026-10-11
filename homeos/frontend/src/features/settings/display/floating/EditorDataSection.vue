@@ -25,7 +25,7 @@ import { AFH_THEMES } from '@/features/settings/composables/display/layout-float
 import {
   AFH_SEMANTIC_COLOR_PRESETS,
   normalizeHexColor,
-} from '@/utils/floorplan/floating-entity-colors.util'
+} from '@/composables/entity/floating-entity-colors.util'
 
 // 入参：浮动组件对象（含 type 用于区分实体/ AQI 等）
 defineProps({

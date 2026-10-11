@@ -2,10 +2,10 @@
  * 智能代理与消息通道 REST API 封装
  *
  * 职责：封装 AI 代理心跳、对话、消息通道状态查询等接口。
- * 依赖：../api-client 提供的 apiGet / apiPost。
+ * 依赖：./client 提供的 apiGet / apiPost。
  * 端点范围：/agent/ping、/agent/chat、/channels/status。
  */
-import { apiGet, apiPost } from '../api-client'
+import { apiGet, apiPost } from './client'
 
 /** 代理心跳检测结果 */
 export interface AgentPingResult {

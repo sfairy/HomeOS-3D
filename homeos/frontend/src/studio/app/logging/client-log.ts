@@ -564,7 +564,7 @@ type ResourceErrorTarget = EventTarget & {
      * securitypolicyviolation 事件带 violatedDirective / blockedURI / sourceFile，
      * 足以直接定位「哪条指令拦了什么、来源在哪一行」。
      *
-     * 外壳页下发的策略见 backend/src/studio_shell.py 的 `_csp_header`。
+     * 外壳页下发的策略见 backend/src/bootstrap/studio_shell.py 的 `_csp_header`。
      */
     bridgeWindow.addEventListener(
       "securitypolicyviolation",

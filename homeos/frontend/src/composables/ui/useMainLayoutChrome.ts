@@ -32,7 +32,7 @@ import { useEntitiesStore } from '@/stores/entities.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useHaConnectionStore } from '@/stores/ha-connection.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import { turnOffWholeHome } from '@/utils/home/batch-actions'
+import { turnOffWholeHome } from '@/composables/home/batch-actions'
 import {
   canUseWholeHomeOff,
   buildWholeHomeOffConfirmText,

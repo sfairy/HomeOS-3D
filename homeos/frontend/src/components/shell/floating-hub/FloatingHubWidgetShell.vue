@@ -60,7 +60,7 @@
  * - FloatingHubContextKey：父组件注入的上下文
  * - FloatingHub{Entity,Clock,Metric,Panel}Widget：具体部件渲染器
  * - @/types/layout：FloatingWidget 部件类型定义
- * - @/utils/floorplan/floating-entity-colors.util：实体自定义颜色检测
+ * - @/composables/entity/floating-entity-colors.util：实体自定义颜色检测
  */
 import { computed, inject, unref } from 'vue'
 import { Grip } from '@lucide/vue'
@@ -70,7 +70,7 @@ import FloatingHubClockWidget from '@/components/shell/floating-hub/FloatingHubC
 import FloatingHubMetricWidget from '@/components/shell/floating-hub/FloatingHubMetricWidget.vue'
 import FloatingHubPanelWidget from '@/components/shell/floating-hub/FloatingHubPanelWidget.vue'
 import type { FloatingWidget } from '@/types/layout'
-import { hasEntityCustomColors, shouldTintAfhWidget } from '@/utils/floorplan/floating-entity-colors.util'
+import { hasEntityCustomColors, shouldTintAfhWidget } from '@/composables/entity/floating-entity-colors.util'
 import { canonicalizeWidgetType } from '@/utils/registry/widget-catalog'
 
 // 部件实例

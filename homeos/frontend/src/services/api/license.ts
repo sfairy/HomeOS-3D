@@ -3,7 +3,7 @@
  *
  * 职责：查询联网租约授权状态、用「购买邮箱 + 激活码」激活、显式重试续租 / 恢复，
  *       以及把授权状态码 / 错误信封翻译成面向用户的中文文案。
- * 依赖：../api-client 提供的 apiGet / apiPost；@/utils/core/error-message 的统一错误文案。
+ * 依赖：./client 提供的 apiGet / apiPost；@/utils/core/error-message 的统一错误文案。
  * 端点：GET /license/status、GET /license/availability、POST /license/activate、
  *       POST /license/reactivate、POST /license/retry。
  *
@@ -11,7 +11,7 @@
  * 均要求登录会话（激活会上报本机账号名）。因此**门禁探测一律走 `/availability`**
  * （未登录也能读），`/status` 只用于已登录的管理面（编辑器诊断）。
  */
-import { apiGet, apiPost } from '../api-client'
+import { apiGet, apiPost } from './client'
 import { getApiErrorMessage, isUnauthorizedError } from '@/utils/core/error-message'
 
 /** 授权状态机（与后端 LicenseStatus 对齐）。 */

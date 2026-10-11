@@ -96,11 +96,11 @@ import {
   rectToDropdownPosition,
   viewportPointToPopupAnchor,
   measureDropdownFitWidth,
-} from '@/utils/ui/popup-position-dropdown.util'
+} from '@/composables/ui/popup-position-dropdown.util'
 import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
 import { useEscLayer } from '@/composables/ui/useEscStack'
 import { isLicenseFeatureGranted } from '@/router/license-gate'
-import { getTeleportContainerSize } from '@/utils/ui/popup-position-shared.util'
+import { getTeleportContainerSize } from '@/composables/ui/popup-position-shared.util'
 import Screensaver from '@/components/common/Screensaver.vue'
 const WeatherBackground = defineAsyncComponent(() => import('@/layouts/WeatherBackground.vue'))
 // 仪表盘外壳：浮动组件 / 右侧栏 / 页脚。

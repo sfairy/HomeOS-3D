@@ -7,12 +7,12 @@
   - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
  */
 import { useNotificationsView } from '@/composables/notifications/useNotificationsView'
-import NotificationsViewHero from '@/views/notifications/ViewHero.vue'
-import NotificationsViewToolbar from '@/views/notifications/ViewToolbar.vue'
-import NotificationsViewAnalytics from '@/views/notifications/ViewAnalytics.vue'
-import NotificationsViewStream from '@/views/notifications/ViewStream.vue'
+import NotificationsViewHero from '@/features/notifications/ViewHero.vue'
+import NotificationsViewToolbar from '@/features/notifications/ViewToolbar.vue'
+import NotificationsViewAnalytics from '@/features/notifications/ViewAnalytics.vue'
+import NotificationsViewStream from '@/features/notifications/ViewStream.vue'
 import '@/assets/styles/list-page-dual-pane.css'
-import '@/views/notifications/premium.css'
+import '@/features/notifications/premium.css'
 
 const {
   hours,

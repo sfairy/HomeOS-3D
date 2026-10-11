@@ -11,7 +11,7 @@ from typing import Any
 import httpx
 
 from .config import load_security_config
-from ..ha_config import load_active_ha_endpoints
+from ..ha.ha_config import load_active_ha_endpoints
 from ...core.app_config import load_raw_config
 from ...core.models import ProjectConfig
 

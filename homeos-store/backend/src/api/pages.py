@@ -38,8 +38,8 @@ RESERVED_PREFIXES = (
 
 
 def _shell_text(request: Request, account: Account | None = None) -> str:
-    templates: Path = request.app.state.settings.templates_dir
-    template_path = templates / SHELL_TEMPLATE_NAME
+    shell_dir: Path = request.app.state.settings.shell_dir
+    template_path = shell_dir / SHELL_TEMPLATE_NAME
     if not template_path.exists():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

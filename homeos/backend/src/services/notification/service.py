@@ -39,8 +39,8 @@ from .stats import (
 )
 from ..alerts.dnd import current_hour_in, is_dnd_active
 from ..alerts.sources import is_life_safety_notification  # noqa: F401 - 供外部/测试引用
-from ..ha_filters import AlertRuleWatchIndex, HaStateChangeRouter
-from ..rooms import resolve_room_label_from_ha_areas
+from ..app_config.rooms import resolve_room_label_from_ha_areas
+from ..ha.ha_filters import AlertRuleWatchIndex, HaStateChangeRouter
 from ...core.models import Notification
 
 logger = logging.getLogger("homeos.notification")

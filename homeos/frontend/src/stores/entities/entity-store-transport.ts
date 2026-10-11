@@ -9,8 +9,8 @@
  *
  * 关键依赖：
  * - socket.io-client：Socket.IO 客户端
- * - @/utils/entity/socket.util：socket URL / 鉴权 / 选项构造
- * - @/utils/entity/ws-bind：绑定事件处理器（initial_states / state_changed / 重连等）
+ * - @/composables/entity/socket.util：socket URL / 鉴权 / 选项构造
+ * - @/composables/entity/ws-bind：绑定事件处理器（initial_states / state_changed / 重连等）
  * - @/utils/entity/ws-sync：连接级同步状态（loadingFallbackTimer 等）
  * - @/utils/entity/sync-failure.util：失败处理
  *
@@ -24,8 +24,8 @@ import {
   buildEntitySocketAuth,
   buildEntitySocketOptions,
   buildEntitySocketUrl,
-} from '@/utils/entity/socket.util'
-import { bindEntitySocketHandlers } from '@/utils/entity/ws-bind'
+} from '@/composables/entity/socket.util'
+import { bindEntitySocketHandlers } from '@/composables/entity/ws-bind'
 import { createEntitySocketSyncState } from '@/utils/entity/ws-sync'
 import { handleEntityFallbackFailure } from '@/utils/entity/sync-failure.util'
 import type { EntitySocketSyncState, EntityTransportDeps } from '@/types/entity-store'

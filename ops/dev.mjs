@@ -286,7 +286,7 @@ function anonymousWhitelistComplete() {
 /** 商店前端产物是否覆盖了 `frontend/src` 的最新改动。 */
 function storeFrontendBuildCurrent() {
   return buildCoversSources(
-    path.join(STORE_FRONTEND, "templates", "index.html"),
+    path.join(STORE_FRONTEND, "index.html"),
     path.join(HOMEOS_STORE, "frontend", "src"),
   );
 }

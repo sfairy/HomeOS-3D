@@ -29,7 +29,7 @@ from ..app_config.room_meta import (
     is_room_hidden_in_map,
     list_visible_env_sensor_map_room_ids,
 )
-from ..rooms import DEFAULT_ROOM_CATALOG, entity_matches_env_room
+from ..app_config.rooms import DEFAULT_ROOM_CATALOG, entity_matches_env_room
 from ..security.config import load_home_timezone
 from ...core.background import spawn_background
 from ...core.entity_domain import get_entity_domain
@@ -817,7 +817,7 @@ class AdvisorUsageService:
             return []
 
     def _room_label(self, room: str) -> str:
-        from ..rooms import resolve_room_label_from_ha_areas
+        from ..app_config.rooms import resolve_room_label_from_ha_areas
 
         return resolve_room_label_from_ha_areas(
             room, self._app_config.get("envSensorMap"), self._cached_ha_areas()

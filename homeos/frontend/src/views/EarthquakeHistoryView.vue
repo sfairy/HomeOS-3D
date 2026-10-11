@@ -353,7 +353,7 @@ import {
 import {
   formatEarthquakeMagnitude,
   earthquakeMagnitudeTone,
-} from '@/utils/earthquake/util'
+} from '@/composables/earthquake/earthquake-layout.util'
 import { formatLocaleString } from '@/utils/format/locale-format.util'
 import {
   EEW_MAGNITUDE_OPTIONS,

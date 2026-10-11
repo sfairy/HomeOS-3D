@@ -125,7 +125,7 @@ class ChannelsService:
         if not isinstance(channels, list) or not channels or not str(message or "").strip():
             return
 
-        from ..push_time import with_push_timestamp
+        from ..notification.push_time import with_push_timestamp
 
         status = await self.get_status()
         text = with_push_timestamp(message)

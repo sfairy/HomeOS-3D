@@ -15,7 +15,7 @@ import { getLargeEntityThreshold, configEpoch } from '@/utils/config/frontend-co
 import { usePaginatedEntityList } from '@/composables/entity/usePaginatedEntityList'
 import { useRouteEntityProjection } from '@/composables/entity/useRouteEntityProjection'
 import { useEnsureVisibleEntities } from '@/composables/entity/useEnsureVisibleEntities'
-import { resolveListRowEntity } from '@/utils/entity/projection-row.util'
+import { resolveListRowEntity } from '@/composables/entity/projection-row.util'
 import { logger } from '@/utils/core/logger'
 import { getEntityDisplayName, collectIndexedEntityIds } from '@/utils/entity/derived.util'
 import { getDomainLabel } from '@/utils/device/domain-labels.util'

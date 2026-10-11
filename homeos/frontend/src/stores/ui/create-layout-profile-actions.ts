@@ -21,7 +21,7 @@ import {
 } from '@/services/api/config'
 import { logger } from '@/utils/core/logger'
 import { writeStoredProfileId } from './create-layout-state'
-import { bindSelfTerminalProfile } from '@/utils/config/resolve-active-profile.util'
+import { bindSelfTerminalProfile } from '@/composables/config/resolve-active-profile.util'
 import { inferTerminalLabel } from '@/utils/client/infer-terminal-label.util'
 import type { UILayoutConfig } from '@/types/layout'
 

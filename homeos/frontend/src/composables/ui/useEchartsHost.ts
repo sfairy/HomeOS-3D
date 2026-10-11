@@ -8,7 +8,7 @@
  *
  * 职责边界：宿主只管实例生命周期与渲染调度；option 构建（数据/样式）留在调用方。
  * echarts 通过动态 import 惰性加载（模块级缓存），保留调用方的分包语义；
- * 动画选项等轻量配置从 @/utils/chart/kiosk-animation 静态导入。
+ * 动画选项等轻量配置从 @/composables/ui/kiosk-animation 静态导入。
  *
  * 依赖：vue、chart-resize.util（调度与 ResizeObserver）、kiosk-animation（动画开关）。
  */
@@ -20,7 +20,7 @@ import {
 } from '@/utils/ui/chart-resize.util'
 import type { EChartsCoreOption } from 'echarts/core'
 import type * as EchartsModuleNS from '@/utils/chart/echarts'
-import { getKioskAnimationOptions } from '@/utils/chart/kiosk-animation'
+import { getKioskAnimationOptions } from '@/composables/ui/kiosk-animation'
 
 type EchartsModule = typeof EchartsModuleNS
 type ChartInst = ReturnType<EchartsModule['default']['init']>

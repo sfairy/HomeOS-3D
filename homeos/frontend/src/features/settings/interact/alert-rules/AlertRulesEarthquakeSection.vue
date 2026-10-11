@@ -370,7 +370,7 @@ import { useChromeStore } from '@/stores/chrome.store'
 import { triggerEarthquakeTest } from '@/services/api/earthquake'
 import { useEarthquakeStatusQuery } from '@/composables/earthquake/useEarthquakeStatusQuery'
 import { reopenEarthquakeWizard } from '@/composables/earthquake/useEarthquakeBootstrap'
-import { syncEarthquakeHomeCoordsFromHa } from '@/utils/earthquake/ha-coords.util'
+import { syncEarthquakeHomeCoordsFromHa } from '@/composables/earthquake/ha-coords.util'
 import { schedulePoll } from '@/utils/core/poll-scheduler'
 import {
   EEW_CITY_PRESETS,

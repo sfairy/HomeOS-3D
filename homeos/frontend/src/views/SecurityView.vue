@@ -468,18 +468,18 @@ import ListPageHero from '@/components/page-shell/ListPageHero.vue'
 import ListPageMetrics from '@/components/page-shell/ListPageMetrics.vue'
 import HaDegradeBanner from '@/components/common/HaDegradeBanner.vue'
 import MediaPagerControls from '@/components/security/MediaPagerControls.vue'
-import SecurityOverview from '@/views/security/Overview.vue'
+import SecurityOverview from '@/features/security/Overview.vue'
 import VPanelSkeleton from '@/components/common/base/VPanelSkeleton.vue'
 import VEmptyState from '@/components/common/base/VEmptyState.vue'
 import { useSecurityView } from '@/composables/security/useSecurityView'
 import { useFocusTrap } from '@/composables/ui/useFocusTrap'
 import { useBodyScrollLock } from '@/composables/ui/useBodyScrollLock'
 import { useEscLayer } from '@/composables/ui/useEscStack'
-import '@/views/security/styles/security.css'
+import '@/features/security/styles/security.css'
 import './styles/security-view.css'
 
 const SecurityMonitorPanel = defineAsyncComponent(
-  () => import('@/views/security/MonitorPanel.vue'),
+  () => import('@/features/security/MonitorPanel.vue'),
 )
 
 const {

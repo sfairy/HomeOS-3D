@@ -355,7 +355,7 @@ HOMEOS_IMAGE=homeos:local HOMEOS_STORE_IMAGE=homeos-store:local \
 
 Cython `.so` 与架构绑定：`dist/<项目>/backend/linux-<arch>/` 一份只对应一个架构；`--arch amd64|arm64` 可与宿主不同，但跨架构依赖 QEMU，会慢很多。
 
-**产物里的包名是 `app`，不是 `src`**：源码目录按约定叫 `homeos/backend/src`，但构建阶段用 `COPY homeos/backend/src ./backend/app`（商店是 `./app`）把它映射过去再交给 Cython —— Cython 的模块名取自文件路径，映射之后 `.so` 里烤进去的就是 `backend.app.*` / `app.*`，`dist/` 里因此不存在任何名为 `src` 的目录。
+**产物里的包名是 `app`，不是 `src`**：源码目录按约定叫 `homeos/backend/src`，构建阶段用 `COPY homeos/backend/src ./app` 把它映射过去再交给 Cython —— Cython 的模块名取自文件路径，映射之后 `.so` 里烤进去的就是 `app.*`，`dist/` 里因此不存在任何名为 `src` 的目录。主应用与商店用**同一条**映射（`.../src → ./app`），镜像里都是 `/app/app`，区别只在装什么、以什么入口启动。
 
 产物里**没有任何明文 `.py`**：后端包之外，`migrations/` 与 `alembic.ini` 也都不进 `dist/`（Dockerfile 的构建阶段用 `find /app \( -name '*.py' -o -name '*.pyc' \)` 兜底断言）。发行版不需要 Alembic —— 全新库由后端按 ORM 元数据直接建，再写入结构基线版本号（见两侧 `backend/src/core/migrations.py` 的 `_create_schema` 与 `SCHEMA_REVISION`）；老库接管、备份这些行为不变。`ops/check_schema.py` 会额外验证「ORM 建库」与「迁移脚本建库」结构等价，所以少了迁移脚本也不会让新库缺表。
 

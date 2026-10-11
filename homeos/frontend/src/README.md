@@ -37,7 +37,9 @@ Enforced by:
 | Devices UI | `components/devices/` |
 | Device hooks | `composables/device/` (+ entity device helpers documented there) |
 | Device pure helpers | `utils/device/` |
-| Security page shell | `views/security/` |
+| Security page shell | `views/SecurityView.vue` |
+| Security feature UI | `features/security/` |
+| Events / Notifications feature UI | `features/events/`, `features/notifications/` |
 | Security reusable UI | `components/security/` |
 | Security hooks / pure | `composables/security/`, `utils/security/` |
 | Entity shared UI | `components/entities/`, `components/entity-ui/` |
@@ -48,8 +50,8 @@ Enforced by:
 
 ## Settings feature module
 
-Settings UI lives under `features/settings/{connect,display,system,interact,automate,home,shared}/`.  
-`features/settings/` is a compatibility shim (re-exports) during migration and should stay empty of real UI.
+Settings UI lives under `features/settings/{connect,display,system,interact,automate,home,shared}/`.
+`views/SettingsView.vue` is the thin route shell; the real panels/nav live under `features/settings/`.
 
 ## Studio
 

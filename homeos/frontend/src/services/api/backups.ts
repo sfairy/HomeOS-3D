@@ -3,7 +3,7 @@
  * POST /backups/export · POST /backups/inspect · DELETE /backups/jobs/{ticket} · POST /backups/restore
  */
 import type { AxiosRequestConfig } from 'axios'
-import { apiDelete, apiPost } from '../api-client'
+import { apiDelete, apiPost } from './client'
 
 const BACKUP_TIMEOUT_MS = 5 * 60 * 1000
 

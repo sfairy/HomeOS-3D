@@ -42,10 +42,10 @@ from ..config import Settings
 from ..core.app_config import load_raw_config
 from ..core.database import Database
 from ..core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, ProjectDraft, utc_now
-from ..global_log import GlobalLogStore, _safe_text, event_context
-from ..global_popups import global_popups
 from ..panel.entity_refs import document_entity_ids
 from ..services.app_config.defaults import DEFAULT_APP_CONFIG
+from ..services.logs.global_log import GlobalLogStore, _safe_text, event_context
+from ..services.ui_config.global_popups import global_popups
 
 LOGGER = logging.getLogger(__name__)
 HA_ENDPOINT_RECHECK_SECONDS = 60

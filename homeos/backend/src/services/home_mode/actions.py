@@ -19,9 +19,9 @@ import logging
 from typing import Any
 
 from .presets import collect_home_mode_target_actions, resolve_action_kind
-from ..entity_execute_acl import assert_entity_targets_execute_authorized
 from ..home_exec.execute_action_sequence import execute_action_sequence
 from ..home_exec.snapshot_restore import build_snapshot_restore_calls
+from ..security.entity_execute_acl import assert_entity_targets_execute_authorized
 from ...core.errors import api_error, bad_request, not_found
 
 logger = logging.getLogger("homeos.home_mode")

@@ -19,9 +19,9 @@ from starlette.concurrency import run_in_threadpool
 
 from ..core.models import Project, ProjectDraft, StudioInteractionSync
 from ..dependencies import DatabaseSession, LicensedUser
-from ..global_popups import global_popups
 from ..modules.interaction3d.studio_cleanup import confirmation_token, identities, plan_cleanup
 from ..schemas import Studio3DDraftUpdate
+from ..services.ui_config.global_popups import global_popups
 
 router = APIRouter(prefix='/studio3d', tags=['studio3d'])
 MAX_DRAFT_BYTES = 67108864

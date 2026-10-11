@@ -27,7 +27,6 @@ from ..dependencies import (
     require_viewer_entity,
     viewer_entity_ids,
 )
-from ..global_log import event_context
 from ..ha.client import HAClientError
 from ..ha.connection_setup import addresses_label, failed_endpoint_summary, probe_endpoints
 from ..ha.crypto import CredentialCipherError
@@ -43,9 +42,10 @@ from ..schemas import (
     HATestRequest,
 )
 from ..security.session_store import session_token_hash
-from ..services.command_proxy import build_service_call_dto, dispatch_service_call
-from ..services.command_proxy_auth import RegistryTargetResolver, assert_command_proxy_authorized
 from ..services.license import features as feature_codes
+from ..services.logs.global_log import event_context
+from ..services.proxy.command_proxy import build_service_call_dto, dispatch_service_call
+from ..services.proxy.command_proxy_auth import RegistryTargetResolver, assert_command_proxy_authorized
 
 router = APIRouter(prefix='/ha', tags=['home-assistant'])
 runtime_router = APIRouter(tags=['runtime'])

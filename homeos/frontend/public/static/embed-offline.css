@@ -4,7 +4,7 @@
  *
  * 为什么单独一个文件，而不是写在 HTML 里的 <style>：
  * 内嵌反代挂在 `/api/v1/embed-proxy/**` 下，属于「应用界面」路径，会被
- * backend/src/studio_shell.py 的 `_apply_security_headers` 套上外壳页 CSP
+ * backend/src/bootstrap/studio_shell.py 的 `_apply_security_headers` 套上外壳页 CSP
  * （`style-src 'self'`）。行内 <style> 会被浏览器直接拦下，那段样式等于白写，
  * 页面只剩裸 HTML。外链到本文件即可在严格 CSP 下正常生效。
  *

@@ -14,7 +14,7 @@ import { handleSystemConfigPatchError } from '@/composables/config/system-config
 import { getEnvSensorFields, useEnvSensorMap } from './env-sensor-map.internals'
 import { useRegisterSettingsTabPending, useSettingsHubPending } from './pending.internals'
 import { useSettingsSidebarReentryReset } from '@/composables/ui/hub-viewport.internals'
-import { countQuickActionBatteryLow, countQuickActionClimateActive, countQuickActionDomainActive, countQuickActionLightsOn, countQuickActionOffline } from '@/utils/device/group-counts.util'
+import { countQuickActionBatteryLow, countQuickActionClimateActive, countQuickActionDomainActive, countQuickActionLightsOn, countQuickActionOffline } from '@/composables/device/group-counts.util'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'

@@ -18,7 +18,7 @@ import {
   computeAnalyticsSummary,
   shortenPlace,
 } from '@/utils/earthquake/history-analytics.util'
-import { formatEarthquakeMagnitude } from '@/utils/earthquake/util'
+import { formatEarthquakeMagnitude } from '@/composables/earthquake/earthquake-layout.util'
 
 /**
  * 地震预警历史分析 composable

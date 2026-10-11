@@ -2,11 +2,11 @@
  * 项目配置与布局 REST API 封装
  *
  * 职责：封装项目档案、终端绑定、资产文件管理等接口。
- * 依赖：../api-client 提供的 apiGet / apiPost / apiPut / apiDelete。
+ * 依赖：./client 提供的 apiGet / apiPost / apiPut / apiDelete。
  * 端点范围：/config/profiles、/config/project/*、/config/terminal/*、/config/{base}（资产）。
  */
 import type { AxiosRequestConfig } from 'axios'
-import { apiDelete, apiGet, apiPost, apiPut } from '../api-client'
+import { apiDelete, apiGet, apiPost, apiPut } from './client'
 
 /**
  * 获取全部配置档案列表。

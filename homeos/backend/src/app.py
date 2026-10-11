@@ -16,7 +16,7 @@ import time
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import Response
 
-from . import load_app_version, studio_shell
+from . import load_app_version
 from .bootstrap.exception_handlers import iso_timestamp, register_exception_handlers
 from .bootstrap.lifespan import create_lifespan
 from .bootstrap.middleware import (
@@ -26,6 +26,7 @@ from .bootstrap.middleware import (
 )
 from .bootstrap.router_registry import register_routers
 from .bootstrap.spa_static import mount_spa_static, register_page_asset_routes, signed_in
+from .bootstrap.studio_shell import install as install_studio_shell
 from .config import Settings, load_settings
 from .core.database import Database
 from .core.observability import decide_metrics_access, format_homeos_prometheus_metrics
@@ -152,7 +153,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # 静态资源门禁 / SPA 外壳安全头（并入 homeos-3d main.py 的保护层）
     # ------------------------------------------------------------------ #
     # 注册在最外层：授权判定要在任何业务中间件之前短路，未登录请求不会触达下游。
-    studio_shell.install(
+    install_studio_shell(
         app,
         app_settings,
         is_authorized=lambda request: asyncio.to_thread(signed_in, request),

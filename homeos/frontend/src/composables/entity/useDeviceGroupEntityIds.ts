@@ -8,15 +8,15 @@
  *
  * 依赖：
  * - vue（ref）
- * - @/utils/device/group-counts.util（resolveDeviceGroupEntityIds 实体 ID 解析）
- * - @/utils/device/group-battery.util（设备分组 store 形状类型）
+ * - @/composables/device/group-counts.util（resolveDeviceGroupEntityIds 实体 ID 解析）
+ * - @/composables/device/group-battery.util（设备分组 store 形状类型）
  */
 import { ref } from 'vue'
-import { resolveDeviceGroupEntityIds } from '@/utils/device/group-counts.util'
+import { resolveDeviceGroupEntityIds } from '@/composables/device/group-counts.util'
 import type {
   DeviceGroupEntitiesStoreLike,
   DeviceGroupUiStoreLike,
-} from '@/utils/device/group-battery.util'
+} from '@/composables/device/group-battery.util'
 
 /**
  * 计算 DeviceGroupModal 展示的实体 ID 列表。

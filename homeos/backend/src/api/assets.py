@@ -37,8 +37,8 @@ from ..dependencies import (
     require_viewer_user_asset,
     viewer_user_asset_ids,
 )
-from ..global_popups import global_popups
 from ..services.license import features as feature_codes
+from ..services.ui_config.global_popups import global_popups
 
 router = APIRouter(prefix = '/assets', tags = [
     'assets'])

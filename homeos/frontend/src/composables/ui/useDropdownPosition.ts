@@ -21,8 +21,8 @@ import {
   expandDropdownMaxHeight,
   measureDropdownFitWidth,
 } from '@/composables/ui/usePopupPosition'
-import { collectOverflowScrollParents, getTeleportContainerSize } from '@/utils/ui/popup-position-shared.util'
-import type { DropdownPosition } from '@/utils/ui/popup-position-dropdown.util'
+import { collectOverflowScrollParents, getTeleportContainerSize } from '@/composables/ui/popup-position-shared.util'
+import type { DropdownPosition } from '@/composables/ui/popup-position-dropdown.util'
 import { useKeepAliveGate } from '@/composables/ui/useKeepAliveGate'
 import { useExclusiveDropdown } from '@/composables/ui/useExclusiveDropdown'
 import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'

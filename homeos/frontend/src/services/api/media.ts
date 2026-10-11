@@ -2,12 +2,12 @@
  * 媒体场景与播放列表 REST API 封装
  *
  * 职责：封装媒体场景预设、播放器分组同步、播放列表管理等接口。
- * 依赖：../api-client 提供的 apiGet / apiPost。
+ * 依赖：./client 提供的 apiGet / apiPost。
  * 端点范围：/system/media/scene[/presets]、/system/media/group/{sync,unjoin}、
  *           /system/media/playlist[/{start,next}]。
  */
 import type { AxiosRequestConfig } from 'axios'
-import { apiGet, apiPost } from '../api-client'
+import { apiGet, apiPost } from './client'
 
 
 

@@ -13,7 +13,7 @@
  * - @/types/entity-store：HaEntityState 实体状态类型。
  */
 import { ref, computed, type Ref } from 'vue'
-import type { DeviceGroupEntitiesStoreLike } from '@/utils/device/group-battery.util'
+import type { DeviceGroupEntitiesStoreLike } from '@/composables/device/group-battery.util'
 import type { HaEntityState } from '@/types/entity-store'
 import { getApiErrorMessage } from '@/utils/core/error-message'
 

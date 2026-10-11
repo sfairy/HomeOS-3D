@@ -34,7 +34,7 @@
   "exclude": [".venv-store", "**/node_modules", "**/__pycache__", "dist"],
 
   // 但 exclude 只挡「批量扫描」：dist/ 里的文件一旦在编辑器里打开，分析器仍会单独分析它，
-  // 而产物里只剩加密后的 .so（包名 app / backend.app），解析不了，于是必然报
+  // 而产物里只剩加密后的 .so（包名 app），解析不了，于是必然报
   // reportMissingImports。
   // ignore 与 exclude 的区别正在这里：它连「已包含 / 已打开文件」的诊断一起压掉。
   "ignore": ["dist"],

@@ -9,7 +9,7 @@ import {
   HUB_CHART_COLORS,
   hubAccentColor,
 } from '@/utils/chart/hub-chart-theme'
-import { getKioskAnimationOptions } from '@/utils/chart/kiosk-animation'
+import { getKioskAnimationOptions } from '@/composables/ui/kiosk-animation'
 import {
   HOME_MODE_LOG_SOURCE_LABELS,
   type HomeModeTriggerLogAnalytics,

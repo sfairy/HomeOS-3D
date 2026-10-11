@@ -23,7 +23,7 @@ from .voice_commands import (
     ha_assist_succeeded,
     plan_voice_commands,
 )
-from ..command_proxy_auth import assert_command_proxy_authorized
+from ..proxy.command_proxy_auth import assert_command_proxy_authorized
 from ...core.errors import BusinessException, ErrorCode, api_error, bad_request, forbidden
 
 logger = logging.getLogger("homeos.awareness.voice_command")

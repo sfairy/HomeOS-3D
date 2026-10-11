@@ -7,12 +7,12 @@
   - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
  */
 import { useEventsView } from '@/composables/events/useEventsView'
-import EventsViewHero from '@/views/events/ViewHero.vue'
-import EventsViewToolbar from '@/views/events/ViewToolbar.vue'
-import EventsViewAnalytics from '@/views/events/ViewAnalytics.vue'
-import EventsViewStream from '@/views/events/ViewStream.vue'
+import EventsViewHero from '@/features/events/ViewHero.vue'
+import EventsViewToolbar from '@/features/events/ViewToolbar.vue'
+import EventsViewAnalytics from '@/features/events/ViewAnalytics.vue'
+import EventsViewStream from '@/features/events/ViewStream.vue'
 import '@/assets/styles/list-page-dual-pane.css'
-import '@/views/events/premium.css'
+import '@/features/events/premium.css'
 
 const {
   hours,

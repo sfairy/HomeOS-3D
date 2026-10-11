@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from ..rooms import (
+from .rooms import (
     DEFAULT_ROOM_CATALOG,
     RoomCatalogEntry,
     find_catalog_for_ha_area,

@@ -16,12 +16,12 @@
  * - vue（ref、computed、watch、onMounted、onUnmounted、nextTick、ToRefs、unref）
  * - echarts（ECharts、ECElementEvent、EChartsCoreOption；echarts 实例经动态 import 懒加载）
  * - @/utils/chart/echarts（echarts 实例，动态 import）
- * - @/utils/chart/kiosk-animation（getKioskAnimationOptions 动画开关）
+ * - @/composables/ui/kiosk-animation（getKioskAnimationOptions 动画开关）
  * - @/utils/ui/chart-resize.util（observeChartResize）
  * - @/utils/notification/analytics.util（buckets 构建与 summary / stats 类型）
  */
 import { ref, computed, watch, onMounted, onUnmounted, nextTick, type ToRefs, unref } from 'vue'
-import { getKioskAnimationOptions } from '@/utils/chart/kiosk-animation'
+import { getKioskAnimationOptions } from '@/composables/ui/kiosk-animation'
 import type { ECharts, ECElementEvent, EChartsCoreOption } from 'echarts'
 import { observeChartResize } from '@/utils/ui/chart-resize.util'
 import {

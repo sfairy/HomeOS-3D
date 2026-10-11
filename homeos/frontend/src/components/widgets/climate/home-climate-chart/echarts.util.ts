@@ -12,7 +12,7 @@
 */
 import { getEntityLeaf } from '@homeos/shared'
 import { pad2 } from '@/utils/format/locale-format.util'
-import { getKioskAnimationOptions } from '@/utils/chart/kiosk-animation'
+import { getKioskAnimationOptions } from '@/composables/ui/kiosk-animation'
 import { chartLinearGradient } from '@/utils/chart/chart-primitives'
 import { formatAuditTimestamp } from '@/utils/format/locale-format.util'
 import { getEntityDisplayName } from '@/utils/entity/derived.util'

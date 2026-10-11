@@ -422,7 +422,7 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
 }
 
 // ── useFloatingPanelDisplay ──
-export { AFH_THEME_DEFS as AFH_THEMES } from '@/utils/floorplan/floating-entity-colors.util'
+export { AFH_THEME_DEFS as AFH_THEMES } from '@/composables/entity/floating-entity-colors.util'
 
 const ENTITY_FLOAT_TYPES = ['entity', 'temp', 'humidity', 'battery', 'power']
 

@@ -64,6 +64,55 @@ function walkCss(dir: string): string[] {
 }
 
 /**
+ * 共享 chunk 的输出名：按源文件相对 studio 根的路径命名，而非 basename。
+ *
+ * 运行期模块的公开 URL 是稳定契约（runtime 目录下每个 .ts 都是一个 entry，后端
+ * manifest 放行），因此 `runtime/editor/` 这类弃用兼容 shim、`app/bridge/` 这类纯
+ * re-export 门面都会与真正的实现各成一个 chunk。只取 basename 时，
+ * `editor/light-range-editor` 与 `config-ui/light-range-editor` 会产出两个同名不同
+ * 哈希的 `light-range-editor-*.js`，看着像重复、排障时无法区分。带路径后成为
+ * `chunks/runtime/editor/light-range-editor-<hash>.js` 与
+ * `chunks/runtime/config-ui/light-range-editor-<hash>.js`，仍遵守「公开路径不改」的约束。
+ */
+function chunkBaseName(chunk: {
+  name?: string;
+  facadeModuleId?: string | null;
+  moduleIds?: string[];
+}): string {
+  const candidates = [chunk.facadeModuleId || "", ...(chunk.moduleIds || [])];
+  for (const id of candidates) {
+    if (!id || !id.startsWith(studioRoot)) continue;
+    const rel = path
+      .relative(studioRoot, id)
+      .replace(/\\/g, "/")
+      .replace(/\.(ts|js|mjs)$/i, "");
+    if (rel && !rel.startsWith("..") && !path.isAbsolute(rel)) return rel;
+  }
+  return (chunk.name || "chunk").replace(/[\\/]/g, "-");
+}
+
+//: 单个构建内已占用的 chunk 名；buildStart 清空。用于给「同名不同源」的 chunk 兜底加序号，
+//: 保证产物里不再出现两个同名 `xxx-<hash>.js`（兼容 shim 与实现各成一个 chunk 时会发生）。
+const usedChunkNames = new Set<string>();
+
+function uniqueChunkBaseName(chunk: {
+  name?: string;
+  facadeModuleId?: string | null;
+  moduleIds?: string[];
+}): string {
+  const base = chunkBaseName(chunk);
+  if (!usedChunkNames.has(base)) {
+    usedChunkNames.add(base);
+    return base;
+  }
+  let index = 2;
+  while (usedChunkNames.has(`${base}-${index}`)) index += 1;
+  const name = `${base}-${index}`;
+  usedChunkNames.add(name);
+  return name;
+}
+
+/**
  * 生成 dist/frontend/modules/runtime/manifest.json：后端 get_resource 按这份清单放行。
  */
 function manifestPlugin(): Plugin {
@@ -176,7 +225,7 @@ export default defineConfig({
       output: {
         format: "es",
         entryFileNames: "[name].js",
-        chunkFileNames: "chunks/[name]-[hash].js",
+        chunkFileNames: (chunk) => `chunks/${uniqueChunkBaseName(chunk)}-[hash].js`,
         assetFileNames: "[name][extname]",
         paths: (id) => (id === "three" ? THREE_VENDOR : id),
       },
@@ -185,6 +234,10 @@ export default defineConfig({
   plugins: [
     {
       name: "homeos-runtime-external",
+      buildStart() {
+        // 每个构建重新计数，watch 重建时不会沿用上一轮的名字占用。
+        usedChunkNames.clear();
+      },
       resolveId(id) {
         if (id === "three") return { id: THREE_VENDOR, external: true };
         if (isRuntimeExternal(id)) return { id, external: true };

@@ -11,7 +11,7 @@
  * 依赖：
  * - @homeos/shared 的 getEntityDomain。
  * - @/composables/entity/useDeviceGroupMembers 的 DOMAIN_LIST / MONITORED_ENTITY_IDS。
- * - @/utils/device/group-battery.util 的 DeviceGroup*StoreLike 共享类型。
+ * - @/composables/device/group-battery.util 的 DeviceGroup*StoreLike 共享类型。
  * - @/utils/entity/derived.util 的 domainIndexToArray。
  *
  * 注意：domain key 与 entity_id 为 HA 标识符，不翻译；
@@ -22,7 +22,7 @@ import { DOMAIN_LIST, MONITORED_ENTITY_IDS } from '@/constants/device-group'
 import type {
   DeviceGroupEntitiesStoreLike,
   DeviceGroupUiStoreLike,
-} from '@/utils/device/group-battery.util'
+} from '@/composables/device/group-battery.util'
 import { domainIndexToArray } from '@/utils/entity/derived.util'
 
 function isMonitoredExcludedEntity(entityId: string) {

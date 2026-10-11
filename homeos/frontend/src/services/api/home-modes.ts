@@ -2,13 +2,13 @@
  * 家居模式 REST API 封装
  *
  * 职责：封装家居模式 CRUD、激活/停用、触发日志、预设安装等接口。
- * 依赖：../api-client 提供的 apiGet / apiPost / apiPut / apiDelete。
+ * 依赖：./client 提供的 apiGet / apiPost / apiPut / apiDelete。
  * 端点范围：/modes、/modes/active、/modes/context、/modes/trigger-logs、/modes/execution-history、
  *           /modes/templates、/modes/presets[/{presetId}/install]、/modes/{id}/activate、
  *           /modes/deactivate、/modes/seed、/modes/{id}/duplicate、/modes/reorder。
  */
 import type { AxiosRequestConfig } from 'axios'
-import { apiDelete, apiGet, apiPost, apiPut } from '../api-client'
+import { apiDelete, apiGet, apiPost, apiPut } from './client'
 
 /**
  * 获取全部家居模式。

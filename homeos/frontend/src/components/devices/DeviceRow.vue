@@ -143,7 +143,7 @@ import {
 import { useExclusiveDropdown } from '@/composables/ui/useExclusiveDropdown'
 import { viewportPointToPopupAnchor } from '@/composables/ui/usePopupPosition'
 import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
-import { getTeleportContainerSize } from '@/utils/ui/popup-position-shared.util'
+import { getTeleportContainerSize } from '@/composables/ui/popup-position-shared.util'
 import type { DeviceListItem } from '@/types/device'
 import { copyTextWithNotify } from '@/services/notify'
 import { getDomainLabel } from '@/utils/device/domain-labels.util'

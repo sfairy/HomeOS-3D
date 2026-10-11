@@ -45,7 +45,7 @@ from .types import (
     EewRawMessage,
 )
 from .wolfx_ws import WolfxWsClient
-from ..ha_config import load_active_ha_endpoints
+from ..ha.ha_config import load_active_ha_endpoints
 from ..security.layout import load_active_project_layout
 
 logger = logging.getLogger("homeos.earthquake")

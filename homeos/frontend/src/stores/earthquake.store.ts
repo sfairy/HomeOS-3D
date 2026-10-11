@@ -10,7 +10,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { EarthquakeAlertPayload } from '@/types/earthquake'
 import { haversineDistanceKm, refineAlertCountdown } from '@homeos/shared'
-import { syncEarthquakeDismiss } from '@/utils/earthquake/util'
+import { syncEarthquakeDismiss } from '@/composables/earthquake/earthquake-layout.util'
 import { useLayoutStore } from '@/stores/layout.store'
 import { schedulePoll } from '@/utils/core/poll-scheduler'
 

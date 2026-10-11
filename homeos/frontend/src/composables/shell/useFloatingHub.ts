@@ -32,7 +32,7 @@ import {
 import {
   buildAfhAccentStyle,
   resolveAfhWidgetTheme,
-} from '@/utils/floorplan/floating-entity-colors.util'
+} from '@/composables/entity/floating-entity-colors.util'
 import { resolveAqiSensorId, collectSensorEntityIds } from '@/utils/weather/weather-metric.util'
 
 const AsyncUtilityMeterInfoPopup = defineAsyncComponent(

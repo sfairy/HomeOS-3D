@@ -16,11 +16,19 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = Path(__file__).resolve().parents[2]
+#: 本包目录：源码是 ``homeos/backend/src``，镜像是 ``/app/app``
+#: （构建期把源码目录 ``src`` 映射成 ``app``，见根 Dockerfile）。
+_PACKAGE_ROOT = Path(__file__).resolve().parent
+
+#: 项目根 —— 「拥有本包的那一层」：源码 ``homeos/backend``、镜像 ``/app``。
+#: 两个后端都走 ``.../src → ./app`` 的同一条映射，所以下面三行在源码 / 镜像两种布局下
+#: 口径一致，无需按布局分支探测 —— 这正是「产物层数统一」换来的好处。
+PROJECT_ROOT = _PACKAGE_ROOT.parent
+#: 仓库根：源码 ``homeos``；镜像里退化为 ``/``（镜像内没有仓库概念，相关路径均有 env 覆盖）。
+REPO_ROOT = PROJECT_ROOT.parent
 #: monorepo 工作区根（``homeos/`` 的上一级）。前端产物统一收敛在
 #: ``<workspace>/dist/homeos/frontend``，与 homeos-store 同级，便于 ops/ 统一打包。
-WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
+WORKSPACE_ROOT = REPO_ROOT.parent
 
 
 def _environment_bool(name: str, default: bool = False) -> bool:
@@ -243,7 +251,7 @@ class Settings:
     def built_in_assets_dir(self) -> Path:
         """内置素材目录（``/assets/builtin/**`` 的来源）。
 
-        源码态是 ``backend/image``；发行产物里代码位于 ``/app/backend/app``，镜像内该目录
+        源码态是 ``backend/image``；发行产物里代码位于 ``/app/app``，镜像内该目录
         被显式指到 ``/app/image``（``HOMEOS_IMAGE_DIR``，与 homeos-3d 的挂载点一致，便于
         部署方另行挂载增删）。
         """

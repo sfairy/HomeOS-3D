@@ -33,7 +33,7 @@ import { isEntityFloatType } from '@/features/settings/composables/display/layou
 import { useDraftObjectField } from '@/features/settings/composables/hub-ui.internals'
 import WidgetConfigStudioNav from '@/features/settings/display/widgets/WidgetConfigStudioNav.vue'
 import WidgetConfigFooter from '@/features/settings/display/widgets/WidgetConfigFooter.vue'
-import SecurityZoneEditorList from '@/views/security/ZoneEditorList.vue'
+import SecurityZoneEditorList from '@/features/security/ZoneEditorList.vue'
 import FloatingEditorLayoutSection from './EditorLayoutSection.vue'
 import FloatingEditorDataSection from './EditorDataSection.vue'
 import FloatingEditorHubTabsSection from './EditorHubTabsSection.vue'

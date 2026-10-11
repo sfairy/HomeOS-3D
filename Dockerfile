@@ -95,17 +95,18 @@ COPY ops/container_entrypoint.py ./ops/
 COPY ops/license_keys.py ./ops/
 COPY ops/docker ./ops/docker
 COPY package.json /tmp/package.json
-COPY homeos/backend/src ./backend/app
+COPY homeos/backend/src ./app
 # 注意这一行的**两边名字不一样**：源码目录是 backend/src（仓库约定），构建镜像里落到
-# backend/app。Cython 的模块名取自路径，所以 .so 里烤进去的是 backend.app.*，产物里
-# 不会出现 src 目录。
+# app。Cython 的模块名取自路径，所以 .so 里烤进去的是 app.*，产物里不会出现 src 目录。
+# 与商店（homeos-store/backend/src → ./app）同层数、同包名：两个后端只在「装什么、跑什么」
+# 上不同，不再有 backend/ 这一层的差异。
 # 迁移脚本（migrations/ 与 alembic.ini）**不进产物**：发行版里没有 Alembic，新库由
-# backend.app.migrations 按 ORM 元数据直接建（基线 0001 与 Base.metadata 等价，
-# ops/check_schema.py 会比对结构指纹）。位置不是随意定的：后端落在 /app/backend/app，
-# PYTHONPATH=/app 才能同时解析 backend.app.* 与 ops.*。
+# app.migrations 按 ORM 元数据直接建（基线 0001 与 Base.metadata 等价，
+# ops/check_schema.py 会比对结构指纹）。位置与商店一致：后端落在 /app/app，
+# PYTHONPATH=/app 才能同时解析 app.* 与 ops.*。
 # /app/image：内置素材目录（settings.built_in_assets_dir，由 HOMEOS_IMAGE_DIR 指到此处），
 # 默认空，可另行挂载增删。
-# backend/app/_version.py 随后与其它源码一起被编译成 .so，运行期由 config.py 读取。
+# app/_version.py 随后与其它源码一起被编译成 .so，运行期由 config.py 读取。
 RUN mkdir -p /app/image \
     && rm -f /app/ops/docker/compile_python.py /app/ops/docker/obfuscate_javascript.mjs \
     && version="${HOMEOS_VERSION}" \
@@ -113,26 +114,26 @@ RUN mkdir -p /app/image \
          version="$(sed -n 's/^  "version":[[:space:]]*"\([^"]*\)".*/\1/p' /tmp/package.json | head -n 1)"; \
        fi \
     && [ -n "$version" ] || { echo "无法确定版本号：package.json 缺 version 且未传 --build-arg HOMEOS_VERSION" >&2; exit 1; } \
-    && printf '__version__ = "%s"\n' "$version" > /app/backend/app/_version.py \
+    && printf '__version__ = "%s"\n' "$version" > /app/app/_version.py \
     && echo "主应用构建版本：$version" \
-    && rm -f /app/backend/app/requirements.txt \
+    && rm -f /app/app/requirements.txt \
     && python /tmp/compile_python.py /app \
     && rm -f /tmp/compile_python.py \
-    && test -f /app/backend/app/app.*.so \
-    && test -f /app/backend/app/run.*.so \
-    && test -f /app/backend/app/__init__.*.so \
-    && test -f /app/backend/app/_version.*.so \
+    && test -f /app/app/app.*.so \
+    && test -f /app/app/run.*.so \
+    && test -f /app/app/__init__.*.so \
+    && test -f /app/app/_version.*.so \
     && test -f /app/ops/container_entrypoint.*.so \
     && test -f /app/ops/license_keys.*.so \
     && test -f /app/ops/docker/start_app.*.so \
-    && test ! -f /app/backend/app/app.py \
-    && test ! -f /app/backend/app/run.py \
+    && test ! -f /app/app/app.py \
+    && test ! -f /app/app/run.py \
     && test ! -f /app/ops/container_entrypoint.py \
     && test ! -e /app/migrations \
     && test ! -e /app/alembic.ini \
     # 产物里只允许有原生扩展：多一个 .py/.pyc/.pyi/.md/requirements.txt 都算加密没做完整。
     # 报出具体文件名而不是只给一个非零退出码，否则排查得重新解包镜像。
-    && stray="$(find /app/backend/app /app/ops -type f ! -name '*.so' -print)" \
+    && stray="$(find /app/app /app/ops -type f ! -name '*.so' -print)" \
     && test -z "$stray" || { echo "产物里混入了非 .so 文件：$stray" >&2; exit 1; }
 
 # 导出阶段：FROM scratch + 只 COPY /app，令 --output type=local 得到干净的 /app 内容，

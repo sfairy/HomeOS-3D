@@ -21,7 +21,7 @@ import {
   collectWsPinnedEntityIds,
   buildLayoutSubscriptionKey,
 } from '@/utils/entity/ws-subscription'
-import { resolveActivePopupEntityId } from '@/utils/entity/active-popup-entity'
+import { resolveActivePopupEntityId } from '@/composables/entity/active-popup-entity'
 import { configEpoch } from '@/utils/config/frontend-config'
 
 /** 同步防抖间隔（毫秒）：加快换页/弹窗后的域与 pinned 生效 */

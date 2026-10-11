@@ -129,7 +129,7 @@ import { useLayoutStore } from '@/stores/layout.store'
 import { fetchEntities } from '@/services/api/entities'
 import { collectIndexedEntityIds, getEntityDisplayName } from '@/utils/entity/derived.util'
 import { getLargeEntityThreshold } from '@/utils/config/frontend-config'
-import { isBatterySensorEntity } from '@/utils/device/group-battery.util'
+import { isBatterySensorEntity } from '@/composables/device/group-battery.util'
 
 const props = defineProps({
   isOpen: { type: Boolean },

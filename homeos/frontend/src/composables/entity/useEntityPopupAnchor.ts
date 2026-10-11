@@ -9,11 +9,11 @@
  * 依赖：
  * - vue（computed）
  * - @/composables/ui/usePopupPosition（useFixedPopupPosition / usePopupPosition）
- * - @/utils/ui/popup-position-shared.util（PopupNumericInput）
+ * - @/composables/ui/popup-position-shared.util（PopupNumericInput）
  */
 import { computed } from 'vue'
 import { useFixedPopupPosition, usePopupPosition } from '@/composables/ui/usePopupPosition'
-import type { PopupNumericInput } from '@/utils/ui/popup-position-shared.util'
+import type { PopupNumericInput } from '@/composables/ui/popup-position-shared.util'
 
 /** 弹窗锚点 props：anchorX/Y 为像素锚点，xPct/yPct 为百分比锚点 */
 interface EntityPopupAnchorProps {

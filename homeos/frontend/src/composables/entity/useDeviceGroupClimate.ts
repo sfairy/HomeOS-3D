@@ -14,7 +14,7 @@
  */
 import { Settings, ThermometerSnowflake, Droplets, Fan, Flame, Power } from '@lucide/vue'
 import { climateHasDualSetpoint } from '@/composables/entity/control/climate-control-core'
-import type { DeviceGroupEntitiesStoreLike } from '@/utils/device/group-battery.util'
+import type { DeviceGroupEntitiesStoreLike } from '@/composables/device/group-battery.util'
 import type { HaEntityState } from '@/types/entity-store'
 
 /** 实体 store 类型，需提供 callService 方法。 */

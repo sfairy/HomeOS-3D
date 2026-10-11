@@ -2,12 +2,12 @@
  * 安防与安防面板 REST API 封装
  *
  * 职责：封装安防事件、在场检测、异常检测、Frigate 摄像头、安防面板布防与离家模拟等接口。
- * 依赖：../api-client 提供的 apiGet / apiPost。
+ * 依赖：./client 提供的 apiGet / apiPost。
  * 端点范围：/security/events、/security/presence/*、/security/hazard/drill、/security/anomaly/*、
  *           /security/frigate/*、/security-panel/*（含 away-sim/*）。
  */
 import type { AxiosRequestConfig } from 'axios'
-import { apiGet, apiPost } from '../api-client'
+import { apiGet, apiPost } from './client'
 
 /**
  * 获取安防事件列表。

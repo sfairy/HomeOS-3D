@@ -3,15 +3,15 @@
  *
  * 职责：封装 HA 连接记录（`ha_connections` 表）的读取、保存与探测，以及 HA 摄像头
  *       WebRTC 信令端点。
- * 依赖：../api-client 提供的 apiGet / apiPost / apiPut。
+ * 依赖：./client 提供的 apiGet / apiPost / apiPut。
  * 端点范围：GET /ha/connection、PUT /ha/connection、POST /ha/test、
  *           POST /ha/webrtc/candidate、POST /ha/webrtc/close
  *
  * 阶段 3.3 起 HA 连接只有这一条读写路径：设置页不再把 url/token 写进项目 layout，
- * 后端也不再从 layout 读连接凭据（见 `backend/src/services/ha_config.py`）。
+ * 后端也不再从 layout 读连接凭据（见 `backend/src/services/ha/ha_config.py`）。
  */
 import type { AxiosRequestConfig } from 'axios'
-import { apiDelete, apiGet, apiPost, apiPut } from '../api-client'
+import { apiDelete, apiGet, apiPost, apiPut } from './client'
 
 /** HA 连接状态（与后端 `connection_payload` 对齐）。 */
 export type HaConnectionStatus = {

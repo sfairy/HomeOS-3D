@@ -12,19 +12,19 @@
  * - @homeos/shared（getEntityDomain）
  * - vue（computed、Ref、Component）
  * - @lucide/vue（域图标）
- * - @/utils/device/group-offline.util（离线关键集合计算与拆分）
- * - @/utils/device/group-battery.util（电量阈值与解析、store 形状类型）
+ * - @/composables/device/group-offline.util（离线关键集合计算与拆分）
+ * - @/composables/device/group-battery.util（电量阈值与解析、store 形状类型）
  * - @/types/entity-store（HaEntityState）
  */
 import { getEntityDomain } from '@homeos/shared'
 import { computed, type Ref } from 'vue'
 import { Sun, Plug, Bell, Camera, Lock, Thermometer, Music, AlertTriangle } from '@lucide/vue'
-import { computeOfflineCriticalSet, splitOfflineEntityIds } from '@/utils/device/group-offline.util'
-import { BATTERY_LOW_THRESHOLD, resolveBatteryLevel } from '@/utils/device/group-battery.util'
+import { computeOfflineCriticalSet, splitOfflineEntityIds } from '@/composables/device/group-offline.util'
+import { BATTERY_LOW_THRESHOLD, resolveBatteryLevel } from '@/composables/device/group-battery.util'
 import type {
   DeviceGroupEntitiesStoreLike,
   DeviceGroupUiStoreLike,
-} from '@/utils/device/group-battery.util'
+} from '@/composables/device/group-battery.util'
 import type { HaEntityState } from '@/types/entity-store'
 import type { Component } from 'vue'
 

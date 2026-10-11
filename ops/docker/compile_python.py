@@ -43,8 +43,8 @@ def _precheck(sources: list[Path]) -> None:
     """先用 Python 自己的解析器过一遍，源码有问题时给出清晰报错。
 
     同时拒绝绝对 ``from src.`` / ``import src``：镜像里源码目录已映射为 ``app``
-    （见 Dockerfile ``COPY .../src ./backend/app``），烤进 .so 的绝对 ``src`` 导入会在
-    冒烟 ``import backend.app.app`` 时炸掉。
+    （见 Dockerfile ``COPY .../src ./app``），烤进 .so 的绝对 ``src`` 导入会在
+    冒烟 ``import app.app`` 时炸掉。
     """
     broken: list[str] = []
     absolute_src: list[str] = []
@@ -153,7 +153,7 @@ def _verify(root: Path, sources: list[Path]) -> int:
 
 def _strip_extensions(sources: list[Path]) -> int:
     # Cython 产出的 .so 默认带 DWARF 调试信息与静态符号表：strings 能直接看到原始文件名
-    # （形如 /app/backend/app/main.py），符号表里还有 __pyx_pf_* 这类内部函数名，等于把源码结构白送。
+    # （形如 /app/app/main.py），符号表里还有 __pyx_pf_* 这类内部函数名，等于把源码结构白送。
     # --strip-all 去掉它们，但**保留 .dynsym**：动态加载靠它，删了 .so 就 import 不进来。
     #
     # 注意：Python 层的异常行号来自 Cython 生成 C 时**写死在代码里**的常量

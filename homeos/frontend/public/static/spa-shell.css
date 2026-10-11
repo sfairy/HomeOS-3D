@@ -19,7 +19,7 @@
  * 机身外壳：墙屏常驻页面不滚动，滚动全部发生在各页自己的可滚动容器里。
  *
  * 这段原本是 SPA 入口 `index.html` 里的一段行内 <style>。外壳页下发的是
- * `style-src 'self'`（见 backend/src/studio_shell.py 的 `_csp_header`），行内样式会被
+ * `style-src 'self'`（见 backend/src/bootstrap/studio_shell.py 的 `_csp_header`），行内样式会被
  * 浏览器直接拦下（"Refused to apply inline style"），那段重置其实一次都没生效过。
  * 移到这里既保住严格 CSP，也让外壳默认值与其余外壳规则待在同一份文件里。
  *

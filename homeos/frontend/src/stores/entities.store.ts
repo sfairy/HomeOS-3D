@@ -19,7 +19,7 @@ import type { EntitiesMap, EntityLoadPhase, HaEntityState } from '@/types/entity
 import { buildEntityCacheKey } from '@/utils/entity/idb-cache'
 import { createEntityOptimisticState } from '@/stores/entities/entity-store-optimistic.util'
 import { getPendingListenerCount, getStateListenerStats } from '@/utils/entity/state-listener'
-import { applyEntityStateUpdate } from '@/utils/entity/state-update'
+import { applyEntityStateUpdate } from '@/composables/entity/state-update'
 import type { WsDeltaChange } from '@/utils/entity/state-delta.util'
 import {
   shouldNotifyStateChange,

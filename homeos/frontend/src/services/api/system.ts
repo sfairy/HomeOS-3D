@@ -5,12 +5,12 @@
  *       访客通行码、环境监测、自适应气候、昼夜节律照明、语音 STT/TTS、客户端电源、
  *       设备健康、Advisor 建议、推荐/习惯、定时提醒、外部日历/天气、模板市场、僵尸绑定解绑、
  *       数据保留策略与 HA WebRTC 信令等运维接口。
- * 依赖：../api-client 提供的 apiGet / apiPost / apiPut / apiDelete；@homeos/shared 的运行日志契约。
+ * 依赖：./client 提供的 apiGet / apiPost / apiPut / apiDelete；@homeos/shared 的运行日志契约。
  * 端点范围：/system/*、/environment/*、/ha/webrtc/*（详见各方法）。
  */
 import type { AxiosRequestConfig } from 'axios'
 import type { RuntimeLogEntry, RuntimeLogLevel, RuntimeLogQueryResult } from '@homeos/shared'
-import { apiDelete, apiGet, apiPost, apiPut } from '../api-client'
+import { apiDelete, apiGet, apiPost, apiPut } from './client'
 
 /**
  * 获取系统配置（完整）。

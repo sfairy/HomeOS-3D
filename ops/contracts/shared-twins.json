@@ -8,5 +8,36 @@
     "kids_bedroom",
     "master_bath",
     "guest_bath"
-  ]
+  ],
+  "$commentBackendTwinModules": "独立部署的两个后端（homeos / homeos-store）之间禁止互相 import，只能各存一份副本；此处登记需门禁校验的孪生模块路径（相对仓库根）。",
+  "backendTwinModules": [
+    {
+      "label": "logging_noise",
+      "homeos": "homeos/backend/src/logging_noise.py",
+      "store": "homeos-store/backend/src/logging_noise.py"
+    },
+    {
+      "label": "core/file_lock",
+      "homeos": "homeos/backend/src/core/file_lock.py",
+      "store": "homeos-store/backend/src/core/file_lock.py"
+    }
+  ],
+  "$commentContainerBoot": "容器启动契约：镜像把源码目录 COPY 成包 <pkg>，启动器必须用同一个 <pkg> 声明入口。改容器层次要四处一起动（Dockerfile COPY、两个启动器、包内代码），此门禁兜住漏改 —— 漏改的表现是源码态测试全绿、起容器即 ImportError。bind 取 uvicorn（`\"pkg.mod:factory\"`）或 import（`-c \"import pkg.mod as m\"`）。",
+  "containerBoot": {
+    "dockerfile": "Dockerfile",
+    "entries": [
+      {
+        "label": "主应用",
+        "source": "homeos/backend/src",
+        "launcher": "ops/docker/start_app.py",
+        "bind": "uvicorn"
+      },
+      {
+        "label": "商店",
+        "source": "homeos-store/backend/src",
+        "launcher": "ops/docker/start_store.py",
+        "bind": "import"
+      }
+    ]
+  }
 }

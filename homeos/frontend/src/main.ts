@@ -69,9 +69,9 @@ import { useChromeStore } from './stores/chrome.store'
 import VSkeleton from './components/common/base/VSkeleton.vue'
 import VEmptyState from './components/common/base/VEmptyState.vue'
 import VPanelSkeleton from './components/common/base/VPanelSkeleton.vue'
-import { swipeClose } from './swipe-close.directive'
+import { swipeClose } from './directives/swipe-close'
 
-// CSRF 兜底注入已收敛到单 HTTP 栈：`services/api-client` 在模块求值时调用
+// CSRF 兜底注入已收敛到单 HTTP 栈：`services/api/client` 在模块求值时调用
 // `services/api/csrf.ts#installFetchCsrf()`，覆盖 studio 遗留的裸 fetch 写请求。
 
 // CustomHtmlWidget 可用的最小 Vue 运行时 API 导出

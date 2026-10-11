@@ -22,7 +22,7 @@
  * - @/stores/ui/create-layout-profile-actions：方案 CRUD 与切换
  * - @/stores/ui/create-layout-draft-state：未保存草稿持久化
  * - @/stores/ui/create-edit-mode-actions：编辑模式行为
- * - @/utils/config/resolve-active-profile.util：解析激活方案 ID
+ * - @/composables/config/resolve-active-profile.util：解析激活方案 ID
  * - @/utils/perf/tablet-default-perf.util：平板默认性能模式
  * - @/utils/core/clone-plain.util：深拷贝工具
  *
@@ -38,7 +38,7 @@ import { useChromeStore } from '@/stores/chrome.store'
 import {
   createLayoutCoreState,
 } from '@/stores/ui/create-layout-core-state'
-import { resolveActiveProfileId } from '@/utils/config/resolve-active-profile.util'
+import { resolveActiveProfileId } from '@/composables/config/resolve-active-profile.util'
 import { createEditHistoryState } from '@/stores/ui/create-edit-history-state'
 import { createFloorWidgetActions } from '@/stores/ui/create-floor-widget-actions'
 import { createLayoutPersistence } from '@/stores/ui/create-layout-persistence'

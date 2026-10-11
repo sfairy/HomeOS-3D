@@ -21,7 +21,7 @@ from ..core.embed_proxy_util import (
     strip_homeos_cookies,
 )
 from ..core.errors import BusinessException
-from ..services.ws_proxy import (
+from ..services.proxy.ws_proxy import (
     EMBED_WS_HEARTBEAT_MS,
     bridge_websockets,
     build_ha_webrtc_ws_url,

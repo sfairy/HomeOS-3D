@@ -13,7 +13,7 @@ from typing import Any
 from ..alerts.messages import format_security_alarm_message
 from ..earthquake.state import format_eew_notify_message
 from ..earthquake.types import eew_catalog_cooldown_key
-from ..ha_filters import HaStateChangeRouter
+from ..ha.ha_filters import HaStateChangeRouter
 
 logger = logging.getLogger("homeos.notification.events")
 

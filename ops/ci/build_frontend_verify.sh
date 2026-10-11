@@ -25,6 +25,6 @@ grep -q '_0x' dist/homeos-store/frontend/static/auth-bootstrap.js
 test -f dist/homeos/frontend/static/vendor/three/0.186.0/three.module.min.js
 test -f dist/homeos-store/frontend/static/store.css
 test -f dist/homeos/frontend/index.html
-test -f dist/homeos-store/frontend/templates/index.html
+test -f dist/homeos-store/frontend/index.html
 
 echo "前端产物构建与结构断言通过。"

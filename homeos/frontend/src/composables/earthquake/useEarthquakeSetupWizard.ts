@@ -20,7 +20,7 @@ import { useHaConnectionStore } from '@/stores/ha-connection.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { EEW_CITY_PRESETS, createDefaultEarthquakeConfig } from '@/types/earthquake'
-import { syncEarthquakeHomeCoordsFromHa } from '@/utils/earthquake/ha-coords.util'
+import { syncEarthquakeHomeCoordsFromHa } from '@/composables/earthquake/ha-coords.util'
 import { getApiErrorMessage } from '@/utils/core/error-message'
 
 /**

@@ -1,6 +1,6 @@
 /**
  * @file 墙屏性能模式图表动画选项
- * @module utils/chart/kiosk-animation
+ * @module composables/ui/kiosk-animation
  * @description
  *  独立于 echarts 的轻量模块：仅依据 layout.store 的性能模式返回动画开关。
  *  拆出目的：option 构建方可静态导入动画配置而不触发 echarts 加载，

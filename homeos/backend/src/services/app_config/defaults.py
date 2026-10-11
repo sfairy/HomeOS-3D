@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..rooms import DEFAULT_ROOM_CATALOG
+from .rooms import DEFAULT_ROOM_CATALOG
 from ...core.retention import DEFAULT_RETENTION
 from ...realtime.access import WS_PUSH_CRITICAL_DOMAINS
 

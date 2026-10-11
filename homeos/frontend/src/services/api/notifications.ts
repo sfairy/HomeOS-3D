@@ -2,14 +2,14 @@
  * 通知模块 REST API 封装
  *
  * 职责：封装通知查询、设置、规则 CRUD、已读标记、批量清理以及 WebPush 订阅等接口。
- * 依赖：../api-client 提供的 apiGet / apiPost / apiPut / apiDelete。
+ * 依赖：./client 提供的 apiGet / apiPost / apiPut / apiDelete。
  * 端点范围：/notifications、/notifications/stats、/notifications/settings、/notifications/preferences、
  *           /notifications/{id}/read、/notifications/read-all、/notifications/clear、
  *           /notifications/rules[/{id}]、/notifications/rules/test、
  *           /channels/webpush/*（VAPID/订阅/测试）。
  */
 import type { AxiosRequestConfig } from 'axios'
-import { apiDelete, apiGet, apiPost, apiPut } from '../api-client'
+import { apiDelete, apiGet, apiPost, apiPut } from './client'
 
 /**
  * 获取通知列表。

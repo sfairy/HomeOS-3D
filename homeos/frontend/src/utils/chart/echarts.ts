@@ -20,7 +20,7 @@
  * 依赖：echarts/core、echarts/charts、echarts/components、echarts/renderers。
  *
  * 分包约定：本模块体积大（echarts vendor），消费方必须用动态 import 引入；
- * 动画选项等轻量配置请从 @/utils/chart/kiosk-animation 静态导入。
+ * 动画选项等轻量配置请从 @/composables/ui/kiosk-animation 静态导入。
  */
 import * as echarts from 'echarts/core'
 import type { ECharts, EChartsInitOpts } from 'echarts/core'

@@ -118,14 +118,14 @@ homeos-store/
 ├── data/                   # 运行时（不入库）
 ├── keys/local/             # 授权私钥（不入库）
 ├── frontend/               # pages / src / public
-└── dist/                   # templates + static
+└── dist/                   # index.html + static
 ```
 
 ## 前端约定
 
 - 样式源：`frontend/public/static/theme.css` 必须先于 `store.css` / `admin.css`。
 - 构建：`bun run --cwd homeos-store build` → 工作区根 `dist/homeos-store/frontend/`；`auth-bootstrap` 仍为首屏前 IIFE。
-- 配色注入点：构建后的 `dist/homeos-store/frontend/templates/*.html` 及页面壳里的 appearance 占位；漏一处会 500（刻意）。
+- 配色注入点：构建后的 `dist/homeos-store/frontend/index.html` 外壳里的 appearance 占位；漏一处会 500（刻意）。
 
 ## 支付后发码
 

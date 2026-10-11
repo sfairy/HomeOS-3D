@@ -181,7 +181,7 @@ import {
 import {
   applyWeatherEntityIdToLayout,
   resolveWeatherEntityId,
-} from '@/utils/config/resolve-active-profile.util'
+} from '@/composables/config/resolve-active-profile.util'
 
 const { load: loadSystemConfig } = useSystemConfig()
 

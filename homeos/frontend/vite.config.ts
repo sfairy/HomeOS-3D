@@ -149,7 +149,14 @@ async function publishStagingToLive(): Promise<void> {
   if (!fs.existsSync(outDir)) return
   await withFileLock(publishLockPath, () => {
     fs.mkdirSync(finalOutDir, { recursive: true })
-    const entries = fs.readdirSync(outDir).filter((name) => name !== 'modules')
+    // 发布时排除两类目录：
+    //   - ``modules``：运行期模块由 vite.runtime.config.ts 独立写入，不归本构建管；
+    //   - ``.vite``：``manifest: true`` 会让 Vite 产出 ``outDir/.vite/manifest.json``，
+    //     线上无任何消费方（后端白名单读 ``public-static.json`` 与 runtime ``manifest.json``），
+    //     属构建缓存，不应进 dist。
+    const entries = fs.readdirSync(outDir).filter(
+      (name) => name !== 'modules' && name !== '.vite',
+    )
     // 先资源后外壳：避免新 index 已上线却仍缺新 hash chunk。
     const ordered = [
       ...entries.filter((name) => name !== 'index.html'),
@@ -162,6 +169,14 @@ async function publishStagingToLive(): Promise<void> {
     }
     for (const bucket of ['assets', 'static'] as const) {
       pruneStale(resolve(finalOutDir, bucket), resolve(outDir, bucket))
+    }
+    // 根层残留清理：删掉本次未发布的顶层条目（旧 ``.vite/``、调试用 ``__fridge_*.html``、
+    // 已删除的入口等），但保留运行期模块目录 ``modules``。原先只剪 assets/static 两层，
+    // 于是根目录的脏文件会随每次增量发布一直留着。
+    const publishedTop = new Set(ordered)
+    for (const dirent of fs.readdirSync(finalOutDir, { withFileTypes: true })) {
+      if (dirent.name === 'modules' || publishedTop.has(dirent.name)) continue
+      fs.rmSync(resolve(finalOutDir, dirent.name), { recursive: true, force: true })
     }
     fs.rmSync(outDir, { recursive: true, force: true })
   })
@@ -435,7 +450,7 @@ function finalizeBuildPlugin(): Plugin {
  * 生成 `/static` 匿名白名单（`dist/homeos/frontend/public-static.json`）。
  *
  * 后端用它判定「未登录也必须能加载」的静态资源：白名单**之外**的 `/static/**` 一律要求
- * 已登录会话（见 backend/src/studio_shell.py）。种子清单是 `public-static.seed.json`。
+ * 已登录会话（见 backend/src/bootstrap/studio_shell.py）。种子清单是 `public-static.seed.json`。
  */
 function updatePublicStaticManifest(): void {
   const seedPath = resolve(__dirname, 'public-static.seed.json')
@@ -781,42 +796,42 @@ export default defineConfig(async (): Promise<UserConfig> => {
               },
               {
                 name: 'settings-connect',
-                test: /src[\\/]views[\\/]settings[\\/]connect[\\/]/,
+                test: /src[\\/]features[\\/]settings[\\/]connect[\\/]/,
                 priority: 18,
               },
               {
                 name: 'settings-home',
-                test: /src[\\/]views[\\/]settings[\\/]home[\\/]/,
+                test: /src[\\/]features[\\/]settings[\\/]home[\\/]/,
                 priority: 18,
               },
               {
                 name: 'settings-display',
-                test: /src[\\/]views[\\/]settings[\\/]display[\\/]/,
+                test: /src[\\/]features[\\/]settings[\\/]display[\\/]/,
                 priority: 18,
               },
               {
                 name: 'settings-automate',
-                test: /src[\\/]views[\\/]settings[\\/]automate[\\/]/,
+                test: /src[\\/]features[\\/]settings[\\/]automate[\\/]/,
                 priority: 18,
               },
               {
                 name: 'settings-interact',
-                test: /src[\\/]views[\\/]settings[\\/]interact[\\/]/,
+                test: /src[\\/]features[\\/]settings[\\/]interact[\\/]/,
                 priority: 18,
               },
               {
                 name: 'settings-system',
-                test: /src[\\/]views[\\/]settings[\\/]system[\\/]/,
+                test: /src[\\/]features[\\/]settings[\\/]system[\\/]/,
                 priority: 18,
               },
               {
                 name: 'settings-shared',
-                test: /src[\\/]views[\\/]settings[\\/](shared|utils)[\\/]/,
+                test: /src[\\/]features[\\/]settings[\\/](shared|composables)[\\/]/,
                 priority: 17,
               },
               {
                 name: 'security-view',
-                test: /src[\\/]views[\\/]security[\\/]/,
+                test: /src[\\/]features[\\/]security[\\/]/,
                 priority: 16,
               },
               {

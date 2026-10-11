@@ -12,7 +12,7 @@ import {
   getTeleportContainerSize,
   resolvePopupNumeric,
   type PopupNumericInput,
-} from '@/utils/ui/popup-position-shared.util'
+} from '@/composables/ui/popup-position-shared.util'
 import { pickPopupPlacementDirection } from '@/utils/ui/popup-placement.util'
 import { clampNum as clamp } from '@/utils/core/misc.util'
 

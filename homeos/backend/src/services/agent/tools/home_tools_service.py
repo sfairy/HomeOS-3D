@@ -37,7 +37,7 @@ from .tool_args_validator import (
 )
 from ..agent_actor import AGENT_CONTROL_TOOLS, AgentActor
 from ..config_service import AgentConfigService
-from ...command_proxy_auth import assert_command_proxy_authorized
+from ...proxy.command_proxy_auth import assert_command_proxy_authorized
 from ....core.entity_domain import get_entity_domain
 from ....core.errors import BusinessException
 from ....core.ha_service_catalog import agent_service_allowed

@@ -37,7 +37,7 @@ REPO_ROOT = (
 
 
 def _detect_frontend_root() -> Path:
-    """前端构建产物根目录（内含 ``static/`` 与 ``templates/``）。
+    """前端构建产物根目录（内含 ``static/`` 与 SPA 外壳 ``index.html``）。
 
     容器布局：Dockerfile 把 ``dist/homeos-store/frontend`` 拷进 ``/app/dist``。
     工作区布局：构建产物统一收敛在工作区根 ``dist/homeos-store/frontend``，
@@ -161,7 +161,8 @@ class StoreSettings:
     project_root: Path = PROJECT_ROOT
     repo_root: Path = REPO_ROOT
     static_dir: Path = FRONTEND_ROOT / "static"
-    templates_dir: Path = FRONTEND_ROOT / "templates"
+    #: SPA 外壳所在目录（``index.html`` 与主应用产物同位，均在静态挂载根之外）。
+    shell_dir: Path = FRONTEND_ROOT
 
     cookie_name: str = "homeos_store_session"
     hint_cookie_name: str = "homeos_store_hint"
