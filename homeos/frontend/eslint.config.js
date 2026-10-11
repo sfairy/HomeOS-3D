@@ -33,6 +33,7 @@ const FEATURE_DOMAINS = fs
   .map((entry) => entry.name)
 
 /** 存量豁免：与脚本白名单对应，收敛后一并删除。 */
+/** @type {string[]} */
 const CROSS_DOMAIN_EXEMPT = [
   // 空 —— P2 试点已把 settings → security 的深引用改走域根 barrel。
 ]

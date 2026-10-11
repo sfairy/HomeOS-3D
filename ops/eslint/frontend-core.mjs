@@ -64,15 +64,24 @@ const VUE_LANGUAGE_OPTIONS = {
 };
 
 /**
+ * 工厂入参：`files` 必填，其余按需。
+ * @typedef {{ files: string[], ignores?: string[], style?: object, rules?: object }} BlockOptions
+ */
+
+/**
  * `@eslint/js` 的 `recommended` 块（`files` 必填：两边的文件范围不同，只有调用方知道该管哪些文件）。
  *
  * 不解构 `configs.recommended` 再展开，是因为它自带的键随 eslint 版本变化，直接透传最稳。
+ * @param {Pick<BlockOptions, "files" | "ignores">} options
  */
 export function recommendedBlock({ files, ignores = [] }) {
   return { ...js.configs.recommended, files, ignores };
 }
 
-/** 裸 `.js` / `.mjs` 块：只上 coreRules 风格规则，不引入 TS parser。 */
+/**
+ * 裸 `.js` / `.mjs` 块：只上 coreRules 风格规则，不引入 TS parser。
+ * @param {BlockOptions} options
+ */
 export function jsBlock({ files, ignores = [], style, rules = {} }) {
   return {
     files,
@@ -86,7 +95,10 @@ export function jsBlock({ files, ignores = [], style, rules = {} }) {
   };
 }
 
-/** `.ts` / `.tsx` 块（含 `any` 与 type-import 两条 TS 专属规则）。 */
+/**
+ * `.ts` / `.tsx` 块（含 `any` 与 type-import 两条 TS 专属规则）。
+ * @param {BlockOptions} options
+ */
 export function tsBlock({ files, ignores = [], style, rules = {} }) {
   return {
     files,
@@ -104,7 +116,10 @@ export function tsBlock({ files, ignores = [], style, rules = {} }) {
   };
 }
 
-/** `.vue` 块：template 走 vue-parser，`<script>` 段再交给 tseslint。 */
+/**
+ * `.vue` 块：template 走 vue-parser，`<script>` 段再交给 tseslint。
+ * @param {BlockOptions} options
+ */
 export function vueBlock({ files, ignores = [], style, rules = {} }) {
   return {
     files,
@@ -135,6 +150,7 @@ export function vueBlock({ files, ignores = [], style, rules = {} }) {
  *
  * 抽在这里还有个副作用是好的：升级 eslint-plugin-vue 时，两边的 flat 配置形状一起更新，
  * 不会出现「主应用跑的是新形状、商店还挂着一个 eslint 已经把 `files` 语义改掉的旧块」。
+ * @param {{ ignores?: string[] }} [options]
  */
 export function vueEssentialBlocks({ ignores = [] } = {}) {
   return pluginVue.configs["flat/essential"].map((config) => ({
