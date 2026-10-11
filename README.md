@@ -40,11 +40,14 @@ HomeOS/
 │   ├── build.py               # 分发级构建编排（导出加密后端、组装运行镜像）
 │   ├── caddy/                 # 镜像内置反代配置（app / store 各一份）
 │   ├── docker/                # 容器启动器、Cython 编译、JS 混淆
+│   ├── eslint/                # 两个前端共用的 ESLint 规则核（frontend-core.mjs）
+│   ├── vite/                  # 两个前端共用的构建助手（经典 IIFE 打包 / SPA 外壳断言）
 │   ├── deploy/                # deploy.sh 与部署文档
 │   ├── check_schema.py        # 库结构门禁：迁移脚本 ↔ ORM 元数据一致性
 │   └── dev.mjs                # 本地开发一键启动（Bun；不是部署脚本）
 ├── keys/                      # 仅本地联调用的开发公钥（生产商店会自生成新密钥对；容器不用）
-├── homeos/packages/shared/    # @homeos/shared 前端契约包
+├── packages/shared/           # @homeos/shared 共享契约包（两个前端共用源码；后端契约同源）
+├── packages/shared-py/        # homeos_shared 共享 Python 源码包（两个后端共用；构建期各自内联成 .so）
 ├── node_modules/              # 全仓唯一的依赖安装（bunfig.toml 的 hoisted linker；
                                # 项目目录内不再有 node_modules，构建缓存落在其 .vite/ 下）
 ├── package.json / bun.lock    # 单体仓库编排 + 全仓唯一的依赖锁
@@ -143,14 +146,17 @@ bun run dev:runtime
 | `bun run build:vite` | 仅 Vite 构建，跳过混淆（调试用，产出到根 `dist/`） |
 | `bun run obfuscate` | 对已有根 `dist/` 前端再跑一遍混淆 |
 | `bun run image` / `image:app` / `image:store` | 从根 `dist/` 组装运行镜像（镜像内不再编译后端） |
-| `bun run typecheck` | 两边 `tsc` + Python 静态检查（与 CI 的 `pyright` job 同口径，只硬拦必为 bug 的规则） |
+| `bun run typecheck` | 两边 `tsc` + Python 静态检查（与 CI 的 `pyright` job 同口径，只硬拦必为 bug 的规则）。**先跑 `build:shared`**：主应用从 `@homeos/shared` 的 `dist/` 取类型，干净检出时该目录不存在（`dist/` 被 gitignore），不先建就会以 `TS2307 Cannot find module '@homeos/shared'` 失败 |
 | `bun run typecheck:py` | 只跑 Python 静态检查（`ops/ci/pyright_gate.py`） |
 | `bun run knip` | JS/TS 未使用文件/导出/依赖扫描（`knip.config.ts`，含动态入口白名单） |
+| `bun run --cwd homeos/frontend lint` / `--cwd homeos-store lint` | 前端 ESLint（`--fix`）。规则核只有一份（`ops/eslint/frontend-core.mjs`）：parser/插件装配与「抓 bug」那批规则（未使用 import、`any`、vue 陷阱）两个前端逐条一致；分离出来的只有**风格两条**，各自按既有约定给 —— 主应用单引号无分号、商店双引号带分号（实测 5789 条存量差异全是这两条，整树 `--fix` 等于重写商店前端且抓不出一个 bug，理由写在该文件头）。`lint:ci` 是 `--max-warnings 0`，两个应用都已进 CI |
+| `bun run kpi:studio` | studio 收敛 KPI 三件套：单体行数（`ops/studio_monolith_kpi.py`，含桩检测 + ratchet）、域清单与平铺面（`ops/studio_domains_kpi.py`）、根↔studio 同名冲突（`ops/studio_layout_kpi.py`）。**P4 拆 studio 的双门槛之一**（另一半是 `homeos/frontend` 侧的 `check:deps` 域边界门禁）；已进 CI —— 不进就等于「拆分成果没有护栏」 |
 | `bun run dev:app` / `dev:store` | 单独跑一侧 Vite HMR（需后端已在跑） |
 | `bun run dev:runtime` | runtime 模块 watch → 根 `dist/homeos/frontend/modules/runtime` |
 | `bun run verify:scene` | 校验 `design/scene` 与两端 `public/static/**/scene` 逐字节一致 |
 | `bun run verify:features` | 校验功能码真源（`ops/feature_codes.json`）与两端后端 + 前端镜像一致 |
-| `bun run verify:contracts` | TS↔Python 孪生清单对账（儿童受限域、默认房间 id；`ops/contracts/shared-twins.json`） |
+| `bun run verify:contracts` | TS↔Python 孪生清单对账（儿童受限域、默认房间 id、常量块字面量集；`ops/contracts/shared-twins.json`）+ 共享 Python 真源唯一（后端不得再存 `packages/shared-py` 模块的副本）+ 门禁自检（`ops/check_shared_contracts_selftest.py`）+ 独立部署护栏（见下一行） |
+| `bun run verify:independence` | 独立部署护栏（`ops/check_deploy_independence.py`）：两后端源码/两前端源码/两份 `package.json` 互不引用（跨界只允许 `@homeos/shared`）、Dockerfile 只有一个构建阶段且源码只能由 `--build-arg PROJECT` 选（`ARG PROJECT` 不许有默认值）、`ops/build.py` 的 PROJECTS 表与 Dockerfile 的 `case "$PROJECT"` 双向对账、运行阶段各装各的产物与两个构建阶段各自内联 `packages/shared-py`；含 33 项注入式自检 |
 | `bun run verify:schema` | 库结构门禁（`ops/check_schema.py`）：迁移脚本 ↔ ORM 元数据 ↔ 实际结构 ↔ 发行路径建库 |
 | `bun run verify:smoke` | 商店侧冒烟：端到端判定口径（`smoke_store.py`）+ 结构漂移护栏 |
 | `bun run verify:smoke:app` | 主应用侧冒烟：认证契约 + 注册→登录→激活 + HA 白名单 + HA 取状态容错 + 结构漂移护栏 + 模块功能码门禁 + 授权激活 e2e（商店未跑则 SKIP） |

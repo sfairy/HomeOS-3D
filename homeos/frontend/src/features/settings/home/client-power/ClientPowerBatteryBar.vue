@@ -17,7 +17,7 @@ import {
   batteryBarClass,
   batteryBarStyle,
   batteryLabelStyle,
-} from '@/utils/client/power-battery-display.util'
+} from '@/shared/client/utils/power-battery-display.util'
 
 // 入参：电量百分比、是否充电中、低/高阈值
 defineProps({

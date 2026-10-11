@@ -200,10 +200,10 @@ import ModeLogsAnalyticsRail from '@/views/ModeLogsAnalyticsRail.vue'
 import {
   EMPTY_MODE_LOG_ANALYTICS,
   type ModeLogAnalytics,
-} from '@/composables/home/useModeLogsAnalytics'
-import { formatDetailedDateTimeOrDash } from '@/utils/format/locale-format.util'
-import { getApiErrorMessage } from '@/utils/core/error-message'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+} from '@/features/home-mode'
+import { formatDetailedDateTimeOrDash } from '@/shared/utils/format/locale-format.util'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 
 import {
   homeModeLogSourceLabel,

@@ -10,14 +10,14 @@
  *
  * 关键依赖：
  * - vue watch / Ref 类型
- * - @/types/layout：UILayoutConfig
+ * - @/shared/types/layout：UILayoutConfig
  *
  * 实现说明：
  * - 拖拽热点应写浅层 preview，松手再提交，避免本 watch 每帧扇出
  * - 返回 stopLayoutDirtyWatch 用于卸载场景（单例 store 通常不调用）
  */
 import { watch, type Ref } from 'vue'
-import type { UILayoutConfig } from '@/types/layout'
+import type { UILayoutConfig } from '@/shared/types/layout'
 
 /**
  * 全局脏标记追踪：任何对 layoutConfig 的修改（含设置页 v-model）都会标记 layoutDirty。

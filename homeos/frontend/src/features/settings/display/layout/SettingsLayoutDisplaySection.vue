@@ -166,7 +166,7 @@ import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
 import SettingsCardIntro from '@/components/common/page-shell/SettingsCardIntro.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeField.vue'
-import { SETTINGS_RANGE_STEP } from '@/utils/settings/range-steps.util'
+import { SETTINGS_RANGE_STEP } from '@/shared/utils/settings/range-steps.util'
 import { useLayoutStore } from '@/stores/layout.store'
 
 const layoutStore = useLayoutStore()

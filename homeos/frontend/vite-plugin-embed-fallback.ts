@@ -1,5 +1,5 @@
 import type { Plugin } from 'vite'
-import { resolveEmbedProxyFallbackRedirect } from '../packages/shared/src/embed/fallback-core.util.ts'
+import { resolveEmbedProxyFallbackRedirect } from '../../packages/shared/src/embed/fallback-core.util.ts'
 
 /**
  * 开发环境：内嵌反代页「逃逸子资源」兜底（与后端 spaFallbackMiddleware 等价）。

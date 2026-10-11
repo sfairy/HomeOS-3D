@@ -1,4 +1,4 @@
-import { logger } from '@/utils/core/logger'
+import { logger } from '@/shared/utils/core/logger'
 /**
  * @file useMainLayoutWeatherNav.ts
  * @module composables/ui
@@ -15,8 +15,8 @@ import { logger } from '@/utils/core/logger'
  * - entities.store / layout.store（天气实体与布局配置）
  */
 import { computed, ref, watch } from 'vue'
-import { weatherVisualKey } from '@/constants/weather-labels'
-import { domainIndexToArray } from '@/utils/entity/derived.util'
+import { weatherVisualKey } from '@/shared/weather/constants/weather-labels'
+import { domainIndexToArray } from '@/shared/entity/utils/derived.util'
 import type { useEntitiesStore } from '@/stores/entities.store'
 import type { useLayoutStore } from '@/stores/layout.store'
 

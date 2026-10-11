@@ -18,11 +18,11 @@
  */
 import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
-import { isNavTabRouteActive } from '@/utils/layout/nav-tabs.util'
+import { isNavTabRouteActive } from '@/shared/utils/layout/nav-tabs.util'
 import {
   buildMainLayoutNavMenu,
   capBarItemsForViewport,
-} from '@/utils/ui/main-layout-nav.util'
+} from '@/shared/utils/ui/main-layout-nav.util'
 import type { useLayoutStore } from '@/stores/layout.store'
 import { useLicenseFeatureAccess } from '@/router/license-gate'
 import { useExclusiveDropdown } from '@/composables/ui/useExclusiveDropdown'

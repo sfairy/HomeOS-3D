@@ -1,7 +1,7 @@
 import { speakerState, speakerCommand } from "./speaker-state";
 import { televisionTime } from "../television/television-state";
-import { domElement } from "@app/utils/dom-factory";
-import { syncHtmlRangeProgress } from "@app/utils/range-progress";
+import { domElement } from "@app/shared/util/dom-factory";
+import { syncHtmlRangeProgress } from "@app/shared/util/range-progress";
 import { createStageDeviceVisual } from "../core/stage-device-visual";
 export function createSpeakerPanel({
   onControl: sendCommand = async (_commandArgs: any) => {},

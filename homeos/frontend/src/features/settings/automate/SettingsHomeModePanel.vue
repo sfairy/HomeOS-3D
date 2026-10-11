@@ -42,8 +42,8 @@
 import { computed, unref } from 'vue'
 import SettingsPageShell from '@/components/common/page-shell/SettingsPageShell.vue'
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
-import { useHomeModePanelBridge } from '@/composables/home-mode/editor.internals'
-import HomeModePanel from '@/features/settings/automate/home-mode/HomeModePanelSection.vue'
+import { useHomeModePanelBridge } from '@/features/home-mode'
+import { HomeModePanel } from '@/features/home-mode'
 
 // 入参：当前激活的 Tab ID（默认 home-mode）
 defineProps({ activeTab: { type: String, default: 'home-mode' } })
@@ -55,4 +55,4 @@ const panelBridge = useHomeModePanelBridge()
 const pendingCount = computed(() => unref(panelBridge.value?.pendingCount) ?? 0)
 const saving = computed(() => Boolean(unref(panelBridge.value?.saving)))
 </script>
-<style src="./home-mode/styles/HomeMode.css"></style>
+<style src="./styles/home-mode-embed.css"></style>

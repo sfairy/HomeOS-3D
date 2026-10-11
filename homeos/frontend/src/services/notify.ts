@@ -6,20 +6,20 @@
  * - 提供带反馈的剪贴板复制。
  *
  * 依赖：
- * - @/utils/core/logger：日志记录
- * - @/utils/core/error-message：异常消息提取
- * - @/utils/telemetry/trace.util：traceId 提取
- * - @/utils/bridge/store-bridge：toast 通知
+ * - @/shared/utils/core/logger：日志记录
+ * - @/shared/utils/core/error-message：异常消息提取
+ * - @/shared/utils/telemetry/trace.util：traceId 提取
+ * - @/shared/utils/bridge/store-bridge：toast 通知
  * - @/stores/chrome.store：Chrome store 通知
- * - @/utils/core/clipboard.util：剪贴板复制
+ * - @homeos/shared/utils/clipboard：剪贴板复制（主应用与商店共用内核）
  */
-import { logger } from '@/utils/core/logger'
-import { extractErrorMessage } from '@/utils/core/error-message'
-import { extractTraceIdFromError } from '@/utils/telemetry/trace.util'
-import { appNotify } from '@/utils/bridge/store-bridge'
+import { logger } from '@/shared/utils/core/logger'
+import { extractErrorMessage } from '@/shared/utils/core/error-message'
+import { extractTraceIdFromError } from '@/shared/utils/telemetry/trace.util'
+import { appNotify } from '@/shared/utils/bridge/store-bridge'
 import { useChromeStore } from '@/stores/chrome.store'
-import { copyTextToClipboard } from '@/utils/core/clipboard.util'
-import type { NotifyOptions, NotifyType } from '@/types/notify'
+import { copyTextToClipboard } from '@homeos/shared/utils/clipboard'
+import type { NotifyOptions, NotifyType } from '@/shared/types/notify'
 
 /**
  * 统一错误反馈：将异常转换为用户可见 toast，并记录日志。

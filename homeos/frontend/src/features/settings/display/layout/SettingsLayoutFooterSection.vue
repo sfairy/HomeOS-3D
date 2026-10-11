@@ -379,7 +379,7 @@ import {
 } from '@lucide/vue'
 import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
 import SettingsCardIntro from '@/components/common/page-shell/SettingsCardIntro.vue'
-import SettingsOrchTabs from '@/features/settings/shared/layout/SettingsOrchTabs.vue'
+import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 import EntityInput from '@/components/common/EntityInput.vue'
 import FooterIconPicker from '@/components/common/FooterIconPicker.vue'
 import FooterColorPicker from './FooterColorPicker.vue'
@@ -394,7 +394,7 @@ import {
   footerAccountIndexToSelectValue,
   footerAccountSelectValueToIndex,
   DASHBOARD_FOOTER_COLOR_ACCENT,
-} from '@/constants/dashboard-footer'
+} from '@/shared/constants/dashboard-footer'
 
 const layoutStore = useLayoutStore()
 const entitiesStore = useEntitiesStore()

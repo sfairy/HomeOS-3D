@@ -5,7 +5,7 @@ import {
   fitFlowLinePath as fitFlowLinePath2,
 } from "../../shared/flow-line-model";
 import { renderFlowLine as renderFlowLine2 } from "../core/registry/flow-line";
-import { createSvgElement as createSvgElementFromFactory } from "@app/utils/svg-factory";
+import { createSvgElement as createSvgElementFromFactory } from "@app/shared/util/svg-factory";
 let activeEditorInstance: any = null;
 /** 路径编辑器选项：由 inspector 的 pathEditorContext 动态拼装后透传。 */
 /** 路径下拉增强器的返回句柄（inspector 提供，含 sync/keydown/destroy）。 */

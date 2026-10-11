@@ -75,7 +75,7 @@
  */
 import { computed, ref } from 'vue'
 import { ChevronDown } from '@lucide/vue'
-import { DASHBOARD_FOOTER_ICONS } from '@/constants/dashboard-footer'
+import { DASHBOARD_FOOTER_ICONS } from '@/shared/constants/dashboard-footer'
 import { useClickOutside } from '@/composables/ui/useClickOutside'
 import { useDropdownPosition } from '@/composables/ui/useDropdownPosition'
 

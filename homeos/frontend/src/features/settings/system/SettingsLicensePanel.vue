@@ -304,8 +304,8 @@ import {
   retryLicense,
 } from '@/services/api/license'
 import { setLicenseFeatureAccess } from '@/router/license-gate'
-import { featureLabel } from '@/utils/registry/feature-labels.util'
-import { isUnauthorizedError } from '@/utils/core/error-message'
+import { featureLabel } from '@/shared/utils/registry/feature-labels.util'
+import { isUnauthorizedError } from '@/shared/utils/core/error-message'
 
 defineProps({ activeTab: { type: String, default: 'license' } })
 

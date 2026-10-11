@@ -5,8 +5,8 @@
   Props: compact 是否紧凑布局（隐藏辅助指标）/ weather-entity-override 覆盖 ID
   依赖：composables: useWeatherEntity 返回 resolvedEid 与 fallback；
         Pinia: useEntitiesStore 快照；
-        utils/weather-metric.util celsiusToDisplayTemp/formatHumidity 格式化；
-        constants: weatherStateLabel + weatherVisualKey；
+        shared/weather/utils/weather-metric.util celsiusToDisplayTemp/formatHumidity 格式化；
+        constants: weatherStateLabel + weatherVisualKey（@/shared/weather/constants/weather-labels）；
         RouterLink 跳转首装向导；
         lucide: 同 Forecast 的图标集 + Eye + Gauge + Leaf 扩展指标。
   注意：未绑定天气实体时出 VEmptyState 引导首装向导；温度单位跟随 locale-format。
@@ -149,20 +149,20 @@
  *  - @lucide/vue: 多种天气图标
  *  - @/stores/entities.store: 实体状态
  *  - @/composables/entity/useWeatherEntity: 天气实体 composable
- *  - @/constants/weather-labels: 天气状态标签与视觉键
- *  - @/utils/registry/settings-route.util: 设置页路由常量
+ *  - @/shared/weather/constants/weather-labels: 天气状态标签与视觉键
+ *  - @/shared/utils/registry/settings-route.util: 设置页路由常量
  */
-import { weatherStateLabel, weatherVisualKey } from '@/constants/weather-labels'
+import { weatherStateLabel, weatherVisualKey } from '@/shared/weather/constants/weather-labels'
 import { computed, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Cloud, Sun, Droplets, Wind, CloudRain, Eye, Gauge, Leaf, CloudFog, CloudLightning, CloudSnow, Moon } from '@lucide/vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useWeatherEntity } from '@/composables/entity/useWeatherEntity'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import {
   collectSensorEntityIds,
   readAqiNumber,
-} from '@/utils/weather/weather-metric.util'
+} from '@/shared/weather/utils/weather-metric.util'
 
 const props = defineProps({
   config: {},

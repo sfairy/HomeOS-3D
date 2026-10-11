@@ -23,8 +23,8 @@
  * - @/stores/ui/create-layout-draft-state：未保存草稿持久化
  * - @/stores/ui/create-edit-mode-actions：编辑模式行为
  * - @/composables/config/resolve-active-profile.util：解析激活方案 ID
- * - @/utils/perf/tablet-default-perf.util：平板默认性能模式
- * - @/utils/core/clone-plain.util：深拷贝工具
+ * - @/shared/utils/perf/tablet-default-perf.util：平板默认性能模式
+ * - @/shared/utils/core/clone-plain.util：深拷贝工具
  *
  * 实现说明：
  * - 新代码直接 useLayoutStore()。Pinia store 已是单例；chrome 经 useChromeStore() 组合
@@ -32,8 +32,8 @@
  */
 import { defineStore, storeToRefs } from 'pinia'
 import { nextTick } from 'vue'
-import { logger } from '@/utils/core/logger'
-import { getApiErrorMessage } from '@/utils/core/error-message'
+import { logger } from '@/shared/utils/core/logger'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { useChromeStore } from '@/stores/chrome.store'
 import {
   createLayoutCoreState,
@@ -45,8 +45,8 @@ import { createLayoutPersistence } from '@/stores/ui/create-layout-persistence'
 import { createLayoutProfileActions } from '@/stores/ui/create-layout-profile-actions'
 import { createLayoutDraftState } from '@/stores/ui/create-layout-draft-state'
 import { createEditModeActions } from '@/stores/ui/create-edit-mode-actions'
-import { applyTabletDefaultPerformanceMode } from '@/utils/perf/tablet-default-perf.util'
-import { clonePlain } from '@/utils/core/clone-plain.util'
+import { applyTabletDefaultPerformanceMode } from '@/shared/utils/perf/tablet-default-perf.util'
+import { clonePlain } from '@/shared/utils/core/clone-plain.util'
 
 /** useLayoutStore：Pinia store 工厂，状态与动作见定义。 */
 export const useLayoutStore = defineStore('layout', () => {

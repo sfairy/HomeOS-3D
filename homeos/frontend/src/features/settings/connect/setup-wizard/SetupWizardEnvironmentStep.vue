@@ -25,7 +25,7 @@
  */
 import { inject } from 'vue'
 import { Sparkles, Loader2 } from '@lucide/vue'
-import SettingsOrchTabs from '@/features/settings/shared/layout/SettingsOrchTabs.vue'
+import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 import EntityInput from '@/components/common/EntityInput.vue'
 import VProgressBar from '@/components/common/base/VProgressBar.vue'
 import RegistryDegradedGuide from '@/features/settings/shared/RegistryDegradedGuide.vue'

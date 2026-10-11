@@ -1,5 +1,5 @@
 import { hsToRgbColor } from "../renderer/controls/light-runtime";
-import { clampNumber, finiteNumberOr } from "../utils/number";
+import { clampNumber, finiteNumberOr } from "../shared/util/number";
 const normalizeLightState = (lightState: any) => ({
     intensity: Math.max(0, finiteNumberOr(lightState?.intensity, 0)),
     color: [0, 1, 2].map((channelIndex) =>

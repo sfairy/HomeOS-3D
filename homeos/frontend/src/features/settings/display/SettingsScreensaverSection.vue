@@ -84,7 +84,7 @@ import {
   loadFrontendConfig,
   onConfigChange,
   reloadFrontendConfig,
-} from '@/utils/config/frontend-config'
+} from '@/shared/utils/config/frontend-config'
 import { useChromeStore } from '@/stores/chrome.store'
 
 const router = useRouter()

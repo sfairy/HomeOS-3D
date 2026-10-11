@@ -6,7 +6,7 @@
  *  - 维护 ECharts 实例生命周期：双轴/单轴切换时销毁重建，容器不可见时 dispose；
  *  - 提供图例数据、切换、空态文案，并响应可见性、认证、WS 重连与配置变化；
  *  - 通过 scheduleEchartsTask 队列化渲染任务，避免高频更新抢占主线程。
- * 关键依赖：useScheduledPoll、@/utils/chart/echarts（动态加载）、useEntitiesStore、useFetchGeneration。
+ * 关键依赖：useScheduledPoll、@/shared/utils/chart/echarts（动态加载）、useEntitiesStore、useFetchGeneration。
  */
 import {
   ref,
@@ -18,8 +18,8 @@ import {
   type Ref,
   type ComputedRef,
 } from 'vue'
-import { useScheduledPoll } from '@/composables/widget/useScheduledPoll'
-import type * as EchartsModuleNS from '@/utils/chart/echarts'
+import { useScheduledPoll } from '@/shared/widget/composables/useScheduledPoll'
+import type * as EchartsModuleNS from '@/shared/utils/chart/echarts'
 import { useAuthStore } from '@/stores/auth.store'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { fetchHaHistory, type HaHistoryPoint } from '@/services/api/entities'
@@ -28,14 +28,14 @@ import {
   observeChartResize,
   scheduleEchartsTask,
   cancelScheduledEchartsTask,
-} from '@/utils/ui/chart-resize.util'
+} from '@/shared/utils/ui/chart-resize.util'
 import { useFetchGeneration } from '@/composables/ui/useFetchGeneration'
 import {
   HOME_CLIMATE_CHART_VIEW_OPTIONS,
   HOME_CLIMATE_CHART_HOURS,
   normalizeHomeClimateChartConfig,
   type HomeClimateChartView,
-} from '@/utils/registry/home-climate-chart-options'
+} from '@/shared/utils/registry/home-climate-chart-options'
 import { TEMP_COLORS, HUM_COLORS, MAX_CHART_RETRIES } from './constants'
 import {
   buildClimateChartOption,
@@ -206,7 +206,7 @@ export function useHomeClimateChart(options: UseHomeClimateChartOptions) {
     }
     if (!chartInstance) {
       // 动态 import echarts vendor：保持大依赖独立分包、按需加载
-      const echarts = (await import('@/utils/chart/echarts')).default
+      const echarts = (await import('@/shared/utils/chart/echarts')).default
       // 导入是异步的：期间面板可能隐藏或容器被替换，重新校验避免僵尸实例
       if (
         !panelVisible.value ||

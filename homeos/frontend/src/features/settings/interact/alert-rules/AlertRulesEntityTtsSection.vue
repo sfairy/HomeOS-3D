@@ -201,11 +201,11 @@ import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat
 import RecommendInsightCard from '@/components/common/RecommendInsightCard.vue'
 import EntityInput from '@/components/common/EntityInput.vue'
 import VoiceSpeechComposer from '@/features/settings/interact/voice/SpeechComposer.vue'
-import { getEntityTtsQuickDomains } from '@/constants/voice-alert-catalog'
+import { getEntityTtsQuickDomains } from '@/shared/constants/voice-alert-catalog'
 import { useAlertRulesSection } from './context'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useAlertRulesRecommend } from '@/features/settings/composables/interact/alert-rules.internals'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 
 const entitiesStore = useEntitiesStore()
 const pendingEntityId = ref('')

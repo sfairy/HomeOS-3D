@@ -20,7 +20,7 @@
  */
 import { AlertTriangle, ExternalLink } from '@lucide/vue'
 import { RouterLink } from 'vue-router'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 
 defineProps({
   status: { type: Object, default: null },

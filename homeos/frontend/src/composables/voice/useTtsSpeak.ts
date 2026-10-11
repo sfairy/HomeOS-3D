@@ -11,12 +11,12 @@
  */
 import { ref, computed } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
-import { getConfigSection } from '@/utils/config/frontend-config'
+import { getConfigSection } from '@/shared/utils/config/frontend-config'
 import { speakVoice } from '@/services/api/system'
-import { logger } from '@/utils/core/logger'
-import { getApiErrorMessage } from '@/utils/core/error-message'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
-import { speakLocal } from '@/utils/voice/local-speech.util'
+import { logger } from '@/shared/utils/core/logger'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import { speakLocal } from '@/shared/voice/utils/local-speech.util'
 
 /**
  * 列出所有可用的媒体播放器实体（排除 unavailable），按名称中文排序。

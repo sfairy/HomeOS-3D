@@ -57,7 +57,7 @@ def main() -> None:
     )
     if reload_enabled:
         # 开发期降噪：重载提示与 watchfiles 的逐次改动日志（必须在 uvicorn.run 之前挂）。
-        from .logging_noise import install_reload_noise_filter
+        from homeos_shared.logging_noise import install_reload_noise_filter
 
         install_reload_noise_filter()
         uvicorn.run(

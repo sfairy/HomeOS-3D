@@ -16,9 +16,9 @@
  *
  * 关键依赖：
  * - @/stores/entities/entity-store-optimistic.util：predictOptimistic / applyOptimistic / rollbackOptimistic
- * - @/utils/config/frontend-config：coldEntityOnDemand / callDedupWindowMs
- * - @/utils/ha/url：HA 离线时危险服务调用拦截
- * - @/utils/core/error-message：统一 API 错误消息提取
+ * - @/shared/utils/config/frontend-config：coldEntityOnDemand / callDedupWindowMs
+ * - @/shared/utils/ha/url：HA 离线时危险服务调用拦截
+ * - @/shared/utils/core/error-message：统一 API 错误消息提取
  *
  * 实现说明：
  * - pendingCalls 用 Map 实现「同一 domain.service.entityId + serviceData」在去重窗口内复用 Promise
@@ -26,15 +26,16 @@
  * - pendingEntityIds 用 Set + 引用计数处理同一实体并发多服务调用，引用归零才移除
  */
 import { reactive } from 'vue'
-import { getApiErrorMessage } from '@/utils/core/error-message'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { predictOptimistic } from '@/stores/entities/entity-store-optimistic.util'
-import { getWsPushPublicConfig } from '@/utils/config/frontend-config'
+import { getWsPushPublicConfig } from '@/shared/utils/config/frontend-config'
 import {
   blockDangerousHaServiceWhenOffline,
   HA_OFFLINE_DANGEROUS_CONTROL_MSG,
-} from '@/utils/ha/url'
+} from '@/shared/utils/ha/url'
 import { useChromeStore } from '@/stores/chrome.store'
-import type { EntityActionsDeps, HaEntityState } from '@/types/entity-store'
+import { fetchEntityById } from '@/shared/entity/utils/cold-fetch.util'
+import type { EntityActionsDeps, HaEntityState } from '@/shared/types/entity-store'
 
 /** 去重 pending 调用条目：同一 dedupKey 复用此 Promise */
 interface PendingCall {
@@ -109,7 +110,6 @@ export function createEntityActions(deps: EntityActionsDeps) {
     const coldOnDemand = getWsPushPublicConfig()?.coldEntityOnDemand
     if (didOptimistic && !coldOnDemand) return
     try {
-      const { fetchEntityById } = await import('@/utils/entity/cold-fetch.util')
       const fetched = (await fetchEntityById(entityId, { refresh: true })) as
         HaEntityState | null | undefined
       if (!fetched?.entity_id || fetched.entity_id !== entityId) return

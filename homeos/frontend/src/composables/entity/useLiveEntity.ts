@@ -10,7 +10,7 @@
 import { computed, unref, type MaybeRefOrGetter } from 'vue'
 import { useEntity } from '@/composables/entity/useEntity'
 import { useEntitiesStore } from '@/stores/entities.store'
-import type { HaEntityState } from '@/types/entity-store'
+import type { HaEntityState } from '@/shared/types/entity-store'
 
 /**
  * 解析 MaybeRefOrGetter 形式的 entityId 引用为具体值。

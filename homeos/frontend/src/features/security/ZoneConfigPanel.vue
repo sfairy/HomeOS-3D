@@ -74,13 +74,13 @@ import { Plus, RefreshCw, Sparkles } from '@lucide/vue'
 import SecurityZoneEditorList from '@/features/security/ZoneEditorList.vue'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import { getApiErrorMessage } from '@/utils/core/error-message'
-import { postSecurityZones, prepareZonesForSave } from '@/utils/security/zones-api.util'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
+import { postSecurityZones, prepareZonesForSave } from '@/shared/security/utils/zones-api.util'
 import {
   getSecurityPanelZonesFromLayout,
   mirrorSecurityPanelZonesToLayout,
-} from '@/utils/security/panel-layout.util'
-import { useSecurityZoneRooms } from '@/composables/security/useSecurityZoneRooms'
+} from '@/shared/security/utils/panel-layout.util'
+import { useSecurityZoneRooms } from '@/features/security/composables/useSecurityZoneRooms'
 
 // 入参：后端区域列表、需聚焦的区域 ID
 const props = defineProps({

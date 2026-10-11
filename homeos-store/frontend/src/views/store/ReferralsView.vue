@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import { api } from "../../api/http.js";
 import { errorMessage } from "../../store-types.js";
+import { copyText } from "../../utils/clipboard.js";
 import { useStoreToast } from "../../stores/toast.js";
 import { formatPoints, formatCentsPlain } from "../../money.js";
 
@@ -166,15 +167,6 @@ async function generate() {
     await refresh();
   });
   busy.value = false;
-}
-
-async function copyText(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast.show("已复制");
-  } catch {
-    toast.show("复制失败，请手动选中复制。", "err");
-  }
 }
 
 async function switchHistory(next: "ledger" | "withdrawals") {

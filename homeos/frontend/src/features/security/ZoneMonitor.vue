@@ -133,8 +133,8 @@
 <script setup>
 import { toRef } from 'vue'
 import { LayoutGrid, Shield } from '@lucide/vue'
-import { useSecurityZoneMonitor } from '@/composables/security/useSecurityZoneMonitor'
-import { sensorStateLabel } from '@/utils/security/zone-mode.util'
+import { useSecurityZoneMonitor } from '@/features/security/composables/useSecurityZoneMonitor'
+import { sensorStateLabel } from '@/features/security/utils/zone-mode.util'
 import './styles/security.css'
 
 // 入参：实时区域、布局区域、当前安防模式、面板加载/就绪态

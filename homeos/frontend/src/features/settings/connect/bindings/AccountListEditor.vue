@@ -84,7 +84,7 @@ import {
   resolveFocusRowAfterCommaSplit,
   sanitizeAccountNumberInput,
   syncAccountString,
-} from '@/utils/energy/account.util'
+} from '@/shared/energy/utils/account.util'
 import { useBindingAccountListEditor } from './useBindingAccountListEditor'
 
 // 入参：账户配置对象（直接读写）、标签/占位符/样式类与命名前缀

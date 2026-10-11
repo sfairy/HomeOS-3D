@@ -127,9 +127,9 @@ import { X, Search, CheckCircle, Circle } from '@lucide/vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { fetchEntities } from '@/services/api/entities'
-import { collectIndexedEntityIds, getEntityDisplayName } from '@/utils/entity/derived.util'
-import { getLargeEntityThreshold } from '@/utils/config/frontend-config'
-import { isBatterySensorEntity } from '@/composables/device/group-battery.util'
+import { collectIndexedEntityIds, getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import { getLargeEntityThreshold } from '@/shared/utils/config/frontend-config'
+import { isBatterySensorEntity } from '@/shared/device/utils/group-battery.util'
 
 const props = defineProps({
   isOpen: { type: Boolean },

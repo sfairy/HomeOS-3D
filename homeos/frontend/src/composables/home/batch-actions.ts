@@ -8,15 +8,15 @@
  * - @/stores/entities.store：实体状态读取与 service 调用
  * - @homeos/shared：getEntityDomain 提取实体 domain
  * - @/stores/layout.store：读取布局配置
- * - @/constants/whole-home-off：全屋关闭默认配置
- * - @/types/entity-store、@/types/whole-home-off：类型定义
+ * - @/shared/constants/whole-home-off：全屋关闭默认配置
+ * - @/shared/types/entity-store、@/shared/types/whole-home-off：类型定义
  */
 import { useEntitiesStore } from '@/stores/entities.store'
 import { getEntityDomain } from '@homeos/shared'
 import { useLayoutStore } from '@/stores/layout.store'
-import { getWholeHomeOffConfig } from '@/constants/whole-home-off'
-import type { HaEntityState } from '@/types/entity-store'
-import type { WholeHomeOffConfig } from '@/types/whole-home-off'
+import { getWholeHomeOffConfig } from '@/shared/constants/whole-home-off'
+import type { HaEntityState } from '@/shared/types/entity-store'
+import type { WholeHomeOffConfig } from '@/shared/types/whole-home-off'
 
 /** 全屋关闭可覆盖的配置项子集 */
 type WholeHomeOffOptions = Partial<

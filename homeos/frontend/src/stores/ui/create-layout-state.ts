@@ -7,9 +7,9 @@
  *  profile ID 持久化区分"从未设置"与"主动选择 default"两种状态。
  *  依赖 widget-registry-meta 中的注册表元数据。
  */
-import { readLocalStorage, writeLocalStorage } from '@/utils/core/local-storage.util'
+import { readLocalStorage, writeLocalStorage } from '@/shared/utils/core/local-storage.util'
 
-import { WIDGET_REGISTRY_META } from '@/utils/registry/widget-registry-meta'
+import { WIDGET_REGISTRY_META } from '@/shared/utils/registry/widget-registry-meta'
 
 /**
  * 已知的侧栏/仪表盘部件类型集合。

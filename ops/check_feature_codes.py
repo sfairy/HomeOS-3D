@@ -37,14 +37,14 @@ MODULES: dict[str, Path] = {
 
 #: 前端展示镜像：只含 code/label/group 三个展示字段。
 FRONTEND_MIRROR: Path = (
-    ROOT / "homeos" / "frontend" / "src" / "utils" / "registry" / "feature-labels.util.ts"
+    ROOT / "homeos" / "frontend" / "src" / "shared" / "utils" / "registry" / "feature-labels.util.ts"
 )
 
 #: 前端**门禁映射**文件：这些映射（导航 Tab → 码、设置 Tab → 码）是手写字面量，
 #: 写错一个字母就会永久 fail-open —— 界面上入口永远在，后端却逐个 403。
 FRONTEND_GATE_FILES: tuple[Path, ...] = (
-    ROOT / "homeos" / "frontend" / "src" / "utils" / "ui" / "main-layout-nav.util.ts",
-    ROOT / "homeos" / "frontend" / "src" / "utils" / "registry" / "settings-nav.util.ts",
+    ROOT / "homeos" / "frontend" / "src" / "shared" / "utils" / "ui" / "main-layout-nav.util.ts",
+    ROOT / "homeos" / "frontend" / "src" / "shared" / "utils" / "registry" / "settings-nav.util.ts",
     ROOT / "homeos" / "frontend" / "src" / "features" / "settings" / "system" / "SettingsLicensePanel.vue",
 )
 

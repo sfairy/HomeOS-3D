@@ -46,7 +46,7 @@
   - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
  */
 import { computed, ref } from 'vue'
-import { normalizeProgressPct, progressFillStyle } from '@/utils/ui/progress-bar.util'
+import { normalizeProgressPct, progressFillStyle } from '@/shared/utils/ui/progress-bar.util'
 
 const props = defineProps({
   /** 当前值；默认按 0–100 解释，或通过 min/max 归一化 */

@@ -9,7 +9,7 @@
  *  - keep-alive.util：pinned 判定与组件名生成
  */
 import { defineComponent, h, shallowRef, type Component } from 'vue'
-import { lazyComponent } from '@/utils/core/lazy-component'
+import { lazyComponent } from '@/shared/utils/core/lazy-component'
 import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
 import {
   isPinnedSettingsTab,

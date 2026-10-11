@@ -22,7 +22,7 @@ import {
 } from 'vue'
 import { getEntityDomain } from '@homeos/shared'
 import { useEntitiesStore } from '@/stores/entities.store'
-import type { EntityStateListenerPayload } from '@/types/entity-store'
+import type { EntityStateListenerPayload } from '@/shared/types/entity-store'
 /**
  * 在页面隐藏或 keep-alive 停用时暂停实体状态监听，减少批更新扇出。
  * @param {(payload: { entity_id: string, new_state: object | null, old_state: object | null }) => void} callback

@@ -11,8 +11,8 @@
  * - cancelPersistCacheTimer / isPersistCacheDirty：定时器与脏标志管理
  *
  * 关键依赖：
- * - @/utils/entity/idb-cache：IDB 分片读写、缓存 key 构造、特性开关
- * - @/utils/entity/sync-priority.util：按布局配置对实体做优先级分流
+ * - @/shared/entity/utils/idb-cache：IDB 分片读写、缓存 key 构造、特性开关
+ * - @/shared/entity/utils/sync-priority.util：按布局配置对实体做优先级分流
  * - @homeos/shared：getEntityDomain（按域分组分片）
  *
  * 实现说明：
@@ -28,10 +28,10 @@ import {
   isEntityCacheEnabled,
   loadEntityCache,
   saveEntityCacheShards,
-} from '@/utils/entity/idb-cache'
-import { partitionEntitiesForCacheHydrate } from '@/utils/entity/sync-priority.util'
-import type { EntitiesMap, HaEntityState } from '@/types/entity-store'
-import type { UILayoutConfig } from '@/types/layout'
+} from '@/shared/entity/utils/idb-cache'
+import { partitionEntitiesForCacheHydrate } from '@/shared/entity/utils/sync-priority.util'
+import type { EntitiesMap, HaEntityState } from '@/shared/types/entity-store'
+import type { UILayoutConfig } from '@/shared/types/layout'
 
 /** 懒加载最小实体数：缓存总数 ≥ 此值且 deferred 非空时启用懒加载分流 */
 const CACHE_LAZY_HYDRATE_MIN = 400

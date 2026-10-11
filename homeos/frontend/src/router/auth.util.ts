@@ -6,9 +6,9 @@
  * 2. 已有账号但无会话 → 登录页（`/login`，仅需认证的路由强制）
  * 3. 已登录 → 授权检测（未激活 → `/activate`）
  *
- * 依赖：@/types/router 的导航上下文类型。
+ * 依赖：@/shared/types/router 的导航上下文类型。
  */
-import type { NavigationContext, NavigationDecision, RoutableLocation } from '@/types/router'
+import type { NavigationContext, NavigationDecision, RoutableLocation } from '@/shared/types/router'
 
 /** 未登录也允许停留的入户页路由名（后端离线时仅放行这些）。 */
 const GUEST_ROUTES = new Set(['register', 'login', 'activation', 'license-recovery'])

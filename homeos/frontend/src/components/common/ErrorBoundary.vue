@@ -37,7 +37,7 @@
  */
 import { ref, onErrorCaptured } from 'vue'
 import { AlertTriangle } from '@lucide/vue'
-import { logger } from '@/utils/core/logger'
+import { logger } from '@/shared/utils/core/logger'
 defineProps({
   /** 错误卡片标题，默认 '页面出现问题' */
   title: { type: String, default: '' },

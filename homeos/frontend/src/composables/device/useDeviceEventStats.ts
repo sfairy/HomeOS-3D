@@ -9,13 +9,13 @@
  *
  * 依赖：
  *   - @/services/api/entities.fetchEventStats / fetchEvents：事件统计 / 原始事件接口。
- *   - @/types/device.EventLogStats：事件统计返回类型。
- *   - @/utils/core/misc.util.createFetchSequence：请求序号守卫。
+ *   - @/shared/types/device.EventLogStats：事件统计返回类型。
+ *   - @/shared/utils/core/misc.util.createFetchSequence：请求序号守卫。
  */
 import { ref, watch, type Ref } from 'vue'
 import { fetchEventStats, fetchEvents } from '@/services/api/entities'
-import type { EventLogStats } from '@/types/device'
-import { createFetchSequence } from '@/utils/core/misc.util'
+import type { EventLogStats } from '@/shared/types/device'
+import { createFetchSequence } from '@/shared/utils/core/misc.util'
 
 /**
  * 设备事件统计 Composable。

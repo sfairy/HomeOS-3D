@@ -8,29 +8,29 @@ import { exportSystemConfig, importSystemConfig } from '@/services/api/system'
 import { useAuthStore } from '@/stores/auth.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import { configEpoch, getConfigSection, reloadFrontendConfig } from '@/utils/config/frontend-config'
-import { downloadBlob } from '@/utils/core/misc.util'
-import { getApiErrorMessage } from '@/utils/core/error-message'
-import { clonePlain } from '@/utils/core/clone-plain.util'
-import { formatRangeDisplayValue } from '@/utils/settings/range-steps.util'
+import { configEpoch, getConfigSection, reloadFrontendConfig } from '@/shared/utils/config/frontend-config'
+import { downloadBlob } from '@/shared/utils/core/misc.util'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
+import { clonePlain } from '@/shared/utils/core/clone-plain.util'
+import { formatRangeDisplayValue } from '@/shared/utils/settings/range-steps.util'
 import {
   WEATHER_DISPLAY_ROUTE_GROUPS,
   getWeatherDisplayRouteLabel,
   normalizeDisplayRoutes,
-} from '@/utils/weather/display-routes.util'
+} from '@/shared/weather/utils/display-routes.util'
 import {
   DEFAULT_WEATHER_EFFECTS_CONFIG,
   PRESET_BASE,
   pruneEmptySceneOverrides,
   type WeatherEffectPreset,
   type WeatherEffectsConfig,
-} from '@/utils/weather/effect-presets.util'
+} from '@/shared/weather/utils/effect-presets.util'
 import {
   globalSliders,
   presetOptions,
   sceneGroups,
-} from '@/utils/weather/effects-ui.constants'
-import type { NotifyType } from '@/types/notify'
+} from '@/shared/weather/utils/effects-ui.constants'
+import type { NotifyType } from '@/shared/types/notify'
 import { computed, ref, watch } from 'vue'
 
 // ── useAppConfigBackup ──

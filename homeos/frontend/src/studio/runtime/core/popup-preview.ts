@@ -1,4 +1,4 @@
-import { domElement } from "@app/utils/dom-factory";
+import { domElement } from "@app/shared/util/dom-factory";
 const { popupPlacement: popupPlacement } = await (import("@app/bridge/popup-placement")),
   { cameraPopupLayout: cameraPopupLayout } = await (import("@app/bridge/camera-popup-layout"));
 function popupPreviewPlacement(kind: any, width: any, height: any, settings: any) {

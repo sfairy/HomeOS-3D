@@ -2,7 +2,7 @@
 import { onMounted, ref } from "vue";
 import SceneStage from "../components/SceneStage.vue";
 import DeckTiles from "../components/DeckTiles.vue";
-import PasswordField from "../components/PasswordField.vue";
+import PasswordField from "@homeos/shared/components/PasswordField.vue";
 import { fromResponse } from "../api-error.js";
 
 const email = ref("");

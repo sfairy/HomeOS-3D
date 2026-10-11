@@ -13,10 +13,10 @@
  *
  * 关键依赖：
  * - @homeos/shared：sortEntitiesBySyncPriority（按布局优先级排序）
- * - @/utils/config/frontend-config：Worker 派生阈值、poll tick 调整
- * - @/utils/perf/adaptive-perf.util：自适应前端性能模式
- * - @/utils/perf/tablet-default-perf.util：平板默认性能模式
- * - @/utils/entity/derived.util：实体显示名
+ * - @/shared/utils/config/frontend-config：Worker 派生阈值、poll tick 调整
+ * - @/shared/utils/perf/adaptive-perf.util：自适应前端性能模式
+ * - @/shared/utils/perf/tablet-default-perf.util：平板默认性能模式
+ * - @/shared/entity/utils/derived.util：实体显示名
  * - @/stores/layout.store：平板性能模式应用时读取 layoutConfig
  *
  * 实现说明：
@@ -30,12 +30,12 @@ import type {
   EntityInitOptions,
   HaEntityState,
   SnapshotAcceptOptions,
-} from '@/types/entity-store'
-import { getWorkerDerivedThreshold } from '@/utils/config/frontend-config'
-import { setPollTickMs } from '@/utils/core/poll-scheduler'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
-import { applyAdaptiveFrontendPerf } from '@/utils/perf/adaptive-perf.util'
-import { applyTabletDefaultPerformanceMode } from '@/utils/perf/tablet-default-perf.util'
+} from '@/shared/types/entity-store'
+import { getWorkerDerivedThreshold } from '@/shared/utils/config/frontend-config'
+import { setPollTickMs } from '@/shared/utils/core/poll-scheduler'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import { applyAdaptiveFrontendPerf } from '@/shared/utils/perf/adaptive-perf.util'
+import { applyTabletDefaultPerformanceMode } from '@/shared/utils/perf/tablet-default-perf.util'
 import { sortEntitiesBySyncPriority } from '@homeos/shared'
 
 // ── entity-store-init.util ──

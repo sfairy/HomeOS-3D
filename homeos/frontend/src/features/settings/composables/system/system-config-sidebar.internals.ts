@@ -8,9 +8,9 @@
  * 依赖：
  *   - vue（computed / nextTick / onMounted / onUnmounted / ref / watch）
  *   - @/composables/config/system-config-core.internals（分区分类与元信息）
- *   - @/utils/registry/settings-route.util（设置路由）
+ *   - @/shared/utils/registry/settings-route.util（设置路由）
  */
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { categoryForSection, getSectionCategories, sectionMeta } from '@/composables/config/system-config-core.internals'
 

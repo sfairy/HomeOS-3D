@@ -1,12 +1,10 @@
-/** 场景壳的左栏文案。 */
-
-export interface SceneValues {
-  STATUS_LABEL: string;
-  TITLE: string;
-  TAGLINE: string;
-  DOSSIER_LABEL: string;
-  DOSSIER: Array<[string, string]>;
-}
+/** 场景壳的左栏文案（授权大厅 / 初始化 / 后台）。
+ *
+ * 字段名与取值规则在共享包 `@homeos/shared/scene/scene-values` 里单点化：主应用那侧是
+ * **同一套形状、另一套文案**（`homeos/frontend/src/components/common/scene-values.ts`）。
+ * 文案是各域内容，留在本文件。
+ */
+import { resolveSceneValues, type SceneValues } from "@homeos/shared/scene/scene-values";
 
 const SHARED = {
   SHELL_TITLE: "HomeOS 授权服务中心",
@@ -53,7 +51,7 @@ const VALUES: Record<string, SceneValues> = {
   },
 };
 
-export function sceneValues(page: string): SceneValues & typeof SHARED {
-  const found = VALUES[page] || VALUES.store!;
-  return { ...SHARED, ...found };
+/** 取某页的壳信息 + 文案；未登记的 `page` 回落到授权大厅。 */
+export function sceneValues(page: string | undefined) {
+  return resolveSceneValues(SHARED, VALUES, page, "store");
 }

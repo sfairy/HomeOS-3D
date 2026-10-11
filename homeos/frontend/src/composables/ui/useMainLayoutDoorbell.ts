@@ -18,8 +18,8 @@
  */
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getEntityDomain } from '@homeos/shared'
-import { hapticAlert } from '@/utils/ui/haptics.util'
-import { resolveDoorbellRoutes } from '@/utils/layout/doorbell.util'
+import { hapticAlert } from '@/shared/utils/ui/haptics.util'
+import { resolveDoorbellRoutes } from '@/shared/utils/layout/doorbell.util'
 import type { useEntitiesStore } from '@/stores/entities.store'
 import type { useLayoutStore } from '@/stores/layout.store'
 import type { useChromeStore } from '@/stores/chrome.store'

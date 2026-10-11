@@ -1,4 +1,4 @@
-import type { HaEntityEntry } from "@app/utils/ha-entity";
+import type { HaEntityEntry } from "@app/shared/util/ha-entity";
 
 const isAvailableRecord = (record: any) =>
   record &&

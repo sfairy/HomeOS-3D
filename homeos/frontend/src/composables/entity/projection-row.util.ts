@@ -2,7 +2,7 @@
  * 列表行展示：优先 EntityProjection
  */
 import { getProjection } from '@/stores/entities/entity-projection'
-import type { HaEntityView } from '@/types/entity-store'
+import type { HaEntityView } from '@/shared/types/entity-store'
 
 export function resolveListRowEntity(
   entityId: string,

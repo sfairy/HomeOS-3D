@@ -79,7 +79,7 @@ import SettingsPageShell from '@/components/common/page-shell/SettingsPageShell.
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
 import SettingsBindingsAccountSection from '@/features/settings/connect/bindings/SettingsBindingsAccountSection.vue'
 import { useSettingsLifeAccountsHub } from '@/features/settings/composables/connect/bindings.internals'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 
 // 入参：当前激活的 Tab id
 const props = defineProps({ activeTab: { type: String, default: 'life-accounts' } })

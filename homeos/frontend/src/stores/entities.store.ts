@@ -9,23 +9,28 @@ import { apiClient } from '@/services/api/index'
 import { resyncEntities } from '@/services/api/entities'
 import { useAuthStore } from '@/stores/auth.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import { logger } from '@/utils/core/logger'
+import { logger } from '@/shared/utils/core/logger'
 import {
   getFrontendConfig,
   getLargeEntityThreshold,
   getWorkerDerivedThreshold,
-} from '@/utils/config/frontend-config'
-import type { EntitiesMap, EntityLoadPhase, HaEntityState } from '@/types/entity-store'
-import { buildEntityCacheKey } from '@/utils/entity/idb-cache'
+} from '@/shared/utils/config/frontend-config'
+import type { EntitiesMap, EntityLoadPhase, HaEntityState } from '@/shared/types/entity-store'
+import { buildEntityCacheKey } from '@/shared/entity/utils/idb-cache'
 import { createEntityOptimisticState } from '@/stores/entities/entity-store-optimistic.util'
-import { getPendingListenerCount, getStateListenerStats } from '@/utils/entity/state-listener'
+import {
+  clearColdFetchMissing,
+  fetchEntitiesByIds,
+  fetchEntityById,
+} from '@/shared/entity/utils/cold-fetch.util'
+import { getPendingListenerCount, getStateListenerStats } from '@/shared/entity/utils/state-listener'
 import { applyEntityStateUpdate } from '@/composables/entity/state-update'
-import type { WsDeltaChange } from '@/utils/entity/state-delta.util'
+import type { WsDeltaChange } from '@/shared/entity/utils/state-delta.util'
 import {
   shouldNotifyStateChange,
   resolveListenerOldState,
   haStateChanged,
-} from '@/utils/entity/state-notify.util'
+} from '@/shared/entity/utils/state-notify.util'
 import { createEntityCacheHelpers } from '@/stores/entities/entity-store-cache'
 import { createStoreDerivedState } from '@/stores/entities/entity-store-derived'
 import { createEntityActions } from '@/stores/entities/entity-store-actions'
@@ -62,7 +67,7 @@ import {
  * - @/services/api：HTTP 客户端与实体同步接口
  * - @/stores/auth.store：实体访问权限
  * - @/stores/layout.store：布局配置（影响缓存 hydration 分区）
- * - @/utils/config/frontend-config：阈值与批量大小等可调参数
+ * - @/shared/utils/config/frontend-config：阈值与批量大小等可调参数
  * - @/stores/entities/* 拆分模块：WS 状态机 / 缓存 / 派生索引 / 动作 / 投影
  */
 /** useEntitiesStore：Pinia store 工厂，状态与动作见定义。 */
@@ -315,24 +320,57 @@ export const useEntitiesStore = defineStore('entities', () => {
    */
   function buildStateUpdateDeps() {
     return {
-      entities,
-      totalCount,
-      entityVisible,
-      optimisticState: optimisticRef.optimisticState,
-      clearOptimistic: optimisticRef.clearOptimistic,
-      scheduleRebuildDerived,
-      patchDerivedChanges,
-      patchProjectionsFromChanges: (changes: Array<{ entity_id: string }>) =>
-        patchProjectionsFromChanges(changes, entities),
-      entitiesCacheHydrated,
-      schedulePersistEntityCache,
-      markEntityCacheDirty,
-      haStateChanged,
-      shouldNotifyStateChange,
-      resolveListenerOldState,
-      logger,
-      bumpEntityStateRevision,
-      bumpEntityStateRevisionBatch,
+      get entities() {
+        return entities
+      },
+      get totalCount() {
+        return totalCount
+      },
+      get entityVisible() {
+        return entityVisible
+      },
+      get optimisticState() {
+        return optimisticRef.optimisticState
+      },
+      get clearOptimistic() {
+        return optimisticRef.clearOptimistic
+      },
+      get scheduleRebuildDerived() {
+        return scheduleRebuildDerived
+      },
+      get patchDerivedChanges() {
+        return patchDerivedChanges
+      },
+      get patchProjectionsFromChanges() {
+        return (changes: Array<{ entity_id: string }>) => patchProjectionsFromChanges(changes, entities)
+      },
+      get entitiesCacheHydrated() {
+        return entitiesCacheHydrated
+      },
+      get schedulePersistEntityCache() {
+        return schedulePersistEntityCache
+      },
+      get markEntityCacheDirty() {
+        return markEntityCacheDirty
+      },
+      get haStateChanged() {
+        return haStateChanged
+      },
+      get shouldNotifyStateChange() {
+        return shouldNotifyStateChange
+      },
+      get resolveListenerOldState() {
+        return resolveListenerOldState
+      },
+      get logger() {
+        return logger
+      },
+      get bumpEntityStateRevision() {
+        return bumpEntityStateRevision
+      },
+      get bumpEntityStateRevisionBatch() {
+        return bumpEntityStateRevisionBatch
+      },
     }
   }
 
@@ -422,7 +460,6 @@ export const useEntitiesStore = defineStore('entities', () => {
     emitStateListeners,
     bumpEntityStateRevision,
     fetchEntityState: async (entityId: string) => {
-      const { fetchEntityById } = await import('@/utils/entity/cold-fetch.util')
       const fetched = (await fetchEntityById(entityId)) as HaEntityState | null | undefined
       return fetched?.entity_id ? fetched : null
     },
@@ -459,9 +496,6 @@ export const useEntitiesStore = defineStore('entities', () => {
     if (!entityId) return null
     const existing = entities[entityId]
     if (existing) return existing
-    const { fetchEntityById, clearColdFetchMissing } = await import(
-      '@/utils/entity/cold-fetch.util'
-    )
     const fetched = (await fetchEntityById(entityId)) as HaEntityState | null | undefined
     if (fetched?.entity_id) {
       clearColdFetchMissing(fetched.entity_id)
@@ -479,9 +513,6 @@ export const useEntitiesStore = defineStore('entities', () => {
       (id) => !entities[id],
     )
     if (!ids.length) return []
-    const { fetchEntitiesByIds, clearColdFetchMissing } = await import(
-      '@/utils/entity/cold-fetch.util'
-    )
     const fetchedMap = await fetchEntitiesByIds(ids)
     const out: HaEntityState[] = []
     for (const fetched of fetchedMap.values()) {

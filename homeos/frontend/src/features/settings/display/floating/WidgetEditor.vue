@@ -27,13 +27,13 @@ import {
   Shield,
   Info,
 } from '@lucide/vue'
-import { hasConfigurableTabs } from '@/utils/registry/hub-tabs-options'
-import { canonicalizeWidgetType } from '@/utils/registry/widget-catalog'
+import { hasConfigurableTabs } from '@/shared/utils/registry/hub-tabs-options'
+import { canonicalizeWidgetType } from '@/shared/utils/registry/widget-catalog'
 import { isEntityFloatType } from '@/features/settings/composables/display/layout-floating.internals'
 import { useDraftObjectField } from '@/features/settings/composables/hub-ui.internals'
 import WidgetConfigStudioNav from '@/features/settings/display/widgets/WidgetConfigStudioNav.vue'
 import WidgetConfigFooter from '@/features/settings/display/widgets/WidgetConfigFooter.vue'
-import SecurityZoneEditorList from '@/features/security/ZoneEditorList.vue'
+import { ZoneEditorList as SecurityZoneEditorList } from '@/features/security'
 import FloatingEditorLayoutSection from './EditorLayoutSection.vue'
 import FloatingEditorDataSection from './EditorDataSection.vue'
 import FloatingEditorHubTabsSection from './EditorHubTabsSection.vue'

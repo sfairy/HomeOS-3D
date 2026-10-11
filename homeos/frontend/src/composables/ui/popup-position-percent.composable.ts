@@ -19,7 +19,7 @@ import {
   resolvePopupNumeric,
   type PopupNumericInput,
 } from '@/composables/ui/popup-position-shared.util'
-import { pickPopupPlacementDirection } from '@/utils/ui/popup-placement.util'
+import { pickPopupPlacementDirection } from '@/shared/utils/ui/popup-placement.util'
 
 /**
  * 弹窗位置自适应 Composable（百分比锚点模式）

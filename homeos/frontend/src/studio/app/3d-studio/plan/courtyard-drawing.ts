@@ -31,7 +31,7 @@ export const isCourtyardDrawing = (candidateDrawing: any) =>
       hedge: "连续绿篱",
     },
   };
-import { clampNumber as clamp, finiteNumberOrCoerced as finiteOr } from "@app/utils/number";
+import { clampNumber as clamp, finiteNumberOrCoerced as finiteOr } from "@app/shared/util/number";
 export function normalizeCourtyardDrawing(drawingInput: any) {
   if (!isCourtyardDrawing(drawingInput)) return {};
   const normalizePoints = (pointSource: any) =>

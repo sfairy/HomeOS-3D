@@ -12,7 +12,7 @@
  * - vue（computed）、@lucide/vue
  * - ./AnchoredPopupShell、./UtilityMeterPopupShell、./UtilityMeterTierSection、./UtilityMeterExpandPanel
  * - @/composables/energy/useUtilityMeterPopup、useUtilityBalanceFields
- * - @/composables/energy/utility-entity-helpers、@/utils/energy/popup-read.util
+ * - @/shared/energy（barrel，逻辑面）、@/shared/energy/utils/popup-read.util（叶子深路径）
  * - entities.store、layout.store、utility-meter-presets、useEntityType
  */
 <template>
@@ -132,17 +132,16 @@ import UtilityMeterPopupShell from '@/components/entities/popups/UtilityMeterPop
 import UtilityMeterTierSection from '@/components/entities/popups/UtilityMeterTierSection.vue'
 import UtilityMeterExpandPanel from '@/components/entities/popups/UtilityMeterExpandPanel.vue'
 import { useUtilityMeterPopup } from '@/composables/energy/useUtilityMeterPopup'
-import { useUtilityBalanceFields } from '@/composables/energy/useUtilityBalanceFields'
-import { parseJsonAttr } from '@/composables/energy/utility-entity-helpers'
-import { readPopupAttr } from '@/utils/energy/popup-read.util'
+import { useUtilityBalanceFields, parseJsonAttr } from '@/shared/energy'
+import { readPopupAttr } from '@/shared/energy/utils/popup-read.util'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import { resolveUtilityMeterPreset } from '@/constants/utility-meter-presets'
+import { resolveUtilityMeterPreset } from '@/shared/constants/utility-meter-presets'
 import {
   isElectricityEntity,
   isGasEntity,
   isWaterEntity,
-} from '@/composables/entity/useEntityType'
+} from '@/shared/entity/utils/entity-type.util'
 
 function resolveUtilityKind(kind, entityId) {
   if (kind === 'gas' || kind === 'grid' || kind === 'water') return kind

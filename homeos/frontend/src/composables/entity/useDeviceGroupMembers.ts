@@ -4,12 +4,12 @@
  * @description DeviceGroupModal 成员列表与域标签/颜色映射。
  *
  * 职责：提供随语言切换刷新的域标签/颜色映射，以及"按 ID 从 store 取实体"的统一 getter。
- *      域常量（MONITORED_ENTITY_IDS / DOMAIN_LIST）请直接从 `@/constants/device-group` 导入。
+ *      域常量（MONITORED_ENTITY_IDS / DOMAIN_LIST）请直接从 `@/shared/constants/device-group` 导入。
  *
  * 依赖：
- * - @/constants/entity-domain-meta（域颜色查询）
+ * - @/shared/constants/entity-domain-meta（域颜色查询）
  */
-import { entityDomainColor } from '@/constants/entity-domain-meta'
+import { entityDomainColor } from '@/shared/constants/entity-domain-meta'
 
 /**
  * 随语言切换返回最新标签（勿在模块顶层缓存）。

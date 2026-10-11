@@ -27,7 +27,7 @@ import {
   genericDeviceProfile as genericDeviceProfile2,
   isGenericDeviceKind as isGenericDeviceKind2,
 } from "../device/generic-device-catalog";
-import { domElement } from "@app/utils/dom-factory";
+import { domElement } from "@app/shared/util/dom-factory";
 export async function openInteraction3dEditor({
   component: component,
   document: documentApi,

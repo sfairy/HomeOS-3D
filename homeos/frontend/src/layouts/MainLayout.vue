@@ -37,7 +37,7 @@
  * - stores：auth / layout / chrome / entities
  * - composables：useNotificationCenter、useTeleportTargetGuard、useEntityWsSubscriptionSync、useEarthquakeBootstrap、useShellTeleportTarget
  * - utils/perf/adaptive-perf.util：性能自适应档位
- * - utils/weather/*：天气背景显示决策与质量解析
+ * - shared/weather/*：天气背景显示决策与质量解析
  *
  * 详细的壳层逻辑（菜单项计算、访客模式、门铃触发、设置锁等）封装在 useMainLayoutChrome 中。
  */
@@ -58,8 +58,7 @@ import { NOTIFICATION_CENTER_KEY } from '@/composables/widget/notification-cente
 import { useTeleportTargetGuard } from '@/composables/ui/useTeleportTargetGuard'
 import EntityControlHost from '@/components/entities/EntityControlHost.vue'
 import ScaledViewport from '@/layouts/ScaledViewport.vue'
-import EarthquakeAlertOverlay from '@/components/earthquake/AlertOverlay.vue'
-import CencBulletinCard from '@/components/earthquake/CencBulletinCard.vue'
+import { AlertOverlay as EarthquakeAlertOverlay, CencBulletinCard } from '@/features/earthquake'
 import AgentChatPalette from '@/components/widgets/agent/AgentChatPalette.vue'
 /** 壳层浮层合并为同一动态 chunk，避免 8+ 次独立小请求（媒体全屏已挂 App 根） */
 const loadShellOverlays = () => import('@/layouts/shell-overlays')
@@ -78,19 +77,19 @@ const ColdEntityPerfBanner = defineAsyncComponent(() =>
 const SettingsLockModal = defineAsyncComponent(() =>
   loadShellOverlays().then((m) => m.SettingsLockModal),
 )
-import HomeModeSwitcher from '@/components/common/HomeModeSwitcher.vue'
+import { HomeModeSwitcher } from '@/features/home-mode'
 import HaStatusDegradeBanner from '@/components/common/HaStatusDegradeBanner.vue'
 const NotificationDrawer = defineAsyncComponent(() =>
   loadShellOverlays().then((m) => m.NotificationDrawer),
 )
 import { useMainLayoutChrome } from '@/composables/ui/useMainLayoutChrome'
 import { useEntityWsSubscriptionSync } from '@/composables/entity/useEntityWsSubscriptionSync'
-import { useEarthquakeBootstrap } from '@/composables/earthquake/useEarthquakeBootstrap'
+import { useEarthquakeBootstrap } from '@/features/earthquake'
 import { useDisplayLightBackdropState } from '@/composables/display/display-light-backdrop'
-import { setDerivedRoutePath } from '@/utils/entity/derived-route.util'
-import { resolvePerfShellClass, useAdaptivePerfState } from '@/utils/perf/adaptive-perf.util'
-import { applyGlassEffectDocument } from '@/utils/ui/glass-effect.util'
-import { isNavTabRouteActive } from '@/utils/layout/nav-tabs.util'
+import { setDerivedRoutePath } from '@/shared/entity/utils/derived-route.util'
+import { resolvePerfShellClass, useAdaptivePerfState } from '@/shared/utils/perf/adaptive-perf.util'
+import { applyGlassEffectDocument } from '@/shared/utils/ui/glass-effect.util'
+import { isNavTabRouteActive } from '@/shared/utils/layout/nav-tabs.util'
 import {
   buildDropdownFixedStyle,
   rectToDropdownPosition,
@@ -113,9 +112,8 @@ const DashboardFooter = defineAsyncComponent(() => import('@/components/dashboar
 const DeviceGroupModal = defineAsyncComponent(() =>
   loadShellOverlays().then((m) => m.DeviceGroupModal),
 )
-import { resolveWeatherQuality } from '@/utils/weather/quality.util'
-import { shouldShowWeatherBackground } from '@/utils/weather/display-routes.util'
-import { getConfigSection, configEpoch } from '@/utils/config/frontend-config'
+import { resolveWeatherQuality, shouldShowWeatherBackground } from '@/shared/weather'
+import { getConfigSection, configEpoch } from '@/shared/utils/config/frontend-config'
 
 const {
   route,

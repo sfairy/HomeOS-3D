@@ -3,7 +3,7 @@ import {
   requestInteraction3dAccess,
   subscribeInteraction3dAccess,
 } from "@app/bridge/bridge";
-import { domElement } from "@app/utils/dom-factory";
+import { domElement } from "@app/shared/util/dom-factory";
 export async function openInteraction3dRangeEditor({
   component: component,
   document: panelDocument,

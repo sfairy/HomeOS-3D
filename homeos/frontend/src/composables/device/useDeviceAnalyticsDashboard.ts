@@ -10,14 +10,14 @@
  * 依赖：
  *   - @/services/api/system.fetchAdvisorUsageSummary：用量统计摘要接口。
  *   - @/services/api/entities.fetchEventStats：事件统计接口。
- *   - @/types/device.DeviceAnalyticsSummary / EventLogStats：返回类型。
- *   - @/utils/core/misc.util.createFetchSequence：请求序号守卫。
+ *   - @/shared/types/device.DeviceAnalyticsSummary / EventLogStats：返回类型。
+ *   - @/shared/utils/core/misc.util.createFetchSequence：请求序号守卫。
  */
 import { ref, watch, type Ref } from 'vue'
 import { fetchAdvisorUsageSummary } from '@/services/api/system'
 import { fetchEventStats } from '@/services/api/entities'
-import type { DeviceAnalyticsSummary, EventLogStats } from '@/types/device'
-import { createFetchSequence } from '@/utils/core/misc.util'
+import type { DeviceAnalyticsSummary, EventLogStats } from '@/shared/types/device'
+import { createFetchSequence } from '@/shared/utils/core/misc.util'
 
 // 空摘要常量，用于初始化与失败时复位
 const EMPTY_SUMMARY: DeviceAnalyticsSummary = {

@@ -7,9 +7,9 @@ import {
   dispatchEditorCommand,
   getEditorFacadeBus,
   getEditorFacadeState,
+  type EditorCommand,
   type EditorFacadeState,
-} from '@/studio/engine'
-import type { EditorCommand } from '@/studio/engine/types'
+} from '@/studio'
 
 const PANEL_STORAGE_KEY = 'homeos.studio-editor.panels'
 

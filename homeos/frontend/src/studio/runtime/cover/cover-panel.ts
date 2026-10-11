@@ -7,8 +7,8 @@ import {
   airerState,
 } from "./cover-state";
 import { airerMapControlPosition, airerMapControlService } from "../airer/airer-direction";
-import { domElement } from "@app/utils/dom-factory";
-import { applyRangeProgressCss } from "@app/utils/range-progress";
+import { domElement } from "@app/shared/util/dom-factory";
+import { applyRangeProgressCss } from "@app/shared/util/range-progress";
 import { createStageDeviceVisual } from "../core/stage-device-visual";
 /** cover 面板的宿主元素与回调； */
 type CoverPanelOptions = {

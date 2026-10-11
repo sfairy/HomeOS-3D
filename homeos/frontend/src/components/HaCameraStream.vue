@@ -22,10 +22,10 @@
  * preferWebrtc 仅门铃等场景额外先试 WebRTC，失败后仍落入上述通路。
  */
 import { ref, watch, onUnmounted, computed, nextTick } from 'vue'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
-import { startCameraWebRtc } from '@/composables/camera/useHaWebRtcPlayer'
-import { startCameraMediaTransport } from '@/composables/camera/useCameraMediaTransport'
-import { logger } from '@/utils/core/logger'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import { startCameraWebRtc } from '@/shared/camera/composables/useHaWebRtcPlayer'
+import { startCameraMediaTransport } from '@/shared/camera/composables/useCameraMediaTransport'
+import { logger } from '@/shared/utils/core/logger'
 
 const props = defineProps({
   entity: { type: Object, default: null },

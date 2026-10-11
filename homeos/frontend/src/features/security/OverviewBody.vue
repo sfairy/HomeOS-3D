@@ -50,7 +50,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useLayoutStore } from '@/stores/layout.store'
-import { getSecurityPanelZonesFromLayout } from '@/utils/security/panel-layout.util'
+import { getSecurityPanelZonesFromLayout } from '@/shared/security/utils/panel-layout.util'
 import SecurityOverviewSidebar from '@/features/security/OverviewSidebar.vue'
 import SecurityZoneHub from '@/features/security/ZoneHub.vue'
 

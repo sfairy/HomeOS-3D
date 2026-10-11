@@ -10,14 +10,14 @@
  *   - @lucide/vue（图标组件）
  *   - @/stores/entities.store（实体与远程通知状态）
  *   - @/stores/auth.store（鉴权状态）
- *   - @/utils/bridge/store-bridge（注册通知刷新处理器）
+ *   - @/shared/utils/bridge/store-bridge（注册通知刷新处理器）
  *   - @/services/api/notifications（通知远程 API）
  *   - @/services/notify（错误提示）
- *   - @/composables/widget/useScheduledPoll（DND 定时刷新）
- *   - @/utils/notification/dnd.util（免打扰配置解析）
- *   - @/utils/config/frontend-config（远程通知拉取条数上限）
- *   - @/utils/core/logger & error-message（日志与错误信息提取）
- *   - @/utils/registry/settings-route.util（通知跳转目标路由解析）
+ *   - @/shared/widget/composables/useScheduledPoll（DND 定时刷新）
+ *   - @/shared/notifications/utils/dnd.util（免打扰配置解析）
+ *   - @/shared/utils/config/frontend-config（远程通知拉取条数上限）
+ *   - @/shared/utils/core/logger & error-message（日志与错误信息提取）
+ *   - @/shared/utils/registry/settings-route.util（通知跳转目标路由解析）
  *   - @homeos/shared（来源过滤构造）
  */
 import { ref, computed, onMounted, onUnmounted, watch, type ComponentPublicInstance } from 'vue'
@@ -26,7 +26,7 @@ import { Bell, AlertTriangle, Info, CheckCircle2 } from '@lucide/vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { useChromeStore } from '@/stores/chrome.store'
-import { registerNotificationRefreshHandler } from '@/utils/bridge/store-bridge'
+import { registerNotificationRefreshHandler } from '@/shared/utils/bridge/store-bridge'
 import {
   markNotificationRead,
   markAllNotificationsRead,
@@ -35,18 +35,18 @@ import {
   fetchNotificationSettings,
 } from '@/services/api/notifications'
 import { notifyError } from '@/services/notify'
-import { useScheduledPoll } from '@/composables/widget/useScheduledPoll'
-import { parseNotificationSettings } from '@/utils/notification/dnd.util'
-import { getMaxRemoteNotifications } from '@/utils/config/frontend-config'
-import { logger } from '@/utils/core/logger'
-import { getApiErrorMessage } from '@/utils/core/error-message'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+import { useScheduledPoll } from '@/shared/widget/composables/useScheduledPoll'
+import { parseNotificationSettings } from '@/shared/notifications/utils/dnd.util'
+import { getMaxRemoteNotifications } from '@/shared/utils/config/frontend-config'
+import { logger } from '@/shared/utils/core/logger'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import {
   buildNotificationSourceFilters,
   matchesNotificationSourceFilter,
   isLifeSafetyNotification,
 } from '@homeos/shared'
-import type { RemoteNotificationPayload } from '@/types/entity-store'
+import type { RemoteNotificationPayload } from '@/shared/types/entity-store'
 
 /** 通知级别过滤选项：UI 显示的「全部/紧急/警告/信息/成功」 */
 const levelFilters = [

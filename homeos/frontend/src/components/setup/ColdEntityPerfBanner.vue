@@ -25,7 +25,7 @@
 </template>
 
 <script setup>
-import { readLocalStorage, writeLocalStorage } from '@/utils/core/local-storage.util'
+import { readLocalStorage, writeLocalStorage } from '@/shared/utils/core/local-storage.util'
 /**
  * ColdEntityPerfBanner - 冷实体性能提示条组件
  * 职责：当实体总数超过阈值且未开启「冷实体按需 WS」时，提示用户开启以降低推送负载。
@@ -38,7 +38,7 @@ import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useEntitiesStore } from '@/stores/entities.store'
-import { getLargeEntityThreshold, getWsPushPublicConfig } from '@/utils/config/frontend-config'
+import { getLargeEntityThreshold, getWsPushPublicConfig } from '@/shared/utils/config/frontend-config'
 
 const STORAGE_KEY = 'homeos:dismiss-cold-entity-hint'
 

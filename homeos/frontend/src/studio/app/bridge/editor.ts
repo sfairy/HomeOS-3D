@@ -15,15 +15,15 @@ import {
   createInteraction3dCover,
   updateInteraction3dCoverMessage,
 } from "./cover";
-import { withRequestTimeout } from "../utils/request-timeout";
+import { withRequestTimeout } from "../shared/util/request-timeout";
 import {
   INTERACTION3D_LIGHTING_MODES,
   normalizeInteraction3dLightingMode,
   BACKGROUND_THEMES,
   normalizeBackgroundTheme,
 } from "./definition";
-import type { DomControl } from "@app/utils/dom-control";
-import { domElement } from "@app/utils/dom-factory";
+import type { DomControl } from "@app/shared/util/dom-control";
+import { domElement } from "@app/shared/util/dom-factory";
 function interaction3dEntries(componentTree: any, pathSegments: any[] = [], entriesByPath = new Map()) {
   if (Array.isArray(componentTree))
     componentTree.forEach((arrayItem, arrayIndex) =>

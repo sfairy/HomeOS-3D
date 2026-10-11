@@ -85,7 +85,7 @@
 </template>
 
 <script setup>
-import { readLocalStorageFlag, writeLocalStorage } from '@/utils/core/local-storage.util'
+import { readLocalStorageFlag, writeLocalStorage } from '@/shared/utils/core/local-storage.util'
 /**
  * 职责：渲染 views/SettingsView 页面视图，整合子组件与业务数据。
  * 关键依赖：Vue Router、Pinia 全局状态、页面级子组件与 API services。
@@ -102,8 +102,8 @@ import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import { useSettingsSave } from '@/features/settings/composables/hub-ui.internals'
-import { useSettingsPendingChanges } from '@/features/settings/composables/pending.internals'
+import { useSettingsSave } from '@/composables/settings-kernel/save.internals'
+import { useSettingsPendingChanges } from '@/composables/settings-kernel/pending.internals'
 import SettingsSidebar from '@/features/settings/shared/layout/SettingsSidebar.vue'
 import SettingsOverviewStrip from '@/features/settings/shared/layout/SettingsOverviewStrip.vue'
 import {
@@ -114,25 +114,25 @@ import {
   isValidSettingsTab,
   INDEPENDENT_SAVE_TABS,
 } from '@/features/settings/nav'
-import { isTabFeatureGranted } from '@/utils/registry/settings-nav.util'
+import { isTabFeatureGranted } from '@/shared/utils/registry/settings-nav.util'
 import { useLicenseFeatureAccess } from '@/router/license-gate'
 import {
   hasIndependentSettingsPending,
   getIndependentPendingTabIds,
   isSettingsTabPending,
-} from '@/features/settings/composables/pending.internals'
+} from '@/composables/settings-kernel/pending.internals'
 import {
   registerGlobalLayoutPendingSnapshot,
   registerGlobalPendingPause,
-} from '@/features/settings/composables/pending.internals'
-import { tabLabel } from '@/utils/registry/settings-nav.util'
+} from '@/composables/settings-kernel/pending.internals'
+import { tabLabel } from '@/shared/utils/registry/settings-nav.util'
 import { countNavTabs, resolveNavTabContext } from '@/features/settings/nav-search.util'
 import {
   SETTINGS_KEEP_ALIVE_MAX,
   SETTINGS_KEEP_ALIVE_INCLUDE,
 } from '@/features/settings/keep-alive.util'
-import { settingsPageShareUrl } from '@/utils/registry/settings-route.util'
-import { recordSettingsTabVisit } from '@/utils/registry/settings-recent-tabs.util'
+import { settingsPageShareUrl } from '@/shared/utils/registry/settings-route.util'
+import { recordSettingsTabVisit } from '@/shared/utils/registry/settings-recent-tabs.util'
 import { copyTextWithNotify } from '@/services/notify'
 import pkg from '../../package.json'
 import '@/features/settings/shared/settings-theme.css'

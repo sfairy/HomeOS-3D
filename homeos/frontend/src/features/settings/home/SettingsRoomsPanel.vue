@@ -151,7 +151,7 @@ import SettingsBindingsEnvironmentSection from '@/features/settings/connect/bind
 import RegistryDegradedGuide from '@/features/settings/shared/RegistryDegradedGuide.vue'
 import { useSettingsEnvHub } from '@/features/settings/composables/hub-ui.internals'
 import { useSettingsHubRouteSection } from '@/features/settings/composables/hub-ui.internals'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 
 // 入参：当前激活的 Tab id
 const props = defineProps({ activeTab: { type: String, default: 'rooms' } })

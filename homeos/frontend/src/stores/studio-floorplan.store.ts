@@ -7,9 +7,9 @@ import {
   dispatchStudioCommand,
   getStudioFacadeBus,
   getStudioFacadeState,
+  type StudioCommand,
   type StudioFacadeState,
-} from '@/studio/engine'
-import type { StudioCommand } from '@/studio/engine/types'
+} from '@/studio'
 
 const PANEL_STORAGE_KEY = 'homeos.studio-floorplan.panels'
 

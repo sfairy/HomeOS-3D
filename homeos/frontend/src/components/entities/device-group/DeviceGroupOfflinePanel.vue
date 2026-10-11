@@ -58,14 +58,14 @@
  *
  * 依赖：
  * - @homeos/shared 的 getEntityDomain 用于从 entity_id 解析域
- * - @/utils/entity/derived.util 的 getEntityDisplayName 用于渲染友好名称
+ * - @/shared/entity/utils/derived.util 的 getEntityDisplayName 用于渲染友好名称
  * - 父组件通过 props 传入 stats、各类回调函数（offlineIcon/offlineReason/shortReason/timeAgo/getEntity）
  *
  * 使用场景：
  * - DeviceGroupModal 在 domain === 'offline' 时渲染此面板
  */
 import { getEntityDomain } from '@homeos/shared'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 
 /**
  * 组件 Props 定义

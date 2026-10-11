@@ -10,7 +10,7 @@
  *  依赖多个外部注入的 ref / 方法。
  */
 import type { Ref } from 'vue'
-import type { UILayoutConfig } from '@/types/layout'
+import type { UILayoutConfig } from '@/shared/types/layout'
 
 /** 放置实体载荷：id 为 entity_id，type 为可选 widget 类型提示 */
 interface PlacementEntityPayload {

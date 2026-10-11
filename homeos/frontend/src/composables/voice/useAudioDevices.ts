@@ -5,10 +5,10 @@
  *
  * 设备 ID 按浏览器本地存储，不进全局 app config（墙面板互不相同）。
  */
-import { readLocalStorage, removeLocalStorage, writeLocalStorage } from '@/utils/core/local-storage.util'
+import { readLocalStorage, removeLocalStorage, writeLocalStorage } from '@/shared/utils/core/local-storage.util'
 
 import { onMounted, onUnmounted, ref, computed } from 'vue'
-import { logger } from '@/utils/core/logger'
+import { logger } from '@/shared/utils/core/logger'
 
 const INPUT_KEY = 'homeos_audio_input_device_id'
 const OUTPUT_KEY = 'homeos_audio_output_device_id'

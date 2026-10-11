@@ -299,10 +299,10 @@ import { RouterLink } from 'vue-router'
 import { Zap, Plus, Layers, Trash2, AlertTriangle } from '@lucide/vue'
 import EntityInput from '@/components/common/EntityInput.vue'
 import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeField.vue'
-import { SETTINGS_RANGE_STEP } from '@/utils/settings/range-steps.util'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+import { SETTINGS_RANGE_STEP } from '@/shared/utils/settings/range-steps.util'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import { useLayoutStore } from '@/stores/layout.store'
-import { normalizeSecurityEmergency } from '@/constants/security-emergency'
+import { normalizeSecurityEmergency } from '@/shared/constants/security-emergency'
 
 // 入参：是否嵌入、当前激活预设、预设列表、汇总文案、灯池相关数据与批量/动作回调函数
 const props = defineProps({

@@ -185,9 +185,9 @@ import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
 import SettingsCardIntro from '@/components/common/page-shell/SettingsCardIntro.vue'
 import EntityInput from '@/components/common/EntityInput.vue'
 import WidgetConfigFooter from '@/features/settings/display/widgets/WidgetConfigFooter.vue'
-import { WEATHER_HUB_TABS } from '@/utils/registry/weather-hub-options'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
-import { usePresenceHome } from '@/composables/presence/usePresenceHome'
+import { WEATHER_HUB_TABS } from '@/shared/utils/registry/weather-hub-options'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
+import { usePresenceHome } from '@/shared/presence/composables/usePresenceHome'
 
 const draft = defineModel<{
   defaultTab: string

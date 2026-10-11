@@ -10,7 +10,9 @@
   "scripts": {
     "dev": "vite --config frontend/vite.config.ts",
     "build": "vite build --config frontend/vite.config.ts",
-    "typecheck": "node scripts/run-vue-tsc.mjs -p tsconfig.json --pretty false --noEmit",
+    "typecheck": "node ../ops/run-vue-tsc.mjs -p tsconfig.json --pretty false --noEmit",
+    "lint": "eslint \"frontend/src/**/*.{ts,vue}\" --fix",
+    "lint:ci": "eslint \"frontend/src/**/*.{ts,vue}\" --max-warnings 0",
     "check:store-deps": "node scripts/check-store-deps.mjs"
   },
   "devDependencies": {
@@ -19,10 +21,10 @@
     "@vitejs/plugin-vue": "^6.0.10",
     "esbuild": "^0.28.2",
     "typescript": "^6.0.3",
-    "vite": "^8.3.4",
-    "vue-tsc": "^3.3.13"
+    "vite": "^8.3.4"
   },
   "dependencies": {
+    "@homeos/shared": "workspace:*",
     "pinia": "^4.0.3",
     "qrcode": "^1.5.4",
     "vue": "^3.5",

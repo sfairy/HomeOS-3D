@@ -3,7 +3,7 @@
  * @module frontend/src/composables
  */
 import { ref, watch, unref, computed, type MaybeRefOrGetter } from 'vue'
-import { snapToSliderStep, sliderTrackStyle } from '@/utils/ui/progress-bar.util'
+import { snapToSliderStep, sliderTrackStyle } from '@/shared/utils/ui/progress-bar.util'
 
 type SliderTrackOpts = {
   min?: number

@@ -17,11 +17,11 @@
  *
  * 依赖：
  * - @/services/api/auth：HTTP 接口
- * - @/utils/config/frontend-config：读取 frontend 配置段及监听变更
+ * - @/shared/utils/config/frontend-config：读取 frontend 配置段及监听变更
  * - @homeos/shared：实体鉴权工具 isEntityAllowed
- * - @/utils/bridge/store-bridge：认证变化时通知实体 store 重建 WS 连接
+ * - @/shared/utils/bridge/store-bridge：认证变化时通知实体 store 重建 WS 连接
  */
-import { readLocalStorage, readLocalStorageJson, removeLocalStorage, writeLocalStorage, writeLocalStorageJson } from '@/utils/core/local-storage.util'
+import { readLocalStorage, readLocalStorageJson, removeLocalStorage, writeLocalStorage, writeLocalStorageJson } from '@/shared/utils/core/local-storage.util'
 
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
@@ -34,14 +34,14 @@ import {
   sendVerificationCode as apiSendVerificationCode,
 } from '@/services/api/auth'
 import type { RegisterPayload } from '@/services/api/auth'
-import { getConfigSection, onConfigChange } from '@/utils/config/frontend-config'
+import { getConfigSection, onConfigChange } from '@/shared/utils/config/frontend-config'
 import { isEntityAllowed as checkEntityAllowed } from '@homeos/shared'
-import { notifyAuthChanged } from '@/utils/bridge/store-bridge'
+import { notifyAuthChanged } from '@/shared/utils/bridge/store-bridge'
 import { bumpAuthGeneration } from '@/services/api/client'
 import { setLicenseFeatureAccess } from '@/router/license-gate'
-import { logger } from '@/utils/core/logger'
-import { schedulePoll } from '@/utils/core/poll-scheduler'
-import type { AuthUserPayload } from '@/types/auth'
+import { logger } from '@/shared/utils/core/logger'
+import { schedulePoll } from '@/shared/utils/core/poll-scheduler'
+import type { AuthUserPayload } from '@/shared/types/auth'
 
 /**
  * 从 localStorage 读取当前用户的实体访问限制列表

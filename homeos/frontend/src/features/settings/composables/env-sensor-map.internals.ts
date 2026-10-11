@@ -14,7 +14,7 @@
  *   - @homeos/shared（房间关键词、区域列表构建、映射过滤等工具）
  *   - @/services/api/entities（HA 区域列表拉取）
  */
-import { useSettingsSave } from './hub-ui.internals'
+import { useSettingsSave } from '@/composables/settings-kernel/save.internals'
 import {
   fetchSystemConfigFresh,
   isSystemConfigConflictError,
@@ -23,14 +23,14 @@ import {
 } from '@/composables/config/system-config-core.internals'
 import { fetchAreasList } from '@/services/api/entities'
 import { useChromeStore } from '@/stores/chrome.store'
-import type { EntitiesMap } from '@/types/entity-store'
-import type { RoomListItem } from '@/types/env-room'
-import { reloadFrontendConfig } from '@/utils/config/frontend-config'
-import { getApiErrorMessage } from '@/utils/core/error-message'
-import { logger } from '@/utils/core/logger'
-import { invalidateSharedFetchPrefix } from '@/utils/core/poll-scheduler'
-import { ENV_IAQ_CACHE_PREFIX } from '@/composables/climate/env-iaq.constants'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
+import type { EntitiesMap } from '@/shared/types/entity-store'
+import type { RoomListItem } from '@/shared/types/env-room'
+import { reloadFrontendConfig } from '@/shared/utils/config/frontend-config'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
+import { logger } from '@/shared/utils/core/logger'
+import { invalidateSharedFetchPrefix } from '@/shared/utils/core/poll-scheduler'
+import { ENV_IAQ_CACHE_PREFIX } from './env-iaq.constants'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import type { EnvSensorMap, EnvSensorMapEntry, HaAreaRef } from '@homeos/shared'
 import { buildRoomInferKeywordsMap, buildRoomListFromHaAreas, filterEnvSensorMapToKnownAreas } from '@homeos/shared'
 import { computed, ref } from 'vue'

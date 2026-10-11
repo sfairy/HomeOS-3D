@@ -15,7 +15,7 @@
  *   - @/stores/entities.store.useEntitiesStore：实体状态来源。
  *   - localStorage（STORAGE_KEY）：持久化历史快照。
  */
-import { readLocalStorage, writeLocalStorageJson } from '@/utils/core/local-storage.util'
+import { readLocalStorage, writeLocalStorageJson } from '@/shared/utils/core/local-storage.util'
 
 import { computed, onMounted, ref } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'

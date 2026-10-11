@@ -16,14 +16,14 @@
 import {
   coverIsMoving,
   coverToggleService,
-} from '../src/composables/entity/control/cover-control-core'
-import { hsvToRgb, rgbToHs } from '../src/composables/entity/control/light-control-core'
+} from '../src/shared/entity/utils/control/cover-control-core'
+import { hsvToRgb, rgbToHs } from '../src/shared/entity/utils/control/light-control-core'
 import {
   parseGasMonthItem,
   parseGasYearItem,
   parseWaterMonthItem,
   parseWaterYearItem,
-} from '../src/composables/energy/utility-meter-parse-helpers'
+} from '../src/shared/energy/composables/utility-meter-parse-helpers'
 
 const failures: string[] = []
 

@@ -10,10 +10,10 @@
  *   - useDiagnosticsSummary / useDiagnosticsExport / useDiagnosticsPerf：聚合子模块
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { formatFullDateTime } from '@/utils/format/locale-format.util'
+import { formatFullDateTime } from '@/shared/utils/format/locale-format.util'
 import { fetchConfigHealth, fetchSystemDiagnostics, fetchSystemHealth } from '@/services/api/system'
 import { agentPing } from '@/services/api/agent'
-import { extractErrorMessage } from '@/utils/core/error-message'
+import { extractErrorMessage } from '@/shared/utils/core/error-message'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useApiQuery } from '@/composables/api/useApiQuery'
 import { useSettingsHubRouteSection } from '@/features/settings/composables/hub-ui.internals'

@@ -13,42 +13,42 @@
 (() => {
   const hint =
     document.cookie
-      .split(';')
+      .split(";")
       .map((part) => part.trim())
-      .find((part) => part.startsWith('homeos_store_hint='))
-      ?.split('=')[1] || '';
-  const cookieAuthenticated = ['1', 'licensed', 'unlicensed', 'temporary', 'permanent'].includes(
+      .find((part) => part.startsWith("homeos_store_hint="))
+      ?.split("=")[1] || "";
+  const cookieAuthenticated = ["1", "licensed", "unlicensed", "temporary", "permanent"].includes(
     hint,
   );
 
   const server = document.documentElement.dataset.auth;
   const authenticated =
-    server === 'guest' ? false : server === 'user' || server === 'admin' ? true : cookieAuthenticated;
+    server === "guest" ? false : server === "user" || server === "admin" ? true : cookieAuthenticated;
 
-  if (server === 'guest' && hint) {
+  if (server === "guest" && hint) {
     // 会话已经不在服务端了，把这个过期的提示清掉：否则它会影响这次以及后续页面的判断。
-    document.cookie = 'homeos_store_hint=; Max-Age=0; Path=/; SameSite=Lax';
+    document.cookie = "homeos_store_hint=; Max-Age=0; Path=/; SameSite=Lax";
   }
 
   // 授权档位只看 cookie（服务端属性不带这个信息）；服务端说没登录时一律不亮。
-  const tier = authenticated ? hint : '';
-  document.documentElement.classList.toggle('hb-auth-hint', authenticated);
+  const tier = authenticated ? hint : "";
+  document.documentElement.classList.toggle("hb-auth-hint", authenticated);
   document.documentElement.classList.toggle(
-    'hb-license-hint',
-    ['licensed', 'permanent'].includes(tier),
+    "hb-license-hint",
+    ["licensed", "permanent"].includes(tier),
   );
   document.documentElement.classList.toggle(
-    'hb-unlicensed-hint',
-    ['unlicensed', 'temporary'].includes(tier),
+    "hb-unlicensed-hint",
+    ["unlicensed", "temporary"].includes(tier),
   );
 
   // 商店前台 body class 前移：登录舞台 CSS 依赖 body.hb-store-body，
   // 若等到 Vue 路由 watch 再挂，会出现 auth-stage 先 display:none 再弹出。
   // 写成独立 if + 提前 return，避免 minify 把 `!a && !b && sideEffect()` 压成
   // `!(a && b && sideEffect())` 导致副作用永远不执行。
-  const path = location.pathname || '';
-  if (path === '/admin' || path.startsWith('/admin/') || path === '/setup') {
+  const path = location.pathname || "";
+  if (path === "/admin" || path.startsWith("/admin/") || path === "/setup") {
     return;
   }
-  document.body?.classList.add('hb-store-body');
+  document.body?.classList.add("hb-store-body");
 })();

@@ -7,22 +7,22 @@ import {
   ACCOUNT_BINDING_FIELD_META,
   ACCOUNT_BINDING_SOURCE_LABELS,
   ACCOUNT_BINDING_TABS,
-} from '@/constants/account-binding-meta'
+} from '@/shared/constants/account-binding-meta'
 import {
   ENERGY_FIELD_DEFS,
   createDefaultEnergySource,
   getMappableFields,
   inferEnergyMapping,
   type EnergyCategory,
-} from '@/constants/energy-fields'
+} from '@/shared/energy/constants/energy-fields'
 import {
   afterLayoutCancelSync,
   syncGlobalLayoutPendingSnapshot,
   useRegisterSettingsTabPending,
   useSettingsHubPending,
-} from '@/features/settings/composables/pending.internals'
+} from '@/composables/settings-kernel/pending.internals'
 import { useSettingsSidebarReentryReset } from '@/composables/ui/hub-viewport.internals'
-import { getApiErrorMessage } from '@/utils/core/error-message'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import {
   bootstrapAccountStructForMode,
   ensureAccountEntriesOnSource,
@@ -36,7 +36,7 @@ import {
   resolveMultiAccountEntries,
   syncEntityAccounts,
   syncMultiAccounts,
-} from '@/utils/energy/account.util'
+} from '@/shared/energy/utils/account.util'
 import {
   applyLifeAccountsLayoutSlice,
   liveLifeAccountsLayoutSlice,
@@ -45,15 +45,15 @@ import {
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import type { UILayoutConfig } from '@/types/layout'
-import { clearDoorbellCamera, toggleDoorbellCamera } from '@/utils/layout/doorbell.util'
-import type { BindingsRecommendEntity } from '@/utils/recommend/bindings-recommend.util'
-import { buildBindingsRecommendations, collectBoundHazardIds } from '@/utils/recommend/bindings-recommend.util'
-import type { RecommendChip } from '@/utils/recommend/types'
+import type { UILayoutConfig } from '@/shared/types/layout'
+import { clearDoorbellCamera, toggleDoorbellCamera } from '@/shared/utils/layout/doorbell.util'
+import type { BindingsRecommendEntity } from '@/shared/recommend/utils/bindings-recommend.util'
+import { buildBindingsRecommendations, collectBoundHazardIds } from '@/shared/recommend/utils/bindings-recommend.util'
+import type { RecommendChip } from '@/shared/recommend/types/recommend.types'
 import { systemConfigRef } from '@/composables/config/system-config-core.internals'
 import type { BindingGapItem } from '@homeos/shared'
 import { collectBindingGaps, filterBindingGapsBySection, getEntityLeaf } from '@homeos/shared'
-import type { BindingsRecommendSection } from '@/utils/recommend/bindings-recommend.util'
+import type { BindingsRecommendSection } from '@/shared/recommend/utils/bindings-recommend.util'
 import type { Ref } from 'vue'
 import { computed, ref, watch } from 'vue'
 

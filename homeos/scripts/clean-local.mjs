@@ -17,7 +17,7 @@ const allMode = process.argv.includes('--all')
 
 const DIRS = [
   'dist',
-  'packages/shared/dist',
+  '../packages/shared/dist',
   // Python 主后端数据目录（HOMEOS_DATA_DIR 缺省为 backend/data）
   'backend/data',
   'frontend/.vite',
@@ -27,7 +27,7 @@ if (allMode) {
   DIRS.push(
     'node_modules',
     'frontend/node_modules',
-    'packages/shared/node_modules',
+    '../packages/shared/node_modules',
   )
 }
 
@@ -114,7 +114,7 @@ for (const d of DIRS) {
   }
 }
 
-removed += pruneEmptyDirs(['backend/src', 'frontend/src', 'frontend', 'packages/shared/src'])
+removed += pruneEmptyDirs(['backend/src', 'frontend/src', 'frontend', '../packages/shared/src'])
 
 if (removed === 0 && locked === 0) {
   console.log('nothing to clean')

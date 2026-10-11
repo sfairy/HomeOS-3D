@@ -9,14 +9,14 @@
  *
  * 依赖：vue ref/computed/watch/onMounted、useLiveEntity、useEntityPopupHeader、
  * useHaEntityService、useSliderCommit、entity-cold-fetch、progress-bar 工具、
- * `@/composables/entity/control/light-control-core`（能力/颜色/服务 data）。
+ * `@/shared/entity/utils/control/light-control-core`（能力/颜色/服务 data）。
  */
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useLiveEntity } from '@/composables/entity/useLiveEntity'
 import { useEntityPopupHeader } from '@/composables/entity/useEntityPopupBase'
 import { useHaEntityService } from '@/composables/entity/useHaEntityService'
 import { useSliderCommit } from '@/composables/entity/useSliderCommit'
-import { fetchEntityById } from '@/utils/entity/cold-fetch.util'
+import { fetchEntityById } from '@/shared/entity/utils/cold-fetch.util'
 import {
   sliderTrackStyle,
   colorTempSliderTrackStyle,
@@ -25,7 +25,7 @@ import {
   resolveKelvinBounds,
   resolveEntityColorTempKelvinForUi,
   resolveColorTempStep,
-} from '@/utils/ui/progress-bar.util'
+} from '@/shared/utils/ui/progress-bar.util'
 
 import {
   LIGHT_COLOR_PRESETS as COLOR_PRESETS,
@@ -38,7 +38,7 @@ import {
   rgbToHs,
   hexToRgb,
   buildLightTurnOnData,
-} from '@/composables/entity/control/light-control-core'
+} from '@/shared/entity/utils/control/light-control-core'
 
 /**
  * 灯光控制弹窗组合式函数。

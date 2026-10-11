@@ -9,7 +9,7 @@
  *   - @/components/common/ApiQueryState 加载/错误状态容器
  *   - @/stores/entities.store、@/stores/chrome.store
  *   - @/services/api/media（fetchMediaPlaylist / nextMediaPlaylist / startMediaPlaylist）
- *   - @/utils/core/error-message、@/services/notify、@/utils/entity/derived.util
+ *   - @/shared/utils/core/error-message、@/services/notify、@/shared/entity/utils/derived.util
  */
 <template>
   <div :class="['media-playlist', variant === 'settings' && 'media-playlist--settings']">
@@ -114,14 +114,14 @@
   - 不直接操作 DOM，响应式数据变化通过 v-model 或乐观锁写回 store。
  */
 import HosSelect from '@/components/common/base/HosSelect.vue'
-import { getApiErrorMessage } from '@/utils/core/error-message'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import ApiQueryState from '@/components/common/ApiQueryState.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { fetchMediaPlaylist, nextMediaPlaylist, startMediaPlaylist } from '@/services/api/media'
 import { notifyError } from '@/services/notify'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 
 /**
  * 组件 Props。

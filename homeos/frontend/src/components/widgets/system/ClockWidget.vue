@@ -24,7 +24,7 @@
  *              支持模拟时钟与数字时钟两种展示形态。
  * @dependencies
  *  - vue: computed/ref/onMounted/onUnmounted 响应式与生命周期
- *  - @/utils/format/locale-format.util: 本地时间与节气格式化
+ *  - @/shared/utils/format/locale-format.util: 本地时间与节气格式化
  */
 /**
  * 24 节气名称索引表
@@ -70,11 +70,11 @@ const WEEKDAY_LABELS = {
  */
 import { computed, onMounted, onUnmounted } from 'vue'
 import { usePerfClock } from '@/composables/ui/usePerfClock'
-import { onScreensaverBackgroundIdle } from '@/utils/ui/screensaver-background-idle.util'
-import { solarToLunar } from '@/utils/format/lunar-calendar'
-import { formatLunarMonthDayLine, formatLunarYearLine } from '@/utils/format/lunar-display.util'
-import { pad2 } from '@/utils/format/locale-format.util'
-import { getZonedParts } from '@/utils/format/locale-time'
+import { onScreensaverBackgroundIdle } from '@/shared/utils/ui/screensaver-background-idle.util'
+import { solarToLunar } from '@/shared/utils/format/lunar-calendar'
+import { formatLunarMonthDayLine, formatLunarYearLine } from '@/shared/utils/format/lunar-display.util'
+import { pad2 } from '@/shared/utils/format/locale-format.util'
+import { getZonedParts } from '@/shared/utils/format/locale-time'
 
 const { now, start, stop } = usePerfClock({ autoStart: false, forceIntervalMs: 1000 })
 /** 屏保空闲订阅取消函数 */

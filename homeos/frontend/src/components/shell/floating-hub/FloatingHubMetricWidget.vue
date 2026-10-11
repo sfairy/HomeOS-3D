@@ -98,11 +98,11 @@
  * 依赖：
  * - vue：inject
  * - FloatingHubContextKey：父组件注入的上下文
- * - @/types/layout：FloatingWidget 部件类型定义
+ * - @/shared/types/layout：FloatingWidget 部件类型定义
  */
 import { inject } from 'vue'
 import { FloatingHubContextKey } from '@/components/shell/floating-hub/context'
-import type { FloatingWidget } from '@/types/layout'
+import type { FloatingWidget } from '@/shared/types/layout'
 
 // 部件实例（type 决定渲染分支，config.entityId 指向传感器实体）
 defineProps<{

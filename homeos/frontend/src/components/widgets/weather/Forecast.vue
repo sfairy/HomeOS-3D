@@ -69,21 +69,21 @@
  *  - vue: computed/onMounted/watch 响应式与生命周期
  *  - vue-router: RouterLink 路由跳转
  *  - @lucide/vue: 多种天气图标
- *  - @/composables/widget/useScheduledPoll: 定时轮询
+ *  - @/shared/widget/composables/useScheduledPoll: 定时轮询
  *  - @/stores/entities.store: 实体状态
  *  - @/composables/entity/useWeatherEntity: 天气实体 composable
- *  - @/constants/weather-labels: 天气状态标签与视觉键
- *  - @/utils/format/locale-format.util: 本地日期格式化
+ *  - @/shared/weather/constants/weather-labels: 天气状态标签与视觉键
+ *  - @/shared/utils/format/locale-format.util: 本地日期格式化
  */
-import { weatherStateLabel, weatherVisualKey } from '@/constants/weather-labels'
-import { formatLocaleDate } from '@/utils/format/locale-format.util'
+import { weatherStateLabel, weatherVisualKey } from '@/shared/weather/constants/weather-labels'
+import { formatLocaleDate } from '@/shared/utils/format/locale-format.util'
 import { computed, onMounted, watch } from 'vue'
-import { useScheduledPoll } from '@/composables/widget/useScheduledPoll'
+import { useScheduledPoll } from '@/shared/widget/composables/useScheduledPoll'
 import { RouterLink } from 'vue-router'
 import { Cloud, Sun, Droplets, Wind, Moon, CloudRain, CloudFog, CloudLightning, CloudSnow } from '@lucide/vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useWeatherEntity } from '@/composables/entity/useWeatherEntity'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 
 const props = defineProps({
   embedded: { type: Boolean, default: false },

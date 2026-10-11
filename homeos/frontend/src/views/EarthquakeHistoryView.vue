@@ -341,20 +341,20 @@ import HosSelect from '@/components/common/base/HosSelect.vue'
 import ApiQueryState from '@/components/common/ApiQueryState.vue'
 import ListPageHero from '@/components/page-shell/ListPageHero.vue'
 import ListPageMetrics from '@/components/page-shell/ListPageMetrics.vue'
-import EarthquakeHistoryAnalytics from '@/components/earthquake/HistoryAnalytics.vue'
-import { getApiErrorMessage } from '@/utils/core/error-message'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+import { HistoryAnalytics as EarthquakeHistoryAnalytics } from '@/features/earthquake'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import { useChromeStore } from '@/stores/chrome.store'
 import {
   buildFixedPageSlots,
   computeAnalyticsSummary,
   shortenPlace,
-} from '@/utils/earthquake/history-analytics.util'
+} from '@/features/earthquake'
 import {
   formatEarthquakeMagnitude,
   earthquakeMagnitudeTone,
-} from '@/composables/earthquake/earthquake-layout.util'
-import { formatLocaleString } from '@/utils/format/locale-format.util'
+} from '@/features/earthquake'
+import { formatLocaleString } from '@/shared/utils/format/locale-format.util'
 import {
   EEW_MAGNITUDE_OPTIONS,
   GLOBAL_EARTHQUAKE_PERIODS,
@@ -363,7 +363,7 @@ import {
   LOCAL_EEW_SOURCE_FILTERS,
   eewAlertKindLabel,
   eewSourceLabel,
-} from '@/types/earthquake'
+} from '@/shared/types/earthquake'
 import './styles/earthquake-history.css'
 
 const PAGE_SIZE = 8

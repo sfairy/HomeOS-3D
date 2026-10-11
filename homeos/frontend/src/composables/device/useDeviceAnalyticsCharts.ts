@@ -14,20 +14,20 @@
  * 依赖：
  * - vue: ref, nextTick, ComputedRef, Ref
  * - echarts: 图表渲染引擎（动态 import，分包懒加载）
- * - @/utils/entity/entity-derived.util: getEntityDisplayName
- * - @/utils/device/domain-labels.util: getDomainLabel, resolveDomainId
- * - @/utils/chart/device-chart-copy.util: formatDualMetricTooltip, formatHeatmapTooltip
- * - @/utils/chart/device-chart-theme: 图表主题配置
+ * - @/shared/entity/utils/derived.util: getEntityDisplayName
+ * - @/shared/device/utils/domain-labels.util: getDomainLabel, resolveDomainId
+ * - @/shared/utils/chart/device-chart-copy.util: formatDualMetricTooltip, formatHeatmapTooltip
+ * - @/shared/utils/chart/device-chart-theme: 图表主题配置
  * - @/stores/entities.store: useEntitiesStore
  * - @/composables/device/useDeviceAnalyticsDashboard: useDeviceAnalyticsDashboard
  * - @/composables/device/useDeviceHealthTrend: useDeviceHealthTrend
  */
 import { ref, nextTick, type ComputedRef, type Ref } from 'vue'
-import type * as EchartsModuleNS from '@/utils/chart/echarts'
+import type * as EchartsModuleNS from '@/shared/utils/chart/echarts'
 import type { EChartsCoreOption } from 'echarts/core'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
-import { getDomainLabel, resolveDomainId } from '@/utils/device/domain-labels.util'
-import { formatDualMetricTooltip, formatHeatmapTooltip } from '@/utils/chart/device-chart-copy.util'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import { getDomainLabel, resolveDomainId } from '@/shared/device/utils/domain-labels.util'
+import { formatDualMetricTooltip, formatHeatmapTooltip } from '@/shared/utils/chart/device-chart-copy.util'
 import {
   deviceChartBase,
   deviceChartGrid,
@@ -37,11 +37,11 @@ import {
   deviceChartLegend,
   devicePieTooltip,
   DEVICE_CHART_COLORS,
-} from '@/utils/chart/device-chart-theme'
+} from '@/shared/utils/chart/device-chart-theme'
 import type { useEntitiesStore } from '@/stores/entities.store'
 import type { useDeviceAnalyticsDashboard } from '@/composables/device/useDeviceAnalyticsDashboard'
 import type { useDeviceHealthTrend } from '@/composables/device/useDeviceHealthTrend'
-import { ensureDeviceChartOnElement } from '@/utils/chart/device-chart-boot.util'
+import { ensureDeviceChartOnElement } from '@/shared/utils/chart/device-chart-boot.util'
 
 /** ECharts 模块类型（仅类型引用，运行时经动态 import 懒加载） */
 type EchartsModule = typeof EchartsModuleNS

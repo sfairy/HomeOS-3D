@@ -59,8 +59,8 @@
  * - @lucide/vue：Grip 拖拽手柄图标
  * - FloatingHubContextKey：父组件注入的上下文
  * - FloatingHub{Entity,Clock,Metric,Panel}Widget：具体部件渲染器
- * - @/types/layout：FloatingWidget 部件类型定义
- * - @/composables/entity/floating-entity-colors.util：实体自定义颜色检测
+ * - @/shared/types/layout：FloatingWidget 部件类型定义
+ * - @/shared/entity/utils/floating-entity-colors.util：实体自定义颜色检测
  */
 import { computed, inject, unref } from 'vue'
 import { Grip } from '@lucide/vue'
@@ -69,9 +69,9 @@ import FloatingHubEntityWidget from '@/components/shell/floating-hub/FloatingHub
 import FloatingHubClockWidget from '@/components/shell/floating-hub/FloatingHubClockWidget.vue'
 import FloatingHubMetricWidget from '@/components/shell/floating-hub/FloatingHubMetricWidget.vue'
 import FloatingHubPanelWidget from '@/components/shell/floating-hub/FloatingHubPanelWidget.vue'
-import type { FloatingWidget } from '@/types/layout'
-import { hasEntityCustomColors, shouldTintAfhWidget } from '@/composables/entity/floating-entity-colors.util'
-import { canonicalizeWidgetType } from '@/utils/registry/widget-catalog'
+import type { FloatingWidget } from '@/shared/types/layout'
+import { hasEntityCustomColors, shouldTintAfhWidget } from '@/shared/entity/utils/floating-entity-colors.util'
+import { canonicalizeWidgetType } from '@/shared/utils/registry/widget-catalog'
 
 // 部件实例
 const props = defineProps<{

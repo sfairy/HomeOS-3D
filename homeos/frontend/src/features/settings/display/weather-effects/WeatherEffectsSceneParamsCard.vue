@@ -76,7 +76,7 @@
 
 <script setup>
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
-import SettingsOrchTabs from '@/features/settings/shared/layout/SettingsOrchTabs.vue'
+import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 import SettingsRangeField from '@/features/settings/shared/layout/SettingsRangeField.vue'
 import WeatherEffectsSwitch from './WeatherEffectsSwitch.vue'
 import { useWeatherEffectsSection } from './context'

@@ -4,8 +4,8 @@
  * 职责：提供系统配置的加载、保存、元数据管理等核心功能
  * 依赖：
  *   - @/services/api/system - 系统配置 API 服务
- *   - @/types/system-config - 系统配置类型定义
- *   - @/utils/core/poll-scheduler - 共享请求调度
+ *   - @/shared/types/system-config - 系统配置类型定义
+ *   - @/shared/utils/core/poll-scheduler - 共享请求调度
  *   - vue - 响应式系统
  * 
  * 功能模块：
@@ -15,9 +15,9 @@
  *   - isSystemConfigConflictError - 冲突错误检测
  */
 import { fetchSystemConfig, updateSystemConfig } from '@/services/api/system'
-import type { NotifyType } from '@/types/notify'
-import type { SystemConfig, SystemConfigLoadOptions, SystemConfigPatch, SystemConfigSaveOptions } from '@/types/system-config'
-import { invalidateSharedFetch, sharedFetch } from '@/utils/core/poll-scheduler'
+import type { NotifyType } from '@/shared/types/notify'
+import type { SystemConfig, SystemConfigLoadOptions, SystemConfigPatch, SystemConfigSaveOptions } from '@/shared/types/system-config'
+import { invalidateSharedFetch, sharedFetch } from '@/shared/utils/core/poll-scheduler'
 import { Bell, Box, Brain, Cog, Database, DollarSign, Droplets, Home, Layout, Leaf, Monitor, Moon, Plug, Radio, Server, Shield, Sun, Zap } from '@lucide/vue'
 import type { Component } from 'vue'
 import { ref } from 'vue'

@@ -470,13 +470,13 @@ import {
 } from '@lucide/vue'
 import { RouterLink } from 'vue-router'
 import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
-import SettingsOrchTabs from '@/features/settings/shared/layout/SettingsOrchTabs.vue'
+import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import VProgressBar from '@/components/common/base/VProgressBar.vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useDiagnosticsSection } from './useDiagnosticsSection'
 import { BACKEND_MEM_WARN_PCT } from './constants'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 
 const entitiesStore = useEntitiesStore()
 

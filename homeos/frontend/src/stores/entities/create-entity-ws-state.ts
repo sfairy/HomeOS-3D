@@ -10,17 +10,17 @@ import { useAuthStore } from '@/stores/auth.store'
 import { refreshPinnedEntitiesAfterStale } from '@/composables/entity/cold-refresh.util'
 import { applyEntityStatesBatch } from '@/composables/entity/state-update'
 import type { EntityStateUpdateDeps } from '@/composables/entity/state-update'
-import type { WsDeltaChange } from '@/utils/entity/state-delta.util'
+import type { WsDeltaChange } from '@/shared/entity/utils/state-delta.util'
 import { normalizeWsBatchChanges } from '@/workers/entity-ws-ingest-bridge'
-import { normalizeWsBatchChangesSync } from '@/utils/entity/state-delta.util'
+import { normalizeWsBatchChangesSync } from '@/shared/entity/utils/state-delta.util'
 import {
   appNotify,
   refreshSecurityPanelFromSocket,
   applySecurityModeFromSocket,
   refreshNotificationsFromSocket,
   refreshEventLogFromSocket,
-} from '@/utils/bridge/store-bridge'
-import { getFrontendConfig } from '@/utils/config/frontend-config'
+} from '@/shared/utils/bridge/store-bridge'
+import { getFrontendConfig } from '@/shared/utils/config/frontend-config'
 import { WS_PUSH_CRITICAL_DOMAINS } from '@homeos/shared'
 import { createEntityInitHelpers } from '@/stores/entities/entity-store-init.util'
 import { createEntityRestFallbackHelpers } from '@/stores/entities/entity-store-rest-fallback.util'
@@ -35,8 +35,8 @@ import type {
   EntitySocketTrack,
   EntityStoreLogger,
   HaEntityState,
-} from '@/types/entity-store'
-import type { NotifyType } from '@/types/notify'
+} from '@/shared/types/entity-store'
+import type { NotifyType } from '@/shared/types/notify'
 
 /**
  * 实体缓存持久化桥接接口

@@ -4,7 +4,7 @@ import {
   flowClamp as flowClamp2,
   flowLineMotion as flowLineMotion2,
 } from "../../../shared/flow-line-model";
-import { createSvgElement as createSvgElementFromFactory } from "@app/utils/svg-factory";
+import { createSvgElement as createSvgElementFromFactory } from "@app/shared/util/svg-factory";
 /** 流水线条渲染时由 registry 注入的宿主能力。 */
 type FlowLineRuntimeHost = {
   /** 运行期状态是否已就绪； */

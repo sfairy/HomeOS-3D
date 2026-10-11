@@ -1,4 +1,4 @@
-import { clampNumber, finiteNumberOr } from "@app/utils/number";
+import { clampNumber, finiteNumberOr } from "@app/shared/util/number";
 function clonePose(pose: any) {
   return Object.fromEntries(
     Object.entries(pose).map(([poseKey, poseField]) => [

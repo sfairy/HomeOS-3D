@@ -136,10 +136,10 @@
  *   - @/stores/layout.store（布局配置）
  *   - @/stores/chrome.store（打开播放器）
  *   - @/composables/entity/useEntityDisplayEpoch（媒体展示纪元，强制刷新）
- *   - @/utils/ha/ha-media-url.util（解析 HA 实体图片 URL）
- *   - @/utils/entity/entity-derived.util（实体展示名）
+ *   - @/shared/utils/ha/media-url.util（解析 HA 实体图片 URL）
+ *   - @/shared/entity/utils/derived.util（实体展示名）
  *   - @/composables/ui/useSwiperDraggable（拖拽滑动）
- *   - @/composables/widget/useHubTabs（Tab 状态管理）
+ *   - @/shared/widget/composables/useHubTabs（Tab 状态管理）
  */
 import { ref, computed, watch, defineAsyncComponent } from 'vue'
 import { Music, Pause, Play, SkipBack, SkipForward } from '@lucide/vue'
@@ -147,11 +147,11 @@ import { useEntitiesStore } from '@/stores/entities.store'
 import { useHaConnectionStore } from '@/stores/ha-connection.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useEntityDisplayEpoch } from '@/composables/entity/useEntityDisplayEpoch'
-import { resolveHaEntityPicture } from '@/utils/ha/media-url.util'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
+import { resolveHaEntityPicture } from '@/shared/utils/ha/media-url.util'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import { useSwiperDraggable } from '@/composables/ui/useSwiperDraggable'
 import WidgetHubHeader from '@/components/widgets/shared/WidgetHubHeader.vue'
-import { useHubTabs } from '@/composables/widget/useHubTabs'
+import { useHubTabs } from '@/shared/widget/composables/useHubTabs'
 
 const MediaPlaylistWidget = defineAsyncComponent(() => import('./PlaylistWidget.vue'))
 

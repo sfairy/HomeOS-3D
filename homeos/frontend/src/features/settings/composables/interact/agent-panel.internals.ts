@@ -13,8 +13,8 @@
  *   - @/composables/voice/useSpeechToText（语音输入）
  *   - @/stores/chrome.store / layout.store
  *   - @/services/api/agent（agentChat / agentPing / channelsStatus）
- *   - @/utils/agent/chat-limit.util（消息长度截断）
- *   - @/utils/registry/settings-route.util（设置路由）
+ *   - @/shared/agent/utils/chat-limit.util（消息长度截断）
+ *   - @/shared/utils/registry/settings-route.util（设置路由）
  */
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import {
@@ -29,11 +29,11 @@ import {
 import { useSpeechToText } from '@/composables/voice/useSpeechToText'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import { clonePlain } from '@/utils/core/clone-plain.util'
-import { getApiErrorMessage } from '@/utils/core/error-message'
+import { clonePlain } from '@/shared/utils/core/clone-plain.util'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { getDefaultLayout } from '@/stores/defaults'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
-import { clipAgentChatMessage, AGENT_CHAT_MAX_LENGTH } from '@/utils/agent/chat-limit.util'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
+import { clipAgentChatMessage, AGENT_CHAT_MAX_LENGTH } from '@/shared/agent/utils/chat-limit.util'
 import {
   agentChat,
   agentPing,
@@ -41,7 +41,7 @@ import {
   type AgentPingResult,
   type ChannelsStatusResult,
 } from '@/services/api/agent'
-import type { AgentConfig, ChannelConfig, SceneVoiceControl } from '@/types/layout'
+import type { AgentConfig, ChannelConfig, SceneVoiceControl } from '@/shared/types/layout'
 
 /** 统计卡片色调（与 SettingsFlowStat.vue 的 FlowStatTone 保持对齐） */
 type FlowStatTone =

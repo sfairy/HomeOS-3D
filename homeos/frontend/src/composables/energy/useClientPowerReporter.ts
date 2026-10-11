@@ -13,11 +13,11 @@ import {
   ensureBatteryManager,
   onBatteryChange,
   readBatterySnapshotSync,
-} from '@/utils/client/system.util'
-import { logger } from '@/utils/core/logger'
-import { isLicenseInactiveError } from '@/utils/core/error-message'
+} from '@/shared/client/utils/system.util'
+import { logger } from '@/shared/utils/core/logger'
+import { isLicenseInactiveError } from '@/shared/utils/core/error-message'
 import { getLicenseActivated } from '@/router/license-gate'
-import { schedulePoll } from '@/utils/core/poll-scheduler'
+import { schedulePoll } from '@/shared/utils/core/poll-scheduler'
 
 /**
  * 客户端电量与系统信息实时上报 composable
@@ -31,7 +31,7 @@ import { schedulePoll } from '@/utils/core/poll-scheduler'
  * 依赖：
  *  - @/services/api/system（fetchSystemConfig 拉取配置 / reportClientPower 上报）；
  *  - @/stores/auth.store（判断认证状态、刷新会话）；
- *  - @/utils/client/client-system.util（构建上报 payload、BatteryManager 管理）；
+ *  - @/shared/client/utils/system.util（构建上报 payload、BatteryManager 管理）；
  *  - axios（识别 401 错误）。
  */
 

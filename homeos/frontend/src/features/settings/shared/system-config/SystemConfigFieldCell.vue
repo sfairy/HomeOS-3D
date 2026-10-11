@@ -144,10 +144,10 @@ import {
   haEntityDomainFilter,
   systemConfigCellClass,
   systemConfigSelectOptions,
-} from '@/utils/config/system-config/field.util'
+} from '@/shared/utils/config/system-config/field.util'
 import { getNestedObjectEditorKind } from '@/features/settings/shared/system-config/nested-editor.util'
-import { joinCommaEntityIds, parseCommaEntityIds } from '@/utils/entity/comma-entity-ids.util'
-import { parseOptionalNumber } from '@/utils/core/misc.util'
+import { joinCommaEntityIds, parseCommaEntityIds } from '@/shared/entity/utils/comma-entity-ids.util'
+import { parseOptionalNumber } from '@/shared/utils/core/misc.util'
 const props = defineProps({
   field: { type: Object, required: true },
   inputId: { type: String, required: true },

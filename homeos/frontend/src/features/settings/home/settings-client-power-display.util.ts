@@ -9,7 +9,7 @@
 import {
   getClientDeviceKindLabel,
   getSystemInfoFromClientRow,
-} from '@/utils/client/system-display.util'
+} from '@/shared/client/utils/system-display.util'
 
 /** 将实时客户端列表按 clientId 索引为 Map，便于按 id 查找行数据 */
 export function buildClientStatusMap(liveClients: Array<{ clientId: string }>) {

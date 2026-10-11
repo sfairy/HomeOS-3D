@@ -25,8 +25,8 @@
  */
 import { computed } from 'vue'
 import VirtualList from '@/components/common/base/VirtualList.vue'
-import { WIDGET_PICKER_VIRTUAL_THRESHOLD } from '@/utils/widget/profile-filter.util'
-import { getWidgetName } from '@/utils/registry/widget-catalog'
+import { WIDGET_PICKER_VIRTUAL_THRESHOLD } from '@/shared/widget/utils/profile-filter.util'
+import { getWidgetName } from '@/shared/utils/registry/widget-catalog'
 const props = defineProps({
   widgets: { type: Array, required: true },
   variant: { type: String, default: 'sidebar' },

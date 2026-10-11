@@ -22,11 +22,11 @@
  * - 通过 getFloatingPanelProps 将 widget 配置转换为面板组件所需 props
  *
  * 依赖：
- * - @/utils/registry/widget-registry：面板组件注册表与 props 解析
- * - @/types/layout：FloatingWidget 部件类型定义
+ * - @/components/widgets/widget-registry：面板组件注册表与 props 解析
+ * - @/shared/types/layout：FloatingWidget 部件类型定义
  */
-import { getFloatingPanelComponent, getFloatingPanelProps } from '@/utils/registry/widget-registry'
-import type { FloatingWidget } from '@/types/layout'
+import { getFloatingPanelComponent, getFloatingPanelProps } from '@/components/widgets/widget-registry'
+import type { FloatingWidget } from '@/shared/types/layout'
 
 // 部件实例（含 type 与 config）
 defineProps<{

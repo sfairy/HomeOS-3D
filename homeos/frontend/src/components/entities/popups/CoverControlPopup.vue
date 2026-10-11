@@ -12,7 +12,7 @@
  * - ./EntityPopupShell、./PopupHead
  * - @/composables/entity/useEntityPopupBase（defineEntityPopupProps/useEntityPopupBase/useEntityPopupHeader）
  * - @/composables/entity/useSliderCommit（位置滑动防抖提交）
- * - @/utils/ui/progress-bar.util（clampInRange）
+ * - @/shared/utils/ui/progress-bar.util（clampInRange）
  */
 <template>
   <!-- CoverControlPopup 窗帘/盖板控制弹窗：控制窗帘、卷帘等 cover 实体 -->

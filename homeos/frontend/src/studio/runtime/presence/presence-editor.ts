@@ -7,9 +7,9 @@ import {
   presenceTriggerIsTimed,
 } from "./presence-motion";
 import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character";
-import { randomUuid } from "@app/utils/random-id";
-import { domElement } from "@app/utils/dom-factory";
-import { createSvgElement as createSvgNode } from "@app/utils/svg-factory";
+import { randomUuid } from "@app/shared/util/random-id";
+import { domElement } from "@app/shared/util/dom-factory";
+import { createSvgElement as createSvgNode } from "@app/shared/util/svg-factory";
 export async function openPresenceEditor({
   component: component,
   panelDocument: panelDocument,

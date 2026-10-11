@@ -9,11 +9,11 @@
  *
  * 依赖：
  *   - @/services/api/entities.fetchEvents：事件列表接口。
- *   - @/utils/core/misc.util.createFetchSequence：请求序号守卫。
+ *   - @/shared/utils/core/misc.util.createFetchSequence：请求序号守卫。
  */
 import { ref, watch, type Ref } from 'vue'
 import { fetchEvents } from '@/services/api/entities'
-import { createFetchSequence } from '@/utils/core/misc.util'
+import { createFetchSequence } from '@/shared/utils/core/misc.util'
 
 /**
  * 设备状态历史事件结构。

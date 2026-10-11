@@ -13,16 +13,16 @@
  * - @/stores/entities.store（实体状态与 ensureEntities 按需拉取）
  * - @/composables/entity/useWeatherEntity（已绑定 weather 实体解析）
  * - @/composables/entity/useEnsureVisibleEntities（按需可见性上报）
- * - @/utils/config/frontend-config（WS 推送公共配置）
- * - @/utils/entity/cold-fetch.util（冷拉取缺失记录，避免重复探测）
- * - @/utils/weather/life-indices.util（指数解析与天气站工具）
+ * - @/shared/utils/config/frontend-config（WS 推送公共配置）
+ * - @/shared/entity/utils/cold-fetch.util（冷拉取缺失记录，避免重复探测）
+ * - @/shared/weather/utils/life-indices.util（指数解析与天气站工具）
  */
 import { computed, watch, type MaybeRef, unref } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useWeatherEntity } from '@/composables/entity/useWeatherEntity'
 import { useEnsureVisibleEntities } from '@/composables/entity/useEnsureVisibleEntities'
-import { getWsPushPublicConfig } from '@/utils/config/frontend-config'
-import { isColdFetchMissing } from '@/utils/entity/cold-fetch.util'
+import { getWsPushPublicConfig } from '@/shared/utils/config/frontend-config'
+import { isColdFetchMissing } from '@/shared/entity/utils/cold-fetch.util'
 import {
   collectOptionalLifeIndexEntityIds,
   collectWeatherStationEntityIds,
@@ -30,7 +30,7 @@ import {
   resolveWeatherStationLiveMetrics,
   resolveWeatherWarning,
   type LifeIndexItem,
-} from '@/utils/weather/life-indices.util'
+} from '@/shared/weather/utils/life-indices.util'
 
 /**
  * 解析天气生活指数与气象站实时指标。

@@ -164,7 +164,7 @@ import {
 } from '@/composables/entity/useDeviceGroupMembers'
 import { useDeviceGroupBatch } from '@/composables/entity/useDeviceGroupBatch'
 import { useDeviceGroupEntityIds } from '@/composables/entity/useDeviceGroupEntityIds'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import { useDeviceGroupOffline } from '@/composables/entity/useDeviceGroupOffline'
 import { useKeepAliveGate } from '@/composables/ui/useKeepAliveGate'
 import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'

@@ -37,7 +37,7 @@
  */
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import { useSetupChecklist } from '@/composables/settings/useSetupChecklist'
+import { useSetupChecklist } from '@/shared/status'
 
 const { checklist, showBanner, progressText, dismiss } = useSetupChecklist()
 

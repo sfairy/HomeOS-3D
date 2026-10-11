@@ -76,7 +76,7 @@
  */
 import { computed, useSlots } from 'vue'
 import SettingsPageHeader from '@/components/common/page-shell/SettingsPageHeader.vue'
-import { pageTitle, pageDescription } from '@/utils/registry/settings-nav.util'
+import { pageTitle, pageDescription } from '@/shared/utils/registry/settings-nav.util'
 
 const props = defineProps({
   /** 当前激活的 tab 标识（用于控制本页显隐） */

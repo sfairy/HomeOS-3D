@@ -96,7 +96,7 @@ const PACKAGE_JSON_FILES = [
   'homeos/package.json',
   'homeos-store/package.json',
   'homeos/frontend/package.json',
-  'homeos/packages/shared/package.json',
+  'packages/shared/package.json',
 ]
 
 /**
@@ -215,7 +215,7 @@ const LEAK_FILES = [
   'homeos/package.json',
   'homeos-store/package.json',
   'homeos/frontend/package.json',
-  'homeos/packages/shared/package.json',
+  'packages/shared/package.json',
   'bun.lock',
 ]
 const LEAK_LINE =

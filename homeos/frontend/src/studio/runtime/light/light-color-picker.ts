@@ -1,4 +1,4 @@
-import { domElement } from "@app/utils/dom-factory";
+import { domElement } from "@app/shared/util/dom-factory";
 const {
   hsToRgbColor: hsToRgbColor,
   lightColorPickerHsFromPoint: hsFromPoint,

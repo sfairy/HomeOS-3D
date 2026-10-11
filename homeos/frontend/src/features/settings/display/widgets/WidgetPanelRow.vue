@@ -22,12 +22,12 @@
  */
 import { computed, inject } from 'vue'
 import { Trash2, Eye, EyeOff, Ruler, ChevronUp, ChevronDown } from '@lucide/vue'
-import { getWidgetIcon, getWidgetName } from '@/utils/registry/widget-catalog'
+import { getWidgetIcon, getWidgetName } from '@/shared/utils/registry/widget-catalog'
 import WeatherHubConfigPanel from './WeatherHubConfigPanel.vue'
 import HomeClimateChartConfigPanel from './HomeClimateChartConfigPanel.vue'
 import WidgetConfigQuickActions from './WidgetConfigQuickActions.vue'
 import WidgetConfigForms from './WidgetConfigForms.vue'
-import { isWeatherHubWidgetType } from '@/utils/registry/weather-hub-options'
+import { isWeatherHubWidgetType } from '@/shared/utils/registry/weather-hub-options'
 import { widgetHasConfigPanel, isHubTabsOnlyConfig, hubTabSetFor, widgetConfigBtnLabel, widgetConfigDescription, WIDGET_PANEL_CONFIG_KEY } from '@/features/settings/composables/display/layout-panel-widgets.internals'
 
 const widgetConfig = inject(WIDGET_PANEL_CONFIG_KEY)

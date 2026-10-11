@@ -1,11 +1,44 @@
-"""HomeOS 授权商店与授权服务器（独立服务，默认端口 8802）。"""
+"""HomeOS 授权商店与授权服务器（独立服务，默认端口 8802）。
+
+与主应用共用的两个叶子模块（``logging_noise`` / ``core.file_lock``）**不在本包内**：它们在
+``packages/shared-py/homeos_shared``，由本包导入时挂好 ``sys.path``（见下）。
+"""
 
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 __all__ = ["__version__"]
+
+
+def _register_shared_python_root() -> Path | None:
+    """源码态把 ``packages/shared-py`` 挂上 ``sys.path``，让 ``import homeos_shared`` 可用。
+
+    镜像态**不做也不该做**：构建阶段已把 ``homeos_shared`` 内联进 ``/app``（见 Dockerfile 的
+    ``COPY packages/shared-py/homeos_shared ./homeos_shared``），``PYTHONPATH=/app`` 已经让它
+    可解析。判据是「上溯祖先目录里有没有 ``packages/shared-py/homeos_shared/__init__.py``」——
+    镜像里 ``__file__`` 是 ``/app/app/__init__*.so``，一路查到 ``/`` 都落空，自然无害跳过。
+
+    为什么放在包入口而不是各启动脚本里：仓库里有二十来处脚本 / 迁移入口 / 门禁各自往
+    ``sys.path`` 插后端目录（``ops/{check_schema,check_database,license_keys}.py``、
+    两个 ``migrations/env.py``、``*/scripts/*_smoke.py`` …），逐个补一行必然漏；而它们**都**要
+    ``import src.*``，所以包入口这一次注册就全覆盖了，将来新增脚本也不必再记得这件事。
+
+    与主应用 ``src/__init__.py`` 里的同名函数是刻意重复的引导代码：它必须在
+    ``homeos_shared`` 可导入**之前**就存在，所以没法反过来从共享包里取。
+    """
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "packages" / "shared-py"
+        if (candidate / "homeos_shared" / "__init__.py").is_file():
+            if str(candidate) not in sys.path:
+                sys.path.append(str(candidate))
+            return candidate
+    return None
+
+
+_register_shared_python_root()
 
 
 def _read_baked_version() -> str:

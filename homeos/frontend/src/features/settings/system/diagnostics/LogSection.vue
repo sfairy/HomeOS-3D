@@ -138,7 +138,7 @@ import { RouterLink } from 'vue-router'
 import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
 import SettingsCardIntro from '@/components/common/page-shell/SettingsCardIntro.vue'
 import { useDiagnosticsSection } from './useDiagnosticsSection'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 
 const {
   diag,

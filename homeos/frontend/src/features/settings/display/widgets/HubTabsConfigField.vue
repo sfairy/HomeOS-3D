@@ -58,7 +58,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { HubTabOption } from '@/utils/registry/hub-tabs-options'
+import type { HubTabOption } from '@/shared/utils/registry/hub-tabs-options'
 
 const props = defineProps<{
   tabSet: HubTabOption[]

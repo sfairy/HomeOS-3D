@@ -3,17 +3,17 @@
  * @module frontend/src/views
  */
 /** composables：语音配置 / 每日顾问 / 指令编辑 / 告警编辑 */
-import { DEFAULT_VOICE_ALERT_RULES, getVoiceAlertCatalog, getVoiceAlertGroups, mergeVoiceAlertRules, newCustomTtsAlert, newEntityTtsAlert, normalizeCustomTtsAlerts, normalizeEntityTtsAlerts, normalizeWakeWords } from '@/constants/voice-alert-catalog'
+import { DEFAULT_VOICE_ALERT_RULES, getVoiceAlertCatalog, getVoiceAlertGroups, mergeVoiceAlertRules, newCustomTtsAlert, newEntityTtsAlert, normalizeCustomTtsAlerts, normalizeEntityTtsAlerts, normalizeWakeWords } from '@/shared/constants/voice-alert-catalog'
 import { fetchVoiceMeta, fetchVoicePresets } from '@/services/api/system'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useChromeStore } from '@/stores/chrome.store'
-import { reloadFrontendConfig } from '@/utils/config/frontend-config'
-import { getApiErrorMessage } from '@/utils/core/error-message'
-import { logger } from '@/utils/core/logger'
-import { useSettingsSave } from '@/features/settings/composables/hub-ui.internals'
+import { reloadFrontendConfig } from '@/shared/utils/config/frontend-config'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
+import { logger } from '@/shared/utils/core/logger'
+import { useSettingsSave } from '@/composables/settings-kernel/save.internals'
 import { isSystemConfigConflictError, useSystemConfig } from '@/composables/config/system-config-core.internals'
-import { builtinStyleTemplate, composeCustomAlertTemplate, dailyPresetTemplate, detectBuiltinStyle, detectCustomSpeechMode, detectDailyPreset, getAlertPreviewSamples, getBuiltinDefaultSpeech, getDailyAdvisorDayPresets, getDailyAdvisorEveningPresets, getEntityTtsVarChips, previewVarsForEntity, stylesForAlertKey } from '@/utils/voice/speech.util'
-import { servicesForDomainBuilder } from '@/utils/registry/widget-catalog'
+import { builtinStyleTemplate, composeCustomAlertTemplate, dailyPresetTemplate, detectBuiltinStyle, detectCustomSpeechMode, detectDailyPreset, getAlertPreviewSamples, getBuiltinDefaultSpeech, getDailyAdvisorDayPresets, getDailyAdvisorEveningPresets, getEntityTtsVarChips, previewVarsForEntity, stylesForAlertKey } from '@/shared/voice/utils/speech.util'
+import { servicesForDomainBuilder } from '@/shared/utils/registry/widget-catalog'
 import type { Ref } from 'vue'
 import { computed, reactive, ref } from 'vue'
 

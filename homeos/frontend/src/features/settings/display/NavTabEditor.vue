@@ -232,10 +232,10 @@ import {
   resolveOrderedNavTabIds,
   setNavTabPlacement,
   toggleNavTabVisibility,
-} from '@/utils/layout/nav-tabs.util'
-import { EMBED_TAB_ACCENTS, resolveEmbedNavAccent } from '@/utils/layout/embed-nav-theme.util'
-import { resolveEmbedIconComponent } from '@/utils/layout/embed-icons.util'
-import { DEFAULT_BRAND_LOGO_URL } from '@/utils/layout/nav-tabs.util'
+} from '@/shared/utils/layout/nav-tabs.util'
+import { EMBED_TAB_ACCENTS, resolveEmbedNavAccent } from '@/shared/utils/layout/embed-nav-theme.util'
+import { resolveEmbedIconComponent } from '@/shared/utils/layout/embed-icons.util'
+import { DEFAULT_BRAND_LOGO_URL } from '@/shared/utils/layout/nav-tabs.util'
 
 const layoutStore = useLayoutStore()
 

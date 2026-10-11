@@ -4,28 +4,26 @@
  * 职责：提供设置面板中各类 Hub 的 UI 相关组合式函数，包括路由同步、环境传感器映射、
  *       收藏夹管理、草稿保存等功能
  * 依赖：
- *   - ../system/composables/system-config.internals - 系统配置错误处理
+ *   - @/composables/config/system-config-core.internals - 系统配置读取（域名 / 字段提示）
  *   - ./env-sensor-map.internals - 环境传感器映射
- *   - ./pending.internals - 未保存更改管理
- *   - ./hub-viewport.internals - 视口相关功能
+ *   - @/composables/settings-kernel/pending.internals - 未保存更改管理
+ *   - @/composables/ui/hub-viewport.internals - 视口相关功能
  *   - Vue / vue-router - 响应式与路由
  */
-import { handleSystemConfigPatchError } from '@/composables/config/system-config-core.internals'
 import { getEnvSensorFields, useEnvSensorMap } from './env-sensor-map.internals'
-import { useRegisterSettingsTabPending, useSettingsHubPending } from './pending.internals'
+import { useRegisterSettingsTabPending, useSettingsHubPending } from '@/composables/settings-kernel/pending.internals'
 import { useSettingsSidebarReentryReset } from '@/composables/ui/hub-viewport.internals'
 import { countQuickActionBatteryLow, countQuickActionClimateActive, countQuickActionDomainActive, countQuickActionLightsOn, countQuickActionOffline } from '@/composables/device/group-counts.util'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import { downloadBlob } from '@/utils/core/misc.util'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
-import { notifyError } from '@/services/notify'
-import { buildFavoritesRecommendations } from '@/utils/recommend/favorites-recommend.util'
-import type { FavoriteCategoryMeta } from '@/utils/registry/favorites-categories.config'
-import { FAVORITE_CATEGORIES, FAVORITE_CATEGORY_GROUPS, FAVORITE_CATEGORY_MAP } from '@/utils/registry/favorites-categories.config'
-import { envRoomTabEmoji } from '@/utils/settings/tab-emoji.util'
-import { clonePlain } from '@/utils/core/clone-plain.util'
+import { downloadBlob } from '@/shared/utils/core/misc.util'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import { buildFavoritesRecommendations } from '@/shared/recommend/utils/favorites-recommend.util'
+import type { FavoriteCategoryMeta } from '@/shared/utils/registry/favorites-categories.config'
+import { FAVORITE_CATEGORIES, FAVORITE_CATEGORY_GROUPS, FAVORITE_CATEGORY_MAP } from '@/shared/utils/registry/favorites-categories.config'
+import { envRoomTabEmoji } from '@/shared/utils/settings/tab-emoji.util'
+import { clonePlain } from '@/shared/utils/core/clone-plain.util'
 import type { ComputedRef, Ref } from 'vue'
 import { computed, nextTick, onMounted, ref, unref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -587,44 +585,6 @@ export function useDraftObjectField<T extends Record<string, unknown>>(
 }
 
 // ── useSettingsSave ──
-export function useSettingsSave() {
-  const layoutStore = useLayoutStore()
-  const chrome = useChromeStore()
-  const saving = ref(false)
-
-  async function runSave(
-    fn: () => unknown | Promise<unknown>,
-    {
-      errorContext,
-      onError,
-    }: { errorContext?: string; onError?: (error: unknown) => unknown | Promise<unknown> } = {},
-  ) {
-    saving.value = true
-    try {
-      return await fn()
-    } catch (e) {
-      if (await handleSystemConfigPatchError(e, chrome)) {
-        if (onError) await onError(e)
-        return false
-      }
-      if (onError) {
-        await onError(e)
-        return false
-      }
-      notifyError(e, errorContext || '保存设置')
-      return false
-    } finally {
-      saving.value = false
-    }
-  }
-
-  async function onSave(options?: { errorContext?: string; onError?: (error: unknown) => void }) {
-    return runSave(async () => {
-      const ok = await layoutStore.saveConfig()
-      // saveConfig 失败时已 toast 并返回 false（不抛异常）
-      return ok
-    }, options)
-  }
-
-  return { saving, onSave, runSave }
-}
+// 已下沉至 @/composables/settings-kernel/save.internals（绑 useLayoutStore，无法进 shared，
+// 且需被 features/home-mode 等「内嵌编辑面板」域平等共用，故落跨层池）。
+// 请从新路径导入：import { useSettingsSave } from '@/composables/settings-kernel/save.internals'

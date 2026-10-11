@@ -46,7 +46,7 @@ Props：
 <script setup>
 import { AlertTriangle } from '@lucide/vue'
 import { RouterLink } from 'vue-router'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 
 defineProps({
   reason: { type: String, default: '' },

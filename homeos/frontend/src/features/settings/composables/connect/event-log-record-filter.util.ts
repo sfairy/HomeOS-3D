@@ -6,12 +6,12 @@
 import { fetchEventStats } from '@/services/api/entities'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useChromeStore } from '@/stores/chrome.store'
-import type { SystemConfig } from '@/types/system-config'
-import { getEventLogConfig } from '@/utils/config/frontend-config'
-import { getApiErrorMessage } from '@/utils/core/error-message'
-import { logger } from '@/utils/core/logger'
-import { buildEventLogPerfRecommendations } from '@/utils/recommend/event-log-perf-recommend.util'
-import type { EventLogStatsSnapshot } from '@/utils/recommend/types'
+import type { SystemConfig } from '@/shared/types/system-config'
+import { getEventLogConfig } from '@/shared/utils/config/frontend-config'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
+import { logger } from '@/shared/utils/core/logger'
+import { buildEventLogPerfRecommendations } from '@/shared/recommend/utils/event-log-perf-recommend.util'
+import type { EventLogStatsSnapshot } from '@/shared/recommend/types/recommend.types'
 import {
   fetchSystemConfigFresh,
   handleSystemConfigPatchError,
@@ -21,7 +21,7 @@ import { readEventLogRecordFilterState } from '@/features/settings/composables/c
 import {
   buildEventLogRecordRecommendations,
   mapEventLogRecordToInsight,
-} from '@/utils/recommend/event-log-record-recommend.util'
+} from '@/shared/recommend/utils/event-log-record-recommend.util'
 import { computed, ref } from 'vue'
 
 // ── useEventLogRecordFilter ──

@@ -3,7 +3,7 @@
  *
  * 职责：从 GET /system/config 的 ops 段解析 EventLog 筛选开关与域名/实体名单。
  */
-import type { SystemConfig } from '@/types/system-config'
+import type { SystemConfig } from '@/shared/types/system-config'
 import type { SharedOpsConfig } from '@homeos/shared'
 
 interface EventLogRecordFilterState {

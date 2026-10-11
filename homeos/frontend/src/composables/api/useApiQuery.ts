@@ -4,10 +4,10 @@
  * @description
  *   提供统一的 REST 查询状态管理：loading / error / retry / 降级元数据（degraded）。
  *   适用于需要手动触发或简单轮询的场景；复杂 Widget 轮询请使用 useWidgetApiQuery。
- *   依赖：Vue 3 composition API、@/utils/core/error-message 的错误信息提取。
+ *   依赖：Vue 3 composition API、@/shared/utils/core/error-message 的错误信息提取。
  */
 import { ref, shallowRef, type Ref } from 'vue'
-import { extractErrorMessage } from '@/utils/core/error-message'
+import { extractErrorMessage } from '@/shared/utils/core/error-message'
 
 /**
  * API 查询元数据（由后端返回，用于标识降级状态等）

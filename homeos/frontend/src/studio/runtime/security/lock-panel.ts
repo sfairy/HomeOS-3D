@@ -4,7 +4,7 @@
  * `editing: true` 时禁用操作（模型不可用或控制未就绪），否则可上锁/解锁/释放锁舌。
  */
 import { lockState } from "./lock-state";
-import { domElement } from "@app/utils/dom-factory";
+import { domElement } from "@app/shared/util/dom-factory";
 import { createStageDeviceVisual } from "../core/stage-device-visual";
 /**
  * 把门锁原始 state 归一成右上角图形能表达的档位。

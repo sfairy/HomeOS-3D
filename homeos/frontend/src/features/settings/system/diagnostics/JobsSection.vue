@@ -118,8 +118,8 @@ import { RefreshCw, AlertCircle, Clock3 } from '@lucide/vue'
 import {
   fetchSystemJobs,
 } from '@/services/api/system'
-import { extractErrorMessage } from '@/utils/core/error-message'
-import { formatDetailedDateTimeOrDash } from '@/utils/format/locale-format.util'
+import { extractErrorMessage } from '@/shared/utils/core/error-message'
+import { formatDetailedDateTimeOrDash } from '@/shared/utils/format/locale-format.util'
 import { useDiagnosticsSection } from './useDiagnosticsSection'
 
 const props = defineProps({

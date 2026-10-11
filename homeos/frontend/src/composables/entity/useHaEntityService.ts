@@ -9,11 +9,11 @@
  */
 import { useEntitiesStore } from '@/stores/entities.store'
 import { getEntityDomain } from '@homeos/shared'
-import { logger } from '@/utils/core/logger'
+import { logger } from '@/shared/utils/core/logger'
 import {
   blockDangerousHaServiceWhenOffline,
   HA_OFFLINE_DANGEROUS_CONTROL_MSG,
-} from '@/utils/ha/url'
+} from '@/shared/utils/ha/url'
 
 /**
  * HA 离线时拦截阀/锁/报警等高风险 service 调用（UI 层预检，store.callService 亦有同逻辑）。

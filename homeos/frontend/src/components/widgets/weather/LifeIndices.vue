@@ -203,8 +203,8 @@
  *  - @lucide/vue: 多种生活指数图标
  *  - @/components/common/base/VEmptyState.vue: 空态组件
  *  - @/composables/life/useLifeIndices: 生活指数数据 composable
- *  - @/utils/weather/life-indices.util: 生活指数定义与分组标签
- *  - @/utils/registry/settings-route.util: 设置页路由常量
+ *  - @/shared/weather/utils/life-indices.util: 生活指数定义与分组标签
+ *  - @/shared/utils/registry/settings-route.util: 设置页路由常量
  */
 import { computed, type Component } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -242,8 +242,8 @@ import {
   lifeIndexGroupLabel,
   type LifeIndexDef,
   type LifeIndexItem,
-} from '@/utils/weather/life-indices.util'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+} from '@/shared/weather/utils/life-indices.util'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 
 const props = defineProps({
   config: { type: Object, default: () => ({}) },

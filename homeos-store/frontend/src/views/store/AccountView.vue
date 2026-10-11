@@ -10,6 +10,7 @@ import { useStoreToast } from "../../stores/toast.js";
 import { api } from "../../api/http.js";
 import { errorMessage, type StoreLicense, type StoreOrder } from "../../store-types.js";
 import { formatCents as money } from "../../money.js";
+import { copyText } from "../../utils/clipboard.js";
 
 const router = useRouter();
 const session = useSessionStore();
@@ -303,12 +304,8 @@ async function loadMore() {
 }
 
 async function copyCommand(command: string) {
-  try {
-    await navigator.clipboard.writeText(command);
-    toast.show("部署指令已复制。");
-  } catch {
-    toast.show("复制失败，请手动选中命令复制。", "err");
-  }
+  // 走共享包内核（HTTP 非安全上下文会降级 execCommand），不再裸调 navigator.clipboard。
+  await copyText(command);
 }
 </script>
 

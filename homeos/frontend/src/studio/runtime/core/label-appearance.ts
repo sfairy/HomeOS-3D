@@ -1,4 +1,4 @@
-import { syncHtmlRangeProgress } from "@app/utils/range-progress";
+import { syncHtmlRangeProgress } from "@app/shared/util/range-progress";
 
 export function backgroundOpacity(value: any) {
   return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 1;

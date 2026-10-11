@@ -11,15 +11,15 @@
  * - vue：ref/computed/onMounted。
  * - @/services/api/entities：fetchAreasList 拉取区域注册表。
  * - @/stores/entities.store：实体全量映射与域索引。
- * - @/utils/bridge/store-bridge：appNotify 全局通知。
- * - @/utils/entity/entity-derived.util：collectIndexedEntityIds 收集索引实体 ID。
+ * - @/shared/utils/bridge/store-bridge：appNotify 全局通知。
+ * - @/shared/entity/utils/derived.util：collectIndexedEntityIds 收集索引实体 ID。
  */
 import { resolveEntityArea } from '@homeos/shared'
 import { ref, computed, onMounted } from 'vue'
 import { fetchAreasList } from '@/services/api/entities'
 import { useEntitiesStore } from '@/stores/entities.store'
-import { appNotify } from '@/utils/bridge/store-bridge'
-import { collectIndexedEntityIds } from '@/utils/entity/derived.util'
+import { appNotify } from '@/shared/utils/bridge/store-bridge'
+import { collectIndexedEntityIds } from '@/shared/entity/utils/derived.util'
 
 /** 区域下拉选项结构：id 为 HA area_id，name 为展示名。 */
 type AreaOption = { id: string; name: string }

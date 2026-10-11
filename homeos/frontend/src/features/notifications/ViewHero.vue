@@ -22,7 +22,7 @@ import ListPageHero from '@/components/page-shell/ListPageHero.vue'
 
 import ListPageMetrics from '@/components/page-shell/ListPageMetrics.vue'
 
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 
 // 入参：页头提示语、概要指标、刷新中状态、未读数、是否可清空（控制按钮可用性）
 defineProps({

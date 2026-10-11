@@ -124,7 +124,7 @@
 <script setup>
 import { computed, watch } from 'vue'
 import { Bell, RefreshCw } from '@lucide/vue'
-import { securityEventCssKey } from '@/utils/security/event-display.util'
+import { securityEventCssKey } from '@/features/security/utils/event-display.util'
 import VEmptyState from '@/components/common/base/VEmptyState.vue'
 import ApiQueryState from '@/components/common/ApiQueryState.vue'
 import { useFixedPagePagination } from '@/composables/ui/hub-viewport.internals'

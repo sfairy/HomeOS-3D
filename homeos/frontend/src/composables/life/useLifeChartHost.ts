@@ -8,12 +8,12 @@
  * 依赖：vue、echarts（动态 import）、chart-resize.util。
  */
 import { onMounted, onUnmounted, watch, nextTick, type Ref, type WatchSource } from 'vue'
-import type * as EchartsModuleNS from '@/utils/chart/echarts'
+import type * as EchartsModuleNS from '@/shared/utils/chart/echarts'
 import {
   observeChartResize,
   scheduleEchartsTask,
   cancelScheduledEchartsTask,
-} from '@/utils/ui/chart-resize.util'
+} from '@/shared/utils/ui/chart-resize.util'
 
 type EchartsModule = typeof EchartsModuleNS
 type ChartInst = ReturnType<EchartsModule['default']['init']>
@@ -54,7 +54,7 @@ export function useHubChart(
     }
     // getOrInitChart：并发渲染（onMounted 与 watch 同帧各调度一次）时
     // 两次调用都可能在 await 前通过 ``if (!chart)``，直接 init 会触发 ECharts 重复初始化告警
-    if (!chart) chart = (await import('@/utils/chart/echarts')).getOrInitChart(el)
+    if (!chart) chart = (await import('@/shared/utils/chart/echarts')).getOrInitChart(el)
     chart.setOption(buildOption(), true)
     chart.resize()
   }

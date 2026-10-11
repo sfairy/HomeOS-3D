@@ -5,14 +5,14 @@
 /** composables：浮动小组件与浮动面板展示 */
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import type { FloatingWidget, UILayoutConfig } from '@/types/layout'
-import { clampPct } from '@/utils/core/misc.util'
+import type { FloatingWidget, UILayoutConfig } from '@/shared/types/layout'
+import { clampPct } from '@/shared/utils/core/misc.util'
 export { clampPct }
-import { mirrorSecurityPanelZonesToLayout } from '@/utils/security/panel-layout.util'
-import { FLOATING_HUB_DEFAULT_TAB, getFloatingHubTabOptions } from '@/utils/registry/floating-hub-tab-options'
-import { cloneHubTabsDraft, getHubTabSet, hasConfigurableTabs, serializeHubTabsConfig } from '@/utils/registry/hub-tabs-options'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
-import { FLOATING_HUB_TYPE_SET, FLOATING_HUB_WIDTH_MAP, getFloatingCatalogGroups, getWidgetCategoryLabelForType, getWidgetIcon, getWidgetName } from '@/utils/registry/widget-catalog'
+import { mirrorSecurityPanelZonesToLayout } from '@/shared/security/utils/panel-layout.util'
+import { FLOATING_HUB_DEFAULT_TAB, getFloatingHubTabOptions } from '@/shared/utils/registry/floating-hub-tab-options'
+import { cloneHubTabsDraft, getHubTabSet, hasConfigurableTabs, serializeHubTabsConfig } from '@/shared/utils/registry/hub-tabs-options'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
+import { FLOATING_HUB_TYPE_SET, FLOATING_HUB_WIDTH_MAP, getFloatingCatalogGroups, getWidgetCategoryLabelForType, getWidgetIcon, getWidgetName } from '@/shared/utils/registry/widget-catalog'
 import { Code } from '@lucide/vue'
 import type { Ref } from 'vue'
 import { computed, reactive, ref, watch } from 'vue'
@@ -289,7 +289,7 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
     if (!afhEditId.value) return
     const widget = floatingWidgets.value.find((w) => w.id === afhEditId.value)
     const widgetType = widget?.type || ''
-    const { normalizeZonesForApi } = await import('@/utils/security/zones-api.util')
+    const { normalizeZonesForApi } = await import('@/shared/security/utils/zones-api.util')
     const zonesForSave = normalizeZonesForApi(
       (afhConfig.zones || []).map((z) => ({
         id: z.id,
@@ -346,7 +346,7 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
         )
         return
       }
-      const { postSecurityZonesSafe } = await import('@/utils/security/zones-api.util')
+      const { postSecurityZonesSafe } = await import('@/shared/security/utils/zones-api.util')
       const result = await postSecurityZonesSafe(zonesForSave)
       if (result.ok) {
         chrome.notify(
@@ -422,7 +422,7 @@ export function useFloatingWidgets(layoutConfig: Ref<UILayoutConfig>) {
 }
 
 // ── useFloatingPanelDisplay ──
-export { AFH_THEME_DEFS as AFH_THEMES } from '@/composables/entity/floating-entity-colors.util'
+export { AFH_THEME_DEFS as AFH_THEMES } from '@/shared/entity/utils/floating-entity-colors.util'
 
 const ENTITY_FLOAT_TYPES = ['entity', 'temp', 'humidity', 'battery', 'power']
 

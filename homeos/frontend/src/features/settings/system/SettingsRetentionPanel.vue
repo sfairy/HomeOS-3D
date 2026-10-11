@@ -191,10 +191,10 @@ import { RefreshCw, AlertCircle, Save, Layers } from '@lucide/vue'
 import SettingsPageShell from '@/components/common/page-shell/SettingsPageShell.vue'
 import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
 import { useChromeStore } from '@/stores/chrome.store'
-import { useRegisterSettingsTabPending } from '@/features/settings/composables/pending.internals'
+import { useRegisterSettingsTabPending } from '@/composables/settings-kernel/pending.internals'
 import { fetchRetentionConfig, updateRetentionConfig } from '@/services/api/system'
-import { getApiErrorMessage } from '@/utils/core/error-message'
-import { formatFullDateTime } from '@/utils/format/locale-format.util'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
+import { formatFullDateTime } from '@/shared/utils/format/locale-format.util'
 
 defineProps({ activeTab: { type: String, default: 'retention' } })
 

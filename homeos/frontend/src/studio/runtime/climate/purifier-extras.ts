@@ -6,8 +6,8 @@ import {
   haNumber,
   stringOptions,
 } from "../device/entity-capabilities";
-import { domElement } from "@app/utils/dom-factory";
-import { syncHtmlRangeProgress } from "@app/utils/range-progress";
+import { domElement } from "@app/shared/util/dom-factory";
+import { syncHtmlRangeProgress } from "@app/shared/util/range-progress";
 /** 实体可用性判定：离线/未知态不可用，但 button/input_button 的 unknown 态视为可执行。 */
 function entityUsable(entityId: any, state: any) {
   return !!(

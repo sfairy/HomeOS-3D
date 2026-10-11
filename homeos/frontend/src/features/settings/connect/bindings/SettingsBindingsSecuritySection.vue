@@ -253,13 +253,13 @@ import {
   History,
 } from '@lucide/vue'
 import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
-import SettingsOrchTabs from '@/features/settings/shared/layout/SettingsOrchTabs.vue'
+import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import EntityInput from '@/components/common/EntityInput.vue'
 import HazardBindingsSection from '@/features/settings/connect/bindings/HazardBindingsSection.vue'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
-import type { DoorbellConfig } from '@/types/setup-wizard'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
+import type { DoorbellConfig } from '@/shared/types/setup-wizard'
 
 // 入参：安防子 Tab 配置、事件校验态与提示、危险源测试/演练态与提示
 defineProps({

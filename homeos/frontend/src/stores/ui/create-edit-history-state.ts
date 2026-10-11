@@ -13,7 +13,7 @@
  *  依赖 Vue ref/computed、布局配置类型与 clonePlain 工具。
  */
 import { ref, computed, type Ref } from 'vue'
-import type { FloatingWidget, UILayoutConfig } from '@/types/layout'
+import type { FloatingWidget, UILayoutConfig } from '@/shared/types/layout'
 
 /** 单步快照：顶层浮动组件。 */
 interface EditSnapshot {

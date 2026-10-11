@@ -1,4 +1,4 @@
-/* knip: used by PWA runtime; frontend/src/utils/core/pwa-update.ts navigator.serviceWorker.register('/sw.js'), backend spa-fallback middleware serves /sw.js, shared embed fallback whitelist includes /sw.js — 静态 PWA SW 文件非 ESM import 所以 knip 漏识别 */
+/* knip: used by PWA runtime; frontend/src/shared/utils/core/pwa-update.ts navigator.serviceWorker.register('/sw.js'), backend spa-fallback middleware serves /sw.js, shared embed fallback whitelist includes /sw.js — 静态 PWA SW 文件非 ESM import 所以 knip 漏识别 */
 /* HomeOS Service Worker：离线壳缓存 + 非哈希静态资源 */
 // 版本号变更即代表「旧缓存整体作废」：activate 会删掉非当前名的所有缓存。
 const CACHE_SHELL = 'homeos-shell-v7'

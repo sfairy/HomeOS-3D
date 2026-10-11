@@ -2,10 +2,15 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { build as esbuildBuild } from "esbuild";
 import vue from "@vitejs/plugin-vue";
 import { defineConfig, type Plugin } from "vite";
-import { quietLogger } from "./vite-quiet-logger.js";
+// 与主应用共用的构建助手（经典 IIFE 打包、静音日志、SPA 外壳断言）见 ops/vite/build-helpers.ts。
+import {
+  SPA_ENTRY,
+  assertSpaShellPresent,
+  bundleClassicIife,
+  quietLogger,
+} from "../../ops/vite/build-helpers.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const storeRoot = __dirname;
@@ -19,8 +24,6 @@ const frontendOutDir = path.join(repoRoot, "dist", "homeos-store", "frontend");
 //: 否则 `import()` 的 chunk 能用（相对入口解析），但 `__vite__mapDeps` 生成的
 //: modulepreload 提示会落在 `/static/assets/...`，撞上 SPA catch-all 拿到 HTML。
 const buildOutDir = path.join(frontendOutDir, "static");
-
-const SPA_ENTRY = "index.html";
 
 //: 构建走挂载前缀；dev 仍在根路径提供（8806 下 `/store-static` 被代理给后端）。
 const BUILD_BASE = "/store-static/";
@@ -91,20 +94,10 @@ function classicIifePlugin(): Plugin {
       usedChunkNames.clear();
     },
     async closeBundle() {
-      const entry = path.join(storeRoot, "src/auth-bootstrap.ts");
-      if (!fs.existsSync(entry)) return;
       //: 构建产物根就是挂载根，auth-bootstrap.js 直接落在这里（/store-static/auth-bootstrap.js）。
-      const outfile = path.join(buildOutDir, "auth-bootstrap.js");
-      fs.mkdirSync(path.dirname(outfile), { recursive: true });
-      await esbuildBuild({
-        entryPoints: [entry],
-        outfile,
-        bundle: true,
-        format: "iife",
-        platform: "browser",
-        target: "es2022",
-        minify: true,
-        logLevel: "silent",
+      await bundleClassicIife({
+        entry: path.join(storeRoot, "src/auth-bootstrap.ts"),
+        outfile: path.join(buildOutDir, "auth-bootstrap.js"),
       });
     },
   };
@@ -119,11 +112,12 @@ function placeShellPlugin(): Plugin {
   return {
     name: "homeos-store-place-shell",
     closeBundle() {
+      // 外壳缺失 = 产物不完整（空目录 / 被中途清空），交给共用助手报出 outDir 实际内容。
+      assertSpaShellPresent(
+        buildOutDir,
+        "商店构建没有产出外壳：通常是 htmlInputs() 没找到 frontend/index.html。",
+      );
       const from = path.join(buildOutDir, SPA_ENTRY);
-      if (!fs.existsSync(from)) {
-        const listing = fs.existsSync(buildOutDir) ? fs.readdirSync(buildOutDir).join(", ") : "(outDir 不存在)";
-        throw new Error(`SPA 入口缺失：${from}（outDir 内容: ${listing}）`);
-      }
       fs.mkdirSync(frontendOutDir, { recursive: true });
       //: base 已经是挂载前缀，产物里的资源引用无需再改写，直接搬走即可。
       fs.copyFileSync(from, path.join(frontendOutDir, SPA_ENTRY));
@@ -134,6 +128,92 @@ function placeShellPlugin(): Plugin {
   };
 }
 
+/* ------------------------------------------------------------------ *
+ * 开发代理：后端启动竞态降噪
+ * ------------------------------------------------------------------ */
+
+/** 开发代理 / WebSocket 断连时的可忽略错误码（后端重启、刷新、启动竞态均属正常）。 */
+const BENIGN_PROXY_ERROR_CODES = new Set(["ECONNABORTED", "ECONNRESET", "ECONNREFUSED"]);
+
+function isBenignProxyError(err: unknown): boolean {
+  const code = (err as NodeJS.ErrnoException | undefined)?.code;
+  return !!code && BENIGN_PROXY_ERROR_CODES.has(code);
+}
+
+/** 良性代理失败节流日志：启动竞态时最多每 15s 打一条，避免刷屏。 */
+let lastBenignProxyLogAt = 0;
+function logBenignProxyOnce(err: unknown): void {
+  const now = Date.now();
+  if (now - lastBenignProxyLogAt < 15_000) return;
+  lastBenignProxyLogAt = now;
+  const code = (err as NodeJS.ErrnoException | undefined)?.code;
+  console.warn(`[vite] 授权商店后端暂未就绪，请稍后刷新${code ? `（${code}）` : ""}`);
+}
+
+/** 后端未就绪时回 503 JSON，避免浏览器看到含糊的 502。 */
+function respondBackendUnavailable(res: unknown): void {
+  const r = res as {
+    headersSent?: boolean;
+    writableEnded?: boolean;
+    writeHead?: (code: number, headers: Record<string, string>) => void;
+    end?: (body: string) => void;
+  } | null;
+  if (!r || r.headersSent || r.writableEnded) return;
+  if (typeof r.writeHead !== "function" || typeof r.end !== "function") return;
+  try {
+    r.writeHead(503, { "Content-Type": "application/json; charset=utf-8" });
+    r.end(
+      JSON.stringify({
+        statusCode: 503,
+        message: "授权商店后端暂未就绪，请先运行 bun run dev:backend，稍后刷新",
+      }),
+    );
+  } catch {
+    /* 响应可能已关闭 */
+  }
+}
+
+/** 各代理入口共享：良性断连不刷屏，并给出可读的 503（Vite 自带的 502 仅在响应未结束时才写）。 */
+const proxyErrorHandling = {
+  configure: (proxy: any) => {
+    proxy.on("error", (err: any, _req: unknown, res: unknown) => {
+      if (isBenignProxyError(err)) {
+        logBenignProxyOnce(err);
+        respondBackendUnavailable(res);
+        return;
+      }
+      console.warn("[vite proxy error]", err?.message || err);
+      respondBackendUnavailable(res);
+    });
+    proxy.on("proxyReqWs", (_proxyReq: unknown, _req: unknown, socket: NodeJS.EventEmitter) => {
+      socket.on("error", (err: NodeJS.ErrnoException) => {
+        if (isBenignProxyError(err)) return;
+        console.warn("[vite ws proxy socket error]", err?.message || err);
+      });
+    });
+  },
+};
+
+//: Vite 自带的代理错误处理器始终经 `logger.error` 打印，故良性断连必须在这一层过滤掉。
+const baseLogger = quietLogger();
+const customLogger: typeof baseLogger = {
+  ...baseLogger,
+  error(msg, options) {
+    const text = String(msg);
+    const err = (options as { error?: unknown } | undefined)?.error;
+    const benignProxy =
+      (text.includes("http proxy error") ||
+        text.includes("ws proxy error") ||
+        text.includes("ws proxy socket error")) &&
+      (isBenignProxyError(err) || /ECONNREFUSED|ECONNRESET|ECONNABORTED/.test(text));
+    if (benignProxy) {
+      logBenignProxyOnce(err ?? text);
+      return;
+    }
+    baseLogger.error(msg, options);
+  },
+};
+
 export default defineConfig(({ command }) => {
   const isBuild = command === "build";
   return {
@@ -141,25 +221,35 @@ export default defineConfig(({ command }) => {
     base: isBuild ? BUILD_BASE : DEV_BASE,
     // 依赖预打包缓存统一落在工作区根 node_modules/.vite/homeos-store，避免项目内再长出 node_modules。
     cacheDir: path.join(repoRoot, "node_modules", ".vite", "homeos-store"),
-    customLogger: quietLogger(),
+    //: 代理错误处理见 proxyErrorHandling：良性断连节流并在 logger 层过滤，避免启动竞态刷屏。
+    customLogger,
     // 构建时 outDir 就是挂载根：public 的 `static/` 子层要剥掉，否则会多出一层 static。
     publicDir: isBuild ? path.join(storeRoot, "public", "static") : path.join(storeRoot, "public"),
     resolve: {
       alias: {
         "@store": path.join(storeRoot, "src"),
+        //: 共享包（<repoRoot>/packages/shared）**刻意不加 alias**：本店只从它的子路径
+        //: （`@homeos/shared/components/*.vue` / `.../scene/*` / `.../utils/*`）取件，而 Vite 的
+        //: 字符串 alias 是前缀匹配 —— 加一条 `"@homeos/shared": <abs>/src/index.ts` 会把子路径
+        //: 也吞掉，构建静默不落盘（只在 closeBundle 报「SPA 入口缺失」）。子路径走包自己的
+        //: `exports`，经工作区软链直指源码，不需要先 build 共享包。
       },
     },
     server: {
+      //: 共享包在 frontend/ 之外：dev 需要显式放行，否则 /@fs/ 取共享源码直接被拒。
+      fs: {
+        allow: [path.join(repoRoot, "packages", "shared"), projectRoot],
+      },
       port: 8806,
       strictPort: true,
       proxy: {
-        "/store/v1": { target: "http://127.0.0.1:8802", changeOrigin: true },
-        "/store-admin/v1": { target: "http://127.0.0.1:8802", changeOrigin: true },
-        "/store-appearance.css": { target: "http://127.0.0.1:8802", changeOrigin: true },
-        "/v2": { target: "http://127.0.0.1:8802", changeOrigin: true },
-        "/store-static": { target: "http://127.0.0.1:8802", changeOrigin: true },
-        "/healthz": { target: "http://127.0.0.1:8802", changeOrigin: true },
-        "/fonts": { target: "http://127.0.0.1:8802", changeOrigin: true },
+        "/store/v1": { target: "http://127.0.0.1:8802", changeOrigin: true, ...proxyErrorHandling },
+        "/store-admin/v1": { target: "http://127.0.0.1:8802", changeOrigin: true, ...proxyErrorHandling },
+        "/store-appearance.css": { target: "http://127.0.0.1:8802", changeOrigin: true, ...proxyErrorHandling },
+        "/v2": { target: "http://127.0.0.1:8802", changeOrigin: true, ...proxyErrorHandling },
+        "/store-static": { target: "http://127.0.0.1:8802", changeOrigin: true, ...proxyErrorHandling },
+        "/healthz": { target: "http://127.0.0.1:8802", changeOrigin: true, ...proxyErrorHandling },
+        "/fonts": { target: "http://127.0.0.1:8802", changeOrigin: true, ...proxyErrorHandling },
       },
     },
     build: {

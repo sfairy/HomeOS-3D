@@ -10,14 +10,14 @@
  */
 import { computed, onUnmounted, ref } from 'vue'
 import { transcribeVoice } from '@/services/api/system'
-import { getConfigSection, onConfigChange } from '@/utils/config/frontend-config'
+import { getConfigSection, onConfigChange } from '@/shared/utils/config/frontend-config'
 import {
   isEmbeddedBrowser,
   openAudioInputStream,
   probeMicrophone,
 } from '@/composables/voice/useAudioDevices'
-import { getApiErrorMessage } from '@/utils/core/error-message'
-import { logger } from '@/utils/core/logger'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
+import { logger } from '@/shared/utils/core/logger'
 
 export type SttMode = 'browser' | 'ha' | 'auto'
 

@@ -11,9 +11,10 @@ import os
 
 import uvicorn
 
+from homeos_shared.logging_noise import install_reload_noise_filter
+
 from .app import create_app
 from .config import STORE_ROOT, load_settings
-from .logging_noise import install_reload_noise_filter
 
 _TRUTHY = frozenset({'1', 'true', 'yes', 'on'})
 

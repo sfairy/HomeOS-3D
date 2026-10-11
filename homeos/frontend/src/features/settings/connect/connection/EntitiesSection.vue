@@ -149,8 +149,8 @@ import {
   Database,
 } from '@lucide/vue'
 import RecommendInsightCard from '@/components/common/RecommendInsightCard.vue'
-import { buildEntitySyncRecommendations } from '@/utils/recommend/entity-sync-recommend.util'
-import { DEVICES_ROUTES } from '@/utils/device/devices-route.util'
+import { buildEntitySyncRecommendations } from '@/shared/recommend/utils/entity-sync-recommend.util'
+import { DEVICES_ROUTES } from '@/shared/device/utils/devices-route.util'
 
 const devicesListLink = DEVICES_ROUTES.list({ controllable: 0 })
 const devicesOfflineLink = DEVICES_ROUTES.offline()

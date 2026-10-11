@@ -19,23 +19,23 @@
 import { computed, ref, watch } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useWeatherEntity } from '@/composables/entity/useWeatherEntity'
-import { getConfigSection, configEpoch } from '@/utils/config/frontend-config'
+import { getConfigSection, configEpoch } from '@/shared/utils/config/frontend-config'
 import {
   resolveWeatherEffectProfile,
   type WeatherEffectProfile,
   type WeatherEntityAttributes,
-} from '@/utils/weather/effect-condition.util'
+} from '@/shared/weather/utils/effect-condition.util'
 import {
   resolveWeatherEffectConfig,
   type ResolvedWeatherEffectConfig,
   type WeatherEffectsConfig,
   DEFAULT_WEATHER_EFFECTS_CONFIG,
-} from '@/utils/weather/effect-presets.util'
+} from '@/shared/weather/utils/effect-presets.util'
 import {
   resolveActiveSceneParams,
   resolveActiveParticleCounts,
-} from '@/utils/weather/effect-scene-resolver.util'
-import { resolveSunriseSunset, computeDayPhase } from '@/utils/weather/sun-times.util'
+} from '@/shared/weather/utils/effect-scene-resolver.util'
+import { resolveSunriseSunset, computeDayPhase } from '@/shared/weather/utils/sun-times.util'
 
 /**
  * 天气效果配置 composable。

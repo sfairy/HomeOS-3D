@@ -1,4 +1,4 @@
-import { domElement } from "@app/utils/dom-factory";
+import { domElement } from "@app/shared/util/dom-factory";
 export function copyBatchFields(target: any, source: any, fields: any) {
   for (const field of fields) {
     if (field.compatible && !field.compatible(target)) continue;

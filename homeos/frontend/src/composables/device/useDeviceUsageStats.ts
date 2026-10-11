@@ -9,13 +9,13 @@
  *
  * 依赖：
  *   - @/services/api/system.fetchAdvisorUsage：HomeAdvisor 用量统计接口。
- *   - @/utils/core/misc.util.createFetchSequence：请求序号守卫，过滤过期响应。
- *   - @/types/device.DeviceUsageReport：用量统计返回类型。
+ *   - @/shared/utils/core/misc.util.createFetchSequence：请求序号守卫，过滤过期响应。
+ *   - @/shared/types/device.DeviceUsageReport：用量统计返回类型。
  */
 import { ref, watch, type Ref } from 'vue'
 import { fetchAdvisorUsage } from '@/services/api/system'
-import type { DeviceUsageReport } from '@/types/device'
-import { createFetchSequence } from '@/utils/core/misc.util'
+import type { DeviceUsageReport } from '@/shared/types/device'
+import { createFetchSequence } from '@/shared/utils/core/misc.util'
 
 /**
  * 设备使用统计 Composable。

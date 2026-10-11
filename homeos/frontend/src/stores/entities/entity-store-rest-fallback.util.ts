@@ -11,16 +11,16 @@
  *
  * 关键依赖：
  * - @/services/api/entities：fetchEntitiesChanged（增量同步接口）
- * - @/utils/entity/state-listener：setStateListenerVisibilityHandler（注册可见性回调）
- * - @/utils/entity/sync-failure.util：handleEntityFallbackFailure（统一失败处理 + stale 标记）
+ * - @/shared/entity/utils/state-listener：setStateListenerVisibilityHandler（注册可见性回调）
+ * - @/shared/entity/utils/sync-failure.util：handleEntityFallbackFailure（统一失败处理 + stale 标记）
  *
  * 实现说明：
  * - restFetchInFlight 用于并发去重：在途期间复用同一 Promise，避免重复发请求
  * - 增量同步通过 socketTrack.lastSocketEventAt / lastEventId 作为 since 参数
  */
-import type { EntityRestFallbackDeps, HaEntityState } from '@/types/entity-store'
-import { setStateListenerVisibilityHandler } from '@/utils/entity/state-listener'
-import { handleEntityFallbackFailure } from '@/utils/entity/sync-failure.util'
+import type { EntityRestFallbackDeps, HaEntityState } from '@/shared/types/entity-store'
+import { setStateListenerVisibilityHandler } from '@/shared/entity/utils/state-listener'
+import { handleEntityFallbackFailure } from '@/shared/entity/utils/sync-failure.util'
 import { fetchEntitiesChanged } from '@/services/api/entities'
 
 // ── entity-store-rest-fallback.util ──

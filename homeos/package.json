@@ -8,7 +8,7 @@
     "set-version": "bun scripts/set-version.mjs",
     "clean:local": "bun scripts/clean-local.mjs",
     "prep": "bun scripts/run.mjs prep",
-    "build:shared": "bun run --cwd packages/shared build",
+    "build:shared": "bun run --cwd .. build:shared",
     "dev": "bun scripts/dev.mjs",
     "dev:backend": "cd backend && HOMEOS_RELOAD=1 .venv/bin/python -m src.run",
     "dev:frontend": "bun run --cwd frontend dev",

@@ -9,13 +9,13 @@
  *
  * 依赖：
  * - @lucide/vue：模式图标组件。
- * - @/utils/device/device-group-battery.util：DeviceGroupEntitiesStoreLike 类型。
- * - @/types/entity-store：HaEntityState 实体状态类型。
+ * - @/shared/device/utils/group-battery.util：DeviceGroupEntitiesStoreLike 类型。
+ * - @/shared/types/entity-store：HaEntityState 实体状态类型。
  */
 import { Settings, ThermometerSnowflake, Droplets, Fan, Flame, Power } from '@lucide/vue'
-import { climateHasDualSetpoint } from '@/composables/entity/control/climate-control-core'
-import type { DeviceGroupEntitiesStoreLike } from '@/composables/device/group-battery.util'
-import type { HaEntityState } from '@/types/entity-store'
+import { climateHasDualSetpoint } from '@/shared/entity/utils/control/climate-control-core'
+import type { DeviceGroupEntitiesStoreLike } from '@/shared/device/utils/group-battery.util'
+import type { HaEntityState } from '@/shared/types/entity-store'
 
 /** 实体 store 类型，需提供 callService 方法。 */
 type EntitiesStore = DeviceGroupEntitiesStoreLike & {

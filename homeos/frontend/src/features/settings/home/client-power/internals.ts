@@ -11,19 +11,19 @@
  *   - settings-client-power-display.util：展示派生工具函数
  */
 /** composables：客户端电源配置 / 面板 / 展示 */
-import { useRegisterSettingsTabPending, useSettingsHubPending } from '@/features/settings/composables/pending.internals'
+import { useRegisterSettingsTabPending, useSettingsHubPending } from '@/composables/settings-kernel/pending.internals'
 import { handleSystemConfigPatchError, patchSystemConfig, useSystemConfig } from '@/composables/config/system-config-core.internals'
 import { dismissClientPowerOffline, dismissClientPowerPending, fetchClientPowerStatus } from '@/services/api/system'
 import { useChromeStore } from '@/stores/chrome.store'
-import type { ClientPowerClient, ClientPowerPendingClient, ClientPowerSettings, ClientPowerStatusSnapshot } from '@/types/client-power'
-import type { SystemConfig } from '@/types/system-config'
-import { normalizeBatteryPercent } from '@/utils/client/power-battery-display.util'
-import { getClientBatteryState, getClientDeviceKind, getClientSuggestedLabel, getClientSystemSpecChips, getLocalBatteryUnsupportedHint, getSystemInfoFromClientRow } from '@/utils/client/system-display.util'
-import { getClientDeviceId } from '@/utils/client/system.util'
-import { reloadFrontendConfig } from '@/utils/config/frontend-config'
+import type { ClientPowerClient, ClientPowerPendingClient, ClientPowerSettings, ClientPowerStatusSnapshot } from '@/shared/types/client-power'
+import type { SystemConfig } from '@/shared/types/system-config'
+import { normalizeBatteryPercent } from '@/shared/client/utils/power-battery-display.util'
+import { getClientBatteryState, getClientDeviceKind, getClientSuggestedLabel, getClientSystemSpecChips, getLocalBatteryUnsupportedHint, getSystemInfoFromClientRow } from '@/shared/client/utils/system-display.util'
+import { getClientDeviceId } from '@/shared/client/utils/system.util'
+import { reloadFrontendConfig } from '@/shared/utils/config/frontend-config'
 import { copyTextWithNotify } from '@/services/notify'
-import { getApiErrorMessage } from '@/utils/core/error-message'
-import { logger } from '@/utils/core/logger'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
+import { logger } from '@/shared/utils/core/logger'
 import { buildClientCardTitle, buildClientStatusMap, buildPendingCardTitle, clientNeedsChargerSwitch, clientSelfChargeThresholdInvalid, resolveClientLiveRow } from '@/features/settings/home/settings-client-power-display.util'
 import {
   buildClientPowerWakePublic,
@@ -33,7 +33,7 @@ import {
 } from '@homeos/shared'
 import type { Ref } from 'vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { schedulePoll } from '@/utils/core/poll-scheduler'
+import { schedulePoll } from '@/shared/utils/core/poll-scheduler'
 
 // ── useClientPowerConfig ──
 // 滞回充电默认阈值（20% 开充电 / 80% 关充电，关闭峰谷错峰，应急阈值 15%）来自共享契约

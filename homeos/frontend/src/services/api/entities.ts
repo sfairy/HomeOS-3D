@@ -2,7 +2,7 @@
  * 实体、事件与服务调用 REST API 封装
  *
  * 职责：封装实体查询、事件流、服务调用、区域批量分配、HA 历史等接口。
- * 依赖：./client 提供的 apiGet / apiPost / apiDelete；@/types/entity-references 类型定义。
+ * 依赖：./client 提供的 apiGet / apiPost / apiDelete；@/shared/types/entity-references 类型定义。
  * 端点范围：/entities、/entities/{id}、/entities/batch/*、/entities/areas/list、
  *           /events、/events/stats、/events/meta、/events/timeline、/events/reports/compare、
  *           /services/call、/ha/history、/ha/queue/retry、/system/entities/resync。
@@ -13,7 +13,7 @@ import type {
   EntityReferencesResponse,
   EntityReferenceUnlinkRequest,
   EntityReferenceUnlinkResult,
-} from '@/types/entity-references'
+} from '@/shared/types/entity-references'
 
 /**
  * 获取实体列表。

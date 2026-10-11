@@ -90,7 +90,7 @@ import EntityMultiSelect from '@/components/common/EntityMultiSelect.vue'
 import {
   HOME_CLIMATE_CHART_VIEW_OPTIONS,
   type HomeClimateChartConfig,
-} from '@/utils/registry/home-climate-chart-options'
+} from '@/shared/utils/registry/home-climate-chart-options'
 
 const draft = defineModel<Required<HomeClimateChartConfig>>({ required: true })
 

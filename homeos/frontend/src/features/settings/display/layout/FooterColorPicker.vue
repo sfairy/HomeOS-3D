@@ -57,7 +57,7 @@ import { ChevronDown } from '@lucide/vue'
 import {
   DASHBOARD_FOOTER_COLORS,
   DASHBOARD_FOOTER_COLOR_ACCENT,
-} from '@/constants/dashboard-footer'
+} from '@/shared/constants/dashboard-footer'
 import { useClickOutside } from '@/composables/ui/useClickOutside'
 import { useDropdownPosition } from '@/composables/ui/useDropdownPosition'
 

@@ -11,11 +11,11 @@
  * - chart-primitives: 渐变原语（替代 echarts.graphic.LinearGradient，避免静态引入 echarts）
 */
 import { getEntityLeaf } from '@homeos/shared'
-import { pad2 } from '@/utils/format/locale-format.util'
+import { pad2 } from '@/shared/utils/format/locale-format.util'
 import { getKioskAnimationOptions } from '@/composables/ui/kiosk-animation'
-import { chartLinearGradient } from '@/utils/chart/chart-primitives'
-import { formatAuditTimestamp } from '@/utils/format/locale-format.util'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
+import { chartLinearGradient } from '@/shared/utils/chart/chart-primitives'
+import { formatAuditTimestamp } from '@/shared/utils/format/locale-format.util'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import { TEMP_COLORS, HUM_COLORS } from './constants'
 import { adaptiveAxisBound } from './axis.util'
 

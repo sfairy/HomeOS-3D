@@ -2,9 +2,9 @@
  * 天气雨雪粒子 OffscreenCanvas Worker（P3）。
  * 主线程仅保留静态场景合成，粒子层在 Worker 内 rAF 更新，避免主线程繁忙时丢帧。
  *
- * 关键依赖：@/utils/weather/particle-classes（粒子初始化与绘制）、
- *   @/utils/weather/effect-condition.util（profile）、@/utils/weather/effect-presets.util（scene）、
- *   @/types/weather-canvas（Worker 消息类型）。
+ * 关键依赖：@/shared/weather/utils/particle-classes（粒子初始化与绘制）、
+ *   @/shared/weather/utils/effect-condition.util（profile）、@/shared/weather/utils/effect-presets.util（scene）、
+ *   @/shared/weather/types/weather-canvas（Worker 消息类型）。
  *
  * 消息协议（标准 postMessage / self.onmessage，单向接收主线程指令，无回传）：
  * - init: 携带 OffscreenCanvas 句柄与初始参数，初始化画布并按需启动渲染循环；
@@ -16,14 +16,14 @@
 import {
   initWeatherParticles,
   drawWeatherParticles,
-} from '@/utils/weather/particle-classes'
+} from '@/shared/weather/utils/particle-classes'
 import type {
   ParticleCountConfig,
   WeatherParticles,
-} from '@/utils/weather/particle-classes'
-import type { WeatherEffectProfile } from '@/utils/weather/effect-condition.util'
-import type { WeatherEffectSceneParams } from '@/utils/weather/effect-presets.util'
-import type { WeatherParticleWorkerMessage } from '@/types/weather-canvas'
+} from '@/shared/weather/utils/particle-classes'
+import type { WeatherEffectProfile } from '@/shared/weather/utils/effect-condition.util'
+import type { WeatherEffectSceneParams } from '@/shared/weather/utils/effect-presets.util'
+import type { WeatherParticleWorkerMessage } from '@/shared/weather/types/weather-canvas'
 
 /** OffscreenCanvas 2D 上下文（init 时由主线程 transfer 而来） */
 let ctx: OffscreenCanvasRenderingContext2D | null = null

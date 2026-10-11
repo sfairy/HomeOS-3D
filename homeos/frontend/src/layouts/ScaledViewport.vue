@@ -73,8 +73,8 @@ import {
   getConfigSection,
   configEpoch,
   getWorkerDerivedThreshold,
-} from '@/utils/config/frontend-config'
-import { adaptiveTier } from '@/utils/perf/adaptive-perf.util'
+} from '@/shared/utils/config/frontend-config'
+import { adaptiveTier } from '@/shared/utils/perf/adaptive-perf.util'
 
 const props = defineProps({
   // 外层 frame 的附加 class（用于不同布局场景区分样式）

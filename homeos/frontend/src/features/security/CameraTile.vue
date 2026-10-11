@@ -58,7 +58,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import HaCameraStream from '@/components/HaCameraStream.vue'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 
 // 多路网格默认最多 2 路实时流（WebRTC/HLS），超出部分仅快照占位，避免平板/HA 过载
 const GRID_MAX_ACTIVE = 2

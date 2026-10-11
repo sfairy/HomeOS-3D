@@ -6,11 +6,13 @@
  * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
   - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
  */
-import { useNotificationsView } from '@/composables/notifications/useNotificationsView'
-import NotificationsViewHero from '@/features/notifications/ViewHero.vue'
-import NotificationsViewToolbar from '@/features/notifications/ViewToolbar.vue'
-import NotificationsViewAnalytics from '@/features/notifications/ViewAnalytics.vue'
-import NotificationsViewStream from '@/features/notifications/ViewStream.vue'
+import {
+  NotificationsViewAnalytics,
+  NotificationsViewHero,
+  NotificationsViewStream,
+  NotificationsViewToolbar,
+  useNotificationsView,
+} from '@/features/notifications'
 import '@/assets/styles/list-page-dual-pane.css'
 import '@/features/notifications/premium.css'
 

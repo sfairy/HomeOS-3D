@@ -15,10 +15,10 @@ import { ref, computed, watch, onUnmounted, unref, type MaybeRef, type Ref } fro
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useHaConnectionStore } from '@/stores/ha-connection.store'
 import { notifyError } from '@/services/notify'
-import { resolveHaEntityPicture } from '@/utils/ha/media-url.util'
+import { resolveHaEntityPicture } from '@/shared/utils/ha/media-url.util'
 import { useSliderCommit } from '@/composables/entity/useSliderCommit'
-import { progressFillStyle, clampInRange } from '@/utils/ui/progress-bar.util'
-import type { HaEntityState } from '@/types/entity-store'
+import { progressFillStyle, clampInRange } from '@/shared/utils/ui/progress-bar.util'
+import type { HaEntityState } from '@/shared/types/entity-store'
 
 /** 媒体播放器数据源：可为 entity_id 字符串、实体对象、null/undefined */
 type MediaPlayerSource =

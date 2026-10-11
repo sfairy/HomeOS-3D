@@ -96,8 +96,8 @@ import {
   resolveEmbedIframeSrc,
   clearAllEmbedCtxCookies,
   setEmbedCtxCookie,
-} from '@/utils/layout/embed-url.util'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+} from '@/shared/utils/layout/embed-url.util'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 
 const route = useRoute()
 const layoutStore = useLayoutStore()

@@ -5,10 +5,10 @@
  *           会话刷新与全局错误路由；同时承载 401/403/5xx 的统一处理逻辑。
  * 关键依赖：
  * - axios：HTTP 客户端
- * - @/utils/bridge/store-bridge：注入 401 处理器、跳转登录、会话刷新等原生桥接回调
- * - @/utils/telemetry/trace.util：注入 X-Trace-Id 链路追踪
- * - @/utils/config/frontend-config：运行期 API 超时/重试配置
- * - @/utils/core/logger、@/utils/core/error-message：日志与错误分类
+ * - @/shared/utils/bridge/store-bridge：注入 401 处理器、跳转登录、会话刷新等原生桥接回调
+ * - @/shared/utils/telemetry/trace.util：注入 X-Trace-Id 链路追踪
+ * - @/shared/utils/config/frontend-config：运行期 API 超时/重试配置
+ * - @/shared/utils/core/logger、@/shared/utils/core/error-message：日志与错误分类
  * 端点：baseURL = /api/v1（REST）；CSRF 走 /setup/status 下发 cookie
  *
  * 认证方案：HttpOnly Cookie
@@ -35,11 +35,11 @@ import {
   runUnauthorizedHandler,
   runNavigateToLogin,
   runSessionRefresh,
-} from '@/utils/bridge/store-bridge'
-import { getPageTraceId } from '@/utils/telemetry/trace.util'
-import { getFrontendConfig } from '@/utils/config/frontend-config'
-import { logger } from '@/utils/core/logger'
-import { isLicenseInactiveError } from '@/utils/core/error-message'
+} from '@/shared/utils/bridge/store-bridge'
+import { getPageTraceId } from '@/shared/utils/telemetry/trace.util'
+import { getFrontendConfig } from '@/shared/utils/config/frontend-config'
+import { logger } from '@/shared/utils/core/logger'
+import { isLicenseInactiveError } from '@/shared/utils/core/error-message'
 import { installFetchCsrf } from './csrf'
 
 /**

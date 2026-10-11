@@ -20,15 +20,15 @@
  * - screensaver-background-idle.util（屏保空闲联动）
  */
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { logger } from '@/utils/core/logger'
+import { logger } from '@/shared/utils/core/logger'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useWeatherEffectConfig } from '@/composables/ui/useWeatherEffectConfig'
 import {
   createWeatherParticleOffscreen,
   shouldUseWeatherParticleWorker,
-} from '@/utils/weather/particle-offscreen.util'
-import type { WeatherParticleOffscreenHandle } from '@/utils/weather/particle-offscreen.util'
+} from '@/shared/weather/utils/particle-offscreen.util'
+import type { WeatherParticleOffscreenHandle } from '@/shared/weather/utils/particle-offscreen.util'
 import {
   ShootingStar,
   createWeatherSceneParticles,
@@ -37,17 +37,17 @@ import {
   profileHasSleet,
   profilePrecipIntensity,
   profileRainIntensity,
-} from '@/utils/weather/background-canvas.util'
+} from '@/shared/weather/utils/background-canvas.util'
 import type {
   Cloud,
   Lightning,
   Star,
-} from '@/utils/weather/background-particles.util'
-import { drawWeatherPrecipAndEffects } from '@/utils/weather/background-precip.util'
-import { resolveWeatherBackgroundPerformanceMode } from '@/utils/weather/background-perf.util'
-import { useAdaptivePerfState } from '@/utils/perf/adaptive-perf.util'
-import { resolveRainTiltAngle, resolveGustyWind } from '@/utils/weather/animation.util'
-import { onScreensaverBackgroundIdle } from '@/utils/ui/screensaver-background-idle.util'
+} from '@/shared/weather/utils/background-particles.util'
+import { drawWeatherPrecipAndEffects } from '@/shared/weather/utils/background-precip.util'
+import { resolveWeatherBackgroundPerformanceMode } from '@/shared/weather/utils/background-perf.util'
+import { useAdaptivePerfState } from '@/shared/utils/perf/adaptive-perf.util'
+import { resolveRainTiltAngle, resolveGustyWind } from '@/shared/weather/utils/animation.util'
+import { onScreensaverBackgroundIdle } from '@/shared/utils/ui/screensaver-background-idle.util'
 import type {
   FastRain,
   GlassDrop,
@@ -57,7 +57,7 @@ import type {
   WeatherBackgroundProps,
   WeatherEffectProfile,
   WeatherPerfMode,
-} from '@/types/weather-canvas'
+} from '@/shared/weather/types/weather-canvas'
 
 // low 档帧间隔（ms）：2s 一帧，仅维持静态感
 const FRAME_INTERVAL_LOW = 2000

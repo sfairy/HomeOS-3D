@@ -77,12 +77,12 @@
 
 <script setup lang="ts">
 import { toRefs } from 'vue'
-import { useNotificationsViewAnalytics } from '@/composables/notifications/useNotificationsViewAnalytics'
-import { formatPercent } from '@/utils/notification/analytics.util'
+import { useNotificationsViewAnalytics } from './composables/useNotificationsViewAnalytics'
+import { formatPercent } from '@/shared/notifications/utils/analytics.util'
 import type {
   NotificationAnalyticsSummary,
   NotificationStatsPayload,
-} from '@/utils/notification/analytics.util'
+} from '@/shared/notifications/utils/analytics.util'
 
 // 单条通知在分析视图所需的最小字段集合（来源 / 级别 / 创建时间）
 type NotificationRow = {

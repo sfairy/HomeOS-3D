@@ -67,7 +67,7 @@
 <script setup>
 import { computed } from 'vue'
 import EntityInput from '@/components/common/EntityInput.vue'
-import { syncEntityAccounts } from '@/utils/energy/account.util'
+import { syncEntityAccounts } from '@/shared/energy/utils/account.util'
 import { useBindingAccountListEditor } from './useBindingAccountListEditor'
 
 // 入参：账户配置对象（直接读写）、账户标签

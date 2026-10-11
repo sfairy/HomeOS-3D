@@ -15,8 +15,8 @@
  * - voice-alert-catalog（normalizeWakeWords 规范化唤醒词）
  */
 import { ref, onUnmounted } from 'vue'
-import { getConfigSection } from '@/utils/config/frontend-config'
-import { normalizeWakeWords } from '@/constants/voice-alert-catalog'
+import { getConfigSection } from '@/shared/utils/config/frontend-config'
+import { normalizeWakeWords } from '@/shared/constants/voice-alert-catalog'
 
 /**
  * 轻量唤醒词监听 composable（VoiceCommand / Screensaver 共用）。

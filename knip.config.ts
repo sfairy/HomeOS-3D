@@ -49,7 +49,9 @@ const config: KnipConfig = {
         'vite.runtime.config.ts',
         'vite-studio.ts',
         'vite-plugin-*.ts',
-        'vite-quiet-logger.ts',
+        // eslint 配置本身也是「被读过才知道依赖谁」的文件：不列进来，它 import 的
+        // @eslint/js / eslint-plugin-vue 就会被误报成未使用的 devDependency（P5 实测）。
+        'eslint.config.js',
         'scripts/**/*.{ts,mjs,js}',
         'src/studio/runtime/**/*.ts',
         // classic IIFE / Worker 入口（见 vite-studio.ts classicEntries）
@@ -60,6 +62,10 @@ const config: KnipConfig = {
         'src/studio/app/3d-studio/export/draco-decoder-worker.ts',
         // tsconfig paths → 运行期外置 shim
         'src/studio/shims/**/*.ts',
+        // 编辑器选中态的**类型契约**：为「显式 state 袋」切片预置（宿主 `home.ts` 里那一族
+        // 高频可变捕获收成 `editorSelection` 门面，字段映射见 ops/studio_slice_tables_home.json）。
+        // 宿主接线前它还没有消费者，故显式列为根；接线完成后应从本清单移除。
+        'src/studio/app/editor/selection/selection-state.ts',
       ],
       project: ['src/**/*.{ts,vue,js}', 'scripts/**/*.{ts,mjs,js}', '*.ts'],
       ignore: [
@@ -87,7 +93,7 @@ const config: KnipConfig = {
         ],
       },
     },
-    'homeos/packages/shared': {
+    'packages/shared': {
       entry: ['src/index.ts', 'package.json'],
       project: ['src/**/*.{ts,js}'],
     },
@@ -97,7 +103,8 @@ const config: KnipConfig = {
         'frontend/src/main.ts',
         'frontend/src/auth-bootstrap.ts',
         'frontend/vite.config.ts',
-        'frontend/vite-quiet-logger.ts',
+        // P5 新加的 eslint 配置：不列进来，它 import 的 7 个 eslint 包会被误报成未使用的 devDependency。
+        'eslint.config.js',
       ],
       project: ['frontend/src/**/*.{ts,vue,js}', 'frontend/*.ts'],
       ignore: ['frontend/public/**', 'dist/**'],

@@ -37,7 +37,7 @@ Props：
 
 <script setup>
 import { computed } from 'vue'
-import { SETTINGS_HEADER_ICONS } from '@/utils/registry/settings-header-icons'
+import { SETTINGS_HEADER_ICONS } from '@/shared/utils/registry/settings-header-icons'
 
 const props = defineProps({
   title: { type: String, required: true },

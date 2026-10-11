@@ -7,15 +7,15 @@
  * - 高频默认微件采用 lazyComponent 静态分包，避免主包膨胀。
  *
  * 依赖：
- * - @/utils/core/lazy-component 的 lazyComponent（按需分包工厂）。
+ * - @/shared/utils/core/lazy-component 的 lazyComponent（按需分包工厂）。
  * - ./widget-registry-meta 的 canonicalizeWidgetType / WIDGET_REGISTRY_META。
  * - vue 的 Component 类型。
  *
  * 注意：微件 type key（clock / weather / ...）为配置 key，不翻译。
  */
-import { lazyComponent } from '@/utils/core/lazy-component'
+import { lazyComponent } from '@/shared/utils/core/lazy-component'
 import type { Component } from 'vue'
-import { canonicalizeWidgetType, WIDGET_REGISTRY_META } from '@/utils/registry/widget-registry-meta'
+import { canonicalizeWidgetType, WIDGET_REGISTRY_META } from '@/shared/utils/registry/widget-registry-meta'
 
 const ClockWidget = lazyComponent(() => import('@/components/widgets/system/ClockWidget.vue'))
 const WeatherHubPanel = lazyComponent(() => import('@/components/widgets/weather/HubPanel.vue'))
@@ -45,11 +45,11 @@ const WIDGET_REGISTRY: Record<string, { component?: Component; [key: string]: un
     ]),
   )
 
-export {
-  FLOATING_HUB_WIDTH_MAP,
-  getSidebarWidgetClass,
-  isFloatingPanelType,
-} from '@/utils/registry/widget-registry-meta'
+// 曾在此再导出 `FLOATING_HUB_WIDTH_MAP` / `getSidebarWidgetClass` / `isFloatingPanelType`：
+// 三者的消费者（`composables/shell/useFloatingHub`、`components/dashboard/RightSidebar.vue`、
+// `shared/floorplan/utils/floating-hub-layout.util` …）**本来就直连**元数据模块
+// `@/shared/utils/registry/widget-registry-meta`，这里只是多一条没人走的转发。
+// 本文件按自己的职责只出「组件解析」入口。
 
 /** 侧栏 / 仪表板动态组件 */
 export function getWidgetComponent(type: string) {

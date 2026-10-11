@@ -5,8 +5,8 @@ import {
   PERCENTAGE_BAR_LIMIT as PERCENTAGE_BAR_LIMIT2,
 } from "../../shared/percentage-bar-model";
 import { inspectorComponentMetrics as inspectorComponentMetrics2 } from "../editor-basic-inspectors";
-import type { DomControl } from "@app/utils/dom-control";
-import { domElement } from "@app/utils/dom-factory";
+import type { DomControl } from "@app/shared/util/dom-control";
+import { domElement } from "@app/shared/util/dom-factory";
 const inspectorStateByHost = new WeakMap<any, any>(),
   createElement = (tagName: any, textContent: any = null, className = "") =>
     domElement(document, tagName, className, textContent);

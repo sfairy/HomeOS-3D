@@ -2,8 +2,8 @@ import {
   mapCorners,
   createVacuumMapImageLoader,
 } from "./vacuum-map";
-import { domElement } from "@app/utils/dom-factory";
-import { createSvgElement as createSvgElementFromFactory } from "@app/utils/svg-factory";
+import { domElement } from "@app/shared/util/dom-factory";
+import { createSvgElement as createSvgElementFromFactory } from "@app/shared/util/svg-factory";
 function planFurniture(
   plan: {
     pixelsPerMeter?: number | string;

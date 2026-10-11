@@ -1,8 +1,8 @@
 /**
  * 实体 WS 批次规范化 Worker（主线程以外执行 delta 合并 + old_state 拷贝）。
  *
- * 关键依赖：comlink（RPC 暴露）、@/utils/entity/state-delta.util（同步规范化实现）、
- *   @/types/entity-store（实体与变化类型）。
+ * 关键依赖：comlink（RPC 暴露）、@/shared/entity/utils/state-delta.util（同步规范化实现）、
+ *   @/shared/types/entity-store（实体与变化类型）。
  *
  * 消息协议（comlink RPC，无 postMessage 显式事件）：
  * - 入站方法 normalizeBatch(changes: WsDeltaChange[], entitySnapshots: EntitiesMap)
@@ -14,8 +14,8 @@ import { expose } from 'comlink'
 import {
   normalizeWsBatchChangesSync,
   type WsDeltaChange,
-} from '@/utils/entity/state-delta.util'
-import type { EntitiesMap } from '@/types/entity-store'
+} from '@/shared/entity/utils/state-delta.util'
+import type { EntitiesMap } from '@/shared/types/entity-store'
 
 /**
  * 规范化 WS 批次：将原始 delta 合并、补齐 old_state 后产出可应用条目。

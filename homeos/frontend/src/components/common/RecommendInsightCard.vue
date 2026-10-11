@@ -26,14 +26,14 @@
  *    - 区分「实体类」「域统计类」芯片：前者展示中文友好名，后者渲染百分比与进度条；
  *    - 已在目标深链页时隐藏跳转，避免「点了没反应」。
  *  依赖：vue computed，vue-router，@lucide/vue 图标，
- *    entities.store（实体友好名查询），utils/entity/derived.util，utils/registry/settings-route.util。
+ *    entities.store（实体友好名查询），shared/entity/utils/derived.util，utils/registry/settings-route.util。
  */
 import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { Sparkles, Loader2, RefreshCw, ArrowRight, Info } from '@lucide/vue'
 import { useEntitiesStore } from '@/stores/entities.store'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
-import { isDeepLinkCurrent } from '@/utils/registry/settings-route.util'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import { isDeepLinkCurrent } from '@/shared/utils/registry/settings-route.util'
 
 const entitiesStore = useEntitiesStore()
 const route = useRoute()

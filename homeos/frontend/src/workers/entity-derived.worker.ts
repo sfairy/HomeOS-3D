@@ -1,8 +1,8 @@
 /**
  * Derived 索引 Worker 端重建 / 增量 patch。
  *
- * 关键依赖：comlink（RPC 暴露）、@/utils/entity/derived.util（累加器与快照转换）、
- *   @homeos/shared（getEntityDomain 解析域）、@/types/entity-store（派生索引类型）。
+ * 关键依赖：comlink（RPC 暴露）、@/shared/entity/utils/derived.util（累加器与快照转换）、
+ *   @homeos/shared（getEntityDomain 解析域）、@/shared/types/entity-store（派生索引类型）。
  *
  * 消息协议（comlink RPC，无 postMessage 显式事件）：
  * - 入站方法 rebuildDerivedSnapshot(entities, opts) -> { epoch, snapshot }
@@ -26,7 +26,7 @@ import {
   accFromDerivedSnapshot,
   snapshotFromDerivedAcc,
   type EntityDerivedAccumulator,
-} from '@/utils/entity/derived.util'
+} from '@/shared/entity/utils/derived.util'
 import { getEntityDomain } from '@homeos/shared'
 import type {
   DerivedBatteryEntry,
@@ -35,7 +35,7 @@ import type {
   DerivedSnapshotPatch,
   EntityPatch,
   HaEntityState,
-} from '@/types/entity-store'
+} from '@/shared/types/entity-store'
 
 type DerivedOpts = { deferSecondary?: boolean }
 

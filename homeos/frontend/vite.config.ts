@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url'
 import devNoCachePlugin from './vite-plugin-dev-no-cache.ts'
 import embedProxyFallbackPlugin from './vite-plugin-embed-fallback.ts'
 import rootAssetsPlugin from './vite-plugin-root-assets.ts'
+import { SPA_ENTRY, assertSpaShellPresent } from '../../ops/vite/build-helpers.js'
 import {
   THREE_VENDOR,
   isRuntimeExternal,
@@ -189,9 +190,7 @@ function mirrorPublicDirIntoStaging(): void {
   fs.cpSync(publicDir, outDir, { recursive: true, force: true })
 }
 
-/** SPA 唯一入口。 */
-const SPA_ENTRY = 'index.html'
-
+/** SPA 唯一入口（`SPA_ENTRY` 与商店共用，见 ops/vite/build-helpers.ts）。 */
 const isProduction = process.env.NODE_ENV === 'production'
 const analyzeBundle = process.env.ANALYZE === '1'
 /** 开发代理目标：127.0.0.1 避免 Windows 下 localhost → IPv6 导致 ECONNREFUSED */
@@ -260,7 +259,7 @@ const proxyErrorHandling = {
   },
 }
 
-const sharedRoot = resolve(__dirname, '../packages/shared')
+const sharedRoot = resolve(__dirname, '../../packages/shared')
 
 /** Rolldown entriesAware 会拼出 app-merge~A~B~C 超长名，统一收成 shared */
 function sanitizeChunkBaseName(name?: string): string {
@@ -432,11 +431,10 @@ function finalizeBuildPlugin(): Plugin {
           const hasAssets =
             fs.existsSync(resolve(outDir, 'assets')) &&
             fs.readdirSync(resolve(outDir, 'assets')).length > 0
+          // 有 assets 却没有外壳 = 产物不完整（真·空构建不在这里报错）；报错内容由共用助手
+          // 统一给出 outDir 实际清单 —— 缺外壳时第一个要回答的就是「目录里到底有没有东西」。
           if (hasAssets) {
-            throw new Error(
-              `构建旁路缺少 ${SPA_ENTRY}（${outDir}）。` +
-                '产物不完整；请重跑 bun run build:app。',
-            )
+            assertSpaShellPresent(outDir, '产物不完整；请重跑 bun run build:app。')
           }
         }
       } finally {
@@ -587,15 +585,20 @@ export default defineConfig(async (): Promise<UserConfig> => {
     plugins,
     resolve: {
       extensions: ['.mjs', '.ts', '.tsx', '.mts', '.js', '.jsx', '.json'],
-      alias: {
-        vue: 'vue/dist/vue.esm-bundler.js',
-        '@': resolve(__dirname, 'src'),
-        '@homeos/shared': resolve(sharedRoot, 'src/index.ts'),
+      alias: [
+        { find: 'vue', replacement: 'vue/dist/vue.esm-bundler.js' },
+        { find: '@', replacement: resolve(__dirname, 'src') },
+        // 必须「精确匹配」：字符串 find 在 Vite 里是**前缀匹配**（`find` 或 `find + '/'` 都算命中），
+        // 写成 `'@homeos/shared': <abs>/src/index.ts` 会把 `@homeos/shared/components/*.vue`、
+        // `.../scene/*`、`.../utils/*` 这些子路径也吞掉，改写成 `<abs>/src/index.ts/components/...`
+        // 后静默解析失败（症状是 store/主应用的 HTML 产物整份不落盘、只在 closeBundle 报「SPA 入口缺失」）。
+        // 子路径一律交给共享包自己的 `exports` 映射；两条路径都指向源码，不依赖共享包先 build。
+        { find: /^@homeos\/shared$/, replacement: resolve(sharedRoot, 'src/index.ts') },
         // 3D Studio 源码别名。
-        '@app': resolve(__dirname, 'src/studio/app'),
-        '@runtime': resolve(__dirname, 'src/studio/runtime'),
-        three: THREE_VENDOR,
-      },
+        { find: '@app', replacement: resolve(__dirname, 'src/studio/app') },
+        { find: '@runtime', replacement: resolve(__dirname, 'src/studio/runtime') },
+        { find: 'three', replacement: THREE_VENDOR },
+      ],
       dedupe: ['@homeos/shared'],
     },
     server: {
@@ -609,7 +612,7 @@ export default defineConfig(async (): Promise<UserConfig> => {
       strictPort: true,
       warmup: {
         clientFiles: [
-          './src/utils/registry/widget-registry.ts',
+          './src/components/widgets/widget-registry.ts',
           './src/components/widgets/**/*.vue',
         ],
       },
@@ -742,6 +745,10 @@ export default defineConfig(async (): Promise<UserConfig> => {
            * 按域合并懒加载面板 / 共享小模块，避免数百个 <1–5KB 碎 chunk。
            * 路径分隔用 [\\/] 以兼容 Windows。
            * entriesAware 兜底组会拼出 A~B~C 名，经 sanitizeChunkBaseName 收成 shared-*.
+           *
+           * 不变量：每组 test 必须至少匹配到一个真实模块，且 alternation 的每条分支都要有
+           * 对应文件 —— 域名重构搬走文件后遗留的悬空匹配由 scripts/check-vite-chunk-groups.mjs
+           * 拦截（历史漂移：views-auth / views-mobile / builders / widgets-energy / 天气 renderer）。
            */
           codeSplitting: {
             minSize: 20_000,
@@ -760,38 +767,34 @@ export default defineConfig(async (): Promise<UserConfig> => {
               { name: 'charts', test: /node_modules[\\/]echarts/, priority: 28 },
               { name: 'hls', test: /node_modules[\\/]hls\.js/, priority: 28 },
               {
+                // 认证页 P6-1 起位于 `views/auth/`（Login / Register / License / LicenseRecovery）。
                 name: 'views-auth',
-                test: /src[\\/]views[\\/](Login|Setup|Guest)View\.vue/,
+                test: /src[\\/]views[\\/]auth[\\/]/,
                 priority: 26,
               },
               {
+                // 只列现存视图：Life / LinkageHub / Activation 已随域名重构下线，留在名单里就是
+                // 永远匹配不到的悬空分支。EmbedView / SettingsView 刻意不并组（各自是独立入口）。
                 name: 'views-main',
-                test: /src[\\/]views[\\/](Life|Security|Devices|DeviceDetail|Events|Notifications|LinkageHub|Activation|ModeTriggerLogs|EarthquakeHistory)View\.vue/,
-                priority: 25,
-              },
-              {
-                name: 'views-mobile',
-                test: /src[\\/]views[\\/]Mobile[^/\\]+View\.vue/,
+                test: /src[\\/]views[\\/](DeviceDetailView|DevicesView|EarthquakeHistoryView|EventsView|ModeTriggerLogsView|NotificationsView|SecurityView)\.vue/,
                 priority: 25,
               },
               {
                 name: 'shell',
-                test: /src[\\/](layouts[\\/]shell-overlays|views[\\/]dashboard-chrome)\.ts/,
+                test: /src[\\/]layouts[\\/]shell-overlays\.ts/,
                 priority: 24,
               },
               {
                 name: 'weather',
-                test: /src[\\/](layouts[\\/]WeatherBackground|utils[\\/]weather[\\/]webgl-weather-renderer|workers[\\/]weather-particle)/,
+                // 曾含 `utils[\\/]weather[\\/]webgl-weather-renderer` —— 该文件不存在（悬空匹配），已删。
+                // 天气纯函数现位于 `shared/weather/utils/`，由 WeatherBackground / 粒子 Worker 拉入；
+                // 这里**刻意不整域并组**，避免把天气模块塞进即便关闭天气效果也要加载的 chunk。
+                test: /src[\\/](layouts[\\/]WeatherBackground|workers[\\/]weather-particle)/,
                 priority: 24,
               },
               {
                 name: 'popups',
                 test: /src[\\/]components[\\/]entities[\\/].*Popup/,
-                priority: 22,
-              },
-              {
-                name: 'builders',
-                test: /src[\\/]components[\\/]dashboard[\\/].*(Builder|builder)/,
                 priority: 22,
               },
               {
@@ -840,18 +843,11 @@ export default defineConfig(async (): Promise<UserConfig> => {
                 priority: 14,
               },
               {
-                name: 'widgets-energy',
-                test: /src[\\/]components[\\/]widgets[\\/]energy[\\/]/,
-                priority: 14,
-              },
-              {
+                // `widgets-energy` / `widgets-orchestrator` 两组已删：能源与编排器组件随域名重构
+                // 搬离 `components/widgets/`（能源内核在 `shared/energy/`、编排器组件已下线），
+                // 留下的是永远匹配不到的悬空组。
                 name: 'widgets-security',
-                test: /src[\\/]components[\\/]widgets[\\/](security|care)[\\/]/,
-                priority: 14,
-              },
-              {
-                name: 'widgets-orchestrator',
-                test: /src[\\/]components[\\/]widgets[\\/]orchestrator[\\/]/,
+                test: /src[\\/]components[\\/]widgets[\\/]security[\\/]/,
                 priority: 14,
               },
               {
@@ -860,13 +856,16 @@ export default defineConfig(async (): Promise<UserConfig> => {
                 priority: 14,
               },
               {
-                name: 'widgets-device',
-                test: /src[\\/]components[\\/]widgets[\\/](device|system)[\\/]/,
+                // 原为 `(device|system)`：`widgets/device/` 只剩没人 import 的死样式（已删），
+                // 有模块的只有 system，故组名随实况改为 widgets-system。
+                name: 'widgets-system',
+                test: /src[\\/]components[\\/]widgets[\\/]system[\\/]/,
                 priority: 14,
               },
               {
                 name: 'shared-app',
-                test: /src[\\/](utils|composables)[\\/]/,
+                // `src/utils/` 已在 P2 清零（全部下沉 `shared/<域>/utils`），只剩 composables。
+                test: /src[\\/]composables[\\/]/,
                 minShareCount: 2,
                 priority: 8,
               },

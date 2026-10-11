@@ -1,5 +1,5 @@
 import { clampNumber, normalizeCssColor } from "./_shared";
-import { randomUuid } from "../../../utils/random-id";
+import { randomUuid } from "../../../shared/util/random-id";
 
 export function createNavigationEffectsSvg(
   navigationComponent: any,

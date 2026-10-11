@@ -19,11 +19,11 @@ import {
   deleteProject,
   setActiveProject,
 } from '@/services/api/config'
-import { logger } from '@/utils/core/logger'
+import { logger } from '@/shared/utils/core/logger'
 import { writeStoredProfileId } from './create-layout-state'
 import { bindSelfTerminalProfile } from '@/composables/config/resolve-active-profile.util'
-import { inferTerminalLabel } from '@/utils/client/infer-terminal-label.util'
-import type { UILayoutConfig } from '@/types/layout'
+import { inferTerminalLabel } from '@/shared/client/utils/infer-terminal-label.util'
+import type { UILayoutConfig } from '@/shared/types/layout'
 
 /** 方案摘要信息 */
 interface LayoutProfileSummary {

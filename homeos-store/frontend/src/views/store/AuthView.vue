@@ -3,7 +3,7 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import SceneStage from "../../components/SceneStage.vue";
 import DeckTiles from "../../components/DeckTiles.vue";
-import PasswordField from "../../components/PasswordField.vue";
+import PasswordField from "@homeos/shared/components/PasswordField.vue";
 import { api } from "../../api/http.js";
 import { errorMessage } from "../../store-types.js";
 import { useSessionStore } from "../../stores/session.js";

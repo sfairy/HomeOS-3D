@@ -1,4 +1,4 @@
-import type { HaEntityAttributes, HaEntityState } from "@app/utils/ha-entity";
+import type { HaEntityAttributes, HaEntityState } from "@app/shared/util/ha-entity";
 export function relativeLightColorTemperature(minimumKelvin: any, maximumKelvin: any, relativePercent: any) {
   const parsedMinimumKelvin = Number(minimumKelvin),
     parsedMaximumKelvin = Number(maximumKelvin),

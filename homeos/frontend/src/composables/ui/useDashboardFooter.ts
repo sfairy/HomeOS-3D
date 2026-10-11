@@ -8,8 +8,8 @@
  * 依赖：
  *   - vue（computed）
  *   - @/stores/entities.store / layout.store
- *   - @/constants/energy-fields / @/constants/dashboard-footer / @/constants/account-binding-meta
- *   - @/utils/energy/* 与 @/utils/entity/derived.util（数值解析与显示名）
+ *   - @/shared/energy/constants/energy-fields / @/shared/constants/dashboard-footer / @/shared/constants/account-binding-meta
+ *   - @/shared/energy/utils/* 与 @/shared/entity/utils/derived.util（数值解析与显示名）
  *   - @homeos/shared（hasEnergyConfig）
  */
 import { computed } from 'vue'
@@ -20,26 +20,26 @@ import {
   getFieldDef,
   type EnergyCategory,
   type EnergyFieldDef,
-} from '@/constants/energy-fields'
+} from '@/shared/energy/constants/energy-fields'
 import { hasEnergyConfig, getEntityLeaf } from '@homeos/shared'
 import {
   resolveFieldRaw,
   resolveFieldRawAggregated,
   formatNum,
-} from '@/utils/energy/source.util'
-import { readEntityAttr } from '@/utils/energy/entity-read.util'
-import { collectFooterAccountSources } from '@/constants/account-binding-meta'
+} from '@/shared/energy/utils/source.util'
+import { readEntityAttr } from '@/shared/energy/utils/entity-read.util'
+import { collectFooterAccountSources } from '@/shared/constants/account-binding-meta'
 import {
   hasEnabledFooterItems,
   normalizeDashboardFooter,
   resolveFooterAccountIndex,
   resolveFooterPrimaryLabel,
   resolveFooterSecondaryLabel,
-} from '@/constants/dashboard-footer'
-import { FOOTER_ACCOUNT_INDEX_ALL } from '@/utils/energy/account.util'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
-import type { DashboardFooterItem, FooterFieldOption } from '@/types/dashboard-footer'
-import type { EntitiesMap } from '@/types/entity-store'
+} from '@/shared/constants/dashboard-footer'
+import { FOOTER_ACCOUNT_INDEX_ALL } from '@/shared/energy/utils/account.util'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import type { DashboardFooterItem, FooterFieldOption } from '@/shared/types/dashboard-footer'
+import type { EntitiesMap } from '@/shared/types/entity-store'
 
 function formatRawValue(raw: unknown, type = 'number') {
   if (raw == null || raw === '' || raw === 'unavailable' || raw === 'unknown') return '--'

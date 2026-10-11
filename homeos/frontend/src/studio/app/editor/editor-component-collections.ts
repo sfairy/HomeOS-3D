@@ -1,5 +1,8 @@
-import { newId } from "./editor-utils";
-import { componentDirectLocation as componentDirectLocation2 } from "./component-tree";
+import { clampNumber, clone, newId } from "./editor-utils";
+import {
+  componentDirectLocation as componentDirectLocation2,
+  findComponentLocation as findComponentLocation2,
+} from "./component-tree";
 export function componentLabel(component: any) {
   const typeLabel =
       component.type === "image"
@@ -161,4 +164,75 @@ export function canGroupComponents(componentIdList: any, groupingDocument: any) 
       sameScopeLocation.collection === firstComponentLocation.collection &&
       sameScopeLocation.component.properties?.layoutMode !== "fill",
   );
+}
+
+/** 复制一个组件（含可选偏移与共享引用顺序修正）。纯函数：文档显式传参。 */
+export function duplicateComponent(
+  targetDocument: any,
+  copiedComponentId: any,
+  sourceComponentOverride: any = null,
+  offsetDuplicate = false,
+) {
+  const sourceLocation = findComponentLocation2(targetDocument, copiedComponentId);
+  if (!sourceLocation) return null;
+  const duplicatedComponent = sourceComponentOverride
+    ? clone(sourceComponentOverride)
+    : refreshComponentIds(clone(sourceLocation.component));
+  if (
+    ((duplicatedComponent.properties = {
+      ...(duplicatedComponent.properties || {}),
+      label: copiedComponentLabel(sourceLocation.component, sourceLocation.collection),
+    }),
+    delete duplicatedComponent.properties.previewState,
+    offsetDuplicate)
+  ) {
+    const duplicateCanvasWidth = Number(targetDocument.canvas?.width || 2778),
+      duplicateCanvasHeight = Number(targetDocument.canvas?.height || 1940),
+      duplicateWidth = Number(duplicatedComponent.position?.width || 100),
+      duplicateHeight = Number(duplicatedComponent.position?.height || 100);
+    duplicatedComponent.position = {
+      ...(duplicatedComponent.position || {}),
+      x: clampNumber(
+        Number(duplicatedComponent.position?.x || 0) + 24,
+        -duplicateWidth / 2,
+        duplicateCanvasWidth - duplicateWidth / 2,
+      ),
+      y: clampNumber(
+        Number(duplicatedComponent.position?.y || 0) + 24,
+        -duplicateHeight / 2,
+        duplicateCanvasHeight - duplicateHeight / 2,
+      ),
+    };
+  }
+  if (
+    (sourceLocation.collection.splice(sourceLocation.index, 0, duplicatedComponent),
+    applyCollectionLayerOrder(sourceLocation.collection),
+    sourceLocation.scope === "shared" && sourceLocation.root)
+  ) {
+    for (const duplicatePageEntry of targetDocument.pages || []) {
+      const indexOf3 = (duplicatePageEntry.sharedComponentIds || []).indexOf(copiedComponentId);
+      indexOf3 >= 0 &&
+        duplicatePageEntry.sharedComponentIds.splice(indexOf3, 0, duplicatedComponent.id);
+    }
+    syncSharedComponentReferenceOrder(targetDocument);
+  }
+  return duplicatedComponent;
+}
+
+/** 删除一个组件，并修正图层顺序与共享引用顺序。纯函数：文档显式传参。 */
+export function removeComponent(removalDocument: any, removedComponentId: any) {
+  const removalLocation = findComponentLocation2(removalDocument, removedComponentId);
+  if (!removalLocation) return null;
+  const [splice] = removalLocation.collection.splice(removalLocation.index, 1);
+  if (
+    (applyCollectionLayerOrder(removalLocation.collection),
+    removalLocation.scope === "shared" && removalLocation.root)
+  ) {
+    for (const removeComponentState of removalDocument.pages || [])
+      removeComponentState.sharedComponentIds = (
+        removeComponentState.sharedComponentIds || []
+      ).filter((filteredItems: any) => filteredItems !== removedComponentId);
+    syncSharedComponentReferenceOrder(removalDocument);
+  }
+  return splice;
 }

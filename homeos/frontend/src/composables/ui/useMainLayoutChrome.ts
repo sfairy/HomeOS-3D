@@ -22,7 +22,7 @@
  *  - main-layout-nav.util 的 mainLayoutIconMap。
  *  - useMainLayoutNavMenu / useMainLayoutDoorbell / useMainLayoutWeatherNav。
  */
-import { readLocalStorage, writeLocalStorage } from '@/utils/core/local-storage.util'
+import { readLocalStorage, writeLocalStorage } from '@/shared/utils/core/local-storage.util'
 
 import { computed, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
@@ -37,17 +37,17 @@ import {
   canUseWholeHomeOff,
   buildWholeHomeOffConfirmText,
   getWholeHomeOffConfig,
-} from '@/constants/whole-home-off'
-import { useSystemDiagnostics } from '@/composables/settings/useSystemDiagnostics'
+} from '@/shared/constants/whole-home-off'
+import { useSystemDiagnostics } from '@/shared/status'
 import { useHaDegrade } from '@/composables/ui/useHaDegrade'
-import { logger } from '@/utils/core/logger'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
-import { DEFAULT_BRAND_LOGO_URL } from '@/utils/layout/nav-tabs.util'
-import { mainLayoutIconMap } from '@/utils/ui/main-layout-nav.util'
+import { logger } from '@/shared/utils/core/logger'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
+import { DEFAULT_BRAND_LOGO_URL } from '@/shared/utils/layout/nav-tabs.util'
+import { mainLayoutIconMap } from '@/shared/utils/ui/main-layout-nav.util'
 import { useMainLayoutNavMenu } from '@/composables/ui/useMainLayoutNavMenu'
 import { useMainLayoutDoorbell } from '@/composables/ui/useMainLayoutDoorbell'
 import { useMainLayoutWeatherNav } from '@/composables/ui/useMainLayoutWeatherNav'
-import { hapticAlert } from '@/utils/ui/haptics.util'
+import { hapticAlert } from '@/shared/utils/ui/haptics.util'
 
 /** 主布局壳层：导航、HA 状态、儿童模式、门铃。聚合各子 composable 的状态与操作。 */
 export function useMainLayoutChrome() {

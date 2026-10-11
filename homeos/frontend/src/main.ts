@@ -52,17 +52,17 @@ import './assets/styles/multi-color.css'
 import {
   loadFrontendConfig,
   setupFrontendConfigVisibilitySync,
-} from './utils/config/frontend-config'
-import { setupGlassEffectSync } from './utils/ui/glass-effect.util'
-import { applyHomeOsTheme } from './utils/ui/theme.util'
-import { setupSmartPerformanceMode } from './utils/perf/smart-performance.util'
+} from '@/shared/utils/config/frontend-config'
+import { setupGlassEffectSync } from '@/shared/utils/ui/glass-effect.util'
+import { applyHomeOsTheme } from '@/shared/utils/ui/theme.util'
+import { setupSmartPerformanceMode } from '@/shared/utils/perf/smart-performance.util'
 import {
   registerAuthChangeHandler,
   registerUnauthorizedHandler,
   registerNavigateToLoginHandler,
   registerSessionRefreshHandler,
   registerUiNotifyHandler,
-} from './utils/bridge/store-bridge'
+} from '@/shared/utils/bridge/store-bridge'
 import { useAuthStore } from './stores/auth.store'
 import { useLayoutStore } from './stores/layout.store'
 import { useChromeStore } from './stores/chrome.store'
@@ -206,7 +206,7 @@ function mountApp(): void {
   // boot-guard.js 用它判断「#app 为空」是仍在正常启动（等配置加载）还是真的没渲染出来。
   document.documentElement.setAttribute('data-homeos-mounted', '1')
   // 挂载后启动 FPS 自适应监控，低帧率时自动降级
-  import('@/utils/perf/adaptive-perf.util').then(({ startFpsAdaptiveMonitor }) => {
+  import('@/shared/utils/perf/adaptive-perf.util').then(({ startFpsAdaptiveMonitor }) => {
     startFpsAdaptiveMonitor()
   })
   // 空闲时段预加载大体积模态/高频控制弹窗，减少首次打开/首点设备的延迟
@@ -222,7 +222,7 @@ function mountApp(): void {
   }
   // 生产环境注册 PWA 更新提示（用户确认式：确认后激活新 SW 并刷新）
   if (import.meta.env.PROD) {
-    import('./utils/core/pwa-update').then(({ setupPwaUpdatePrompt }) => {
+    import('@/shared/utils/core/pwa-update').then(({ setupPwaUpdatePrompt }) => {
       setupPwaUpdatePrompt(async (applyUpdate) => {
         const ok = await useChromeStore().confirm(
           '检测到新版本已就绪。立即更新将刷新页面，未保存的编辑可能丢失。',

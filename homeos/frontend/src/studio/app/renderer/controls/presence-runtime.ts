@@ -1,4 +1,4 @@
-import type { HaEntityEntry } from "@app/utils/ha-entity";
+import type { HaEntityEntry } from "@app/shared/util/ha-entity";
 function resolveStateEntry(stateOrChange: any) {
   return stateOrChange?.newState || stateOrChange || null;
 }

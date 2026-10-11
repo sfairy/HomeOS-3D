@@ -240,7 +240,7 @@
  *  - @/components/common/ApiQueryState.vue: 查询状态容器
  *  - @/components/common/base/VirtualList.vue: 虚拟列表
  *  - @/components/common/base/VEmptyState.vue: 空态组件
- *  - @/utils/registry/settings-route.util: 设置页路由常量
+ *  - @/shared/utils/registry/settings-route.util: 设置页路由常量
  *  - @/composables/widget/useNotificationCenter: 通知中心数据 composable
  *  - @/composables/widget/notification-center.context: 通知中心上下文注入键
  *  - @homeos/shared: 通知来源标签
@@ -252,7 +252,7 @@ import { ChevronRight, X } from '@lucide/vue'
 import ApiQueryState from '@/components/common/ApiQueryState.vue'
 import VirtualList from '@/components/common/base/VirtualList.vue'
 import VEmptyState from '@/components/common/base/VEmptyState.vue'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import { useNotificationCenter } from '@/composables/widget/useNotificationCenter'
 import { NOTIFICATION_CENTER_KEY } from '@/composables/widget/notification-center.context'
 import { notificationSourceLabel } from '@homeos/shared'

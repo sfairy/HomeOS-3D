@@ -17,6 +17,11 @@ import { REPO_ROOT } from './lib/repo.mjs'
 const task = String(process.argv[2] || '').trim()
 
 const BACKEND_DIR = path.join(REPO_ROOT, 'backend')
+/**
+ * `@homeos/shared` 契约包已上移到 monorepo 根（`packages/shared`），不再是 `homeos/` 的一部分：
+ * 它的 build / lint / typecheck 调度归**根 package.json**，这里只委托（cwd 取上一级）。
+ */
+const MONOREPO_ROOT_CWD = '..'
 const BACKEND_PY = path.join(BACKEND_DIR, '.venv', 'bin', 'python')
 
 /**
@@ -83,7 +88,7 @@ function typecheckPy() {
 }
 
 function shared() {
-  bunRun('build', 'packages/shared')
+  bunRun('build:shared', MONOREPO_ROOT_CWD)
 }
 
 function prep() {
@@ -98,12 +103,12 @@ const tasks = {
   lint() {
     pyRun(['-m', 'ruff', 'check', 'src'])
     bunRun('lint:ci', 'frontend')
-    bunRun('lint', 'packages/shared')
+    bunRun('lint:shared', MONOREPO_ROOT_CWD)
   },
   typecheck() {
     prep()
     typecheckPy()
-    bunRun('typecheck', 'packages/shared')
+    bunRun('typecheck:shared', MONOREPO_ROOT_CWD)
     bunRun('typecheck', 'frontend')
   },
   'typecheck:py': typecheckPy,

@@ -68,7 +68,7 @@ import { AlertTriangle } from '@lucide/vue'
 import RecommendInsightCard from '@/components/common/RecommendInsightCard.vue'
 import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
-import { isDeepLinkCurrent } from '@/utils/registry/settings-route.util'
+import { isDeepLinkCurrent } from '@/shared/utils/registry/settings-route.util'
 
 const route = useRoute()
 

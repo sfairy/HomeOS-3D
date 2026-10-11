@@ -1,5 +1,5 @@
 import { entityMetadataIsAvailable } from "../core/entity-metadata";
-import type { HaEntityAttributes, HaEntityEntry } from "@app/utils/ha-entity";
+import type { HaEntityAttributes, HaEntityEntry } from "@app/shared/util/ha-entity";
 const VACUUM_FEATURE_FLAGS = Object.freeze({
   turn_on: 1,
   turn_off: 2,

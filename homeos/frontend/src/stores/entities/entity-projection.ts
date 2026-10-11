@@ -13,18 +13,18 @@
  *
  * 依赖：
  * - @homeos/shared：getEntityDomain（域解析）
- * - @/utils/entity/entity-derived.util：getEntityDisplayName（友好名称）
- * - @/types/entity-store：类型定义
+ * - @/shared/entity/utils/derived.util：getEntityDisplayName（友好名称）
+ * - @/shared/types/entity-store：类型定义
  */
 import { shallowReactive, markRaw } from 'vue'
 import { getEntityDomain } from '@homeos/shared'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import type {
   EntitiesMap,
   EntityProjection,
   EntityProjectionChange,
   HaEntityState,
-} from '@/types/entity-store'
+} from '@/shared/types/entity-store'
 
 /** 投影缓存：entity_id → EntityProjection（shallowReactive Map，键级响应） */
 const projections = shallowReactive(new Map<string, EntityProjection>())

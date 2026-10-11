@@ -5,7 +5,7 @@
   Props: config 布局配置透传对象
   Emit: open-group 点击按钮时触发，由外层打开 DeviceGroupModal
   依赖：Pinia — useEntitiesStore 实体状态、useLayoutStore 快捷按钮选择；
-        utils: quick-action-counts.util / group-counts.util 分类计数；
+        composables/device/group-counts.util 分类计数；
         quick-actions.config.ts 按钮图标与元数据；RouterLink 跳设置页。
   注意：stat 数量自适应 grid 列数，按钮 active 态基于 count > 0 判断。
 -->
@@ -63,16 +63,16 @@
  *  - vue: computed 计算属性
  *  - vue-router: RouterLink 路由跳转
  *  - @/components/common/base/VEmptyState.vue: 空态组件
- *  - @/utils/registry/settings-route.util: 设置页路由常量
+ *  - @/shared/utils/registry/settings-route.util: 设置页路由常量
  *  - @/stores/entities.store: 实体状态
  *  - @/stores/layout.store: 布局配置（读取快捷按钮选择）
- *  - @/utils/widget/quick-action-counts.util: 各类快捷计数工具
+ *  - @/composables/device/group-counts.util: 各类快捷计数工具
  *  - ./quick-actions.config.ts: 按钮元数据
  */
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import VEmptyState from '@/components/common/base/VEmptyState.vue'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import {

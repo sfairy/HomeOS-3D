@@ -1,6 +1,6 @@
 import { mountInteraction3d } from "../core/runtime";
 import { interaction3dPreviewSize, observeInteraction3dPreview } from "@app/bridge/preview-layout";
-import { domElement } from "@app/utils/dom-factory";
+import { domElement } from "@app/shared/util/dom-factory";
 export function openPresenceFocusEditor({
   component: component,
   properties: properties,

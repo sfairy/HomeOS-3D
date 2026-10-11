@@ -6,8 +6,8 @@ import { getEntityDomain } from '@homeos/shared'
 import { ref, computed, nextTick, watch, type Ref } from 'vue'
 import { useClickOutside } from '@/composables/ui/useClickOutside'
 import { useEntityPickerSession } from '@/composables/entity/useEntityPickerSession'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
-import type { HaEntityState } from '@/types/entity-store'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import type { HaEntityState } from '@/shared/types/entity-store'
 
 export interface EntityInputItem {
   entity_id: string

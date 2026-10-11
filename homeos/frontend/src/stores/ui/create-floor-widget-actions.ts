@@ -8,7 +8,7 @@
  *  依赖 Vue ref 与布局配置类型。
  */
 import type { Ref } from 'vue'
-import type { FloatingWidget, UILayoutConfig } from '@/types/layout'
+import type { FloatingWidget, UILayoutConfig } from '@/shared/types/layout'
 
 /** createFloorWidgetActions 的依赖注入参数 */
 interface FloorWidgetActionsDeps {

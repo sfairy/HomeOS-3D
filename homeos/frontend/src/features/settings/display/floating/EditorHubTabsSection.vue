@@ -24,7 +24,7 @@ import HubTabsConfigField from '../widgets/HubTabsConfigField.vue'
 import EntityMultiSelect from '@/components/common/EntityMultiSelect.vue'
 import { hubTabOptions } from '@/features/settings/composables/display/layout-floating.internals'
 import { useDraftObjectField } from '@/features/settings/composables/hub-ui.internals'
-import { joinCommaEntityIds, parseCommaEntityIds } from '@/utils/entity/comma-entity-ids.util'
+import { joinCommaEntityIds, parseCommaEntityIds } from '@/shared/entity/utils/comma-entity-ids.util'
 
 // 双向绑定：Hub Tabs 配置（defaultTab + visibleTabs）
 const afhHubTabs = defineModel('afhHubTabs', { type: Object, required: true })

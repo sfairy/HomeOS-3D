@@ -10,7 +10,7 @@
  *  该工厂由 chrome.store 持有；layout.store 经 useChromeStore() 读取同一套状态。
  */
 import { ref } from 'vue'
-import type { NotifyType } from '@/types/notify'
+import type { NotifyType } from '@/shared/types/notify'
 
 /** 单条 Toast 通知的数据结构 */
 interface UiNotification {

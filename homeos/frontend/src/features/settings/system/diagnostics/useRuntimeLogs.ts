@@ -18,9 +18,9 @@ import {
   type RuntimeLogLevel,
   type RuntimeLogsResponse,
 } from '@/services/api/system'
-import { extractErrorMessage } from '@/utils/core/error-message'
+import { extractErrorMessage } from '@/shared/utils/core/error-message'
 import { useChromeStore } from '@/stores/chrome.store'
-import { schedulePoll } from '@/utils/core/poll-scheduler'
+import { schedulePoll } from '@/shared/utils/core/poll-scheduler'
 
 const POLL_MS = 4000
 const MAX_CLIENT_LINES = 1500

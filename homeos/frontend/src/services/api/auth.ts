@@ -3,12 +3,12 @@
  *
  * 端点范围：GET /setup/status、POST /auth/verification、POST /auth/register、
  *           POST /auth/login、POST /auth/logout、GET /auth/me。
- * 依赖：./client 提供的 apiGet / apiPost；@/types/auth 类型定义。
+ * 依赖：./client 提供的 apiGet / apiPost；@/shared/types/auth 类型定义。
  */
 import type { AxiosRequestConfig } from 'axios'
 import { apiGet, apiPost } from './client'
 import type { ApiRequestConfig } from './client'
-import type { AuthUserPayload } from '@/types/auth'
+import type { AuthUserPayload } from '@/shared/types/auth'
 
 /** 系统初始化状态。对应后端 endpoint：GET /setup/status */
 export function getSetupStatus(config?: ApiRequestConfig) {

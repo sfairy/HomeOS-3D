@@ -1,0 +1,162 @@
+/**
+ * 设置页 · 居家模式嵌入适配层
+ *
+ * 归属：本文件属于**设置页外壳**，不属于居家模式编辑器域。
+ *       它负责的是把 features/home-mode 的编辑器嵌进设置页工作区时的布局与皮肤，
+ *       由 SettingsHomeModePanel.vue 挂在 .settings-home-mode-workspace 上。
+ *
+ * 为何单独成文件：编辑器已迁入 features/home-mode/，而 CSS 无法走域 barrel，
+ *                 若继续共用编辑器样式表会形成 settings → home-mode 的域内深引用。
+ *                 故按「谁持有 .settings-home-mode-workspace 谁拥有适配层」切分。
+ *
+ * 注意：下方对 .hm-* 的覆盖是**有意的宿主适配**（卡片顶栏 / 页脚底色 / 控件密度），
+ *       它跨越了域边界去调整编辑器内部类名。若后续需要收紧，应改为在
+ *       features/home-mode 内部提供 --embedded 变体样式，宿主只传类名。
+ */
+
+/* ── settings-home-mode.css ── */
+/* 家庭模式独立设置页工作区（自联动中心嵌入样式迁移） */
+.settings-home-mode-workspace {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 0;
+}
+
+.settings-home-mode-workspace__main {
+  /* 覆盖 .settings-page-inset 的 flex-shrink:0，否则工作区按内容撑开、编辑区被压扁 */
+  flex: 1 1 0;
+  flex-shrink: 1;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 0.75rem;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.settings-page-inset--tabs .hm-mode-tabs-toolbar.settings-orch-dock--toolbar {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  border-radius: var(--acc-radius, 14px);
+  border: var(--hos-hairline) solid var(--premium-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025) 0%, transparent 100%),
+    var(--premium-glass-bg);
+  -webkit-backdrop-filter: var(--premium-blur);
+  backdrop-filter: var(--premium-blur);
+  box-shadow: var(--premium-shadow);
+}
+
+.settings-home-mode-workspace .home-mode-panel--embedded {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 0;
+  height: 100%;
+  box-sizing: border-box;
+  border-radius: var(--radius-ipad-xl);
+  border: var(--hos-hairline) solid var(--premium-border);
+  background: rgba(5, 8, 13, 0.55);
+  overflow: hidden;
+}
+
+.settings-home-mode-workspace .home-mode-panel-host {
+  flex: 1 1 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.settings-home-mode-workspace .home-mode-panel--embedded > .hm-context-dock,
+.settings-home-mode-workspace .home-mode-panel--embedded .hm-context-dock {
+  flex-shrink: 0;
+}
+
+/* 模式 Tab 作为卡片顶栏，不再单独成卡 */
+.settings-home-mode-workspace .home-mode-panel--embedded > .hm-mode-tabs-toolbar.settings-orch-dock--toolbar {
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 0;
+  border-bottom: var(--hos-hairline) solid var(--premium-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 100%),
+    rgba(8, 11, 18, 0.55);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  padding: 10px 14px;
+}
+
+.settings-home-mode-workspace .home-mode-panel--embedded .hm-editor-head__card {
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-bottom: var(--hos-hairline) solid var(--premium-border);
+}
+
+.settings-home-mode-workspace .home-mode-panel--embedded .hm-segments {
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.settings-home-mode-workspace .home-mode-panel--embedded .hm-context-pill {
+  border-radius: var(--orch-radius);
+  font-size: var(--orch-fs-caption);
+}
+
+.settings-home-mode-workspace .home-mode-panel--embedded .hm-section-head h3,
+.settings-home-mode-workspace .home-mode-panel--embedded .settings-form-label {
+  font-size: var(--orch-fs-caption);
+}
+
+.settings-home-mode-workspace .home-mode-panel--embedded .settings-field,
+.settings-home-mode-workspace .home-mode-panel--embedded .hos-select--settings .hos-select__trigger {
+  min-height: var(--orch-control-h);
+  font-size: var(--orch-fs-body);
+  border-radius: var(--orch-radius);
+}
+
+.settings-home-mode-workspace .home-mode-panel--embedded .hm-mode-footer {
+  background: rgba(0, 0, 0, 0.28);
+  border-top: var(--hos-hairline) solid rgba(255, 255, 255, 0.05);
+}
+
+@media (max-width: 639px) {
+  .settings-home-mode-workspace__main {
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+  }
+  .settings-home-mode-workspace .home-mode-panel--embedded {
+    border-radius: var(--hos-radius-card);
+  }
+  .settings-home-mode-workspace .home-mode-panel--embedded > .hm-mode-tabs-toolbar.settings-orch-dock--toolbar {
+    padding: 8px 10px;
+  }
+  .settings-home-mode-workspace .settings-orch-dock--toolbar .settings-orch-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .settings-home-mode-workspace .settings-orch-toolbar-actions {
+    width: 100%;
+    padding-left: 0;
+    border-left: none;
+    border-top: var(--hos-hairline) solid var(--set-border-subtle);
+    padding-top: 8px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+}
+
+@media (min-width: 1400px) {
+  .settings-home-mode-workspace .home-mode-panel--embedded {
+    border-radius: var(--radius-ipad-xl);
+  }
+}

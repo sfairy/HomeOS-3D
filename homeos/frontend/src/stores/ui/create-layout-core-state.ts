@@ -17,16 +17,16 @@
  * - @/stores/defaults：getDefaultLayout 提供默认布局（深拷贝为初始值）
  * - @/stores/ui/create-layout-state：readStoredProfileId 读取本地存储方案 ID
  * - @/stores/ui/create-layout-dirty-tracking：dirty watch 跟踪
- * - @/utils/perf/tablet-default-perf.util：平板性能模式
- * - @/utils/core/clone-plain.util：深拷贝
+ * - @/shared/utils/perf/tablet-default-perf.util：平板性能模式
+ * - @/shared/utils/core/clone-plain.util：深拷贝
  */
 import { ref, reactive } from 'vue'
-import type { UILayoutConfig } from '@/types/layout'
+import type { UILayoutConfig } from '@/shared/types/layout'
 import { getDefaultLayout } from '@/stores/defaults'
 import { readStoredProfileId } from '@/stores/ui/create-layout-state'
 import { createLayoutDirtyTracking } from '@/stores/ui/create-layout-dirty-tracking'
-import { applyTabletDefaultPerformanceMode } from '@/utils/perf/tablet-default-perf.util'
-import { clonePlain } from '@/utils/core/clone-plain.util'
+import { applyTabletDefaultPerformanceMode } from '@/shared/utils/perf/tablet-default-perf.util'
+import { clonePlain } from '@/shared/utils/core/clone-plain.util'
 
 /**
  * 创建布局核心响应式状态切片

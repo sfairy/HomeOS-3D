@@ -76,7 +76,7 @@ Emits：
 <script setup>
 import { computed } from 'vue'
 import { Volume2 } from '@lucide/vue'
-import { applyTemplatePreview } from '@/utils/voice/speech.util'
+import { applyTemplatePreview } from '@/shared/voice/utils/speech.util'
 
 const props = defineProps({
   presets: { type: Array, default: () => [] },

@@ -12,8 +12,8 @@ import {
 import { createPurifierExtras as createPurifierExtras2 } from "./purifier-extras";
 import { purifierState as purifierState2 } from "../purifier/purifier-state";
 import { resolveFanBindingState } from "../fan/fan-state";
-import { domElement } from "@app/utils/dom-factory";
-import { syncHtmlRangeProgress } from "@app/utils/range-progress";
+import { domElement } from "@app/shared/util/dom-factory";
+import { syncHtmlRangeProgress } from "@app/shared/util/range-progress";
 import {
   createStageDeviceVisual,
   resolveClimateVisualKind,

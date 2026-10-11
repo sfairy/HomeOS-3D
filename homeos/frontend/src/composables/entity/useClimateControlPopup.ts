@@ -14,9 +14,9 @@
  * - @/composables/entity/useEntityPopupBase：弹窗基座与实时实体。
  * - @/stores/entities.store：实体 store 与服务调用。
  * - @/composables/entity/useSliderCommit：温度滑块提交封装。
- * - @/utils/ui/progress-bar.util：clampInRange 数值钳制。
+ * - @/shared/utils/ui/progress-bar.util：clampInRange 数值钳制。
  * - @/services/notify：notifyError 错误提示。
- * - @/utils/entity/entity-derived.util：getEntityDisplayName 显示名。
+ * - @/shared/entity/utils/derived.util：getEntityDisplayName 显示名。
  */
 import { computed } from 'vue'
 import { getEntityDomain } from '@homeos/shared'
@@ -27,9 +27,9 @@ import {
 } from '@/composables/entity/useEntityPopupBase'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useSliderCommit } from '@/composables/entity/useSliderCommit'
-import { clampInRange } from '@/utils/ui/progress-bar.util'
+import { clampInRange } from '@/shared/utils/ui/progress-bar.util'
 import { notifyError } from '@/services/notify'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import {
   HVAC_MODE_LABELS,
   climateFanModeLabel,
@@ -38,7 +38,7 @@ import {
   climateAttrStringList,
   climateHasDualSetpoint,
   climateHasTargetTemp,
-} from '@/composables/entity/control/climate-control-core'
+} from '@/shared/entity/utils/control/climate-control-core'
 
 /** HVAC 模式展示信息：图标、图标色 class、激活态 class（UI 壳层，标签在 control core）。 */
 const modeMap = {

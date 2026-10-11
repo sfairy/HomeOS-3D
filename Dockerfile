@@ -65,14 +65,29 @@ RUN if [ -n "$APT_MIRROR" ]; then \
 
 # ═══ 后端保护：Cython 把 Python 源码编译成原生扩展（.so），随后删除 .py 源码 ═══
 #
-# 这两段产物**不直接进运行镜像**，而是由 ops/build.py 用
-#   docker buildx build --target app-export --output type=local,dest=dist/homeos/backend/linux-<arch>
+# 主应用与商店**共用这一段编译流程**（P5 合并）：两者的差异只有三处 —— 源码目录、启动器
+# 模块名（start_app / start_store）、不得进产物的遗留目录（migrations / db）—— 全部由
+# ARG PROJECT 派生，见下方那个 case。合并前是两份逐行复制的 app-build / store-build，
+# 「改了一处忘了另一处」是迟早的事（共享包的 COPY 与 find 断言当时就各写了一遍）。
+#
+# 产物**不直接进运行镜像**，而是由 ops/build.py 用
+#   docker buildx build --target backend-export --build-arg PROJECT=<项目目录> \
+#     --output type=local,dest=dist/<项目名>/backend/linux-<arch>
 # 导出到工作区根 dist/，再由运行阶段 COPY 回来。这样「加密后的后端」是一份可归档、
 # 可跨镜像复用的产物，运行镜像里不再编译任何后端源码。
 #
+# 「哪个项目配哪个 PROJECT」由 ops/build.py 的 PROJECTS 表唯一决定：ops/check_deploy_
+# independence.py 会核对那张表与下面 case 的分支一致、且应用侧只能取 homeos。给错值是
+# 编出了**另一个项目**的后端 —— 镜像层面无法自证（单阶段 + ARG 是同一个模板），只能靠
+# 这道门禁 + 全绿的冒烟来钉。
+#
 # 前端（Vite 构建 + JS 混淆）改由宿主机的 `bun run build:frontend` 产出，也落在根 dist/，
 # 本文件不再承担前端构建。
-FROM base AS app-build
+FROM base AS backend-build
+#: **必传、无默认值**：仓库内的项目目录名（homeos / homeos-store）。刻意不给默认值 ——
+#: 漏传时下面的 `COPY ${PROJECT}/backend/src` 直接找不到源而失败；一旦给了默认值，
+#: 「忘了传」就会静默编出另一个项目的后端，那种错只在运行期才暴露。
+ARG PROJECT
 ARG CYTHON_VERSION
 #: 版本号唯一来源是仓库根 package.json 的 version；CI 用 build-arg 传同一个值。
 ARG HOMEOS_VERSION=""
@@ -95,19 +110,32 @@ COPY ops/container_entrypoint.py ./ops/
 COPY ops/license_keys.py ./ops/
 COPY ops/docker ./ops/docker
 COPY package.json /tmp/package.json
-COPY homeos/backend/src ./app
-# 注意这一行的**两边名字不一样**：源码目录是 backend/src（仓库约定），构建镜像里落到
-# app。Cython 的模块名取自路径，所以 .so 里烤进去的是 app.*，产物里不会出现 src 目录。
-# 与商店（homeos-store/backend/src → ./app）同层数、同包名：两个后端只在「装什么、跑什么」
-# 上不同，不再有 backend/ 这一层的差异。
-# 迁移脚本（migrations/ 与 alembic.ini）**不进产物**：发行版里没有 Alembic，新库由
-# app.migrations 按 ORM 元数据直接建（基线 0001 与 Base.metadata 等价，
-# ops/check_schema.py 会比对结构指纹）。位置与商店一致：后端落在 /app/app，
-# PYTHONPATH=/app 才能同时解析 app.* 与 ops.*。
+# 源码目录（仓库约定 `<项目>/backend/src`）在镜像里一律落到 ./app：Cython 的模块名取自路径，
+# 所以 .so 里烤进去的是 app.*，产物里不会出现 src 目录。两个项目同层数、同包名 —— 它们只在
+# 「装什么、跑什么」上不同，不再有 backend/ 这一层的差异。
+# 左边由 ARG 拼出：写死任何一个项目名，另一个镜像就会装错源码（下面那个 case 与
+# ops/check_deploy_independence.py 第 4 项都在防这件事）。
+COPY ${PROJECT}/backend/src ./app
+# 共享 Python 包（真源 packages/shared-py，见其 README）：本阶段自己 COPY 一份再编译，
+# 于是两个镜像里各有一份自己编译的 homeos_shared/*.so —— 是「源码共享 + 各自内联」，
+# 不是运行期跨镜像依赖（ops/check_deploy_independence.py 的第 5 项钉死这一点）。
+# 源写 <目录>/homeos_shared 而不是 <目录>：COPY 复制的是目录**内容**，写后者会多出一层
+# /app/homeos_shared/homeos_shared/。
+# 落点是 ./homeos_shared（而非 ./app 下）：PYTHONPATH=/app，包名要能在该根下直接解析。
+COPY packages/shared-py/homeos_shared ./homeos_shared
+# 迁移脚本（主应用的 migrations/ 与 alembic.ini、商店的 db/）**不进产物**：发行版里没有
+# Alembic，新库由 app.migrations 按 ORM 元数据直接建（基线 0001 与 Base.metadata 等价，
+# ops/check_schema.py 会比对结构指纹）。位置与两个项目一致：后端落在 /app/app，
+# PYTHONPATH=/app 才能同时解析 app.* 与 ops.*。该禁哪个目录由下面的 case 给出。
 # /app/image：内置素材目录（settings.built_in_assets_dir，由 HOMEOS_IMAGE_DIR 指到此处），
 # 默认空，可另行挂载增删。
 # app/_version.py 随后与其它源码一起被编译成 .so，运行期由 config.py 读取。
-RUN mkdir -p /app/image \
+RUN case "$PROJECT" in \
+        homeos) start=app; banned=migrations ;; \
+        homeos-store) start=store; banned=db ;; \
+        *) echo "未知 PROJECT='$PROJECT'：本阶段只认 homeos / homeos-store；新增项目要同时改 ops/build.py 的 PROJECTS 与本行" >&2; exit 1 ;; \
+    esac \
+    && mkdir -p /app/image \
     && rm -f /app/ops/docker/compile_python.py /app/ops/docker/obfuscate_javascript.mjs \
     && version="${HOMEOS_VERSION}" \
     && if [ -z "$version" ]; then \
@@ -115,8 +143,7 @@ RUN mkdir -p /app/image \
        fi \
     && [ -n "$version" ] || { echo "无法确定版本号：package.json 缺 version 且未传 --build-arg HOMEOS_VERSION" >&2; exit 1; } \
     && printf '__version__ = "%s"\n' "$version" > /app/app/_version.py \
-    && echo "主应用构建版本：$version" \
-    && rm -f /app/app/requirements.txt \
+    && echo "后端构建版本：$version（$PROJECT → /app/app）" \
     && python /tmp/compile_python.py /app \
     && rm -f /tmp/compile_python.py \
     && test -f /app/app/app.*.so \
@@ -125,82 +152,30 @@ RUN mkdir -p /app/image \
     && test -f /app/app/_version.*.so \
     && test -f /app/ops/container_entrypoint.*.so \
     && test -f /app/ops/license_keys.*.so \
-    && test -f /app/ops/docker/start_app.*.so \
+    # 启动器按项目取（start_app / start_store）。ops/docker/ 是仓库级目录，两个启动器都会进
+    # 两个镜像，所以这里只断言「本项目的那个真的编译出来了」。
+    && test -f /app/ops/docker/start_${start}.*.so \
     && test ! -f /app/app/app.py \
     && test ! -f /app/app/run.py \
     && test ! -f /app/ops/container_entrypoint.py \
-    && test ! -e /app/migrations \
+    # 遗留目录（应用 migrations/、商店 db/）与 alembic.ini 都不该出现在产物里。
+    && test ! -e /app/${banned} \
     && test ! -e /app/alembic.ini \
+    # 共享包必须真的编译到位。只断言 __init__（每个共享包都有），新增模块不必改这一行。
+    && test -f /app/homeos_shared/__init__.*.so \
     # 产物里只允许有原生扩展：多一个 .py/.pyc/.pyi/.md/requirements.txt 都算加密没做完整。
-    # 报出具体文件名而不是只给一个非零退出码，否则排查得重新解包镜像。
-    && stray="$(find /app/app /app/ops -type f ! -name '*.so' -print)" \
+    # src/ 下的非 .py 残留（README.md / _version.pyi）已由 .dockerignore 的 `**/*.md`、
+    # `**/*.pyi` 挡在构建上下文外，这里再兜一层 —— 报出具体文件名而不是只给一个非零退出码，
+    # 否则排查得重新解包镜像。
+    && stray="$(find /app/app /app/ops /app/homeos_shared -type f ! -name '*.so' -print)" \
     && test -z "$stray" || { echo "产物里混入了非 .so 文件：$stray" >&2; exit 1; }
 
 # 导出阶段：FROM scratch + 只 COPY /app，令 --output type=local 得到干净的 /app 内容，
-# 而不是整个 Debian rootfs（见 ops/build.py 的 export_backend）。
-FROM scratch AS app-export
-COPY --from=app-build /app/ /
-
-
-FROM base AS store-build
-ARG CYTHON_VERSION
-#: 版本号唯一来源是仓库根 package.json 的 version；CI 用 build-arg 传同一个值。
-ARG HOMEOS_VERSION=""
-
-#: 同 base 阶段：构建容器连不上 pypi.org / deb.debian.org 时换成可达的镜像。
-ARG PIP_INDEX_URL=""
-ARG APT_MIRROR=""
-#: apt 的超时 + 重试是必要的：直连 deb.debian.org 时会「连上但不传数据」，
-#: 表现为构建卡死在某个 Get 上无限等；设了超时它才会自己重试或快速失败。
-RUN if [ -n "$APT_MIRROR" ]; then \
-        sed -i "s|deb.debian.org|$APT_MIRROR|g" /etc/apt/sources.list.d/debian.sources; \
-    fi \
-    && apt-get -o Acquire::http::Timeout=20 -o Acquire::Retries=5 update \
-    && apt-get -o Acquire::http::Timeout=20 -o Acquire::Retries=5 install -y --no-install-recommends gcc libc6-dev \
-    && rm -rf /var/lib/apt/lists/* \
-    && pip install ${PIP_INDEX_URL:+--index-url $PIP_INDEX_URL} "cython==${CYTHON_VERSION}" setuptools
-
-COPY ops/docker/compile_python.py /tmp/compile_python.py
-COPY ops/container_entrypoint.py ./ops/
-COPY ops/license_keys.py ./ops/
-COPY ops/docker ./ops/docker
-COPY package.json /tmp/package.json
-COPY homeos-store/backend/src ./app
-# 同 app 阶段：源码目录叫 src，构建镜像里落到 app，.so 里的模块名因此是 app.*，
-# 产物里不会出现 src 目录。
-# 迁移脚本（db/ 与 alembic.ini）**不进产物**：发行版里没有 Alembic，新库由
-# app.core.migrations 按 ORM 元数据直接建（基线 0001 与 Base.metadata 等价）。
-# app/_version.py 随后与其它源码一起被编译成 .so，运行期由 app/__init__.py 读取。
-# 末尾的 find 是**结构约束**而不是重复检查：一旦有 .py 漏进产物（缓存、新目录没跟上
-# 清理），加密就等于没做 —— 在这里失败，代价只是一次构建。
-RUN rm -f /app/ops/docker/compile_python.py /app/ops/docker/obfuscate_javascript.mjs \
-    && version="${HOMEOS_VERSION}" \
-    && if [ -z "$version" ]; then \
-         version="$(sed -n 's/^  "version":[[:space:]]*"\([^"]*\)".*/\1/p' /tmp/package.json | head -n 1)"; \
-       fi \
-    && [ -n "$version" ] || { echo "无法确定版本号：package.json 缺 version 且未传 --build-arg HOMEOS_VERSION" >&2; exit 1; } \
-    && printf '__version__ = "%s"\n' "$version" > /app/app/_version.py \
-    && echo "商店构建版本：$version" \
-    && rm -f /app/app/requirements.txt /app/app/README.md \
-    && python /tmp/compile_python.py /app \
-    && rm -f /tmp/compile_python.py \
-    && test -f /app/app/app.*.so \
-    && test -f /app/app/run.*.so \
-    && test -f /app/app/__init__.*.so \
-    && test -f /app/app/_version.*.so \
-    && test -f /app/ops/container_entrypoint.*.so \
-    && test -f /app/ops/license_keys.*.so \
-    && test -f /app/ops/docker/start_store.*.so \
-    && test ! -f /app/app/app.py \
-    && test ! -f /app/ops/container_entrypoint.py \
-    && test ! -e /app/db \
-    && test ! -e /app/alembic.ini \
-    # 同 app 阶段：产物里只允许有原生扩展。
-    && stray="$(find /app/app /app/ops -type f ! -name '*.so' -print)" \
-    && test -z "$stray" || { echo "产物里混入了非 .so 文件：$stray" >&2; exit 1; }
-
-FROM scratch AS store-export
-COPY --from=store-build /app/ /
+# 而不是整个 Debian rootfs（见 ops/build.py 的 export_backend）。PROJECT 由调用方按项目
+# 传入，与上面那个阶段是同一次构建的同一个值 —— 阶段名不再区分项目，正是为了避免
+# 「target 名与 PROJECT 值各说各话」。
+FROM scratch AS backend-export
+COPY --from=backend-build /app/ /
 
 
 # ═══ 运行镜像：组装工作区根 dist/ 里已构建好的加密后端与前端产物 ═══

@@ -1,23 +1,23 @@
 /**
  * @file entity-ws-bind.ts
- * @module frontend/src/utils
+ * @module frontend/src/composables/entity
  */
 /** entity WebSocket: 将 Socket.IO 生命周期 / HA 状态 / 实体分块 / 领域事件绑定到 entities store */
 import { useEarthquakeStore } from '@/stores/earthquake.store'
-import type { EarthquakeAlertPayload } from '@/types/earthquake'
-import type { EntitySocketHandlerContext, EntitySocketSyncState, HaEntityState } from '@/types/entity-store'
-import { refreshEnergyFromSocket } from '@/utils/bridge/store-bridge'
+import type { EarthquakeAlertPayload } from '@/shared/types/earthquake'
+import type { EntitySocketHandlerContext, EntitySocketSyncState, HaEntityState } from '@/shared/types/entity-store'
+import { refreshEnergyFromSocket } from '@/shared/utils/bridge/store-bridge'
 import { isEarthquakeAlertEnabled } from '@/composables/earthquake/earthquake-layout.util'
 import { refreshEntitySocketAuth } from '@/composables/entity/socket.util'
-import { handleEntityFallbackFailure } from '@/utils/entity/sync-failure.util'
-import { notificationLevelToToastType, shouldSkipNotificationToast } from '@/utils/notification/ws-sync.util'
+import { handleEntityFallbackFailure } from '@/shared/entity/utils/sync-failure.util'
+import { notificationLevelToToastType, shouldSkipNotificationToast } from '@/shared/notifications/utils/ws-sync.util'
 import { isEewSimulationEventId, WS_CLIENT_EVENTS } from '@homeos/shared'
 import type { Socket } from 'socket.io-client'
 import {
   clearEntitySocketSyncTimers,
   scheduleIncrementalEnd,
   waitForPendingChunkApplies,
-} from '@/utils/entity/ws-sync'
+} from '@/shared/entity/utils/ws-sync'
 
 // ── entity-ws-bind.util ──
 

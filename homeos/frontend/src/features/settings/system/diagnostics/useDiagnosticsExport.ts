@@ -11,10 +11,10 @@
  */
 import { computed, type ComputedRef, type Ref } from 'vue'
 import { HeartPulse, Archive } from '@lucide/vue'
-import { formatFullDateTime } from '@/utils/format/locale-format.util'
+import { formatFullDateTime } from '@/shared/utils/format/locale-format.util'
 import { useChromeStore } from '@/stores/chrome.store'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
-import { downloadBlob } from '@/utils/core/misc.util'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
+import { downloadBlob } from '@/shared/utils/core/misc.util'
 import { copyTextWithNotify } from '@/services/notify'
 import { BACKEND_MEM_WARN_PCT } from './constants'
 import type { DiagnosticsDiag, DiagnosticsHealth } from './types'

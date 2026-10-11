@@ -8,8 +8,8 @@
  *   - entity-domain-meta：实体域主题色映射（统一各页配色）。
  * 说明：本文件不含 Vue 响应式，纯函数便于单测与在多视图复用。
  */
-import { normalizeByDomain } from '@/utils/events/events-display.util'
-import { ENTITY_DOMAIN_COLORS, entityDomainColor } from '@/constants/entity-domain-meta'
+import { normalizeByDomain } from '@/shared/events/utils/events-display.util'
+import { ENTITY_DOMAIN_COLORS, entityDomainColor } from '@/shared/constants/entity-domain-meta'
 
 /** 时序桶：事件按小时/天分组的标签、计数与时间戳，供折线图渲染。 */
 interface EventTimeBucket {

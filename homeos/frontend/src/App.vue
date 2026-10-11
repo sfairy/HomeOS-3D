@@ -76,7 +76,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useAppTheme } from '@/composables/ui/useAppTheme'
-import { logger } from '@/utils/core/logger'
+import { logger } from '@/shared/utils/core/logger'
 import { useClientPowerReporter } from '@/composables/energy/useClientPowerReporter'
 import { useDisplayLightBackdropState } from '@/composables/display/display-light-backdrop'
 import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
@@ -84,9 +84,9 @@ import VConfirmModal from '@/components/common/base/VConfirmModal.vue'
 import VPromptModal from '@/components/common/base/VPromptModal.vue'
 import VNotification from '@/components/common/base/VNotification.vue'
 import { useChromeStore } from '@/stores/chrome.store'
-import { applyPageAssets, listManagedStylesheets, PAGE_ASSETS } from '@/studio/page-assets'
+import { applyPageAssets, listManagedStylesheets, PAGE_ASSETS } from '@/studio'
 
-const LicenseRecoveryView = defineAsyncComponent(() => import('@/studio/views/LicenseRecoveryView.vue'))
+const LicenseRecoveryView = defineAsyncComponent(() => import('@/views/auth/LicenseRecoveryView.vue'))
 const MediaPlayerModal = defineAsyncComponent(() =>
   import('@/layouts/shell-overlays').then((m) => m.MediaPlayerModal),
 )

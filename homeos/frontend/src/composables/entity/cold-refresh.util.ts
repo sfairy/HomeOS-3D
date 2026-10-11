@@ -11,10 +11,10 @@
  * - `frontend-config`：读取冷实体按需拉取开关。
  * - `logger`：日志输出。
  */
-import { collectPinnedEntityIds } from '@/utils/entity/ws-subscription'
+import { collectPinnedEntityIds } from '@/shared/entity/utils/ws-subscription'
 import { getActiveProjectionIds } from '@/stores/entities/entity-projection'
-import { getWsPushPublicConfig } from '@/utils/config/frontend-config'
-import { logger } from '@/utils/core/logger'
+import { getWsPushPublicConfig } from '@/shared/utils/config/frontend-config'
+import { logger } from '@/shared/utils/core/logger'
 
 const MAX_ENSURE = 120
 

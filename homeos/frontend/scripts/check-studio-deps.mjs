@@ -15,14 +15,30 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const studioRoot = path.resolve(__dirname, "../src/studio");
+const srcRoot = path.resolve(__dirname, "../src");
 
 /** app → runtime paths still allowed until Phase 1 callers are fully migrated. */
 const APP_TO_RUNTIME_WHITELIST = new Set([
   // emptied after Phase 1; kept as schema for future exceptions
 ]);
 
-const IMPORT_RE =
-  /(?:from\s+|import\s*\()\s*['"]([^'"]+)['"]/g;
+/**
+ * 根（非 studio）→ studio：只允许 `@/studio`（子系统公开 barrel）。
+ *
+ * studio 是自带多入口/别名的嵌套子系统，根直达其内部会把内部拓扑泄漏成全仓耦合。
+ * 存量白名单**只减不增**（脚本会检查过期条目）；key = `<相对 src 的路径>|<import spec>`。
+ *
+ * @type {Set<string>}
+ */
+const ROOT_TO_STUDIO_WHITELIST = new Set([
+  // 已清零：认证视图挪到 src/views/auth/，studio 入口视图改用 `@/studio` 的懒加载器，
+  // 根代码再无一处直达 studio 内部。
+])
+
+/** 白名单里确实被用到的条目（用于检测过期）。 */
+const usedRootToStudio = new Set();
+
+const IMPORT_RE = /(?:\bfrom\s+|\bimport\s*\(|\bimport\s+)['"]([^'"]+)['"]/g;
 
 /** @type {{ file: string, rule: string, spec: string }[]} */
 const violations = [];
@@ -152,6 +168,43 @@ for (const file of walk(studioRoot)) {
   checkFile(file);
 }
 
+/** 根（非 studio）→ studio：只允许走 `@/studio` 公开 barrel。 */
+function checkRootFile(file) {
+  const rel = path.relative(srcRoot, file).split(path.sep).join("/");
+  if (under(rel, "studio")) return;
+  const text = fs.readFileSync(file, "utf8");
+  if (isPureReexport(text)) return;
+  let match;
+  IMPORT_RE.lastIndex = 0;
+  while ((match = IMPORT_RE.exec(text))) {
+    const spec = match[1];
+    const reachesIn =
+      spec.startsWith("@app/") || spec.startsWith("@runtime/") || spec.startsWith("@/studio/");
+    if (!reachesIn) continue;
+    const key = `${rel}|${spec}`;
+    if (ROOT_TO_STUDIO_WHITELIST.has(key)) {
+      usedRootToStudio.add(key);
+      continue;
+    }
+    violations.push({
+      file: rel,
+      rule: "根只能 import '@/studio'（子系统公开面），禁止直达 studio 内部（@app/* @runtime/* @/studio/<内部>）",
+      spec,
+    });
+  }
+}
+
+for (const file of walk(srcRoot)) {
+  checkRootFile(file);
+}
+
+const staleStudioWhitelist = [...ROOT_TO_STUDIO_WHITELIST].filter((k) => !usedRootToStudio.has(k));
+if (staleStudioWhitelist.length) {
+  console.error(`studio 边界白名单已过期（${staleStudioWhitelist.length} 条）：请从 ROOT_TO_STUDIO_WHITELIST 删除\n`);
+  for (const key of staleStudioWhitelist) console.error(`  - ${key}`);
+  process.exit(1);
+}
+
 if (violations.length) {
   console.error(`studio dependency violations: ${violations.length}\n`);
   for (const v of violations.slice(0, 80)) {
@@ -163,4 +216,6 @@ if (violations.length) {
   process.exit(1);
 }
 
-console.log("studio dependency check: ok");
+console.log(
+  `studio dependency check: ok (root→studio whitelist ${ROOT_TO_STUDIO_WHITELIST.size})`,
+);

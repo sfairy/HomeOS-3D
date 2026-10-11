@@ -10,17 +10,17 @@
  *
  * 依赖：
  *   - @/services/api/entities.fetchEntityReferences / unlinkEntityReference：引用查询 / 移除接口。
- *   - @/utils/core/error-message.getApiErrorMessage：错误信息归一化。
- *   - @/utils/core/misc.util.createFetchSequence：请求序号守卫。
+ *   - @/shared/utils/core/error-message.getApiErrorMessage：错误信息归一化。
+ *   - @/shared/utils/core/misc.util.createFetchSequence：请求序号守卫。
  *   - @/stores/chrome.store.useChromeStore：通知 / 确认弹窗。
  *   - @/stores/layout.store：布局配置加载。
- *   - @/types/entity-references：引用类型与常量（kind 标签 / 受影响的系统配置 / 布局 kind 集合）。
- *   - @/features/settings/system/composables/system-config.internals.useSystemConfig：系统配置加载。
+ *   - @/shared/types/entity-references：引用类型与常量（kind 标签 / 受影响的系统配置 / 布局 kind 集合）。
+ *   - @/composables/config/system-config-core.internals：系统配置加载。
  */
 import { ref, watch, type Ref } from 'vue'
 import { fetchEntityReferences, unlinkEntityReference } from '@/services/api/entities'
-import { getApiErrorMessage } from '@/utils/core/error-message'
-import { createFetchSequence } from '@/utils/core/misc.util'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
+import { createFetchSequence } from '@/shared/utils/core/misc.util'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import {
@@ -30,7 +30,7 @@ import {
   UNLINKABLE_ENTITY_REFERENCE_KINDS,
   type EntityReferenceItem,
   type EntityReferencesResponse,
-} from '@/types/entity-references'
+} from '@/shared/types/entity-references'
 import { useSystemConfig } from '@/composables/config/system-config-core.internals'
 
 /**

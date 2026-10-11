@@ -29,17 +29,15 @@
  * 依赖：
  * - vue 的 computed、provide
  * - @/stores/entities.store 提供实体集合与按 ID 查询
- * - @/utils/entity/popup-registry 提供弹窗组件解析与 props 构造
+ * - @/components/entities/popup-registry 提供弹窗组件解析；纯判定与 props 构造在 @/shared/entity/utils/popup-registry.util
  *
  * 使用场景：
  * - 列表/详情页中点击实体后弹出对应控制面板（与画布上的 widget 弹窗区分开）
  */
 import { computed, provide, watchEffect } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
-import {
-  getEntityPopupProps,
-  resolveEntityPopupComponent,
-} from '@/utils/entity/popup-registry'
+import { resolveEntityPopupComponent } from '@/components/entities/popup-registry'
+import { getEntityPopupProps } from '@/shared/entity/utils/popup-registry.util'
 import { useShellTeleportTarget } from '@/composables/ui/useShellTeleportTarget'
 
 /**

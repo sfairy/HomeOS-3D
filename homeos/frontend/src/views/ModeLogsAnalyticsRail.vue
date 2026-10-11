@@ -45,7 +45,7 @@ import {
   buildModeTimelineOption,
   EMPTY_MODE_LOG_ANALYTICS,
   type ModeLogAnalytics,
-} from '@/composables/home/useModeLogsAnalytics'
+} from '@/features/home-mode'
 
 const props = defineProps<{
   analytics?: ModeLogAnalytics | null

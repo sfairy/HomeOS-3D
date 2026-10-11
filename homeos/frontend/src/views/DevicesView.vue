@@ -238,18 +238,20 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch, type ComponentPublicInstance } from 'vue'
 import { Layers, CheckSquare, Square, BarChart3, ChevronLeft, ChevronRight } from '@lucide/vue'
-import DeviceAnalyticsDashboard from '@/components/devices/DeviceAnalyticsDashboard.vue'
-import DeviceRow from '@/components/devices/DeviceRow.vue'
-import DeviceStatsDashboard from '@/components/devices/DeviceStatsDashboard.vue'
-import DeviceFilterPanel from '@/components/devices/DeviceFilterPanel.vue'
-import DeviceBatchActions from '@/components/devices/DeviceBatchActions.vue'
+import {
+  DeviceAnalyticsDashboard,
+  DeviceBatchActions,
+  DeviceFilterPanel,
+  DeviceRow,
+  DeviceStatsDashboard,
+} from '@/features/device'
 import SearchableSelect from '@/components/common/base/SearchableSelect.vue'
 import VirtualList from '@/components/common/base/VirtualList.vue'
 import ListPageHero from '@/components/page-shell/ListPageHero.vue'
 import ListPageMetrics from '@/components/page-shell/ListPageMetrics.vue'
 import ApiQueryState from '@/components/common/ApiQueryState.vue'
 import VEmptyState from '@/components/common/base/VEmptyState.vue'
-import { useDevicesView } from '@/composables/device/useDevicesView'
+import { useDevicesView } from '@/features/device'
 import { useHorizontalScrollNav } from '@/composables/ui/useHorizontalScrollNav'
 
 /** DeviceRow 单行渲染高度（px）：与 list-page__row 内 44px 触控元素 + 上下 padding 14px×2 对齐，

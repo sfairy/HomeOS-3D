@@ -29,13 +29,13 @@ const LOCK_ENTITY_FIELDS = ["doorEntityId", "batteryEntityId", "battery2EntityId
   ];
 import { mountInteraction3d } from "../core/runtime";
 import { openPresenceEditor } from "../presence/presence-editor";
-import { randomUuid } from "@app/utils/random-id";
+import { randomUuid } from "@app/shared/util/random-id";
 import {
   requestInteraction3dAccess,
   subscribeInteraction3dAccess,
 } from "@app/bridge/bridge";
 import { interaction3dPreviewSize, observeInteraction3dPreview } from "@app/bridge/preview-layout";
-import { domElement } from "@app/utils/dom-factory";
+import { domElement } from "@app/shared/util/dom-factory";
 export async function openSecurityEditor({
   component: component,
   panelDocument: documentApi,

@@ -1,4 +1,4 @@
-import { domElement } from "@app/utils/dom-factory";
+import { domElement } from "@app/shared/util/dom-factory";
 import { createStageDeviceVisual } from "../core/stage-device-visual";
 export function nasGroups(nasConfig: any) {
   const groupLabels = {

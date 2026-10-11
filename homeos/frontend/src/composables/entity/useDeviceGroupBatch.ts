@@ -9,13 +9,13 @@
  *
  * 依赖：
  * - vue：ref/computed 响应式状态。
- * - @/utils/device/device-group-battery.util：DeviceGroupEntitiesStoreLike 类型。
- * - @/types/entity-store：HaEntityState 实体状态类型。
+ * - @/shared/device/utils/group-battery.util：DeviceGroupEntitiesStoreLike 类型。
+ * - @/shared/types/entity-store：HaEntityState 实体状态类型。
  */
 import { ref, computed, type Ref } from 'vue'
-import type { DeviceGroupEntitiesStoreLike } from '@/composables/device/group-battery.util'
-import type { HaEntityState } from '@/types/entity-store'
-import { getApiErrorMessage } from '@/utils/core/error-message'
+import type { DeviceGroupEntitiesStoreLike } from '@/shared/device/utils/group-battery.util'
+import type { HaEntityState } from '@/shared/types/entity-store'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 
 /** 批量执行结果项：success 标识单条是否成功，entity_id 用于重试定位。 */
 interface BatchExecResultItem {

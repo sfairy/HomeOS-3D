@@ -13,7 +13,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { defineConfig, type Plugin } from "vite";
-import { quietLogger } from "./vite-quiet-logger.js";
+import { quietLogger } from "../../ops/vite/build-helpers.js";
 import { THREE_VENDOR, frontendRoot, isRuntimeExternal, studioRoot } from "./vite-studio.ts";
 
 const runtimeSrc = path.join(studioRoot, "runtime");

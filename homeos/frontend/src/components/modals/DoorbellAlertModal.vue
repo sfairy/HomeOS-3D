@@ -77,10 +77,10 @@ import { useEscLayer } from '@/composables/ui/useEscStack'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useHaConnectionStore } from '@/stores/ha-connection.store'
 import { useChromeStore } from '@/stores/chrome.store'
-import { logger } from '@/utils/core/logger'
-import { getApiErrorMessage } from '@/utils/core/error-message'
+import { logger } from '@/shared/utils/core/logger'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import HaCameraStream from '@/components/HaCameraStream.vue'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 
 const props = defineProps({
   isOpen: { type: Boolean },

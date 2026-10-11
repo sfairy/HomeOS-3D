@@ -18,25 +18,25 @@ import { getDefaultLayout } from '@/stores/defaults'
 import {
   NAV_TAB_ORDER_DEFAULT,
   normalizeEmbedNavTabLayoutFields,
-} from '@/utils/layout/nav-tabs.util'
-import { normalizeDashboardFooter } from '@/constants/dashboard-footer'
-import { normalizeSecurityEmergency } from '@/constants/security-emergency'
-import { normalizeWholeHomeOff } from '@/constants/whole-home-off'
-import { logger } from '@/utils/core/logger'
+} from '@/shared/utils/layout/nav-tabs.util'
+import { normalizeDashboardFooter } from '@/shared/constants/dashboard-footer'
+import { normalizeSecurityEmergency } from '@/shared/constants/security-emergency'
+import { normalizeWholeHomeOff } from '@/shared/constants/whole-home-off'
+import { logger } from '@/shared/utils/core/logger'
 import {
   getApiErrorMessage,
   isLicenseInactiveError,
   isUnauthorizedError,
-} from '@/utils/core/error-message'
-import { applyTabletDefaultPerformanceMode } from '@/utils/perf/tablet-default-perf.util'
-import type { NotifyType } from '@/types/notify'
+} from '@/shared/utils/core/error-message'
+import { applyTabletDefaultPerformanceMode } from '@/shared/utils/perf/tablet-default-perf.util'
+import type { NotifyType } from '@/shared/types/notify'
 import { KNOWN_PANEL_WIDGET_TYPES } from './create-layout-state'
-import { WIDGET_REGISTRY_META, FLOATING_HUB_TYPE_SET } from '@/utils/registry/widget-registry-meta'
-import { ensureDoorbellList } from '@/utils/layout/doorbell.util'
-import { clonePlain } from '@/utils/core/clone-plain.util'
-import { pushServerAccessConfig } from '@/utils/bridge/native-bridge'
+import { WIDGET_REGISTRY_META, FLOATING_HUB_TYPE_SET } from '@/shared/utils/registry/widget-registry-meta'
+import { ensureDoorbellList } from '@/shared/utils/layout/doorbell.util'
+import { clonePlain } from '@/shared/utils/core/clone-plain.util'
+import { pushServerAccessConfig } from '@/shared/utils/bridge/native-bridge'
 import { fetchSystemNetworkInfo } from '@/services/api/system'
-import type { HaConfig, PanelWidget, FloatingWidget } from '@/types/layout'
+import type { HaConfig, PanelWidget, FloatingWidget } from '@/shared/types/layout'
 
 /**
  * 把服务端访问配置推送给原生端（fire-and-forget）。

@@ -1,4 +1,7 @@
 import { mergeGeometries } from "/static/vendor/three/0.186.0/BufferGeometryUtils.js";
+import { buildStaticMaterialKey } from "../../materials/studio-static-material-key";
+import { nextBatchItemTypeSet } from "./item-catalog";
+import * as threeModuleMin from "/static/vendor/three/0.186.0/three.module.min.js";
 const indexCompactionTypeSet = new Set([
     "drawer-chest",
     "bunk-bed",
@@ -431,5 +434,88 @@ export function createFurnitureBatchCache(threeApi: any, { geometryCache: geomet
         (geometrySignatureByGeometry = new WeakMap()),
         (modelGeometrySetByModel = new WeakMap()));
     },
+  };
+}
+
+export function buildGeometryKey(geometryMesh: any) {
+  const geometryAttributeEntries = Object.entries(geometryMesh.geometry?.attributes || {})
+    .sort(([attributeKeyLeft], [attributeKeyRight]) =>
+      attributeKeyLeft.localeCompare(attributeKeyRight),
+    )
+    .map(([attributeName, geometryAttribute]: [string, any]) => [
+      attributeName,
+      geometryAttribute.itemSize,
+      geometryAttribute.normalized,
+      geometryAttribute.array?.constructor?.name,
+    ]);
+  return JSON.stringify([
+    !!geometryMesh.geometry?.index,
+    geometryAttributeEntries,
+    Object.keys(geometryMesh.geometry?.morphAttributes || {}).sort(),
+  ]);
+}
+
+export function collectChildMeshes(meshRoot: any) {
+  const childMeshes: any = [];
+  return (
+    meshRoot.traverse((childObject: any) => {
+      childObject !== meshRoot && childObject.isMesh && childMeshes.push(childObject);
+    }),
+    childMeshes
+  );
+}
+
+export function batchFurnitureMeshes(batchRoot: any, batchItemType: any) {
+  if (!nextBatchItemTypeSet.has(batchItemType)) return;
+  const gu5 = collectChildMeshes(batchRoot);
+  if (gu5.some((batchedMeshEntry: any) => batchedMeshEntry.userData.furnitureBatchCompiled)) return;
+  const meshCountBefore = gu5.length,
+    meshesByBatchKey = new Map();
+  for (const batchSourceMesh of gu5) {
+    if (batchSourceMesh.userData.televisionScreen || batchSourceMesh.userData.televisionGlow)
+      continue;
+    const ra2 = buildStaticMaterialKey(batchSourceMesh);
+    if (!ra2) continue;
+    const batchKey = ra2 + ":" + buildGeometryKey(batchSourceMesh);
+    (meshesByBatchKey.has(batchKey) || meshesByBatchKey.set(batchKey, []),
+      meshesByBatchKey.get(batchKey).push(batchSourceMesh));
+  }
+  batchRoot.updateMatrixWorld(true);
+  const invert = batchRoot.matrixWorld.clone().invert();
+  for (const batchMeshGroup of meshesByBatchKey.values()) {
+    if (batchMeshGroup.length < 2) continue;
+    const batchGeometries = batchMeshGroup.map((batchGeometryMesh: any) => {
+        const multiplyMatrices = new threeModuleMin.Matrix4().multiplyMatrices(
+          invert,
+          batchGeometryMesh.matrixWorld,
+        );
+        return batchGeometryMesh.geometry.clone().applyMatrix4(multiplyMatrices);
+      }),
+      mergedBatchGeometry = mergeGeometries(batchGeometries);
+    if ((batchGeometries.forEach((batchGeometry: any) => batchGeometry.dispose()), !mergedBatchGeometry))
+      continue;
+    const batchTemplateMesh = batchMeshGroup[0],
+      mergedBatchMesh = new threeModuleMin.Mesh(mergedBatchGeometry, batchTemplateMesh.material);
+    ((mergedBatchMesh.castShadow = batchTemplateMesh.castShadow),
+      (mergedBatchMesh.receiveShadow = batchTemplateMesh.receiveShadow),
+      (mergedBatchMesh.renderOrder = batchTemplateMesh.renderOrder),
+      (mergedBatchMesh.userData = {
+        externalModelSharedMaterial:
+          batchTemplateMesh.userData.externalModelSharedMaterial === true,
+      }),
+      batchMeshGroup.forEach((removedMesh: any, removedMeshIndex: any) => {
+        (removedMesh.parent?.remove(removedMesh),
+          removedMesh.userData.externalModelSharedGeometry || removedMesh.geometry.dispose(),
+          removedMeshIndex > 0 &&
+            !removedMesh.userData.externalModelSharedMaterial &&
+            removedMesh.material !== batchTemplateMesh.material &&
+            removedMesh.material.dispose());
+      }),
+      batchRoot.add(mergedBatchMesh));
+  }
+  batchRoot.userData.optimizationStats = {
+    type: batchItemType,
+    before: meshCountBefore,
+    after: collectChildMeshes(batchRoot).length,
   };
 }

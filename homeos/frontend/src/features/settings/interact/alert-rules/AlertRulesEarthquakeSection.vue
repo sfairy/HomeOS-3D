@@ -368,10 +368,10 @@ import { useAlertRulesSection } from './context'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { triggerEarthquakeTest } from '@/services/api/earthquake'
-import { useEarthquakeStatusQuery } from '@/composables/earthquake/useEarthquakeStatusQuery'
-import { reopenEarthquakeWizard } from '@/composables/earthquake/useEarthquakeBootstrap'
-import { syncEarthquakeHomeCoordsFromHa } from '@/composables/earthquake/ha-coords.util'
-import { schedulePoll } from '@/utils/core/poll-scheduler'
+import { useEarthquakeStatusQuery } from '@/features/earthquake'
+import { reopenEarthquakeWizard } from '@/features/earthquake'
+import { syncEarthquakeHomeCoordsFromHa } from '@/features/earthquake'
+import { schedulePoll } from '@/shared/utils/core/poll-scheduler'
 import {
   EEW_CITY_PRESETS,
   EEW_DISTANCE_OPTIONS,
@@ -380,7 +380,7 @@ import {
   EEW_COUNTDOWN_LEAD_OPTIONS,
   eewCountdownLeadLabel,
   createDefaultEarthquakeConfig,
-} from '@/types/earthquake'
+} from '@/shared/types/earthquake'
 
 const layoutStore = useLayoutStore()
 const chrome = useChromeStore()

@@ -8,25 +8,25 @@ type DetailEntry = {
 
 
 function describeEntry(entry: unknown): string {
-  if (typeof entry === 'string') return entry;
-  if (!entry || typeof entry !== 'object') return '取值不合法';
+  if (typeof entry === "string") return entry;
+  if (!entry || typeof entry !== "object") return "取值不合法";
   const record = entry as DetailEntry;
   const field = Array.isArray(record.loc)
-    ? record.loc.filter((part) => part !== 'body' && part !== 'query').join('.')
-    : '';
-  const reason = (record.msg || record.message) || '取值不合法';
+    ? record.loc.filter((part) => part !== "body" && part !== "query").join(".")
+    : "";
+  const reason = (record.msg || record.message) || "取值不合法";
   return field ? `参数 ${field}：${reason}` : String(reason);
 }
 
 export function describe(detail: unknown, fallback?: string): string {
-  const text = fallback || '请求失败。';
+  const text = fallback || "请求失败。";
   if (!detail) return text;
-  if (typeof detail === 'string') return detail;
+  if (typeof detail === "string") return detail;
   if (Array.isArray(detail)) {
     const lines = detail.map(describeEntry).filter(Boolean);
-    return lines.length ? lines.join('；') : text;
+    return lines.length ? lines.join("；") : text;
   }
-  if (typeof detail === 'object') {
+  if (typeof detail === "object") {
     const record = detail as DetailEntry;
     if (record.msg || record.message) {
       return String(record.msg || record.message);
@@ -48,7 +48,7 @@ export function fromResponse(
   fallback?: string,
 ): ApiError {
   const detail =
-    data && typeof data === 'object' && 'detail' in data
+    data && typeof data === "object" && "detail" in data
       ? (data as { detail?: unknown }).detail
       : undefined;
   const error = new Error(describe(detail, fallback)) as ApiError;

@@ -1,1 +1,1 @@
-export * from '@/types/floating-hub'
+export * from '@/shared/types/floating-hub'

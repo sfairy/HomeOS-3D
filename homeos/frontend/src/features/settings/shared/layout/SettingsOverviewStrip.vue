@@ -20,11 +20,11 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { fetchConfigHealth } from '@/services/api/system'
-import { useSetupChecklist } from '@/features/settings/composables/useSetupChecklist'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
-import { getRecentSettingsTabs } from '@/utils/registry/settings-recent-tabs.util'
-import { tabLabel } from '@/utils/registry/settings-nav.util'
-import { logger } from '@/utils/core/logger'
+import { useSetupChecklist } from '@/shared/status'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
+import { getRecentSettingsTabs } from '@/shared/utils/registry/settings-recent-tabs.util'
+import { tabLabel } from '@/shared/utils/registry/settings-nav.util'
+import { logger } from '@/shared/utils/core/logger'
 
 type ConfigHealth = {
   score?: number

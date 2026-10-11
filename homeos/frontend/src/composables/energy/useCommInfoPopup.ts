@@ -6,21 +6,21 @@ import { ref, computed, watch } from 'vue'
 import { Wifi, Phone, MessageSquare } from '@lucide/vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
-import { useRelativeDateLabel } from '@/composables/energy/useUtilityMeter'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import { useRelativeDateLabel } from '@/shared/energy'
 import {
   formatNum,
   resolveAccountEntityIds,
   normalizeEnergySource,
-} from '@/utils/energy/source.util'
-import { readPopupField } from '@/utils/energy/popup-read.util'
-import { resolveAccountLabelForEntityId } from '@/utils/energy/account.util'
+} from '@/shared/energy/utils/source.util'
+import { readPopupField } from '@/shared/energy/utils/popup-read.util'
+import { resolveAccountLabelForEntityId } from '@/shared/energy/utils/account.util'
 import {
   COMM_CARRIER_BADGES,
   COMM_CARRIER_LABELS,
   resolveCommCarrierFromEntityId,
   type CommCarrier,
-} from '@/utils/energy/comm-carrier.util'
+} from '@/shared/energy/utils/comm-carrier.util'
 
 function n(s: unknown) {
   const v = parseFloat(String(s ?? ''))

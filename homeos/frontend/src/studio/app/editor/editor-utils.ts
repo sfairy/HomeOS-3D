@@ -1,5 +1,5 @@
-import { randomUuid } from "../utils/random-id";
-import { clampNumber } from "../utils/number";
+import { randomUuid } from "../shared/util/random-id";
+import { clampNumber } from "../shared/util/number";
 export { clampNumber };
 export function clone(sourceValue: any) {
   return structuredClone(sourceValue);

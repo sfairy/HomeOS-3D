@@ -10,13 +10,13 @@
  * 依赖：
  * - vue（ref、watch、Ref）
  * - @/services/api/entities（fetchEntities）
- * - @/utils/core/error-message（API 错误文案兜底）
- * - @/types/device（DeviceFilterState）
+ * - @/shared/utils/core/error-message（API 错误文案兜底）
+ * - @/shared/types/device（DeviceFilterState）
  */
 import { ref, watch, type Ref } from 'vue'
 import { fetchEntities } from '@/services/api/entities'
-import { getApiErrorMessage } from '@/utils/core/error-message'
-import type { DeviceFilterState } from '@/types/device'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
+import type { DeviceFilterState } from '@/shared/types/device'
 
 const PAGE_SIZE = 200
 const SEARCH_DEBOUNCE_MS = 250

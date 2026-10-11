@@ -149,18 +149,18 @@ import { ShieldCheck, Shield, ShieldOff, Home, Moon, Loader2, ChevronDown } from
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useSecurityPanelStatus } from '@/composables/security/useSecurityPanelStatus'
-import { executeSecurityPanelArm } from '@/utils/security/panel-arm.util'
+import { executeSecurityPanelArm } from '@/shared/security/utils/panel-arm.util'
 import {
   postSecurityZonesSafe,
   normalizeZonesForApi,
-} from '@/utils/security/zones-api.util'
-import { bootstrapSecurityPanelZonesOnce } from '@/utils/security/panel-zones-bootstrap.util'
-import { formatLocaleTime } from '@/utils/format/locale-format.util'
-import { hapticAlert } from '@/utils/ui/haptics.util'
+} from '@/shared/security/utils/zones-api.util'
+import { bootstrapSecurityPanelZonesOnce } from '@/shared/security/utils/panel-zones-bootstrap.util'
+import { formatLocaleTime } from '@/shared/utils/format/locale-format.util'
+import { hapticAlert } from '@/shared/utils/ui/haptics.util'
 import { notifyError } from '@/services/notify'
 import ApiQueryState from '@/components/common/ApiQueryState.vue'
 import WidgetHubHeader from '@/components/widgets/shared/WidgetHubHeader.vue'
-import { useHubTabs } from '@/composables/widget/useHubTabs'
+import { useHubTabs } from '@/shared/widget/composables/useHubTabs'
 
 const chrome = useChromeStore()
 const layoutStore = useLayoutStore()

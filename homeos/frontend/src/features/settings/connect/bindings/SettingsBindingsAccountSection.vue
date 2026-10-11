@@ -279,7 +279,7 @@
 import { computed, toRef } from 'vue'
 import { Anchor, ArrowRight, Gauge, GitBranch, Layers, ListTree, Sparkles, Zap } from '@lucide/vue'
 import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
-import SettingsOrchTabs from '@/features/settings/shared/layout/SettingsOrchTabs.vue'
+import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import EntityInput from '@/components/common/EntityInput.vue'

@@ -14,9 +14,12 @@
 子命令：
 
   backend [--arch ARCH] [--project app|store|all]
-      用 Docker 的 ``app-export`` / ``store-export`` 阶段把加密后端导出到
+      用 Docker 的 ``backend-export`` 阶段把加密后端导出到
       ``dist/<proj>/backend/linux-<arch>``。Cython 产物与平台绑定，必须在
       Linux 容器内按目标架构编译（宿主是 macOS 时尤其如此）。
+      Dockerfile 里两个项目共用同一个构建阶段，靠 ``--build-arg PROJECT=<项目目录>``
+      选源码；这里的 ``Project.source`` 就是那个值，与项目目录同名（写错即编出另一个
+      项目的后端，``ops/check_deploy_independence.py`` 第 4 项会拦）。
 
   image [--arch ARCH] [--project app|store|all] [--tag TAG] [--push]
       从工作区根 ``dist/`` 组装运行镜像（``--target app`` / ``--target store``）。
@@ -75,13 +78,16 @@ def load_env_file(path: Path) -> None:
 class Project(NamedTuple):
     key: str
     name: str
+    #: 仓库内的项目目录名：Dockerfile 构建阶段的 ``--build-arg PROJECT`` 取值。
+    #: 与 ``name`` 同值（``key`` 是 CLI 用的短名，历史原因不等于目录名）。
+    source: str
     export_target: str
     image_target: str
 
 
 PROJECTS: dict[str, Project] = {
-    'app': Project('app', 'homeos', 'app-export', 'app'),
-    'store': Project('store', 'homeos-store', 'store-export', 'store'),
+    'app': Project('app', 'homeos', 'homeos', 'backend-export', 'app'),
+    'store': Project('store', 'homeos-store', 'homeos-store', 'backend-export', 'store'),
 }
 
 #: 兼容旧脚本 / 文档里的 ``--project 3d``（主应用已并入 homeos，键名随之改名）。
@@ -192,6 +198,7 @@ def export_backend(args: argparse.Namespace) -> None:
             docker_bin(), 'buildx', 'build',
             '--file', str(DOCKERFILE),
             '--target', project.export_target,
+            '--build-arg', f'PROJECT={project.source}',
             '--output', f'type=local,dest={dest}',
             '--build-arg', f'HOMEOS_VERSION={version}',
             *base_image_args(args, with_build_mirrors=True),

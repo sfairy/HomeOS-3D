@@ -13,9 +13,9 @@
  *  - ui/color.util 的 hexToRgb（强调色 RGB 解析）。
  */
 import { onMounted, onUnmounted } from 'vue'
-import { getConfigSection, onConfigChange } from '@/utils/config/frontend-config'
-import type { ConfigChangeListener } from '@/types/frontend-config'
-import { hexToRgb } from '@/utils/ui/color.util'
+import { getConfigSection, onConfigChange } from '@/shared/utils/config/frontend-config'
+import type { ConfigChangeListener } from '@/shared/types/frontend-config'
+import { hexToRgb } from '@/shared/utils/ui/color.util'
 
 /**
  * 将 ui 配置中的强调色应用到 document 根元素。

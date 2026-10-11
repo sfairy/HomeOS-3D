@@ -270,9 +270,9 @@
  * - @/composables/entity/usePausableStateListener 监听实体状态变化（可暂停）
  * - @/composables/entity/useDeviceGroupMembers 的 getEntityFromStore 工具
  * - @/composables/entity/useDeviceGroupClimate 提供 climate 域专用逻辑
- * - @/utils/entity/derived.util 的 getEntityDisplayName
- * - @/constants/entity-state-labels 的 displayEntityStateLabel
- * - @/utils/core/error-message 的 getApiErrorMessage
+ * - @/shared/entity/utils/derived.util 的 getEntityDisplayName
+ * - @/shared/constants/entity-state-labels 的 displayEntityStateLabel
+ * - @/shared/utils/core/error-message 的 getApiErrorMessage
  *
  * 使用场景：
  * - DeviceGroupModal 在 domain 非 battery/offline 时渲染此列表
@@ -283,14 +283,14 @@ import { useEntitiesStore } from '@/stores/entities.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { usePausableStateListener } from '@/composables/entity/usePausableStateListener'
 import { getEntityFromStore } from '@/composables/entity/useDeviceGroupMembers'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
-import { displayEntityStateLabel } from '@/constants/entity-state-labels'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import { displayEntityStateLabel } from '@/shared/constants/entity-state-labels'
 import { useDeviceGroupClimate } from '@/composables/entity/useDeviceGroupClimate'
 import DeviceGroupActions from '@/components/entities/device-group/DeviceGroupActions.vue'
 import DeviceGroupBatchBar from '@/components/entities/device-group/DeviceGroupBatchBar.vue'
 import DeviceGroupLightCard from '@/components/entities/device-group/DeviceGroupLightCard.vue'
 import VirtualList from '@/components/common/base/VirtualList.vue'
-import { getApiErrorMessage } from '@/utils/core/error-message'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 
 /**
  * 组件 Props 定义

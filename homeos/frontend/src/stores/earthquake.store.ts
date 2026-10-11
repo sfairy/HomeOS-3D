@@ -8,11 +8,11 @@
  */
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import type { EarthquakeAlertPayload } from '@/types/earthquake'
+import type { EarthquakeAlertPayload } from '@/shared/types/earthquake'
 import { haversineDistanceKm, refineAlertCountdown } from '@homeos/shared'
 import { syncEarthquakeDismiss } from '@/composables/earthquake/earthquake-layout.util'
 import { useLayoutStore } from '@/stores/layout.store'
-import { schedulePoll } from '@/utils/core/poll-scheduler'
+import { schedulePoll } from '@/shared/utils/core/poll-scheduler'
 
 /** 自动关闭延迟（毫秒）：预警弹出 60 秒后若用户未操作则自动关闭 */
 const AUTO_DISMISS_MS = 60_000

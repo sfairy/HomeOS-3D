@@ -121,11 +121,19 @@ homeos-store/
 └── dist/                   # index.html + static
 ```
 
+> 与主应用共用的两个叶子模块（`logging_noise` 开发期重载提示降噪、`core/file_lock` 跨进程文件锁）
+> **不在本包内**：真源是 `packages/shared-py/homeos_shared`（两个后端唯一的共享源码包）。源码态由本包
+> `src/__init__.py` 挂好 `sys.path`，镜像态由构建阶段各自 COPY 后内联编译（见该目录 README 与
+> `ops/check_deploy_independence.py` 第 5 项）。原先两端「各存一份 + 孪生清单比对」的形态已收拢为唯一真源。
+
 ## 前端约定
 
 - 样式源：`frontend/public/static/theme.css` 必须先于 `store.css` / `admin.css`。
 - 构建：`bun run --cwd homeos-store build` → 工作区根 `dist/homeos-store/frontend/`；`auth-bootstrap` 仍为首屏前 IIFE。
 - 配色注入点：构建后的 `dist/homeos-store/frontend/index.html` 外壳里的 appearance 占位；漏一处会 500（刻意）。
+- 配色令牌名：本目录 `ops/appearance.py` 的 `_TOKEN_NAME` / `_TOKEN_NAME_EXTRA` 与前端
+  `frontend/src/scene/appearance.ts` 生成的名字由 `bun run verify:contracts` 对账 —— 前端生成得出来、
+  后端校验器不认，管理员保存配色就会被 422 挡掉。
 
 ## 支付后发码
 

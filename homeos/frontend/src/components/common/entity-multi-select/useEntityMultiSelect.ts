@@ -18,8 +18,8 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { useClickOutside } from '@/composables/ui/useClickOutside'
 import { useEntityPickerSession } from '@/composables/entity/useEntityPickerSession'
 import { useEntitiesStore } from '@/stores/entities.store'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
-import { getLargeEntityThreshold } from '@/utils/config/frontend-config'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import { getLargeEntityThreshold } from '@/shared/utils/config/frontend-config'
 
 /** 静态选项配置（如 HomeOS 场景） */
 interface EntityMultiSelectStaticOption {

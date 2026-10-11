@@ -10,14 +10,14 @@
  * - @homeos/shared（getEntityDomain、resolveEntityArea）
  * - vue（ref、watch、Ref、ComputedRef）
  * - @/services/api/entities（fetchEntities）
- * - @/utils/entity/select.util（formatEntitySelectOption）
- * - @/utils/entity/derived.util（getEntityDisplayName）
+ * - @/shared/entity/utils/select.util（formatEntitySelectOption）
+ * - @/shared/entity/utils/derived.util（getEntityDisplayName）
  */
 import { getEntityDomain, resolveEntityArea } from '@homeos/shared'
 import { ref, watch, type Ref, type ComputedRef } from 'vue'
 import { fetchEntities } from '@/services/api/entities'
-import { formatEntitySelectOption } from '@/utils/entity/select.util'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
+import { formatEntitySelectOption } from '@/shared/entity/utils/select.util'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 const MAX_OPTIONS = 500
 
 /** 设备搜索行：来自内存或 REST 响应的最小行形状 */

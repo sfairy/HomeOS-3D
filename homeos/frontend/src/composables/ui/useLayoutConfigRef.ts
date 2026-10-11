@@ -13,7 +13,7 @@
  */
 import { shallowRef, watch, type ShallowRef } from 'vue'
 import { useLayoutStore } from '@/stores/layout.store'
-import type { UILayoutConfig } from '@/types/layout'
+import type { UILayoutConfig } from '@/shared/types/layout'
 
 /**
  * 设置页布局引用：与 layoutStore.layoutConfig 保持深同步的 shallowRef。

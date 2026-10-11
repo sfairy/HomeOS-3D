@@ -11,7 +11,7 @@
 import { shallowRef, watch, unref, type MaybeRefOrGetter } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { usePausableStateListener } from '@/composables/entity/usePausableStateListener'
-import type { HaEntityState } from '@/types/entity-store'
+import type { HaEntityState } from '@/shared/types/entity-store'
 
 function resolveId(entityIdRef: MaybeRefOrGetter<string | undefined | null>) {
   return typeof entityIdRef === 'function' ? entityIdRef() : unref(entityIdRef)

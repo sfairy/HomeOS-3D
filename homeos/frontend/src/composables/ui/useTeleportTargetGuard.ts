@@ -19,7 +19,6 @@ const SHELL_CHILD_SELECTOR = [
   OVERLAY_SCRUB_CLASS,
   OVERLAY_SCRUB_ATTR,
   '.linkage-builder-drawer-overlay',
-  '.wr-modal-shade',
   '.saw-overlay',
   '.hos-modal-root',
   '.hos-modal-backdrop',

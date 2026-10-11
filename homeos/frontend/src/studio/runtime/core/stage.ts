@@ -1,4 +1,4 @@
-import { syncHtmlRangeProgress } from "@app/utils/range-progress";
+import { syncHtmlRangeProgress } from "@app/shared/util/range-progress";
 import { createAirerMotion as createAirerMotion2 } from "../airer/airer-motion";
 import { createFanMotion as createFanMotion2 } from "../fan/fan-motion";
 import { createCarCharging as createCarCharging2 } from "../vehicle/car-charging";

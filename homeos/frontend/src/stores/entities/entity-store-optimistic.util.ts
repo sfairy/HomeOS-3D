@@ -2,13 +2,13 @@
  * @file entity-store-optimistic.util.ts
  * @module frontend/src/stores
  * 实体 store 乐观更新（Optimistic UI）：domain/service 预测纯函数 + 有状态应用/回滚。
- * 由 utils/entity/optimistic.util.ts 的 predictOptimistic 与 entity-store-support.ts 的
- * createEntityOptimisticState 合并为完整模块（从 entity-store-support.ts 拆回）。
+ * 原由独立的 optimistic 纯函数模块与 entity-store-support.ts 的
+ * createEntityOptimisticState 合并为完整模块（从 entity-store-support.ts 拆回）；现统一在本文件导出。
  */
 import { toRaw } from 'vue'
 import { useChromeStore } from '@/stores/chrome.store'
-import { clonePlain } from '@/utils/core/clone-plain.util'
-import type { EntityOptimisticDeps, HaEntityState, OptimisticPrediction } from '@/types/entity-store'
+import { clonePlain } from '@/shared/utils/core/clone-plain.util'
+import type { EntityOptimisticDeps, HaEntityState, OptimisticPrediction } from '@/shared/types/entity-store'
 
 /**
  * 根据 domain / service 预测实体的目标状态（乐观更新）。

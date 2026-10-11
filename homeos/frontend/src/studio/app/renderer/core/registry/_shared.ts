@@ -2,7 +2,7 @@
 import {
   clampNumber as clampNumberCore,
   finiteNumberOrCoerced,
-} from "../../../utils/number";
+} from "../../../shared/util/number";
 
 /** 带 fallback 的夹取：非有限输入先落到 fallback，再夹到区间（口径统一到 app/utils/number）。 */
 export function clampNumber(rawNumber: any, lowerBound: any, upperBound: any, fallbackNumber: any) {

@@ -15,8 +15,8 @@ import {
   countNavTabs,
   highlightSearchParts,
 } from '@/features/settings/nav-search.util'
-import { tabLabel } from '@/utils/registry/settings-nav.util'
-import { getIndependentPendingTabIds } from '@/features/settings/composables/pending.internals'
+import { tabLabel } from '@/shared/utils/registry/settings-nav.util'
+import { getIndependentPendingTabIds } from '@/composables/settings-kernel/pending.internals'
 
 interface SettingsNavGroup {
   id: string

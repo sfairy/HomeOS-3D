@@ -73,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { readLocalStorageFlag, writeLocalStorage } from '@/utils/core/local-storage.util'
+import { readLocalStorageFlag, writeLocalStorage } from '@/shared/utils/core/local-storage.util'
 /**
  * 职责：实现 RightSidebar 组件的界面渲染、用户交互与 props/emit 通信。
  * 关键依赖：Vue 3 `<script setup>`、Pinia stores（按需）、类型定义、Lucide 图标与 i18n 标签。
@@ -104,15 +104,12 @@ import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
 import WidgetPanelSlot from '@/components/dashboard/WidgetPanelSlot.vue'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useScaling } from '@/composables/ui/useScaling'
-import { isTabletCompactViewport } from '@/utils/config/viewport-breakpoints.util'
-import { filterWidgetsForProfile } from '@/utils/widget/profile-filter.util'
-import type { PanelWidget } from '@/types/layout'
-import {
-  getWidgetComponent,
-  getWidgetProps,
-  getSidebarWidgetClass,
-} from '@/utils/registry/widget-registry'
-import { resolveSidebarWidgetHeightPx } from '@/utils/widget/panel-widget-height.util'
+import { isTabletCompactViewport } from '@/shared/utils/config/viewport-breakpoints.util'
+import { filterWidgetsForProfile } from '@/shared/widget/utils/profile-filter.util'
+import type { PanelWidget } from '@/shared/types/layout'
+import { getWidgetComponent, getWidgetProps } from '@/components/widgets/widget-registry'
+import { getSidebarWidgetClass } from '@/shared/utils/registry/widget-registry-meta'
+import { resolveSidebarWidgetHeightPx } from '@/shared/widget/utils/panel-widget-height.util'
 
 const layoutStore = useLayoutStore()
 

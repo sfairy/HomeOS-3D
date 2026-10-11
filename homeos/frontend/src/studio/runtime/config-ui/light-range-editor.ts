@@ -1,5 +1,5 @@
-import { clampNumber } from "../../app/utils/number";
-import { createSvgElement as createSvgNode } from "../../app/utils/svg-factory";
+import { clampNumber } from "../../app/shared/util/number";
+import { createSvgElement as createSvgNode } from "../../app/shared/util/svg-factory";
 
 const coercedFiniteNumberOr = (inputValue: any, fallback = 0) =>
     Number.isFinite(Number(inputValue)) ? Number(inputValue) : fallback,

@@ -325,14 +325,14 @@ import { computed } from 'vue'
 import { Sparkles, Trash2, Leaf, Loader2 } from '@lucide/vue'
 import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
-import SettingsOrchTabs from '@/features/settings/shared/layout/SettingsOrchTabs.vue'
+import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
 import EntityInput from '@/components/common/EntityInput.vue'
 import RoomReferenceBadges from '@/features/settings/home/RoomReferenceBadges.vue'
 import { getQuickRuleFields } from '@/features/settings/composables/env-sensor-map.internals'
 import {
   buildRoomReferenceBadges,
   roomHasEnvSensors,
-} from '@/utils/settings/room-reference-badges.util'
+} from '@/shared/utils/settings/room-reference-badges.util'
 
 // 入参：加载态、房间列表、Tab 配置、激活房间、字段元信息、隐藏数、是否显示传感器字段、待保存计数、保存回调
 const props = defineProps({

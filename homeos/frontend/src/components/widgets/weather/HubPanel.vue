@@ -67,7 +67,7 @@
 import { computed, defineAsyncComponent } from 'vue'
 import WeatherWidget from '@/components/widgets/weather/Widget.vue'
 import WidgetHubHeader from '@/components/widgets/shared/WidgetHubHeader.vue'
-import { useHubTabs } from '@/composables/widget/useHubTabs'
+import { useHubTabs } from '@/shared/widget/composables/useHubTabs'
 
 /** 气象预报部件（异步加载） */
 const WeatherForecast = defineAsyncComponent(

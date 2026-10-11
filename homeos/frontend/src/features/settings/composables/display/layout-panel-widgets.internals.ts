@@ -4,18 +4,18 @@
  */
 /** composables：面板小组件与 Widgets 面板展示 */
 import { MAX_QUICK_BUTTONS, QUICK_BUTTON_OPTIONS, normalizeQuickButtons } from '@/components/widgets/quick-actions.config'
-import type { PanelWidget } from '@/types/layout'
+import type { PanelWidget } from '@/shared/types/layout'
 import { useChromeStore } from '@/stores/chrome.store'
-import { FLOATING_HUB_DEFAULT_TAB } from '@/utils/registry/floating-hub-tab-options'
-import { cloneHomeClimateChartConfig, normalizeHomeClimateChartConfig, serializeHomeClimateChartConfig } from '@/utils/registry/home-climate-chart-options'
-import { cloneHubTabsDraft, getHubTabSet, hasConfigurableTabs, serializeHubTabsConfig } from '@/utils/registry/hub-tabs-options'
-import { cloneWeatherHubConfig, isWeatherHubWidgetType, normalizeWeatherHubConfig, serializeWeatherHubConfig } from '@/utils/registry/weather-hub-options'
-import { getDashboardWidgetCatalogGroups, getSidebarWidgetCatalogGroups, getWidgetName } from '@/utils/registry/widget-catalog'
-import { getSidebarWidgetDefaultHeight } from '@/utils/registry/widget-registry-meta'
+import { FLOATING_HUB_DEFAULT_TAB } from '@/shared/utils/registry/floating-hub-tab-options'
+import { cloneHomeClimateChartConfig, normalizeHomeClimateChartConfig, serializeHomeClimateChartConfig } from '@/shared/utils/registry/home-climate-chart-options'
+import { cloneHubTabsDraft, getHubTabSet, hasConfigurableTabs, serializeHubTabsConfig } from '@/shared/utils/registry/hub-tabs-options'
+import { cloneWeatherHubConfig, isWeatherHubWidgetType, normalizeWeatherHubConfig, serializeWeatherHubConfig } from '@/shared/utils/registry/weather-hub-options'
+import { getDashboardWidgetCatalogGroups, getSidebarWidgetCatalogGroups, getWidgetName } from '@/shared/utils/registry/widget-catalog'
+import { getSidebarWidgetDefaultHeight } from '@/shared/utils/registry/widget-registry-meta'
 import {
   clampPanelCardHeightPx,
   parsePanelCardHeightPx,
-} from '@/utils/widget/panel-widget-height.util'
+} from '@/shared/widget/utils/panel-widget-height.util'
 import type { Ref } from 'vue'
 import { computed, reactive, ref } from 'vue'
 import { confirmRemoveWidget, useWidgetEditorState } from './layout-dashboard.internals'

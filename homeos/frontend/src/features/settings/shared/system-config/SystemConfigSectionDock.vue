@@ -26,7 +26,7 @@ Props：
 <script setup>
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 
 const props = defineProps({
   sectionKey: { type: String, default: '' },

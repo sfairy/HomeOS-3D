@@ -28,15 +28,15 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import { solarToLunar } from '@/utils/format/lunar-calendar'
-import { formatLunarFullLine, formatLunarMonthDayLine } from '@/utils/format/lunar-display.util'
+import { solarToLunar } from '@/shared/utils/format/lunar-calendar'
+import { formatLunarFullLine, formatLunarMonthDayLine } from '@/shared/utils/format/lunar-display.util'
 import {
   getConfigSection,
   onConfigChange,
   loadFrontendConfig,
   configEpoch,
-} from '@/utils/config/frontend-config'
-import { formatZonedDate, getZonedParts, getZonedWallDate } from '@/utils/format/locale-time'
+} from '@/shared/utils/config/frontend-config'
+import { formatZonedDate, getZonedParts, getZonedWallDate } from '@/shared/utils/format/locale-time'
 import {
   activeDesignWidth,
   activeDesignHeight,
@@ -46,22 +46,22 @@ import { usePerfClock } from '@/composables/ui/usePerfClock'
 import { useWakeWord } from '@/composables/voice/useWakeWord'
 import { useTtsSpeak } from '@/composables/voice/useTtsSpeak'
 import { executeVoiceCommand } from '@/services/api/system'
-import { domainIndexToArray } from '@/utils/entity/derived.util'
+import { domainIndexToArray } from '@/shared/entity/utils/derived.util'
 import {
   screensaverBackgroundIdle,
   setScreensaverVisible,
-} from '@/utils/ui/screensaver-background-idle.util'
+} from '@/shared/utils/ui/screensaver-background-idle.util'
 import { useEarthquakeStore } from '@/stores/earthquake.store'
-import { schedulePoll } from '@/utils/core/poll-scheduler'
-import { weatherStateLabel } from '@/constants/weather-labels'
+import { schedulePoll } from '@/shared/utils/core/poll-scheduler'
+import { weatherStateLabel } from '@/shared/weather/constants/weather-labels'
 import {
   computeFeelsLike,
   collectSensorEntityIds,
   readAqiNumber,
   normalizeWindSpeedMs,
   numOr,
-} from '@/utils/weather/weather-metric.util'
-import { getClientDeviceId } from '@/utils/client/system.util'
+} from '@/shared/weather/utils/weather-metric.util'
+import { getClientDeviceId } from '@/shared/client/utils/system.util'
 import {
   resolveChargerSwitchWakeEntityIdForDevice,
   shouldDismissScreensaverOnChargerSwitch,

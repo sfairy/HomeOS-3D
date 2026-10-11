@@ -15,8 +15,8 @@ import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useProfileManagement } from '@/features/settings/composables/hub-backup-orchestrator.internals'
 import { useSettingsHubRouteSection } from '@/features/settings/composables/hub-ui.internals'
-import { getApiErrorMessage } from '@/utils/core/error-message'
-import { downloadBlob } from '@/utils/core/misc.util'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
+import { downloadBlob } from '@/shared/utils/core/misc.util'
 import {
   fetchServerBackupFiles,
   downloadServerBackupFile,
@@ -29,7 +29,7 @@ import {
   handleSystemConfigPatchError,
   patchSystemConfig,
 } from '@/composables/config/system-config-core.internals'
-import { formatAuditTime, formatFullDateTime } from '@/utils/format/locale-format.util'
+import { formatAuditTime, formatFullDateTime } from '@/shared/utils/format/locale-format.util'
 import {
   deleteTerminalBinding,
   fetchActiveProject,
@@ -37,8 +37,8 @@ import {
   updateProjectDefaults,
   upsertTerminalBinding,
 } from '@/services/api/config'
-import { getClientDeviceId } from '@/utils/client/system.util'
-import { inferTerminalLabel } from '@/utils/client/infer-terminal-label.util'
+import { getClientDeviceId } from '@/shared/client/utils/system.util'
+import { inferTerminalLabel } from '@/shared/client/utils/infer-terminal-label.util'
 import { bindSelfTerminalProfile } from '@/composables/config/resolve-active-profile.util'
 
 function profileLabel(projectId: string) {

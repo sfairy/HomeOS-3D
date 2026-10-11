@@ -11,7 +11,8 @@ from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
-from .file_lock import locked_file
+from homeos_shared.file_lock import locked_file
+
 from ..config import StoreSettings
 
 if TYPE_CHECKING:

@@ -509,7 +509,7 @@ import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubn
 import SettingsPendingSaveAction from '@/features/settings/shared/SettingsPendingSaveAction.vue'
 import EntityInput from '@/components/common/EntityInput.vue'
 import { useAlertRulesPanel } from '@/features/settings/composables/interact/alert-rules.internals'
-import { useRegisterSettingsTabPending } from '@/features/settings/composables/pending.internals'
+import { useRegisterSettingsTabPending } from '@/composables/settings-kernel/pending.internals'
 import { useSettingsSidebarReentryReset } from '@/composables/ui/hub-viewport.internals'
 import AlertRulesInboxSection from './alert-rules/AlertRulesInboxSection.vue'
 import AlertRulesVoiceSection from './alert-rules/AlertRulesVoiceSection.vue'

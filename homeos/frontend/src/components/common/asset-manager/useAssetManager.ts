@@ -12,7 +12,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useChromeStore } from '@/stores/chrome.store'
 import { copyTextWithNotify, notifyError } from '@/services/notify'
-import { getApiErrorMessage } from '@/utils/core/error-message'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import {
   deleteConfigAsset,
   listConfigAssets,

@@ -19,14 +19,14 @@ import {
   memoryMb,
   startFrontendPerfMonitor,
   stopFrontendPerfMonitor,
-} from '@/utils/perf/frontend-perf-monitor.util'
-import { adaptiveTier } from '@/utils/perf/adaptive-perf.util'
+} from '@/shared/utils/perf/frontend-perf-monitor.util'
+import { adaptiveTier } from '@/shared/utils/perf/adaptive-perf.util'
 import {
   isFpsSchedulerRunning,
   isDiagnosticsFpsSamplingActive,
-} from '@/utils/perf/fps-scheduler.util'
-import { getActiveSubscribeDomains } from '@/utils/entity/ws-subscription'
-import { getMaxStateListeners } from '@/utils/config/frontend-config'
+} from '@/shared/utils/perf/fps-scheduler.util'
+import { getActiveSubscribeDomains } from '@/shared/entity/utils/ws-subscription'
+import { getMaxStateListeners } from '@/shared/utils/config/frontend-config'
 import { copyTextWithNotify } from '@/services/notify'
 import {
   startPerfBaselineSampling,
@@ -36,7 +36,7 @@ import {
   exportPerfBaselineJson,
   tickPerfBaselineCounters,
   recordFpsSample,
-} from '@/utils/perf/baseline.util'
+} from '@/shared/utils/perf/baseline.util'
 
 const PERF_MODE_LABELS: Record<string, string> = {
   high: '华丽',

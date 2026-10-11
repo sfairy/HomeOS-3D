@@ -6,11 +6,13 @@
  * 约定：- 页面通过 onMounted 拉取数据，卸载时清理副作用；
   - 与子组件通信走 props/emit，不在视图层内直接写业务逻辑。
  */
-import { useEventsView } from '@/composables/events/useEventsView'
-import EventsViewHero from '@/features/events/ViewHero.vue'
-import EventsViewToolbar from '@/features/events/ViewToolbar.vue'
-import EventsViewAnalytics from '@/features/events/ViewAnalytics.vue'
-import EventsViewStream from '@/features/events/ViewStream.vue'
+import {
+  EventsViewAnalytics,
+  EventsViewHero,
+  EventsViewStream,
+  EventsViewToolbar,
+  useEventsView,
+} from '@/features/events'
 import '@/assets/styles/list-page-dual-pane.css'
 import '@/features/events/premium.css'
 

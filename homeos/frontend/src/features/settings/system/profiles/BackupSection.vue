@@ -202,7 +202,7 @@ import { Upload, Loader2, Settings, Package, HardDrive, Save, Clock, Archive } f
 import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
 import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand.vue'
 import HosSelect from '@/components/common/base/HosSelect.vue'
-import BackupRestoreDialog from '@/components/backup/BackupRestoreDialog.vue'
+import BackupRestoreDialog from './BackupRestoreDialog.vue'
 import { useProfilesSection } from './useProfilesSection'
 
 const {

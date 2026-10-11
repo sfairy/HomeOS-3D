@@ -1,4 +1,4 @@
-import { logger } from '@/utils/core/logger'
+import { logger } from '@/shared/utils/core/logger'
 /**
  * @file entity-store-subscription.util.ts
  * @module frontend/src/stores
@@ -12,9 +12,9 @@ import { logger } from '@/utils/core/logger'
  * - clearRemoteNotifications：清空通知列表
  *
  * 关键依赖：
- * - @/utils/entity/state-listener：监听器注册 / 派发 / 计数 / 统计
- * - @/utils/config/frontend-config：maxStateListeners / maxRemoteNotifications / 热重载
- * - @/utils/format/locale-format.util：时间格式化
+ * - @/shared/entity/utils/state-listener：监听器注册 / 派发 / 计数 / 统计
+ * - @/shared/utils/config/frontend-config：maxStateListeners / maxRemoteNotifications / 热重载
+ * - @/shared/utils/format/locale-format.util：时间格式化
  *
  * 实现说明：
  * - 同一通知可能经 Socket 即时推送与 REST 重新拉取（如重连刷新）多次到达，按 id 去重避免重复
@@ -28,19 +28,19 @@ import type {
   RegisterStateListenerOptions,
   RemoteNotificationEntry,
   RemoteNotificationPayload,
-} from '@/types/entity-store'
+} from '@/shared/types/entity-store'
 import {
   getFrontendConfig,
   getMaxStateListeners,
   reloadFrontendConfig,
-} from '@/utils/config/frontend-config'
+} from '@/shared/utils/config/frontend-config'
 import {
   dispatchStateListener,
   getStateListenerCount,
   getStateListenerStats,
   registerStateListener,
-} from '@/utils/entity/state-listener'
-import { formatLocaleTime } from '@/utils/format/locale-format.util'
+} from '@/shared/entity/utils/state-listener'
+import { formatLocaleTime } from '@/shared/utils/format/locale-format.util'
 
 // ── entity-store-subscription.util ──
 /**

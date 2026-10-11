@@ -78,8 +78,8 @@ import { RouterLink } from 'vue-router'
 import { CircleSlash, LayoutGrid, Unlink } from '@lucide/vue'
 import PowerCardBody from '@/components/dashboard/PowerCardBody.vue'
 import { useDashboardFooter } from '@/composables/ui/useDashboardFooter'
-import { formatMissingAccountBindingHint } from '@/constants/account-binding-meta'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+import { formatMissingAccountBindingHint } from '@/shared/constants/account-binding-meta'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 
 // 来自 useDashboardFooter 的核心状态：是否展示底栏、可见项、各类空态判定标志
 const {

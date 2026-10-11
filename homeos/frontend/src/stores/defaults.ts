@@ -9,11 +9,11 @@
  * 依赖：constants 下的 energy-fields / dashboard-footer / whole-home-off / ha，
  *      types/earthquake（默认地震配置），types/layout（UILayoutConfig 类型）。
  */
-import { createDefaultEnergySources } from '@/constants/energy-fields'
-import { createDefaultDashboardFooter } from '@/constants/dashboard-footer'
-import { createDefaultWholeHomeOff } from '@/constants/whole-home-off'
-import { createDefaultEarthquakeConfig } from '@/types/earthquake'
-import type { UILayoutConfig } from '@/types/layout'
+import { createDefaultEnergySources } from '@/shared/energy/constants/energy-fields'
+import { createDefaultDashboardFooter } from '@/shared/constants/dashboard-footer'
+import { createDefaultWholeHomeOff } from '@/shared/constants/whole-home-off'
+import { createDefaultEarthquakeConfig } from '@/shared/types/earthquake'
+import type { UILayoutConfig } from '@/shared/types/layout'
 
 /**
  * 构建默认布局

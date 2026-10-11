@@ -7,11 +7,11 @@
  *  - 同步用户关闭的预警到后端；
  *  - 格式化震级展示与颜色分级。
  *
- * 依赖：@/stores/layout.store、@/services/api/earthquake、@/utils/core/logger。
+ * 依赖：@/stores/layout.store、@/services/api/earthquake、@/shared/utils/core/logger。
  */
 import { useLayoutStore } from '@/stores/layout.store'
 import { dismissEarthquakeAlert } from '@/services/api/earthquake'
-import { logger } from '@/utils/core/logger'
+import { logger } from '@/shared/utils/core/logger'
 
 /**
  * 前端是否应接受 EEW 告警（须 layout 中已启用）。

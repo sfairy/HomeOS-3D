@@ -1,4 +1,4 @@
-import { randomUuid } from "../../utils/random-id";
+import { randomUuid } from "../../shared/util/random-id";
 import { componentActionIsSupported } from "../../shared/action-rules";
 
 export const maxRuntimeEntitySubscriptions = 1000,

@@ -13,8 +13,8 @@
  *
  * 依赖：
  *   - @/stores/entities.store.useEntitiesStore：实体来源（用于名称解析）。
- *   - @/utils/entity/entity-derived.util.getEntityDisplayName：实体显示名解析。
- *   - @/utils/device/domain-labels.util.getDomainLabel：域标签。
+ *   - @/shared/entity/utils/derived.util.getEntityDisplayName：实体显示名解析。
+ *   - @/shared/device/utils/domain-labels.util.getDomainLabel：域标签。
  *   - 各子 composable（见 import）。
  */
 import {
@@ -27,8 +27,8 @@ import {
   type ComponentPublicInstance,
 } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
-import { getDomainLabel } from '@/utils/device/domain-labels.util'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import { getDomainLabel } from '@/shared/device/utils/domain-labels.util'
 import { useDeviceAnalyticsDashboard } from '@/composables/device/useDeviceAnalyticsDashboard'
 import { useDeviceAnalyticsMetrics } from '@/composables/device/useDeviceAnalyticsMetrics'
 import { useDeviceHealthTrend } from '@/composables/device/useDeviceHealthTrend'

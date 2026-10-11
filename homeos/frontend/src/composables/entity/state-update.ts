@@ -22,19 +22,19 @@ import type {
   HaEntityState,
   OptimisticPrediction,
   ResolveListenerOldStateArgs,
-} from '@/types/entity-store'
+} from '@/shared/types/entity-store'
 import {
   mergeWsStateChange,
   normalizeWsBatchChange,
   type WsDeltaChange,
-} from '@/utils/entity/state-delta.util'
+} from '@/shared/entity/utils/state-delta.util'
 import {
   dispatchStateListener,
   enqueueStateListenerNotifications,
   notifyStateListener,
   stateListenerPayloadFingerprint,
-} from '@/utils/entity/state-listener'
-import { EVENT_LOG_OVERLAY_DOMAINS } from '@/utils/entity/event-log-domains.util'
+} from '@/shared/entity/utils/state-listener'
+import { EVENT_LOG_OVERLAY_DOMAINS } from '@/shared/entity/utils/event-log-domains.util'
 
 const IMMEDIATE_DOMAINS = new Set<string>(EVENT_LOG_OVERLAY_DOMAINS)
 

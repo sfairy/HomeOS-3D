@@ -10,6 +10,7 @@ import { useStoreToast } from "../../stores/toast.js";
 import { api } from "../../api/http.js";
 import { formatCents as money } from "../../money.js";
 import { errorMessage, type StoreLicense } from "../../store-types.js";
+import { copyText } from "../../utils/clipboard.js";
 
 const route = useRoute();
 const router = useRouter();
@@ -279,13 +280,10 @@ async function submit() {
 }
 
 async function share() {
-  try {
-    await navigator.clipboard.writeText(location.href);
-    shareLabel.value = "已复制链接";
-    window.setTimeout(() => (shareLabel.value = "复制商品链接"), 2000);
-  } catch {
-    toast.show("复制失败，请手动复制地址栏链接。", "err");
-  }
+  // 走共享包内核（HTTP 非安全上下文会降级 execCommand），不再裸调 navigator.clipboard。
+  if (!(await copyText(location.href))) return;
+  shareLabel.value = "已复制链接";
+  window.setTimeout(() => (shareLabel.value = "复制商品链接"), 2000);
 }
 </script>
 

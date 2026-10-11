@@ -14,16 +14,16 @@
  * - @/stores/entities.store（实体状态与索引）
  * - @/services/api/entities（fetchEntities REST 搜索）
  * - @/composables/ui/useDropdownPosition（下拉定位）
- * - @/utils/entity/derived.util（collectIndexedEntityIds 索引收集）
- * - @/utils/config/frontend-config（getLargeEntityThreshold 大库阈值）
+ * - @/shared/entity/utils/derived.util（collectIndexedEntityIds 索引收集）
+ * - @/shared/utils/config/frontend-config（getLargeEntityThreshold 大库阈值）
  */
 import { getEntityDomain } from '@homeos/shared'
 import { ref, computed, watch, onUnmounted, type Ref, type ComputedRef } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { fetchEntities } from '@/services/api/entities'
 import { useDropdownPosition } from '@/composables/ui/useDropdownPosition'
-import { collectIndexedEntityIds } from '@/utils/entity/derived.util'
-import { getLargeEntityThreshold } from '@/utils/config/frontend-config'
+import { collectIndexedEntityIds } from '@/shared/entity/utils/derived.util'
+import { getLargeEntityThreshold } from '@/shared/utils/config/frontend-config'
 
 /** REST 返回的实体行：最小行形状 */
 type EntityPickerRestItem = { entity_id: string; [key: string]: unknown }

@@ -9,27 +9,27 @@
  *   monitored_entities 多种字段命名与友好名→entity_id 映射）。
  *
  * 依赖：
- * - @/composables/device/group-offline.util 提供 offline 分组的 critical 集合与其他离线实体。
- * - @/composables/device/group-battery.util 提供 battery 分组查询与 DeviceGroup*StoreLike 共享类型。
+ * - @/shared/device/utils/group-offline.util 提供 offline 分组的 critical 集合与其他离线实体。
+ * - @/shared/device/utils/group-battery.util 提供 battery 分组查询与 DeviceGroup*StoreLike 共享类型。
  * - @/composables/entity/useEntityDisplayEpoch 触摸派生 epoch，确保读取最新派生索引。
- * - @/utils/entity/derived.util 的 domainIndexToArray。
+ * - @/shared/entity/utils/derived.util 的 domainIndexToArray。
  *
  * 注意：domain key（offline / battery / climate / light ...）为分组标识符，不翻译。
  */
-import { computeOfflineCriticalSet, listOfflineOtherEntityIds } from '@/composables/device/group-offline.util'
+import { computeOfflineCriticalSet, listOfflineOtherEntityIds } from '@/shared/device/utils/group-offline.util'
 import {
   BATTERY_LOW_THRESHOLD,
   countBatteryLow,
   listBatteryEntityIds,
   resolveBatteryLevel,
-} from '@/composables/device/group-battery.util'
+} from '@/shared/device/utils/group-battery.util'
 import { touchEntityStoreDisplayDeps } from '@/composables/entity/useEntityDisplayEpoch'
-import { domainIndexToArray } from '@/utils/entity/derived.util'
-import type { HaEntityState } from '@/types/entity-store'
+import { domainIndexToArray } from '@/shared/entity/utils/derived.util'
+import type { HaEntityState } from '@/shared/types/entity-store'
 import type {
   DeviceGroupEntitiesStoreLike,
   DeviceGroupUiStoreLike,
-} from '@/composables/device/group-battery.util'
+} from '@/shared/device/utils/group-battery.util'
 
 type EntityStoreSlice = DeviceGroupEntitiesStoreLike & {
   friendlyNamesMap?: Record<string, string> | Record<string, { entity_id?: string } | undefined>

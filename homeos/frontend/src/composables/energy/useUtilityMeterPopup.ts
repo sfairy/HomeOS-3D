@@ -6,21 +6,17 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import type { ECharts } from 'echarts'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import { parseDateParts } from '@/composables/energy/useUtilityMeter'
+import { parseDateParts } from '@/shared/energy'
 import {
   resolveAccountEntityIds,
   normalizeEnergySource,
-} from '@/utils/energy/source.util'
-import { readPopupField } from '@/utils/energy/popup-read.util'
-import {
-  readPopupAttr,
-  parseJsonAttr,
-  parseNumAttr,
-} from '@/composables/energy/utility-entity-helpers'
-import type { UtilityMeterParsedItem } from '@/composables/energy/utility-meter-parse-helpers'
-import { resolveAccountLabelForEntityId } from '@/utils/energy/account.util'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
-import type { EnergyCategory } from '@/constants/energy-fields'
+} from '@/shared/energy/utils/source.util'
+import { readPopupField } from '@/shared/energy/utils/popup-read.util'
+import { readPopupAttr, parseJsonAttr, parseNumAttr } from '@/shared/energy'
+import type { UtilityMeterParsedItem } from '@/shared/energy'
+import { resolveAccountLabelForEntityId } from '@/shared/energy/utils/account.util'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import type { EnergyCategory } from '@/shared/energy/constants/energy-fields'
 
 type ChartEl = HTMLElement & { _chart?: ECharts | null }
 
@@ -322,7 +318,7 @@ export function useUtilityMeterPopup(opts: UtilityMeterPopupOpts) {
     if (typeof document !== 'undefined' && document.hidden) return
     if (!el || !data.length) return
     if (el.clientWidth === 0 || el.clientHeight === 0) return
-    const echarts = (await import('@/utils/chart/echarts')).default
+    const echarts = (await import('@/shared/utils/chart/echarts')).default
     // 动态 import 期间容器可能已被重复渲染/关闭：init 前再清理一次，避免僵尸实例
     if (el._chart) el._chart.dispose()
     const chart = echarts.init(el)

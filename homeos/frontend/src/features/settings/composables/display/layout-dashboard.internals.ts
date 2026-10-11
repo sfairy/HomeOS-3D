@@ -5,9 +5,9 @@
 /** composables：嵌入页 / Dashboard 页脚 / Hero 轮播 / 楼层管理 / 小组件编辑 / 布局快照 */
 import { useDropdownPosition } from '@/composables/ui/useDropdownPosition'
 import { useClickOutside } from '@/composables/ui/useClickOutside'
-import { clonePlain } from '@/utils/core/clone-plain.util'
-import { ENERGY_FIELD_DEFS, type EnergyFieldDef } from '@/constants/energy-fields'
-import { ACCOUNT_BINDING_SOURCE_OPTIONS } from '@/constants/account-binding-meta'
+import { clonePlain } from '@/shared/utils/core/clone-plain.util'
+import { ENERGY_FIELD_DEFS, type EnergyFieldDef } from '@/shared/energy/constants/energy-fields'
+import { ACCOUNT_BINDING_SOURCE_OPTIONS } from '@/shared/constants/account-binding-meta'
 import {
   createDefaultDashboardFooterItems,
   createFooterItem,
@@ -16,16 +16,16 @@ import {
   DASHBOARD_FOOTER_PRESETS,
   normalizeDashboardFooter,
   resolveFooterItemLabel,
-} from '@/constants/dashboard-footer'
-import type { DashboardFooterItem, FooterFieldOption } from '@/types/dashboard-footer'
+} from '@/shared/constants/dashboard-footer'
+import type { DashboardFooterItem, FooterFieldOption } from '@/shared/types/dashboard-footer'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import { createDefaultEarthquakeConfig } from '@/types/earthquake'
-import type { HaConfig, StatsSensorsConfig, UILayoutConfig } from '@/types/layout'
-import { EMBED_ICON_LABELS, embedIconMap, embedLucidIcons, resolveEmbedIconByIndex } from '@/utils/layout/embed-icons.util'
-import { EMBED_TAB_ACCENTS, resolveEmbedIconAccent, resolveEmbedTabAccent } from '@/utils/layout/embed-nav-theme.util'
-import { getEmbedBlockReason } from '@/utils/layout/embed-url.util'
-import { pruneNavTabsForRemovedEmbed } from '@/utils/layout/nav-tabs.util'
+import { createDefaultEarthquakeConfig } from '@/shared/types/earthquake'
+import type { HaConfig, StatsSensorsConfig, UILayoutConfig } from '@/shared/types/layout'
+import { EMBED_ICON_LABELS, embedIconMap, embedLucidIcons, resolveEmbedIconByIndex } from '@/shared/utils/layout/embed-icons.util'
+import { EMBED_TAB_ACCENTS, resolveEmbedIconAccent, resolveEmbedTabAccent } from '@/shared/utils/layout/embed-nav-theme.util'
+import { getEmbedBlockReason } from '@/shared/utils/layout/embed-url.util'
+import { pruneNavTabsForRemovedEmbed } from '@/shared/utils/layout/nav-tabs.util'
 import { copyTextWithNotify } from '@/services/notify'
 import { useSettingsHubRouteSection } from '@/features/settings/composables/hub-ui.internals'
 import type { Ref } from 'vue'

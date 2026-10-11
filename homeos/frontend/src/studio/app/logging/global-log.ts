@@ -1,4 +1,4 @@
-import type { DomControl } from "@app/utils/dom-control";
+import type { DomControl } from "@app/shared/util/dom-control";
 const LEVEL_LABELS = {
   info: "信息",
   success: "成功",

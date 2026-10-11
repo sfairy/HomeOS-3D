@@ -10,11 +10,11 @@
  * 实体状态标签常量、HaEntityState 类型。
  */
 import { computed, type ComputedRef, type Ref, type PropType } from 'vue'
-import { popupDomainStateLabel } from '@/constants/entity-state-labels'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
+import { popupDomainStateLabel } from '@/shared/constants/entity-state-labels'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import { useLiveEntity } from '@/composables/entity/useLiveEntity'
 import { useHaEntityService } from '@/composables/entity/useHaEntityService'
-import type { HaEntityState } from '@/types/entity-store'
+import type { HaEntityState } from '@/shared/types/entity-store'
 
 /** 实体引用类型：可为 Ref 或 ComputedRef，统一为只读快照。 */
 type EntityRefLike = Ref<HaEntityState | Record<string, unknown> | null | undefined> | ComputedRef<HaEntityState | Record<string, unknown> | null | undefined>

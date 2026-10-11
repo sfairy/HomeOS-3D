@@ -29,7 +29,7 @@
 import { computed } from 'vue'
 import { Users, RefreshCw, Loader2, ExternalLink, ChevronRight } from '@lucide/vue'
 import { RouterLink } from 'vue-router'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 
 const props = defineProps({
   presenceMembers: { type: Array, default: () => [] },

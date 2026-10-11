@@ -10,7 +10,7 @@ import {
   matchesTemperatureHumidityEntity,
   ENVIRONMENT_SENSORS,
 } from "../temperature-humidity";
-import type { HaEntityEntry } from "@app/utils/ha-entity";
+import type { HaEntityEntry } from "@app/shared/util/ha-entity";
 import { alarmDeviceProfiles } from "@/studio/platform/security-alarm-profile";
 const DEFAULT_LIGHT_ICON = "mdi:lightbulb-outline",
   isValidIconId = (iconId: any) =>

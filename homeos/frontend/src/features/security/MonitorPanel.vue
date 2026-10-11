@@ -188,9 +188,9 @@ import { useChromeStore } from '@/stores/chrome.store'
 import { useEntityDisplayEpoch } from '@/composables/entity/useEntityDisplayEpoch'
 import SecurityCameraTile from '@/features/security/CameraTile.vue'
 import HaCameraStream from '@/components/HaCameraStream.vue'
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
-import { primaryDoorbellCameraId } from '@/utils/layout/doorbell.util'
-import { schedulePoll } from '@/utils/core/poll-scheduler'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import { primaryDoorbellCameraId } from '@/shared/utils/layout/doorbell.util'
+import { schedulePoll } from '@/shared/utils/core/poll-scheduler'
 
 // 入参：面板是否激活、当前告警传感器数量
 defineProps({

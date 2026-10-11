@@ -17,11 +17,11 @@
  * - frontend-config（getConfigSection/configEpoch）
  * - logger（错误日志）
  */
-import { readLocalStorage, writeLocalStorage } from '@/utils/core/local-storage.util'
+import { readLocalStorage, writeLocalStorage } from '@/shared/utils/core/local-storage.util'
 
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { getConfigSection, configEpoch } from '@/utils/config/frontend-config'
-import { logger } from '@/utils/core/logger'
+import { getConfigSection, configEpoch } from '@/shared/utils/config/frontend-config'
+import { logger } from '@/shared/utils/core/logger'
 // 设计稿基准宽度（取 ui 配置 scaleBaseWidth，缺省 1366）
 const baseWidth = () => getConfigSection('ui').scaleBaseWidth ?? 1366
 // 设计稿基准高度（取 ui 配置 scaleBaseHeight，缺省 1024）

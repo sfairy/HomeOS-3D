@@ -208,7 +208,7 @@ import { RouterLink } from 'vue-router'
 import { Flame, Zap, PlayCircle } from '@lucide/vue'
 import EntityMultiSelect from '@/components/common/EntityMultiSelect.vue'
 import HazardBindingStatusPanel from '@/features/settings/connect/bindings/HazardBindingStatusPanel.vue'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import { useHazardBindingsSection } from '@/features/settings/composables/automate/security-modes-extras.internals'
 
 // 入参：测试中、演习中、演习提示文案与是否成功

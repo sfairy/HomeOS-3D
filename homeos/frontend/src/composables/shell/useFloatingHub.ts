@@ -2,8 +2,8 @@
  * @file useFloatingHub.ts
  * @module frontend/src/composables
  */
-import { getEntityDisplayName } from '@/utils/entity/derived.util'
-import { formatLocaleTime } from '@/utils/format/locale-format.util'
+import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
+import { formatLocaleTime } from '@/shared/utils/format/locale-format.util'
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch, type Ref } from 'vue'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useEntitiesStore } from '@/stores/entities.store'
@@ -16,10 +16,10 @@ import {
   isWaterEntity,
   isCommEntity,
   isUtilityEntity,
-} from '@/composables/entity/useEntityType'
-import { isFloatingPanelType, FLOATING_HUB_WIDTH_MAP } from '@/utils/registry/widget-registry'
-import type { FloatingWidget } from '@/types/layout'
-import type { FloatingHubContext } from '@/types/floating-hub'
+} from '@/shared/entity/utils/entity-type.util'
+import { isFloatingPanelType, FLOATING_HUB_WIDTH_MAP } from '@/shared/utils/registry/widget-registry-meta'
+import type { FloatingWidget } from '@/shared/types/layout'
+import type { FloatingHubContext } from '@/shared/types/floating-hub'
 import {
   getPanelEdgeAnchorFromRect,
   getWidgetAnchorTransform,
@@ -28,12 +28,12 @@ import {
   rectCenterPct,
   sanitizeWidgetPct,
   isValidRootRect,
-} from '@/utils/floorplan/floating-hub-layout.util'
+} from '@/shared/floorplan/utils/floating-hub-layout.util'
 import {
   buildAfhAccentStyle,
   resolveAfhWidgetTheme,
-} from '@/composables/entity/floating-entity-colors.util'
-import { resolveAqiSensorId, collectSensorEntityIds } from '@/utils/weather/weather-metric.util'
+} from '@/shared/entity/utils/floating-entity-colors.util'
+import { resolveAqiSensorId, collectSensorEntityIds } from '@/shared/weather/utils/weather-metric.util'
 
 const AsyncUtilityMeterInfoPopup = defineAsyncComponent(
   () => import('@/components/entities/popups/UtilityMeterInfoPopup.vue'),

@@ -274,7 +274,7 @@ import SettingsLayoutDisplaySection from '@/features/settings/display/layout/Set
 import SettingsLayoutFooterSection from '@/features/settings/display/layout/SettingsLayoutFooterSection.vue'
 import { useDashboardFooterEditor } from '@/features/settings/composables/display/layout-dashboard.internals'
 import { useScaling } from '@/composables/ui/useScaling'
-import { reloadFrontendConfig } from '@/utils/config/frontend-config'
+import { reloadFrontendConfig } from '@/shared/utils/config/frontend-config'
 import {
   handleSystemConfigPatchError,
   useSystemConfig,
@@ -283,11 +283,11 @@ import { useAuthStore } from '@/stores/auth.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
 import NavTabEditor from './NavTabEditor.vue'
-import { markPerformanceModeUserSet } from '@/utils/perf/tablet-default-perf.util'
-import { applyGlassEffectDocument } from '@/utils/ui/glass-effect.util'
+import { markPerformanceModeUserSet } from '@/shared/utils/perf/tablet-default-perf.util'
+import { applyGlassEffectDocument } from '@/shared/utils/ui/glass-effect.util'
 import { useSettingsSidebarReentryReset } from '@/composables/ui/hub-viewport.internals'
 import { useSettingsHubRouteSection } from '@/features/settings/composables/hub-ui.internals'
-import { useSettingsPendingChanges } from '@/features/settings/composables/pending.internals'
+import { useSettingsPendingChanges } from '@/composables/settings-kernel/pending.internals'
 
 const props = defineProps({ activeTab: { type: String, default: 'general' } })
 

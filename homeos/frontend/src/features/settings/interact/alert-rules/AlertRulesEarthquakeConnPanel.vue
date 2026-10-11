@@ -108,7 +108,7 @@ import { Loader2, Radio } from '@lucide/vue'
 import SettingsCard from '@/components/common/page-shell/SettingsCard.vue'
 import SettingsSectionHead from '@/features/settings/shared/layout/SettingsSectionHead.vue'
 import type { EarthquakeStatusPayload } from '@/services/api/earthquake'
-import { formatLocaleString } from '@/utils/format/locale-format.util'
+import { formatLocaleString } from '@/shared/utils/format/locale-format.util'
 
 const props = defineProps<{
   loading?: boolean

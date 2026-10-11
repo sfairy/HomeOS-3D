@@ -11,12 +11,12 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useChromeStore } from '@/stores/chrome.store'
-import { logger } from '@/utils/core/logger'
-import { getBackendUnreachableHint, isBackendUnreachableError } from '@/utils/core/error-message'
-import { withBackendBootRetry } from '@/utils/core/api-boot-retry.util'
-import { isDynamicImportFailure, lazyView, reloadOnceForStaleChunk } from '@/utils/core/lazy-component'
+import { logger } from '@/shared/utils/core/logger'
+import { getBackendUnreachableHint, isBackendUnreachableError } from '@/shared/utils/core/error-message'
+import { withBackendBootRetry } from '@/shared/utils/core/api-boot-retry.util'
+import { isDynamicImportFailure, lazyView, reloadOnceForStaleChunk } from '@/shared/utils/core/lazy-component'
 import { resolveNavigationTarget } from './auth.util'
-import { registerShellNavigation } from '@/studio/platform/shell-navigation'
+import { loadDisplayView, loadEditorView, loadStudioView, registerShellNavigation } from '@/studio'
 import {
   getLicenseActivated,
   hasLicenseFeatureAccess,
@@ -25,13 +25,13 @@ import {
   setLicenseFeatureAccess,
   shouldRefreshLicenseStatus,
 } from './license-gate'
-import type { SystemInitState } from '@/types/router'
+import type { SystemInitState } from '@/shared/types/router'
 import { getLicenseAvailability, getLicenseStatus } from '@/services/api/license'
-import { PAGE_ASSETS as STUDIO_ASSETS } from '@/studio/page-assets'
-import LoginView from '@/studio/views/LoginView.vue'
-import RegisterView from '@/studio/views/RegisterView.vue'
-import LicenseView from '@/studio/views/LicenseView.vue'
-import LicenseRecoveryView from '@/studio/views/LicenseRecoveryView.vue'
+import { PAGE_ASSETS as STUDIO_ASSETS } from '@/studio'
+import LoginView from '@/views/auth/LoginView.vue'
+import RegisterView from '@/views/auth/RegisterView.vue'
+import LicenseView from '@/views/auth/LicenseView.vue'
+import LicenseRecoveryView from '@/views/auth/LicenseRecoveryView.vue'
 
 /** 系统初始化状态缓存：null=未检查、true=已初始化、false=未初始化、'offline'=后端不可达 */
 let systemInitialized: SystemInitState = null
@@ -89,7 +89,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/display/:projectId',
     name: 'display',
-    component: lazyView(() => import('@/studio/views/DisplayView.vue')),
+    component: lazyView(loadDisplayView),
     meta: { assets: STUDIO_ASSETS.display },
   },
   {
@@ -97,14 +97,14 @@ const routes: RouteRecordRaw[] = [
     // 整体取用，因此参数必须吃下斜杠。
     path: '/homeos/:name(.*)',
     name: 'homeos',
-    component: lazyView(() => import('@/studio/views/DisplayView.vue')),
+    component: lazyView(loadDisplayView),
     meta: { assets: STUDIO_ASSETS.display },
   },
   // 户型图绘制工具（仅从「设置 → 布局」进入）
   {
     path: '/3d-studio',
     name: 'studio',
-    component: lazyView(() => import('@/studio/views/StudioView.vue')),
+    component: lazyView(loadStudioView),
     meta: { assets: STUDIO_ASSETS.studio, requiresAuth: true },
   },
   // 仪表盘编辑器（仅从「设置 → 布局」进入）。
@@ -112,7 +112,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/studio/editor',
     name: 'studio-editor',
-    component: lazyView(() => import('@/studio/views/EditorView.vue')),
+    component: lazyView(loadEditorView),
     meta: { assets: STUDIO_ASSETS.editor, requiresAuth: true },
   },
   {
@@ -125,7 +125,7 @@ const routes: RouteRecordRaw[] = [
     // ——漏声明时 class 会在首次导航后被摘掉，总览里的 3D 部件就会退化成整套户型图绘制页。
     path: '/api/v1/modules/interaction3d/stage.html',
     name: 'stage',
-    component: lazyView(() => import('@/studio/views/StudioView.vue')),
+    component: lazyView(loadStudioView),
     meta: { assets: STUDIO_ASSETS.studio, bodyClass: 'interaction3d-stage' },
   },
   {
@@ -139,7 +139,7 @@ const routes: RouteRecordRaw[] = [
         // 编辑 / 户型图绘制等创作能力不再出现在总览，只能从「设置 → 布局」进入。
         path: '',
         name: 'dashboard',
-        component: lazyView(() => import('@/studio/views/DisplayView.vue')),
+        component: lazyView(loadDisplayView),
         meta: { assets: STUDIO_ASSETS.display },
       },
       {

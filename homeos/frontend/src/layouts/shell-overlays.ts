@@ -19,7 +19,7 @@
  */
 export { default as MediaPlayerModal } from '@/components/modals/MediaPlayerModal.vue'
 export { default as DoorbellAlertModal } from '@/components/modals/DoorbellAlertModal.vue'
-export { default as EarthquakeSetupWizard } from '@/components/earthquake/SetupWizard.vue'
+export { SetupWizard as EarthquakeSetupWizard } from '@/features/earthquake'
 export { default as SettingsLockModal } from '@/components/modals/SettingsLockModal.vue'
 export { default as NotificationDrawer } from '@/components/modals/NotificationDrawer.vue'
 export { default as SetupChecklistBanner } from '@/components/setup/ChecklistBanner.vue'

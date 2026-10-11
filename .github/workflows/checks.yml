@@ -36,16 +36,29 @@ jobs:
       - name: Install and typecheck
         run: |
           bun install --frozen-lockfile
+          # 注意：根 `typecheck` 会先跑 `build:shared` —— 主应用从 `@homeos/shared` 的 `dist/`
+          # 取类型，而 `dist/` 被 gitignore，干净检出上不先建就是一片 TS2307。
           bun run typecheck
-          # 前端分层依赖门禁（主应用 + studio + store）。
+          # 前端门禁：分层依赖方向（主应用 + studio）＋ 引用可解析性（import spec 与注释里的 `@/`
+          # 都真去文件系统解析；含它自己的负向自检）。store 侧另有一条。
           bun run --cwd homeos/frontend check:deps
           bun run --cwd homeos-store check:store-deps
+          # ESLint：两个前端各一套配置，但规则核只有一个真源（ops/eslint/frontend-core.mjs）。
+          # 商店此前**完全没有** lint 配置（75 个源文件裸奔），P5 补上并一起进 CI。
+          # `--max-warnings 0` 是刻意的：风格规则也当硬失败，否则「新加的单引号」会慢慢攒成
+          # 第二批存量 —— 商店那 45 条零散单引号就是这么来的，已经 `--fix` 抹平。
+          bun run --cwd homeos/frontend lint:ci
+          bun run --cwd homeos-store lint:ci
+          # studio 度量 KPI（单体余量 / 域清单 / 同名冲突三条，纯静态解析的 Python 脚本）：
+          # 此前**只在本地手动跑**，而它的作用正是「防拆分成果悄悄退化」—— 不进 CI 等于没有。
+          bun run kpi:studio
           # 三条 vite 配置不在两个子项目 tsconfig 的 include 里，单独用根 tsconfig.node.json
           # 按 strict 检查一遍（此前完全没被任何门禁覆盖）。
           bun run typecheck:node
           # 零 @ts-nocheck 门禁（硬失败）。
           # 不用 rg：runner 默认不保证装了 ripgrep，grep 更稳。
-          # 扫 frontend 全目录而非仅 src：vite.config.ts / vite-quiet-logger.ts 等同样在 tsconfig 内。
+          # 扫 frontend 全目录而非仅 src：vite.config.ts / vite-studio.ts / vite-plugin-*.ts
+          # 等同样在 tsconfig 内。
           # 允许前导空白，避免缩进写的 pragma 逃过检查。
           leftovers="$(
             grep -RIlE --include='*.ts' --exclude-dir=node_modules --exclude-dir=dist \
@@ -59,12 +72,24 @@ jobs:
             exit 1
           fi
           echo "零 @ts-nocheck：通过"
-          # Esc 层级栈回归：静态扫描全部 overlay 是否都走 useEscLayer，并跑一遍栈行为
-          # （压栈/出栈/优先级/defaultPrevented 旁路）。纯源码扫描，不需要构建后端。
+          # 前端纯逻辑冒烟：与根 package.json 的 `verify:smoke:frontend` 同一组，只加一半会留下缺口。
+          # Esc 层级栈（静态扫全部 overlay 是否都走 useEscLayer + 栈行为）、实体控制内核
+          # （cover 方向 / HSV 饱和 / 水电燃气字段不串 / 乐观推送合并）、场景更新计划。
+          # 编辑器请求面（401/403 跳转分支 + 认证跳转闩「每实例一份」+ 超时/中止 + CSRF 头）。
+          # 纯源码扫描与直调内核，不需要构建、不需要后端。
+          # 这一组此前**只在本地手动跑**，后果实打实：`_entity_control_logic_smoke.ts` 的相对导入在
+          # entity/device 批次后指向了已迁走的文件，它就一直 RED —— 而没有任何门禁执行过它。
           bun run homeos/frontend/scripts/_esc_stack_smoke.ts
-          # 未使用 JS/TS、功能码镜像、场景资源副本、TS↔Python 黄金契约。
+          bun run homeos/frontend/scripts/_entity_control_logic_smoke.ts
+          bun run homeos/frontend/scripts/_scene_update_plan_smoke.ts
+          bun run homeos/frontend/scripts/_request_json_smoke.ts
+          # 未使用 JS/TS、功能码镜像、场景资源副本、TS↔Python 黄金契约 + 独立部署护栏。
           # 黄金契约里还链着 `check_shared_contracts_selftest.py`：给门禁注入各类漂移，
           # 确认它真的会拦 —— 解析型门禁最常见的死法是「匹配不到就跳过」，此后永远报绿。
+          # 独立部署护栏（`verify:contracts` 链内的 `verify:independence`）同理，自带 33 项注入式
+          # 断言：两后端 / 两前端 / 两份 package.json 互不引用；Dockerfile 统一构建阶段只装
+          # `${PROJECT}` 的源码、`ARG PROJECT` 不许有默认值、case 分支与 ops/build.py 的项目表
+          # 双向对账（改一边忘另一边会立刻红）、运行阶段不得装进对方的产物。
           # 放在 typecheck 里是为了和 bun install 共用一次，并在 build 之前失败。
           bun run knip
           bun run verify:features

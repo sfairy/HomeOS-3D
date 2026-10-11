@@ -12,8 +12,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { build as esbuildBuild } from "esbuild";
 import type { Plugin } from "vite";
+import { bundleClassicIife } from "../../ops/vite/build-helpers.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -117,19 +117,8 @@ export function runtimeVendorAssetPlugin(): Plugin {
  */
 export async function writeClassicIifeBundles(targetOutDir: string): Promise<void> {
   for (const [name, entry] of Object.entries(classicEntries)) {
-    if (!fs.existsSync(entry)) continue;
-    const outfile = path.join(targetOutDir, "static", `${name}.js`);
-    fs.mkdirSync(path.dirname(outfile), { recursive: true });
-    await esbuildBuild({
-      entryPoints: [entry],
-      outfile,
-      bundle: true,
-      format: "iife",
-      platform: "browser",
-      target: "es2022",
-      minify: true,
-      logLevel: "silent",
-    });
+    // esbuild 的参数集（format/target/minify…）在共用助手里，与商店同一份；入口缺失时跳过。
+    await bundleClassicIife({ entry, outfile: path.join(targetOutDir, "static", `${name}.js`) });
   }
 }
 

@@ -237,9 +237,9 @@ import { computed, onMounted, nextTick } from 'vue'
 import HosSelect from '@/components/common/base/HosSelect.vue'
 import { X, Map, Sparkles, Plus } from '@lucide/vue'
 import EntityMultiSelect from '@/components/common/EntityMultiSelect.vue'
-import HomeModeItemNav from '@/components/security/HomeModeItemNav.vue'
-import { useSecurityZoneRooms } from '@/composables/security/useSecurityZoneRooms'
-import { useSecurityZoneEditorList } from '@/composables/security/useSecurityZoneEditorList'
+import HomeModeItemNav from '@/components/common/HomeModeItemNav.vue'
+import { useSecurityZoneRooms } from '@/features/security/composables/useSecurityZoneRooms'
+import { useSecurityZoneEditorList } from '@/features/security/composables/useSecurityZoneEditorList'
 import './styles/security.css'
 
 // 入参：变体（dash/widget）、是否可编辑、是否嵌入、各类显示开关、是否撑满高度

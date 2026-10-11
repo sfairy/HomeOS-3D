@@ -250,11 +250,11 @@ import EntityInput from '@/components/common/EntityInput.vue'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useEntitiesStore } from '@/stores/entities.store'
-import { getEntityDisplayName, domainIndexToArray } from '@/utils/entity/derived.util'
+import { getEntityDisplayName, domainIndexToArray } from '@/shared/entity/utils/derived.util'
 import { fetchHomeModes } from '@/services/api/home-modes'
-import { normalizeCrudListResponse } from '@/utils/core/crud-list.util'
-import { logger } from '@/utils/core/logger'
-import { getApiErrorMessage } from '@/utils/core/error-message'
+import { normalizeCrudListResponse } from '@/shared/utils/core/crud-list.util'
+import { logger } from '@/shared/utils/core/logger'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 
 const layoutStore = useLayoutStore()
 const chrome = useChromeStore()

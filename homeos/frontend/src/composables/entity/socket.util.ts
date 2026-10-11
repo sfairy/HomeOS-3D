@@ -9,7 +9,7 @@
  * 依赖：
  * - socket.io-client / socket.io-msgpack-parser 传输层。
  * - pinia + layout.store 提供布局配置（用于 pinned 实体）。
- * - @/utils/entity/ws-subscription 提供订阅域与 pinned 收集。
+ * - @/shared/entity/utils/ws-subscription 提供订阅域与 pinned 收集。
  *
  * 注意：
  * - transports 固定 polling 优先：先经 HTTP 握手再升级 WebSocket，
@@ -22,7 +22,7 @@ import { useLayoutStore } from '@/stores/layout.store'
 import {
   getActiveSubscribeDomains,
   collectWsPinnedEntityIds,
-} from '@/utils/entity/ws-subscription'
+} from '@/shared/entity/utils/ws-subscription'
 import { resolveActivePopupEntityId } from '@/composables/entity/active-popup-entity'
 
 /** 构建前端 Socket.IO 连接参数（从 entities.store 抽离） */

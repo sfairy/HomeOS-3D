@@ -4,7 +4,7 @@ import {
 } from "../../shared/flow-line-model";
 import { inspectorComponentMetrics as inspectorComponentMetrics2 } from "../editor-basic-inspectors";
 import { openFlowLinePathEditor as openFlowLinePathEditor2 } from "../../renderer/flow-line/flow-line-editor";
-import type { DomControl } from "@app/utils/dom-control";
+import type { DomControl } from "@app/shared/util/dom-control";
 const inspectorStateByHost = new WeakMap(),
   numericRangeByProperty = {
     width: [1, 40, 1],

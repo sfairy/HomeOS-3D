@@ -36,11 +36,11 @@ import {
   RefreshCw,
 } from '@lucide/vue'
 import { RouterLink } from 'vue-router'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
 import { fetchSystemConfigFresh } from '@/composables/config/system-config-core.internals'
 import { dismissSetupChecklist, fetchSetupChecklist } from '@/services/api/system'
-import { logger } from '@/utils/core/logger'
-import { getApiErrorMessage } from '@/utils/core/error-message'
+import { logger } from '@/shared/utils/core/logger'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { useChromeStore } from '@/stores/chrome.store'
 
 const props = defineProps({

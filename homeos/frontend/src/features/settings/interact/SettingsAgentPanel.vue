@@ -543,7 +543,7 @@ import SettingsFlowBand from '@/features/settings/shared/layout/SettingsFlowBand
 import SettingsFlowStat from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import { useSettingsAgentPanel } from '@/features/settings/composables/interact/agent-panel.internals'
 import SettingsAgentChannelsSection from './SettingsAgentChannelsSection.vue'
-import { useRegisterSettingsTabPending } from '@/features/settings/composables/pending.internals'
+import { useRegisterSettingsTabPending } from '@/composables/settings-kernel/pending.internals'
 
 const props = defineProps({ activeTab: { type: String, default: 'agent' } })
 

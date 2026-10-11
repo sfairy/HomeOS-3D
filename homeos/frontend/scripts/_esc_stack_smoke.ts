@@ -263,7 +263,7 @@ const ESC_LAYER_USERS = [
   'components/common/base/VConfirmModal.vue',
   'components/common/base/VPromptModal.vue',
   'components/common/base/VFolderCreateModal.vue',
-  'components/devices/DeviceRow.vue',
+  'features/device/DeviceRow.vue',
   'components/modals/DoorbellAlertModal.vue',
   'layouts/MainLayout.vue',
 ]

@@ -190,8 +190,8 @@ import ApiQueryState from '@/components/common/ApiQueryState.vue'
 import { fetchActiveHomeMode } from '@/services/api/home-modes'
 import { fetchNotificationSettings } from '@/services/api/notifications'
 import { useAuthStore } from '@/stores/auth.store'
-import { logger } from '@/utils/core/logger'
-import { formatShortDateTime } from '@/utils/format/locale-format.util'
+import { logger } from '@/shared/utils/core/logger'
+import { formatShortDateTime } from '@/shared/utils/format/locale-format.util'
 
 defineProps({ activeTab: { type: String, default: 'family' } })
 

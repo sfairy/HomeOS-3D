@@ -55,7 +55,7 @@ import { computed } from 'vue'
 import {
   SETTINGS_HEADER_ICONS,
   SETTINGS_TAB_HEADER_ICONS,
-} from '@/utils/registry/settings-header-icons'
+} from '@/shared/utils/registry/settings-header-icons'
 
 const props = defineProps({
   /** 标题文案 */

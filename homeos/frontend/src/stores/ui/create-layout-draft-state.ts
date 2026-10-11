@@ -10,12 +10,12 @@
  *  还注册了 beforeunload 钩子，在页面卸载前自动保存草稿。
  *  依赖 Vue ref、logger 与 clonePlain 工具。
  */
-import { readLocalStorage, removeLocalStorage, writeLocalStorage } from '@/utils/core/local-storage.util'
+import { readLocalStorage, removeLocalStorage, writeLocalStorage } from '@/shared/utils/core/local-storage.util'
 
 import { type Ref } from 'vue'
-import { logger } from '@/utils/core/logger'
-import { clonePlain } from '@/utils/core/clone-plain.util'
-import type { UILayoutConfig } from '@/types/layout'
+import { logger } from '@/shared/utils/core/logger'
+import { clonePlain } from '@/shared/utils/core/clone-plain.util'
+import type { UILayoutConfig } from '@/shared/types/layout'
 
 /** localStorage 中草稿的存储 key */
 const DRAFT_KEY = 'homeos_layout_draft'

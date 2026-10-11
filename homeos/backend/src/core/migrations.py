@@ -24,7 +24,8 @@ from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
-from .file_lock import locked_file
+from homeos_shared.file_lock import locked_file
+
 from ..config import Settings
 
 #: 结构基线版本号。发行产物不带迁移脚本，新库直接按 ORM 元数据建好后写入这个版本号。

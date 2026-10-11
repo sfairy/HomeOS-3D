@@ -10,16 +10,16 @@
  * 依赖：
  *   - @/services/api/system.fetchAdvisorUsage：HomeAdvisor 用量接口。
  *   - @/services/api/entities.fetchEvents：事件列表接口。
- *   - @/types/device.DeviceUsageReport：用量报告类型。
+ *   - @/shared/types/device.DeviceUsageReport：用量报告类型。
  *   - @/composables/device/useDeviceStateHistory.DeviceStateHistoryEvent：事件类型。
- *   - @/utils/core/misc.util.createFetchSequence：请求序号守卫。
+ *   - @/shared/utils/core/misc.util.createFetchSequence：请求序号守卫。
  */
 import { ref, watch, type Ref } from 'vue'
 import { fetchAdvisorUsage } from '@/services/api/system'
 import { fetchEvents } from '@/services/api/entities'
-import type { DeviceUsageReport } from '@/types/device'
+import type { DeviceUsageReport } from '@/shared/types/device'
 import type { DeviceStateHistoryEvent } from '@/composables/device/useDeviceStateHistory'
-import { createFetchSequence } from '@/utils/core/misc.util'
+import { createFetchSequence } from '@/shared/utils/core/misc.util'
 
 /**
  * 设备概览 Composable。

@@ -24,7 +24,7 @@ import { computed } from 'vue'
 import { Gauge, GitBranch, AlertTriangle } from '@lucide/vue'
 import EntityInput from '@/components/common/EntityInput.vue'
 import EntityMultiSelect from '@/components/common/EntityMultiSelect.vue'
-import { joinCommaEntityIds, parseCommaEntityIds } from '@/utils/entity/comma-entity-ids.util'
+import { joinCommaEntityIds, parseCommaEntityIds } from '@/shared/entity/utils/comma-entity-ids.util'
 
 const meterEntityId = defineModel('meterEntityId', { type: String, default: '' })
 const circuitEntityIds = defineModel('circuitEntityIds', { type: String, default: '' })

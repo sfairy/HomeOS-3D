@@ -6,23 +6,23 @@
  *
  * 依赖：
  *  - @/services/api/config（项目 / 终端绑定接口）；
- *  - @/utils/client/client-system.util（客户端设备 ID）；
+ *  - @/shared/client/utils/system.util（客户端设备 ID）；
  *  - @/stores/ui/create-layout-state（本地 profileId 持久化）；
- *  - @/utils/core/logger。
+ *  - @/shared/utils/core/logger。
  */
 import {
   fetchProject,
   resolveTerminalProfile,
   updateSelfTerminalBinding,
 } from '@/services/api/config'
-import { getClientDeviceId } from '@/utils/client/system.util'
+import { getClientDeviceId } from '@/shared/client/utils/system.util'
 import {
   readStoredProfileId,
   hasStoredProfileId,
   writeStoredProfileId,
 } from '@/stores/ui/create-layout-state'
-import { logger } from '@/utils/core/logger'
-import type { UILayoutConfig } from '@/types/layout'
+import { logger } from '@/shared/utils/core/logger'
+import type { UILayoutConfig } from '@/shared/types/layout'
 
 /** profile 解析来源标签，用于调试与埋点 */
 type ProfileResolveSource = 'url' | 'local' | 'binding' | 'activeProfile' | 'default'

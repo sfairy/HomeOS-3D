@@ -565,9 +565,9 @@ import SettingsFlowStat, {
   type FlowStatTone,
 } from '@/features/settings/shared/layout/SettingsFlowStat.vue'
 import SettingsFeatureMaster from '@/features/settings/shared/layout/SettingsFeatureMaster.vue'
-import SettingsOrchTabs from '@/features/settings/shared/layout/SettingsOrchTabs.vue'
-import { SETTINGS_ROUTES } from '@/utils/registry/settings-route.util'
-import type { AgentConfig, ChannelConfig } from '@/types/layout'
+import SettingsOrchTabs from '@/components/common/SettingsOrchTabs.vue'
+import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
+import type { AgentConfig, ChannelConfig } from '@/shared/types/layout'
 import type { ChannelsStatusResult } from '@/services/api/agent'
 import {
   fetchWebPushSubscriptions,
@@ -577,7 +577,7 @@ import {
 import { notifyError } from '@/services/notify'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useWebPushSubscribe } from '@/composables/ui/useWebPushSubscribe'
-import { formatShortDateTime } from '@/utils/format/locale-format.util'
+import { formatShortDateTime } from '@/shared/utils/format/locale-format.util'
 
 type ChannelTabId = 'email' | 'webpush' | 'wecom' | 'mcp'
 

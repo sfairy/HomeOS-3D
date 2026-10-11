@@ -1,18 +1,19 @@
-/** 入口场景的「手持档」开关：给 <html> 挂 .hos-touch。
+/**
+ * 入口场景的「手持档」开关：给 <html> 挂 .hos-touch。
  *
  * 必须在首帧前跑完：登录 / 注册 / 授权场景的样式里有整组 ``html.hos-touch …`` 规则
  * （触摸设备上关掉重动画），而这些规则只能靠这个 class 生效。所以它是
  * ``index.html`` 里的普通阻塞脚本（不导出、不 defer），由 ``vite-studio.ts``
- * 以 ``platform/scene-depth (classic entry still auth/scene/scene-depth)`` 为入口产出 ``/static/platform/scene-depth (classic entry still auth/scene/scene-depth).js``。
+ * 以 ``app/auth/scene/scene-depth`` 为入口产出 ``/static/auth/scene/scene-depth.js``。
  *
- * 与商店侧 ``homeos-store/frontend/src/scene/scene-depth.ts`` 同源：判据必须逐条一致，
- * 否则同一台设备在两个前端的「手持档」档位会不一样。
+ * 判据本身（粗指针 / 无 hover / iPad 伪装 Mac）已单点化到
+ * ``@homeos/shared/scene/touch-profile`` —— 与商店 ``main.ts`` 里那份必须逐条一致，
+ * 否则同一台设备在两个前端的档位会不一样。
+ *
+ * 唯一的手抄件是 ``public/static/auth/scene/scene-depth.js``：它是构建缺口时的兜底资源，
+ * 由后端直接伺服、不经过打包，无法 import，改动判据时须同步（见 ops/check_shared_contracts.py
+ * 的 ``scene-depth 兜底件`` 检查）。
  */
-const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
-const noHover = window.matchMedia('(hover: none)').matches;
-// iPadOS 装在 Mac 上：platform 报 Mac，但触点数 > 1，按手持档处理。
-const iPadInDisguise =
-  navigator.maxTouchPoints > 1 && /^Mac/.test(navigator.platform || '');
-if (coarsePointer || noHover || iPadInDisguise) {
-  document.documentElement.classList.add('hos-touch');
-}
+import { applyTouchProfile } from '@homeos/shared/scene/touch-profile'
+
+applyTouchProfile()

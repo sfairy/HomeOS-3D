@@ -155,17 +155,17 @@ import { useLayoutStore } from '@/stores/layout.store'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useHaBindings } from '@/features/settings/composables/connect/bindings.internals'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
-import { ensureDoorbellList, collectDoorbellCameraIds } from '@/utils/layout/doorbell.util'
+import { ensureDoorbellList, collectDoorbellCameraIds } from '@/shared/utils/layout/doorbell.util'
 import { applyBindingsLayoutSlice, liveBindingsLayoutSlice, pickBindingsLayoutSlice } from '@/features/settings/composables/display/layout-dashboard.internals'
-import { afterLayoutCancelSync } from '@/features/settings/composables/pending.internals'
-import { useSettingsPendingChanges } from '@/features/settings/composables/pending.internals'
-import { useRegisterSettingsTabPending } from '@/features/settings/composables/pending.internals'
+import { afterLayoutCancelSync } from '@/composables/settings-kernel/pending.internals'
+import { useSettingsPendingChanges } from '@/composables/settings-kernel/pending.internals'
+import { useRegisterSettingsTabPending } from '@/composables/settings-kernel/pending.internals'
 import {
   syncGlobalLayoutPendingSnapshot,
   pauseGlobalPendingChanges,
   resumeGlobalPendingChanges,
-} from '@/features/settings/composables/pending.internals'
-import { getApiErrorMessage } from '@/utils/core/error-message'
+} from '@/composables/settings-kernel/pending.internals'
+import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import { fetchBindingsGaps } from '@/services/api/system'
 import { runHazardDrill as runHazardDrillApi } from '@/services/api/security'
 import { useYamlValidation } from '@/composables/security/useYamlValidation'
