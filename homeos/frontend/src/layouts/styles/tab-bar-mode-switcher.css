@@ -10,8 +10,8 @@
   padding: 3px;
   margin-right: 8px;
   border-radius: var(--hos-radius-card);
-  background: rgba(255, 255, 255, 0.035);
-  border: var(--hos-hairline) solid rgba(255, 255, 255, 0.06);
+  background: var(--glass-bg-sm);
+  border: var(--hos-hairline) solid var(--glass-border);
   box-shadow: inset 0 1px 0 var(--glass-bg-sm);
   border-right: none;
 }
@@ -37,7 +37,7 @@
 
 .tab-bar .home-mode-switcher__presence:hover,
 .tab-bar .home-mode-switcher__presence--tip-open {
-  color: rgba(255, 255, 255, 0.88);
+  color: var(--hos-text-body);
   background: var(--glass-bg-md);
 }
 
@@ -58,7 +58,7 @@
 }
 
 .tab-bar .home-mode-switcher__btn:hover:not(:disabled) {
-  color: rgba(255, 255, 255, 0.88);
+  color: var(--hos-text-body);
   background: var(--glass-bg-md);
   border-color: transparent;
 }

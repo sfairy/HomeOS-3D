@@ -1,6 +1,6 @@
 /* 从 DashboardFooter.vue 抽出 */
 .power-panel {
-  background: rgba(14, 14, 22, 0.82);
+  background: rgba(var(--shell-scrim-frame-rgb), 0.82);
   -webkit-backdrop-filter: blur(80px) saturate(260%);
   backdrop-filter: blur(80px) saturate(260%);
   border-top: var(--hos-hairline) solid var(--premium-border-strong);
@@ -112,8 +112,8 @@
   backface-visibility: hidden;
   border: 1px solid var(--hos-border-hairline);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015)),
-    rgba(12, 14, 22, 0.35);
+    linear-gradient(180deg, var(--glass-bg-sm), var(--glass-bg-xs)),
+    rgba(var(--shell-scrim-card-rgb), 0.35);
   transition:
     background 0.28s ease,
     border-color 0.28s ease,
@@ -134,10 +134,10 @@
 
 .power-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--hos-border-hairline-strong);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.05), var(--glass-bg-xs)),
-    rgba(12, 14, 22, 0.4);
+    linear-gradient(180deg, var(--glass-bg-md), var(--glass-bg-xs)),
+    rgba(var(--shell-scrim-card-rgb), 0.4);
 }
 
 .power-card--yellow {

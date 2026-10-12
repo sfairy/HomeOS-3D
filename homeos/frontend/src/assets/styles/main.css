@@ -432,6 +432,18 @@ input[type="range"].sm-emergency-range::-moz-range-thumb {
   --glass-off-bg-heavy: rgba(14, 14, 22, 0.96);     /* 电源面板 */
   --glass-off-bg-popup: rgba(18, 18, 26, 0.96);     /* 弹层外壳 */
 
+  /* 主壳暗底基调（scrim RGB）
+     毛玻璃面板 / 顶栏压暗用的实底 RGB。这里只收敛「基调」，不透明度仍由各站点显式书写
+     （`rgba(var(--shell-scrim-card-rgb), 0.35)`），因为同一基调在常态 / 悬停 / 毛玻璃
+     关闭三档下要取三个不同 alpha，把 alpha 也塞进令牌会让三档关系读不出来。
+     原先这四个基调直接内联在 Dashboard/MainLayout 样式表里，同一块近黑被写成
+     5 组互不相同的 RGB（8,8,14 / 12,14,22 / 12,12,18 / 14,14,22 / 16,16,22），
+     改一次底就得翻 5 个文件；16,16,22 那组已并入 --glass-off-bg-popup。 */
+  --shell-scrim-topbar-rgb: 8, 8, 14;     /* 顶栏 */
+  --shell-scrim-card-rgb: 12, 14, 22;     /* 电源卡 / 信息面板 */
+  --shell-scrim-dock-rgb: 12, 12, 18;     /* 侧栏折叠按钮 */
+  --shell-scrim-frame-rgb: 14, 14, 22;    /* 电源面板 */
+
   /* 层级（z-index 令牌）——统一浮层层级，避免散落硬编码
      语义（自低向高）：
      - menu < modal < toast：基础浮层

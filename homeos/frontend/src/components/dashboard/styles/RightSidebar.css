@@ -19,7 +19,7 @@
   width: 22px;
   height: 48px;
   border-radius: 6px 0 0 6px;
-  background: rgba(12, 12, 18, 0.65);
+  background: rgba(var(--shell-scrim-dock-rgb), 0.65);
   -webkit-backdrop-filter: blur(40px) saturate(200%);
   backdrop-filter: blur(40px) saturate(200%);
   border: var(--hos-hairline) solid var(--surface-border);
@@ -146,10 +146,10 @@
 .info-card {
   background:
     var(--page-card-tint-soft),
-    var(--hos-surface-1, rgba(255, 255, 255, 0.025));
+    var(--hos-surface-1);
   -webkit-backdrop-filter: blur(30px) saturate(200%);
   backdrop-filter: blur(30px) saturate(200%);
-  border: var(--hos-hairline) solid var(--hos-border-subtle, rgba(255, 255, 255, 0.06));
+  border: var(--hos-hairline) solid var(--hos-border-subtle);
   border-radius: var(--hos-radius-panel, var(--radius-ipad-xl));
   padding: var(--hos-panel-padding-default, 20px);
   position: relative;
@@ -206,7 +206,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(180deg, transparent 88%, rgba(255, 255, 255, 0.01));
+  background: linear-gradient(180deg, transparent 88%, var(--glass-bg-xs));
   pointer-events: none;
   border-radius: inherit;
 }
@@ -269,10 +269,10 @@
   }
 
   .info-panel {
-    background: rgba(12, 14, 22, 0.96);
+    background: rgba(var(--shell-scrim-card-rgb), 0.96);
   }
 
   .panel-collapse-btn {
-    background: rgba(12, 12, 18, 0.92);
+    background: rgba(var(--shell-scrim-dock-rgb), 0.92);
   }
 }

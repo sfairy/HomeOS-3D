@@ -1,0 +1,73 @@
+{
+  "what": "批次 1 Phase B — 主壳近似色值收敛到玻璃/文字令牌刻度，并新增 --shell-scrim-*-rgb 基调令牌",
+  "generatedAt": "2026-10-13",
+  "files": [
+    "homeos/frontend/src/assets/styles/main.css",
+    "homeos/frontend/src/components/dashboard/styles/Footer.css",
+    "homeos/frontend/src/components/dashboard/styles/PowerCardBody.css",
+    "homeos/frontend/src/components/dashboard/styles/RightSidebar.css",
+    "homeos/frontend/src/layouts/styles/main-layout.css",
+    "homeos/frontend/src/layouts/styles/tab-bar-mode-switcher.css"
+  ],
+  "literalCount": {
+    "beforePhaseA": 149,
+    "afterPhaseA": 108,
+    "afterPhaseB": 73,
+    "note": "5 个非镜像件的 hex/rgb()/hsl() 出现次数。appearance.css 的 38 处是 --hb-* 字典定义本身，已从统计口径剔除。"
+  },
+  "method": {
+    "computedStyleDiff": "CDP 采集 614 个元素 × 20 项颜色/背景/边框/阴影/圆角属性，逐属性比对改动前后",
+    "pixelDiff": "临时用 !important 把 Phase B 改过的声明还原成旧值、冻结 CSS 动画，连拍两张再 diff；另拍一对不做任何改动的空白对照用于分离页面自身重绘噪声",
+    "control": "无操作对照（相同 CSS、间隔 14s）也有 28.45% 像素发生变化、最大通道差 142 —— 页面含实时 3D/天气/时钟，大差值区无法归因于 CSS"
+  },
+  "changedProperties": {
+    "distinctPairs": 8,
+    "maxAlphaDelta": 0.03,
+    "pairs": [
+      { "prop": "backgroundImage", "before": "rgba(255,255,255,0.95) / 0.68", "after": "rgba(255,255,255,0.96) / 0.65", "delta": "+0.01 / -0.03", "where": ".tab-bar__title 文字渐变", "token": "--hos-text-strong / --text-secondary" },
+      { "prop": "backgroundColor", "before": "rgba(255,255,255,0.035)", "after": "rgba(255,255,255,0.04)", "delta": "+0.005", "token": "--glass-bg-sm" },
+      { "prop": "borderColor", "before": "rgba(255,255,255,0.06)", "after": "rgba(255,255,255,0.07)", "delta": "+0.01", "token": "--glass-border" },
+      { "prop": "backgroundImage", "before": "rgba(255,255,255,0.035) / 0.016", "after": "rgba(255,255,255,0.04) / 0.02", "delta": "+0.005", "where": ".power-card 渐变底", "token": "--glass-bg-sm / --glass-bg-xs" },
+      { "prop": "borderLeftColor", "before": "rgba(255,255,255,0.12)", "after": "rgba(255,255,255,0.14)", "delta": "+0.02", "token": "--hos-border-hairline-strong" },
+      { "prop": "backgroundImage", "before": "rgba(255,255,255,0.01)", "after": "rgba(255,255,255,0.02)", "delta": "+0.01", "where": ".info-card::after 底部微光", "token": "--glass-bg-xs" }
+    ]
+  },
+  "pixelDiffByRegion": {
+    "tabBar_top80px": { "maxChannelDelta": 1, "pixelsAbove1": 0, "controlMaxDelta": 2, "controlPixelsAbove1": 4328 },
+    "powerPanel_bottom110px": { "maxChannelDelta": 2, "pixelsAbove1": 1202, "controlMaxDelta": 4, "controlPixelsAbove1": 60024 },
+    "verdict": "两处外壳的差异都低于「什么都不做、等 14 秒」的对照值 —— 顶栏最大 1/255、电源面板最大 2/255，肉眼不可见"
+  },
+  "zeroPixelChangeMoves": {
+    "scrimTokens": ["--shell-scrim-topbar-rgb: 8, 8, 14", "--shell-scrim-card-rgb: 12, 14, 22", "--shell-scrim-dock-rgb: 12, 12, 18", "--shell-scrim-frame-rgb: 14, 14, 22"],
+    "note": "基调令牌化本身 0 像素变化；rgba(16,16,22,0.96) 并入 --glass-off-bg-popup(18,18,26,0.96) 有 ΔRGB(2,2,4)，但该弹层在验收截图中未打开，未进入像素统计",
+    "deadFallbacksRemoved": [
+      "var(--hos-surface-1, rgba(255,255,255,0.025)) -> var(--hos-surface-1)",
+      "var(--hos-border-subtle, rgba(255,255,255,0.06)) -> var(--hos-border-subtle)",
+      "rgba(var(--premium-accent-cyan-rgb, 95, 212, 255), 0.4) -> rgba(var(--premium-accent-cyan-rgb), 0.4)",
+      "rgba(var(--premium-accent-cyan-rgb, 95, 212, 255), 0.14) -> rgba(var(--premium-accent-cyan-rgb), 0.14)"
+    ]
+  },
+  "residual": {
+    "total": 73,
+    "hueOutOfScope": "顶栏 HA 状态横幅的 Tailwind 色阶（rgba(220,38,38,0.15) / #fecaca、rgba(59,130,246,0.12) / #bfdbfe、rgba(99,102,241,0.12) / rgba(199,210,254,0.9)）、电源卡分类强调色（#fbbf24 / #c084fc / #22d3ee / #4ade80 / #f5d76e / #fb923c / #fb7185 / #2dd4bf）、#94a3b8 / #1e3a8a / rgb(134,239,172) / rgba(34,197,94,0.12) —— 换令牌会真的改色相，属产品决策",
+    "liveFallbacksKept": ["var(--tab-accent, #0A84FF)", "var(--page-accent, #0a84ff) ×2", "var(--nav-tint, rgba(255, 159, 10, 0.06))", "rgba(10, 132, 255, 0.06)"],
+    "whyLive": "--accent / --accent-rgb 运行时被主题覆盖为 #3b82f6 / 59,130,246，与字典值 #0A84FF / 10,132,255 不同；--nav-tint 无任何定义，其回退即实际取值",
+    "tooFar": "rgba(255,255,255,0.42 / 0.75 / 0.78 / 0.22 / 0.2 / 0.18) 与最近令牌差 >0.03，按「不压平差值」原则保留"
+  },
+  "foundAlongTheWay": [
+    ".tab-bar__tab--active 在 main-layout.css 里的渐变底被 tab-bar-mode-switcher.css 的 .tab-bar .tab-bar__tab--active（特指度更高）整体覆盖 —— 该声明实际不生效；本次改动未改变这一点（像素验证为 0 差异）",
+    "--accent 与 --accent-rgb 在运行时被主题改写，字典里的 #0A84FF / 10,132,255 从不生效，但仍有 5 处代码按字典值引用它们",
+    "--nav-glow / --nav-tint 全仓无定义，顶栏发光线的实际取值来自 var() 回退"
+  ],
+  "gates": {
+    "typecheck": "pass",
+    "check:deps": "pass (unresolvedCount=0)",
+    "lint:ci": "pass",
+    "verify:tokens": "pass",
+    "verify:tokenmap": "pass",
+    "verify:features": "pass",
+    "verify:scene": "pass",
+    "verify:contracts": "pass",
+    "knip": "pass"
+  }
+}
