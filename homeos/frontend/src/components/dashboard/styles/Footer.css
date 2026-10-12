@@ -12,7 +12,7 @@
   isolation: isolate;
   box-shadow:
     0 -8px 40px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    inset 0 1px 0 var(--glass-bg-md);
 }
 
 .power-panel__glow {
@@ -110,7 +110,7 @@
   isolation: isolate;
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--hos-border-hairline);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015)),
     rgba(12, 14, 22, 0.35);
@@ -136,7 +136,7 @@
   transform: translateY(-2px);
   border-color: rgba(255, 255, 255, 0.12);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), var(--glass-bg-xs)),
     rgba(12, 14, 22, 0.4);
 }
 
@@ -172,7 +172,7 @@
   .power-panel {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
-    background: rgba(14, 14, 22, 0.96);
+    background: var(--glass-off-bg-heavy);
     box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.45);
   }
 
