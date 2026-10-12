@@ -96,9 +96,6 @@
   box-shadow: 0 8px 32px rgba(0,0,0,0.5);
   overflow-y: auto;
 }
-.ei-domain-menu--top {
-  /* placement 由 inline bottom 锚定 */
-}
 .ei-domain-menu::-webkit-scrollbar { width: 3px; }
 .ei-domain-menu::-webkit-scrollbar-thumb { background: var(--premium-glass-bg-hover); border-radius: 3px; }
 

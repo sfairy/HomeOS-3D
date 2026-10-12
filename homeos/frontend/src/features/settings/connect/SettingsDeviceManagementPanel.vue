@@ -224,7 +224,7 @@ onMounted(load)
 
 <style scoped>
 .devices-mgmt-card {
-  margin-bottom: var(--hos-space-6, 24px);
+  margin-bottom: var(--hos-space-2xl);
 }
 
 .devices-mgmt-card__head {
@@ -233,7 +233,7 @@ onMounted(load)
   justify-content: space-between;
   gap: 12px;
   padding: 18px 20px 14px;
-  border-bottom: var(--hos-hairline) solid var(--hos-border, rgba(255, 255, 255, 0.08));
+  border-bottom: var(--hos-hairline) solid var(--hos-border-hairline);
 }
 
 .devices-mgmt-card__title {
@@ -251,14 +251,14 @@ onMounted(load)
   margin: 0;
   font-size: var(--premium-fs-title);
   font-weight: 600;
-  color: var(--hos-text-strong, #f4f4f5);
+  color: var(--hos-text-strong);
 }
 
 .devices-mgmt-card__hint {
   margin: 4px 0 0;
   font-size: var(--set-fs-micro, 12px);
   line-height: 1.5;
-  color: var(--hos-text-dim, #a1a1aa);
+  color: var(--hos-text-secondary);
 }
 
 .devices-mgmt-card__actions {
@@ -269,7 +269,7 @@ onMounted(load)
 
 .devices-mgmt-count {
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-dim, #a1a1aa);
+  color: var(--hos-text-secondary);
   white-space: nowrap;
 }
 
@@ -283,7 +283,7 @@ onMounted(load)
   align-items: center;
   gap: 12px;
   padding: 12px 20px;
-  border-bottom: var(--hos-hairline) solid var(--hos-border, rgba(255, 255, 255, 0.06));
+  border-bottom: var(--hos-hairline) solid var(--hos-border-hairline-soft);
 }
 
 .devices-mgmt-row:last-child {
@@ -315,14 +315,14 @@ onMounted(load)
   margin: 0;
   font-size: var(--premium-fs-body-sm);
   font-weight: 500;
-  color: var(--hos-text, #e4e4e7);
+  color: var(--hos-text-body);
   word-break: break-all;
 }
 
 .devices-mgmt-row__meta {
   margin: 3px 0 0;
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-dim, #a1a1aa);
+  color: var(--hos-text-secondary);
   word-break: break-all;
 }
 

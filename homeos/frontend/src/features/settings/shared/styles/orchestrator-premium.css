@@ -6,20 +6,10 @@
 :is(.settings-orchestrator-workspace, .orch-builder-workspace),
 .orch-header {
   /* 与设置页 / premium 字阶对齐（原先整体偏小约 1–2px） */
-  --orch-fs-title: var(--set-fs-title-sm, 17px);
   --orch-fs-body: var(--premium-fs-body);
   --orch-fs-caption: var(--premium-fs-caption);
-  --orch-fs-micro: var(--premium-fs-micro);
   --orch-control-h: 36px;
   --orch-radius: 10px;
-  --orch-radius-lg: 12px;
-  --orch-glass: rgba(255, 255, 255, 0.025);
-  --orch-glass-hover: rgba(255, 255, 255, 0.04);
-  --orch-border: rgba(255, 255, 255, 0.07);
-  --orch-border-strong: rgba(255, 255, 255, 0.1);
-  --orch-text: rgba(255, 255, 255, 0.88);
-  --orch-text-muted: rgba(255, 255, 255, 0.42);
-  --orch-text-dim: rgba(255, 255, 255, 0.28);
   --set-fs-body: var(--premium-fs-body);
   --set-fs-body-sm: var(--premium-fs-body-sm);
   --set-fs-caption: var(--premium-fs-caption);

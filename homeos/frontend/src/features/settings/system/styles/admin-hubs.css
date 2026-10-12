@@ -4,22 +4,6 @@
 /* ── 账户与安全 Hub · 高大上主题 ── */
 .access-hub {
   --page-accent: var(--module-accent-admin);
-  --access-slate: var(--module-accent-admin);
-  --access-emerald: var(--module-accent-admin-sub);
-  --access-purple: var(--module-accent-admin);
-  --access-violet: var(--module-accent-admin);
-  --access-indigo: var(--module-accent-admin);
-  --access-sky: #38bdf8;
-  --access-cyan: #22d3ee;
-  --access-amber: #fbbf24;
-  --access-rose: #f472b6;
-  --access-fs-micro: var(--premium-fs-micro);
-  --access-fs-caption: var(--premium-fs-caption);
-  --access-fs-body: var(--premium-fs-body);
-  --access-fs-title: var(--premium-fs-title);
-  --access-fs-hero: 22px;
-  --access-fs-kpi: 24px;
-  --access-touch: 44px;
 }
 
 .access-hub__body {
@@ -77,7 +61,6 @@
 
 
 
-.access-hub .access-member-card--admin { --member-accent: var(--module-accent-admin); }
 
 
 
@@ -669,7 +652,7 @@
   white-space: nowrap;
 }
 
-.acc-hero__score--low { --score-color: var(--set-danger); border-color: rgba(var(--set-danger-rgb), 0.3); }
+.acc-hero__score--low { border-color: rgba(var(--set-danger-rgb), 0.3); }
 .acc-hero__score--low .acc-hero__ring-val,
 .acc-hero__score--low .acc-hero__score-level { color: var(--set-danger); }
 

@@ -6,7 +6,6 @@
 .studio-chrome-root,
 .editor-chrome-root {
   --sc-header-height: 52px;
-  --sc-rail-width: 52px;
   color: var(--hos-text-primary);
   background: var(--hos-surface-0);
   min-height: 100vh;

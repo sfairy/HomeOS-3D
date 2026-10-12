@@ -37,7 +37,6 @@
   /* 圆角：规范源 hos-design-system.css（--hos-radius-*），此处仅作别名引用 */
   --acc-radius: var(--hos-radius-card);
   --acc-gap: 6px;
-  --acc-open-glow: rgba(95, 212, 255, 0.12);
 
   --premium-fs-display: 26px;
   --premium-fs-title: 18px;
@@ -53,15 +52,12 @@
 
   /* 表单控件统一尺寸（HosSelect / SearchableSelect / EntityInput 等） */
   --control-height-md: 36px;
-  --control-padding-x: 10px;
   --control-padding-y: 8px;
   --control-padding-inline-compact: 6px;
   /** 触控目标下限（WCAG / iOS HIG）：coarse 指针下控件至少 44px */
   --touch-target-min: 44px;
 
   /* ── 模块主题色映射（17 个模块） ── */
-  --module-accent-dashboard: #34d399;        --module-accent-dashboard-rgb: 52, 211, 153;
-  --module-accent-dashboard-sub: #38bdf8;    --module-accent-dashboard-sub-rgb: 56, 189, 248;
   --module-accent-devices: #38bdf8;          --module-accent-devices-rgb: 56, 189, 248;
   --module-accent-devices-sub: #22d3ee;      --module-accent-devices-sub-rgb: 34, 211, 238;
   --module-accent-security: #fb7185;         --module-accent-security-rgb: 251, 113, 133;
@@ -69,21 +65,16 @@
   --module-accent-automation: #fbbf24;       --module-accent-automation-rgb: 251, 191, 36;
   --module-accent-automation-sub: #f59e0b;   --module-accent-automation-sub-rgb: 245, 158, 11;
   --module-accent-scenes: #38bdf8;           --module-accent-scenes-rgb: 56, 189, 248;
-  --module-accent-scenes-sub: #7dd3fc;       --module-accent-scenes-sub-rgb: 125, 211, 252;
+  --module-accent-scenes-sub: #7dd3fc;
   --module-accent-script: #34d399;           --module-accent-script-rgb: 52, 211, 153;
-  --module-accent-script-sub: #2dd4bf;       --module-accent-script-sub-rgb: 45, 212, 191;
+  --module-accent-script-sub: #2dd4bf;
   --module-accent-template: #a78bfa;         --module-accent-template-rgb: 167, 139, 250;
-  --module-accent-template-sub: #c4b5fd;     --module-accent-template-sub-rgb: 196, 181, 253;
+  --module-accent-template-sub: #c4b5fd;
   --module-accent-events: #22d3ee;           --module-accent-events-rgb: 34, 211, 238;
-  --module-accent-events-sub: #94a3b8;       --module-accent-events-sub-rgb: 148, 163, 184;
+  --module-accent-events-sub: #94a3b8;
   --module-accent-energy: #34d399;           --module-accent-energy-rgb: 52, 211, 153;
   --module-accent-energy-sub: #fbbf24;       --module-accent-energy-sub-rgb: 251, 191, 36;
-  --module-accent-life: #2dd4bf;             --module-accent-life-rgb: 45, 212, 191;
-  --module-accent-life-sub: #fbbf24;         --module-accent-life-sub-rgb: 251, 191, 36;
-  --module-accent-login: #5fd4ff;            --module-accent-login-rgb: 95, 212, 255;
-  --module-accent-login-sub: #38bdf8;        --module-accent-login-sub-rgb: 56, 189, 248;
-  --module-accent-setup: #5fd4ff;            --module-accent-setup-rgb: 95, 212, 255;
-  --module-accent-setup-sub: #38bdf8;        --module-accent-setup-sub-rgb: 56, 189, 248;
+  --module-accent-life: #2dd4bf;
   --module-accent-connection: #34d399;       --module-accent-connection-rgb: 52, 211, 153;
   --module-accent-connection-sub: #38bdf8;   --module-accent-connection-sub-rgb: 56, 189, 248;
   --module-accent-bindings: #38bdf8;         --module-accent-bindings-rgb: 56, 189, 248;
@@ -111,7 +102,6 @@
   --set-glass-bg: var(--hos-surface-2);
   --set-glass-bg-hover: var(--hos-surface-3);
   --set-glass-bg-subtle: var(--hos-surface-1);
-  --set-glass-bg-strong: var(--premium-border-strong);
 
   /* ── 边框（全局共享；规范源 hos-design-system.css 的 --hos-border-*） ── */
   --set-border: var(--hos-border-strong);
@@ -160,6 +150,40 @@
   --page-accent-border: rgba(var(--page-accent-rgb), 0.22);
   --page-accent-glow: rgba(var(--page-accent-rgb), 0.16);
   --page-accent-text: var(--page-accent, #34d399);
+}
+
+/**
+ * 页面主色派生族必须在「覆盖主色的同一作用域」重新声明。
+ *
+ * CSS 自定义属性的 var() 在**声明元素**处就完成替换：本文件 :root 里的
+ * --page-accent-bg / -bg-strong / -border / -glow / -text 会被冻结成默认色
+ * （emerald / #60a5fa），再原样继承给整棵子树。页面若只覆盖
+ * --page-accent / --page-accent-rgb（这是各 Hub 与 View 的通用写法），
+ * 则主色已是模块色、派生面色却仍停在默认色 —— 表现为
+ * 「同一张卡片描边/光晕是模块色，内嵌 orb 底色与 CTA 文字却是绿/蓝」，
+ * 而点击选中后走的是主色本身，所以又显示正常。
+ *
+ * 这里用 :where() 保持零特异性：任何页面显式声明过的派生 token
+ * （如告警中心 EEW 琥珀橙）依然优先，本规则只负责在缺少显式声明时
+ * 按页面主色重新求值。
+ */
+:where(.settings-page, .list-page, .notification-drawer) {
+  --page-accent-bg: rgba(var(--page-accent-rgb), 0.12);
+  --page-accent-bg-strong: rgba(var(--page-accent-rgb), 0.18);
+  --page-accent-border: rgba(var(--page-accent-rgb), 0.22);
+  --page-accent-glow: rgba(var(--page-accent-rgb), 0.16);
+  --page-accent-text: rgb(var(--page-accent-rgb));
+}
+
+/**
+ * 触控 / 窄屏：彩色外发光在低 DPR 的圆角处会被抗锯齿渲成光晕，
+ * hos-design-system.css 已在 :root 关掉；上面那组重算是元素级声明，
+ * 会盖过 :root 的继承值，因此这里必须同步关一次。
+ */
+@media (pointer: coarse), (hover: none), (max-width: 900px) {
+  :where(.settings-page, .list-page, .notification-drawer) {
+    --page-accent-glow: transparent;
+  }
 }
 
 /** 毛玻璃 backdrop 双行合一（避免各 CSS 重复写 -webkit- 前缀） */

@@ -10,7 +10,6 @@
   --linkage-hub-accent: var(--premium-accent-cyan, #5fd4ff);
   --linkage-hub-accent-sub: #7eb8ff;
   --linkage-hub-accent-rgb: var(--premium-accent-cyan-rgb, 95, 212, 255);
-  --linkage-hub-accent-sub-rgb: 126, 184, 255;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -28,7 +27,6 @@
   --linkage-hub-accent: var(--premium-accent-cyan, #5fd4ff);
   --linkage-hub-accent-sub: #7eb8ff;
   --linkage-hub-accent-rgb: var(--premium-accent-cyan-rgb, 95, 212, 255);
-  --linkage-hub-accent-sub-rgb: 126, 184, 255;
   --page-accent: var(--linkage-hub-accent);
   --page-accent-secondary: var(--linkage-hub-accent-sub);
 }
@@ -37,7 +35,6 @@
   --linkage-hub-accent: var(--module-accent-scenes);
   --linkage-hub-accent-sub: var(--module-accent-scenes-sub);
   --linkage-hub-accent-rgb: var(--module-accent-scenes-rgb);
-  --linkage-hub-accent-sub-rgb: var(--module-accent-scenes-sub-rgb);
   --page-accent: var(--module-accent-scenes);
   --page-accent-secondary: var(--module-accent-scenes-sub);
 }
@@ -46,7 +43,6 @@
   --linkage-hub-accent: var(--module-accent-automation);
   --linkage-hub-accent-sub: var(--module-accent-automation-sub);
   --linkage-hub-accent-rgb: var(--module-accent-automation-rgb);
-  --linkage-hub-accent-sub-rgb: var(--module-accent-automation-sub-rgb);
   --page-accent: var(--module-accent-automation);
   --page-accent-secondary: var(--module-accent-automation-sub);
 }
@@ -55,7 +51,6 @@
   --linkage-hub-accent: var(--module-accent-script);
   --linkage-hub-accent-sub: var(--module-accent-script-sub);
   --linkage-hub-accent-rgb: var(--module-accent-script-rgb);
-  --linkage-hub-accent-sub-rgb: var(--module-accent-script-sub-rgb);
   --page-accent: var(--module-accent-script);
   --page-accent-secondary: var(--module-accent-script-sub);
 }
@@ -64,7 +59,6 @@
   --linkage-hub-accent: var(--module-accent-template);
   --linkage-hub-accent-sub: var(--module-accent-template-sub);
   --linkage-hub-accent-rgb: var(--module-accent-template-rgb);
-  --linkage-hub-accent-sub-rgb: var(--module-accent-template-sub-rgb);
   --page-accent: var(--module-accent-template);
   --page-accent-secondary: var(--module-accent-template-sub);
 }

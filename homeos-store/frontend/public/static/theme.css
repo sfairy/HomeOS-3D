@@ -13,9 +13,7 @@
   --hb-sky-haze: #24395a;
   --hb-sky-deep-rgb: 5, 9, 18;
   --hb-sky-low-rgb: 8, 16, 32;
-  --hb-sky-mid-rgb: 13, 23, 40;
   --hb-sky-high-rgb: 22, 38, 60;
-  --hb-sky-haze-rgb: 36, 57, 90;
 
   /* 星空与浮尘的「一点光」。与 design/scene/page.css 的 --hos-star-* 逐字相等。
      于是「从入口页点进商城天亮了一次」的老毛病原样复现在星空上。 */
@@ -36,16 +34,14 @@
   /* 文字。与 design/scene/page.css 逐 token 相等 —— 包括 --hb-muted 那个 α。
      需要比 PWA 面板更暗一档的脚注），不是漂移，别把它也「对齐」掉。 */
   --hb-ink: #f1f7fb;
-  --hb-ink-bright: #f7fcff;
   --hb-ink-soft: #c8dbe8;
-  --hb-ink-rgb: 241, 247, 251;
   --hb-muted-rgb: 186, 214, 232;
   /* 这一档与 design/scene/page.css 的 --hos-muted **必须逐个相等**，两侧一起改。
      但它是**两侧共同**的下限 —— 只改一侧就是把刚对齐的东西又拆开。 */
   --hb-muted: rgba(var(--hb-muted-rgb), 0.64);
   /* 商店自有最暗一档。**它有使用上限**：只允许压到 surface-soft 一级为止。
      场景都在上限之内，照旧可用。 */
-  --hb-muted-dim: #6d8797;
+  --hb-muted-dim: #77919f;
 
   /* 强调色：与场景同一枚暖金（design/scene/page.css 的 --hos-accent） */
   --hb-accent-rgb: 255, 196, 106;
@@ -163,12 +159,6 @@
   --hb-grad-cool: linear-gradient(180deg, var(--hb-cool-bright), var(--hb-cool-deep));
   --hb-grad-alert: linear-gradient(180deg, var(--hb-alert-bright), var(--hb-alert-deep));
   --hb-grad-sensor: linear-gradient(180deg, var(--hb-sensor-bright), var(--hb-sensor-deep));
-  --hb-grad-aurora: linear-gradient(
-    100deg,
-    var(--hb-accent) 0%,
-    var(--hb-aura) 48%,
-    var(--hb-lumen) 100%
-  );
 
   /* 组件色调的默认值：主控暖金。由下面的 [data-tone] 逐项覆写。 */
   --hb-tone: var(--hb-accent);

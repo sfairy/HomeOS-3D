@@ -8,15 +8,11 @@
   --diag-touch: 40px;
   /* 健康总览主色：翠绿为主，天蓝为辅，琥珀/玫红仅语义告警 */
   --diag-emerald: #34d399;
-  --diag-teal: #2dd4bf;
   --diag-sky: #38bdf8;
   --diag-cyan: #22d3ee;
   --diag-violet: #5eead4;
-  --diag-fuchsia: #2dd4bf;
   --diag-amber: var(--set-warn);
-  --diag-orange: #fbbf24;
   --diag-rose: var(--set-danger);
-  --diag-indigo: #38bdf8;
   --diag-surface: rgba(8, 18, 16, 0.55);
   --diag-surface-border: rgba(52, 211, 153, 0.16);
   --diag-glow: rgba(52, 211, 153, 0.12);
@@ -446,10 +442,6 @@
   letter-spacing: 0.08em;
 }
 
-.diag-config-health__copy { 
-  flex: 1; 
-  min-width: 0; 
-}
 .diag-config-health__eyebrow { 
   margin: 0 0 6px; 
   font-size: var(--set-fs-micro, 12px); 
@@ -933,7 +925,6 @@
 }
 
 .diag-gauge-card--cpu {
-  --gauge-accent: var(--diag-amber);
   border-color: rgba(var(--set-warn-rgb), 0.24);
   background:
     linear-gradient(165deg, rgba(var(--set-warn-rgb), 0.1) 0%, rgba(0, 0, 0, 0.3) 100%);
@@ -949,7 +940,6 @@
 }
 
 .diag-gauge-card--memory {
-  --gauge-accent: var(--diag-fuchsia);
   border-color: rgba(var(--page-accent-rgb), 0.24);
   background:
     linear-gradient(165deg, rgba(var(--page-accent-rgb), 0.1) 0%, rgba(0, 0, 0, 0.3) 100%);

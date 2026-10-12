@@ -8,13 +8,9 @@
  */
 .setup-wizard-hub,
 .setup-wizard-hub__body {
-  --sw-page-accent: rgb(var(--page-accent-rgb, 251, 191, 36));
-  --sw-page-accent-sub: rgb(var(--page-accent-secondary-rgb, 167, 139, 250));
 
   /* 基础表面 */
   --sw-surface: rgba(8, 10, 18, 0.42);
-  --sw-surface-raised: rgba(0, 0, 0, 0.22);
-  --sw-surface-input: rgba(255, 255, 255, 0.03);
   --sw-border-subtle: rgba(255, 255, 255, 0.06);
   --sw-border: rgba(255, 255, 255, 0.1);
 
@@ -61,7 +57,6 @@
   --sw-amber-bg-icon: rgba(251, 191, 36, 0.13);
   --sw-amber-border: rgba(251, 191, 36, 0.22);
   --sw-amber-border-icon: rgba(251, 191, 36, 0.28);
-  --sw-amber-border-strong: rgba(251, 191, 36, 0.4);
   --sw-amber-glow: rgba(251, 191, 36, 0.2);
 
   /* 青绿 · 环境（与琥珀能源步区分） */
@@ -72,11 +67,9 @@
   --sw-teal-bg-icon: rgba(45, 212, 191, 0.12);
   --sw-teal-border: rgba(45, 212, 191, 0.2);
   --sw-teal-border-icon: rgba(45, 212, 191, 0.26);
-  --sw-teal-border-strong: rgba(45, 212, 191, 0.38);
   --sw-teal-glow: rgba(45, 212, 191, 0.18);
 
   /* 紫罗兰 · 辅助（推断 / presence 等） */
-  --sw-violet: var(--page-accent, #7eb8ff);
   --sw-violet-light: var(--page-accent, #7eb8ff);
   --sw-violet-text: var(--page-accent, #7eb8ff);
   --sw-violet-bg: rgba(var(--page-accent-rgb, 126, 184, 255), 0.08);
@@ -84,7 +77,6 @@
   --sw-violet-border: rgba(var(--page-accent-rgb, 126, 184, 255), 0.2);
   --sw-violet-border-icon: rgba(var(--page-accent-rgb, 126, 184, 255), 0.26);
   --sw-violet-border-strong: rgba(var(--page-accent-rgb, 126, 184, 255), 0.36);
-  --sw-violet-glow: rgba(var(--page-accent-rgb, 126, 184, 255), 0.18);
 }
 
 /* ── setup-wizard-shared.css ── */

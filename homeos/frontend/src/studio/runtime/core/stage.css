@@ -2324,7 +2324,6 @@ body.interaction3d-stage.is-background-hidden,
   cursor: default;
 }
 .interaction3d-stage .i3d-marker.is-alarm-card {
-  --i3d-marker-anchor-y: -100%;
   min-width: 0;
   border-radius: 14px;
   pointer-events: none;
@@ -3119,8 +3118,6 @@ body.interaction3d-stage.is-background-hidden,
   --i3d-wood-field-hover: #eee3d0;
   --i3d-device-status-normal: #386b43;
   --i3d-device-status-warning: #8b5518;
-  --i3d-device-status-unknown: #716657;
-  --i3d-device-status-off: #716657;
 }
 .interaction3d-stage[data-scene-style="warm-wood"]
   :is(

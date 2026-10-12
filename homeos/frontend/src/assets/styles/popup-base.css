@@ -9,7 +9,6 @@
      .popup-shell {
        --accent: #0A84FF;
        --accent-rgb: 10, 132, 255;
-       --accent-end: #66d4cf;
      }
    ========================================================================== */
 
@@ -27,7 +26,6 @@
 .popup-shell {
   --accent: #fbbf24;
   --accent-rgb: 251, 191, 36;
-  --accent-end: #fb923c;
 
   /* 玻璃壳配方参数（配方本体见 hos-glass-shell.css） */
   --shell-blur: 80px;

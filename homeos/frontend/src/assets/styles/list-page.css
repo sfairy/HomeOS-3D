@@ -17,13 +17,6 @@
     linear-gradient(180deg, #0b0e15 0%, #080a10 100%);
 }
 
-/* 浅色主题：改用全局浅色面板 token，避免浅色下整页仍是深色渐变 */
-html[data-theme='light'] .list-page {
-  background:
-    radial-gradient(ellipse 95% 55% at 8% -12%, rgba(var(--page-accent-rgb), 0.06) 0%, transparent 56%),
-    var(--hos-surface-panel);
-}
-
 /* Hero：委托 premium-head--card，仅补内部间距 */
 .list-page__hero.premium-head--card {
   flex-direction: column;

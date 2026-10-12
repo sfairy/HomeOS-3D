@@ -3,8 +3,6 @@
  */
 .events-view {
   --ev-accent: var(--page-accent, #22d3ee);
-  --ev-accent-secondary: var(--page-accent-secondary, #94a3b8);
-  --ev-accent-rgb: var(--page-accent-rgb, 34, 211, 238);
 }
 
 .events-view__cards {

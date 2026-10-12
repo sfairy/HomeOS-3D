@@ -73,21 +73,27 @@
    注：--page-accent / --page-accent-rgb 由各 View 组件 :style 注入
        （DevicesView / DeviceDetailView 使用 --module-accent-devices）。
        这里仅保留二级色与 rgb 派生（兼容历史 --dev-accent-rgb 引用）。 */
-.devices-view { --page-accent: var(--module-accent-devices); --page-accent-secondary: var(--module-accent-devices-sub); --dev-accent-rgb: var(--module-accent-devices-rgb); }
-.device-detail-view { --page-accent: var(--module-accent-devices); --page-accent-secondary: var(--module-accent-devices-sub); --dev-accent-rgb: var(--module-accent-devices-rgb); }
+/* 页面强调色三件套（--page-accent / --page-accent-secondary / --page-accent-rgb）
+   必须同时给出：--page-accent-rgb 是派生色（--page-accent-bg / -border / -glow / -text）
+   的唯一色源，缺了它，本页派生面色会停留在全局默认色。
+   注：--page-accent / --page-accent-rgb 也可能由各 View 组件 :style 注入。 */
+.devices-view { --page-accent: var(--module-accent-devices); --page-accent-secondary: var(--module-accent-devices-sub); --page-accent-rgb: var(--module-accent-devices-rgb); --dev-accent-rgb: var(--module-accent-devices-rgb); }
+.device-detail-view { --page-accent: var(--module-accent-devices); --page-accent-secondary: var(--module-accent-devices-sub); --page-accent-rgb: var(--module-accent-devices-rgb); --dev-accent-rgb: var(--module-accent-devices-rgb); }
 .security-view { --page-accent: var(--module-accent-security); --page-accent-secondary: var(--module-accent-security-sub); --page-accent-rgb: var(--module-accent-security-rgb); }
-.rooms-view { --page-accent: #fb923c; --page-accent-secondary: #f97316; }
-.scenes-view { --page-accent: var(--module-accent-scenes); --page-accent-secondary: var(--module-accent-scenes-sub); }
-.automations-view { --page-accent: var(--module-accent-automation); --page-accent-secondary: var(--module-accent-automation-sub); }
-.scripts-view { --page-accent: var(--module-accent-script); --page-accent-secondary: var(--module-accent-script-sub); }
-.cameras-view { --page-accent: #f87171; --page-accent-secondary: #ef4444; }
+.rooms-view { --page-accent: #fb923c; --page-accent-secondary: #f97316; --page-accent-rgb: 251, 146, 60; }
+.scenes-view { --page-accent: var(--module-accent-scenes); --page-accent-secondary: var(--module-accent-scenes-sub); --page-accent-rgb: var(--module-accent-scenes-rgb); }
+.automations-view { --page-accent: var(--module-accent-automation); --page-accent-secondary: var(--module-accent-automation-sub); --page-accent-rgb: var(--module-accent-automation-rgb); }
+.scripts-view { --page-accent: var(--module-accent-script); --page-accent-secondary: var(--module-accent-script-sub); --page-accent-rgb: var(--module-accent-script-rgb); }
+.cameras-view { --page-accent: #f87171; --page-accent-secondary: #ef4444; --page-accent-rgb: 248, 113, 113; }
 .mode-logs-view {
   --page-accent: var(--module-accent-home-mode, #fbbf24);
   --page-accent-secondary: var(--module-accent-home-mode-sub, #fb7185);
+  --page-accent-rgb: var(--module-accent-home-mode-rgb, 251, 191, 36);
 }
 .notifications-view {
   --page-accent: #f472b6;
   --page-accent-secondary: #fb7185;
+  --page-accent-rgb: 244, 114, 182;
 }
 .earthquake-history-view {
   --page-accent: #fbbf24;

@@ -15,9 +15,6 @@
 .dus-icon-info {
   color: var(--set-info, #7dd3fc);
 }
-.dus-icon-violet {
-  color: var(--premium-accent-violet, #a78bfa);
-}
 
 /* —— DeviceOverviewPanel —— */
 .dov-icon-info {
@@ -31,9 +28,6 @@
 }
 
 /* —— DeviceStateHistoryPanel —— */
-.dsh-icon-info {
-  color: var(--set-info, #7dd3fc);
-}
 .dsh-icon-info {
   color: var(--set-info, #7dd3fc);
 }

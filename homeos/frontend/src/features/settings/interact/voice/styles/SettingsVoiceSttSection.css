@@ -143,47 +143,6 @@
 }
 
 
-.voice-stt-status,
-.voice-conv-test {
-  margin-top: 12px;
-  padding: 12px 14px;
-  border-radius: var(--hos-radius-card);
-  border: var(--hos-hairline) solid var(--premium-border);
-  background: rgba(255, 255, 255, 0.03);
-}
-.voice-stt-status__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-.voice-stt-status__line {
-  font-size: var(--premium-fs-caption);
-  color: rgba(255, 255, 255, 0.78);
-}
-.voice-stt-status__hint {
-  margin-top: 4px;
-  font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-secondary);
-}
-.voice-conv-test__row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.voice-conv-test__result {
-  margin-top: 8px;
-  max-height: 160px;
-  overflow: auto;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.28);
-  font-size: var(--set-fs-micro, 12px);
-  color: rgba(255, 255, 255, 0.7);
-  white-space: pre-wrap;
-}
-
 .voice-mic-row {
   display: flex;
   flex-wrap: wrap;

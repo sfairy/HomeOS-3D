@@ -6,7 +6,6 @@
   --eq-accent-secondary: var(--page-accent-secondary, #fb923c);
   --eq-accent-rgb: var(--page-accent-rgb, 251, 191, 36);
   --eq-glass: rgba(255, 255, 255, 0.025);
-  --eq-glass-hover: rgba(255, 255, 255, 0.045);
   overflow: hidden;
   background:
     radial-gradient(ellipse 85% 55% at 8% -8%, rgba(var(--eq-accent-rgb), 0.09) 0%, transparent 58%),
@@ -23,11 +22,6 @@
   justify-content: space-between;
   gap: 12px 20px;
   min-height: 40px;
-}
-
-.earthquake-history-view > .list-page__hero.premium-head--card,
-.earthquake-history-view > .list-page__hero {
-  /* 不强制 Hero 高度，交由统一 list-page 布局决定 */
 }
 
 .earthquake-history-view__dock {

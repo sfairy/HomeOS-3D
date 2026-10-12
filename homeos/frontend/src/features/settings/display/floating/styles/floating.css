@@ -2,6 +2,24 @@
 @import '../../styles/layout-panels.css';
 /* 合并自：floating.css, floating-panel.css */
 
+/* 浮动组件设置面板的 token 契约：本文件 `.afh-*` 样式统一经这族令牌取值，
+   缺省强调色与浮动组件本体（floating-hub/index.css）保持一致。 */
+:root {
+  --afh-radius-md: var(--hos-radius-card);
+  --afh-border: var(--hos-border-subtle);
+  --afh-border-strong: var(--hos-border-strong);
+  --afh-text: var(--hos-text-primary);
+  --afh-text-soft: var(--hos-text-secondary);
+  --afh-text-muted: var(--hos-text-label);
+  --afh-surface-raised: var(--hos-surface-elevated);
+  --afh-ease: var(--ease-smooth);
+  --afh-accent-strong: color-mix(in srgb, var(--afh-accent, #94a3b8) 72%, #fff);
+  --afh-accent-border: color-mix(in srgb, var(--afh-accent, #94a3b8) 42%, #1a1d28);
+  --afh-accent-bg: color-mix(in srgb, var(--afh-accent, #94a3b8) 24%, #12141c);
+  --afh-mint: #2dd4bf;
+  --afh-rose: #fb7185;
+}
+
 /* ── floating.css ── */
 /* ── 浮动组件 · Studio 设计系统 ── */
 .afh-card .widget-config-studio {
@@ -1006,8 +1024,6 @@
 
 .afh-section--html .afh-input--mono { color: #f5d0fe; border-color: rgba(232, 121, 249, 0.2); }
 .afh-section--html .afh-input--mono:focus { border-color: rgba(232, 121, 249, 0.48); box-shadow: 0 0 0 3px rgba(232, 121, 249, 0.12); }
-
-.afh-studio--orange { --studio-tone: #fb923c; }
 
 /* ── 动效 ── */
 .afh-expand-enter-active,

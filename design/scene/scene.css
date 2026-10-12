@@ -29,9 +29,9 @@
   inset: 0;
   background:
     radial-gradient(ellipse 70% 45% at 26% 18%, rgba(var(--hos-tone-rgb), 0.16), transparent 62%),
-    radial-gradient(ellipse 55% 40% at 66% 6%, rgba(var(--hos-aura-rgb), 0.11), transparent 58%),
-    radial-gradient(ellipse 50% 36% at 34% 74%, rgba(var(--hos-lumen-rgb), 0.1), transparent 70%),
-    radial-gradient(ellipse 38% 26% at 84% 58%, rgba(var(--hos-eco-rgb), 0.05), transparent 66%),
+    radial-gradient(ellipse 55% 40% at 66% 6%, rgba(var(--hb-aura-rgb), 0.11), transparent 58%),
+    radial-gradient(ellipse 50% 36% at 34% 74%, rgba(var(--hb-lumen-rgb), 0.1), transparent 70%),
+    radial-gradient(ellipse 38% 26% at 84% 58%, rgba(var(--hb-eco-rgb), 0.05), transparent 66%),
     linear-gradient(
       168deg,
       var(--hos-sky-deep) 0%,
@@ -62,7 +62,7 @@
     118deg,
     transparent 8%,
     rgba(var(--hos-tone-rgb), 0.24) 30%,
-    rgba(var(--hos-aura-rgb), 0.2) 52%,
+    rgba(var(--hb-aura-rgb), 0.2) 52%,
     rgba(var(--hos-tone-rgb), 0.08) 74%,
     transparent 88%
   );
@@ -77,9 +77,9 @@
   background: linear-gradient(
     100deg,
     transparent 12%,
-    rgba(var(--hos-lumen-rgb), 0.16) 36%,
-    rgba(var(--hos-eco-rgb), 0.11) 58%,
-    rgba(var(--hos-lumen-rgb), 0.07) 78%,
+    rgba(var(--hb-lumen-rgb), 0.16) 36%,
+    rgba(var(--hb-eco-rgb), 0.11) 58%,
+    rgba(var(--hb-lumen-rgb), 0.07) 78%,
     transparent 88%
   );
   animation: hosAuroraDriftB 22s ease-in-out infinite;
@@ -153,9 +153,9 @@
   background: radial-gradient(
     circle,
     rgba(var(--hos-tone-rgb), 0.26) 0%,
-    rgba(var(--hos-aura-rgb), 0.16) 22%,
+    rgba(var(--hb-aura-rgb), 0.16) 22%,
     rgba(var(--hos-dawn-rgb), 0.12) 36%,
-    rgba(var(--hos-lumen-rgb), 0.07) 54%,
+    rgba(var(--hb-lumen-rgb), 0.07) 54%,
     transparent 72%
   );
   filter: blur(2px);
@@ -456,8 +456,8 @@
   border-radius: 50%;
   background: radial-gradient(
     ellipse,
-    rgba(var(--hos-lumen-rgb), 0.32) 0%,
-    rgba(var(--hos-lumen-rgb), 0.1) 42%,
+    rgba(var(--hb-lumen-rgb), 0.32) 0%,
+    rgba(var(--hb-lumen-rgb), 0.1) 42%,
     transparent 72%
   );
   filter: blur(12px);
@@ -487,13 +487,13 @@
 .hos-scene__motes i:nth-child(6),
 .hos-scene__motes i:nth-child(8) {
   background: rgba(var(--hos-star-warm-rgb), 0.75);
-  box-shadow: 0 0 6px rgba(var(--hos-lumen-rgb), 0.6);
+  box-shadow: 0 0 6px rgba(var(--hb-lumen-rgb), 0.6);
 }
 
 .hos-scene__motes i:nth-child(5),
 .hos-scene__motes i:nth-child(7) {
   background: rgba(var(--hos-star-aura-rgb), 0.75);
-  box-shadow: 0 0 6px rgba(var(--hos-aura-rgb), 0.6);
+  box-shadow: 0 0 6px rgba(var(--hb-aura-rgb), 0.6);
 }
 
 .hos-scene__motes i:nth-child(1) {
@@ -739,8 +739,8 @@
   background: radial-gradient(
     ellipse 70% 100% at 32% 100%,
     rgba(var(--hos-tone-rgb), 0.14) 0%,
-    rgba(var(--hos-lumen-rgb), 0.09) 38%,
-    rgba(var(--hos-aura-rgb), 0.05) 58%,
+    rgba(var(--hb-lumen-rgb), 0.09) 38%,
+    rgba(var(--hb-aura-rgb), 0.05) 58%,
     transparent 76%
   );
   filter: blur(8px);
@@ -1093,7 +1093,7 @@
   background: linear-gradient(
     90deg,
     var(--hos-tone),
-    rgba(var(--hos-lumen-rgb), 0.75),
+    rgba(var(--hb-lumen-rgb), 0.75),
     transparent
   );
   box-shadow: 0 0 12px rgba(var(--hos-tone-rgb), 0.45);
@@ -1193,8 +1193,8 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--hos-eco);
-  box-shadow: 0 0 8px rgba(var(--hos-eco-rgb), 0.65);
+  background: var(--hb-eco);
+  box-shadow: 0 0 8px rgba(var(--hb-eco-rgb), 0.65);
   animation: hosLivePulse 2.6s ease-out infinite;
 }
 

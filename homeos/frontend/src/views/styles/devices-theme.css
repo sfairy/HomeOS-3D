@@ -11,7 +11,6 @@
 .device-detail-view,
 .device-analytics {
   --dev-accent: var(--page-accent, var(--module-accent-devices));
-  --dev-accent-secondary: var(--page-accent-secondary, var(--module-accent-devices-sub));
   --dev-accent-soft: color-mix(in srgb, var(--dev-accent) 14%, rgba(0, 0, 0, 0));
   --dev-accent-border: color-mix(in srgb, var(--dev-accent) 38%, rgba(0, 0, 0, 0));
   --dev-accent-text: color-mix(in srgb, var(--dev-accent) 55%, white);
@@ -1779,7 +1778,7 @@
 .device-history-panel__retention-hint {
   margin: 0 0 10px;
   padding: 8px 12px;
-  border-radius: var(--hos-radius-sm, 8px);
+  border-radius: var(--hos-radius-control);
   border: 1px solid rgba(251, 191, 36, 0.25);
   background: rgba(251, 191, 36, 0.08);
   color: rgba(253, 230, 138, 0.92);

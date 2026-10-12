@@ -1,11 +1,6 @@
 /**
  * 通知中心页 · 域专属样式（壳层见 list-page-dual-pane.css）
  */
-.notifications-view {
-  --nc-accent: var(--page-accent, #f472b6);
-  --nc-accent-secondary: var(--page-accent-secondary, #fb7185);
-  --nc-accent-rgb: var(--page-accent-rgb, 244, 114, 182);
-}
 
 .notifications-view__stream-actions {
   display: flex;

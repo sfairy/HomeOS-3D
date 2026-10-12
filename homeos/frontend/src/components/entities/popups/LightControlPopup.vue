@@ -218,8 +218,3 @@ const {
 </script>
 
 <style src="./styles/PopupAccents.css"></style>
-<style scoped>
-:deep(.popup-shell) {
-  --accent-end: #fb923c;
-}
-</style>

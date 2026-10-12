@@ -26,12 +26,8 @@
 .settings-page {
   --settings-content-gap: 20px;
   --settings-inset-x: 2rem;
-  --settings-grid-min: 280px;
-  --settings-grid-break: 960px;
 
-  --set-fs-display: var(--premium-fs-display);
   --set-fs-display-sm: 22px;
-  --set-fs-display-xs: 20px;
   --set-fs-title: var(--premium-fs-title);
   --set-fs-title-sm: 17px;
   --set-fs-body: var(--premium-fs-body);
@@ -163,9 +159,7 @@
     --settings-content-gap: 24px;
     --settings-inset-x: 2.5rem;
 
-    --set-fs-display: 30px;
     --set-fs-display-sm: 25px;
-    --set-fs-display-xs: 23px;
     --set-fs-title: 21px;
     --set-fs-title-sm: 20px;
     --set-fs-body: 17px;
@@ -196,9 +190,7 @@
     --settings-content-gap: 32px;
     --settings-inset-x: 3.5rem;
 
-    --set-fs-display: 36px;
     --set-fs-display-sm: 30px;
-    --set-fs-display-xs: 27px;
     --set-fs-title: 25px;
     --set-fs-title-sm: 24px;
     --set-fs-body: 20px;

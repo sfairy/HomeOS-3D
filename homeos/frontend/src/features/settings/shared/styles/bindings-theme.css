@@ -347,9 +347,6 @@
     transform: none;
     box-shadow: none;
   }
-  .bind-sec-action--primary {
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
-  }
 }
 
 .bind-sec-action--ghost {

@@ -1441,12 +1441,9 @@
   gap: 12px;
   padding: 16px 20px 20px;
   overflow: hidden;
-  --sec-dash-pad: 20px;
-  --sec-dash-gap: 14px;
   --sec-dash-radius: var(--hos-radius-panel);
   --sec-dash-panel-bg: rgba(255, 255, 255, 0.02);
   --sec-dash-border: rgba(255, 255, 255, 0.07);
-  --sec-btn-radius: 12px;
   --sec-btn-radius-sm: 10px;
   --sec-btn-border: rgba(255, 255, 255, 0.09);
   --sec-btn-bg: rgba(255, 255, 255, 0.04);
@@ -1465,13 +1462,6 @@
   display: flex;
   flex-direction: column;
 }
-
-.sec-dash-workspace > .sov-workspace {
-  flex: 1;
-  min-height: 0;
-}
-
-
 
 /* 交互按钮共用基底 */
 .sec-dash-mode-btn,

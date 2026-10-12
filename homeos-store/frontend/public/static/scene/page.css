@@ -5,7 +5,7 @@
   color-scheme: dark;
   /* 原生控件（勾选框 / 单选 / 进度条 / 日期选择）也走主控色。商店的 theme.css 早已
      可滚动前台」，前台不在 .hos-page 里。 */
-  accent-color: var(--hos-accent);
+  accent-color: var(--hb-accent);
 
   /* 夜空面：蓝相往靛偏约 6°，给极光紫与暖金让出色域（原 #050910 是纯蓝，加紫会发灰）。 */
   --hos-sky-deep: #050912;
@@ -20,30 +20,8 @@
   --hos-sky-high-rgb: 22, 38, 60;
   --hos-sky-haze-rgb: 36, 57, 90;
 
-  /* 主控暖金：品牌锚点，用于「进入 / 可操作」。全站在暖色琥珀一套上，
-     主控与暖光同属暖色，靠一亮一沉区分（金 vs 橙），不是靠色相拉开。 */
-  --hos-accent-rgb: 255, 196, 106;
-  --hos-accent: #ffc46a;
-  --hos-accent-bright: #ffd9a0;
-  --hos-accent-deep: #e09523;
-
-  /* 居家暖光：灯、居家氛围、授权「已激活」、流程完成。 */
-  --hos-lumen-rgb: 255, 157, 77;
-  --hos-lumen: #ff9d4d;
-  --hos-lumen-bright: #ffba83;
-  --hos-lumen-deep: #c96a1d;
-
-  /* 氛围极光：次级强调、版面过渡、找回 / 恢复这类「异常但可控」的路径。 */
-  --hos-aura-rgb: 201, 160, 255;
-  --hos-aura: #c9a0ff;
-  --hos-aura-bright: #e7d6ff;
-  --hos-aura-deep: #9253e6;
-
-  /* 生态薄荷：在线、正常、节能、已布防。 */
-  --hos-eco-rgb: 95, 208, 168;
-  --hos-eco: #5fd0a8;
-  --hos-eco-bright: #88dcbf;
-  --hos-eco-deep: #3b8e71;
+  /* 四束身份色（accent/lumen/aura/eco）由 appearance.css（应用侧）与 theme.css（商店侧）声明，
+     本文件只引用。accent 与 lumen 同属暖色，靠一亮一沉区分，改配色时别拉成同一明度。 */
 
   /* 设备读色。heat ↔ cool 是温度的两端，alert 是超限，sensor 是离线 / 未知。
      --hos-grad-alert 同源），所以这三档也一样不能缺、不能只改一侧。 */
@@ -149,21 +127,21 @@
 
 
   /* 渐变：单色竖渐变给按钮（深色文字压在上面要够亮），三色横渐变给标题与光带。 */
-  --hos-grad-accent: linear-gradient(180deg, var(--hos-accent-bright), var(--hos-accent-deep));
-  --hos-grad-lumen: linear-gradient(180deg, var(--hos-lumen-bright), var(--hos-lumen-deep));
-  --hos-grad-aura: linear-gradient(180deg, var(--hos-aura-bright), var(--hos-aura-deep));
-  --hos-grad-eco: linear-gradient(180deg, var(--hos-eco-bright), var(--hos-eco-deep));
+  --hos-grad-accent: linear-gradient(180deg, var(--hb-accent-bright), var(--hb-accent-deep));
+  --hos-grad-lumen: linear-gradient(180deg, var(--hb-lumen-bright), var(--hb-lumen-deep));
+  --hos-grad-aura: linear-gradient(180deg, var(--hb-aura-bright), var(--hb-aura-deep));
+  --hos-grad-eco: linear-gradient(180deg, var(--hb-eco-bright), var(--hb-eco-deep));
   --hos-grad-alert: linear-gradient(180deg, var(--hos-alert-bright), var(--hos-alert-deep));
   --hos-grad-aurora: linear-gradient(
     100deg,
-    var(--hos-accent) 0%,
-    var(--hos-aura) 48%,
-    var(--hos-lumen) 100%
+    var(--hb-accent) 0%,
+    var(--hb-aura) 48%,
+    var(--hb-lumen) 100%
   );
 
   /* 状态文案色（比语义色亮一档，保证在深空底上的可读性）。 */
-  --hos-ok: var(--hos-eco-bright);
-  --hos-warn: var(--hos-lumen-bright);
+  --hos-ok: var(--hb-eco-bright);
+  --hos-warn: var(--hb-lumen-bright);
   --hos-err: var(--hos-alert-bright);
   /* 次要危险文字（安静版）。与 --hos-err 同一族、低一档气势 —— 用在哪见
      --hos-alert-quiet 定义处。 */
@@ -171,19 +149,19 @@
 
   /* 页面色调开关，默认「主控暖金」。
      也不会因为这些页面共用一份 panel.css 而糊成同一个颜色。 */
-  --hos-tone: var(--hos-accent);
-  --hos-tone-rgb: var(--hos-accent-rgb);
-  --hos-tone-bright: var(--hos-accent-bright);
-  --hos-tone-deep: var(--hos-accent-deep);
+  --hos-tone: var(--hb-accent);
+  --hos-tone-rgb: var(--hb-accent-rgb);
+  --hos-tone-bright: var(--hb-accent-bright);
+  --hos-tone-deep: var(--hb-accent-deep);
   --hos-grad-tone: var(--hos-grad-accent);
   /* 主按钮 hover：比默认渐变再亮一档。
      hover 态却还是琥珀。 */
-  --hos-grad-tone-hover: linear-gradient(180deg, var(--hos-accent-bright), var(--hos-accent));
+  --hos-grad-tone-hover: linear-gradient(180deg, var(--hb-accent-bright), var(--hb-accent));
 
   /* 天气与远景：黎明冷灰、地平线暖调。 */
   --hos-dawn-rgb: 168, 196, 220;
 
-  /* 星空与浮尘的「一点光」。比 --hos-cool / --hos-lumen / --hos-aura 都淡一档：
+  /* 星空与浮尘的「一点光」。比 --hos-cool / --hb-lumen / --hb-aura 都淡一档：
      冷档两种：近白的远星 + 偏青的亮星（远近各一层，才不像贴上去的贴纸）。 */
   --hos-star-rgb: 220, 240, 255;
   --hos-star-cool-rgb: 168, 226, 255;
@@ -224,39 +202,39 @@
 /* 主控暖金。取值与 :root 的默认完全相同 —— 加这个类不是为了让默认态变样，而是让
    另外四页是冻结的字面色相 —— 机制不同，改主控色时只有它一个人动。 */
 .hos-tone--accent {
-  --hos-tone: var(--hos-accent);
-  --hos-tone-rgb: var(--hos-accent-rgb);
-  --hos-tone-bright: var(--hos-accent-bright);
-  --hos-tone-deep: var(--hos-accent-deep);
+  --hos-tone: var(--hb-accent);
+  --hos-tone-rgb: var(--hb-accent-rgb);
+  --hos-tone-bright: var(--hb-accent-bright);
+  --hos-tone-deep: var(--hb-accent-deep);
   --hos-grad-tone: var(--hos-grad-accent);
-  --hos-grad-tone-hover: linear-gradient(180deg, var(--hos-accent-bright), var(--hos-accent));
+  --hos-grad-tone-hover: linear-gradient(180deg, var(--hb-accent-bright), var(--hb-accent));
 }
 
 .hos-tone--lumen {
-  --hos-tone: var(--hos-lumen);
-  --hos-tone-rgb: var(--hos-lumen-rgb);
-  --hos-tone-bright: var(--hos-lumen-bright);
-  --hos-tone-deep: var(--hos-lumen-deep);
+  --hos-tone: var(--hb-lumen);
+  --hos-tone-rgb: var(--hb-lumen-rgb);
+  --hos-tone-bright: var(--hb-lumen-bright);
+  --hos-tone-deep: var(--hb-lumen-deep);
   --hos-grad-tone: var(--hos-grad-lumen);
-  --hos-grad-tone-hover: linear-gradient(180deg, var(--hos-lumen-bright), var(--hos-lumen));
+  --hos-grad-tone-hover: linear-gradient(180deg, var(--hb-lumen-bright), var(--hb-lumen));
 }
 
 .hos-tone--aura {
-  --hos-tone: var(--hos-aura);
-  --hos-tone-rgb: var(--hos-aura-rgb);
-  --hos-tone-bright: var(--hos-aura-bright);
-  --hos-tone-deep: var(--hos-aura-deep);
+  --hos-tone: var(--hb-aura);
+  --hos-tone-rgb: var(--hb-aura-rgb);
+  --hos-tone-bright: var(--hb-aura-bright);
+  --hos-tone-deep: var(--hb-aura-deep);
   --hos-grad-tone: var(--hos-grad-aura);
-  --hos-grad-tone-hover: linear-gradient(180deg, var(--hos-aura-bright), var(--hos-aura));
+  --hos-grad-tone-hover: linear-gradient(180deg, var(--hb-aura-bright), var(--hb-aura));
 }
 
 .hos-tone--eco {
-  --hos-tone: var(--hos-eco);
-  --hos-tone-rgb: var(--hos-eco-rgb);
-  --hos-tone-bright: var(--hos-eco-bright);
-  --hos-tone-deep: var(--hos-eco-deep);
+  --hos-tone: var(--hb-eco);
+  --hos-tone-rgb: var(--hb-eco-rgb);
+  --hos-tone-bright: var(--hb-eco-bright);
+  --hos-tone-deep: var(--hb-eco-deep);
   --hos-grad-tone: var(--hos-grad-eco);
-  --hos-grad-tone-hover: linear-gradient(180deg, var(--hos-eco-bright), var(--hos-eco));
+  --hos-grad-tone-hover: linear-gradient(180deg, var(--hb-eco-bright), var(--hb-eco));
 }
 
 /* 异常路径专用（找回 / 恢复 / 需人工处理）。用珊瑚而不是把主控色调暗：

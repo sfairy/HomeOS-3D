@@ -74,7 +74,7 @@
     180deg,
     transparent,
     var(--hos-tone) 30%,
-    rgba(var(--hos-lumen-rgb), 0.7) 70%,
+    rgba(var(--hb-lumen-rgb), 0.7) 70%,
     transparent
   );
   box-shadow: 0 0 12px rgba(var(--hos-tone-rgb), 0.45);
@@ -179,8 +179,8 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--hos-eco);
-  box-shadow: 0 0 8px rgba(var(--hos-eco-rgb), 0.7);
+  background: var(--hb-eco);
+  box-shadow: 0 0 8px rgba(var(--hb-eco-rgb), 0.7);
 }
 
 
@@ -603,16 +603,16 @@
 /* 枢纽卡的四条挂载状态各读一种设备色：灯（暖光）、摄像头（青）、新风（薄荷）、
    传感器（极光紫）。原来四行是四个写死的 rgba，改品牌色时它们不会跟着变。 */
 .hos-hub__item:nth-of-type(1) .hos-hub__name {
-  color: rgba(var(--hos-lumen-rgb), 0.9);
+  color: rgba(var(--hb-lumen-rgb), 0.9);
 }
 .hos-hub__item:nth-of-type(2) .hos-hub__name {
-  color: rgba(var(--hos-accent-rgb), 0.9);
+  color: rgba(var(--hb-accent-rgb), 0.9);
 }
 .hos-hub__item:nth-of-type(3) .hos-hub__name {
-  color: rgba(var(--hos-eco-rgb), 0.9);
+  color: rgba(var(--hb-eco-rgb), 0.9);
 }
 .hos-hub__item:nth-of-type(4) .hos-hub__name {
-  color: rgba(var(--hos-aura-rgb), 0.9);
+  color: rgba(var(--hb-aura-rgb), 0.9);
 }
 
 /* ── 表单骨架 ───────────────────────────────────────────────── */
@@ -762,8 +762,8 @@
 }
 
 .hos-control.is-valid {
-  border-color: rgba(var(--hos-eco-rgb), 0.42);
-  box-shadow: 0 0 0 1px rgba(var(--hos-eco-rgb), 0.08);
+  border-color: rgba(var(--hb-eco-rgb), 0.42);
+  box-shadow: 0 0 0 1px rgba(var(--hb-eco-rgb), 0.08);
 }
 
 .hos-control.is-valid:focus-within {
@@ -1011,7 +1011,7 @@
     180deg,
     transparent,
     var(--hos-tone) 30%,
-    rgba(var(--hos-lumen-rgb), 0.65) 70%,
+    rgba(var(--hb-lumen-rgb), 0.65) 70%,
     transparent
   );
   box-shadow: 0 0 10px rgba(var(--hos-tone-rgb), 0.4);
@@ -1333,22 +1333,22 @@
 .hos-notice {
   margin: 0 0 16px;
   padding: 10px 12px;
-  border: 1px solid rgba(var(--hos-lumen-rgb), 0.35);
+  border: 1px solid rgba(var(--hb-lumen-rgb), 0.35);
   border-radius: 12px;
-  background: rgba(var(--hos-lumen-rgb), 0.08);
-  color: var(--hos-lumen);
+  background: rgba(var(--hb-lumen-rgb), 0.08);
+  color: var(--hb-lumen);
   font-size: 0.82rem;
   line-height: 1.55;
 }
 
 .hos-status.hos-tone--eco,
 .hos-panel__desc.hos-tone--eco {
-  color: var(--hos-eco);
+  color: var(--hb-eco);
 }
 
 .hos-status.hos-tone--lumen,
 .hos-panel__desc.hos-tone--lumen {
-  color: var(--hos-lumen);
+  color: var(--hb-lumen);
 }
 
 .hos-status.hos-tone--alert,
@@ -1365,9 +1365,9 @@
 }
 
 .hos-notice.hos-tone--eco {
-  border-color: rgba(var(--hos-eco-rgb), 0.35);
-  background: rgba(var(--hos-eco-rgb), 0.08);
-  color: var(--hos-eco);
+  border-color: rgba(var(--hb-eco-rgb), 0.35);
+  background: rgba(var(--hb-eco-rgb), 0.08);
+  color: var(--hb-eco);
 }
 
 /* 坞底的换页提示（「没有账号？注册」「已有账号？登录」「返回商店前台」）。

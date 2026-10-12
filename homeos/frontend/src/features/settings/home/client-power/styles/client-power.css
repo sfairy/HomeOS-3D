@@ -1053,10 +1053,6 @@
 
 /* —— SettingsClientPowerPanel —— */
 .charge-hub {
-  --charge-emerald: var(--premium-accent-green);
-  --charge-sky: var(--premium-accent-cyan);
-  --charge-amber: var(--premium-accent-amber);
-  --charge-violet: var(--premium-accent-violet);
   gap: 16px;
 }
 

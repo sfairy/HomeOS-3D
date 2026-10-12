@@ -2,23 +2,6 @@
 
 /* ── 通用 workspace 变量（翡翠/琥珀双主色 + 语义左色条） ── */
 
-.hub-glance-band,
-.link-glance-band {
-  flex-shrink: 0;
-  padding: var(--hos-panel-padding-hero-y, 16px) var(--hub-inset-x, 2rem) var(--hos-panel-padding-compact-y, 14px);
-  border-bottom: var(--hos-hairline) solid rgba(var(--page-accent-secondary-rgb), 0.1);
-  background: var(--hub-band-bg);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
-.link-workspace .link-glance-band {
-  background:
-    radial-gradient(ellipse 70% 90% at 8% 0%, rgba(var(--set-info-rgb), 0.12) 0%, transparent 55%),
-    radial-gradient(ellipse 55% 80% at 50% 0%, rgba(var(--page-accent-rgb), 0.1) 0%, transparent 52%),
-    radial-gradient(ellipse 50% 70% at 92% 10%, rgba(var(--page-accent-secondary-rgb), 0.1) 0%, transparent 50%),
-    var(--hub-band-bg);
-}
-
 .hub-body,
 .link-body {
   padding: var(--hos-panel-padding-default, 20px) var(--hub-inset-x, 2rem) var(--hos-space-2xl, 24px);
@@ -45,8 +28,6 @@
 .hub-stat-row .hub-stat[class*='--amber'],
 .hub-stat-row .hub-stat[class*='--accent'],
 .hub-stat-row .hub-stat[class*='--secondary'] {
-  background: var(--hub-surface);
-  border: var(--hos-hairline) solid var(--hub-surface-border);
   border-left-width: 3px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }

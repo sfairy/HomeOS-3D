@@ -330,7 +330,7 @@ onMounted(load)
 
 <style scoped>
 .retention-card {
-  margin-bottom: var(--hos-space-6, 24px);
+  margin-bottom: var(--hos-space-2xl);
 }
 
 .retention-card__head {
@@ -340,7 +340,7 @@ onMounted(load)
   flex-wrap: wrap;
   gap: 12px;
   padding: 18px 20px 14px;
-  border-bottom: var(--hos-hairline) solid var(--hos-border, rgba(255, 255, 255, 0.08));
+  border-bottom: var(--hos-hairline) solid var(--hos-border-hairline);
 }
 
 .retention-card__title {
@@ -359,14 +359,14 @@ onMounted(load)
   margin: 0;
   font-size: var(--premium-fs-title);
   font-weight: 600;
-  color: var(--hos-text-strong, #f4f4f5);
+  color: var(--hos-text-strong);
 }
 
 .retention-card__hint {
   margin: 4px 0 0;
   font-size: var(--set-fs-micro, 12px);
   line-height: 1.5;
-  color: var(--hos-text-dim, #a1a1aa);
+  color: var(--hos-text-secondary);
 }
 
 .retention-card__actions {
@@ -383,9 +383,9 @@ onMounted(load)
   padding: 4px 10px;
   border-radius: var(--hos-radius-pill);
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-dim, #a1a1aa);
+  color: var(--hos-text-secondary);
   background: rgba(255, 255, 255, 0.04);
-  border: var(--hos-hairline) solid var(--hos-border, rgba(255, 255, 255, 0.08));
+  border: var(--hos-hairline) solid var(--hos-border-hairline);
   white-space: nowrap;
 }
 
@@ -420,7 +420,7 @@ onMounted(load)
   flex-wrap: wrap;
   gap: 10px;
   padding: 12px 20px;
-  border-bottom: var(--hos-hairline) solid var(--hos-border, rgba(255, 255, 255, 0.06));
+  border-bottom: var(--hos-hairline) solid var(--hos-border-hairline-soft);
   background: linear-gradient(
     90deg,
     rgba(var(--module-accent-admin-rgb, 250, 204, 21), 0.07),
@@ -430,7 +430,7 @@ onMounted(load)
 
 .retention-batch__label {
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-dim, #a1a1aa);
+  color: var(--hos-text-secondary);
 }
 
 .retention-batch__control {
@@ -443,14 +443,14 @@ onMounted(load)
   position: absolute;
   right: 8px;
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-dim, #a1a1aa);
+  color: var(--hos-text-secondary);
   pointer-events: none;
 }
 
 .retention-batch__meta {
   margin-left: auto;
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-dim, #a1a1aa);
+  color: var(--hos-text-secondary);
 }
 
 /* 清理统计 */
@@ -465,7 +465,7 @@ onMounted(load)
   padding: 14px 16px;
   border-radius: var(--hos-radius-card);
   background: rgba(255, 255, 255, 0.03);
-  border: var(--hos-hairline) solid var(--hos-border, rgba(255, 255, 255, 0.07));
+  border: var(--hos-hairline) solid var(--hos-border-hairline);
 }
 
 .retention-stat--hero {
@@ -483,7 +483,7 @@ onMounted(load)
   margin: 0;
   font-size: var(--premium-fs-title);
   font-weight: 600;
-  color: var(--hos-text-strong, #f4f4f5);
+  color: var(--hos-text-strong);
 }
 
 .retention-stat--hero .retention-stat__value {
@@ -494,7 +494,7 @@ onMounted(load)
 .retention-stat__label {
   margin: 4px 0 0;
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-dim, #a1a1aa);
+  color: var(--hos-text-secondary);
 }
 
 .retention-empty {
@@ -513,7 +513,7 @@ onMounted(load)
 .retention-empty__text {
   margin: 0;
   font-size: var(--premium-fs-caption);
-  color: var(--hos-text-dim, #a1a1aa);
+  color: var(--hos-text-secondary);
 }
 
 /* 保留策略表格 */
@@ -533,13 +533,13 @@ onMounted(load)
 
 .retention-table__head {
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-dim, #a1a1aa);
-  border-bottom: var(--hos-hairline) solid var(--hos-border, rgba(255, 255, 255, 0.06));
+  color: var(--hos-text-secondary);
+  border-bottom: var(--hos-hairline) solid var(--hos-border-hairline-soft);
 }
 
 .retention-table__row {
   position: relative;
-  border-bottom: var(--hos-hairline) solid var(--hos-border, rgba(255, 255, 255, 0.06));
+  border-bottom: var(--hos-hairline) solid var(--hos-border-hairline-soft);
   transition: background-color 0.15s ease;
 }
 
@@ -575,23 +575,23 @@ onMounted(load)
   margin: 0;
   font-size: var(--premium-fs-body-sm);
   font-weight: 500;
-  color: var(--hos-text, #e4e4e7);
+  color: var(--hos-text-body);
 }
 
 .retention-table__meta {
   margin: 3px 0 0;
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-dim, #a1a1aa);
+  color: var(--hos-text-secondary);
 }
 
 .retention-table__cell {
   font-size: var(--premium-fs-caption);
-  color: var(--hos-text, #e4e4e7);
+  color: var(--hos-text-body);
   white-space: nowrap;
 }
 
 .retention-table__cell--rows {
-  color: var(--hos-text-dim, #a1a1aa);
+  color: var(--hos-text-secondary);
 }
 
 .retention-table__input-wrap {
@@ -604,9 +604,9 @@ onMounted(load)
   width: 76px;
   padding: 6px 28px 6px 8px;
   border-radius: 8px;
-  border: var(--hos-hairline) solid var(--hos-border, rgba(255, 255, 255, 0.14));
+  border: var(--hos-hairline) solid var(--hos-border-hairline-strong);
   background: rgba(255, 255, 255, 0.04);
-  color: var(--hos-text, #e4e4e7);
+  color: var(--hos-text-body);
   font-size: var(--premium-fs-caption);
   outline: none;
   transition:
@@ -627,7 +627,7 @@ onMounted(load)
   position: absolute;
   right: 8px;
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-dim, #a1a1aa);
+  color: var(--hos-text-secondary);
   pointer-events: none;
 }
 
@@ -639,8 +639,8 @@ onMounted(load)
   gap: 12px;
   padding: 10px 20px;
   font-size: var(--set-fs-micro, 12px);
-  color: var(--hos-text-dim, #a1a1aa);
-  border-top: var(--hos-hairline) solid var(--hos-border, rgba(255, 255, 255, 0.06));
+  color: var(--hos-text-secondary);
+  border-top: var(--hos-hairline) solid var(--hos-border-hairline-soft);
   background: rgba(255, 255, 255, 0.02);
 }
 

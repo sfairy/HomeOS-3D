@@ -12,9 +12,6 @@
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
 }
 
-.home-mode-switcher__menu--top {
-  /* placement 由 inline bottom 锚定 */
-}
 
 .home-mode-switcher__item {
   display: flex;

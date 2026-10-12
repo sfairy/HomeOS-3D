@@ -794,10 +794,6 @@
 .home-mode-panel .hm-toolbar-btn:active:not(:disabled) {
   transform: translateY(0);
 }
-.home-mode-panel .hm-toolbar-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
 .home-mode-panel .hm-toolbar-btn--accent {
   color: var(--page-accent-text);
   background: var(--page-accent-bg);

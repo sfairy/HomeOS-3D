@@ -362,9 +362,9 @@ input[type="range"].sm-emergency-range::-moz-range-thumb {
      */
   --text-primary: rgba(255,255,255,0.96);                   /* 主文字——几乎不透明白 */
   --text-secondary: rgba(255,255,255,0.65);                 /* 次要文字——半透明 */
-  --text-tertiary: rgba(255,255,255,0.45);                  /* 辅助文字——更淡 */
+  --text-tertiary: rgba(255,255,255,0.5);                   /* 辅助文字——更淡 */
   --text-muted: rgba(255,255,255,0.5);                      /* 禁用/占位文字——最淡（≥0.5 保证小字号可读性） */
-  --text-placeholder: rgba(255,255,255,0.2);                /* 占位符文字——极淡 */
+  --text-placeholder: rgba(255,255,255,0.46);               /* 占位符文字——最淡但仍达 AA 4.5:1 */
 
   /* 7.5b iPad 增强文字颜色
      针对大屏 iPad 优化，微微提升亮度和对比度
