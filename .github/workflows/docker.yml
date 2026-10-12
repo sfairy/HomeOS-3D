@@ -96,14 +96,14 @@ jobs:
             platform: linux/amd64
             arch: amd64
             runner: ubuntu-24.04
-            smoke_module: backend.app.app  # 镜像里的包名是 app（源码目录是 src，构建时映射）
+            smoke_module: app.app  # 镜像里的包名是 app（源码目录是 src，构建时映射）
           - target: app
             project: app
             suffix: ""
             platform: linux/arm64
             arch: arm64
             runner: ubuntu-24.04-arm
-            smoke_module: backend.app.app  # 镜像里的包名是 app（源码目录是 src，构建时映射）
+            smoke_module: app.app  # 镜像里的包名是 app（源码目录是 src，构建时映射）
           - target: store
             project: store
             suffix: "-store"
