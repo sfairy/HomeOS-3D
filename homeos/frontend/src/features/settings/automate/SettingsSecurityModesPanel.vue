@@ -34,7 +34,7 @@
         />
       </label>
       <SettingsPendingSaveAction
-        v-if="hubSection === 'modes'"
+        v-if="hubSection === 'modes' || (hubSection === 'linkage' && pendingChanges > 0)"
         :pending="pendingChanges"
         save-text="保存安防场景"
         @save="saveSecurityLayout"
@@ -53,6 +53,10 @@
         @save="saveSecurityLayout"
         @cancel="cancelSecurityChanges"
       />
+    </div>
+
+    <div v-if="hubSection === 'linkage'" class="sm-modes-stage sm-modes-stage--linkage">
+      <SettingsSecurityModesLinkageSection />
     </div>
 
     <template #tabs>
@@ -147,6 +151,7 @@ import { ref, computed } from 'vue'
 import SettingsPageShell from '@/components/common/page-shell/SettingsPageShell.vue'
 import SettingsSecurityModesEmergencySection from '@/features/settings/automate/SettingsSecurityModesEmergencySection.vue'
 import SettingsSecurityModesModeCard from '@/features/settings/automate/SettingsSecurityModesModeCard.vue'
+import SettingsSecurityModesLinkageSection from '@/features/settings/automate/SettingsSecurityModesLinkageSection.vue'
 import SettingsHubSubnav from '@/features/settings/shared/layout/SettingsHubSubnav.vue'
 import { Download, Upload, Loader2, Shield, ListChecks, Save, Radio } from '@lucide/vue'
 import { useSecurityModes } from '@/features/settings/composables/automate/security-modes-core.internals'
@@ -164,6 +169,7 @@ const importingModes = ref(false)
 
 const hubSections = computed(() => [
   { id: 'modes', label: '场景联动', emoji: '🛡️' },
+  { id: 'linkage', label: '全屋联动', emoji: '🔗' },
 ])
 
 useSettingsHubRouteSection(hubSection, hubSections, {

@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-10-12T13:32:36.048Z",
-  "styleFilesScanned": 612,
-  "definedNames": 965,
-  "knownNamesViaScripts": 812,
-  "totalRefs": 15257,
+  "generatedAt": "2026-10-12T16:14:38.270Z",
+  "styleFilesScanned": 624,
+  "definedNames": 987,
+  "knownNamesViaScripts": 819,
+  "totalRefs": 15486,
   "unresolvedCount": 0,
-  "unresolvedWithFallbackCount": 39,
+  "unresolvedWithFallbackCount": 41,
   "unresolved": [],
   "unresolvedWithFallback": [
     {
@@ -76,8 +76,20 @@
     },
     {
       "name": "--hub-inset-x",
+      "file": "homeos:src/features/settings/automate/linkage/styles/linkage.css",
+      "line": 269,
+      "hasFallback": true
+    },
+    {
+      "name": "--hub-inset-x",
       "file": "homeos:src/features/settings/shared/styles/settings-hub-workspace.css",
       "line": 7,
+      "hasFallback": true
+    },
+    {
+      "name": "--hub-surface",
+      "file": "homeos:src/features/settings/automate/linkage/styles/linkage.css",
+      "line": 362,
       "hasFallback": true
     },
     {
