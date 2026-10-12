@@ -360,7 +360,9 @@ input[type="range"].sm-emergency-range::-moz-range-thumb {
      五级透明度对应：主文字 / 次要 / 辅助 / 禁用 / 占位
      统一使用白色 rgba 叠加，确保在深色背景上始终可见
      */
-  --text-primary: rgba(255,255,255,0.96);                   /* 主文字——几乎不透明白 */
+  /* --text-primary 的真源在 hos-design-system.css（别名到 --hos-text-primary）。
+     该表在 main.ts 里后加载、同特指度（:root）下后者胜，所以这里再声明一份 0.96
+     只会被 0.92 遮蔽——取值看着像权威口径，却从不生效，属最容易读错的那类残留。 */
   --text-secondary: rgba(255,255,255,0.65);                 /* 次要文字——半透明 */
   --text-tertiary: rgba(255,255,255,0.5);                   /* 辅助文字——更淡 */
   --text-muted: rgba(255,255,255,0.5);                      /* 禁用/占位文字——最淡（≥0.5 保证小字号可读性） */
@@ -375,12 +377,10 @@ input[type="range"].sm-emergency-range::-moz-range-thumb {
   /* 7.6 卡片变量（Card Tokens）
      四级背景透明度 + 边框 + 阴影，用于 .ios-card 等容器
      */
-  --card-bg-1: rgba(255,255,255,0.045);                    /* 卡片背景——基础抬升 */
-  --card-bg-2: rgba(255,255,255,0.075);                    /* 卡片背景——次级 */
-  --card-bg-3: rgba(255,255,255,0.11);                     /* 卡片背景——控件 */
+  /* --card-bg-1..3 / --card-border / --card-border-hover 真源在 hos-design-system.css
+     （别名到 --hos-surface-* / --hos-border-*）；该表后加载，此处重复声明会被整体遮蔽。
+     保留的本文件覆盖只有下方的 .perf-medium / .perf-low 性能分级（类选择器特指度更高）。 */
   --card-bg-4: rgba(255,255,255,0.14);                     /* 卡片背景——高亮 */
-  --card-border: var(--premium-border);                    /* 卡片边框——默认 */
-  --card-border-hover: rgba(255,255,255,0.14);             /* 卡片边框——悬停高亮 */
   --card-shadow: 0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.12);           /* 卡片阴影——默认 */
   --card-shadow-hover: 0 16px 48px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.15);   /* 卡片阴影——悬停抬升 */
 
@@ -416,19 +416,11 @@ input[type="range"].sm-emergency-range::-moz-range-thumb {
   --blur-xl: 64px;                                          /* 极度模糊半径 */
 
   /* 7.9b 间距令牌（Spacing Scale）
-     全站统一间距基线，列表页/模态/卡片优先引用
-     */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 14px;
-  --space-5: 18px;
-  --space-6: 22px;
-  --space-7: 28px;
-  --space-page-x: var(--space-6);
-  --space-page-y-top: var(--space-5);
-  --space-page-y-bottom: var(--space-7);
-  --space-page-gap: var(--space-4);
+     全站统一间距基线的真源在 hos-design-system.css：映射到 8px 网格
+     --hos-space-xs..3xl 与 --hos-page-*。该表后加载、同特指度下后者胜，故此处不再重复。
+     原先这里另抄了一份 14/18/22px 的取值，被整体遮蔽、从不生效——留着只会让人把
+     基线读错（`--space-6` 看着是 22px，实际是 24px），且 `--space-page-*` 的派生
+     关系也随之失准。 */
 
   /* 触控最小命中（细指针默认 44，粗指针媒体查询可覆盖） */
   --touch-min: 44px;
@@ -474,12 +466,11 @@ input[type="range"].sm-emergency-range::-moz-range-thumb {
   --z-max: 2147483647;    /* 绝对顶层：下拉选择器/拾色器/输入联想等浮层 */
 
   /* 7.10 圆角半径（Border Radius）
-     六级圆角，遵循 4px 递增节奏
-     */
+     真源在 hos-design-system.css（--hos-radius-control / card / panel / shell），该表后加载。
+     --radius-md / --radius-lg 原先在此别名到 card / panel，但同一份 hos-design-system 又
+     把它们定义为 16px / var(--hos-radius-panel)——后者胜，别名从未生效，故删去重复声明。 */
   --radius-xs: 8px;                                         /* 极小圆角——按钮/标签 */
   --radius-sm: 12px;                                        /* 小圆角——输入框 */
-  --radius-md: var(--hos-radius-card);                      /* 中等圆角——小卡片 */
-  --radius-lg: var(--hos-radius-panel);                     /* 大圆角——中卡片 */
   --radius-xl: var(--hos-radius-shell);                     /* 超大圆角——大卡片 */
   --radius-2xl: var(--hos-radius-shell);                    /* 极大圆角——主卡片（.ios-card） */
 

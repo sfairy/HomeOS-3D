@@ -130,7 +130,10 @@
   --space-page-y-bottom: var(--hos-page-y-bottom);
   --space-page-gap: var(--hos-page-gap);
 
-  --radius-md: 16px;
+  /* 圆角兼容别名：容器档位只有 card / panel 两级（见文件顶部圆角契约）。
+     原先 --radius-md 硬写 16px，成了契约里明令避免的「第三档容器圆角」，
+     且与同区其它别名（一律 var(--hos-*)）不成一体，故对齐到 card 档。 */
+  --radius-md: var(--hos-radius-card);
   --radius-lg: var(--hos-radius-panel);
 
   --text-primary: var(--hos-text-primary);
