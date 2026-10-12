@@ -21,8 +21,11 @@ const config: KnipConfig = {
     nsExports: 'off',
     duplicates: 'error',
   },
-  entry: ['ops/**/*.{mjs,js,ts}', 'package.json'],
-  project: ['ops/**/*.{mjs,js,ts}', 'knip.config.ts', 'tsconfig.node.json'],
+  // ⚠ monorepo 下顶层的 `entry` / `project` 不会被采纳。本仓库的 package.json 声明了
+  // workspaces，knip 会把顶层这两个 glob 报成 `unused top-level entry / project`
+  // （Configuration hints），即它们对任何文件都不生效 —— 于是 ops 下的脚本只剩
+  // 「被 package.json scripts 引用」这一条入口来源。
+  // 根工作区必须用 `'.'` 显式声明，见下方 workspaces。
   ignore: [
     'dist/**',
     '**/node_modules/**',
@@ -37,6 +40,20 @@ const config: KnipConfig = {
   ],
   ignoreDependencies: ['javascript-obfuscator'],
   workspaces: {
+    '.': {
+      // ops/** 下的脚本是「手工运行的 CLI」：没有被任何模块 import，而 knip 只把
+      // package.json scripts 引用到的文件当入口。不登记时它们会被判为 unused files，
+      // 且未成为入口 → 不可达 → lib/ 里的 import 不计入使用，lib 的导出被误报为 unused exports。
+      // （根目录的 eslint.config.mjs 由 knip 的 ESLint 插件自带入口，导出亦豁免，无需列举。）
+      entry: ['ops/**/*.{mjs,js,ts}', 'package.json'],
+      project: ['ops/**/*.{mjs,js,ts}', 'knip.config.ts'],
+      // 入口文件默认不报「未使用导出」，但 ops/ui-audit/lib/*.mjs 是被脚本共享的模块、
+      // 不是 CLI 本身，必须继续受检 —— 否则等于用「不报噪声」换「静默丢覆盖」。
+      // 实测：开启后往 lib/scan.mjs 注入一个无引用导出会被正常报出。
+      includeEntryExports: true,
+      // 入口文件内自用（含局部 helper 导出）不算未使用，避免 CLI 工具误报。
+      ignoreExportsUsedInFile: true,
+    },
     homeos: {
       entry: ['scripts/**/*.{mjs,js,ts}', 'package.json'],
       project: ['scripts/**/*.{mjs,js,ts}'],
