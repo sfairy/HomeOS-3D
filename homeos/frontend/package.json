@@ -27,7 +27,7 @@
     "slice:range:selftest": "node scripts/_studio_slice_range_selftest.mjs",
     "slice:wrap:selftest": "node scripts/_studio_slice_wrap_selftest.mjs",
     "check:chunk-groups:selftest": "node scripts/_vite_chunk_groups_selftest.mjs",
-    "check:deps": "node scripts/check-frontend-deps.mjs && node scripts/check-studio-deps.mjs && node scripts/check-import-refs.mjs && node scripts/_import_refs_selftest.mjs && node scripts/check-vite-chunk-groups.mjs && node scripts/_vite_chunk_groups_selftest.mjs && node scripts/check-host-bindings.mjs && node scripts/_host_bindings_selftest.mjs && node scripts/check-deps-bag-lazy.mjs && node scripts/_deps_bag_lazy_selftest.mjs && node scripts/check-css-classes.mjs && node scripts/_css_classes_selftest.mjs && node scripts/_studio_slice_range_selftest.mjs && node scripts/_studio_slice_wrap_selftest.mjs",
+    "check:deps": "node scripts/check-frontend-deps.mjs && node scripts/check-studio-deps.mjs && node scripts/check-import-refs.mjs && node scripts/_import_refs_selftest.mjs && node scripts/check-vite-chunk-groups.mjs && node scripts/_vite_chunk_groups_selftest.mjs && node scripts/check-host-bindings.mjs && node scripts/_host_bindings_selftest.mjs && node scripts/check-deps-bag-lazy.mjs && node scripts/_deps_bag_lazy_selftest.mjs && node scripts/check-css-classes.mjs && node scripts/_css_classes_selftest.mjs && node scripts/_studio_slice_range_selftest.mjs && node scripts/_studio_slice_wrap_selftest.mjs && node ../../ops/ui-audit/check-token-contract.mjs && node ../../ops/ui-audit/check-token-map.mjs",
     "typecheck": "node ../../ops/run-vue-tsc.mjs -p tsconfig.json --noEmit"
   },
   "dependencies": {

@@ -31,6 +31,7 @@
     "slice:studio:restore-imports": "bun ops/restore_import_formatting.mjs",
     "classify:domains": "python3 ops/frontend_domain_classify.py",
     "verify:scene": "python3 ops/verify_scene_sync.py",
+    "verify:tokens": "node ops/ui-audit/check-token-contract.mjs",
     "verify:features": "python3 ops/check_feature_codes.py",
     "verify:contracts": "python3 ops/check_shared_contracts.py && python3 ops/check_shared_contracts_selftest.py && bun run verify:independence",
     "verify:independence": "python3 ops/check_deploy_independence.py && python3 ops/check_deploy_independence_selftest.py",
@@ -45,7 +46,8 @@
     "dev:runtime": "bun run --cwd homeos dev:runtime",
     "dev:backend": "bun ops/dev.mjs --backend-only",
     "dev:app": "bun run --cwd homeos dev",
-    "dev:store": "bun run --cwd homeos-store dev"
+    "dev:store": "bun run --cwd homeos-store dev",
+    "verify:tokenmap": "node ops/ui-audit/check-token-map.mjs"
   },
   "workspaces": [
     "homeos",

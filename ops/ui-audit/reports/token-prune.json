@@ -1,0 +1,16 @@
+{
+  "generatedAt": "2026-10-12T07:06:17.014Z",
+  "mode": "dry-run",
+  "filesCleaned": 0,
+  "totalRemoved": 0,
+  "files": [],
+  "skipped": [
+    {
+      "file": "homeos-store/frontend/public/static/theme.css",
+      "line": 184,
+      "reason": "retention-hint",
+      "name": "--hb-shadow-sm",
+      "snippet": "--hb-shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.35);"
+    }
+  ]
+}

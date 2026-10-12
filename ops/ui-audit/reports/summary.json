@@ -1,0 +1,564 @@
+{
+  "generatedAt": "2026-10-12T07:06:17.129Z",
+  "tokens": {
+    "totalDefined": 1246,
+    "totalReferenced": 1246,
+    "crossProjectDefs": 111,
+    "byTarget": {
+      "homeos": {
+        "defined": 844,
+        "orphan": 153,
+        "dangling": 279
+      },
+      "store": {
+        "defined": 255,
+        "orphan": 51,
+        "dangling": 2
+      },
+      "design": {
+        "defined": 105,
+        "orphan": 49,
+        "dangling": 16
+      },
+      "shared": {
+        "defined": 0,
+        "orphan": 0,
+        "dangling": 0
+      }
+    }
+  },
+  "colors": {
+    "totalHexLiterals": 7193,
+    "distinctHex": 1820,
+    "totalFunctionalLiterals": 8456,
+    "distinctFunctional": 1894,
+    "topHex": [
+      {
+        "hex": "#ffffff",
+        "count": 673,
+        "fileCount": 115
+      },
+      {
+        "hex": "#000000",
+        "count": 286,
+        "fileCount": 29
+      },
+      {
+        "hex": "#f2a20d",
+        "count": 168,
+        "fileCount": 17
+      },
+      {
+        "hex": "#0a84ff",
+        "count": 132,
+        "fileCount": 37
+      },
+      {
+        "hex": "#fbbf24",
+        "count": 126,
+        "fileCount": 77
+      },
+      {
+        "hex": "#34d399",
+        "count": 103,
+        "fileCount": 51
+      },
+      {
+        "hex": "#7d8799",
+        "count": 96,
+        "fileCount": 2
+      },
+      {
+        "hex": "#38bdf8",
+        "count": 91,
+        "fileCount": 42
+      },
+      {
+        "hex": "#7dd3fc",
+        "count": 79,
+        "fileCount": 47
+      },
+      {
+        "hex": "#6ee7b7",
+        "count": 67,
+        "fileCount": 41
+      },
+      {
+        "hex": "#7eb8ff",
+        "count": 67,
+        "fileCount": 21
+      },
+      {
+        "hex": "#fcd34d",
+        "count": 63,
+        "fileCount": 41
+      },
+      {
+        "hex": "#ff9d2e",
+        "count": 59,
+        "fileCount": 4
+      },
+      {
+        "hex": "#9aa5b7",
+        "count": 58,
+        "fileCount": 1
+      },
+      {
+        "hex": "#60a5fa",
+        "count": 55,
+        "fileCount": 32
+      },
+      {
+        "hex": "#22d3ee",
+        "count": 54,
+        "fileCount": 35
+      },
+      {
+        "hex": "#fb923c",
+        "count": 51,
+        "fileCount": 29
+      },
+      {
+        "hex": "#f4a816",
+        "count": 49,
+        "fileCount": 4
+      },
+      {
+        "hex": "#fca5a5",
+        "count": 47,
+        "fileCount": 23
+      },
+      {
+        "hex": "#f87171",
+        "count": 46,
+        "fileCount": 38
+      }
+    ]
+  },
+  "contrast": [
+    {
+      "label": "homeos 主控制设计系统",
+      "file": "homeos/frontend/src/assets/styles/hos-design-system.css",
+      "scopes": {
+        "root": {
+          "pairs": 42,
+          "failBody": 0,
+          "failLarge": 0
+        }
+      }
+    },
+    {
+      "label": "homeos 全局令牌（main.css）",
+      "file": "homeos/frontend/src/assets/styles/main.css",
+      "scopes": {
+        "root": {
+          "pairs": 35,
+          "failBody": 0,
+          "failLarge": 0
+        }
+      }
+    },
+    {
+      "label": "homeos-store 商店令牌",
+      "file": "homeos-store/frontend/public/static/theme.css",
+      "scopes": {
+        "root": {
+          "pairs": 20,
+          "failBody": 0,
+          "failLarge": 0
+        }
+      }
+    }
+  ],
+  "breakpoints": {
+    "mediaTotal": 397,
+    "distinctWidths": 44,
+    "offCanonicalCount": 34,
+    "offCanonical": [
+      {
+        "width": 320,
+        "count": 1,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 1,
+        "canonical": false
+      },
+      {
+        "width": 360,
+        "count": 2,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 2,
+        "canonical": false
+      },
+      {
+        "width": 420,
+        "count": 1,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 1,
+        "canonical": false
+      },
+      {
+        "width": 440,
+        "count": 1,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 1,
+        "canonical": false
+      },
+      {
+        "width": 481,
+        "count": 1,
+        "kinds": [
+          "min"
+        ],
+        "fileCount": 1,
+        "canonical": false
+      },
+      {
+        "width": 520,
+        "count": 4,
+        "kinds": [
+          "min",
+          "max"
+        ],
+        "fileCount": 4,
+        "canonical": false
+      },
+      {
+        "width": 540,
+        "count": 1,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 1,
+        "canonical": false
+      },
+      {
+        "width": 560,
+        "count": 8,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 7,
+        "canonical": false
+      },
+      {
+        "width": 600,
+        "count": 1,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 1,
+        "canonical": false
+      },
+      {
+        "width": 620,
+        "count": 2,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 2,
+        "canonical": false
+      },
+      {
+        "width": 650,
+        "count": 2,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 1,
+        "canonical": false
+      },
+      {
+        "width": 680,
+        "count": 3,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 2,
+        "canonical": false
+      },
+      {
+        "width": 700,
+        "count": 3,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 2,
+        "canonical": false
+      },
+      {
+        "width": 719,
+        "count": 1,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 1,
+        "canonical": false
+      },
+      {
+        "width": 720,
+        "count": 39,
+        "kinds": [
+          "max",
+          "min"
+        ],
+        "fileCount": 25,
+        "canonical": false
+      },
+      {
+        "width": 760,
+        "count": 4,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 4,
+        "canonical": false
+      },
+      {
+        "width": 820,
+        "count": 1,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 1,
+        "canonical": false
+      },
+      {
+        "width": 821,
+        "count": 2,
+        "kinds": [
+          "min"
+        ],
+        "fileCount": 1,
+        "canonical": false
+      },
+      {
+        "width": 840,
+        "count": 1,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 1,
+        "canonical": false
+      },
+      {
+        "width": 860,
+        "count": 4,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 3,
+        "canonical": false
+      },
+      {
+        "width": 901,
+        "count": 18,
+        "kinds": [
+          "min"
+        ],
+        "fileCount": 6,
+        "canonical": false
+      },
+      {
+        "width": 980,
+        "count": 3,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 3,
+        "canonical": false
+      },
+      {
+        "width": 1000,
+        "count": 3,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 3,
+        "canonical": false
+      },
+      {
+        "width": 1020,
+        "count": 1,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 1,
+        "canonical": false
+      },
+      {
+        "width": 1100,
+        "count": 13,
+        "kinds": [
+          "max",
+          "min"
+        ],
+        "fileCount": 12,
+        "canonical": false
+      },
+      {
+        "width": 1120,
+        "count": 1,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 1,
+        "canonical": false
+      },
+      {
+        "width": 1180,
+        "count": 3,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 3,
+        "canonical": false
+      },
+      {
+        "width": 1181,
+        "count": 1,
+        "kinds": [
+          "min"
+        ],
+        "fileCount": 1,
+        "canonical": false
+      },
+      {
+        "width": 1200,
+        "count": 1,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 1,
+        "canonical": false
+      },
+      {
+        "width": 1276,
+        "count": 3,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 3,
+        "canonical": false
+      },
+      {
+        "width": 1366,
+        "count": 1,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 1,
+        "canonical": false
+      },
+      {
+        "width": 1380,
+        "count": 1,
+        "kinds": [
+          "max"
+        ],
+        "fileCount": 1,
+        "canonical": false
+      },
+      {
+        "width": 1400,
+        "count": 3,
+        "kinds": [
+          "min"
+        ],
+        "fileCount": 3,
+        "canonical": false
+      },
+      {
+        "width": 3200,
+        "count": 2,
+        "kinds": [
+          "min"
+        ],
+        "fileCount": 2,
+        "canonical": false
+      }
+    ]
+  },
+  "surfaces": {
+    "total": 90,
+    "byKind": {
+      "auth": 4,
+      "shell": 3,
+      "studio": 3,
+      "devices": 2,
+      "notifications": 1,
+      "events": 3,
+      "security": 1,
+      "settings": 27,
+      "embed": 2,
+      "store": 7,
+      "admin": 20,
+      "store-setup": 1,
+      "shared-components": 8,
+      "shared-layouts": 1,
+      "shared-studio": 7
+    },
+    "byProject": {
+      "homeos": 62,
+      "store": 28
+    }
+  },
+  "cssDuplicates": {
+    "duplicateRuleGroups": 510,
+    "duplicateRuleGroupsCleanable": 0,
+    "duplicateRuleGroupsIntentional": 61,
+    "duplicateRuleGroupsUnattributed": 0,
+    "byClassification": {
+      "cross-bundle": 29,
+      "scoped-distinct": 28,
+      "cross-project": 4,
+      "mirror": 449
+    },
+    "mirrorOnlyRuleGroups": 449,
+    "duplicateRuleInstances": 965,
+    "reusedBodyGroups": 456,
+    "duplicateKeyframeNames": 45,
+    "duplicateKeyframeNamesCleanable": 0,
+    "duplicateTokenNames": 302,
+    "conflictingTokenNames": 178,
+    "intraBlockDupes": 14,
+    "intraBlockIdentical": 0,
+    "intraBlockFallbackOnly": 14,
+    "emptyRules": 0,
+    "importantBlocks": 356,
+    "importantTotal": 594
+  },
+  "cssUnused": {
+    "styleFileCount": 612,
+    "deadStylesheets": 0,
+    "classCount": 13576,
+    "unusedClassCount": 601,
+    "unusedConventionCount": 165,
+    "unusedDynamicCount": 809
+  },
+  "tokenCensus": {
+    "defined": 1246,
+    "referenced": 1246,
+    "crossProjectSameName": 111
+  },
+  "tokenReferences": {
+    "totalNames": 1822,
+    "referenced": 1102,
+    "scriptOnly": 652,
+    "reserved": 66,
+    "dead": 2
+  },
+  "tokenContract": {
+    "styleFiles": 612,
+    "refs": 15246,
+    "unresolved": 0,
+    "unresolvedWithFallback": 39
+  }
+}
