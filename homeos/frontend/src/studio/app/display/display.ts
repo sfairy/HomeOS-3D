@@ -9,7 +9,7 @@
  * 引导体沿用原文件逐行搬入（未重新缩进），以保证移植语义零偏差；仅把顶层状态改为 boot 局部、
  * 把匿名处理器提为具名（否则 `removeEventListener` 无法命中）。
  */
-import { PanelRenderer } from "../renderer/core/renderer";
+import { PanelRenderer } from "../renderer/panel-renderer";
 import { createButtonSound } from "../shared/sound-effects";
 import type { DomControl } from "@app/shared/util/dom-control";
 import { navigateInShell } from "@/studio/platform/shell-navigation";

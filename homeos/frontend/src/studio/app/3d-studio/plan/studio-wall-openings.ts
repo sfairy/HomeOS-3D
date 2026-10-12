@@ -3,7 +3,7 @@
  * 从 `../studio/studio-app.ts` 的巨型闭包中抽出（P4 拆单体）：纯函数，依赖全走显式 import。
  */
 import { finite } from "../loaders/studio-normalization";
-import { generateId } from "../studio/ui/studio-app-helpers";
+import { generateId } from "../authoring/ui/studio-app-helpers";
 import { clamp, clampWindowT, splitWallSegments } from "./geometry";
 
 export function remapOpeningsToWalls(

@@ -81,7 +81,7 @@ body.interaction3d-stage #app > .app-container > .app-chrome-toast-host {
 
 /*
  * 同一类问题的第二处：3d-studio/studio.css 的导出嵌入态（`/3d-studio?auto-diagram-embed=1`，
- * 由仪表盘「自动图」组件以 iframe 打开，见 app/renderer/core/registry.ts）用
+ * 由仪表盘「自动图」组件以 iframe 打开，见 app/renderer/registry.ts）用
  *   `body.auto-diagram-embedded
  *      > :not(#export-dialog):not(#export-overwrite-dialog):not(#export-complete-dialog):not(#toast)`
  * 隐藏除导出对话框以外的所有 body 直接子元素。SPA 下 body 只有 `#app` 一个直接子元素，

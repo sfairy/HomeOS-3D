@@ -56,7 +56,7 @@ function jumpStep(step: string) {
 onMounted(async () => {
   floorplanStore.bindFacade();
   await import("@app/3d-studio/stage-startup");
-  const studio = await import("@app/3d-studio/studio/boot");
+  const studio = await import("@app/3d-studio/authoring/lifecycle");
   if (disposed) return;
   studio.bootStudio();
   teardownStudio = studio.teardownStudio;

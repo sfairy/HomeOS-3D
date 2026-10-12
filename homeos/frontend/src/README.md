@@ -369,4 +369,4 @@ Settings UI lives under `features/settings/{connect,display,system,interact,auto
 
 ## Studio
 
-Do not add new flat `studio/app/3d-studio/studio/studio-*.ts` files — use domain folders (`scene/`, `items/`, `lights/`, `ui/`). Flat stubs are compat only. Details: [studio/README.md](./studio/README.md).
+Do not add flat `studio/app/3d-studio/authoring/studio-*.ts` files — use domain folders (`scene/`, `items/`, `lights/`, `ui/`). The old compat stubs have been removed. Details: [studio/README.md](./studio/README.md).

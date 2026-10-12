@@ -27,14 +27,14 @@ const [
   { CARD_TEXT_SIZE_PX: cardTextSizePx },
 ] = await Promise.all([
   import("./label-appearance"),
-  import("@app/bridge/page-appearance-presets"),
-  import("@app/bridge/region-lighting-presets"),
-  import("@app/bridge/light-effect-policy"),
+  import("@app/bridge/presets/page-appearance-presets"),
+  import("@app/bridge/presets/region-lighting-presets"),
+  import("@app/bridge/presets/light-effect-policy"),
   import("@app/bridge/temperature-humidity"),
-  import("@app/bridge/popup-placement"),
+  import("@app/bridge/presets/popup-placement"),
   import("./marker-input"),
-  import("@app/bridge/button-icon-size"),
-  import("@app/bridge/card-text-size"),
+  import("@app/bridge/presets/button-icon-size"),
+  import("@app/bridge/presets/card-text-size"),
 ]);
 import {
   createPresenceScene as createPresenceScene2,

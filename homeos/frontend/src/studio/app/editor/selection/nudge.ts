@@ -1,7 +1,7 @@
 // 从 studio/app/editor/home.ts 迁出（P4 studio 拆分，声明级切片）。
 // 选中组件的方向键微调（nudge）。
 
-import { airflowCanvasOffsetBounds as airflowCanvasOffsetBounds2 } from "../../renderer/core/renderer";
+import { airflowCanvasOffsetBounds as airflowCanvasOffsetBounds2 } from "../../renderer/panel-renderer";
 import { clampNumber as clampNumber2 } from "../editor-utils";
 import { findComponent as findComponent2 } from "../component-tree";
 

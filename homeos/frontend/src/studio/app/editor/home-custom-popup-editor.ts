@@ -12,7 +12,7 @@ import {
   popupLayoutColumns as popupLayoutColumns2,
   popupLayoutMetrics as popupLayoutMetrics2,
 } from "../shared/popup-layout";
-import { syncedLineChartProperties as syncedLineChartProperties2 } from "../renderer/core/renderer";
+import { syncedLineChartProperties as syncedLineChartProperties2 } from "../renderer/panel-renderer";
 
 export interface CustomPopupEditorContext { [key: string]: any }
 

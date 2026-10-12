@@ -3,7 +3,7 @@
  * 从 `../studio/studio-app.ts` 的巨型闭包中抽出（P4 拆单体）：纯函数。
  * `worldFromWallPoint` 由调用方注入 —— 单体内的世界坐标换算牵着相机与楼层状态，不跟着搬。
  */
-import type { WallSpanPadding } from "../studio/types/studio-app-types";
+import type { WallSpanPadding } from "../authoring/types/studio-app-types";
 
 export function buildWallSpanFootprint(
   wallSegment: any,

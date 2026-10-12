@@ -1,5 +1,5 @@
-import { DECOR_THEMES } from "../studio/decor-models";
-import { WARM_WOOD_STYLE } from "../studio/studio-scene-style";
+import { DECOR_THEMES } from "../authoring/items/decor-models";
+import { WARM_WOOD_STYLE } from "../authoring/scene/studio-scene-style";
 const COURTYARD_THEMES = Object.freeze({
   default: Object.freeze({
     ...DECOR_THEMES.default,

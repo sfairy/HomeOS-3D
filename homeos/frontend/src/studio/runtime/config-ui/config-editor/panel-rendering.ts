@@ -1,14 +1,14 @@
 
 import {
   buttonIconSize,
-} from "@app/bridge/button-icon-size";
+} from "@app/bridge/presets/button-icon-size";
 import {
   extraTypes as extraTypes2,
 } from "../../climate/purifier-extras";
 import {
   validCurtainGroups as validCurtainGroups2,
 } from "../../cover/cover-groups";
-import { interaction3dPreviewSize as interaction3dPreviewSize2, observeInteraction3dPreview } from "@app/bridge/preview-layout";
+import { interaction3dPreviewSize as interaction3dPreviewSize2, observeInteraction3dPreview } from "@app/bridge/presets/preview-layout";
 import {
   requestInteraction3dAccess as requestInteraction3dAccess2,
 } from "@app/bridge/bridge";

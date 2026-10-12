@@ -69,24 +69,24 @@ def _seam(rel: str, status: str, layer: str, note: str) -> Entry:
 #: note 写「这个域该收什么」，P4 分批抽离时按它认领。
 ENTRIES: list[Entry] = [
     # —— Creator（app/3d-studio/）——
-    _domain("app/3d-studio/studio/scene", "existing", "creator", "相机 / 阴影 / 总览 / 运动呈现 / 地面过渡"),
-    _domain("app/3d-studio/studio/items", "existing", "creator", "家具与设备 item 助手 / 摆放 / 姿态"),
-    _domain("app/3d-studio/studio/lights", "existing", "creator", "灯光预设数据"),
-    _domain("app/3d-studio/studio/ui", "existing", "creator", "控件 / 历史 / 纯助手"),
+    _domain("app/3d-studio/authoring/scene", "existing", "creator", "相机 / 阴影 / 总览 / 运动呈现 / 地面过渡"),
+    _domain("app/3d-studio/authoring/items", "existing", "creator", "家具与设备 item 助手 / 摆放 / 姿态"),
+    _domain("app/3d-studio/authoring/lights", "existing", "creator", "灯光预设数据"),
+    _domain("app/3d-studio/authoring/ui", "existing", "creator", "控件 / 历史 / 纯助手"),
     _domain(
-        "app/3d-studio/studio/boot",
+        "app/3d-studio/authoring/boot",
         "existing",
         "creator",
         "引导序列（渲染器 / 草稿 / 舞台挂载 / 导出面板）",
     ),
-    _domain("app/3d-studio/studio/types", "existing", "creator", "studio-app 共享类型"),
+    _domain("app/3d-studio/authoring/types", "existing", "creator", "studio-app 共享类型"),
     _domain("app/3d-studio/plan", "existing", "creator", "平面图真实体（studio 侧 `plan-tools/` barrel 待建）"),
     _domain("app/3d-studio/materials", "existing", "creator", "材质真实体（studio 侧 `materials/` barrel 待建）"),
     _domain("app/3d-studio/export", "existing", "creator", "导出真实体（studio 侧 `export/` barrel 待建）"),
     _domain("app/3d-studio/loaders", "existing", "creator", "模型加载"),
-    _domain("app/3d-studio/studio/plan-tools", "planned", "creator", "README 已声明、**当前未建**：平面图工具的 studio 侧入口"),
-    _domain("app/3d-studio/studio/materials", "planned", "creator", "README 已声明、**当前未建**：材质的 studio 侧入口"),
-    _domain("app/3d-studio/studio/export", "planned", "creator", "README 已声明、**当前未建**：导出的 studio 侧入口"),
+    _domain("app/3d-studio/authoring/plan-tools", "planned", "creator", "README 已声明、**当前未建**：平面图工具的 studio 侧入口"),
+    _domain("app/3d-studio/authoring/materials", "planned", "creator", "README 已声明、**当前未建**：材质的 studio 侧入口"),
+    _domain("app/3d-studio/authoring/export", "planned", "creator", "README 已声明、**当前未建**：导出的 studio 侧入口"),
     # —— Panel（app/editor/、app/renderer/）——
     _domain("app/editor/inspectors", "existing", "panel", "flow-line / percentage-bar 等检查器"),
     _domain("app/editor/controls", "existing", "panel", "检查器表单控件（数字输入 ± 步进器增强）"),
@@ -121,9 +121,9 @@ ENTRIES: list[Entry] = [
     _domain("app/renderer/controls", "existing", "panel", "控件渲染"),
     _domain("app/renderer/flow-line", "existing", "panel", "流线绘制"),
     _domain("app/renderer/geometry", "existing", "panel", "几何计算"),
-    _domain("app/renderer/core/registry", "existing", "panel", "组件注册表"),
+    _domain("app/renderer/registry", "existing", "panel", "组件注册表"),
     _domain(
-        "app/renderer/core/renderer",
+        "app/renderer/panel-seams",
         "existing",
         "panel",
         "面板渲染器方法按 seam 拆分：mixin 袋（原 `panel-renderer-bulk-methods.ts` 10.9k 行 → 12 刀，宿主已删）+ "
@@ -142,41 +142,41 @@ ENTRIES: list[Entry] = [
     _seam("runtime/core/stage/camera.ts", "existing", "stage", "舞台相机"),
     _seam("runtime/core/stage/markers.ts", "existing", "stage", "标记渲染"),
     _seam("runtime/core/stage/stage-handlers.ts", "existing", "stage", "舞台事件处理"),
-    _seam("app/renderer/core/renderer/paint.ts", "planned", "panel", "计划中：`panel-renderer.ts` 自己的绘制 seam（分片清单里的 paint，仍待建）"),
-    _seam("app/renderer/core/renderer/runtime-connect.ts", "existing", "panel", "面板运行期连接（`connectRuntime`：订阅 / 重连 / 实体上限）"),
-    _seam("app/renderer/core/renderer/render-component.ts", "existing", "panel", "组件绘制总装（`renderComponent`）"),
-    _seam("app/renderer/core/renderer/capability-controls.ts", "existing", "panel", "能力详情控件（`createCapabilityDetailsControls`）"),
-    _seam("app/renderer/core/renderer/light-controls.ts", "existing", "panel", "灯光详情控件（`createLightDetailsControls`）"),
-    _seam("app/renderer/core/renderer/cover-controls.ts", "existing", "panel", "窗帘详情控件（`createCoverDetailsControls`）"),
-    _seam("app/renderer/core/renderer/climate-controls.ts", "existing", "panel", "空调详情控件（`createClimateDetailsControls`）"),
-    _seam("app/renderer/core/renderer/water-heater-controls.ts", "existing", "panel", "热水器扩展控件（`createWaterHeaterExtensionControls`）"),
-    _seam("app/renderer/core/renderer/air-purifier-details.ts", "existing", "panel", "净化器详情（`showAirPurifierDetails`）"),
-    _seam("app/renderer/core/renderer/vacuum-details.ts", "existing", "panel", "吸尘器详情（`showVacuumDetails`）"),
-    _seam("app/renderer/core/renderer/presence-details.ts", "existing", "panel", "人感详情（`showPresenceDetails`）"),
-    _seam("app/renderer/core/renderer/entity-details.ts", "existing", "panel", "实体详情（`showEntityDetails`）"),
-    _seam("app/renderer/core/renderer/custom-popup.ts", "existing", "panel", "自定义弹窗（`showCustomPopup`）"),
+    _seam("app/renderer/panel-seams/paint.ts", "planned", "panel", "计划中：`panel-renderer.ts` 自己的绘制 seam（分片清单里的 paint，仍待建）"),
+    _seam("app/renderer/panel-seams/runtime-connect.ts", "existing", "panel", "面板运行期连接（`connectRuntime`：订阅 / 重连 / 实体上限）"),
+    _seam("app/renderer/panel-seams/render-component.ts", "existing", "panel", "组件绘制总装（`renderComponent`）"),
+    _seam("app/renderer/panel-seams/capability-controls.ts", "existing", "panel", "能力详情控件（`createCapabilityDetailsControls`）"),
+    _seam("app/renderer/panel-seams/light-controls.ts", "existing", "panel", "灯光详情控件（`createLightDetailsControls`）"),
+    _seam("app/renderer/panel-seams/cover-controls.ts", "existing", "panel", "窗帘详情控件（`createCoverDetailsControls`）"),
+    _seam("app/renderer/panel-seams/climate-controls.ts", "existing", "panel", "空调详情控件（`createClimateDetailsControls`）"),
+    _seam("app/renderer/panel-seams/water-heater-controls.ts", "existing", "panel", "热水器扩展控件（`createWaterHeaterExtensionControls`）"),
+    _seam("app/renderer/panel-seams/air-purifier-details.ts", "existing", "panel", "净化器详情（`showAirPurifierDetails`）"),
+    _seam("app/renderer/panel-seams/vacuum-details.ts", "existing", "panel", "吸尘器详情（`showVacuumDetails`）"),
+    _seam("app/renderer/panel-seams/presence-details.ts", "existing", "panel", "人感详情（`showPresenceDetails`）"),
+    _seam("app/renderer/panel-seams/entity-details.ts", "existing", "panel", "实体详情（`showEntityDetails`）"),
+    _seam("app/renderer/panel-seams/custom-popup.ts", "existing", "panel", "自定义弹窗（`showCustomPopup`）"),
     # —— 7c：`panel-renderer.ts` 的**类方法**按 seam 搬进 methods/（模块侧同名函数 + 类侧转发薄成员）——
-    _seam("app/renderer/core/renderer/methods/transform-interaction.ts", "existing", "panel", "拖拽/缩放/旋转交互（含气流与门窗透视）"),
-    _seam("app/renderer/core/renderer/methods/selection-overlay.ts", "existing", "panel", "选择框 / 控制柄 / 测量宿主 / 门窗透视手柄"),
-    _seam("app/renderer/core/renderer/methods/selection-bounds.ts", "existing", "panel", "各类控件选择边界更新"),
-    _seam("app/renderer/core/renderer/methods/runtime-refresh.ts", "existing", "panel", "运行期组件刷新 / 历史曲线 / 预热 / 重试 / 索引"),
-    _seam("app/renderer/core/renderer/methods/details-popups.ts", "existing", "panel", "详情弹窗族（能力 / 媒体 / 浴霸 / 电动床 / 吸尘器 / 动作）"),
-    _seam("app/renderer/core/renderer/methods/media-camera.ts", "existing", "panel", "相机预览 / 媒体浏览器 / 3D 相机入口"),
-    _seam("app/renderer/core/renderer/methods/runtime-dialogs.ts", "existing", "panel", "运行期对话框缩放 / 关闭 / outside 关灯"),
-    _seam("app/renderer/core/renderer/methods/runtime-actions.ts", "existing", "panel", "动作分发（bindRuntimeActions / dispatchAction / callEntityService）"),
-    _seam("app/renderer/core/renderer/methods/optimistic-state.ts", "existing", "panel", "乐观态视觉与确认判定"),
+    _seam("app/renderer/panel-seams/transform-interaction.ts", "existing", "panel", "拖拽/缩放/旋转交互（含气流与门窗透视）"),
+    _seam("app/renderer/panel-seams/selection-overlay.ts", "existing", "panel", "选择框 / 控制柄 / 测量宿主 / 门窗透视手柄"),
+    _seam("app/renderer/panel-seams/selection-bounds.ts", "existing", "panel", "各类控件选择边界更新"),
+    _seam("app/renderer/panel-seams/runtime-refresh.ts", "existing", "panel", "运行期组件刷新 / 历史曲线 / 预热 / 重试 / 索引"),
+    _seam("app/renderer/panel-seams/details-popups.ts", "existing", "panel", "详情弹窗族（能力 / 媒体 / 浴霸 / 电动床 / 吸尘器 / 动作）"),
+    _seam("app/renderer/panel-seams/media-camera.ts", "existing", "panel", "相机预览 / 媒体浏览器 / 3D 相机入口"),
+    _seam("app/renderer/panel-seams/runtime-dialogs.ts", "existing", "panel", "运行期对话框缩放 / 关闭 / outside 关灯"),
+    _seam("app/renderer/panel-seams/runtime-actions.ts", "existing", "panel", "动作分发（bindRuntimeActions / dispatchAction / callEntityService）"),
+    _seam("app/renderer/panel-seams/optimistic-state.ts", "existing", "panel", "乐观态视觉与确认判定"),
 ]
 
 #: 宿主目录 → 平铺 `.ts` 文件数基线（2026-10-11 实测）。只减不增。
 HOST_FLAT_BASELINE = {
-    "app/3d-studio/studio": 30,
+    "app/3d-studio/authoring": 2,
     "app/editor": 30,
-    "app/renderer/core": 14,
+    "app/renderer": 11,
     "runtime/core": 12,
 }
 
 #: 域覆盖行数基线（2026-10-11 实测）。只增不减。
-COVERAGE_BASELINE = 87831
+COVERAGE_BASELINE = 87934
 
 
 def _lines(path: Path) -> int:

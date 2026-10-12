@@ -1,5 +1,5 @@
 import { courtyardPalette } from "./courtyard-models";
-import { decorateWarmFloor } from "../studio/studio-scene-style";
+import { decorateWarmFloor } from "../authoring/scene/studio-scene-style";
 import {
   localPoints,
   pathPoints,

@@ -12,11 +12,11 @@ import {
 import {
   PanelRenderer as PanelRenderer2,
   setBuiltinAssetVersions as setBuiltinAssetVersions2,
-} from "../renderer/core/renderer";
+} from "../renderer/panel-renderer";
 import {
   lightStatisticsEntityStateStatus as lightStatisticsEntityStateStatus2,
   lightStatisticsEntitySupport as lightStatisticsEntitySupport2,
-} from "../renderer/core/registry";
+} from "../renderer/registry";
 import {
   createComponentFromTemplate as createComponentFromTemplate2,
   dateComponentDimensions as dateComponentDimensions2,
@@ -68,11 +68,11 @@ import {
 import { createEditorPickerQueries as createEditorPickerQueries2 } from "./picker/editor-picker-queries";
 import { createEditorAssetMatcher as createEditorAssetMatcher2 } from "./picker/editor-asset-queries";
 import { createEditorPickerLifecycle as createEditorPickerLifecycle2 } from "./picker/editor-picker-lifecycle";
-import { createInteraction3dEditorPickers as createInteraction3dEditorPickers2 } from "../bridge/editor-pickers";
+import { createInteraction3dEditorPickers as createInteraction3dEditorPickers2 } from "../bridge/pickers/editor-pickers";
 import {
   nasProfiles as nasProfiles2,
   reconcileNasDocument as reconcileNasDocument2,
-} from "../bridge/nas-catalog";
+} from "../bridge/catalog/nas-catalog";
 import { createEditorAssetToolbar as createEditorAssetToolbar2 } from "./picker/editor-asset-toolbar";
 import {
   TOGGLE_ENTITY_DOMAINS as TOGGLE_ENTITY_DOMAINS2,

@@ -6,7 +6,7 @@
  * 故整条搬出（`--whole-statement`）；表单元素引用按 ctx 注入，调用点零改写。
  */
 
-import { airflowCanvasOffsetBounds as airflowCanvasOffsetBounds2 } from "../../renderer/core/renderer";
+import { airflowCanvasOffsetBounds as airflowCanvasOffsetBounds2 } from "../../renderer/panel-renderer";
 
 export interface EffectPreviewInputElementRefs {
   airConditionerAirflowAngleElement: any;

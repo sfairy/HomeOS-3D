@@ -49,13 +49,13 @@ python3 ops/studio_domains_kpi.py --update
 
 | 单体 | 路径（相对 `src/studio/`） | 当前 | 目标 |
 |------|---------------------------|-----:|-----:|
-| creator 编排宿主 | `app/3d-studio/studio/studio-app.ts` | 20681 | < 3000 |
+| creator 编排宿主 | `app/3d-studio/authoring/studio-app.ts` | 20681 | < 3000 |
 | panel 编排宿主 | `app/editor/home.ts` | 16784 | < 3000 |
-| 面板渲染器 | `app/renderer/core/panel-renderer.ts` | 1888 | < 3000 |
+| 面板渲染器 | `app/renderer/panel-renderer.ts` | 1888 | < 3000 |
 | 舞台宿主 | `runtime/core/stage.ts` | 5702 | < 3000 |
 | 舞台配置渲染 | `runtime/config-ui/config-editor/panel-rendering.ts` | 590 | < 3000 |
 
-`panel-renderer-bulk-methods.ts`（原本 10,889 行）已随 **7b** 按 seam 拆成 `app/renderer/core/renderer/` 下 12 个文件
+`panel-renderer-bulk-methods.ts`（原本 10,889 行）已随 **7b** 按 seam 拆成 `app/renderer/panel-seams/` 下 12 个文件
 （最大 2,567 行，宿主文件删除），所以它**不再是单体目标** —— 但行数没有「消失」：该目录已登记为域，
 10,799 行全进域覆盖（这就是为什么下面两个数一个降、一个升）。
 
@@ -115,25 +115,25 @@ node ops/restore_import_formatting.mjs <file>                # 还原被早期�
 
 | 切片 | 搬出 | 搬到 | 行数 | 依赖 |
 |------|------|------|-----:|------|
-| 1a | `defaultViewSettings`（场景默认外观） | `app/3d-studio/studio/scene/studio-view-settings.ts` | 35 | 0 |
-| 1b | `itemTypeCatalog`（1909 行类型目录）+ 8 个类型集合 + `sofaMinDimensions` | `app/3d-studio/studio/items/item-catalog.ts` | 2025 | 3 个 import（柱/带默认轴与形状） |
+| 1a | `defaultViewSettings`（场景默认外观） | `app/3d-studio/authoring/scene/studio-view-settings.ts` | 35 | 0 |
+| 1b | `itemTypeCatalog`（1909 行类型目录）+ 8 个类型集合 + `sofaMinDimensions` | `app/3d-studio/authoring/items/item-catalog.ts` | 2025 | 3 个 import（柱/带默认轴与形状） |
 | 2a | `nextBatchItemTypeSet` | 追加进 `items/item-catalog.ts` | 62 | 0 |
 | 2b | `MATERIAL_SLOT_GROUPS` + 角色索引 + `materialSlotGroupOf` | `app/3d-studio/materials/studio-material-slot-groups.ts` | 78 | 0 |
 | 3a | `remapOpeningsToWalls`（开洞重映射到拆段墙） | `app/3d-studio/plan/studio-wall-openings.ts` | 53 | 4 个 import（`geometry` / `loaders` / `ui/helpers`） |
 | 3b | `buildWallSpanFootprint`（墙跨度平面足迹） | `app/3d-studio/plan/studio-wall-spans.ts` | 57 | 1 个 type import |
 | 3c | `buildStaticMaterialKey`（网格材质键） | `app/3d-studio/materials/studio-static-material-key.ts` | 82 | three 命名空间 |
-| 3d | `buildPressProfile`（洁具压型轮廓几何） | `app/3d-studio/studio/items/studio-sanitary-models.ts` | 94 | three 命名空间 |
-| 4a | `collectSharedMeshRecords` + `buildMaterialSignature`（共享网格批处理记录） | `app/3d-studio/studio/items/studio-shared-mesh-records.ts` | 80 | 2 个 import（normalization / three 命名空间） |
+| 3d | `buildPressProfile`（洁具压型轮廓几何） | `app/3d-studio/authoring/items/studio-sanitary-models.ts` | 94 | three 命名空间 |
+| 4a | `collectSharedMeshRecords` + `buildMaterialSignature`（共享网格批处理记录） | `app/3d-studio/authoring/items/studio-shared-mesh-records.ts` | 80 | 2 个 import（normalization / three 命名空间） |
 | 4b | `duplicateComponent` + `removeComponent`（组件复制/删除） | 追加进 `app/editor/editor-component-collections.ts` | 69 | 0（就近复用同文件 helper，故并入而非新文件） |
 | 4c | 导航 / 样式属性元数据 17 个声明（`--whole-statement` 整条搬多声明语句） | `app/editor/metadata/editor-navigation-style-metadata.ts` | 1422 | 1 个 import（透视常量） |
 | 4d | `DEFAULT_PERSPECTIVE_CORNERS`（提出原因：避免元数据模块与 `home.ts` 循环 import） | `app/editor/metadata/editor-perspective-constants.ts` | 1 声明 | 0 |
-| 5a | `normalizeScenePayload` + 材质净化助手 + 门类型目录 / 标签色常量（`collectSharedMeshRecords` 同批） | `app/3d-studio/studio/scene/studio-scene-payload.ts` | 649 | `externalModelRegistry` 显式传参（唯一外部状态），其余为 import |
-| 5b | `normalizeStudioDocument` + `createFloorRecord` | `app/3d-studio/studio/scene/studio-document-payload.ts` | 87 | `StudioDocumentDeps`（注册表 + 只读 `studioProject.defaultFloorHeight`） |
-| 5c | 盒子网格构件：`normalizeBoxSpec` / `mergeBoxGeometries` / `createBoxMaterial` / `addArchitectureMesh` / `addWindowFrames` | `app/3d-studio/studio/scene/studio-box-mesh.ts` | 200 | `StudioBoxMeshDeps`（两个缓存 + `backgroundSettings` 读取器） |
-| 5d | 电视模型构件：`createTelevisionPoster` / `computeTelevisionProportions` / `addTelevisionModel` | `app/3d-studio/studio/items/studio-television-model.ts` | 128 | `StudioTelevisionDeps`（`isEmbeddedStage` / `threeRenderer` 只读 / `backgroundSettings`） |
-| 5e | 导出图层清单渲染 `renderExportLayers` + 导出名净化 `sanitizeExportName` | `app/3d-studio/studio/ui/studio-export-layers.ts` | 94 | `StudioExportLayerDeps`（容器元素 + 三个取数助手回调） |
-| 5f | 引导序列 `startupStudio`（唯一调用点是闭包末尾的 `startupStudio()`） | `app/3d-studio/studio/boot/studio-boot.ts` | 56 | `StudioBootDeps`（15 项；`stageLoadTiming` 是顶层计时器单例，必须共用同一实例） |
-| 6a | **物品模型总装 `buildItemModel`**（宿主里最大的单块，7,548 行） | `app/3d-studio/studio/items/studio-item-model.ts` | 7548 | `StudioItemModelDeps`（13 个兄弟构件函数 + 12 项只读状态；解构成本地名后正文逐字未改） |
+| 5a | `normalizeScenePayload` + 材质净化助手 + 门类型目录 / 标签色常量（`collectSharedMeshRecords` 同批） | `app/3d-studio/authoring/scene/studio-scene-payload.ts` | 649 | `externalModelRegistry` 显式传参（唯一外部状态），其余为 import |
+| 5b | `normalizeStudioDocument` + `createFloorRecord` | `app/3d-studio/authoring/scene/studio-document-payload.ts` | 87 | `StudioDocumentDeps`（注册表 + 只读 `studioProject.defaultFloorHeight`） |
+| 5c | 盒子网格构件：`normalizeBoxSpec` / `mergeBoxGeometries` / `createBoxMaterial` / `addArchitectureMesh` / `addWindowFrames` | `app/3d-studio/authoring/scene/studio-box-mesh.ts` | 200 | `StudioBoxMeshDeps`（两个缓存 + `backgroundSettings` 读取器） |
+| 5d | 电视模型构件：`createTelevisionPoster` / `computeTelevisionProportions` / `addTelevisionModel` | `app/3d-studio/authoring/items/studio-television-model.ts` | 128 | `StudioTelevisionDeps`（`isEmbeddedStage` / `threeRenderer` 只读 / `backgroundSettings`） |
+| 5e | 导出图层清单渲染 `renderExportLayers` + 导出名净化 `sanitizeExportName` | `app/3d-studio/authoring/ui/studio-export-layers.ts` | 94 | `StudioExportLayerDeps`（容器元素 + 三个取数助手回调） |
+| 5f | 引导序列 `startupStudio`（唯一调用点是闭包末尾的 `startupStudio()`） | `app/3d-studio/authoring/boot/studio-boot.ts` | 56 | `StudioBootDeps`（15 项；`stageLoadTiming` 是顶层计时器单例，必须共用同一实例） |
+| 6a | **物品模型总装 `buildItemModel`**（宿主里最大的单块，7,548 行） | `app/3d-studio/authoring/items/studio-item-model.ts` | 7548 | `StudioItemModelDeps`（13 个兄弟构件函数 + 12 项只读状态；解构成本地名后正文逐字未改） |
 | 6b | 平面图物品绘制 `drawDoor` + `drawCourtyardArea`（连带门配色私有助手 `doorPlanColor` / `doorPlanPartMaterial` / `planColorLuminance` / `PLAN_DOOR_*`） | `app/3d-studio/plan/studio-plan-item-drawing.ts` | 1794 | `StudioPlanItemDrawingDeps`（15 项；按函数只解构各自用到的那一部分，避免 `no-unused-vars`） |
 | 6c | 配置编辑器面板分区：状态规则分区渲染 `renderStatusRuleSection` + 条目集合规整 `ensureItemCollections` | `runtime/config-ui/config-editor/rendering/panel-sections.ts` | 500 | `PanelSectionsDeps`（5 项：上下文对象 `e` + 4 个兄弟函数；域已在 `studio_domains_kpi.py` 登记，目录后从 `sections/` 改名 `rendering/`） |
 | 6d | 配置编辑器面板总装 `renderPanel`（体内有 24 处递归自调用 + 3 处重赋宿主 `let refreshBatchButtons`） | `runtime/config-ui/config-editor/rendering/panel-assembly.ts` | 2737 | `PanelAssemblyDeps`（25 项：`e` + 24 个兄弟函数；可变依赖走 `refreshBatchButtonsCell` 单元，见 6d 小节） |
@@ -147,7 +147,7 @@ node ops/restore_import_formatting.mjs <file>                # 还原被早期�
 结果：`studio-app.ts` 35231 → **21773**（-13458，-38.2%；其中 5x 批 -4181、6a 单刀 -7520、6b -1757）；
 `home.ts` 22976 → **21405**（-1571；6e 切出请求面 -90）；`panel-rendering.ts` 5234 → **590**（-4644；6c -473 首次离开 0%，
 6d 单刀 -2575、6d-2 再 -834、6d-3 再 -761，现已**降到目标线以下 80%**，基线已 ratchet 三次）；
-域覆盖 43046 → **63915**（20 个域目录，新增 `app/editor/metadata/`、`app/editor/net/`、`app/3d-studio/studio/boot/`、`runtime/config-ui/config-editor/rendering/`）。
+域覆盖 43046 → **63915**（20 个域目录，新增 `app/editor/metadata/`、`app/editor/net/`、`app/3d-studio/authoring/boot/`、`runtime/config-ui/config-editor/rendering/`）。
 **「零成本档」已清空**：全仓库 ≥50 行的直系声明里，成本 < 1,000 的只剩 `createNumberRow`（50 行，成本 20）一条。
 搬运是**逐字复制**（脚本断言：整块缩进 ≥ 2 空格、首尾行文本匹配、行数账目对得上），
 零表达式改动 —— 唯一的人工改动是搬完后清理失效 import、把残留依赖显式化。
@@ -175,7 +175,7 @@ node ops/restore_import_formatting.mjs <file>                # 还原被早期�
 - **回调优先于值**：5e 的三个取数助手（`listScreenRows` 等）读的是宿主闭包里的 `studioProject`，
   默认参数还依赖「当前项目」——按**函数**注入而不是把结果传进去，宿主仍是项目状态的唯一持有者。
 - **放哪个域先看 import 边界**：5f 的 `startupStudio` 要 `app/3d-studio/` 下三处 import，
-  放 `runtime/core/boot/` 就得跨域直连（要走 barrel），放同域的 `studio/boot/` 则天然合法。
+  放 `runtime/core/boot/` 就得跨域直连（要走 barrel），放同域的 `authoring/boot/` 则天然合法。
   所以「功能上像 runtime」不是唯一判据，**跨域 import 的成本**同样决定归属。
 - **单调用点不必造薄绑定**：5f 只有闭包末尾一处 `startupStudio();`，直接改成
   `startupStudio(studioBootDeps())`，比源侧再包一层更干净。（`boot` 域的 15 项 deps
@@ -462,7 +462,7 @@ node ops/restore_import_formatting.mjs <file>                # 还原被早期�
 |----|------|-----:|---------|---------|
 | 6j | 预览态 / 效果可见性 / 图标预览的表（**一条语句 12 个声明器**） | 1157 | 172 | `app/editor/metadata/effect-preview-input-tables.ts`：`createEffectPreviewInputTables(ctx)` |
 | 6k | 空调/时间检查器提交事件表（2 声明器）+ 导出面板拼接错误表（3 声明器） | 222 + 179 | 26 + 27 | `app/editor/metadata/{inspector-submit,export-splice}-tables.ts`：两个 `createXxxTables(ctx)` |
-| 7a | 墙体构件族（**12 个函数声明**：轮廓 → 带洞形状 → 侧/顶材质 → 墙带 → 顶面 → 接触阴影 → `buildInteriorScene`） | 1137 | 19 | `app/3d-studio/studio/scene/studio-walls.ts`：`StudioWallsDeps` 首参 + 宿主 6 个薄转发器 |
+| 7a | 墙体构件族（**12 个函数声明**：轮廓 → 带洞形状 → 侧/顶材质 → 墙带 → 顶面 → 接触阴影 → `buildInteriorScene`） | 1137 | 19 | `app/3d-studio/authoring/scene/studio-walls.ts`：`StudioWallsDeps` 首参 + 宿主 6 个薄转发器 |
 
 **坑 1：`--force` 会把护栏变成摆设，`--whole-statement` 的 1158 行必须先看清边界。** 6j 那条语句
 超了工具 400 行的切片上限，`--force` 放行；产物里却混进了「一条 `import` 语句 + 两个嵌套作用域局部名」。
@@ -628,7 +628,7 @@ function titleButtonMenuDeps() {
 
 12 刀全部「零残留依赖 / 零外层写入」→ 不需要依赖袋、不需要 state 袋，函数连同 `this: PanelRenderer` 首参逐字搬走：
 
-| 刀 | 函数 | 行数 | 落地文件（`app/renderer/core/renderer/`） |
+| 刀 | 函数 | 行数 | 落地文件（`app/renderer/panel-seams/`） |
 |----|------|-----:|------|
 | 7b-1 | `renderComponent` | 572 | `render-component.ts` |
 | 7b-2 | `createCapabilityDetailsControls` | 730 | `capability-controls.ts` |
@@ -652,7 +652,7 @@ function titleButtonMenuDeps() {
 **度量口径随之改指向**（否则就是本文件开头骂过的「假收敛」）：
 
 - 单体目标表 6 → **5** 条（该文件不再是单体，`Target(...)` 条目删除）；
-- 该目录登记为域 `app/renderer/core/renderer`（12 文件 / **10,799 行**）→ 域覆盖 71,664 → **82,463**（27 个域）；
+- 该目录登记为域 `app/renderer/panel-seams`（12 文件 / **10,799 行**）→ 域覆盖 71,664 → **82,463**（27 个域）；
 - 单体余量 61,772 → **50,911**（-10,861，与实际搬走的行数对齐）；
 - 清单里原 `dialogs.ts` 计划条目被这 12 刀取代（删除）、`runtime-connect.ts` 由 planned 转 existing、
   `paint.ts` 仍 planned（那是 `panel-renderer.ts` 自己的绘制 seam，未建）。
@@ -679,7 +679,7 @@ function titleButtonMenuDeps() {
 （7b 自己就是因为这个把宿主文件删掉的），而薄成员留在类里会跟着类一起被类型检查 —— 漏一个名字、
 签名对不上合并面，都是 tsc 当场红。代价是每个方法在类侧留 1 行。
 
-| 刀 | 方法（个数） | 行数 | 落地文件（`app/renderer/core/renderer/methods/`） |
+| 刀 | 方法（个数） | 行数 | 落地文件（`app/renderer/panel-seams/`） |
 |----|-------------|-----:|------|
 | 7c-1 | `startComponentMove` 等 9 个拖拽/缩放/旋转（含气流与门窗透视） | 999 | `transform-interaction.ts` |
 | 7c-2 | 选择框 / 控制柄 / 测量宿主 / 门窗透视手柄等 14 个 | 453 | `selection-overlay.ts` |
@@ -708,7 +708,7 @@ function titleButtonMenuDeps() {
 
 **度量口径随之改指向**：
 
-- `app/renderer/core/renderer` 域：12 文件 / 10,799 行 → **21 文件 / 16,167 行**；
+- `app/renderer/panel-seams` 域：12 文件 / 10,799 行 → **21 文件 / 16,167 行**；
 - 域覆盖 82,463 → **87,831**（仍是 27 个域，`methods/` 属于既有域，不新增域条目）；
 - 单体余量 50,911 → **45,645**；
 - 面板渲染器 7,154 → **1,888**（`studio_monolith_kpi.py` 直接标「已达目标」），剩下的是类自己的

@@ -51,7 +51,7 @@
  */
 import { computed, inject, unref } from 'vue'
 import { Grip } from '@lucide/vue'
-import { FloatingHubContextKey } from '@/components/shell/floating-hub/context'
+import { FloatingHubContextKey } from '@/shared/types/floating-hub'
 import FloatingHubEntityWidget from '@/components/shell/floating-hub/FloatingHubEntityWidget.vue'
 import FloatingHubClockWidget from '@/components/shell/floating-hub/FloatingHubClockWidget.vue'
 import FloatingHubMetricWidget from '@/components/shell/floating-hub/FloatingHubMetricWidget.vue'

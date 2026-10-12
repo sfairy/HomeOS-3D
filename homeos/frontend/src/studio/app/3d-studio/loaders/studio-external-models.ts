@@ -2,8 +2,8 @@ import { COURTYARD_MODELS, courtyardPalette } from "../plan/courtyard-models";
 import {
   prepareVehicleChargeGeometry,
   applyVehicleFinish,
-} from "../studio/studio-vehicle-models";
-import { decorateWarmFloor } from "../studio/studio-scene-style";
+} from "../authoring/items/studio-vehicle-models";
+import { decorateWarmFloor } from "../authoring/scene/studio-scene-style";
 import { enlargeWarmLeaves } from "../materials/studio-warm-foliage";
 import {
   applyCarFinish,
@@ -20,7 +20,7 @@ import { createModelPersistentCache } from "../model-persistent-cache";
 import { modelTemplateKey, captureModelTemplateBounds } from "../model-template-codec";
 import { prepareModelTextures } from "../model-texture-cache";
 import { releaseModelAsset } from "./model-asset-loader";
-import { DECOR_MODELS, DECOR_THEMES } from "../studio/decor-models";
+import { DECOR_MODELS, DECOR_THEMES } from "../authoring/items/decor-models";
 import {
   isStoneSlabFlavor,
   isStructuralModelFamily,
@@ -39,7 +39,7 @@ import {
 import {
   createFurnitureBatchCache,
   compactFurnitureIndices,
-} from "../studio/studio-furniture-batching";
+} from "../authoring/items/studio-furniture-batching";
 import {
   sofaFamilyItemTypes, preparedRestoreTimeoutMs, paletteOverrideItemTypes,
   PILLAR_ASSET_SHAPES, PILLAR_MODEL_ITEM_TYPES,
@@ -47,9 +47,9 @@ import {
   warmWoodFurnitureItemTypes, roleTableItemTypes, diningMaterialRolesByItemType,
   warmCabinetItemTypes, countertopMaterialIndexByItemType, luminancePaletteItemTypes,
   applianceItemTypes, gardenItemTypes,
-} from "./studio-external-models/_shared";
-import { ALL_ITEM_MODELS } from "./studio-external-models/all-item-models";
-export { ALL_ITEM_MODELS } from "./studio-external-models/all-item-models";
+} from "./external-models/_shared";
+import { ALL_ITEM_MODELS } from "./external-models/all-item-models";
+export { ALL_ITEM_MODELS } from "./external-models/all-item-models";
 /** 外模型加载状态； */
 type ExternalModelLoadState = {
   /** 正在加载的数量。 */

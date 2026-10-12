@@ -1,5 +1,5 @@
-import { coverComponentIsDream } from "../core/registry";
-import { entityMetadataIsAvailable } from "../core/entity-metadata";
+import { coverComponentIsDream } from "../registry";
+import { entityMetadataIsAvailable } from "../entity-metadata";
 export function runtimeEntityStateIsActive(runtimeEntity: any) {
   const normalizedStateText = String(runtimeEntity?.newState?.state ?? runtimeEntity?.state ?? "")
     .trim()

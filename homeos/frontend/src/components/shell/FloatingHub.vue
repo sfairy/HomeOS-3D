@@ -21,7 +21,7 @@
 <script setup lang="ts">
 /** 浮动控制中心（AFH - Always Floating Hub） */
 import { provide, ref } from 'vue'
-import { FloatingHubContextKey } from '@/components/shell/floating-hub/context'
+import { FloatingHubContextKey } from '@/shared/types/floating-hub'
 import { useFloatingHub } from '@/composables/shell/useFloatingHub'
 import FloatingHubWidgetShell from '@/components/shell/floating-hub/FloatingHubWidgetShell.vue'
 import './floating-hub/index.css'

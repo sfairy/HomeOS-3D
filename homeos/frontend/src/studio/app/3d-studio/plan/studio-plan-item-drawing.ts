@@ -7,17 +7,17 @@
  * 使本域自持；其余 15 个句柄经 `StudioPlanItemDrawingDeps` 显式传入。
  */
 
-import type { PlanEditPreviewFlags } from "../studio/studio-app-types";
+import type { PlanEditPreviewFlags } from "../authoring/types/studio-app-types";
 import { clamp as clamp2, distance as distance2, planLabelProjectionMetrics as planLabelProjectionMetrics2, slidingDoorPanelCenters as slidingDoorPanelCenters2 } from "./geometry";
 import { courtyardPlanColor as courtyardPlanColor2, isCourtyardPlanItem as isCourtyardPlanItem2 } from "./courtyard-plan";
 import { createCurtainTrack as createCurtainTrack2, curtainPanelRanges as curtainPanelRanges2 } from "../loaders/studio-curtain-track";
 import { doorMaterialPartRolesForType, doorPlanMaterialRoleFor } from "../materials/studio-model-material-roles";
 import { drawTrackedText as drawTrackedText2 } from "./studio-plan-drawing";
 import { finite as finite2, isCourtyardDrawing as isCourtyardDrawing2, kelvinToRgbHex as kelvinToRgbHex2 } from "../loaders/studio-normalization";
-import { isTurntableRoundTable } from "../studio/studio-app-helpers";
-import { itemPlanFootprint as itemPlanFootprint2, normalizePillarShape as normalizePillarShape2, pillarIsLying as pillarIsLying2, stripIsStanding as stripIsStanding2, tracePillarPlanPath as tracePillarPlanPath2 } from "../studio/studio-item-posture";
-import { itemTypeCatalog, lampItemTypeSet, roundTableTypeSet, stairItemTypeSet } from "../studio/items/item-catalog";
-import { normalizePlanLabelColor } from "../studio/scene/studio-scene-payload";
+import { isTurntableRoundTable } from "../authoring/ui/studio-app-helpers";
+import { itemPlanFootprint as itemPlanFootprint2, normalizePillarShape as normalizePillarShape2, pillarIsLying as pillarIsLying2, stripIsStanding as stripIsStanding2, tracePillarPlanPath as tracePillarPlanPath2 } from "../authoring/items/studio-item-posture";
+import { itemTypeCatalog, lampItemTypeSet, roundTableTypeSet, stairItemTypeSet } from "../authoring/items/item-catalog";
+import { normalizePlanLabelColor } from "../authoring/scene/studio-scene-payload";
 
 /**
  * 平面图物品绘制需要的外部句柄（**全部只读**：实测在切片区间内无一处重新赋值，

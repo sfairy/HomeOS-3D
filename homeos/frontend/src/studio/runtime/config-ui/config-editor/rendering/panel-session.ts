@@ -6,8 +6,8 @@
  * 的 `fieldDefs` / `baselineItemsById` 改写为 `editorSession.*`（可变单元，见接口注释）。
  */
 
-import { CARD_TEXT_SIZE_PX } from "@app/bridge/card-text-size";
-import { DEFAULT_BUTTON_SIZE, buttonIconSize } from "@app/bridge/button-icon-size";
+import { CARD_TEXT_SIZE_PX } from "@app/bridge/presets/card-text-size";
+import { DEFAULT_BUTTON_SIZE, buttonIconSize } from "@app/bridge/presets/button-icon-size";
 import { GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2 } from "../../../device/generic-device-catalog";
 import { readNestedPath } from "../_shared";
 

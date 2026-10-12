@@ -11,12 +11,12 @@
  * 已在读它 → 零新增 deps）；`baselineItemsById` 收进 `editorSession` 单元。
  */
 
-import { CARD_TEXT_SIZE_PX } from "@app/bridge/card-text-size";
-import { DEFAULT_BUTTON_SIZE, buttonIconSize } from "@app/bridge/button-icon-size";
+import { CARD_TEXT_SIZE_PX } from "@app/bridge/presets/card-text-size";
+import { DEFAULT_BUTTON_SIZE, buttonIconSize } from "@app/bridge/presets/button-icon-size";
 import { GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2, genericDeviceProfile as genericDeviceProfile2 } from "../../../device/generic-device-catalog";
 import { createCurtainGroup as createCurtainGroup2, curtainGroupCandidates as curtainGroupCandidates2, curtainGroupEntryId as curtainGroupEntryId2 } from "../../../cover/cover-groups";
 import { randomUuid as randomUuid2 } from "@app/shared/util/random-id";
-import { withFixedLightEffects as withFixedLightEffects2 } from "@app/bridge/light-effect-policy";
+import { withFixedLightEffects as withFixedLightEffects2 } from "@app/bridge/presets/light-effect-policy";
 import { DEFAULT_LABEL_ICON_SIZE as DEFAULT_LABEL_ICON_SIZE2, DEFAULT_LABEL_SIZE as DEFAULT_LABEL_SIZE2 } from "@app/bridge/temperature-humidity";
 import { copyBatchFields as copyBatchFields2, openBatchApply as openBatchApply2 } from "../../batch-apply";
 import { nasGroups as nasGroups2 } from "../../../nas/nas-panel";

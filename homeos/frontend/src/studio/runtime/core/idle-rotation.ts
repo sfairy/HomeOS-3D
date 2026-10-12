@@ -1,4 +1,4 @@
-export { resolvePageBehavior } from "@app/bridge/page-behavior";
+export { resolvePageBehavior } from "@app/bridge/presets/page-behavior";
 /** idle 配置项：三种 idle 控制器（旋转 / 聚焦退出 / 图标隐藏）共用。 */
 type IdleRotationOptions = {
   enabled?: boolean;

@@ -38,7 +38,7 @@
 <script setup lang="ts">
 /** 浮动控制中心 - 实体部件 */
 import { inject } from 'vue'
-import { FloatingHubContextKey } from '@/components/shell/floating-hub/context'
+import { FloatingHubContextKey } from '@/shared/types/floating-hub'
 import type { FloatingWidget } from '@/shared/types/layout'
 
 // 部件实例（含 config.entityId 实体 ID）

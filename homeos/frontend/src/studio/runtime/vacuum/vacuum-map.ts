@@ -3,7 +3,7 @@ const { vacuumStatus: resolveVacuumStatus } = await (import("@app/renderer/contr
     vacuumMapAvailable: N,
     vacuumMapSource: resolveVacuumMapSource,
     createVacuumMapImageLoader: $,
-  } = await (import("@app/renderer/core/vacuum-map-state"));
+  } = await (import("@app/renderer/vacuum-map-state"));
 export { N as vacuumMapAvailable, $ as createVacuumMapImageLoader };
 export function vacuumMapIdentity(mapEntityEntry: any, vacuumEntityEntry: any) {
   const mapIdentityAttributes = (mapEntityEntry?.newState || mapEntityEntry)?.attributes || {},

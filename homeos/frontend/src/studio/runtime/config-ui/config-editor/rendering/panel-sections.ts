@@ -12,9 +12,9 @@
  * 跨函数调用要透传 `deps`（`renderAirPurifierBindingSection(deps, ...)`）。
  */
 
-import { DEFAULT_BUTTON_SIZE, buttonIconSize } from "@app/bridge/button-icon-size";
+import { DEFAULT_BUTTON_SIZE, buttonIconSize } from "@app/bridge/presets/button-icon-size";
 import { defaultDeviceStatusRule as defaultDeviceStatusRule2, deviceStatusChoices as deviceStatusChoices2 } from "../../../device/device-status";
-import { withFixedLightEffects as withFixedLightEffects2 } from "@app/bridge/light-effect-policy";
+import { withFixedLightEffects as withFixedLightEffects2 } from "@app/bridge/presets/light-effect-policy";
 import { normalizeTemperatureHumidity as normalizeTemperatureHumidity2, DEFAULT_LABEL_ICON_SIZE as DEFAULT_LABEL_ICON_SIZE2, DEFAULT_LABEL_SIZE as DEFAULT_LABEL_SIZE2, ENVIRONMENT_BATTERY as ENVIRONMENT_BATTERY2, ENVIRONMENT_METRICS as ENVIRONMENT_METRICS2, MAX_LABEL_ICON_SIZE as MAX_LABEL_ICON_SIZE2, MAX_LABEL_SIZE as MAX_LABEL_SIZE2, MIN_LABEL_ICON_SIZE as MIN_LABEL_ICON_SIZE2, MIN_LABEL_SIZE as MIN_LABEL_SIZE2, temperatureHumidityFloorCenter as temperatureHumidityFloorCenter2 } from "@app/bridge/temperature-humidity";
 import { appendBackgroundOpacityControl as appendBackgroundOpacityControl2 } from "../../../core/label-appearance";
 import { curtainGroupEntryId as curtainGroupEntryId2 } from "../../../cover/cover-groups";

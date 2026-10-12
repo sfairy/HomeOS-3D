@@ -12,8 +12,8 @@ import {
   identifyLockEntities,
   lockEntityRole,
 } from "@app/bridge/lock-state-runtime";
-import { CARD_TEXT_SIZE_PX } from "@app/bridge/card-text-size";
-import { DEFAULT_BUTTON_SIZE, buttonIconSize } from "@app/bridge/button-icon-size";
+import { CARD_TEXT_SIZE_PX } from "@app/bridge/presets/card-text-size";
+import { DEFAULT_BUTTON_SIZE, buttonIconSize } from "@app/bridge/presets/button-icon-size";
 import { temperatureHumidityFloorCenter } from "@app/bridge/temperature-humidity";
 import {
   SECURITY_ALARM_TYPES,
@@ -34,7 +34,7 @@ import {
   requestInteraction3dAccess,
   subscribeInteraction3dAccess,
 } from "@app/bridge/bridge";
-import { interaction3dPreviewSize, observeInteraction3dPreview } from "@app/bridge/preview-layout";
+import { interaction3dPreviewSize, observeInteraction3dPreview } from "@app/bridge/presets/preview-layout";
 import { domElement } from "@app/shared/util/dom-factory";
 export async function openSecurityEditor({
   component: component,

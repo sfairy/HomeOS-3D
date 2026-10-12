@@ -1,5 +1,5 @@
 import { carState } from "./car-state";
-import { CARD_TEXT_SIZE_PX } from "@app/bridge/card-text-size";
+import { CARD_TEXT_SIZE_PX } from "@app/bridge/presets/card-text-size";
 export function updateCarCard(containerElement: any, carConfig: any, carOptions: any) {
   let cardElement = containerElement.querySelector(".i3d-car-card");
   if (!cardElement) {

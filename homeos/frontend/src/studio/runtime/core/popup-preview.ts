@@ -1,6 +1,6 @@
 import { domElement } from "@app/shared/util/dom-factory";
-const { popupPlacement: popupPlacement } = await (import("@app/bridge/popup-placement")),
-  { cameraPopupLayout: cameraPopupLayout } = await (import("@app/bridge/camera-popup-layout"));
+const { popupPlacement: popupPlacement } = await (import("@app/bridge/presets/popup-placement")),
+  { cameraPopupLayout: cameraPopupLayout } = await (import("@app/bridge/presets/camera-popup-layout"));
 function popupPreviewPlacement(kind: any, width: any, height: any, settings: any) {
   const cameraLayout = kind === "camera" ? cameraPopupLayout(width, height) : null,
     panelWidth = cameraLayout?.panelWidth || 360,
@@ -127,7 +127,7 @@ export function createFocusDevicePopup(
   const getPopupLayout = () => getSettings()?.[popupKind === "camera" ? "camera" : "general"],
     resizePreview = () => panelHandle?.updateLayout?.();
   return {
-    ready: (import("@app/renderer/core/renderer")
+    ready: (import("@app/renderer/panel-renderer")
     ).then(({ PanelRenderer: PanelRenderer }) => {
       if (isDisposed) return;
       ((renderer = new PanelRenderer(rendererHostElement, {

@@ -8,7 +8,7 @@ Three stacked systems live under `src/studio/`. Prefer the dependency rules belo
 |-------|---------------|------|
 | Entries | `entries/` | studio 子系统自身的路由入口页（`StudioView`/`EditorView`/`DisplayView`）；由 `@/studio` barrel 以懒加载器暴露给根 router |
 | Chrome / Engine | `chrome/`, `engine/` | Vue chrome（顶栏/缩放/快捷键）与 facade 总线（根 store ↔ studio facade） |
-| Creator | `app/3d-studio/` (+ domain folders under `studio/{scene,items,lights,ui,plan-tools,…}`) | Floorplan / scene authoring |
+| Creator | `app/3d-studio/` (+ domain folders under `authoring/{scene,items,lights,ui,plan-tools,…}`) | Floorplan / scene authoring |
 | Panel | `app/editor/`, `app/renderer/`, `app/display/` | 2D panel editor, `PanelRenderer`, display boot |
 | Platform | `platform/`, leaf `app/bridge/**`, leaf `app/shared/**`（含 `app/shared/util/**`） | 共享适配层 —— **禁止** import editor/renderer/creator |
 | Stage | `runtime/` (`config-ui/` preferred over deprecated `editor/`), `shims/` | Live 3D stage + devices；multi-entry via `vite.runtime.config.ts` |
@@ -45,7 +45,7 @@ studio 是**子系统**，不是应用根。历史上它复用过应用根的通
 
 | View | Dynamic import | Boot / teardown |
 |------|----------------|-----------------|
-| `entries/StudioView.vue` | `@app/3d-studio/studio/boot` | `bootStudio` / `teardownStudio` |
+| `entries/StudioView.vue` | `@app/3d-studio/authoring/lifecycle` | `bootStudio` / `teardownStudio` |
 | `entries/EditorView.vue` | `@app/editor/boot` | `bootEditor` / `teardownEditor` |
 | `entries/DisplayView.vue` | `@app/display/display*` | `bootDisplay` / `teardownDisplay` |
 
@@ -54,11 +54,11 @@ studio 是**子系统**，不是应用根。历史上它复用过应用根的通
 
 Shell navigation / chrome: `@/studio/platform/shell-navigation`（经 barrel 暴露）；legacy scope 见 `platform/legacy-scope.ts`。
 
-## Creator domain folders (`app/3d-studio/studio/`)
+## Creator domain folders (`app/3d-studio/authoring/`)
 
 | Folder | Contents |
 |--------|----------|
-| `boot.ts` | Lifecycle re-exports |
+| `lifecycle.ts` | Lifecycle re-exports（原 `boot.ts`，改名以避开与 `boot/` 的同名冲突） |
 | `boot/` | 引导序列（P4 搬入：`studio-boot.ts` = `startupStudio`（入口判定 → 渲染器 → 拉草稿 → 净化 → 应用 → 挂载舞台 / 开导出面板），15 项依赖按 `StudioBootDeps` 注入） |
 | `scene/` | Camera, shadows, overview, motion presentation（P4 搬入：`studio-view-settings.ts` = 场景默认视图/曝光；`studio-scene-payload.ts` = 场景负载净化；`studio-document-payload.ts` = 楼层文档净化；`studio-box-mesh.ts` = 盒子网格构件） |
 | `items/` | Furniture / device item helpers（P4 搬入：`item-catalog.ts` = 1909 行类型目录 + 8 个类型集合 + `nextBatchItemTypeSet`；`studio-television-model.ts` = 电视模型构件） |
@@ -67,8 +67,8 @@ Shell navigation / chrome: `@/studio/platform/shell-navigation`（经 barrel 暴
 | `plan/`, `materials/`, `export/` | 平面图 / 材质 / 导出真实体（已建成，`ops/studio_domains_kpi.py` 登记为 `existing`；studio 侧 barrel 待建） |
 | `types/` | Shared studio-app types |
 
-Flat `studio-*.ts` stubs at the old paths re-export from these folders so existing imports keep working（`app/3d-studio/studio/` 下 29 个，全 studio 共 66 个纯转发件）。
-**New code must import from domain folders** (`./scene/…`, `./items/…`, …) — do not add new flat `studio-app-*.ts` files.
+**New code must import from domain folders** (`./scene/…`, `./items/…`, …) — do not add flat `studio-*.ts` files here.
+原 29 个平铺兼容转发桩已随「去重收尾」整批删除（本目录现只剩 `studio-app.ts` 与 `lifecycle.ts`），引用一律直达域目录。
 这条不是口头约定：`ops/studio_domains_kpi.py` 对 `studio/` 的平铺 `.ts` 个数做 ratchet（只减不增），新增平铺件会被门禁拦下。
 
 Parent app layout: see [`../README.md`](../README.md). CI runs `npm run check:deps` (frontend + studio).
@@ -93,8 +93,9 @@ Parent app layout: see [`../README.md`](../README.md). CI runs `npm run check:de
 
 - Prefer `panel-renderer.ts` over deprecated `renderer.ts` re-export
 - Prefer `panel-document.ts` / `panel-caches.ts` / `panel-dialog-motion.ts` over `runtime-*.ts` stubs
-- **`renderer/core/renderer/` 已是「面板 mixin 方法」域**（P4 7b 落地）：原 `panel-renderer-bulk-methods.ts`（10.9k 行）按 seam 拆成 12 个文件（`render-component` / `connect-runtime` / `{capability,light,cover,climate,water-heater}-controls` / `{air-purifier,vacuum,presence,entity}-details` / `custom-popup`），宿主文件已删，调用方 `panel-renderer.ts` 显式 import + 一个 `Object.assign` 清单
-- **`renderer/core/renderer/methods/` 是 class 方法域**（P4 7c 落地）：`panel-renderer.ts` 的 70 个类方法按 seam 搬进 8 个文件（`transform-interaction` / `selection-overlay` / `selection-bounds` / `runtime-refresh` / `details-popups` / `media-camera` / `runtime-dialogs` / `runtime-actions` + `optimistic-state`），7,154 → 1,888 行。形态是「模块侧 `export function name(self: PanelRenderer, …)` + 类侧原地一行转发薄成员」——薄成员留在类里，签名因此仍受同名 interface 合并面的类型检查（漏一个名字 tsc 当场红；这是 7b 删宿主文件时学到的教训）。工具：`ops/studio_slice_extract.mjs --method-form`（`ops/studio_slice_analyze.mjs --rank` 也认类方法）
+- **`app/renderer/panel-seams/` 是「面板渲染器方法」域**（P4 7b + 7c 落地）：原 `panel-renderer-bulk-methods.ts`（10.9k 行）按 seam 拆成 12 个文件（`render-component` / `connect-runtime` / `{capability,light,cover,climate,water-heater}-controls` / `{air-purifier,vacuum,presence,entity}-details` / `custom-popup`），宿主文件已删，调用方 `panel-renderer.ts` 显式 import + 一个 `Object.assign` 清单
+- **class 方法域同在此目录**（P4 7c 落地）：`panel-renderer.ts` 的 70 个类方法按 seam 搬进 8 个文件（`transform-interaction` / `selection-overlay` / `selection-bounds` / `runtime-refresh` / `details-popups` / `media-camera` / `runtime-dialogs` / `runtime-actions` + `optimistic-state`），7,154 → 1,888 行。形态是「模块侧 `export function name(self: PanelRenderer, …)` + 类侧原地一行转发薄成员」——薄成员留在类里，签名因此仍受同名 interface 合并面的类型检查（漏一个名字 tsc 当场红；这是 7b 删宿主文件时学到的教训）。工具：`ops/studio_slice_extract.mjs --method-form`（`ops/studio_slice_analyze.mjs --rank` 也认类方法）
+- 去重收尾把原 `renderer/core/renderer/`（12 个 mixin 刀）与 `renderer/core/renderer/methods/`（8 个类方法刀 + `optimistic-state`）合并压平为单层 `panel-seams/`（21 文件），并把 `renderer/core/*` 整体上提到 `app/renderer/`
 - 该目录里 `paint.ts` 仍是 **planned**（那是 `panel-renderer.ts` 自己的绘制 seam，未建）；原 `dialogs.ts` 计划条目已被上面这 12 刀取代、从清单删除。这些都记在 `ops/studio_domains_kpi.py`（planned 建出来不改状态会报错）
 
 ## Stage config UI
@@ -154,7 +155,7 @@ P4 收敛由**两个** KPI 同时管（行数单看会被糊弄 —— 挪进另
 
 | Task | Tree |
 |------|------|
-| Floorplan / lights / materials authoring | `app/3d-studio/` (`studio/scene`, `studio/items`, `studio/lights`, …) |
+| Floorplan / lights / materials authoring | `app/3d-studio/` (`authoring/scene`, `authoring/items`, `authoring/lights`, …) |
 | 2D dashboard panels / inspectors | `app/editor/`, `app/renderer/` |
 | Live stage device motion / panels | `runtime/<device>/`, `runtime/core/`, `runtime/config-ui/` |
 | Vue chrome / workflow steps | `entries/`, `chrome/`, `engine/` |

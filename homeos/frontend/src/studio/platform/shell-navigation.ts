@@ -1,7 +1,7 @@
 /**
  * 旧命令式运行时 → 外壳（Vue Router）的导航桥。
  *
- * 背景：编辑器（`app/editor/home.ts`）与户型图绘制（`app/3d-studio/studio/studio-app.ts`）
+ * 背景：编辑器（`app/editor/home.ts`）与户型图绘制（`app/3d-studio/authoring/studio-app.ts`）
  * 原本是「模块求值即执行」的一次性引导脚本，ESM 只求值一次，卸载后无法在同一文档里重挂，
  * 所以跨视图跳转一律走 `window.location.assign(...)` 整页导航。
  *

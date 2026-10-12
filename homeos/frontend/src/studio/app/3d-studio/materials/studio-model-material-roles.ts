@@ -12,7 +12,7 @@
  * 角色着色，而不是靠亮度 / 槽位号猜。
  */
 import { courtyardPalette } from "../plan/courtyard-models";
-import { DECOR_MODELS, DECOR_THEMES } from "../studio/decor-models";
+import { DECOR_MODELS, DECOR_THEMES } from "../authoring/items/decor-models";
 
 /** 表面族：决定默认粗糙度 / 金属度（对齐参考实现的 SURFACE_ROUGHNESS / SURFACE_METALNESS）。 */
 export type MaterialSurface =

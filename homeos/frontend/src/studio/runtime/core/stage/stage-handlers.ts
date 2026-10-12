@@ -34,9 +34,9 @@ import {
   MIN_LABEL_ICON_SIZE as minLabelIconSize,
 } from "@app/bridge/temperature-humidity";
 import { createMarkerTouch, nearestMarkerTarget } from "../marker-input";
-import { buttonIconSize as resolveButtonIconSize } from "@app/bridge/button-icon-size";
-import { CARD_TEXT_SIZE_PX as cardTextSizePx } from "@app/bridge/card-text-size";
-import { withRegionLightingPreset as applyRegionLightingPreset } from "@app/bridge/region-lighting-presets";
+import { buttonIconSize as resolveButtonIconSize } from "@app/bridge/presets/button-icon-size";
+import { CARD_TEXT_SIZE_PX as cardTextSizePx } from "@app/bridge/presets/card-text-size";
+import { withRegionLightingPreset as applyRegionLightingPreset } from "@app/bridge/presets/region-lighting-presets";
 import {
   securityAlarmReadings,
   overlayEligibleAlarms,
@@ -50,7 +50,7 @@ import {
   ENVIRONMENT_METRICS as environmentMetricNames,
   layoutEnvironmentReadings,
 } from "@app/bridge/temperature-humidity";
-import { DEFAULT_BUTTON_SIZE as defaultButtonSize } from "@app/bridge/button-icon-size";
+import { DEFAULT_BUTTON_SIZE as defaultButtonSize } from "@app/bridge/presets/button-icon-size";
 
 export interface StageHandlersHost {
   [key: string]: any;

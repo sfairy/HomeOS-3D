@@ -8,7 +8,7 @@
  * 快照解构在这里不等价（本区间有 `await`，且赋值必须回写宿主）。
  */
 
-import { DEFAULT_BUTTON_SIZE } from "@app/bridge/button-icon-size";
+import { DEFAULT_BUTTON_SIZE } from "@app/bridge/presets/button-icon-size";
 import { GENERIC_DEVICE_KINDS as GENERIC_DEVICE_KINDS2, genericDeviceProfile as genericDeviceProfile2 } from "../../../device/generic-device-catalog";
 import { appendBackgroundOpacityControl as appendBackgroundOpacityControl2 } from "../../../core/label-appearance";
 import { bathEffectEditor as bathEffectEditor2 } from "../../../bath-heater/bath-heater-editor";
