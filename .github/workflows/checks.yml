@@ -56,12 +56,17 @@ jobs:
           bun run homeos/frontend/scripts/_entity_control_logic_smoke.ts
           bun run homeos/frontend/scripts/_scene_update_plan_smoke.ts
           bun run homeos/frontend/scripts/_request_json_smoke.ts
-          # 未使用 JS/TS、功能码镜像、场景资源副本、TS↔Python 黄金契约 + 独立部署护栏。
+          # 未使用 JS/TS、功能码镜像、场景资源副本、TS↔Python 黄金契约 + 独立部署护栏、
+          # UI 令牌契约与映射棘轮。
           # 各门禁自带注入式自检，确保漂移真的会被拦下；放在 build 之前失败。
           bun run knip
           bun run verify:features
           bun run verify:scene
           bun run verify:contracts
+          # UI 令牌两道门禁：var() 引用必须可解析（无回退时整条声明会被静默丢弃）；
+          # 旧→新令牌映射棘轮（别名断链 / 同名分歧 / 命名漂移只减不增）。
+          bun run verify:tokens
+          bun run verify:tokenmap
 
   # Python 静态检查硬门禁（规则集与本地 .venv-store/bin/ruff 对齐）。不跑 --fix。
   ruff:
