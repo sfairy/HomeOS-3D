@@ -6,8 +6,17 @@
 /* ── 基础面板 ──
  * 排除 `.hos-rise`：入户玻璃坞（login/register/activate）与设计系统同名
  * `.hos-panel`。main.ts 后加载的本文件会冲掉 auth/scene/panel.css 的深色玻璃，
- * 变成近乎透明的 surface，右侧只剩山景 —— 正是入户「闪一下只有场景」的根因。 */
-.hos-panel:not(.hos-rise) {
+ * 变成近乎透明的 surface，右侧只剩山景 —— 正是入户「闪一下只有场景」的根因。
+ *
+ * ⚠ 排除条件必须包在 `:where()` 内。写成 `.hos-panel:not(.hos-rise)` 会把特指度
+ * 从 (0,1,0) 抬到 (0,2,0)，于是基元反向压过所有本该覆盖它的变体：
+ *   · 同文件的 `.hos-panel--glass/--flat/--nested`（(0,1,0)）
+ *   · settings 的 `.settings-card--static`（(0,1,0)，accent 单层渐变底）
+ * 后果：卡片 idle 态退回 --hos-surface-panel + --hos-border-subtle（蓝底蓝描边、
+ * 无 accent 光晕），只有 `:hover`（(0,2,0) 平手后按加载顺序胜出）才恢复 accent
+ * —— 正是「鼠标移入后正常、移出后不对」的成因。
+ * `:where()` 特指度贡献为 0，排除逻辑不变，基元回到 (0,1,0)，变体按源码顺序重新胜出。 */
+.hos-panel:where(:not(.hos-rise)) {
   position: relative;
   overflow: visible;
   border: var(--hos-hairline) solid var(--hos-border-subtle);
