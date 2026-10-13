@@ -2347,6 +2347,8 @@ body.interaction3d-stage.is-background-hidden,
   position: relative;
   isolation: isolate;
   box-sizing: border-box;
+  /* 字号解封后卡片至少要放得下「图标 + 一行文字」（随 em 放大）。 */
+  min-width: calc(66px + 1em);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -2488,6 +2490,8 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-alarm-card {
   --meter-top: #fcf8f0;
   --meter-bottom: #eee7db;
+  /* 与基础变体同步：主题切换后也不能回退掉随字号放大的最小宽度。 */
+  min-width: calc(66px + 1em);
   color: #4e4438;
   border-color: #b7a489;
 }
@@ -2549,12 +2553,16 @@ body.interaction3d-stage.is-background-hidden,
   flex-direction: column;
   gap: 4px;
   min-width: 110px;
+  /* 字号解封后标签要随内容撑开，不能再被固定宽度截断。 */
+  width: max-content;
+  box-sizing: border-box;
   padding: 10px 14px 10px 44px;
   background: #1b2029dc;
   border: 1px solid #aa967455;
   border-radius: 10px;
   color: #f2eee7;
   white-space: nowrap;
+  overflow: visible;
   pointer-events: none;
 }
 .interaction3d-stage .i3d-security-label > span {
@@ -2917,7 +2925,6 @@ body.interaction3d-stage.is-background-hidden,
     );
   grid-template-rows: repeat(2, 1fr);
   align-content: stretch;
-  font-size: min(1em, var(--meter-cell-width));
 }
 .interaction3d-stage .is-meter-narrow .i3d-meter-reading > * {
   box-sizing: border-box;
@@ -4150,6 +4157,8 @@ body.interaction3d-stage.is-background-hidden,
 }
 .interaction3d-stage .i3d-car-card {
   width: 180px;
+  /* 字号解封后卡片至少要有「图标 + 读数」那么宽（随 em 放大）。 */
+  min-width: calc(24px + 2.333em);
   gap: 7px;
   border: 0;
 }
@@ -4160,12 +4169,15 @@ body.interaction3d-stage.is-background-hidden,
   border-color: #b7a489;
 }
 .interaction3d-stage .i3d-car-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* 长名称换行显示，不再用省略号截断。 */
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
   font-size: 1em;
 }
 .interaction3d-stage .i3d-car-reading {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 2.333em;
   font-weight: 650;
   line-height: 1.1;

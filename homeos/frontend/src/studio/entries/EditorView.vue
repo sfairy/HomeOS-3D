@@ -1439,6 +1439,12 @@ watch(
                     <div class="inspector-grid two-columns"><label>类型<input id="camera-type" value="摄像头实时预览"
                                 readonly></label><label>备注<input id="camera-label" maxlength="128"></label>
                     </div>
+                    <div class="navigation-property-control"><span>摄像头来源</span>
+                        <div id="camera-source-options" class="navigation-segmented-options" role="group"
+                            aria-label="摄像头来源"><button type="button"
+                                data-camera-source="entity">HA 实体</button><button type="button"
+                                data-camera-source="go2rtc">go2rtc</button></div>
+                    </div>
                     <div id="camera-entity-picker" class="inspector-picker"><span
                             class="inspector-picker-title">摄像头实体</span><button id="camera-entity-button"
                             class="inspector-picker-button" type="button" aria-haspopup="listbox"
@@ -1448,6 +1454,11 @@ watch(
                             <div id="camera-entity-options" class="inspector-entity-options" role="listbox"></div>
                         </div>
                     </div>
+                    <label id="camera-go2rtc-url-field" hidden>go2rtc 地址<input id="camera-go2rtc-url" type="url"
+                            maxlength="2048"
+                            placeholder="http://局域网IP:1984/stream.html?src=摄像头名称"></label>
+                    <p id="camera-go2rtc-note" class="inspector-section-note" hidden>视频经 HA Bridge
+                        转发，沿用现有外网入口。请填写局域网 IP 地址，保存仪表盘后播放。</p>
                 </section>
                 <section class="inspector-section">
                     <div class="navigation-property-heading section-heading">

@@ -36,6 +36,18 @@ export function entityIdSupportsToggle(entityId: any) {
   const entityText = String(entityId || "");
   return isVirtualEntityId(entityText) || TOGGLE_ENTITY_DOMAINS.has(entityText.split(".", 1)[0]);
 }
+/**
+ * 组件是否配了 go2rtc 摄像头来源。
+ *
+ * 这类摄像机可以完全不绑 HA 实体，靠 `properties.go2rtcUrl` 出画，所以「有没有当前实体」
+ * 的旧判据（只看 `bindings.entity.entityId`）会把它们的弹窗动作误判为不支持。
+ */
+export function componentHasGo2rtcCameraSource(component: any) {
+  return (
+    component?.properties?.cameraSource === "go2rtc" &&
+    !!String(component?.properties?.go2rtcUrl || "").trim()
+  );
+}
 export function componentActionIsSupported(
   component: any,
   action: any,
@@ -53,7 +65,8 @@ export function componentActionIsSupported(
     return !!targetPath && (!allowedPagePaths || allowedPagePaths.has(targetPath));
   }
   const popupSource = actionPopupSource(action);
-  if (popupSource === "current") return !!targetEntityId;
+  if (popupSource === "current")
+    return !!targetEntityId || componentHasGo2rtcCameraSource(component);
   if (popupSource === "entity") return !!action.data?.entityId;
   const popupId = String(action.data?.popupId || "");
   return !!popupId && (!allowedPopupIds || allowedPopupIds.has(popupId));

@@ -214,6 +214,40 @@ export async function openSecurityEditor({
   function closeActivePicker() {
     (pickerGeneration++, activePickerHandle?.close(), (activePickerHandle = null));
   }
+  /**
+   * 两段式分段控件。复用 `.i3d-focus-actions` 的双列栅格与
+   * `button[aria-pressed="true"]` 高亮，不新增样式。
+   */
+  function createSegmentedField(
+    labelText: any,
+    optionEntries: any[],
+    selectedValue: any,
+    onValueChange: any,
+  ) {
+    const groupElement = createElement("div", "i3d-focus-actions"),
+      optionButtonByValue = new Map(),
+      markActiveValue = (activeValue: any) => {
+        for (const [optionValue, optionButtonElement] of optionButtonByValue)
+          (optionButtonElement.classList.toggle("active", optionValue === activeValue),
+            optionButtonElement.setAttribute("aria-pressed", String(optionValue === activeValue)));
+      };
+    (groupElement.setAttribute("role", "group"),
+      groupElement.setAttribute("aria-label", labelText));
+    for (const [optionValue, optionLabel] of optionEntries) {
+      const optionButtonElement = createButton(optionLabel, () => {
+        (markActiveValue(optionValue), onValueChange(optionValue));
+      });
+      (optionButtonByValue.set(optionValue, optionButtonElement),
+        groupElement.append(optionButtonElement));
+    }
+    markActiveValue(selectedValue);
+    const labelElement = createElement("label");
+    return (
+      labelElement.append(createElement("span", "", labelText), groupElement),
+      currentContainerElement.append(labelElement),
+      groupElement
+    );
+  }
   function createSelectField(labelText: any, optionEntries: any, selectedValue: any, onValueChange: any) {
     const selectElement = createElement("select");
     (selectElement.setAttribute("aria-label", labelText),
@@ -1797,6 +1831,47 @@ export async function openSecurityEditor({
             "标签显示设备状态；仅点击聚焦后连接视频，退出时断开。可拖动标签调整位置。",
           ),
         );
+        // 视频来源：默认沿用 HA 实体；切成 go2rtc 后填局域网地址，走同源 MSE 中继出画。
+        const cameraSourceSectionElement = createSectionHeading("视频来源"),
+          cameraGo2rtcUrlLabelElement = createElement("label"),
+          cameraGo2rtcUrlInputElement = createElement("input");
+        (createSegmentedField(
+          "摄像头来源",
+          [
+            ["entity", "HA 实体"],
+            ["go2rtc", "go2rtc"],
+          ],
+          selectedItem.cameraSource === "go2rtc" ? "go2rtc" : "entity",
+          (nextCameraSource: any) => {
+            (selectedItem.cameraSource = nextCameraSource, markPropertiesDirty(), renderPanel());
+          },
+        ),
+          Object.assign(cameraGo2rtcUrlInputElement, {
+            type: "url",
+            value: String(selectedItem.go2rtcUrl || ""),
+            maxLength: 2048,
+            placeholder: "http://局域网IP:1984/stream.html?src=摄像头名称",
+          }),
+          cameraGo2rtcUrlInputElement.setAttribute("aria-label", "go2rtc 地址"),
+          cameraGo2rtcUrlInputElement.addEventListener("change", () => {
+            (selectedItem.go2rtcUrl = cameraGo2rtcUrlInputElement.value.trim(),
+              markPropertiesDirty());
+          }),
+          cameraGo2rtcUrlLabelElement.append(
+            createElement("span", "", "go2rtc 地址"),
+            cameraGo2rtcUrlInputElement,
+          ),
+          (cameraGo2rtcUrlLabelElement.hidden = selectedItem.cameraSource !== "go2rtc"),
+          cameraSourceSectionElement.append(
+            cameraGo2rtcUrlLabelElement,
+            createElement(
+              "p",
+              "i3d-note",
+              "视频经 HA Bridge 转发，沿用现有外网入口。请填写局域网 IP 地址，保存仪表盘后播放。",
+            ),
+          ),
+          // go2rtc 来源不需要 HA 实体，实体选择器一并收起。
+          (entityPickerButtonElement.hidden = selectedItem.cameraSource === "go2rtc"));
         const labelSettingsSectionElement = createSectionHeading("标签设置"),
           labelSettingsGridElement = createElement("div", "i3d-security-scope-grid");
         (labelSettingsSectionElement.append(labelSettingsGridElement),

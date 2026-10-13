@@ -440,7 +440,8 @@ export function createEnvironmentAirflow({
         boundModel = map.get(ee2);
       if (
         !boundModel ||
-        ["fan", "storagewaterheater", "gaswaterheater"].includes(
+        // 这些设备自带叶片/加热腔体动画，叠气流条纹会穿模（吊扇同样在列）。
+        ["fan", "ceiling-fan", "storagewaterheater", "gaswaterheater"].includes(
           boundModel.userData.environmentModelType,
         )
       )

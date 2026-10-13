@@ -25,6 +25,7 @@ import { collectHazardWatchedEntityIds } from '@homeos/shared'
 import { useYamlValidation } from '@/features/security/composables/useYamlValidation'
 import { formatLocaleDate } from '@/shared/utils/format/locale-format.util'
 import { SETTINGS_ROUTES } from '@/shared/utils/registry/settings-route.util'
+import { securityCameraEntityIds } from '@/shared/utils/layout/security-cameras.util'
 
 /** 安防页 Tab ID 常量列表 */
 const SEC_TAB_IDS = ['overview', 'monitor', 'events'] as const
@@ -138,8 +139,8 @@ export function useSecurityView() {
     { label: '集成绑定', to: SETTINGS_ROUTES.bindings() },
   ])
 
-  // 全部摄像头实体 ID 列表
-  const allCameras = computed(() => layoutStore.layoutConfig.haConfig.securityCameras || [])
+  // 全部摄像头实体 ID 列表（haConfig.securityCameras 0.7.5 起为结构化绑定，这里只取实体）
+  const allCameras = computed(() => securityCameraEntityIds(layoutStore.layoutConfig.haConfig))
 
   // 当前模式名称：优先使用配置名称，缺省回退到中文映射
   const modeLabel = computed(() => {

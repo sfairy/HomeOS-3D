@@ -1,5 +1,6 @@
 
 import {
+  cameraRecordNeedsHlsPrewarm as cameraRecordNeedsHlsPrewarm2,
   iconButtonEffectLightVisualAwaiting as iconButtonEffectLightVisualAwaiting2,
   iconButtonEffectLightVisualState as iconButtonEffectLightVisualState2,
   prewarmCameraMedia as prewarmCameraMedia2,
@@ -544,10 +545,7 @@ export class PanelRenderer {
             ...(this.document.sharedComponents || []),
             ...this.document.pages.flatMap((cameraPageRecord: any) => cameraPageRecord.components || []),
           ],
-          (cameraComponentRecord) =>
-            cameraComponentRecord.type === "camera" &&
-            cameraComponentRecord.properties?.mediaVisible !== false &&
-            cameraComponentRecord.properties?.displayMode !== "snapshot",
+          (cameraComponentRecord) => cameraRecordNeedsHlsPrewarm2(cameraComponentRecord),
         )
           .map((cameraImageComponent) =>
             String(cameraImageComponent.bindings?.entity?.entityId || ""),

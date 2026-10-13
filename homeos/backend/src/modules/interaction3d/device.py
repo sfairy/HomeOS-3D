@@ -105,12 +105,18 @@ def validate_device_bindings(items, validate_camera, model_type='fridge'):
                 ('cardScale', 0.5, 3),
                 ('cardOpacity', 0, 1),
                 ('cardWidth', 100, 600),
-                ('cardFontSize', 9, 32),
             ):
                 if key not in item:
                     continue
                 if type(item[key]) not in (int, float) or not math.isfinite(item[key]) or not low <= item[key] <= high:
                     fail()
+            # 字号不再设上限（旧的 9-32 夹紧会把放大后的读数裁掉），只要求为正数。
+            if 'cardFontSize' in item and (
+                type(item['cardFontSize']) not in (int, float)
+                or not math.isfinite(item['cardFontSize'])
+                or item['cardFontSize'] <= 0
+            ):
+                fail()
             if 'chargingStates' in item:
                 mapping = item['chargingStates']
                 if (

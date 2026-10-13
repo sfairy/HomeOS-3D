@@ -1356,6 +1356,9 @@ export function weatherComponentDimensions(weatherOptions: Record<string, unknow
           displayMode: "live",
           refreshInterval: 10,
           mediaVisible: true,
+          // 视频来源：默认沿用 HA 实体，可切成局域网 go2rtc（走同源 WebSocket 中继）。
+          cameraSource: "entity",
+          go2rtcUrl: "",
           frameVisible: true,
           frameColor: "#d4d4d4",
           frameWidth: 1,

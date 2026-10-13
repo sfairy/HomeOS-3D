@@ -877,6 +877,11 @@ const componentActionControlsElement = findElement("#component-action-controls")
   vacuumMapRotationElement = findElement("#vacuum-map-rotation"),
   cameraInspectorElement = findElement("#camera-inspector"),
   cameraLabelElement = findElement("#camera-label"),
+  cameraSourceOptionsElement = findElement("#camera-source-options"),
+  cameraEntityPickerElement = findElement("#camera-entity-picker"),
+  cameraGo2rtcUrlFieldElement = findElement("#camera-go2rtc-url-field"),
+  cameraGo2rtcUrlElement = findElement("#camera-go2rtc-url"),
+  cameraGo2rtcNoteElement = findElement("#camera-go2rtc-note"),
   cameraEntityButtonElement = findElement("#camera-entity-button"),
   cameraEntityMenuElement = findElement("#camera-entity-menu"),
   cameraEntitySearchElement = findElement("#camera-entity-search"),
@@ -5883,6 +5888,11 @@ function buildCameraInspectorContext() {
     cameraLabelElement,
     runExtraFallback,
     cameraMediaVisibleElement,
+    cameraSourceOptionsElement,
+    cameraEntityPickerElement,
+    cameraGo2rtcUrlFieldElement,
+    cameraGo2rtcUrlElement,
+    cameraGo2rtcNoteElement,
     cameraDisplayModeOptionsElement,
     cameraRefreshIntervalElement,
     cameraRefreshIntervalFieldElement,
@@ -5908,6 +5918,10 @@ function buildCameraInspectorContext() {
     cameraApplyCountElement,
     syncComponentActionControls,
     cameraActionControlsElement,
+    // 摄像头检查器的写属性控件交互在 `home-camera-inspector.ts` 里挂（宿主只减不增）。
+    mutateDocument,
+    findComponent: findComponent2,
+    getSelectedComponentId: () => selectedComponentId,
   };
 }
 function syncCameraInspector(cameraComponent: any) {
@@ -10534,99 +10548,6 @@ const {
           (perspectiveResetComponentState.properties = {
             ...(perspectiveResetComponentState.properties || {}),
             perspectiveCorners: [...DEFAULT_PERSPECTIVE_CORNERS],
-          });
-      });
-  }),
-  cameraFitOptionsElement.addEventListener("click", (cameraFitClickEvent: any) => {
-    const cameraFitOptionElement = cameraFitClickEvent.target.closest("[data-camera-fit]"),
-      cameraFitComponentId = selectedComponentId;
-    if (!cameraFitOptionElement || !cameraFitComponentId) return;
-    const requestedCameraFit =
-      cameraFitOptionElement.dataset.cameraFit === "contain" ? "contain" : "fill";
-    mutateDocument((cameraFitDraftDocument: any) => {
-      const cameraFitComponent = findComponent2(
-        cameraFitDraftDocument,
-        cameraFitComponentId,
-      )?.component;
-      !cameraFitComponent ||
-        cameraFitComponent.type !== "camera" ||
-        (cameraFitComponent.properties = {
-          ...(cameraFitComponent.properties || {}),
-          fit: requestedCameraFit,
-        });
-    });
-  }),
-  cameraDisplayModeOptionsElement.addEventListener("click", (displayModeClickEvent: any) => {
-    const displayModeOptionElement = displayModeClickEvent.target.closest(
-        "[data-camera-display-mode]",
-      ),
-      displayModeComponentId = selectedComponentId;
-    if (!displayModeOptionElement || !displayModeComponentId) return;
-    const requestedDisplayMode =
-      displayModeOptionElement.dataset.cameraDisplayMode === "snapshot" ? "snapshot" : "live";
-    mutateDocument((displayModeDraftDocument: any) => {
-      const displayModeComponent = findComponent2(
-        displayModeDraftDocument,
-        displayModeComponentId,
-      )?.component;
-      !displayModeComponent ||
-        displayModeComponent.type !== "camera" ||
-        (displayModeComponent.properties = {
-          ...(displayModeComponent.properties || {}),
-          displayMode: requestedDisplayMode,
-        });
-    });
-  }),
-  cameraRefreshIntervalElement.addEventListener("change", () => {
-    const refreshIntervalComponentId = selectedComponentId;
-    if (!refreshIntervalComponentId) return;
-    const refreshIntervalInput = Number(cameraRefreshIntervalElement.value),
-      normalizedRefreshInterval = Number.isFinite(refreshIntervalInput)
-        ? Math.max(6, Math.round(refreshIntervalInput))
-        : 10;
-    ((cameraRefreshIntervalElement.value = String(normalizedRefreshInterval)),
-      mutateDocument((refreshIntervalDraftDocument: any) => {
-        const refreshIntervalComponent = findComponent2(
-          refreshIntervalDraftDocument,
-          refreshIntervalComponentId,
-        )?.component;
-        !refreshIntervalComponent ||
-          refreshIntervalComponent.type !== "camera" ||
-          (refreshIntervalComponent.properties = {
-            ...(refreshIntervalComponent.properties || {}),
-            refreshInterval: normalizedRefreshInterval,
-          });
-      }));
-  }),
-  cameraMediaVisibleElement.addEventListener("click", () => {
-    const mediaVisibleComponentId = selectedComponentId;
-    mediaVisibleComponentId &&
-      mutateDocument((mediaVisibleDraftDocument: any) => {
-        const mediaVisibleComponent = findComponent2(
-          mediaVisibleDraftDocument,
-          mediaVisibleComponentId,
-        )?.component;
-        !mediaVisibleComponent ||
-          mediaVisibleComponent.type !== "camera" ||
-          (mediaVisibleComponent.properties = {
-            ...(mediaVisibleComponent.properties || {}),
-            mediaVisible: mediaVisibleComponent.properties?.mediaVisible === false,
-          });
-      });
-  }),
-  cameraFrameVisibleElement.addEventListener("click", () => {
-    const frameVisibleComponentId = selectedComponentId;
-    frameVisibleComponentId &&
-      mutateDocument((frameVisibleDraftDocument: any) => {
-        const frameVisibleComponent = findComponent2(
-          frameVisibleDraftDocument,
-          frameVisibleComponentId,
-        )?.component;
-        !frameVisibleComponent ||
-          frameVisibleComponent.type !== "camera" ||
-          (frameVisibleComponent.properties = {
-            ...(frameVisibleComponent.properties || {}),
-            frameVisible: frameVisibleComponent.properties?.frameVisible === false,
           });
       });
   }));

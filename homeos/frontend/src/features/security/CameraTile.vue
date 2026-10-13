@@ -14,11 +14,16 @@
     @click="emit('select', camId)"
   >
     <HaCameraStream
-      v-if="active && entity && !streamErrors[camId]"
+      v-if="active && hasSource && !streamErrors[camId]"
       :entity="entity"
       :ha-url="haUrl"
       :active="active"
       :prefer-webrtc="preferWebrtc"
+      :camera-source="cameraSource"
+      :go2rtc-url="go2rtcUrl"
+      :project-id="projectId"
+      :component-id="componentId"
+      :camera-id="camId"
       object-fit="cover"
       @error="emit('stream-error', camId)"
     />
@@ -38,7 +43,7 @@
       <span class="text-xs text-white font-bold">{{ cameraName }}</span>
     </div>
     <div
-      v-if="active && entity && !streamErrors[camId]"
+      v-if="active && hasSource && !streamErrors[camId]"
       class="absolute top-4 left-4 px-3 py-1 rounded-full sct-live-bg text-[12px] font-bold text-white uppercase tracking-widest shadow-lg"
     >
       <div class="w-1.5 h-1.5 rounded-full bg-white animate-pulse inline-block mr-1.5" />
@@ -65,6 +70,13 @@ const props = defineProps({
   streamsEnabled: { type: Boolean, default: true },
   /** 与 0.7.2 / 3D 一致：默认关 WebRTC，走 HLS → MJPEG → 快照 */
   preferWebrtc: { type: Boolean, default: false },
+  /** 摄像头来源：`entity` 走 HA 实体通路，`go2rtc` 走局域网 MSE 中继 */
+  cameraSource: { type: String, default: 'entity' },
+  go2rtcUrl: { type: String, default: '' },
+  projectId: { type: String, default: '' },
+  componentId: { type: String, default: '' },
+  /** 仅 go2rtc 来源（没有 HA 实体）时的显示名 */
+  label: { type: String, default: '' },
 })
 
 const emit = defineEmits(['select', 'stream-error', 'retry', 'visibility'])
@@ -87,7 +99,12 @@ const entity = computed(() => {
   void entitiesStore.getDomainEpoch('camera')
   return entitiesStore.entities[props.camId] || null
 })
+// go2rtc 来源可以没有 HA 实体：只要地址或实体任一可用就算有画面来源
+const hasSource = computed(() => !!entity.value || !!String(props.go2rtcUrl || '').trim())
 const cameraName = computed(() => {
+  void entitiesStore.getDomainEpoch('camera')
+  if (props.label) return props.label
+  if (!entity.value) return 'go2rtc 摄像头'
   return getEntityDisplayName(props.camId ?? '', entity.value)
 })
 

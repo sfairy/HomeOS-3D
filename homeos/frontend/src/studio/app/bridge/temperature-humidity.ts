@@ -131,6 +131,19 @@ export function layoutEnvironmentReadings(hostElement: any, requestedColumnCount
       ),
     ),
     cellWidthPx = Math.max(1, (clientWidth - (columnCount - 1) * gridColumnGapPx) / columnCount);
+  // 字号解封后要按列数推算容器最小宽度，否则放大字号的读数会被单元格挤掉。
+  // 约 1.2em 一个字符 + 图标与内边距基线 26px + 列间距；列数取用户设定（未填按 1 列）。
+  const estimatedCellFontPx =
+      parseFloat(defaultView.getComputedStyle(selector).fontSize) ||
+      parseFloat(hostElement.style.fontSize) * 1.1 ||
+      13.2,
+    estimatedColumnCount = Math.max(1, Math.min(filter.length, num || 1));
+  hostElement.style.minWidth =
+    Math.ceil(
+      26 +
+        estimatedColumnCount * estimatedCellFontPx * 1.2 +
+        (estimatedColumnCount - 1) * gridColumnGapPx,
+    ) + "px";
   (selector.style.setProperty("--meter-unit-width", list[3] + "px"),
     selector.style.setProperty("--meter-cell-width", cellWidthPx + "px"),
     (selector.style.gridTemplateColumns = "repeat(" + columnCount + ", minmax(0, 1fr))"),

@@ -20,11 +20,13 @@
 /**
  * 与 3D / 0.7.2 mountCameraMedia 同一条通路：HLS → MJPEG → 快照。
  * preferWebrtc 仅门铃等场景额外先试 WebRTC，失败后仍落入上述通路。
+ * go2rtcUrl 非空时优先走局域网 go2rtc（同源 MSE 中继），只有它宣告终态才落回上述通路。
  */
 import { ref, watch, onUnmounted, computed, nextTick } from 'vue'
 import { getEntityDisplayName } from '@/shared/entity/utils/derived.util'
 import { startCameraWebRtc } from '@/shared/camera/composables/useHaWebRtcPlayer'
 import { startCameraMediaTransport } from '@/shared/camera/composables/useCameraMediaTransport'
+import { useGo2RtcMseTransport } from '@/shared/camera/composables/useGo2RtcMseTransport'
 import { logger } from '@/shared/utils/core/logger'
 
 const props = defineProps({
@@ -36,6 +38,11 @@ const props = defineProps({
   preferHls: { type: Boolean, default: true },
   lowLatency: { type: Boolean, default: false },
   snapshotIntervalMs: { type: Number, default: 3000 },
+  cameraSource: { type: String, default: 'entity' },
+  go2rtcUrl: { type: String, default: '' },
+  projectId: { type: String, default: '' },
+  componentId: { type: String, default: '' },
+  cameraId: { type: String, default: '' },
 })
 
 const emit = defineEmits(['error', 'ready', 'fallback'])
@@ -56,8 +63,36 @@ const streamAlt = computed(() => {
 let stopPlayback = null
 let streamGeneration = 0
 
+/** 只在「HA 实体」来源下才认实体；go2rtc 来源的地址即配置。 */
+const go2rtcSourceUrl = computed(() =>
+  props.cameraSource === 'go2rtc' ? String(props.go2rtcUrl || '').trim() : '',
+)
+/** go2rtc 宣告终态（地址非法/被拒/浏览器不支持）后置位，把画面让回既有通路。 */
+const isGo2rtcUnavailable = ref(false)
+
+const go2rtcPlayback = useGo2RtcMseTransport({
+  url: go2rtcSourceUrl,
+  video: videoRef,
+  projectId: computed(() => props.projectId),
+  componentId: computed(() => props.componentId),
+  cameraId: computed(() => props.cameraId),
+  enabled: computed(() => props.active && !!go2rtcSourceUrl.value && !isGo2rtcUnavailable.value),
+  onReady: () => {
+    if (imageRef.value) imageRef.value.style.display = 'none'
+    if (videoRef.value) videoRef.value.style.display = ''
+    emit('ready', 'go2rtc')
+  },
+  onUnavailable: (message) => {
+    // 进程内的断线重连由传输自己退避，只有它彻底放弃才降级到 HLS → MJPEG → 快照。
+    logger.warn('[HaCameraStream] go2rtc 不可用，改走 HLS/MJPEG 通路', message)
+    isGo2rtcUnavailable.value = true
+    emit('fallback', 'go2rtc')
+  },
+})
+
 function resetFallback() {
   skipWebRtc.value = false
+  isGo2rtcUnavailable.value = false
 }
 
 async function waitForEls(generation) {
@@ -98,7 +133,11 @@ async function startStream() {
   const generation = ++streamGeneration
   stopStream()
   const entityId = String(props.entity?.entity_id || '').trim()
-  if (!props.active || !entityId) return
+  // go2rtc 来源可以没有 HA 实体；两种来源都没配就直接不播。
+  const hasGo2rtcSource = !!go2rtcSourceUrl.value && !isGo2rtcUnavailable.value
+  if (!props.active || (!entityId && !hasGo2rtcSource)) return
+  // MSE 由 `useGo2RtcMseTransport` 自己盯 enabled/url 变化，这里不抢同一个 video。
+  if (hasGo2rtcSource) return
 
   const els = await waitForEls(generation)
   if (!els) {
@@ -151,7 +190,8 @@ watch(
 )
 
 watch(
-  () => [props.active, props.entity?.entity_id, props.haUrl, props.preferWebrtc, skipWebRtc.value],
+  () => [props.active, props.entity?.entity_id, props.haUrl, props.preferWebrtc, skipWebRtc.value,
+    go2rtcSourceUrl.value, isGo2rtcUnavailable.value],
   () => {
     void startStream()
   },
@@ -160,6 +200,7 @@ watch(
 
 onUnmounted(() => {
   streamGeneration += 1
+  go2rtcPlayback.stop()
   stopStream()
 })
 </script>

@@ -1492,6 +1492,17 @@ h2 {
 .inspector-form[hidden] {
   display: none;
 }
+/* `.inspector-picker` 是 `display:grid`，UA 的 `[hidden]{display:none}` 会被它盖掉。 */
+#camera-entity-picker[hidden] {
+  display: none;
+}
+/* go2rtc 地址的即时校验反馈（权威校验仍在后端）。 */
+#camera-go2rtc-url.is-invalid {
+  border-color: #e0645a;
+}
+#camera-go2rtc-note.is-invalid {
+  color: #e0645a;
+}
 .inspector-section {
   position: relative;
   display: grid;

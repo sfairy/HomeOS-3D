@@ -7,6 +7,8 @@ from typing import NoReturn
 
 from fastapi import HTTPException
 
+from ...domains.proxy.go2rtc_target import normalize_go2rtc_target
+
 _GRID_SPANS = {'columns': (1, 2, 3, 4), 'rows': (1, 2)}
 
 
@@ -216,13 +218,13 @@ def validate_config(properties: dict) -> None:
                 ('y', -1000000, 1000000),
                 ('height', 0, 20),
                 ('size', 100, 600),
-                ('fontSize', 9, 24),
                 ('opacity', 0, 1),
                 ('cardWidth', 80, 480),
             )
         ):
             fail()
-        if any(key in item and not positive_number(item[key]) for key in ('iconSize', 'hitSize')):
+        # 字号不再设上限：放大字号是用户明确意图，夹紧只会把标签裁掉。
+        if any(key in item and not positive_number(item[key]) for key in ('iconSize', 'hitSize', 'fontSize')):
             fail()
         if any(key in item and not isinstance(item[key], bool) for key in ('visible', 'overlay', 'buttonHidden', 'hiddenClickable')):
             fail()
@@ -252,6 +254,8 @@ def validate_config(properties: dict) -> None:
             'iconSize',
             'focusCamera',
             'buttonHidden',
+            'cameraSource',
+            'go2rtcUrl',
             'backgroundOpacity'}
         if not isinstance(item, dict) or set(item) - fields:
             fail()
@@ -265,11 +269,26 @@ def validate_config(properties: dict) -> None:
             fail()
         if not text(item.get('label', '')) or not text(item.get('icon', '')):
             fail()
-        for key, low, high in (('x', -1e+06, 1e+06), ('y', -1e+06, 1e+06), ('height', -1000, 1000), ('size', 1, 1000), ('iconSize', 1, 1000), ('fontSize', 1, 1000), ('hitSize', 1, 1000), ('backgroundOpacity', 0, 1)):
+        # 摄像头来源：默认 HA 实体；选 go2rtc 时地址必须能通过白名单归一（据此才能反代）。
+        camera_source = item.get('cameraSource', 'entity')
+        if camera_source not in ('entity', 'go2rtc'):
+            fail()
+        camera_url = item.get('go2rtcUrl', '')
+        if not text(camera_url, 2048):
+            fail()
+        if camera_source == 'go2rtc' and camera_url.strip():
+            try:
+                normalize_go2rtc_target(camera_url)
+            except ValueError:
+                fail()
+        # 字号不再设上限（1-1000 的旧上限会把放大后的标签裁掉），只要求为正数。
+        for key, low, high in (('x', -1e+06, 1e+06), ('y', -1e+06, 1e+06), ('height', -1000, 1000), ('size', 1, 1000), ('iconSize', 1, 1000), ('hitSize', 1, 1000), ('backgroundOpacity', 0, 1)):
             if key not in item:
                 continue
             if number(item[key], low, high):
                 continue
+            fail()
+        if 'fontSize' in item and not positive_number(item['fontSize']):
             fail()
         if any(key in item and not isinstance(item[key], bool) for key in ('visible', 'buttonHidden')):
             fail()

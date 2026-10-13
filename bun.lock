@@ -24,7 +24,7 @@
     },
     "homeos": {
       "name": "homeos",
-      "version": "0.7.4",
+      "version": "0.7.5",
     },
     "homeos-store": {
       "name": "homeos-store",
@@ -47,7 +47,7 @@
     },
     "homeos/frontend": {
       "name": "homeos-dashboard",
-      "version": "0.7.4",
+      "version": "0.7.5",
       "dependencies": {
         "@homeos/shared": "workspace:*",
         "@lucide/vue": "^1.55.0",

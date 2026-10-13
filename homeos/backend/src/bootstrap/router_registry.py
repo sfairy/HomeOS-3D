@@ -21,6 +21,7 @@ from ..api.embed_proxy import router as embed_proxy_router
 from ..api.entities import router as entities_router
 from ..api.events import router as events_router
 from ..api.global_logs import router as global_logs_router
+from ..api.go2rtc import router as go2rtc_router
 from ..api.ha import router as ha_router
 from ..api.ha import runtime_router
 from ..api.ha_proxy import router as ha_proxy_router
@@ -82,6 +83,7 @@ def register_homeos_routers(app: FastAPI) -> None:
     app.include_router(voice_router, prefix=API_PREFIX)
     app.include_router(advisor_usage_router, prefix=API_PREFIX)
     app.include_router(ws_proxy_router, prefix=API_PREFIX)
+    app.include_router(go2rtc_router, prefix=API_PREFIX)
     app.include_router(ha_webrtc_router, prefix=API_PREFIX)
 
 

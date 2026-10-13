@@ -327,3 +327,44 @@ export function createHoverLineChart(
     }
   );
 }
+
+/**
+ * 摄像机舞台的视觉状态机（对齐 HA Bridge 0.7.5 的 `createCameraVisualState`）。
+ *
+ * 单一来源：状态写进 `dataset.cameraVisualState`，同时切换 `is-connecting` / `is-ready` /
+ * `is-unavailable` / `is-suspended` 与 `aria-busy`，样式全在 `renderer.css` 里（增量补齐）。
+ * 扫描线元素（`.hb-camera-preview-scan-line`）缺失时在这里补齐，负责创建的那一份负责移除。
+ */
+export function createCameraVisualState(
+  cameraPreviewStageElement: HTMLElement,
+  onVisualStateChange: (visualState: string) => void = () => {},
+) {
+  let createdScanLineElement: HTMLElement | null = null;
+  if (!cameraPreviewStageElement.querySelector?.(".hb-camera-preview-scan-line")) {
+    createdScanLineElement = document.createElement("i");
+    createdScanLineElement.className = "hb-camera-preview-scan-line";
+    createdScanLineElement.setAttribute("aria-hidden", "true");
+    cameraPreviewStageElement.appendChild(createdScanLineElement);
+  }
+  return {
+    setState(visualState: string) {
+      cameraPreviewStageElement.dataset.cameraVisualState = visualState;
+      for (const [visualStateClass, isStateActive] of [
+        ["is-connecting", ["connecting", "reconnecting"].includes(visualState)],
+        ["is-ready", visualState === "ready"],
+        ["is-unavailable", visualState === "unavailable"],
+        ["is-suspended", visualState === "suspended"],
+      ] as Array<[string, boolean]>)
+        cameraPreviewStageElement.classList?.toggle(visualStateClass, isStateActive);
+      cameraPreviewStageElement.setAttribute?.(
+        "aria-busy",
+        String(["connecting", "reconnecting"].includes(visualState)),
+      );
+      onVisualStateChange(visualState);
+    },
+    dispose() {
+      createdScanLineElement?.remove();
+      createdScanLineElement = null;
+    },
+  };
+}

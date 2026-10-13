@@ -393,6 +393,9 @@ export function renderSecurityAlarmCard(
   }
   // event 态卡片按 alarm 配色；event-idle / dirty 走对应 data-status 样式
   cardElement.dataset.status = reading.status === "event" ? "alarm" : reading.status;
+  // 卡片宽度仍按配置定格；字号放大时由 CSS 的 min-width（calc(66px + 1em)）兜底撑开。
+  // ⚠ 不要在这里改读 `cardElement.offsetWidth`：那会把「实测宽度」写回自身，width 会随
+  //    字号单向递增（大字号改回小字号后卡片再也缩不回来）。要跟随实测宽度的是下面的标记层。
   cardElement.style.width = (alarmConfig?.size ?? 340) + "px";
   cardElement.style.fontSize = (alarmConfig?.fontSize ?? 21) + "px";
   cardElement.style.setProperty(
@@ -472,7 +475,7 @@ export function renderSecurityAlarmCard(
       reading.detail +
       (showWork ? " · 工作状态 " + (workState.label || "—") : ""),
   );
-  markerElement.style.width = (alarmConfig?.size ?? 340) + "px";
+  markerElement.style.width = (cardElement.offsetWidth || alarmConfig?.size || 340) + "px";
   markerElement.style.height = (cardElement.offsetHeight || 58) + "px";
 }
 

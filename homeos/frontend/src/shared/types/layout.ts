@@ -50,6 +50,18 @@ interface EventLogConfig {
 }
 
 /**
+ * 安防摄像头绑定项。
+ *
+ * `entityId` 用来取 HA 实体状态（在线色、快照兜底）；`go2rtcUrl` 是局域网
+ * `http://IP:1984/stream.html?src=…` 地址，填了就优先走同源 MSE 中继（可以没有 HA 实体）。
+ * 0.7.5 之前这里是纯 `string[]`，读取侧统一经 `normalizeSecurityCameras` 升级。
+ */
+export interface SecurityCameraBinding {
+  entityId: string
+  go2rtcUrl?: string
+}
+
+/**
  * HA 实体绑定与设备配置。
  *
  * 阶段 3.3 起这里**不再包含连接凭据**（`url` / `fallbackUrl` / `token`）：
@@ -59,7 +71,7 @@ interface EventLogConfig {
 export interface HaConfig {
   eventsPath: string // 事件路径
   securityCamera: string // 安防摄像头实体 ID
-  securityCameras: string[] // 安防摄像头实体 ID 列表
+  securityCameras: SecurityCameraBinding[] // 安防摄像头绑定列表
   weatherEntityId: string // 天气实体 ID
   doorbells: DoorbellConfig[] // 门铃配置列表
   motionSensorEntityId: string // 人体传感器实体 ID

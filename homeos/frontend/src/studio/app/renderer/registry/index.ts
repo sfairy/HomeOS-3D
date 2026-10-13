@@ -3,8 +3,15 @@ import { renderInteraction3d } from "../../bridge/bridge";
 import {
   prewarmCameraMedia,
   mountCameraMedia,
+  cameraRecordNeedsHlsPrewarm,
+  normalizeGo2rtcTarget,
 } from "./camera-media";
-export { prewarmCameraMedia, mountCameraMedia };
+export {
+  prewarmCameraMedia,
+  mountCameraMedia,
+  cameraRecordNeedsHlsPrewarm,
+  normalizeGo2rtcTarget,
+};
 export { renderLineChartDetails } from "./line-chart-details";
 
 export { setBuiltinAssetVersions, staticAssetImageSource } from "./asset-state";

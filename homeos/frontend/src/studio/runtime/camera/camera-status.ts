@@ -1,3 +1,8 @@
+import { cameraSourceConfigured } from "../../platform/camera-binding-source";
+
+// 判定本体在 platform（app 侧也要用），这里再导出一次，runtime 内部沿用同一入口。
+export { cameraSourceConfigured };
+
 export function cameraOnline(entityStateOrEvent: any) {
   const entityState = entityStateOrEvent?.newState || entityStateOrEvent,
     normalizedState = String(entityState?.state || "")
@@ -38,6 +43,9 @@ export function createCameraStatus({ THREE: three, requestFrame: onRequestFrame 
         binding.width,
         binding.height,
         binding.depth,
+        // 换来源（entity ↔ go2rtc）或改地址都必须重新同步，否则同一模型上会留着旧状态。
+        binding.cameraSource,
+        binding.go2rtcUrl,
       ]),
     );
     if (
@@ -112,8 +120,13 @@ export function createCameraStatus({ THREE: three, requestFrame: onRequestFrame 
     for (const renderBinding of cameraBindings) {
       const renderStatusEntry = statusByBindingId.get(renderBinding.id);
       if (!renderStatusEntry) continue;
-      const isVisible = isEnabled && !!renderBinding.entityId,
-        statusColorHex = cameraOnline(statesByEntityId[renderBinding.entityId]) ? 8571275 : 7830916;
+      const isVisible = isEnabled && cameraSourceConfigured(renderBinding),
+        // go2rtc 来源没有 HA 实体状态可用，在线色只在实体来源上叠加。
+        statusColorHex =
+          renderBinding.cameraSource !== "go2rtc" &&
+          cameraOnline(statesByEntityId[renderBinding.entityId])
+            ? 8571275
+            : 7830916;
       ((hasChanged =
         hasChanged ||
         renderStatusEntry.mesh.visible !== isVisible ||

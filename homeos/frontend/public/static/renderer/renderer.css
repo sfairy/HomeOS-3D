@@ -1674,6 +1674,35 @@
 .hb-custom-popup-camera-stage.is-unavailable .hb-camera-preview-scan-line {
   display: none;
 }
+/* —— 0.7.5：go2rtc 连接态与页面挂起态（增量补齐，不是从零新建）—— */
+@keyframes hb-camera-connecting-pulse {
+  0%,
+  to {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.hb-camera-preview-status.is-connecting:before,
+.hb-custom-popup-module-status.is-connecting:before {
+  animation: hb-camera-connecting-pulse 1.4s ease-in-out infinite;
+}
+.hb-camera-device-visual:not(.is-live):not(.is-unavailable):not(.is-suspended)
+  .hb-camera-device-led {
+  animation: hb-camera-connecting-pulse 1.4s ease-in-out infinite;
+}
+.hb-camera-device-visual.is-suspended .hb-camera-device-led {
+  animation: none;
+  opacity: 0.42;
+}
+/* 页面被挂起（后台暂停）时不保留任何连接态动效，画面元素也一并藏掉。 */
+.hb-camera-preview-stage.is-suspended .hb-camera-preview-reveal-veil,
+.hb-camera-preview-stage.is-suspended .hb-camera-preview-scan-line,
+.hb-custom-popup-camera-stage.is-suspended .hb-camera-preview-reveal-veil,
+.hb-custom-popup-camera-stage.is-suspended .hb-camera-preview-scan-line {
+  display: none;
+}
 .hb-camera-preview-dialog.fit-media-ratio .hb-camera-preview-stage {
   width: 100%;
   height: auto;
@@ -1793,10 +1822,13 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .hb-camera-preview-status.is-live:before,
+  .hb-camera-preview-status.is-connecting:before,
   .hb-camera-preview-stage.is-connecting .hb-camera-preview-scan-line,
   .hb-camera-preview-stage.is-revealing .hb-camera-preview-reveal-veil,
   .hb-camera-preview-stage.is-revealing .hb-camera-preview-scan-line,
   .hb-camera-device-visual,
+  .hb-camera-device-visual:not(.is-live):not(.is-unavailable):not(.is-suspended)
+    .hb-camera-device-led,
   .hb-camera-device-body,
   .hb-camera-device-visual.is-live .hb-camera-device-lens:after {
     animation: none;
@@ -1814,6 +1846,7 @@
   .hb-custom-popup-camera-stage.is-connecting .hb-camera-preview-scan-line,
   .hb-custom-popup-camera-stage.is-revealing .hb-camera-preview-reveal-veil,
   .hb-custom-popup-camera-stage.is-revealing .hb-camera-preview-scan-line,
+  .hb-custom-popup-module-status.is-connecting:before,
   .hb-custom-popup-module-status.is-running {
     animation: none;
   }
@@ -12675,7 +12708,10 @@
     stroke-dashoffset: var(--flow-to, -130);
   }
 }
-.hb-vacuum-details-option-group[hidden] {
+.hb-vacuum-details-option-group[hidden],
+/* 挂起态（后台暂停）的摄像机舞台：扫描线一律不显示 */
+.hb-camera-preview-stage.is-suspended .hb-camera-preview-scan-line,
+.hb-custom-popup-camera-stage.is-suspended .hb-camera-preview-scan-line {
   display: none;
 }
 /* ===== 即时消息墙（event-log-wall）===== */

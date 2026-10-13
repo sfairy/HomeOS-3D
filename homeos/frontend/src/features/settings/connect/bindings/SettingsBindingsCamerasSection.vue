@@ -51,9 +51,10 @@
             <span class="bind-cam-card__index">{{ idx + 1 }}</span>
             <div class="bind-cam-card__entity flex-1 min-w-0">
               <EntityInput
-                v-model="securityCameras[idx]"
+                :model-value="cam.entityId"
                 :placeholder="'camera.xxx'"
                 domain-filter="camera"
+                @update:model-value="(v) => updateCameraEntity(idx, v)"
               />
             </div>
             <button
@@ -66,22 +67,44 @@
               <Trash2 class="w-3.5 h-3.5" />
             </button>
           </header>
+          <div class="bind-cam-card__go2rtc">
+            <input
+              class="bind-cam-go2rtc-input"
+              type="url"
+              inputmode="url"
+              autocomplete="off"
+              spellcheck="false"
+              :value="cam.go2rtcUrl || ''"
+              :placeholder="'go2rtc 局域网地址（可选），如 http://192.168.1.10:1984/stream.html?src=frontdoor'"
+              :aria-label="'go2rtc 局域网地址'"
+              @input="onGo2rtcInput(idx, $event)"
+            />
+            <p class="bind-cam-go2rtc-hint">
+              {{ '留空则播放上方 HA 实体；填写后走同源 MSE 中继，可只填地址不绑实体。' }}
+            </p>
+          </div>
           <div class="bind-cam-card__roles">
             <button
               type="button"
-              :class="['bind-cam-role', doorbellCameras.includes(cam) && 'bind-cam-role--doorbell']"
-              @click="$emit('toggle-doorbell-cam', cam)"
+              :class="[
+                'bind-cam-role',
+                doorbellCameras.includes(cam.entityId) && 'bind-cam-role--doorbell',
+              ]"
+              @click="$emit('toggle-doorbell-cam', cam.entityId)"
             >
               <Bell class="w-3 h-3" />
-              {{ doorbellCameras.includes(cam) ? '门铃画面' : '设为门铃' }}
+              {{ doorbellCameras.includes(cam.entityId) ? '门铃画面' : '设为门铃' }}
             </button>
             <button
               type="button"
-              :class="['bind-cam-role', securityCamera === cam && 'bind-cam-role--default']"
-              @click="$emit('set-default-camera', cam)"
+              :class="[
+                'bind-cam-role',
+                securityCamera === cam.entityId && 'bind-cam-role--default',
+              ]"
+              @click="$emit('set-default-camera', cam.entityId)"
             >
               <Star class="w-3 h-3" />
-              {{ securityCamera === cam ? '安防首选' : '设为默认' }}
+              {{ securityCamera === cam.entityId ? '安防首选' : '设为默认' }}
             </button>
           </div>
         </article>
@@ -95,7 +118,7 @@
       <p class="settings-note-callout settings-note-callout--emerald mt-4">
         <span class="settings-note-callout__label">{{ '预览' }}</span>
         <span>{{
-          '支持多路 MJPEG/HLS 实时预览；标记为「门铃」的画面用于门铃弹窗，「安防首选」用于安防页默认播放源。'
+          '支持多路 MJPEG/HLS 实时预览，也可填写 go2rtc 局域网地址走同源 MSE 中继；标记为「门铃」的画面用于门铃弹窗，「安防首选」用于安防页默认播放源。'
         }}</span>
       </p>
     </SettingsCard>
@@ -118,6 +141,25 @@ const props = defineProps({
 })
 
 defineEmits(['toggle-doorbell-cam', 'set-default-camera', 'remove-camera'])
+
+/** 改写某一路的实体 ID：整表重写后经 v-model 回传，保持父级响应式。 */
+function updateCameraEntity(idx, entityId) {
+  securityCameras.value = securityCameras.value.map((cam, i) =>
+    i === idx ? { ...cam, entityId: String(entityId || '') } : cam,
+  )
+}
+
+/** 改写某一路的 go2rtc 局域网地址（留空则回落 HA 实体播放）。 */
+function updateCameraGo2rtcUrl(idx, go2rtcUrl) {
+  securityCameras.value = securityCameras.value.map((cam, i) =>
+    i === idx ? { ...cam, go2rtcUrl: String(go2rtcUrl || '') } : cam,
+  )
+}
+
+/** 输入框事件适配：模板里不能安全地读 event.target.value。 */
+function onGo2rtcInput(idx, event) {
+  updateCameraGo2rtcUrl(idx, event?.target?.value ?? '')
+}
 
 // 流程概览折叠态摘要文案
 const cameraFlowSummary = computed(() => {

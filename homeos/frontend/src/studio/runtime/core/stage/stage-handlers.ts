@@ -44,7 +44,10 @@ import {
   renderSecurityAlarmCard,
 } from "../../security/security-alarm";
 import { updateCarCard as updateCarCard2 } from "../../vehicle/car-card";
-import { cameraOnline as cameraOnline2 } from "../../camera/camera-status";
+import {
+  cameraOnline as cameraOnline2,
+  cameraSourceConfigured as cameraSourceConfigured2,
+} from "../../camera/camera-status";
 import { backgroundOpacity as labelBackgroundOpacity } from "../label-appearance";
 import {
   ENVIRONMENT_METRICS as environmentMetricNames,
@@ -1021,7 +1024,9 @@ export function createSyncMarkers(host: StageHandlersHost) {
           (vacuumQuipElement.hidden = !vacuumQuipElement.textContent),
           (vacuumStatusElement.style.transform =
             "translate(-50%,-50%) scale(" + vacuumScaleX + "," + vacuumScaleY + ")"),
-          (vacuumStatusElement.style.fontSize = Math.max(8, iconSize / 2) + "px"));
+          // 字号不再夹到 8px 以上：图标放多大，标签就跟着多大；从左上角锚定避免放大后视觉漂移。
+          (vacuumStatusElement.style.fontSize = iconSize / 2 + "px"),
+          (vacuumStatusElement.style.transformOrigin = "top left"));
         const vacuumCardHeight = Math.max(
           syncMarkerItem.overviewQuip ? 28 : 50,
           vacuumStatusElement.offsetHeight,
@@ -1063,7 +1068,10 @@ export function createSyncMarkers(host: StageHandlersHost) {
             syncMarkerItem.deviceKind === "lock"
               ? lock.available
               : syncMarkerItem.deviceKind === "camera"
-                ? cameraOnline2(securityDeviceState)
+                ? // go2rtc 来源没有 HA 实体状态可查，判据换成「地址填了没」。
+                  syncMarkerItem.cameraSource === "go2rtc"
+                  ? cameraSourceConfigured2(syncMarkerItem)
+                  : cameraOnline2(securityDeviceState)
                 : securityDeviceState?.available !== false &&
                   !!securityDeviceState?.state &&
                   !["unknown", "unavailable"].includes(securityDeviceState.state);
@@ -1111,6 +1119,8 @@ export function createSyncMarkers(host: StageHandlersHost) {
           if (
             ((securityLabelElement.children[1].textContent =
               host.isEditing &&
+              // go2rtc 来源没有实体可绑，编辑态也不该提示「未绑定实体」。
+              syncMarkerItem.cameraSource !== "go2rtc" &&
               !(syncMarkerItem.deviceKind === "lock" ? entityId3 : syncMarkerItem.entityId)
                 ? "未绑定实体"
                 : available2
@@ -1134,8 +1144,14 @@ export function createSyncMarkers(host: StageHandlersHost) {
                       ? securityDeviceState.state === "on"
                         ? "有人"
                         : "检测中"
-                      : "在线"
-                  : "离线"),
+                      : syncMarkerItem.deviceKind === "camera" &&
+                          syncMarkerItem.cameraSource === "go2rtc"
+                        ? "点击查看"
+                        : "在线"
+                  : syncMarkerItem.deviceKind === "camera" &&
+                      syncMarkerItem.cameraSource === "go2rtc"
+                    ? "未填写地址"
+                    : "离线"),
             (securityLabelElement.children[1].hidden = isPresenceChoice),
             // 门锁：门磁 / 锂电池 / 干电池 各占一行（"\n" 分行）；用 pre 而不是 pre-line，
             // 因为 pre-line 在分行之外还允许按空格折行，会把「锂电池 94%」拆成两行。

@@ -108,6 +108,43 @@
   border-color: rgba(251, 113, 133, 0.32);
 }
 
+.bind-cam-card__go2rtc {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.bind-cam-go2rtc-input {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: var(--hos-radius-control, 10px);
+  font-size: var(--premium-fs-caption);
+  color: var(--hos-text-primary);
+  background: rgba(0, 0, 0, 0.2);
+  border: var(--hos-hairline) solid var(--premium-border-strong);
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.bind-cam-go2rtc-input::placeholder {
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.bind-cam-go2rtc-input:focus {
+  border-color: var(--page-accent-border);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.bind-cam-go2rtc-hint {
+  margin: 0;
+  font-size: var(--premium-fs-micro);
+  line-height: 1.5;
+  color: var(--hos-text-tertiary, rgba(255, 255, 255, 0.45));
+}
+
 .bind-cam-card__roles {
   display: flex;
   flex-wrap: wrap;

@@ -134,7 +134,7 @@ def validate_lock_bindings(items, validate_camera) -> None:
             fail()
         if item.get("labelMode", "always") not in ("hidden", "always", "open"):
             fail()
-        for field, low, high in (("size", 20, 500), ("fontSize", 8, 100)):
+        for field, low, high in (("size", 20, 500),):
             value = item.get(field)
             if value in (None, ""):
                 continue
@@ -144,6 +144,14 @@ def validate_lock_bindings(items, validate_camera) -> None:
                 or not low <= value <= high
             ):
                 fail()
+        # 字号不再设上限（旧的 8-100 夹紧会把放大后的标签裁掉），只要求为正数。
+        font_size = item.get("fontSize")
+        if font_size not in (None, "") and (
+            type(font_size) not in (int, float)
+            or not math.isfinite(font_size)
+            or font_size <= 0
+        ):
+            fail()
         if "backgroundOpacity" in item:
             value = item["backgroundOpacity"]
             if (

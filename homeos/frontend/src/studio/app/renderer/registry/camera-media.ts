@@ -1,6 +1,18 @@
 /** registry 相机媒体子模块：负责摄像头快照/HLS 实时预览挂载。 */
 import { EntityRequestPolicy } from "../panel-caches";
-import { clampNumber, normalizeCssColor, createSvgElement } from "./_shared";
+import {
+  createGo2RtcMseTransport,
+  normalizeGo2rtcTarget,
+  GO2RTC_TRANSPORT_NAME,
+  type Go2RtcMseTransportHandle,
+} from "@/shared/camera/composables/useGo2RtcMseTransport";
+import { clampNumber, normalizeCssColor, createSvgElement, createCameraVisualState } from "./_shared";
+
+/**
+ * Studio 侧复用共享的 go2rtc MSE 实现（`shared/camera/composables/useGo2RtcMseTransport`），
+ * 这里再导出一次，视频弹窗/安全检查器等别的渲染子模块从本文件取，避免两份协议漂移。
+ */
+export { normalizeGo2rtcTarget };
 /** 渲染环境 / 属性袋：由 renderer 按组件类型动态组装（states、editable、document、cleanup、callEntityService、airflow* …），registry 侧只读取其中的可选字段； */
 type RenderPropertyBag = any;
 /** hls.js 运行时：外部脚本注入 window.Hls，vite-env.d.ts 的 Window 只有索引签名，这里按本文件实际用到的 API 补一份局部类型。 */
@@ -156,6 +168,20 @@ async function resolveCameraStreamSource(sourceEntityId: any, options: { signal?
     pendingSourceRequestByEntityId.get(normalizedCameraEntityId) === sourceRequestPromise &&
       pendingSourceRequestByEntityId.delete(normalizedCameraEntityId);
   }
+}
+/**
+ * 该摄像机控件是否值得预热 `/api/camera_hls/`。
+ *
+ * 快照模式不需要流；go2rtc 来源走 WebSocket 中继，预热只会白拉一路 HLS。
+ * 判据放这里与 `prewarmCameraMedia` 同源，调用方（`panel-renderer.ts`）不必再展开四个条件。
+ */
+export function cameraRecordNeedsHlsPrewarm(cameraComponentRecord: any) {
+  return (
+    cameraComponentRecord.type === "camera" &&
+    cameraComponentRecord.properties?.mediaVisible !== false &&
+    cameraComponentRecord.properties?.displayMode !== "snapshot" &&
+    cameraComponentRecord.properties?.cameraSource !== "go2rtc"
+  );
 }
 export async function prewarmCameraMedia(cameraEntityIds: any[] = []) {
   if (document.visibilityState === "hidden") return;
@@ -364,9 +390,14 @@ export function mountCameraMedia({
   label: legacyCameraLabel,
   objectFit: legacyObjectFit = "cover",
   placeholder: legacyPlaceholderElement,
+  onStateChange: onVisualStateChange = (_visualState: string) => {},
   onReady: onTransportReady = () => {},
   onUnavailable: onTransportUnavailable = () => {},
   cleanup: registerLegacyCleanup = (_cleanupRegistration: () => void) => {},
+  go2rtcUrl: legacyGo2rtcUrl = "",
+  projectId: cameraProjectId = "",
+  componentId: cameraComponentId = "",
+  cameraId: cameraMarkerId = "",
 }: any) {
   const cameraVideoElement = document.createElement("video");
   cameraVideoElement.className = "hb-camera-video";
@@ -383,7 +414,7 @@ export function mountCameraMedia({
   fallbackImageElement.draggable = false;
   fallbackImageElement.style.objectFit = legacyObjectFit;
 
-  type TransportMode = "idle" | "hls" | "legacy" | "snapshot";
+  type TransportMode = "idle" | "hls" | "legacy" | "snapshot" | "go2rtc";
   let isTransportDisposed = false;
   let isLegacyTransport = false;
   let hasRequestedFallbackImage = false;
@@ -397,6 +428,13 @@ export function mountCameraMedia({
   let transportGeneration = 0;
   let transportMode: TransportMode = "idle";
   let isPageHidden = document.visibilityState === "hidden";
+  // go2rtc MSE：传输本体与视觉状态机都由共享实现负责，这里只持有句柄以便释放。
+  let go2rtcTransport: Go2RtcMseTransportHandle | null = null;
+  const cameraVisualState = createCameraVisualState(
+    legacyContainerElement,
+    onVisualStateChange,
+  );
+  const go2rtcSourceUrl = String(legacyGo2rtcUrl || "").trim();
 
   const mjpegStreamUrl = () =>
     "/api/camera_proxy_stream/" + encodeURIComponent(legacySnapshotEntityId);
@@ -416,10 +454,13 @@ export function mountCameraMedia({
     transportGeneration += 1;
     transportMode = "idle";
     clearTransportTimers();
+    go2rtcTransport?.dispose();
+    go2rtcTransport = null;
     hlsPlayer?.destroy();
     hlsPlayer = null;
     cameraVideoElement.pause();
     cameraVideoElement.removeAttribute("src");
+    cameraVideoElement.srcObject = null;
     cameraVideoElement.load();
     fallbackImageElement.removeAttribute("src");
     isLegacyTransport = false;
@@ -441,11 +482,11 @@ export function mountCameraMedia({
     onTransportReady();
   };
 
-  const reportTransportUnavailable = () => {
+  const reportTransportUnavailable = (unavailableMessage = "摄像头实时预览不可用") => {
     if (isTransportDisposed || isPageHidden) return;
     hasVideoStarted = false;
     legacyPlaceholderElement.hidden = false;
-    legacyPlaceholderElement.textContent = "摄像头实时预览不可用";
+    legacyPlaceholderElement.textContent = unavailableMessage;
     onTransportUnavailable();
   };
 
@@ -651,6 +692,50 @@ export function mountCameraMedia({
     }
   };
 
+  /**
+   * go2rtc MSE 通道。
+   *
+   * 与 HLS 不同，这里**不做** MJPEG 降级：go2rtc 的正路就是 MSE，重连退避由共享传输自己负责，
+   * 只有它宣告终态（配置错误、被拒、浏览器不支持）时才把占位文案交回上层。
+   */
+  const startGo2rtcPlayback = (playbackGeneration: number) => {
+    const generation = playbackGeneration;
+    transportMode = "go2rtc";
+    legacyContainerElement.dataset.cameraTransport = GO2RTC_TRANSPORT_NAME;
+    legacyContainerElement.dataset.cameraState = "starting";
+    go2rtcTransport = createGo2RtcMseTransport({
+      video: cameraVideoElement,
+      url: go2rtcSourceUrl,
+      projectId: cameraProjectId,
+      componentId: cameraComponentId,
+      cameraId: cameraMarkerId,
+      onStateChange: (visualState, stateMessage) => {
+        if (isTransportDisposed || generation !== transportGeneration) return;
+        cameraVisualState.setState(visualState);
+        legacyContainerElement.dataset.cameraState = visualState;
+        // `ready` 既走这里也走 onReady，靠 handleTransportReady 的 hasVideoStarted 去重；
+        // 重连时把占位重新显出来，否则断线期间会留一块黑画面。
+        if (visualState === "ready") {
+          handleTransportReady();
+          return;
+        }
+        hasVideoStarted = false;
+        legacyPlaceholderElement.hidden = false;
+        legacyPlaceholderElement.textContent = stateMessage || "摄像头正在连接";
+      },
+      onReady: () => {
+        if (isTransportDisposed || generation !== transportGeneration) return;
+        handleTransportReady();
+      },
+      onUnavailable: (message) => {
+        if (isTransportDisposed || generation !== transportGeneration) return;
+        cameraVisualState.setState("unavailable");
+        legacyContainerElement.dataset.cameraState = "unavailable";
+        reportTransportUnavailable(message || "摄像头实时预览不可用");
+      },
+    });
+  };
+
   const resumeDeferredPlayback = () => {
     if (isTransportDisposed || isPageHidden) return;
     restoreVideoElement();
@@ -661,6 +746,12 @@ export function mountCameraMedia({
     legacyPlaceholderElement.hidden = false;
     legacyPlaceholderElement.textContent = "摄像头正在连接";
     const generation = transportGeneration;
+    cameraVisualState.setState("connecting");
+    // go2rtc 来源：地址非空即直接走 MSE，且**不挂** 12s 降级定时器——MSE 不该退回 MJPEG。
+    if (go2rtcSourceUrl) {
+      startGo2rtcPlayback(generation);
+      return;
+    }
     transportMode = "hls";
     legacyContainerElement.dataset.cameraState = "starting";
     void startHlsPlayback(generation);
@@ -672,6 +763,7 @@ export function mountCameraMedia({
       if (isPageHidden) return;
       isPageHidden = true;
       disposeCameraTransport();
+      cameraVisualState.setState("suspended");
       legacyContainerElement.dataset.cameraState = "suspended";
       legacyPlaceholderElement.hidden = false;
       legacyPlaceholderElement.textContent = "摄像头已在后台暂停";
@@ -685,10 +777,12 @@ export function mountCameraMedia({
 
   document.addEventListener("visibilitychange", handlePageHidden);
   if (isPageHidden) {
+    cameraVisualState.setState("suspended");
     legacyContainerElement.dataset.cameraState = "suspended";
     legacyPlaceholderElement.hidden = false;
     legacyPlaceholderElement.textContent = "摄像头已在后台暂停";
   } else {
+    cameraVisualState.setState("connecting");
     legacyContainerElement.dataset.cameraState = "deferred";
     hlsManifestTimerId = window.setTimeout(resumeDeferredPlayback, 0);
   }
@@ -696,6 +790,7 @@ export function mountCameraMedia({
     isTransportDisposed = true;
     document.removeEventListener("visibilitychange", handlePageHidden);
     disposeCameraTransport();
+    cameraVisualState.dispose();
   });
   return {
     video: cameraVideoElement,

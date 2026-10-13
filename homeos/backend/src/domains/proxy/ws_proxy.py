@@ -61,8 +61,11 @@ def verify_embed_ws_auth(token: str | None, session: Any) -> bool:
     return True
 
 
-def _ssl_context_for(url: str) -> ssl.SSLContext | None:
-    """wss 上游常用自签证书：放行证书校验（仅 wss 生效），与 Nest ``rejectUnauthorized=false`` 一致。"""
+def ssl_context_for(url: str) -> ssl.SSLContext | None:
+    """wss 上游常用自签证书：放行证书校验（仅 wss 生效），与 Nest ``rejectUnauthorized=false`` 一致。
+
+    同时供 go2rtc MSE 中继（``api/go2rtc.py``）复用：局域网 go2rtc 的 HTTPS 端点同样是自签证书。
+    """
     if not url.lower().startswith("wss:"):
         return None
     ctx = ssl.create_default_context()
@@ -103,7 +106,7 @@ async def bridge_websockets(
             upstream_uri,
             additional_headers=headers or None,
             subprotocols=subprotocols or None,
-            ssl=_ssl_context_for(upstream_uri),
+            ssl=ssl_context_for(upstream_uri),
             max_size=WS_MAX_MESSAGE_SIZE,
             open_timeout=10,
         ) as upstream:
@@ -230,5 +233,6 @@ __all__ = [
     "resolve_go2rtc_ws_user",
     "resolve_ha_base_url",
     "split_embed_path",
+    "ssl_context_for",
     "verify_embed_ws_auth",
 ]

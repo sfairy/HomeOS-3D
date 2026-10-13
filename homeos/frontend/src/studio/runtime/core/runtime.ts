@@ -9,6 +9,7 @@ import {
   overlayEligibleAlarms,
   securityAlarmReadings,
 } from "../security/security-alarm";
+import { cameraSourceConfigured } from "../camera/camera-status";
 
 type HostLogger = HomeOSLog & {
   report?: (
@@ -1423,7 +1424,8 @@ export function mountInteraction3d(
         (cameraCandidate: any) =>
           "camera:" + cameraCandidate.id === stageMessage.id &&
           cameraCandidate.visible !== false &&
-          cameraCandidate.entityId,
+          // go2rtc 来源不需要 HA 实体，判据换成「来源是否配置完整」。
+          cameraSourceConfigured(cameraCandidate),
       );
       cameraConfig &&
         runtimeContext.openCameraPreview &&
@@ -1439,6 +1441,10 @@ export function mountInteraction3d(
           {
             root: hostElement,
             frame: stageFrameElement,
+            // go2rtc 的权威地址只从服务端保存的文档里取，这里必须把「哪个组件里的哪颗摄像头」
+            // 一起传下去（componentId = interaction3d 组件，cameraId = 标记 id）。
+            projectId: hostProjectId,
+            componentId: componentDescriptor.id || "",
             popupOpacity: componentProperties.popupOpacity,
             getPresentationLayout: () => presentationLayout,
             getPopupLayout: () => componentProperties.popupLayout?.camera,

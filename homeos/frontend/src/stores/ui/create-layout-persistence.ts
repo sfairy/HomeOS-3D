@@ -33,6 +33,7 @@ import type { NotifyType } from '@/shared/types/notify'
 import { KNOWN_PANEL_WIDGET_TYPES } from './create-layout-state'
 import { WIDGET_REGISTRY_META, FLOATING_HUB_TYPE_SET } from '@/shared/utils/registry/widget-registry-meta'
 import { ensureDoorbellList } from '@/shared/utils/layout/doorbell.util'
+import { normalizeSecurityCameras } from '@/shared/utils/layout/security-cameras.util'
 import { clonePlain } from '@/shared/utils/core/clone-plain.util'
 import { pushServerAccessConfig } from '@/shared/utils/bridge/native-bridge'
 import { fetchSystemNetworkInfo } from '@/services/api/system'
@@ -154,6 +155,7 @@ function sanitizeStatsSensors(raw: Record<string, unknown> | null | undefined) {
  * - ensureDoorbellList 补齐门铃
  * - 规范化 hazard*EntityIds 数组
  * - 校正门铃摄像头引用（不在 securityCameras 列表中则清空）
+ * - securityCameras 归一成 `[{entityId, go2rtcUrl?}]`（旧 `string[]` 无损升级）
  * @param raw 原始 haConfig 对象
  * @returns 规范化后的配置
  */
@@ -164,8 +166,11 @@ function sanitizeHaConfig(raw: Record<string, unknown> | null | undefined) {
   merged.hazardSmokeEntityIds = normalizeHazardEntityIds(merged.hazardSmokeEntityIds)
   merged.hazardGasEntityIds = normalizeHazardEntityIds(merged.hazardGasEntityIds)
   merged.hazardLeakEntityIds = normalizeHazardEntityIds(merged.hazardLeakEntityIds)
+  // 摄像头绑定统一升级成结构化项：旧数据里的裸实体 ID 会被包成 `{ entityId }`。
+  const securityCameras = normalizeSecurityCameras(merged.securityCameras)
+  merged.securityCameras = securityCameras
   // 校正门铃摄像头引用：若不在 securityCameras 列表中则清空，避免失效引用
-  const cameras = (merged.securityCameras as string[]) || []
+  const cameras = securityCameras.map((binding) => binding.entityId).filter(Boolean)
   if (Array.isArray(merged.doorbells)) {
     for (const d of merged.doorbells as Array<{ cameraEntityId?: string }>) {
       if (d?.cameraEntityId && cameras.length && !cameras.includes(String(d.cameraEntityId))) {

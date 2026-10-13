@@ -27,9 +27,25 @@ function needsAppleInstallGuide(navigatorSource: Navigator = navigator, isStanda
 
 let disposeActiveGuide: (() => void) | null = null;
 
+/**
+ * 是否处于「被嵌入」的展示上下文：`?embed=1`，或页面跑在 iframe 里（`self !== top`）。
+ *
+ * HA 仪表盘是以 iframe 嵌入的，用户不会在 HA 面板里把 HomeOS 装到主屏幕；go2rtc 的
+ * `?embed=1` 场景也复用这个判定，避免两处各写一份。
+ */
+export function isEmbeddedDisplayContext(
+  environment: { self?: unknown; top?: unknown } = window,
+  search: string = location.search,
+): boolean {
+  if (new URLSearchParams(search).get("embed") === "1") return true;
+  return environment.self !== environment.top;
+}
+
 /** 引导「添加到主屏幕」提示条（重复调用会先回收上一次）。 */
 export function bootAppleInstallGuide(): void {
   teardownAppleInstallGuide();
+  // 嵌入态（HA 仪表盘 iframe / ?embed=1）完全不注入引导条与 dialog。
+  if (isEmbeddedDisplayContext()) return;
 
   const pageUrl = new URL(location.href),
     shouldAutoOpen = pageUrl.searchParams.get("addToHome") === "1";

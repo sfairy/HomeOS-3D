@@ -45,8 +45,9 @@ import {
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useChromeStore } from '@/stores/chrome.store'
 import { useLayoutStore } from '@/stores/layout.store'
-import type { UILayoutConfig } from '@/shared/types/layout'
+import type { UILayoutConfig, SecurityCameraBinding } from '@/shared/types/layout'
 import { clearDoorbellCamera, toggleDoorbellCamera } from '@/shared/utils/layout/doorbell.util'
+import { normalizeSecurityCameras } from '@/shared/utils/layout/security-cameras.util'
 import type { BindingsRecommendEntity } from '@/shared/recommend/utils/bindings-recommend.util'
 import { buildBindingsRecommendations, collectBoundHazardIds } from '@/shared/recommend/utils/bindings-recommend.util'
 import type { RecommendChip } from '@/shared/recommend/types/recommend.types'
@@ -62,18 +63,31 @@ export function useHaBindings(layoutConfig: Ref<UILayoutConfig>) {
   const layoutStore = useLayoutStore()
   const chrome = useChromeStore()
 
-  const securityCameras = computed({
-    get: () => layoutConfig.value.haConfig.securityCameras || [],
+  const securityCameras = computed<SecurityCameraBinding[]>({
+    get: () => normalizeSecurityCameras(layoutConfig.value.haConfig.securityCameras),
     set: (v) => {
-      layoutConfig.value.haConfig.securityCameras = v
+      layoutConfig.value.haConfig.securityCameras = normalizeSecurityCameras(v)
     },
   })
 
   function addCamera() {
-    if (!layoutStore.layoutConfig.haConfig.securityCameras) {
-      layoutStore.layoutConfig.haConfig.securityCameras = []
-    }
-    layoutStore.layoutConfig.haConfig.securityCameras.push('')
+    securityCameras.value = [...securityCameras.value, { entityId: '', go2rtcUrl: '' }]
+  }
+
+  /** 改写第 idx 路监控的实体 ID（空串表示整路只走 go2rtc 局域网地址）。 */
+  function setCameraEntity(idx: number, entityId: string) {
+    const list = securityCameras.value.map((binding, i) =>
+      i === idx ? { ...binding, entityId: String(entityId || '').trim() } : binding,
+    )
+    securityCameras.value = list
+  }
+
+  /** 改写第 idx 路监控的 go2rtc 局域网地址（同源 MSE 中继，留空则回落 HA 实体）。 */
+  function setCameraGo2rtcUrl(idx: number, go2rtcUrl: string) {
+    const list = securityCameras.value.map((binding, i) =>
+      i === idx ? { ...binding, go2rtcUrl: String(go2rtcUrl || '').trim() } : binding,
+    )
+    securityCameras.value = list
   }
 
   function removeCamera(idx: number) {
@@ -82,9 +96,13 @@ export function useHaBindings(layoutConfig: Ref<UILayoutConfig>) {
     if (removed == null) return
     list.splice(idx, 1)
     securityCameras.value = list
+    const removedEntityId = String(removed.entityId || '').trim()
+    if (!removedEntityId) return
     const hc = layoutStore.layoutConfig.haConfig
-    if (removed) clearDoorbellCamera(hc, removed)
-    if (hc.securityCamera === removed) hc.securityCamera = list[0] || ''
+    clearDoorbellCamera(hc, removedEntityId)
+    if (hc.securityCamera === removedEntityId) {
+      hc.securityCamera = String(list[0]?.entityId || '')
+    }
   }
 
   function toggleDoorbellCam(cam: string) {
@@ -101,6 +119,8 @@ export function useHaBindings(layoutConfig: Ref<UILayoutConfig>) {
   return {
     securityCameras,
     addCamera,
+    setCameraEntity,
+    setCameraGo2rtcUrl,
     removeCamera,
     toggleDoorbellCam,
     setDefaultCamera,

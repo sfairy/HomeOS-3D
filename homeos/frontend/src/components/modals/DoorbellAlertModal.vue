@@ -31,12 +31,16 @@
           :title="'点击画面关闭提醒'"
         >
           <HaCameraStream
-            v-if="cameraEntity && isOpen"
+            v-if="(cameraEntity || cameraGo2rtcUrl) && isOpen"
             :entity="cameraEntity"
             :ha-url="haUrl"
             :active="isOpen"
             object-fit="cover"
             :prefer-webrtc="false"
+            :camera-source="cameraGo2rtcUrl ? 'go2rtc' : 'entity'"
+            :go2rtc-url="cameraGo2rtcUrl"
+            :project-id="activeProjectId"
+            :camera-id="String(cameraId || '')"
             :snapshot-interval-ms="1000"
             class="w-full h-full"
             @error="onStreamError"
@@ -75,6 +79,8 @@ import { useEscLayer } from '@/composables/ui/useEscStack'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useHaConnectionStore } from '@/stores/ha-connection.store'
 import { useChromeStore } from '@/stores/chrome.store'
+import { useLayoutStore } from '@/stores/layout.store'
+import { securityCameraGo2rtcUrl } from '@/shared/utils/layout/security-cameras.util'
 import { logger } from '@/shared/utils/core/logger'
 import { getApiErrorMessage } from '@/shared/utils/core/error-message'
 import HaCameraStream from '@/components/HaCameraStream.vue'
@@ -93,6 +99,7 @@ const emit = defineEmits(['close'])
 const entitiesStore = useEntitiesStore()
 const haConnectionStore = useHaConnectionStore()
 const chrome = useChromeStore()
+const layoutStore = useLayoutStore()
 const panelRef = ref(null)
 useFocusTrap(
   panelRef,
@@ -130,6 +137,13 @@ watch(
 )
 
 const haUrl = computed(() => haConnectionStore.baseUrl)
+
+// 当前布局方案 ID：go2rtc 中继按「方案 + 摄像头」在服务端权威取址
+const activeProjectId = computed(() => String(layoutStore.activeProfileId || ''))
+// 该门铃摄像头配置的 go2rtc 局域网地址（来自 haConfig.securityCameras 结构化绑定）
+const cameraGo2rtcUrl = computed(() =>
+  securityCameraGo2rtcUrl(layoutStore.layoutConfig.haConfig, String(props.cameraId || '')),
+)
 
 const cameraEntity = computed(() => {
   const eid = props.cameraId

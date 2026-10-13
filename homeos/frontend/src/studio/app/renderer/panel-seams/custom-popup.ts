@@ -490,6 +490,20 @@ export function showCustomPopup(this: PanelRenderer, customPopupModule: any, { p
                     label: popupModuleTitle.textContent,
                     objectFit: "fill",
                     placeholder: popupCameraPlaceholderElement,
+                    // 弹窗模块是按 HA 设备档案（实体）驱动的，默认走 HLS；只有当模块属性显式
+                    // 配了 go2rtc 来源才把地址透传下去，projectId/componentId 供中继取权威地址。
+                    go2rtcUrl:
+                      moduleDeviceProfile.properties?.cameraSource === "go2rtc"
+                        ? String(moduleDeviceProfile.properties?.go2rtcUrl || "")
+                        : "",
+                    projectId: this.document?.projectId || "",
+                    componentId: this.activePopupId || "",
+                    onStateChange: (popupCameraVisualState: string) => {
+                      if (popupCameraVisualState === "reconnecting")
+                        popupModuleStatus.textContent = "正在重连";
+                      else if (popupCameraVisualState === "suspended")
+                        popupModuleStatus.textContent = "后台已暂停";
+                    },
                     onReady: () => {
                       ((popupModuleStatus.textContent = "实时画面"),
                         popupModuleStatus.classList.remove("is-connecting", "is-unavailable"),

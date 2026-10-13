@@ -35,8 +35,10 @@ export function updateCarCard(containerElement: any, carConfig: any, carOptions:
     (cardElement.style.width = cardWidth + "px"),
 
 
-    (cardElement.style.fontSize = Math.min(32, Math.max(9, cardTextSize ?? CARD_TEXT_SIZE_PX)) + "px"),
-    (containerElement.style.width = cardWidth + "px"),
+    // 字号不再夹到 9–32px：用户填多少就多大（后端也只校验正数）。
+    (cardElement.style.fontSize = (cardTextSize ?? CARD_TEXT_SIZE_PX) + "px"),
+    // 字号放大后卡片会被 CSS 的 min-width 撑宽：容器跟随实测宽度，避免内容溢出裁切。
+    (containerElement.style.width = (cardElement.offsetWidth || cardWidth) + "px"),
     (containerElement.style.height = cardElement.offsetHeight + "px"),
     (containerElement.title =
       (carConfig.label || "汽车") + " · 电量 " + state.batteryText + " · " + state.status),

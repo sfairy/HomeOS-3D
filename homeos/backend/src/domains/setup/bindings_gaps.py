@@ -31,6 +31,25 @@ def resolve_binding_gap_section(gap_id: str) -> str:
     return "external"
 
 
+def has_camera_binding(cameras: Any) -> bool:
+    """判断安防摄像头绑定是否至少有一路有效。
+
+    0.7.5 起 ``securityCameras`` 支持结构化项 ``{entityId, go2rtcUrl?}``：只填 go2rtc
+    局域网地址也算已绑定；旧 ``string[]`` 仍按原语义判断非空。
+    """
+    if not isinstance(cameras, list):
+        return False
+    for cam in cameras:
+        if isinstance(cam, str):
+            if cam.strip():
+                return True
+            continue
+        if isinstance(cam, dict):
+            if str(cam.get("entityId") or "").strip() or str(cam.get("go2rtcUrl") or "").strip():
+                return True
+    return False
+
+
 def filter_binding_gaps_by_section(
     gaps: list[dict[str, Any]], section: str
 ) -> list[dict[str, Any]]:
@@ -80,7 +99,7 @@ def collect_binding_gaps(input_data: dict[str, Any] | None = None) -> list[dict[
             )
 
     cameras = hc.get("securityCameras")
-    if not (isinstance(cameras, list) and cameras) and not pick("securityCamera"):
+    if not has_camera_binding(cameras) and not pick("securityCamera"):
         gaps.append(
             {
                 "id": "cameras",

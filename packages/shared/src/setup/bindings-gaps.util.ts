@@ -103,8 +103,17 @@ export function collectBindingGaps(input: CollectBindingGapsInput): BindingGapIt
     }
   }
 
+  // 摄像头绑定在 0.7.5 起支持结构化项 `{entityId, go2rtcUrl?}`：
+  // 只填 go2rtc 局域网地址也算已绑定，旧 `string[]` 仍按原语义判断。
   const cameras = Array.isArray(hc.securityCameras) ? hc.securityCameras : [];
-  if (!cameras.length && !pick('securityCamera')) {
+  const hasCameraBinding = cameras.some((cam) => {
+    if (typeof cam === 'string') return !!cam.trim();
+    const binding = cam as { entityId?: string; go2rtcUrl?: string } | null;
+    return !!(
+      String(binding?.entityId || '').trim() || String(binding?.go2rtcUrl || '').trim()
+    );
+  });
+  if (!hasCameraBinding && !pick('securityCamera')) {
     gaps.push({
       id: 'cameras',
       label: '安防摄像头',

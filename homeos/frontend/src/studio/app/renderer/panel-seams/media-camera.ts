@@ -241,6 +241,9 @@ export function openInteraction3dCameraPreview(self: PanelRenderer, cameraContro
         type: "camera",
         properties: {
           label: cameraControlComponent.label,
+          // go2rtc 来源要连地址一起带进来，否则 3D 预览只会退到 HA 的 HLS。
+          cameraSource: cameraControlComponent.cameraSource,
+          go2rtcUrl: cameraControlComponent.go2rtcUrl,
         },
         bindings: {
           entity: {
@@ -250,6 +253,10 @@ export function openInteraction3dCameraPreview(self: PanelRenderer, cameraContro
       },
       {
         interaction3d: cameraPreviewOptions,
+        // 中继取址要「interaction3d 组件 id + 标记 id」这一对，弹窗自己没有，得由舞台传下来。
+        projectId: cameraPreviewOptions.projectId || "",
+        componentId: cameraPreviewOptions.componentId || "",
+        cameraId: cameraControlComponent.id || "",
       },
     );
     const detailsDialog = self.detailsDialog;
@@ -268,9 +275,16 @@ export function openInteraction3dCameraPreview(self: PanelRenderer, cameraContro
     );
   }
 export function showCameraPreview(self: PanelRenderer, cameraComponent: any,
-    { preview: isCameraPreview = false, interaction3d: cameraInteractionConfig = null }: any = {},) {
-    const cameraEntityId = cameraComponent.bindings?.entity?.entityId;
-    if (!cameraEntityId) throw new Error("该摄像头控件没有关联实体。");
+    { preview: isCameraPreview = false, interaction3d: cameraInteractionConfig = null,
+      projectId: cameraPreviewProjectId = "", componentId: cameraPreviewComponentId = "",
+      cameraId: cameraPreviewCameraId = "" }: any = {},) {
+    const cameraEntityId = cameraComponent.bindings?.entity?.entityId,
+      // go2rtc 来源可以完全不绑 HA 实体，地址即配置。
+      cameraGo2rtcUrl =
+        cameraComponent.properties?.cameraSource === "go2rtc"
+          ? String(cameraComponent.properties?.go2rtcUrl || "").trim()
+          : "";
+    if (!cameraEntityId && !cameraGo2rtcUrl) throw new Error("该摄像头控件没有关联实体。");
     self.closeRuntimeDialog();
     const cameraPreviewDialog: ComponentDialogElement = document.createElement("dialog");
     ((cameraPreviewDialog.className = "hb-camera-preview-dialog fit-media-ratio"),
@@ -447,8 +461,19 @@ export function showCameraPreview(self: PanelRenderer, cameraComponent: any,
           label: cameraPreviewTitle.textContent,
           objectFit: cameraInteractionConfig ? "contain" : "fill",
           placeholder: cameraLoadingHint,
+          onStateChange: (cameraVisualState: string) => {
+            // 重连/挂起要能在状态标签上看出来，否则断线期间标签会一直挂「正在连接」。
+            if (cameraVisualState === "reconnecting") cameraPreviewStatus.textContent = "正在重连";
+            else if (cameraVisualState === "suspended")
+              cameraPreviewStatus.textContent = "后台已暂停";
+          },
           onReady: handleCameraReady,
           onUnavailable: handleCameraUnavailable,
+          go2rtcUrl: cameraGo2rtcUrl,
+          // 显式传入优先：3D 场景里 componentId 是 interaction3d 组件、cameraId 是标记 id。
+          projectId: cameraPreviewProjectId || self.document?.projectId || "",
+          componentId: cameraPreviewComponentId || cameraComponent.id || "",
+          cameraId: cameraPreviewCameraId || "",
           cleanup: (cleanupRegistration: any) => {
             cameraCleanupCallbacks.push(cleanupRegistration);
           },
