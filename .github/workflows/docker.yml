@@ -74,7 +74,8 @@ jobs:
             echo "release=${release}"
           } >> "$GITHUB_OUTPUT"
 
-  # 轻检查（typecheck / ruff / pyright / schema / smoke）统一定义在 checks.yml。
+  # 轻检查（typecheck+lint / 前端门禁 / 契约与度量 / ruff / pyright / schema / smoke）
+  # 统一定义在 checks.yml。
   # 这里调用它而不是内联复制：同一份定义既当构建门禁，也在 push / PR 上自动跑 ——
   # 复制两份必然漂移，而「一处改了另一处没改」正是 checks.yml 顶部记录的成因。
   checks:

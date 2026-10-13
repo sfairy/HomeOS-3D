@@ -20,34 +20,25 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 import time
-from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from _smoke_harness import check, ensure_backend_on_path, report
 
-from src.realtime.access import is_entity_allowed
-from src.realtime.gateway import RealtimeGateway
-from src.realtime.subscription import is_entity_visible_to_client
+ensure_backend_on_path()
+
+from src.realtime.access import is_entity_allowed  # noqa: E402
+from src.realtime.gateway import RealtimeGateway  # noqa: E402
+from src.realtime.subscription import is_entity_visible_to_client  # noqa: E402
 
 #: 与 build_gateway 预置的 critical 域保持一致（light/switch/cover/climate/media_player/fan/lock）
 HOT_DOMAINS = ("light", "switch", "cover", "climate", "media_player", "fan", "lock")
-
-failures: list[str] = []
-
-
-def check(label: str, condition: bool, detail: object = "") -> None:
-    print(f"  [{'PASS' if condition else 'FAIL'}] {label} {'' if condition else detail}")
-    if not condition:
-        failures.append(label)
 
 
 def build_gateway(*, cold_on_demand: bool = False) -> RealtimeGateway:
     app = SimpleNamespace(state=SimpleNamespace())
     gw = RealtimeGateway(app)
-    # 预置配置缓存，跳过 _ws_config / _apply_state_config 的数据库读取
     gw._ws_cfg_cache = SimpleNamespace(
         critical_domains=["light", "switch", "cover", "climate", "media_player", "fan", "lock"],
         cold_entity_on_demand=cold_on_demand,
@@ -83,7 +74,9 @@ def change(entity_id: str, state: str) -> dict[str, Any]:
     }
 
 
-def install_emit_recorder(gw: RealtimeGateway) -> tuple[list[tuple[str, dict[str, Any], Any]], list[str]]:
+def install_emit_recorder(
+    gw: RealtimeGateway,
+) -> tuple[list[tuple[str, dict[str, Any], Any]], list[str]]:
     emitted: list[tuple[str, dict[str, Any], Any]] = []
     get_session_calls: list[str] = []
     saved_sessions: list[str] = []
@@ -104,144 +97,155 @@ def install_emit_recorder(gw: RealtimeGateway) -> tuple[list[tuple[str, dict[str
     return emitted, get_session_calls
 
 
-# 1. 会话镜像：广播期间不再读引擎会话
+def main() -> None:
+    # 1. 会话镜像：广播期间不再读引擎会话
 
-print("1. 会话镜像避免逐 sid get_session")
+    print("1. 会话镜像避免逐 sid get_session")
 
-gw = build_gateway()
-emitted, get_session_calls = install_emit_recorder(gw)
-# 用非 critical 域（sensor）验证按域收窄：critical 域按设计对全部客户端广播
-add_client(gw, "s-admin", domains=None)
-add_client(gw, "s-motion", domains=["sensor"])
-add_client(gw, "s-power", domains=["sensor.power"])
+    gw = build_gateway()
+    emitted, get_session_calls = install_emit_recorder(gw)
+    # 用非 critical 域（sensor）验证按域收窄：critical 域按设计对全部客户端广播
+    add_client(gw, "s-admin", domains=None)
+    add_client(gw, "s-motion", domains=["sensor"])
+    add_client(gw, "s-power", domains=["sensor.power"])
 
-asyncio.run(gw.broadcast_state_changed_batch([change("sensor.hall", "on")]))
+    asyncio.run(gw.broadcast_state_changed_batch([change("sensor.hall", "on")]))
 
-targets = {to for _, _, to in emitted}
-check("广播覆盖 wildcard 与 sensor 订阅者", targets == {"s-admin", "s-motion"}, targets)
-check("未订阅 sensor 的客户端不被打扰", "s-power" not in targets, targets)
-check("广播期间未调用 get_session（镜像命中）", get_session_calls == [], get_session_calls)
-check("critical 域（light）按设计广播给全部基线客户端", True)
+    targets = {to for _, _, to in emitted}
+    check("广播覆盖 wildcard 与 sensor 订阅者", targets == {"s-admin", "s-motion"}, targets)
+    check("未订阅 sensor 的客户端不被打扰", "s-power" not in targets, targets)
+    check("广播期间未调用 get_session（镜像命中）", get_session_calls == [], get_session_calls)
 
-asyncio.run(gw.broadcast_state_changed_batch([change("light.kitchen", "on")]))
-check(
-    "critical 域广播覆盖全部基线客户端",
-    {to for _, _, to in emitted if to} == {"s-admin", "s-motion", "s-power"},
-    {to for _, _, to in emitted},
-)
-emitted.clear()
-
-# update_subscription 后新订阅立即生效（镜像与引擎同步）
-asyncio.run(gw._on_update_subscription("s-power", {"subscribeDomains": ["sensor"]}))
-emitted.clear()
-asyncio.run(gw.broadcast_state_changed_batch([change("sensor.study", "on")]))
-check(
-    "update_subscription 后镜像同步生效",
-    {to for _, _, to in emitted} == {"s-admin", "s-motion", "s-power"},
-    {to for _, _, to in emitted},
-)
-
-asyncio.run(gw._on_disconnect("s-power"))
-emitted.clear()
-asyncio.run(gw.broadcast_state_changed_batch([change("sensor.hall", "on")]))
-check("断开后镜像清除（不再推送）", "s-power" not in {to for _, _, to in emitted})
-
-# 2. 可见性与逐条判定一致（含 ACL 复用）
-
-print("2. 收窄结果与逐条可见性判定一致")
-
-gw = build_gateway()
-emitted, _ = install_emit_recorder(gw)
-# 后端已移除角色维度（单一管理员模型，见 domains/security/entity_execute_acl.py）与 User.role 列：
-# 可见性只由实体级白名单 restrictions 决定。
-# 因此「完全不可见」用「匹配不到任何实体的白名单」表达，而不是空 restrictions。
-no_visibility = {"restrictions": ["nonexistent."]}
-restricted = {"restrictions": ["light.", "switch.coffee"]}
-unrestricted = {}
-add_client(gw, "g1", user=no_visibility, domains=None)
-add_client(gw, "c1", user=restricted, domains=None)
-add_client(gw, "a1", user=unrestricted, domains=None)
-add_client(gw, "c2", user=restricted, domains=None)  # 同白名单第二个连接（ACL 复用场景）
-
-changes = [
-    change("light.kitchen", "on"),
-    change("climate.ac", "cool"),
-    change("switch.coffee", "on"),
-]
-
-expected: dict[str, list[str]] = {}
-critical_domains = set(HOT_DOMAINS)
-for sid in ("g1", "c1", "a1", "c2"):
-    session = gw._sessions[sid]
-    user = session["user"]
-    visible = []
-    for item in changes:
-        entity_id = item["entity_id"]
-        if not is_entity_allowed(entity_id, user):
-            continue
-        if not is_entity_visible_to_client(entity_id, None, None, critical_domains, False):
-            continue
-        visible.append(entity_id)
-    expected[sid] = visible
-
-asyncio.run(gw.broadcast_state_changed_batch(changes))
-actual: dict[str, list[str]] = {}
-for event, data, to in emitted:
-    if event != "state_changed_batch":
-        continue
-    actual[str(to)] = [str(row.get("entity_id")) for row in data.get("changes", [])]
-
-for sid in ("g1", "c1", "a1", "c2"):
+    emitted.clear()
+    asyncio.run(gw.broadcast_state_changed_batch([change("light.kitchen", "on")]))
     check(
-        f"{sid} 可见集合与逐条判定一致",
-        (actual.get(sid) or []) == expected[sid],
-        (actual.get(sid), expected[sid]),
+        "critical 域广播覆盖全部基线客户端",
+        {to for _, _, to in emitted if to} == {"s-admin", "s-motion", "s-power"},
+        {to for _, _, to in emitted},
+    )
+    emitted.clear()
+
+    # update_subscription 后新订阅立即生效（镜像与引擎同步）
+    asyncio.run(gw._on_update_subscription("s-power", {"subscribeDomains": ["sensor"]}))
+    emitted.clear()
+    asyncio.run(gw.broadcast_state_changed_batch([change("sensor.study", "on")]))
+    check(
+        "update_subscription 后镜像同步生效",
+        {to for _, _, to in emitted} == {"s-admin", "s-motion", "s-power"},
+        {to for _, _, to in emitted},
     )
 
-check("白名单不匹配任何实体的客户端收不到任何变更（未产生任何 emit）", actual.get("g1") is None, actual.get("g1"))
-check(
-    "收窄白名单只收到前缀允许的实体",
-    actual.get("c1") == ["light.kitchen", "switch.coffee"],
-    actual.get("c1"),
-)
-check("无 restrictions 的客户端收到全部变更", actual.get("a1") == [c["entity_id"] for c in changes], actual.get("a1"))
+    asyncio.run(gw._on_disconnect("s-power"))
+    emitted.clear()
+    asyncio.run(gw.broadcast_state_changed_batch([change("sensor.hall", "on")]))
+    check("断开后镜像清除（不再推送）", "s-power" not in {to for _, _, to in emitted})
 
-# 3. 钉选实体在背压下仍可靠推送
+    # 2. 可见性与逐条判定一致（含 ACL 复用）
 
-print("3. 背压下钉选实体仍可靠送达")
+    print("2. 收窄结果与逐条可见性判定一致")
 
-gw = build_gateway(cold_on_demand=True)
-emitted, _ = install_emit_recorder(gw)
-# 钉选的是非 critical 域实体：未钉选且未订阅 sensor 的客户端不可见
-add_client(gw, "p1", domains=["climate"], pinned=["sensor.pinned"])
-add_client(gw, "n1", domains=["climate"], pinned=None)
-gw._is_socket_backpressured = lambda sid: True  # type: ignore[method-assign]
+    gw = build_gateway()
+    emitted, _ = install_emit_recorder(gw)
+    # 后端已移除角色维度（单一管理员模型，见 domains/security/entity_execute_acl.py）与 User.role 列：
+    # 可见性只由实体级白名单 restrictions 决定。
+    # 因此「完全不可见」用「匹配不到任何实体的白名单」表达，而不是空 restrictions。
+    no_visibility = {"restrictions": ["nonexistent."]}
+    restricted = {"restrictions": ["light.", "switch.coffee"]}
+    unrestricted = {}
+    add_client(gw, "g1", user=no_visibility, domains=None)
+    add_client(gw, "c1", user=restricted, domains=None)
+    add_client(gw, "a1", user=unrestricted, domains=None)
+    add_client(gw, "c2", user=restricted, domains=None)  # 同白名单第二个连接（ACL 复用场景）
 
-asyncio.run(gw.broadcast_state_changed_batch([change("sensor.pinned", "on")]))
+    changes = [
+        change("light.kitchen", "on"),
+        change("climate.ac", "cool"),
+        change("switch.coffee", "on"),
+    ]
 
-by_sid: dict[str, list[str]] = {}
-for event, _, to in emitted:
-    by_sid.setdefault(str(to), []).append(event)
+    expected: dict[str, list[str]] = {}
+    critical_domains = set(HOT_DOMAINS)
+    for sid in ("g1", "c1", "a1", "c2"):
+        session = gw._sessions[sid]
+        user = session["user"]
+        visible = []
+        for item in changes:
+            entity_id = item["entity_id"]
+            if not is_entity_allowed(entity_id, user):
+                continue
+            if not is_entity_visible_to_client(entity_id, None, None, critical_domains, False):
+                continue
+            visible.append(entity_id)
+        expected[sid] = visible
 
-check("背压下钉选客户端仍收到 state_changed_batch", "state_changed_batch" in by_sid.get("p1", []), by_sid)
-check("背压下同样下发 resync_suggested", "resync_suggested" in by_sid.get("p1", []), by_sid)
-check("非钉选客户端不接收不可见实体", "state_changed_batch" not in by_sid.get("n1", []), by_sid)
+    asyncio.run(gw.broadcast_state_changed_batch(changes))
+    actual: dict[str, list[str]] = {}
+    for event, data, to in emitted:
+        if event != "state_changed_batch":
+            continue
+        actual[str(to)] = [str(row.get("entity_id")) for row in data.get("changes", [])]
 
-# 非背压时钉选同样送达（不回退语义）
-gw2 = build_gateway(cold_on_demand=True)
-emitted2, _ = install_emit_recorder(gw2)
-add_client(gw2, "p2", domains=["climate"], pinned=["sensor.pinned"])
-asyncio.run(gw2.broadcast_state_changed_batch([change("sensor.pinned", "on")]))
-check(
-    "非背压下钉选实体正常下发",
-    any(event == "state_changed_batch" and to == "p2" for event, _, to in emitted2),
-    emitted2,
-)
+    for sid in ("g1", "c1", "a1", "c2"):
+        check(
+            f"{sid} 可见集合与逐条判定一致",
+            (actual.get(sid) or []) == expected[sid],
+            (actual.get(sid), expected[sid]),
+        )
 
-print()
-if failures:
-    print(f"WS 广播回归失败：{len(failures)} 项")
-    for label in failures:
-        print(f"  - {label}")
-    sys.exit(1)
-print("WS 广播回归全部通过。")
+    check(
+        "白名单不匹配任何实体的客户端收不到任何变更（未产生任何 emit）",
+        actual.get("g1") is None,
+        actual.get("g1"),
+    )
+    check(
+        "收窄白名单只收到前缀允许的实体",
+        actual.get("c1") == ["light.kitchen", "switch.coffee"],
+        actual.get("c1"),
+    )
+    check(
+        "无 restrictions 的客户端收到全部变更",
+        actual.get("a1") == [c["entity_id"] for c in changes],
+        actual.get("a1"),
+    )
+
+    # 3. 钉选实体在背压下仍可靠推送
+
+    print("3. 背压下钉选实体仍可靠送达")
+
+    gw = build_gateway(cold_on_demand=True)
+    emitted, _ = install_emit_recorder(gw)
+    # 钉选的是非 critical 域实体：未钉选且未订阅 sensor 的客户端不可见
+    add_client(gw, "p1", domains=["climate"], pinned=["sensor.pinned"])
+    add_client(gw, "n1", domains=["climate"], pinned=None)
+    gw._is_socket_backpressured = lambda sid: True  # type: ignore[method-assign]
+
+    asyncio.run(gw.broadcast_state_changed_batch([change("sensor.pinned", "on")]))
+
+    by_sid: dict[str, list[str]] = {}
+    for event, _, to in emitted:
+        by_sid.setdefault(str(to), []).append(event)
+
+    check(
+        "背压下钉选客户端仍收到 state_changed_batch",
+        "state_changed_batch" in by_sid.get("p1", []),
+        by_sid,
+    )
+    check("背压下同样下发 resync_suggested", "resync_suggested" in by_sid.get("p1", []), by_sid)
+    check("非钉选客户端不接收不可见实体", "state_changed_batch" not in by_sid.get("n1", []), by_sid)
+
+    # 非背压时钉选同样送达（不回退语义）
+    gw2 = build_gateway(cold_on_demand=True)
+    emitted2, _ = install_emit_recorder(gw2)
+    add_client(gw2, "p2", domains=["climate"], pinned=["sensor.pinned"])
+    asyncio.run(gw2.broadcast_state_changed_batch([change("sensor.pinned", "on")]))
+    check(
+        "非背压下钉选实体正常下发",
+        any(event == "state_changed_batch" and to == "p2" for event, _, to in emitted2),
+        emitted2,
+    )
+
+    report("WS 广播回归全部通过。")
+
+
+if __name__ == "__main__":
+    main()

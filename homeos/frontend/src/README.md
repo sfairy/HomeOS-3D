@@ -27,13 +27,13 @@ views (router)  -.->  studio  (只经 `@/studio` barrel 的懒加载器；不直
 
 由以下门禁强制：
 
-- `npm run check:frontend-deps` ([`scripts/check-frontend-deps.mjs`](../scripts/check-frontend-deps.mjs))
+- `npm run check:frontend-deps` ([`scripts/gates/check-frontend-deps.mjs`](../scripts/gates/check-frontend-deps.mjs))
 - `npm run check:studio-deps`
 - 主应用上的 ESLint `no-restricted-imports`
-- `npm run check:refs` ([`scripts/check-import-refs.mjs`](../scripts/check-import-refs.mjs)) —— 每条 spec **真去文件系统解析一次**，
+- `npm run check:refs` ([`scripts/gates/check-import-refs.mjs`](../scripts/gates/check-import-refs.mjs)) —— 每条 spec **真去文件系统解析一次**，
   含**注释里**的 `@/` 说明（见下「注释路径卫生」）。它补的是别的门禁都没有的洞：`check-frontend-deps.mjs` 只管方向、
   且只从 `src/` 起步，`scripts/*.ts` 的相对导入此前**没有任何门禁**真的 lstat 过。
-- `npm run check:chunk-groups` ([`scripts/check-vite-chunk-groups.mjs`](../scripts/check-vite-chunk-groups.mjs)) ——
+- `npm run check:chunk-groups` ([`scripts/gates/check-vite-chunk-groups.mjs`](../scripts/gates/check-vite-chunk-groups.mjs)) ——
   `vite.config.ts` 的 `codeSplitting.groups` 里每条 `test` 必须**落到真实模块**，且 alternation 的每条分支都要有文件
   （见下「构建分块组不能悬空」）。
 - `bun run knip`（仓库根）—— 域 barrel 的「薄」：没有任何 import 的 `export` 会被报出来（见下「域 barrel 要「薄」」）。
@@ -103,12 +103,9 @@ import Overview from '@/features/security/Overview.vue'
 理由：`shared` 在 DAG 里位于这些层**下方**，所以 `stores/defaults.ts → @/shared/energy/...` 合法；
 同样的 import 指向 `features/` 就是分层倒置。
 
-判定不要靠肉眼，跑工具（会自动排除纯 re-export 兼容桩，否则已迁域会被自己的桩伪造成假阳性）：
-
-```bash
-bun run classify:domains                          # 全量归类
-python3 ops/frontend_domain_classify.py --domain energy --bucket shared
-```
+判定不要靠肉眼 —— 分层倒置由 `check:deps` 的分层方向门禁（`scripts/gates/check-frontend-deps.mjs`）自动兜住，
+它会排除纯 re-export 兼容桩（否则已迁域会被自己的桩伪造成假阳性）。
+一次性的全量归类脚本 `ops/frontend_domain_classify.py`（`bun run classify:domains`）已随重构完成退役。
 
 ### `shared/<域>/` 的两条访问规则
 
@@ -191,7 +188,7 @@ python3 ops/frontend_domain_classify.py --domain energy --bucket shared
 
 ## 该改哪里
 
-> **`bun run classify:domains` 只是启发式，不是归宿判决。** `ops/frontend_domain_classify.py` 只做「入边测试」
+> **归类工具只是启发式，不是归宿判决。** 已退役的 `ops/frontend_domain_classify.py`（`bun run classify:domains`）只做「入边测试」
 > （入边出现 `stores/` `composables/` 等下层 → SHARED，只有 `views/`/`layouts/` → LEAF），它**看不到**
 > 「`components → features` 被门禁禁止」「是壳层装配点」「消费者跨多个视图 + 多个域」这类约束，因而会对下面这些
 > **有意留位**的桶给出 `LEAF → src/features/` 的错误建议：`components/{dashboard,page-shell,setup}`（壳层装配点 / 多域消费者，
@@ -249,9 +246,9 @@ python3 ops/frontend_domain_classify.py --domain energy --bucket shared
 批量改路径时又会被正则「顺手套用前缀」，生成看起来合理、实际不存在的路径。
 
 **本轮已把它从「收尾时手动跑一遍审计」升级成门禁**：`npm run check:refs`
-（[`scripts/check-import-refs.mjs`](../scripts/check-import-refs.mjs)）会把每个 import/export spec
+（[`scripts/gates/check-import-refs.mjs`](../scripts/gates/check-import-refs.mjs)）会把每个 import/export spec
 （`@/…` 与相对路径）以及**注释与 `.md` 文档里出现的 `@/` 字样**逐个解析成真实文件，解析不出来即失败；负向自检
-`scripts/_import_refs_selftest.mjs` 也在 `check:deps` 里（解析型门禁最常见的死法是「匹配不到就跳过」，
+`scripts/gates/_import_refs_selftest.mjs` 也在 `check:deps` 里（解析型门禁最常见的死法是「匹配不到就跳过」，
 此后永远报绿）。首轮清了 9 处（`services/api/orchestrator`、
 `composables/orchestrator/useYamlValidation`、`features/security/utils/security-*.util`、
 `features/settings/system/composables/system-config.internals`、`utils/client/client-system.util`、
@@ -292,7 +289,7 @@ python3 ops/frontend_domain_classify.py --domain energy --bucket shared
 （P2 手删）、`views/(Login|Setup|Guest)View.vue`、`views/Mobile*View.vue`、`components/dashboard/.*Builder`、
 `components/widgets/{energy,orchestrator,device,care}`、`views/dashboard-chrome.ts`。
 
-故立 `npm run check:chunk-groups`（[`scripts/check-vite-chunk-groups.mjs`](../scripts/check-vite-chunk-groups.mjs)）：
+故立 `npm run check:chunk-groups`（[`scripts/gates/check-vite-chunk-groups.mjs`](../scripts/gates/check-vite-chunk-groups.mjs)）：
 不 import 配置（那是 TS + 一堆插件），只做括号/注释/字符串感知的文本切片，抠出每组的 `name` / `test` 字面量，
 拿 `src/` 下所有 `.ts/.tsx/.vue/.js/.mjs/.cjs`（CSS 不参与分块）的绝对 posix 路径逐个喂给 `test`：
 
@@ -302,14 +299,14 @@ python3 ops/frontend_domain_classify.py --domain energy --bucket shared
 - 依赖组（`node_modules`）与 `entriesAware` 兜底组显式跳过，不误判。
 
 三处防瞎（解析不到 `codeSplitting:` / 解析出 0 组 / `src/` 下 0 模块）判**门禁自身失效**（退出码 2），
-免得「解析漂移」伪装成「全部通过」。自检 `scripts/_vite_chunk_groups_selftest.mjs`（25 项）在**真实配置文本**上
+免得「解析漂移」伪装成「全部通过」。自检 `scripts/gates/_vite_chunk_groups_selftest.mjs`（25 项）在**真实配置文本**上
 注入死组 / 死分支 / 改键名，并用合成组对象压依赖组、兜底组、缺 `name`、`test` 非字面量各分支；
 两条都挂进 `check:deps`（CI 已在跑 `bun run --cwd homeos/frontend check:deps`）。
 
 与之相邻的存量本轮已清理：`wr-*` 命名空间（更早的 widget-renderer 外壳遗留）在 6 个样式表
 （`features/settings/shared/styles/*`、`assets/styles/*`、`features/home-mode/editor/styles/HomeMode.css`）
 里定义了 100+ 类名，而应用侧（`.vue/.ts/.js`、`public/`、studio、后端模板）没有任何地方把 `wr-*` 加到
-元素上 —— 唯一的「命中」是门禁自检 `_css_classes_selftest.mjs` 里的夹具类名（`wr-bar`/`wr-slider`…），
+元素上 —— 唯一的「命中」是门禁自检 `scripts/gates/_css_classes_selftest.mjs` 里的夹具类名（`wr-bar`/`wr-slider`…），
 那是工具在给这个命名空间**续命**，不算发射点。
 
 判定与删除口径：一个**规则块**只要其**每条逗号分支**都硬依赖某个**不可发射**的类名（该分支永远不会
@@ -323,7 +320,7 @@ python3 ops/frontend_domain_classify.py --domain energy --bucket shared
 所在的混合选择器列表（首条分支仍然活），外加 `components/common/base/styles/hos-select.css` 里一条 `wr-dd` 注释。
 全仓现存 `wr-` 字样已只剩这些（`main.css` + `hos-select.css`），不再有「整块 wr- 死规则」。
 
-门禁 `scripts/check-css-classes.mjs` 兜底：一旦又冒出「整块 wr- 死规则」就报红（自检 `_css_classes_selftest.mjs`）。
+门禁 `scripts/gates/check-css-classes.mjs` 兜底：一旦又冒出「整块 wr- 死规则」就报红（自检 `scripts/gates/_css_classes_selftest.mjs`）。
 它的判定口径比人扫**更宽**（只看分支里有没有 `.wr-*`），所以清理脚本必须覆盖 `:is(...)` / `:deep(...)` 开头的
 选择器 —— 早先漏掉这一类，门禁一直红着却没人清（本轮已补，门禁转绿）。
 

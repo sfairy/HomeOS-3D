@@ -54,20 +54,37 @@ compose 的卷名带项目名前缀，项目名取自 compose 文件里的 `name
 **每台机器（厂商机 + 所有客户机）各执行一次**：
 
 ```bash
-# 先看会做什么（不动任何东西）
-./ops/deploy/migrate_naming.sh --dry-run
+# 1) 停旧部署（否则卷还在被写）
+docker compose -p homeos-3d -f <旧 compose 文件> down
+docker compose -p homeos-3d-store -f <旧 compose 文件> down
 
-# 执行（会停旧容器、复制卷、改写 .env 里的镜像钉）
-./ops/deploy/migrate_naming.sh
+# 2) 逐个把旧卷的内容复制到新名字（复制而非移动，旧卷原样保留 = 回滚凭据）
+for pair in \
+  "homeos-3d_homeos-3d-data:homeos_homeos-data" \
+  "homeos-3d_homeos-3d-secrets:homeos_homeos-secrets" \
+  "homeos-3d-store_homeos-3d-store-data:homeos-store_homeos-store-data" \
+  "homeos-3d-store_homeos-3d-license-keys:homeos-store_homeos-license-keys" \
+  "homeos-3d-client-keys:homeos-client-keys" \
+  "homeos-3d-store_caddy-public-data:homeos-store_caddy-public-data" \
+; do
+  old="${pair%%:*}"; new="${pair##*:}"
+  docker volume create "$new"                                    # 已存在则报错：先确认是不是迁移做了一半
+  docker run --rm -v "$old":/from -v "$new":/to alpine sh -c 'cp -a /from/. /to/'
+done
+
+# 3) 改写 .env / compose 里的镜像钉与卷名，再 up -d 起新部署
 ```
 
-脚本是**复制而不是移动**：旧卷原样保留，新部署验收通过后再自己删旧卷，所以随时能回滚。
-它会替你检查目标卷是否已被占用（迁移做一半就中断的情况），并且绝不会覆盖已存在的目标卷。
+务必**先确认目标卷是空的或不存在**再复制：脚本化那一步被手工替代后，没有东西替你拦住
+「往一个已经在用的新卷里再倒一份旧数据」。旧卷在新部署验收通过前不要删。
 
-- [ ] `migrate_naming.sh` 执行完成，7 个卷全部 `✓`；
+- [ ] 上表 7 个卷全部复制完成（`docker volume ls` 能看到新名字）；
 - [ ] 起新部署后数据在（主应用能登录，商店 `/admin` 里商品与订单还在）；
 - [ ] 公网接入的机器确认 Caddy 复用旧证书、`https://<商店域名>/healthz` 正常；
 - [ ] 验收通过后才删旧卷；删之前旧卷就是回滚凭据。
+
+> 旧的一次性改名脚本 `ops/deploy/migrate_naming.sh` 已随脚本体系清理退役，上面的手工步骤是它的等价做法
+> （复制而非移动、目标卷已占用即中止、旧卷保留可回滚）。
 
 > 只用 `docker run` 手工跑、没有过 compose 项目前缀的部署（自定义 `docker run -v` 名字），
 > 不受影响，跳过这一步。

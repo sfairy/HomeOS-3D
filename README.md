@@ -65,7 +65,7 @@ HomeOS/
 | homeos-store | `homeos-store` | 8802 | 8804 | 商店前台、运营后台、授权签发 |
 
 > **容器名 / 镜像名 / 卷名里的 `homeos` 是刻意保留的**：运行期命名已由 `homeos-3d` / `homeos-3d-store`
-> 收敛为 `homeos` / `homeos-store`（一次性迁移见 `ops/deploy/UPGRADE.md` 与 `ops/deploy/migrate_naming.sh`），
+> 收敛为 `homeos` / `homeos-store`（一次性迁移的旧卷改名步骤见 `ops/deploy/UPGRADE.md`），
 > 但 compose 项目名、容器名、镜像名与数据卷名换了就等于**换了一套卷**
 > （存量部署的数据会看起来「丢了」），而且容器 hostname 会参与授权实例指纹。所以运行期
 > 身份一律不动，只改源码路径与构建产物路径。
@@ -159,9 +159,17 @@ bun run dev:runtime
 | `bun run verify:contracts` | TS↔Python 孪生清单对账（儿童受限域、默认房间 id、常量块字面量集；`ops/contracts/shared-twins.json`）+ 共享 Python 真源唯一（后端不得再存 `packages/shared-py` 模块的副本）+ 门禁自检（`ops/check_shared_contracts_selftest.py`）+ 独立部署护栏（见下一行） |
 | `bun run verify:independence` | 独立部署护栏（`ops/check_deploy_independence.py`）：两后端源码/两前端源码/两份 `package.json` 互不引用（跨界只允许 `@homeos/shared`）、Dockerfile 只有一个构建阶段且源码只能由 `--build-arg PROJECT` 选（`ARG PROJECT` 不许有默认值）、`ops/build.py` 的 PROJECTS 表与 Dockerfile 的 `case "$PROJECT"` 双向对账、运行阶段各装各的产物与两个构建阶段各自内联 `packages/shared-py`；含 33 项注入式自检 |
 | `bun run verify:schema` | 库结构门禁（`ops/check_schema.py`）：迁移脚本 ↔ ORM 元数据 ↔ 实际结构 ↔ 发行路径建库 |
-| `bun run verify:smoke` | 商店侧冒烟：端到端判定口径（`smoke_store.py`）+ 结构漂移护栏 |
-| `bun run verify:smoke:app` | 主应用侧冒烟：认证契约 + 注册→登录→激活 + HA 白名单 + HA 取状态容错 + 结构漂移护栏 + 模块功能码门禁 + 授权激活 e2e（商店未跑则 SKIP）+ WS 广播 + 全量备份 + go2rtc 中继 |
+| `bun run verify:database` | 库结构医生（`ops/check_database.py`）：完整性检查 / 外键 / 结构漂移。此前只在本地跑，现已进 CI |
+| `bun run verify:smoke` | 商店侧冒烟（3 个脚本）：端到端判定口径（`smoke_store.py`）+ 结构漂移护栏（`_schema_drift_guard_smoke.py`）+ 计数列重算（`_commerce_recount_smoke.py`） |
+| `bun run verify:smoke:app` | 主应用侧冒烟（9 个脚本）：认证契约 + 注册→登录→激活 + HA 白名单 + HA 取状态容错 + 结构漂移护栏 + 模块功能码门禁 + WS 广播 + 全量备份 + go2rtc 中继。全部离线自足（进程内假商店、假 httpx、临时数据目录） |
 | `bun run verify:smoke:frontend` | 前端纯逻辑冒烟（6 个脚本）：Esc 层级栈回归 + 实体控制逻辑 + 场景更新计划 + `requestJson` 请求面 + 摄像头检查器控件 + go2rtc MSE over WebSocket |
+| `bun run verify:smoke:license` | 授权激活 e2e（`_license_activation_e2e_smoke.py`）：需要**运行中的本地商店**。商店不可达或没有可安全占用的授权时打醒目的 `SKIP` 并以 0 退出 —— 所以它**不在**默认冒烟里（SKIP 不是覆盖），本地用 `verify:smoke:all` 或本别名单独跑 |
+| `bun run verify:smoke:all` | 上面四组冒烟全跑（本机热缓存约 9s；含需要运行中商店的授权激活 e2e） |
+| `bun run verify:tokens` | 令牌契约门禁单独跑（`ops/tokens/check-token-contract.mjs`）：每个 `var(--x)` 必须能解析到定义，否则整条声明在计算期静默丢弃 |
+| `bun run verify:tokenmap` | 令牌映射棘轮单独跑（`ops/tokens/check-token-map.mjs`）：命名漂移 / 同名分歧 / 身份色越界只减不增（基线 `ops/contracts/ui-token-map.baseline.json`） |
+| `bun run --cwd homeos/frontend check:deps` / `--cwd homeos-store check:deps` | 依赖方向 + 引用可解析性 + 令牌契约 + 注入式自检（共 14 / 2 步）。清单在各项目的 `scripts/deps-gates.mjs`，由 `ops/lib/run-chain.mjs` **并发**执行（串行 `&&` 链的关键路径是各步之和，实测 10.2s → 1.9s）；任一步非 0 则整链失败 |
+
+整个测试/冒烟体系（三层 harness 的分工、断言口径、以及「要不要改用 pytest / `bun test`」的实测评估）见 [`ops/testing/README.md`](ops/testing/README.md) —— 结论是保留脚本式冒烟，只把少数假时钟/退避用例按需迁 `bun test`。
 
 ### 首次联调流程
 
@@ -341,7 +349,9 @@ docker logs homeos | head
 
 ### 六、构建镜像（可选）
 
-CI 通过 GitHub Actions **手动 `workflow_dispatch`** 构建并推送 `linux/amd64` + `linux/arm64` 双架构镜像到 GHCR（`.github/workflows/docker.yml`），tag 取仓库根 `package.json` 的 `version`（与 `latest`）。默认分支 push **不会**自动触发。
+CI 通过 GitHub Actions **手动 `workflow_dispatch`** 构建并推送 `linux/amd64` + `linux/arm64` 双架构镜像到 GHCR（`.github/workflows/docker.yml`），tag 取仓库根 `package.json` 的 `version`（与 `latest`）。默认分支 push **不会**自动触发镜像构建（镜像推送保持手动，避免每次提交都推 GHCR）。
+
+但**轻检查会自动跑**：`.github/workflows/checks.yml`（typecheck+lint / 前端门禁 / 契约与度量 / ruff / pyright / 库结构 / 端到端冒烟）挂在 `push(main)` 与全部 PR 上，`docker.yml` 构建前也复用它（`uses:`）。门禁清单只此一处，改检查只改这一个文件。
 
 本地构建是**两阶段**：先把前端与加密后端产出到工作区根 `dist/`，再从 `dist/` 组装运行镜像（镜像内不再编译后端，见 `Dockerfile` 的 app / store 目标与 `ops/build.py`）：
 

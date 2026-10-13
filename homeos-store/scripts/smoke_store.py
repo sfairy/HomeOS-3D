@@ -29,8 +29,9 @@
 * 退款闸门用 tempfile 下的**文件** SQLite：open_refund_gate 内部另开一条连接，
   内存库（sqlite:///:memory:）在另一条连接上看不到同一份数据；只建 order_refunds
   一张表即可（SQLite 默认不强制外键，不需要 orders 表）。
-* 路由挂载与调用顺序这类「源码事实」用 inspect.getsource 断言：比 import 之后间接
-  观察更直接，也不会被运行时状态掩盖。
+* 路由挂载与调用顺序这类「源码事实」用 AST 断言（`_smoke_harness.source_ast` 家族）：
+  比 import 之后间接观察更直接，也不会被运行时状态掩盖；且不受 `ruff format` 重排影响、
+  注释或日志文案骗不过（只认真实的调用/字面量节点）。
 
 判定口径：每项打印一行 OK / FAIL（FAIL 附带期望与实际），结尾打印通过项数，
 只要有一项 FAIL 就以非零码退出，可直接当门禁用。
@@ -40,63 +41,28 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
-import inspect
-import os
 import sys
-import tempfile
 from contextlib import contextmanager
 from datetime import timedelta
-from pathlib import Path
 
-STORE_ROOT = Path(__file__).resolve().parents[1]
-BACKEND = STORE_ROOT / "backend"
+from _smoke_harness import (
+    BACKEND,
+    bootstrap_env,
+    call_line,
+    call_targets,
+    check,
+    expect,
+    expect_true,
+    literal_line,
+    membership_string_set,
+    referenced_names,
+    report,
+    temp_dir,
+)
 
 REFERRAL_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
 
-failures: list[str] = []
-checked = 0
-
-
-def expect(actual: object, wanted: object, what: str) -> None:
-    """相等断言：失败信息里同时给出期望与实际，便于直接定位。"""
-    if actual != wanted:
-        raise AssertionError(f"{what}：期望 {wanted!r}，实际 {actual!r}")
-
-
-def expect_true(condition: object, message: str) -> None:
-    """真值断言：失败时只打印这条 message。"""
-    if not condition:
-        raise AssertionError(message)
-
-
-def check(name: str, fn) -> None:
-    """跑一项检查并打印一行 OK / FAIL；任何异常都算失败，不让脚本半路炸掉。"""
-    global checked
-    checked += 1
-    try:
-        fn()
-    except AssertionError as error:
-        failures.append(f"{name} —— {error}")
-        print(f"  FAIL {name}")
-        print(f"       期望 / 实际：{error}")
-    except Exception as error:
-        failures.append(f"{name} —— {type(error).__name__}: {error}")
-        print(f"  FAIL {name}")
-        print(f"       {type(error).__name__}: {error}")
-    else:
-        print(f"  OK   {name}")
-
-
 _payments_import_error: str | None = None
-
-
-def prepare_environment() -> Path:
-    """在 import 后端之前把数据目录指到临时目录，避免脚本碰到真实 data/。"""
-    data_dir = Path(tempfile.mkdtemp(prefix="homeos-store-smoke-"))
-    os.environ.setdefault("STORE_DATA_DIR", str(data_dir))
-    if str(BACKEND) not in sys.path:
-        sys.path.insert(0, str(BACKEND))
-    return data_dir
 
 
 def _load_channels_bypassing_package_init():
@@ -152,7 +118,7 @@ def _fresh_refund_engine():
     from sqlalchemy import create_engine
     from src.core.models import OrderRefund
 
-    db_dir = Path(tempfile.mkdtemp(prefix="homeos-store-smoke-db-"))
+    db_dir = temp_dir("homeos-store-smoke-db-")
     engine = create_engine(f"sqlite:///{db_dir / 'store.db'}")
     OrderRefund.__table__.create(engine)  # pyright: ignore[reportAttributeAccessIssue]
     return engine
@@ -195,23 +161,29 @@ def _refund_row(**overrides):
     return OrderRefund(**values)
 
 
-def _first_index(source: str, *needles: str) -> int:
-    """返回第一个在源码里出现的 needle 的下标；一个都没出现就判失败。"""
-    found = [(source.find(needle), needle) for needle in needles]
-    found = [(position, needle) for position, needle in found if position >= 0]
-    expect_true(found, f"源码里找不到任何一处：{'、'.join(needles)}")
+def _first_literal_line(target, *texts: str) -> int:
+    """返回第一个命中的字面量行号；一个都没出现就判失败。"""
+    found = [
+        (line, text)
+        for text in texts
+        if (line := literal_line(target, text)) is not None
+    ]
+    expect_true(found, f"源码里找不到任何一处：{'、'.join(texts)}")
     return min(found)[0]
 
 
-def _assert_duplicate_check_before_consume(source: str, label: str, *duplicate_texts: str) -> None:
+def _assert_duplicate_check_before_consume(target, label: str, *duplicate_texts: str) -> None:
     """断言「先查重、后消费验证码」：查重文案必须出现在消费调用之前。"""
-    consume_at = source.find("_consume_verification_record")
-    expect_true(consume_at >= 0, f"{label} 应当调用 _consume_verification_record")
-    duplicate_at = _first_index(source, *duplicate_texts)
+    consume_at = call_line(target, "_consume_verification_record")
+    expect_true(consume_at is not None, f"{label} 应当调用 _consume_verification_record")
+    duplicate_at = _first_literal_line(target, *duplicate_texts)
+    # 只为把 Optional 收窄给静态检查看：`expect_true` 不像 `assert` 那样参与类型收窄，
+    # 少了这一行 pyright 会在「int 与 int | None 比较」上报运算符错误（S101 已按项目惯例放过）。
+    assert consume_at is not None
     expect_true(
         duplicate_at < consume_at,
-        f"{label} 必须先查重后消费验证码：查重文案下标 {duplicate_at} 应小于 "
-        f"_consume_verification_record 下标 {consume_at}（先查重才不会白白烧掉验证码，"
+        f"{label} 必须先查重后消费验证码：查重文案在第 {duplicate_at} 行，"
+        f"_consume_verification_record 在第 {consume_at} 行（先查重才不会白白烧掉验证码，"
         f"也不会留下邮箱是否已注册的枚举探针）",
     )
 
@@ -403,25 +375,18 @@ def _check_recompute_coupon_slots_wired() -> None:
     from src.commerce import coupons
 
     expect_true(callable(getattr(coupons, "recompute_coupon_slots", None)), "recompute_coupon_slots 应当可调用")
-    source = inspect.getsource(admin_module)
-    route_line, route_index = _line_containing(source, "maintenance/recompute-coupons")
-    print(f"       路由：{route_line}")
+    route_line = literal_line(admin_module, "maintenance/recompute-coupons")
+    expect_true(route_line is not None, "admin.py 应当挂载 POST /maintenance/recompute-coupons")
+    call_at = call_line(admin_module, "recompute_coupon_slots")
+    expect_true(call_at is not None, "admin.py 应当调用 recompute_coupon_slots")
+    # 收窄给静态检查看（`expect_true` 不参与类型收窄），理由同 _assert_duplicate_check_before_consume。
+    assert route_line is not None and call_at is not None
+    print(f"       路由：第 {route_line} 行")
     expect_true(
-        route_index < source.find("recompute_coupon_slots"),
-        "maintenance/recompute-coupons 路由应当调用 recompute_coupon_slots",
+        route_line < call_at,
+        f"maintenance/recompute-coupons 路由应当调用 recompute_coupon_slots："
+        f"调用点在第 {call_at} 行，早于路由声明（第 {route_line} 行）",
     )
-    expect_true("recompute_coupon_slots" in source, "admin.py 应当调用 recompute_coupon_slots")
-
-
-def _line_containing(source: str, needle: str) -> tuple[str, int]:
-    """返回含 needle 的第一行（去首尾空白）及其全局下标。"""
-    index = source.find(needle)
-    expect_true(index >= 0, f"源码里找不到 {needle!r}")
-    start = source.rfind("\n", 0, index) + 1
-    end = source.find("\n", index)
-    if end < 0:
-        end = len(source)
-    return source[start:end].strip(), index
 
 
 def _check_coupon_patch_recounts_slots() -> None:
@@ -429,9 +394,8 @@ def _check_coupon_patch_recounts_slots() -> None:
 
     function = getattr(admin_coupons_module, "admin_patch_coupon", None)
     expect_true(callable(function), "admin_coupons.admin_patch_coupon 应当存在")
-    source = inspect.getsource(function)  # pyright: ignore[reportArgumentType]
     expect_true(
-        "recount_coupon_slots" in source,
+        "recount_coupon_slots" in call_targets(function),
         "改动优惠券的分支应当调用 recount_coupon_slots 重算已发放份数",
     )
 
@@ -441,7 +405,7 @@ def _check_register_checks_duplicate_before_consuming() -> None:
 
     function = getattr(store_auth_module, "register", None)
     expect_true(callable(function), "store_auth.register 应当存在")
-    _assert_duplicate_check_before_consume(inspect.getsource(function), "注册（store_auth.register）", "该邮箱已注册")  # pyright: ignore[reportArgumentType]
+    _assert_duplicate_check_before_consume(function, "注册（store_auth.register）", "该邮箱已注册")
 
 
 def _check_change_email_checks_duplicate_before_consuming() -> None:
@@ -450,7 +414,7 @@ def _check_change_email_checks_duplicate_before_consuming() -> None:
     function = getattr(store_module, "change_account_email", None)
     expect_true(callable(function), "store.change_account_email 应当存在")
     _assert_duplicate_check_before_consume(
-        inspect.getsource(function), "改邮箱（store.change_account_email）", "该邮箱已被其它账号使用"  # pyright: ignore[reportArgumentType]
+        function, "改邮箱（store.change_account_email）", "该邮箱已被其它账号使用"
     )
 
 
@@ -459,9 +423,8 @@ def _check_license_delete_refuses_when_ordered() -> None:
 
     function = getattr(admin_licenses_module, "admin_delete_license", None)
     expect_true(callable(function), "admin_licenses.admin_delete_license 应当存在")
-    source = inspect.getsource(function)  # pyright: ignore[reportArgumentType]
     expect_true(
-        "该授权已被订单引用" in source,
+        literal_line(function, "该授权已被订单引用") is not None,
         "被订单引用时必须拒绝硬删（避免退款撤权益时找不到授权）",
     )
 
@@ -472,7 +435,7 @@ def _products_db():
     from sqlalchemy import create_engine
     from src.core.models import Product
 
-    db_dir = Path(tempfile.mkdtemp(prefix="homeos-store-smoke-products-"))
+    db_dir = temp_dir("homeos-store-smoke-products-")
     engine = create_engine(f"sqlite:///{db_dir / 'products.db'}")
     Product.__table__.create(engine)  # pyright: ignore[reportAttributeAccessIssue]
     try:
@@ -510,22 +473,25 @@ def _check_addon_fulfillment_grants_entitlements() -> None:
             "只配包含商品的增量包必须被判为「能开出能力」，否则会被履约守卫直接拦掉",
         )
 
-    addon_source = inspect.getsource(fulfill.apply_addon_to_license)
     expect_true(
-        "bundled_feature_codes(" in addon_source,
+        "bundled_feature_codes" in call_targets(fulfill.apply_addon_to_license),
         "apply_addon_to_license 必须展开包含商品的功能码（缺 bundled_feature_codes 调用）",
     )
     expect_true(
-        "grant_bundled_entitlements(" in inspect.getsource(fulfill.upgrade_license_in_place),
+        "grant_bundled_entitlements" in call_targets(fulfill.upgrade_license_in_place),
         "upgrade_license_in_place 必须展开包含商品，否则两种增量形态口径不一致",
     )
-    order_source = inspect.getsource(fulfill.fulfill_order)
+    guarded_actions = membership_string_set(fulfill.fulfill_order, "license_action")
     expect_true(
-        'order.license_action in {"issue", "patch", "upgrade"}' in order_source,
-        "fulfill_order 的 _product_grants_features 守卫必须覆盖 issue / patch / upgrade",
+        guarded_actions is not None,
+        "fulfill_order 应当按 license_action 落在某个集合里判断是否需要守卫",
     )
     expect_true(
-        "_license_grants_features(" in order_source,
+        {"issue", "patch", "upgrade"} <= guarded_actions,  # pyright: ignore[reportOperatorIssue]
+        f"fulfill_order 的 _product_grants_features 守卫必须覆盖 issue / patch / upgrade，实际 {sorted(guarded_actions or ())}",
+    )
+    expect_true(
+        "_license_grants_features" in call_targets(fulfill.fulfill_order),
         "fulfill_order 必须在履约后断言授权至少能开出 1 个能力码，否则置 fulfillment_failed",
     )
 
@@ -556,9 +522,8 @@ def _check_default_channel_stays_within_enabled() -> None:
     expect(default_for('["wechat"]', "", "alipay"), "wechat", "setting 未写 payment_provider 时同样只能在启用集合内挑")
     expect(default_for("", "", "mock"), "", "一个渠道都没启用时必须返回空串（拒绝建单），不能退化成未知渠道")
 
-    source = inspect.getsource(resolve_provider)
     expect_true(
-        "default_channel_name(" in source,
+        "default_channel_name" in call_targets(resolve_provider),
         "resolve_provider 的无 name 分支必须走 default_channel_name（只在启用集合内挑）",
     )
 
@@ -574,36 +539,35 @@ def _check_settle_then_revert_license_chain() -> None:
     from src.commerce import fulfill
     from src.payments import settlement
 
-    settle_source = inspect.getsource(settlement.settle_paid_order)
-    expect_true("fulfill.fulfill_order(" in settle_source, "入账必须调 fulfill.fulfill_order")
+    settle_targets = call_targets(settlement.settle_paid_order)
+    expect_true("fulfill_order" in settle_targets, "入账必须调 fulfill.fulfill_order")
     expect_true(
-        "_mark_fulfillment_failed(" in settle_source,
+        "_mark_fulfillment_failed" in settle_targets,
         "履约抛异常时必须把订单标成 fulfillment_failed（而不是吞掉）",
     )
     expect_true(
-        "def _mark_fulfillment_failed" in inspect.getsource(settlement),
+        callable(getattr(settlement, "_mark_fulfillment_failed", None)),
         "settlement 必须提供 _mark_fulfillment_failed",
     )
 
-    revert_source = inspect.getsource(fulfill.revert_license_change)
     expect_true(
-        "has_other_live_grant(" in revert_source,
+        "has_other_live_grant" in call_targets(fulfill.revert_license_change),
         "revert_license_change 收回权益前必须确认没有别的有效订单在给同一商品付款",
     )
 
-    revoke_source = inspect.getsource(admin_orders_module._revoke_order_entitlements)
+    revoke = admin_orders_module._revoke_order_entitlements
     expect_true(
-        "fulfill.revert_license_change(" in revoke_source,
+        "revert_license_change" in call_targets(revoke),
         "全额退款撤权益时必须优先走 fulfill.revert_license_change（还原升级/增量包）",
     )
     expect_true(
-        "license_state_before_json" in revoke_source,
+        "license_state_before_json" in referenced_names(revoke),
         "撤权益前必须确认订单留下了升级/增量包的授权快照，否则无从还原",
     )
 
 
 def main() -> int:
-    data_dir = prepare_environment()
+    data_dir = bootstrap_env()
     print(f"数据目录：{data_dir}")
     print(f"导入根：{BACKEND}")
     ensure_store_importable()
@@ -650,14 +614,7 @@ def main() -> int:
     print("\n入账 → 退款撤权益（全链路）：")
     check("settle_paid_order 履约 / 退款沿同一判据还原授权", _check_settle_then_revert_license_chain)
 
-    passed = checked - len(failures)
-    print(f"\n通过 {passed} / {checked} 项检查。")
-    if failures:
-        print(f"\n冒烟失败，共 {len(failures)} 条：")
-        for item in failures:
-            print(f"  - {item}")
-        return 1
-    print("冒烟通过。")
+    report()
     return 0
 
 

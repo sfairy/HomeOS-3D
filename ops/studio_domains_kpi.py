@@ -110,7 +110,7 @@ ENTRIES: list[Entry] = [
         "app/editor/bindings",
         "existing",
         "panel",
-        "宿主 DOM 事件注册（语句级切片：依赖按 getter 惰性注入，见 ops/studio_slice_wrap.mjs）",
+        "宿主 DOM 事件注册（语句级切片：依赖按 getter 惰性注入）",
     ),
     _domain(
         "app/editor/net",

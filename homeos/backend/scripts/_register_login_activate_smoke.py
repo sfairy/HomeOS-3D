@@ -15,20 +15,27 @@
 from __future__ import annotations
 
 import os
-import sys
-import tempfile
-from pathlib import Path
 
-data_dir = Path(tempfile.mkdtemp(prefix="homeos-activate-smoke-"))
-os.environ["HOMEOS_DATA_DIR"] = str(data_dir)
-os.environ["HOMEOS_DATABASE_URL"] = f"sqlite:///{data_dir / 'homeos.db'}"
-# 本脚本专门验证「门禁开着」的行为，因此保持授权必填。
-os.environ["LICENSE_REQUIRED"] = "1"
-# 指向一个必然连不上的授权后台：激活必须在网络边界处失败，而不是把状态推进成已授权。
-os.environ["LICENSE_SERVER_URL"] = "http://127.0.0.1:1"
-os.environ["STORE_URL"] = "http://127.0.0.1:1"
-os.environ["HA_BASE_URL"] = ""
-os.environ["UPDATE_CHECKS_ENABLED"] = "0"
+from _smoke_harness import (
+    bootstrap_env,
+    check,
+    csrf_headers,
+    register_local_user,
+    report,
+    running_app,
+)
+
+data_dir = bootstrap_env(
+    prefix="homeos-activate-smoke-",
+    # 本脚本专门验证「门禁开着」的行为，因此保持授权必填。
+    license_required=True,
+    # 指向一个必然连不上的授权后台：激活必须在网络边界处失败，而不是把状态推进成已授权。
+    extra_env={
+        "LICENSE_SERVER_URL": "http://127.0.0.1:1",
+        "STORE_URL": "http://127.0.0.1:1",
+    },
+)
+
 # CI smoke job 不构建前端：没有 index.html 时 ``GET /`` 会走 JSON 健康兜底（仍 200），
 # 而 ``/register`` 等 SPA fallback 会 404 —— 冒烟要测的是「门禁下外壳仍可下发」，
 # 不是 vite 产物，所以自备最小 HTML 桩。
@@ -40,111 +47,108 @@ frontend_dir.mkdir()
 )
 os.environ["HOMEOS_FRONTEND_DIR"] = str(frontend_dir)
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-from _smoke_auth_support import csrf_headers, install_fake_verification, register_local_user
-from fastapi.testclient import TestClient
-from src.app import create_app
-from src.domains.license import LicenseService
+from src.domains.license import LicenseService  # noqa: E402
 
 USERNAME = "actuser"
 EMAIL = "act@example.com"
 PASSWORD = "ActivatePass123"
 
-failures: list[str] = []
 
+def main() -> None:
+    with running_app() as (client, app):
+        print("1) 未激活时 SPA 外壳仍可下发")
+        for path in ("/", "/register", "/login", "/activate", "/license"):
+            r = client.get(path)
+            content_type = (r.headers.get("content-type") or "").split(";", 1)[0].strip().lower()
+            check(
+                f"GET {path} 200（可渲染注册 / 登录 / 激活页）",
+                r.status_code == 200 and content_type == "text/html",
+                f"{r.status_code} {content_type}",
+            )
 
-def check(label: str, condition: bool, detail: object = "") -> None:
-    mark = "PASS" if condition else "FAIL"
-    print(f"  [{mark}] {label} {detail if not condition else ''}")
-    if not condition:
-        failures.append(label)
-
-
-app = create_app()
-with TestClient(app) as client:
-    install_fake_verification(app)
-
-    print("1) 未激活时 SPA 外壳仍可下发")
-    for path in ("/", "/register", "/login", "/activate", "/license"):
-        r = client.get(path)
-        content_type = (r.headers.get("content-type") or "").split(";", 1)[0].strip().lower()
+        print("2) 授权可用性匿名可读")
+        r = client.get("/api/v1/license/availability")
         check(
-            f"GET {path} 200（可渲染注册 / 登录 / 激活页）",
-            r.status_code == 200 and content_type == "text/html",
-            f"{r.status_code} {content_type}",
+            "GET /license/availability 200",
+            r.status_code == 200,
+            f"{r.status_code} {r.text[:160]}",
         )
+        payload = r.json() if r.status_code == 200 else {}
+        check("required=true", payload.get("required") is True, payload)
+        check("allowed=false（未激活）", payload.get("allowed") is False, payload)
+        check("editorAllowed=false", payload.get("editorAllowed") is False, payload)
 
-    print("2) 授权可用性匿名可读")
-    r = client.get("/api/v1/license/availability")
-    check("GET /license/availability 200", r.status_code == 200, f"{r.status_code} {r.text[:160]}")
-    payload = r.json() if r.status_code == 200 else {}
-    check("required=true", payload.get("required") is True, payload)
-    check("allowed=false（未激活）", payload.get("allowed") is False, payload)
-    check("editorAllowed=false", payload.get("editorAllowed") is False, payload)
-
-    print("3) 未登录时激活被拒（激活改为登录态）")
-    r = client.post(
-        "/api/v1/license/activate",
-        json={"email": EMAIL, "activationCode": "HOMEOS-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"},
-    )
-    check("未登录激活 401", r.status_code == 401, f"{r.status_code} {r.text[:160]}")
-
-    print("4) 注册本机账号（首装入口）")
-    r = register_local_user(client, app, username=USERNAME, email=EMAIL, password=PASSWORD)
-    check("POST /auth/register 201", r.status_code == 201, f"{r.status_code} {r.text}")
-    session_word = "已登录" if client.cookies.get("auth_token") else "未登录"
-    check(f"注册后自动登录（{session_word}）", client.cookies.get("auth_token") is not None, client.cookies)
-
-    print("5) 登录后激活：账号名必须透传到服务层")
-    headers = csrf_headers(client, app)
-    seen: dict[str, object] = {}
-    original_activate = LicenseService.activate
-
-    async def spy_activate(self, activation_code, email=None, account_name=None):
-        seen["code"] = activation_code
-        seen["email"] = email
-        seen["account_name"] = account_name
-        return await original_activate(self, activation_code, email, account_name)
-
-    LicenseService.activate = spy_activate
-    try:
+        print("3) 未登录时激活被拒（激活改为登录态）")
         r = client.post(
             "/api/v1/license/activate",
             json={"email": EMAIL, "activationCode": "HOMEOS-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"},
-            headers=headers,
         )
-    finally:
-        LicenseService.activate = original_activate
+        check("未登录激活 401", r.status_code == 401, f"{r.status_code} {r.text[:160]}")
 
-    check("activate 走到服务层", seen.get("code") == "HOMEOS-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX", seen)
-    check("email 透传", seen.get("email") == EMAIL, seen)
-    check(
-        f"accountName 透传为本机账号（{USERNAME}）",
-        seen.get("account_name") == USERNAME,
-        seen,
-    )
-    check(
-        "授权后台不可达 → 422 可读错误（非 500）",
-        r.status_code == 422,
-        f"{r.status_code} {r.text[:200]}",
-    )
+        print("4) 注册本机账号（首装入口）")
+        r = register_local_user(client, app, username=USERNAME, email=EMAIL, password=PASSWORD)
+        check("POST /auth/register 201", r.status_code == 201, f"{r.status_code} {r.text}")
+        session_word = "已登录" if client.cookies.get("auth_token") else "未登录"
+        check(
+            f"注册后自动登录（{session_word}）",
+            client.cookies.get("auth_token") is not None,
+            client.cookies,
+        )
 
-    print("6) 激活失败后不得误判为已授权")
-    r = client.get("/api/v1/license/availability")
-    payload = r.json() if r.status_code == 200 else {}
-    check("allowed 仍为 false", payload.get("allowed") is False, payload)
-    r = client.get("/api/v1/license/status")
-    check("GET /license/status 已登录 200", r.status_code == 200, f"{r.status_code} {r.text[:160]}")
-    check(
-        "状态仍为未激活",
-        str((r.json() if r.status_code == 200 else {}).get("status")) == "UNACTIVATED",
-        r.text[:200],
-    )
+        print("5) 登录后激活：账号名必须透传到服务层")
+        headers = csrf_headers(client, app)
+        seen: dict[str, object] = {}
+        original_activate = LicenseService.activate
 
-print()
-if failures:
-    print(f"SMOKE FAILED ({len(failures)}): {failures}")
-    sys.exit(1)
-print("SMOKE OK — 注册 → 登录 → 激活契约全部通过")
+        async def spy_activate(self, activation_code, email=None, account_name=None):
+            seen["code"] = activation_code
+            seen["email"] = email
+            seen["account_name"] = account_name
+            return await original_activate(self, activation_code, email, account_name)
+
+        LicenseService.activate = spy_activate
+        try:
+            r = client.post(
+                "/api/v1/license/activate",
+                json={"email": EMAIL, "activationCode": "HOMEOS-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"},
+                headers=headers,
+            )
+        finally:
+            LicenseService.activate = original_activate
+
+        check(
+            "activate 走到服务层",
+            seen.get("code") == "HOMEOS-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX",
+            seen,
+        )
+        check("email 透传", seen.get("email") == EMAIL, seen)
+        check(
+            f"accountName 透传为本机账号（{USERNAME}）",
+            seen.get("account_name") == USERNAME,
+            seen,
+        )
+        check(
+            "授权后台不可达 → 422 可读错误（非 500）",
+            r.status_code == 422,
+            f"{r.status_code} {r.text[:200]}",
+        )
+
+        print("6) 激活失败后不得误判为已授权")
+        r = client.get("/api/v1/license/availability")
+        payload = r.json() if r.status_code == 200 else {}
+        check("allowed 仍为 false", payload.get("allowed") is False, payload)
+        r = client.get("/api/v1/license/status")
+        check(
+            "GET /license/status 已登录 200", r.status_code == 200, f"{r.status_code} {r.text[:160]}"
+        )
+        check(
+            "状态仍为未激活",
+            str((r.json() if r.status_code == 200 else {}).get("status")) == "UNACTIVATED",
+            r.text[:200],
+        )
+
+    report("SMOKE OK — 注册 → 登录 → 激活契约全部通过")
+
+
+if __name__ == "__main__":
+    main()

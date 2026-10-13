@@ -14,24 +14,14 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
-import sys
 import tempfile
 import zipfile
 from pathlib import Path
 
+from _smoke_harness import check, ensure_backend_on_path, report
+
 BACKEND = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(BACKEND))
-
-failures: list[str] = []
-checked = 0
-
-
-def check(label: str, condition: bool, detail: object = "") -> None:
-    global checked
-    checked += 1
-    print(f"  [{'PASS' if condition else 'FAIL'}] {label} {'' if condition else detail}")
-    if not condition:
-        failures.append(label)
+ensure_backend_on_path()
 
 
 def table_row_counts(db_path: Path, tables: tuple[str, ...]) -> dict[str, int]:
@@ -53,7 +43,7 @@ def table_row_counts(db_path: Path, tables: tuple[str, ...]) -> dict[str, int]:
     return counts
 
 
-def main() -> int:
+def main() -> None:
     with tempfile.TemporaryDirectory(prefix="full-backup-") as raw:
         tmp = Path(raw)
         os.environ["HOMEOS_DATA_DIR"] = str(tmp / "data")
@@ -288,15 +278,8 @@ def main() -> int:
 
         database.dispose()
 
-    print()
-    if failures:
-        print(f"全量备份冒烟失败：{len(failures)}/{checked} 项")
-        for entry in failures:
-            print(f"  - {entry}")
-        return 1
-    print(f"全量备份冒烟全部通过（{checked} 项）。")
-    return 0
+    report("全量备份冒烟全部通过。")
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()

@@ -13,30 +13,33 @@
 不需要真实 HA、数据库或 HTTP 服务：httpx 的 AsyncClient 被替换为脚本化响应，
 StateHub 用真实实现。
 
+「跑满重试」的两个用例会把退避 patch 成 0（省约 1.6s 真实 sleep），退避数值本身另立
+一条断言钉住 —— 定时用例断的是轮数，不该拿真实时钟去证明退避时长。
+
 用法：``python scripts/_ha_fetch_resilience_smoke.py``（在 homeos/backend 下执行）。
 """
 
 from __future__ import annotations
 
 import asyncio
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from _smoke_harness import check, ensure_backend_on_path, report
 
-import httpx
-from src.domains.ha.integration import client as client_mod
-from src.domains.ha.integration.client import HAClient, HAClientError
-from src.domains.ha.integration.service import STATE_FETCH_RETRY_DELAYS, HAConnectorService
-from src.domains.ha.integration.state_hub import StateHub
+ensure_backend_on_path()
 
-failures: list[str] = []
+import httpx  # noqa: E402
+from src.domains.ha.integration import client as client_mod  # noqa: E402
+from src.domains.ha.integration import service as service_mod  # noqa: E402
+from src.domains.ha.integration.client import HAClient, HAClientError  # noqa: E402
+from src.domains.ha.integration.service import (  # noqa: E402
+    STATE_FETCH_RETRY_DELAYS,
+    HAConnectorService,
+)
+from src.domains.ha.integration.state_hub import StateHub  # noqa: E402
 
-
-def check(label: str, condition: bool, detail: object = "") -> None:
-    print(f"  [{'PASS' if condition else 'FAIL'}] {label} {'' if condition else detail}")
-    if not condition:
-        failures.append(label)
+#: 真实退避序列（下面「跑满重试」的用例会把它 patch 成 0，省掉约 1.6s 真实 sleep）。
+#: 常量本身另有独立断言 —— 否则把退避清成 0 一起改掉就没人拦了。
+REAL_RETRY_DELAYS = STATE_FETCH_RETRY_DELAYS
 
 
 class _Response:
@@ -114,7 +117,17 @@ def _timeout(*_args: object, **_kwargs: object):
 
 async def _main() -> None:
     real_httpx = client_mod.httpx
-    expected_attempts = 1 + len(STATE_FETCH_RETRY_DELAYS)
+    expected_attempts = 1 + len(REAL_RETRY_DELAYS)
+
+    # 0) 常量本身：3 轮（首次 + 2 次重试），退避为正且递增、单次不超过 5s。
+    #    后面的用例会把它 patch 成 0 省 sleep，所以这一条必须独立钉住真实取值。
+    check(
+        "STATE_FETCH_RETRY_DELAYS 是「首次 + 2 次重试」的递增正退避",
+        len(REAL_RETRY_DELAYS) == 2
+        and all(isinstance(delay, (int, float)) for delay in REAL_RETRY_DELAYS)
+        and 0 < REAL_RETRY_DELAYS[0] < REAL_RETRY_DELAYS[1] <= 5,
+        f"实际={REAL_RETRY_DELAYS!r}",
+    )
 
     try:
         # 1) 核心回归：一个实体超时，其余实体照常返回，且不冒泡异常。
@@ -148,6 +161,9 @@ async def _main() -> None:
         )
 
         # 4) ensure_entity_states 不抛异常，且退避重试真的跑满（旧实现只跑 1 轮）。
+        #    本用例要断的是「重试了几轮」，不是「睡够没有」：退避数值本身已由上面第 0 条
+        #    独立钉住，所以这里把退避清零 —— 否则两轮退避 = 1.6s 真实 sleep，白等。
+        service_mod.STATE_FETCH_RETRY_DELAYS = (0.0, 0.0)
         attempts: list[str] = []
         client_mod.httpx = _HttpxProxy(
             lambda **kw: _FakeAsyncClient(_timeout, counter=attempts, **kw)
@@ -216,12 +232,9 @@ async def _main() -> None:
         check("对照：旧的裸 gather 写法会冒泡异常（故障确实存在）", ok_legacy, legacy_detail)
     finally:
         client_mod.httpx = real_httpx
+        service_mod.STATE_FETCH_RETRY_DELAYS = REAL_RETRY_DELAYS
 
 
 if __name__ == "__main__":
     asyncio.run(_main())
-    print()
-    if failures:
-        print(f"失败 {len(failures)} 项: {failures}")
-        raise SystemExit(1)
-    print("HA 批量取状态容错回归通过")
+    report("HA 批量取状态容错回归通过")

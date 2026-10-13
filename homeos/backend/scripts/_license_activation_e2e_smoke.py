@@ -42,10 +42,18 @@ from __future__ import annotations
 import hashlib
 import os
 import sqlite3
-import sys
-import tempfile
 import time
 from pathlib import Path
+
+from _smoke_harness import (
+    bootstrap_env,
+    check,
+    csrf_headers,
+    install_fake_verification,
+    register_local_user,
+    report,
+    skip,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 KEYS_DIR = REPO_ROOT / "keys"
@@ -55,18 +63,17 @@ STORE_DB = Path(
 )
 
 # ── 环境必须在 import src.app / src.config 之前设好（Settings 在导入期构造）──
-data_dir = Path(tempfile.mkdtemp(prefix="homeos-license-e2e-"))
-os.environ["HOMEOS_DATA_DIR"] = str(data_dir)
-os.environ["HOMEOS_DATABASE_URL"] = f"sqlite:///{data_dir / 'homeos.db'}"
-os.environ["LICENSE_REQUIRED"] = "1"
+bootstrap_env(
+    prefix="homeos-license-e2e-",
+    license_required=True,
+    extra_env={
+        "APP_LICENSE_SERVER_URL": STORE_URL,
+        "STORE_URL": STORE_URL,
+    },
+)
 # 冒烟自己的设备身份（见模块 docstring）：合成标识 → 稳定且与开发实例不同。
-# 必须在 import src.config 之前设好：Settings 在导入期构造。
 os.environ.setdefault("APP_HARDWARE_MACHINE_ID", "homeos-e2e-smoke-machine")
 os.environ.setdefault("APP_HARDWARE_BOARD_ID", "homeos-e2e-smoke-board")
-os.environ["APP_LICENSE_SERVER_URL"] = STORE_URL
-os.environ["STORE_URL"] = STORE_URL
-os.environ["HA_BASE_URL"] = ""
-os.environ["UPDATE_CHECKS_ENABLED"] = "0"
 
 
 def _apply_key_env() -> None:
@@ -78,7 +85,9 @@ def _apply_key_env() -> None:
     signing = KEYS_DIR / "license-public.pem"
     transport = KEYS_DIR / "license-transport-public.pem"
     if not signing.is_file() or not transport.is_file():
-        raise SystemExit(f"缺少授权公钥：{KEYS_DIR}（先跑一次 bun run dev 或 python -m ops.license_keys dev-env）")
+        raise SystemExit(
+            f"缺少授权公钥：{KEYS_DIR}（先跑一次 bun run dev 或 python -m ops.license_keys dev-env）"
+        )
     os.environ["APP_LICENSE_PUBLIC_KEY_FILE"] = str(signing)
     os.environ["APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE"] = str(transport)
     os.environ["APP_LICENSE_PUBLIC_KEY_SHA256"] = hashlib.sha256(signing.read_bytes()).hexdigest()
@@ -89,14 +98,8 @@ def _apply_key_env() -> None:
 
 _apply_key_env()
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-import httpx
-from _smoke_auth_support import csrf_headers, install_fake_verification, register_local_user
-from fastapi.testclient import TestClient
-from src.app import create_app
-from src.domains.license import features as feature_codes
+import httpx  # noqa: E402
+from src.domains.license import features as feature_codes  # noqa: E402
 
 #: 目录里全部增量模块码：featureAccess 必须逐个下发，前端才能按标志显隐入口。
 MODULE_FEATURE_CODES = sorted(feature_codes.MODULE_FEATURES)
@@ -104,20 +107,6 @@ MODULE_FEATURE_CODES = sorted(feature_codes.MODULE_FEATURES)
 USERNAME = "e2euser"
 EMAIL = "e2e@example.com"
 PASSWORD = "LicenseE2ePass123"
-
-failures: list[str] = []
-
-
-def check(label: str, condition: bool, detail: object = "") -> None:
-    mark = "PASS" if condition else "FAIL"
-    print(f"  [{mark}] {label} {detail if not condition else ''}")
-    if not condition:
-        failures.append(label)
-
-
-def skip(reason: str) -> None:
-    print(f"SKIP — {reason}")
-    raise SystemExit(0)
 
 
 def _store_reachable() -> bool:
@@ -205,18 +194,40 @@ def _pick_credentials(smoke_instance_id: str) -> tuple[str, str, str]:
     )
 
 
-def _wait_for_active(client, timeout_seconds: float = 20.0) -> dict:
-    """轮询直到状态落到 ACTIVE（启动期会先报 STARTUP_VALIDATION_REQUIRED，等联网确认）。"""
+#: 轮询退避：首次 50ms，之后翻倍，封顶 800ms。
+#:
+#: 这两处等的都是「本地租约联网确认后落到 ACTIVE」，正常情况几十毫秒内就成 ——
+#: 固定 0.4s 一轮等于把**成功路径**也拖成 0.4s（还要先跑一轮空等）；真出问题时
+#: 最坏仍受 `timeout_seconds` 约束，慢一点不影响判定。
+_POLL_FIRST_DELAY_SECONDS = 0.05
+_POLL_MAX_DELAY_SECONDS = 0.8
+
+
+def _poll_until_active(client, path: str, timeout_seconds: float = 20.0) -> dict:
+    """轮询 ``path`` 直到 ``status == ACTIVE``。
+
+    超时返回**最后一次** payload（可能是空 dict）—— 调用方据此报出「等到了什么」，
+    而不是干巴巴一句「没等到」。
+    """
     deadline = time.monotonic() + timeout_seconds
+    delay = _POLL_FIRST_DELAY_SECONDS
     payload: dict = {}
-    while time.monotonic() < deadline:
-        response = client.get("/api/v1/license/status")
+    while True:
+        response = client.get(path)
         if response.status_code == 200:
             payload = response.json()
             if str(payload.get("status")) == "ACTIVE":
                 return payload
-        time.sleep(0.4)
-    return payload
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return payload
+        time.sleep(min(delay, remaining, _POLL_MAX_DELAY_SECONDS))
+        delay *= 2
+
+
+def _wait_for_active(client, timeout_seconds: float = 20.0) -> dict:
+    """轮询直到状态落到 ACTIVE（启动期会先报 STARTUP_VALIDATION_REQUIRED，等联网确认）。"""
+    return _poll_until_active(client, "/api/v1/license/status", timeout_seconds)
 
 
 def _wait_for_active_public(client, timeout_seconds: float = 20.0) -> dict:
@@ -225,19 +236,13 @@ def _wait_for_active_public(client, timeout_seconds: float = 20.0) -> dict:
     重启后的新 client 没有会话 Cookie，而 ``/license/status`` 要求登录态；
     ``availability`` 同样下发 ``status`` / ``allowed``，足以断言「租约读回并通过验签」。
     """
-    deadline = time.monotonic() + timeout_seconds
-    payload: dict = {}
-    while time.monotonic() < deadline:
-        response = client.get("/api/v1/license/availability")
-        if response.status_code == 200:
-            payload = response.json()
-            if str(payload.get("status")) == "ACTIVE":
-                return payload
-        time.sleep(0.4)
-    return payload
+    return _poll_until_active(client, "/api/v1/license/availability", timeout_seconds)
 
 
-def main() -> int:
+def main() -> None:
+    from fastapi.testclient import TestClient
+    from src.app import create_app
+
     if not _store_reachable():
         skip(f"本地授权商店不可达（{STORE_URL}），本脚本需要真实商店签发租约")
 
@@ -259,6 +264,7 @@ def main() -> int:
     print("1) 全新库 + 门禁开启：未激活时必须是「不放行」")
     app = create_app()
     with TestClient(app) as client:
+        # 注册所需的商店发码/验码由进程内假实现顶替（不碰网络）。
         install_fake_verification(app)
         response = client.get("/api/v1/license/availability")
         check("GET /license/availability 200", response.status_code == 200, response.status_code)
@@ -267,8 +273,14 @@ def main() -> int:
         check("allowed=false（未激活不放过）", payload.get("allowed") is False, payload)
 
         print("2) 注册 + 登录（首装入口）")
-        response = register_local_user(client, app, username=USERNAME, email=EMAIL, password=PASSWORD)
-        check("POST /auth/register 201", response.status_code == 201, f"{response.status_code} {response.text[:200]}")
+        response = register_local_user(
+            client, app, username=USERNAME, email=EMAIL, password=PASSWORD
+        )
+        check(
+            "POST /auth/register 201",
+            response.status_code == 201,
+            f"{response.status_code} {response.text[:200]}",
+        )
         check("注册后自动登录", client.cookies.get("auth_token") is not None, client.cookies)
 
         print("3) 反例：错误激活码不得放行")
@@ -278,7 +290,11 @@ def main() -> int:
             json={"email": email, "activationCode": "HOMEOS-0000-0000-0000-0000-0000-0000"},
             headers=headers,
         )
-        check("错误激活码被商店拒绝（422）", response.status_code == 422, f"{response.status_code} {response.text[:200]}")
+        check(
+            "错误激活码被商店拒绝（422）",
+            response.status_code == 422,
+            f"{response.status_code} {response.text[:200]}",
+        )
         payload = client.get("/api/v1/license/availability").json()
         check("错误码之后仍 allowed=false", payload.get("allowed") is False, payload)
 
@@ -294,22 +310,38 @@ def main() -> int:
             f"{response.status_code} {response.text[:300]}",
         )
         status = _wait_for_active(client)
-        check("状态落到 ACTIVE（离线验签通过）", str(status.get("status")) == "ACTIVE", status.get("status"))
+        check(
+            "状态落到 ACTIVE（离线验签通过）",
+            str(status.get("status")) == "ACTIVE",
+            status.get("status"),
+        )
         features = status.get("features") or []
         check("功能码已下发（editor）", "editor" in features, features[:12])
-        check("功能码含模块（module.*）", any(str(f).startswith("module.") for f in features), features[:12])
+        check(
+            "功能码含模块（module.*）",
+            any(str(f).startswith("module.") for f in features),
+            features[:12],
+        )
         access = status.get("featureAccess") or {}
         check("featureAccess.editor=true", access.get("editor") is True, access)
         # 「面板清单」与「门禁明细」必须同源：租约里签了的模块码，featureAccess 里也必须放行，
         # 否则界面按未开通收起入口、接口却 403 放行 —— 这类分叉曾反复出现，这里钉死。
-        ungated = [str(code) for code in features if str(code).startswith("module.") and access.get(str(code)) is not True]
+        ungated = [
+            str(code)
+            for code in features
+            if str(code).startswith("module.") and access.get(str(code)) is not True
+        ]
         check("租约的每个模块码都在 featureAccess 里放行", not ungated, ungated or access)
         check(
             "featureAccess 的模块键覆盖全部目录模块码",
             all(str(code) in access for code in MODULE_FEATURE_CODES),
             sorted(set(MODULE_FEATURE_CODES) - set(access)),
         )
-        check("activationEmail 回显为本机邮箱", str(status.get("activationEmail") or "") != "", status.get("activationEmail"))
+        check(
+            "activationEmail 回显为本机邮箱",
+            str(status.get("activationEmail") or "") != "",
+            status.get("activationEmail"),
+        )
 
         payload = client.get("/api/v1/license/availability").json()
         check("门禁转为放行 allowed=true", payload.get("allowed") is True, payload)
@@ -326,13 +358,8 @@ def main() -> int:
         )
         check("重启后门禁放行 allowed=true", status.get("allowed") is True, status)
 
-    print()
-    if failures:
-        print(f"SMOKE FAILED ({len(failures)}): {failures}")
-        return 1
-    print("SMOKE OK — 真商店授权闭环：未激活拦截 → 激活放行 → 重启免重激活")
-    return 0
+    report("SMOKE OK — 真商店授权闭环：未激活拦截 → 激活放行 → 重启免重激活")
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()

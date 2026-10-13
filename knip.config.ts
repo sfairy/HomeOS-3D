@@ -47,7 +47,7 @@ const config: KnipConfig = {
       // （根目录的 eslint.config.mjs 由 knip 的 ESLint 插件自带入口，导出亦豁免，无需列举。）
       entry: ['ops/**/*.{mjs,js,ts}', 'package.json'],
       project: ['ops/**/*.{mjs,js,ts}', 'knip.config.ts'],
-      // 入口文件默认不报「未使用导出」，但 ops/ui-audit/lib/*.mjs 是被脚本共享的模块、
+      // 入口文件默认不报「未使用导出」，但 ops/lib/*.mjs 是被脚本共享的模块、
       // 不是 CLI 本身，必须继续受检 —— 否则等于用「不报噪声」换「静默丢覆盖」。
       // 实测：开启后往 lib/scan.mjs 注入一个无引用导出会被正常报出。
       includeEntryExports: true,

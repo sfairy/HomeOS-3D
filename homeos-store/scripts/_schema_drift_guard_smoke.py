@@ -29,38 +29,13 @@
 from __future__ import annotations
 
 import sqlite3
-import sys
 import tempfile
 from contextlib import closing
 from pathlib import Path
 
-STORE_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(STORE_ROOT / "backend"))
+from _smoke_harness import check, ensure_backend_on_path, expect_true, report
 
-failures: list[str] = []
-checked = 0
-
-
-def check(name: str, fn) -> None:
-    """跑一项检查并打印一行 OK / FAIL；任何异常都算失败，不让脚本半路炸掉。"""
-    global checked
-    checked += 1
-    try:
-        fn()
-    except AssertionError as error:
-        failures.append(f"{name} —— {error}")
-        print(f"  FAIL {name} —— {error}")
-    except Exception as error:
-        # 未预期异常同样算失败，但要看清类型：它通常意味着环境问题而非判定口径。
-        failures.append(f"{name} —— {type(error).__name__}: {error}")
-        print(f"  FAIL {name} —— {type(error).__name__}: {error}")
-    else:
-        print(f"  OK   {name}")
-
-
-def expect(condition: object, message: str) -> None:
-    if not condition:
-        raise AssertionError(message)
+ensure_backend_on_path()
 
 
 def columns(database_path: Path, table: str) -> set[str]:
@@ -68,7 +43,7 @@ def columns(database_path: Path, table: str) -> set[str]:
         return {row[1] for row in connection.execute(f"PRAGMA table_info({table})")}
 
 
-def main() -> int:
+def main() -> None:
     from src.config import load_settings
     from src.core import migrations
 
@@ -77,35 +52,35 @@ def main() -> int:
         settings = load_settings(data_dir=data_dir)
         database_path = settings.database_path
         script_dir = migrations._migrations_dir(settings)
-        expect(script_dir is not None, "开发布局下应当能找到 backend/migrations 脚本目录")
+        expect_true(script_dir is not None, "开发布局下应当能找到 backend/migrations 脚本目录")
         head = migrations.SCHEMA_REVISION
 
         # 先把库建到 head，作为三种情形共同的前提。
         migrations.run_migrations(settings)
-        expect(database_path.is_file(), "迁移后应当有 store.db")
-        expect(
+        expect_true(database_path.is_file(), "迁移后应当有 store.db")
+        expect_true(
             "edition" in columns(database_path, "products"),
             "前提不成立：products.edition 应当由基线 0001 建出来",
         )
 
         def case_clean():
             performed = migrations.run_migrations(settings)
-            expect(performed == [], f"一致时不应改动任何东西，实际 {performed!r}")
-            expect(migrations._schema_drift(settings).clean, "一致时漂移明细应为空")
+            expect_true(performed == [], f"一致时不应改动任何东西，实际 {performed!r}")
+            expect_true(migrations._schema_drift(settings).clean, "一致时漂移明细应为空")
 
         def case_extra_column_ok():
             # 退役字段留下的多余列很常见，它不影响 ORM 读取，不能因此堵住启动。
             with closing(sqlite3.connect(database_path)) as connection:
                 connection.execute("ALTER TABLE products ADD COLUMN retired_flag VARCHAR(8)")
                 connection.commit()
-            expect(migrations._schema_drift(settings).clean, "多余列不应算漂移")
-            expect(migrations.run_migrations(settings) == [], "多余列不应堵住启动")
+            expect_true(migrations._schema_drift(settings).clean, "多余列不应算漂移")
+            expect_true(migrations.run_migrations(settings) == [], "多余列不应堵住启动")
 
         def case_drift_raises():
             with closing(sqlite3.connect(database_path)) as connection:
                 connection.execute("ALTER TABLE products DROP COLUMN edition")
                 connection.commit()
-            expect(
+            expect_true(
                 "edition" not in columns(database_path, "products"),
                 "未能模拟出缺列（前提不成立）",
             )
@@ -113,9 +88,9 @@ def main() -> int:
                 migrations.run_migrations(settings)
             except RuntimeError as error:
                 message = str(error)
-                expect("edition" in message, f"错误里应点名缺的列，实际：{message}")
-                expect("缺列" in message, f"错误里应说明是缺列，实际：{message}")
-                expect(head in message, f"错误里应带上 head 版本号，实际：{message}")
+                expect_true("edition" in message, f"错误里应点名缺的列，实际：{message}")
+                expect_true("缺列" in message, f"错误里应说明是缺列，实际：{message}")
+                expect_true(head in message, f"错误里应带上 head 版本号，实际：{message}")
                 return
             raise AssertionError("版本号在 head 但缺列时，run_migrations 竟然正常返回了")
 
@@ -129,23 +104,16 @@ def main() -> int:
             with closing(sqlite3.connect(database_path)) as connection:
                 connection.execute("ALTER TABLE products ADD COLUMN edition VARCHAR(64)")
                 connection.commit()
-            expect(migrations._schema_drift(settings).clean, "补上缺列后应当不再漂移")
-            expect(migrations.run_migrations(settings) == [], "修复后应恢复为不动库")
+            expect_true(migrations._schema_drift(settings).clean, "补上缺列后应当不再漂移")
+            expect_true(migrations.run_migrations(settings) == [], "修复后应恢复为不动库")
 
         check("结构与 ORM 一致且已在 head：不抛错、不动库", case_clean)
         check("库里多一列：不算漂移，不误报", case_extra_column_ok)
         check("版本号在 head 但缺列：抛错并点名缺的列", case_drift_raises)
         check("缺列补齐后：护栏放行且不动库", case_repair_then_clean)
 
-    print()
-    if failures:
-        print(f"结构漂移护栏回归失败：{len(failures)}/{checked} 项")
-        for entry in failures:
-            print(f"  - {entry}")
-        return 1
-    print(f"结构漂移护栏回归全部通过（{checked} 项）。")
-    return 0
+    report("结构漂移护栏回归全部通过。")
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()

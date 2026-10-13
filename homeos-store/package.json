@@ -15,7 +15,7 @@
     "lint:ci": "eslint \"frontend/src/**/*.{ts,vue}\" --max-warnings 0",
     "check:store-deps": "node scripts/check-store-deps.mjs",
     "check:refs": "node ../homeos/frontend/scripts/check-import-refs.mjs --root frontend --alias @store/",
-    "check:deps": "node scripts/check-store-deps.mjs && node ../homeos/frontend/scripts/check-import-refs.mjs --root frontend --alias @store/"
+    "check:deps": "node ../ops/lib/run-chain.mjs scripts/deps-gates.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

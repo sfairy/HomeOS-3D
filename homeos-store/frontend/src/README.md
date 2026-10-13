@@ -23,6 +23,6 @@
 
 `components` / `composables` / `stores` / `utils` 不得 import `views/**`。
 
-由 `bun run --cwd homeos-store check:deps`（`homeos-store/package.json` → `scripts/check-store-deps.mjs` + 复用主应用的 `check-import-refs.mjs --root frontend --alias @store/`）强制。CI 在 `checks.yml` 的 `typecheck` job 里直接跑 `bun run --cwd homeos-store check:deps`。
+由 `bun run --cwd homeos-store check:deps`（`homeos-store/package.json` → `scripts/deps-gates.mjs` 清单 → `check-store-deps.mjs` + 复用主应用的 `scripts/gates/check-import-refs.mjs --root frontend --alias @store/`）强制；清单由 `ops/lib/run-chain.mjs` 并发执行。CI 在 `checks.yml` 的 `frontend-gates` job 里直接跑 `bun run --cwd homeos-store check:deps`。
 
 > 注意：商店前端**没有**自己的 `package.json`，构建 / 检查脚本都由 `homeos-store/package.json` 驱动（`vite --config frontend/vite.config.ts`）。

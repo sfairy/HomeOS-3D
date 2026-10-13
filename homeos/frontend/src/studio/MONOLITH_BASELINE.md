@@ -1,5 +1,14 @@
 # Studio monolith line-count baseline
 
+> **⚠️ 切片工具链已退役（拆分流程暂停）。** 本文件第 6 节起描述的 `ops/studio_slice_analyze.mjs` /
+> `studio_slice_extract.mjs` / `studio_slice_wrap.mjs` / `restore_import_formatting.mjs` 与它们的注入式自检
+> （`homeos/frontend/scripts/_studio_slice_*_selftest.mjs`）已随脚本体系清理**整体移除**，
+> 对应的根脚本 `slice:studio*` 与 `check:deps` 里的两步自检也已删除。
+> 下文保留这些命令与数值，是作为**这套拆分方法的执行记录与设计理由**（尤其是工具缺口、护栏口径、
+> 判据来源），不再可直接运行。若要继续做 studio 收敛，需先按同一 § 描述重建工具；
+> 在此之前，**只有 KPI 门禁（`kpi:studio`）与 `check-host-bindings` 仍在 CI 里生效**。
+> 第 6 节里 `check-host-bindings.mjs` 已移到 `scripts/gates/`。
+
 **度量口径已可执行**：以 KPI 脚本为准（本文件只讲口径与理由，数值别从这里抄 —— 脚本会自己量）。
 
 ```bash
@@ -22,7 +31,7 @@ python3 ops/studio_domains_kpi.py --update
   宿主目录平铺 `.ts` 个数超基线 → **硬失败**（README 的「new code must import from domain folders」由此机械生效）；
   `planned` 条目已建成却没改状态 → **硬失败**（清单不能和树脱节）。
 - 清单自洽：`status`/`kind` 拼错、`rel` 重复、`note` 空 → **硬失败**（清单即代码，写错字会让门禁量错东西还不报错）。
-- 宿主薄绑定裸值（`scripts/check-host-bindings.mjs`）：切片 core（首参是依赖袋 `deps`/`ctx`）若被宿主
+- 宿主薄绑定裸值（`scripts/gates/check-host-bindings.mjs`）：切片 core（首参是依赖袋 `deps`/`ctx`）若被宿主
   **同名 import** 后**当裸值交出去**（简写属性 / 属性值 / 实参 / 数组元素），调用方的第一个实参会被
   deps 顶掉 —— 当宿主 ctx 是 `{ [key: string]: any }` 时 `tsc` **不会拦**，所以单列门禁。详见 6i。
 - **防瞎**：平铺面清单里的宿主目录若改名/消失，`glob` 会返回空 → 本项会静默变成「0 个 ≤ 基线」而通过。
@@ -376,7 +385,7 @@ node ops/restore_import_formatting.mjs <file>                # 还原被早期�
   只改内部字段 → 对象引用**。这里属后者，所以 `deps.authRedirectState.started = true` 与原来的
   `authRedirectStarted = true` 语义完全等价。
 
-**6e 顺带补了一条回归网**（本文件里第一次给切片配冒烟）：`scripts/_request_json_smoke.ts`，
+**6e 顺带补了一条回归网**（本文件里第一次给切片配冒烟）：`scripts/smoke/_request_json_smoke.ts`，
 25 条断言，桩掉 `window.location` / `fetch` / `document.cookie` 直调模块，覆盖 401/403 分支顺序、
 `detail.code` 透传、204、非 JSON、超时中文错误、调用方中止原样抛出、CSRF 头与 Content-Type。
 其中两条专门锁上面那个生命周期语义（「闩只跳一次」+「闩随 deps 重置」）——
@@ -436,7 +445,7 @@ node ops/restore_import_formatting.mjs <file>                # 还原被早期�
   第一个实参（这里是 `document` 的默认值），而且是**静默**的。所以宿主必须留原签名薄绑定。
   （同一族的坑在 6d-3 的 `closeAuxDialog` 上出现过一次：`e.createButton("取消", closeAuxDialog)`。）
 
-**因此补了第 19 条门禁：`scripts/check-host-bindings.mjs`（+ 29 断言自检）。** 它把上面那条
+**因此补了第 19 条门禁：`scripts/gates/check-host-bindings.mjs`（+ 29 断言自检）。** 它把上面那条
 「静默」变成**跨文件可判**的两条判据：
 
 1. 某个绑定是从相对路径 / tsconfig 别名 import 进来的；

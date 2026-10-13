@@ -16,7 +16,7 @@
 别名：`@app` → `app/`，`@runtime` → `runtime/`。
 
 > **根代码只允许 `import ... from '@/studio'`** —— 不得直达 `@app/*`、`@runtime/*` 或 studio 内部路径。
-> 由 `scripts/check-studio-deps.mjs` 强制（白名单已清零）。studio 的公开面见 [`index.ts`](./index.ts)。
+> 由 `scripts/gates/check-studio-deps.mjs` 强制（白名单已清零）。studio 的公开面见 [`index.ts`](./index.ts)。
 
 ## 为什么这里没有 `components/` `composables/` `views/`
 
@@ -84,7 +84,13 @@ studio 是**子系统**，不是应用根。历史上它复用过应用根的通
 
 ## 拆分单体（`studio-app.ts` / `home.ts` / `panel-renderer.ts` / `stage.ts`）
 
-**先量再拆**，别按行号猜。工具：`node ops/studio_slice_analyze.mjs <file> [--list|--rank|--seeds=A,B]`（TS 编译器 API，认缩进、认闭包捕获）。
+> **⚠️ 切片工具已退役，流程暂停。** 原来「先量再拆」用的 `ops/studio_slice_analyze.mjs`
+> （`--list|--rank|--seeds`）、`studio_slice_extract.mjs`、`studio_slice_wrap.mjs`、
+> `restore_import_formatting.mjs` 与它们的自检已随脚本体系清理整体移除，`slice:studio*` 脚本别名也已删除。
+> 下面这段是从前的工作流记录；要恢复拆分需先重建这些工具（口径见 [`MONOLITH_BASELINE.md`](./MONOLITH_BASELINE.md)）。
+> 目前仍生效的是 KPI 门禁 `bun run kpi:studio` 与宿主薄绑定门禁 `scripts/gates/check-host-bindings.mjs`。
+
+**先量再拆**，别按行号猜。工具（已移除）：`node ops/studio_slice_analyze.mjs <file> [--list|--rank|--seeds=A,B]`（TS 编译器 API，认缩进、认闭包捕获）。
 
 - `--list`：顶层声明 + 巨型宿主函数 + >800 行的函数；`--rank`：按**搬迁成本**给宿主内声明排序（`muts*1000 + outs*100 + sibs*10`）；`--seeds=名1,名2`：算出这几个声明的自由引用与传递闭包。
 - `studio-app.ts` / `home.ts` 的真实形状是「一个 `bootX()` 里套一个巨型箭头函数」，声明不在顶层、缩进不统一 —— 所以**不要**按行首缩进切。
@@ -101,7 +107,7 @@ studio 是**子系统**，不是应用根。历史上它复用过应用根的通
 - `menus/` — 标题按钮图标菜单（定位 / 悬停滚动 / 图标选项装载）
 - `metadata/` — 导航 / 样式属性元数据表（纯数据）与透视常量（P4 从 `home.ts` 切出）
 - `navigation-style-apply/` — 导航「套用到其它控件」弹窗
-- `net/` — 编辑器请求面：`requestJson`（超时 / 中止 / CSRF / 401-403 跳转）+ 认证跳转闩（P4 6e 从 `home.ts` 切出；回归见 `scripts/_request_json_smoke.ts`，已进 `verify:smoke:frontend` 与 CI）
+- `net/` — 编辑器请求面：`requestJson`（超时 / 中止 / CSRF / 401-403 跳转）+ 认证跳转闩（P4 6e 从 `home.ts` 切出；回归见 `scripts/smoke/_request_json_smoke.ts`，已进 `verify:smoke:frontend` 与 CI）
 - `picker/` — 取数弹层
 - `selection/` — 选中组件方向键微调（nudge）
 - `boot.ts` — 生命周期
@@ -113,7 +119,7 @@ studio 是**子系统**，不是应用根。历史上它复用过应用根的通
 - 优先 `panel-renderer.ts`，而非已废弃的 `renderer.ts` 再导出
 - 优先 `panel-document.ts` / `panel-caches.ts` / `panel-dialog-motion.ts`，而非 `runtime-*.ts` 桩
 - **`app/renderer/panel-seams/` 是「面板渲染器方法」域**（P4 7b + 7c 落地）：原 `panel-renderer-bulk-methods.ts`（10.9k 行）按 seam 拆成 12 个文件（`render-component` / `connect-runtime` / `{capability,light,cover,climate,water-heater}-controls` / `{air-purifier,vacuum,presence,entity}-details` / `custom-popup`），宿主文件已删，调用方 `panel-renderer.ts` 显式 import + 一个 `Object.assign` 清单
-- **class 方法域同在此目录**（P4 7c 落地）：`panel-renderer.ts` 的 70 个类方法按 seam 搬进 8 个文件（`transform-interaction` / `selection-overlay` / `selection-bounds` / `runtime-refresh` / `details-popups` / `media-camera` / `runtime-dialogs` / `runtime-actions` + `optimistic-state`），7,154 → 1,888 行。形态是「模块侧 `export function name(self: PanelRenderer, …)` + 类侧原地一行转发薄成员」——薄成员留在类里，签名因此仍受同名 interface 合并面的类型检查（漏一个名字 tsc 当场红；这是 7b 删宿主文件时学到的教训）。工具：`ops/studio_slice_extract.mjs --method-form`（`ops/studio_slice_analyze.mjs --rank` 也认类方法）
+- **class 方法域同在此目录**（P4 7c 落地）：`panel-renderer.ts` 的 70 个类方法按 seam 搬进 8 个文件（`transform-interaction` / `selection-overlay` / `selection-bounds` / `runtime-refresh` / `details-popups` / `media-camera` / `runtime-dialogs` / `runtime-actions` + `optimistic-state`），7,154 → 1,888 行。形态是「模块侧 `export function name(self: PanelRenderer, …)` + 类侧原地一行转发薄成员」——薄成员留在类里，签名因此仍受同名 interface 合并面的类型检查（漏一个名字 tsc 当场红；这是 7b 删宿主文件时学到的教训）。工具：`ops/studio_slice_extract.mjs --method-form`（`ops/studio_slice_analyze.mjs --rank` 也认类方法）—— **两者均已随工具链退役移除**
 - 去重收尾把原 `renderer/core/renderer/`（12 个 mixin 刀）与 `renderer/core/renderer/methods/`（8 个类方法刀 + `optimistic-state`）合并压平为单层 `panel-seams/`（21 文件），并把 `renderer/core/*` 整体上提到 `app/renderer/`
 - 该目录里 `paint.ts` 仍是 **planned**（那是 `panel-renderer.ts` 自己的绘制 seam，未建）；原 `dialogs.ts` 计划条目已被上面这 12 刀取代、从清单删除。这些都记在 `ops/studio_domains_kpi.py`（planned 建出来不改状态会报错）
 
@@ -148,7 +154,7 @@ ESLint 对 `app/shared/**` 与 `platform/**` 亦有同等强制。
 
 - 舞台侧只依赖 `platform/`、`@app/bridge` 与叶子 utils
 - UI 侧只依赖 `@/components`、`@/composables`、`@/stores`、`@/shared` 等
-- 根代码**禁止** import `@runtime/*`（由 `scripts/check-studio-deps.mjs` 强制）
+- 根代码**禁止** import `@runtime/*`（由 `scripts/gates/check-studio-deps.mjs` 强制）
 
 改名只在文档层面消歧；物理改名会打断公网 URL，需同步后端 manifest 与 allowlist。
 

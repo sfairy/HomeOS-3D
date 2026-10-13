@@ -40,7 +40,7 @@ CURRENT_UPGRADE_NOTES = (
     "迁移时务必保留（``homeos-data`` / ``homeos-secrets`` / ``homeos-store-data`` / "
     "``homeos-license-keys`` / ``homeos-client-keys``）。\n"
     "6. 从旧版 ``homeos-3d`` 命名升级上来的机器：容器名、卷名与镜像名已统一去掉 ``-3d``，"
-    "请先执行 ``ops/deploy/migrate_naming.sh`` 把旧卷改名到位，再拉新镜像重启，"
+    "升级前必须先把旧卷改名到位（旧名与新名的对应关系见 ``ops/deploy/UPGRADE.md``），再拉新镜像重启，"
     "否则 compose 会当成新卷建空目录，数据看起来「全部丢失」。"
 )
 

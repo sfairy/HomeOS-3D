@@ -20,21 +20,14 @@ from __future__ import annotations
 
 import os
 import sqlite3
-import sys
 import tempfile
 from contextlib import closing
 from pathlib import Path
 
+from _smoke_harness import check, ensure_backend_on_path, report
+
 BACKEND = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(BACKEND))
-
-failures: list[str] = []
-
-
-def check(label: str, condition: bool, detail: object = "") -> None:
-    print(f"  [{'PASS' if condition else 'FAIL'}] {label} {'' if condition else detail}")
-    if not condition:
-        failures.append(label)
+ensure_backend_on_path()
 
 
 def columns(database_path: Path, table: str) -> set[str]:
@@ -62,7 +55,7 @@ def revision(database_path: Path) -> str:
     return str(row[0]) if row else "none"
 
 
-def main() -> int:
+def main() -> None:
     from alembic import command
     from src.config import load_settings
     from src.platform.core import migrations
@@ -70,7 +63,7 @@ def main() -> int:
     script_dir = BACKEND / "migrations"
     if not script_dir.is_dir():
         print("找不到 migrations 目录，需在 homeos/backend 下执行")
-        return 1
+        raise SystemExit(1)
 
     with tempfile.TemporaryDirectory(prefix="homeos-drift-") as tmp:
         tmp_path = Path(tmp)
@@ -144,15 +137,8 @@ def main() -> int:
         check("删列后 revision 仍是 head", revision(database_path) == target, revision(database_path))
         check("再跑一次不再动库", migrations.run_migrations(settings) is None)
 
-    print()
-    if failures:
-        print(f"结构漂移回归失败：{len(failures)} 项")
-        for label in failures:
-            print(f"  - {label}")
-        return 1
-    print("结构漂移回归全部通过。")
-    return 0
+    report("结构漂移回归全部通过。")
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()
