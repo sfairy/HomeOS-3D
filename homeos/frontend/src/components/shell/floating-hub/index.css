@@ -121,7 +121,6 @@
 }
 
 .afh-content--hub-panel > .widget-hub-root:not(.sp-card),
-.afh-content--hub-panel > .eh-root,
 .afh-content--hub-panel > .energy-card {
   display: flex;
   flex-direction: column;
@@ -132,8 +131,6 @@
 }
 
 .afh-content--hub-panel > .widget-hub-root:not(.sp-card) .widget-hub-panel,
-.afh-content--hub-panel > .eh-root .eh-body,
-.afh-content--hub-panel > .eh-root .widget-hub-panel,
 .afh-content--hub-panel > .energy-card .energy-body,
 .afh-content--hub-panel > .energy-card .widget-hub-panel {
   flex: 1 1 auto;
@@ -144,8 +141,7 @@
 
 /* 滚动/Grid 规则：security sp-card 自包含，其它 Hub 走通用 flex 滚动 */
 
-.afh-content--hub-panel .widget-hub-head,
-.afh-content--hub-panel .eh-root > .widget-hub-head {
+.afh-content--hub-panel .widget-hub-head {
   flex-shrink: 0;
   position: relative;
   z-index: 3;

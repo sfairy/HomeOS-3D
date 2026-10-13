@@ -41,11 +41,9 @@
   }
 }
 
-.interactive-press,
 .tap-active {
   transition: transform 0.2s var(--ease-spring), box-shadow 0.25s ease;
 }
-.interactive-press:active,
 .tap-active:active {
   transform: scale(0.98);
 }
@@ -71,7 +69,6 @@ html[data-kiosk="true"] .icon-btn[title*="Command"] {
   .hos-fade-up {
     animation: none;
   }
-  .interactive-press:active,
   .tap-active:active,
   .hos-panel-hover:hover {
     transform: none;

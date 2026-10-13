@@ -158,7 +158,6 @@
 /* 构建器抽屉(12000)内打开的二级弹层须压在抽屉之上 */
 .teleport-target > .saw-overlay,
 .teleport-target > .hos-modal-root,
-.teleport-target > .oph-wizard-root,
 .teleport-target > .entity-control-backdrop,
 .teleport-target > .eew-wizard-backdrop,
 .teleport-target > .media-pl-modal,
@@ -185,8 +184,6 @@
 .teleport-target > .eew-wizard-backdrop,
 #teleport-target > .media-pl-modal,
 .teleport-target > .media-pl-modal,
-#teleport-target > .oph-wizard-root,
-.teleport-target > .oph-wizard-root,
 #teleport-target > .device-batch__modal-overlay,
 .teleport-target > .device-batch__modal-overlay {
   position: absolute;

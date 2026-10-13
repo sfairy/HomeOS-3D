@@ -234,30 +234,6 @@
   }
 }
 
-.lh-icon-info {
-  color: var(--set-info, #7dd3fc);
-}
-
-.lh-text-info {
-  color: var(--set-info, #7dd3fc);
-}
-
-.lh-text-success {
-  color: var(--set-success, #6ee7b7);
-}
-
-.lh-text-warn {
-  color: var(--set-warn, #fcd34d);
-}
-
-.lh-text-accent {
-  color: rgba(var(--page-accent-rgb), 0.92);
-}
-
-.lh-text-secondary {
-  color: rgba(var(--page-accent-secondary-rgb), 0.92);
-}
-
 /* ── linkage-panel.css ── */
 /* 全屋联动 · workspace 内分区（SettingsCard 壳见 settings-hub-workspace.css） */
 

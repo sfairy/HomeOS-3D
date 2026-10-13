@@ -81,10 +81,6 @@
 .device-detail-view { --page-accent: var(--module-accent-devices); --page-accent-secondary: var(--module-accent-devices-sub); --page-accent-rgb: var(--module-accent-devices-rgb); --dev-accent-rgb: var(--module-accent-devices-rgb); }
 .security-view { --page-accent: var(--module-accent-security); --page-accent-secondary: var(--module-accent-security-sub); --page-accent-rgb: var(--module-accent-security-rgb); }
 .rooms-view { --page-accent: #fb923c; --page-accent-secondary: #f97316; --page-accent-rgb: 251, 146, 60; }
-.scenes-view { --page-accent: var(--module-accent-scenes); --page-accent-secondary: var(--module-accent-scenes-sub); --page-accent-rgb: var(--module-accent-scenes-rgb); }
-.automations-view { --page-accent: var(--module-accent-automation); --page-accent-secondary: var(--module-accent-automation-sub); --page-accent-rgb: var(--module-accent-automation-rgb); }
-.scripts-view { --page-accent: var(--module-accent-script); --page-accent-secondary: var(--module-accent-script-sub); --page-accent-rgb: var(--module-accent-script-rgb); }
-.cameras-view { --page-accent: #f87171; --page-accent-secondary: #ef4444; --page-accent-rgb: 248, 113, 113; }
 .mode-logs-view {
   --page-accent: var(--module-accent-home-mode, #fbbf24);
   --page-accent-secondary: var(--module-accent-home-mode-sub, #fb7185);
@@ -262,52 +258,6 @@
 }
 .list-page__form-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 
-/* ── 场景 ── */
-.scenes-view__card {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
-  flex-wrap: wrap;
-}
-.scenes-view__name { flex: 1; font-size: var(--premium-fs-caption); font-weight: 600; min-width: 0; }
-.scenes-view__card-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-  flex-shrink: 0;
-}
-.scenes-view__run-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  font-size: var(--premium-fs-caption);
-}
-.scenes-view__edit-link {
-  font-size: var(--premium-fs-caption);
-  font-weight: 600;
-  color: var(--hos-text-secondary);
-  text-decoration: none;
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: var(--hos-hairline) solid var(--premium-border-strong);
-}
-.scenes-view__edit-link:hover { color: rgba(255, 255, 255, 0.85); }
-.scenes-view__search { max-width: 220px; margin-left: auto; }
-.scenes-view__empty-actions,
-.scripts-view__empty-actions,
-.automations-view__empty-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: center;
-  align-items: center;
-}
-.scenes-view__ha-panel { flex: 1; min-height: 280px; }
-.scenes-view__ha-body { display: flex; flex-direction: column; min-height: 240px; }
-
 /* ── 设备 ── */
 .devices-view__hero-toolbar {
   width: 100%;
@@ -322,14 +272,6 @@
 .devices-view__mode-chips {
   margin-left: auto;
   flex-shrink: 0;
-}
-
-@media (max-width: 639px) {
-  .scenes-view__search {
-    max-width: none;
-    margin-left: 0;
-    width: 100%;
-  }
 }
 
 .devices-view__mode-chips .list-page__chip {
@@ -843,33 +785,6 @@
   overflow: auto;
 }
 
-/* ── 自动化 ── */
-.automations-view__list { gap: 8px; }
-.automations-view__card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: var(--hos-panel-padding-compact-y, 14px) var(--hos-panel-padding-compact-x, 16px);
-}
-.automations-view__card-main {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  flex: 1;
-}
-.automations-view__name {
-  font-size: var(--premium-fs-body-sm);
-  font-weight: 600;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.automations-view__actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
-
 /* 中屏：侧栏变窄并保持左右布局，避免统计/筛选并排挤占主列表高度 */
 @media (max-width: 1200px) {
   .devices-view__layout:not(.is-sidebar-collapsed) {
@@ -908,8 +823,6 @@
 
 @media (max-width: 768px) {
   .list-page__form-grid { grid-template-columns: 1fr; }
-  .automations-view__card { flex-direction: column; align-items: stretch; }
-  .automations-view__actions { justify-content: flex-end; }
   .devices-view__layout:not(.is-sidebar-collapsed) .devices-view__sidebar {
     grid-template-columns: 1fr;
     max-height: none;

@@ -50,7 +50,6 @@
 }
 
 .weather-hub-panel .weather-forecast,
-.weather-hub-panel .wa-card,
 .weather-hub-panel .sun-card {
   border: none;
   border-radius: 0;
@@ -60,15 +59,13 @@
 .weather-hub-panel .weather-forecast {
   padding-top: 4px;
 }
-.weather-hub-panel .wa-card,
 .weather-hub-panel .sun-card {
   padding-top: 4px;
   min-height: 0;
 }
 
 /* 预报/预警等：由 Hub 面板统一滚动，避免嵌套双滚动条 */
-.weather-hub-body--scroll .weather-hub-panel .weather-forecast,
-.weather-hub-body--scroll .weather-hub-panel .wa-card {
+.weather-hub-body--scroll .weather-hub-panel .weather-forecast {
   height: auto;
   min-height: 0;
   overflow: visible;
