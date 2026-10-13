@@ -179,9 +179,9 @@ const SLOTS = [
 
   // ── 界面兜底版本号（后端没下发 site.version 时显示） ─────────────────────
   {
-    file: 'homeos/frontend/src/studio/components/SceneStage.vue',
-    label: 'Studio 场景页版本兜底',
-    pattern: /(v\{\{ version \|\| ")[^"]*(")/g,
+    file: 'homeos/frontend/src/components/common/SceneStage.vue',
+    label: '入户页场景壳版本兜底',
+    pattern: /(version \|\| ')[^']*(')/g,
     replace: '$1__V__$2',
   },
   {
@@ -191,7 +191,7 @@ const SLOTS = [
     replace: '$1__V__$2',
   },
   {
-    file: 'homeos/frontend/src/studio/views/EditorView.vue',
+    file: 'homeos/frontend/src/studio/entries/EditorView.vue',
     label: '编辑器页眉版本',
     pattern: /(class="version">)[^<]*(<)/g,
     replace: '$1__V__$2',
@@ -403,6 +403,17 @@ if (!ONLY_DIGITS_VERSION.test(rawVersion)) {
 const version = rawVersion
 const checkOnly = flags.has('--check')
 const dryRun = flags.has('--dry-run')
+
+// 槽位指向的文件必须真实存在：路径写错（文件重命名 / 搬目录）时 `slotAppliesTo`
+// 永远不匹配，该槽位会静默退化成 no-op —— 严格层照样报「0 处残留」，
+// 界面上的版本号却一直停在旧值（本轮实测：两个槽位路径已失效）。
+const staleSlotFiles = [...new Set(SLOTS.filter((slot) => slot.file).map((slot) => slot.file))]
+  .filter((relPath) => !fs.existsSync(path.join(REPO_ROOT, relPath)))
+if (staleSlotFiles.length) {
+  console.error('✗ 槽位指向的文件不存在（路径已失效，该槽位会静默失效）：')
+  for (const relPath of staleSlotFiles) console.error(`  - ${relPath}`)
+  process.exit(2)
+}
 
 const files = walk(REPO_ROOT)
 

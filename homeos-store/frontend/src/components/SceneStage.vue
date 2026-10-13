@@ -15,7 +15,7 @@ const props = withDefaults(defineProps<{ page?: string }>(), { page: "store" });
 
 const site = useSiteStore();
 const values = computed(() => sceneValues(props.page));
-const version = computed(() => site.version || "0.7.4");
+const version = computed(() => site.version || "0.7.5");
 </script>
 
 <template>
