@@ -1,13 +1,18 @@
 {
-  "generatedAt": "2026-10-12T07:06:15.091Z",
-  "styleFileCount": 612,
-  "deadStylesheetCount": 0,
-  "deadStylesheets": [],
-  "classCount": 13576,
+  "generatedAt": "2026-10-13T02:47:11.527Z",
+  "styleFileCount": 624,
+  "deadStylesheetCount": 1,
+  "deadStylesheets": [
+    {
+      "file": "homeos/frontend/src/assets/styles/linkage-hub.css",
+      "project": "homeos"
+    }
+  ],
+  "classCount": 13726,
   "vendoredSkipped": 4341,
-  "unusedStrictCount": 601,
+  "unusedStrictCount": 602,
   "unusedConventionCount": 165,
-  "unusedDynamicCount": 809,
+  "unusedDynamicCount": 835,
   "unusedStrict": [
     {
       "name": "hos-steps__item",
@@ -692,13 +697,6 @@
     },
     {
       "name": "hub-body",
-      "totalOccurrences": 3,
-      "definedIn": [
-        "homeos/frontend/src/features/settings/shared/styles/settings-hub-workspace.css"
-      ]
-    },
-    {
-      "name": "link-body",
       "totalOccurrences": 3,
       "definedIn": [
         "homeos/frontend/src/features/settings/shared/styles/settings-hub-workspace.css"
@@ -1403,13 +1401,6 @@
       "totalOccurrences": 2,
       "definedIn": [
         "homeos/frontend/src/features/settings/shared/styles/settings-card-layers.css"
-      ]
-    },
-    {
-      "name": "hub-workspace-block",
-      "totalOccurrences": 2,
-      "definedIn": [
-        "homeos/frontend/src/features/settings/shared/styles/settings-hub-workspace.css"
       ]
     },
     {
@@ -2946,10 +2937,45 @@
       ]
     },
     {
-      "name": "link-workspace",
+      "name": "lh-icon-info",
       "totalOccurrences": 1,
       "definedIn": [
-        "homeos/frontend/src/features/settings/automate/styles/security-modes.css"
+        "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css"
+      ]
+    },
+    {
+      "name": "lh-text-info",
+      "totalOccurrences": 1,
+      "definedIn": [
+        "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css"
+      ]
+    },
+    {
+      "name": "lh-text-success",
+      "totalOccurrences": 1,
+      "definedIn": [
+        "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css"
+      ]
+    },
+    {
+      "name": "lh-text-warn",
+      "totalOccurrences": 1,
+      "definedIn": [
+        "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css"
+      ]
+    },
+    {
+      "name": "lh-text-accent",
+      "totalOccurrences": 1,
+      "definedIn": [
+        "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css"
+      ]
+    },
+    {
+      "name": "lh-text-secondary",
+      "totalOccurrences": 1,
+      "definedIn": [
+        "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css"
       ]
     },
     {
@@ -3577,27 +3603,6 @@
     },
     {
       "name": "room-quick-rules__card-hint",
-      "totalOccurrences": 1,
-      "definedIn": [
-        "homeos/frontend/src/features/settings/shared/styles/bindings-theme.css"
-      ]
-    },
-    {
-      "name": "room-quick-rules__card-status",
-      "totalOccurrences": 1,
-      "definedIn": [
-        "homeos/frontend/src/features/settings/shared/styles/bindings-theme.css"
-      ]
-    },
-    {
-      "name": "room-quick-rules__card-actions",
-      "totalOccurrences": 1,
-      "definedIn": [
-        "homeos/frontend/src/features/settings/shared/styles/bindings-theme.css"
-      ]
-    },
-    {
-      "name": "room-quick-rules__card-cta--primary",
       "totalOccurrences": 1,
       "definedIn": [
         "homeos/frontend/src/features/settings/shared/styles/bindings-theme.css"
@@ -5113,6 +5118,22 @@
       "stem": "action-btn"
     },
     {
+      "name": "linkage-preset-card--amber",
+      "totalOccurrences": 6,
+      "definedIn": [
+        "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css"
+      ],
+      "stem": "linkage-preset-card"
+    },
+    {
+      "name": "linkage-preset-card--emerald",
+      "totalOccurrences": 6,
+      "definedIn": [
+        "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css"
+      ],
+      "stem": "linkage-preset-card"
+    },
+    {
       "name": "settings-hub-workspace",
       "totalOccurrences": 6,
       "definedIn": [
@@ -5235,6 +5256,38 @@
         "homeos/frontend/src/features/settings/shared/styles/settings-card-layers.css"
       ],
       "stem": "settings-deploy-note"
+    },
+    {
+      "name": "linkage-param-chip--sky",
+      "totalOccurrences": 4,
+      "definedIn": [
+        "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css"
+      ],
+      "stem": "linkage-param-chip"
+    },
+    {
+      "name": "linkage-param-chip--rose",
+      "totalOccurrences": 4,
+      "definedIn": [
+        "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css"
+      ],
+      "stem": "linkage-param-chip"
+    },
+    {
+      "name": "linkage-param-chip--amber",
+      "totalOccurrences": 4,
+      "definedIn": [
+        "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css"
+      ],
+      "stem": "linkage-param-chip"
+    },
+    {
+      "name": "linkage-param-chip--emerald",
+      "totalOccurrences": 4,
+      "definedIn": [
+        "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css"
+      ],
+      "stem": "linkage-param-chip"
     },
     {
       "name": "sw-timeline__node--sky",
@@ -5618,6 +5671,38 @@
         "homeos/frontend/src/features/security/styles/security.css"
       ],
       "stem": "sec-dash"
+    },
+    {
+      "name": "linkage-flow__node",
+      "totalOccurrences": 3,
+      "definedIn": [
+        "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css"
+      ],
+      "stem": "linkage"
+    },
+    {
+      "name": "linkage-flow__node--btn",
+      "totalOccurrences": 3,
+      "definedIn": [
+        "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css"
+      ],
+      "stem": "linkage"
+    },
+    {
+      "name": "linkage-flow__node--active",
+      "totalOccurrences": 3,
+      "definedIn": [
+        "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css"
+      ],
+      "stem": "linkage"
+    },
+    {
+      "name": "linkage-stat--btn",
+      "totalOccurrences": 3,
+      "definedIn": [
+        "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css"
+      ],
+      "stem": "linkage"
     },
     {
       "name": "hazard-bind__drill-tile--rose",
@@ -6203,6 +6288,46 @@
       "stem": "hos-select"
     },
     {
+      "name": "ppli-tab--tone-0",
+      "totalOccurrences": 2,
+      "definedIn": [
+        "homeos/frontend/src/components/common/styles/presence-person-list-input.css"
+      ],
+      "stem": "ppli-tab"
+    },
+    {
+      "name": "ppli-tab--tone-1",
+      "totalOccurrences": 2,
+      "definedIn": [
+        "homeos/frontend/src/components/common/styles/presence-person-list-input.css"
+      ],
+      "stem": "ppli-tab"
+    },
+    {
+      "name": "ppli-tab--tone-2",
+      "totalOccurrences": 2,
+      "definedIn": [
+        "homeos/frontend/src/components/common/styles/presence-person-list-input.css"
+      ],
+      "stem": "ppli-tab"
+    },
+    {
+      "name": "ppli-tab--tone-3",
+      "totalOccurrences": 2,
+      "definedIn": [
+        "homeos/frontend/src/components/common/styles/presence-person-list-input.css"
+      ],
+      "stem": "ppli-tab"
+    },
+    {
+      "name": "ppli-tab--tone-4",
+      "totalOccurrences": 2,
+      "definedIn": [
+        "homeos/frontend/src/components/common/styles/presence-person-list-input.css"
+      ],
+      "stem": "ppli-tab"
+    },
+    {
       "name": "sec-dash-sensor-row",
       "totalOccurrences": 2,
       "definedIn": [
@@ -6219,12 +6344,44 @@
       "stem": "sec-dash"
     },
     {
-      "name": "sm-modes-stage--linkage",
+      "name": "linkage-flow",
       "totalOccurrences": 2,
       "definedIn": [
-        "homeos/frontend/src/features/settings/automate/styles/security-modes.css"
+        "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css"
       ],
-      "stem": "sm-modes-stage"
+      "stem": "linkage"
+    },
+    {
+      "name": "linkage-flow__orb",
+      "totalOccurrences": 2,
+      "definedIn": [
+        "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css"
+      ],
+      "stem": "linkage"
+    },
+    {
+      "name": "linkage-flow__meta",
+      "totalOccurrences": 2,
+      "definedIn": [
+        "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css"
+      ],
+      "stem": "linkage"
+    },
+    {
+      "name": "linkage-flow__connector",
+      "totalOccurrences": 2,
+      "definedIn": [
+        "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css"
+      ],
+      "stem": "linkage"
+    },
+    {
+      "name": "linkage-flow__connector-dot",
+      "totalOccurrences": 2,
+      "definedIn": [
+        "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css"
+      ],
+      "stem": "linkage"
     },
     {
       "name": "settings-conn-role-badge--leader",
@@ -6579,12 +6736,12 @@
       "stem": "settings"
     },
     {
-      "name": "linkage-workspace-block",
+      "name": "hub-workspace-block",
       "totalOccurrences": 2,
       "definedIn": [
         "homeos/frontend/src/features/settings/shared/styles/settings-hub-workspace.css"
       ],
-      "stem": "linkage"
+      "stem": "hub-workspace"
     },
     {
       "name": "settings-hub-section--dim",
@@ -7099,158 +7256,6 @@
         "homeos/frontend/src/assets/styles/linkage-hub.css"
       ],
       "stem": "linkage"
-    },
-    {
-      "name": "linkage-hub-card__primary",
-      "totalOccurrences": 1,
-      "definedIn": [
-        "homeos/frontend/src/assets/styles/linkage-hub.css"
-      ],
-      "stem": "linkage"
-    },
-    {
-      "name": "linkage-hub-card__secondary",
-      "totalOccurrences": 1,
-      "definedIn": [
-        "homeos/frontend/src/assets/styles/linkage-hub.css"
-      ],
-      "stem": "linkage"
-    },
-    {
-      "name": "linkage-builder-drawer-header",
-      "totalOccurrences": 1,
-      "definedIn": [
-        "homeos/frontend/src/assets/styles/linkage-hub.css"
-      ],
-      "stem": "linkage"
-    },
-    {
-      "name": "linkage-builder-drawer-panel--chrome-less",
-      "totalOccurrences": 1,
-      "definedIn": [
-        "homeos/frontend/src/assets/styles/linkage-hub.css"
-      ],
-      "stem": "linkage"
-    },
-    {
-      "name": "linkage-builder-drawer-header__title",
-      "totalOccurrences": 1,
-      "definedIn": [
-        "homeos/frontend/src/assets/styles/linkage-hub.css"
-      ],
-      "stem": "linkage"
-    },
-    {
-      "name": "linkage-builder-drawer-header__actions",
-      "totalOccurrences": 1,
-      "definedIn": [
-        "homeos/frontend/src/assets/styles/linkage-hub.css"
-      ],
-      "stem": "linkage"
-    },
-    {
-      "name": "linkage-script-exec-modal",
-      "totalOccurrences": 1,
-      "definedIn": [
-        "homeos/frontend/src/assets/styles/linkage-hub.css"
-      ],
-      "stem": "linkage"
-    },
-    {
-      "name": "linkage-script-exec-modal__card",
-      "totalOccurrences": 1,
-      "definedIn": [
-        "homeos/frontend/src/assets/styles/linkage-hub.css"
-      ],
-      "stem": "linkage"
-    },
-    {
-      "name": "linkage-script-exec-modal__actions",
-      "totalOccurrences": 1,
-      "definedIn": [
-        "homeos/frontend/src/assets/styles/linkage-hub.css"
-      ],
-      "stem": "linkage"
-    },
-    {
-      "name": "linkage-hub__panel-body",
-      "totalOccurrences": 1,
-      "definedIn": [
-        "homeos/frontend/src/assets/styles/linkage-hub.css"
-      ],
-      "stem": "linkage"
-    },
-    {
-      "name": "linkage-hub__placeholder-banner",
-      "totalOccurrences": 1,
-      "definedIn": [
-        "homeos/frontend/src/assets/styles/linkage-hub.css"
-      ],
-      "stem": "linkage"
-    },
-    {
-      "name": "linkage-hub__placeholder-banner-text",
-      "totalOccurrences": 1,
-      "definedIn": [
-        "homeos/frontend/src/assets/styles/linkage-hub.css"
-      ],
-      "stem": "linkage"
-    },
-    {
-      "name": "notifications-view__query-card",
-      "totalOccurrences": 1,
-      "definedIn": [
-        "homeos/frontend/src/assets/styles/list-page-dual-pane.css"
-      ],
-      "stem": "notifications"
-    },
-    {
-      "name": "lp-metrics__item--sky",
-      "totalOccurrences": 1,
-      "definedIn": [
-        "homeos/frontend/src/assets/styles/list-page-views.css"
-      ],
-      "stem": "lp-metrics__item"
-    },
-    {
-      "name": "lp-metrics__item--green",
-      "totalOccurrences": 1,
-      "definedIn": [
-        "homeos/frontend/src/assets/styles/list-page-views.css"
-      ],
-      "stem": "lp-metrics__item"
-    },
-    {
-      "name": "lp-metrics__item--red",
-      "totalOccurrences": 1,
-      "definedIn": [
-        "homeos/frontend/src/assets/styles/list-page-views.css"
-      ],
-      "stem": "lp-metrics__item"
-    },
-    {
-      "name": "lp-metrics__item--amber",
-      "totalOccurrences": 1,
-      "definedIn": [
-        "homeos/frontend/src/assets/styles/list-page-views.css"
-      ],
-      "stem": "lp-metrics__item"
-    },
-    {
-      "name": "lp-metrics__item--orange",
-      "totalOccurrences": 1,
-      "definedIn": [
-        "homeos/frontend/src/assets/styles/list-page-views.css"
-      ],
-      "stem": "lp-metrics__item"
-    },
-    {
-      "name": "lp-metrics__item--pink",
-      "totalOccurrences": 1,
-      "definedIn": [
-        "homeos/frontend/src/assets/styles/list-page-views.css"
-      ],
-      "stem": "lp-metrics__item"
     }
   ],
   "unusedIdCount": 15,

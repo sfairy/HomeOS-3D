@@ -81,7 +81,6 @@ const TEXT_EXT = new Set([
 const DOC_FILES = [
   'README.md',
   '*.md',
-  'docs/**/*.md',
   'ops/**/*.md',
   'ops/**/*.sh',
   '.env.example',
@@ -203,7 +202,6 @@ const SLOTS = [
 const LEAK_FILES = [
   'README.md',
   '*.md',
-  'docs/**/*.md',
   'ops/**/*.md',
   'ops/**/*.sh',
   '.env.example',

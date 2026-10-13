@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-10-12T07:06:17.129Z",
+  "generatedAt": "2026-10-13T02:47:13.670Z",
   "tokens": {
-    "totalDefined": 1246,
-    "totalReferenced": 1246,
+    "totalDefined": 1272,
+    "totalReferenced": 1272,
     "crossProjectDefs": 111,
     "byTarget": {
       "homeos": {
-        "defined": 844,
-        "orphan": 153,
+        "defined": 870,
+        "orphan": 159,
         "dangling": 279
       },
       "store": {
@@ -28,15 +28,15 @@
     }
   },
   "colors": {
-    "totalHexLiterals": 7193,
-    "distinctHex": 1820,
-    "totalFunctionalLiterals": 8456,
-    "distinctFunctional": 1894,
+    "totalHexLiterals": 7217,
+    "distinctHex": 1821,
+    "totalFunctionalLiterals": 8612,
+    "distinctFunctional": 1903,
     "topHex": [
       {
         "hex": "#ffffff",
-        "count": 673,
-        "fileCount": 115
+        "count": 675,
+        "fileCount": 117
       },
       {
         "hex": "#000000",
@@ -49,19 +49,19 @@
         "fileCount": 17
       },
       {
-        "hex": "#0a84ff",
-        "count": 132,
-        "fileCount": 37
+        "hex": "#fbbf24",
+        "count": 127,
+        "fileCount": 78
       },
       {
-        "hex": "#fbbf24",
-        "count": 126,
-        "fileCount": 77
+        "hex": "#0a84ff",
+        "count": 121,
+        "fileCount": 36
       },
       {
         "hex": "#34d399",
-        "count": 103,
-        "fileCount": 51
+        "count": 107,
+        "fileCount": 53
       },
       {
         "hex": "#7d8799",
@@ -70,18 +70,18 @@
       },
       {
         "hex": "#38bdf8",
-        "count": 91,
-        "fileCount": 42
+        "count": 92,
+        "fileCount": 43
       },
       {
         "hex": "#7dd3fc",
-        "count": 79,
-        "fileCount": 47
+        "count": 82,
+        "fileCount": 48
       },
       {
         "hex": "#6ee7b7",
-        "count": 67,
-        "fileCount": 41
+        "count": 70,
+        "fileCount": 44
       },
       {
         "hex": "#7eb8ff",
@@ -90,8 +90,8 @@
       },
       {
         "hex": "#fcd34d",
-        "count": 63,
-        "fileCount": 41
+        "count": 65,
+        "fileCount": 43
       },
       {
         "hex": "#ff9d2e",
@@ -125,13 +125,13 @@
       },
       {
         "hex": "#fca5a5",
-        "count": 47,
-        "fileCount": 23
+        "count": 48,
+        "fileCount": 24
       },
       {
         "hex": "#f87171",
-        "count": 46,
-        "fileCount": 38
+        "count": 47,
+        "fileCount": 39
       }
     ]
   },
@@ -152,7 +152,7 @@
       "file": "homeos/frontend/src/assets/styles/main.css",
       "scopes": {
         "root": {
-          "pairs": 35,
+          "pairs": 30,
           "failBody": 0,
           "failLarge": 0
         }
@@ -171,7 +171,7 @@
     }
   ],
   "breakpoints": {
-    "mediaTotal": 397,
+    "mediaTotal": 403,
     "distinctWidths": 44,
     "offCanonicalCount": 34,
     "offCanonical": [
@@ -304,12 +304,12 @@
       },
       {
         "width": 720,
-        "count": 39,
+        "count": 41,
         "kinds": [
           "max",
           "min"
         ],
-        "fileCount": 25,
+        "fileCount": 27,
         "canonical": false
       },
       {
@@ -523,42 +523,42 @@
     },
     "mirrorOnlyRuleGroups": 449,
     "duplicateRuleInstances": 965,
-    "reusedBodyGroups": 456,
+    "reusedBodyGroups": 459,
     "duplicateKeyframeNames": 45,
     "duplicateKeyframeNamesCleanable": 0,
-    "duplicateTokenNames": 302,
-    "conflictingTokenNames": 178,
+    "duplicateTokenNames": 285,
+    "conflictingTokenNames": 163,
     "intraBlockDupes": 14,
     "intraBlockIdentical": 0,
     "intraBlockFallbackOnly": 14,
     "emptyRules": 0,
-    "importantBlocks": 356,
-    "importantTotal": 594
+    "importantBlocks": 358,
+    "importantTotal": 598
   },
   "cssUnused": {
-    "styleFileCount": 612,
-    "deadStylesheets": 0,
-    "classCount": 13576,
-    "unusedClassCount": 601,
+    "styleFileCount": 624,
+    "deadStylesheets": 1,
+    "classCount": 13726,
+    "unusedClassCount": 602,
     "unusedConventionCount": 165,
-    "unusedDynamicCount": 809
+    "unusedDynamicCount": 835
   },
   "tokenCensus": {
-    "defined": 1246,
-    "referenced": 1246,
+    "defined": 1272,
+    "referenced": 1272,
     "crossProjectSameName": 111
   },
   "tokenReferences": {
-    "totalNames": 1822,
-    "referenced": 1102,
-    "scriptOnly": 652,
-    "reserved": 66,
-    "dead": 2
+    "totalNames": 1851,
+    "referenced": 1123,
+    "scriptOnly": 657,
+    "reserved": 59,
+    "dead": 12
   },
   "tokenContract": {
-    "styleFiles": 612,
-    "refs": 15246,
+    "styleFiles": 624,
+    "refs": 15556,
     "unresolved": 0,
-    "unresolvedWithFallback": 39
+    "unresolvedWithFallback": 41
   }
 }

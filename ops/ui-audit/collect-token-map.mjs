@@ -1,5 +1,5 @@
 /**
- * 生成 UI 令牌映射契约：ops/contracts/ui-token-map.json + docs/ui-audit/09-token-contract.md
+ * 生成 UI 令牌映射契约：ops/contracts/ui-token-map.json。
  *
  * 做四件事：解析别名链到语义原语、检出同名分歧定义、判定区域越界、列出权威命名空间里只靠回退兜底的引用。
  *
@@ -307,84 +307,7 @@ const map = {
 
 writeJson(path.join(REPO_ROOT, 'ops/contracts/ui-token-map.json'), map)
 
-// ── Markdown ──────────────────────────────────────────────────────────────
-const md = []
-md.push('# UI 令牌映射契约', '')
-md.push('由 `ops/ui-audit/collect-token-map.mjs` 从真实定义生成，机器可读版本在 `ops/contracts/ui-token-map.json`。', '')
-md.push('## 权威语义层', '')
-md.push('| 层 | 文件 | 覆盖 |')
-md.push('| --- | --- | --- |')
-md.push('| 语义原语（canonical） | `homeos/frontend/src/assets/styles/hos-design-system.css` | surface / text / border / radius / space |')
-md.push('| 主应用兼容别名 | `main.css`、`app-premium-tokens.css` | `--text-*` `--card-bg-*` `--radius-*` `--space-*` `--premium-*` `--set-*` |')
-md.push('| 商店语义层 | `homeos-store/frontend/public/static/theme.css` | `--hb-*` |')
-md.push('| 暖金品牌区 | `homeos/frontend/public/static/appearance.css` | `--hos-accent` `--hb-accent` `--hos-lumen` `--hos-aura` |')
-md.push('')
-md.push('## 区域色相契约', '')
-md.push(`- 暖金区（${map.regionContract.warm.label}）：\`${map.regionContract.warm.token}\` = \`${map.regionContract.warm.value}\``)
-md.push(`- 蓝功能区（${map.regionContract.cool.label}）：\`${map.regionContract.cool.token}\` = \`${map.regionContract.cool.value}\``)
-md.push(`- 规则：${map.regionContract.rule}`)
-md.push('')
-md.push(`## 别名链（${aliases.length} 个）`, '')
-md.push('| 别名 | → 目标 | 解析值 | 定义于 |')
-md.push('| --- | --- | --- | --- |')
-for (const a of aliases.slice().sort((x, y) => x.name.localeCompare(y.name))) {
-  md.push(`| \`${a.name}\` | \`${a.target}\` | \`${a.resolved ?? "—"}\` | ${a.definedIn.map((f) => `\`${f}\``).join('<br>')} |`)
-}
-md.push('')
-md.push(`## 同名分歧定义（${conflicts.length} 个）`, '')
-md.push('同名自定义属性在多个文件里解析出不同字面量 —— 谁生效取决于加载顺序。', '')
-md.push('| 名字 | 各文件取值 | 实测生效 |')
-md.push('| --- | --- | --- |')
-for (const c of conflicts.slice().sort((x, y) => x.name.localeCompare(y.name))) {
-  const defs = c.defs.map((d) => `\`${d.value}\`<br>${d.file}`).join('<br>')
-  const eff = c.orderKnown ? `\`${c.effective}\`<br>${c.effectiveFrom}` : '加载顺序未知'
-  md.push(`| \`${c.name}\` | ${defs} | ${eff} |`)
-}
-md.push('')
-md.push(`## 值同构镜像（${mirrors.length} 个）`, '')
-md.push('同名在多处定义、且解析值完全一致 —— 不是错误，但改动任一处都会立刻产生分歧，需要同步机制或单一来源。', '')
-md.push('| 名字 | 取值 | 定义于 |')
-md.push('| --- | --- | --- |')
-for (const m of mirrors.slice(0, 25).sort((x, y) => x.name.localeCompare(y.name))) md.push(`| \`${m.name}\` | \`${m.value}\` | ${m.files.map((f) => `\`${f}\``).join('<br>')} |`)
-if (mirrors.length > 25) md.push(`| … | 另 ${mirrors.length - 25} 个 | |`)
-md.push('')
-md.push(`## 命名空间遮蔽（${bleeds.length} 处）`, '')
-if (!bleeds.length) {
-  md.push('无。', '')
-} else {
-  md.push('| 命名空间 | 名字 | 越界文件 |')
-  md.push('| --- | --- | --- |')
-  for (const b of bleeds.slice(0, 40)) md.push(`| \`${b.prefix}\` | \`${b.name}\` | \`${b.file}:${b.line}\` |`)
-  if (bleeds.length > 40) md.push(`| … | 另 ${bleeds.length - 40} 处 | |`)
-  md.push('')
-  md.push('> 表中文件在 `PREFIX_EXCEPTIONS` 里声明的既有事实不计入；这里列出的是未登记项。', '')
-}
-md.push(`## 区域身份色越界（${regionViolations.length} 处）`, '')
-if (!regionViolations.length) {
-  md.push('无。', '')
-} else {
-  md.push('| 类型 | 名字 | 越界文件 | 取值 |')
-  md.push('| --- | --- | --- | --- |')
-  for (const v of regionViolations) md.push(`| ${v.kind} | \`${v.name}\` | \`${v.file}:${v.line}\` | \`${v.value}\` |`)
-  md.push('')
-}
-md.push('## 命名漂移：权威命名空间内只靠回退兜底', '')
-if (!drift.length) {
-  md.push('无。`--hos-*` 引用全部能在权威层解析，不再有靠回退字面量撑着的假语义名。', '')
-} else {
-  md.push('| 名字 | 引用处 | 处数 |')
-  md.push('| --- | --- | --- |')
-  for (const d of drift) {
-    md.push(`| \`${d.name}\` | ${d.references.slice(0, 6).map((r) => `\`${r}\``).join('<br>')} | ${d.referenceCount} |`)
-  }
-  md.push('')
-}
-
-const docPath = path.join(REPO_ROOT, 'docs/ui-audit/09-token-contract.md')
-fs.mkdirSync(path.dirname(docPath), { recursive: true })
-fs.writeFileSync(docPath, md.join('\n'))
-
 console.log('令牌映射：别名 %d，同名分歧 %d，命名空间越界 %d，区域身份色越界 %d，命名漂移 %d', aliases.length, conflicts.length, bleeds.length, regionViolations.length, drift.length)
 if (drift.length) console.log('未解析的 --hos-* 名字（漂移）：', drift.map((d) => d.name).join(' '))
-console.log('写出：ops/contracts/ui-token-map.json + docs/ui-audit/09-token-contract.md')
+console.log('写出：ops/contracts/ui-token-map.json')
 console.log('report dir:', rel(REPO_ROOT, OUT_DIR))

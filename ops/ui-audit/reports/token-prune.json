@@ -1,9 +1,58 @@
 {
-  "generatedAt": "2026-10-12T07:06:17.014Z",
+  "generatedAt": "2026-10-13T02:47:13.550Z",
   "mode": "dry-run",
-  "filesCleaned": 0,
-  "totalRemoved": 0,
-  "files": [],
+  "filesCleaned": 1,
+  "totalRemoved": 10,
+  "files": [
+    {
+      "file": "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css",
+      "removed": 10,
+      "names": [
+        "--link-presence-rgb",
+        "--link-security",
+        "--link-auto",
+        "--link-auto-rgb",
+        "--link-warn",
+        "--link-warn-rgb",
+        "--link-danger",
+        "--link-danger-rgb",
+        "--link-ink-soft",
+        "--link-fill-hover"
+      ],
+      "samples": [
+        {
+          "line": 5,
+          "name": "--link-presence-rgb",
+          "text": "--link-presence-rgb: var(--set-info-rgb);"
+        },
+        {
+          "line": 6,
+          "name": "--link-security",
+          "text": "--link-security: rgb(var(--page-accent-rgb));"
+        },
+        {
+          "line": 8,
+          "name": "--link-auto",
+          "text": "--link-auto: rgb(var(--page-accent-secondary-rgb));"
+        },
+        {
+          "line": 9,
+          "name": "--link-auto-rgb",
+          "text": "--link-auto-rgb: var(--page-accent-secondary-rgb);"
+        },
+        {
+          "line": 14,
+          "name": "--link-warn",
+          "text": "--link-warn: var(--set-warn);"
+        },
+        {
+          "line": 15,
+          "name": "--link-warn-rgb",
+          "text": "--link-warn-rgb: var(--set-warn-rgb);"
+        }
+      ]
+    }
+  ],
   "skipped": [
     {
       "file": "homeos-store/frontend/public/static/theme.css",

@@ -4,10 +4,9 @@
 并附带两个**默认 dry-run** 的清理器（删重复规则、删无引用令牌）。
 
 ```bash
-node ops/ui-audit/run-all.mjs        # 跑全部审计 + 两个清理器的 dry-run，汇总到 reports/summary.json，并生成 docs/ui-audit/ 分册
+node ops/ui-audit/run-all.mjs        # 跑全部审计 + 两个清理器的 dry-run，汇总到 reports/summary.json
 bun run verify:tokens                # 令牌契约门禁：var() 引用必须可解析（CI 友好，失败退出码 1）
 bun run verify:tokenmap              # 令牌映射棘轮门禁：漂移/分歧/越界只减不增
-node ops/ui-audit/gen-docs.mjs       # 只重生成 docs/ui-audit/ 分册（依赖已有 report）
 node ops/ui-audit/dedupe-css.mjs --write   # 删除文件内完全重复的规则块 / 空规则块
 node ops/ui-audit/prune-tokens.mjs --write # 删除全仓无引用的自定义属性声明
 ```
@@ -25,7 +24,6 @@ node ops/ui-audit/prune-tokens.mjs --write # 删除全仓无引用的自定义�
 | `check-token-contract.mjs` | `token-contract.json` | **门禁**：`var(--x)` 是否都能解析到定义（未解析且无回退 → 退出码 1） |
 | `dedupe-css.mjs` | `css-cleanup.json` | **清理器**：文件内完全重复规则块、空规则块 |
 | `prune-tokens.mjs` | `token-prune.json` | **清理器**：无引用令牌声明（含跳过原因） |
-| `gen-docs.mjs` | `docs/ui-audit/*.md` | 由 report 生成分册 checklist（`run-all.mjs` 末尾自动调用） |
 | `collect-token-map.mjs` | `ops/contracts/ui-token-map.json` | 令牌映射契约：别名链、同名分歧、值同构镜像、命名空间遮蔽、区域身份色越界、命名漂移 |
 | `check-token-map.mjs` | — | **门禁**：映射棘轮（漂移/分歧/越界只减不增），基线在 `ops/contracts/ui-token-map.baseline.json` |
 
@@ -73,13 +71,15 @@ node ops/ui-audit/prune-tokens.mjs --write # 删除全仓无引用的自定义�
 | 对比度（3 个作用域 92 组配对） | 正文不达 AA **0**，图形不达 3:1 **0** |
 | 跨文件完全重复规则 | 真冗余 **0**（刻意重复 61：cross-bundle 29 / scoped-distinct 28 / cross-project 4） |
 | 同源镜像重复规则 | 449（由 `verify_scene_sync.py` 保证） |
-| 令牌引用 | 有使用 1123 / 仅脚本 663 / 字典预留 58 / 无使用 **12** |
+| 令牌引用 | 有使用 1123 / 仅脚本 657 / 字典预留 59 / 无使用 **12** |
 | 无使用令牌剩余 12 个 | `--hb-shadow-sm`（`homeos-store/frontend/public/static/theme.css`）、`--tw-ring-color`（`CameraTile.vue`，Tailwind 运行时内部），以及 `features/settings/automate/linkage/styles/linkage.css` 里 10 个未接线的 `--link-*`（`--link-presence-rgb` / `--link-security` / `--link-auto(-rgb)` / `--link-warn(-rgb)` / `--link-danger(-rgb)` / `--link-ink-soft` / `--link-fill-hover`） |
 | 令牌契约 | 624 个样式源 / 15556 次引用，未解析且无回退 **0**，未解析但有回退 41 |
 | 硬编码色 | hex 7217（去重 1821）、rgb/hsl 8612（去重 1903） |
 | 规范外断点 | 34 |
 
 > 本表是快照，由 `reports/*.json` 派生；改过样式后重跑 `run-all.mjs`（或对应单个脚本）再回头核一遍数字。
+
+> 早先由 `gen-docs.mjs` 生成的 `docs/ui-audit/` 分册已废弃删除（`docs/` 已进 `.gitignore`，`run-all.mjs` 不再生产它）——数据一律看本目录 `reports/*.json`。
 
 ## 令牌契约门禁检出的问题（已修）
 

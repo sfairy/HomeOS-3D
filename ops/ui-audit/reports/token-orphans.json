@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-10-13T02:38:36.148Z",
-  "filesScanned": 2250,
-  "totalNames": 1856,
+  "generatedAt": "2026-10-13T02:47:12.328Z",
+  "filesScanned": 2249,
+  "totalNames": 1851,
   "referencedCount": 1123,
   "deadCount": 12,
-  "jsInjectedCount": 663,
-  "reservedCount": 58,
+  "jsInjectedCount": 657,
+  "reservedCount": 59,
   "dead": [
     {
       "name": "--hb-shadow-sm",
@@ -140,14 +140,6 @@
         {
           "file": "homeos/frontend/src/features/settings/composables/automate/security-modes-core.internals.ts",
           "line": 49
-        },
-        {
-          "file": "ops/ui-audit/collect-token-map.mjs",
-          "line": 316
-        },
-        {
-          "file": "ops/ui-audit/collect-token-map.mjs",
-          "line": 316
         }
       ]
     },
@@ -1590,22 +1582,20 @@
       ]
     },
     {
-      "name": "--card-bg-",
-      "defCount": 0,
-      "sample": [
-        {
-          "file": "ops/ui-audit/collect-token-map.mjs",
-          "line": 318
-        }
-      ]
-    },
-    {
       "name": "--card-bg-3",
       "defCount": 1,
       "sample": [
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 1668
+          "line": 551
+        },
+        {
+          "file": "ops/contracts/ui-token-map.json",
+          "line": 555
+        },
+        {
+          "file": "ops/contracts/ui-token-map.json",
+          "line": 556
         }
       ]
     },
@@ -1679,15 +1669,15 @@
         },
         {
           "file": "homeos/scripts/set-version.mjs",
-          "line": 390
+          "line": 388
         },
         {
           "file": "homeos/scripts/set-version.mjs",
-          "line": 394
+          "line": 392
         },
         {
           "file": "homeos/scripts/set-version.mjs",
-          "line": 406
+          "line": 404
         }
       ]
     },
@@ -2615,19 +2605,19 @@
       "sample": [
         {
           "file": "homeos/scripts/set-version.mjs",
-          "line": 390
+          "line": 388
         },
         {
           "file": "homeos/scripts/set-version.mjs",
-          "line": 395
+          "line": 393
         },
         {
           "file": "homeos/scripts/set-version.mjs",
-          "line": 407
+          "line": 405
         },
         {
           "file": "homeos/scripts/set-version.mjs",
-          "line": 428
+          "line": 426
         }
       ]
     },
@@ -3625,19 +3615,19 @@
       "sample": [
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 516
+          "line": 748
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 520
+          "line": 752
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 521
+          "line": 753
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 523
+          "line": 755
         }
       ]
     },
@@ -3811,15 +3801,15 @@
       "sample": [
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 1138
+          "line": 1370
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 1142
+          "line": 1374
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 1143
+          "line": 1375
         }
       ]
     },
@@ -3885,7 +3875,7 @@
       "sample": [
         {
           "file": "homeos/scripts/set-version.mjs",
-          "line": 387
+          "line": 385
         }
       ]
     },
@@ -4080,10 +4070,6 @@
         {
           "file": "homeos/data/appearance.json",
           "line": 38
-        },
-        {
-          "file": "ops/ui-audit/collect-token-map.mjs",
-          "line": 320
         }
       ]
     },
@@ -4114,16 +4100,6 @@
         {
           "file": "homeos/data/appearance.json",
           "line": 41
-        }
-      ]
-    },
-    {
-      "name": "--hos-border-",
-      "defCount": 0,
-      "sample": [
-        {
-          "file": "ops/ui-audit/gen-docs.mjs",
-          "line": 140
         }
       ]
     },
@@ -4223,15 +4199,15 @@
       "sample": [
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 607
+          "line": 839
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 611
+          "line": 843
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 612
+          "line": 844
         },
         {
           "file": "ops/contracts/ui-token-map.json",
@@ -4326,10 +4302,6 @@
         {
           "file": "homeos/data/appearance.json",
           "line": 46
-        },
-        {
-          "file": "ops/ui-audit/collect-token-map.mjs",
-          "line": 320
         }
       ]
     },
@@ -4424,26 +4396,12 @@
       ]
     },
     {
-      "name": "--hos-surface-",
-      "defCount": 0,
-      "sample": [
-        {
-          "file": "ops/ui-audit/gen-docs.mjs",
-          "line": 140
-        }
-      ]
-    },
-    {
       "name": "--hos-text-",
       "defCount": 0,
       "sample": [
         {
           "file": "ops/ui-audit/contrast-audit.mjs",
           "line": 21
-        },
-        {
-          "file": "ops/ui-audit/gen-docs.mjs",
-          "line": 140
         }
       ]
     },
@@ -4543,15 +4501,15 @@
       "sample": [
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 532
+          "line": 764
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 536
+          "line": 768
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 537
+          "line": 769
         },
         {
           "file": "ops/contracts/ui-token-map.json",
@@ -4635,15 +4593,15 @@
       "sample": [
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 547
+          "line": 779
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 551
+          "line": 783
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 552
+          "line": 784
         },
         {
           "file": "ops/contracts/ui-token-map.json",
@@ -6659,19 +6617,19 @@
       "sample": [
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 397
+          "line": 629
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 401
+          "line": 633
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 402
+          "line": 634
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 404
+          "line": 636
         }
       ]
     },
@@ -6902,10 +6860,6 @@
         {
           "file": "ops/ui-audit/collect-token-map.mjs",
           "line": 24
-        },
-        {
-          "file": "ops/ui-audit/collect-token-map.mjs",
-          "line": 318
         }
       ]
     },
@@ -7005,15 +6959,15 @@
         },
         {
           "file": "homeos/scripts/set-version.mjs",
-          "line": 384
+          "line": 382
         },
         {
           "file": "homeos/scripts/set-version.mjs",
-          "line": 390
+          "line": 388
         },
         {
           "file": "homeos/scripts/set-version.mjs",
-          "line": 393
+          "line": 391
         }
       ]
     },
@@ -7230,30 +7184,20 @@
       ]
     },
     {
-      "name": "--radius-",
-      "defCount": 0,
-      "sample": [
-        {
-          "file": "ops/ui-audit/collect-token-map.mjs",
-          "line": 318
-        }
-      ]
-    },
-    {
       "name": "--radius-ipad-sm",
       "defCount": 1,
       "sample": [
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 445
+          "line": 677
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 449
+          "line": 681
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 450
+          "line": 682
         }
       ]
     },
@@ -7263,19 +7207,15 @@
       "sample": [
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 344
+          "line": 499
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 348
+          "line": 503
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 349
-        },
-        {
-          "file": "ops/contracts/ui-token-map.json",
-          "line": 1644
+          "line": 504
         }
       ]
     },
@@ -7285,19 +7225,19 @@
       "sample": [
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 413
+          "line": 645
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 417
+          "line": 649
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 418
+          "line": 650
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 420
+          "line": 652
         }
       ]
     },
@@ -7846,10 +7786,6 @@
         {
           "file": "ops/ui-audit/collect-token-map.mjs",
           "line": 23
-        },
-        {
-          "file": "ops/ui-audit/collect-token-map.mjs",
-          "line": 318
         }
       ]
     },
@@ -8022,22 +7958,20 @@
       ]
     },
     {
-      "name": "--space-",
-      "defCount": 0,
-      "sample": [
-        {
-          "file": "ops/ui-audit/collect-token-map.mjs",
-          "line": 318
-        }
-      ]
-    },
-    {
       "name": "--space-1",
       "defCount": 1,
       "sample": [
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 1612
+          "line": 344
+        },
+        {
+          "file": "ops/contracts/ui-token-map.json",
+          "line": 348
+        },
+        {
+          "file": "ops/contracts/ui-token-map.json",
+          "line": 349
         }
       ]
     },
@@ -8047,7 +7981,15 @@
       "sample": [
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 1620
+          "line": 357
+        },
+        {
+          "file": "ops/contracts/ui-token-map.json",
+          "line": 361
+        },
+        {
+          "file": "ops/contracts/ui-token-map.json",
+          "line": 362
         }
       ]
     },
@@ -8057,7 +7999,15 @@
       "sample": [
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 1628
+          "line": 370
+        },
+        {
+          "file": "ops/contracts/ui-token-map.json",
+          "line": 374
+        },
+        {
+          "file": "ops/contracts/ui-token-map.json",
+          "line": 375
         }
       ]
     },
@@ -8071,7 +8021,15 @@
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 1318
+          "line": 383
+        },
+        {
+          "file": "ops/contracts/ui-token-map.json",
+          "line": 387
+        },
+        {
+          "file": "ops/contracts/ui-token-map.json",
+          "line": 388
         }
       ]
     },
@@ -8085,7 +8043,15 @@
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 1334
+          "line": 396
+        },
+        {
+          "file": "ops/contracts/ui-token-map.json",
+          "line": 400
+        },
+        {
+          "file": "ops/contracts/ui-token-map.json",
+          "line": 401
         }
       ]
     },
@@ -8099,17 +8065,15 @@
         },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 1350
-        }
-      ]
-    },
-    {
-      "name": "--space-7",
-      "defCount": 1,
-      "sample": [
+          "line": 409
+        },
         {
           "file": "ops/contracts/ui-token-map.json",
-          "line": 1636
+          "line": 413
+        },
+        {
+          "file": "ops/contracts/ui-token-map.json",
+          "line": 414
         }
       ]
     },
@@ -8618,10 +8582,6 @@
       "defCount": 0,
       "sample": [
         {
-          "file": "ops/ui-audit/collect-token-map.mjs",
-          "line": 318
-        },
-        {
           "file": "ops/ui-audit/contrast-audit.mjs",
           "line": 29
         }
@@ -9105,15 +9065,15 @@
       "sample": [
         {
           "file": "homeos/scripts/set-version.mjs",
+          "line": 127
+        },
+        {
+          "file": "homeos/scripts/set-version.mjs",
           "line": 128
         },
         {
           "file": "homeos/scripts/set-version.mjs",
-          "line": 129
-        },
-        {
-          "file": "homeos/scripts/set-version.mjs",
-          "line": 220
+          "line": 218
         }
       ]
     },
@@ -10030,6 +9990,16 @@
         {
           "file": "homeos/frontend/src/assets/styles/main.css",
           "line": 541
+        }
+      ]
+    },
+    {
+      "name": "--space-7",
+      "defCount": 1,
+      "defs": [
+        {
+          "file": "homeos/frontend/src/assets/styles/hos-design-system.css",
+          "line": 127
         }
       ]
     },

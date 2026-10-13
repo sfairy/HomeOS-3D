@@ -1,6 +1,6 @@
 {
   "$comment": "UI 令牌映射契约。canonicalLayer 为语义原语权威源；aliases 为纯 var() 别名链；conflicts 为同名分歧（orderKnown 时 effective 为实测生效值）；namespaceBleed 为跨命名空间/跨区越界；namingDrift 为权威命名空间内从不解析、只能靠回退兜底的名字。由 collect-token-map.mjs 生成，勿手改。",
-  "generatedAt": "2026-10-12T07:06:17.095Z",
+  "generatedAt": "2026-10-13T02:47:13.635Z",
   "canonicalLayer": {
     "file": "homeos/frontend/src/assets/styles/hos-design-system.css",
     "prefixes": [
@@ -341,6 +341,161 @@
       ]
     },
     {
+      "name": "--space-1",
+      "target": "--hos-space-xs",
+      "resolved": "4px",
+      "chain": [
+        "--space-1",
+        "--space-1",
+        "--hos-space-xs"
+      ],
+      "definedIn": [
+        "homeos/frontend/src/assets/styles/hos-design-system.css"
+      ]
+    },
+    {
+      "name": "--space-2",
+      "target": "--hos-space-sm",
+      "resolved": "8px",
+      "chain": [
+        "--space-2",
+        "--space-2",
+        "--hos-space-sm"
+      ],
+      "definedIn": [
+        "homeos/frontend/src/assets/styles/hos-design-system.css"
+      ]
+    },
+    {
+      "name": "--space-3",
+      "target": "--hos-space-md",
+      "resolved": "12px",
+      "chain": [
+        "--space-3",
+        "--space-3",
+        "--hos-space-md"
+      ],
+      "definedIn": [
+        "homeos/frontend/src/assets/styles/hos-design-system.css"
+      ]
+    },
+    {
+      "name": "--space-4",
+      "target": "--hos-space-md",
+      "resolved": "12px",
+      "chain": [
+        "--space-4",
+        "--space-4",
+        "--hos-space-md"
+      ],
+      "definedIn": [
+        "homeos/frontend/src/assets/styles/hos-design-system.css"
+      ]
+    },
+    {
+      "name": "--space-5",
+      "target": "--hos-space-xl",
+      "resolved": "20px",
+      "chain": [
+        "--space-5",
+        "--space-5",
+        "--hos-space-xl"
+      ],
+      "definedIn": [
+        "homeos/frontend/src/assets/styles/hos-design-system.css"
+      ]
+    },
+    {
+      "name": "--space-6",
+      "target": "--hos-space-2xl",
+      "resolved": "24px",
+      "chain": [
+        "--space-6",
+        "--space-6",
+        "--hos-space-2xl"
+      ],
+      "definedIn": [
+        "homeos/frontend/src/assets/styles/hos-design-system.css"
+      ]
+    },
+    {
+      "name": "--space-page-x",
+      "target": "--hos-page-x",
+      "resolved": "24px",
+      "chain": [
+        "--space-page-x",
+        "--space-page-x",
+        "--hos-page-x",
+        "--space-page-x",
+        "--hos-page-x",
+        "--hos-space-2xl"
+      ],
+      "definedIn": [
+        "homeos/frontend/src/assets/styles/hos-design-system.css"
+      ]
+    },
+    {
+      "name": "--space-page-y-top",
+      "target": "--hos-page-y-top",
+      "resolved": "20px",
+      "chain": [
+        "--space-page-y-top",
+        "--space-page-y-top",
+        "--hos-page-y-top",
+        "--space-page-y-top",
+        "--hos-page-y-top",
+        "--hos-space-xl"
+      ],
+      "definedIn": [
+        "homeos/frontend/src/assets/styles/hos-design-system.css"
+      ]
+    },
+    {
+      "name": "--space-page-y-bottom",
+      "target": "--hos-page-y-bottom",
+      "resolved": "24px",
+      "chain": [
+        "--space-page-y-bottom",
+        "--space-page-y-bottom",
+        "--hos-page-y-bottom",
+        "--space-page-y-bottom",
+        "--hos-page-y-bottom",
+        "--hos-space-2xl"
+      ],
+      "definedIn": [
+        "homeos/frontend/src/assets/styles/hos-design-system.css"
+      ]
+    },
+    {
+      "name": "--space-page-gap",
+      "target": "--hos-page-gap",
+      "resolved": "16px",
+      "chain": [
+        "--space-page-gap",
+        "--space-page-gap",
+        "--hos-page-gap",
+        "--space-page-gap",
+        "--hos-page-gap",
+        "--hos-space-lg"
+      ],
+      "definedIn": [
+        "homeos/frontend/src/assets/styles/hos-design-system.css"
+      ]
+    },
+    {
+      "name": "--radius-md",
+      "target": "--hos-radius-card",
+      "resolved": "14px",
+      "chain": [
+        "--radius-md",
+        "--radius-md",
+        "--hos-radius-card"
+      ],
+      "definedIn": [
+        "homeos/frontend/src/assets/styles/hos-design-system.css"
+      ]
+    },
+    {
       "name": "--radius-lg",
       "target": "--hos-radius-panel",
       "resolved": "20px",
@@ -350,8 +505,85 @@
         "--hos-radius-panel"
       ],
       "definedIn": [
-        "homeos/frontend/src/assets/styles/hos-design-system.css",
-        "homeos/frontend/src/assets/styles/main.css"
+        "homeos/frontend/src/assets/styles/hos-design-system.css"
+      ]
+    },
+    {
+      "name": "--text-primary",
+      "target": "--hos-text-primary",
+      "resolved": "rgba(255, 255, 255, 0.92)",
+      "chain": [
+        "--text-primary",
+        "--text-primary",
+        "--hos-text-primary"
+      ],
+      "definedIn": [
+        "homeos/frontend/src/assets/styles/hos-design-system.css"
+      ]
+    },
+    {
+      "name": "--card-bg-1",
+      "target": "--hos-surface-1",
+      "resolved": "rgba(255, 255, 255, 0.045)",
+      "chain": [
+        "--card-bg-1",
+        "--card-bg-1",
+        "--hos-surface-1"
+      ],
+      "definedIn": [
+        "homeos/frontend/src/assets/styles/hos-design-system.css"
+      ]
+    },
+    {
+      "name": "--card-bg-2",
+      "target": "--hos-surface-2",
+      "resolved": "rgba(255, 255, 255, 0.075)",
+      "chain": [
+        "--card-bg-2",
+        "--card-bg-2",
+        "--hos-surface-2"
+      ],
+      "definedIn": [
+        "homeos/frontend/src/assets/styles/hos-design-system.css"
+      ]
+    },
+    {
+      "name": "--card-bg-3",
+      "target": "--hos-surface-3",
+      "resolved": "rgba(255, 255, 255, 0.11)",
+      "chain": [
+        "--card-bg-3",
+        "--card-bg-3",
+        "--hos-surface-3"
+      ],
+      "definedIn": [
+        "homeos/frontend/src/assets/styles/hos-design-system.css"
+      ]
+    },
+    {
+      "name": "--card-border",
+      "target": "--hos-border-subtle",
+      "resolved": "rgba(96, 165, 250, 0.18)",
+      "chain": [
+        "--card-border",
+        "--card-border",
+        "--hos-border-subtle"
+      ],
+      "definedIn": [
+        "homeos/frontend/src/assets/styles/hos-design-system.css"
+      ]
+    },
+    {
+      "name": "--card-border-hover",
+      "target": "--hos-border-strong",
+      "resolved": "rgba(125, 211, 252, 0.3)",
+      "chain": [
+        "--card-border-hover",
+        "--card-border-hover",
+        "--hos-border-strong"
+      ],
+      "definedIn": [
+        "homeos/frontend/src/assets/styles/hos-design-system.css"
       ]
     },
     {
@@ -1315,166 +1547,6 @@
       "effectiveFrom": "homeos/frontend/src/assets/styles/hos-design-system.css"
     },
     {
-      "name": "--space-4",
-      "defs": [
-        {
-          "file": "homeos/frontend/src/assets/styles/hos-design-system.css",
-          "value": "12px"
-        },
-        {
-          "file": "homeos/frontend/src/assets/styles/main.css",
-          "value": "14px"
-        }
-      ],
-      "orderKnown": true,
-      "effective": "12px",
-      "effectiveFrom": "homeos/frontend/src/assets/styles/hos-design-system.css"
-    },
-    {
-      "name": "--space-5",
-      "defs": [
-        {
-          "file": "homeos/frontend/src/assets/styles/hos-design-system.css",
-          "value": "20px"
-        },
-        {
-          "file": "homeos/frontend/src/assets/styles/main.css",
-          "value": "18px"
-        }
-      ],
-      "orderKnown": true,
-      "effective": "20px",
-      "effectiveFrom": "homeos/frontend/src/assets/styles/hos-design-system.css"
-    },
-    {
-      "name": "--space-6",
-      "defs": [
-        {
-          "file": "homeos/frontend/src/assets/styles/hos-design-system.css",
-          "value": "24px"
-        },
-        {
-          "file": "homeos/frontend/src/assets/styles/main.css",
-          "value": "22px"
-        }
-      ],
-      "orderKnown": true,
-      "effective": "24px",
-      "effectiveFrom": "homeos/frontend/src/assets/styles/hos-design-system.css"
-    },
-    {
-      "name": "--space-page-x",
-      "defs": [
-        {
-          "file": "homeos/frontend/src/assets/styles/hos-design-system.css",
-          "value": "24px"
-        },
-        {
-          "file": "homeos/frontend/src/assets/styles/main.css",
-          "value": "22px"
-        }
-      ],
-      "orderKnown": true,
-      "effective": "24px",
-      "effectiveFrom": "homeos/frontend/src/assets/styles/hos-design-system.css"
-    },
-    {
-      "name": "--space-page-y-top",
-      "defs": [
-        {
-          "file": "homeos/frontend/src/assets/styles/hos-design-system.css",
-          "value": "20px"
-        },
-        {
-          "file": "homeos/frontend/src/assets/styles/main.css",
-          "value": "18px"
-        }
-      ],
-      "orderKnown": true,
-      "effective": "20px",
-      "effectiveFrom": "homeos/frontend/src/assets/styles/hos-design-system.css"
-    },
-    {
-      "name": "--space-page-y-bottom",
-      "defs": [
-        {
-          "file": "homeos/frontend/src/assets/styles/hos-design-system.css",
-          "value": "24px"
-        },
-        {
-          "file": "homeos/frontend/src/assets/styles/main.css",
-          "value": "28px"
-        }
-      ],
-      "orderKnown": true,
-      "effective": "24px",
-      "effectiveFrom": "homeos/frontend/src/assets/styles/hos-design-system.css"
-    },
-    {
-      "name": "--space-page-gap",
-      "defs": [
-        {
-          "file": "homeos/frontend/src/assets/styles/hos-design-system.css",
-          "value": "16px"
-        },
-        {
-          "file": "homeos/frontend/src/assets/styles/main.css",
-          "value": "14px"
-        }
-      ],
-      "orderKnown": true,
-      "effective": "16px",
-      "effectiveFrom": "homeos/frontend/src/assets/styles/hos-design-system.css"
-    },
-    {
-      "name": "--radius-md",
-      "defs": [
-        {
-          "file": "homeos/frontend/src/assets/styles/hos-design-system.css",
-          "value": "16px"
-        },
-        {
-          "file": "homeos/frontend/src/assets/styles/main.css",
-          "value": "14px"
-        }
-      ],
-      "orderKnown": true,
-      "effective": "16px",
-      "effectiveFrom": "homeos/frontend/src/assets/styles/hos-design-system.css"
-    },
-    {
-      "name": "--text-primary",
-      "defs": [
-        {
-          "file": "homeos/frontend/src/assets/styles/hos-design-system.css",
-          "value": "c(255,255,255,0.920)"
-        },
-        {
-          "file": "homeos/frontend/src/assets/styles/main.css",
-          "value": "c(255,255,255,0.960)"
-        }
-      ],
-      "orderKnown": true,
-      "effective": "c(255,255,255,0.920)",
-      "effectiveFrom": "homeos/frontend/src/assets/styles/hos-design-system.css"
-    },
-    {
-      "name": "--card-border-hover",
-      "defs": [
-        {
-          "file": "homeos/frontend/src/assets/styles/hos-design-system.css",
-          "value": "c(125,211,252,0.300)"
-        },
-        {
-          "file": "homeos/frontend/src/assets/styles/main.css",
-          "value": "c(255,255,255,0.140)"
-        }
-      ],
-      "orderKnown": true,
-      "effective": "c(125,211,252,0.300)",
-      "effectiveFrom": "homeos/frontend/src/assets/styles/hos-design-system.css"
-    },
-    {
       "name": "--accent",
       "defs": [
         {
@@ -1608,78 +1680,6 @@
     }
   ],
   "valueIdenticalMirrors": [
-    {
-      "name": "--space-1",
-      "value": "4px",
-      "files": [
-        "homeos/frontend/src/assets/styles/hos-design-system.css",
-        "homeos/frontend/src/assets/styles/main.css"
-      ]
-    },
-    {
-      "name": "--space-2",
-      "value": "8px",
-      "files": [
-        "homeos/frontend/src/assets/styles/hos-design-system.css",
-        "homeos/frontend/src/assets/styles/main.css"
-      ]
-    },
-    {
-      "name": "--space-3",
-      "value": "12px",
-      "files": [
-        "homeos/frontend/src/assets/styles/hos-design-system.css",
-        "homeos/frontend/src/assets/styles/main.css"
-      ]
-    },
-    {
-      "name": "--space-7",
-      "value": "28px",
-      "files": [
-        "homeos/frontend/src/assets/styles/hos-design-system.css",
-        "homeos/frontend/src/assets/styles/main.css"
-      ]
-    },
-    {
-      "name": "--radius-lg",
-      "value": "var(--hos-radius-panel)",
-      "files": [
-        "homeos/frontend/src/assets/styles/hos-design-system.css",
-        "homeos/frontend/src/assets/styles/main.css"
-      ]
-    },
-    {
-      "name": "--card-bg-1",
-      "value": "rgba(255,255,255,0.045)",
-      "files": [
-        "homeos/frontend/src/assets/styles/hos-design-system.css",
-        "homeos/frontend/src/assets/styles/main.css"
-      ]
-    },
-    {
-      "name": "--card-bg-2",
-      "value": "rgba(255,255,255,0.075)",
-      "files": [
-        "homeos/frontend/src/assets/styles/hos-design-system.css",
-        "homeos/frontend/src/assets/styles/main.css"
-      ]
-    },
-    {
-      "name": "--card-bg-3",
-      "value": "rgba(255,255,255,0.11)",
-      "files": [
-        "homeos/frontend/src/assets/styles/hos-design-system.css",
-        "homeos/frontend/src/assets/styles/main.css"
-      ]
-    },
-    {
-      "name": "--card-border",
-      "value": "var(--premium-border)",
-      "files": [
-        "homeos/frontend/src/assets/styles/hos-design-system.css",
-        "homeos/frontend/src/assets/styles/main.css"
-      ]
-    },
     {
       "name": "--hb-accent",
       "value": "#ffc46a",

@@ -138,10 +138,3 @@ for (const c of summary.contrast) {
     console.log(`对比度 [${c.label} ${s}] 配对 ${v.pairs}，正文不达 AA ${v.failBody}，图形不达 3:1 ${v.failLarge}`)
   }
 }
-
-// 分册文档依赖全部 report，放最后生成
-const docs = spawnSync(process.execPath, [path.join(HERE, 'gen-docs.mjs')], { stdio: 'inherit' })
-if (docs.status !== 0) {
-  console.error(`审计脚本失败：gen-docs.mjs（exit ${docs.status}）`)
-  process.exit(docs.status ?? 1)
-}
