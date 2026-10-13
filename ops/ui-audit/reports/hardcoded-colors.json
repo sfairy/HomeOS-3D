@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-10-12T07:06:03.132Z",
-  "totalHexLiterals": 7193,
-  "totalFunctionalLiterals": 8456,
-  "distinctHex": 1820,
-  "distinctFunctional": 1894,
+  "generatedAt": "2026-10-13T02:38:36.728Z",
+  "totalHexLiterals": 7217,
+  "totalFunctionalLiterals": 8612,
+  "distinctHex": 1821,
+  "distinctFunctional": 1903,
   "topHex": [
     {
       "hex": "#ffffff",
-      "count": 673,
+      "count": 675,
       "spellings": [
         "#fff",
         "#ffffff",
@@ -23,7 +23,7 @@
         "#fff3",
         "#ffffff94"
       ],
-      "fileCount": 115
+      "fileCount": 117
     },
     {
       "hex": "#000000",
@@ -56,28 +56,28 @@
       "fileCount": 17
     },
     {
-      "hex": "#0a84ff",
-      "count": 132,
-      "spellings": [
-        "#0a84ff"
-      ],
-      "fileCount": 37
-    },
-    {
       "hex": "#fbbf24",
-      "count": 126,
+      "count": 127,
       "spellings": [
         "#fbbf24"
       ],
-      "fileCount": 77
+      "fileCount": 78
+    },
+    {
+      "hex": "#0a84ff",
+      "count": 121,
+      "spellings": [
+        "#0a84ff"
+      ],
+      "fileCount": 36
     },
     {
       "hex": "#34d399",
-      "count": 103,
+      "count": 107,
       "spellings": [
         "#34d399"
       ],
-      "fileCount": 51
+      "fileCount": 53
     },
     {
       "hex": "#7d8799",
@@ -89,27 +89,27 @@
     },
     {
       "hex": "#38bdf8",
-      "count": 91,
+      "count": 92,
       "spellings": [
         "#38bdf8"
       ],
-      "fileCount": 42
+      "fileCount": 43
     },
     {
       "hex": "#7dd3fc",
-      "count": 79,
+      "count": 82,
       "spellings": [
         "#7dd3fc"
       ],
-      "fileCount": 47
+      "fileCount": 48
     },
     {
       "hex": "#6ee7b7",
-      "count": 67,
+      "count": 70,
       "spellings": [
         "#6ee7b7"
       ],
-      "fileCount": 41
+      "fileCount": 44
     },
     {
       "hex": "#7eb8ff",
@@ -121,11 +121,11 @@
     },
     {
       "hex": "#fcd34d",
-      "count": 63,
+      "count": 65,
       "spellings": [
         "#fcd34d"
       ],
-      "fileCount": 41
+      "fileCount": 43
     },
     {
       "hex": "#ff9d2e",
@@ -180,27 +180,27 @@
     },
     {
       "hex": "#fca5a5",
-      "count": 47,
+      "count": 48,
       "spellings": [
         "#fca5a5"
       ],
-      "fileCount": 23
+      "fileCount": 24
     },
     {
       "hex": "#f87171",
-      "count": 46,
+      "count": 47,
       "spellings": [
         "#f87171"
       ],
-      "fileCount": 38
+      "fileCount": 39
     },
     {
       "hex": "#fb7185",
-      "count": 45,
+      "count": 46,
       "spellings": [
         "#fb7185"
       ],
-      "fileCount": 26
+      "fileCount": 27
     },
     {
       "hex": "#c084fc",
@@ -211,20 +211,20 @@
       "fileCount": 24
     },
     {
+      "hex": "#fda4af",
+      "count": 41,
+      "spellings": [
+        "#fda4af"
+      ],
+      "fileCount": 31
+    },
+    {
       "hex": "#94a3b8",
       "count": 40,
       "spellings": [
         "#94a3b8"
       ],
       "fileCount": 25
-    },
-    {
-      "hex": "#fda4af",
-      "count": 40,
-      "spellings": [
-        "#fda4af"
-      ],
-      "fileCount": 30
     },
     {
       "hex": "#171d22",
@@ -252,20 +252,20 @@
       "fileCount": 16
     },
     {
+      "hex": "#fde68a",
+      "count": 35,
+      "spellings": [
+        "#fde68a"
+      ],
+      "fileCount": 18
+    },
+    {
       "hex": "#68cc3e",
       "count": 35,
       "spellings": [
         "#68cc3e"
       ],
       "fileCount": 10
-    },
-    {
-      "hex": "#fde68a",
-      "count": 33,
-      "spellings": [
-        "#fde68a"
-      ],
-      "fileCount": 16
     },
     {
       "hex": "#818cf8",
@@ -366,20 +366,20 @@
       "fileCount": 16
     },
     {
+      "hex": "#67e8f9",
+      "count": 21,
+      "spellings": [
+        "#67e8f9"
+      ],
+      "fileCount": 15
+    },
+    {
       "hex": "#89949d",
       "count": 21,
       "spellings": [
         "#89949d"
       ],
       "fileCount": 5
-    },
-    {
-      "hex": "#67e8f9",
-      "count": 20,
-      "spellings": [
-        "#67e8f9"
-      ],
-      "fileCount": 14
     },
     {
       "hex": "#93c5fd",
@@ -417,6 +417,14 @@
       "fileCount": 2
     },
     {
+      "hex": "#c4b5fd",
+      "count": 19,
+      "spellings": [
+        "#c4b5fd"
+      ],
+      "fileCount": 15
+    },
+    {
       "hex": "#e8ecef",
       "count": 19,
       "spellings": [
@@ -439,14 +447,6 @@
         "#ff3b30"
       ],
       "fileCount": 7
-    },
-    {
-      "hex": "#c4b5fd",
-      "count": 18,
-      "spellings": [
-        "#c4b5fd"
-      ],
-      "fileCount": 14
     },
     {
       "hex": "#facc15",
@@ -530,28 +530,28 @@
     },
     {
       "raw": "rgba(var(--page-accent-rgb)",
-      "count": 412,
-      "fileCount": 34
+      "count": 429,
+      "fileCount": 35
     },
     {
       "raw": "rgba(0, 0, 0, 0)",
-      "count": 308,
-      "fileCount": 50
+      "count": 318,
+      "fileCount": 51
     },
     {
       "raw": "rgba(255, 255, 255, 0.04)",
-      "count": 237,
-      "fileCount": 97
+      "count": 240,
+      "fileCount": 99
     },
     {
       "raw": "rgba(255, 255, 255, 0.05)",
-      "count": 173,
+      "count": 181,
       "fileCount": 88
     },
     {
       "raw": "rgba(255, 255, 255, 0.06)",
       "count": 162,
-      "fileCount": 76
+      "fileCount": 75
     },
     {
       "raw": "rgba(var(--page-accent-rgb, 126, 184, 255)",
@@ -560,23 +560,23 @@
     },
     {
       "raw": "rgba(255, 255, 255, 0.03)",
-      "count": 144,
-      "fileCount": 70
+      "count": 148,
+      "fileCount": 73
     },
     {
       "raw": "rgba(255, 255, 255, 0.1)",
-      "count": 131,
-      "fileCount": 68
+      "count": 132,
+      "fileCount": 69
     },
     {
       "raw": "rgba(255, 255, 255, 0.55)",
-      "count": 113,
-      "fileCount": 66
+      "count": 114,
+      "fileCount": 67
     },
     {
       "raw": "rgba(255, 255, 255, 0.08)",
-      "count": 107,
-      "fileCount": 54
+      "count": 112,
+      "fileCount": 55
     },
     {
       "raw": "rgba(var(--set-danger-rgb)",
@@ -585,28 +585,28 @@
     },
     {
       "raw": "rgba(0, 0, 0, 0.28)",
-      "count": 103,
-      "fileCount": 41
+      "count": 104,
+      "fileCount": 42
     },
     {
       "raw": "rgba(var(--page-accent-secondary-rgb)",
-      "count": 83,
-      "fileCount": 10
+      "count": 91,
+      "fileCount": 11
     },
     {
       "raw": "rgba(0, 0, 0, 0.22)",
-      "count": 81,
-      "fileCount": 48
+      "count": 82,
+      "fileCount": 49
     },
     {
       "raw": "rgba(0, 0, 0, 0.18)",
-      "count": 76,
-      "fileCount": 40
+      "count": 81,
+      "fileCount": 42
     },
     {
       "raw": "rgba(255, 255, 255, 0.07)",
       "count": 75,
-      "fileCount": 49
+      "fileCount": 52
     },
     {
       "raw": "rgba(var(--set-success-rgb)",
@@ -621,12 +621,17 @@
     {
       "raw": "rgba(255, 255, 255, 0.12)",
       "count": 61,
-      "fileCount": 43
+      "fileCount": 42
     },
     {
       "raw": "rgba(255, 255, 255, 0.02)",
-      "count": 60,
-      "fileCount": 28
+      "count": 59,
+      "fileCount": 27
+    },
+    {
+      "raw": "rgba(0, 0, 0, 0.12)",
+      "count": 55,
+      "fileCount": 25
     },
     {
       "raw": "rgba(var(--module-accent-bindings-sub-rgb)",
@@ -634,14 +639,9 @@
       "fileCount": 4
     },
     {
-      "raw": "rgba(0, 0, 0, 0.12)",
-      "count": 53,
-      "fileCount": 23
-    },
-    {
       "raw": "rgba(255, 255, 255, 0.92)",
-      "count": 52,
-      "fileCount": 35
+      "count": 54,
+      "fileCount": 37
     },
     {
       "raw": "rgba(var(--hb-lumen-rgb)",
@@ -654,24 +654,34 @@
       "fileCount": 6
     },
     {
+      "raw": "rgba(0, 0, 0, 0.2)",
+      "count": 49,
+      "fileCount": 32
+    },
+    {
       "raw": "rgba(var(--set-warn-rgb)",
       "count": 48,
       "fileCount": 5
     },
     {
       "raw": "rgba(255, 255, 255, 0.88)",
-      "count": 45,
-      "fileCount": 28
-    },
-    {
-      "raw": "rgba(0, 0, 0, 0.2)",
-      "count": 45,
-      "fileCount": 30
+      "count": 42,
+      "fileCount": 26
     },
     {
       "raw": "rgba(0, 0, 0, 0.24)",
-      "count": 39,
-      "fileCount": 19
+      "count": 40,
+      "fileCount": 20
+    },
+    {
+      "raw": "rgba(255, 255, 255, 0.9)",
+      "count": 37,
+      "fileCount": 26
+    },
+    {
+      "raw": "rgba(255, 255, 255, 0.72)",
+      "count": 36,
+      "fileCount": 29
     },
     {
       "raw": "rgba(var(--hos-star-rgb)",
@@ -679,29 +689,19 @@
       "fileCount": 3
     },
     {
-      "raw": "rgba(255, 255, 255, 0.62)",
-      "count": 35,
-      "fileCount": 23
-    },
-    {
       "raw": "rgba(255, 255, 255, 0.14)",
-      "count": 35,
-      "fileCount": 21
-    },
-    {
-      "raw": "rgba(255, 255, 255, 0.72)",
-      "count": 35,
-      "fileCount": 28
-    },
-    {
-      "raw": "rgba(255, 255, 255, 0.9)",
-      "count": 35,
-      "fileCount": 24
+      "count": 34,
+      "fileCount": 20
     },
     {
       "raw": "rgba(0, 0, 0, 0.32)",
       "count": 34,
       "fileCount": 20
+    },
+    {
+      "raw": "rgba(255, 255, 255, 0.82)",
+      "count": 31,
+      "fileCount": 24
     },
     {
       "raw": "rgba(var(--hb-eco-rgb)",
@@ -719,19 +719,24 @@
       "fileCount": 23
     },
     {
-      "raw": "rgba(255, 255, 255, 0.82)",
-      "count": 29,
-      "fileCount": 22
-    },
-    {
       "raw": "rgba(0, 0, 0, 0.16)",
-      "count": 29,
-      "fileCount": 18
+      "count": 30,
+      "fileCount": 19
     },
     {
       "raw": "rgba(var(--hb-accent-rgb)",
       "count": 29,
       "fileCount": 6
+    },
+    {
+      "raw": "rgba(251, 191, 36, 0.12)",
+      "count": 28,
+      "fileCount": 18
+    },
+    {
+      "raw": "rgba(251, 191, 36, 0.28)",
+      "count": 28,
+      "fileCount": 18
     },
     {
       "raw": "rgba(var(--module-accent-voice-rgb)",
@@ -744,24 +749,24 @@
       "fileCount": 17
     },
     {
-      "raw": "rgba(251, 191, 36, 0.12)",
+      "raw": "rgba(255, 255, 255, 0.62)",
       "count": 27,
-      "fileCount": 17
+      "fileCount": 19
     },
     {
-      "raw": "rgba(251, 191, 36, 0.28)",
+      "raw": "rgba(255, 255, 255, 0.09)",
       "count": 26,
-      "fileCount": 17
+      "fileCount": 20
+    },
+    {
+      "raw": "rgba(52, 211, 153, 0.1)",
+      "count": 26,
+      "fileCount": 22
     },
     {
       "raw": "rgba(var(--set-info-rgb)",
       "count": 26,
       "fileCount": 8
-    },
-    {
-      "raw": "rgba(255, 255, 255, 0.09)",
-      "count": 25,
-      "fileCount": 19
     },
     {
       "raw": "rgba(var(--hb-aura-rgb)",
@@ -770,18 +775,18 @@
     },
     {
       "raw": "rgba(251, 191, 36, 0.08)",
-      "count": 23,
-      "fileCount": 17
+      "count": 24,
+      "fileCount": 18
+    },
+    {
+      "raw": "rgba(52, 211, 153, 0.12)",
+      "count": 24,
+      "fileCount": 15
     },
     {
       "raw": "rgba(255, 255, 255, 0.78)",
       "count": 23,
       "fileCount": 20
-    },
-    {
-      "raw": "rgba(52, 211, 153, 0.1)",
-      "count": 23,
-      "fileCount": 19
     },
     {
       "raw": "rgba(var(--rec-accent-rgb)",
@@ -801,12 +806,7 @@
     {
       "raw": "rgba(255, 255, 255, 0.035)",
       "count": 21,
-      "fileCount": 16
-    },
-    {
-      "raw": "rgba(52, 211, 153, 0.12)",
-      "count": 21,
-      "fileCount": 13
+      "fileCount": 15
     },
     {
       "raw": "rgba(var(--module-accent-voice-sub-rgb)",

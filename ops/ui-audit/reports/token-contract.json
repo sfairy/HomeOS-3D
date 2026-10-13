@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-10-12T16:34:23.383Z",
+  "generatedAt": "2026-10-13T02:38:36.596Z",
   "styleFilesScanned": 624,
   "definedNames": 991,
   "knownNamesViaScripts": 819,
-  "totalRefs": 15549,
+  "totalRefs": 15556,
   "unresolvedCount": 0,
   "unresolvedWithFallbackCount": 41,
   "unresolved": [],
@@ -35,37 +35,37 @@
     {
       "name": "--hb-event-log-wall-alert-color",
       "file": "homeos:public/static/renderer/renderer.css",
-      "line": 12783,
+      "line": 12819,
       "hasFallback": true
     },
     {
       "name": "--hb-event-log-wall-attr-color",
       "file": "homeos:public/static/renderer/renderer.css",
-      "line": 12777,
+      "line": 12813,
       "hasFallback": true
     },
     {
       "name": "--hb-event-log-wall-climate-color",
       "file": "homeos:public/static/renderer/renderer.css",
-      "line": 12780,
+      "line": 12816,
       "hasFallback": true
     },
     {
       "name": "--hb-event-log-wall-muted-color",
       "file": "homeos:public/static/renderer/renderer.css",
-      "line": 12786,
+      "line": 12822,
       "hasFallback": true
     },
     {
       "name": "--hb-event-log-wall-off-color",
       "file": "homeos:public/static/renderer/renderer.css",
-      "line": 12774,
+      "line": 12810,
       "hasFallback": true
     },
     {
       "name": "--hb-event-log-wall-on-color",
       "file": "homeos:public/static/renderer/renderer.css",
-      "line": 12771,
+      "line": 12807,
       "hasFallback": true
     },
     {

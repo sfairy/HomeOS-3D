@@ -1,26 +1,28 @@
-# HomeOS Store frontend layout
+# HomeOS 商店前端目录结构
 
-Small Vue app for the license store and admin console.
+面向授权商店与运营后台的小型 Vue 应用。
 
-## Layers
+## 分层
 
-| Path | Role |
+| 路径 | 职责 |
 |------|------|
-| `views/store/` | Customer-facing store pages |
-| `views/admin/` | Admin console (incl. `views/admin/settings/`) |
-| `components/` | Reusable UI |
+| `views/store/` | 面向顾客的商店页面 |
+| `views/admin/` | 运营后台（含 `views/admin/settings/`） |
+| `components/` | 可复用 UI |
 | `composables/` | Vue hooks |
 | `stores/` | Pinia |
-| `utils/` | Pure helpers |
-| `api/` | HTTP client |
-| `scene/` | Auth/scene presentation helpers |
+| `utils/` | 纯函数助手 |
+| `api/` | HTTP 客户端 |
+| `scene/` | 认证 / 场景展示助手 |
 
-## Imports
+## 导入
 
-Prefer the `@store/…` alias (see `frontend/vite.config.ts` / root `tsconfig.json`) over deep relative `../../` paths. Migrate opportunistically when touching a file.
+优先使用 `@store/…` 别名（见 `frontend/vite.config.ts` / 根 `tsconfig.json`），而非深层相对路径 `../../`。改动文件时顺手迁移。
 
-## Dependency rule
+## 依赖规则
 
-`components` / `composables` / `stores` / `utils` must not import `views/**`.
+`components` / `composables` / `stores` / `utils` 不得 import `views/**`。
 
-Enforced by `npm run check:store-deps` in this package (and CI via monorepo `check:deps` wiring on the homeos frontend job).
+由 `bun run --cwd homeos-store check:deps`（`homeos-store/package.json` → `scripts/check-store-deps.mjs` + 复用主应用的 `check-import-refs.mjs --root frontend --alias @store/`）强制。CI 在 `checks.yml` 的 `typecheck` job 里直接跑 `bun run --cwd homeos-store check:deps`。
+
+> 注意：商店前端**没有**自己的 `package.json`，构建 / 检查脚本都由 `homeos-store/package.json` 驱动（`vite --config frontend/vite.config.ts`）。

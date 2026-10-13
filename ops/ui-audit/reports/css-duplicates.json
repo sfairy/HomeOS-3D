@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-12T07:06:04.199Z",
+  "generatedAt": "2026-10-13T02:38:35.300Z",
   "minDecls": 3,
   "vendoredSkipped": 1,
   "totals": {
@@ -15,17 +15,17 @@
     },
     "mirrorOnlyRuleGroups": 449,
     "duplicateRuleInstances": 965,
-    "reusedBodyGroups": 456,
+    "reusedBodyGroups": 459,
     "duplicateKeyframeNames": 45,
     "duplicateKeyframeNamesCleanable": 0,
-    "duplicateTokenNames": 302,
-    "conflictingTokenNames": 178,
+    "duplicateTokenNames": 285,
+    "conflictingTokenNames": 163,
     "intraBlockDupes": 14,
     "intraBlockIdentical": 0,
     "intraBlockFallbackOnly": 14,
     "emptyRules": 0,
-    "importantBlocks": 356,
-    "importantTotal": 594
+    "importantBlocks": 358,
+    "importantTotal": 598
   },
   "duplicateRules": [
     {
@@ -125,7 +125,7 @@
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 2755,
+          "line": 2763,
           "mirror": false
         }
       ]
@@ -198,12 +198,12 @@
       "occurrences": [
         {
           "file": "homeos:public/static/app.css",
-          "line": 6215,
+          "line": 6226,
           "mirror": false
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 8609,
+          "line": 8642,
           "mirror": false
         }
       ]
@@ -251,7 +251,7 @@
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 2741,
+          "line": 2749,
           "mirror": false
         }
       ]
@@ -270,12 +270,12 @@
       "occurrences": [
         {
           "file": "homeos:public/static/app.css",
-          "line": 5937,
+          "line": 5948,
           "mirror": false
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 7580,
+          "line": 7613,
           "mirror": false
         }
       ]
@@ -438,12 +438,12 @@
       "occurrences": [
         {
           "file": "homeos:public/static/app.css",
-          "line": 6183,
+          "line": 6194,
           "mirror": false
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 8521,
+          "line": 8554,
           "mirror": false
         }
       ]
@@ -467,7 +467,7 @@
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 2732,
+          "line": 2740,
           "mirror": false
         }
       ]
@@ -486,12 +486,12 @@
       "occurrences": [
         {
           "file": "homeos:public/static/app.css",
-          "line": 5990,
+          "line": 6001,
           "mirror": false
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 7642,
+          "line": 7675,
           "mirror": false
         }
       ]
@@ -725,7 +725,7 @@
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 2748,
+          "line": 2756,
           "mirror": false
         }
       ]
@@ -744,12 +744,12 @@
       "occurrences": [
         {
           "file": "homeos:public/static/app.css",
-          "line": 6143,
+          "line": 6154,
           "mirror": false
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 8268,
+          "line": 8301,
           "mirror": false
         }
       ]
@@ -1187,7 +1187,7 @@
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 2752,
+          "line": 2760,
           "mirror": false
         }
       ]
@@ -1211,7 +1211,7 @@
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 2765,
+          "line": 2773,
           "mirror": false
         }
       ]
@@ -1326,12 +1326,12 @@
       "occurrences": [
         {
           "file": "homeos:public/static/app.css",
-          "line": 6123,
+          "line": 6134,
           "mirror": false
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 8192,
+          "line": 8225,
           "mirror": false
         }
       ]
@@ -1350,12 +1350,12 @@
       "occurrences": [
         {
           "file": "homeos:public/static/app.css",
-          "line": 6148,
+          "line": 6159,
           "mirror": false
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 8273,
+          "line": 8306,
           "mirror": false
         }
       ]
@@ -1374,12 +1374,12 @@
       "occurrences": [
         {
           "file": "homeos:public/static/app.css",
-          "line": 6151,
+          "line": 6162,
           "mirror": false
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 8276,
+          "line": 8309,
           "mirror": false
         }
       ]
@@ -1398,12 +1398,12 @@
       "occurrences": [
         {
           "file": "homeos:public/static/app.css",
-          "line": 6154,
+          "line": 6165,
           "mirror": false
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 8279,
+          "line": 8312,
           "mirror": false
         }
       ]
@@ -1422,12 +1422,12 @@
       "occurrences": [
         {
           "file": "homeos:public/static/app.css",
-          "line": 6157,
+          "line": 6168,
           "mirror": false
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 8282,
+          "line": 8315,
           "mirror": false
         }
       ]
@@ -1446,12 +1446,12 @@
       "occurrences": [
         {
           "file": "homeos:public/static/app.css",
-          "line": 6160,
+          "line": 6171,
           "mirror": false
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 8285,
+          "line": 8318,
           "mirror": false
         }
       ]
@@ -1470,12 +1470,12 @@
       "occurrences": [
         {
           "file": "homeos:public/static/app.css",
-          "line": 6164,
+          "line": 6175,
           "mirror": false
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 8289,
+          "line": 8322,
           "mirror": false
         }
       ]
@@ -1494,12 +1494,12 @@
       "occurrences": [
         {
           "file": "homeos:public/static/app.css",
-          "line": 6189,
+          "line": 6200,
           "mirror": false
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 8527,
+          "line": 8560,
           "mirror": false
         }
       ]
@@ -1518,12 +1518,12 @@
       "occurrences": [
         {
           "file": "homeos:public/static/app.css",
-          "line": 6192,
+          "line": 6203,
           "mirror": false
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 8530,
+          "line": 8563,
           "mirror": false
         }
       ]
@@ -4595,6 +4595,73 @@
       "occurrences": 16,
       "sample": [
         {
+          "file": "homeos:src/components/common/entity-input/index.css",
+          "line": 77,
+          "selector": ".ei-domain-btn-label"
+        },
+        {
+          "file": "homeos:src/components/common/styles/presence-person-list-input.css",
+          "line": 110,
+          "selector": ".ppli-tab__label"
+        },
+        {
+          "file": "homeos:src/components/page-shell/ListPageHero.vue",
+          "line": 68,
+          "selector": ".premium-head__title, .premium-head__desc--inline"
+        },
+        {
+          "file": "homeos:src/features/home-mode/components/presence.css",
+          "line": 38,
+          "selector": ".home-mode-switcher__presence-text"
+        },
+        {
+          "file": "homeos:src/studio/runtime/core/runtime.css",
+          "line": 1498,
+          "selector": ".i3d-unified-settings .i3d-config-section .i3d-picker-button"
+        },
+        {
+          "file": "homeos:src/studio/runtime/core/stage.css",
+          "line": 1868,
+          "selector": ".i3d-vacuum-status-text"
+        },
+        {
+          "file": "homeos:src/studio/runtime/core/stage.css",
+          "line": 4005,
+          "selector": ".i3d-speaker-panel .i3d-tv-details :is(strong, span)"
+        },
+        {
+          "file": "homeos:src/studio/runtime/cover/cover-panel.css",
+          "line": 348,
+          "selector": ".i3d-cover-group-panel .i3d-cover-heading p"
+        },
+        {
+          "file": "homeos:src/studio/runtime/presence/presence-editor.css",
+          "line": 198,
+          "selector": ".presence-field > button"
+        },
+        {
+          "file": "homeos:public/static/app.css",
+          "line": 887,
+          "selector": ".element-item span"
+        },
+        {
+          "file": "homeos:public/static/app.css",
+          "line": 2514,
+          "selector": ".editor-paged-picker-current-entity-name, .editor-paged-picker-current-entity-id"
+        },
+        {
+          "file": "homeos:public/static/app.css",
+          "line": 2875,
+          "selector": ".light-statistics-entity-pending strong, .light-statistics-entity-pending small"
+        }
+      ]
+    },
+    {
+      "declCount": 3,
+      "selectorCount": 16,
+      "occurrences": 16,
+      "sample": [
+        {
           "file": "homeos:src/features/home-mode/editor/styles/HomeMode.css",
           "line": 950,
           "selector": ".home-mode-panel .hm-trigger-list"
@@ -4673,7 +4740,7 @@
         },
         {
           "file": "homeos:src/features/settings/connect/bindings/styles/SettingsBindingsCamerasSection.css",
-          "line": 111,
+          "line": 148,
           "selector": ".bind-cam-card__roles"
         },
         {
@@ -4724,90 +4791,23 @@
       ]
     },
     {
-      "declCount": 3,
-      "selectorCount": 15,
-      "occurrences": 15,
-      "sample": [
-        {
-          "file": "homeos:src/components/common/entity-input/index.css",
-          "line": 77,
-          "selector": ".ei-domain-btn-label"
-        },
-        {
-          "file": "homeos:src/components/page-shell/ListPageHero.vue",
-          "line": 68,
-          "selector": ".premium-head__title, .premium-head__desc--inline"
-        },
-        {
-          "file": "homeos:src/features/home-mode/components/presence.css",
-          "line": 38,
-          "selector": ".home-mode-switcher__presence-text"
-        },
-        {
-          "file": "homeos:src/studio/runtime/core/runtime.css",
-          "line": 1498,
-          "selector": ".i3d-unified-settings .i3d-config-section .i3d-picker-button"
-        },
-        {
-          "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 1868,
-          "selector": ".i3d-vacuum-status-text"
-        },
-        {
-          "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 3998,
-          "selector": ".i3d-speaker-panel .i3d-tv-details :is(strong, span)"
-        },
-        {
-          "file": "homeos:src/studio/runtime/cover/cover-panel.css",
-          "line": 348,
-          "selector": ".i3d-cover-group-panel .i3d-cover-heading p"
-        },
-        {
-          "file": "homeos:src/studio/runtime/presence/presence-editor.css",
-          "line": 198,
-          "selector": ".presence-field > button"
-        },
-        {
-          "file": "homeos:public/static/app.css",
-          "line": 887,
-          "selector": ".element-item span"
-        },
-        {
-          "file": "homeos:public/static/app.css",
-          "line": 2503,
-          "selector": ".editor-paged-picker-current-entity-name, .editor-paged-picker-current-entity-id"
-        },
-        {
-          "file": "homeos:public/static/app.css",
-          "line": 2864,
-          "selector": ".light-statistics-entity-pending strong, .light-statistics-entity-pending small"
-        },
-        {
-          "file": "homeos:public/static/app.css",
-          "line": 2935,
-          "selector": ".light-statistics-entity-row strong, .light-statistics-entity-row small"
-        }
-      ]
-    },
-    {
       "declCount": 15,
       "selectorCount": 3,
       "occurrences": 3,
       "sample": [
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 8305,
+          "line": 8338,
           "selector": ".hb-custom-popup-module--switch .hb-custom-popup-module-status"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 8360,
+          "line": 8393,
           "selector": ".hb-custom-popup-module--cover .hb-custom-popup-module-status"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 8458,
+          "line": 8491,
           "selector": ".hb-custom-popup-module--line-chart .hb-custom-popup-module-status"
         }
       ]
@@ -4880,6 +4880,63 @@
       ]
     },
     {
+      "declCount": 4,
+      "selectorCount": 10,
+      "occurrences": 10,
+      "sample": [
+        {
+          "file": "homeos:src/assets/styles/linkage-hub.css",
+          "line": 181,
+          "selector": ".linkage-hub__toolbar-actions"
+        },
+        {
+          "file": "homeos:src/assets/styles/list-page.css",
+          "line": 901,
+          "selector": ".list-page__row-meta"
+        },
+        {
+          "file": "homeos:src/components/common/base/styles/VFolderCreateModal.css",
+          "line": 278,
+          "selector": ".vfc-actions"
+        },
+        {
+          "file": "homeos:src/features/device/styles/DeviceEntityReferencesPanel.css",
+          "line": 8,
+          "selector": ".device-refs-panel__actions"
+        },
+        {
+          "file": "homeos:src/features/device/styles/DeviceEntityReferencesPanel.css",
+          "line": 144,
+          "selector": ".device-refs-panel__meta"
+        },
+        {
+          "file": "homeos:src/features/home-mode/editor/styles/HomeMode.css",
+          "line": 2195,
+          "selector": ".hm-log-card__right"
+        },
+        {
+          "file": "homeos:src/features/settings/automate/linkage/styles/linkage.css",
+          "line": 519,
+          "selector": ".linkage-presence-actions"
+        },
+        {
+          "file": "homeos:src/features/settings/home/client-power/styles/client-power.css",
+          "line": 713,
+          "selector": ".charge-device-card__actions"
+        },
+        {
+          "file": "homeos:src/features/settings/shared/styles/settings-cards.css",
+          "line": 274,
+          "selector": ".settings-section-head__collapse"
+        },
+        {
+          "file": "homeos:src/features/settings/shared/styles/settings-utilities.css",
+          "line": 629,
+          "selector": ".nav-tab-editor__row-controls"
+        }
+      ]
+    },
+    {
       "declCount": 3,
       "selectorCount": 13,
       "occurrences": 13,
@@ -4936,7 +4993,7 @@
         },
         {
           "file": "homeos:public/static/app.css",
-          "line": 4666,
+          "line": 4677,
           "selector": ".project-template-options"
         },
         {
@@ -4952,60 +5009,8 @@
       "occurrences": 9,
       "sample": [
         {
-          "file": "homeos:src/assets/styles/linkage-hub.css",
-          "line": 181,
-          "selector": ".linkage-hub__toolbar-actions"
-        },
-        {
-          "file": "homeos:src/assets/styles/list-page.css",
-          "line": 901,
-          "selector": ".list-page__row-meta"
-        },
-        {
-          "file": "homeos:src/components/common/base/styles/VFolderCreateModal.css",
-          "line": 278,
-          "selector": ".vfc-actions"
-        },
-        {
-          "file": "homeos:src/features/device/styles/DeviceEntityReferencesPanel.css",
-          "line": 8,
-          "selector": ".device-refs-panel__actions"
-        },
-        {
-          "file": "homeos:src/features/device/styles/DeviceEntityReferencesPanel.css",
-          "line": 144,
-          "selector": ".device-refs-panel__meta"
-        },
-        {
-          "file": "homeos:src/features/home-mode/editor/styles/HomeMode.css",
-          "line": 2195,
-          "selector": ".hm-log-card__right"
-        },
-        {
-          "file": "homeos:src/features/settings/home/client-power/styles/client-power.css",
-          "line": 713,
-          "selector": ".charge-device-card__actions"
-        },
-        {
-          "file": "homeos:src/features/settings/shared/styles/settings-cards.css",
-          "line": 274,
-          "selector": ".settings-section-head__collapse"
-        },
-        {
-          "file": "homeos:src/features/settings/shared/styles/settings-utilities.css",
-          "line": 629,
-          "selector": ".nav-tab-editor__row-controls"
-        }
-      ]
-    },
-    {
-      "declCount": 4,
-      "selectorCount": 9,
-      "occurrences": 9,
-      "sample": [
-        {
           "file": "homeos:src/assets/styles/list-page-views.css",
-          "line": 682,
+          "line": 688,
           "selector": ".device-detail-view__hero-aside"
         },
         {
@@ -5118,6 +5123,58 @@
       ]
     },
     {
+      "declCount": 4,
+      "selectorCount": 9,
+      "occurrences": 9,
+      "sample": [
+        {
+          "file": "homeos:src/components/common/styles/presence-person-list-input.css",
+          "line": 157,
+          "selector": ".ppli-editor__toolbar"
+        },
+        {
+          "file": "homeos:src/components/common/styles/recommend-insight-card.css",
+          "line": 328,
+          "selector": ".rec-insight__stat-top"
+        },
+        {
+          "file": "homeos:src/features/device/styles/DeviceHealthScore.css",
+          "line": 217,
+          "selector": ".device-health__factor-row"
+        },
+        {
+          "file": "homeos:src/features/security/styles/security.css",
+          "line": 630,
+          "selector": ".sz-zone-sensors-head"
+        },
+        {
+          "file": "homeos:public/static/app.css",
+          "line": 3631,
+          "selector": ".navigation-batch-section h3"
+        },
+        {
+          "file": "homeos:public/static/app.css",
+          "line": 3962,
+          "selector": ".inspector-action-heading"
+        },
+        {
+          "file": "homeos:public/static/app.css",
+          "line": 6419,
+          "selector": "#percentage-bar-inspector h3"
+        },
+        {
+          "file": "homeos:public/static/modules/interaction3d/bridge.css",
+          "line": 137,
+          "selector": "#interaction3d-inspector .i3d-auto-rotate-row"
+        },
+        {
+          "file": "homeos:public/static/modules/interaction3d/bridge.css",
+          "line": 399,
+          "selector": "#interaction3d-inspector .i3d-inline-section .navigation-property-control"
+        }
+      ]
+    },
+    {
       "declCount": 5,
       "selectorCount": 7,
       "occurrences": 7,
@@ -5156,6 +5213,68 @@
           "file": "homeos:src/features/settings/shared/styles/settings-utilities.css",
           "line": 538,
           "selector": ".nav-tab-editor__row-lead"
+        }
+      ]
+    },
+    {
+      "declCount": 3,
+      "selectorCount": 11,
+      "occurrences": 11,
+      "sample": [
+        {
+          "file": "homeos:src/components/common/styles/recommend-insight-card.css",
+          "line": 282,
+          "selector": ".rec-insight__group"
+        },
+        {
+          "file": "homeos:src/components/widgets/weather/styles/LifeIndices.css",
+          "line": 333,
+          "selector": ".life-indices__attention"
+        },
+        {
+          "file": "homeos:src/features/home-mode/editor/styles/HomeMode.css",
+          "line": 854,
+          "selector": ".home-mode-panel .hm-action-list"
+        },
+        {
+          "file": "homeos:src/features/settings/automate/linkage/styles/linkage.css",
+          "line": 373,
+          "selector": ".hm-sec-flags"
+        },
+        {
+          "file": "homeos:src/features/settings/connect/bindings/styles/account-list-editor.css",
+          "line": 37,
+          "selector": ".account-list-editor__rows"
+        },
+        {
+          "file": "homeos:src/features/settings/connect/connection/styles/connection.css",
+          "line": 188,
+          "selector": ".el-record-filter__mode"
+        },
+        {
+          "file": "homeos:src/features/settings/display/styles/layout-panels.css",
+          "line": 1522,
+          "selector": ".ef-sections"
+        },
+        {
+          "file": "homeos:src/features/settings/interact/alert-rules/styles/AlertRulesInboxSection.css",
+          "line": 1,
+          "selector": ".alert-rule-list"
+        },
+        {
+          "file": "homeos:src/features/settings/system/diagnostics/styles/diagnostics-theme.css",
+          "line": 632,
+          "selector": ".diag-alert-stack"
+        },
+        {
+          "file": "homeos:src/views/styles/devices-theme.css",
+          "line": 359,
+          "selector": ".dev-hint-list"
+        },
+        {
+          "file": "homeos:src/views/styles/devices-theme.css",
+          "line": 1637,
+          "selector": ".device-attrs-tab__list"
         }
       ]
     },
@@ -5212,44 +5331,44 @@
       "occurrences": 8,
       "sample": [
         {
-          "file": "homeos:src/components/common/styles/recommend-insight-card.css",
-          "line": 328,
-          "selector": ".rec-insight__stat-top"
+          "file": "homeos:src/components/widgets/weather/styles/SunInfo.css",
+          "line": 109,
+          "selector": ".sun-time-col"
         },
         {
-          "file": "homeos:src/features/device/styles/DeviceHealthScore.css",
-          "line": 217,
-          "selector": ".device-health__factor-row"
+          "file": "homeos:src/features/settings/automate/linkage/styles/HomeModeMatrixSection.css",
+          "line": 104,
+          "selector": ".hm-sec-matrix__arm"
         },
         {
-          "file": "homeos:src/features/security/styles/security.css",
-          "line": 630,
-          "selector": ".sz-zone-sensors-head"
+          "file": "homeos:src/features/settings/automate/linkage/styles/linkage.css",
+          "line": 401,
+          "selector": ".hm-sec-flag__text"
         },
         {
-          "file": "homeos:public/static/app.css",
-          "line": 3620,
-          "selector": ".navigation-batch-section h3"
+          "file": "homeos:src/features/settings/connect/bindings/styles/SettingsBindingsWeatherSection.css",
+          "line": 29,
+          "selector": ".weather-bind-status__copy"
         },
         {
-          "file": "homeos:public/static/app.css",
-          "line": 3951,
-          "selector": ".inspector-action-heading"
+          "file": "homeos:src/features/settings/connect/bindings/styles/settings-bindings-account-section.css",
+          "line": 63,
+          "selector": ".bind-energy-status__copy"
         },
         {
-          "file": "homeos:public/static/app.css",
-          "line": 6408,
-          "selector": "#percentage-bar-inspector h3"
+          "file": "homeos:src/features/settings/display/styles/layout-panels.css",
+          "line": 349,
+          "selector": ".widget-panel-row__meta"
         },
         {
-          "file": "homeos:public/static/modules/interaction3d/bridge.css",
-          "line": 137,
-          "selector": "#interaction3d-inspector .i3d-auto-rotate-row"
+          "file": "homeos:src/features/settings/display/weather-effects/styles/weather-effects.css",
+          "line": 69,
+          "selector": ".weather-fx-toggle-row__text"
         },
         {
-          "file": "homeos:public/static/modules/interaction3d/bridge.css",
-          "line": 399,
-          "selector": "#interaction3d-inspector .i3d-inline-section .navigation-property-control"
+          "file": "homeos:src/features/settings/home/client-power/styles/client-power.css",
+          "line": 950,
+          "selector": ".charge-option__text"
         }
       ]
     },
@@ -5304,63 +5423,6 @@
           "file": "homeos:src/features/security/styles/security.css",
           "line": 2758,
           "selector": ".szm-stat__label"
-        }
-      ]
-    },
-    {
-      "declCount": 3,
-      "selectorCount": 10,
-      "occurrences": 10,
-      "sample": [
-        {
-          "file": "homeos:src/components/common/styles/recommend-insight-card.css",
-          "line": 282,
-          "selector": ".rec-insight__group"
-        },
-        {
-          "file": "homeos:src/components/widgets/weather/styles/LifeIndices.css",
-          "line": 333,
-          "selector": ".life-indices__attention"
-        },
-        {
-          "file": "homeos:src/features/home-mode/editor/styles/HomeMode.css",
-          "line": 854,
-          "selector": ".home-mode-panel .hm-action-list"
-        },
-        {
-          "file": "homeos:src/features/settings/connect/bindings/styles/account-list-editor.css",
-          "line": 37,
-          "selector": ".account-list-editor__rows"
-        },
-        {
-          "file": "homeos:src/features/settings/connect/connection/styles/connection.css",
-          "line": 188,
-          "selector": ".el-record-filter__mode"
-        },
-        {
-          "file": "homeos:src/features/settings/display/styles/layout-panels.css",
-          "line": 1522,
-          "selector": ".ef-sections"
-        },
-        {
-          "file": "homeos:src/features/settings/interact/alert-rules/styles/AlertRulesInboxSection.css",
-          "line": 1,
-          "selector": ".alert-rule-list"
-        },
-        {
-          "file": "homeos:src/features/settings/system/diagnostics/styles/diagnostics-theme.css",
-          "line": 632,
-          "selector": ".diag-alert-stack"
-        },
-        {
-          "file": "homeos:src/views/styles/devices-theme.css",
-          "line": 359,
-          "selector": ".dev-hint-list"
-        },
-        {
-          "file": "homeos:src/views/styles/devices-theme.css",
-          "line": 1637,
-          "selector": ".device-attrs-tab__list"
         }
       ]
     },
@@ -5425,27 +5487,27 @@
       "sample": [
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 3321,
+          "line": 3354,
           "selector": ".hb-entity-details-dialog.line-chart-details .hb-entity-details-heading span"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 3406,
+          "line": 3439,
           "selector": ".hb-entity-details-dialog.light-details .hb-entity-details-heading span"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 4082,
+          "line": 4115,
           "selector": ".hb-entity-details-dialog.cover-details .hb-entity-details-heading span"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 4763,
+          "line": 4796,
           "selector": ".hb-entity-details-dialog.climate-details .hb-entity-details-heading > div > span"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 9990,
+          "line": 10023,
           "selector": ".hb-entity-details-dialog.air-purifier-details .hb-entity-details-heading > div > span"
         }
       ]
@@ -5499,32 +5561,32 @@
       "sample": [
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 3985,
+          "line": 3992,
           "selector": ".i3d-speaker-panel .i3d-nas-heading h3"
         },
         {
           "file": "homeos:public/static/app.css",
-          "line": 3801,
+          "line": 3812,
           "selector": ".navigation-style-apply-option span"
         },
         {
           "file": "homeos:public/static/app.css",
-          "line": 4982,
+          "line": 4993,
           "selector": ".effect-realtime-options .check-row span"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 2938,
+          "line": 2971,
           "selector": ".hb-electric-bed-select-trigger > span"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 5660,
+          "line": 5693,
           "selector": ".hb-related-select-trigger > span"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 6734,
+          "line": 6767,
           "selector": ".hb-climate-select-trigger > span"
         },
         {
@@ -5546,7 +5608,7 @@
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 4150,
+          "line": 4183,
           "selector": ".hb-cover-details-position input, .hb-cover-details-panel .hb-cover-details-position input, .hb-custom-popup-module--cover .hb-cover-details-position input"
         }
       ]
@@ -5604,6 +5666,58 @@
       ]
     },
     {
+      "declCount": 3,
+      "selectorCount": 9,
+      "occurrences": 9,
+      "sample": [
+        {
+          "file": "homeos:src/features/settings/automate/linkage/styles/linkage.css",
+          "line": 39,
+          "selector": ".linkage-overview"
+        },
+        {
+          "file": "homeos:src/features/settings/connect/setup-wizard/styles/setup-wizard.css",
+          "line": 84,
+          "selector": ".sw-step"
+        },
+        {
+          "file": "homeos:src/features/settings/display/floating/styles/floating.css",
+          "line": 533,
+          "selector": ".afh-section--layout"
+        },
+        {
+          "file": "homeos:src/features/settings/display/weather-effects/styles/weather-effects.css",
+          "line": 115,
+          "selector": ".weather-fx-block"
+        },
+        {
+          "file": "homeos:src/features/settings/display/widgets/styles/HomeClimateChartConfigPanel.css",
+          "line": 5,
+          "selector": ".hcc-config"
+        },
+        {
+          "file": "homeos:src/features/settings/display/widgets/styles/HubTabsConfigField.css",
+          "line": 1,
+          "selector": ".hub-tabs-config"
+        },
+        {
+          "file": "homeos:src/features/settings/display/widgets/styles/weather-hub-config-panel.css",
+          "line": 17,
+          "selector": ".weather-hub-config__body"
+        },
+        {
+          "file": "homeos:src/features/settings/interact/alert-rules/styles/alert-rules.css",
+          "line": 26,
+          "selector": ".alert-entity-tts"
+        },
+        {
+          "file": "homeos:public/static/modules/interaction3d/bridge.css",
+          "line": 298,
+          "selector": "#interaction3d-inspector .i3d-popup-settings"
+        }
+      ]
+    },
+    {
       "declCount": 13,
       "selectorCount": 2,
       "occurrences": 2,
@@ -5615,7 +5729,7 @@
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 6577,
+          "line": 6610,
           "selector": ".hb-climate-temperature-step"
         }
       ]
@@ -5781,43 +5895,6 @@
       ]
     },
     {
-      "declCount": 4,
-      "selectorCount": 6,
-      "occurrences": 6,
-      "sample": [
-        {
-          "file": "homeos:src/components/widgets/weather/styles/SunInfo.css",
-          "line": 109,
-          "selector": ".sun-time-col"
-        },
-        {
-          "file": "homeos:src/features/settings/connect/bindings/styles/SettingsBindingsWeatherSection.css",
-          "line": 29,
-          "selector": ".weather-bind-status__copy"
-        },
-        {
-          "file": "homeos:src/features/settings/connect/bindings/styles/settings-bindings-account-section.css",
-          "line": 63,
-          "selector": ".bind-energy-status__copy"
-        },
-        {
-          "file": "homeos:src/features/settings/display/styles/layout-panels.css",
-          "line": 349,
-          "selector": ".widget-panel-row__meta"
-        },
-        {
-          "file": "homeos:src/features/settings/display/weather-effects/styles/weather-effects.css",
-          "line": 69,
-          "selector": ".weather-fx-toggle-row__text"
-        },
-        {
-          "file": "homeos:src/features/settings/home/client-power/styles/client-power.css",
-          "line": 950,
-          "selector": ".charge-option__text"
-        }
-      ]
-    },
-    {
       "declCount": 8,
       "selectorCount": 2,
       "occurrences": 3,
@@ -5931,53 +6008,6 @@
       ]
     },
     {
-      "declCount": 3,
-      "selectorCount": 8,
-      "occurrences": 8,
-      "sample": [
-        {
-          "file": "homeos:src/features/settings/connect/setup-wizard/styles/setup-wizard.css",
-          "line": 84,
-          "selector": ".sw-step"
-        },
-        {
-          "file": "homeos:src/features/settings/display/floating/styles/floating.css",
-          "line": 533,
-          "selector": ".afh-section--layout"
-        },
-        {
-          "file": "homeos:src/features/settings/display/weather-effects/styles/weather-effects.css",
-          "line": 115,
-          "selector": ".weather-fx-block"
-        },
-        {
-          "file": "homeos:src/features/settings/display/widgets/styles/HomeClimateChartConfigPanel.css",
-          "line": 5,
-          "selector": ".hcc-config"
-        },
-        {
-          "file": "homeos:src/features/settings/display/widgets/styles/HubTabsConfigField.css",
-          "line": 1,
-          "selector": ".hub-tabs-config"
-        },
-        {
-          "file": "homeos:src/features/settings/display/widgets/styles/weather-hub-config-panel.css",
-          "line": 17,
-          "selector": ".weather-hub-config__body"
-        },
-        {
-          "file": "homeos:src/features/settings/interact/alert-rules/styles/alert-rules.css",
-          "line": 26,
-          "selector": ".alert-entity-tts"
-        },
-        {
-          "file": "homeos:public/static/modules/interaction3d/bridge.css",
-          "line": 298,
-          "selector": "#interaction3d-inspector .i3d-popup-settings"
-        }
-      ]
-    },
-    {
       "declCount": 6,
       "selectorCount": 4,
       "occurrences": 4,
@@ -6038,7 +6068,7 @@
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 4432,
+          "line": 4465,
           "selector": ".hb-cover-visual-slat:after"
         }
       ]
@@ -6072,7 +6102,7 @@
         },
         {
           "file": "homeos:public/static/app.css",
-          "line": 1631,
+          "line": 1642,
           "selector": ".inspector-number-stepper"
         }
       ]
@@ -6089,7 +6119,7 @@
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 4182,
+          "line": 4215,
           "selector": ".hb-cover-details-position input::-webkit-slider-thumb"
         }
       ]
@@ -6106,8 +6136,50 @@
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 4237,
+          "line": 4270,
           "selector": ".hb-cover-details-actions button"
+        }
+      ]
+    },
+    {
+      "declCount": 3,
+      "selectorCount": 7,
+      "occurrences": 7,
+      "sample": [
+        {
+          "file": "homeos:src/assets/styles/widget-settings.css",
+          "line": 120,
+          "selector": ".ws-state-item"
+        },
+        {
+          "file": "homeos:src/components/common/entity-multi-select/styles/entity-multi-select.css",
+          "line": 8,
+          "selector": ".ems-trigger-row"
+        },
+        {
+          "file": "homeos:src/components/common/styles/presence-person-list-input.css",
+          "line": 8,
+          "selector": ".ppli-tabs-bar"
+        },
+        {
+          "file": "homeos:src/studio/runtime/core/runtime.css",
+          "line": 995,
+          "selector": ".i3d-nas-fields-row"
+        },
+        {
+          "file": "homeos:public/static/app.css",
+          "line": 2797,
+          "selector": ".editor-paged-picker-pagination"
+        },
+        {
+          "file": "store:public/static/admin.css",
+          "line": 535,
+          "selector": ".admin-topbar__right"
+        },
+        {
+          "file": "store:public/static/admin.css",
+          "line": 842,
+          "selector": ".panel-toolbar__field"
         }
       ]
     },
@@ -6143,13 +6215,55 @@
         },
         {
           "file": "homeos:public/static/app.css",
-          "line": 5465,
+          "line": 5476,
           "selector": ".custom-popup-editor-toolbar div"
         },
         {
           "file": "store:public/static/store.css",
           "line": 2964,
           "selector": ".hb-deploy__head"
+        }
+      ]
+    },
+    {
+      "declCount": 3,
+      "selectorCount": 7,
+      "occurrences": 7,
+      "sample": [
+        {
+          "file": "homeos:src/features/settings/automate/styles/SettingsPresenceEntitiesSection.css",
+          "line": 2,
+          "selector": ".presence-panel"
+        },
+        {
+          "file": "homeos:src/features/settings/connect/bindings/styles/bind-env-panel.css",
+          "line": 89,
+          "selector": ".bind-env-io-panel"
+        },
+        {
+          "file": "homeos:src/features/settings/display/floating/styles/floating.css",
+          "line": 389,
+          "selector": ".afh-form"
+        },
+        {
+          "file": "homeos:src/features/settings/display/floating/styles/floating.css",
+          "line": 1109,
+          "selector": ".fp-overview"
+        },
+        {
+          "file": "homeos:src/features/settings/display/styles/layout-panels.css",
+          "line": 923,
+          "selector": ".embed-form"
+        },
+        {
+          "file": "homeos:src/features/settings/shared/styles/bindings-theme.css",
+          "line": 38,
+          "selector": ".bind-sec-overview"
+        },
+        {
+          "file": "homeos:src/features/settings/system/styles/admin-hubs.css",
+          "line": 165,
+          "selector": ".fam-page__stack"
         }
       ]
     },
@@ -6224,7 +6338,7 @@
       "sample": [
         {
           "file": "homeos:src/assets/styles/list-page-views.css",
-          "line": 658,
+          "line": 664,
           "selector": ".devices-view > .device-analytics-panel"
         },
         {
@@ -6418,12 +6532,12 @@
         },
         {
           "file": "homeos:public/static/app.css",
-          "line": 2995,
+          "line": 3006,
           "selector": ".navigation-property-heading"
         },
         {
           "file": "homeos:public/static/app.css",
-          "line": 5625,
+          "line": 5636,
           "selector": ".popup-module-card-heading"
         },
         {
@@ -6592,7 +6706,7 @@
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 3688,
+          "line": 3721,
           "selector": ".hb-light-visual-shade"
         }
       ]
@@ -6643,7 +6757,7 @@
         },
         {
           "file": "homeos:public/static/app.css",
-          "line": 1619,
+          "line": 1630,
           "selector": ".inspector-number-steppers"
         }
       ]
@@ -6672,27 +6786,27 @@
       "sample": [
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 2642,
+          "line": 2675,
           "selector": ".hb-entity-details-dialog.electric-bed-details .hb-entity-details-heading strong"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 3315,
+          "line": 3348,
           "selector": ".hb-entity-details-dialog.line-chart-details .hb-entity-details-heading strong"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 3400,
+          "line": 3433,
           "selector": ".hb-entity-details-dialog.light-details .hb-entity-details-heading strong"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 3811,
+          "line": 3844,
           "selector": ".hb-entity-details-dialog.switch-details .hb-entity-details-heading strong"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 4076,
+          "line": 4109,
           "selector": ".hb-entity-details-dialog.cover-details .hb-entity-details-heading strong"
         }
       ]
@@ -6704,27 +6818,27 @@
       "sample": [
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 3598,
+          "line": 3631,
           "selector": ".hb-light-visual:hover, .hb-light-visual:focus, .hb-light-visual:focus-visible"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 3855,
+          "line": 3888,
           "selector": ".hb-switch-visual:hover, .hb-switch-visual:focus, .hb-switch-visual:focus-visible"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 4852,
+          "line": 4885,
           "selector": ".hb-climate-visual:hover, .hb-climate-visual:focus, .hb-climate-visual:focus-visible"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 9501,
+          "line": 9534,
           "selector": ".hb-custom-air-purifier-visual:hover, .hb-custom-air-purifier-visual:focus, .hb-custom-air-purifier-visual:focus-visible"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 10031,
+          "line": 10064,
           "selector": ".hb-entity-details-dialog.air-purifier-details .hb-air-purifier-visual:hover, .hb-entity-details-dialog.air-purifier-details .hb-air-purifier-visual:focus, .hb-entity-details-dialog.air-purifier-details .hb-air-purifier-visual:focus-visible"
         }
       ]
@@ -6736,12 +6850,12 @@
       "sample": [
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 8651,
+          "line": 8684,
           "selector": ".hb-custom-electric-bed-body > .hb-electric-bed-visual"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 12004,
+          "line": 12037,
           "selector": ".hb-entity-details-dialog.electric-bed-details .hb-electric-bed-visual"
         }
       ]
@@ -6760,43 +6874,6 @@
           "file": "homeos:src/components/entities/popups/comm-info/popup.css",
           "line": 203,
           "selector": ".comm-balance__foot"
-        }
-      ]
-    },
-    {
-      "declCount": 3,
-      "selectorCount": 6,
-      "occurrences": 6,
-      "sample": [
-        {
-          "file": "homeos:src/assets/styles/widget-settings.css",
-          "line": 120,
-          "selector": ".ws-state-item"
-        },
-        {
-          "file": "homeos:src/components/common/entity-multi-select/styles/entity-multi-select.css",
-          "line": 8,
-          "selector": ".ems-trigger-row"
-        },
-        {
-          "file": "homeos:src/studio/runtime/core/runtime.css",
-          "line": 995,
-          "selector": ".i3d-nas-fields-row"
-        },
-        {
-          "file": "homeos:public/static/app.css",
-          "line": 2786,
-          "selector": ".editor-paged-picker-pagination"
-        },
-        {
-          "file": "store:public/static/admin.css",
-          "line": 535,
-          "selector": ".admin-topbar__right"
-        },
-        {
-          "file": "store:public/static/admin.css",
-          "line": 842,
-          "selector": ".panel-toolbar__field"
         }
       ]
     },
@@ -6903,50 +6980,13 @@
       "sample": [
         {
           "file": "homeos:src/features/settings/connect/bindings/styles/SettingsBindingsCamerasSection.css",
-          "line": 151,
+          "line": 188,
           "selector": ".bind-cam-empty"
         },
         {
           "file": "homeos:src/features/settings/connect/bindings/styles/SettingsBindingsSecuritySection.css",
           "line": 136,
           "selector": ".bind-doorbell-empty"
-        }
-      ]
-    },
-    {
-      "declCount": 3,
-      "selectorCount": 6,
-      "occurrences": 6,
-      "sample": [
-        {
-          "file": "homeos:src/features/settings/connect/bindings/styles/bind-env-panel.css",
-          "line": 89,
-          "selector": ".bind-env-io-panel"
-        },
-        {
-          "file": "homeos:src/features/settings/display/floating/styles/floating.css",
-          "line": 389,
-          "selector": ".afh-form"
-        },
-        {
-          "file": "homeos:src/features/settings/display/floating/styles/floating.css",
-          "line": 1109,
-          "selector": ".fp-overview"
-        },
-        {
-          "file": "homeos:src/features/settings/display/styles/layout-panels.css",
-          "line": 923,
-          "selector": ".embed-form"
-        },
-        {
-          "file": "homeos:src/features/settings/shared/styles/bindings-theme.css",
-          "line": 38,
-          "selector": ".bind-sec-overview"
-        },
-        {
-          "file": "homeos:src/features/settings/system/styles/admin-hubs.css",
-          "line": 165,
-          "selector": ".fam-page__stack"
         }
       ]
     },
@@ -6962,7 +7002,7 @@
         },
         {
           "file": "homeos:public/static/app.css",
-          "line": 4463,
+          "line": 4474,
           "selector": ".settings-form input:not([type=\"checkbox\"])"
         }
       ]
@@ -7347,7 +7387,7 @@
         },
         {
           "file": "homeos:public/static/app.css",
-          "line": 1602,
+          "line": 1613,
           "selector": ".inspector-number-control"
         }
       ]
@@ -7364,7 +7404,7 @@
         },
         {
           "file": "homeos:public/static/app.css",
-          "line": 1656,
+          "line": 1667,
           "selector": ".inspector-number-stepper svg"
         }
       ]
@@ -7381,7 +7421,7 @@
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 4124,
+          "line": 4157,
           "selector": ".hb-cover-details-position-heading"
         }
       ]
@@ -7398,7 +7438,7 @@
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 4206,
+          "line": 4239,
           "selector": ".hb-cover-details-position input::-moz-range-thumb"
         }
       ]
@@ -7459,17 +7499,17 @@
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 1907,
+          "line": 1940,
           "selector": ".hb-entity-details-dialog.vacuum-details .hb-entity-details-heading > div:not(.hb-vacuum-visual)"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 4749,
+          "line": 4782,
           "selector": ".hb-entity-details-dialog.climate-details .hb-entity-details-heading > div"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 9976,
+          "line": 10009,
           "selector": ".hb-entity-details-dialog.air-purifier-details .hb-entity-details-heading > div"
         }
       ]
@@ -7481,12 +7521,12 @@
       "sample": [
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 3386,
+          "line": 3419,
           "selector": ".hb-entity-details-dialog.light-details .hb-entity-details-heading"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 4062,
+          "line": 4095,
           "selector": ".hb-entity-details-dialog.cover-details .hb-entity-details-heading"
         }
       ]
@@ -7498,12 +7538,12 @@
       "sample": [
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 3459,
+          "line": 3492,
           "selector": ".hb-light-details-panel .hb-light-details-slider-heading"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 7851,
+          "line": 7884,
           "selector": ".hb-custom-popup-module--light .hb-light-details-slider-heading"
         }
       ]
@@ -7726,7 +7766,7 @@
         },
         {
           "file": "homeos:public/static/app.css",
-          "line": 3265,
+          "line": 3276,
           "selector": ".date-display-options, .time-format-options"
         }
       ]
@@ -7898,7 +7938,7 @@
         },
         {
           "file": "homeos:public/static/app.css",
-          "line": 2952,
+          "line": 2963,
           "selector": ".light-statistics-entity-actions"
         }
       ]
@@ -8131,12 +8171,12 @@
       "sample": [
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 6454,
+          "line": 6487,
           "selector": ".hb-climate-temperature-dial:before"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 10472,
+          "line": 10505,
           "selector": ".hb-air-purifier-gauge:before"
         }
       ]
@@ -8226,7 +8266,7 @@
       "sample": [
         {
           "file": "homeos:src/assets/styles/main.css",
-          "line": 880,
+          "line": 883,
           "selector": "*, *::before, *::after"
         },
         {
@@ -8307,13 +8347,40 @@
         },
         {
           "file": "homeos:public/static/app.css",
-          "line": 3973,
+          "line": 3984,
           "selector": ".door-window-perspective-actions"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 8990,
+          "line": 9023,
           "selector": ".hb-media-player-actions"
+        }
+      ]
+    },
+    {
+      "declCount": 3,
+      "selectorCount": 4,
+      "occurrences": 4,
+      "sample": [
+        {
+          "file": "homeos:src/assets/styles/utility-meter-popup.css",
+          "line": 281,
+          "selector": ".um-stat-u"
+        },
+        {
+          "file": "homeos:src/features/home-mode/components/presence.css",
+          "line": 134,
+          "selector": ".presence-pop-head__sub"
+        },
+        {
+          "file": "homeos:src/features/settings/automate/styles/SettingsPresenceEntitiesSection.css",
+          "line": 42,
+          "selector": ".presence-stat__lbl"
+        },
+        {
+          "file": "homeos:src/features/settings/connect/bindings/styles/SettingsBindingsSecuritySection.css",
+          "line": 130,
+          "selector": ".bind-doorbell-card__field-label"
         }
       ]
     },
@@ -8588,7 +8655,7 @@
         },
         {
           "file": "homeos:src/features/settings/connect/bindings/styles/SettingsBindingsCamerasSection.css",
-          "line": 170,
+          "line": 207,
           "selector": ".bind-cam-empty__title"
         },
         {
@@ -8779,7 +8846,7 @@
       "sample": [
         {
           "file": "homeos:src/features/settings/connect/bindings/styles/SettingsBindingsCamerasSection.css",
-          "line": 163,
+          "line": 200,
           "selector": ".bind-cam-empty__icon"
         },
         {
@@ -8877,12 +8944,12 @@
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 6251,
+          "line": 6284,
           "selector": ".hb-light-details-slider-legend"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 6958,
+          "line": 6991,
           "selector": ".hb-climate-fan-slider-legend"
         }
       ]
@@ -9016,12 +9083,12 @@
         },
         {
           "file": "homeos:public/static/app.css",
-          "line": 4457,
+          "line": 4468,
           "selector": ".settings-form label"
         },
         {
           "file": "homeos:public/static/app.css",
-          "line": 4491,
+          "line": 4502,
           "selector": ".popup-module-device-type"
         }
       ]
@@ -9092,12 +9159,12 @@
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 3958,
+          "line": 3965,
           "selector": ".interaction3d-stage[data-scene-style=\"warm-wood\"] .i3d-speaker-panel :is(.i3d-speaker-settings button, .i3d-speaker-settings select, .i3d-speaker-browse)"
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 4100,
+          "line": 4107,
           "selector": ".interaction3d-stage[data-scene-style=\"warm-wood\"] .i3d-speaker-media-dialog"
         }
       ]
@@ -9131,7 +9198,7 @@
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 3680,
+          "line": 3713,
           "selector": ".hb-light-visual-cord"
         }
       ]
@@ -9148,7 +9215,7 @@
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 2773,
+          "line": 2781,
           "selector": ".interaction3d-stage .i3d-marker.is-temperature-humidity"
         }
       ]
@@ -9160,22 +9227,22 @@
       "sample": [
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 3411,
+          "line": 3418,
           "selector": ".interaction3d-stage[data-scene-style=\"warm-wood\"] :is(.i3d-slider input, input.i3d-control-range)::-webkit-slider-thumb"
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 3418,
+          "line": 3425,
           "selector": ".interaction3d-stage[data-scene-style=\"warm-wood\"] .hb-cover-details-position input::-webkit-slider-thumb"
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 3424,
+          "line": 3431,
           "selector": ".interaction3d-stage[data-scene-style=\"warm-wood\"] :is(.i3d-slider input, input.i3d-control-range)::-moz-range-thumb"
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 3431,
+          "line": 3438,
           "selector": ".interaction3d-stage[data-scene-style=\"warm-wood\"] .hb-cover-details-position input::-moz-range-thumb"
         }
       ]
@@ -9280,12 +9347,12 @@
       "sample": [
         {
           "file": "homeos:public/static/app.css",
-          "line": 2333,
+          "line": 2344,
           "selector": ".editor-paged-picker-heading"
         },
         {
           "file": "homeos:public/static/app.css",
-          "line": 3093,
+          "line": 3104,
           "selector": ".popup-related-entity-dialog-heading"
         }
       ]
@@ -9297,12 +9364,12 @@
       "sample": [
         {
           "file": "homeos:public/static/app.css",
-          "line": 4478,
+          "line": 4489,
           "selector": ".settings-form .custom-select-button"
         },
         {
           "file": "homeos:public/static/app.css",
-          "line": 5309,
+          "line": 5320,
           "selector": ".popup-module-dialog .inspector-picker-button"
         }
       ]
@@ -9314,22 +9381,22 @@
       "sample": [
         {
           "file": "homeos:public/static/app.css",
-          "line": 5990,
+          "line": 6001,
           "selector": ".hb-custom-popup-heading button:hover"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 3420,
+          "line": 3453,
           "selector": ".hb-entity-details-dialog.light-details .hb-entity-details-heading button:hover"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 5850,
+          "line": 5883,
           "selector": ".hb-entity-details-dialog.climate-details .hb-entity-details-heading button:hover"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 7642,
+          "line": 7675,
           "selector": ".hb-custom-popup-heading button:hover"
         }
       ]
@@ -9346,7 +9413,7 @@
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 7101,
+          "line": 7134,
           "selector": ".hb-entity-details-dialog.water-heater-details .hb-climate-details-controls > .hb-water-heater-control-panel, .hb-entity-details-dialog.water-heater-details .hb-water-heater-control-panel > .hb-water-heater-extensions"
         },
         {
@@ -9395,12 +9462,12 @@
       "sample": [
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 1854,
+          "line": 1887,
           "selector": ".hb-entity-details-dialog.light-details"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 4048,
+          "line": 4081,
           "selector": ".hb-entity-details-dialog.cover-details"
         }
       ]
@@ -9412,12 +9479,12 @@
       "sample": [
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 5383,
+          "line": 5416,
           "selector": ".hb-water-heater-extension-title"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 6614,
+          "line": 6647,
           "selector": ".hb-climate-details-group > strong"
         }
       ]
@@ -9517,7 +9584,7 @@
       "sample": [
         {
           "file": "homeos:src/assets/styles/list-page-views.css",
-          "line": 250,
+          "line": 256,
           "selector": ".list-page__field"
         },
         {
@@ -9534,7 +9601,7 @@
       "sample": [
         {
           "file": "homeos:src/assets/styles/list-page-views.css",
-          "line": 797,
+          "line": 803,
           "selector": ".device-detail-view__attrs-scroll"
         },
         {
@@ -9677,23 +9744,6 @@
           "file": "homeos:src/features/settings/shared/styles/settings-cards.css",
           "line": 223,
           "selector": ".settings-page__stage--workspace"
-        }
-      ]
-    },
-    {
-      "declCount": 5,
-      "selectorCount": 2,
-      "occurrences": 2,
-      "sample": [
-        {
-          "file": "homeos:src/features/home-mode/editor/styles/HomeMode.css",
-          "line": 278,
-          "selector": ".home-mode-panel .hm-editor-head__title"
-        },
-        {
-          "file": "homeos:src/features/settings/system/styles/admin-hubs.css",
-          "line": 709,
-          "selector": ".acc-section-head__title"
         }
       ]
     }
@@ -10873,6 +10923,94 @@
   ],
   "duplicateTokens": [
     {
+      "name": "--page-accent-rgb",
+      "count": 34,
+      "distinctValues": 21,
+      "conflict": true,
+      "values": [
+        "52, 211, 153",
+        "96, 165, 250",
+        "var(--module-accent-devices-rgb)",
+        "var(--module-accent-security-rgb)",
+        "251, 146, 60",
+        "var(--module-accent-scenes-rgb)"
+      ],
+      "occurrences": [
+        {
+          "file": "homeos:src/assets/styles/app-premium-tokens.css",
+          "line": 5,
+          "value": "52, 211, 153",
+          "selector": ":root"
+        },
+        {
+          "file": "homeos:src/assets/styles/hos-design-system.css",
+          "line": 5,
+          "value": "96, 165, 250",
+          "selector": ":root"
+        },
+        {
+          "file": "homeos:src/assets/styles/list-page-views.css",
+          "line": 80,
+          "value": "var(--module-accent-devices-rgb)",
+          "selector": ".devices-view"
+        },
+        {
+          "file": "homeos:src/assets/styles/list-page-views.css",
+          "line": 81,
+          "value": "var(--module-accent-devices-rgb)",
+          "selector": ".device-detail-view"
+        },
+        {
+          "file": "homeos:src/assets/styles/list-page-views.css",
+          "line": 82,
+          "value": "var(--module-accent-security-rgb)",
+          "selector": ".security-view"
+        },
+        {
+          "file": "homeos:src/assets/styles/list-page-views.css",
+          "line": 83,
+          "value": "251, 146, 60",
+          "selector": ".rooms-view"
+        },
+        {
+          "file": "homeos:src/assets/styles/list-page-views.css",
+          "line": 84,
+          "value": "var(--module-accent-scenes-rgb)",
+          "selector": ".scenes-view"
+        },
+        {
+          "file": "homeos:src/assets/styles/list-page-views.css",
+          "line": 85,
+          "value": "var(--module-accent-automation-rgb)",
+          "selector": ".automations-view"
+        },
+        {
+          "file": "homeos:src/assets/styles/list-page-views.css",
+          "line": 86,
+          "value": "var(--module-accent-script-rgb)",
+          "selector": ".scripts-view"
+        },
+        {
+          "file": "homeos:src/assets/styles/list-page-views.css",
+          "line": 87,
+          "value": "248, 113, 113",
+          "selector": ".cameras-view"
+        },
+        {
+          "file": "homeos:src/assets/styles/list-page-views.css",
+          "line": 88,
+          "value": "var(--module-accent-home-mode-rgb, 251, 191, 36)",
+          "selector": ".mode-logs-view"
+        },
+        {
+          "file": "homeos:src/assets/styles/list-page-views.css",
+          "line": 93,
+          "value": "244, 114, 182",
+          "selector": ".notifications-view"
+        }
+      ]
+    },
+    {
       "name": "--page-accent-secondary",
       "count": 33,
       "distinctValues": 21,
@@ -10918,133 +11056,45 @@
         },
         {
           "file": "homeos:src/assets/styles/list-page-views.css",
-          "line": 76,
+          "line": 80,
           "value": "var(--module-accent-devices-sub)",
           "selector": ".devices-view"
         },
         {
           "file": "homeos:src/assets/styles/list-page-views.css",
-          "line": 77,
+          "line": 81,
           "value": "var(--module-accent-devices-sub)",
           "selector": ".device-detail-view"
         },
         {
           "file": "homeos:src/assets/styles/list-page-views.css",
-          "line": 78,
+          "line": 82,
           "value": "var(--module-accent-security-sub)",
           "selector": ".security-view"
         },
         {
           "file": "homeos:src/assets/styles/list-page-views.css",
-          "line": 79,
+          "line": 83,
           "value": "#f97316",
           "selector": ".rooms-view"
         },
         {
           "file": "homeos:src/assets/styles/list-page-views.css",
-          "line": 80,
+          "line": 84,
           "value": "var(--module-accent-scenes-sub)",
           "selector": ".scenes-view"
         },
         {
           "file": "homeos:src/assets/styles/list-page-views.css",
-          "line": 81,
+          "line": 85,
           "value": "var(--module-accent-automation-sub)",
           "selector": ".automations-view"
         },
         {
           "file": "homeos:src/assets/styles/list-page-views.css",
-          "line": 82,
+          "line": 86,
           "value": "var(--module-accent-script-sub)",
           "selector": ".scripts-view"
-        }
-      ]
-    },
-    {
-      "name": "--page-accent-rgb",
-      "count": 25,
-      "distinctValues": 16,
-      "conflict": true,
-      "values": [
-        "52, 211, 153",
-        "96, 165, 250",
-        "var(--module-accent-security-rgb)",
-        "251, 191, 36",
-        "244, 114, 182",
-        "var(--module-accent-layout-rgb)"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/app-premium-tokens.css",
-          "line": 5,
-          "value": "52, 211, 153",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 5,
-          "value": "96, 165, 250",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/assets/styles/list-page-views.css",
-          "line": 78,
-          "value": "var(--module-accent-security-rgb)",
-          "selector": ".security-view"
-        },
-        {
-          "file": "homeos:src/assets/styles/list-page-views.css",
-          "line": 92,
-          "value": "251, 191, 36",
-          "selector": ".earthquake-history-view"
-        },
-        {
-          "file": "homeos:src/components/modals/styles/notification-drawer.css",
-          "line": 19,
-          "value": "244, 114, 182",
-          "selector": ".notification-drawer-panel"
-        },
-        {
-          "file": "homeos:src/features/settings/display/SettingsAssetsPanel.vue",
-          "line": 300,
-          "value": "var(--module-accent-layout-rgb)",
-          "selector": ".assets-hub-page"
-        },
-        {
-          "file": "homeos:src/features/settings/display/SettingsFloatingPanel.vue",
-          "line": 114,
-          "value": "var(--module-accent-layout-rgb)",
-          "selector": ".floating-hub"
-        },
-        {
-          "file": "homeos:src/features/settings/display/SettingsLayoutPanel.vue",
-          "line": 52,
-          "value": "var(--module-accent-layout-rgb)",
-          "selector": ".layout-hub"
-        },
-        {
-          "file": "homeos:src/features/settings/display/SettingsWidgetsPanel.vue",
-          "line": 105,
-          "value": "var(--module-accent-layout-rgb)",
-          "selector": ".widgets-hub"
-        },
-        {
-          "file": "homeos:src/features/settings/display/styles/layout-panels.css",
-          "line": 1741,
-          "value": "var(--module-accent-layout-rgb)",
-          "selector": ".embeds-hub"
-        },
-        {
-          "file": "homeos:src/features/settings/interact/alert-rules/styles/alert-rules.css",
-          "line": 1404,
-          "value": "251, 146, 60",
-          "selector": ".alert-eew-hub"
-        },
-        {
-          "file": "homeos:src/features/settings/interact/styles/SettingsAgentPanel.css",
-          "line": 3,
-          "value": "var(--module-accent-agent-rgb)",
-          "selector": ".agent-hub"
         }
       ]
     },
@@ -11100,37 +11150,37 @@
         },
         {
           "file": "homeos:src/assets/styles/list-page-views.css",
-          "line": 76,
+          "line": 80,
           "value": "var(--module-accent-devices)",
           "selector": ".devices-view"
         },
         {
           "file": "homeos:src/assets/styles/list-page-views.css",
-          "line": 77,
+          "line": 81,
           "value": "var(--module-accent-devices)",
           "selector": ".device-detail-view"
         },
         {
           "file": "homeos:src/assets/styles/list-page-views.css",
-          "line": 78,
+          "line": 82,
           "value": "var(--module-accent-security)",
           "selector": ".security-view"
         },
         {
           "file": "homeos:src/assets/styles/list-page-views.css",
-          "line": 79,
+          "line": 83,
           "value": "#fb923c",
           "selector": ".rooms-view"
         },
         {
           "file": "homeos:src/assets/styles/list-page-views.css",
-          "line": 80,
+          "line": 84,
           "value": "var(--module-accent-scenes)",
           "selector": ".scenes-view"
         },
         {
           "file": "homeos:src/assets/styles/list-page-views.css",
-          "line": 81,
+          "line": 85,
           "value": "var(--module-accent-automation)",
           "selector": ".automations-view"
         }
@@ -13070,25 +13120,25 @@
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 3261,
+          "line": 3268,
           "value": "#655947",
           "selector": ".interaction3d-stage[data-scene-style=\"warm-wood\"] .i3d-climate-panel"
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 3265,
+          "line": 3272,
           "value": "#28677f",
           "selector": ".interaction3d-stage[data-scene-style=\"warm-wood\"] .i3d-climate-panel[data-climate-mode=\"cool\"]"
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 3268,
+          "line": 3275,
           "value": "#a4472a",
           "selector": ".interaction3d-stage[data-scene-style=\"warm-wood\"] .i3d-climate-panel[data-climate-mode=\"heat\"]"
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 3271,
+          "line": 3278,
           "value": "#70685d",
           "selector": ".interaction3d-stage[data-scene-style=\"warm-wood\"] .i3d-climate-panel[data-climate-mode=\"off\"]"
         }
@@ -13183,43 +13233,43 @@
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 5186,
+          "line": 5219,
           "value": "#ff8a65",
           "selector": ".hb-entity-details-dialog.water-heater-details .hb-climate-details-controls"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 5422,
+          "line": 5455,
           "value": "#f4a816",
           "selector": ".hb-entity-details-dialog.climate-details:not(.water-heater-details) .hb-entity-details-card > .hb-related-entity-extensions"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 6339,
+          "line": 6372,
           "value": "#f4a816",
           "selector": ".hb-climate-details-controls"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 9607,
+          "line": 9640,
           "value": "#ff8a65",
           "selector": ".hb-custom-popup-module--water-heater"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 10316,
+          "line": 10349,
           "value": "var(--hb-air-purifier-ui-accent)",
           "selector": ".hb-entity-details-dialog.air-purifier-details .hb-entity-details-card > .hb-related-entity-extensions"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 10449,
+          "line": 10482,
           "value": "var(--hb-air-purifier-accent)",
           "selector": ".hb-air-purifier-gauge"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 12091,
+          "line": 12124,
           "value": "var(--hb-bed-accent)",
           "selector": ".hb-entity-details-dialog.electric-bed-loading-details"
         }
@@ -13247,43 +13297,43 @@
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 3261,
+          "line": 3268,
           "value": "color-mix(in srgb, var(--i3d-climate-accent) 12%, #fff9ed)",
           "selector": ".interaction3d-stage[data-scene-style=\"warm-wood\"] .i3d-climate-panel"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 5186,
+          "line": 5219,
           "value": "#5a2d24",
           "selector": ".hb-entity-details-dialog.water-heater-details .hb-climate-details-controls"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 5422,
+          "line": 5455,
           "value": "rgba(244, 168, 22, 0.12)",
           "selector": ".hb-entity-details-dialog.climate-details:not(.water-heater-details) .hb-entity-details-card > .hb-related-entity-extensions"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 6339,
+          "line": 6372,
           "value": "#5a4219",
           "selector": ".hb-climate-details-controls"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 9607,
+          "line": 9640,
           "value": "#5a2d24",
           "selector": ".hb-custom-popup-module--water-heater"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 10316,
+          "line": 10349,
           "value": "var(--hb-air-purifier-ui-accent-soft)",
           "selector": ".hb-entity-details-dialog.air-purifier-details .hb-entity-details-card > .hb-related-entity-extensions"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 10449,
+          "line": 10482,
           "value": "var(--hb-air-purifier-accent-soft)",
           "selector": ".hb-air-purifier-gauge"
         }
@@ -14368,6 +14418,49 @@
       ]
     },
     {
+      "name": "--page-accent-glow",
+      "count": 5,
+      "distinctValues": 3,
+      "conflict": true,
+      "values": [
+        "rgba(var(--page-accent-rgb), 0.16)",
+        "transparent",
+        "rgba(251, 146, 60, 0.28)"
+      ],
+      "occurrences": [
+        {
+          "file": "homeos:src/assets/styles/app-premium-tokens.css",
+          "line": 5,
+          "value": "rgba(var(--page-accent-rgb), 0.16)",
+          "selector": ":root"
+        },
+        {
+          "file": "homeos:src/assets/styles/app-premium-tokens.css",
+          "line": 170,
+          "value": "rgba(var(--page-accent-rgb), 0.16)",
+          "selector": ":where(.settings-page, .list-page, .notification-drawer)"
+        },
+        {
+          "file": "homeos:src/assets/styles/app-premium-tokens.css",
+          "line": 184,
+          "value": "transparent",
+          "selector": ":where(.settings-page, .list-page, .notification-drawer)"
+        },
+        {
+          "file": "homeos:src/assets/styles/hos-design-system.css",
+          "line": 159,
+          "value": "transparent",
+          "selector": ":root"
+        },
+        {
+          "file": "homeos:src/features/settings/interact/alert-rules/styles/alert-rules.css",
+          "line": 1404,
+          "value": "rgba(251, 146, 60, 0.28)",
+          "selector": ".alert-eew-hub"
+        }
+      ]
+    },
+    {
       "name": "--sw-hero-border",
       "count": 5,
       "distinctValues": 5,
@@ -15232,31 +15325,31 @@
       "occurrences": [
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 4217,
+          "line": 4229,
           "value": "#78848d75",
           "selector": ".interaction3d-stage .i3d-vacuum-status"
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 4222,
+          "line": 4234,
           "value": "#aa967455",
           "selector": ".interaction3d-stage .i3d-security-label:is(.is-lock-status, .is-camera-status)"
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 4227,
+          "line": 4239,
           "value": "#6da88b99",
           "selector": ".interaction3d-stage .is-on .i3d-vacuum-status"
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 4235,
+          "line": 4247,
           "value": "#a9977770",
           "selector": ".interaction3d-stage[data-scene-style=\"warm-wood\"] :is( .i3d-vacuum-status, .i3d-security-label.is-lock-status, .i3d-security-label.is-camera-status )"
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 4240,
+          "line": 4252,
           "value": "#829c74aa",
           "selector": ".interaction3d-stage[data-scene-style=\"warm-wood\"] .is-on .i3d-vacuum-status"
         }
@@ -15300,40 +15393,40 @@
       ]
     },
     {
-      "name": "--card-bg-1",
+      "name": "--flow-accent",
       "count": 4,
       "distinctValues": 4,
       "conflict": true,
       "values": [
-        "var(--hos-surface-1)",
-        "rgba(255,255,255,0.045)",
-        "rgba(255,255,255,0.05)",
-        "var(--premium-border-strong)"
+        "rgba(var(--page-accent-rgb), 0.75)",
+        "var(--set-info, #38bdf8)",
+        "rgba(var(--page-accent-rgb), 0.95)",
+        "rgba(var(--page-accent-secondary-rgb), 0.95)"
       ],
       "occurrences": [
         {
-          "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 5,
-          "value": "var(--hos-surface-1)",
-          "selector": ":root"
+          "file": "homeos:src/features/settings/automate/linkage/styles/linkage.css",
+          "line": 76,
+          "value": "rgba(var(--page-accent-rgb), 0.75)",
+          "selector": ".linkage-flow__node"
         },
         {
-          "file": "homeos:src/assets/styles/main.css",
-          "line": 287,
-          "value": "rgba(255,255,255,0.045)",
-          "selector": ":root"
+          "file": "homeos:src/features/settings/automate/linkage/styles/linkage.css",
+          "line": 154,
+          "value": "var(--set-info, #38bdf8)",
+          "selector": ".linkage-flow__node--presence"
         },
         {
-          "file": "homeos:src/assets/styles/main.css",
-          "line": 665,
-          "value": "rgba(255,255,255,0.05)",
-          "selector": ".perf-medium"
+          "file": "homeos:src/features/settings/automate/linkage/styles/linkage.css",
+          "line": 158,
+          "value": "rgba(var(--page-accent-rgb), 0.95)",
+          "selector": ".linkage-flow__node--security"
         },
         {
-          "file": "homeos:src/assets/styles/main.css",
-          "line": 688,
-          "value": "var(--premium-border-strong)",
-          "selector": ".perf-low"
+          "file": "homeos:src/features/settings/automate/linkage/styles/linkage.css",
+          "line": 162,
+          "value": "rgba(var(--page-accent-secondary-rgb), 0.95)",
+          "selector": ".linkage-flow__node--scene"
         }
       ]
     },
@@ -15467,19 +15560,19 @@
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 2488,
+          "line": 2490,
           "value": "#fcf8f0",
           "selector": ".interaction3d-stage[data-scene-style=\"warm-wood\"] .i3d-alarm-card"
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 2798,
+          "line": 2806,
           "value": "#303d4b",
           "selector": ".interaction3d-stage .i3d-temperature-humidity-card"
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 2992,
+          "line": 2999,
           "value": "#fcf8f0",
           "selector": ".interaction3d-stage[data-scene-style=\"warm-wood\"] .i3d-temperature-humidity-card"
         }
@@ -15503,19 +15596,19 @@
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 2488,
+          "line": 2490,
           "value": "#eee7db",
           "selector": ".interaction3d-stage[data-scene-style=\"warm-wood\"] .i3d-alarm-card"
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 2798,
+          "line": 2806,
           "value": "#222d38",
           "selector": ".interaction3d-stage .i3d-temperature-humidity-card"
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 2992,
+          "line": 2999,
           "value": "#eee7db",
           "selector": ".interaction3d-stage[data-scene-style=\"warm-wood\"] .i3d-temperature-humidity-card"
         }
@@ -15534,25 +15627,25 @@
       "occurrences": [
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 9433,
+          "line": 9466,
           "value": "#76cfa1",
           "selector": ".hb-custom-popup-module--air-purifier"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 9936,
+          "line": 9969,
           "value": "#76cfa1",
           "selector": ".hb-entity-details-dialog.air-purifier-details"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 10524,
+          "line": 10557,
           "value": "#e4b15f",
           "selector": ".hb-air-purifier-gauge.is-warning"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 10528,
+          "line": 10561,
           "value": "#db7770",
           "selector": ".hb-air-purifier-gauge.is-poor"
         }
@@ -15571,25 +15664,25 @@
       "occurrences": [
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 9433,
+          "line": 9466,
           "value": "rgba(118, 207, 161, 0.13)",
           "selector": ".hb-custom-popup-module--air-purifier"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 9936,
+          "line": 9969,
           "value": "rgba(118, 207, 161, 0.13)",
           "selector": ".hb-entity-details-dialog.air-purifier-details"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 10524,
+          "line": 10557,
           "value": "rgba(228, 177, 95, 0.15)",
           "selector": ".hb-air-purifier-gauge.is-warning"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 10528,
+          "line": 10561,
           "value": "rgba(219, 119, 112, 0.15)",
           "selector": ".hb-air-purifier-gauge.is-poor"
         }
@@ -15607,57 +15700,147 @@
       "occurrences": [
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 10753,
+          "line": 10786,
           "value": "var(--hb-presence-clear, #758189)",
           "selector": ".hb-presence-sensor"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 10771,
+          "line": 10804,
           "value": "var(--hb-presence-occupied, #77d6be)",
           "selector": ".hb-presence-sensor.is-occupied"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 11078,
+          "line": 11111,
           "value": "var(--hb-presence-clear, #758189)",
           "selector": ".hb-entity-details-dialog.presence-details"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 11095,
+          "line": 11128,
           "value": "var(--hb-presence-occupied, #77d6be)",
           "selector": ".hb-entity-details-dialog.presence-details[data-presence-state=\"occupied\"]"
         }
       ]
     },
     {
-      "name": "--page-accent-glow",
+      "name": "--page-accent-bg",
       "count": 3,
-      "distinctValues": 3,
+      "distinctValues": 2,
       "conflict": true,
       "values": [
-        "rgba(var(--page-accent-rgb), 0.16)",
-        "transparent",
-        "rgba(251, 146, 60, 0.28)"
+        "rgba(var(--page-accent-rgb), 0.12)",
+        "rgba(251, 146, 60, 0.14)"
       ],
       "occurrences": [
         {
           "file": "homeos:src/assets/styles/app-premium-tokens.css",
           "line": 5,
-          "value": "rgba(var(--page-accent-rgb), 0.16)",
+          "value": "rgba(var(--page-accent-rgb), 0.12)",
           "selector": ":root"
         },
         {
-          "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 156,
-          "value": "transparent",
-          "selector": ":root"
+          "file": "homeos:src/assets/styles/app-premium-tokens.css",
+          "line": 170,
+          "value": "rgba(var(--page-accent-rgb), 0.12)",
+          "selector": ":where(.settings-page, .list-page, .notification-drawer)"
         },
         {
           "file": "homeos:src/features/settings/interact/alert-rules/styles/alert-rules.css",
           "line": 1404,
-          "value": "rgba(251, 146, 60, 0.28)",
+          "value": "rgba(251, 146, 60, 0.14)",
+          "selector": ".alert-eew-hub"
+        }
+      ]
+    },
+    {
+      "name": "--page-accent-bg-strong",
+      "count": 3,
+      "distinctValues": 2,
+      "conflict": true,
+      "values": [
+        "rgba(var(--page-accent-rgb), 0.18)",
+        "rgba(251, 146, 60, 0.22)"
+      ],
+      "occurrences": [
+        {
+          "file": "homeos:src/assets/styles/app-premium-tokens.css",
+          "line": 5,
+          "value": "rgba(var(--page-accent-rgb), 0.18)",
+          "selector": ":root"
+        },
+        {
+          "file": "homeos:src/assets/styles/app-premium-tokens.css",
+          "line": 170,
+          "value": "rgba(var(--page-accent-rgb), 0.18)",
+          "selector": ":where(.settings-page, .list-page, .notification-drawer)"
+        },
+        {
+          "file": "homeos:src/features/settings/interact/alert-rules/styles/alert-rules.css",
+          "line": 1404,
+          "value": "rgba(251, 146, 60, 0.22)",
+          "selector": ".alert-eew-hub"
+        }
+      ]
+    },
+    {
+      "name": "--page-accent-border",
+      "count": 3,
+      "distinctValues": 2,
+      "conflict": true,
+      "values": [
+        "rgba(var(--page-accent-rgb), 0.22)",
+        "rgba(251, 146, 60, 0.36)"
+      ],
+      "occurrences": [
+        {
+          "file": "homeos:src/assets/styles/app-premium-tokens.css",
+          "line": 5,
+          "value": "rgba(var(--page-accent-rgb), 0.22)",
+          "selector": ":root"
+        },
+        {
+          "file": "homeos:src/assets/styles/app-premium-tokens.css",
+          "line": 170,
+          "value": "rgba(var(--page-accent-rgb), 0.22)",
+          "selector": ":where(.settings-page, .list-page, .notification-drawer)"
+        },
+        {
+          "file": "homeos:src/features/settings/interact/alert-rules/styles/alert-rules.css",
+          "line": 1404,
+          "value": "rgba(251, 146, 60, 0.36)",
+          "selector": ".alert-eew-hub"
+        }
+      ]
+    },
+    {
+      "name": "--page-accent-text",
+      "count": 3,
+      "distinctValues": 3,
+      "conflict": true,
+      "values": [
+        "var(--page-accent, #34d399)",
+        "rgb(var(--page-accent-rgb))",
+        "#fdba74"
+      ],
+      "occurrences": [
+        {
+          "file": "homeos:src/assets/styles/app-premium-tokens.css",
+          "line": 5,
+          "value": "var(--page-accent, #34d399)",
+          "selector": ":root"
+        },
+        {
+          "file": "homeos:src/assets/styles/app-premium-tokens.css",
+          "line": 170,
+          "value": "rgb(var(--page-accent-rgb))",
+          "selector": ":where(.settings-page, .list-page, .notification-drawer)"
+        },
+        {
+          "file": "homeos:src/features/settings/interact/alert-rules/styles/alert-rules.css",
+          "line": 1404,
+          "value": "#fdba74",
           "selector": ".alert-eew-hub"
         }
       ]
@@ -15849,6 +16032,37 @@
       ]
     },
     {
+      "name": "--card-bg-1",
+      "count": 3,
+      "distinctValues": 3,
+      "conflict": true,
+      "values": [
+        "var(--hos-surface-1)",
+        "rgba(255,255,255,0.05)",
+        "var(--premium-border-strong)"
+      ],
+      "occurrences": [
+        {
+          "file": "homeos:src/assets/styles/hos-design-system.css",
+          "line": 5,
+          "value": "var(--hos-surface-1)",
+          "selector": ":root"
+        },
+        {
+          "file": "homeos:src/assets/styles/main.css",
+          "line": 668,
+          "value": "rgba(255,255,255,0.05)",
+          "selector": ".perf-medium"
+        },
+        {
+          "file": "homeos:src/assets/styles/main.css",
+          "line": 691,
+          "value": "var(--premium-border-strong)",
+          "selector": ".perf-low"
+        }
+      ]
+    },
+    {
       "name": "--set-card-surface-inset",
       "count": 3,
       "distinctValues": 2,
@@ -15860,7 +16074,7 @@
       "occurrences": [
         {
           "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 156,
+          "line": 159,
           "value": "none",
           "selector": ":root"
         },
@@ -16294,19 +16508,19 @@
       "occurrences": [
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 4217,
+          "line": 4229,
           "value": "#1b222aee",
           "selector": ".interaction3d-stage .i3d-vacuum-status"
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 4222,
+          "line": 4234,
           "value": "#1b2029dc",
           "selector": ".interaction3d-stage .i3d-security-label:is(.is-lock-status, .is-camera-status)"
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 4235,
+          "line": 4247,
           "value": "#f8f4eaf0",
           "selector": ".interaction3d-stage[data-scene-style=\"warm-wood\"] :is( .i3d-vacuum-status, .i3d-security-label.is-lock-status, .i3d-security-label.is-camera-status )"
         }
@@ -16325,19 +16539,19 @@
       "occurrences": [
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 4217,
+          "line": 4229,
           "value": "0 4px 12px #0004",
           "selector": ".interaction3d-stage .i3d-vacuum-status"
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 4222,
+          "line": 4234,
           "value": "none",
           "selector": ".interaction3d-stage .i3d-security-label:is(.is-lock-status, .is-camera-status)"
         },
         {
           "file": "homeos:src/studio/runtime/core/stage.css",
-          "line": 4235,
+          "line": 4247,
           "value": "0 3px 10px #59493326",
           "selector": ".interaction3d-stage[data-scene-style=\"warm-wood\"] :is( .i3d-vacuum-status, .i3d-security-label.is-lock-status, .i3d-security-label.is-camera-status )"
         }
@@ -16530,7 +16744,7 @@
         },
         {
           "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 156,
+          "line": 159,
           "value": "0 6px 18px rgba(0, 0, 0, 0.32)",
           "selector": ":root"
         }
@@ -16554,7 +16768,7 @@
         },
         {
           "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 156,
+          "line": 159,
           "value": "0 6px 18px rgba(0, 0, 0, 0.28)",
           "selector": ":root"
         }
@@ -16578,7 +16792,7 @@
         },
         {
           "file": "homeos:src/assets/styles/app-premium-tokens.css",
-          "line": 205,
+          "line": 239,
           "value": "var(--touch-target-min, 44px)",
           "selector": ":root"
         }
@@ -16602,105 +16816,9 @@
         },
         {
           "file": "homeos:src/assets/styles/app-premium-tokens.css",
-          "line": 205,
+          "line": 239,
           "value": "10px",
           "selector": ":root"
-        }
-      ]
-    },
-    {
-      "name": "--page-accent-bg",
-      "count": 2,
-      "distinctValues": 2,
-      "conflict": true,
-      "values": [
-        "rgba(var(--page-accent-rgb), 0.12)",
-        "rgba(251, 146, 60, 0.14)"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/app-premium-tokens.css",
-          "line": 5,
-          "value": "rgba(var(--page-accent-rgb), 0.12)",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/features/settings/interact/alert-rules/styles/alert-rules.css",
-          "line": 1404,
-          "value": "rgba(251, 146, 60, 0.14)",
-          "selector": ".alert-eew-hub"
-        }
-      ]
-    },
-    {
-      "name": "--page-accent-bg-strong",
-      "count": 2,
-      "distinctValues": 2,
-      "conflict": true,
-      "values": [
-        "rgba(var(--page-accent-rgb), 0.18)",
-        "rgba(251, 146, 60, 0.22)"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/app-premium-tokens.css",
-          "line": 5,
-          "value": "rgba(var(--page-accent-rgb), 0.18)",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/features/settings/interact/alert-rules/styles/alert-rules.css",
-          "line": 1404,
-          "value": "rgba(251, 146, 60, 0.22)",
-          "selector": ".alert-eew-hub"
-        }
-      ]
-    },
-    {
-      "name": "--page-accent-border",
-      "count": 2,
-      "distinctValues": 2,
-      "conflict": true,
-      "values": [
-        "rgba(var(--page-accent-rgb), 0.22)",
-        "rgba(251, 146, 60, 0.36)"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/app-premium-tokens.css",
-          "line": 5,
-          "value": "rgba(var(--page-accent-rgb), 0.22)",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/features/settings/interact/alert-rules/styles/alert-rules.css",
-          "line": 1404,
-          "value": "rgba(251, 146, 60, 0.36)",
-          "selector": ".alert-eew-hub"
-        }
-      ]
-    },
-    {
-      "name": "--page-accent-text",
-      "count": 2,
-      "distinctValues": 2,
-      "conflict": true,
-      "values": [
-        "var(--page-accent, #34d399)",
-        "#fdba74"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/app-premium-tokens.css",
-          "line": 5,
-          "value": "var(--page-accent, #34d399)",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/features/settings/interact/alert-rules/styles/alert-rules.css",
-          "line": 1404,
-          "value": "#fdba74",
-          "selector": ".alert-eew-hub"
         }
       ]
     },
@@ -16722,7 +16840,7 @@
         },
         {
           "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 156,
+          "line": 159,
           "value": "none",
           "selector": ":root"
         }
@@ -16746,7 +16864,7 @@
         },
         {
           "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 156,
+          "line": 159,
           "value": "inset 0 2px 8px rgba(0, 0, 0, 0.28)",
           "selector": ":root"
         }
@@ -16770,7 +16888,7 @@
         },
         {
           "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 156,
+          "line": 159,
           "value": "1px",
           "selector": ":root"
         }
@@ -16794,7 +16912,7 @@
         },
         {
           "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 156,
+          "line": 159,
           "value": "rgba(255, 255, 255, 0.1)",
           "selector": ":root"
         }
@@ -16818,7 +16936,7 @@
         },
         {
           "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 156,
+          "line": 159,
           "value": "rgba(255, 255, 255, 0.16)",
           "selector": ":root"
         }
@@ -16842,7 +16960,7 @@
         },
         {
           "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 156,
+          "line": 159,
           "value": "0 8px 24px rgba(0, 0, 0, 0.32)",
           "selector": ":root"
         }
@@ -16866,7 +16984,7 @@
         },
         {
           "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 156,
+          "line": 159,
           "value": "0 6px 18px rgba(0, 0, 0, 0.28)",
           "selector": ":root"
         }
@@ -16890,392 +17008,8 @@
         },
         {
           "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 156,
+          "line": 159,
           "value": "0 8px 22px rgba(0, 0, 0, 0.34)",
-          "selector": ":root"
-        }
-      ]
-    },
-    {
-      "name": "--space-1",
-      "count": 2,
-      "distinctValues": 2,
-      "conflict": true,
-      "values": [
-        "var(--hos-space-xs)",
-        "4px"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 5,
-          "value": "var(--hos-space-xs)",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/assets/styles/main.css",
-          "line": 287,
-          "value": "4px",
-          "selector": ":root"
-        }
-      ]
-    },
-    {
-      "name": "--space-2",
-      "count": 2,
-      "distinctValues": 2,
-      "conflict": true,
-      "values": [
-        "var(--hos-space-sm)",
-        "8px"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 5,
-          "value": "var(--hos-space-sm)",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/assets/styles/main.css",
-          "line": 287,
-          "value": "8px",
-          "selector": ":root"
-        }
-      ]
-    },
-    {
-      "name": "--space-3",
-      "count": 2,
-      "distinctValues": 2,
-      "conflict": true,
-      "values": [
-        "var(--hos-space-md)",
-        "12px"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 5,
-          "value": "var(--hos-space-md)",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/assets/styles/main.css",
-          "line": 287,
-          "value": "12px",
-          "selector": ":root"
-        }
-      ]
-    },
-    {
-      "name": "--space-4",
-      "count": 2,
-      "distinctValues": 2,
-      "conflict": true,
-      "values": [
-        "var(--hos-space-md)",
-        "14px"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 5,
-          "value": "var(--hos-space-md)",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/assets/styles/main.css",
-          "line": 287,
-          "value": "14px",
-          "selector": ":root"
-        }
-      ]
-    },
-    {
-      "name": "--space-5",
-      "count": 2,
-      "distinctValues": 2,
-      "conflict": true,
-      "values": [
-        "var(--hos-space-xl)",
-        "18px"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 5,
-          "value": "var(--hos-space-xl)",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/assets/styles/main.css",
-          "line": 287,
-          "value": "18px",
-          "selector": ":root"
-        }
-      ]
-    },
-    {
-      "name": "--space-6",
-      "count": 2,
-      "distinctValues": 2,
-      "conflict": true,
-      "values": [
-        "var(--hos-space-2xl)",
-        "22px"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 5,
-          "value": "var(--hos-space-2xl)",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/assets/styles/main.css",
-          "line": 287,
-          "value": "22px",
-          "selector": ":root"
-        }
-      ]
-    },
-    {
-      "name": "--space-page-x",
-      "count": 2,
-      "distinctValues": 2,
-      "conflict": true,
-      "values": [
-        "var(--hos-page-x)",
-        "var(--space-6)"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 5,
-          "value": "var(--hos-page-x)",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/assets/styles/main.css",
-          "line": 287,
-          "value": "var(--space-6)",
-          "selector": ":root"
-        }
-      ]
-    },
-    {
-      "name": "--space-page-y-top",
-      "count": 2,
-      "distinctValues": 2,
-      "conflict": true,
-      "values": [
-        "var(--hos-page-y-top)",
-        "var(--space-5)"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 5,
-          "value": "var(--hos-page-y-top)",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/assets/styles/main.css",
-          "line": 287,
-          "value": "var(--space-5)",
-          "selector": ":root"
-        }
-      ]
-    },
-    {
-      "name": "--space-page-y-bottom",
-      "count": 2,
-      "distinctValues": 2,
-      "conflict": true,
-      "values": [
-        "var(--hos-page-y-bottom)",
-        "var(--space-7)"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 5,
-          "value": "var(--hos-page-y-bottom)",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/assets/styles/main.css",
-          "line": 287,
-          "value": "var(--space-7)",
-          "selector": ":root"
-        }
-      ]
-    },
-    {
-      "name": "--space-page-gap",
-      "count": 2,
-      "distinctValues": 2,
-      "conflict": true,
-      "values": [
-        "var(--hos-page-gap)",
-        "var(--space-4)"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 5,
-          "value": "var(--hos-page-gap)",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/assets/styles/main.css",
-          "line": 287,
-          "value": "var(--space-4)",
-          "selector": ":root"
-        }
-      ]
-    },
-    {
-      "name": "--radius-md",
-      "count": 2,
-      "distinctValues": 2,
-      "conflict": true,
-      "values": [
-        "16px",
-        "var(--hos-radius-card)"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 5,
-          "value": "16px",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/assets/styles/main.css",
-          "line": 287,
-          "value": "var(--hos-radius-card)",
-          "selector": ":root"
-        }
-      ]
-    },
-    {
-      "name": "--text-primary",
-      "count": 2,
-      "distinctValues": 2,
-      "conflict": true,
-      "values": [
-        "var(--hos-text-primary)",
-        "rgba(255,255,255,0.96)"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 5,
-          "value": "var(--hos-text-primary)",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/assets/styles/main.css",
-          "line": 287,
-          "value": "rgba(255,255,255,0.96)",
-          "selector": ":root"
-        }
-      ]
-    },
-    {
-      "name": "--card-bg-2",
-      "count": 2,
-      "distinctValues": 2,
-      "conflict": true,
-      "values": [
-        "var(--hos-surface-2)",
-        "rgba(255,255,255,0.075)"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 5,
-          "value": "var(--hos-surface-2)",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/assets/styles/main.css",
-          "line": 287,
-          "value": "rgba(255,255,255,0.075)",
-          "selector": ":root"
-        }
-      ]
-    },
-    {
-      "name": "--card-bg-3",
-      "count": 2,
-      "distinctValues": 2,
-      "conflict": true,
-      "values": [
-        "var(--hos-surface-3)",
-        "rgba(255,255,255,0.11)"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 5,
-          "value": "var(--hos-surface-3)",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/assets/styles/main.css",
-          "line": 287,
-          "value": "rgba(255,255,255,0.11)",
-          "selector": ":root"
-        }
-      ]
-    },
-    {
-      "name": "--card-border",
-      "count": 2,
-      "distinctValues": 2,
-      "conflict": true,
-      "values": [
-        "var(--hos-border-subtle)",
-        "var(--premium-border)"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 5,
-          "value": "var(--hos-border-subtle)",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/assets/styles/main.css",
-          "line": 287,
-          "value": "var(--premium-border)",
-          "selector": ":root"
-        }
-      ]
-    },
-    {
-      "name": "--card-border-hover",
-      "count": 2,
-      "distinctValues": 2,
-      "conflict": true,
-      "values": [
-        "var(--hos-border-strong)",
-        "rgba(255,255,255,0.14)"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 5,
-          "value": "var(--hos-border-strong)",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/assets/styles/main.css",
-          "line": 287,
-          "value": "rgba(255,255,255,0.14)",
           "selector": ":root"
         }
       ]
@@ -17292,7 +17026,7 @@
       "occurrences": [
         {
           "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 156,
+          "line": 159,
           "value": "0 8px 22px rgba(0, 0, 0, 0.28)",
           "selector": ":root"
         },
@@ -17940,13 +17674,13 @@
       "occurrences": [
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 4410,
+          "line": 4443,
           "value": "0px",
           "selector": ".hb-cover-visual-slat"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 4506,
+          "line": 4539,
           "value": "var(--hb-cover-retracted-shift)",
           "selector": ".hb-cover-visual.is-dream.is-curtain-retracted .hb-cover-visual-slat"
         }
@@ -17964,13 +17698,13 @@
       "occurrences": [
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 6488,
+          "line": 6521,
           "value": "225deg",
           "selector": ".hb-climate-arc-cap.start"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 6493,
+          "line": 6526,
           "value": "495deg",
           "selector": ".hb-climate-arc-cap.end"
         }
@@ -17988,13 +17722,13 @@
       "occurrences": [
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 10515,
+          "line": 10548,
           "value": "225deg",
           "selector": ".hb-air-purifier-arc-cap.start"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 10520,
+          "line": 10553,
           "value": "495deg",
           "selector": ".hb-air-purifier-arc-cap.end"
         }
@@ -20987,52 +20721,6 @@
       ]
     },
     {
-      "name": "--space-7",
-      "count": 2,
-      "distinctValues": 1,
-      "conflict": false,
-      "values": [
-        "28px"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 5,
-          "value": "28px",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/assets/styles/main.css",
-          "line": 287,
-          "value": "28px",
-          "selector": ":root"
-        }
-      ]
-    },
-    {
-      "name": "--radius-lg",
-      "count": 2,
-      "distinctValues": 1,
-      "conflict": false,
-      "values": [
-        "var(--hos-radius-panel)"
-      ],
-      "occurrences": [
-        {
-          "file": "homeos:src/assets/styles/hos-design-system.css",
-          "line": 5,
-          "value": "var(--hos-radius-panel)",
-          "selector": ":root"
-        },
-        {
-          "file": "homeos:src/assets/styles/main.css",
-          "line": 287,
-          "value": "var(--hos-radius-panel)",
-          "selector": ":root"
-        }
-      ]
-    },
-    {
       "name": "--dev-accent-rgb",
       "count": 2,
       "distinctValues": 1,
@@ -21043,13 +20731,13 @@
       "occurrences": [
         {
           "file": "homeos:src/assets/styles/list-page-views.css",
-          "line": 76,
+          "line": 80,
           "value": "var(--module-accent-devices-rgb)",
           "selector": ".devices-view"
         },
         {
           "file": "homeos:src/assets/styles/list-page-views.css",
-          "line": 77,
+          "line": 81,
           "value": "var(--module-accent-devices-rgb)",
           "selector": ".device-detail-view"
         }
@@ -21072,7 +20760,7 @@
         },
         {
           "file": "homeos:src/assets/styles/main.css",
-          "line": 854,
+          "line": 857,
           "value": "44px",
           "selector": ":root"
         }
@@ -21526,13 +21214,13 @@
       "occurrences": [
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 2620,
+          "line": 2653,
           "value": "#d3a56c",
           "selector": ".hb-entity-details-dialog.electric-bed-details"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 8617,
+          "line": 8650,
           "value": "#d3a56c",
           "selector": ".hb-custom-popup-module--electric-bed"
         }
@@ -21549,13 +21237,13 @@
       "occurrences": [
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 9433,
+          "line": 9466,
           "value": "#8ec5e4",
           "selector": ".hb-custom-popup-module--air-purifier"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 9936,
+          "line": 9969,
           "value": "#8ec5e4",
           "selector": ".hb-entity-details-dialog.air-purifier-details"
         }
@@ -21572,13 +21260,13 @@
       "occurrences": [
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 9433,
+          "line": 9466,
           "value": "rgba(142, 197, 228, 0.12)",
           "selector": ".hb-custom-popup-module--air-purifier"
         },
         {
           "file": "homeos:public/static/renderer/renderer.css",
-          "line": 9936,
+          "line": 9969,
           "value": "rgba(142, 197, 228, 0.12)",
           "selector": ".hb-entity-details-dialog.air-purifier-details"
         }
@@ -21844,7 +21532,7 @@
     },
     {
       "file": "homeos:src/assets/styles/main.css",
-      "line": 692,
+      "line": 695,
       "selector": ".perf-low *, .perf-low ::before, .perf-low ::after",
       "count": 5
     },
@@ -21928,7 +21616,7 @@
     },
     {
       "file": "homeos:src/assets/styles/main.css",
-      "line": 880,
+      "line": 883,
       "selector": "*, *::before, *::after",
       "count": 3
     },
@@ -22114,25 +21802,25 @@
     },
     {
       "file": "homeos:src/assets/styles/main.css",
-      "line": 707,
+      "line": 710,
       "selector": ".perf-low .animate-stagger-1, .perf-low .animate-stagger-2, .perf-low .animate-stagger-3, .perf-low .animate-fade-in, .perf-low .animate-fade-in--fast, .perf-low .animate-fade-in-up, .perf-low .animate-scale-in, .perf-low .animate-afh-in, .perf-low .log-list-enter-active, .perf-low .log-list-move",
       "count": 2
     },
     {
       "file": "homeos:src/assets/styles/main.css",
-      "line": 966,
+      "line": 969,
       "selector": ":is(var(--glass-fallback-selectors))",
       "count": 2
     },
     {
       "file": "homeos:src/assets/styles/main.css",
-      "line": 1031,
+      "line": 1034,
       "selector": ".premium-head__orb, .rec-insight__orb, .hm-preset-card__icon, .schedule-preset-card__icon, .power-card__icon-wrap, .ef-preview__icon-wrap, .life-overview__cat-orb, .hm-template-card__icon, .hm-editor-head__icon, .settings-orch-orb, .hub-tabs-config__toggle, .hub-tabs-config__segment, .dev-metric__icon, .linkage-hub-card__icon, .linkage-overview__cat-orb, .lp-metrics__item, .diag-hero-orb, .diag-hero-orb--ok, .diag-hero-orb--warn, .diag-hero-orb--bad, .diag-metrics-ring, .diag-metrics-banner__orb--ok, .diag-metrics-banner__orb--warn, .diag-metrics-banner__orb--bad, .diag-config-health__eyebrow::before, .diag-section-title::before, .bind-sec-path, .bind-sec-path:hover, .bind-sec-path--homeos:hover, .bind-sec-path--ha:hover, .bind-sec-action--primary, .bind-doorbell-card:hover, .linkage-hub .list-page__btn--primary, .linkage-hub .list-page__btn--primary:hover:not(:disabled), .list-page__btn--primary, .list-page__btn--primary:hover:not(:disabled), .weather-fx-switch--on, .weather-fx-route-group__label::before, .sz-zone-card--focus, .settings-choice-btn--active svg, .sec-dash-mode-btn--active, .sec-mode-btn--active, .sec-dash-status-ring",
       "count": 2
     },
     {
       "file": "homeos:src/assets/styles/main.css",
-      "line": 1064,
+      "line": 1067,
       "selector": "html[data-glass-effect=\"static\"] :is(var(--glass-fallback-selectors))",
       "count": 2
     }

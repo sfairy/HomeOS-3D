@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-10-12T07:06:15.857Z",
-  "filesScanned": 2225,
-  "totalNames": 1822,
-  "referencedCount": 1102,
-  "deadCount": 2,
-  "jsInjectedCount": 652,
-  "reservedCount": 66,
+  "generatedAt": "2026-10-13T02:38:36.148Z",
+  "filesScanned": 2250,
+  "totalNames": 1856,
+  "referencedCount": 1123,
+  "deadCount": 12,
+  "jsInjectedCount": 663,
+  "reservedCount": 58,
   "dead": [
     {
       "name": "--hb-shadow-sm",
@@ -18,12 +18,112 @@
       ]
     },
     {
+      "name": "--link-auto",
+      "defCount": 1,
+      "defs": [
+        {
+          "file": "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css",
+          "line": 8
+        }
+      ]
+    },
+    {
+      "name": "--link-auto-rgb",
+      "defCount": 1,
+      "defs": [
+        {
+          "file": "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css",
+          "line": 9
+        }
+      ]
+    },
+    {
+      "name": "--link-danger",
+      "defCount": 1,
+      "defs": [
+        {
+          "file": "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css",
+          "line": 16
+        }
+      ]
+    },
+    {
+      "name": "--link-danger-rgb",
+      "defCount": 1,
+      "defs": [
+        {
+          "file": "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css",
+          "line": 17
+        }
+      ]
+    },
+    {
+      "name": "--link-fill-hover",
+      "defCount": 1,
+      "defs": [
+        {
+          "file": "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css",
+          "line": 28
+        }
+      ]
+    },
+    {
+      "name": "--link-ink-soft",
+      "defCount": 1,
+      "defs": [
+        {
+          "file": "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css",
+          "line": 21
+        }
+      ]
+    },
+    {
+      "name": "--link-presence-rgb",
+      "defCount": 1,
+      "defs": [
+        {
+          "file": "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css",
+          "line": 5
+        }
+      ]
+    },
+    {
+      "name": "--link-security",
+      "defCount": 1,
+      "defs": [
+        {
+          "file": "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css",
+          "line": 6
+        }
+      ]
+    },
+    {
+      "name": "--link-warn",
+      "defCount": 1,
+      "defs": [
+        {
+          "file": "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css",
+          "line": 14
+        }
+      ]
+    },
+    {
+      "name": "--link-warn-rgb",
+      "defCount": 1,
+      "defs": [
+        {
+          "file": "homeos/frontend/src/features/settings/automate/linkage/styles/linkage.css",
+          "line": 15
+        }
+      ]
+    },
+    {
       "name": "--tw-ring-color",
       "defCount": 1,
       "defs": [
         {
           "file": "homeos/frontend/src/features/security/CameraTile.vue",
-          "line": 119
+          "line": 136
         }
       ]
     }
@@ -35,11 +135,11 @@
       "sample": [
         {
           "file": "homeos/frontend/src/features/settings/composables/automate/security-modes-core.internals.ts",
-          "line": 37
+          "line": 49
         },
         {
           "file": "homeos/frontend/src/features/settings/composables/automate/security-modes-core.internals.ts",
-          "line": 37
+          "line": 49
         },
         {
           "file": "ops/ui-audit/collect-token-map.mjs",
@@ -338,20 +438,20 @@
       "defCount": 0,
       "sample": [
         {
-          "file": "homeos/frontend/scripts/_entity_control_logic_smoke.ts",
-          "line": 35
+          "file": "homeos/frontend/scripts/_camera_inspector_controls_smoke.ts",
+          "line": 39
         },
         {
-          "file": "homeos/frontend/scripts/_entity_control_logic_smoke.ts",
-          "line": 37
+          "file": "homeos/frontend/scripts/_camera_inspector_controls_smoke.ts",
+          "line": 41
         },
         {
-          "file": "homeos/frontend/scripts/_entity_control_logic_smoke.ts",
-          "line": 57
+          "file": "homeos/frontend/scripts/_camera_inspector_controls_smoke.ts",
+          "line": 48
         },
         {
-          "file": "homeos/frontend/scripts/_entity_control_logic_smoke.ts",
-          "line": 59
+          "file": "homeos/frontend/scripts/_camera_inspector_controls_smoke.ts",
+          "line": 50
         }
       ]
     },
@@ -582,12 +682,12 @@
           "line": 21
         },
         {
-          "file": "homeos/frontend/src/components/common/SettingsOrchTabs.vue",
-          "line": 49
+          "file": "homeos/frontend/src/components/common/PresencePersonListInput.vue",
+          "line": 42
         },
         {
-          "file": "homeos/frontend/src/components/common/asset-manager/AssetManagerHeader.vue",
-          "line": 14
+          "file": "homeos/frontend/src/components/common/SettingsOrchTabs.vue",
+          "line": 49
         }
       ]
     },
@@ -994,6 +1094,28 @@
         {
           "file": "homeos/frontend/src/composables/entity/useClimateControlPopup.ts",
           "line": 26
+        }
+      ]
+    },
+    {
+      "name": "--automation",
+      "defCount": 0,
+      "sample": [
+        {
+          "file": "homeos/frontend/src/features/settings/automate/linkage/AutomationSection.vue",
+          "line": 42
+        },
+        {
+          "file": "homeos/frontend/src/features/settings/automate/linkage/AutomationSection.vue",
+          "line": 46
+        },
+        {
+          "file": "homeos/frontend/src/features/settings/automate/linkage/AutomationSection.vue",
+          "line": 47
+        },
+        {
+          "file": "homeos/frontend/src/features/settings/automate/linkage/HomeModeMatrixSection.vue",
+          "line": 97
         }
       ]
     },
@@ -1479,7 +1601,7 @@
     },
     {
       "name": "--card-bg-3",
-      "defCount": 2,
+      "defCount": 1,
       "sample": [
         {
           "file": "ops/contracts/ui-token-map.json",
@@ -1631,7 +1753,7 @@
       "sample": [
         {
           "file": "homeos/frontend/src/studio/app/renderer/panel-seams/custom-popup.ts",
-          "line": 891
+          "line": 905
         },
         {
           "file": "homeos/frontend/src/studio/runtime/core/stage-device-visual.ts",
@@ -1730,12 +1852,12 @@
           "line": 7
         },
         {
-          "file": "homeos/frontend/src/components/common/base/VEmptyState.vue",
-          "line": 4
+          "file": "homeos/frontend/src/components/common/PresencePersonListInput.vue",
+          "line": 152
         },
         {
-          "file": "homeos/frontend/src/components/common/entity-input/EntityInputDropdown.vue",
-          "line": 60
+          "file": "homeos/frontend/src/components/common/base/VEmptyState.vue",
+          "line": 4
         }
       ]
     },
@@ -2399,7 +2521,7 @@
         },
         {
           "file": "homeos/frontend/src/features/settings/connect/bindings/SettingsBindingsCamerasSection.vue",
-          "line": 72
+          "line": 91
         }
       ]
     },
@@ -2630,12 +2752,12 @@
           "line": 3
         },
         {
-          "file": "homeos/frontend/src/components/widgets/weather/LifeIndices.vue",
-          "line": 6
+          "file": "homeos/frontend/src/components/common/PresencePersonListInput.vue",
+          "line": 20
         },
         {
           "file": "homeos/frontend/src/components/widgets/weather/LifeIndices.vue",
-          "line": 7
+          "line": 6
         }
       ]
     },
@@ -2686,6 +2808,16 @@
         {
           "file": "homeos/frontend/src/components/widgets/weather/SunInfo.vue",
           "line": 50
+        }
+      ]
+    },
+    {
+      "name": "--entities",
+      "defCount": 0,
+      "sample": [
+        {
+          "file": "homeos/frontend/src/components/common/PresencePersonListInput.vue",
+          "line": 143
         }
       ]
     },
@@ -3291,7 +3423,7 @@
       "sample": [
         {
           "file": "homeos/frontend/src/components/modals/DoorbellAlertModal.vue",
-          "line": 50
+          "line": 54
         }
       ]
     },
@@ -3595,11 +3727,11 @@
         },
         {
           "file": "homeos-store/backend/src/ops/appearance.py",
-          "line": 14
+          "line": 13
         },
         {
           "file": "homeos-store/backend/src/ops/appearance.py",
-          "line": 60
+          "line": 66
         },
         {
           "file": "homeos-store/backend/src/security/request_security.py",
@@ -3623,7 +3755,7 @@
       "sample": [
         {
           "file": "homeos/frontend/src/studio/app/renderer/panel-seams/custom-popup.ts",
-          "line": 1420
+          "line": 1434
         },
         {
           "file": "homeos/frontend/src/studio/app/renderer/panel-seams/entity-details.ts",
@@ -3665,7 +3797,7 @@
       "sample": [
         {
           "file": "homeos/frontend/src/studio/app/renderer/panel-seams/custom-popup.ts",
-          "line": 821
+          "line": 835
         },
         {
           "file": "homeos/frontend/src/studio/app/renderer/panel-seams/entity-details.ts",
@@ -3822,20 +3954,20 @@
       "defCount": 0,
       "sample": [
         {
+          "file": "homeos/frontend/src/components/common/PresencePersonListInput.vue",
+          "line": 54
+        },
+        {
+          "file": "homeos/frontend/src/components/common/PresencePersonListInput.vue",
+          "line": 94
+        },
+        {
           "file": "homeos/frontend/src/components/widgets/security/PanelWidget.vue",
           "line": 240
         },
         {
           "file": "homeos/frontend/src/components/widgets/weather/SunInfo.vue",
           "line": 64
-        },
-        {
-          "file": "homeos/frontend/src/components/widgets/weather/SunInfo.vue",
-          "line": 85
-        },
-        {
-          "file": "homeos/frontend/src/components/widgets/weather/SunInfo.vue",
-          "line": 92
         }
       ]
     },
@@ -3869,15 +4001,15 @@
         },
         {
           "file": "homeos-store/backend/src/ops/appearance.py",
-          "line": 12
+          "line": 13
         },
         {
-          "file": "homeos-store/backend/src/security/request_security.py",
-          "line": 238
+          "file": "homeos-store/backend/src/ops/appearance.py",
+          "line": 17
         },
         {
-          "file": "homeos-store/frontend/src/components/admin/PalettePanel.vue",
-          "line": 205
+          "file": "homeos-store/backend/src/ops/appearance.py",
+          "line": 18
         }
       ]
     },
@@ -5183,7 +5315,7 @@
       "sample": [
         {
           "file": "homeos/frontend/src/studio/app/editor/home.ts",
-          "line": 16977
+          "line": 16898
         },
         {
           "file": "homeos/frontend/src/studio/entries/EditorView.vue",
@@ -5290,6 +5422,16 @@
         {
           "file": "homeos/frontend/src/views/ModeTriggerLogsView.vue",
           "line": 104
+        }
+      ]
+    },
+    {
+      "name": "--linkage",
+      "defCount": 0,
+      "sample": [
+        {
+          "file": "homeos/frontend/src/features/settings/automate/SettingsSecurityModesPanel.vue",
+          "line": 58
         }
       ]
     },
@@ -5472,6 +5614,16 @@
       ]
     },
     {
+      "name": "--matrix",
+      "defCount": 0,
+      "sample": [
+        {
+          "file": "homeos/frontend/src/features/settings/automate/linkage/HomeModeMatrixSection.vue",
+          "line": 93
+        }
+      ]
+    },
+    {
       "name": "--max",
       "defCount": 0,
       "sample": [
@@ -5566,6 +5718,16 @@
         {
           "file": "homeos/frontend/src/layouts/MainLayout.vue",
           "line": 411
+        }
+      ]
+    },
+    {
+      "name": "--meter-cell-width",
+      "defCount": 0,
+      "sample": [
+        {
+          "file": "homeos/frontend/src/studio/app/bridge/temperature-humidity.ts",
+          "line": 148
         }
       ]
     },
@@ -5778,20 +5940,6 @@
         {
           "file": "homeos/frontend/src/views/EventsView.vue",
           "line": 57
-        }
-      ]
-    },
-    {
-      "name": "--module-accent-home-mode-rgb",
-      "defCount": 1,
-      "sample": [
-        {
-          "file": "homeos/frontend/src/features/home-mode/editor/HomeModePanelSection.vue",
-          "line": 19
-        },
-        {
-          "file": "homeos/frontend/src/views/ModeTriggerLogsView.vue",
-          "line": 13
         }
       ]
     },
@@ -6810,6 +6958,24 @@
       ]
     },
     {
+      "name": "--presence",
+      "defCount": 0,
+      "sample": [
+        {
+          "file": "homeos/frontend/src/features/settings/automate/linkage/PresenceSection.vue",
+          "line": 49
+        },
+        {
+          "file": "homeos/frontend/src/features/settings/automate/linkage/PresenceSection.vue",
+          "line": 53
+        },
+        {
+          "file": "homeos/frontend/src/features/settings/automate/linkage/PresenceSection.vue",
+          "line": 54
+        }
+      ]
+    },
+    {
       "name": "--presets",
       "defCount": 0,
       "sample": [
@@ -6890,6 +7056,16 @@
         {
           "file": "homeos/frontend/src/features/home-mode/editor/HomeModeBasicSection.vue",
           "line": 54
+        }
+      ]
+    },
+    {
+      "name": "--profile",
+      "defCount": 0,
+      "sample": [
+        {
+          "file": "homeos/frontend/src/components/common/PresencePersonListInput.vue",
+          "line": 112
         }
       ]
     },
@@ -7083,7 +7259,7 @@
     },
     {
       "name": "--radius-lg",
-      "defCount": 2,
+      "defCount": 1,
       "sample": [
         {
           "file": "ops/contracts/ui-token-map.json",
@@ -7279,7 +7455,7 @@
       "sample": [
         {
           "file": "homeos/frontend/src/studio/app/editor/home.ts",
-          "line": 16985
+          "line": 16906
         },
         {
           "file": "homeos/frontend/src/studio/entries/EditorView.vue",
@@ -7760,8 +7936,8 @@
           "line": 43
         },
         {
-          "file": "homeos/frontend/src/features/settings/composables/interact/agent-panel.internals.ts",
-          "line": 290
+          "file": "homeos/frontend/src/features/settings/automate/SettingsPresenceEntitiesSection.vue",
+          "line": 116
         }
       ]
     },
@@ -7857,7 +8033,7 @@
     },
     {
       "name": "--space-1",
-      "defCount": 2,
+      "defCount": 1,
       "sample": [
         {
           "file": "ops/contracts/ui-token-map.json",
@@ -7867,7 +8043,7 @@
     },
     {
       "name": "--space-2",
-      "defCount": 2,
+      "defCount": 1,
       "sample": [
         {
           "file": "ops/contracts/ui-token-map.json",
@@ -7877,7 +8053,7 @@
     },
     {
       "name": "--space-3",
-      "defCount": 2,
+      "defCount": 1,
       "sample": [
         {
           "file": "ops/contracts/ui-token-map.json",
@@ -7886,9 +8062,65 @@
       ]
     },
     {
+      "name": "--space-4",
+      "defCount": 1,
+      "sample": [
+        {
+          "file": "ops/contracts/ui-token-map.baseline.json",
+          "line": 14
+        },
+        {
+          "file": "ops/contracts/ui-token-map.json",
+          "line": 1318
+        }
+      ]
+    },
+    {
+      "name": "--space-5",
+      "defCount": 1,
+      "sample": [
+        {
+          "file": "ops/contracts/ui-token-map.baseline.json",
+          "line": 15
+        },
+        {
+          "file": "ops/contracts/ui-token-map.json",
+          "line": 1334
+        }
+      ]
+    },
+    {
+      "name": "--space-6",
+      "defCount": 1,
+      "sample": [
+        {
+          "file": "ops/contracts/ui-token-map.baseline.json",
+          "line": 16
+        },
+        {
+          "file": "ops/contracts/ui-token-map.json",
+          "line": 1350
+        }
+      ]
+    },
+    {
+      "name": "--space-7",
+      "defCount": 1,
+      "sample": [
+        {
+          "file": "ops/contracts/ui-token-map.json",
+          "line": 1636
+        }
+      ]
+    },
+    {
       "name": "--spaced",
       "defCount": 0,
       "sample": [
+        {
+          "file": "homeos/frontend/src/components/common/PresencePersonListInput.vue",
+          "line": 128
+        },
         {
           "file": "homeos/frontend/src/features/settings/display/floating/EditorHubTabsSection.vue",
           "line": 87
@@ -8118,6 +8350,16 @@
       ]
     },
     {
+      "name": "--stats-only",
+      "defCount": 0,
+      "sample": [
+        {
+          "file": "homeos/frontend/src/features/settings/automate/linkage/HeroSection.vue",
+          "line": 32
+        }
+      ]
+    },
+    {
       "name": "--status",
       "defCount": 0,
       "sample": [
@@ -8284,8 +8526,12 @@
       "defCount": 0,
       "sample": [
         {
+          "file": "homeos/frontend/src/features/settings/automate/SettingsSecurityModesLinkageSection.vue",
+          "line": 129
+        },
+        {
           "file": "homeos/frontend/src/features/settings/automate/SettingsSecurityModesPanel.vue",
-          "line": 59
+          "line": 63
         },
         {
           "file": "homeos/frontend/src/features/settings/display/floating/EditorHubTabsSection.vue",
@@ -8489,7 +8735,7 @@
       "sample": [
         {
           "file": "homeos/frontend/src/studio/app/renderer/registry/register-all.ts",
-          "line": 358
+          "line": 359
         }
       ]
     },
@@ -8499,7 +8745,7 @@
       "sample": [
         {
           "file": "homeos/frontend/src/studio/app/renderer/registry/register-all.ts",
-          "line": 366
+          "line": 367
         }
       ]
     },
@@ -8509,7 +8755,7 @@
       "sample": [
         {
           "file": "homeos/frontend/src/studio/app/renderer/registry/register-all.ts",
-          "line": 370
+          "line": 371
         }
       ]
     },
@@ -8519,7 +8765,7 @@
       "sample": [
         {
           "file": "homeos/frontend/src/studio/app/renderer/registry/register-all.ts",
-          "line": 362
+          "line": 363
         }
       ]
     },
@@ -8574,6 +8820,10 @@
       "defCount": 0,
       "sample": [
         {
+          "file": "homeos/frontend/src/components/common/PresencePersonListInput.vue",
+          "line": 44
+        },
+        {
           "file": "homeos/frontend/src/components/common/entity-multi-select/EntityMultiSelectTrigger.vue",
           "line": 25
         },
@@ -8584,10 +8834,6 @@
         {
           "file": "homeos/frontend/src/features/home-mode/components/HomeModePresenceBadge.vue",
           "line": 128
-        },
-        {
-          "file": "homeos/frontend/src/features/settings/display/floating/WidgetRow.vue",
-          "line": 41
         }
       ]
     },
@@ -9253,7 +9499,7 @@
       "defs": [
         {
           "file": "homeos/frontend/src/assets/styles/hos-design-system.css",
-          "line": 172
+          "line": 175
         }
       ]
     },
@@ -9468,16 +9714,6 @@
       ]
     },
     {
-      "name": "--accent-rose",
-      "defCount": 1,
-      "defs": [
-        {
-          "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 315
-        }
-      ]
-    },
-    {
       "name": "--accent-secondary",
       "defCount": 1,
       "defs": [
@@ -9578,16 +9814,6 @@
       ]
     },
     {
-      "name": "--card-bg-4",
-      "defCount": 1,
-      "defs": [
-        {
-          "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 381
-        }
-      ]
-    },
-    {
       "name": "--ease-apple",
       "defCount": 1,
       "defs": [
@@ -9598,62 +9824,12 @@
       ]
     },
     {
-      "name": "--glass-bg-lg",
-      "defCount": 1,
-      "defs": [
-        {
-          "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 393
-        }
-      ]
-    },
-    {
-      "name": "--glass-bg-md",
-      "defCount": 1,
-      "defs": [
-        {
-          "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 392
-        }
-      ]
-    },
-    {
-      "name": "--glass-bg-sm",
-      "defCount": 1,
-      "defs": [
-        {
-          "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 391
-        }
-      ]
-    },
-    {
       "name": "--glass-bg-xl",
       "defCount": 1,
       "defs": [
         {
           "file": "homeos/frontend/src/assets/styles/main.css",
           "line": 394
-        }
-      ]
-    },
-    {
-      "name": "--glass-bg-xs",
-      "defCount": 1,
-      "defs": [
-        {
-          "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 390
-        }
-      ]
-    },
-    {
-      "name": "--glass-border",
-      "defCount": 1,
-      "defs": [
-        {
-          "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 395
         }
       ]
     },
@@ -9683,7 +9859,7 @@
       "defs": [
         {
           "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 544
+          "line": 547
         }
       ]
     },
@@ -9693,7 +9869,7 @@
       "defs": [
         {
           "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 546
+          "line": 549
         }
       ]
     },
@@ -9703,7 +9879,7 @@
       "defs": [
         {
           "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 547
+          "line": 550
         }
       ]
     },
@@ -9793,7 +9969,7 @@
       "defs": [
         {
           "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 480
+          "line": 485
         }
       ]
     },
@@ -9803,7 +9979,7 @@
       "defs": [
         {
           "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 479
+          "line": 484
         }
       ]
     },
@@ -9813,7 +9989,7 @@
       "defs": [
         {
           "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 539
+          "line": 542
         }
       ]
     },
@@ -9823,7 +9999,7 @@
       "defs": [
         {
           "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 537
+          "line": 540
         }
       ]
     },
@@ -9833,7 +10009,7 @@
       "defs": [
         {
           "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 536
+          "line": 539
         }
       ]
     },
@@ -9843,7 +10019,7 @@
       "defs": [
         {
           "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 535
+          "line": 538
         }
       ]
     },
@@ -9853,17 +10029,7 @@
       "defs": [
         {
           "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 538
-        }
-      ]
-    },
-    {
-      "name": "--surface-border",
-      "defCount": 1,
-      "defs": [
-        {
-          "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 407
+          "line": 541
         }
       ]
     },
@@ -9873,7 +10039,7 @@
       "defs": [
         {
           "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 367
+          "line": 369
         }
       ]
     },
@@ -9883,7 +10049,7 @@
       "defs": [
         {
           "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 372
+          "line": 374
         }
       ]
     },
@@ -9893,7 +10059,7 @@
       "defs": [
         {
           "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 373
+          "line": 375
         }
       ]
     },
@@ -9903,11 +10069,11 @@
       "defs": [
         {
           "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 434
+          "line": 426
         },
         {
           "file": "homeos/frontend/src/assets/styles/main.css",
-          "line": 855
+          "line": 858
         }
       ]
     }

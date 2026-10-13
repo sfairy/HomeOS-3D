@@ -36,7 +36,7 @@ PYTHONPATH=homeos-store/backend .venv-store/bin/python -m app.run
 | `log`（本地默认） | 验证码打在服务日志 / `ops/dev.mjs` 终端，接口不回显 |
 | `smtp`（生产必用） | 真实发信；凭据可在 `/admin` → 站点配置 → 注册邮件改，保存即生效 |
 
-生产勿使用任何「响应里回显验证码」的通道（已删除）。SMTP 示例见根目录 `.env.example`。
+生产勿使用任何「响应里回显验证码」的通道（已删除）。邮件也可用 `STORE_MAIL_MODE` / `STORE_SMTP_*` 环境变量配置（读取逻辑见 `src/config.py`；这两组变量**不在** `.env.example` 模板里，需要时手工补进 `.env`）；推荐直接用后台配置。
 
 ### 必须单进程
 
@@ -74,7 +74,7 @@ PYTHONPATH=homeos-store/backend .venv-store/bin/python -m app.run
 
 ## 环境变量（常用）
 
-写根目录 `.env`。完整列表见 `.env.example`。
+写根目录 `.env`（或后台 `/admin` 站点配置）。`.env.example` 覆盖大部分变量，但 `STORE_MAIL_MODE` / `STORE_SMTP_*` / `STORE_SETUP_TOKEN` **不在模板里**，需要时手工补进 `.env`。
 
 | 变量 | 说明 |
 | --- | --- |
@@ -106,7 +106,7 @@ PYTHONPATH=homeos-store/backend .venv-store/bin/python -m app.run
 | 订单 | 仅未支付且无授权可删；已付走退款 |
 | 「标记支付」 | 人工放行，**不计入营收**；「线下收款入账」才计入 |
 
-能力码目录唯一出处：`ops/features.py`（与主应用 `BASE_FEATURES` 对齐）。新增能力先改主应用再补这里。
+能力码目录唯一出处：`ops/feature_codes.json`（由 `ops/check_feature_codes.py` 门禁校验，与主应用 `domains/license/features.py` 的 `BASE_FEATURES` 对齐）。新增能力先改主应用再补这里。
 
 ## 目录结构
 
@@ -117,7 +117,7 @@ homeos-store/
 │   └── core/ security/ commerce/ payments/ licensing/ ops/ api/
 ├── data/                   # 运行时（不入库）
 ├── keys/local/             # 授权私钥（不入库）
-├── frontend/               # pages / src / public
+├── frontend/               # index.html / src / public / vite.config.ts
 └── dist/                   # index.html + static
 ```
 
@@ -131,7 +131,7 @@ homeos-store/
 
 ## 前端约定
 
-- 样式源：`frontend/public/static/theme.css` 必须先于 `store.css` / `admin.css`。
+- 样式源：`frontend/public/static/` 的顺序是 `store-critical.css`（首屏关键样式）→ `theme.css` → `scene/*.css` → `store-shell.css` → `store.css`，以 `frontend/index.html` 为准；`admin.css` 由 `App.vue` 在后台路由下动态注入，须晚于 `theme.css`。
 - 构建：`bun run --cwd homeos-store build` → 工作区根 `dist/homeos-store/frontend/`；`auth-bootstrap` 仍为首屏前 IIFE。
 - 配色注入点：构建后的 `dist/homeos-store/frontend/index.html` 外壳里的 appearance 占位；漏一处会 500（刻意）。
 - 配色令牌名：本目录 `ops/appearance.py` 的 `_TOKEN_NAME` / `_TOKEN_NAME_EXTRA` 与前端

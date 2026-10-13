@@ -64,8 +64,9 @@ HomeOS/
 | homeos | `homeos` | 8801 | 8803 | 3D 户型展示、编辑器（管理员后台进入）、HA、授权 |
 | homeos-store | `homeos-store` | 8802 | 8804 | 商店前台、运营后台、授权签发 |
 
-> **容器名 / 镜像名 / 卷名里的 `homeos` 是刻意保留的**：主应用源码目录已由 `homeos`
-> 并入 `homeos`，但 compose 项目名、容器名、镜像名与数据卷名换了就等于**换了一套卷**
+> **容器名 / 镜像名 / 卷名里的 `homeos` 是刻意保留的**：运行期命名已由 `homeos-3d` / `homeos-3d-store`
+> 收敛为 `homeos` / `homeos-store`（一次性迁移见 `ops/deploy/UPGRADE.md` 与 `ops/deploy/migrate_naming.sh`），
+> 但 compose 项目名、容器名、镜像名与数据卷名换了就等于**换了一套卷**
 > （存量部署的数据会看起来「丢了」），而且容器 hostname 会参与授权实例指纹。所以运行期
 > 身份一律不动，只改源码路径与构建产物路径。
 
@@ -159,8 +160,8 @@ bun run dev:runtime
 | `bun run verify:independence` | 独立部署护栏（`ops/check_deploy_independence.py`）：两后端源码/两前端源码/两份 `package.json` 互不引用（跨界只允许 `@homeos/shared`）、Dockerfile 只有一个构建阶段且源码只能由 `--build-arg PROJECT` 选（`ARG PROJECT` 不许有默认值）、`ops/build.py` 的 PROJECTS 表与 Dockerfile 的 `case "$PROJECT"` 双向对账、运行阶段各装各的产物与两个构建阶段各自内联 `packages/shared-py`；含 33 项注入式自检 |
 | `bun run verify:schema` | 库结构门禁（`ops/check_schema.py`）：迁移脚本 ↔ ORM 元数据 ↔ 实际结构 ↔ 发行路径建库 |
 | `bun run verify:smoke` | 商店侧冒烟：端到端判定口径（`smoke_store.py`）+ 结构漂移护栏 |
-| `bun run verify:smoke:app` | 主应用侧冒烟：认证契约 + 注册→登录→激活 + HA 白名单 + HA 取状态容错 + 结构漂移护栏 + 模块功能码门禁 + 授权激活 e2e（商店未跑则 SKIP） |
-| `bun run verify:smoke:frontend` | Esc 层级栈回归（`_esc_stack_smoke.ts`）：栈行为 + 全部 overlay 静态接线扫描 |
+| `bun run verify:smoke:app` | 主应用侧冒烟：认证契约 + 注册→登录→激活 + HA 白名单 + HA 取状态容错 + 结构漂移护栏 + 模块功能码门禁 + 授权激活 e2e（商店未跑则 SKIP）+ WS 广播 + 全量备份 + go2rtc 中继 |
+| `bun run verify:smoke:frontend` | 前端纯逻辑冒烟（6 个脚本）：Esc 层级栈回归 + 实体控制逻辑 + 场景更新计划 + `requestJson` 请求面 + 摄像头检查器控件 + go2rtc MSE over WebSocket |
 
 ### 首次联调流程
 
@@ -274,7 +275,7 @@ cp .env.example .env
 ./ops/deploy/deploy.sh
 
 # 钉版本 / 只看将执行的命令（不写文件、不调用 docker）
-./ops/deploy/deploy.sh --version 0.7.4
+./ops/deploy/deploy.sh --version 0.7.5
 ./ops/deploy/deploy.sh --dry-run
 ```
 
@@ -383,7 +384,7 @@ bun run build
 也可以直接把基础镜像钉到任意镜像站 / 私有仓库：`--python-image <ref>`、`--caddy-image <ref>`。
 
 可用构建参数：`--build-arg CYTHON_VERSION=3.2.9`、`--build-arg PYTHON_IMAGE=...`、`--build-arg CADDY_IMAGE=...`。
-不传 `--build-arg HOMEOS_VERSION=0.7.4` 时，构建阶段会自己从 `package.json` 读版本号（镜像内没有 VERSION 文件，版本号由构建期生成的 `src/_version.py` 携带）。
+不传 `--build-arg HOMEOS_VERSION=0.7.5` 时，构建阶段会自己从 `package.json` 读版本号（镜像内没有 VERSION 文件，版本号由构建期生成的 `src/_version.py` 携带）。
 
 ### 七、数据卷与备份
 
@@ -415,9 +416,9 @@ docker run --rm -v homeos_homeos-data:/data \
 
 ```bash
 # ① 厂商机：先升中心商店
-./ops/deploy/upgrade.sh --role store --version 0.7.4
+./ops/deploy/upgrade.sh --role store --version 0.7.5
 # ② 每台客户机：逐个升到同一版本
-./ops/deploy/upgrade.sh --role app --version 0.7.4
+./ops/deploy/upgrade.sh --role app --version 0.7.5
 ```
 
 升级前可先核对各机版本：`./ops/deploy/upgrade.sh --check`。完整清单、客户通知模板与回滚

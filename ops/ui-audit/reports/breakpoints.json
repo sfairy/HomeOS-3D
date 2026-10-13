@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-12T07:06:03.232Z",
-  "mediaTotal": 397,
+  "generatedAt": "2026-10-13T02:38:36.811Z",
+  "mediaTotal": 403,
   "distinctWidths": 44,
   "canonicalSet": [
     380,
@@ -144,12 +144,12 @@
     },
     {
       "width": 720,
-      "count": 39,
+      "count": 41,
       "kinds": [
         "max",
         "min"
       ],
-      "fileCount": 25,
+      "fileCount": 27,
       "canonical": false
     },
     {
@@ -437,11 +437,11 @@
     },
     {
       "width": 639,
-      "count": 61,
+      "count": 63,
       "kinds": [
         "max"
       ],
-      "fileCount": 52,
+      "fileCount": 54,
       "canonical": true
     },
     {
@@ -492,12 +492,12 @@
     },
     {
       "width": 720,
-      "count": 39,
+      "count": 41,
       "kinds": [
         "max",
         "min"
       ],
-      "fileCount": 25,
+      "fileCount": 27,
       "canonical": false
     },
     {
@@ -557,7 +557,7 @@
     },
     {
       "width": 900,
-      "count": 52,
+      "count": 53,
       "kinds": [
         "max",
         "min"
@@ -732,15 +732,15 @@
   "topQueries": [
     {
       "query": "(prefers-reduced-motion: reduce)",
-      "count": 75
+      "count": 76
     },
     {
       "query": "(max-width: 639px)",
-      "count": 52
+      "count": 54
     },
     {
       "query": "(max-width: 720px)",
-      "count": 34
+      "count": 36
     },
     {
       "query": "(max-width: 900px)",
@@ -752,7 +752,7 @@
     },
     {
       "query": "(pointer: coarse), (hover: none), (max-width: 900px)",
-      "count": 14
+      "count": 15
     },
     {
       "query": "(max-width: 1100px)",

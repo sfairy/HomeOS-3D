@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-12T07:53:31.292Z",
+  "generatedAt": "2026-10-13T02:38:34.293Z",
   "files": [
     {
       "label": "homeos 主控制设计系统",
@@ -104,7 +104,7 @@
       "file": "homeos/frontend/src/assets/styles/main.css",
       "scopes": {
         "root": {
-          "pairs": 35,
+          "pairs": 30,
           "failBody": 0,
           "failLarge": 0,
           "worst": [

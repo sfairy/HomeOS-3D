@@ -1,6 +1,6 @@
 # page-shell
 
-Shared page chrome (hero / metrics / query toolbar).
+共享页面外壳（hero / 指标 / 查询工具条）。
 
-Events and notifications still have domain-specific `ViewHero` / `ViewToolbar` under `views/*`;
-new list pages should prefer these `ListPage*` components.
+事件与通知两页仍各自有域内的 `ViewHero` / `ViewToolbar`，位于 `views/*` 下；
+新增列表页应优先使用这些 `ListPage*` 组件。

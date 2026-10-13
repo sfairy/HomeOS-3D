@@ -70,14 +70,16 @@ node ops/ui-audit/prune-tokens.mjs --write # 删除全仓无引用的自定义�
 
 | 指标 | 数值 |
 | --- | --- |
-| 对比度（3 个作用域 85 组配对） | 正文不达 AA **0**，图形不达 3:1 **0** |
+| 对比度（3 个作用域 92 组配对） | 正文不达 AA **0**，图形不达 3:1 **0** |
 | 跨文件完全重复规则 | 真冗余 **0**（刻意重复 61：cross-bundle 29 / scoped-distinct 28 / cross-project 4） |
 | 同源镜像重复规则 | 449（由 `verify_scene_sync.py` 保证） |
-| 令牌引用 | 有使用 1117 / 仅脚本 637 / 字典预留 66 / 无使用 **2** |
-| 无使用令牌剩余 2 个 | `--hb-shadow-sm`（`theme.css`）、`--tw-ring-color`（`CameraTile.vue`，Tailwind 运行时内部） |
-| 令牌契约 | 612 个样式源 / 15246 次引用，未解析且无回退 **0**，未解析但有回退 50 |
-| 硬编码色 | hex 7263（去重 1823）、rgb/hsl 8461（去重 1897） |
+| 令牌引用 | 有使用 1123 / 仅脚本 663 / 字典预留 58 / 无使用 **12** |
+| 无使用令牌剩余 12 个 | `--hb-shadow-sm`（`homeos-store/frontend/public/static/theme.css`）、`--tw-ring-color`（`CameraTile.vue`，Tailwind 运行时内部），以及 `features/settings/automate/linkage/styles/linkage.css` 里 10 个未接线的 `--link-*`（`--link-presence-rgb` / `--link-security` / `--link-auto(-rgb)` / `--link-warn(-rgb)` / `--link-danger(-rgb)` / `--link-ink-soft` / `--link-fill-hover`） |
+| 令牌契约 | 624 个样式源 / 15556 次引用，未解析且无回退 **0**，未解析但有回退 41 |
+| 硬编码色 | hex 7217（去重 1821）、rgb/hsl 8612（去重 1903） |
 | 规范外断点 | 34 |
+
+> 本表是快照，由 `reports/*.json` 派生；改过样式后重跑 `run-all.mjs`（或对应单个脚本）再回头核一遍数字。
 
 ## 令牌契约门禁检出的问题（已修）
 
