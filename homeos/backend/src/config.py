@@ -404,7 +404,9 @@ def load_settings() -> Settings:
     return Settings(
         data_dir=data_dir,
         store_url=os.getenv("APP_STORE_URL", "").strip().rstrip("/"),
-        update_checks_enabled=True,
+        # 冒烟脚本会设 UPDATE_CHECKS_ENABLED=0 以免生命周期里真的去联网查更新；此前这里写死 True，
+        # 那个环境变量没人读，等于「脚本以为关掉了、实际每次都启动 UpdateChecker」。
+        update_checks_enabled=_environment_bool("UPDATE_CHECKS_ENABLED", default=True),
         update_channel=os.getenv("APP_UPDATE_CHANNEL", "docker").strip().lower() or "docker",
         update_endpoints=_environment_csv("APP_UPDATE_ENDPOINTS"),
         jwt_secret=os.getenv("JWT_SECRET", "").strip(),
