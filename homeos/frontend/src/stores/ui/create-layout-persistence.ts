@@ -135,6 +135,26 @@ interface LayoutPersistenceDeps {
  * @param raw 原始 statsSensors 对象
  * @returns 规范化后的配置
  */
+/**
+ * 展示页开关灯背景图的**历史默认值**映射。
+ *
+ * 默认底图从 PNG 换成无损 WebP（体积降约 35% 且像素逐一相同），但这两个 URL 是
+ * **持久化**在 `layoutConfig.lightOn/OffBackgroundUrl` 里的：老存档与老导出布局存着
+ * `.png` 路径，文件已删，不迁移就是 404。这里只重写这两个历史默认值，
+ * 用户自己上传/拾取的地址原样保留（不在表里就透传）。
+ */
+const LEGACY_BACKDROP_URLS: Record<string, string> = {
+  '/backgrounds/light_on.png': '/backgrounds/light_on.webp',
+  '/backgrounds/light_off.png': '/backgrounds/light_off.webp',
+}
+
+/** 归一化背景图 URL：空值返回 `undefined`（由调用方回落到默认值），历史默认值转成新路径。 */
+function normalizeDisplayBackdropUrl(raw: unknown): string | undefined {
+  const url = String(raw ?? '').trim()
+  if (!url) return undefined
+  return LEGACY_BACKDROP_URLS[url] ?? url
+}
+
 function sanitizeStatsSensors(raw: Record<string, unknown> | null | undefined) {
   const defaults = getDefaultLayout().statsSensors
   const src = raw || {}
@@ -296,6 +316,12 @@ export function createLayoutPersistence({
       ...getDefaultLayout(),
       ...layout,
       floatingWidgets: migrateLayoutFloors(layout),
+      lightOnBackgroundUrl:
+        normalizeDisplayBackdropUrl(layout.lightOnBackgroundUrl) ??
+        getDefaultLayout().lightOnBackgroundUrl,
+      lightOffBackgroundUrl:
+        normalizeDisplayBackdropUrl(layout.lightOffBackgroundUrl) ??
+        getDefaultLayout().lightOffBackgroundUrl,
       rightPanelWidgets: sanitizePanelWidgets(layout.rightPanelWidgets),
       securityEmergency: normalizeSecurityEmergency({
         ...getDefaultLayout().securityEmergency,

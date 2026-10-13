@@ -14,7 +14,7 @@ export function createInteraction3dCover({ showTitle = true } = {}) {
   coverElement.className = "interaction3d-cover";
   const imageElement = document.createElement("img");
   ((imageElement.src =
-    "/static/component-thumbnails/interaction3d.png"),
+    "/static/component-thumbnails/interaction3d.webp"),
     (imageElement.alt = ""),
     (imageElement.decoding = "async"));
   const titleElement = document.createElement("span");

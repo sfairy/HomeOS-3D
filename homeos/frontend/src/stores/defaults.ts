@@ -24,8 +24,8 @@ import type { UILayoutConfig } from '@/shared/types/layout'
  */
 function createDefaultLayout(): UILayoutConfig {
   return {
-    lightOnBackgroundUrl: '/backgrounds/light_on.png',
-    lightOffBackgroundUrl: '/backgrounds/light_off.png',
+    lightOnBackgroundUrl: '/backgrounds/light_on.webp',
+    lightOffBackgroundUrl: '/backgrounds/light_off.webp',
     // 悬浮组件（顶层）
     floatingWidgets: [],
     pageMaxWidth: 1366,

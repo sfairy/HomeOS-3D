@@ -16,8 +16,8 @@ import { computed, type ComputedRef } from 'vue'
 import { useEntitiesStore } from '@/stores/entities.store'
 import { useLayoutStore } from '@/stores/layout.store'
 
-const DEFAULT_LIGHT_ON_URL = '/backgrounds/light_on.png'
-const DEFAULT_LIGHT_OFF_URL = '/backgrounds/light_off.png'
+const DEFAULT_LIGHT_ON_URL = '/backgrounds/light_on.webp'
+const DEFAULT_LIGHT_OFF_URL = '/backgrounds/light_off.webp'
 
 export interface DisplayLightBackdropState {
   /** 是否任意（或收藏的）灯处于开启状态。 */
